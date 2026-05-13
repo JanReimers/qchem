@@ -76,26 +76,6 @@ rvec_t Gaussian_IBS_Evaluator::norms() const
 }
 
 
-rsmat_t Gaussian_IBS_Evaluator::Repulsion() const
-{
-    size_t N=size();
-    rsmat_t S(N);
-    for (auto i:iv_t(0,N))
-        for (auto j:iv_t(i,N))
-            S(i,j)= ::Repulsion(es[i],es[j],l,l)*ns[i]*ns[j];
-
-    return S;
-}
-
-rvec_t Gaussian_IBS_Evaluator::Charge() const
-{
-    rvec_t V(size());
-    for (auto i:iv_t(0,size()))
-            V[i]= ::Charge(es[i],l)*ns[i];
-
-    return V;
-}
-
 rmat_t Gaussian_IBS_Evaluator::XRepulsion(const IBS_Evaluator& _b) const
 {
     const Gaussian_IBS_Evaluator& b=dynamic_cast<const Gaussian_IBS_Evaluator&>(_b);

@@ -52,10 +52,8 @@ public:
 
     virtual size_t        GetVectorSize() const {return size();}
 
-    virtual rsmat_t Repulsion () const=0;
-    virtual  rvec_t Charge    () const=0;
     virtual  rvec_t Norm      () const=0;
-    
+   
     virtual rmat_t XRepulsion(const IBS_Evaluator&) const=0;
     virtual rmat_t XKinetic  (const IBS_Evaluator&) const=0;
     virtual std::string RadialID () const=0;

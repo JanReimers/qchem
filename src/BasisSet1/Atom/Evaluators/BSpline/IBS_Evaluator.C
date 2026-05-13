@@ -83,12 +83,6 @@ public:
         using namespace bspline::operators; 
         return 1.0/sqrt(BilinearForm{X<2>{}}(splines[i],splines[i])*FourPi);
     }
-    virtual rsmat_t Overlap  () const;
-    virtual rsmat_t Grad2    () const;
-    virtual rsmat_t Inv_r1   () const;
-    virtual rsmat_t Inv_r2   () const;
-    virtual rsmat_t Repulsion() const;
-    virtual  rvec_t Charge   () const;
     virtual  rvec_t Norm     () const {return ns;}
     virtual rmat_t XRepulsion(const IBS_Evaluator&) const;
     virtual rmat_t XKinetic  (const IBS_Evaluator&) const;

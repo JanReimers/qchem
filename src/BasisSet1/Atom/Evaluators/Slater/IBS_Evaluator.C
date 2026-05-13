@@ -71,8 +71,6 @@ public:
         return 1.0/sqrt(Slater::Integral(2*es[i],2*l));
     }
 
-    virtual rsmat_t Repulsion() const;
-    virtual  rvec_t Charge   () const;
     virtual  rvec_t Norm     () const {return ns;}
     virtual rmat_t XRepulsion(const IBS_Evaluator&) const;
     virtual rmat_t XKinetic  (const IBS_Evaluator&) const;

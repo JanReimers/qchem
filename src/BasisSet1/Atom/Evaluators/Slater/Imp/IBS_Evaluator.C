@@ -80,16 +80,6 @@ rvec_t Slater_IBS_Evaluator::norms() const
 }
 
 
-rsmat_t Slater_IBS_Evaluator::Repulsion() const
-{
-    size_t N=size();
-    rsmat_t S(N);
-    for (auto i:iv_t(0,N))
-        for (auto j:iv_t(i,N))
-            S(i,j)= ::Repulsion(es[i],es[j],l,l)*ns[i]*ns[j];
-
-    return S;
-}
 
 rmat_t Slater_IBS_Evaluator::XRepulsion(const IBS_Evaluator& _b) const
 {
@@ -113,50 +103,6 @@ rmat_t Slater_IBS_Evaluator::XKinetic(const IBS_Evaluator& _b) const
                 M(i,j)=(Grad2(es[i],b.es[j],l,l) + l*(l+1)*Inv_r2(es[i],b.es[j],2*l))*ns[i]*b.ns[j];
     return M;
 }
-
-
-rvec_t Slater_IBS_Evaluator::Charge() const
-{
-    rvec_t V(size());
-    for (auto i:iv_t(0,size()))
-            V[i]= ::Charge(es[i],l)*ns[i];
-
-    return V;
-}
-
-// dERI3 Slater_IBS_Evaluator::Overlap  (const IBS_Evaluator& _c) const
-// {
-//     const Slater_IBS_Evaluator& c=dynamic_cast<const Slater_IBS_Evaluator&>(_c);
-//     dERI3 S3;
-//     size_t N=size();
-//     for (size_t ic=0;ic<c.size();ic++) 
-//     {
-//         rsmat_t S(N);
-//         for (auto i:iv_t(0,N))
-//             for (auto j:iv_t(i,N))
-//                 S(i,j)=::Overlap(es[i]+es[j],c.es[ic],l+l+c.l)*ns[i]*ns[j]*c.ns[ic];  
-        
-//         S3.push_back(S);
-//     }
-//     return S3;
-// }
-// dERI3 Slater_IBS_Evaluator::Repulsion(const IBS_Evaluator& _c) const
-// {
-//     const Slater_IBS_Evaluator& c=dynamic_cast<const Slater_IBS_Evaluator&>(_c);
-//     dERI3 S3;
-//     size_t N=size();
-//     for (size_t ic=0;ic<c.size();ic++) 
-//     {
-//         rsmat_t S(N);
-//         for (auto i:iv_t(0,N))
-//             for (auto j:iv_t(i,N))
-//                 S(i,j)=::Repulsion(es[i]+es[j],c.es[ic],l,c.l)*ns[i]*ns[j]*c.ns[ic];  
-        
-//         S3.push_back(S);
-//     }
-//     return S3;
-// }
-
 
 
 rvec_t Slater_IBS_Evaluator::operator() (const rvec3_t& r) const

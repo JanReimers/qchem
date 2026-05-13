@@ -136,7 +136,10 @@ template <isEvaluator E> void BasisSet_Common<E>::TestCharge (double eps) const
 {
     for (auto ev:evals)
     {
-        rvec_t S=ev->Charge();
+        size_t N=ev->size();
+        rvec_t S(N);
+        for (auto i:iv_t(0,N))
+                S[i]= ev->Charge(i);
         rvec_t Snum = mintegrator->Integrate(*ev);
         EXPECT_NEAR(max(abs(S-Snum)),0.0,eps);
     }
@@ -234,7 +237,11 @@ TEST_F(BasisSet_SL,AnalyticRepulsion)
     {
         int l=ev->Getl();
         if (l>=3) continue;
-        rsmat_t S=ev->Repulsion();
+        size_t N=ev->size();
+        rsmat_t S(N);
+        for (auto i:iv_t(0,N))
+            for (auto j:iv_t(i,N))
+                S(i,j)= ev->Repulsion(i,j);
         // cout << "l=" << l << " S=" << S << endl;
         rvec_t   ns=ev->Norm();
         for (auto i:iv_t(0,S.rows()))
@@ -354,7 +361,11 @@ TEST_F(BasisSet_SG,AnalyticRepulsion)
     {
         int l=ev->Getl();
         if (l>=3) continue;
-        rsmat_t S=ev->Repulsion();
+        size_t N=ev->size();
+        rsmat_t S(N);
+        for (auto i:iv_t(0,N))
+            for (auto j:iv_t(i,N))
+                S(i,j)= ev->Repulsion(i,j);
         // cout << "l=" << l << " S=" << S << endl;
         rvec_t   ns=ev->Norm();
          for (auto i:iv_t(0,S.rows()))

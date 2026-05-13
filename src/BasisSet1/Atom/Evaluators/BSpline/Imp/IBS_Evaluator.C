@@ -17,60 +17,25 @@ using namespace bspline::integration;
 
 template<size_t K> using spline_t = bspline::Spline<double, K>;
 
-template <size_t K> double Repulsion(const spline_t<K>& ab , const spline_t<K>& c,size_t la,size_t lc)
-{    
-    assert(false);
-    return 0.0;
-}
-
-template <size_t K1,size_t K2> double Overlap(const spline_t<K1>& a , const spline_t<K2>& b,size_t l_total,const GLCache& gl)
-{
-    std::function< double (double)> x2 = [](double r)
-    {
-        return r*r;
-    };
+    // Alternate Overlap without operators.
+    // std::function< double (double)> x2 = [](double r) {return r*r;};
     // return gl.Integrate(x2,a,b)*FourPi;
-    return BilinearForm{X<2>{}}(a,b)*FourPi;
-}
 
-template <size_t K> double Grad2(const spline_t<K>& a , const spline_t<K>& b,size_t la, size_t lb,const GLCache& gl)
-{
-    // std::function< double (double)> x1 = [](double r)
-    // {
-    //     return r;
-    // };    
+    // Alternate Grad2
+    // std::function< double (double)> x1 = [](double r) {return r;};    
     // static const auto T = -X<2>{} * Dx<2>{};
     // assert(la==lb);
     // auto dbdx=transformSpline(bspline::operators::Dx<1>{},b);
     // double Iadb=gl.Integrate(x1,a,dbdx);
     // return (BilinearForm{T}(a,b) - 2*Iadb)*FourPi;
-    static const auto T = -X<2>{} * Dx<2>{} - 2 * X<1>{} * Dx<1>{};
-    return BilinearForm{T}(a,b)*FourPi;
-}
 
-template <size_t K> double Inv_r1(const spline_t<K>& a , const spline_t<K>& b,size_t l_total,const GLCache& gl)
-{
-    // std::function< double (double)> x1 = [](double r)
-    // {
-    //     return r;
-    // };
+    // Alternate Inv_r1
+    // std::function< double (double)> x1 = [](double r) {return r;};
     // return gl.Integrate(x1,a,b)*FourPi;
-    return BilinearForm{X<1>{}}(a,b)*FourPi; 
-}
-template <size_t K> double Inv_r2(const spline_t<K>& a , const spline_t<K>& b,size_t l_total,const GLCache& gl)
-{
-    // std::function< double (double)> x0 = [](double r)
-    // {
-    //     return 1.0;
-    // };
-    // return gl.Integrate(x0,a,b)*FourPi;    
-    return BilinearForm{IdentityOperator{}}(a,b)*FourPi; 
-}
 
-template <size_t K> double Charge(const spline_t<K>& a , size_t l)
-{
-    return LinearForm{X<2>{}}(a)*FourPi;
-}
+    // Alternate Inv_r2
+    // std::function< double (double)> x0 = [](double r){return 1.0;};
+    // return gl.Integrate(x0,a,b)*FourPi;    
 
 //---------------------------------------------------------------------------
 //
@@ -149,73 +114,10 @@ template <size_t K> rvec_t BSpline_IBS_Evaluator<K>::norms() const
 {
     size_t N=splines.size();
     rvec_t ret(N);
-    for (size_t i=0;i<N;i++) ret[i]=1.0/sqrt(::Overlap(splines[i],splines[i],2*l,*itsGL)); 
+    for (size_t i=0;i<N;i++) ret[i]=1.0/sqrt(BilinearForm{X<2>{}}(splines[i],splines[i])*FourPi); 
     return ret;
 }
 
-template <size_t K> rsmat_t BSpline_IBS_Evaluator<K>::Overlap() const
-{
-    size_t N=size();
-    rsmat_t S(N);
-    for (auto i:iv_t(0,N))
-        for (auto j:iv_t(i,N))
-            S(i,j)= ::Overlap(splines[i],splines[j],2*l,*itsGL)*ns[i]*ns[j];
-
-    return S;
-}
-
-template <size_t K> rsmat_t BSpline_IBS_Evaluator<K>::Grad2() const
-{
-    size_t N=size();
-    rsmat_t S(N);
-    for (auto i:iv_t(0,N))
-        for (auto j:iv_t(i,N))
-            S(i,j)= ::Grad2(splines[i],splines[j],l,l,*itsGL)*ns[i]*ns[j];
-
-    return S;
-}
-
-template <size_t K> rsmat_t BSpline_IBS_Evaluator<K>::Inv_r1() const
-{
-    size_t N=size();
-    rsmat_t S(N);
-    for (auto i:iv_t(0,N))
-        for (auto j:iv_t(i,N))
-            S(i,j)= ::Inv_r1(splines[i],splines[j],2*l,*itsGL)*ns[i]*ns[j];
-
-    return S;
-}
-
-template <size_t K> rsmat_t BSpline_IBS_Evaluator<K>::Inv_r2() const
-{
-    size_t N=size();
-    rsmat_t S(N);
-    for (auto i:iv_t(0,N))
-        for (auto j:iv_t(i,N))
-            S(i,j)= ::Inv_r2(splines[i],splines[j],2*l,*itsGL)*ns[i]*ns[j];
-
-    return S;
-}
-
-template <size_t K> rsmat_t BSpline_IBS_Evaluator<K>::Repulsion() const
-{
-    size_t N=size();
-    rsmat_t S(N);
-    for (auto i:iv_t(0,N))
-        for (auto j:iv_t(i,N))
-            S(i,j)= ::Repulsion(splines[i],splines[j],l,l)*ns[i]*ns[j];
-
-    return S;
-}
-
-template <size_t K> rvec_t BSpline_IBS_Evaluator<K>::Charge() const
-{
-    rvec_t V(size());
-    for (auto i:iv_t(0,size()))
-            V[i]= ::Charge(splines[i],l)*ns[i];
-
-    return V;
-}
 
 template <size_t K> rmat_t BSpline_IBS_Evaluator<K>::XRepulsion(const IBS_Evaluator& _b) const
 {
@@ -224,7 +126,7 @@ template <size_t K> rmat_t BSpline_IBS_Evaluator<K>::XRepulsion(const IBS_Evalua
     rmat_t M(Nr,Nc);
     for (auto i:iv_t(0,Nr))
             for (auto j:iv_t(0,Nc))
-                M(i,j)=::Repulsion(splines[i],b.splines[j],l,b.l)*ns[i]*b.ns[j];
+                M(i,j)=Repulsion(i,j);
     return M;
 }
 
@@ -236,7 +138,7 @@ template <size_t K> rmat_t BSpline_IBS_Evaluator<K>::XKinetic(const IBS_Evaluato
     rmat_t M(Nr,Nc);
     for (auto i:iv_t(0,Nr))
             for (auto j:iv_t(0,Nc))
-                M(i,j)=(::Grad2(splines[i],b.splines[j],l,l,*itsGL) + l*(l+1)*::Inv_r2(splines[i],b.splines[j],2*l,*itsGL))*ns[i]*b.ns[j];
+                M(i,j)=Grad2(i,j) + l*(l+1)*Inv_r2(i,j);
     return M;
 }
 
