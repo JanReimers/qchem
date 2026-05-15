@@ -6,7 +6,6 @@ module;
 #include "forward.H"
 
 export module qchem.BasisSet1.Atom.IBS;
-import qchem.BasisSet1.Atom.IE;
 import qchem.BasisSet1.Internal.IrrepBasisSetImp;
 import qchem.BasisSet1.Internal.Orbital_DHF_IBS;
 import qchem.BasisSet1.IrrepBasisSet;
@@ -25,20 +24,19 @@ namespace Atom
 template <isEvaluator E> class IrrepBasisSetImp
     : public virtual BasisSet1::IrrepBasisSet<double>
     , public virtual IrrepBasisSet_IDs
-    , public virtual Integrals_Base
     , public BasisSet1::IrrepBasisSetImp<double> //Pulls in Symmetry support
 {
 public:
     IrrepBasisSetImp(const Irrep_QNs::sym_t& yl) : BasisSet1::IrrepBasisSetImp<double>(yl) {}
-    virtual rvec_t     operator() (const rvec3_t& r) const {return Evaluator().operator()(r);}
-    virtual rvec3vec_t Gradient   (const rvec3_t& r) const {return Evaluator().Gradient(r);}
+    virtual rvec_t     operator() (const rvec3_t& r) const {return Cast().operator()(r);}
+    virtual rvec3vec_t Gradient   (const rvec3_t& r) const {return Cast().Gradient(r);}
    
-    virtual std::string RadialID () const {return Evaluator().RadialID();}
-    virtual std::string AngularID() const {return Evaluator().AngularID();}
-    virtual std::string Name     () const {return Evaluator().Name();}
+    virtual std::string RadialID () const {return Cast().RadialID();}
+    virtual std::string AngularID() const {return Cast().AngularID();}
+    virtual std::string Name     () const {return Cast().Name();}
 
 protected:
-    auto& Evaluator() const {return dynamic_cast<const E&>(*this);}
+    auto& Cast() const {return dynamic_cast<const E&>(*this);}
 };
 
 //
@@ -165,21 +163,24 @@ protected:
 
 
 
-class Orbital_HF_IBS
+template <isEvaluator E> class Orbital_HF_IBS
     : public virtual BasisSet1::Orbital_HF_IBS<double> 
-    , public virtual Integrals_Base
 
 {
 protected:
     Orbital_HF_IBS(BS_Evaluator* bse)  : itsEvaluator(bse) {assert(itsEvaluator);} 
 
-    virtual ERI4 MakeDirect  (const BasisSet1::Orbital_HF_IBS<double>& c) const 
+    virtual ERI4 MakeDirect  (const BasisSet1::Orbital_HF_IBS<double>& _c) const 
     {
-        return itsEvaluator->Direct(GetEvaluator(),dynamic_cast<const Orbital_HF_IBS&>(c).GetEvaluator());
+        auto& a=dynamic_cast<const E&>(*this);
+        auto& c=dynamic_cast<const E&>(_c);
+        return itsEvaluator->Direct(&a,&c);
     }
-    virtual ERI4 MakeExchange(const BasisSet1::Orbital_HF_IBS<double>& c) const 
+    virtual ERI4 MakeExchange(const BasisSet1::Orbital_HF_IBS<double>& _c) const 
     {
-        return itsEvaluator->Exchange(GetEvaluator(),dynamic_cast<const Orbital_HF_IBS&>(c).GetEvaluator());
+        auto& a=dynamic_cast<const E&>(*this);
+        auto& c=dynamic_cast<const E&>(_c);
+        return itsEvaluator->Exchange(&a,&c);
     }
 private: 
     BS_Evaluator* itsEvaluator;

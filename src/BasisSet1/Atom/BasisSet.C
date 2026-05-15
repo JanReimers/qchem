@@ -6,7 +6,6 @@ export module qchem.BasisSet1.Atom.BasisSet;
 export import qchem.BasisSet1;
 export import qchem.BasisSet1.Orbital_HF_IBS;
 import qchem.BasisSet1.Fit_IBS;
-import qchem.BasisSet1.Atom.IE;
 
 export import qchem.Symmetry.AtomEC;
 export import qchem.Symmetry.Irrep;
@@ -25,49 +24,45 @@ namespace Atom {
 
 template <class Evaluator> class Fit_IBS
     : public virtual BasisSet1::Fit_IBS 
-    , public virtual Integrals_Base
     , public Integrals_Overlap<Evaluator>
     , public IrrepBasisSetImp<Evaluator>
     , public Evaluator
 {
-    public:
+    using IrrepBasisSetImp<Evaluator>::Cast;
+public:
     Fit_IBS(const Evaluator& e) : IrrepBasisSetImp<Evaluator>(Irrep_QNs::sym_t(new Yl_Sym(0))), Evaluator(e) {};
 
     virtual size_t GetNumFunctions() const {return Evaluator::size();}
-    virtual const IBS_Evaluator* GetEvaluator() const {return this;}
-    virtual       IBS_Evaluator* GetEvaluator()       {return this;}
-    
-    // virtual rsmat_t MakeOverlap  (                ) const {return GetEvaluator()->Overlap   ( );}
     virtual rsmat_t MakeRepulsion(                ) const 
     {
-        auto e=dynamic_cast<const Evaluator*>(GetEvaluator());
-        size_t N=e->size();
+        auto& e=Cast();
+        size_t N=e.size();
         rsmat_t S(N);
         for (auto i:iv_t(0,N))
             for (auto j:iv_t(i,N))
-                S(i,j)= e->Repulsion(i,j);
+                S(i,j)= e.Repulsion(i,j);
 
         return S;
     }
     virtual  rmat_t MakeRepulsion(const BasisSet1::Fit_IBS& f) const 
     {
-        auto ea=dynamic_cast<const Evaluator*>(GetEvaluator());
-        auto eb=dynamic_cast<const Evaluator*>(&f);
-        size_t Na=ea->size(),Nb=eb->size();
+        auto& ea=Cast();
+        auto& eb=dynamic_cast<const Evaluator&>(f);
+        size_t Na=ea.size(),Nb=eb.size();
         rmat_t S(Na,Nb);
         for (auto i:iv_t(0,Na))
             for (auto j:iv_t(0,Nb))
-                S(i,j)= ea->Repulsion(i,j,*eb);
+                S(i,j)= ea.Repulsion(i,j,eb);
 
         return S;
     }
     virtual  rvec_t MakeCharge   (                ) const 
     {
-        auto e=dynamic_cast<const Evaluator*>(GetEvaluator());
-        size_t N=e->size();
+        auto& e=Cast();
+        size_t N=e.size();
         rvec_t c(N);
         for (auto i:iv_t(0,N))
-            c[i]=e->Charge(i);
+            c[i]=e.Charge(i);
         return c;
     }
     virtual std::ostream&  Write(std::ostream& os) const
@@ -83,18 +78,18 @@ template <class Evaluator> class Fit_IBS
 template <class Evaluator> class Orbital_IBS 
     : public Orbital_1E_IBS<Evaluator>
     , public Orbital_DFT_IBS<Evaluator>
-    , public Orbital_HF_IBS
+    , public Orbital_HF_IBS<Evaluator>
     , public IrrepBasisSetImp<Evaluator>
     , public Evaluator
 {
 public:
     Orbital_IBS(BS_Evaluator* bse,size_t N, double rmin, double rmax, const Irrep_QNs::sym_t& yl)
-    : Orbital_HF_IBS(bse)
+    : Orbital_HF_IBS<Evaluator>(bse)
     , IrrepBasisSetImp<Evaluator>(yl)
     , Evaluator(N,rmin,rmax,yl)
     {};
     Orbital_IBS(BS_Evaluator* bse,const rvec_t& es, const Irrep_QNs::sym_t& yl)
-    : Orbital_HF_IBS(bse)
+    : Orbital_HF_IBS<Evaluator>(bse)
     , IrrepBasisSetImp<Evaluator>(yl)
     , Evaluator(es,yl)
     {};
@@ -109,8 +104,6 @@ public:
     }
 
     virtual size_t GetNumFunctions() const {return Evaluator::size();}
-    virtual const IBS_Evaluator* GetEvaluator() const {return this;}
-    virtual       IBS_Evaluator* GetEvaluator()       {return this;}
 };
 
 template <class Evaluator> class EOrbital_RKBL_IBS 
@@ -125,8 +118,6 @@ public:
     {};
 
     virtual size_t GetNumFunctions() const {return Evaluator::size();}
-    virtual const IBS_Evaluator* GetEvaluator() const {return this;}
-    virtual       IBS_Evaluator* GetEvaluator()       {return this;}
 
     virtual std::ostream& Write(std::ostream& os) const
     {
@@ -148,8 +139,6 @@ public:
     {};
 
     virtual size_t GetNumFunctions() const {return Evaluator::size();}
-    virtual const IBS_Evaluator* GetEvaluator() const {return this;}
-    virtual       IBS_Evaluator* GetEvaluator()       {return this;}
     virtual std::ostream& Write(std::ostream& os) const
     {
         os << " Small=";
@@ -206,7 +195,7 @@ private:
     void Insert(oibs_t* oibs)
     {
         BasisSet1::BasisSetImp<double>::Insert(oibs);
-        Evaluator::Register(oibs->GetEvaluator());
+        Evaluator::Register(oibs);
     }
 };
 

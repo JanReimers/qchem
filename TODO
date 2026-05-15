@@ -51,7 +51,8 @@ Priority 1:
             -Same for vector versions of op(r) grad(r).
             -Use indices for all loops
             -tidy up norms evaluations, Name. Write
-            -Use *this instead of GetEvaluator()
+            Done: -Use *this instead of GetEvaluator()
+            Done: -Get rid IE.C, Integral_Base and all GetEvaluator() v-calls.
             -Get rid of IBS_Evaluator base class.
             -Upgrade BSpline_r evaluator
             -Make SL/SG versions of 1/r evaluators.
