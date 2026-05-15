@@ -90,8 +90,6 @@ public:
         return 1.0/sqrt(Gaussian::Integral(2*es[i],2*l));
     }
     virtual  rvec_t Norm     () const {return ns;}
-    virtual rmat_t XRepulsion(const IBS_Evaluator&) const;
-    virtual rmat_t XKinetic  (const IBS_Evaluator&) const;
 
     virtual rvec_t     operator() (const rvec3_t&) const;
     virtual rvec3vec_t Gradient   (const rvec3_t&) const;
@@ -101,9 +99,6 @@ public:
 protected:
     static rvec_t exponents(size_t N, double emin, double emax, const Irrep_QNs::sym_t& ir);
     rvec_t norms() const; //assumes es,l are already initialized
-    virtual double Inv_r1(double ea , double eb,size_t l_total) const; // RKB needs to override
-    static double Grad2(double ea , double eb,size_t la, size_t lb); // RKB needs access
-    static double Inv_r2(double ea , double eb,size_t l_total); // RKB needs access
     template <class v> static v gaussian(double r,size_t l,const v& e, const v& n)
     {
         return n*uintpow(r,l)*exp(-e*r*r);

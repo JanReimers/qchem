@@ -46,7 +46,16 @@ Priority 1:
                 v.Invr2(size_t i,size_t j,size_t la, size_t lb);
                 etc.....
             };
-            -Or: Function forward and pass lambdas to base class.
+            -Cut over Direct and Exchange (hoist loops out of evaluators)
+            -Split up concepts: Fit, 1E, DFT, HF, RKBS
+            -Same for vector versions of op(r) grad(r).
+            -Use indices for all loops
+            -tidy up norms evaluations, Name. Write
+            -Use *this instead of GetEvaluator()
+            -Get rid of IBS_Evaluator base class.
+            -Upgrade BSpline_r evaluator
+            -Make SL/SG versions of 1/r evaluators.
+
         -Refactor BSpline and BSpine_r to minimize duplicated code.  Isolate weight functions wp, wm.
             [k] capture makes this very difficult.
 

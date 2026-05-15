@@ -56,8 +56,6 @@ public:
 
     virtual  rvec_t Norm      () const=0;
    
-    virtual rmat_t XRepulsion(const IBS_Evaluator&) const=0;
-    virtual rmat_t XKinetic  (const IBS_Evaluator&) const=0;
     virtual std::string RadialID () const=0;
     virtual std::string AngularID() const;
     virtual std::string Name() const=0;

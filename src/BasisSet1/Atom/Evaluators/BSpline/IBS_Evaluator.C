@@ -103,8 +103,6 @@ public:
         return 1.0/sqrt(BilinearForm{X<2>{}}(splines[i],splines[i])*FourPi);
     }
     virtual  rvec_t Norm     () const {return ns;}
-    virtual rmat_t XRepulsion(const IBS_Evaluator&) const;
-    virtual rmat_t XKinetic  (const IBS_Evaluator&) const;
 
     virtual rvec_t     operator() (const rvec3_t&) const;
     virtual rvec3vec_t Gradient   (const rvec3_t&) const;
@@ -141,8 +139,6 @@ public:
     virtual rsmat_t Repulsion() const;
     virtual  rvec_t Charge   () const;
     virtual  rvec_t Norm     () const {return ns;}
-    virtual rmat_t XRepulsion(const IBS_Evaluator&) const;
-    virtual rmat_t XKinetic  (const IBS_Evaluator&) const;
 
     virtual dERI3  Overlap  (const IBS_Evaluator&) const; //3 center
     virtual dERI3  Repulsion(const IBS_Evaluator&) const; //3 center

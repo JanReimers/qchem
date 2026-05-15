@@ -13,23 +13,6 @@ import Common.Constants;
 
 
 
-inline double Overlap(double ea , double eb,size_t l_total)
-{
-    return Slater::Integral(ea+eb,l_total); //Already has 4*Pi and r^2 from dr.
-}
-
-
-inline double Repulsion(double eab, double ec,size_t la,size_t lc)
-{    
-    Slater::RkEngine cd(eab,ec,std::max(la,lc));
-    return FourPi2*cd.Coulomb_R0(la,lc);
-}
-
-inline double Charge(double ea, size_t l)
-{
-    return ::Slater::Integral(ea,l);
-}
-
 //---------------------------------------------------------------------------
 //
 //  Start member functions.
@@ -40,28 +23,6 @@ std::string Slater_IBS_Evaluator::Name() const
     return "Spherical Slater ";
 }
 
-// This need overridability.
-double Slater_IBS_Evaluator::Grad2(double ea , double eb,size_t la, size_t lb)
-{
-    assert(la==lb);
-    double ab=ea+eb;
-    int l=la; //Safer to do formulas with int.
-    // int ll=l*(l+1);
-    double Term1=(l+1)*(l+1)*Slater::Integral(ab,2*l-2); //SlaterIntegral already has 4*Pi
-    double Term2=-(l+1)*ab* Slater::Integral(ab,2*l-1);
-    double Term3=ea*eb*Slater::Integral(ab,2*l);
-    return Term1+Term2+Term3;
-}
-
-double Slater_IBS_Evaluator::Inv_r2(double ea , double eb,size_t l_total)
-{
-    return Slater::Integral(ea+eb,l_total-2); //Already has 4*Pi
-}
-
-double Slater_IBS_Evaluator::Inv_r1(double ea , double eb,size_t l_total) const
-{
-    return Slater::Integral(ea+eb,l_total-1); //Already has 4*Pi
-}
 
 rvec_t Slater_IBS_Evaluator::exponents(size_t N, double emin, double emax, const Irrep_QNs::sym_t& ir)
 {
@@ -75,34 +36,12 @@ rvec_t Slater_IBS_Evaluator::norms() const
 {
     size_t N=es.size();    
     rvec_t ret(N);
-    for (size_t i=0;i<N;i++) ret[i]=1.0/sqrt(::Overlap(es[i],es[i],2*l)); 
+    for (size_t i=0;i<N;i++) ret[i]=1.0/sqrt(::Overlap(2*es[i],2*l)); 
     return ret;
 }
 
 
 
-rmat_t Slater_IBS_Evaluator::XRepulsion(const IBS_Evaluator& _b) const
-{
-    const Slater_IBS_Evaluator& b=dynamic_cast<const Slater_IBS_Evaluator&>(_b);
-    size_t Nr=size(), Nc=b.size();
-    rmat_t M(Nr,Nc);
-    for (auto i:iv_t(0,Nr))
-            for (auto j:iv_t(0,Nc))
-                M(i,j)=::Repulsion(es[i],b.es[j],l,b.l)*ns[i]*b.ns[j];
-    return M;
-}
-
-rmat_t Slater_IBS_Evaluator::XKinetic(const IBS_Evaluator& _b) const
-{
-    const Slater_IBS_Evaluator& b=dynamic_cast<const Slater_IBS_Evaluator&>(_b);
-    assert(l==b.l);
-    size_t Nr=size(), Nc=b.size();
-    rmat_t M(Nr,Nc);
-    for (auto i:iv_t(0,Nr))
-            for (auto j:iv_t(0,Nc))
-                M(i,j)=(Grad2(es[i],b.es[j],l,l) + l*(l+1)*Inv_r2(es[i],b.es[j],2*l))*ns[i]*b.ns[j];
-    return M;
-}
 
 
 rvec_t Slater_IBS_Evaluator::operator() (const rvec3_t& r) const

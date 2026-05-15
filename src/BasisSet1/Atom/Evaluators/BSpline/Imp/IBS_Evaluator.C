@@ -119,30 +119,6 @@ template <size_t K> rvec_t BSpline_IBS_Evaluator<K>::norms() const
 }
 
 
-template <size_t K> rmat_t BSpline_IBS_Evaluator<K>::XRepulsion(const IBS_Evaluator& _b) const
-{
-    const BSpline_IBS_Evaluator<K>& b=dynamic_cast<const BSpline_IBS_Evaluator<K>&>(_b);
-    size_t Nr=size(), Nc=b.size();
-    rmat_t M(Nr,Nc);
-    for (auto i:iv_t(0,Nr))
-            for (auto j:iv_t(0,Nc))
-                M(i,j)=Repulsion(i,j);
-    return M;
-}
-
-template <size_t K> rmat_t BSpline_IBS_Evaluator<K>::XKinetic(const IBS_Evaluator& _b) const
-{
-    const BSpline_IBS_Evaluator<K>& b=dynamic_cast<const BSpline_IBS_Evaluator<K>&>(_b);
-    assert(l==b.l);
-    size_t Nr=size(), Nc=b.size();
-    rmat_t M(Nr,Nc);
-    for (auto i:iv_t(0,Nr))
-            for (auto j:iv_t(0,Nc))
-                M(i,j)=Grad2(i,j) + l*(l+1)*Inv_r2(i,j);
-    return M;
-}
-
-
 template <size_t K> rvec_t BSpline_IBS_Evaluator<K>::operator() (const rvec3_t& r) const
 {
     rvec_t ret(size());
