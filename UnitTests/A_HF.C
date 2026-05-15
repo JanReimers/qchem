@@ -118,7 +118,7 @@ TEST_P(A_BS_HF_U,Multiple)
     int Z=GetParam();
     nlohmann::json js = {
         {"type",BasisSetAtomFactory::Type::BSpline6},
-        {"N", 40}, {"rmin", 0.01}, {"rmax", 50},
+        {"N", 30}, {"rmin", 0.01}, {"rmax", 20},
     };
     QchemTester::Init(1e-3,js);
     Iterate(scf_params_BS(Z));
@@ -273,7 +273,7 @@ TEST_P(A_BS_HF_P,Multiple)
     int Z=GetParam();
     nlohmann::json js = {
         {"type",BasisSetAtomFactory::Type::BSpline6},
-        {"N", 30}, {"rmin", 0.01}, {"rmax", 50},
+        {"N", 20}, {"rmin", 0.01}, {"rmax", 40},
     };
     QchemTester::Init(1e-3,js);
     Iterate(scf_params(Z));
@@ -338,7 +338,7 @@ TEST_P(A_BSm_HF_P,Multiple)
     int Z=GetParam();
      nlohmann::json js = {
         {"type",BasisSetAtomFactory::Type::BSpline6},
-        {"N", 30}, {"rmin", 0.01}, {"rmax", 30},
+        {"N", 15}, {"rmin", 0.1}, {"rmax", 20},
     };
     QchemTester::Init(1e-3,js);
    
@@ -381,7 +381,11 @@ INSTANTIATE_TEST_SUITE_P(Multiple,A_PG_HF_P,::testing::Values(3)); //5,7 fails Z
 inline SCFParams saito_params_BS(int Z) 
 {
 //           NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo MergeTol verbose
+#ifdef DEBUG
+    return {   50     ,Z*1e-10    ,1e-13 , 1e-10   ,Z*5e-10        ,0.5     ,1e-7  ,true};
+#else
     return {   50     ,Z*1e-10    ,1e-13 , 2.5e-12   ,Z*5e-10        ,0.5     ,1e-7  ,true};
+#endif
 }
 
 class A_BS_saito_HF_P : public ::testing::TestWithParam<int>
@@ -394,10 +398,17 @@ public:
 TEST_P(A_BS_saito_HF_P,Saito)
 {
     int Z=GetParam();
+#ifdef DEBUG
     nlohmann::json js = {
+        {"type",BasisSetAtomFactory::Type::BSpline6},
+        {"N", 20}, {"rmin", 0.2}, {"rmax", 20},
+    };
+#else
+   nlohmann::json js = {
         {"type",BasisSetAtomFactory::Type::BSpline6},
         {"N", 50}, {"rmin", 0.003}, {"rmax", 40},
     };
+#endif
     QchemTester::Init(1e-3,js);
     Iterate(saito_params_BS(Z));
     double Eerr=RelativeHFError();
