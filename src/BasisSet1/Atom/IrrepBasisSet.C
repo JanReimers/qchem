@@ -47,43 +47,101 @@ public:
 };
 
 //
+//  Implement these integral engines separately as they shared between NR and RKB 1E orbital IBS implementations.
+//  Fit_IBS also uses Overlap.
+//
+// 
+
+template <isEvaluator E> class Integrals_Overlap
+: public virtual BasisSet1::Integrals_Overlap<double>
+{
+protected:
+    virtual smat_t<double> MakeOverlap() const 
+    {
+        auto& e=dynamic_cast<const E&>(*this);
+        size_t N=e.size();
+        rsmat_t S(N);
+        for (auto i:iv_t(0,N))
+            for (auto j:iv_t(i,N))
+                S(i,j)= e.Overlap(i,j);
+
+        return S;
+    }
+};
+template <isEvaluator E> class Integrals_Kinetic
+: public virtual BasisSet1::Integrals_Kinetic<double>
+{
+protected:
+    virtual smat_t<double> MakeKinetic() const 
+    {
+        auto& e=dynamic_cast<const E&>(*this);
+        size_t N=e.size();
+        int l=e.Getl();
+        rsmat_t S(N);
+        for (auto i:iv_t(0,N))
+            for (auto j:iv_t(i,N))
+                S(i,j)= e.Grad2(i,j) + l*(l+1)*e.Inv_r2(i,j);
+
+        return S;
+    }
+};
+template <isEvaluator E> class Integrals_Nuclear
+: public virtual BasisSet1::Integrals_Nuclear<double>
+{
+protected:
+    virtual smat_t<double> MakeNuclear(const Cluster* cl) const 
+    {
+        assert(cl);
+        assert(cl->GetNumAtoms()==1); //This supposed to be an atom after all!
+        int Z=-cl->GetNuclearCharge(); 
+        auto& e=dynamic_cast<const E&>(*this);
+        size_t N=e.size();
+        rsmat_t S(N);
+        for (auto i:iv_t(0,N))
+            for (auto j:iv_t(i,N))
+                S(i,j)= Z*e.Inv_r1(i,j);
+
+        return S;
+    }
+};
+
+//
 //  1E orbital for atoms.  Use mixins to get the integral evaluations.
 //
 template <isEvaluator E> class Orbital_1E_IBS
     : public virtual BasisSet1::Orbital_1E_IBS<double> //This part has the symmetry.
-    , public Integrals_EOverlap<E>
-    , public Integrals_EKinetic<E>
-    , public Integrals_ENuclear<E>
+    , public Integrals_Overlap<E>
+    , public Integrals_Kinetic<E>
+    , public Integrals_Nuclear<E>
 {
-    using Integrals_Base::GetEvaluator;
 public:
     virtual std::ostream&  Write(std::ostream& os) const
     {
         os << "Orbital IBS " << Name() << " ";
         os << "Symmetry=" << GetSymmetry() << " ";
-        GetEvaluator()->Write(os);
+        auto& e=dynamic_cast<const E&>(*this);
+        e.Write(os);
         return os;
     }
 };
 
 
 template <isEvaluator E> class Orbital_DFT_IBS
-    : public virtual Integrals_Base
-    , public virtual BasisSet1::Orbital_DFT_IBS<double>
+    : public virtual BasisSet1::Orbital_DFT_IBS<double>
 {
 protected:
     virtual ERI3<double> MakeOverlap3C  (const Fit_IBS& _c) const
     {
-        auto ab=dynamic_cast<const E*>(GetEvaluator());
-        const E& c=dynamic_cast<const E&>(_c);
+        auto& ab=dynamic_cast<const E&>(*this);
+        auto& c =dynamic_cast<const E&>(_c);
         ERI3<double> S3;
-        size_t N=ab->size();
+        size_t N=ab.size();
         for (size_t ic=0;ic<c.size();ic++) 
         {
             rsmat_t S(N);
             for (auto i:iv_t(0,N))
                 for (auto j:iv_t(i,N))
-                    S(i,j)=ab->Overlap(i,j,c,ic);  
+                    S(i,j)=ab.Overlap(i,j,c,ic);  
             
             S3.push_back(S);
         }
@@ -92,16 +150,16 @@ protected:
     }
     virtual ERI3<double> MakeRepulsion3C(const Fit_IBS& _c) const
     {
-        auto ab=dynamic_cast<const E*>(GetEvaluator());
-        const E& c=dynamic_cast<const E&>(_c);
+        auto& ab=dynamic_cast<const E&>(*this);
+        auto& c =dynamic_cast<const E&>(_c);
         ERI3<double> S3;
-        size_t N=ab->size();
+        size_t N=ab.size();
         for (size_t ic=0;ic<c.size();ic++) 
         {
             rsmat_t S(N);
             for (auto i:iv_t(0,N))
                 for (auto j:iv_t(i,N))
-                    S(i,j)=ab->Repulsion(i,j,c,ic);  
+                    S(i,j)=ab.Repulsion(i,j,c,ic);  
             
             S3.push_back(S);
         }
@@ -134,46 +192,35 @@ private:
 
 template <isEvaluator E> class Orbital_RKBL_IBS
     : public virtual BasisSet1::Orbital_RKBL_IBS<double> 
-    , public virtual Integrals_Base
-    , public Integrals_EOverlap<E>
-    , public Integrals_ENuclear<E>
+    , public Integrals_Overlap<E>
+    , public Integrals_Nuclear<E>
 {
 public:
     virtual rmat_t  MakeKinetic(const Orbital_RKBS_IBS<double>& rkbs) const
     {
-        auto ea=dynamic_cast<const E*>(GetEvaluator());
-        auto eb=dynamic_cast<const E*>(&rkbs);
-        assert(ea);
-        assert(eb);
-        assert(ea->Getl()==eb->Getl());
-        size_t Na=ea->size(),Nb=eb->size();
-        int l=ea->Getl();
+        auto& ea=dynamic_cast<const E&>(*this);
+        auto& eb=dynamic_cast<const E&>(rkbs);
+        assert(ea.Getl()==eb.Getl());
+        size_t Na=ea.size(),Nb=eb.size();
+        int l=ea.Getl();
         rmat_t S(Na,Nb);
         for (auto i:iv_t(0,Na))
             for (auto j:iv_t(0,Nb))
-                S(i,j)= ea->Grad2(i,j,*eb) + l*(l+1)*ea->Inv_r2(i,j,*eb);
+                S(i,j)= ea.Grad2(i,j,eb) + l*(l+1)*ea.Inv_r2(i,j,eb);
 
         return S;
     }
-    
 };
 
 template <isEvaluator E> class Orbital_RKBS_IBS
     : public virtual BasisSet1::Orbital_RKBS_IBS<double> 
-    , public virtual Integrals_Base
-    , public Integrals_EKinetic<E>
-    , public Integrals_ENuclear<E> //RKBS Evaluator overrides Inv_r1 definition
+    , public Integrals_Kinetic<E>
+    , public Integrals_Nuclear<E> //RKBS Evaluator overrides Inv_r1 definition
 {
-    using Integrals_Base::GetEvaluator;
     virtual rsmat_t MakeOverlap() const
     {
-        return Integrals_EKinetic<E>::MakeKinetic();
+        return Integrals_Kinetic<E>::MakeKinetic();
     }
-  
-
 };
-
-
-
 
 }} //namespaces

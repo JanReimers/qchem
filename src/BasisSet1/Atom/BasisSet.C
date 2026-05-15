@@ -26,7 +26,7 @@ namespace Atom {
 template <class Evaluator> class Fit_IBS
     : public virtual BasisSet1::Fit_IBS 
     , public virtual Integrals_Base
-    , public Integrals_EOverlap<Evaluator>
+    , public Integrals_Overlap<Evaluator>
     , public IrrepBasisSetImp
     , public Evaluator
 {
