@@ -22,7 +22,7 @@ namespace Atom
 //
 //  Common IrrepBasisSet functionality for atom basis sets.  All the work is done by the evaluator
 //
-class IrrepBasisSetImp
+template <isEvaluator E> class IrrepBasisSetImp
     : public virtual BasisSet1::IrrepBasisSet<double>
     , public virtual IrrepBasisSet_IDs
     , public virtual Integrals_Base
@@ -30,20 +30,15 @@ class IrrepBasisSetImp
 {
 public:
     IrrepBasisSetImp(const Irrep_QNs::sym_t& yl) : BasisSet1::IrrepBasisSetImp<double>(yl) {}
-    virtual size_t  GetNumFunctions() const {return GetEvaluator()->size();}
-    // virtual size_t  size           () const {return itsEval->size();}
-    virtual rvec_t     operator() (const rvec3_t& r) const {return GetEvaluator()->operator()(r);}
-    virtual rvec3vec_t Gradient   (const rvec3_t& r) const {return GetEvaluator()->Gradient(r);}
-    // virtual std::ostream&  Write(std::ostream& os) const
-    // {
-    //     os << GetEvaluator()->Name() << " ";
-    //     GetEvaluator()->Write(os);
-    //     return os;
-    // }
+    virtual rvec_t     operator() (const rvec3_t& r) const {return Evaluator().operator()(r);}
+    virtual rvec3vec_t Gradient   (const rvec3_t& r) const {return Evaluator().Gradient(r);}
    
-    virtual std::string RadialID () const {return GetEvaluator()->RadialID();}
-    virtual std::string AngularID() const {return GetEvaluator()->AngularID();}
-    virtual std::string Name     () const {return GetEvaluator()->Name();}
+    virtual std::string RadialID () const {return Evaluator().RadialID();}
+    virtual std::string AngularID() const {return Evaluator().AngularID();}
+    virtual std::string Name     () const {return Evaluator().Name();}
+
+protected:
+    auto& Evaluator() const {return dynamic_cast<const E&>(*this);}
 };
 
 //

@@ -27,11 +27,11 @@ template <class Evaluator> class Fit_IBS
     : public virtual BasisSet1::Fit_IBS 
     , public virtual Integrals_Base
     , public Integrals_Overlap<Evaluator>
-    , public IrrepBasisSetImp
+    , public IrrepBasisSetImp<Evaluator>
     , public Evaluator
 {
     public:
-    Fit_IBS(const Evaluator& e) : IrrepBasisSetImp(Irrep_QNs::sym_t(new Yl_Sym(0))), Evaluator(e) {};
+    Fit_IBS(const Evaluator& e) : IrrepBasisSetImp<Evaluator>(Irrep_QNs::sym_t(new Yl_Sym(0))), Evaluator(e) {};
 
     virtual size_t GetNumFunctions() const {return Evaluator::size();}
     virtual const IBS_Evaluator* GetEvaluator() const {return this;}
@@ -84,18 +84,18 @@ template <class Evaluator> class Orbital_IBS
     : public Orbital_1E_IBS<Evaluator>
     , public Orbital_DFT_IBS<Evaluator>
     , public Orbital_HF_IBS
-    , public IrrepBasisSetImp
+    , public IrrepBasisSetImp<Evaluator>
     , public Evaluator
 {
 public:
     Orbital_IBS(BS_Evaluator* bse,size_t N, double rmin, double rmax, const Irrep_QNs::sym_t& yl)
     : Orbital_HF_IBS(bse)
-    , IrrepBasisSetImp(yl)
+    , IrrepBasisSetImp<Evaluator>(yl)
     , Evaluator(N,rmin,rmax,yl)
     {};
     Orbital_IBS(BS_Evaluator* bse,const rvec_t& es, const Irrep_QNs::sym_t& yl)
     : Orbital_HF_IBS(bse)
-    , IrrepBasisSetImp(yl)
+    , IrrepBasisSetImp<Evaluator>(yl)
     , Evaluator(es,yl)
     {};
 
@@ -115,12 +115,12 @@ public:
 
 template <class Evaluator> class EOrbital_RKBL_IBS 
     : public Orbital_RKBL_IBS<Evaluator>
-    , public IrrepBasisSetImp
+    , public IrrepBasisSetImp<Evaluator>
     , public Evaluator
 {
 public:
     EOrbital_RKBL_IBS(size_t N, double rmin, double rmax, const Irrep_QNs::sym_t& yl)
-    : IrrepBasisSetImp(yl)
+    : IrrepBasisSetImp<Evaluator>(yl)
     , Evaluator(N,rmin,rmax,yl)
     {};
 
@@ -138,12 +138,12 @@ public:
 
 template <class Evaluator> class EOrbital_RKBS_IBS 
     : public Orbital_RKBS_IBS<Evaluator>
-    , public IrrepBasisSetImp
+    , public IrrepBasisSetImp<Evaluator>
     , public Evaluator
 {
 public:
     EOrbital_RKBS_IBS(size_t N, double rmin, double rmax, const Irrep_QNs::sym_t& yl)
-    : IrrepBasisSetImp(yl)
+    : IrrepBasisSetImp<Evaluator>(yl)
     , Evaluator(N,rmin,rmax,-1,0) //fix kappa=-1, l=0
     {};
 
