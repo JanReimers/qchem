@@ -64,7 +64,9 @@ template <size_t K> BSpline_IBS_Evaluator<K>::BSpline_IBS_Evaluator(size_t Ngrid
     // std::cout << std::endl;
     itsGL.reset(new GLCache(grid,K+3));
     ns=norms();
+    // std::cout << "BSpline_IBS_Evaluator<K>::BSpline_IBS_Evaluator size=" << size() << std::endl;
     assert(size()==splines.size());
+    assert(size()==ns.size());
 };
 
 
@@ -113,6 +115,7 @@ template <size_t K> std::string BSpline_IBS_Evaluator<K>::RadialID () const
 template <size_t K> rvec_t BSpline_IBS_Evaluator<K>::norms() const
 {
     size_t N=splines.size();
+    // std::cout << "BSpline_IBS_Evaluator<K>::norms() N=" << N << std::endl;
     rvec_t ret(N);
     for (size_t i=0;i<N;i++) ret[i]=1.0/sqrt(BilinearForm{X<2>{}}(splines[i],splines[i])*FourPi); 
     return ret;
@@ -156,7 +159,7 @@ template <size_t K> rvec3vec_t BSpline_IBS_Evaluator<K>::Gradient(const rvec3_t&
 
 template <size_t K> std::ostream&  BSpline_IBS_Evaluator<K>::Write(std::ostream& os) const
 {
-    return os << " with " << size() << " basis functions, {" << rmin << " ... " << rmax << "}" << std::endl;
+    return os << " N= " << size() << " basis functions, {" << rmin << " ... " << rmax << "}" << std::endl;
 }
 
 

@@ -249,7 +249,7 @@ TEST_F(BSplineTests, Overlap)
     Init(4+K,.1,40.);
     for (auto ibs:bs->Iterate<Real_OIBS >())
     {
-        cout << ibs->GetSymmetry();
+        cout << *ibs << endl;
         rsmat_t S=ibs->Overlap();
         for (auto d:blaze::diagonal(S)) EXPECT_NEAR(d,1.0,1e-15);
         for (auto i:iv_t(0,S.rows()-K-1)) //Check banded

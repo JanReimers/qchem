@@ -51,9 +51,9 @@ public:
 //
 template <isEvaluator E> class Orbital_1E_IBS
     : public virtual BasisSet1::Orbital_1E_IBS<double> //This part has the symmetry.
-    , private Integrals_EOverlap<E>
-    , private Integrals_EKinetic<E>
-    , private Integrals_ENuclear<E>
+    , public Integrals_EOverlap<E>
+    , public Integrals_EKinetic<E>
+    , public Integrals_ENuclear<E>
 {
     using Integrals_Base::GetEvaluator;
 public:
@@ -135,8 +135,8 @@ private:
 template <isEvaluator E> class Orbital_RKBL_IBS
     : public virtual BasisSet1::Orbital_RKBL_IBS<double> 
     , public virtual Integrals_Base
-    , private Integrals_EOverlap<E>
-    , private Integrals_ENuclear<E>
+    , public Integrals_EOverlap<E>
+    , public Integrals_ENuclear<E>
 {
 public:
     virtual rmat_t  MakeKinetic(const Orbital_RKBS_IBS<double>& rkbs) const
@@ -161,8 +161,8 @@ public:
 template <isEvaluator E> class Orbital_RKBS_IBS
     : public virtual BasisSet1::Orbital_RKBS_IBS<double> 
     , public virtual Integrals_Base
-    , private Integrals_EKinetic<E>
-    , private Integrals_ENuclear<E> //RKBS Evaluator overrides Inv_r1 definition
+    , public Integrals_EKinetic<E>
+    , public Integrals_ENuclear<E> //RKBS Evaluator overrides Inv_r1 definition
 {
     using Integrals_Base::GetEvaluator;
     virtual rsmat_t MakeOverlap() const

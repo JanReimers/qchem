@@ -26,7 +26,7 @@ namespace Atom {
 template <class Evaluator> class Fit_IBS
     : public virtual BasisSet1::Fit_IBS 
     , public virtual Integrals_Base
-    , private Integrals_EOverlap<Evaluator>
+    , public Integrals_EOverlap<Evaluator>
     , public IrrepBasisSetImp
     , public Evaluator
 {
@@ -160,7 +160,7 @@ public:
 
 template <class LEvaluator, class SEvaluator> class EOrbital_RKB_IBS 
     : public virtual Orbital_RKB_IBS<double>
-    , private Orbital_RKB_IBS_Imp<double>
+    , public Orbital_RKB_IBS_Imp<double>
     , public  BasisSet1::IrrepBasisSetImp<double>
 {
 public:

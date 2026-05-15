@@ -1,6 +1,7 @@
 // File: BasisSet/Atom/IE.C Common Integral Engine (IE) code for all atom basis sets.
 module;
 #include <cassert>
+#include <iostream>
 #include "blaze/Math.h"
 export module qchem.BasisSet1.Atom.IE;
 export import qchem.BasisSet1.Internal.ERI4;
@@ -36,12 +37,12 @@ template <isEvaluator E> class Integrals_EOverlap
 protected:
     virtual smat_t<double> MakeOverlap() const 
     {
-        auto e=dynamic_cast<const E*>(GetEvaluator());
-        size_t N=e->size();
+        auto& e=dynamic_cast<const E&>(*this);
+        size_t N=e.size();
         rsmat_t S(N);
         for (auto i:iv_t(0,N))
             for (auto j:iv_t(i,N))
-                S(i,j)= e->Overlap(i,j);
+                S(i,j)= e.Overlap(i,j);
 
         return S;
     }
@@ -54,13 +55,13 @@ template <isEvaluator E> class Integrals_EKinetic
 protected:
     virtual smat_t<double> MakeKinetic() const 
     {
-        auto e=dynamic_cast<const E*>(GetEvaluator());
-        size_t N=e->size();
-        int l=e->Getl();
+        auto& e=dynamic_cast<const E&>(*this);
+        size_t N=e.size();
+        int l=e.Getl();
         rsmat_t S(N);
         for (auto i:iv_t(0,N))
             for (auto j:iv_t(i,N))
-                S(i,j)= e->Grad2(i,j) + l*(l+1)*e->Inv_r2(i,j);
+                S(i,j)= e.Grad2(i,j) + l*(l+1)*e.Inv_r2(i,j);
 
         return S;
     }
@@ -76,12 +77,12 @@ protected:
         assert(cl);
         assert(cl->GetNumAtoms()==1); //This supposed to be an atom after all!
         int Z=-cl->GetNuclearCharge(); 
-        auto e=dynamic_cast<const E*>(GetEvaluator());
-        size_t N=e->size();
+        auto& e=dynamic_cast<const E&>(*this);
+        size_t N=e.size();
         rsmat_t S(N);
         for (auto i:iv_t(0,N))
             for (auto j:iv_t(i,N))
-                S(i,j)= Z*e->Inv_r1(i,j);
+                S(i,j)= Z*e.Inv_r1(i,j);
 
         return S;
     }

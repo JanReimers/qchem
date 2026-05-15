@@ -36,7 +36,7 @@ rvec_t Slater_IBS_Evaluator::norms() const
 {
     size_t N=es.size();    
     rvec_t ret(N);
-    for (size_t i=0;i<N;i++) ret[i]=1.0/sqrt(::Overlap(2*es[i],2*l)); 
+    for (size_t i=0;i<N;i++) ret[i]=1.0/sqrt(Slater::Integral(2*es[i],2*l)); 
     return ret;
 }
 
