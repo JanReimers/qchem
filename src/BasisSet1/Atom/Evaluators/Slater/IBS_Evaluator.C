@@ -39,6 +39,15 @@ public:
         double Term3=es[i]*es[j]*Slater::Integral(ab,2*l);
         return (Term1+Term2+Term3)*ns[i]*ns[j];
     } 
+    double Grad2(size_t i,size_t j,const Slater_IBS_Evaluator& b) const
+    {
+        assert(l==b.l);
+        double ab=es[i]+b.es[j];
+        double Term1=(l+1)*(l+1)  *Slater::Integral(ab,2*l-2); //SlaterIntegral already has 4*Pi
+        double Term2=-(l+1)*ab    *Slater::Integral(ab,2*l-1);
+        double Term3=es[i]*b.es[j]*Slater::Integral(ab,2*l);
+        return (Term1+Term2+Term3)*ns[i]*b.ns[j];
+    } 
     double Inv_r1(size_t i,size_t j) const
     {
         return Slater::Integral(es[i]+es[j],2*l-1)*ns[i]*ns[j]; //Already has 4*Pi
@@ -46,6 +55,11 @@ public:
     double Inv_r2(size_t i,size_t j) const
     {
         return Slater::Integral(es[i]+es[j],2*l-2)*ns[i]*ns[j]; //Already has 4*Pi
+    } 
+    double Inv_r2(size_t i,size_t j,const Slater_IBS_Evaluator& b) const
+    {
+        assert(l==b.l);
+        return Slater::Integral(es[i]+b.es[j],2*l-2)*ns[i]*b.ns[j]; //Already has 4*Pi
     } 
 
     double Overlap(size_t i,size_t j, const Slater_IBS_Evaluator& c, size_t ic) const
@@ -61,6 +75,11 @@ public:
     {
         Slater::RkEngine cd(es[i],es[j],l);
         return cd.Coulomb_R0(l,l)*FourPi2*ns[i]*ns[j];
+    }
+    double Repulsion(size_t i,size_t j, const Slater_IBS_Evaluator& b) const
+    {
+        Slater::RkEngine cd(es[i],b.es[j],std::max(l,b.l));
+        return cd.Coulomb_R0(l,b.l)*FourPi2*ns[i]*b.ns[j];
     }
     double Charge(size_t i) const
     {

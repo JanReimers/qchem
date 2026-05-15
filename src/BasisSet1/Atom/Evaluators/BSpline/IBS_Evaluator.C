@@ -43,6 +43,13 @@ public:
         static const auto T = -X<2>{} * Dx<2>{} - 2 * X<1>{} * Dx<1>{};
         return BilinearForm{T}(splines[i],splines[j])*FourPi*ns[i]*ns[j]; 
     } 
+    double Grad2(size_t i,size_t j,const BSpline_IBS_Evaluator& b) const //no l dependence
+    {
+        using namespace bspline::integration;
+        using namespace bspline::operators; 
+        static const auto T = -X<2>{} * Dx<2>{} - 2 * X<1>{} * Dx<1>{};
+        return BilinearForm{T}(splines[i],b.splines[j])*FourPi*ns[i]*b.ns[j]; 
+    } 
     double Inv_r1(size_t i,size_t j) const //no l dependence
     {
         using namespace bspline::integration;
@@ -55,7 +62,13 @@ public:
         using namespace bspline::operators; 
         return BilinearForm{IdentityOperator{}}(splines[i],splines[j])*FourPi*ns[i]*ns[j]; 
     } 
-     double Overlap(size_t i,size_t j, const BSpline_IBS_Evaluator& c, size_t ic) const
+    double Inv_r2(size_t i,size_t j,const BSpline_IBS_Evaluator& b) const //no l dependence
+    {
+        using namespace bspline::integration;
+        using namespace bspline::operators; 
+        return BilinearForm{IdentityOperator{}}(splines[i],b.splines[j])*FourPi*ns[i]*b.ns[j]; 
+    } 
+    double Overlap(size_t i,size_t j, const BSpline_IBS_Evaluator& c, size_t ic) const
     {
         using namespace bspline::integration;
         using namespace bspline::operators; 
@@ -71,6 +84,12 @@ public:
         assert(false);
         return 0.0;
     }
+    double Repulsion(size_t i,size_t j, const BSpline_IBS_Evaluator& b) const
+    {
+        assert(false);
+        return 0.0;
+    }
+
     double Charge(size_t i) const
     {
         using namespace bspline::integration;

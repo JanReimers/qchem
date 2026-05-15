@@ -132,15 +132,6 @@ private:
     BS_Evaluator* itsEvaluator;
 };
 
-// Orbital_RKB_IBS does all its integrals by by combining blocks from the L/S sectors.  
-// class Orbital_RKB_IBS
-//     : public virtual BasisSet1::Orbital_DHF_IBS<double> 
-//     , public virtual Integrals_Base
-//     // , public Orbital_1E_IBS //pick O
-// {
-//     virtual       smat_t<T>  MakeRestMass() const;  
-// }
-
 template <isEvaluator E> class Orbital_RKBL_IBS
     : public virtual BasisSet1::Orbital_RKBL_IBS<double> 
     , public virtual Integrals_Base
@@ -150,7 +141,19 @@ template <isEvaluator E> class Orbital_RKBL_IBS
 public:
     virtual rmat_t  MakeKinetic(const Orbital_RKBS_IBS<double>& rkbs) const
     {
-        return GetEvaluator()->XKinetic(dynamic_cast<const ::IBS_Evaluator&>(rkbs));
+        auto ea=dynamic_cast<const E*>(GetEvaluator());
+        auto eb=dynamic_cast<const E*>(&rkbs);
+        assert(ea);
+        assert(eb);
+        assert(ea->Getl()==eb->Getl());
+        size_t Na=ea->size(),Nb=eb->size();
+        int l=ea->Getl();
+        rmat_t S(Na,Nb);
+        for (auto i:iv_t(0,Na))
+            for (auto j:iv_t(0,Nb))
+                S(i,j)= ea->Grad2(i,j,*eb) + l*(l+1)*ea->Inv_r2(i,j,*eb);
+
+        return S;
     }
     
 };
@@ -161,6 +164,7 @@ template <isEvaluator E> class Orbital_RKBS_IBS
     , private Integrals_EKinetic<E>
     , private Integrals_ENuclear<E> //RKBS Evaluator overrides Inv_r1 definition
 {
+    using Integrals_Base::GetEvaluator;
     virtual rsmat_t MakeOverlap() const
     {
         return Integrals_EKinetic<E>::MakeKinetic();

@@ -39,6 +39,15 @@ public:
                 -2*l1 * t      * Gaussian::Integral(t,2*l  )
                 +4*es[i]*es[j] * Gaussian::Integral(t,2*l+2))*ns[i]*ns[j] ;
     } 
+    double Grad2(size_t i,size_t j, const Gaussian_IBS_Evaluator& b) const
+    {
+        assert(l==b.l);
+        double t=es[i]+b.es[j];
+        size_t l1=l+1;
+        return  (l1*l1           * Gaussian::Integral(t,2*l-2)
+                -2*l1 * t        * Gaussian::Integral(t,2*l  )
+                +4*es[i]*b.es[j] * Gaussian::Integral(t,2*l+2))*ns[i]*b.ns[j] ;
+    } 
     double Inv_r1(size_t i,size_t j) const
     {
         return Gaussian::Integral(es[i]+es[j],2*l-1)*ns[i]*ns[j]; //Already has 4*Pi
@@ -46,6 +55,11 @@ public:
     double Inv_r2(size_t i,size_t j) const
     {
         return Gaussian::Integral(es[i]+es[j],2*l-2)*ns[i]*ns[j]; //Already has 4*Pi
+    } 
+    double Inv_r2(size_t i,size_t j, const Gaussian_IBS_Evaluator& b) const
+    {
+        assert(l==b.l);       
+        return Gaussian::Integral(es[i]+b.es[j],2*l-2)*ns[i]*b.ns[j]; //Already has 4*Pi
     } 
     double Overlap(size_t i,size_t j, const Gaussian_IBS_Evaluator& c, size_t ic) const
     {
@@ -61,6 +75,12 @@ public:
         Gaussian::RkEngine cd(es[i],es[j],l);
         return cd.Coulomb_R0(l,l)*FourPi2*ns[i]*ns[j];
     }
+    double Repulsion(size_t i,size_t j, const Gaussian_IBS_Evaluator& b) const
+    {
+        Gaussian::RkEngine cd(es[i],b.es[j],std::max(l,b.l));
+        return cd.Coulomb_R0(l,b.l)*FourPi2*ns[i]*b.ns[j];
+    }
+
     double Charge(size_t i) const
     {
         return Gaussian::Integral(es[i],l)*ns[i];

@@ -51,7 +51,15 @@ template <class Evaluator> class Fit_IBS
     }
     virtual  rmat_t MakeRepulsion(const BasisSet1::Fit_IBS& f) const 
     {
-        return GetEvaluator()->XRepulsion(dynamic_cast<const IBS_Evaluator&>(f));
+        auto ea=dynamic_cast<const Evaluator*>(GetEvaluator());
+        auto eb=dynamic_cast<const Evaluator*>(&f);
+        size_t Na=ea->size(),Nb=eb->size();
+        rmat_t S(Na,Nb);
+        for (auto i:iv_t(0,Na))
+            for (auto j:iv_t(0,Nb))
+                S(i,j)= ea->Repulsion(i,j,*eb);
+
+        return S;
     }
     virtual  rvec_t MakeCharge   (                ) const 
     {
