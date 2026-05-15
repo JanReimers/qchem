@@ -37,18 +37,19 @@ Priority 1:
             -key on RadialID()?
             -What if unique exponents list increase?
         -Move all 2/3-nested loops in XXX_Evaluator_IBS into the base.  Use virtual calls for primatives.
-            -Template on evaluator.  Use concetps.  
-            template <class E> concept isEvaluator = requires (E v)
-            {
-                v.Overlap(size_t i,size_t j,size_t la, size_t lb); //SHould be inline.
-                v.Grad2(size_t i,size_t j,size_t la, size_t lb);
-                v.Invr1(size_t i,size_t j,size_t la, size_t lb);
-                v.Invr2(size_t i,size_t j,size_t la, size_t lb);
-                etc.....
-            };
+            Done: -Template on evaluator.  Use concetps.  
+                template <class E> concept isEvaluator = requires (E v)
+                {
+                    v.Overlap(size_t i,size_t j,size_t la, size_t lb); //SHould be inline.
+                    v.Grad2(size_t i,size_t j,size_t la, size_t lb);
+                    v.Invr1(size_t i,size_t j,size_t la, size_t lb);
+                    v.Invr2(size_t i,size_t j,size_t la, size_t lb);
+                    etc.....
+                };
             -Cut over Direct and Exchange (hoist loops out of evaluators)
             -Split up concepts: Fit, 1E, DFT, HF, RKBS
-            -Same for vector versions of op(r) grad(r).
+            No: -Same for vector versions of op(r) grad(r).
+                We already have nice working vector versions for op(r) in the evaluators
             -Use indices for all loops
             -tidy up norms evaluations, Name. Write
             Done: -Use *this instead of GetEvaluator()
