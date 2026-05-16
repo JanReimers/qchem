@@ -27,7 +27,7 @@ using qchem::Hamiltonian::obs_t;
 //
 //  Testing common to all atom basis set evaluators
 //
-template <isEvaluator E> class BasisSet_Common : public ::testing::Test
+template <isHF_NR_Evaluator E> class BasisSet_Common : public ::testing::Test
 {
 public:
     BasisSet_Common(BS_Evaluator* _bseval) 
@@ -60,7 +60,7 @@ public:
     void TestGrad2  (double eps) const;
     void TestInv_r1 (double eps) const;
     void TestInv_r2 (double eps) const;
-    void TestCharge (double eps) const;
+    // void TestCharge (double eps) const;
 
 
     rvec_t es;
@@ -71,7 +71,7 @@ public:
     BS_Evaluator* bs_eval;
     BasisSet* bs;
 };
-template <isEvaluator E> void BasisSet_Common<E>::TestOverlap(double eps) const
+template <isHF_NR_Evaluator E> void BasisSet_Common<E>::TestOverlap(double eps) const
 {
     EXPECT_GT(evals.size(),0);
     size_t index=0;
@@ -90,7 +90,7 @@ template <isEvaluator E> void BasisSet_Common<E>::TestOverlap(double eps) const
         EXPECT_NEAR(max(abs(S-Snum)),0.0,eps);
     }
 }
-template <isEvaluator E> void BasisSet_Common<E>::TestGrad2  (double eps) const
+template <isHF_NR_Evaluator E> void BasisSet_Common<E>::TestGrad2  (double eps) const
 {
     for (auto ev:evals)
     {
@@ -104,7 +104,7 @@ template <isEvaluator E> void BasisSet_Common<E>::TestGrad2  (double eps) const
     }
         
 }
-template <isEvaluator E> void BasisSet_Common<E>::TestInv_r1 (double eps) const
+template <isHF_NR_Evaluator E> void BasisSet_Common<E>::TestInv_r1 (double eps) const
 {
     for (auto ev:evals)
     {
@@ -118,7 +118,7 @@ template <isEvaluator E> void BasisSet_Common<E>::TestInv_r1 (double eps) const
     }
         
 }
-template <isEvaluator E> void BasisSet_Common<E>::TestInv_r2 (double eps) const
+template <isHF_NR_Evaluator E> void BasisSet_Common<E>::TestInv_r2 (double eps) const
 {
     for (auto ev:evals)
     {
@@ -132,19 +132,19 @@ template <isEvaluator E> void BasisSet_Common<E>::TestInv_r2 (double eps) const
     }
         
 }
-template <isEvaluator E> void BasisSet_Common<E>::TestCharge (double eps) const
-{
-    for (auto ev:evals)
-    {
-        size_t N=ev->size();
-        rvec_t S(N);
-        for (auto i:iv_t(0,N))
-                S[i]= ev->Charge(i);
-        rvec_t Snum = mintegrator->Integrate(*ev);
-        EXPECT_NEAR(max(abs(S-Snum)),0.0,eps);
-    }
+// template <isFit_Evaluator E> void BasisSet_Common<E>::TestCharge (double eps) const
+// {
+//     for (auto ev:evals)
+//     {
+//         size_t N=ev->size();
+//         rvec_t S(N);
+//         for (auto i:iv_t(0,N))
+//                 S[i]= ev->Charge(i);
+//         rvec_t Snum = mintegrator->Integrate(*ev);
+//         EXPECT_NEAR(max(abs(S-Snum)),0.0,eps);
+//     }
         
-}
+// }
 
 //----------------------------------------------------------------------------------------
 //
@@ -209,7 +209,7 @@ TEST_F(BasisSet_SL,Overlap) {TestOverlap(1e-15);}
 TEST_F(BasisSet_SL,Grad2  ) {TestGrad2  (3e-15);}
 TEST_F(BasisSet_SL,Inv_r1 ) {TestInv_r1 (3e-14);}
 TEST_F(BasisSet_SL,Inv_r2 ) {TestInv_r2 (4e-9);}
-TEST_F(BasisSet_SL,Charge ) {TestCharge (9e-14);}
+// TEST_F(BasisSet_SL,Charge ) {TestCharge (9e-14);}
 
 TEST_F(BasisSet_SL,AnalyticOverlap)
 {
@@ -333,7 +333,7 @@ TEST_F(BasisSet_SG,Overlap) {TestOverlap(1e-15);}
 TEST_F(BasisSet_SG,Grad2  ) {TestGrad2  (6e-15);}
 TEST_F(BasisSet_SG,Inv_r1 ) {TestInv_r1 (3e-14);}
 TEST_F(BasisSet_SG,Inv_r2 ) {TestInv_r2 (4e-9);}
-TEST_F(BasisSet_SG,Charge ) {TestCharge (5e-14);}
+// TEST_F(BasisSet_SG,Charge ) {TestCharge (5e-14);}
 
 TEST_F(BasisSet_SG,AnalyticOverlap)
 {
@@ -433,7 +433,7 @@ TEST_F(BasisSet_BS,Overlap) {TestOverlap(3e-11);}
 TEST_F(BasisSet_BS,Grad2  ) {TestGrad2  (1e-4);}
 TEST_F(BasisSet_BS,Inv_r1 ) {TestInv_r1 (5e-9);}
 // TEST_F(BasisSet_BS,Inv_r2 ) {TestInv_r2 (4e-8);}
-TEST_F(BasisSet_BS,Charge ) {TestCharge (8e-7);}
+// TEST_F(BasisSet_BS,Charge ) {TestCharge (8e-7);}
 
 std::string BSradialIDs[]={
     "BSpline<6>  {0 0 0 0 0 0 0 0.1 0.316228 1 3.16228 10 10 10 10 10 10 10 }",

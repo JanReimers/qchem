@@ -24,7 +24,7 @@ namespace Atom {
 
 
 
-template <class Evaluator> class Orbital_IBS 
+template <isFull_NR_Evaluator Evaluator> class Orbital_IBS 
     : public Orbital_1E_IBS<Evaluator>
     , public Orbital_DFT_IBS<Evaluator>
     , public Orbital_HF_IBS<Evaluator>
@@ -55,7 +55,37 @@ public:
 
 };
 
-template <class Evaluator> class EOrbital_RKBL_IBS 
+template <is1E_Evaluator Evaluator> class Orbital_1E_HF_IBS 
+    : public Orbital_1E_IBS<Evaluator>
+    , public Orbital_HF_IBS<Evaluator>
+    , public IrrepBasisSetImp<Evaluator>
+    , public Evaluator
+{
+public:
+    Orbital_1E_HF_IBS(BS_Evaluator* bse,size_t N, double rmin, double rmax, const Irrep_QNs::sym_t& yl)
+    : Orbital_HF_IBS<Evaluator>(bse)
+    , IrrepBasisSetImp<Evaluator>(yl)
+    , Evaluator(N,rmin,rmax,yl)
+    {};
+    Orbital_1E_HF_IBS(BS_Evaluator* bse,const rvec_t& es, const Irrep_QNs::sym_t& yl)
+    : Orbital_HF_IBS<Evaluator>(bse)
+    , IrrepBasisSetImp<Evaluator>(yl)
+    , Evaluator(es,yl)
+    {};
+
+
+    virtual BasisSet1::Fit_IBS* CreateCDFitBasisSet(const Cluster*) const 
+    {
+        return new Fit_IBS(Evaluator::Rescale(2.0));
+    }
+    virtual BasisSet1::Fit_IBS* CreateVxcFitBasisSet(const Cluster*) const
+    {
+        return new Fit_IBS(Evaluator::Rescale(2.0/3.0));
+    }
+
+};
+
+template <isRKBL_Evaluator Evaluator> class EOrbital_RKBL_IBS 
     : public Orbital_RKBL_IBS<Evaluator>
     , public IrrepBasisSetImp<Evaluator>
     , public Evaluator
@@ -75,7 +105,7 @@ public:
     }
 };
 
-template <class Evaluator> class EOrbital_RKBS_IBS 
+template <is1E_Evaluator Evaluator> class EOrbital_RKBS_IBS 
     : public Orbital_RKBS_IBS<Evaluator>
     , public IrrepBasisSetImp<Evaluator>
     , public Evaluator
@@ -94,7 +124,7 @@ public:
     }
 };
 
-template <class LEvaluator, class SEvaluator> class EOrbital_RKB_IBS 
+template <isRKBL_Evaluator LEvaluator, is1E_Evaluator SEvaluator> class EOrbital_RKB_IBS 
     : public virtual Orbital_RKB_IBS<double>
     , public Orbital_RKB_IBS_Imp<double>
     , public  BasisSet1::IrrepBasisSetImp<double>

@@ -14,22 +14,46 @@ import qchem.Symmetry.Ylm;
 
 export using dERI3=ERI3<double>;
 
-export template <class E> concept isEvaluator = requires (E e,size_t i, size_t j, size_t ic, const rvec3_t& r)
-            {
-                e.Overlap(i,j); //Should all be inline.
-                e.Grad2  (i,j);
-                e.Inv_r1 (i,j);
-                e.Inv_r2 (i,j);
-                e.Overlap  (i,j,e,ic); 
-                e.Repulsion(i,j,e,ic);
-                e.Repulsion(i,j);
-                e.Charge   (i);
-                e.Norm     (i);
-                e.Grad2    (i,j,e);
-                e.Inv_r2   (i,j,e);
-                e.operator()(r);
-                // etc.....
-            };
+export template <class E> concept isGeneric_Evaluator = requires (E e,size_t i, size_t j, const rvec3_t& r)
+{
+    e.size();
+    e.operator()(r);
+    e.Gradient  (r);
+};
+
+export template <class E> concept is1E_Evaluator = isGeneric_Evaluator<E> && requires  (E e,size_t i, size_t j, const rvec3_t& r)
+{
+    e.Norm     (i);
+    e.Overlap(i,j); //Should all be inline.
+    e.Grad2  (i,j);
+    e.Inv_r1 (i,j);
+    e.Inv_r2 (i,j);
+};
+
+export template <class E> concept isFit_Evaluator = isGeneric_Evaluator<E> && requires  (E e,size_t i, size_t j, size_t ic)
+{
+    e.Norm     (i);
+    e.Overlap(i,j); //Should all be inline.
+    e.Repulsion(i,j);
+    e.Charge   (i);
+};
+// Support 3C Overlap and Repulsion
+export template <class E> concept isDFT_Evaluator = requires (E e,size_t i, size_t j, size_t ic)
+{
+    e.Overlap  (i,j,e,ic); 
+    e.Repulsion(i,j,e,ic);
+};
+
+// Support cross Kinetic
+export template <class E> concept isRKBL_Evaluator = is1E_Evaluator<E> && requires  (E e,size_t i, size_t j)
+{
+    e.Grad2    (i,j,e);
+    e.Inv_r2   (i,j,e);
+};
+
+
+export template <class E> concept isFull_NR_Evaluator = isGeneric_Evaluator<E> && is1E_Evaluator<E> && isDFT_Evaluator<E>;
+export template <class E> concept isHF_NR_Evaluator = isGeneric_Evaluator<E> && is1E_Evaluator<E>;
 
 export class IBS_Evaluator : public VectorFunction<double>
 {

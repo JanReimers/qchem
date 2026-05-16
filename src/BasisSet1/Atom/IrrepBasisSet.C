@@ -22,7 +22,7 @@ namespace Atom
 //
 //  Common IrrepBasisSet functionality for atom basis sets.  All the work is done by the evaluator
 //
-template <isEvaluator E> class IrrepBasisSetImp
+template <isGeneric_Evaluator E> class IrrepBasisSetImp
     : public virtual BasisSet1::IrrepBasisSet<double>
     , public virtual IrrepBasisSet_IDs
     , public BasisSet1::IrrepBasisSetImp<double> //Pulls in Symmetry support
@@ -49,7 +49,7 @@ protected:
 //
 // 
 
-template <isEvaluator E> class Integrals_Overlap
+template <is1E_Evaluator E> class Integrals_Overlap
 : public virtual BasisSet1::Integrals_Overlap<double>
 {
 protected:
@@ -64,7 +64,7 @@ protected:
         return S;
     }
 };
-template <isEvaluator E> class Integrals_Kinetic
+template <is1E_Evaluator E> class Integrals_Kinetic
 : public virtual BasisSet1::Integrals_Kinetic<double>
 {
 protected:
@@ -80,7 +80,7 @@ protected:
         return S;
     }
 };
-template <isEvaluator E> class Integrals_Nuclear
+template <is1E_Evaluator E> class Integrals_Nuclear
 : public virtual BasisSet1::Integrals_Nuclear<double>
 {
 protected:
@@ -99,7 +99,7 @@ protected:
     }
 };
 
-template <class Evaluator> class Fit_IBS
+template <isFit_Evaluator Evaluator> class Fit_IBS
     : public virtual BasisSet1::Fit_IBS 
     , public Integrals_Overlap<Evaluator>
     , public IrrepBasisSetImp<Evaluator>
@@ -150,7 +150,7 @@ public:
 //
 //  1E orbital for atoms.  Use mixins to get the integral evaluations.
 //
-template <isEvaluator E> class Orbital_1E_IBS
+template <is1E_Evaluator E> class Orbital_1E_IBS
     : public virtual BasisSet1::Orbital_1E_IBS<double> //This part has the symmetry.
     , public Integrals_Overlap<E>
     , public Integrals_Kinetic<E>
@@ -168,7 +168,7 @@ public:
 };
 
 
-template <isEvaluator E> class Orbital_DFT_IBS
+template <isDFT_Evaluator E> class Orbital_DFT_IBS
     : public virtual BasisSet1::Orbital_DFT_IBS<double>
 {
 protected:
@@ -210,7 +210,7 @@ protected:
 
 
 
-template <isEvaluator E> class Orbital_HF_IBS
+template <isGeneric_Evaluator E> class Orbital_HF_IBS
     : public virtual BasisSet1::Orbital_HF_IBS<double> 
 
 {
@@ -233,7 +233,7 @@ private:
     BS_Evaluator* itsEvaluator;
 };
 
-template <isEvaluator E> class Orbital_RKBL_IBS
+template <isRKBL_Evaluator E> class Orbital_RKBL_IBS
     : public virtual BasisSet1::Orbital_RKBL_IBS<double> 
     , public Integrals_Overlap<E>
     , public Integrals_Nuclear<E>
@@ -254,7 +254,7 @@ public:
     }
 };
 
-template <isEvaluator E> class Orbital_RKBS_IBS
+template <is1E_Evaluator E> class Orbital_RKBS_IBS
     : public virtual BasisSet1::Orbital_RKBS_IBS<double> 
     , public Integrals_Kinetic<E>
     , public Integrals_Nuclear<E> //RKBS Evaluator overrides Inv_r1 definition
