@@ -22,57 +22,6 @@ export
 namespace BasisSet1 {
 namespace Atom {
 
-template <class Evaluator> class Fit_IBS
-    : public virtual BasisSet1::Fit_IBS 
-    , public Integrals_Overlap<Evaluator>
-    , public IrrepBasisSetImp<Evaluator>
-    , public Evaluator
-{
-    using IrrepBasisSetImp<Evaluator>::Cast;
-public:
-    Fit_IBS(const Evaluator& e) : IrrepBasisSetImp<Evaluator>(Irrep_QNs::sym_t(new Yl_Sym(0))), Evaluator(e) {};
-
-    virtual size_t GetNumFunctions() const {return Evaluator::size();}
-    virtual rsmat_t MakeRepulsion(                ) const 
-    {
-        auto& e=Cast();
-        size_t N=e.size();
-        rsmat_t S(N);
-        for (auto i:iv_t(0,N))
-            for (auto j:iv_t(i,N))
-                S(i,j)= e.Repulsion(i,j);
-
-        return S;
-    }
-    virtual  rmat_t MakeRepulsion(const BasisSet1::Fit_IBS& f) const 
-    {
-        auto& ea=Cast();
-        auto& eb=dynamic_cast<const Evaluator&>(f);
-        size_t Na=ea.size(),Nb=eb.size();
-        rmat_t S(Na,Nb);
-        for (auto i:iv_t(0,Na))
-            for (auto j:iv_t(0,Nb))
-                S(i,j)= ea.Repulsion(i,j,eb);
-
-        return S;
-    }
-    virtual  rvec_t MakeCharge   (                ) const 
-    {
-        auto& e=Cast();
-        size_t N=e.size();
-        rvec_t c(N);
-        for (auto i:iv_t(0,N))
-            c[i]=e.Charge(i);
-        return c;
-    }
-    virtual std::ostream&  Write(std::ostream& os) const
-    {
-        os << "Atom fit IBS ";
-        Evaluator::Write(os);
-        return os;
-    }
-
-};
 
 
 template <class Evaluator> class Orbital_IBS 
@@ -94,6 +43,7 @@ public:
     , Evaluator(es,yl)
     {};
 
+
     virtual BasisSet1::Fit_IBS* CreateCDFitBasisSet(const Cluster*) const 
     {
         return new Fit_IBS(Evaluator::Rescale(2.0));
@@ -103,7 +53,6 @@ public:
         return new Fit_IBS(Evaluator::Rescale(2.0/3.0));
     }
 
-    virtual size_t GetNumFunctions() const {return Evaluator::size();}
 };
 
 template <class Evaluator> class EOrbital_RKBL_IBS 
@@ -117,7 +66,6 @@ public:
     , Evaluator(N,rmin,rmax,yl)
     {};
 
-    virtual size_t GetNumFunctions() const {return Evaluator::size();}
 
     virtual std::ostream& Write(std::ostream& os) const
     {
@@ -138,7 +86,6 @@ public:
     , Evaluator(N,rmin,rmax,-1,0) //fix kappa=-1, l=0
     {};
 
-    virtual size_t GetNumFunctions() const {return Evaluator::size();}
     virtual std::ostream& Write(std::ostream& os) const
     {
         os << " Small=";

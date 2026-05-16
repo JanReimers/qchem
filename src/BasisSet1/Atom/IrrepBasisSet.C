@@ -13,6 +13,7 @@ import qchem.BasisSet1.Orbital_1E_IBS;
 import qchem.BasisSet1.Orbital_DFT_IBS;
 import qchem.BasisSet1.Orbital_HF_IBS;
 import qchem.BasisSet1.Atom.Evaluators.BS;
+import qchem.Symmetry.Yl;
 
 export namespace BasisSet1
 {
@@ -28,8 +29,11 @@ template <isEvaluator E> class IrrepBasisSetImp
 {
 public:
     IrrepBasisSetImp(const Irrep_QNs::sym_t& yl) : BasisSet1::IrrepBasisSetImp<double>(yl) {}
+
+    virtual size_t GetNumFunctions() const {return Cast().size();}
+    // using statements in the final class don't seem to work, so we need to function forward.
     virtual rvec_t     operator() (const rvec3_t& r) const {return Cast().operator()(r);}
-    virtual rvec3vec_t Gradient   (const rvec3_t& r) const {return Cast().Gradient(r);}
+    virtual rvec3vec_t Gradient   (const rvec3_t& r) const {return Cast().Gradient  (r);}
    
     virtual std::string RadialID () const {return Cast().RadialID();}
     virtual std::string AngularID() const {return Cast().AngularID();}
@@ -52,10 +56,9 @@ protected:
     virtual smat_t<double> MakeOverlap() const 
     {
         auto& e=dynamic_cast<const E&>(*this);
-        size_t N=e.size();
-        rsmat_t S(N);
-        for (auto i:iv_t(0,N))
-            for (auto j:iv_t(i,N))
+        rsmat_t S(e.size());
+        for (auto i:e.indices())
+            for (auto j:e.indices(i))
                 S(i,j)= e.Overlap(i,j);
 
         return S;
@@ -68,11 +71,10 @@ protected:
     virtual smat_t<double> MakeKinetic() const 
     {
         auto& e=dynamic_cast<const E&>(*this);
-        size_t N=e.size();
         int l=e.Getl();
-        rsmat_t S(N);
-        for (auto i:iv_t(0,N))
-            for (auto j:iv_t(i,N))
+        rsmat_t S(e.size());
+        for (auto i:e.indices())
+            for (auto j:e.indices(i))
                 S(i,j)= e.Grad2(i,j) + l*(l+1)*e.Inv_r2(i,j);
 
         return S;
@@ -88,14 +90,61 @@ protected:
         assert(cl->GetNumAtoms()==1); //This supposed to be an atom after all!
         int Z=-cl->GetNuclearCharge(); 
         auto& e=dynamic_cast<const E&>(*this);
-        size_t N=e.size();
-        rsmat_t S(N);
-        for (auto i:iv_t(0,N))
-            for (auto j:iv_t(i,N))
+        rsmat_t S(e.size());
+        for (auto i:e.indices())
+            for (auto j:e.indices(i))
                 S(i,j)= Z*e.Inv_r1(i,j);
 
         return S;
     }
+};
+
+template <class Evaluator> class Fit_IBS
+    : public virtual BasisSet1::Fit_IBS 
+    , public Integrals_Overlap<Evaluator>
+    , public IrrepBasisSetImp<Evaluator>
+    , public Evaluator
+{
+    using IrrepBasisSetImp<Evaluator>::Cast;
+public:
+    Fit_IBS(const Evaluator& e) : IrrepBasisSetImp<Evaluator>(Irrep_QNs::sym_t(new Yl_Sym(0))), Evaluator(e) {};
+
+    virtual rsmat_t MakeRepulsion(                ) const 
+    {
+        auto& e=Cast();
+        rsmat_t S(e.size());
+        for (auto i:e.indices())
+            for (auto j:e.indices(i))
+                S(i,j)= e.Repulsion(i,j);
+
+        return S;
+    }
+    virtual  rmat_t MakeRepulsion(const BasisSet1::Fit_IBS& f) const 
+    {
+        auto& ea=Cast();
+        auto& eb=dynamic_cast<const Evaluator&>(f);
+        rmat_t S(ea.size(),eb.size());
+        for (auto i:ea.indices())
+            for (auto j:eb.indices())
+                S(i,j)= ea.Repulsion(i,j,eb);
+
+        return S;
+    }
+    virtual  rvec_t MakeCharge   (                ) const 
+    {
+        auto& e=Cast();
+        rvec_t c(e.size());
+        for (auto i:e.indices())
+            c[i]=e.Charge(i);
+        return c;
+    }
+    virtual std::ostream&  Write(std::ostream& os) const
+    {
+        os << "Atom fit IBS ";
+        Evaluator::Write(os);
+        return os;
+    }
+
 };
 
 //
@@ -123,17 +172,16 @@ template <isEvaluator E> class Orbital_DFT_IBS
     : public virtual BasisSet1::Orbital_DFT_IBS<double>
 {
 protected:
-    virtual ERI3<double> MakeOverlap3C  (const Fit_IBS& _c) const
+    virtual ERI3<double> MakeOverlap3C  (const BasisSet1::Fit_IBS& _c) const
     {
         auto& ab=dynamic_cast<const E&>(*this);
         auto& c =dynamic_cast<const E&>(_c);
         ERI3<double> S3;
-        size_t N=ab.size();
-        for (size_t ic=0;ic<c.size();ic++) 
+        for (auto ic:c.indices()) 
         {
-            rsmat_t S(N);
-            for (auto i:iv_t(0,N))
-                for (auto j:iv_t(i,N))
+            rsmat_t S(ab.size());
+            for (auto i:ab.indices())
+                for (auto j:ab.indices(i))
                     S(i,j)=ab.Overlap(i,j,c,ic);  
             
             S3.push_back(S);
@@ -141,17 +189,16 @@ protected:
         return S3;
 
     }
-    virtual ERI3<double> MakeRepulsion3C(const Fit_IBS& _c) const
+    virtual ERI3<double> MakeRepulsion3C(const BasisSet1::Fit_IBS& _c) const
     {
         auto& ab=dynamic_cast<const E&>(*this);
         auto& c =dynamic_cast<const E&>(_c);
         ERI3<double> S3;
-        size_t N=ab.size();
-        for (size_t ic=0;ic<c.size();ic++) 
+        for (auto ic:c.indices()) 
         {
-            rsmat_t S(N);
-            for (auto i:iv_t(0,N))
-                for (auto j:iv_t(i,N))
+            rsmat_t S(ab.size());
+            for (auto i:ab.indices())
+                for (auto j:ab.indices(i))
                     S(i,j)=ab.Repulsion(i,j,c,ic);  
             
             S3.push_back(S);
@@ -197,11 +244,10 @@ public:
         auto& ea=dynamic_cast<const E&>(*this);
         auto& eb=dynamic_cast<const E&>(rkbs);
         assert(ea.Getl()==eb.Getl());
-        size_t Na=ea.size(),Nb=eb.size();
         int l=ea.Getl();
-        rmat_t S(Na,Nb);
-        for (auto i:iv_t(0,Na))
-            for (auto j:iv_t(0,Nb))
+        rmat_t S(ea.size(),eb.size());
+        for (auto i:ea.indices())
+            for (auto j:eb.indices())
                 S(i,j)= ea.Grad2(i,j,eb) + l*(l+1)*ea.Inv_r2(i,j,eb);
 
         return S;

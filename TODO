@@ -50,7 +50,7 @@ Priority 1:
             -Split up concepts: Fit, 1E, DFT, HF, RKBS
             No: -Same for vector versions of op(r) grad(r).
                 We already have nice working vector versions for op(r) in the evaluators
-            -Use indices for all loops
+            Done: -Use indices for all loops
             -tidy up norms evaluations, Name. Write
             Done: -Use *this instead of GetEvaluator()
             Done: -Get rid IE.C, Integral_Base and all GetEvaluator() v-calls.

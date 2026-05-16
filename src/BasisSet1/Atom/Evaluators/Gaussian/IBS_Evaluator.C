@@ -89,6 +89,7 @@ public:
     {
         return 1.0/sqrt(Gaussian::Integral(2*es[i],2*l));
     }
+    double operator()(size_t i, double r) {return gaussian(r,l,es[i],ns[i]);}
     virtual  rvec_t Norm     () const {return ns;}
 
     virtual rvec_t     operator() (const rvec3_t&) const;
@@ -125,6 +126,7 @@ public:
         return 4*es[i]*es[j]*::Gaussian::Integral(es[i]+es[j],2*l+1)*ns[i]*ns[j]; //Already has 4*Pi
     }    
     
+
     virtual rvec_t     operator() (const rvec3_t&) const;
     virtual rvec3vec_t Gradient   (const rvec3_t&) const;
 
