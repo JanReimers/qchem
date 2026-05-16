@@ -68,27 +68,6 @@ public:
         using namespace bspline::operators; 
         return BilinearForm{IdentityOperator{}}(splines[i],b.splines[j])*FourPi*ns[i]*b.ns[j]; 
     } 
-    double Overlap(size_t i,size_t j, const BSpline_IBS_Evaluator& c, size_t ic) const
-    {
-        using namespace bspline::integration;
-        using namespace bspline::operators; 
-        return BilinearForm{X<2>{}}(splines[i]+splines[j],c.splines[ic])*FourPi*ns[i]*ns[j]*c.ns[ic]; 
-    } 
-    double Repulsion(size_t i,size_t j, const BSpline_IBS_Evaluator& c, size_t ic) const
-    {
-        assert(false);
-        return 0.0;
-    }
-    double Repulsion(size_t i,size_t j) const
-    {
-        assert(false);
-        return 0.0;
-    }
-    double Repulsion(size_t i,size_t j, const BSpline_IBS_Evaluator& b) const
-    {
-        assert(false);
-        return 0.0;
-    }
 
     double Charge(size_t i) const
     {
@@ -120,7 +99,16 @@ protected:
     std::vector<double> knots;
     std::vector<spline_t> splines;
     std::unique_ptr<GLCache> itsGL;
+
+
 };
+
+static_assert(isGeneric_Evaluator<BSpline_IBS_Evaluator<6>>);
+static_assert(is1E_Evaluator     <BSpline_IBS_Evaluator<6>>);
+// static_assert(isFit_Evaluator    <BSpline_IBS_Evaluator<6>>);
+// static_assert(isDFT_Evaluator    <BSpline_IBS_Evaluator<6>>);
+static_assert(isRKBL_Evaluator   <BSpline_IBS_Evaluator<6>>);
+
 
 export template <size_t K> class BSpline_r_IBS_Evaluator : public IBS_Evaluator
 {

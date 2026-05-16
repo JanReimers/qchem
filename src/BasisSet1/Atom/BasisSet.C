@@ -73,16 +73,6 @@ public:
     , Evaluator(es,yl)
     {};
 
-
-    virtual BasisSet1::Fit_IBS* CreateCDFitBasisSet(const Cluster*) const 
-    {
-        return new Fit_IBS(Evaluator::Rescale(2.0));
-    }
-    virtual BasisSet1::Fit_IBS* CreateVxcFitBasisSet(const Cluster*) const
-    {
-        return new Fit_IBS(Evaluator::Rescale(2.0/3.0));
-    }
-
 };
 
 template <isRKBL_Evaluator Evaluator> class EOrbital_RKBL_IBS 
@@ -160,6 +150,39 @@ public:
         Evaluator::BuildCache(LMax);
     }
     BasisSet(const rvec_t& es, const ElectronConfiguration& ec)
+    {
+        const Atom_EC& aec=dynamic_cast<const Atom_EC&>(ec);
+        size_t LMax=aec.GetLMax();
+        for (auto ir:aec.GetIrreps())
+            Insert(new oibs_t(this,es,ir));  
+     
+        Evaluator::BuildCache(LMax);
+    }
+private:
+    void Insert(oibs_t* oibs)
+    {
+        BasisSet1::BasisSetImp<double>::Insert(oibs);
+        Evaluator::Register(oibs);
+    }
+};
+
+template <class Evaluator> class BasisSet_1E_HF
+    : public virtual ::BasisSet1::BasisSet<double>
+    , public BasisSet1::BasisSetImp<double>
+    , public Evaluator 
+{
+    using oibs_t=Orbital_1E_HF_IBS<typename Evaluator::IBS_Evaluator_t>; //Corresponding Orbital IBS type
+public:
+    BasisSet_1E_HF(size_t N, double remin, double remax, const ElectronConfiguration& ec)
+    {
+        const Atom_EC& aec=dynamic_cast<const Atom_EC&>(ec);
+        size_t LMax=aec.GetLMax();
+        for (auto ir:aec.GetIrreps())
+            Insert(new oibs_t(this,N,remin,remax,ir));  
+     
+        Evaluator::BuildCache(LMax);
+    }
+    BasisSet_1E_HF(const rvec_t& es, const ElectronConfiguration& ec)
     {
         const Atom_EC& aec=dynamic_cast<const Atom_EC&>(ec);
         size_t LMax=aec.GetLMax();

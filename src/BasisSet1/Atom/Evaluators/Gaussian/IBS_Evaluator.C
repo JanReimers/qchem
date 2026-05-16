@@ -109,10 +109,13 @@ protected:
         double lr= r==0 ? 0 : l/r;
         return (lr-2*r*e)*gaussian(r,l,e,n);
     }
-
-    
-
 };
+
+static_assert(isGeneric_Evaluator<Gaussian_IBS_Evaluator>);
+static_assert(is1E_Evaluator     <Gaussian_IBS_Evaluator>);
+static_assert(isFit_Evaluator    <Gaussian_IBS_Evaluator>);
+static_assert(isDFT_Evaluator    <Gaussian_IBS_Evaluator>);
+static_assert(isRKBL_Evaluator   <Gaussian_IBS_Evaluator>);
 
 export class Gaussian_RKBS_IBS_Evaluator : public Gaussian_IBS_Evaluator
 {
@@ -136,5 +139,11 @@ private:
     rvec_t eval(const rvec3_t&) const;
     int kappa;
 };
+
+static_assert(isGeneric_Evaluator<Gaussian_RKBS_IBS_Evaluator>);
+static_assert(is1E_Evaluator     <Gaussian_RKBS_IBS_Evaluator>);
+static_assert(isFit_Evaluator    <Gaussian_RKBS_IBS_Evaluator>);
+static_assert(isDFT_Evaluator    <Gaussian_RKBS_IBS_Evaluator>);
+static_assert(isRKBL_Evaluator   <Gaussian_RKBS_IBS_Evaluator>);
 
 

@@ -110,11 +110,13 @@ protected:
         double lr= r==0 ? 0 : l/r;
         return (lr-e)*slater(r,l,e,n);
     }
-    
-
-
-   
 };
+
+static_assert(isGeneric_Evaluator<Slater_IBS_Evaluator>);
+static_assert(is1E_Evaluator     <Slater_IBS_Evaluator>);
+static_assert(isFit_Evaluator    <Slater_IBS_Evaluator>);
+static_assert(isDFT_Evaluator    <Slater_IBS_Evaluator>);
+static_assert(isRKBL_Evaluator   <Slater_IBS_Evaluator>);
 
 
 export class Slater_RKBS_IBS_Evaluator : public Slater_IBS_Evaluator
@@ -138,3 +140,9 @@ private:
     rvec_t eval(const rvec3_t&) const;
     int kappa;
 };
+
+static_assert(isGeneric_Evaluator<Slater_RKBS_IBS_Evaluator>);
+static_assert(is1E_Evaluator     <Slater_RKBS_IBS_Evaluator>);
+static_assert(isFit_Evaluator    <Slater_RKBS_IBS_Evaluator>);
+static_assert(isDFT_Evaluator    <Slater_RKBS_IBS_Evaluator>);
+static_assert(isRKBL_Evaluator   <Slater_RKBS_IBS_Evaluator>);
