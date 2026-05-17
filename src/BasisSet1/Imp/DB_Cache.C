@@ -300,7 +300,26 @@ template <class T>  const ERI4& IntegralsCache_RAM<T>::GetERI4() const
     return its4CIterator->second;
 }
 
+template <class T> void IntegralsCache_RAM<T>::Register(Cache4_Client* eval)
+{
+    RadialTypeID_t key=eval->RadialType(); //This is really a type
+    auto it=itsCache4s.find(key);
+    if (it==itsCache4s.end())
+    {
+        const auto [iterator, success]=itsCache4s.insert({key,val_t(eval->MakeCache4())});
+        assert(success);
+        it=iterator;
+        std::cout << "Insert Cache4_Client RadialType=" << key << std::endl;
+    }
+    it->second->Register(eval);
+}
 
+template <class T> const Cache41* IntegralsCache_RAM<T>::GetCache4(const RadialTypeID_t& type) const
+{
+    auto it=itsCache4s.find(type);
+    assert(it!=itsCache4s.end());
+    return it->second.get();
+}
 
 template <class T>  const rvec_t&  IntegralsCache_RAM<T>::Set(const rvec_t& v)
 {

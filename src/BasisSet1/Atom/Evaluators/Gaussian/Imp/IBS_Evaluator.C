@@ -21,6 +21,15 @@ std::string Gaussian_IBS_Evaluator::Name() const
     return "Spherical Gaussian ";
 }
 
+std::string Gaussian_IBS_Evaluator::RadialType() const
+{
+    return "SG";
+}
+
+Cache41*    Gaussian_IBS_Evaluator::MakeCache4() const
+{
+    return new Gaussian_Cache4();
+}
 
 rvec_t Gaussian_IBS_Evaluator::exponents(size_t N, double emin, double emax, const Irrep_QNs::sym_t& ir)
 {

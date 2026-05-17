@@ -22,6 +22,15 @@ std::string Slater_IBS_Evaluator::Name() const
 {
     return "Spherical Slater ";
 }
+std::string Slater_IBS_Evaluator::RadialType() const
+{
+    return "SL";
+}
+
+Cache41*    Slater_IBS_Evaluator::MakeCache4() const
+{
+    return 0;
+}
 
 
 rvec_t Slater_IBS_Evaluator::exponents(size_t N, double emin, double emax, const Irrep_QNs::sym_t& ir)

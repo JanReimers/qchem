@@ -8,6 +8,7 @@ module;
 #include "forward.H"
 export module qchem.BasisSet1.Atom.Evaluators.IBS;
 export import qchem.BasisSet1.Atom.Evaluators.Internal.ExponentGrouper;
+import qchem.BasisSet1.Internal.Cache4;
 export import qchem.BasisSet1.Internal.ERI3;
 export import qchem.Symmetry.Irrep;
 export import qchem.VectorFunction;
@@ -20,6 +21,7 @@ export template <class E> concept isGeneric_Evaluator = requires (E e,size_t i, 
     e.size();
     e.operator()(r);
     e.Gradient  (r);
+    e.Norm     (i);
 };
 
 export template <class E> concept is1E_Evaluator = isGeneric_Evaluator<E> && requires  (E e,size_t i, size_t j, const rvec3_t& r)
@@ -44,6 +46,16 @@ export template <class E> concept isDFT_Evaluator = requires (E e,size_t i, size
     e.Overlap  (i,j,e,ic); 
     e.Repulsion(i,j,e,ic);
 };
+// Support 4C Hartree-Fock Direct/Exchange integrals.
+export template <class E> concept isHF_Evaluator = isGeneric_Evaluator<E> && requires (E a)
+{
+    a.maxSpan();
+    a.size();
+    a.Getl();
+    a.RadialType(); 
+    a.indices();
+    a.MakeCache4();
+};
 
 // Support cross Kinetic
 export template <class E> concept isRKBL_Evaluator = is1E_Evaluator<E> && requires  (E e,size_t i, size_t j)
@@ -56,7 +68,9 @@ export template <class E> concept isRKBL_Evaluator = is1E_Evaluator<E> && requir
 export template <class E> concept isFull_NR_Evaluator = isGeneric_Evaluator<E> && is1E_Evaluator<E> && isDFT_Evaluator<E>;
 export template <class E> concept isHF_NR_Evaluator = isGeneric_Evaluator<E> && is1E_Evaluator<E>;
 
-export class IBS_Evaluator : public VectorFunction<double>
+export class IBS_Evaluator 
+    : public virtual Cache4_Client
+    , public VectorFunction<double>
 {
     typedef std::ranges::iota_view<size_t,size_t> iota_view;
 public:

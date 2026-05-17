@@ -7,6 +7,7 @@ export import qchem.BasisSet1.Atom.Evaluators.Internal.Exponential_IBS_Evaluator
 import qchem.BasisSet1.Atom.Evaluators.Slater.Internal.Integrals; 
 import qchem.BasisSet1.Atom.Evaluators.Slater.Internal.Rk; 
 
+import qchem.BasisSet1.Internal.Cache4;
 
 import Common.IntPow;
 import qchem.Symmetry.Irrep;
@@ -96,7 +97,8 @@ public:
     virtual rvec3vec_t Gradient   (const rvec3_t&) const;
 
     virtual std::string Name() const;
-
+    virtual std::string RadialType() const;
+    virtual Cache41*    MakeCache4() const;
 protected:
     static rvec_t exponents(size_t N, double emin, double emax, const Irrep_QNs::sym_t& ir);
     rvec_t norms() const; //assumes es,l are already initialized

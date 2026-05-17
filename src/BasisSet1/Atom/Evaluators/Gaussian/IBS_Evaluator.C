@@ -9,6 +9,9 @@ import qchem.BasisSet1.Atom.Evaluators.Gaussian.Internal.Rk;
 import qchem.Symmetry.Yl;
 import Common.IntPow;
 
+import qchem.BasisSet1.Internal.Cache4;
+
+
 
 export class Gaussian_IBS_Evaluator : public Exponential_IBS_Evaluator
 {
@@ -96,6 +99,9 @@ public:
     virtual rvec3vec_t Gradient   (const rvec3_t&) const;
 
     virtual std::string Name() const;
+    virtual std::string RadialType() const;
+    virtual Cache41*    MakeCache4() const;
+    using Exponential_IBS_Evaluator::maxSpan;
 
 protected:
     static rvec_t exponents(size_t N, double emin, double emax, const Irrep_QNs::sym_t& ir);
@@ -116,6 +122,29 @@ static_assert(is1E_Evaluator     <Gaussian_IBS_Evaluator>);
 static_assert(isFit_Evaluator    <Gaussian_IBS_Evaluator>);
 static_assert(isDFT_Evaluator    <Gaussian_IBS_Evaluator>);
 static_assert(isRKBL_Evaluator   <Gaussian_IBS_Evaluator>);
+static_assert(isHF_Evaluator     <Gaussian_IBS_Evaluator>);
+
+export class Gaussian_Cache4 : public  Cache41
+{
+public:
+    // using IBS_Evaluator_t = Gaussian_IBS_Evaluator;
+    virtual void Register(Cache4_Client * eval)
+    {
+        assert(eval);
+        Gaussian_IBS_Evaluator* geval=dynamic_cast<Gaussian_IBS_Evaluator*>(eval);
+        geval->Register(&grouper);
+    }
+    virtual Rk*  Create (size_t ia,size_t ic,size_t ib,size_t id) const
+    {
+        return new Gaussian::RkEngine(
+            grouper.unique_esv[ia]+grouper.unique_esv[ib],
+            grouper.unique_esv[ic]+grouper.unique_esv[id],
+            grouper.LMax(ia,ib,ic,id));
+    }
+private:
+    friend class Cache4Tests;
+    ExponentGrouper grouper;
+};
 
 export class Gaussian_RKBS_IBS_Evaluator : public Gaussian_IBS_Evaluator
 {

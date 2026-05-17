@@ -6,63 +6,16 @@ module;
 #include <string>
 #include <variant>
 #include <fstream>
+#include <memory>
 export module qchem.BasisSet1.DB_Cache;
 import qchem.BasisSet1.Internal.ERI4;
 import qchem.BasisSet1.Internal.ERI3;
 import qchem.BasisSet1.Internal.IntegralEnums;
+import qchem.BasisSet1.Internal.Cache4;
 import qchem.Types;
  
 export namespace BasisSet1 {
-//
-//  Abstract base for the type being cached.
-//
-class Cacheable1
-{
-public:
-    virtual ~Cacheable1() {};
-    virtual std::string Name() const=0;
-};
-//
-//  Cache object based on four unsigned integer indices.  Client code using the caching
-//  should derive from this class and overload all the protected functions with function forwarding.
-//  Use covariant return types for the loop_4 overload. 
-//  Derived class also needs to supply a Create function.
-//
-// class Cache41
-// {
-// public:
-//     size_t Register(const std::string& BF_ID); //register a BasisFunction ID and return its unique index.
-
-//     virtual ~Cache41() {};
-//     void       loop_1(size_t i1) const;
-//     void       loop_2(size_t i2) const;
-//     void       loop_3(size_t i3) const;
-//     virtual    const Cacheable1* loop_4(size_t i4) const;
-//     template <class T> const T* Tloop_4(size_t i4) const
-//     {
-//         const Cacheable1* c=loop_4(i4);
-//         assert(c);
-//         const T* Tc=dynamic_cast<const T*>(c);
-//         assert(Tc);
-//         return Tc;
-//     } 
     
-// private:
-//     virtual const Cacheable1* Create(size_t i1,size_t i2,size_t i3,size_t i4) const=0;
-
-//     typedef std::map<size_t,const Cacheable1*> cache_4; 
-//     typedef std::map<size_t,cache_4> cache_3; 
-//     typedef std::map<size_t,cache_3> cache_2; 
-//     typedef std::map<size_t,cache_2> cache_t; 
-    
-//     mutable cache_t cache;
-//     mutable cache_2* i1_cache;
-//     mutable cache_3* i2_cache;
-//     mutable cache_4* i3_cache;
-//     mutable size_t i1,i2,i3,i4; //Current indexes into unique list.
-
-//     mutable std::map<std::string,size_t> itsUniqueBFs; //unique list of basis functions and thier indexes.
-// };
 
 // Non-template bass class helps avoid so many annoying using statements in derived classes
 // (in C++ typedefs don't get pulled in from template base classes)
@@ -81,6 +34,7 @@ public:
     using IBS_ID_t=std::tuple<std::string,std::string>; // <RadialID,AngularID> identifies and IBS
     using Cluster_ID_t=std::string;
     using Mesh_ID_t=std::string;
+    using RadialTypeID_t=std::string;
 
     
 
@@ -120,6 +74,11 @@ public:
     virtual const ERI3  <T>& Set(const   ERI3<T>&)=0; 
     virtual const ERI4&      SetDirect  (const ERI4&)=0; 
     virtual const ERI4&      SetExchange(const ERI4&)=0; 
+
+    // 4 center radial Slater integrals, Rk for HF calculations
+    virtual void Register(Cache4_Client* eval)=0;
+    virtual const Cache41* GetCache4(const RadialTypeID_t& type) const=0;
+
 };
 
 IntegralsCache<double>* theGlobalCache=0;
@@ -151,6 +110,9 @@ public:
     virtual const ERI4     & SetDirect  (const ERI4&); 
     virtual const ERI4     & SetExchange(const ERI4&); 
 
+    void Register(Cache4_Client* eval);
+    const Cache41* GetCache4(const RadialTypeID_t& type) const;
+
 private:
     using key1_t=std::tuple<I1C,IBS_ID_t>; //Integral key for one IBS, 1 centers.
     using key2_t=std::tuple<I2C,IBS_ID_t>; //Integral key for one IBS, 2 centers.
@@ -170,6 +132,10 @@ private:
 
     using map1m_t =std::map<key1m_t  ,rvec_t>;
     using map2xm_t=std::map<key2xm_t ,rmat_t>;
+
+    using val_t=std::unique_ptr<Cache41>;
+    using cach4_t=std::map<RadialTypeID_t,val_t>;
+
 
     mutable std::variant<typename map1_t::const_iterator,typename map1m_t::const_iterator> its1CIterator;
     mutable std::variant<typename map2_t::const_iterator,typename mapn_t::const_iterator> its2CIterator;
@@ -197,7 +163,7 @@ private:
     map1m_t  itsmVecs; //Numerically integrated
     map2xm_t itsmMats;  //Numerically integrated
 
-    // std::map<std::string,Cache41*> itsCaches; //4 index Radial integral caches.  String identifies IBS type {Slater,BSpline<K>,POlGaussian,etc}
+    cach4_t itsCache4s; //4 index Radial integral caches.  String identifies IBS type {Slater,BSpline<K>,POlGaussian,etc}
 
     bool itsMakeLog;
     mutable std::ofstream itsLogger;

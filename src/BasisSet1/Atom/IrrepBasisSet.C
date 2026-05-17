@@ -3,6 +3,7 @@ module;
 #include <iosfwd>
 #include <memory>
 #include <cassert>
+#include <iostream>
 #include "forward.H"
 
 export module qchem.BasisSet1.Atom.IBS;
@@ -13,7 +14,11 @@ import qchem.BasisSet1.Orbital_1E_IBS;
 import qchem.BasisSet1.Orbital_DFT_IBS;
 import qchem.BasisSet1.Orbital_HF_IBS;
 import qchem.BasisSet1.Atom.Evaluators.BS;
+import qchem.BasisSet1.Atom.Evaluators.Internal.AngularIntegrals;
 import qchem.Symmetry.Yl;
+import qchem.BasisSet1.DB_Cache;
+
+import qchem.BasisSet1.Atom.Evaluators.Gaussian.Internal.Rk; //TODO Illegal!!!!
 
 export namespace BasisSet1
 {
@@ -233,6 +238,31 @@ private:
     BS_Evaluator* itsEvaluator;
 };
 
+template <isHF_Evaluator E> class Orbital_HF1_IBS
+    : public virtual BasisSet1::Orbital_HF_IBS<double> 
+
+{
+protected:
+    virtual ERI4 MakeDirect  (const BasisSet1::Orbital_HF_IBS<double>& _c) const;
+    virtual ERI4 MakeExchange(const BasisSet1::Orbital_HF_IBS<double>& _c) const;
+private:
+    // Angular integrals use Wigner-3j symbols and are independent of the radial type.
+    using rvec11_t=AngularIntegrals::rvec11_t;
+    static rvec11_t Coulomb_AngularIntegrals(const E& a,const E& c);
+    static rvec11_t ExchangeAngularIntegrals(const E& a,const E& c);
+    double direct(Cacheable* c, size_t la, size_t lc,const rvec11_t& Ak)  const
+    {
+        const Gaussian::RkEngine* cd = dynamic_cast<const Gaussian::RkEngine*>(c);
+        return cd->Coulomb_Rk(la,lc,Ak); // contract over k Rk*Ak
+    }
+    double exchange(Cacheable* c, size_t la, size_t lc,const rvec11_t& Ak)  const
+    {
+        const Gaussian::RkEngine* cd = dynamic_cast<const Gaussian::RkEngine*>(c);
+        return cd->ExchangeRk(la,lc,Ak); // contract over k Rk*Ak, exchange version is more complicated
+    }
+
+};
+
 template <isRKBL_Evaluator E> class Orbital_RKBL_IBS
     : public virtual BasisSet1::Orbital_RKBL_IBS<double> 
     , public Integrals_Overlap<E>
@@ -264,5 +294,54 @@ template <is1E_Evaluator E> class Orbital_RKBS_IBS
         return Integrals_Kinetic<E>::MakeKinetic();
     }
 };
+
+
+
+template <isHF_Evaluator E> ERI4 Orbital_HF1_IBS<E>::MakeDirect(const BasisSet1::Orbital_HF_IBS<double>& _c) const 
+{
+
+    auto& a=dynamic_cast<const E&>(*this);
+    auto& c=dynamic_cast<const E&>(_c);
+    assert(a.RadialType()==c.RadialType());
+    assert(BasisSet1::theGlobalCache);
+    size_t spanab=a.maxSpan(),spancd=c.maxSpan();
+    size_t Na=a.size(), Nc=c.size();
+    int la=a.Getl(), lc=c.Getl();
+    rvec11_t Akac=Coulomb_AngularIntegrals(a,c);
+    Cache41* Rk_cache=BasisSet1::theGlobalCache->GetCache4(a.RadialType());
+    ERI4 J(Na,Nc);
+
+    for (size_t ia:a->indices())
+    {
+        Rk_cache->loop_1(a->es_index(ia)); //Start a cache for Gaussian::RkEngine*
+        for (size_t ic:c->indices())
+        {
+            Rk_cache->loop_2(c->es_index(ic));
+            for (size_t ib:a->indices())
+            {
+                if (ib<ia) continue; 
+                if (ib>ia+spanab) continue;
+                rsmat_t& Jab=J(ia,ib);
+                Rk_cache->loop_3(a->es_index(ib));
+                for (size_t id:c->indices())
+                {
+                    if (id<ic) continue;
+                    if (id>ic+spancd) continue;
+                    if (Jab(ic,id)!=0.0)
+                    {
+                        std::cout << "overwriting Jnew(" << ia << " " << ib << " " << ic << " " << id << ")="; 
+                        std::cout << Jab(ic,id) << std::endl;    
+                        assert(false);
+                    }
+                    double norm=a.Norm(ia)*a.Norm(ib)*c.Norm(ic)*c.Norm(id);
+                    Cacheable* rk=Rk_cache->loop_4(c->es_index(id));
+                    double AkacRkac=direct(rk,la,lc,Akac);
+                    Jab(ic,id)=AkacRkac*norm;
+                }
+            }
+        }
+    }
+    return J;
+}
 
 }} //namespaces

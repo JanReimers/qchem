@@ -111,6 +111,17 @@ template <size_t K> std::string BSpline_IBS_Evaluator<K>::RadialID () const
     return os.str();
 }
 
+template <size_t K> std::string BSpline_IBS_Evaluator<K>::RadialType() const
+{
+    std::ostringstream os;
+    os << "BS<" << K << ">";
+    return os.str();
+}
+
+template <size_t K> Cache41*    BSpline_IBS_Evaluator<K>::MakeCache4() const
+{
+    return 0;
+}
 
 template <size_t K> rvec_t BSpline_IBS_Evaluator<K>::norms() const
 {

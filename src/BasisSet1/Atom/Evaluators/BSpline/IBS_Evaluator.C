@@ -11,6 +11,7 @@ import qchem.BasisSet1.Atom.Evaluators.IBS;
 import qchem.BasisSet1.Atom.Evaluators.BSpline.Internal.GLQuadrature;
 import qchem.Symmetry.Yl;
 import Common.Constants;
+import qchem.BasisSet1.Internal.Cache4;
 
 //
 //  This version is for phi(r) = sum(Bi(r),i)
@@ -88,7 +89,8 @@ public:
 
     virtual std::string RadialID() const;
     virtual std::string Name    () const;
-
+    virtual std::string RadialType() const;
+    virtual Cache41*    MakeCache4() const;
     const spline_t& operator[](int index) const {return splines[index];}
 
 protected:
