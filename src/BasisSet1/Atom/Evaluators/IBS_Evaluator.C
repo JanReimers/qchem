@@ -5,6 +5,7 @@ module;
 #include <iosfwd>
 #include <cassert>
 #include <sstream>
+#include "forward.H"
 export module qchem.BasisSet1.Atom.Evaluators.IBS;
 export import qchem.BasisSet1.Atom.Evaluators.Internal.ExponentGrouper;
 export import qchem.BasisSet1.Internal.ERI3;
@@ -85,6 +86,8 @@ public:
     virtual std::string AngularID() const;
     virtual std::string Name() const=0;
 protected:
+    friend class Cache4Tests;
+
     int  l;
 private:
     // used by Coulomb_AngularIntegrals and ExchangeAngularIntegrals

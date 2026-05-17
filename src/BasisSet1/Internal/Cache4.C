@@ -12,7 +12,7 @@ public:
 };
 //
 //  Cache object based on four unsigned integer indices.  Client code using the caching
-//  should derive rom this class and overload all the protected functions with function forwarding.
+//  should derive from this class and overload all the protected functions with function forwarding.
 //  Use covariant return types for the loop_4 overload. 
 //  Derived class also needs to supply a Create function.
 //
