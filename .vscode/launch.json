@@ -17,6 +17,7 @@
         "environment": [],
         "externalConsole": false,
         "MIMode": "gdb",
+        "logging": { "engineLogging": true },
         "setupCommands": [
             {
                 "description": "Enable pretty-printing for gdb",
@@ -26,6 +27,11 @@
             {
                 "description": "Set Disassembly Flavor to Intel",
                 "text": "-gdb-set disassembly-flavor intel",
+                "ignoreFailures": true
+            }
+            {
+                "description": "Clear debuginfod URLs",
+                "text": "set debuginfod urls ",
                 "ignoreFailures": true
             }
         ]
