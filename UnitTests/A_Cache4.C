@@ -50,6 +50,76 @@ public:
         return e->es_indices;
     }
 
+    void TestDirect(const BasisSet1::Real_BS* bs1, const BasisSet1::Real_BS* bs2, double eps)
+    {
+        using BasisSet1::Real_HF_OIBS;
+        auto ibs21=bs2->Iterate<Real_HF_OIBS>().begin();
+        for (auto ibs11:bs1->Iterate<Real_HF_OIBS>())
+        {
+            auto ibs22=bs2->Iterate<Real_HF_OIBS>().begin();
+            for (auto ibs12:bs1->Iterate<Real_HF_OIBS>())
+            {
+                const ERI4& J1=ibs11->Direct(*ibs12);
+                const ERI4& J2=(*ibs21)->Direct(**ibs22);
+                EXPECT_EQ(J1,J2);
+                EXPECT_EQ(&J1,&J2);
+                const ERI4& J1ba=ibs12->Direct(*ibs11);
+                const ERI4& J2ba=(*ibs22)->Direct(**ibs21);
+                EXPECT_NEAR(fnorm(J1,J1ba.Transpose()),0.0,eps);
+                EXPECT_NEAR(fnorm(J2,J2ba.Transpose()),0.0,eps);
+                ++ibs22;
+            }
+            ++ibs21;
+        }
+
+    }
+    void TestExchange(const BasisSet1::Real_BS* bs1, const BasisSet1::Real_BS* bs2, double eps)
+    {
+        using BasisSet1::Real_HF_OIBS;
+        auto ibs21=bs2->Iterate<Real_HF_OIBS>().begin();
+        for (auto ibs11:bs1->Iterate<Real_HF_OIBS>())
+        {
+            auto ibs22=bs2->Iterate<Real_HF_OIBS>().begin();
+            for (auto ibs12:bs1->Iterate<Real_HF_OIBS>())
+            {
+                const ERI4& K1=ibs11->Exchange(*ibs12);
+                const ERI4& K2=(*ibs21)->Exchange(**ibs22);
+                EXPECT_EQ(K1,K2);
+                EXPECT_EQ(&K1,&K2);
+                const ERI4& K1ba=ibs12->Exchange(*ibs11);
+                const ERI4& K2ba=(*ibs22)->Exchange(**ibs21);
+                EXPECT_NEAR(fnorm(K1,K1ba.Transpose()),0.0,eps);
+                EXPECT_NEAR(fnorm(K2,K2ba.Transpose()),0.0,eps);
+                ++ibs22;
+            }
+            ++ibs21;
+        }
+
+    }
+    void TestDirect(std::vector<size_t> Zs, double eps)
+    {
+        for (size_t Z:Zs)
+        {
+            Atom_EC ec(Z);
+            nlohmann::json js1={{"type",BasisSet1::Atom::Type::Gaussian },{"N", 5}, {"emin", 0.25}, {"emax", 4}};
+            nlohmann::json js2={{"type",BasisSet1::Atom::Type::Gaussian2},{"N", 5}, {"emin", 0.25}, {"emax", 4}};
+            auto bs1=BasisSet1::Atom::Factory(js1,ec);
+            auto bs2=BasisSet1::Atom::Factory(js2,ec);
+            TestDirect(bs1,bs2,eps);
+        }
+    }
+    void TestExchange(std::vector<size_t> Zs, double eps)
+    {
+        for (size_t Z:Zs)
+        {
+            Atom_EC ec(Z);
+            nlohmann::json js1={{"type",BasisSet1::Atom::Type::Gaussian },{"N", 5}, {"emin", 0.25}, {"emax", 4}};
+            nlohmann::json js2={{"type",BasisSet1::Atom::Type::Gaussian2},{"N", 5}, {"emin", 0.25}, {"emax", 4}};
+            auto bs1=BasisSet1::Atom::Factory(js1,ec);
+            auto bs2=BasisSet1::Atom::Factory(js2,ec);
+            TestExchange(bs1,bs2,eps);
+        }
+    }
 };
 
 
@@ -92,60 +162,22 @@ TEST_F(Cache4Tests,Caching)
 
 }
 
-TEST_F(Cache4Tests,BasisSet_HF2_Direct)
+TEST_F(Cache4Tests,HF2_SG_Direct_ClosedShell)
 {
-    double eps=2e-15;
-    Atom_EC ec(2);
-    nlohmann::json js1={{"type",BasisSet1::Atom::Type::Gaussian },{"N", 3}, {"emin", 0.5}, {"emax", 2}};
-    nlohmann::json js2={{"type",BasisSet1::Atom::Type::Gaussian2},{"N", 3}, {"emin", 0.5}, {"emax", 2}};
-    auto bs1=BasisSet1::Atom::Factory(js1,ec);
-    auto bs2=BasisSet1::Atom::Factory(js2,ec);
-    using BasisSet1::Real_HF_OIBS;
-    auto ibs21=bs2->Iterate<Real_HF_OIBS>().begin();
-    for (auto ibs11:bs1->Iterate<Real_HF_OIBS>())
-    {
-        auto ibs22=bs2->Iterate<Real_HF_OIBS>().begin();
-        for (auto ibs12:bs1->Iterate<Real_HF_OIBS>())
-        {
-            const ERI4& J1=ibs11->Direct(*ibs12);
-            const ERI4& J2=(*ibs21)->Direct(**ibs22);
-            EXPECT_EQ(J1,J2);
-            EXPECT_EQ(&J1,&J2);
-            const ERI4& J1ba=ibs12->Direct(*ibs11);
-            const ERI4& J2ba=(*ibs22)->Direct(**ibs21);
-            EXPECT_NEAR(fnorm(J1,J1ba.Transpose()),0.0,eps);
-            EXPECT_NEAR(fnorm(J2,J2ba.Transpose()),0.0,eps);
-            ++ibs22;
-        }
-        ++ibs21;
-    }
+    TestDirect({2,10,18,36,46,63,70,80,88},2.2e-15);
 }
 
-TEST_F(Cache4Tests,BasisSet_HF2_Exchange)
+TEST_F(Cache4Tests,HF2_SG_Exchange_ClosedShell)
 {
-    double eps=2e-15;
-    Atom_EC ec(2);
-    nlohmann::json js1={{"type",BasisSet1::Atom::Type::Gaussian },{"N", 3}, {"emin", 0.5}, {"emax", 2}};
-    nlohmann::json js2={{"type",BasisSet1::Atom::Type::Gaussian2},{"N", 3}, {"emin", 0.5}, {"emax", 2}};
-    auto bs1=BasisSet1::Atom::Factory(js1,ec);
-    auto bs2=BasisSet1::Atom::Factory(js2,ec);
-    using BasisSet1::Real_HF_OIBS;
-    auto ibs21=bs2->Iterate<Real_HF_OIBS>().begin();
-    for (auto ibs11:bs1->Iterate<Real_HF_OIBS>())
-    {
-        auto ibs22=bs2->Iterate<Real_HF_OIBS>().begin();
-        for (auto ibs12:bs1->Iterate<Real_HF_OIBS>())
-        {
-            const ERI4& K1=ibs11->Exchange(*ibs12);
-            const ERI4& K2=(*ibs21)->Exchange(**ibs22);
-            EXPECT_EQ(K1,K2);
-            EXPECT_EQ(&K1,&K2);
-            const ERI4& K1ba=ibs12->Exchange(*ibs11);
-            const ERI4& K2ba=(*ibs22)->Exchange(**ibs21);
-            EXPECT_NEAR(fnorm(K1,K1ba.Transpose()),0.0,eps);
-            EXPECT_NEAR(fnorm(K2,K2ba.Transpose()),0.0,eps);
-            ++ibs22;
-        }
-        ++ibs21;
-    }
+    TestExchange({2,10,18,36,46,63,70,80,88},2.2e-15);
+}
+
+TEST_F(Cache4Tests,HF2_SG_Direct_OpenShell)
+{
+    TestDirect({5,6,7,8,9,11,13,14,15,16,17,19,21,22,23,24,25,26,27,28,29,39,40,41,42,43,58,64,91,92},2.2e-15);
+}
+
+TEST_F(Cache4Tests,HF2_SG_Exchange_OpenShell)
+{
+    TestExchange({5,6,7,8,9,11,13,14,15,16,17,19,21,22,23,24,25,26,27,28,29,39,40,41,42,43,58,64,91,92},2.2e-15);
 }
