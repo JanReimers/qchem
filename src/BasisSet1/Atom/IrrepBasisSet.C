@@ -5,6 +5,7 @@ module;
 #include <cassert>
 #include <iostream>
 #include "forward.H"
+#include <blaze/Math.h>
 
 export module qchem.BasisSet1.Atom.IBS;
 import qchem.BasisSet1.Internal.IrrepBasisSetImp;
@@ -250,12 +251,12 @@ private:
     using rvec11_t=AngularIntegrals::rvec11_t;
     static rvec11_t Coulomb_AngularIntegrals(const E& a,const E& c);
     static rvec11_t ExchangeAngularIntegrals(const E& a,const E& c);
-    double direct(Cacheable* c, size_t la, size_t lc,const rvec11_t& Ak)  const
+    double direct(const Cacheable* c, size_t la, size_t lc,const rvec11_t& Ak)  const
     {
         const Gaussian::RkEngine* cd = dynamic_cast<const Gaussian::RkEngine*>(c);
         return cd->Coulomb_Rk(la,lc,Ak); // contract over k Rk*Ak
     }
-    double exchange(Cacheable* c, size_t la, size_t lc,const rvec11_t& Ak)  const
+    double exchange(const Cacheable* c, size_t la, size_t lc,const rvec11_t& Ak)  const
     {
         const Gaussian::RkEngine* cd = dynamic_cast<const Gaussian::RkEngine*>(c);
         return cd->ExchangeRk(la,lc,Ak); // contract over k Rk*Ak, exchange version is more complicated
@@ -299,7 +300,6 @@ template <is1E_Evaluator E> class Orbital_RKBS_IBS
 
 template <isHF_Evaluator E> ERI4 Orbital_HF1_IBS<E>::MakeDirect(const BasisSet1::Orbital_HF_IBS<double>& _c) const 
 {
-
     auto& a=dynamic_cast<const E&>(*this);
     auto& c=dynamic_cast<const E&>(_c);
     assert(a.RadialType()==c.RadialType());
@@ -308,22 +308,22 @@ template <isHF_Evaluator E> ERI4 Orbital_HF1_IBS<E>::MakeDirect(const BasisSet1:
     size_t Na=a.size(), Nc=c.size();
     int la=a.Getl(), lc=c.Getl();
     rvec11_t Akac=Coulomb_AngularIntegrals(a,c);
-    Cache41* Rk_cache=BasisSet1::theGlobalCache->GetCache4(a.RadialType());
+    const Cache41* Rk_cache=BasisSet1::theGlobalCache->GetCache4(a.RadialType());
     ERI4 J(Na,Nc);
 
-    for (size_t ia:a->indices())
+    for (size_t ia:a.indices())
     {
-        Rk_cache->loop_1(a->es_index(ia)); //Start a cache for Gaussian::RkEngine*
-        for (size_t ic:c->indices())
+        Rk_cache->loop_1(a.es_index(ia)); //Start a cache for Gaussian::RkEngine*
+        for (size_t ic:c.indices())
         {
-            Rk_cache->loop_2(c->es_index(ic));
-            for (size_t ib:a->indices())
+            Rk_cache->loop_2(c.es_index(ic));
+            for (size_t ib:a.indices())
             {
                 if (ib<ia) continue; 
                 if (ib>ia+spanab) continue;
                 rsmat_t& Jab=J(ia,ib);
-                Rk_cache->loop_3(a->es_index(ib));
-                for (size_t id:c->indices())
+                Rk_cache->loop_3(a.es_index(ib));
+                for (size_t id:c.indices())
                 {
                     if (id<ic) continue;
                     if (id>ic+spancd) continue;
@@ -334,7 +334,7 @@ template <isHF_Evaluator E> ERI4 Orbital_HF1_IBS<E>::MakeDirect(const BasisSet1:
                         assert(false);
                     }
                     double norm=a.Norm(ia)*a.Norm(ib)*c.Norm(ic)*c.Norm(id);
-                    Cacheable* rk=Rk_cache->loop_4(c->es_index(id));
+                    const Cacheable* rk=Rk_cache->loop_4(c.es_index(id));
                     double AkacRkac=direct(rk,la,lc,Akac);
                     Jab(ic,id)=AkacRkac*norm;
                 }
@@ -343,5 +343,97 @@ template <isHF_Evaluator E> ERI4 Orbital_HF1_IBS<E>::MakeDirect(const BasisSet1:
     }
     return J;
 }
+
+template <isHF_Evaluator E> ERI4 Orbital_HF1_IBS<E>::MakeExchange(const BasisSet1::Orbital_HF_IBS<double>& _c) const 
+{
+    auto& a=dynamic_cast<const E&>(*this);
+    auto& c=dynamic_cast<const E&>(_c);
+    assert(a.RadialType()==c.RadialType());
+    assert(BasisSet1::theGlobalCache);
+    size_t spanab=a.maxSpan(),spancd=c.maxSpan();
+    size_t Na=a.size(), Nc=c.size();
+    int la=a.Getl(), lc=c.Getl();
+    rvec11_t Akac=ExchangeAngularIntegrals(a,c);
+    const Cache41* Rk_cache=BasisSet1::theGlobalCache->GetCache4(a.RadialType());
+
+    ERI4 K(Na,Nc);
+    for (size_t ia:a.indices())
+    {
+        Rk_cache->loop_1(a.es_index(ia)); //Start a cache for Gaussian::RkEngine*
+        for (size_t ic:c.indices())
+        {
+            if (ia>ic+spanab || ic>ia+spancd) continue;
+            for (size_t ib:a.indices(ia))
+            {
+                rsmat_t& Kab=K(ia,ib);
+                Rk_cache->loop_2(a.es_index(ib));
+                Rk_cache->loop_3(c.es_index(ic));
+                for (size_t id:c.indices())
+                {
+                    if (id>ib+spancd || ib>id+spanab) continue;
+                    double norm=a.Norm(ia)*a.Norm(ib)*c.Norm(ic)*c.Norm(id);
+                    const Cacheable* rk=Rk_cache->loop_4(c.es_index(id));
+                    double AkacRKac=exchange(rk,la,lc,Akac);
+                    if (ic==id)
+                        Kab(ic,id)=AkacRKac*norm; 
+                    else if (id<ic)
+                        Kab(id,ic)+=0.5*AkacRKac*norm; 
+                    else
+                        Kab(ic,id)+=0.5*AkacRKac*norm; 
+
+                }
+            }
+        }
+    }
+
+    return K;
+
+}
+
+    template <isHF_Evaluator E> Orbital_HF1_IBS<E>::rvec11_t Orbital_HF1_IBS<E>::Coulomb_AngularIntegrals(const E& a,const E& c)
+    {
+    rvec11_t Ak(0.0);
+    int la=a.Getl(),lc=c.Getl();
+    const IBS_Evaluator::is_t& amls=a.Getmls(),cmls=c.Getmls();
+    size_t nac=amls.size()*cmls.size();
+    size_t g=(2*la+1)*(2*lc+1); //degenracy
+    if (nac==g || nac==0)
+    {
+        Ak+=AngularIntegrals::Coulomb(la,lc);
+    }
+    else
+    {
+        // For direct integrals these actually factor.  But for exchange they do not.
+        // So it may not be worth while coding the factored version here.
+        for (auto ma:amls)
+        for (auto mc:cmls)
+            Ak+=AngularIntegrals::Coulomb(la,lc,ma,mc);
+        Ak/=(double)nac;
+    }
+    return Ak;
+    
+
+    }
+    template <isHF_Evaluator E> Orbital_HF1_IBS<E>::rvec11_t Orbital_HF1_IBS<E>::ExchangeAngularIntegrals(const E& a,const E& b)
+    {
+    rvec11_t Ak(0.0);
+    int la=a.Getl(),lb=b.Getl();
+    const IBS_Evaluator::is_t& amls=a.Getmls(),bmls=b.Getmls();
+    size_t nab=amls.size()*bmls.size();
+    size_t g=(2*la+1)*(2*lb+1); //degenracy
+    if (nab==0 || nab==g)
+    {
+        Ak+=AngularIntegrals::Exchange(la,lb);
+    }
+    else
+    {
+        for (auto ma:amls)
+        for (auto mb:bmls)
+            Ak+=AngularIntegrals::Exchange(la,lb,ma,mb);
+        Ak/=nab;
+    }
+    return Ak;
+    }
+
 
 }} //namespaces

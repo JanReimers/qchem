@@ -27,7 +27,8 @@ public:
     {
         return Gaussian_IBS_Evaluator(scale_factor*es,0);
     }
-
+    //using Exponential_IBS_Evaluator::size; does not seem to work for concepts. no member named 'size' in 'Gaussian_BS_Evaluator'
+    size_t size() const {return Exponential_IBS_Evaluator::size();}
     virtual std::ostream& Write   (std::ostream&) const;
 
     double Overlap(size_t i,size_t j) const

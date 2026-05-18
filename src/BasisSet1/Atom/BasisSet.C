@@ -55,6 +55,35 @@ public:
 
 };
 
+template <isFull_NR_Evaluator Evaluator> class Orbital_HF2_IBS 
+    : public Orbital_1E_IBS<Evaluator>
+    , public Orbital_DFT_IBS<Evaluator>
+    , public Orbital_HF1_IBS<Evaluator>
+    , public IrrepBasisSetImp<Evaluator>
+    , public Evaluator
+{
+public:
+    Orbital_HF2_IBS(size_t N, double rmin, double rmax, const Irrep_QNs::sym_t& yl)
+    : IrrepBasisSetImp<Evaluator>(yl)
+    , Evaluator(N,rmin,rmax,yl)
+    {};
+    Orbital_HF2_IBS(const rvec_t& es, const Irrep_QNs::sym_t& yl)
+    : IrrepBasisSetImp<Evaluator>(yl)
+    , Evaluator(es,yl)
+    {};
+
+
+    virtual BasisSet1::Fit_IBS* CreateCDFitBasisSet(const Cluster*) const 
+    {
+        return new Fit_IBS(Evaluator::Rescale(2.0));
+    }
+    virtual BasisSet1::Fit_IBS* CreateVxcFitBasisSet(const Cluster*) const
+    {
+        return new Fit_IBS(Evaluator::Rescale(2.0/3.0));
+    }
+
+};
+
 template <is1E_Evaluator Evaluator> class Orbital_1E_HF_IBS 
     : public Orbital_1E_IBS<Evaluator>
     , public Orbital_HF_IBS<Evaluator>
@@ -196,6 +225,35 @@ private:
     {
         BasisSet1::BasisSetImp<double>::Insert(oibs);
         Evaluator::Register(oibs);
+    }
+};
+
+template <class Evaluator> class BasisSet_HF2
+    : public virtual ::BasisSet1::BasisSet<double>
+    , public BasisSet1::BasisSetImp<double>
+{
+    using oibs_t=Orbital_HF2_IBS<Evaluator>; //Corresponding Orbital IBS type
+public:
+    BasisSet_HF2(size_t N, double remin, double remax, const ElectronConfiguration& ec)
+    {
+        const Atom_EC& aec=dynamic_cast<const Atom_EC&>(ec);
+        size_t LMax=aec.GetLMax();
+        for (auto ir:aec.GetIrreps())
+            Insert(new oibs_t(N,remin,remax,ir));  
+     
+    }
+    BasisSet_HF2(const rvec_t& es, const ElectronConfiguration& ec)
+    {
+        const Atom_EC& aec=dynamic_cast<const Atom_EC&>(ec);
+        size_t LMax=aec.GetLMax();
+        for (auto ir:aec.GetIrreps())
+            Insert(new oibs_t(es,ir));  
+     
+    }
+private:
+    void Insert(oibs_t* oibs)
+    {
+        BasisSet1::BasisSetImp<double>::Insert(oibs);
     }
 };
 

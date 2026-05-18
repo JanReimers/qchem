@@ -50,7 +50,7 @@ export template <class E> concept isDFT_Evaluator = requires (E e,size_t i, size
 export template <class E> concept isHF_Evaluator = isGeneric_Evaluator<E> && requires (E a)
 {
     a.maxSpan();
-    a.size();
+    // a.size();
     a.Getl();
     a.RadialType(); 
     a.indices();
@@ -67,6 +67,8 @@ export template <class E> concept isRKBL_Evaluator = is1E_Evaluator<E> && requir
 
 export template <class E> concept isFull_NR_Evaluator = isGeneric_Evaluator<E> && is1E_Evaluator<E> && isDFT_Evaluator<E>;
 export template <class E> concept isHF_NR_Evaluator = isGeneric_Evaluator<E> && is1E_Evaluator<E>;
+export template <class E> concept isFull_HF_Evaluator = isGeneric_Evaluator<E> && is1E_Evaluator<E> && isDFT_Evaluator<E> && isHF_NR_Evaluator<E>;
+
 
 export class IBS_Evaluator 
     : public virtual Cache4_Client

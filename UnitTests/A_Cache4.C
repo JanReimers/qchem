@@ -19,7 +19,9 @@ import qchem.BasisSet1.Atom.Evaluators.Internal.ExponentGrouper;
 import qchem.BasisSet1.Atom.Evaluators.Gaussian.Internal.Rk; 
 import qchem.stl_io;
 // import qchem.BasisSet1.Internal.Cache4;
-
+import qchem.BasisSet1.Atom.Evaluators.Gaussian.IBS; 
+import qchem.BasisSet1.Atom.BasisSet;
+import qchem.Symmetry.AtomEC;
 
 
 class Cache4Tests : public ::testing::Test
@@ -51,7 +53,7 @@ public:
 };
 
 
-TEST_F(Cache4Tests,test1)
+TEST_F(Cache4Tests,Caching)
 {
     auto cache=BasisSet1::theGlobalCache;
     // EXPECT_NE(cache,NULL);
@@ -88,4 +90,10 @@ TEST_F(Cache4Tests,test1)
     EXPECT_THAT(es_indices(d),::testing::ElementsAre(5,4,0,1));
     EXPECT_THAT(es_indices(f),::testing::ElementsAre(5,4,0));
 
+}
+
+TEST_F(Cache4Tests,BasisSet_HF2)
+{
+    Atom_EC ec(2);
+    auto bs=new BasisSet1::Atom::BasisSet_HF2<Gaussian_IBS_Evaluator>(3,.5,2.0,ec);
 }
