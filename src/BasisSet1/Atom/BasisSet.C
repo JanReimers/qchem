@@ -104,6 +104,27 @@ public:
 
 };
 
+template <is1E_HF_Evaluator Evaluator> class Orbital_1E_HF2_IBS 
+    : public Orbital_1E_IBS<Evaluator>
+    , public Orbital_HF1_IBS<Evaluator>
+    , public IrrepBasisSetImp<Evaluator>
+    , public Evaluator
+{
+public:
+    Orbital_1E_HF2_IBS(size_t N, double rmin, double rmax, const Irrep_QNs::sym_t& yl)
+    : IrrepBasisSetImp<Evaluator>(yl)
+    , Evaluator(N,rmin,rmax,yl)
+    {};
+    Orbital_1E_HF2_IBS(const rvec_t& es, const Irrep_QNs::sym_t& yl)
+    : IrrepBasisSetImp<Evaluator>(yl)
+    , Evaluator(es,yl)
+    {};
+
+
+   
+
+};
+
 template <isRKBL_Evaluator Evaluator> class EOrbital_RKBL_IBS 
     : public Orbital_RKBL_IBS<Evaluator>
     , public IrrepBasisSetImp<Evaluator>
@@ -243,6 +264,35 @@ public:
      
     }
     BasisSet_HF2(const rvec_t& es, const ElectronConfiguration& ec)
+    {
+        const Atom_EC& aec=dynamic_cast<const Atom_EC&>(ec);
+        size_t LMax=aec.GetLMax();
+        for (auto ir:aec.GetIrreps())
+            Insert(new oibs_t(es,ir));  
+     
+    }
+private:
+    void Insert(oibs_t* oibs)
+    {
+        BasisSet1::BasisSetImp<double>::Insert(oibs);
+    }
+};
+
+template <class Evaluator> class BasisSet_1E_HF2
+    : public virtual ::BasisSet1::BasisSet<double>
+    , public BasisSet1::BasisSetImp<double>
+{
+    using oibs_t=Orbital_1E_HF2_IBS<Evaluator>; //Corresponding Orbital IBS type
+public:
+    BasisSet_1E_HF2(size_t N, double remin, double remax, const ElectronConfiguration& ec)
+    {
+        const Atom_EC& aec=dynamic_cast<const Atom_EC&>(ec);
+        size_t LMax=aec.GetLMax();
+        for (auto ir:aec.GetIrreps())
+            Insert(new oibs_t(N,remin,remax,ir));  
+     
+    }
+    BasisSet_1E_HF2(const rvec_t& es, const ElectronConfiguration& ec)
     {
         const Atom_EC& aec=dynamic_cast<const Atom_EC&>(ec);
         size_t LMax=aec.GetLMax();

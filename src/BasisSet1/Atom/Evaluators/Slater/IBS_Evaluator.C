@@ -28,8 +28,6 @@ public:
         return Slater_IBS_Evaluator(scale_factor*es,0);
     }
     virtual std::ostream& Write   (std::ostream&) const;
-    //using Exponential_IBS_Evaluator::size; does not seem to work for concepts. no member named 'size' in 'Gaussian_BS_Evaluator'
-    size_t size() const {return Exponential_IBS_Evaluator::size();}
     double Overlap(size_t i,size_t j) const
     {
         return Slater::Integral(es[i]+es[j],2*l)*ns[i]*ns[j]; //Already has 4*Pi and r^2 from dr.
@@ -101,7 +99,6 @@ public:
     virtual std::string Name() const;
     virtual std::string RadialType() const;
     virtual Cache41*    MakeCache4() const;
-    using Exponential_IBS_Evaluator::maxSpan;
     using rvec11_t=AngularIntegrals::rvec11_t;
     static double direct(const Cacheable* c, size_t la, size_t lc,const rvec11_t& Ak)
     {

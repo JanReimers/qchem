@@ -9,6 +9,9 @@ module;
 export module qchem.BasisSet1.Atom.Evaluators.BSpline.IBS;
 import qchem.BasisSet1.Atom.Evaluators.IBS;
 import qchem.BasisSet1.Atom.Evaluators.BSpline.Internal.GLQuadrature;
+import qchem.BasisSet1.Atom.Evaluators.Internal.AngularIntegrals;
+import qchem.BasisSet1.Atom.Evaluators.BSpline.Internal.Rk;
+import qchem.BasisSet1.Atom.Evaluators.BSpline.Internal.SplineGrouper;
 import qchem.Symmetry.Yl;
 import Common.Constants;
 import qchem.BasisSet1.Internal.Cache4;
@@ -91,6 +94,17 @@ public:
     virtual std::string Name    () const;
     virtual std::string RadialType() const;
     virtual Cache41*    MakeCache4() const;
+    using rvec11_t=AngularIntegrals::rvec11_t;
+    static double direct(const Cacheable* c, size_t la, size_t lc,const rvec11_t& Ak)
+    {
+        const BSpline::RkEngine<K>* cd = dynamic_cast<const BSpline::RkEngine<K>*>(c);
+        return cd->Coulomb_Rk(la,lc,Ak); // contract over k Rk*Ak
+    }
+    static double exchange(const Cacheable* c, size_t la, size_t lc,const rvec11_t& Ak)
+    {
+        const BSpline::RkEngine<K>* cd = dynamic_cast<const BSpline::RkEngine<K>*>(c);
+        return cd->ExchangeRk(la,lc,Ak); // contract over k Rk*Ak, exchange version is more complicated
+    }
     const spline_t& operator[](int index) const {return splines[index];}
 
 protected:
@@ -110,6 +124,43 @@ static_assert(is1E_Evaluator     <BSpline_IBS_Evaluator<6>>);
 // static_assert(isFit_Evaluator    <BSpline_IBS_Evaluator<6>>);
 // static_assert(isDFT_Evaluator    <BSpline_IBS_Evaluator<6>>);
 static_assert(isRKBL_Evaluator   <BSpline_IBS_Evaluator<6>>);
+static_assert(isHF_Evaluator     <BSpline_IBS_Evaluator<6>>);
+
+export template <size_t K> class BSpline_Cache4 : public  Cache41
+{
+public:
+    BSpline_Cache4() : itsRkCache(0) 
+    {
+    };
+    ~BSpline_Cache4() {delete itsRkCache;}
+    // using IBS_Evaluator_t = Gaussian_IBS_Evaluator;
+    virtual void Register(Cache4_Client * eval)
+    {
+        assert(eval);
+        BSpline_IBS_Evaluator<K>* geval=dynamic_cast<BSpline_IBS_Evaluator<K>*>(eval);
+        geval->Register(&grouper);
+        delete itsRkCache;
+        size_t lmax=3;
+        itsRkCache=new BSpline::RkCache<K>(grouper.unique_spv,*this->GetGL(lmax),lmax);
+    }
+    virtual Rk*  Create (size_t ia,size_t ic,size_t ib,size_t id) const
+    {
+         assert(itsRkCache);
+        // std::cout << "ia,ib,ic,id=" << ia << " " << ib << " " << ic << " " << id << std::endl;
+        size_t lmax=grouper.LMax(ia,ib,ic,id);
+        const GLCache* gl=this->GetGL(lmax);
+        return new BSpline::RkEngine(grouper.unique_spv,ia,ib,ic,id,lmax,*gl,*itsRkCache);
+    }
+private:
+    const GLCache* GetGL(size_t l) const
+    {
+        auto i=grouper.itsGLs.find(l);
+        assert(i!=grouper.itsGLs.end());
+        return i->second;
+    }
+    SplineGrouper<K> grouper;
+    BSpline::RkCache<K>* itsRkCache;
+};
 
 
 export template <size_t K> class BSpline_r_IBS_Evaluator : public IBS_Evaluator

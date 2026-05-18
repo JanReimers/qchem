@@ -72,6 +72,7 @@ export template <class E> concept isRKBL_Evaluator = is1E_Evaluator<E> && requir
 export template <class E> concept isFull_NR_Evaluator = isGeneric_Evaluator<E> && is1E_Evaluator<E> && isDFT_Evaluator<E>;
 export template <class E> concept isHF_NR_Evaluator = isGeneric_Evaluator<E> && is1E_Evaluator<E>;
 export template <class E> concept isFull_HF_Evaluator = isGeneric_Evaluator<E> && is1E_Evaluator<E> && isDFT_Evaluator<E> && isHF_NR_Evaluator<E>;
+export template <class E> concept is1E_HF_Evaluator = isGeneric_Evaluator<E> && is1E_Evaluator<E> && isHF_NR_Evaluator<E>;
 
 
 export class IBS_Evaluator 

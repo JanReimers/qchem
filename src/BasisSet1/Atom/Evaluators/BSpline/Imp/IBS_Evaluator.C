@@ -120,7 +120,7 @@ template <size_t K> std::string BSpline_IBS_Evaluator<K>::RadialType() const
 
 template <size_t K> Cache41*    BSpline_IBS_Evaluator<K>::MakeCache4() const
 {
-    return 0;
+    return new BSpline_Cache4<K>();
 }
 
 template <size_t K> rvec_t BSpline_IBS_Evaluator<K>::norms() const
