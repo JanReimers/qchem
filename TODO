@@ -59,7 +59,8 @@ Priority 1:
             -Make SL/SG versions of 1/r evaluators.
             -Check BSpline_IBS_Evaluator copy constructor, seems to increase size.
             -Make orbital type a template parameter for BasisSet.  Merge BasisSet BasisSet_RKB and BasisSet_1E_HF
-
+            -qchem.BasisSet1.Atom.Factory; use Atom_EC instead of ElectronConfiguration
+            
         -Refactor BSpline and BSpine_r to minimize duplicated code.  Isolate weight functions wp, wm.
             [k] capture makes this very difficult.
 

@@ -7,7 +7,7 @@
 #include <memory>
 #include "../src/forward.H"
 // #include <blaze/Math.h>
-// #include <nlohmann/json.hpp>
+#include <nlohmann/json.hpp>
 using std::cout;
 using std::endl;
 
@@ -19,10 +19,10 @@ import qchem.BasisSet1.Atom.Evaluators.Internal.ExponentGrouper;
 import qchem.BasisSet1.Atom.Evaluators.Gaussian.Internal.Rk; 
 import qchem.stl_io;
 // import qchem.BasisSet1.Internal.Cache4;
-import qchem.BasisSet1.Atom.Evaluators.Gaussian.IBS; 
-import qchem.BasisSet1.Atom.BasisSet;
+import qchem.BasisSet1.Atom.Factory;
+// import qchem.BasisSet1.Atom.BasisSet;
 import qchem.Symmetry.AtomEC;
-
+import qchem.BasisSet1.Orbital_HF_IBS;
 
 class Cache4Tests : public ::testing::Test
 {
@@ -92,8 +92,60 @@ TEST_F(Cache4Tests,Caching)
 
 }
 
-TEST_F(Cache4Tests,BasisSet_HF2)
+TEST_F(Cache4Tests,BasisSet_HF2_Direct)
 {
+    double eps=2e-15;
     Atom_EC ec(2);
-    auto bs=new BasisSet1::Atom::BasisSet_HF2<Gaussian_IBS_Evaluator>(3,.5,2.0,ec);
+    nlohmann::json js1={{"type",BasisSet1::Atom::Type::Gaussian },{"N", 3}, {"emin", 0.5}, {"emax", 2}};
+    nlohmann::json js2={{"type",BasisSet1::Atom::Type::Gaussian2},{"N", 3}, {"emin", 0.5}, {"emax", 2}};
+    auto bs1=BasisSet1::Atom::Factory(js1,ec);
+    auto bs2=BasisSet1::Atom::Factory(js2,ec);
+    using BasisSet1::Real_HF_OIBS;
+    auto ibs21=bs2->Iterate<Real_HF_OIBS>().begin();
+    for (auto ibs11:bs1->Iterate<Real_HF_OIBS>())
+    {
+        auto ibs22=bs2->Iterate<Real_HF_OIBS>().begin();
+        for (auto ibs12:bs1->Iterate<Real_HF_OIBS>())
+        {
+            const ERI4& J1=ibs11->Direct(*ibs12);
+            const ERI4& J2=(*ibs21)->Direct(**ibs22);
+            EXPECT_EQ(J1,J2);
+            EXPECT_EQ(&J1,&J2);
+            const ERI4& J1ba=ibs12->Direct(*ibs11);
+            const ERI4& J2ba=(*ibs22)->Direct(**ibs21);
+            EXPECT_NEAR(fnorm(J1,J1ba.Transpose()),0.0,eps);
+            EXPECT_NEAR(fnorm(J2,J2ba.Transpose()),0.0,eps);
+            ++ibs22;
+        }
+        ++ibs21;
+    }
+}
+
+TEST_F(Cache4Tests,BasisSet_HF2_Exchange)
+{
+    double eps=2e-15;
+    Atom_EC ec(2);
+    nlohmann::json js1={{"type",BasisSet1::Atom::Type::Gaussian },{"N", 3}, {"emin", 0.5}, {"emax", 2}};
+    nlohmann::json js2={{"type",BasisSet1::Atom::Type::Gaussian2},{"N", 3}, {"emin", 0.5}, {"emax", 2}};
+    auto bs1=BasisSet1::Atom::Factory(js1,ec);
+    auto bs2=BasisSet1::Atom::Factory(js2,ec);
+    using BasisSet1::Real_HF_OIBS;
+    auto ibs21=bs2->Iterate<Real_HF_OIBS>().begin();
+    for (auto ibs11:bs1->Iterate<Real_HF_OIBS>())
+    {
+        auto ibs22=bs2->Iterate<Real_HF_OIBS>().begin();
+        for (auto ibs12:bs1->Iterate<Real_HF_OIBS>())
+        {
+            const ERI4& K1=ibs11->Exchange(*ibs12);
+            const ERI4& K2=(*ibs21)->Exchange(**ibs22);
+            EXPECT_EQ(K1,K2);
+            EXPECT_EQ(&K1,&K2);
+            const ERI4& K1ba=ibs12->Exchange(*ibs11);
+            const ERI4& K2ba=(*ibs22)->Exchange(**ibs21);
+            EXPECT_NEAR(fnorm(K1,K1ba.Transpose()),0.0,eps);
+            EXPECT_NEAR(fnorm(K2,K2ba.Transpose()),0.0,eps);
+            ++ibs22;
+        }
+        ++ibs21;
+    }
 }
