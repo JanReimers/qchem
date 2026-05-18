@@ -15,11 +15,9 @@ import qchem.BasisSet1.Orbital_1E_IBS;
 import qchem.BasisSet1.Orbital_DFT_IBS;
 import qchem.BasisSet1.Orbital_HF_IBS;
 import qchem.BasisSet1.Atom.Evaluators.BS;
-import qchem.BasisSet1.Atom.Evaluators.Internal.AngularIntegrals;
+import qchem.BasisSet1.Atom.Evaluators.Internal.AngularIntegrals; //Need rvec11 declaration.
 import qchem.Symmetry.Yl;
 import qchem.BasisSet1.DB_Cache;
-
-import qchem.BasisSet1.Atom.Evaluators.Gaussian.Internal.Rk; //TODO Illegal!!!!
 
 export namespace BasisSet1
 {
@@ -246,21 +244,6 @@ template <isHF_Evaluator E> class Orbital_HF1_IBS
 protected:
     virtual ERI4 MakeDirect  (const BasisSet1::Orbital_HF_IBS<double>& _c) const;
     virtual ERI4 MakeExchange(const BasisSet1::Orbital_HF_IBS<double>& _c) const;
-private:
-    // Angular integrals use Wigner-3j symbols and are independent of the radial type.
-    using rvec11_t=AngularIntegrals::rvec11_t;
-    static rvec11_t Coulomb_AngularIntegrals(const E& a,const E& c);
-    static rvec11_t ExchangeAngularIntegrals(const E& a,const E& c);
-    double direct(const Cacheable* c, size_t la, size_t lc,const rvec11_t& Ak)  const
-    {
-        const Gaussian::RkEngine* cd = dynamic_cast<const Gaussian::RkEngine*>(c);
-        return cd->Coulomb_Rk(la,lc,Ak); // contract over k Rk*Ak
-    }
-    double exchange(const Cacheable* c, size_t la, size_t lc,const rvec11_t& Ak)  const
-    {
-        const Gaussian::RkEngine* cd = dynamic_cast<const Gaussian::RkEngine*>(c);
-        return cd->ExchangeRk(la,lc,Ak); // contract over k Rk*Ak, exchange version is more complicated
-    }
 
 };
 
@@ -307,7 +290,7 @@ template <isHF_Evaluator E> ERI4 Orbital_HF1_IBS<E>::MakeDirect(const BasisSet1:
     size_t spanab=a.maxSpan(),spancd=c.maxSpan();
     size_t Na=a.size(), Nc=c.size();
     int la=a.Getl(), lc=c.Getl();
-    rvec11_t Akac=Coulomb_AngularIntegrals(a,c);
+    AngularIntegrals::rvec11_t Akac=IBS_Evaluator::Coulomb_AngularIntegrals(a,c);
     const Cache41* Rk_cache=BasisSet1::theGlobalCache->GetCache4(a.RadialType());
     ERI4 J(Na,Nc);
 
@@ -335,7 +318,7 @@ template <isHF_Evaluator E> ERI4 Orbital_HF1_IBS<E>::MakeDirect(const BasisSet1:
                     }
                     double norm=a.Norm(ia)*a.Norm(ib)*c.Norm(ic)*c.Norm(id);
                     const Cacheable* rk=Rk_cache->loop_4(c.es_index(id));
-                    double AkacRkac=direct(rk,la,lc,Akac);
+                    double AkacRkac=E::direct(rk,la,lc,Akac);  //static call.
                     Jab(ic,id)=AkacRkac*norm;
                 }
             }
@@ -353,7 +336,7 @@ template <isHF_Evaluator E> ERI4 Orbital_HF1_IBS<E>::MakeExchange(const BasisSet
     size_t spanab=a.maxSpan(),spancd=c.maxSpan();
     size_t Na=a.size(), Nc=c.size();
     int la=a.Getl(), lc=c.Getl();
-    rvec11_t Akac=ExchangeAngularIntegrals(a,c);
+    AngularIntegrals::rvec11_t Akac=IBS_Evaluator::ExchangeAngularIntegrals(a,c);
     const Cache41* Rk_cache=BasisSet1::theGlobalCache->GetCache4(a.RadialType());
 
     ERI4 K(Na,Nc);
@@ -373,7 +356,7 @@ template <isHF_Evaluator E> ERI4 Orbital_HF1_IBS<E>::MakeExchange(const BasisSet
                     if (id>ib+spancd || ib>id+spanab) continue;
                     double norm=a.Norm(ia)*a.Norm(ib)*c.Norm(ic)*c.Norm(id);
                     const Cacheable* rk=Rk_cache->loop_4(c.es_index(id));
-                    double AkacRKac=exchange(rk,la,lc,Akac);
+                    double AkacRKac=E::exchange(rk,la,lc,Akac); //static call.
                     if (ic==id)
                         Kab(ic,id)=AkacRKac*norm; 
                     else if (id<ic)
@@ -389,51 +372,6 @@ template <isHF_Evaluator E> ERI4 Orbital_HF1_IBS<E>::MakeExchange(const BasisSet
     return K;
 
 }
-
-    template <isHF_Evaluator E> Orbital_HF1_IBS<E>::rvec11_t Orbital_HF1_IBS<E>::Coulomb_AngularIntegrals(const E& a,const E& c)
-    {
-    rvec11_t Ak(0.0);
-    int la=a.Getl(),lc=c.Getl();
-    const IBS_Evaluator::is_t& amls=a.Getmls(),cmls=c.Getmls();
-    size_t nac=amls.size()*cmls.size();
-    size_t g=(2*la+1)*(2*lc+1); //degenracy
-    if (nac==g || nac==0)
-    {
-        Ak+=AngularIntegrals::Coulomb(la,lc);
-    }
-    else
-    {
-        // For direct integrals these actually factor.  But for exchange they do not.
-        // So it may not be worth while coding the factored version here.
-        for (auto ma:amls)
-        for (auto mc:cmls)
-            Ak+=AngularIntegrals::Coulomb(la,lc,ma,mc);
-        Ak/=(double)nac;
-    }
-    return Ak;
-    
-
-    }
-    template <isHF_Evaluator E> Orbital_HF1_IBS<E>::rvec11_t Orbital_HF1_IBS<E>::ExchangeAngularIntegrals(const E& a,const E& b)
-    {
-    rvec11_t Ak(0.0);
-    int la=a.Getl(),lb=b.Getl();
-    const IBS_Evaluator::is_t& amls=a.Getmls(),bmls=b.Getmls();
-    size_t nab=amls.size()*bmls.size();
-    size_t g=(2*la+1)*(2*lb+1); //degenracy
-    if (nab==0 || nab==g)
-    {
-        Ak+=AngularIntegrals::Exchange(la,lb);
-    }
-    else
-    {
-        for (auto ma:amls)
-        for (auto mb:bmls)
-            Ak+=AngularIntegrals::Exchange(la,lb,ma,mb);
-        Ak/=nab;
-    }
-    return Ak;
-    }
 
 
 }} //namespaces

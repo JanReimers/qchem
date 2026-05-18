@@ -6,6 +6,7 @@ export module qchem.BasisSet1.Atom.Evaluators.Gaussian.IBS;
 import qchem.BasisSet1.Atom.Evaluators.Internal.Exponential_IBS_Evaluator;
 import qchem.BasisSet1.Atom.Evaluators.Gaussian.Internal.GaussianIntegrals; 
 import qchem.BasisSet1.Atom.Evaluators.Gaussian.Internal.Rk; 
+import qchem.BasisSet1.Atom.Evaluators.Internal.AngularIntegrals;
 import qchem.Symmetry.Yl;
 import Common.IntPow;
 
@@ -103,6 +104,17 @@ public:
     virtual std::string RadialType() const;
     virtual Cache41*    MakeCache4() const;
     using Exponential_IBS_Evaluator::maxSpan;
+    using rvec11_t=AngularIntegrals::rvec11_t;
+    static double direct(const Cacheable* c, size_t la, size_t lc,const rvec11_t& Ak)
+    {
+        const Gaussian::RkEngine* cd = dynamic_cast<const Gaussian::RkEngine*>(c);
+        return cd->Coulomb_Rk(la,lc,Ak); // contract over k Rk*Ak
+    }
+    static double exchange(const Cacheable* c, size_t la, size_t lc,const rvec11_t& Ak)
+    {
+        const Gaussian::RkEngine* cd = dynamic_cast<const Gaussian::RkEngine*>(c);
+        return cd->ExchangeRk(la,lc,Ak); // contract over k Rk*Ak, exchange version is more complicated
+    }
 
 protected:
     static rvec_t exponents(size_t N, double emin, double emax, const Irrep_QNs::sym_t& ir);

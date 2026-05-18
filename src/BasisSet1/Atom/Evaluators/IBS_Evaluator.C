@@ -6,9 +6,11 @@ module;
 #include <cassert>
 #include <sstream>
 #include "forward.H"
+#include <blaze/Math.h>
 export module qchem.BasisSet1.Atom.Evaluators.IBS;
 export import qchem.BasisSet1.Atom.Evaluators.Internal.ExponentGrouper;
 import qchem.BasisSet1.Internal.Cache4;
+import qchem.BasisSet1.Atom.Evaluators.Internal.AngularIntegrals;
 export import qchem.BasisSet1.Internal.ERI3;
 export import qchem.Symmetry.Irrep;
 export import qchem.VectorFunction;
@@ -47,7 +49,7 @@ export template <class E> concept isDFT_Evaluator = requires (E e,size_t i, size
     e.Repulsion(i,j,e,ic);
 };
 // Support 4C Hartree-Fock Direct/Exchange integrals.
-export template <class E> concept isHF_Evaluator = isGeneric_Evaluator<E> && requires (E a)
+export template <class E> concept isHF_Evaluator = isGeneric_Evaluator<E> && requires (E a,size_t l,const Cacheable* c ,AngularIntegrals::rvec11_t Ak)
 {
     a.maxSpan();
     // a.size();
@@ -55,6 +57,8 @@ export template <class E> concept isHF_Evaluator = isGeneric_Evaluator<E> && req
     a.RadialType(); 
     a.indices();
     a.MakeCache4();
+    a.direct(c,l,l,Ak);
+    a.exchange(c,l,l,Ak);
 };
 
 // Support cross Kinetic
@@ -101,6 +105,49 @@ public:
     virtual std::string RadialID () const=0;
     virtual std::string AngularID() const;
     virtual std::string Name() const=0;
+        static AngularIntegrals::rvec11_t Coulomb_AngularIntegrals(const IBS_Evaluator& a,const IBS_Evaluator& c)
+    {
+        AngularIntegrals::rvec11_t Ak(0.0);
+        int la=a.Getl(),lc=c.Getl();
+        const IBS_Evaluator::is_t& amls=a.Getmls(),cmls=c.Getmls();
+        size_t nac=amls.size()*cmls.size();
+        size_t g=(2*la+1)*(2*lc+1); //degenracy
+        if (nac==g || nac==0)
+        {
+            Ak+=AngularIntegrals::Coulomb(la,lc);
+        }
+        else
+        {
+            // For direct integrals these actually factor.  But for exchange they do not.
+            // So it may not be worth while coding the factored version here.
+            for (auto ma:amls)
+            for (auto mc:cmls)
+                Ak+=AngularIntegrals::Coulomb(la,lc,ma,mc);
+            Ak/=(double)nac;
+        }
+        return Ak;
+    }
+    static AngularIntegrals::rvec11_t ExchangeAngularIntegrals(const IBS_Evaluator& a,const IBS_Evaluator& b)
+    {
+        AngularIntegrals::rvec11_t Ak(0.0);
+        int la=a.Getl(),lb=b.Getl();
+        const IBS_Evaluator::is_t& amls=a.Getmls(),bmls=b.Getmls();
+        size_t nab=amls.size()*bmls.size();
+        size_t g=(2*la+1)*(2*lb+1); //degenracy
+        if (nab==0 || nab==g)
+        {
+            Ak+=AngularIntegrals::Exchange(la,lb);
+        }
+        else
+        {
+            for (auto ma:amls)
+            for (auto mb:bmls)
+                Ak+=AngularIntegrals::Exchange(la,lb,ma,mb);
+            Ak/=nab;
+        }
+        return Ak;
+    }    
+
 protected:
     friend class Cache4Tests;
 
