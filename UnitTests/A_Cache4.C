@@ -96,25 +96,25 @@ public:
         }
 
     }
-    void TestDirect(std::vector<size_t> Zs, double eps)
+    void TestDirect(std::vector<size_t> Zs, double eps,BasisSet1::Atom::Type type1, BasisSet1::Atom::Type type2)
     {
         for (size_t Z:Zs)
         {
             Atom_EC ec(Z);
-            nlohmann::json js1={{"type",BasisSet1::Atom::Type::Gaussian },{"N", 5}, {"emin", 0.25}, {"emax", 4}};
-            nlohmann::json js2={{"type",BasisSet1::Atom::Type::Gaussian2},{"N", 5}, {"emin", 0.25}, {"emax", 4}};
+            nlohmann::json js1={{"type",type1 },{"N", 5}, {"emin", 0.25}, {"emax", 4}};
+            nlohmann::json js2={{"type",type2},{"N", 5}, {"emin", 0.25}, {"emax", 4}};
             auto bs1=BasisSet1::Atom::Factory(js1,ec);
             auto bs2=BasisSet1::Atom::Factory(js2,ec);
             TestDirect(bs1,bs2,eps);
         }
     }
-    void TestExchange(std::vector<size_t> Zs, double eps)
+    void TestExchange(std::vector<size_t> Zs, double eps,BasisSet1::Atom::Type type1, BasisSet1::Atom::Type type2)
     {
         for (size_t Z:Zs)
         {
             Atom_EC ec(Z);
-            nlohmann::json js1={{"type",BasisSet1::Atom::Type::Gaussian },{"N", 5}, {"emin", 0.25}, {"emax", 4}};
-            nlohmann::json js2={{"type",BasisSet1::Atom::Type::Gaussian2},{"N", 5}, {"emin", 0.25}, {"emax", 4}};
+            nlohmann::json js1={{"type",type1},{"N", 5}, {"emin", 0.25}, {"emax", 4}};
+            nlohmann::json js2={{"type",type2},{"N", 5}, {"emin", 0.25}, {"emax", 4}};
             auto bs1=BasisSet1::Atom::Factory(js1,ec);
             auto bs2=BasisSet1::Atom::Factory(js2,ec);
             TestExchange(bs1,bs2,eps);
@@ -164,20 +164,40 @@ TEST_F(Cache4Tests,Caching)
 
 TEST_F(Cache4Tests,HF2_SG_Direct_ClosedShell)
 {
-    TestDirect({2,10,18,36,46,63,70,80,88},2.2e-15);
+    TestDirect({2,10,18,36,46,63,70,80,88},2.2e-15,BasisSet1::Atom::Type::Gaussian,BasisSet1::Atom::Type::Gaussian2);
 }
 
 TEST_F(Cache4Tests,HF2_SG_Exchange_ClosedShell)
 {
-    TestExchange({2,10,18,36,46,63,70,80,88},2.2e-15);
+    TestExchange({2,10,18,36,46,63,70,80,88},2.2e-15,BasisSet1::Atom::Type::Gaussian,BasisSet1::Atom::Type::Gaussian2);
 }
 
 TEST_F(Cache4Tests,HF2_SG_Direct_OpenShell)
 {
-    TestDirect({5,6,7,8,9,11,13,14,15,16,17,19,21,22,23,24,25,26,27,28,29,39,40,41,42,43,58,64,91,92},2.2e-15);
+    TestDirect({5,6,7,8,9,11,13,14,15,16,17,19,21,22,23,24,25,26,27,28,29,39,40,41,42,43,58,64,91,92},2.2e-15,BasisSet1::Atom::Type::Gaussian,BasisSet1::Atom::Type::Gaussian2);
 }
 
 TEST_F(Cache4Tests,HF2_SG_Exchange_OpenShell)
 {
-    TestExchange({5,6,7,8,9,11,13,14,15,16,17,19,21,22,23,24,25,26,27,28,29,39,40,41,42,43,58,64,91,92},2.2e-15);
+    TestExchange({5,6,7,8,9,11,13,14,15,16,17,19,21,22,23,24,25,26,27,28,29,39,40,41,42,43,58,64,91,92},2.2e-15,BasisSet1::Atom::Type::Gaussian,BasisSet1::Atom::Type::Gaussian2);
+}
+
+TEST_F(Cache4Tests,HF2_SL_Direct_ClosedShell)
+{
+    TestDirect({2,10,18,36,46,63,70,80,88},2.2e-15,BasisSet1::Atom::Type::Slater,BasisSet1::Atom::Type::Slater2);
+}
+
+TEST_F(Cache4Tests,HF2_SL_Exchange_ClosedShell)
+{
+    TestExchange({2,10,18,36,46,63,70,80,88},2.2e-15,BasisSet1::Atom::Type::Slater,BasisSet1::Atom::Type::Slater2);
+}
+
+TEST_F(Cache4Tests,HF2_SL_Direct_OpenShell)
+{
+    TestDirect({5,6,7,8,9,11,13,14,15,16,17,19,21,22,23,24,25,26,27,28,29,39,40,41,42,43,58,64,91,92},2.2e-15,BasisSet1::Atom::Type::Slater,BasisSet1::Atom::Type::Slater2);
+}
+
+TEST_F(Cache4Tests,HF2_SL_Exchange_OpenShell)
+{
+    TestExchange({5,6,7,8,9,11,13,14,15,16,17,19,21,22,23,24,25,26,27,28,29,39,40,41,42,43,58,64,91,92},2.2e-15,BasisSet1::Atom::Type::Slater,BasisSet1::Atom::Type::Slater2);
 }

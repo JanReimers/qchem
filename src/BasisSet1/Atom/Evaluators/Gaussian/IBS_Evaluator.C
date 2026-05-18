@@ -94,7 +94,7 @@ public:
     {
         return 1.0/sqrt(Gaussian::Integral(2*es[i],2*l));
     }
-    double operator()(size_t i, double r) {return gaussian(r,l,es[i],ns[i]);}
+    // double operator()(size_t i, double r) {return gaussian(r,l,es[i],ns[i]);}
     virtual  rvec_t Norm     () const {return ns;}
 
     virtual rvec_t     operator() (const rvec3_t&) const;

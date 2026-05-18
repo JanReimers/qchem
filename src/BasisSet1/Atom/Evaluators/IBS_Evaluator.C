@@ -18,7 +18,7 @@ import qchem.Symmetry.Ylm;
 
 export using dERI3=ERI3<double>;
 
-export template <class E> concept isGeneric_Evaluator = requires (E e,size_t i, size_t j, const rvec3_t& r)
+export template <class E> concept isGeneric_Evaluator = requires (const E& e,size_t i, size_t j, const rvec3_t& r)
 {
     e.size();
     e.operator()(r);
@@ -105,7 +105,7 @@ public:
     virtual std::string RadialID () const=0;
     virtual std::string AngularID() const;
     virtual std::string Name() const=0;
-        static AngularIntegrals::rvec11_t Coulomb_AngularIntegrals(const IBS_Evaluator& a,const IBS_Evaluator& c)
+    static AngularIntegrals::rvec11_t Coulomb_AngularIntegrals(const IBS_Evaluator& a,const IBS_Evaluator& c)
     {
         AngularIntegrals::rvec11_t Ak(0.0);
         int la=a.Getl(),lc=c.Getl();

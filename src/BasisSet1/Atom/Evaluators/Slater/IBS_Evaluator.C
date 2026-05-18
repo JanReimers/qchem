@@ -6,6 +6,7 @@ export module qchem.BasisSet1.Atom.Evaluators.Slater.IBS;
 export import qchem.BasisSet1.Atom.Evaluators.Internal.Exponential_IBS_Evaluator;
 import qchem.BasisSet1.Atom.Evaluators.Slater.Internal.Integrals; 
 import qchem.BasisSet1.Atom.Evaluators.Slater.Internal.Rk; 
+import qchem.BasisSet1.Atom.Evaluators.Internal.AngularIntegrals;
 
 import qchem.BasisSet1.Internal.Cache4;
 
@@ -27,7 +28,8 @@ public:
         return Slater_IBS_Evaluator(scale_factor*es,0);
     }
     virtual std::ostream& Write   (std::ostream&) const;
- 
+    //using Exponential_IBS_Evaluator::size; does not seem to work for concepts. no member named 'size' in 'Gaussian_BS_Evaluator'
+    size_t size() const {return Exponential_IBS_Evaluator::size();}
     double Overlap(size_t i,size_t j) const
     {
         return Slater::Integral(es[i]+es[j],2*l)*ns[i]*ns[j]; //Already has 4*Pi and r^2 from dr.
@@ -99,6 +101,19 @@ public:
     virtual std::string Name() const;
     virtual std::string RadialType() const;
     virtual Cache41*    MakeCache4() const;
+    using Exponential_IBS_Evaluator::maxSpan;
+    using rvec11_t=AngularIntegrals::rvec11_t;
+    static double direct(const Cacheable* c, size_t la, size_t lc,const rvec11_t& Ak)
+    {
+        const Slater::RkEngine* cd = dynamic_cast<const Slater::RkEngine*>(c);
+        return cd->Coulomb_Rk(la,lc,Ak); // contract over k Rk*Ak
+    }
+    static double exchange(const Cacheable* c, size_t la, size_t lc,const rvec11_t& Ak)
+    {
+        const Slater::RkEngine* cd = dynamic_cast<const Slater::RkEngine*>(c);
+        return cd->ExchangeRk(la,lc,Ak); // contract over k Rk*Ak, exchange version is more complicated
+    }
+
 protected:
     static rvec_t exponents(size_t N, double emin, double emax, const Irrep_QNs::sym_t& ir);
     rvec_t norms() const; //assumes es,l are already initialized
@@ -119,7 +134,29 @@ static_assert(is1E_Evaluator     <Slater_IBS_Evaluator>);
 static_assert(isFit_Evaluator    <Slater_IBS_Evaluator>);
 static_assert(isDFT_Evaluator    <Slater_IBS_Evaluator>);
 static_assert(isRKBL_Evaluator   <Slater_IBS_Evaluator>);
+static_assert(isHF_Evaluator     <Slater_IBS_Evaluator>);
 
+export class Slater_Cache4 : public  Cache41
+{
+public:
+    // using IBS_Evaluator_t = Gaussian_IBS_Evaluator;
+    virtual void Register(Cache4_Client * eval)
+    {
+        assert(eval);
+        Slater_IBS_Evaluator* geval=dynamic_cast<Slater_IBS_Evaluator*>(eval);
+        geval->Register(&grouper);
+    }
+    virtual Rk*  Create (size_t ia,size_t ic,size_t ib,size_t id) const
+    {
+        return new Slater::RkEngine(
+            grouper.unique_esv[ia]+grouper.unique_esv[ib],
+            grouper.unique_esv[ic]+grouper.unique_esv[id],
+            grouper.LMax(ia,ib,ic,id));
+    }
+private:
+    friend class Cache4Tests;
+    ExponentGrouper grouper;
+};
 
 export class Slater_RKBS_IBS_Evaluator : public Slater_IBS_Evaluator
 {
