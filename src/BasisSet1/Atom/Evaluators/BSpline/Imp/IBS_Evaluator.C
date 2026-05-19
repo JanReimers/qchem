@@ -47,22 +47,21 @@ template <size_t K> void BSpline_IBS_Evaluator<K>::Register(Grouper* _grouper)
     auto grouper=static_cast<SplineGrouper<K>*>(_grouper);
     assert(grouper);
     for (auto s:splines) es_indices.push_back(grouper->Insert(s,l));
-    grouper->Insert(itsGL.get(),l);
 }
 
 template <size_t K> BSpline_IBS_Evaluator<K>::BSpline_IBS_Evaluator(size_t Ngrid, double _rmin, double _rmax,const Irrep_QNs::sym_t& ylm) 
-: IBS_Evaluator(ylm), rmin(_rmin), rmax(_rmax) 
+: IBS_Evaluator(ylm), rmin(_rmin), rmax(_rmax) , itsGrid({0,1})
 {
     knots=MakeLogKnots(Ngrid,rmin,rmax);
     // std::cout << "Knots=" << knots << std::endl;
     splines=bspline::generateBSplines<K>(knots);
     // splines.erase(splines.begin()); //First spline has B(0)=1.0 with violates B(0)=0 boundary condition for 1/r prefactor.
     for (size_t n=0;n<=3-l;n++) splines.pop_back(); //For s orbital the last spline has B(R)=1.0 with violates B(R)=0 boundary condition for 1/r prefactor.
-    auto grid=splines[0].getSupport().getGrid();
+    itsGrid=splines[0].getSupport().getGrid();
     // std::cout << "Grid = " << grid.size() << "    ";
     // for (auto r:grid) std::cout << r << ",";
     // std::cout << std::endl;
-    itsGL.reset(new GLCache(grid,K+3));
+    itsGL.reset(new GLCache(itsGrid,K+3));
     ns=norms();
     // std::cout << "BSpline_IBS_Evaluator<K>::BSpline_IBS_Evaluator size=" << size() << std::endl;
     assert(size()==splines.size());
@@ -120,7 +119,7 @@ template <size_t K> std::string BSpline_IBS_Evaluator<K>::RadialType() const
 
 template <size_t K> Cache41*    BSpline_IBS_Evaluator<K>::MakeCache4() const
 {
-    return new BSpline_Cache4<K>();
+    return new BSpline_Cache4<K>(itsGrid);
 }
 
 template <size_t K> rvec_t BSpline_IBS_Evaluator<K>::norms() const

@@ -13,7 +13,7 @@ export template <size_t K> class BSpline_BS_Evaluator
 {
 public:
     using IBS_Evaluator_t = BSpline_IBS_Evaluator<K>;
-    BSpline_BS_Evaluator() : itsRkCache(0) {};
+    BSpline_BS_Evaluator() : itsGL(0), itsRkCache(0) {};
     virtual ~BSpline_BS_Evaluator();
     virtual void Register(IBS_Evaluator *);
     virtual Rk*  Create (size_t ia,size_t ic,size_t ib,size_t id) const; //4 center
@@ -23,6 +23,7 @@ protected:
     void BuildCache(size_t lmax);
 private:
     // const GLCache* GetGL(size_t l) const;
+    GLCache* itsGL;
     SplineGrouper<K> grouper;
     BSpline::RkCache<K>* itsRkCache;
 };
@@ -32,7 +33,7 @@ export template <size_t K> class BSpline_r_BS_Evaluator
 {
 public:
     using IBS_Evaluator_t = BSpline_r_IBS_Evaluator<K>;
-    BSpline_r_BS_Evaluator() : itsRkCache(0) {};
+    BSpline_r_BS_Evaluator() : itsGL(0), itsRkCache(0) {};
     virtual ~BSpline_r_BS_Evaluator();
     virtual void Register(IBS_Evaluator *);
     virtual Rk*  Create (size_t ia,size_t ic,size_t ib,size_t id) const; //4 center
@@ -42,6 +43,7 @@ protected:
     void BuildCache(size_t lmax);
 private:
     // const GLCache* GetGL(size_t l) const;
+    GLCache* itsGL;
     SplineGrouper<K> grouper;
     BSpline::RkCache_r<K>* itsRkCache;
 };

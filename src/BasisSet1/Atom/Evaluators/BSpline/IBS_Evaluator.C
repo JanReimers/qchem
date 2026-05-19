@@ -114,6 +114,7 @@ protected:
     double rmin,rmax; //This might be needed for creating fit basis sets.
     std::vector<double> knots;
     std::vector<spline_t> splines;
+    bspline::Grid<double> itsGrid;
     std::unique_ptr<GLCache> itsGL;
 
 
@@ -129,7 +130,7 @@ static_assert(isHF_Evaluator     <BSpline_IBS_Evaluator<6>>);
 export template <size_t K> class BSpline_Cache4 : public  Cache41
 {
 public:
-    BSpline_Cache4() : itsRkCache(0) 
+    BSpline_Cache4(const bspline::Grid<double>& grid) : itsMaxl(0), itsGL(grid,K+3),itsRkCache(0) 
     {
     };
     ~BSpline_Cache4() {delete itsRkCache;}
@@ -139,6 +140,7 @@ public:
         assert(eval);
         BSpline_IBS_Evaluator<K>* geval=dynamic_cast<BSpline_IBS_Evaluator<K>*>(eval);
         geval->Register(&grouper);
+        if (geval->Getl()>itsMaxl) itsMaxl=geval->Getl();
         //
         //  At this point we need sweep through all Cacheable* (Rks) in Cache41::cache_t
         //  and check if geval is supported (geval.l <= Rk.LMax).
@@ -148,19 +150,19 @@ public:
         Cache41::Register(eval);
 
         delete itsRkCache;
-        size_t lmax=grouper.maxl();
-        itsRkCache=new BSpline::RkCache<K>(grouper.unique_spv,*grouper.GetGL(lmax),lmax);
+        itsRkCache=new BSpline::RkCache<K>(grouper.unique_spv,itsGL,itsMaxl);
     }
     virtual Rk*  Create (size_t ia,size_t ic,size_t ib,size_t id) const
     {
          assert(itsRkCache);
         // std::cout << "ia,ib,ic,id=" << ia << " " << ib << " " << ic << " " << id << std::endl;
         size_t lmax=grouper.LMax(ia,ib,ic,id);
-        const GLCache* gl=grouper.GetGL(lmax);
-        return new BSpline::RkEngine(grouper.unique_spv,ia,ib,ic,id,lmax,*gl,*itsRkCache);
+        return new BSpline::RkEngine(grouper.unique_spv,ia,ib,ic,id,lmax,itsGL,*itsRkCache);
     }
 private:
-   
+    size_t itsMaxl;
+    GLCache itsGL;
+
     SplineGrouper<K> grouper;
     BSpline::RkCache<K>* itsRkCache;
 };
