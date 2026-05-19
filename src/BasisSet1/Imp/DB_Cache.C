@@ -309,7 +309,7 @@ template <class T> void IntegralsCache_RAM<T>::Register(Cache4_Client* eval)
         const auto [iterator, success]=itsCache4s.insert({key,val_t(eval->MakeCache4())});
         assert(success);
         it=iterator;
-        std::cout << "Insert Cache4_Client RadialType=" << key << std::endl;
+        std::cout << "Insert Cache4_Client RadialType=" << key;
     }
     it->second->Register(eval);
 }
@@ -317,6 +317,12 @@ template <class T> void IntegralsCache_RAM<T>::Register(Cache4_Client* eval)
 template <class T> const Cache41* IntegralsCache_RAM<T>::GetCache4(const RadialTypeID_t& type) const
 {
     auto it=itsCache4s.find(type);
+    if (it==itsCache4s.end())
+    {
+        std::cerr << "Cache4 error: Cannot find radial type '" << type << "', known types are:" << std::endl;
+        for (auto& i:itsCache4s)
+            std::cerr << i.first << std::endl;
+    }
     assert(it!=itsCache4s.end());
     return it->second.get();
 }

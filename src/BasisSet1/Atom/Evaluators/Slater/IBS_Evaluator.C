@@ -142,6 +142,13 @@ public:
         assert(eval);
         Slater_IBS_Evaluator* geval=dynamic_cast<Slater_IBS_Evaluator*>(eval);
         geval->Register(&grouper);
+        //
+        //  At this point we need sweep through all Cacheable* (Rks) in Cache41::cache_t
+        //  and check if geval is supported (geval.l <= Rk.LMax).
+        //  All unsupport Rks will be removed.  These will then automatically be recreated next time
+        //  loop_4 is called.
+        //
+        Cache41::Register(eval);
     }
     virtual Rk*  Create (size_t ia,size_t ic,size_t ib,size_t id) const
     {

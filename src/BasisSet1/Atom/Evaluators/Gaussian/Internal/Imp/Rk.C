@@ -6,6 +6,7 @@ module;
 #include <vector>
 module qchem.BasisSet1.Atom.Evaluators.Gaussian.Internal.Rk; 
 import qchem.BasisSet1.Atom.Internal.PascalTriangle;
+import qchem.BasisSet1.Atom.Evaluators.IBS;
 import Common.Constants;
 import Common.Factorials;
 
@@ -116,6 +117,13 @@ double RkEngine::ExchangeRk(size_t la,size_t lb, const rvec11_t& Ak) const
         ret+=Pi12/8*(Iab(Lab_m,Lcd_p)+Icd(Lcd_m,Lab_p))*Ak[k]; //(2*k+1)???
     }
     return ret;
+}
+
+bool RkEngine::isSupported(const Cache4_Client* cl) const
+{
+    auto eval=dynamic_cast<const IBS_Evaluator*>(cl);
+    assert(eval);
+    return eval->Getl()<=LMax;
 }
 
 } //namespace

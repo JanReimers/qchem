@@ -24,7 +24,9 @@ std::string Slater_IBS_Evaluator::Name() const
 }
 std::string Slater_IBS_Evaluator::RadialType() const
 {
-    return "SL";
+    std::ostringstream os;
+    os << "SL";
+    return os.str();
 }
 
 Cache41*    Slater_IBS_Evaluator::MakeCache4() const

@@ -17,6 +17,7 @@ import qchem.BasisSet1.Atom.IBS;
 import qchem.BasisSet1.Internal.BasisSetImp;
 import qchem.BasisSet1.Internal.Orbital_DHF_IBS;
 import qchem.BasisSet1.Internal.IrrepBasisSetImp;
+import qchem.BasisSet1.DB_Cache;
 
 export 
 namespace BasisSet1 {
@@ -274,6 +275,7 @@ public:
 private:
     void Insert(oibs_t* oibs)
     {
+        BasisSet1::theGlobalCache->Register(oibs);
         BasisSet1::BasisSetImp<double>::Insert(oibs);
     }
 };
@@ -303,6 +305,7 @@ public:
 private:
     void Insert(oibs_t* oibs)
     {
+        BasisSet1::theGlobalCache->Register(oibs);
         BasisSet1::BasisSetImp<double>::Insert(oibs);
     }
 };
@@ -324,6 +327,7 @@ public:
 private:
     void Insert(oibs_t* oibs)
     {
+        // BasisSet1::theGlobalCache->Register(oibs);
         BasisSet1::BasisSetImp<double>::Insert(oibs);
         // Evaluator::Register(oibs->GetEvaluator());
     }

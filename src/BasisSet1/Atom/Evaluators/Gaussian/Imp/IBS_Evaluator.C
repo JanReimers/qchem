@@ -23,7 +23,9 @@ std::string Gaussian_IBS_Evaluator::Name() const
 
 std::string Gaussian_IBS_Evaluator::RadialType() const
 {
-    return "SG";
+    std::ostringstream os;
+    os << "SG";
+    return os.str();
 }
 
 Cache41*    Gaussian_IBS_Evaluator::MakeCache4() const

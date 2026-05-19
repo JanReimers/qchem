@@ -4,6 +4,7 @@ module;
 #include <cmath>
 #include <vector>
 module qchem.BasisSet1.Atom.Evaluators.Slater.Internal.Rk; 
+import qchem.BasisSet1.Atom.Evaluators.IBS;
 import qchem.BasisSet1.Atom.Internal.PascalTriangle;
 import Common.Factorials;
 
@@ -104,5 +105,11 @@ double RkEngine::ExchangeRk(size_t la,size_t lb, const rvec11_t& Ak) const
     return ret;
 }
 
+bool RkEngine::isSupported(const Cache4_Client* cl) const
+{
+    auto eval=dynamic_cast<const IBS_Evaluator*>(cl);
+    assert(eval);
+    return eval->Getl()<=LMax;
+}
 
 } //namespace

@@ -6,10 +6,12 @@ export module qchem.BasisSet1.Internal.Cache4;
 //
 //  Abstract base for the type being cached.
 //
+export class Cache4_Client;
 export class Cacheable
 {
 public:
     virtual ~Cacheable() {};
+    virtual bool isSupported(const Cache4_Client*) const=0;
 };
 //
 //  Cache object based on four unsigned integer indices.  Client code using the caching
@@ -71,7 +73,6 @@ public:
 //         assert(Tc);
 //         return Tc;
 //     } 
-    
 private:
     virtual const Cacheable* Create(size_t i1,size_t i2,size_t i3,size_t i4) const=0;
 

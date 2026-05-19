@@ -6,6 +6,7 @@ module;
 #include <cassert>
 #include <bspline/Core.h>
 module qchem.BasisSet1.Atom.Evaluators.BSpline.Internal.Rk;
+import qchem.BasisSet1.Atom.Evaluators.IBS;
 import qchem.BasisSet1.Atom.Evaluators.BSpline.Internal.GLQuadrature;
 
 import Common.IntPow;
@@ -15,11 +16,17 @@ using std::endl;
 
 namespace BSpline
 {
+
+   
+
 template <size_t K> RkCache<K>::RkCache(const std::vector<sp_t>& splines,const GLCache& gl, size_t lmax)
 {
     for (size_t ia=0;ia<splines.size();ia++)
+    {
+        // std::cout << "grid a " << splines[ia].getSupport().getGrid();
         for (size_t ib=ia;ib<splines.size();ib++)
         {
+            // std::cout << "grid b " << splines[ib].getSupport().getGrid();
             // TODO skip for zero overlap
             std::vector<double> mp,mm;
             for (size_t k=0;k<=2*lmax;k++)
@@ -33,6 +40,7 @@ template <size_t K> RkCache<K>::RkCache(const std::vector<sp_t>& splines,const G
             itsMomentsPlus [std::make_pair(ia,ib)]=mp;
             itsMomentsMinus[std::make_pair(ia,ib)]=mm;
         }
+    }
 
 }
 
@@ -316,6 +324,13 @@ template <size_t K> RkEngine_r<K>::RkEngine_r(const std::vector<sp_t>& splines, 
     }
     return Rk;
  }
+
+template <size_t K>  bool RkEngine<K>::isSupported(const Cache4_Client* cl) const
+{
+    auto eval=dynamic_cast<const IBS_Evaluator*>(cl);
+    assert(eval);
+    return eval->Getl()<=LMax;
+}
  
 #define INSTANCEk(k) template class RkCache<k>;
 #include "../Instance.hpp"

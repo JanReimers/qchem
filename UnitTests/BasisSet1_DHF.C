@@ -21,7 +21,7 @@ public:
         , cl_hydrogen_100(new Atom(1,0.0,Vector3D(1,0,0)))
         , cl_helium      (new Atom(2,0.0,Vector3D(0,0,0)))
     {
-        BasisSet1::theGlobalCache=new BasisSet1::IntegralsCache_RAM<double>();       
+        // BasisSet1::theGlobalCache=new BasisSet1::IntegralsCache_RAM<double>();       
     }
     ~Basis1_RKB_Tests()
     {
@@ -30,7 +30,7 @@ public:
         delete cl_helium;
         delete bs1;
         delete bs2;
-        delete BasisSet1::theGlobalCache;
+        // delete BasisSet1::theGlobalCache;
     }
     void Init(nlohmann::json js)
     {

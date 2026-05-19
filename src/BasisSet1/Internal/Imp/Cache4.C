@@ -1,6 +1,7 @@
 // File: Cache4Imp.C Cache object based on four unsigned integer indices.
 module;
 #include <map>
+#include <iostream>
 module qchem.BasisSet1.Internal.Cache4;
 
 Cache4::~Cache4()
@@ -57,6 +58,20 @@ Cache41::~Cache41()
         for (auto b:a.second) 
             for (auto c:b.second) 
                 for (auto d:c.second) delete d.second;
+}
+
+//  All unsupport Rks will be removed.  These will then automatically be recreated next time
+//  loop_4 is called.
+
+void Cache41::Register(Cache4_Client* client)
+{
+    for (auto& a:cache) 
+        for (auto& b:a.second) 
+            for (auto& c:b.second) 
+                std::erase_if(c.second, [client](const auto& pair) //C++-20 magic!!
+                {
+                    return pair.second->isSupported(client);
+                });
 }
 
 void Cache41::loop_1(size_t _i1) const

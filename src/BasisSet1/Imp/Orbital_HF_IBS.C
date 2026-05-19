@@ -16,7 +16,8 @@ template <class T> const ERI4& Orbital_HF_IBS<T>::Direct(const Orbital_HF_IBS<T>
     IntegralsCache_Base::IBS_ID_t ab(RadialID(),AngularID());
     IntegralsCache_Base::IBS_ID_t cd(c.RadialID(),c.AngularID());
     return cache->Has(IntegralsCache_Base::I4C::Direct,ab,cd)
-        ? cache->GetERI4() : cache->SetDirect(MakeDirect(c));
+        ? cache->GetERI4() 
+        : cache->SetDirect(MakeDirect(c));
 }
 
 template <class T> const   ERI4&  Orbital_HF_IBS<T>::Exchange(const Orbital_HF_IBS<T>& c) const

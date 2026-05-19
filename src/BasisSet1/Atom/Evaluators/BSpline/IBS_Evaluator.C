@@ -139,8 +139,16 @@ public:
         assert(eval);
         BSpline_IBS_Evaluator<K>* geval=dynamic_cast<BSpline_IBS_Evaluator<K>*>(eval);
         geval->Register(&grouper);
+        //
+        //  At this point we need sweep through all Cacheable* (Rks) in Cache41::cache_t
+        //  and check if geval is supported (geval.l <= Rk.LMax).
+        //  All unsupport Rks will be removed.  These will then automatically be recreated next time
+        //  loop_4 is called.
+        //
+        Cache41::Register(eval);
+
         delete itsRkCache;
-        size_t lmax=3;
+        size_t lmax=grouper.maxl();
         itsRkCache=new BSpline::RkCache<K>(grouper.unique_spv,*this->GetGL(lmax),lmax);
     }
     virtual Rk*  Create (size_t ia,size_t ic,size_t ib,size_t id) const

@@ -16,6 +16,13 @@ import qchem.BasisSet1.Atom.Evaluators.BSpline.Internal.GLQuadrature;
 // and work out the radial integral tables up to LMax for each 4-way spline combination. 
 // This class should be working together with the charge distribution caching mechanism.
 //  
+export std::ostream& operator<<(std::ostream& os,const bspline::Grid<double>& g)
+{
+    os << "{";
+    for (auto r:g) os << r << ", ";
+    os << "}" << std::endl;
+    return os;
+}
 template <class T, size_t K> struct cmpSplines1 {
     bool operator()(const bspline::Spline<T,K>& a, const bspline::Spline<T,K>& b) const
     {
@@ -31,6 +38,7 @@ export template <size_t K> class SplineGrouper : public Grouper
 public:
     //! Returns the unique (across all Irrep basis sets) index for this rmin.
     size_t Insert(const spline_t&,size_t l); 
+    size_t maxl() const;
     //! Linear array of unique exponents.
     std::vector<spline_t> unique_spv; 
     std::map<size_t,const GLCache*> itsGLs;

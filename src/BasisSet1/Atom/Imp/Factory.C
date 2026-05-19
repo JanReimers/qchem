@@ -38,14 +38,14 @@ BasisSet1::Real_BS* Factory(const nlohmann::json& js,const ElectronConfiguration
         {
             auto es1=js["exponents"].template get<std::vector<double>>();
             rvec_t es(es1.size(),&es1[0]);
-            bs=new BasisSet<Slater_BS_Evaluator>(es,ec);
+            bs=new BasisSet_HF2<Slater_IBS_Evaluator>(es,ec);
 
         }
         else
         {
             size_t N=js["N"];
             double emin=js["emin"].template get<double>(),emax=js["emax"].template get<double>();
-            bs=new BasisSet<Slater_BS_Evaluator>(N,emin,emax,ec);
+            bs=new BasisSet_HF2<Slater_IBS_Evaluator>(N,emin,emax,ec);
         }
         break;
     }
@@ -55,13 +55,13 @@ BasisSet1::Real_BS* Factory(const nlohmann::json& js,const ElectronConfiguration
         {
             auto es1=js["exponents"].template get<std::vector<double>>();
             rvec_t es(es1.size(),&es1[0]);
-            bs=new BasisSet<Gaussian_BS_Evaluator>(es,ec);
+            bs=new BasisSet_HF2<Gaussian_IBS_Evaluator>(es,ec);
         }
         else
         {
             size_t N=js["N"];
             double emin=js["emin"].template get<double>(),emax=js["emax"].template get<double>();
-            bs=new BasisSet<Gaussian_BS_Evaluator>(N,emin,emax,ec);
+            bs=new BasisSet_HF2<Gaussian_IBS_Evaluator>(N,emin,emax,ec);
         }
         break;
     }
