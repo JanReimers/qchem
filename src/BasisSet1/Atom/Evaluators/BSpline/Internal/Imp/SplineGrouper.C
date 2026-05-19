@@ -22,16 +22,18 @@ template <size_t K> size_t SplineGrouper<K>::Insert(const spline_t& sp,size_t l)
         index=ie->second;
 
     if (l>maxls[index]) maxls[index]=l;
+    if (l>itsMaxl) itsMaxl=l;
     // cout << "SplineGrouper index,rmin,l,maxl=" << index << " " << rmin << " " << l << " " << maxls[index] << endl;
     return index;
 }
 
 template <size_t K> size_t SplineGrouper<K>::maxl() const
 {
-    size_t ret=0;
-    for (auto i:itsGLs)
-        if (i.first>ret) ret=i.first;
-    return ret;
+    return itsMaxl;
+    // size_t ret=0;
+    // for (auto i:itsGLs)
+    //     if (i.first>ret) ret=i.first;
+    // return ret;
 }
  
 #define INSTANCEk(k) template class SplineGrouper<k>;

@@ -25,18 +25,18 @@ GLQuadrature::GLQuadrature(const double& rmin, const double& rmax,int N)
 };
 
 
-GLCache::GLCache(const bspline::support::Grid<double>& g,size_t N)
+GLCache::GLCache(const bspline::support::Grid<double>& g,size_t Order)
 : grid(g)
 {
     for (size_t i=1;i<grid.size();i++)
     {
         double rmin=grid[i-1], rmax=grid[i];
-        itsGLs.push_back(GLQuadrature(rmin,rmax,N));
+        itsGLs.push_back(GLQuadrature(rmin,rmax,Order));
         const GLQuadrature& gl=itsGLs.back();
         for (double r:gl.xs)
         {
-            itsDiagGLs[rmin][r]=GLQuadrature(rmin,r,N);
-            itsDiagGLs[r][rmax]=GLQuadrature(r,rmax,N);
+            itsDiagGLs[rmin][r]=GLQuadrature(rmin,r,Order);
+            itsDiagGLs[r][rmax]=GLQuadrature(r,rmax,Order);
         }
     }
     

@@ -37,23 +37,29 @@ export template <size_t K> class SplineGrouper : public Grouper
 {
     typedef bspline::Spline<double, K> spline_t;
 public:
+    SplineGrouper() : itsMaxl(0), itsGL(0) {}
     //! Returns the unique (across all Irrep basis sets) index for this rmin.
     size_t Insert(const spline_t&,size_t l); 
     void Insert(const GLCache* gl,size_t l)
     {
-        itsGLs[l]=gl;
+        if (!itsGL) itsGL=gl;
+        // itsGLs[l]=gl;
     }
     size_t maxl() const;
     //! Linear array of unique exponents.
     std::vector<spline_t> unique_spv; 
     const GLCache* GetGL(size_t l) const
     {
-        auto i=itsGLs.find(l);
-        assert(i!=itsGLs.end());
-        return i->second;
+        // auto i=itsGLs.find(l);
+        // assert(i!=itsGLs.end());
+        // return i->second;
+        assert(itsGL);
+        return itsGL;
     }
 private: 
-    std::map<size_t,const GLCache*> itsGLs;
+    size_t itsMaxl;
+    const GLCache* itsGL;
+    // std::map<size_t,const GLCache*> itsGLs;
     //Use this map instead of Grouper::unique_es.
     std::map<spline_t,size_t,cmpSplines1<double,K>> unique_sp; //Unique splines.
 };

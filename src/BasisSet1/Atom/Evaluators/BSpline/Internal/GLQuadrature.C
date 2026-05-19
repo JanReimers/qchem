@@ -40,7 +40,7 @@ private:
 export class GLCache
 {
 public:
-    GLCache(const bspline::support::Grid<double>& g,size_t N);
+    GLCache(const bspline::support::Grid<double>& g,size_t Order);
 
     const GLQuadrature& find(double rmin, double rmax) const;
     

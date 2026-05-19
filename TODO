@@ -66,7 +66,7 @@ Priority 1:
                 BSpline_IBS_Evaluator has std::unique_ptr<GLCache> itsGL;
                 1) GLCache is not a abstract base ... why all the pointers?
                 2) Why does SplineGrouper care about storing a separate GLCache for each l?
-                
+                3) These caches depend on the grid and K ... which are the same for all l.
 
         -Refactor BSpline and BSpine_r to minimize duplicated code.  Isolate weight functions wp, wm.
             [k] capture makes this very difficult.
