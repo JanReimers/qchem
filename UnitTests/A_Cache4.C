@@ -163,20 +163,20 @@ TEST_F(Cache4Tests,HF2_SL_Reentry)
         TestDirect(Z,js);
 }
 
-// TEST_F(Cache4Tests,HF2_BS_Reentry)
-// {
-//     delete bs1;
-//     nlohmann::json js={{"N", 5}, {"rmin", 0.25}, {"rmax", 4}};
-//     js["type"]=BasisSet1::Atom::Type::BSpline6_2;
-//     for (size_t Z:{2,18,36,86})
-//         TestDirect(Z,js);
+TEST_F(Cache4Tests,HF2_BS_Reentry)
+{
+    delete bs1;
+    nlohmann::json js={{"N", 5}, {"rmin", 0.25}, {"rmax", 4}};
+    js["type"]=BasisSet1::Atom::Type::BSpline6_2;
+    for (size_t Z:{2,18,36,86})
+        TestDirect(Z,js);
 
-//         // Now shift the exponents around
-//     js["rmin"]=0.2;
-//     js["rmax"]=3.0;
-//     for (size_t Z:{2,18,36,86})
-//         TestDirect(Z,js);
-// }
+        // Now shift the exponents around
+    js["rmin"]=0.2;
+    js["rmax"]=3.0;
+    for (size_t Z:{2,18,36,86})
+        TestDirect(Z,js);
+}
 
 
 // TEST_F(Cache4Tests,Caching)

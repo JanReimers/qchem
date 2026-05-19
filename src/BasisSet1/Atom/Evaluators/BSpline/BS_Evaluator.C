@@ -22,7 +22,7 @@ public:
 protected:
     void BuildCache(size_t lmax);
 private:
-    const GLCache* GetGL(size_t l) const;
+    // const GLCache* GetGL(size_t l) const;
     SplineGrouper<K> grouper;
     BSpline::RkCache<K>* itsRkCache;
 };
@@ -41,7 +41,7 @@ public:
 protected:
     void BuildCache(size_t lmax);
 private:
-    const GLCache* GetGL(size_t l) const;
+    // const GLCache* GetGL(size_t l) const;
     SplineGrouper<K> grouper;
     BSpline::RkCache_r<K>* itsRkCache;
 };

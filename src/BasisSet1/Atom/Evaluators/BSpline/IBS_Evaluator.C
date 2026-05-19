@@ -149,23 +149,18 @@ public:
 
         delete itsRkCache;
         size_t lmax=grouper.maxl();
-        itsRkCache=new BSpline::RkCache<K>(grouper.unique_spv,*this->GetGL(lmax),lmax);
+        itsRkCache=new BSpline::RkCache<K>(grouper.unique_spv,*grouper.GetGL(lmax),lmax);
     }
     virtual Rk*  Create (size_t ia,size_t ic,size_t ib,size_t id) const
     {
          assert(itsRkCache);
         // std::cout << "ia,ib,ic,id=" << ia << " " << ib << " " << ic << " " << id << std::endl;
         size_t lmax=grouper.LMax(ia,ib,ic,id);
-        const GLCache* gl=this->GetGL(lmax);
+        const GLCache* gl=grouper.GetGL(lmax);
         return new BSpline::RkEngine(grouper.unique_spv,ia,ib,ic,id,lmax,*gl,*itsRkCache);
     }
 private:
-    const GLCache* GetGL(size_t l) const
-    {
-        auto i=grouper.itsGLs.find(l);
-        assert(i!=grouper.itsGLs.end());
-        return i->second;
-    }
+   
     SplineGrouper<K> grouper;
     BSpline::RkCache<K>* itsRkCache;
 };

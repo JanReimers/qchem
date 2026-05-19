@@ -3,6 +3,7 @@ module;
 #include <bspline/Core.h>
 #include <vector>
 #include <map>
+#include <cassert>
 export module qchem.BasisSet1.Atom.Evaluators.BSpline.Internal.SplineGrouper;
 export import qchem.BasisSet1.Atom.Evaluators.Internal.ExponentGrouper;
 import qchem.BasisSet1.Atom.Evaluators.BSpline.Internal.GLQuadrature;
@@ -38,11 +39,21 @@ export template <size_t K> class SplineGrouper : public Grouper
 public:
     //! Returns the unique (across all Irrep basis sets) index for this rmin.
     size_t Insert(const spline_t&,size_t l); 
+    void Insert(const GLCache* gl,size_t l)
+    {
+        itsGLs[l]=gl;
+    }
     size_t maxl() const;
     //! Linear array of unique exponents.
     std::vector<spline_t> unique_spv; 
-    std::map<size_t,const GLCache*> itsGLs;
+    const GLCache* GetGL(size_t l) const
+    {
+        auto i=itsGLs.find(l);
+        assert(i!=itsGLs.end());
+        return i->second;
+    }
 private: 
+    std::map<size_t,const GLCache*> itsGLs;
     //Use this map instead of Grouper::unique_es.
     std::map<spline_t,size_t,cmpSplines1<double,K>> unique_sp; //Unique splines.
 };

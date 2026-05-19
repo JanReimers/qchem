@@ -16,16 +16,16 @@ template <size_t K> void BSpline_BS_Evaluator<K>::Register(IBS_Evaluator * eval)
     eval->Register(&grouper);
 }
 
-template <size_t K> const GLCache* BSpline_BS_Evaluator<K>::GetGL(size_t l) const
-{
-    auto i=grouper.itsGLs.find(l);
-    assert(i!=grouper.itsGLs.end());
-    return i->second;
-}
+// template <size_t K> const GLCache* BSpline_BS_Evaluator<K>::GetGL(size_t l) const
+// {
+//     auto i=grouper.itsGLs.find(l);
+//     assert(i!=grouper.itsGLs.end());
+//     return i->second;
+// }
 
 template <size_t K> void BSpline_BS_Evaluator<K>::BuildCache(size_t lmax)
 {
-    itsRkCache=new BSpline::RkCache<K>(grouper.unique_spv,*this->GetGL(lmax),lmax);
+    itsRkCache=new BSpline::RkCache<K>(grouper.unique_spv,*grouper.GetGL(lmax),lmax);
 }
 
 
@@ -34,7 +34,7 @@ template <size_t K> Rk* BSpline_BS_Evaluator<K>::Create(size_t ia,size_t ic,size
     assert(itsRkCache);
     // std::cout << "ia,ib,ic,id=" << ia << " " << ib << " " << ic << " " << id << std::endl;
     size_t lmax=grouper.LMax(ia,ib,ic,id);
-    const GLCache* gl=this->GetGL(lmax);
+    const GLCache* gl=grouper.GetGL(lmax);
     return new BSpline::RkEngine(grouper.unique_spv,ia,ib,ic,id,lmax,*gl,*itsRkCache);
 }
 

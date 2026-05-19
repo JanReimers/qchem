@@ -61,6 +61,13 @@ Priority 1:
             -Make orbital type a template parameter for BasisSet.  Merge BasisSet BasisSet_RKB and BasisSet_1E_HF
             -qchem.BasisSet1.Atom.Factory; use Atom_EC instead of ElectronConfiguration
             -BSpline::RkCache should not care about l.
+            -BSpline Both SplineGrouper and BSpline_IBS_Evaluator have GLCaches
+                SplineGrouper         has std::map<size_t l,const GLCache*> itsGLs;
+                BSpline_IBS_Evaluator has std::unique_ptr<GLCache> itsGL;
+                1) GLCache is not a abstract base ... why all the pointers?
+                2) Why does SplineGrouper care about storing a separate GLCache for each l?
+                
+
         -Refactor BSpline and BSpine_r to minimize duplicated code.  Isolate weight functions wp, wm.
             [k] capture makes this very difficult.
 
