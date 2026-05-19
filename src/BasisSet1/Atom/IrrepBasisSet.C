@@ -14,10 +14,11 @@ import qchem.BasisSet1.IrrepBasisSet;
 import qchem.BasisSet1.Orbital_1E_IBS;
 import qchem.BasisSet1.Orbital_DFT_IBS;
 import qchem.BasisSet1.Orbital_HF_IBS;
-import qchem.BasisSet1.Atom.Evaluators.BS;
 import qchem.BasisSet1.Atom.Evaluators.Internal.AngularIntegrals; //Need rvec11 declaration.
 import qchem.Symmetry.Yl;
 import qchem.BasisSet1.DB_Cache;
+import qchem.BasisSet1.Atom.Evaluators.IBS;
+import qchem.BasisSet1.Internal.Cache4;
 
 export namespace BasisSet1
 {
@@ -214,28 +215,6 @@ protected:
 
 
 
-template <isGeneric_Evaluator E> class Orbital_HF_IBS
-    : public virtual BasisSet1::Orbital_HF_IBS<double> 
-
-{
-protected:
-    Orbital_HF_IBS(BS_Evaluator* bse)  : itsEvaluator(bse) {assert(itsEvaluator);} 
-
-    virtual ERI4 MakeDirect  (const BasisSet1::Orbital_HF_IBS<double>& _c) const 
-    {
-        auto& a=dynamic_cast<const E&>(*this);
-        auto& c=dynamic_cast<const E&>(_c);
-        return itsEvaluator->Direct(&a,&c);
-    }
-    virtual ERI4 MakeExchange(const BasisSet1::Orbital_HF_IBS<double>& _c) const 
-    {
-        auto& a=dynamic_cast<const E&>(*this);
-        auto& c=dynamic_cast<const E&>(_c);
-        return itsEvaluator->Exchange(&a,&c);
-    }
-private: 
-    BS_Evaluator* itsEvaluator;
-};
 
 template <isHF_Evaluator E> class Orbital_HF1_IBS
     : public virtual BasisSet1::Orbital_HF_IBS<double> 

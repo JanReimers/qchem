@@ -1,6 +1,5 @@
 # add_library(qcAtom_BS1) 
 target_sources(qcAtom_BS1 PRIVATE 
-    Imp/BS_Evaluator.C
     Internal/Imp/AngularIntegrals.C
     Internal/Imp/ExponentGrouper.C
     Internal/Imp/Exponential_Evaluator.C
@@ -8,7 +7,6 @@ target_sources(qcAtom_BS1 PRIVATE
 )
 target_sources(qcAtom_BS1 PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
     IBS_Evaluator.C
-    BS_Evaluator.C
     Internal/Rk.C
     Internal/AngularIntegrals.C
     Internal/Wigner3j.C

@@ -7,9 +7,9 @@
 using std::cout;
 using std::endl;
 
-import qchem.BasisSet1.Atom.Evaluators.Slater.BS;
-import qchem.BasisSet1.Atom.Evaluators.Gaussian.BS; 
-import qchem.BasisSet1.Atom.Evaluators.BSpline.BS;
+import qchem.BasisSet1.Atom.Evaluators.Slater.IBS;
+import qchem.BasisSet1.Atom.Evaluators.Gaussian.IBS; 
+import qchem.BasisSet1.Atom.Evaluators.BSpline.IBS;
 
 import qchem.Factory;
 import qchem.Mesh.Integrator;
@@ -30,12 +30,11 @@ using qchem::Hamiltonian::obs_t;
 template <isHF_NR_Evaluator E> class BasisSet_Common : public ::testing::Test
 {
 public:
-    BasisSet_Common(BS_Evaluator* _bseval) 
+    BasisSet_Common() 
         : es{0.5,1.0,2.0}
         , N(es.size())
         , LMax(3)
         , cl(new Atom(1,0.0,Vector3D(0,0,0)))
-        , bs_eval(_bseval)
         , bs(0)
     {
         
@@ -47,13 +46,11 @@ public:
         for (auto ev:evals) delete ev;
         delete cl;
         delete mintegrator;
-        delete bs_eval;
         delete bs;
     }
     void Insert(E* eval)
     {
         evals.push_back(eval);
-        bs_eval->Register(eval);
     }
 
     void TestOverlap(double eps) const;
@@ -68,7 +65,6 @@ public:
     std::vector<E*> evals;
     Cluster* cl;
     MeshIntegrator<double>* mintegrator;
-    BS_Evaluator* bs_eval;
     BasisSet* bs;
 };
 template <isHF_NR_Evaluator E> void BasisSet_Common<E>::TestOverlap(double eps) const
@@ -155,7 +151,7 @@ class BasisSet_SL: public BasisSet_Common<Slater_IBS_Evaluator>
 {
 public:
 
-    BasisSet_SL() : BasisSet_Common<Slater_IBS_Evaluator>(new Slater_BS_Evaluator)
+    BasisSet_SL() : BasisSet_Common<Slater_IBS_Evaluator>()
     {
         Atom_EC ec(86); //Radon has f orbtials with no magnetic splitting.
         for (auto ir:ec.GetIrreps())
@@ -263,12 +259,8 @@ TEST_F(BasisSet_SL,HF_ERIs)
         auto c=evals.begin();
         for (auto cibs:bs->Iterate<ohfbs_t>())
         {
-            ERI4 J1=bs_eval->Direct(*a,*c);
             ERI4 J2=aibs->Direct(*cibs);
-            EXPECT_TRUE(J1==J2);
-            ERI4 K1=bs_eval->Exchange(*a,*c);
             ERI4 K2=aibs->Exchange(*cibs);
-            EXPECT_TRUE(K1==K2);
             ++c;
         }
         ++a;
@@ -295,7 +287,7 @@ class BasisSet_SG: public BasisSet_Common<Gaussian_IBS_Evaluator>
 {
 public:
 
-    BasisSet_SG() : BasisSet_Common(new Gaussian_BS_Evaluator)
+    BasisSet_SG() : BasisSet_Common()
     {
         // for (size_t l=0;l<=LMax;l++)
         //     Insert(new Gaussian_IBS_Evaluator(es,l));    
@@ -386,12 +378,8 @@ TEST_F(BasisSet_SG,HF_ERIs)
         auto c=evals.begin();
         for (auto cibs:bs->Iterate<ohfbs_t>())
         {
-            ERI4 J1=bs_eval->Direct(*a,*c);
             ERI4 J2=aibs->Direct(*cibs);
-            EXPECT_TRUE(J1==J2);
-            ERI4 K1=bs_eval->Exchange(*a,*c);
             ERI4 K2=aibs->Exchange(*cibs);
-            EXPECT_TRUE(K1==K2);
             ++c;
         }
         ++a;
@@ -418,7 +406,7 @@ class BasisSet_BS: public BasisSet_Common<BSpline_IBS_Evaluator<6>>
 {
 public:
 
-    BasisSet_BS() : BasisSet_Common(new BSpline_BS_Evaluator<6>)
+    BasisSet_BS() : BasisSet_Common()
     {
         for (size_t l=0;l<=3;l++)
             Insert(new BSpline_IBS_Evaluator<6>(5,0.01,20.0,Irrep_QNs::sym_t(new Yl_Sym(l))));
