@@ -13,18 +13,22 @@ import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.Rk;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.SplineGrouper;
 import Common.Constants;
 // import Common.IntPow;
+
+namespace BasisSet::Atom::Evaluators::BSpline
+{
+
 using namespace bspline::operators; 
 using namespace bspline::integration; 
 
 template<size_t K> using spline_t = bspline::Spline<double, K>;
 
-template <size_t K> double Repulsion(const spline_t<K>& ab , const spline_t<K>& c,size_t la,size_t lc)
+template <size_t K> double StaticRepulsion(const spline_t<K>& ab , const spline_t<K>& c,size_t la,size_t lc)
 {    
     assert(false);
     return 0.0;
 }
 
-template <size_t K1,size_t K2> double Overlap(const spline_t<K1>& a , const spline_t<K2>& b,size_t l_total,const GLCache& gl)
+template <size_t K1,size_t K2> double StaticOverlap(const spline_t<K1>& a , const spline_t<K2>& b,size_t l_total,const GLCache& gl)
 {
     std::function< double (double)> x0 = [](double r)
     {
@@ -33,7 +37,7 @@ template <size_t K1,size_t K2> double Overlap(const spline_t<K1>& a , const spli
     return gl.Integrate(x0,a,b)*FourPi;
 }
 
-template <size_t K> double Grad2(const spline_t<K>& a , const spline_t<K>& b,size_t la, size_t lb,const GLCache& gl)
+template <size_t K> double StaticGrad2(const spline_t<K>& a , const spline_t<K>& b,size_t la, size_t lb,const GLCache& gl)
 {
     // static const auto T = -X<2>{} * Dx<2>{} - 2 * X<1>{} * Dx<1>{};
     static const auto T = -Dx<2>{};
@@ -41,7 +45,7 @@ template <size_t K> double Grad2(const spline_t<K>& a , const spline_t<K>& b,siz
     return (BilinearForm{T}(a,b))*FourPi;
 }
 
-template <size_t K> double Inv_r1(const spline_t<K>& a , const spline_t<K>& b,size_t l_total,const GLCache& gl)
+template <size_t K> double StaticInv_r1(const spline_t<K>& a , const spline_t<K>& b,size_t l_total,const GLCache& gl)
 {
     std::function< double (double)> xm1 = [](double r)
     {
@@ -50,7 +54,7 @@ template <size_t K> double Inv_r1(const spline_t<K>& a , const spline_t<K>& b,si
     };
     return gl.Integrate(xm1,a,b)*FourPi;
 }
-template <size_t K> double Inv_r2(const spline_t<K>& a , const spline_t<K>& b,size_t l_total,const GLCache& gl)
+template <size_t K> double StaticInv_r2(const spline_t<K>& a , const spline_t<K>& b,size_t l_total,const GLCache& gl)
 {
     std::function< double (double)> xm2 = [](double r)
     {
@@ -60,7 +64,7 @@ template <size_t K> double Inv_r2(const spline_t<K>& a , const spline_t<K>& b,si
     return gl.Integrate(xm2,a,b)*FourPi; 
 }
 
-template <size_t K> double Charge(const spline_t<K>& a , size_t l)
+template <size_t K> double StaticCharge(const spline_t<K>& a , size_t l)
 {
     return LinearForm{IdentityOperator{}}(a)*FourPi;
 }
@@ -140,7 +144,7 @@ template <size_t K> rvec_t BSpline_r_IBS_Evaluator<K>::norms() const
 {
     size_t N=splines.size();
     rvec_t ret(N);
-    for (size_t i=0;i<N;i++) ret[i]=1.0/sqrt(::Overlap(splines[i],splines[i],2*l,*itsGL)); 
+    for (size_t i=0;i<N;i++) ret[i]=1.0/sqrt(StaticOverlap(splines[i],splines[i],2*l,*itsGL)); 
     return ret;
 }
 
@@ -150,7 +154,7 @@ template <size_t K> rsmat_t BSpline_r_IBS_Evaluator<K>::Overlap() const
     rsmat_t S(N);
     for (auto i:iv_t(0,N))
         for (auto j:iv_t(i,N))
-            S(i,j)= ::Overlap(splines[i],splines[j],2*l,*itsGL)*ns[i]*ns[j];
+            S(i,j)= StaticOverlap(splines[i],splines[j],2*l,*itsGL)*ns[i]*ns[j];
 
     return S;
 }
@@ -161,7 +165,7 @@ template <size_t K> rsmat_t BSpline_r_IBS_Evaluator<K>::Grad2() const
     rsmat_t S(N);
     for (auto i:iv_t(0,N))
         for (auto j:iv_t(i,N))
-            S(i,j)= ::Grad2(splines[i],splines[j],l,l,*itsGL)*ns[i]*ns[j];
+            S(i,j)= StaticGrad2(splines[i],splines[j],l,l,*itsGL)*ns[i]*ns[j];
 
     return S;
 }
@@ -172,7 +176,7 @@ template <size_t K> rsmat_t BSpline_r_IBS_Evaluator<K>::Inv_r1() const
     rsmat_t S(N);
     for (auto i:iv_t(0,N))
         for (auto j:iv_t(i,N))
-            S(i,j)= ::Inv_r1(splines[i],splines[j],2*l,*itsGL)*ns[i]*ns[j];
+            S(i,j)= StaticInv_r1(splines[i],splines[j],2*l,*itsGL)*ns[i]*ns[j];
 
     return S;
 }
@@ -183,7 +187,7 @@ template <size_t K> rsmat_t BSpline_r_IBS_Evaluator<K>::Inv_r2() const
     rsmat_t S(N);
     for (auto i:iv_t(0,N))
         for (auto j:iv_t(i,N))
-            S(i,j)= ::Inv_r2(splines[i],splines[j],2*l,*itsGL)*ns[i]*ns[j];
+            S(i,j)= StaticInv_r2(splines[i],splines[j],2*l,*itsGL)*ns[i]*ns[j];
 
     return S;
 }
@@ -194,7 +198,7 @@ template <size_t K> rsmat_t BSpline_r_IBS_Evaluator<K>::Repulsion() const
     rsmat_t S(N);
     for (auto i:iv_t(0,N))
         for (auto j:iv_t(i,N))
-            S(i,j)= ::Repulsion(splines[i],splines[j],l,l)*ns[i]*ns[j];
+            S(i,j)= StaticRepulsion(splines[i],splines[j],l,l)*ns[i]*ns[j];
 
     return S;
 }
@@ -203,7 +207,7 @@ template <size_t K> rvec_t BSpline_r_IBS_Evaluator<K>::Charge() const
 {
     rvec_t V(size());
     for (auto i:iv_t(0,size()))
-            V[i]= ::Charge(splines[i],l)*ns[i];
+            V[i]= StaticCharge(splines[i],l)*ns[i];
 
     return V;
 }
@@ -243,7 +247,7 @@ template <size_t K> dERI3 BSpline_r_IBS_Evaluator<K>::Overlap(const IBS_Evaluato
             for (auto j:iv_t(i,N))
             {
                 auto ab=splines[i-1]+splines[j-1];
-                S(i,j)=::Overlap(ab,c.splines[ic],l+l+c.l,*itsGL)*ns[i-1]*ns[j-1]*c.ns[ic];  
+                S(i,j)=StaticOverlap(ab,c.splines[ic],l+l+c.l,*itsGL)*ns[i-1]*ns[j-1]*c.ns[ic];  
             }
         
         S3.push_back(S);
@@ -310,3 +314,5 @@ template <size_t K> std::ostream&  BSpline_r_IBS_Evaluator<K>::Write(std::ostrea
 
 #define INSTANCEk(k) template class BSpline_r_IBS_Evaluator<k>;
 #include "../Internal/Instance.hpp"
+
+} //namespace

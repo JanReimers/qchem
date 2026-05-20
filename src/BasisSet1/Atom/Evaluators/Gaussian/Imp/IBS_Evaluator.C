@@ -11,7 +11,8 @@ import qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.GaussianIntegrals;
 import qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.ExponentScaler; 
 import Common.Constants;
 
-
+namespace BasisSet::Atom::Evaluators::Gaussian
+{
 //---------------------------------------------------------------------------
 //
 //  Start member functions.
@@ -44,7 +45,7 @@ rvec_t Gaussian_IBS_Evaluator::norms() const
 {
     size_t N=es.size();    
     rvec_t ret(N);
-    for (size_t i=0;i<N;i++) ret[i]=1.0/sqrt(Gaussian::Integral(2*es[i],2*l)); 
+    for (size_t i=0;i<N;i++) ret[i]=1.0/sqrt(::Gaussian::Integral(2*es[i],2*l)); 
     return ret;
 }
 
@@ -76,3 +77,4 @@ std::ostream&  Gaussian_IBS_Evaluator::Write(std::ostream& os) const
 }
 
 
+} //namespace

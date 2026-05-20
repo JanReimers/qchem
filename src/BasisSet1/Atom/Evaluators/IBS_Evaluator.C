@@ -16,66 +16,13 @@ export import qchem.Symmetry.Irrep;
 export import qchem.VectorFunction;
 import qchem.Symmetry.Ylm;
 
-export using dERI3=ERI3<double>;
 
-export template <class E> concept isGeneric_Evaluator = requires (const E& e,size_t i, size_t j, const rvec3_t& r)
+export namespace BasisSet::Atom::Evaluators
 {
-    e.size();
-    e.operator()(r);
-    e.Gradient  (r);
-    e.Norm     (i);
-};
-
-export template <class E> concept is1E_Evaluator = isGeneric_Evaluator<E> && requires  (E e,size_t i, size_t j, const rvec3_t& r)
-{
-    e.Norm     (i);
-    e.Overlap(i,j); //Should all be inline.
-    e.Grad2  (i,j);
-    e.Inv_r1 (i,j);
-    e.Inv_r2 (i,j);
-};
-
-export template <class E> concept isFit_Evaluator = isGeneric_Evaluator<E> && requires  (E e,size_t i, size_t j, size_t ic)
-{
-    e.Norm     (i);
-    e.Overlap(i,j); //Should all be inline.
-    e.Repulsion(i,j);
-    e.Charge   (i);
-};
-// Support 3C Overlap and Repulsion
-export template <class E> concept isDFT_Evaluator = requires (E e,size_t i, size_t j, size_t ic)
-{
-    e.Overlap  (i,j,e,ic); 
-    e.Repulsion(i,j,e,ic);
-};
-// Support 4C Hartree-Fock Direct/Exchange integrals.
-export template <class E> concept isHF_Evaluator = isGeneric_Evaluator<E> && requires (E a,size_t l,const Cacheable* c ,AngularIntegrals::rvec11_t Ak)
-{
-    a.maxSpan();
-    // a.size();
-    a.Getl();
-    a.RadialType(); 
-    a.indices();
-    a.MakeCache4();
-    a.direct(c,l,l,Ak);
-    a.exchange(c,l,l,Ak);
-};
-
-// Support cross Kinetic
-export template <class E> concept isRKBL_Evaluator = is1E_Evaluator<E> && requires  (E e,size_t i, size_t j)
-{
-    e.Grad2    (i,j,e);
-    e.Inv_r2   (i,j,e);
-};
+using dERI3=ERI3<double>;
 
 
-export template <class E> concept isFull_NR_Evaluator = isGeneric_Evaluator<E> && is1E_Evaluator<E> && isDFT_Evaluator<E>;
-export template <class E> concept isHF_NR_Evaluator = isGeneric_Evaluator<E> && is1E_Evaluator<E>;
-export template <class E> concept isFull_HF_Evaluator = isGeneric_Evaluator<E> && is1E_Evaluator<E> && isDFT_Evaluator<E> && isHF_NR_Evaluator<E>;
-export template <class E> concept is1E_HF_Evaluator = isGeneric_Evaluator<E> && is1E_Evaluator<E> && isHF_NR_Evaluator<E>;
-
-
-export class IBS_Evaluator 
+class IBS_Evaluator 
     : public virtual Cache4_Client
     , public VectorFunction<double>
 {
@@ -185,3 +132,5 @@ std::string IBS_Evaluator::AngularID() const
      os << "}";
      return os.str();
 }
+
+} //namespace

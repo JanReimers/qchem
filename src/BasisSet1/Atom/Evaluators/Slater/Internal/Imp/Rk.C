@@ -107,7 +107,8 @@ double RkEngine::ExchangeRk(size_t la,size_t lb, const rvec11_t& Ak) const
 
 bool RkEngine::isSupported(const Cache4_Client* cl) const
 {
-    auto eval=dynamic_cast<const IBS_Evaluator*>(cl);
+    
+    auto eval=dynamic_cast<const BasisSet::Atom::Evaluators::IBS_Evaluator*>(cl);
     assert(eval);
     return eval->Getl()<=LMax;
 }

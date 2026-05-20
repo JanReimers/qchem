@@ -327,7 +327,7 @@ template <size_t K> RkEngine_r<K>::RkEngine_r(const std::vector<sp_t>& splines, 
 
 template <size_t K>  bool RkEngine<K>::isSupported(const Cache4_Client* cl) const
 {
-    auto eval=dynamic_cast<const IBS_Evaluator*>(cl);
+    auto eval=dynamic_cast<const BasisSet::Atom::Evaluators::IBS_Evaluator*>(cl);
     assert(eval);
     return eval->Getl()<=LMax;
 }

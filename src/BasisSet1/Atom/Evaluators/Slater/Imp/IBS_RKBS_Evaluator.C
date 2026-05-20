@@ -8,6 +8,9 @@ module qchem.BasisSet.Atom.Evaluators.Slater.IBS;
 import qchem.BasisSet.Atom.Evaluators.Slater.Internal.Integrals; 
 import Common.Constants;
 
+namespace BasisSet::Atom::Evaluators::Slater
+{
+
 std::string Slater_RKBS_IBS_Evaluator::Name() const
 {
     return "Spherical Slater RKB ";
@@ -55,3 +58,5 @@ rvec3vec_t Slater_RKBS_IBS_Evaluator::Gradient(const rvec3_t& r) const
     // std::cout << std::endl;
     return ret;
 }
+
+} //namespace

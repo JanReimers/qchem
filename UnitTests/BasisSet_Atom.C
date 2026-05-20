@@ -10,6 +10,7 @@ using std::endl;
 import qchem.BasisSet.Atom.Evaluators.Slater.IBS;
 import qchem.BasisSet.Atom.Evaluators.Gaussian.IBS; 
 import qchem.BasisSet.Atom.Evaluators.BSpline.IBS;
+import qchem.BasisSet.Atom.Evaluators.Concepts;
 
 import qchem.Factory;
 import qchem.Mesh.Integrator;
@@ -22,6 +23,7 @@ import qchem.Hamiltonian.Types;
 
 using qchem::Hamiltonian::ohfbs_t;
 using qchem::Hamiltonian::obs_t;
+using namespace BasisSet::Atom::Evaluators;
 
 //----------------------------------------------------------------------------------------
 //
@@ -147,15 +149,15 @@ template <isHF_NR_Evaluator E> void BasisSet_Common<E>::TestInv_r2 (double eps) 
 //  Testing atom Slater basis set evaluators
 //
 
-class BasisSet_SL: public BasisSet_Common<Slater_IBS_Evaluator>
+class BasisSet_SL: public BasisSet_Common<Slater::Slater_IBS_Evaluator>
 {
 public:
 
-    BasisSet_SL() : BasisSet_Common<Slater_IBS_Evaluator>()
+    BasisSet_SL() : BasisSet_Common<Slater::Slater_IBS_Evaluator>()
     {
         Atom_EC ec(86); //Radon has f orbtials with no magnetic splitting.
         for (auto ir:ec.GetIrreps())
-            Insert(new Slater_IBS_Evaluator(es,ir)); 
+            Insert(new Slater::Slater_IBS_Evaluator(es,ir)); 
         nlohmann::json js = {{"type",abs_t::Slater},{"exponents", {0.5,1.0,2.0}}};
         bs=BasisSet::Atom::Factory(js,ec);
         cout << es << endl << *bs << endl;
@@ -283,7 +285,7 @@ TEST_F(BasisSet_SL,IDs)
 //  Testing atom Gaussian basis set evaluators
 //
 
-class BasisSet_SG: public BasisSet_Common<Gaussian_IBS_Evaluator>
+class BasisSet_SG: public BasisSet_Common<Gaussian::Gaussian_IBS_Evaluator>
 {
 public:
 
@@ -295,7 +297,7 @@ public:
 
         Atom_EC ec(86); //Radon has f orbtials with no magnetic splitting.
         for (auto ir:ec.GetIrreps())
-            Insert(new Gaussian_IBS_Evaluator(es,ir)); 
+            Insert(new Gaussian::Gaussian_IBS_Evaluator(es,ir)); 
         nlohmann::json js = {{"type",abs_t::Gaussian},{"exponents", {0.5,1.0,2.0}}};
         bs=BasisSet::Atom::Factory(js,ec);
     }
@@ -402,14 +404,14 @@ TEST_F(BasisSet_SG,IDs)
 //  Testing atom BSpline basis set evaluators
 //
 
-class BasisSet_BS: public BasisSet_Common<BSpline_IBS_Evaluator<6>>
+class BasisSet_BS: public BasisSet_Common<BSpline::BSpline_IBS_Evaluator<6>>
 {
 public:
 
     BasisSet_BS() : BasisSet_Common()
     {
         for (size_t l=0;l<=3;l++)
-            Insert(new BSpline_IBS_Evaluator<6>(5,0.01,20.0,Irrep_QNs::sym_t(new Yl_Sym(l))));
+            Insert(new BSpline::BSpline_IBS_Evaluator<6>(5,0.01,20.0,Irrep_QNs::sym_t(new Yl_Sym(l))));
 
         nlohmann::json js = {{"type",abs_t::BSpline6},{"N", 5}, {"rmin", 0.1}, {"rmax", 10.}};
         bs=BasisSet::Atom::Factory(js,86);

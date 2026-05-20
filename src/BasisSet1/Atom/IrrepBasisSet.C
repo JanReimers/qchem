@@ -18,12 +18,15 @@ import qchem.BasisSet.Atom.Evaluators.Internal.AngularIntegrals; //Need rvec11 d
 import qchem.Symmetry.Yl;
 import qchem.BasisSet.DB_Cache;
 import qchem.BasisSet.Atom.Evaluators.IBS;
+import qchem.BasisSet.Atom.Evaluators.Concepts;
 import qchem.BasisSet.Internal.Cache4;
 
 export namespace BasisSet
 {
 namespace Atom
 {
+
+    using namespace Evaluators;
 //
 //  Common IrrepBasisSet functionality for atom basis sets.  All the work is done by the evaluator
 //

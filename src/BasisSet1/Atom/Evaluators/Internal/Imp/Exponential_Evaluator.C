@@ -7,6 +7,9 @@ module;
 
 module qchem.BasisSet.Atom.Evaluators.Internal.Exponential_IBS_Evaluator;
 
+namespace BasisSet::Atom::Evaluators
+{
+
 void Exponential_IBS_Evaluator::Register(Grouper* _grouper)
 {
     assert(_grouper);
@@ -51,3 +54,4 @@ bool Exponential_IBS_Evaluator::EvenTempered(const rvec_t& es)
     return et;
 }
 
+} //namespace

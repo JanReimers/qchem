@@ -21,6 +21,7 @@ import qchem.stl_io;
 import qchem.Streamable;
 using std::cout;
 using std::endl;
+using namespace BasisSet::Atom::Evaluators;
 
 class BSplineTests : public ::testing::Test
 {
@@ -50,7 +51,7 @@ public:
         // splines.erase(splines.begin());
     }
 
-    static const spline_t& GetSpline(const BSpline_IBS_Evaluator<K>* eval,size_t index)
+    static const spline_t& GetSpline(const BSpline::BSpline_IBS_Evaluator<K>* eval,size_t index)
     {
         return (*eval)[index];
     }
@@ -262,7 +263,7 @@ TEST_F(BSplineTests, Overlap)
         // cout << "S=" << S << endl;
         // cout << "Snum=" << Snum << endl;
         // Now try GLQ integration.
-        const BSpline_IBS_Evaluator<K>* eval=dynamic_cast<const BSpline_IBS_Evaluator<K>*>(ibs);
+        const BSpline::BSpline_IBS_Evaluator<K>* eval=dynamic_cast<const BSpline::BSpline_IBS_Evaluator<K>*>(ibs);
         auto ns=eval->Norm();
         auto grid=GetSpline(eval,0).getSupport().getGrid();
         GLCache cache2(grid,K+3);

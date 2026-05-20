@@ -8,6 +8,9 @@ module qchem.BasisSet.Atom.Evaluators.Gaussian.IBS;
 import qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.GaussianIntegrals; 
 import Common.Constants;
 
+namespace BasisSet::Atom::Evaluators::Gaussian
+{
+
 std::string Gaussian_RKBS_IBS_Evaluator::Name() const
 {
     return "Spherical Gaussian RKB ";
@@ -56,3 +59,5 @@ rvec3vec_t Gaussian_RKBS_IBS_Evaluator::Gradient(const rvec3_t& r) const
     // std::cout << std::endl;
     return ret;
 }
+
+} //namespace

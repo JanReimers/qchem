@@ -11,7 +11,8 @@ export import qchem.Symmetry.AtomEC;
 export import qchem.Symmetry.Irrep;
 
 import qchem.Symmetry.Yl;
-import qchem.BasisSet.Atom.Evaluators.IBS;
+// import qchem.BasisSet.Atom.Evaluators.IBS;
+import qchem.BasisSet.Atom.Evaluators.Concepts;
 import qchem.BasisSet.Atom.IBS;
 import qchem.BasisSet.Internal.BasisSetImp;
 import qchem.BasisSet.Internal.Orbital_DHF_IBS;
@@ -21,6 +22,8 @@ import qchem.BasisSet.DB_Cache;
 export 
 namespace BasisSet {
 namespace Atom {
+
+using namespace Evaluators;
 
 template <isFull_NR_Evaluator Evaluator> class BasisSet_HF
     : public virtual Real_BS

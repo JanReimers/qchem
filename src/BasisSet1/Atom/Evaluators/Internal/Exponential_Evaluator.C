@@ -4,7 +4,10 @@ module;
 export module qchem.BasisSet.Atom.Evaluators.Internal.Exponential_IBS_Evaluator;
 export import qchem.BasisSet.Atom.Evaluators.IBS;
 
-export class Exponential_IBS_Evaluator : public IBS_Evaluator
+export namespace BasisSet::Atom::Evaluators
+{
+    
+class Exponential_IBS_Evaluator : public IBS_Evaluator
 {
 public:
     Exponential_IBS_Evaluator(const   rvec_t& _es, int l, const is_t& mls) 
@@ -24,3 +27,5 @@ protected:
     rvec_t es;
     bool isEvenTempered; // e[i]=beta*e[i-1] +/- eps;
 };
+
+} //namespace

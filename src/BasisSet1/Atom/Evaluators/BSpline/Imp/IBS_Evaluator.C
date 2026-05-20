@@ -12,6 +12,10 @@ import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.Rk;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.SplineGrouper;
 import Common.Constants;
 // import Common.IntPow;
+
+namespace BasisSet::Atom::Evaluators::BSpline
+{
+
 using namespace bspline::operators; 
 using namespace bspline::integration; 
 
@@ -174,3 +178,5 @@ template <size_t K> std::ostream&  BSpline_IBS_Evaluator<K>::Write(std::ostream&
 
 #define INSTANCEk(k) template class BSpline_IBS_Evaluator<k>;
 #include "../Internal/Instance.hpp"
+
+} //namespace

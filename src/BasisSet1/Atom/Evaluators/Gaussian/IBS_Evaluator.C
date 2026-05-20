@@ -7,14 +7,16 @@ import qchem.BasisSet.Atom.Evaluators.Internal.Exponential_IBS_Evaluator;
 import qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.GaussianIntegrals; 
 import qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.Rk; 
 import qchem.BasisSet.Atom.Evaluators.Internal.AngularIntegrals;
+import qchem.BasisSet.Atom.Evaluators.Concepts;
 import qchem.Symmetry.Yl;
 import Common.IntPow;
 
 import qchem.BasisSet.Internal.Cache4;
 
 
-
-export class Gaussian_IBS_Evaluator : public Exponential_IBS_Evaluator
+export namespace BasisSet::Atom::Evaluators::Gaussian
+{
+class Gaussian_IBS_Evaluator : public Exponential_IBS_Evaluator
 {
 public: 
  
@@ -32,65 +34,65 @@ public:
 
     double Overlap(size_t i,size_t j) const
     {
-        return Gaussian::Integral(es[i]+es[j],2*l)*ns[i]*ns[j]; //Already has 4*Pi and r^2 from dr.
+        return ::Gaussian::Integral(es[i]+es[j],2*l)*ns[i]*ns[j]; //Already has 4*Pi and r^2 from dr.
     } 
     double Grad2(size_t i,size_t j) const
     {
         double t=es[i]+es[j];
         size_t l1=l+1;
-        return  (l1*l1         * Gaussian::Integral(t,2*l-2)
-                -2*l1 * t      * Gaussian::Integral(t,2*l  )
-                +4*es[i]*es[j] * Gaussian::Integral(t,2*l+2))*ns[i]*ns[j] ;
+        return  (l1*l1         * ::Gaussian::Integral(t,2*l-2)
+                -2*l1 * t      * ::Gaussian::Integral(t,2*l  )
+                +4*es[i]*es[j] * ::Gaussian::Integral(t,2*l+2))*ns[i]*ns[j] ;
     } 
     double Grad2(size_t i,size_t j, const Gaussian_IBS_Evaluator& b) const
     {
         assert(l==b.l);
         double t=es[i]+b.es[j];
         size_t l1=l+1;
-        return  (l1*l1           * Gaussian::Integral(t,2*l-2)
-                -2*l1 * t        * Gaussian::Integral(t,2*l  )
-                +4*es[i]*b.es[j] * Gaussian::Integral(t,2*l+2))*ns[i]*b.ns[j] ;
+        return  (l1*l1           * ::Gaussian::Integral(t,2*l-2)
+                -2*l1 * t        * ::Gaussian::Integral(t,2*l  )
+                +4*es[i]*b.es[j] * ::Gaussian::Integral(t,2*l+2))*ns[i]*b.ns[j] ;
     } 
     double Inv_r1(size_t i,size_t j) const
     {
-        return Gaussian::Integral(es[i]+es[j],2*l-1)*ns[i]*ns[j]; //Already has 4*Pi
+        return ::Gaussian::Integral(es[i]+es[j],2*l-1)*ns[i]*ns[j]; //Already has 4*Pi
     } 
     double Inv_r2(size_t i,size_t j) const
     {
-        return Gaussian::Integral(es[i]+es[j],2*l-2)*ns[i]*ns[j]; //Already has 4*Pi
+        return ::Gaussian::Integral(es[i]+es[j],2*l-2)*ns[i]*ns[j]; //Already has 4*Pi
     } 
     double Inv_r2(size_t i,size_t j, const Gaussian_IBS_Evaluator& b) const
     {
         assert(l==b.l);       
-        return Gaussian::Integral(es[i]+b.es[j],2*l-2)*ns[i]*b.ns[j]; //Already has 4*Pi
+        return ::Gaussian::Integral(es[i]+b.es[j],2*l-2)*ns[i]*b.ns[j]; //Already has 4*Pi
     } 
     double Overlap(size_t i,size_t j, const Gaussian_IBS_Evaluator& c, size_t ic) const
     {
-        return Gaussian::Integral(es[i]+es[j]+c.es[ic],2*l+c.l)*ns[i]*ns[j]*c.ns[ic]; //Already has 4*Pi and r^2 from dr.
+        return ::Gaussian::Integral(es[i]+es[j]+c.es[ic],2*l+c.l)*ns[i]*ns[j]*c.ns[ic]; //Already has 4*Pi and r^2 from dr.
     } 
     double Repulsion(size_t i,size_t j, const Gaussian_IBS_Evaluator& c, size_t ic) const
     {
-        Gaussian::RkEngine cd(es[i]+es[j],c.es[ic],std::max(l,c.l));
+        ::Gaussian::RkEngine cd(es[i]+es[j],c.es[ic],std::max(l,c.l));
         return cd.Coulomb_R0(l,c.l)*FourPi2*ns[i]*ns[j]*c.ns[ic];
     } 
     double Repulsion(size_t i,size_t j) const
     {
-        Gaussian::RkEngine cd(es[i],es[j],l);
+        ::Gaussian::RkEngine cd(es[i],es[j],l);
         return cd.Coulomb_R0(l,l)*FourPi2*ns[i]*ns[j];
     }
     double Repulsion(size_t i,size_t j, const Gaussian_IBS_Evaluator& b) const
     {
-        Gaussian::RkEngine cd(es[i],b.es[j],std::max(l,b.l));
+        ::Gaussian::RkEngine cd(es[i],b.es[j],std::max(l,b.l));
         return cd.Coulomb_R0(l,b.l)*FourPi2*ns[i]*b.ns[j];
     }
 
     double Charge(size_t i) const
     {
-        return Gaussian::Integral(es[i],l)*ns[i];
+        return ::Gaussian::Integral(es[i],l)*ns[i];
     }
     double Norm(size_t i) const
     {
-        return 1.0/sqrt(Gaussian::Integral(2*es[i],2*l));
+        return 1.0/sqrt(::Gaussian::Integral(2*es[i],2*l));
     }
     // double operator()(size_t i, double r) {return gaussian(r,l,es[i],ns[i]);}
     virtual  rvec_t Norm     () const {return ns;}
@@ -104,12 +106,12 @@ public:
     using rvec11_t=AngularIntegrals::rvec11_t;
     static double direct(const Cacheable* c, size_t la, size_t lc,const rvec11_t& Ak)
     {
-        const Gaussian::RkEngine* cd = dynamic_cast<const Gaussian::RkEngine*>(c);
+        const ::Gaussian::RkEngine* cd = dynamic_cast<const ::Gaussian::RkEngine*>(c);
         return cd->Coulomb_Rk(la,lc,Ak); // contract over k Rk*Ak
     }
     static double exchange(const Cacheable* c, size_t la, size_t lc,const rvec11_t& Ak)
     {
-        const Gaussian::RkEngine* cd = dynamic_cast<const Gaussian::RkEngine*>(c);
+        const ::Gaussian::RkEngine* cd = dynamic_cast<const ::Gaussian::RkEngine*>(c);
         return cd->ExchangeRk(la,lc,Ak); // contract over k Rk*Ak, exchange version is more complicated
     }
 
@@ -134,7 +136,7 @@ static_assert(isDFT_Evaluator    <Gaussian_IBS_Evaluator>);
 static_assert(isRKBL_Evaluator   <Gaussian_IBS_Evaluator>);
 static_assert(isHF_Evaluator     <Gaussian_IBS_Evaluator>);
 
-export class Gaussian_Cache4 : public  Cache41
+class Gaussian_Cache4 : public  Cache41
 {
 public:
     // using IBS_Evaluator_t = Gaussian_IBS_Evaluator;
@@ -153,7 +155,7 @@ public:
     }
     virtual Rk*  Create (size_t ia,size_t ic,size_t ib,size_t id) const
     {
-        return new Gaussian::RkEngine(
+        return new ::Gaussian::RkEngine(
             grouper.unique_esv[ia]+grouper.unique_esv[ib],
             grouper.unique_esv[ic]+grouper.unique_esv[id],
             grouper.LMax(ia,ib,ic,id));
@@ -163,7 +165,7 @@ private:
     ExponentGrouper grouper;
 };
 
-export class Gaussian_RKBS_IBS_Evaluator : public Gaussian_IBS_Evaluator
+class Gaussian_RKBS_IBS_Evaluator : public Gaussian_IBS_Evaluator
 {
 public:
     Gaussian_RKBS_IBS_Evaluator(const rvec_t& es, int _kappa, int l, const is_t& mls) : Gaussian_IBS_Evaluator(es,l,mls), kappa(_kappa) {ns=norms();}
@@ -193,3 +195,4 @@ static_assert(isDFT_Evaluator    <Gaussian_RKBS_IBS_Evaluator>);
 static_assert(isRKBL_Evaluator   <Gaussian_RKBS_IBS_Evaluator>);
 
 
+} //namespace

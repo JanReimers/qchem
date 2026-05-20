@@ -7,14 +7,17 @@ export import qchem.BasisSet.Atom.Evaluators.Internal.Exponential_IBS_Evaluator;
 import qchem.BasisSet.Atom.Evaluators.Slater.Internal.Integrals; 
 import qchem.BasisSet.Atom.Evaluators.Slater.Internal.Rk; 
 import qchem.BasisSet.Atom.Evaluators.Internal.AngularIntegrals;
-
+import qchem.BasisSet.Atom.Evaluators.Concepts;
 import qchem.BasisSet.Internal.Cache4;
 
 import Common.IntPow;
 import qchem.Symmetry.Irrep;
 import qchem.Symmetry.Yl;
 
-export class Slater_IBS_Evaluator : public Exponential_IBS_Evaluator
+export namespace BasisSet::Atom::Evaluators::Slater
+{
+
+class Slater_IBS_Evaluator : public Exponential_IBS_Evaluator
 {
 public: 
     Slater_IBS_Evaluator(const rvec_t& es, int l, const is_t& mls) : Exponential_IBS_Evaluator(es,l,mls) {ns=norms();}
@@ -30,65 +33,65 @@ public:
     virtual std::ostream& Write   (std::ostream&) const;
     double Overlap(size_t i,size_t j) const
     {
-        return Slater::Integral(es[i]+es[j],2*l)*ns[i]*ns[j]; //Already has 4*Pi and r^2 from dr.
+        return ::Slater::Integral(es[i]+es[j],2*l)*ns[i]*ns[j]; //Already has 4*Pi and r^2 from dr.
     } 
     double Grad2(size_t i,size_t j) const
     {
         double ab=es[i]+es[j];
-        double Term1=(l+1)*(l+1)*Slater::Integral(ab,2*l-2); //SlaterIntegral already has 4*Pi
-        double Term2=-(l+1)*ab  *Slater::Integral(ab,2*l-1);
-        double Term3=es[i]*es[j]*Slater::Integral(ab,2*l);
+        double Term1=(l+1)*(l+1)*::Slater::Integral(ab,2*l-2); //SlaterIntegral already has 4*Pi
+        double Term2=-(l+1)*ab  *::Slater::Integral(ab,2*l-1);
+        double Term3=es[i]*es[j]*::Slater::Integral(ab,2*l);
         return (Term1+Term2+Term3)*ns[i]*ns[j];
     } 
     double Grad2(size_t i,size_t j,const Slater_IBS_Evaluator& b) const
     {
         assert(l==b.l);
         double ab=es[i]+b.es[j];
-        double Term1=(l+1)*(l+1)  *Slater::Integral(ab,2*l-2); //SlaterIntegral already has 4*Pi
-        double Term2=-(l+1)*ab    *Slater::Integral(ab,2*l-1);
-        double Term3=es[i]*b.es[j]*Slater::Integral(ab,2*l);
+        double Term1=(l+1)*(l+1)  *::Slater::Integral(ab,2*l-2); //SlaterIntegral already has 4*Pi
+        double Term2=-(l+1)*ab    *::Slater::Integral(ab,2*l-1);
+        double Term3=es[i]*b.es[j]*::Slater::Integral(ab,2*l);
         return (Term1+Term2+Term3)*ns[i]*b.ns[j];
     } 
     double Inv_r1(size_t i,size_t j) const
     {
-        return Slater::Integral(es[i]+es[j],2*l-1)*ns[i]*ns[j]; //Already has 4*Pi
+        return ::Slater::Integral(es[i]+es[j],2*l-1)*ns[i]*ns[j]; //Already has 4*Pi
     } 
     double Inv_r2(size_t i,size_t j) const
     {
-        return Slater::Integral(es[i]+es[j],2*l-2)*ns[i]*ns[j]; //Already has 4*Pi
+        return ::Slater::Integral(es[i]+es[j],2*l-2)*ns[i]*ns[j]; //Already has 4*Pi
     } 
     double Inv_r2(size_t i,size_t j,const Slater_IBS_Evaluator& b) const
     {
         assert(l==b.l);
-        return Slater::Integral(es[i]+b.es[j],2*l-2)*ns[i]*b.ns[j]; //Already has 4*Pi
+        return ::Slater::Integral(es[i]+b.es[j],2*l-2)*ns[i]*b.ns[j]; //Already has 4*Pi
     } 
 
     double Overlap(size_t i,size_t j, const Slater_IBS_Evaluator& c, size_t ic) const
     {
-        return Slater::Integral(es[i]+es[j]+c.es[ic],2*l+c.l)*ns[i]*ns[j]*c.ns[ic]; //Already has 4*Pi and r^2 from dr.
+        return ::Slater::Integral(es[i]+es[j]+c.es[ic],2*l+c.l)*ns[i]*ns[j]*c.ns[ic]; //Already has 4*Pi and r^2 from dr.
     } 
     double Repulsion(size_t i,size_t j, const Slater_IBS_Evaluator& c, size_t ic) const
     {
-        Slater::RkEngine cd(es[i]+es[j],c.es[ic],std::max(l,c.l));
+        ::Slater::RkEngine cd(es[i]+es[j],c.es[ic],std::max(l,c.l));
         return cd.Coulomb_R0(l,c.l)*FourPi2*ns[i]*ns[j]*c.ns[ic];
     } 
     double Repulsion(size_t i,size_t j) const
     {
-        Slater::RkEngine cd(es[i],es[j],l);
+        ::Slater::RkEngine cd(es[i],es[j],l);
         return cd.Coulomb_R0(l,l)*FourPi2*ns[i]*ns[j];
     }
     double Repulsion(size_t i,size_t j, const Slater_IBS_Evaluator& b) const
     {
-        Slater::RkEngine cd(es[i],b.es[j],std::max(l,b.l));
+        ::Slater::RkEngine cd(es[i],b.es[j],std::max(l,b.l));
         return cd.Coulomb_R0(l,b.l)*FourPi2*ns[i]*b.ns[j];
     }
     double Charge(size_t i) const
     {
-        return Slater::Integral(es[i],l)*ns[i];
+        return ::Slater::Integral(es[i],l)*ns[i];
     }
     double Norm(size_t i) const
     {
-        return 1.0/sqrt(Slater::Integral(2*es[i],2*l));
+        return 1.0/sqrt(::Slater::Integral(2*es[i],2*l));
     }
 
     virtual  rvec_t Norm     () const {return ns;}
@@ -102,12 +105,12 @@ public:
     using rvec11_t=AngularIntegrals::rvec11_t;
     static double direct(const Cacheable* c, size_t la, size_t lc,const rvec11_t& Ak)
     {
-        const Slater::RkEngine* cd = dynamic_cast<const Slater::RkEngine*>(c);
+        const ::Slater::RkEngine* cd = dynamic_cast<const ::Slater::RkEngine*>(c);
         return cd->Coulomb_Rk(la,lc,Ak); // contract over k Rk*Ak
     }
     static double exchange(const Cacheable* c, size_t la, size_t lc,const rvec11_t& Ak)
     {
-        const Slater::RkEngine* cd = dynamic_cast<const Slater::RkEngine*>(c);
+        const ::Slater::RkEngine* cd = dynamic_cast<const ::Slater::RkEngine*>(c);
         return cd->ExchangeRk(la,lc,Ak); // contract over k Rk*Ak, exchange version is more complicated
     }
 
@@ -133,7 +136,7 @@ static_assert(isDFT_Evaluator    <Slater_IBS_Evaluator>);
 static_assert(isRKBL_Evaluator   <Slater_IBS_Evaluator>);
 static_assert(isHF_Evaluator     <Slater_IBS_Evaluator>);
 
-export class Slater_Cache4 : public  Cache41
+class Slater_Cache4 : public  Cache41
 {
 public:
     // using IBS_Evaluator_t = Gaussian_IBS_Evaluator;
@@ -152,7 +155,7 @@ public:
     }
     virtual Rk*  Create (size_t ia,size_t ic,size_t ib,size_t id) const
     {
-        return new Slater::RkEngine(
+        return new ::Slater::RkEngine(
             grouper.unique_esv[ia]+grouper.unique_esv[ib],
             grouper.unique_esv[ic]+grouper.unique_esv[id],
             grouper.LMax(ia,ib,ic,id));
@@ -162,7 +165,7 @@ private:
     ExponentGrouper grouper;
 };
 
-export class Slater_RKBS_IBS_Evaluator : public Slater_IBS_Evaluator
+class Slater_RKBS_IBS_Evaluator : public Slater_IBS_Evaluator
 {
 public:
     Slater_RKBS_IBS_Evaluator(const rvec_t& es, int _kappa, int l,const is_t& mls) : Slater_IBS_Evaluator(es,l,mls), kappa(_kappa) {ns=norms();}
@@ -172,7 +175,7 @@ public:
 
     double Inv_r1(size_t i,size_t j) const
     {
-        return es[i]*es[j]*Slater::Integral(es[i]+es[j],2*l-1)*ns[i]*ns[j]; //Already has 4*Pi
+        return es[i]*es[j]*::Slater::Integral(es[i]+es[j],2*l-1)*ns[i]*ns[j]; //Already has 4*Pi
     } 
 
     virtual rvec_t     operator() (const rvec3_t&) const;
@@ -189,3 +192,5 @@ static_assert(is1E_Evaluator     <Slater_RKBS_IBS_Evaluator>);
 static_assert(isFit_Evaluator    <Slater_RKBS_IBS_Evaluator>);
 static_assert(isDFT_Evaluator    <Slater_RKBS_IBS_Evaluator>);
 static_assert(isRKBL_Evaluator   <Slater_RKBS_IBS_Evaluator>);
+
+} // namespace
