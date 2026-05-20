@@ -10,8 +10,6 @@ import qchem.BasisSet.Atom.Evaluators.BSpline.IBS;
 import qchem.BasisSet.Atom.Evaluators.Gaussian.IBS; 
 import qchem.BasisSet.Atom.Evaluators.Slater.IBS;
 
-import qchem.BasisSet.DB_Cache;
-
 using json = nlohmann::json;
 
 namespace BasisSet::Atom
@@ -26,8 +24,6 @@ Real_BS* Factory(const nlohmann::json& js,size_t Z)
 
 Real_BS* Factory(const nlohmann::json& js,const Atom_EC& aec)
 {
-    if (::BasisSet::theGlobalCache==0)
-        ::BasisSet::theGlobalCache=new ::BasisSet::IntegralsCache_RAM<double>(true);     
     Type type=js["type"].template get<Type>();
     Real_BS* bs=0;
 

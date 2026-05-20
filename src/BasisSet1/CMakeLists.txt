@@ -1,6 +1,5 @@
 add_library(qcBasisSet1) 
 target_sources(qcBasisSet1 PRIVATE 
-  Imp/DB_Cache.C
   Imp/BasisSet.C
   Imp/IrrepBasisSet.C
   Imp/Orbital_1E_IBS.C
@@ -13,6 +12,7 @@ target_sources(qcBasisSet1 PRIVATE
   Internal/Imp/ERI3.C
   Internal/Imp/ERI4.C
   Internal/Imp/ERI4T.C
+  Internal/Imp/DB_Cache_RAM.C
 
 )
 target_sources(qcBasisSet1 PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
@@ -32,6 +32,7 @@ target_sources(qcBasisSet1 PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   Internal/ERI4.C
   Internal/ERI4T.C
   Internal/IntegralEnums.C
+  Internal/DB_Cache_RAM.C
   )
 target_include_directories(qcBasisSet1 PRIVATE ${PROJECT_SOURCE_DIR}/src)
 set_property(TARGET qcBasisSet1 PROPERTY CXX_STANDARD 20)

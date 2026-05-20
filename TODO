@@ -46,7 +46,7 @@ Priority 1:
                     v.Invr2(size_t i,size_t j,size_t la, size_t lb);
                     etc.....
                 };
-            -Cut over Direct and Exchange (hoist loops out of evaluators)
+            Done: -Cut over Direct and Exchange (hoist loops out of evaluators)
             Done: -Split up concepts: Fit, 1E, DFT, HF, RKBS
             No: -Same for vector versions of op(r) grad(r).
                 We already have nice working vector versions for op(r) in the evaluators
@@ -72,6 +72,7 @@ Priority 1:
             Done: -Clean up all temp names Cache4, Basiset1, HF1 HF2.
             Done: -Move concepts to a separate module.
             Done: -Separate out DB_Cache_RAM
+            -Move DB_Cache to Internal
             
 
         -Refactor BSpline and BSpine_r to minimize duplicated code.  Isolate weight functions wp, wm.

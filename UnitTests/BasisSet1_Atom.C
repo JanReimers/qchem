@@ -6,7 +6,6 @@
 using std::cout;
 using std::endl;
 
-import qchem.BasisSet.DB_Cache;
 import qchem.BasisSet.Atom.Factory;
 import qchem.BasisSet.Orbital_HF_IBS;
 import qchem.BasisSet.Orbital_DFT_IBS;

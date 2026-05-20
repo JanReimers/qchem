@@ -11,7 +11,6 @@
 using std::cout;
 using std::endl;
 
-import qchem.BasisSet.DB_Cache;
 import qchem.BasisSet.Atom.Evaluators.IBS; 
 import qchem.BasisSet.Atom.Evaluators.Gaussian.IBS; 
 import qchem.BasisSet.Atom.Evaluators.Internal.Rk;
@@ -29,8 +28,6 @@ class Cache4Tests : public ::testing::Test
 public:
     Cache4Tests() : bs1(0), bs2(0)
     {
-        if (BasisSet::theGlobalCache==0)
-            BasisSet::theGlobalCache=new BasisSet::IntegralsCache_RAM<double>(true);     
 
     }
 

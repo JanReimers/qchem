@@ -7,7 +7,6 @@
 using std::cout;
 using std::endl;
 
-import qchem.BasisSet.DB_Cache;
 import qchem.BasisSet.Atom.Factory;
 import qchem.BasisSet.Orbital_DHF_IBS;
 
@@ -21,7 +20,7 @@ public:
         , cl_hydrogen_100(new Atom(1,0.0,Vector3D(1,0,0)))
         , cl_helium      (new Atom(2,0.0,Vector3D(0,0,0)))
     {
-        // BasisSet::theGlobalCache=new BasisSet::IntegralsCache_RAM<double>();       
+        
     }
     ~Basis1_RKB_Tests()
     {

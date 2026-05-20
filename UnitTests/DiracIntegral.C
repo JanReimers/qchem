@@ -22,7 +22,6 @@ using Real_IBS=Real_OIBS;
 using RKB_OIBS=BasisSet::Orbital_RKB_IBS_Imp<double>;
 using RKBL_OIBS=BasisSet::Orbital_RKBL_IBS<double>;
 using RKBS_OIBS=BasisSet::Orbital_RKBS_IBS<double>;
-import qchem.BasisSet.DB_Cache;
 
 using std::cout;
 using std::endl;
