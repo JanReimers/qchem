@@ -72,7 +72,7 @@ Priority 1:
             Done: -Clean up all temp names Cache4, Basiset1, HF1 HF2.
             Done: -Move concepts to a separate module.
             Done: -Separate out DB_Cache_RAM
-            -Move DB_Cache to Internal
+            Done: -Move DB_Cache to Internal
             
 
         -Refactor BSpline and BSpine_r to minimize duplicated code.  Isolate weight functions wp, wm.

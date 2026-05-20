@@ -16,7 +16,7 @@ import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.BasisSet.Orbital_HF_IBS;
 import qchem.BasisSet.Atom.Evaluators.Internal.AngularIntegrals; //Need rvec11 declaration.
 import qchem.Symmetry.Yl;
-import qchem.BasisSet.DB_Cache;
+import qchem.BasisSet.Internal.DB_Cache;
 import qchem.BasisSet.Atom.Evaluators.IBS;
 import qchem.BasisSet.Atom.Evaluators.Concepts;
 import qchem.BasisSet.Internal.Cache4;

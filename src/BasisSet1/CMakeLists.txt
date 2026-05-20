@@ -16,7 +16,6 @@ target_sources(qcBasisSet1 PRIVATE
 
 )
 target_sources(qcBasisSet1 PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
-  DB_Cache.C
   BasisSet.C
   IrrepBasisSet.C
   Orbital_1E_IBS.C
@@ -32,6 +31,7 @@ target_sources(qcBasisSet1 PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   Internal/ERI4.C
   Internal/ERI4T.C
   Internal/IntegralEnums.C
+  Internal/DB_Cache.C
   Internal/DB_Cache_RAM.C
   )
 target_include_directories(qcBasisSet1 PRIVATE ${PROJECT_SOURCE_DIR}/src)

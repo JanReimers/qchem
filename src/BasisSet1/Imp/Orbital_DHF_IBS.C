@@ -2,7 +2,7 @@
 module;
 #include <cassert>
 module qchem.BasisSet.Orbital_DHF_IBS;
-import qchem.BasisSet.DB_Cache;
+import qchem.BasisSet.Internal.DB_Cache;
 
 namespace BasisSet
 {

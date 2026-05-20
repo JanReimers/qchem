@@ -17,7 +17,7 @@ import qchem.BasisSet.Atom.IBS;
 import qchem.BasisSet.Internal.BasisSetImp;
 import qchem.BasisSet.Internal.Orbital_DHF_IBS;
 import qchem.BasisSet.Internal.IrrepBasisSetImp;
-import qchem.BasisSet.DB_Cache;
+import qchem.BasisSet.Internal.DB_Cache;
 
 export 
 namespace BasisSet {

@@ -4,7 +4,7 @@ module;
 #include "blaze/Math.h"
 module qchem.BasisSet.Fit_IBS;
 import qchem.Mesh.Integrator;
-import qchem.BasisSet.DB_Cache;
+import qchem.BasisSet.Internal.DB_Cache;
 
 namespace BasisSet
 {

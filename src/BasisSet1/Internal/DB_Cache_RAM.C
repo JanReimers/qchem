@@ -8,7 +8,7 @@ module;
 #include <fstream>
 #include <memory>
 export module qchem.BasisSet.Internal.DB_Cache_RAM;
-export import qchem.BasisSet.DB_Cache;
+export import qchem.BasisSet.Internal.DB_Cache;
 import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.Internal.ERI3;
 import qchem.BasisSet.Internal.IntegralEnums;

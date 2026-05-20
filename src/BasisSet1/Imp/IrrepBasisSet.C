@@ -2,7 +2,7 @@
 module;
 #include <cassert>
 module qchem.BasisSet.IrrepBasisSet;
-import qchem.BasisSet.DB_Cache;
+import qchem.BasisSet.Internal.DB_Cache;
 
 namespace BasisSet
 {

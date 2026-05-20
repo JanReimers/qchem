@@ -3,7 +3,7 @@ module;
 #include <cassert>
 #include <blaze/Math.h>
 module qchem.BasisSet.Orbital_DFT_IBS;
-import qchem.BasisSet.DB_Cache;
+import qchem.BasisSet.Internal.DB_Cache;
 
 namespace BasisSet
 {
