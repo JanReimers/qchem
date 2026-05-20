@@ -115,7 +115,6 @@ protected:
     std::vector<double> knots;
     std::vector<spline_t> splines;
     bspline::Grid<double> itsGrid;
-    std::unique_ptr<GLCache> itsGL;
 
 
 };

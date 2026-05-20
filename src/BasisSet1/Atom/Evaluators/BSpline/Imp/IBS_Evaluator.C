@@ -61,7 +61,6 @@ template <size_t K> BSpline_IBS_Evaluator<K>::BSpline_IBS_Evaluator(size_t Ngrid
     // std::cout << "Grid = " << grid.size() << "    ";
     // for (auto r:grid) std::cout << r << ",";
     // std::cout << std::endl;
-    itsGL.reset(new GLCache(itsGrid,K+3));
     ns=norms();
     // std::cout << "BSpline_IBS_Evaluator<K>::BSpline_IBS_Evaluator size=" << size() << std::endl;
     assert(size()==splines.size());
