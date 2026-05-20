@@ -38,14 +38,14 @@ Real_BS* Factory(const nlohmann::json& js,const ElectronConfiguration& ec)
         {
             auto es1=js["exponents"].template get<std::vector<double>>();
             rvec_t es(es1.size(),&es1[0]);
-            bs=new BasisSet_HF2<Slater_IBS_Evaluator>(es,ec);
+            bs=new BasisSet_HF<Slater_IBS_Evaluator>(es,aec);
 
         }
         else
         {
             size_t N=js["N"];
             double emin=js["emin"].template get<double>(),emax=js["emax"].template get<double>();
-            bs=new BasisSet_HF2<Slater_IBS_Evaluator>(N,emin,emax,ec);
+            bs=new BasisSet_HF<Slater_IBS_Evaluator>(N,emin,emax,aec);
         }
         break;
     }
@@ -55,46 +55,13 @@ Real_BS* Factory(const nlohmann::json& js,const ElectronConfiguration& ec)
         {
             auto es1=js["exponents"].template get<std::vector<double>>();
             rvec_t es(es1.size(),&es1[0]);
-            bs=new BasisSet_HF2<Gaussian_IBS_Evaluator>(es,ec);
+            bs=new BasisSet_HF<Gaussian_IBS_Evaluator>(es,aec);
         }
         else
         {
             size_t N=js["N"];
             double emin=js["emin"].template get<double>(),emax=js["emax"].template get<double>();
-            bs=new BasisSet_HF2<Gaussian_IBS_Evaluator>(N,emin,emax,ec);
-        }
-        break;
-    }
-    case Type::Slater2:
-    {
-        if (js.contains("exponents"))
-        {
-            auto es1=js["exponents"].template get<std::vector<double>>();
-            rvec_t es(es1.size(),&es1[0]);
-            bs=new BasisSet_HF2<Slater_IBS_Evaluator>(es,ec);
-
-        }
-        else
-        {
-            size_t N=js["N"];
-            double emin=js["emin"].template get<double>(),emax=js["emax"].template get<double>();
-            bs=new BasisSet_HF2<Slater_IBS_Evaluator>(N,emin,emax,ec);
-        }
-        break;
-    }
-    case Type::Gaussian2:
-    {
-        if (js.contains("exponents"))
-        {
-            auto es1=js["exponents"].template get<std::vector<double>>();
-            rvec_t es(es1.size(),&es1[0]);
-            bs=new BasisSet_HF2<Gaussian_IBS_Evaluator>(es,ec);
-        }
-        else
-        {
-            size_t N=js["N"];
-            double emin=js["emin"].template get<double>(),emax=js["emax"].template get<double>();
-            bs=new BasisSet_HF2<Gaussian_IBS_Evaluator>(N,emin,emax,ec);
+            bs=new BasisSet_HF<Gaussian_IBS_Evaluator>(N,emin,emax,aec);
         }
         break;
     }
@@ -102,53 +69,22 @@ Real_BS* Factory(const nlohmann::json& js,const ElectronConfiguration& ec)
     {
         size_t N=js["N"];
         double rmin=js["rmin"].template get<double>(),rmax=js["rmax"].template get<double>();
-        bs=new BasisSet_1E_HF2<BSpline_IBS_Evaluator<6>>(N,rmin,rmax,ec);
+        bs=new BasisSet_1E_HF<BSpline_IBS_Evaluator<6>>(N,rmin,rmax,aec);
         break;   
     }
-    case Type::BSpline6_2:
-    {
-        size_t N=js["N"];
-        double rmin=js["rmin"].template get<double>(),rmax=js["rmax"].template get<double>();
-        bs=new BasisSet_1E_HF2<BSpline_IBS_Evaluator<6>>(N,rmin,rmax,ec);
-        break;   
-    }
-//     case Type::BSpline16:
-//     {
-//         double rmin=js["rmin"].template get<double>(),rmax=js["rmax"].template get<double>();
-//         bs=new AtomBS::BSpline1::BasisSet<6,BSpline_r_BS_Evaluator>(N,rmin,rmax,ec);
-//         break;   
-//     } 
-//     case Type::BSpline9:
-//     {
-//         double rmin=js["rmin"].template get<double>(),rmax=js["rmax"].template get<double>();
-//         bs=new AtomBS::BSpline::BasisSet<9>(N,rmin,rmax,ec);
-//         break;   
-//     } 
-// case Type::BSpliner6:
-//     {
-//         double rmin=js["rmin"].template get<double>(),rmax=js["rmax"].template get<double>();
-//         bs=new AtomBS::BSpline::BasisSet_r<6>(N,rmin,rmax,ec);
-//         break;   
-//     } 
-//     case Type::BSpliner9:
-//     {
-//         double rmin=js["rmin"].template get<double>(),rmax=js["rmax"].template get<double>();
-//         bs=new AtomBS::BSpline::BasisSet_r<9>(N,rmin,rmax,ec);
-//         break;   
-//     } 
 
     case Type::Slater_RKB:
     {
         size_t N=js["N"];
         double emin=js["emin"].template get<double>(),emax=js["emax"].template get<double>();
-        bs=new BasisSet_RKB<Slater_IBS_Evaluator,Slater_RKBS_IBS_Evaluator>(N,emin,emax,ec);
+        bs=new BasisSet_RKB<Slater_IBS_Evaluator,Slater_RKBS_IBS_Evaluator>(N,emin,emax,aec);
         break;
     }
     case Type::Gaussian_RKB:
     {
         size_t N=js["N"];
         double emin=js["emin"].template get<double>(),emax=js["emax"].template get<double>();
-        bs=new BasisSet_RKB<Gaussian_IBS_Evaluator,Gaussian_RKBS_IBS_Evaluator>(N,emin,emax,ec);
+        bs=new BasisSet_RKB<Gaussian_IBS_Evaluator,Gaussian_RKBS_IBS_Evaluator>(N,emin,emax,aec);
         break;
     }
 //     case Type::BSpline_RKB:

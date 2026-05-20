@@ -52,8 +52,6 @@ protected:
 //  Implement these integral engines separately as they shared between NR and RKB 1E orbital IBS implementations.
 //  Fit_IBS also uses Overlap.
 //
-// 
-
 template <is1E_Evaluator E> class Integrals_Overlap
 : public virtual BasisSet::Integrals_Overlap<double>
 {
@@ -106,7 +104,7 @@ protected:
 
 // Use E prefix to avoid name clash with the interface class Fit_IBS
 template <isFit_Evaluator Evaluator> class EFit_IBS
-    : public virtual BasisSet::Fit_IBS 
+    : public virtual Fit_IBS 
     , public Integrals_Overlap<Evaluator>
     , public IrrepBasisSetImp<Evaluator>
     , public Evaluator
@@ -125,7 +123,7 @@ public:
 
         return S;
     }
-    virtual  rmat_t MakeRepulsion(const BasisSet::Fit_IBS& f) const 
+    virtual  rmat_t MakeRepulsion(const Fit_IBS& f) const 
     {
         auto& ea=Cast();
         auto& eb=dynamic_cast<const Evaluator&>(f);
@@ -178,7 +176,7 @@ template <isDFT_Evaluator E> class Orbital_DFT_IBS
     : public virtual BasisSet::Orbital_DFT_IBS<double>
 {
 protected:
-    virtual ERI3<double> MakeOverlap3C  (const BasisSet::Fit_IBS& _c) const
+    virtual ERI3<double> MakeOverlap3C  (const Fit_IBS& _c) const
     {
         auto& ab=dynamic_cast<const E&>(*this);
         auto& c =dynamic_cast<const E&>(_c);
@@ -195,7 +193,7 @@ protected:
         return S3;
 
     }
-    virtual ERI3<double> MakeRepulsion3C(const BasisSet::Fit_IBS& _c) const
+    virtual ERI3<double> MakeRepulsion3C(const Fit_IBS& _c) const
     {
         auto& ab=dynamic_cast<const E&>(*this);
         auto& c =dynamic_cast<const E&>(_c);
@@ -217,7 +215,7 @@ protected:
 
 
 
-template <isHF_Evaluator E> class Orbital_HF1_IBS
+template <isHF_Evaluator E> class Orbital_HF_IBS
     : public virtual BasisSet::Orbital_HF_IBS<double> 
 
 {
@@ -261,7 +259,7 @@ template <is1E_Evaluator E> class Orbital_RKBS_IBS
 
 
 
-template <isHF_Evaluator E> ERI4 Orbital_HF1_IBS<E>::MakeDirect(const BasisSet::Orbital_HF_IBS<double>& _c) const 
+template <isHF_Evaluator E> ERI4 Orbital_HF_IBS<E>::MakeDirect(const BasisSet::Orbital_HF_IBS<double>& _c) const 
 {
     auto& a=dynamic_cast<const E&>(*this);
     auto& c=dynamic_cast<const E&>(_c);
@@ -307,7 +305,7 @@ template <isHF_Evaluator E> ERI4 Orbital_HF1_IBS<E>::MakeDirect(const BasisSet::
     return J;
 }
 
-template <isHF_Evaluator E> ERI4 Orbital_HF1_IBS<E>::MakeExchange(const BasisSet::Orbital_HF_IBS<double>& _c) const 
+template <isHF_Evaluator E> ERI4 Orbital_HF_IBS<E>::MakeExchange(const BasisSet::Orbital_HF_IBS<double>& _c) const 
 {
     auto& a=dynamic_cast<const E&>(*this);
     auto& c=dynamic_cast<const E&>(_c);
