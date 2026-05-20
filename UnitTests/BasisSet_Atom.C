@@ -156,8 +156,8 @@ public:
         Atom_EC ec(86); //Radon has f orbtials with no magnetic splitting.
         for (auto ir:ec.GetIrreps())
             Insert(new Slater_IBS_Evaluator(es,ir)); 
-        nlohmann::json js = {{"type",BasisSetAtomFactory::Type::Slater},{"exponents", {0.5,1.0,2.0}}};
-        bs=BasisSetAtomFactory::Factory(js,ec);
+        nlohmann::json js = {{"type",abs_t::Slater},{"exponents", {0.5,1.0,2.0}}};
+        bs=BasisSet::Atom::Factory(js,ec);
         cout << es << endl << *bs << endl;
     }
     
@@ -296,8 +296,8 @@ public:
         Atom_EC ec(86); //Radon has f orbtials with no magnetic splitting.
         for (auto ir:ec.GetIrreps())
             Insert(new Gaussian_IBS_Evaluator(es,ir)); 
-        nlohmann::json js = {{"type",BasisSetAtomFactory::Type::Gaussian},{"exponents", {0.5,1.0,2.0}}};
-        bs=BasisSetAtomFactory::Factory(js,ec);
+        nlohmann::json js = {{"type",abs_t::Gaussian},{"exponents", {0.5,1.0,2.0}}};
+        bs=BasisSet::Atom::Factory(js,ec);
     }
     static double R0(double a, double b, int la, int lb);
 };
@@ -411,8 +411,8 @@ public:
         for (size_t l=0;l<=3;l++)
             Insert(new BSpline_IBS_Evaluator<6>(5,0.01,20.0,Irrep_QNs::sym_t(new Yl_Sym(l))));
 
-        nlohmann::json js = {{"type",BasisSetAtomFactory::Type::BSpline6},{"N", 5}, {"rmin", 0.1}, {"rmax", 10.}};
-        bs=BasisSetAtomFactory::Factory(js,86);
+        nlohmann::json js = {{"type",abs_t::BSpline6},{"N", 5}, {"rmin", 0.1}, {"rmax", 10.}};
+        bs=BasisSet::Atom::Factory(js,86);
     }
    
 };

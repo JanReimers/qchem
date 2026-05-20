@@ -56,7 +56,7 @@ TEST_P(A_SG_DFT_U,Multiple)
 {
     int Z=GetParam();
     nlohmann::json js = {
-        {"type",BasisSetAtomFactory::Type::Gaussian},
+        {"type",abs_t::Gaussian},
         {"N", 20}, {"emin", 0.05}, {"emax", 10000*Z},
     };
     QchemTester::Init(1e-3,js);
@@ -72,7 +72,7 @@ TEST_P(A_SL_DFT_U,Multiple)
     if (Z>20) N=10;
     if (Z>50) N=11;
     nlohmann::json js = {
-        {"type",BasisSetAtomFactory::Type::Slater},
+        {"type",abs_t::Slater},
         {"N", N}, {"emin", 0.31}, {"emax", 3*Z},
     };
     QchemTester::Init(1e-3,js);
@@ -140,7 +140,7 @@ TEST_P(A_SG_DFT_P,Multiple)
 {
     int Z=GetParam();
     nlohmann::json js = {
-        {"type",BasisSetAtomFactory::Type::Gaussian},
+        {"type",abs_t::Gaussian},
         {"N", 20}, {"emin", 0.01}, {"emax", 4000*Z},
     };
     QchemTester::Init(1e-3,js);
@@ -157,7 +157,7 @@ TEST_P(A_SL_DFT_P,Multiple)
     if (Z>20) N=10;
     if (Z>50) N=11;
      nlohmann::json js = {
-        {"type",BasisSetAtomFactory::Type::Slater},
+        {"type",abs_t::Slater},
         {"N", N}, {"emin", 0.31}, {"emax", 3*Z},
     };
     QchemTester::Init(1e-3,js);

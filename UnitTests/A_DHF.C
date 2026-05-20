@@ -61,7 +61,7 @@ TEST_P(A_SLm_HF_ion,Multiple)
     if (Z>12) N=35;
     if (Z>50) N=40;
     nlohmann::json js = {
-        {"type",BasisSetAtomFactory::Type::Slater},
+        {"type",abs_t::Slater},
         {"N", N}, {"emin", Z/20.}, {"emax", Z*Z*5.},
     };
     QchemTester::Init(1e-3,js);
@@ -91,7 +91,7 @@ TEST_P(A_SLmj_DHF,Multiple)
     // DHF wave functions have a weak singulatory at the origin.  We need very large exponents in order
     // mock that singularity.  Hence Z*Z*100 for emax.
     nlohmann::json js = {
-        {"type",BasisSetAtomFactory::Type::Slater_RKB},
+        {"type",abs_t::Slater_RKB},
         {"N", N}, {"emin", Z/20.}, {"emax", Z*Z*100.},
     };
     QchemTester::Init(1e-3,js);
@@ -157,7 +157,7 @@ TEST_P(A_SG_DHF,Multiple)
     // if (Z>50) N=16;
     //Init(N,1.0,1.0,GetLMax(Z));
     nlohmann::json js = {
-        {"type",BasisSetAtomFactory::Type::Gaussian_RKB},
+        {"type",abs_t::Gaussian_RKB},
         {"N", N}, {"emin", alpha}, {"emax", alpha*pow(beta,N-1)},
     };
     QchemTester::Init(1e-3,js);
@@ -252,7 +252,7 @@ TEST_F(A_SG_HFP_H,Phir)
     int N=22;
     double alpha=0.01024,beta=2.0;
     nlohmann::json js = {
-        {"type",BasisSetAtomFactory::Type::Gaussian},
+        {"type",abs_t::Gaussian},
         {"N", N}, {"emin", alpha}, {"emax", alpha*pow(beta,N-1)},
     };
     QchemTester::Init(1e-3,js,true);

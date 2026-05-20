@@ -42,12 +42,12 @@ public:
     {
         if (bs) delete bs;
         nlohmann::json js = {
-        {"type",BasisSetAtomFactory::Type::Slater},
+        {"type",abs_t::Slater},
         {"N", N}, {"emin", 0.1}, {"emax", 10.0},
         };
-        bs=BasisSetAtomFactory::Factory(js,Z);
+        bs=BasisSet::Atom::Factory(js,Z);
     }    
-    bs_t* bs;
+    Real_BS* bs;
  };
 
  const double trunc_tol=1e-12;

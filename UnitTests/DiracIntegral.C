@@ -42,10 +42,10 @@ public:
     , gbs(0)
     , cl(new Atom(Z,0.0,Vector3D(0,0,0)))
     {
-        nlohmann::json js = {{"type",BasisSetAtomFactory::Type::Slater_RKB}, {"N", 3}, {"emin", 0.1}, {"emax", 10.0} };
-        sbs=BasisSetAtomFactory::Factory(js,2);
-        js = {{"type",BasisSetAtomFactory::Type::Gaussian_RKB}, {"N", 3}, {"emin", 0.1}, {"emax", 10.0} };
-        gbs=BasisSetAtomFactory::Factory(js,2);
+        nlohmann::json js = {{"type",abs_t::Slater_RKB}, {"N", 3}, {"emin", 0.1}, {"emax", 10.0} };
+        sbs=BasisSet::Atom::Factory(js,2);
+        js = {{"type",abs_t::Gaussian_RKB}, {"N", 3}, {"emin", 0.1}, {"emax", 10.0} };
+        gbs=BasisSet::Atom::Factory(js,2);
         MeshParams mp({qchem::MHL,200,3,2.0,qchem::Gauss,1,0,0,3});
         mintegrator=new MeshIntegrator<double>(cl->CreateMesh(mp));
     }

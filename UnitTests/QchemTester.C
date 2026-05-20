@@ -166,7 +166,7 @@ MeshParams TestAtom::GetMeshParams() const
 
 Real_BS* TestAtom::GetBasisSet (const nlohmann::json& js) const
 {
-    return BasisSetAtomFactory::Factory(js,itsZ);
+    return BasisSet::Atom::Factory(js,itsZ);
 }
 
 void TestMolecule::Init(Cluster* m)

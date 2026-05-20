@@ -39,10 +39,10 @@ public:
     void Init(int N, double rmin, double rmax)
     {
         nlohmann::json js = {
-        {"type",BasisSetAtomFactory::Type::BSpline6},
+        {"type",abs_t::BSpline6},
         {"N", N}, {"rmin", rmin}, {"rmax", rmax},
         };
-        bs=BasisSetAtomFactory::Factory(js,75);
+        bs=BasisSet::Atom::Factory(js,75);
         for (auto io:bs->Iterate<ibs_t>()) itsIBSs.push_back(io);
 
         std::vector<double> knots=MakeLogKnots(rmin,rmax,K,N);
@@ -59,7 +59,7 @@ public:
     template <class S,class B> rsmat_t MakeSMat(const std::vector<S>& splines, const B&);
    
     size_t LMax;
-    bs_t* bs;
+    Real_BS* bs;
     std::vector<const ibs_t*> itsIBSs;
     Cluster* cl;
     MeshIntegrator<double>* mintegrator;
