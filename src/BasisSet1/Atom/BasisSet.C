@@ -102,7 +102,6 @@ public:
         };
     };
 
-
     BasisSet_1E_HF(size_t N, double remin, double remax, const Atom_EC& ec)
     {
         for (auto ir:ec.GetIrreps())
@@ -118,79 +117,71 @@ public:
 
 };
 
-
-
-template <isRKBL_Evaluator LEvaluator> class EOrbital_RKBL_IBS 
-    : public Orbital_RKBL_IBS<LEvaluator>
-    , public IrrepBasisSetImp<LEvaluator>
-    , public LEvaluator
-{
-public:
-    EOrbital_RKBL_IBS(size_t N, double rmin, double rmax, const Irrep_QNs::sym_t& yl)
-    : IrrepBasisSetImp<LEvaluator>(yl)
-    , LEvaluator(N,rmin,rmax,yl)
-    {};
-
-
-    virtual std::ostream& Write(std::ostream& os) const
-    {
-        os << " Large=";
-        LEvaluator::Write(os);
-        return os;
-    }
-};
-
-template <is1E_Evaluator SEvaluator> class EOrbital_RKBS_IBS 
-    : public Orbital_RKBS_IBS<SEvaluator>
-    , public IrrepBasisSetImp<SEvaluator>
-    , public SEvaluator
-{
-public:
-    EOrbital_RKBS_IBS(size_t N, double rmin, double rmax, const Irrep_QNs::sym_t& yl)
-    : IrrepBasisSetImp<SEvaluator>(yl)
-    , SEvaluator(N,rmin,rmax,-1,0) //fix kappa=-1, l=0
-    {};
-
-    virtual std::ostream& Write(std::ostream& os) const
-    {
-        os << " Small=";
-        SEvaluator::Write(os);
-        return os;
-    }
-};
-
 template <class LEvaluator, class SEvaluator> class BasisSet_RKB
-    : public virtual ::BasisSet::BasisSet<double>
-    , public ::BasisSet::BasisSetImp<double>
+    : public virtual Real_BS
+    , public BasisSetImp<double>
 {
 public:
+    class EOrbital_RKBL_IBS 
+        : public Orbital_RKBL_IBS<LEvaluator>
+        , public IrrepBasisSetImp<LEvaluator>
+        , public LEvaluator
+    {
+    public:
+        EOrbital_RKBL_IBS(size_t N, double rmin, double rmax, const Irrep_QNs::sym_t& yl)
+        : IrrepBasisSetImp<LEvaluator>(yl)
+        , LEvaluator(N,rmin,rmax,yl)
+        {};
+
+
+        virtual std::ostream& Write(std::ostream& os) const
+        {
+            os << " Large=";
+            LEvaluator::Write(os);
+            return os;
+        }
+    };
+    class EOrbital_RKBS_IBS 
+        : public Orbital_RKBS_IBS<SEvaluator>
+        , public IrrepBasisSetImp<SEvaluator>
+        , public SEvaluator
+    {
+    public:
+        EOrbital_RKBS_IBS(size_t N, double rmin, double rmax, const Irrep_QNs::sym_t& yl)
+        : IrrepBasisSetImp<SEvaluator>(yl)
+        , SEvaluator(N,rmin,rmax,-1,0) //fix kappa=-1, l=0
+        {};
+
+        virtual std::ostream& Write(std::ostream& os) const
+        {
+            os << " Small=";
+            SEvaluator::Write(os);
+            return os;
+        }
+    };
     class EOrbital_RKB_IBS 
         : public virtual Orbital_RKB_IBS<double>
         , public Orbital_RKB_IBS_Imp<double>
         , public ::BasisSet::IrrepBasisSetImp<double>
     {
     public:
-        EOrbital_RKB_IBS(size_t N, double rmin, double rmax, const Irrep_QNs::sym_t& yl)
+        EOrbital_RKB_IBS(size_t N, double remin, double remax, const Irrep_QNs::sym_t& yl)
         : Orbital_RKB_IBS_Imp(
-                    new EOrbital_RKBL_IBS<LEvaluator>(N,rmin,rmax,yl),
-                    new EOrbital_RKBS_IBS<SEvaluator>(N,rmin,rmax,yl)
+                    new EOrbital_RKBL_IBS(N,remin,remax,yl),
+                    new EOrbital_RKBS_IBS(N,remin,remax,yl)
                 )
-        , ::BasisSet::IrrepBasisSetImp<double>(yl)
+        , IrrepBasisSetImp<double>(yl)
         {};
 
         virtual size_t GetNumFunctions() const {return Orbital_RKB_IBS_Imp<double>::GetNumFunctions();}
     };
-    BasisSet_RKB(size_t N, double rmin, double rmax, const Atom_EC& ec)
+    BasisSet_RKB(size_t N, double ermin, double ermax, const Atom_EC& ec)
     {
         for (auto ir:ec.GetIrreps())
-            Insert(new EOrbital_RKB_IBS(N,rmin,rmax,ir));  
+            Insert(new EOrbital_RKB_IBS(N,ermin,ermax,ir));  
      
     }
-private:
-    void Insert(EOrbital_RKB_IBS* oibs)
-    {
-        ::BasisSet::BasisSetImp<double>::Insert(oibs);
-    }
+
 };
 
 
