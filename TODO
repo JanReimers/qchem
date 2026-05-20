@@ -58,7 +58,7 @@ Priority 1:
             -Upgrade BSpline_r evaluator
             -Make SL/SG versions of 1/r evaluators.
             -Check BSpline_IBS_Evaluator copy constructor, seems to increase size.
-            -qchem.BasisSet.Atom.Factory; use Atom_EC instead of ElectronConfiguration
+            Done: -qchem.BasisSet.Atom.Factory; use Atom_EC instead of ElectronConfiguration
             -BSpline::RkCache should not care about l just lmax.
             Fixed: -BSpline Both SplineGrouper and BSpline_IBS_Evaluator have GLCaches
                 SplineGrouper         has std::map<size_t l,const GLCache*> itsGLs;

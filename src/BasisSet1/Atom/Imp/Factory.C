@@ -24,14 +24,13 @@ Real_BS* Factory(const nlohmann::json& js,size_t Z)
     return Factory(js,Atom_EC(Z));
 }
 
-Real_BS* Factory(const nlohmann::json& js,const ElectronConfiguration& ec)
+Real_BS* Factory(const nlohmann::json& js,const Atom_EC& aec)
 {
     if (::BasisSet::theGlobalCache==0)
         ::BasisSet::theGlobalCache=new ::BasisSet::IntegralsCache_RAM<double>(true);     
     Type type=js["type"].template get<Type>();
-    const Atom_EC& aec=dynamic_cast<const Atom_EC&>(ec);
-    size_t LMax=aec.GetLMax();
     Real_BS* bs=0;
+
     switch (type)
     {
     case Type::Slater:
