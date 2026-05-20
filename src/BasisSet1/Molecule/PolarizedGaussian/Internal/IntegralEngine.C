@@ -2,18 +2,18 @@
 module;
 
 #include <cmath>
-export module qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.IntegralEngine;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.CDCache;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.PGData;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.Polarization;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.RadialFunction;
-import qchem.BasisSet1.Fit_IBS;
-import qchem.BasisSet1.Orbital_DFT_IBS;
+export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IntegralEngine;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.PGData;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.RadialFunction;
+import qchem.BasisSet.Fit_IBS;
+import qchem.BasisSet.Orbital_DFT_IBS;
 
-import qchem.BasisSet1.Internal.IntegralEnums;
+import qchem.BasisSet.Internal.IntegralEnums;
 
 
-export namespace BasisSet1::Molecule::PolarizedGaussian
+export namespace BasisSet::Molecule::PolarizedGaussian
 {
 
 // class IE_Common
@@ -36,9 +36,9 @@ export namespace BasisSet1::Molecule::PolarizedGaussian
 // rsmat_t MakeIntegrals(PolarizedGaussian::IType,const PGData* ab, CDCache&,const Cluster*cl =0);
 
 // class Orbital_IE
-// : public BasisSet1::Integrals_Overlap<double>
-// , public BasisSet1::Integrals_Kinetic<double>
-// , public BasisSet1::Integrals_Nuclear<double>
+// : public BasisSet::Integrals_Overlap<double>
+// , public BasisSet::Integrals_Kinetic<double>
+// , public BasisSet::Integrals_Nuclear<double>
 // , public DB_DFT<double>
 // {
 //     typedef Orbital_IBS<double> obs_t;
@@ -79,5 +79,5 @@ export namespace BasisSet1::Molecule::PolarizedGaussian
 //     mutable CDCache cache; //Cache of all Gaussian pair charge distributions.
 // };
 
-} //namespace BasisSet1::Molecule::PolarizedGaussian
+} //namespace BasisSet::Molecule::PolarizedGaussian
 

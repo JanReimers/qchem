@@ -1,10 +1,10 @@
 // File: BasisSet1/Imp/Orbital_DHF_IBS.C
 module;
 #include <cassert>
-module qchem.BasisSet1.Orbital_DHF_IBS;
-import qchem.BasisSet1.DB_Cache;
+module qchem.BasisSet.Orbital_DHF_IBS;
+import qchem.BasisSet.DB_Cache;
 
-namespace BasisSet1
+namespace BasisSet
 {
 
     template <class T> const smat_t<T>& Orbital_RKB_IBS<T>::RestMass() const

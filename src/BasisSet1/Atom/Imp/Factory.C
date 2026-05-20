@@ -3,33 +3,33 @@ module;
 #include <cassert>
 #include <nlohmann/json.hpp>
 
-module qchem.BasisSet1.Atom.Factory;
+module qchem.BasisSet.Atom.Factory;
 import qchem.Symmetry.AtomEC;
-import qchem.BasisSet1.Atom.BasisSet;
-import qchem.BasisSet1.Atom.Evaluators.BSpline.IBS;
-import qchem.BasisSet1.Atom.Evaluators.Gaussian.IBS; 
-import qchem.BasisSet1.Atom.Evaluators.Slater.IBS;
+import qchem.BasisSet.Atom.BasisSet;
+import qchem.BasisSet.Atom.Evaluators.BSpline.IBS;
+import qchem.BasisSet.Atom.Evaluators.Gaussian.IBS; 
+import qchem.BasisSet.Atom.Evaluators.Slater.IBS;
 
-import qchem.BasisSet1.DB_Cache;
+import qchem.BasisSet.DB_Cache;
 
 using json = nlohmann::json;
 
-namespace BasisSet1::Atom
+namespace BasisSet::Atom
 {
 
-BasisSet1::Real_BS* Factory(const nlohmann::json& js,size_t Z)
+Real_BS* Factory(const nlohmann::json& js,size_t Z)
 {
     return Factory(js,Atom_EC(Z));
 }
 
-BasisSet1::Real_BS* Factory(const nlohmann::json& js,const ElectronConfiguration& ec)
+Real_BS* Factory(const nlohmann::json& js,const ElectronConfiguration& ec)
 {
-    if (BasisSet1::theGlobalCache==0)
-        BasisSet1::theGlobalCache=new BasisSet1::IntegralsCache_RAM<double>(true);     
+    if (::BasisSet::theGlobalCache==0)
+        ::BasisSet::theGlobalCache=new ::BasisSet::IntegralsCache_RAM<double>(true);     
     Type type=js["type"].template get<Type>();
     const Atom_EC& aec=dynamic_cast<const Atom_EC&>(ec);
     size_t LMax=aec.GetLMax();
-    BasisSet1::Real_BS* bs=0;
+    Real_BS* bs=0;
     switch (type)
     {
     case Type::Slater:

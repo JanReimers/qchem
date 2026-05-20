@@ -1,10 +1,10 @@
 // File: BasisSet1/IrrepBasisSet.C  Interface for an Irrep Basis Set (IBS)
 module;
 #include <cassert>
-module qchem.BasisSet1.IrrepBasisSet;
-import qchem.BasisSet1.DB_Cache;
+module qchem.BasisSet.IrrepBasisSet;
+import qchem.BasisSet.DB_Cache;
 
-namespace BasisSet1
+namespace BasisSet
 {
 
 template <class T> const smat_t<T>& Integrals_Overlap<T>::Overlap() const

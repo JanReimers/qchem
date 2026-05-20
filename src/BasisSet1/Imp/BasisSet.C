@@ -1,9 +1,9 @@
 // File: BasisSetImp.C Quantum Chemistry basis set expressed as a sequence of Irrep basis sets.
 module;
-module qchem.BasisSet1;
-import qchem.BasisSet1.Orbital_DFT_IBS;
+module qchem.BasisSet;
+import qchem.BasisSet.Orbital_DFT_IBS;
 
-namespace BasisSet1
+namespace BasisSet
 {
 template <class T> Fit_IBS* BasisSet<T>::CreateCDFitBasisSet(const Cluster* cl) const
 {   

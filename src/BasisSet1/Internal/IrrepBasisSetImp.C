@@ -1,11 +1,11 @@
 // File: BasisSet1/Internal/IrrepBasisSetImp.C Implement a generic IrrepBasisSet
 module;
 #include <cassert>
-export module qchem.BasisSet1.Internal.IrrepBasisSetImp;
-import qchem.BasisSet1.IrrepBasisSet;
+export module qchem.BasisSet.Internal.IrrepBasisSetImp;
+import qchem.BasisSet.IrrepBasisSet;
 import qchem.Symmetry.Irrep;
 
-export namespace BasisSet1
+export namespace BasisSet
 {
 
 template <class T> class IrrepBasisSetImp

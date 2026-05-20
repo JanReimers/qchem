@@ -5,7 +5,7 @@ module;
 #include <cassert>
 #include <iostream>
 #include <map>
-export module qchem.BasisSet1.Atom.Evaluators.BSpline.Internal.GLQuadrature;
+export module qchem.BasisSet.Atom.Evaluators.BSpline.Internal.GLQuadrature;
 import qchem.Types;
 
 export class GLCache;

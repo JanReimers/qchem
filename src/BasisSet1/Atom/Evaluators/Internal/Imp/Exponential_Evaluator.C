@@ -5,7 +5,7 @@ module;
 #include <iostream>
 #include <blaze/math/DynamicVector.h>
 
-module qchem.BasisSet1.Atom.Evaluators.Internal.Exponential_IBS_Evaluator;
+module qchem.BasisSet.Atom.Evaluators.Internal.Exponential_IBS_Evaluator;
 
 void Exponential_IBS_Evaluator::Register(Grouper* _grouper)
 {

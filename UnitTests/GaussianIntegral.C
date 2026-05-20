@@ -44,7 +44,7 @@ public:
     }
     
     int Lmax, Z;
-    BasisSet* bs;
+    Real_BS* bs;
     Cluster* cl;
     MeshIntegrator<double>* mintegrator;
 };

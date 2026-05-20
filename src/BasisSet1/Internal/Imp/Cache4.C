@@ -2,7 +2,7 @@
 module;
 #include <map>
 #include <iostream>
-module qchem.BasisSet1.Internal.Cache4;
+module qchem.BasisSet.Internal.Cache4;
 
 Cache4::~Cache4()
 {

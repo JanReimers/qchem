@@ -2,15 +2,15 @@
 module;
 #include <iosfwd>
 #include <blaze/Math.h>
-export module qchem.BasisSet1.Atom.Evaluators.Gaussian.IBS; 
-import qchem.BasisSet1.Atom.Evaluators.Internal.Exponential_IBS_Evaluator;
-import qchem.BasisSet1.Atom.Evaluators.Gaussian.Internal.GaussianIntegrals; 
-import qchem.BasisSet1.Atom.Evaluators.Gaussian.Internal.Rk; 
-import qchem.BasisSet1.Atom.Evaluators.Internal.AngularIntegrals;
+export module qchem.BasisSet.Atom.Evaluators.Gaussian.IBS; 
+import qchem.BasisSet.Atom.Evaluators.Internal.Exponential_IBS_Evaluator;
+import qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.GaussianIntegrals; 
+import qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.Rk; 
+import qchem.BasisSet.Atom.Evaluators.Internal.AngularIntegrals;
 import qchem.Symmetry.Yl;
 import Common.IntPow;
 
-import qchem.BasisSet1.Internal.Cache4;
+import qchem.BasisSet.Internal.Cache4;
 
 
 

@@ -2,18 +2,18 @@
 module;
 #include <iosfwd>
 
-export module qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.GaussianRF;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.RadialFunction;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.Radial.Common;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.Polarization;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.CDCache;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.GData;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.MnD.Hermite1;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.MnD.Hermite3;
+export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.RadialFunction;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Radial.Common;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GData;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite1;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite3;
 
-import qchem.BasisSet1.Internal.IntegralEnums;
+import qchem.BasisSet.Internal.IntegralEnums;
 import qchem.Cluster;
-export namespace BasisSet1::Molecule::PolarizedGaussian
+export namespace BasisSet::Molecule::PolarizedGaussian
 {
 
 class GaussianRF
@@ -63,6 +63,6 @@ private:
     double        itsExponent;
 };
 
-} //namespace BasisSet1::Molecule::PolarizedGaussian
+} //namespace BasisSet::Molecule::PolarizedGaussian
 
 

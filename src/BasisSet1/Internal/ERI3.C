@@ -1,6 +1,6 @@
 module;
 #include <vector>
-export module qchem.BasisSet1.Internal.ERI3;
+export module qchem.BasisSet.Internal.ERI3;
 export import qchem.Types;
 
 export template <class T> using ERI3=std::vector<smat_t<T>>;

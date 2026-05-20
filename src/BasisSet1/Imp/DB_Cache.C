@@ -8,15 +8,15 @@ module;
 #include <iostream>
 #include <fstream>
 #include <format>
-module qchem.BasisSet1.DB_Cache;
+module qchem.BasisSet.DB_Cache;
 
-// import qchem.BasisSet1.Internal.ERI4;
-// import qchem.BasisSet1.Internal.ERI3;
-// import qchem.BasisSet1.Internal.IntegralEnums;
+// import qchem.BasisSet.Internal.ERI4;
+// import qchem.BasisSet.Internal.ERI3;
+// import qchem.BasisSet.Internal.IntegralEnums;
 
 namespace std
 {
-    using I1C=BasisSet1::IntegralsCache_Base::I1C;
+    using I1C=BasisSet::IntegralsCache_Base::I1C;
     template <> struct formatter<I1C> : formatter<string_view> {  
     auto format(I1C c, std::format_context& ctx) const {  
         string_view name;  
@@ -28,7 +28,7 @@ namespace std
     }  
     }; 
 
-    using I2C=BasisSet1::IntegralsCache_Base::I2C;
+    using I2C=BasisSet::IntegralsCache_Base::I2C;
     template <> struct formatter<I2C> : formatter<string_view> 
     {  
         auto format(I2C c, format_context& ctx) const 
@@ -46,7 +46,7 @@ namespace std
             return formatter<string_view>::format(name, ctx);  
         }
     };  
-    using I2x=BasisSet1::IntegralsCache_Base::I2x;
+    using I2x=BasisSet::IntegralsCache_Base::I2x;
     template <> struct formatter<I2x> : formatter<string_view> 
     {  
         auto format(I2x c, format_context& ctx) const 
@@ -61,7 +61,7 @@ namespace std
         }
     };  
 
-    using I2n=BasisSet1::IntegralsCache_Base::I2n;
+    using I2n=BasisSet::IntegralsCache_Base::I2n;
     template <> struct formatter<I2n> : formatter<string_view> 
     {  
         auto format(I2n c, format_context& ctx) const 
@@ -74,7 +74,7 @@ namespace std
         }
     };  
 
-    using I3C=BasisSet1::IntegralsCache_Base::I3C;
+    using I3C=BasisSet::IntegralsCache_Base::I3C;
     template <> struct formatter<I3C> : formatter<string_view> 
     {  
         auto format(I3C c, format_context& ctx) const 
@@ -88,7 +88,7 @@ namespace std
         }
     };  
 
-    using I4C=BasisSet1::IntegralsCache_Base::I4C;
+    using I4C=BasisSet::IntegralsCache_Base::I4C;
     template <> struct formatter<I4C> : formatter<string_view> 
     {  
         auto format(I4C c, format_context& ctx) const 
@@ -103,7 +103,7 @@ namespace std
     };  
 
 }
-namespace BasisSet1
+namespace BasisSet
 {
 // template  <> IntegralsCache<double>* IntegralsCache<double>::theGlobalCache;
 

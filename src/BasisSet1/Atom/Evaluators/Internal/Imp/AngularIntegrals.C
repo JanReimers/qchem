@@ -3,8 +3,8 @@ module;
 #include <cassert>
 #include <cmath>
 #include <iostream>
-module qchem.BasisSet1.Atom.Evaluators.Internal.AngularIntegrals;
-import qchem.BasisSet1.Atom.Evaluators.Internal.Wigner3j;
+module qchem.BasisSet.Atom.Evaluators.Internal.AngularIntegrals;
+import qchem.BasisSet.Atom.Evaluators.Internal.Wigner3j;
 import Common.Constants;
 import Common.IntPow;
 

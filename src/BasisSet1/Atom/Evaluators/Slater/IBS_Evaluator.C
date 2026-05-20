@@ -2,13 +2,13 @@
 module;
 #include <iosfwd>
 #include <blaze/Math.h>
-export module qchem.BasisSet1.Atom.Evaluators.Slater.IBS;
-export import qchem.BasisSet1.Atom.Evaluators.Internal.Exponential_IBS_Evaluator;
-import qchem.BasisSet1.Atom.Evaluators.Slater.Internal.Integrals; 
-import qchem.BasisSet1.Atom.Evaluators.Slater.Internal.Rk; 
-import qchem.BasisSet1.Atom.Evaluators.Internal.AngularIntegrals;
+export module qchem.BasisSet.Atom.Evaluators.Slater.IBS;
+export import qchem.BasisSet.Atom.Evaluators.Internal.Exponential_IBS_Evaluator;
+import qchem.BasisSet.Atom.Evaluators.Slater.Internal.Integrals; 
+import qchem.BasisSet.Atom.Evaluators.Slater.Internal.Rk; 
+import qchem.BasisSet.Atom.Evaluators.Internal.AngularIntegrals;
 
-import qchem.BasisSet1.Internal.Cache4;
+import qchem.BasisSet.Internal.Cache4;
 
 import Common.IntPow;
 import qchem.Symmetry.Irrep;

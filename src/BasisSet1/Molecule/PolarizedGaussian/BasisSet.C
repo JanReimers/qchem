@@ -2,26 +2,26 @@
 module;
 #include <vector>
 #include <memory>
-export module qchem.BasisSet1.Molecule.PolarizedGaussian;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.CDCache;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.Block;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.Polarization;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.PGData;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.IntegralEngine;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.RadialFunction;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Reader;
+export module qchem.BasisSet.Molecule.PolarizedGaussian;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Block;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.PGData;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IntegralEngine;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.RadialFunction;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Reader;
 
-import qchem.BasisSet1.Internal.BasisSetImp;
-import qchem.BasisSet1.Internal.ERI4;
-import qchem.BasisSet1.Internal.IrrepBasisSetImp;
+import qchem.BasisSet.Internal.BasisSetImp;
+import qchem.BasisSet.Internal.ERI4;
+import qchem.BasisSet.Internal.IrrepBasisSetImp;
 import qchem.Cluster;
 import qchem.Types;
-import qchem.BasisSet1.Orbital_DFT_IBS;
-import qchem.BasisSet1.Orbital_HF_IBS;
+import qchem.BasisSet.Orbital_DFT_IBS;
+import qchem.BasisSet.Orbital_HF_IBS;
 
-import qchem.BasisSet1.Internal.IntegralEnums;
+import qchem.BasisSet.Internal.IntegralEnums;
 
-export namespace BasisSet1::Molecule::PolarizedGaussian
+export namespace BasisSet::Molecule::PolarizedGaussian
 {
 
 rsmat_t MakeIntegrals(IType,const PGData* ab, CDCache&,const Cluster*cl =0);
@@ -74,16 +74,16 @@ public:
     virtual rsmat_t      MakeOverlap() const {return MakeIntegrals(PolarizedGaussian::Overlap2C,this,cache);}
     virtual rsmat_t      MakeKinetic() const {return MakeIntegrals(Grad2,this,cache);}
     virtual rsmat_t      MakeNuclear(const Cluster* cl) const {return MakeIntegrals(PolarizedGaussian::Nuclear,this,cache,cl);}
-    virtual ERI3<double> MakeOverlap3C  (const BasisSet1::Fit_IBS& c) const; //Used for DFT
-    virtual ERI3<double> MakeRepulsion3C(const BasisSet1::Fit_IBS& c) const; //Used for DFT
-    virtual ERI4         MakeDirect     (const BasisSet1::Orbital_HF_IBS<double>& c) const;
-    virtual ERI4         MakeExchange   (const BasisSet1::Orbital_HF_IBS<double>& b) const;
+    virtual ERI3<double> MakeOverlap3C  (const ::BasisSet::Fit_IBS& c) const; //Used for DFT
+    virtual ERI3<double> MakeRepulsion3C(const ::BasisSet::Fit_IBS& c) const; //Used for DFT
+    virtual ERI4         MakeDirect     (const ::BasisSet::Orbital_HF_IBS<double>& c) const;
+    virtual ERI4         MakeExchange   (const ::BasisSet::Orbital_HF_IBS<double>& b) const;
 private:
     rsmat_t Integrate(qchem::IType3C type , const RadialFunction* rc, const Polarization& pc) const;
     mutable CDCache cache; //Cache of all Gaussian pair charge distributions.
 };
 class Fit_IBS
-    : public virtual BasisSet1::Fit_IBS 
+    : public virtual ::BasisSet::Fit_IBS 
     , public IrrepBasisSet
 {
 public:
@@ -92,11 +92,11 @@ public:
     virtual rsmat_t MakeOverlap() const {return MakeIntegrals(PolarizedGaussian::Overlap2C,this,cache);}
     virtual  rvec_t MakeCharge   () const;
     virtual rsmat_t MakeRepulsion() const {return MakeIntegrals(Repulsion2C,this,cache);}
-    virtual  rmat_t MakeRepulsion(const BasisSet1::Fit_IBS& b) const;
+    virtual  rmat_t MakeRepulsion(const ::BasisSet::Fit_IBS& b) const;
 };
 class BasisSet 
-    : public virtual ::BasisSet1::BasisSet<double>
-    , public BasisSet1::BasisSetImp<double>
+    : public virtual ::BasisSet::BasisSet<double>
+    , public ::BasisSet::BasisSetImp<double>
 {
 public:
     BasisSet() {};

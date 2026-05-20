@@ -3,14 +3,14 @@ module;
 #include <string>
 #include <iostream>
 #include "forward.H"
-export module qchem.BasisSet1.Internal.Orbital_DHF_IBS;
-export import qchem.BasisSet1.IrrepBasisSet;
-export import qchem.BasisSet1.Orbital_1E_IBS;
-export import qchem.BasisSet1.Orbital_DHF_IBS;
+export module qchem.BasisSet.Internal.Orbital_DHF_IBS;
+export import qchem.BasisSet.IrrepBasisSet;
+export import qchem.BasisSet.Orbital_1E_IBS;
+export import qchem.BasisSet.Orbital_DHF_IBS;
 export import qchem.Cluster;
 
 
-export namespace BasisSet1
+export namespace BasisSet
 {
 
 template <class T> class Orbital_RKBS_IBS;

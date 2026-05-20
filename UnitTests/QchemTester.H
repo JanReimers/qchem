@@ -15,7 +15,7 @@ import qchem.Orbitals;
 import qchem.Mesh; //To get Meshparams
 import qchem.Factory;
 
-typedef BasisSet1::irrepv_t irrepv_t;
+typedef BasisSet::irrepv_t irrepv_t;
 
 using qchem::Orbitals::Orbital;
 using qchem::Orbitals::Orbitals;
@@ -51,12 +51,12 @@ protected:
     virtual const ElectronConfiguration* GetElectronConfiguration() const=0;
 
     // Orbital Basis Set functions SG, PG, Slater
-    virtual BasisSet* GetBasisSet   (const nlohmann::json&) const=0;
+    virtual Real_BS* GetBasisSet   (const nlohmann::json&) const=0;
     // Hamiltonian functions HF,semi HF, DFT all Pol or un-polarized.
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const=0;
 protected:
     cl_t          itsCluster;
-    BasisSet*         itsBasisSet;
+    Real_BS*         itsBasisSet;
     SCFIterator*  itsSCFIterator;
 public:
     static PeriodicTable itsPT;
@@ -75,7 +75,7 @@ public:
     virtual MeshParams GetMeshParams() const;
     virtual const ElectronConfiguration* GetElectronConfiguration() const {return &ec;}
 private:
-    virtual BasisSet* GetBasisSet (const nlohmann::json&) const;
+    virtual Real_BS* GetBasisSet (const nlohmann::json&) const;
     Atom_EC ec;
     int itsZ;
 };
@@ -89,7 +89,7 @@ public:
     virtual MeshParams  GetMeshParams() const;
     virtual const ElectronConfiguration* GetElectronConfiguration() const {return &ec;}
 private:
-    virtual BasisSet* GetBasisSet (const nlohmann::json&) const;
+    virtual Real_BS* GetBasisSet (const nlohmann::json&) const;
     Molecule_EC ec;
 };
 

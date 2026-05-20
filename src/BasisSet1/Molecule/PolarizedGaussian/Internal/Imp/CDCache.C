@@ -1,10 +1,10 @@
 // File: CDCache.C
 module;
 #include <iomanip>
-module qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.CDCache;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.MnD.RNLM;
+module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.RNLM;
 import Common.UniqueID; 
-namespace BasisSet1::Molecule::PolarizedGaussian
+namespace BasisSet::Molecule::PolarizedGaussian
 {
 
 CDCache::CDCache() : CDlookups(0), CDinserts(0), RNLMlookups(0), RNLMinserts(0) {};
@@ -75,4 +75,4 @@ const RNLM& CDCache::find(const GaussianCD& ab)
         return *(i->second);
 }
 
-} //namespace BasisSet1::Molecule::PolarizedGaussian
+} //namespace BasisSet::Molecule::PolarizedGaussian

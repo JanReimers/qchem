@@ -2,10 +2,10 @@
 module;
 #include <cassert>
 #include <blaze/Math.h>
-module qchem.BasisSet1.Orbital_DFT_IBS;
-import qchem.BasisSet1.DB_Cache;
+module qchem.BasisSet.Orbital_DFT_IBS;
+import qchem.BasisSet.DB_Cache;
 
-namespace BasisSet1
+namespace BasisSet
 {
 template <class T> const ERI3<T>& Orbital_DFT_IBS<T>::Overlap3C  (const Fit_IBS& c) const
 {

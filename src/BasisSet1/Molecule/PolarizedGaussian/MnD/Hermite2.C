@@ -5,8 +5,8 @@ module;
 #include <iosfwd>
 #include <cassert>
 
-export module qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.MnD.Hermite2;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.Polarization;
+export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite2;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
 import qchem.Types;
 //#define USE_CACHE
 
@@ -27,7 +27,7 @@ import qchem.Types;
 //
 
 export
-namespace BasisSet1::Molecule::PolarizedGaussian
+namespace BasisSet::Molecule::PolarizedGaussian
 {
 
 class Hermite2
@@ -75,5 +75,5 @@ private:
     #endif
 };
 
-} //namespace BasisSet1::Molecule::PolarizedGaussian
+} //namespace BasisSet::Molecule::PolarizedGaussian
 

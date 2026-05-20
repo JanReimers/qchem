@@ -3,19 +3,19 @@ module;
 #include <cassert>
 #include <nlohmann/json.hpp>
 
-module qchem.BasisSet1.Molecule.Factory;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.Readers.Gaussian94;
-import qchem.BasisSet1.Molecule.PolarizedGaussian;
-import qchem.BasisSet1.DB_Cache;
+module qchem.BasisSet.Molecule.Factory;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Readers.Gaussian94;
+import qchem.BasisSet.Molecule.PolarizedGaussian;
+import qchem.BasisSet.DB_Cache;
 
 using json = nlohmann::json;
 
-namespace BasisSet1::Molecule
+namespace BasisSet::Molecule
 {
     BasisSet<double>* Factory(const nlohmann::json& js,const Cluster* cl)
     {
-        if (BasisSet1::theGlobalCache==0)
-        BasisSet1::theGlobalCache=new BasisSet1::IntegralsCache_RAM<double>(true);     
+        if (::BasisSet::theGlobalCache==0)
+        ::BasisSet::theGlobalCache=new ::BasisSet::IntegralsCache_RAM<double>(true);     
 
         std::string filepath=js["filepath"].template get<std::string>();
         PolarizedGaussian::Gaussian94Reader reader(filepath);

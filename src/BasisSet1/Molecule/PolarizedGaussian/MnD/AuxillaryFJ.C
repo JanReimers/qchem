@@ -1,5 +1,5 @@
 // File: AuxillaryFJ.H   Class for calculating the auxillary function.
-export module qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.AuxillaryFJ;
+export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.AuxillaryFJ;
 import qchem.Types;
 //
 //  This class encapsulates the calculation of:

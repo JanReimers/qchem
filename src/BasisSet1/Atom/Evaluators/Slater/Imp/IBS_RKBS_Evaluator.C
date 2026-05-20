@@ -4,8 +4,8 @@ module;
 #include <cassert>
 #include <blaze/math/DynamicVector.h>
 
-module qchem.BasisSet1.Atom.Evaluators.Slater.IBS;
-import qchem.BasisSet1.Atom.Evaluators.Slater.Internal.Integrals; 
+module qchem.BasisSet.Atom.Evaluators.Slater.IBS;
+import qchem.BasisSet.Atom.Evaluators.Slater.Internal.Integrals; 
 import Common.Constants;
 
 std::string Slater_RKBS_IBS_Evaluator::Name() const

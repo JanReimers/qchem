@@ -4,8 +4,8 @@ module;
 #include <iosfwd>
 
 #define LMAX 3
-export module qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.MnD.Hermite1;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.Polarization;
+export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite1;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
 
 //
 //  Encapsulate calculation and storage of Hermite expansion coefficients
@@ -21,7 +21,7 @@ import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.Polarization;
 
 typedef double Array2D[LMAX+1][LMAX+1];
 
-export namespace BasisSet1::Molecule::PolarizedGaussian
+export namespace BasisSet::Molecule::PolarizedGaussian
 {
 
 class Hermite1
@@ -43,5 +43,5 @@ private:
     Array2D def;
 };
 
-} //namespace BasisSet1::Molecule::PolarizedGaussian
+} //namespace BasisSet::Molecule::PolarizedGaussian
 

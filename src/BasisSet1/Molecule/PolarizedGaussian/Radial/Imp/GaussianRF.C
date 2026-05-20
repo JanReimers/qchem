@@ -7,19 +7,19 @@ module;
 #include <vector>
 
 
-module qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.GaussianRF;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.Radial.GaussianH3;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.CDCache;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.Block;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.MnD.Hermite1;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.MnD.Hermite3;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.MnD.RNLM;
+module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Radial.GaussianH3;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Block;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite1;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite3;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.RNLM;
 
 import Common.Constants;
 import qchem.Cluster;
 import Common.IntPow;
 
-namespace BasisSet1::Molecule::PolarizedGaussian
+namespace BasisSet::Molecule::PolarizedGaussian
 {
 //#######################################################################
 //
@@ -460,4 +460,4 @@ rvec3_t GaussianRF::Gradient(const rvec3_t& r) const
     return -2*itsExponent* (*this)(r) * dr;
 }
 
-} //namespace BasisSet1::Molecule::PolarizedGaussian
+} //namespace BasisSet::Molecule::PolarizedGaussian

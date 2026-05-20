@@ -2,10 +2,10 @@
 module;
 #include <cmath>
 #include <vector>
-module qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.CDCache;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.Polarization;
+module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
 
-namespace BasisSet1::Molecule::PolarizedGaussian
+namespace BasisSet::Molecule::PolarizedGaussian
 {
 
 std::vector<std::vector<Polarization>> GaussianCD::theNMLs;
@@ -45,4 +45,4 @@ GaussianCD::GaussianCD(const GData& g1,const GData& g2)
 
 
 
-} //namespace BasisSet1::Molecule::PolarizedGaussian
+} //namespace BasisSet::Molecule::PolarizedGaussian

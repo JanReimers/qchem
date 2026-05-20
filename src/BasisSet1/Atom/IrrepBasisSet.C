@@ -7,20 +7,20 @@ module;
 #include "forward.H"
 #include <blaze/Math.h>
 
-export module qchem.BasisSet1.Atom.IBS;
-import qchem.BasisSet1.Internal.IrrepBasisSetImp;
-import qchem.BasisSet1.Internal.Orbital_DHF_IBS;
-import qchem.BasisSet1.IrrepBasisSet;
-import qchem.BasisSet1.Orbital_1E_IBS;
-import qchem.BasisSet1.Orbital_DFT_IBS;
-import qchem.BasisSet1.Orbital_HF_IBS;
-import qchem.BasisSet1.Atom.Evaluators.Internal.AngularIntegrals; //Need rvec11 declaration.
+export module qchem.BasisSet.Atom.IBS;
+import qchem.BasisSet.Internal.IrrepBasisSetImp;
+import qchem.BasisSet.Internal.Orbital_DHF_IBS;
+import qchem.BasisSet.IrrepBasisSet;
+import qchem.BasisSet.Orbital_1E_IBS;
+import qchem.BasisSet.Orbital_DFT_IBS;
+import qchem.BasisSet.Orbital_HF_IBS;
+import qchem.BasisSet.Atom.Evaluators.Internal.AngularIntegrals; //Need rvec11 declaration.
 import qchem.Symmetry.Yl;
-import qchem.BasisSet1.DB_Cache;
-import qchem.BasisSet1.Atom.Evaluators.IBS;
-import qchem.BasisSet1.Internal.Cache4;
+import qchem.BasisSet.DB_Cache;
+import qchem.BasisSet.Atom.Evaluators.IBS;
+import qchem.BasisSet.Internal.Cache4;
 
-export namespace BasisSet1
+export namespace BasisSet
 {
 namespace Atom
 {
@@ -28,12 +28,12 @@ namespace Atom
 //  Common IrrepBasisSet functionality for atom basis sets.  All the work is done by the evaluator
 //
 template <isGeneric_Evaluator E> class IrrepBasisSetImp
-    : public virtual BasisSet1::IrrepBasisSet<double>
+    : public virtual BasisSet::IrrepBasisSet<double>
     , public virtual IrrepBasisSet_IDs
-    , public BasisSet1::IrrepBasisSetImp<double> //Pulls in Symmetry support
+    , public BasisSet::IrrepBasisSetImp<double> //Pulls in Symmetry support
 {
 public:
-    IrrepBasisSetImp(const Irrep_QNs::sym_t& yl) : BasisSet1::IrrepBasisSetImp<double>(yl) {}
+    IrrepBasisSetImp(const Irrep_QNs::sym_t& yl) : BasisSet::IrrepBasisSetImp<double>(yl) {}
 
     virtual size_t GetNumFunctions() const {return Cast().size();}
     // using statements in the final class don't seem to work, so we need to function forward.
@@ -55,7 +55,7 @@ protected:
 // 
 
 template <is1E_Evaluator E> class Integrals_Overlap
-: public virtual BasisSet1::Integrals_Overlap<double>
+: public virtual BasisSet::Integrals_Overlap<double>
 {
 protected:
     virtual smat_t<double> MakeOverlap() const 
@@ -70,7 +70,7 @@ protected:
     }
 };
 template <is1E_Evaluator E> class Integrals_Kinetic
-: public virtual BasisSet1::Integrals_Kinetic<double>
+: public virtual BasisSet::Integrals_Kinetic<double>
 {
 protected:
     virtual smat_t<double> MakeKinetic() const 
@@ -86,7 +86,7 @@ protected:
     }
 };
 template <is1E_Evaluator E> class Integrals_Nuclear
-: public virtual BasisSet1::Integrals_Nuclear<double>
+: public virtual BasisSet::Integrals_Nuclear<double>
 {
 protected:
     virtual smat_t<double> MakeNuclear(const Cluster* cl) const 
@@ -105,7 +105,7 @@ protected:
 };
 
 template <isFit_Evaluator Evaluator> class Fit_IBS
-    : public virtual BasisSet1::Fit_IBS 
+    : public virtual BasisSet::Fit_IBS 
     , public Integrals_Overlap<Evaluator>
     , public IrrepBasisSetImp<Evaluator>
     , public Evaluator
@@ -124,7 +124,7 @@ public:
 
         return S;
     }
-    virtual  rmat_t MakeRepulsion(const BasisSet1::Fit_IBS& f) const 
+    virtual  rmat_t MakeRepulsion(const BasisSet::Fit_IBS& f) const 
     {
         auto& ea=Cast();
         auto& eb=dynamic_cast<const Evaluator&>(f);
@@ -156,7 +156,7 @@ public:
 //  1E orbital for atoms.  Use mixins to get the integral evaluations.
 //
 template <is1E_Evaluator E> class Orbital_1E_IBS
-    : public virtual BasisSet1::Orbital_1E_IBS<double> //This part has the symmetry.
+    : public virtual BasisSet::Orbital_1E_IBS<double> //This part has the symmetry.
     , public Integrals_Overlap<E>
     , public Integrals_Kinetic<E>
     , public Integrals_Nuclear<E>
@@ -174,10 +174,10 @@ public:
 
 
 template <isDFT_Evaluator E> class Orbital_DFT_IBS
-    : public virtual BasisSet1::Orbital_DFT_IBS<double>
+    : public virtual BasisSet::Orbital_DFT_IBS<double>
 {
 protected:
-    virtual ERI3<double> MakeOverlap3C  (const BasisSet1::Fit_IBS& _c) const
+    virtual ERI3<double> MakeOverlap3C  (const BasisSet::Fit_IBS& _c) const
     {
         auto& ab=dynamic_cast<const E&>(*this);
         auto& c =dynamic_cast<const E&>(_c);
@@ -194,7 +194,7 @@ protected:
         return S3;
 
     }
-    virtual ERI3<double> MakeRepulsion3C(const BasisSet1::Fit_IBS& _c) const
+    virtual ERI3<double> MakeRepulsion3C(const BasisSet::Fit_IBS& _c) const
     {
         auto& ab=dynamic_cast<const E&>(*this);
         auto& c =dynamic_cast<const E&>(_c);
@@ -217,17 +217,17 @@ protected:
 
 
 template <isHF_Evaluator E> class Orbital_HF1_IBS
-    : public virtual BasisSet1::Orbital_HF_IBS<double> 
+    : public virtual BasisSet::Orbital_HF_IBS<double> 
 
 {
 protected:
-    virtual ERI4 MakeDirect  (const BasisSet1::Orbital_HF_IBS<double>& _c) const;
-    virtual ERI4 MakeExchange(const BasisSet1::Orbital_HF_IBS<double>& _c) const;
+    virtual ERI4 MakeDirect  (const BasisSet::Orbital_HF_IBS<double>& _c) const;
+    virtual ERI4 MakeExchange(const BasisSet::Orbital_HF_IBS<double>& _c) const;
 
 };
 
 template <isRKBL_Evaluator E> class Orbital_RKBL_IBS
-    : public virtual BasisSet1::Orbital_RKBL_IBS<double> 
+    : public virtual BasisSet::Orbital_RKBL_IBS<double> 
     , public Integrals_Overlap<E>
     , public Integrals_Nuclear<E>
 {
@@ -248,7 +248,7 @@ public:
 };
 
 template <is1E_Evaluator E> class Orbital_RKBS_IBS
-    : public virtual BasisSet1::Orbital_RKBS_IBS<double> 
+    : public virtual BasisSet::Orbital_RKBS_IBS<double> 
     , public Integrals_Kinetic<E>
     , public Integrals_Nuclear<E> //RKBS Evaluator overrides Inv_r1 definition
 {
@@ -260,17 +260,17 @@ template <is1E_Evaluator E> class Orbital_RKBS_IBS
 
 
 
-template <isHF_Evaluator E> ERI4 Orbital_HF1_IBS<E>::MakeDirect(const BasisSet1::Orbital_HF_IBS<double>& _c) const 
+template <isHF_Evaluator E> ERI4 Orbital_HF1_IBS<E>::MakeDirect(const BasisSet::Orbital_HF_IBS<double>& _c) const 
 {
     auto& a=dynamic_cast<const E&>(*this);
     auto& c=dynamic_cast<const E&>(_c);
     int la=a.Getl(), lc=c.Getl();
     assert(a.RadialType()==c.RadialType());
-    assert(BasisSet1::theGlobalCache);
+    assert(BasisSet::theGlobalCache);
     size_t spanab=a.maxSpan(),spancd=c.maxSpan();
     size_t Na=a.size(), Nc=c.size();
     AngularIntegrals::rvec11_t Akac=IBS_Evaluator::Coulomb_AngularIntegrals(a,c);
-    const Cache41* Rk_cache=BasisSet1::theGlobalCache->GetCache4(a.RadialType());
+    const Cache41* Rk_cache=BasisSet::theGlobalCache->GetCache4(a.RadialType());
     ERI4 J(Na,Nc);
 
     for (size_t ia:a.indices())
@@ -306,17 +306,17 @@ template <isHF_Evaluator E> ERI4 Orbital_HF1_IBS<E>::MakeDirect(const BasisSet1:
     return J;
 }
 
-template <isHF_Evaluator E> ERI4 Orbital_HF1_IBS<E>::MakeExchange(const BasisSet1::Orbital_HF_IBS<double>& _c) const 
+template <isHF_Evaluator E> ERI4 Orbital_HF1_IBS<E>::MakeExchange(const BasisSet::Orbital_HF_IBS<double>& _c) const 
 {
     auto& a=dynamic_cast<const E&>(*this);
     auto& c=dynamic_cast<const E&>(_c);
     assert(a.RadialType()==c.RadialType());
-    assert(BasisSet1::theGlobalCache);
+    assert(BasisSet::theGlobalCache);
     size_t spanab=a.maxSpan(),spancd=c.maxSpan();
     size_t Na=a.size(), Nc=c.size();
     int la=a.Getl(), lc=c.Getl();
     AngularIntegrals::rvec11_t Akac=IBS_Evaluator::ExchangeAngularIntegrals(a,c);
-    const Cache41* Rk_cache=BasisSet1::theGlobalCache->GetCache4(a.RadialType());
+    const Cache41* Rk_cache=BasisSet::theGlobalCache->GetCache4(a.RadialType());
 
     ERI4 K(Na,Nc);
     for (size_t ia:a.indices())

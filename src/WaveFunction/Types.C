@@ -3,12 +3,12 @@ module;
 
 export module qchem.WaveFunction.Types;
 
-export import qchem.BasisSet1.Orbital_1E_IBS;
-export import qchem.BasisSet1;
+export import qchem.BasisSet.Orbital_1E_IBS;
+export import qchem.BasisSet;
 
 export namespace qchem::WaveFunction
 {
-    using obs_t=BasisSet1::Orbital_1E_IBS<double>;
-    using bs_t=BasisSet1::BasisSet<double>;
+    using obs_t=BasisSet::Orbital_1E_IBS<double>;
+    using bs_t=BasisSet::BasisSet<double>;
 }
 

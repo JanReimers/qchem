@@ -2,7 +2,7 @@
 module;
 #include <iosfwd>
 #include <vector>
-export module qchem.BasisSet1.Molecule.PolarizedGaussian.MnD.Triangle3D;
+export module qchem.BasisSet.Molecule.PolarizedGaussian.MnD.Triangle3D;
 import qchem.Streamable;
 
 #if DEBUG

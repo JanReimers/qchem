@@ -7,11 +7,11 @@ module;
 #include <sstream>
 #include "forward.H"
 #include <blaze/Math.h>
-export module qchem.BasisSet1.Atom.Evaluators.IBS;
-export import qchem.BasisSet1.Atom.Evaluators.Internal.ExponentGrouper;
-import qchem.BasisSet1.Internal.Cache4;
-import qchem.BasisSet1.Atom.Evaluators.Internal.AngularIntegrals;
-export import qchem.BasisSet1.Internal.ERI3;
+export module qchem.BasisSet.Atom.Evaluators.IBS;
+export import qchem.BasisSet.Atom.Evaluators.Internal.ExponentGrouper;
+import qchem.BasisSet.Internal.Cache4;
+import qchem.BasisSet.Atom.Evaluators.Internal.AngularIntegrals;
+export import qchem.BasisSet.Internal.ERI3;
 export import qchem.Symmetry.Irrep;
 export import qchem.VectorFunction;
 import qchem.Symmetry.Ylm;

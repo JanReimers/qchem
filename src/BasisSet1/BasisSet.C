@@ -3,9 +3,9 @@ module;
 #include <vector>
 #include <memory>
 
-export module qchem.BasisSet1;
-export import qchem.BasisSet1.Orbital_1E_IBS;
-export import qchem.BasisSet1.Fit_IBS;
+export module qchem.BasisSet;
+export import qchem.BasisSet.Orbital_1E_IBS;
+export import qchem.BasisSet.Fit_IBS;
 export import qchem.Cluster;
 export import qchem.Symmetry;
 export import qchem.Symmetry.ElectronConfiguration;
@@ -13,7 +13,7 @@ export import qchem.Symmetry.ElectronConfiguration;
 import Common.Iterators;
 export import qchem.Streamable;
 
-export namespace BasisSet1
+export namespace BasisSet
 {
 typedef std::vector<Irrep_QNs> irrepv_t; 
 

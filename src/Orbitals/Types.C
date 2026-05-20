@@ -3,10 +3,10 @@ module;
 
 export module qchem.Orbitals.Types;
 
-export import qchem.BasisSet1.Orbital_1E_IBS;
+export import qchem.BasisSet.Orbital_1E_IBS;
 
 export namespace qchem::Orbitals
 {
-    template <class T> using tobs_t=BasisSet1::Orbital_1E_IBS<T>;
+    template <class T> using tobs_t=BasisSet::Orbital_1E_IBS<T>;
     using obs_t=tobs_t<double>;
 }

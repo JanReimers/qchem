@@ -2,7 +2,7 @@
 module;
 #include <iostream>
 #include <cassert>
-module qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.MnD.Hermite1;
+module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite1;
 import Common.IntPow;
 
 //----------------------------------------------------------------------------------------
@@ -13,7 +13,7 @@ import Common.IntPow;
 
 
 //----------------------------------------------------------------------------------------
-namespace BasisSet1::Molecule::PolarizedGaussian
+namespace BasisSet::Molecule::PolarizedGaussian
 {
 
 
@@ -132,4 +132,4 @@ void Hermite1::Clear()
 //     return os;
 // }
 
-} //namespace BasisSet1::Molecule::PolarizedGaussian
+} //namespace BasisSet::Molecule::PolarizedGaussian

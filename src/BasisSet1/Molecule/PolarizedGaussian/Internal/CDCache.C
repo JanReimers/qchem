@@ -5,15 +5,15 @@ module;
 #include <vector>
 #include <iosfwd>
 
-export module qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.CDCache;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.MnD.Hermite2;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.GData;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.MnD.RNLM;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.Polarization;
+export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite2;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GData;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.RNLM;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
 
 import Common.UniqueIDImp; 
 
-export namespace BasisSet1::Molecule::PolarizedGaussian
+export namespace BasisSet::Molecule::PolarizedGaussian
 {
 struct GaussianCD : public UniqueIDImp
 {
@@ -69,5 +69,5 @@ private:
     
 };
 
-} //namespace BasisSet1::Molecule::PolarizedGaussian
+} //namespace BasisSet::Molecule::PolarizedGaussian
 

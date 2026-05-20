@@ -1,11 +1,11 @@
 // File: BasisSet1/Imp/Orbital_1E_IBS.C Orbital that knows enough integrals for a 1 electron calculation.
 module;
 #include <cassert>
-module qchem.BasisSet1.Orbital_1E_IBS;
+module qchem.BasisSet.Orbital_1E_IBS;
 
-import qchem.BasisSet1.DB_Cache;
+import qchem.BasisSet.DB_Cache;
 
-namespace BasisSet1
+namespace BasisSet
 {
 
 template <class T> const smat_t<T>& Integrals_Kinetic<T>::Kinetic() const

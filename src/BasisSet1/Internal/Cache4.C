@@ -2,7 +2,7 @@
 module;
 #include <map>
 #include <string>
-export module qchem.BasisSet1.Internal.Cache4;
+export module qchem.BasisSet.Internal.Cache4;
 //
 //  Abstract base for the type being cached.
 //

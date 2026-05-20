@@ -2,12 +2,12 @@
 module;
 #include <iosfwd>
 
-export module qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.MnD.RNLM;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.MnD.Triangle3D;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.Polarization;
+export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.RNLM;
+import qchem.BasisSet.Molecule.PolarizedGaussian.MnD.Triangle3D;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
 import qchem.Types;
 
-export namespace BasisSet1::Molecule::PolarizedGaussian
+export namespace BasisSet::Molecule::PolarizedGaussian
 {
 
 class RNLM
@@ -38,5 +38,5 @@ private:
     Triangle3D   itsData;
 };
 
-} //namespace BasisSet1::Molecule::PolarizedGaussian
+} //namespace BasisSet::Molecule::PolarizedGaussian
 

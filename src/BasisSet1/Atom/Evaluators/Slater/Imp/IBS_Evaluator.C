@@ -5,10 +5,10 @@ module;
 #include <iostream>
 #include <blaze/math/DynamicVector.h>
 
-module qchem.BasisSet1.Atom.Evaluators.Slater.IBS;
-import qchem.BasisSet1.Atom.Evaluators.Slater.Internal.Rk; 
-import qchem.BasisSet1.Atom.Evaluators.Slater.Internal.Integrals; 
-import qchem.BasisSet1.Atom.Evaluators.Slater.Internal.ExponentScaler; 
+module qchem.BasisSet.Atom.Evaluators.Slater.IBS;
+import qchem.BasisSet.Atom.Evaluators.Slater.Internal.Rk; 
+import qchem.BasisSet.Atom.Evaluators.Slater.Internal.Integrals; 
+import qchem.BasisSet.Atom.Evaluators.Slater.Internal.ExponentScaler; 
 import Common.Constants;
 
 

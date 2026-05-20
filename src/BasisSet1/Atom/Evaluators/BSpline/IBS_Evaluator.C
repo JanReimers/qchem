@@ -6,15 +6,15 @@ module;
 #include <iosfwd>
 #include <cassert>
 #include <cmath>
-export module qchem.BasisSet1.Atom.Evaluators.BSpline.IBS;
-import qchem.BasisSet1.Atom.Evaluators.IBS;
-import qchem.BasisSet1.Atom.Evaluators.BSpline.Internal.GLQuadrature;
-import qchem.BasisSet1.Atom.Evaluators.Internal.AngularIntegrals;
-import qchem.BasisSet1.Atom.Evaluators.BSpline.Internal.Rk;
-import qchem.BasisSet1.Atom.Evaluators.BSpline.Internal.SplineGrouper;
+export module qchem.BasisSet.Atom.Evaluators.BSpline.IBS;
+import qchem.BasisSet.Atom.Evaluators.IBS;
+import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.GLQuadrature;
+import qchem.BasisSet.Atom.Evaluators.Internal.AngularIntegrals;
+import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.Rk;
+import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.SplineGrouper;
 import qchem.Symmetry.Yl;
 import Common.Constants;
-import qchem.BasisSet1.Internal.Cache4;
+import qchem.BasisSet.Internal.Cache4;
 
 //
 //  This version is for phi(r) = sum(Bi(r),i)

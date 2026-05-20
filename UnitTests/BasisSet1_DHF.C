@@ -7,9 +7,9 @@
 using std::cout;
 using std::endl;
 
-import qchem.BasisSet1.DB_Cache;
-import qchem.BasisSet1.Atom.Factory;
-import qchem.BasisSet1.Orbital_DHF_IBS;
+import qchem.BasisSet.DB_Cache;
+import qchem.BasisSet.Atom.Factory;
+import qchem.BasisSet.Orbital_DHF_IBS;
 
 
 class Basis1_RKB_Tests : public ::testing::Test
@@ -21,7 +21,7 @@ public:
         , cl_hydrogen_100(new Atom(1,0.0,Vector3D(1,0,0)))
         , cl_helium      (new Atom(2,0.0,Vector3D(0,0,0)))
     {
-        // BasisSet1::theGlobalCache=new BasisSet1::IntegralsCache_RAM<double>();       
+        // BasisSet::theGlobalCache=new BasisSet::IntegralsCache_RAM<double>();       
     }
     ~Basis1_RKB_Tests()
     {
@@ -30,17 +30,17 @@ public:
         delete cl_helium;
         delete bs1;
         delete bs2;
-        // delete BasisSet1::theGlobalCache;
+        // delete BasisSet::theGlobalCache;
     }
     void Init(nlohmann::json js)
     {
-        bs1=BasisSet1::Atom::Factory(js,Z);
-        bs2=BasisSet1::Atom::Factory(js,Z);
+        bs1=BasisSet::Atom::Factory(js,Z);
+        bs2=BasisSet::Atom::Factory(js,Z);
     }
-    // void InitBSpline6() {Init({{"type",BasisSet1::Atom::Type::BSpline6},{"N", N}, {"rmin", 0.1}, {"rmax", 10}},BasisSetAtom::Type::BSpline6);}
-    void InitGaussian() {Init({{"type",BasisSet1::Atom::Type::Gaussian_RKB},{"N", N}, {"emin", 0.1}, {"emax", 10}});}
-    void InitSlater  () {Init({{"type",BasisSet1::Atom::Type::Slater_RKB  },{"N", N}, {"emin", 0.1}, {"emax", 10}});}
-    using OIBS=BasisSet1::Real_ORKB;
+    // void InitBSpline6() {Init({{"type",BasisSet::Atom::Type::BSpline6},{"N", N}, {"rmin", 0.1}, {"rmax", 10}},BasisSetAtom::Type::BSpline6);}
+    void InitGaussian() {Init({{"type",BasisSet::Atom::Type::Gaussian_RKB},{"N", N}, {"emin", 0.1}, {"emax", 10}});}
+    void InitSlater  () {Init({{"type",BasisSet::Atom::Type::Slater_RKB  },{"N", N}, {"emin", 0.1}, {"emax", 10}});}
+    using OIBS=BasisSet::Real_ORKB;
     void TestOverlap() const
     {
         auto ibs2=bs2->Iterate<OIBS>().begin();
@@ -98,7 +98,7 @@ public:
     
     size_t N,Z;
     Cluster *cl_hydrogen,*cl_hydrogen_100,*cl_helium;
-    BasisSet1::Real_BS *bs1,*bs2;
+    BasisSet::Real_BS *bs1,*bs2;
 };
 
 

@@ -3,13 +3,13 @@ module;
 #include <iostream>
 #include <cassert>
 #include <vector>
-module qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.MnD.RNLM;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.AuxillaryFJ;
+module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.RNLM;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.AuxillaryFJ;
 import Common.IntPow;
 
 #define MAX 16
 
-namespace BasisSet1::Molecule::PolarizedGaussian
+namespace BasisSet::Molecule::PolarizedGaussian
 {
 
 
@@ -72,4 +72,4 @@ void RNLM::Add(const RNLM& theR, double theScale)
 }
 
 
-} //namespace BasisSet1::Molecule::PolarizedGaussian
+} //namespace BasisSet::Molecule::PolarizedGaussian

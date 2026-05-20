@@ -1,11 +1,11 @@
 // File: BasisSet/Fit_IBS.C  Interface for a fitting Basis Set.
 module;
-export module qchem.BasisSet1.Fit_IBS;
-export import qchem.BasisSet1.IrrepBasisSet;
+export module qchem.BasisSet.Fit_IBS;
+export import qchem.BasisSet.IrrepBasisSet;
 export import qchem.ScalarFunction;
 export import qchem.Mesh;
 
-export namespace BasisSet1
+export namespace BasisSet
 {
 
  //! \brief Interface for fit basis set that can all integrals required by least the squares Fitting module.

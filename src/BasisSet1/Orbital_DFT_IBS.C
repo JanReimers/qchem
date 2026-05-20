@@ -1,12 +1,12 @@
 // File: BasisSet/Orbital_DFT_IBS.C  Interface for a Density Functional Theory (DFT) Orbital Irrep Basis Set.
 module;
-export module qchem.BasisSet1.Orbital_DFT_IBS;
-export import qchem.BasisSet1.IrrepBasisSet;
-export import qchem.BasisSet1.Orbital_1E_IBS;
-export import qchem.BasisSet1.Fit_IBS;
-export import qchem.BasisSet1.Internal.ERI3;
+export module qchem.BasisSet.Orbital_DFT_IBS;
+export import qchem.BasisSet.IrrepBasisSet;
+export import qchem.BasisSet.Orbital_1E_IBS;
+export import qchem.BasisSet.Fit_IBS;
+export import qchem.BasisSet.Internal.ERI3;
 
-export namespace BasisSet1
+export namespace BasisSet
 {
 
 template <class T> class Orbital_DFT_IBS

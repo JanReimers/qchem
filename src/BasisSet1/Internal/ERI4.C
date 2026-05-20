@@ -1,7 +1,7 @@
 // File ERI4.C  Symmetric containters for and ERI (Electron Repulsion Integral) 4 index super matrix.
 module;
-export module qchem.BasisSet1.Internal.ERI4;
-import qchem.BasisSet1.Internal.ERI4T;
+export module qchem.BasisSet.Internal.ERI4;
+import qchem.BasisSet.Internal.ERI4T;
 export import qchem.Types;
 
 export class ERI4 : public ERI4T<double,smat_t>

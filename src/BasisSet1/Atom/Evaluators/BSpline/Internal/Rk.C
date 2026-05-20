@@ -2,10 +2,10 @@
 module;
 #include <map>
 #include <bspline/Core.h>
-export module qchem.BasisSet1.Atom.Evaluators.BSpline.Internal.Rk;
-import qchem.BasisSet1.Atom.Evaluators.BSpline.Internal.GLQuadrature;
-import qchem.BasisSet1.Internal.Cache4;
-export import qchem.BasisSet1.Atom.Evaluators.Internal.Rk;
+export module qchem.BasisSet.Atom.Evaluators.BSpline.Internal.Rk;
+import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.GLQuadrature;
+import qchem.BasisSet.Internal.Cache4;
+export import qchem.BasisSet.Atom.Evaluators.Internal.Rk;
 
 export namespace BSpline
 {

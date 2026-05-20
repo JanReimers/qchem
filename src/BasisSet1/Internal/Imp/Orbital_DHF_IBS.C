@@ -2,11 +2,11 @@
 module;
 #include <cassert>
 #include <blaze/Math.h>
-module qchem.BasisSet1.Internal.Orbital_DHF_IBS;
-import qchem.BasisSet1.DB_Cache;
+module qchem.BasisSet.Internal.Orbital_DHF_IBS;
+import qchem.BasisSet.DB_Cache;
 import qchem.Blaze;
 
-namespace BasisSet1
+namespace BasisSet
 {
 
 template <class T> const mat_t<T>& Orbital_RKBL_IBS<T>::Kinetic(const Orbital_RKBS_IBS<T>& rkbs) const

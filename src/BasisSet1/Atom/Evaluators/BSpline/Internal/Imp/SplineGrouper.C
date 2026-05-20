@@ -4,7 +4,7 @@ module;
 #include <iostream>
 #include <bspline/Core.h>
 #include <cassert>
-module qchem.BasisSet1.Atom.Evaluators.BSpline.Internal.SplineGrouper;
+module qchem.BasisSet.Atom.Evaluators.BSpline.Internal.SplineGrouper;
 import qchem.Types;
 using std::cout;
 using std::endl;

@@ -4,7 +4,7 @@ module;
 #include <cassert>
 #include <blaze/math/DynamicVector.h>
 
-export module  qchem.BasisSet1.Atom.Internal.FillPower;
+export module  qchem.BasisSet.Atom.Internal.FillPower;
 import qchem.Types;
 
 export template <class T> void FillPower(vec_t<T>& arr,T start, T stop)

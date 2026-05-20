@@ -3,7 +3,7 @@ module;
 #include <cassert>
 #include <iostream>
 #include <vector>
-module qchem.BasisSet1.Molecule.PolarizedGaussian.MnD.Triangle3D;
+module qchem.BasisSet.Molecule.PolarizedGaussian.MnD.Triangle3D;
 import qchem.stl_io;
 
 Triangle3D::Triangle3D()

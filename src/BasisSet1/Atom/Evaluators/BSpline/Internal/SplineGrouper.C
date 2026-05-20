@@ -4,9 +4,9 @@ module;
 #include <vector>
 #include <map>
 #include <cassert>
-export module qchem.BasisSet1.Atom.Evaluators.BSpline.Internal.SplineGrouper;
-export import qchem.BasisSet1.Atom.Evaluators.Internal.ExponentGrouper;
-import qchem.BasisSet1.Atom.Evaluators.BSpline.Internal.GLQuadrature;
+export module qchem.BasisSet.Atom.Evaluators.BSpline.Internal.SplineGrouper;
+export import qchem.BasisSet.Atom.Evaluators.Internal.ExponentGrouper;
+import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.GLQuadrature;
 
 // 
 // We can use this class for splines by using the support window {rmin,rmax}.

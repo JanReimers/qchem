@@ -3,9 +3,9 @@ module;
 #include <cassert>
 #include <cmath>
 #include <vector>
-module qchem.BasisSet1.Atom.Evaluators.Slater.Internal.Rk; 
-import qchem.BasisSet1.Atom.Evaluators.IBS;
-import qchem.BasisSet1.Atom.Internal.PascalTriangle;
+module qchem.BasisSet.Atom.Evaluators.Slater.Internal.Rk; 
+import qchem.BasisSet.Atom.Evaluators.IBS;
+import qchem.BasisSet.Atom.Internal.PascalTriangle;
 import Common.Factorials;
 
 namespace Slater

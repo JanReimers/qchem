@@ -2,8 +2,8 @@
 module;
 #include <cmath>
 #include <blaze/math/Subvector.h>
-module qchem.BasisSet1.Atom.Evaluators.Slater.Internal.ExponentScaler;
-import qchem.BasisSet1.Atom.Internal.FillPower;
+module qchem.BasisSet.Atom.Evaluators.Slater.Internal.ExponentScaler;
+import qchem.BasisSet.Atom.Internal.FillPower;
 import qchem.Symmetry.Yl;
 
 namespace Slater

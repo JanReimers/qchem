@@ -3,7 +3,7 @@ module;
 #include <cmath>
 #include <cassert>
 
-module qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.AuxillaryFJ;
+module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.AuxillaryFJ;
 import Common.Constants;
 import Common.IntPow;
 

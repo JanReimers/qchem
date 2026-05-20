@@ -5,10 +5,10 @@ module;
 #include <cassert>
 #include <vector>
 #include <iomanip>
-module qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.Radial.Common;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.MnD.Hermite1;
+module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Radial.Common;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite1;
 
-namespace BasisSet1::Molecule::PolarizedGaussian
+namespace BasisSet::Molecule::PolarizedGaussian
 {
 //#######################################################################
 //
@@ -67,4 +67,4 @@ std::ostream& RadialCommon::Write(std::ostream& os) const
 }
 
 
-} //namespace BasisSet1::Molecule::PolarizedGaussian
+} //namespace BasisSet::Molecule::PolarizedGaussian

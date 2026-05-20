@@ -1,6 +1,6 @@
 // File: AuxillaryData.C  Static data for the auxilary function.
 
-module qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.AuxillaryFJ;
+module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.AuxillaryFJ;
 const int AuxillaryFJ::thejMax = 16;
 
 double AuxillaryFJ::theLookUp[121][23] =

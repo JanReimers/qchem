@@ -2,11 +2,11 @@
 module;
 
 #include <vector>
-export module qchem.BasisSet1.Molecule.PolarizedGaussian.Reader;
-export import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.RadialFunction;
+export module qchem.BasisSet.Molecule.PolarizedGaussian.Reader;
+export import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.RadialFunction;
 export import qchem.Cluster;
  
-export namespace BasisSet1::Molecule::PolarizedGaussian
+export namespace BasisSet::Molecule::PolarizedGaussian
 {
 
 //-------------------------------------------------------------------------
@@ -23,5 +23,5 @@ public:
     virtual std::vector<int> GetLs   (           ) const=0;
 };
 
-} //namespace BasisSet1::Molecule::PolarizedGaussian
+} //namespace BasisSet::Molecule::PolarizedGaussian
 

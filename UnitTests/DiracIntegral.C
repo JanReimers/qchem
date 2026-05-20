@@ -11,18 +11,18 @@ import qchem.LAParams;
 
 
 import qchem.Factory;
-import qchem.BasisSet1.Internal.ERI4;
+import qchem.BasisSet.Internal.ERI4;
 import Common.Constants;
 import qchem.Cluster;
 import qchem.Mesh.Integrator;
 import qchem.Streamable;
-import qchem.BasisSet1.Internal.Orbital_DHF_IBS;
-using BasisSet1::Real_OIBS;
+import qchem.BasisSet.Internal.Orbital_DHF_IBS;
+using BasisSet::Real_OIBS;
 using Real_IBS=Real_OIBS;
-using RKB_OIBS=BasisSet1::Orbital_RKB_IBS_Imp<double>;
-using RKBL_OIBS=BasisSet1::Orbital_RKBL_IBS<double>;
-using RKBS_OIBS=BasisSet1::Orbital_RKBS_IBS<double>;
-import qchem.BasisSet1.DB_Cache;
+using RKB_OIBS=BasisSet::Orbital_RKB_IBS_Imp<double>;
+using RKBL_OIBS=BasisSet::Orbital_RKBL_IBS<double>;
+using RKBS_OIBS=BasisSet::Orbital_RKBS_IBS<double>;
+import qchem.BasisSet.DB_Cache;
 
 using std::cout;
 using std::endl;
@@ -78,8 +78,8 @@ public:
     }
 
     int Lmax, Z;
-    BasisSet* sbs;
-    BasisSet* gbs;
+    Real_BS* sbs;
+    Real_BS* gbs;
     Cluster* cl;
     MeshIntegrator<double>* mintegrator;
 };

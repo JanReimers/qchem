@@ -10,16 +10,16 @@ module;
 #include <unistd.h>
 #include <vector>
 #include <blaze/Math.h>
-module qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.Readers.Gaussian94;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.GaussianRF;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.Radial.ContractedGaussianRF;
+module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Readers.Gaussian94;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Radial.ContractedGaussianRF;
 import Common.PeriodicTable;
 import qchem.Cluster;
 import qchem.Types;
 
 
 using std::ws;
-namespace BasisSet1::Molecule::PolarizedGaussian
+namespace BasisSet::Molecule::PolarizedGaussian
 {
     
 int ToNumber(char c);
@@ -255,4 +255,4 @@ int ToNumber(char c)
     return ret;
 }
 
-} //namespace BasisSet1::Molecule::PolarizedGaussian
+} //namespace BasisSet::Molecule::PolarizedGaussian

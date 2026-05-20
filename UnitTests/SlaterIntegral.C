@@ -11,7 +11,7 @@
 
 import qchem.LAParams;
 import qchem.Factory;
-import qchem.BasisSet1.Internal.ERI4;
+import qchem.BasisSet.Internal.ERI4;
 
 import Common.Constants;
 import qchem.Mesh.Integrator;
@@ -52,7 +52,7 @@ public:
     
     
     int Lmax, Z;
-    BasisSet* bs;
+    Real_BS* bs;
     Cluster* cl;
     MeshIntegrator<double>* mintegrator;
     MeshIntegrator<double>* rmintegrator;

@@ -2,10 +2,10 @@
 module;
 #include <vector>
 #include <blaze/Math.h>
-module qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.PGData;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.CDCache;
+module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.PGData;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
 
-namespace BasisSet1::Molecule::PolarizedGaussian
+namespace BasisSet::Molecule::PolarizedGaussian
 {
     void PGData::Init(std::vector<const Block*>& blocks)
 {

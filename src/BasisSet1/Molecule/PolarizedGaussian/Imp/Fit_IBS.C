@@ -10,17 +10,17 @@ module;
 #include <vector>
 #include <blaze/Math.h>
 
-module qchem.BasisSet1.Molecule.PolarizedGaussian;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.GaussianRF;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.IntegralEngine;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.Readers.Gaussian94;
-import qchem.BasisSet1;
+module qchem.BasisSet.Molecule.PolarizedGaussian;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IntegralEngine;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Readers.Gaussian94;
+import qchem.BasisSet;
 import qchem.Cluster;
 import qchem.Symmetry.Unit;
 import qchem.stl_io;
 import qchem.Streamable;
 
-namespace BasisSet1::Molecule::PolarizedGaussian
+namespace BasisSet::Molecule::PolarizedGaussian
 {
 
 rvec_t Fit_IBS::MakeCharge() const
@@ -40,7 +40,7 @@ rvec_t Fit_IBS::MakeCharge() const
     return c;
 }
 
-rmat_t Fit_IBS::MakeRepulsion(const BasisSet1::Fit_IBS& _b) const
+rmat_t Fit_IBS::MakeRepulsion(const ::BasisSet::Fit_IBS& _b) const
 {   
     const PGData* a=dynamic_cast<const PGData*>(this);
     const PGData* b=dynamic_cast<const PGData*>(&_b);

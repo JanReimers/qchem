@@ -10,17 +10,17 @@ module;
 #include <vector>
 #include <blaze/Math.h>
 
-module qchem.BasisSet1.Molecule.PolarizedGaussian;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.GaussianRF;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.IntegralEngine;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.Readers.Gaussian94;
-import qchem.BasisSet1;
+module qchem.BasisSet.Molecule.PolarizedGaussian;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IntegralEngine;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Readers.Gaussian94;
+import qchem.BasisSet;
 import qchem.Cluster;
 import qchem.Symmetry.Unit;
 import qchem.stl_io;
 import qchem.Streamable;
 
-namespace BasisSet1::Molecule::PolarizedGaussian
+namespace BasisSet::Molecule::PolarizedGaussian
 {
 
 template <class T> T Max(const std::vector<T>& v)
@@ -228,13 +228,13 @@ Orbital_IBS::Orbital_IBS(   const rvec_t& exponents, size_t L)
     : IrrepBasisSet(exponents,L)
 {};
     
-BasisSet1::Fit_IBS* Orbital_IBS::CreateCDFitBasisSet(const Cluster* cl) const
+::BasisSet::Fit_IBS* Orbital_IBS::CreateCDFitBasisSet(const Cluster* cl) const
 {
     // The A1 files support Z=1-54 (H-Te)  A2 version only go up to Zn
     PolarizedGaussian::Gaussian94Reader reader("../../../BasisSetData/A1_coul.bsd");
     return new Fit_IBS(&reader,cl);
 }
-BasisSet1::Fit_IBS* Orbital_IBS::CreateVxcFitBasisSet(const Cluster* cl) const
+::BasisSet::Fit_IBS* Orbital_IBS::CreateVxcFitBasisSet(const Cluster* cl) const
 {
     // The A1 files support Z=1-54 (H-Te)  A2 version only go up to Zn
     PolarizedGaussian::Gaussian94Reader reader("../../../BasisSetData/A1_exch.bsd");
@@ -250,4 +250,4 @@ Fit_IBS::Fit_IBS(Reader* bsr, const Cluster* cl)
 {};
 
  
-} //namespace BasisSet1::Molecule::PolarizedGaussian
+} //namespace BasisSet::Molecule::PolarizedGaussian

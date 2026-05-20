@@ -2,18 +2,18 @@
 module;
 #include <vector>
 #include <memory>
-export module qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.Radial.ContractedGaussianRF;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.RadialFunction;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.Polarization;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.Radial.Common;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.CDCache;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.MnD.Hermite1;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.MnD.Hermite3;
-import qchem.BasisSet1.Internal.IntegralEnums;
+export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Radial.ContractedGaussianRF;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.RadialFunction;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Radial.Common;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite1;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite3;
+import qchem.BasisSet.Internal.IntegralEnums;
 import qchem.Cluster;
 import qchem.Types;
 
-export namespace BasisSet1::Molecule::PolarizedGaussian
+export namespace BasisSet::Molecule::PolarizedGaussian
 {
 //
 // Store a list hermite3 pointers.  Contraction coefficients should be absorbed into the scale factors
@@ -85,5 +85,5 @@ private:
     rfv_t  gs;
 };
 
-} //namespace BasisSet1::Molecule::PolarizedGaussian
+} //namespace BasisSet::Molecule::PolarizedGaussian
 

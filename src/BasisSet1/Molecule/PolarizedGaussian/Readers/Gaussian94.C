@@ -3,10 +3,10 @@ module;
 #include <fstream>
 #include <string>
 #include <vector>
-export module qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.Readers.Gaussian94;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Reader;
+export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Readers.Gaussian94;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Reader;
 
-export namespace BasisSet1::Molecule::PolarizedGaussian
+export namespace BasisSet::Molecule::PolarizedGaussian
 {
 //------------------------------------------------------------------
 //
@@ -39,5 +39,5 @@ private:
     std::vector<int> itsLs;
 };
 
-} //namespace BasisSet1::Molecule::PolarizedGaussian
+} //namespace BasisSet::Molecule::PolarizedGaussian
 

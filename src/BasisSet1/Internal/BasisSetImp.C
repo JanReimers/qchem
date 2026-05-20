@@ -2,12 +2,12 @@
 module;
 #include <memory>
 #include <cassert>
-export module qchem.BasisSet1.Internal.BasisSetImp;
+export module qchem.BasisSet.Internal.BasisSetImp;
 export import qchem.Types;
-export import qchem.BasisSet1;
+export import qchem.BasisSet;
 import qchem.stl_io;
 
-export namespace BasisSet1
+export namespace BasisSet
 {
 
 template <class T> class BasisSetImp

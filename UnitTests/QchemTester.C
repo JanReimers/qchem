@@ -164,7 +164,7 @@ MeshParams TestAtom::GetMeshParams() const
     return MeshParams({qchem::MHL,50,3,2.0,qchem::Gauss,1,0,0,2});
 }
 
-BasisSet* TestAtom::GetBasisSet (const nlohmann::json& js) const
+Real_BS* TestAtom::GetBasisSet (const nlohmann::json& js) const
 {
     return BasisSetAtomFactory::Factory(js,itsZ);
 }
@@ -180,9 +180,9 @@ MeshParams TestMolecule::GetMeshParams() const
 {
     return MeshParams({qchem::MHL,30,3,2.0,qchem::Gauss,12,0,0,2});
 }
-BasisSet* TestMolecule::GetBasisSet (const nlohmann::json& js) const
+Real_BS* TestMolecule::GetBasisSet (const nlohmann::json& js) const
 {
-    return BasisSet1::Molecule::Factory(js,GetCluster());
+    return BasisSet::Molecule::Factory(js,GetCluster());
 }
 
 

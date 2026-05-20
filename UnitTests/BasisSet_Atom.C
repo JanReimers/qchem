@@ -7,15 +7,15 @@
 using std::cout;
 using std::endl;
 
-import qchem.BasisSet1.Atom.Evaluators.Slater.IBS;
-import qchem.BasisSet1.Atom.Evaluators.Gaussian.IBS; 
-import qchem.BasisSet1.Atom.Evaluators.BSpline.IBS;
+import qchem.BasisSet.Atom.Evaluators.Slater.IBS;
+import qchem.BasisSet.Atom.Evaluators.Gaussian.IBS; 
+import qchem.BasisSet.Atom.Evaluators.BSpline.IBS;
 
 import qchem.Factory;
 import qchem.Mesh.Integrator;
 import qchem.Cluster;
 import Common.Constants;
-import qchem.BasisSet1.Internal.ERI4;
+import qchem.BasisSet.Internal.ERI4;
 import qchem.Symmetry.Yl;
 import qchem.Symmetry.AtomEC;
 import qchem.Hamiltonian.Types;
@@ -65,7 +65,7 @@ public:
     std::vector<E*> evals;
     Cluster* cl;
     MeshIntegrator<double>* mintegrator;
-    BasisSet* bs;
+    Real_BS* bs;
 };
 template <isHF_NR_Evaluator E> void BasisSet_Common<E>::TestOverlap(double eps) const
 {

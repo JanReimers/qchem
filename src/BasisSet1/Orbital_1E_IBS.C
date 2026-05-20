@@ -1,10 +1,10 @@
 // File: BasisSet/Orbital_1E_IBS.C Orbital that knows enough integrals for a 1 electron calculation.
 module;
-export module qchem.BasisSet1.Orbital_1E_IBS;
-export import qchem.BasisSet1.IrrepBasisSet;
+export module qchem.BasisSet.Orbital_1E_IBS;
+export import qchem.BasisSet.IrrepBasisSet;
 export import qchem.Cluster;
 
-export namespace BasisSet1
+export namespace BasisSet
 {
 
 

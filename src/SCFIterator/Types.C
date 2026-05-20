@@ -2,10 +2,10 @@
 module;
 
 export module qchem.SCFIterator.Types;
-export import qchem.BasisSet1;
+export import qchem.BasisSet;
 
 export namespace qchem::SCFIterator
 {
-    using bs_t=BasisSet1::BasisSet<double>;
+    using bs_t=BasisSet::BasisSet<double>;
 }
 

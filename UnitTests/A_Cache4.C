@@ -11,26 +11,26 @@
 using std::cout;
 using std::endl;
 
-import qchem.BasisSet1.DB_Cache;
-import qchem.BasisSet1.Atom.Evaluators.IBS; 
-import qchem.BasisSet1.Atom.Evaluators.Gaussian.IBS; 
-import qchem.BasisSet1.Atom.Evaluators.Internal.Rk;
-import qchem.BasisSet1.Atom.Evaluators.Internal.ExponentGrouper;
-import qchem.BasisSet1.Atom.Evaluators.Gaussian.Internal.Rk; 
+import qchem.BasisSet.DB_Cache;
+import qchem.BasisSet.Atom.Evaluators.IBS; 
+import qchem.BasisSet.Atom.Evaluators.Gaussian.IBS; 
+import qchem.BasisSet.Atom.Evaluators.Internal.Rk;
+import qchem.BasisSet.Atom.Evaluators.Internal.ExponentGrouper;
+import qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.Rk; 
 import qchem.stl_io;
-// import qchem.BasisSet1.Internal.Cache4;
-import qchem.BasisSet1.Atom.Factory;
-// import qchem.BasisSet1.Atom.BasisSet;
+// import qchem.BasisSet.Internal.Cache4;
+import qchem.BasisSet.Atom.Factory;
+// import qchem.BasisSet.Atom.BasisSet;
 import qchem.Symmetry.AtomEC;
-import qchem.BasisSet1.Orbital_HF_IBS;
+import qchem.BasisSet.Orbital_HF_IBS;
 
 class Cache4Tests : public ::testing::Test
 {
 public:
     Cache4Tests() : bs1(0), bs2(0)
     {
-        if (BasisSet1::theGlobalCache==0)
-            BasisSet1::theGlobalCache=new BasisSet1::IntegralsCache_RAM<double>(true);     
+        if (BasisSet::theGlobalCache==0)
+            BasisSet::theGlobalCache=new BasisSet::IntegralsCache_RAM<double>(true);     
 
     }
 
@@ -50,22 +50,22 @@ public:
         return e->es_indices;
     }
 
-    void Init(size_t Z,nlohmann::json js, BasisSet1::Atom::Type type1, BasisSet1::Atom::Type type2)
+    void Init(size_t Z,nlohmann::json js, BasisSet::Atom::Type type1, BasisSet::Atom::Type type2)
     {
         delete bs1;
         delete bs2;
         js["type"]=type1;
-        bs1=BasisSet1::Atom::Factory(js,Z);
+        bs1=BasisSet::Atom::Factory(js,Z);
         js["type"]=type2;
-        bs2=BasisSet1::Atom::Factory(js,Z);
+        bs2=BasisSet::Atom::Factory(js,Z);
     }
-    void InitBSpline6(size_t Z) {Init(Z,{{"N", 5}, {"rmin", 0.25}, {"rmax", 4}},BasisSet1::Atom::Type::BSpline6,BasisSet1::Atom::Type::BSpline6_2);}
-    void InitGaussian(size_t Z) {Init(Z,{{"N", 5}, {"emin", 0.25}, {"emax", 4}},BasisSet1::Atom::Type::Gaussian,BasisSet1::Atom::Type::Gaussian2);}
-    void InitSlater  (size_t Z) {Init(Z,{{"N", 5}, {"emin", 0.25}, {"emax", 4}},BasisSet1::Atom::Type::Slater   ,BasisSet1::Atom::Type::Slater2);}
+    void InitBSpline6(size_t Z) {Init(Z,{{"N", 5}, {"rmin", 0.25}, {"rmax", 4}},BasisSet::Atom::Type::BSpline6,BasisSet::Atom::Type::BSpline6_2);}
+    void InitGaussian(size_t Z) {Init(Z,{{"N", 5}, {"emin", 0.25}, {"emax", 4}},BasisSet::Atom::Type::Gaussian,BasisSet::Atom::Type::Gaussian2);}
+    void InitSlater  (size_t Z) {Init(Z,{{"N", 5}, {"emin", 0.25}, {"emax", 4}},BasisSet::Atom::Type::Slater   ,BasisSet::Atom::Type::Slater2);}
 
     void TestDirect(double eps, bool testTranspose=true)
     {
-        using BasisSet1::Real_HF_OIBS;
+        using BasisSet::Real_HF_OIBS;
         auto ibs21=bs2->Iterate<Real_HF_OIBS>().begin();
         for (auto ibs11:bs1->Iterate<Real_HF_OIBS>())
         {
@@ -91,7 +91,7 @@ public:
     }
     void TestExchange(double eps, bool testTranspose=true)
     {
-        using BasisSet1::Real_HF_OIBS;
+        using BasisSet::Real_HF_OIBS;
         auto ibs21=bs2->Iterate<Real_HF_OIBS>().begin();
         for (auto ibs11:bs1->Iterate<Real_HF_OIBS>())
         {
@@ -118,8 +118,8 @@ public:
     
     void TestDirect(size_t Z,nlohmann::json js)
     {
-        bs1=BasisSet1::Atom::Factory(js,Z);
-        using BasisSet1::Real_HF_OIBS;
+        bs1=BasisSet::Atom::Factory(js,Z);
+        using BasisSet::Real_HF_OIBS;
         for (auto ibs:bs1->Iterate<Real_HF_OIBS>())
         {
             // std::cout << *ibs;
@@ -130,7 +130,7 @@ public:
  
     
 
-    BasisSet1::Real_BS *bs1,*bs2;
+    BasisSet::Real_BS *bs1,*bs2;
 };
 
 // Do this test first in order to force RkEngine to upgrade itself as l increases.
@@ -138,7 +138,7 @@ TEST_F(Cache4Tests,HF2_SG_Reentry)
 {
     delete bs1;
     nlohmann::json js={{"N", 5}, {"emin", 0.25}, {"emax", 4}};
-    js["type"]=BasisSet1::Atom::Type::Gaussian2;
+    js["type"]=BasisSet::Atom::Type::Gaussian2;
     for (size_t Z:{2,18,36,86})
         TestDirect(Z,js);
 
@@ -152,7 +152,7 @@ TEST_F(Cache4Tests,HF2_SL_Reentry)
 {
     delete bs1;
     nlohmann::json js={{"N", 5}, {"emin", 0.25}, {"emax", 4}};
-    js["type"]=BasisSet1::Atom::Type::Slater2;
+    js["type"]=BasisSet::Atom::Type::Slater2;
     for (size_t Z:{2,18,36,86})
         TestDirect(Z,js);
 
@@ -167,7 +167,7 @@ TEST_F(Cache4Tests,HF2_BS_Reentry)
 {
     delete bs1;
     nlohmann::json js={{"N", 5}, {"rmin", 0.25}, {"rmax", 4}};
-    js["type"]=BasisSet1::Atom::Type::BSpline6_2;
+    js["type"]=BasisSet::Atom::Type::BSpline6_2;
     for (size_t Z:{2,18,36,86})
         TestDirect(Z,js);
 
@@ -181,7 +181,7 @@ TEST_F(Cache4Tests,HF2_BS_Reentry)
 
 // TEST_F(Cache4Tests,Caching)
 // {
-//     auto cache=BasisSet1::theGlobalCache;
+//     auto cache=BasisSet::theGlobalCache;
 //     // EXPECT_NE(cache,NULL);
 //     // assert(cache);
 

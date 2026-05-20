@@ -26,9 +26,9 @@ Priority 1:
             Fixed: For BSpline the repeated edge knots get removed for increasing L
             For Gaussian and Slater we want less large exponents for increasing L
             Can we do this in the evaluator?
-        Maybe: Move BasisSet1::IrrepBasisSet into internal ... not useful by itself.
+        Maybe: Move BasisSet::IrrepBasisSet into internal ... not useful by itself.
             -It is a common base for Fit_IBS and Orbtial_IBS.  May some client will find a use for it?
-        -Define a generic BasisSet1::Orbtial_IBS = Orbtial_1E_IBS
+        -Define a generic BasisSet::Orbtial_IBS = Orbtial_1E_IBS
         -Define a restriced set of exponents and spline grids for all unit tests
             This should help with more cache hits.
         -Sort out PG cache ... keep one cache in DB_cache.
@@ -59,7 +59,7 @@ Priority 1:
             -Make SL/SG versions of 1/r evaluators.
             -Check BSpline_IBS_Evaluator copy constructor, seems to increase size.
             -Make orbital type a template parameter for BasisSet.  Merge BasisSet BasisSet_RKB and BasisSet_1E_HF
-            -qchem.BasisSet1.Atom.Factory; use Atom_EC instead of ElectronConfiguration
+            -qchem.BasisSet.Atom.Factory; use Atom_EC instead of ElectronConfiguration
             -BSpline::RkCache should not care about l.
             Fixed: -BSpline Both SplineGrouper and BSpline_IBS_Evaluator have GLCaches
                 SplineGrouper         has std::map<size_t l,const GLCache*> itsGLs;
@@ -692,22 +692,22 @@ Priority 3:
                 Set up typdefs for Fit_IBS and Orbital_DFT_IBS<double>
                 2 problems arise:
                 1) asserts using GetID().  
-                2) no member named 'GetNumFunctions' in 'BasisSet1::Orbital_DFT_IBS<double>'
+                2) no member named 'GetNumFunctions' in 'BasisSet::Orbital_DFT_IBS<double>'
             Charge Density:
         Done: Orbital_RKBS_IBS  call it overlap .. reroute to Kinetic internally.
         Done: Move large amd small OIBS *and Integrals_XKinetic to Internal?
         Done: XKinetic  (const IBS_Evaluator*) switch to reference
         Done: For Atom factory interface
-            BasisSet1::Real_BS* Factory(Type,const nlohmann::json& js,const ElectronConfiguration& ec);
+            BasisSet::Real_BS* Factory(Type,const nlohmann::json& js,const ElectronConfiguration& ec);
                                         ^^^^
                 Type should be in json
         Done: We need to also support es={...} in addition N,emin,emax.  good for unit testing.
-        Move BasisSet1::IrrepBasisSet into internal ... not useful by itself.
+        Move BasisSet::IrrepBasisSet into internal ... not useful by itself.
             -It is a common base for Fit_IBS and Orbtial_IBS.  May some client will find a use for it?
-        -Define a generic BasisSet1::Orbtial_IBS = Orbtial_1E_IBS
+        -Define a generic BasisSet::Orbtial_IBS = Orbtial_1E_IBS
         -Define a restriced set of exponents and spline grids for all unit tests
             This should help with more cache hits.
-        Done: -Get BasisSet1::PG working.
+        Done: -Get BasisSet::PG working.
         Done: -Make RadialID shorter N=3 {.01 ... 50000.0 } 
             Only if even tempered.
         -Sort out PG cache ... keep one cache in DB_cache.

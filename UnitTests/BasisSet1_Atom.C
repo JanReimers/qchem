@@ -6,10 +6,10 @@
 using std::cout;
 using std::endl;
 
-import qchem.BasisSet1.DB_Cache;
-import qchem.BasisSet1.Atom.Factory;
-import qchem.BasisSet1.Orbital_HF_IBS;
-import qchem.BasisSet1.Orbital_DFT_IBS;
+import qchem.BasisSet.DB_Cache;
+import qchem.BasisSet.Atom.Factory;
+import qchem.BasisSet.Orbital_HF_IBS;
+import qchem.BasisSet.Orbital_DFT_IBS;
 
 class DBCach1Tests : public ::testing::Test
 {
@@ -31,16 +31,16 @@ public:
     }
     void Init(nlohmann::json js)
     {
-        bs1=BasisSet1::Atom::Factory(js,Z);
-        bs2=BasisSet1::Atom::Factory(js,Z);
+        bs1=BasisSet::Atom::Factory(js,Z);
+        bs2=BasisSet::Atom::Factory(js,Z);
     }
-    void InitBSpline6() {Init({{"type",BasisSet1::Atom::Type::BSpline6},{"N", N}, {"rmin", 0.1}, {"rmax", 10}});}
-    void InitGaussian() {Init({{"type",BasisSet1::Atom::Type::Gaussian},{"N", N}, {"emin", 0.1}, {"emax", 10}});}
-    void InitSlater  () {Init({{"type",BasisSet1::Atom::Type::Slater  },{"N", N}, {"emin", 0.1}, {"emax", 10}});}
+    void InitBSpline6() {Init({{"type",BasisSet::Atom::Type::BSpline6},{"N", N}, {"rmin", 0.1}, {"rmax", 10}});}
+    void InitGaussian() {Init({{"type",BasisSet::Atom::Type::Gaussian},{"N", N}, {"emin", 0.1}, {"emax", 10}});}
+    void InitSlater  () {Init({{"type",BasisSet::Atom::Type::Slater  },{"N", N}, {"emin", 0.1}, {"emax", 10}});}
 
     void TestOverlap() const
     {
-        using OIBS=BasisSet1::Real_OIBS;
+        using OIBS=BasisSet::Real_OIBS;
         auto ibs2=bs2->Iterate<OIBS>().begin();
         for (auto ibs1:bs1->Iterate<OIBS>())
         {
@@ -53,7 +53,7 @@ public:
     }
     void TestKinetic() const
     {
-        using OIBS=BasisSet1::Real_OIBS;
+        using OIBS=BasisSet::Real_OIBS;
         auto ibs2=bs2->Iterate<OIBS>().begin();
         for (auto ibs1:bs1->Iterate<OIBS>())
         {
@@ -66,7 +66,7 @@ public:
     }
     void TestNuclear() const
     {
-        using OIBS=BasisSet1::Real_OIBS;
+        using OIBS=BasisSet::Real_OIBS;
         auto ibs2=bs2->Iterate<OIBS>().begin();
         for (auto ibs1:bs1->Iterate<OIBS>())
         {
@@ -85,7 +85,7 @@ public:
     }
     void TestOverlap3C(double eps) const
     {
-        using BasisSet1::Real_DFT_OIBS;
+        using BasisSet::Real_DFT_OIBS;
         auto ibs2=bs2->Iterate<Real_DFT_OIBS>().begin();
         for (auto ibs1:bs1->Iterate<Real_DFT_OIBS>())
         {
@@ -100,7 +100,7 @@ public:
     }
     void TestRepulsion3C(double eps) const
         {
-            using BasisSet1::Real_DFT_OIBS;
+            using BasisSet::Real_DFT_OIBS;
             auto ibs2=bs2->Iterate<Real_DFT_OIBS>().begin();
             for (auto ibs1:bs1->Iterate<Real_DFT_OIBS>())
             {
@@ -115,7 +115,7 @@ public:
         }
     void TestDirect(double eps) const
         {
-            using BasisSet1::Real_HF_OIBS;
+            using BasisSet::Real_HF_OIBS;
             auto ibs21=bs2->Iterate<Real_HF_OIBS>().begin();
             for (auto ibs11:bs1->Iterate<Real_HF_OIBS>())
             {
@@ -139,7 +139,7 @@ public:
     void TestExchange(double eps) const
     {
         
-        using BasisSet1::Real_HF_OIBS;
+        using BasisSet::Real_HF_OIBS;
         auto ibs21=bs2->Iterate<Real_HF_OIBS>().begin();
         for (auto ibs11:bs1->Iterate<Real_HF_OIBS>())
         {
@@ -161,7 +161,7 @@ public:
     }
     size_t N,Z;
     Cluster *cl_hydrogen,*cl_hydrogen_100,*cl_helium;
-    BasisSet1::Real_BS *bs1,*bs2;
+    BasisSet::Real_BS *bs1,*bs2;
 };
 
 

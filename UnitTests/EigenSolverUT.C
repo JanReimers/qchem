@@ -8,9 +8,9 @@
 #include "gtest/gtest.h"
 #include "blaze/Math.h"
 
-import qchem.BasisSet1.Orbital_1E_IBS;
-import qchem.BasisSet1;
-using Real_OIBS=BasisSet1::Real_OIBS;
+import qchem.BasisSet.Orbital_1E_IBS;
+import qchem.BasisSet;
+using Real_OIBS=BasisSet::Real_OIBS;
 
 import qchem.LAParams;
 import qchem.LASolver;

@@ -3,13 +3,13 @@ module;
 #include <iosfwd>
 #include <cassert>
 #include <vector>
-export module qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.Block;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.Polarization;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.RadialFunction;
+export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Block;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.RadialFunction;
 import qchem.Streamable;
 import qchem.Types;
 
-export namespace BasisSet1::Molecule::PolarizedGaussian
+export namespace BasisSet::Molecule::PolarizedGaussian
 {
 
 //-----------------------------------------------------------------------
@@ -45,5 +45,5 @@ public:
     size_t                    itsN;      //Index of first basis function in block.
 };
 
-} //namespace BasisSet1::Molecule::PolarizedGaussian
+} //namespace BasisSet::Molecule::PolarizedGaussian
 

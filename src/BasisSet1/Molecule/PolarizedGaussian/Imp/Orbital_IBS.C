@@ -10,19 +10,19 @@ module;
 #include <vector>
 #include <blaze/Math.h>
 
-module qchem.BasisSet1.Molecule.PolarizedGaussian;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.GaussianRF;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.IntegralEngine;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.Readers.Gaussian94;
-import qchem.BasisSet1;
+module qchem.BasisSet.Molecule.PolarizedGaussian;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IntegralEngine;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Readers.Gaussian94;
+import qchem.BasisSet;
 import qchem.Cluster;
 import qchem.Symmetry.Unit;
 import qchem.stl_io;
 import qchem.Streamable;
 
-import qchem.BasisSet1.Internal.IntegralEnums;
+import qchem.BasisSet.Internal.IntegralEnums;
 
-namespace BasisSet1::Molecule::PolarizedGaussian
+namespace BasisSet::Molecule::PolarizedGaussian
 {
 
 rsmat_t Orbital_IBS::Integrate(qchem::IType3C type , const RadialFunction* rc, const Polarization& pc) const
@@ -49,7 +49,7 @@ rsmat_t MakeIntegrals(IType t2C,const PGData* ab,CDCache& cache, const Cluster* 
     return s;
 }
 
-ERI3<double> Orbital_IBS::MakeOverlap3C(const BasisSet1::Fit_IBS& _c) const
+ERI3<double> Orbital_IBS::MakeOverlap3C(const ::BasisSet::Fit_IBS& _c) const
 {
     auto c=dynamic_cast<const PGData*>(&_c);
     int Nc=c->size();
@@ -62,7 +62,7 @@ ERI3<double> Orbital_IBS::MakeOverlap3C(const BasisSet1::Fit_IBS& _c) const
     } 
     return s3;   
 }
-ERI3<double> Orbital_IBS::MakeRepulsion3C(const BasisSet1::Fit_IBS& _c) const
+ERI3<double> Orbital_IBS::MakeRepulsion3C(const ::BasisSet::Fit_IBS& _c) const
 {
     auto c=dynamic_cast<const PGData*>(&_c);
     int Nc=c->size();

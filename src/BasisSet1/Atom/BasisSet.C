@@ -1,25 +1,25 @@
 // File: BasisSet/Atom/BSpline/NR/BSpline_BS_Evaluator.C BSpline Basis Set for atoms.
 module;
 #include <blaze/Math.h>
-export module qchem.BasisSet1.Atom.BasisSet;
+export module qchem.BasisSet.Atom.BasisSet;
 
-export import qchem.BasisSet1;
-export import qchem.BasisSet1.Orbital_HF_IBS;
-import qchem.BasisSet1.Fit_IBS;
+export import qchem.BasisSet;
+export import qchem.BasisSet.Orbital_HF_IBS;
+import qchem.BasisSet.Fit_IBS;
 
 export import qchem.Symmetry.AtomEC;
 export import qchem.Symmetry.Irrep;
 
 import qchem.Symmetry.Yl;
-import qchem.BasisSet1.Atom.Evaluators.IBS;
-import qchem.BasisSet1.Atom.IBS;
-import qchem.BasisSet1.Internal.BasisSetImp;
-import qchem.BasisSet1.Internal.Orbital_DHF_IBS;
-import qchem.BasisSet1.Internal.IrrepBasisSetImp;
-import qchem.BasisSet1.DB_Cache;
+import qchem.BasisSet.Atom.Evaluators.IBS;
+import qchem.BasisSet.Atom.IBS;
+import qchem.BasisSet.Internal.BasisSetImp;
+import qchem.BasisSet.Internal.Orbital_DHF_IBS;
+import qchem.BasisSet.Internal.IrrepBasisSetImp;
+import qchem.BasisSet.DB_Cache;
 
 export 
-namespace BasisSet1 {
+namespace BasisSet {
 namespace Atom {
 
 
@@ -43,11 +43,11 @@ public:
     {};
 
 
-    virtual BasisSet1::Fit_IBS* CreateCDFitBasisSet(const Cluster*) const 
+    virtual ::BasisSet::Fit_IBS* CreateCDFitBasisSet(const Cluster*) const 
     {
         return new Fit_IBS(Evaluator::Rescale(2.0));
     }
-    virtual BasisSet1::Fit_IBS* CreateVxcFitBasisSet(const Cluster*) const
+    virtual ::BasisSet::Fit_IBS* CreateVxcFitBasisSet(const Cluster*) const
     {
         return new Fit_IBS(Evaluator::Rescale(2.0/3.0));
     }
@@ -118,7 +118,7 @@ public:
 template <isRKBL_Evaluator LEvaluator, is1E_Evaluator SEvaluator> class EOrbital_RKB_IBS 
     : public virtual Orbital_RKB_IBS<double>
     , public Orbital_RKB_IBS_Imp<double>
-    , public  BasisSet1::IrrepBasisSetImp<double>
+    , public ::BasisSet::IrrepBasisSetImp<double>
 {
 public:
     EOrbital_RKB_IBS(size_t N, double rmin, double rmax, const Irrep_QNs::sym_t& yl)
@@ -126,7 +126,7 @@ public:
                 new EOrbital_RKBL_IBS<LEvaluator>(N,rmin,rmax,yl),
                 new EOrbital_RKBS_IBS<SEvaluator>(N,rmin,rmax,yl)
             )
-    , BasisSet1::IrrepBasisSetImp<double>(yl)
+    , ::BasisSet::IrrepBasisSetImp<double>(yl)
     {};
 
     virtual size_t GetNumFunctions() const {return Orbital_RKB_IBS_Imp<double>::GetNumFunctions();}
@@ -137,8 +137,8 @@ public:
 
 
 template <class Evaluator> class BasisSet_HF2
-    : public virtual ::BasisSet1::BasisSet<double>
-    , public BasisSet1::BasisSetImp<double>
+    : public virtual ::BasisSet::BasisSet<double>
+    , public ::BasisSet::BasisSetImp<double>
 {
     using oibs_t=Orbital_HF2_IBS<Evaluator>; //Corresponding Orbital IBS type
 public:
@@ -161,14 +161,14 @@ public:
 private:
     void Insert(oibs_t* oibs)
     {
-        BasisSet1::theGlobalCache->Register(oibs);
-        BasisSet1::BasisSetImp<double>::Insert(oibs);
+        ::BasisSet::theGlobalCache->Register(oibs);
+        ::BasisSet::BasisSetImp<double>::Insert(oibs);
     }
 };
 
 template <class Evaluator> class BasisSet_1E_HF2
-    : public virtual ::BasisSet1::BasisSet<double>
-    , public BasisSet1::BasisSetImp<double>
+    : public virtual ::BasisSet::BasisSet<double>
+    , public ::BasisSet::BasisSetImp<double>
 {
     using oibs_t=Orbital_1E_HF2_IBS<Evaluator>; //Corresponding Orbital IBS type
 public:
@@ -191,14 +191,14 @@ public:
 private:
     void Insert(oibs_t* oibs)
     {
-        BasisSet1::theGlobalCache->Register(oibs);
-        BasisSet1::BasisSetImp<double>::Insert(oibs);
+        ::BasisSet::theGlobalCache->Register(oibs);
+        ::BasisSet::BasisSetImp<double>::Insert(oibs);
     }
 };
 
 template <class LEvaluator, class SEvaluator> class BasisSet_RKB
-    : public virtual ::BasisSet1::BasisSet<double>
-    , public BasisSet1::BasisSetImp<double>
+    : public virtual ::BasisSet::BasisSet<double>
+    , public ::BasisSet::BasisSetImp<double>
 {
     using oibs_t=EOrbital_RKB_IBS<LEvaluator,SEvaluator>;
 public:
@@ -213,9 +213,7 @@ public:
 private:
     void Insert(oibs_t* oibs)
     {
-        // BasisSet1::theGlobalCache->Register(oibs);
-        BasisSet1::BasisSetImp<double>::Insert(oibs);
-        // Evaluator::Register(oibs->GetEvaluator());
+        ::BasisSet::BasisSetImp<double>::Insert(oibs);
     }
 };
 

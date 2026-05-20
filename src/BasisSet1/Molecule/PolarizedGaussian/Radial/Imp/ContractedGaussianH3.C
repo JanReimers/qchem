@@ -2,10 +2,10 @@
 module;
 #include <cassert>
 #include <vector>
-module qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.Radial.ContractedGaussianRF;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.Polarization;
+module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Radial.ContractedGaussianRF;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
 
-namespace BasisSet1::Molecule::PolarizedGaussian
+namespace BasisSet::Molecule::PolarizedGaussian
 {
 //----------------------------------------------------------------------------------------
 //
@@ -33,4 +33,4 @@ double ContractedGaussianH3::operator()(const Polarization& Pa,const Polarizatio
     return ret;
 }
 
-} //namespace BasisSet1::Molecule::PolarizedGaussian
+} //namespace BasisSet::Molecule::PolarizedGaussian

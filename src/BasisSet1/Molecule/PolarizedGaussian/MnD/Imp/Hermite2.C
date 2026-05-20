@@ -7,8 +7,8 @@ module;
 #include <iomanip>
 #include <vector>
 
-module qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.MnD.Hermite2;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.Polarization;
+module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite2;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
 
 import Common.IntPow;
 
@@ -18,7 +18,7 @@ std::ostream& operator << (std::ostream& os, const std::vector<double>& v)
     return os;
 }
 
-namespace BasisSet1::Molecule::PolarizedGaussian
+namespace BasisSet::Molecule::PolarizedGaussian
 {
 //----------------------------------------------------------------------------------------
 //
@@ -246,4 +246,4 @@ Hermite2* Hermite2::Clone() const
 }
 
 
-} //namespace BasisSet1::Molecule::PolarizedGaussian
+} //namespace BasisSet::Molecule::PolarizedGaussian

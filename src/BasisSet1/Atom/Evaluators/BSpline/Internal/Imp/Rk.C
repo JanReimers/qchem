@@ -5,9 +5,9 @@ module;
 #include <functional>
 #include <cassert>
 #include <bspline/Core.h>
-module qchem.BasisSet1.Atom.Evaluators.BSpline.Internal.Rk;
-import qchem.BasisSet1.Atom.Evaluators.IBS;
-import qchem.BasisSet1.Atom.Evaluators.BSpline.Internal.GLQuadrature;
+module qchem.BasisSet.Atom.Evaluators.BSpline.Internal.Rk;
+import qchem.BasisSet.Atom.Evaluators.IBS;
+import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.GLQuadrature;
 
 import Common.IntPow;
 

@@ -2,11 +2,11 @@
 module;
 #include <cassert>
 #include "blaze/Math.h"
-module qchem.BasisSet1.Fit_IBS;
+module qchem.BasisSet.Fit_IBS;
 import qchem.Mesh.Integrator;
-import qchem.BasisSet1.DB_Cache;
+import qchem.BasisSet.DB_Cache;
 
-namespace BasisSet1
+namespace BasisSet
 {
 
 const  rvec_t& Fit_IBS::Charge   () const

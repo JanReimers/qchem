@@ -1,12 +1,12 @@
 // File: BasisSet1/IrrepBasisSet.C  Interface for an Irrep Basis Set (IBS)
 module;
 #include <string>
-export module qchem.BasisSet1.IrrepBasisSet;
+export module qchem.BasisSet.IrrepBasisSet;
 export import qchem.Symmetry.Irrep;
 import qchem.VectorFunction;
 import qchem.Streamable;
 
-export namespace BasisSet1
+export namespace BasisSet
 {
 
 //  The are used for caching 1) radial Slater integrals R_k(abcd) 2) Direct/Exchange integrals

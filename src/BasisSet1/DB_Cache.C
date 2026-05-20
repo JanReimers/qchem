@@ -7,14 +7,14 @@ module;
 #include <variant>
 #include <fstream>
 #include <memory>
-export module qchem.BasisSet1.DB_Cache;
-import qchem.BasisSet1.Internal.ERI4;
-import qchem.BasisSet1.Internal.ERI3;
-import qchem.BasisSet1.Internal.IntegralEnums;
-import qchem.BasisSet1.Internal.Cache4;
+export module qchem.BasisSet.DB_Cache;
+import qchem.BasisSet.Internal.ERI4;
+import qchem.BasisSet.Internal.ERI3;
+import qchem.BasisSet.Internal.IntegralEnums;
+import qchem.BasisSet.Internal.Cache4;
 import qchem.Types;
  
-export namespace BasisSet1 {
+export namespace BasisSet {
     
 
 // Non-template bass class helps avoid so many annoying using statements in derived classes

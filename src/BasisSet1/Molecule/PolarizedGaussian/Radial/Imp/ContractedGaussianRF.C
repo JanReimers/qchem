@@ -7,16 +7,16 @@ module;
 #include <vector>
 #include <memory>
 #include <blaze/Math.h>
-module qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.Radial.ContractedGaussianRF;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.GaussianRF;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.MnD.Hermite1;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.MnD.Hermite3;
+module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Radial.ContractedGaussianRF;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite1;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite3;
 
 import qchem.stl_io;
 import qchem.Streamable;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.Block;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Block;
 
-namespace BasisSet1::Molecule::PolarizedGaussian
+namespace BasisSet::Molecule::PolarizedGaussian
 {
 //#######################################################################
 //
@@ -243,4 +243,4 @@ void ContractedGaussianRF::Check() const
     }
 }
 
-} //namespace BasisSet1::Molecule::PolarizedGaussian
+} //namespace BasisSet::Molecule::PolarizedGaussian

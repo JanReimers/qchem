@@ -4,8 +4,8 @@ module;
 #include <iostream>
 #include <cassert>
 
-module qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.Radial.GaussianH3;
-namespace BasisSet1::Molecule::PolarizedGaussian
+module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Radial.GaussianH3;
+namespace BasisSet::Molecule::PolarizedGaussian
 {
 //----------------------------------------------------------------------------------------
 //
@@ -312,4 +312,4 @@ std::ostream& operator<<(std::ostream& os,const GaussianH3& h3)
     return os;
 }
 
-} //namespace BasisSet1::Molecule::PolarizedGaussian
+} //namespace BasisSet::Molecule::PolarizedGaussian

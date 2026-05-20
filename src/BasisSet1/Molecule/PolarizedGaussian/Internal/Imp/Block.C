@@ -2,11 +2,11 @@
 module;
 #include <iomanip>
 #include <vector>
-module qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.Block;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.RadialFunction;
+module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Block;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.RadialFunction;
 import qchem.stl_io;
 
-namespace BasisSet1::Molecule::PolarizedGaussian
+namespace BasisSet::Molecule::PolarizedGaussian
 {
 
 Block::Block()
@@ -62,4 +62,4 @@ Block* Block::Clone(const rvec3_t& newCenter) const
     return ret;
 }
 
-} //namespace BasisSet1::Molecule::PolarizedGaussian
+} //namespace BasisSet::Molecule::PolarizedGaussian

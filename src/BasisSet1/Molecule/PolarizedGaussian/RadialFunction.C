@@ -3,21 +3,21 @@ module;
 #include <vector>
 #include <set>
 #include <map>
-export module qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.RadialFunction;
+export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.RadialFunction;
 import Common.UniqueID; 
 import qchem.Cluster;
 import qchem.ScalarFunction;
 import qchem.Streamable;
-import qchem.BasisSet1.Internal.IntegralEnums;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.CDCache;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.Polarization;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.MnD.Hermite1;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.MnD.Hermite3;
-import qchem.BasisSet1.Molecule.PolarizedGaussian.Internal.MnD.RNLM;
+import qchem.BasisSet.Internal.IntegralEnums;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite1;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite3;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.RNLM;
 
 class  Polarization;
 
-export namespace BasisSet1::Molecule::PolarizedGaussian
+export namespace BasisSet::Molecule::PolarizedGaussian
 {
 
     enum IType {Overlap2C, Repulsion2C,Grad2,Nuclear};
@@ -62,5 +62,5 @@ public:
     virtual RadialFunction* Clone      (            ) const=0;
 };
 
-} //namespace BasisSet1::Molecule::PolarizedGaussian
+} //namespace BasisSet::Molecule::PolarizedGaussian
 
