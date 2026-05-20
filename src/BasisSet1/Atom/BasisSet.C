@@ -43,13 +43,13 @@ public:
     {};
 
 
-    virtual ::BasisSet::Fit_IBS* CreateCDFitBasisSet(const Cluster*) const 
+    virtual Fit_IBS* CreateCDFitBasisSet(const Cluster*) const 
     {
-        return new Fit_IBS(Evaluator::Rescale(2.0));
+        return new EFit_IBS(Evaluator::Rescale(2.0));
     }
-    virtual ::BasisSet::Fit_IBS* CreateVxcFitBasisSet(const Cluster*) const
+    virtual Fit_IBS* CreateVxcFitBasisSet(const Cluster*) const
     {
-        return new Fit_IBS(Evaluator::Rescale(2.0/3.0));
+        return new EFit_IBS(Evaluator::Rescale(2.0/3.0));
     }
 
 };

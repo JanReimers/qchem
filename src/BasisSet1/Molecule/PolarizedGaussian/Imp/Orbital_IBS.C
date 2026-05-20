@@ -49,7 +49,7 @@ rsmat_t MakeIntegrals(IType t2C,const PGData* ab,CDCache& cache, const Cluster* 
     return s;
 }
 
-ERI3<double> Orbital_IBS::MakeOverlap3C(const ::BasisSet::Fit_IBS& _c) const
+ERI3<double> Orbital_IBS::MakeOverlap3C(const Fit_IBS& _c) const
 {
     auto c=dynamic_cast<const PGData*>(&_c);
     int Nc=c->size();
@@ -62,7 +62,7 @@ ERI3<double> Orbital_IBS::MakeOverlap3C(const ::BasisSet::Fit_IBS& _c) const
     } 
     return s3;   
 }
-ERI3<double> Orbital_IBS::MakeRepulsion3C(const ::BasisSet::Fit_IBS& _c) const
+ERI3<double> Orbital_IBS::MakeRepulsion3C(const Fit_IBS& _c) const
 {
     auto c=dynamic_cast<const PGData*>(&_c);
     int Nc=c->size();

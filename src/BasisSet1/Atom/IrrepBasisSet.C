@@ -104,7 +104,8 @@ protected:
     }
 };
 
-template <isFit_Evaluator Evaluator> class Fit_IBS
+// Use E prefix to avoid name clash with the interface class Fit_IBS
+template <isFit_Evaluator Evaluator> class EFit_IBS
     : public virtual BasisSet::Fit_IBS 
     , public Integrals_Overlap<Evaluator>
     , public IrrepBasisSetImp<Evaluator>
@@ -112,7 +113,7 @@ template <isFit_Evaluator Evaluator> class Fit_IBS
 {
     using IrrepBasisSetImp<Evaluator>::Cast;
 public:
-    Fit_IBS(const Evaluator& e) : IrrepBasisSetImp<Evaluator>(Irrep_QNs::sym_t(new Yl_Sym(0))), Evaluator(e) {};
+    EFit_IBS(const Evaluator& e) : IrrepBasisSetImp<Evaluator>(Irrep_QNs::sym_t(new Yl_Sym(0))), Evaluator(e) {};
 
     virtual rsmat_t MakeRepulsion(                ) const 
     {

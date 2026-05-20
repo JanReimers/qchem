@@ -74,25 +74,26 @@ public:
     virtual rsmat_t      MakeOverlap() const {return MakeIntegrals(PolarizedGaussian::Overlap2C,this,cache);}
     virtual rsmat_t      MakeKinetic() const {return MakeIntegrals(Grad2,this,cache);}
     virtual rsmat_t      MakeNuclear(const Cluster* cl) const {return MakeIntegrals(PolarizedGaussian::Nuclear,this,cache,cl);}
-    virtual ERI3<double> MakeOverlap3C  (const ::BasisSet::Fit_IBS& c) const; //Used for DFT
-    virtual ERI3<double> MakeRepulsion3C(const ::BasisSet::Fit_IBS& c) const; //Used for DFT
+    virtual ERI3<double> MakeOverlap3C  (const Fit_IBS& c) const; //Used for DFT
+    virtual ERI3<double> MakeRepulsion3C(const Fit_IBS& c) const; //Used for DFT
     virtual ERI4         MakeDirect     (const ::BasisSet::Orbital_HF_IBS<double>& c) const;
     virtual ERI4         MakeExchange   (const ::BasisSet::Orbital_HF_IBS<double>& b) const;
 private:
     rsmat_t Integrate(qchem::IType3C type , const RadialFunction* rc, const Polarization& pc) const;
     mutable CDCache cache; //Cache of all Gaussian pair charge distributions.
 };
-class Fit_IBS
-    : public virtual ::BasisSet::Fit_IBS 
+// Use E prefix to avoid name clash with the interface class Fit_IBS
+class EFit_IBS
+    : public virtual Fit_IBS 
     , public IrrepBasisSet
 {
 public:
-    Fit_IBS(Reader *, const Cluster *);
+    EFit_IBS(Reader *, const Cluster *);
 
     virtual rsmat_t MakeOverlap() const {return MakeIntegrals(PolarizedGaussian::Overlap2C,this,cache);}
     virtual  rvec_t MakeCharge   () const;
     virtual rsmat_t MakeRepulsion() const {return MakeIntegrals(Repulsion2C,this,cache);}
-    virtual  rmat_t MakeRepulsion(const ::BasisSet::Fit_IBS& b) const;
+    virtual  rmat_t MakeRepulsion(const Fit_IBS& b) const;
 };
 class BasisSet 
     : public virtual ::BasisSet::BasisSet<double>

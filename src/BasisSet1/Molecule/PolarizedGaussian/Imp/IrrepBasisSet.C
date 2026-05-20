@@ -228,24 +228,24 @@ Orbital_IBS::Orbital_IBS(   const rvec_t& exponents, size_t L)
     : IrrepBasisSet(exponents,L)
 {};
     
-::BasisSet::Fit_IBS* Orbital_IBS::CreateCDFitBasisSet(const Cluster* cl) const
+Fit_IBS* Orbital_IBS::CreateCDFitBasisSet(const Cluster* cl) const
 {
     // The A1 files support Z=1-54 (H-Te)  A2 version only go up to Zn
     PolarizedGaussian::Gaussian94Reader reader("../../../BasisSetData/A1_coul.bsd");
-    return new Fit_IBS(&reader,cl);
+    return new EFit_IBS(&reader,cl);
 }
-::BasisSet::Fit_IBS* Orbital_IBS::CreateVxcFitBasisSet(const Cluster* cl) const
+Fit_IBS* Orbital_IBS::CreateVxcFitBasisSet(const Cluster* cl) const
 {
     // The A1 files support Z=1-54 (H-Te)  A2 version only go up to Zn
     PolarizedGaussian::Gaussian94Reader reader("../../../BasisSetData/A1_exch.bsd");
-    return new Fit_IBS(&reader,cl);
+    return new EFit_IBS(&reader,cl);
 }
 
 //----------------------------------------------------------------
 //
 //  Fit PG basis set.
 //
-Fit_IBS::Fit_IBS(Reader* bsr, const Cluster* cl)
+EFit_IBS::EFit_IBS(Reader* bsr, const Cluster* cl)
 : IrrepBasisSet(bsr,cl)
 {};
 

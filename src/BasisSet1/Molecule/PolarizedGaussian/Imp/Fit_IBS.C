@@ -23,7 +23,7 @@ import qchem.Streamable;
 namespace BasisSet::Molecule::PolarizedGaussian
 {
 
-rvec_t Fit_IBS::MakeCharge() const
+rvec_t EFit_IBS::MakeCharge() const
 {
     const PGData* a=dynamic_cast<const PGData*>(this);
     assert(a);
@@ -40,7 +40,7 @@ rvec_t Fit_IBS::MakeCharge() const
     return c;
 }
 
-rmat_t Fit_IBS::MakeRepulsion(const ::BasisSet::Fit_IBS& _b) const
+rmat_t EFit_IBS::MakeRepulsion(const Fit_IBS& _b) const
 {   
     const PGData* a=dynamic_cast<const PGData*>(this);
     const PGData* b=dynamic_cast<const PGData*>(&_b);
