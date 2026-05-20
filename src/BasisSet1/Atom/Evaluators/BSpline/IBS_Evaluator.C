@@ -97,7 +97,7 @@ public:
     virtual std::string RadialID() const;
     virtual std::string Name    () const;
     virtual std::string RadialType() const;
-    virtual Cache41*    MakeCache4() const;
+    virtual Cache4*    MakeCache4() const;
     using rvec11_t=AngularIntegrals::rvec11_t;
     static double direct(const Cacheable* c, size_t la, size_t lc,const rvec11_t& Ak)
     {
@@ -130,7 +130,7 @@ static_assert(is1E_Evaluator     <BSpline_IBS_Evaluator<6>>);
 static_assert(isRKBL_Evaluator   <BSpline_IBS_Evaluator<6>>);
 static_assert(isHF_Evaluator     <BSpline_IBS_Evaluator<6>>);
 
-template <size_t K> class BSpline_Cache4 : public  Cache41
+template <size_t K> class BSpline_Cache4 : public  Cache4
 {
 public:
     BSpline_Cache4(const bspline::Grid<double>& grid) : itsMaxl(0), itsGL(grid,K+3),itsRkCache(0) 
@@ -145,12 +145,12 @@ public:
         geval->Register(&grouper);
         if (geval->Getl()>itsMaxl) itsMaxl=geval->Getl();
         //
-        //  At this point we need sweep through all Cacheable* (Rks) in Cache41::cache_t
+        //  At this point we need sweep through all Cacheable* (Rks) in Cache4::cache_t
         //  and check if geval is supported (geval.l <= Rk.LMax).
         //  All unsupport Rks will be removed.  These will then automatically be recreated next time
         //  loop_4 is called.
         //
-        Cache41::Register(eval);
+        Cache4::Register(eval);
 
         delete itsRkCache;
         itsRkCache=new ::BSpline::RkCache<K>(grouper.unique_spv,itsGL,itsMaxl);

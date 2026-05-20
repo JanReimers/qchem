@@ -101,7 +101,7 @@ public:
 
     virtual std::string Name() const;
     virtual std::string RadialType() const;
-    virtual Cache41*    MakeCache4() const;
+    virtual Cache4*    MakeCache4() const;
     using rvec11_t=AngularIntegrals::rvec11_t;
     static double direct(const Cacheable* c, size_t la, size_t lc,const rvec11_t& Ak)
     {
@@ -136,7 +136,7 @@ static_assert(isDFT_Evaluator    <Slater_IBS_Evaluator>);
 static_assert(isRKBL_Evaluator   <Slater_IBS_Evaluator>);
 static_assert(isHF_Evaluator     <Slater_IBS_Evaluator>);
 
-class Slater_Cache4 : public  Cache41
+class Slater_Cache4 : public  Cache4
 {
 public:
     // using IBS_Evaluator_t = Gaussian_IBS_Evaluator;
@@ -146,12 +146,12 @@ public:
         Slater_IBS_Evaluator* geval=dynamic_cast<Slater_IBS_Evaluator*>(eval);
         geval->Register(&grouper);
         //
-        //  At this point we need sweep through all Cacheable* (Rks) in Cache41::cache_t
+        //  At this point we need sweep through all Cacheable* (Rks) in Cache4::cache_t
         //  and check if geval is supported (geval.l <= Rk.LMax).
         //  All unsupport Rks will be removed.  These will then automatically be recreated next time
         //  loop_4 is called.
         //
-        Cache41::Register(eval);
+        Cache4::Register(eval);
     }
     virtual Rk*  Create (size_t ia,size_t ic,size_t ib,size_t id) const
     {

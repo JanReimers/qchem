@@ -32,7 +32,7 @@ std::string Slater_IBS_Evaluator::RadialType() const
     return os.str();
 }
 
-Cache41*    Slater_IBS_Evaluator::MakeCache4() const
+Cache4*    Slater_IBS_Evaluator::MakeCache4() const
 {
     return new Slater_Cache4();
 }

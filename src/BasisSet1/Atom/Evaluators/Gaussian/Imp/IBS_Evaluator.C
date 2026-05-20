@@ -29,7 +29,7 @@ std::string Gaussian_IBS_Evaluator::RadialType() const
     return os.str();
 }
 
-Cache41*    Gaussian_IBS_Evaluator::MakeCache4() const
+Cache4*    Gaussian_IBS_Evaluator::MakeCache4() const
 {
     return new Gaussian_Cache4();
 }

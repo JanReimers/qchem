@@ -77,7 +77,7 @@ public:
 
     // 4 center radial Slater integrals, Rk for HF calculations
     virtual void Register(Cache4_Client* eval)=0;
-    virtual const Cache41* GetCache4(const RadialTypeID_t& type) const=0;
+    virtual const Cache4* GetCache4(const RadialTypeID_t& type) const=0;
 
 };
 
@@ -111,7 +111,7 @@ public:
     virtual const ERI4     & SetExchange(const ERI4&); 
 
     void Register(Cache4_Client* eval);
-    const Cache41* GetCache4(const RadialTypeID_t& type) const;
+    const Cache4* GetCache4(const RadialTypeID_t& type) const;
 
 private:
     using key1_t=std::tuple<I1C,IBS_ID_t>; //Integral key for one IBS, 1 centers.
@@ -133,7 +133,7 @@ private:
     using map1m_t =std::map<key1m_t  ,rvec_t>;
     using map2xm_t=std::map<key2xm_t ,rmat_t>;
 
-    using val_t=std::unique_ptr<Cache41>;
+    using val_t=std::unique_ptr<Cache4>;
     using cach4_t=std::map<RadialTypeID_t,val_t>;
 
 

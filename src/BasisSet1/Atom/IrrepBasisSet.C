@@ -272,7 +272,7 @@ template <isHF_Evaluator E> ERI4 Orbital_HF_IBS<E>::MakeDirect(const BasisSet::O
     size_t spanab=a.maxSpan(),spancd=c.maxSpan();
     size_t Na=a.size(), Nc=c.size();
     AngularIntegrals::rvec11_t Akac=IBS_Evaluator::Coulomb_AngularIntegrals(a,c);
-    const Cache41* Rk_cache=BasisSet::theGlobalCache->GetCache4(a.RadialType());
+    const Cache4* Rk_cache=BasisSet::theGlobalCache->GetCache4(a.RadialType());
     ERI4 J(Na,Nc);
 
     for (size_t ia:a.indices())
@@ -318,7 +318,7 @@ template <isHF_Evaluator E> ERI4 Orbital_HF_IBS<E>::MakeExchange(const BasisSet:
     size_t Na=a.size(), Nc=c.size();
     int la=a.Getl(), lc=c.Getl();
     AngularIntegrals::rvec11_t Akac=IBS_Evaluator::ExchangeAngularIntegrals(a,c);
-    const Cache41* Rk_cache=BasisSet::theGlobalCache->GetCache4(a.RadialType());
+    const Cache4* Rk_cache=BasisSet::theGlobalCache->GetCache4(a.RadialType());
 
     ERI4 K(Na,Nc);
     for (size_t ia:a.indices())

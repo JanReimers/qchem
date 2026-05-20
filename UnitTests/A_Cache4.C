@@ -195,7 +195,7 @@ TEST_F(Cache4Tests,HF2_BS_Reentry)
 //     cache->Register(d);
 //     cache->Register(f);
 
-//     const Cache41* sc=cache->GetCache4(s->RadialType());
+//     const Cache4* sc=cache->GetCache4(s->RadialType());
 //     EXPECT_EQ(sc,cache->GetCache4(p->RadialType()));
 //     EXPECT_EQ(sc,cache->GetCache4(d->RadialType()));
 //     EXPECT_EQ(sc,cache->GetCache4(f->RadialType()));

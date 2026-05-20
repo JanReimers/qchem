@@ -105,18 +105,6 @@ namespace std
 }
 namespace BasisSet
 {
-// template  <> IntegralsCache<double>* IntegralsCache<double>::theGlobalCache;
-
-// size_t Cache41::Register(const std::string& bf_id)
-// {
-//     size_t index;
-//     auto i=itsUniqueBFs.find(bf_id);
-//     if (i==itsUniqueBFs.end())
-//         itsUniqueBFs[bf_id]=index=itsUniqueBFs.size();
-//     else
-//         index=i->second;
-//     return index;
-// }
 
 //
 // Specialize std::formatter for I1C,I2C
@@ -314,7 +302,7 @@ template <class T> void IntegralsCache_RAM<T>::Register(Cache4_Client* eval)
     it->second->Register(eval);
 }
 
-template <class T> const Cache41* IntegralsCache_RAM<T>::GetCache4(const RadialTypeID_t& type) const
+template <class T> const Cache4* IntegralsCache_RAM<T>::GetCache4(const RadialTypeID_t& type) const
 {
     auto it=itsCache4s.find(type);
     if (it==itsCache4s.end())

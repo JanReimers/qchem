@@ -69,8 +69,9 @@ Priority 1:
             -Even tempered BSplines should be charcterized by RadialType=BS<6> Beta=2.0  
                 -If a new spline with the same Beta but a wider range comes in, then Grid and GLCache needs to adapt
                  hopefully withut throwing oout existing information.
-            -Clean up all temp names Cache41, Basiset1, HF1 HF2.
+            Done: -Clean up all temp names Cache4, Basiset1, HF1 HF2.
             Done: -Move concepts to a separate module.
+            -Separate out DB_Cache_RAM
             
 
         -Refactor BSpline and BSpine_r to minimize duplicated code.  Isolate weight functions wp, wm.
@@ -669,7 +670,7 @@ Priority 3:
             3) Pick one IBS (BSpline6) and support construct with DB_Cache1
                 3.1) It looks like each IBS needs to support
                     std::vector<std::string> BasisFunctionIDs() const=0;
-                    Used by Cache41 to maintian itsUniqueBFs.
+                    Used by Cache4 to maintian itsUniqueBFs.
             Done: 5) Define IBS radial ID:
                 Use Strings, not hashes.
             Done: 6) Define a basisSet radialID, AngularID
