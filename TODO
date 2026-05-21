@@ -107,7 +107,7 @@ Priority 1:
                     Rabcd_k[k]=RkDiag + RkOff;
                     where Iab and Icd are 1D off diagonal contributions
             Plan:
-                GLCache  Split into 1D and 2D versions.
+                Done: GLCache  Split into 1D and 2D versions.
                     GLCache1D has std::vector<GLQuadrature> itsGLs;
                     GLCache2D has std::vector<std::vector<GLQuadrature>> itsGLs;
                 Replace GLCache2D::find(double rmin, double rmax) with

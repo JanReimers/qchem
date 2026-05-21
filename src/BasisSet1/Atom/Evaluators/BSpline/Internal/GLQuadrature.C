@@ -14,7 +14,7 @@ export class GLCache2D;
 export class GLQuadrature
 {
 public:
-    GLQuadrature() {}; //map needs a default constructor.
+    GLQuadrature() : xs(0), ws(0) {}; //map needs a default constructor.
     GLQuadrature(const double& rmin, const double& rmax,int N);
 
     double Integrate(const std::function< double (double)>& f) const
@@ -128,10 +128,15 @@ export class GLCache2D
 public:
     GLCache2D(const GLCache1D& gl1,size_t Order);
     const GLQuadrature& find(double rmin, double rmax) const;
+    const GLQuadrature& find_grid_gl(size_t igrid,size_t igl) const
+    {
+        return itsDiagGLs_grid_gl(igrid,igl);
+    }
 private:
     GLCache2D(const GLCache2D&)=delete;
     const bspline::support::Grid<double> grid;
     std::map<double,std::map<double,GLQuadrature>> itsDiagGLs;
-
+    mat_t<GLQuadrature> itsDiagGLs_grid_gl; //Ngrid x Order
+    mat_t<GLQuadrature> itsDiagGLs_gl_grid; //Order x Ngrid
 };
 

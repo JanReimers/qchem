@@ -32,15 +32,19 @@ GLCache1D::GLCache1D(const bspline::support::Grid<double>& g,size_t Order)
 }
 
 GLCache2D::GLCache2D(const GLCache1D& gl1,size_t Order)
-: grid(gl1.grid)
+: grid(gl1.grid), itsDiagGLs_grid_gl(grid.size(),Order), itsDiagGLs_gl_grid(Order,grid.size())
 {
     for (size_t i=1;i<grid.size();i++)
     {
         double rmin=grid[i-1], rmax=grid[i];
+        size_t j=0;
         for (double r:gl1.itsGLs[i-1].xs)
         {
             itsDiagGLs[rmin][r]=GLQuadrature(rmin,r,Order);
             itsDiagGLs[r][rmax]=GLQuadrature(r,rmax,Order);
+            itsDiagGLs_grid_gl(i-1,j)=GLQuadrature(rmin,r,Order);
+            itsDiagGLs_gl_grid(j  ,i)=GLQuadrature(r,rmax,Order);
+            j++;
         }
     }   
 }
