@@ -3,6 +3,7 @@ set(CMAKE_Fortran_FLAGS "-O2 ")
 target_sources(qcAtom_BS1 PRIVATE 
   Internal/gauleg.f
   Internal/Imp/GLQuadrature.C  
+  Internal/Imp/GLQuadrature1.C  
   Internal/Imp/Rk.C
   Internal/Imp/SplineGrouper.C
   Imp/IBS_Evaluator.C

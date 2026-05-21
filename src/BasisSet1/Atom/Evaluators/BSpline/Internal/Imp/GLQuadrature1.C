@@ -11,38 +11,29 @@ module qchem.BasisSet.Atom.Evaluators.BSpline.Internal.GLQuadrature;
 using std::cout;
 using std::endl;
 
-// see gauleg.f 
-extern "C"
+
+GLCache1D::GLCache1D(const bspline::support::Grid<double>& g,size_t Order)
+: grid(g)
 {
-    void gauleg_(const double* rmin, const double* rmax, double* x, double* w, const int* n);
+    for (size_t i=1;i<grid.size();i++)
+        itsGLs.push_back(GLQuadrature(grid[i-1],grid[i],Order));
 }
 
-GLQuadrature::GLQuadrature(const double& rmin, const double& rmax,int N) 
-: its_xmin(rmin), its_xmax(rmax), xs(N), ws(N) 
-{
-    gauleg_(&rmin,&rmax,&xs[0],&ws[0],&N); //Numerical recipes.
-    // cout << "GLQuadrature xmin,xmax,N = " << its_xmin << " " << its_xmax << " " << N << endl;
-};
-
-
-GLCache::GLCache(const bspline::support::Grid<double>& g,size_t Order)
-: grid(g)
+GLCache2D::GLCache2D(const GLCache1D& gl1,size_t Order)
+: grid(gl1.grid)
 {
     for (size_t i=1;i<grid.size();i++)
     {
         double rmin=grid[i-1], rmax=grid[i];
-        itsGLs.push_back(GLQuadrature(rmin,rmax,Order));
-        const GLQuadrature& gl=itsGLs.back();
-        for (double r:gl.xs)
+        for (double r:gl1.itsGLs[i-1].xs)
         {
             itsDiagGLs[rmin][r]=GLQuadrature(rmin,r,Order);
             itsDiagGLs[r][rmax]=GLQuadrature(r,rmax,Order);
         }
-    }
-    
+    }   
 }
 
-const GLQuadrature& GLCache::find(double rmin, double rmax) const
+const GLQuadrature& GLCache2D::find(double rmin, double rmax) const
 {
     assert(rmin<rmax);
     auto i1=itsDiagGLs.find(rmin);
@@ -52,7 +43,7 @@ const GLQuadrature& GLCache::find(double rmin, double rmax) const
     return i2->second;
 }
 
-double GLCache::Integrate(const std::function< double (double)>& f, const sup_t& a, const sup_t& b) const
+double GLCache1D::Integrate(const std::function< double (double)>& f, const sup_t& a, const sup_t& b) const
 {
 
     assert(a.getGrid()==grid); //Check shared pointers.
@@ -67,7 +58,7 @@ double GLCache::Integrate(const std::function< double (double)>& f, const sup_t&
     return ret;
 }
 
-double GLCache::Integrate(const std::function< double (double)>& f, const sup_t& a, const sup_t& b, double rmin, double rmax) const
+double GLCache1D::Integrate(const std::function< double (double)>& f, const sup_t& a, const sup_t& b, double rmin, double rmax) const
 {
     if (rmin==rmax) return 0.0;
     if (!(rmin<rmax)) cout << "rmin,rmax=" << rmin << " " << rmax << endl;

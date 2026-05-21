@@ -19,7 +19,7 @@ namespace BSpline
 
    
 
-template <size_t K> RkCache<K>::RkCache(const std::vector<sp_t>& splines,const GLCache& gl, size_t lmax)
+template <size_t K> RkCache<K>::RkCache(const std::vector<sp_t>& splines,const GLCache1D& gl1, size_t lmax)
 {
     for (size_t ia=0;ia<splines.size();ia++)
     {
@@ -33,8 +33,8 @@ template <size_t K> RkCache<K>::RkCache(const std::vector<sp_t>& splines,const G
             {
                 std::function< double (double)> wp = [k](double r) {return intpow(r,k+2);};
                 std::function< double (double)> wm = [k](double r) {return intpow(r,1-k);};
-                mp.push_back(gl.Integrate(wp,splines[ia],splines[ib]));
-                mm.push_back(gl.Integrate(wm,splines[ia],splines[ib]));
+                mp.push_back(gl1.Integrate(wp,splines[ia],splines[ib]));
+                mm.push_back(gl1.Integrate(wm,splines[ia],splines[ib]));
 
             }
             itsMomentsPlus [std::make_pair(ia,ib)]=mp;
@@ -83,7 +83,8 @@ template <size_t K> const typename RkCache_r<K>::dv_t& RkCache_r<K>::find(size_t
 //
 //  Calculate and store 2 electron radial repulsion (Slater) integrals for all valules of k.
 //
-template <size_t K> RkEngine<K>::RkEngine(const std::vector<sp_t>& splines, size_t ia, size_t ib, size_t ic, size_t id, size_t _LMax, const GLCache& gl, const RkCache<K>& rkcache)
+template <size_t K> RkEngine<K>::RkEngine(const std::vector<sp_t>& splines, size_t ia, size_t ib, size_t ic, size_t id, size_t _LMax
+    , const GLCache& gl,const GLCache1D& gl1,const GLCache2D& gl2, const RkCache<K>& rkcache)
  : LMax(_LMax), Rabcd_k(2*LMax+1,0.0)
  {
     sp_t a=splines[ia];

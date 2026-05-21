@@ -33,7 +33,7 @@ Priority 1:
             This should help with more cache hits.
         -Sort out PG cache ... keep one cache in DB_cache.
         -Put evaluators in a namespace
-        -Store all Rk caches in DB_cache.
+        Done: -Store all Rk caches in DB_cache.
             -key on RadialID()?
             -What if unique exponents list increase?
         -Move all 2/3-nested loops in XXX_Evaluator_IBS into the base.  Use virtual calls for primatives.
@@ -51,29 +51,76 @@ Priority 1:
             No: -Same for vector versions of op(r) grad(r).
                 We already have nice working vector versions for op(r) in the evaluators
             Done: -Use indices for all loops
-            -tidy up norms evaluations, Name. Write
             Done: -Use *this instead of GetEvaluator()
             Done: -Get rid IE.C, Integral_Base and all GetEvaluator() v-calls.
-            -Get rid of IBS_Evaluator base class.
-            -Upgrade BSpline_r evaluator
-            -Make SL/SG versions of 1/r evaluators.
-            -Check BSpline_IBS_Evaluator copy constructor, seems to increase size.
+            No: -Get rid of IBS_Evaluator base class.
             Done: -qchem.BasisSet.Atom.Factory; use Atom_EC instead of ElectronConfiguration
-            -BSpline::RkCache should not care about l just lmax.
             Fixed: -BSpline Both SplineGrouper and BSpline_IBS_Evaluator have GLCaches
                 SplineGrouper         has std::map<size_t l,const GLCache*> itsGLs;
                 BSpline_IBS_Evaluator has std::unique_ptr<GLCache> itsGL;
                 1) GLCache is not a abstract base ... why all the pointers?
                 2) Why does SplineGrouper care about storing a separate GLCache for each l?
                 3) These caches depend on the grid and K ... which are the same for all l.
-            -Even tempered BSplines should be charcterized by RadialType=BS<6> Beta=2.0  
-                -If a new spline with the same Beta but a wider range comes in, then Grid and GLCache needs to adapt
-                 hopefully withut throwing oout existing information.
             Done: -Clean up all temp names Cache4, Basiset1, HF1 HF2.
             Done: -Move concepts to a separate module.
             Done: -Separate out DB_Cache_RAM
             Done: -Move DB_Cache to Internal
-            
+
+    -tidy up norms evaluations, Name. Write
+    -Upgrade BSpline_r evaluator
+    -Make SL/SG versions of 1/r evaluators.
+    -Check BSpline_IBS_Evaluator copy constructor, seems to increase size.
+    -BSpline::RkCache should not care about l just lmax.
+    -Even tempered BSplines should be charcterized by RadialType=BS<6> Beta=2.0  
+        -If a new spline with the same Beta but a wider range comes in, we have three cases.
+            Case 1) new grid range includes the old range new={.5,1,2,4}, previous={.5,1,2}
+            Case 2) grid ranges are skewed. {.5,1,2} and {1,2,4}
+            Case 3) Same beta, but not registered: {.5,1,2} {.6,1.2,2.4}
+        -BSpline Cache summary:
+            GLQuadrature(const double& rmin, const double& rmax,int N) stores integration xs and weights
+                Wrapper for Numerical recipies gauleg_
+            GLCache(const bspline::support::Grid<double>& g,size_t Order) 
+                Store a GLQuadrature for interval in the grid.  Provides 1D definite integrals between any two grid points.
+                For each interval in the grid, stores at secondary GLQuadrature for 2D integrals.
+                The find function in here is a profiling hot spot.
+                The secondary GLQuadrature is used externally.  through the find(double rmin, double rmax) member function.
+                    Suggesting this should be separated out.
+            RkCache(const std::vector<sp_t>& splines,const GLCache& gl,size_t lmax);
+                lmax decides the k range in Rk
+                Stores all the factored integrals  <abcd>=<ab><cd> when ab and cd supports have no overlap.
+                Stores Two versions <ab*r^(k+2)> and <ab*r^(1-k)>
+                Not a profiling hot spot
+                Uses the 1D aspects of GLCache
+
+
+            RkEngine(const std::vector<sp_t>& splines, size_t ia, size_t ib, size_t ic, size_t id, size_t LMax, const GLCache& gl, const RkCache<K>&);
+                Implementation of the Rk interface
+                Constructor calculates Rk from k=0 to 2*LMax+1
+                When ab and cd supports overlap it must do a full 2D integral.  But again there will be combinations in the GL grid
+                    the factor.  THis can be seen here
+                    for (size_t iab=sab.getStartIndex();iab<sab.getEndIndex()-1;iab++)
+                    {
+                        ....
+                        RkOff+=Iab_m*Icd_p + Iab_p*Icd_m;
+                        RkDiag+=Idiag;
+                    }
+                    Rabcd_k[k]=RkDiag + RkOff;
+                    where Iab and Icd are 1D off diagonal contributions
+            Plan:
+                GLCache  Split into 1D and 2D versions.
+                    GLCache1D has std::vector<GLQuadrature> itsGLs;
+                    GLCache2D has std::vector<std::vector<GLQuadrature>> itsGLs;
+                Replace GLCache2D::find(double rmin, double rmax) with
+                    operator[](size_t imin, double imax)
+                Store GLCache1D and GLCache2D in the BSpline_Cache4
+                BSpline_Cache4 has a master grid that is the union of all IBS grids.
+                Each IBS has its own (properly registered) grid, and needs to know its starting indexe into the
+                    master grid.
+                If Lmax increases Rks need to be replaced.
+                If the master grid grows 
+                    old Rks should still be valid.
+                    IBS grid starting indices all need to change!
+    
 
         -Refactor BSpline and BSpine_r to minimize duplicated code.  Isolate weight functions wp, wm.
             [k] capture makes this very difficult.

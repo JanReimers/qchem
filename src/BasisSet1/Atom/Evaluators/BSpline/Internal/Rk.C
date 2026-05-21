@@ -18,7 +18,7 @@ template <size_t K> class RkCache
     typedef bspline::Spline<double,K> sp_t;
     typedef std::vector<double> dv_t;
 public:
-    RkCache(const std::vector<sp_t>& splines,const GLCache& gl,size_t lmax);
+    RkCache(const std::vector<sp_t>& splines,const GLCache1D& gl1,size_t lmax);
     const dv_t& find_plus (size_t ia,size_t ib) const {return find(ia,ib,itsMomentsPlus);}
     const dv_t& find_minus(size_t ia,size_t ib) const {return find(ia,ib,itsMomentsMinus);}
 private:
@@ -55,7 +55,8 @@ template <size_t K> class RkEngine  : public virtual Rk
 {
     typedef bspline::Spline<double,K> sp_t;
 public:
-    RkEngine(const std::vector<sp_t>& splines, size_t ia, size_t ib, size_t ic, size_t id, size_t LMax, const GLCache& gl, const RkCache<K>&);
+    RkEngine(const std::vector<sp_t>& splines, size_t ia, size_t ib, size_t ic, size_t id, size_t LMax
+        , const GLCache&,const GLCache1D&,const GLCache2D&, const RkCache<K>&);
     double   Coulomb_R0() const; //R_0(la,la,lc,lc);
     virtual double Coulomb_R0(size_t la,size_t lc) const {return Coulomb_R0();}
     virtual double Coulomb_Rk(size_t la,size_t lc,const rvec11_t& Ak) const; //sum{k,A_k*R_k(la,la,lc,lc)};
