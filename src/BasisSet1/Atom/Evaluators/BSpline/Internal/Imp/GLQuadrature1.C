@@ -11,6 +11,18 @@ module qchem.BasisSet.Atom.Evaluators.BSpline.Internal.GLQuadrature;
 using std::cout;
 using std::endl;
 
+// see gauleg.f 
+extern "C"
+{
+    void gauleg_(const double* rmin, const double* rmax, double* x, double* w, const int* n);
+}
+
+GLQuadrature::GLQuadrature(const double& rmin, const double& rmax,int N) 
+: its_xmin(rmin), its_xmax(rmax), xs(N), ws(N) 
+{
+    gauleg_(&rmin,&rmax,&xs[0],&ws[0],&N); //Numerical recipes.
+    // cout << "GLQuadrature xmin,xmax,N = " << its_xmin << " " << its_xmax << " " << N << endl;
+}
 
 GLCache1D::GLCache1D(const bspline::support::Grid<double>& g,size_t Order)
 : grid(g)

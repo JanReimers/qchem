@@ -187,7 +187,7 @@ template <size_t K> RkEngine<K>::RkEngine(const std::vector<sp_t>& splines, size
     }
  }
 
-template <size_t K> RkEngine_r<K>::RkEngine_r(const std::vector<sp_t>& splines, size_t ia, size_t ib, size_t ic, size_t id, size_t _LMax, const GLCache& gl, const RkCache_r<K>& rkcache)
+template <size_t K> RkEngine_r<K>::RkEngine_r(const std::vector<sp_t>& splines, size_t ia, size_t ib, size_t ic, size_t id, size_t _LMax, const GLCache1D& gl1, const GLCache2D& gl2, const RkCache_r<K>& rkcache)
 : RkEngine<K>(_LMax)
 {
     sp_t a=splines[ia];
@@ -243,21 +243,21 @@ template <size_t K> RkEngine_r<K>::RkEngine_r(const std::vector<sp_t>& splines, 
             for (size_t iab=sab.getStartIndex();iab<sab.getEndIndex()-1;iab++)
             {
                 double rab=grid[iab],rab1=grid[iab+1];
-                double Iab_p=gl.IntegrateIndex(wp,a,b,iab);
-                double Iab_m=gl.IntegrateIndex(wm,a,b,iab);
-                double Icd_p=gl.IntegrateIndex(wp,c,d,scd.getStartIndex(),iab);
-                double Icd_m=gl.IntegrateIndex(wm,c,d,iab+1,scd.getEndIndex()-1);
-                std::function< double (double)> Yk1_diag = [&gl,&wp,&c,&d,rab](double r1)
+                double Iab_p=gl1.IntegrateIndex(wp,a,b,iab);
+                double Iab_m=gl1.IntegrateIndex(wm,a,b,iab);
+                double Icd_p=gl1.IntegrateIndex(wp,c,d,scd.getStartIndex(),iab);
+                double Icd_m=gl1.IntegrateIndex(wm,c,d,iab+1,scd.getEndIndex()-1);
+                std::function< double (double)> Yk1_diag = [&gl2,&wp,&c,&d,rab](double r1)
                 {
                     assert(rab<=r1);
-                    const GLQuadrature& gl1=gl.find(rab,r1);
+                    const GLQuadrature& gl1=gl2.find(rab,r1);
                     std::function< double (double)> f=[&wp,&c,&d](double r) {return wp(r)*c(r)*d(r);};
                     return gl1.Integrate(f);
                 };
-                std::function< double (double)> Yk2_diag = [&gl,&wm,&c,&d,rab1](double r1)
+                std::function< double (double)> Yk2_diag = [&gl2,&wm,&c,&d,rab1](double r1)
                 {
                     assert(r1<=rab1);
-                    const GLQuadrature& gl1=gl.find(r1,rab1);
+                    const GLQuadrature& gl1=gl2.find(r1,rab1);
                     std::function< double (double)> f=[&wm,&c,&d](double r) {return wm(r)*c(r)*d(r);};
                     return gl1.Integrate(f);
                 };
@@ -267,7 +267,7 @@ template <size_t K> RkEngine_r<K>::RkEngine_r(const std::vector<sp_t>& splines, 
                     assert(r1>=0);
                     return intpow(r1,-1-k)*Yk1_diag(r1)+intpow(r1,k)*Yk2_diag(r1);
                 };
-                double Idiag=gl.IntegrateIndex(wab_diag,a,b,iab);
+                double Idiag=gl1.IntegrateIndex(wab_diag,a,b,iab);
                 // # pragma omp critical
                 RkOff+=Iab_m*Icd_p + Iab_p*Icd_m;
                 RkDiag+=Idiag;

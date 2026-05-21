@@ -186,8 +186,8 @@ TEST_F(BSplineTests, SplineMap)
 TEST_F(BSplineTests,GLQIntegration)
 {
     Init(100,.0001,40);
-    GLCache cache0(splines[0].getSupport().getGrid(),K+1); //K+1 is the minimum that works for w=x^0
-    GLCache cache2(splines[0].getSupport().getGrid(),K+2); //K+2 is the minimum that works for w=x^2
+    GLCache1D cache0(splines[0].getSupport().getGrid(),K+1); //K+1 is the minimum that works for w=x^0
+    GLCache1D cache2(splines[0].getSupport().getGrid(),K+2); //K+2 is the minimum that works for w=x^2
     std::function< double (double)> w0 = [](double x){return 1.0;};
     std::function< double (double)> w2 = [](double x){return x*x;};
     
@@ -266,7 +266,7 @@ TEST_F(BSplineTests, Overlap)
         const BSpline::BSpline_IBS_Evaluator<K>* eval=dynamic_cast<const BSpline::BSpline_IBS_Evaluator<K>*>(ibs);
         auto ns=eval->Norm();
         auto grid=GetSpline(eval,0).getSupport().getGrid();
-        GLCache cache2(grid,K+3);
+        GLCache1D cache2(grid,K+3);
         std::function< double (double)> w2 = [](double x){return x*x;};
         for (auto ia:iv_t(0,S.rows()))
             for (auto ib:iv_t(ia,S.rows())) 

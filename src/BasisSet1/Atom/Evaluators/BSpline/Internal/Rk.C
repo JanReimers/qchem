@@ -75,7 +75,7 @@ template <size_t K> class RkEngine_r  : public virtual Rk, private RkEngine<K>
     using RkEngine<K>::LMax;
     using RkEngine<K>::Rabcd_k;
 public:
-    RkEngine_r(const std::vector<sp_t>& splines, size_t ia, size_t ib, size_t ic, size_t id, size_t LMax, const GLCache& gl, const RkCache_r<K>&);
+    RkEngine_r(const std::vector<sp_t>& splines, size_t ia, size_t ib, size_t ic, size_t id, size_t LMax, const GLCache1D&, const GLCache2D&, const RkCache_r<K>&);
 };
 
 
