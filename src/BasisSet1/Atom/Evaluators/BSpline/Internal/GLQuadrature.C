@@ -24,6 +24,13 @@ public:
             ret+=ws[i]*f(xs[i]);
         return ret;
     }
+    double Integrate(const std::function< double (double, size_t)>& f) const
+    {
+        double ret=0.0;
+        for (size_t i=0;i<xs.size();i++)
+            ret+=ws[i]*f(xs[i],i);
+        return ret;
+    }
     double Integrate(const std::function< double (double)>& f, double xmin, double xmax) const
     {
         assert(xmax>=its_xmin); //Make sure caller did thier homework and checked the ranges.
@@ -68,6 +75,12 @@ public:
     template <size_t K> double IntegrateIndex(const std::function< double (double)>& w,const bspline::Spline<double,K>& a, const bspline::Spline<double,K>& b, size_t i0) const
     {
         std::function< double (double)> fwab = [w,a,b](double x){return w(x)*a(x)*b(x);};
+        assert(i0<itsGLs.size());
+        return itsGLs[i0].Integrate(fwab);
+    }
+    template <size_t K> double IntegrateIndex(const std::function< double (double,size_t)>& w,const bspline::Spline<double,K>& a, const bspline::Spline<double,K>& b, size_t i0) const
+    {
+        std::function< double (double, size_t)> fwab = [w,a,b](double x, size_t ix){return w(x,ix)*a(x)*b(x);};
         assert(i0<itsGLs.size());
         return itsGLs[i0].Integrate(fwab);
     }
@@ -130,7 +143,19 @@ public:
     const GLQuadrature& find(double rmin, double rmax) const;
     const GLQuadrature& find_grid_gl(size_t igrid,size_t igl) const
     {
+        assert(igrid>=0);
+        assert(igl>=0);
+        assert(igrid<itsDiagGLs_grid_gl.rows());
+        assert(igl<itsDiagGLs_grid_gl.columns());
         return itsDiagGLs_grid_gl(igrid,igl);
+    }
+    const GLQuadrature& find_gl_grid(size_t igl,size_t igrid) const
+    {
+        assert(igrid>=0);
+        assert(igl>=0);
+        assert(igl<itsDiagGLs_gl_grid.rows());
+        assert(igrid<itsDiagGLs_gl_grid.columns());
+        return itsDiagGLs_gl_grid(igl,igrid);
     }
 private:
     GLCache2D(const GLCache2D&)=delete;

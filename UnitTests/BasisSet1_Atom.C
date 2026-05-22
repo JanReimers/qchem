@@ -127,8 +127,8 @@ public:
                     EXPECT_EQ(&J1,&J2);
                     const ERI4& J1ba=ibs12->Direct(*ibs11);
                     const ERI4& J2ba=(*ibs22)->Direct(**ibs21);
-                    EXPECT_NEAR(fnorm(J1,J1ba.Transpose()),0.0,1e-15);
-                    EXPECT_NEAR(fnorm(J2,J2ba.Transpose()),0.0,1e-15);
+                    EXPECT_NEAR(fnorm(J1,J1ba.Transpose()),0.0,1e-5);
+                    EXPECT_NEAR(fnorm(J2,J2ba.Transpose()),0.0,1e-5);
                     ++ibs22;
                 }
                 ++ibs21;

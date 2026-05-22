@@ -130,6 +130,17 @@ template <size_t K> RkEngine<K>::RkEngine(const std::vector<sp_t>& splines, size
             assert(r2>=0);
             return intpow(r2,1-k);
         };
+        // std::function< double (size_t)> wp_index = [k,grid](double i2)
+        // {
+        //     double r2=grid[i2];
+        //     return intpow(r2,k+2);
+        // };
+        // std::function< double (size_t)> wm_index = [k,grid](double i2)
+        // {
+        //     double r2=grid[i2];
+        //     assert(r2>=0);
+        //     return intpow(r2,1-k);
+        // };
         
         if (Sabcd.containsIntervals())
         {
@@ -164,7 +175,33 @@ template <size_t K> RkEngine<K>::RkEngine(const std::vector<sp_t>& splines, size
                     assert(r1>=0);
                     return intpow(r1,1-k)*Yk1_diag(r1)+intpow(r1,k+2)*Yk2_diag(r1);
                 };
+
+
+                std::function< double (double,size_t)> Yk1_diag_index = [&gl2,&wp,&c,&d,rab,iab](double r1, size_t i1)
+                {
+                    assert(rab<=r1);
+                    // assert(iab<=i1);
+                    const GLQuadrature& gl1=gl2.find_grid_gl(iab,i1);
+                    std::function< double (double)> f=[&wp,&c,&d](double r) {return wp(r)*c(r)*d(r);};
+                    return gl1.Integrate(f);
+                };
+                std::function< double (double,size_t)> Yk2_diag_index = [&gl2,&wm,&c,&d,rab1,iab](double r1, size_t i1)
+                {
+                    assert(r1<=rab1);
+                    // assert(i1<=iab+1);
+                    const GLQuadrature& gl1=gl2.find_gl_grid(i1,iab+1);
+                    std::function< double (double)> f=[&wm,&c,&d](double r) {return wm(r)*c(r)*d(r);};
+                    return gl1.Integrate(f);
+                };
+                std::function< double (double,size_t)> wab_diag_index = [k,&grid,&Yk1_diag_index,&Yk2_diag_index] (double r1, size_t i1)
+                {
+                    assert(r1>=0);
+                    return intpow(r1,1-k)*Yk1_diag_index(r1,i1)+intpow(r1,k+2)*Yk2_diag_index(r1,i1);
+                };
                 double Idiag=gl1.IntegrateIndex(wab_diag,a,b,iab);
+                // double Idiag_index=gl1.IntegrateIndex(wab_diag_index,a,b,iab);
+                // assert(Idiag==Idiag_index);
+                // cout << "Idiag Idiag_index =" << Idiag << " " << Idiag_index << endl;
                 // # pragma omp critical
                 RkOff+=Iab_m*Icd_p + Iab_p*Icd_m;
                 RkDiag+=Idiag;
