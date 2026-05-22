@@ -140,7 +140,6 @@ export class GLCache2D
 {
 public:
     GLCache2D(const GLCache1D& gl1,size_t Order);
-    const GLQuadrature& find(double rmin, double rmax) const;
     const GLQuadrature& find_grid_gl(size_t igrid,size_t igl) const
     {
         assert(igrid>=0);
@@ -160,7 +159,6 @@ public:
 private:
     GLCache2D(const GLCache2D&)=delete;
     const bspline::support::Grid<double> grid;
-    std::map<double,std::map<double,GLQuadrature>> itsDiagGLs;
     mat_t<GLQuadrature> itsDiagGLs_grid_gl; //Ngrid x Order
     mat_t<GLQuadrature> itsDiagGLs_gl_grid; //Order x Ngrid
 };

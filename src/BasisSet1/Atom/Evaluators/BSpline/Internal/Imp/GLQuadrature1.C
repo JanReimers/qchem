@@ -40,8 +40,6 @@ GLCache2D::GLCache2D(const GLCache1D& gl1,size_t Order)
         size_t j=0;
         for (double r:gl1.itsGLs[i-1].xs)
         {
-            itsDiagGLs[rmin][r]=GLQuadrature(rmin,r,Order);
-            itsDiagGLs[r][rmax]=GLQuadrature(r,rmax,Order);
             itsDiagGLs_grid_gl(i-1,j)=GLQuadrature(rmin,r,Order);
             itsDiagGLs_gl_grid(j  ,i)=GLQuadrature(r,rmax,Order);
             j++;
@@ -49,15 +47,7 @@ GLCache2D::GLCache2D(const GLCache1D& gl1,size_t Order)
     }   
 }
 
-const GLQuadrature& GLCache2D::find(double rmin, double rmax) const
-{
-    assert(rmin<rmax);
-    auto i1=itsDiagGLs.find(rmin);
-    assert(i1!=itsDiagGLs.end());
-    auto i2=i1->second.find(rmax);
-    assert(i2!=i1->second.end());
-    return i2->second;
-}
+
 
 double GLCache1D::Integrate(const std::function< double (double)>& f, const sup_t& a, const sup_t& b) const
 {

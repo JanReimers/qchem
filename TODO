@@ -70,7 +70,7 @@ Priority 1:
     -Upgrade BSpline_r evaluator
     -Make SL/SG versions of 1/r evaluators.
     -Check BSpline_IBS_Evaluator copy constructor, seems to increase size.
-    -BSpline::RkCache should not care about l just lmax.
+    OK: -BSpline::RkCache should not care about l just lmax.
     -Even tempered BSplines should be charcterized by RadialType=BS<6> Beta=2.0  
         -If a new spline with the same Beta but a wider range comes in, we have three cases.
             Case 1) new grid range includes the old range new={.5,1,2,4}, previous={.5,1,2}
@@ -110,9 +110,9 @@ Priority 1:
                 Done: GLCache  Split into 1D and 2D versions.
                     GLCache1D has std::vector<GLQuadrature> itsGLs;
                     GLCache2D has std::vector<std::vector<GLQuadrature>> itsGLs;
-                Replace GLCache2D::find(double rmin, double rmax) with
+                Done: Replace GLCache2D::find(double rmin, double rmax) with
                     operator[](size_t imin, double imax)
-                Store GLCache1D and GLCache2D in the BSpline_Cache4
+                Done: Store GLCache1D and GLCache2D in the BSpline_Cache4
                 BSpline_Cache4 has a master grid that is the union of all IBS grids.
                 Each IBS has its own (properly registered) grid, and needs to know its starting indexe into the
                     master grid.
@@ -124,6 +124,7 @@ Priority 1:
 
         -Refactor BSpline and BSpine_r to minimize duplicated code.  Isolate weight functions wp, wm.
             [k] capture makes this very difficult.
+            We would need to feed k through all the function calls.  Worth a try to avoid dual maintenance.
 
     -Can we move GetIrreps down to the ElectronConfiguration level.
     -We need a separate Arom_EC for Dirac atoms kappa,mj QNs.
