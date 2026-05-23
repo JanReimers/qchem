@@ -39,8 +39,9 @@ target_include_directories(UTMain PRIVATE
 )
 target_link_libraries(UTMain PUBLIC qchem qcCommon)
 
-
-add_executable(UTMain1 gtestmain.C A_Cache4.C)
+# -isystem /usr/include/c++/v1
+# --gcc-toolchain=/opt/gcc-15
+add_executable(UTMain1 gtestmain.C A_Pool.C)
 target_compile_options(UTMain1 PRIVATE -Wall 
     $<$<CONFIG:Debug>:-g -O0>
     $<$<CONFIG:Release>: -O2 -pg>
@@ -51,7 +52,7 @@ target_compile_definitions(UTMain1 PRIVATE
 )
 set_property(TARGET UTMain1 PROPERTY CXX_STANDARD 20)
 
-target_link_options(UTMain1 PRIVATE -pg)
+target_link_options(UTMain1 PRIVATE -pg )
 target_include_directories(UTMain1 PRIVATE 
     ${PROJECT_SOURCE_DIR}/submodules/BSplinebasis/include
     ${PROJECT_SOURCE_DIR}/submodules/json/single_include

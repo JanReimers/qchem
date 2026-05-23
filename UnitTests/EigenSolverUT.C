@@ -38,7 +38,7 @@ public:
         
     }
     
-    void Set(int N, int Z)
+    double Set(int N, int Z)
     {
         if (bs) delete bs;
         nlohmann::json js = {
@@ -46,6 +46,7 @@ public:
         {"N", N}, {"emin", 0.1}, {"emax", 10.0},
         };
         bs=BasisSet::Atom::Factory(js,Z);
+        return pow(10/.1,1./N);
     }    
     Real_BS* bs;
  };
@@ -143,7 +144,8 @@ TEST_F(OrthogonalizeTests, BlazeHydrogen)
     typedef std::shared_ptr<const Cluster> cl_t;
     Cluster* cla=new Atom(1,0);
         Hamiltonian* Ham=qchem::Hamiltonian::Factory(Model::E1,Pol::Polarized,cl_t(cla));
-    Set(21,1);
+    double beta=Set(21,1);
+    cout << "Beta=" << beta << endl;
     for (auto ibs:bs->Iterate<Real_OIBS>())
     {
         for (auto ortho:orthos)
@@ -151,6 +153,7 @@ TEST_F(OrthogonalizeTests, BlazeHydrogen)
             LASolver<double>* las=LASolver<double>::Factory(ortho,trunc_tol/10);
             las->SetBasisOverlap(ibs->Overlap());
             auto [U,e]=las->Solve(Ham->GetMatrix(ibs,Spin::Down,0));
+            cout << "s=" << las->Get_BS_Diagonal() << endl;
             cout << OrthStrs[ortho] << " " << ibs->GetSymmetry() << " " << e[0]+0.5 << " " << e[1]+0.125 << endl;
             EXPECT_NEAR(e[0],-0.5  ,4e-14);
             EXPECT_NEAR(e[1],-0.125,8e-13);
