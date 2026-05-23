@@ -43,7 +43,10 @@ rvec_t SlaterExponents(BasisSetAccuracy acc,size_t Z)
     //    Using Cholsky decomposition of S, we need beta >=1.23 for Slater functions (tol=0.00043)..
     // tol, emin and emax needs to be empircally adjusted to get good HF ground state energies for *all* atoms!
     // 
-    double emin=0.25, beta=1.23, emax=500.; //Assume Z=100 for emax this gets a good cusp for 1s Z=100 orbital.
+    // Good for He emin=0.1, beta=1.30, emax=500. NZ=floor(N-14+Z*14/100.);
+    // Good for Rn emin=0.1, beta=1.40, emax=1500. NZ=floor(N-14+Z*14/100.);
+    // with these setting Ca Z=20 does not work well at all though!
+    double emin=0.1, beta=1.44, emax=1500.; //Assume Z=100 for emax this gets a good cusp for 1s Z=100 orbital.
     size_t N=floor(log(emax/emin)/log(beta));
     rvec_t exponents(N);
     double e=emin;
@@ -53,8 +56,9 @@ rvec_t SlaterExponents(BasisSetAccuracy acc,size_t Z)
         e*=beta;
     }
     //  prune for Z
-    size_t NZ=floor(N-25+Z/4.);
-    // std::cout << "Z,N,NZ=" << Z << " " << N << " " << NZ << std::endl;
+    
+    size_t NZ=floor(N-14*(1.-sqrt(Z/100.)));
+    std::cout << "Z,N,NZ=" << Z << " " << N << " " << NZ << std::endl;
     exponents=blaze::subvector(exponents,0,NZ);  //Trim off all the large exponents for smaller Z
     if (acc==BasisSetAccuracy::High)
     {
@@ -85,14 +89,14 @@ BasisSet::Real_BS* Factory(BasisSetAccuracy acc, BasisSet::Atom::Type type,size_
             switch (acc)
             {
                 case N3:
-                    js={{"type",type},{"exponents",{0.5,1,2.0}}};break;
+                    js={{"type",type},{"ltrim",0},{"exponents",{0.5,1,2.0}}};break;
                 case N5:
-                    js={{"type",type},{"exponents",{0.25,0.5,1,2.0,4.0}}};break;
+                    js={{"type",type},{"ltrim",0},{"exponents",{0.25,0.5,1,2.0,4.0}}};break;
                 case Low:
                 case Medium:
                 case High:
                 case Extreme:
-                    js={{"type",type},{"exponents",SlaterExponents(acc,Z)}};break;
+                    js={{"type",type},{"ltrim",1},{"exponents",SlaterExponents(acc,Z)}};break;
             }
             break;
         }

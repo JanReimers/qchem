@@ -41,7 +41,7 @@ target_link_libraries(UTMain PUBLIC qchem qcCommon)
 
 # -isystem /usr/include/c++/v1
 # --gcc-toolchain=/opt/gcc-15
-add_executable(UTMain1 gtestmain.C A_Pool.C)
+add_executable(UTMain1 gtestmain.C QchemTester.C A_Pool.C)
 target_compile_options(UTMain1 PRIVATE -Wall 
     $<$<CONFIG:Debug>:-g -O0>
     $<$<CONFIG:Release>: -O2 -pg>
