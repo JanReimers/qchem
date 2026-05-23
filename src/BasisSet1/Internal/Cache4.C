@@ -1,6 +1,7 @@
 // File: Cache4.C Cache object based on four unsigned integer indices.
 module;
 #include <map>
+#include <memory>
 #include <string>
 export module qchem.BasisSet.Internal.Cache4;
 
@@ -54,7 +55,7 @@ public:
 private:
     virtual const Cacheable* Create(size_t i1,size_t i2,size_t i3,size_t i4) const=0;
 
-    typedef std::map<size_t,const Cacheable*> cache_4; 
+    typedef std::map<size_t,std::unique_ptr<const Cacheable>> cache_4; 
     typedef std::map<size_t,cache_4> cache_3; 
     typedef std::map<size_t,cache_3> cache_2; 
     typedef std::map<size_t,cache_2> cache_t; 

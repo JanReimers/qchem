@@ -1,7 +1,9 @@
 // File: Cache4Imp.C Cache object based on four unsigned integer indices.
 module;
 #include <map>
+#include <memory>
 #include <iostream>
+#include <cassert>
 module qchem.BasisSet.Internal.Cache4;
 
 
@@ -9,10 +11,10 @@ module qchem.BasisSet.Internal.Cache4;
 
 Cache4::~Cache4()
 {
-     for (auto a:cache) 
-        for (auto b:a.second) 
-            for (auto c:b.second) 
-                for (auto d:c.second) delete d.second;
+    //  for (auto a:cache) 
+    //     for (auto b:a.second) 
+    //         for (auto c:b.second) 
+    //             for (auto d:c.second) delete d.second;
 }
 
 //  All unsupport Rks will be removed.  These will then automatically be recreated next time
@@ -61,8 +63,12 @@ const Cacheable* Cache4::loop_4(size_t _i4)  const
 {
     i4=_i4;
     cache_4& c=*i3_cache; //De-reference for readability.
-    if (auto i=c.find(i4);i==c.end())
-        return c[i4]=Create(i1,i2,i3,i4);
-    else
-        return i->second;    
+    auto i=c.find(i4);
+    if (i==c.end())
+    {
+        const auto [iterator,success]=c.insert({i4,std::unique_ptr<const Cacheable>(Create(i1,i2,i3,i4))});
+        assert(success);
+        i=iterator;
+    }
+    return i->second.get();    
 }
