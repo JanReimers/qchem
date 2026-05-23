@@ -45,9 +45,9 @@ public:
         {
             theGlobalCache->Register(this); //Can this move to the evaluator level?
         };
-        EOrbital_HF_IBS(const rvec_t& es, const Irrep_QNs::sym_t& yl)
+        EOrbital_HF_IBS(const rvec_t& es, const Irrep_QNs::sym_t& yl, size_t ltrim=0)
         : IrrepBasisSetImp<Evaluator>(yl)
-        , Evaluator(es,yl)
+        , Evaluator(es,yl,ltrim)
         {
             theGlobalCache->Register(this);
         };
@@ -70,10 +70,10 @@ public:
             Insert(new EOrbital_HF_IBS(N,remin,remax,ir));  
      
     }
-    BasisSet_HF(const rvec_t& es, const Atom_EC& ec)
+    BasisSet_HF(const rvec_t& es, const Atom_EC& ec, size_t ltrim=0)
     {
         for (auto ir:ec.GetIrreps())
-            Insert(new EOrbital_HF_IBS(es,ir));  
+            Insert(new EOrbital_HF_IBS(es,ir,ltrim));  
      
     }
 };
