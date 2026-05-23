@@ -8,13 +8,13 @@
 import qchem.BasisSet.Atom.Factory;
 
 // _GLIBCXX_RANGES
-// Extreme: As big and dense as you can get without becoming numercially unstable.
+// High: As big and dense as you can get without becoming numercially unstable.
 // High:    Extrame with 1/4 of the largest exponents removed.  Giving up core cusp but not exponent density
-// Medium   Extreme with every other expoenent removed.  Giving up density but not core cusp.
-// Low      Extremen with 1/4 of the largest exponents removed *and* every other expoenent removed.
+// Low   High with every other expoenent removed.  Giving up density but not core cusp.
+// Low      Highn with 1/4 of the largest exponents removed *and* every other expoenent removed.
 //
-enum class BasisSetAccuracy {N3,N5,Low,Medium,High,Extreme};
-std::string BasisSetAccuracyStrs[]={"N3     ","N5     ","Low    ", "Medium ","High   ","Extreme"};
+enum class BasisSetAccuracy {N3,N5,Low,Medium,High};
+std::string BasisSetAccuracyStrs[]={"N3     ","N5     ","Low    ", "Medium ","High   "};
 
 rvec_t stride(const rvec_t& v, size_t s)
 {
@@ -58,21 +58,16 @@ rvec_t SlaterExponents(BasisSetAccuracy acc,size_t Z)
     //  prune for Z
     
     size_t NZ=floor(N-14*(1.-sqrt(Z/100.)));
-    std::cout << "Z,N,NZ=" << Z << " " << N << " " << NZ << std::endl;
+    // std::cout << "Z,N,NZ=" << Z << " " << N << " " << NZ << std::endl;
     exponents=blaze::subvector(exponents,0,NZ);  //Trim off all the large exponents for smaller Z
-    if (acc==BasisSetAccuracy::High)
+    if (acc==BasisSetAccuracy::Medium)
     {
         size_t N1= NZ/6.;
         exponents=blaze::subvector(exponents,N1,NZ-N1-1); //Take awau N1 small exponents, and one large exponent.
     }
-    else if(acc==BasisSetAccuracy::Medium)
-    {
-        exponents=stride(exponents,2); //pick every other 
-    }
     else if(acc==BasisSetAccuracy::Low)
     {
-        size_t N1= NZ>=16 ? NZ-8 : NZ/2;
-        exponents=blaze::subvector(exponents,0,N1); //Trim 8 biggest exponents and then pick every other 
+        exponents=stride(exponents,2); //pick every other 
     }
     return exponents;
 }
@@ -95,7 +90,6 @@ BasisSet::Real_BS* Factory(BasisSetAccuracy acc, BasisSet::Atom::Type type,size_
                 case Low:
                 case Medium:
                 case High:
-                case Extreme:
                     js={{"type",type},{"ltrim",1},{"exponents",SlaterExponents(acc,Z)}};break;
             }
             break;

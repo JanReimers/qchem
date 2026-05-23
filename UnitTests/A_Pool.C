@@ -26,7 +26,7 @@ TEST_F(BasisSetPoolTests,SlaterDisplay)
     for (size_t Z:{1,2,10,20,40,80,100})
     {
         cout << "---------------- Z=" << Z << " ---------------"<< endl;
-        for (auto acc:{Low,Medium,High,Extreme})
+        for (auto acc:{Low,Medium,High})
         {
             rvec_t es=SlaterExponents(acc,Z);
             cout << BasisSetAccuracyStrs[static_cast<size_t>(acc)] << " " 
@@ -46,7 +46,7 @@ TEST_F(BasisSetPoolTests,SlaterOrthonoality)
     for (size_t Z:{1,10,20,40,80,100})
     {
         cout << "---------------- Z=" << Z << " ---------------"<< endl;
-        for (auto acc:{Low,Medium,High,Extreme})
+        for (auto acc:{Low,Medium,High})
         {
             
             BasisSet::Real_BS* bs=Factory(acc,Slater,Z);
@@ -79,12 +79,12 @@ public:
     }
 };
 
-TEST_P(A_HF_U,Slater_HFGroundStates_Extreme)
+TEST_P(A_HF_U,Slater_HFGroundStates_High)
 {
     size_t Z=GetParam();
     cout << "---------------- Z=" << Z << " ---------------"<< endl;
         
-    BasisSet::Real_BS* bs=Factory(Extreme,BasisSet::Atom::Type::Slater,Z); 
+    BasisSet::Real_BS* bs=Factory(High,BasisSet::Atom::Type::Slater,Z); 
     QchemTester::Init(1e-3,bs);
     //       NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo    MergeTol verbose
     Iterate({   32     ,Z*1e-5    ,1e-7 , 1e-6      ,Z*1e-6 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
@@ -94,15 +94,15 @@ TEST_P(A_HF_U,Slater_HFGroundStates_Extreme)
         
 }
 
-INSTANTIATE_TEST_SUITE_P(SlaterHFGroundStates,A_HF_U,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88));//)); 
+INSTANTIATE_TEST_SUITE_P(Slater_HFGroundStates_High,A_HF_U,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88));//)); 
 
 class A_HF_U1 : public A_HF_U {};
-TEST_P(A_HF_U1,Slater_HFGroundStates_High)
+TEST_P(A_HF_U1,Slater_HFGroundStates_Medium)
 {
     size_t Z=GetParam();
     cout << "---------------- Z=" << Z << " ---------------"<< endl;
         
-    BasisSet::Real_BS* bs=Factory(High,BasisSet::Atom::Type::Slater,Z); 
+    BasisSet::Real_BS* bs=Factory(Medium,BasisSet::Atom::Type::Slater,Z); 
     QchemTester::Init(1e-3,bs);
     //       NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo    MergeTol verbose
     Iterate({   22     ,Z*1e-4    ,1e-5 , 5e-4      ,Z*1e-6 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
@@ -112,15 +112,15 @@ TEST_P(A_HF_U1,Slater_HFGroundStates_High)
         
 }
 
-INSTANTIATE_TEST_SUITE_P(Slater_HFGroundStates_High,A_HF_U1,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88));//)); 
+INSTANTIATE_TEST_SUITE_P(Slater_HFGroundStates_Medium,A_HF_U1,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88));//)); 
 
 class A_HF_U2 : public A_HF_U {};
-TEST_P(A_HF_U2,Slater_HFGroundStates_Medium)
+TEST_P(A_HF_U2,Slater_HFGroundStates_Low)
 {
     size_t Z=GetParam();
     cout << "---------------- Z=" << Z << " ---------------"<< endl;
         
-    BasisSet::Real_BS* bs=Factory(Medium,BasisSet::Atom::Type::Slater,Z); 
+    BasisSet::Real_BS* bs=Factory(Low,BasisSet::Atom::Type::Slater,Z); 
     QchemTester::Init(1e-3,bs);
     //       NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo    MergeTol verbose
     Iterate({   30     ,Z*1e-4    ,1e-4 , 5e-1      ,Z*2e-5 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
@@ -130,7 +130,7 @@ TEST_P(A_HF_U2,Slater_HFGroundStates_Medium)
         
 }
 
-INSTANTIATE_TEST_SUITE_P(Slater_HFGroundStates_Medium,A_HF_U2,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88));//)); 
+INSTANTIATE_TEST_SUITE_P(Slater_HFGroundStates_Low,A_HF_U2,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88));//)); 
 
 
 // INSTANTIATE_TEST_SUITE_P(SlaterHFGroundStates,A_HF_U,::testing::Values(2,70));//)); 
