@@ -91,7 +91,8 @@ bool SCFIterator::Iterate(const SCFParams& ipar)
     }
 
     double ChargeDensityChange=1;
-    double E=0,Eold=0,dE=1e10,Error=1e10;
+    double  E=0, Eold=0, dE=1e10;
+    double FD=0,FDold=1e10,dFD=1e10;
     // double Eoldold=0;
     double relax=ipar.StartingRelaxRo;
     double relMax=1.0;
@@ -108,7 +109,7 @@ bool SCFIterator::Iterate(const SCFParams& ipar)
         delete itsOldCD;
         itsOldCD=itsCD;
         itsCD=itsWaveFunction->GetChargeDensity(); //Get new charge density.
-        ChargeDensityChange = itsCD->GetChangeFrom(*itsOldCD); //Get MaxAbs of change.
+        ChargeDensityChange = itsCD->GetChangeFrom(*itsOldCD)/itsCD->GetTotalCharge(); //Get relative MaxAbs of change.
         if (ChargeDensityChange<1e-5) relMax=0.5;
         itsCD->MixIn(*itsOldCD,1.0-relax);                           //relaxation.
         // cout << "Total charge=" << itsCD->GetTotalCharge() << endl;
@@ -116,9 +117,10 @@ bool SCFIterator::Iterate(const SCFParams& ipar)
         eb=itsHamiltonian->GetTotalEnergy(itsCD);
         E=eb.GetTotalEnergy();
         dE=(E-Eold)/fabs(E);
-        Error=itsAccelerator->GetError(); //i.e. [F,D]
-        if (ipar.Verbose) DisplayEnergies(itsIterationCount,eb,relax,dE,ChargeDensityChange);
-        if (E>Eold && fabs(dE)>1e-9) 
+        FD=itsAccelerator->GetError(); //i.e. [F,D]
+        dFD=(FD-FDold);
+        if (ipar.Verbose) DisplayEnergies(itsIterationCount,eb,relax,dFD,ChargeDensityChange);
+        if (FD>FDold && fabs(dFD)>1e-9) 
         {
             delete itsCD;
             itsCD=itsWaveFunction->GetChargeDensity(); //Get new charge density.
@@ -128,23 +130,26 @@ bool SCFIterator::Iterate(const SCFParams& ipar)
             relax*=0.8;
         }
         // if (E<Eold && Eold>Eoldold) relax*=0.5;
-        if (E<Eold ) relax*=1.5;
+        if (FD<FDold ) relax*=1.5;
         // if (E>Eold && Eold>Eoldold) relax*=1.5;
         if (relax>relMax) relax=relMax;
 
         // Eoldold=Eold;
         Eold=E;
+        FDold=FD;
         // cout << "ChargeDensityChange    < ipar.MinDeltaRo " << (ChargeDensityChange < ipar.MinDeltaRo) << endl;
-        // cout << "fabs(dE)               < ipar.MinDelE    " << (fabs(dE)            < ipar.MinDelE) << endl;
-        // cout << "Error                  < ipar.MinError   " << (Error               < ipar.MinError) << endl;
+        // cout << "fabs(dFD)              < ipar.MinDelE    " << (fabs(dFD)           < ipar.MinDelE) << endl;
+        // cout << "FD                     < ipar.MinError   " << (FD                 < ipar.MinError) << endl;
         // cout << "fabs(eb.GetVirial()+2) < ipar.MinVirial  " << (fabs(eb.GetVirial()+2) < ipar.MinVirial) << endl;
         itsConverged=  ChargeDensityChange < ipar.MinDeltaRo
-                 && fabs(dE)            < ipar.MinDelE
-                 && Error               < ipar.MinError
+                 && fabs(dFD)           < ipar.MinDelE
+                 && FD               < ipar.MinError
                  && fabs(eb.GetVirial()+2) < ipar.MinVirial
                   ;
         // DisplayEigen();
     }
+//             Etotal       2+V/K    Del(E)  Del(Ro) [F,D]   Nproj    SVMin   Bail      relax
+// │ │                      (1e+05)  (1e-02) (2e-05) (2e-06) 
     itsIterationCount--;
     size_t nprec=12,ndigits=log10(-eb.Een)+1,w=1+ndigits+1+nprec;
     nprec-=ndigits;
