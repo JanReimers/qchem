@@ -36,12 +36,17 @@ QchemTester::~QchemTester()
 
 void QchemTester::Init(double eps,const nlohmann::json& js, bool verbose,LAParams lap)
 {
+    Init(eps,GetBasisSet(js),verbose,lap);
+}
+
+void QchemTester::Init(double eps,Real_BS* bs, bool verbose,LAParams lap)
+{
+    itsBasisSet=bs;
     assert(eps>0.0);
     MaxRelErrE=eps;
     
     assert(itsCluster);
     assert(&*itsCluster);
-    itsBasisSet=GetBasisSet(js); //SG, PG, Slater
     assert(itsBasisSet);
     // if (verbose)
     {
@@ -51,6 +56,7 @@ void QchemTester::Init(double eps,const nlohmann::json& js, bool verbose,LAParam
     nlohmann::json jsacc={{"NProj",4},{"EMax",Z*Z*0.1/32},{"EMin",1e-7},{"SVTol",1e-9}};
     SCFAccelerator* acc=qchem::SCFAccelerators::Factory(qchem::SCFAccelerators::Type::DIIS,jsacc);
     // SCFAccelerator* acc=new SCFAcceleratorDIIS({8,Z*Z*0.1/16,1e-7,1e-9});
+    delete itsSCFIterator;
     itsSCFIterator=new SCFIterator(itsBasisSet,GetElectronConfiguration(),GetHamiltonian(itsCluster),acc);
     assert(itsSCFIterator);
 }

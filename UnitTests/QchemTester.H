@@ -28,6 +28,7 @@ public:
     QchemTester();
     virtual ~QchemTester();
     void   Init(double eps, const nlohmann::json&, bool verbose=false, LAParams lap={qchem::Cholsky,1e-12});
+    void   Init(double eps, Real_BS*, bool verbose=false, LAParams lap={qchem::Cholsky,1e-12});
     void   Iterate(const SCFParams&);
     double TotalEnergy() const;
     EnergyBreakdown GetEnergyBreakdown() const;
