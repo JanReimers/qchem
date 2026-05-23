@@ -53,7 +53,7 @@ void QchemTester::Init(double eps,Real_BS* bs, bool verbose,LAParams lap)
         std::cout << " " << *itsBasisSet << std::endl;
     }
     int Z=GetZ();
-    nlohmann::json jsacc={{"NProj",4},{"EMax",Z*Z*0.1/32},{"EMin",1e-7},{"SVTol",1e-9}};
+    nlohmann::json jsacc={{"NProj",4},{"EMax",Z*Z*0.1/32},{"EMin",1e-7},{"SVTol",5e-9}};
     SCFAccelerator* acc=qchem::SCFAccelerators::Factory(qchem::SCFAccelerators::Type::DIIS,jsacc);
     // SCFAccelerator* acc=new SCFAcceleratorDIIS({8,Z*Z*0.1/16,1e-7,1e-9});
     delete itsSCFIterator;

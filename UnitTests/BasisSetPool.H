@@ -62,8 +62,8 @@ rvec_t SlaterExponents(BasisSetAccuracy acc,size_t Z)
     exponents=blaze::subvector(exponents,0,NZ);  //Trim off all the large exponents for smaller Z
     if (acc==BasisSetAccuracy::High)
     {
-        size_t N1= 3*NZ/4;
-        exponents=blaze::subvector(exponents,0,N1); //Trim 8 biggrst exponents.
+        size_t N1= NZ/6.;
+        exponents=blaze::subvector(exponents,N1,NZ-N1-1); //Take awau N1 small exponents, and one large exponent.
     }
     else if(acc==BasisSetAccuracy::Medium)
     {

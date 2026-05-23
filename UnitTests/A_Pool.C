@@ -95,4 +95,42 @@ TEST_P(A_HF_U,Slater_HFGroundStates_Extreme)
 }
 
 INSTANTIATE_TEST_SUITE_P(SlaterHFGroundStates,A_HF_U,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88));//)); 
+
+class A_HF_U1 : public A_HF_U {};
+TEST_P(A_HF_U1,Slater_HFGroundStates_High)
+{
+    size_t Z=GetParam();
+    cout << "---------------- Z=" << Z << " ---------------"<< endl;
+        
+    BasisSet::Real_BS* bs=Factory(High,BasisSet::Atom::Type::Slater,Z); 
+    QchemTester::Init(1e-3,bs);
+    //       NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo    MergeTol verbose
+    Iterate({   22     ,Z*1e-4    ,1e-5 , 5e-4      ,Z*1e-6 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
+    // cout << "RelativeHFError = " << RelativeHFError() << std::endl;
+    EXPECT_LT(RelativeHFError(),20e-6); 
+    EXPECT_TRUE(Converged()); 
+        
+}
+
+INSTANTIATE_TEST_SUITE_P(Slater_HFGroundStates_High,A_HF_U1,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88));//)); 
+
+class A_HF_U2 : public A_HF_U {};
+TEST_P(A_HF_U2,Slater_HFGroundStates_Medium)
+{
+    size_t Z=GetParam();
+    cout << "---------------- Z=" << Z << " ---------------"<< endl;
+        
+    BasisSet::Real_BS* bs=Factory(Medium,BasisSet::Atom::Type::Slater,Z); 
+    QchemTester::Init(1e-3,bs);
+    //       NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo    MergeTol verbose
+    Iterate({   30     ,Z*1e-4    ,1e-4 , 5e-1      ,Z*2e-5 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
+    // cout << "RelativeHFError = " << RelativeHFError() << std::endl;
+    EXPECT_LT(RelativeHFError(),0.01); //1% 
+    EXPECT_TRUE(Converged()); 
+        
+}
+
+INSTANTIATE_TEST_SUITE_P(Slater_HFGroundStates_Medium,A_HF_U2,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88));//)); 
+
+
 // INSTANTIATE_TEST_SUITE_P(SlaterHFGroundStates,A_HF_U,::testing::Values(2,70));//)); 
