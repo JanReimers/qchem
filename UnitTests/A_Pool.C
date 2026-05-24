@@ -86,25 +86,9 @@ public:
     }
 };
 
-TEST_P(A_HF_U,Slater_HFGroundStates_High)
-{
-    size_t Z=GetParam();
-    cout << "---------------- Z=" << Z << " ---------------"<< endl;
-        
-    BasisSet::Real_BS* bs=Factory(High,BasisSet::Atom::Type::Slater,Z); 
-    QchemTester::Init(1e-3,bs);
-    //       NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo    MergeTol verbose
-    Iterate({   32     ,Z*1e-5    ,1e-7 , 1e-6      ,Z*1e-6 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
-    // cout << "RelativeHFError = " << RelativeHFError() << std::endl;
-    EXPECT_LT(RelativeHFError(),1e-6); 
-    EXPECT_TRUE(Converged()); 
-        
-}
 
-INSTANTIATE_TEST_SUITE_P(Slater_HFGroundStates_High,A_HF_U,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88));//)); 
-
-class A_SG_HF_U : public A_HF_U {};
-TEST_P(A_SG_HF_U,Gaussian_HFGroundStates_High)
+class SG_U_High : public A_HF_U {};
+TEST_P(SG_U_High,A)
 {
     size_t Z=GetParam();
     cout << "---------------- Z=" << Z << " ---------------"<< endl;
@@ -118,10 +102,43 @@ TEST_P(A_SG_HF_U,Gaussian_HFGroundStates_High)
     EXPECT_TRUE(Converged()); 
         
 }
-INSTANTIATE_TEST_SUITE_P(Gaussian_HFGroundStates_High,A_SG_HF_U,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88));//)); 
+INSTANTIATE_TEST_SUITE_P(A_HF,SG_U_High,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88));//)); 
+class SG_U_Medium : public A_HF_U {};
+TEST_P(SG_U_Medium,A)
+{
+    size_t Z=GetParam();
+    cout << "---------------- Z=" << Z << " ---------------"<< endl;
+        
+    BasisSet::Real_BS* bs=Factory(Medium,BasisSet::Atom::Type::Gaussian,Z); 
+    QchemTester::Init(1e-3,bs);
+    //       NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo    MergeTol verbose
+    Iterate({   50     ,Z*1e-5    ,1e-7 , 5e-2      ,Z*1e-6 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
+    // cout << "RelativeHFError = " << RelativeHFError() << std::endl;
+    EXPECT_LT(RelativeHFError(),2e-4); 
+    EXPECT_TRUE(Converged()); 
+        
+}
+INSTANTIATE_TEST_SUITE_P(A_HF,SG_U_Medium,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88));//)); 
 
-class A_HF_U1 : public A_HF_U {};
-TEST_P(A_HF_U1,Slater_HFGroundStates_Medium)
+class SL_U_High : public A_HF_U {};
+TEST_P(SL_U_High,A)
+{
+    size_t Z=GetParam();
+    cout << "---------------- Z=" << Z << " ---------------"<< endl;
+        
+    BasisSet::Real_BS* bs=Factory(High,BasisSet::Atom::Type::Slater,Z); 
+    QchemTester::Init(1e-3,bs);
+    //       NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo    MergeTol verbose
+    Iterate({   32     ,Z*1e-5    ,1e-7 , 1e-6      ,Z*1e-6 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
+    // cout << "RelativeHFError = " << RelativeHFError() << std::endl;
+    EXPECT_LT(RelativeHFError(),1e-6); 
+    EXPECT_TRUE(Converged()); 
+        
+}
+INSTANTIATE_TEST_SUITE_P(A_HF,SL_U_High,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88));//)); 
+
+class SL_U_Medium : public A_HF_U {};
+TEST_P(SL_U_Medium,A)
 {
     size_t Z=GetParam();
     cout << "---------------- Z=" << Z << " ---------------"<< endl;
@@ -136,10 +153,10 @@ TEST_P(A_HF_U1,Slater_HFGroundStates_Medium)
         
 }
 
-INSTANTIATE_TEST_SUITE_P(Slater_HFGroundStates_Medium,A_HF_U1,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88));//)); 
+INSTANTIATE_TEST_SUITE_P(A_HF,SL_U_Medium,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88));//)); 
 
-class A_HF_U2 : public A_HF_U {};
-TEST_P(A_HF_U2,Slater_HFGroundStates_Low)
+class SL_U_Low : public A_HF_U {};
+TEST_P(SL_U_Low,A)
 {
     size_t Z=GetParam();
     cout << "---------------- Z=" << Z << " ---------------"<< endl;
@@ -154,7 +171,7 @@ TEST_P(A_HF_U2,Slater_HFGroundStates_Low)
         
 }
 
-INSTANTIATE_TEST_SUITE_P(Slater_HFGroundStates_Low,A_HF_U2,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88));//)); 
+INSTANTIATE_TEST_SUITE_P(A_HF,SL_U_Low,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88));//)); 
 
 
 // INSTANTIATE_TEST_SUITE_P(SlaterHFGroundStates,A_HF_U,::testing::Values(2,70));//)); 

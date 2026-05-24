@@ -100,8 +100,8 @@ rvec_t GaussianExponents(BasisSetAccuracy acc,size_t Z)
     exponents=blaze::subvector(exponents,0,NZ);  //Trim off all the large exponents for smaller Z
     if (acc==BasisSetAccuracy::Medium)
     {
-        size_t N1= NZ/6.;
-        exponents=blaze::subvector(exponents,N1,NZ-N1-1); //Take awau N1 small exponents, and one large exponent.
+        size_t N1=NZ/12.;
+        exponents=blaze::subvector(exponents,N1,NZ-N1-1); //Take away N1 small exponents, and one large exponent.
     }
     else if(acc==BasisSetAccuracy::Low)
     {
