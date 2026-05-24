@@ -3,6 +3,18 @@ Understand type erasure: https://youtu.be/m3UmABVf55g?t=2134
 
 
 Priority 1:
+    -Get DB cache to report some RAM stats in the destructor.
+    -Auto purge big stuff.  How to decide?
+        1) RAM
+        2) # reads
+        3) Time (# of any read) since last read.  
+        Purge metric = RAM*(reads since last read)/reads
+    -Move some of BasisSetPool out od header.  Make a module
+    -Incorporate into QChemTests and make that a module.
+    Done: -Get profiling to work better ... everything should not be spontaneous!
+    -Migrade all A_HF_XX_XXX tests over to BasisSetPool
+
+
     -BUG: A_Pool.C TEST_P(A_HF_U,SlaterHFGroundStates) with Z={2,70}
         Iteration count changes depending on history (with or without doing Z=2 first)
             Z={2,70}
@@ -35,14 +47,14 @@ Priority 1:
             -For comparison SG, SL are both good to 1e-15.
             -BSpline near the origin we get much bigger errors.  
             -Perhaps this related to problems encountered when trying to reproduce Saitos results with rmin=0.0001.
-        We need a general way to adjust basis sets for increasing L
+        Done: We need a general way to adjust basis sets for increasing L
             Fixed: For BSpline the repeated edge knots get removed for increasing L
             Done: For Gaussian and Slater we want less large more small exponents for increasing L
             Yes: Can we do this in the evaluator?
         Maybe: Move BasisSet::IrrepBasisSet into internal ... not useful by itself.
             -It is a common base for Fit_IBS and Orbtial_IBS.  May some client will find a use for it?
         -Define a generic BasisSet::Orbtial_IBS = Orbtial_1E_IBS
-        -Define a restriced set of exponents and spline grids for all unit tests
+        Done: -Define a restriced set of exponents and spline grids for all unit tests
             This should help with more cache hits.
         -Sort out PG cache ... keep one cache in DB_cache.
         -Put evaluators in a namespace
@@ -84,7 +96,7 @@ Priority 1:
     -Make SL/SG versions of 1/r evaluators.
     -Check BSpline_IBS_Evaluator copy constructor, seems to increase size.
     OK: -BSpline::RkCache should not care about l just lmax.
-    -Even tempered BSplines should be charcterized by RadialType=BS<6> Beta=2.0  
+    Very hard. -Even tempered BSplines should be charcterized by RadialType=BS<6> Beta=2.0  
         -If a new spline with the same Beta but a wider range comes in, we have three cases.
             Case 1) new grid range includes the old range new={.5,1,2,4}, previous={.5,1,2}
             Case 2) grid ranges are skewed. {.5,1,2} and {1,2,4}
