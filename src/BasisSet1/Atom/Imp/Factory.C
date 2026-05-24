@@ -52,8 +52,9 @@ Real_BS* Factory(const nlohmann::json& js,const Atom_EC& aec)
         if (js.contains("exponents"))
         {
             auto es1=js["exponents"].template get<std::vector<double>>();
+            size_t ltrim=js["ltrim"].template get<size_t>();
             rvec_t es(es1.size(),&es1[0]);
-            bs=new BasisSet_HF<Gaussian::Gaussian_IBS_Evaluator>(es,aec);
+            bs=new BasisSet_HF<Gaussian::Gaussian_IBS_Evaluator>(es,aec,ltrim);
         }
         else
         {

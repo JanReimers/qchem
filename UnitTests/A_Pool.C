@@ -19,6 +19,31 @@ using BasisSet::Real_OIBS;
 class BasisSetPoolTests : public ::testing::Test
 {
 public:
+    void Orthogonality(BasisSet::Atom::Type type)
+    {
+        const double trunc_tol=0;
+        for (size_t Z:{1,10,20,40,80,100})
+        {
+            cout << "---------------- Z=" << Z << " ---------------"<< endl;
+            for (auto acc:{Low,Medium,High})
+            {
+                
+                BasisSet::Real_BS* bs=Factory(acc,type,Z);
+                for (auto ibs:bs->Iterate<Real_OIBS>())
+                {
+                    // cout << BasisSetAccuracyStrs[static_cast<size_t>(acc)] << " " << *ibs;
+                    LASolver<double>* las=LASolver<double>::Factory(qchem::Cholsky,trunc_tol);
+                    las->SetBasisOverlap(ibs->Overlap());
+                    double smin=blaze::min(las->Get_BS_Diagonal());
+                    cout << BasisSetAccuracyStrs[static_cast<size_t>(acc)] << " " 
+                        << std::setprecision(2) << std::setw(6) << smin << "  " << *ibs;
+                    EXPECT_GE(smin,1e-13);
+                    delete las;
+                }
+                delete bs;
+            }
+        }
+    }
 };
 
 TEST_F(BasisSetPoolTests,SlaterDisplay)
@@ -39,31 +64,13 @@ TEST_F(BasisSetPoolTests,SlaterDisplay)
 // qchem::Ortho orthos[] = {qchem::SVD,qchem::Eigen,qchem::Cholsky};
 // std::string OrthStrs[]={"Cholsky","Eigen  ","SVD    "};
 
-TEST_F(BasisSetPoolTests,SlaterOrthonoality)
+TEST_F(BasisSetPoolTests,SlaterOrthogonality)
 {
-    const double trunc_tol=0;
-    using enum BasisSet::Atom::Type;
-    for (size_t Z:{1,10,20,40,80,100})
-    {
-        cout << "---------------- Z=" << Z << " ---------------"<< endl;
-        for (auto acc:{Low,Medium,High})
-        {
-            
-            BasisSet::Real_BS* bs=Factory(acc,Slater,Z);
-            for (auto ibs:bs->Iterate<Real_OIBS>())
-            {
-                // cout << BasisSetAccuracyStrs[static_cast<size_t>(acc)] << " " << *ibs;
-                LASolver<double>* las=LASolver<double>::Factory(qchem::Cholsky,trunc_tol);
-                las->SetBasisOverlap(ibs->Overlap());
-                double smin=blaze::min(las->Get_BS_Diagonal());
-                cout << BasisSetAccuracyStrs[static_cast<size_t>(acc)] << " " 
-                     << std::setprecision(2) << std::setw(6) << smin << "  " << *ibs;
-                EXPECT_GE(smin,1e-13);
-                delete las;
-            }
-            delete bs;
-        }
-    }
+    Orthogonality(BasisSet::Atom::Type::Slater);
+}
+TEST_F(BasisSetPoolTests,GaussianOrthogonality)
+{
+    Orthogonality(BasisSet::Atom::Type::Gaussian);
 }
 
 
@@ -95,6 +102,23 @@ TEST_P(A_HF_U,Slater_HFGroundStates_High)
 }
 
 INSTANTIATE_TEST_SUITE_P(Slater_HFGroundStates_High,A_HF_U,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88));//)); 
+
+class A_SG_HF_U : public A_HF_U {};
+TEST_P(A_SG_HF_U,Gaussian_HFGroundStates_High)
+{
+    size_t Z=GetParam();
+    cout << "---------------- Z=" << Z << " ---------------"<< endl;
+        
+    BasisSet::Real_BS* bs=Factory(High,BasisSet::Atom::Type::Gaussian,Z); 
+    QchemTester::Init(1e-3,bs);
+    //       NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo    MergeTol verbose
+    Iterate({   50     ,Z*1e-5    ,1e-7 , 1e-5      ,Z*1e-6 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
+    // cout << "RelativeHFError = " << RelativeHFError() << std::endl;
+    EXPECT_LT(RelativeHFError(),2e-6); 
+    EXPECT_TRUE(Converged()); 
+        
+}
+INSTANTIATE_TEST_SUITE_P(Gaussian_HFGroundStates_High,A_SG_HF_U,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88));//)); 
 
 class A_HF_U1 : public A_HF_U {};
 TEST_P(A_HF_U1,Slater_HFGroundStates_Medium)
