@@ -31,6 +31,17 @@ void Cache4::Register(Cache4_Client* client)
                 });
 }
 
+size_t Cache4::RAMsize() const
+{
+    size_t ram=0;
+    for (auto& a:cache) 
+        for (auto& b:a.second) 
+            for (auto& c:b.second) 
+                for (auto& d:c.second)
+                    ram+=d.second->RAMsize();
+    return ram;
+}
+
 void Cache4::loop_1(size_t _i1) const
 {
     i1=_i1;

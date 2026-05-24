@@ -26,6 +26,7 @@ export class Cacheable
 public:
     virtual ~Cacheable() {};
     virtual bool isSupported(const Cache4_Client*) const=0;
+    virtual size_t RAMsize() const=0;
 };
 
 //
@@ -52,6 +53,7 @@ public:
 //         assert(Tc);
 //         return Tc;
 //     } 
+    size_t RAMsize() const;
 private:
     virtual const Cacheable* Create(size_t i1,size_t i2,size_t i3,size_t i4) const=0;
 

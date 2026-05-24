@@ -123,6 +123,10 @@ template <class T> IntegralsCache_RAM<T>::IntegralsCache_RAM(bool makelog)
             itsLogger=std::ofstream("cache.log");
     };
 
+template <class T>  IntegralsCache_RAM<T>::~IntegralsCache_RAM()
+{
+    ReportRAMUsage();
+}
 template <class T> bool IntegralsCache_RAM<T>::Has(Ix1 ix,const IBS_ID_t& id) const
 {
     bool ret=false;

@@ -24,6 +24,7 @@ template  <class T> struct IntegralsCache_RAM
 {
 public:
     IntegralsCache_RAM(bool makelog=false);
+    virtual ~IntegralsCache_RAM(); //Report some RAM usage
     virtual bool Has(Ix1,const IBS_ID_t&) const;
     virtual bool Has(Ix2,const IBS_ID_t&,const IBS_ID_t&) const;
     virtual bool Has(I2n,const IBS_ID_t&,const Cluster_ID_t&) const;
@@ -66,6 +67,8 @@ private:
 
     using map1m_t =std::map<key1m_t  ,rvec_t>;
     using map2xm_t=std::map<key2xm_t ,rmat_t>;
+    void ReportRAMUsage() const;
+    static size_t Report(const map4_t&, const std::string&, bool verbose);
 
     using val_t=std::unique_ptr<Cache4>;
     using cach4_t=std::map<RadialTypeID_t,val_t>;

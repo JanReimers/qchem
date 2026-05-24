@@ -326,6 +326,12 @@ template <size_t K>  bool RkEngine<K>::isSupported(const Cache4_Client* cl) cons
     assert(eval);
     return eval->Getl()<=LMax;
 }
+
+template <size_t K> size_t RkEngine<K>::RAMsize() const
+{
+    return Rabcd_k.size();
+}
+
  
 #define INSTANCEk(k) template class RkCache<k>;
 #include "../Instance.hpp"

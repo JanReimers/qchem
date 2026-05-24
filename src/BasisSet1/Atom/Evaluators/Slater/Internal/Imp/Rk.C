@@ -3,6 +3,8 @@ module;
 #include <cassert>
 #include <cmath>
 #include <vector>
+#include <blaze/Math.h>
+
 module qchem.BasisSet.Atom.Evaluators.Slater.Internal.Rk; 
 import qchem.BasisSet.Atom.Evaluators.IBS;
 import qchem.BasisSet.Atom.Internal.PascalTriangle;
@@ -111,6 +113,11 @@ bool RkEngine::isSupported(const Cache4_Client* cl) const
     auto eval=dynamic_cast<const BasisSet::Atom::Evaluators::IBS_Evaluator*>(cl);
     assert(eval);
     return eval->Getl()<=LMax;
+}
+
+size_t RkEngine::RAMsize() const
+{
+    return blaze::size(Iab)+blaze::size(Icd);
 }
 
 } //namespace

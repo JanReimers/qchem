@@ -13,6 +13,7 @@ target_sources(qcBasisSet1 PRIVATE
   Internal/Imp/ERI4.C
   Internal/Imp/ERI4T.C
   Internal/Imp/DB_Cache_RAM.C
+  Internal/Imp/DB_Cache_RAM_Report.C
 
 )
 target_sources(qcBasisSet1 PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 

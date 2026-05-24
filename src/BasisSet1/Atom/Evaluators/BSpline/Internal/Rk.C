@@ -61,7 +61,9 @@ public:
     virtual double Coulomb_R0(size_t la,size_t lc) const {return Coulomb_R0();}
     virtual double Coulomb_Rk(size_t la,size_t lc,const rvec11_t& Ak) const; //sum{k,A_k*R_k(la,la,lc,lc)};
     virtual double ExchangeRk(size_t la,size_t lb,const rvec11_t& Ak) const; //sum{k,A_k*R_k(la,lb,la,lb)};
-    virtual bool isSupported(const Cache4_Client*) const;
+    
+    virtual bool   isSupported(const Cache4_Client*) const;
+    virtual size_t RAMsize() const;
 protected:
     RkEngine(size_t _LMax) : LMax(_LMax), Rabcd_k(2*LMax+1,0.0) {};
     size_t LMax;
