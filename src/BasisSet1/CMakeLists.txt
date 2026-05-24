@@ -38,7 +38,11 @@ target_include_directories(qcBasisSet1 PRIVATE ${PROJECT_SOURCE_DIR}/src)
 set_property(TARGET qcBasisSet1 PROPERTY CXX_STANDARD 20)
 target_include_directories(qcBasisSet1 PRIVATE ${PROJECT_SOURCE_DIR}/submodules/blaze)
 target_link_libraries(qcBasisSet1 PUBLIC qcLASolver qcSymmetry qcCluster qcMesh qcCommon) 
-target_compile_options(qchem PRIVATE 
+target_compile_definitions(qcBasisSet1 PRIVATE 
+    $<$<CONFIG:Debug>:-DDEBUG>
+    $<$<CONFIG:Release>:-DNDEBUG>
+)
+target_compile_options(qcBasisSet1 PRIVATE 
     $<$<CONFIG:Debug>:-g -O0>
     $<$<CONFIG:Release>: -O2 -pg>
 )

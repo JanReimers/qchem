@@ -5,6 +5,10 @@ target_sources(qcFactory PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
 )
 set_property(TARGET qcFactory PROPERTY CXX_STANDARD 20)
 target_link_libraries(qcFactory PUBLIC qcMolecule_BS1 qcAtom_BS1) 
+target_compile_options(qcFactory PRIVATE 
+    $<$<CONFIG:Debug>:-g -O0>
+    $<$<CONFIG:Release>: -O2 -pg>
+)
 target_compile_definitions(qcFactory PUBLIC ${CXX_COMMON_DEFINES}
     $<$<CONFIG:Debug>:-DDEBUG>
     $<$<CONFIG:Release>:-DNDEBUG>

@@ -21,7 +21,7 @@ target_compile_definitions(qcAtom_BS1 PRIVATE
 )
 target_compile_options(qcAtom_BS1 PRIVATE 
     $<$<CONFIG:Debug>:-g -O0>
-    $<$<AND:$<CONFIG:Release>,$<COMPILE_LANGUAGE:C>>: -O2 -pg> #need to prevent -pg from appearing in fortran compile lines.
+    $<$<AND:$<CONFIG:Release>,$<COMPILE_LANGUAGE:CXX>>: -O2 -pg> #need to prevent -pg from appearing in fortran compile lines.
 )
 
 set_property(TARGET qcAtom_BS1 PROPERTY CXX_STANDARD 20)
