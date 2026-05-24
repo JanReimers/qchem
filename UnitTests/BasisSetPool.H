@@ -152,6 +152,19 @@ BasisSet::Real_BS* Factory(BasisSetAccuracy acc, BasisSet::Atom::Type type,size_
         }
         case BSpline6:
         {
+            switch (acc)
+            {
+                case N3:
+                    js={{"type",type},{"rmin",0.5},{"rmax",2},{"N",3}};break;
+                case N5:
+                    js={{"type",type},{"rmin",0.25},{"rmax",4},{"N",5}};break;
+                case Low:
+                    js={{"type",type},{"rmin",0.03 },{"rmax",20},{"N",15}};break;
+                case Medium:
+                    js={{"type",type},{"rmin",0.003},{"rmax",40},{"N",30}};break;
+                case High:
+                    js={{"type",type},{"rmin",0.003},{"rmax",40},{"N",50}};break;
+            }
             break;
         }
     }

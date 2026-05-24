@@ -72,6 +72,10 @@ TEST_F(BasisSetPoolTests,GaussianOrthogonality)
 {
     Orthogonality(BasisSet::Atom::Type::Gaussian);
 }
+TEST_F(BasisSetPoolTests,BSplineOrthogonality)
+{
+    Orthogonality(BasisSet::Atom::Type::BSpline6);
+}
 
 
 
@@ -85,6 +89,62 @@ public:
         return Factory(Model::HF,Pol::UnPolarized,cluster);
     }
 };
+
+class BS_U_High : public A_HF_U {};
+TEST_P(BS_U_High,A)
+{
+    size_t Z=GetParam();
+    cout << "---------------- Z=" << Z << " ---------------"<< endl;
+        
+    BasisSet::Real_BS* bs=Factory(High,BasisSet::Atom::Type::BSpline6,Z); 
+    QchemTester::Init(1e-3,bs);
+    //       NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo    MergeTol verbose
+    Iterate({   50     ,Z*1e-7    ,1e-7 , 2.5e-13      ,Z*1e-7 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
+    // cout << "RelativeHFError = " << RelativeHFError() << std::endl;
+    double Eerr=RelativeHFError();
+    EXPECT_LT(Eerr,1e-9);
+    EXPECT_GT(Eerr,-1e-4);
+    EXPECT_TRUE(Converged()); 
+        
+}
+INSTANTIATE_TEST_SUITE_P(A_HF,BS_U_High,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88));//)); 
+
+class BS_U_Medium : public A_HF_U {};
+TEST_P(BS_U_Medium,A)
+{
+    size_t Z=GetParam();
+    cout << "---------------- Z=" << Z << " ---------------"<< endl;
+        
+    BasisSet::Real_BS* bs=Factory(Medium,BasisSet::Atom::Type::BSpline6,Z); 
+    QchemTester::Init(1e-3,bs);
+    //       NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo    MergeTol verbose
+    Iterate({   30     ,Z*1e-7    ,1e-7 , 2.5e-7      ,Z*1e-7 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
+    // cout << "RelativeHFError = " << RelativeHFError() << std::endl;
+    double Eerr=RelativeHFError();
+    EXPECT_LT(Eerr,1e-6);
+    EXPECT_GT(Eerr,-1e-4);
+    EXPECT_TRUE(Converged()); 
+        
+}
+INSTANTIATE_TEST_SUITE_P(A_HF,BS_U_Medium,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88));//)); 
+class BS_U_Low : public A_HF_U {};
+TEST_P(BS_U_Low,A)
+{
+    size_t Z=GetParam();
+    cout << "---------------- Z=" << Z << " ---------------"<< endl;
+        
+    BasisSet::Real_BS* bs=Factory(Low,BasisSet::Atom::Type::BSpline6,Z); 
+    QchemTester::Init(1e-3,bs);
+    //       NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo    MergeTol verbose
+    Iterate({   30     ,Z*1e-7    ,1e-7 , 5e-5      ,Z*1e-7 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
+    // cout << "RelativeHFError = " << RelativeHFError() << std::endl;
+    double Eerr=RelativeHFError();
+    EXPECT_LT(Eerr,40e-6);
+    EXPECT_GT(Eerr,-1e-4);
+    EXPECT_TRUE(Converged()); 
+        
+}
+INSTANTIATE_TEST_SUITE_P(A_HF,BS_U_Low,::testing::Values(2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88));//)); 
 
 
 class SG_U_High : public A_HF_U {};
