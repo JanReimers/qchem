@@ -162,6 +162,15 @@ public:
         size_t lmax=grouper.LMax(ia,ib,ic,id);
         return new ::BSpline::RkEngine(grouper.unique_spv,ia,ib,ic,id,lmax,itsGL1D,itsGL2D,*itsRkCache);
     }
+    virtual size_t RAMsize() const
+    {
+        size_t ndoubles=Cache4::RAMsize();
+        ndoubles+=itsGL1D.RAMsize();
+        ndoubles+=itsGL2D.RAMsize();
+        ndoubles+=itsRkCache->RAMsize();
+        return ndoubles;
+    }
+
 private:
     size_t itsMaxl;
     GLCache1D   itsGL1D;

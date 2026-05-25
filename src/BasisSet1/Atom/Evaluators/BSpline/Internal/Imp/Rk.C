@@ -51,6 +51,14 @@ template <size_t K> const typename RkCache<K>::dv_t& RkCache<K>::find(size_t ia,
     assert(i!=mm.end()); //If not found return zero, there was no support overlap.
     return i->second;
 }
+template <size_t K>  size_t RkCache<K>::RAMsize() const
+{
+    size_t ndoubles=0;
+    for (auto i: itsMomentsPlus ) ndoubles+=i.second.size();
+    for (auto i: itsMomentsMinus) ndoubles+=i.second.size();
+    return ndoubles;
+}
+
 template <size_t K> RkCache_r<K>::RkCache_r(const std::vector<sp_t>& splines,const GLCache1D& gl, size_t lmax)
 {
     for (size_t ia=0;ia<splines.size();ia++)

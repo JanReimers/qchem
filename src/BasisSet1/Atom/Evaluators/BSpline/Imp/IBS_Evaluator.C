@@ -108,8 +108,8 @@ template <size_t K> std::string BSpline_IBS_Evaluator<K>::RadialID () const
 {
     assert(splines.size()>0);
     std::ostringstream os;
-    os << Name() << " N=" << size() << " {";
     bspline::Grid<double> grid=splines[0].getSupport().getGrid();
+    os << Name() << " grid: N=" << grid.size() << " {";
     assert(grid.size()>2);
     os << grid[0] << "," << grid[1] << "," << grid[2] << " ... " << grid[grid.size()-1];
     os << "}";

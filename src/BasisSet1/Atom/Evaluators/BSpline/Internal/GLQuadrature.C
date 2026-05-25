@@ -41,6 +41,10 @@ public:
                 ret+=ws[i]*f(xs[i]);
         return ret;
     }
+    size_t RAMsize() const
+    {
+        return 2+2*xs.size();
+    }
 private:
     friend class GLCache1D;
     friend class GLCache2D;
@@ -95,7 +99,12 @@ public:
         std::function< double (double)> fwab = [w,a,b](double x){return w(x)*a(x)*b(x);};
         return Integrate(fwab,rmin,rmax);
     }
-
+    size_t RAMsize() const
+    {
+        size_t ndoubles=grid.size();
+        for (auto gl:itsGLs) ndoubles+=gl.RAMsize();
+        return ndoubles;
+    }
 private:
     friend GLCache2D;
     GLCache1D(const GLCache1D&)=delete;
@@ -156,6 +165,7 @@ public:
         assert(igrid<itsDiagGLs_gl_grid.columns());
         return itsDiagGLs_gl_grid(igl,igrid);
     }
+    size_t RAMsize() const;
 private:
     GLCache2D(const GLCache2D&)=delete;
     const bspline::support::Grid<double> grid;

@@ -47,6 +47,17 @@ GLCache2D::GLCache2D(const GLCache1D& gl1,size_t Order)
     }   
 }
 
+size_t GLCache2D::RAMsize() const
+{
+    size_t ndoubles=grid.size();
+    for (size_t i=0;i<itsDiagGLs_grid_gl.rows();i++)
+        for (size_t j=0;j<itsDiagGLs_grid_gl.columns();j++)
+        {
+            ndoubles+=itsDiagGLs_grid_gl(i,j).RAMsize();
+            ndoubles+=itsDiagGLs_gl_grid(j,i).RAMsize();
+        }
+    return ndoubles;
+}
 
 
 double GLCache1D::Integrate(const std::function< double (double)>& f, const sup_t& a, const sup_t& b) const

@@ -21,6 +21,7 @@ public:
     RkCache(const std::vector<sp_t>& splines,const GLCache1D& gl1,size_t lmax);
     const dv_t& find_plus (size_t ia,size_t ib) const {return find(ia,ib,itsMomentsPlus);}
     const dv_t& find_minus(size_t ia,size_t ib) const {return find(ia,ib,itsMomentsMinus);}
+    size_t RAMsize() const;
 private:
     typedef std::pair<size_t,size_t> id2_t; //convention id_1 < id_2
     typedef std::map<id2_t,dv_t> moment_t;
