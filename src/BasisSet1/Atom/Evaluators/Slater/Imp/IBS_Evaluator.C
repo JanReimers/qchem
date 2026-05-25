@@ -23,7 +23,7 @@ namespace BasisSet::Atom::Evaluators::Slater
 
 std::string Slater_IBS_Evaluator::Name() const
 {
-    return "Spherical Slater ";
+    return "SL ";
 }
 std::string Slater_IBS_Evaluator::RadialType() const
 {

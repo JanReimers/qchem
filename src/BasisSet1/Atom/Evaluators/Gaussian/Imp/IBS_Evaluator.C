@@ -19,7 +19,7 @@ namespace BasisSet::Atom::Evaluators::Gaussian
 //
 std::string Gaussian_IBS_Evaluator::Name() const
 {
-    return "Spherical Gaussian ";
+    return "SG ";
 }
 
 std::string Gaussian_IBS_Evaluator::RadialType() const

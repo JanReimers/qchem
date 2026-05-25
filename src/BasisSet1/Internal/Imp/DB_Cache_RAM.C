@@ -8,6 +8,7 @@ module;
 #include <iostream>
 #include <fstream>
 #include <format>
+#include <chrono>
 module qchem.BasisSet.Internal.DB_Cache_RAM;
 
 namespace std
@@ -117,7 +118,9 @@ std::ostream& operator<<(std::ostream& os,IntegralsCache_Base::IBS_ID_t id)
     return os << std::get<0>(id) << " " << std::get<1>(id);
 }
 template <class T> IntegralsCache_RAM<T>::IntegralsCache_RAM(bool makelog) 
-    : itsMakeLog(makelog) 
+    : itsMakeLog(makelog)
+    , itsMaxRAM(2048) // in MB
+    , itsTotalRAM(0) // in MB
     {
         if  (itsMakeLog)
             itsLogger=std::ofstream("cache.log");
@@ -125,7 +128,7 @@ template <class T> IntegralsCache_RAM<T>::IntegralsCache_RAM(bool makelog)
 
 template <class T>  IntegralsCache_RAM<T>::~IntegralsCache_RAM()
 {
-    ReportRAMUsage();
+    ReportRAMUsage(std::cout);
 }
 template <class T> bool IntegralsCache_RAM<T>::Has(Ix1 ix,const IBS_ID_t& id) const
 {
@@ -285,6 +288,10 @@ template <class T>  const ERI3<T>& IntegralsCache_RAM<T>::GetERI3() const
 }
 template <class T>  const ERI4& IntegralsCache_RAM<T>::GetERI4() const
 {
+    assert(its4CIterator->first==itsLastKey4b);
+    const time_t timestamp = std::chrono::system_clock::now();
+    auto key=std::make_pair(itsLastKey4a,itsLastKey4b);
+    ERI4_timestamps[key]=timestamp;
     return its4CIterator->second;
 }
 
@@ -297,7 +304,7 @@ template <class T> void IntegralsCache_RAM<T>::Register(Cache4_Client* eval)
         const auto [iterator, success]=itsCache4s.insert({key,val_t(eval->MakeCache4())});
         assert(success);
         it=iterator;
-        std::cout << "Insert Cache4_Client RadialType=" << key;
+        std::cout << "Insert Cache4_Client RadialType=" << key << std::endl;
     }
     it->second->Register(eval);
 }
@@ -360,7 +367,7 @@ template <class T> const  mat_t<T>& IntegralsCache_RAM<T>::Set(const  mat_t<T>& 
     return iterator->second; 
 }
 
-template <class T> const   ERI3<T>& IntegralsCache_RAM<T>::Set(const   ERI3<T>& eri3)
+template <class T> const   ERI3<T>& IntegralsCache_RAM<T>::Set(const ERI3<T>& eri3)
 {
     const auto [iterator, success]=itsERI3s.insert({itsLastKey3,eri3});  
     assert(success);
@@ -368,18 +375,33 @@ template <class T> const   ERI3<T>& IntegralsCache_RAM<T>::Set(const   ERI3<T>& 
     return iterator->second; 
 }
 
-template <class T> const ERI4     &  IntegralsCache_RAM<T>::SetDirect(const   ERI4   & eri4)
+template <class T> const ERI4&  IntegralsCache_RAM<T>::SetDirect(const ERI4& eri4)
 {
     const auto [iterator, success]=Jac[itsLastKey4a].insert({itsLastKey4b,eri4});
     assert(success);
     its4CIterator=iterator;
+    
+    auto key=std::make_pair(itsLastKey4a,itsLastKey4b);
+    const time_t timestamp = std::chrono::system_clock::now();
+    ERI4_timestamps[key]=timestamp;
+
+    itsTotalRAM+=eri4.size()*sizeof(T)/1024/1024;
+    if (itsTotalRAM>itsMaxRAM) RunGarbageCollector();
     return iterator->second;
 }
-template <class T> const ERI4     &  IntegralsCache_RAM<T>::SetExchange(const   ERI4   & eri4)
+template <class T> const ERI4&  IntegralsCache_RAM<T>::SetExchange(const ERI4& eri4)
 {
     const auto [iterator, success]=Kab[itsLastKey4a].insert({itsLastKey4b,eri4});
     assert(success);
     its4CIterator=iterator;
+    
+    const time_t timestamp = std::chrono::system_clock::now();
+    auto key=std::make_pair(itsLastKey4a,itsLastKey4b);
+    ERI4_timestamps[key]=timestamp;
+
+    itsTotalRAM+=eri4.size()*sizeof(T)/1024/1024;
+    if (itsTotalRAM>itsMaxRAM) RunGarbageCollector();
+
     return iterator->second;
 }
 

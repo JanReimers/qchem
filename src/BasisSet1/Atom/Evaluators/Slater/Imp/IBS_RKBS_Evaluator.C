@@ -13,7 +13,7 @@ namespace BasisSet::Atom::Evaluators::Slater
 
 std::string Slater_RKBS_IBS_Evaluator::Name() const
 {
-    return "Spherical Slater RKB ";
+    return "SL RKB ";
 }
 
 rvec_t Slater_RKBS_IBS_Evaluator::norms() const

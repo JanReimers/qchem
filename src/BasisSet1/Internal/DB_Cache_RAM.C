@@ -7,6 +7,7 @@ module;
 #include <variant>
 #include <fstream>
 #include <memory>
+#include <chrono>
 export module qchem.BasisSet.Internal.DB_Cache_RAM;
 export import qchem.BasisSet.Internal.DB_Cache;
 import qchem.BasisSet.Internal.ERI4;
@@ -67,8 +68,17 @@ private:
 
     using map1m_t =std::map<key1m_t  ,rvec_t>;
     using map2xm_t=std::map<key2xm_t ,rmat_t>;
-    void ReportRAMUsage() const;
-    static size_t Report(const map4_t&, const std::string&, bool verbose);
+
+    // using time_t=std::chrono::sys_seconds;
+    using time_t=decltype(std::chrono::system_clock::now());
+    using id_pair_t=std::pair<IBS_ID_t,IBS_ID_t>;
+    mutable std::map<id_pair_t,time_t> ERI4_timestamps; //Get functions need to update this
+    // std::map<std::chrono::sys_seconds,std::pair<IBS_ID_t,IBS_ID_t>> ERI4_Oldest;  //Sort by time stamp
+
+    void ReportRAMUsage(std::ostream&) const; 
+    static size_t Report(const map4_t&, const std::string&, bool verbose); // in MB
+    void RunGarbageCollector();
+    size_t Purge(map4_t& eri4s,const id_pair_t& old);
 
     using val_t=std::unique_ptr<Cache4>;
     using cach4_t=std::map<RadialTypeID_t,val_t>;
@@ -104,6 +114,7 @@ private:
 
     bool itsMakeLog;
     mutable std::ofstream itsLogger;
+    mutable size_t itsMaxRAM,itsTotalRAM; // in MB
 };
 
 

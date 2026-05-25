@@ -13,7 +13,7 @@ namespace BasisSet::Atom::Evaluators::Gaussian
 
 std::string Gaussian_RKBS_IBS_Evaluator::Name() const
 {
-    return "Spherical Gaussian RKB ";
+    return "SG RKB ";
 }
 
 rvec_t Gaussian_RKBS_IBS_Evaluator::norms() const
