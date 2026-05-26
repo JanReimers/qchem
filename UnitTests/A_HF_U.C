@@ -134,6 +134,22 @@ INSTANTIATE_TEST_SUITE_P(A_HF,SL_U_Medium,::testing::Values(2,88));//));
 
 class BS_U_Low : public A_HF_U {};
 #ifdef DEBUG
+TEST_P(BS_U_Low,A)
+{
+    size_t Z=GetParam();
+    cout << "---------------- Z=" << Z << " ---------------"<< endl;
+        
+    QchemTester::Init(Low,BasisSet::Atom::Type::BSpline6,verbose);
+    //       NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo    MergeTol verbose
+    Iterate({   30     ,Z*1e-7    ,1e-7 , 5e-5      ,Z*1e-7 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
+    // cout << "RelativeHFError = " << RelativeHFError() << std::endl;
+    double Eerr=RelativeHFError();
+    EXPECT_LT(Eerr,40e-6);
+    EXPECT_GT(Eerr,-1e-4);
+    EXPECT_TRUE(Converged()); 
+        
+}
+INSTANTIATE_TEST_SUITE_P(A_HF,BS_U_Low,::testing::Values(2,4));//)); 
 #else
 TEST_P(BS_U_Low,A)
 {
