@@ -32,10 +32,12 @@ template <size_t K> RkCache<K>::RkCache(const std::vector<sp_t>& splines,const G
             for (size_t k=0;k<=2*lmax;k++)
             {
                 const sp_t& a=splines[ia], &b=splines[ib];
-                std::function< double (double)> wpab = [k,&a,&b](double r) {return intpow(r,k+2)*a(r)*b(r);};
-                std::function< double (double)> wmab = [k,&a,&b](double r) {return intpow(r,1-k)*a(r)*b(r);};
-                mp.push_back(gl1.Integrate(wpab));
-                mm.push_back(gl1.Integrate(wmab));
+                std::function< double (double)> wp = [k](double r2) {return intpow(r2,k+2);};
+                std::function< double (double)> wm = [k](double r2) {return intpow(r2,1-k);};
+                // std::function< double (double)> wpab = [k,&a,&b](double r) {return intpow(r,k+2)*a(r)*b(r);};
+                // std::function< double (double)> wmab = [k,&a,&b](double r) {return intpow(r,1-k)*a(r)*b(r);};
+                mp.push_back(gl1.Integrate(wp,a,b));
+                mm.push_back(gl1.Integrate(wm,a,b));
 
             }
             itsMomentsPlus [std::make_pair(ia,ib)]=mp;
@@ -98,11 +100,11 @@ template <size_t K> const typename RkCache_r<K>::dv_t& RkCache_r<K>::find(size_t
 //  Calculate and store 2 electron radial repulsion (Slater) integrals for all valules of k.
 //
 template <size_t K> RkEngine<K>::RkEngine(const std::vector<sp_t>& splines, size_t ia, size_t ib, size_t ic, size_t id, size_t _LMax
-    , const GLCache1D& gl1,const GLCache2D& gl2, const RkCache<K>& rkcache)
+    , const GLCache1D& gl1,const GLCache2D& gl2, const RkCache<K>& rkcache, const func_t& wp, const func_t& wm)
  : LMax(_LMax), Rabcd_k(2*LMax+1,0.0)
  {
-    std::function< double (double,size_t )> wp = [](double r2,size_t k) {return intpow(r2,k+2);};
-    std::function< double (double,size_t )> wm = [](double r2,size_t k) {return intpow(r2,1-k);};
+    // std::function< double (double,size_t )> wp = [](double r2,size_t k) {return intpow(r2,k+2);};
+    // std::function< double (double,size_t )> wm = [](double r2,size_t k) {return intpow(r2,1-k);};
     sp_t a=splines[ia];
     sp_t b=splines[ib];
     sp_t c=splines[ic];

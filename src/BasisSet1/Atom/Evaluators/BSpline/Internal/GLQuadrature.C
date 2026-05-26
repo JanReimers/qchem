@@ -55,7 +55,17 @@ export class GLCache1D
 {
 public:
     GLCache1D(const bspline::support::Grid<double>& g,size_t Order);
-
+    template <size_t K> using sp_t=bspline::Spline<double,K>;
+    template <size_t K> double Integrate(const std::function< double (double)>& w, const sp_t<K>& a, const sp_t<K>& b ) const
+    {
+        std::function< double (double)> wab=[&w,&a,&b](double x) {return w(x)*a(x)*b(x);};
+        return Integrate(wab,a.getSupport(),b.getSupport());
+    }
+    template <size_t K> double Integrate(const std::function< double (double)>& w, const sp_t<K>& a, const sp_t<K>& b , double rmin, double rmax) const
+    {
+        std::function< double (double)> wab=[&w,&a,&b](double x) {return w(x)*a(x)*b(x);};
+        return Integrate(wab,a.getSupport(),b.getSupport(),rmin,rmax);
+    }
     ///used by double Icd_p=gl1.IntegrateIndex(wpcd,scd.getStartIndex(),iab);
     double IntegrateIndex(const std::function< double (double)>& f,  size_t i0, size_t i1) const
     {
@@ -107,6 +117,10 @@ public:
         return ndoubles;
     }
 private:
+    typedef bspline::Support<double> sup_t;
+    double Integrate(const std::function< double (double)>& f, const sup_t& a, const sup_t& b) const;
+    double Integrate(const std::function< double (double)>& f, const sup_t& a, const sup_t& b, double rmin, double rmax) const;
+    
     friend GLCache2D;
     GLCache1D(const GLCache1D&)=delete;
     const bspline::support::Grid<double> grid;

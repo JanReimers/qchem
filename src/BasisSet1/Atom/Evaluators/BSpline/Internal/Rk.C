@@ -2,10 +2,12 @@
 module;
 #include <map>
 #include <bspline/Core.h>
+#include <functional>
 export module qchem.BasisSet.Atom.Evaluators.BSpline.Internal.Rk;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.GLQuadrature;
 import qchem.BasisSet.Internal.Cache4;
 export import qchem.BasisSet.Atom.Evaluators.Internal.Rk;
+import Common.IntPow;
 
 export namespace BSpline
 {
@@ -18,6 +20,7 @@ template <size_t K> class RkCache
     typedef bspline::Spline<double,K> sp_t;
     typedef std::vector<double> dv_t;
 public:
+    using func_t=std::function< double (double,size_t )>;
     RkCache(const std::vector<sp_t>& splines,const GLCache1D& gl1,size_t lmax);
     const dv_t& find_plus (size_t ia,size_t ib) const {return find(ia,ib,itsMomentsPlus);}
     const dv_t& find_minus(size_t ia,size_t ib) const {return find(ia,ib,itsMomentsMinus);}
@@ -56,8 +59,9 @@ template <size_t K> class RkEngine  : public virtual Rk
 {
     typedef bspline::Spline<double,K> sp_t;
 public:
+    using func_t=std::function< double (double,size_t )>;
     RkEngine(const std::vector<sp_t>& splines, size_t ia, size_t ib, size_t ic, size_t id, size_t LMax
-        , const GLCache1D&,const GLCache2D&, const RkCache<K>&);
+        , const GLCache1D&,const GLCache2D&, const RkCache<K>&, const func_t& wp, const func_t& wm);
     double   Coulomb_R0() const; //R_0(la,la,lc,lc);
     virtual double Coulomb_R0(size_t la,size_t lc) const {return Coulomb_R0();}
     virtual double Coulomb_Rk(size_t la,size_t lc,const rvec11_t& Ak) const; //sum{k,A_k*R_k(la,la,lc,lc)};

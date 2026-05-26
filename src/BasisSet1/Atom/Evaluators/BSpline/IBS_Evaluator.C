@@ -16,7 +16,7 @@ import qchem.BasisSet.Atom.Evaluators.Concepts;
 import qchem.Symmetry.Yl;
 import Common.Constants;
 import qchem.BasisSet.Internal.Cache4;
-
+import Common.IntPow;
 
 export namespace BasisSet::Atom::Evaluators::BSpline
 {
@@ -160,7 +160,10 @@ public:
          assert(itsRkCache);
         // std::cout << "ia,ib,ic,id=" << ia << " " << ib << " " << ic << " " << id << std::endl;
         size_t lmax=grouper.LMax(ia,ib,ic,id);
-        return new ::BSpline::RkEngine(grouper.unique_spv,ia,ib,ic,id,lmax,itsGL1D,itsGL2D,*itsRkCache);
+        using func_t=::BSpline::RkEngine<K>::func_t;
+        func_t wp=[](double r2,size_t k) {return intpow(r2,k+2);};
+        func_t wm=[](double r2,size_t k) {return intpow(r2,1-k);};
+        return new ::BSpline::RkEngine(grouper.unique_spv,ia,ib,ic,id,lmax,itsGL1D,itsGL2D,*itsRkCache,wp,wm);
     }
     virtual size_t RAMsize() const
     {
