@@ -16,7 +16,6 @@ QchemTester::QchemTester()
 : itsCluster(0)
 , itsBasisSet(0)
 , itsSCFIterator(0)
-, MaxRelErrE(0)
 {
     //Cannot call virtual functions from here.
 }
@@ -27,22 +26,21 @@ QchemTester::~QchemTester()
     delete itsSCFIterator;
 }
 
-void QchemTester::Init(double eps,const nlohmann::json& js, bool verbose,LAParams lap)
+void QchemTester::Init(const nlohmann::json& js, bool verbose,LAParams lap)
 {
-    Init(eps,GetBasisSet(js),verbose,lap);
+    Init(GetBasisSet(js),verbose,lap);
 }
 
-void QchemTester::Init(double eps, BasisSetAccuracy acc, BasisSet::Atom::Type type,bool verbose,LAParams lap)
+void QchemTester::Init(BasisSetAccuracy acc, BasisSet::Atom::Type type,bool verbose,LAParams lap)
 {
-    Init(eps,PoolFactory(acc,type,GetZ()),verbose,lap); 
+    Init(PoolFactory(acc,type,GetZ()),verbose,lap); 
 }
     
 
-void QchemTester::Init(double eps,Real_BS* bs, bool verbose,LAParams lap)
+void QchemTester::Init(Real_BS* bs, bool verbose,LAParams lap)
 {
     itsBasisSet=bs;
     assert(eps>0.0);
-    MaxRelErrE=eps;
     
     assert(itsCluster);
     assert(&*itsCluster);

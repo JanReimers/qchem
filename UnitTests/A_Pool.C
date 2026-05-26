@@ -78,7 +78,7 @@ TEST_P(BS_U_High,A)
     size_t Z=GetParam();
     cout << "---------------- Z=" << Z << " ---------------"<< endl;
         
-    QchemTester::Init(1e-3,High,BasisSet::Atom::Type::BSpline6);
+    QchemTester::Init(High,BasisSet::Atom::Type::BSpline6);
     //       NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo    MergeTol verbose
     Iterate({   50     ,Z*1e-7    ,1e-7 , 2.5e-13      ,Z*1e-7 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
     // cout << "RelativeHFError = " << RelativeHFError() << std::endl;
@@ -96,7 +96,7 @@ TEST_P(BS_U_Medium,A)
     size_t Z=GetParam();
     cout << "---------------- Z=" << Z << " ---------------"<< endl;
         
-    QchemTester::Init(1e-3,Medium,BasisSet::Atom::Type::BSpline6);
+    QchemTester::Init(Medium,BasisSet::Atom::Type::BSpline6);
     //       NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo    MergeTol verbose
     Iterate({   30     ,Z*1e-7    ,1e-7 , 2.5e-7      ,Z*1e-7 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
     // cout << "RelativeHFError = " << RelativeHFError() << std::endl;
@@ -113,7 +113,7 @@ TEST_P(BS_U_Low,A)
     size_t Z=GetParam();
     cout << "---------------- Z=" << Z << " ---------------"<< endl;
         
-    QchemTester::Init(1e-3,Low,BasisSet::Atom::Type::BSpline6);
+    QchemTester::Init(Low,BasisSet::Atom::Type::BSpline6);
     //       NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo    MergeTol verbose
     Iterate({   30     ,Z*1e-7    ,1e-7 , 5e-5      ,Z*1e-7 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
     // cout << "RelativeHFError = " << RelativeHFError() << std::endl;
@@ -132,7 +132,7 @@ TEST_P(SG_U_High,A)
     size_t Z=GetParam();
     cout << "---------------- Z=" << Z << " ---------------"<< endl;
         
-    QchemTester::Init(1e-3,High,BasisSet::Atom::Type::Gaussian);
+    QchemTester::Init(High,BasisSet::Atom::Type::Gaussian);
     //       NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo    MergeTol verbose
     Iterate({   50     ,Z*1e-5    ,1e-7 , 1e-5      ,Z*1e-6 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
     // cout << "RelativeHFError = " << RelativeHFError() << std::endl;
@@ -147,7 +147,7 @@ TEST_P(SG_U_Medium,A)
     size_t Z=GetParam();
     cout << "---------------- Z=" << Z << " ---------------"<< endl;
         
-    QchemTester::Init(1e-3,Medium,BasisSet::Atom::Type::Gaussian);
+    QchemTester::Init(Medium,BasisSet::Atom::Type::Gaussian);
     //       NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo    MergeTol verbose
     Iterate({   50     ,Z*1e-5    ,1e-7 , 5e-2      ,Z*1e-6 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
     // cout << "RelativeHFError = " << RelativeHFError() << std::endl;
@@ -163,7 +163,7 @@ TEST_P(SL_U_High,A)
     size_t Z=GetParam();
     cout << "---------------- Z=" << Z << " ---------------"<< endl;
         
-    QchemTester::Init(1e-3,High,BasisSet::Atom::Type::Slater);
+    QchemTester::Init(High,BasisSet::Atom::Type::Slater);
     //       NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo    MergeTol verbose
     Iterate({   32     ,Z*1e-5    ,1e-7 , 1e-6      ,Z*1e-6 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
     // cout << "RelativeHFError = " << RelativeHFError() << std::endl;
@@ -179,7 +179,7 @@ TEST_P(SL_U_Medium,A)
     size_t Z=GetParam();
     cout << "---------------- Z=" << Z << " ---------------"<< endl;
         
-    QchemTester::Init(1e-3,Medium,BasisSet::Atom::Type::Slater);
+    QchemTester::Init(Medium,BasisSet::Atom::Type::Slater);
     //       NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo    MergeTol verbose
     Iterate({   22     ,Z*1e-4    ,1e-5 , 5e-4      ,Z*1e-6 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
     // cout << "RelativeHFError = " << RelativeHFError() << std::endl;
@@ -196,7 +196,7 @@ TEST_P(SL_U_Low,A)
     size_t Z=GetParam();
     cout << "---------------- Z=" << Z << " ---------------"<< endl;
         
-    QchemTester::Init(1e-3,Low,BasisSet::Atom::Type::Slater);
+    QchemTester::Init(Low,BasisSet::Atom::Type::Slater);
     //       NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo    MergeTol verbose
     Iterate({   30     ,Z*1e-4    ,1e-4 , 5e-1      ,Z*2e-5 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
     // cout << "RelativeHFError = " << RelativeHFError() << std::endl;

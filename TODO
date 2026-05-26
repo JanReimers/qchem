@@ -20,7 +20,7 @@ Priority 1:
         Use ceral ... which seems to have disapeared from submodules.
         Need to remember to delete this thing if the relevent code changes.
     -Still need to switch over to the new PeriodicTable1
-    -Get rid og eps in QchemTester::Init
+    -Get rid of eps in QchemTester::Init
 
 
     -BUG: A_Pool.C TEST_P(A_HF_U,SlaterHFGroundStates) with Z={2,70}

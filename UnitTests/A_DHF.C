@@ -64,7 +64,7 @@ TEST_P(A_SLm_HF_ion,Multiple)
         {"type",abs_t::Slater},
         {"N", N}, {"emin", Z/20.}, {"emax", Z*Z*5.},
     };
-    QchemTester::Init(1e-3,js);
+    QchemTester::Init(js);
    //  NMaxIter MinDeltaRo MinDelE MinError StartingRelaxRo MergeTol verbose
     Iterate({2,Z*1e-4,1e-7,Z*1e-5,1.0,1e-4,true});
     EXPECT_LT(RelativeError(-0.5*Z*Z),4e-13);
@@ -94,7 +94,7 @@ TEST_P(A_SLmj_DHF,Multiple)
         {"type",abs_t::Slater_RKB},
         {"N", N}, {"emin", Z/20.}, {"emax", Z*Z*100.},
     };
-    QchemTester::Init(1e-3,js);
+    QchemTester::Init(js);
     Iterate({5,Z*1e-4,1e-7,Z*1e-5,1.0,1e-4,false});
 
     irrepv_t qns=GetIrreps(Spin::Up);
@@ -160,7 +160,7 @@ TEST_P(A_SG_DHF,Multiple)
         {"type",abs_t::Gaussian_RKB},
         {"N", N}, {"emin", alpha}, {"emax", alpha*pow(beta,N-1)},
     };
-    QchemTester::Init(1e-3,js);
+    QchemTester::Init(js);
     // Init(N,alpha,alpha*pow(beta,N-1),GetLMax(1));
     Iterate({40,Z*1e-4,1e-7,Z*1e-5,1.0,1e-4,true});
 
@@ -255,7 +255,7 @@ TEST_F(A_SG_HFP_H,Phir)
         {"type",abs_t::Gaussian},
         {"N", N}, {"emin", alpha}, {"emax", alpha*pow(beta,N-1)},
     };
-    QchemTester::Init(1e-3,js,true);
+    QchemTester::Init(js,true);
     Iterate({2,1e-4,1e-7,1e-5,1.0,1e-4,true});
 
     

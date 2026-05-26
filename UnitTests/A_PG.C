@@ -29,7 +29,7 @@ public:
     {
         TestMolecule::Init(m);
         nlohmann::json js = { {"filepath","../../../BasisSetData/dzvp.bsd"} };
-        QchemTester::Init(1e-3,js);
+        QchemTester::Init(js);
     }
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
     {

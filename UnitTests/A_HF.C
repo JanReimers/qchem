@@ -63,7 +63,7 @@ public:
     { 
         TestMolecule::Init(new Atom(GetParam(),0.0,Vector3D<double>(0,0,0)));
         nlohmann::json js = { {"filepath","../../../BasisSetData/dzvp.bsd"} };
-        QchemTester::Init(1e-3,js);
+        QchemTester::Init(js);
     }
 };
 
@@ -78,7 +78,7 @@ TEST_P(A_SG_HF_U,Multiple)
         {"type",abs_t::Gaussian},
         {"N", NBasis[Z]}, {"emin", 0.01}, {"emax", 10000*Z*sqrt(Z)},
     };
-    QchemTester::Init(1e-3,js);
+    QchemTester::Init(js);
     Iterate(scf_params(Z));
     EXPECT_LT(RelativeHFError(),1e-6);
     assert(expected_itartion_counts.find(Z)!=expected_itartion_counts.end());
@@ -102,7 +102,7 @@ TEST_P(A_SL_HF_U,Multiple)
         {"type",abs_t::Slater},
         {"N", N}, {"emin", 0.3}, {"emax", 5*Z},
     };
-    QchemTester::Init(1e-3,js);
+    QchemTester::Init(js);
     Iterate(scf_params(Z));
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
@@ -120,7 +120,7 @@ TEST_P(A_BS_HF_U,Multiple)
         {"type",abs_t::BSpline6},
         {"N", 30}, {"rmin", 0.01}, {"rmax", 20},
     };
-    QchemTester::Init(1e-3,js);
+    QchemTester::Init(js);
     Iterate(scf_params_BS(Z));
     EXPECT_LT(RelativeHFError(),1e-9);
     EXPECT_GT(RelativeHFError(),-3e-9);
@@ -236,7 +236,7 @@ TEST_P(A_SG_HF_P,Multiple)
         {"type",abs_t::Gaussian},
         {"N", N}, {"emin", 0.01}, {"emax", 10000*Z*sqrt(Z)},
     };
-    QchemTester::Init(1e-3,js);
+    QchemTester::Init(js);
     Iterate(scf_params(Z));
     EXPECT_LT(RelativeHFError(),1e-6);
 }
@@ -257,7 +257,7 @@ TEST_P(A_SL_HF_P,Multiple)
         {"type",abs_t::Slater},
         {"N", N}, {"emin", 0.3}, {"emax", 5*Z},
     };
-    QchemTester::Init(1e-3,js);
+    QchemTester::Init(js);
     Iterate(scf_params(Z));
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
@@ -275,7 +275,7 @@ TEST_P(A_BS_HF_P,Multiple)
         {"type",abs_t::BSpline6},
         {"N", 20}, {"rmin", 0.01}, {"rmax", 40},
     };
-    QchemTester::Init(1e-3,js);
+    QchemTester::Init(js);
     Iterate(scf_params(Z));
     EXPECT_LT(RelativeHFError(), 25e-6);
     EXPECT_GT(RelativeHFError(),-70e-6);
@@ -298,7 +298,7 @@ TEST_P(A_SLm_HF_P,Multiple)
         {"type",abs_t::Slater},
         {"N", N}, {"emin", 0.125}, {"emax", 8*Z},
     };
-    QchemTester::Init(1e-3,js);
+    QchemTester::Init(js);
     Iterate(scf_params(Z));
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
@@ -321,7 +321,7 @@ TEST_P(A_SGm_HF_P,Multiple)
         {"type",abs_t::Gaussian},
         {"N", N}, {"emin", 0.01}, {"emax", 10000*Z*sqrt(Z)},
     };
-    QchemTester::Init(1e-3,js);
+    QchemTester::Init(js);
     Iterate(scf_params(Z));
     EXPECT_LT(RelativeHFError(),MaxRelErrE);
 }
@@ -340,7 +340,7 @@ TEST_P(A_BSm_HF_P,Multiple)
         {"type",abs_t::BSpline6},
         {"N", 15}, {"rmin", 0.1}, {"rmax", 20},
     };
-    QchemTester::Init(1e-3,js);
+    QchemTester::Init(js);
    
     Iterate(scf_params(Z));
     EXPECT_LT(RelativeHFError(),0.0);
@@ -363,7 +363,7 @@ public:
     { 
         TestMolecule::Init(new Atom(GetParam(),0.0,Vector3D<double>(0,0,0)));
         nlohmann::json js = { {"filepath","../../../BasisSetData/dzvp.bsd"} };
-        QchemTester::Init(1e-3,js);
+        QchemTester::Init(js);
     }
 };
 
@@ -409,7 +409,7 @@ TEST_P(A_BS_saito_HF_P,Saito)
         {"N", 50}, {"rmin", 0.003}, {"rmax", 40},
     };
 #endif
-    QchemTester::Init(1e-3,js);
+    QchemTester::Init(js);
     Iterate(saito_params_BS(Z));
     double Eerr=RelativeHFError();
     EXPECT_LT(Eerr,1e-9);

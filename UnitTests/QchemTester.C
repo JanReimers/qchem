@@ -31,9 +31,9 @@ export class QchemTester
 public:
     QchemTester();
     virtual ~QchemTester();
-    void   Init(double eps, const nlohmann::json&, bool verbose=false, LAParams lap={qchem::Cholsky,1e-12});
-    void   Init(double eps, Real_BS*, bool verbose=false, LAParams lap={qchem::Cholsky,1e-12});
-    void   Init(double eps, BasisSetAccuracy acc, BasisSet::Atom::Type type,bool verbose=false,LAParams lap={qchem::Cholsky,1e-12});
+    void   Init(const nlohmann::json&, bool verbose=false, LAParams lap={qchem::Cholsky,1e-12});
+    void   Init(Real_BS*, bool verbose=false, LAParams lap={qchem::Cholsky,1e-12});
+    void   Init(BasisSetAccuracy acc, BasisSet::Atom::Type type,bool verbose=false,LAParams lap={qchem::Cholsky,1e-12});
     void   Iterate(const SCFParams&);
     
     double          TotalEnergy() const;
@@ -68,7 +68,6 @@ protected:
     SCFIterator*  itsSCFIterator;
 public:
     static PeriodicTable itsPT;
-    double MaxRelErrE;
 };
 
 
