@@ -3,7 +3,7 @@ export module qchem.Hamiltonian;
 export import qchem.ChargeDensity;
 import qchem.Streamable;
 export import qchem.Energy;
-import qchem.Hamiltonian.Types;
+export import qchem.Hamiltonian.Types;
 
 
 export namespace qchem::Hamiltonian

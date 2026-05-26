@@ -1,194 +1,104 @@
-
+// File: UnitTests/QchemTester.C  Heper class for doing SCF calculations in unit tests.
+module;
+#include "gtest/gtest.h"
 #include <memory>
-#include <cmath>
-#include <memory>
+#include <nlohmann/json.hpp>
 
-#include "QchemTester.H"
+export module qchem.Unittests.QchemTester;
+export import qchem.Unittests.BasisSetPool;
+export import qchem.Hamiltonian;
+export import qchem.Hamiltonian.Factory;
 
 import qchem.SCFIterator;
-import qchem.SCFAccelerator.Factory;
-import qchem.WaveFunction;
-import qchem.ChargeDensity;
-import qchem.Factory;
+import qchem.LAParams;
 import qchem.Cluster;
-import qchem.Streamable;
+import qchem.Orbitals;
+import qchem.Mesh; //To get Meshparams
+import qchem.Factory;
+import qchem.Symmetry.AtomEC;
+import qchem.Symmetry.MoleculeEC;
+import Common.PeriodicTable;
 
+typedef BasisSet::irrepv_t irrepv_t;
 
+using qchem::Orbitals::Orbital;
+using qchem::Orbitals::Orbitals;
+using qchem::Hamiltonian::Hamiltonian;
+using qchem::SCFIterator::SCFIterator;
 
-using qchem::SCFAccelerators::SCFAccelerator;
-
-PeriodicTable QchemTester::itsPT;
-
-QchemTester::QchemTester()
-: itsCluster(0)
-, itsBasisSet(0)
-, itsSCFIterator(0)
-, MaxRelErrE(0)
+export class QchemTester
 {
-    //Cannot call virtual functions from here.
-}
-
-QchemTester::~QchemTester()
-{
-    delete itsBasisSet;
-    delete itsSCFIterator;
-}
-
-void QchemTester::Init(double eps,const nlohmann::json& js, bool verbose,LAParams lap)
-{
-    Init(eps,GetBasisSet(js),verbose,lap);
-}
-
-void QchemTester::Init(double eps,Real_BS* bs, bool verbose,LAParams lap)
-{
-    itsBasisSet=bs;
-    assert(eps>0.0);
-    MaxRelErrE=eps;
+public:
+    QchemTester();
+    virtual ~QchemTester();
+    void   Init(double eps, const nlohmann::json&, bool verbose=false, LAParams lap={qchem::Cholsky,1e-12});
+    void   Init(double eps, Real_BS*, bool verbose=false, LAParams lap={qchem::Cholsky,1e-12});
+    void   Init(double eps, BasisSetAccuracy acc, BasisSet::Atom::Type type,bool verbose=false,LAParams lap={qchem::Cholsky,1e-12});
+    void   Iterate(const SCFParams&);
     
-    assert(itsCluster);
-    assert(&*itsCluster);
-    assert(itsBasisSet);
-    // if (verbose)
-    {
-        std::cout << " " << *itsBasisSet << std::endl;
-    }
-    int Z=GetZ();
-    nlohmann::json jsacc={{"NProj",4},{"EMax",Z*Z*0.1/32},{"EMin",1e-7},{"SVTol",5e-9}};
-    SCFAccelerator* acc=qchem::SCFAccelerators::Factory(qchem::SCFAccelerators::Type::DIIS,jsacc);
-    // SCFAccelerator* acc=new SCFAcceleratorDIIS({8,Z*Z*0.1/16,1e-7,1e-9});
-    delete itsSCFIterator;
-    itsSCFIterator=new SCFIterator(itsBasisSet,GetElectronConfiguration(),GetHamiltonian(itsCluster),acc);
-    assert(itsSCFIterator);
-}
+    double          TotalEnergy() const;
+    EnergyBreakdown GetEnergyBreakdown() const;
+    double          TotalCharge() const;
+    const Orbitals* GetOrbitals(const Irrep_QNs& qns) const;
+    const Orbital*  GetOrbital(size_t index, const Irrep_QNs& qns) const;
+    double          RelativeError(double expected,bool quiet=false) const;
+    double          RelativeHFError(bool quiet=false) const;
+    double          RelativeDFTError(bool quiet=false) const;
+    bool            Converged() const;
+    
+    int             GetLMax(int Z) const {return itsPT.GetMaxL(Z);}
+    size_t          GetIterationCount() const;
+    irrepv_t        GetIrreps(const Spin& ms) const;
+protected:
+    typedef std::shared_ptr<const Cluster> cl_t;
 
-void QchemTester::Iterate(const SCFParams& ipar)
-{
-    assert(itsSCFIterator);
-    itsSCFIterator->Iterate(ipar);
-}
+    // Atom of Molecule functions
+    virtual const Cluster*  GetCluster   () const {return itsCluster.get();}
+    virtual MeshParams      GetMeshParams() const=0;
+    virtual int             GetZ         () const;
+    virtual const ElectronConfiguration* GetElectronConfiguration() const=0;
 
-
-double QchemTester::TotalEnergy() const
-{
-    return GetEnergyBreakdown().GetTotalEnergy();
-}
-
-EnergyBreakdown QchemTester::GetEnergyBreakdown() const
-{
-    return itsSCFIterator->GetEnergy();
-}
-
-double QchemTester::TotalCharge() const
-{
-    return itsSCFIterator->GetWaveFunction()->GetChargeDensity()->GetTotalCharge();
-}
-
-const Orbitals* QchemTester::GetOrbitals(const Irrep_QNs& qns) const
-{
-    return itsSCFIterator->GetWaveFunction()->GetOrbitals(qns);
-}
-
-const Orbital* QchemTester::GetOrbital(size_t index, const Irrep_QNs& qns) const
-{
-    const Orbitals* orbs=GetOrbitals(qns);
-    assert(index<(size_t)orbs->GetNumOrbitals());
-    const Orbital* o=0;
-    for (auto oi:orbs->Iterate<Orbital>())
-    {
-        if (index==0) 
-        {
-            o=oi;
-            break;
-        }
-        index--;
-    }
-    return o;
-}
-
-size_t QchemTester::GetIterationCount() const 
-{
-    return itsSCFIterator->GetIterationCount();
-}
-
-bool   QchemTester::Converged() const
-{
-    return itsSCFIterator->Converged();
-}
-
-double QchemTester::RelativeError(double E,bool quiet) const
-{
-    double error=(E-TotalEnergy())/E;
-    if (!quiet)
-    {
-        std::cout.precision(9);
-        std::cout << "E relative error=" << error*100.0 << "%, ";
-        std::cout.precision(2);
-        if (fabs(error)>1e-7)
-            std::cout << error*1e6 << "(ppm)" << std::endl;
-        else if (fabs(error)>1e-10)
-            std::cout << error*1e9 << "(ppb)" << std::endl;
-        else
-            std::cout << error*1e12 << "(ppt)" << std::endl;
-    }
-    return error;
-}
-
-
-
-double QchemTester::RelativeHFError(bool quiet) const
-{
-    double E_HF=itsPT.GetEnergyHF(itsCluster->GetNuclearCharge());
-    return RelativeError(E_HF,quiet);
-}
-
-double QchemTester::RelativeDFTError(bool quiet) const
-{
-    double E_DFT=itsPT.GetEnergyDFT(itsCluster->GetNuclearCharge());
-    return RelativeError(E_DFT,quiet);
-}
-
-int QchemTester::GetZ() const
-{
-    return GetCluster()->GetNuclearCharge();
-}
-
-irrepv_t QchemTester::GetIrreps(const Spin& ms) const
-{
-    return itsBasisSet->GetIrreps(ms);
-}
-
-
-
-TestAtom::TestAtom(int Z, int q) : ec(Z-q) //Pass in # of electrons.
-{
-    itsZ=Z-q;
-    itsCluster=cl_t(new Atom(Z,q,Vector3D<double>(0,0,0)));
+    // Orbital Basis Set functions SG, PG, Slater
+    virtual Real_BS* GetBasisSet   (const nlohmann::json&) const=0;
+    // Hamiltonian functions HF,semi HF, DFT all Pol or un-polarized.
+    virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const=0;
+protected:
+    cl_t          itsCluster;
+    Real_BS*      itsBasisSet;
+    SCFIterator*  itsSCFIterator;
+public:
+    static PeriodicTable itsPT;
+    double MaxRelErrE;
 };
 
-MeshParams TestAtom::GetMeshParams() const
-{
-    return MeshParams({qchem::MHL,50,3,2.0,qchem::Gauss,1,0,0,2});
-}
 
-Real_BS* TestAtom::GetBasisSet (const nlohmann::json& js) const
+//----------------------------------------------------------------------------------
+//
+//  Atoms and Molecules
+//
+export class TestAtom : public virtual QchemTester
 {
-    return BasisSet::Atom::Factory(js,itsZ);
-}
+public:
+    TestAtom(int _Z, int _q=0);
+    virtual MeshParams GetMeshParams() const;
+    virtual const ElectronConfiguration* GetElectronConfiguration() const {return &ec;}
+private:
+    virtual Real_BS* GetBasisSet (const nlohmann::json&) const;
+    Atom_EC ec;
+    int itsZ;
+};
 
-void TestMolecule::Init(Cluster* m)
+export class TestMolecule : public virtual QchemTester
 {
-    assert(m);
-    itsCluster=cl_t(m);
-    ec=Molecule_EC(m->GetNumElectrons());
-}
+public:
+    TestMolecule() {};
+    void Init(Cluster*);
+    virtual MeshParams  GetMeshParams() const;
+    virtual const ElectronConfiguration* GetElectronConfiguration() const {return &ec;}
+private:
+    virtual Real_BS* GetBasisSet (const nlohmann::json&) const;
+    Molecule_EC ec;
+};
 
-MeshParams TestMolecule::GetMeshParams() const
-{
-    return MeshParams({qchem::MHL,30,3,2.0,qchem::Gauss,12,0,0,2});
-}
-Real_BS* TestMolecule::GetBasisSet (const nlohmann::json& js) const
-{
-    return BasisSet::Molecule::Factory(js,GetCluster());
-}
 
 

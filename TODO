@@ -15,6 +15,12 @@ Priority 1:
     -Incorporate into QChemTests and make that a module.
     Done: -Get profiling to work better ... everything should not be spontaneous!
     -Migrate all A_HF_XX_XXX tests over to BasisSetPool
+    -cach4 RAM is very small.  Good candidate for dumping to disk.
+        Put it in a place that can be reached by both Debig and Release builds.
+        Use ceral ... which seems to have disapeared from submodules.
+        Need to remember to delete this thing if the relevent code changes.
+    -Still need to switch over to the new PeriodicTable1
+    -Get rid og eps in QchemTester::Init
 
 
     -BUG: A_Pool.C TEST_P(A_HF_U,SlaterHFGroundStates) with Z={2,70}
