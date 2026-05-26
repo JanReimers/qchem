@@ -7,24 +7,26 @@
 using std::cout;
 using std::endl;
 
+import qchem.Unittests.BasisSetPool;
 import qchem.BasisSet.Atom.Evaluators.Slater.IBS;
 import qchem.BasisSet.Atom.Evaluators.Gaussian.IBS; 
 import qchem.BasisSet.Atom.Evaluators.BSpline.IBS;
 import qchem.BasisSet.Atom.Evaluators.Concepts;
 
-import qchem.Factory;
+// import qchem.Factory;
 import qchem.Mesh.Integrator;
-import qchem.Cluster;
-import Common.Constants;
-import qchem.BasisSet.Internal.ERI4;
+// import qchem.Cluster;
+// import Common.Constants;
+// import qchem.BasisSet.Internal.ERI4;
 import qchem.Symmetry.Yl;
-import qchem.Symmetry.AtomEC;
+// import qchem.Symmetry.AtomEC;
 import qchem.Hamiltonian.Types;
 
 using qchem::Hamiltonian::ohfbs_t;
 using qchem::Hamiltonian::obs_t;
 using namespace BasisSet::Atom::Evaluators;
-
+using BasisSet::Real_BS;
+using BasisSet::Real_OIBS;
 //----------------------------------------------------------------------------------------
 //
 //  Testing common to all atom basis set evaluators
@@ -158,8 +160,7 @@ public:
         Atom_EC ec(86); //Radon has f orbtials with no magnetic splitting.
         for (auto ir:ec.GetIrreps())
             Insert(new Slater::Slater_IBS_Evaluator(es,ir)); 
-        nlohmann::json js = {{"type",abs_t::Slater},{"exponents", {0.5,1.0,2.0}}};
-        bs=BasisSet::Atom::Factory(js,ec);
+        bs=PoolFactory(BasisSetAccuracy::N3,BasisSet::Atom::Type::Slater,86);
         cout << es << endl << *bs << endl;
     }
     
@@ -275,8 +276,8 @@ TEST_F(BasisSet_SL,IDs)
     size_t index=0;
     for (auto ibs:bs->Iterate<obs_t>())
     {
-        EXPECT_EQ(ibs->Name(),"Spherical Slater ");
-        EXPECT_EQ(ibs->RadialID(),"Spherical Slater N=3 {0.5 ... 2}");
+        EXPECT_EQ(ibs->Name(),"SL ");
+        EXPECT_EQ(ibs->RadialID(),"SL N=3 {0.5 ... 2}");
         EXPECT_EQ(ibs->AngularID(),angularIDs[index++]);
     }
 }
@@ -298,8 +299,7 @@ public:
         Atom_EC ec(86); //Radon has f orbtials with no magnetic splitting.
         for (auto ir:ec.GetIrreps())
             Insert(new Gaussian::Gaussian_IBS_Evaluator(es,ir)); 
-        nlohmann::json js = {{"type",abs_t::Gaussian},{"exponents", {0.5,1.0,2.0}}};
-        bs=BasisSet::Atom::Factory(js,ec);
+        bs=PoolFactory(BasisSetAccuracy::N3,BasisSet::Atom::Type::Gaussian,86);
     }
     static double R0(double a, double b, int la, int lb);
 };
@@ -393,8 +393,8 @@ TEST_F(BasisSet_SG,IDs)
     size_t index=0;
     for (auto ibs:bs->Iterate<obs_t>())
     {
-        EXPECT_EQ(ibs->Name(),"Spherical Gaussian ");
-        EXPECT_EQ(ibs->RadialID(),"Spherical Gaussian N=3 {0.5 ... 2}");
+        EXPECT_EQ(ibs->Name(),"SG ");
+        EXPECT_EQ(ibs->RadialID(),"SG N=3 {0.5 ... 2}");
         EXPECT_EQ(ibs->AngularID(),angularIDs[index++]);
     }
 }
@@ -413,8 +413,7 @@ public:
         for (size_t l=0;l<=3;l++)
             Insert(new BSpline::BSpline_IBS_Evaluator<6>(5,0.01,20.0,Irrep_QNs::sym_t(new Yl_Sym(l))));
 
-        nlohmann::json js = {{"type",abs_t::BSpline6},{"N", 5}, {"rmin", 0.1}, {"rmax", 10.}};
-        bs=BasisSet::Atom::Factory(js,86);
+        bs=PoolFactory(BasisSetAccuracy::N5,BasisSet::Atom::Type::BSpline6,86);
     }
    
 };
@@ -425,12 +424,6 @@ TEST_F(BasisSet_BS,Inv_r1 ) {TestInv_r1 (5e-9);}
 // TEST_F(BasisSet_BS,Inv_r2 ) {TestInv_r2 (4e-8);}
 // TEST_F(BasisSet_BS,Charge ) {TestCharge (8e-7);}
 
-std::string BSradialIDs[]={
-    "BSpline<6>  {0 0 0 0 0 0 0 0.1 0.316228 1 3.16228 10 10 10 10 10 10 10 }",
-    "BSpline<6>  {0 0 0 0 0 0 0.1 0.316228 1 3.16228 10 10 10 10 10 10 }",
-    "BSpline<6>  {0 0 0 0 0 0.1 0.316228 1 3.16228 10 10 10 10 10 }",
-    "BSpline<6>  {0 0 0 0 0.1 0.316228 1 3.16228 10 10 10 10 }"};
-
 TEST_F(BasisSet_BS,IDs)
 {
     size_t index=0;
@@ -438,7 +431,7 @@ TEST_F(BasisSet_BS,IDs)
     {
         // cout << "index=" << index << " ibs=" << *ibs << endl;
         EXPECT_EQ(ibs->Name(),"BSpline<6> ");
-        EXPECT_EQ(ibs->RadialID(),BSradialIDs[index]);
+        EXPECT_EQ(ibs->RadialID(),"BSpline<6>  grid: N=6 {0,0.25,0.5 ... 4}");
         EXPECT_EQ(ibs->AngularID(),angularIDs[index++]);
     }
 }

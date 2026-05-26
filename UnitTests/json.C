@@ -45,7 +45,7 @@ TEST_F(jsonTests,Gaussian)
 TEST_F(jsonTests,BSpline)
 {
     json js = {
-        {"N", 20},
+        {"N", 5},
         {"rmin", 0.1},
         {"rmax", 50.0},
         {"type", abs_t::BSpline6},

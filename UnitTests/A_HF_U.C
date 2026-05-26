@@ -131,7 +131,10 @@ INSTANTIATE_TEST_SUITE_P(A_HF,SL_U_Medium,::testing::Values(2,88));//));
 #endif //MEDIUM
 
 #ifdef LOW
+
 class BS_U_Low : public A_HF_U {};
+#ifdef DEBUG
+#else
 TEST_P(BS_U_Low,A)
 {
     size_t Z=GetParam();
@@ -147,8 +150,6 @@ TEST_P(BS_U_Low,A)
     EXPECT_TRUE(Converged()); 
         
 }
-#ifdef DEBUG
-#else
 INSTANTIATE_TEST_SUITE_P(A_HF,BS_U_Low,::testing::Values(2,4));//)); 
 #endif
 
