@@ -66,7 +66,6 @@ public:
         for (size_t i=i0;i<i1;i++) ret+=itsGLs[i].Integrate(f);
         return ret;
     }
-
     // used by double Iab_p=gl1.IntegrateIndex(wp,a,b,iab);
     double IntegrateIndex(const std::function< double (double)>& f, size_t i0) const
     {
@@ -79,7 +78,6 @@ public:
         assert(i0<itsGLs.size());
         return itsGLs[i0].Integrate(f);
     }
-
     // Used in some unit tests.
     double Integrate(const std::function< double (double)>& f, double rmin, double rmax) const
     {
@@ -111,10 +109,6 @@ public:
 private:
     friend GLCache2D;
     GLCache1D(const GLCache1D&)=delete;
-    typedef bspline::Support<double> sup_t;
-    double Integrate(const std::function< double (double)>& f, const sup_t& a, const sup_t& b) const;
-    double Integrate(const std::function< double (double)>& f, const sup_t& a, const sup_t& b, double rmin, double rmax) const;
-   
     const bspline::support::Grid<double> grid;
     std::vector<GLQuadrature> itsGLs;
 };

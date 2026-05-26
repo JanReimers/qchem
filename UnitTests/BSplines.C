@@ -185,7 +185,7 @@ TEST_F(BSplineTests, SplineMap)
 
 TEST_F(BSplineTests,GLQIntegration)
 {
-    Init(100,.0001,40);
+    Init(100,.0001,20);
     GLCache1D cache0(splines[0].getSupport().getGrid(),K+1); //K+1 is the minimum that works for w=x^0
     GLCache1D cache2(splines[0].getSupport().getGrid(),K+2); //K+2 is the minimum that works for w=x^2
     std::function< double (double)> w0 = [](double x){return 1.0;};
