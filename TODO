@@ -10,17 +10,37 @@ Priority 1:
         3) Time (# of any read) since last read.  
         Purge metric = RAM*(reads since last read)/reads
         Just oldest for now.
-    -Include GLCaches in Cache4 RAMsize
-    -Move some of BasisSetPool out of header.  Make a module
-    -Incorporate into QChemTests and make that a module.
+    Done: -Include GLCaches in Cache4 RAMsize
+    Done: -Move some of BasisSetPool out of header.  Make a module
+    Done: -Incorporate into QChemTests and make that a module.
     Done: -Get profiling to work better ... everything should not be spontaneous!
-    -Migrate all A_HF_XX_XXX tests over to BasisSetPool
+    Done: -Migrate all A_HF_XX_XXX tests over to BasisSetPool
+        Now in two files A_HF_U.C and A_HF_P.C
     -cach4 RAM is very small.  Good candidate for dumping to disk.
         Put it in a place that can be reached by both Debig and Release builds.
         Use ceral ... which seems to have disapeared from submodules.
         Need to remember to delete this thing if the relevent code changes.
     -Still need to switch over to the new PeriodicTable1
-    -Get rid of eps in QchemTester::Init
+    Done: -Get rid of eps in QchemTester::Init
+    -Fix small r BSpline accuracy.
+            See UT DBCach1Tests.BSplineDirect/Exchange
+            -Create an Rk UT Rk(abcd) vs Rk(cdab) and try to identify the worst case
+            -elminate the error.
+            -For comparison SG, SL are both good to 1e-15.
+            -BSpline near the origin we get much bigger errors.  
+            -Perhaps this related to problems encountered when trying to reproduce Saitos results with rmin=0.0001.
+    -Refactor BSpline and BSpine_r to minimize duplicated code.  Isolate weight functions wp, wm.
+        [k] capture makes this very difficult.
+        We would need to feed k through all the function calls.  Worth a try to avoid dual maintenance.
+
+    -For unit tests make more sense to avoid trimming basis sets based on Z.  Just use big everywhere.
+        Use a batch flag.
+        A_HF_P_SG run: The cach4 data would be dramatically reduced.
+        Global Environment TearDown
+            ------------------- IntegralsCache RAM usage report -------------------------
+            Jac   data:          1017 (MB)  30%
+            Kab   data:          1017 (MB)  30%
+            Cach4 data:          1361 (MB)  40%
 
 
     -BUG: A_Pool.C TEST_P(A_HF_U,SlaterHFGroundStates) with Z={2,70}
@@ -37,7 +57,7 @@ Priority 1:
             -{70,2} passes, He (or Ne)  is unaffected by doing 70 first.
             -Debug and Release are the same. 
     -DBcache
-        -Make a Direct version of DB_cache ... don't cache anything!!  (this used to be called DirectSCF)
+        -Make a Direct version of DB_cache ... dont cache anything!!  (this used to be called DirectSCF)
         -Intermediate: Save all slater integrals Rk and recalculates J/K on demand.
         -When to use Jcdab=Jabcd.Transpose()?
             Avoid transposing for every iteration.
@@ -48,13 +68,6 @@ Priority 1:
             Auto save/restor from disk
 
     -BasisSet reorg
-        -Fix small r BSpline accuracy.
-            See UT DBCach1Tests.BSplineDirect/Exchange
-            -Create an Rk UT Rk(abcd) vs Rk(cdab) and try to identify the worst case
-            -elminate the error.
-            -For comparison SG, SL are both good to 1e-15.
-            -BSpline near the origin we get much bigger errors.  
-            -Perhaps this related to problems encountered when trying to reproduce Saitos results with rmin=0.0001.
         Done: We need a general way to adjust basis sets for increasing L
             Fixed: For BSpline the repeated edge knots get removed for increasing L
             Done: For Gaussian and Slater we want less large more small exponents for increasing L
@@ -155,9 +168,6 @@ Priority 1:
                     IBS grid starting indices all need to change!
     
 
-        -Refactor BSpline and BSpine_r to minimize duplicated code.  Isolate weight functions wp, wm.
-            [k] capture makes this very difficult.
-            We would need to feed k through all the function calls.  Worth a try to avoid dual maintenance.
 
     -Can we move GetIrreps down to the ElectronConfiguration level.
     -We need a separate Arom_EC for Dirac atoms kappa,mj QNs.

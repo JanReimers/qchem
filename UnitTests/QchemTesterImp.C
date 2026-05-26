@@ -40,7 +40,6 @@ void QchemTester::Init(BasisSetAccuracy acc, BasisSet::Atom::Type type,bool verb
 void QchemTester::Init(Real_BS* bs, bool verbose,LAParams lap)
 {
     itsBasisSet=bs;
-    assert(eps>0.0);
     
     assert(itsCluster);
     assert(&*itsCluster);
