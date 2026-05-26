@@ -163,12 +163,16 @@ template <size_t K> RkEngine<K>::RkEngine(const std::vector<sp_t>& splines, size
                 {
                     return gl2.find_gl_grid(i1,iab+1).Integrate(wmcd);
                 };
-                std::function< double (double,size_t)> wab_diag = [&wp,&wm,&Yk1_diag,&Yk2_diag] (double r1, size_t i1)
+                std::function< double (double,size_t)> w_diag = [&wp,&wm,&Yk1_diag,&Yk2_diag] (double r1, size_t i1)
                 {
                     assert(r1>=0);
                     return wm(r1)*Yk1_diag(r1,i1)+wp(r1)*Yk2_diag(r1,i1);
                 };
-                double Idiag=gl1.IntegrateIndex(wab_diag,a,b,iab);
+                std::function< double (double,size_t)> wab_diag = [&a,&b,&w_diag](double r1, size_t i1)
+                {
+                    return w_diag(r1,i1)*a(r1)*b(r1);
+                };
+                double Idiag=gl1.IntegrateIndex(wab_diag,iab);
                 // # pragma omp critical
                 RkOff+=Iab_m*Icd_p + Iab_p*Icd_m;
                 RkDiag+=Idiag;

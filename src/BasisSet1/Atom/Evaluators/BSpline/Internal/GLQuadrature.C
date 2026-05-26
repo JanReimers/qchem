@@ -56,27 +56,12 @@ export class GLCache1D
 public:
     GLCache1D(const bspline::support::Grid<double>& g,size_t Order);
 
-    // template <size_t K1, size_t K2> double Integrate(const std::function< double (double)>& w,const bspline::Spline<double,K1>& a, const bspline::Spline<double,K2>& b) const
-    // {
-    //     std::function< double (double)> fwab = [w,a,b](double x){return w(x)*a(x)*b(x);};
-    //     return Integrate(fwab,a.getSupport(),b.getSupport());
-    // }
     template <size_t K> double Integrate(const std::function< double (double)>& w,const bspline::Spline<double,K>& a, const bspline::Spline<double,K>& b) const
     {
         std::function< double (double)> fwab = [w,a,b](double x){return w(x)*a(x)*b(x);};
         return Integrate(fwab,a.getSupport(),b.getSupport());
     }
-    // template <size_t K> double Integrate(const std::function< double (double)>& w,const bspline::Spline<double,K>& a, const bspline::Spline<double,K>& b, double rmin, double rmax) const
-    // {
-    //     std::function< double (double)> fwab = [w,a,b](double x){return w(x)*a(x)*b(x);};
-    //     return Integrate(fwab,a.getSupport(),b.getSupport(),rmin,rmax);
-    // }
-    // used by Icd_p=gl1.IntegrateIndex(wp,c,d,scd.getStartIndex(),iab);
-    // template <size_t K> double IntegrateIndex(const std::function< double (double)>& w,const bspline::Spline<double,K>& a, const bspline::Spline<double,K>& b, size_t i0, size_t i1) const
-    // {
-    //     std::function< double (double)> fwab = [w,a,b](double x){return w(x)*a(x)*b(x);};
-    //     return IntegrateIndex(fwab,i0,i1);
-    // }
+    ///used by double Icd_p=gl1.IntegrateIndex(wpcd,scd.getStartIndex(),iab);
     double IntegrateIndex(const std::function< double (double)>& f,  size_t i0, size_t i1) const
     {
         if (i0>=i1) return 0.0;
@@ -88,24 +73,23 @@ public:
     }
 
     // used by double Iab_p=gl1.IntegrateIndex(wp,a,b,iab);
-    // template <size_t K> double IntegrateIndex(const std::function< double (double)>& w,const bspline::Spline<double,K>& a, const bspline::Spline<double,K>& b, size_t i0) const
-    // {
-    //     std::function< double (double)> fwab = [w,a,b](double x){return w(x)*a(x)*b(x);};
-    //     assert(i0<itsGLs.size());
-    //     return itsGLs[i0].Integrate(fwab);
-    // }
     double IntegrateIndex(const std::function< double (double)>& f, size_t i0) const
     {
         assert(i0<itsGLs.size());
         return itsGLs[i0].Integrate(f);
     }
     // used by double Idiag=gl1.IntegrateIndex(wab_diag,a,b,iab); where size_t i1 is a grid index NOT k
-    template <size_t K> double IntegrateIndex(const std::function< double (double,size_t)>& w,const bspline::Spline<double,K>& a, const bspline::Spline<double,K>& b, size_t i0) const
+    double IntegrateIndex(const std::function< double (double,size_t)>& f, size_t i0) const
     {
-        std::function< double (double, size_t)> fwab = [w,a,b](double x, size_t ix){return w(x,ix)*a(x)*b(x);};
         assert(i0<itsGLs.size());
-        return itsGLs[i0].Integrate(fwab);
+        return itsGLs[i0].Integrate(f);
     }
+    // template <size_t K> double IntegrateIndex(const std::function< double (double,size_t)>& w,const bspline::Spline<double,K>& a, const bspline::Spline<double,K>& b, size_t i0) const
+    // {
+    //     std::function< double (double, size_t)> fwab = [w,a,b](double x, size_t ix){return w(x,ix)*a(x)*b(x);};
+    //     assert(i0<itsGLs.size());
+    //     return itsGLs[i0].Integrate(fwab);
+    // }
 
     // template <class F> double Integrate(const std::function< double (double)>& w,const F& a, const F& b) const
     // {
