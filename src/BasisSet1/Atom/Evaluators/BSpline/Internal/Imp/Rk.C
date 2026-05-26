@@ -129,19 +129,19 @@ template <size_t K> RkEngine<K>::RkEngine(const std::vector<sp_t>& splines, size
     // // double rmin=std::max(sab.front(),scd.front()),rmax=std::min(sab.back(),scd.back());
     for (size_t k=0;k<=2*LMax;k++)
     {
-        std::function< double (double)> wp = [k](double r2)
+        std::function< double (double,size_t )> wp = [](double r2,size_t k)
         {
             return intpow(r2,k+2);
         };
-        std::function< double (double)> wm = [k](double r2)
+        std::function< double (double,size_t )> wm = [](double r2,size_t k)
         {
             assert(r2>=0);
             return intpow(r2,1-k);
         };
-        std::function< double (double)> wpab=[&wp,&a,&b](double r) {return wp(r)*a(r)*b(r);};
-        std::function< double (double)> wmab=[&wm,&a,&b](double r) {return wm(r)*a(r)*b(r);};
-        std::function< double (double)> wpcd=[&wp,&c,&d](double r) {return wp(r)*c(r)*d(r);};
-        std::function< double (double)> wmcd=[&wm,&c,&d](double r) {return wm(r)*c(r)*d(r);};
+        std::function< double (double)> wpab=[k,&wp,&a,&b](double r) {return wp(r,k)*a(r)*b(r);};
+        std::function< double (double)> wmab=[k,&wm,&a,&b](double r) {return wm(r,k)*a(r)*b(r);};
+        std::function< double (double)> wpcd=[k,&wp,&c,&d](double r) {return wp(r,k)*c(r)*d(r);};
+        std::function< double (double)> wmcd=[k,&wm,&c,&d](double r) {return wm(r,k)*c(r)*d(r);};
         if (Sabcd.containsIntervals())
         {
             cout.precision(6);
@@ -163,10 +163,10 @@ template <size_t K> RkEngine<K>::RkEngine(const std::vector<sp_t>& splines, size
                 {
                     return gl2.find_gl_grid(i1,iab+1).Integrate(wmcd);
                 };
-                std::function< double (double,size_t)> w_diag = [&wp,&wm,&Yk1_diag,&Yk2_diag] (double r1, size_t i1)
+                std::function< double (double,size_t)> w_diag = [k,&wp,&wm,&Yk1_diag,&Yk2_diag] (double r1, size_t i1)
                 {
                     assert(r1>=0);
-                    return wm(r1)*Yk1_diag(r1,i1)+wp(r1)*Yk2_diag(r1,i1);
+                    return wm(r1,k)*Yk1_diag(r1,i1)+wp(r1,k)*Yk2_diag(r1,i1);
                 };
                 std::function< double (double,size_t)> wab_diag = [&a,&b,&w_diag](double r1, size_t i1)
                 {

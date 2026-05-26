@@ -84,12 +84,6 @@ public:
         assert(i0<itsGLs.size());
         return itsGLs[i0].Integrate(f);
     }
-    // template <size_t K> double IntegrateIndex(const std::function< double (double,size_t)>& w,const bspline::Spline<double,K>& a, const bspline::Spline<double,K>& b, size_t i0) const
-    // {
-    //     std::function< double (double, size_t)> fwab = [w,a,b](double x, size_t ix){return w(x,ix)*a(x)*b(x);};
-    //     assert(i0<itsGLs.size());
-    //     return itsGLs[i0].Integrate(fwab);
-    // }
 
     // template <class F> double Integrate(const std::function< double (double)>& w,const F& a, const F& b) const
     // {
