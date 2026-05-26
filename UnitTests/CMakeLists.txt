@@ -10,9 +10,14 @@ link_directories(
 
 #  Main
 # 
-add_executable(UTMain gtestmain.C json.C BSplines.C EigenSolverUT.C SymQN.C ElectronConfigurations.C 
-DiracIntegral.C SlaterIntegral.C GaussianIntegral.C A_DHF.C A_HF_U.C A_DFT.C M_PG_U.C QchemTester.C Angular.C ERI4.C MeshIntegrals.C
-UTCluster.C UTBasisSet.C BasisSet1_Atom.C BasisSet_Atom.C PeriodicTable.C)
+add_executable(UTMain gtestmain.C QchemTesterImp.C BasisSetPoolImp.C 
+    json.C EigenSolverUT.C ERI4.C MeshIntegrals.C UTCluster.C  PeriodicTable.C
+    BSplines.C DiracIntegral.C SlaterIntegral.C GaussianIntegral.C UTBasisSet.C BasisSet1_Atom.C BasisSet_Atom.C
+    A_HF_U.C A_HF_P.C A_DHF.C A_HF_U.C A_DFT.C M_PG_U.C  
+    SymQN.C ElectronConfigurations.C Angular.C 
+    )
+target_sources(UTMain PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES QchemTester.C BasisSetPool.C)
+
 #add_executable(UTMain UTMain.C DiracIntegral.C SlaterIntegral.C GaussianIntegral.C QchemTester.C)
 #GCM_PATH := $(LIB_PATH)/gcm.cache
 #MAPPER := '-fmodule-mapper=|@g++-mapper-server -r'$(GCM_PATH)

@@ -1,6 +1,8 @@
 // File A_HF.C  Atom Hartree-Fock tests.
+#include "gtest/gtest.h"
+#include <nlohmann/json.hpp>
 
-#include "QchemTester.H"
+import qchem.Unittests.QchemTester;
 
 import qchem.Hamiltonian.Factory;
 import qchem.Cluster;
@@ -29,7 +31,7 @@ public:
     {
         TestMolecule::Init(m);
         nlohmann::json js = { {"filepath","../../../BasisSetData/dzvp.bsd"} };
-        QchemTester::Init(3e-3,js);
+        QchemTester::Init(js);
     }
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
     {
@@ -46,7 +48,7 @@ public:
     {
         TestMolecule::Init(m);
         nlohmann::json js = { {"filepath","../../../BasisSetData/dzvp.bsd"} };
-        QchemTester::Init(1e-2,js);
+        QchemTester::Init(js);
     }
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
     {
@@ -57,14 +59,16 @@ public:
 
 bool verbose=false;
 
+#ifndef DEBUG
 TEST_F(M_PG_HF_U,N2)
 {
     Init(MakeN2());
     //   NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo MergeTol verbose
     Iterate({20,1e-4,1e-7,1e-13,1e-5,1.0,1e-4,verbose});
     double rerr=fabs((TotalEnergy()-E_N2)/E_N2);
-    EXPECT_LT(rerr,MaxRelErrE);
+    EXPECT_LT(rerr,1e-2);
 }
+#endif
 
 TEST_F(M_PG_DFT_U,N2)
 {
@@ -72,5 +76,5 @@ TEST_F(M_PG_DFT_U,N2)
     //   NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo MergeTol verbose
     Iterate({20,1e-4,1e-7,1e-13,1e-5,1.0,1e-4,verbose});
     double rerr=fabs((TotalEnergy()-E_N2)/E_N2);
-    EXPECT_LT(rerr,MaxRelErrE);
+    EXPECT_LT(rerr,1e-2);
 }

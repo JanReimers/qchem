@@ -22,7 +22,7 @@ class Slater_IBS_Evaluator : public Exponential_IBS_Evaluator
 public: 
     Slater_IBS_Evaluator(const rvec_t& es, int l, const is_t& mls) : Exponential_IBS_Evaluator(es,l,mls) {ns=norms();}
     Slater_IBS_Evaluator(const rvec_t& es, int l) : Slater_IBS_Evaluator(es,l,{}) {}
-    Slater_IBS_Evaluator(const rvec_t& es, const Irrep_QNs::sym_t& ir, size_t ltrim) : Exponential_IBS_Evaluator(es,ir,ltrim) {ns=norms();}
+    Slater_IBS_Evaluator(const rvec_t& es, const Irrep_QNs::sym_t& ir, size_t ltrim=0) : Exponential_IBS_Evaluator(es,ir,ltrim) {ns=norms();}
     Slater_IBS_Evaluator(size_t N, double emin, double emax, const Irrep_QNs::sym_t& ir) 
     : Exponential_IBS_Evaluator(exponents(N,emin,emax,ir),ir) {ns=norms();}
    

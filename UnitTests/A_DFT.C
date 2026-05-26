@@ -1,6 +1,8 @@
 // File A_HF.C  Atom Hartree-Fock tests.
+#include "gtest/gtest.h"
+#include <nlohmann/json.hpp>
 
-#include "QchemTester.H"
+import qchem.Unittests.QchemTester;
 
 import qchem.Hamiltonian.Factory;
 import qchem.Factory;
@@ -61,7 +63,7 @@ TEST_P(A_SG_DFT_U,Multiple)
     };
     QchemTester::Init(js);
     Iterate(dft_scf_params(Z));
-    EXPECT_LT(RelativeDFTError(),MaxRelErrE);
+    EXPECT_LT(RelativeDFTError(),2e-3);
 }
 INSTANTIATE_TEST_SUITE_P(Multiple,A_SG_DFT_U,::testing::Values(2,4,10,18,36,54)); 
 
@@ -77,7 +79,7 @@ TEST_P(A_SL_DFT_U,Multiple)
     };
     QchemTester::Init(js);
     Iterate(dft_scf_params(Z));
-    EXPECT_LT(RelativeDFTError(),MaxRelErrE);
+    EXPECT_LT(RelativeDFTError(),2e-3);
 }
 INSTANTIATE_TEST_SUITE_P(Multiple,A_SL_DFT_U,::testing::Values(2,4,10,18,36,54));
 
@@ -85,7 +87,7 @@ TEST_P(A_PG_DFT_U,Multiple)
 {
     Init();
     Iterate(dft_scf_params(GetParam()));
-    EXPECT_LT(RelativeDFTError(),MaxRelErrE);
+    EXPECT_LT(RelativeDFTError(),2.2e-3);
 }
 INSTANTIATE_TEST_SUITE_P(Multiple,A_PG_DFT_U,::testing::Values(2,4,10,18,36));
 
@@ -145,7 +147,7 @@ TEST_P(A_SG_DFT_P,Multiple)
     };
     QchemTester::Init(js);
     Iterate(dft_scf_params(Z));
-    EXPECT_LT(RelativeDFTError(),MaxRelErrE);
+    EXPECT_LT(RelativeDFTError(),1e-3);
 }
 
 INSTANTIATE_TEST_SUITE_P(Multiple,A_SG_DFT_P,::testing::Values(1,3,7,37,53)); //,3,5,7,37,53
@@ -162,7 +164,7 @@ TEST_P(A_SL_DFT_P,Multiple)
     };
     QchemTester::Init(js);
     Iterate(dft_scf_params(Z));
-    EXPECT_LT(RelativeDFTError(),MaxRelErrE);
+    EXPECT_LT(RelativeDFTError(),2e-3);
 }
 
 INSTANTIATE_TEST_SUITE_P(Multiple,A_SL_DFT_P,::testing::Values(1,3,7,37,53)); 
@@ -173,7 +175,7 @@ TEST_P(A_PG_DFT_P,Multiple)
 {
     Init();
     Iterate(dft_scf_params(GetParam()));
-    EXPECT_LT(RelativeDFTError(),MaxRelErrE);
+    EXPECT_LT(RelativeDFTError(),5.1e-3);
 }
 INSTANTIATE_TEST_SUITE_P(Multiple,A_PG_DFT_P,::testing::Values(3,5,11,37)); //Z=51 is slow.
 

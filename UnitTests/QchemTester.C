@@ -8,7 +8,7 @@ export module qchem.Unittests.QchemTester;
 export import qchem.Unittests.BasisSetPool;
 export import qchem.Hamiltonian;
 export import qchem.Hamiltonian.Factory;
-
+export import qchem.SCFParams;
 import qchem.SCFIterator;
 import qchem.LAParams;
 import qchem.Cluster;
@@ -19,10 +19,10 @@ import qchem.Symmetry.AtomEC;
 import qchem.Symmetry.MoleculeEC;
 import Common.PeriodicTable;
 
-typedef BasisSet::irrepv_t irrepv_t;
+export typedef BasisSet::irrepv_t irrepv_t;
 
-using qchem::Orbitals::Orbital;
-using qchem::Orbitals::Orbitals;
+export using qchem::Orbitals::Orbital;
+export using qchem::Orbitals::Orbitals;
 using qchem::Hamiltonian::Hamiltonian;
 using qchem::SCFIterator::SCFIterator;
 

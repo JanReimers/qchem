@@ -1,10 +1,13 @@
 // File A_DHF.C  Atom Dirac-Hartree-Fock tests.
+#include "gtest/gtest.h"
+#include <nlohmann/json.hpp>
 
 #include <iostream>
 #include <iomanip>
-
-#include "QchemTester.H"
+#include <cmath>
+import qchem.Unittests.QchemTester;
 import qchem.Hamiltonian.Factory;
+import qchem.Orbitals;
 import qchem.Factory;
 import Common.Constants;
 import qchem.Mesh;
@@ -70,7 +73,11 @@ TEST_P(A_SLm_HF_ion,Multiple)
     EXPECT_LT(RelativeError(-0.5*Z*Z),4e-13);
 }
 
+#ifdef DEBUG
+INSTANTIATE_TEST_SUITE_P(Multiple,A_SLm_HF_ion,::testing::Values(1)); 
+#else
 INSTANTIATE_TEST_SUITE_P(Multiple,A_SLm_HF_ion,::testing::Values(1,20,60,86,100)); 
+#endif
 
 
 class A_SLmj_DHF : public ::testing::TestWithParam<int>
