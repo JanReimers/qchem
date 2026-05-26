@@ -56,11 +56,6 @@ export class GLCache1D
 public:
     GLCache1D(const bspline::support::Grid<double>& g,size_t Order);
 
-    template <size_t K> double Integrate(const std::function< double (double)>& w,const bspline::Spline<double,K>& a, const bspline::Spline<double,K>& b) const
-    {
-        std::function< double (double)> fwab = [w,a,b](double x){return w(x)*a(x)*b(x);};
-        return Integrate(fwab,a.getSupport(),b.getSupport());
-    }
     ///used by double Icd_p=gl1.IntegrateIndex(wpcd,scd.getStartIndex(),iab);
     double IntegrateIndex(const std::function< double (double)>& f,  size_t i0, size_t i1) const
     {
@@ -85,35 +80,7 @@ public:
         return itsGLs[i0].Integrate(f);
     }
 
-    // template <class F> double Integrate(const std::function< double (double)>& w,const F& a, const F& b) const
-    // {
-    //     std::function< double (double)> fwab = [w,a,b](double x){return w(x)*a(x)*b(x);};
-    //     return Integrate(fwab);
-    // }
-    template <class F> double Integrate(const std::function< double (double)>& w,const F& a, const F& b, double rmin, double rmax) const
-    {
-        std::function< double (double)> fwab = [w,a,b](double x){return w(x)*a(x)*b(x);};
-        return Integrate(fwab,rmin,rmax);
-    }
-    size_t RAMsize() const
-    {
-        size_t ndoubles=grid.size();
-        for (auto gl:itsGLs) ndoubles+=gl.RAMsize();
-        return ndoubles;
-    }
-private:
-    friend GLCache2D;
-    GLCache1D(const GLCache1D&)=delete;
-    typedef bspline::Support<double> sup_t;
-    double Integrate(const std::function< double (double)>& f, const sup_t& a, const sup_t& b) const;
-    double Integrate(const std::function< double (double)>& f, const sup_t& a, const sup_t& b, double rmin, double rmax) const;
-    double Integrate(const std::function< double (double)>& f) const
-    {
-        double ret=0.0;
-        for (auto gl:itsGLs)
-            ret+=gl.Integrate(f);
-        return ret;
-    }
+    // Used in some unit tests.
     double Integrate(const std::function< double (double)>& f, double rmin, double rmax) const
     {
         double ret=0.0;
@@ -127,6 +94,26 @@ private:
         }
         return ret;
     }
+    double Integrate(const std::function< double (double)>& f) const
+    {
+        double ret=0.0;
+        for (auto gl:itsGLs)
+            ret+=gl.Integrate(f);
+        return ret;
+    }
+
+    size_t RAMsize() const
+    {
+        size_t ndoubles=grid.size();
+        for (auto gl:itsGLs) ndoubles+=gl.RAMsize();
+        return ndoubles;
+    }
+private:
+    friend GLCache2D;
+    GLCache1D(const GLCache1D&)=delete;
+    typedef bspline::Support<double> sup_t;
+    double Integrate(const std::function< double (double)>& f, const sup_t& a, const sup_t& b) const;
+    double Integrate(const std::function< double (double)>& f, const sup_t& a, const sup_t& b, double rmin, double rmax) const;
    
     const bspline::support::Grid<double> grid;
     std::vector<GLQuadrature> itsGLs;

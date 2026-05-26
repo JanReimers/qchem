@@ -31,10 +31,11 @@ template <size_t K> RkCache<K>::RkCache(const std::vector<sp_t>& splines,const G
             std::vector<double> mp,mm;
             for (size_t k=0;k<=2*lmax;k++)
             {
-                std::function< double (double)> wp = [k](double r) {return intpow(r,k+2);};
-                std::function< double (double)> wm = [k](double r) {return intpow(r,1-k);};
-                mp.push_back(gl1.Integrate(wp,splines[ia],splines[ib]));
-                mm.push_back(gl1.Integrate(wm,splines[ia],splines[ib]));
+                const sp_t& a=splines[ia], &b=splines[ib];
+                std::function< double (double)> wpab = [k,&a,&b](double r) {return intpow(r,k+2)*a(r)*b(r);};
+                std::function< double (double)> wmab = [k,&a,&b](double r) {return intpow(r,1-k)*a(r)*b(r);};
+                mp.push_back(gl1.Integrate(wpab));
+                mm.push_back(gl1.Integrate(wmab));
 
             }
             itsMomentsPlus [std::make_pair(ia,ib)]=mp;
@@ -59,7 +60,7 @@ template <size_t K>  size_t RkCache<K>::RAMsize() const
     return ndoubles;
 }
 
-template <size_t K> RkCache_r<K>::RkCache_r(const std::vector<sp_t>& splines,const GLCache1D& gl, size_t lmax)
+template <size_t K> RkCache_r<K>::RkCache_r(const std::vector<sp_t>& splines,const GLCache1D& gl1, size_t lmax)
 {
     for (size_t ia=0;ia<splines.size();ia++)
         for (size_t ib=ia;ib<splines.size();ib++)
@@ -68,10 +69,15 @@ template <size_t K> RkCache_r<K>::RkCache_r(const std::vector<sp_t>& splines,con
             std::vector<double> mp,mm;
             for (size_t k=0;k<=2*lmax;k++)
             {
-                std::function< double (double)> wp = [k](double r) {return intpow(r,k);};
-                std::function< double (double)> wm = [k](double r) {return intpow(r,-1-k);};
-                mp.push_back(gl.Integrate(wp,splines[ia],splines[ib]));
-                mm.push_back(gl.Integrate(wm,splines[ia],splines[ib]));
+                // std::function< double (double)> wp = [k](double r) {return intpow(r,k);};
+                // std::function< double (double)> wm = [k](double r) {return intpow(r,-1-k);};
+                const sp_t& a=splines[ia], &b=splines[ib];
+                std::function< double (double)> wpab = [k,&a,&b](double r) {return intpow(r,k)*a(r)*b(r);};
+                std::function< double (double)> wmab = [k,&a,&b](double r) {return intpow(r,-1-k)*a(r)*b(r);};
+                mp.push_back(gl1.Integrate(wpab));
+                mm.push_back(gl1.Integrate(wmab));
+                // mp.push_back(gl.Integrate(wp,splines[ia],splines[ib]));
+                // mm.push_back(gl.Integrate(wm,splines[ia],splines[ib]));
 
             }
             itsMomentsPlus [std::make_pair(ia,ib)]=mp;
@@ -95,6 +101,8 @@ template <size_t K> RkEngine<K>::RkEngine(const std::vector<sp_t>& splines, size
     , const GLCache1D& gl1,const GLCache2D& gl2, const RkCache<K>& rkcache)
  : LMax(_LMax), Rabcd_k(2*LMax+1,0.0)
  {
+    std::function< double (double,size_t )> wp = [](double r2,size_t k) {return intpow(r2,k+2);};
+    std::function< double (double,size_t )> wm = [](double r2,size_t k) {return intpow(r2,1-k);};
     sp_t a=splines[ia];
     sp_t b=splines[ib];
     sp_t c=splines[ic];
@@ -129,15 +137,6 @@ template <size_t K> RkEngine<K>::RkEngine(const std::vector<sp_t>& splines, size
     // // double rmin=std::max(sab.front(),scd.front()),rmax=std::min(sab.back(),scd.back());
     for (size_t k=0;k<=2*LMax;k++)
     {
-        std::function< double (double,size_t )> wp = [](double r2,size_t k)
-        {
-            return intpow(r2,k+2);
-        };
-        std::function< double (double,size_t )> wm = [](double r2,size_t k)
-        {
-            assert(r2>=0);
-            return intpow(r2,1-k);
-        };
         std::function< double (double)> wpab=[k,&wp,&a,&b](double r) {return wp(r,k)*a(r)*b(r);};
         std::function< double (double)> wmab=[k,&wm,&a,&b](double r) {return wm(r,k)*a(r)*b(r);};
         std::function< double (double)> wpcd=[k,&wp,&c,&d](double r) {return wp(r,k)*c(r)*d(r);};

@@ -208,7 +208,8 @@ TEST_F(BSplineTests,GLQIntegration)
         {
             if (!spa.getSupport().calcIntersection(spb.getSupport()).containsIntervals()) continue;
             double Sab2=BilinearForm{IdentityOperator{}}(spa,spb);
-            double Sab3=cache0.Integrate(w0,spa,spb);
+            std::function< double (double)> w0ab = [&w0,&spa,&spb](double x){return w0(x)*spa(x)*spb(x);};
+            double Sab3=cache0.Integrate(w0ab);
             assert(Sab2!=0.0);
             assert(Sab3!=0.0);
             // EXPECT_NEAR(Sab2/Sab3,1.0,7e-14);
@@ -220,7 +221,8 @@ TEST_F(BSplineTests,GLQIntegration)
             }
 
             Sab2=BilinearForm{X<2>{}}(spa,spb);
-            Sab3=cache2.Integrate(w2,spa,spb);
+            std::function< double (double)> w2ab = [&w2,&spa,&spb](double x){return w2(x)*spa(x)*spb(x);};
+            Sab3=cache2.Integrate(w2ab);
             assert(Sab2!=0.0);
             assert(Sab3!=0.0);
             // EXPECT_NEAR(Sab2/Sab3,1.0,2e-13);
@@ -238,8 +240,9 @@ TEST_F(BSplineTests,GLQIntegration)
     for (auto spa:splines)
         for (auto spb:splines)
         {
-            double Sdef=cache0.Integrate(w0,spa,spb,rmin,rmax);
-            double Sind=cache0.Integrate(w0,spa,spb);
+            std::function< double (double)> wab0 = [&w0,&spa,&spb](double x){return w0(x)*spa(x)*spb(x);};
+            double Sdef=cache0.Integrate(wab0,rmin,rmax);
+            double Sind=cache0.Integrate(wab0);
             EXPECT_LE(Sdef,Sind);
         }
 }
@@ -273,13 +276,15 @@ TEST_F(BSplineTests, Overlap)
             {
                 double nab=ns[ia]*ns[ib]*4*M_PI;
                 auto a=GetSpline(eval,ia),b=GetSpline(eval,ib);
-                double Sab=cache2.Integrate(w2,a,b)*nab;
+                std::function< double (double)> w2ab = [&w2,&a,&b](double x){return w2(x)*a(x)*b(x);};
+
+                double Sab=cache2.Integrate(w2ab)*nab;
                 EXPECT_NEAR(Sab,S(ia,ib),1e-14);
-                Sab=cache2.Integrate(w2,a,b,grid.front(),grid.back())*nab;
+                Sab=cache2.Integrate(w2ab,grid.front(),grid.back())*nab;
                 EXPECT_NEAR(Sab,S(ia,ib),1e-14);
                 Sab=0.0;
                 for (size_t ig=1;ig<grid.size();ig++)
-                    Sab+=cache2.Integrate(w2,a,b,grid[ig-1],grid[ig]);
+                    Sab+=cache2.Integrate(w2ab,grid[ig-1],grid[ig]);
                 Sab*=nab;
                 EXPECT_NEAR(Sab,S(ia,ib),1e-14);
             }

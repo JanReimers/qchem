@@ -30,11 +30,11 @@ template <size_t K> double StaticRepulsion(const spline_t<K>& ab , const spline_
 
 template <size_t K1,size_t K2> double StaticOverlap(const spline_t<K1>& a , const spline_t<K2>& b,size_t l_total,const GLCache1D& gl)
 {
-    std::function< double (double)> x0 = [](double r)
+    std::function< double (double)> x0 = [&a,&b](double r)
     {
-        return 1.0;
+        return a(r)*b(r);
     };
-    return gl.Integrate(x0,a,b)*FourPi;
+    return gl.Integrate(x0)*FourPi;
 }
 
 template <size_t K> double StaticGrad2(const spline_t<K>& a , const spline_t<K>& b,size_t la, size_t lb,const GLCache1D& gl)
@@ -47,21 +47,21 @@ template <size_t K> double StaticGrad2(const spline_t<K>& a , const spline_t<K>&
 
 template <size_t K> double StaticInv_r1(const spline_t<K>& a , const spline_t<K>& b,size_t l_total,const GLCache1D& gl)
 {
-    std::function< double (double)> xm1 = [](double r)
+    std::function< double (double)> xm1 = [&a,&b](double r)
     {
         assert(r!=0.0);
-        return 1.0/r;
+        return a(r)*b(r)/r;
     };
-    return gl.Integrate(xm1,a,b)*FourPi;
+    return gl.Integrate(xm1)*FourPi;
 }
 template <size_t K> double StaticInv_r2(const spline_t<K>& a , const spline_t<K>& b,size_t l_total,const GLCache1D& gl)
 {
-    std::function< double (double)> xm2 = [](double r)
+    std::function< double (double)> xm2 = [&a,&b](double r)
     {
         assert(r!=0.0);
-        return 1.0/(r*r);
+        return a(r)*b(r)/(r*r);
     };
-    return gl.Integrate(xm2,a,b)*FourPi; 
+    return gl.Integrate(xm2)*FourPi; 
 }
 
 template <size_t K> double StaticCharge(const spline_t<K>& a , size_t l)
