@@ -21,6 +21,7 @@ Priority 1:
         Use ceral ... which seems to have disapeared from submodules.
         Need to remember to delete this thing if the relevent code changes.
     -Still need to switch over to the new PeriodicTable1
+    -Still lots of tests not using the BasisSetPool.
     Done: -Get rid of eps in QchemTester::Init
     -Fix small r BSpline accuracy.
             See UT DBCach1Tests.BSplineDirect/Exchange
