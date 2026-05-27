@@ -138,6 +138,7 @@ BasisSet::Real_BS* PoolFactory(BasisSetAccuracy acc, BasisSet::Atom::Type type,s
             break;
         }
         case BSpline6:
+        case BSpliner6:
         {
             switch (acc)
             {

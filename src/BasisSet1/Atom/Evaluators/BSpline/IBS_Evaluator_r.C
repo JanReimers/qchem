@@ -6,7 +6,8 @@ module;
 #include <iosfwd>
 #include <cassert>
 #include <cmath>
-export module qchem.BasisSet.Atom.Evaluators.BSpline.IBS;
+#include <functional>
+export module qchem.BasisSet.Atom.Evaluators.BSpline.IBS_r;
 import qchem.BasisSet.Atom.Evaluators.IBS;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.GLQuadrature;
 import qchem.BasisSet.Atom.Evaluators.Internal.AngularIntegrals;
@@ -20,19 +21,12 @@ import Common.IntPow;
 
 export namespace BasisSet::Atom::Evaluators::BSpline
 {
-//
-//  This version is for phi(r) = sum(Bi(r),i)
-// 
-template <size_t K> class BSpline_IBS_Evaluator : public IBS_Evaluator
+
+template <size_t K> class BSpline_r_IBS_Evaluator : public IBS_Evaluator
 {
     typedef bspline::Spline<double, K> spline_t;
 public: 
-    BSpline_IBS_Evaluator(size_t Ngrid, double rmin, double rmax, const Irrep_QNs::sym_t& ylm);
-    // BSpline_IBS_Evaluator(const BSpline_IBS_Evaluator& b) : BSpline_IBS_Evaluator(b.splines.size(),b.rmin,b.rmax,Irrep_QNs::sym_t(new Yl_Sym(0))) {};
-    // BSpline_IBS_Evaluator Rescale(double scale_factor) const
-    // {
-    //     return BSpline_IBS_Evaluator(*this);
-    // }    
+    BSpline_r_IBS_Evaluator(size_t Ngrid, double rmin, double rmax, const Irrep_QNs::sym_t& ylm);
     virtual void Register(Grouper*); //Set up unique spline or exponent indexes.
     
     virtual std::ostream& Write   (std::ostream&) const;
@@ -42,59 +36,72 @@ public:
     {
         using namespace bspline::integration;
         using namespace bspline::operators; 
-        return BilinearForm{X<2>{}}(splines[i],splines[j])*FourPi*ns[i]*ns[j]; 
+        return BilinearForm{IdentityOperator{}}(splines[i],splines[j])*FourPi*ns[i]*ns[j]; 
     } 
     double Grad2(size_t i,size_t j) const //no l dependence
     {
         using namespace bspline::integration;
         using namespace bspline::operators; 
-        static const auto T = -X<2>{} * Dx<2>{} - 2 * X<1>{} * Dx<1>{};
+        static const auto T = -Dx<2>{};
         return BilinearForm{T}(splines[i],splines[j])*FourPi*ns[i]*ns[j]; 
     } 
-    double Grad2(size_t i,size_t j,const BSpline_IBS_Evaluator& b) const //no l dependence
+    double Grad2(size_t i,size_t j,const BSpline_r_IBS_Evaluator& b) const //no l dependence
     {
         using namespace bspline::integration;
         using namespace bspline::operators; 
-        static const auto T = -X<2>{} * Dx<2>{} - 2 * X<1>{} * Dx<1>{};
+        static const auto T = -Dx<2>{};
         return BilinearForm{T}(splines[i],b.splines[j])*FourPi*ns[i]*b.ns[j]; 
     } 
     double Inv_r1(size_t i,size_t j) const //no l dependence
     {
-        using namespace bspline::integration;
-        using namespace bspline::operators; 
-        return BilinearForm{X<1>{}}(splines[i],splines[j])*FourPi*ns[i]*ns[j];
+        const spline_t &a=splines[i], &b=splines[j];
+        std::function< double (double)> xm1 = [&a,&b](double r)
+        {
+            assert(r!=0.0);
+            return a(r)*b(r)/r;
+        };
+        return itsGL1D->Integrate(xm1)*FourPi*ns[i]*ns[j];
     } 
     double Inv_r2(size_t i,size_t j) const //no l dependence
     {
-        using namespace bspline::integration;
-        using namespace bspline::operators; 
-        return BilinearForm{IdentityOperator{}}(splines[i],splines[j])*FourPi*ns[i]*ns[j]; 
+        const spline_t &a=splines[i], &b=splines[j];
+        std::function< double (double)> xm2 = [&a,&b](double r)
+        {
+            assert(r!=0.0);
+            return a(r)*b(r)/(r*r);
+        };
+        return itsGL1D->Integrate(xm2)*FourPi*ns[i]*ns[j];
     } 
-    double Inv_r2(size_t i,size_t j,const BSpline_IBS_Evaluator& b) const //no l dependence
+    double Inv_r2(size_t i,size_t j,const BSpline_r_IBS_Evaluator& _b) const //no l dependence
     {
-        using namespace bspline::integration;
-        using namespace bspline::operators; 
-        return BilinearForm{IdentityOperator{}}(splines[i],b.splines[j])*FourPi*ns[i]*b.ns[j]; 
+        const spline_t &a=splines[i], &b=_b.splines[j];
+        std::function< double (double)> xm2 = [&a,&b](double r)
+        {
+            assert(r!=0.0);
+            return a(r)*b(r)/(r*r);
+        };
+        return itsGL1D->Integrate(xm2)*FourPi*ns[i]*_b.ns[j];
     } 
 
     double Charge(size_t i) const
     {
         using namespace bspline::integration;
         using namespace bspline::operators; 
-        return LinearForm{X<2>{}}(splines[i])*ns[i]*FourPi;
+        return LinearForm{IdentityOperator{}}(splines[i])*ns[i]*FourPi;
     }
     double Norm(size_t i) const
     {
         using namespace bspline::integration;
         using namespace bspline::operators; 
-        return 1.0/sqrt(BilinearForm{X<2>{}}(splines[i],splines[i])*FourPi);
+        return 1.0/sqrt(BilinearForm{IdentityOperator{}}(splines[i],splines[i])*FourPi);
     }
     virtual  rvec_t Norm     () const {return ns;}
+
 
     virtual rvec_t     operator() (const rvec3_t&) const;
     virtual rvec3vec_t Gradient   (const rvec3_t&) const;
 
-    virtual std::string RadialID() const;
+    virtual std::string RadialID () const;
     virtual std::string Name    () const;
     virtual std::string RadialType() const;
     virtual Cache4*    MakeCache4() const;
@@ -109,6 +116,7 @@ public:
         const ::BSpline::RkEngine<K>* cd = dynamic_cast<const ::BSpline::RkEngine<K>*>(c);
         return cd->ExchangeRk(la,lc,Ak); // contract over k Rk*Ak, exchange version is more complicated
     }
+
     const spline_t& operator[](int index) const {return splines[index];}
 
 protected:
@@ -119,35 +127,35 @@ protected:
     std::vector<double> knots;
     std::vector<spline_t> splines;
     bspline::Grid<double> itsGrid;
-
-
+    std::unique_ptr<GLCache1D> itsGL1D; //We have to hold a pointer, because we don't know grid early enough in the constructor.
 };
 
-static_assert(isGeneric_Evaluator<BSpline_IBS_Evaluator<6>>);
-static_assert(is1E_Evaluator     <BSpline_IBS_Evaluator<6>>);
+
+static_assert(isGeneric_Evaluator<BSpline_r_IBS_Evaluator<6>>);
+static_assert(is1E_Evaluator     <BSpline_r_IBS_Evaluator<6>>);
 // static_assert(isFit_Evaluator    <BSpline_IBS_Evaluator<6>>);
 // static_assert(isDFT_Evaluator    <BSpline_IBS_Evaluator<6>>);
-static_assert(isRKBL_Evaluator   <BSpline_IBS_Evaluator<6>>);
-static_assert(isHF_Evaluator     <BSpline_IBS_Evaluator<6>>);
+static_assert(isRKBL_Evaluator   <BSpline_r_IBS_Evaluator<6>>);
+static_assert(isHF_Evaluator     <BSpline_r_IBS_Evaluator<6>>);
 
-template <size_t K> class BSpline_Cache4 : public  Cache4
+template <size_t K> class BSpline_r_Cache4 : public  Cache4
 {
 public:
-    BSpline_Cache4(const bspline::Grid<double>& grid) 
-    : wp([](double r2,size_t k) {return intpow(r2,k+2);})
-    , wm([](double r2,size_t k) {return intpow(r2,1-k);})
+    BSpline_r_Cache4(const bspline::Grid<double>& grid) 
+    : wp([](double r2,size_t k) {return intpow(r2,k);})
+    , wm([](double r2,size_t k) {return intpow(r2,-1-k);})
     , itsMaxl(0)
-    , itsGL1D(grid,K+3)
-    , itsGL2D(itsGL1D,K+3)
+    , itsGL1D(grid,K+1)
+    , itsGL2D(itsGL1D,K+1)
     , itsRkCache(0) 
     {
     };
-    ~BSpline_Cache4() {delete itsRkCache;}
+    ~BSpline_r_Cache4() {delete itsRkCache;}
     // using IBS_Evaluator_t = Gaussian_IBS_Evaluator;
     virtual void Register(Cache4_Client * eval)
     {
         assert(eval);
-        BSpline_IBS_Evaluator<K>* geval=dynamic_cast<BSpline_IBS_Evaluator<K>*>(eval);
+        BSpline_r_IBS_Evaluator<K>* geval=dynamic_cast<BSpline_r_IBS_Evaluator<K>*>(eval);
         geval->Register(&grouper);
         if (geval->Getl()>itsMaxl) itsMaxl=geval->Getl();
         //

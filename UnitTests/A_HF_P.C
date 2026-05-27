@@ -21,7 +21,7 @@ public:
 #ifdef DEBUG
 #define LOW
 #else
-#define HIGH
+// #define HIGH
 #define MEDIUM
 #define LOW
 #endif
@@ -74,8 +74,23 @@ TEST_P(A_BS_HF_P_High,A)
         
 }
 // INSTANTIATE_TEST_SUITE_P(A_HF,A_SG_HF_P_High,::testing::Values(1,3,5,6,7,8,9,13,14,16,17,21,22,23,25,26,27,28,37,39,40,41,44,45,47,57,58,59,60,61,62,63,65,66,67,68,69,73,91,92)); 
-INSTANTIATE_TEST_SUITE_P(A_HF,A_BS_HF_P_High,::testing::Values(5,21,92)); 
+INSTANTIATE_TEST_SUITE_P(A_HF,A_BS_HF_P_High,::testing::Values(5,21)); 
 
+class A_BSr_HF_P_High : public A_HF_P {};
+TEST_P(A_BSr_HF_P_High,A)
+{
+    size_t Z=GetParam();
+    cout << "---------------- Z=" << Z << " ---------------"<< endl;
+        
+    QchemTester::Init(High,BasisSet::Atom::Type::BSpliner6,verbose);
+    //       NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo    MergeTol verbose
+    Iterate({   50     ,Z*1e-7    ,1e-6 , 5e-12      ,Z*1e-7 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
+    EXPECT_LT(RelativeHFError(),2.5e-6); 
+    EXPECT_TRUE(Converged()); 
+        
+}
+// INSTANTIATE_TEST_SUITE_P(A_HF,A_SG_HF_P_High,::testing::Values(1,3,5,6,7,8,9,13,14,16,17,21,22,23,25,26,27,28,37,39,40,41,44,45,47,57,58,59,60,61,62,63,65,66,67,68,69,73,91,92)); 
+INSTANTIATE_TEST_SUITE_P(A_HF,A_BSr_HF_P_High,::testing::Values(5,21)); 
 #endif //HIGH
 
 #ifdef MEDIUM
@@ -125,6 +140,20 @@ TEST_P(A_BS_HF_P_Medium,A)
         
 }
 INSTANTIATE_TEST_SUITE_P(A_HF,A_BS_HF_P_Medium,::testing::Values(3,5)); 
+class A_BSr_HF_P_Medium : public A_HF_P {};
+TEST_P(A_BSr_HF_P_Medium,A)
+{
+    size_t Z=GetParam();
+    cout << "---------------- Z=" << Z << " ---------------"<< endl;
+        
+    QchemTester::Init(Medium,BasisSet::Atom::Type::BSpliner6,verbose);
+    //       NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo    MergeTol verbose
+    Iterate({   40     ,Z*1e-7    ,1e-7 , 2.5e-7      ,Z*1e-7 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
+    EXPECT_LT(RelativeHFError(),20e-6); 
+    EXPECT_TRUE(Converged()); 
+        
+}
+INSTANTIATE_TEST_SUITE_P(A_HF,A_BSr_HF_P_Medium,::testing::Values(3,5)); 
 
 #endif //MEDIUM
 

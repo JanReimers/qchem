@@ -7,6 +7,7 @@ module qchem.BasisSet.Atom.Factory;
 import qchem.Symmetry.AtomEC;
 import qchem.BasisSet.Atom.BasisSet;
 import qchem.BasisSet.Atom.Evaluators.BSpline.IBS;
+import qchem.BasisSet.Atom.Evaluators.BSpline.IBS_r;
 import qchem.BasisSet.Atom.Evaluators.Gaussian.IBS; 
 import qchem.BasisSet.Atom.Evaluators.Slater.IBS;
 
@@ -69,6 +70,13 @@ Real_BS* Factory(const nlohmann::json& js,const Atom_EC& aec)
         size_t N=js["N"];
         double rmin=js["rmin"].template get<double>(),rmax=js["rmax"].template get<double>();
         bs=new BasisSet_1E_HF<BSpline::BSpline_IBS_Evaluator<6>>(N,rmin,rmax,aec);
+        break;   
+    }
+    case Type::BSpliner6:
+    {
+        size_t N=js["N"];
+        double rmin=js["rmin"].template get<double>(),rmax=js["rmax"].template get<double>();
+        bs=new BasisSet_1E_HF<BSpline::BSpline_r_IBS_Evaluator<6>>(N,rmin,rmax,aec);
         break;   
     }
 
