@@ -6,10 +6,11 @@
 using std::cout;
 using std::endl;
 
-import qchem.BasisSet.Atom.Factory;
+import qchem.Unittests.BasisSetPool;
 import qchem.BasisSet.Orbital_HF_IBS;
 import qchem.BasisSet.Orbital_DFT_IBS;
 
+using enum BasisSet::Atom::Type;
 class DBCach1Tests : public ::testing::Test
 {
 public:
@@ -28,15 +29,12 @@ public:
         delete bs1;
         delete bs2;
     }
-    void Init(nlohmann::json js)
+    void Init(BasisSet::Atom::Type type)
     {
-        bs1=BasisSet::Atom::Factory(js,Z);
-        bs2=BasisSet::Atom::Factory(js,Z);
+        bs1=PoolFactory(BasisSetAccuracy::N3,type,Z);
+        bs2=PoolFactory(BasisSetAccuracy::N3,type,Z);
     }
-    void InitBSpline6() {Init({{"type",BasisSet::Atom::Type::BSpline6},{"N", N}, {"rmin", 0.1}, {"rmax", 10}});}
-    void InitGaussian() {Init({{"type",BasisSet::Atom::Type::Gaussian},{"N", N}, {"emin", 0.1}, {"emax", 10}});}
-    void InitSlater  () {Init({{"type",BasisSet::Atom::Type::Slater  },{"N", N}, {"emin", 0.1}, {"emax", 10}});}
-
+  
     void TestOverlap() const
     {
         using OIBS=BasisSet::Real_OIBS;
@@ -168,68 +166,68 @@ public:
 
 TEST_F(DBCach1Tests,BSplineOverlap)
 {
-    InitBSpline6();
+    Init(BSpline6);
     TestOverlap();
 }
 TEST_F(DBCach1Tests,GaussianOverlap)
 {
-    InitGaussian();
+    Init(Gaussian);
     TestOverlap();
 }
 TEST_F(DBCach1Tests,SlaterOverlap)
 {
-    InitSlater();
+    Init(Slater);
     TestOverlap();
 }
 
 TEST_F(DBCach1Tests,BSplineKinetic)
 {
-    InitBSpline6();
+    Init(BSpline6);
     TestKinetic();
 }
 TEST_F(DBCach1Tests,GaussianKinetic)
 {
-    InitGaussian();
+    Init(Gaussian);
     TestKinetic();
 }
 TEST_F(DBCach1Tests,SlaterKinetic)
 {
-    InitSlater();
+    Init(Slater);
     TestKinetic();
 }
 TEST_F(DBCach1Tests,BSplineNuclear)
 {
-    InitBSpline6();
+    Init(BSpline6);
     TestNuclear();
 }
 TEST_F(DBCach1Tests,GaussianNuclear)
 {
-    InitGaussian();
+    Init(Gaussian);
     TestNuclear();
 }
 TEST_F(DBCach1Tests,SlaterNuclear)
 {
-    InitSlater();
+    Init(Slater);
     TestNuclear();
 }
 TEST_F(DBCach1Tests,GaussianOverlap3C)
 {
-    InitGaussian();
+    Init(Gaussian);
     TestOverlap3C(1e-14);
 }
 TEST_F(DBCach1Tests,SlaterOverlap3C)
 {
-    InitSlater();
+    Init(Slater);
     TestOverlap3C(1e-14);
 }
 TEST_F(DBCach1Tests,GaussianRepulsion3C)
 {
-    InitGaussian();
+    Init(Gaussian);
     TestRepulsion3C(1e-14);
 }
 TEST_F(DBCach1Tests,SlaterRepulsion3C)
 {
-    InitSlater();
+    Init(Slater);
     TestRepulsion3C(1e-14);
 }
 
@@ -243,31 +241,41 @@ TEST_F(DBCach1Tests,SlaterRepulsion3C)
 //
 TEST_F(DBCach1Tests,BSplineDirect)
 {
-    InitBSpline6();
+    Init(BSpline6);
+    TestDirect(1e-14);
+}
+TEST_F(DBCach1Tests,BSplinerDirect)
+{
+    Init(BSpliner6);
     TestDirect(1e-14);
 }
 TEST_F(DBCach1Tests,GaussianDirect)
 {
-    InitGaussian();
+    Init(Gaussian);
     TestDirect(3e-15);
 }
 TEST_F(DBCach1Tests,SlaterDirect)
 {
-    InitSlater();
+    Init(Slater);
     TestDirect(4e-15);
 }
 TEST_F(DBCach1Tests,BSplineExchange)
 {
-    InitBSpline6();
+    Init(BSpline6);
+    TestExchange(1e-14);
+}
+TEST_F(DBCach1Tests,BSplinerExchange)
+{
+    Init(BSpliner6);
     TestExchange(1e-14);
 }
 TEST_F(DBCach1Tests,GaussianExchange)
 {
-    InitGaussian();
+    Init(Gaussian);
     TestExchange(4e-15);
 }
 TEST_F(DBCach1Tests,SlaterExchange)
 {
-    InitSlater();
+    Init(Slater);
     TestExchange(4e-15);
 }
