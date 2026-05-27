@@ -119,7 +119,7 @@ std::ostream& operator<<(std::ostream& os,IntegralsCache_Base::IBS_ID_t id)
 }
 template <class T> IntegralsCache_RAM<T>::IntegralsCache_RAM(bool makelog) 
     : itsMakeLog(makelog)
-    , itsMaxRAM(2048) // in MB
+    , itsMaxRAM(4096) // in MB
     , itsTotalRAM(0) // in MB
     {
         if  (itsMakeLog)
