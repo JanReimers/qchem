@@ -22,17 +22,11 @@ template <size_t K> class RkCache
 public:
     using func_t=std::function< double (double,size_t )>;
     RkCache(const std::vector<sp_t>& splines,const GLCache1D& gl1,size_t lmax, const func_t& wp, const func_t& wm);
-    const dv_t& find_plus (size_t ia,size_t ib) const {return find(ia,ib,itsMomentsPlus);}
-    const dv_t& find_minus(size_t ia,size_t ib) const {return find(ia,ib,itsMomentsMinus);}
+    const dv_t& plus (size_t ia,size_t ib) const {return itsMomentsPlus (ia,ib);}
+    const dv_t& minus(size_t ia,size_t ib) const {return itsMomentsMinus(ia,ib);}
     size_t RAMsize() const;
 private:
-    typedef std::pair<size_t,size_t> id2_t; //convention id_1 < id_2
-    typedef std::map<id2_t,dv_t> moment_t;
-    static const dv_t& find(size_t ia,size_t ib,const moment_t&);
-
-
-    moment_t itsMomentsPlus;  //<r^(k+2) B1*B2>
-    moment_t itsMomentsMinus;  //<r^(1-k) B1*B2>
+    smat_t<dv_t> itsMomentsPlus, itsMomentsMinus;
 };
 template <size_t K> class RkCache_r
 {

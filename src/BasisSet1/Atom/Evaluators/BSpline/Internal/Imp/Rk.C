@@ -18,6 +18,8 @@ namespace BSpline
 {
 
 template <size_t K> RkCache<K>::RkCache(const std::vector<sp_t>& splines,const GLCache1D& gl1, size_t lmax, const func_t& wp, const func_t& wm)
+: itsMomentsPlus (splines.size())
+, itsMomentsMinus(splines.size())
 {
     for (size_t ia=0;ia<splines.size();ia++)
     {
@@ -29,24 +31,21 @@ template <size_t K> RkCache<K>::RkCache(const std::vector<sp_t>& splines,const G
                 mp.push_back(gl1.Integrate(wp,splines[ia],splines[ib],k)); //gl1 knows how to skip zero overlap.
                 mm.push_back(gl1.Integrate(wm,splines[ia],splines[ib],k));
             }
-            itsMomentsPlus [std::make_pair(ia,ib)]=mp;
-            itsMomentsMinus[std::make_pair(ia,ib)]=mm;
+            itsMomentsPlus (ia,ib)=mp;
+            itsMomentsMinus(ia,ib)=mm;
         }
     }
 }
 
-template <size_t K> const typename RkCache<K>::dv_t& RkCache<K>::find(size_t ia,size_t ib,const moment_t& mm)
-{
-    if (ia>ib) std::swap(ia,ib);
-    auto i=mm.find(std::make_pair(ia,ib));
-    assert(i!=mm.end()); 
-    return i->second;
-}
 template <size_t K>  size_t RkCache<K>::RAMsize() const
 {
     size_t ndoubles=0;
-    for (auto i: itsMomentsPlus ) ndoubles+=i.second.size();
-    for (auto i: itsMomentsMinus) ndoubles+=i.second.size();
+    for (size_t ia=0;ia<itsMomentsPlus.rows();ia++)
+        for (size_t ib=0;ib<itsMomentsPlus.columns();ib++)
+        {
+            ndoubles+=itsMomentsPlus (ia,ib).size();
+            ndoubles+=itsMomentsMinus(ia,ib).size();
+        }
     return ndoubles;
 }
 
@@ -114,6 +113,7 @@ template <size_t K> RkEngine<K>::RkEngine(const std::vector<sp_t>& splines, size
     bspline::Grid grid=sa.getGrid();
     for (size_t k=0;k<=2*LMax;k++)
     {
+        // THis is hard/hot loop for the whole process.  abcd all overlap and no factoring is possible.
         if (Sabcd.containsIntervals())
         {
             std::function< double (double)> wpab=[k,&wp,&a,&b](double r) {return wp(r,k)*a(r)*b(r);};
@@ -127,34 +127,36 @@ template <size_t K> RkEngine<K>::RkEngine(const std::vector<sp_t>& splines, size
                 double Icd_p=gl1.IntegrateIndex(wpcd,scd.getStartIndex(),iab);
                 double Icd_m=gl1.IntegrateIndex(wmcd,iab+1,scd.getEndIndex()-1);
                 // These need to be in the loop because they capture iab
-                std::function< double (double,size_t)> Yk1_diag = [&gl2,&wpcd,iab](double, size_t i2)
+                std::function< double (size_t)> Yk1_diag = [&gl2,&wpcd,iab](size_t i1)
                 {
-                    return gl2.find_grid_gl(iab,i2).Integrate(wpcd);
+                    return gl2.find_grid_gl(iab,i1).Integrate(wpcd);
                 };
-                std::function< double (double,size_t)> Yk2_diag = [&gl2,&wmcd,iab](double, size_t i2)
+                std::function< double (size_t)> Yk2_diag = [&gl2,&wmcd,iab](size_t i1)
                 {
-                    return gl2.find_gl_grid(i2,iab+1).Integrate(wmcd);
+                    return gl2.find_gl_grid(i1,iab+1).Integrate(wmcd);
                 };
                 std::function< double (double,size_t)> wab_diag1 = [k,&a,&b,&wp,&wm,&Yk1_diag,&Yk2_diag](double r1, size_t i1)
                 {
-                    return (wm(r1,k)*Yk1_diag(r1,i1)+wp(r1,k)*Yk2_diag(r1,i1))*a(r1)*b(r1);
+                    return (wm(r1,k)*Yk1_diag(i1)+wp(r1,k)*Yk2_diag(i1))*a(r1)*b(r1);
                 };
                 double Idiag=gl1[iab].Integrate(wab_diag1);
                 Rabcd_k[k]+=Idiag + Iab_m*Icd_p + Iab_p*Icd_m;;
             }
             
         }
+        // (ab) has no overlap (cd) and 2D integral factors.  Use look up tables in rkcache to
+        // integral factores.
         else if (sab.back()<=scd.front())
         {
-            std::vector<double> mp=rkcache.find_plus(ia,ib);
-            std::vector<double> mm=rkcache.find_minus(ic,id);
+            std::vector<double> mp=rkcache.plus (ia,ib);
+            std::vector<double> mm=rkcache.minus(ic,id);
             Rabcd_k[k]=mp[k]*mm[k];
         }
         else
         {
             assert(sab.front()>=scd.back());
-            std::vector<double> mm=rkcache.find_minus(ia,ib);
-            std::vector<double> mp=rkcache.find_plus(ic,id);
+            std::vector<double> mm=rkcache.minus(ia,ib);
+            std::vector<double> mp=rkcache.plus (ic,id);
             Rabcd_k[k]=mp[k]*mm[k];
         }
     }

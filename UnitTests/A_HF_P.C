@@ -21,6 +21,7 @@ public:
 #ifdef DEBUG
 #define LOW
 #else
+#define HIGH
 #define MEDIUM
 #define LOW
 #endif
@@ -73,7 +74,7 @@ TEST_P(A_BS_HF_P_High,A)
         
 }
 // INSTANTIATE_TEST_SUITE_P(A_HF,A_SG_HF_P_High,::testing::Values(1,3,5,6,7,8,9,13,14,16,17,21,22,23,25,26,27,28,37,39,40,41,44,45,47,57,58,59,60,61,62,63,65,66,67,68,69,73,91,92)); 
-INSTANTIATE_TEST_SUITE_P(A_HF,A_BS_HF_P_High,::testing::Values(5,21)); 
+INSTANTIATE_TEST_SUITE_P(A_HF,A_BS_HF_P_High,::testing::Values(5,21,92)); 
 
 #endif //HIGH
 
