@@ -54,8 +54,8 @@ public:
 //         return Tc;
 //     } 
     virtual size_t RAMsize() const; //Optional override
-private:
     virtual const Cacheable* Create(size_t i1,size_t i2,size_t i3,size_t i4) const=0;
+private:
 
     typedef std::map<size_t,std::unique_ptr<const Cacheable>> cache_4; 
     typedef std::map<size_t,cache_4> cache_3; 

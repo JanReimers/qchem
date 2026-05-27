@@ -11,12 +11,15 @@
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.GLQuadrature;
 import qchem.Symmetry.Angular;
 import qchem.BasisSet.Atom.Evaluators.BSpline.IBS;
-
+import qchem.BasisSet.Atom.Evaluators.Internal.Rk;
+import qchem.BasisSet.Atom.Evaluators.IBS;
+import qchem.BasisSet.Atom.Evaluators.Internal.AngularIntegrals;
 
 import qchem.Factory;
 import qchem.Mesh.Integrator;
 import qchem.Cluster;
 import qchem.Symmetry;
+import qchem.Symmetry.Yl;
 import qchem.stl_io;
 import qchem.Streamable;
 using std::cout;
@@ -353,3 +356,55 @@ TEST_F(BSplineTests, Kinetic)
     cout << endl;
 }
 
+TEST_F(BSplineTests,RkSymmetry)
+{
+    using namespace BasisSet::Atom::Evaluators::BSpline;
+    typedef AngularIntegrals::rvec11_t rvec11_t; 
+    std::vector<IBS_Evaluator *> evals;
+    for (size_t l=0;l<=3;l++)
+    {
+        Irrep_QNs::sym_t yl(new Yl_Sym(l));
+        evals.push_back(new BSpline_IBS_Evaluator<6>(10,.5,4.0,yl));
+    }
+    auto cache4=evals[0]->MakeCache4();
+    size_t ns=evals[0]->size();
+
+    for (auto& e:evals)
+    {
+        cache4->Register(e);
+    }
+
+
+    // for (auto& e:evals)
+    size_t n0=3;
+    for (size_t n=n0;n<ns;n++)
+    for (size_t la=0;la<=3;la++)
+    for (size_t lb=0;lb<=3;lb++)
+    {
+        {
+            auto rk00nn=dynamic_cast<const Rk*>(cache4->Create(n0,n0,n ,n));
+            auto rknn00=dynamic_cast<const Rk*>(cache4->Create(n ,n ,n0,n0));
+            EXPECT_NEAR(rk00nn->Coulomb_R0(la,lb),rknn00->Coulomb_R0(la,lb),1e-15);
+            EXPECT_NEAR(rk00nn->Coulomb_R0(la,lb),rknn00->Coulomb_R0(lb,la),1e-15);
+        }
+        {
+            auto rk0nn0=dynamic_cast<const Rk*>(cache4->Create(n0,n,n,n0));
+            auto rkn00n=dynamic_cast<const Rk*>(cache4->Create(n,n0,n0,n));
+            EXPECT_NEAR(rk0nn0->Coulomb_R0(la,lb),rkn00n->Coulomb_R0(la,lb),1e-15);
+            EXPECT_NEAR(rk0nn0->Coulomb_R0(la,lb),rkn00n->Coulomb_R0(lb,la),1e-15);
+        }
+        rvec11_t Ak({1,1,1,1,1,1,1,1,1,1,1});
+        {
+            auto rk00nn=dynamic_cast<const Rk*>(cache4->Create(n0,n0,n,n));
+            auto rknn00=dynamic_cast<const Rk*>(cache4->Create(n,n,n0,n0));
+            EXPECT_NEAR(rk00nn->Coulomb_Rk(la,lb,Ak),rknn00->Coulomb_Rk(la,lb,Ak),1e-15);
+            EXPECT_NEAR(rk00nn->Coulomb_Rk(la,lb,Ak),rknn00->Coulomb_Rk(lb,la,Ak),1e-15);
+        }
+        {
+            auto rk00nn=dynamic_cast<const Rk*>(cache4->Create(n0,n0,n,n));
+            auto rknn00=dynamic_cast<const Rk*>(cache4->Create(n,n,n0,n0));
+            EXPECT_NEAR(rk00nn->ExchangeRk(la,lb,Ak),rknn00->ExchangeRk(la,lb,Ak),1e-15);
+            EXPECT_NEAR(rk00nn->ExchangeRk(la,lb,Ak),rknn00->ExchangeRk(lb,la,Ak),1e-15);
+        }
+    }
+}
