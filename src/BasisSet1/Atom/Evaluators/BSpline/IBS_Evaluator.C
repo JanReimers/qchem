@@ -133,7 +133,13 @@ static_assert(isHF_Evaluator     <BSpline_IBS_Evaluator<6>>);
 template <size_t K> class BSpline_Cache4 : public  Cache4
 {
 public:
-    BSpline_Cache4(const bspline::Grid<double>& grid) : itsMaxl(0), itsGL1D(grid,K+3), itsGL2D(itsGL1D,K+3), itsRkCache(0) 
+    BSpline_Cache4(const bspline::Grid<double>& grid) 
+    : wp([](double r2,size_t k) {return intpow(r2,k+2);})
+    , wm([](double r2,size_t k) {return intpow(r2,1-k);})
+    , itsMaxl(0)
+    , itsGL1D(grid,K+3)
+    , itsGL2D(itsGL1D,K+3)
+    , itsRkCache(0) 
     {
     };
     ~BSpline_Cache4() {delete itsRkCache;}
@@ -153,16 +159,13 @@ public:
         Cache4::Register(eval);
 
         delete itsRkCache;
-        itsRkCache=new ::BSpline::RkCache<K>(grouper.unique_spv,itsGL1D, itsMaxl);
+        itsRkCache=new ::BSpline::RkCache<K>(grouper.unique_spv,itsGL1D, itsMaxl,wp,wm);
     }
     virtual Rk*  Create (size_t ia,size_t ic,size_t ib,size_t id) const
     {
          assert(itsRkCache);
         // std::cout << "ia,ib,ic,id=" << ia << " " << ib << " " << ic << " " << id << std::endl;
         size_t lmax=grouper.LMax(ia,ib,ic,id);
-        using func_t=::BSpline::RkEngine<K>::func_t;
-        func_t wp=[](double r2,size_t k) {return intpow(r2,k+2);};
-        func_t wm=[](double r2,size_t k) {return intpow(r2,1-k);};
         return new ::BSpline::RkEngine(grouper.unique_spv,ia,ib,ic,id,lmax,itsGL1D,itsGL2D,*itsRkCache,wp,wm);
     }
     virtual size_t RAMsize() const
@@ -175,6 +178,8 @@ public:
     }
 
 private:
+    using func_t=::BSpline::RkEngine<K>::func_t;
+    func_t wp,wm; //Weight functions for Slater integrals.
     size_t itsMaxl;
     GLCache1D   itsGL1D;
     GLCache2D   itsGL2D;

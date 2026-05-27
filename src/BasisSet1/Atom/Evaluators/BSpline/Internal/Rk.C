@@ -21,7 +21,7 @@ template <size_t K> class RkCache
     typedef std::vector<double> dv_t;
 public:
     using func_t=std::function< double (double,size_t )>;
-    RkCache(const std::vector<sp_t>& splines,const GLCache1D& gl1,size_t lmax);
+    RkCache(const std::vector<sp_t>& splines,const GLCache1D& gl1,size_t lmax, const func_t& wp, const func_t& wm);
     const dv_t& find_plus (size_t ia,size_t ib) const {return find(ia,ib,itsMomentsPlus);}
     const dv_t& find_minus(size_t ia,size_t ib) const {return find(ia,ib,itsMomentsMinus);}
     size_t RAMsize() const;

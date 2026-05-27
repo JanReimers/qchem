@@ -17,41 +17,29 @@ using std::endl;
 namespace BSpline
 {
 
-   
-
-template <size_t K> RkCache<K>::RkCache(const std::vector<sp_t>& splines,const GLCache1D& gl1, size_t lmax)
+template <size_t K> RkCache<K>::RkCache(const std::vector<sp_t>& splines,const GLCache1D& gl1, size_t lmax, const func_t& wp, const func_t& wm)
 {
     for (size_t ia=0;ia<splines.size();ia++)
     {
-        // std::cout << "grid a " << splines[ia].getSupport().getGrid();
         for (size_t ib=ia;ib<splines.size();ib++)
         {
-            // std::cout << "grid b " << splines[ib].getSupport().getGrid();
-            // TODO skip for zero overlap
             std::vector<double> mp,mm;
             for (size_t k=0;k<=2*lmax;k++)
             {
-                const sp_t& a=splines[ia], &b=splines[ib];
-                std::function< double (double)> wp = [k](double r2) {return intpow(r2,k+2);};
-                std::function< double (double)> wm = [k](double r2) {return intpow(r2,1-k);};
-                // std::function< double (double)> wpab = [k,&a,&b](double r) {return intpow(r,k+2)*a(r)*b(r);};
-                // std::function< double (double)> wmab = [k,&a,&b](double r) {return intpow(r,1-k)*a(r)*b(r);};
-                mp.push_back(gl1.Integrate(wp,a,b));
-                mm.push_back(gl1.Integrate(wm,a,b));
-
+                mp.push_back(gl1.Integrate(wp,splines[ia],splines[ib],k)); //gl1 knows how to skip zero overlap.
+                mm.push_back(gl1.Integrate(wm,splines[ia],splines[ib],k));
             }
             itsMomentsPlus [std::make_pair(ia,ib)]=mp;
             itsMomentsMinus[std::make_pair(ia,ib)]=mm;
         }
     }
-
 }
 
 template <size_t K> const typename RkCache<K>::dv_t& RkCache<K>::find(size_t ia,size_t ib,const moment_t& mm)
 {
     if (ia>ib) std::swap(ia,ib);
     auto i=mm.find(std::make_pair(ia,ib));
-    assert(i!=mm.end()); //If not found return zero, there was no support overlap.
+    assert(i!=mm.end()); 
     return i->second;
 }
 template <size_t K>  size_t RkCache<K>::RAMsize() const
@@ -103,19 +91,10 @@ template <size_t K> RkEngine<K>::RkEngine(const std::vector<sp_t>& splines, size
     , const GLCache1D& gl1,const GLCache2D& gl2, const RkCache<K>& rkcache, const func_t& wp, const func_t& wm)
  : LMax(_LMax), Rabcd_k(2*LMax+1,0.0)
  {
-    // std::function< double (double,size_t )> wp = [](double r2,size_t k) {return intpow(r2,k+2);};
-    // std::function< double (double,size_t )> wm = [](double r2,size_t k) {return intpow(r2,1-k);};
-    sp_t a=splines[ia];
-    sp_t b=splines[ib];
-    sp_t c=splines[ic];
-    sp_t d=splines[id];
-    auto& sa=a.getSupport();
-    auto& sb=b.getSupport();
-    auto& sc=c.getSupport();
-    auto& sd=d.getSupport();
+    sp_t   a=splines[ia]   ,  b=splines[ib]   ,  c=splines[ic]   ,  d=splines[id];
+    auto &sa=a.getSupport(),&sb=b.getSupport(),&sc=c.getSupport(),&sd=d.getSupport();
 
-    bspline::Support<double> sab=sa.calcIntersection(sb);
-    bspline::Support<double> scd=sc.calcIntersection(sd);
+    bspline::Support<double> sab=sa.calcIntersection(sb), scd=sc.calcIntersection(sd);
     if (!sab.containsIntervals())
     {
         std::cerr << "BSpline::RkEngine<K>::RkEngine no ab overlap!" << std::endl;
@@ -133,52 +112,37 @@ template <size_t K> RkEngine<K>::RkEngine(const std::vector<sp_t>& splines, size
     assert(sc.hasSameGrid(sd));
     assert(sa.hasSameGrid(sb));
     bspline::Grid grid=sa.getGrid();
-    // cout << "grid = ";
-    // for (auto r:grid) cout << r << ", ";
-    // cout << endl;
-    // // double rmin=std::max(sab.front(),scd.front()),rmax=std::min(sab.back(),scd.back());
     for (size_t k=0;k<=2*LMax;k++)
     {
-        std::function< double (double)> wpab=[k,&wp,&a,&b](double r) {return wp(r,k)*a(r)*b(r);};
-        std::function< double (double)> wmab=[k,&wm,&a,&b](double r) {return wm(r,k)*a(r)*b(r);};
-        std::function< double (double)> wpcd=[k,&wp,&c,&d](double r) {return wp(r,k)*c(r)*d(r);};
-        std::function< double (double)> wmcd=[k,&wm,&c,&d](double r) {return wm(r,k)*c(r)*d(r);};
         if (Sabcd.containsIntervals())
         {
-            cout.precision(6);
-            // cout << sab.getStartIndex() << " " << sab.getEndIndex() << " " << sab.numberOfIntervals() << " " << scd.getStartIndex() << " " << scd.getEndIndex() << endl;
-            double RkOff=0.0, RkDiag=0.0;
-            // #pragma omp parallel for collapse(1) 
+            std::function< double (double)> wpab=[k,&wp,&a,&b](double r) {return wp(r,k)*a(r)*b(r);};
+            std::function< double (double)> wmab=[k,&wm,&a,&b](double r) {return wm(r,k)*a(r)*b(r);};
+            std::function< double (double)> wpcd=[k,&wp,&c,&d](double r) {return wp(r,k)*c(r)*d(r);};
+            std::function< double (double)> wmcd=[k,&wm,&c,&d](double r) {return wm(r,k)*c(r)*d(r);};
             for (size_t iab=sab.getStartIndex();iab<sab.getEndIndex()-1;iab++)
             {
-                double Iab_p=gl1.IntegrateIndex(wpab,iab);
-                double Iab_m=gl1.IntegrateIndex(wmab,iab);
+                double Iab_p=gl1[iab].Integrate(wpab);
+                double Iab_m=gl1[iab].Integrate(wmab);
                 double Icd_p=gl1.IntegrateIndex(wpcd,scd.getStartIndex(),iab);
                 double Icd_m=gl1.IntegrateIndex(wmcd,iab+1,scd.getEndIndex()-1);
                 // These need to be in the loop because they capture iab
-                std::function< double (double,size_t)> Yk1_diag = [&gl2,&wpcd,iab](double r1, size_t i1)
+                std::function< double (double,size_t)> Yk1_diag = [&gl2,&wpcd,iab](double, size_t i2)
                 {
-                    return gl2.find_grid_gl(iab,i1).Integrate(wpcd);
+                    return gl2.find_grid_gl(iab,i2).Integrate(wpcd);
                 };
-                std::function< double (double,size_t)> Yk2_diag = [&gl2,&wmcd,iab](double r1, size_t i1)
+                std::function< double (double,size_t)> Yk2_diag = [&gl2,&wmcd,iab](double, size_t i2)
                 {
-                    return gl2.find_gl_grid(i1,iab+1).Integrate(wmcd);
+                    return gl2.find_gl_grid(i2,iab+1).Integrate(wmcd);
                 };
-                std::function< double (double,size_t)> w_diag = [k,&wp,&wm,&Yk1_diag,&Yk2_diag] (double r1, size_t i1)
+                std::function< double (double,size_t)> wab_diag1 = [k,&a,&b,&wp,&wm,&Yk1_diag,&Yk2_diag](double r1, size_t i1)
                 {
-                    assert(r1>=0);
-                    return wm(r1,k)*Yk1_diag(r1,i1)+wp(r1,k)*Yk2_diag(r1,i1);
+                    return (wm(r1,k)*Yk1_diag(r1,i1)+wp(r1,k)*Yk2_diag(r1,i1))*a(r1)*b(r1);
                 };
-                std::function< double (double,size_t)> wab_diag = [&a,&b,&w_diag](double r1, size_t i1)
-                {
-                    return w_diag(r1,i1)*a(r1)*b(r1);
-                };
-                double Idiag=gl1.IntegrateIndex(wab_diag,iab);
-                // # pragma omp critical
-                RkOff+=Iab_m*Icd_p + Iab_p*Icd_m;
-                RkDiag+=Idiag;
+                double Idiag=gl1[iab].Integrate(wab_diag1);
+                Rabcd_k[k]+=Idiag + Iab_m*Icd_p + Iab_p*Icd_m;;
             }
-            Rabcd_k[k]=RkDiag + RkOff;
+            
         }
         else if (sab.back()<=scd.front())
         {

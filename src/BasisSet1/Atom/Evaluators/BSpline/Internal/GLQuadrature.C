@@ -66,6 +66,11 @@ public:
         std::function< double (double)> wab=[&w,&a,&b](double x) {return w(x)*a(x)*b(x);};
         return Integrate(wab,a.getSupport(),b.getSupport(),rmin,rmax);
     }
+    template <size_t K> double Integrate(const std::function< double (double,size_t)>& w, const sp_t<K>& a, const sp_t<K>& b, size_t k ) const
+    {
+        std::function< double (double)> wab=[k,&w,&a,&b](double x) {return w(x,k)*a(x)*b(x);};
+        return Integrate(wab,a.getSupport(),b.getSupport());
+    }
     ///used by double Icd_p=gl1.IntegrateIndex(wpcd,scd.getStartIndex(),iab);
     double IntegrateIndex(const std::function< double (double)>& f,  size_t i0, size_t i1) const
     {
@@ -75,18 +80,6 @@ public:
         double ret=0.0;
         for (size_t i=i0;i<i1;i++) ret+=itsGLs[i].Integrate(f);
         return ret;
-    }
-    // used by double Iab_p=gl1.IntegrateIndex(wp,a,b,iab);
-    double IntegrateIndex(const std::function< double (double)>& f, size_t i0) const
-    {
-        assert(i0<itsGLs.size());
-        return itsGLs[i0].Integrate(f);
-    }
-    // used by double Idiag=gl1.IntegrateIndex(wab_diag,a,b,iab); where size_t i1 is a grid index NOT k
-    double IntegrateIndex(const std::function< double (double,size_t)>& f, size_t i0) const
-    {
-        assert(i0<itsGLs.size());
-        return itsGLs[i0].Integrate(f);
     }
     // Used in some unit tests.
     double Integrate(const std::function< double (double)>& f, double rmin, double rmax) const
@@ -109,7 +102,11 @@ public:
             ret+=gl.Integrate(f);
         return ret;
     }
-
+    const GLQuadrature& operator[](size_t index) const 
+    {
+        assert(index<itsGLs.size());
+        return itsGLs[index];
+    }
     size_t RAMsize() const
     {
         size_t ndoubles=grid.size();

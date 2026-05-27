@@ -54,7 +54,8 @@ template <size_t K> void BSpline_IBS_Evaluator<K>::Register(Grouper* _grouper)
 }
 
 template <size_t K> BSpline_IBS_Evaluator<K>::BSpline_IBS_Evaluator(size_t Ngrid, double _rmin, double _rmax,const Irrep_QNs::sym_t& ylm) 
-: IBS_Evaluator(ylm), rmin(_rmin), rmax(_rmax) , itsGrid({0,1})
+: IBS_Evaluator(ylm)
+, rmin(_rmin), rmax(_rmax) , itsGrid({0,1})
 {
     knots=MakeLogKnots(Ngrid,rmin,rmax);
     // std::cout << "Knots=" << knots << std::endl;
