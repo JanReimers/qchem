@@ -2124,3 +2124,51 @@ Priority 3:
     Ansewred: -Way do we need default constructos for basisSet, Clusters, hamiltonians.
         Unpickle;
 
+    //Support.getEndIndex() is one beyond the last valid index.  BUT GL integrals are defined from i->i+1
+    // If you integrats segment getEndIndex()-1 you will get zero.  The splines are zero there.
+    size_t i1_end  =sab.getEndIndex()-1;  
+    size_t i1_begin=sab.getStartIndex();
+    for (size_t k=0;k<=2*LMax;k++)
+    {
+        // THis is hard/hot loop for the whole process.  abcd all overlap and no factoring is possible.
+        if (Sabcd.containsIntervals())
+        {
+            std::function< double (double)> wpab=[k,&wp,&a,&b](double r) 
+            {
+                // cout << "wpab r=" << r << " wp=" << wp(r,k) << " a(r)=" << a(r) << " b(r)=" << b(r) << endl;
+                return wp(r,k)*a(r)*b(r);
+            };
+            std::function< double (double)> wmab=[k,&wm,&a,&b](double r) {return wm(r,k)*a(r)*b(r);};
+            std::function< double (double)> wpcd=[k,&wp,&c,&d](double r) {return wp(r,k)*c(r)*d(r);};
+            std::function< double (double)> wmcd=[k,&wm,&c,&d](double r) {return wm(r,k)*c(r)*d(r);};
+            for (size_t i1=i1_begin;i1<i1_end;i1++)
+            {
+                double Iab_p=gl1[i1].Integrate(wpab);
+                double Iab_m=gl1[i1].Integrate(wmab);
+                // These need to integrated for all i2!=i1.
+                double Icd_p=gl1.IntegrateIndex(wpcd,scd.getStartIndex(),i1+1); //i1 should be one past the end i1
+                double Icd_m=gl1.IntegrateIndex(wmcd,i1,scd.getEndIndex()-1);
+                // These need to be in the loop because they capture i1
+                std::function< double (size_t)> Yk1_diag = [&gl2,&wpcd,i1](size_t i2)
+                {
+                    return gl2.find_grid_gl(i1,i2).Integrate(wpcd);
+                };
+                std::function< double (size_t)> Yk2_diag = [&gl2,&wmcd,i1](size_t i2)
+                {
+                    return gl2.find_gl_grid(i2,i1+1).Integrate(wmcd);
+                };
+                std::function< double (double,size_t)> wab_diag1 = [k,&a,&b,&wp,&wm,&Yk1_diag,&Yk2_diag](double r1, size_t i1)
+                {
+                    // cout << "wabdiag1_r1=" << r1 << " i1=" << i1 << " wm=" << wm(r1,k) << " wp=" << wp(r1,k) << " Yk1_diag(i1)=" << Yk1_diag(i1) << " Yk2_diag(i1)=" << Yk2_diag(i1) << " a=" << a(r1) << " b=" << b(r1) << endl;
+                    return (wm(r1,k)*Yk1_diag(i1)+wp(r1,k)*Yk2_diag(i1))*a(r1)*b(r1);
+                };
+                double Idiag=gl1[i1].Integrate(wab_diag1);
+                Rabcd_k[k]+=Idiag + Iab_m*Icd_p + Iab_p*Icd_m;;
+                // std::cout  << "i1=" << std::setw(2) << i1 << " Idiag=" << std::setw(12) << Idiag 
+                // << " Iab_m=" << std::setw(12) << Iab_m << " Icd_p=" << std::setw(12) << Icd_p 
+                // << " Iab_p=" << std::setw(12) << Iab_p << " Icd_m=" << std::setw(12) << Icd_m << std::endl;
+            }
+            
+        }
+        // (ab) has no overlap (cd) and 2D integral factors.  Use look up tables in rkcache to
+        // integral factores.

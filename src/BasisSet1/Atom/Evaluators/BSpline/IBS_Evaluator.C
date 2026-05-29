@@ -6,6 +6,7 @@ module;
 #include <iosfwd>
 #include <cassert>
 #include <cmath>
+#include <iostream>
 export module qchem.BasisSet.Atom.Evaluators.BSpline.IBS;
 import qchem.BasisSet.Atom.Evaluators.IBS;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.GLQuadrature;
@@ -130,6 +131,11 @@ static_assert(is1E_Evaluator     <BSpline_IBS_Evaluator<6>>);
 static_assert(isRKBL_Evaluator   <BSpline_IBS_Evaluator<6>>);
 static_assert(isHF_Evaluator     <BSpline_IBS_Evaluator<6>>);
 
+std::ostream& operator<<(std::ostream& os, const bspline::Support<double>& sup)
+{
+    return os << "[" << sup.front() << "," << sup.back() << "]";
+}
+
 template <size_t K> class BSpline_Cache4 : public  Cache4
 {
 public:
@@ -138,7 +144,7 @@ public:
     , wm([](double r2,size_t k) {return intpow(r2,1-k);})
     , itsMaxl(0)
     , itsGL1D(grid,K+3)
-    , itsGL2D(itsGL1D,K+3)
+    , itsGL2D(grid,2*K+3,K+3)
     , itsRkCache(0) 
     {
     };
@@ -164,7 +170,6 @@ public:
     virtual Rk*  Create (size_t ia,size_t ic,size_t ib,size_t id) const
     {
          assert(itsRkCache);
-        // std::cout << "ia,ib,ic,id=" << ia << " " << ib << " " << ic << " " << id << std::endl;
         size_t lmax=grouper.LMax(ia,ib,ic,id);
         return new ::BSpline::RkEngine(grouper.unique_spv,ia,ib,ic,id,lmax,itsGL1D,itsGL2D,*itsRkCache,wp,wm);
     }

@@ -1783,7 +1783,7 @@ R_{k}\left(abcd\right)=\intop_{0}^{\infty}dr_{1}\intop_{0}^{\infty}dr_{2}\;\frac
 \begin_layout Standard
 \begin_inset Formula 
 \[
-Y^{0}\left(r_{1},c,d\right)=r_{1}^{1-k}\intop_{s_{cd-}}^{r_{1}}dr_{2}\;r_{2}^{2+k}\;B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right)+r_{1}^{2+k}\intop_{r_{1}}^{s_{cd+}}dr_{2}\;r_{2}^{1-k}\;B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right)
+Y^{k}\left(r_{1},c,d\right)=r_{1}^{1-k}\intop_{s_{cd-}}^{r_{1}}dr_{2}\;r_{2}^{2+k}\;B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right)+r_{1}^{2+k}\intop_{r_{1}}^{s_{cd+}}dr_{2}\;r_{2}^{1-k}\;B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right)
 \]
 
 \end_inset
@@ -1792,7 +1792,7 @@ Y^{0}\left(r_{1},c,d\right)=r_{1}^{1-k}\intop_{s_{cd-}}^{r_{1}}dr_{2}\;r_{2}^{2+
 \end_layout
 
 \begin_layout Standard
-Now we can consider t1o cases
+Now we can consider two cases
 \end_layout
 
 \begin_layout Paragraph
@@ -1822,8 +1822,8 @@ is either
 \begin_inset Formula 
 \[
 Y^{k}\left(r_{1},c,d\right)=\begin{cases}
-r_{1}^{1-k}\intop_{s_{cd}}dr_{2}\;r_{2}^{2+k}\;B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right) & r_{1}>s_{cd+}\\
-r_{1}^{2+k}\intop_{S_{cd}}dr_{2}\;r_{2}^{1-k}\;B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right) & r_{1}<s_{cd-}
+I_{cdm}=r_{1}^{1-k}\intop_{s_{cd}}dr_{2}\;r_{2}^{2+k}\;B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right) & r_{1}>s_{cd+}\\
+I_{cdp}=r_{1}^{2+k}\intop_{S_{cd}}dr_{2}\;r_{2}^{1-k}\;B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right) & r_{1}<s_{cd-}
 \end{cases}
 \]
 
@@ -1833,8 +1833,8 @@ And now we see that the two integrals decouple.
 \begin_inset Formula 
 \[
 R_{k}\left(abcd\right)=\begin{cases}
-\left[\intop_{s_{ab}}dr_{1}r_{1}^{1-k}B_{a}\left(r_{1}\right)B_{b}\left(r_{1}\right)\right]\left[\intop_{s_{cd}}dr_{2}\;r_{2}^{2+k}\;B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right)\right] & s_{ab}>s_{cd}\\
-\left[\intop_{s_{ab}}dr_{1}r_{1}^{2+k}B_{a}\left(r_{1}\right)B_{b}\left(r_{1}\right)\right]\left[\intop_{s_{cd}}dr_{2}\;r_{2}^{1-k}\;B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right)\right] & s_{ab}<s_{cd}
+I_{abm}I_{cdp}=\left[\intop_{s_{ab}}dr_{1}r_{1}^{1-k}B_{a}\left(r_{1}\right)B_{b}\left(r_{1}\right)\right]\left[\intop_{s_{cd}}dr_{2}\;r_{2}^{2+k}\;B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right)\right] & s_{ab}>s_{cd}\\
+I_{ab+}I_{cdm}=\left[\intop_{s_{ab}}dr_{1}r_{1}^{2+k}B_{a}\left(r_{1}\right)B_{b}\left(r_{1}\right)\right]\left[\intop_{s_{cd}}dr_{2}\;r_{2}^{1-k}\;B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right)\right] & s_{ab}<s_{cd}
 \end{cases}
 \]
 
@@ -1847,7 +1847,7 @@ R_{k}\left(abcd\right)=\begin{cases}
 So we can calculate and cache all these 1-D off integrals,
  and just take products.
  These integrals are over support cells,
- which will contain one ore grid cells.
+ which will contain one or more grid cells.
 \end_layout
 
 \begin_layout Paragraph
@@ -1861,19 +1861,32 @@ Case 2
 \begin_layout Standard
 These are the so called diagonal elements.
  If each support cell is divided into many grid cells,
- then within the diagonal support cell there will be a combination of off diagonal (factorable) grid cells and non factorable diagonal grid cells.
- The grid cells are labeld by indices 
-\begin_inset Formula $I_{ab}$
+ then within the diagonal support cell there will be a combination of off diagonal (factor-able) grid cells and non factor-able diagonal grid cells.
+ If we associate grid indices as follows 
+\begin_inset Formula $r_{1}\Rightarrow i_{1},\;r_{2}\Rightarrow i_{2}$
 \end_inset
 
- and 
-\begin_inset Formula $I_{cd}$
+ 
+\begin_inset Formula $i_{1}$
 \end_inset
 
+ is on the spline grid and 
+\begin_inset Formula $i_{2}$
+\end_inset
 
+ will be in a Gauss Legendre (GL) grid.
+ The range of 
+\begin_inset Formula $i_{1}$
+\end_inset
+
+ is 
+\begin_inset Formula $s_{ab-}\leq i_{1}\leq s_{ab+}$
+\end_inset
+
+.
 \begin_inset Formula 
 \[
-D_{k}=\intop_{s_{ab}}dr_{1}\intop_{s_{sc}}dr_{2}\;\frac{r_{<}^{k+2}}{r_{>}^{k-1}}\;B_{a}\left(r_{1}\right)B_{b}\left(r_{1}\right)B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right)
+R_{k}=\intop_{s_{ab}}dr_{1}\intop_{s_{sc}}dr_{2}\;\frac{r_{<}^{k+2}}{r_{>}^{k-1}}\;B_{a}\left(r_{1}\right)B_{b}\left(r_{1}\right)B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right)
 \]
 
 \end_inset
@@ -1881,21 +1894,40 @@ D_{k}=\intop_{s_{ab}}dr_{1}\intop_{s_{sc}}dr_{2}\;\frac{r_{<}^{k+2}}{r_{>}^{k-1}
 
 \begin_inset Formula 
 \[
-=\sum_{I_{ab-}}^{I_{ab+}}\sum_{I_{cd-}}^{I_{cd+}}\intop_{I_{ab}}dr_{1}\intop_{I_{sc}}dr_{2}\;\frac{r_{<}^{k+2}}{r_{>}^{k-1}}\;B_{a}\left(r_{1}\right)B_{b}\left(r_{1}\right)B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right)
+R_{k}=\sum_{i_{1}=s_{ab-}}^{s_{ab+}}\sum_{i_{2}=s_{cd-}}^{s_{cd+}}\intop_{i_{1}}^{i_{1}+1}dr_{1}\intop_{i_{2}}^{i_{2}+1}\;\frac{r_{<}^{k+2}}{r_{>}^{k-1}}\;B_{a}\left(r_{1}\right)B_{b}\left(r_{1}\right)B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right)
 \]
 
 \end_inset
 
 When 
-\begin_inset Formula $I_{ab}\neq I_{cd}$
+\begin_inset Formula $i_{1}\neq i_{2}$
 \end_inset
 
  the integrals should factor
 \begin_inset Formula 
 \[
-\intop_{I_{ab}}dr_{1}\intop_{I_{sc}}dr_{2}\;\frac{r_{<}^{k+2}}{r_{>}^{k-1}}\;B_{a}\left(r_{1}\right)B_{b}\left(r_{1}\right)B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right)=\begin{cases}
-\intop_{I_{ab}}dr_{1}r_{1}^{1-k}B_{a}\left(r_{1}\right)B_{b}\left(r_{1}\right)\intop_{I_{sc}}dr_{2}r_{2}^{k+2}B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right) & I_{sc}<I_{ab}\\
-\intop_{I_{ab}}dr_{1}r_{1}^{k+2}B_{a}\left(r_{1}\right)B_{b}\left(r_{1}\right)\intop_{I_{sc}}dr_{2}r_{2}^{1-k}B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right) & I_{sc}>I_{ab}
+R_{k}\left(abcd\right)=\begin{cases}
+I_{ab-}I_{cd+}=\left[\sum_{i_{1}=s_{ab-}}^{s_{ab+}}\intop_{i_{1}}^{i_{1}+1}dr_{1}r_{1}^{1-k}B_{a}\left(r_{1}\right)B_{b}\left(r_{1}\right)\right]\left[\sum_{i_{2}=s_{cd-}}^{i_{1}-1}\intop_{i_{2}}dr_{2}\;r_{2}^{2+k}\;B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right)\right] & i_{1}>i_{2}\\
+I_{ab+}I_{cd-}=\left[\sum_{i_{1}=s_{ab-}}^{s_{ab+}}\intop_{i_{ab}}dr_{1}r_{1}^{2+k}B_{a}\left(r_{1}\right)B_{b}\left(r_{1}\right)\right]\left[\sum_{i_{2}=i_{1}+1}^{s_{cd+}}\intop_{i_{cd}}dr_{2}\;r_{2}^{1-k}\;B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right)\right] & i_{1}<i_{2}
+\end{cases}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+When 
+\begin_inset Formula $i_{1}=i_{2}$
+\end_inset
+
+ then we need to do the nested GL integrals.
+\begin_inset Formula 
+\[
+\intop_{i_{1}}dr_{1}\intop_{i_{1}}dr_{2}\;\frac{r_{<}^{k+2}}{r_{>}^{k-1}}\;B_{a}\left(r_{1}\right)B_{b}\left(r_{1}\right)B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right)=\begin{cases}
+\intop_{i_{1}}^{i_{1}+1}dr_{1}r_{1}^{1-k}B_{a}\left(r_{1}\right)B_{b}\left(r_{1}\right)\intop_{i_{1}}^{r1}dr_{2}r_{2}^{k+2}B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right) & I_{sc}<I_{ab}\\
+\intop_{i_{1}}^{i_{1}+1}dr_{1}r_{1}^{k+2}B_{a}\left(r_{1}\right)B_{b}\left(r_{1}\right)\intop_{r_{1}}^{i_{1}+1}dr_{2}r_{2}^{1-k}B_{c}\left(r_{2}\right)B_{d}\left(r_{2}\right) & I_{sc}>I_{ab}
 \end{cases}
 \]
 

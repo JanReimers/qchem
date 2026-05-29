@@ -7,6 +7,11 @@
 #include <fstream>
 #include <cmath>
 
+import qchem.BasisSet.Atom.Evaluators.Gaussian.IBS;
+import qchem.BasisSet.Atom.Evaluators.Internal.Rk;
+import qchem.BasisSet.Atom.Evaluators.IBS;
+import qchem.BasisSet.Atom.Evaluators.Internal.AngularIntegrals;
+
 import qchem.BasisSet.Atom.Internal.Wigner3j;
 import Common.Constants;
 
@@ -190,4 +195,5 @@ TEST_F(GaussianRadialERITests, Wigner1)
     double expected=-sqrt(6./70.);
     EXPECT_DOUBLE_EQ(Wigner3j::w3j(1,2,3),expected);
     EXPECT_DOUBLE_EQ(Wigner3j::w3j(2,1,3),expected);
-    }
+}
+

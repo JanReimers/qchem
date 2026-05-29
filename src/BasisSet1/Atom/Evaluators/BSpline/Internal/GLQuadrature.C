@@ -127,7 +127,8 @@ private:
 export class GLCache2D
 {
 public:
-    GLCache2D(const GLCache1D& gl1,size_t Order);
+    // GLCache2D(const GLCache1D& gl1,size_t Order);
+    GLCache2D(const bspline::support::Grid<double>& g,size_t Order1, size_t Order2);
     const GLQuadrature& find_grid_gl(size_t igrid,size_t igl) const
     {
         assert(igrid>=0);
@@ -144,10 +145,12 @@ public:
         assert(igrid<itsDiagGLs_gl_grid.columns());
         return itsDiagGLs_gl_grid(igl,igrid);
     }
+    const GLCache1D& GL1d() const {return itsGl1D;}
     size_t RAMsize() const;
 private:
     GLCache2D(const GLCache2D&)=delete;
     const bspline::support::Grid<double> grid;
+    GLCache1D itsGl1D;
     mat_t<GLQuadrature> itsDiagGLs_grid_gl; //Ngrid x Order
     mat_t<GLQuadrature> itsDiagGLs_gl_grid; //Order x Ngrid
 };

@@ -1,5 +1,6 @@
 // File A_HF_P.C  Atom Hartree-Fock tests for Polarized (open shell) atoms.
 #include "gtest/gtest.h"
+#include "nlohmann/json.hpp"
 import qchem.Unittests.QchemTester;
 
 const bool verbose=true;
@@ -184,17 +185,15 @@ INSTANTIATE_TEST_SUITE_P(A_HF,A_SL_HF_P_Low,::testing::Values(3,5,21,92));
 // {
 // //           NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo MergeTol verbose
 // #ifdef DEBUG
-//     return {   50     ,Z*1e-10    ,1e-13 , 1e-10   ,Z*5e-10        ,0.5     ,1e-7  ,true};
+//     return {   50     ,Z*1e-7    ,1e-9 , 1e-12   ,Z*5e-7        ,0.5     ,1e-7  ,true};
 // #else
-//     return {   50     ,Z*1e-10    ,1e-13 , 2.5e-12   ,Z*5e-10        ,0.5     ,1e-7  ,true};
+//     return {   50     ,Z*1e-7    ,1e-9 , 1e-12   ,Z*5e-7        ,0.5     ,1e-7  ,true};
 // #endif
 // }
 
-// class A_BS_saito_HF_P : public ::testing::TestWithParam<int>
-// , public TestAtom,  HF_P
+// class A_BS_saito_HF_P : public A_HF_P
 // {
-// public:
-//     A_BS_saito_HF_P() : TestAtom(GetParam()) {};
+
 // };
 
 // TEST_P(A_BS_saito_HF_P,Saito)
@@ -202,12 +201,12 @@ INSTANTIATE_TEST_SUITE_P(A_HF,A_SL_HF_P_Low,::testing::Values(3,5,21,92));
 //     int Z=GetParam();
 // #ifdef DEBUG
 //     nlohmann::json js = {
-//         {"type",abs_t::BSpline6},
+//         {"type",BasisSet::Atom::Type::BSpline6},
 //         {"N", 20}, {"rmin", 0.2}, {"rmax", 20},
 //     };
 // #else
 //    nlohmann::json js = {
-//         {"type",abs_t::BSpline6},
+//         {"type",BasisSet::Atom::Type::BSpliner6},
 //         {"N", 50}, {"rmin", 0.003}, {"rmax", 40},
 //     };
 // #endif
@@ -220,9 +219,10 @@ INSTANTIATE_TEST_SUITE_P(A_HF,A_SL_HF_P_Low,::testing::Values(3,5,21,92));
 // }
 
 // #ifdef NDEBUG
+// INSTANTIATE_TEST_SUITE_P(Saito,A_BS_saito_HF_P,::testing::Values(1,2,5,21,57,92)); 
+
 // // INSTANTIATE_TEST_SUITE_P(Saito,A_BS_saito_HF_P,::testing::Range(1,93)); 
 // // INSTANTIATE_TEST_SUITE_P(Saito,A_BS_saito_HF_P,::testing::Values(62,63,65,67,68,71,72)); //Known convergence problems. 
-// INSTANTIATE_TEST_SUITE_P(Saito,A_BS_saito_HF_P,::testing::Values(1,2,5,21,57,92)); 
 // // INSTANTIATE_TEST_SUITE_P(Saito,A_BS_saito_HF_P,::testing::Values(1,92)); 
 // #else
 // // INSTANTIATE_TEST_SUITE_P(Saito,A_BS_saito_HF_P,::testing::Range(2,3)); 

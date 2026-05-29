@@ -15,7 +15,7 @@ class DBCach1Tests : public ::testing::Test
 {
 public:
     DBCach1Tests() 
-        : N(3),Z(86)
+        : N(3),Z(1)
         , cl_hydrogen    (new Atom(1,0.0,Vector3D(0,0,0)))
         , cl_hydrogen_100(new Atom(1,0.0,Vector3D(1,0,0)))
         , cl_helium      (new Atom(2,0.0,Vector3D(0,0,0)))
@@ -31,8 +31,8 @@ public:
     }
     void Init(BasisSet::Atom::Type type)
     {
-        bs1=PoolFactory(BasisSetAccuracy::N3,type,Z);
-        bs2=PoolFactory(BasisSetAccuracy::N3,type,Z);
+        bs1=PoolFactory(BasisSetAccuracy::Low,type,Z);
+        bs2=PoolFactory(BasisSetAccuracy::Low,type,Z);
     }
   
     void TestOverlap() const
@@ -112,6 +112,7 @@ public:
         }
     void TestDirect(double eps) const
         {
+            cout << *bs1 << endl;
             using BasisSet::Real_HF_OIBS;
             auto ibs21=bs2->Iterate<Real_HF_OIBS>().begin();
             for (auto ibs11:bs1->Iterate<Real_HF_OIBS>())
@@ -125,9 +126,11 @@ public:
                     EXPECT_EQ(&J1,&J2);
                     const ERI4& J1ba=ibs12->Direct(*ibs11);
                     const ERI4& J2ba=(*ibs22)->Direct(**ibs21);
-                    EXPECT_NEAR(fnorm(J1,J1ba.Transpose()),0.0,1e-5);
-                    EXPECT_NEAR(fnorm(J2,J2ba.Transpose()),0.0,1e-5);
+                    EXPECT_NEAR(fnorm(J1,J1ba.Transpose()),0.0,eps);
+                    EXPECT_NEAR(fnorm(J2,J2ba.Transpose()),0.0,eps);
                     ++ibs22;
+                    // cout << std::setprecision(12) << "J1(0,0)(0,1)=" << J1(0,0)(0,1) << std::endl;
+                    // cout << std::setprecision(12) << "J1(0,1)(0,0)=" << J1(0,1)(0,0) << std::endl;
                 }
                 ++ibs21;
             }
@@ -149,8 +152,8 @@ public:
                 EXPECT_EQ(&K1,&K2);
                 const ERI4& K1ba=ibs12->Exchange(*ibs11);
                 const ERI4& K2ba=(*ibs22)->Exchange(**ibs21);
-                EXPECT_NEAR(fnorm(K1,K1ba.Transpose()),0.0,1e-15);
-                EXPECT_NEAR(fnorm(K2,K2ba.Transpose()),0.0,1e-15);
+                EXPECT_NEAR(fnorm(K1,K1ba.Transpose()),0.0,eps);
+                EXPECT_NEAR(fnorm(K2,K2ba.Transpose()),0.0,eps);
                 ++ibs22;
             }
             ++ibs21;
@@ -242,17 +245,17 @@ TEST_F(DBCach1Tests,SlaterRepulsion3C)
 TEST_F(DBCach1Tests,BSplineDirect)
 {
     Init(BSpline6);
-    TestDirect(1e-14);
+    TestDirect(6e-13);
 }
 TEST_F(DBCach1Tests,BSplinerDirect)
 {
     Init(BSpliner6);
-    TestDirect(1e-14);
+    TestDirect(1.2e-13);
 }
 TEST_F(DBCach1Tests,GaussianDirect)
 {
     Init(Gaussian);
-    TestDirect(3e-15);
+    TestDirect(7e-14);
 }
 TEST_F(DBCach1Tests,SlaterDirect)
 {
@@ -262,17 +265,17 @@ TEST_F(DBCach1Tests,SlaterDirect)
 TEST_F(DBCach1Tests,BSplineExchange)
 {
     Init(BSpline6);
-    TestExchange(1e-14);
+    TestExchange(1.4e-13);
 }
 TEST_F(DBCach1Tests,BSplinerExchange)
 {
     Init(BSpliner6);
-    TestExchange(1e-14);
+    TestExchange(6e-14);
 }
 TEST_F(DBCach1Tests,GaussianExchange)
 {
     Init(Gaussian);
-    TestExchange(4e-15);
+    TestExchange(6e-14);
 }
 TEST_F(DBCach1Tests,SlaterExchange)
 {

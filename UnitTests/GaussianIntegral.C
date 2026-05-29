@@ -3,12 +3,17 @@
 
 #include "gtest/gtest.h"
 #include "nlohmann/json.hpp"
-import qchem.LAParams;
 #include <iostream>
 #include <fstream>
 #include <cmath>
 #include <blaze/Math.h>
 
+import qchem.BasisSet.Atom.Evaluators.Gaussian.IBS;
+import qchem.BasisSet.Atom.Evaluators.Internal.Rk;
+import qchem.BasisSet.Atom.Evaluators.IBS;
+import qchem.BasisSet.Atom.Evaluators.Internal.AngularIntegrals;
+
+import qchem.LAParams;
 import qchem.Factory;
 import Common.Constants;
 import qchem.Mesh.Integrator;
@@ -91,4 +96,40 @@ TEST_F(GaussianRadialIntegralTests, Kinetic)
         
     }
 }
+
+TEST_F(GaussianRadialIntegralTests,RkSymmetry_l0)
+{
+    using namespace BasisSet::Atom::Evaluators::Gaussian;
+    typedef AngularIntegrals::rvec11_t rvec11_t; 
+    Irrep_QNs::sym_t yl(new Yl_Sym(0));
+    auto eval=new Gaussian_IBS_Evaluator(15,.03,20.0,yl);
+    auto cache4=eval->MakeCache4();
+    cache4->Register(eval);
+    auto ns=eval->Norm();
+
+    rvec11_t Ak({1,1,1,1,1,1,1,1,1,1,1});
+
+    {
+        {
+            auto rk0001=dynamic_cast<const Rk*>(cache4->Create(0,0,0,1));
+            auto rk0100=dynamic_cast<const Rk*>(cache4->Create(0,1,0,0));
+            auto rk0010=dynamic_cast<const Rk*>(cache4->Create(0,0,1,0));
+            cout << " 0001=" << std::setprecision(12) << rk0001->Coulomb_R0(0,0   )*ns[0]*ns[0]*ns[0]*ns[1]*FourPi2 << endl;
+            cout << " 0100=" << std::setprecision(12) << rk0100->Coulomb_R0(0,0   )*ns[0]*ns[0]*ns[0]*ns[1]*FourPi2 << endl;
+            cout << " 0010=" << std::setprecision(12) << rk0010->Coulomb_R0(0,0   )*ns[0]*ns[0]*ns[1]*ns[0]*FourPi2 << endl;
+            cout << "J0001=" << std::setprecision(12) << eval->direct(rk0001,0,0,Ak)*ns[0]*ns[0]*ns[0]*ns[1]*FourPi2 << endl;
+            cout << "J0100=" << std::setprecision(12) << eval->direct(rk0100,0,0,Ak)*ns[0]*ns[1]*ns[0]*ns[0]*FourPi2 << endl;
+            cout << "J0010=" << std::setprecision(12) << eval->direct(rk0010,0,0,Ak)*ns[0]*ns[0]*ns[1]*ns[0]*FourPi2 << endl;
+
+            EXPECT_NEAR(rk0001->Coulomb_R0(0,0   ),rk0100->Coulomb_R0(0,0   ),1e-15);
+            EXPECT_NEAR(rk0001->Coulomb_R0(0,0   ),rk0100->Coulomb_R0(0,0   ),1e-15);
+            EXPECT_NEAR(rk0001->Coulomb_Rk(0,0,Ak),rk0100->Coulomb_Rk(0,0,Ak),1e-15);
+            EXPECT_NEAR(rk0001->Coulomb_Rk(0,0,Ak),rk0100->Coulomb_Rk(0,0,Ak),1e-15);
+            EXPECT_NEAR(rk0001->ExchangeRk(0,0,Ak),rk0100->ExchangeRk(0,0,Ak),1e-15);
+            EXPECT_NEAR(rk0001->ExchangeRk(0,0,Ak),rk0100->ExchangeRk(0,0,Ak),1e-15);
+        }
+    }
+}
+
+
 

@@ -1,6 +1,7 @@
 // File: BSpline::RkEngine.H  4 electron Charge distribution of BSpline orbitals. 
 module;
 #include <iostream>
+#include <iomanip>
 #include <vector>
 #include <functional>
 #include <cassert>
@@ -82,30 +83,45 @@ template <size_t K> RkEngine<K>::RkEngine(const std::vector<sp_t>& splines, size
         // THis is hard/hot loop for the whole process.  abcd all overlap and no factoring is possible.
         if (Sabcd.containsIntervals())
         {
-            std::function< double (double)> wpab=[k,&wp,&a,&b](double r) {return wp(r,k)*a(r)*b(r);};
-            std::function< double (double)> wmab=[k,&wm,&a,&b](double r) {return wm(r,k)*a(r)*b(r);};
-            std::function< double (double)> wpcd=[k,&wp,&c,&d](double r) {return wp(r,k)*c(r)*d(r);};
-            std::function< double (double)> wmcd=[k,&wm,&c,&d](double r) {return wm(r,k)*c(r)*d(r);};
+            std::function< double (double)> wpab=[k,&wp,&a,&b](double r1) {return wp(r1,k)*a(r1)*b(r1);};
+            std::function< double (double)> wmab=[k,&wm,&a,&b](double r1) {return wm(r1,k)*a(r1)*b(r1);};
+            std::function< double (double)> wpcd=[k,&wp,&c,&d](double r2) {return wp(r2,k)*c(r2)*d(r2);};
+            std::function< double (double)> wmcd=[k,&wm,&c,&d](double r2) {return wm(r2,k)*c(r2)*d(r2);};
             for (size_t iab=sab.getStartIndex();iab<sab.getEndIndex()-1;iab++)
             {
+                double rab=grid[iab],rab1=grid[iab+1];
                 double Iab_p=gl1[iab].Integrate(wpab);
                 double Iab_m=gl1[iab].Integrate(wmab);
                 double Icd_p=gl1.IntegrateIndex(wpcd,scd.getStartIndex(),iab);
                 double Icd_m=gl1.IntegrateIndex(wmcd,iab+1,scd.getEndIndex()-1);
                 // These need to be in the loop because they capture iab
-                std::function< double (size_t)> Yk1_diag = [&gl2,&wpcd,iab](size_t i1)
+                std::function< double (double,size_t)> Yk1_diag = [&gl2,&wpcd,rab,iab](double r1, size_t i1)
                 {
+                    // double ret=gl2.find_grid_gl(iab,i1).Integrate(wpcd);
+                    // auto gl=GLQuadrature(rab,r1,K+1);
+                    // // cout << gl.Integrate(wpcd) << " " << ret << " " << gl.Integrate(wpcd)-ret << endl;
+                    // assert(gl.Integrate(wpcd)==ret);
+                    // return ret;
+                    // return gl.Integrate(wpcd);
                     return gl2.find_grid_gl(iab,i1).Integrate(wpcd);
                 };
-                std::function< double (size_t)> Yk2_diag = [&gl2,&wmcd,iab](size_t i1)
+                std::function< double (double,size_t)> Yk2_diag = [&gl2,&wmcd,rab1,iab](double r1, size_t i1)
                 {
+                    // double ret=gl2.find_gl_grid(i1,iab+1).Integrate(wmcd);
+                    // auto gl=GLQuadrature(r1,rab1,K+1);
+                    // assert(gl.Integrate(wmcd)==ret);
+                    // return ret;
+                    // return gl.Integrate(wmcd);
                     return gl2.find_gl_grid(i1,iab+1).Integrate(wmcd);
                 };
                 std::function< double (double,size_t)> wab_diag1 = [k,&a,&b,&wp,&wm,&Yk1_diag,&Yk2_diag](double r1, size_t i1)
                 {
-                    return (wm(r1,k)*Yk1_diag(i1)+wp(r1,k)*Yk2_diag(i1))*a(r1)*b(r1);
+                    return (wm(r1,k)*Yk1_diag(r1,i1)+wp(r1,k)*Yk2_diag(r1,i1))*a(r1)*b(r1);
                 };
-                double Idiag=gl1[iab].Integrate(wab_diag1);
+                double Idiag=gl2.GL1d()[iab].Integrate(wab_diag1);
+                //  std::cout  << "iab=" << std::setw(2) << iab << " Idiag=" << std::setw(12) << Idiag 
+                // << " Iab_m=" << std::setw(12) << Iab_m << " Icd_p=" << std::setw(12) << Icd_p 
+                // << " Iab_p=" << std::setw(12) << Iab_p << " Icd_m=" << std::setw(12) << Icd_m << std::endl;
                 Rabcd_k[k]+=Idiag + Iab_m*Icd_p + Iab_p*Icd_m;;
             }
             

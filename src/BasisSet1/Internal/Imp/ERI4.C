@@ -58,6 +58,14 @@ double fnorm(const ERI4& a, const ERI4& b)
         {
             double norm_ab=norm(a(i,j)-b(i,j));
             ret+=norm_ab*norm_ab;
+            if (norm_ab>0.001) 
+            {
+                // std::cout << std::setprecision(12) << "a(" << i << "," << j << ")=" << a(i,j);
+                // std::cout << std::setprecision(12) << "b(" << i << "," << j << ")=" << b(i,j);
+                std::cout << "[a-b](" << i << "," << j << ")=" << a(i,j)-b(i,j);
+                std::cout << "norm(a(i,j)-b(i,j))=" << norm(a(i,j)-b(i,j)) << std::endl;
+                
+            }
         }
     return sqrt(ret);    
 }

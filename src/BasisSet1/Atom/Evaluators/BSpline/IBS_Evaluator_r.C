@@ -146,7 +146,7 @@ public:
     , wm([](double r2,size_t k) {return intpow(r2,-1-k);})
     , itsMaxl(0)
     , itsGL1D(grid,K+1)
-    , itsGL2D(itsGL1D,K+1)
+    , itsGL2D(grid,2*K+1,K+3)
     , itsRkCache(0) 
     {
     };

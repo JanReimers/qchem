@@ -78,17 +78,17 @@ GLCache1D::GLCache1D(const bspline::support::Grid<double>& g,size_t Order)
         itsGLs.push_back(GLQuadrature(grid[i-1],grid[i],Order));
 }
 
-GLCache2D::GLCache2D(const GLCache1D& gl1,size_t Order)
-: grid(gl1.grid), itsDiagGLs_grid_gl(grid.size(),Order), itsDiagGLs_gl_grid(Order,grid.size())
+GLCache2D::GLCache2D(const bspline::support::Grid<double>& g,size_t Order1, size_t Order2)
+: grid(g), itsGl1D(g,Order1), itsDiagGLs_grid_gl(grid.size(),Order1), itsDiagGLs_gl_grid(Order1,grid.size())
 {
     for (size_t i=1;i<grid.size();i++)
     {
         double rmin=grid[i-1], rmax=grid[i];
         size_t j=0;
-        for (double r:gl1.itsGLs[i-1].xs)
+        for (double r:itsGl1D.itsGLs[i-1].xs)
         {
-            itsDiagGLs_grid_gl(i-1,j)=GLQuadrature(rmin,r,Order);
-            itsDiagGLs_gl_grid(j  ,i)=GLQuadrature(r,rmax,Order);
+            itsDiagGLs_grid_gl(i-1,j)=GLQuadrature(rmin,r,Order2);
+            itsDiagGLs_gl_grid(j  ,i)=GLQuadrature(r,rmax,Order2);
             j++;
         }
     }   

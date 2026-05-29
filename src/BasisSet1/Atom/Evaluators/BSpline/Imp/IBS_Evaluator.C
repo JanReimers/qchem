@@ -117,10 +117,18 @@ template <size_t K> std::string BSpline_IBS_Evaluator<K>::RadialID () const
     return os.str();
 }
 
+std::ostream& operator<<(std::ostream& os, const bspline::Grid<double>& grid)
+{
+    os << "{";
+    for (auto g:grid) os << g << ",";
+
+    return os << "}";
+}
+
 template <size_t K> std::string BSpline_IBS_Evaluator<K>::RadialType() const
 {
     std::ostringstream os;
-    os << "BS<" << K << "> grid=" << splines[0].getSupport().getGrid();;
+    os << "BS<" << K << "> grid=" << splines[0].getSupport().getGrid();
     return os.str();
 }
 
