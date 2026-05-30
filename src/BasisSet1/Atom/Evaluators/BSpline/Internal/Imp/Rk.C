@@ -10,8 +10,6 @@ module qchem.BasisSet.Atom.Evaluators.BSpline.Internal.Rk;
 import qchem.BasisSet.Atom.Evaluators.IBS;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.GLQuadrature;
 
-import Common.IntPow;
-
 using std::cout;
 using std::endl;
 
@@ -122,7 +120,7 @@ template <size_t K> RkEngine<K>::RkEngine(const std::vector<sp_t>& splines, size
                 //  std::cout  << "iab=" << std::setw(2) << iab << " Idiag=" << std::setw(12) << Idiag 
                 // << " Iab_m=" << std::setw(12) << Iab_m << " Icd_p=" << std::setw(12) << Icd_p 
                 // << " Iab_p=" << std::setw(12) << Iab_p << " Icd_m=" << std::setw(12) << Icd_m << std::endl;
-                Rabcd_k[k]+=Idiag + Iab_m*Icd_p + Iab_p*Icd_m;;
+                Rabcd_k[k]+=Idiag + Iab_m*Icd_p + Iab_p*Icd_m;
             }
             
         }

@@ -6,10 +6,9 @@ export module qchem.BasisSet.Atom.Evaluators.Gaussian.IBS;
 import qchem.BasisSet.Atom.Evaluators.Internal.Exponential_IBS_Evaluator;
 import qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.GaussianIntegrals; 
 import qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.Rk; 
-import qchem.BasisSet.Atom.Evaluators.Internal.AngularIntegrals;
 import qchem.BasisSet.Atom.Evaluators.Concepts;
 import qchem.Symmetry.Yl;
-import Common.IntPow;
+import qchem.IntPow;
 
 import qchem.BasisSet.Internal.Cache4;
 
@@ -20,7 +19,7 @@ class Gaussian_IBS_Evaluator : public Exponential_IBS_Evaluator
 {
 public: 
  
-    Gaussian_IBS_Evaluator(const rvec_t& es, int l, const is_t& mls) : Exponential_IBS_Evaluator(es,l,mls) {ns=norms();}
+    Gaussian_IBS_Evaluator(const rvec_t& es, int l, const ivec_t& mls) : Exponential_IBS_Evaluator(es,l,mls) {ns=norms();}
     Gaussian_IBS_Evaluator(const rvec_t& es, int l) : Gaussian_IBS_Evaluator(es,l,{}) {}
     Gaussian_IBS_Evaluator(const rvec_t& es, const Irrep_QNs::sym_t& ir, size_t ltrim=0) : Exponential_IBS_Evaluator(es,ir,ltrim) {ns=norms();}
     Gaussian_IBS_Evaluator(size_t N, double emin, double emax, const Irrep_QNs::sym_t& ir) 
@@ -103,7 +102,7 @@ public:
     virtual std::string Name() const;
     virtual std::string RadialType() const;
     virtual Cache4*    MakeCache4() const;
-    using rvec11_t=AngularIntegrals::rvec11_t;
+    using rvec11_t=rvec11_t;
     static double direct(const Cacheable* c, size_t la, size_t lc,const rvec11_t& Ak)
     {
         const ::Gaussian::RkEngine* cd = dynamic_cast<const ::Gaussian::RkEngine*>(c);
@@ -168,7 +167,7 @@ private:
 class Gaussian_RKBS_IBS_Evaluator : public Gaussian_IBS_Evaluator
 {
 public:
-    Gaussian_RKBS_IBS_Evaluator(const rvec_t& es, int _kappa, int l, const is_t& mls) : Gaussian_IBS_Evaluator(es,l,mls), kappa(_kappa) {ns=norms();}
+    Gaussian_RKBS_IBS_Evaluator(const rvec_t& es, int _kappa, int l, const ivec_t& mls) : Gaussian_IBS_Evaluator(es,l,mls), kappa(_kappa) {ns=norms();}
     Gaussian_RKBS_IBS_Evaluator(const rvec_t& es, int _kappa, int l) : Gaussian_RKBS_IBS_Evaluator(es,_kappa,l,{}) {}
     Gaussian_RKBS_IBS_Evaluator(size_t N, double emin, double emax, int _kappa, int l): Gaussian_IBS_Evaluator(N,emin,emax,Irrep_QNs::sym_t(new Yl_Sym(0))), kappa(_kappa) {ns=norms();}
     virtual rvec_t norms() const; //assumes es,l are already initialized

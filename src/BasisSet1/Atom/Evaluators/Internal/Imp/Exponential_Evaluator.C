@@ -1,11 +1,11 @@
 // File: BasisSet1/Atom/Evaluators/Internal/Imp/Exponential_Evaluator.C  Common base for Slater and Gaussian evaluators
 module;
-#include <cmath>
 #include <cassert>
 #include <iostream>
 #include <blaze/math/DynamicVector.h>
 
 module qchem.BasisSet.Atom.Evaluators.Internal.Exponential_IBS_Evaluator;
+import qchem.Math;
 
 namespace BasisSet::Atom::Evaluators
 {

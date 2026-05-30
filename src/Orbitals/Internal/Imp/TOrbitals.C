@@ -1,6 +1,5 @@
 // File: Imp/TOrbitals.C  
 module;
-#include <cmath>
 #include <cassert>
 #include <iostream>
 #include <memory>
@@ -10,7 +9,7 @@ module qchem.Orbitals.Internal.OrbitalsImp;
 import qchem.Orbitals.Internal.OrbitalImp;
 import qchem.ChargeDensity.Factory;
 import qchem.Symmetry;
-import Common.Constants; //c_light
+import qchem.Math;
 import qchem.stl_io;
 import qchem.Streamable;
 import qchem.Blaze;

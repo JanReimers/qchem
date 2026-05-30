@@ -2,11 +2,11 @@
 module;
 #include <vector>
 #include <bspline/Core.h>
-#include <cmath>
 #include <cassert>
 
 module qchem.BasisSet.Atom.Evaluators.BSpline.Internal.Common;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.SplineGrouper;
+import qchem.Math;
 
 namespace BasisSet::Atom::Evaluators::BSpline::Internal
 {

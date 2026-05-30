@@ -2,7 +2,6 @@
 #include "gtest/gtest.h"
 #include <nlohmann/json.hpp>
 #include <iostream>
-#include <cmath>
 #include <blaze/Math.h>
 using std::cout;
 using std::endl;
@@ -13,13 +12,8 @@ import qchem.BasisSet.Atom.Evaluators.Gaussian.IBS;
 import qchem.BasisSet.Atom.Evaluators.BSpline.IBS;
 import qchem.BasisSet.Atom.Evaluators.Concepts;
 
-// import qchem.Factory;
 import qchem.Mesh.Integrator;
-// import qchem.Cluster;
-// import Common.Constants;
-// import qchem.BasisSet.Internal.ERI4;
 import qchem.Symmetry.Yl;
-// import qchem.Symmetry.AtomEC;
 import qchem.Hamiltonian.Types;
 
 using qchem::Hamiltonian::ohfbs_t;

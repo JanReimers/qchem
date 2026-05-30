@@ -3,7 +3,7 @@ module;
 #include <iostream>
 #include <stdlib.h>
 
-export module Common.IntPow;
+export module qchem.IntPow;
 
 export 
 {

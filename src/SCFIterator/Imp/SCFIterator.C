@@ -3,7 +3,6 @@ module;
 #include <iostream>
 #include <iomanip>
 #include <cassert>
-#include <cmath>
 #include <vector>
 
 module qchem.SCFIterator;
@@ -18,6 +17,7 @@ import qchem.Energy;
 import qchem.ChargeDensity;
 
 import qchem.Symmetry.ElectronConfiguration;
+import qchem.Math;
 
 using std::cout;
 using std::endl;

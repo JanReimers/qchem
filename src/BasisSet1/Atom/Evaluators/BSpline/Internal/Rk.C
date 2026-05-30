@@ -7,7 +7,6 @@ export module qchem.BasisSet.Atom.Evaluators.BSpline.Internal.Rk;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.GLQuadrature;
 import qchem.BasisSet.Internal.Cache4;
 export import qchem.BasisSet.Atom.Evaluators.Internal.Rk;
-import Common.IntPow;
 
 export namespace BSpline
 {

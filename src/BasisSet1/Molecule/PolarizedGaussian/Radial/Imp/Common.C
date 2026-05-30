@@ -1,12 +1,12 @@
 // File: RadialCommon.C  Partial implementation for the radial part of a basis function.
 module;
-#include <cmath>
 #include <iostream>
 #include <cassert>
 #include <vector>
 #include <iomanip>
 module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Radial.Common;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite1;
+import qchem.Math;
 
 namespace BasisSet::Molecule::PolarizedGaussian
 {

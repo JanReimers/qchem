@@ -1,11 +1,10 @@
 //  File: EulerMaclarenAngularMesh.C  EulerMaclaren style angular mesh implementation
 module;
 #include <iostream>
-#include <cmath>
 #include <cassert>
 #include <blaze/Math.h>
 module qchem.Mesh.Internal.Types;
-import Common.Constants;
+import qchem.Math;
 
 EulerMaclarenAngularMesh::EulerMaclarenAngularMesh(int L, int m) 
 {

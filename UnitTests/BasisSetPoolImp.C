@@ -3,9 +3,9 @@ module;
 #include <ranges>
 #include <nlohmann/json.hpp>
 #include <blaze/Math.h>
-#include <cmath>
 #include <iostream>
 module qchem.Unittests.BasisSetPool;
+import qchem.Math;
 
 rvec_t stride(const rvec_t& v, size_t s)
 {

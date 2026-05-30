@@ -1,11 +1,10 @@
 // File: UnitCellMesh.C  UnitCell mesh implementation.
 module;
-#include <cmath>
 
 export module Cluster.UnitCellMesh;
 import Cluster.UnitCell;
 import qchem.Mesh;
-import Cluster.UnitCell;
+import qchem.Math;
 
 export class UnitCellMesh : public Mesh
 {

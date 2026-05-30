@@ -3,7 +3,7 @@ module;
 #include <iostream>
 #include <cassert>
 module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite1;
-import Common.IntPow;
+import qchem.IntPow;
 
 //----------------------------------------------------------------------------------------
 //

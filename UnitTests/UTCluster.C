@@ -1,4 +1,3 @@
-#include <cmath>
 #include <memory>
 #include "gtest/gtest.h"    
 
@@ -8,6 +7,7 @@ using std::endl;
 import qchem.Cluster;
 import Cluster.UnitCell;
 import qchem.Lattice;
+import qchem.Math;
 
 class ClusterTests : public ::testing::Test
 {

@@ -1,11 +1,11 @@
 module;
-#include <cmath>
 #include <cassert>
 #include <iostream>
 #include <iomanip>
 
 export module qchem.Matrix3D;
 export import qchem.Vector3D;
+import qchem.Math;
 
 //------------------------------------------------------------------------
 //

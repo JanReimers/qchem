@@ -1,7 +1,6 @@
 // File: UnitTests/BasisSet_DHF.C  Unit test the Atom RKB basis sets
 #include "gtest/gtest.h"
 #include <iostream>
-// #include <cmath>
 #include <blaze/Math.h>
 #include <nlohmann/json.hpp>
 using std::cout;

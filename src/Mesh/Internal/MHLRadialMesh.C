@@ -1,10 +1,8 @@
 //  File: MHLRadialMesh.C  MHLarithmic radial mesh implementation
 module;
-#include <cmath>
-
 module qchem.Mesh.Internal.RadialTypes;
-import Common.IntPow;
 import qchem.RadialMesh;
+import qchem.Math;
 
 
 

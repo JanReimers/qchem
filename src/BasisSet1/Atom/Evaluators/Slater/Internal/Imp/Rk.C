@@ -1,14 +1,13 @@
 // File: BasisSet1/Atom/Evaluators/Slater/Internal/Imp/Rk.C  Slater integrals for radial Slater functions.
 module;
 #include <cassert>
-#include <cmath>
 #include <vector>
 #include <blaze/Math.h>
 
 module qchem.BasisSet.Atom.Evaluators.Slater.Internal.Rk; 
 import qchem.BasisSet.Atom.Evaluators.IBS;
 import qchem.BasisSet.Atom.Internal.PascalTriangle;
-import Common.Factorials;
+import qchem.Math;
 
 namespace Slater
 {

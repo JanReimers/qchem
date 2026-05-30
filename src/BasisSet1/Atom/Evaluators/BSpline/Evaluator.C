@@ -2,14 +2,12 @@
 module;
 #include <bspline/Core.h>
 #include <cassert>
-#include <cmath>
 export module qchem.BasisSet.Atom.Evaluators.BSpline.IBS;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.Common;
 import qchem.BasisSet.Atom.Evaluators.Concepts;
 import qchem.BasisSet.Internal.Cache4;
 import qchem.Symmetry.Yl;
-import Common.Constants;
-import Common.IntPow;
+import qchem.Math;
 
 
 export namespace BasisSet::Atom::Evaluators::BSpline

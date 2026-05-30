@@ -2,9 +2,9 @@
 module;
 #include <cassert>
 #include <iostream>
-#include <cmath>
 #include "blaze/Math.h" 
 module qchem.LASolver.Internal.Common;
+import qchem.Math;
 
 using std::cout;
 using std::endl;

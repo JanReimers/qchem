@@ -1,7 +1,6 @@
 // File: PolarizedGaussianIE.C  Integral Engine for polarized gaussians.
 module;
 
-#include <cmath>
 export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IntegralEngine;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.PGData;
@@ -11,6 +10,7 @@ import qchem.BasisSet.Fit_IBS;
 import qchem.BasisSet.Orbital_DFT_IBS;
 
 import qchem.BasisSet.Internal.IntegralEnums;
+import qchem.Math;
 
 
 export namespace BasisSet::Molecule::PolarizedGaussian

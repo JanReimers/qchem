@@ -1,7 +1,6 @@
 // File: BasisSet1/Atom/Evaluators/BSpline/Imp/IBS_r_Evaluator.C
 module;
 #include <bspline/Core.h>
-#include <cmath>
 #include <cassert>
 #include <iostream>
 #include <functional>
@@ -10,7 +9,7 @@ module;
 module qchem.BasisSet.Atom.Evaluators.BSpline.IBS_r;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.Rk;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.SplineGrouper;
-import Common.Constants;
+import qchem.Math;
 
 namespace BasisSet::Atom::Evaluators::BSpline
 {

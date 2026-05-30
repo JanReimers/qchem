@@ -2,7 +2,7 @@
 module;
 #include <cmath>
 
-export module Common.Constants;
+export module qchem.Constants;
 
 export 
 {

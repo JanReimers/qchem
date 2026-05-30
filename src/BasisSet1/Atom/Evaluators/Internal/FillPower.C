@@ -1,11 +1,11 @@
 // File: BasisSet1/Atom/Evaluators/Internal/FillPower.C  power series to create tempered basis set exponents.
 module;
-#include <cmath>
 #include <cassert>
 #include <blaze/math/DynamicVector.h>
 
 export module  qchem.BasisSet.Atom.Internal.FillPower;
 import qchem.Types;
+import qchem.Math;
 
 export template <class T> void FillPower(vec_t<T>& arr,T start, T stop)
 {

@@ -1,9 +1,8 @@
 //  File: LogRadialMesh.C  Logarithmic radial mesh implementation
 module;
-#include <cmath>
 module qchem.Mesh.Internal.RadialTypes;
-import Common.Constants;
 import qchem.RadialMesh;
+import qchem.Math;
 
 
 LogRadialMesh::LogRadialMesh(double start, double stop, int NumPoints)

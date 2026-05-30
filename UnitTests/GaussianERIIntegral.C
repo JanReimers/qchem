@@ -5,15 +5,13 @@
 #include "Imp/Integrals/GaussianRadialIntegrals.H"
 #include <iostream>
 #include <fstream>
-#include <cmath>
 
 import qchem.BasisSet.Atom.Evaluators.Gaussian.IBS;
 import qchem.BasisSet.Atom.Evaluators.Internal.Rk;
 import qchem.BasisSet.Atom.Evaluators.IBS;
-import qchem.BasisSet.Atom.Evaluators.Internal.AngularIntegrals;
 
 import qchem.BasisSet.Atom.Internal.Wigner3j;
-import Common.Constants;
+import qchem.Constants;
 
 using std::cout;
 using std::endl;

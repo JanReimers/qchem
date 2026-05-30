@@ -3,7 +3,6 @@ module;
 
 export module qchem.BasisSet.Atom.Evaluators.Concepts;
 import qchem.BasisSet.Internal.Cache4;
-import qchem.BasisSet.Atom.Evaluators.Internal.AngularIntegrals;
 
 import qchem.Types;
 
@@ -41,7 +40,7 @@ template <class E> concept isDFT_Evaluator = requires (E e,size_t i, size_t j, s
     e.Repulsion(i,j,e,ic);
 };
 // Support 4C Hartree-Fock Direct/Exchange integrals.
-template <class E> concept isHF_Evaluator = isGeneric_Evaluator<E> && requires (E a,size_t l,const Cacheable* c ,AngularIntegrals::rvec11_t Ak)
+template <class E> concept isHF_Evaluator = isGeneric_Evaluator<E> && requires (E a,size_t l,const Cacheable* c ,rvec11_t Ak)
 {
     a.maxSpan();
     // a.size();

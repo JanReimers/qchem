@@ -1,6 +1,5 @@
 // File: FittedCDImplementation.C  General implementation using a density matrix.
 module;
-#include <cmath>
 #include <cassert>
 #include <memory>
 #include <vector>
@@ -9,6 +8,7 @@ module;
 module qchem.ChargeDensity.Imp.FittedCD;
 import qchem.Mesh;
 import qchem.Blaze;
+import qchem.Math;
 
 namespace qchem::ChargeDensity
 {

@@ -2,14 +2,12 @@
 module;
 #include <iostream>
 #include <cassert>
-#include <cmath>
 #include <vector>
 #include <blaze/Math.h>
 module qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.Rk; 
 import qchem.BasisSet.Atom.Internal.PascalTriangle;
 import qchem.BasisSet.Atom.Evaluators.IBS;
-import Common.Constants;
-import Common.Factorials;
+import qchem.Math;
 
 using std::cout;
 using std::endl;

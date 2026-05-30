@@ -1,11 +1,10 @@
 // File: UnitCellImp.C  Unit cell for a lattice.
 module;
-#include <cmath>
 #include <cassert>
 #include <iostream>
 
 module Cluster.UnitCell;
-import Common.Constants;
+import qchem.Math;
 
 
 // UnitCell::UnitCell()

@@ -2,12 +2,12 @@
 module;
 #include <iostream>
 #include <cassert>
-#include <cmath>
 #include <iomanip>
 #include "blaze/Math.h" 
 module qchem.SCFAccelerator.Internal.SCFAcceleratorDIIS;
 import qchem.SCFAccelerator.Internal.SCFIrrepAcceleratorNull;
 import qchem.Blaze;
+import qchem.Math;
 
 namespace qchem::SCFAccelerators
 {

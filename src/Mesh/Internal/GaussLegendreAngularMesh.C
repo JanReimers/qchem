@@ -1,12 +1,11 @@
 //  File: GaussLegendreAngularMesh.C  GaussLegendre style angular mesh implementation
 module;
 #include <iostream>
-#include <cmath>
 #include <cassert>
 #include <blaze/Math.h>
 
 module qchem.Mesh.Internal.Types;
-import Common.Constants;
+import qchem.Math;
 
 void GaussLegendre(double x1, double x2, rvec_t& x, rvec_t& w, int n)
 {

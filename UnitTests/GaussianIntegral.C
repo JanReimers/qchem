@@ -5,17 +5,15 @@
 #include "nlohmann/json.hpp"
 #include <iostream>
 #include <fstream>
-#include <cmath>
 #include <blaze/Math.h>
 
 import qchem.BasisSet.Atom.Evaluators.Gaussian.IBS;
 import qchem.BasisSet.Atom.Evaluators.Internal.Rk;
 import qchem.BasisSet.Atom.Evaluators.IBS;
-import qchem.BasisSet.Atom.Evaluators.Internal.AngularIntegrals;
 
 import qchem.LAParams;
 import qchem.Factory;
-import Common.Constants;
+import qchem.Constants;
 import qchem.Mesh.Integrator;
 import qchem.Cluster;
 import qchem.Symmetry.Yl;
@@ -100,7 +98,7 @@ TEST_F(GaussianRadialIntegralTests, Kinetic)
 TEST_F(GaussianRadialIntegralTests,RkSymmetry_l0)
 {
     using namespace BasisSet::Atom::Evaluators::Gaussian;
-    typedef AngularIntegrals::rvec11_t rvec11_t; 
+    typedef rvec11_t rvec11_t; 
     Irrep_QNs::sym_t yl(new Yl_Sym(0));
     auto eval=new Gaussian_IBS_Evaluator(15,.03,20.0,yl);
     auto cache4=eval->MakeCache4();

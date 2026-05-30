@@ -3,14 +3,12 @@ module;
 
 #include <iostream>
 #include <cassert>
-#include <cmath>
 #include <iomanip>
 #include <vector>
 
 module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite2;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
-
-import Common.IntPow;
+import qchem.Math;
 
 std::ostream& operator << (std::ostream& os, const std::vector<double>& v)
 {

@@ -1,4 +1,4 @@
-// File: BasisSet1/Atom/Evaluators/BSpline/Internal/IBS_EvaluatorCommon.C
+// File: BasisSet1/Atom/Evaluators/BSpline/Internal/EvaluatorCommon.C
 module;
 #include <vector>
 #include <bspline/Core.h>
@@ -6,11 +6,9 @@ module;
 export module qchem.BasisSet.Atom.Evaluators.BSpline.Internal.Common;
 export import qchem.BasisSet.Atom.Evaluators.IBS;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.Rk;
-import qchem.BasisSet.Atom.Evaluators.Internal.AngularIntegrals;
 
 // required by Cache4
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.GLQuadrature;
-import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.Rk;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.SplineGrouper;
 
 export namespace BasisSet::Atom::Evaluators::BSpline::Internal

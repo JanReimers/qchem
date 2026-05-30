@@ -1,11 +1,11 @@
 // File: UnitTests/QchemTester.C  Heper class for doing SCF calculations in unit tests.
 module;
 #include <memory>
-#include <cmath>
 #include <nlohmann/json.hpp>
 #include <iostream>
 module qchem.Unittests.QchemTester;
 import qchem.SCFAccelerator.Factory;
+import qchem.Math;
 
 
 using qchem::SCFAccelerators::SCFAccelerator;

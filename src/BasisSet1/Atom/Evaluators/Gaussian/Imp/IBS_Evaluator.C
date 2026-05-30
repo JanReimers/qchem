@@ -1,6 +1,5 @@
 // File: BasisSet/Atom/Gaussian/NR/Imp/IBS_Evaluator.C
 module;
-#include <cmath>
 #include <cassert>
 #include <iostream>
 #include <blaze/math/DynamicVector.h>
@@ -9,7 +8,7 @@ module qchem.BasisSet.Atom.Evaluators.Gaussian.IBS;
 import qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.Rk; 
 import qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.GaussianIntegrals; 
 import qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.ExponentScaler; 
-import Common.Constants;
+import qchem.Math;
 
 namespace BasisSet::Atom::Evaluators::Gaussian
 {

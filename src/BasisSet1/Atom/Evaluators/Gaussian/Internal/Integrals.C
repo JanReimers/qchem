@@ -1,10 +1,8 @@
 // File: BasisSet1/Atom/Evaluators/Gaussian/Internal/Integrals.C     Gaussian radial integral functions.
 module;
 #include <cassert>
-#include <cmath>
 export module qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.GaussianIntegrals; 
-import Common.Constants;
-import Common.Factorials;
+import qchem.Math;
 //###################################################################
 //
 //  Hand coded Gaussian integrals.

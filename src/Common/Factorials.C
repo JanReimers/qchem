@@ -2,7 +2,7 @@
 module;
 #include <iostream>
 
-export module Common.Factorials;
+export module qchem.Factorials;
 
 
 

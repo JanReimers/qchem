@@ -1,11 +1,11 @@
 module;
-#include <cmath>
 #include <cassert>
 #include <iostream>
 #include <iomanip>
 
 export module qchem.Vector3D;
-export import Common.Constants;
+export import qchem.Math;
+
 
 //-----------------------------------------------------------------------------
 /*! \class Vector3D vector3d.h oml/vector3d.h

@@ -14,7 +14,6 @@ import qchem.BasisSet.Atom.Evaluators.BSpline.IBS;
 import qchem.BasisSet.Atom.Evaluators.BSpline.IBS_r;
 import qchem.BasisSet.Atom.Evaluators.Internal.Rk;
 import qchem.BasisSet.Atom.Evaluators.IBS;
-import qchem.BasisSet.Atom.Evaluators.Internal.AngularIntegrals;
 
 import qchem.Factory;
 import qchem.Mesh.Integrator;
@@ -23,7 +22,7 @@ import qchem.Symmetry;
 import qchem.Symmetry.Yl;
 import qchem.stl_io;
 import qchem.Streamable;
-import Common.Constants;
+import qchem.Constants;
 using std::cout;
 using std::endl;
 using namespace BasisSet::Atom::Evaluators;
@@ -361,7 +360,7 @@ TEST_F(BSplineTests, Kinetic)
 // TEST_F(BSplineTests,RkSymmetry)
 // {
 //     using namespace BasisSet::Atom::Evaluators::BSpline;
-//     typedef AngularIntegrals::rvec11_t rvec11_t; 
+//     typedef rvec11_t rvec11_t; 
 //     std::vector<IBS_Evaluator *> evals;
 //     for (size_t l=0;l<=3;l++)
 //     {
@@ -414,7 +413,7 @@ TEST_F(BSplineTests, Kinetic)
 TEST_F(BSplineTests,RkSymmetry_l0)
 {
     using namespace BasisSet::Atom::Evaluators::BSpline;
-    // typedef AngularIntegrals::rvec11_t rvec11_t; 
+    // typedef rvec11_t rvec11_t; 
     Irrep_QNs::sym_t yl(new Yl_Sym(0));
     size_t N=5;
     auto eval=new Evaluator<6>(N,.0001,40,yl);

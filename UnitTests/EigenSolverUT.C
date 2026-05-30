@@ -3,7 +3,6 @@
 #include <iostream>
 #include <iomanip> 
 #include <cassert>
-#include <cmath>
 #include "nlohmann/json.hpp"
 #include "gtest/gtest.h"
 #include "blaze/Math.h"
@@ -21,6 +20,8 @@ import qchem.Hamiltonian.Factory;
 import qchem.Symmetry.Spin;
 
 import qchem.WaveFunction.Types;
+import qchem.Math;
+
 using qchem::WaveFunction::bs_t;
 
 using std::cout;

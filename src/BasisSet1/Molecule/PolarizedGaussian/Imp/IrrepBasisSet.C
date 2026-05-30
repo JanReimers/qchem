@@ -5,7 +5,6 @@ module;
 #include <iostream>
 #include <fstream>
 #include <string>
-#include <cmath>
 #include <memory>
 #include <vector>
 #include <blaze/Math.h>
@@ -19,6 +18,7 @@ import qchem.Cluster;
 import qchem.Symmetry.Unit;
 import qchem.stl_io;
 import qchem.Streamable;
+import qchem.Math;
 
 namespace BasisSet::Molecule::PolarizedGaussian
 {

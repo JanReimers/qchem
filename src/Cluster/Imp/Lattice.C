@@ -2,7 +2,6 @@
 module;
 #include <iostream>
 #include <cassert>
-#include <cmath>
 #include <algorithm> //sort
 #include <vector>
 
@@ -10,6 +9,7 @@ module qchem.Lattice;
 
 import qchem.Cluster.MoleculeMesh;
 import qchem.Streamable;
+import qchem.Math;
 
 //--------------------------------------------------------------------------
 //

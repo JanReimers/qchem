@@ -6,11 +6,10 @@ export module qchem.BasisSet.Atom.Evaluators.Slater.IBS;
 export import qchem.BasisSet.Atom.Evaluators.Internal.Exponential_IBS_Evaluator;
 import qchem.BasisSet.Atom.Evaluators.Slater.Internal.Integrals; 
 import qchem.BasisSet.Atom.Evaluators.Slater.Internal.Rk; 
-import qchem.BasisSet.Atom.Evaluators.Internal.AngularIntegrals;
 import qchem.BasisSet.Atom.Evaluators.Concepts;
 import qchem.BasisSet.Internal.Cache4;
 
-import Common.IntPow;
+import qchem.IntPow;
 import qchem.Symmetry.Irrep;
 import qchem.Symmetry.Yl;
 
@@ -20,7 +19,7 @@ export namespace BasisSet::Atom::Evaluators::Slater
 class Slater_IBS_Evaluator : public Exponential_IBS_Evaluator
 {
 public: 
-    Slater_IBS_Evaluator(const rvec_t& es, int l, const is_t& mls) : Exponential_IBS_Evaluator(es,l,mls) {ns=norms();}
+    Slater_IBS_Evaluator(const rvec_t& es, int l, const ivec_t& mls) : Exponential_IBS_Evaluator(es,l,mls) {ns=norms();}
     Slater_IBS_Evaluator(const rvec_t& es, int l) : Slater_IBS_Evaluator(es,l,{}) {}
     Slater_IBS_Evaluator(const rvec_t& es, const Irrep_QNs::sym_t& ir, size_t ltrim=0) : Exponential_IBS_Evaluator(es,ir,ltrim) {ns=norms();}
     Slater_IBS_Evaluator(size_t N, double emin, double emax, const Irrep_QNs::sym_t& ir) 
@@ -102,7 +101,7 @@ public:
     virtual std::string Name() const;
     virtual std::string RadialType() const;
     virtual Cache4*    MakeCache4() const;
-    using rvec11_t=AngularIntegrals::rvec11_t;
+    using rvec11_t=rvec11_t;
     static double direct(const Cacheable* c, size_t la, size_t lc,const rvec11_t& Ak)
     {
         const ::Slater::RkEngine* cd = dynamic_cast<const ::Slater::RkEngine*>(c);
@@ -168,7 +167,7 @@ private:
 class Slater_RKBS_IBS_Evaluator : public Slater_IBS_Evaluator
 {
 public:
-    Slater_RKBS_IBS_Evaluator(const rvec_t& es, int _kappa, int l,const is_t& mls) : Slater_IBS_Evaluator(es,l,mls), kappa(_kappa) {ns=norms();}
+    Slater_RKBS_IBS_Evaluator(const rvec_t& es, int _kappa, int l,const ivec_t& mls) : Slater_IBS_Evaluator(es,l,mls), kappa(_kappa) {ns=norms();}
     Slater_RKBS_IBS_Evaluator(const rvec_t& es, int _kappa, int l) : Slater_RKBS_IBS_Evaluator(es,_kappa,l,{}) {}
     Slater_RKBS_IBS_Evaluator(size_t N, double emin, double emax, int _kappa, int l): Slater_IBS_Evaluator(N,emin,emax,Irrep_QNs::sym_t(new Yl_Sym(0))), kappa(_kappa) {ns=norms();}
     rvec_t norms() const; //assumes es,l are already initialized

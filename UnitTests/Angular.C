@@ -11,7 +11,7 @@ using std::endl;
 class AngularTests : public ::testing::Test
 {
     public:
-    using rvec11_t=AngularIntegrals::rvec11_t;
+    using rvec11_t=rvec11_t;
     AngularTests() {}
 
     rvec11_t msum_direct(size_t la, size_t lc, const std::set<int> m1,const std::set<int> m2)

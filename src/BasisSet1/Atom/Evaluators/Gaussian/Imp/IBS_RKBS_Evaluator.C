@@ -1,12 +1,11 @@
 // File: BasisSet/Atom/Gaussian/RKB/Imp/IBS_Evaluator.C
 module;
-#include <cmath>
 #include <cassert>
 #include <blaze/math/DynamicVector.h>
 
 module qchem.BasisSet.Atom.Evaluators.Gaussian.IBS; 
 import qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.GaussianIntegrals; 
-import Common.Constants;
+import qchem.Math;
 
 namespace BasisSet::Atom::Evaluators::Gaussian
 {

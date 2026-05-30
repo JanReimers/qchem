@@ -1,6 +1,5 @@
 // File: BasisSet/Atom/radial/Imp/Slater_IBS_Evaluator.C
 module;
-#include <cmath>
 #include <cassert>
 #include <iostream>
 #include <blaze/math/DynamicVector.h>
@@ -9,8 +8,7 @@ module qchem.BasisSet.Atom.Evaluators.Slater.IBS;
 import qchem.BasisSet.Atom.Evaluators.Slater.Internal.Rk; 
 import qchem.BasisSet.Atom.Evaluators.Slater.Internal.Integrals; 
 import qchem.BasisSet.Atom.Evaluators.Slater.Internal.ExponentScaler; 
-import Common.Constants;
-
+import qchem.Math;
 
 
 namespace BasisSet::Atom::Evaluators::Slater

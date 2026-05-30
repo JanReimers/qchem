@@ -3,7 +3,6 @@ module;
 
 export module qchem.BasisSet.Atom.Evaluators.Internal.Rk;
 export import qchem.BasisSet.Internal.Cache4;
-import qchem.BasisSet.Atom.Evaluators.Internal.AngularIntegrals;
 export import qchem.Types;
 //
 //  These are often called Slater integrals. They represent the radial part of the 
@@ -18,7 +17,7 @@ export import qchem.Types;
 export class Rk : public virtual Cacheable
 {
 public:
-    typedef AngularIntegrals::rvec11_t rvec11_t;
+    typedef rvec11_t rvec11_t;
     virtual ~Rk() {};
     virtual double Coulomb_R0(size_t la,size_t lc) const=0; //R_0(la,la,lc,lc);
     virtual double Coulomb_Rk(size_t la,size_t lc,const rvec11_t& Ak) const=0; //sum{k,A_k*R_k(la,la,lc,lc)};

@@ -11,7 +11,7 @@ export namespace BasisSet::Atom::Evaluators
 class Exponential_IBS_Evaluator : public IBS_Evaluator
 {
 public:
-    Exponential_IBS_Evaluator(const   rvec_t& _es, int l, const is_t& mls) 
+    Exponential_IBS_Evaluator(const   rvec_t& _es, int l, const ivec_t& mls) 
         : IBS_Evaluator(l,mls), es(_es )
         , isEvenTempered(EvenTempered(es))
         {};

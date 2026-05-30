@@ -5,7 +5,7 @@ module;
 #include <vector>
 module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.RNLM;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.AuxillaryFJ;
-import Common.IntPow;
+import qchem.IntPow;
 
 #define MAX 16
 

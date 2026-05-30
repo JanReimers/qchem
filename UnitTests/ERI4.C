@@ -2,7 +2,6 @@
 
 #include "gtest/gtest.h"
 #include <iostream>
-#include <cmath>
 #include <chrono>
 #include <ctime>
 #include <blaze/Math.h>

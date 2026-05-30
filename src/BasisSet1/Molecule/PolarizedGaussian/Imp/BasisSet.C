@@ -1,7 +1,6 @@
 // File PolarizedGaussian/Imp/BasisSet.C
 module;
 #include <memory>
-#include <cmath>
 #include <cassert>
 #include <vector>
 
@@ -10,6 +9,7 @@ module;
 module qchem.BasisSet.Molecule.PolarizedGaussian;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Reader;
 import qchem.Cluster;
+import qchem.Math;
 
 namespace BasisSet::Molecule::PolarizedGaussian
 {

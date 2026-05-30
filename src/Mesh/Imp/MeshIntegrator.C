@@ -2,13 +2,14 @@
 module;
 #include <iostream>
 #include <iomanip>
-#include <cmath>
 #include <complex>
 #include <cassert>
 #include "blaze/Math.h"
 module qchem.Mesh.Integrator;
 import qchem.Blaze;
 import qchem.Vector3D;
+import qchem.Math;
+
 using std::cout;
 using std::endl;
 

@@ -1,9 +1,8 @@
 // File: LinearMesh.C  Linear mesh implementation.
 module;
-#include <cmath>
-// #include <blaze/math/expressions/DVecGenExpr.h>
 #include <blaze/Math.h>
 module qchem.Mesh.Internal.Types;
+import qchem.Math;
 
 LinearMesh::LinearMesh(double start, double stop, const rvec3_t& direction, int NumPoints)
 {

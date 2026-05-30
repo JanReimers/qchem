@@ -4,12 +4,11 @@
 
 #include <iostream>
 #include <iomanip>
-#include <cmath>
 import qchem.Unittests.QchemTester;
 import qchem.Hamiltonian.Factory;
 import qchem.Orbitals;
 import qchem.Factory;
-import Common.Constants;
+import qchem.Math;
 import qchem.Mesh;
 import qchem.Mesh.Integrator;
 import qchem.Cluster;

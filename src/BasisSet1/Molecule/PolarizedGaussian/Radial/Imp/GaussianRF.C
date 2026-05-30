@@ -1,6 +1,5 @@
 // File: GaussianRF.C  Primative Gaussian in 3D space.
 module;
-#include <cmath>
 #include <iostream>
 #include <iomanip>
 #include <cassert>
@@ -15,9 +14,8 @@ import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite1;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite3;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.RNLM;
 
-import Common.Constants;
 import qchem.Cluster;
-import Common.IntPow;
+import qchem.Math;
 
 namespace BasisSet::Molecule::PolarizedGaussian
 {
