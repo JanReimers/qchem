@@ -36,12 +36,12 @@ Priority 1:
             -For comparison SG, SL are both good to 1e-15.
             -BSpline near the origin we get much bigger errors.  
             -Perhaps this related to problems encountered when trying to reproduce Saitos results with rmin=0.0001.
-    -Refactor BSpline and BSpine_r to minimize duplicated code.  
+    Done: -Refactor BSpline and BSpine_r to minimize duplicated code.  
         Done: Isolate weight functions wp, wm.
             [k] capture makes this very difficult. So don't do that!!
         Done: We would need to feed k through all the function calls.  Worth a try to avoid dual maintenance.
     -All Evulators are for IBS, so just get rid of the IBS part.
-    -move rvec11_t into Types.
+    Done: -move rvec11_t into Types.
     -merge RadialID and RadialType ?
     -Can we export a few names from cmath in Types and avoid many includes?
     -For unit tests make more sense to avoid trimming basis sets based on Z.  Just use big everywhere.
@@ -169,8 +169,8 @@ Priority 1:
                     GLCache2D has std::vector<std::vector<GLQuadrature>> itsGLs;
                 Done: Replace GLCache2D::find(double rmin, double rmax) with
                     operator[](size_t imin, double imax)
-                Done: Store GLCache1D and GLCache2D in the BSpline_Cache4
-                BSpline_Cache4 has a master grid that is the union of all IBS grids.
+                Done: Store GLCache1D and GLCache2D in the Cache4
+                Cache4 has a master grid that is the union of all IBS grids.
                 Each IBS has its own (properly registered) grid, and needs to know its starting indexe into the
                     master grid.
                 If Lmax increases Rks need to be replaced.
