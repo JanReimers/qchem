@@ -183,11 +183,12 @@ INSTANTIATE_TEST_SUITE_P(A_HF,A_SL_HF_P_Low,::testing::Values(3,5,21,92));
 
 // inline SCFParams saito_params_BS(int Z) 
 // {
+//     // Sc (Z=21) needs a lot of iterations to the virial converged.
 // //           NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo MergeTol verbose
 // #ifdef DEBUG
-//     return {   50     ,Z*1e-7    ,1e-9 , 1e-12   ,Z*5e-7        ,0.5     ,1e-7  ,true};
+//     return {   55     ,Z*1e-7    ,1e-7 , 1e-12   ,Z*5e-7        ,0.5     ,1e-7  ,true};
 // #else
-//     return {   50     ,Z*1e-7    ,1e-9 , 1e-12   ,Z*5e-7        ,0.5     ,1e-7  ,true};
+//     return {   55     ,Z*1e-7    ,1e-7 , 1e-12   ,Z*5e-7        ,0.5     ,1e-7  ,true};
 // #endif
 // }
 
@@ -221,10 +222,10 @@ INSTANTIATE_TEST_SUITE_P(A_HF,A_SL_HF_P_Low,::testing::Values(3,5,21,92));
 // #ifdef NDEBUG
 // INSTANTIATE_TEST_SUITE_P(Saito,A_BS_saito_HF_P,::testing::Values(1,2,5,21,57,92)); 
 
-// // INSTANTIATE_TEST_SUITE_P(Saito,A_BS_saito_HF_P,::testing::Range(1,93)); 
-// // INSTANTIATE_TEST_SUITE_P(Saito,A_BS_saito_HF_P,::testing::Values(62,63,65,67,68,71,72)); //Known convergence problems. 
-// // INSTANTIATE_TEST_SUITE_P(Saito,A_BS_saito_HF_P,::testing::Values(1,92)); 
+// // // INSTANTIATE_TEST_SUITE_P(Saito,A_BS_saito_HF_P,::testing::Range(1,93)); 
+// // // INSTANTIATE_TEST_SUITE_P(Saito,A_BS_saito_HF_P,::testing::Values(62,63,65,67,68,71,72)); //Known convergence problems. 
+// // // INSTANTIATE_TEST_SUITE_P(Saito,A_BS_saito_HF_P,::testing::Values(1,92)); 
 // #else
-// // INSTANTIATE_TEST_SUITE_P(Saito,A_BS_saito_HF_P,::testing::Range(2,3)); 
-// INSTANTIATE_TEST_SUITE_P(Saito,A_BS_saito_HF_P,::testing::Values(2)); 
+// // // INSTANTIATE_TEST_SUITE_P(Saito,A_BS_saito_HF_P,::testing::Range(2,3)); 
+// INSTANTIATE_TEST_SUITE_P(Saito,A_BS_saito_HF_P,::testing::Values(1,2,5,21,57,92)); 
 // #endif

@@ -25,17 +25,25 @@ Priority 1:
     -Use omp parallel when looping over irreps for AccumulateDirect and AccumulateExchange
         Could also parallel the loop over hamiltonian terms??
     Done: -Get rid of eps in QchemTester::Init
-    -Fix small r BSpline accuracy.
+    Done: -Fix small r BSpline accuracy.
+            Upshot: GL grid of order K+3 don't work for the 2D integrals.
+            Need to 2*K+3 for theouter r1 integrals., and then K+3 fpr r2 internal integrals.
+            rmin=0.0001 still doen not work as well 0.003
+            However N=100 is now numerically stable.
             See UT DBCach1Tests.BSplineDirect/Exchange
             -Create an Rk UT Rk(abcd) vs Rk(cdab) and try to identify the worst case
             -elminate the error.
             -For comparison SG, SL are both good to 1e-15.
             -BSpline near the origin we get much bigger errors.  
             -Perhaps this related to problems encountered when trying to reproduce Saitos results with rmin=0.0001.
-    -Refactor BSpline and BSpine_r to minimize duplicated code.  Isolate weight functions wp, wm.
-        [k] capture makes this very difficult.
-        We would need to feed k through all the function calls.  Worth a try to avoid dual maintenance.
-
+    -Refactor BSpline and BSpine_r to minimize duplicated code.  
+        Done: Isolate weight functions wp, wm.
+            [k] capture makes this very difficult. So don't do that!!
+        Done: We would need to feed k through all the function calls.  Worth a try to avoid dual maintenance.
+    -All Evulators are for IBS, so just get rid of the IBS part.
+    -move rvec11_t into Types.
+    -merge RadialID and RadialType ?
+    -Can we export a few names from cmath in Types and avoid many includes?
     -For unit tests make more sense to avoid trimming basis sets based on Z.  Just use big everywhere.
         Use a batch flag.
         A_HF_P_SG run: The cach4 data would be dramatically reduced.

@@ -48,7 +48,7 @@ public:
 
     virtual size_t        GetVectorSize() const {return size();}
 
-    virtual  rvec_t Norm      () const=0;
+    virtual  rvec_t Norm      () const {return ns;}
    
     virtual std::string RadialID () const=0;
     virtual std::string AngularID() const;
