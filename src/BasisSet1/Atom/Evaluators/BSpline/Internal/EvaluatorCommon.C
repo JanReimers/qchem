@@ -8,7 +8,7 @@ export import qchem.BasisSet.Atom.Evaluators.IBS;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.Rk;
 import qchem.BasisSet.Atom.Evaluators.Internal.AngularIntegrals;
 
-// required by BSpline_Cache4
+// required by Cache4
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.GLQuadrature;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.Rk;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.SplineGrouper;
@@ -32,7 +32,7 @@ template <size_t K> class EvaluatorCommon : public IBS_Evaluator
 {
 protected:
     typedef bspline::Spline<double, K> spline_t;
-    using rvec11_t=AngularIntegrals::rvec11_t;
+    using rvec11_t=rvec11_t;
 public: 
     EvaluatorCommon(size_t Ngrid, double rmin, double rmax, const Irrep_QNs::sym_t& ylm);
     virtual void          Register(Grouper*); //Set up unique spline or exponent indexes.
@@ -64,12 +64,12 @@ protected:
     bspline::Grid<double> itsGrid;
 };
 
-template <size_t K> class BSpline_Cache4 : public  ::Cache4
+template <size_t K> class Cache4 : public  ::Cache4
 {
     using func_t=::BSpline::RkEngine<K>::func_t;
 public:
-    BSpline_Cache4(const bspline::Grid<double>& grid,const func_t& wp, const func_t& wm, size_t Kp);
-    ~BSpline_Cache4() {delete itsRkCache;}
+    Cache4(const bspline::Grid<double>& grid,const func_t& wp, const func_t& wm, size_t Kp);
+    ~Cache4() {delete itsRkCache;}
     virtual void   Register(Cache4_Client * eval);
     virtual Rk*    Create  (size_t ia,size_t ic,size_t ib,size_t id) const;
     virtual size_t RAMsize () const;

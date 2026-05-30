@@ -69,7 +69,7 @@ template <size_t K> std::string Evaluator<K>::Name () const
 
 template <size_t K> Cache4*    Evaluator<K>::MakeCache4() const
 {
-    return new Internal::BSpline_Cache4<K>
+    return new Internal::Cache4<K>
     (
         itsGrid,
         [](double r2,size_t k) {return intpow(r2,k+2);},

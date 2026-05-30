@@ -66,19 +66,17 @@ template <size_t K> void EvaluatorCommon<K>::Register(Grouper* _grouper)
 
 template <size_t K> std::string EvaluatorCommon<K>::RadialID () const
 {
-    assert(splines.size()>0);
     std::ostringstream os;
-    bspline::Grid<double> grid=splines[0].getSupport().getGrid();
-    os << Name() << " grid: N=" << grid.size() << " {";
-    assert(grid.size()>2);
-    os << grid[0] << "," << grid[1] << "," << grid[2] << " ... " << grid[grid.size()-1];
+    os << Name() << " grid: N=" << itsGrid.size() << " {";
+    assert(itsGrid.size()>2);
+    os << itsGrid[0] << "," << itsGrid[1] << "," << itsGrid[2] << " ... " << itsGrid[itsGrid.size()-1];
     os << "}";
     return os.str();
 }
 
 template <size_t K> std::string EvaluatorCommon<K>::RadialType() const
 {
-    assert(grid.size()>2);
+    assert(itsGrid.size()>2);
     std::ostringstream os;
     os << Name() << " grid=<" << itsGrid[0] << "," << itsGrid[1] << " ... " << itsGrid[itsGrid.size()-1] << "}";
     return os.str();
@@ -89,7 +87,7 @@ template <size_t K> std::ostream&  EvaluatorCommon<K>::Write(std::ostream& os) c
     return os << " N= " << size() << " basis functions, {" << rmin << " ... " << rmax << "}" << std::endl;
 }
 
-template <size_t K> BSpline_Cache4<K>::BSpline_Cache4(const bspline::Grid<double>& grid,const func_t& _wp, const func_t& _wm, size_t Kp) 
+template <size_t K> Cache4<K>::Cache4(const bspline::Grid<double>& grid,const func_t& _wp, const func_t& _wm, size_t Kp) 
     : wp(_wp), wm(_wm)
     , itsMaxl(0)
     , itsGL1D(grid,K+Kp) //K+3 for Eval and K+1 for the 1/r version
@@ -98,7 +96,7 @@ template <size_t K> BSpline_Cache4<K>::BSpline_Cache4(const bspline::Grid<double
     {
     };
 
-template <size_t K> void BSpline_Cache4<K>::Register(Cache4_Client * eval)
+template <size_t K> void Cache4<K>::Register(Cache4_Client * eval)
 {
     assert(eval);
     auto geval=dynamic_cast<Internal::EvaluatorCommon<K>*>(eval);
@@ -110,22 +108,22 @@ template <size_t K> void BSpline_Cache4<K>::Register(Cache4_Client * eval)
     //  All unsupport Rks will be removed.  These will then automatically be recreated next time
     //  loop_4 is called.
     //
-    Cache4::Register(eval);
+    ::Cache4::Register(eval);
 
     delete itsRkCache;
     itsRkCache=new ::BSpline::RkCache<K>(grouper.unique_spv,itsGL1D, itsMaxl,wp,wm);
 }
 
-template <size_t K> Rk*  BSpline_Cache4<K>::Create (size_t ia,size_t ic,size_t ib,size_t id) const
+template <size_t K> Rk*  Cache4<K>::Create (size_t ia,size_t ic,size_t ib,size_t id) const
 {
     assert(itsRkCache);
     size_t lmax=grouper.LMax(ia,ib,ic,id);
     return new ::BSpline::RkEngine(grouper.unique_spv,ia,ib,ic,id,lmax,itsGL1D,itsGL2D,*itsRkCache,wp,wm);
 }
 
-template <size_t K>  size_t BSpline_Cache4<K>::RAMsize() const
+template <size_t K>  size_t Cache4<K>::RAMsize() const
 {
-    size_t ndoubles=Cache4::RAMsize();
+    size_t ndoubles=::Cache4::RAMsize();
     ndoubles+=itsGL1D.RAMsize();
     ndoubles+=itsGL2D.RAMsize();
     ndoubles+=itsRkCache->RAMsize();
@@ -136,7 +134,7 @@ template <size_t K>  size_t BSpline_Cache4<K>::RAMsize() const
 #define INSTANCEk(k) template class EvaluatorCommon<k>;
 #include "../../Internal/Instance.hpp"
 
-#define INSTANCEk(k) template class BSpline_Cache4<k>;
+#define INSTANCEk(k) template class Cache4<k>;
 #include "../../Internal/Instance.hpp"
 
 } //namespace
