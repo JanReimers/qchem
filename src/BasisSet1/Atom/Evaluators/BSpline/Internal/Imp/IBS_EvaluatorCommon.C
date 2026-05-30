@@ -25,7 +25,7 @@ template <size_t K> EvaluatorCommon<K>::EvaluatorCommon(size_t Ngrid, double _rm
     // for (auto r:grid) std::cout << r << ",";
     // std::cout << std::endl;
     // ns=norms();
-    // std::cout << "BSpline_IBS_Evaluator<K>::BSpline_IBS_Evaluator size=" << size() << std::endl;
+    // std::cout << "Evaluator<K>::Evaluator size=" << size() << std::endl;
     // assert(size()==splines.size());
     // assert(size()==ns.size());
 };

@@ -22,56 +22,40 @@ using namespace bspline::integration;
 template<size_t K> using spline_t = bspline::Spline<double, K>;
 
 
-template <size_t K> BSpline_r_IBS_Evaluator<K>::BSpline_r_IBS_Evaluator(size_t Ngrid, double _rmin, double _rmax,const Irrep_QNs::sym_t& ylm) 
-: IBS_Evaluator(ylm), rmin(_rmin), rmax(_rmax) , itsGrid({0,1})
+template <size_t K> BSpline_r_IBS_Evaluator<K>::BSpline_r_IBS_Evaluator(size_t Ngrid, double rmin, double rmax,const Irrep_QNs::sym_t& ylm) 
+: Internal::EvaluatorCommon<K>(Ngrid,rmin,rmax,ylm)
 {
-    knots=MakeLogKnots(Ngrid,rmin,rmax);
-    // std::cout << "Knots=" << knots << std::endl;
-    splines=bspline::generateBSplines<K>(knots);
     splines.erase(splines.begin()); //First spline has B(0)=1.0 with violates B(0)=0 boundary condition for 1/r prefactor.
     splines.pop_back(); //Last spline has B(R)=1.0 with violates B(R)=0 boundary condition for 1/r prefactor.
-    itsGrid=splines[0].getSupport().getGrid();
-    // std::cout << "Grid = " << grid.size() << "    ";
-    // for (auto r:grid) std::cout << r << ",";
-    // std::cout << std::endl;
     itsGL1D.reset(new GLCache1D(itsGrid,K+1));
     ns=norms();
     assert(size()==splines.size());
 };
 
- template <size_t K> std::vector<double> BSpline_r_IBS_Evaluator<K>::MakeLogKnots(size_t Ngrid, double rmin, double rmax)
-{
-    assert(Ngrid>1);
-    std::vector<double> knots;
-    size_t numberOfZeros = 1;
+//  template <size_t K> std::vector<double> BSpline_r_IBS_Evaluator<K>::MakeLogKnots(size_t Ngrid, double rmin, double rmax)
+// {
+//     assert(Ngrid>1);
+//     std::vector<double> knots;
+//     size_t numberOfZeros = 1;
 
-    if (K + 1 > l)  numberOfZeros = K + 1 - l;
+//     if (K + 1 > l)  numberOfZeros = K + 1 - l;
 
-    for (size_t i = 0; i < numberOfZeros; i++) knots.push_back(0.0);
+//     for (size_t i = 0; i < numberOfZeros; i++) knots.push_back(0.0);
 
-    // logarithmic step
-    const double step =  pow(rmax / rmin, 1 / static_cast<double>(Ngrid-1));
-    for (size_t i = 0; i < Ngrid-1; i++) //Skip 0.0 and rmax
-        knots.push_back(rmin * pow(step, i));
+//     // logarithmic step
+//     const double step =  pow(rmax / rmin, 1 / static_cast<double>(Ngrid-1));
+//     for (size_t i = 0; i < Ngrid-1; i++) //Skip 0.0 and rmax
+//         knots.push_back(rmin * pow(step, i));
     
-    // cout << Ngrid << " " << l << " " << numberOfZeros << " ";
-    if (numberOfZeros>Ngrid-numberOfZeros) numberOfZeros=Ngrid-numberOfZeros;
-    if (numberOfZeros<1) numberOfZeros=1;
-    // cout << numberOfZeros << endl;
+//     // cout << Ngrid << " " << l << " " << numberOfZeros << " ";
+//     if (numberOfZeros>Ngrid-numberOfZeros) numberOfZeros=Ngrid-numberOfZeros;
+//     if (numberOfZeros<1) numberOfZeros=1;
+//     // cout << numberOfZeros << endl;
 
-    for (size_t i = 0; i < numberOfZeros; i++) knots.push_back(rmax);
-    // std::cout << knots << std::endl;
-    return knots;
-}
-
-template <size_t K> void BSpline_r_IBS_Evaluator<K>::Register(Grouper* _grouper)
-{
-    assert(_grouper);
-    auto grouper=static_cast<SplineGrouper<K>*>(_grouper);
-    assert(grouper);
-    for (auto s:splines) es_indices.push_back(grouper->Insert(s,l));
-}
-
+//     for (size_t i = 0; i < numberOfZeros; i++) knots.push_back(rmax);
+//     // std::cout << knots << std::endl;
+//     return knots;
+// }
 
 template <size_t K> std::string BSpline_r_IBS_Evaluator<K>::Name () const
 {
@@ -80,23 +64,6 @@ template <size_t K> std::string BSpline_r_IBS_Evaluator<K>::Name () const
     return os.str();
 }
 
-template <size_t K> std::string BSpline_r_IBS_Evaluator<K>::RadialID () const
-{
-    assert(splines.size()>0);
-    std::ostringstream os;
-    bspline::Grid<double> grid=splines[0].getSupport().getGrid();
-    os << Name() << " grid: N=" << grid.size() << " {";
-    assert(grid.size()>2);
-    os << grid[0] << "," << grid[1] << "," << grid[2] << " ... " << grid[grid.size()-1];
-    os << "}";
-    return os.str();
-}
-template <size_t K> std::string BSpline_r_IBS_Evaluator<K>::RadialType() const
-{
-    std::ostringstream os;
-    os << "BS<" << K << "> 1/r grid=" << splines[0].getSupport().getGrid();;
-    return os.str();
-}
 template <size_t K> Cache4*    BSpline_r_IBS_Evaluator<K>::MakeCache4() const
 {
     return new BSpline_r_Cache4<K>(itsGrid);
@@ -105,9 +72,8 @@ template <size_t K> Cache4*    BSpline_r_IBS_Evaluator<K>::MakeCache4() const
 template <size_t K> rvec_t BSpline_r_IBS_Evaluator<K>::norms() const
 {
     size_t N=splines.size();
-    // std::cout << "BSpline_IBS_Evaluator<K>::norms() N=" << N << std::endl;
     rvec_t ret(N);
-    for (size_t i=0;i<N;i++) ret[i]=1.0/sqrt(BilinearForm{IdentityOperator{}}(splines[i],splines[i])*FourPi); 
+    for (size_t i=0;i<N;i++) ret[i]=Norm(i); 
     return ret;
 }
 
@@ -146,13 +112,51 @@ template <size_t K> rvec3vec_t BSpline_r_IBS_Evaluator<K>::Gradient(const rvec3_
     return ret;
 }
 
-template <size_t K> std::ostream&  BSpline_r_IBS_Evaluator<K>::Write(std::ostream& os) const
+template <size_t K> BSpline_r_Cache4<K>::BSpline_r_Cache4(const bspline::Grid<double>& grid) 
+: wp([](double r2,size_t k) {return intpow(r2,k);})
+, wm([](double r2,size_t k) {return intpow(r2,-1-k);})
+, itsMaxl(0)
+, itsGL1D(grid,K+1)
+, itsGL2D(grid,2*K+1,K+3)
+, itsRkCache(0) 
+{};
+
+template <size_t K>  void BSpline_r_Cache4<K>::Register(Cache4_Client * eval)
 {
-    return os << " with " << size() << " basis functions, {" << rmin << " ... " << rmax << "}" << std::endl;
+    assert(eval);
+    BSpline_r_IBS_Evaluator<K>* geval=dynamic_cast<BSpline_r_IBS_Evaluator<K>*>(eval);
+    geval->Register(&grouper);
+    if (geval->Getl()>itsMaxl) itsMaxl=geval->Getl();
+    //
+    //  At this point we need sweep through all Cacheable* (Rks) in Cache4::cache_t
+    //  and check if geval is supported (geval.l <= Rk.LMax).
+    //  All unsupport Rks will be removed.  These will then automatically be recreated next time
+    //  loop_4 is called.
+    //
+    Cache4::Register(eval);
+
+    delete itsRkCache;
+    itsRkCache=new ::BSpline::RkCache<K>(grouper.unique_spv,itsGL1D, itsMaxl,wp,wm);
+}
+template <size_t K>  Rk*  BSpline_r_Cache4<K>::Create (size_t ia,size_t ic,size_t ib,size_t id) const
+{
+        assert(itsRkCache);
+    // std::cout << "ia,ib,ic,id=" << ia << " " << ib << " " << ic << " " << id << std::endl;
+    size_t lmax=grouper.LMax(ia,ib,ic,id);
+    return new ::BSpline::RkEngine(grouper.unique_spv,ia,ib,ic,id,lmax,itsGL1D,itsGL2D,*itsRkCache,wp,wm);
+}
+template <size_t K>  size_t BSpline_r_Cache4<K>::RAMsize() const
+{
+    size_t ndoubles=Cache4::RAMsize();
+    ndoubles+=itsGL1D.RAMsize();
+    ndoubles+=itsGL2D.RAMsize();
+    ndoubles+=itsRkCache->RAMsize();
+    return ndoubles;
 }
 
-
 #define INSTANCEk(k) template class BSpline_r_IBS_Evaluator<k>;
+#include "../Internal/Instance.hpp"
+#define INSTANCEk(k) template class BSpline_r_Cache4<k>;
 #include "../Internal/Instance.hpp"
 
 } //namespace

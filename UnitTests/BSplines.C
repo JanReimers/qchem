@@ -56,7 +56,7 @@ public:
         // splines.erase(splines.begin());
     }
 
-    static const spline_t& GetSpline(const BSpline::BSpline_IBS_Evaluator<K>* eval,size_t index)
+    static const spline_t& GetSpline(const BSpline::Evaluator<K>* eval,size_t index)
     {
         return (*eval)[index];
     }
@@ -286,7 +286,7 @@ TEST_F(BSplineTests, Overlap)
         // cout << "S=" << S << endl;
         // cout << "Snum=" << Snum << endl;
         // Now try GLQ integration.
-        const BSpline::BSpline_IBS_Evaluator<K>* eval=dynamic_cast<const BSpline::BSpline_IBS_Evaluator<K>*>(ibs);
+        const BSpline::Evaluator<K>* eval=dynamic_cast<const BSpline::Evaluator<K>*>(ibs);
         auto ns=eval->Norm();
         auto grid=GetSpline(eval,0).getSupport().getGrid();
         GLCache1D cache2(grid,K+3);
@@ -366,7 +366,7 @@ TEST_F(BSplineTests, Kinetic)
 //     for (size_t l=0;l<=3;l++)
 //     {
 //         Irrep_QNs::sym_t yl(new Yl_Sym(l));
-//         evals.push_back(new BSpline_IBS_Evaluator<6>(10,.5,4.0,yl));
+//         evals.push_back(new Evaluator<6>(10,.5,4.0,yl));
 //     }
 //     auto cache4=evals[0]->MakeCache4();
 //     size_t ns=evals[0]->size();
@@ -417,7 +417,7 @@ TEST_F(BSplineTests,RkSymmetry_l0)
     // typedef AngularIntegrals::rvec11_t rvec11_t; 
     Irrep_QNs::sym_t yl(new Yl_Sym(0));
     size_t N=5;
-    auto eval=new BSpline_IBS_Evaluator<6>(N,.0001,40,yl);
+    auto eval=new Evaluator<6>(N,.0001,40,yl);
     auto cache4=eval->MakeCache4();
     cache4->Register(eval);
     auto ns=eval->Norm();

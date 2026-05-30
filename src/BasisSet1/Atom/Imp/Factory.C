@@ -69,7 +69,7 @@ Real_BS* Factory(const nlohmann::json& js,const Atom_EC& aec)
     {
         size_t N=js["N"];
         double rmin=js["rmin"].template get<double>(),rmax=js["rmax"].template get<double>();
-        bs=new BasisSet_1E_HF<BSpline::BSpline_IBS_Evaluator<6>>(N,rmin,rmax,aec);
+        bs=new BasisSet_1E_HF<BSpline::Evaluator<6>>(N,rmin,rmax,aec);
         break;   
     }
     case Type::BSpliner6:

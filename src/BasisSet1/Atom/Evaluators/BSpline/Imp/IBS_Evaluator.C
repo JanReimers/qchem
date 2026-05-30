@@ -47,7 +47,7 @@ template<size_t K> using spline_t = bspline::Spline<double, K>;
 //  Start member functions.
 //
 
-template <size_t K> BSpline_IBS_Evaluator<K>::BSpline_IBS_Evaluator(size_t Ngrid, double rmin, double rmax,const Irrep_QNs::sym_t& ylm) 
+template <size_t K> Evaluator<K>::Evaluator(size_t Ngrid, double rmin, double rmax,const Irrep_QNs::sym_t& ylm) 
 : Internal::EvaluatorCommon<K>(Ngrid,rmin,rmax,ylm)
 {
     // using l=IBS_Evaluator::l;
@@ -59,7 +59,7 @@ template <size_t K> BSpline_IBS_Evaluator<K>::BSpline_IBS_Evaluator(size_t Ngrid
 };
 
 
-template <size_t K> std::string BSpline_IBS_Evaluator<K>::Name () const
+template <size_t K> std::string Evaluator<K>::Name () const
 {
     std::ostringstream os;
     os << "BSpline<" << K << ">";
@@ -77,12 +77,12 @@ std::ostream& operator<<(std::ostream& os, const bspline::Grid<double>& grid)
 }
 
 
-template <size_t K> Cache4*    BSpline_IBS_Evaluator<K>::MakeCache4() const
+template <size_t K> Cache4*    Evaluator<K>::MakeCache4() const
 {
     return new BSpline_Cache4<K>(itsGrid);
 }
 
-template <size_t K> rvec_t BSpline_IBS_Evaluator<K>::norms() const
+template <size_t K> rvec_t Evaluator<K>::norms() const
 {
     size_t N=splines.size();
     rvec_t ret(N);
@@ -91,9 +91,9 @@ template <size_t K> rvec_t BSpline_IBS_Evaluator<K>::norms() const
 }
 
 
-template <size_t K> rvec_t BSpline_IBS_Evaluator<K>::operator() (const rvec3_t& r) const
+template <size_t K> rvec_t Evaluator<K>::operator() (const rvec3_t& r) const
 {
-    rvec_t ret(IBS_Evaluator::size());
+    rvec_t ret(size());
     double mr=norm(r);
     size_t i=0;
     for (auto s:splines) 
@@ -104,9 +104,9 @@ template <size_t K> rvec_t BSpline_IBS_Evaluator<K>::operator() (const rvec3_t& 
     return ret;
 }
 
-template <size_t K> rvec3vec_t BSpline_IBS_Evaluator<K>::Gradient(const rvec3_t& r) const
+template <size_t K> rvec3vec_t Evaluator<K>::Gradient(const rvec3_t& r) const
 {
-    rvec3vec_t ret(IBS_Evaluator::size());
+    rvec3vec_t ret(size());
     double mr=norm(r);
     if (mr==0.0) 
     {
@@ -139,7 +139,7 @@ template <size_t K> BSpline_Cache4<K>::BSpline_Cache4(const bspline::Grid<double
 template <size_t K> void BSpline_Cache4<K>::Register(Cache4_Client * eval)
 {
     assert(eval);
-    BSpline_IBS_Evaluator<K>* geval=dynamic_cast<BSpline_IBS_Evaluator<K>*>(eval);
+    Evaluator<K>* geval=dynamic_cast<Evaluator<K>*>(eval);
     geval->Register(&grouper);
     if (geval->Getl()>itsMaxl) itsMaxl=geval->Getl();
     //
@@ -171,7 +171,7 @@ template <size_t K>  size_t BSpline_Cache4<K>::RAMsize() const
 }
 
 
-#define INSTANCEk(k) template class BSpline_IBS_Evaluator<k>;
+#define INSTANCEk(k) template class Evaluator<k>;
 #include "../Internal/Instance.hpp"
 #define INSTANCEk(k) template class BSpline_Cache4<k>;
 #include "../Internal/Instance.hpp"
