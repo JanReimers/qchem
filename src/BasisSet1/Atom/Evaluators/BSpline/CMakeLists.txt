@@ -5,17 +5,17 @@ target_sources(qcAtom_BS1 PRIVATE
   Internal/Imp/GLQuadrature1.C  
   Internal/Imp/Rk.C
   Internal/Imp/SplineGrouper.C
-  Internal/Imp/IBS_EvaluatorCommon.C
-  Imp/IBS_Evaluator.C
-  Imp/IBS_Evaluator_r.C
+  Internal/Imp/EvaluatorCommon.C
+  Imp/Evaluator.C
+  Imp/Evaluator_r.C
 )
 
 target_sources(qcAtom_BS1 PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
   Internal/GLQuadrature.C  
   Internal/Rk.C
   Internal/SplineGrouper.C
-  Internal/IBS_EvaluatorCommon.C
-  IBS_Evaluator.C
-  IBS_Evaluator_r.C
+  Internal/EvaluatorCommon.C
+  Evaluator.C
+  Evaluator_r.C
 )
 

@@ -25,7 +25,7 @@ export namespace BasisSet::Atom::Evaluators::BSpline
 using namespace bspline::integration;
 using namespace bspline::operators; 
 
-template <size_t K> class BSpline_r_IBS_Evaluator : public Internal::EvaluatorCommon<K>
+template <size_t K> class Evaluator_r : public Internal::EvaluatorCommon<K>
 {
     using spline_t=Internal::EvaluatorCommon<K>::spline_t;
     using Internal::EvaluatorCommon<K>::splines;
@@ -34,7 +34,7 @@ template <size_t K> class BSpline_r_IBS_Evaluator : public Internal::EvaluatorCo
     using Internal::EvaluatorCommon<K>::l;
 
 public: 
-    BSpline_r_IBS_Evaluator(size_t Ngrid, double rmin, double rmax, const Irrep_QNs::sym_t& ylm);
+    Evaluator_r(size_t Ngrid, double rmin, double rmax, const Irrep_QNs::sym_t& ylm);
 
     double Overlap(size_t i,size_t j) const 
     {
@@ -45,7 +45,7 @@ public:
         static const auto T = -Dx<2>{};
         return BilinearForm{T}(splines[i],splines[j])*FourPi*ns[i]*ns[j]; 
     } 
-    double Grad2  (size_t i,size_t j,const BSpline_r_IBS_Evaluator& b) const 
+    double Grad2  (size_t i,size_t j,const Evaluator_r& b) const 
     {
         static const auto T = -Dx<2>{};
         return BilinearForm{T}(splines[i],b.splines[j])*FourPi*ns[i]*b.ns[j]; 
@@ -70,7 +70,7 @@ public:
         };
         return itsGL1D->Integrate(xm2)*FourPi*ns[i]*ns[j];
     } 
-    double Inv_r2 (size_t i,size_t j,const BSpline_r_IBS_Evaluator& _b) const 
+    double Inv_r2 (size_t i,size_t j,const Evaluator_r& _b) const 
     {
         const spline_t &a=splines[i], &b=_b.splines[j];
         std::function< double (double)> xm2 = [&a,&b](double r)
@@ -103,12 +103,12 @@ protected:
 };
 
 
-static_assert(isGeneric_Evaluator<BSpline_r_IBS_Evaluator<6>>);
-static_assert(is1E_Evaluator     <BSpline_r_IBS_Evaluator<6>>);
+static_assert(isGeneric_Evaluator<Evaluator_r<6>>);
+static_assert(is1E_Evaluator     <Evaluator_r<6>>);
 // static_assert(isFit_Evaluator    <Evaluator<6>>);
 // static_assert(isDFT_Evaluator    <Evaluator<6>>);
-static_assert(isRKBL_Evaluator   <BSpline_r_IBS_Evaluator<6>>);
-static_assert(isHF_Evaluator     <BSpline_r_IBS_Evaluator<6>>);
+static_assert(isRKBL_Evaluator   <Evaluator_r<6>>);
+static_assert(isHF_Evaluator     <Evaluator_r<6>>);
 
 template <size_t K> class BSpline_r_Cache4 : public  Cache4
 {

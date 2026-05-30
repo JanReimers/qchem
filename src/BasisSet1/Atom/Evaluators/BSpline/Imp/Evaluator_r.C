@@ -22,7 +22,7 @@ using namespace bspline::integration;
 template<size_t K> using spline_t = bspline::Spline<double, K>;
 
 
-template <size_t K> BSpline_r_IBS_Evaluator<K>::BSpline_r_IBS_Evaluator(size_t Ngrid, double rmin, double rmax,const Irrep_QNs::sym_t& ylm) 
+template <size_t K> Evaluator_r<K>::Evaluator_r(size_t Ngrid, double rmin, double rmax,const Irrep_QNs::sym_t& ylm) 
 : Internal::EvaluatorCommon<K>(Ngrid,rmin,rmax,ylm)
 {
     splines.erase(splines.begin()); //First spline has B(0)=1.0 with violates B(0)=0 boundary condition for 1/r prefactor.
@@ -32,7 +32,7 @@ template <size_t K> BSpline_r_IBS_Evaluator<K>::BSpline_r_IBS_Evaluator(size_t N
     assert(size()==splines.size());
 };
 
-//  template <size_t K> std::vector<double> BSpline_r_IBS_Evaluator<K>::MakeLogKnots(size_t Ngrid, double rmin, double rmax)
+//  template <size_t K> std::vector<double> Evaluator_r<K>::MakeLogKnots(size_t Ngrid, double rmin, double rmax)
 // {
 //     assert(Ngrid>1);
 //     std::vector<double> knots;
@@ -57,19 +57,19 @@ template <size_t K> BSpline_r_IBS_Evaluator<K>::BSpline_r_IBS_Evaluator(size_t N
 //     return knots;
 // }
 
-template <size_t K> std::string BSpline_r_IBS_Evaluator<K>::Name () const
+template <size_t K> std::string Evaluator_r<K>::Name () const
 {
     std::ostringstream os;
     os << "BSpline<" << K << "> 1/r ";
     return os.str();
 }
 
-template <size_t K> Cache4*    BSpline_r_IBS_Evaluator<K>::MakeCache4() const
+template <size_t K> Cache4*    Evaluator_r<K>::MakeCache4() const
 {
     return new BSpline_r_Cache4<K>(itsGrid);
 }
 
-template <size_t K> rvec_t BSpline_r_IBS_Evaluator<K>::norms() const
+template <size_t K> rvec_t Evaluator_r<K>::norms() const
 {
     size_t N=splines.size();
     rvec_t ret(N);
@@ -77,7 +77,7 @@ template <size_t K> rvec_t BSpline_r_IBS_Evaluator<K>::norms() const
     return ret;
 }
 
-template <size_t K> rvec_t BSpline_r_IBS_Evaluator<K>::operator() (const rvec3_t& r) const
+template <size_t K> rvec_t Evaluator_r<K>::operator() (const rvec3_t& r) const
 {
     rvec_t ret(size());
     double mr=norm(r);
@@ -90,7 +90,7 @@ template <size_t K> rvec_t BSpline_r_IBS_Evaluator<K>::operator() (const rvec3_t
     return ret;
 }
 
-template <size_t K> rvec3vec_t BSpline_r_IBS_Evaluator<K>::Gradient(const rvec3_t& r) const
+template <size_t K> rvec3vec_t Evaluator_r<K>::Gradient(const rvec3_t& r) const
 {
     rvec3vec_t ret(size());
     double mr=norm(r);
@@ -124,7 +124,7 @@ template <size_t K> BSpline_r_Cache4<K>::BSpline_r_Cache4(const bspline::Grid<do
 template <size_t K>  void BSpline_r_Cache4<K>::Register(Cache4_Client * eval)
 {
     assert(eval);
-    BSpline_r_IBS_Evaluator<K>* geval=dynamic_cast<BSpline_r_IBS_Evaluator<K>*>(eval);
+    Evaluator_r<K>* geval=dynamic_cast<Evaluator_r<K>*>(eval);
     geval->Register(&grouper);
     if (geval->Getl()>itsMaxl) itsMaxl=geval->Getl();
     //
@@ -154,7 +154,7 @@ template <size_t K>  size_t BSpline_r_Cache4<K>::RAMsize() const
     return ndoubles;
 }
 
-#define INSTANCEk(k) template class BSpline_r_IBS_Evaluator<k>;
+#define INSTANCEk(k) template class Evaluator_r<k>;
 #include "../Internal/Instance.hpp"
 #define INSTANCEk(k) template class BSpline_r_Cache4<k>;
 #include "../Internal/Instance.hpp"
