@@ -40,10 +40,10 @@ Priority 1:
         Done: Isolate weight functions wp, wm.
             [k] capture makes this very difficult. So don't do that!!
         Done: We would need to feed k through all the function calls.  Worth a try to avoid dual maintenance.
-    -All Evulators are for IBS, so just get rid of the IBS part.
+    -All Evaluators are for IBS, so just get rid of the IBS part.
     Done: -move rvec11_t into Types.
     -merge RadialID and RadialType ?
-    -Can we export a few names from cmath in Types and avoid many includes?
+    Done: -Can we export a few names from cmath in Types and avoid many includes?
     -For unit tests make more sense to avoid trimming basis sets based on Z.  Just use big everywhere.
         Use a batch flag.
         A_HF_P_SG run: The cach4 data would be dramatically reduced.
