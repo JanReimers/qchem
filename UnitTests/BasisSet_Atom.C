@@ -421,7 +421,7 @@ public:
 TEST_F(BasisSet_BS,Overlap) {TestOverlap(3e-11);}
 TEST_F(BasisSet_BS,Grad2  ) {TestGrad2  (1e-4);}
 TEST_F(BasisSet_BS,Inv_r1 ) {TestInv_r1 (5e-9);}
-// TEST_F(BasisSet_BS,Inv_r2 ) {TestInv_r2 (4e-8);}
+TEST_F(BasisSet_BS,Inv_r2 ) {TestInv_r2 (5e-3);}
 // TEST_F(BasisSet_BS,Charge ) {TestCharge (8e-7);}
 
 TEST_F(BasisSet_BS,IDs)
@@ -430,8 +430,8 @@ TEST_F(BasisSet_BS,IDs)
     for (auto ibs:bs->Iterate<obs_t>())
     {
         // cout << "index=" << index << " ibs=" << *ibs << endl;
-        EXPECT_EQ(ibs->Name(),"BSpline<6> ");
-        EXPECT_EQ(ibs->RadialID(),"BSpline<6>  grid: N=6 {0,0.25,0.5 ... 4}");
+        EXPECT_EQ(ibs->Name(),"BSpline<6>");
+        EXPECT_EQ(ibs->RadialID(),"BSpline<6> grid: N=6 {0,0.25,0.5 ... 4}");
         EXPECT_EQ(ibs->AngularID(),angularIDs[index++]);
     }
 }

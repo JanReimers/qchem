@@ -15,9 +15,19 @@ import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.SplineGrouper;
 
 export namespace BasisSet::Atom::Evaluators::BSpline::Internal
 {
-//
-//  This version is for phi(r) = sum(Bi(r),i)
-// 
+std::ostream& operator<<(std::ostream& os, const bspline::Support<double>& sup)
+{
+    return os << "[" << sup.front() << "," << sup.back() << "]";
+}
+std::ostream& operator<<(std::ostream& os, const bspline::Grid<double>& grid)
+{
+    os << "{";
+    for (auto g:grid) os << g << ",";
+
+    return os << "}";
+}
+
+
 template <size_t K> class EvaluatorCommon : public IBS_Evaluator
 {
 protected:
@@ -58,7 +68,7 @@ template <size_t K> class BSpline_Cache4 : public  ::Cache4
 {
     using func_t=::BSpline::RkEngine<K>::func_t;
 public:
-    BSpline_Cache4(const bspline::Grid<double>& grid,const func_t& wp, const func_t& wm);
+    BSpline_Cache4(const bspline::Grid<double>& grid,const func_t& wp, const func_t& wm, size_t Kp);
     ~BSpline_Cache4() {delete itsRkCache;}
     virtual void   Register(Cache4_Client * eval);
     virtual Rk*    Create  (size_t ia,size_t ic,size_t ib,size_t id) const;

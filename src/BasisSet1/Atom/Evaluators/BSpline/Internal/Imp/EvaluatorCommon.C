@@ -89,11 +89,11 @@ template <size_t K> std::ostream&  EvaluatorCommon<K>::Write(std::ostream& os) c
     return os << " N= " << size() << " basis functions, {" << rmin << " ... " << rmax << "}" << std::endl;
 }
 
-template <size_t K> BSpline_Cache4<K>::BSpline_Cache4(const bspline::Grid<double>& grid,const func_t& _wp, const func_t& _wm) 
+template <size_t K> BSpline_Cache4<K>::BSpline_Cache4(const bspline::Grid<double>& grid,const func_t& _wp, const func_t& _wm, size_t Kp) 
     : wp(_wp), wm(_wm)
     , itsMaxl(0)
-    , itsGL1D(grid,K+3)
-    , itsGL2D(grid,2*K+3,K+3)
+    , itsGL1D(grid,K+Kp) //K+3 for Eval and K+1 for the 1/r version
+    , itsGL2D(grid,2*K+Kp,K+3) //2K+3 for Eval and 2K+1 for the 1/r version
     , itsRkCache(0) 
     {
     };

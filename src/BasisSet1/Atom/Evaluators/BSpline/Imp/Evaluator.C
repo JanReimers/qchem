@@ -11,8 +11,6 @@ module qchem.BasisSet.Atom.Evaluators.BSpline.IBS;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.Rk;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.SplineGrouper;
 import qchem.BasisSet.Atom.Evaluators.IBS;
-import Common.Constants;
-// import Common.IntPow;
 
 namespace BasisSet::Atom::Evaluators::BSpline
 {
@@ -68,14 +66,6 @@ template <size_t K> std::string Evaluator<K>::Name () const
 
 
 
-std::ostream& operator<<(std::ostream& os, const bspline::Grid<double>& grid)
-{
-    os << "{";
-    for (auto g:grid) os << g << ",";
-
-    return os << "}";
-}
-
 
 template <size_t K> Cache4*    Evaluator<K>::MakeCache4() const
 {
@@ -83,7 +73,8 @@ template <size_t K> Cache4*    Evaluator<K>::MakeCache4() const
     (
         itsGrid,
         [](double r2,size_t k) {return intpow(r2,k+2);},
-        [](double r2,size_t k) {return intpow(r2,1-k);}
+        [](double r2,size_t k) {return intpow(r2,1-k);},
+        3
     );
 }
 

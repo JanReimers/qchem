@@ -1,30 +1,25 @@
 // File: BasisSet1/Atom/Evaluators/BSpline/IBS_Evaluator_r.C
 module;
 #include <bspline/Core.h>
-#include <vector>
-#include <memory>
-#include <iosfwd>
 #include <cassert>
 #include <cmath>
 #include <functional>
 export module qchem.BasisSet.Atom.Evaluators.BSpline.IBS_r;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.Common;
-import qchem.BasisSet.Atom.Evaluators.IBS;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.GLQuadrature;
-import qchem.BasisSet.Atom.Evaluators.Internal.AngularIntegrals;
-import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.Rk;
-import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.SplineGrouper;
 import qchem.BasisSet.Atom.Evaluators.Concepts;
+import qchem.BasisSet.Internal.Cache4;
 import qchem.Symmetry.Yl;
 import Common.Constants;
-import qchem.BasisSet.Internal.Cache4;
 import Common.IntPow;
 
 export namespace BasisSet::Atom::Evaluators::BSpline
 {
 using namespace bspline::integration;
 using namespace bspline::operators; 
-
+//
+//  This version is for phi(r) = 1/r*sum(Bi(r),i).
+// 
 template <size_t K> class Evaluator_r : public Internal::EvaluatorCommon<K>
 {
     using spline_t=Internal::EvaluatorCommon<K>::spline_t;
@@ -110,24 +105,5 @@ static_assert(is1E_Evaluator     <Evaluator_r<6>>);
 static_assert(isRKBL_Evaluator   <Evaluator_r<6>>);
 static_assert(isHF_Evaluator     <Evaluator_r<6>>);
 
-template <size_t K> class BSpline_r_Cache4 : public  Cache4
-{
-public:
-    BSpline_r_Cache4(const bspline::Grid<double>& grid);
-    ~BSpline_r_Cache4() {delete itsRkCache;}
-    virtual void Register(Cache4_Client * eval);
-    virtual Rk*  Create (size_t ia,size_t ic,size_t ib,size_t id) const;
-    virtual size_t RAMsize() const;
-
-private:
-    using func_t=::BSpline::RkEngine<K>::func_t;
-    func_t wp,wm; //Weight functions for Slater integrals.
-    size_t itsMaxl;
-    GLCache1D   itsGL1D;
-    GLCache2D   itsGL2D;
-
-    SplineGrouper<K> grouper;
-    ::BSpline::RkCache<K>* itsRkCache;
-};
 
 } //namespace

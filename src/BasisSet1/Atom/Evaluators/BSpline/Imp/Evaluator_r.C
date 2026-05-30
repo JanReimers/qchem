@@ -1,7 +1,6 @@
 // File: BasisSet1/Atom/Evaluators/BSpline/Imp/IBS_r_Evaluator.C
 module;
 #include <bspline/Core.h>
-#include <InvPosition.H> // 1/x^n operator are not provided in bspline package, so a roll our own.
 #include <cmath>
 #include <cassert>
 #include <iostream>
@@ -64,9 +63,15 @@ template <size_t K> std::string Evaluator_r<K>::Name () const
     return os.str();
 }
 
-template <size_t K> Cache4*    Evaluator_r<K>::MakeCache4() const
+template <size_t K> Cache4* Evaluator_r<K>::MakeCache4() const
 {
-    return new BSpline_r_Cache4<K>(itsGrid);
+    return new Internal::BSpline_Cache4<K>
+    (
+        itsGrid,
+        [](double r2,size_t k) {return intpow(r2,k);},
+        [](double r2,size_t k) {return intpow(r2,-1-k);},
+        1
+    );
 }
 
 template <size_t K> rvec_t Evaluator_r<K>::norms() const
@@ -112,51 +117,7 @@ template <size_t K> rvec3vec_t Evaluator_r<K>::Gradient(const rvec3_t& r) const
     return ret;
 }
 
-template <size_t K> BSpline_r_Cache4<K>::BSpline_r_Cache4(const bspline::Grid<double>& grid) 
-: wp([](double r2,size_t k) {return intpow(r2,k);})
-, wm([](double r2,size_t k) {return intpow(r2,-1-k);})
-, itsMaxl(0)
-, itsGL1D(grid,K+1)
-, itsGL2D(grid,2*K+1,K+3)
-, itsRkCache(0) 
-{};
-
-template <size_t K>  void BSpline_r_Cache4<K>::Register(Cache4_Client * eval)
-{
-    assert(eval);
-    Evaluator_r<K>* geval=dynamic_cast<Evaluator_r<K>*>(eval);
-    geval->Register(&grouper);
-    if (geval->Getl()>itsMaxl) itsMaxl=geval->Getl();
-    //
-    //  At this point we need sweep through all Cacheable* (Rks) in Cache4::cache_t
-    //  and check if geval is supported (geval.l <= Rk.LMax).
-    //  All unsupport Rks will be removed.  These will then automatically be recreated next time
-    //  loop_4 is called.
-    //
-    Cache4::Register(eval);
-
-    delete itsRkCache;
-    itsRkCache=new ::BSpline::RkCache<K>(grouper.unique_spv,itsGL1D, itsMaxl,wp,wm);
-}
-template <size_t K>  Rk*  BSpline_r_Cache4<K>::Create (size_t ia,size_t ic,size_t ib,size_t id) const
-{
-        assert(itsRkCache);
-    // std::cout << "ia,ib,ic,id=" << ia << " " << ib << " " << ic << " " << id << std::endl;
-    size_t lmax=grouper.LMax(ia,ib,ic,id);
-    return new ::BSpline::RkEngine(grouper.unique_spv,ia,ib,ic,id,lmax,itsGL1D,itsGL2D,*itsRkCache,wp,wm);
-}
-template <size_t K>  size_t BSpline_r_Cache4<K>::RAMsize() const
-{
-    size_t ndoubles=Cache4::RAMsize();
-    ndoubles+=itsGL1D.RAMsize();
-    ndoubles+=itsGL2D.RAMsize();
-    ndoubles+=itsRkCache->RAMsize();
-    return ndoubles;
-}
-
 #define INSTANCEk(k) template class Evaluator_r<k>;
-#include "../Internal/Instance.hpp"
-#define INSTANCEk(k) template class BSpline_r_Cache4<k>;
 #include "../Internal/Instance.hpp"
 
 } //namespace

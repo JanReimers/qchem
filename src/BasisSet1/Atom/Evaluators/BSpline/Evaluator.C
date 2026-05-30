@@ -5,12 +5,10 @@ module;
 #include <cmath>
 export module qchem.BasisSet.Atom.Evaluators.BSpline.IBS;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.Common;
-// import qchem.BasisSet.Atom.Evaluators.IBS;
-// import qchem.BasisSet.Atom.Evaluators.Internal.Rk;
 import qchem.BasisSet.Atom.Evaluators.Concepts;
+import qchem.BasisSet.Internal.Cache4;
 import qchem.Symmetry.Yl;
 import Common.Constants;
-import qchem.BasisSet.Internal.Cache4;
 import Common.IntPow;
 
 
@@ -86,9 +84,5 @@ static_assert(is1E_Evaluator     <Evaluator<6>>);
 static_assert(isRKBL_Evaluator   <Evaluator<6>>);
 static_assert(isHF_Evaluator     <Evaluator<6>>);
 
-std::ostream& operator<<(std::ostream& os, const bspline::Support<double>& sup)
-{
-    return os << "[" << sup.front() << "," << sup.back() << "]";
-}
 
 } //namespace
