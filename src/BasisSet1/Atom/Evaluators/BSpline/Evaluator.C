@@ -13,10 +13,6 @@ import Common.Constants;
 import qchem.BasisSet.Internal.Cache4;
 import Common.IntPow;
 
-// required by BSpline_Cache4
-import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.GLQuadrature;
-import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.Rk;
-import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.SplineGrouper;
 
 export namespace BasisSet::Atom::Evaluators::BSpline
 {
@@ -94,25 +90,5 @@ std::ostream& operator<<(std::ostream& os, const bspline::Support<double>& sup)
 {
     return os << "[" << sup.front() << "," << sup.back() << "]";
 }
-
-template <size_t K> class BSpline_Cache4 : public  Cache4
-{
-public:
-    BSpline_Cache4(const bspline::Grid<double>& grid);
-    ~BSpline_Cache4() {delete itsRkCache;}
-    virtual void   Register(Cache4_Client * eval);
-    virtual Rk*    Create  (size_t ia,size_t ic,size_t ib,size_t id) const;
-    virtual size_t RAMsize () const;
-
-private:
-    using func_t=::BSpline::RkEngine<K>::func_t;
-    func_t wp,wm; //Weight functions for Slater integrals.
-    size_t itsMaxl;
-    GLCache1D   itsGL1D;
-    GLCache2D   itsGL2D;
-
-    SplineGrouper<K> grouper;
-    ::BSpline::RkCache<K>* itsRkCache;
-};
 
 } //namespace

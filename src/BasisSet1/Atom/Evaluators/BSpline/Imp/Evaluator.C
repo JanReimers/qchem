@@ -79,7 +79,12 @@ std::ostream& operator<<(std::ostream& os, const bspline::Grid<double>& grid)
 
 template <size_t K> Cache4*    Evaluator<K>::MakeCache4() const
 {
-    return new BSpline_Cache4<K>(itsGrid);
+    return new Internal::BSpline_Cache4<K>
+    (
+        itsGrid,
+        [](double r2,size_t k) {return intpow(r2,k+2);},
+        [](double r2,size_t k) {return intpow(r2,1-k);}
+    );
 }
 
 template <size_t K> rvec_t Evaluator<K>::norms() const
@@ -126,54 +131,9 @@ template <size_t K> rvec3vec_t Evaluator<K>::Gradient(const rvec3_t& r) const
     return ret;
 }
 
-template <size_t K> BSpline_Cache4<K>::BSpline_Cache4(const bspline::Grid<double>& grid) 
-    : wp([](double r2,size_t k) {return intpow(r2,k+2);})
-    , wm([](double r2,size_t k) {return intpow(r2,1-k);})
-    , itsMaxl(0)
-    , itsGL1D(grid,K+3)
-    , itsGL2D(grid,2*K+3,K+3)
-    , itsRkCache(0) 
-    {
-    };
-
-template <size_t K> void BSpline_Cache4<K>::Register(Cache4_Client * eval)
-{
-    assert(eval);
-    Evaluator<K>* geval=dynamic_cast<Evaluator<K>*>(eval);
-    geval->Register(&grouper);
-    if (geval->Getl()>itsMaxl) itsMaxl=geval->Getl();
-    //
-    //  At this point we need sweep through all Cacheable* (Rks) in Cache4::cache_t
-    //  and check if geval is supported (geval.l <= Rk.LMax).
-    //  All unsupport Rks will be removed.  These will then automatically be recreated next time
-    //  loop_4 is called.
-    //
-    Cache4::Register(eval);
-
-    delete itsRkCache;
-    itsRkCache=new ::BSpline::RkCache<K>(grouper.unique_spv,itsGL1D, itsMaxl,wp,wm);
-}
-
-template <size_t K> Rk*  BSpline_Cache4<K>::Create (size_t ia,size_t ic,size_t ib,size_t id) const
-{
-    assert(itsRkCache);
-    size_t lmax=grouper.LMax(ia,ib,ic,id);
-    return new ::BSpline::RkEngine(grouper.unique_spv,ia,ib,ic,id,lmax,itsGL1D,itsGL2D,*itsRkCache,wp,wm);
-}
-
-template <size_t K>  size_t BSpline_Cache4<K>::RAMsize() const
-{
-    size_t ndoubles=Cache4::RAMsize();
-    ndoubles+=itsGL1D.RAMsize();
-    ndoubles+=itsGL2D.RAMsize();
-    ndoubles+=itsRkCache->RAMsize();
-    return ndoubles;
-}
 
 
 #define INSTANCEk(k) template class Evaluator<k>;
-#include "../Internal/Instance.hpp"
-#define INSTANCEk(k) template class BSpline_Cache4<k>;
 #include "../Internal/Instance.hpp"
 
 } //namespace

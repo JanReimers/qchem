@@ -8,6 +8,11 @@ export import qchem.BasisSet.Atom.Evaluators.IBS;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.Rk;
 import qchem.BasisSet.Atom.Evaluators.Internal.AngularIntegrals;
 
+// required by BSpline_Cache4
+import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.GLQuadrature;
+import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.Rk;
+import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.SplineGrouper;
+
 export namespace BasisSet::Atom::Evaluators::BSpline::Internal
 {
 //
@@ -47,6 +52,26 @@ protected:
     std::vector<double>   knots;
     std::vector<spline_t> splines;
     bspline::Grid<double> itsGrid;
+};
+
+template <size_t K> class BSpline_Cache4 : public  ::Cache4
+{
+    using func_t=::BSpline::RkEngine<K>::func_t;
+public:
+    BSpline_Cache4(const bspline::Grid<double>& grid,const func_t& wp, const func_t& wm);
+    ~BSpline_Cache4() {delete itsRkCache;}
+    virtual void   Register(Cache4_Client * eval);
+    virtual Rk*    Create  (size_t ia,size_t ic,size_t ib,size_t id) const;
+    virtual size_t RAMsize () const;
+
+private:
+    func_t wp,wm; //Weight functions for Slater integrals.
+    size_t itsMaxl;
+    GLCache1D   itsGL1D;
+    GLCache2D   itsGL2D;
+
+    SplineGrouper<K> grouper;
+    ::BSpline::RkCache<K>* itsRkCache;
 };
 
 } //namespace
