@@ -82,8 +82,8 @@ public:
         return 1.0/sqrt(BilinearForm{IdentityOperator{}}(splines[i],splines[i])*FourPi);
     }
     
-    using IBS_Evaluator::Norm;
-    using IBS_Evaluator::size;
+    using Evaluators::IBS_Evaluator::Norm;
+    using Evaluators::IBS_Evaluator::size;
 
     virtual rvec_t     operator() (const rvec3_t&) const;
     virtual rvec3vec_t Gradient   (const rvec3_t&) const;

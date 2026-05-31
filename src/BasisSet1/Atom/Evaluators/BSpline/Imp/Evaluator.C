@@ -48,9 +48,7 @@ template<size_t K> using spline_t = bspline::Spline<double, K>;
 template <size_t K> Evaluator<K>::Evaluator(size_t Ngrid, double rmin, double rmax,const Irrep_QNs::sym_t& ylm) 
 : Internal::EvaluatorCommon<K>(Ngrid,rmin,rmax,ylm)
 {
-    // using l=IBS_Evaluator::l;
     for (size_t n=0;n<=3-l;n++) splines.pop_back(); //For s orbital the last spline has B(R)=1.0 with violates B(R)=0 boundary condition for 1/r prefactor.
-    // itsGrid=splines[0].getSupport().getGrid();
     ns=norms();
     assert(size()==splines.size());
     assert(size()==ns.size());

@@ -26,7 +26,7 @@ std::ostream& operator<<(std::ostream& os, const bspline::Grid<double>& grid)
 }
 
 
-template <size_t K> class EvaluatorCommon : public IBS_Evaluator
+template <size_t K> class EvaluatorCommon : public Evaluators::IBS_Evaluator
 {
 protected:
     typedef bspline::Spline<double, K> spline_t;
@@ -55,7 +55,6 @@ public:
 protected:
     std::vector<double> MakeLogKnots(size_t NGrid, double rmin, double rmax);
 
-    using IBS_Evaluator::l;
     double rmin,rmax; //This might be needed for creating fit basis sets.
     std::vector<double>   knots;
     std::vector<spline_t> splines;
