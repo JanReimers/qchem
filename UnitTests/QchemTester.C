@@ -67,7 +67,8 @@ protected:
     Real_BS*      itsBasisSet;
     SCFIterator*  itsSCFIterator;
 public:
-    static PeriodicTable itsPT;
+    static PeriodicTableSaito itsPT;
+    static PeriodicTable  itsPTold;
 };
 
 

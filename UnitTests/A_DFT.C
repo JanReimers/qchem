@@ -19,7 +19,7 @@ class DFT_U : public virtual QchemTester
 {
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
     {
-        double alpha_ex=QchemTester::itsPT.GetSlaterAlpha(GetZ());
+        double alpha_ex=QchemTester::itsPTold.GetSlaterAlpha(GetZ());
         return Factory(Pol::UnPolarized,cluster,alpha_ex,GetMeshParams(),itsBasisSet);
     }
 };
@@ -108,7 +108,7 @@ class DFT_P : public virtual QchemTester
 {
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
     {
-        double alpha_ex=QchemTester::itsPT.GetSlaterAlpha(GetZ());
+        double alpha_ex=QchemTester::itsPTold.GetSlaterAlpha(GetZ());
         return Factory(Pol::Polarized,cluster,alpha_ex,GetMeshParams(),itsBasisSet);
     }
 };

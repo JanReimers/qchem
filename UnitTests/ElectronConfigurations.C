@@ -42,7 +42,7 @@ public:
         return ac.GetN(qns);
     }
     ml_Breakdown GetBreadown(const Atom_EC& ec,size_t l) const;
-    PeriodicTable pt;
+    PeriodicTableSaito pt;
 };
 
 ml_Breakdown ElectronConfigurationTests::GetBreadown(const Atom_EC& ec,size_t l) const
@@ -88,7 +88,7 @@ TEST_F(ElectronConfigurationTests, ElectronConfigurations)
         rs << pt.GetSymbol(Z);
         rs << pt.GetMaxL(Z);
         rs << pt.GetNumUnpairedElectrons(Z);
-        int* v=pt.GetValanceConfiguration(Z);
+        const size_t* v=pt.GetValanceConfiguration(Z);
         std::ostringstream os;
         for (size_t i=0;i<4;i++)
         {

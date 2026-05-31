@@ -15,7 +15,7 @@ import qchem.stl_io;
 using std::cout;
 using std::endl;
 
-PeriodicTable pt;
+PeriodicTableSaito pt;
 
 const int Atom_EC::FullShells[Nshell][LMax+2]=
 { // Z   s p d f
@@ -35,7 +35,7 @@ Atom_EC::Atom_EC(int Z)
     assert(Z>0);
     assert(Z<=N_Elements);
 
-    int* vc=pt.GetValanceConfiguration(Z);  //Valance electron counts
+    const size_t* vc=pt.GetValanceConfiguration(Z);  //Valance electron counts
     
     // Step 1: Hunt for the nearest for full shell for Z.
     int ns=0;
