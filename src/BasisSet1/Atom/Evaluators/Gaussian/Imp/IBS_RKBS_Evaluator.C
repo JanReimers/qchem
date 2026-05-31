@@ -10,18 +10,18 @@ import qchem.Math;
 namespace BasisSet::Atom::Evaluators::Gaussian
 {
 
-std::string Gaussian_RKBS_IBS_Evaluator::Name() const
+std::string RKBS_Evaluator::Name() const
 {
     return "SG RKB ";
 }
 
-rvec_t Gaussian_RKBS_IBS_Evaluator::norms() const
+rvec_t RKBS_Evaluator::norms() const
 {
     return Evaluator::norms()/(2*c_light);
 }
 
 
-rvec_t Gaussian_RKBS_IBS_Evaluator::eval(const rvec3_t& r) const
+rvec_t RKBS_Evaluator::eval(const rvec3_t& r) const
 {
     double mr=norm(r);
     rvec_t f=-2*es*mr;
@@ -31,12 +31,12 @@ rvec_t Gaussian_RKBS_IBS_Evaluator::eval(const rvec3_t& r) const
     return f*gaussian(mr,l,es,ns);
 }
 
-rvec_t Gaussian_RKBS_IBS_Evaluator::operator() (const rvec3_t& r) const
+rvec_t RKBS_Evaluator::operator() (const rvec3_t& r) const
 {
    return eval(r); 
 }
 
-rvec3vec_t Gaussian_RKBS_IBS_Evaluator::Gradient(const rvec3_t& r) const
+rvec3vec_t RKBS_Evaluator::Gradient(const rvec3_t& r) const
 {
     rvec3vec_t ret(size());
     double mr=norm(r);

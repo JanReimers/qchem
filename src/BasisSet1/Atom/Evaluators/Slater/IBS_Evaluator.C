@@ -164,12 +164,12 @@ private:
     ExponentGrouper grouper;
 };
 
-class Slater_RKBS_IBS_Evaluator : public Evaluator
+class RKBS_Evaluator : public Evaluator
 {
 public:
-    Slater_RKBS_IBS_Evaluator(const rvec_t& es, int _kappa, int l,const ivec_t& mls) : Evaluator(es,l,mls), kappa(_kappa) {ns=norms();}
-    Slater_RKBS_IBS_Evaluator(const rvec_t& es, int _kappa, int l) : Slater_RKBS_IBS_Evaluator(es,_kappa,l,{}) {}
-    Slater_RKBS_IBS_Evaluator(size_t N, double emin, double emax, int _kappa, int l): Evaluator(N,emin,emax,Irrep_QNs::sym_t(new Yl_Sym(0))), kappa(_kappa) {ns=norms();}
+    RKBS_Evaluator(const rvec_t& es, int _kappa, int l,const ivec_t& mls) : Evaluator(es,l,mls), kappa(_kappa) {ns=norms();}
+    RKBS_Evaluator(const rvec_t& es, int _kappa, int l) : RKBS_Evaluator(es,_kappa,l,{}) {}
+    RKBS_Evaluator(size_t N, double emin, double emax, int _kappa, int l): Evaluator(N,emin,emax,Irrep_QNs::sym_t(new Yl_Sym(0))), kappa(_kappa) {ns=norms();}
     rvec_t norms() const; //assumes es,l are already initialized
 
     double Inv_r1(size_t i,size_t j) const
@@ -186,10 +186,10 @@ private:
     int kappa;
 };
 
-static_assert(isGeneric_Evaluator<Slater_RKBS_IBS_Evaluator>);
-static_assert(is1E_Evaluator     <Slater_RKBS_IBS_Evaluator>);
-static_assert(isFit_Evaluator    <Slater_RKBS_IBS_Evaluator>);
-static_assert(isDFT_Evaluator    <Slater_RKBS_IBS_Evaluator>);
-static_assert(isRKBL_Evaluator   <Slater_RKBS_IBS_Evaluator>);
+static_assert(isGeneric_Evaluator<RKBS_Evaluator>);
+static_assert(is1E_Evaluator     <RKBS_Evaluator>);
+static_assert(isFit_Evaluator    <RKBS_Evaluator>); 
+static_assert(isDFT_Evaluator    <RKBS_Evaluator>); 
+static_assert(isRKBL_Evaluator   <RKBS_Evaluator>);
 
 } // namespace

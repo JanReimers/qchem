@@ -10,17 +10,17 @@ import qchem.Math;
 namespace BasisSet::Atom::Evaluators::Slater
 {
 
-std::string Slater_RKBS_IBS_Evaluator::Name() const
+std::string RKBS_Evaluator::Name() const
 {
     return "SL RKB ";
 }
 
-rvec_t Slater_RKBS_IBS_Evaluator::norms() const
+rvec_t RKBS_Evaluator::norms() const
 {
     return Evaluator::norms()/(2*c_light);
 }
 
-rvec_t Slater_RKBS_IBS_Evaluator::eval(const rvec3_t& r) const
+rvec_t RKBS_Evaluator::eval(const rvec3_t& r) const
 {
     double mr=norm(r);
     rvec_t f=-es;
@@ -30,12 +30,12 @@ rvec_t Slater_RKBS_IBS_Evaluator::eval(const rvec3_t& r) const
     return f*slater(mr,l,es,ns);
 }
 
-rvec_t Slater_RKBS_IBS_Evaluator::operator() (const rvec3_t& r) const
+rvec_t RKBS_Evaluator::operator() (const rvec3_t& r) const
 {
    return eval(r); 
 }
 
-rvec3vec_t Slater_RKBS_IBS_Evaluator::Gradient(const rvec3_t& r) const
+rvec3vec_t RKBS_Evaluator::Gradient(const rvec3_t& r) const
 {
     rvec3vec_t ret(size());
     double mr=norm(r);
