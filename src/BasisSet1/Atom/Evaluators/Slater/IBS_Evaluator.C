@@ -3,7 +3,7 @@ module;
 #include <iosfwd>
 #include <blaze/Math.h>
 export module qchem.BasisSet.Atom.Evaluators.Slater.IBS;
-export import qchem.BasisSet.Atom.Evaluators.Internal.Exponential_IBS_Evaluator;
+export import qchem.BasisSet.Atom.Evaluators.Internal.ExponentialEvaluator;
 import qchem.BasisSet.Atom.Evaluators.Slater.Internal.Integrals; 
 import qchem.BasisSet.Atom.Evaluators.Slater.Internal.Rk; 
 import qchem.BasisSet.Atom.Evaluators.Concepts;
@@ -16,18 +16,18 @@ import qchem.Symmetry.Yl;
 export namespace BasisSet::Atom::Evaluators::Slater
 {
 
-class Slater_IBS_Evaluator : public Exponential_IBS_Evaluator
+class Evaluator : public ExponentialEvaluator
 {
 public: 
-    Slater_IBS_Evaluator(const rvec_t& es, int l, const ivec_t& mls) : Exponential_IBS_Evaluator(es,l,mls) {ns=norms();}
-    Slater_IBS_Evaluator(const rvec_t& es, int l) : Slater_IBS_Evaluator(es,l,{}) {}
-    Slater_IBS_Evaluator(const rvec_t& es, const Irrep_QNs::sym_t& ir, size_t ltrim=0) : Exponential_IBS_Evaluator(es,ir,ltrim) {ns=norms();}
-    Slater_IBS_Evaluator(size_t N, double emin, double emax, const Irrep_QNs::sym_t& ir) 
-    : Exponential_IBS_Evaluator(exponents(N,emin,emax,ir),ir) {ns=norms();}
+    Evaluator(const rvec_t& es, int l, const ivec_t& mls) : ExponentialEvaluator(es,l,mls) {ns=norms();}
+    Evaluator(const rvec_t& es, int l) : Evaluator(es,l,{}) {}
+    Evaluator(const rvec_t& es, const Irrep_QNs::sym_t& ir, size_t ltrim=0) : ExponentialEvaluator(es,ir,ltrim) {ns=norms();}
+    Evaluator(size_t N, double emin, double emax, const Irrep_QNs::sym_t& ir) 
+    : ExponentialEvaluator(exponents(N,emin,emax,ir),ir) {ns=norms();}
    
-    Slater_IBS_Evaluator Rescale(double scale_factor) const
+    Evaluator Rescale(double scale_factor) const
     {
-        return Slater_IBS_Evaluator(scale_factor*es,0);
+        return Evaluator(scale_factor*es,0);
     }
     virtual std::ostream& Write   (std::ostream&) const;
     double Overlap(size_t i,size_t j) const
@@ -42,7 +42,7 @@ public:
         double Term3=es[i]*es[j]*::Slater::Integral(ab,2*l);
         return (Term1+Term2+Term3)*ns[i]*ns[j];
     } 
-    double Grad2(size_t i,size_t j,const Slater_IBS_Evaluator& b) const
+    double Grad2(size_t i,size_t j,const Evaluator& b) const
     {
         assert(l==b.l);
         double ab=es[i]+b.es[j];
@@ -59,17 +59,17 @@ public:
     {
         return ::Slater::Integral(es[i]+es[j],2*l-2)*ns[i]*ns[j]; //Already has 4*Pi
     } 
-    double Inv_r2(size_t i,size_t j,const Slater_IBS_Evaluator& b) const
+    double Inv_r2(size_t i,size_t j,const Evaluator& b) const
     {
         assert(l==b.l);
         return ::Slater::Integral(es[i]+b.es[j],2*l-2)*ns[i]*b.ns[j]; //Already has 4*Pi
     } 
 
-    double Overlap(size_t i,size_t j, const Slater_IBS_Evaluator& c, size_t ic) const
+    double Overlap(size_t i,size_t j, const Evaluator& c, size_t ic) const
     {
         return ::Slater::Integral(es[i]+es[j]+c.es[ic],2*l+c.l)*ns[i]*ns[j]*c.ns[ic]; //Already has 4*Pi and r^2 from dr.
     } 
-    double Repulsion(size_t i,size_t j, const Slater_IBS_Evaluator& c, size_t ic) const
+    double Repulsion(size_t i,size_t j, const Evaluator& c, size_t ic) const
     {
         ::Slater::RkEngine cd(es[i]+es[j],c.es[ic],std::max(l,c.l));
         return cd.Coulomb_R0(l,c.l)*FourPi2*ns[i]*ns[j]*c.ns[ic];
@@ -79,7 +79,7 @@ public:
         ::Slater::RkEngine cd(es[i],es[j],l);
         return cd.Coulomb_R0(l,l)*FourPi2*ns[i]*ns[j];
     }
-    double Repulsion(size_t i,size_t j, const Slater_IBS_Evaluator& b) const
+    double Repulsion(size_t i,size_t j, const Evaluator& b) const
     {
         ::Slater::RkEngine cd(es[i],b.es[j],std::max(l,b.l));
         return cd.Coulomb_R0(l,b.l)*FourPi2*ns[i]*b.ns[j];
@@ -128,12 +128,12 @@ protected:
     }
 };
 
-static_assert(isGeneric_Evaluator<Slater_IBS_Evaluator>);
-static_assert(is1E_Evaluator     <Slater_IBS_Evaluator>);
-static_assert(isFit_Evaluator    <Slater_IBS_Evaluator>);
-static_assert(isDFT_Evaluator    <Slater_IBS_Evaluator>);
-static_assert(isRKBL_Evaluator   <Slater_IBS_Evaluator>);
-static_assert(isHF_Evaluator     <Slater_IBS_Evaluator>);
+static_assert(isGeneric_Evaluator<Evaluator>);
+static_assert(is1E_Evaluator     <Evaluator>);
+static_assert(isFit_Evaluator    <Evaluator>);
+static_assert(isDFT_Evaluator    <Evaluator>);
+static_assert(isRKBL_Evaluator   <Evaluator>);
+static_assert(isHF_Evaluator     <Evaluator>);
 
 class Slater_Cache4 : public  Cache4
 {
@@ -142,7 +142,7 @@ public:
     virtual void Register(Cache4_Client * eval)
     {
         assert(eval);
-        Slater_IBS_Evaluator* geval=dynamic_cast<Slater_IBS_Evaluator*>(eval);
+        Evaluator* geval=dynamic_cast<Evaluator*>(eval);
         geval->Register(&grouper);
         //
         //  At this point we need sweep through all Cacheable* (Rks) in Cache4::cache_t
@@ -164,12 +164,12 @@ private:
     ExponentGrouper grouper;
 };
 
-class Slater_RKBS_IBS_Evaluator : public Slater_IBS_Evaluator
+class Slater_RKBS_IBS_Evaluator : public Evaluator
 {
 public:
-    Slater_RKBS_IBS_Evaluator(const rvec_t& es, int _kappa, int l,const ivec_t& mls) : Slater_IBS_Evaluator(es,l,mls), kappa(_kappa) {ns=norms();}
+    Slater_RKBS_IBS_Evaluator(const rvec_t& es, int _kappa, int l,const ivec_t& mls) : Evaluator(es,l,mls), kappa(_kappa) {ns=norms();}
     Slater_RKBS_IBS_Evaluator(const rvec_t& es, int _kappa, int l) : Slater_RKBS_IBS_Evaluator(es,_kappa,l,{}) {}
-    Slater_RKBS_IBS_Evaluator(size_t N, double emin, double emax, int _kappa, int l): Slater_IBS_Evaluator(N,emin,emax,Irrep_QNs::sym_t(new Yl_Sym(0))), kappa(_kappa) {ns=norms();}
+    Slater_RKBS_IBS_Evaluator(size_t N, double emin, double emax, int _kappa, int l): Evaluator(N,emin,emax,Irrep_QNs::sym_t(new Yl_Sym(0))), kappa(_kappa) {ns=norms();}
     rvec_t norms() const; //assumes es,l are already initialized
 
     double Inv_r1(size_t i,size_t j) const

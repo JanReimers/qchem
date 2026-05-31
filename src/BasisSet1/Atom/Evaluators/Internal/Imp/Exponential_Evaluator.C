@@ -4,13 +4,13 @@ module;
 #include <iostream>
 #include <blaze/math/DynamicVector.h>
 
-module qchem.BasisSet.Atom.Evaluators.Internal.Exponential_IBS_Evaluator;
+module qchem.BasisSet.Atom.Evaluators.Internal.ExponentialEvaluator;
 import qchem.Math;
 
 namespace BasisSet::Atom::Evaluators
 {
 
-void Exponential_IBS_Evaluator::Register(Grouper* _grouper)
+void ExponentialEvaluator::Register(Grouper* _grouper)
 {
     assert(_grouper);
     auto grouper=static_cast<ExponentGrouper*>(_grouper);
@@ -19,7 +19,7 @@ void Exponential_IBS_Evaluator::Register(Grouper* _grouper)
     // std::cout << "es_indices=" << es_indices << std::endl;
 }
 
-std::string Exponential_IBS_Evaluator::RadialID () const
+std::string ExponentialEvaluator::RadialID () const
 {
     std::ostringstream os;
     if (isEvenTempered)
@@ -37,7 +37,7 @@ std::string Exponential_IBS_Evaluator::RadialID () const
     return os.str();
 }
 
-bool Exponential_IBS_Evaluator::EvenTempered(const rvec_t& es)
+bool ExponentialEvaluator::EvenTempered(const rvec_t& es)
 {
     bool et=true;
     if (es.size()>1)

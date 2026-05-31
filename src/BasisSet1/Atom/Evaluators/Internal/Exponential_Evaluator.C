@@ -2,20 +2,20 @@
 module;
 #include <string>
 #include <blaze/math/views/Subvector.h>
-export module qchem.BasisSet.Atom.Evaluators.Internal.Exponential_IBS_Evaluator;
+export module qchem.BasisSet.Atom.Evaluators.Internal.ExponentialEvaluator;
 export import qchem.BasisSet.Atom.Evaluators.IBS;
 
 export namespace BasisSet::Atom::Evaluators
 {
     
-class Exponential_IBS_Evaluator : public IBS_Evaluator
+class ExponentialEvaluator : public IBS_Evaluator
 {
 public:
-    Exponential_IBS_Evaluator(const   rvec_t& _es, int l, const ivec_t& mls) 
+    ExponentialEvaluator(const   rvec_t& _es, int l, const ivec_t& mls) 
         : IBS_Evaluator(l,mls), es(_es )
         , isEvenTempered(EvenTempered(es))
         {};
-    Exponential_IBS_Evaluator(const   rvec_t& _es, const Irrep_QNs::sym_t& ir, size_t ltrim=0) 
+    ExponentialEvaluator(const   rvec_t& _es, const Irrep_QNs::sym_t& ir, size_t ltrim=0) 
         : IBS_Evaluator(ir), es() 
         , isEvenTempered(EvenTempered(es))
         {
@@ -27,7 +27,7 @@ public:
             size_t n=_es.size()-nfront-nback;
             es=blaze::subvector(_es,nfront,n);
         };
-    virtual ~Exponential_IBS_Evaluator() {}; //g++ 15.2 BUG Compiler implemented destructor not created with -O2.
+    virtual ~ExponentialEvaluator() {}; //g++ 15.2 BUG Compiler implemented destructor not created with -O2.
     virtual void Register(Grouper*); //Set up unique spline or exponent indexes.
     virtual std::string RadialID () const;
 

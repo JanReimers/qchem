@@ -1,4 +1,4 @@
-// File: BasisSet/Atom/radial/Imp/Slater_IBS_Evaluator.C
+// File: BasisSet/Atom/radial/Imp/Evaluator.C
 module;
 #include <cassert>
 #include <iostream>
@@ -19,24 +19,24 @@ namespace BasisSet::Atom::Evaluators::Slater
 //  Start member functions.
 //
 
-std::string Slater_IBS_Evaluator::Name() const
+std::string Evaluator::Name() const
 {
     return "SL ";
 }
-std::string Slater_IBS_Evaluator::RadialType() const
+std::string Evaluator::RadialType() const
 {
     std::ostringstream os;
     os << "SL";
     return os.str();
 }
 
-Cache4*    Slater_IBS_Evaluator::MakeCache4() const
+Cache4*    Evaluator::MakeCache4() const
 {
     return new Slater_Cache4();
 }
 
 
-rvec_t Slater_IBS_Evaluator::exponents(size_t N, double emin, double emax, const Irrep_QNs::sym_t& ir)
+rvec_t Evaluator::exponents(size_t N, double emin, double emax, const Irrep_QNs::sym_t& ir)
 {
     size_t LMax=3; //TODO how do we get the real LMax(Z) into this?
     ::Slater::ExponentScaler ss(N,emin,emax,LMax);
@@ -44,7 +44,7 @@ rvec_t Slater_IBS_Evaluator::exponents(size_t N, double emin, double emax, const
 }
 
 
-rvec_t Slater_IBS_Evaluator::norms() const
+rvec_t Evaluator::norms() const
 {
     size_t N=es.size();    
     rvec_t ret(N);
@@ -56,12 +56,12 @@ rvec_t Slater_IBS_Evaluator::norms() const
 
 
 
-rvec_t Slater_IBS_Evaluator::operator() (const rvec3_t& r) const
+rvec_t Evaluator::operator() (const rvec3_t& r) const
 {
     return slater(norm(r),l,es,ns);
 }
 
-rvec3vec_t Slater_IBS_Evaluator::Gradient(const rvec3_t& r) const
+rvec3vec_t Evaluator::Gradient(const rvec3_t& r) const
 {
     rvec3vec_t ret(size());
     double mr=norm(r);
@@ -84,7 +84,7 @@ rvec3vec_t Slater_IBS_Evaluator::Gradient(const rvec3_t& r) const
 }
 
 
-std::ostream&  Slater_IBS_Evaluator::Write(std::ostream& os) const
+std::ostream&  Evaluator::Write(std::ostream& os) const
 {
     return os << " with " << size() << " basis functions, alpha={" << es[0] << " ... " << es[size()-1] << "}" << std::endl;
 }

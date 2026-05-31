@@ -3,7 +3,7 @@ module;
 #include <iosfwd>
 #include <blaze/Math.h>
 export module qchem.BasisSet.Atom.Evaluators.Gaussian.IBS; 
-import qchem.BasisSet.Atom.Evaluators.Internal.Exponential_IBS_Evaluator;
+import qchem.BasisSet.Atom.Evaluators.Internal.ExponentialEvaluator;
 import qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.GaussianIntegrals; 
 import qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.Rk; 
 import qchem.BasisSet.Atom.Evaluators.Concepts;
@@ -15,15 +15,15 @@ import qchem.BasisSet.Internal.Cache4;
 
 export namespace BasisSet::Atom::Evaluators::Gaussian
 {
-class Gaussian_IBS_Evaluator : public Exponential_IBS_Evaluator
+class Gaussian_IBS_Evaluator : public ExponentialEvaluator
 {
 public: 
  
-    Gaussian_IBS_Evaluator(const rvec_t& es, int l, const ivec_t& mls) : Exponential_IBS_Evaluator(es,l,mls) {ns=norms();}
+    Gaussian_IBS_Evaluator(const rvec_t& es, int l, const ivec_t& mls) : ExponentialEvaluator(es,l,mls) {ns=norms();}
     Gaussian_IBS_Evaluator(const rvec_t& es, int l) : Gaussian_IBS_Evaluator(es,l,{}) {}
-    Gaussian_IBS_Evaluator(const rvec_t& es, const Irrep_QNs::sym_t& ir, size_t ltrim=0) : Exponential_IBS_Evaluator(es,ir,ltrim) {ns=norms();}
+    Gaussian_IBS_Evaluator(const rvec_t& es, const Irrep_QNs::sym_t& ir, size_t ltrim=0) : ExponentialEvaluator(es,ir,ltrim) {ns=norms();}
     Gaussian_IBS_Evaluator(size_t N, double emin, double emax, const Irrep_QNs::sym_t& ir) 
-    : Exponential_IBS_Evaluator(exponents(N,emin,emax,ir),ir) {ns=norms();}
+    : ExponentialEvaluator(exponents(N,emin,emax,ir),ir) {ns=norms();}
 
     Gaussian_IBS_Evaluator Rescale(double scale_factor) const
     {

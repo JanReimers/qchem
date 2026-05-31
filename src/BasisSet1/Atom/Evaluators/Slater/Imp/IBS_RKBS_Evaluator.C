@@ -1,4 +1,4 @@
-// File: BasisSet/Atom/radial/Imp/Slater_IBS_Evaluator.C
+// File: BasisSet/Atom/radial/Imp/Evaluator.C
 module;
 #include <cassert>
 #include <blaze/math/DynamicVector.h>
@@ -17,7 +17,7 @@ std::string Slater_RKBS_IBS_Evaluator::Name() const
 
 rvec_t Slater_RKBS_IBS_Evaluator::norms() const
 {
-    return Slater_IBS_Evaluator::norms()/(2*c_light);
+    return Evaluator::norms()/(2*c_light);
 }
 
 rvec_t Slater_RKBS_IBS_Evaluator::eval(const rvec3_t& r) const
