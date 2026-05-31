@@ -4,6 +4,7 @@ module;
 #include <cassert>
 #include <vector> 
 #include <fstream>
+#include <set>
 #include <nlohmann/json.hpp>
 
 module Common.PeriodicTable;
@@ -35,6 +36,7 @@ OrbitalRecordSaito::OrbitalRecordSaito(nlohmann::json& j) : Symbol(j["name"]),En
         r_moments.push_back(r);
 }
 
+std::set<size_t> fullShells({2,10,18,36,54,86,118});
 
 ElementRecordSaito::ElementRecordSaito(nlohmann::json& j) : Z(j["Z"]), Symbol(j["symbol"]),  ValConfigString(j["valance"]), Term(j["term"]), MaxL(0), EnergyHF(j["HFEnergy"])
 {
@@ -70,15 +72,16 @@ ElementRecordSaito::ElementRecordSaito(nlohmann::json& j) : Z(j["Z"]), Symbol(j[
     ValConfig[1]=stoi(nps);
     ValConfig[2]=stoi(nds);
     ValConfig[3]=stoi(nfs);
-    for (size_t l:iv_t(0,4))
-    {
-        assert(ValConfig[l]<=2*(2*l+1));
-        if (l>0 && ValConfig[l]==2*(2*l+1)) ValConfig[l]=0; //Clear out full shells.
-    }
 
     if (Z>4) MaxL=1;
     if (Z>20) MaxL=2;
     if (Z>57) MaxL=3;
+
+    for (size_t l:iv_t(0,4))
+    {
+        assert(ValConfig[l]<=2*(2*l+1));
+        if (fullShells.find(Z)!=fullShells.end()) ValConfig[l]=0; //Clear out full shells.
+    }
 }
 
 

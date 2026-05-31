@@ -67,9 +67,9 @@ TEST_F(PeriodicTableTests,PeriodicTableSaito)
         if (Z!=58) //The ground state configuration for Ce is controversial.
             EXPECT_EQ(pt.GetNumUnpairedElectrons(Z),pts.GetNumUnpairedElectrons(Z));
         EXPECT_EQ(pt.GetMaxL(Z),pts.GetMaxL(Z));
-        // for (size_t l:iv_t(0,3+1))
-        // {
-        //      EXPECT_EQ(pt.GetValanceConfiguration(Z)[l],pts.GetValanceConfiguration(Z)[l]);
-        // }
+        for (size_t l:iv_t(0,3+1))
+        {
+            EXPECT_EQ(pt.GetValanceConfiguration(Z)[l],pts.GetValanceConfiguration(Z)[l]);
+        }
     }
 }
