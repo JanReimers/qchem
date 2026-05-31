@@ -1,4 +1,4 @@
-// File: BasisSet1/Atom/Evaluators/BSpline/IBS_Evaluator_r.C
+// File: BasisSet1/Atom/Evaluators/BSpline/Evaluator_r.C
 module;
 #include <bspline/Core.h>
 #include <cassert>
@@ -82,8 +82,8 @@ public:
         return 1.0/sqrt(BilinearForm{IdentityOperator{}}(splines[i],splines[i])*FourPi);
     }
     
-    using Evaluators::IBS_Evaluator::Norm;
-    using Evaluators::IBS_Evaluator::size;
+    using Evaluators::Evaluator::Norm;
+    using Evaluators::Evaluator::size;
 
     virtual rvec_t     operator() (const rvec3_t&) const;
     virtual rvec3vec_t Gradient   (const rvec3_t&) const;

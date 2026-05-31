@@ -1,4 +1,4 @@
-// File: BasisSet/Atom/Gaussian/NR/Imp/IBS_Evaluator.C
+// File: BasisSet/Atom/Gaussian/NR/Imp/Evaluator.C
 module;
 #include <cassert>
 #include <iostream>

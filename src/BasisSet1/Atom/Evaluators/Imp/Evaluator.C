@@ -7,7 +7,7 @@ import qchem.BasisSet.Atom.Evaluators.Internal.AngularIntegrals;
 
 namespace BasisSet::Atom::Evaluators
 {
-IBS_Evaluator::IBS_Evaluator(const Irrep_QNs::sym_t& y) :  l(0), mls({}),ns(0),grouper(0)
+Evaluator::Evaluator(const Irrep_QNs::sym_t& y) :  l(0), mls({}),ns(0),grouper(0)
 {
     const Yl_Sym* yl=dynamic_cast<const Yl_Sym*>(y.get());
     assert(yl);
@@ -18,7 +18,7 @@ IBS_Evaluator::IBS_Evaluator(const Irrep_QNs::sym_t& y) :  l(0), mls({}),ns(0),g
         mls=ylm->Getmls();
     }
 }
-std::string IBS_Evaluator::AngularID() const
+std::string Evaluator::AngularID() const
 {
      std::ostringstream os;
      os << l << " {";
@@ -27,11 +27,11 @@ std::string IBS_Evaluator::AngularID() const
      return os.str();
 }
 
-rvec11_t IBS_Evaluator::Coulomb_AngularIntegrals(const IBS_Evaluator& a,const IBS_Evaluator& c)
+rvec11_t Evaluator::Coulomb_AngularIntegrals(const Evaluator& a,const Evaluator& c)
 {
     rvec11_t Ak(0.0);
     int la=a.Getl(),lc=c.Getl();
-    const IBS_Evaluator::ivec_t& amls=a.Getmls(),cmls=c.Getmls();
+    const Evaluator::ivec_t& amls=a.Getmls(),cmls=c.Getmls();
     size_t nac=amls.size()*cmls.size();
     size_t g=(2*la+1)*(2*lc+1); //degenracy
     if (nac==g || nac==0)
@@ -49,11 +49,11 @@ rvec11_t IBS_Evaluator::Coulomb_AngularIntegrals(const IBS_Evaluator& a,const IB
     }
     return Ak;
 }
-rvec11_t IBS_Evaluator::ExchangeAngularIntegrals(const IBS_Evaluator& a,const IBS_Evaluator& b)
+rvec11_t Evaluator::ExchangeAngularIntegrals(const Evaluator& a,const Evaluator& b)
 {
     rvec11_t Ak(0.0);
     int la=a.Getl(),lb=b.Getl();
-    const IBS_Evaluator::ivec_t& amls=a.Getmls(),bmls=b.Getmls();
+    const Evaluator::ivec_t& amls=a.Getmls(),bmls=b.Getmls();
     size_t nab=amls.size()*bmls.size();
     size_t g=(2*la+1)*(2*lb+1); //degenracy
     if (nab==0 || nab==g)

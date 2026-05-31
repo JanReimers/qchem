@@ -42,7 +42,7 @@ public:
         return GetGrouper(gc).maxls;
     }
 
-    const std::vector<size_t>& es_indices(const IBS_Evaluator* e)
+    const std::vector<size_t>& es_indices(const Evaluator* e)
     {
         return e->es_indices;
     }

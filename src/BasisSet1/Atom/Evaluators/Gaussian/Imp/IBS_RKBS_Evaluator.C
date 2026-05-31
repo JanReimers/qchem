@@ -1,4 +1,4 @@
-// File: BasisSet/Atom/Gaussian/RKB/Imp/IBS_Evaluator.C
+// File: BasisSet/Atom/Gaussian/RKB/Imp/Evaluator.C
 module;
 #include <cassert>
 #include <blaze/math/DynamicVector.h>

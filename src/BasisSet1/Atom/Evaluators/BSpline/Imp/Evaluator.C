@@ -1,4 +1,4 @@
-// File: src/BasisSet1/Atom/Evaluators/BSpline/Imp/IBS_Evaluator.C
+// File: src/BasisSet1/Atom/Evaluators/BSpline/Imp/Evaluator.C
 module;
 #include <bspline/Core.h>
 #include <cassert>

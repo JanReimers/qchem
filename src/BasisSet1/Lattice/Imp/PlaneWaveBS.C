@@ -24,7 +24,7 @@ namespace PlaneWave
 
 IrrepBasisSet::IrrepBasisSet(ivec3_t N, rvec3_t k, const std::valarray<ivec3_t>& Gs,double V)
     : IrrepBasisSet_Common<dcmplx>(new BlochQN(N,k))
-    , IBS_Evaluator(k,Gs,1.0/sqrt(V))
+    , Evaluator(k,Gs,1.0/sqrt(V))
 {
     // for (auto G:Gs) Insert(new PlaneWave::BasisFunction(G+k,norm));
 }

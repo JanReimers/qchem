@@ -26,7 +26,7 @@ std::ostream& operator<<(std::ostream& os, const bspline::Grid<double>& grid)
 }
 
 
-template <size_t K> class EvaluatorCommon : public Evaluators::IBS_Evaluator
+template <size_t K> class EvaluatorCommon : public Evaluators::Evaluator
 {
 protected:
     typedef bspline::Spline<double, K> spline_t;

@@ -1,4 +1,4 @@
-// File: BasisSet1/Atom/Evaluators/BSpline/Internal/Imp/IBS_EvaluatorCommon.C
+// File: BasisSet1/Atom/Evaluators/BSpline/Internal/Imp/EvaluatorCommon.C
 module;
 #include <vector>
 #include <bspline/Core.h>
@@ -12,7 +12,7 @@ namespace BasisSet::Atom::Evaluators::BSpline::Internal
 {
 
 template <size_t K> EvaluatorCommon<K>::EvaluatorCommon(size_t Ngrid, double _rmin, double _rmax,const Irrep_QNs::sym_t& ylm) 
-: IBS_Evaluator(ylm)
+: Evaluator(ylm)
 , rmin(_rmin), rmax(_rmax) , itsGrid({0,1})
 {
     knots=MakeLogKnots(Ngrid,rmin,rmax);

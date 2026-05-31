@@ -1,4 +1,4 @@
-// File: BasisSet1/Atom/Evaluators/Gaussian/IBS_Evaluator.C
+// File: BasisSet1/Atom/Evaluators/Gaussian/Evaluator.C
 module;
 #include <iosfwd>
 #include <blaze/Math.h>
@@ -138,7 +138,7 @@ static_assert(isHF_Evaluator     <Evaluator>);
 class Gaussian_Cache4 : public  Cache4
 {
 public:
-    // using IBS_Evaluator_t = Evaluator;
+    // using Evaluator_t = Evaluator;
     virtual void Register(Cache4_Client * eval)
     {
         assert(eval);

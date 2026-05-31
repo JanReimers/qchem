@@ -1,8 +1,8 @@
-// File: BasisSet/Lattice/Internal/IBS_Evaluator.C Evaluate functions and integrals for plane waves.
+// File: BasisSet/Lattice/Internal/Evaluator.C Evaluate functions and integrals for plane waves.
 module;
 #include <valarray>
 #include <complex>
-export module qchem.BasisSet.Lattice.Internal.IBS_Evaluator;
+export module qchem.BasisSet.Lattice.Internal.Evaluator;
 export import qchem.VectorFunction;
 export import qchem.Types;
 
@@ -10,10 +10,10 @@ export import qchem.Types;
 export namespace PlaneWave
 {
 
-struct IBS_Evaluator : public virtual VectorFunction<dcmplx>
+struct Evaluator : public virtual VectorFunction<dcmplx>
 {
 
-    IBS_Evaluator(rvec3_t _k,const std::valarray<ivec3_t>& _Gs,double _norm)
+    Evaluator(rvec3_t _k,const std::valarray<ivec3_t>& _Gs,double _norm)
         : k(_k), Gs(torvec(_Gs)), norm(_norm)
         {}
 
@@ -28,7 +28,7 @@ struct IBS_Evaluator : public virtual VectorFunction<dcmplx>
 
 };
 
-IBS_Evaluator::Vec IBS_Evaluator::operator() (const rvec3_t& r) const
+Evaluator::Vec Evaluator::operator() (const rvec3_t& r) const
 {
     std::valarray<dcmplx> ephi(size());
     size_t n=0;

@@ -1,4 +1,4 @@
-// File: BasisSet/Atom/IBS_Evaluator.C
+// File: BasisSet/Atom/Evaluator.C
 module;
 #include <vector>
 #include <iosfwd>
@@ -18,7 +18,7 @@ export namespace BasisSet::Atom::Evaluators
 using dERI3=ERI3<double>;
 
 
-class IBS_Evaluator 
+class Evaluator 
     : public virtual Cache4_Client
     , public VectorFunction<double>
 {
@@ -26,9 +26,9 @@ public:
     using ivec_t=std::vector<int>;
     
 
-    IBS_Evaluator(int _l, const ivec_t& _mls) : l(_l), mls(_mls),ns(0),grouper(0) {};
-    IBS_Evaluator(const Irrep_QNs::sym_t& ylm);
-    virtual ~IBS_Evaluator() {};
+    Evaluator(int _l, const ivec_t& _mls) : l(_l), mls(_mls),ns(0),grouper(0) {};
+    Evaluator(const Irrep_QNs::sym_t& ylm);
+    virtual ~Evaluator() {};
 
     virtual void          Register     (Grouper*)=0; //Set up unique spline or exponent indexes.
     virtual size_t        size         () const {return ns.size();}
@@ -48,8 +48,8 @@ public:
     virtual std::string AngularID() const;
     virtual std::string Name     () const=0;
 
-    static rvec11_t Coulomb_AngularIntegrals(const IBS_Evaluator& a,const IBS_Evaluator& c);
-    static rvec11_t ExchangeAngularIntegrals(const IBS_Evaluator& a,const IBS_Evaluator& b);
+    static rvec11_t Coulomb_AngularIntegrals(const Evaluator& a,const Evaluator& c);
+    static rvec11_t ExchangeAngularIntegrals(const Evaluator& a,const Evaluator& b);
 protected:
     friend class Cache4Tests;
 

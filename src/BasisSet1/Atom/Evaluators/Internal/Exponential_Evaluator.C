@@ -8,15 +8,15 @@ export import qchem.BasisSet.Atom.Evaluators.IBS;
 export namespace BasisSet::Atom::Evaluators
 {
     
-class ExponentialEvaluator : public IBS_Evaluator
+class ExponentialEvaluator : public Evaluator
 {
 public:
     ExponentialEvaluator(const   rvec_t& _es, int l, const ivec_t& mls) 
-        : IBS_Evaluator(l,mls), es(_es )
+        : Evaluator(l,mls), es(_es )
         , isEvenTempered(EvenTempered(es))
         {};
     ExponentialEvaluator(const   rvec_t& _es, const Irrep_QNs::sym_t& ir, size_t ltrim=0) 
-        : IBS_Evaluator(ir), es() 
+        : Evaluator(ir), es() 
         , isEvenTempered(EvenTempered(es))
         {
             assert(ltrim<5);
