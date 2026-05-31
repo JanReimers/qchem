@@ -11,7 +11,7 @@ import qchem.Math;
 using qchem::SCFAccelerators::SCFAccelerator;
 
 PeriodicTableSaito QchemTester::itsPT;
-PeriodicTable QchemTester::itsPTold; //need this just for DFT energies
+PeriodicTable QchemTester::itsPTold; //need this just for DFT alpha exchange values 
 
 QchemTester::QchemTester()
 : itsCluster(0)
@@ -140,7 +140,7 @@ double QchemTester::RelativeHFError(bool quiet) const
 
 double QchemTester::RelativeDFTError(bool quiet) const
 {
-    double E_DFT=itsPTold.GetEnergyDFT(itsCluster->GetNuclearCharge());
+    double E_DFT=itsPT.GetEnergyDFT(itsCluster->GetNuclearCharge());
     return RelativeError(E_DFT,quiet);
 }
 

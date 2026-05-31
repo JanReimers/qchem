@@ -66,15 +66,19 @@ def main():
         ["/home/janr/Code/qchem6/doc/NIST-dftdata-tar/dftdata/ScRLDA/neutrals","doc/nistScRLDA.json"]
            ]
     for path in paths:
+        
         out=open(path[1], 'w')
         inpath=Path(path[0])
-        for p in inpath.iterdir():
+        data={}
+        for p in inpath.iterdir():    
             if p.is_file():
                 print(f"Reading element: {p.name[2:]}")
-                data = read_dft_data(p)
-                data["Z"]=p.name[:2]
-                data["Symbol"]=p.name[2:]
-                json.dump(data, out, indent=2)
+                e = read_dft_data(p)
+                Z=int(p.name[:2])
+                e["Symbol"]=p.name[2:]
+                e["Z"]=Z
+                data[Z]=e
+        json.dump(data, out, indent=2)
 
 
     # input_file = Path("/home/janr/Code/qchem6/doc/NIST-dftdata-tar/dftdata/LDA/neutrals/58Ce")

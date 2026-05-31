@@ -53,7 +53,8 @@ export
     {
         OrbitalRecordSaito(nlohmann::json& j);
         std::string Symbol;
-        double      Energy;
+        double  Energy_HF;
+        double  Energy_DFT;
         std::vector<double> r_moments; //<r^2>, <r^1>, <r^-1>, <r^-2>, <r^-3>, 
     };
 
@@ -68,7 +69,8 @@ export
         size_t      NUnpaired;
         size_t      MaxL;
         size_t      ValConfig[4]; //spdf
-        double      EnergyHF;     //Saito, Shiro L. Hartree–Fock–Roothaan energies and expectation values for the neutral atoms He to Uuo: The B-spline expansion method, Atomic Data and Nuclear Data Tables, 95,6, 836--870
+        double      Energy_HF;  //Saito, Shiro L. Hartree–Fock–Roothaan energies and expectation values for the neutral atoms He to Uuo: The B-spline expansion method, Atomic Data and Nuclear Data Tables, 95,6, 836--870
+        double      Energy_DFT; //NIST https://math.nist.gov/DFTdata/atomdata/tables/ptable.html
         std::vector<OrbitalRecordSaito> Orbitals;
     };
 
@@ -80,8 +82,8 @@ export
         public:
         PeriodicTableSaito();
         std::string GetSymbol(size_t Z) const {return get(Z).Symbol;}
-        double GetEnergyHF            (size_t Z) const {return get(Z).EnergyHF;}
-        // double GetEnergyDFT           (int Z) const;
+        double GetEnergyHF            (size_t Z) const {return get(Z).Energy_HF;}
+        double GetEnergyDFT           (size_t Z) const {return get(Z).Energy_DFT;}
         double GetNumUnpairedElectrons(size_t Z) const {return get(Z).NUnpaired;}
         int    GetMaxL                (size_t Z) const {return get(Z).MaxL;}
         const size_t*   GetValanceConfiguration(size_t Z) const {return &(get(Z).ValConfig[0]);}

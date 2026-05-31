@@ -4,6 +4,7 @@ module;
 #include <cassert>
 #include <vector> 
 #include <fstream>
+#include <iostream>
 #include <set>
 #include <nlohmann/json.hpp>
 
@@ -13,7 +14,7 @@ module Common.PeriodicTable;
 std::ostream& operator<<(std::ostream& os, const OrbitalRecordSaito& o)
 {
     os << std::fixed;
-    os << "    " << o.Symbol << " " << std::setw(14) << std::setprecision(11) << o.Energy;
+    os << "    " << o.Symbol << " " << std::setw(14) << std::setprecision(11) << o.Energy_HF;
     os << std::fixed;
     for (auto r:o.r_moments)
         os << " " << std::setw(11) << std::setprecision(6) << r;
@@ -23,14 +24,14 @@ std::ostream& operator<<(std::ostream& os, const OrbitalRecordSaito& o)
 std::ostream& operator<<(std::ostream& os, const ElementRecordSaito& e)
 {
     os << e.Symbol << "(" << e.Z << ") " << e.ValConfigString << " " << e.Term 
-    << " E_HF=" << std::setw(14) << std::setprecision(6) << e.EnergyHF 
+    << " E_HF=" << std::setw(14) << std::setprecision(6) << e.Energy_HF 
     << " NUnpaired=" << e.NUnpaired << std::endl;
     // for (auto o:e.Orbitals)
     //     os << o << std::endl;
     return os;
 }
 
-OrbitalRecordSaito::OrbitalRecordSaito(nlohmann::json& j) : Symbol(j["name"]),Energy(j["e"])
+OrbitalRecordSaito::OrbitalRecordSaito(nlohmann::json& j) : Symbol(j["name"]),Energy_HF(j["e"])
 {
     for (auto r:j["rs"])
         r_moments.push_back(r);
@@ -38,7 +39,7 @@ OrbitalRecordSaito::OrbitalRecordSaito(nlohmann::json& j) : Symbol(j["name"]),En
 
 std::set<size_t> fullShells({2,10,18,36,54,86,118});
 
-ElementRecordSaito::ElementRecordSaito(nlohmann::json& j) : Z(j["Z"]), Symbol(j["symbol"]),  ValConfigString(j["valance"]), Term(j["term"]), MaxL(0), EnergyHF(j["HFEnergy"])
+ElementRecordSaito::ElementRecordSaito(nlohmann::json& j) : Z(j["Z"]), Symbol(j["symbol"]),  ValConfigString(j["valance"]), Term(j["term"]), MaxL(0), Energy_HF(j["HFEnergy"])
 {
     for (auto o:j["Orbitals"])
         Orbitals.push_back(OrbitalRecordSaito(o));
@@ -87,10 +88,32 @@ ElementRecordSaito::ElementRecordSaito(nlohmann::json& j) : Z(j["Z"]), Symbol(j[
 
 PeriodicTableSaito::PeriodicTableSaito()
 {
-    std::ifstream file("../../../doc/saito.json");
-    assert(file);
-    nlohmann::json jsondata;
-    file >> jsondata;
-    for (auto e:jsondata)
-        elements.push_back(ElementRecordSaito(e));
+    // Read in Saito HF data.
+    {
+        std::ifstream file("../../../doc/saito.json");
+        assert(file);
+        nlohmann::json jsondata;
+        file >> jsondata;
+        for (auto e:jsondata)
+            elements.push_back(ElementRecordSaito(e));
+    }
+    // Read in NIST DFT data
+    {
+        std::ifstream file("../../../doc/nistLDA.json");
+        assert(file);
+        nlohmann::json jsondata;
+        file >> jsondata;
+        for (auto& jse:jsondata)
+        {
+            size_t Z=jse["Z"].template get<size_t>();
+            ElementRecordSaito& e=elements[Z-1];
+            e.Energy_DFT=jse["Etot"].template get<double>();
+            for (auto& o:e.Orbitals)
+            {
+                o.Energy_DFT=jse[o.Symbol].template get<double>();
+            }
+        }
+    }
+
 }
+
