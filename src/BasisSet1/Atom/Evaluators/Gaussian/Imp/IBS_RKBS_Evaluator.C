@@ -17,7 +17,7 @@ std::string Gaussian_RKBS_IBS_Evaluator::Name() const
 
 rvec_t Gaussian_RKBS_IBS_Evaluator::norms() const
 {
-    return Gaussian_IBS_Evaluator::norms()/(2*c_light);
+    return Evaluator::norms()/(2*c_light);
 }
 
 

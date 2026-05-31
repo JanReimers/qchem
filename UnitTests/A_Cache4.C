@@ -182,10 +182,10 @@ TEST_F(Cache4Tests,HF2_BS_Reentry)
 //     // EXPECT_NE(cache,NULL);
 //     // assert(cache);
 
-//     auto s=new Gaussian_IBS_Evaluator({1,2,4,8},0);
-//     auto p=new Gaussian_IBS_Evaluator({.5,1,2.0,4},1);
-//     auto d=new Gaussian_IBS_Evaluator({.25,.5,1.0,2},2);
-//     auto f=new Gaussian_IBS_Evaluator({.25,.5,1.0},3);
+//     auto s=new Evaluator({1,2,4,8},0);
+//     auto p=new Evaluator({.5,1,2.0,4},1);
+//     auto d=new Evaluator({.25,.5,1.0,2},2);
+//     auto f=new Evaluator({.25,.5,1.0},3);
 
 //     cache->Register(s);
 //     cache->Register(p);

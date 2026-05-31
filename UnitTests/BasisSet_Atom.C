@@ -280,19 +280,19 @@ TEST_F(BasisSet_SL,IDs)
 //  Testing atom Gaussian basis set evaluators
 //
 
-class BasisSet_SG: public BasisSet_Common<Gaussian::Gaussian_IBS_Evaluator>
+class BasisSet_SG: public BasisSet_Common<Gaussian::Evaluator>
 {
 public:
 
     BasisSet_SG() : BasisSet_Common()
     {
         // for (size_t l=0;l<=LMax;l++)
-        //     Insert(new Gaussian_IBS_Evaluator(es,l));    
+        //     Insert(new Evaluator(es,l));    
         // bs=new AtomBS::Gaussian::BasisSet(es,LMax);
 
         Atom_EC ec(86); //Radon has f orbtials with no magnetic splitting.
         for (auto ir:ec.GetIrreps())
-            Insert(new Gaussian::Gaussian_IBS_Evaluator(es,ir)); 
+            Insert(new Gaussian::Evaluator(es,ir)); 
         bs=PoolFactory(BasisSetAccuracy::N3,BasisSet::Atom::Type::Gaussian,86);
     }
     static double R0(double a, double b, int la, int lb);

@@ -100,7 +100,7 @@ TEST_F(GaussianRadialIntegralTests,RkSymmetry_l0)
     using namespace BasisSet::Atom::Evaluators::Gaussian;
     typedef rvec11_t rvec11_t; 
     Irrep_QNs::sym_t yl(new Yl_Sym(0));
-    auto eval=new Gaussian_IBS_Evaluator(15,.03,20.0,yl);
+    auto eval=new Evaluator(15,.03,20.0,yl);
     auto cache4=eval->MakeCache4();
     cache4->Register(eval);
     auto ns=eval->Norm();

@@ -15,19 +15,19 @@ import qchem.BasisSet.Internal.Cache4;
 
 export namespace BasisSet::Atom::Evaluators::Gaussian
 {
-class Gaussian_IBS_Evaluator : public ExponentialEvaluator
+class Evaluator : public ExponentialEvaluator
 {
 public: 
  
-    Gaussian_IBS_Evaluator(const rvec_t& es, int l, const ivec_t& mls) : ExponentialEvaluator(es,l,mls) {ns=norms();}
-    Gaussian_IBS_Evaluator(const rvec_t& es, int l) : Gaussian_IBS_Evaluator(es,l,{}) {}
-    Gaussian_IBS_Evaluator(const rvec_t& es, const Irrep_QNs::sym_t& ir, size_t ltrim=0) : ExponentialEvaluator(es,ir,ltrim) {ns=norms();}
-    Gaussian_IBS_Evaluator(size_t N, double emin, double emax, const Irrep_QNs::sym_t& ir) 
+    Evaluator(const rvec_t& es, int l, const ivec_t& mls) : ExponentialEvaluator(es,l,mls) {ns=norms();}
+    Evaluator(const rvec_t& es, int l) : Evaluator(es,l,{}) {}
+    Evaluator(const rvec_t& es, const Irrep_QNs::sym_t& ir, size_t ltrim=0) : ExponentialEvaluator(es,ir,ltrim) {ns=norms();}
+    Evaluator(size_t N, double emin, double emax, const Irrep_QNs::sym_t& ir) 
     : ExponentialEvaluator(exponents(N,emin,emax,ir),ir) {ns=norms();}
 
-    Gaussian_IBS_Evaluator Rescale(double scale_factor) const
+    Evaluator Rescale(double scale_factor) const
     {
-        return Gaussian_IBS_Evaluator(scale_factor*es,0);
+        return Evaluator(scale_factor*es,0);
     }
     virtual std::ostream& Write   (std::ostream&) const;
 
@@ -43,7 +43,7 @@ public:
                 -2*l1 * t      * ::Gaussian::Integral(t,2*l  )
                 +4*es[i]*es[j] * ::Gaussian::Integral(t,2*l+2))*ns[i]*ns[j] ;
     } 
-    double Grad2(size_t i,size_t j, const Gaussian_IBS_Evaluator& b) const
+    double Grad2(size_t i,size_t j, const Evaluator& b) const
     {
         assert(l==b.l);
         double t=es[i]+b.es[j];
@@ -60,16 +60,16 @@ public:
     {
         return ::Gaussian::Integral(es[i]+es[j],2*l-2)*ns[i]*ns[j]; //Already has 4*Pi
     } 
-    double Inv_r2(size_t i,size_t j, const Gaussian_IBS_Evaluator& b) const
+    double Inv_r2(size_t i,size_t j, const Evaluator& b) const
     {
         assert(l==b.l);       
         return ::Gaussian::Integral(es[i]+b.es[j],2*l-2)*ns[i]*b.ns[j]; //Already has 4*Pi
     } 
-    double Overlap(size_t i,size_t j, const Gaussian_IBS_Evaluator& c, size_t ic) const
+    double Overlap(size_t i,size_t j, const Evaluator& c, size_t ic) const
     {
         return ::Gaussian::Integral(es[i]+es[j]+c.es[ic],2*l+c.l)*ns[i]*ns[j]*c.ns[ic]; //Already has 4*Pi and r^2 from dr.
     } 
-    double Repulsion(size_t i,size_t j, const Gaussian_IBS_Evaluator& c, size_t ic) const
+    double Repulsion(size_t i,size_t j, const Evaluator& c, size_t ic) const
     {
         ::Gaussian::RkEngine cd(es[i]+es[j],c.es[ic],std::max(l,c.l));
         return cd.Coulomb_R0(l,c.l)*FourPi2*ns[i]*ns[j]*c.ns[ic];
@@ -79,7 +79,7 @@ public:
         ::Gaussian::RkEngine cd(es[i],es[j],l);
         return cd.Coulomb_R0(l,l)*FourPi2*ns[i]*ns[j];
     }
-    double Repulsion(size_t i,size_t j, const Gaussian_IBS_Evaluator& b) const
+    double Repulsion(size_t i,size_t j, const Evaluator& b) const
     {
         ::Gaussian::RkEngine cd(es[i],b.es[j],std::max(l,b.l));
         return cd.Coulomb_R0(l,b.l)*FourPi2*ns[i]*b.ns[j];
@@ -128,21 +128,21 @@ protected:
     }
 };
 
-static_assert(isGeneric_Evaluator<Gaussian_IBS_Evaluator>);
-static_assert(is1E_Evaluator     <Gaussian_IBS_Evaluator>);
-static_assert(isFit_Evaluator    <Gaussian_IBS_Evaluator>);
-static_assert(isDFT_Evaluator    <Gaussian_IBS_Evaluator>);
-static_assert(isRKBL_Evaluator   <Gaussian_IBS_Evaluator>);
-static_assert(isHF_Evaluator     <Gaussian_IBS_Evaluator>);
+static_assert(isGeneric_Evaluator<Evaluator>);
+static_assert(is1E_Evaluator     <Evaluator>);
+static_assert(isFit_Evaluator    <Evaluator>);
+static_assert(isDFT_Evaluator    <Evaluator>);
+static_assert(isRKBL_Evaluator   <Evaluator>);
+static_assert(isHF_Evaluator     <Evaluator>);
 
 class Gaussian_Cache4 : public  Cache4
 {
 public:
-    // using IBS_Evaluator_t = Gaussian_IBS_Evaluator;
+    // using IBS_Evaluator_t = Evaluator;
     virtual void Register(Cache4_Client * eval)
     {
         assert(eval);
-        Gaussian_IBS_Evaluator* geval=dynamic_cast<Gaussian_IBS_Evaluator*>(eval);
+        Evaluator* geval=dynamic_cast<Evaluator*>(eval);
         geval->Register(&grouper); //Look for new exponents and get indies for exponents in geval.
         //
         //  At this point we need sweep through all Cacheable* (Rks) in Cache4::cache_t
@@ -150,7 +150,7 @@ public:
         //  All unsupport Rks will be removed.  These will then automatically be recreated next time
         //  loop_4 is called.
         //
-        Cache4::Register(eval);
+        ::Cache4::Register(eval);
     }
     virtual Rk*  Create (size_t ia,size_t ic,size_t ib,size_t id) const
     {
@@ -164,12 +164,12 @@ private:
     ExponentGrouper grouper;
 };
 
-class Gaussian_RKBS_IBS_Evaluator : public Gaussian_IBS_Evaluator
+class Gaussian_RKBS_IBS_Evaluator : public Evaluator
 {
 public:
-    Gaussian_RKBS_IBS_Evaluator(const rvec_t& es, int _kappa, int l, const ivec_t& mls) : Gaussian_IBS_Evaluator(es,l,mls), kappa(_kappa) {ns=norms();}
+    Gaussian_RKBS_IBS_Evaluator(const rvec_t& es, int _kappa, int l, const ivec_t& mls) : Evaluator(es,l,mls), kappa(_kappa) {ns=norms();}
     Gaussian_RKBS_IBS_Evaluator(const rvec_t& es, int _kappa, int l) : Gaussian_RKBS_IBS_Evaluator(es,_kappa,l,{}) {}
-    Gaussian_RKBS_IBS_Evaluator(size_t N, double emin, double emax, int _kappa, int l): Gaussian_IBS_Evaluator(N,emin,emax,Irrep_QNs::sym_t(new Yl_Sym(0))), kappa(_kappa) {ns=norms();}
+    Gaussian_RKBS_IBS_Evaluator(size_t N, double emin, double emax, int _kappa, int l): Evaluator(N,emin,emax,Irrep_QNs::sym_t(new Yl_Sym(0))), kappa(_kappa) {ns=norms();}
     virtual rvec_t norms() const; //assumes es,l are already initialized
     double Inv_r1(size_t i,size_t j) const
     {

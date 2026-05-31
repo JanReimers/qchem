@@ -138,7 +138,7 @@ static_assert(isHF_Evaluator     <Evaluator>);
 class Slater_Cache4 : public  Cache4
 {
 public:
-    // using IBS_Evaluator_t = Gaussian_IBS_Evaluator;
+    // using IBS_Evaluator_t = Evaluator;
     virtual void Register(Cache4_Client * eval)
     {
         assert(eval);
@@ -150,7 +150,7 @@ public:
         //  All unsupport Rks will be removed.  These will then automatically be recreated next time
         //  loop_4 is called.
         //
-        Cache4::Register(eval);
+        ::Cache4::Register(eval);
     }
     virtual Rk*  Create (size_t ia,size_t ic,size_t ib,size_t id) const
     {
