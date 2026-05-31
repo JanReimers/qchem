@@ -28,13 +28,16 @@ Features:
         Lets fix the totale energy problem first.
 
 Clean up:
-    -All Evaluators are for IBS, so just get rid of the IBS part.
+    Done: -All Evaluators are for IBS, so just get rid of the IBS part.
     -merge RadialID and RadialType ? 
         They are used for different things
         RadialID is used for caching J/K tables
         RadialType is less specific and is used for Cache4
     -Sort out PG cache ... keep one cache in DB_cache.
-    -Put evaluators in a namespace
+    Done: -Put evaluators in a namespace
+    -Bspline-r Rk symmetry is not good at all.  
+        HF energies are fine though!?!?
+        Bspline Rk symmetry is good to 1e-16!
     -ERI3<T>, ERI4 make consistent.
     -Make more use of CastSymmetry()?
 

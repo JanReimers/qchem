@@ -3,7 +3,7 @@ target_sources(qcLattice_BS PRIVATE
     Imp/PlaneWaveBS.C
 PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
     PlaneWaveBS.C 
-    Internal/IBS_Evaluator.C
+    Internal/Evaluator.C
 )
 # target_include_directories(qcLattice_BS PRIVATE 
 #     ${PROJECT_SOURCE_DIR}/submodules/json/single_include

@@ -7,7 +7,7 @@ target_sources(qcAtom_BS1 PRIVATE
     Internal/Imp/Wigner3j.C
 )
 target_sources(qcAtom_BS1 PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
-    IBS_Evaluator.C
+    Evaluator.C
     Concepts.C
     Internal/Rk.C
     Internal/AngularIntegrals.C
