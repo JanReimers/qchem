@@ -59,21 +59,39 @@ def read_dft_data(file_path):
 
 
 def main():
-    input_file = Path("/home/janr/Code/qchem6/doc/NIST-dftdata-tar/dftdata/LDA/neutrals/58Ce")
-    output_file = Path("58Ce_data.json")
+    paths=[
+        ["/home/janr/Code/qchem6/doc/NIST-dftdata-tar/dftdata/LDA/neutrals","doc/nistLDA.json"],
+        ["/home/janr/Code/qchem6/doc/NIST-dftdata-tar/dftdata/LSD/neutrals","doc/nistLSD.json"],
+        ["/home/janr/Code/qchem6/doc/NIST-dftdata-tar/dftdata/RLDA/neutrals","doc/nistRLDA.json"],
+        ["/home/janr/Code/qchem6/doc/NIST-dftdata-tar/dftdata/ScRLDA/neutrals","doc/nistScRLDA.json"]
+           ]
+    for path in paths:
+        out=open(path[1], 'w')
+        inpath=Path(path[0])
+        for p in inpath.iterdir():
+            if p.is_file():
+                print(f"Reading element: {p.name[2:]}")
+                data = read_dft_data(p)
+                data["Z"]=p.name[:2]
+                data["Symbol"]=p.name[2:]
+                json.dump(data, out, indent=2)
+
+
+    # input_file = Path("/home/janr/Code/qchem6/doc/NIST-dftdata-tar/dftdata/LDA/neutrals/58Ce")
+    # 
     
-    print(f"Reading file: {input_file}")
-    data = read_dft_data(input_file)
+    # print(f"Reading file: {input_file}")
+    # data = read_dft_data(input_file)
     
-    if data is None:
-        sys.exit(1)
+    # if data is None:
+    #     sys.exit(1)
     
-    # Write to JSON file
-    with open(output_file, 'w') as f:
-        json.dump(data, f, indent=2)
+    # # Write to JSON file
+    # 
+    #     json.dump(data, f, indent=2)
     
-    print(f"Successfully wrote {len(data)} entries to {output_file}")
-    print(f"Output file: {output_file.absolute()}")
+    # print(f"Successfully wrote {len(data)} entries to {output_file}")
+    # print(f"Output file: {output_file.absolute()}")
 
 
 if __name__ == "__main__":
