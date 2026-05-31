@@ -12,7 +12,7 @@ Major Features:
             SVD and trunctate B?
                 We dont need a uniqe c vector, just need any c than minimizes ||e||
     DFT upgrade:
-        -Pyton script to read in all NIST files and dump to json. (Try asking ai)
+        -Python script to read in all NIST files and dump to json. (Try asking ai)
             configuration file  ANy differences from Saito here?
             LDA/LDS/RLDA/ScRLDA
         -Incorporate libcx for exchange functionals: https://libxc.gitlab.io/
@@ -22,14 +22,15 @@ Major Features:
             https://github.com/mcodev31/libmsym/tree/master
 
 Features: 
-    -Make SL/SG versions of 1/r evaluators.
-        Rk might tbe tricky
+    NO!!!! -Make SL/SG versions of 1/r evaluators.
+        You end up with int(exp(-ax)/x) and this diverges
+        Same for gaussians.
     -We need a separate Arom_EC for Dirac atoms kappa,mj QNs.
-        Lets fix the totale energy problem first.
+        Lets fix the total energy problem first.
 
 Clean up:
     Done: -All Evaluators are for IBS, so just get rid of the IBS part.
-    -merge RadialID and RadialType ? 
+    No: -merge RadialID and RadialType ? 
         They are used for different things
         RadialID is used for caching J/K tables
         RadialType is less specific and is used for Cache4
@@ -59,6 +60,7 @@ Small improvements:
         -When to use Jcdab=Jabcd.Transpose()?
             Avoid transposing for every iteration.
     -Can we move GetIrreps down to the ElectronConfiguration level.
+        Sure but lets get Mol symmetry working first.
 
 Bugs
     -Check BSpline_IBS_Evaluator copy constructor, seems to increase size.
