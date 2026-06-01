@@ -29,6 +29,7 @@ Features:
         Lets fix the total energy problem first.
 
 Clean up:
+    -Get rid of ScalarFFClient::GetScalarFunction
     Done: -All Evaluators are for IBS, so just get rid of the IBS part.
     No: -merge RadialID and RadialType ? 
         They are used for different things
@@ -44,6 +45,9 @@ Clean up:
 
 OOD Refactor:
     -Use a FunctionFitter instance instead of inheriting from fitted function imp.
+    -ScalarFunction has Gradient which we don't always want to support (PITA)
+        Make a separate ScalarFunction_G  to add the gradient?
+    -ExFunctional should be a VectorFunction ... evaluate the whole mesh at once.
 
 Small improvements:
     -cach4 RAM is very small.  Good candidate for dumping to disk.

@@ -11,7 +11,8 @@ using ChargeDensity::DM_CD;
 
 class ExFunctional
     : public virtual Streamable
-    , public virtual ScalarFunction<double>{
+    , public virtual ScalarFunction<double>
+{
 public:
     ExFunctional(               );
 

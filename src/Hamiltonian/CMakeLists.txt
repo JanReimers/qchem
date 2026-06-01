@@ -18,6 +18,7 @@ target_sources(qcHamiltonian PRIVATE
     Internal/Imp/Hamiltonians.C 
     Internal/Imp/ExchangeFunctional.C  
     Internal/Imp/SlaterExchange.C 
+    Internal/Imp/Libxc_LDA_Exchange.C 
     Internal/Imp/LDAVxc.C
     )
 target_sources(qcHamiltonian PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
@@ -30,13 +31,17 @@ target_sources(qcHamiltonian PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
     Internal/Hamiltonians.C 
     Internal/ExchangeFunctional.C  
     Internal/SlaterExchange.C 
+    Internal/Libxc_LDA_Exchange.C 
     Internal/LDAVxc.C 
     Internal/Terms.C
 )
 
    
 set_property(TARGET qcHamiltonian PROPERTY CXX_STANDARD 20)
-target_include_directories(qcHamiltonian PRIVATE ${PROJECT_SOURCE_DIR}/submodules/blaze)
+target_include_directories(qcHamiltonian PRIVATE 
+    ${PROJECT_SOURCE_DIR}/submodules/blaze
+    ${PROJECT_BINARY_DIR}/submodules/libxc
+    )
 target_link_libraries(qcHamiltonian PUBLIC xc qcChargeDensity qcFitting qcBasisSet1 qcSymmetry qcCluster qcMesh qcCommon)
 target_compile_options(qcHamiltonian PRIVATE 
     $<$<CONFIG:Debug>:-g -O0>
@@ -46,3 +51,5 @@ target_compile_definitions(qcHamiltonian PUBLIC ${CXX_COMMON_DEFINES}
     $<$<CONFIG:Debug>:-DDEBUG>
     $<$<CONFIG:Release>:-DNDEBUG>
 )
+
+

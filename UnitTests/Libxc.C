@@ -16,7 +16,7 @@ TEST(Libxc, Version)
 
 TEST(Libxc, CommonFunctionals)
 {
-    int ids[] = { XC_FAMILY_LDA, XC_FAMILY_GGA, XC_FAMILY_LCA };
+    int ids[] = { 1,19,7,28,29,30,31,8 };
     double rho[5] = {0.1, 0.2, 0.3, 0.4, 0.5};
     double sigma[5] = {0.2, 0.3, 0.4, 0.5, 0.6};
     double exc[5];
@@ -41,9 +41,9 @@ TEST(Libxc, CommonFunctionals)
             cout << func.info->family << " " << func.info->name << endl;
             /* Print out references */
             for(size_t ii = 0; func.info->refs[ii] != NULL; ii++)
-                cout << func.info->refs[ii]->ref;
+                cout << "  " << func.info->refs[ii]->ref << endl;
             for(size_t i=0; i<5; i++){
-                cout << rho[i] << " " << exc[i] << endl;
+                cout << "  " << rho[i] << " " << exc[i] << endl;
         } //swtich
         xc_func_end(&func);
     }
