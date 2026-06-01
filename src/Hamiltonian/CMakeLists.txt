@@ -37,7 +37,7 @@ target_sources(qcHamiltonian PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
    
 set_property(TARGET qcHamiltonian PROPERTY CXX_STANDARD 20)
 target_include_directories(qcHamiltonian PRIVATE ${PROJECT_SOURCE_DIR}/submodules/blaze)
-target_link_libraries(qcHamiltonian PUBLIC qcChargeDensity qcFitting qcBasisSet1 qcSymmetry qcCluster qcMesh qcCommon)
+target_link_libraries(qcHamiltonian PUBLIC xc qcChargeDensity qcFitting qcBasisSet1 qcSymmetry qcCluster qcMesh qcCommon)
 target_compile_options(qcHamiltonian PRIVATE 
     $<$<CONFIG:Debug>:-g -O0>
     $<$<CONFIG:Release>: -O2 -pg>

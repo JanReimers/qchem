@@ -4,8 +4,8 @@
 
 #file (GLOB_RECURSE qchem_HEADERS CONFIGURE_DEPENDS "include/*.H")
 link_directories( 
-    $<$<CONFIG:Debug>:  submodules/wignerSymbols/build>
-    $<$<CONFIG:Release>:  submodules/wignerSymbols/build>
+    $<$<CONFIG:Debug>:  submodules/wignerSymbols/build submodules/libxc/build>
+    $<$<CONFIG:Release>:  submodules/wignerSymbols/build submodules/libxc/build>
 )
 
 #  Main

@@ -10,6 +10,7 @@ include(CTest)
 include(GoogleTest)
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/submodules/blaze/cmake )
 include(Blaze_Import)
+find_package(Libxc)
 
 add_library(qchem)  
 target_sources(qchem PRIVATE )
@@ -35,6 +36,7 @@ add_subdirectory(src)
 add_subdirectory(./UnitTests)
 add_subdirectory(./gtkapp)
 add_subdirectory(./submodules/wignerSymbols)
+add_subdirectory(./submodules/libxc)
 
 Blaze_Import(
    QUIET

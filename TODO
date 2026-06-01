@@ -12,7 +12,7 @@ Major Features:
             SVD and trunctate B?
                 We dont need a uniqe c vector, just need any c than minimizes ||e||
     DFT upgrade:
-        -Python script to read in all NIST files and dump to json. (Try asking ai)
+        Done: -Python script to read in all NIST files and dump to json. (Try asking ai)
             configuration file  ANy differences from Saito here?
             LDA/LDS/RLDA/ScRLDA
         -Incorporate libcx for exchange functionals: https://libxc.gitlab.io/

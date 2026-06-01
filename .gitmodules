@@ -20,3 +20,6 @@
 [submodule "submodules/blaze"]
 	path = submodules/blaze
 	url = https://github.com/JanReimers/blaze
+[submodule "submodules/libxc"]
+	path = submodules/libxc
+	url = https://gitlab.com/libxc/libxc
