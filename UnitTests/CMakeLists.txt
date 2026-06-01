@@ -14,7 +14,7 @@ add_executable(UTMain gtestmain.C QchemTesterImp.C BasisSetPoolImp.C
     json.C EigenSolverUT.C ERI4.C MeshIntegrals.C UTCluster.C  PeriodicTable.C
     BSplines.C DiracIntegral.C SlaterIntegral.C GaussianIntegral.C UTBasisSet.C BasisSet1_Atom.C BasisSet_Atom.C
     A_HF_U.C A_HF_P.C A_DHF.C A_HF_U.C A_DFT.C M_PG_U.C  
-    SymQN.C ElectronConfigurations.C Angular.C 
+    SymQN.C ElectronConfigurations.C Angular.C Libxc.C
     )
 target_sources(UTMain PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES QchemTester.C BasisSetPool.C)
 
@@ -40,6 +40,7 @@ target_include_directories(UTMain PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/json/single_include
     ${PROJECT_SOURCE_DIR}/submodules/blaze
     ${PROJECT_SOURCE_DIR}/submodules/tabulate/include
+    ${PROJECT_BINARY_DIR}/submodules/libxc
 
 )
 target_link_libraries(UTMain PUBLIC qchem qcCommon)
