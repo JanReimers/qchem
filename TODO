@@ -15,8 +15,16 @@ Major Features:
         Done: -Python script to read in all NIST files and dump to json. (Try asking ai)
             configuration file  ANy differences from Saito here?
             LDA/LDS/RLDA/ScRLDA
-        -Incorporate libcx for exchange functionals: https://libxc.gitlab.io/
+        Done:-Incorporate libcx for exchange functionals: https://libxc.gitlab.io/
             Has 7 versions of the Vosko form LDA_C_VWN_{1,2,3,4,5,6,7}
+        Reproducing the NIST rests is a major pain in the ass.
+            1) Vosko does not define rs, he just says "the usual definition" ... grrrrr
+            2) References are all soppy with fractions rs=3/2Pirho  WTF is in the basement?? .... grrrrr
+            3) Vosko uses a Slater like Vx but we don;t know what the prefactor (alpha) is. (more fractions problems)
+            4) Libxc has a Slater function (id=1) but it has no ext_params !?!?  should have alpha no???
+            For now, too pissed off to keep working on this.
+
+
     Molecular Symmetry
         -One code base out there, but is C and no docs.  Examples look useless
             https://github.com/mcodev31/libmsym/tree/master

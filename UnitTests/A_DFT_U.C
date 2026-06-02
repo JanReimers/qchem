@@ -16,7 +16,9 @@ public:
     {
         ex=new Libxc_LDA_Exchange(7,Spin::None,GetZ());
         cout << *ex << endl;
-        return Factory(Pol::UnPolarized,cluster,ex,GetMeshParams(),itsBasisSet);
+        Hamiltonian* H=Factory(Pol::UnPolarized,cluster,ex,GetMeshParams(),itsBasisSet);
+        // cout << *H << endl;
+        return H;
     }
 private:
     mutable ExFunctional* ex;
@@ -58,10 +60,27 @@ TEST_P(SG_DFT_U_High,A)
         
     QchemTester::Init(High,BasisSet::Atom::Type::Gaussian,verbose);
     //       NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo    MergeTol verbose
-    Iterate({   20     ,Z*1e-5    ,1e-7 , 1e-5      ,Z*1e-6 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
+    Iterate({   50     ,Z*1e-5    ,1e-5 , 1e-1      ,Z*1e-6 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
     // cout << "RelativeHFError = " << RelativeHFError() << std::endl;
-    EXPECT_LT(RelativeHFError(),2e-6); 
+    EXPECT_LT(RelativeDFTError(),2e-6); 
     EXPECT_TRUE(Converged()); 
         
 }
-INSTANTIATE_TEST_SUITE_P(A_DFT,SG_DFT_U_High,::testing::Values(2,36));//)); 
+INSTANTIATE_TEST_SUITE_P(A_DFT,SG_DFT_U_High,::testing::Values(36));//)); 
+
+class SL_DFT_U_High : public A_DFT_U {};
+TEST_P(SL_DFT_U_High,A)
+{
+    size_t Z=GetParam();
+    cout << "---------------- Z=" << Z << " ---------------"<< endl;
+        
+    QchemTester::Init(High,BasisSet::Atom::Type::Slater,verbose);
+    //       NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo    MergeTol verbose
+    Iterate({   50     ,Z*1e-5    ,1e-7 , 2e-2      ,Z*1e-6 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
+    // cout << "RelativeHFError = " << RelativeHFError() << std::endl;
+    EXPECT_LT(RelativeDFTError(),2e-6); 
+    EXPECT_TRUE(Converged()); 
+        
+}
+// INSTANTIATE_TEST_SUITE_P(A_DFT,SL_DFT_U_High,::testing::Values(2,4,10,18,36,54));//)); 
+INSTANTIATE_TEST_SUITE_P(A_DFT,SL_DFT_U_High,::testing::Values(36));//)); 

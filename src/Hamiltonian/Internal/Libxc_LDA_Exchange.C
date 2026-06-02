@@ -26,7 +26,7 @@ public:
 private:
     double Ne; //# of electrons
     Spin   spin;
-    xc_func_type func;
+    xc_func_type exchange,corr;
 };
 
 } //namespace
