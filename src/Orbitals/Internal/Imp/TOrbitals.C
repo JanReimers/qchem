@@ -77,7 +77,7 @@ template <class T> void TOrbitalsImp<T>::UpdateOrbitals(const mat_t<T>& U, const
     //
     //  Strip out all the positron orbitals.
     //
-    static const double e_positron=-c_light*c_light; //Max positron energy = -2mc^2.
+    static const double e_positron=-c_light*c_light; //Max positron energy = -mc^2.
     size_t index=1;
     for (size_t  i=0; i<n; i++)
     {
