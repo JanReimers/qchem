@@ -99,10 +99,10 @@ target_compile_options(UTBasisSet PRIVATE -Wall -Wno-unknown-pragmas -Wno-cpp
     $<$<CONFIG:Release>: -O2>
 )
 
-add_executable(HydrogenAI2 HydrogenAI2.C)
-target_include_directories(HydrogenAI2 PRIVATE ${PROJECT_SOURCE_DIR}/submodules/blaze)
-target_link_libraries(HydrogenAI2 PUBLIC lapack blas)
-
+add_executable(DiracHydrogen DiracHydrogen.C)
+target_include_directories(DiracHydrogen PRIVATE ${PROJECT_SOURCE_DIR}/submodules/blaze)
+target_link_libraries(DiracHydrogen PUBLIC qchem lapack blas)
+set_property(TARGET DiracHydrogen PROPERTY CXX_STANDARD 20)
 # setup testing
 enable_testing()
 include(CTest)

@@ -7,6 +7,7 @@ Major Features:
         Geometric Direct Minimization (GDM)
             Read up on BFDS method, Numerical Recipes section 10.7
             Make some notes that translate into our notation.
+            The original paper is very hard to follow.
         DIIS singular B
             Shprd & Minkoff 2007 eq 23.  Linear Least Squares much better condition number.
             SVD and trunctate B?
@@ -19,10 +20,11 @@ Major Features:
             Has 7 versions of the Vosko form LDA_C_VWN_{1,2,3,4,5,6,7}
         Reproducing the NIST rests is a major pain in the ass.
             1) Vosko does not define rs, he just says "the usual definition" ... grrrrr
-            2) References are all soppy with fractions rs=3/2Pirho  WTF is in the basement?? .... grrrrr
+            2) References are all sloppy with fractions rs=3/2Pirho  WTF is in the basement?? .... grrrrr
             3) Vosko uses a Slater like Vx but we don;t know what the prefactor (alpha) is. (more fractions problems)
             4) Libxc has a Slater function (id=1) but it has no ext_params !?!?  should have alpha no???
             For now, too pissed off to keep working on this.
+        Hand code the exchange part.
 
 
     Molecular Symmetry
@@ -160,11 +162,11 @@ Bugs
             orthogonalize the resulting generalized eigen system.
         5) Use blaze library calls for any linear algebra and matrix classes. 
         6) Hint: Make sure the Hamiltonian is symmetric (real hermitian). As such there should be no need to check complex eigen values. 
-        7) Include a rest mass term -mc2 in Hamiltonian so that electron state eigen values are comparable
+        7) Include a rest mass term -mc^2 in Hamiltonian so that electron state eigen values are comparable
            with non-relatavistic eigen values
         8) Throw out all positron eigen solutions (eigen values < -mc2) so we can focus on the electron
            solutions only.
-        9) Hint use c_light variable name for the speed of light in a.u. (in case the name c gets used somewhere else)
+        9) Hint use a c_light variable name for the speed of light in a.u. (in case the name c gets used somewhere else)
         10) Also do a total energy calculation using the *eletron* ground state eigen vector, using kinetic and potential operator expectation values.
         11) compare electron ground state eigen value and total energy with reference enrgy -0.50000665 a.u.
     
