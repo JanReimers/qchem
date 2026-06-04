@@ -5628,6 +5628,10 @@ M^{\kappa}=-2c^{2}\frac{2}{4c^{2}}\begin{bmatrix}0 & 0 & 0 & 0\\
 0 & 0 & 0 & 0\\
 0 & 0 & T_{ab} & 0\\
 0 & 0 & 0 & T_{ab}
+\end{bmatrix}^{\kappa}=-2\begin{bmatrix}0 & 0 & 0 & 0\\
+0 & 0 & 0 & 0\\
+0 & 0 & T_{ab} & 0\\
+0 & 0 & 0 & T_{ab}
 \end{bmatrix}^{\kappa}
 \]
 

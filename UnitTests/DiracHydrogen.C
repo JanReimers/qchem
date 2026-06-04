@@ -38,6 +38,23 @@ static double kinetic_ij(double ai, double aj) {
     double p = ai + aj;
     return 3.0 * ai * aj * std::pow(M_PI, 1.5) / (2.0 * std::pow(p, 2.5));
 }
+static double p2_ij(double ai, double aj) {
+    // primitive p^2 integral for s-type GTOs: <g_i| p^2 |g_j>=<g_i| -nabla^2 |g_j>
+    double p = ai + aj;
+    return 6.0 * ai * aj * std::pow(M_PI, 1.5) / (2.0 * std::pow(p, 2.5));
+}
+
+// compute V_SS = (1/(4 m^2 c^2)) * <phi_i| p V p |phi_j>
+// Using RKBS small-component 1/r matrix element formula:
+//   Inv_r1 = 4*alpha_i*alpha_j*Integral(t,2*l+1)*ns_i*ns_j  (already includes 4*pi)
+// For l=0, Integral(t,1) = 1/(2*p), so Vss = -Z * 2*alpha_i*alpha_j/p * ns_i*ns_j * pref_ss.
+static double vss_ij(double ai, double aj, double Z) {
+    // primitive p^2/r integral for s-type GTOs: <g_i| p^2/r |g_j>
+    double p = ai + aj;
+    return -2.0 * Z * ai * aj / p;
+}
+
+ 
 
 void dump(const rsmat_t& S, size_t N, const char* name, size_t ioff=0,size_t joff=0)
 {
@@ -67,24 +84,25 @@ int main() {
     std::vector<double> norm(N);
     for (int i = 0; i < N; ++i) norm[i] = gaussian_norm(alphas[i]);
 
-    rsmat_t S=zero<double>(N), V=zero<double>(N),T_nonrel=zero<double>(N);
+    rsmat_t S_LL=zero<double>(N), V_LL=zero<double>(N), V_SS=zero<double>(N),T_LS=zero<double>(N),P2=zero<double>(N);
 
     for (int i = 0; i < N; ++i) {
         for (int j = i; j < N; ++j) {
             double Nij = norm[i]*norm[j];
-            S(i,j) = Nij * overlap_ij(alphas[i], alphas[j]);
-            V(i,j) = Nij * nuc_attraction_ij(alphas[i], alphas[j], Z);
-            // non-relativistic kinetic integral <phi| -1/2 nabla^2 |phi'>
-            T_nonrel(i,j) = Nij * kinetic_ij(alphas[i], alphas[j]);
+            S_LL(i,j) = Nij * overlap_ij(alphas[i], alphas[j]);
+            V_LL(i,j) = Nij * nuc_attraction_ij(alphas[i], alphas[j], Z);
+            V_SS(i,j) = Nij * vss_ij(alphas[i], alphas[j], Z);
+            T_LS(i,j) = Nij * kinetic_ij(alphas[i], alphas[j]); // non-relativistic kinetic integral <phi| -1/2 nabla^2 |phi'>
+            P2  (i,j) = Nij * p2_ij(alphas[i], alphas[j]);
         }
     }
 
     const int M = 2 * N;
-    rsmat_t H=zero<double>(M), Sbig=zero<double>(M);
-    rsmat_t Tmat=zero<double>(M), Vmat=zero<double>(M), Rmat=zero<double>(M);
+    rsmat_t H=zero<double>(M), S=zero<double>(M);
+    rsmat_t T=zero<double>(M), V=zero<double>(M), R=zero<double>(M);
 
     // Build RKB small-component via p^2 = 2 * T_nonrel
-    rsmat_t P = 2.0 * T_nonrel; // P_{ij} = <phi_i|p^2|phi_j>
+    // rsmat_t P = 2.0 * T_nonrel; // P_{ij} = <phi_i|p^2|phi_j>
     const double pref_ss = 1.0 / (4.0 * m * m * c_light * c_light);
     const double pref_ls = 1.0 / (2.0 * m);
 
@@ -92,43 +110,33 @@ int main() {
         for (int j = i; j < N; ++j) {
             double Nij = norm[i]*norm[j];
             // Large-large
-            H(i, j) = V(i, j);
-            Sbig(i, j) = S(i, j);
-            Vmat(i, j) = V(i, j);
-            Rmat(i, j) =0.0;
+            S(i, j) = S_LL(i, j);
+            V(i, j) = V_LL(i, j);
             // Small-small using RKB: S_SS = (1/4m^2 c^2) * P
-            Sbig(N+i, N+j) = pref_ss * P(i,j);
-            // compute V_SS = (1/(4 m^2 c^2)) * <phi_i| p V p |phi_j>
-            // Using RKBS small-component 1/r matrix element formula:
-            //   Inv_r1 = 4*alpha_i*alpha_j*Integral(t,2*l+1)*ns_i*ns_j  (already includes 4*pi)
-            // For l=0, Integral(t,1) = 1/(2*p), so Vss = -Z * 2*alpha_i*alpha_j/p * ns_i*ns_j * pref_ss.
-            double p = alphas[i] + alphas[j];
-            double Vss_prim = -2.0 * Z * alphas[i] * alphas[j] / p;
-            double Vss = pref_ss * Nij * Vss_prim;
-            Vmat(N+i, N+j) = Vss;
+            S(N+i, N+j) = pref_ss * P2(i,j);
+            V(N+i, N+j) = pref_ss * V_SS(i,j);
             
-            Rmat(N+i, N+j) = -2*mc2 * Sbig(N+i, N+j);
-            H(i, j) = V(i, j) + Rmat(i, j);
-            H(N+i, N+j) = Vmat(N+i, N+j) + Rmat(N+i, N+j);
+            R(N+i, N+j) = -2*mc2 * S(N+i, N+j);
             // RKB coupling between large and small component bases
-            Tmat(i, N+j) = pref_ls * P(i,j);
-            Tmat(N+i, j) = pref_ls * P(i,j);
-            H(i, N+j) = Tmat(i, N+j);
-            H(N+i, j) = Tmat(N+i, j);
+            T(i, N+j) = pref_ls * P2(i,j);
+            T(N+i, j) = pref_ls * P2(i,j);
         }
     }
+    H=V+T+R;
 
     //dump small-component blocks for debug comparison
     const int dumpN = std::min(3, N);
     std::cout << "\nDebug dump: first " << dumpN << " elements\n";
-    dump(Sbig,dumpN,"S_LL",0,0);
-    dump(Sbig,dumpN,"S_SS",N,N);
-    dump(H   ,dumpN,"H_LS",0,N);
-    dump(H   ,dumpN,"H_SL",N,0);
-    dump(Vmat,dumpN,"V_LL",0,0);
-    dump(Vmat,dumpN,"V_SS",N,N);
+    dump(S,dumpN,"S_LL",0,0);
+    dump(S,dumpN,"S_SS",N,N);
+    dump(H,dumpN,"H_LS",0,N);
+    dump(H,dumpN,"H_SL",N,0);
+    dump(V,dumpN,"V_LL",0,0);
+    dump(V,dumpN,"V_SS",N,N);
+    dump(R,dumpN,"R_LL",0,0);
+    dump(R,dumpN,"R_SS",N,N);
 
-    las->SetBasisOverlap(Sbig);
+    las->SetBasisOverlap(S);
     auto [U,w]=las->Solve(H); //U is rmat_t, w is rvec_t. U is already back transformed.
     
     if ((int)w.size() != M) {
@@ -167,13 +175,13 @@ int main() {
     double E_eig_full = w[bestIdx];
     double E_bind  = E_eig_full - mc2;
 
-    double Ekin  = trans(y) * Tmat * y;
-    double Epot  = trans(y) * Vmat * y;
-    double Erest = trans(y) * Rmat * y;
+    double Ekin  = trans(y) * T * y;
+    double Epot  = trans(y) * V * y;
+    double Erest = trans(y) * R * y;
     double E_H   = trans(y) * H * y;
     double Etot = Ekin + Epot + Erest;
     
-    double max_resid = blaze::max(blaze::abs(H * y - E_eig_full * y));
+    double max_resid = blaze::max(blaze::abs(H * y - E_eig_full * S*y));
     
     double Etot_bind = Etot - mc2;
 
