@@ -25,23 +25,23 @@ static double nuc_attraction_ij(double ai, double aj, double Z) {
     double p = ai + aj;
     return -2.0 * M_PI * Z / p;
 }
-static double deriv_ij(double ai, double aj) {
-    double p = ai + aj;
-    return -4.0 * M_PI * aj / (p*p);
-}
-static double invr_ij(double ai, double aj) {
-    double p = ai + aj;
-    return 2.0 * M_PI / p;
-}
+// static double deriv_ij(double ai, double aj) {
+//     double p = ai + aj;
+//     return -4.0 * M_PI * aj / (p*p);
+// }
+// static double invr_ij(double ai, double aj) {
+//     double p = ai + aj;
+//     return 2.0 * M_PI / p;
+// }
 static double kinetic_ij(double ai, double aj) {
     // primitive kinetic integral for s-type GTOs: <g_i| -1/2 nabla^2 |g_j>
     double p = ai + aj;
-    return 3.0 * ai * aj * std::pow(M_PI, 1.5) / (2.0 * std::pow(p, 2.5));
+    return 3.0 * ai*aj/p * std::pow(M_PI/p, 1.5);
 }
 static double p2_ij(double ai, double aj) {
     // primitive p^2 integral for s-type GTOs: <g_i| p^2 |g_j>=<g_i| -nabla^2 |g_j>
     double p = ai + aj;
-    return 6.0 * ai * aj * std::pow(M_PI, 1.5) / (2.0 * std::pow(p, 2.5));
+    return 6.0 * ai*aj/p * std::pow(M_PI/p, 1.5);
 }
 
 // compute V_SS = (1/(4 m^2 c^2)) * <phi_i| p V p |phi_j>
@@ -51,7 +51,7 @@ static double p2_ij(double ai, double aj) {
 static double vss_ij(double ai, double aj, double Z) {
     // primitive p^2/r integral for s-type GTOs: <g_i| p^2/r |g_j>
     double p = ai + aj;
-    return -2.0 * Z * ai * aj / p;
+    return -8 * M_PI * Z * ai * aj / (p*p);
 }
 
  
@@ -89,11 +89,11 @@ int main() {
     for (int i = 0; i < N; ++i) {
         for (int j = i; j < N; ++j) {
             double Nij = norm[i]*norm[j];
-            S_LL(i,j) = Nij * overlap_ij(alphas[i], alphas[j]);
+            S_LL(i,j) = Nij * overlap_ij       (alphas[i], alphas[j]);
             V_LL(i,j) = Nij * nuc_attraction_ij(alphas[i], alphas[j], Z);
-            V_SS(i,j) = Nij * vss_ij(alphas[i], alphas[j], Z);
-            T_LS(i,j) = Nij * kinetic_ij(alphas[i], alphas[j]); // non-relativistic kinetic integral <phi| -1/2 nabla^2 |phi'>
-            P2  (i,j) = Nij * p2_ij(alphas[i], alphas[j]);
+            V_SS(i,j) = Nij * vss_ij           (alphas[i], alphas[j], Z);
+            T_LS(i,j) = Nij * kinetic_ij       (alphas[i], alphas[j]); // non-relativistic kinetic integral <phi| -1/2 nabla^2 |phi'>
+            P2  (i,j) = Nij * p2_ij            (alphas[i], alphas[j]);
         }
     }
 
@@ -104,7 +104,7 @@ int main() {
     // Build RKB small-component via p^2 = 2 * T_nonrel
     // rsmat_t P = 2.0 * T_nonrel; // P_{ij} = <phi_i|p^2|phi_j>
     const double pref_ss = 1.0 / (4.0 * m * m * c_light * c_light);
-    const double pref_ls = 1.0 / (2.0 * m);
+    // const double pref_ls = 1.0 / (2.0 * m);
 
     for (int i = 0; i < N; ++i) {
         for (int j = i; j < N; ++j) {
@@ -118,8 +118,8 @@ int main() {
             
             R(N+i, N+j) = -2*mc2 * S(N+i, N+j);
             // RKB coupling between large and small component bases
-            T(i, N+j) = pref_ls * P2(i,j);
-            T(N+i, j) = pref_ls * P2(i,j);
+            T(i, N+j) =  T_LS(i,j);
+            T(N+i, j) =  T_LS(i,j);
         }
     }
     H=V+T+R;
@@ -172,28 +172,28 @@ int main() {
     double E_y = std::real(w[bestIdx]);
     
     // bestIdx corresponds to eigenvalue index in w
-    double E_eig_full = w[bestIdx];
-    double E_bind  = E_eig_full - mc2;
-
+    double E_eig = w[bestIdx];
+   
     double Ekin  = trans(y) * T * y;
     double Epot  = trans(y) * V * y;
     double Erest = trans(y) * R * y;
     double E_H   = trans(y) * H * y;
     double Etot = Ekin + Epot + Erest;
     
-    double max_resid = blaze::max(blaze::abs(H * y - E_eig_full * S*y));
+    double max_resid = blaze::max(blaze::abs(H * y - E_eig * S*y));
     
-    double Etot_bind = Etot - mc2;
+    double Etot_bind = Etot;
 
     std::cout.setf(std::ios::fixed); std::cout.precision(8);
     std::cout << "Found electron states: " << electrons.size() << " / total " << M << "\n";
-    std::cout << "Selected eigenvalue E = " << E_eig_full << "  (E-mc2 = " << E_bind << ")\n";
+    std::cout << "Selected eigenvalue E = " << E_eig << "\n";
     std::cout << "Expectation values: T = " << Ekin << ", V = " << Epot << ", R = " << Erest << ", T+V+R = " << Etot << "\n";
+    std::cout << "Virial -V/T=" << -Epot/Ekin << endl;
     std::cout << "Direct H expectation = " << E_H << "\n";
     std::cout << "Residual max |Hc - E S c| = " << max_resid << "\n";
     std::cout << "Expectation (Ebinding) = " << Etot_bind << "  reference = -0.50000665\n";
-    std::cout << "Difference eigen-binding - reference = " << (E_bind - (-0.50000665)) << "\n";
-    std::cout << "Difference expectation-binding - reference = " << (Etot_bind - (-0.50000665)) << "\n";
+    std::cout << "Difference eigen-binding - reference = " << (E_eig - (-0.50000665)) << "\n";
+    std::cout << "Difference expectation-binding - reference = " << (E_H - (-0.50000665)) << "\n";
 
     return 0;
 }

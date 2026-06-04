@@ -689,7 +689,7 @@ g_{\kappa a}^{S}=\frac{i}{2c}\left(\frac{\partial}{\partial r}+\frac{\kappa+1}{r
 
 \begin_inset Formula 
 \[
-S_{ab}^{LL}=\left\langle g_{a}|g_{b}\right\rangle =\int r^{2}dre^{-\lambda_{ab}r^{2}}=\frac{1}{4}\sqrt{\frac{\pi}{\lambda_{ab}^{3}}}
+S_{ab}^{LL}=\left\langle g_{a}|g_{b}\right\rangle =4\pi\int r^{2}dre^{-\lambda_{ab}r^{2}}=\left(\frac{\pi}{\lambda_{ab}}\right)^{3/2}
 \]
 
 \end_inset
@@ -700,7 +700,7 @@ S_{ab}^{LL}=\left\langle g_{a}|g_{b}\right\rangle =\int r^{2}dre^{-\lambda_{ab}r
 \begin_layout Standard
 \begin_inset Formula 
 \[
-P=\left\langle g_{a}\left|p^{2}\right|g_{b}\right\rangle =\int r^{2}dre^{-\lambda_{a}r^{2}}\frac{1}{r^{2}}\frac{\partial}{\partial r}\left(r^{2}\frac{\partial}{\partial r}\right)e^{-\lambda_{b}r^{2}}
+P=\left\langle g_{a}\left|p^{2}\right|g_{b}\right\rangle =4\pi\int r^{2}dre^{-\lambda_{a}r^{2}}\frac{1}{r^{2}}\frac{\partial}{\partial r}\left(r^{2}\frac{\partial}{\partial r}\right)e^{-\lambda_{b}r^{2}}
 \]
 
 \end_inset
@@ -708,7 +708,7 @@ P=\left\langle g_{a}\left|p^{2}\right|g_{b}\right\rangle =\int r^{2}dre^{-\lambd
 
 \begin_inset Formula 
 \[
-=\int\left(\frac{\partial}{\partial r}e^{-\lambda_{a}r^{2}}\right)r^{2}\left(\frac{\partial}{\partial r}e^{-\lambda_{b}r^{2}}\right)dr
+=4\pi\int\left(\frac{\partial}{\partial r}e^{-\lambda_{a}r^{2}}\right)r^{2}\left(\frac{\partial}{\partial r}e^{-\lambda_{b}r^{2}}\right)dr
 \]
 
 \end_inset
@@ -716,7 +716,7 @@ P=\left\langle g_{a}\left|p^{2}\right|g_{b}\right\rangle =\int r^{2}dre^{-\lambd
 
 \begin_inset Formula 
 \[
-=4\lambda_{a}\lambda_{b}\int r^{4}e^{-\lambda_{ab}r^{2}}dr=4\lambda_{a}\lambda_{b}\left(\frac{1}{4}\frac{3}{2}\sqrt{\frac{\pi}{\lambda_{ab}^{5}}}\right)=\frac{3}{2}\lambda_{a}\lambda_{b}\sqrt{\frac{\pi}{\lambda_{ab}^{5}}}
+=16\pi\lambda_{a}\lambda_{b}\int r^{4}e^{-\lambda_{ab}r^{2}}dr=16\pi\lambda_{a}\lambda_{b}\left(\frac{1}{4}\frac{3}{2}\sqrt{\frac{\pi}{\lambda_{ab}^{5}}}\right)=6\pi\lambda_{a}\lambda_{b}\sqrt{\frac{\pi}{\lambda_{ab}^{5}}}=\frac{6\lambda_{a}\lambda_{b}}{\lambda_{ab}}\left(\frac{\pi}{\lambda_{ab}}\right)^{3/2}
 \]
 
 \end_inset
@@ -724,7 +724,7 @@ P=\left\langle g_{a}\left|p^{2}\right|g_{b}\right\rangle =\int r^{2}dre^{-\lambd
 
 \begin_inset Formula 
 \[
-V^{LL}=-Z\left\langle g_{a}\left|\frac{1}{r}\right|g_{b}\right\rangle =-Z\int rdre^{-\lambda_{ab}r^{2}}=\frac{-Z}{2\lambda_{ab}}
+V^{LL}=-Z\left\langle g_{a}\left|\frac{1}{r}\right|g_{b}\right\rangle =-Z4\pi\int rdre^{-\lambda_{ab}r^{2}}=\frac{-Z2\pi}{\lambda_{ab}}
 \]
 
 \end_inset
@@ -732,7 +732,7 @@ V^{LL}=-Z\left\langle g_{a}\left|\frac{1}{r}\right|g_{b}\right\rangle =-Z\int rd
 
 \begin_inset Formula 
 \[
-P_{ab}^{r}=\left\langle g_{a}\left|\frac{p^{2}}{r}\right|g_{b}\right\rangle =\int r^{2}dre^{-\lambda_{a}r^{2}}\frac{1}{r^{2}}\frac{\partial}{\partial r}\frac{1}{r}\left(r^{2}\frac{\partial}{\partial r}\right)e^{-\lambda_{b}r^{2}}
+P_{ab}^{r}=\left\langle g_{a}\left|\frac{p^{2}}{r}\right|g_{b}\right\rangle =4\pi\int r^{2}dre^{-\lambda_{a}r^{2}}\frac{1}{r^{2}}\frac{\partial}{\partial r}\frac{1}{r}\left(r^{2}\frac{\partial}{\partial r}\right)e^{-\lambda_{b}r^{2}}
 \]
 
 \end_inset
@@ -740,7 +740,7 @@ P_{ab}^{r}=\left\langle g_{a}\left|\frac{p^{2}}{r}\right|g_{b}\right\rangle =\in
 
 \begin_inset Formula 
 \[
-=\int\left(\frac{\partial}{\partial r}e^{-\lambda_{a}r^{2}}\right)r\left(\frac{\partial}{\partial r}e^{-\lambda_{b}r^{2}}\right)dr
+=4\pi\int\left(\frac{\partial}{\partial r}e^{-\lambda_{a}r^{2}}\right)r\left(\frac{\partial}{\partial r}e^{-\lambda_{b}r^{2}}\right)dr
 \]
 
 \end_inset
@@ -748,7 +748,7 @@ P_{ab}^{r}=\left\langle g_{a}\left|\frac{p^{2}}{r}\right|g_{b}\right\rangle =\in
 
 \begin_inset Formula 
 \[
-4\lambda_{a}\lambda_{b}\int r^{3}e^{-\lambda_{ab}r^{2}}dr=4\lambda_{a}\lambda_{b}\frac{-\partial}{\partial r}\int re^{-\lambda_{ab}r^{2}}dr=4\lambda_{a}\lambda_{b}\frac{-\partial}{\partial r}\frac{1}{2\lambda_{ab}}=\frac{2\lambda_{a}\lambda_{b}}{\lambda_{ab}^{2}}
+16\pi\lambda_{a}\lambda_{b}\int r^{3}e^{-\lambda_{ab}r^{2}}dr=16\pi\lambda_{a}\lambda_{b}\frac{-\partial}{\partial r}\int re^{-\lambda_{ab}r^{2}}dr=16\pi\lambda_{a}\lambda_{b}\frac{-\partial}{\partial r}\frac{1}{2\lambda_{ab}}=\frac{8\pi\lambda_{a}\lambda_{b}}{\lambda_{ab}^{2}}
 \]
 
 \end_inset
