@@ -2,7 +2,7 @@ target_sources(qcAtom_BS1 PRIVATE
   Internal/Imp/ExponentScaler.C
   Internal/Imp/Rk.C
   Imp/Evaluator.C
-  Imp/IBS_RKBS_Evaluator.C
+  Imp/RKBS_Evaluator.C
 )
 
 target_sources(qcAtom_BS1 PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 

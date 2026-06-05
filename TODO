@@ -39,6 +39,18 @@ Features:
         Lets fix the total energy problem first.
 
 Clean up:
+    -Dirac issues
+        Now getting sensible total energies for hydrogen like ions.  Remaining issues
+        1) 1s orbital is not properly normalized.  Shape is correct.
+        2) Figure a clean way tracking factors of 0.5, c, 2c etc for kinetic matrices.
+        3) Need an expected virial function somewhere.  2 for NR, 1 for rel.
+        4) Need a whole new Dirac_Atom_EC infrastructure with kappa, j QNs.
+            Find a table of GS EC for dirac atoms.
+        Done: 5) rename IBS_RKBS_Evaluator file names.
+        6) Figure out Slater integrals Rk for LLLS, LLSS, LSSS and worst case SSSS->16 terms!!!
+        7) Report rest mass expectation in SCF report table.
+        Done: 8) Clean out ol AI Hydrogen files.
+
     -Get rid of ScalarFFClient::GetScalarFunction
     Done: -All Evaluators are for IBS, so just get rid of the IBS part.
     No: -merge RadialID and RadialType ? 
@@ -152,7 +164,7 @@ Bugs
 
 
 
-    -AI
+    Done: -AI
         Write a c++ program to calculate the ground state of the Dirac hydrogen atom.  Details:
         1) Hint: These specifications are based on refining two previous AI attempts at this problem,
            contained in my files UnitTests/HydrogenAI.C UnitTests/HydrogenAI2.C
@@ -253,7 +265,7 @@ Bugs
             
 
 
-    DHF/Dirac: Factor of 2 problem
+    Fixed: DHF/Dirac: Factor of 2 problem
         Done: -We need to stop using a normalized small sector
             f=1/(2c) * (d/dr+(kappa+1)/r)*g
             where g is normalized and f is *not*.
@@ -2163,37 +2175,3 @@ Priority 3:
     Done: -Add some tests for IO of basis sets, waved functions, hamiltonians.
     Ansewred: -Way do we need default constructos for basisSet, Clusters, hamiltonians.
         Unpickle;
-
-S_LL=
-#636746│ │ 1 0.915452064 0.7155417528 
-#636746│ │ 0.915452064 1 0.915452064 
-#636746│ │ 0.7155417528 0.915452064 1 
-#636746│ │ S_SS=
-#636746│ │ 4.089704024e-07 4.991903986e-07 4.682166377e-07 
-#636746│ │ 4.991903986e-07 8.179408048e-07 9.983807972e-07 
-#636746│ │ 4.682166377e-07 9.983807972e-07 1.63588161e-06 
-#636746│ │ T_LS=
-#636746│ │ -0.0001120873354 -0.0001368141101 -0.0001283250695 
-#636746│ │ -0.0001368141101 -0.0002241746708 -0.0002736282201 
-#636746│ │ -0.0001283250695 -0.0002736282201 -0.0004483493417 
-#636746│ │ T_SL=
-#636746│ │ -0.0001120873354 -0.0001368141101 -0.0001283250695 
-#636746│ │ -0.0001368141101 -0.0002241746708 -0.0002736282201 
-#636746│ │ -0.0001283250695 -0.0002736282201 -0.0004483493417 
-#636746│ │ V_LL=
-#636746│ │ -0.1614804814 -0.1810511439 -0.1826943095 
-#636746│ │ -0.1810511439 -0.2283678869 -0.2560449832 
-#636746│ │ -0.1826943095 -0.2560449832 -0.3229609628 
-#636746│ │ V_SS=
-#636746│ │ -4.402715831e-08 -6.581738594e-08 -7.969766962e-08 
-#636746│ │ -6.581738594e-08 -1.245276088e-07 -1.861596797e-07 
-#636746│ │ -7.969766962e-08 -1.861596797e-07 -3.522172665e-07 
-#636746│ │ R_LL=
-#636746│ │ 0 0 0 
-#636746│ │ 0 0 0 
-#636746│ │ 0 0 0 
-#636746│ │ R_SS=
-#636746│ │ 4.089704024e-07 4.991903986e-07 4.682166377e-07 
-#636746│ │ 4.991903986e-07 8.179408048e-07 9.983807972e-07 
-#636746│ │ 4.682166377e-07 9.983807972e-07 1.63588161e-06 
-#636746│ [  FAILED  ] Multiple
