@@ -42,14 +42,14 @@ public:
         double Term3=es[i]*es[j]*::Slater::Integral(ab,2*l);
         return (Term1+Term2+Term3)*ns[i]*ns[j];
     } 
-    double Grad2(size_t i,size_t j,const Evaluator& b) const
+    double Grad2(size_t i,size_t j,const Evaluator& s) const
     {
-        assert(l==b.l);
-        double ab=es[i]+b.es[j];
+        assert(l==s.l);
+        double ab=es[i]+s.es[j];
         double Term1=(l+1)*(l+1)  *::Slater::Integral(ab,2*l-2); //SlaterIntegral already has 4*Pi
         double Term2=-(l+1)*ab    *::Slater::Integral(ab,2*l-1);
-        double Term3=es[i]*b.es[j]*::Slater::Integral(ab,2*l);
-        return (Term1+Term2+Term3)*ns[i]*b.ns[j];
+        double Term3=es[i]*s.es[j]*::Slater::Integral(ab,2*l);
+        return (Term1+Term2+Term3)*ns[i]*s.ns[j]; 
     } 
     double Inv_r1(size_t i,size_t j) const
     {

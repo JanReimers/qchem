@@ -15,12 +15,15 @@ EnergyBreakdown::EnergyBreakdown()
     , Exc      (0)
     , ExcFit   (0)
     , ExcFitFit(0)
+    , RestMass (0)
 {};
 
 double EnergyBreakdown::GetVirial() const
 {
-    double V=GetPotentialEnergy();
-    return V/Kinetic;
+    if (RestMass!=0.0) //relativistic
+        return GetPotentialEnergy()/(0.5*Kinetic);
+    else    
+        return GetPotentialEnergy()/Kinetic;
 }
 
 EnergyBreakdown& EnergyBreakdown::operator+=(const EnergyBreakdown& e1)
@@ -34,6 +37,7 @@ EnergyBreakdown& EnergyBreakdown::operator+=(const EnergyBreakdown& e1)
     Exc       += e1.Exc;
     ExcFit    += e1.ExcFit;
     ExcFitFit += e1.ExcFitFit;
+    RestMass  += e1.RestMass;
     return *this;
 }
 
@@ -54,6 +58,7 @@ void EnergyBreakdown::Display() const
     cout << "Exc       :" << Exc << endl;
     cout << "ExcFit    :" << ExcFit << endl;
     cout << "ExcFitFit :" << ExcFitFit << endl;
+    cout << "RestMass  :" << RestMass << endl;
     cout << "------------------------" << endl << endl;
 }
 

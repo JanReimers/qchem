@@ -91,7 +91,7 @@
 \begin_body
 
 \begin_layout Section
-`Relativistic Treatment of Atoms
+Relativistic Treatment of Atoms
 \end_layout
 
 \begin_layout Subsection
@@ -1123,7 +1123,7 @@ not normalized
 \end_layout
 
 \begin_layout Enumerate
-RKB results matrix equations that do no match the corresponding operator equations.
+RKB results in matrix equations that do no match the corresponding operator equations.
  The reason is that we have an extra operator high inside the small component basis functions.
  Point #5 below is one example.
 \end_layout

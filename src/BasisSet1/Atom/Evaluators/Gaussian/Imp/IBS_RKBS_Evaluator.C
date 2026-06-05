@@ -27,7 +27,7 @@ rvec_t RKBS_Evaluator::eval(const rvec3_t& r) const
     rvec_t f=-2*es*mr;
     if (kappa >0) 
         f+=(2*kappa+1)/mr;
-        
+    
     return f*gaussian(mr,l,es,ns);
 }
 

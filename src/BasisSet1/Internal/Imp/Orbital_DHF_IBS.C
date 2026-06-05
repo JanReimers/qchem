@@ -68,7 +68,7 @@ template <class T> smat_t<T> Orbital_RKB_IBS_Imp<T>::MakeOverlap() const
 }
 template <class T> smat_t<T> Orbital_RKB_IBS_Imp<T>::MakeKinetic() const
 {
-    mat_t<T> kls=-itsRKBL->MakeKinetic(*itsRKBS);
+    mat_t<T> kls=2*c_light*itsRKBL->MakeKinetic(*itsRKBS);
     return merge_off_diag(kls);
 }
 template <class T> smat_t<T> Orbital_RKB_IBS_Imp<T>::MakeNuclear(const Cluster* c) const

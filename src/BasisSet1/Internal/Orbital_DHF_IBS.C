@@ -2,6 +2,7 @@
 module;
 #include <string>
 #include <iostream>
+#include <cassert>
 #include "forward.H"
 export module qchem.BasisSet.Internal.Orbital_DHF_IBS;
 export import qchem.BasisSet.IrrepBasisSet;
@@ -52,7 +53,17 @@ public:
     virtual size_t GetNumFunctions() const {return itsRKBL->GetNumFunctions() + itsRKBS->GetNumFunctions(); }
     virtual vec_t<T> operator() (const rvec3_t& r) const 
     {
-        return (*itsRKBL)(r) + (*itsRKBS)(r);
+        vec_t<T> Lr=(*itsRKBL)(r), Sr=(*itsRKBS)(r);
+        size_t N=Lr.size();
+        assert(Sr.size()==N);
+        vec_t<T> ret(2*N);
+        for (size_t i:iv_t(0,N))
+        {
+            ret[i]=Lr[i];
+            ret[i+N]=Sr[i];
+        }
+
+        return ret;
     };
     virtual vec3vec_t<T> Gradient(const rvec3_t& r) const
     {

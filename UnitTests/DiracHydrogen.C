@@ -61,7 +61,7 @@ void dump(const rsmat_t& S, size_t N, const char* name, size_t ioff=0,size_t jof
     std::cout << name << "=" << endl;
     for (int i = 0; i < N; ++i) {
         for (int j = 0; j < N; ++j)
-            std::cout << S(ioff+i, joff+j) << " ";
+            std::cout << std::setprecision(10) << S(ioff+i, joff+j) << " ";
         std::cout << "\n";
     }    
 }
@@ -135,6 +135,10 @@ int main() {
     dump(V,dumpN,"V_SS",N,N);
     dump(R,dumpN,"R_LL",0,0);
     dump(R,dumpN,"R_SS",N,N);
+    dump(H,dumpN,"H_LL",0,0);
+    dump(H,dumpN,"H_SS",N,N);
+    dump(H,dumpN,"H_LS",0,N);
+    dump(H,dumpN,"H_SL",N,0);
 
     las->SetBasisOverlap(S);
     auto [U,w]=las->Solve(H); //U is rmat_t, w is rvec_t. U is already back transformed.
@@ -170,11 +174,18 @@ int main() {
 
     rvec_t y = column(U, bestIdx);
     double E_y = std::real(w[bestIdx]);
+    cout << "eigen vector y=" << y << endl;
+    rmat_t dm=y*trans(y); //Make a density matrix
+    dump(H,dumpN,"DM_LL",0,0);
+    dump(H,dumpN,"DM_SS",N,N);
+    dump(H,dumpN,"DM_LS",0,N);
+    dump(H,dumpN,"DM_SL",N,0);
     
     // bestIdx corresponds to eigenvalue index in w
     double E_eig = w[bestIdx];
    
     double Ekin  = trans(y) * T * y;
+    double Ekin1 = sum(T % dm);
     double Epot  = trans(y) * V * y;
     double Erest = trans(y) * R * y;
     double E_H   = trans(y) * H * y;
@@ -188,6 +199,7 @@ int main() {
     std::cout << "Found electron states: " << electrons.size() << " / total " << M << "\n";
     std::cout << "Selected eigenvalue E = " << E_eig << "\n";
     std::cout << "Expectation values: T = " << Ekin << ", V = " << Epot << ", R = " << Erest << ", T+V+R = " << Etot << "\n";
+    std::cout << "sum(T % dm)=" << Ekin1 << endl;
     std::cout << "Virial -V/T=" << -Epot/Ekin << endl;
     std::cout << "Direct H expectation = " << E_H << "\n";
     std::cout << "Residual max |Hc - E S c| = " << max_resid << "\n";

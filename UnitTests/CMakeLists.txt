@@ -34,7 +34,7 @@ target_compile_definitions(UTMain PRIVATE ${CXX_COMMON_DEFINES}
 )
 set_property(TARGET UTMain PROPERTY CXX_STANDARD 20)
 
-target_link_options(UTMain PRIVATE -pg)
+target_link_options(UTMain PRIVATE )
 target_include_directories(UTMain PRIVATE 
     ${PROJECT_SOURCE_DIR}/submodules/BSplinebasis/include
     ${PROJECT_SOURCE_DIR}/submodules/json/single_include

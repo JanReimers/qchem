@@ -42,7 +42,9 @@ template <class T> void TOrbitalImp<T>::AddDensityMatrix(smat_t<T>& D, smat_t<T>
 //
 template <class T> T TOrbitalImp<T>::operator()(const rvec3_t& r) const
 {
-    return trans(itsCoeff) * (*itsBasisSet)(r);
+    rvec_t gr=(*itsBasisSet)(r);
+    assert(gr.size()==itsCoeff.size());
+    return trans(itsCoeff) * gr;
 }
 
 //BUG

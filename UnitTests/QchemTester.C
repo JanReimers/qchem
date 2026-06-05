@@ -39,6 +39,8 @@ public:
     double          TotalEnergy() const;
     EnergyBreakdown GetEnergyBreakdown() const;
     double          TotalCharge() const;
+    const Real_BS*  GetBasisSet() const {return itsBasisSet;}
+    Hamiltonian* GetHamiltonian() const {return itsHamiltonian;}
     const Orbitals* GetOrbitals(const Irrep_QNs& qns) const;
     const Orbital*  GetOrbital(size_t index, const Irrep_QNs& qns) const;
     double          RelativeError(double expected,bool quiet=false) const;
@@ -65,6 +67,7 @@ protected:
 protected:
     cl_t          itsCluster;
     Real_BS*      itsBasisSet;
+    Hamiltonian*  itsHamiltonian;
     SCFIterator*  itsSCFIterator;
 public:
     static PeriodicTableSaito itsPT;

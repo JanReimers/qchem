@@ -178,9 +178,10 @@ TEST_F(DiracIntegralTests, SlaterKinetic)
         rvec_t d=blaze::diagonal(K);    
         for (size_t i=0;i<d.size();i++) EXPECT_NEAR(d[i],0.0,1e-15);       
         //cout << std::fixed << std::setprecision(3) << std::setw(6) << K << endl;
-         rmat_t KnumL = mintegrator->Grada_b(*GetLarge(oi),*GetSmall(oi));
+         rmat_t KnumL = -c_light*mintegrator->Grada_b(*GetLarge(oi),*GetSmall(oi));
+
         rsmat_t Knum=merge_off_diag(KnumL);
-        // cout << "K=" << K << endl << "Knum=" << Knum << endl;
+        cout << "K=" << K << endl << "Knum=" << Knum << endl;
         EXPECT_NEAR(max(abs(K-Knum)),0.0,1e-11);      
     }
 }
@@ -193,7 +194,7 @@ TEST_F(DiracIntegralTests, GaussianKinetic)
         rvec_t d=blaze::diagonal(K);    
         for (size_t i=0;i<d.size();i++) EXPECT_NEAR(d[i],0.0,1e-15);       
         //cout << std::fixed << std::setprecision(3) << std::setw(6) << K << endl;
-         rmat_t KnumL = mintegrator->Grada_b(*GetLarge(oi),*GetSmall(oi));
+         rmat_t KnumL = -c_light*mintegrator->Grada_b(*GetLarge(oi),*GetSmall(oi));
         rsmat_t Knum=merge_off_diag(KnumL);
         // cout << "K=" << K << endl << "Knum=" << Knum << endl;
         EXPECT_NEAR(max(abs(K-Knum)),0.0,1e-11);         

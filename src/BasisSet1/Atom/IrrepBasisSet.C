@@ -242,7 +242,7 @@ public:
         rmat_t S(ea.size(),eb.size());
         for (auto i:ea.indices())
             for (auto j:eb.indices())
-                S(i,j)= ea.Grad2(i,j,eb) + l*(l+1)*ea.Inv_r2(i,j,eb);
+                S(i,j)= 0.5*(ea.Grad2(i,j,eb) + l*(l+1)*ea.Inv_r2(i,j,eb));
 
         return S;
     }

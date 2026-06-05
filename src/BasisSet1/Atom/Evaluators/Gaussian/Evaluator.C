@@ -43,14 +43,14 @@ public:
                 -2*l1 * t      * ::Gaussian::Integral(t,2*l  )
                 +4*es[i]*es[j] * ::Gaussian::Integral(t,2*l+2))*ns[i]*ns[j] ;
     } 
-    double Grad2(size_t i,size_t j, const Evaluator& b) const
+    double Grad2(size_t i,size_t j, const Evaluator& s) const
     {
-        assert(l==b.l);
-        double t=es[i]+b.es[j];
+        assert(l==s.l);
+        double t=es[i]+s.es[j];
         size_t l1=l+1;
         return  (l1*l1           * ::Gaussian::Integral(t,2*l-2)
                 -2*l1 * t        * ::Gaussian::Integral(t,2*l  )
-                +4*es[i]*b.es[j] * ::Gaussian::Integral(t,2*l+2))*ns[i]*b.ns[j] ;
+                +4*es[i]*s.es[j] * ::Gaussian::Integral(t,2*l+2))*ns[i]*s.ns[j] ; 
     } 
     double Inv_r1(size_t i,size_t j) const
     {
@@ -173,7 +173,9 @@ public:
     virtual rvec_t norms() const; //assumes es,l are already initialized
     double Inv_r1(size_t i,size_t j) const
     {
-        return 4*es[i]*es[j]*::Gaussian::Integral(es[i]+es[j],2*l+1)*ns[i]*ns[j]; //Already has 4*Pi
+        // return 4*es[i]*es[j]*::Gaussian::Integral(es[i]+es[j],2*l+1)*ns[i]*ns[j]; //Already has 4*Pi
+        double p=es[i]+es[j];
+        return 8*Pi*es[i]*es[j]/(p*p)*ns[i]*ns[j];
     }    
     
 

@@ -15,7 +15,7 @@ public:
     }
     double GetTotalEnergy    () const
     {
-        return Kinetic + GetPotentialEnergy();
+        return Kinetic + GetPotentialEnergy()+RestMass;
     }
     double GetVirial         () const;
     void   Display           () const;

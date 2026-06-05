@@ -13,13 +13,13 @@ namespace qchem::Hamiltonian
 
 rsmat_t DiracKinetic::CalculateMatrix(const obs_t* bs,const Spin&) const
 {
-    // std::cout << "K_dirac/c=" << bs->Grad2() << std::endl;
-    return c_light*bs->Kinetic();
+    // std::cout << "K_dirac=" << bs->Grad2() << std::endl;
+    return bs->Kinetic();
 }
 
 void DiracKinetic::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
 {
-    te.Kinetic=0.5*cd->DM_Contract(this);
+    te.Kinetic=cd->DM_Contract(this);
 }
 
 std::ostream& DiracKinetic::Write(std::ostream& os) const
