@@ -14,6 +14,9 @@ import qchem.LASolver;
 namespace qchem::WaveFunction
 {
 
+using std::cerr;
+using std::endl;
+
 LAParams DefaultLAP({qchem::Cholsky,1e-12});
 
 
@@ -90,7 +93,14 @@ const Orbitals* CompositeWF::GetOrbitals(const Irrep_QNs& qns) const
 Orbitals* CompositeWF::GetOrbitals(const Irrep_QNs& qns) 
 {
     auto i=itsQNWFs.find(qns);
-    assert(i!=itsQNWFs.end());
+    if (i==itsQNWFs.end())
+    {
+        cerr << "CompositeWF::GetOrbitals cannot find orbital: " << qns << endl;
+        cerr << "  Known orbitals are:" << endl;
+        for (auto i:itsQNWFs ) cerr << "    " << i.first << endl;
+        assert(false);
+    }
+    // assert(i!=itsQNWFs.end());
     return i->second->GetOrbitals();
 
 }
