@@ -75,10 +75,11 @@ bool SCFIterator::Iterate(const SCFParams& ipar)
     assert(itsWaveFunction);
     assert(itsHamiltonian);
     assert(itsCD);
+    size_t idealVirial=itsHamiltonian->IsRelativistic() ? 1 : 2;
     if (ipar.Verbose)
     {
         cout << endl << endl;
-        cout << " #           Etotal       2+V/K    Del(E)  Del(Ro)";
+        cout << " #           Etotal       " << idealVirial << "+V/K    Del(E)  Del(Ro)";
         itsAccelerator->ShowLabels(cout);
         cout << "   relax" << endl;
         cout << "                         ";
@@ -119,7 +120,7 @@ bool SCFIterator::Iterate(const SCFParams& ipar)
         dE=(E-Eold)/fabs(E);
         FD=itsAccelerator->GetError(); //i.e. [F,D]
         dFD=(FD-FDold);
-        if (ipar.Verbose) DisplayEnergies(itsIterationCount,eb,relax,dFD,ChargeDensityChange);
+        if (ipar.Verbose) DisplayEnergies(itsIterationCount,eb,relax,dFD,ChargeDensityChange,idealVirial);
         if (FD>FDold && fabs(dFD)>1e-9) 
         {
             delete itsCD;
@@ -142,9 +143,9 @@ bool SCFIterator::Iterate(const SCFParams& ipar)
         // cout << "FD                     < ipar.MinError   " << (FD                 < ipar.MinError) << endl;
         // cout << "fabs(eb.GetVirial()+2) < ipar.MinVirial  " << (fabs(eb.GetVirial()+2) < ipar.MinVirial) << endl;
         itsConverged=  ChargeDensityChange < ipar.MinDeltaRo
-                 && fabs(dFD)           < ipar.MinDelE
-                 && FD               < ipar.MinError
-                 && fabs(eb.GetVirial()+2) < ipar.MinVirial
+                 && fabs(dFD)              < ipar.MinDelE
+                 && FD                     < ipar.MinError
+                 && fabs(eb.GetVirial()+idealVirial) < ipar.MinVirial
                   ;
         // DisplayEigen();
     }
@@ -188,12 +189,12 @@ EnergyBreakdown SCFIterator::GetEnergy() const
 
 
 
-void SCFIterator::DisplayEnergies(int i, const EnergyBreakdown& eb, double relax, double dE, double dCD) const
+void SCFIterator::DisplayEnergies(int i, const EnergyBreakdown& eb, double relax, double dE, double dCD, size_t idealVirial) const
 {
     cout.setf(ios::fixed,ios::floatfield);
     cout << setw(3)  << i << " ";
     cout << setw(2+6+12) << setprecision(12) << eb.GetTotalEnergy() << " ";
-    cout << setw(8) << std::scientific << setw(8) << setprecision(1) << eb.GetVirial()+2.0 << " ";
+    cout << setw(8) << std::scientific << setw(8) << setprecision(1) << eb.GetVirial()+idealVirial << " ";
         
     cout << setw(8) << std::scientific << setw(8) << setprecision(1) << dE  << " ";
     cout << setw(8) << std::scientific << setw(7) << setprecision(1) << dCD << " ";

@@ -33,17 +33,17 @@ Major Features:
 
 Features: 
     NO!!!! -Make SL/SG versions of 1/r evaluators.
-        You end up with int(exp(-ax)/x) and this diverges
+        You end up with integral(exp(-ax)/x) and this diverges
         Same for gaussians.
-    -We need a separate Arom_EC for Dirac atoms kappa,mj QNs.
-        Lets fix the total energy problem first.
+    -We need a separate Atom_EC for Dirac atoms kappa,mj QNs.
+        Done: Lets fix the total energy problem first.
 
 Clean up:
     -Dirac issues
         Now getting sensible total energies for hydrogen like ions.  Remaining issues
         1) 1s orbital is not properly normalized.  Shape is correct.
-        2) Figure a clean way tracking factors of 0.5, c, 2c etc for kinetic matrices.
-        3) Need an expected virial function somewhere.  2 for NR, 1 for rel.
+        2) Figure out a clean way tracking factors of 0.5, c, 2c etc for kinetic matrices.
+        Done: 3) Need an expected virial function somewhere.  2 for NR, 1 for rel.
         4) Need a whole new Dirac_Atom_EC infrastructure with kappa, j QNs.
             Find a table of GS EC for dirac atoms.
         Done: 5) rename IBS_RKBS_Evaluator file names.

@@ -544,7 +544,7 @@ nolink "false"
 
 \end_inset
 
- is worth pointing out that angular momentum space has two sectors.
+ is worth pointing out that new angular momentum space has two sectors.
  In particular the 
 \begin_inset Formula $j=l+\frac{1}{2}$
 \end_inset
@@ -1124,7 +1124,7 @@ not normalized
 
 \begin_layout Enumerate
 RKB results in matrix equations that do no match the corresponding operator equations.
- The reason is that we have an extra operator high inside the small component basis functions.
+ The reason is that we have an extra operator hiding inside the small component basis functions.
  Point #5 below is one example.
 \end_layout
 
@@ -1167,7 +1167,7 @@ literal "false"
 ,
  nobody ever states this plainly,
  maybe they never noticed!
- So did SO-coupling just disappear?
+ So did the SO-coupling just disappear?
  No,
  it moved over to the small-component part of the Nuclear potential matrix.
  Again 1) 
@@ -1184,7 +1184,7 @@ literal "false"
 
 \begin_layout Enumerate
 RKB does not actually remove the positron states from eigen solution space.
- We need to filter all of those out (eigen 
+ We need to filter all of those out (eigen value 
 \begin_inset Formula $\varepsilon<-2c^{2}$
 \end_inset
 
@@ -1198,6 +1198,13 @@ literal "false"
 \end_inset
 
 .
+\end_layout
+
+\begin_layout Enumerate
+A very useful check on SCF and basis set convergence is the virial ratio -V/K.
+ For non relativistic systems this should be 2.
+ But it is rarely mentioned for the Dirac Hamiltonian this ratio is 1!
+ 
 \end_layout
 
 \begin_layout Subsection
@@ -3335,7 +3342,7 @@ degeneracy
 \begin_inset Text
 
 \begin_layout Plain Layout
-\begin_inset Formula $2\left(E_{n\left|\kappa\right|}-c^{2}\right)$
+\begin_inset Formula $E_{n\left|\kappa\right|}-c^{2}$
 \end_inset
 
 
@@ -3421,7 +3428,7 @@ degeneracy
 \begin_inset Text
 
 \begin_layout Plain Layout
-\begin_inset Formula $\sim1+\frac{1}{4c^{2}}$
+\begin_inset Formula $-\frac{1}{2}-\frac{1}{8c^{2}}$
 \end_inset
 
 
@@ -3495,7 +3502,7 @@ degeneracy
 \begin_inset Text
 
 \begin_layout Plain Layout
-\begin_inset Formula $4$
+\begin_inset Formula $2,2$
 \end_inset
 
 
@@ -3507,7 +3514,7 @@ degeneracy
 \begin_inset Text
 
 \begin_layout Plain Layout
-\begin_inset Formula $\sim\frac{1}{4}+\frac{5}{64c^{2}}$
+\begin_inset Formula $-\frac{1}{8}-\frac{5}{128c^{2}}$
 \end_inset
 
 
@@ -3593,7 +3600,7 @@ degeneracy
 \begin_inset Text
 
 \begin_layout Plain Layout
-\begin_inset Formula $\sim\frac{1}{4}+\frac{1}{64c^{2}}$
+\begin_inset Formula $-\frac{1}{4}-\frac{1}{128c^{2}}$
 \end_inset
 
 
@@ -3667,7 +3674,7 @@ degeneracy
 \begin_inset Text
 
 \begin_layout Plain Layout
-\begin_inset Formula $4$
+\begin_inset Formula $2,2$
 \end_inset
 
 
@@ -3679,7 +3686,7 @@ degeneracy
 \begin_inset Text
 
 \begin_layout Plain Layout
-\begin_inset Formula $\sim\frac{1}{9}+\frac{9}{324c^{2}}$
+\begin_inset Formula $-\frac{1}{18}-\frac{9}{648c^{2}}$
 \end_inset
 
 
@@ -3753,7 +3760,7 @@ degeneracy
 \begin_inset Text
 
 \begin_layout Plain Layout
-\begin_inset Formula $8$
+\begin_inset Formula $4,4$
 \end_inset
 
 
@@ -3765,7 +3772,7 @@ degeneracy
 \begin_inset Text
 
 \begin_layout Plain Layout
-\begin_inset Formula $\sim\frac{1}{9}+\frac{3}{324c^{2}}$
+\begin_inset Formula $-\frac{1}{18}-\frac{3}{648c^{2}}$
 \end_inset
 
 
@@ -3851,7 +3858,7 @@ degeneracy
 \begin_inset Text
 
 \begin_layout Plain Layout
-\begin_inset Formula $\sim\frac{1}{9}+\frac{1}{324c^{2}}$
+\begin_inset Formula $-\frac{1}{18}-\frac{1}{648c^{2}}$
 \end_inset
 
 
@@ -3925,7 +3932,7 @@ degeneracy
 \begin_inset Text
 
 \begin_layout Plain Layout
-\begin_inset Formula $4$
+\begin_inset Formula $2,2$
 \end_inset
 
 
@@ -3937,7 +3944,7 @@ degeneracy
 \begin_inset Text
 
 \begin_layout Plain Layout
-\begin_inset Formula $\sim\frac{1}{16}+\frac{13}{1024c^{2}}$
+\begin_inset Formula $-\frac{1}{32}-\frac{13}{2048c^{2}}$
 \end_inset
 
 
@@ -4011,7 +4018,7 @@ degeneracy
 \begin_inset Text
 
 \begin_layout Plain Layout
-\begin_inset Formula $8$
+\begin_inset Formula $4,4$
 \end_inset
 
 
@@ -4023,7 +4030,7 @@ degeneracy
 \begin_inset Text
 
 \begin_layout Plain Layout
-\begin_inset Formula $\sim\frac{1}{16}+\frac{5}{1024c^{2}}$
+\begin_inset Formula $-\frac{1}{32}-\frac{5}{2048c^{2}}$
 \end_inset
 
 
@@ -4097,7 +4104,7 @@ degeneracy
 \begin_inset Text
 
 \begin_layout Plain Layout
-\begin_inset Formula $12$
+\begin_inset Formula $6,6$
 \end_inset
 
 
@@ -4109,7 +4116,7 @@ degeneracy
 \begin_inset Text
 
 \begin_layout Plain Layout
-\begin_inset Formula $\sim\frac{1}{16}+\frac{2.333\ldots}{1024c^{2}}$
+\begin_inset Formula $-\frac{1}{32}-\frac{2.333\ldots}{2048c^{2}}$
 \end_inset
 
 
@@ -4195,7 +4202,7 @@ degeneracy
 \begin_inset Text
 
 \begin_layout Plain Layout
-\begin_inset Formula $\sim\frac{1}{16}+\frac{1}{1024c^{2}}$
+\begin_inset Formula $-\frac{1}{32}-\frac{1}{2048c^{2}}$
 \end_inset
 
 
@@ -5112,7 +5119,7 @@ As usual our goal is to build the Fock and overlap matrices and then solve the g
 \end_inset
 
 .
- For matrix/operator type we must consider
+ For each matrix/operator type we must consider
 \end_layout
 
 \begin_layout Enumerate
@@ -5230,7 +5237,7 @@ where
  is just a kinetic energy integral.
 \begin_inset Formula 
 \[
-T_{ab}^{\kappa}=\left\langle g_{\kappa m_{j}a}^{L}\left(\vec{r}\right)|\frac{1}{2}\nabla^{2}|g_{\kappa m_{j}b}^{L}\left(\vec{r}\right)\right\rangle 
+T_{ab}^{\kappa}=\left\langle g_{\kappa m_{j}a}^{L}\left(\vec{r}\right)|-\frac{1}{2}\nabla^{2}|g_{\kappa m_{j}b}^{L}\left(\vec{r}\right)\right\rangle 
 \]
 
 \end_inset
@@ -5317,7 +5324,7 @@ nolink "false"
 
 \begin_inset Formula 
 \[
---i\frac{2}{2c}T_{ab}^{\kappa}
+-i\frac{2}{2c}T_{ab}^{\kappa}
 \]
 
 \end_inset
@@ -5726,7 +5733,7 @@ l_{rc}-1 & \kappa_{c}>0
 \end_inset
 
 where 
-\begin_inset Formula $rl_{c}$
+\begin_inset Formula $l_{rc}$
 \end_inset
 
  is the value used in the radial function

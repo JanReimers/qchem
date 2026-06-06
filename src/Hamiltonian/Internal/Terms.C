@@ -37,7 +37,8 @@ class DiracKinetic
 public:
     virtual void          GetEnergy(EnergyBreakdown&,const DM_CD* cd ) const;
     virtual std::ostream& Write    (std::ostream&) const;
-    virtual bool          IsPolarized() const {return true;}
+    virtual bool          IsPolarized   () const {return true;}
+    virtual bool          IsRelativistic() const {return true;}
 
 private:
     virtual rsmat_t CalculateMatrix(const obs_t*,const Spin&) const;
@@ -50,6 +51,7 @@ class RestMass
 public:
     virtual void          GetEnergy(EnergyBreakdown&,const DM_CD* cd ) const;
     virtual std::ostream& Write    (std::ostream&) const;
+    virtual bool          IsRelativistic() const {return true;}
 
 private:
     virtual rsmat_t CalculateMatrix(const obs_t*,const Spin&) const;

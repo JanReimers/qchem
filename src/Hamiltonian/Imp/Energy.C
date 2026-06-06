@@ -20,10 +20,7 @@ EnergyBreakdown::EnergyBreakdown()
 
 double EnergyBreakdown::GetVirial() const
 {
-    if (RestMass!=0.0) //relativistic
-        return GetPotentialEnergy()/(0.5*Kinetic);
-    else    
-        return GetPotentialEnergy()/Kinetic;
+    return GetPotentialEnergy()/Kinetic;
 }
 
 EnergyBreakdown& EnergyBreakdown::operator+=(const EnergyBreakdown& e1)

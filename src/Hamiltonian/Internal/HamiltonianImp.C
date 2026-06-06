@@ -21,6 +21,7 @@ public:
     virtual rsmat_t         GetMatrix(const obs_t*,const Spin& S,const DM_CD*);
     virtual EnergyBreakdown GetTotalEnergy  (const DM_CD* ) const;
     virtual bool            IsPolarized() const {return itsIsPolarized;}
+    virtual bool            IsRelativistic() const {return itsIsRelativistic;}
     virtual std::ostream&   Write(std::ostream&) const;
  
 protected:
@@ -32,6 +33,7 @@ protected:
     shtv_t itsSHTs;
     dhtv_t itsDHTs;
     bool   itsIsPolarized;
+    bool   itsIsRelativistic;
 };
 
 } //namespace

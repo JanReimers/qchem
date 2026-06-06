@@ -157,7 +157,7 @@ TEST_P(A_SG_DHF,A)
     };
     QchemTester::Init(js);
     //       NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo    MergeTol verbose
-    Iterate({   5     ,Z*1e-5    ,1e-7 , 3e-5      ,Z*1e-6 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,false});
+    Iterate({   5     ,Z*1e-5    ,1e-7 , 3e-5      ,Z*1e-6 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
 
     irrepv_t qns=GetIrreps(Spin::Up);
     const Orbital* orb0=GetOrbital(0,qns[0]);

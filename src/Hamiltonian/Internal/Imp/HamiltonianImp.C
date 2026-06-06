@@ -14,18 +14,22 @@ import qchem.Blaze;
 namespace qchem::Hamiltonian
 {
 
-HamiltonianImp::HamiltonianImp() : itsIsPolarized(false)
+HamiltonianImp::HamiltonianImp() 
+    : itsIsPolarized(false)
+    , itsIsRelativistic(false)
 {};
 
 void HamiltonianImp::Add(Static_HT* p)
 {
     itsSHTs.push_back(std::unique_ptr<Static_HT>(p));
-    itsIsPolarized = itsIsPolarized || p->IsPolarized();
+    itsIsPolarized    = itsIsPolarized    || p->IsPolarized();
+    itsIsRelativistic = itsIsRelativistic || p->IsRelativistic();
 }
 void HamiltonianImp::Add(Dynamic_HT* p)
 {
     itsDHTs.push_back(std::unique_ptr<Dynamic_HT>(p));
-    itsIsPolarized = itsIsPolarized || p->IsPolarized();
+    itsIsPolarized    = itsIsPolarized    || p->IsPolarized();
+    itsIsRelativistic = itsIsRelativistic || p->IsRelativistic();
 }
 
 void HamiltonianImp::InsertStandardTerms(const cl_t & cl)
@@ -60,10 +64,10 @@ EnergyBreakdown HamiltonianImp::GetTotalEnergy( const DM_CD* cd ) const
 std::ostream& HamiltonianImp::Write(std::ostream& os) const
 {
     if (itsIsPolarized) os << "Polarized ";
+    if (itsIsRelativistic) os << "Relativistic ";
     os << "Hamiltonian with " << itsSHTs.size() << " static terms:" << std::endl;
     os << itsSHTs;
-    if (itsIsPolarized) os << "Polarized ";
-    os << "Hamiltonian with " << itsDHTs.size() << " dynamic terms:" << std::endl;
+    os << "and " << itsDHTs.size() << " dynamic terms:" << std::endl;
     os << itsDHTs;
     return os;
 }

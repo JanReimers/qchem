@@ -24,7 +24,8 @@ class Static_HT
 public:
     virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&) const=0;
     virtual void           GetEnergy(EnergyBreakdown&,  const DM_CD*) const=0;
-    virtual bool           IsPolarized() const {return false;}
+    virtual bool           IsPolarized   () const {return false;}
+    virtual bool           IsRelativistic() const {return false;}
 };
 
 class Dynamic_HT
@@ -34,7 +35,8 @@ class Dynamic_HT
 public:
     virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&,const DM_CD*) const=0; 
     virtual void           GetEnergy(EnergyBreakdown&,  const DM_CD*) const=0;
-    virtual bool           IsPolarized() const {return false;}
+    virtual bool           IsPolarized   () const {return false;}
+    virtual bool           IsRelativistic() const {return false;}
 };
 
 
@@ -45,11 +47,12 @@ class Hamiltonian
     : public virtual Streamable
 {
 public:
-    virtual void            Add             (      Static_HT*)      =0;
-    virtual void            Add             (      Dynamic_HT*)      =0;
+    virtual void            Add             ( Static_HT*)=0;
+    virtual void            Add             (Dynamic_HT*)=0;
     virtual rsmat_t         GetMatrix(const obs_t*,const Spin&,const DM_CD*)=0;
     virtual EnergyBreakdown GetTotalEnergy  (  const DM_CD*    ) const=0;
-    virtual bool            IsPolarized() const=0;
+    virtual bool            IsPolarized   () const=0;
+    virtual bool            IsRelativistic() const=0;
 };
 
 } //namespace
