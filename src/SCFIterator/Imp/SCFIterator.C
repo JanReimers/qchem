@@ -169,6 +169,8 @@ bool SCFIterator::Iterate(const SCFParams& ipar)
         cout << "Virial               V/K  : " << std::fixed << setw(w) << setprecision(11) << eb.GetVirial() << "  ";
         if (eb.Exc!=0.0)
             cout << "Eee/Exc: " << std::fixed << setw(w) << setprecision(nprec) << eb.Eee/eb.Exc ;
+        if (eb.RestMass!=0.0)
+            cout << "RestMass:" << std::fixed << setw(w) << setprecision(nprec) << eb.RestMass ;
         cout << endl;
         DisplayEigen();
     }

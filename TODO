@@ -48,7 +48,7 @@ Clean up:
             Find a table of GS EC for dirac atoms.
         Done: 5) rename IBS_RKBS_Evaluator file names.
         6) Figure out Slater integrals Rk for LLLS, LLSS, LSSS and worst case SSSS->16 terms!!!
-        7) Report rest mass expectation in SCF report table.
+        Done: 7) Report rest mass expectation in SCF report table.
         Done: 8) Clean out ol AI Hydrogen files.
 
     -Get rid of ScalarFFClient::GetScalarFunction
