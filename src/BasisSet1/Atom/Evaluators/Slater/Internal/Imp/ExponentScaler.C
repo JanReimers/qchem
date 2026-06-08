@@ -3,7 +3,7 @@ module;
 #include <blaze/math/Subvector.h>
 module qchem.BasisSet.Atom.Evaluators.Slater.Internal.ExponentScaler;
 import qchem.BasisSet.Atom.Internal.FillPower;
-import qchem.Symmetry.Yl;
+import qchem.Symmetry.Angular;
 import qchem.Math;
 
 namespace Slater
@@ -30,8 +30,6 @@ rvec_t ExponentScaler::Get_es(size_t L) const
 
 rvec_t ExponentScaler::Get_es (const sym_t& ir) const
 {
-    const Yl_Sym* yl=dynamic_cast<const Yl_Sym*>(ir.get());
-    assert(yl);
-    return Get_es(yl->Getl());
+    return Get_es(Getl(ir));
 }
 } //namespace

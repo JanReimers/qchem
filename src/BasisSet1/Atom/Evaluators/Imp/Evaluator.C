@@ -4,21 +4,17 @@ module;
 
 module qchem.BasisSet.Atom.Evaluators.IBS;
 import qchem.BasisSet.Atom.Evaluators.Internal.AngularIntegrals;
-import qchem.Symmetry.Ylm;
+import qchem.Symmetry.Angular;
 
 namespace BasisSet::Atom::Evaluators
 {
-Evaluator::Evaluator(const sym_t& y) :  l(0), mls({}),ns(0),grouper(0)
-{
-    const Yl_Sym* yl=dynamic_cast<const Yl_Sym*>(y.get());
-    assert(yl);
-    l=yl->Getl();
-    const Ylm_Sym* ylm=dynamic_cast<const Ylm_Sym*>(y.get());
-    if (ylm)
-    {
-        mls=ylm->Getmls();
-    }
-}
+Evaluator::Evaluator(const sym_t& s) 
+    : l(::Getl(s))
+    , mls(::Getmls(s))
+    , ns(0)
+    , grouper(0)
+{}
+
 std::string Evaluator::AngularID() const
 {
      std::ostringstream os;

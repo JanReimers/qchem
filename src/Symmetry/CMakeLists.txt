@@ -1,5 +1,6 @@
 add_library(qcSymmetry) 
 target_sources(qcSymmetry PRIVATE 
+    Imp/Angular.C
     Imp/Atom_EC.C  
     Imp/ElectronCounts.C 
     Imp/Irrep_QNs.C  

@@ -3,11 +3,8 @@ module;
 #include <iomanip>
 #include <cassert>
 #include <blaze/Math.h>
-// #include <vector>
-// #include <algorithm>
 module qchem.Symmetry.Okmj;
 
-// import qchem.Symmetry.Yl; 
 import qchem.Symmetry.AtomEC;
 import qchem.Common.Strings; //To get SPDFG string table.
 import qchem.stl_io;

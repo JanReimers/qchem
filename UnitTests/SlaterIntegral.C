@@ -86,7 +86,7 @@ TEST_F(SlaterRadialIntegralTests, Kinetic)
     {
         rsmat_t K=oi->Kinetic();
         //cout << S << endl;
-        int l=oi->CastSymmetry<SphericalSym>().Getl();
+        int l=Getl(oi->GetSymmetry());;
         rsmat_t Knum = mintegrator->Grad2(*oi) + l*(l+1)*mintegrator->Inv_r2(*oi);
         EXPECT_NEAR(max(abs(K-Knum)),0.0,1e-10);
         

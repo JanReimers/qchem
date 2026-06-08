@@ -54,11 +54,6 @@ template <class T> class IrrepBasisSet
 public:
     //! Readonly ref to the polymorphic Symmetry object.
     virtual const Symmetry& GetSymmetry() const=0;
-    //! Very often the client code needs as derived class ref.
-    template <class Sym> const Sym& CastSymmetry() const
-    {
-        return dynamic_cast<const Sym&>(GetSymmetry());
-    }
     //! Irrep basis sets are spin agnostic, so caller must specify the spin in order to a full set of QNs.
     virtual Irrep_QNs GetIrrep(const Spin& s) const=0;
     virtual size_t GetNumFunctions() const=0;

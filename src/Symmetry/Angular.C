@@ -1,6 +1,5 @@
 // File: Symmetry/Angular.C Common interface for various atomic (spherical) symmetries.
 module;
-#include <vector>
 export module qchem.Symmetry.Angular;
 export import qchem.Symmetry;
 
@@ -16,6 +15,13 @@ public:
     virtual size_t Getl  () const=0;
     virtual ivec_t Getmls() const=0;
 };
+
+// Helper functin for Unit tests and some of main code that constantly needs to get at l.
+export size_t Getl(const sym_t&); //Throws bad_cast
+export size_t Getl(const Symmetry&); //Throws bad_cast
+// These are used in one place by the atom Evaluator class
+export ivec_t Getmls(const sym_t&); //Throws bad_cast
+export ivec_t Getmls(const Symmetry&); //Throws bad_cast
 
 //---------------------------------------------------------------------------------
 //

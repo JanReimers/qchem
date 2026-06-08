@@ -141,10 +141,10 @@ TEST_F(ElectronConfigurationTests, BasisSets)
         std::ostringstream os[4];
         for (auto ibs:bs->Iterate<Real_OIBS>())
         {
-            const SphericalSym& sym=ibs->CastSymmetry<SphericalSym>();
-            if (l>0 && sym.Getl()==l) os[l] << endl;
-            if (sym.Getl()>l) os[l++] << std::ends;
-            os[l] << sym;
+            size_t l1=Getl(ibs->GetSymmetry());
+            if (l>0 && l1==l) os[l] << endl;
+            if (l1>l) os[l++] << std::ends;
+            os[l] << ibs->GetSymmetry();
         }
         for (auto& osl:os) rs << osl.str();
         BS_table.add_row(rs);
