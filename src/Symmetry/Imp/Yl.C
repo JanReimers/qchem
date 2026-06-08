@@ -6,9 +6,6 @@ module;
 module qchem.Symmetry.Yl;
 import qchem.Common.Strings;
 
-Yl_Sym::Yl_Sym()
-    : itsL(0)
-{};
 
 Yl_Sym::Yl_Sym(int theL)
     : itsL(theL)

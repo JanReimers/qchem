@@ -11,7 +11,6 @@ export class Yl_Sym
     : public virtual Angular_Sym
 {
 public:
-    Yl_Sym(        );
     Yl_Sym(int theL);
 
     virtual size_t SequenceIndex() const; //Used for op<

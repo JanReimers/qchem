@@ -18,7 +18,6 @@ export class Ylm_Sym
     , public Yl_Sym
 {
 public:
-    Ylm_Sym(             );
     Ylm_Sym(int l, const std::vector<int>& ml);
 
     virtual size_t     SequenceIndex() const; //Used for op<

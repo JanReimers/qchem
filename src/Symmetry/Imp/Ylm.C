@@ -13,8 +13,6 @@ using std::cout;
 using std::endl;
 
 const int LMAX=4;
-Ylm_Sym::Ylm_Sym(): Yl_Sym(0) {};
-
 
 Ylm_Sym::Ylm_Sym(int l, const std::vector<int>& _ml) 
 : Yl_Sym(l),  ml(_ml) 
