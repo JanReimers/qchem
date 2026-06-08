@@ -7,6 +7,7 @@ export module qchem.Symmetry.Yl;
 export import qchem.Symmetry.Angular;
 import qchem.Symmetry.AtomEC;
 
+
 export class Yl_Sym
     : public virtual Angular_Sym
 {
@@ -21,7 +22,7 @@ public:
     virtual int     GetL() const {return itsL;}
 protected:
     int itsL;
-    static const int LMax=3;
+    static const int LMAX=4;
 };
 
 

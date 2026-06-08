@@ -47,7 +47,7 @@ Clean up:
         4) Need a whole new Dirac_Atom_EC infrastructure with kappa, j QNs.
             Find a table of GS EC for dirac atoms.
         Done: 5) rename IBS_RKBS_Evaluator file names.
-        6) Figure out Slater integrals Rk for LLLS, LLSS, LSSS and worst case SSSS->16 terms!!!
+        6) Figure out Slater integrals Rk for LLLS, LLSS, LSSS and worst case kappa>0 SSSS->16 terms!!!
         Done: 7) Report rest mass expectation in SCF report table.
         Done: 8) Clean out ol AI Hydrogen files.
 
@@ -2175,3 +2175,4 @@ Priority 3:
     Done: -Add some tests for IO of basis sets, waved functions, hamiltonians.
     Ansewred: -Way do we need default constructos for basisSet, Clusters, hamiltonians.
         Unpickle;
+

@@ -1,6 +1,2 @@
 CompileFlags:
   CompilationDatabase: build/Debug
-If:
-  PathMatch: submodules/.*
-Index:
-  Background: Skip

@@ -3,14 +3,14 @@
 #include "gtest/gtest.h"
 #include <set>
 #include <iostream>
-import qchem.Symmetry.Orbital;
+import qchem.Symmetry.Orbital; 
 import qchem.Symmetry.Yl;
 import qchem.Symmetry.Ylm;
 import qchem.Symmetry.Okmj;
 import qchem.Symmetry.BlochQN;
 import qchem.Streamable;
 
-using std::cout;
+using std::cout; 
 using std::endl;
 
 class SymQNTests : public ::testing::Test
@@ -32,11 +32,17 @@ public:
             return Spin::None;
         return Spin::Up;
     }
-    static std::vector<int> make_mls(int m0, int m1)
+    static std::vector<int> make_mls(int ml0, int ml1)
     {
-        std::vector<int> ms;
-        for (int m=m0;m<=m1;m++) ms.push_back(m);
-        return ms;
+        std::vector<int> mls;
+        for (int ml=ml0;ml<=ml1;ml++) mls.push_back(ml); //what is x:?  
+        return mls;
+    }
+    static std::vector<double> make_mjs(double mj0, double mj1)
+    {
+        std::vector<double> mjs;
+        for (double mj=mj0;mj<=mj1;mj++) mjs.push_back(mj); //what is x:?  
+        return mjs;
     }
     size_t LMax;
     int kappa_max;
@@ -44,14 +50,14 @@ public:
     bool quiet;
 };
 
-TEST_F(SymQNTests, Yl_Sym)
+TEST_F(SymQNTests, Yl_SequenceIndex)
 {
     for (size_t l1=0;l1<=LMax;l1++)
     {
         Symmetry* yl1=new Yl_Sym(l1);
         for (size_t l2=0;l2<l1;l2++)
         {
-            if (!quiet) cout << "{l1,l2}={" << l1 << "," << l2 << "}" << endl;
+            // if (!quiet) cout << "{l1,l2}={" << l1 << "," << l2 << "}" << endl;
             Symmetry* yl2=new Yl_Sym(l2);
             EXPECT_NE(yl1->SequenceIndex(),yl2->SequenceIndex());
             delete yl2;
@@ -59,11 +65,51 @@ TEST_F(SymQNTests, Yl_Sym)
         delete yl1;
     }
 }
-TEST_F(SymQNTests, Omega_k_Sym)
+TEST_F(SymQNTests, Ylm_SequenceIndex)
 {
-    for (int kappa1=-kappa_max;kappa1<=kappa_max;kappa1++)
+    for (size_t l1=0;l1<=LMax;l1++)
+    for (int m1=-(int)l1;m1<=(int)l1;m1++)
+    {
+        Symmetry* yl1=new Ylm_Sym(l1,make_mls(-(int)l1,m1));
+        if (!quiet) cout << "{l1,m1,sn}={" << l1 << "," << m1 << "," << yl1->SequenceIndex() << "}" << endl;
+        for (size_t l2=0;l2<=l1;l2++)
+        for (int m2=-(int)l2;m2<=(int)l2;m2++)
+        {
+            // if (!quiet) cout << "{l1,l2,m1,m2}={" << l1 << "," << l2 << "," << m1 << "," << m2 << "}" << endl;
+            Symmetry* yl2=new Ylm_Sym(l2,make_mls(-(int)l2,m2));
+            if (l1!=l2 || m1!=m2)
+            {
+                EXPECT_NE(yl1->SequenceIndex(),yl2->SequenceIndex());
+            }
+            delete yl2;
+        }
+        delete yl1;
+    }
+}
+TEST_F(SymQNTests, Yl_Ylm_CrossSequenceIndex)
+{
+    for (size_t l1=0;l1<=LMax;l1++)
+    {
+        Symmetry* yl1=new Yl_Sym(l1);
+        // if (!quiet) cout << "{l1,m1,sn}={" << l1 << "," << m1 << "," << yl1->SequenceIndex() << "}" << endl;
+        for (size_t l2=0;l2<=l1;l2++)
+        for (int m2=-(int)l2;m2<=(int)l2;m2++)
+        {
+            // if (!quiet) cout << "{l1,l2,m1,m2}={" << l1 << "," << l2 << "," << m1 << "," << m2 << "}" << endl;
+            Symmetry* yl2=new Ylm_Sym(l2,make_mls(-(int)l2,m2));
+            EXPECT_NE(yl1->SequenceIndex(),yl2->SequenceIndex());
+            delete yl2;
+        }
+        delete yl1;
+    }
+}
+
+TEST_F(SymQNTests, Omega_k_Sym_SequenceIndex)
+{
+    for (int kappa1=-kappa_max;kappa1<kappa_max;kappa1++) //Leave out the uppermost kappa, it corresponds to LMAX+1
     {
         Symmetry* Ol1=new Omega_k_Sym(kappa1);
+        if (!quiet) cout << "{k1,sn}={" << kappa1 << "," << Ol1->SequenceIndex() << "}" << endl;
         for (int kappa2=-kappa_max;kappa2<kappa1;kappa2++)
         {
             Symmetry* Ol2=new Omega_k_Sym(kappa2);
@@ -73,53 +119,56 @@ TEST_F(SymQNTests, Omega_k_Sym)
         delete Ol1;
     }
 }
-TEST_F(SymQNTests, Ylm_Sym_multi)
+TEST_F(SymQNTests, Omega_kmj_Sym_SequenceIndex)
 {
-    for (size_t l1=0;l1<=LMax;l1++)
-    for (int m1=-(int)l1;m1<=(int)l1;m1++)
+    for (int kappa1=-kappa_max;kappa1<kappa_max;kappa1++)
     {
-        Symmetry* yl1=new Ylm_Sym(l1,make_mls(-(int)l1,m1));
-        for (size_t l2=0;l2<=l1;l2++)
-        for (int m2=-(int)l2;m2<=(int)l2;m2++)
+        double j1=Omega_k_Sym::j(kappa1);
+        for (double mj1=-j1;mj1<=j1;mj1++)
         {
-            if (!quiet) cout << "{l1,l2,m1,m2}={" << l1 << "," << l2 << "," << m1 << "," << m2 << "}" << endl;
-            Symmetry* yl2=new Ylm_Sym(l2,make_mls(-(int)l2,m2));
-            if (m1!=m2)
+            Symmetry* Ol1=new Omega_kmj_Sym(kappa1,make_mjs(-j1,mj1));
+            if (!quiet) cout << "{k1,mj1,sn}={" << kappa1 << "," << mj1 << "," << Ol1->SequenceIndex() << "}" << endl;
+            for (int kappa2=-kappa_max;kappa2<kappa_max;kappa2++)
             {
-                EXPECT_NE(yl1->SequenceIndex(),yl2->SequenceIndex());
+                double j2=Omega_k_Sym::j(kappa2);
+                for (double mj2=-j2;mj2<=j2;mj2++)   
+                {
+                    Symmetry* Ol2=new Omega_kmj_Sym(kappa2,make_mjs(-j2,mj2));
+                    // if (!quiet) cout << "{k1,k2,mj1,mj2,sn}={" << kappa1 << "," << kappa2 << "," << mj1 << "," << mj2 << "," << Ol2->SequenceIndex() << "}" << endl;
+                    if (kappa1!=kappa2 || mj1!=mj2)
+                    {
+                        EXPECT_NE(Ol1->SequenceIndex(),Ol2->SequenceIndex());
+                    }
+                    delete Ol2;
+                }
             }
-            delete yl2;
+            delete Ol1;
         }
-        delete yl1;
     }
 }
-// TEST_F(SymQNTests, Omega_kmj_Sym)
-// {
-//     for (int kappa1=-kappa_max;kappa1<=kappa_max;kappa1++)
-//     {
-//         double j1=Omega_k_Sym::j(kappa1);
-//         for (double mj1=-j1;mj1<=j1;mj1++)
-//         {
-//             Symmetry* Ol1=new Omega_kmj_Sym(kappa1,mj1);
-//             for (int kappa2=-kappa_max;kappa2<=kappa1;kappa2++)
-//             {
-//                 double j2=Omega_k_Sym::j(kappa2);
-//                 for (double mj2=-j2;mj2<=j2;mj2++)   
-//                 {
-//                     Symmetry* Ol2=new Omega_kmj_Sym(kappa2,mj2);
-//                     if (!quiet) cout << "{k1,k2,mj1,mj2,sn}={" << kappa1 << "," << kappa2 << "," << mj1 << "," << mj2 << "," << Ol2->SequenceIndex() << "}" << endl;
-//                     if (mj1!=mj2)
-//                     {
-//                         EXPECT_NE(Ol1->SequenceIndex(),Ol2->SequenceIndex());
-//                     }
-//                     delete Ol2;
-//                 }
-//             }
-//             delete Ol1;
-//         }
-//     }
-// }
-TEST_F(SymQNTests, Orbital_QNs_YlQN)
+TEST_F(SymQNTests, Omega_k_kmj_CrossSequenceIndex)
+{
+    for (int kappa1=-kappa_max;kappa1<kappa_max;kappa1++)
+    {
+        {
+            Symmetry* Ol1=new Omega_k_Sym(kappa1);
+            if (!quiet) cout << "{k1,sn}={" << kappa1 << "," << Ol1->SequenceIndex() << "}" << endl;
+            for (int kappa2=-kappa_max;kappa2<kappa_max;kappa2++)
+            {
+                double j2=Omega_k_Sym::j(kappa2);
+                for (double mj2=-j2;mj2<=j2;mj2++)   
+                {
+                    Symmetry* Ol2=new Omega_kmj_Sym(kappa2,make_mjs(-j2,mj2));
+                    // if (!quiet) cout << "{k1,k2,mj1,mj2,sn}={" << kappa1 << "," << kappa2 << "," << mj1 << "," << mj2 << "," << Ol2->SequenceIndex() << "}" << endl;
+                    EXPECT_NE(Ol1->SequenceIndex(),Ol2->SequenceIndex());
+                    delete Ol2;
+                }
+            }
+            delete Ol1;
+        }
+    }
+}
+TEST_F(SymQNTests, Orbital_QNs_Yl_SequenceIndex)
 {
     for (int n1=1;n1<=n_max;n1++)
     for (int n2=1;n2<=n1;n2++)
@@ -133,7 +182,7 @@ TEST_F(SymQNTests, Orbital_QNs_YlQN)
         Orbital_QNs oqn1(n1,s1,yl1);
         for (size_t l2=0;l2<l1;l2++)
         {
-            if (!quiet) cout << "{l1,l2}={" << l1 << "," << l2 << "}" << endl;
+            // if (!quiet) cout << "{l1,l2}={" << l1 << "," << l2 << "}" << endl;
             auto yl2=sym_t(new Yl_Sym(l2));
             Orbital_QNs oqn2(n2,s2,yl2);
             EXPECT_NE(oqn1.SequenceIndex(),oqn2.SequenceIndex());

@@ -12,7 +12,6 @@ import qchem.Common.Strings;
 using std::cout;
 using std::endl;
 
-const int LMAX=4;
 
 Ylm_Sym::Ylm_Sym(int l, const std::vector<int>& _ml) 
 : Yl_Sym(l),  ml(_ml) 
@@ -22,8 +21,9 @@ Ylm_Sym::Ylm_Sym(int l, const std::vector<int>& _ml)
 
 size_t Ylm_Sym::SequenceIndex() const //Used for op<
  {
+    static size_t start=LMAX+1;  //Start after all the Yl Sequence Indexes, LMAX efined in Yl_Sym
     int mmax=*std::max_element(ml.begin(),ml.end());
-    return mmax+itsL+itsL*(2*LMAX+1);
+    return start+mmax+itsL*(itsL+1);
  }
 
 
