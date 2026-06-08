@@ -27,7 +27,7 @@ template <size_t K> class Evaluator_r : public Internal::EvaluatorCommon<K>
     using Internal::EvaluatorCommon<K>::l;
 
 public: 
-    Evaluator_r(size_t Ngrid, double rmin, double rmax, const Irrep_QNs::sym_t& ylm);
+    Evaluator_r(size_t Ngrid, double rmin, double rmax, const sym_t& ylm);
 
     double Overlap(size_t i,size_t j) const 
     {

@@ -5,8 +5,6 @@ module;
 
 export module qchem.Symmetry.Ylm;
 export import qchem.Symmetry.Yl;
-import qchem.Symmetry.AtomEC;
-export import qchem.Types;
 
 //---------------------------------------------------------------------------------
 //
@@ -18,15 +16,15 @@ export class Ylm_Sym
     , public Yl_Sym
 {
 public:
-    Ylm_Sym(int l, const std::vector<int>& ml);
+    Ylm_Sym(size_t l, const std::vector<int>& ml);
 
-    virtual size_t     SequenceIndex() const; //Used for op<
-    virtual int        GetDegeneracy() const;
+    virtual size_t SequenceIndex() const; //Used for op<
+    virtual size_t GetDegeneracy() const;
+    using Yl_Sym::GetL;
+    const std::vector<int>& Getmls() const {return ml;}
 
     virtual std::ostream&  Write(std::ostream&) const;
    
-    using Yl_Sym::GetL;
-    const std::vector<int>& Getmls() const {return ml;}
 protected:
     std::vector<int> ml;
 };

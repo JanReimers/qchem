@@ -31,7 +31,7 @@ using std::endl;
 class Dirac_EC_Tests : public ::testing::Test
 {
 public:
-    typedef Irrep_QNs::sym_t sym_t;
+    typedef sym_t sym_t;
     Dirac_EC_Tests() {}
     // sym_t qn(int l) const {return sym_t(new Omega_k_Sym(l));}
     // sym_t qn(int l, const std::vector<int>& ml) const {return sym_t(new Omega_kmj_Sym(l,ml));}

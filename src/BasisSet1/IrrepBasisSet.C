@@ -42,7 +42,7 @@ public:
 //  H is block diagonal with one block for each IrrepBasisSet.  Each block is 
 //  characterised by some sort of symmetry (Yl,Ylm,point group,wave vector,...) 
 //  that commutes with H.  Basic text book stuff.
-//  Since the symmetry is polymorphic we need work with shared_ptr<Symmetry> as defined in Irrep_QNs::sym_t.
+//  Since the symmetry is polymorphic we need work with shared_ptr<Symmetry> as defined in sym_t.
 //  Also supports op()(r) interface from VectorFunction<T>
 //  IrrepBasisSet1 has implementation data (itsSymmetry) so do not multiply inherit from this class.
 //

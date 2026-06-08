@@ -19,19 +19,19 @@ public:
     Omega_k_Sym(int kappa);
 
     virtual size_t SequenceIndex() const; //Used for op<
-    virtual int GetDegeneracy() const;
+    virtual size_t GetDegeneracy() const;
     
     virtual std::ostream&  Write(std::ostream&) const;
 
     int    GetKappa() const {return kappa;}
     double Getj    () const {return j(kappa);}
-    int    GetL    () const {return l(kappa);}
+    size_t GetL    () const {return l(kappa);}
 
     static double j(int kappa) {return kappa>0 ? kappa-0.5 : -kappa-0.5;}
-    static double l(int kappa) {return kappa>0 ? kappa : -kappa-1;}
+    static size_t l(int kappa) {return kappa>0 ? kappa : -kappa-1;}
 protected:
     int kappa;
-    static const int LMax=4;
+    static const size_t LMax=4;
 };
 
 
@@ -47,22 +47,22 @@ public:
     Omega_kmj_Sym(int kappa, const std::vector<double>& mjs);
 
     virtual size_t SequenceIndex() const; //Used for op<
-    virtual int GetDegeneracy() const;
+    virtual size_t GetDegeneracy() const;
     Symmetry* AddPrincipleQN(int index) const;
 
     virtual std::ostream&  Write(std::ostream&) const;
    
     int    GetKappa() const {return kappa;}
     double Getj    () const {return j(kappa);}
-    int    GetL    () const {return l(kappa);}
+    size_t GetL    () const {return l(kappa);}
 
     static double j(int kappa) {return kappa>0 ? kappa-0.5 : -kappa-0.5;}
-    static double l(int kappa) {return kappa>0 ? kappa : -kappa-1;}
+    static size_t l(int kappa) {return kappa>0 ? kappa : -kappa-1;}
     static double ms(int kappa) {return kappa<0 ? -0.5 : 0.5;}
     static int    ml(int kappa, double mj) {return mj-ms(kappa);}
 protected:
     int kappa;
     std::vector<double> mjs;
-    static const int LMax=3;
+    static const size_t LMax=3;
 };
 

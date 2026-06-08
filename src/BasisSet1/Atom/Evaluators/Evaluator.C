@@ -27,7 +27,7 @@ public:
     
 
     Evaluator(int _l, const ivec_t& _mls) : l(_l), mls(_mls),ns(0),grouper(0) {};
-    Evaluator(const Irrep_QNs::sym_t& ylm);
+    Evaluator(const sym_t& ylm);
     virtual ~Evaluator() {};
 
     virtual void          Register     (Grouper*)=0; //Set up unique spline or exponent indexes.

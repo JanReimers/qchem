@@ -1,7 +1,6 @@
 // File: Irrep_QNs.C  Combine Symmetry with Spin.
 module;
-#include <memory>
-
+#include <iosfwd>
 export module qchem.Symmetry.Irrep;
 export import qchem.Symmetry;
 export import qchem.Symmetry.Spin;
@@ -10,7 +9,6 @@ import qchem.Streamable;
 export struct Irrep_QNs
     : public virtual Streamable
 {   
-    typedef std::shared_ptr<const Symmetry> sym_t;
     Irrep_QNs() : ms(Spin::None), sym(0) {};
     Irrep_QNs(Spin _ms,const sym_t& _sym);
     ~Irrep_QNs();

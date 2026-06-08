@@ -15,7 +15,7 @@ public:
         : Evaluator(l,mls), es(_es )
         , isEvenTempered(EvenTempered(es))
         {};
-    ExponentialEvaluator(const   rvec_t& _es, const Irrep_QNs::sym_t& ir, size_t ltrim=0) 
+    ExponentialEvaluator(const   rvec_t& _es, const sym_t& ir, size_t ltrim=0) 
         : Evaluator(ir), es() 
         , isEvenTempered(EvenTempered(es))
         {

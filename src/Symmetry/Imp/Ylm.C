@@ -13,7 +13,7 @@ using std::cout;
 using std::endl;
 
 
-Ylm_Sym::Ylm_Sym(int l, const std::vector<int>& _ml) 
+Ylm_Sym::Ylm_Sym(size_t l, const std::vector<int>& _ml) 
 : Yl_Sym(l),  ml(_ml) 
 {
     assert(ml.size()>0);
@@ -27,13 +27,13 @@ size_t Ylm_Sym::SequenceIndex() const //Used for op<
  }
 
 
-int Ylm_Sym::GetDegeneracy() const
+size_t Ylm_Sym::GetDegeneracy() const
 {
     return ml.size(); 
 }
 
 
-inline int width(int m) {return m<0 ? 2 : 1;}
+inline size_t width(int m) {return m<0 ? 2 : 1;}
 std::ostream& Ylm_Sym::Write(std::ostream& os) const
 {
     os << SPDFG[itsL] << " ";
@@ -42,7 +42,7 @@ std::ostream& Ylm_Sym::Write(std::ostream& os) const
         os << "[";
         for (auto im:ml)
         {
-            int w=width(im);
+            size_t w=width(im);
             os << std::setw(w) << im << " ";
         }
         os << "]";

@@ -364,7 +364,7 @@ TEST_F(BSplineTests, Kinetic)
 //     std::vector<Evaluatorevals;
 //     for (size_t l=0;l<=3;l++)
 //     {
-//         Irrep_QNs::sym_t yl(new Yl_Sym(l));
+//         sym_t yl(new Yl_Sym(l));
 //         evals.push_back(new Evaluator<6>(10,.5,4.0,yl));
 //     }
 //     auto cache4=evals[0]->MakeCache4();
@@ -414,7 +414,7 @@ TEST_F(BSplineTests,RkSymmetry_l0)
 {
     using namespace BasisSet::Atom::Evaluators::BSpline;
     // typedef rvec11_t rvec11_t; 
-    Irrep_QNs::sym_t yl(new Yl_Sym(0));
+    sym_t yl(new Yl_Sym(0));
     size_t N=5;
     auto eval=new BSpline::Evaluator<6>(N,.0001,40,yl);
     auto cache4=eval->MakeCache4();

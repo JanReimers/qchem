@@ -11,8 +11,8 @@ export class UnitQN
 public:
     UnitQN();
     virtual size_t SequenceIndex() const {return 1;} //Used for op<
-    virtual int GetDegeneracy() const;
-    virtual int GetPrincipleOffset() const {return 0;}
+    virtual size_t GetDegeneracy() const;
+    virtual size_t GetPrincipleOffset() const {return 0;}
 
     virtual std::ostream& Write(std::ostream&) const;
 };

@@ -35,7 +35,7 @@ template <isGeneric_Evaluator E> class IrrepBasisSetImp
     , public BasisSet::IrrepBasisSetImp<double> //Pulls in Symmetry support
 {
 public:
-    IrrepBasisSetImp(const Irrep_QNs::sym_t& yl) : BasisSet::IrrepBasisSetImp<double>(yl) {}
+    IrrepBasisSetImp(const sym_t& yl) : BasisSet::IrrepBasisSetImp<double>(yl) {}
 
     virtual size_t GetNumFunctions() const {return Cast().size();}
     // using statements in the final class don't seem to work, so we need to function forward.
@@ -113,7 +113,7 @@ template <isFit_Evaluator Evaluator> class EFit_IBS
 {
     using IrrepBasisSetImp<Evaluator>::Cast;
 public:
-    EFit_IBS(const Evaluator& e) : IrrepBasisSetImp<Evaluator>(Irrep_QNs::sym_t(new Yl_Sym(0))), Evaluator(e) {};
+    EFit_IBS(const Evaluator& e) : IrrepBasisSetImp<Evaluator>(sym_t(new Yl_Sym(0))), Evaluator(e) {};
 
     virtual rsmat_t MakeRepulsion(                ) const 
     {

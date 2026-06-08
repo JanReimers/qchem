@@ -7,7 +7,7 @@ import qchem.BasisSet.Atom.Evaluators.Internal.AngularIntegrals;
 
 namespace BasisSet::Atom::Evaluators
 {
-Evaluator::Evaluator(const Irrep_QNs::sym_t& y) :  l(0), mls({}),ns(0),grouper(0)
+Evaluator::Evaluator(const sym_t& y) :  l(0), mls({}),ns(0),grouper(0)
 {
     const Yl_Sym* yl=dynamic_cast<const Yl_Sym*>(y.get());
     assert(yl);

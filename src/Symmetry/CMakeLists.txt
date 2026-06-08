@@ -11,6 +11,7 @@ target_sources(qcSymmetry PRIVATE
     Imp/Ylm.C 
     Imp/Okmj.C
     Imp/BlochQN.C
+    Imp/Factory.C
     )
 target_sources(qcSymmetry PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
     Spin.C 
@@ -25,6 +26,7 @@ target_sources(qcSymmetry PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Atom_EC.C 
     Atom_Dirac_EC.C
     Molecule_EC.C 
+    Factory.C
     ) 
 
 target_compile_options(qcSymmetry PRIVATE -Wall 

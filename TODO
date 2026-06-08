@@ -189,7 +189,7 @@ Bugs
         4) Z=1-56 phi(r)=1/r option gives slighty better results for K=6.
         5) Z=92: 
     DOne -Clean up fit BS construction:
-         : Evaluator(exponents,Irrep_QNs::sym_t(new Yl_Sym(L)))
+         : Evaluator(exponents,sym_t(new Yl_Sym(L)))
         , AtomBS::IrrepBasisSet(this,new Yl_Sym(L))
 
     Done: -Simplify the whole Integrals_XXX, DB_X, DB_Cache network

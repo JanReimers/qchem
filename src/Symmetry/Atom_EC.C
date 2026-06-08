@@ -15,11 +15,11 @@ const int Nshell=8;
 export class Atom_EC : public virtual ElectronConfiguration
 {
 public: 
-    static constexpr auto cmp = [](Irrep_QNs::sym_t a, Irrep_QNs::sym_t b) 
+    static constexpr auto cmp = [](sym_t a, sym_t b) 
         {
              return a->SequenceIndex() < b->SequenceIndex();
         }; 
-    typedef std::set<Irrep_QNs::sym_t,decltype(cmp)> syms_t;
+    typedef std::set<sym_t,decltype(cmp)> syms_t;
     Atom_EC(int Z);
     
     virtual int    GetN(const Irrep_QNs&) const;  //Core + Valance

@@ -21,8 +21,8 @@ public:
  
     Evaluator(const rvec_t& es, int l, const ivec_t& mls) : ExponentialEvaluator(es,l,mls) {ns=norms();}
     Evaluator(const rvec_t& es, int l) : Evaluator(es,l,{}) {}
-    Evaluator(const rvec_t& es, const Irrep_QNs::sym_t& ir, size_t ltrim=0) : ExponentialEvaluator(es,ir,ltrim) {ns=norms();}
-    Evaluator(size_t N, double emin, double emax, const Irrep_QNs::sym_t& ir) 
+    Evaluator(const rvec_t& es, const sym_t& ir, size_t ltrim=0) : ExponentialEvaluator(es,ir,ltrim) {ns=norms();}
+    Evaluator(size_t N, double emin, double emax, const sym_t& ir) 
     : ExponentialEvaluator(exponents(N,emin,emax,ir),ir) {ns=norms();}
 
     Evaluator Rescale(double scale_factor) const
@@ -115,7 +115,7 @@ public:
     }
 
 protected:
-    static rvec_t exponents(size_t N, double emin, double emax, const Irrep_QNs::sym_t& ir);
+    static rvec_t exponents(size_t N, double emin, double emax, const sym_t& ir);
     rvec_t norms() const; //assumes es,l are already initialized
     template <class v> static v gaussian(double r,size_t l,const v& e, const v& n)
     {
@@ -169,7 +169,7 @@ class RKBS_Evaluator : public Evaluator
 public:
     RKBS_Evaluator(const rvec_t& es, int _kappa, int l, const ivec_t& mls) : Evaluator(es,l,mls), kappa(_kappa) {ns=norms();}
     RKBS_Evaluator(const rvec_t& es, int _kappa, int l) : RKBS_Evaluator(es,_kappa,l,{}) {}
-    RKBS_Evaluator(size_t N, double emin, double emax, int _kappa, int l): Evaluator(N,emin,emax,Irrep_QNs::sym_t(new Yl_Sym(0))), kappa(_kappa) {ns=norms();}
+    RKBS_Evaluator(size_t N, double emin, double emax, int _kappa, int l): Evaluator(N,emin,emax,sym_t(new Yl_Sym(0))), kappa(_kappa) {ns=norms();}
     virtual rvec_t norms() const; //assumes es,l are already initialized
     double Inv_r1(size_t i,size_t j) const
     {

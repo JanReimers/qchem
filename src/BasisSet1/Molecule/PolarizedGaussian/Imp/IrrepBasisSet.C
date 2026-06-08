@@ -53,7 +53,7 @@ std::vector<Polarization> MakePolarizations(int L)
 //  Common implementation for orbital and fit basis sets.
 //
 IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Cluster* cl)
-    : IrrepBasisSetImp<double>(Irrep_QNs::sym_t(new UnitQN))
+    : IrrepBasisSetImp<double>(sym_t(new UnitQN))
 {
     //
     //  Read in all the radial functions.  These are usually contracted Gaussians, but could also
@@ -119,7 +119,7 @@ IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Cluster* cl)
 };
 
 IrrepBasisSet::IrrepBasisSet(const rvec_t& es, size_t LMax, const Cluster* cl)
-    : IrrepBasisSetImp<double>(Irrep_QNs::sym_t(new UnitQN))
+    : IrrepBasisSetImp<double>(sym_t(new UnitQN))
 {
     int nbasis=1;
     for (auto& atom:*cl)
@@ -147,7 +147,7 @@ IrrepBasisSet::IrrepBasisSet(const rvec_t& es, size_t LMax, const Cluster* cl)
 }
 // Single atom version
 IrrepBasisSet::IrrepBasisSet(const rvec_t& es, size_t L)
-    : IrrepBasisSetImp<double>(Irrep_QNs::sym_t(new UnitQN))
+    : IrrepBasisSetImp<double>(sym_t(new UnitQN))
 {
     int nbasis=1;
     std::vector<Polarization> Ps=MakePolarizations(L);

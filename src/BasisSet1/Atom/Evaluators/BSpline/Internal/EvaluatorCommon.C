@@ -32,7 +32,7 @@ protected:
     typedef bspline::Spline<double, K> spline_t;
     using rvec11_t=rvec11_t;
 public: 
-    EvaluatorCommon(size_t Ngrid, double rmin, double rmax, const Irrep_QNs::sym_t& ylm);
+    EvaluatorCommon(size_t Ngrid, double rmin, double rmax, const sym_t& ylm);
     virtual void          Register(Grouper*); //Set up unique spline or exponent indexes.
     virtual std::ostream& Write   (std::ostream&) const;
     virtual size_t        maxSpan () const {return l<=K ? K-l : 0;}  //assume no overlap for indices separated by > maxSpan

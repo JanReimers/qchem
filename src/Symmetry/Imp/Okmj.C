@@ -26,7 +26,7 @@ size_t Omega_k_Sym::SequenceIndex() const //Used for op<
  }
 
 
-int Omega_k_Sym::GetDegeneracy() const
+size_t Omega_k_Sym::GetDegeneracy() const
 {
     return Getj()+0.5; //(2j+1)/2 degeneracy for one spin state.
 }
@@ -53,7 +53,7 @@ size_t Omega_kmj_Sym::SequenceIndex() const //Used for op<
  }
 
 
-int Omega_kmj_Sym::GetDegeneracy() const
+size_t Omega_kmj_Sym::GetDegeneracy() const
 {
     return mjs.size();
 }

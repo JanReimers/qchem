@@ -31,7 +31,7 @@ struct ml_Breakdown
 class ElectronConfigurationTests : public ::testing::Test
 {
 public:
-    typedef Irrep_QNs::sym_t sym_t;
+    typedef sym_t sym_t;
     ElectronConfigurationTests() {}
     sym_t qn(int l) const {return sym_t(new Yl_Sym(l));}
     sym_t qn(int l, const std::vector<int>& ml) const {return sym_t(new Ylm_Sym(l,ml));}

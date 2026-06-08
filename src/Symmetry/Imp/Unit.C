@@ -6,7 +6,7 @@ UnitQN::UnitQN()
 {};
 
 
-int UnitQN::GetDegeneracy() const
+size_t UnitQN::GetDegeneracy() const
 {
     return 1;
 }

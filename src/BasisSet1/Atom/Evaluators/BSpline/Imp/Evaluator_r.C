@@ -20,7 +20,7 @@ using namespace bspline::integration;
 template<size_t K> using spline_t = bspline::Spline<double, K>;
 
 
-template <size_t K> Evaluator_r<K>::Evaluator_r(size_t Ngrid, double rmin, double rmax,const Irrep_QNs::sym_t& ylm) 
+template <size_t K> Evaluator_r<K>::Evaluator_r(size_t Ngrid, double rmin, double rmax,const sym_t& ylm) 
 : Internal::EvaluatorCommon<K>(Ngrid,rmin,rmax,ylm)
 {
     splines.erase(splines.begin()); //First spline has B(0)=1.0 with violates B(0)=0 boundary condition for 1/r prefactor.

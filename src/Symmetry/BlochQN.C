@@ -14,8 +14,8 @@ export class BlochQN : public virtual Symmetry
 public:
     BlochQN(ivec3_t _N, ivec3_t _ik);
     virtual size_t SequenceIndex() const;
-    virtual int GetDegeneracy() const {return 1;} // +/-k?
-    virtual int GetPrincipleOffset() const  {return 1;}
+    virtual size_t GetDegeneracy() const {return 1;} // +/-k?
+    virtual size_t GetPrincipleOffset() const  {return 1;}
     virtual std::ostream&  Write(std::ostream&) const;
 
     rvec3_t   Getk() const {return k;}

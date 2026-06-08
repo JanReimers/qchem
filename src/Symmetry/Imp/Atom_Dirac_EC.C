@@ -38,13 +38,13 @@ Atom_Dirac_EC::Atom_Dirac_EC(int Z)
         if (Nu==0) //No unpaired electrons
         {
             assert(N%2==0);
-            Irrep_QNs::sym_t Ω(new Omega_k_Sym(κ));
+            sym_t Ω(new Omega_k_Sym(κ));
             itsOccupations[Irrep_QNs(Spin::Up  ,Ω)]=N/2;
             itsOccupations[Irrep_QNs(Spin::Down,Ω)]=N/2;
         }
         else if (Nu==g) //exactly half filled all up.
         {
-            Irrep_QNs::sym_t Ω(new Omega_k_Sym(κ));
+            sym_t Ω(new Omega_k_Sym(κ));
             itsOccupations[Irrep_QNs(Spin::Up  ,Ω)]=N;
             itsOccupations[Irrep_QNs(Spin::Down,Ω)]=N-Nu;
         }
@@ -59,8 +59,8 @@ Atom_Dirac_EC::Atom_Dirac_EC(int Z)
             for (size_t i=0;i<gu;i++) mj_u.push_back(mj++);
             for (size_t i=0;i<gp;i++) mj_p.push_back(mj++);
             assert(mj==j+1);
-            Irrep_QNs::sym_t Ω_p(new Omega_kmj_Sym(κ,mj_p));
-            Irrep_QNs::sym_t Ω_u(new Omega_kmj_Sym(κ,mj_u));
+            sym_t Ω_p(new Omega_kmj_Sym(κ,mj_p));
+            sym_t Ω_u(new Omega_kmj_Sym(κ,mj_u));
             itsOccupations[Irrep_QNs(Spin::Up  ,Ω_p)]=Nlevel*gp+Npair;
             itsOccupations[Irrep_QNs(Spin::Down,Ω_p)]=Nlevel*gp+Npair;
             itsOccupations[Irrep_QNs(Spin::Up  ,Ω_u)]=Nlevel*gu+Nu;

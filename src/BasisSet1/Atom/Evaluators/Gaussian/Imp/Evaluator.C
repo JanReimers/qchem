@@ -33,7 +33,7 @@ Cache4*    Evaluator::MakeCache4() const
     return new Gaussian_Cache4();
 }
 
-rvec_t Evaluator::exponents(size_t N, double emin, double emax, const Irrep_QNs::sym_t& ir)
+rvec_t Evaluator::exponents(size_t N, double emin, double emax, const sym_t& ir)
 {
     size_t LMax=3; //TODO how do we get the real LMax(Z) into this?
     ::Gaussian::ExponentScaler ss(N,emin,emax,LMax);

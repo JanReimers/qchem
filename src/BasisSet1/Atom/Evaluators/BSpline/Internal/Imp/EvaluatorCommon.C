@@ -11,7 +11,7 @@ import qchem.Math;
 namespace BasisSet::Atom::Evaluators::BSpline::Internal
 {
 
-template <size_t K> EvaluatorCommon<K>::EvaluatorCommon(size_t Ngrid, double _rmin, double _rmax,const Irrep_QNs::sym_t& ylm) 
+template <size_t K> EvaluatorCommon<K>::EvaluatorCommon(size_t Ngrid, double _rmin, double _rmax,const sym_t& ylm) 
 : Evaluator(ylm)
 , rmin(_rmin), rmax(_rmax) , itsGrid({0,1})
 {

@@ -28,7 +28,7 @@ rvec_t ExponentScaler::Get_es(size_t L) const
     return blaze::subvector(es,L,N);
 }
 
-rvec_t ExponentScaler::Get_es (const Irrep_QNs::sym_t& ir) const
+rvec_t ExponentScaler::Get_es (const sym_t& ir) const
 {
     const Yl_Sym* yl=dynamic_cast<const Yl_Sym*>(ir.get());
     assert(yl);

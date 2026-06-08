@@ -39,13 +39,13 @@ public:
         , public Evaluator
     {
     public:
-        EOrbital_HF_IBS(size_t N, double rmin, double rmax, const Irrep_QNs::sym_t& yl)
+        EOrbital_HF_IBS(size_t N, double rmin, double rmax, const sym_t& yl)
         : IrrepBasisSetImp<Evaluator>(yl)
         , Evaluator(N,rmin,rmax,yl)
         {
             theGlobalCache->Register(this); //Can this move to the evaluator level?
         };
-        EOrbital_HF_IBS(const rvec_t& es, const Irrep_QNs::sym_t& yl, size_t ltrim=0)
+        EOrbital_HF_IBS(const rvec_t& es, const sym_t& yl, size_t ltrim=0)
         : IrrepBasisSetImp<Evaluator>(yl)
         , Evaluator(es,yl,ltrim)
         {
@@ -91,13 +91,13 @@ public:
     , public Evaluator
     {
     public:
-        Orbital_1E_HF_IBS(size_t N, double rmin, double rmax, const Irrep_QNs::sym_t& yl)
+        Orbital_1E_HF_IBS(size_t N, double rmin, double rmax, const sym_t& yl)
         : IrrepBasisSetImp<Evaluator>(yl)
         , Evaluator(N,rmin,rmax,yl)
         {
             theGlobalCache->Register(this);
         };
-        Orbital_1E_HF_IBS(const rvec_t& es, const Irrep_QNs::sym_t& yl)
+        Orbital_1E_HF_IBS(const rvec_t& es, const sym_t& yl)
         : IrrepBasisSetImp<Evaluator>(yl)
         , Evaluator(es,yl)
         {
@@ -131,7 +131,7 @@ public:
         , public LEvaluator
     {
     public:
-        EOrbital_RKBL_IBS(size_t N, double rmin, double rmax, const Irrep_QNs::sym_t& yl)
+        EOrbital_RKBL_IBS(size_t N, double rmin, double rmax, const sym_t& yl)
         : IrrepBasisSetImp<LEvaluator>(yl)
         , LEvaluator(N,rmin,rmax,yl)
         {};
@@ -150,7 +150,7 @@ public:
         , public SEvaluator
     {
     public:
-        EOrbital_RKBS_IBS(size_t N, double rmin, double rmax, const Irrep_QNs::sym_t& yl)
+        EOrbital_RKBS_IBS(size_t N, double rmin, double rmax, const sym_t& yl)
         : IrrepBasisSetImp<SEvaluator>(yl)
         , SEvaluator(N,rmin,rmax,-1,0) //fix kappa=-1, l=0
         {};
@@ -168,7 +168,7 @@ public:
         , public ::BasisSet::IrrepBasisSetImp<double>
     {
     public:
-        EOrbital_RKB_IBS(size_t N, double remin, double remax, const Irrep_QNs::sym_t& yl)
+        EOrbital_RKB_IBS(size_t N, double remin, double remax, const sym_t& yl)
         : Orbital_RKB_IBS_Imp(
                     new EOrbital_RKBL_IBS(N,remin,remax,yl),
                     new EOrbital_RKBS_IBS(N,remin,remax,yl)

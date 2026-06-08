@@ -11,6 +11,6 @@ export class Angular_Sym
     : public virtual Symmetry
 {
 public:
-    virtual int GetPrincipleOffset() const {return GetL();} //Add to principle QN.  For atoms this is just l.
-    virtual int GetL() const=0;
+    virtual size_t GetPrincipleOffset() const {return GetL();} //Add to principle QN.  For atoms this is just l.
+    virtual size_t GetL() const=0;
 };
