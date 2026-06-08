@@ -25,6 +25,7 @@ template <typename T> using vec3vec_t = vec_t<vec3_t<T>>;
 template <typename T> using vec3mat_t = mat_t<vec3_t<T>>;
 
 using  rvec_t= vec_t<double>;
+using  ivec_t= vec_t<int>;
 using  rrow_t= row_t<double>;
 using  rcol_t= col_t<double>;
 using  rmat_t= mat_t<double>;

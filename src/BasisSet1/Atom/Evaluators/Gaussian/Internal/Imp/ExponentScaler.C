@@ -30,7 +30,7 @@ rvec_t ExponentScaler::Get_es (const sym_t& ir) const
 {
     const Yl_Sym* yl=dynamic_cast<const Yl_Sym*>(ir.get());
     assert(yl);
-    return Get_es(yl->GetL());
+    return Get_es(yl->Getl());
 }
 
 } //namespace

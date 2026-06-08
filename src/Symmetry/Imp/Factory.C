@@ -12,7 +12,7 @@ import qchem.Symmetry.Unit;
 
 namespace SymmetryFactory
 {
-sym_t YFactory(size_t l,std::vector<int> mls)
+sym_t YFactory(size_t l,const ivec_t& mls)
 {
     if (mls.size()==0)
         return sym_t(new Yl_Sym(l));
@@ -20,7 +20,7 @@ sym_t YFactory(size_t l,std::vector<int> mls)
         return sym_t(new Ylm_Sym(l,mls));
 }
 
-sym_t     ΩFactory(int κ,std::vector<double> mjs)
+sym_t     ΩFactory(int κ,const rvec_t& mjs)
 {
      if (mjs.size()==0)
         return sym_t(new Omega_k_Sym(κ));

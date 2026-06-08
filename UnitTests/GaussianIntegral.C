@@ -16,7 +16,9 @@ import qchem.Factory;
 import qchem.Constants;
 import qchem.Mesh.Integrator;
 import qchem.Cluster;
-import qchem.Symmetry.Yl;
+import qchem.Symmetry.Angular;
+import qchem.Symmetry.Factory;
+
 
 using std::cout;
 using std::endl;
@@ -88,7 +90,7 @@ TEST_F(GaussianRadialIntegralTests, Kinetic)
     {
         rsmat_t K=oi->Kinetic();
         //cout << S << endl;
-        int l=oi->CastSymmetry<Angular_Sym>().GetL();
+        int l=oi->CastSymmetry<SphericalSym>().Getl();
         rsmat_t Knum = mintegrator->Grad2(*oi) + l*(l+1)*mintegrator->Inv_r2(*oi);
         EXPECT_NEAR(max(abs(K-Knum)),0.0,1e-12);
         
@@ -99,8 +101,7 @@ TEST_F(GaussianRadialIntegralTests,RkSymmetry_l0)
 {
     using namespace BasisSet::Atom::Evaluators::Gaussian;
     typedef rvec11_t rvec11_t; 
-    sym_t yl(new Yl_Sym(0));
-    auto eval=new Evaluator(15,.03,20.0,yl);
+    auto eval=new Evaluator(15,.03,20.0,SymmetryFactory::YFactory(0));
     auto cache4=eval->MakeCache4();
     cache4->Register(eval);
     auto ns=eval->Norm();

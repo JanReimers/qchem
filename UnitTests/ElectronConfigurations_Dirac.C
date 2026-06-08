@@ -131,7 +131,7 @@ public:
 //         std::ostringstream os[4];
 //         for (auto ibs:bs->Iterate<Real_OIBS>())
 //         {
-//             const Angular_Sym& sym=ibs->CastSymmetry<Angular_Sym>();
+//             const Spherical_Sym& sym=ibs->CastSymmetry<Spherical_Sym>();
 //             if (l>0 && sym.GetL()==l) os[l] << endl;
 //             if (sym.GetL()>l) os[l++] << std::ends;
 //             os[l] << sym;

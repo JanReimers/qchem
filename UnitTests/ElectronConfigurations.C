@@ -8,8 +8,6 @@
 
 import Common.PeriodicTable;
 import qchem.Symmetry.Irrep;
-// import qchem.Symmetry.Ylm;
-// import qchem.Symmetry.Yl;
 import qchem.Symmetry.Angular;
 import qchem.Symmetry.Factory;
 
@@ -37,7 +35,7 @@ public:
     typedef sym_t sym_t;
     ElectronConfigurationTests() {}
     sym_t qn(int l) const {return SymmetryFactory::YFactory(l);}
-    sym_t qn(int l, const std::vector<int>& mls) const {return SymmetryFactory::YFactory(l,mls);}
+    sym_t qn(int l, const ivec_t& mls) const {return SymmetryFactory::YFactory(l,mls);}
     
     static int GetN(const Atom_EC& ac, const sym_t& sym, Spin s) 
     {
@@ -143,9 +141,9 @@ TEST_F(ElectronConfigurationTests, BasisSets)
         std::ostringstream os[4];
         for (auto ibs:bs->Iterate<Real_OIBS>())
         {
-            const Angular_Sym& sym=ibs->CastSymmetry<Angular_Sym>();
-            if (l>0 && sym.GetL()==l) os[l] << endl;
-            if (sym.GetL()>l) os[l++] << std::ends;
+            const SphericalSym& sym=ibs->CastSymmetry<SphericalSym>();
+            if (l>0 && sym.Getl()==l) os[l] << endl;
+            if (sym.Getl()>l) os[l++] << std::ends;
             os[l] << sym;
         }
         for (auto& osl:os) rs << osl.str();

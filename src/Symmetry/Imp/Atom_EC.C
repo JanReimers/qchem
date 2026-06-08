@@ -151,10 +151,10 @@ Atom_EC::Atom_EC(int Z)
         }
         else // M splitting
         {
-            std::vector<int> ms_p,ms_u;
+            ivec_t ms_p(gp),ms_u(gu);
             int ml=-(int)l;
-            for (size_t i=0;i<gu;i++) ms_u.push_back(ml++);
-            for (size_t i=0;i<gp;i++) ms_p.push_back(ml++);
+            for (size_t i=0;i<gu;i++) ms_u[i]=ml++;
+            for (size_t i=0;i<gp;i++) ms_p[i]=ml++;
             // for (size_t i=0;i<Nempty;i++) mls.ml_unoccupied.push_back(ml++);
             assert(ml==(int)(l+1));
             sym_t ylm_p(new Ylm_Sym(l,ms_p));
@@ -198,7 +198,7 @@ int Atom_EC::GetN(const Irrep_QNs& qns) const
         Display();
         
         //Still need this for Dirac atoms.
-        // const Angular_Sym* sqn=dynamic_cast<const Angular_Sym*>(qns.sym.get());
+        // const Spherical_Sym* sqn=dynamic_cast<const Spherical_Sym*>(qns.sym.get());
         // ElCounts_l ecl=sqn->GetN(itsNs);
         // assert((ecl.N+ecl.Nu)%2==0);
         // cout << qns << " N=" << ecl.GetN(qns.ms) << endl;

@@ -33,7 +33,7 @@ target_compile_options(qcSymmetry PRIVATE -Wall
     $<$<CONFIG:Debug>:-g -O0>
     $<$<CONFIG:Release>: -O2 -pg>
 )
-target_include_directories(qcSymmetry PRIVATE ${PROJECT_SOURCE_DIR}/src)
+target_include_directories(qcSymmetry PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_SOURCE_DIR}/submodules/blaze)
 # This linker association is required in order for cmake/gcc to find .gcm binaru module  interfact (BMI) files!!!!!
 target_link_libraries(qcSymmetry PRIVATE qcCommon)
 set_property(TARGET qcSymmetry PROPERTY CXX_STANDARD 20)

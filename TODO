@@ -1417,7 +1417,7 @@ Priority 3:
         -Usage:
             ChargeDensity.C base->Polarized for MixIn & Change functions
             CompositeCD
-            Atom_EC: Symmetry->Angular_Sym
+            Atom_EC: Symmetry->Spherical_Sym
             Electron configurtions EC->AtomEC
             cross casts from IE to AtomIEC.  These are now all labeled
                 options:
@@ -1728,7 +1728,7 @@ Priority 3:
         Perhaps: ValanceConfiguration GetN(const ElectronCOnfiguration&) const=0
     No: Move symmetries and EC classes into Atom and Molecule sections of Basis Set?
         Not sure where to put these.  Outside of basis sets we have:
-            Atom_CL, Atom_EC Angular_Sym
+            Atom_CL, Atom_EC Spherical_Sym
 
     Done: -TOrbitalImp<T>::MakeEnergyLevel(const Spin& s) does not need the spin.
     Done: -Plot Orbitals

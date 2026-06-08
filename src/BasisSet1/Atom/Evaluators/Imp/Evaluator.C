@@ -12,7 +12,7 @@ Evaluator::Evaluator(const sym_t& y) :  l(0), mls({}),ns(0),grouper(0)
 {
     const Yl_Sym* yl=dynamic_cast<const Yl_Sym*>(y.get());
     assert(yl);
-    l=yl->GetL();
+    l=yl->Getl();
     const Ylm_Sym* ylm=dynamic_cast<const Ylm_Sym*>(y.get());
     if (ylm)
     {
@@ -32,7 +32,7 @@ rvec11_t Evaluator::Coulomb_AngularIntegrals(const Evaluator& a,const Evaluator&
 {
     rvec11_t Ak(0.0);
     int la=a.Getl(),lc=c.Getl();
-    const Evaluator::ivec_t& amls=a.Getmls(),cmls=c.Getmls();
+    const ivec_t& amls=a.Getmls(),cmls=c.Getmls();
     size_t nac=amls.size()*cmls.size();
     size_t g=(2*la+1)*(2*lc+1); //degenracy
     if (nac==g || nac==0)
@@ -54,7 +54,7 @@ rvec11_t Evaluator::ExchangeAngularIntegrals(const Evaluator& a,const Evaluator&
 {
     rvec11_t Ak(0.0);
     int la=a.Getl(),lb=b.Getl();
-    const Evaluator::ivec_t& amls=a.Getmls(),bmls=b.Getmls();
+    const ivec_t& amls=a.Getmls(),bmls=b.Getmls();
     size_t nab=amls.size()*bmls.size();
     size_t g=(2*la+1)*(2*lb+1); //degenracy
     if (nab==0 || nab==g)

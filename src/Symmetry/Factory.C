@@ -6,8 +6,8 @@ export import qchem.Symmetry;
 
 export namespace SymmetryFactory
 {
-    sym_t     YFactory(size_t l=0,std::vector<int   > mls={}); //Spherical harmonics
-    sym_t     ΩFactory(int   κ=-1,std::vector<double> mjs={}); //Spherical spinors
+    sym_t     YFactory(size_t l=0,const ivec_t& mls={}); //Spherical harmonics
+    sym_t     ΩFactory(int   κ=-1,const rvec_t& mjs={}); //Spherical spinors
     sym_t BlochFactory(ivec3_t N, ivec3_t k); //Bloch finite lattice and wave vector and
     sym_t  UnitFactory(); //No symmetry
     // Need to add point group symmetry and space group symmetry.

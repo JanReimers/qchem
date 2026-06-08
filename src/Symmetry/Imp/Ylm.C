@@ -1,10 +1,12 @@
 // File: Symmetry/YlmImp.C  Magnetic spherical harmonic Y_lm(theta,phi) symmetry
 module;
-#include <algorithm>
+// #include <algorithm>
 #include <iostream>
 #include <iomanip>
 #include <cassert>
-#include <vector>
+// #include <vector>
+#include <blaze/Math.h>
+// #include <blaze/util/algorithms/Max.h>
 
 module qchem.Symmetry.Ylm;
 import qchem.Common.Strings;
@@ -13,37 +15,38 @@ using std::cout;
 using std::endl;
 
 
-Ylm_Sym::Ylm_Sym(size_t l, const std::vector<int>& _ml) 
-: Yl_Sym(l),  ml(_ml) 
+Ylm_Sym::Ylm_Sym(size_t l, const ivec_t& _mls) 
+: Yl_Sym(l),  mls(_mls) 
 {
-    assert(ml.size()>0);
+    assert(mls.size()>0);
 };
 
 size_t Ylm_Sym::SequenceIndex() const //Used for op<
  {
     static size_t start=LMAX+1;  //Start after all the Yl Sequence Indexes, LMAX efined in Yl_Sym
-    int mmax=*std::max_element(ml.begin(),ml.end());
+    // int mmax=*std::max_element(mls.begin(),mls.end()); stl veraion
+    int mmax=blaze::max(mls);
     return start+mmax+itsL*(itsL+1);
  }
 
 
 size_t Ylm_Sym::GetDegeneracy() const
 {
-    return ml.size(); 
+    return mls.size(); 
 }
 
 
-inline size_t width(int m) {return m<0 ? 2 : 1;}
+inline size_t width(int ml) {return ml<0 ? 2 : 1;}
 std::ostream& Ylm_Sym::Write(std::ostream& os) const
 {
     os << SPDFG[itsL] << " ";
-    if (ml.size()<2*(size_t)itsL+1)
+    if (mls.size()<2*(size_t)itsL+1)
     {
         os << "[";
-        for (auto im:ml)
+        for (auto ml:mls)
         {
-            size_t w=width(im);
-            os << std::setw(w) << im << " ";
+            size_t w=width(ml);
+            os << std::setw(w) << ml << " ";
         }
         os << "]";
 

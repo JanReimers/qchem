@@ -344,7 +344,7 @@ TEST_F(BSplineTests, Kinetic)
         for (auto i:iv_t(0,T.rows()-K-1)) //Check banded
             for (auto j:iv_t(i+K+1,T.rows())) EXPECT_EQ(T(i,j),0.0);
         
-        int l=ibs->CastSymmetry<Angular_Sym>().GetL();
+        int l=ibs->CastSymmetry<SphericalSym>().Getl();
         rsmat_t Tnum = mintegrator->Grad2(*ibs);
         rsmat_t Cen  = mintegrator->Inv_r2(*ibs);
         Tnum+=l*(l+1)*Cen;

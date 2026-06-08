@@ -6,31 +6,26 @@ module;
 
 export module qchem.Symmetry.Okmj;
 export import qchem.Symmetry.Angular;
-export import qchem.Types;
+// export import qchem.Types;
 //---------------------------------------------------------------------------------
 //
 //  Spherical Spinor with total AM J=L+S.  QNs are kappa (mj gets averaged over).
 //
-export class Omega_k_Sym
-    : public virtual Angular_Sym
-
+export class Omega_k_Sym : public virtual SphericalSpinorSym
 {
 public:
-    Omega_k_Sym(int kappa);
+    Omega_k_Sym(int κ);
 
     virtual size_t SequenceIndex() const; //Used for op<
     virtual size_t GetDegeneracy() const;
-    
+    virtual int    Getκ  () const {return κ;}
+    virtual rvec_t Getmjs() const {return {};}
+ 
     virtual std::ostream&  Write(std::ostream&) const;
 
-    int    GetKappa() const {return kappa;}
-    double Getj    () const {return j(kappa);}
-    size_t GetL    () const {return l(kappa);}
-
-    static double j(int kappa) {return kappa>0 ? kappa-0.5 : -kappa-0.5;}
-    static size_t l(int kappa) {return kappa>0 ? kappa : -kappa-1;}
+    
 protected:
-    int kappa;
+    int κ;
     static const size_t LMax=4;
 };
 
@@ -40,29 +35,22 @@ protected:
 //  Spherical Spinor with total AM J=L+S.  QNs are kappa and mj.
 //
 export class Omega_kmj_Sym
-    : public virtual Angular_Sym
+    : public virtual SphericalSpinorSym
+    , private Omega_k_Sym
 
 {
 public:
-    Omega_kmj_Sym(int kappa, const std::vector<double>& mjs);
+    Omega_kmj_Sym(int κ, const rvec_t& mjs);
 
     virtual size_t SequenceIndex() const; //Used for op<
     virtual size_t GetDegeneracy() const;
-    Symmetry* AddPrincipleQN(int index) const;
+    using Omega_k_Sym::Getκ;
+    virtual rvec_t Getmjs() const {return mjs;}
 
     virtual std::ostream&  Write(std::ostream&) const;
    
-    int    GetKappa() const {return kappa;}
-    double Getj    () const {return j(kappa);}
-    size_t GetL    () const {return l(kappa);}
 
-    static double j(int kappa) {return kappa>0 ? kappa-0.5 : -kappa-0.5;}
-    static size_t l(int kappa) {return kappa>0 ? kappa : -kappa-1;}
-    static double ms(int kappa) {return kappa<0 ? -0.5 : 0.5;}
-    static int    ml(int kappa, double mj) {return mj-ms(kappa);}
 protected:
-    int kappa;
-    std::vector<double> mjs;
-    static const size_t LMax=3;
+    rvec_t mjs;
 };
 

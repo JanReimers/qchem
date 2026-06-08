@@ -21,9 +21,6 @@ class Evaluator
     , public VectorFunction<double>
 {
 public:
-    using ivec_t=std::vector<int>;
-    
-
     Evaluator(int _l, const ivec_t& _mls) : l(_l), mls(_mls),ns(0),grouper(0) {};
     Evaluator(const sym_t& ylm);
     virtual ~Evaluator() {};

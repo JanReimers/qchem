@@ -8,7 +8,7 @@ export import qchem.Symmetry.Angular;
 
 
 export class Yl_Sym
-    : public virtual Angular_Sym
+    : public virtual SphericalSym
 {
 public:
     Yl_Sym(size_t l) : itsL(l)
@@ -16,8 +16,8 @@ public:
 
     virtual size_t SequenceIndex() const {return itsL;} //Used for op<
     virtual size_t GetDegeneracy() const {return 2*itsL+1;}
-    virtual size_t GetL         () const {return itsL;}
-    
+    virtual size_t Getl         () const {return itsL;}
+    virtual ivec_t Getmls       () const {return {};}
     virtual std::ostream&  Write(std::ostream&) const;
    
 protected:
