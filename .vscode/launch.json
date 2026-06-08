@@ -28,7 +28,7 @@
                 "description": "Set Disassembly Flavor to Intel",
                 "text": "-gdb-set disassembly-flavor intel",
                 "ignoreFailures": true
-            }
+            },
             {
                 "description": "Clear debuginfod URLs",
                 "text": "set debuginfod urls ",
