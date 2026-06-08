@@ -9,7 +9,6 @@
 import Common.PeriodicTable;
 import qchem.Symmetry.Irrep;
 import qchem.Symmetry.Okmj;
-// import qchem.Symmetry.Yl;
 import qchem.Symmetry.Atom_Dirac_EC;
 import qchem.Factory;
 import qchem.Common.Strings;

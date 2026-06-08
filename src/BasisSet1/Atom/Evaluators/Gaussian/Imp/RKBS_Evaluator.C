@@ -5,11 +5,18 @@ module;
 
 module qchem.BasisSet.Atom.Evaluators.Gaussian.IBS; 
 import qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.GaussianIntegrals; 
+import qchem.Symmetry.Factory;
 import qchem.Math;
 
 namespace BasisSet::Atom::Evaluators::Gaussian
 {
 
+RKBS_Evaluator::RKBS_Evaluator(size_t N, double emin, double emax, int _kappa, int l)
+    : Evaluator(N,emin,emax,SymmetryFactory::YFactory())
+    , kappa(_kappa) 
+{
+    ns=norms();
+}
 std::string RKBS_Evaluator::Name() const
 {
     return "SG RKB ";

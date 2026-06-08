@@ -8,7 +8,7 @@ import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.Common;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.GLQuadrature;
 import qchem.BasisSet.Atom.Evaluators.Concepts;
 import qchem.BasisSet.Internal.Cache4;
-import qchem.Symmetry.Yl;
+// import qchem.Symmetry;
 import qchem.Math;
 
 export namespace BasisSet::Atom::Evaluators::BSpline

@@ -10,8 +10,7 @@ import qchem.BasisSet.Atom.Evaluators.Concepts;
 import qchem.BasisSet.Internal.Cache4;
 
 import qchem.IntPow;
-import qchem.Symmetry.Irrep;
-import qchem.Symmetry.Yl;
+import qchem.Symmetry;
 
 export namespace BasisSet::Atom::Evaluators::Slater
 {
@@ -169,7 +168,7 @@ class RKBS_Evaluator : public Evaluator
 public:
     RKBS_Evaluator(const rvec_t& es, int _kappa, int l,const ivec_t& mls) : Evaluator(es,l,mls), kappa(_kappa) {ns=norms();}
     RKBS_Evaluator(const rvec_t& es, int _kappa, int l) : RKBS_Evaluator(es,_kappa,l,{}) {}
-    RKBS_Evaluator(size_t N, double emin, double emax, int _kappa, int l): Evaluator(N,emin,emax,sym_t(new Yl_Sym(0))), kappa(_kappa) {ns=norms();}
+    RKBS_Evaluator(size_t N, double emin, double emax, int _kappa, int l);
     rvec_t norms() const; //assumes es,l are already initialized
 
     double Inv_r1(size_t i,size_t j) const

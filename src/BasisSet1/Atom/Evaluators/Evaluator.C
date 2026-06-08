@@ -10,8 +10,6 @@ export import qchem.Symmetry.Irrep;
 export import qchem.VectorFunction;
 
 import qchem.BasisSet.Internal.Cache4;
-import qchem.Symmetry.Ylm;
-
 
 export namespace BasisSet::Atom::Evaluators
 {

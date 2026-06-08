@@ -4,6 +4,7 @@ module;
 
 module qchem.BasisSet.Atom.Evaluators.IBS;
 import qchem.BasisSet.Atom.Evaluators.Internal.AngularIntegrals;
+import qchem.Symmetry.Ylm;
 
 namespace BasisSet::Atom::Evaluators
 {

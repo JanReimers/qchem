@@ -13,8 +13,9 @@ import qchem.BasisSet.Atom.Evaluators.BSpline.IBS;
 import qchem.BasisSet.Atom.Evaluators.Concepts;
 
 import qchem.Mesh.Integrator;
-import qchem.Symmetry.Yl;
 import qchem.Hamiltonian.Types;
+import qchem.Symmetry.Factory;
+
 
 using qchem::Hamiltonian::ohfbs_t;
 using qchem::Hamiltonian::obs_t;
@@ -405,7 +406,7 @@ public:
     BasisSet_BS() : BasisSet_Common()
     {
         for (size_t l=0;l<=3;l++)
-            Insert(new BSpline::Evaluator<6>(5,0.01,20.0,sym_t(new Yl_Sym(l))));
+            Insert(new BSpline::Evaluator<6>(5,0.01,20.0,SymmetryFactory::YFactory(l)));
 
         bs=PoolFactory(BasisSetAccuracy::N5,BasisSet::Atom::Type::BSpline6,86);
     }

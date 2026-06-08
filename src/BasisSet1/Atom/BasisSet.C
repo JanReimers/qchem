@@ -10,8 +10,6 @@ import qchem.BasisSet.Fit_IBS;
 export import qchem.Symmetry.AtomEC;
 export import qchem.Symmetry.Irrep;
 
-import qchem.Symmetry.Yl;
-// import qchem.BasisSet.Atom.Evaluators.IBS;
 import qchem.BasisSet.Atom.Evaluators.Concepts;
 import qchem.BasisSet.Atom.IBS;
 import qchem.BasisSet.Internal.BasisSetImp;

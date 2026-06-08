@@ -18,8 +18,7 @@ import qchem.BasisSet.Atom.Evaluators.IBS;
 import qchem.Factory;
 import qchem.Mesh.Integrator;
 import qchem.Cluster;
-import qchem.Symmetry;
-import qchem.Symmetry.Yl;
+import qchem.Symmetry.Factory;
 import qchem.stl_io;
 import qchem.Streamable;
 import qchem.Constants;
@@ -414,7 +413,7 @@ TEST_F(BSplineTests,RkSymmetry_l0)
 {
     using namespace BasisSet::Atom::Evaluators::BSpline;
     // typedef rvec11_t rvec11_t; 
-    sym_t yl(new Yl_Sym(0));
+    sym_t yl=SymmetryFactory::YFactory(0);
     size_t N=5;
     auto eval=new BSpline::Evaluator<6>(N,.0001,40,yl);
     auto cache4=eval->MakeCache4();

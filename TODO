@@ -51,6 +51,11 @@ Clean up:
         Done: 7) Report rest mass expectation in SCF report table.
         Done: 8) Clean out ol AI Hydrogen files.
 
+    -Clean up RKBS_Evaluator constructors:
+        RKBS_Evaluator(const rvec_t& es, int _kappa, int l, const ivec_t& mls) : Evaluator(es,l,mls), kappa(_kappa) {ns=norms();}
+        RKBS_Evaluator(const rvec_t& es, int _kappa, int l) : RKBS_Evaluator(es,_kappa,l,{}) {}
+        RKBS_Evaluator(size_t N, double emin, double emax, int _kappa, int l);
+        -What is l doing in there?
     -Get rid of ScalarFFClient::GetScalarFunction
     Done: -All Evaluators are for IBS, so just get rid of the IBS part.
     No: -merge RadialID and RadialType ? 

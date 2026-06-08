@@ -14,11 +14,11 @@ import qchem.BasisSet.IrrepBasisSet;
 import qchem.BasisSet.Orbital_1E_IBS;
 import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.BasisSet.Orbital_HF_IBS;
-import qchem.Symmetry.Yl;
 import qchem.BasisSet.Internal.DB_Cache;
 import qchem.BasisSet.Atom.Evaluators.IBS;
 import qchem.BasisSet.Atom.Evaluators.Concepts;
 import qchem.BasisSet.Internal.Cache4;
+import qchem.Symmetry.Factory;
 
 export namespace BasisSet
 {
@@ -113,7 +113,7 @@ template <isFit_Evaluator Evaluator> class EFit_IBS
 {
     using IrrepBasisSetImp<Evaluator>::Cast;
 public:
-    EFit_IBS(const Evaluator& e) : IrrepBasisSetImp<Evaluator>(sym_t(new Yl_Sym(0))), Evaluator(e) {};
+    EFit_IBS(const Evaluator& e) : IrrepBasisSetImp<Evaluator>(SymmetryFactory::YFactory()), Evaluator(e) {};
 
     virtual rsmat_t MakeRepulsion(                ) const 
     {
