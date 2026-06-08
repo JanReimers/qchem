@@ -20,7 +20,6 @@ public:
     virtual std::ostream&  Write(std::ostream&) const;
    
     virtual int     GetL() const {return itsL;}
-    virtual ElCounts_l GetN(const ElCounts&) const;
 protected:
     int itsL;
     static const int LMax=3;

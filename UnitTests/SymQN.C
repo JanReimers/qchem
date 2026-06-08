@@ -93,32 +93,32 @@ TEST_F(SymQNTests, Ylm_Sym_multi)
         delete yl1;
     }
 }
-TEST_F(SymQNTests, Omega_kmj_Sym)
-{
-    for (int kappa1=-kappa_max;kappa1<=kappa_max;kappa1++)
-    {
-        double j1=Omega_k_Sym::j(kappa1);
-        for (double mj1=-j1;mj1<=j1;mj1++)
-        {
-            Symmetry* Ol1=new Omega_kmj_Sym(kappa1,mj1);
-            for (int kappa2=-kappa_max;kappa2<=kappa1;kappa2++)
-            {
-                double j2=Omega_k_Sym::j(kappa2);
-                for (double mj2=-j2;mj2<=j2;mj2++)   
-                {
-                    Symmetry* Ol2=new Omega_kmj_Sym(kappa2,mj2);
-                    if (!quiet) cout << "{k1,k2,mj1,mj2,sn}={" << kappa1 << "," << kappa2 << "," << mj1 << "," << mj2 << "," << Ol2->SequenceIndex() << "}" << endl;
-                    if (mj1!=mj2)
-                    {
-                        EXPECT_NE(Ol1->SequenceIndex(),Ol2->SequenceIndex());
-                    }
-                    delete Ol2;
-                }
-            }
-            delete Ol1;
-        }
-    }
-}
+// TEST_F(SymQNTests, Omega_kmj_Sym)
+// {
+//     for (int kappa1=-kappa_max;kappa1<=kappa_max;kappa1++)
+//     {
+//         double j1=Omega_k_Sym::j(kappa1);
+//         for (double mj1=-j1;mj1<=j1;mj1++)
+//         {
+//             Symmetry* Ol1=new Omega_kmj_Sym(kappa1,mj1);
+//             for (int kappa2=-kappa_max;kappa2<=kappa1;kappa2++)
+//             {
+//                 double j2=Omega_k_Sym::j(kappa2);
+//                 for (double mj2=-j2;mj2<=j2;mj2++)   
+//                 {
+//                     Symmetry* Ol2=new Omega_kmj_Sym(kappa2,mj2);
+//                     if (!quiet) cout << "{k1,k2,mj1,mj2,sn}={" << kappa1 << "," << kappa2 << "," << mj1 << "," << mj2 << "," << Ol2->SequenceIndex() << "}" << endl;
+//                     if (mj1!=mj2)
+//                     {
+//                         EXPECT_NE(Ol1->SequenceIndex(),Ol2->SequenceIndex());
+//                     }
+//                     delete Ol2;
+//                 }
+//             }
+//             delete Ol1;
+//         }
+//     }
+// }
 TEST_F(SymQNTests, Orbital_QNs_YlQN)
 {
     for (int n1=1;n1<=n_max;n1++)

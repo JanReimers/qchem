@@ -23,7 +23,6 @@ public:
 
     virtual size_t     SequenceIndex() const; //Used for op<
     virtual int        GetDegeneracy() const;
-    virtual ElCounts_l GetN(const ElCounts&) const;
 
     virtual std::ostream&  Write(std::ostream&) const;
    

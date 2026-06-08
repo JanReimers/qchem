@@ -25,10 +25,6 @@ int Yl_Sym::GetDegeneracy() const
     return 2*itsL+1;
 }
 
-ElCounts_l Yl_Sym::GetN(const ElCounts& ec) const
-{
-    return ElCounts_l{ec.N[itsL],ec.Nu[itsL]}; // Should be total core+valance 
-}
 
 
 

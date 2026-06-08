@@ -27,11 +27,8 @@ public:
     virtual void   Display() const;
     
     syms_t GetIrreps() const;
-private:
+protected:
     friend class ElectronConfigurationTests;
-    int  GetN() const;
-    int  GetN(const Spin&) const;
-    int  GetN(const Irrep_QNs::sym_t&) const;
 
     static const int FullShells[Nshell][LMax+2];
     ElCounts itsNs; //Total,core, valance and unpaired counts.

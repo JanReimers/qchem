@@ -1,4 +1,4 @@
-// File: ERIList.C  Test the DFT persistance classes
+// File: UnitTests/ElectronConfigurations.C  Test non-relativistic atom electron configurations.
 
 
 #include "gtest/gtest.h"

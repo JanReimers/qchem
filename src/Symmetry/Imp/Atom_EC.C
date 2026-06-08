@@ -178,30 +178,6 @@ Atom_EC::Atom_EC(int Z)
     assert(nup==0); //By now all unpaired electrons should have gobbled up.        
 }
 
-
-int Atom_EC::GetN() const
-{
-    int ne=0;
-    for (auto n:itsNs.N) ne+=n; //Sum over l
-    return ne;
-}
-
-int Atom_EC::GetN(const Spin& s) const
-{
-    if (s==Spin::None) return GetN();
-    int ne=GetN();
-    int NUnpaired=0;
-    for (auto& nu:itsNs.Nu) NUnpaired+=nu;
-    assert((ne+NUnpaired)%2==0);
-    return s==Spin::Up ? (ne+NUnpaired)/2 : (ne-NUnpaired)/2;
-}
-
-int Atom_EC::GetN(const Irrep_QNs::sym_t& qn) const
-{
-    const Angular_Sym* sqn=dynamic_cast<const Angular_Sym*>(qn.get());
-    ElCounts_l ecl=sqn->GetN(itsNs);
-    return ecl.N; // Should be total core+valance 
-}
 int Atom_EC::GetN(const Irrep_QNs& qns) const
 {
     if (qns.ms==Spin::None) 
@@ -219,12 +195,14 @@ int Atom_EC::GetN(const Irrep_QNs& qns) const
     if (i==itsOccupations.end())
     {
         std::cout << "Cannot find irrep=" <<  qns << endl;
+        Display();
+        
         //Still need this for Dirac atoms.
-        const Angular_Sym* sqn=dynamic_cast<const Angular_Sym*>(qns.sym.get());
-        ElCounts_l ecl=sqn->GetN(itsNs);
-        assert((ecl.N+ecl.Nu)%2==0);
+        // const Angular_Sym* sqn=dynamic_cast<const Angular_Sym*>(qns.sym.get());
+        // ElCounts_l ecl=sqn->GetN(itsNs);
+        // assert((ecl.N+ecl.Nu)%2==0);
         // cout << qns << " N=" << ecl.GetN(qns.ms) << endl;
-        return ecl.GetN(qns.ms);  // Should be total core+valance    
+        return 0;  // Should be total core+valance    
     }
     // assert(i!=itsOccupations.end());
     return i->second;

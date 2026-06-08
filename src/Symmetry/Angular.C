@@ -2,7 +2,6 @@
 
 export module qchem.Symmetry.Angular;
 export import qchem.Symmetry;
-export import qchem.Symmetry.ElectronCounts;
 
 //---------------------------------------------------------------------------------
 //
@@ -13,7 +12,5 @@ export class Angular_Sym
 {
 public:
     virtual int GetPrincipleOffset() const {return GetL();} //Add to principle QN.  For atoms this is just l.
-    // New atom specific functions.
-    virtual ElCounts_l GetN(const ElCounts&) const=0;
     virtual int GetL() const=0;
 };
