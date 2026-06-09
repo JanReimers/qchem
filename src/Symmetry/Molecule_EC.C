@@ -8,11 +8,9 @@ public:
     Molecule_EC() : Ne(0) {};
     Molecule_EC(int _Ne) : Ne(_Ne) {};
     
-    virtual int GetN(const Irrep& qns) const;
+    virtual int    GetN(const Irrep& qns) const;
+    virtual syms_t GetIrreps() const;
     virtual void Display() const;
 private:
-    int GetN() const {return Ne;}
-    int GetN(const Spin&) const;
-    int GetN(const Symmetry::Symmetry&) const {return Ne;}
     int Ne;
 };

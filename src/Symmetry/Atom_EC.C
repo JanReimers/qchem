@@ -1,33 +1,24 @@
-// File: Atom_EC.C  Electron configuration for atoms.
+// File: Symmetry/Atom_EC.C  Electron configuration for atoms.
 module;
-// #include <vector>
-#include <set>
 #include <map>
-// #include <memory>
 #include "forward.H"
 
 export module qchem.Symmetry.AtomEC;
 export import qchem.Symmetry.ElectronConfiguration;
-// import qchem.Symmetry;
+
 import qchem.Symmetry.ElectronCounts;
 const int Nshell=8;
-using namespace Symmetry;
+// using namespace Symmetry;
 
 export class Atom_EC : public virtual ElectronConfiguration
 {
-public: 
-    static constexpr auto cmp = [](sym_t a, sym_t b) 
-        {
-             return a->SequenceIndex() < b->SequenceIndex();
-        }; 
-    typedef std::set<sym_t,decltype(cmp)> syms_t;
+public:  
     Atom_EC(int Z);
-    
     virtual int    GetN(const Irrep&) const;  //Core + Valance
-    virtual size_t GetLMax() const {return itsLMax;}
-    virtual void   Display() const;
-    
-    syms_t GetIrreps() const;
+    virtual syms_t GetIrreps() const;
+    virtual void   Display() const;  
+
+    size_t GetLMax() const {return itsLMax;}
 protected:
     friend class ElectronConfigurationTests;
 
