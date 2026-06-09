@@ -128,34 +128,27 @@ Atom_EC::Atom_EC(int Z)
     for (int l=0;l<=LMax;l++)
     {
         int Nf=itsNs.Nf[l],Nv=itsNs.Nv[l],Nu=abs(itsNs.Nu[l]);
-        int g=2*l+1;
-        int g2=2*g;
-        assert(Nv<g2);
+        int g=2*l+1; //degeneracy for one spin state
+        assert(Nf%2==0); //Full shells better be even!
         assert(Nu<=g);
-        assert(Nf%g2==0);
-        int Nlevel=Nf/g2;
         assert((Nv-Nu)%2==0);
-        int Npair=(Nv-Nu)/2;
-        int gu=Nu,gp=g-gu; //unpaired and paired degeneracies
-        if (gu==g) //No m splitting, but g unapired electrons
+        if (Nu==0 || Nu==g) //No m splitting, but g unapired electrons, or all paired
         {
             sym_t s=Symmetry::YFactory(l);
-            itsOccupations[Irrep(Spin::Up  ,s)]=Nlevel*g+Nu;
-            itsOccupations[Irrep(Spin::Down,s)]=Nlevel*g;
+            itsOccupations[Irrep(Spin::Up  ,s)]=Nf/2+Nu;
+            itsOccupations[Irrep(Spin::Down,s)]=Nf/2;
         }
-        else if(gu==0) //No m splitting, everything paired
+        else // M splitting.  All shells get the same M splitting.
         {
-            sym_t s=Symmetry::YFactory(l);
-            itsOccupations[Irrep(Spin::Up  ,s)]=Nlevel*g;
-            itsOccupations[Irrep(Spin::Down,s)]=Nlevel*g;
-        }
-        else // M splitting
-        {
+            assert(Nf/2%g==0);
+            assert(Nv<2*g);
+            int Nlevel=Nf/2/g;
+            int Npair=(Nv-Nu)/2;
+            int gu=Nu,gp=g-gu; //unpaired and paired degeneracies
             ivec_t ms_p(gp),ms_u(gu);
             int ml=-(int)l;
             for (size_t i=0;i<gu;i++) ms_u[i]=ml++;
             for (size_t i=0;i<gp;i++) ms_p[i]=ml++;
-            // for (size_t i=0;i<Nempty;i++) mls.ml_unoccupied.push_back(ml++);
             assert(ml==(int)(l+1));
             sym_t sp=Symmetry::YFactory(l,ms_p);
             sym_t su=Symmetry::YFactory(l,ms_u);
