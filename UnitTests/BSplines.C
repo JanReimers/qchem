@@ -9,7 +9,6 @@
 #include <blaze/Math.h>
 
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.GLQuadrature;
-import qchem.Symmetry.Angular;
 import qchem.BasisSet.Atom.Evaluators.BSpline.IBS;
 import qchem.BasisSet.Atom.Evaluators.BSpline.IBS_r;
 import qchem.BasisSet.Atom.Evaluators.Internal.Rk;
@@ -19,6 +18,7 @@ import qchem.Factory;
 import qchem.Mesh.Integrator;
 import qchem.Cluster;
 import qchem.Symmetry.Factory;
+import qchem.Symmetry.Spherical;
 import qchem.stl_io;
 import qchem.Streamable;
 import qchem.Constants;
@@ -413,7 +413,7 @@ TEST_F(BSplineTests,RkSymmetry_l0)
 {
     using namespace BasisSet::Atom::Evaluators::BSpline;
     // typedef rvec11_t rvec11_t; 
-    sym_t yl=SymmetryFactory::YFactory(0);
+    sym_t yl=Symmetry::YFactory(0);
     size_t N=5;
     auto eval=new BSpline::Evaluator<6>(N,.0001,40,yl);
     auto cache4=eval->MakeCache4();

@@ -4,13 +4,13 @@ module;
 
 module qchem.BasisSet.Atom.Evaluators.IBS;
 import qchem.BasisSet.Atom.Evaluators.Internal.AngularIntegrals;
-import qchem.Symmetry.Angular;
+import qchem.Symmetry.Spherical;
 
 namespace BasisSet::Atom::Evaluators
 {
 Evaluator::Evaluator(const sym_t& s) 
-    : l(::Getl(s))
-    , mls(::Getmls(s))
+    : l(Symmetry::Getl(s))
+    , mls(Symmetry::Getmls(s))
     , ns(0)
     , grouper(0)
 {}

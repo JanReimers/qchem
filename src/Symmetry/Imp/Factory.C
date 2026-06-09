@@ -7,10 +7,11 @@ import qchem.Symmetry.Internal.Spherical;
 import qchem.Symmetry.BlochQN;
 import qchem.Symmetry.Unit;
 
-using namespace Symmetryns::Internal::Spherical;
 
-namespace SymmetryFactory
+namespace Symmetry
 {
+using namespace Internal::Spherical;
+
 sym_t YFactory(size_t l,const ivec_t& mls)
 {
     if (mls.size()==0)

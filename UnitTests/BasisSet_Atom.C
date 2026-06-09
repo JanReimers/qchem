@@ -406,7 +406,7 @@ public:
     BasisSet_BS() : BasisSet_Common()
     {
         for (size_t l=0;l<=3;l++)
-            Insert(new BSpline::Evaluator<6>(5,0.01,20.0,SymmetryFactory::YFactory(l)));
+            Insert(new BSpline::Evaluator<6>(5,0.01,20.0,Symmetry::YFactory(l)));
 
         bs=PoolFactory(BasisSetAccuracy::N5,BasisSet::Atom::Type::BSpline6,86);
     }

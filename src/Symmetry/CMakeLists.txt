@@ -1,6 +1,6 @@
 add_library(qcSymmetry) 
 target_sources(qcSymmetry PRIVATE 
-    Imp/Angular.C
+    Imp/Spherical.C
     Imp/Atom_EC.C  
     Imp/ElectronCounts.C 
     Imp/Irrep_QNs.C  
@@ -20,7 +20,7 @@ target_sources(qcSymmetry PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Irrep_QNs.C 
     Orbital_QNs.C 
     ElectronCounts.C 
-    Angular.C 
+    Spherical.C 
     ElectronConfiguration.C
     Atom_EC.C 
     Atom_Dirac_EC.C

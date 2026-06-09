@@ -11,7 +11,7 @@ import qchem.Common.Strings;
 using std::cout;
 using std::endl;
 
-namespace Symmetryns::Internal::Spherical
+namespace Symmetry::Internal::Spherical
 {
 
 Ylm_Sym::Ylm_Sym(size_t l, const ivec_t& _mls) 

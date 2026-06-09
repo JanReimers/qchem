@@ -1,14 +1,16 @@
 // File: Symmetry/Angular.C Common interface for various atomic (spherical) symmetries.
 module;
-export module qchem.Symmetry.Angular;
+export module qchem.Symmetry.Spherical;
 export import qchem.Symmetry;
 
 //---------------------------------------------------------------------------------
 //
 // Spherical symmetry for atoms
 //
-export class SphericalSym
-    : public virtual Symmetry
+export namespace Symmetry
+{
+
+class Spherical : public virtual Symmetry
 {
 public:
     virtual size_t GetPrincipleOffset() const {return Getl();} //Add to principle QN.  For atoms this is just l.
@@ -17,18 +19,17 @@ public:
 };
 
 // Helper functin for Unit tests and some of main code that constantly needs to get at l.
-export size_t Getl(const sym_t&); //Throws bad_cast
-export size_t Getl(const Symmetry&); //Throws bad_cast
+size_t Getl(const sym_t&); //Throws bad_cast
+size_t Getl(const Symmetry&); //Throws bad_cast
 // These are used in one place by the atom Evaluator class
-export ivec_t Getmls(const sym_t&); //Throws bad_cast
-export ivec_t Getmls(const Symmetry&); //Throws bad_cast
+ivec_t Getmls(const sym_t&); //Throws bad_cast
+ivec_t Getmls(const Symmetry&); //Throws bad_cast
 
 //---------------------------------------------------------------------------------
 //
 // Spherical spinor symmetry for Dirac/relativistic atoms
 //
-export class SphericalSpinorSym
-    : public virtual Symmetry
+class SphericalSpinor : public virtual Symmetry
 {
 public:
     virtual size_t GetPrincipleOffset() const {return Getl();} //Add to principle QN.  For atoms this is just l.
@@ -43,3 +44,5 @@ public:
     static int    ml(int κ, double mj) {return mj-ms(κ);}
 
 };
+
+} // namespace

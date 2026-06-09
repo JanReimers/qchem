@@ -9,7 +9,7 @@ import qchem.stl_io;
 
 using std::cout;
 using std::endl;
-namespace Symmetryns::Internal::Spherical
+namespace Symmetry::Internal::Spherical
 {
 
 Omega_k_Sym::Omega_k_Sym(int _κ) : κ(_κ) 

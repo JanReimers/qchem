@@ -8,7 +8,7 @@ module;
 module qchem.Symmetry.Atom_Dirac_EC;
 import Common.PeriodicTable;
 import qchem.Symmetry.Irrep;
-import qchem.Symmetry.Angular;
+import qchem.Symmetry.Spherical;
 import qchem.Symmetry.Ylm;
 import qchem.stl_io;
 

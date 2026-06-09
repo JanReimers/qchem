@@ -1,6 +1,9 @@
 // File: Symmetry/Imp/Angular.C Common interface for various atomic (spherical) symmetries.
 module;
-module qchem.Symmetry.Angular;
+module qchem.Symmetry.Spherical;
+
+namespace Symmetry
+{
 
 size_t Getl(const sym_t& s)
 {
@@ -9,7 +12,7 @@ size_t Getl(const sym_t& s)
 
 size_t Getl(const Symmetry& s)
 {
-    return dynamic_cast<const SphericalSym&>(s).Getl();
+    return dynamic_cast<const Spherical&>(s).Getl();
 }
 
 ivec_t Getmls(const sym_t& s)
@@ -18,5 +21,7 @@ ivec_t Getmls(const sym_t& s)
 }
 ivec_t Getmls(const Symmetry& s)
 {
-    return dynamic_cast<const SphericalSym&>(s).Getmls();
+    return dynamic_cast<const Spherical&>(s).Getmls();
 }
+
+} // namespace

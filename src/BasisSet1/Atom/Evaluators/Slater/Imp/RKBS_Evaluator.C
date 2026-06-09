@@ -12,7 +12,7 @@ namespace BasisSet::Atom::Evaluators::Slater
 {
 
 RKBS_Evaluator::RKBS_Evaluator(size_t N, double emin, double emax, int _κ, int l)
-    : Evaluator(N,emin,emax,SymmetryFactory::YFactory())
+    : Evaluator(N,emin,emax,Symmetry::YFactory())
     , κ(_κ) 
 {
     ns=norms();

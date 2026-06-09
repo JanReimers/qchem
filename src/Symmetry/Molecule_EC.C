@@ -13,6 +13,6 @@ public:
 private:
     int GetN() const {return Ne;}
     int GetN(const Spin&) const;
-    int GetN(const Symmetry&) const {return Ne;}
+    int GetN(const Symmetry::Symmetry&) const {return Ne;}
     int Ne;
 };

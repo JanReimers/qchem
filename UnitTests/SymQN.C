@@ -7,11 +7,11 @@
 import qchem.Symmetry.Orbital; 
 import qchem.Streamable;
 import qchem.Symmetry.Factory;
-import qchem.Symmetry.Angular;
+import qchem.Symmetry.Spherical;
 
 using std::cout; 
 using std::endl;
-using namespace SymmetryFactory;
+using namespace Symmetry;
 class SymQNTests : public ::testing::Test
 {
 public:
@@ -117,14 +117,14 @@ TEST_F(SymQNTests, Omega_kmj_Sym_SequenceIndex)
 {
     for (int κ1=-κ_max;κ1<κ_max;κ1++)
     {
-        double j1=SphericalSpinorSym::j(κ1);
+        double j1=::Symmetry::SphericalSpinor::j(κ1);
         for (double mj1=-j1;mj1<=j1;mj1++)
         {
             sym_t Ol1=Ω(κ1,make_mjs(-j1,mj1));
             if (!quiet) cout << "{k1,mj1,sn}={" << κ1 << "," << mj1 << "," << Ol1->SequenceIndex() << "}" << endl;
             for (int κ2=-κ_max;κ2<κ_max;κ2++)
             {
-                double j2=SphericalSpinorSym::j(κ2);
+                double j2=::Symmetry::SphericalSpinor::j(κ2);
                 for (double mj2=-j2;mj2<=j2;mj2++)   
                 {
                     sym_t Ol2=Ω(κ2,make_mjs(-j2,mj2));
@@ -147,7 +147,7 @@ TEST_F(SymQNTests, Omega_k_kmj_CrossSequenceIndex)
             if (!quiet) cout << "{k1,sn}={" << κ1 << "," << Ol1->SequenceIndex() << "}" << endl;
             for (int κ2=-κ_max;κ2<κ_max;κ2++)
             {
-                double j2=SphericalSpinorSym::j(κ2);
+                double j2=::Symmetry::SphericalSpinor::j(κ2);
                 for (double mj2=-j2;mj2<=j2;mj2++)   
                 {
                     sym_t Ol2=Ω(κ2,make_mjs(-j2,mj2));

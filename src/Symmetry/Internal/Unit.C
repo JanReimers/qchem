@@ -6,7 +6,7 @@ export import qchem.Symmetry;
 export import qchem.Types;
 
 export class UnitQN
-    : public virtual Symmetry
+    : public virtual Symmetry::Symmetry
 {
 public:
     UnitQN();

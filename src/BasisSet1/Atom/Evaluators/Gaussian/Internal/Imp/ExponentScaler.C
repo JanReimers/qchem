@@ -3,7 +3,7 @@ module;
 #include <blaze/math/views/Subvector.h>
 module qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.ExponentScaler; 
 import qchem.BasisSet.Atom.Internal.FillPower;
-import qchem.Symmetry.Angular;
+import qchem.Symmetry.Spherical;
 
 namespace Gaussian
 {

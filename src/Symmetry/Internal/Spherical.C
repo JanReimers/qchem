@@ -2,11 +2,11 @@
 module;
 #include <iosfwd>
 export module qchem.Symmetry.Internal.Spherical;
-export import qchem.Symmetry.Angular;
+export import qchem.Symmetry.Spherical;
 
-export namespace Symmetryns::Internal::Spherical
+export namespace Symmetry::Internal::Spherical
 {
-class Yl_Sym : public virtual SphericalSym
+class Yl_Sym : public virtual Spherical
 {
 public:
     Yl_Sym(size_t l) : itsL(l) {};
@@ -22,7 +22,7 @@ protected:
 };
 
 class Ylm_Sym
-    : public virtual SphericalSym
+    : public virtual Spherical
     , private Yl_Sym
 {
 public:
@@ -39,7 +39,7 @@ protected:
     ivec_t mls;
 };
 
-class Omega_k_Sym : public virtual SphericalSpinorSym
+class Omega_k_Sym : public virtual SphericalSpinor
 {
 public:
     Omega_k_Sym(int κ);
@@ -58,7 +58,7 @@ protected:
 };
 
 class Omega_kmj_Sym
-    : public virtual SphericalSpinorSym
+    : public virtual SphericalSpinor
     , private Omega_k_Sym
 
 {

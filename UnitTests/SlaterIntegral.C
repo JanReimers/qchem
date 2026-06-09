@@ -15,7 +15,7 @@ import qchem.BasisSet.Internal.ERI4;
 import qchem.Constants;
 import qchem.Mesh.Integrator;
 import qchem.Cluster;
-import qchem.Symmetry.Angular;
+import qchem.Symmetry.Spherical;
 
 using std::cout;
 using std::endl;

@@ -9,7 +9,7 @@ export import qchem.Symmetry;
 //  Translational symmetry, Bloch function wave vector.
 //
 
-export class BlochQN : public virtual Symmetry
+export class BlochQN : public virtual Symmetry::Symmetry
 {
 public:
     BlochQN(ivec3_t _N, ivec3_t _ik);

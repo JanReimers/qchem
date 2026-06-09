@@ -4,7 +4,7 @@ module;
 export module qchem.Symmetry.Factory;
 export import qchem.Symmetry;
 
-export namespace SymmetryFactory
+export namespace Symmetry
 {
     sym_t     YFactory(size_t l=0,const ivec_t& mls={}); //Spherical harmonics
     sym_t     ΩFactory(int   κ=-1,const rvec_t& mjs={}); //Spherical spinors

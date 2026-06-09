@@ -8,7 +8,7 @@
 
 import Common.PeriodicTable;
 import qchem.Symmetry.Irrep;
-import qchem.Symmetry.Angular;
+import qchem.Symmetry.Spherical;
 import qchem.Symmetry.Factory;
 
 import qchem.Symmetry.AtomEC;
@@ -34,8 +34,8 @@ class ElectronConfigurationTests : public ::testing::Test
 public:
     typedef sym_t sym_t;
     ElectronConfigurationTests() {}
-    sym_t qn(int l) const {return SymmetryFactory::YFactory(l);}
-    sym_t qn(int l, const ivec_t& mls) const {return SymmetryFactory::YFactory(l,mls);}
+    sym_t qn(int l) const {return Symmetry::YFactory(l);}
+    sym_t qn(int l, const ivec_t& mls) const {return Symmetry::YFactory(l,mls);}
     
     static int GetN(const Atom_EC& ac, const sym_t& sym, Spin s) 
     {
