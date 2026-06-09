@@ -14,29 +14,29 @@ using std::endl;
 namespace Symmetry::Internal::Spherical
 {
 
-Ylm_Sym::Ylm_Sym(size_t l, const ivec_t& _mls) 
-: Yl_Sym(l),  mls(_mls) 
+Ylm::Ylm(size_t l, const ivec_t& _mls) 
+: Yl(l),  mls(_mls) 
 {
     assert(mls.size()>0);
 };
 
-size_t Ylm_Sym::SequenceIndex() const //Used for op<
+size_t Ylm::SequenceIndex() const //Used for op<
  {
-    static size_t start=LMAX+1;  //Start after all the Yl Sequence Indexes, LMAX efined in Yl_Sym
+    static size_t start=LMAX+1;  //Start after all the Yl Sequence Indexes, LMAX efined in Yl
     // int mmax=*std::max_element(mls.begin(),mls.end()); stl veraion
     int mmax=blaze::max(mls);
     return start+mmax+itsL*(itsL+1);
  }
 
 
-size_t Ylm_Sym::GetDegeneracy() const
+size_t Ylm::GetDegeneracy() const
 {
     return mls.size(); 
 }
 
 
 inline size_t width(int ml) {return ml<0 ? 2 : 1;}
-std::ostream& Ylm_Sym::Write(std::ostream& os) const
+std::ostream& Ylm::Write(std::ostream& os) const
 {
     os << SPDFG[itsL] << " ";
     if (mls.size()<2*(size_t)itsL+1)

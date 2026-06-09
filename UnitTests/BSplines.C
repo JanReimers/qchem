@@ -363,7 +363,7 @@ TEST_F(BSplineTests, Kinetic)
 //     std::vector<Evaluatorevals;
 //     for (size_t l=0;l<=3;l++)
 //     {
-//         sym_t yl(new Yl_Sym(l));
+//         sym_t yl(new Yl(l));
 //         evals.push_back(new Evaluator<6>(10,.5,4.0,yl));
 //     }
 //     auto cache4=evals[0]->MakeCache4();

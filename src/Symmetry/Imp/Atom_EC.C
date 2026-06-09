@@ -140,13 +140,13 @@ Atom_EC::Atom_EC(int Z)
         int gu=Nu,gp=g-gu; //unpaired and paired degeneracies
         if (gu==g) //No m splitting, but g unapired electrons
         {
-            sym_t ylm(new Yl_Sym(l));
+            sym_t ylm(new Yl(l));
             itsOccupations[Irrep_QNs(Spin::Up  ,ylm)]=Nlevel*g+Nu;
             itsOccupations[Irrep_QNs(Spin::Down,ylm)]=Nlevel*g;
         }
         else if(gu==0) //No m splitting, everything paired
         {
-            sym_t ylm(new Yl_Sym(l));
+            sym_t ylm(new Yl(l));
             itsOccupations[Irrep_QNs(Spin::Up  ,ylm)]=Nlevel*g;
             itsOccupations[Irrep_QNs(Spin::Down,ylm)]=Nlevel*g;
         }
@@ -158,8 +158,8 @@ Atom_EC::Atom_EC(int Z)
             for (size_t i=0;i<gp;i++) ms_p[i]=ml++;
             // for (size_t i=0;i<Nempty;i++) mls.ml_unoccupied.push_back(ml++);
             assert(ml==(int)(l+1));
-            sym_t ylm_p(new Ylm_Sym(l,ms_p));
-            sym_t ylm_u(new Ylm_Sym(l,ms_u));
+            sym_t ylm_p(new Ylm(l,ms_p));
+            sym_t ylm_u(new Ylm(l,ms_u));
             itsOccupations[Irrep_QNs(Spin::Up  ,ylm_p)]=Nlevel*gp+Npair;
             itsOccupations[Irrep_QNs(Spin::Down,ylm_p)]=Nlevel*gp+Npair;
             itsOccupations[Irrep_QNs(Spin::Up  ,ylm_u)]=Nlevel*gu+Nu;

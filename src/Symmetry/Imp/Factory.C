@@ -15,17 +15,17 @@ using namespace Internal::Spherical;
 sym_t YFactory(size_t l,const ivec_t& mls)
 {
     if (mls.size()==0)
-        return sym_t(new Yl_Sym(l));
+        return sym_t(new Yl(l));
     else
-        return sym_t(new Ylm_Sym(l,mls));
+        return sym_t(new Ylm(l,mls));
 }
 
 sym_t     ΩFactory(int κ,const rvec_t& mjs)
 {
      if (mjs.size()==0)
-        return sym_t(new Omega_k_Sym(κ));
+        return sym_t(new Ωκ(κ));
     else
-        return sym_t(new Omega_kmj_Sym(κ,mjs));
+        return sym_t(new Ωκmj(κ,mjs));
 }
 sym_t BlochFactory(ivec3_t N, ivec3_t k)
 {

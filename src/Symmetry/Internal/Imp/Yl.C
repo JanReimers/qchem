@@ -8,7 +8,7 @@ import qchem.Common.Strings;
 namespace Symmetry::Internal::Spherical
 {
 
-std::ostream& Yl_Sym::Write(std::ostream& os) const
+std::ostream& Yl::Write(std::ostream& os) const
 {
     return os << SPDFG[itsL] << " ";
 }

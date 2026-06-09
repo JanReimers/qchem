@@ -32,8 +32,8 @@ class Dirac_EC_Tests : public ::testing::Test
 public:
     typedef sym_t sym_t;
     Dirac_EC_Tests() {}
-    // sym_t qn(int l) const {return sym_t(new Omega_k_Sym(l));}
-    // sym_t qn(int l, const std::vector<int>& ml) const {return sym_t(new Omega_kmj_Sym(l,ml));}
+    // sym_t qn(int l) const {return sym_t(new Ωκ(l));}
+    // sym_t qn(int l, const std::vector<int>& ml) const {return sym_t(new Ωκmj(l,ml));}
     
     static int GetN(const Atom_Dirac_EC& ac, const sym_t& sym, Spin s) 
     {
@@ -149,36 +149,36 @@ public:
 TEST_F(Dirac_EC_Tests, Hydrogen)
 {
     Atom_Dirac_EC ec(1);
-    sym_t sp(new Omega_k_Sym(-1)); //s+
+    sym_t sp(new Ωκ(-1)); //s+
     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,sp)),1);
     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,sp)),0);
 }
 TEST_F(Dirac_EC_Tests, Helium)
 {
     Atom_Dirac_EC ec(2);
-    sym_t sp(new Omega_k_Sym(-1)); //s+
+    sym_t sp(new Ωκ(-1)); //s+
     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,sp)),1);
     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,sp)),1);
 }
 TEST_F(Dirac_EC_Tests, Lithium)
 {
     Atom_Dirac_EC ec(3);
-    sym_t sp(new Omega_k_Sym(-1));  //s+
+    sym_t sp(new Ωκ(-1));  //s+
     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,sp)),2);
     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,sp)),1);
 }
 TEST_F(Dirac_EC_Tests, Beryllium)
 {
     Atom_Dirac_EC ec(4);
-    sym_t sp(new Omega_k_Sym(-1));  //s+
+    sym_t sp(new Ωκ(-1));  //s+
     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,sp)),2);
     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,sp)),2);
 }
 TEST_F(Dirac_EC_Tests, Boron)
 {
     Atom_Dirac_EC ec(5);
-    sym_t sp(new Omega_k_Sym(-1));//s+
-    sym_t pm(new Omega_kmj_Sym(1,{-0.5})); //p-
+    sym_t sp(new Ωκ(-1));//s+
+    sym_t pm(new Ωκmj(1,{-0.5})); //p-
     
     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,sp)),2);
     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,sp)),2);
@@ -188,8 +188,8 @@ TEST_F(Dirac_EC_Tests, Boron)
 TEST_F(Dirac_EC_Tests, Carbon)
 {
     Atom_Dirac_EC ec(6);
-    sym_t sp(new Omega_k_Sym(0));//s+
-    sym_t pm(new Omega_k_Sym(1)); //p-
+    sym_t sp(new Ωκ(0));//s+
+    sym_t pm(new Ωκ(1)); //p-
     
     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,sp)),2);
     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,sp)),2);
@@ -199,9 +199,9 @@ TEST_F(Dirac_EC_Tests, Carbon)
 TEST_F(Dirac_EC_Tests, Nitrogen)
 {
     Atom_Dirac_EC ec(7);
-    sym_t sp(new Omega_k_Sym(0));//s+
-    sym_t pm(new Omega_k_Sym(1)); //p-
-    sym_t pp(new Omega_kmj_Sym(1,{-1.5})); //p+
+    sym_t sp(new Ωκ(0));//s+
+    sym_t pm(new Ωκ(1)); //p-
+    sym_t pp(new Ωκmj(1,{-1.5})); //p+
     
     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,sp)),2);
     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,sp)),2);
@@ -212,9 +212,9 @@ TEST_F(Dirac_EC_Tests, Nitrogen)
 TEST_F(Dirac_EC_Tests, Oxygen)
 {
     Atom_Dirac_EC ec(8);
-    sym_t sp(new Omega_k_Sym(0));//s+
-    sym_t pm(new Omega_k_Sym(1)); //p-
-    sym_t pp(new Omega_kmj_Sym(1,{-1.5,-0.5})); //p+
+    sym_t sp(new Ωκ(0));//s+
+    sym_t pm(new Ωκ(1)); //p-
+    sym_t pp(new Ωκmj(1,{-1.5,-0.5})); //p+
     
     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,sp)),2);
     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,sp)),2);
@@ -225,9 +225,9 @@ TEST_F(Dirac_EC_Tests, Oxygen)
 TEST_F(Dirac_EC_Tests, Flourine)
 {
     Atom_Dirac_EC ec(9);
-    sym_t sp(new Omega_k_Sym(0));//s+
-    sym_t pm(new Omega_k_Sym(1)); //p-
-    sym_t pp(new Omega_kmj_Sym(1,{-1.5,-0.5,0.5})); //p+
+    sym_t sp(new Ωκ(0));//s+
+    sym_t pm(new Ωκ(1)); //p-
+    sym_t pp(new Ωκmj(1,{-1.5,-0.5,0.5})); //p+
     
     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,sp)),2);
     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,sp)),2);
@@ -239,9 +239,9 @@ TEST_F(Dirac_EC_Tests, Flourine)
 TEST_F(Dirac_EC_Tests, Neon)
 {
     Atom_Dirac_EC ec(10);
-    sym_t sp(new Omega_k_Sym( 0)); //s+
-    sym_t pm(new Omega_k_Sym( 1)); //p-
-    sym_t pp(new Omega_k_Sym(-2)); //p+
+    sym_t sp(new Ωκ( 0)); //s+
+    sym_t pm(new Ωκ( 1)); //p-
+    sym_t pp(new Ωκ(-2)); //p+
     
     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,sp)),2);
     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,sp)),2);
@@ -253,8 +253,8 @@ TEST_F(Dirac_EC_Tests, Neon)
 // TEST_F(ElectronConfigurationTests, Sodium)
 // {
 //     Atom_Dirac_EC ec(11);
-//     sym_t s(new Omega_k_Sym(0));
-//     sym_t p(new Omega_k_Sym(1));
+//     sym_t s(new Ωκ(0));
+//     sym_t p(new Ωκ(1));
     
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,s)),3);
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,s)),2);
@@ -264,8 +264,8 @@ TEST_F(Dirac_EC_Tests, Neon)
 // TEST_F(ElectronConfigurationTests, Magnesium)
 // {
 //     Atom_Dirac_EC ec(12);
-//     sym_t s(new Omega_k_Sym(0));
-//     sym_t p(new Omega_k_Sym(1));
+//     sym_t s(new Ωκ(0));
+//     sym_t p(new Ωκ(1));
     
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,s)),3);
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,s)),3);
@@ -275,9 +275,9 @@ TEST_F(Dirac_EC_Tests, Neon)
 // TEST_F(ElectronConfigurationTests, Aluminium)
 // {
 //     Atom_Dirac_EC ec(13);
-//     sym_t s(new Omega_k_Sym(0));
-//     sym_t p1(new Omega_kmj_Sym(1,{-1}));
-//     sym_t p2(new Omega_kmj_Sym(1,{0,1}));
+//     sym_t s(new Ωκ(0));
+//     sym_t p1(new Ωκmj(1,{-1}));
+//     sym_t p2(new Ωκmj(1,{0,1}));
     
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,s)),3);
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,s)),3);
@@ -289,9 +289,9 @@ TEST_F(Dirac_EC_Tests, Neon)
 // TEST_F(ElectronConfigurationTests, Silicon)
 // {
 //     Atom_Dirac_EC ec(14);
-//     sym_t s(new Omega_k_Sym(0));
-//     sym_t p1(new Omega_kmj_Sym(1,{-1,0}));
-//     sym_t p2(new Omega_kmj_Sym(1,{1}));
+//     sym_t s(new Ωκ(0));
+//     sym_t p1(new Ωκmj(1,{-1,0}));
+//     sym_t p2(new Ωκmj(1,{1}));
     
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,s)),3);
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,s)),3);
@@ -303,8 +303,8 @@ TEST_F(Dirac_EC_Tests, Neon)
 // TEST_F(ElectronConfigurationTests, Phosphorus)
 // {
 //     Atom_Dirac_EC ec(15);
-//     sym_t s(new Omega_k_Sym(0));
-//     sym_t p(new Omega_k_Sym(1));
+//     sym_t s(new Ωκ(0));
+//     sym_t p(new Ωκ(1));
     
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,s)),3);
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,s)),3);
@@ -314,9 +314,9 @@ TEST_F(Dirac_EC_Tests, Neon)
 // TEST_F(ElectronConfigurationTests, Sulpher)
 // {
 //     Atom_Dirac_EC ec(16);
-//     sym_t s(new Omega_k_Sym(0));
-//     sym_t p_paired  (new Omega_kmj_Sym(1,{1}));
-//     sym_t p_unpaired(new Omega_kmj_Sym(1,{-1,0}));
+//     sym_t s(new Ωκ(0));
+//     sym_t p_paired  (new Ωκmj(1,{1}));
+//     sym_t p_unpaired(new Ωκmj(1,{-1,0}));
     
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,s)),3);
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,s)),3);
@@ -328,9 +328,9 @@ TEST_F(Dirac_EC_Tests, Neon)
 // TEST_F(ElectronConfigurationTests, Chlorine)
 // {
 //     Atom_Dirac_EC ec(17);
-//     sym_t s(new Omega_k_Sym(0));
-//     sym_t p_paired  (new Omega_kmj_Sym(1,{0,1}));
-//     sym_t p_unpaired(new Omega_kmj_Sym(1,{-1}));
+//     sym_t s(new Ωκ(0));
+//     sym_t p_paired  (new Ωκmj(1,{0,1}));
+//     sym_t p_unpaired(new Ωκmj(1,{-1}));
     
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,s)),3);
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,s)),3);
@@ -342,8 +342,8 @@ TEST_F(Dirac_EC_Tests, Neon)
 // TEST_F(ElectronConfigurationTests, Argon)
 // {
 //     Atom_Dirac_EC ec(18);
-//     sym_t s(new Omega_k_Sym(0));
-//     sym_t p(new Omega_k_Sym(1));
+//     sym_t s(new Ωκ(0));
+//     sym_t p(new Ωκ(1));
     
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,s)),3);
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,s)),3);
@@ -353,8 +353,8 @@ TEST_F(Dirac_EC_Tests, Neon)
 // TEST_F(ElectronConfigurationTests, Potassium)
 // {
 //     Atom_Dirac_EC ec(19);
-//     sym_t s(new Omega_k_Sym(0));
-//     sym_t p(new Omega_k_Sym(1));
+//     sym_t s(new Ωκ(0));
+//     sym_t p(new Ωκ(1));
     
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,s)),4);
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,s)),3);
@@ -364,8 +364,8 @@ TEST_F(Dirac_EC_Tests, Neon)
 // TEST_F(ElectronConfigurationTests, Calcium)
 // {
 //     Atom_Dirac_EC ec(20);
-//     sym_t s(new Omega_k_Sym(0));
-//     sym_t p(new Omega_k_Sym(1));
+//     sym_t s(new Ωκ(0));
+//     sym_t p(new Ωκ(1));
     
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,s)),4);
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,s)),4);
@@ -375,9 +375,9 @@ TEST_F(Dirac_EC_Tests, Neon)
 // TEST_F(ElectronConfigurationTests, Scandium)
 // {
 //     Atom_Dirac_EC ec(21);
-//     sym_t s(new Omega_k_Sym(0));
-//     sym_t p(new Omega_k_Sym(1));
-//     sym_t d(new Omega_kmj_Sym(2,{-2}));
+//     sym_t s(new Ωκ(0));
+//     sym_t p(new Ωκ(1));
+//     sym_t d(new Ωκmj(2,{-2}));
     
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,s)),4);
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,s)),4);
@@ -388,9 +388,9 @@ TEST_F(Dirac_EC_Tests, Neon)
 // TEST_F(ElectronConfigurationTests, Titanium)
 // {
 //     Atom_Dirac_EC ec(22);
-//     sym_t s(new Omega_k_Sym(0));
-//     sym_t p(new Omega_k_Sym(1));
-//     sym_t d(new Omega_kmj_Sym(2,{-2,-1}));
+//     sym_t s(new Ωκ(0));
+//     sym_t p(new Ωκ(1));
+//     sym_t d(new Ωκmj(2,{-2,-1}));
     
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,s)),4);
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,s)),4);
@@ -401,9 +401,9 @@ TEST_F(Dirac_EC_Tests, Neon)
 // TEST_F(ElectronConfigurationTests, Vanadium)
 // {
 //     Atom_Dirac_EC ec(23);
-//     sym_t s(new Omega_k_Sym(0));
-//     sym_t p(new Omega_k_Sym(1));
-//     sym_t d(new Omega_kmj_Sym(2,{-2,-1,0}));
+//     sym_t s(new Ωκ(0));
+//     sym_t p(new Ωκ(1));
+//     sym_t d(new Ωκmj(2,{-2,-1,0}));
     
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,s)),4);
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,s)),4);
@@ -414,9 +414,9 @@ TEST_F(Dirac_EC_Tests, Neon)
 // TEST_F(ElectronConfigurationTests, Chromium)
 // {
 //     Atom_Dirac_EC ec(24);
-//     sym_t s(new Omega_k_Sym(0));
-//     sym_t p(new Omega_k_Sym(1));
-//     sym_t d(new Omega_k_Sym(2));
+//     sym_t s(new Ωκ(0));
+//     sym_t p(new Ωκ(1));
+//     sym_t d(new Ωκ(2));
     
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,s)),4);
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,s)),3);
@@ -427,9 +427,9 @@ TEST_F(Dirac_EC_Tests, Neon)
 // TEST_F(ElectronConfigurationTests, Manganese)
 // {
 //     Atom_Dirac_EC ec(25); //| s²d⁵     |   |        | ↑↑↑↑↑     | 
-//     sym_t s(new Omega_k_Sym(0));
-//     sym_t p(new Omega_k_Sym(1));
-//     sym_t d(new Omega_k_Sym(2));
+//     sym_t s(new Ωκ(0));
+//     sym_t p(new Ωκ(1));
+//     sym_t d(new Ωκ(2));
     
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,s)),4);
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,s)),4);
@@ -440,10 +440,10 @@ TEST_F(Dirac_EC_Tests, Neon)
 // TEST_F(ElectronConfigurationTests, Iron)
 // {
 //     Atom_Dirac_EC ec(26); //| s²d⁶     |   |        | ↑↓ ↑↑↑↑   |
-//     sym_t s(new Omega_k_Sym(0));
-//     sym_t p(new Omega_k_Sym(1));
-//     sym_t d1(new Omega_kmj_Sym(2,{-2,-1,0,1}));
-//     sym_t d2(new Omega_kmj_Sym(2,{2}));
+//     sym_t s(new Ωκ(0));
+//     sym_t p(new Ωκ(1));
+//     sym_t d1(new Ωκmj(2,{-2,-1,0,1}));
+//     sym_t d2(new Ωκmj(2,{2}));
     
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,s)),4);
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,s)),4);
@@ -457,10 +457,10 @@ TEST_F(Dirac_EC_Tests, Neon)
 // TEST_F(ElectronConfigurationTests, Cobalt)
 // {
 //     Atom_Dirac_EC ec(27); // | s²d⁷     |   |        | ↑↓↑↓ ↑↑↑  | 
-//     sym_t s(new Omega_k_Sym(0));
-//     sym_t p(new Omega_k_Sym(1));
-//     sym_t d1(new Omega_kmj_Sym(2,{-2,-1,0}));
-//     sym_t d2(new Omega_kmj_Sym(2,{1,2}));
+//     sym_t s(new Ωκ(0));
+//     sym_t p(new Ωκ(1));
+//     sym_t d1(new Ωκmj(2,{-2,-1,0}));
+//     sym_t d2(new Ωκmj(2,{1,2}));
     
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,s)),4);
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,s)),4);
@@ -474,10 +474,10 @@ TEST_F(Dirac_EC_Tests, Neon)
 // TEST_F(ElectronConfigurationTests, Nickel)
 // {
 //     Atom_Dirac_EC ec(28); // | s²d⁸     |   |        | ↑↓↑↓↑↓ ↑↑ |
-//     sym_t s(new Omega_k_Sym(0));
-//     sym_t p(new Omega_k_Sym(1));
-//     sym_t d1(new Omega_kmj_Sym(2,{-2,-1}));
-//     sym_t d2(new Omega_kmj_Sym(2,{0,1,2}));
+//     sym_t s(new Ωκ(0));
+//     sym_t p(new Ωκ(1));
+//     sym_t d1(new Ωκmj(2,{-2,-1}));
+//     sym_t d2(new Ωκmj(2,{0,1,2}));
     
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,s)),4);
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,s)),4);
@@ -491,9 +491,9 @@ TEST_F(Dirac_EC_Tests, Neon)
 // TEST_F(ElectronConfigurationTests, Copper)
 // {
 //     Atom_Dirac_EC ec(29); // | s¹d¹⁰    | ↑ |        |           |
-//     sym_t s(new Omega_k_Sym(0));
-//     sym_t p(new Omega_k_Sym(1));
-//     sym_t d(new Omega_k_Sym(2));
+//     sym_t s(new Ωκ(0));
+//     sym_t p(new Ωκ(1));
+//     sym_t d(new Ωκ(2));
     
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,s)),4);
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,s)),3);
@@ -505,9 +505,9 @@ TEST_F(Dirac_EC_Tests, Neon)
 // TEST_F(ElectronConfigurationTests, Zinc)
 // {
 //     Atom_Dirac_EC ec(30); // | s²d¹⁰    |   |        |           |
-//     sym_t s(new Omega_k_Sym(0));
-//     sym_t p(new Omega_k_Sym(1));
-//     sym_t d(new Omega_k_Sym(2));
+//     sym_t s(new Ωκ(0));
+//     sym_t p(new Ωκ(1));
+//     sym_t d(new Ωκ(2));
     
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,s)),4);
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,s)),4);
@@ -519,10 +519,10 @@ TEST_F(Dirac_EC_Tests, Neon)
 // TEST_F(ElectronConfigurationTests, Galium)
 // {
 //     Atom_Dirac_EC ec(31); // | s²p¹d¹⁰  |   | ↑      |           | 
-//     sym_t s(new Omega_k_Sym(0));
-//     sym_t p1(new Omega_kmj_Sym(1,{-1}));
-//     sym_t p2(new Omega_kmj_Sym(1,{0,1}));
-//     sym_t d(new Omega_k_Sym(2));
+//     sym_t s(new Ωκ(0));
+//     sym_t p1(new Ωκmj(1,{-1}));
+//     sym_t p2(new Ωκmj(1,{0,1}));
+//     sym_t d(new Ωκ(2));
     
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,s)),4);
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,s)),4);
@@ -536,10 +536,10 @@ TEST_F(Dirac_EC_Tests, Neon)
 // TEST_F(ElectronConfigurationTests, Germanium)
 // {
 //     Atom_Dirac_EC ec(32); // | s²p²d¹⁰  |   | ↑↑     |
-//     sym_t s(new Omega_k_Sym(0));
-//     sym_t p1(new Omega_kmj_Sym(1,{-1,0}));
-//     sym_t p2(new Omega_kmj_Sym(1,{1}));
-//     sym_t d(new Omega_k_Sym(2));
+//     sym_t s(new Ωκ(0));
+//     sym_t p1(new Ωκmj(1,{-1,0}));
+//     sym_t p2(new Ωκmj(1,{1}));
+//     sym_t d(new Ωκ(2));
     
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,s)),4);
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,s)),4);
@@ -553,9 +553,9 @@ TEST_F(Dirac_EC_Tests, Neon)
 // TEST_F(ElectronConfigurationTests, Arsenic)
 // {
 //     Atom_Dirac_EC ec(33); // | s²p³d¹⁰  |   | ↑↑↑    |
-//     sym_t s(new Omega_k_Sym(0));
-//     sym_t p(new Omega_k_Sym(1));
-//     sym_t d(new Omega_k_Sym(2));
+//     sym_t s(new Ωκ(0));
+//     sym_t p(new Ωκ(1));
+//     sym_t d(new Ωκ(2));
     
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,s)),4);
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,s)),4);
@@ -567,10 +567,10 @@ TEST_F(Dirac_EC_Tests, Neon)
 // TEST_F(ElectronConfigurationTests, Selenium)
 // {
 //     Atom_Dirac_EC ec(34); //| s²p⁴d¹⁰  |   | ↑↓ ↑↑  |
-//     sym_t s(new Omega_k_Sym(0));
-//     sym_t p_paired  (new Omega_kmj_Sym(1,{1}));
-//     sym_t p_unpaired(new Omega_kmj_Sym(1,{-1,0}));
-//     sym_t d(new Omega_k_Sym(2));
+//     sym_t s(new Ωκ(0));
+//     sym_t p_paired  (new Ωκmj(1,{1}));
+//     sym_t p_unpaired(new Ωκmj(1,{-1,0}));
+//     sym_t d(new Ωκ(2));
 
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,s)),4);
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,s)),4);
@@ -584,10 +584,10 @@ TEST_F(Dirac_EC_Tests, Neon)
 // TEST_F(ElectronConfigurationTests, Bromine)
 // {
 //     Atom_Dirac_EC ec(35); // | s²p⁵d¹⁰  |   | ↑↓↑↓ ↑ | 
-//     sym_t s(new Omega_k_Sym(0));
-//     sym_t p_paired  (new Omega_kmj_Sym(1,{0,1}));
-//     sym_t p_unpaired(new Omega_kmj_Sym(1,{-1}));
-//     sym_t d(new Omega_k_Sym(2));
+//     sym_t s(new Ωκ(0));
+//     sym_t p_paired  (new Ωκmj(1,{0,1}));
+//     sym_t p_unpaired(new Ωκmj(1,{-1}));
+//     sym_t d(new Ωκ(2));
     
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,s)),4);
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,s)),4);
@@ -601,9 +601,9 @@ TEST_F(Dirac_EC_Tests, Neon)
 // TEST_F(ElectronConfigurationTests, Krypton)
 // {
 //     Atom_Dirac_EC ec(36);
-//     sym_t s(new Omega_k_Sym(0));
-//     sym_t p(new Omega_k_Sym(1));
-//     sym_t d(new Omega_k_Sym(2));
+//     sym_t s(new Ωκ(0));
+//     sym_t p(new Ωκ(1));
+//     sym_t d(new Ωκ(2));
     
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,s)),4);
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,s)),4);
@@ -615,9 +615,9 @@ TEST_F(Dirac_EC_Tests, Neon)
 // TEST_F(ElectronConfigurationTests, Rubidium)
 // {
 //     Atom_Dirac_EC ec(37); //| s¹       | ↑ | 
-//     sym_t s(new Omega_k_Sym(0));
-//     sym_t p(new Omega_k_Sym(1));
-//     sym_t d(new Omega_k_Sym(2));
+//     sym_t s(new Ωκ(0));
+//     sym_t p(new Ωκ(1));
+//     sym_t d(new Ωκ(2));
     
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,s)),5);
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,s)),4);
@@ -629,9 +629,9 @@ TEST_F(Dirac_EC_Tests, Neon)
 // TEST_F(ElectronConfigurationTests, Strontium)
 // {
 //     Atom_Dirac_EC ec(38); //| s²       |
-//     sym_t s(new Omega_k_Sym(0));
-//     sym_t p(new Omega_k_Sym(1));
-//     sym_t d(new Omega_k_Sym(2));
+//     sym_t s(new Ωκ(0));
+//     sym_t p(new Ωκ(1));
+//     sym_t d(new Ωκ(2));
     
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,s)),5);
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,s)),5);
@@ -643,10 +643,10 @@ TEST_F(Dirac_EC_Tests, Neon)
 // TEST_F(ElectronConfigurationTests, Yttrium)
 // {
 //     Atom_Dirac_EC ec(39); // s²d¹     |   |        | ↑   
-//     sym_t s(new Omega_k_Sym(0));
-//     sym_t p(new Omega_k_Sym(1));
-//     sym_t d1(new Omega_kmj_Sym(2,{-2}));
-//     sym_t d2(new Omega_kmj_Sym(2,{-1,0,1,2}));
+//     sym_t s(new Ωκ(0));
+//     sym_t p(new Ωκ(1));
+//     sym_t d1(new Ωκmj(2,{-2}));
+//     sym_t d2(new Ωκmj(2,{-1,0,1,2}));
     
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,s)),5);
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,s)),5);
@@ -660,10 +660,10 @@ TEST_F(Dirac_EC_Tests, Neon)
 // TEST_F(ElectronConfigurationTests, Zirconium)
 // {
 //     Atom_Dirac_EC ec(40); //| s²d²     |   |        | ↑↑ 
-//     sym_t s(new Omega_k_Sym(0));
-//     sym_t p(new Omega_k_Sym(1));
-//     sym_t d1(new Omega_kmj_Sym(2,{-2,-1}));
-//     sym_t d2(new Omega_kmj_Sym(2,{0,1,2}));
+//     sym_t s(new Ωκ(0));
+//     sym_t p(new Ωκ(1));
+//     sym_t d1(new Ωκmj(2,{-2,-1}));
+//     sym_t d2(new Ωκmj(2,{0,1,2}));
     
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,s)),5);
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,s)),5);
@@ -677,10 +677,10 @@ TEST_F(Dirac_EC_Tests, Neon)
 // TEST_F(ElectronConfigurationTests, Niobium)
 // {
 //     Atom_Dirac_EC ec(41); //| s¹d⁴     | ↑ |        | ↑↑↑↑ 
-//     sym_t s(new Omega_k_Sym(0));
-//     sym_t p(new Omega_k_Sym(1));
-//     sym_t d1(new Omega_kmj_Sym(2,{-2,-1,0,1}));
-//     sym_t d2(new Omega_kmj_Sym(2,{2}));
+//     sym_t s(new Ωκ(0));
+//     sym_t p(new Ωκ(1));
+//     sym_t d1(new Ωκmj(2,{-2,-1,0,1}));
+//     sym_t d2(new Ωκmj(2,{2}));
     
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,s)),5);
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,s)),4);
@@ -694,9 +694,9 @@ TEST_F(Dirac_EC_Tests, Neon)
 // TEST_F(ElectronConfigurationTests, Molybdenum)
 // {
 //     Atom_Dirac_EC ec(42); //| s¹d⁵     | ↑ |        | ↑↑↑↑↑ 
-//     sym_t s(new Omega_k_Sym(0));
-//     sym_t p(new Omega_k_Sym(1));
-//     sym_t d(new Omega_k_Sym(2));
+//     sym_t s(new Ωκ(0));
+//     sym_t p(new Ωκ(1));
+//     sym_t d(new Ωκ(2));
     
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,s)),5);
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,s)),4);
@@ -708,9 +708,9 @@ TEST_F(Dirac_EC_Tests, Neon)
 // TEST_F(ElectronConfigurationTests, Technesium)
 // {
 //     Atom_Dirac_EC ec(43); //| s¹d⁵     | ↑ |        | ↑↑↑↑↑ 
-//     sym_t s(new Omega_k_Sym(0));
-//     sym_t p(new Omega_k_Sym(1));
-//     sym_t d(new Omega_k_Sym(2));
+//     sym_t s(new Ωκ(0));
+//     sym_t p(new Ωκ(1));
+//     sym_t d(new Ωκ(2));
     
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,s)),5);
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,s)),5);
@@ -723,10 +723,10 @@ TEST_F(Dirac_EC_Tests, Neon)
 // TEST_F(ElectronConfigurationTests, Iron)
 // {
 //     Atom_Dirac_EC ec(26); //| s²d⁶     |   |        | ↑↓ ↑↑↑↑   |
-//     sym_t s(new Omega_k_Sym(0));
-//     sym_t p(new Omega_k_Sym(1));
-//     sym_t d1(new Omega_kmj_Sym(2,{-2,-1,0,1}));
-//     sym_t d2(new Omega_kmj_Sym(2,{2}));
+//     sym_t s(new Ωκ(0));
+//     sym_t p(new Ωκ(1));
+//     sym_t d1(new Ωκmj(2,{-2,-1,0,1}));
+//     sym_t d2(new Ωκmj(2,{2}));
     
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,s)),4);
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,s)),4);
@@ -741,10 +741,10 @@ TEST_F(Dirac_EC_Tests, Neon)
 // TEST_F(ElectronConfigurationTests, Cobalt)
 // {
 //     Atom_Dirac_EC ec(27); // | s²d⁷     |   |        | ↑↓↑↓ ↑↑↑  | 
-//     sym_t s(new Omega_k_Sym(0));
-//     sym_t p(new Omega_k_Sym(1));
-//     sym_t d1(new Omega_kmj_Sym(2,{-2,-1,0}));
-//     sym_t d2(new Omega_kmj_Sym(2,{1,2}));
+//     sym_t s(new Ωκ(0));
+//     sym_t p(new Ωκ(1));
+//     sym_t d1(new Ωκmj(2,{-2,-1,0}));
+//     sym_t d2(new Ωκmj(2,{1,2}));
     
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,s)),4);
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,s)),4);
@@ -759,10 +759,10 @@ TEST_F(Dirac_EC_Tests, Neon)
 // TEST_F(ElectronConfigurationTests, Nickel)
 // {
 //     Atom_Dirac_EC ec(28); // | s²d⁸     |   |        | ↑↓↑↓↑↓ ↑↑ |
-//     sym_t s(new Omega_k_Sym(0));
-//     sym_t p(new Omega_k_Sym(1));
-//     sym_t d1(new Omega_kmj_Sym(2,{-2,-1}));
-//     sym_t d2(new Omega_kmj_Sym(2,{0,1,2}));
+//     sym_t s(new Ωκ(0));
+//     sym_t p(new Ωκ(1));
+//     sym_t d1(new Ωκmj(2,{-2,-1}));
+//     sym_t d2(new Ωκmj(2,{0,1,2}));
     
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,s)),4);
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,s)),4);
@@ -777,9 +777,9 @@ TEST_F(Dirac_EC_Tests, Neon)
 // TEST_F(ElectronConfigurationTests, Copper)
 // {
 //     Atom_Dirac_EC ec(29); // | s¹d¹⁰    | ↑ |        |           |
-//     sym_t s(new Omega_k_Sym(0));
-//     sym_t p(new Omega_k_Sym(1));
-//     sym_t d(new Omega_k_Sym(2));
+//     sym_t s(new Ωκ(0));
+//     sym_t p(new Ωκ(1));
+//     sym_t d(new Ωκ(2));
     
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Up  ,s)),4);
 //     EXPECT_EQ(ec.GetN(Irrep_QNs(Spin::Down,s)),3);

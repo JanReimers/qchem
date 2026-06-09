@@ -194,8 +194,8 @@ Bugs
         4) Z=1-56 phi(r)=1/r option gives slighty better results for K=6.
         5) Z=92: 
     DOne -Clean up fit BS construction:
-         : Evaluator(exponents,sym_t(new Yl_Sym(L)))
-        , AtomBS::IrrepBasisSet(this,new Yl_Sym(L))
+         : Evaluator(exponents,sym_t(new Yl(L)))
+        , AtomBS::IrrepBasisSet(this,new Yl(L))
 
     Done: -Simplify the whole Integrals_XXX, DB_X, DB_Cache network
         1) Merge DB_X into Integrals_X for X=Overlap, Kinetic, Nuclear etc.

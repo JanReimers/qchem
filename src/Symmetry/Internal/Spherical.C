@@ -6,10 +6,10 @@ export import qchem.Symmetry.Spherical;
 
 export namespace Symmetry::Internal::Spherical
 {
-class Yl_Sym : public virtual Spherical
+class Yl : public virtual Spherical
 {
 public:
-    Yl_Sym(size_t l) : itsL(l) {};
+    Yl(size_t l) : itsL(l) {};
 
     virtual size_t SequenceIndex() const {return itsL;} //Used for op<
     virtual size_t GetDegeneracy() const {return 2*itsL+1;}
@@ -21,16 +21,16 @@ protected:
     static const size_t LMAX=4;
 };
 
-class Ylm_Sym
+class Ylm
     : public virtual Spherical
-    , private Yl_Sym
+    , private Yl
 {
 public:
-    Ylm_Sym(size_t l, const ivec_t& mls);
+    Ylm(size_t l, const ivec_t& mls);
 
     virtual size_t SequenceIndex() const; //Used for op<
     virtual size_t GetDegeneracy() const;
-    using Yl_Sym::Getl;
+    using Yl::Getl;
     virtual ivec_t Getmls() const {return mls;}
 
     virtual std::ostream&  Write(std::ostream&) const;
@@ -39,10 +39,10 @@ protected:
     ivec_t mls;
 };
 
-class Omega_k_Sym : public virtual SphericalSpinor
+class Ωκ : public virtual SphericalSpinor
 {
 public:
-    Omega_k_Sym(int κ);
+    Ωκ(int κ);
 
     virtual size_t SequenceIndex() const; //Used for op<
     virtual size_t GetDegeneracy() const;
@@ -57,17 +57,17 @@ protected:
     static const size_t LMax=4;
 };
 
-class Omega_kmj_Sym
+class Ωκmj
     : public virtual SphericalSpinor
-    , private Omega_k_Sym
+    , private Ωκ
 
 {
 public:
-    Omega_kmj_Sym(int κ, const rvec_t& mjs);
+    Ωκmj(int κ, const rvec_t& mjs);
 
     virtual size_t SequenceIndex() const; //Used for op<
     virtual size_t GetDegeneracy() const;
-    using Omega_k_Sym::Getκ;
+    using Ωκ::Getκ;
     virtual rvec_t Getmjs() const {return mjs;}
 
     virtual std::ostream&  Write(std::ostream&) const;

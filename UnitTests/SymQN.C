@@ -100,7 +100,7 @@ TEST_F(SymQNTests, Yl_Ylm_CrossSequenceIndex)
     }
 }
 
-TEST_F(SymQNTests, Omega_k_Sym_SequenceIndex)
+TEST_F(SymQNTests, Ωκ_SequenceIndex)
 {
     for (int κ1=-κ_max;κ1<κ_max;κ1++) //Leave out the uppermost κ, it corresponds to LMAX+1
     {
@@ -113,7 +113,7 @@ TEST_F(SymQNTests, Omega_k_Sym_SequenceIndex)
         }
     }
 }
-TEST_F(SymQNTests, Omega_kmj_Sym_SequenceIndex)
+TEST_F(SymQNTests, Ωκmj_SequenceIndex)
 {
     for (int κ1=-κ_max;κ1<κ_max;κ1++)
     {
