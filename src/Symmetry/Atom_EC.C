@@ -8,7 +8,6 @@ export import qchem.Symmetry.ElectronConfiguration;
 
 import qchem.Symmetry.ElectronCounts;
 const int Nshell=8;
-// using namespace Symmetry;
 
 export class Atom_EC : public virtual ElectronConfiguration
 {

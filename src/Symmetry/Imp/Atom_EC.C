@@ -9,12 +9,11 @@ module qchem.Symmetry.AtomEC;
 import Common.PeriodicTable;
 import qchem.Symmetry.Irrep;
 import qchem.Symmetry.Spherical;
-import qchem.Symmetry.Internal.Spherical;
+import qchem.Symmetry.Factory;
 import qchem.stl_io;
 
 using std::cout;
 using std::endl;
-using namespace Symmetry::Internal::Spherical;
 
 PeriodicTableSaito pt;
 
@@ -128,7 +127,7 @@ Atom_EC::Atom_EC(int Z)
     //
     for (int l=0;l<=LMax;l++)
     {
-        int N=itsNs.N[l],Nf=itsNs.Nf[l],Nv=itsNs.Nv[l],Nu=abs(itsNs.Nu[l]);
+        int Nf=itsNs.Nf[l],Nv=itsNs.Nv[l],Nu=abs(itsNs.Nu[l]);
         int g=2*l+1;
         int g2=2*g;
         assert(Nv<g2);
@@ -140,15 +139,15 @@ Atom_EC::Atom_EC(int Z)
         int gu=Nu,gp=g-gu; //unpaired and paired degeneracies
         if (gu==g) //No m splitting, but g unapired electrons
         {
-            sym_t ylm(new Yl(l));
-            itsOccupations[Irrep(Spin::Up  ,ylm)]=Nlevel*g+Nu;
-            itsOccupations[Irrep(Spin::Down,ylm)]=Nlevel*g;
+            sym_t s=Symmetry::YFactory(l);
+            itsOccupations[Irrep(Spin::Up  ,s)]=Nlevel*g+Nu;
+            itsOccupations[Irrep(Spin::Down,s)]=Nlevel*g;
         }
         else if(gu==0) //No m splitting, everything paired
         {
-            sym_t ylm(new Yl(l));
-            itsOccupations[Irrep(Spin::Up  ,ylm)]=Nlevel*g;
-            itsOccupations[Irrep(Spin::Down,ylm)]=Nlevel*g;
+            sym_t s=Symmetry::YFactory(l);
+            itsOccupations[Irrep(Spin::Up  ,s)]=Nlevel*g;
+            itsOccupations[Irrep(Spin::Down,s)]=Nlevel*g;
         }
         else // M splitting
         {
@@ -158,12 +157,12 @@ Atom_EC::Atom_EC(int Z)
             for (size_t i=0;i<gp;i++) ms_p[i]=ml++;
             // for (size_t i=0;i<Nempty;i++) mls.ml_unoccupied.push_back(ml++);
             assert(ml==(int)(l+1));
-            sym_t ylm_p(new Ylm(l,ms_p));
-            sym_t ylm_u(new Ylm(l,ms_u));
-            itsOccupations[Irrep(Spin::Up  ,ylm_p)]=Nlevel*gp+Npair;
-            itsOccupations[Irrep(Spin::Down,ylm_p)]=Nlevel*gp+Npair;
-            itsOccupations[Irrep(Spin::Up  ,ylm_u)]=Nlevel*gu+Nu;
-            itsOccupations[Irrep(Spin::Down,ylm_u)]=Nlevel*gu;
+            sym_t sp=Symmetry::YFactory(l,ms_p);
+            sym_t su=Symmetry::YFactory(l,ms_u);
+            itsOccupations[Irrep(Spin::Up  ,sp)]=Nlevel*gp+Npair;
+            itsOccupations[Irrep(Spin::Down,sp)]=Nlevel*gp+Npair;
+            itsOccupations[Irrep(Spin::Up  ,su)]=Nlevel*gu+Nu;
+            itsOccupations[Irrep(Spin::Down,su)]=Nlevel*gu;
         }
     }
     //

@@ -4,6 +4,8 @@ module;
 #include <nlohmann/json.hpp>
 #include <iostream>
 module qchem.Unittests.QchemTester;
+import qchem.Symmetry.AtomEC;
+import qchem.Symmetry.MoleculeEC;
 import qchem.SCFAccelerator.Factory;
 import qchem.Math;
 

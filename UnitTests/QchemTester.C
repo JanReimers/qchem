@@ -15,8 +15,7 @@ import qchem.Cluster;
 import qchem.Orbitals;
 import qchem.Mesh; //To get Meshparams
 import qchem.Factory;
-import qchem.Symmetry.AtomEC;
-import qchem.Symmetry.MoleculeEC;
+import qchem.Symmetry.ElectronConfiguration;
 import Common.PeriodicTable;
 
 export typedef BasisSet::irrepv_t irrepv_t;
