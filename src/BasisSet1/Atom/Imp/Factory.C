@@ -94,16 +94,6 @@ Real_BS* Factory(const nlohmann::json& js,const Atom_EC& aec)
         bs=new BasisSet_RKB<Gaussian::Evaluator,Gaussian::RKBS_Evaluator>(N,emin,emax,aec);
         break;
     }
-//     case Type::BSpline_RKB:
-//     {
-//         assert(false);
-//         //double rmin=js["rmin"].template get<double>(),rmax=js["rmax"].template get<double>();
-//         // bs=new Atom_kappa::BSpline::BasisSet<6>(N,rmin,rmax,LMax);
-//         break;   
-//     } 
-
-
-
 
     }
     

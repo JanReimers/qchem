@@ -21,12 +21,12 @@ using std::endl;
 
 // Dirac energy for a single electron in a hydrogenic atom.  
 // alpha=1/c_light is the fine structure constant.  Set alpha=0.0 for non-relativistic case.
-double Enk(int n, int kappa,int Z, double alpha)
+double Enk(int n, int κ,int Z, double alpha)
 {
     if (alpha==0.0) return -Z*Z/(2.0*n*n);
     double a2=alpha*alpha;
-    double gamma=sqrt(kappa*kappa-a2*Z*Z);
-    double d=gamma+n-abs(kappa);
+    double gamma=sqrt(κ*κ-a2*Z*Z);
+    double d=gamma+n-abs(κ);
     return (1/sqrt(1.0+a2*Z*Z/(d*d))-1.0)/a2;
 }
 

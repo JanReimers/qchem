@@ -17,10 +17,7 @@ import qchem.BasisSet.Atom.Evaluators.Internal.Rk;
 import qchem.BasisSet.Atom.Evaluators.Internal.ExponentGrouper;
 import qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.Rk; 
 import qchem.stl_io;
-// import qchem.BasisSet.Internal.Cache4;
 import qchem.BasisSet.Atom.Factory;
-// import qchem.BasisSet.Atom.BasisSet;
-import qchem.Symmetry.AtomEC;
 import qchem.BasisSet.Orbital_HF_IBS;
 
 class Cache4Tests : public ::testing::Test
@@ -58,7 +55,7 @@ public:
     }
     void InitBSpline6(size_t Z) {Init(Z,{{"N", 5}, {"rmin", 0.25}, {"rmax", 4}},BasisSet::Atom::Type::BSpline6,BasisSet::Atom::Type::BSpline6_2);}
     void InitGaussian(size_t Z) {Init(Z,{{"N", 5}, {"emin", 0.25}, {"emax", 4}},BasisSet::Atom::Type::Gaussian,BasisSet::Atom::Type::Gaussian2);}
-    void InitSlater  (size_t Z) {Init(Z,{{"N", 5}, {"emin", 0.25}, {"emax", 4}},BasisSet::Atom::Type::Slater   ,BasisSet::Atom::Type::Slater2);}
+    void InitSlater  (size_t Z) {Init(Z,{{"N", 5}, {"emin", 0.25}, {"emax", 4}},BasisSet::Atom::Type::Slater  ,BasisSet::Atom::Type::Slater2);}
 
     void TestDirect(double eps, bool testTranspose=true)
     {

@@ -150,7 +150,7 @@ public:
     public:
         EOrbital_RKBS_IBS(size_t N, double rmin, double rmax, const sym_t& yl)
         : IrrepBasisSetImp<SEvaluator>(yl)
-        , SEvaluator(N,rmin,rmax,-1,0) //fix kappa=-1, l=0
+        , SEvaluator(N,rmin,rmax,-1,0) //fix κ=-1, l=0
         {};
 
         virtual std::ostream& Write(std::ostream& os) const

@@ -17,7 +17,7 @@ class SymQNTests : public ::testing::Test
 public:
     SymQNTests() 
     : LMax(4) 
-    , kappa_max(4)
+    , κ_max(4)
     , n_max(20)
     , quiet(true)
     {};
@@ -47,7 +47,7 @@ public:
         return blaze::linspace(N,mj0,mj1);
     }
     size_t LMax;
-    int kappa_max;
+    int κ_max;
     int n_max;
     bool quiet;
 };
@@ -102,34 +102,34 @@ TEST_F(SymQNTests, Yl_Ylm_CrossSequenceIndex)
 
 TEST_F(SymQNTests, Omega_k_Sym_SequenceIndex)
 {
-    for (int kappa1=-kappa_max;kappa1<kappa_max;kappa1++) //Leave out the uppermost kappa, it corresponds to LMAX+1
+    for (int κ1=-κ_max;κ1<κ_max;κ1++) //Leave out the uppermost κ, it corresponds to LMAX+1
     {
-        sym_t Ol1=Ω(kappa1);
-        if (!quiet) cout << "{k1,sn}={" << kappa1 << "," << Ol1->SequenceIndex() << "}" << endl;
-        for (int kappa2=-kappa_max;kappa2<kappa1;kappa2++)
+        sym_t Ol1=Ω(κ1);
+        if (!quiet) cout << "{k1,sn}={" << κ1 << "," << Ol1->SequenceIndex() << "}" << endl;
+        for (int κ2=-κ_max;κ2<κ1;κ2++)
         {
-            sym_t Ol2=Ω(kappa2);
+            sym_t Ol2=Ω(κ2);
             EXPECT_NE(Ol1->SequenceIndex(),Ol2->SequenceIndex());
         }
     }
 }
 TEST_F(SymQNTests, Omega_kmj_Sym_SequenceIndex)
 {
-    for (int kappa1=-kappa_max;kappa1<kappa_max;kappa1++)
+    for (int κ1=-κ_max;κ1<κ_max;κ1++)
     {
-        double j1=SphericalSpinorSym::j(kappa1);
+        double j1=SphericalSpinorSym::j(κ1);
         for (double mj1=-j1;mj1<=j1;mj1++)
         {
-            sym_t Ol1=Ω(kappa1,make_mjs(-j1,mj1));
-            if (!quiet) cout << "{k1,mj1,sn}={" << kappa1 << "," << mj1 << "," << Ol1->SequenceIndex() << "}" << endl;
-            for (int kappa2=-kappa_max;kappa2<kappa_max;kappa2++)
+            sym_t Ol1=Ω(κ1,make_mjs(-j1,mj1));
+            if (!quiet) cout << "{k1,mj1,sn}={" << κ1 << "," << mj1 << "," << Ol1->SequenceIndex() << "}" << endl;
+            for (int κ2=-κ_max;κ2<κ_max;κ2++)
             {
-                double j2=SphericalSpinorSym::j(kappa2);
+                double j2=SphericalSpinorSym::j(κ2);
                 for (double mj2=-j2;mj2<=j2;mj2++)   
                 {
-                    sym_t Ol2=Ω(kappa2,make_mjs(-j2,mj2));
-                    // if (!quiet) cout << "{k1,k2,mj1,mj2,sn}={" << kappa1 << "," << kappa2 << "," << mj1 << "," << mj2 << "," << Ol2->SequenceIndex() << "}" << endl;
-                    if (kappa1!=kappa2 || mj1!=mj2)
+                    sym_t Ol2=Ω(κ2,make_mjs(-j2,mj2));
+                    // if (!quiet) cout << "{k1,k2,mj1,mj2,sn}={" << κ1 << "," << κ2 << "," << mj1 << "," << mj2 << "," << Ol2->SequenceIndex() << "}" << endl;
+                    if (κ1!=κ2 || mj1!=mj2)
                     {
                         EXPECT_NE(Ol1->SequenceIndex(),Ol2->SequenceIndex());
                     }
@@ -140,18 +140,18 @@ TEST_F(SymQNTests, Omega_kmj_Sym_SequenceIndex)
 }
 TEST_F(SymQNTests, Omega_k_kmj_CrossSequenceIndex)
 {
-    for (int kappa1=-kappa_max;kappa1<kappa_max;kappa1++)
+    for (int κ1=-κ_max;κ1<κ_max;κ1++)
     {
         {
-            sym_t Ol1=Ω(kappa1);
-            if (!quiet) cout << "{k1,sn}={" << kappa1 << "," << Ol1->SequenceIndex() << "}" << endl;
-            for (int kappa2=-kappa_max;kappa2<kappa_max;kappa2++)
+            sym_t Ol1=Ω(κ1);
+            if (!quiet) cout << "{k1,sn}={" << κ1 << "," << Ol1->SequenceIndex() << "}" << endl;
+            for (int κ2=-κ_max;κ2<κ_max;κ2++)
             {
-                double j2=SphericalSpinorSym::j(kappa2);
+                double j2=SphericalSpinorSym::j(κ2);
                 for (double mj2=-j2;mj2<=j2;mj2++)   
                 {
-                    sym_t Ol2=Ω(kappa2,make_mjs(-j2,mj2));
-                    // if (!quiet) cout << "{k1,k2,mj1,mj2,sn}={" << kappa1 << "," << kappa2 << "," << mj1 << "," << mj2 << "," << Ol2->SequenceIndex() << "}" << endl;
+                    sym_t Ol2=Ω(κ2,make_mjs(-j2,mj2));
+                    // if (!quiet) cout << "{k1,k2,mj1,mj2,sn}={" << κ1 << "," << κ2 << "," << mj1 << "," << mj2 << "," << Ol2->SequenceIndex() << "}" << endl;
                     EXPECT_NE(Ol1->SequenceIndex(),Ol2->SequenceIndex());
                 }
             }

@@ -167,9 +167,9 @@ private:
 class RKBS_Evaluator : public Evaluator
 {
 public:
-    RKBS_Evaluator(const rvec_t& es, int _kappa, int l, const ivec_t& mls) : Evaluator(es,l,mls), kappa(_kappa) {ns=norms();}
-    RKBS_Evaluator(const rvec_t& es, int _kappa, int l) : RKBS_Evaluator(es,_kappa,l,{}) {}
-    RKBS_Evaluator(size_t N, double emin, double emax, int _kappa, int l);
+    RKBS_Evaluator(const rvec_t& es, int _κ, int l, const ivec_t& mls) : Evaluator(es,l,mls), κ(_κ) {ns=norms();}
+    RKBS_Evaluator(const rvec_t& es, int _κ, int l) : RKBS_Evaluator(es,_κ,l,{}) {}
+    RKBS_Evaluator(size_t N, double emin, double emax, int _κ, int l);
     virtual rvec_t norms() const; //assumes es,l are already initialized
     double Inv_r1(size_t i,size_t j) const
     {
@@ -186,7 +186,7 @@ public:
 
 private:
     rvec_t eval(const rvec3_t&) const;
-    int kappa;
+    int κ;
 };
 
 static_assert(isGeneric_Evaluator<RKBS_Evaluator>);

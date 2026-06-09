@@ -11,9 +11,9 @@ import qchem.Math;
 namespace BasisSet::Atom::Evaluators::Gaussian
 {
 
-RKBS_Evaluator::RKBS_Evaluator(size_t N, double emin, double emax, int _kappa, int l)
+RKBS_Evaluator::RKBS_Evaluator(size_t N, double emin, double emax, int _κ, int l)
     : Evaluator(N,emin,emax,SymmetryFactory::YFactory())
-    , kappa(_kappa) 
+    , κ(_κ) 
 {
     ns=norms();
 }
@@ -32,8 +32,8 @@ rvec_t RKBS_Evaluator::eval(const rvec3_t& r) const
 {
     double mr=norm(r);
     rvec_t f=-2*es*mr;
-    if (kappa >0) 
-        f+=(2*kappa+1)/mr;
+    if (κ >0) 
+        f+=(2*κ+1)/mr;
     
     return f*gaussian(mr,l,es,ns);
 }
