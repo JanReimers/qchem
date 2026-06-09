@@ -3,14 +3,16 @@ module;
 #include <iomanip>
 #include <cassert>
 #include <blaze/Math.h>
-module qchem.Symmetry.Okmj;
+module qchem.Symmetry.Internal.Spherical;
 
-import qchem.Symmetry.AtomEC;
+// import qchem.Symmetry.AtomEC;
 import qchem.Common.Strings; //To get SPDFG string table.
 import qchem.stl_io;
 
 using std::cout;
 using std::endl;
+namespace Symmetryns::Internal::Spherical
+{
 
 Omega_k_Sym::Omega_k_Sym(int _κ) : κ(_κ) 
 {
@@ -64,5 +66,6 @@ std::ostream& Omega_kmj_Sym::Write(std::ostream& os) const
     return os;
 }
 
+} // namespace
 
 

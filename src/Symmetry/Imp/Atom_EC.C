@@ -9,11 +9,12 @@ module qchem.Symmetry.AtomEC;
 import Common.PeriodicTable;
 import qchem.Symmetry.Irrep;
 import qchem.Symmetry.Angular;
-import qchem.Symmetry.Ylm;
+import qchem.Symmetry.Internal.Spherical;
 import qchem.stl_io;
 
 using std::cout;
 using std::endl;
+using namespace Symmetryns::Internal::Spherical;
 
 PeriodicTableSaito pt;
 

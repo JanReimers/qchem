@@ -7,12 +7,12 @@ target_sources(qcSymmetry PRIVATE
     Imp/Molecule_EC.C  
     Imp/Orbital_QNs.C  
     Imp/Symmetry.C  
-    Imp/Unit.C 
-    Imp/Yl.C  
-    Imp/Ylm.C 
-    Imp/Okmj.C
-    Imp/BlochQN.C
     Imp/Factory.C
+    Internal/Imp/Unit.C 
+    Internal/Imp/Yl.C  
+    Internal/Imp/Ylm.C 
+    Internal/Imp/Okmj.C
+    Internal/Imp/BlochQN.C
     )
 target_sources(qcSymmetry PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
     Spin.C 
@@ -21,13 +21,15 @@ target_sources(qcSymmetry PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Orbital_QNs.C 
     ElectronCounts.C 
     Angular.C 
-    Yl.C Ylm.C Okmj.C BlochQN.C
-    Unit.C
     ElectronConfiguration.C
     Atom_EC.C 
     Atom_Dirac_EC.C
     Molecule_EC.C 
     Factory.C
+    Internal/Spherical.C 
+    Internal/BlochQN.C
+    Internal/Unit.C
+
     ) 
 
 target_compile_options(qcSymmetry PRIVATE -Wall 

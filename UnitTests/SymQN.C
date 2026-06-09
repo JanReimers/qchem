@@ -5,9 +5,9 @@
 #include <iostream>
 #include <blaze/Math.h>
 import qchem.Symmetry.Orbital; 
-import qchem.Symmetry.Okmj;
 import qchem.Streamable;
 import qchem.Symmetry.Factory;
+import qchem.Symmetry.Angular;
 
 using std::cout; 
 using std::endl;
@@ -117,14 +117,14 @@ TEST_F(SymQNTests, Omega_kmj_Sym_SequenceIndex)
 {
     for (int kappa1=-kappa_max;kappa1<kappa_max;kappa1++)
     {
-        double j1=Omega_k_Sym::j(kappa1);
+        double j1=SphericalSpinorSym::j(kappa1);
         for (double mj1=-j1;mj1<=j1;mj1++)
         {
             sym_t Ol1=Ω(kappa1,make_mjs(-j1,mj1));
             if (!quiet) cout << "{k1,mj1,sn}={" << kappa1 << "," << mj1 << "," << Ol1->SequenceIndex() << "}" << endl;
             for (int kappa2=-kappa_max;kappa2<kappa_max;kappa2++)
             {
-                double j2=Omega_k_Sym::j(kappa2);
+                double j2=SphericalSpinorSym::j(kappa2);
                 for (double mj2=-j2;mj2<=j2;mj2++)   
                 {
                     sym_t Ol2=Ω(kappa2,make_mjs(-j2,mj2));
@@ -147,7 +147,7 @@ TEST_F(SymQNTests, Omega_k_kmj_CrossSequenceIndex)
             if (!quiet) cout << "{k1,sn}={" << kappa1 << "," << Ol1->SequenceIndex() << "}" << endl;
             for (int kappa2=-kappa_max;kappa2<kappa_max;kappa2++)
             {
-                double j2=Omega_k_Sym::j(kappa2);
+                double j2=SphericalSpinorSym::j(kappa2);
                 for (double mj2=-j2;mj2<=j2;mj2++)   
                 {
                     sym_t Ol2=Ω(kappa2,make_mjs(-j2,mj2));

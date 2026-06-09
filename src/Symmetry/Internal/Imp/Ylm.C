@@ -1,19 +1,18 @@
-// File: Symmetry/YlmImp.C  Magnetic spherical harmonic Y_lm(theta,phi) symmetry
+// File: Symmetry/Internal/Imp/Yl.C  Non magnetic (m-degenerate) spherical harmonic Y_l(theta,phi) symmetry
 module;
-// #include <algorithm>
 #include <iostream>
 #include <iomanip>
 #include <cassert>
-// #include <vector>
 #include <blaze/Math.h>
-// #include <blaze/util/algorithms/Max.h>
 
-module qchem.Symmetry.Ylm;
+module qchem.Symmetry.Internal.Spherical;
 import qchem.Common.Strings;
 
 using std::cout;
 using std::endl;
 
+namespace Symmetryns::Internal::Spherical
+{
 
 Ylm_Sym::Ylm_Sym(size_t l, const ivec_t& _mls) 
 : Yl_Sym(l),  mls(_mls) 
@@ -54,3 +53,5 @@ std::ostream& Ylm_Sym::Write(std::ostream& os) const
    
     return os;
 }
+
+} //namespace
