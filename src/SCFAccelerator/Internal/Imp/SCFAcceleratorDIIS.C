@@ -14,7 +14,7 @@ namespace qchem::SCFAccelerators
 using std::cout;
 using std::endl;
 
-SCFIrrepAcceleratorDIIS::SCFIrrepAcceleratorDIIS(const DIISParams& p,const LASolver<double>* lasb,const Irrep_QNs& qns,const rvec_t& cs) 
+SCFIrrepAcceleratorDIIS::SCFIrrepAcceleratorDIIS(const DIISParams& p,const LASolver<double>* lasb,const Irrep& qns,const rvec_t& cs) 
     : itsParams(p)
     , itsIrrep(qns)
     , itsEn(0.0)
@@ -85,7 +85,7 @@ SCFAcceleratorDIIS::SCFAcceleratorDIIS(const DIISParams& p)
 {};
 
 SCFAcceleratorDIIS::~SCFAcceleratorDIIS() {};
-SCFIrrepAccelerator* SCFAcceleratorDIIS::Create(const LASolver<double>* lasb,const Irrep_QNs& qns, int occ) 
+SCFIrrepAccelerator* SCFAcceleratorDIIS::Create(const LASolver<double>* lasb,const Irrep& qns, int occ) 
 {
     if (occ>0)
     {

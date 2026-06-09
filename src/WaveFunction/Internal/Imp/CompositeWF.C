@@ -42,7 +42,7 @@ void CompositeWF::MakeIrrepWFs(Spin s)
         LASolver<double>* lasb=LASolver<double>::Factory(itsLAParams.BasisOrthoAlgorithm,itsLAParams.TruncationTolerance);
         lasb->SetBasisOverlap(b->Overlap());
         // std::cout << "Minimum singular value for basis set overlap= " << blaze::min(lasb->Get_BS_Diagonal()) << std::endl;
-        Irrep_QNs qns(b->GetIrrep(s));
+        Irrep qns(b->GetIrrep(s));
         SCFIrrepAccelerator* acc=itsAccelerator->Create(lasb,qns,itsEC->GetN(qns));
         
         uiwf_t wf(new IrrepWF(b,lasb,qns,acc));
@@ -86,11 +86,11 @@ EnergyLevels CompositeWF::GetEnergyLevels (Spin s) const
     return i->second;
 } 
 
-const Orbitals* CompositeWF::GetOrbitals(const Irrep_QNs& qns) const
+const Orbitals* CompositeWF::GetOrbitals(const Irrep& qns) const
 {
     return const_cast<CompositeWF*>(this)->GetOrbitals(qns);
 }
-Orbitals* CompositeWF::GetOrbitals(const Irrep_QNs& qns) 
+Orbitals* CompositeWF::GetOrbitals(const Irrep& qns) 
 {
     auto i=itsQNWFs.find(qns);
     if (i==itsQNWFs.end())

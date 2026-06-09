@@ -141,14 +141,14 @@ Atom_EC::Atom_EC(int Z)
         if (gu==g) //No m splitting, but g unapired electrons
         {
             sym_t ylm(new Yl(l));
-            itsOccupations[Irrep_QNs(Spin::Up  ,ylm)]=Nlevel*g+Nu;
-            itsOccupations[Irrep_QNs(Spin::Down,ylm)]=Nlevel*g;
+            itsOccupations[Irrep(Spin::Up  ,ylm)]=Nlevel*g+Nu;
+            itsOccupations[Irrep(Spin::Down,ylm)]=Nlevel*g;
         }
         else if(gu==0) //No m splitting, everything paired
         {
             sym_t ylm(new Yl(l));
-            itsOccupations[Irrep_QNs(Spin::Up  ,ylm)]=Nlevel*g;
-            itsOccupations[Irrep_QNs(Spin::Down,ylm)]=Nlevel*g;
+            itsOccupations[Irrep(Spin::Up  ,ylm)]=Nlevel*g;
+            itsOccupations[Irrep(Spin::Down,ylm)]=Nlevel*g;
         }
         else // M splitting
         {
@@ -160,10 +160,10 @@ Atom_EC::Atom_EC(int Z)
             assert(ml==(int)(l+1));
             sym_t ylm_p(new Ylm(l,ms_p));
             sym_t ylm_u(new Ylm(l,ms_u));
-            itsOccupations[Irrep_QNs(Spin::Up  ,ylm_p)]=Nlevel*gp+Npair;
-            itsOccupations[Irrep_QNs(Spin::Down,ylm_p)]=Nlevel*gp+Npair;
-            itsOccupations[Irrep_QNs(Spin::Up  ,ylm_u)]=Nlevel*gu+Nu;
-            itsOccupations[Irrep_QNs(Spin::Down,ylm_u)]=Nlevel*gu;
+            itsOccupations[Irrep(Spin::Up  ,ylm_p)]=Nlevel*gp+Npair;
+            itsOccupations[Irrep(Spin::Down,ylm_p)]=Nlevel*gp+Npair;
+            itsOccupations[Irrep(Spin::Up  ,ylm_u)]=Nlevel*gu+Nu;
+            itsOccupations[Irrep(Spin::Down,ylm_u)]=Nlevel*gu;
         }
     }
     //
@@ -171,7 +171,7 @@ Atom_EC::Atom_EC(int Z)
     //
     for (auto ir:GetIrreps())
     {
-        Irrep_QNs nqns(Spin::None,ir), uqns(Spin::Up,ir),dqns(Spin::Down,ir);
+        Irrep nqns(Spin::None,ir), uqns(Spin::Up,ir),dqns(Spin::Down,ir);
         itsUnpolOccupations[nqns]=GetN(uqns)+GetN(dqns);
     }
         
@@ -179,7 +179,7 @@ Atom_EC::Atom_EC(int Z)
     assert(nup==0); //By now all unpaired electrons should have gobbled up.        
 }
 
-int Atom_EC::GetN(const Irrep_QNs& qns) const
+int Atom_EC::GetN(const Irrep& qns) const
 {
     if (qns.ms==Spin::None) 
     {

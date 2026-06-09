@@ -23,12 +23,12 @@ export class WaveFunction
 {
 public:
     typedef ScalarFunction<double> sf_t;
-    typedef std::vector<Irrep_QNs> iqns_t;
+    typedef std::vector<Irrep> iqns_t;
     virtual ~WaveFunction() {};
 
     virtual void            DoSCFIteration  (Hamiltonian&,const DM_CD*)      =0;
-    virtual const Orbitals* GetOrbitals     (const Irrep_QNs&         ) const=0;
-    virtual       Orbitals* GetOrbitals     (const Irrep_QNs&         )      =0;
+    virtual const Orbitals* GetOrbitals     (const Irrep&         ) const=0;
+    virtual       Orbitals* GetOrbitals     (const Irrep&         )      =0;
     virtual void            FillOrbitals    (double mergeTol)=0; //WF knows internally the electronic structure
     virtual DM_CD*          GetChargeDensity() const=0;
     virtual sf_t*           GetSpinDensity  () const=0; //Returns a null ptr for un polarized WF.

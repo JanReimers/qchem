@@ -15,7 +15,7 @@ export import qchem.Streamable;
 
 export namespace BasisSet
 {
-typedef std::vector<Irrep_QNs> irrepv_t; 
+typedef std::vector<Irrep> irrepv_t; 
 
 //----------------------------------------------------------------------------
 //

@@ -24,7 +24,7 @@ public:
     typedef smat_t<T> DenSMat; //Type for the density matrix.
     
     IrrepCD();
-    IrrepCD(const DenSMat&,const tobs_t<T>*, Irrep_QNs);
+    IrrepCD(const DenSMat&,const tobs_t<T>*, Irrep);
 
     virtual void AccumulateDirect  (rsmat_t& Sab, const ohfbs_t*) const;
     virtual void AccumulateExchange(rsmat_t& Sab, const ohfbs_t*) const;
@@ -49,7 +49,7 @@ private:
     DenSMat          itsDensityMatrix;
     const tobs_t<T>* itsBasisSet;
     Spin             itsSpin;
-    Irrep_QNs        itsIrrep;
+    Irrep        itsIrrep;
 };
 
 } //namespace

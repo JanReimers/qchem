@@ -112,7 +112,7 @@ template <class T> DM_CD* TOrbitalsImp<T>::GetChargeDensity() const
 }
 
 
-template <class T>  Irrep_QNs TOrbitalsImp<T>::GetQNs() const
+template <class T>  Irrep TOrbitalsImp<T>::GetQNs() const
 {
     return itsQNs;
 }

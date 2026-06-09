@@ -8,7 +8,7 @@ public:
     Molecule_EC() : Ne(0) {};
     Molecule_EC(int _Ne) : Ne(_Ne) {};
     
-    virtual int GetN(const Irrep_QNs& qns) const;
+    virtual int GetN(const Irrep& qns) const;
     virtual void Display() const;
 private:
     int GetN() const {return Ne;}

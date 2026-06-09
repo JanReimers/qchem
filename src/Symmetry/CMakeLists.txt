@@ -3,7 +3,7 @@ target_sources(qcSymmetry PRIVATE
     Imp/Spherical.C
     Imp/Atom_EC.C  
     Imp/ElectronCounts.C 
-    Imp/Irrep_QNs.C  
+    Imp/Irrep.C  
     Imp/Molecule_EC.C  
     Imp/Orbital_QNs.C  
     Imp/Symmetry.C  
@@ -17,7 +17,7 @@ target_sources(qcSymmetry PRIVATE
 target_sources(qcSymmetry PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
     Spin.C 
     Symmetry.C 
-    Irrep_QNs.C 
+    Irrep.C 
     Orbital_QNs.C 
     ElectronCounts.C 
     Spherical.C 

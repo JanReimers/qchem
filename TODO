@@ -932,7 +932,7 @@ Priority 3:
             
 
     Done: -re-imagine Electron configurations
-        -How about map<Irrep_QNs,size_t> Occs to track all occupations.
+        -How about map<Irrep,size_t> Occs to track all occupations.
         -Yes this is what we need
         -We need to build this list from ElCounts=
             int N [LMax+1]; //Total N[l]
@@ -962,7 +962,7 @@ Priority 3:
     Done: -Rk inconsistencies that should be cleaned up.
 	Done: -GetSymmetry() should return a const Symmetry& instead of a shared ptr instance?
         No: -CopySymmetry() can return the shared ptr.
-            Instead: Irrep_QNs GetIrrep(const Spin& s) const
+            Instead: Irrep GetIrrep(const Spin& s) const
     Done: -Fold IntegralEngines in Orbital class chain.
         Done: Experiment with Slater::Orbital_XX_IBS instad of IntegralEngine.
         Done: I think we want Atom::Orbital_XX_IBS class to gather all neede AtomIE classes.
@@ -1229,7 +1229,7 @@ Priority 3:
                 move Composite_CD to interface
                 need
                     FittedCDImp(bs_t& bs, mesh_t& m, double totalCharge)
-                    IrrepCD(const DenSMat&,const TOrbital_IBS<T>*, Irrep_QNs);
+                    IrrepCD(const DenSMat&,const TOrbital_IBS<T>*, Irrep);
         Done: libqcHamiltonian
         Done: libqcWaveFunction
         Done: -this will require decouple Ham from WF.  Make a factory function in WF interface.
@@ -1290,8 +1290,8 @@ Priority 3:
             #include "Molecule/PolarizedGaussian/RadialFunction.H"
 
     Done: -Small fixes
-        Done: Irrep_QNs should be a separate header.
-        Done: Orbital_QNs should derive from Irrep_QNs;
+        Done: Irrep should be a separate header.
+        Done: Orbital_QNs should derive from Irrep;
         Done: Set merge tolerances in SCFParams.
         Done: -Clean up naming for IterationParams.    SCFParams
         Done: Fix Spherical Gaussian L=0x5fa269ce59b0 with 20 basis functions, alpha={0.01 0.03 
@@ -1736,13 +1736,13 @@ Priority 3:
             Add valarray op()(valarray x)
         No: Use VectorFunction interface for TOrbitals.
             Add vector<valarray> op()(valarray x)
-        Done: TOrbitals are selected from the WF based on Irrep_QNs (which includes spin)
-            We need a way to get a vector<Irrep_QNs> of allowed Irrep_QNs
+        Done: TOrbitals are selected from the WF based on Irrep (which includes spin)
+            We need a way to get a vector<Irrep> of allowed Irrep
             BS can supply a vector<const Symmetry*> which is spin agnostic.
                 PolWF and UnPol-WF would need to add the spin aspect.
         How to plot orbitals
             Done: For UnPol plot
-                1) Change line colour based on symmetry/Irrep_QNs
+                1) Change line colour based on symmetry/Irrep
                 2) Change line style (dashed dots etc) based principle QN
                 3) Make unocc orbital 40% transparant
             Done: For Pol orbitals
@@ -1753,8 +1753,8 @@ Priority 3:
             Done: Steps
                 Done: 1) Get vector<const Symmetry*> from BS
                 Done: 2) Request orbitals using 
-                    UnPol Irrep_QNs(Spin::None,sym)
-                    Pol Irrep_QNs(Spin::Up,sym) Irrep_QNs(Spin::Down,sym)
+                    UnPol Irrep(Spin::None,sym)
+                    Pol Irrep(Spin::Up,sym) Irrep(Spin::Down,sym)
                 Done: 3) Choose a x (really r) mesh: Linear or Log valarray<double> 
                 Done: 4) Use VectorFunction vector<valarray> op()(valarray x)
                 Done: 5) Make Pol and UnPol versions of OrbitalPlotWindow = Orital_PW
@@ -1813,7 +1813,7 @@ Priority 3:
         -Store j,mj,ms=n/2 QNs as double or some sort of frac class?
         -Plan:
             Done -QuantumNumber -> Symmetryfor brevity and plurality
-            Done -Make a Irrep_QNs {ms,l,ml}
+            Done -Make a Irrep {ms,l,ml}
             Done -Make an Orbital_QNs class for {n,IrrepSymmetry}
             Done -Use OrbitalQNs->ms() instead of Spin s in WF,CD etc.
             No -Git rid of PolarizedCD
@@ -1826,7 +1826,7 @@ Priority 3:
              use the type system to distinguish.
             -Are these related by containment or inheritance?
                 Symmetry is polymorphic whihc suggest containment
-                Irrep_QNs is not and Orbital_QNs, so again containment.
+                Irrep is not and Orbital_QNs, so again containment.
         -Do we still need AngularQN (Yes) and AtomQN (No)?
 
 

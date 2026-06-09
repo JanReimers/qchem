@@ -8,7 +8,7 @@ import qchem.Symmetry.Irrep;
 using std::cout;
 using std::endl;
 
-int Molecule_EC::GetN(const Irrep_QNs& qns) const
+int Molecule_EC::GetN(const Irrep& qns) const
 {
     return GetN(qns.ms);
 }

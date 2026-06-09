@@ -22,8 +22,8 @@ public:
     ~CompositeWF();
 
     virtual void            DoSCFIteration  (Hamiltonian&,const DM_CD*   )      ;
-    virtual const Orbitals* GetOrbitals     (const Irrep_QNs&) const;
-    virtual       Orbitals* GetOrbitals     (const Irrep_QNs&)      ;
+    virtual const Orbitals* GetOrbitals     (const Irrep&) const;
+    virtual       Orbitals* GetOrbitals     (const Irrep&)      ;
     virtual EnergyLevels    GetEnergyLevels () const {return itsELevels;} 
     virtual void            FillOrbitals    (double mergeTol);
     virtual iqns_t          GetQNs          () const;
@@ -47,7 +47,7 @@ private:
     std::map<Spin,EnergyLevels>  itsSpin_ELevels;
 
     std::vector<uiwf_t>                   itsIWFs;
-    std::map<Irrep_QNs,IrrepWF*>         itsQNWFs; //sort by Irrep for easy lookup.
+    std::map<Irrep,IrrepWF*>         itsQNWFs; //sort by Irrep for easy lookup.
     std::map<Spin,std::vector<IrrepWF*>> itsSpinWFs; //Sort by spin.
 };
 

@@ -7,11 +7,11 @@ export import qchem.Symmetry.Irrep;
 export import qchem.Types;
 
 export struct Orbital_QNs
-    : public Irrep_QNs
+    : public Irrep
 {   
-    Orbital_QNs() : Irrep_QNs(), n(0) {};
+    Orbital_QNs() : Irrep(), n(0) {};
     Orbital_QNs(size_t n, Spin ms,const sym_t& sym);
-    Orbital_QNs(size_t n, const Irrep_QNs&);
+    Orbital_QNs(size_t n, const Irrep&);
     ~Orbital_QNs();
 
     virtual size_t  SequenceIndex() const; //Used for op<

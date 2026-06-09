@@ -56,7 +56,7 @@ void Orbital_PW::AddLines(const BasisSet* bs, const WaveFunction* wf, Spin s, Gl
   int line=use_symbols ? Gtk::PLplot::LineStyle::NONE : Gtk::PLplot::LineStyle::CONTINUOUS;
   for (auto sym:bs->GetSymmetries())
   {
-    Irrep_QNs qns(s,sym);
+    Irrep qns(s,sym);
     int num_unocc=1; //How many un=occupied orbitals to show?
     const TOrbitals<double>* tos=dynamic_cast<const TOrbitals<double>*>(wf->GetOrbitals(qns));
     int N_to_plot=tos->GetNumOccOrbitals()+num_unocc-1;
@@ -276,7 +276,7 @@ Diagonal_PW::Diagonal_PW(const BasisSet* bs,const WaveFunction* wf, qchem::Ortho
   float r=1.0,g=0.0,b=0.0,dr= N==1 ? 1.0 : 1.0/(N-1);
   for (auto sym:syms)
   {
-    Irrep_QNs qns(s,sym);
+    Irrep qns(s,sym);
     const TOrbitals<double>* tos=dynamic_cast<const TOrbitals<double>*>(wf->GetOrbitals(qns));
     std::valarray<double> diag=to_valarray(tos->Get_BS_Diagonal());
     auto data=Gtk::manage(new Gtk::PLplot::PlotData2D(diag, Gdk::RGBA("black"), Gtk::PLplot::LineStyle::NONE));

@@ -30,7 +30,7 @@ public:
     virtual double    GetEigenValueChange(const Orbitals&) const;
     virtual DM_CD*    GetChargeDensity   () const;
     virtual void      UpdateOrbitals     (const mat_t<T>& U, const mat_t<T>& UPrime, const rvec_t& e);
-    virtual Irrep_QNs GetQNs() const;
+    virtual Irrep GetQNs() const;
     
     virtual vec_t    <T> operator() (const rvec3_t&) const;
     virtual vec3vec_t<T> Gradient   (const rvec3_t&) const;
@@ -49,7 +49,7 @@ private:
 
     const tobs_t<T>*  itsBasisSet;
     ov_t              itsOrbitals;
-    Irrep_QNs         itsQNs;
+    Irrep         itsQNs;
     smat_t<T>         itsD; // DPrime=C'*Cd',  U*D*Ud, D=C*Cd (outer product)
 };
 

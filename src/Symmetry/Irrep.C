@@ -1,4 +1,4 @@
-// File: Irrep_QNs.C  Combine Symmetry with Spin.
+// File: Irrep.C  Combine Symmetry with Spin.
 module;
 #include <iosfwd>
 export module qchem.Symmetry.Irrep;
@@ -6,16 +6,16 @@ export import qchem.Symmetry;
 export import qchem.Symmetry.Spin;
 import qchem.Streamable;
 
-export struct Irrep_QNs
+export struct Irrep
     : public virtual Streamable
 {   
-    Irrep_QNs() : ms(Spin::None), sym(0) {};
-    Irrep_QNs(Spin _ms,const sym_t& _sym);
-    ~Irrep_QNs();
+    Irrep() : ms(Spin::None), sym(0) {};
+    Irrep(Spin _ms,const sym_t& _sym);
+    ~Irrep();
 
     virtual size_t  SequenceIndex() const; //Used for op<
 
-    friend bool operator<(const Irrep_QNs& a, const Irrep_QNs& b)
+    friend bool operator<(const Irrep& a, const Irrep& b)
     {
         return a.SequenceIndex()<b.SequenceIndex();
     }

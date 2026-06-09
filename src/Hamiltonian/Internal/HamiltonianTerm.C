@@ -14,8 +14,8 @@ export namespace qchem::Hamiltonian
 class HT_Common
 {
 protected:
-    typedef std::map<Irrep_QNs,rsmat_t> CacheMap;
-    // typedef std::map<Irrep_QNs,const Static_HT::obs_t*> BSMap;
+    typedef std::map<Irrep,rsmat_t> CacheMap;
+    // typedef std::map<Irrep,const Static_HT::obs_t*> BSMap;
     mutable CacheMap   itsCache;       //Cache the H matrices for total energy calculations.
 };
 

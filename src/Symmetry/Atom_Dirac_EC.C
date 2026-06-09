@@ -24,7 +24,7 @@ public:
     using Atom_EC::GetIrreps;
     Atom_Dirac_EC(int Z) : Atom_EC(Z) {};
     
-    // virtual int    GetN(const Irrep_QNs&) const;  //Core + Valance
+    // virtual int    GetN(const Irrep&) const;  //Core + Valance
     // virtual size_t GetLMax() const {return itsLMax;}
     // virtual void   Display() const;
     
@@ -38,7 +38,7 @@ private:
     // static const int FullShells[Nshell][LMax+2];
     // ElCounts itsNs; //Total,core, valance and unpaired counts.
     // size_t itsLMax,itsLValance;
-    // std::map<Irrep_QNs,size_t> itsOccupations; //Spin polarized list;
-    // std::map<Irrep_QNs,size_t> itsUnpolOccupations; //Spin un polarized list;
+    // std::map<Irrep,size_t> itsOccupations; //Spin polarized list;
+    // std::map<Irrep,size_t> itsUnpolOccupations; //Spin un polarized list;
 };
 

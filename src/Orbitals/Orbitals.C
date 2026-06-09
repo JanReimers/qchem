@@ -74,7 +74,7 @@ public:
     virtual double         GetEigenValueChange(const Orbitals&) const=0;
     virtual DM_CD*         GetChargeDensity   (               ) const=0;
     //! This will hold spin and symmetry QNs, without the principle QN.
-    virtual Irrep_QNs      GetQNs() const=0;
+    virtual Irrep      GetQNs() const=0;
     
 private:
     virtual const_iterator begin() const=0;

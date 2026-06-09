@@ -39,14 +39,14 @@ Atom_Dirac_EC::Atom_Dirac_EC(int Z)
         {
             assert(N%2==0);
             sym_t Ω(new Ωκ(κ));
-            itsOccupations[Irrep_QNs(Spin::Up  ,Ω)]=N/2;
-            itsOccupations[Irrep_QNs(Spin::Down,Ω)]=N/2;
+            itsOccupations[Irrep(Spin::Up  ,Ω)]=N/2;
+            itsOccupations[Irrep(Spin::Down,Ω)]=N/2;
         }
         else if (Nu==g) //exactly half filled all up.
         {
             sym_t Ω(new Ωκ(κ));
-            itsOccupations[Irrep_QNs(Spin::Up  ,Ω)]=N;
-            itsOccupations[Irrep_QNs(Spin::Down,Ω)]=N-Nu;
+            itsOccupations[Irrep(Spin::Up  ,Ω)]=N;
+            itsOccupations[Irrep(Spin::Down,Ω)]=N-Nu;
         }
         else //Partially filled, mj splitting
         {
@@ -61,10 +61,10 @@ Atom_Dirac_EC::Atom_Dirac_EC(int Z)
             assert(mj==j+1);
             sym_t Ω_p(new Ωκmj(κ,mj_p));
             sym_t Ω_u(new Ωκmj(κ,mj_u));
-            itsOccupations[Irrep_QNs(Spin::Up  ,Ω_p)]=Nlevel*gp+Npair;
-            itsOccupations[Irrep_QNs(Spin::Down,Ω_p)]=Nlevel*gp+Npair;
-            itsOccupations[Irrep_QNs(Spin::Up  ,Ω_u)]=Nlevel*gu+Nu;
-            itsOccupations[Irrep_QNs(Spin::Down,Ω_u)]=Nlevel*gu;
+            itsOccupations[Irrep(Spin::Up  ,Ω_p)]=Nlevel*gp+Npair;
+            itsOccupations[Irrep(Spin::Down,Ω_p)]=Nlevel*gp+Npair;
+            itsOccupations[Irrep(Spin::Up  ,Ω_u)]=Nlevel*gu+Nu;
+            itsOccupations[Irrep(Spin::Down,Ω_u)]=Nlevel*gu;
         }
        
         

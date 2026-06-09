@@ -1,10 +1,10 @@
-// File: ElectronConfiguration.C
+// File: Symmetry/ElectronConfiguration.C Interface for and electron configuration.
 export module qchem.Symmetry.ElectronConfiguration;
 export import qchem.Symmetry.Irrep;
 
 export class ElectronConfiguration
 {
 public:
-    virtual int    GetN(const Irrep_QNs&) const=0;
+    virtual int    GetN(const Irrep&) const=0;
     virtual void   Display() const=0;
 };

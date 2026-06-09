@@ -24,7 +24,7 @@ using SCFAccelerators::SCFIrrepAccelerator;
 class IrrepWF
 {
 public:
-    IrrepWF(const obs_t*, LASolver<double>*, const Irrep_QNs& ,SCFIrrepAccelerator*);
+    IrrepWF(const obs_t*, LASolver<double>*, const Irrep& ,SCFIrrepAccelerator*);
     ~IrrepWF();
 
     void                CalculateH      (Hamiltonian&,const DM_CD*   )      ;
@@ -34,7 +34,7 @@ public:
           Orbitals*     GetOrbitals     ()      ;
     const EnergyLevels& FillOrbitals    (const ElectronConfiguration*);
     void                DisplayEigen    () const;
-    const Irrep_QNs&    GetQNs          () const {return itsIrrep;}
+    const Irrep&    GetQNs          () const {return itsIrrep;}
     rvec_t      Get_BS_Diagonal () const;
 
  private:
@@ -43,7 +43,7 @@ public:
     const obs_t*         itsBasisSet;
     LASolver<double>*    itsLASolver;
     TOrbitals<double>*   itsOrbitals; //Owned
-    Irrep_QNs            itsIrrep;
+    Irrep            itsIrrep;
     EnergyLevels         itsELevels;
     SCFIrrepAccelerator* itsAccelerator;
     rsmat_t              itsDPrime; // DPrime=C'*Cd',  U*D*Ud, D=C*Cd (outer product)

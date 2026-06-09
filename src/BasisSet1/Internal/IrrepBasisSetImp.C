@@ -16,9 +16,9 @@ public:
     //! Readonly ref to the polymorphic Symmetry object.
     virtual const Symmetry::Symmetry& GetSymmetry() const {return *itsSymmetry;}
     //! Irrep basis sets are spin agnostic, so caller must specify the spin in order to a full set of QNs.
-    virtual Irrep_QNs GetIrrep(const Spin& s) const
+    virtual Irrep GetIrrep(const Spin& s) const
     {
-        return Irrep_QNs(s,itsSymmetry);
+        return Irrep(s,itsSymmetry);
     }
     
     

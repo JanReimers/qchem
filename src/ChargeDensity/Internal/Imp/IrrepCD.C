@@ -26,7 +26,7 @@ rvec3_t  GradientContraction(const vec_t<rvec3_t >&, const vec_t<double>&, const
 template <class T> IrrepCD<T>::IrrepCD()
 {};
 
-template <class T> IrrepCD<T>::IrrepCD(const DenSMat& D,const tobs_t<T>* theBasisSet,Irrep_QNs qns)
+template <class T> IrrepCD<T>::IrrepCD(const DenSMat& D,const tobs_t<T>* theBasisSet,Irrep qns)
     : itsDensityMatrix(D)
     , itsBasisSet(theBasisSet)
     , itsSpin(qns.ms)

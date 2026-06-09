@@ -16,7 +16,7 @@ Dynamic_HT_Imp::Dynamic_HT_Imp() : itsCD(0) {};
 const rsmat_t& Static_HT_Imp::GetMatrix(const obs_t* bs,const Spin& s) const
 {
     assert(bs);
-    Irrep_QNs qns(bs->GetIrrep(s));
+    Irrep qns(bs->GetIrrep(s));
     auto i=itsCache.find(qns);
     if (i==itsCache.end())
         return itsCache[qns]=CalculateMatrix(bs,s);
@@ -27,7 +27,7 @@ const rsmat_t& Static_HT_Imp::GetMatrix(const obs_t* bs,const Spin& s) const
 const rsmat_t& Dynamic_HT_Imp::GetMatrix(const obs_t* bs,const Spin& s,const DM_CD* cd) const
 {
     assert(bs);
-    Irrep_QNs qns(bs->GetIrrep(s));
+    Irrep qns(bs->GetIrrep(s));
     if (auto i=itsCache.find(qns);i==itsCache.end())
         return itsCache[qns]=CalcMatrix(bs,s,cd); //This could cler the cache if cd is new.
     else

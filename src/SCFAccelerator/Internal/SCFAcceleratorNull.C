@@ -8,7 +8,7 @@ export namespace qchem::SCFAccelerators
 class SCFIrrepAcceleratorNull : public virtual SCFIrrepAccelerator
 {
 public:
-    SCFIrrepAcceleratorNull(const LASolver<double>* lasb,const Irrep_QNs&) 
+    SCFIrrepAcceleratorNull(const LASolver<double>* lasb,const Irrep&) 
         : itsLASolver(lasb) {};
     virtual ~SCFIrrepAcceleratorNull() {};
     virtual void UseFD(const smat_t<double>& F, const smat_t<double>& DPrime);
