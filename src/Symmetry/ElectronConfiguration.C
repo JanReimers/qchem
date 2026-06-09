@@ -14,6 +14,7 @@ public:
     }; 
     using syms_t=std::set<sym_t,decltype(cmp)>;
 
+    virtual ~ElectronConfiguration() {};
     virtual int    GetN(const Irrep&) const=0;
     virtual syms_t GetIrreps() const=0;
     virtual void   Display() const=0;

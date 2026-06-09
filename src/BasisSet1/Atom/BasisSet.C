@@ -2,14 +2,11 @@
 module;
 #include <blaze/Math.h>
 export module qchem.BasisSet.Atom.BasisSet;
-
 export import qchem.BasisSet;
 export import qchem.BasisSet.Orbital_HF_IBS;
+export import qchem.Symmetry.ElectronConfiguration;
+
 import qchem.BasisSet.Fit_IBS;
-
-export import qchem.Symmetry.AtomEC;
-export import qchem.Symmetry.Irrep;
-
 import qchem.BasisSet.Atom.Evaluators.Concepts;
 import qchem.BasisSet.Atom.IBS;
 import qchem.BasisSet.Internal.BasisSetImp;
@@ -62,13 +59,13 @@ public:
 
     };
 
-    BasisSet_HF(size_t N, double remin, double remax, const Atom_EC& ec)
+    BasisSet_HF(size_t N, double remin, double remax, const ElectronConfiguration& ec)
     {
         for (auto ir:ec.GetIrreps())
             Insert(new EOrbital_HF_IBS(N,remin,remax,ir));  
      
     }
-    BasisSet_HF(const rvec_t& es, const Atom_EC& ec, size_t ltrim=0)
+    BasisSet_HF(const rvec_t& es, const ElectronConfiguration& ec, size_t ltrim=0)
     {
         for (auto ir:ec.GetIrreps())
             Insert(new EOrbital_HF_IBS(es,ir,ltrim));  
@@ -103,13 +100,13 @@ public:
         };
     };
 
-    BasisSet_1E_HF(size_t N, double remin, double remax, const Atom_EC& ec)
+    BasisSet_1E_HF(size_t N, double remin, double remax, const ElectronConfiguration& ec)
     {
         for (auto ir:ec.GetIrreps())
             Insert(new Orbital_1E_HF_IBS(N,remin,remax,ir));  
      
     }
-    BasisSet_1E_HF(const rvec_t& es, const Atom_EC& ec)
+    BasisSet_1E_HF(const rvec_t& es, const ElectronConfiguration& ec)
     {
         for (auto ir:ec.GetIrreps())
             Insert(new Orbital_1E_HF_IBS(es,ir));  
@@ -176,7 +173,7 @@ public:
 
         virtual size_t GetNumFunctions() const {return Orbital_RKB_IBS_Imp<double>::GetNumFunctions();}
     };
-    BasisSet_RKB(size_t N, double ermin, double ermax, const Atom_EC& ec)
+    BasisSet_RKB(size_t N, double ermin, double ermax, const ElectronConfiguration& ec)
     {
         for (auto ir:ec.GetIrreps())
             Insert(new EOrbital_RKB_IBS(N,ermin,ermax,ir));  

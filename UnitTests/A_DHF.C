@@ -31,7 +31,7 @@ double Enk(int n, int κ,int Z, double alpha)
 }
 
 using namespace qchem::Hamiltonian;
-class HF_P : public virtual QchemTester, public ::testing::TestWithParam<size_t>, TestAtom
+class HF_P : public ::testing::TestWithParam<size_t>, public TestAtom
 {
     public:
     HF_P() : TestAtom(GetParam(),GetParam()-1) {}; //Hydrogenic ion Z with charge (Z-1)+
@@ -41,7 +41,7 @@ class HF_P : public virtual QchemTester, public ::testing::TestWithParam<size_t>
     }
 };
 
-class DHF_P : public virtual QchemTester, public ::testing::TestWithParam<size_t>, TestAtom
+class DHF_P : public ::testing::TestWithParam<size_t>, public TestAtom
 {
     public:
     DHF_P() : TestAtom(GetParam(),GetParam()-1) {}; //Hydrogenic ion Z with charge (Z-1)+
@@ -221,7 +221,7 @@ std::tuple<double,double,double> Integrate(const Orbital* o,const Cluster*  cl, 
     }
     return std::make_tuple(n1,n_expected,idphi);
 }
-class E1_U : public virtual QchemTester, public ::testing::Test, TestAtom
+class E1_U : public ::testing::Test, public TestAtom
 {
     public:
     E1_U() : TestAtom(1,0) {}; //Hydrogenic ion Z with charge (Z-1)+
@@ -260,7 +260,7 @@ TEST_F(A_SG_E1,Phir)
 
 }
 
-class DHF_P1 : public virtual QchemTester, public ::testing::Test, TestAtom
+class DHF_P1 : public ::testing::Test, public TestAtom
 {
     public:
     DHF_P1() : TestAtom(1,0) {}; //Hydrogenic ion Z with charge (Z-1)+

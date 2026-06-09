@@ -23,7 +23,7 @@ Real_BS* Factory(const nlohmann::json& js,size_t Z)
     return Factory(js,Atom_EC(Z));
 }
 
-Real_BS* Factory(const nlohmann::json& js,const Atom_EC& aec)
+Real_BS* Factory(const nlohmann::json& js,const ElectronConfiguration& aec)
 {
     Type type=js["type"].template get<Type>();
     Real_BS* bs=0;

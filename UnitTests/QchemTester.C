@@ -29,7 +29,7 @@ using qchem::SCFIterator::SCFIterator;
 export class QchemTester
 {
 public:
-    QchemTester();
+    QchemTester(ElectronConfiguration* ec);
     virtual ~QchemTester();
     void   Init(const nlohmann::json&, bool verbose=false, LAParams lap={qchem::Cholsky,1e-12});
     void   Init(Real_BS*, bool verbose=false, LAParams lap={qchem::Cholsky,1e-12});
@@ -58,17 +58,18 @@ protected:
     virtual const Cluster*  GetCluster   () const {return itsCluster.get();}
     virtual MeshParams      GetMeshParams() const=0;
     virtual int             GetZ         () const;
-    virtual const ElectronConfiguration* GetElectronConfiguration() const=0;
+    virtual const ElectronConfiguration* GetElectronConfiguration() const {return itsEC;}
 
     // Orbital Basis Set functions SG, PG, Slater
     virtual Real_BS* GetBasisSet   (const nlohmann::json&) const=0;
     // Hamiltonian functions HF,semi HF, DFT all Pol or un-polarized.
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const=0;
 protected:
-    cl_t          itsCluster;
-    Real_BS*      itsBasisSet;
-    Hamiltonian*  itsHamiltonian;
-    SCFIterator*  itsSCFIterator;
+    cl_t                   itsCluster;
+    ElectronConfiguration* itsEC;
+    Real_BS*               itsBasisSet;
+    Hamiltonian*           itsHamiltonian;
+    SCFIterator*           itsSCFIterator;
 public:
     static PeriodicTableSaito itsPT;
     static PeriodicTable  itsPTold;
@@ -79,28 +80,23 @@ public:
 //
 //  Atoms and Molecules
 //
-export class TestAtom : public virtual QchemTester
+export class TestAtom : public QchemTester
 {
 public:
     TestAtom(int _Z, int _q=0);
     virtual MeshParams GetMeshParams() const;
-    virtual const ElectronConfiguration* GetElectronConfiguration() const {return &ec;}
 private:
     virtual Real_BS* GetBasisSet (const nlohmann::json&) const;
-    Atom_EC ec;
     int itsZ;
 };
 
-export class TestMolecule : public virtual QchemTester
+export class TestMolecule : public QchemTester
 {
 public:
-    TestMolecule() {};
-    void Init(Cluster*);
+    TestMolecule(Cluster*);
     virtual MeshParams  GetMeshParams() const;
-    virtual const ElectronConfiguration* GetElectronConfiguration() const {return &ec;}
 private:
     virtual Real_BS* GetBasisSet (const nlohmann::json&) const;
-    Molecule_EC ec;
 };
 
 

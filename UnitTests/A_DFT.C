@@ -15,8 +15,20 @@ inline SCFParams dft_scf_params(int Z)
 }
 
 using namespace qchem::Hamiltonian;
-class DFT_U : public virtual QchemTester
+class A_DFT_U : public ::testing::TestWithParam<size_t>, public TestAtom
 {
+public:
+    A_DFT_U() : TestAtom(GetParam()) {};
+    virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
+    {
+        double alpha_ex=QchemTester::itsPTold.GetSlaterAlpha(GetZ());
+        return Factory(Pol::UnPolarized,cluster,alpha_ex,GetMeshParams(),itsBasisSet);
+    }
+};
+class M_DFT_U : public ::testing::TestWithParam<size_t>, public TestMolecule
+{
+public:
+    M_DFT_U() : TestMolecule(new Atom(GetParam(),0.0,Vector3D<double>(0,0,0))) {};
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
     {
         double alpha_ex=QchemTester::itsPTold.GetSlaterAlpha(GetZ());
@@ -28,33 +40,21 @@ class DFT_U : public virtual QchemTester
 //
 //  Un-polarized tests.
 //
-class A_SG_DFT_U : public ::testing::TestWithParam<int>
-, public TestAtom, DFT_U
-{
-public:
-    A_SG_DFT_U() : TestAtom(GetParam()) {};
-};
+class A_SG_DFT_U : public A_DFT_U {};
 
-class A_SL_DFT_U : public ::testing::TestWithParam<int>
-, public TestAtom, DFT_U
-{
-public:
-    A_SL_DFT_U() : TestAtom(GetParam()) {};
-};
+class A_SL_DFT_U : public A_DFT_U {};
 
-class A_PG_DFT_U : public ::testing::TestWithParam<int>
-, public TestMolecule,  DFT_U
+class A_PG_DFT_U : public M_DFT_U
 {
 public:
     void Init()
     { 
-        TestMolecule::Init(new Atom(GetParam(),0.0,Vector3D<double>(0,0,0)));
         nlohmann::json js = { {"filepath","../../../BasisSetData/dzvp.bsd"} };
         QchemTester::Init(js);
     }
 };
 
-TEST_P(A_SG_DFT_U,Multiple)
+TEST_P(A_SG_DFT_U,A)
 {
     int Z=GetParam();
     nlohmann::json js = {
@@ -65,7 +65,7 @@ TEST_P(A_SG_DFT_U,Multiple)
     Iterate(dft_scf_params(Z));
     EXPECT_LT(RelativeDFTError(),2e-3);
 }
-INSTANTIATE_TEST_SUITE_P(Multiple,A_SG_DFT_U,::testing::Values(2,4,10,18,36,54)); 
+INSTANTIATE_TEST_SUITE_P(A,A_SG_DFT_U,::testing::Values(2,4,10,18,36,54)); 
 
 TEST_P(A_SL_DFT_U,Multiple)
 {
@@ -104,40 +104,34 @@ INSTANTIATE_TEST_SUITE_P(Multiple,A_PG_DFT_U,::testing::Values(2,4,10,18,36));
 //
 //  Polarized tests.
 //
-class DFT_P : public virtual QchemTester
+class A_DFT_P : public ::testing::TestWithParam<size_t>, public TestAtom
 {
+public:
+    A_DFT_P() : TestAtom(GetParam()) {};
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
     {
         double alpha_ex=QchemTester::itsPTold.GetSlaterAlpha(GetZ());
         return Factory(Pol::Polarized,cluster,alpha_ex,GetMeshParams(),itsBasisSet);
     }
 };
-
-class A_SG_DFT_P : public ::testing::TestWithParam<int>
-, public TestAtom, DFT_P
+class M_DFT_P : public ::testing::TestWithParam<size_t>, public TestMolecule
 {
 public:
-    A_SG_DFT_P() : TestAtom(GetParam()) {};
-};
-class A_SL_DFT_P : public ::testing::TestWithParam<int>
-, public TestAtom,  DFT_P
-{
-public:
-    A_SL_DFT_P() : TestAtom(GetParam()) {};
-};
-
-class A_PG_DFT_P : public ::testing::TestWithParam<int>
-, public TestMolecule,  DFT_P
-{
-public:
-    A_PG_DFT_P() : TestMolecule() {};
-    void Init()
-    { 
-        TestMolecule::Init(new Atom(GetParam(),0.0,Vector3D<double>(0,0,0)));
+    M_DFT_P() : TestMolecule(new Atom(GetParam(),0.0,Vector3D<double>(0,0,0))) 
+    {
         nlohmann::json js = { {"filepath","../../../BasisSetData/dzvp.bsd"} };
         QchemTester::Init(js);
+    };
+    virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
+    {
+        double alpha_ex=QchemTester::itsPTold.GetSlaterAlpha(GetZ());
+        return Factory(Pol::Polarized,cluster,alpha_ex,GetMeshParams(),itsBasisSet);
     }
 };
+class A_SG_DFT_P : public A_DFT_P {};
+class A_SL_DFT_P : public A_DFT_P {};
+class A_PG_DFT_P : public M_DFT_P {};
+
 TEST_P(A_SG_DFT_P,Multiple)
 {
     int Z=GetParam();
@@ -173,7 +167,6 @@ INSTANTIATE_TEST_SUITE_P(Multiple,A_SL_DFT_P,::testing::Values(1,3,7,37,53));
 
 TEST_P(A_PG_DFT_P,Multiple)
 {
-    Init();
     Iterate(dft_scf_params(GetParam()));
     EXPECT_LT(RelativeDFTError(),5.1e-3);
 }

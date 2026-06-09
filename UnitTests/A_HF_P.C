@@ -9,7 +9,7 @@ using std::cout;
 using std::endl;
 using enum BasisSetAccuracy;
 using namespace qchem::Hamiltonian;
-class A_HF_P : public virtual QchemTester, public ::testing::TestWithParam<size_t>, TestAtom
+class A_HF_P : public ::testing::TestWithParam<size_t>, public TestAtom
 {
 public:
     A_HF_P() : TestAtom(GetParam()) {};

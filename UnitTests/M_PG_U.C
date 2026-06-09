@@ -26,13 +26,12 @@ class M_PG_HF_U : public ::testing::Test
 , public TestMolecule
 {
 public:
-    M_PG_HF_U() {};
-    void Init(Molecule* m)
+    M_PG_HF_U() : TestMolecule(MakeN2()) 
     {
-        TestMolecule::Init(m);
         nlohmann::json js = { {"filepath","../../../BasisSetData/dzvp.bsd"} };
         QchemTester::Init(js);
-    }
+    };
+   
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
     {
         return Factory(Model::HF,Pol::UnPolarized,cluster);
@@ -43,13 +42,11 @@ class M_PG_DFT_U : public ::testing::Test
 , public TestMolecule
 {
 public:
-    M_PG_DFT_U() {};
-    void Init(Molecule* m)
+    M_PG_DFT_U() : TestMolecule(MakeN2())
     {
-        TestMolecule::Init(m);
         nlohmann::json js = { {"filepath","../../../BasisSetData/dzvp.bsd"} };
         QchemTester::Init(js);
-    }
+    };
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
     {
         //MeshParams mp({qchem::MHL,30,3,2.0,qchem::Gauss,12,0,0});
@@ -62,7 +59,6 @@ bool verbose=false;
 #ifndef DEBUG
 TEST_F(M_PG_HF_U,N2)
 {
-    Init(MakeN2());
     //   NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo MergeTol verbose
     Iterate({20,1e-4,1e-7,1e-13,1e-5,1.0,1e-4,verbose});
     double rerr=fabs((TotalEnergy()-E_N2)/E_N2);
@@ -72,7 +68,6 @@ TEST_F(M_PG_HF_U,N2)
 
 TEST_F(M_PG_DFT_U,N2)
 {
-    Init(MakeN2());
     //   NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo MergeTol verbose
     Iterate({20,1e-4,1e-7,1e-13,1e-5,1.0,1e-4,verbose});
     double rerr=fabs((TotalEnergy()-E_N2)/E_N2);

@@ -13,8 +13,9 @@ using qchem::SCFAccelerators::SCFAccelerator;
 PeriodicTableSaito QchemTester::itsPT;
 PeriodicTable QchemTester::itsPTold; //need this just for DFT alpha exchange values 
 
-QchemTester::QchemTester()
+QchemTester::QchemTester(ElectronConfiguration* ec)
 : itsCluster(0)
+, itsEC(ec)
 , itsBasisSet(0)
 , itsSCFIterator(0)
 {
@@ -23,6 +24,7 @@ QchemTester::QchemTester()
 
 QchemTester::~QchemTester()
 {
+    delete itsEC;
     delete itsBasisSet;
     delete itsSCFIterator;
 }
@@ -157,7 +159,7 @@ irrepv_t QchemTester::GetIrreps(const Spin& ms) const
 
 
 
-TestAtom::TestAtom(int Z, int q) : ec(Z-q) //Pass in # of electrons.
+TestAtom::TestAtom(int Z, int q) : QchemTester(new Atom_EC(Z-q)) //Pass in the electr4on config.
 {
     itsZ=Z-q;
     itsCluster=cl_t(new Atom(Z,q,Vector3D<double>(0,0,0)));
@@ -173,12 +175,10 @@ Real_BS* TestAtom::GetBasisSet (const nlohmann::json& js) const
     return BasisSet::Atom::Factory(js,itsZ);
 }
 
-void TestMolecule::Init(Cluster* m)
+TestMolecule::TestMolecule(Cluster* m) : QchemTester(new Molecule_EC(m->GetNumElectrons())) 
 {
-    assert(m);
     itsCluster=cl_t(m);
-    ec=Molecule_EC(m->GetNumElectrons());
-}
+};
 
 MeshParams TestMolecule::GetMeshParams() const
 {

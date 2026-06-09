@@ -8,7 +8,7 @@ using std::cout;
 using std::endl;
 using enum BasisSetAccuracy;
 using namespace qchem::Hamiltonian;
-class A_DFT_U : public virtual QchemTester, public ::testing::TestWithParam<size_t>, TestAtom
+class A_DFT_U : public ::testing::TestWithParam<size_t>, public TestAtom
 {
 public:
     A_DFT_U() : TestAtom(GetParam()) {};

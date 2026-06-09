@@ -15,6 +15,7 @@ import qchem.BasisSet.Atom.Evaluators.Concepts;
 import qchem.Mesh.Integrator;
 import qchem.Hamiltonian.Types;
 import qchem.Symmetry.Factory;
+import qchem.Symmetry.AtomEC;
 
 
 using qchem::Hamiltonian::ohfbs_t;
