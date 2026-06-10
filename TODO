@@ -13,11 +13,6 @@ Major Features:
             SVD and trunctate B?
                 We dont need a uniqe c vector, just need any c than minimizes ||e||
     DFT upgrade:
-        Done: -Python script to read in all NIST files and dump to json. (Try asking ai)
-            configuration file  ANy differences from Saito here?
-            LDA/LDS/RLDA/ScRLDA
-        Done:-Incorporate libcx for exchange functionals: https://libxc.gitlab.io/
-            Has 7 versions of the Vosko form LDA_C_VWN_{1,2,3,4,5,6,7}
         Reproducing the NIST rests is a major pain in the ass.
             1) Vosko does not define rs, he just says "the usual definition" ... grrrrr
             2) References are all sloppy with fractions rs=3/2Pirho  WTF is in the basement?? .... grrrrr
@@ -32,9 +27,6 @@ Major Features:
             https://github.com/mcodev31/libmsym/tree/master
 
 Features: 
-    NO!!!! -Make SL/SG versions of 1/r evaluators.
-        You end up with integral(exp(-ax)/x) and this diverges
-        Same for gaussians.
     -We need a separate Atom_EC for Dirac atoms kappa,mj QNs.
         Done: Lets fix the total energy problem first.
 
@@ -57,18 +49,11 @@ Clean up:
         RKBS_Evaluator(size_t N, double emin, double emax, int _kappa, int l);
         -What is l doing in there?
     -Get rid of ScalarFFClient::GetScalarFunction
-    Done: -All Evaluators are for IBS, so just get rid of the IBS part.
-    No: -merge RadialID and RadialType ? 
-        They are used for different things
-        RadialID is used for caching J/K tables
-        RadialType is less specific and is used for Cache4
     -Sort out PG cache ... keep one cache in DB_cache.
-    Done: -Put evaluators in a namespace
     -Bspline-r Rk symmetry is not good at all.  
         HF energies are fine though!?!?
         Bspline Rk symmetry is good to 1e-16!
     -ERI3<T>, ERI4 make consistent.
-    -Make more use of CastSymmetry()?
 
 OOD Refactor:
     -Use a FunctionFitter instance instead of inheriting from fitted function imp.
@@ -81,7 +66,6 @@ Small improvements:
         Put it in a place that can be reached by both Debig and Release builds.
         Use ceral ... which seems to have disapeared from submodules.
         Need to remember to delete this thing if the relevent code changes.
-    Done -Still need to switch over to the new PeriodicTable1
     -Still lots of tests not using the BasisSetPool.
     -Use omp parallel when looping over irreps for AccumulateDirect and AccumulateExchange
         Could also parallel the loop over hamiltonian terms??
@@ -90,9 +74,7 @@ Small improvements:
         -Intermediate: Save all slater integrals Rk and recalculates J/K on demand.
         -When to use Jcdab=Jabcd.Transpose()?
             Avoid transposing for every iteration.
-    -Can we move GetIrreps down to the ElectronConfiguration level.
-        Sure but lets get Mol symmetry working first.
-
+        
 Bugs
     -Check BSpline_IBS_Evaluator copy constructor, seems to increase size.
     -BUG: A_Pool.C TEST_P(A_HF_U,SlaterHFGroundStates) with Z={2,70}
@@ -112,117 +94,12 @@ Bugs
 
 
     -tidy up norms evaluations, Name. Write
-    Done: -Upgrade BSpline_r evaluator
-    OK: -BSpline::RkCache should not care about l just lmax.
-    Very hard. -Even tempered BSplines should be charcterized by RadialType=BS<6> Beta=2.0  
-        -If a new spline with the same Beta but a wider range comes in, we have three cases.
-            Case 1) new grid range includes the old range new={.5,1,2,4}, previous={.5,1,2}
-            Case 2) grid ranges are skewed. {.5,1,2} and {1,2,4}
-            Case 3) Same beta, but not registered: {.5,1,2} {.6,1.2,2.4}
-        -BSpline Cache summary:
-            GLQuadrature(const double& rmin, const double& rmax,int N) stores integration xs and weights
-                Wrapper for Numerical recipies gauleg_
-            GLCache(const bspline::support::Grid<double>& g,size_t Order) 
-                Store a GLQuadrature for interval in the grid.  Provides 1D definite integrals between any two grid points.
-                For each interval in the grid, stores at secondary GLQuadrature for 2D integrals.
-                The find function in here is a profiling hot spot.
-                The secondary GLQuadrature is used externally.  through the find(double rmin, double rmax) member function.
-                    Suggesting this should be separated out.
-            RkCache(const std::vector<sp_t>& splines,const GLCache& gl,size_t lmax);
-                lmax decides the k range in Rk
-                Stores all the factored integrals  <abcd>=<ab><cd> when ab and cd supports have no overlap.
-                Stores Two versions <ab*r^(k+2)> and <ab*r^(1-k)>
-                Not a profiling hot spot
-                Uses the 1D aspects of GLCache
-
-
-            RkEngine(const std::vector<sp_t>& splines, size_t ia, size_t ib, size_t ic, size_t id, size_t LMax, const GLCache& gl, const RkCache<K>&);
-                Implementation of the Rk interface
-                Constructor calculates Rk from k=0 to 2*LMax+1
-                When ab and cd supports overlap it must do a full 2D integral.  But again there will be combinations in the GL grid
-                    the factor.  THis can be seen here
-                    for (size_t iab=sab.getStartIndex();iab<sab.getEndIndex()-1;iab++)
-                    {
-                        ....
-                        RkOff+=Iab_m*Icd_p + Iab_p*Icd_m;
-                        RkDiag+=Idiag;
-                    }
-                    Rabcd_k[k]=RkDiag + RkOff;
-                    where Iab and Icd are 1D off diagonal contributions
-            Plan:
-                Done: GLCache  Split into 1D and 2D versions.
-                    GLCache1D has std::vector<GLQuadrature> itsGLs;
-                    GLCache2D has std::vector<std::vector<GLQuadrature>> itsGLs;
-                Done: Replace GLCache2D::find(double rmin, double rmax) with
-                    operator[](size_t imin, double imax)
-                Done: Store GLCache1D and GLCache2D in the Cache4
-                Cache4 has a master grid that is the union of all IBS grids.
-                Each IBS has its own (properly registered) grid, and needs to know its starting indexe into the
-                    master grid.
-                If Lmax increases Rks need to be replaced.
-                If the master grid grows 
-                    old Rks should still be valid.
-                    IBS grid starting indices all need to change!
-    
-
-
-
-
-
-    Done: -AI
-        Write a c++ program to calculate the ground state of the Dirac hydrogen atom.  Details:
-        1) Hint: These specifications are based on refining two previous AI attempts at this problem,
-           contained in my files UnitTests/HydrogenAI.C UnitTests/HydrogenAI2.C
-        2) Use an RKB (Restricted Kinetic Balance) Gaussian basis set. 
-        3) Use an even tempered set of exponents: alpha*beta^i, i=0...N-1.  With alpha=0.01, beta=2, N=22
-        4) Hint: Cholsky decomposition of the overlap matrix, and triangular inversion might be the most numericlly stable way to
-            orthogonalize the resulting generalized eigen system.
-        5) Use blaze library calls for any linear algebra and matrix classes. 
-        6) Hint: Make sure the Hamiltonian is symmetric (real hermitian). As such there should be no need to check complex eigen values. 
-        7) Include a rest mass term -mc^2 in Hamiltonian so that electron state eigen values are comparable
-           with non-relatavistic eigen values
-        8) Throw out all positron eigen solutions (eigen values < -mc2) so we can focus on the electron
-           solutions only.
-        9) Hint use a c_light variable name for the speed of light in a.u. (in case the name c gets used somewhere else)
-        10) Also do a total energy calculation using the *eletron* ground state eigen vector, using kinetic and potential operator expectation values.
-        11) compare electron ground state eigen value and total energy with reference enrgy -0.50000665 a.u.
-    
     -Saito paper conclusions
         1) 50 basis functions, r={0.003...40} is enough for Z=1-92
         2) phi(r)=sum{Bi}, and phi(r)=1/r * sum{Bi} both work
         3) Z=1-56 K=9 vs K=6: K=6 give faster and lower HF energies.
         4) Z=1-56 phi(r)=1/r option gives slighty better results for K=6.
         5) Z=92: 
-    DOne -Clean up fit BS construction:
-         : Evaluator(exponents,sym_t(new Yl(L)))
-        , AtomBS::IrrepBasisSet(this,new Yl(L))
-
-    Done: -Simplify the whole Integrals_XXX, DB_X, DB_Cache network
-        1) Merge DB_X into Integrals_X for X=Overlap, Kinetic, Nuclear etc.
-            Trying to make these generic is very hard because of the required argument for 
-            Nuclear, cross kinetic, 3C and 4C integrals.
-        2) Use a GetCache() that return a cache interface.
-        3) We need ClusterID string in the map key for Nuclear integrals.
-
-    -How to use one integral cache for all 118 elements?
-        RkEngine uses RkCache, but only for off diagonal contributions that factor. <abcd>=<ab><cd>
-        On construction RkEngine calculates Rabcd_k for all k and fixed abcd.
-            These Rk engines may need to adapt to high k values on request.
-        Right now BS_Evaluator derives from Cache4.  
-            BSpline::BasisSet->BSpline::BSpline_BS_Evaluator<K>->BS_Evaluator->Cache4
-            Instead we need to contain Cache4.  Best at the BS_Evaluator level.  The most generic.
-            But the global cache need to store std::map<size_t hash, Cache4> 
-                Can we add this to DB_cache?
-        Problem: We need to handle a situation where IBS1 has some (not all) basis functions in common with IBS2.
-            The cache needs maintain a (growing) list of unique basis functions for each type {Slater,Gaussian,BSpline6, PolGaussian,Block,...}
-                This is done by specialized groupers right now.
-                Groupers should be part of the cache.
-            For atoms we always want to know LMax for each radial function.
-                Calculating Rk for LMax=2 and then recalculating later for LMax=3 (higher k values)
-                is wastefull.
-        -With shared DB_cache, running 1-92 time=  {Z,time,RAM}={73,29:00,9.6g} {80,32:00,9.8g} {80,33:00,10g} {92,39:40,10.7g}
-            Fails:Z= 62 63 65 67 68 71 72
-        PolGaussian::CDCache plays a similar to Cache4 for atoms.
 
  
     -Everything->Cluster->Mesh 
@@ -233,9 +110,6 @@ Bugs
         -Put everything atom basis set in an qchem::Basiset1::Atom name space
         -Put everything abstract/general basis set in a BasisSet namespace.
             AtomBS->BasisSet::Atom an now avoids class with Cluster::Atom
-    Fixed: -AtomBS::Integrals_XXX all store thier own const IBS_Evaluator*.  
-        Can we store just one virtual base class?
-        Yes-->Or make a GetEvaluator() virtual function call.
     -If verbose=true, spit out
         -LApack Cholsky/SVD/Eigen
         -Basis set
@@ -246,12 +120,6 @@ Bugs
     -Figure out EC for Ce Z=58 ground state.
         Need a way to hop electrons in Atom_EC
     -Support null accelerator.
-    Done: -Speed up bspline Rk.  Too many find calls!!
-    -Done Clean up SCFiterator
-        Clean handling of E>Eold
-        Use FD=[F,D] instead of E<Eold for adjusting relax.
-        use relax=1 if accelerator is working.
-        Use deque<std:shared_ptr<DM_CD>>
 
     -Blaze include specific headers instead everything in blaze/Math.h.
     -Blaze improvements
@@ -270,24 +138,12 @@ Bugs
             
 
 
-    Fixed: DHF/Dirac: Factor of 2 problem
-        Done: -We need to stop using a normalized small sector
-            f=1/(2c) * (d/dr+(kappa+1)/r)*g
-            where g is normalized and f is *not*.
-            Still get the same wrong results.
-        -Once this is done the need for cross kinetic integrals vanishes
-            Just use the RKBL kinetic integrals.
-        -Try getting AI to generate a c++/blaze Dirac hydrogen atom calculation with a Gaussian basis set.
     -Move DiracIntegral tests over to UTBasisSet.
     BUG: Investigate why BSpline integral tests are so inaccurate for l>0.
         Happens when splines are too closely packed.  (even though overlap is nowhere near singular)
     BUG: 2 center repulsion for atoms with l>0 might be wrong.  Does 2*la, should be 1*la
         Affects CD fitting for l>0
         Maybe just do not support l>0 ?
-    No: -Put atom basisset build logic in common Atom:: base class.
-        virtual CreateIBS(... ms) for paired, unpaired etc.
-        not worth it, gets very complicated very fast.
-        Some commonality but not enough
     
     -Can groupers be registered at Evaluator construction?
     -Current BSpline 3C integrals do Overlap((*ab)(i)+(*ab)(j),
@@ -307,8 +163,8 @@ Bugs
     
 
 
-    -SequenceIndex() calculate with integer arithmentic and check>=0 and then return unsigned size_t;
-    -A_BSm_HF_P.Multiple/0 gives a very low energy?!?  V/K=-2.07327386808252  Only 4 electrons?!?!?
+    Done: -SequenceIndex() calculate with integer arithmentic and check>=0 and then return unsigned size_t;
+    Fixed: -A_BSm_HF_P.Multiple/0 gives a very low energy?!?  V/K=-2.07327386808252  Only 4 electrons?!?!?
     -Rename Cluster to Structure.
     -PG refactor
         Hermite2 only used by CDCache
@@ -322,7 +178,7 @@ Bugs
         Done: -i.e. exponents
         -valarray ?
 
-    -DFT need to force Yl basis set instead of auto pick Ylm.
+    No: -DFT need to force Yl basis set instead of auto pick Ylm.
         Put Boron back into the tests.
     
     -More use of structured bindings for map iterating.
@@ -330,7 +186,7 @@ Bugs
         -EDIIS
         Does not need the LASolver, it just needs an interface that can do the ortho tranform.
             Irrep basis should be able to provide this interface.
-        Adjust damping based on [F,D] error
+        Done: Adjust damping based on [F,D] error
         Done: -Check if merge tolerances effect convergence.
             Only effects display.
         Crappy convergence:
@@ -339,10 +195,9 @@ Bugs
             Multiple/A_SG_DFT_P.Multiple/5
             Multiple/A_PG_DFT_U.Multiple/2
         -SCFAccelerator_Null
-            We wave the Irrep just need to supervisor.
+            We have the Irrep just need the supervisor.
 
     -Redesign fitting so fitted objects contain a Fitter*
-            Anything BSpline is huge.
     -Mesh refactor Refactor mesh hold std::vector<rvec3_t> rs and std::vector<double> ws and make the 3 iterator proxies
         1) riterator
         2) witerator
@@ -394,9 +249,7 @@ Bugs
     Use console tables for dumping basis sets?
 
 
-    -General AtomIrrepIECLient clean up.
-        template type double r or spline for all three radial types?
-    -It would be nice if Atom derived from Cluster.
+    Done: -It would be nice if Atom derived from Cluster.
         Hard, we can't fake the iterator interface for typedef std::vector<std::unique_ptr<Atom>> av_t;
         Ranges might solve this problem: https://gieseanw.wordpress.com/2019/10/20/we-dont-need-no-stinking-expression-templates.
             Atom would be a std::single_view
@@ -439,19 +292,6 @@ Bugs
     -Vxc->LDAxc->ExchangeFunctional  
         Can we get rid of LDAxc?
     
-    -BSpline basis sets.
-        How to get 11 digits for virial ratio?
-        Make a BSpline::Breakpoints typedef to std::vector<double>, or std::dqueue<double>
-            Make Log from N,Rmin,Rmax or N,Rmin,m  
-            Qiu's mesh, with linear for r<1.0 a.u.
-            bool SupportScaling(index).  
-            Option: Multiple knots at Rmax?
-        Rk
-            Cache off diagonal grid cells.  Which ones?  Calc on demand?  All?
-            Cache diagonal grid cells.  Lots of them ... how often would they get reused?
-                Try on demand and count cache hits.
-            Try using scaling relations
-        Add DFT support.
         
     -BSplines should use (symmetric) banded matricies for space/time efficiency.
     -Atom app needs to save state.
@@ -689,7 +529,163 @@ Priority 3:
 
 
 
+       -BSpline basis sets.
+        Done: How to get 11 digits for virial ratio?
+        Make a BSpline::Breakpoints typedef to std::vector<double>, or std::dqueue<double>
+            Make Log from N,Rmin,Rmax or N,Rmin,m  
+            Qiu's mesh, with linear for r<1.0 a.u.
+            bool SupportScaling(index).  
+            Option: Multiple knots at Rmax?
+        Rk
+            Cache off diagonal grid cells.  Which ones?  Calc on demand?  All?
+            Cache diagonal grid cells.  Lots of them ... how often would they get reused?
+                Try on demand and count cache hits.
+            Try using scaling relations
+        Add DFT support.
+ Fixed: -AtomBS::Integrals_XXX all store thier own const IBS_Evaluator*.  
+        Can we store just one virtual base class?
+        Yes-->Or make a GetEvaluator() virtual function call.
+    Done: -Speed up bspline Rk.  Too many find calls!!
+    -Done Clean up SCFiterator
+        Clean handling of E>Eold
+        Use FD=[F,D] instead of E<Eold for adjusting relax.
+        use relax=1 if accelerator is working.
+        Use deque<std:shared_ptr<DM_CD>>
+    Fixed: DHF/Dirac: Factor of 2 problem
+        Done: -We need to stop using a normalized small sector
+            f=1/(2c) * (d/dr+(kappa+1)/r)*g
+            where g is normalized and f is *not*.
+            Still get the same wrong results.
+        -Once this is done the need for cross kinetic integrals vanishes
+            Just use the RKBL kinetic integrals.
+        -Try getting AI to generate a c++/blaze Dirac hydrogen atom calculation with a Gaussian basis set.
+    No: -Put atom basisset build logic in common Atom:: base class.
+        virtual CreateIBS(... ms) for paired, unpaired etc.
+        not worth it, gets very complicated very fast.
+        Some commonality but not enough
+    DOne -Clean up fit BS construction:
+         : Evaluator(exponents,sym_t(new Yl(L)))
+        , AtomBS::IrrepBasisSet(this,new Yl(L))
 
+    Done: -Simplify the whole Integrals_XXX, DB_X, DB_Cache network
+        1) Merge DB_X into Integrals_X for X=Overlap, Kinetic, Nuclear etc.
+            Trying to make these generic is very hard because of the required argument for 
+            Nuclear, cross kinetic, 3C and 4C integrals.
+        2) Use a GetCache() that return a cache interface.
+        3) We need ClusterID string in the map key for Nuclear integrals.
+
+    -How to use one integral cache for all 118 elements?
+        RkEngine uses RkCache, but only for off diagonal contributions that factor. <abcd>=<ab><cd>
+        On construction RkEngine calculates Rabcd_k for all k and fixed abcd.
+            These Rk engines may need to adapt to high k values on request.
+        Right now BS_Evaluator derives from Cache4.  
+            BSpline::BasisSet->BSpline::BSpline_BS_Evaluator<K>->BS_Evaluator->Cache4
+            Instead we need to contain Cache4.  Best at the BS_Evaluator level.  The most generic.
+            But the global cache need to store std::map<size_t hash, Cache4> 
+                Can we add this to DB_cache?
+        Problem: We need to handle a situation where IBS1 has some (not all) basis functions in common with IBS2.
+            The cache needs maintain a (growing) list of unique basis functions for each type {Slater,Gaussian,BSpline6, PolGaussian,Block,...}
+                This is done by specialized groupers right now.
+                Groupers should be part of the cache.
+            For atoms we always want to know LMax for each radial function.
+                Calculating Rk for LMax=2 and then recalculating later for LMax=3 (higher k values)
+                is wastefull.
+        -With shared DB_cache, running 1-92 time=  {Z,time,RAM}={73,29:00,9.6g} {80,32:00,9.8g} {80,33:00,10g} {92,39:40,10.7g}
+            Fails:Z= 62 63 65 67 68 71 72
+        PolGaussian::CDCache plays a similar to Cache4 for atoms.
+
+        Done -Still need to switch over to the new PeriodicTable1
+    Done: -Can we move GetIrreps down to the ElectronConfiguration level.
+    Done: -Upgrade BSpline_r evaluator
+    OK: -BSpline::RkCache should not care about l just lmax.
+    Very hard. -Even tempered BSplines should be charcterized by RadialType=BS<6> Beta=2.0  
+        -If a new spline with the same Beta but a wider range comes in, we have three cases.
+            Case 1) new grid range includes the old range new={.5,1,2,4}, previous={.5,1,2}
+            Case 2) grid ranges are skewed. {.5,1,2} and {1,2,4}
+            Case 3) Same beta, but not registered: {.5,1,2} {.6,1.2,2.4}
+        -BSpline Cache summary:
+            GLQuadrature(const double& rmin, const double& rmax,int N) stores integration xs and weights
+                Wrapper for Numerical recipies gauleg_
+            GLCache(const bspline::support::Grid<double>& g,size_t Order) 
+                Store a GLQuadrature for interval in the grid.  Provides 1D definite integrals between any two grid points.
+                For each interval in the grid, stores at secondary GLQuadrature for 2D integrals.
+                The find function in here is a profiling hot spot.
+                The secondary GLQuadrature is used externally.  through the find(double rmin, double rmax) member function.
+                    Suggesting this should be separated out.
+            RkCache(const std::vector<sp_t>& splines,const GLCache& gl,size_t lmax);
+                lmax decides the k range in Rk
+                Stores all the factored integrals  <abcd>=<ab><cd> when ab and cd supports have no overlap.
+                Stores Two versions <ab*r^(k+2)> and <ab*r^(1-k)>
+                Not a profiling hot spot
+                Uses the 1D aspects of GLCache
+
+
+            RkEngine(const std::vector<sp_t>& splines, size_t ia, size_t ib, size_t ic, size_t id, size_t LMax, const GLCache& gl, const RkCache<K>&);
+                Implementation of the Rk interface
+                Constructor calculates Rk from k=0 to 2*LMax+1
+                When ab and cd supports overlap it must do a full 2D integral.  But again there will be combinations in the GL grid
+                    the factor.  THis can be seen here
+                    for (size_t iab=sab.getStartIndex();iab<sab.getEndIndex()-1;iab++)
+                    {
+                        ....
+                        RkOff+=Iab_m*Icd_p + Iab_p*Icd_m;
+                        RkDiag+=Idiag;
+                    }
+                    Rabcd_k[k]=RkDiag + RkOff;
+                    where Iab and Icd are 1D off diagonal contributions
+            Plan:
+                Done: GLCache  Split into 1D and 2D versions.
+                    GLCache1D has std::vector<GLQuadrature> itsGLs;
+                    GLCache2D has std::vector<std::vector<GLQuadrature>> itsGLs;
+                Done: Replace GLCache2D::find(double rmin, double rmax) with
+                    operator[](size_t imin, double imax)
+                Done: Store GLCache1D and GLCache2D in the Cache4
+                Cache4 has a master grid that is the union of all IBS grids.
+                Each IBS has its own (properly registered) grid, and needs to know its starting indexe into the
+                    master grid.
+                If Lmax increases Rks need to be replaced.
+                If the master grid grows 
+                    old Rks should still be valid.
+                    IBS grid starting indices all need to change!
+    
+
+
+
+
+
+    Done: -AI
+        Write a c++ program to calculate the ground state of the Dirac hydrogen atom.  Details:
+        1) Hint: These specifications are based on refining two previous AI attempts at this problem,
+           contained in my files UnitTests/HydrogenAI.C UnitTests/HydrogenAI2.C
+        2) Use an RKB (Restricted Kinetic Balance) Gaussian basis set. 
+        3) Use an even tempered set of exponents: alpha*beta^i, i=0...N-1.  With alpha=0.01, beta=2, N=22
+        4) Hint: Cholsky decomposition of the overlap matrix, and triangular inversion might be the most numericlly stable way to
+            orthogonalize the resulting generalized eigen system.
+        5) Use blaze library calls for any linear algebra and matrix classes. 
+        6) Hint: Make sure the Hamiltonian is symmetric (real hermitian). As such there should be no need to check complex eigen values. 
+        7) Include a rest mass term -mc^2 in Hamiltonian so that electron state eigen values are comparable
+           with non-relatavistic eigen values
+        8) Throw out all positron eigen solutions (eigen values < -mc2) so we can focus on the electron
+           solutions only.
+        9) Hint use a c_light variable name for the speed of light in a.u. (in case the name c gets used somewhere else)
+        10) Also do a total energy calculation using the *eletron* ground state eigen vector, using kinetic and potential operator expectation values.
+        11) compare electron ground state eigen value and total energy with reference enrgy -0.50000665 a.u.
+    
+Done: -Put evaluators in a namespace
+    No: Its gone! -Make more use of CastSymmetry()?
+        Done: -Python script to read in all NIST files and dump to json. (Try asking ai)
+            configuration file  ANy differences from Saito here?
+            LDA/LDS/RLDA/ScRLDA
+        Done:-Incorporate libcx for exchange functionals: https://libxc.gitlab.io/
+            Has 7 versions of the Vosko form LDA_C_VWN_{1,2,3,4,5,6,7}
+    NO!!!! -Make SL/SG versions of 1/r evaluators.
+        You end up with integral(exp(-ax)/x) and this diverges
+        Same for gaussians.
+    Done: -All Evaluators are for IBS, so just get rid of the IBS part.
+    No: -merge RadialID and RadialType ? 
+        They are used for different things
+        RadialID is used for caching J/K tables
+        RadialType is less specific and is used for Cache4
 
     Fixed -std::set<std::shared_ptr<Symmetry>> from GetIrreps() should have a deterministic order to it.
         Right now it is probably ordering based on pointer values inside std::shared_ptr
@@ -2181,3 +2177,26 @@ Priority 3:
     Ansewred: -Way do we need default constructos for basisSet, Clusters, hamiltonians.
         Unpickle;
 
+
+how to calculate total angular momentum for open shell atoms
+
+For open-shell atoms, total angular momentum is determined by the vector coupling of the **total orbital angular momentum ($L$)** and **total spin angular momentum ($S$)** of the unpaired electrons, resulting in the **total angular momentum quantum number ($J$)**.
+
+### 1. Calculate Total Orbital Angular Momentum ($L$)
+Only electrons in **unfilled shells** contribute; closed shells sum to zero. For open-shell electrons with individual orbital quantum numbers $l_i$, $L$ is found via **vector addition** of individual $l$ values:
+$$L = |l_1 + l_2|, |l_1 + l_2 - 1|, \dots, |l_1 - l_2|$$
+*   **Example**: For two $p$-electrons ($l=1$), possible $L$ values are **2, 1, 0**.
+
+### 2. Calculate Total Spin Angular Momentum ($S$)
+$S$ depends only on the number of unpaired electrons, not their orbitals. For individual spin quantum numbers $s_i$ (where $s=1/2$ for electrons), $S$ is calculated similarly:
+$$S = |s_1 + s_2|, |s_1 + s_2 - 1|, \dots, |s_1 - s_2|$$
+*   **Example**: For two electrons, possible $S$ values are **1** (parallel) or **0** (antiparallel). For three electrons, $S$ can be **3/2, 1, or 1/2**.
+
+### 3. Determine Total Angular Momentum ($J$)
+The total angular momentum quantum number $J$ results from the coupling of $L$ and $S$. Its magnitude is given by $\sqrt{J(J+1)}\hbar$, and the allowed values range from:
+$$|L - S| \leq J \leq L + S$$
+in integer steps. The specific ground-state $J$ is determined by **Hund's Third Rule**:
+*   If the shell is **less than half-filled**, the ground state has **$J = |L - S|$**.
+*   If the shell is **more than half-filled**, the ground state has **$J = L + S$**.
+
+**Final Result**: The total angular momentum magnitude is **$\sqrt{J(J+1)}\hbar$**, where $J$ is selected based on the electron configuration and Hund's rules.

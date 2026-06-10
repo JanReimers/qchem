@@ -187,7 +187,8 @@ int Atom_EC::GetN(const Irrep& qns) const
     auto i=itsOccupations.find(qns);
     if (i==itsOccupations.end())
     {
-        std::cout << "Cannot find irrep=" <<  qns << endl;
+        std::cout << "Cannot find irrep=" <<  qns << " seqn=" 
+        << qns.SequenceIndex() << endl;
         Display();
         
         //Still need this for Dirac atoms.
@@ -195,7 +196,7 @@ int Atom_EC::GetN(const Irrep& qns) const
         // ElCounts_l ecl=sqn->GetN(itsNs);
         // assert((ecl.N+ecl.Nu)%2==0);
         // cout << qns << " N=" << ecl.GetN(qns.ms) << endl;
-        return 0;  // Should be total core+valance    
+        return -1;  // Should be total core+valance    
     }
     // assert(i!=itsOccupations.end());
     return i->second;

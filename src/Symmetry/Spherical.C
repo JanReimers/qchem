@@ -42,6 +42,8 @@ public:
     static size_t l (int κ) {return κ>0 ? κ     : -κ-1;}
     static double ms(int κ) {return κ<0 ? -0.5 : 0.5;}
     static int    ml(int κ, double mj) {return mj-ms(κ);}
+    static int     κ(size_t l, double ms) {return ms>0 ? -l-1 : l;}
+    static double  j(size_t l, double ms) {return l+ms;}
 
 };
 

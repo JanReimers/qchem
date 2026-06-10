@@ -2,6 +2,7 @@ add_library(qcSymmetry)
 target_sources(qcSymmetry PRIVATE 
     Imp/Spherical.C
     Imp/Atom_EC.C  
+    Imp/Atom_Dirac_EC.C
     Imp/ElectronCounts.C 
     Imp/Irrep.C  
     Imp/Molecule_EC.C  

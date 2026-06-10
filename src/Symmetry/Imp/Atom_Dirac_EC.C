@@ -2,82 +2,114 @@
 module;
 #include <cassert>
 #include <iostream>
-#include <initializer_list>
-#include <vector>
 
 module qchem.Symmetry.Atom_Dirac_EC;
-import Common.PeriodicTable;
 import qchem.Symmetry.Irrep;
 import qchem.Symmetry.Spherical;
-import qchem.Symmetry.Ylm;
-import qchem.stl_io;
-
+import qchem.Symmetry.Factory;
 using std::cout;
 using std::endl;
 
 
-Atom_Dirac_EC::Atom_Dirac_EC(int Z)
-: itsLMax(0), itsLValance(0)
+Atom_Dirac_EC::Atom_Dirac_EC(int Z) : Atom_EC(Z)
 {
-    assert(Z>0);
-    assert(Z<=N_Elements);
-
-    size_t l=0;
-    { //l=0
-        int N=itsNs.N[l],Nf=itsNs.Nf[l],Nv=itsNs.Nv[l],Nu=abs(itsNs.Nu[l]);
-        int κ=-1;
-        double j=Ωκ::j(κ);
-        size_t g=2*j+1;
-        int g2=2*g;
-        assert(Nv<g2);
-        assert(Nu<=g);
-        assert(Nf%g2==0);
-        int Nlevel=Nf/g2;
-        assert((Nv-Nu)%2==0);
-        int Npair=(Nv-Nu)/2;
-        if (Nu==0) //No unpaired electrons
-        {
-            assert(N%2==0);
-            sym_t Ω(new Ωκ(κ));
-            itsOccupations[Irrep(Spin::Up  ,Ω)]=N/2;
-            itsOccupations[Irrep(Spin::Down,Ω)]=N/2;
+    itsOccupations.clear();
+    for (size_t l:iv_t(0,itsLMax+1))
+    {
+        { // fill the j=l-1/2 levels first
+            double ms=-0.5;
+            double j=Symmetry::SphericalSpinor::j(l,ms);
+            int    κ=Symmetry::SphericalSpinor::κ(l,ms);
+            if (κ!=0)
+            {
+                Display();
+                int Nf=itsNs.Nf[l],Nv=itsNs.Nv[l],Nu=abs(itsNs.Nu[l]);
+                int g=(2*j+1)/2; //degeneracy for one spin state
+                assert(Nf%2==0); //Full shells better be even!
+                assert(Nu<=g);
+                assert((Nv-Nu)%2==0);
+                if (Nu==0 || Nu==g) //No m splitting, but g unapired electrons, or all paired
+                {
+                    sym_t s=Symmetry::ΩFactory(κ);
+                    itsOccupations[Irrep(Spin::Up  ,s)]=Nf/2+Nu;
+                    itsOccupations[Irrep(Spin::Down,s)]=Nf/2;
+                    itsNs.Nf[l]-=Nf;
+                    itsNs.Nv[l]-=Nu;
+                    itsNs.Nu[l]-=Nu;
+                }
+                else // M splitting.  All shells get the same M splitting.
+                {
+                    assert(Nf/2%g==0);
+                    assert(Nv<2*g);
+                    int Nlevel=Nf/2/g;
+                    int Npair=(Nv-Nu)/2;
+                    int gu=Nu,gp=g-gu; //unpaired and paired degeneracies
+                    rvec_t mj_p(gp),mj_u(gu);
+                    double mj=-j;
+                    for (size_t i=0;i<gu;i++) mj_u[i]=mj++;
+                    for (size_t i=0;i<gp;i++) mj_p[i]=mj++;
+                    assert(mj==j+1);
+                    sym_t sp=Symmetry::ΩFactory(κ,mj_p);
+                    sym_t su=Symmetry::ΩFactory(κ,mj_u);
+                    itsOccupations[Irrep(Spin::Up  ,sp)]=Nlevel*gp+Npair;
+                    itsOccupations[Irrep(Spin::Down,sp)]=Nlevel*gp+Npair;
+                    itsOccupations[Irrep(Spin::Up  ,su)]=Nlevel*gu+Nu;
+                    itsOccupations[Irrep(Spin::Down,su)]=Nlevel*gu;
+                    itsNs.Nf[l]-=2*(Nlevel*g);
+                    itsNs.Nv[l]-=2*Npair;
+                    itsNs.Nu[l]-=Nu;
+                }
+                // Display();
+            }
         }
-        else if (Nu==g) //exactly half filled all up.
-        {
-            sym_t Ω(new Ωκ(κ));
-            itsOccupations[Irrep(Spin::Up  ,Ω)]=N;
-            itsOccupations[Irrep(Spin::Down,Ω)]=N-Nu;
+        { //Then fill the j=l+1/2 levels with any left over electrons.
+            double ms=0.5;
+            double j=Symmetry::SphericalSpinor::j(l,ms);
+            int    κ=Symmetry::SphericalSpinor::κ(l,ms);
+            
+            int Nf=itsNs.Nf[l],Nv=itsNs.Nv[l],Nu=abs(itsNs.Nu[l]);
+            int g=(2*j+1)/2; //degeneracy for one spin state
+            assert(Nf%2==0); //Full shells better be even!
+            assert(Nu<=g);
+            assert((Nv-Nu)%2==0);
+            if (Nu==0 || Nu==g) //No m splitting, but g unapired electrons, or all paired
+            {
+                sym_t s=Symmetry::ΩFactory(κ);
+                itsOccupations[Irrep(Spin::Up  ,s)]=Nf/2+Nu;
+                itsOccupations[Irrep(Spin::Down,s)]=Nf/2;
+            }
+            else // M splitting.  All shells get the same M splitting.
+            {
+                assert(Nf/2%g==0);
+                assert(Nv<2*g);
+                int Nlevel=Nf/2/g;
+                int Npair=(Nv-Nu)/2;
+                int gu=Nu,gp=g-gu; //unpaired and paired degeneracies
+                rvec_t mj_p(gp),mj_u(gu);
+                double mj=-j;
+                for (size_t i=0;i<gu;i++) mj_u[i]=mj++;
+                for (size_t i=0;i<gp;i++) mj_p[i]=mj++;
+                assert(mj==j+1);
+                sym_t sp=Symmetry::ΩFactory(κ,mj_p);
+                sym_t su=Symmetry::ΩFactory(κ,mj_u);
+                // Irrep isp=Irrep(Spin::Up  ,sp);
+                // Irrep isu=Irrep(Spin::Up  ,su);
+                itsOccupations[Irrep(Spin::Up  ,sp)]=Nlevel*gp+Npair;
+                itsOccupations[Irrep(Spin::Down,sp)]=Nlevel*gp+Npair;
+                itsOccupations[Irrep(Spin::Up  ,su)]=Nlevel*gu+Nu;
+                itsOccupations[Irrep(Spin::Down,su)]=Nlevel*gu;
+                // cout << "isp=" << isp << " seqn=" 
+                // << isp.SequenceIndex() 
+                // << " occ=" << Nlevel*gp+Npair << endl;
+                // cout << "isu=" << isu << " seqn=" 
+                // << isu.SequenceIndex() 
+                // << " occ=" << Nlevel*gp+Nu << endl;
+            }
         }
-        else //Partially filled, mj splitting
-        {
-            std::vector<double> mj_p,mj_u;
-            double mj=-j;
-            assert((Nv+Nu)%2==0);
-            size_t nup=(Nv+Nu)/2;
-            size_t ndn=(Nv-Nu)/2;
-            int gu=Nu,gp=g-gu; //unpaired and paired degeneracies
-            for (size_t i=0;i<gu;i++) mj_u.push_back(mj++);
-            for (size_t i=0;i<gp;i++) mj_p.push_back(mj++);
-            assert(mj==j+1);
-            sym_t Ω_p(new Ωκmj(κ,mj_p));
-            sym_t Ω_u(new Ωκmj(κ,mj_u));
-            itsOccupations[Irrep(Spin::Up  ,Ω_p)]=Nlevel*gp+Npair;
-            itsOccupations[Irrep(Spin::Down,Ω_p)]=Nlevel*gp+Npair;
-            itsOccupations[Irrep(Spin::Up  ,Ω_u)]=Nlevel*gu+Nu;
-            itsOccupations[Irrep(Spin::Down,Ω_u)]=Nlevel*gu;
-        }
-       
-        
     }
+
     
 }
 
-
-int Atom_Dirac_EC::GetN() const
-{
-    int ne=0;
-    for (auto n:itsNs.N) ne+=n; //Sum over l
-    return ne;
-}
 
    
