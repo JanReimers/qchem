@@ -204,41 +204,48 @@ TEST_F(Dirac_EC_Tests, Nitrogen)
 {
     Atom_Dirac_EC ec(7);
     sym_t sp=qn(-1);//s+
-    sym_t pm=qn(1); //p-
-    sym_t pp=qn(1,{-1.5}); //p+
+    // both half full no mj splitting.
+    sym_t p12=qn(1); //p- or p1/2
+    sym_t p32=qn(-2); //p+ or p3/2 
     
     EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,sp)),2);
     EXPECT_EQ(ec.GetN(Irrep(Spin::Down,sp)),2);
-    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,pm)),1);
-    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,pm)),1);
-    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,pp)),1);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,p12)),1);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,p12)),0);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,p32)),2);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,p32)),0);
 }
 TEST_F(Dirac_EC_Tests, Oxygen)
 {
     Atom_Dirac_EC ec(8);
     sym_t sp=qn(-1);//s+
-    sym_t pm=qn(1); //p-
-    sym_t pp=qn(1,{-1.5,-0.5}); //p+
+    // p1/2 is full, and p3/2 is half full no mj splitting
+    sym_t p12=qn(1); //p- or p1/2
+    sym_t p32=qn(-2); //p+ or p3/2 
     
     EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,sp)),2);
     EXPECT_EQ(ec.GetN(Irrep(Spin::Down,sp)),2);
-    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,pm)),1);
-    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,pm)),1);
-    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,pp)),2);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,p12)),1);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,p12)),1);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,p32)),2);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,p32)),0);
 }
 TEST_F(Dirac_EC_Tests, Flourine)
 {
     Atom_Dirac_EC ec(9);
     sym_t sp=qn(-1);//s+
-    sym_t pm=qn(1); //p-
-    sym_t pp=qn(1,{-1.5,-0.5,0.5}); //p+
+    sym_t p12=qn(1); //p- or p1/2
+    sym_t p32p=qn(-2,{-1.5,-0.5}); //p+ or p3/2 paired
+    sym_t p32u=qn(-2,{0.5}); //p+ or p3/2 on unpaired
     
     EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,sp)),2);
     EXPECT_EQ(ec.GetN(Irrep(Spin::Down,sp)),2);
-    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,pm)),1);
-    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,pm)),1);
-    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,pp)),2);
-    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,pp)),1);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,p12)),1);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,p12)),1);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,p32p)),1);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,p32p)),1);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,p32u)),1);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,p32u)),0);
 }
 TEST_F(Dirac_EC_Tests, Neon)
 {

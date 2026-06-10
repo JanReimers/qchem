@@ -60,7 +60,9 @@ size_t Ωκmj::GetDegeneracy() const
 std::ostream& Ωκmj::Write(std::ostream& os) const
 {
     int jindex=Getj()-0.5;
-    os << SPDFG[Getl()] << j2s[jindex] << " κ=" << std::setw(2) << κ << " mj=" << std::setw(4) << std::setprecision(1) << mjs << " ";
+    os << SPDFG[Getl()] << j2s[jindex] << " κ=" << std::setw(2) << κ << " mj={";
+    for (double mj:mjs) os << std::fixed << std::setw(4) << std::setprecision(1) << mj << " ";
+    os << "}";
     return os;
 }
 

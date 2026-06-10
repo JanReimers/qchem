@@ -235,8 +235,8 @@ TEST_F(ElectronConfigurationTests, Flourine)
 {
     Atom_EC ec(9);
     sym_t s=qn(0);
-    sym_t p1  =qn(1,{0,1});
-    sym_t p2=qn(1,{-1});
+    sym_t p1  =qn(1,{0,1}); //paired
+    sym_t p2=qn(1,{-1}); //unpaired
     
     EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,s)),2);
     EXPECT_EQ(ec.GetN(Irrep(Spin::Down,s)),2);
