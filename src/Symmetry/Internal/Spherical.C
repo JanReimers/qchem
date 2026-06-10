@@ -6,6 +6,8 @@ export import qchem.Symmetry.Spherical;
 
 export namespace Symmetry::Internal::Spherical
 {
+inline constexpr size_t LMax = 4;
+
 class Yl : public virtual Spherical
 {
 public:
@@ -18,7 +20,6 @@ public:
     virtual std::ostream&  Write(std::ostream&) const override;
 protected:
     size_t itsL;
-    static const size_t LMAX=4;
 };
 
 class Ylm
@@ -37,7 +38,6 @@ public:
 protected:
     size_t itsL;
     ivec_t mls;
-    static constexpr size_t LMAX=4;
 };
 
 class Ωκ : public virtual SphericalSpinor
@@ -55,7 +55,6 @@ public:
     
 protected:
     int κ;
-    static const size_t LMax=4;
 };
 
 class Ωκmj
@@ -75,7 +74,6 @@ public:
 protected:
     int κ;
     rvec_t mjs;
-    static constexpr size_t LMax=4;
 };
 
 } //namespace
