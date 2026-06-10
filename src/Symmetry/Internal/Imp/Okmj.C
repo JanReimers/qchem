@@ -41,7 +41,7 @@ std::ostream& Ωκ::Write(std::ostream& os) const
 }
 
 
-Ωκmj::Ωκmj(int κ, const rvec_t& _mjs) : Ωκ(κ), mjs(_mjs) {};
+Ωκmj::Ωκmj(int κ, const rvec_t& _mjs) : κ(κ), mjs(_mjs) {};
 
 size_t Ωκmj::SequenceIndex() const //Used for op<
  {

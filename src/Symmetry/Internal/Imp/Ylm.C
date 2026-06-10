@@ -3,6 +3,7 @@ module;
 #include <iostream>
 #include <iomanip>
 #include <cassert>
+#include <algorithm>
 #include <blaze/Math.h>
 
 module qchem.Symmetry.Internal.Spherical;
@@ -15,17 +16,31 @@ namespace Symmetry::Internal::Spherical
 {
 
 Ylm::Ylm(size_t l, const ivec_t& _mls) 
-: Yl(l),  mls(_mls) 
+: itsL(l), mls(_mls) 
 {
     assert(mls.size()>0);
 };
 
 size_t Ylm::SequenceIndex() const //Used for op<
  {
-    static size_t start=LMAX+1;  //Start after all the Yl Sequence Indexes, LMAX efined in Yl
-    // int mmax=*std::max_element(mls.begin(),mls.end()); stl veraion
-    int mmax=blaze::max(mls);
-    return start+mmax+itsL*(itsL+1);
+    static size_t start=LMAX+1;  //Start after all the Yl Sequence Indexes
+    
+    // Sort mls to get canonical ordering (lexicographic)
+    auto sorted_mls = mls;
+    std::sort(sorted_mls.begin(), sorted_mls.end());
+    
+    // Large offset per l value to ensure no collisions between different l values
+    size_t l_offset = start + (size_t)itsL * 100000000UL;
+    
+    // Encode sorted_mls as a positional number with base (2*l+2)
+    // This ensures each unique sorted_mls maps to a unique index
+    size_t mls_code = 0;
+    for (int ml : sorted_mls) {
+        int ml_encoded = ml + (int)itsL + 1;  // Map [-l, +l] to [0, 2*l+1]
+        mls_code = mls_code * (2*(int)itsL + 2) + ml_encoded;
+    }
+    
+    return l_offset + mls_code;
  }
 
 
