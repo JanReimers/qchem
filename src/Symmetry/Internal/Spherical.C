@@ -11,11 +11,11 @@ class Yl : public virtual Spherical
 public:
     Yl(size_t l) : itsL(l) {};
 
-    virtual size_t SequenceIndex() const {return itsL;} //Used for op<
-    virtual size_t GetDegeneracy() const {return 2*itsL+1;}
-    virtual size_t Getl         () const {return itsL;}
-    virtual ivec_t Getmls       () const {return {};}
-    virtual std::ostream&  Write(std::ostream&) const;
+    virtual size_t SequenceIndex() const override {return itsL;} //Used for op<
+    virtual size_t GetDegeneracy() const override {return 2*itsL+1;}
+    virtual size_t Getl         () const override {return itsL;}
+    virtual ivec_t Getmls       () const override {return {};}
+    virtual std::ostream&  Write(std::ostream&) const override;
 protected:
     size_t itsL;
     static const size_t LMAX=4;
@@ -28,12 +28,12 @@ class Ylm
 public:
     Ylm(size_t l, const ivec_t& mls);
 
-    virtual size_t SequenceIndex() const; //Used for op<
-    virtual size_t GetDegeneracy() const;
+    virtual size_t SequenceIndex() const override; //Used for op<
+    virtual size_t GetDegeneracy() const override;
     using Yl::Getl;
-    virtual ivec_t Getmls() const {return mls;}
+    virtual ivec_t Getmls() const override {return mls;}
 
-    virtual std::ostream&  Write(std::ostream&) const;
+    virtual std::ostream&  Write(std::ostream&) const override;
    
 protected:
     ivec_t mls;
@@ -44,12 +44,12 @@ class Ωκ : public virtual SphericalSpinor
 public:
     Ωκ(int κ);
 
-    virtual size_t SequenceIndex() const; //Used for op<
-    virtual size_t GetDegeneracy() const;
-    virtual int    Getκ  () const {return κ;}
-    virtual rvec_t Getmjs() const {return {};}
+    virtual size_t SequenceIndex() const override; //Used for op<
+    virtual size_t GetDegeneracy() const override;
+    virtual int    Getκ  () const override {return κ;}
+    virtual rvec_t Getmjs() const override {return {};}
  
-    virtual std::ostream&  Write(std::ostream&) const;
+    virtual std::ostream&  Write(std::ostream&) const override;
 
     
 protected:
@@ -65,12 +65,12 @@ class Ωκmj
 public:
     Ωκmj(int κ, const rvec_t& mjs);
 
-    virtual size_t SequenceIndex() const; //Used for op<
-    virtual size_t GetDegeneracy() const;
+    virtual size_t SequenceIndex() const override; //Used for op<
+    virtual size_t GetDegeneracy() const override;
     using Ωκ::Getκ;
-    virtual rvec_t Getmjs() const {return mjs;}
+    virtual rvec_t Getmjs() const override {return mjs;}
 
-    virtual std::ostream&  Write(std::ostream&) const;
+    virtual std::ostream&  Write(std::ostream&) const override;
    
 
 protected:
