@@ -29,6 +29,34 @@ Major Features:
 Features: 
     -We need a separate Atom_EC for Dirac atoms kappa,mj QNs.
         Done: Lets fix the total energy problem first.
+    -DHF ground state electron configurations plan:
+        -Two references
+            1) desclaux1973: Does config averaging and magnetic e-e (Briet?) corrections
+                Es and orbital es to 6/7 sig. figures
+                Cannot parse
+            2) rodrigues2004: 
+                Semi parsable.  Supplies total J 
+            3) Relativistic Effects in the Electronic Structure of Atoms Tatewaki et. al.
+                We have spread sheets.
+                reports orbital es and <r>.
+                Report p-, p+ and p.  p is the non-rel version.  
+                But they report p+ even when it isn't occupied (ie Boron).  Maybe this is a consequence of average-of-configuration
+                (AOC) approximation, ref. desclaux1973.  It averages high spin and low spin configurations.  Why would you do that?
+            4) https://en.wikipedia.org/wiki/Template:Infobox_element/symbol-to-term-symbol
+        Done: -Learn term symbols 
+        Done: -Learn jj coupling.
+        -For carbon we don't put an electron pair in p1/2, we keep them unpaired with one in p1/2 and one in p3/2.  p1/2-p3/2 splitting
+         is why too small to overcome the exchange cost of pairing them in p1/2.
+        -Shoud be filling mj=1.5,0.5,-0.5,-1.5 instead of -1.5 and up? 
+        -Can we come up with a unified scheme of using term symbols+electron configs to get detailed configs for both NR and Dirac atoms?
+        -Convert rodrigues2004 config,J,E in to json
+        -Read into new periodic table.
+        -Try and get electron configs into the same format as Saito.
+        -Try and use J=abs(sum(mj)) and hunds rules to get occupations.
+        -Get 1E calculations working for all atoms.
+        -Could add DFT Xalpa support next to get some rough total Es
+        -And then finally deal with Direct/Exchange integrals LLLL, LSLS SLSL, etc.
+
 
 Clean up:
     -Dirac issues
@@ -37,7 +65,10 @@ Clean up:
         2) Figure out a clean way tracking factors of 0.5, c, 2c etc for kinetic matrices.
         Done: 3) Need an expected virial function somewhere.  2 for NR, 1 for rel.
         4) Need a whole new Dirac_Atom_EC infrastructure with kappa, j QNs.
-            Find a table of GS EC for dirac atoms.
+            Done: Find a table of GS EC for dirac atoms.
+            The table uses J=sum(mj) instead of N_unparied.  
+
+
         Done: 5) rename IBS_RKBS_Evaluator file names.
         6) Figure out Slater integrals Rk for LLLS, LLSS, LSSS and worst case kappa>0 SSSS->16 terms!!!
         Done: 7) Report rest mass expectation in SCF report table.

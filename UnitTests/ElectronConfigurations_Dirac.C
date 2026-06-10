@@ -190,12 +190,15 @@ TEST_F(Dirac_EC_Tests, Carbon)
 {
     Atom_Dirac_EC ec(6);
     sym_t sp=qn(-1);//s+
-    sym_t pm=qn(1); //p-
+    sym_t p12=qn( 1); //p- //no need for mj splitting
+    sym_t p32=qn(-2,{-1.5}); //p+
     
     EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,sp)),2);
     EXPECT_EQ(ec.GetN(Irrep(Spin::Down,sp)),2);
-    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,pm)),1);
-    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,pm)),1);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,p12)),1);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,p12)),0);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,p32)),1);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,p32)),0);
 }
 TEST_F(Dirac_EC_Tests, Nitrogen)
 {
