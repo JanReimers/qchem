@@ -318,34 +318,34 @@ TEST_F(Dirac_EC_Tests, Silicon)
     EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,p32u)),2);
     EXPECT_EQ(ec.GetN(Irrep(Spin::Down,p32u)),0);
 }
-// TEST_F(Dirac_EC_Tests, Phosphorus)
-// {
-//     Atom_Dirac_EC ec(15);
-//     sym_t s12=qn(-1); //s+
-//     sym_t p12=qn( 1); //p- or p1/2 half full no mj splitting.
-//     sym_t p32=qn(-2); //p+ or p3/2 half full no mj splitting.
+TEST_F(Dirac_EC_Tests, Phosphorus)
+{
+    Atom_Dirac_EC ec(15);
+    sym_t s12=qn(-1); //s+
+    sym_t p12=qn( 1); //p- or p1/2 half full no mj splitting.
+    sym_t p32=qn(-2); //p+ or p3/2 half full no mj splitting.
     
-//     EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,s12)),3);
-//     EXPECT_EQ(ec.GetN(Irrep(Spin::Down,s12)),3);
-//     EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,p12)),2);
-//     EXPECT_EQ(ec.GetN(Irrep(Spin::Down,p12)),1);
-//     EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,p32)),5);
-//     EXPECT_EQ(ec.GetN(Irrep(Spin::Down,p32)),3);
-// }
-// TEST_F(Dirac_EC_Tests, Sulpher)
-// {
-//     Atom_Dirac_EC ec(16);
-//     sym_t s12=qn(-1);//s+
-//     sym_t p12=qn( 1); //p- or p1/2 full so no mj splitting.
-//     sym_t p32=qn(-2); //p+ or p3/2 half full so no mj splitting.
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,s12)),3);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,s12)),3);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,p12)),2);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,p12)),1);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,p32)),4);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,p32)),2);
+}
+TEST_F(Dirac_EC_Tests, Sulpher)
+{
+    Atom_Dirac_EC ec(16);
+    sym_t s12=qn(-1);//s+
+    sym_t p12=qn( 1); //p- or p1/2 full so no mj splitting.
+    sym_t p32=qn(-2); //p+ or p3/2 half full so no mj splitting.
     
-//     EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,s12)),3);
-//     EXPECT_EQ(ec.GetN(Irrep(Spin::Down,s12)),3);
-//     EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,p12)),2);
-//     EXPECT_EQ(ec.GetN(Irrep(Spin::Down,p12)),2);
-//     EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,p32)),5);
-//     EXPECT_EQ(ec.GetN(Irrep(Spin::Down,p32)),3);
-// }
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,s12)),3);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,s12)),3);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,p12)),2);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,p12)),2);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,p32)),4);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,p32)),2);
+}
 // TEST_F(Dirac_EC_Tests, Chlorine)
 // {
 //     Atom_Dirac_EC ec(17);
@@ -363,20 +363,20 @@ TEST_F(Dirac_EC_Tests, Silicon)
 //     EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,p32u)),4);
 //     EXPECT_EQ(ec.GetN(Irrep(Spin::Down,p32u)),3);
 // }
-// TEST_F(Dirac_EC_Tests, Argon)
-// {
-//     Atom_Dirac_EC ec(18);
-//     sym_t s12=qn(-1); //s+
-//     sym_t p12=qn( 1); //p-
-//     sym_t p32=qn(-2); //p+
+TEST_F(Dirac_EC_Tests, Argon)
+{
+    Atom_Dirac_EC ec(18);
+    sym_t s12=qn(-1); //s+
+    sym_t p12=qn( 1); //p-
+    sym_t p32=qn(-2); //p+
     
-//     EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,s12)),3);
-//     EXPECT_EQ(ec.GetN(Irrep(Spin::Down,s12)),3);
-//     EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,p12)),2);
-//     EXPECT_EQ(ec.GetN(Irrep(Spin::Down,p12)),2);
-//     EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,p32)),4);
-//     EXPECT_EQ(ec.GetN(Irrep(Spin::Down,p32)),4);
-// }
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,s12)),3);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,s12)),3);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,p12)),2);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,p12)),2);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,p32)),4);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,p32)),4);
+}
 // TEST_F(Dirac_EC_Tests, Potassium)
 // {
 //     Atom_Dirac_EC ec(19);
