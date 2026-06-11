@@ -127,35 +127,34 @@ Atom_EC::Atom_EC(int Z)
     //
     for (int l=0;l<=LMax;l++)
     {
-        int Nf=itsNs.Nf[l],Nv=itsNs.Nv[l],Nu=abs(itsNs.Nu[l]);
+        int Nf=itsNs.Nf[l], Nv=itsNs.Nv[l], Nu=abs(itsNs.Nu[l]);
         int g=2*l+1; //degeneracy for one spin state
-        assert(Nf%2==0); //Full shells better be even!
+        assert(Nf%2==0);
+        assert(Nf/2%g==0);
         assert(Nu<=g);
         assert((Nv-Nu)%2==0);
-        if (Nu==0 || Nu==g) //No m splitting, but g unapired electrons, or all paired
+        int NCore=Nf/2/g;
+        int Npair=(Nv-Nu)/2;
+        int gu=Nu, gp=g-gu; //unpaired and paired degeneracies
+        if (gu==0 || gp==0) //No ml splitting: shell is fully paired or half-filled
         {
             sym_t s=Symmetry::YFactory(l);
-            itsOccupations[Irrep(Spin::Up  ,s)]=Nf/2+Nu;
-            itsOccupations[Irrep(Spin::Down,s)]=Nf/2;
+            itsOccupations[Irrep(Spin::Up  ,s)]=NCore*g+Nu;
+            itsOccupations[Irrep(Spin::Down,s)]=NCore*g;
         }
-        else // M splitting.  All shells get the same M splitting.
+        else //ml splitting: unpaired electrons occupy the lowest ml values
         {
-            assert(Nf/2%g==0);
             assert(Nv<2*g);
-            int Nlevel=Nf/2/g;
-            int Npair=(Nv-Nu)/2;
-            int gu=Nu,gp=g-gu; //unpaired and paired degeneracies
-            ivec_t ms_p(gp),ms_u(gu);
+            ivec_t ms_u(gu), ms_p(gp);
             int ml=-(int)l;
-            for (size_t i=0;i<gu;i++) ms_u[i]=ml++;
-            for (size_t i=0;i<gp;i++) ms_p[i]=ml++;
-            assert(ml==(int)(l+1));
-            sym_t sp=Symmetry::YFactory(l,ms_p);
+            for (int i=0;i<gu;i++) ms_u[i]=ml++;
+            for (int i=0;i<gp;i++) ms_p[i]=ml++;
             sym_t su=Symmetry::YFactory(l,ms_u);
-            itsOccupations[Irrep(Spin::Up  ,sp)]=Nlevel*gp+Npair;
-            itsOccupations[Irrep(Spin::Down,sp)]=Nlevel*gp+Npair;
-            itsOccupations[Irrep(Spin::Up  ,su)]=Nlevel*gu+Nu;
-            itsOccupations[Irrep(Spin::Down,su)]=Nlevel*gu;
+            sym_t sp=Symmetry::YFactory(l,ms_p);
+            itsOccupations[Irrep(Spin::Up  ,sp)]=NCore*gp+Npair;
+            itsOccupations[Irrep(Spin::Down,sp)]=NCore*gp+Npair;
+            itsOccupations[Irrep(Spin::Up  ,su)]=NCore*gu+Nu;
+            itsOccupations[Irrep(Spin::Down,su)]=NCore*gu;
         }
     }
     //
