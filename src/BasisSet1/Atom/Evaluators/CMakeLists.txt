@@ -5,6 +5,7 @@ target_sources(qcAtom_BS1 PRIVATE
     Internal/Imp/ExponentGrouper.C
     Internal/Imp/Exponential_Evaluator.C
     Internal/Imp/Wigner3j.C
+    Internal/Imp/RelWigner3j.C
 )
 target_sources(qcAtom_BS1 PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
     Evaluator.C
@@ -12,6 +13,7 @@ target_sources(qcAtom_BS1 PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Internal/Rk.C
     Internal/AngularIntegrals.C
     Internal/Wigner3j.C
+    Internal/RelWigner3j.C
     Internal/ExponentGrouper.C
     Internal/Exponential_Evaluator.C
     Internal/FillPower.C

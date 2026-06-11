@@ -15,7 +15,7 @@ add_executable(UTMain gtestmain.C QchemTesterImp.C BasisSetPoolImp.C
     BSplines.C DiracIntegral.C SlaterIntegral.C GaussianIntegral.C UTBasisSet.C BasisSet1_Atom.C BasisSet_Atom.C
     A_HF_U.C A_HF_P.C A_DHF.C A_HF_U.C A_DFT.C A_DFT_U.C M_PG_U.C  
     SymQN.C ElectronConfigurations.C  Angular.C Libxc.C
-    ElectronConfigurations_Dirac.C
+    ElectronConfigurations_Dirac.C RelAngular.C
     )
 target_sources(UTMain PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES QchemTester.C BasisSetPool.C)
 
@@ -36,13 +36,13 @@ target_compile_definitions(UTMain PRIVATE ${CXX_COMMON_DEFINES}
 set_property(TARGET UTMain PROPERTY CXX_STANDARD 20)
 
 target_link_options(UTMain PRIVATE )
-target_include_directories(UTMain PRIVATE 
+target_include_directories(UTMain PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/BSplinebasis/include
     ${PROJECT_SOURCE_DIR}/submodules/json/single_include
     ${PROJECT_SOURCE_DIR}/submodules/blaze
     ${PROJECT_SOURCE_DIR}/submodules/tabulate/include
     ${PROJECT_BINARY_DIR}/submodules/libxc
-
+    ${PROJECT_SOURCE_DIR}/submodules/wignerSymbols/include
 )
 target_link_libraries(UTMain PUBLIC qchem qcCommon)
 
