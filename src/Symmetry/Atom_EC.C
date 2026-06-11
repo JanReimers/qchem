@@ -22,6 +22,7 @@ protected:
     struct NsOnly_t {};
     Atom_EC(int Z, NsOnly_t);       //Populate itsNs only; derived classes build their own occupations.
     void BuildNROccupations();
+    void SetSplitOccupations(sym_t sp, sym_t su, int NCore, int gp, int gu, int Npair, int Nu);
 
     friend class ElectronConfigurationTests;
 

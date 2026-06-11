@@ -126,6 +126,14 @@ Atom_EC::Atom_EC(int Z, NsOnly_t)
     assert(nup==0); //By now all unpaired electrons should have been gobbled up.
 }
 
+void Atom_EC::SetSplitOccupations(sym_t sp, sym_t su, int NCore, int gp, int gu, int Npair, int Nu)
+{
+    itsOccupations[Irrep(Spin::Up  ,sp)]=NCore*gp+Npair;
+    itsOccupations[Irrep(Spin::Down,sp)]=NCore*gp+Npair;
+    itsOccupations[Irrep(Spin::Up  ,su)]=NCore*gu+Nu;
+    itsOccupations[Irrep(Spin::Down,su)]=NCore*gu;
+}
+
 void Atom_EC::BuildNROccupations()
 {
     //
@@ -157,10 +165,7 @@ void Atom_EC::BuildNROccupations()
             for (int& m:ms_p) m=ml++;
             sym_t su=Symmetry::YFactory(l,ms_u);
             sym_t sp=Symmetry::YFactory(l,ms_p);
-            itsOccupations[Irrep(Spin::Up  ,sp)]=NCore*gp+Npair;
-            itsOccupations[Irrep(Spin::Down,sp)]=NCore*gp+Npair;
-            itsOccupations[Irrep(Spin::Up  ,su)]=NCore*gu+Nu;
-            itsOccupations[Irrep(Spin::Down,su)]=NCore*gu;
+            SetSplitOccupations(sp,su,NCore,gp,gu,Npair,Nu);
         }
     }
     //
