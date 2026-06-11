@@ -17,12 +17,14 @@ Atom_Dirac_EC::Atom_Dirac_EC(int Z) : Atom_EC(Z)
     double s=0.5; //electron spin.
     for (size_t l:iv_t(0,itsLMax+1))
     {
+        int Nf=itsNs.Nf[l],Nv=itsNs.Nv[l],Nu=abs(itsNs.Nu[l]);
+        size_t gl=2*l+1; //l degeneracy for one spin.
+        int NCoreLevels=Nf/(2*gl);
         { // fill the j=l-1/2 levels first
             double j=Symmetry::SphericalSpinor::j(l,-s);
             int    κ=Symmetry::SphericalSpinor::κ(l,-s);
             if (κ!=0)
             {
-                int Nf=itsNs.Nf[l],Nv=itsNs.Nv[l],Nu=abs(itsNs.Nu[l]);
                 int g=(2*j+1)/2; //degeneracy for one spin state
                 assert(Nf%2==0); //Full shells better be even!
                 //assert(Nu<=g); //No the unpaired electrons could, for example be spread over p1/2 and p3/2
@@ -34,9 +36,9 @@ Atom_Dirac_EC::Atom_Dirac_EC(int Z) : Atom_EC(Z)
                 if (Nu==0 || Nu==g) //No m splitting, but g unapired electrons, or all paired
                 {
                     sym_t s=Symmetry::ΩFactory(κ);
-                    itsOccupations[Irrep(Spin::Up  ,s)]=Nf/2+Npair+Nu;
-                    itsOccupations[Irrep(Spin::Down,s)]=Nf/2+Npair;
-                    itsNs.Nf[l]-=Nf;
+                    itsOccupations[Irrep(Spin::Up  ,s)]=NCoreLevels*g+Npair+Nu;
+                    itsOccupations[Irrep(Spin::Down,s)]=NCoreLevels*g+Npair;
+                    itsNs.Nf[l]-=2*NCoreLevels*g;
                     itsNs.Nv[l]-=2*Npair+Nu;
                     itsNs.Nu[l]-=Nu;
                 }
@@ -44,7 +46,6 @@ Atom_Dirac_EC::Atom_Dirac_EC(int Z) : Atom_EC(Z)
                 {
                     assert(Nf/2%g==0);
                     // assert(Nv<2*g); //Again no, the unpaired electrons could, for example be spread over p1/2 and p3/2
-                    int Nlevel=Nf/2/g;
                     int gu=Nu,gp=g-gu; //unpaired and paired degeneracies
                     assert(gu+gp<=g);
                     rvec_t mj_p(gp),mj_u(gu);
@@ -53,32 +54,32 @@ Atom_Dirac_EC::Atom_Dirac_EC(int Z) : Atom_EC(Z)
                     for (size_t i=0;i<gp;i++) mj_p[i]=mj++;
                     sym_t sp=Symmetry::ΩFactory(κ,mj_p);
                     sym_t su=Symmetry::ΩFactory(κ,mj_u);
-                    itsOccupations[Irrep(Spin::Up  ,sp)]=Nlevel*gp+Npair;
-                    itsOccupations[Irrep(Spin::Down,sp)]=Nlevel*gp+Npair;
-                    itsOccupations[Irrep(Spin::Up  ,su)]=Nlevel*gu+Nu;
-                    itsOccupations[Irrep(Spin::Down,su)]=Nlevel*gu;
-                    itsNs.Nf[l]-=2*(Nlevel*g);
+                    itsOccupations[Irrep(Spin::Up  ,sp)]=NCoreLevels*gp+Npair;
+                    itsOccupations[Irrep(Spin::Down,sp)]=NCoreLevels*gp+Npair;
+                    itsOccupations[Irrep(Spin::Up  ,su)]=NCoreLevels*gu+Nu;
+                    itsOccupations[Irrep(Spin::Down,su)]=NCoreLevels*gu;
+                    itsNs.Nf[l]-=2*NCoreLevels*g;
                     itsNs.Nv[l]-=2*Npair;
                     itsNs.Nu[l]-=Nu;
                 }
                 Display();
             }
         }
+        Nf=itsNs.Nf[l];Nv=itsNs.Nv[l];Nu=abs(itsNs.Nu[l]);
         { //Then fill the j=l+1/2 levels with any left over electrons.
             
             double j=Symmetry::SphericalSpinor::j(l,+s);
             int    κ=Symmetry::SphericalSpinor::κ(l,+s);
             
-            int Nf=itsNs.Nf[l],Nv=itsNs.Nv[l],Nu=abs(itsNs.Nu[l]);
             int g=(2*j+1)/2; //degeneracy for one spin state
             assert(Nf%2==0); //Full shells better be even!
             assert(Nu<=g);
             if (Nu==0 || Nu==g) //No m splitting, but g unapired electrons, or all paired
             {
                 sym_t s=Symmetry::ΩFactory(κ);
-                itsOccupations[Irrep(Spin::Up  ,s)]=Nf/2+Nu;
-                itsOccupations[Irrep(Spin::Down,s)]=Nf/2;
-                itsNs.Nf[l]-=Nf;
+                itsOccupations[Irrep(Spin::Up  ,s)]=NCoreLevels*g+Nu;
+                itsOccupations[Irrep(Spin::Down,s)]=NCoreLevels*g;
+                itsNs.Nf[l]-=2*NCoreLevels*g;
                 itsNs.Nv[l]-=Nu;
                 itsNs.Nu[l]-=Nu;
             }
@@ -86,10 +87,9 @@ Atom_Dirac_EC::Atom_Dirac_EC(int Z) : Atom_EC(Z)
             {
                 assert(Nf/2%g==0);
                 assert(Nv<2*g);
-                int Nlevel=Nf/2/g;
                 int Npair=(Nv-Nu)/2; //Valance pairs.
                 int gu=Nu; //# mj states for the un paired sector.
-                int gp=Nlevel>0 ? 2*g-gu : 2*Npair; //number of mj states for the paired sector.
+                int gp=NCoreLevels>0 ? 2*g-gu : 2*Npair; //number of mj states for the paired sector.
                 rvec_t mj_p(gp),mj_u(gu);
                 double mj=-j;
                 for (size_t i=0;i<gp;i++) mj_p[i]=mj++; //convention, fill the paired electrons first.
@@ -102,19 +102,19 @@ Atom_Dirac_EC::Atom_Dirac_EC(int Z) : Atom_EC(Z)
                 // Irrep isp=Irrep(Spin::Up  ,sp);
                 // Irrep isu=Irrep(Spin::Up  ,su);
                 gp/=2; //Single spin version of degeneracy.
-                itsOccupations[Irrep(Spin::Up  ,sp)]=Nlevel*gp+Npair;
-                itsOccupations[Irrep(Spin::Down,sp)]=Nlevel*(gp+Nu)+Npair;
-                itsOccupations[Irrep(Spin::Up  ,su)]=Nlevel*gu+Nu;
-                itsOccupations[Irrep(Spin::Down,su)]=0;//Nlevel*gu;
-                itsNs.Nf[l]-=2*(Nlevel*g);
+                itsOccupations[Irrep(Spin::Up  ,sp)]=NCoreLevels*gp + Npair*(1 + 2*NCoreLevels);
+                itsOccupations[Irrep(Spin::Down,sp)]=NCoreLevels*(gp+Nu) + Npair*(1 - NCoreLevels);
+                itsOccupations[Irrep(Spin::Up  ,su)]=NCoreLevels*gu + Nu - 2*NCoreLevels*Npair;
+                itsOccupations[Irrep(Spin::Down,su)]=NCoreLevels*Npair;
+                itsNs.Nf[l]-=2*(NCoreLevels*g);
                 itsNs.Nv[l]-=2*Npair+Nu;
                 itsNs.Nu[l]-=Nu;
                 // cout << "isp=" << isp << " seqn=" 
                 // << isp.SequenceIndex() 
-                // << " occ=" << Nlevel*gp+Npair << endl;
+                // << " occ=" << NCoreLevels*gp+Npair << endl;
                 // cout << "isu=" << isu << " seqn=" 
                 // << isu.SequenceIndex() 
-                // << " occ=" << Nlevel*gp+Nu << endl;
+                // << " occ=" << NCoreLevels*gp+Nu << endl;
             }
             Display();
         }

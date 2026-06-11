@@ -226,10 +226,11 @@ void Atom_EC::Display() const
     cout << "Nu: ";
     for (auto n:itsNs.Nu) cout << n << ",";
     cout << endl;
-     for (auto o:itsOccupations)
+    for (auto o:itsOccupations)
     {
         if (o.second!=0)
             cout << "N(" << o.first << ")=" << o.second << endl;
     }
+    cout << "-------------------------------------------" << endl;
 }
    

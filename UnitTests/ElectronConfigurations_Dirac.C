@@ -346,23 +346,23 @@ TEST_F(Dirac_EC_Tests, Sulpher)
     EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,p32)),4);
     EXPECT_EQ(ec.GetN(Irrep(Spin::Down,p32)),2);
 }
-// TEST_F(Dirac_EC_Tests, Chlorine)
-// {
-//     Atom_Dirac_EC ec(17);
-//     sym_t s12 =qn(-1); //s+
-//     sym_t p12 =qn( 1); //p- 
-//     sym_t p32p=qn(-2,{-1.5,-0.5}); //p+ or p3/2 paired
-//     sym_t p32u=qn(-2,{0.5}); //p+ or p3/2 on unpaired
+TEST_F(Dirac_EC_Tests, Chlorine)
+{
+    Atom_Dirac_EC ec(17);
+    sym_t s12 =qn(-1); //s+
+    sym_t p12 =qn( 1); //p- 
+    sym_t p32p=qn(-2,{-1.5,-0.5,0.5}); //p+ or p3/2 paired
+    sym_t p32u=qn(-2,{1.5}); //p+ or p3/2 on unpaired
     
-//     EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,s12)),3);
-//     EXPECT_EQ(ec.GetN(Irrep(Spin::Down,s12)),3);
-//     EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,p12)),2);
-//     EXPECT_EQ(ec.GetN(Irrep(Spin::Down,p12)),2);
-//     EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,p32p)),2);
-//     EXPECT_EQ(ec.GetN(Irrep(Spin::Down,p32p)),2);
-//     EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,p32u)),4);
-//     EXPECT_EQ(ec.GetN(Irrep(Spin::Down,p32u)),3);
-// }
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,s12)),3);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,s12)),3);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,p12)),2);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,p12)),2);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,p32p)),4);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,p32p)),2);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,p32u)),0);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,p32u)),1);
+}
 TEST_F(Dirac_EC_Tests, Argon)
 {
     Atom_Dirac_EC ec(18);
