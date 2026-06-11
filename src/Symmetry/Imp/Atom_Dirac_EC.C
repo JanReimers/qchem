@@ -11,9 +11,8 @@ using std::cout;
 using std::endl;
 
 
-Atom_Dirac_EC::Atom_Dirac_EC(int Z) : Atom_EC(Z)
+Atom_Dirac_EC::Atom_Dirac_EC(int Z) : Atom_EC(Z, NsOnly_t{})
 {
-    itsOccupations.clear();
     double s=0.5; //electron spin.
     for (size_t l:iv_t(0,itsLMax+1))
     {

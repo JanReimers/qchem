@@ -11,14 +11,18 @@ const int Nshell=8;
 
 export class Atom_EC : public virtual ElectronConfiguration
 {
-public:  
+public:
     Atom_EC(int Z);
     virtual int    GetN(const Irrep&) const;  //Core + Valance
     virtual syms_t GetIrreps() const;
-    virtual void   Display() const;  
+    virtual void   Display() const;
 
     size_t GetLMax() const {return itsLMax;}
 protected:
+    struct NsOnly_t {};
+    Atom_EC(int Z, NsOnly_t);       //Populate itsNs only; derived classes build their own occupations.
+    void BuildNROccupations();
+
     friend class ElectronConfigurationTests;
 
     static const int FullShells[Nshell][LMax+2];

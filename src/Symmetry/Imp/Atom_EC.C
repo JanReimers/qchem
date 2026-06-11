@@ -4,6 +4,7 @@ module;
 #include <iostream>
 #include <initializer_list>
 #include <vector>
+#include <blaze/Math.h>
 
 module qchem.Symmetry.AtomEC;
 import Common.PeriodicTable;
@@ -29,14 +30,14 @@ const int Atom_EC::FullShells[Nshell][LMax+2]=
     {118,7,6,4,2}
 };
 
-Atom_EC::Atom_EC(int Z)
+Atom_EC::Atom_EC(int Z, NsOnly_t)
 : itsLMax(0), itsLValance(0)
 {
     assert(Z>0);
     assert(Z<=N_Elements);
 
     const size_t* vc=pt.GetValanceConfiguration(Z);  //Valance electron counts
-    
+
     // Step 1: Hunt for the nearest for full shell for Z.
     int ns=0;
     for (;ns<Nshell;ns++)
@@ -47,22 +48,22 @@ Atom_EC::Atom_EC(int Z)
     //   Nf=# of {s,p,d,f} electrons in the full shells.
     //   Nv=# of {s,p,d,f} valance electrons
     //   N=Nf+Nv
-    for (size_t l=0;l<=LMax;l++) 
+    for (size_t l=0;l<=LMax;l++)
     {
         int g=2*(2*l+1); //degeneracy
         itsNs.Nf[l]=FullShells[ns][l+1]*g;
         itsNs.Nv[l]=vc[l];
         if (itsNs.Nv[l]>0 && itsNs.Nv[l]%g==0) //Check of valance shell is full.
-        {   
+        {
             itsNs.Nv[l]-=g;
             itsNs.Nf[l]+=g;
         }
         itsNs.N[l]=itsNs.Nf[l]+itsNs.Nv[l]; //Total electrons for s,p,d,f
         //cout << N[l] << ",";
         if (l>itsLMax && itsNs.N[l]>0) itsLMax=l;
-        
+
     }
-   
+
     size_t l=0;
     for (auto nv:itsNs.Nv)  //Find highest l for valance electrons.
     {
@@ -87,7 +88,7 @@ Atom_EC::Atom_EC(int Z)
             nup-=itsNs.Nv[itsLValance]; //Keep track of how many unpaired electrons are left over.
         }
 
-    }   
+    }
     else
     { //> half filled
         int Nvu=2*gv-itsNs.Nv[itsLValance]; //# of unpaird orbitals.
@@ -112,7 +113,7 @@ Atom_EC::Atom_EC(int Z)
         for (int l=itsLValance-1;l>=0 && nup>0;l--) //Go backwards through ls
             if (itsNs.Nv[l]>0) //Did we find some valance electrons
             {
-                assert(itsNs.Nv[l]==1); 
+                assert(itsNs.Nv[l]==1);
                 itsNs.Nu[l]=nup;
                 nup--;
             }
@@ -122,6 +123,11 @@ Atom_EC::Atom_EC(int Z)
         itsNs.Nu[2]=1; //One unpaired in d↑
         itsNs.Nu[3]=-1; //One unparied in f↓
     }
+    assert(nup==0); //By now all unpaired electrons should have been gobbled up.
+}
+
+void Atom_EC::BuildNROccupations()
+{
     //
     //  Now build a list of symmetries with occupation numbers.
     //
@@ -147,8 +153,8 @@ Atom_EC::Atom_EC(int Z)
             assert(Nv<2*g);
             ivec_t ms_u(gu), ms_p(gp);
             int ml=-(int)l;
-            for (int i=0;i<gu;i++) ms_u[i]=ml++;
-            for (int i=0;i<gp;i++) ms_p[i]=ml++;
+            for (int& m:ms_u) m=ml++;
+            for (int& m:ms_p) m=ml++;
             sym_t su=Symmetry::YFactory(l,ms_u);
             sym_t sp=Symmetry::YFactory(l,ms_p);
             itsOccupations[Irrep(Spin::Up  ,sp)]=NCore*gp+Npair;
@@ -165,9 +171,12 @@ Atom_EC::Atom_EC(int Z)
         Irrep nqns(Spin::None,ir), uqns(Spin::Up,ir),dqns(Spin::Down,ir);
         itsUnpolOccupations[nqns]=GetN(uqns)+GetN(dqns);
     }
-        
-   
-    assert(nup==0); //By now all unpaired electrons should have gobbled up.        
+}
+
+Atom_EC::Atom_EC(int Z)
+: Atom_EC(Z, NsOnly_t{})
+{
+    BuildNROccupations();
 }
 
 int Atom_EC::GetN(const Irrep& qns) const
