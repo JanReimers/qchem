@@ -87,12 +87,13 @@ Atom_Dirac_EC::Atom_Dirac_EC(int Z) : Atom_EC(Z)
                 assert(Nf/2%g==0);
                 assert(Nv<2*g);
                 int Nlevel=Nf/2/g;
-                int Npair=(Nv-Nu)/2;
-                int gu=Nu,gp=g-gu; //unpaired and paired degeneracies
-                rvec_t mj_p(2*Npair),mj_u(Nu);
+                int Npair=(Nv-Nu)/2; //Valance pairs.
+                int gu=Nu; //# mj states for the un paired sector.
+                int gp=Nlevel>0 ? 2*g-gu : 2*Npair; //number of mj states for the paired sector.
+                rvec_t mj_p(gp),mj_u(gu);
                 double mj=-j;
-                for (size_t i=0;i<2*Npair;i++) mj_p[i]=mj++; //convention, fill the paired electrons first.
-                for (size_t i=0;i<  Nu   ;i++) mj_u[i]=mj++;
+                for (size_t i=0;i<gp;i++) mj_p[i]=mj++; //convention, fill the paired electrons first.
+                for (size_t i=0;i<gu;i++) mj_u[i]=mj++;
                 // assert(mj==j+1);
                 sym_t sp=Symmetry::ΩFactory(κ,mj_p);
                 sym_t su=Symmetry::ΩFactory(κ,mj_u);
@@ -100,12 +101,13 @@ Atom_Dirac_EC::Atom_Dirac_EC(int Z) : Atom_EC(Z)
                 cout << "unpaired=" << *su << endl;
                 // Irrep isp=Irrep(Spin::Up  ,sp);
                 // Irrep isu=Irrep(Spin::Up  ,su);
+                gp/=2; //Single spin version of degeneracy.
                 itsOccupations[Irrep(Spin::Up  ,sp)]=Nlevel*gp+Npair;
-                itsOccupations[Irrep(Spin::Down,sp)]=Nlevel*gp+Npair;
+                itsOccupations[Irrep(Spin::Down,sp)]=Nlevel*(gp+Nu)+Npair;
                 itsOccupations[Irrep(Spin::Up  ,su)]=Nlevel*gu+Nu;
-                itsOccupations[Irrep(Spin::Down,su)]=Nlevel*gu;
+                itsOccupations[Irrep(Spin::Down,su)]=0;//Nlevel*gu;
                 itsNs.Nf[l]-=2*(Nlevel*g);
-                itsNs.Nv[l]-=2*Npair;
+                itsNs.Nv[l]-=2*Npair+Nu;
                 itsNs.Nu[l]-=Nu;
                 // cout << "isp=" << isp << " seqn=" 
                 // << isp.SequenceIndex() 

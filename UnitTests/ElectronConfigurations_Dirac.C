@@ -301,21 +301,23 @@ TEST_F(Dirac_EC_Tests, Aluminium)
     EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,p32)),2);
     EXPECT_EQ(ec.GetN(Irrep(Spin::Down,p32)),2);
 }
-// TEST_F(Dirac_EC_Tests, Silicon)
-// {
-//     Atom_Dirac_EC ec(14);
-//     sym_t s12=qn(-1); //s+
-//     sym_t p12=qn( 1); //p- //no need for mj s12litting
-//     sym_t p32p=qn(-2,{-1.5,-0.5,0.5}); //p+
-//     sym_t p32u=qn(-2,{ 1.5}); //p+
+TEST_F(Dirac_EC_Tests, Silicon)
+{
+    Atom_Dirac_EC ec(14);
+    sym_t s12=qn(-1); //s+
+    sym_t p12=qn( 1); //p- //no need for mj s12litting
+    sym_t p32p=qn(-2,{-1.5,-0.5,0.5}); //p+
+    sym_t p32u=qn(-2,{ 1.5}); //p+
     
-//     EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,s12)),3);
-//     EXPECT_EQ(ec.GetN(Irrep(Spin::Down,s12)),3);
-//     EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,p12)),2);
-//     EXPECT_EQ(ec.GetN(Irrep(Spin::Down,p12)),1);
-//     EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,p32)),3);
-//     EXPECT_EQ(ec.GetN(Irrep(Spin::Down,p32)),2);
-// }
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,s12)),3);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,s12)),3);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,p12)),2);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,p12)),1);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,p32p)),1);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,p32p)),2);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,p32u)),2);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,p32u)),0);
+}
 // TEST_F(Dirac_EC_Tests, Phosphorus)
 // {
 //     Atom_Dirac_EC ec(15);
