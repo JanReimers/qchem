@@ -41,10 +41,10 @@ class HF_P : public ::testing::TestWithParam<size_t>, public TestAtom
     }
 };
 
-class DHF_P : public ::testing::TestWithParam<size_t>, public TestAtom
+class DHF_P : public ::testing::TestWithParam<size_t>, public TestDiracAtom
 {
     public:
-    DHF_P() : TestAtom(GetParam(),GetParam()-1) {}; //Hydrogenic ion Z with charge (Z-1)+
+    DHF_P() : TestDiracAtom(GetParam(),GetParam()-1) {}; //Hydrogenic ion Z with charge (Z-1)+
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
     {
         return Factory(Model::DHF,Pol::Polarized,cluster);
@@ -109,6 +109,7 @@ TEST_P(A_SL_DHF,A)
     Iterate({   5     ,Z*1e-5    ,1e-7 , 3e-5      ,Z*1e-6 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,false});
 
     irrepv_t qns=GetIrreps(Spin::Up);
+    cout << qns[0] << endl; 
     const Orbital* orb0=GetOrbital(0,qns[0]);
     double e0=orb0->GetEigenEnergy();
     double e0_expected=Enk(1,-1,Z,1.0/c_light);
@@ -260,10 +261,10 @@ TEST_F(A_SG_E1,Phir)
 
 }
 
-class DHF_P1 : public ::testing::Test, public TestAtom
+class DHF_P1 : public ::testing::Test, public TestDiracAtom
 {
     public:
-    DHF_P1() : TestAtom(1,0) {}; //Hydrogenic ion Z with charge (Z-1)+
+    DHF_P1() : TestDiracAtom(1,0) {}; //Hydrogenic ion Z with charge (Z-1)+
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
     {
         return Factory(Model::DHF,Pol::Polarized,cluster);

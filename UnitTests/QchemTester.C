@@ -89,6 +89,16 @@ private:
     int itsZ;
 };
 
+export class TestDiracAtom : public QchemTester
+{
+public:
+    TestDiracAtom(int _Z, int _q=0);
+    virtual MeshParams GetMeshParams() const;
+private:
+    virtual Real_BS* GetBasisSet (const nlohmann::json&) const;
+    int itsq;
+};
+
 export class TestMolecule : public QchemTester
 {
 public:

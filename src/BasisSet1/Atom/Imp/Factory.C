@@ -5,6 +5,7 @@ module;
 
 module qchem.BasisSet.Atom.Factory;
 import qchem.Symmetry.AtomEC;
+import qchem.Symmetry.Atom_Dirac_EC;
 import qchem.BasisSet.Atom.BasisSet;
 import qchem.BasisSet.Atom.Evaluators.BSpline.IBS;
 import qchem.BasisSet.Atom.Evaluators.BSpline.IBS_r;
@@ -20,7 +21,11 @@ using namespace Evaluators;
 
 Real_BS* Factory(const nlohmann::json& js,size_t Z)
 {
-    return Factory(js,Atom_EC(Z));
+    Type type=js["type"].template get<Type>();
+    if (type==Type::Slater_RKB || type==Type::Gaussian_RKB)
+        return Factory(js,Atom_Dirac_EC(Z));
+    else
+        return Factory(js,Atom_EC(Z));
 }
 
 Real_BS* Factory(const nlohmann::json& js,const ElectronConfiguration& aec)

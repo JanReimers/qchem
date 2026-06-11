@@ -10,30 +10,46 @@ export import qchem.Symmetry;
 export namespace Symmetry
 {
 
-class Spherical : public virtual Symmetry
+//---------------------------------------------------------------------------------
+//
+// Shared interface for all atom-specific symmetries: anything that carries l.
+//
+class AtomicSymmetry : public virtual Symmetry
 {
 public:
-    virtual size_t GetPrincipleOffset() const {return Getl();} //Add to principle QN.  For atoms this is just l.
+    virtual size_t GetPrincipleOffset() const {return Getl();}
     virtual size_t Getl  () const=0;
     virtual ivec_t Getmls() const=0;
 };
 
-// Helper functin for Unit tests and some of main code that constantly needs to get at l.
-size_t Getl(const sym_t&); //Throws bad_cast
-size_t Getl(const Symmetry&); //Throws bad_cast
+// Helper functions for code that needs l without knowing NR vs Dirac.
+size_t Getl(const sym_t&);
+size_t Getl(const Symmetry&);
+
+//---------------------------------------------------------------------------------
+//
+// Spherical symmetry for non-relativistic atoms (Ylm)
+//
+class Spherical : public AtomicSymmetry
+{
+public:
+    virtual size_t Getl  () const=0;
+    virtual ivec_t Getmls() const=0;
+};
+
 // These are used in one place by the atom Evaluator class
 ivec_t Getmls(const sym_t&); //Throws bad_cast
 ivec_t Getmls(const Symmetry&); //Throws bad_cast
 
 //---------------------------------------------------------------------------------
 //
-// Spherical spinor symmetry for Dirac/relativistic atoms
+// Spherical spinor symmetry for Dirac/relativistic atoms (Ωκmj)
 //
-class SphericalSpinor : public virtual Symmetry
+class SphericalSpinor : public AtomicSymmetry
 {
 public:
-    virtual size_t GetPrincipleOffset() const {return Getl();} //Add to principle QN.  For atoms this is just l.
     virtual size_t Getl  () const {return l(Getκ());}
+    virtual ivec_t Getmls() const {return {};} //Stub: RKB ERIs not yet implemented
     virtual double Getj  () const {return j(Getκ());}
     virtual int    Getκ  () const=0;
     virtual rvec_t Getmjs() const=0;
@@ -44,7 +60,6 @@ public:
     static int    ml(int κ, double mj) {return mj-ms(κ);}
     static int     κ(size_t l, double s) {return s>0 ? -l-1 : l;}
     static double  j(size_t l, double s) {return l+s;}
-
 };
 
 } // namespace

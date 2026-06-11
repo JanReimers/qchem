@@ -5,6 +5,7 @@ module;
 #include <iostream>
 module qchem.Unittests.QchemTester;
 import qchem.Symmetry.AtomEC;
+import qchem.Symmetry.Atom_Dirac_EC;
 import qchem.Symmetry.MoleculeEC;
 import qchem.SCFAccelerator.Factory;
 import qchem.Math;
@@ -175,6 +176,21 @@ MeshParams TestAtom::GetMeshParams() const
 Real_BS* TestAtom::GetBasisSet (const nlohmann::json& js) const
 {
     return BasisSet::Atom::Factory(js,itsZ);
+}
+
+TestDiracAtom::TestDiracAtom(int Z, int q) : QchemTester(new Atom_Dirac_EC(Z-q)), itsq(q)
+{
+    itsCluster=cl_t(new Atom(Z,q,Vector3D<double>(0,0,0)));
+};
+
+MeshParams TestDiracAtom::GetMeshParams() const
+{
+    return MeshParams({qchem::MHL,50,3,2.0,qchem::Gauss,1,0,0,2});
+}
+
+Real_BS* TestDiracAtom::GetBasisSet (const nlohmann::json& js) const
+{
+    return BasisSet::Atom::Factory(js,GetZ()-itsq);
 }
 
 TestMolecule::TestMolecule(Cluster* m) : QchemTester(new Molecule_EC(m->GetNumElectrons())) 

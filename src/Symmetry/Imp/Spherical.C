@@ -12,7 +12,7 @@ size_t Getl(const sym_t& s)
 
 size_t Getl(const Symmetry& s)
 {
-    return dynamic_cast<const Spherical&>(s).Getl();
+    return dynamic_cast<const AtomicSymmetry&>(s).Getl();
 }
 
 ivec_t Getmls(const sym_t& s)
@@ -21,7 +21,7 @@ ivec_t Getmls(const sym_t& s)
 }
 ivec_t Getmls(const Symmetry& s)
 {
-    return dynamic_cast<const Spherical&>(s).Getmls();
+    return dynamic_cast<const AtomicSymmetry&>(s).Getmls();
 }
 
 } // namespace
