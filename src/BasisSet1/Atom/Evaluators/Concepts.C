@@ -44,7 +44,7 @@ template <class E> concept isHF_Evaluator = isGeneric_Evaluator<E> && requires (
 {
     a.maxSpan();
     // a.size();
-    a.Getl();
+    // a.Getl();
     a.RadialType(); 
     a.indices();
     a.MakeCache4();

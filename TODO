@@ -5,6 +5,11 @@ Understand type erasure: https://youtu.be/m3UmABVf55g?t=2134
 Claude:
 /plan How to go about implementing ERI integrals (direct/exchange) for RKB basis sets?   For discussion lets use L for large and S for small in the RKB basis.  There is a combinatorial explosion of <LL|1/r_12|LL>, LSLS, SLSL ....   maybe 16 versions?   All S versions have two terms from the d/dr+(kappa+1)/r radial operators.  Maybe some template meta programming could handle this?  Hopefully we can reuse all the Rk Slater integral code from the HF side.  There is some literature on this but I find it hard to follow.   Maybe as a first step get <LL|1/r_12|LL> working and then add more S's.  These are smaller by 1/c for each S I think.  There is also a lot of FORTRAN code available (DIRAC, BERTHA and GRASP) that knows how to do all these integrals.  Linking to a FORTRAN library is a perfectly acceptable solutions.  THoughts?
 
+    -Evaluator Getl() returns int instead of size_t OK?
+    -Evaluator virtual inherit VectorFunction?
+    -Clarify Angular/Radial (X) NR/RKB for everything.
+    -Sort out all the atomic concepts and then how to combine them
+        is_NR_Angular, is_RKB_Angular for the angular parts.
 
 Major Features:
     Convergence acceleration.
