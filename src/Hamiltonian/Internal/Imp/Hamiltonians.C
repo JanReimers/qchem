@@ -71,6 +71,7 @@ Ham_DHF_1E::Ham_DHF_1E(const cl_t& cl)
 {
     Add(new DiracKinetic());
     Add(new RestMass());
+    Add(new Ven(cl));
     //Add(new Vnn(cl));
 }
 

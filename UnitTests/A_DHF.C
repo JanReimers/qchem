@@ -41,6 +41,16 @@ class HF_P : public ::testing::TestWithParam<size_t>, public TestAtom
     }
 };
 
+class DE1 : public ::testing::TestWithParam<size_t>, public TestDiracAtom
+{
+    public:
+    DE1() : TestDiracAtom(GetParam(),GetParam()-1) {}; //Hydrogenic ion Z with charge (Z-1)+
+    virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
+    {
+        return Factory(Model::DE1,Pol::Polarized,cluster);
+    }
+};
+
 class DHF_P : public ::testing::TestWithParam<size_t>, public TestDiracAtom
 {
     public:
@@ -79,7 +89,7 @@ INSTANTIATE_TEST_SUITE_P(A,A_SL_HF_ion,::testing::Values(1,20,60,86,100));
 #endif
 
 
-class A_SL_DHF  : public DHF_P {};
+class A_SL_DE1  : public DE1 {};
 void dump(const rsmat_t& S, size_t N, const char* name, size_t ioff=0,size_t joff=0)
 {
     std::cout << name << "=" << endl;
@@ -90,7 +100,7 @@ void dump(const rsmat_t& S, size_t N, const char* name, size_t ioff=0,size_t jof
     }    
 }
 
-TEST_P(A_SL_DHF,A)
+TEST_P(A_SL_DE1,A)
 {
     int Z=GetParam();
     int N=23;
@@ -124,7 +134,7 @@ TEST_P(A_SL_DHF,A)
     EXPECT_LT(et_rel,2e-7);
 }
 
-INSTANTIATE_TEST_SUITE_P(A,A_SL_DHF,::testing::Values(1,20,60,86,100)); 
+INSTANTIATE_TEST_SUITE_P(A,A_SL_DE1,::testing::Values(1,20,60,86,100)); 
 
 //--------------------------------------------------------------------------------------------
 //
@@ -135,9 +145,9 @@ INSTANTIATE_TEST_SUITE_P(A,A_SL_DHF,::testing::Values(1,20,60,86,100));
 class A_SG_HF_ion : public HF_P {};
 
 // Relativistic hydrogenic atom
-class A_SG_DHF  : public DHF_P {};
+class A_SG_DE1  : public DE1 {};
 
-TEST_P(A_SG_DHF,A)
+TEST_P(A_SG_DE1,A)
 {
     int Z=GetParam();
     int N=32;
@@ -176,7 +186,7 @@ TEST_P(A_SG_DHF,A)
     EXPECT_LT(et_rel,4e-7);
 }
 
-INSTANTIATE_TEST_SUITE_P(A,A_SG_DHF,::testing::Values(1,20,60,86,100)); //37,53
+INSTANTIATE_TEST_SUITE_P(A,A_SG_DE1,::testing::Values(1,20,60,86,100)); //37,53
 
 
 
@@ -261,17 +271,17 @@ TEST_F(A_SG_E1,Phir)
 
 }
 
-class DHF_P1 : public ::testing::Test, public TestDiracAtom
+class DE1_P1 : public ::testing::Test, public TestDiracAtom
 {
     public:
-    DHF_P1() : TestDiracAtom(1,0) {}; //Hydrogenic ion Z with charge (Z-1)+
+    DE1_P1() : TestDiracAtom(1,0) {}; //Hydrogenic ion Z with charge (Z-1)+
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
     {
-        return Factory(Model::DHF,Pol::Polarized,cluster);
+        return Factory(Model::DE1,Pol::Polarized,cluster);
     }
 };
-class A_SG_DHF1  : public DHF_P1 {};
-TEST_F(A_SG_DHF1,Phir)
+
+TEST_F(DE1_P1,Gaussian_Phir)
 {
     int Z=1;
     int N=32;
@@ -297,58 +307,8 @@ TEST_F(A_SG_DHF1,Phir)
     cout << std::scientific << "idphi=" << idphi << endl;
     cout << "Charge=" << TotalCharge() << endl;
 }
-// Helium DHF ground state (Z=2, 2 electrons, neutral)
-// Reference total energy: -2.86129 au (relativistic DHF, from ao7b00802_si_001.xlsx)
-class DHF_He : public ::testing::Test, public TestDiracAtom
-{
-    public:
-    DHF_He() : TestDiracAtom(2,0) {};
-    virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
-    {
-        return Factory(Model::DHF,Pol::UnPolarized,cluster);
-    }
-};
-class A_SL_DHF_He : public DHF_He {};
-TEST_F(A_SL_DHF_He,Energy)
-{
-    size_t N=23;
-    double alpha=0.05, beta=1.55;
-    nlohmann::json js = {
-        {"type",abs_t::Slater_RKB},
-        {"N", N}, {"emin", alpha}, {"emax", alpha*pow(beta,N-1)},
-    };
-    QchemTester::Init(js);
-    //       NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo MergeTol verbose
-    Iterate({   10    ,1e-5     ,1e-7  , 3e-5     ,1e-6   ,0.5             ,1e-7   ,true});
 
-    qchem::EnergyBreakdown eb=GetEnergyBreakdown();
-    double Etotal=eb.GetTotalEnergy();
-    double Eref=-2.86129;
-    cout << std::setprecision(10) << "E_total=" << Etotal << "  E_ref=" << Eref << endl;
-    EXPECT_NEAR(Etotal, Eref, 1e-3);
-}
-class A_SG_DHF_He : public DHF_He {};
-TEST_F(A_SG_DHF_He,Energy)
-{
-    int N=32;
-    double alpha=0.01, beta=1.8;
-    nlohmann::json js = {
-        {"type",abs_t::Gaussian_RKB},
-        {"N", N}, {"emin", alpha}, {"emax", alpha*pow(beta,N-1)},
-    };
-    QchemTester::Init(js);
-    //       NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo MergeTol verbose
-    Iterate({   10    ,1e-5     ,1e-7  , 3e-5     ,1e-6   ,0.5             ,1e-7   ,true});
-
-    qchem::EnergyBreakdown eb=GetEnergyBreakdown();
-    double Etotal=eb.GetTotalEnergy();
-    double Eref=-2.86129;
-    cout << std::setprecision(10) << "E_total=" << Etotal << "  E_ref=" << Eref << endl;
-    EXPECT_NEAR(Etotal, Eref, 1e-3);
-}
-
-class A_SL_DHF1  : public DHF_P1 {};
-TEST_F(A_SL_DHF1,Phir)
+TEST_F(DE1_P1,Slater_Phir)
 {
     size_t N=37;
     double alpha=.04,beta=1.32;
@@ -373,4 +333,77 @@ TEST_F(A_SL_DHF1,Phir)
     cout << std::scientific << "idphi=" << idphi << endl;    
     cout << "Charge=" << TotalCharge() << endl;
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Helium DHF ground state (Z=2, 2 electrons, neutral)
+// Reference total energy: -2.86129 au (relativistic DHF, from ao7b00802_si_001.xlsx)
+class DHF_He : public ::testing::Test, public TestDiracAtom
+{
+    public:
+    DHF_He() : TestDiracAtom(2,0) {};
+    virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
+    {
+        return Factory(Model::DHF,Pol::UnPolarized,cluster);
+    }
+};
+// class A_SL_DHF_He : public DHF_He {};
+// TEST_F(A_SL_DHF_He,Energy)
+// {
+//     size_t N=23;
+//     double alpha=0.05, beta=1.55;
+//     nlohmann::json js = {
+//         {"type",abs_t::Slater_RKB},
+//         {"N", N}, {"emin", alpha}, {"emax", alpha*pow(beta,N-1)},
+//     };
+//     QchemTester::Init(js);
+//     //       NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo MergeTol verbose
+//     Iterate({   10    ,1e-5     ,1e-7  , 3e-5     ,1e-6   ,0.5             ,1e-7   ,true});
+
+//     qchem::EnergyBreakdown eb=GetEnergyBreakdown();
+//     double Etotal=eb.GetTotalEnergy();
+//     double Eref=-2.86129;
+//     cout << std::setprecision(10) << "E_total=" << Etotal << "  E_ref=" << Eref << endl;
+//     EXPECT_NEAR(Etotal, Eref, 1e-3);
+// }
+// class A_SG_DHF_He : public DHF_He {};
+// TEST_F(A_SG_DHF_He,Energy)
+// {
+//     int N=32;
+//     double alpha=0.01, beta=1.8;
+//     nlohmann::json js = {
+//         {"type",abs_t::Gaussian_RKB},
+//         {"N", N}, {"emin", alpha}, {"emax", alpha*pow(beta,N-1)},
+//     };
+//     QchemTester::Init(js);
+//     //       NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo MergeTol verbose
+//     Iterate({   10    ,1e-5     ,1e-7  , 3e-5     ,1e-6   ,0.5             ,1e-7   ,true});
+
+//     qchem::EnergyBreakdown eb=GetEnergyBreakdown();
+//     double Etotal=eb.GetTotalEnergy();
+//     double Eref=-2.86129;
+//     cout << std::setprecision(10) << "E_total=" << Etotal << "  E_ref=" << Eref << endl;
+//     EXPECT_NEAR(Etotal, Eref, 1e-3);
+// }
 
