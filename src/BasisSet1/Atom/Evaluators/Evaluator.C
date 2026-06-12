@@ -43,7 +43,7 @@ public:
     virtual std::string AngularID() const;
     virtual std::string Name     () const=0;
 
-protected:
+private:
     friend class Cache4Tests;
 
     int    l;

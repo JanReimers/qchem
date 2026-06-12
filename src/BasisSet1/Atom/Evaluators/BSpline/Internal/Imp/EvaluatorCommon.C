@@ -16,7 +16,8 @@ template <size_t K> EvaluatorCommon<K>::EvaluatorCommon(size_t Ngrid, double _rm
 : Evaluators::Evaluator(Symmetry::Getl(ylm)) // placeholder; overridden by most-derived class with virtual Evaluator
 , rmin(_rmin), rmax(_rmax) , itsGrid({0,1})
 {
-    knots=MakeLogKnots(Ngrid,rmin,rmax);
+    int l=Symmetry::Getl(ylm);
+    knots=MakeLogKnots(Ngrid,rmin,rmax,l);
     // std::cout << "Knots=" << knots << std::endl;
     splines=bspline::generateBSplines<K>(knots);
     itsGrid=splines[0].getSupport().getGrid();
@@ -31,7 +32,7 @@ template <size_t K> EvaluatorCommon<K>::EvaluatorCommon(size_t Ngrid, double _rm
     // assert(size()==ns.size());
 };
 
-template <size_t K> std::vector<double> EvaluatorCommon<K>::MakeLogKnots(size_t Ngrid, double rmin, double rmax)
+template <size_t K> std::vector<double> EvaluatorCommon<K>::MakeLogKnots(size_t Ngrid, double rmin, double rmax, int l)
 {
     assert(Ngrid>1);
     std::vector<double> knots;
@@ -62,7 +63,7 @@ template <size_t K> void EvaluatorCommon<K>::Register(Grouper* _grouper)
     assert(_grouper);
     auto grouper=static_cast<SplineGrouper<K>*>(_grouper);
     assert(grouper);
-    for (auto s:splines) es_indices.push_back(grouper->Insert(s,l));
+    for (auto s:splines) es_indices.push_back(grouper->Insert(s,Getl()));
 }
 
 template <size_t K> std::string EvaluatorCommon<K>::RadialID () const

@@ -21,9 +21,18 @@ export namespace BasisSet::Atom::Evaluators::Gaussian
 class Radial : public ExponentialEvaluator
 {
 public:
-    Radial(const rvec_t& _es, int l) : Evaluators::Evaluator(l), ExponentialEvaluator(_es,l) {ns=norms();}
+    Radial(const rvec_t& _es, int _l) 
+    : Evaluators::Evaluator(_l)
+    , ExponentialEvaluator(_es,_l)
+    , l(_l) 
+    {ns=norms();}
     Radial(const rvec_t& _es, const sym_t& ir, size_t ltrim=0)
-        : Evaluators::Evaluator(Symmetry::Getl(ir)), ExponentialEvaluator(_es,ir,ltrim) {ns=norms();}
+        : Evaluators::Evaluator(Symmetry::Getl(ir))
+        , ExponentialEvaluator(_es,ir,ltrim) 
+        , l(Symmetry::Getl(ir))
+        {
+            ns=norms();
+        }
 
     virtual std::ostream& Write   (std::ostream&) const;
 
@@ -122,6 +131,8 @@ protected:
         double lr= r==0 ? 0 : l/r;
         return (lr-2*r*e)*gaussian(r,l,e,n);
     }
+
+    int l;
 };
 
 // NR HF evaluator: Gaussian radial + NR angular.
@@ -129,17 +140,17 @@ class Evaluator : public Radial, public NR_Angular
 {
 public:
     Evaluator(const rvec_t& es, int l, const ivec_t& mls={})
-        : Evaluators::Evaluator(l), Radial(es,l), NR_Angular(mls) {}
+        : Evaluators::Evaluator(l), Radial(es,l), NR_Angular(l,mls) {}
     Evaluator(const rvec_t& es, const sym_t& ir, size_t ltrim=0)
         : Evaluators::Evaluator(Symmetry::Getl(ir))
         , Radial(es,ir,ltrim)
-        , NR_Angular(Symmetry::Getmls(ir)) {}
+        , NR_Angular(ir) {}
     Evaluator(size_t N, double emin, double emax, const sym_t& ir)
         : Evaluators::Evaluator(Symmetry::Getl(ir))
         , Radial(Radial::exponents(N,emin,emax,ir),ir)
-        , NR_Angular(Symmetry::Getmls(ir)) {}
+        , NR_Angular(ir) {}
 
-    Evaluator Rescale(double scale_factor) const { return Evaluator(scale_factor*es,l); }
+    Evaluator Rescale(double scale_factor) const { return Evaluator(scale_factor*es,Getl()); }
 };
 
 static_assert(isGeneric_Evaluator<Evaluator>);
@@ -199,6 +210,7 @@ public:
     virtual std::string Name() const;
 
 private:
+    using Radial::l;
     int    κ;
     rvec_t eval(const rvec3_t&) const;
 };

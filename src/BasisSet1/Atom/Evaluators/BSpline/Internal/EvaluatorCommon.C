@@ -35,7 +35,7 @@ protected:
 public: 
     EvaluatorCommon(size_t Ngrid, double rmin, double rmax, const sym_t& ylm);
     virtual void   Register(Grouper*) override; //Set up unique spline or exponent indexes.
-    virtual size_t maxSpan () const override {return l<=K ? K-l : 0;}  //assume no overlap for indices separated by > maxSpan
+    virtual size_t maxSpan () const override {return Getl()<=K ? K-Getl() : 0;}  //assume no overlap for indices separated by > maxSpan
     virtual size_t size    () const override { return ns.size(); }
     virtual size_t es_index(size_t i     ) const override {return es_indices[i];}
     virtual rvec_t Norm    () const override { return ns; }
@@ -56,7 +56,7 @@ public:
     const spline_t& operator[](int index) const {return splines[index];}
 
 protected:
-    std::vector<double> MakeLogKnots(size_t NGrid, double rmin, double rmax);
+    std::vector<double> MakeLogKnots(size_t NGrid, double rmin, double rmax, int l);
 
     double rmin,rmax; //This might be needed for creating fit basis sets.
     std::vector<double>   knots;

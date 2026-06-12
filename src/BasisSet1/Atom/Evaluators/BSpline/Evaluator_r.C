@@ -24,7 +24,6 @@ template <size_t K> class Evaluator_r : public Internal::EvaluatorCommon<K>, pub
     using Internal::EvaluatorCommon<K>::splines;
     using Internal::EvaluatorCommon<K>::ns;
     using Internal::EvaluatorCommon<K>::itsGrid;
-    using Internal::EvaluatorCommon<K>::l;
 
 public: 
     Evaluator_r(size_t Ngrid, double rmin, double rmax, const sym_t& ylm);

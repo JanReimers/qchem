@@ -25,6 +25,7 @@ public:
         , grouper(0)
         , isEvenTempered(EvenTempered(es))
         {
+            int l=Symmetry::Getl(ir);
             assert(ltrim<5);
             assert(l<=3);
             size_t nfront=(3-l)*ltrim;

@@ -15,7 +15,7 @@ void ExponentialEvaluator::Register(Grouper* _grouper)
     assert(_grouper);
     auto grouper=static_cast<ExponentGrouper*>(_grouper);
     assert(grouper);
-    for (auto e:es) es_indices.push_back(grouper->Insert(e,l));
+    for (auto e:es) es_indices.push_back(grouper->Insert(e,Getl()));
     // std::cout << "es_indices=" << es_indices << std::endl;
 }
 
