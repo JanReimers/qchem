@@ -19,13 +19,12 @@ public:
     virtual double Coulomb_Rk(size_t la,size_t lc,const rvec11_t& Ak) const; //sum{k,A_k*R_k(la,la,lc,lc)};
     virtual double ExchangeRk(size_t la,size_t lb,const rvec11_t& Ak) const; //sum{k,A_k*R_k(la,lb,la,lb)};
 
-    virtual bool   isSupported(const Cache4_Client*) const;
     virtual size_t RAMsize() const;
-//private:
+private:
     static double fk(double a, double ab, size_t k,size_t n);
-    
+    virtual size_t LMax() const {return itsLMax;}    
     double eab, ecd;
-    size_t LMax;
+    size_t itsLMax;
     rmat_t Iab,Icd; //Derivative tables.
 };
 

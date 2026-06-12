@@ -53,7 +53,7 @@ template <size_t K>  size_t RkCache<K>::RAMsize() const
 //
 template <size_t K> RkEngine<K>::RkEngine(const std::vector<sp_t>& splines, size_t ia, size_t ib, size_t ic, size_t id, size_t _LMax
     , const GLCache1D& gl1,const GLCache2D& gl2, const RkCache<K>& rkcache, const func_t& wp, const func_t& wm)
- : LMax(_LMax), Rabcd_k(2*LMax+1,0.0)
+ : itsLMax(_LMax), Rabcd_k(2*itsLMax+1,0.0)
  {
     sp_t   a=splines[ia]   ,  b=splines[ib]   ,  c=splines[ic]   ,  d=splines[id];
     auto &sa=a.getSupport(),&sb=b.getSupport(),&sc=c.getSupport(),&sd=d.getSupport();
@@ -76,7 +76,7 @@ template <size_t K> RkEngine<K>::RkEngine(const std::vector<sp_t>& splines, size
     assert(sc.hasSameGrid(sd));
     assert(sa.hasSameGrid(sb));
     bspline::Grid grid=sa.getGrid();
-    for (size_t k=0;k<=2*LMax;k++)
+    for (size_t k=0;k<=2*itsLMax;k++)
     {
         // THis is hard/hot loop for the whole process.  abcd all overlap and no factoring is possible.
         if (Sabcd.containsIntervals())
@@ -151,8 +151,8 @@ template <size_t K> RkEngine<K>::RkEngine(const std::vector<sp_t>& splines, size
  {
     assert(la>=0);
     assert(lc>=0);
-    assert(la<=LMax);
-    assert(lc<=LMax);
+    assert(la<=itsLMax);
+    assert(lc<=itsLMax);
     double Rk(0.0);
     for (size_t k=0;k<=2*std::min(la,lc);k+=2)
     {
@@ -164,8 +164,8 @@ template <size_t K> RkEngine<K>::RkEngine(const std::vector<sp_t>& splines, size
  {
     assert(la>=0);
     assert(lb>=0);
-    assert(la<=LMax);
-    assert(lb<=LMax);
+    assert(la<=itsLMax);
+    assert(lb<=itsLMax);
     int kmin=std::abs((int)la-(int)lb);
     int kmax=la+lb;
     double Rk(0.0);
@@ -176,13 +176,6 @@ template <size_t K> RkEngine<K>::RkEngine(const std::vector<sp_t>& splines, size
     }
     return Rk;
  }
-
-template <size_t K>  bool RkEngine<K>::isSupported(const Cache4_Client* cl) const
-{
-    auto eval=dynamic_cast<const BasisSet::Atom::Evaluators::Evaluator*>(cl);
-    assert(eval);
-    return eval->Getl()<=LMax;
-}
 
 template <size_t K> size_t RkEngine<K>::RAMsize() const
 {

@@ -9,6 +9,7 @@ target_sources(qcAtom_BS1 PRIVATE
     Internal/Imp/RelAngularIntegrals.C
     Internal/Imp/NR_Angular.C
     Internal/Imp/RKBL_Angular.C
+    Internal/Imp/Rk.C 
 )
 target_sources(qcAtom_BS1 PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Evaluator.C

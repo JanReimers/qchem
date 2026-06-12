@@ -8,8 +8,11 @@ Claude:
     -Evaluator Getl() returns int instead of size_t OK?
     -Evaluator virtual inherit VectorFunction?
     -Clarify Angular/Radial (X) NR/RKB for everything.
+        Radial constantly needs to get at l
+    -qchem.BasisSet.Atom.Evaluators.IBS; --> qchem.BasisSet.Atom.Evaluators;
     -Sort out all the atomic concepts and then how to combine them
         is_NR_Angular, is_RKB_Angular for the angular parts.
+
 
 Major Features:
     Convergence acceleration.
