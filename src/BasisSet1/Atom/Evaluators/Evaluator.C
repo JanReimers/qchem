@@ -20,7 +20,6 @@ class Evaluator
     , public VectorFunction<double>
 {
 public:
-    Evaluator() : l(0) {};
     virtual ~Evaluator() {};
 
     virtual void          Register     (Grouper*)=0; //Set up unique spline or exponent indexes.
@@ -39,13 +38,8 @@ public:
 
     virtual std::ostream& Write  (std::ostream&) const=0;
     virtual std::string RadialID () const=0;
-    virtual std::string AngularID() const;
+    virtual std::string AngularID() const=0;
     virtual std::string Name     () const=0;
-
-private:
-    friend class Cache4Tests;
-
-    int    l;
 
 };
 

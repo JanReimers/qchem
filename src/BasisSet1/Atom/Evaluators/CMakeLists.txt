@@ -1,6 +1,5 @@
 # add_library(qcAtom_BS1)
 target_sources(qcAtom_BS1 PRIVATE
-    Imp/Evaluator.C
     Internal/Imp/AngularIntegrals.C
     Internal/Imp/ExponentGrouper.C
     Internal/Imp/Exponential_Evaluator.C
