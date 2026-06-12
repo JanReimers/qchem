@@ -20,7 +20,7 @@ class Evaluator
     , public VectorFunction<double>
 {
 public:
-    Evaluator(int _l) : l(_l), grouper(0) {};
+    Evaluator(int _l) : l(_l) {};
     Evaluator(const sym_t& ylm);
     virtual ~Evaluator() {};
 
@@ -33,7 +33,7 @@ public:
 
     iv_t                  indices      (             ) const {return iv_t(size_t(0),size());}
     iv_t                  indices      (size_t start ) const {return iv_t(start,size());}
-    virtual size_t        es_index     (size_t i     ) const {return es_indices[i];}
+    virtual size_t        es_index     (size_t i     ) const =0;
 
     virtual rvec11_t      CoulombAk (const Evaluator& other) const = 0;
     virtual rvec11_t      ExchangeAk(const Evaluator& other) const = 0;
@@ -47,8 +47,6 @@ protected:
     friend class Cache4Tests;
 
     int    l;
-    const  ExponentGrouper* grouper;
-    std::vector<size_t> es_indices; //Unique exponent index
 
 };
 

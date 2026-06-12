@@ -9,8 +9,6 @@ namespace BasisSet::Atom::Evaluators
 {
 Evaluator::Evaluator(const sym_t& s)
     : l(Symmetry::Getl(s))
-
-    , grouper(0)
 {}
 
 std::string Evaluator::AngularID() const

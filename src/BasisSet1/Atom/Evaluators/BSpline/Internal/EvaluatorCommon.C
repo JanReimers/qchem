@@ -34,11 +34,11 @@ protected:
     using rvec11_t=rvec11_t;
 public: 
     EvaluatorCommon(size_t Ngrid, double rmin, double rmax, const sym_t& ylm);
-    virtual void          Register(Grouper*) override; //Set up unique spline or exponent indexes.
-    virtual std::ostream& Write   (std::ostream&) const override;
-    virtual size_t        maxSpan () const override {return l<=K ? K-l : 0;}  //assume no overlap for indices separated by > maxSpan
-    virtual size_t        size    () const override { return ns.size(); }
-    virtual rvec_t        Norm    () const override { return ns; }
+    virtual void   Register(Grouper*) override; //Set up unique spline or exponent indexes.
+    virtual size_t maxSpan () const override {return l<=K ? K-l : 0;}  //assume no overlap for indices separated by > maxSpan
+    virtual size_t size    () const override { return ns.size(); }
+    virtual size_t es_index(size_t i     ) const override {return es_indices[i];}
+    virtual rvec_t Norm    () const override { return ns; }
     static double direct(const Cacheable* c, size_t la, size_t lc,const rvec11_t& Ak)
     {
         const ::BSpline::RkEngine<K>* cd = dynamic_cast<const ::BSpline::RkEngine<K>*>(c);
@@ -49,8 +49,9 @@ public:
         const ::BSpline::RkEngine<K>* cd = dynamic_cast<const ::BSpline::RkEngine<K>*>(c);
         return cd->ExchangeRk(la,lc,Ak); // contract over k Rk*Ak, exchange version is more complicated
     }
-    virtual std::string RadialID() const override;
-    virtual std::string RadialType() const override;
+    virtual std::ostream& Write(std::ostream&) const override;
+    virtual std::string   RadialID  () const override;
+    virtual std::string   RadialType() const override;
 
     const spline_t& operator[](int index) const {return splines[index];}
 
@@ -62,6 +63,7 @@ protected:
     std::vector<spline_t> splines;
     bspline::Grid<double> itsGrid;
     rvec_t ns;
+    std::vector<size_t> es_indices; //Unique spline index
 };
 
 template <size_t K> class Cache4 : public  ::Cache4

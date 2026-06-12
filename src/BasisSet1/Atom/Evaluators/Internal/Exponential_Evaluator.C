@@ -1,6 +1,7 @@
 // File: BasisSet1/Atom/Evaluators/Internal/Exponential_Evaluator.C  Common base for Slater and Gaussian evaluators
 module;
 #include <string>
+#include <vector>
 #include <blaze/math/views/Subvector.h>
 export module qchem.BasisSet.Atom.Evaluators.Internal.ExponentialEvaluator;
 export import qchem.BasisSet.Atom.Evaluators.IBS;
@@ -13,11 +14,15 @@ class ExponentialEvaluator : public virtual Evaluator
 {
 public:
     ExponentialEvaluator(const rvec_t& _es, int l)
-        : Evaluator(l), es(_es)
+        : Evaluator(l)
+        , es(_es)
+        , grouper(0)
         , isEvenTempered(EvenTempered(es))
         {};
     ExponentialEvaluator(const rvec_t& _es, const sym_t& ir, size_t ltrim=0)
-        : Evaluator(Symmetry::Getl(ir)), es()
+        : Evaluator(Symmetry::Getl(ir))
+        , es()
+        , grouper(0)
         , isEvenTempered(EvenTempered(es))
         {
             assert(ltrim<5);
@@ -32,12 +37,17 @@ public:
     virtual void   Register(Grouper*) override; //Set up unique spline or exponent indexes.
     virtual std::string RadialID() const override;
     virtual size_t size() const override { return ns.size(); }
+    virtual size_t es_index(size_t i     ) const override {return es_indices[i];}
+
     virtual rvec_t Norm() const override { return ns; }
 
 protected:
     static bool EvenTempered(const rvec_t&);
     rvec_t es;
     rvec_t ns;
+    const  ExponentGrouper* grouper;
+    std::vector<size_t> es_indices; //Unique exponent index
+
     bool isEvenTempered; // e[i]=beta*e[i-1] +/- eps;
 };
 
