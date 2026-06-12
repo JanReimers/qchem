@@ -114,7 +114,7 @@ template <isFit_Evaluator Evaluator> class EFit_IBS
 {
     using IrrepBasisSetImp<Evaluator>::Cast;
 public:
-    EFit_IBS(const Evaluator& e) : EvaluatorsBase(static_cast<const EvaluatorsBase&>(e)), IrrepBasisSetImp<Evaluator>(Symmetry::YFactory()), Evaluator(e) {};
+    EFit_IBS(const Evaluator& e) : EvaluatorsBase(e.Getl()), IrrepBasisSetImp<Evaluator>(Symmetry::YFactory()), Evaluator(e) {};
 
     virtual rsmat_t MakeRepulsion(                ) const 
     {

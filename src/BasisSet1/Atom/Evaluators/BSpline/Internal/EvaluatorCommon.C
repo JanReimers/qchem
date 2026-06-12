@@ -37,7 +37,8 @@ public:
     virtual void          Register(Grouper*); //Set up unique spline or exponent indexes.
     virtual std::ostream& Write   (std::ostream&) const;
     virtual size_t        maxSpan () const {return l<=K ? K-l : 0;}  //assume no overlap for indices separated by > maxSpan
-    virtual rvec_t        Norm    () const {return ns;}
+    virtual size_t        size    () const override { return ns.size(); }
+    virtual rvec_t        Norm    () const override { return ns; }
     static double direct(const Cacheable* c, size_t la, size_t lc,const rvec11_t& Ak)
     {
         const ::BSpline::RkEngine<K>* cd = dynamic_cast<const ::BSpline::RkEngine<K>*>(c);
@@ -60,6 +61,7 @@ protected:
     std::vector<double>   knots;
     std::vector<spline_t> splines;
     bspline::Grid<double> itsGrid;
+    rvec_t ns;
 };
 
 template <size_t K> class Cache4 : public  ::Cache4

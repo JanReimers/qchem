@@ -9,7 +9,7 @@ namespace BasisSet::Atom::Evaluators
 {
 Evaluator::Evaluator(const sym_t& s)
     : l(Symmetry::Getl(s))
-    , ns(0)
+
     , grouper(0)
 {}
 

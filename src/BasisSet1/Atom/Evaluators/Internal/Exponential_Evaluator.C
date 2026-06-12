@@ -29,12 +29,15 @@ public:
             es=blaze::subvector(_es,nfront,n);
         };
     virtual ~ExponentialEvaluator() {}; //g++ 15.2 BUG Compiler implemented destructor not created with -O2.
-    virtual void Register(Grouper*); //Set up unique spline or exponent indexes.
-    virtual std::string RadialID () const;
+    virtual void   Register(Grouper*); //Set up unique spline or exponent indexes.
+    virtual std::string RadialID() const;
+    virtual size_t size() const override { return ns.size(); }
+    virtual rvec_t Norm() const override { return ns; }
 
 protected:
     static bool EvenTempered(const rvec_t&);
     rvec_t es;
+    rvec_t ns;
     bool isEvenTempered; // e[i]=beta*e[i-1] +/- eps;
 };
 

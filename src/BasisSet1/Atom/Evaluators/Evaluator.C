@@ -21,16 +21,16 @@ class Evaluator
     , public VectorFunction<double>
 {
 public:
-    Evaluator(int _l) : l(_l), ns(0), grouper(0) {};
+    Evaluator(int _l) : l(_l), grouper(0) {};
     Evaluator(const sym_t& ylm);
     virtual ~Evaluator() {};
 
     virtual void          Register     (Grouper*)=0; //Set up unique spline or exponent indexes.
-    virtual size_t        size         () const {return ns.size();}
+    virtual size_t        size         () const = 0;
     virtual size_t        maxSpan      () const {return size();}  //assume no overlap for indeces separated by > maxSpan
     virtual size_t        GetVectorSize() const {return size();}
     virtual int           Getl         () const {return l;}
-    virtual       rvec_t  Norm         () const {return ns;}
+    virtual       rvec_t  Norm         () const = 0;
 
     iv_t                  indices      (             ) const {return iv_t(size_t(0),size());}
     iv_t                  indices      (size_t start ) const {return iv_t(start,size());}
@@ -48,7 +48,6 @@ protected:
     friend class Cache4Tests;
 
     int    l;
-    rvec_t ns;
     const  ExponentGrouper* grouper;
     std::vector<size_t> es_indices; //Unique exponent index
 
