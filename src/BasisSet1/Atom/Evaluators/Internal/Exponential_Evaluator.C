@@ -14,14 +14,12 @@ class ExponentialEvaluator : public virtual Evaluator
 {
 public:
     ExponentialEvaluator(const rvec_t& _es, int l)
-        : Evaluator(l)
-        , es(_es)
+        : es(_es)
         , grouper(0)
         , isEvenTempered(EvenTempered(es))
         {};
     ExponentialEvaluator(const rvec_t& _es, const sym_t& ir, size_t ltrim=0)
-        : Evaluator(Symmetry::Getl(ir))
-        , es()
+        : es()
         , grouper(0)
         , isEvenTempered(EvenTempered(es))
         {

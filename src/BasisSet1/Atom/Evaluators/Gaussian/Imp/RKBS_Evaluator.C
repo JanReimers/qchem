@@ -12,8 +12,7 @@ namespace BasisSet::Atom::Evaluators::Gaussian
 {
 
 RKBS_Evaluator::RKBS_Evaluator(size_t N, double emin, double emax, int _κ, int l)
-    : Evaluators::Evaluator(l)
-    , Evaluator(Radial::exponents(N,emin,emax,Symmetry::YFactory()), l)
+    : Evaluator(Radial::exponents(N,emin,emax,Symmetry::YFactory()), l)
     , κ(_κ)
 {
     ns=norms();

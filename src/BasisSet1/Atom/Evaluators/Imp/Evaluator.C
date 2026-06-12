@@ -7,9 +7,6 @@ import qchem.Symmetry.Spherical;
 
 namespace BasisSet::Atom::Evaluators
 {
-Evaluator::Evaluator(const sym_t& s)
-    : l(Symmetry::Getl(s))
-{}
 
 std::string Evaluator::AngularID() const
 {

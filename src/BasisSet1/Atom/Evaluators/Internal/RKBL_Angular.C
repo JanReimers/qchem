@@ -13,7 +13,7 @@ class RKBL_Angular : public virtual Evaluator
 {
 public:
     // mjs empty → full mj sum (closed shell or spin-averaged)
-    RKBL_Angular(int _κ, const rvec_t& _mjs={}) : Evaluator(0), κ(_κ), mjs(_mjs) {}
+    RKBL_Angular(int _κ, const rvec_t& _mjs={}) : κ(_κ), mjs(_mjs) {}
 
     virtual rvec11_t    CoulombAk (const Evaluator& other) const override;
     virtual rvec11_t    ExchangeAk(const Evaluator& other) const override;

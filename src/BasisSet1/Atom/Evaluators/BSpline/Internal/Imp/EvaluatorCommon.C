@@ -13,8 +13,7 @@ namespace BasisSet::Atom::Evaluators::BSpline::Internal
 {
 
 template <size_t K> EvaluatorCommon<K>::EvaluatorCommon(size_t Ngrid, double _rmin, double _rmax,const sym_t& ylm)
-: Evaluators::Evaluator(Symmetry::Getl(ylm)) // placeholder; overridden by most-derived class with virtual Evaluator
-, rmin(_rmin), rmax(_rmax) , itsGrid({0,1})
+: rmin(_rmin), rmax(_rmax) , itsGrid({0,1})
 {
     int l=Symmetry::Getl(ylm);
     knots=MakeLogKnots(Ngrid,rmin,rmax,l);

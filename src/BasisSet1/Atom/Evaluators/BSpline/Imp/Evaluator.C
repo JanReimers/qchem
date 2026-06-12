@@ -47,8 +47,7 @@ template<size_t K> using spline_t = bspline::Spline<double, K>;
 //
 
 template <size_t K> Evaluator<K>::Evaluator(size_t Ngrid, double rmin, double rmax,const sym_t& ylm)
-: Evaluators::Evaluator(Symmetry::Getl(ylm))  // virtual base - must be explicit here
-, Internal::EvaluatorCommon<K>(Ngrid,rmin,rmax,ylm)
+: Internal::EvaluatorCommon<K>(Ngrid,rmin,rmax,ylm)
 , NR_Angular(ylm)
 {
     for (size_t n=0;n<=3-Getl();n++) splines.pop_back(); //For s orbital the last spline has B(R)=1.0 with violates B(R)=0 boundary condition for 1/r prefactor.
