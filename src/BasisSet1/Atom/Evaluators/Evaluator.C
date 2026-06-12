@@ -15,7 +15,6 @@ export namespace BasisSet::Atom::Evaluators
 {
 using dERI3=ERI3<double>;
 
-
 class Evaluator
     : public virtual Cache4_Client
     , public VectorFunction<double>

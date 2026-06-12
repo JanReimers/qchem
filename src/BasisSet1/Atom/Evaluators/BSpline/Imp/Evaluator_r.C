@@ -30,7 +30,7 @@ template <size_t K> Evaluator_r<K>::Evaluator_r(size_t Ngrid, double rmin, doubl
     splines.pop_back(); //Last spline has B(R)=1.0 with violates B(R)=0 boundary condition for 1/r prefactor.
     itsGL1D.reset(new GLCache1D(itsGrid,K+1));
     ns=norms();
-    assert(size()==splines.size());
+    assert(ns.size()==splines.size());
 };
 
 //  template <size_t K> std::vector<double> Evaluator_r<K>::MakeLogKnots(size_t Ngrid, double rmin, double rmax)

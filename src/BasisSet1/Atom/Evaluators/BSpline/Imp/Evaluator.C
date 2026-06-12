@@ -53,8 +53,8 @@ template <size_t K> Evaluator<K>::Evaluator(size_t Ngrid, double rmin, double rm
 {
     for (size_t n=0;n<=3-l;n++) splines.pop_back(); //For s orbital the last spline has B(R)=1.0 with violates B(R)=0 boundary condition for 1/r prefactor.
     ns=norms();
-    assert(size()==splines.size());
-    assert(size()==ns.size());
+    assert(ns.size()==splines.size());
+    assert(ns.size()==ns.size());
 };
 
 
