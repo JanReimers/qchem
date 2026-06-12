@@ -16,31 +16,31 @@ namespace BasisSet::Atom::Evaluators::Gaussian
 //
 //  Start member functions.
 //
-std::string Evaluator::Name() const
+std::string Radial::Name() const
 {
     return "SG ";
 }
 
-std::string Evaluator::RadialType() const
+std::string Radial::RadialType() const
 {
     std::ostringstream os;
     os << "SG";
     return os.str();
 }
 
-Cache4*    Evaluator::MakeCache4() const
+Cache4*    Radial::MakeCache4() const
 {
     return new Gaussian_Cache4();
 }
 
-rvec_t Evaluator::exponents(size_t N, double emin, double emax, const sym_t& ir)
+rvec_t Radial::exponents(size_t N, double emin, double emax, const sym_t& ir)
 {
     size_t LMax=3; //TODO how do we get the real LMax(Z) into this?
     ::Gaussian::ExponentScaler ss(N,emin,emax,LMax);
     return ss.Get_es(ir);
 }
 
-rvec_t Evaluator::norms() const
+rvec_t Radial::norms() const
 {
     size_t N=es.size();    
     rvec_t ret(N);
@@ -49,12 +49,12 @@ rvec_t Evaluator::norms() const
 }
 
 
-rvec_t Evaluator::operator() (const rvec3_t& r) const
+rvec_t Radial::operator() (const rvec3_t& r) const
 {
     return gaussian(norm(r),l,es,ns); 
 }
 
-rvec3vec_t Evaluator::Gradient(const rvec3_t& r) const
+rvec3vec_t Radial::Gradient(const rvec3_t& r) const
 {
     rvec3vec_t ret(size());
     double mr=norm(r);
@@ -70,7 +70,7 @@ rvec3vec_t Evaluator::Gradient(const rvec3_t& r) const
     return ret;
 }
 
-std::ostream&  Evaluator::Write(std::ostream& os) const
+std::ostream&  Radial::Write(std::ostream& os) const
 {
     return os << " with N=" << es.size() << " basis functions, alpha={" << es[0] << " ... " << es[size()-1] << "}" << std::endl;
 }

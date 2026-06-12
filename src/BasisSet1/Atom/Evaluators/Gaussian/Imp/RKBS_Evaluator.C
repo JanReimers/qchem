@@ -12,8 +12,9 @@ namespace BasisSet::Atom::Evaluators::Gaussian
 {
 
 RKBS_Evaluator::RKBS_Evaluator(size_t N, double emin, double emax, int _κ, int l)
-    : Evaluator(N,emin,emax,Symmetry::YFactory())
-    , κ(_κ) 
+    : Evaluators::Evaluator(l)
+    , Evaluator(Radial::exponents(N,emin,emax,Symmetry::YFactory()), l)
+    , κ(_κ)
 {
     ns=norms();
 }
@@ -24,17 +25,16 @@ std::string RKBS_Evaluator::Name() const
 
 rvec_t RKBS_Evaluator::norms() const
 {
-    return Evaluator::norms()/(2*c_light);
+    return Radial::norms()/(2*c_light);
 }
-
 
 rvec_t RKBS_Evaluator::eval(const rvec3_t& r) const
 {
+    int κ = Getκ();
     double mr=norm(r);
     rvec_t f=-2*es*mr;
-    if (κ >0) 
+    if (κ>0)
         f+=(2*κ+1)/mr;
-    
     return f*gaussian(mr,l,es,ns);
 }
 

@@ -3,8 +3,9 @@ module;
 #include <bspline/Core.h>
 #include <cassert>
 export module qchem.BasisSet.Atom.Evaluators.BSpline.IBS;
-import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.Common;
+import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.Common; // re-exports NR_Angular
 import qchem.BasisSet.Atom.Evaluators.Concepts;
+import qchem.Symmetry.Spherical;
 import qchem.BasisSet.Internal.Cache4;
 // import qchem.Symmetry;
 import qchem.Math;
@@ -17,7 +18,7 @@ using namespace bspline::operators;
 //
 //  This version is for phi(r) = sum(Bi(r),i)
 // 
-template <size_t K> class Evaluator : public Internal::EvaluatorCommon<K>
+template <size_t K> class Evaluator : public Internal::EvaluatorCommon<K>, public NR_Angular
 {
     using spline_t=Internal::EvaluatorCommon<K>::spline_t;
     using Internal::EvaluatorCommon<K>::splines;

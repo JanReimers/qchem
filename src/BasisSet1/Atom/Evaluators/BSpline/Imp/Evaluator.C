@@ -10,6 +10,7 @@ module qchem.BasisSet.Atom.Evaluators.BSpline.IBS;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.Rk;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.SplineGrouper;
 import qchem.BasisSet.Atom.Evaluators.IBS;
+import qchem.Symmetry.Spherical;
 import qchem.Math;
 
 namespace BasisSet::Atom::Evaluators::BSpline
@@ -45,8 +46,10 @@ template<size_t K> using spline_t = bspline::Spline<double, K>;
 //  Start member functions.
 //
 
-template <size_t K> Evaluator<K>::Evaluator(size_t Ngrid, double rmin, double rmax,const sym_t& ylm) 
-: Internal::EvaluatorCommon<K>(Ngrid,rmin,rmax,ylm)
+template <size_t K> Evaluator<K>::Evaluator(size_t Ngrid, double rmin, double rmax,const sym_t& ylm)
+: Evaluators::Evaluator(Symmetry::Getl(ylm))  // virtual base - must be explicit here
+, Internal::EvaluatorCommon<K>(Ngrid,rmin,rmax,ylm)
+, NR_Angular(Symmetry::Getmls(ylm))
 {
     for (size_t n=0;n<=3-l;n++) splines.pop_back(); //For s orbital the last spline has B(R)=1.0 with violates B(R)=0 boundary condition for 1/r prefactor.
     ns=norms();

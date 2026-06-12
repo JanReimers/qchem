@@ -7,6 +7,7 @@ export import qchem.BasisSet.Orbital_HF_IBS;
 export import qchem.Symmetry.ElectronConfiguration;
 
 import qchem.BasisSet.Fit_IBS;
+import qchem.BasisSet.Atom.Evaluators.IBS;
 import qchem.BasisSet.Atom.Evaluators.Concepts;
 import qchem.BasisSet.Atom.IBS;
 import qchem.BasisSet.Internal.BasisSetImp;
@@ -19,6 +20,7 @@ namespace BasisSet {
 namespace Atom {
 
 using namespace Evaluators;
+using EvaluatorsBase = Evaluators::Evaluator;
 
 template <isFull_NR_Evaluator Evaluator> class BasisSet_HF
     : public virtual Real_BS
@@ -35,13 +37,15 @@ public:
     {
     public:
         EOrbital_HF_IBS(size_t N, double rmin, double rmax, const sym_t& yl)
-        : IrrepBasisSetImp<Evaluator>(yl)
+        : EvaluatorsBase(yl)
+        , IrrepBasisSetImp<Evaluator>(yl)
         , Evaluator(N,rmin,rmax,yl)
         {
             theGlobalCache->Register(this); //Can this move to the evaluator level?
         };
         EOrbital_HF_IBS(const rvec_t& es, const sym_t& yl, size_t ltrim=0)
-        : IrrepBasisSetImp<Evaluator>(yl)
+        : EvaluatorsBase(yl)
+        , IrrepBasisSetImp<Evaluator>(yl)
         , Evaluator(es,yl,ltrim)
         {
             theGlobalCache->Register(this);
@@ -87,13 +91,15 @@ public:
     {
     public:
         Orbital_1E_HF_IBS(size_t N, double rmin, double rmax, const sym_t& yl)
-        : IrrepBasisSetImp<Evaluator>(yl)
+        : EvaluatorsBase(yl)
+        , IrrepBasisSetImp<Evaluator>(yl)
         , Evaluator(N,rmin,rmax,yl)
         {
             theGlobalCache->Register(this);
         };
         Orbital_1E_HF_IBS(const rvec_t& es, const sym_t& yl)
-        : IrrepBasisSetImp<Evaluator>(yl)
+        : EvaluatorsBase(yl)
+        , IrrepBasisSetImp<Evaluator>(yl)
         , Evaluator(es,yl)
         {
             theGlobalCache->Register(this);
@@ -127,7 +133,8 @@ public:
     {
     public:
         EOrbital_RKBL_IBS(size_t N, double rmin, double rmax, const sym_t& yl)
-        : IrrepBasisSetImp<LEvaluator>(yl)
+        : EvaluatorsBase(yl)
+        , IrrepBasisSetImp<LEvaluator>(yl)
         , LEvaluator(N,rmin,rmax,yl)
         {};
 
@@ -146,7 +153,8 @@ public:
     {
     public:
         EOrbital_RKBS_IBS(size_t N, double rmin, double rmax, const sym_t& yl)
-        : IrrepBasisSetImp<SEvaluator>(yl)
+        : EvaluatorsBase(0)
+        , IrrepBasisSetImp<SEvaluator>(yl)
         , SEvaluator(N,rmin,rmax,-1,0) //fix κ=-1, l=0
         {};
 

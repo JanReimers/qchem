@@ -26,6 +26,7 @@ namespace Atom
 {
 
     using namespace Evaluators;
+    using EvaluatorsBase = Evaluators::Evaluator;
 //
 //  Common IrrepBasisSet functionality for atom basis sets.  All the work is done by the evaluator
 //
@@ -113,7 +114,7 @@ template <isFit_Evaluator Evaluator> class EFit_IBS
 {
     using IrrepBasisSetImp<Evaluator>::Cast;
 public:
-    EFit_IBS(const Evaluator& e) : IrrepBasisSetImp<Evaluator>(Symmetry::YFactory()), Evaluator(e) {};
+    EFit_IBS(const Evaluator& e) : EvaluatorsBase(static_cast<const EvaluatorsBase&>(e)), IrrepBasisSetImp<Evaluator>(Symmetry::YFactory()), Evaluator(e) {};
 
     virtual rsmat_t MakeRepulsion(                ) const 
     {
@@ -270,7 +271,7 @@ template <isHF_Evaluator E> ERI4 Orbital_HF_IBS<E>::MakeDirect(const BasisSet::O
     assert(BasisSet::theGlobalCache);
     size_t spanab=a.maxSpan(),spancd=c.maxSpan();
     size_t Na=a.size(), Nc=c.size();
-    rvec11_t Akac=Evaluator::Coulomb_AngularIntegrals(a,c);
+    rvec11_t Akac=a.CoulombAk(c);
     const Cache4* Rk_cache=BasisSet::theGlobalCache->GetCache4(a.RadialType());
     ERI4 J(Na,Nc);
 
@@ -316,7 +317,7 @@ template <isHF_Evaluator E> ERI4 Orbital_HF_IBS<E>::MakeExchange(const BasisSet:
     size_t spanab=a.maxSpan(),spancd=c.maxSpan();
     size_t Na=a.size(), Nc=c.size();
     int la=a.Getl(), lc=c.Getl();
-    rvec11_t Akac=Evaluator::ExchangeAngularIntegrals(a,c);
+    rvec11_t Akac=a.ExchangeAk(c);
     const Cache4* Rk_cache=BasisSet::theGlobalCache->GetCache4(a.RadialType());
 
     ERI4 K(Na,Nc);

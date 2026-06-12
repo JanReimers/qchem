@@ -1,5 +1,5 @@
-# add_library(qcAtom_BS1) 
-target_sources(qcAtom_BS1 PRIVATE 
+# add_library(qcAtom_BS1)
+target_sources(qcAtom_BS1 PRIVATE
     Imp/Evaluator.C
     Internal/Imp/AngularIntegrals.C
     Internal/Imp/ExponentGrouper.C
@@ -7,8 +7,10 @@ target_sources(qcAtom_BS1 PRIVATE
     Internal/Imp/Wigner3j.C
     Internal/Imp/RelWigner3j.C
     Internal/Imp/RelAngularIntegrals.C
+    Internal/Imp/NR_Angular.C
+    Internal/Imp/RKBL_Angular.C
 )
-target_sources(qcAtom_BS1 PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
+target_sources(qcAtom_BS1 PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Evaluator.C
     Concepts.C
     Internal/Rk.C
@@ -16,12 +18,14 @@ target_sources(qcAtom_BS1 PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Internal/Wigner3j.C
     Internal/RelWigner3j.C
     Internal/RelAngularIntegrals.C
+    Internal/NR_Angular.C
+    Internal/RKBL_Angular.C
     Internal/ExponentGrouper.C
     Internal/Exponential_Evaluator.C
     Internal/FillPower.C
     Internal/PascalTriangle.C
 )
-# target_include_directories(qcAtom_BS1 PRIVATE 
+# target_include_directories(qcAtom_BS1 PRIVATE
 #     ${PROJECT_SOURCE_DIR}/submodules/BSplinebasis/include
 #     ${PROJECT_SOURCE_DIR}/submodules/wignerSymbols/include
 #     ${PROJECT_SOURCE_DIR}/submodules/json/single_include

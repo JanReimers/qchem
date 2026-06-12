@@ -5,6 +5,7 @@ module;
 
 export module qchem.BasisSet.Atom.Evaluators.BSpline.Internal.Common;
 export import qchem.BasisSet.Atom.Evaluators.IBS;
+export import qchem.BasisSet.Atom.Evaluators.Internal.NR_Angular;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.Rk;
 
 // required by Cache4
@@ -26,7 +27,7 @@ std::ostream& operator<<(std::ostream& os, const bspline::Grid<double>& grid)
 }
 
 
-template <size_t K> class EvaluatorCommon : public Evaluators::Evaluator
+template <size_t K> class EvaluatorCommon : public virtual Evaluators::Evaluator
 {
 protected:
     typedef bspline::Spline<double, K> spline_t;

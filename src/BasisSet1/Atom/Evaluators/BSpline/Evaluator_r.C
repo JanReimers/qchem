@@ -18,7 +18,7 @@ using namespace bspline::operators;
 //
 //  This version is for phi(r) = 1/r*sum(Bi(r),i).
 // 
-template <size_t K> class Evaluator_r : public Internal::EvaluatorCommon<K>
+template <size_t K> class Evaluator_r : public Internal::EvaluatorCommon<K>, public NR_Angular
 {
     using spline_t=Internal::EvaluatorCommon<K>::spline_t;
     using Internal::EvaluatorCommon<K>::splines;

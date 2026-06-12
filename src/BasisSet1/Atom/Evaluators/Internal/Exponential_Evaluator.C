@@ -4,19 +4,20 @@ module;
 #include <blaze/math/views/Subvector.h>
 export module qchem.BasisSet.Atom.Evaluators.Internal.ExponentialEvaluator;
 export import qchem.BasisSet.Atom.Evaluators.IBS;
+import qchem.Symmetry.Spherical;
 
 export namespace BasisSet::Atom::Evaluators
 {
     
-class ExponentialEvaluator : public Evaluator
+class ExponentialEvaluator : public virtual Evaluator
 {
 public:
-    ExponentialEvaluator(const   rvec_t& _es, int l, const ivec_t& mls) 
-        : Evaluator(l,mls), es(_es )
+    ExponentialEvaluator(const rvec_t& _es, int l)
+        : Evaluator(l), es(_es)
         , isEvenTempered(EvenTempered(es))
         {};
-    ExponentialEvaluator(const   rvec_t& _es, const sym_t& ir, size_t ltrim=0) 
-        : Evaluator(ir), es() 
+    ExponentialEvaluator(const rvec_t& _es, const sym_t& ir, size_t ltrim=0)
+        : Evaluator(Symmetry::Getl(ir)), es()
         , isEvenTempered(EvenTempered(es))
         {
             assert(ltrim<5);

@@ -6,13 +6,14 @@ module;
 
 module qchem.BasisSet.Atom.Evaluators.BSpline.Internal.Common;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.SplineGrouper;
+import qchem.Symmetry.Spherical;
 import qchem.Math;
 
 namespace BasisSet::Atom::Evaluators::BSpline::Internal
 {
 
-template <size_t K> EvaluatorCommon<K>::EvaluatorCommon(size_t Ngrid, double _rmin, double _rmax,const sym_t& ylm) 
-: Evaluator(ylm)
+template <size_t K> EvaluatorCommon<K>::EvaluatorCommon(size_t Ngrid, double _rmin, double _rmax,const sym_t& ylm)
+: Evaluators::Evaluator(Symmetry::Getl(ylm)) // placeholder; overridden by most-derived class with virtual Evaluator
 , rmin(_rmin), rmax(_rmax) , itsGrid({0,1})
 {
     knots=MakeLogKnots(Ngrid,rmin,rmax);

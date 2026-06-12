@@ -2,33 +2,29 @@
 module;
 #include <iosfwd>
 #include <blaze/Math.h>
-export module qchem.BasisSet.Atom.Evaluators.Gaussian.IBS; 
+export module qchem.BasisSet.Atom.Evaluators.Gaussian.IBS;
 import qchem.BasisSet.Atom.Evaluators.Internal.ExponentialEvaluator;
-import qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.GaussianIntegrals; 
-import qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.Rk; 
+import qchem.BasisSet.Atom.Evaluators.Internal.NR_Angular;
+import qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.GaussianIntegrals;
+import qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.Rk;
 import qchem.BasisSet.Atom.Evaluators.Concepts;
-//import qchem.Symmetry;
+import qchem.Symmetry.Spherical;
 import qchem.IntPow;
-
 import qchem.BasisSet.Internal.Cache4;
 
 
 export namespace BasisSet::Atom::Evaluators::Gaussian
 {
-class Evaluator : public ExponentialEvaluator
-{
-public: 
- 
-    Evaluator(const rvec_t& es, int l, const ivec_t& mls) : ExponentialEvaluator(es,l,mls) {ns=norms();}
-    Evaluator(const rvec_t& es, int l) : Evaluator(es,l,{}) {}
-    Evaluator(const rvec_t& es, const sym_t& ir, size_t ltrim=0) : ExponentialEvaluator(es,ir,ltrim) {ns=norms();}
-    Evaluator(size_t N, double emin, double emax, const sym_t& ir) 
-    : ExponentialEvaluator(exponents(N,emin,emax,ir),ir) {ns=norms();}
 
-    Evaluator Rescale(double scale_factor) const
-    {
-        return Evaluator(scale_factor*es,0);
-    }
+// Gaussian::Radial holds all Gaussian-specific 1e integrals and Rk machinery,
+// shared between NR (Evaluator) and RKB large component (RKBS_Evaluator).
+class Radial : public ExponentialEvaluator
+{
+public:
+    Radial(const rvec_t& _es, int l) : Evaluators::Evaluator(l), ExponentialEvaluator(_es,l) {ns=norms();}
+    Radial(const rvec_t& _es, const sym_t& ir, size_t ltrim=0)
+        : Evaluators::Evaluator(Symmetry::Getl(ir)), ExponentialEvaluator(_es,ir,ltrim) {ns=norms();}
+
     virtual std::ostream& Write   (std::ostream&) const;
 
     double Overlap(size_t i,size_t j) const
@@ -43,43 +39,43 @@ public:
                 -2*l1 * t      * ::Gaussian::Integral(t,2*l  )
                 +4*es[i]*es[j] * ::Gaussian::Integral(t,2*l+2))*ns[i]*ns[j] ;
     } 
-    double Grad2(size_t i,size_t j, const Evaluator& s) const
+    double Grad2(size_t i,size_t j, const Radial& s) const
     {
         assert(l==s.l);
         double t=es[i]+s.es[j];
         size_t l1=l+1;
         return  (l1*l1           * ::Gaussian::Integral(t,2*l-2)
                 -2*l1 * t        * ::Gaussian::Integral(t,2*l  )
-                +4*es[i]*s.es[j] * ::Gaussian::Integral(t,2*l+2))*ns[i]*s.ns[j] ; 
-    } 
+                +4*es[i]*s.es[j] * ::Gaussian::Integral(t,2*l+2))*ns[i]*s.ns[j] ;
+    }
     double Inv_r1(size_t i,size_t j) const
     {
         return ::Gaussian::Integral(es[i]+es[j],2*l-1)*ns[i]*ns[j]; //Already has 4*Pi
-    } 
+    }
     double Inv_r2(size_t i,size_t j) const
     {
         return ::Gaussian::Integral(es[i]+es[j],2*l-2)*ns[i]*ns[j]; //Already has 4*Pi
-    } 
-    double Inv_r2(size_t i,size_t j, const Evaluator& b) const
+    }
+    double Inv_r2(size_t i,size_t j, const Radial& b) const
     {
-        assert(l==b.l);       
+        assert(l==b.l);
         return ::Gaussian::Integral(es[i]+b.es[j],2*l-2)*ns[i]*b.ns[j]; //Already has 4*Pi
-    } 
-    double Overlap(size_t i,size_t j, const Evaluator& c, size_t ic) const
+    }
+    double Overlap(size_t i,size_t j, const Radial& c, size_t ic) const
     {
         return ::Gaussian::Integral(es[i]+es[j]+c.es[ic],2*l+c.l)*ns[i]*ns[j]*c.ns[ic]; //Already has 4*Pi and r^2 from dr.
-    } 
-    double Repulsion(size_t i,size_t j, const Evaluator& c, size_t ic) const
+    }
+    double Repulsion(size_t i,size_t j, const Radial& c, size_t ic) const
     {
         ::Gaussian::RkEngine cd(es[i]+es[j],c.es[ic],std::max(l,c.l));
         return cd.Coulomb_R0(l,c.l)*FourPi2*ns[i]*ns[j]*c.ns[ic];
-    } 
+    }
     double Repulsion(size_t i,size_t j) const
     {
         ::Gaussian::RkEngine cd(es[i],es[j],l);
         return cd.Coulomb_R0(l,l)*FourPi2*ns[i]*ns[j];
     }
-    double Repulsion(size_t i,size_t j, const Evaluator& b) const
+    double Repulsion(size_t i,size_t j, const Radial& b) const
     {
         ::Gaussian::RkEngine cd(es[i],b.es[j],std::max(l,b.l));
         return cd.Coulomb_R0(l,b.l)*FourPi2*ns[i]*b.ns[j];
@@ -128,6 +124,24 @@ protected:
     }
 };
 
+// NR HF evaluator: Gaussian radial + NR angular.
+class Evaluator : public Radial, public NR_Angular
+{
+public:
+    Evaluator(const rvec_t& es, int l, const ivec_t& mls={})
+        : Evaluators::Evaluator(l), Radial(es,l), NR_Angular(mls) {}
+    Evaluator(const rvec_t& es, const sym_t& ir, size_t ltrim=0)
+        : Evaluators::Evaluator(Symmetry::Getl(ir))
+        , Radial(es,ir,ltrim)
+        , NR_Angular(Symmetry::Getmls(ir)) {}
+    Evaluator(size_t N, double emin, double emax, const sym_t& ir)
+        : Evaluators::Evaluator(Symmetry::Getl(ir))
+        , Radial(Radial::exponents(N,emin,emax,ir),ir)
+        , NR_Angular(Symmetry::Getmls(ir)) {}
+
+    Evaluator Rescale(double scale_factor) const { return Evaluator(scale_factor*es,l); }
+};
+
 static_assert(isGeneric_Evaluator<Evaluator>);
 static_assert(is1E_Evaluator     <Evaluator>);
 static_assert(isFit_Evaluator    <Evaluator>);
@@ -164,20 +178,20 @@ private:
     ExponentGrouper grouper;
 };
 
+// RKB small-component evaluator: shares Gaussian radial with NR Evaluator.
 class RKBS_Evaluator : public Evaluator
 {
 public:
-    RKBS_Evaluator(const rvec_t& es, int _κ, int l, const ivec_t& mls) : Evaluator(es,l,mls), κ(_κ) {ns=norms();}
-    RKBS_Evaluator(const rvec_t& es, int _κ, int l) : RKBS_Evaluator(es,_κ,l,{}) {}
-    RKBS_Evaluator(size_t N, double emin, double emax, int _κ, int l);
-    virtual rvec_t norms() const; //assumes es,l are already initialized
+    RKBS_Evaluator(const rvec_t& es, int _κ, int l)
+        : Evaluators::Evaluator(l), Evaluator(es,l), κ(_κ) {ns=norms();}
+    int Getκ() const { return κ; }
+    RKBS_Evaluator(size_t N, double emin, double emax, int κ, int l);
+    virtual rvec_t norms() const;
     double Inv_r1(size_t i,size_t j) const
     {
-        // return 4*es[i]*es[j]*::Gaussian::Integral(es[i]+es[j],2*l+1)*ns[i]*ns[j]; //Already has 4*Pi
         double p=es[i]+es[j];
         return 8*Pi*es[i]*es[j]/(p*p)*ns[i]*ns[j];
-    }    
-    
+    }
 
     virtual rvec_t     operator() (const rvec3_t&) const;
     virtual rvec3vec_t Gradient   (const rvec3_t&) const;
@@ -185,14 +199,14 @@ public:
     virtual std::string Name() const;
 
 private:
+    int    κ;
     rvec_t eval(const rvec3_t&) const;
-    int κ;
 };
 
 static_assert(isGeneric_Evaluator<RKBS_Evaluator>);
 static_assert(is1E_Evaluator     <RKBS_Evaluator>);
-static_assert(isFit_Evaluator    <RKBS_Evaluator>); 
-static_assert(isDFT_Evaluator    <RKBS_Evaluator>); 
+static_assert(isFit_Evaluator    <RKBS_Evaluator>);
+static_assert(isDFT_Evaluator    <RKBS_Evaluator>);
 static_assert(isRKBL_Evaluator   <RKBS_Evaluator>);
 
 
