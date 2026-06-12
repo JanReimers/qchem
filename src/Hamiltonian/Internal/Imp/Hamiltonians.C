@@ -74,14 +74,23 @@ Ham_DHF_1E::Ham_DHF_1E(const cl_t& cl)
     //Add(new Vnn(cl));
 }
 
-Ham_DHF::Ham_DHF(const cl_t& cl)
+Ham_DHF_U::Ham_DHF_U(const cl_t& cl)
 {
     Add(new DiracKinetic());
     Add(new RestMass());
     //Add(new Vnn(cl));
     Add(new Ven(cl));
-    // Add(new Vee());
-    // Add(new VxcPol());
+    Add(new Vee());
+    Add(new Vxc());
+}
+Ham_DHF_P::Ham_DHF_P(const cl_t& cl)
+{
+    Add(new DiracKinetic());
+    Add(new RestMass());
+    //Add(new Vnn(cl));
+    Add(new Ven(cl));
+    Add(new Vee());
+    Add(new VxcPol());
 }
 
 } //namespace

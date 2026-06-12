@@ -26,8 +26,7 @@ namespace qchem::Hamiltonian
                         h=new Ham_DHF_1E(cl);
                         break;
                     case Model::DHF:
-                        assert(false); //DHF is always polarized?
-                        h=new Ham_DHF(cl);
+                        h=new Ham_DHF_U(cl);
                         break;
                 }
                 break;
@@ -46,7 +45,7 @@ namespace qchem::Hamiltonian
                     h=new Ham_DHF_1E(cl);
                     break;
                 case Model::DHF:
-                    h=new Ham_DHF(cl);
+                    h=new Ham_DHF_P(cl);
                     break;
                 }
             break;

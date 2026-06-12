@@ -63,12 +63,18 @@ public:
 };
 
 //
-//  Dirac-Hartree-Fock (which is polarized by definition).
+//  Dirac-Hartree-Fock.
 //
-class Ham_DHF : public virtual Hamiltonian, private HamiltonianImp
+class Ham_DHF_U : public virtual Hamiltonian, private HamiltonianImp
 {
 public:
-    Ham_DHF(const cl_t& cl);
+    Ham_DHF_U(const cl_t& cl);
+};
+
+class Ham_DHF_P : public virtual Hamiltonian, private HamiltonianImp
+{
+public:
+    Ham_DHF_P(const cl_t& cl);
 };
 
 } //namespace
