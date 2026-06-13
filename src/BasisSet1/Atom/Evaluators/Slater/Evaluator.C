@@ -131,27 +131,27 @@ protected:
 };
 
 // NR HF evaluator: Slater radial + NR angular.
-class Evaluator : public Radial, public NR_Angular
+class NR_Evaluator : public Radial, public NR_Angular
 {
 public:
-    Evaluator(const rvec_t& es, int l, const ivec_t& mls={})
+    NR_Evaluator(const rvec_t& es, int l, const ivec_t& mls={})
         : Radial(es,l), NR_Angular(l,mls) {}
-    Evaluator(const rvec_t& es, const sym_t& ir, size_t ltrim=0)
+    NR_Evaluator(const rvec_t& es, const sym_t& ir, size_t ltrim=0)
         : Radial(es,ir,ltrim)
         , NR_Angular(ir) {}
-    Evaluator(size_t N, double emin, double emax, const sym_t& ir)
+    NR_Evaluator(size_t N, double emin, double emax, const sym_t& ir)
         : Radial(Radial::exponents(N,emin,emax,ir),ir)
         , NR_Angular(ir) {}
 
-    Evaluator Rescale(double scale_factor) const { return Evaluator(scale_factor*es,Radial::l); }
+    NR_Evaluator Rescale(double scale_factor) const { return NR_Evaluator(scale_factor*es,Radial::l); }
 };
 
-static_assert(isGeneric_Evaluator<Evaluator>);
-static_assert(is1E_Evaluator     <Evaluator>);
-static_assert(isFit_Evaluator    <Evaluator>);
-static_assert(isDFT_Evaluator    <Evaluator>);
-static_assert(isRKBL_Evaluator   <Evaluator>);
-static_assert(isHF_Evaluator     <Evaluator>);
+static_assert(isGeneric_Evaluator<NR_Evaluator>);
+static_assert(is1E_Evaluator     <NR_Evaluator>);
+static_assert(isFit_Evaluator    <NR_Evaluator>);
+static_assert(isDFT_Evaluator    <NR_Evaluator>);
+static_assert(isRKBL_Evaluator   <NR_Evaluator>);
+static_assert(isHF_Evaluator     <NR_Evaluator>);
 
 class Slater_Cache4 : public  Cache4
 {
@@ -185,19 +185,11 @@ private:
 class RKBL_Evaluator : public RKB_Angular, public Radial
 {
 public:
-    // Used only for the rescale operation to make Fit basis sets.
-    // RKBL_Evaluator(const rvec_t& es, int l, const ivec_t& mls={})
-    //     : Radial(es,l), RKB_Angular(l,mls) {}
-
-    // RKBL_Evaluator(const rvec_t& es, const sym_t& ir, size_t ltrim=0)
-    //     : Radial(es,ir,ltrim)
-    //     , RKB_Angular(ir) {}
     RKBL_Evaluator(size_t N, double emin, double emax, const sym_t& ir)
         : RKB_Angular(ir)
         , Radial(Radial::exponents(N,emin,emax,ir),ir)
         {}
 
-    // Evaluator Rescale(double scale_factor) const { return Evaluator(scale_factor*es,Getl()); }
 };
 
 // RKB small-component evaluator: shares Slater radial with NR Evaluator.
@@ -207,9 +199,6 @@ public:
     RKBS_Evaluator(size_t N, double emin, double emax, const sym_t& ir)
         : RKBL_Evaluator(N,emin,emax,ir)
         {ns=norms();}
-    // RKBS_Evaluator(const rvec_t& es, const sym_t& ir)
-    //     : RKBL_Evaluator(es,ir)
-    //     {ns=norms();}
     rvec_t norms() const;
 
     double Inv_r1(size_t i,size_t j) const
@@ -223,7 +212,6 @@ public:
     virtual std::string Name() const;
 private:
     using Radial::l;
-    // int    κ;
     rvec_t eval(const rvec3_t&) const;
 };
 

@@ -147,15 +147,15 @@ template <isHF_NR_Evaluator E> void BasisSet_Common<E>::TestInv_r2 (double eps) 
 //  Testing atom Slater basis set evaluators
 //
 
-class BasisSet_SL: public BasisSet_Common<Slater::Evaluator>
+class BasisSet_SL: public BasisSet_Common<Slater::NR_Evaluator>
 {
 public:
 
-    BasisSet_SL() : BasisSet_Common<Slater::Evaluator>()
+    BasisSet_SL() : BasisSet_Common<Slater::NR_Evaluator>()
     {
         Atom_EC ec(86); //Radon has f orbtials with no magnetic splitting.
         for (auto ir:ec.GetIrreps())
-            Insert(new Slater::Evaluator(es,ir)); 
+            Insert(new Slater::NR_Evaluator(es,ir)); 
         bs=PoolFactory(BasisSetAccuracy::N3,BasisSet::Atom::Type::Slater,86);
         cout << es << endl << *bs << endl;
     }
@@ -282,7 +282,7 @@ TEST_F(BasisSet_SL,IDs)
 //  Testing atom Gaussian basis set evaluators
 //
 
-class BasisSet_SG: public BasisSet_Common<Gaussian::Evaluator>
+class BasisSet_SG: public BasisSet_Common<Gaussian::NR_Evaluator>
 {
 public:
 
@@ -294,7 +294,7 @@ public:
 
         Atom_EC ec(86); //Radon has f orbtials with no magnetic splitting.
         for (auto ir:ec.GetIrreps())
-            Insert(new Gaussian::Evaluator(es,ir)); 
+            Insert(new Gaussian::NR_Evaluator(es,ir)); 
         bs=PoolFactory(BasisSetAccuracy::N3,BasisSet::Atom::Type::Gaussian,86);
     }
     static double R0(double a, double b, int la, int lb);
