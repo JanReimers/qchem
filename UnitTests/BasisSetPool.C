@@ -1,4 +1,4 @@
-// File: UnitTests/BasisSetPool.H  Define a restricted set of basis sets for all unit tests.  
+// File: UnitTests/BasisSetPool.C  Define a restricted set of basis sets for all unit tests.  
 // The object here is to define restrict collection of atom basis sets so that the global DB_Cache to not get too large.
 module;
 #include <string>
