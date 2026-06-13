@@ -377,6 +377,42 @@ TEST_F(Dirac_EC_Tests, Argon)
     EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,p32)),4);
     EXPECT_EQ(ec.GetN(Irrep(Spin::Down,p32)),4);
 }
+// Closed-shell noble gases beyond Ar.  Each kappa-irrep accumulates all its n-levels,
+// split half/half into Up/Down (Kramers).  GetN(Up,kappa)=GetN(Down,kappa)=N_levels*(2j+1)/2.
+TEST_F(Dirac_EC_Tests, Xenon)
+{
+    Atom_Dirac_EC ec(54); // [Kr]4d10 5s2 5p6 ; 1s..5s(5) 2p..5p(4) 3d,4d(2)
+    sym_t s12=qn(-1); //s1/2  5 levels
+    sym_t p12=qn( 1); //p1/2  4 levels
+    sym_t p32=qn(-2); //p3/2  4 levels
+    sym_t d32=qn( 2); //d3/2  2 levels
+    sym_t d52=qn(-3); //d5/2  2 levels
+
+    EXPECT_EQ(GetN(ec,s12,Spin::Up),5); EXPECT_EQ(GetN(ec,s12,Spin::Down),5);
+    EXPECT_EQ(GetN(ec,p12,Spin::Up),4); EXPECT_EQ(GetN(ec,p12,Spin::Down),4);
+    EXPECT_EQ(GetN(ec,p32,Spin::Up),8); EXPECT_EQ(GetN(ec,p32,Spin::Down),8);
+    EXPECT_EQ(GetN(ec,d32,Spin::Up),4); EXPECT_EQ(GetN(ec,d32,Spin::Down),4);
+    EXPECT_EQ(GetN(ec,d52,Spin::Up),6); EXPECT_EQ(GetN(ec,d52,Spin::Down),6);
+}
+TEST_F(Dirac_EC_Tests, Radon)
+{
+    Atom_Dirac_EC ec(86); // [Xe]4f14 5d10 6s2 6p6 ; s(6) p(5) d(3) f(1)
+    sym_t s12=qn(-1); //s1/2  6 levels
+    sym_t p12=qn( 1); //p1/2  5 levels
+    sym_t p32=qn(-2); //p3/2  5 levels
+    sym_t d32=qn( 2); //d3/2  3 levels
+    sym_t d52=qn(-3); //d5/2  3 levels
+    sym_t f52=qn( 3); //f5/2  1 level
+    sym_t f72=qn(-4); //f7/2  1 level
+
+    EXPECT_EQ(GetN(ec,s12,Spin::Up),6);  EXPECT_EQ(GetN(ec,s12,Spin::Down),6);
+    EXPECT_EQ(GetN(ec,p12,Spin::Up),5);  EXPECT_EQ(GetN(ec,p12,Spin::Down),5);
+    EXPECT_EQ(GetN(ec,p32,Spin::Up),10); EXPECT_EQ(GetN(ec,p32,Spin::Down),10);
+    EXPECT_EQ(GetN(ec,d32,Spin::Up),6);  EXPECT_EQ(GetN(ec,d32,Spin::Down),6);
+    EXPECT_EQ(GetN(ec,d52,Spin::Up),9);  EXPECT_EQ(GetN(ec,d52,Spin::Down),9);
+    EXPECT_EQ(GetN(ec,f52,Spin::Up),3);  EXPECT_EQ(GetN(ec,f52,Spin::Down),3);
+    EXPECT_EQ(GetN(ec,f72,Spin::Up),4);  EXPECT_EQ(GetN(ec,f72,Spin::Down),4);
+}
 // TEST_F(Dirac_EC_Tests, Potassium)
 // {
 //     Atom_Dirac_EC ec(19);
