@@ -432,3 +432,39 @@ TEST_F(DHF_B_Pol,P2p)
     EXPECT_NEAR(e2p,ref,0.02);
 }
 
+//
+// Fine-structure: Xe 5p1/2 vs 5p3/2 splitting (κ>0 small-component nuclear term).
+// The valence np splitting comes entirely from the spin-orbit piece of the small
+// component (κ̃=l+1+κ, nonzero only for j=l-1/2).  Before the fix the code gave
+// exactly zero split; reference 5p1/2=-0.4923, 5p3/2=-0.4395 (split 0.0528).
+class DHF_Xe : public ::testing::Test, public TestDiracAtom
+{
+    public:
+    DHF_Xe() : TestDiracAtom(54,0) {}; //Neutral Xenon
+    virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
+    {
+        return Factory(Model::DHF,Pol::UnPolarized,cluster);
+    }
+};
+TEST_F(DHF_Xe,P5pSplit)
+{
+    QchemTester::Init(Medium,abs_t::Slater_RKB,false);
+    //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo MergeTol verbose
+    Iterate({   50    ,1e-5     ,1e-7  , 3e-5     ,1e-6   ,0.3             ,1e-7   ,true});
+
+    // Valence 5p is the 4th occupied level (2p,3p,4p,5p) -> index 3 in each p irrep.
+    const Orbital *p12=nullptr,*p32=nullptr;
+    for (const auto& ir:GetIrreps(Spin::Up))
+    {
+        if (Symmetry::Getκ(ir.sym)== 1) p12=GetOrbital(3,ir);
+        if (Symmetry::Getκ(ir.sym)==-2) p32=GetOrbital(3,ir);
+    }
+    ASSERT_NE(p12,nullptr); ASSERT_NE(p32,nullptr);
+    double e12=p12->GetEigenEnergy(), e32=p32->GetEigenEnergy();
+    double split=e32-e12, ref=-0.4395-(-0.4923); //=0.0528, 5p1/2 more bound
+    cout << std::setprecision(8) << "Xe 5p1/2=" << e12 << " 5p3/2=" << e32
+         << " split=" << split << " ref=" << ref << endl;
+    EXPECT_GT(split,0.0);                 //5p1/2 more bound than 5p3/2
+    EXPECT_NEAR(split,ref,0.2*ref);       //within 20% of the reference splitting
+}
+
