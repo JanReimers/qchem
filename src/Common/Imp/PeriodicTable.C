@@ -23,8 +23,9 @@ std::ostream& operator<<(std::ostream& os, const OrbitalRecordSaito& o)
 
 std::ostream& operator<<(std::ostream& os, const ElementRecordSaito& e)
 {
-    os << e.Symbol << "(" << e.Z << ") " << e.ValConfigString << " " << e.Term 
-    << " E_HF=" << std::setw(14) << std::setprecision(6) << e.Energy_HF 
+    os << e.Symbol << "(" << e.Z << ") " << e.ValConfigString << " " << e.Term
+    << " E_HF=" << std::setw(14) << std::setprecision(6) << e.Energy_HF
+    << " E_DHF=" << std::setw(14) << std::setprecision(6) << e.Energy_DHF
     << " NUnpaired=" << e.NUnpaired << std::endl;
     // for (auto o:e.Orbitals)
     //     os << o << std::endl;
@@ -38,6 +39,17 @@ OrbitalRecordSaito::OrbitalRecordSaito(nlohmann::json& j) : Symbol(j["name"]),En
 }
 
 std::set<size_t> fullShells({2,10,18,36,54,86,118});
+
+// Relativistic orbital labels in physical (n,l,j) order, matching doc/DHF_GS_Energies_rel.json.
+const std::vector<std::string> theDHFOrbitalLabels({
+    "1s+",
+    "2s+", "2p-", "2p+",
+    "3s+", "3p-", "3p+", "3d-", "3d+",
+    "4s+", "4p-", "4p+", "4d-", "4d+", "4f-", "4f+",
+    "5s+", "5p-", "5p+", "5d-", "5d+", "5f-", "5f+",
+    "6s+", "6p-", "6p+", "6d-", "6d+",
+    "7s+",
+});
 
 ElementRecordSaito::ElementRecordSaito(nlohmann::json& j) : Z(j["Z"]), Symbol(j["symbol"]),  ValConfigString(j["valance"]), Term(j["term"]), MaxL(0), Energy_HF(j["HFEnergy"])
 {
@@ -111,6 +123,25 @@ PeriodicTableSaito::PeriodicTableSaito()
             for (auto& o:e.Orbitals)
             {
                 o.Energy_DFT=jse[o.Symbol].template get<double>();
+            }
+        }
+    }
+    // Read in relativistic DHF data (total energy + spin-orbit split orbital eigenvalues).
+    {
+        std::ifstream file("../../../doc/DHF_GS_Energies_rel.json");
+        assert(file);
+        nlohmann::json jsondata;
+        file >> jsondata;
+        for (auto& jse:jsondata)
+        {
+            size_t Z=jse["Z"].template get<size_t>();
+            ElementRecordSaito& e=elements[Z-1];
+            e.Energy_DHF=jse["TE_rel"].template get<double>();
+            for (const std::string& label:theDHFOrbitalLabels)
+            {
+                const auto& val=jse[label];
+                if (val.is_null()) continue;
+                e.DHFOrbitals.push_back({label,val.template get<double>()});
             }
         }
     }
