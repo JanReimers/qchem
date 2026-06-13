@@ -381,11 +381,7 @@ TEST_F(A_SL_DHF_He,Energy)
     //       NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo MergeTol verbose
     Iterate({   10    ,1e-5     ,1e-7  , 3e-5     ,1e-6   ,0.5             ,1e-7   ,true});
 
-    qchem::EnergyBreakdown eb=GetEnergyBreakdown();
-    double Etotal=eb.GetTotalEnergy();
-    double Eref=-2.86129;
-    cout << std::setprecision(10) << "E_total=" << Etotal << "  E_ref=" << Eref << endl;
-    EXPECT_NEAR(Etotal, Eref, 1e-3);
+    EXPECT_LT(fabs(RelativeDHFError()), 1e-3);
 }
 class A_SG_DHF_He : public DHF_He {};
 TEST_F(A_SG_DHF_He,Energy)
@@ -400,10 +396,6 @@ TEST_F(A_SG_DHF_He,Energy)
     //       NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo MergeTol verbose
     Iterate({   10    ,1e-5     ,1e-7  , 3e-5     ,1e-6   ,0.5             ,1e-7   ,true});
 
-    qchem::EnergyBreakdown eb=GetEnergyBreakdown();
-    double Etotal=eb.GetTotalEnergy();
-    double Eref=-2.86129;
-    cout << std::setprecision(10) << "E_total=" << Etotal << "  E_ref=" << Eref << endl;
-    EXPECT_NEAR(Etotal, Eref, 1e-3);
+    EXPECT_LT(fabs(RelativeDHFError()), 1e-3);
 }
 

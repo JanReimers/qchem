@@ -150,6 +150,12 @@ double QchemTester::RelativeDFTError(bool quiet) const
     return RelativeError(E_DFT,quiet);
 }
 
+double QchemTester::RelativeDHFError(bool quiet) const
+{
+    double E_DHF=itsPT.GetEnergyDHF(itsCluster->GetNuclearCharge());
+    return RelativeError(E_DHF,quiet);
+}
+
 int QchemTester::GetZ() const
 {
     return GetCluster()->GetNuclearCharge();
