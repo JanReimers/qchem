@@ -10,7 +10,7 @@ namespace Symmetry::Internal::Spherical
 
 std::ostream& Yl::Write(std::ostream& os) const
 {
-    return os << SPDFG[itsL] << " ";
+    return os << SPDFG[itsL];
 }
 
 } //namespace

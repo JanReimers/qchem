@@ -85,7 +85,7 @@ template <size_t K> std::string EvaluatorCommon<K>::RadialType() const
 
 template <size_t K> std::ostream&  EvaluatorCommon<K>::Write(std::ostream& os) const
 {
-    return os << " N= " << size() << " basis functions, {" << rmin << " ... " << rmax << "}" << std::endl;
+    return os << " N=" << size() << " α={" << rmin << " ... " << rmax << "}";
 }
 
 template <size_t K> Cache4<K>::Cache4(const bspline::Grid<double>& grid,const func_t& _wp, const func_t& _wm, size_t Kp) 

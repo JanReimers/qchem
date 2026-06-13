@@ -35,7 +35,7 @@ size_t Ωκ::GetDegeneracy() const
 std::ostream& Ωκ::Write(std::ostream& os) const
 {
     int jindex=Getj()-0.5;
-    os << SPDFG[Getl()] << j2s[jindex] << " κ=" << std::setw(2) << κ << " ";
+    os << SPDFG[Getl()] << j2s[jindex] << " κ=" << std::setw(2) << κ;
         
     return os;
 }

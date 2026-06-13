@@ -220,7 +220,17 @@ public:
 
     double Inv_r1(size_t i,size_t j) const
     {
-        return es[i]*es[j]*::Slater::Integral(es[i]+es[j],2*l-1)*ns[i]*ns[j]; //Already has 4*Pi
+        // Small-component nuclear attraction <Q|1/r|Q> with Q=((l+1+κ)/r - e)r^l e^-er.
+        // The κ-dependent terms (the spin-orbit piece) vanish for j=l+1/2 (κ<0, l+1+κ=0)
+        // and are present for j=l-1/2 (κ>0, l+1+κ=2l+1), splitting e.g. 2p1/2 from 2p3/2.
+        double ab=es[i]+es[j];
+        double t=es[i]*es[j]*::Slater::Integral(ab,2*l-1);
+        if (Getκ()>0)
+        {
+            double kt=l+1+Getκ();
+            t += kt*kt*::Slater::Integral(ab,2*l-3) - kt*ab*::Slater::Integral(ab,2*l-2);
+        }
+        return t*ns[i]*ns[j]; //Already has 4*Pi
     }
 
     virtual rvec_t     operator() (const rvec3_t&) const;

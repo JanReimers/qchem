@@ -77,7 +77,7 @@ public:
 
     virtual std::ostream& Write(std::ostream& os) const
     {
-        return os << "Orbital RKB IBS " << *itsRKBL << std::endl;
+        return os << "Orbital RKB IBS " << *itsRKBL;
     }
 
 protected:

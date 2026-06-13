@@ -58,6 +58,13 @@ public:
             return new EFit_IBS(Evaluator::Rescale(2.0/3.0));
         }
 
+        virtual std::ostream&  Write(std::ostream& os) const
+        {
+            Orbital_1E_IBS<Evaluator>::Write(os);
+            Evaluator::Write(os);
+            return os << std::endl;
+        }
+
     };
 
     BasisSet_HF(size_t N, double remin, double remax, const ElectronConfiguration& ec)
@@ -99,6 +106,12 @@ public:
         {
             theGlobalCache->Register(this);
         };
+         virtual std::ostream&  Write(std::ostream& os) const
+        {
+            Orbital_1E_IBS<Evaluator>::Write(os);
+            Evaluator::Write(os);
+            return os << std::endl;
+        }
     };
 
     BasisSet_1E_HF(size_t N, double remin, double remax, const ElectronConfiguration& ec)
@@ -141,12 +154,11 @@ public:
             theGlobalCache->Register(this);
         };
 
-
-        virtual std::ostream& Write(std::ostream& os) const
+        virtual std::ostream&  Write(std::ostream& os) const
         {
-            os << " Large=";
+            Orbital_RKBL_IBS<LEvaluator>::Write(os);
             LEvaluator::Write(os);
-            return os;
+            return os << std::endl;
         }
     };
     class EOrbital_RKBS_IBS 
@@ -168,11 +180,12 @@ public:
             theGlobalCache->Register(this);
         };
 
-        virtual std::ostream& Write(std::ostream& os) const
+        virtual std::ostream&  Write(std::ostream& os) const
         {
-            os << " Small=";
+            Orbital_RKBS_IBS<SEvaluator>::Write(os);
             SEvaluator::Write(os);
-            return os;
+            return os << std::endl;
+
         }
     };
     class EOrbital_RKB_IBS 

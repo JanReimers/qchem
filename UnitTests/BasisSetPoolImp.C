@@ -83,7 +83,7 @@ rvec_t GaussianExponents(BasisSetAccuracy acc,size_t Z)
     //  prune for Z
     
     size_t NZ=floor(N-18*(1.-sqrt(Z/100.)));
-    std::cout << "Z,N,NZ=" << Z << " " << N << " " << NZ << std::endl;
+    // std::cout << "Z,N,NZ=" << Z << " " << N << " " << NZ << std::endl;
     exponents=blaze::subvector(exponents,0,NZ);  //Trim off all the large exponents for smaller Z
     if (acc==BasisSetAccuracy::Medium)
     {

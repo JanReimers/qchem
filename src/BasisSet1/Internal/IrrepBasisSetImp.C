@@ -1,6 +1,7 @@
 // File: BasisSet1/Internal/IrrepBasisSetImp.C Implement a generic IrrepBasisSet
 module;
 #include <cassert>
+#include <iostream>
 export module qchem.BasisSet.Internal.IrrepBasisSetImp;
 import qchem.BasisSet.IrrepBasisSet;
 import qchem.Symmetry.Irrep;
@@ -20,7 +21,6 @@ public:
     {
         return Irrep(s,itsSymmetry);
     }
-    
     
 private:
     sym_t itsSymmetry;

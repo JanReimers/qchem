@@ -79,14 +79,14 @@ bool SCFIterator::Iterate(const SCFParams& ipar)
     if (ipar.Verbose)
     {
         cout << endl << endl;
-        cout << " #           Etotal       " << idealVirial << "+V/K    Del(E)  Del(Ro)";
+        cout << " #           Etotal       " << idealVirial << "+V/K    Δ[F,D]    Δρ    ";
         itsAccelerator->ShowLabels(cout);
         cout << "   relax" << endl;
         cout << "                         ";
         cout << "(" << setw(8) << std::scientific << setw(5) << setprecision(0) << ipar.MinVirial  << ")  ";
-        cout << "(" << setw(8) << std::scientific << setw(5) << setprecision(0) << ipar.MinDelE  << ") ";
-        cout << "(" << setw(8) << std::scientific << setw(5) << setprecision(0) << ipar.MinDeltaRo  << ") ";
-        cout << "(" << setw(8) << std::scientific << setw(5) << setprecision(0) << ipar.MinError  << ") ";
+        cout << "(" << setw(8) << std::scientific << setw(5) << setprecision(0) << ipar.MinΔFD  << ")  ";
+        cout << "(" << setw(8) << std::scientific << setw(5) << setprecision(0) << ipar.MinΔρ  << ") ";
+        cout << "(" << setw(8) << std::scientific << setw(5) << setprecision(0) << ipar.MinFD  << ") ";
         cout << endl;
         cout << "----------------------------------------------------------------------------------------------------" << endl;
     }
@@ -138,13 +138,13 @@ bool SCFIterator::Iterate(const SCFParams& ipar)
         // Eoldold=Eold;
         Eold=E;
         FDold=FD;
-        // cout << "ChargeDensityChange    < ipar.MinDeltaRo " << (ChargeDensityChange < ipar.MinDeltaRo) << endl;
-        // cout << "fabs(dFD)              < ipar.MinDelE    " << (fabs(dFD)           < ipar.MinDelE) << endl;
-        // cout << "FD                     < ipar.MinError   " << (FD                 < ipar.MinError) << endl;
+        // cout << "ChargeDensityChange    < ipar.MinΔρ " << (ChargeDensityChange < ipar.MinΔρ) << endl;
+        // cout << "fabs(dFD)              < ipar.MinΔFD    " << (fabs(dFD)           < ipar.MinΔFD) << endl;
+        // cout << "FD                     < ipar.MinFD   " << (FD                 < ipar.MinFD) << endl;
         // cout << "fabs(eb.GetVirial()+2) < ipar.MinVirial  " << (fabs(eb.GetVirial()+2) < ipar.MinVirial) << endl;
-        itsConverged=  ChargeDensityChange < ipar.MinDeltaRo
-                 && fabs(dFD)              < ipar.MinDelE
-                 && FD                     < ipar.MinError
+        itsConverged=  ChargeDensityChange < ipar.MinΔρ
+                 && fabs(dFD)              < ipar.MinΔFD
+                 && FD                     < ipar.MinFD
                  && fabs(eb.GetVirial()+idealVirial) < ipar.MinVirial
                   ;
         // DisplayEigen();
@@ -175,7 +175,7 @@ bool SCFIterator::Iterate(const SCFParams& ipar)
         DisplayEigen();
     }
 
-    return ChargeDensityChange <= ipar.MinDeltaRo;
+    return ChargeDensityChange <= ipar.MinΔρ;
 }
 
 

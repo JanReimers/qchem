@@ -17,7 +17,7 @@ public:
     template<class Archive>  void save(Archive & archive) const
     {
         niter=itsNIter->get_value_as_int();
-        min_dro=Glib::Ascii::strtod(itsMinDeltaRo->get_text());
+        min_dro=Glib::Ascii::strtod(itsMinΔρ->get_text());
         ro_relax=Glib::Ascii::strtod(itsRoRelax->get_text());
         verbose=itsVerbose->get_active();
         archive( niter, min_dro, ro_relax,verbose); // serialize things by passing them to the archive
@@ -26,14 +26,14 @@ public:
     {
         archive( niter, min_dro, ro_relax,verbose);
         itsNIter->set_value(niter);
-        itsMinDeltaRo->set_text(Glib::Ascii::dtostr(min_dro));
+        itsMinΔρ->set_text(Glib::Ascii::dtostr(min_dro));
         itsRoRelax->set_text(Glib::Ascii::dtostr(ro_relax));
         itsVerbose->set_active(verbose);
     }
 
 private:
     Gtk::SpinButton*  itsNIter;
-    Gtk::Entry*       itsMinDeltaRo;
+    Gtk::Entry*       itsMinΔρ;
     Gtk::Entry*       itsRoRelax;
     Gtk::CheckButton* itsVerbose;
 

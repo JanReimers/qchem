@@ -8,6 +8,7 @@ export import qchem.BasisSet.Atom.Evaluators.Internal.ExponentGrouper;
 export import qchem.BasisSet.Internal.ERI3;
 export import qchem.Symmetry.Irrep;
 export import qchem.VectorFunction;
+export import qchem.Streamable;
 
 import qchem.BasisSet.Internal.Cache4;
 
@@ -20,6 +21,7 @@ using dERI3=ERI3<double>;
 //
 class Evaluator
     : public virtual Cache4_Client
+    , public virtual Streamable
     , public VectorFunction<double> //Try virtual and get: virtual function 'VectorFunction<double>::GetVectorSize' has more than one final overrider in ...
 {
 public:

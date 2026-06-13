@@ -59,7 +59,7 @@ bool verbose=false;
 #ifndef DEBUG
 TEST_F(M_PG_HF_U,N2)
 {
-    //   NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo MergeTol verbose
+    //   NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo MergeTol verbose
     Iterate({20,1e-4,1e-7,1e-13,1e-5,1.0,1e-4,verbose});
     double rerr=fabs((TotalEnergy()-E_N2)/E_N2);
     EXPECT_LT(rerr,1e-2);
@@ -68,7 +68,7 @@ TEST_F(M_PG_HF_U,N2)
 
 TEST_F(M_PG_DFT_U,N2)
 {
-    //   NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo MergeTol verbose
+    //   NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo MergeTol verbose
     Iterate({20,1e-4,1e-7,1e-13,1e-5,1.0,1e-4,verbose});
     double rerr=fabs((TotalEnergy()-E_N2)/E_N2);
     EXPECT_LT(rerr,1e-2);

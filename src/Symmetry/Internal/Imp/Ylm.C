@@ -56,13 +56,13 @@ std::ostream& Ylm::Write(std::ostream& os) const
     os << SPDFG[itsL] << " ";
     if (mls.size()<2*(size_t)itsL+1)
     {
-        os << "[";
+        os << "{";
         for (auto ml:mls)
         {
             size_t w=width(ml);
             os << std::setw(w) << ml << " ";
         }
-        os << "]";
+        os << "}";
 
     }
    

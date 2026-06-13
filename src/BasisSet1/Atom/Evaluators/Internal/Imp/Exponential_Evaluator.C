@@ -24,13 +24,13 @@ std::string ExponentialEvaluator::RadialID () const
     std::ostringstream os;
     if (isEvenTempered)
     {
-        os << Name() << "N=" << es.size() << " {";
+        os << Name() << " N=" << es.size() << " {";
         if (es.size()>0) os << es[0];
         if (es.size()>1) os << " ... " << es[es.size()-1];
     }
     else
     {
-        os << Name() << "{";
+        os << Name() << " {";
         for (auto e:es) os << e << " ";
     }
     os << "}";

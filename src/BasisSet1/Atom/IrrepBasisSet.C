@@ -46,7 +46,6 @@ public:
     virtual std::string RadialID () const {return Cast().RadialID();}
     virtual std::string AngularID() const {return Cast().AngularID();}
     virtual std::string Name     () const {return Cast().Name();}
-
 protected:
     auto& Cast() const {return dynamic_cast<const E&>(*this);}
 };
@@ -147,9 +146,7 @@ public:
     }
     virtual std::ostream&  Write(std::ostream& os) const
     {
-        os << "Atom fit IBS ";
-        Evaluator::Write(os);
-        return os;
+        return os << "Atom fit IBS " << Name() << " " << GetSymmetry();
     }
 
 };
@@ -166,11 +163,7 @@ template <is1E_Evaluator E> class Orbital_1E_IBS
 public:
     virtual std::ostream&  Write(std::ostream& os) const
     {
-        os << "Orbital IBS " << Name() << " ";
-        os << "Symmetry=" << GetSymmetry() << " ";
-        auto& e=dynamic_cast<const E&>(*this);
-        e.Write(os);
-        return os;
+        return os << Name() << " " << GetSymmetry();
     }
 };
 
@@ -247,6 +240,10 @@ public:
 
         return S;
     }
+    virtual std::ostream&  Write(std::ostream& os) const
+    {
+        return os << Name() << " " << GetSymmetry();
+    }
 };
 
 template <is1E_Evaluator E> class Orbital_RKBS_IBS
@@ -254,10 +251,16 @@ template <is1E_Evaluator E> class Orbital_RKBS_IBS
     , public Integrals_Kinetic<E>
     , public Integrals_Nuclear<E> //RKBS Evaluator overrides Inv_r1 definition
 {
+public:
     virtual rsmat_t MakeOverlap() const
     {
         return Integrals_Kinetic<E>::MakeKinetic();
     }
+    virtual std::ostream&  Write(std::ostream& os) const
+    {
+        return os << Name() << " " << GetSymmetry();
+    }
+
 };
 
 

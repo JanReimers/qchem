@@ -18,14 +18,12 @@ namespace BasisSet::Atom::Evaluators::Gaussian
 //
 std::string Radial::Name() const
 {
-    return "SG ";
+    return "SG";
 }
 
 std::string Radial::RadialType() const
 {
-    std::ostringstream os;
-    os << "SG";
-    return os.str();
+    return Name();
 }
 
 Cache4*    Radial::MakeCache4() const
@@ -72,7 +70,7 @@ rvec3vec_t Radial::Gradient(const rvec3_t& r) const
 
 std::ostream&  Radial::Write(std::ostream& os) const
 {
-    return os << " with N=" << es.size() << " basis functions, alpha={" << es[0] << " ... " << es[size()-1] << "}" << std::endl;
+    return os << " N=" << es.size() << " α={" << es[0] << " ... " << es[size()-1] << "}";
 }
 
 

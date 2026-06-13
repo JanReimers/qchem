@@ -79,7 +79,7 @@ TEST_P(A_SL_HF_ion,A)
         {"N", N}, {"emin", Z/20.}, {"emax", Z*Z*5.},
     };
     QchemTester::Init(js);
-   //  NMaxIter MinDeltaRo MinDelE MinError StartingRelaxRo MergeTol verbose
+   //  NMaxIter MinΔρ MinΔFD MinFD StartingRelaxRo MergeTol verbose
     Iterate({2,Z*1e-4,1e-7,Z*1e-5,1.0,1e-4,true});
     EXPECT_LT(RelativeError(-0.5*Z*Z),4e-13);
 }
@@ -117,7 +117,7 @@ TEST_P(A_SL_DE1,A)
         {"N", N}, {"emin", alpha}, {"emax", alpha*pow(beta,N-1)},
     };
     QchemTester::Init(js);
-    //       NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo    MergeTol verbose
+    //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo    MergeTol verbose
     Iterate({   5     ,Z*1e-5    ,1e-7 , 3e-5      ,Z*1e-6 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,false});
 
     irrepv_t qns=GetIrreps(Spin::Up);
@@ -169,7 +169,7 @@ TEST_P(A_SG_DE1,A)
         {"N", N}, {"emin", alpha}, {"emax", alpha*pow(beta,N-1)},
     };
     QchemTester::Init(js);
-    //       NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo    MergeTol verbose
+    //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo    MergeTol verbose
     Iterate({   5     ,Z*1e-5    ,1e-7 , 3e-5      ,Z*1e-6 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
 
     irrepv_t qns=GetIrreps(Spin::Up);
@@ -253,7 +253,7 @@ TEST_F(A_SG_E1,Phir)
         {"N", N}, {"emin", alpha}, {"emax", alpha*pow(beta,N-1)},
     };
     QchemTester::Init(js,true);
-  //       NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo    MergeTol verbose
+  //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo    MergeTol verbose
     Iterate({   5     ,1e-5    ,1e-7 , 3e-5      ,1e-6 ,     0.5              ,1e-7   ,true});
 
     
@@ -293,7 +293,7 @@ TEST_F(DE1_P1,Gaussian_Phir)
         {"N", N}, {"emin", alpha}, {"emax", alpha*pow(beta,N-1)},
     };
     Init(js);
-     //       NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo    MergeTol verbose
+     //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo    MergeTol verbose
     Iterate({   5     ,Z*1e-5    ,1e-7 , 3e-5      ,Z*1e-6 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
 
     BasisSet::irrepv_t qns=GetIrreps(Spin::Up);
@@ -319,7 +319,7 @@ TEST_F(DE1_P1,Slater_Phir)
         {"N", N}, {"emin", alpha}, {"emax", alpha*pow(beta,N-1)},
     };
     QchemTester::Init(js);
-    //       NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo    MergeTol verbose
+    //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo    MergeTol verbose
     Iterate({   5     ,1e-5    ,1e-7 , 3e-5      ,1e-6 ,     0.5              ,1e-7   ,false});
 
     BasisSet::irrepv_t qns=GetIrreps(Spin::Up);
@@ -374,7 +374,7 @@ class A_SL_DHF : public DHF_U {};
 TEST_P(A_SL_DHF,Energy)
 {
     QchemTester::Init(Medium,abs_t::Slater_RKB,false);
-    //       NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo MergeTol verbose
+    //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo MergeTol verbose
     Iterate({   50    ,1e-5     ,1e-7  , 3e-5     ,1e-6   ,0.5             ,1e-7   ,true});
 
     EXPECT_LT(fabs(RelativeDHFError()), 5e-3); // Low-accuracy basis; Ne (Z=10) still fails (known gap)
@@ -385,7 +385,7 @@ class A_SG_DHF : public DHF_U {};
 TEST_P(A_SG_DHF,Energy)
 {
     QchemTester::Init(Low,abs_t::Gaussian_RKB,false);
-    //       NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo MergeTol verbose
+    //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo MergeTol verbose
     Iterate({   10    ,1e-5     ,1e-7  , 3e-5     ,1e-6   ,0.5             ,1e-7   ,true});
 
     EXPECT_LT(fabs(RelativeDHFError()), 5e-3); // Low-accuracy basis; Ne (Z=10) still fails (known gap)
@@ -417,7 +417,7 @@ class DHF_B_Pol : public ::testing::Test, public TestDiracAtom
 TEST_F(DHF_B_Pol,P2p)
 {
     QchemTester::Init(Medium,abs_t::Slater_RKB,false);
-    //       NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo MergeTol verbose
+    //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo MergeTol verbose
     Iterate({   50    ,1e-5     ,1e-7  , 3e-5     ,1e-6   ,0.5             ,1e-7   ,true});
 
     // Pick out the 2p1/2 (κ=+1) orbital among the occupied up-spin irreps.

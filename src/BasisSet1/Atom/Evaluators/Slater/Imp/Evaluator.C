@@ -21,13 +21,11 @@ namespace BasisSet::Atom::Evaluators::Slater
 
 std::string Radial::Name() const
 {
-    return "SL ";
+    return "SL";
 }
 std::string Radial::RadialType() const
 {
-    std::ostringstream os;
-    os << "SL";
-    return os.str();
+    return Name();
 }
 
 Cache4*    Radial::MakeCache4() const
@@ -86,7 +84,7 @@ rvec3vec_t Radial::Gradient(const rvec3_t& r) const
 
 std::ostream&  Radial::Write(std::ostream& os) const
 {
-    return os << " with " << size() << " basis functions, alpha={" << es[0] << " ... " << es[size()-1] << "}" << std::endl;
+    return os << " N=" << size() << " α={" << es[0] << " ... " << es[size()-1] << "}";
 }
 
 } //namespace
