@@ -181,7 +181,7 @@ TEST_P(BS_U_Low,A)
     EXPECT_TRUE(Converged()); 
         
 }
-INSTANTIATE_TEST_SUITE_P(A_HF,BS_U_Low,::testing::Values(2,4));//)); 
+INSTANTIATE_TEST_SUITE_P(A_HF,BS_U_Low,::testing::Values(2,4,10));//));
 TEST_P(BSr_U_Low,A)
 {
     size_t Z=GetParam();
@@ -232,7 +232,7 @@ TEST_P(SL_U_Low,A)
         
 }
 #ifdef DEBUG
-INSTANTIATE_TEST_SUITE_P(A_HF,SL_U_Low,::testing::Values(2,10));//)); 
+INSTANTIATE_TEST_SUITE_P(A_HF,SL_U_Low,::testing::Values(2,4,10));//));
 #else
 INSTANTIATE_TEST_SUITE_P(A_HF,SL_U_Low,::testing::Values(2,88));//)); 
 #endif
