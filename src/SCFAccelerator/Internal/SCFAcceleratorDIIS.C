@@ -32,8 +32,9 @@ public:
     virtual ~SCFIrrepAcceleratorDIIS();
     
     virtual void UseFD(const rsmat_t& F, const rsmat_t& DPrime);
-    virtual rsmat_t Project(); 
+    virtual LASolver<double>::UUd_t NextOrbitals();
 private:
+    rsmat_t Project(); //DIIS-extrapolated (orthonormal-basis) Fock matrix.
     friend class SCFAcceleratorDIIS;
     size_t GetNproj() const {return itsEs.size();}
     double GetError() const {return itsEn;}

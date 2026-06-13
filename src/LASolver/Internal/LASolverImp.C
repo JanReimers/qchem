@@ -31,6 +31,7 @@ export template <class T> class LASolverCommon
 
     virtual rsmat_t  Transform(const rsmat_t& M) const;
     virtual mat_t<T>    Transform(const   mat_t<T>& M) const;
+    virtual mat_t<T>    BackTransform(const mat_t<T>& Uprime) const {return V*Uprime;}
     virtual rvec_t   Get_BS_Diagonal() const {return Diag;}
     typedef LASolver<T> Base;
     typedef blaze::   UpperMatrix< mat_t<T>> umat_t;

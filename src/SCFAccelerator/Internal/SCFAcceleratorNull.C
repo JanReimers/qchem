@@ -12,7 +12,7 @@ public:
         : itsLASolver(lasb) {};
     virtual ~SCFIrrepAcceleratorNull() {};
     virtual void UseFD(const smat_t<double>& F, const smat_t<double>& DPrime);
-    virtual smat_t<double> Project();
+    virtual LASolver<double>::UUd_t NextOrbitals();
 private:
     const LASolver<double>*   itsLASolver; //Knows the ortho transform
     smat_t<double>   itsFPrime;

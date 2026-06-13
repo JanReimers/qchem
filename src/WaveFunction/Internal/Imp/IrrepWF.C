@@ -49,8 +49,9 @@ void IrrepWF::CalculateH(Hamiltonian& ham,const DM_CD* cd)
 void IrrepWF::DoSCFIteration()
 {
     assert(itsOrbitals);
-    //project F' using pre calculated coefficients. And then diagonalize it.
-    auto [U,Up,e]=itsLASolver->SolveOrtho(itsAccelerator->Project());
+    // The accelerator returns the next orbitals: DIIS extrapolates F' and diagonalizes;
+    // a direct minimizer (GDM) rotates the current orbitals along the Grassmann manifold.
+    auto [U,Up,e]=itsAccelerator->NextOrbitals();
     itsOrbitals->UpdateOrbitals(U,Up,e);
 }
 //

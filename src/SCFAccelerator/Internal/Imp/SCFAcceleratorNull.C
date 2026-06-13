@@ -8,9 +8,9 @@ void SCFIrrepAcceleratorNull::UseFD(const smat_t<double>& F, const smat_t<double
     itsFPrime=itsLASolver->Transform(F);
 }
 
-smat_t<double> SCFIrrepAcceleratorNull::Project()
+LASolver<double>::UUd_t SCFIrrepAcceleratorNull::NextOrbitals()
 {
-    return itsFPrime;
+    return itsLASolver->SolveOrtho(itsFPrime);
 }
 
 } //namespace

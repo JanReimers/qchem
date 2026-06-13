@@ -12,8 +12,12 @@ class SCFIrrepAccelerator
 {
 public:
     virtual ~SCFIrrepAccelerator() {};
+    // Feed the current (AO) Fock matrix and the (orthonormal-basis) density matrix.
     virtual void UseFD(const smat_t<double>& F, const smat_t<double>& DPrime)=0;
-    virtual smat_t<double> Project()=0; 
+    // Produce the next set of orbital coefficients (U, U', e), as SolveOrtho returns.
+    // A Fock-extrapolator (DIIS) extrapolates F then diagonalizes; a direct minimizer
+    // (GDM) rotates the current orbitals along the Grassmann manifold instead.
+    virtual LASolver<double>::UUd_t NextOrbitals()=0;
 };
 
 class SCFAccelerator

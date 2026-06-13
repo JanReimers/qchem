@@ -44,6 +44,8 @@ public:
     virtual UUd_t   SolveOrtho(const smat_t<T>& Hprime) const=0; //Hprime = Vd * H * V Hamiltonian/Fock matrix.
     // For unit testing
     virtual rsmat_t    Transform(const rsmat_t& M) const=0; // M' = Vd * M * V, where S = U * Ud, V=U^-1
+    //! Back-transform orthonormal-basis coefficients to the AO basis: U = V * Uprime.
+    virtual mat_t<T>   BackTransform(const mat_t<T>& Uprime) const=0;
 };
 
 

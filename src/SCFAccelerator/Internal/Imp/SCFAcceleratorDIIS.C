@@ -39,6 +39,12 @@ void SCFIrrepAcceleratorDIIS::UseFD(const rsmat_t& F, const rsmat_t& DPrime)
     itsEn=norm(itsE);
 }
 
+LASolver<double>::UUd_t SCFIrrepAcceleratorDIIS::NextOrbitals()
+{
+    // Fock-extrapolation accelerator: extrapolate F' then diagonalize it.
+    return itsLASolver->SolveOrtho(Project());
+}
+
 rsmat_t SCFIrrepAcceleratorDIIS::Project()
 {
     if (itsCs.size()<2) 
