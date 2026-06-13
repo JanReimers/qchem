@@ -357,19 +357,19 @@ TEST_F(DE1_P1,Slater_Phir)
 
 
 
-// Helium DHF ground state (Z=2, 2 electrons, neutral)
-// Reference total energy: -2.86129 au (relativistic DHF, from ao7b00802_si_001.xlsx)
-class DHF_He : public ::testing::Test, public TestDiracAtom
+// Neutral closed-shell atom DHF ground state, spin unpolarized.
+// Reference total energies come from the periodic table (TE_rel), via RelativeDHFError.
+class DHF_U : public ::testing::TestWithParam<size_t>, public TestDiracAtom
 {
     public:
-    DHF_He() : TestDiracAtom(2,0) {};
+    DHF_U() : TestDiracAtom(GetParam(),0) {}; //Neutral atom Z
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
     {
         return Factory(Model::DHF,Pol::UnPolarized,cluster);
     }
 };
-class A_SL_DHF_He : public DHF_He {};
-TEST_F(A_SL_DHF_He,Energy)
+class A_SL_DHF : public DHF_U {};
+TEST_P(A_SL_DHF,Energy)
 {
     size_t N=23;
     double alpha=0.05, beta=1.55;
@@ -383,8 +383,10 @@ TEST_F(A_SL_DHF_He,Energy)
 
     EXPECT_LT(fabs(RelativeDHFError()), 1e-3);
 }
-class A_SG_DHF_He : public DHF_He {};
-TEST_F(A_SG_DHF_He,Energy)
+INSTANTIATE_TEST_SUITE_P(A,A_SL_DHF,::testing::Values(2,4,10));
+
+class A_SG_DHF : public DHF_U {};
+TEST_P(A_SG_DHF,Energy)
 {
     int N=32;
     double alpha=0.01, beta=1.8;
@@ -398,4 +400,5 @@ TEST_F(A_SG_DHF_He,Energy)
 
     EXPECT_LT(fabs(RelativeDHFError()), 1e-3);
 }
+INSTANTIATE_TEST_SUITE_P(A,A_SG_DHF,::testing::Values(2,4,10));
 
