@@ -49,15 +49,6 @@ public:
                 -2*l1 * t      * ::Gaussian::Integral(t,2*l  )
                 +4*es[i]*es[j] * ::Gaussian::Integral(t,2*l+2))*ns[i]*ns[j] ;
     } 
-    double Grad2(size_t i,size_t j, const Radial& s) const
-    {
-        assert(l==s.l);
-        double t=es[i]+s.es[j];
-        size_t l1=l+1;
-        return  (l1*l1           * ::Gaussian::Integral(t,2*l-2)
-                -2*l1 * t        * ::Gaussian::Integral(t,2*l  )
-                +4*es[i]*s.es[j] * ::Gaussian::Integral(t,2*l+2))*ns[i]*s.ns[j] ;
-    }
     double Inv_r1(size_t i,size_t j) const
     {
         return ::Gaussian::Integral(es[i]+es[j],2*l-1)*ns[i]*ns[j]; //Already has 4*Pi
@@ -65,11 +56,6 @@ public:
     double Inv_r2(size_t i,size_t j) const
     {
         return ::Gaussian::Integral(es[i]+es[j],2*l-2)*ns[i]*ns[j]; //Already has 4*Pi
-    }
-    double Inv_r2(size_t i,size_t j, const Radial& b) const
-    {
-        assert(l==b.l);
-        return ::Gaussian::Integral(es[i]+b.es[j],2*l-2)*ns[i]*b.ns[j]; //Already has 4*Pi
     }
     double Overlap(size_t i,size_t j, const Radial& c, size_t ic) const
     {
@@ -119,6 +105,7 @@ public:
         return cd->ExchangeRk(la,lc,Ak); // contract over k Rk*Ak, exchange version is more complicated
     }
 
+    int l;
 protected:
     rvec_t norms() const; //assumes es,l are already initialized
     template <class v> static v gaussian(double r,size_t l,const v& e, const v& n)
@@ -131,7 +118,6 @@ protected:
         return (lr-2*r*e)*gaussian(r,l,e,n);
     }
 
-    int l;
 private:
     static rvec_t exponents(size_t N, double emin, double emax, const sym_t& ir);
 };
@@ -158,7 +144,6 @@ static_assert(isGeneric_Evaluator<NR_Evaluator>);
 static_assert(is1E_Evaluator     <NR_Evaluator>);
 static_assert(isFit_Evaluator    <NR_Evaluator>);
 static_assert(isDFT_Evaluator    <NR_Evaluator>);
-static_assert(isRKBL_Evaluator   <NR_Evaluator>);
 static_assert(isHF_Evaluator     <NR_Evaluator>);
 
 class Gaussian_Cache4 : public  Cache4
@@ -198,7 +183,27 @@ public:
         , Radial(N,emin,emax,ir)
         {}
 
+    using Radial::Grad2; //unhide
+    using Radial::Inv_r2; //unhide
+
+    double Grad2(size_t i,size_t j, const RKBL_Evaluator& s) const
+    {
+        assert(l==s.l);
+        double t=es[i]+s.es[j];
+        size_t l1=l+1;
+        return  (l1*l1           * ::Gaussian::Integral(t,2*l-2)
+                -2*l1 * t        * ::Gaussian::Integral(t,2*l  )
+                +4*es[i]*s.es[j] * ::Gaussian::Integral(t,2*l+2))*ns[i]*s.ns[j] ;
+    }
+    double Inv_r2(size_t i,size_t j, const RKBL_Evaluator& b) const
+    {
+        assert(l==b.l);
+        return ::Gaussian::Integral(es[i]+b.es[j],2*l-2)*ns[i]*b.ns[j]; //Already has 4*Pi
+    }
 };
+static_assert(is1E_Evaluator     <RKBL_Evaluator>);
+static_assert(isRKBLS_Evaluator   <RKBL_Evaluator>);
+static_assert(isHF_Evaluator     <RKBL_Evaluator>);
 
 // RKB small-component evaluator: shares Gaussian radial with NR Evaluator.
 class RKBS_Evaluator : public RKBL_Evaluator
@@ -228,7 +233,7 @@ static_assert(isGeneric_Evaluator<RKBS_Evaluator>);
 static_assert(is1E_Evaluator     <RKBS_Evaluator>);
 static_assert(isFit_Evaluator    <RKBS_Evaluator>);
 static_assert(isDFT_Evaluator    <RKBS_Evaluator>);
-static_assert(isRKBL_Evaluator   <RKBS_Evaluator>);
+static_assert(isRKBLS_Evaluator   <RKBS_Evaluator>); 
 
 
 } //namespace

@@ -52,11 +52,13 @@ template <class E> concept isHF_Evaluator = isGeneric_Evaluator<E> && requires (
     a.exchange(c,l,l,Ak);
 };
 
-// Support cross Kinetic
-template <class E> concept isRKBL_Evaluator = is1E_Evaluator<E> && requires  (E e,size_t i, size_t j)
+// Support cross Kinetic.  Currently for RKB the L and S versions are indistinguishable for concepts
+template <class E> concept isRKBLS_Evaluator = is1E_Evaluator<E> && requires  (E e,size_t i, size_t j)
 {
     e.Grad2    (i,j,e);
     e.Inv_r2   (i,j,e);
+    e.Getκ     ();// -> κ;
+    e.Getmjs   ();// -> mjs;
 };
 
 

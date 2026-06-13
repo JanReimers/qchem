@@ -116,7 +116,7 @@ public:
 
 };
 
-template <class LEvaluator, class SEvaluator> class BasisSet_RKB
+template <isRKBLS_Evaluator LEvaluator, isRKBLS_Evaluator SEvaluator> class BasisSet_RKB
     : public virtual Real_BS
     , public BasisSetImp<double>
 {

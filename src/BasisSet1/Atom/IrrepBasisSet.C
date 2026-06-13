@@ -228,7 +228,7 @@ protected:
 
 };
 
-template <isRKBL_Evaluator E> class Orbital_RKBL_IBS
+template <isRKBLS_Evaluator E> class Orbital_RKBL_IBS
     : public virtual BasisSet::Orbital_RKBL_IBS<double> 
     , public Integrals_Overlap<E>
     , public Integrals_Nuclear<E>

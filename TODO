@@ -106,7 +106,7 @@ OOD Refactor:
     -ScalarFunction has Gradient which we don't always want to support (PITA)
         Make a separate ScalarFunction_G  to add the gradient?
     -ExFunctional should be a VectorFunction ... evaluate the whole mesh at once.
-    -The only purpose of isRKBL_Evaluator concept is to require cross kinetic functions.
+    -The only purpose of isRKBLS_Evaluator concept is to require cross kinetic functions.
         Strict RKB requires S and L to have identical raw (before sigma*p ops) basis functions.
         So in practive the LS and SL kinetic matrices are just 1/(2c) * LL kinetic.
         How to best express this in code? Options
