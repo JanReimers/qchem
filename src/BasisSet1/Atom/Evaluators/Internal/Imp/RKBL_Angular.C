@@ -40,22 +40,33 @@ rvec11_t RKB_Angular::ExchangeAk(const Evaluator& other) const
     const RKB_Angular& o = dynamic_cast<const RKB_Angular&>(other);
     double ja = Symmetry::SphericalSpinor::j(κ);
     double jb = Symmetry::SphericalSpinor::j(o.κ);
-    size_t ga = (size_t)(2*ja+1);
-    size_t gb = (size_t)(2*jb+1);
     size_t nab = mjs.size() * o.mjs.size();
     rvec11_t Ak(0.0);
-    if (nab==0 || nab==ga*gb)
+    // Unlike the direct term, relativistic exchange is nonzero only for spin-matched
+    // mj pairs, so we must normalize by the number of *contributing* pairs rather than
+    // the full degeneracy ga*gb.  Diluting by the zero (spin-mismatched) pairs would
+    // halve the result for an s1/2 subshell and break agreement with the NR convention.
+    size_t ncontrib = 0;
+    if (nab==0)
     {
-        Ak += RelAngularIntegrals::Exchange(κ, o.κ);
-        Ak /= (double)(ga*gb);
+        // Full subshell: sum over all mj.
+        for (double mja=-ja; mja<=ja; mja+=1.0)
+        for (double mjb=-jb; mjb<=jb; mjb+=1.0)
+        {
+            rvec11_t k = RelAngularIntegrals::Exchange(κ, o.κ, mja, mjb);
+            if (max(abs(k))>0.0) { Ak += k; ++ncontrib; }
+        }
     }
     else
     {
         for (double mja : mjs)
         for (double mjb : o.mjs)
-            Ak += RelAngularIntegrals::Exchange(κ, o.κ, mja, mjb);
-        Ak /= (double)nab;
+        {
+            rvec11_t k = RelAngularIntegrals::Exchange(κ, o.κ, mja, mjb);
+            if (max(abs(k))>0.0) { Ak += k; ++ncontrib; }
+        }
     }
+    if (ncontrib>0) Ak /= (double)ncontrib;
     return Ak;
 }
 
