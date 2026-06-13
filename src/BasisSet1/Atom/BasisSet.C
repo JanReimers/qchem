@@ -134,6 +134,12 @@ public:
         {
             theGlobalCache->Register(this); //Can this move to the evaluator level?
         };
+        EOrbital_RKBL_IBS(const rvec_t& es, const sym_t& irrep, size_t ltrim=0)
+        : IrrepBasisSetImp<LEvaluator>(irrep)
+        , LEvaluator(es,irrep,ltrim)
+        {
+            theGlobalCache->Register(this);
+        };
 
 
         virtual std::ostream& Write(std::ostream& os) const
@@ -154,6 +160,12 @@ public:
         , SEvaluator(N,emin,emax,irrep) //fix κ=-1, l=0
         {
             theGlobalCache->Register(this); //Can this move to the evaluator level?
+        };
+        EOrbital_RKBS_IBS(const rvec_t& es, const sym_t& irrep, size_t ltrim=0)
+        : IrrepBasisSetImp<SEvaluator>(irrep)
+        , SEvaluator(es,irrep,ltrim)
+        {
+            theGlobalCache->Register(this);
         };
 
         virtual std::ostream& Write(std::ostream& os) const
@@ -177,14 +189,26 @@ public:
                 )
         , IrrepBasisSetImp<double>(irrep)
         {};
+        EOrbital_RKB_IBS(const rvec_t& es, const sym_t& irrep, size_t ltrim=0)
+        : Orbital_RKB_HF_IBS_Imp(
+                    new EOrbital_RKBL_IBS(es,irrep,ltrim),
+                    new EOrbital_RKBS_IBS(es,irrep,ltrim)
+                )
+        , IrrepBasisSetImp<double>(irrep)
+        {};
 
         virtual size_t GetNumFunctions() const {return Orbital_RKB_IBS_Imp<double>::GetNumFunctions();}
     };
     BasisSet_RKB(size_t N, double ermin, double ermax, const ElectronConfiguration& ec)
     {
         for (auto irrep:ec.GetIrreps())
-            Insert(new EOrbital_RKB_IBS(N,ermin,ermax,irrep));  
-     
+            Insert(new EOrbital_RKB_IBS(N,ermin,ermax,irrep));
+
+    }
+    BasisSet_RKB(const rvec_t& es, const ElectronConfiguration& ec, size_t ltrim=0)
+    {
+        for (auto irrep:ec.GetIrreps())
+            Insert(new EOrbital_RKB_IBS(es,irrep,ltrim));
     }
 
 };

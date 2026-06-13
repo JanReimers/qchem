@@ -182,6 +182,10 @@ public:
         : RKB_Angular(ir)
         , Radial(N,emin,emax,ir)
         {}
+    RKBL_Evaluator(const rvec_t& es, const sym_t& ir, size_t ltrim=0)
+        : RKB_Angular(ir)
+        , Radial(es,ir,ltrim)
+        {}
 
     using Radial::Grad2; //unhide
     using Radial::Inv_r2; //unhide
@@ -211,6 +215,9 @@ class RKBS_Evaluator : public RKBL_Evaluator
 public:
     RKBS_Evaluator(size_t N, double emin, double emax, const sym_t& ir)
         : RKBL_Evaluator(N,emin,emax,ir)
+        {ns=norms();}
+    RKBS_Evaluator(const rvec_t& es, const sym_t& ir, size_t ltrim=0)
+        : RKBL_Evaluator(es,ir,ltrim)
         {ns=norms();}
     virtual rvec_t norms() const;
     double Inv_r1(size_t i,size_t j) const
