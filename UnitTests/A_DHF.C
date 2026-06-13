@@ -403,6 +403,8 @@ INSTANTIATE_TEST_SUITE_P(A,A_SG_DHF,::testing::Values(2,4,10));
 // hardcodes (l+1)=-κ and is therefore wrong for κ>0 states.  The clean separator
 // is 2p3/2 (κ=-2) in Ne: its kinetic is correct (κ<0) yet it is also too shallow,
 // which fingers the exchange independently.  Reference 2p1/2 = -0.30979.
+// With the jj-coupled exchange coefficient this now passes (~0.4%); the small residual
+// is the still-unfixed κ>0 one-electron kinetic (fine structure, ~1e-4).
 class DHF_B_Pol : public ::testing::Test, public TestDiracAtom
 {
     public:
