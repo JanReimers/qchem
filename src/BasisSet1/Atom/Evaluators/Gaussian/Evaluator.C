@@ -222,8 +222,17 @@ public:
     virtual rvec_t norms() const;
     double Inv_r1(size_t i,size_t j) const
     {
-        double p=es[i]+es[j];
-        return 8*Pi*es[i]*es[j]/(p*p)*ns[i]*ns[j];
+        // Small-component nuclear attraction <Q|1/r|Q> with Q=((l+1+κ)/r - 2er)r^l e^-er^2.
+        // The κ-dependent terms (spin-orbit) vanish for j=l+1/2 (κ<0, l+1+κ=0) and are
+        // present for j=l-1/2 (κ>0, l+1+κ=2l+1), splitting e.g. 2p1/2 from 2p3/2.
+        double ab=es[i]+es[j];
+        double t=4*es[i]*es[j]*::Gaussian::Integral(ab,2*l+1);
+        if (Getκ()>0)
+        {
+            double kt=l+1+Getκ();
+            t += kt*kt*::Gaussian::Integral(ab,2*l-3) - 2*kt*ab*::Gaussian::Integral(ab,2*l-1);
+        }
+        return t*ns[i]*ns[j];
     }
 
     virtual rvec_t     operator() (const rvec3_t&) const;
