@@ -29,6 +29,10 @@ public:
         : ExponentialEvaluator(_es,ir,ltrim) 
         , l(Symmetry::Getl(ir))
         {ns=norms();}
+    Radial(size_t N, double emin, double emax, const sym_t& ir, size_t ltrim=0)
+        : ExponentialEvaluator(exponents(N,emin,emax,ir),ir,ltrim) 
+        , l(Symmetry::Getl(ir))
+        {ns=norms();}
 
     virtual std::ostream& Write   (std::ostream&) const;
     double Overlap(size_t i,size_t j) const
@@ -114,7 +118,6 @@ public:
     }
 
 protected:
-    static rvec_t exponents(size_t N, double emin, double emax, const sym_t& ir);
     rvec_t norms() const; //assumes es,l are already initialized
 
     template <class v> static v slater(double r,size_t l,const v& e, const v& n)
@@ -128,6 +131,8 @@ protected:
     }
 
     int l;
+private:
+    static rvec_t exponents(size_t N, double emin, double emax, const sym_t& ir);
 };
 
 // NR HF evaluator: Slater radial + NR angular.
@@ -139,8 +144,8 @@ public:
     NR_Evaluator(const rvec_t& es, const sym_t& ir, size_t ltrim=0)
         : Radial(es,ir,ltrim)
         , NR_Angular(ir) {}
-    NR_Evaluator(size_t N, double emin, double emax, const sym_t& ir)
-        : Radial(Radial::exponents(N,emin,emax,ir),ir)
+    NR_Evaluator(size_t N, double emin, double emax, const sym_t& ir, size_t ltrim=0)
+        : Radial(N,emin,emax,ir,ltrim)
         , NR_Angular(ir) {}
 
     NR_Evaluator Rescale(double scale_factor) const { return NR_Evaluator(scale_factor*es,Radial::l); }
@@ -187,7 +192,7 @@ class RKBL_Evaluator : public RKB_Angular, public Radial
 public:
     RKBL_Evaluator(size_t N, double emin, double emax, const sym_t& ir)
         : RKB_Angular(ir)
-        , Radial(Radial::exponents(N,emin,emax,ir),ir)
+        , Radial(N,emin,emax,ir)
         {}
 
 };

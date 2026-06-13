@@ -29,9 +29,11 @@ public:
     Radial(const rvec_t& _es, const sym_t& ir, size_t ltrim=0)
         : ExponentialEvaluator(_es,ir,ltrim) 
         , l(Symmetry::Getl(ir))
-        {
-            ns=norms();
-        }
+        {ns=norms();}
+    Radial(size_t N, double emin, double emax, const sym_t& ir, size_t ltrim=0)
+        : ExponentialEvaluator(exponents(N,emin,emax,ir),ir,ltrim) 
+        , l(Symmetry::Getl(ir))
+        {ns=norms();}
 
     virtual std::ostream& Write   (std::ostream&) const;
 
@@ -97,7 +99,6 @@ public:
     {
         return 1.0/sqrt(::Gaussian::Integral(2*es[i],2*l));
     }
-    // double operator()(size_t i, double r) {return gaussian(r,l,es[i],ns[i]);}
     virtual  rvec_t Norm     () const {return ns;}
 
     virtual rvec_t     operator() (const rvec3_t&) const;
@@ -119,7 +120,6 @@ public:
     }
 
 protected:
-    static rvec_t exponents(size_t N, double emin, double emax, const sym_t& ir);
     rvec_t norms() const; //assumes es,l are already initialized
     template <class v> static v gaussian(double r,size_t l,const v& e, const v& n)
     {
@@ -132,6 +132,8 @@ protected:
     }
 
     int l;
+private:
+    static rvec_t exponents(size_t N, double emin, double emax, const sym_t& ir);
 };
 
 // NR HF evaluator: Gaussian radial + NR angular.
@@ -146,7 +148,7 @@ public:
         : Radial(es,ir,ltrim)
         , NR_Angular(ir) {}
     NR_Evaluator(size_t N, double emin, double emax, const sym_t& ir)
-        : Radial(Radial::exponents(N,emin,emax,ir),ir)
+        : Radial(N,emin,emax,ir)
         , NR_Angular(ir) {}
 
     NR_Evaluator Rescale(double scale_factor) const { return NR_Evaluator(scale_factor*es,Getl()); }
@@ -193,7 +195,7 @@ class RKBL_Evaluator : public RKB_Angular, public Radial
 public:
     RKBL_Evaluator(size_t N, double emin, double emax, const sym_t& ir)
         : RKB_Angular(ir)
-        , Radial(Radial::exponents(N,emin,emax,ir),ir)
+        , Radial(N,emin,emax,ir)
         {}
 
 };
