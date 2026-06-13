@@ -1,10 +1,11 @@
 add_library(qcSCFAccelerator) 
-target_sources(qcSCFAccelerator PRIVATE Internal/Imp/SCFAcceleratorDIIS.C  Internal/Imp/SCFAcceleratorNull.C Imp/Factory.C)
-target_sources(qcSCFAccelerator PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
+target_sources(qcSCFAccelerator PRIVATE Internal/Imp/SCFAcceleratorDIIS.C  Internal/Imp/SCFAcceleratorNull.C Internal/Imp/SCFAcceleratorGDM.C Imp/Factory.C)
+target_sources(qcSCFAccelerator PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     SCFAccelerator.C
     Factory.C
-    Internal/SCFAcceleratorDIIS.C  
+    Internal/SCFAcceleratorDIIS.C
     Internal/SCFAcceleratorNull.C
+    Internal/SCFAcceleratorGDM.C
 )
 
 target_include_directories(qcSCFAccelerator PRIVATE 

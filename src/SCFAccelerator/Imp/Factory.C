@@ -4,6 +4,7 @@ module;
 #include <nlohmann/json.hpp>
 module qchem.SCFAccelerator.Factory;
 import qchem.SCFAccelerator.Internal.SCFAcceleratorDIIS;
+import qchem.SCFAccelerator.Internal.SCFAcceleratorGDM;
 using json = nlohmann::json;
 
 namespace qchem::SCFAccelerators
@@ -23,7 +24,8 @@ SCFAccelerator* Factory(Type type,const nlohmann::json& js)
         }
         case Type::GDM:
         {
-            assert(false);
+            double EMax = js.contains("EMax") ? js["EMax"].template get<double>() : 1e10;
+            acc=new SCFAcceleratorGDM({EMax});
             break;
         }
         
