@@ -131,7 +131,9 @@ public:
         EOrbital_RKBL_IBS(size_t N, double emin, double emax, const sym_t& irrep)
         : IrrepBasisSetImp<LEvaluator>(irrep)
         , LEvaluator(N,emin,emax,irrep)
-        {};
+        {
+            theGlobalCache->Register(this); //Can this move to the evaluator level?
+        };
 
 
         virtual std::ostream& Write(std::ostream& os) const
@@ -150,7 +152,9 @@ public:
         EOrbital_RKBS_IBS(size_t N, double emin, double emax, const sym_t& irrep)
         : IrrepBasisSetImp<SEvaluator>(irrep)
         , SEvaluator(N,emin,emax,irrep) //fix κ=-1, l=0
-        {};
+        {
+            theGlobalCache->Register(this); //Can this move to the evaluator level?
+        };
 
         virtual std::ostream& Write(std::ostream& os) const
         {
