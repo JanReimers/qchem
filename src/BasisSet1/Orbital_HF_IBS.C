@@ -8,8 +8,7 @@ export namespace BasisSet
 {
 
 template <class T> class Orbital_HF_IBS
-    : public virtual Orbital_1E_IBS<T>
-    , public virtual IrrepBasisSet_IDs //avoid using statements for RadialID,AngularID
+    : public virtual IrrepBasisSet_IDs //avoid using statements for RadialID,AngularID
 {
 public:
     virtual ERI4       MakeDirect  (const Orbital_HF_IBS<T>& c) const=0; //Only called once for a given {radial,angular} ID pair.

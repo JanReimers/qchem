@@ -7,6 +7,7 @@ module;
 export module qchem.BasisSet.Internal.Orbital_DHF_IBS;
 export import qchem.BasisSet.IrrepBasisSet;
 export import qchem.BasisSet.Orbital_1E_IBS;
+export import qchem.BasisSet.Orbital_HF_IBS;
 export import qchem.BasisSet.Orbital_DHF_IBS;
 export import qchem.Cluster;
 
@@ -88,4 +89,20 @@ private:
     static smat_t<T> merge_diag(const smat_t<T>& l,const smat_t<T>& s);
     static smat_t<T> merge_off_diag(const mat_t<T>& ls);
 };
+
+template <class T> class Orbital_RKB_HF_IBS_Imp 
+    : public virtual Orbital_HF_IBS<T>
+    , public Orbital_RKB_IBS_Imp<T>
+{
+
+    virtual ERI4       MakeDirect  (const Orbital_HF_IBS<T>& c) const;
+    virtual ERI4       MakeExchange(const Orbital_HF_IBS<T>& c) const;
+protected:
+    Orbital_RKB_HF_IBS_Imp(Orbital_RKBL_IBS<T>* rkbl,Orbital_RKBS_IBS<T>* rkbs) : Orbital_RKB_IBS_Imp<T>(rkbl,rkbs) {};
+private:
+    using Orbital_RKB_IBS_Imp<T>::itsRKBL;
+    using Orbital_RKB_IBS_Imp<T>::itsRKBS;
+};
+
+
 } //namespace

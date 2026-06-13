@@ -84,6 +84,48 @@ template <class T> smat_t<T> Orbital_RKB_IBS_Imp<T>::MakeRestMass() const
     return merge_diag(rl,rs);
 }
 
-template class Orbital_RKB_IBS_Imp<double>;
+template <class T> ERI4 Orbital_RKB_HF_IBS_Imp<T>::MakeDirect  (const Orbital_HF_IBS<T>& _c) const
+{
+    auto& c=dynamic_cast<const Orbital_RKB_HF_IBS_Imp<T>&>(_c);
+    auto aLhf=dynamic_cast<const Orbital_HF_IBS<T>*>(itsRKBL);
+    auto cLhf=dynamic_cast<const Orbital_HF_IBS<T>*>(c.itsRKBL);
+    ERI4 LLLL=aLhf->MakeDirect(*cLhf);
+    // ERI4 LLSS=itsRKBL->MakeDirect(*c->itsRKBS); 
+    // ERI4 SSLL=itsRKBS->MakeDirect(*c->itsRKBL);
+    // ERI4 SSSS=itsRKBS->MakeDirect(*c->itsRKBS);
+    size_t Nab=LLLL.Nab(),Ncd=LLLL.Ncd();
+    ERI4 J(2*Nab,2*Ncd);
+    for (size_t a:iv_t(0,Nab))
+        for (size_t b:iv_t(a,Nab))
+        {
+            rsmat_t Jcd(2*Ncd);
+            blaze::submatrix(Jcd,0,0,Ncd,Ncd)=LLLL(a,b);
+            J(a,b)=Jcd;
+        }
+    return J;
+}
+template <class T> ERI4 Orbital_RKB_HF_IBS_Imp<T>::MakeExchange(const Orbital_HF_IBS<T>& _c) const
+{
+    auto& c=dynamic_cast<const Orbital_RKB_HF_IBS_Imp<T>&>(_c);
+    auto aLhf=dynamic_cast<const Orbital_HF_IBS<T>*>(itsRKBL);
+    auto cLhf=dynamic_cast<const Orbital_HF_IBS<T>*>(c.itsRKBL);
+    ERI4 LLLL=aLhf->MakeExchange(*cLhf);
+    // ERI4 LLSS=itsRKBL->MakeDirect(*c->itsRKBS); 
+    // ERI4 SSLL=itsRKBS->MakeDirect(*c->itsRKBL);
+    // ERI4 SSSS=itsRKBS->MakeDirect(*c->itsRKBS);
+    size_t Nab=LLLL.Nab(),Ncd=LLLL.Ncd();
+    ERI4 K(2*Nab,2*Ncd);
+    for (size_t a:iv_t(0,Nab))
+        for (size_t b:iv_t(a,Nab))
+        {
+            rsmat_t Kcd(2*Ncd);
+            blaze::submatrix(Kcd,0,0,Ncd,Ncd)=LLLL(a,b);
+            K(a,b)=Kcd;
+        }
+    return K;
+}
+
+template class Orbital_RKB_IBS_Imp   <double>;
+template class Orbital_RKB_HF_IBS_Imp<double>;
 
 }

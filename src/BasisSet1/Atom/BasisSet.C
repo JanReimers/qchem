@@ -123,6 +123,7 @@ template <isRKBLS_Evaluator LEvaluator, isRKBLS_Evaluator SEvaluator> class Basi
 public:
     class EOrbital_RKBL_IBS 
         : public Orbital_RKBL_IBS<LEvaluator>
+        , public Orbital_HF_IBS<LEvaluator>
         , public IrrepBasisSetImp<LEvaluator>
         , public LEvaluator
     {
@@ -160,12 +161,13 @@ public:
     };
     class EOrbital_RKB_IBS 
         : public virtual Orbital_RKB_IBS<double>
-        , public Orbital_RKB_IBS_Imp<double>
+        , public virtual ::BasisSet::Orbital_HF_IBS<double>
+        , public Orbital_RKB_HF_IBS_Imp<double>
         , public ::BasisSet::IrrepBasisSetImp<double>
     {
     public:
         EOrbital_RKB_IBS(size_t N, double remin, double remax, const sym_t& irrep)
-        : Orbital_RKB_IBS_Imp(
+        : Orbital_RKB_HF_IBS_Imp(
                     new EOrbital_RKBL_IBS(N,remin,remax,irrep),
                     new EOrbital_RKBS_IBS(N,remin,remax,irrep)
                 )
