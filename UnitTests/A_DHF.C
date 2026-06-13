@@ -14,6 +14,7 @@ import qchem.Mesh.Integrator;
 import qchem.Cluster;
 import qchem.Streamable;
 import qchem.Energy;
+import qchem.Symmetry.Spherical; //Symmetry::Getκ for picking p1/2 vs p3/2 orbitals
 
 using std::cout;
 using std::endl;
@@ -372,9 +373,9 @@ class DHF_U : public ::testing::TestWithParam<size_t>, public TestDiracAtom
 class A_SL_DHF : public DHF_U {};
 TEST_P(A_SL_DHF,Energy)
 {
-    QchemTester::Init(Low,abs_t::Slater_RKB,false);
+    QchemTester::Init(Medium,abs_t::Slater_RKB,false);
     //       NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo MergeTol verbose
-    Iterate({   10    ,1e-5     ,1e-7  , 3e-5     ,1e-6   ,0.5             ,1e-7   ,true});
+    Iterate({   50    ,1e-5     ,1e-7  , 3e-5     ,1e-6   ,0.5             ,1e-7   ,true});
 
     EXPECT_LT(fabs(RelativeDHFError()), 5e-3); // Low-accuracy basis; Ne (Z=10) still fails (known gap)
 }
@@ -390,4 +391,42 @@ TEST_P(A_SG_DHF,Energy)
     EXPECT_LT(fabs(RelativeDHFError()), 5e-3); // Low-accuracy basis; Ne (Z=10) still fails (known gap)
 }
 INSTANTIATE_TEST_SUITE_P(A,A_SG_DHF,::testing::Values(2,4,10));
+
+//
+// Diagnostic: Boron 2p^1 polarized DHF.
+//
+// Boron's lone valence electron occupies 2p1/2 (κ=+1) only — the Dirac EC fills
+// j=l-1/2 first — so there is NO 2p-2p interaction.  The 2p1/2 orbital sees only
+// the closed s-core (1s^2 2s^2), which removes the intra-shell 2p-2p coefficients
+// from the picture.  NOTE κ=+1 conflates two suspected bugs: (a) the s-core<->2p
+// cross-shell exchange coefficient, and (b) the one-electron RKB kinetic, which
+// hardcodes (l+1)=-κ and is therefore wrong for κ>0 states.  The clean separator
+// is 2p3/2 (κ=-2) in Ne: its kinetic is correct (κ<0) yet it is also too shallow,
+// which fingers the exchange independently.  Reference 2p1/2 = -0.30979.
+class DHF_B_Pol : public ::testing::Test, public TestDiracAtom
+{
+    public:
+    DHF_B_Pol() : TestDiracAtom(5,0) {}; //Neutral Boron
+    virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
+    {
+        return Factory(Model::DHF,Pol::Polarized,cluster);
+    }
+};
+TEST_F(DHF_B_Pol,P2p)
+{
+    QchemTester::Init(Medium,abs_t::Slater_RKB,false);
+    //       NMaxIter MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo MergeTol verbose
+    Iterate({   50    ,1e-5     ,1e-7  , 3e-5     ,1e-6   ,0.5             ,1e-7   ,true});
+
+    // Pick out the 2p1/2 (κ=+1) orbital among the occupied up-spin irreps.
+    const Orbital* o2p=nullptr;
+    for (const auto& ir:GetIrreps(Spin::Up))
+        if (Symmetry::Getκ(ir.sym)==1) o2p=GetOrbital(0,ir);
+    ASSERT_NE(o2p,nullptr);
+    double e2p=o2p->GetEigenEnergy();
+    double ref=-0.30979; //periodic table 2p- for Boron
+    cout << std::setprecision(8) << "B 2p1/2: computed=" << e2p << "  ref=" << ref
+         << "  ratio=" << e2p/ref << endl;
+    EXPECT_NEAR(e2p,ref,0.02);
+}
 
