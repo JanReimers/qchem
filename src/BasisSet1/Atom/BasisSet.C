@@ -127,9 +127,9 @@ public:
         , public LEvaluator
     {
     public:
-        EOrbital_RKBL_IBS(size_t N, double rmin, double rmax, const sym_t& yl)
-        : IrrepBasisSetImp<LEvaluator>(yl)
-        , LEvaluator(N,rmin,rmax,yl)
+        EOrbital_RKBL_IBS(size_t N, double emin, double emax, const sym_t& irrep)
+        : IrrepBasisSetImp<LEvaluator>(irrep)
+        , LEvaluator(N,emin,emax,irrep)
         {};
 
 
@@ -146,9 +146,9 @@ public:
         , public SEvaluator
     {
     public:
-        EOrbital_RKBS_IBS(size_t N, double rmin, double rmax, const sym_t& yl)
-        : IrrepBasisSetImp<SEvaluator>(yl)
-        , SEvaluator(N,rmin,rmax,-1,0) //fix κ=-1, l=0
+        EOrbital_RKBS_IBS(size_t N, double emin, double emax, const sym_t& irrep)
+        : IrrepBasisSetImp<SEvaluator>(irrep)
+        , SEvaluator(N,emin,emax,irrep) //fix κ=-1, l=0
         {};
 
         virtual std::ostream& Write(std::ostream& os) const
@@ -164,20 +164,20 @@ public:
         , public ::BasisSet::IrrepBasisSetImp<double>
     {
     public:
-        EOrbital_RKB_IBS(size_t N, double remin, double remax, const sym_t& yl)
+        EOrbital_RKB_IBS(size_t N, double remin, double remax, const sym_t& irrep)
         : Orbital_RKB_IBS_Imp(
-                    new EOrbital_RKBL_IBS(N,remin,remax,yl),
-                    new EOrbital_RKBS_IBS(N,remin,remax,yl)
+                    new EOrbital_RKBL_IBS(N,remin,remax,irrep),
+                    new EOrbital_RKBS_IBS(N,remin,remax,irrep)
                 )
-        , IrrepBasisSetImp<double>(yl)
+        , IrrepBasisSetImp<double>(irrep)
         {};
 
         virtual size_t GetNumFunctions() const {return Orbital_RKB_IBS_Imp<double>::GetNumFunctions();}
     };
     BasisSet_RKB(size_t N, double ermin, double ermax, const ElectronConfiguration& ec)
     {
-        for (auto ir:ec.GetIrreps())
-            Insert(new EOrbital_RKB_IBS(N,ermin,ermax,ir));  
+        for (auto irrep:ec.GetIrreps())
+            Insert(new EOrbital_RKB_IBS(N,ermin,ermax,irrep));  
      
     }
 

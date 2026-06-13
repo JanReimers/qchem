@@ -11,12 +11,12 @@ import qchem.Math;
 namespace BasisSet::Atom::Evaluators::Gaussian
 {
 
-RKBS_Evaluator::RKBS_Evaluator(size_t N, double emin, double emax, int _κ, int l)
-    : Evaluator(Radial::exponents(N,emin,emax,Symmetry::YFactory()), l)
-    , κ(_κ)
-{
-    ns=norms();
-}
+// RKBS_Evaluator::RKBS_Evaluator(size_t N, double emin, double emax, int _κ, int l)
+//     : Evaluator(Radial::exponents(N,emin,emax,Symmetry::YFactory()), l)
+//     , κ(_κ)
+// {
+//     ns=norms();
+// }
 std::string RKBS_Evaluator::Name() const
 {
     return "SG RKB ";

@@ -15,35 +15,35 @@ export namespace BasisSet::Atom::Evaluators
 {
 using dERI3=ERI3<double>;
 
+//
+//  Abstract inteface for all evaluator.
+//
 class Evaluator
     : public virtual Cache4_Client
-    , public VectorFunction<double>
+    , public VectorFunction<double> //Try virtual and get: virtual function 'VectorFunction<double>::GetVectorSize' has more than one final overrider in ...
 {
 public:
-    virtual ~Evaluator() {};
-
-    virtual void          Register     (Grouper*)=0; //Set up unique spline or exponent indexes.
-    virtual size_t        size         () const = 0;
-    virtual size_t        maxSpan      () const {return size();}  //assume no overlap for indeces separated by > maxSpan
     virtual size_t        GetVectorSize() const {return size();}
-    virtual int           Getl         () const = 0;
-    virtual       rvec_t  Norm         () const = 0;
+    //  Used **everywhere***
+    virtual int     Getl         () const = 0;
+    //  For radial
+    virtual void    Register     (Grouper*)=0; //Set up unique spline or exponent indexes.
+    virtual size_t  size         () const = 0;
+    virtual size_t  maxSpan      () const {return size();}  //assume no overlap for indeces separated by > maxSpan
+    virtual rvec_t  Norm   () const = 0;
+            iv_t    indices      (             ) const {return iv_t(size_t(0),size());}
+            iv_t    indices      (size_t start ) const {return iv_t(start,size());}
+    virtual size_t  es_index     (size_t i     ) const =0;
+    // For angular
+    virtual rvec11_t CoulombAk (const Evaluator& other) const = 0;
+    virtual rvec11_t ExchangeAk(const Evaluator& other) const = 0;
 
-    iv_t                  indices      (             ) const {return iv_t(size_t(0),size());}
-    iv_t                  indices      (size_t start ) const {return iv_t(start,size());}
-    virtual size_t        es_index     (size_t i     ) const =0;
-
-    virtual rvec11_t      CoulombAk (const Evaluator& other) const = 0;
-    virtual rvec11_t      ExchangeAk(const Evaluator& other) const = 0;
-
+    // For Streamable.
     virtual std::ostream& Write  (std::ostream&) const=0;
+    // For creating keys into cache database.
     virtual std::string RadialID () const=0;
     virtual std::string AngularID() const=0;
     virtual std::string Name     () const=0;
-
 };
-
-
-
 
 } //namespace

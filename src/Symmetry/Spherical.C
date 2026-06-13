@@ -62,4 +62,9 @@ public:
     static double  j(size_t l, double s) {return l+s;}
 };
 
+int    Getκ  (const sym_t&); //Throws bad_cast
+int    Getκ  (const Symmetry&); //Throws bad_cast
+rvec_t Getmjs(const sym_t&); //Throws bad_cast
+rvec_t Getmjs(const Symmetry&); //Throws bad_cast
+
 } // namespace

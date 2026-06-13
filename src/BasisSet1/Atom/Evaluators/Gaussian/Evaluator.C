@@ -5,6 +5,7 @@ module;
 export module qchem.BasisSet.Atom.Evaluators.Gaussian.IBS;
 import qchem.BasisSet.Atom.Evaluators.Internal.ExponentialEvaluator;
 import qchem.BasisSet.Atom.Evaluators.Internal.NR_Angular;
+import qchem.BasisSet.Atom.Evaluators.Internal.RKBL_Angular;
 import qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.GaussianIntegrals;
 import qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.Rk;
 import qchem.BasisSet.Atom.Evaluators.Concepts;
@@ -17,7 +18,7 @@ export namespace BasisSet::Atom::Evaluators::Gaussian
 {
 
 // Gaussian::Radial holds all Gaussian-specific 1e integrals and Rk machinery,
-// shared between NR (Evaluator) and RKB large component (RKBS_Evaluator).
+// shared between NR (Evaluator) and RKB large component (RKBL_Evaluator).
 class Radial : public ExponentialEvaluator
 {
 public:
@@ -137,9 +138,11 @@ protected:
 class Evaluator : public Radial, public NR_Angular
 {
 public:
+    // Used only for the rescale operation to make Fit basis sets.
     Evaluator(const rvec_t& es, int l, const ivec_t& mls={})
         : Radial(es,l), NR_Angular(l,mls) {}
-    Evaluator(const rvec_t& es, const sym_t& ir, size_t ltrim=0)
+
+        Evaluator(const rvec_t& es, const sym_t& ir, size_t ltrim=0)
         : Radial(es,ir,ltrim)
         , NR_Angular(ir) {}
     Evaluator(size_t N, double emin, double emax, const sym_t& ir)
@@ -185,14 +188,41 @@ private:
     ExponentGrouper grouper;
 };
 
-// RKB small-component evaluator: shares Gaussian radial with NR Evaluator.
-class RKBS_Evaluator : public Evaluator
+class RKBL_Evaluator : public RKB_Angular, public Radial
 {
 public:
-    RKBS_Evaluator(const rvec_t& es, int _κ, int l)
-        : Evaluator(es,l), κ(_κ) {ns=norms();}
-    int Getκ() const { return κ; }
-    RKBS_Evaluator(size_t N, double emin, double emax, int κ, int l);
+    // Used only for the rescale operation to make Fit basis sets.
+    // RKBL_Evaluator(const rvec_t& es, int l, const ivec_t& mls={})
+    //     : Radial(es,l), RKB_Angular(l,mls) {}
+
+    // RKBL_Evaluator(const rvec_t& es, const sym_t& ir, size_t ltrim=0)
+    //     : Radial(es,ir,ltrim)
+    //     , RKB_Angular(ir) {}
+    RKBL_Evaluator(size_t N, double emin, double emax, const sym_t& ir)
+        : RKB_Angular(ir)
+        , Radial(Radial::exponents(N,emin,emax,ir),ir)
+        {}
+
+    // Evaluator Rescale(double scale_factor) const { return Evaluator(scale_factor*es,Getl()); }
+};
+
+// RKB small-component evaluator: shares Gaussian radial with NR Evaluator.
+class RKBS_Evaluator : public RKBL_Evaluator
+{
+public:
+    // RKBS_Evaluator(const rvec_t& es, int _κ, int l)
+    //     : RKB_Angular(ir)
+    //     , Radial(es,ir), κ(Getκ()) 
+    //     {ns=norms();}
+    RKBS_Evaluator(size_t N, double emin, double emax, const sym_t& ir)
+        : RKBL_Evaluator(N,emin,emax,ir)
+        {ns=norms();}
+    // RKBS_Evaluator(const rvec_t& es, const sym_t& ir)
+    //     : RKB_Angular(ir)
+    //     , Radial(es,ir)
+    //     {ns=norms();}
+    // int Getκ() const { return κ; }
+    // RKBS_Evaluator(size_t N, double emin, double emax, int κ, int l);
     virtual rvec_t norms() const;
     double Inv_r1(size_t i,size_t j) const
     {
@@ -207,7 +237,7 @@ public:
 
 private:
     using Radial::l;
-    int    κ;
+    // int    κ;
     rvec_t eval(const rvec3_t&) const;
 };
 

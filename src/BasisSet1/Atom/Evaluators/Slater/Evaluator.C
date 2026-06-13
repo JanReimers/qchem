@@ -5,6 +5,7 @@ module;
 export module qchem.BasisSet.Atom.Evaluators.Slater.IBS;
 export import qchem.BasisSet.Atom.Evaluators.Internal.ExponentialEvaluator;
 import qchem.BasisSet.Atom.Evaluators.Internal.NR_Angular;
+import qchem.BasisSet.Atom.Evaluators.Internal.RKBL_Angular;
 import qchem.BasisSet.Atom.Evaluators.Slater.Internal.Integrals;
 import qchem.BasisSet.Atom.Evaluators.Slater.Internal.Rk;
 import qchem.BasisSet.Atom.Evaluators.Concepts;
@@ -181,14 +182,34 @@ private:
     ExponentGrouper grouper;
 };
 
-// RKB small-component evaluator: shares Slater radial with NR Evaluator.
-class RKBS_Evaluator : public Evaluator
+class RKBL_Evaluator : public RKB_Angular, public Radial
 {
 public:
-    RKBS_Evaluator(const rvec_t& es, int _κ, int l)
-        : Evaluator(es,l), κ(_κ) {ns=norms();}
-    RKBS_Evaluator(size_t N, double emin, double emax, int κ, int l);
-    int Getκ() const { return κ; }
+    // Used only for the rescale operation to make Fit basis sets.
+    // RKBL_Evaluator(const rvec_t& es, int l, const ivec_t& mls={})
+    //     : Radial(es,l), RKB_Angular(l,mls) {}
+
+    // RKBL_Evaluator(const rvec_t& es, const sym_t& ir, size_t ltrim=0)
+    //     : Radial(es,ir,ltrim)
+    //     , RKB_Angular(ir) {}
+    RKBL_Evaluator(size_t N, double emin, double emax, const sym_t& ir)
+        : RKB_Angular(ir)
+        , Radial(Radial::exponents(N,emin,emax,ir),ir)
+        {}
+
+    // Evaluator Rescale(double scale_factor) const { return Evaluator(scale_factor*es,Getl()); }
+};
+
+// RKB small-component evaluator: shares Slater radial with NR Evaluator.
+class RKBS_Evaluator : public RKBL_Evaluator
+{
+public:
+    RKBS_Evaluator(size_t N, double emin, double emax, const sym_t& ir)
+        : RKBL_Evaluator(N,emin,emax,ir)
+        {ns=norms();}
+    // RKBS_Evaluator(const rvec_t& es, const sym_t& ir)
+    //     : RKBL_Evaluator(es,ir)
+    //     {ns=norms();}
     rvec_t norms() const;
 
     double Inv_r1(size_t i,size_t j) const
@@ -202,7 +223,7 @@ public:
     virtual std::string Name() const;
 private:
     using Radial::l;
-    int    κ;
+    // int    κ;
     rvec_t eval(const rvec3_t&) const;
 };
 

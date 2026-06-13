@@ -10,9 +10,9 @@ import qchem.Symmetry.Spherical; // SphericalSpinor::j(κ)
 namespace BasisSet::Atom::Evaluators
 {
 
-rvec11_t RKBL_Angular::CoulombAk(const Evaluator& other) const
+rvec11_t RKB_Angular::CoulombAk(const Evaluator& other) const
 {
-    const RKBL_Angular& o = dynamic_cast<const RKBL_Angular&>(other);
+    const RKB_Angular& o = dynamic_cast<const RKB_Angular&>(other);
     double ja = Symmetry::SphericalSpinor::j(κ);
     double jc = Symmetry::SphericalSpinor::j(o.κ);
     size_t ga = (size_t)(2*ja+1);
@@ -35,9 +35,9 @@ rvec11_t RKBL_Angular::CoulombAk(const Evaluator& other) const
     return Ak;
 }
 
-rvec11_t RKBL_Angular::ExchangeAk(const Evaluator& other) const
+rvec11_t RKB_Angular::ExchangeAk(const Evaluator& other) const
 {
-    const RKBL_Angular& o = dynamic_cast<const RKBL_Angular&>(other);
+    const RKB_Angular& o = dynamic_cast<const RKB_Angular&>(other);
     double ja = Symmetry::SphericalSpinor::j(κ);
     double jb = Symmetry::SphericalSpinor::j(o.κ);
     size_t ga = (size_t)(2*ja+1);
@@ -59,7 +59,7 @@ rvec11_t RKBL_Angular::ExchangeAk(const Evaluator& other) const
     return Ak;
 }
 
-std::string RKBL_Angular::AngularID() const
+std::string RKB_Angular::AngularID() const
 {
     std::ostringstream os;
     os << "κ=" << κ << " {";
