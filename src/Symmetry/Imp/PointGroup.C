@@ -275,4 +275,110 @@ std::vector<RotationAxis> FindImproperAxes(const std::vector<SymPoint>& pts,
     return axes;
 }
 
+//---------------------------------------------------------------------------------------
+// Largest D2h-family abelian subgroup of each Schoenflies group (the "computational"
+// subgroup used for real-arithmetic SCF blocking).  Anything not listed falls back to C1.
+static std::string AbelianSubgroup(const std::string& s)
+{
+    static const std::map<std::string,std::string> tab = {
+        {"C1","C1"},{"Cs","Cs"},{"Ci","Ci"},
+        {"C2","C2"},{"C3","C1"},{"C4","C2"},{"C5","C1"},{"C6","C2"},
+        {"C2v","C2v"},{"C3v","Cs"},{"C4v","C2v"},{"C5v","Cs"},{"C6v","C2v"},{"C∞v","C2v"},
+        {"C2h","C2h"},{"C3h","Cs"},{"C4h","C2h"},{"C6h","C2h"},
+        {"D2","D2"},{"D3","C2"},{"D4","D2"},{"D5","C2"},{"D6","D2"},
+        {"D2h","D2h"},{"D3h","C2v"},{"D4h","D2h"},{"D5h","C2v"},{"D6h","D2h"},{"D∞h","D2h"},
+        {"D2d","C2v"},{"D3d","C2h"},{"D4d","C2v"},{"D5d","C2h"},{"D6d","C2v"},
+        {"S4","C2"},{"S6","Ci"},{"S8","C2"},
+        {"T","D2"},{"Td","C2v"},{"Th","D2h"},{"O","D2"},{"Oh","D2h"},{"I","C2"},{"Ih","D2h"},
+    };
+    auto it = tab.find(s);
+    return (it!=tab.end()) ? it->second : "C1";
+}
+
+PointGroup DetectPointGroup(const std::vector<SymPoint>& pts, double tol)
+{
+    PointGroup pg{};
+    rvec3_t o = Centroid(pts);
+    PrincipalAxes pa = ClassifyTop(pts, o);
+    pg.top          = pa.top;
+    pg.hasInversion = HasInversion(pts, o, tol);
+
+    // Linear: D∞h (with i) or C∞v.
+    if (pa.top == TopType::Linear)
+    {
+        pg.symbol = pg.hasInversion ? "D∞h" : "C∞v";
+        pg.principalAxis = pa.axis[pa.uniqueAxis];
+        pg.principalOrder = 0; pg.order = 0; pg.nC2perp = -1; pg.nSigma = -1;
+        pg.abelian = AbelianSubgroup(pg.symbol);
+        return pg;
+    }
+
+    auto axes     = FindRotationAxes(pts, o, tol);
+    auto planes   = FindMirrorPlanes(pts, o, tol);
+    auto improper = FindImproperAxes(pts, o, tol);
+    pg.nSigma = (int)planes.size();
+
+    int nHigh=0; for (const auto& a : axes) if (a.order>=3) ++nHigh;
+
+    // Cubic / icosahedral: more than one high-order (>=3) axis.
+    if (nHigh >= 2)
+    {
+        int mx = axes[0].order;
+        bool hasS4=false; for (const auto& s : improper) if (s.order==4) hasS4=true;
+        std::string sym; int h;
+        if      (mx==3) { if (pg.hasInversion){sym="Th";h=24;} else if(hasS4){sym="Td";h=24;} else {sym="T";h=12;} }
+        else if (mx==4) { if (pg.hasInversion){sym="Oh";h=48;} else {sym="O";h=24;} }
+        else            { if (pg.hasInversion){sym="Ih";h=120;} else {sym="I";h=60;} }
+        pg.symbol=sym; pg.order=h; pg.principalOrder=mx; pg.principalAxis=axes[0].axis;
+        pg.nC2perp=-1; pg.abelian=AbelianSubgroup(sym);
+        return pg;
+    }
+
+    // No proper rotation axis: Cs / Ci / C1.
+    if (axes.empty())
+    {
+        if      (!planes.empty())   { pg.symbol="Cs"; pg.order=2; }
+        else if (pg.hasInversion)   { pg.symbol="Ci"; pg.order=2; }
+        else                        { pg.symbol="C1"; pg.order=1; }
+        pg.principalOrder=1; pg.principalAxis=rvec3_t(0,0,1); pg.nC2perp=0;
+        pg.abelian=AbelianSubgroup(pg.symbol);
+        return pg;
+    }
+
+    // Single principal axis C_n.
+    int n = axes[0].order;
+    rvec3_t ax = axes[0].axis;
+    pg.principalOrder = n; pg.principalAxis = ax;
+
+    int nperp=0;
+    for (size_t i=1;i<axes.size();++i)
+        if (axes[i].order==2 && fabs(axes[i].axis * ax) < 1e-3) ++nperp;
+    pg.nC2perp = nperp;
+
+    bool sigmaH=false; int nSigmaV=0;
+    for (const auto& nrm : planes)
+    {
+        if      (SameAxis(nrm, ax))      sigmaH=true;          // normal || principal -> sigma_h
+        else if (fabs(nrm * ax) < 1e-3)  ++nSigmaV;            // normal _|_ principal -> sigma_v/d
+    }
+    bool hasS2n=false; for (const auto& s : improper) if (SameAxis(s.axis,ax) && s.order==2*n) hasS2n=true;
+
+    std::string N = std::to_string(n), sym; int h;
+    if (nperp == n)                                            // D family
+    {
+        if      (sigmaH)        { sym="D"+N+"h"; h=4*n; }
+        else if (nSigmaV==n)    { sym="D"+N+"d"; h=4*n; }
+        else                    { sym="D"+N;     h=2*n; }
+    }
+    else                                                       // C family
+    {
+        if      (sigmaH)        { sym="C"+N+"h"; h=2*n; }
+        else if (nSigmaV==n)    { sym="C"+N+"v"; h=2*n; }
+        else if (hasS2n)        { sym="S"+std::to_string(2*n); h=2*n; }
+        else                    { sym="C"+N;     h=n; }
+    }
+    pg.symbol=sym; pg.order=h; pg.abelian=AbelianSubgroup(sym);
+    return pg;
+}
+
 } //namespace

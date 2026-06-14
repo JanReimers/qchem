@@ -121,4 +121,25 @@ bool HasInversion(const std::vector<SymPoint>& pts, const rvec3_t& origin, doubl
 std::vector<RotationAxis> FindImproperAxes(const std::vector<SymPoint>& pts,
                                            const rvec3_t& origin, double tol);
 
+//---------------------------------------------------------------------------------------
+// The detected point group: the full Schoenflies symbol for labelling, plus the abelian
+// subgroup actually used for SCF blocking (real 1-D irreps: one of C1/Ci/Cs/C2/C2h/C2v/
+// D2/D2h), plus the principal axis and a little inventory for callers/tests.
+struct PointGroup
+{
+    std::string symbol;        // full Schoenflies, e.g. "C2v", "D6h", "Td", "D∞h"
+    std::string abelian;       // abelian subgroup for SCF blocking
+    int         order;         // h = number of operations (0 for the infinite linear groups)
+    TopType     top;
+    rvec3_t     principalAxis; // highest-order (or C∞) axis
+    int         principalOrder;// n of the principal C_n (0 = infinite/linear, 1 = none)
+    bool        hasInversion;
+    int         nC2perp;       // C2 axes perpendicular to the principal axis (-1 if N/A)
+    int         nSigma;        // number of mirror planes (-1 if N/A)
+};
+
+// Detect the molecular point group of a set of labelled points (the full pipeline:
+// centroid -> top -> axes -> mirror/inversion/improper inventory -> classification).
+PointGroup DetectPointGroup(const std::vector<SymPoint>& pts, double tol);
+
 } //namespace

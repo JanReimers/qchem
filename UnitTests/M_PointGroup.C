@@ -220,6 +220,82 @@ TEST(PointGroup, Inventory_methane_Td)
     EXPECT_EQ(s[0].order, 4);
 }
 
+// --- Full detection + Schoenflies symbol + abelian descent (stage 1b-2c) -------------
+
+TEST(PointGroup, Detect_water_C2v)
+{
+    auto g = DetectPointGroup(Water(), 1e-6);
+    EXPECT_EQ(g.symbol, "C2v");
+    EXPECT_EQ(g.abelian, "C2v");
+    EXPECT_EQ(g.order, 4);
+    EXPECT_EQ(g.principalOrder, 2);
+}
+
+TEST(PointGroup, Detect_ammonia_C3v)
+{
+    auto g = DetectPointGroup(Ammonia(), 1e-6);
+    EXPECT_EQ(g.symbol, "C3v");
+    EXPECT_EQ(g.abelian, "Cs");       // C3 has no real abelian subgroup beyond a mirror
+    EXPECT_EQ(g.order, 6);
+}
+
+TEST(PointGroup, Detect_benzene_D6h)
+{
+    auto g = DetectPointGroup(Benzene(), 1e-6);
+    EXPECT_EQ(g.symbol, "D6h");
+    EXPECT_EQ(g.abelian, "D2h");
+    EXPECT_EQ(g.order, 24);
+    EXPECT_TRUE(g.hasInversion);
+    EXPECT_EQ(g.nC2perp, 6);
+}
+
+TEST(PointGroup, Detect_methane_Td)
+{
+    auto g = DetectPointGroup(Methane(), 1e-6);
+    EXPECT_EQ(g.symbol, "Td");
+    EXPECT_EQ(g.abelian, "C2v");
+    EXPECT_EQ(g.order, 24);
+    EXPECT_FALSE(g.hasInversion);
+}
+
+TEST(PointGroup, Detect_co2_Dinfh)
+{
+    std::vector<SymPoint> co2 = {
+        {6, rvec3_t(0,0, 0.00)}, {8, rvec3_t(0,0, 1.16)}, {8, rvec3_t(0,0,-1.16)},
+    };
+    auto g = DetectPointGroup(co2, 1e-6);
+    EXPECT_EQ(g.symbol, "D∞h");
+    EXPECT_EQ(g.abelian, "D2h");
+    EXPECT_EQ(g.top, TopType::Linear);
+}
+
+TEST(PointGroup, Detect_rectangle_D2h)
+{
+    // Four identical atoms at the corners of a (non-square) rectangle in the xy-plane.
+    std::vector<SymPoint> rect = {
+        {5, rvec3_t( 1.5,  1.0, 0)}, {5, rvec3_t(-1.5,  1.0, 0)},
+        {5, rvec3_t(-1.5, -1.0, 0)}, {5, rvec3_t( 1.5, -1.0, 0)},
+    };
+    auto g = DetectPointGroup(rect, 1e-6);
+    EXPECT_EQ(g.symbol, "D2h");
+    EXPECT_EQ(g.abelian, "D2h");
+    EXPECT_EQ(g.order, 8);
+    EXPECT_TRUE(g.hasInversion);
+}
+
+TEST(PointGroup, Detect_scalene_planar_Cs)
+{
+    // Three distinct atoms all in the y=0 plane and no other symmetry -> Cs.
+    std::vector<SymPoint> cs = {
+        {8, rvec3_t(0,0,0)}, {1, rvec3_t(1,0,0)}, {6, rvec3_t(0,0,1)},
+    };
+    auto g = DetectPointGroup(cs, 1e-6);
+    EXPECT_EQ(g.symbol, "Cs");
+    EXPECT_EQ(g.abelian, "Cs");
+    EXPECT_EQ(g.order, 2);
+    EXPECT_EQ(g.nSigma, 1);
+}
+
 TEST(PointGroup, SymOp_basics)
 {
     rvec3_t z(0,0,1);
