@@ -448,6 +448,9 @@ class DHF_Xe : public ::testing::Test, public TestDiracAtom
 };
 TEST_F(DHF_Xe,P5pSplit)
 {
+#ifdef DEBUG
+    GTEST_SKIP() << "Xe DHF (54 electrons) is too slow for Debug; runs in Release only.";
+#endif
     QchemTester::Init(Medium,abs_t::Slater_RKB,false);
     //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo MergeTol verbose
     Iterate({   50    ,1e-5     ,1e-7  , 3e-5     ,1e-6   ,0.3             ,1e-7   ,true});
