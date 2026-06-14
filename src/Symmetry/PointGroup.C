@@ -92,4 +92,20 @@ Matrix3D<double> InertiaTensor(const std::vector<SymPoint>& pts, const rvec3_t& 
 // tolerance (against the largest moment) for deciding moment degeneracy.
 PrincipalAxes ClassifyTop(const std::vector<SymPoint>& pts, const rvec3_t& origin, double rtol=1e-3);
 
+//---------------------------------------------------------------------------------------
+// A proper rotation axis and its highest order (>= 2).
+struct RotationAxis
+{
+    rvec3_t axis;   // unit direction through the origin
+    int     order;  // highest n with C_n a symmetry
+};
+
+// All proper rotation axes of the point set about `origin` (order >= 2), highest order
+// first.  Candidate directions come from the principal axes, the centroid->atom vectors,
+// the midpoints of same-species atom pairs, and the normals to those pairs; each is tested
+// with IsSymmetryOf for the highest C_n it supports.  (Linear molecules are handled
+// separately by the top-level detector: their C_inf axis is the unique principal axis.)
+std::vector<RotationAxis> FindRotationAxes(const std::vector<SymPoint>& pts,
+                                           const rvec3_t& origin, double tol);
+
 } //namespace

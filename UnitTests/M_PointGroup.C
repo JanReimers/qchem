@@ -1,10 +1,16 @@
 // File: UnitTests/M_PointGroup.C  Point-group symmetry primitives (stage 1a).
 #include <gtest/gtest.h>
 #include <vector>
-#include <cmath>
 import qchem.Symmetry.PointGroup;
+import qchem.Math;            // Pi, sin, cos, fabs (project-wide, for test geometry)
 
 using namespace Symmetry;
+
+// Count axes of a given order.
+static int CountOrder(const std::vector<RotationAxis>& a, int order)
+{
+    int n=0; for (const auto& ax : a) if (ax.order==order) ++n; return n;
+}
 
 // Water, C2v, lying in the yz-plane with its C2 axis along z.  (Geometry in arbitrary units;
 // only the symmetry matters.)  The centroid is NOT at an atom, which exercises the
@@ -43,7 +49,7 @@ TEST(PointGroup, Water_is_C2v)
 static double AxisAlongZ(const PrincipalAxes& pa)            // |unique axis . z|, ~1 if along z
 {
     rvec3_t z(0,0,1);
-    return std::fabs(pa.axis[pa.uniqueAxis] * z);
+    return fabs(pa.axis[pa.uniqueAxis] * z);
 }
 
 TEST(PointGroup, Top_water_asymmetric)
@@ -56,7 +62,7 @@ TEST(PointGroup, Top_water_asymmetric)
 TEST(PointGroup, Top_ammonia_symmetric_axis_z)
 {
     // NH3, C3 axis along z: N near the apex, 3 H in a lower plane 120 deg apart.
-    const double c=std::cos(2.0*M_PI/3.0), s=std::sin(2.0*M_PI/3.0), rho=0.94;
+    const double c=cos(2.0*Pi/3.0), s=sin(2.0*Pi/3.0), rho=0.94;
     std::vector<SymPoint> nh3 = {
         {7, rvec3_t(0.0, 0.0, 0.10)},
         {1, rvec3_t(rho,        0.0,        -0.30)},
@@ -93,6 +99,68 @@ TEST(PointGroup, Top_co2_linear_axis_z)
     PrincipalAxes pa = ClassifyTop(co2, Centroid(co2));
     EXPECT_EQ(pa.top, TopType::Linear);
     EXPECT_NEAR(AxisAlongZ(pa), 1.0, 1e-6);   // C_inf axis = z
+}
+
+// --- Proper rotation-axis finder (stage 1b-2a) ---------------------------------------
+
+static std::vector<SymPoint> Benzene()  // D6h, ring in the xy-plane, C6 axis = z
+{
+    std::vector<SymPoint> b;
+    const double Rc=1.39, Rh=2.47;
+    for (int k=0;k<6;k++)
+    {
+        double a = k*Pi/3.0;                          // 60 degrees apart
+        b.push_back({6, rvec3_t(Rc*cos(a), Rc*sin(a), 0.0)});
+        b.push_back({1, rvec3_t(Rh*cos(a), Rh*sin(a), 0.0)});
+    }
+    return b;
+}
+
+TEST(PointGroup, Axes_water)
+{
+    auto w = Water();
+    auto ax = FindRotationAxes(w, Centroid(w), 1e-6);
+    EXPECT_EQ(ax.size(), 1u);
+    EXPECT_EQ(ax[0].order, 2);
+}
+
+TEST(PointGroup, Axes_ammonia_single_C3)
+{
+    const double c=cos(2.0*Pi/3.0), s=sin(2.0*Pi/3.0), rho=0.94;
+    std::vector<SymPoint> nh3 = {
+        {7, rvec3_t(0.0, 0.0, 0.10)},
+        {1, rvec3_t(rho,   0.0,   -0.30)},
+        {1, rvec3_t(rho*c, rho*s, -0.30)},
+        {1, rvec3_t(rho*c,-rho*s, -0.30)},
+    };
+    auto ax = FindRotationAxes(nh3, Centroid(nh3), 1e-6);
+    EXPECT_EQ(ax.size(), 1u);     // C3v has only the one C3 axis (no perpendicular C2)
+    EXPECT_EQ(ax[0].order, 3);
+}
+
+TEST(PointGroup, Axes_benzene_D6h)
+{
+    auto b = Benzene();
+    auto ax = FindRotationAxes(b, Centroid(b), 1e-6);
+    EXPECT_EQ(ax[0].order, 6);          // principal axis C6
+    EXPECT_EQ(CountOrder(ax, 6), 1);
+    EXPECT_EQ(CountOrder(ax, 2), 6);    // six C2 axes perpendicular to C6
+    EXPECT_EQ(ax.size(), 7u);
+}
+
+TEST(PointGroup, Axes_methane_Td)
+{
+    std::vector<SymPoint> ch4 = {
+        {6, rvec3_t( 0, 0, 0)},
+        {1, rvec3_t( 1, 1, 1)},
+        {1, rvec3_t( 1,-1,-1)},
+        {1, rvec3_t(-1, 1,-1)},
+        {1, rvec3_t(-1,-1, 1)},
+    };
+    auto ax = FindRotationAxes(ch4, Centroid(ch4), 1e-6);
+    EXPECT_EQ(CountOrder(ax, 3), 4);    // four C3 axes through the C-H bonds
+    EXPECT_EQ(CountOrder(ax, 2), 3);    // three C2 axes through opposite H-H edge midpoints
+    EXPECT_EQ(ax.size(), 7u);
 }
 
 TEST(PointGroup, SymOp_basics)

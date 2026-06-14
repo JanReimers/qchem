@@ -2,25 +2,25 @@
 module;
 #include <vector>
 #include <string>
-#include <cmath>
 #include <utility>
+#include <map>
+#include <algorithm>
 module qchem.Symmetry.PointGroup;
+import qchem.Math;          // Pi, sqrt, fabs, sin, cos, Square (project-wide constants/math)
 
 namespace Symmetry
 {
 
-static const double PI = 3.14159265358979323846;
-
 static rvec3_t Normalize(const rvec3_t& a)
 {
-    double n = std::sqrt(a*a);                 // a*a is the dot product
+    double n = sqrt(a*a);                       // a*a is the dot product
     return (n>0.0) ? a/n : rvec3_t(0,0,1);
 }
 
 // Proper rotation by angle theta (rad) about the unit axis u (Rodrigues, right-handed).
 static Matrix3D<double> RotMatrix(const rvec3_t& u, double theta)
 {
-    double c=std::cos(theta), s=std::sin(theta), t=1.0-c;
+    double c=cos(theta), s=sin(theta), t=1.0-c;
     double x=u.x, y=u.y, z=u.z;
     return Matrix3D<double>(
         c+x*x*t,    x*y*t-z*s,  x*z*t+y*s,
@@ -40,18 +40,13 @@ static Matrix3D<double> ReflMatrix(const rvec3_t& n)
 SymOp::SymOp(const Matrix3D<double>& m, Kind k, int n, const rvec3_t& axis)
     : itsM(m), itsKind(k), itsN(n), itsAxis(axis) {}
 
-SymOp SymOp::E()
-{
-    return SymOp(Matrix3D<double>(1,0,0, 0,1,0, 0,0,1), Kind::E, 1, rvec3_t(0,0,1));
-}
-SymOp SymOp::Inversion()
-{
-    return SymOp(Matrix3D<double>(-1,0,0, 0,-1,0, 0,0,-1), Kind::Inv, 2, rvec3_t(0,0,1));
-}
+SymOp SymOp::E()         { return SymOp(Matrix3D<double>(1,0,0, 0,1,0, 0,0,1),  Kind::E,   1, rvec3_t(0,0,1)); }
+SymOp SymOp::Inversion() { return SymOp(Matrix3D<double>(-1,0,0,0,-1,0,0,0,-1), Kind::Inv, 2, rvec3_t(0,0,1)); }
+
 SymOp SymOp::Cn(const rvec3_t& axis, int n, int power)
 {
     rvec3_t u = Normalize(axis);
-    return SymOp(RotMatrix(u, 2.0*PI*power/n), Kind::Cn, n, u);
+    return SymOp(RotMatrix(u, 2.0*Pi*power/n), Kind::Cn, n, u);
 }
 SymOp SymOp::Sigma(const rvec3_t& normal)
 {
@@ -61,8 +56,7 @@ SymOp SymOp::Sigma(const rvec3_t& normal)
 SymOp SymOp::Sn(const rvec3_t& axis, int n, int power)
 {
     rvec3_t u = Normalize(axis);
-    Matrix3D<double> m = ReflMatrix(u) * RotMatrix(u, 2.0*PI*power/n); // sigma_h o C_n^power
-    return SymOp(m, Kind::Sn, n, u);
+    return SymOp(ReflMatrix(u) * RotMatrix(u, 2.0*Pi*power/n), Kind::Sn, n, u); // sigma_h o C_n^power
 }
 
 std::string SymOp::Label() const
@@ -89,7 +83,7 @@ rvec3_t Centroid(const std::vector<SymPoint>& pts)
 bool IsSymmetryOf(const SymOp& op, const std::vector<SymPoint>& pts,
                   const rvec3_t& origin, double tol)
 {
-    double tol2 = tol*tol;
+    double tol2 = Square(tol);
     for (const auto& p : pts)
     {
         rvec3_t image = origin + op.Apply(p.r - origin);
@@ -128,13 +122,13 @@ static void SymEigen3(const Matrix3D<double>& M, double eval[3], rvec3_t evec[3]
     for (int i=0;i<3;i++) for (int j=0;j<3;j++) a[i][j]=M(i+1,j+1); // Matrix3D is 1-indexed
     for (int sweep=0; sweep<100; ++sweep)
     {
-        if (std::fabs(a[0][1])+std::fabs(a[0][2])+std::fabs(a[1][2]) < 1e-15) break;
+        if (fabs(a[0][1])+fabs(a[0][2])+fabs(a[1][2]) < 1e-15) break;
         for (int p=0;p<3;p++) for (int q=p+1;q<3;q++)
         {
-            if (std::fabs(a[p][q]) < 1e-300) continue;
+            if (fabs(a[p][q]) < 1e-300) continue;
             double theta = (a[q][q]-a[p][p])/(2.0*a[p][q]);
-            double t = ((theta>=0)?1.0:-1.0)/(std::fabs(theta)+std::sqrt(theta*theta+1.0));
-            double c = 1.0/std::sqrt(t*t+1.0), s = t*c;
+            double t = ((theta>=0)?1.0:-1.0)/(fabs(theta)+sqrt(theta*theta+1.0));
+            double c = 1.0/sqrt(t*t+1.0), s = t*c;
             double app=a[p][p], aqq=a[q][q], apq=a[p][q];
             a[p][p]=c*c*app - 2*s*c*apq + s*s*aqq;
             a[q][q]=s*s*app + 2*s*c*apq + c*c*aqq;
@@ -169,7 +163,7 @@ PrincipalAxes ClassifyTop(const std::vector<SymPoint>& pts, const rvec3_t& origi
     for (int k=0;k<3;k++) { pa.moment[k]=ev[idx[k]]; pa.axis[k]=Normalize(evec[idx[k]]); }
 
     double scale = (pa.moment[2]>0.0) ? pa.moment[2] : 1.0;
-    auto eq = [&](double x,double y){ return std::fabs(x-y) <= rtol*scale; };
+    auto eq = [&](double x,double y){ return fabs(x-y) <= rtol*scale; };
     bool d01  = eq(pa.moment[0], pa.moment[1]);
     bool d12  = eq(pa.moment[1], pa.moment[2]);
     bool zero0 = pa.moment[0] <= rtol*scale;
@@ -181,6 +175,59 @@ PrincipalAxes ClassifyTop(const std::vector<SymPoint>& pts, const rvec3_t& origi
     else if (d12)          { pa.top=TopType::Symmetric;  pa.uniqueAxis=0; } // prolate m0<m1=m2
     else                     pa.top=TopType::Asymmetric;
     return pa;
+}
+
+//---------------------------------------------------------------------------------------
+// Two unit directions describe the same axis (line) when they are parallel or antiparallel.
+static bool SameAxis(const rvec3_t& a, const rvec3_t& b)
+{
+    rvec3_t c = Cross(a,b);
+    return (c*c) < 1e-6;                         // |a x b|^2 = sin^2(angle), a,b unit
+}
+
+std::vector<RotationAxis> FindRotationAxes(const std::vector<SymPoint>& pts,
+                                           const rvec3_t& origin, double tol)
+{
+    // 1. Collect candidate axis directions (deduplicated by line).
+    std::vector<rvec3_t> cand;
+    auto add = [&](const rvec3_t& d)
+    {
+        if (d*d < 1e-12) return;                 // skip the null direction
+        rvec3_t u = Normalize(d);
+        for (const auto& e : cand) if (SameAxis(u,e)) return;
+        cand.push_back(u);
+    };
+    PrincipalAxes pa = ClassifyTop(pts, origin);
+    for (int k=0;k<3;k++) add(pa.axis[k]);       // principal inertia axes
+    size_t N = pts.size();
+    for (size_t i=0;i<N;i++)
+    {
+        rvec3_t ri = pts[i].r - origin;
+        add(ri);                                 // through an atom
+        for (size_t j=i+1;j<N;j++)
+        {
+            if (pts[i].species != pts[j].species) continue;
+            rvec3_t rj = pts[j].r - origin;
+            add(ri+rj);                          // through a same-species pair midpoint (C2)
+            add(Cross(ri,rj));                   // normal to the pair's plane (face axes)
+        }
+    }
+
+    // 2. Highest order worth testing = size of the largest same-species orbit (capped).
+    std::map<int,int> count;
+    for (const auto& p : pts) count[p.species]++;
+    int Nmax=2; for (const auto& kv : count) Nmax = std::max(Nmax, kv.second);
+    if (Nmax>12) Nmax=12;
+
+    // 3. For each candidate line, keep the highest C_n that is an actual symmetry.
+    std::vector<RotationAxis> axes;
+    for (const auto& d : cand)
+        for (int n=Nmax; n>=2; --n)
+            if (IsSymmetryOf(SymOp::Cn(d,n), pts, origin, tol)) { axes.push_back({d,n}); break; }
+
+    std::sort(axes.begin(), axes.end(),
+              [](const RotationAxis& a, const RotationAxis& b){ return a.order>b.order; });
+    return axes;
 }
 
 } //namespace
