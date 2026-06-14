@@ -2,11 +2,9 @@
 
 **One quantum-chemistry engine for atoms, molecules, and solids — for any Hamiltonian,
 any basis set, with or without relativity — built to show that object-oriented and SOLID
-design, *done well*, scales to hard physics instead of getting in the way.**
+design, (hopefully) *done well*, scales to hard computational physics instead of getting in the way.**
 
-Most scientific codes either hard-code one method/basis combination, or reach for
-object orientation, apply it badly, and conclude "OO doesn't work for HPC/science." The
-thesis of this project is the opposite: with the right abstractions, a *single* code base
+The thesis of this project is that with the right abstractions, a *single* code base
 can span the whole matrix of
 
 ```
@@ -14,8 +12,12 @@ can span the whole matrix of
 ```
 
 without combinatorial duplication — each new basis set, Hamiltonian, or symmetry is added
-*once* and composes with everything already there.
+*once* and composes with everything already there.  Obviously these attributes do not perfectly decouple, atoms use very 
+different basis sets than do molecules and solids.  The Hamiltonian requires the basis set to deliver tables of specific types of integrals.  The required integrals are different for HF/DFT/Relatistic/non-relativistic etc.  The goal is to handle this gracefully in the software architecture by replacing a combinatorial explosion of procedural "if" statements with modern virtual dispatch and template meta programming.
 
+Another question the author is interested in addressing: Is AI now ready to develop reliable computational physics software?
+
+The implementation language selected is c++.  julia would also be a very good language for demonstrating these ideas.
 ---
 
 ## What works today
@@ -51,8 +53,7 @@ a small interface, and composing them with C++20 concepts and mixins:
    every basis that satisfies the concept gets it.
 
 3. **Symmetry** — spherical harmonics for non-relativistic atoms, spherical *spinors*
-   (`SphericalSpinor`, labelled by κ) for the Dirac case — abstracted so the same orbital
-   and SCF machinery drives both.
+   (`SphericalSpinor`, labelled by κ) for the Dirac case, molecular point groups, Bloch function wave vectors — all abstracted so the same orbital and SCF machinery drives both. 
 
 `Factory` functions select the concrete combination at run time from JSON, so a calculation
 is "pick a system, a Hamiltonian, a basis, and a relativity flag." The relativistic
@@ -63,7 +64,7 @@ the jj-coupled angular coefficients.
 This is the SOLID payoff in practice: single-responsibility pieces, open for extension
 (new Evaluator or Hamiltonian) but closed for modification, substitutable behind concepts.
 
-## Layout
+## Current Layout
 
 ```
 src/
@@ -77,14 +78,14 @@ src/
   Orbitals/ WaveFunction/ SCFIterator/ SCFAccelerator/   the SCF loop
   Fitting/ LASolver/ Factory/
 UnitTests/       GoogleTest suite (build target: UTMain)
-gtkapp/          GTK front-end
+gtkapp/          GTK front-end for atoms
 doc/             reference data (HF, DFT, DHF energies)
 ```
 
 ## Building
 
 Requires a C++20 compiler with modules support, CMake ≥ 3.31, a Fortran compiler
-(for LAPACK/libxc), and BLAS/LAPACK. Third-party dependencies are vendored as git
+(for wignerSymbols/libxc/GaussLegendreIntegration), and BLAS/LAPACK. Third-party dependencies are vendored as git
 submodules (blaze, libxc, wignerSymbols, json, googletest, tabulate, BSplinebasis).
 
 ```sh
