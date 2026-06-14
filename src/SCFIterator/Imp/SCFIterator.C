@@ -118,6 +118,7 @@ bool SCFIterator::Iterate(const SCFParams& ipar)
         eb=itsHamiltonian->GetTotalEnergy(itsCD);
         E=eb.GetTotalEnergy();
         dE=(E-Eold)/fabs(E);
+        itsAccelerator->SetEnergy(E); //the ladder gates its hand-off on the energy change
         FD=itsAccelerator->GetError(); //i.e. [F,D]
         dFD=(FD-FDold);
         if (ipar.Verbose) DisplayEnergies(itsIterationCount,eb,relax,dFD,ChargeDensityChange,idealVirial);

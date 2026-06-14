@@ -2,6 +2,7 @@
 module;
 #include <iostream>
 #include <vector>
+#include <cmath>
 module qchem.SCFAccelerator.Internal.SCFAcceleratorLadder;
 
 namespace qchem::SCFAccelerators
@@ -31,25 +32,31 @@ SCFIrrepAccelerator* SCFAcceleratorLadder::Create(const LASolver<double>* las,co
     return new SCFIrrepAcceleratorLadder(std::move(rungs), &itsActive);
 }
 
+void SCFAcceleratorLadder::SetEnergy(double E) { itsPrevE=itsLastE; itsLastE=E; }
+
 bool SCFAcceleratorLadder::CalculateProjections()
 {
     bool ok = itsRungs[itsActive]->CalculateProjections();
 
-    // Track the best error so far on this rung.  A rung that keeps beating its own best is
-    // still making progress (however slowly) -> do NOT hand off.  Only switch when the rung
-    // is Exhausted() AND has failed to improve for several consecutive steps (genuinely
-    // stuck/oscillating, not merely slow -- a heavy atom can converge slowly yet steadily).
+    // Track the best error so far on this rung: a rung that keeps beating its own best is
+    // still making progress, so it is not "stuck".
     double err = itsRungs[itsActive]->GetError();
     if (err < 0.999*itsBestErr) { itsBestErr=err; itsNoImprove=0; }
     else                          itsNoImprove++;
 
-    // Error floor: a plateau at the noise floor is convergence, not a stall -- never hand off
-    // there (e.g. a heavy atom whose DIIS bottoms out at [F,D]~1e-6 below the SCF criteria).
-    if (itsActive+1<itsRungs.size() && itsRungs[itsActive]->Exhausted()
-        && itsNoImprove>=itsStall && err>itsFloor)
+    // Hand off only if the active rung is (a) Exhausted(), (b) stuck on its error for `stall`
+    // steps, (c) the ENERGY is still moving (not a converged plateau -- see the design notes
+    // at the top of the header), and (d) above an absolute noise floor.  See those notes for
+    // why the energy, not [F,D], is the decisive signal.
+    double relDE = (itsLastE!=0.0) ? std::fabs((itsLastE-itsPrevE)/itsLastE) : 1.0;
+    if (itsActive+1<itsRungs.size()
+        && itsRungs[itsActive]->Exhausted()
+        && itsNoImprove>=itsStall
+        && relDE>itsEThresh
+        && err>itsFloor)
     {
         cout << "  *** SCF accelerator ladder: rung " << itsActive
-             << " exhausted -> advancing to rung " << itsActive+1 << " ***" << endl;
+             << " exhausted (|dE/E|=" << relDE << ") -> advancing to rung " << itsActive+1 << " ***" << endl;
         itsActive++;
         itsBestErr=1e300; itsNoImprove=0;
     }

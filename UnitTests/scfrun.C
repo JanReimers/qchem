@@ -41,6 +41,8 @@ int main(int argc, char** argv)
     int    Z=2, q=0, maxiter=50;
     string model="HF", pol="U", basis="", acc="Low", accel="DIIS";
     nlohmann::json accj;   // accelerator config passed to QchemTester
+    // SCF convergence criteria (-1 => Z-scaled default); raise precision with --minfd/--virial.
+    double minro=-1, minde=1e-5, virial=5e-1, minfd=-1, relax=0.5;
 
     // ---- parse "--flag value" pairs ----
     auto need=[&](int& i){ if (i+1>=argc){cout<<"missing value for "<<argv[i]<<endl; exit(1);} return string(argv[++i]); };
@@ -56,10 +58,16 @@ int main(int argc, char** argv)
         else if (a=="--accel")   accel=need(i);
         else if (a=="--maxiter") maxiter=std::stoi(need(i));
         else if (a=="--floor")   accj["floor"]=std::stod(need(i));
+        else if (a=="--ethresh") accj["ethresh"]=std::stod(need(i));
         else if (a=="--stall")   accj["stall"]=std::stoi(need(i));
         else if (a=="--trust")   accj["Trust"]=std::stod(need(i));
         else if (a=="--emax")    accj["EMax"]=std::stod(need(i));
         else if (a=="--nproj")   accj["NProj"]=(size_t)std::stoi(need(i));
+        else if (a=="--minfd")   minfd=std::stod(need(i));
+        else if (a=="--minde")   minde=std::stod(need(i));
+        else if (a=="--virial")  virial=std::stod(need(i));
+        else if (a=="--minro")   minro=std::stod(need(i));
+        else if (a=="--relax")   relax=std::stod(need(i));
         else { cout<<"unknown option "<<a<<endl; return 1; }
     }
     bool dirac = (model=="DHF" || model=="DE1");
@@ -86,8 +94,10 @@ int main(int argc, char** argv)
                            : (QchemTester*) new CliAtom     (Z,q,models[model],pp);
     t->SetAcceleratorConfig(accj);
     t->Init(accs[acc], bases[basis], false);
+    if (minro<0) minro=Z*1e-4;
+    if (minfd<0) minfd=Z*2e-5;
     //       NMaxIter   MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo MergeTol verbose
-    t->Iterate({(size_t)maxiter, Z*1e-4, 1e-5,  5e-1,    Z*2e-5,  0.5,            1e-7,    true});
+    t->Iterate({(size_t)maxiter, minro, minde, virial, minfd, relax, 1e-7, true});
 
     // ---- report ----
     double E=t->TotalEnergy();

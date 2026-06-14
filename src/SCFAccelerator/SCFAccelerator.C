@@ -31,6 +31,9 @@ public:
     virtual double GetError() const=0;
     // Has this accelerator run out of steam (ladder hand-off signal)?  Default: never.
     virtual bool Exhausted() const {return false;}
+    // The SCF iterator reports the current total energy each macro-iteration.  The ladder
+    // uses the energy change to decide hand-offs (see SCFAcceleratorLadder); others ignore it.
+    virtual void SetEnergy(double E) {}
 };
 
 } //namespace

@@ -38,13 +38,14 @@ SCFAccelerator* Factory(Type type,const nlohmann::json& js)
             double EMax  = js.contains("EMax")  ? js["EMax"].template get<double>()  : 1.0;
             double EMin  = js.contains("EMin")  ? js["EMin"].template get<double>()  : 1e-7;
             double SVTol = js.contains("SVTol") ? js["SVTol"].template get<double>() : 5e-9;
-            double Trust = js.contains("Trust") ? js["Trust"].template get<double>() : 0.1;
-            double floor = js.contains("floor") ? js["floor"].template get<double>() : 1e-4;
-            int    stall = js.contains("stall") ? js["stall"].template get<int>()    : 5;
+            double Trust   = js.contains("Trust")   ? js["Trust"].template get<double>()   : 0.1;
+            double ethresh = js.contains("ethresh") ? js["ethresh"].template get<double>() : 1e-8;
+            int    stall   = js.contains("stall")   ? js["stall"].template get<int>()      : 5;
+            double floor   = js.contains("floor")   ? js["floor"].template get<double>()   : 1e-8;
             std::vector<SCFAccelerator*> rungs;
             rungs.push_back(new SCFAcceleratorDIIS({Nproj,EMax,EMin,SVTol}));
             rungs.push_back(new SCFAcceleratorGDM ({1e10,Trust})); //always steps once it is the active rung
-            acc=new SCFAcceleratorLadder(rungs,floor,stall);
+            acc=new SCFAcceleratorLadder(rungs,ethresh,stall,floor);
             break;
         }
         
