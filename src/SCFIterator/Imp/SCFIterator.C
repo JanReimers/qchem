@@ -104,15 +104,27 @@ bool SCFIterator::Iterate(const SCFParams& ipar)
         itsIterationCount   <= ipar.NMaxIter && !itsConverged;
         itsIterationCount++)
     {
-        itsWaveFunction->DoSCFIteration(*itsHamiltonian,itsCD); //Just gets a set of eigen orbitals from the Hamiltonian
-        itsWaveFunction->FillOrbitals(ipar.MergeTol);
+        if (itsDirectMin)
+        {
+            // GDM owns the loop: a geodesic line search drives the energy down directly, with
+            // NO density mixing (the line search guarantees descent).
+            delete itsOldCD;
+            itsOldCD=itsCD;
+            itsCD=DirectMinStep(Eold,ipar.MergeTol);
+            ChargeDensityChange = itsCD->GetChangeFrom(*itsOldCD)/itsCD->GetTotalCharge();
+        }
+        else
+        {
+            itsWaveFunction->DoSCFIteration(*itsHamiltonian,itsCD); //Just gets a set of eigen orbitals from the Hamiltonian
+            itsWaveFunction->FillOrbitals(ipar.MergeTol);
 
-        delete itsOldCD;
-        itsOldCD=itsCD;
-        itsCD=itsWaveFunction->GetChargeDensity(); //Get new charge density.
-        ChargeDensityChange = itsCD->GetChangeFrom(*itsOldCD)/itsCD->GetTotalCharge(); //Get relative MaxAbs of change.
-        if (ChargeDensityChange<1e-5) relMax=0.5;
-        itsCD->MixIn(*itsOldCD,1.0-relax);                           //relaxation.
+            delete itsOldCD;
+            itsOldCD=itsCD;
+            itsCD=itsWaveFunction->GetChargeDensity(); //Get new charge density.
+            ChargeDensityChange = itsCD->GetChangeFrom(*itsOldCD)/itsCD->GetTotalCharge(); //Get relative MaxAbs of change.
+            if (ChargeDensityChange<1e-5) relMax=0.5;
+            itsCD->MixIn(*itsOldCD,1.0-relax);                           //relaxation.
+        }
         // cout << "Total charge=" << itsCD->GetTotalCharge() << endl;
 
         eb=itsHamiltonian->GetTotalEnergy(itsCD);
@@ -177,6 +189,32 @@ bool SCFIterator::Iterate(const SCFParams& ipar)
     }
 
     return ChargeDensityChange <= ipar.MinΔρ;
+}
+
+// One direct-minimization step: build the Fock, compute each accelerator's geodesic step,
+// then a backtracking line search along the geodesic (the first fraction from 1 that lowers
+// the total energy is accepted) -- no density mixing.  Falls back to a diagonalizing
+// iteration in the seed step (before the accelerators have orbitals).
+DM_CD* SCFIterator::DirectMinStep(double Ecur, double mergeTol)
+{
+    if (!itsWaveFunction->BuildFockAndComputeSteps(*itsHamiltonian,itsCD))
+    {
+        itsWaveFunction->DoSCFIteration(*itsHamiltonian,itsCD);
+        itsWaveFunction->FillOrbitals(mergeTol);
+        return itsWaveFunction->GetChargeDensity();
+    }
+    double t=1.0;
+    for (int k=0;k<12;k++)
+    {
+        itsWaveFunction->MoveOrbitals(t,false,mergeTol);                 //trial
+        DM_CD* cdt=itsWaveFunction->GetChargeDensity();
+        double Et=itsHamiltonian->GetTotalEnergy(cdt).GetTotalEnergy();
+        delete cdt;
+        if (Et<Ecur) break;
+        t*=0.5;
+    }
+    itsWaveFunction->MoveOrbitals(t,true,mergeTol);                      //commit at t
+    return itsWaveFunction->GetChargeDensity();
 }
 
 

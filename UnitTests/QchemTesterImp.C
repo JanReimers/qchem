@@ -64,10 +64,14 @@ void QchemTester::Init(Real_BS* bs, bool verbose,LAParams lap)
         for (auto& [k,v]:itsAccConfig.items()) jsacc[k]=v;  //overrides incl. heuristic params
         ts=itsAccConfig.value("type","DIIS");
     }
-    Type type = ts=="Ladder" ? Type::Ladder : ts=="GDM" ? Type::GDM : Type::DIIS;
+    bool directmin = (ts=="directmin" || ts=="DirectMin");
+    if (directmin) jsacc["EMax"]=1e10; //GDM always steps; the direct-min loop seeds via diagonalize
+    Type type = directmin ? Type::GDM
+              : ts=="Ladder" ? Type::Ladder : ts=="GDM" ? Type::GDM : Type::DIIS;
     SCFAccelerator* acc=qchem::SCFAccelerators::Factory(type,jsacc);
     delete itsSCFIterator;
     itsSCFIterator=new SCFIterator(itsBasisSet,GetElectronConfiguration(),itsHamiltonian,acc);
+    if (directmin) itsSCFIterator->SetDirectMin(true);
     assert(itsSCFIterator);
 }
 

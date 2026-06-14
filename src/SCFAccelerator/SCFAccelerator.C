@@ -18,6 +18,15 @@ public:
     // A Fock-extrapolator (DIIS) extrapolates F then diagonalizes; a direct minimizer
     // (GDM) rotates the current orbitals along the Grassmann manifold instead.
     virtual LASolver<double>::UUd_t NextOrbitals()=0;
+
+    // Direct-minimization line-search hooks (only GDM-style minimizers implement these).
+    //   ComputeStep(): compute the search direction/geodesic for the current Fock without
+    //     moving the orbitals.  Returns false if the accelerator does not support a line
+    //     search, or wants the caller to fall back to NextOrbitals() (e.g. its seed step).
+    //   OrbitalsAt(t,commit): orbitals at geodesic fraction t; commit=false is a pure trial
+    //     (for evaluating the energy), commit=true takes the step.
+    virtual bool ComputeStep() {return false;}
+    virtual LASolver<double>::UUd_t OrbitalsAt(double t, bool commit) {return NextOrbitals();}
 };
 
 class SCFAccelerator

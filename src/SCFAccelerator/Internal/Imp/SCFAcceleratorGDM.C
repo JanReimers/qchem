@@ -54,11 +54,7 @@ void SCFIrrepAcceleratorGDM::UseFD(const rsmat_t& F, const rsmat_t& DPrime)
 
 LASolver<double>::UUd_t SCFIrrepAcceleratorGDM::NextOrbitals()
 {
-    itsActive=false;
-    size_t n  = itsFp.rows();
-    size_t no = itsNocc;
-    // First step (or trivial irreps, or still far from convergence): diagonalize & cache.
-    if (!itsHaveC || no==0 || no>=n || itsEn>=itsParams.EMax)
+    if (!ComputeStep())   // seed / diagonalize case
     {
         auto t   = itsLASolver->SolveOrtho(itsFp);
         itsCp    = std::get<1>(t);               // orthonormal-basis orbitals (n x n)
@@ -66,17 +62,19 @@ LASolver<double>::UUd_t SCFIrrepAcceleratorGDM::NextOrbitals()
         itsHavePrev = false;                     // restart CG after any diagonalizing step
         return t;
     }
-    ComputeStep();                               // gradient -> CG direction -> geodesic SVD
-    return OrbitalsAt(itsStdef,true);            // take the diagonal-model step and commit
+    return OrbitalsAt(1.0,true);                 // take the full (diagonal-model) step and commit
 }
 
 // Compute the search direction and geodesic for the current Fock, WITHOUT moving the
 // orbitals.  Caches everything OrbitalsAt() needs (geodesic SVD, pc orbitals/energies and
-// the pending CG history).  itsStdef is the default (diagonal quadratic-model) step length.
+// the pending CG history).  Returns false in the seed/diagonalize case (no step computed).
 bool SCFIrrepAcceleratorGDM::ComputeStep()
 {
+    itsActive=false;
+    size_t n=itsFp.rows(), no=itsNocc;
+    if (!itsHaveC || no==0 || no>=n || itsEn>=itsParams.EMax) return false;
     itsActive=true;
-    size_t n=itsFp.rows(), no=itsNocc, nv=n-no;
+    size_t nv=n-no;
 
     // Fock in the current MO (orthonormal) basis, and its blocks.
     rmat_t FMO  = trans(itsCp)*itsFp*itsCp;
@@ -143,10 +141,11 @@ LASolver<double>::UUd_t SCFIrrepAcceleratorGDM::OrbitalsAt(double t, bool commit
 {
     size_t n=itsCp.rows(), no=itsNocc, nv=n-no;
     rvec_t s=itsSs;
+    double frac = itsStdef*t;          // t is a fraction of the default (quadratic-model) step
     // Trust radius: cap the largest principal rotation angle (cf. ComputeStep).
-    double amax = (s.size()>0) ? max(s)*t : 0.0;
-    if (amax>itsParams.Trust) t *= itsParams.Trust/amax;
-    rvec_t theta = s*t;
+    double amax = (s.size()>0) ? max(s)*frac : 0.0;
+    if (amax>itsParams.Trust) frac *= itsParams.Trust/amax;
+    rvec_t theta = s*frac;
     blaze::DiagonalMatrix<rmat_t> Dc(no),Ds(no);
     for (size_t k=0;k<no;k++){ Dc(k,k)=std::cos(theta[k]); Ds(k,k)=std::sin(theta[k]); }
     rmat_t Co = itsScoccPC*trans(itsSVt)*Dc*itsSVt + itsSU*Ds*itsSVt;   // new occupied

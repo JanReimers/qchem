@@ -20,6 +20,8 @@ public:
     SCFIterator(const bs_t*, const ElectronConfiguration*, class Hamiltonian*,SCFAccelerator*,DM_CD* cd=0);
     virtual ~SCFIterator();
     virtual bool Iterate(const SCFParams& ipar);
+    // Direct energy minimization (GDM owns the loop): geodesic line search, no density mixing.
+    void SetDirectMin(bool b) {itsDirectMin=b;}
 
     const class WaveFunction* GetWaveFunction() const {return itsWaveFunction;}
     EnergyBreakdown     GetEnergy() const;
@@ -27,6 +29,8 @@ public:
     bool                Converged() const {return itsConverged;}
 private:
     void Initialize(DM_CD* cd);  //Does on iteration to set up the exact charge density.
+    DM_CD* DirectMinStep(double Ecur, double mergeTol); //one direct-min step (returns new density)
+    bool itsDirectMin=false;
     void DisplayEnergies(int i, const EnergyBreakdown&,  double relax, double dE, double dCD, size_t idealVirial) const;
     void DisplayEigen   () const;
 

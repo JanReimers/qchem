@@ -54,6 +54,20 @@ void IrrepWF::DoSCFIteration()
     auto [U,Up,e]=itsAccelerator->NextOrbitals();
     itsOrbitals->UpdateOrbitals(U,Up,e);
 }
+
+// Direct-minimization: ask the accelerator to compute its step (false in the seed step).
+bool IrrepWF::ComputeStep()
+{
+    assert(itsOrbitals);
+    return itsAccelerator->ComputeStep();
+}
+// Direct-minimization: move the orbitals to geodesic fraction t (commit=false is a trial).
+void IrrepWF::MoveOrbitals(double t, bool commit)
+{
+    assert(itsOrbitals);
+    auto [U,Up,e]=itsAccelerator->OrbitalsAt(t,commit);
+    itsOrbitals->UpdateOrbitals(U,Up,e);
+}
 //
 //  Now populate the orbitals with electrons.  The ElectronConfiguration knows how many electrons
 //  are in each Irrep.

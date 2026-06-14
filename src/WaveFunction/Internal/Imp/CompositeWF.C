@@ -69,6 +69,25 @@ void CompositeWF::DoSCFIteration(Hamiltonian& ham,const DM_CD* cd)
     for (auto& w:itsIWFs) w->DoSCFIteration();
 }
 
+// Build the Fock and have each irrep accelerator compute its (un-taken) step.  Returns true
+// only if every irrep produced a geodesic step; false means at least one wants to diagonalize
+// (the seed step) -- the caller should fall back to DoSCFIteration().
+bool CompositeWF::BuildFockAndComputeSteps(Hamiltonian& ham,const DM_CD* cd)
+{
+    for (auto& w:itsIWFs) w->CalculateH(ham,cd);
+    bool allStepped=true;
+    for (auto& w:itsIWFs) allStepped &= w->ComputeStep();
+    return allStepped;
+}
+
+// Move every irrep's orbitals to geodesic fraction t (commit=false for a line-search trial)
+// and refill, so GetChargeDensity() reflects the trial/updated orbitals.
+void CompositeWF::MoveOrbitals(double t, bool commit, double mergeTol)
+{
+    for (auto& w:itsIWFs) w->MoveOrbitals(t,commit);
+    FillOrbitals(mergeTol);
+}
+
 DM_CD* CompositeWF::GetChargeDensity(Spin s) const
 {
     using qchem::ChargeDensity::Composite_CD;

@@ -22,6 +22,8 @@ public:
     ~CompositeWF();
 
     virtual void            DoSCFIteration  (Hamiltonian&,const DM_CD*   )      ;
+    virtual bool            BuildFockAndComputeSteps(Hamiltonian&,const DM_CD*);
+    virtual void            MoveOrbitals    (double t, bool commit, double mergeTol);
     virtual const Orbitals* GetOrbitals     (const Irrep&) const;
     virtual       Orbitals* GetOrbitals     (const Irrep&)      ;
     virtual EnergyLevels    GetEnergyLevels () const {return itsELevels;} 

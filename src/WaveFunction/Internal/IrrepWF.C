@@ -29,6 +29,8 @@ public:
 
     void                CalculateH      (Hamiltonian&,const DM_CD*   )      ;
     void                DoSCFIteration  ()      ;
+    bool                ComputeStep     ()      ; //direct-min: accelerator computes its step
+    void                MoveOrbitals    (double t, bool commit)      ; //move to geodesic fraction t
     DM_CD*              GetChargeDensity() const;
     const Orbitals*     GetOrbitals     () const;
           Orbitals*     GetOrbitals     ()      ;

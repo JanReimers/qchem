@@ -27,6 +27,12 @@ public:
     virtual ~WaveFunction() {};
 
     virtual void            DoSCFIteration  (Hamiltonian&,const DM_CD*)      =0;
+    // Direct-minimization hooks (cf. SCFIterator direct-min loop):
+    //   build the Fock and ask each accelerator to compute its step (no orbital move);
+    //   returns false in the seed step (the caller should DoSCFIteration to diagonalize).
+    virtual bool            BuildFockAndComputeSteps(Hamiltonian&,const DM_CD*) {return false;}
+    //   move the orbitals to geodesic fraction t (commit=false is a line-search trial) and refill.
+    virtual void            MoveOrbitals    (double t, bool commit, double mergeTol) {}
     virtual const Orbitals* GetOrbitals     (const Irrep&         ) const=0;
     virtual       Orbitals* GetOrbitals     (const Irrep&         )      =0;
     virtual void            FillOrbitals    (double mergeTol)=0; //WF knows internally the electronic structure

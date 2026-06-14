@@ -35,17 +35,16 @@ public:
 
     virtual void UseFD(const rsmat_t& F, const rsmat_t& DPrime);
     virtual LASolver<double>::UUd_t NextOrbitals();
+    // Direct-minimization line-search hooks (see the base interface):
+    //   ComputeStep() does gradient -> CG direction -> geodesic SVD (no orbital change), and
+    //     returns false in the seed/diagonalize case (the caller should diagonalize);
+    //   OrbitalsAt(t,commit) returns the orbitals at geodesic fraction t of the default step.
+    // NextOrbitals() == ComputeStep() ? OrbitalsAt(default_t,true) : diagonalize.
+    virtual bool ComputeStep();
+    virtual LASolver<double>::UUd_t OrbitalsAt(double t, bool commit);
 private:
     friend class SCFAcceleratorGDM;
     double GetError() const {return itsEn;}
-
-    // Split of a GDM step, for a future direct-minimization line search:
-    //   ComputeStep() does the gradient -> CG direction -> geodesic SVD (no orbital change);
-    //   OrbitalsAt(t,commit) returns the orbitals at geodesic fraction t of the default step.
-    // NextOrbitals() == ComputeStep(); OrbitalsAt(1,true).  A driver can instead call
-    // OrbitalsAt(t,false) to trial-evaluate the energy and OrbitalsAt(t*,true) to commit.
-    bool ComputeStep();                                   //returns false in the diagonalize case
-    LASolver<double>::UUd_t OrbitalsAt(double t, bool commit);
 
     GDMParams               itsParams;
     const LASolver<double>* itsLASolver;
