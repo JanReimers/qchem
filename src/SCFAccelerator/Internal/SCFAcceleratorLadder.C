@@ -44,6 +44,8 @@
 // problem class, which is why they are run-time params (factory JSON), not constants.
 //==========================================================================================
 module;
+#include <cassert>
+#include <memory>
 #include <iosfwd>
 #include <vector>
 export module qchem.SCFAccelerator.Internal.SCFAcceleratorLadder;
@@ -56,19 +58,23 @@ export namespace qchem::SCFAccelerators
 class SCFIrrepAcceleratorLadder : public virtual SCFIrrepAccelerator
 {
 public:
-    SCFIrrepAcceleratorLadder(std::vector<SCFIrrepAccelerator*> rungs, const size_t* active)
-        : itsRungs(std::move(rungs)), itsActive(active) {}
-    virtual ~SCFIrrepAcceleratorLadder();
+    SCFIrrepAcceleratorLadder(std::vector<std::unique_ptr<SCFIrrepAccelerator>> rungs, const size_t* active)
+        : itsRungs(std::move(rungs)), itsActiveIdx(active) {}
     virtual void UseFD(const smat_t<double>& F, const smat_t<double>& DPrime);
     virtual LASolver<double>::UUd_t NextOrbitals();
     // Delegate the direct-min line-search hooks to the active rung (so a GDM rung's geodesic
     // step is reachable once the ladder hands off to it).
-    virtual bool ComputeStep() { return itsRungs[*itsActive]->ComputeStep(); }
-    virtual LASolver<double>::UUd_t OrbitalsAt(double t, bool commit)
-        { return itsRungs[*itsActive]->OrbitalsAt(t,commit); }
+    virtual bool ComputeStep() { return Active()->ComputeStep(); }
+    virtual LASolver<double>::UUd_t OrbitalsAt(double t, bool commit) { return Active()->OrbitalsAt(t,commit); }
 private:
-    std::vector<SCFIrrepAccelerator*> itsRungs;
-    const size_t*                     itsActive; //shared with the top-level ladder
+    // itsActiveIdx is a non-owning pointer to the top-level ladder's index member, so every
+    // per-irrep ladder follows the parent's hand-offs without its own copy.  Active() reads
+    // that shared index and returns the live rung, bounds-checked.
+    SCFIrrepAccelerator* Active() const
+        { assert(itsActiveIdx && *itsActiveIdx<itsRungs.size()); return itsRungs[*itsActiveIdx].get(); }
+
+    std::vector<std::unique_ptr<SCFIrrepAccelerator>> itsRungs;
+    const size_t*                                     itsActiveIdx; //shared with the top-level ladder
 };
 
 // Top-level: chain {DIIS, GDM, ...}.  Switch when the active rung is Exhausted() and stalled.
@@ -83,11 +89,10 @@ public:
     //             convergence): hand off to the next rung to POLISH the tail.  This is the
     //             slot for a direct minimizer (GDM owns the loop), which is fast and robust
     //             near the minimum but useless far from it.  switchat<=0 disables this.
-    SCFAcceleratorLadder(std::vector<SCFAccelerator*> rungs,
+    SCFAcceleratorLadder(std::vector<std::unique_ptr<SCFAccelerator>> rungs,
                          double ethresh=1e-8, int stall=5, double floor=1e-8, double switchat=0.0)
         : itsRungs(std::move(rungs)), itsEThresh(ethresh), itsStall(stall),
           itsFloor(floor), itsSwitchAt(switchat) {}
-    virtual ~SCFAcceleratorLadder();
     virtual SCFIrrepAccelerator* Create(const LASolver<double>*,const Irrep&, int occ);
     virtual bool   CalculateProjections();
     virtual void   ShowLabels     (std::ostream&) const;
@@ -96,7 +101,10 @@ public:
     virtual void   SetEnergy(double E);
     virtual bool   WantsLineSearch() const; //true once the active rung is a direct minimizer
 private:
-    std::vector<SCFAccelerator*> itsRungs;
+    SCFAccelerator* Active() const //the live rung, bounds-checked
+        { assert(itsActive<itsRungs.size()); return itsRungs[itsActive].get(); }
+
+    std::vector<std::unique_ptr<SCFAccelerator>> itsRungs;
     double                       itsEThresh; //hand off only while |dE/E| exceeds this
     int                          itsStall;
     double                       itsFloor;

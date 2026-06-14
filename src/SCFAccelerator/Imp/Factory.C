@@ -1,6 +1,7 @@
 // File: SCFAccelerator/Factory.H  Create SCFAccelerators
 module;
 #include <cassert>
+#include <memory>
 #include <vector>
 #include <nlohmann/json.hpp>
 module qchem.SCFAccelerator.Factory;
@@ -43,10 +44,10 @@ SCFAccelerator* Factory(Type type,const nlohmann::json& js)
             int    stall   = js.contains("stall")   ? js["stall"].template get<int>()      : 5;
             double floor   = js.contains("floor")   ? js["floor"].template get<double>()   : 1e-8;
             double swat    = js.contains("switchat")? js["switchat"].template get<double>(): 0.0;
-            std::vector<SCFAccelerator*> rungs;
-            rungs.push_back(new SCFAcceleratorDIIS({Nproj,EMax,EMin,SVTol}));
-            rungs.push_back(new SCFAcceleratorGDM ({1e10,Trust})); //always steps once it is the active rung
-            acc=new SCFAcceleratorLadder(rungs,ethresh,stall,floor,swat);
+            std::vector<std::unique_ptr<SCFAccelerator>> rungs;
+            rungs.emplace_back(new SCFAcceleratorDIIS({Nproj,EMax,EMin,SVTol}));
+            rungs.emplace_back(new SCFAcceleratorGDM ({1e10,Trust})); //always steps once it is the active rung
+            acc=new SCFAcceleratorLadder(std::move(rungs),ethresh,stall,floor,swat);
             break;
         }
         
