@@ -22,7 +22,8 @@ export namespace qchem::SCFAccelerators
 
 struct GDMParams
 {
-    double EMax;  //Switch from a diagonalizing first step to GDM steps once [F,D] < EMax.
+    double EMax;          //Switch from a diagonalizing first step to GDM steps once [F,D] < EMax.
+    double Trust=0.1;     //Trust radius: cap the largest geodesic rotation angle (radians) per step.
 };
 
 class SCFAcceleratorGDM;

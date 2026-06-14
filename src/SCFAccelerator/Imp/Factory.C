@@ -24,8 +24,9 @@ SCFAccelerator* Factory(Type type,const nlohmann::json& js)
         }
         case Type::GDM:
         {
-            double EMax = js.contains("EMax") ? js["EMax"].template get<double>() : 1e10;
-            acc=new SCFAcceleratorGDM({EMax});
+            double EMax  = js.contains("EMax")  ? js["EMax"].template get<double>()  : 1e10;
+            double Trust = js.contains("Trust") ? js["Trust"].template get<double>() : 0.1;
+            acc=new SCFAcceleratorGDM({EMax,Trust});
             break;
         }
         

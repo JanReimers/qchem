@@ -124,6 +124,11 @@ LASolver<double>::UUd_t SCFIrrepAcceleratorGDM::NextOrbitals()
     rmat_t H = CvirPC*d;                 // == Dfull (lives in the virtual space)
     rmat_t U,Vt; rvec_t s;
     blaze::svd(H,U,s,Vt);                       // H = U diag(s) Vt ; U:n x no, Vt:no x no
+    // Trust radius: cap the largest principal rotation angle so the Newton step cannot
+    // overshoot far from convergence (e.g. near-degenerate open-shell levels with a tiny
+    // ev-eo denominator).  Near convergence the angles are small and this never triggers.
+    double amax = (s.size()>0) ? max(s)*t : 0.0;
+    if (amax>itsParams.Trust) t *= itsParams.Trust/amax;
     rvec_t theta = s*t;
     blaze::DiagonalMatrix<rmat_t> Dc(no),Ds(no);
     for (size_t k=0;k<no;k++){ Dc(k,k)=std::cos(theta[k]); Ds(k,k)=std::sin(theta[k]); }
