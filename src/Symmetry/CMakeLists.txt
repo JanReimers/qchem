@@ -10,6 +10,7 @@ target_sources(qcSymmetry PRIVATE
     Imp/Symmetry.C
     Imp/Factory.C
     Imp/PointGroup.C
+    Imp/CartesianRep.C
     Internal/Imp/Unit.C
     Internal/Imp/Yl.C  
     Internal/Imp/Ylm.C 
@@ -29,6 +30,7 @@ target_sources(qcSymmetry PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Molecule_EC.C
     Factory.C
     PointGroup.C
+    CartesianRep.C
     Internal/Spherical.C
     Internal/BlochQN.C
     Internal/Unit.C
