@@ -39,6 +39,14 @@ private:
     friend class SCFAcceleratorGDM;
     double GetError() const {return itsEn;}
 
+    // Split of a GDM step, for a future direct-minimization line search:
+    //   ComputeStep() does the gradient -> CG direction -> geodesic SVD (no orbital change);
+    //   OrbitalsAt(t,commit) returns the orbitals at geodesic fraction t of the default step.
+    // NextOrbitals() == ComputeStep(); OrbitalsAt(1,true).  A driver can instead call
+    // OrbitalsAt(t,false) to trial-evaluate the energy and OrbitalsAt(t*,true) to commit.
+    bool ComputeStep();                                   //returns false in the diagonalize case
+    LASolver<double>::UUd_t OrbitalsAt(double t, bool commit);
+
     GDMParams               itsParams;
     const LASolver<double>* itsLASolver;
     Irrep                   itsIrrep;
@@ -56,6 +64,14 @@ private:
     rmat_t itsUgeo, itsVtgeo;   //SVD factors of last geodesic tangent (H = Ugeo diag Vtgeo)
     rvec_t itsSgeo;             //last geodesic angles (singular values * step length)
     double itsDenomPrev=0.0;    //<G_old, P G_old> for the Polak-Ribiere denominator
+
+    // Step state cached by ComputeStep() and consumed by OrbitalsAt().
+    rmat_t itsScoccPC, itsScvirPC; //pseudo-canonical occupied/virtual orbitals
+    rmat_t itsSU, itsSVt;          //SVD factors of the tangent H = itsSU diag(itsSs) itsSVt
+    rvec_t itsSs, itsSeo, itsSev;  //singular values; pc occupied/virtual orbital energies
+    rmat_t itsSPGfull, itsSDfull;  //full tangents for the CG history
+    double itsSdenom=0.0;          //<G,PG> for this step
+    double itsStdef=1.0;           //default (diagonal quadratic-model) step length
 };
 
 class SCFAcceleratorGDM : public virtual SCFAccelerator
