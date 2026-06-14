@@ -43,7 +43,7 @@ private:
     Irrep                   itsIrrep;
     size_t                  itsNocc;
     bool                    itsHaveC;   //Have we cached a set of orbitals yet?
-    mat_t<double>           itsCp;      //Orthonormal-basis orbitals (n x n), columns = MOs.
+     rmat_t                 itsCp;      //Orthonormal-basis orbitals (n x n), columns = MOs.
     rsmat_t                 itsFp;      //Orthonormal-basis Fock matrix.
     double                  itsEn;      //||[F',D']|| error for this irrep.
     bool                    itsActive;

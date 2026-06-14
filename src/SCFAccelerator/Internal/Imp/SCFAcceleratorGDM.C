@@ -13,7 +13,7 @@ namespace qchem::SCFAccelerators
 using std::cout;
 using std::endl;
 
-static rsmat_t sympart(const mat_t<double>& B)
+static rsmat_t sympart(const rmat_t& B)
 {
     size_t n=B.rows();
     rsmat_t S(n);
@@ -54,42 +54,42 @@ LASolver<double>::UUd_t SCFIrrepAcceleratorGDM::NextOrbitals()
     size_t nv = n - no;
 
     // Fock in the current MO (orthonormal) basis, and its blocks.
-    mat_t<double> FMO  = trans(itsCp)*itsFp*itsCp;                 // n x n
-    mat_t<double> Cocc = blaze::submatrix(itsCp,0,0 ,n,no);        // n x no
-    mat_t<double> Cvir = blaze::submatrix(itsCp,0,no,n,nv);        // n x nv
+    rmat_t FMO  = trans(itsCp)*itsFp*itsCp;                 // n x n
+    rmat_t Cocc = blaze::submatrix(itsCp,0,0 ,n,no);        // n x no
+    rmat_t Cvir = blaze::submatrix(itsCp,0,no,n,nv);        // n x nv
     rsmat_t Foo = sympart(blaze::submatrix(FMO,0 ,0 ,no,no));
     rsmat_t Fvv = sympart(blaze::submatrix(FMO,no,no,nv,nv));
-    mat_t<double> Fov = blaze::submatrix(FMO,no,0,nv,no);          // nv x no
+    rmat_t Fov = blaze::submatrix(FMO,no,0,nv,no);          // nv x no
 
     // (1) Pseudo-canonicalize: diagonalize occ-occ and virt-virt blocks.
     rvec_t eo, ev; rmat_t Ro, Rv;
     blaze::eigen(Foo, eo, Ro);                 // Foo = Ro diag(eo) Ro^T (eo ascending)
     blaze::eigen(Fvv, ev, Rv);
-    mat_t<double> CoccPC = Cocc*Ro;            // n x no  pseudo-canonical occupied
-    mat_t<double> CvirPC = Cvir*Rv;            // n x nv  pseudo-canonical virtual
-    mat_t<double> g = trans(Rv)*Fov*Ro;        // nv x no  orbital gradient (o-v block)
+    rmat_t CoccPC = Cocc*Ro;            // n x no  pseudo-canonical occupied
+    rmat_t CvirPC = Cvir*Rv;            // n x nv  pseudo-canonical virtual
+    rmat_t g = trans(Rv)*Fov*Ro;        // nv x no  orbital gradient (o-v block)
 
     // (2) Preconditioned step d = -g/(ev-eo); the preconditioner is the inverse diagonal
     //     Hessian, so the natural (Newton) step length is t=1 -- no line search needed.
-    mat_t<double> d(nv,no);
+    rmat_t d(nv,no);
     for (size_t a=0;a<nv;a++)
         for (size_t i=0;i<no;i++)
             d(a,i) = -g(a,i)/(ev[a]-eo[i]);
 
     // (3) Grassmann geodesic at t=1 via the SVD of the tangent H = CvirPC d.
-    mat_t<double> H = CvirPC*d;                 // n x no  tangent (in the virtual space)
-    mat_t<double> U,Vt; rvec_t s;
+    rmat_t H = CvirPC*d;                 // n x no  tangent (in the virtual space)
+    rmat_t U,Vt; rvec_t s;
     blaze::svd(H,U,s,Vt);                       // H = U diag(s) Vt ; U:n x no, Vt:no x no
     blaze::DiagonalMatrix<rmat_t> Dc(no),Ds(no);
     for (size_t k=0;k<no;k++){ Dc(k,k)=std::cos(s[k]); Ds(k,k)=std::sin(s[k]); }
-    mat_t<double> Co = CoccPC*trans(Vt)*Dc*Vt + U*Ds*Vt;          // n x no  new occupied
+    rmat_t Co = CoccPC*trans(Vt)*Dc*Vt + U*Ds*Vt;          // n x no  new occupied
 
     // Complete to a full orthonormal set: virtuals orthogonal to the new occupied block.
-    mat_t<double> W0 = CvirPC - Co*(trans(Co)*CvirPC);            // n x nv
-    mat_t<double> Uw,Vtw; rvec_t sw;
+    rmat_t W0 = CvirPC - Co*(trans(Co)*CvirPC);            // n x nv
+    rmat_t Uw,Vtw; rvec_t sw;
     blaze::svd(W0,Uw,sw,Vtw);                                     // Uw: n x nv orthonormal
 
-    mat_t<double> Cnew(n,n);
+    rmat_t Cnew(n,n);
     blaze::submatrix(Cnew,0,0 ,n,no) = Co;
     blaze::submatrix(Cnew,0,no,n,nv) = Uw;
     rvec_t e(n);
@@ -97,7 +97,7 @@ LASolver<double>::UUd_t SCFIrrepAcceleratorGDM::NextOrbitals()
     for (size_t a=0;a<nv;a++) e[no+a] = ev[a];
 
     itsCp = Cnew;
-    mat_t<double> Uao = itsLASolver->BackTransform(Cnew);
+    rmat_t Uao = itsLASolver->BackTransform(Cnew);
     return std::make_tuple(Uao,Cnew,e);
 }
 
