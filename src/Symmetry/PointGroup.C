@@ -65,4 +65,31 @@ rvec3_t Centroid(const std::vector<SymPoint>& pts);
 bool IsSymmetryOf(const SymOp& op, const std::vector<SymPoint>& pts,
                   const rvec3_t& origin, double tol);
 
+//---------------------------------------------------------------------------------------
+// Inertia tensor + molecular-top classification.  The principal axes are the first source
+// of candidate rotation axes for detection (stage 1b-2), and the degeneracy pattern of the
+// moments tells the detector which kind of group to look for.
+//
+//   Linear      one zero moment (m0~0), other two equal      -> C_inf axis = axis[0]
+//   Spherical   all three equal                              (Td/Oh/Ih: axes from atoms)
+//   Symmetric   exactly two equal                            -> unique axis carries the top C_n
+//   Asymmetric  all three distinct                           (C_n axes lie along the 3 axes)
+//
+enum class TopType { Linear, Spherical, Symmetric, Asymmetric };
+
+struct PrincipalAxes
+{
+    double  moment[3];   // principal moments of inertia, ascending
+    rvec3_t axis[3];     // corresponding unit principal axes (axis[k] <-> moment[k])
+    TopType top;
+    int     uniqueAxis;  // index of the unique-moment axis for Linear/Symmetric; else -1
+};
+
+// Z-weighted inertia tensor of the points about `origin`.
+Matrix3D<double> InertiaTensor(const std::vector<SymPoint>& pts, const rvec3_t& origin);
+
+// Diagonalize the inertia tensor and classify the molecular top.  `rtol` is the relative
+// tolerance (against the largest moment) for deciding moment degeneracy.
+PrincipalAxes ClassifyTop(const std::vector<SymPoint>& pts, const rvec3_t& origin, double rtol=1e-3);
+
 } //namespace
