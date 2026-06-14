@@ -18,6 +18,7 @@ different basis sets than do molecules and solids.  The Hamiltonian requires the
 Another question the author is interested in addressing: Is AI now ready to develop reliable computational physics software?
 
 The implementation language selected is c++.  julia would also be a very good language for demonstrating these ideas.
+
 ---
 
 ## What works today
