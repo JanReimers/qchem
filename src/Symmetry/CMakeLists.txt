@@ -12,6 +12,7 @@ target_sources(qcSymmetry PRIVATE
     Imp/PointGroup.C
     Imp/CartesianRep.C
     Imp/CharacterTable.C
+    Imp/AbelianGroup.C
     Internal/Imp/Unit.C
     Internal/Imp/Yl.C  
     Internal/Imp/Ylm.C 
@@ -33,6 +34,7 @@ target_sources(qcSymmetry PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     PointGroup.C
     CartesianRep.C
     CharacterTable.C
+    AbelianGroup.C
     Internal/Spherical.C
     Internal/BlochQN.C
     Internal/Unit.C

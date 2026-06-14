@@ -2,9 +2,29 @@
 #include <gtest/gtest.h>
 #include <vector>
 import qchem.Symmetry.PointGroup;
+import qchem.Symmetry.AbelianGroup;   // BuildAbelianGroup (stage 3a-ii)
 import qchem.Math;            // Pi, sin, cos, fabs (project-wide, for test geometry)
 
 using namespace Symmetry;
+
+// Are the operations of g closed under multiplication (a genuine group)?
+static bool GroupIsClosed(const AbelianGroup& g)
+{
+    auto eq = [](const Matrix3D<double>& a, const Matrix3D<double>& b)
+    {
+        for (int i=1;i<=3;i++) for (int j=1;j<=3;j++)
+            if (fabs(a(i,j)-b(i,j)) > 1e-9) return false;
+        return true;
+    };
+    for (const auto& a : g.ops) for (const auto& b : g.ops)
+    {
+        Matrix3D<double> p = a.Matrix()*b.Matrix();
+        bool found=false;
+        for (const auto& c : g.ops) if (eq(p, c.Matrix())) { found=true; break; }
+        if (!found) return false;
+    }
+    return true;
+}
 
 // Count axes of a given order.
 static int CountOrder(const std::vector<RotationAxis>& a, int order)
@@ -294,6 +314,52 @@ TEST(PointGroup, Detect_scalene_planar_Cs)
     EXPECT_EQ(g.abelian, "Cs");
     EXPECT_EQ(g.order, 2);
     EXPECT_EQ(g.nSigma, 1);
+}
+
+// --- Concrete abelian group operations (stage 3a-ii) ---------------------------------
+
+TEST(AbelianGroup, water_C2v)
+{
+    auto g = BuildAbelianGroup(Water(), 1e-6);
+    EXPECT_EQ(g.table.symbol, "C2v");
+    EXPECT_EQ(g.ops.size(), 4u);
+    EXPECT_TRUE(GroupIsClosed(g));
+}
+
+TEST(AbelianGroup, ammonia_Cs)
+{
+    auto g = BuildAbelianGroup(Ammonia(), 1e-6);
+    EXPECT_EQ(g.table.symbol, "Cs");
+    EXPECT_EQ(g.ops.size(), 2u);
+    EXPECT_TRUE(GroupIsClosed(g));
+}
+
+TEST(AbelianGroup, benzene_D2h)
+{
+    auto g = BuildAbelianGroup(Benzene(), 1e-6);
+    EXPECT_EQ(g.table.symbol, "D2h");
+    EXPECT_EQ(g.ops.size(), 8u);
+    EXPECT_TRUE(GroupIsClosed(g));
+}
+
+TEST(AbelianGroup, methane_C2v_from_cubic)
+{
+    // Td descends to C2v: ez must be a C2 axis (not a C3), verified by group closure.
+    auto g = BuildAbelianGroup(Methane(), 1e-6);
+    EXPECT_EQ(g.table.symbol, "C2v");
+    EXPECT_EQ(g.ops.size(), 4u);
+    EXPECT_TRUE(GroupIsClosed(g));
+}
+
+TEST(AbelianGroup, co2_D2h_from_linear)
+{
+    std::vector<SymPoint> co2 = {
+        {6, rvec3_t(0,0, 0.00)}, {8, rvec3_t(0,0, 1.16)}, {8, rvec3_t(0,0,-1.16)},
+    };
+    auto g = BuildAbelianGroup(co2, 1e-6);
+    EXPECT_EQ(g.table.symbol, "D2h");
+    EXPECT_EQ(g.ops.size(), 8u);
+    EXPECT_TRUE(GroupIsClosed(g));
 }
 
 TEST(PointGroup, SymOp_basics)
