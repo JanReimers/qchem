@@ -39,10 +39,12 @@ SCFAccelerator* Factory(Type type,const nlohmann::json& js)
             double EMin  = js.contains("EMin")  ? js["EMin"].template get<double>()  : 1e-7;
             double SVTol = js.contains("SVTol") ? js["SVTol"].template get<double>() : 5e-9;
             double Trust = js.contains("Trust") ? js["Trust"].template get<double>() : 0.1;
+            double floor = js.contains("floor") ? js["floor"].template get<double>() : 1e-4;
+            int    stall = js.contains("stall") ? js["stall"].template get<int>()    : 5;
             std::vector<SCFAccelerator*> rungs;
             rungs.push_back(new SCFAcceleratorDIIS({Nproj,EMax,EMin,SVTol}));
             rungs.push_back(new SCFAcceleratorGDM ({1e10,Trust})); //always steps once it is the active rung
-            acc=new SCFAcceleratorLadder(rungs);
+            acc=new SCFAcceleratorLadder(rungs,floor,stall);
             break;
         }
         

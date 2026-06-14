@@ -57,10 +57,15 @@ void QchemTester::Init(Real_BS* bs, bool verbose,LAParams lap)
     int Z=GetZ();
     itsHamiltonian=GetHamiltonian(itsCluster);
     nlohmann::json jsacc={{"NProj",4},{"EMax",Z*Z*0.1/32},{"EMin",1e-7},{"SVTol",5e-9}};
-    SCFAccelerator* acc=qchem::SCFAccelerators::Factory(qchem::SCFAccelerators::Type::DIIS,jsacc);
-    // To exercise the DIIS->GDM ladder, or GDM on its own, instead:
-    // SCFAccelerator* acc=qchem::SCFAccelerators::Factory(qchem::SCFAccelerators::Type::Ladder,jsacc);
-    // SCFAccelerator* acc=qchem::SCFAccelerators::Factory(qchem::SCFAccelerators::Type::GDM,{{"EMax",1e-3}});
+    using qchem::SCFAccelerators::Type;
+    std::string ts="DIIS";
+    if (itsAccConfig.is_object())   //caller supplied an accelerator config (else default DIIS)
+    {
+        for (auto& [k,v]:itsAccConfig.items()) jsacc[k]=v;  //overrides incl. heuristic params
+        ts=itsAccConfig.value("type","DIIS");
+    }
+    Type type = ts=="Ladder" ? Type::Ladder : ts=="GDM" ? Type::GDM : Type::DIIS;
+    SCFAccelerator* acc=qchem::SCFAccelerators::Factory(type,jsacc);
     delete itsSCFIterator;
     itsSCFIterator=new SCFIterator(itsBasisSet,GetElectronConfiguration(),itsHamiltonian,acc);
     assert(itsSCFIterator);

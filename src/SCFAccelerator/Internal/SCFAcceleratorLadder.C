@@ -32,7 +32,10 @@ private:
 class SCFAcceleratorLadder : public virtual SCFAccelerator
 {
 public:
-    SCFAcceleratorLadder(std::vector<SCFAccelerator*> rungs) : itsRungs(std::move(rungs)) {}
+    // floor: never hand off once the error is below this (a noise-floor plateau is convergence).
+    // stall: number of no-improvement steps a rung must show before handing off.
+    SCFAcceleratorLadder(std::vector<SCFAccelerator*> rungs, double floor=1e-4, int stall=5)
+        : itsRungs(std::move(rungs)), itsFloor(floor), itsStall(stall) {}
     virtual ~SCFAcceleratorLadder();
     virtual SCFIrrepAccelerator* Create(const LASolver<double>*,const Irrep&, int occ);
     virtual bool   CalculateProjections();
@@ -41,6 +44,8 @@ public:
     virtual double GetError() const;
 private:
     std::vector<SCFAccelerator*> itsRungs;
+    double                       itsFloor;
+    int                          itsStall;
     size_t                       itsActive=0;
     double                       itsBestErr=1e300; //best (smallest) error since this rung started
     int                          itsNoImprove=0;   //consecutive steps without beating itsBestErr

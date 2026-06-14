@@ -72,6 +72,27 @@ target_include_directories(UTMain1 PRIVATE
 target_link_libraries(UTMain1 PUBLIC qchem qcCommon)
 
 
+# scfrun: command-line SCF driver for accelerator tuning (no recompile).
+add_executable(scfrun scfrun.C QchemTesterImp.C BasisSetPoolImp.C)
+target_sources(scfrun PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES QchemTester.C BasisSetPool.C)
+target_compile_options(scfrun PRIVATE -Wall
+    $<$<CONFIG:Debug>:-g -O0>
+    $<$<CONFIG:Release>: -O2>
+)
+target_compile_definitions(scfrun PRIVATE
+    $<$<CONFIG:Debug>:-DDEBUG>
+    $<$<CONFIG:Release>:-DNDEBUG>
+)
+set_property(TARGET scfrun PROPERTY CXX_STANDARD 20)
+target_include_directories(scfrun PRIVATE
+    ${PROJECT_SOURCE_DIR}/submodules/BSplinebasis/include
+    ${PROJECT_SOURCE_DIR}/submodules/json/single_include
+    ${PROJECT_SOURCE_DIR}/submodules/blaze
+    ${PROJECT_SOURCE_DIR}/submodules/tabulate/include
+)
+target_link_libraries(scfrun PUBLIC qchem qcCommon)
+
+
 # Symmetry module
 add_executable(UTSym gtestmain.C SymQN.C ElectronConfigurations.C)
 target_include_directories(UTSym PRIVATE 

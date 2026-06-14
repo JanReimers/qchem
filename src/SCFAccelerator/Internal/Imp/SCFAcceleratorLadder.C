@@ -45,9 +45,8 @@ bool SCFAcceleratorLadder::CalculateProjections()
 
     // Error floor: a plateau at the noise floor is convergence, not a stall -- never hand off
     // there (e.g. a heavy atom whose DIIS bottoms out at [F,D]~1e-6 below the SCF criteria).
-    const double floor=1e-4;
     if (itsActive+1<itsRungs.size() && itsRungs[itsActive]->Exhausted()
-        && itsNoImprove>=5 && err>floor)
+        && itsNoImprove>=itsStall && err>itsFloor)
     {
         cout << "  *** SCF accelerator ladder: rung " << itsActive
              << " exhausted -> advancing to rung " << itsActive+1 << " ***" << endl;

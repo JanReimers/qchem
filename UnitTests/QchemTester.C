@@ -34,7 +34,10 @@ public:
     void   Init(Real_BS*, bool verbose=false, LAParams lap={qchem::Cholsky,1e-12});
     void   Init(BasisSetAccuracy acc, BasisSet::Atom::Type type,bool verbose=false,LAParams lap={qchem::Cholsky,1e-12});
     void   Iterate(const SCFParams&);
-    
+    // Choose the SCF accelerator via JSON, e.g. {"type":"Ladder","floor":1e-4,"stall":5}.
+    // "type" is "DIIS" (default), "GDM", or "Ladder"; other keys override the defaults.
+    void   SetAcceleratorConfig(const nlohmann::json& j) {itsAccConfig=j;}
+
     double          TotalEnergy() const;
     EnergyBreakdown GetEnergyBreakdown() const;
     double          TotalCharge() const;
@@ -70,6 +73,7 @@ protected:
     Real_BS*               itsBasisSet;
     Hamiltonian*           itsHamiltonian;
     SCFIterator*           itsSCFIterator;
+    nlohmann::json         itsAccConfig; //SCF accelerator config (empty => DIIS defaults)
 public:
     static PeriodicTableSaito itsPT;
     static PeriodicTable  itsPTold;
