@@ -272,7 +272,7 @@ TEST_F(BasisSet_SL,IDs)
     size_t index=0;
     for (auto ibs:bs->Iterate<obs_t>())
     {
-        EXPECT_EQ(ibs->Name(),"SL ");
+        EXPECT_EQ(ibs->Name(),"SL");
         EXPECT_EQ(ibs->RadialID(),"SL N=3 {0.5 ... 2}");
         EXPECT_EQ(ibs->AngularID(),angularIDs[index++]);
     }
@@ -389,7 +389,7 @@ TEST_F(BasisSet_SG,IDs)
     size_t index=0;
     for (auto ibs:bs->Iterate<obs_t>())
     {
-        EXPECT_EQ(ibs->Name(),"SG ");
+        EXPECT_EQ(ibs->Name(),"SG");
         EXPECT_EQ(ibs->RadialID(),"SG N=3 {0.5 ... 2}");
         EXPECT_EQ(ibs->AngularID(),angularIDs[index++]);
     }
