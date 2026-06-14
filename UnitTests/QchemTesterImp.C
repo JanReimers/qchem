@@ -58,7 +58,8 @@ void QchemTester::Init(Real_BS* bs, bool verbose,LAParams lap)
     itsHamiltonian=GetHamiltonian(itsCluster);
     nlohmann::json jsacc={{"NProj",4},{"EMax",Z*Z*0.1/32},{"EMin",1e-7},{"SVTol",5e-9}};
     SCFAccelerator* acc=qchem::SCFAccelerators::Factory(qchem::SCFAccelerators::Type::DIIS,jsacc);
-    // To exercise Geometric Direct Minimization instead:
+    // To exercise the DIIS->GDM ladder, or GDM on its own, instead:
+    // SCFAccelerator* acc=qchem::SCFAccelerators::Factory(qchem::SCFAccelerators::Type::Ladder,jsacc);
     // SCFAccelerator* acc=qchem::SCFAccelerators::Factory(qchem::SCFAccelerators::Type::GDM,{{"EMax",1e-3}});
     delete itsSCFIterator;
     itsSCFIterator=new SCFIterator(itsBasisSet,GetElectronConfiguration(),itsHamiltonian,acc);

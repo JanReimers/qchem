@@ -8,7 +8,6 @@
 module;
 #include <iosfwd>
 #include <vector>
-#include <deque>
 export module qchem.SCFAccelerator.Internal.SCFAcceleratorLadder;
 export import qchem.SCFAccelerator;
 
@@ -41,10 +40,10 @@ public:
     virtual void   ShowConvergence(std::ostream&) const;
     virtual double GetError() const;
 private:
-    bool Stalled() const;
     std::vector<SCFAccelerator*> itsRungs;
     size_t                       itsActive=0;
-    std::deque<double>           itsErr;     //recent aggregate errors (stall detector)
+    double                       itsBestErr=1e300; //best (smallest) error since this rung started
+    int                          itsNoImprove=0;   //consecutive steps without beating itsBestErr
 };
 
 } //namespace

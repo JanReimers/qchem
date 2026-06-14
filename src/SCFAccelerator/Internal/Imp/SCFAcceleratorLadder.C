@@ -2,7 +2,6 @@
 module;
 #include <iostream>
 #include <vector>
-#include <deque>
 module qchem.SCFAccelerator.Internal.SCFAcceleratorLadder;
 
 namespace qchem::SCFAccelerators
@@ -32,25 +31,28 @@ SCFIrrepAccelerator* SCFAcceleratorLadder::Create(const LASolver<double>* las,co
     return new SCFIrrepAcceleratorLadder(std::move(rungs), &itsActive);
 }
 
-bool SCFAcceleratorLadder::Stalled() const
-{
-    // Error has not dropped by 2x across the recent window -> the active rung is stuck.
-    if (itsErr.size()<4) return false;
-    return itsErr.back() > 0.5*itsErr.front();
-}
-
 bool SCFAcceleratorLadder::CalculateProjections()
 {
     bool ok = itsRungs[itsActive]->CalculateProjections();
-    itsErr.push_back(itsRungs[itsActive]->GetError());
-    if (itsErr.size()>5) itsErr.pop_front();
 
-    if (itsActive+1<itsRungs.size() && itsRungs[itsActive]->Exhausted() && Stalled())
+    // Track the best error so far on this rung.  A rung that keeps beating its own best is
+    // still making progress (however slowly) -> do NOT hand off.  Only switch when the rung
+    // is Exhausted() AND has failed to improve for several consecutive steps (genuinely
+    // stuck/oscillating, not merely slow -- a heavy atom can converge slowly yet steadily).
+    double err = itsRungs[itsActive]->GetError();
+    if (err < 0.999*itsBestErr) { itsBestErr=err; itsNoImprove=0; }
+    else                          itsNoImprove++;
+
+    // Error floor: a plateau at the noise floor is convergence, not a stall -- never hand off
+    // there (e.g. a heavy atom whose DIIS bottoms out at [F,D]~1e-6 below the SCF criteria).
+    const double floor=1e-4;
+    if (itsActive+1<itsRungs.size() && itsRungs[itsActive]->Exhausted()
+        && itsNoImprove>=5 && err>floor)
     {
         cout << "  *** SCF accelerator ladder: rung " << itsActive
              << " exhausted -> advancing to rung " << itsActive+1 << " ***" << endl;
         itsActive++;
-        itsErr.clear();
+        itsBestErr=1e300; itsNoImprove=0;
     }
     return ok;
 }
