@@ -29,6 +29,8 @@ public:
     virtual void ShowLabels     (std::ostream&) const=0;
     virtual void ShowConvergence(std::ostream&) const=0;
     virtual double GetError() const=0;
+    // Has this accelerator run out of steam (ladder hand-off signal)?  Default: never.
+    virtual bool Exhausted() const {return false;}
 };
 
 } //namespace

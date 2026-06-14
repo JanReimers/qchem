@@ -72,6 +72,8 @@ public:
     virtual void   ShowLabels     (std::ostream&) const;
     virtual void   ShowConvergence(std::ostream&) const;
     virtual double GetError() const;
+    // Out of steam: past EMax but unable to extrapolate (singular/tiny B) for several steps.
+    virtual bool   Exhausted() const {return itsStuckCount>=3;}
 
 private:
     typedef std::vector<rmat_t> mv_t; //matrix-vector type.
@@ -96,6 +98,7 @@ private:
     double itsEn,itsLastSVMin;
     rvec_t itsCs;
     std::string bailoutReason;
+    int itsStuckCount=0; //consecutive past-EMax iterations with no successful extrapolation.
 };
 
 } //namespace

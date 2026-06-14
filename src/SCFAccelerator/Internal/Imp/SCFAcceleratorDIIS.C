@@ -181,29 +181,32 @@ bool SCFAcceleratorDIIS::CalculateProjections()
     }
     itsEn=sqrt(itsEn);
     // cout << "itsEn=" << itsEn << endl;
-    if (itsEn>itsParams.EMax) 
+    if (itsEn>itsParams.EMax)
     {
         bailoutReason="En>EMax     ";
+        itsStuckCount=0;        //early (pre-DIIS) phase, not "out of steam"
         return false;
     }
-    
+
     if (Append1()>itsParams.Nproj) Purge1();
     assert(GetNProj()<=itsParams.Nproj);
-    if (GetNProj()<2) 
+    if (GetNProj()<2)
     {
         bailoutReason="Nproj<2     ";
+        itsStuckCount++;
         return false;
     }
-    
+
     rsmat_t B=BuildPrunedB(itsParams.SVTol);
-    if (B.rows()<=2) 
+    if (B.rows()<=2)
     {
         bailoutReason="B.rows()<=2 ";
+        itsStuckCount++;
         return false;
     }
-                
+
     itsCs=SCFAcceleratorDIIS::SolveC(B); //Irreps have a reference to this in order to do the projections.
-   
+    itsStuckCount=0;
     return true;
 }
 
