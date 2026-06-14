@@ -48,6 +48,13 @@ private:
     double                  itsEn;      //||[F',D']|| error for this irrep.
     bool                    itsActive;
 
+    // Conjugate-gradient state (Polak-Ribiere + parallel transport on the manifold).
+    bool   itsHavePrev=false;
+    rmat_t itsPGprev, itsDprev; //prev preconditioned gradient & search direction (full tangents at itsYprev)
+    rmat_t itsYprev;            //prev pseudo-canonical occupied orbitals (start of last geodesic)
+    rmat_t itsUgeo, itsVtgeo;   //SVD factors of last geodesic tangent (H = Ugeo diag Vtgeo)
+    rvec_t itsSgeo;             //last geodesic angles (singular values * step length)
+    double itsDenomPrev=0.0;    //<G_old, P G_old> for the Polak-Ribiere denominator
 };
 
 class SCFAcceleratorGDM : public virtual SCFAccelerator

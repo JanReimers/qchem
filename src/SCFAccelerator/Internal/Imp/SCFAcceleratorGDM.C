@@ -23,6 +23,21 @@ static rsmat_t sympart(const rmat_t& B)
     return S;
 }
 
+// Parallel-transport operator along the Grassmann geodesic whose tangent has SVD
+// H = U diag(theta) Vt and start point Y (n x no orthonormal).  Edelman-Arias-Smith eq 2.65:
+//   T = (-Y V sin(theta) + U cos(theta)) U^T + (I - U U^T),   V = trans(Vt).
+// A tangent W at Y is transported to T*W at the geodesic endpoint.
+static rmat_t TransportOp(const rmat_t& Y, const rmat_t& U, const rvec_t& theta, const rmat_t& Vt)
+{
+    size_t n=Y.rows(), no=Y.columns();
+    blaze::DiagonalMatrix<rmat_t> Dc(no),Ds(no);
+    for (size_t k=0;k<no;k++){ Dc(k,k)=std::cos(theta[k]); Ds(k,k)=std::sin(theta[k]); }
+    rmat_t A = -Y*trans(Vt)*Ds + U*Dc;       // n x no
+    rmat_t T = A*trans(U) - U*trans(U);       // n x n
+    for (size_t k=0;k<n;k++) T(k,k)+=1.0;     // + I  (the (I - U U^T) part)
+    return T;
+}
+
 SCFIrrepAcceleratorGDM::SCFIrrepAcceleratorGDM(const GDMParams& p,const LASolver<double>* las,const Irrep& ir,int occ)
 : itsParams(p), itsLASolver(las), itsIrrep(ir), itsNocc(occ), itsHaveC(false), itsEn(0.0), itsActive(false)
 {
@@ -48,6 +63,7 @@ LASolver<double>::UUd_t SCFIrrepAcceleratorGDM::NextOrbitals()
         auto t   = itsLASolver->SolveOrtho(itsFp);
         itsCp    = std::get<1>(t);               // orthonormal-basis orbitals (n x n)
         itsHaveC = true;
+        itsHavePrev = false;                     // restart CG after any diagonalizing step
         return t;
     }
     itsActive=true;
@@ -69,20 +85,53 @@ LASolver<double>::UUd_t SCFIrrepAcceleratorGDM::NextOrbitals()
     rmat_t CvirPC = Cvir*Rv;            // n x nv  pseudo-canonical virtual
     rmat_t g = trans(Rv)*Fov*Ro;        // nv x no  orbital gradient (o-v block)
 
-    // (2) Preconditioned step d = -g/(ev-eo); the preconditioner is the inverse diagonal
-    //     Hessian, so the natural (Newton) step length is t=1 -- no line search needed.
-    rmat_t d(nv,no);
+    // (2) Preconditioned gradient PG_ai = g_ai/(ev_a-eo_i); lift gradient and PG to full
+    //     ambient tangents at Y=CoccPC (they live in the virtual space).
+    rmat_t PG(nv,no);
     for (size_t a=0;a<nv;a++)
         for (size_t i=0;i<no;i++)
-            d(a,i) = -g(a,i)/(ev[a]-eo[i]);
+            PG(a,i) = g(a,i)/(ev[a]-eo[i]);
+    rmat_t Gfull  = CvirPC*g;
+    rmat_t PGfull = CvirPC*PG;
+    double denom  = sum(g % PG);        // <G, PG> > 0
 
-    // (3) Grassmann geodesic at t=1 via the SVD of the tangent H = CvirPC d.
-    rmat_t H = CvirPC*d;                 // n x no  tangent (in the virtual space)
+    // (3) Conjugate-gradient direction (Polak-Ribiere) with parallel transport of the
+    //     previous gradient/direction along the last geodesic, gauge-aligned by Ro.
+    rmat_t Dfull;
+    if (itsHavePrev)
+    {
+        rmat_t T   = TransportOp(itsYprev,itsUgeo,itsSgeo,itsVtgeo);
+        rmat_t PGt = T*itsPGprev*Ro;    // transported, gauge-aligned previous PG
+        rmat_t Dt  = T*itsDprev *Ro;    // transported, gauge-aligned previous direction
+        double beta = (sum(Gfull % PGfull) - sum(Gfull % PGt))/itsDenomPrev;
+        if (beta<0.0) beta=0.0;         // Polak-Ribiere with restart
+        Dfull = -PGfull + beta*Dt;
+        if (sum(Gfull % Dfull) >= 0.0) Dfull = -PGfull;   // ensure a descent direction
+    }
+    else
+        Dfull = -PGfull;
+
+    // (4) Step length from the diagonal quadratic model:  t* = -<g,d>/<d,H d>.
+    //     (For pure steepest descent d=-PG this gives t*=1 exactly.)
+    rmat_t d = trans(CvirPC)*Dfull;     // nv x no  direction in the pc o-v block
+    double gd=sum(g % d), dHd=0.0;
+    for (size_t a=0;a<nv;a++)
+        for (size_t i=0;i<no;i++) dHd += d(a,i)*d(a,i)*(ev[a]-eo[i]);
+    double t = (dHd>0.0) ? -gd/dHd : 1.0;
+    if (t<=0.0) { Dfull=-PGfull; d=trans(CvirPC)*Dfull; t=1.0; } // safeguard -> steepest descent
+
+    // (5) Grassmann geodesic by t along the tangent H=Dfull; angles theta = s*t.
+    rmat_t H = CvirPC*d;                 // == Dfull (lives in the virtual space)
     rmat_t U,Vt; rvec_t s;
     blaze::svd(H,U,s,Vt);                       // H = U diag(s) Vt ; U:n x no, Vt:no x no
+    rvec_t theta = s*t;
     blaze::DiagonalMatrix<rmat_t> Dc(no),Ds(no);
-    for (size_t k=0;k<no;k++){ Dc(k,k)=std::cos(s[k]); Ds(k,k)=std::sin(s[k]); }
+    for (size_t k=0;k<no;k++){ Dc(k,k)=std::cos(theta[k]); Ds(k,k)=std::sin(theta[k]); }
     rmat_t Co = CoccPC*trans(Vt)*Dc*Vt + U*Ds*Vt;          // n x no  new occupied
+
+    // Stash the CG history for the next step.
+    itsPGprev=PGfull; itsDprev=Dfull; itsDenomPrev=denom; itsYprev=CoccPC;
+    itsUgeo=U; itsVtgeo=Vt; itsSgeo=theta; itsHavePrev=true;
 
     // Complete to a full orthonormal set: virtuals orthogonal to the new occupied block.
     rmat_t W0 = CvirPC - Co*(trans(Co)*CvirPC);            // n x nv
