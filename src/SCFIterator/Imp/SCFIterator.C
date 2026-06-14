@@ -104,6 +104,11 @@ bool SCFIterator::Iterate(const SCFParams& ipar)
         itsIterationCount   <= ipar.NMaxIter && !itsConverged;
         itsIterationCount++)
     {
+        // The accelerator decides the loop mode: a direct minimizer (GDM, or a ladder that has
+        // handed off to one near convergence) runs the geodesic line search; everything else
+        // runs the classic diagonalize+mix fixed-point step.  Queried every iteration so a
+        // ladder tail hand-off flips the loop the moment it switches rungs.
+        itsDirectMin = itsAccelerator->WantsLineSearch();
         if (itsDirectMin)
         {
             // GDM owns the loop: a geodesic line search drives the energy down directly, with

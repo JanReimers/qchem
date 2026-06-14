@@ -49,19 +49,25 @@ bool SCFAcceleratorLadder::CalculateProjections()
     // at the top of the header), and (d) above an absolute noise floor.  See those notes for
     // why the energy, not [F,D], is the decisive signal.
     double relDE = (itsLastE!=0.0) ? std::fabs((itsLastE-itsPrevE)/itsLastE) : 1.0;
-    if (itsActive+1<itsRungs.size()
-        && itsRungs[itsActive]->Exhausted()
-        && itsNoImprove>=itsStall
-        && relDE>itsEThresh
-        && err>itsFloor)
+    bool stallSwitch = itsRungs[itsActive]->Exhausted()
+                    && itsNoImprove>=itsStall && relDE>itsEThresh && err>itsFloor;
+    //near convergence: hand to the polisher (err>0 guards the initial state, before the active
+    //rung has produced orbitals and computed a real [F,D]).
+    bool tailSwitch  = itsSwitchAt>0.0 && err>0.0 && err<itsSwitchAt;
+    if (itsActive+1<itsRungs.size() && (stallSwitch || tailSwitch))
     {
         cout << "  *** SCF accelerator ladder: rung " << itsActive
-             << " exhausted (|dE/E|=" << relDE << ") -> advancing to rung " << itsActive+1 << " ***" << endl;
+             << (tailSwitch ? " near convergence (err=" : " exhausted (|dE/E|=")
+             << (tailSwitch ? err : relDE)
+             << ") -> advancing to rung " << itsActive+1 << " ***" << endl;
         itsActive++;
         itsBestErr=1e300; itsNoImprove=0;
     }
     return ok;
 }
+
+// The ladder runs the direct-min loop exactly when its active rung is a direct minimizer.
+bool SCFAcceleratorLadder::WantsLineSearch() const { return itsRungs[itsActive]->WantsLineSearch(); }
 
 double SCFAcceleratorLadder::GetError() const { return itsRungs[itsActive]->GetError(); }
 void   SCFAcceleratorLadder::ShowLabels(std::ostream& os)      const { itsRungs[itsActive]->ShowLabels(os); }

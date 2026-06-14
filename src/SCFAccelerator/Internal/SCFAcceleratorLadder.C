@@ -26,11 +26,18 @@
 //     degeneracy, open shell).  So we gate the hand-off on |dE/E| > EThresh AND the rung
 //     being Exhausted() AND its error not improving for `stall` steps.
 //
-//  3. Even when GDM legitimately takes over, its speed-up is currently capped because GDM
-//     runs as a per-macro-iteration orbital producer INSIDE the SCF density-mixing loop:
-//     the outer relax/MixIn damping fights GDM's direct orbital step and it oscillates in
-//     the tail.  The full GDM payoff needs GDM to own the convergence (no outer mixing) with
-//     a real geodesic line search -- a separate piece of work.
+//  3. GDM only pays off when it OWNS the loop.  Running GDM as a per-macro-iteration orbital
+//     producer inside the SCF density-mixing loop caps it: the outer relax/MixIn damping
+//     fights its direct orbital step and it oscillates in the tail.  The fix (now in place):
+//     when the active rung WantsLineSearch(), the SCFIterator switches to its direct-min loop
+//     -- a geodesic line search, NO density mixing.  Combined with a TAIL hand-off (switchat:
+//     once DIIS drives [F,D] below a small threshold, near convergence, hand to the GDM
+//     polisher) this is the production recipe.  Measured on Nd (Z=60) BSpline-High HF to
+//     [F,D]<1e-8: DIIS-alone takes 57 iters with an oscillating tail (bounces 1e-8<->4e-8);
+//     DIIS->direct-min (switchat=1e-4) reaches the SAME energy in 27 iters with a smooth,
+//     strictly monotone tail.  (GDM far from convergence is still useless -- direct-min from
+//     a cold start on an open shell crawls and stalls -- which is exactly why it is wired as
+//     the near-convergence polisher, not a from-scratch solver.)
 //
 // For molecules/solids/post-HF the *signals* (energy stability + a genuine stall) should
 // carry over, but the thresholds (EThresh, stall) will likely need to be revisited per
@@ -54,6 +61,11 @@ public:
     virtual ~SCFIrrepAcceleratorLadder();
     virtual void UseFD(const smat_t<double>& F, const smat_t<double>& DPrime);
     virtual LASolver<double>::UUd_t NextOrbitals();
+    // Delegate the direct-min line-search hooks to the active rung (so a GDM rung's geodesic
+    // step is reachable once the ladder hands off to it).
+    virtual bool ComputeStep() { return itsRungs[*itsActive]->ComputeStep(); }
+    virtual LASolver<double>::UUd_t OrbitalsAt(double t, bool commit)
+        { return itsRungs[*itsActive]->OrbitalsAt(t,commit); }
 private:
     std::vector<SCFIrrepAccelerator*> itsRungs;
     const size_t*                     itsActive; //shared with the top-level ladder
@@ -63,12 +75,18 @@ private:
 class SCFAcceleratorLadder : public virtual SCFAccelerator
 {
 public:
-    // Hand off when the active rung is Exhausted() AND its error has not improved for `stall`
-    // steps AND the energy is still moving (|dE/E| > ethresh).  `floor` is a low backstop:
-    // never hand off once the error is below it (an absolute noise floor).
+    // Two distinct hand-off triggers (see the design notes above):
+    //   STALL  -- the active rung is Exhausted() AND its error has not improved for `stall`
+    //             steps AND the energy is still moving (|dE/E| > ethresh): a genuine
+    //             non-convergence the next rung should rescue.  `floor` is a low backstop.
+    //   TAIL   -- the active rung has driven the error below `switchat` (i.e. we are near
+    //             convergence): hand off to the next rung to POLISH the tail.  This is the
+    //             slot for a direct minimizer (GDM owns the loop), which is fast and robust
+    //             near the minimum but useless far from it.  switchat<=0 disables this.
     SCFAcceleratorLadder(std::vector<SCFAccelerator*> rungs,
-                         double ethresh=1e-8, int stall=5, double floor=1e-8)
-        : itsRungs(std::move(rungs)), itsEThresh(ethresh), itsStall(stall), itsFloor(floor) {}
+                         double ethresh=1e-8, int stall=5, double floor=1e-8, double switchat=0.0)
+        : itsRungs(std::move(rungs)), itsEThresh(ethresh), itsStall(stall),
+          itsFloor(floor), itsSwitchAt(switchat) {}
     virtual ~SCFAcceleratorLadder();
     virtual SCFIrrepAccelerator* Create(const LASolver<double>*,const Irrep&, int occ);
     virtual bool   CalculateProjections();
@@ -76,11 +94,13 @@ public:
     virtual void   ShowConvergence(std::ostream&) const;
     virtual double GetError() const;
     virtual void   SetEnergy(double E);
+    virtual bool   WantsLineSearch() const; //true once the active rung is a direct minimizer
 private:
     std::vector<SCFAccelerator*> itsRungs;
     double                       itsEThresh; //hand off only while |dE/E| exceeds this
     int                          itsStall;
     double                       itsFloor;
+    double                       itsSwitchAt; //tail hand-off: switch once error < this
     size_t                       itsActive=0;
     double                       itsBestErr=1e300; //best (smallest) error since this rung started
     int                          itsNoImprove=0;   //consecutive steps without beating itsBestErr

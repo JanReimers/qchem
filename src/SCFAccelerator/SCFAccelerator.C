@@ -43,6 +43,9 @@ public:
     // The SCF iterator reports the current total energy each macro-iteration.  The ladder
     // uses the energy change to decide hand-offs (see SCFAcceleratorLadder); others ignore it.
     virtual void SetEnergy(double E) {}
+    // Should the SCF iterator run its direct-minimization loop (geodesic line search, no
+    // density mixing)?  True for a GDM-style minimizer; the ladder reports its active rung's.
+    virtual bool WantsLineSearch() const {return false;}
 };
 
 } //namespace

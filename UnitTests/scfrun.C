@@ -60,6 +60,7 @@ int main(int argc, char** argv)
         else if (a=="--floor")   accj["floor"]=std::stod(need(i));
         else if (a=="--ethresh") accj["ethresh"]=std::stod(need(i));
         else if (a=="--stall")   accj["stall"]=std::stoi(need(i));
+        else if (a=="--switchat")accj["switchat"]=std::stod(need(i));
         else if (a=="--trust")   accj["Trust"]=std::stod(need(i));
         else if (a=="--emax")    accj["EMax"]=std::stod(need(i));
         else if (a=="--nproj")   accj["NProj"]=(size_t)std::stoi(need(i));
