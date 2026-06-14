@@ -108,4 +108,17 @@ struct RotationAxis
 std::vector<RotationAxis> FindRotationAxes(const std::vector<SymPoint>& pts,
                                            const rvec3_t& origin, double tol);
 
+// Mirror-plane normals (unit, deduplicated by plane) that are symmetries of the set.
+std::vector<rvec3_t> FindMirrorPlanes(const std::vector<SymPoint>& pts,
+                                      const rvec3_t& origin, double tol);
+
+// Is inversion through the origin a symmetry?
+bool HasInversion(const std::vector<SymPoint>& pts, const rvec3_t& origin, double tol);
+
+// Improper rotation axes S_n (n >= 3) and their highest order, highest first.  S_1 = sigma
+// and S_2 = inversion are reported by FindMirrorPlanes / HasInversion instead.  (Reuses
+// RotationAxis: .order is the n of S_n.)
+std::vector<RotationAxis> FindImproperAxes(const std::vector<SymPoint>& pts,
+                                           const rvec3_t& origin, double tol);
+
 } //namespace

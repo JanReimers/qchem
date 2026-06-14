@@ -184,49 +184,94 @@ static bool SameAxis(const rvec3_t& a, const rvec3_t& b)
     rvec3_t c = Cross(a,b);
     return (c*c) < 1e-6;                         // |a x b|^2 = sin^2(angle), a,b unit
 }
-
-std::vector<RotationAxis> FindRotationAxes(const std::vector<SymPoint>& pts,
-                                           const rvec3_t& origin, double tol)
+// Append d (normalized) to v unless its line is already present.
+static void AddAxis(std::vector<rvec3_t>& v, const rvec3_t& d)
 {
-    // 1. Collect candidate axis directions (deduplicated by line).
+    if (d*d < 1e-12) return;                     // skip the null direction
+    rvec3_t u = Normalize(d);
+    for (const auto& e : v) if (SameAxis(u,e)) return;
+    v.push_back(u);
+}
+// Candidate rotation/improper axis directions: principal axes, centroid->atom vectors,
+// same-species pair midpoints, and pair-plane normals.
+static std::vector<rvec3_t> CandidateAxes(const std::vector<SymPoint>& pts, const rvec3_t& origin)
+{
     std::vector<rvec3_t> cand;
-    auto add = [&](const rvec3_t& d)
-    {
-        if (d*d < 1e-12) return;                 // skip the null direction
-        rvec3_t u = Normalize(d);
-        for (const auto& e : cand) if (SameAxis(u,e)) return;
-        cand.push_back(u);
-    };
     PrincipalAxes pa = ClassifyTop(pts, origin);
-    for (int k=0;k<3;k++) add(pa.axis[k]);       // principal inertia axes
+    for (int k=0;k<3;k++) AddAxis(cand, pa.axis[k]);
     size_t N = pts.size();
     for (size_t i=0;i<N;i++)
     {
         rvec3_t ri = pts[i].r - origin;
-        add(ri);                                 // through an atom
+        AddAxis(cand, ri);                       // through an atom
         for (size_t j=i+1;j<N;j++)
         {
             if (pts[i].species != pts[j].species) continue;
             rvec3_t rj = pts[j].r - origin;
-            add(ri+rj);                          // through a same-species pair midpoint (C2)
-            add(Cross(ri,rj));                   // normal to the pair's plane (face axes)
+            AddAxis(cand, ri+rj);                // through a same-species pair midpoint (C2)
+            AddAxis(cand, Cross(ri,rj));         // normal to the pair's plane (face axes)
         }
     }
-
-    // 2. Highest order worth testing = size of the largest same-species orbit (capped).
+    return cand;
+}
+// Largest same-species orbit size (capped) = highest rotation order worth testing.
+static int MaxOrbit(const std::vector<SymPoint>& pts)
+{
     std::map<int,int> count;
     for (const auto& p : pts) count[p.species]++;
-    int Nmax=2; for (const auto& kv : count) Nmax = std::max(Nmax, kv.second);
-    if (Nmax>12) Nmax=12;
-
-    // 3. For each candidate line, keep the highest C_n that is an actual symmetry.
-    std::vector<RotationAxis> axes;
-    for (const auto& d : cand)
-        for (int n=Nmax; n>=2; --n)
-            if (IsSymmetryOf(SymOp::Cn(d,n), pts, origin, tol)) { axes.push_back({d,n}); break; }
-
+    int n=2; for (const auto& kv : count) n = std::max(n, kv.second);
+    return std::min(n,12);
+}
+static void SortByOrderDesc(std::vector<RotationAxis>& axes)
+{
     std::sort(axes.begin(), axes.end(),
               [](const RotationAxis& a, const RotationAxis& b){ return a.order>b.order; });
+}
+
+std::vector<RotationAxis> FindRotationAxes(const std::vector<SymPoint>& pts,
+                                           const rvec3_t& origin, double tol)
+{
+    int Nmax = MaxOrbit(pts);
+    std::vector<RotationAxis> axes;
+    for (const auto& d : CandidateAxes(pts,origin))           // highest C_n per candidate line
+        for (int n=Nmax; n>=2; --n)
+            if (IsSymmetryOf(SymOp::Cn(d,n), pts, origin, tol)) { axes.push_back({d,n}); break; }
+    SortByOrderDesc(axes);
+    return axes;
+}
+
+std::vector<rvec3_t> FindMirrorPlanes(const std::vector<SymPoint>& pts,
+                                      const rvec3_t& origin, double tol)
+{
+    // Candidate plane normals: principal axes (for sigma_h) and same-species pair differences
+    // (perpendicular-bisector planes that swap the pair, for sigma_v / sigma_d).
+    std::vector<rvec3_t> cand;
+    PrincipalAxes pa = ClassifyTop(pts, origin);
+    for (int k=0;k<3;k++) AddAxis(cand, pa.axis[k]);
+    size_t N = pts.size();
+    for (size_t i=0;i<N;i++) for (size_t j=i+1;j<N;j++)
+        if (pts[i].species == pts[j].species) AddAxis(cand, pts[i].r - pts[j].r);
+
+    std::vector<rvec3_t> planes;
+    for (const auto& nrm : cand)
+        if (IsSymmetryOf(SymOp::Sigma(nrm), pts, origin, tol)) planes.push_back(nrm);
+    return planes;
+}
+
+bool HasInversion(const std::vector<SymPoint>& pts, const rvec3_t& origin, double tol)
+{
+    return IsSymmetryOf(SymOp::Inversion(), pts, origin, tol);
+}
+
+std::vector<RotationAxis> FindImproperAxes(const std::vector<SymPoint>& pts,
+                                           const rvec3_t& origin, double tol)
+{
+    int Smax = 2*MaxOrbit(pts);
+    std::vector<RotationAxis> axes;
+    for (const auto& d : CandidateAxes(pts,origin))           // highest S_n (n>=3) per line
+        for (int n=Smax; n>=3; --n)                           // S_1=sigma, S_2=i handled elsewhere
+            if (IsSymmetryOf(SymOp::Sn(d,n), pts, origin, tol)) { axes.push_back({d,n}); break; }
+    SortByOrderDesc(axes);
     return axes;
 }
 

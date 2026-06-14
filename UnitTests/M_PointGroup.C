@@ -163,6 +163,63 @@ TEST(PointGroup, Axes_methane_Td)
     EXPECT_EQ(ax.size(), 7u);
 }
 
+// --- Mirror planes / inversion / improper axes inventory (stage 1b-2b) ---------------
+
+static std::vector<SymPoint> Ammonia()
+{
+    const double c=cos(2.0*Pi/3.0), s=sin(2.0*Pi/3.0), rho=0.94;
+    return {
+        {7, rvec3_t(0.0, 0.0, 0.10)},
+        {1, rvec3_t(rho,   0.0,   -0.30)},
+        {1, rvec3_t(rho*c, rho*s, -0.30)},
+        {1, rvec3_t(rho*c,-rho*s, -0.30)},
+    };
+}
+static std::vector<SymPoint> Methane()
+{
+    return {
+        {6, rvec3_t( 0, 0, 0)},
+        {1, rvec3_t( 1, 1, 1)}, {1, rvec3_t( 1,-1,-1)},
+        {1, rvec3_t(-1, 1,-1)}, {1, rvec3_t(-1,-1, 1)},
+    };
+}
+
+TEST(PointGroup, Inventory_water_C2v)
+{
+    auto w = Water(); rvec3_t o = Centroid(w);
+    EXPECT_EQ(FindMirrorPlanes(w,o,1e-6).size(), 2u);   // 2 sigma_v
+    EXPECT_FALSE(HasInversion(w,o,1e-6));
+    EXPECT_EQ(FindImproperAxes(w,o,1e-6).size(), 0u);
+}
+
+TEST(PointGroup, Inventory_ammonia_C3v)
+{
+    auto a = Ammonia(); rvec3_t o = Centroid(a);
+    EXPECT_EQ(FindMirrorPlanes(a,o,1e-6).size(), 3u);   // 3 sigma_v
+    EXPECT_FALSE(HasInversion(a,o,1e-6));
+    EXPECT_EQ(FindImproperAxes(a,o,1e-6).size(), 0u);
+}
+
+TEST(PointGroup, Inventory_benzene_D6h)
+{
+    auto b = Benzene(); rvec3_t o = Centroid(b);
+    EXPECT_EQ(FindMirrorPlanes(b,o,1e-6).size(), 7u);   // sigma_h + 3 sigma_v + 3 sigma_d
+    EXPECT_TRUE(HasInversion(b,o,1e-6));
+    auto s = FindImproperAxes(b,o,1e-6);
+    EXPECT_EQ(s.size(), 1u);                            // S6 along the C6 axis
+    EXPECT_EQ(s[0].order, 6);
+}
+
+TEST(PointGroup, Inventory_methane_Td)
+{
+    auto m = Methane(); rvec3_t o = Centroid(m);
+    EXPECT_EQ(FindMirrorPlanes(m,o,1e-6).size(), 6u);   // 6 sigma_d
+    EXPECT_FALSE(HasInversion(m,o,1e-6));
+    auto s = FindImproperAxes(m,o,1e-6);
+    EXPECT_EQ(s.size(), 3u);                            // 3 S4 axes
+    EXPECT_EQ(s[0].order, 4);
+}
+
 TEST(PointGroup, SymOp_basics)
 {
     rvec3_t z(0,0,1);
