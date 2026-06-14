@@ -24,7 +24,7 @@ static rsmat_t sympart(const mat_t<double>& B)
 }
 
 SCFIrrepAcceleratorGDM::SCFIrrepAcceleratorGDM(const GDMParams& p,const LASolver<double>* las,const Irrep& ir,int occ)
-: itsParams(p), itsLASolver(las), itsIrrep(ir), itsNocc(occ), itsHaveC(false), itsEn(0.0)
+: itsParams(p), itsLASolver(las), itsIrrep(ir), itsNocc(occ), itsHaveC(false), itsEn(0.0), itsActive(false)
 {
     assert(itsLASolver);
 }
@@ -39,6 +39,7 @@ void SCFIrrepAcceleratorGDM::UseFD(const rsmat_t& F, const rsmat_t& DPrime)
 
 LASolver<double>::UUd_t SCFIrrepAcceleratorGDM::NextOrbitals()
 {
+    itsActive=false;
     size_t n  = itsFp.rows();
     size_t no = itsNocc;
     // First step (or trivial irreps, or still far from convergence): diagonalize & cache.
@@ -49,6 +50,7 @@ LASolver<double>::UUd_t SCFIrrepAcceleratorGDM::NextOrbitals()
         itsHaveC = true;
         return t;
     }
+    itsActive=true;
     size_t nv = n - no;
 
     // Fock in the current MO (orthonormal) basis, and its blocks.
@@ -122,10 +124,20 @@ double SCFAcceleratorGDM::GetError() const
     return e;
 }
 
-void SCFAcceleratorGDM::ShowLabels(std::ostream& os) const { os << " GradNorm "; }
+void SCFAcceleratorGDM::ShowLabels(std::ostream& os) const { os << "  |∇|  Nactive"; }
 void SCFAcceleratorGDM::ShowConvergence(std::ostream& os) const
 {
     os << std::scientific << GetError() << " ";
+    size_t nactive=0;
+    for (auto k:itsIrreps) 
+        if(k->itsActive) nactive++;
+
+    if (nactive>0) 
+        os << std::setw(4) << nactive;
+    else
+        os << "    ";
+
+    os << "    ";
 }
 
 } //namespace

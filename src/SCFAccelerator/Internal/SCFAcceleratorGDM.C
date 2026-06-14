@@ -46,6 +46,8 @@ private:
     mat_t<double>           itsCp;      //Orthonormal-basis orbitals (n x n), columns = MOs.
     rsmat_t                 itsFp;      //Orthonormal-basis Fock matrix.
     double                  itsEn;      //||[F',D']|| error for this irrep.
+    bool                    itsActive;
+
 };
 
 class SCFAcceleratorGDM : public virtual SCFAccelerator
