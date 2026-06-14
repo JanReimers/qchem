@@ -7,9 +7,10 @@ target_sources(qcSymmetry PRIVATE
     Imp/Irrep.C  
     Imp/Molecule_EC.C  
     Imp/Orbital_QNs.C  
-    Imp/Symmetry.C  
+    Imp/Symmetry.C
     Imp/Factory.C
-    Internal/Imp/Unit.C 
+    Imp/PointGroup.C
+    Internal/Imp/Unit.C
     Internal/Imp/Yl.C  
     Internal/Imp/Ylm.C 
     Internal/Imp/Okmj.C
@@ -25,9 +26,10 @@ target_sources(qcSymmetry PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     ElectronConfiguration.C
     Atom_EC.C 
     Atom_Dirac_EC.C
-    Molecule_EC.C 
+    Molecule_EC.C
     Factory.C
-    Internal/Spherical.C 
+    PointGroup.C
+    Internal/Spherical.C
     Internal/BlochQN.C
     Internal/Unit.C
 
