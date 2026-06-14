@@ -4,7 +4,7 @@ module;
 #include <map>
 #include <memory>
 export module qchem.WaveFunction.Internal.CompositeWF;
-export import qchem.WaveFunction;
+export import qchem.WaveFunction.SCF;
 import qchem.SCFAccelerator;
 import qchem.WaveFunction.Internal.IrrepWF;
 import qchem.WaveFunction.Types;
@@ -15,7 +15,7 @@ export namespace qchem::WaveFunction
 using SCFAccelerators::SCFAccelerator;
 
 class CompositeWF
-    : public virtual WaveFunction
+    : public virtual SCFWaveFunction
 {
 public:
     CompositeWF(const bs_t*,const ElectronConfiguration*,SCFAccelerator*);

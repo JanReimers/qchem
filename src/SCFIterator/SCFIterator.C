@@ -3,11 +3,13 @@ export module qchem.SCFIterator;
 import qchem.SCFIterator.Types;
 export import qchem.SCFAccelerator;
 export import qchem.WaveFunction;
+import qchem.WaveFunction.SCF;
 export import qchem.SCFParams;
 
 export using qchem::EnergyBreakdown;
 using qchem::Hamiltonian::Hamiltonian;
 using qchem::WaveFunction::WaveFunction;
+using qchem::WaveFunction::SCFWaveFunction;
 using qchem::SCFAccelerators::SCFAccelerator;
 using qchem::ChargeDensity::DM_CD;
 
@@ -23,6 +25,8 @@ public:
     // Direct energy minimization (GDM owns the loop): geodesic line search, no density mixing.
     void SetDirectMin(bool b) {itsDirectMin=b;}
 
+    // SCFIterator drives the mutable SCFWaveFunction, but only ever hands clients the const
+    // read view (they can query the converged state, never drive someone else's SCF loop).
     const class WaveFunction* GetWaveFunction() const {return itsWaveFunction;}
     EnergyBreakdown     GetEnergy() const;
     size_t              GetIterationCount() const {return itsIterationCount;}
@@ -37,7 +41,7 @@ private:
     //All owned, see destructor.
     class Hamiltonian*    itsHamiltonian;
     SCFAccelerator* itsAccelerator;
-    class WaveFunction*   itsWaveFunction;  
+    SCFWaveFunction*      itsWaveFunction;
     DM_CD*          itsCD;
     DM_CD*          itsOldCD;
 

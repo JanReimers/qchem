@@ -3,7 +3,7 @@ module;
 import qchem.SCFAccelerator;
 
 export module qchem.WaveFunction.Internal.PolarizedWF;
-export import qchem.WaveFunction;
+export import qchem.WaveFunction.SCF;
 import qchem.WaveFunction.Internal.CompositeWF;
 import qchem.WaveFunction.Types;
 
@@ -11,7 +11,7 @@ export namespace qchem::WaveFunction
 {
 
 class PolarizedWF
-    : public virtual WaveFunction
+    : public virtual SCFWaveFunction
     , public CompositeWF
 {
 public:

@@ -3,13 +3,13 @@ module;
 export module qchem.WaveFunction.Factory;
 import qchem.WaveFunction.Types;
 export import qchem.SCFAccelerator;
-export import qchem.WaveFunction;
+export import qchem.WaveFunction.SCF;
 export import qchem.Hamiltonian;
 export import qchem.Symmetry.ElectronConfiguration;
 
 export namespace qchem::WaveFunction
 {
-    WaveFunction* Factory(
+    SCFWaveFunction* Factory(
             const Hamiltonian::Hamiltonian*,
             const bs_t* bs,
             const ElectronConfiguration* ec,
