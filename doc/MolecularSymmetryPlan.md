@@ -113,9 +113,19 @@ on the engine — do **not** couple it to this.
    `HasInversion` / `FindImproperAxes` (1b-2b); `DetectPointGroup` -> Schoenflies symbol +
    abelian-subgroup descent (1b-2c).  Validated: H₂O C2v, NH₃ C3v, benzene D6h, CH₄ Td,
    CO₂ D∞h, rectangle D2h, scalene-planar Cs (symbols, orders, abelian subgroups).
-2. Rep-builder: `R(g)` on the (Cartesian) PG basis (centers ⊗ angular rotation) —
-   validate `R` is a faithful representation (the multiplication table closes).
-3. Projection → O_irrep, **abelian first** — validate against libmsym SALCs.
+2. **[DONE]** Rep-builder, in the Symmetry library (`CartesianRep.C`, tests
+   `M_CartesianRep.C`).  `CartesianShellRep(R, exps)` (one shell's monomial transform) and
+   `BuildOperationRep(shells, R, origin, tol)` (full AO basis = center permutation ⊗ shell
+   rep ⊗ normalization), on a generic `AoShell` layout.  Validated: p-shell rep == R,
+   identity, the faithful-representation law `D(R1)D(R2)=D(R1 R2)`, and the full-basis law on
+   H₂O.  (PG `AoShell` extraction from the real molecular basis is the wiring step, stage 5.)
+3. **[DONE]** SALCs → O, **abelian first**, in the Symmetry library.  `AbelianCharacterTable`
+   (8 abelian tables, Mulliken labels — `CharacterTable.C`); `BuildAbelianGroup` (concrete
+   ops aligned to the molecule's axes, incl. cubic→C2v and linear→D2h descents —
+   `AbelianGroup.C`); `BuildSALCs` -> the transform O, block-structured by irrep, each column
+   carrying its Mulliken label (`SALC.C`).  Validated on H₂O C2v: block dims a1=3,a2=0,
+   {b1,b2}={1,2}, and every column is an irrep eigenvector `M(g)v = chi^Gamma(g) v`.
+   (Mulliken labels flow to the orbital eigenvalue/occupation tables.)
 4. `SymmetryAdapted_IBS` decorator (1-e transform + 2-e density/Fock wrapping) +
    `SymmetryAdaptedBasisSet`.
 5. Wire into the molecular `Factory`; run H₂O HF, compare total energy to a reference;
