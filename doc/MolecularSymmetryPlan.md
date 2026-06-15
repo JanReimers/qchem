@@ -4,6 +4,52 @@ Design notes for adding point-group symmetry (and, eventually, space / magnetic 
 Brillouin-zone symmetry) to the molecular SCF path. Captured from a design discussion;
 this is a living document.
 
+## ⟢ RESUME HERE (current status, 2026-06-14)
+
+**Done and committed** — the whole group-theory engine + the bridge to the real basis:
+
+| Stage | What | Where | Tests |
+|---|---|---|---|
+| 1 detect | `DetectPointGroup` → Schoenflies + abelian subgroup | `src/Symmetry/PointGroup.C` | `M_PointGroup.C` |
+| 2 represent | `CartesianShellRep`, `BuildOperationRep` (AO rep `M(g)`) | `src/Symmetry/CartesianRep.C` | `M_CartesianRep.C` |
+| 3a tables | `AbelianCharacterTable` (8 abelian, Mulliken labels) | `src/Symmetry/CharacterTable.C` | `M_CharacterTable.C` |
+| 3a ops | `BuildAbelianGroup` (concrete ops in molecule frame) | `src/Symmetry/AbelianGroup.C` | `M_PointGroup.C` |
+| 3b SALC | `BuildSALCs` → transform **O** (irrep-blocked, labelled) | `src/Symmetry/SALC.C` | `M_SALC.C` |
+| 5a bridge | `ExtractAoShells` + `ClusterToSymPoints` (PG basis → symmetry) | `src/BasisSet1/Molecule/PolarizedGaussian/Symmetry.C` | `M_PGSymmetry.C` |
+
+`qcSymmetry` stays LAPACK-free. ~40 tests, all green. **O is produced and validated on a real
+24-function H₂O basis** (every SALC column an irrep eigenvector `M(g)v = χ(g)v`). Build/run:
+`cmake --build build/Debug --target UTMain -j4`, then
+`./build/Debug/UnitTests/UTMain --gtest_filter='PGSymmetry.*:SALC.*:...'`.
+
+**Decision locked (the 2-electron fork): Option 1 — the decorator.** Build J and K in the AO
+basis (existing engine untouched), then transform the 2-index density/Fock in/out:
+`D_AO = Σ_Γ O_Γ D_Γ O_Γᵀ`, build `F_AO`, slice `F_Γ = O_Γᵀ F_AO O_Γ`. RAM/CPU identical to the
+simpler "symmetry-adapted diagonalization" option but it packages each irrep as an IBS, so it
+reuses the whole per-irrep SCF/accelerator stack AND the Mulliken labels reach the orbital
+tables for free. (4-index ERI transform rejected on RAM — transformed ERIs ≈ raw ERI tables.)
+Caching: use the existing global cache; the decorator's `MakeOverlap()` returns
+`O_Γᵀ·raw->Overlap()·O_Γ` (raw is public+cached) and memoizes the transformed block under an
+irrep-specific `(RadialID, AngularID)` key — both raw and transformed cached, no new cache code.
+The density is block-diagonal by irrep (one isolated `D_Γ` per irrep); blocks couple only
+through the totally-symmetric mean field, which is why "build `F_AO`, slice" is natural.
+
+**NEXT STEP — stage 4, the 1-electron decorator (start here):**
+1. `SymmetryAdapted_IBS` (per irrep): IS-A `Orbital_1E_IBS`, holds `{raw Orbital_1E_IBS*, O_Γ
+   block (nAO×dΓ), irrep sym_t}`. `MakeOverlap()=O_Γᵀ·raw->Overlap()·O_Γ` (same for Kinetic/
+   Nuclear), `GetNumFunctions()=dΓ`, `GetSymmetry()`=the irrep, `RadialID()/AngularID()`=raw's
+   + irrep suffix (cache key). Lives in BasisSet1 (PG area or a generic SymmetryAdapted module).
+2. `SymmetryAdaptedBasisSet` (IS-A `BasisSet<double>`): holds raw molecular basis + O (from
+   `BuildSALCs` via the stage-5a bridge), creates one `SymmetryAdapted_IBS` per irrep block.
+3. Test: build the H₂O/N₂ basis, make the irrep IBSs, assert `O_Γᵀ S_raw O_Γ` block-diagonal
+   and the per-irrep overlap blocks are correct (block dims sum to nAO; cross-irrep ≈ 0).
+Then: 2-electron (`F_AO` once, slice per irrep) and the molecular Factory + SCF wiring.
+
+Key types: `Symmetry::AoShell{shellType,center,monomials,norm,offset}`,
+`Symmetry::SALCs{rmat_t O, vector<string> irrep, vector<size_t> blockStart}`. The molecular
+orbital basis is a single PG `Orbital_IBS` (IS-A `PGData`, public `radials[]/pols[]/ns[]`).
+Build a basis without a file: `Orbital_IBS(rvec_t exponents, size_t LMax, const Cluster*)`.
+
 ## Goal
 
 Let the existing SCF machinery solve **molecules** with point-group symmetry, the same way
