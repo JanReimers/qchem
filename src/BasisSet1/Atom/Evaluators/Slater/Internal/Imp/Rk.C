@@ -53,7 +53,7 @@ RkEngine::RkEngine(double _eab, double _ecd, size_t _LMax)
     return qchem::Fact[k]*(n/pow(ab,k+1)+1/pow(a,k+1));
 }
 
-double RkEngine::Coulomb_R0(size_t la,size_t lc) const
+double RkEngine::DirectR0  (size_t la,size_t lc) const
 {
     assert(la<=itsLMax);
     assert(lc<=itsLMax);
@@ -66,7 +66,7 @@ double RkEngine::Coulomb_R0(size_t la,size_t lc) const
 }
 
 
-double RkEngine::Coulomb_Rk(size_t la,size_t lc, const rvec11_t& Ak) const
+double RkEngine::DirectRk  (size_t la,size_t lc, const rvec11_t& Ak) const
 {
     assert(la>=0);
     assert(lc>=0);

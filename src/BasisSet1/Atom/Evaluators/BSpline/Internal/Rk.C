@@ -38,9 +38,9 @@ public:
     using func_t=std::function< double (double,size_t )>;
     RkEngine(const std::vector<sp_t>& splines, size_t ia, size_t ib, size_t ic, size_t id, size_t LMax
         , const GLCache1D&,const GLCache2D&, const RkCache<K>&, const func_t& wp, const func_t& wm);
-    double   Coulomb_R0() const; //R_0(la,la,lc,lc);
-    virtual double Coulomb_R0(size_t la,size_t lc) const {return Coulomb_R0();}
-    virtual double Coulomb_Rk(size_t la,size_t lc,const rvec11_t& Ak) const; //sum{k,A_k*R_k(la,la,lc,lc)};
+    double   DirectR0  () const; //R_0(la,la,lc,lc);
+    virtual double DirectR0  (size_t la,size_t lc) const {return DirectR0  ();}
+    virtual double DirectRk  (size_t la,size_t lc,const rvec11_t& Ak) const; //sum{k,A_k*R_k(la,la,lc,lc)};
     virtual double ExchangeRk(size_t la,size_t lb,const rvec11_t& Ak) const; //sum{k,A_k*R_k(la,lb,la,lb)};
     
     virtual size_t RAMsize() const;

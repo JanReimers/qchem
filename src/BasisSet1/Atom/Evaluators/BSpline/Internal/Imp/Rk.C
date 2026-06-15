@@ -142,12 +142,12 @@ template <size_t K> RkEngine<K>::RkEngine(const std::vector<sp_t>& splines, size
     }
  }
 
- template <size_t K> double RkEngine<K>::Coulomb_R0() const
+ template <size_t K> double RkEngine<K>::DirectR0  () const
  {
     return Rabcd_k[0];
  }
 
- template <size_t K> double RkEngine<K>::Coulomb_Rk(size_t la,size_t lc, const rvec11_t& Ak) const
+ template <size_t K> double RkEngine<K>::DirectRk  (size_t la,size_t lc, const rvec11_t& Ak) const
  {
     assert(la>=0);
     assert(lc>=0);

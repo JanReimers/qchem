@@ -274,7 +274,7 @@ template <isHF_Evaluator E> ERI4 Orbital_HF_IBS<E>::MakeDirect(const BasisSet::O
     assert(BasisSet::theGlobalCache);
     size_t spanab=a.maxSpan(),spancd=c.maxSpan();
     size_t Na=a.size(), Nc=c.size();
-    rvec11_t Akac=a.CoulombAk(c);
+    rvec11_t Akac=a.DirectAk(c);
     const Cache4* Rk_cache=BasisSet::theGlobalCache->GetCache4(a.RadialType());
     ERI4 J(Na,Nc);
 

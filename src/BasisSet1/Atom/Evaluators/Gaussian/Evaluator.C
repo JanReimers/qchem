@@ -64,17 +64,17 @@ public:
     double Repulsion(size_t i,size_t j, const Radial& c, size_t ic) const
     {
         ::Gaussian::RkEngine cd(es[i]+es[j],c.es[ic],std::max(l,c.l));
-        return cd.Coulomb_R0(l,c.l)*FourPi2*ns[i]*ns[j]*c.ns[ic];
+        return cd.DirectR0  (l,c.l)*FourPi2*ns[i]*ns[j]*c.ns[ic];
     }
     double Repulsion(size_t i,size_t j) const
     {
         ::Gaussian::RkEngine cd(es[i],es[j],l);
-        return cd.Coulomb_R0(l,l)*FourPi2*ns[i]*ns[j];
+        return cd.DirectR0  (l,l)*FourPi2*ns[i]*ns[j];
     }
     double Repulsion(size_t i,size_t j, const Radial& b) const
     {
         ::Gaussian::RkEngine cd(es[i],b.es[j],std::max(l,b.l));
-        return cd.Coulomb_R0(l,b.l)*FourPi2*ns[i]*b.ns[j];
+        return cd.DirectR0  (l,b.l)*FourPi2*ns[i]*b.ns[j];
     }
 
     double Charge(size_t i) const
@@ -97,7 +97,7 @@ public:
     static double direct(const Cacheable* c, size_t la, size_t lc,const rvec11_t& Ak)
     {
         const ::Gaussian::RkEngine* cd = dynamic_cast<const ::Gaussian::RkEngine*>(c);
-        return cd->Coulomb_Rk(la,lc,Ak); // contract over k Rk*Ak
+        return cd->DirectRk  (la,lc,Ak); // contract over k Rk*Ak
     }
     static double exchange(const Cacheable* c, size_t la, size_t lc,const rvec11_t& Ak)
     {
@@ -138,6 +138,8 @@ public:
         , NR_Angular(ir) {}
 
     NR_Evaluator Rescale(double scale_factor) const { return NR_Evaluator(scale_factor*es,Getl()); }
+    virtual int Getl() const override {return NR_Angular::Getl();}
+
 };
 
 static_assert(isGeneric_Evaluator<NR_Evaluator>);
@@ -186,6 +188,8 @@ public:
         : RKB_Angular(ir)
         , Radial(es,ir,ltrim)
         {}
+
+    virtual int Getl() const override {return RKB_Angular::Getl();}
 
     using Radial::Grad2; //unhide
     using Radial::Inv_r2; //unhide

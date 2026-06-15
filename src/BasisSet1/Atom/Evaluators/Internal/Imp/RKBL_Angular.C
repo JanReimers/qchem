@@ -10,7 +10,7 @@ import qchem.Symmetry.Spherical; // SphericalSpinor::j(κ)
 namespace BasisSet::Atom::Evaluators
 {
 
-rvec11_t RKB_Angular::CoulombAk(const Evaluator& other) const
+rvec11_t RKB_Angular::DirectAk(const Evaluator& other) const
 {
     const RKB_Angular& o = dynamic_cast<const RKB_Angular&>(other);
     double ja = Symmetry::SphericalSpinor::j(κ);
@@ -22,14 +22,14 @@ rvec11_t RKB_Angular::CoulombAk(const Evaluator& other) const
     if (nac==0 || nac==ga*gc)
     {
         // Full mj sum; divide by degeneracy to match the per-pair NR convention.
-        Ak += RelAngularIntegrals::Coulomb(κ, o.κ);
+        Ak += RelAngularIntegrals::Direct (κ, o.κ);
         Ak /= (double)(ga*gc);
     }
     else
     {
         for (double mja : mjs)
         for (double mjc : o.mjs)
-            Ak += RelAngularIntegrals::Coulomb(κ, o.κ, mja, mjc);
+            Ak += RelAngularIntegrals::Direct (κ, o.κ, mja, mjc);
         Ak /= (double)nac;
     }
     return Ak;

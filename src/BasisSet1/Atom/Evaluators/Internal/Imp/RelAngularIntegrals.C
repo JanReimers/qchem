@@ -21,7 +21,7 @@ static double CG(int la, double ja, double mj, double ms)
     return WignerSymbols::clebschGordan(la, 0.5, ja, mla, ms, mj);
 }
 
-rvec11_t Coulomb(int κa, int κc, double mja, double mjc)
+rvec11_t Direct (int κa, int κc, double mja, double mjc)
 {
     int    la=Symmetry::SphericalSpinor::l(κa), lc=Symmetry::SphericalSpinor::l(κc);
     double ja=Symmetry::SphericalSpinor::j(κa), jc=Symmetry::SphericalSpinor::j(κc);
@@ -38,7 +38,7 @@ rvec11_t Coulomb(int κa, int κc, double mja, double mjc)
             double cgc=CG(lc,jc,mjc,ms_c);
             if (cgc==0.0) continue;
             int mla=(int)(mja-ms_a), mlc=(int)(mjc-ms_c);
-            Ak += cga2 * cgc*cgc * AngularIntegrals::Coulomb(la,lc,mla,mlc);
+            Ak += cga2 * cgc*cgc * AngularIntegrals::Direct (la,lc,mla,mlc);
         }
     }
     return Ak;
@@ -63,13 +63,13 @@ rvec11_t Exchange(int κa, int κb, double mja, double mjb)
     return Ak;
 }
 
-rvec11_t Coulomb(int κa, int κc)
+rvec11_t Direct (int κa, int κc)
 {
     double ja=Symmetry::SphericalSpinor::j(κa), jc=Symmetry::SphericalSpinor::j(κc);
     rvec11_t Ak(0.0);
     for (double mja=-ja; mja<=ja; mja+=1.0)
     for (double mjc=-jc; mjc<=jc; mjc+=1.0)
-        Ak += Coulomb(κa,κc,mja,mjc);
+        Ak += Direct (κa,κc,mja,mjc);
     return Ak;
 }
 

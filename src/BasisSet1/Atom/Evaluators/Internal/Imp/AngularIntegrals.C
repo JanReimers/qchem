@@ -20,7 +20,7 @@ double Exchange(int k,int la,int lb)
     return FourPi2*wabk*wabk; 
 }
 
-double Coulomb (int k,int la,int lc,int ma,int mc)
+double Direct  (int k,int la,int lc,int ma,int mc)
 {
     assert(k>=0);
     assert(k<=2*std::min(la,lc));
@@ -52,7 +52,7 @@ double Exchange(int k,int la,int lb,int ma,int mb)
     return FourPi2*w3ab*w3ab*w3ab_m*w3ab_m;
 }
 
-rvec11_t Coulomb(int la,int lb)
+rvec11_t Direct (int la,int lb)
 {    
     rvec11_t Ak(0.0);
     Ak[0]=FourPi2;
@@ -77,7 +77,7 @@ rvec11_t Exchange(int la,int lb)
 }
 
 
-rvec11_t Coulomb (int la,int lc,int ma,int mc)
+rvec11_t Direct  (int la,int lc,int ma,int mc)
 {    
     rvec11_t Ak(0.0);
     int kmax=2*std::min(la,lc);

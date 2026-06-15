@@ -22,7 +22,7 @@ class AngularTests : public ::testing::Test
         {
             assert(abs(ma)<=la);
             assert(abs(mc)<=lc);
-            Ak+=AngularIntegrals::Coulomb(la,lc,ma,mc);
+            Ak+=AngularIntegrals::Direct (la,lc,ma,mc);
         }
         return Ak;
     }
@@ -47,14 +47,14 @@ TEST_F(AngularTests,FullSums)
     for (size_t la=0;la<=LMax;la++)
     for (size_t lc=0;lc<=LMax;lc++)
     {
-        rvec11_t dac=AngularIntegrals::Coulomb(la,lc);
+        rvec11_t dac=AngularIntegrals::Direct (la,lc);
         rvec11_t eac=AngularIntegrals::Exchange(la,lc);
 
         rvec11_t dac_sum(0.0),eac_sum(0.0);
         for (int ma=-(int)la;ma<=(int)la;ma++)
             for (int mc=-(int)lc;mc<=(int)lc;mc++)
             {
-                dac_sum+=AngularIntegrals::Coulomb(la,lc,ma,mc);
+                dac_sum+=AngularIntegrals::Direct (la,lc,ma,mc);
                 eac_sum+=AngularIntegrals::Exchange(la,lc,ma,mc);
 
             }

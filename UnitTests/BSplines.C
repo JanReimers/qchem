@@ -384,21 +384,21 @@ TEST_F(BSplineTests, Kinetic)
 //         {
 //             auto rk00nn=dynamic_cast<const Rk*>(cache4->Create(n0,n0,n ,n));
 //             auto rknn00=dynamic_cast<const Rk*>(cache4->Create(n ,n ,n0,n0));
-//             EXPECT_NEAR(rk00nn->Coulomb_R0(la,lb),rknn00->Coulomb_R0(la,lb),1e-15);
-//             EXPECT_NEAR(rk00nn->Coulomb_R0(la,lb),rknn00->Coulomb_R0(lb,la),1e-15);
+//             EXPECT_NEAR(rk00nn->DirectR0  (la,lb),rknn00->DirectR0  (la,lb),1e-15);
+//             EXPECT_NEAR(rk00nn->DirectR0  (la,lb),rknn00->DirectR0  (lb,la),1e-15);
 //         }
 //         {
 //             auto rk0nn0=dynamic_cast<const Rk*>(cache4->Create(n0,n,n,n0));
 //             auto rkn00n=dynamic_cast<const Rk*>(cache4->Create(n,n0,n0,n));
-//             EXPECT_NEAR(rk0nn0->Coulomb_R0(la,lb),rkn00n->Coulomb_R0(la,lb),1e-15);
-//             EXPECT_NEAR(rk0nn0->Coulomb_R0(la,lb),rkn00n->Coulomb_R0(lb,la),1e-15);
+//             EXPECT_NEAR(rk0nn0->DirectR0  (la,lb),rkn00n->DirectR0  (la,lb),1e-15);
+//             EXPECT_NEAR(rk0nn0->DirectR0  (la,lb),rkn00n->DirectR0  (lb,la),1e-15);
 //         }
 //         rvec11_t Ak({1,1,1,1,1,1,1,1,1,1,1});
 //         {
 //             auto rk00nn=dynamic_cast<const Rk*>(cache4->Create(n0,n0,n,n));
 //             auto rknn00=dynamic_cast<const Rk*>(cache4->Create(n,n,n0,n0));
-//             EXPECT_NEAR(rk00nn->Coulomb_Rk(la,lb,Ak),rknn00->Coulomb_Rk(la,lb,Ak),1e-15);
-//             EXPECT_NEAR(rk00nn->Coulomb_Rk(la,lb,Ak),rknn00->Coulomb_Rk(lb,la,Ak),1e-15);
+//             EXPECT_NEAR(rk00nn->DirectRk  (la,lb,Ak),rknn00->DirectRk  (la,lb,Ak),1e-15);
+//             EXPECT_NEAR(rk00nn->DirectRk  (la,lb,Ak),rknn00->DirectRk  (lb,la,Ak),1e-15);
 //         }
 //         {
 //             auto rk00nn=dynamic_cast<const Rk*>(cache4->Create(n0,n0,n,n));
@@ -440,12 +440,12 @@ TEST_F(BSplineTests,RkSymmetry_l0)
 
         for (auto i:iv_t(1,8))
         {
-            double J0=Rks[0]->Coulomb_R0(0,0);
-            double Ji=Rks[i]->Coulomb_R0(0,0);
+            double J0=Rks[0]->DirectR0  (0,0);
+            double Ji=Rks[i]->DirectR0  (0,0);
             double err=fabs(J0-Ji);
             if (err>1e-16)
                 cout << "{" << ia << "," << ib << "," << ic << "," << id << "} i=" << i << "  err=" << err << " J0=" << J0 << " Ji=" << Ji << endl;
-            EXPECT_NEAR(Rks[0]->Coulomb_R0(0,0),Rks[i]->Coulomb_R0(0,0),1e-16);
+            EXPECT_NEAR(Rks[0]->DirectR0  (0,0),Rks[i]->DirectR0  (0,0),1e-16);
         }
 
     }

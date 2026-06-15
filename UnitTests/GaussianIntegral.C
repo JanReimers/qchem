@@ -113,17 +113,17 @@ TEST_F(GaussianRadialIntegralTests,RkSymmetry_l0)
             auto rk0001=dynamic_cast<const Rk*>(cache4->Create(0,0,0,1));
             auto rk0100=dynamic_cast<const Rk*>(cache4->Create(0,1,0,0));
             auto rk0010=dynamic_cast<const Rk*>(cache4->Create(0,0,1,0));
-            cout << " 0001=" << std::setprecision(12) << rk0001->Coulomb_R0(0,0   )*ns[0]*ns[0]*ns[0]*ns[1]*FourPi2 << endl;
-            cout << " 0100=" << std::setprecision(12) << rk0100->Coulomb_R0(0,0   )*ns[0]*ns[0]*ns[0]*ns[1]*FourPi2 << endl;
-            cout << " 0010=" << std::setprecision(12) << rk0010->Coulomb_R0(0,0   )*ns[0]*ns[0]*ns[1]*ns[0]*FourPi2 << endl;
+            cout << " 0001=" << std::setprecision(12) << rk0001->DirectR0  (0,0   )*ns[0]*ns[0]*ns[0]*ns[1]*FourPi2 << endl;
+            cout << " 0100=" << std::setprecision(12) << rk0100->DirectR0  (0,0   )*ns[0]*ns[0]*ns[0]*ns[1]*FourPi2 << endl;
+            cout << " 0010=" << std::setprecision(12) << rk0010->DirectR0  (0,0   )*ns[0]*ns[0]*ns[1]*ns[0]*FourPi2 << endl;
             cout << "J0001=" << std::setprecision(12) << eval->direct(rk0001,0,0,Ak)*ns[0]*ns[0]*ns[0]*ns[1]*FourPi2 << endl;
             cout << "J0100=" << std::setprecision(12) << eval->direct(rk0100,0,0,Ak)*ns[0]*ns[1]*ns[0]*ns[0]*FourPi2 << endl;
             cout << "J0010=" << std::setprecision(12) << eval->direct(rk0010,0,0,Ak)*ns[0]*ns[0]*ns[1]*ns[0]*FourPi2 << endl;
 
-            EXPECT_NEAR(rk0001->Coulomb_R0(0,0   ),rk0100->Coulomb_R0(0,0   ),1e-15);
-            EXPECT_NEAR(rk0001->Coulomb_R0(0,0   ),rk0100->Coulomb_R0(0,0   ),1e-15);
-            EXPECT_NEAR(rk0001->Coulomb_Rk(0,0,Ak),rk0100->Coulomb_Rk(0,0,Ak),1e-15);
-            EXPECT_NEAR(rk0001->Coulomb_Rk(0,0,Ak),rk0100->Coulomb_Rk(0,0,Ak),1e-15);
+            EXPECT_NEAR(rk0001->DirectR0  (0,0   ),rk0100->DirectR0  (0,0   ),1e-15);
+            EXPECT_NEAR(rk0001->DirectR0  (0,0   ),rk0100->DirectR0  (0,0   ),1e-15);
+            EXPECT_NEAR(rk0001->DirectRk  (0,0,Ak),rk0100->DirectRk  (0,0,Ak),1e-15);
+            EXPECT_NEAR(rk0001->DirectRk  (0,0,Ak),rk0100->DirectRk  (0,0,Ak),1e-15);
             EXPECT_NEAR(rk0001->ExchangeRk(0,0,Ak),rk0100->ExchangeRk(0,0,Ak),1e-15);
             EXPECT_NEAR(rk0001->ExchangeRk(0,0,Ak),rk0100->ExchangeRk(0,0,Ak),1e-15);
         }

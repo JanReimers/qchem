@@ -8,7 +8,7 @@ import qchem.BasisSet.Atom.Evaluators.Internal.AngularIntegrals;
 namespace BasisSet::Atom::Evaluators
 {
 
-rvec11_t NR_Angular::CoulombAk(const Evaluator& other) const
+rvec11_t NR_Angular::DirectAk(const Evaluator& other) const
 {
     const NR_Angular& o = dynamic_cast<const NR_Angular&>(other);
     int la=Getl(), lc=o.Getl();
@@ -18,13 +18,13 @@ rvec11_t NR_Angular::CoulombAk(const Evaluator& other) const
     rvec11_t Ak(0.0);
     if (nac==0 || nac==g)
     {
-        Ak += AngularIntegrals::Coulomb(la,lc);
+        Ak += AngularIntegrals::Direct (la,lc);
     }
     else
     {
         for (auto ma:amls)
         for (auto mc:cmls)
-            Ak += AngularIntegrals::Coulomb(la,lc,ma,mc);
+            Ak += AngularIntegrals::Direct (la,lc,ma,mc);
         Ak /= (double)nac;
     }
     return Ak;

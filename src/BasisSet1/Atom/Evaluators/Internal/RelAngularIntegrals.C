@@ -10,10 +10,10 @@ export import qchem.Types;
 export namespace RelAngularIntegrals
 {
     // Ak coefficients for direct  <κa mja, κc mjc | 1/r12 | κa mja, κc mjc>
-    rvec11_t Coulomb (int κa, int κc, double mja, double mjc);
+    rvec11_t Direct  (int κa, int κc, double mja, double mjc);
     // Ak coefficients for exchange <κa mja, κb mjb | 1/r12 | κb mjb, κa mja>
     rvec11_t Exchange(int κa, int κb, double mja, double mjb);
     // mj-summed versions (averaged over all mj, useful for unpolarized calculations)
-    rvec11_t Coulomb (int κa, int κc);
+    rvec11_t Direct  (int κa, int κc);
     rvec11_t Exchange(int κa, int κb);
 }

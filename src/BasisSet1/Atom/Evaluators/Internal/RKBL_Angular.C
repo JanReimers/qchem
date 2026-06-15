@@ -1,6 +1,6 @@
 // File: BasisSet1/Atom/Evaluators/Internal/RKBL_Angular.C
 // Mixin for RKB large-component angular ERIs. Holds κ and optional mj occupations
-// and overrides CoulombAk/ExchangeAk via RelAngularIntegrals.
+// and overrides DirectAk/ExchangeAk via RelAngularIntegrals.
 module;
 #include <sstream>
 export module qchem.BasisSet.Atom.Evaluators.Internal.RKBL_Angular;
@@ -10,7 +10,7 @@ import qchem.Symmetry.Spherical;
 export namespace BasisSet::Atom::Evaluators
 {
 
-class RKB_Angular : public virtual Evaluator
+class RKB_Angular : public virtual Angular
 {
 public:
     // mjs empty → full mj sum (closed shell or spin-averaged)
@@ -20,11 +20,11 @@ public:
         , mjs(Symmetry::Getmjs(sym)) 
         {}
 
-    virtual rvec11_t    CoulombAk (const Evaluator& other) const override;
+    virtual rvec11_t    DirectAk  (const Evaluator& other) const override;
     virtual rvec11_t    ExchangeAk(const Evaluator& other) const override;
     virtual std::string AngularID () const override;
 
-    virtual int   Getl  () const override { return Symmetry::SphericalSpinor::l(κ);}
+    virtual int   Getl  () const { return Symmetry::SphericalSpinor::l(κ);}
     int           Getκ  () const { return κ; }
     const rvec_t& Getmjs() const { return mjs; }
 

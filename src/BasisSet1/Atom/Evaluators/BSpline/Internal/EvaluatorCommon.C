@@ -42,7 +42,7 @@ public:
     static double direct(const Cacheable* c, size_t la, size_t lc,const rvec11_t& Ak)
     {
         const ::BSpline::RkEngine<K>* cd = dynamic_cast<const ::BSpline::RkEngine<K>*>(c);
-        return cd->Coulomb_Rk(la,lc,Ak); // contract over k Rk*Ak
+        return cd->DirectRk  (la,lc,Ak); // contract over k Rk*Ak
     }
     static double exchange(const Cacheable* c, size_t la, size_t lc,const rvec11_t& Ak)
     {

@@ -28,6 +28,8 @@ template <size_t K> class Evaluator_r : public Internal::EvaluatorCommon<K>, pub
 public: 
     Evaluator_r(size_t Ngrid, double rmin, double rmax, const sym_t& ylm);
 
+    virtual int Getl() const override {return NR_Angular::Getl();}
+
     double Overlap(size_t i,size_t j) const 
     {
         return BilinearForm{IdentityOperator{}}(splines[i],splines[j])*FourPi*ns[i]*ns[j]; 
@@ -84,11 +86,11 @@ public:
     using Evaluators::Evaluator::Norm;
     using Evaluators::Evaluator::size;
 
-    virtual rvec_t     operator() (const rvec3_t&) const;
-    virtual rvec3vec_t Gradient   (const rvec3_t&) const;
+    virtual rvec_t     operator() (const rvec3_t&) const override;
+    virtual rvec3vec_t Gradient   (const rvec3_t&) const override;
 
-    virtual std::string Name    () const;
-    virtual Cache4*     MakeCache4() const;
+    virtual std::string Name    () const override;
+    virtual Cache4*     MakeCache4() const override;
 protected:
     rvec_t norms() const; //assumes es,l are already initialized
     std::unique_ptr<GLCache1D> itsGL1D; //We have to hold a pointer, because we don't know grid early enough in the constructor.

@@ -86,29 +86,29 @@ TEST_F(RelWigner3jTests, SumRule)
 class RelAngularIntegralsTests : public ::testing::Test {};
 
 // For s1/2 (κ=-1, l=0): ml=0 always, all CG=1.
-// Coulomb: RelCoulomb == NR_Coulomb(0,0,0,0) for ALL (mja,mjc) pairs.
+// Direct : RelDirect  == NR_Direct (0,0,0,0) for ALL (mja,mjc) pairs.
 // Exchange: RelExchange includes the spin δ, so it is non-zero only when mja==mjc
 //           (same-spin), where it equals NR_Exchange(0,0,0,0); zero otherwise.
 TEST_F(RelAngularIntegralsTests, S12ExactlyNR)
 {
-    rvec11_t nr_coulomb  = AngularIntegrals::Coulomb (0, 0, 0, 0);
+    rvec11_t nr_coulomb  = AngularIntegrals::Direct  (0, 0, 0, 0);
     rvec11_t nr_exchange = AngularIntegrals::Exchange(0, 0, 0, 0);
     for (double mja : {-0.5, 0.5})
     for (double mjc : {-0.5, 0.5})
     {
-        rvec11_t rc = RelAngularIntegrals::Coulomb (-1,-1,mja,mjc);
+        rvec11_t rc = RelAngularIntegrals::Direct  (-1,-1,mja,mjc);
         rvec11_t re = RelAngularIntegrals::Exchange(-1,-1,mja,mjc);
         rvec11_t re_expected = (mja==mjc) ? nr_exchange : rvec11_t(0.0);
         for (size_t k=0; k<rc.size(); k++)
         {
-            EXPECT_NEAR(rc[k], nr_coulomb[k],    1e-13) << "Coulomb  mja=" << mja << " mjc=" << mjc << " k=" << k;
+            EXPECT_NEAR(rc[k], nr_coulomb[k],    1e-13) << "Direct   mja=" << mja << " mjc=" << mjc << " k=" << k;
             EXPECT_NEAR(re[k], re_expected[k],   1e-13) << "Exchange mja=" << mja << " mjc=" << mjc << " k=" << k;
         }
     }
 }
 
-// Hermitian symmetry: Coulomb(κa,κc,mja,mjc) == Coulomb(κc,κa,mjc,mja)
-TEST_F(RelAngularIntegralsTests, CoulombSymmetry)
+// Hermitian symmetry: Direct (κa,κc,mja,mjc) == Direct (κc,κa,mjc,mja)
+TEST_F(RelAngularIntegralsTests, DirectSymmetry)
 {
     const int LMax=3, KMax=LMax+1;
     for (int κa=-(KMax); κa<=KMax; κa++) { if (κa==0) continue;
@@ -117,8 +117,8 @@ TEST_F(RelAngularIntegralsTests, CoulombSymmetry)
         for (double mja=-ja; mja<=ja; mja+=1.0)
         for (double mjc=-jc; mjc<=jc; mjc+=1.0)
         {
-            rvec11_t ac=RelAngularIntegrals::Coulomb(κa,κc,mja,mjc);
-            rvec11_t ca=RelAngularIntegrals::Coulomb(κc,κa,mjc,mja);
+            rvec11_t ac=RelAngularIntegrals::Direct (κa,κc,mja,mjc);
+            rvec11_t ca=RelAngularIntegrals::Direct (κc,κa,mjc,mja);
             for (size_t k=0; k<ac.size(); k++)
                 EXPECT_NEAR(ac[k], ca[k], 1e-13)
                     << "κa=" << κa << " κc=" << κc << " mja=" << mja << " mjc=" << mjc << " k=" << k;
@@ -127,11 +127,11 @@ TEST_F(RelAngularIntegralsTests, CoulombSymmetry)
 }
 
 // Full-shell sum rule via CG completeness:
-// Summing RelCoulomb over ALL (κa,κb) pairs in the l-shell (including cross terms)
+// Summing RelDirect  over ALL (κa,κb) pairs in the l-shell (including cross terms)
 // and over all mja,mjb gives exactly 4 × NR sum, because the independent CG sums
 // for a and c each collapse to 1 (completeness), and the two independent ms sums
 // each contribute a factor of 2.
-// Σ_{κa,κb∈{κm,κp}} Σ_{mja,mjc} RelCoulomb(κa,κb,mja,mjc) = 4 × Σ_{ma,mc} NR_Coulomb(l,l,ma,mc)
+// Σ_{κa,κb∈{κm,κp}} Σ_{mja,mjc} RelDirect (κa,κb,mja,mjc) = 4 × Σ_{ma,mc} NR_Direct (l,l,ma,mc)
 TEST_F(RelAngularIntegralsTests, CombinedShellsEqualNR)
 {
     struct LShell { int l, κminus, κplus; }; // κminus=l (j=l-½), κplus=-(l+1) (j=l+½)
@@ -145,12 +145,12 @@ TEST_F(RelAngularIntegralsTests, CombinedShellsEqualNR)
             double jb=κb>0?κb-0.5:-κb-0.5;
             for (double mja=-ja; mja<=ja; mja+=1.0)
             for (double mjc=-jb; mjc<=jb; mjc+=1.0)
-                Ak_rel += RelAngularIntegrals::Coulomb(κa,κb,mja,mjc);
+                Ak_rel += RelAngularIntegrals::Direct (κa,κb,mja,mjc);
         }
         rvec11_t Ak_nr(0.0);
         for (int ma=-l; ma<=l; ma++)
         for (int mc=-l; mc<=l; mc++)
-            Ak_nr += AngularIntegrals::Coulomb(l,l,ma,mc);
+            Ak_nr += AngularIntegrals::Direct (l,l,ma,mc);
 
         for (size_t k=0; k<Ak_rel.size(); k++)
             EXPECT_NEAR(Ak_rel[k], 4.0*Ak_nr[k], 1e-8) << "l=" << l << " k=" << k;

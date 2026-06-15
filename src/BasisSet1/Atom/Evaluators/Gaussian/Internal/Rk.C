@@ -15,8 +15,8 @@ class RkEngine : public virtual Rk
 {
 public:
     RkEngine(double eab, double ecd, size_t LMax);
-    virtual double Coulomb_R0(size_t la,size_t lc) const; //R_0(la,la,lc,lc);
-    virtual double Coulomb_Rk(size_t la,size_t lc,const rvec11_t& Ak) const; //sum{k,A_k*R_k(la,la,lc,lc)};
+    virtual double DirectR0  (size_t la,size_t lc) const; //R_0(la,la,lc,lc);
+    virtual double DirectRk  (size_t la,size_t lc,const rvec11_t& Ak) const; //sum{k,A_k*R_k(la,la,lc,lc)};
     virtual double ExchangeRk(size_t la,size_t lb,const rvec11_t& Ak) const; //sum{k,A_k*R_k(la,lb,la,lb)};
 
     virtual size_t RAMsize() const;
