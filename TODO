@@ -2,35 +2,13 @@ Turn on/off vscode popups: search quickSuggestions
 Understand type erasure: https://youtu.be/m3UmABVf55g?t=2134
 
 
-Claude:
-    -SCFAcceleratorLadder code review.
-        -std::vector<SCFAccelerator*>  
-            As a coding convention I try to use either 
-            std::vector<std::unique_ptr<SCFAccelerator>> or
-            std::vector<std::shared_ptr<SCFAccelerator>> 
-            But if there is a good reason not to then raw pointer is fine.
-        -Line 22 itsRungs[*itsActive] deref a size_t ?
-        -Should we assert(itsActive<itsRungs.size()); before every access?
-    -Wave function has some very scf specific member functions:
-        -BuildFockAndComputeSteps, MoveOrbitals and DoSCFIteration
-        -Proposal make a SCFWaveFunction abstract interface with with pure virtual members:
-            BuildFockAndComputeSteps, MoveOrbitals and DoSCFIteration
-        -SCFWaveFunction virtually inherits from WaveFunction.
-        -CompositeWF  virtually inherits from SCFWaveFunction instead from WaveFunction
-        -SCF iterator holds and works directly with a SCFWaveFunction*.  
-        -That way we can move all three scf functions out of WaveFunction interface.  Nobody else should ever need those functions right?
-        -Maybe SCFIterator should just move into the WaveFunction library/subdirectory (I have to be careful using the term module!)
-         since Imp/SCFIterator.C and SCFWaveFunction are so tightly coupled.  
-        -With  SCFIterator inside the WaveFunction library/subdirectory the factory can return a SCFWaveFunction* and the maybe the 
-         factory can go internal ... outside client code only knows about WaveFunction and SCFIterator, but does not need create empty
-         wave functions.
-         The only purpose of the factory to to prevent SCFIterator for directly seeing CompositeWF
-        -Is this good OOD/SOLID practice?
-
+    Code review:
+    Point group project:
+        -Can we move SymEigen3 into Matrix3D<T>?
             
 Major Features:
     Convergence acceleration.
-        Geometric Direct Minimization (GDM)
+        Done: Geometric Direct Minimization (GDM)
             Read up on BFDS method, Numerical Recipes section 10.7
             Make some notes that translate into our notation.
             The original paper is very hard to follow.
@@ -38,44 +16,77 @@ Major Features:
             Shprd & Minkoff 2007 eq 23.  Linear Least Squares much better condition number.
             SVD and trunctate B?
                 We dont need a uniqe c vector, just need any c than minimizes ||e||
+        EDIIS
+
     DFT upgrade:
+        Hand code Voscos exchange.
+        Should we have separate Vxc, Vex, and Vcorr ?
         Reproducing the NIST rests is a major pain in the ass.
             1) Vosko does not define rs, he just says "the usual definition" ... grrrrr
             2) Many formulas are all sloppy with fractions rs=3/2Pirho  WTF is in the basement?? .... grrrrr
             3) Vosko uses a Slater like Vx but we don;t know what the prefactor (alpha) is. (more fractions problems)
             4) Libxc has a Slater function (id=1) but it has no ext_params !?!?  should have alpha no???
-            For now, too pissed off to keep working on this.
-        Hand code the exchange part.
+    
+    Perterbation support:
+        OOD/SOLID architecture for handling perterbations
+            Hard code: first order and second order 
+            Demo first order with SO-coupling for HF and DHF.
+            Demo second order with Moller-Plesset MP2.
 
-
-    Molecular Symmetry
-        /plan For molecules we need:
-            1) Identify point group from the Cluster interface.
-            2) Classify all Polarized Gaussian (PG) basis functions based on how they behave under point group operations.
-            3) Use character tables to create symmetry adapted linear combinations.  I think this produces an ortho-normal basis set transform O.
-            4) Decide where that transform O lives on the class structure (Symmetry library?)
-            5) Do we need a new SymmetryAdaptedBasisSet and SymmetryAdapted_IBS (Irrep Basis Set) class that stores O or 
-                blocks of O (O_irrep) for each irrep?  SymmetryAdapted_IBS applies O_irrep to every matrix request: Overlap/Kinetic/Nuclear/Direct/Exchange etc.
-                (For atoms and k-irreps in solids this not needed as those symmetries define blocks without using any linear combinations)
-            Instead of reinventing wheel may be can use existing code  as a submodule.
-            option 1: libmsym ( https://github.com/mcodev31/libmsym)
-                I think it claims to do 1,2 and 3.  But examples don't demonstrate this as far as I can see.
-                It is crappy old c with free and malloc all over place (yuk)  so we have to wrap it for modern c++.
-            option 2: https://github.com/fxcoudert/symmol based on doi:10.1107/S0021889898002180 in fortran.
-                Again we want a c++ wrapper.  
-            option 3:
-                Build an OOD/SOLID modern c++ code to do 1,2&3 from the groud up.
-                    -This code should be open for extension to handling 
-                        1) space groups for solids
-                        2) magnetic space groups.
-                        3) Brilloun zone k point symmetries (maybe this is just part of space groups)
-
-
-        -Java: Symmetrizer is available as supplemental material or at www.webmo.net/download/symmetrizer.zip, Accessed on 1 February, 2012.
-        -SYMMOL is written in Fortran77. Copies of the source 'symmol.f', the user instructions (the ASCII file 'symmol.man') and a few input examples (and corresponding outputs) are available by ftp, at the address sgl.csrsrc.mi.cnr.it, user: anonymous; password: your internet address. 
-        -Maple: BETHE http://cpc.cs.qub.ac.uk/summaries/ADVU
-        -[6] H. Nakamatsu, H. Adachi, T. Mukoyama, Bull. Inst. Chem. Res. 69 (4) (1991) 342.
-        -[7] J. Meyer, W.-D. Sepp, B. Fricke, A. Rosen, Comput. Phys. Comm. 96 (1996) 263
+    Configuration Interation:
+        Full CI?
+        Truncated
+        Multi reference
+        -Rank in terms of code complexity for this project.  How much of current infrastructure needs to change?
+        -Rank in terms of usefulness/popularity in the real world of users.
+        -Our is to demonstrate that our OOD/OOA supports it.
+    
+    Parallel execution:
+        -OMP?  Results in useless gprof output
+        -From Brave AI
+            -LLVMs built-in instrumentation profiling is the primary modern replacement for gprof when using Clang, 
+            utilizing the -fprofile-instr-generate and -fcoverage-mapping flags to provide detailed line-level execution 
+            counts and source-based coverage. 
+            -Linux Perf: A kernel-based profiler that captures hardware and software events, providing a call 
+            graph and addressing blocking time issues that gprof misses.
+        -Use parallel when looping over irreps for AccumulateDirect and AccumulateExchange
+            Could also parallel the loop over hamiltonian terms??
+    
+    Molecules basis set upgrade:
+        Stage 1: Migrate polarized gaussian basis sets to start using cache_4 abstraction for caching radial integrals and
+            any look up tables.
+        Stage 2: Use the evaluator/concepts framework for Polarized/Cartesian Gaussians
+            -Move Concepts.C and abstract Evaluator interface out from BasisSet1/Atom up 
+                the general structure (atom/molecule/solid) neutral BasisSet1 level.
+            -Migrate Polarized Gaussians over the Evaluator framework with three evaluators
+            1) Hand coded McMurchie & Davidson (existing code)
+            2) libcint version (Some confusion with how things are normalized .. or not.)
+            3) Other?  Ask Claude
+        Stage 3:  More evalautors.
+            4) Hand coded Spherical Gaussian
+            5) libcint version
+        Stage 4: 
+            Can atoms and Molecules use the same four index loop for Direct and exchange integrals?
+            We want that code to migrate from from BasisSet1/Atom up 
+                the general structure (atom/molecule/solid) neutral BasisSet1 level
+        Stage 5:
+            If we get all this working there is going to a lot abstract stuff at the general BasisSet1 level, which is fantastic.
+            But people (and Claude!) need to understand that stuff.
+            So we need to make some in code documentation.  Is DOxygen suitable?  Or is there a modern replacement that you recommend?
+                I have a Doxyfile in the project root directory.  I havent tried it lately!
+            The in code documentation should 
+                1) make liberal use of inline Latex for all math expressions.
+                2) Define indexing (ijkl,abcd,nm,greek versions) conventions the are used
+                3) Define all acronyms (see Types.C)
+                4) Define math symbol conventions for basis function, Irrep basis sets, full basis sets, SALC irrep basis sets, irrep labels.
+                    I am sure the literature is all over the place on this, so the best we can do is pick symbols that are most conventional
+                     in the modern (last ~~20 year?) literature.
+            DOxygen makes class inheritance hierarcies, but they get big fast.  
+                So we need to restrict it to just BasisSet1 level and prevent it from digging into the Atom/Molecule/Lattice sub folders.
+                Ideally we get 
+                    1) a class diagram that is just for clients of basis, has no Internal classes
+                    2) Another diagram for basis set developers and focuses on the internal classes.
+            Finally is there a good way to host the doxygen docs at gitbub (separate repo maybe?) and then link to from README.md file.
     Solids:
         /plan
         Lets use capital letters for SOLID OOD principles and lower case "solid" for solid materials with a periodic lattice stucture.
@@ -87,7 +98,7 @@ Major Features:
         We need to somehow seemlessly change between blaze::SymmetricMatrix and blaze::HermitianMatrix. 
         Aside: I like using dcmplx=std::complex<double>; ... it the same number of chars as double so things line up nicely in class
             interface.
-        let's start the thought process with LASolver in mind.
+        lets start the thought process with LASolver in mind.
             Can we conditionaly deduce (at compile time) hmat_t  from T such that
                 hmat_t<double>=blaze::SymmetricMatrix<double> or
                 hmat_t<dcmplx>=blaze::HermitianMatrix<dcmplx>
@@ -100,156 +111,106 @@ Major Features:
         Once we have the demo problem up and running we can think about next steps.  There must some useful models that are intermediate in 
             coding difficulty between PW and Pseudo potentials.
 
-    
-    
-    
-    Features:     -We need a separate Atom_EC for Dirac atoms kappa,mj QNs.
-        Done: Lets fix the total energy problem first.
-    -DHF ground state electron configurations plan:
-        -Two references
-            1) desclaux1973: Does config averaging and magnetic e-e (Briet?) corrections
-                Es and orbital es to 6/7 sig. figures
-                Cannot parse
-            2) rodrigues2004: 
-                Semi parsable.  Supplies total J 
-            3) Relativistic Effects in the Electronic Structure of Atoms Tatewaki et. al.
-                We have spread sheets.
-                reports orbital es and <r>.
-                Report p-, p+ and p.  p is the non-rel version.  
-                But they report p+ even when it isn't occupied (ie Boron).  Maybe this is a consequence of average-of-configuration
-                (AOC) approximation, ref. desclaux1973.  It averages high spin and low spin configurations.  Why would you do that?
-            4) https://en.wikipedia.org/wiki/Template:Infobox_element/symbol-to-term-symbol
-        Done: -Learn term symbols 
-        Done: -Learn jj coupling.
-        -For carbon we don't put an electron pair in p1/2, we keep them unpaired with one in p1/2 and one in p3/2.  p1/2-p3/2 splitting
-         is why too small to overcome the exchange cost of pairing them in p1/2.
-        -Shoud be filling mj=1.5,0.5,-0.5,-1.5 instead of -1.5 and up? 
-        -Can we come up with a unified scheme of using term symbols+electron configs to get detailed configs for both NR and Dirac atoms?
-        -Convert rodrigues2004 config,J,E in to json
-        Done: -Read into new periodic table.
-        -Try and get electron configs into the same format as Saito.
-        -Try and use J=abs(sum(mj)) and hunds rules to get occupations.
-        -Get 1E calculations working for all atoms.
-        -Could add DFT Xalpa support next to get some rough total Es
-        -And then finally deal with Direct/Exchange integrals LLLL, LSLS SLSL, etc.
-            LLLL is DOne.
+Upgrade existing features:
+    Dirac/RKB:
+        -1s orbital is not properly normalized.  Shape is correct.
+        -Figure out a clean way tracking factors of 0.5, c, 2c etc for kinetic matrices.
+        -Support Slater integrals Rk for LLSS
+            k>0 is hard ... four terms
+            Confirm with claude that LLLS is zero
+        -Finite size nucleaus
+    DFT:
+        -Vxc->LDAxc->ExchangeFunctional   Can we get rid of LDAxc?
 
-
-Clean up:
-    -Evaluator Getl() returns int instead of size_t OK?
-    -Evaluator virtual inherit VectorFunction?
-        Demands and overrider
-    Done: -Clarify Angular/Radial (X) NR/RKB for everything.
-        Radial constantly needs to get at l
-    -qchem.BasisSet.Atom.Evaluators.IBS; --> qchem.BasisSet.Atom.Evaluators;
-    -Sort out all the atomic concepts and then how to combine them
-        is_NR_Angular, is_RKB_Angular for the angular parts.
-    -RadialType and Name are the same?
-
-    -Dirac issues
-        Now getting sensible total energies for hydrogen like ions.  Remaining issues
-        1) 1s orbital is not properly normalized.  Shape is correct.
-        2) Figure out a clean way tracking factors of 0.5, c, 2c etc for kinetic matrices.
-        Done: 3) Need an expected virial function somewhere.  2 for NR, 1 for rel.
-        Done: 4) Need a whole new Dirac_Atom_EC infrastructure with kappa, j QNs.
-            Done: Find a table of GS EC for dirac atoms.
-            The table uses J=sum(mj) instead of N_unparied.  
-
-
-        Done: 5) rename IBS_RKBS_Evaluator file names.
-        6) Figure out Slater integrals Rk for LLLS, LLSS, LSSS and worst case kappa>0 SSSS->16 terms!!!
-        Done: 7) Report rest mass expectation in SCF report table.
-        Done: 8) Clean out ol AI Hydrogen files.
-
-    -Clean up RKBS_Evaluator constructors:
+    Atom evulators:
+        -Evaluator Getl() returns int instead of size_t OK?
+        -Evaluator virtual inherit VectorFunction?
+            Demands and overrider
+        -qchem.BasisSet.Atom.Evaluators.IBS; --> qchem.BasisSet.Atom.Evaluators;
+        -Sort out all the atomic concepts and then how to combine them
+            is_NR_Angular, is_RKB_Angular for the angular parts.
+        -RadialType and Name are the same?
+        -Clean up FitBS construction.
         RKBS_Evaluator(const rvec_t& es, int _kappa, int l, const ivec_t& mls) : Evaluator(es,l,mls), kappa(_kappa) {ns=norms();}
         RKBS_Evaluator(const rvec_t& es, int _kappa, int l) : RKBS_Evaluator(es,_kappa,l,{}) {}
         RKBS_Evaluator(size_t N, double emin, double emax, int _kappa, int l);
-        -What is l doing in there?
-    -Get rid of ScalarFFClient::GetScalarFunction
-    -Sort out PG cache ... keep one cache in DB_cache.
-    -Bspline-r Rk symmetry is not good at all.  
-        HF energies are fine though!?!?
-        Bspline Rk symmetry is good to 1e-16!
-    -ERI3<T>, ERI4 make consistent.
+        -What is l doing in there?  For Rescale which is for fit basis generation.
+        -The only purpose of isRKBLS_Evaluator concept is to require cross kinetic functions.
+            Strict RKB requires S and L to have identical raw (before sigma*p ops) basis functions.
+            So in practive the LS and SL kinetic matrices are just 1/(2c) * LL kinetic.
+            How to best express this in code? Options
+            1) Declare RKBL::MakeKinetic(const RKBS& s).
+                {
+                    Check s is valid
+                    return RKBL::MakeKinetic() * 1/(2c) ?
+                }
+                In the evaluator we are currently using RKBS normalization constant.  So I think we need compensate
+                with 1/2c further out.
+        -Bspline-r Rk symmetry is not good at all.  
+            HF energies are fine though!?!?
+            Bspline Rk symmetry is good to 1e-16!
+        -Can groupers be registered at Evaluator construction?
+        -Refactor Evluators and so that we can remove fake Overlap3C and Repulsion3C,
+        -Use console tables for dumping basis sets?
+        -Slater norm takes n=l+1, Gaussian norm takes l.
+        -Gaussian integrals use recursion, should use Fact[n]/pow(2,n)
+            Can we use constexpr features here?
 
-OOD Refactor:
-    -Use a FunctionFitter instance instead of inheriting from fitted function imp.
-    -ScalarFunction has Gradient which we don't always want to support (PITA)
-        Make a separate ScalarFunction_G  to add the gradient?
-    -ExFunctional should be a VectorFunction ... evaluate the whole mesh at once.
-    -The only purpose of isRKBLS_Evaluator concept is to require cross kinetic functions.
-        Strict RKB requires S and L to have identical raw (before sigma*p ops) basis functions.
-        So in practive the LS and SL kinetic matrices are just 1/(2c) * LL kinetic.
-        How to best express this in code? Options
-        1) Declare RKBL::MakeKinetic(const RKBS& s).
-            {
-                Check s is valid
-                return RKBL::MakeKinetic() * 1/(2c) ?
-            }
-            In the evaluator we are currently using RKBS normalization constant.  So I think we need compensate
-            with 1/2c further out.
-Small improvements:
-    -cach4 RAM is very small.  Good candidate for dumping to disk.
-        Put it in a place that can be reached by both Debig and Release builds.
-        Use ceral ... which seems to have disapeared from submodules.
-        Need to remember to delete this thing if the relevent code changes.
-    -Still lots of tests not using the BasisSetPool.
-    -Use omp parallel when looping over irreps for AccumulateDirect and AccumulateExchange
-        Could also parallel the loop over hamiltonian terms??
-    -DBcache
+    DBCache:
+        Better name?
+        Get critical review from Claude
+        -cach4 RAM is very small.  Good candidate for dumping to disk.
+            Put it in a place that can be reached by both Debig and Release builds.
+            Use ceral ... not yet in submodules.
+            Need to remember to delete this thing if the relevent code changes.
         -Make a Direct version of DB_cache ... dont cache anything!!  (this used to be called DirectSCF)
         -Intermediate: Save all slater integrals Rk and recalculates J/K on demand.
         -When to use Jcdab=Jabcd.Transpose()?
             Avoid transposing for every iteration.
+        -It would be nice to have hook or call back into DBcache that lets the cache know and scf 
+            has completed and some RAM clean up is warrented.  The Intermediate version could then
+            scrub all J/K tables but keep all cach4 data.
+    ElectronConfiguration:
+        -Figure out EC for Ce Z=58 ground state.
+        -Need a way to hop electrons in Atom_EC
+        -Can we now ove this out of symmetry?  No more circular dependencies.DEBUG
+    Cluster:
+        -Rename to Structure
+        -Try using std::single_view for Atom
         
-Bugs
-    -Check BSpline_IBS_Evaluator copy constructor, seems to increase size.
-    -BUG: A_Pool.C TEST_P(A_HF_U,SlaterHFGroundStates) with Z={2,70}
-        Iteration count changes depending on history (with or without doing Z=2 first)
-            Z={2,70}
-#569639│ │   7  -13384.679047495079  7.2e-04 -2.2e+01 8.0e+01 3.0e+00   2    1.6e-01              0.80 
-#569639│ │   8  -13391.423364152806  1.0e-03  9.5e-01 1.6e+01 4.0e+00   3    8.7e-01              1.00 
-#569639│ │   9  -13390.326320096632  1.7e-03  2.5e-01 1.2e+01 4.2e+00   4    3.1e-01              0.80 
-#569639│ │  10  -13389.982256369474  2.8e-04  3.7e+00 9.5e+00 7.9e+00   4    8.7e-02              0.64 
-            Z={70}  same up to iteration #8 then 
-#569817│ │   9  -13390.344948675369  2.1e-03 -3.3e-01 1.2e+01 3.6e+00   4    1.4e-01              0.80 
-#569817│ │  10  -13391.370281448179  1.7e-03  4.7e+00 2.4e+00 8.4e+00   4    4.3e-02              1.00 
-            -Fixed all memory leaks with valgrind (Cache4), no effect.
-            -{70,2} passes, He (or Ne)  is unaffected by doing 70 first.
-            -Debug and Release are the same. 
+    Modules
+        -Can we export what we need in Blaze.C?
+        -json lib already support module, we just dont use it yet.
+    Build:
+        -Sort out compile options in CMake for gcc and clang.
+        -Try gcc 16
+        -Get Claude to review cmake setp up.  Less duplication of compile options?
+                THinks like -pg -fomp need to be everywhere or nowhere.
 
+Clean up:
+    -Simplify LASolver internals.
+    -Sort out PG cache ... keep one cache in DB_cache.
+    -ERI3<T>, ERI4 make consistent.
+    -Still lots of tests not using the BasisSetPool.
 
+OOD Refactor:
+    -Use a FunctionFitter instance instead of inheriting from fitted function imp.
+        -Get rid of ScalarFFClient::GetScalarFunction
+        -ExFunctional should be a VectorFunction ... evaluate the whole mesh at once.
+        -Get rid of FittedFunctionImp, less burdensome for client.
+    -Redesign fitting so fitted objects contain a Fitter*
 
-    -tidy up norms evaluations, Name. Write
-    -Saito paper conclusions
-        1) 50 basis functions, r={0.003...40} is enough for Z=1-92
-        2) phi(r)=sum{Bi}, and phi(r)=1/r * sum{Bi} both work
-        3) Z=1-56 K=9 vs K=6: K=6 give faster and lower HF energies.
-        4) Z=1-56 phi(r)=1/r option gives slighty better results for K=6.
-        5) Z=92: 
-
- 
+    -ScalarFunction has Gradient which we dont always want to support (PITA)
+        Make a separate ScalarFunction_G  to add the gradient?
     -Everything->Cluster->Mesh 
         One tweak fo Mesh and you get ~100% rebuild. Not good.
-    -Namespaces
-        -Cluster namespace.  
-            Structure
-        -Put everything atom basis set in an qchem::Basiset1::Atom name space
-        -Put everything abstract/general basis set in a BasisSet namespace.
-            AtomBS->BasisSet::Atom an now avoids class with Cluster::Atom
-    -If verbose=true, spit out
-        -LApack Cholsky/SVD/Eigen
-        -Basis set
-        -
-    -Can we support syms_t GetIrreps() const; at the most abstract EC level ElectronConfiguration?
-        Molecule: Should return a list of point group irreps
-        Lattice: Should return a list of K points.  With space group irreps?
-    -Figure out EC for Ce Z=58 ground state.
-        Need a way to hop electrons in Atom_EC
-    -Support null accelerator.
 
-    -Blaze include specific headers instead everything in blaze/Math.h.
+
+        
+
+
+
+ 
     -Blaze improvements
         modules, Header unit.
             -Still experimental in clang++ 21
@@ -264,172 +225,46 @@ Bugs
         Bounds checking in DEBUG mode.
     	
             
+    -SHould each library have its own unit test app?
+        We still want to constantly run all tests.  Is one massive UTMain still the right choice?
 
-
-    -Move DiracIntegral tests over to UTBasisSet.
-    BUG: Investigate why BSpline integral tests are so inaccurate for l>0.
-        Happens when splines are too closely packed.  (even though overlap is nowhere near singular)
-    BUG: 2 center repulsion for atoms with l>0 might be wrong.  Does 2*la, should be 1*la
-        Affects CD fitting for l>0
-        Maybe just do not support l>0 ?
-    
-    -Can groupers be registered at Evaluator construction?
-    -Current BSpline 3C integrals do Overlap((*ab)(i)+(*ab)(j),
-        should be Overlap((*ab)(i)*(*ab)(j),  
-        Repulsion not implemented.
-
-
-
-    -Get rid of FittedFunctionImp, less burdensome for client.
-    -Bug: Try Cr Z=24 (6 unpaired!) unpolarized  ... way off!
-            DO we support this or just decide the correct basis and H automaically.
-
-
-
-    -Refactor:
-
+   
     
 
 
-    Done: -SequenceIndex() calculate with integer arithmentic and check>=0 and then return unsigned size_t;
-    Fixed: -A_BSm_HF_P.Multiple/0 gives a very low energy?!?  V/K=-2.07327386808252  Only 4 electrons?!?!?
-    -Rename Cluster to Structure.
+
+    -How to handle mismatches between {basis set} {hamiltonian} {structure} Examples:
+         BSpline basis, DFT/DHF hamiltonian -- BSpline has no DFT or RKB evaluator yet.
+         SG (atom only) basis for any Molecule.
+         Currently these should throw bad cast exceptions.
+         We should catch those and re-throw some domain specifc excpetions:  
+            BasisSetSupport exception which contains basis set type and required/missing support RKB or DFT.  Client: DiracKinetic FittedVee
+    
     -PG refactor
         Hermite2 only used by CDCache
         -Move all Hermite related classes into MnD folder?
         -Move GaussianCD.C
         -PolarizedGaussian/Imp/IrrepBasisSet.C CreateCDFitBasisSet use factory
-    -Bug: Multiple/A_PG_DFT_P.Multiple/3 (8119 ms)
-        wrong occ/degen in spin down column.
-    -Sort out compile options in CMake for gcc and clang.
-    DOne: -use std::vector<double> for anything not involing lin-alg 
-        Done: -i.e. exponents
-        -valarray ?
-
-    No: -DFT need to force Yl basis set instead of auto pick Ylm.
-        Put Boron back into the tests.
+        -G-orbs for gaussians?
+            Fixed -Hermite2 crashes for L=3 (f orbitals).
+            Fixed -What are those horrible lookup tables!!
+            Need to unit test with PG basis for uranium.
+        -GaussianRF.C has its own DFact tables.  Use the global tables.
     
-    -More use of structured bindings for map iterating.
-    -
-        -EDIIS
-        Does not need the LASolver, it just needs an interface that can do the ortho tranform.
-            Irrep basis should be able to provide this interface.
-        Done: Adjust damping based on [F,D] error
-        Done: -Check if merge tolerances effect convergence.
-            Only effects display.
-        Crappy convergence:
-            Multiple/A_PG_DFT_P.Multiple/*
-            Multiple/A_SL_DFT_P.Multiple/5
-            Multiple/A_SG_DFT_P.Multiple/5
-            Multiple/A_PG_DFT_U.Multiple/2
-        -SCFAccelerator_Null
-            We have the Irrep just need the supervisor.
+    
 
-    -Redesign fitting so fitted objects contain a Fitter*
     -Mesh refactor Refactor mesh hold std::vector<rvec3_t> rs and std::vector<double> ws and make the 3 iterator proxies
         1) riterator
         2) witerator
         3) rwiterator
-            
-    -Play around with plane wave basis sets
-        -Make some UTs for the lattice class.
-        -Intros:
-            https://extras.csc.fi/chem/courses/cpmd/tue/lecture-pw_pp.pdf
-            exchange tyerm: https://physics.iisc.ac.in/~aveek_bid/wp-content/uploads/2019/07/Lecture-11-Hartree-Fock-Screening-Electron-phonon-interaction-etc..pdf
-            https://github.com/ifilot/pypwdft
-        -Make a basis set
-            -k is wave vector in the BZ.,  G is a RL vector.
-                One G for each basis function
-                One k for each irrep.
-            -Basis set is constructed from a finite Lattice object
-                ivec3_t N=(Nx,Ny,Nz) decide the BZ grid {k}
-                    each k_i is an irrep.
-                We also need a reciprocal lattice grid {G}
-                    All G_i such that G_i^2 = G_i*M*G_i < Emax;
-                        M is the inverse metrix tensor.
-            -We need to get off the ground *without* pseudo potentials.  Possible sequence:
-                1) PW basis, 1E Hamiltonian Need Kinetic and Ven(k+G,k+G')  matrix elements.
-                2) 1 + Hartree term Vee(k+G,k+G'), using a fitted CD(ro_fit)
-                3) 2 + fitted Vxc(ro) term
-                4) Augmented PWs
-                5) FLAPW
-                6) GPW https://manual.cp2k.org/trunk/methods/dft/gpw.html
-
-                Need to figure out where FFTs need to go.
-                Hydrogen lattice test case?
-            -How to figure out k symmetry for lattice structure?
-                Identify the non-redudant k simplex and assign multiplicites for each k.
-                https://journals.aps.org/prb/abstract/10.1103/PhysRevB.13.5188
-        -Nice to have reference like Wien2k, elk
-                https://elk.sourceforge.io/ potentially usefull subroutines:
-                    findprimcell,  findsymcrys, findsym, findsymlat, gaunt, gengkvec, gengvec, genvcl1223, genylmv, sbessel, sphcover
-                    vecfbz, wigner3j
-                    gridsize: Finds the G-vector grid which completely contains the vectors with G < Gmax and is
-                            compatible with the FFT routine.
-                    init1: Generates the k-point set
-                    nfftifc: This routine returns the next largest grid size allowed by the FFT routine.
-                    Just reading the descriptions for these is useful.
-
-                https://manual.cp2k.org/trunk/methods/dft/index.html
-                https://ifilot.github.io/pypwdft/background.html
-                
-
-    Use console tables for dumping basis sets?
-
-
-    Done: -It would be nice if Atom derived from Cluster.
-        Hard, we can't fake the iterator interface for typedef std::vector<std::unique_ptr<Atom>> av_t;
-        Ranges might solve this problem: https://gieseanw.wordpress.com/2019/10/20/we-dont-need-no-stinking-expression-templates.
-            Atom would be a std::single_view
-    -convert all enums into enum classes
-        General clean as well.
-
-
-    -openmp
-        -Make some simple unit tests
-        -Demostrate 3x real time improvement.
-        -Try and get ERI4 contractions working
-            Need critical sections for Scd+=s
-            Need N>100 ro really see a benifit.
-        -Direct and Exchange functions (more difficult)
-            Need to use instance of cach4, rather then inherit?
-                Once ERI4 is stored, we can throw out cache4?
-        -Try unrolling the irrep loops in HeapDB.C
-        -Use particla sums
-            https://curc.readthedocs.io/en/latest/programming/OpenMP-C.html
-            int partial_Sum, total_Sum;
-            #pragma omp parallel private(partial_Sum) shared(total_Sum)
-            {
-                partial_Sum = 0;
-                total_Sum = 0;
-
-                #pragma omp for
-                for(int i = 1; i <= 1000; i++){
-                    partial_Sum += i;
-                }
-
-                //Create thread safe region.
-                #pragma omp critical
-                {
-                    //add each threads partial sum to the total sum
-                    total_Sum += partial_Sum;
-                }
-            }
-
-    
-    -Vxc->LDAxc->ExchangeFunctional  
-        Can we get rid of LDAxc?
-    
+        -Molecule mesh gives crappy integrals.  
+        -Something wrong with Molecular mesh generation.
+           
+ 
         
     -BSplines should use (symmetric) banded matricies for space/time efficiency.
-    -Atom app needs to save state.
-        Done: install cereal
-        Done auto save to .qchem
-        Also suport save as
-        open
-        Open recent
 
-    -Plotting:
+    -Restore gtkapp:
         Orbital vector heat map.
         Orbitals:
             swap colour and line increments.
@@ -446,1861 +281,44 @@ Bugs
 
     -Fix orbital phases to 1s, 2p , 3d are always >0?
 
-    -BasisSet:
-        Use tempered definition for exponents:
-            e=alpha*beta^i i = 0 ... n-1
-        How to distinguish in constructor signature?
     -Use constexpr for building static lookup tables.
     -define LMAX in one place.  Might >1 versions, but still define in one place.
-    -Use ml instead of m
-    -DFT check for l>0 basis sets for fitting.
-    -Slater norm takes n=l+1, Gaussian norm takes l.
-    -Gaussian integrals use recursion, should use Fact[n]/pow(2,n)
-        Can we use constexpr features here?
 
-    
-    
-    
+    -SVD/Eigen truncation ... we need no know which L is getting truncated.
 
-
-    
-
-    -Make and atom app for testing basis sets
-        -Z{range or list} -N, -e{min.max} -b{S,Sm,G,Gm} -dL{front,back} 
-        -What command line arg system to use?
-        -Output:
-            Econfig, spin,  Etot, rel_err(ppm), occ levels (optinal).
-    -linear contraction of D_cd*J_abcd and D_cd*K_abcd
-        -Try -march=native -O3
-    -List all 2LAs in one place an use them throughout.
-        2LAs: IE,BF,IR,BS,DB,QN,WF,EL,PG,SL,SG,CL(Client),FF(Fit Function),CD (Charge distribution), 
-        3LAs: Occ,SGm,SLm,ERI,IE_CL,Rho(Charge density), Pol, UnP
-        Conventions
-            Underscore between acronyms: IR_BS
-        Done: -Document in Types.H
-        
-    -Overlap3C La==Lb, but La==Lc is not always true how???
-    -Need to tighten up/specialize allowed errors in HF energies for all UTs.
-    -SVD truncation ... we need no know which L is getting truncated.
-    -Stream output to a separate log file?
-    
-    -QchemTester: make show basis set an option.
-    -Common base for Slater::RkEngine and SG_CD
-        -Make some unit tests first?
-    Done: -Better name for SlaterScaler --> Slater::ExponentScaler,  same for Gaussian.  
-        PG can be a typedef so SG::ExponentScaler?
-    -Point group symmtery
-        https://www.mantidproject.org/
-            https://docs.mantidproject.org/v3.11.0/concepts/PointAndSpaceGroups.html
-        https://jmol.sourceforge.net/
-        https://pypi.org/project/PyPointGroup/
-        https://www.sciencedirect.com/science/article/abs/pii/S0010465517300310
-            https://data.mendeley.com/datasets/xd4g8hyjf2/1
+    -Hunt for acronyms and make sure they are documented in Types.C
+    -Logging
     -Slater_m, SG_m basis sets:
         Add real spherical harmonic angular functions for g(r).
         replace m with ml?  or m = {mj,ml} depending on context?
-    -Distinguish multi center and single center basis sets.  Clone(rvec3_t)
-    -Relativistic:
-        https://github.com/drjuls/AMBiT/tree/master/src
-        https://diracprogram.org/doku.php?id=start
-        https://nubakery.org/scf/dhf.html
-        https://github.com/compas/grasp
-        https://github.com/BERTHA-4c-DKS/pybertha
-            -Run H
-            -Add support J/K 2ERIs, Dirac Vee, Vxc
-            -Run He, Li, Be, B ....
-            -DFT support.
-            -Finite size nucleus,  Ven_fs
-            TODO:
-            Done: -Small_IrrepIEClient::Norm() copies the kinetic code from Slater::IE ... ho to share?
-        -Factors of 2
-            Normalization
-                -Try no normalization for small sector.  Put in 1/(2*c) factor.
-                -Check factors of i, may be a sign problem somewhere.
-
-            
-    -Molecule mesh gives crappy integrals.  
-        -Something wrong with Molecular mesh generation.
-    -Print out electron configuration Sc: 1s2 2s2 2p6 3s2 3p6 4s1 4d2
-    
-    -Document and make UTs for all the mesh types.
-    -put periodic table in spreadsheet and read in a csv file.
-        -Use python to read NIST DFT tables, and Hartree–Fock–Roothaan energies.txt
-    -Clean up PolGaussian construction
-        -PolarizedGaussianBS use std::set for std::vector<std::vector<int> >    Ls;
-   
-    -Clean up tech notes.
-    -Make a new PolG::IntegralEngine using libcint
-        -Started.  Some confusion with how things are normalized .. or not.
-    -Why new SlaterExchange(exparam,Spin(Spin::Up)); for pol fit vxc?
-                                    ^^^^^^^^^^^^^^
-    -G-orbs for gaussians?
-        Fixed -Hermite2 crashes for L=3 (f orbitals).
-        Fixed -What are those horrible lookup tables!!
-        Need to unit test with PG basis for uranium.
-    -GaussianRF.C has its own DFact tables.  Use the global tables.
-    
-oml:
-    
-    LapackLinearSolver is messed up, seem to be missing LinearSolver.C
-        Put it in oml namespace.
-    -Support SMatrix for Lapack solvers.
-        Lapack uses the extra space in the full matrix as working space.
-        So we end up converting to full anyway.  THis is just a convenience for the user.
-    CMake build.
-    (symmetric) banded matricies for space/time efficiency when using BSplines.
-    **-SMAT does not support S+=Xpr
-    -Support V*SymMat without including matrix.h
-    -Vector constructors with fill arguments was a really bad idea.
-    -GetColumn fails for SMatrix.
-    -Subvector why in imp?
-        Also infinite recursion:  VecLimits GetLimits() const {return static_cast<const Derived*>(this)->GetLimits();}
-    Handle SMatrix<complex<T>> return conj is i>j;
-        Very tough C++ issue.
-    Use c++ lambda expressions instead of the preprosessor for overloaded ops.
-    Use ranges/views for exp templates: https://gieseanw.wordpress.com/2019/10/20/we-dont-need-no-stinking-expression-templates/
-        Use generators for co_yield?
-template <class T> const Vector<T>& operator+=(Vector<T>& a, const Vector<T>& b)
-{
-    if (a.size()==0) 
-    {
-        a.SetLimits(b.GetLimits());
-        Fill(a,0.0)
-    }
-    else
-        assert(a.GetLimits()==b.GetLimits());
-    return ArrayAdd(a,b);
-}
-    Same for matrix.
-
-        
-    
-      
-Priority 2:
-    -Plane waves:
-        https://docs.dftk.org/stable/guide/periodic_problems/#periodic-problems
-
-    -Try serializing with cereal.  
-        -Goal is the dump a CD, load it back in to restart iterations.  Possibly for higher Z.
-        -Need a mile high plan to io before doing anything.
-        -Less include from oml/imp
-        -Basis set
-        -Charge densities.
-        -Use CDs for starting SCF iterations.
-
-    -What can we use from boost:
-        -Filesystem
-        -Flyweight for GaussianCD s?
-        -Foreach looping
-        -iostream state saver.
-        -iterator
-        -Logging
-        -Multi-index containers
-        -MySQL
-        -Pointer container, poly-container
-        -Program options
-        -Python interface generation.
-        -Range 
-        -uBlas,
-        -units
-        -Uuid
-        -Boost::Serialize is what we need for saving and restoring object trees.
-            Talks about boost::shared_pointer ... too old for sdt::shared_ptr?
-            Need to try.
-            
-    -Vosco LDA
-    
-    
-Priority 3:
-    -SCFSupervisor class:
-        Owns BS, H, WaveF, SCFIterator
-        Lest important now that Ham, mash, aux basis handling is mostly automated.
-    
 
     -Do we need to store both J and K,  PolG just stores one ERI4.
         With separate Vee and Vxc it seems we need to store J and K separatly.
         We could just store JK=J-0.5*K to save space, but then we need a combined Ham term.
         How doe PolG do it with just J?
-    -typedefs for std::vector<Polarization>, std::vector<SMat>, List<rvec3_t>
-    -Lattice unit tests?
-    -template <class T> T Max(const std::vector<T>& v) in one place
-    -LOts of one off indexing between ptr_vector and Vector: Support Vector[i] for zero based indexing?
     -If N_nucleus=1 (atom) leave out Vnn term.
-    
-            
-        
-    
---------------------------------------------------------------------------------------
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-       -BSpline basis sets.
-        Done: How to get 11 digits for virial ratio?
-        Make a BSpline::Breakpoints typedef to std::vector<double>, or std::dqueue<double>
-            Make Log from N,Rmin,Rmax or N,Rmin,m  
-            Qiu's mesh, with linear for r<1.0 a.u.
-            bool SupportScaling(index).  
-            Option: Multiple knots at Rmax?
-        Rk
-            Cache off diagonal grid cells.  Which ones?  Calc on demand?  All?
-            Cache diagonal grid cells.  Lots of them ... how often would they get reused?
-                Try on demand and count cache hits.
-            Try using scaling relations
-        Add DFT support.
- Fixed: -AtomBS::Integrals_XXX all store thier own const IBS_Evaluator*.  
-        Can we store just one virtual base class?
-        Yes-->Or make a GetEvaluator() virtual function call.
-    Done: -Speed up bspline Rk.  Too many find calls!!
-    -Done Clean up SCFiterator
-        Clean handling of E>Eold
-        Use FD=[F,D] instead of E<Eold for adjusting relax.
-        use relax=1 if accelerator is working.
-        Use deque<std:shared_ptr<DM_CD>>
-    Fixed: DHF/Dirac: Factor of 2 problem
-        Done: -We need to stop using a normalized small sector
-            f=1/(2c) * (d/dr+(kappa+1)/r)*g
-            where g is normalized and f is *not*.
-            Still get the same wrong results.
-        -Once this is done the need for cross kinetic integrals vanishes
-            Just use the RKBL kinetic integrals.
-        -Try getting AI to generate a c++/blaze Dirac hydrogen atom calculation with a Gaussian basis set.
-    No: -Put atom basisset build logic in common Atom:: base class.
-        virtual CreateIBS(... ms) for paired, unpaired etc.
-        not worth it, gets very complicated very fast.
-        Some commonality but not enough
-    DOne -Clean up fit BS construction:
-         : Evaluator(exponents,sym_t(new Yl(L)))
-        , AtomBS::IrrepBasisSet(this,new Yl(L))
-
-    Done: -Simplify the whole Integrals_XXX, DB_X, DB_Cache network
-        1) Merge DB_X into Integrals_X for X=Overlap, Kinetic, Nuclear etc.
-            Trying to make these generic is very hard because of the required argument for 
-            Nuclear, cross kinetic, 3C and 4C integrals.
-        2) Use a GetCache() that return a cache interface.
-        3) We need ClusterID string in the map key for Nuclear integrals.
-
-    -How to use one integral cache for all 118 elements?
-        RkEngine uses RkCache, but only for off diagonal contributions that factor. <abcd>=<ab><cd>
-        On construction RkEngine calculates Rabcd_k for all k and fixed abcd.
-            These Rk engines may need to adapt to high k values on request.
-        Right now BS_Evaluator derives from Cache4.  
-            BSpline::BasisSet->BSpline::BSpline_BS_Evaluator<K>->BS_Evaluator->Cache4
-            Instead we need to contain Cache4.  Best at the BS_Evaluator level.  The most generic.
-            But the global cache need to store std::map<size_t hash, Cache4> 
-                Can we add this to DB_cache?
-        Problem: We need to handle a situation where IBS1 has some (not all) basis functions in common with IBS2.
-            The cache needs maintain a (growing) list of unique basis functions for each type {Slater,Gaussian,BSpline6, PolGaussian,Block,...}
-                This is done by specialized groupers right now.
-                Groupers should be part of the cache.
-            For atoms we always want to know LMax for each radial function.
-                Calculating Rk for LMax=2 and then recalculating later for LMax=3 (higher k values)
-                is wastefull.
-        -With shared DB_cache, running 1-92 time=  {Z,time,RAM}={73,29:00,9.6g} {80,32:00,9.8g} {80,33:00,10g} {92,39:40,10.7g}
-            Fails:Z= 62 63 65 67 68 71 72
-        PolGaussian::CDCache plays a similar to Cache4 for atoms.
-
-        Done -Still need to switch over to the new PeriodicTable1
-    Done: -Can we move GetIrreps down to the ElectronConfiguration level.
-    Done: -Upgrade BSpline_r evaluator
-    OK: -BSpline::RkCache should not care about l just lmax.
-    Very hard. -Even tempered BSplines should be charcterized by RadialType=BS<6> Beta=2.0  
-        -If a new spline with the same Beta but a wider range comes in, we have three cases.
-            Case 1) new grid range includes the old range new={.5,1,2,4}, previous={.5,1,2}
-            Case 2) grid ranges are skewed. {.5,1,2} and {1,2,4}
-            Case 3) Same beta, but not registered: {.5,1,2} {.6,1.2,2.4}
-        -BSpline Cache summary:
-            GLQuadrature(const double& rmin, const double& rmax,int N) stores integration xs and weights
-                Wrapper for Numerical recipies gauleg_
-            GLCache(const bspline::support::Grid<double>& g,size_t Order) 
-                Store a GLQuadrature for interval in the grid.  Provides 1D definite integrals between any two grid points.
-                For each interval in the grid, stores at secondary GLQuadrature for 2D integrals.
-                The find function in here is a profiling hot spot.
-                The secondary GLQuadrature is used externally.  through the find(double rmin, double rmax) member function.
-                    Suggesting this should be separated out.
-            RkCache(const std::vector<sp_t>& splines,const GLCache& gl,size_t lmax);
-                lmax decides the k range in Rk
-                Stores all the factored integrals  <abcd>=<ab><cd> when ab and cd supports have no overlap.
-                Stores Two versions <ab*r^(k+2)> and <ab*r^(1-k)>
-                Not a profiling hot spot
-                Uses the 1D aspects of GLCache
-
-
-            RkEngine(const std::vector<sp_t>& splines, size_t ia, size_t ib, size_t ic, size_t id, size_t LMax, const GLCache& gl, const RkCache<K>&);
-                Implementation of the Rk interface
-                Constructor calculates Rk from k=0 to 2*LMax+1
-                When ab and cd supports overlap it must do a full 2D integral.  But again there will be combinations in the GL grid
-                    the factor.  THis can be seen here
-                    for (size_t iab=sab.getStartIndex();iab<sab.getEndIndex()-1;iab++)
-                    {
-                        ....
-                        RkOff+=Iab_m*Icd_p + Iab_p*Icd_m;
-                        RkDiag+=Idiag;
-                    }
-                    Rabcd_k[k]=RkDiag + RkOff;
-                    where Iab and Icd are 1D off diagonal contributions
-            Plan:
-                Done: GLCache  Split into 1D and 2D versions.
-                    GLCache1D has std::vector<GLQuadrature> itsGLs;
-                    GLCache2D has std::vector<std::vector<GLQuadrature>> itsGLs;
-                Done: Replace GLCache2D::find(double rmin, double rmax) with
-                    operator[](size_t imin, double imax)
-                Done: Store GLCache1D and GLCache2D in the Cache4
-                Cache4 has a master grid that is the union of all IBS grids.
-                Each IBS has its own (properly registered) grid, and needs to know its starting indexe into the
-                    master grid.
-                If Lmax increases Rks need to be replaced.
-                If the master grid grows 
-                    old Rks should still be valid.
-                    IBS grid starting indices all need to change!
-    
-
-
-
-
-
-    Done: -AI
-        Write a c++ program to calculate the ground state of the Dirac hydrogen atom.  Details:
-        1) Hint: These specifications are based on refining two previous AI attempts at this problem,
-           contained in my files UnitTests/HydrogenAI.C UnitTests/HydrogenAI2.C
-        2) Use an RKB (Restricted Kinetic Balance) Gaussian basis set. 
-        3) Use an even tempered set of exponents: alpha*beta^i, i=0...N-1.  With alpha=0.01, beta=2, N=22
-        4) Hint: Cholsky decomposition of the overlap matrix, and triangular inversion might be the most numericlly stable way to
-            orthogonalize the resulting generalized eigen system.
-        5) Use blaze library calls for any linear algebra and matrix classes. 
-        6) Hint: Make sure the Hamiltonian is symmetric (real hermitian). As such there should be no need to check complex eigen values. 
-        7) Include a rest mass term -mc^2 in Hamiltonian so that electron state eigen values are comparable
-           with non-relatavistic eigen values
-        8) Throw out all positron eigen solutions (eigen values < -mc2) so we can focus on the electron
-           solutions only.
-        9) Hint use a c_light variable name for the speed of light in a.u. (in case the name c gets used somewhere else)
-        10) Also do a total energy calculation using the *eletron* ground state eigen vector, using kinetic and potential operator expectation values.
-        11) compare electron ground state eigen value and total energy with reference enrgy -0.50000665 a.u.
-    
-Done: -Put evaluators in a namespace
-    No: Its gone! -Make more use of CastSymmetry()?
-        Done: -Python script to read in all NIST files and dump to json. (Try asking ai)
-            configuration file  ANy differences from Saito here?
-            LDA/LDS/RLDA/ScRLDA
-        Done:-Incorporate libcx for exchange functionals: https://libxc.gitlab.io/
-            Has 7 versions of the Vosko form LDA_C_VWN_{1,2,3,4,5,6,7}
-    NO!!!! -Make SL/SG versions of 1/r evaluators.
-        You end up with integral(exp(-ax)/x) and this diverges
-        Same for gaussians.
-    Done: -All Evaluators are for IBS, so just get rid of the IBS part.
-    No: -merge RadialID and RadialType ? 
-        They are used for different things
-        RadialID is used for caching J/K tables
-        RadialType is less specific and is used for Cache4
-
-    Fixed -std::set<std::shared_ptr<Symmetry>> from GetIrreps() should have a deterministic order to it.
-        Right now it is probably ordering based on pointer values inside std::shared_ptr
-    Done: -Migrate away from valarray in favour of blaze dynamic vector.
-    Done: -Migrate VectorFunction<T> op(r) to return valarray<T> instead of oml.Vector.
-        In the long run we need ween off oml in preparation for Blaze for linear algebra.  (exp templates are not the right solution)
-    No: -Then can we fold IEClient data into Orbital_XX_IBS (IEClient is gone)
-        Not sure: IEClient is on the Irrep chain for size() and op(r).
-        Still have to cast Orbital_IBS-->Orbital_XX_IBS because BasisSet stores a list of Orbital_IBS
-    -Template BasisSet to store Orbital_XX_IBS instead of the generice Orbital_IBS?
-    Fixed: -What happens if we move the overlap integral into Irrep_IBS? 
-        1) class DB_Overlap needs to derive from Irrep_IBS (OK)
-        2) FitIntegrals needs to derive from Irrep_IBS (Wierd)
-            This is only wierd while FitIntegrals is separated from Fit_IBS (which is currenty empty!)
-        3) Integrals_RKB needs to derive from Irrep_IBS (again temporary Wierd)
-        4) Ditto PolarizedGaussian::IE_Common
-    -What happens if we try and inherite from all DB_xxx clases at the IBS_Common level?
-        i.e. outside Atom/MoleculeLattice levels?
-        - From before: -Design flaw
-                src/BasisSet/Common/IBS_Common.C Orbital_RKB_IBS_Common incorporates DB, none of the other Common classes do this.
-        -Chain:
-            DB_Overlap converts Overlap() into MakeOverlap()
-            AtomIE_Overlap converts MakeOverlap() into N^2 x Primative_Overlap
-            Atoml::Slater::
-                IE_Common --> AtomIE_Overlap
-                Orbital_IE-->IE_Common
-                Fit_IE -->AtomIE_Overlap
-                Orbital_IBS -->Orbital_IE
-                Fit_IBS -->Fit_IE
-                Orbital_IBS is used directly for basis set construction
-        Done: -We can do this for HF orbitals and DB_2E.
-        Stashed: -For DFT it gets messy.  You need a lot of function forwarding.
-            THis will be the same for Fit, 1E, and Irrep
-            To get around this need to insert an AtomIE class in between.  Maybe rename as Orbital for consistency.
-                How mcuh code sharing do we get frm this?
-
-        -BUT the whole Primative_xxx pattern is Atom specific.  For PG we to evaluate in 
-         Blocks (1 radial function with many polarizations).  For lattice we don't know yet!
-        
-
-    -Need to make sure m splitting is not need for any of atoms that are auto selected Yl basis functions.
-
-    -Lose some of the typedefs in the integral interfaces.
-    -BasisSet reorg
-        Done: We need a general way to adjust basis sets for increasing L
-            Fixed: For BSpline the repeated edge knots get removed for increasing L
-            Done: For Gaussian and Slater we want less large more small exponents for increasing L
-            Yes: Can we do this in the evaluator?
-        Maybe: Move BasisSet::IrrepBasisSet into internal ... not useful by itself.
-            -It is a common base for Fit_IBS and Orbtial_IBS.  May some client will find a use for it?
-        -Define a generic BasisSet::Orbtial_IBS = Orbtial_1E_IBS
-        Done: -Define a restriced set of exponents and spline grids for all unit tests
-            This should help with more cache hits.
-        Done: -Store all Rk caches in DB_cache.
-            -key on RadialID()?
-            -What if unique exponents list increase?
-        -Move all 2/3-nested loops in XXX_Evaluator_IBS into the base.  Use virtual calls for primatives.
-            Done: -Template on evaluator.  Use concetps.  
-                template <class E> concept isEvaluator = requires (E v)
-                {
-                    v.Overlap(size_t i,size_t j,size_t la, size_t lb); //SHould be inline.
-                    v.Grad2(size_t i,size_t j,size_t la, size_t lb);
-                    v.Invr1(size_t i,size_t j,size_t la, size_t lb);
-                    v.Invr2(size_t i,size_t j,size_t la, size_t lb);
-                    etc.....
-                };
-            Done: -Cut over Direct and Exchange (hoist loops out of evaluators)
-            Done: -Split up concepts: Fit, 1E, DFT, HF, RKBS
-            No: -Same for vector versions of op(r) grad(r).
-                We already have nice working vector versions for op(r) in the evaluators
-            Done: -Use indices for all loops
-            Done: -Use *this instead of GetEvaluator()
-            Done: -Get rid IE.C, Integral_Base and all GetEvaluator() v-calls.
-            No: -Get rid of IBS_Evaluator base class.
-            Done: -qchem.BasisSet.Atom.Factory; use Atom_EC instead of ElectronConfiguration
-            Fixed: -BSpline Both SplineGrouper and BSpline_IBS_Evaluator have GLCaches
-                SplineGrouper         has std::map<size_t l,const GLCache*> itsGLs;
-                BSpline_IBS_Evaluator has std::unique_ptr<GLCache> itsGL;
-                1) GLCache is not a abstract base ... why all the pointers?
-                2) Why does SplineGrouper care about storing a separate GLCache for each l?
-                3) These caches depend on the grid and K ... which are the same for all l.
-            Done: -Clean up all temp names Cache4, Basiset1, HF1 HF2.
-            Done: -Move concepts to a separate module.
-            Done: -Separate out DB_Cache_RAM
-            Done: -Move DB_Cache to Internal
-
-    Done: -move rvec11_t into Types.
-    Done: -Can we export a few names from cmath in Types and avoid many includes?
-
-
-    Done: -Get DB cache to report some RAM stats in the destructor.
-    Done: -Auto purge big stuff.  How to decide?
-        1) RAM
-        2) # reads
-        3) Time (# of any read) since last read.  
-        Purge metric = RAM*(reads since last read)/reads
-        Just oldest for now.
-    Done: -Include GLCaches in Cache4 RAMsize
-    Done: -Move some of BasisSetPool out of header.  Make a module
-    Done: -Incorporate into QChemTests and make that a module.
-    Done: -Get profiling to work better ... everything should not be spontaneous!
-    Done: -Migrate all A_HF_XX_XXX tests over to BasisSetPool
-        Now in two files A_HF_U.C and A_HF_P.C
-    Done: -Get rid of eps in QchemTester::Init
-    Done: -Fix small r BSpline accuracy.
-            Upshot: GL grid of order K+3 don't work for the 2D integrals.
-            Need to 2*K+3 for theouter r1 integrals., and then K+3 fpr r2 internal integrals.
-            rmin=0.0001 still doen not work as well 0.003
-            However N=100 is now numerically stable.
-            See UT DBCach1Tests.BSplineDirect/Exchange
-            -Create an Rk UT Rk(abcd) vs Rk(cdab) and try to identify the worst case
-            -elminate the error.
-            -For comparison SG, SL are both good to 1e-15.
-            -BSpline near the origin we get much bigger errors.  
-            -Perhaps this related to problems encountered when trying to reproduce Saitos results with rmin=0.0001.
-    Done: -Refactor BSpline and BSpine_r to minimize duplicated code.  
-        Done: Isolate weight functions wp, wm.
-            [k] capture makes this very difficult. So don't do that!!
-        Done: We would need to feed k through all the function calls.  Worth a try to avoid dual maintenance.
-
-
-
-
-
-        Done: Plan:
-            Done: 1) Rename DB_2E->DB_HF, Int_BS_2E->Int_BS_HF DB_BS_2E->DB_BS_HF AtomIE_BS_2E->AtomIE_BS_HF
-            Done: 2) Make a new DB_Cache1 class.  
-                Stores all integral matrices by {RadialID,AngularID}
-                Stores Cache4 by RadialID
-            3) Pick one IBS (BSpline6) and support construct with DB_Cache1
-                3.1) It looks like each IBS needs to support
-                    std::vector<std::string> BasisFunctionIDs() const=0;
-                    Used by Cache4 to maintian itsUniqueBFs.
-            Done: 5) Define IBS radial ID:
-                Use Strings, not hashes.
-            Done: 6) Define a basisSet radialID, AngularID
-                Also need Name()
-        UNit tests
-            Done: Test radial and angular, and full ID strings for IBS
-
-
-    Done: -BasisSet reorg
-        Fixed: BSpline seems to add basis functions, request 3 get 8 (L=0), 6 (L=1), 4 (L=2), 2 (L=3)
-            This will mess up the copy constructor!
-            N splines = Nintervals+K-1-l
-        Done: Common interface is constructor(size_t N, double rmin/emin, double rmax/emax, sym_t Irrep)
-            Only the variable names for the double changes.  just call them remin remax
-        Fixed: for BSpline we have the pesky K template parameter.  Can the be isolated to the Evaluator? Yes!
-        Fixed: IBS_Evaluator interface should not have any Fit_IBS or Orbital_RKBS_IBS in the interface.  
-            These should be replaced with const IBS_Evaluator& .
-        Done: Cut over trials
-            Fitting:
-                Set up typdefs for Fit_IBS and Orbital_DFT_IBS<double>
-                2 problems arise:
-                1) asserts using GetID().  
-                2) no member named 'GetNumFunctions' in 'BasisSet::Orbital_DFT_IBS<double>'
-            Charge Density:
-        Done: Orbital_RKBS_IBS  call it overlap .. reroute to Kinetic internally.
-        Done: Move large amd small OIBS *and Integrals_XKinetic to Internal?
-        Done: XKinetic  (const IBS_Evaluator*) switch to reference
-        Done: For Atom factory interface
-            BasisSet::Real_BS* Factory(Type,const nlohmann::json& js,const ElectronConfiguration& ec);
-                                        ^^^^
-                Type should be in json
-        Done: We need to also support es={...} in addition N,emin,emax.  good for unit testing.
-        Move BasisSet::IrrepBasisSet into internal ... not useful by itself.
-            -It is a common base for Fit_IBS and Orbtial_IBS.  May some client will find a use for it?
-        -Define a generic BasisSet::Orbtial_IBS = Orbtial_1E_IBS
-        -Define a restriced set of exponents and spline grids for all unit tests
-            This should help with more cache hits.
-        Done: -Get BasisSet::PG working.
-        Done: -Make RadialID shorter N=3 {.01 ... 50000.0 } 
-            Only if even tempered.
-        -Sort out PG cache ... keep one cache in DB_cache.
-        Done: -Clean out old BasisSet cruft.  (except for Lattice)
-        -Put evaluators in a namespace
-        -Store all Rk caches in DB_cache.
-            -key on RadialID()?
-            -What unique exponents list increase?
-
-
-    Done: -Get rid of IEClient.  Finally!!!  (What a dumb idea that was).
-    Done: -Isolate DB_cache<T> and DB_BS_2E which gets passed around the whole class network.
-    Done: -clean up qchem.LASolver;
-    Done: -Get rid of Orbital_IBS::CreateSolver
-        Only used by CompositeWF
-        Move default LAParams into CompositeWF.
-    Done: -Do something with MeshIntegrals.C
-    Done: -We need to support Atom->Cluster, making a one atom molecule every time is super annoying.
-    Done: -Refactor Lattice and UnitCell
-        UnitCell->Cluster should hold the atom basis.
-            Private inherit from Molecule?
-        Lattice should hold a UnitCell, Nx Ny Nz
-        If ReciprocalLattice is also a Lattice then it must hold a clone of atom basis?
-            The basis of the rec lattice is really i/Nx,j/Ny,k/Nz. 
-
-    Done: -Atom radial functions are often expressed as phi(r) = 1/r * Pnl(r)  where Pnl(r) is then expanded in some basis set.
-        Then the overlap S_ab = integral(Phi_a*Phi_b*r^2*dr) = integral(Pnl_a*Pnl_b*dr).
-        Currently the qchem package handles all basis sets as phi(r) = Pnl(r) without the 1/r
-        Starting with splines we should add support for 1/r * Pnl(r)
-        This might enhance numerical stability for N>40 basis functions.
-        The problem is to decide a naming convention for each case:
-            phi(r) = 1/r * Pnl(r) name= BSpline_r
-            phi(r) =       Pnl(r) name= BSpline
-        Done: -In order to implement this we will need to support <a|1/r|b> and <a|1/r^2|b> integrals.  These are not directly
-         supported by c++ BSpline package.  only operator X<n> where n>=0 are supported.
-        Done: -We can do the integrals with numerical recipes gauleg function which calculates sets {x},{w} for quadrature integration.
-        Fixed: -However it seems that BilinearForm{X<2>{}}(a,b)*FourPi; and gauleg.Integrate(x2,a,b)*FourPi; are giving different results
-         especially near the origin.
-         -gauleg was using order K+2*l,  changed to K+3 and error disapeared.
-        Goals:
-        Done: 1) Get BilinearForm{X<2>{}}(a,b) == gl.Integrate(x2,a,b) to machine accuracy
-            K=9 weight x^0: 378 error>1e-14, max=2.24e-12, weight x^2: 382 error>1e-14, max=5.77e-12
-            k=8 weight x^0: 234 error>1e-14, max=6.37e-13, weight x^2: 561 error>1e-14, max=1.22e-12
-            K=7 weight x^0: 241 error>1e-14, max=2.22e-13, weight x^2: 212 error>1e-14, max=3.73e-13
-            K=6 weight x^0: 226 error>1e-14, max=6.17e-14, weight x^2: 160 error>1e-14, max=9.21e-14
-            K=5 weight x^0: 229 error>1e-14, max=3.06e-14, weight x^2: 69  error>1e-14, max=7.87e-14
-            K=4 weight x^0: 3   error>1e-14, max=2.22e-14, weight x^2: 201 error>1e-14, max=1.49e-14
-            K=3 weight x^0: 1   error>1e-14, max=1.42e-14, weight x^2: 3   error>1e-14, max=1.29e-14
-            Errors between BSpline package and gauleg integration grow rapidly for K>~4
-        Done: 2) Check all the other required integrals.
-        Done: 3) Support both basis set options above 1) phi(r) = 1/r * Pnl(r) and 2) phi(r) = Pnl(r)
-        Done: 4) Verify comments from Saito: To construct the B-spline set for atomic calculations, the knot
-            sequence must be generated in [0, R] with K-fold multiple end-
-            points. Since the first and last terms of such B-splines are nonzero
-            at r = 0 and at r = R, respectively, they were removed from the basis
-            set in order to satisfy the boundary conditions. An N-term B-spline
-            set {Bi,K}i=2,. . .,N+1 is thereby obtained...
-            -Saito uses Rmin=10^-4=0.0001  qchem can't handle this, even for Hydrogen!!
-            -Rmin=0.01 workes well for Z=1..10.
-            -Toughest atoms in the first two rows for virial ratio Are:
-                N=100,R=[0.01,40]  Li,B, O
-                N=50 ,R=[0.01,40]  Li,B, O
-            -Rmin=0.003 works for H and U
-        Done: 4.5) Add V/K-2 to convergence criteria.
-
-        Done: 5) Get He working to high precision.  In particular fabs(V/K+2) < 1e-11
-        6) 
-        Done: 7) Try to run atoms 2->118 and compared E, Eo and <r> moments.
-            
-
-    Done: -re-imagine Electron configurations
-        -How about map<Irrep,size_t> Occs to track all occupations.
-        -Yes this is what we need
-        -We need to build this list from ElCounts=
-            int N [LMax+1]; //Total N[l]
-            int Nf[LMax+1]; //Full shell or core, N[l]
-            int Nv[LMax+1]; //Valance shell N[l].  He is considered to have no valance electrons ... all are core.
-            int Nu[LMax+1]; //# of unpaired electrons for a given l.
-        -if l=0, then no magnetic splitting. 
-            assert((N+Nu)%2) 
-            Occs[Up,s]=(N+Nu)/2
-            Occs[Dn,s]=(N-Nu)/2
-            or:
-            Occs[Up,s]=Nf/2+Nu
-            Occs[Dn,s]=Nf/2
-        -if l>0  now we need to worry about magnetic splitting
-            Npair=(Nv-Nu)/2 (for l=1 this 0,1,2)
-            m_unpaired has Nu m values, g_unpaired=Nu
-            m_paired gets the remainder, g_paired=g-Nu
-            n_levels=Nf/g2
-            Occs[Up,Ylm_paired]=n_levels*g_paired+Npair
-            Occs[Dn,Ylm_paired]=n_levels*g_paired+Npair
-            Occs[Up,Ylm_unpaired]=n_levels*g_unpaired+Nu
-        Done except for Ce, Z=58.  
-        
-        Done: -Now build an un polarized version of the itsOccupations list;
-            We need to create a Yl symmetry from and Ylms.
-
-    Done: -Rk inconsistencies that should be cleaned up.
-	Done: -GetSymmetry() should return a const Symmetry& instead of a shared ptr instance?
-        No: -CopySymmetry() can return the shared ptr.
-            Instead: Irrep GetIrrep(const Spin& s) const
-    Done: -Fold IntegralEngines in Orbital class chain.
-        Done: Experiment with Slater::Orbital_XX_IBS instad of IntegralEngine.
-        Done: I think we want Atom::Orbital_XX_IBS class to gather all neede AtomIE classes.
-            Done: Try Atom:: namespace.  Risk of more compiler scope deduction problems.
-            Done Slater
-            Done: Gaussian
-            Done: Slater RKB
-            Done: Gaussian RKB
-            Half Done: Bspline
-                We need to template IE_Primative is <double> or <spline<K>> in order for Atom_IE to be generic.
-        Done: -Isolate IE_Primatives
-    Done: -BasisSet and Basis_ml should be one class.  Use dependency injection to get the right angular integrals.
-    Done: -Use the same dependency injection for IE_Primatives?
-    Done: Naming consistency:
-       Compiler can;t handle Common::IrrepBasisSet.  Try an alternative
-    Fixed: -Orbital_RKB{L,S}_IBS_Common all derive from IrrepBasisSet_Common.  Inconsistent.
-        Orbital class chain should be all about integrals using mixins.
-    Done: -Decide Ham based on EC.
-    Done: -Decide Yl or Ylm basis based on EC.
-    Done: -Fold the ml sector into l.  Just use diff constructors mls.
-        -Ylm  
-    Done: -Fold the ml sector into l.  Just use diff constructors mls.
-    l: BasisSet(... size_t Lmax); 
-        Insert Orbital_IBS(... L)
-    ml: BasisSet(.. const ElectronConfiguration& ec);
-        Orbital_IBS(... L,mls.ml_paired)
-        Orbital_IBS(... L,mls.ml_unpaired)
-        Orbital_IBS(... L,mls.ml_unoccupied)
-    Done: -Check mempory leaks
-        Missing delete itsCD; in SCFiterator
-        Missing delete cache in BSpline_BS_Evaluator
-    Done: -Blaze:
-        Done: -Add as submodule
-        Done: -Make unit test to try out some simple ops
-        Done: -Make oml->blaze, blaze->oml conversion functions.
-        Done: -Test supermatrix SMat<SMat<double>>
-        Done: -Make a blaze version of LASolver.
-            No: oml->blaze Conversions inside
-            Put blaze types in the interface
-        Done: -Start working outwards.
-        -Blaze distinguishes between row and column vectors.  Maybe this good.
-
-    Done: -JsonTests spits out basis sets for 92 atoms.
-        Move to ElectronConfigurationTests
-        Put result in a nice table.
-    Done: -Profile, try and ERI4 contractions to work faster.
-        Done: Build full look up tables in DB_BS_2E<T>::MakeDirect() DB_BS_2E<T>::MakeExchange()
-        Done: Then only the faster MatMul(const ERI4& gabcd,const rsmat_t& Scd) gets used.
-        Done: Make a unit test that confirms timing difference between the two MatMul calls.
-        Done: Make and supermatrix transpose function M1<M2<T>> -> M2<M1<T>> in order to avoid
-            recalculating 2EI matrix elements.
-        Done: Change charge density interfaces from:
-            virtual rsmat_t GetRepulsion(const Orbital_HF_IBS<double>*) const=0;
-            virtual rsmat_t GetExchange (const Orbital_HF_IBS<double>*) const=0;
-        to:
-            virtual rsmat_t AccumulateDirect  (mat_t& J,const Orbital_HF_IBS<double>*) const=0;
-            virtual rsmat_t AccumulateExchange(mat_t& K,const Orbital_HF_IBS<double>*) const=0;
-
-
-    Done: -BasisSet::Atom  reorg
-        Option 1
-            BasisSet::Atom::NR   ::{CommonNR,SL,SG,BS}
-            BasisSet::Atom::Dirac::{CommonDirac,SL,SG,BS}
-        Option 2
-            BasisSet::Atom::SL::{CommonSL,NR,Dirac}
-            BasisSet::Atom::SG::{CommonSG,NR,Dirac}
-            BasisSet::Atom::BS::{CommonBS,NR,Dirac}
-        How big are those Common chunks? SL/SG/BS common chunks are bigger.
-        Let's go with 2.
-    Done: -Clean up Atoml namespace.
-        -using NR=NonRelativistc
-        -We have {Atom}X{NR,RKB}X{SL,SG,BS}
-        -There is some commonality between {SL,SG,BS}
-        -There is some commonality between {NR,RKB}
-            RKBL_IBS = NR_IBS for all {SL,SG,BS}
-        -What distinguishes {SL,SG,BS}
-            1) IE_{rimtatives}
-            2) op(r)
-            3) Exponent general (not needed)
-            4) ns calculation
-            5) Creates the Rk tool for HF ERIs
-
-    Done: -Stop using Vector for exponent lists.
-    Done: -Move unique_es up to ExponentGrouper.  Not usable for splines.
-    Done: -Fix warnings for Insert override.
-    Done: -Refactor common behaviour for Slater/Gaussian BS_Evaluator,IBS_Evaluator
-    Done: -Re-establish index range limits for Direct and Exchange ERIs.
-        Reactivate assert(sab.containsIntervals()); assert(scd.containsIntervals());
-            in src/BasisSet/Atom/radial/BSpline/Imp/Rk.C
-    Done: -Use std::valarray for exponents
-        Make a template for op(r).
-        now in IE_Primatives class hierarcy.
-           
-    Done: -Refine the IE_Primatives interface so it can also work with BSplines.
-        Need to pass in AIEC and indexes instead of exponent values.
-        or -template IE_Primative is <double> or <spline<K>> in order for Atom_IE to be generic.
-    Done: Refactor:
-        Done: Create {SL,SG,BS}_IrrepEvaluator (need a better name)
-            Done: Implements *matrix* versions of Overlap, Grad2, Invr1 etc.
-            Done: Implements op(r), grad(r) using std::valarray for exponents
-                oml::Vector<T> needs a constructor from std::valarray
-            Done: Carries l,{ml}
-            Done: ns calculation
-            Done: For BSlines K should not leak out
-            Done: Helps BFGrouper identify matching radial basis functions.
-            Done: Inherits from IrrepEvaluator
-            Done: ERI3 calculations
-            Done: Make Unit tests
-            Done: Derive IBS from Evaluator, and pass this in constructor.
-            Done: Clean up RKBS evaluators norms handling.
-            Done: Evaluator make constructor with no mls
-
-
-        Done: How to integrate into the old code?
-            BasisSet constructor needs to create the concrete classes.
-            The pass IBS_Evaluator* down to integral engine.
-                We already have this up an running for IE_Primatives.
-                Can we temporarily piggy back on that.
-                Stick a public IBS_Evaluator* inside IE_Primatives
-        
-        Done: ExponentGrouper 
-            //! Returns the unique (across all Irrep basis sets) index for this exponent.
-            size_t Insert(double exponent,size_t l); 
-            Finds unique BFs based in exponents or rmin from the spline support.
-            Does not need to know about Evaluators.
-            Evaluators need to track the index returned.
-        Done:-{SL,SG}_Rk Create RKEngines
-            Done: We need an Rk abstract interface interface
-            make an Rk function in IBS_Evaluator
-        Done: -BS_Rk Create RKEngines
-
-    Done: -Refactor:
-        Eliminte basis functions.   IBS can do vector op(r) using ieclient info.
-            Need it identify who iterates of IBS .. maby just VectorFunction.
-            Need to move 
-                template <class T> typename TIBS_Common<T>::Vec TIBS_Common<T>::operator() (const rvec3_t& r) const
-                up the class hierarcy
-    Done: -Get rid og IrrepBasisSet* Clone  (const rvec3_t&) const=0;
-        Done: Need to get rid of IrrepCD::ShiftOrigin
-    Done: -Get rid of IrrepBasisSet_Common,
-    Done: -Merge IrrepBasisSet & TIrrepBasisSet
-    Done: -Lose some T prefixes
-        Done: -C++ Modules  Try making a C++20 module 
-        Issues:
-            1) gcc-15.0.1 is grabbing symbols from the global modules space and incorportating them into my exports
-                resulting in mutliple deifinitions.
-            2) internal compiler error: in finish_member_declaration, at cp/semantics.cc:4210 when parsing
-                stream.h.  We should just get the hell rid of StreamableObject at least in qchem.
-                clang-20 handles this fine.
-            3) gcc-15.0.1 incorrect purview error for submodules.
-            -THis might have been caused by importing in the middle of various header include.  Try to keep imports after all includes are done.
-            -Progress is grinding to a waiding through molasses pace.  We must fiddle with include orders to prevent gcc complaining
-             multiple definitions of std:: redefinition of ‘struct std::numeric_limits<_Tp>’
-            -build and try with gcc-15.1
-        Fixed: Failed attempts:
-            ScalarFunction/VectorFunction fix mesh iterator to disentagle from Mesh.
-            Mesh/Factory json lib is too much for gcc-15.0
-        Done: Sequence:
-            Common
-            Mesh
-            Cluster
-            Symmetry
-            BasisSet
-                Molecule
-                Atom
-        done: use: FILE_SET all_my_modules TYPE CXX_MODULES FILES xxx.C
-        create system modules 
-            g++-15 -c -fmodules-ts -x c++-system-header  -std=c++20 cmath 
-            First try import std;
-
-        Done: Wait for gcc-15
-        Done: need a recent version of CMake (on 3.31.6)
-        Done: -Scalar/VectorFunction depend on Mesh?  Only at the header level.
-            Move Scalar/VectorFunction into the mesh module
-    Done: -Make a qchem.Types module with:
-        rvec3_t
-        RVec
-        size_t;
-    Done: -Migrate from index_t to int or size_t.
-    Done -Try and simplify BSpling template instancing
-        constexpr Loop example: https://indii.org/blog/cplusplus-static-for-loop/
-            Won;t compile]
-        Preprocessor works,  a bit ugly.
-    Fixed: -DFT UTMain: /home/janr/Code/qchem1/src/SCF/SCFAcceleratorDIIS.C:67: virtual SCFIrrepAccelerator::SMat SCFIrrepAcceleratorDIIS::Project(): Fixed Fixed: Assertion `fabs(Sum(itsCs)-1.0)<1e-13' failed.
-        Now a warning.Done: -Fix all the CLang warnings.
-    Done: -Remove some of the slowest tests.
-    Done: -Disentangle the coupling between PolarizedGaussian:
-    -RadialFunction 
-        Integrate(...,CDCache& cache)
-    -CDCache
-        findCD(GaussianRF,GaussianRF)   //uses ID,l,alpha,R
-        findRNLM(GaussianCD,GaussianRF)
-        findRNLM(GaussianCD,GaussianCD)
-        findRNLM(GaussianCD)
-        GaussianCD[]
-        RNLM[]
-
-    -GaussianCD
-        Remove: RadialFunction a,b;
-        GaussianCD(GaussianRF,GaussianRF)
-    -GaussianRF --> RadialFunction
-                --> CDCache
-    -GaussianCD and GaussianRF
-        Can store a GData struct.
-        Define GData = GData*GData  (how t handdle IDs?)
-    -GaussianRF
-        GetGrad2 is static, can be moved anywhere.
-            
-
-    Fail: -import std; or header units?
-        No idea how std.pcm is made or how cmake/clang is supposed to find it.
-    Fail: -build with gcc-15.1
-        -Still failing with  error: cannot import module in its own purview
-        -it is interpreting the dots in module names as if this were pything modules.                 
-    Done: -Move CreateSolver() const=0; to TOrbital_IBS
-        Done: now Orbital_IBS==IrrepBasisSet so get rid of Orbital_IBS?
-    Done: -Get ERI3 out of IntegralsBase.
-    Done: -BasisSet.Integrals should be internal.
-    Done: -Get rid of IntegralsBase<T>, types don't propagate through template inheritance anyway!
-        T dependence is the key
-    Done: -TOrbital_DFT_IBS defines some integrals, and Integrals_DFT defines other similar integrals/
-        Why?  can we clean this up?
-            No: Orbital_DFT_IBS does basis set independent constractions with the density matrix.
-                Integrals_DFT does basis set specific triple (three center) integrals.
-    -Clean up lower libs to adhere to module naming conventions.
-        Done: Mesh
-        Done: Symmetry
-        Done: Cluster
-        Done: BasisSet
-        Done: BasisSet.Atom
-        Done: BasisSet.Molecule
-    
-    Fixed:    /home/janr/Code/qchem3/src/BasisSet/Atom/kappa/Imp/Evaluator.C:68:60: warning: implicit conversion from 'double' to 'int' changes value from 0.5 to 0 [-Wliteral-conversion]
-        [build]    68 |         IBS_Common::Insert(new Large_BasisFunction(e,kappa,0.5,ns(i++))); //ns from Slater_mj::IEClient
-        [build]       |                                ~~~~~~~~~~~~~~~~~~~         ^~~
-        [build] /home/janr/Code/qchem3/src/BasisSet/Atom/kappa/Imp/Evaluator.C:33:15: note: in instantiation of member function 'Atom_kappa::Slater::Orbital_RKBL_IBS<double>::Orbital_RKBL_IBS' requested here
-        [build]    33 |         , new Orbital_RKBL_IBS<double>(db,exponents, kappa)
-        [build]       |              
-    Done: -Get rid of index_t 
-    Done: -Find the largest pcm/gcm files,  Why do sbig.
-    Fixed: -eigen tables, hide border dark problem for Hydrogen (one row in table).
-    Done: -Atom tests  Yl and Ylm basis is now chosen automatically.  
-        Either combine yl and ylm tests or make sure we are not duplicating.
-    Done: Make a basis set factory in order to avoid including private headers
-        Function signatures vary.  Use json structures?
-        Need separate function signatures for Atom, Molecule and Lattice basis sets.
-            If we want to breakout separate libqcAtom_BS libqcMolecule_BS  libqcLattice_BS modules.
-            Each of these would have its own factory function
-    Done: Make a mesh factory
-    Done:-Types.H switch for <module-name>/fwd.H
-    Done: Try separating out 
-        
-        Done: -Finally make a fwd.H for each module.
-        Done: libqcFitting ?
-            Very tightly coupled with Hamiltonian and Charge density; 
-                FittedVxc : public FittedFunctionImp<double>
-                FittedCDImp : public IntegralConstrainedFF<T>
-            We can still make a module the exposes these implementation classes.
-
-        Done: libqcChargeDensity
-            Ham and CD are tightly coupled
-                IrrepCD needs Static/Dynamic Hamilton terms. to call GetMatrix. 
-            factory
-                move Composite_CD to interface
-                need
-                    FittedCDImp(bs_t& bs, mesh_t& m, double totalCharge)
-                    IrrepCD(const DenSMat&,const TOrbital_IBS<T>*, Irrep);
-        Done: libqcHamiltonian
-        Done: libqcWaveFunction
-        Done: -this will require decouple Ham from WF.  Make a factory function in WF interface.
-
-
-        Done: For BasisSet module:
-            Done: -"IEClient.H" is only used internally but IrrepBasisSet inherits from it.
-                What if IBS_Common inherits IEClient instead?
-            No: -<BasisSet/BasisFunction.H> is only used internally but users might be suprised if they can't access
-                BasisFunction.  Irrep_BS iterator returns BasisFunction.
-            Done: <BasisSet/XXX_IE> are included by <BasisSet/XXX_IBS> *and* various internal DB headers
-                We could move the content of XXX_IE into XXX_IBS, but the DB interfaces see Orbital_HF_IBS interfaces
-                which is more than they need.  Small problem to eliminate 4 public/internal headers?
-            Done: Breakout Atom and Molecule pseudo modules.
-                libqcAtom_BS
-                libqcMolecule_BS
-                libqcLattice_BS
-                this will require isolating basis set reader code so atom and molecule can see them.
-    Done: -Proper consol tables:
-        header only: https://github.com/p-ranav/tabulate
-    Done: -Try making a separate libqc_basis.a to enforce some modularity.
-        -Probably need to make a libqcCommon.a  with some common stuff.
-            stl_io.C Unit.C Factorials.C DFTDefines.C PeriodicTable.C
-            Interators.H UniqueID.H 
-        -libqcSymmetry Symmetry.C Unit.C
-        -libqcMesh.a
-        -libqcCluster.a
-        -libqcAtom_BS
-        -libqcMolecule_BS
-        -libqc_Lattice_BS.a
-        -Where
-            LASolver,(Base)
-            ElectronConfiguration.H two way coupling with Symmetry, has to go in Symmetry
-            Cache4.H (BasisSet)
-            Spin.H needed by symmetry
-
-        -Out of folder includes in BasisSet/Atom    
-            #include "Common/stl_io.h" .C file
-            #include "Mesh/MeshIntegrator.H" libQchemMesh
-            #include "ERI4.H" .C file  move into BasisSet
-            #include <Cluster/Cluster.H> OK pure header
-            #include <Symmetry/Symmetry.H> GetLabel .C file LibQchemBase
-            #include "Common/IntPower.H" OK Pure header
-            #include "Imp/Integrals/AngularIntegrals.H" .C file move into BasisSet
-            #include "Imp/Integrals/PascalTriangle.H" .C file move into BasisSet
-            #include "Common/Factorials.H" .C LibQchemBase
-        -Out of folder includes in BasisSet/Molecule
-            #include "Atom/radial/Gaussian/ExponentScaler.H"
-            #include "Cluster/Atom.H"
-            #include "Molecule/Unit.H"
-            #include "Common/IntPower.H"
-            #include "Imp/Integrals/AuxillaryFJ.H" .C file move into BasisSet
-            #include <Common/Constants.H> LibQchemBase
-            #include "Common/PeriodicTable.H" LibQchemBase
-
-        -Atom SG depends on 
-            #include "Molecule/PolarizedGaussian/Readers/Reader.H"
-            #include "Molecule/PolarizedGaussian/RadialFunction.H"
-
-    Done: -Small fixes
-        Done: Irrep should be a separate header.
-        Done: Orbital_QNs should derive from Irrep;
-        Done: Set merge tolerances in SCFParams.
-        Done: -Clean up naming for IterationParams.    SCFParams
-        Done: Fix Spherical Gaussian L=0x5fa269ce59b0 with 20 basis functions, alpha={0.01 0.03 
-            shared_ptr
-            don't list all exponents just {min .. max} factor = 
-        Done: -QChemTester move bs->Set(lap); to one spot
-            All check SV tol, set lower i.e. 1e-9
-            Make BS dump optional.
-    Done: -Orbital_QNs
-        Use std::shared_ptr for sym.
-    Done:-Convergence acceleration.
-        Done: Refactor DIIS code:
-            SUpport irrep version? No let's go global only.
-            All irrep does is
-                1) transform Fprime=Vd*F*V
-                2) store DPrime, F',E,En deques
-                3) Calculate commutator [F',D']
-                4) Store projection coeff (as a reference?)
-                5) Do projection
-                -no need to track bailout
-                -What is the cleanest to get B_ij = e_i*e_j out of each irrep?
-                    inline GetError(i,j). 
-            Plan:
-                1) Separate out source files
-                2) Make BuildPrunedB self contained.
-        Done: -Convergence on delta-ro is not very good.
-            SHould we track which Irrep is not converging?
-        Done: -Pass smin,||[F,D]|| (max or rms?), rms_delta(Dij) out to SCFIterator
-            CD->GetChangeFrom does Max(fabs(D1-D2)).
-            swith fro Fnorm
-        Done: -Pass Nproj, Emin, Emax, smax into Irrep accelerators.
-        Done: -Decide convergence on dE, Niter, [F,D]  
-            We need to know how [F,D] scales.  Maybe -[F,D]/E is better.
-        Done: -Clean up DIIS code.
-            Make unit test that track iteration count 
-        Done: -Make a pass through accelerator.
-        Done: -DIIS auto adjust Npurge 
-            Lorenzo Maschio 2018: The algorithm presented discards an older iterations i only when the absolute value of corresponding coefficient ci in Eq. (1) is below 10−8. 
-            Pauley 1982: If eq. (1) becomes ill-conditioned, omit the first, second, etc., equation until its condition becomes acceptable.
-                (this is a bit vague: the first eq. in eq.1 in the lamba eq. which makes no sense to remove)
-            One thing left out of the literature is when to add error vectors and when to start using them?
-            Yb, Z = 70, [Xe] 6s2 4f14 (1S) is a very tough convergence.
-                Need relax=0.1 just to get going before DIIS kicks in.
-                f orbitals are the ones converging very slowely.
-                Same for smaller basis sets?
-        Done: -DIIS should de be summed over all irreps?  Will this help with singular B? Lorenzo Maschio 2018 eq. 4,7
-            No This should be optional
-                The irrep cersion is useless, global only
-            DOne: He and Be have one irrep.  Do they work well?
-                Yes (with some tweaking of how the SCFIter algo handle relmax)
-                For Be N=4, SVmin=1e-10 or 1e-9 work very well.
-            
-        Done: -DIIS design
-            Done: Pass H into TOrbital::Update().  Let IRRep WF handle the acceleratorand decide
-                only the orbital knows D or Dprime.
-                In software (currently) IrrepWF and TOrbitals are alsmost the same thing.  But this is mostly an effect of
-                    1) We done ask for pair or high quantities like WF(r1,r2,r3...)
-                    2) Antisymmetry is all encapsulated in integral rules.
-                In any case building H depends in principle on the Slater determinant, which is a concept that belongs in WF, not orbitals.
-                
-            Done: Refactor WF for less spin dependence? (similar to CD)
-        Done: A_SG_HF_U  get all energies below 10ppm and tighten up EXPECT
-
-        Done: -Check out some manuals:
-            https://manual.q-chem.com/5.3/sect_convergence.html
-            Geometric Direct Minimization (GDM)  is the default algorithm for restricted open-shell SCF calculations
-            RECOMMENDATION: Use DIIS unless performing a restricted open-shell calculation, in which case GDM is recommended. If DIIS fails to find a reasonable approximate solution in the initial iterations, RCADIIS is the recommended fallback option. If DIIS approaches the correct solution but fails to finally converge, DIIS_GDM is the recommended fallback.
-            Convergence criteria require the largest element of the N th error vector to be below a cutoff threshold, usually 10−5  a.u. for single point energies, but often increased to 10−8 a.u.  for optimizations and frequency calculations.
-            As the Fock matrix nears self-consistency, the linear matrix equations in Eq. (4.34) tend to become severely ill-conditioned and it is often necessary to reset the DIIS subspace (this is automatically carried out by the program).
-            Relaxed Constraint Algorithm
-
-            https://www.faccts.de/docs/orca/6.0/manual/contents/detailed/scfconv.html
-            once the DIIS error falls below DampErr (0.1), the damping is turned off. The default value is 0.1 Eh. In difficult cases, however, it is a good idea to choose DampErr much smaller, e.g. 0.001.
-            As self-consistency is approached, the set of linear equations to be solved for DIIS approaches linear dependency and it is useful to bias DIIS in favor of the SCF cycle that had the lowest energy using the factor DIISBfac. This is achieved by multiplying all diagonal elements of the DIIS matrix with this factor unless it is the Fock matrix/density which leads to the lowest energy. The default value for DIISBfac is 1.05.
-            The start of the DIIS procedure is controlled by DIISStart. It has a default value of 0.2 Eh, which usually starts DIIS after 0-3 cycles. A different way of controlling the DIIS start is adjusting the value DIISMaxIt, which sets the maximum number of cycles after which DIIS will be started irrespective of the error value.
-            Trust-Region Augmented Hessian
-
-    Done: -Design question:
-        Who should own the Hamitonian ... right now SCFIterator is deleting it.
-       -SCFITertor now owns H ad Wf
-    -Convergence acceleration.
-        Done: -DIIS: https://www.chem.fsu.edu/~deprince/programming_projects/diis/
-        Done: -Where is all the info:
-            F is in TOrbitalsImp<T>::UpdateOrbitals
-            F' = S^-1/2*F*S^-1/2 is calculated in LASolver, but it is not cached anywhere.
-            S^-1/2 is stored in LASolver
-            S is cached the DB
-            D is calculated in TOrbitalsImp<T> but only stored in IrrepCD.
-        Done: -THe proceedure needs happen at the irrep level. Right now the SCFiterator does not work with irreps.
-            The separation of SCF algo from the wavefunction is breaking down.
-            Use a SCFAccelerator interface that feeds through from SCFIterator->WF->IrrepWF->Orbitals::Update
-                Have a noop and DIIS derived versions.
-                DIIS agent stores S, V,Vd
-        Plan:
-            Done: TOrbitalsImp<T> calculates and saves  D at the end UpdateOrbitals.
-                IrrepCD gets a shallow copy 
-            SCFIterator:
-
-                Somehow gets S^-1/2 (V,Vd in LASolver) at construction time
-                Somehow get F' out of UpdateOrbitals, LASolver
-
-                Request error vector e_i = Vd*(F_i*D_i*S-S*D_i*F_i)*V
-                Build the B matrix and silver for the c_i
-                F' = sum(c_i*F'_i)
-        Fixed: Design issue
-            Hamiltonian is created only from a cluster
-            WF is created from BS & SCFAccelerator
-            SCFIterator is created from WF and Ham
-
-            Hamiltonian knows if it is spin polarized or not.  Vxc or Dirac Kinetic terms
-            Therefore H has unique knowledge to create the correct type of wave function
-            Done: New sequence:
-                Create cl
-                Create BS(cl)
-                Create H(cl)
-                Create SCFIterator(BS,H)
-                    Create SCFAccelerator (pass through or DIIS)
-                    WF=H->Create WF(BS,SCFAccelerator)
-
-            
-
-    Done: -Survey use of dynamic cast
-        -Usage:
-            ChargeDensity.C base->Polarized for MixIn & Change functions
-            CompositeCD
-            Atom_EC: Symmetry->Spherical_Sym
-            Electron configurtions EC->AtomEC
-            cross casts from IE to AtomIEC.  These are now all labeled
-                options:
-                    forget about it
-                    lots virtual inheritance form ::IEC
-            Done: BasisFunction op==
-                Do we really need op== for something? No
-                PG basis function still needed.
-            Done: Symmetry::MatchType and Match
-                Do we need this for anything? No
-            Cachable->Rk engines for radial slater inegrals.
-            Create CD and Vxc fit basis sets.  Need to get at DB*
-            Multiple virtual dispatch for RadialFunction->GaussianRF
-            Orbital_IBS->Orbital_HF_IBS for ERI integrals.
-            
-
-        Done: consolidate iec->atomiec casts into one place
-        Done: -Hunt for dynamic casts that can be removed using dynamic_cast iterator
-        -SHould only be casting between interfaces
-        DOne: -Can we pass around more specific interfaces?
-    Done: -Refactor radial/Slater/IBS-Common and radial/Gaussian/IBS-Common
-        Most code except Norms can move up to the radial level.
-        Minor consolidaton.
-    Done: -Break up the BasisSet.H header
-        Done: -Break out BasisFunction.H
-        Done: -Break out IrrepBS.H
-            DFT: Put IE,DB,IBS interfaces in one header?
-            HF: 
-            Fit:
-        Done: -Same for AnalyticIE.H, HeapDB.H AtomIE.H ?
-        Done: -Make AnalyticIE.H -> IntegralEngine.H
-        No: -Make IE.H which just includes all IE types.
-        Done: -Make Atom folder under Basis set.
-            AtomIE.H -> IE_Common.h
-            IE.H which just includes all atom IE types.
-
-    Done: -Experiment with SVD/Eig tol and cholsky decomp for near saturation basis sets.
-
-    Done: -Make a UI app with plotting
-        -wxPython + matplotlib (python)
-            -I hate wx only becuse I spent 90% of my time trying to get the stupid
-             sizers to do what I want.
-            -Need to make a python binding using
-                1) SIP https://github.com/Python-SIP/sip
-                    -Used this before
-                    https://www.itopen.it/python-sip-c-bindings-experiments/
-                    https://wiki.python.org/moin/SIP
-                2) https://github.com/pybind/pybind11
-                -Python bindings might be of interest anyway.
-        -Matplot++ just does popup windows, hard to embbed ... which seems bizzare.
-        -Gtkmm-PLplot https://tschoonj.github.io/gtkmm-plplot/index.html
-            Looks primising,  workinside a GTK-C++ (gtkmm) app
-            https://www.gtk.org/docs/language-bindings/cpp/
-            Need to worry about GTK3 or GTK4 support
-            GTK 2,3,4 comes with ubuntu linux
-            -Use GLADE to generate UI code. Or Cambalache https://gitlab.gnome.org/jpu/cambalache
-            -Read in ui files: https://gnome.pages.gitlab.gnome.org/gtkmm-documentation/chapter-builder.html
-
-        -Gnuplot has a c++ interface.
-        -XMGrace
-        -Use own PLotting which has an XMGrace driver.
-            Would need to make Gtkmm-PLplot driver.
-            -The multigraph support got complex and buggy.  Maybe refactoring would fix it?
-        -FLTK https://www.fltk.org/doc-1.4/basics.html
-        -QT has many plotting widgets.
-            -Has a designer like GLADE.
-    Done: -WF list all oritals.  Don;t list so many un-occ orbitals.
-        Only in DEBUG mode!?!
-    Done: -Energy levels:
-        List m values [-1 0 1]
-            How:  Merge std::vector<qn> into 3p [-1 0 1]
-                Should have common n,l
-                call qn->Append(os);  just output m?
-            Handled cases where Up (col 1) is degenerate and Dn (col 2) is less/non degen.
-
-    -Get LMax from the periodic table.
-        Done: Used the Atom_EC
-        Add unti test.
--Plotting:
-        Done: Charge density
-            r^2*ro(r)
-            r^2*{ro_up-ro_down}
-        Done: Energy level diagram
-            Use PlotObject2DLine for el lines.
-        Done: Diagonal values plot for BS
-            -SVD: plot SVs
-            -Eigen: plot eigen values
-            -Cholsky: plot diagonal.
-        Done: Y and X axis labels. + graph title.
-            Use UTF
-
-
-    Dirac
-    -Relativistic:
-        https://github.com/drjuls/AMBiT/tree/master/src
-        https://diracprogram.org/doku.php?id=start
-        https://nubakery.org/scf/dhf.html
-        https://github.com/compas/grasp
-        https://github.com/BERTHA-4c-DKS/pybertha
-        Done: -Make some tech notes
-        -Start coding
-            -BasisFunctions
-                Done: -Large: Derive from SGm or SLm?
-                    -Multiply by CG coeffs for spherical spinor components.
-                Done: -Small: Construct from Large.
-                Done: -Quantum number: kappa: can infer j,l.
-                    AtomQN = radial QN * Angular QNs
-                    Done: -Right now AtomQN derived from YlmQN
-                    DOne: -Try AtomQN {n,QN* Anglular}
-                    Clean up LMax (multiple places)
-                        -LMax for electron configurations should be 3
-                        -LMax for basis sets/functions can be >3
-                    Fix up GetN for O_kmj.
-                -BasisSet
-                    Done: -Slater_mj,  SG_mj
-                    Done: -Loop over kappa
-                    Done: -How to arrange L/S basis functions?
-                        Have Dirac::IrrepBasisSet hold 
-                            Slater_mj::LargeBasisSet ={gL1,gL2,gL3...gLN}
-                            Slater_mj::SmallBasisSet ={gS1,gS2...gSN}
-                            Have Dirac::IntegralEngine manage the matrix build.
-                Done: -IECLient
-                Done: -Integral engine
-                    Done: -Need a cross Kinetic integral calculator:  K(a,b) where a is a large BS, b is small.
-            -Hamiltonian
-                Done: -Dirac K, Ven
-                Done: -How to enforce Basis set is correct for H?
-                    No: -bool Relativistc() const=0 member for BS and H interfaces?
-                    Done: -Dynamic cast from Orbital_IBS to Orbital_RKB_IBS
-            No: -Wave function
-                    No: -DiracWF {PolaraizedWF itsLarge, itsSmall}
-                    Done: -L^alpha and S^alpha need to interact for kinetic energy matrix.
-            Done: -Small_IrrepIEClient::Norm() copies the kinetic code from Slater::IE ... ho to share?
-        -Factors of 2
-            Done: -Exchange
-                K_LSLS should be Matrix, not SMatrix
-                We need a non symmetrix version of ERI4
-            No: -Don't renormalize gS, make gS=1/(2*c)*OP*gL
-                Should be able to remove -2* for kinetic matrix, and 0.5* for energy.
-                This one could get messy. Commit first for easy back out.
-            Bunk: -Confirm (debunk) theory:
-                the so call centrifugal part of the kinetic enegry l*(l+1)*(d/dr)*2
-                should use the l corresponding to -kappa not the radial l.
-                -This idea is flawed
-
-    -use map hints for caches
-        No such thing as map::hint for finding iterators.
-
-    No: -ID, streaming
-        -Use cereal.
-        1) Test boost::serialization, does it work for shared pointers???
-            Looks like yes, can std::shared_ptr in the headers.
-        -We need a non-streamable UniqueID for caching GaussianCD amd RNLM objects.
-        -Get rid of ALL the old Read/Write.  Put (intrusive>?) boost::serialization code in one place.
-        -What about pretty output?
-        -boost::serialization of OML objects.
-        -Also consider cereal.
-        -Does UniqueID really need to enforce Read/Write?
-        Tightly couple with Streamable which is tightly coupled with
-        the Read/Write functions throughout.
-
-    Fixed: -Fix valgrind errors
-        Seeing 1 errors related open MP
-        Atom mesh leaks.  Should own radial and angular meshes?
-
-    No: -Do something about the oml/imp includes.
-        -Move to cereal which does binio.
-        -Include binio in stream.h?
-        -Move stream up from imp.
-
-    No:-ROHF for one open orbital.
-        -Polarized HF with m splitting basis works just well. Way less complicated.
-        -Need separate list of C and O orbitals in TOrbitals.
-        -Literature makes no mention of Angular integrals and w3j symbols for K integrals.
-        -Need coupling constants for d orbitals.
-        -Understand what ERI4view.Exchange(a,b,c,d) is doing.
-
-    Done: -Clean up Atom_EC::GetBreadown so that full shell system (He, Ne..) get ml_paired instead of just ml_unoccupied
-    Done: -Fix polarized orbital output for Ylm basis sets.
-    Done: -Get rid of SCFIterationParams::kT
-    Done: -Re-imagine Ylm basis sets.
-        Based on electron config only *two* Irreps one for occupied and one for unoccupied.
-        Each would be merge of Nocc or Nunocc m values.
-        Ak and Rk would need to be avaraged or summed accordingly.
-        For example for Boron
-            Y_{1,-1} for occupied
-            0.5*(Y_{1,0}+Y_{1,1}) for un-occupied.
-        A simpler starting point is for all non-valance l's to be Yl
-        Done: Handle full m list more efficiently
-            Use (2*la+1)*(2*lc+1)*Ak(la,lc)
-            Do the la and lc parts factor?
-                For coulomb yes, for exchange no
-    Done: -Clean up Atom_EC and Ylm::GetN
-
-    Done: -Separate UniquesID from streaming
-    Done: -Set up a CMake build.  Run from vscode.
-    Done: -Use std::vector<std::unique_ptr<T> > preferrable to optr_vector<T*>
-    Done: -Make a derived FitBasisSet->IrrepBS<real> which has all the extra needed just for fitting.
-        -This would require separate derived classes like FitSGIrrepBasis derived from both SGIrrepBasis
-        and FitBasisSet.
-        -It can have a separate DB since no 4C integrals are required.
-    Done: -Get rid of HeapDB<T>::operator==(const IntegralDataBase<T>& idb) const
-    -Total energy
-        Fixed -Calculated in  SCFIteratorImp::DisplayEnergies
-            and then re-calculated in SCFIteratorImp::Iterate
-            DisplayEnergies should just return E_total
-        Fixed: -Total energy should not redo ERI4 contractions.
-            Need to fix the bug below: Dynamic_HT caching bug for DFT with >1 irrep
-    -Ham reorg
-        Fixed: -Fix Dynamic_HT caching bug for DFT with >1 irrep.
-        Done: -Support no cd guess to init SCF proc.
-    Fixed: -BSm basis fails for f-electrons (BS is fine)
-        Also struggles for Z=21,37,53 but these are history depenedent
-        Suggest a memory leak
-
-    Done: -Does Spin need to be a class.  Just use the enum directly ... and make some helper functions like GetDegeneracy(s), etc.
-    Done: -ro relax starts at 0.5
-        Show ro relax in output
-    Done: -ElectronContainer just adds confusion.  Merge into Orbital
-    Done: -Some Orbital functions can be implemented at the Orbital level ... they just call virtual functions.
-    Done: -Set up IE_Primatives interface for each basis set radial type.
-        Done: Use an IE_Primatives* at the AtomIE level for all integrals.
-        Done: Then move more basis set code down to the AtomIE level.
-        How to make this work with something like BSpline basis which does not use
-            exponential/exponents?
-            - IE_Primatives should mostly calculate tables of integrals S_ab, T_ab, V_ab.
-            - Is this just the old IE interface re-appearing?
-    Done: TOrbital iterators?
-    Done: -Add BSpline basis sets.
-        https://okruz.github.io/BSplinebasis does everything we need ...
-            except that the spine order is hard coded.
-                std::vector<std::array<T, ARRAY_SIZE>> _coefficients;
-                This is so that the package can do compile time recusron for efficiency
-            May have to hard code k=5,6,7,8,9
-                Instance in one file
-                If we instance K=9, does this automatically create instances for K=8,7,...,0 ?
-                    Inside BSplinebasis maybe yes.
-                    But qchem template would not recurse unless we set up that way.
-                        Specialize K=0 to stop recusrion.
-        Done: IE.C
-            Done: fix loop ranges to exclude splines that do not overlap.
-            Done: Need another BFGrouper for splines, can we make an op< for splines?
-                Could properly sort based on 
-        Done: BF how to take derivative of spline?
-        No: Need to make a static list of H kinetic operators for L=0,1,2,3,4
-            Separate out centrifugal term instead.
-        Done: Ylm BSplines
-        No: Use radial mesh interface for knot generation
-            Implement Qiu's mesh
-            1+1/h where h=2^m for exact float representation,  Now Rmax is not fixed.
-            The radial mesh framework stores a weight for each node.  Spline breakpoins have no weight.
-        Rk
-            Done: Cache diagonal GLQ grids.
-            Done: Optimize/inline intpow.  Not much effect.
-            Done: -Do some profiling.
-                spline::op(r) is the hot function.
-        Done: Instance a fixed list K values
-            How to make a map instances: https://softwareengineering.stackexchange.com/questions/390927/c-design-pattern-for-template-instantiation-based-on-run-time-information
-    Done: -ptr_vector
-        -Stop using.
-            Done: BasisSet
-            Done: Irrep_BS
-            Deon: Orbital
-            Done: Polarized Gaussian
-                Done: Irrep_BS::blocks
-                Done: ContractedGaussianH3 H3s
-                Done: GaussianCD
-                Done: Composite_CD
-            Done: Molecule
-            Done: Hamiltonian
-        Done: -Try std::vector<std::shared_ptr<T>>
-        Done: -What about iterators?
-        Done: -Retest with valgrind.
-            -Perfectly clean with -pg and -fopenmp off
-            -with pg back on All leaks are from libfortran and gmon
-    -Valgrind reporting problems in TOrbitalsImp
-        Invalid read of size 8
-            ==150119==    at 0x4E7B5F: dynamic_cast_iterator<Orbital*, TOrbital<double>*>::operator++(int) (ptr_vector.h:97)
-            ==150119==    by 0x4E7780: TOrbitalsImp<double>::CalculateDensityMatrix() const (TOrbitals.C:112)
-        Address 0x6509e00 is 0 bytes after a block of size 32 alloc'd
-            ==150119==    at 0x4846FA3: operator new(unsigned long) (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
-            ==150119==    by 0x4E8DDE: std::__new_allocator<Orbital*>::allocate(unsigned long, void const*) (new_allocator.h:151)
-            ==150119==    by 0x4E8B81: allocate (alloc_traits.h:478)
-            ==150119==    by 0x4E8B81: std::_Vector_base<Orbital*, std::allocator<Orbital*> >::_M_allocate(unsigned long) (stl_vector.h:380)
-            ==150119==    by 0x4E87D9: void std::vector<Orbital*, std::allocator<Orbital*> >::_M_realloc_append<Orbital*>(Orbital*&&) (vector.tcc:596)
-            ==150119==    by 0x4E842E: Orbital*& std::vector<Orbital*, std::allocator<Orbital*> >::emplace_back<Orbital*>(Orbital*&&) (vector.tcc:123)
-            ==150119==    by 0x4E7DD8: std::vector<Orbital*, std::allocator<Orbital*> >::push_back(Orbital*&&) (stl_vector.h:1301)
-            ==150119==    by 0x4E7120: TOrbitalsImp<double>::UpdateOrbitals(Hamiltonian&, DM_CD const*) (TOrbitals.C:95)
-        Done: 1) Switch from optr_vector1<Orbital*>  itsOrbitals; to std::vector<std::shared_ptr<Orbital>>
-        Done: 2) Make a proper dyn-cast iterator.
-    Done: Refactor iteratorproxies for BasisSet ad Orbitals.
-        Inherit from a template?
-
-    Done: -For kinetic energy split up grad^2 and centrifugal parts.
-        -This is atom specific, does not ally to pol. Gaussians.
-        Done: -Rename primative interals:
-            Inv_r2 <a|1/r^2|b>
-            Inv_r1 <a|1/r|b>
-        centrifugal =l*(l+1)*Inv_r2(a,b)
-        nuclear = -Z*Inv_r1(a,b)
-        grad2=<a|d^2/dr^2|b>
-        Also need a MeshIntegrator::Inv_r2 for the centrifugal term for 
-
-    Done: -Get rid of AtomQN.
-    Done: -Support LAPack::Cholsky.
-    Done:-Need a more elegent version of
-        std::pair<int,int> GetN(const int (&N)[4], const int (&Nv)[4], int NUnpaired) const=0;
-        Perhaps: ValanceConfiguration GetN(const ElectronCOnfiguration&) const=0
-    No: Move symmetries and EC classes into Atom and Molecule sections of Basis Set?
-        Not sure where to put these.  Outside of basis sets we have:
-            Atom_CL, Atom_EC Spherical_Sym
-
-    Done: -TOrbitalImp<T>::MakeEnergyLevel(const Spin& s) does not need the spin.
-    Done: -Plot Orbitals
-        Done: Use ScalerFunction interface.
-            Add valarray op()(valarray x)
-        No: Use VectorFunction interface for TOrbitals.
-            Add vector<valarray> op()(valarray x)
-        Done: TOrbitals are selected from the WF based on Irrep (which includes spin)
-            We need a way to get a vector<Irrep> of allowed Irrep
-            BS can supply a vector<const Symmetry*> which is spin agnostic.
-                PolWF and UnPol-WF would need to add the spin aspect.
-        How to plot orbitals
-            Done: For UnPol plot
-                1) Change line colour based on symmetry/Irrep
-                2) Change line style (dashed dots etc) based principle QN
-                3) Make unocc orbital 40% transparant
-            Done: For Pol orbitals
-                No -Easy solution is to just make two separate charts, but that hides the delta
-                No-Three charts {up,dn,up-down} (Seomtimes the HOMO orbtial will occ for spin up and un occupied for spin down)
-                No -Two charts {0.5*(up+dn),0.5*(up-down)}
-                Done: -Use lines for spin up and dots for spin down.
-            Done: Steps
-                Done: 1) Get vector<const Symmetry*> from BS
-                Done: 2) Request orbitals using 
-                    UnPol Irrep(Spin::None,sym)
-                    Pol Irrep(Spin::Up,sym) Irrep(Spin::Down,sym)
-                Done: 3) Choose a x (really r) mesh: Linear or Log valarray<double> 
-                Done: 4) Use VectorFunction vector<valarray> op()(valarray x)
-                Done: 5) Make Pol and UnPol versions of OrbitalPlotWindow = Orital_PW
-                Done: 6) HamFrame has Pol check box, so it can return correct type?
-        Done: Clear Notebook
-
-
-    Done:-Rethink WaveFunctions
-        -WaveFunctionGroup should have 
-            map<QN,IrrepWaveFunction*> All
-            map<QN,IrrepWaveFunction*> Up //QNs are all spin up
-            map<QN,IrrepWaveFunction*> Dn //QNs are all spin dn
-            What about un-polarized?  ust use All list?
-            But what is QN?  
-                QuantumNumber* ?  NO  QNs can get cloned.
-            -Use unordered_map and overload op==(const QuantumNumber*, const QuantumNumber*);
-                COmpile error
-                unordered_map<const QN&,WF*> also does not compile
-            -In order to key on an abstract base.
-            https://stackoverflow.com/questions/50180978/how-to-build-a-map-where-the-key-is-an-abstract-base-class-not-value
-        Done:-Do we still need Pol and UnPol WFs?
-            Yes, but they are ~contructor only classes.
-        Done:-Do we need to do an SCF iter in Initialize?
-            Done: -We should support new orbitals with charge density
-                Results in Hydrogen like orbitals as an initial guess.
-
-    Done: -QNs should contain spin.  Right?
-        Yes
-        Done: -But need to check that exchange integrals work out properly when spin is folded
-            -Exchange requires a restricted sum over spinor-irreps
-        into the Irrep blocking system.
-            -Or put differently does spin interact differently then non-spin symmetry, with exchange interactions?
-        Irrep QNs = IQNs
-            {n,l,ml,ms},    g=1         NR open shell spin-unpaired atom
-            {n,l,ml},       g=2         NR open shell spin paried atom
-            {n,l,ms},       g=2l+1      NR open shell spin-unpaired atom
-            {n,l},          g=2(2l+1)   NR closed shell atom
-            {n,kappa,mj,ms} g=1         Dirac atom
-            {n,kappa,ms}    g=2j+1      Dirac atom
-            {n,chi,ms}      g=1         Molecule
-            {n,chi}         g=2         Molecule
-        -There are three concepts here:
-            1) principle QN: n
-            2) symmetry: Yl, Ylm, Point group
-            3) spin.
-            -For relativistic calculations the spherical spinor combines Ylm and spin.
-             but I think we can still separate out spin.
-        -Basis sets can be characterized by the symmetry part, but no by n,ms
-        -Orbitals are of course characterized by all four QNs for polarized calculations
-            and by n,sym for un polarized calculations.
-            Orbitals should have a Spin.
-        -We only need polymorphism for #2.
-        -Need < op for std::maps<>
-            This requires a hash value. (((n-1)*Nmax+l)*lmax+(ml+l))*lmax+(ms+0.5)
-        -Need op== and MatchType(IQNs_a,IQNs_b)
-        -Store j,mj,ms=n/2 QNs as double or some sort of frac class?
-        -Plan:
-            Done -QuantumNumber -> Symmetryfor brevity and plurality
-            Done -Make a Irrep {ms,l,ml}
-            Done -Make an Orbital_QNs class for {n,IrrepSymmetry}
-            Done -Use OrbitalQNs->ms() instead of Spin s in WF,CD etc.
-            No -Git rid of PolarizedCD
-            No -Get rid of PolarizedWF.
-        Done -I think we need the following associations:
-            -Orbital_IBS has Symmetry = {l,ml} or {kappa} or {chi}
-            -IrrepOrbitals has IrrepQNs = {ms,Symmetry}
-            -Orbital has Orbital_QNs = {n,ms,Symmetry}
-            -Could do IrrepQNs is just and Orbital_QNs with n=0.  But it would be better to
-             use the type system to distinguish.
-            -Are these related by containment or inheritance?
-                Symmetry is polymorphic whihc suggest containment
-                Irrep is not and Orbital_QNs, so again containment.
-        -Do we still need AngularQN (Yes) and AtomQN (No)?
-
-
-    Done: -Break up BasisSet folder
-        Done: Atom
-            radial
-            l
-                Slater,Gaussian,BSpline
-            ml 
-                Slater,Gaussian,BSpline
-            RKB
-                Slater,Gaussian,BSpline
-        Done: Molecule
-            PG
-        Done: Lattice
-            PlaneWave
-
-
-
-
-    Done: -FittedFunctionImp should not be storing  
-        SMat     itsInvOvlp;
-        SMat     itsInvRepl; 
-        Just use the DB caching mechanism.    
-    Done: -We need separate interface for ExactCD as compared to FittedCD.
-        i.e. Exchange(const Orbtial_HF_IBS&) only makes sense for ExactCD.
-    Done: -Move all Hamilton constants out of integral engines
-        Done: factor of 1/2 for kinetic
-        factor of Z (and R) for Ven
-            -Easy for atoms
-            -For molecules This is inefficenet, we only need the sum over centers
-        Done: factors of c for H_Dirac
-    Fixed: -SGm/SLm with f orbitals, K/J tables overlfow memory.  Probably 98% zeros.
-        1) Check view blocks for all zeros.
-        Done: 2) Us a two way cache K[irrep1,irrep2]
-            Done: Need to deal with Diag (ir1==ir2) and non-diag K tables (ir1!=ir2) .
-    Done: -Another round of warning fixes.
-    Done: -Survey use of IrrepBS, Can we use more specific interfaces?
-    Done: -RKBS_IE::Kinetic should call IE_Primatives::Kinetic
-    Done: -SlaterIntegral(alpha,n) includes r^2 in n
-        GaussianIntegral(alpha,n) does not 
-        Harmonize.
-    Done: -Break down integral engines
-        -OneElectron_IE:
-            Overlap
-            Nuclear
-            Kinetic
-        -DFT_IE->OneElectronIE Adds
-            Repulsion2
-            Overlap3
-            Repulsion3
-        -HF_IE->OneElectronIE Adds
-            Direct4
-            Exchange4
-        -Fit_IE
-            ?
-        -Can add more later for observables opertors.
-        Done: -COnjunction with:
-            1) Simplify integral call chain
-            2) Separate FitBasisSet idea.
-    Done: -Use the DB_BS_2E to cache all integrals.
-        -The reorg IE/DB/AtomIE classes so that we don't end up with Kinetic/Nuclear integrals
-         poluting the FIT_IE interface.
-    Done: -Simplify integral call chain
-        -Adding RestMass integral calculation was very labourious.  Call Chain:
-        HamTerm->IrrepBasisSet->IntegralDataBase->IntegralEngine
-        -Should we at least get the basis set out of the call chain?
-        -Reimagine in conjunction with Separate FitBasisSet idea.
-    
-    Done: -Get LAParams out of all the constructors.
-        Use defaults, and have a optional Set() method.
-    Done: -Clean up Dirac/RKB code.
-    Done: -We need a UniqueID pure interface   
-        Also separate from PMStreamable.
-    Done: -Stop using paramaterized Integral() calls.
-    Done: -PG::Fit_BS do we need all that function forwarding?
-    Done: -Make Atom_BS_IE which handles and angular integrals for all atom basis sets.
-    Done: -Need more iterators for BasisSet where dyn casting is done by the iterator.
-        -Use proxy classes 
-            for (auto b:bs->Irreps<TOrbital_IBS<double> >()) 
-    Done: -1) Refactor atom IEs, lots of common code.
-        Done: 2) Then propagate and new ERIJ ERIK code to all atom basis sets.
-        Done: Oops: 3) Compare table sizes before removing old JK code.
-        Done: -Store K_abcd as SMatrix<Matrix> for a!=b and SMatrix<SMatrix> for a==b
-        Done: 4) -Or SMatrix<SMatrix> = 0.5*(K_abcd+K_abcd)
-    Done: -Merge degen levels with diff m QNs.
-        Done: -Also make two column list of levels/occs
-        Done: -Get rid of ElectronDumper.
-        Done: -Merge/sort all levels for a given spin/l  
-    Done: -Upgrade iteration output.
-        Done: -More digits for virial.
-        Done: -Unused columns.
-        Done: -Mixing parameter.
-    Done: -Sort out locations for QN headers
-    Fixed:: -Electron loading problem/buf for Z=55 and up
-        -Until we get point group symmetry working, polarized Gaussians only have one IrrepBasisSet
-        -Broke BasisSet persistence tests. Need to put back 
-            PerRef<IntegralDatabase> int BSImp<T>
-        Yes but only for the gradient, renamed accordingly.
-    No -Dynamically adjust kT ?
-   Done: -SphericalGaussian accept different exponent ranges for each L.
-    - Support SL/SLm/SG/SGm in a systematic manner
-        Done: Common angular code.
-        Common Dab code
-        fk is different.
-        Done: Do Angular integrals in blocks.
-        Steps
-        Done: 1) Separate sums for J K
-            for J do
-                loop ab
-                Ak(l_ab,m_ab), Rk(l_ab,e_ab)
-                  loop cd
-                  Ak(l_cd,m_cd), Rk(l_cd,e_cd)
-                    J=sum(k,Ak(ab)*Ak(cd)*{Rk(ab)+Rk(cd)+})
-        No: 2) Can we cache Ak(ab), Rk(ab) ?  (instead of blocking)
-            Blocking should be more efficient, less map<> lookups.
-        Done: Shareable 4way cache.
-    Done: -Fix Boron.
-        The K integrals appear correct, at least for s & p orbitals in Boron.
-        So why does PG work and SL fails?
-        Because the in the PG basis occupied Px can split from py/pz, and give a small energy gain.
-        For SL it is hard coded as one level with degen=2L+1=3.
-        We would need to introduce the m QN number and allow m splitting, at least for valance shells.
-    -Slater_m next steps now that Boron is working:
-        Done: 1) Clean up data dumps.
-        Done: 2) Get all UTas running again.
-        Done: 3) Refactor out the angular parts with all the w3j symbols
-        Done: 4) Build static wj3 tables using the wigner library.
-        Done: 5) Get d orbitals working
-        6) Try Sc again.
-            Still difficult.  PG nails it.  Need to sort out all the factors of 4*Pi.
-            No: 10) Get 4Pi^2 out of the integral engines.  Why?
-            -Better to completely dis-entangle angular and radial.
-            -Evaluate angular for whole blocks.  Less w3j lookups.
-        Done: 7) Make a SG_m basis set.
-            Done: We could optionally read the exponents and contractions from the BS files.
-        Done: 8) 3C repulsions should call R_k(lalblcld) directly.
-        Done: 9) Stop building zero density matrices.   And definitely don''t bother contracting them!!!
-        11) Check for double calculation of J/K ERIs
-    Done: -Survey Z=2-25
-        Fixed: Big trouble starts at Sc.
-    Done: -Attack Sc problem:
-        1) Review angular integral theory
-        2) Build PolGau BS with only primitives to match SGm exponents.  Look at J/K tables.
-        3) Use libcint for Real-spheric GTOs and check against SGm.
-            https://orbkit.github.io/dev/integrals/libcint.html
-            https://github.com/ValeevGroup/libintx
-        4) Done: Check high Z closed shell atoms.  If these are correct the d/f ERI integrals must be right .. No?
-            SGm/SLm unpolarized *OR* polarized  all get Sr/Ba (38/56) wrong  d^2 instead of s^2 in the valance shell.
-            options:
-            4.1) Simulated anneal occupations with Fermi function.
-            4.2) Electron dumper force s valance electrons
-                For Sc we need to force 4s^2 (E=-0.21) or 3d^1 (E=-0.34) ... or both?
-                
-            4.3) Read in an accurate starting charge density.  (this could get complicated fast)
-        
-    Done: -Mesh code re-write  use pairs of points/weights, also get rid of
-        MeshBrowser 
-        AngularMeshBrowser 
-        RadialMeshBrowser 
-     Done: -Mesh re-org
-        Done: -Support iterators.
-        Done: -Move Mesh.H up to interfaces level.
-        Done: -get <ss|1/r12|ss> working.
-        -Integration is doing two sets of loops
-            1) eval BasisSet(r), loop over rs
-            2) Integrate with weights, loop over ws.
-            -Is better to just do a weighted eval with one loop?
-                The weighted eval should then use the sqrt(W).
-                Not always sqrt(W)!!!  i.e. charge integral.
-        -use size() in VectorFunction<T>
-            Got into a big mess with final overrider.
-        Done: No -Do we really need separate Eval, and EvalGrad functions?
-   -Automate exponents for slater orbitals.  0.5->1.5*Z ?
-        Done: for testing.
-    Done: -Cluster should support CreateMesh
-    Done: -Make final Ham types Ham_HF_U Ham_HF_P, Ham_DFT_U ... etc.
-    Done: -Add A-PG_*_* tests.
-    -STO basis set for atoms.
-        -Type out the integral formulas
-        Done: -Use a static pascal triangle for I_k calculations.
-        Done: -Get maxL=4 working (f g functions)
-            Done: Need to automate the I_k expressions using binomial sum. 
-        -Decouple n=l+1.  i.e. multiple ns for one l.  look up max(n) for a given Z?
-        -One alpha=Z/n basis function, to satisfy the cusp condition.
-        Done: -Start coding the BF/BS/IE classes.
-        Done: -Test the integrals with numerical integrations.
-            Fixed: Numerical repulsion integrals don't give the right numbers.
-    Fixed? -Design FittedPolarizedCD stores pointer, PolarizedCD does not.
-    Done:  Gone -Persistent base doesn't do anything.
-    Done: -Organize headers in the include folder.
-    Done: -Get all headers into include.
-    Done: -Re-org UT class network.  too many classes.
-        Decouple
-            Basis set type
-            H type
-                Some H types need fit basis sets.
-            cluster type
-                Some basis sets only work with atoms
-        Use case:
-    Done: -Sort out Orbital category.  WF should not see OrbImp stuff.
-    Done: -Sort out Ham category.  WF should not see OrbImp stuff.
-    Done: -Sort out CD category.  WF should not see OrbImp stuff.
-        
-        
-    -Done: Clean up factorial wigner 3j table init.  Too many calls.
-   Done: -Use BasisSet interface to create charge and Vxc fitting basis sets.
-    Done: -Drop rc_ptr and use std::shared_ptr and std::unique_ptr.
-        Done: FitFuncImp had shared_ptr for basis set and mesh.
-        Use std:: for Cluster pointers.
-    Done: -Fix all warnings.
-    Done: -Get rid of TwoLPlusOne
-    Done -Do we still nee fast contraction functions?
-    Done: -Design problem:  
-        IrrepWaveFunction creates and hold an rc_ptr<const BasisSet> which is also copied into
-        the Ortbitals object.  Updateing the orbital is done by:
-        TIrrepBasisSetCommon<T>::CreateOrbitals.  But this function cannot just use this to create
-        new orbitals, it needs the original rc_ptr.  Options:
-        1) IrrepWaveFunction does and extra step to inject the rc_ptr.
-            This means Orbital needs and Inject(rc_ptr<>) function.
-    Done -LAParams for InverseOverlap are hard coded right now.  Need to re-org all basis set
-     constructors with 3 versions
-        1) HF orbitals needs LAPArams for secular eq.
-        2) DFT orbitals needs LAPArams for secular eq. and separate set for inversion.
-        3) DFT Vee, Vxc fitting, needs mesh and no LAParams.
-      We will need a null Ortho type for LAParams for assertions.
-    Done: -Cache reports
-    Done: -Experiment with Latex markup for doxygen.  Works great!
-    Done: -DumpScalarData keeps showing up everywhere, do we need it?
-    Done: -IE::MakeInverse should take LAParams as argument.
-    Done: -All templated classes should hold TIrrepBasisSet<T> pointers.
-        Construct only accepts TIrrepBasisSet<T>* ?
-        Test out with IrrepCD and TOrbitals
-    Done: -FittedFunctionImp delete itsMesh crashed.  Who owns the mesh?
-        Good use for rc_ptr.
-    Done: -Break dependency BasisSet-->Orbitals in Build Orbitals.
-    Done: -Clean up fitting code, it is unreadable right now.
-    Done: -We need a different interface for a scaler fit client like Vxc and the charge density
-            which uses D_ij rather than a fit basis.
-    Done: -Invert dependency BasisSet--->Fitted function
-    Done: -TIrrepBasisSetCommon<T>::SetFitOverlap should not be call DoFit,
-        Should do ff->Update(sf);
-    Done: -BasisSet is not an interface.
-    Boring: -BasisSet needs a dynamic cast iterator.
-    Done: -and BasisGroup should really be BasisSet.
-    Done: -Get BasisSet out of BasisSet.
-    Done: -DB GetRepulsion4C(bs_t ab,bs_t cd) return a view
-    Done: -Stop caching RNLM inside GaussianCD
-    Done: -CDCache into its own source files.
-
-    Done: -Use enum Types2C {Overlap2C, Repulsion2C,Kinetic,Nuclear} between DB and IE
-    Done: -Use one set of enums for Types2C {Overlap2C, Repulsion2C,Kinetic,Nuclear}
-
-    Done: -Client code should provide a Mesh* when requesting integrals form the DB.
-    Done: -Eliminate NumerialIE , Caller should supply the mesh.  Heap DB can call integral engine directly.
-    Done: -Client code should not see DB, just ask BS for integrals.
-    Done: -BasisSet should really be IrrepBasisSet, 
-    Done: -HeapDB needs to be for whole basis set not just one irep.
-    Done: -Make sure BasisSet->DB->IE is enforced
-        Done: -This means it takes a BasisSet argument for every call.
-            Done: Break DB--->BasisSet dependence 
-            Done: We will need some reoerg to IE
-                IEClient can access BS data
-                DB holds some sort of group IE
-            
-            
-        Done: -Clean up all the insert nonsense for DB, IE and BS
-    Done: -Integral engine needs a different interface for analytic and numerical.
-    Done: -Do we need indices support optr_vector1<> ?
-    Done: -It seems we need a separate HeapDN for each basis set.  Make something more general
-        enum type={Kinetic,Nuclear,Charge,Normalization,Overlap2C,Repulsion2C,Repulsion3C,Repulsion4C,Exchange4C,InversOverlap2C,InverseOverlap2C};
-        map<{BasisID1,BasisID2,type},SMat>
-        map<{BasisID1,BasisID2,type},Mat>
-        map<{BasisID1,BasisID2,type},Vec>
-        map<{BasisID1,BasisID2,type},ERI3>
-        map<{BasisID1,BasisID2,type},ERI4>
-        BasisID2=0 for one BS integrals.
-        Handle swaps of BS 1 and 2?
-    Done: -Reorg:  Do this on a branch!!!
-        -Break dependence of IntegralEngine on BasisSet.
-            Done: -For SG, IE gets a table of {alpha,L}
-            -For PG, IE gets a table of {alpha,[l,m,n]}
-            -For PCG , IE gets a table of {[alpha],[l,m,n]}
-                -cache Charge distributions
-                -cache RNML tables
-    Done: -Instancing in one file: 
-        IntegralEngine.C
-        IntegralDataBase.C
-    Done: -DFT stop using InverseOverlap ... use SVD solver or something more stable.
-        Done: HeapDB is doing the inversion.  It has no business doing this.  Should be 
-        moved to IE.  But HeapDB caches the overlap.
-    Done: -Support std::vector std:;set streaming
-    Done: -Migrate from OML Array<T> to std::vector<T>
-    Done: -Migrate from OML List<T> to std::vector<T>,set<T>
-    Done: -Range based iterators for ptr_vector and optr_vector.
-    -Get rid of 
-        Done OrbitalGroupIterator 
-        Done OrbitalGroupBrowser 
-        
-        Done: BasisGroupBrowser
-        Done: BasisSetBrowser
-            Do we need iterator?
-        Done: ClusterBrowser 
-            Do we need iterator?
-    -Done: Make a dynamic_cast iterator for optr_vector1, then get rid of
-        Done TOrbitalGroupBrowser requires a dynamic cast iterator
-        Done: TBasisSetBrowser requires a dynamic cast iterator
-
-    -Instancing in one file: 
-        Done: TBasisFunction.C
-        Done: TBasisSet.C
-        Done: TOrbital.C
-    Done -Reorg SCFIterator and EigenSolvers  ->Rename LASolver
-    Does OML eigen/SVD have a hard coded eps?
-    Done: -Remove BasisSet.C PASolver.C QuantumNumber.C  ExFunctional.C
-        Hamiltonain.C
-        HamiltonianTerm.C
-        Cluster.C
-        Orbital.C
-        PolarizedWF.C 
-        FittedCD.C
-    Done: -Set up LAParams and feed in BasisSetImp
-        -tol for basis set orthogonalization
-        -Linalg package Pkg=OML or Lapack
-        -Basis set ortho method Ortho=SVD,Eigen,Cholsky
-        -Eps for Eigen convergence.
-        
-    Done: -0 Need SCFConverge struct store
-        -kT for thermal spreading of valance electron occupancies.
-        -relax for Ro update.
-        -epsRo minimum delta Ro
-        -NMax maximum SCF iterations.
-        -smear?  Same as kT?
-    Done: -0.1 remove eps from Lapack SVD code,  not used!
-    Done: 1 Need a way to feed tol, Lapack-eps, Pkg, Ortho enums into BasisSetImp or feed the solver in.
-        Done: What is Lapack-eps?  Convergence?
-    Done: -2 use 1 to make some UTs with all supported combos
-    Done: -3 Use 2 to Harmonize Truncate routine for OML/Lapack SVD
-    Done -Make a trim function to weed out small SV and EV solutions.  This will reduce
-    Done: -Switch from ptr_vector to ptr_vector1.
-    Done: -Start using optr_vector1 which is vastly simpler.
-    Done -Fix all signed unsigned comparisons.
-    Done: -Stop using ! for vector norm.
-
-    Done: Import LAPACK code into oml and add to unit tests.
-        Done: -Eigen dense symm
-        -Eigen dense non sym
-        -SVD dense
-        -Linear system dense
-        -Do we need sparse?
-    Done: -Add some tests for IO of basis sets, waved functions, hamiltonians.
-    Ansewred: -Way do we need default constructos for basisSet, Clusters, hamiltonians.
-        Unpickle;
+     BUG: Investigate why BSpline integral tests are so inaccurate for l>0.
+        Happens when splines are too closely packed.  (even though overlap is nowhere near singular)
+    BUG: 2 center repulsion for atoms with l>0 might be wrong.  Does 2*la, should be 1*la
+        Affects CD fitting for l>0
+        Maybe just do not support l>0 ?
+    -Bug: Multiple/A_PG_DFT_P.Multiple/3 (8119 ms)
+        wrong occ/degen in spin down column.
+
+        Bugs
+    -Check BSpline_IBS_Evaluator copy constructor, seems to increase size.
+    -BUG: A_Pool.C TEST_P(A_HF_U,SlaterHFGroundStates) with Z={2,70}
+        Iteration count changes depending on history (with or without doing Z=2 first)
+            Z={2,70}
+#569639│ │   7  -13384.679047495079  7.2e-04 -2.2e+01 8.0e+01 3.0e+00   2    1.6e-01              0.80 
+#569639│ │   8  -13391.423364152806  1.0e-03  9.5e-01 1.6e+01 4.0e+00   3    8.7e-01              1.00 
+#569639│ │   9  -13390.326320096632  1.7e-03  2.5e-01 1.2e+01 4.2e+00   4    3.1e-01              0.80 
+#569639│ │  10  -13389.982256369474  2.8e-04  3.7e+00 9.5e+00 7.9e+00   4    8.7e-02              0.64 
+            Z={70}  same up to iteration #8 then 
+#569817│ │   9  -13390.344948675369  2.1e-03 -3.3e-01 1.2e+01 3.6e+00   4    1.4e-01              0.80 
+#569817│ │  10  -13391.370281448179  1.7e-03  4.7e+00 2.4e+00 8.4e+00   4    4.3e-02              1.00 
+            -Fixed all memory leaks with valgrind (Cache4), no effect.
+            -{70,2} passes, He (or Ne)  is unaffected by doing 70 first.
+            -Debug and Release are the same. 

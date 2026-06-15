@@ -43,3 +43,7 @@ old/PlaneWave/PlaneWaveBF.C
 old/PlaneWave/PlaneWaveBS.C
 
 old/PlaneWave/PlaneWaveIE.C
+
+submodules/blaze
+
+submodules/wignerSymbols

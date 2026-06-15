@@ -1,0 +1,108 @@
+Notes:        
+    
+        -Saito paper conclusions
+        1) 50 basis functions, r={0.003...40} is enough for Z=1-92
+        2) phi(r)=sum{Bi}, and phi(r)=1/r * sum{Bi} both work
+        3) Z=1-56 K=9 vs K=6: K=6 give faster and lower HF energies.
+        4) Z=1-56 phi(r)=1/r option gives slighty better results for K=6.
+        5) Z=92: 
+
+      
+    -Relativistic:
+        https://github.com/drjuls/AMBiT/tree/master/src
+        https://diracprogram.org/doku.php?id=start
+        https://nubakery.org/scf/dhf.html
+        https://github.com/compas/grasp
+        https://github.com/BERTHA-4c-DKS/pybertha
+    -Plane waves:
+        https://docs.dftk.org/stable/guide/periodic_problems/#periodic-problems
+   -Play around with plane wave basis sets
+        -Make some UTs for the lattice class.
+        -Intros:
+            https://extras.csc.fi/chem/courses/cpmd/tue/lecture-pw_pp.pdf
+            exchange tyerm: https://physics.iisc.ac.in/~aveek_bid/wp-content/uploads/2019/07/Lecture-11-Hartree-Fock-Screening-Electron-phonon-interaction-etc..pdf
+            https://github.com/ifilot/pypwdft
+        -Make a basis set
+            -k is wave vector in the BZ.,  G is a RL vector.
+                One G for each basis function
+                One k for each irrep.
+            -Basis set is constructed from a finite Lattice object
+                ivec3_t N=(Nx,Ny,Nz) decide the BZ grid {k}
+                    each k_i is an irrep.
+                We also need a reciprocal lattice grid {G}
+                    All G_i such that G_i^2 = G_i*M*G_i < Emax;
+                        M is the inverse metrix tensor.
+            -We need to get off the ground *without* pseudo potentials.  Possible sequence:
+                1) PW basis, 1E Hamiltonian Need Kinetic and Ven(k+G,k+G')  matrix elements.
+                2) 1 + Hartree term Vee(k+G,k+G'), using a fitted CD(ro_fit)
+                3) 2 + fitted Vxc(ro) term
+                4) Augmented PWs
+                5) FLAPW
+                6) GPW https://manual.cp2k.org/trunk/methods/dft/gpw.html
+
+                Need to figure out where FFTs need to go.
+                Hydrogen lattice test case?
+            -How to figure out k symmetry for lattice structure?
+                Identify the non-redudant k simplex and assign multiplicites for each k.
+                https://journals.aps.org/prb/abstract/10.1103/PhysRevB.13.5188
+        -Nice to have reference like Wien2k, elk
+                https://elk.sourceforge.io/ potentially usefull subroutines:
+                    findprimcell,  findsymcrys, findsym, findsymlat, gaunt, gengkvec, gengvec, genvcl1223, genylmv, sbessel, sphcover
+                    vecfbz, wigner3j
+                    gridsize: Finds the G-vector grid which completely contains the vectors with G < Gmax and is
+                            compatible with the FFT routine.
+                    init1: Generates the k-point set
+                    nfftifc: This routine returns the next largest grid size allowed by the FFT routine.
+                    Just reading the descriptions for these is useful.
+
+                https://manual.cp2k.org/trunk/methods/dft/index.html
+                https://ifilot.github.io/pypwdft/background.html
+   -openmp
+        -Try unrolling the irrep loops 
+        -Use particla sums
+            https://curc.readthedocs.io/en/latest/programming/OpenMP-C.html
+            int partial_Sum, total_Sum;
+            #pragma omp parallel private(partial_Sum) shared(total_Sum)
+            {
+                partial_Sum = 0;
+                total_Sum = 0;
+
+                #pragma omp for
+                for(int i = 1; i <= 1000; i++){
+                    partial_Sum += i;
+                }
+
+                //Create thread safe region.
+                #pragma omp critical
+                {
+                    //add each threads partial sum to the total sum
+                    total_Sum += partial_Sum;
+                }
+            }
+    -What can we use from boost:
+        -Filesystem
+        -Flyweight for GaussianCD s?
+        -Foreach looping
+        -iostream state saver.
+        -iterator
+        -Logging
+        -Multi-index containers
+        -MySQL
+        -Pointer container, poly-container
+        -Program options
+        -Python interface generation.
+        -Range 
+        -uBlas,
+        -units
+        -Uuid
+            
+    
+    
+    
+
+
+
+
+
+
+

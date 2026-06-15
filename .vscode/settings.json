@@ -23,8 +23,20 @@
         "**/.vs": true,
         "**/.git": true,
         "${workspaceFolder}/submodules": true,
-        "${workspaceFolder}/build": true,
+        "${workspaceFolder}/build": true
     },
+    
+        "git.ignoredRepositories": [
+        "submodules/wignerSymbols",
+        "submodules/blaze",
+        "submodules/BSplinebasis",
+        "submodules/tabulate",
+        "submodules/googletest",
+        "submodules/json",
+        "submodules/libxc",
+
+        ]
+    ,
     "C_Cpp.exclusionPolicy": "checkFilesAndFolders",
     "files.associations": {
         "*.C": "cpp",
