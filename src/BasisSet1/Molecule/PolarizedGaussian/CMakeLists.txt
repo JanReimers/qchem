@@ -1,5 +1,6 @@
-target_sources(qcMolecule_BS1 PRIVATE 
+target_sources(qcMolecule_BS1 PRIVATE
 Imp/BasisSet.C
+Imp/Symmetry.C
 Imp/IrrepBasisSet.C
 Imp/Fit_IBS.C
 Imp/Orbital_IBS.C
@@ -22,9 +23,10 @@ Radial/GaussianCD.C
 Radial/Imp/ContractedGaussianRF.C
 Radial/Imp/GaussianRF.C
 )
-target_sources(qcMolecule_BS1 PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
+target_sources(qcMolecule_BS1 PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Internal/PGData.C
     BasisSet.C
+    Symmetry.C
     RadialFunction.C;
     Reader.C
 
