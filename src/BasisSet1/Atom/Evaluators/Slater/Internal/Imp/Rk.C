@@ -5,7 +5,7 @@ module;
 #include <blaze/Math.h>
 
 module qchem.BasisSet.Atom.Evaluators.Slater.Internal.Rk; 
-import qchem.BasisSet.Atom.Evaluators.IBS;
+import qchem.BasisSet.Atom.Evaluators;
 import qchem.BasisSet.Atom.Internal.PascalTriangle;
 import qchem.Math;
 

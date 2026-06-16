@@ -4,7 +4,7 @@ module;
 #include <bspline/Core.h>
 
 export module qchem.BasisSet.Atom.Evaluators.BSpline.Internal.Common;
-export import qchem.BasisSet.Atom.Evaluators.IBS;
+export import qchem.BasisSet.Atom.Evaluators;
 export import qchem.BasisSet.Atom.Evaluators.Internal.NR_Angular;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.Rk;
 

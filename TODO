@@ -127,7 +127,7 @@ Upgrade existing features:
         -Evaluator Getl() returns int instead of size_t OK?
         -Evaluator virtual inherit VectorFunction?
             Demands and overrider
-        -qchem.BasisSet.Atom.Evaluators.IBS; --> qchem.BasisSet.Atom.Evaluators;
+        -qchem.BasisSet.Atom.Evaluators; --> qchem.BasisSet.Atom.Evaluators;
         -Sort out all the atomic concepts and then how to combine them
             is_NR_Angular, is_RKB_Angular for the angular parts.
         -RadialType and Name are the same?

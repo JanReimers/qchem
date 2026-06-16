@@ -15,7 +15,7 @@ import qchem.BasisSet.Orbital_1E_IBS;
 import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.BasisSet.Orbital_HF_IBS;
 import qchem.BasisSet.Internal.DB_Cache;
-import qchem.BasisSet.Atom.Evaluators.IBS;
+import qchem.BasisSet.Atom.Evaluators;
 import qchem.BasisSet.Atom.Evaluators.Concepts;
 import qchem.BasisSet.Internal.Cache4;
 import qchem.Symmetry.Factory;
@@ -30,7 +30,7 @@ namespace Atom
 //
 //  Common IrrepBasisSet functionality for atom basis sets.  All the work is done by the evaluator
 //
-template <isGeneric_Evaluator E> class IrrepBasisSetImp
+template <isOpr_Evaluator E> class IrrepBasisSetImp
     : public virtual BasisSet::IrrepBasisSet<double>
     , public virtual IrrepBasisSet_IDs
     , public BasisSet::IrrepBasisSetImp<double> //Pulls in Symmetry support

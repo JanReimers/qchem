@@ -8,7 +8,7 @@
 
 import qchem.BasisSet.Atom.Evaluators.Gaussian.IBS;
 import qchem.BasisSet.Atom.Evaluators.Internal.Rk;
-import qchem.BasisSet.Atom.Evaluators.IBS;
+import qchem.BasisSet.Atom.Evaluators;
 
 import qchem.BasisSet.Atom.Internal.Wigner3j;
 import qchem.Constants;

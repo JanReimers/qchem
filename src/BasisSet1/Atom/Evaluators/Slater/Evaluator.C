@@ -142,7 +142,6 @@ public:
     using Radial::l;
 };
 
-static_assert(isGeneric_Evaluator<NR_Evaluator>);
 static_assert(is1E_NR_Evaluator     <NR_Evaluator>);
 static_assert(isFit_Evaluator    <NR_Evaluator>);
 static_assert(isDFT_Evaluator    <NR_Evaluator>);
@@ -194,7 +193,7 @@ private:
     rvec_t eval(const rvec3_t&) const;
 };
 
-static_assert(isGeneric_Evaluator<RKBS_Evaluator>);
+static_assert(isOpr_Evaluator<RKBS_Evaluator>);
 //static_assert(is1E_Evaluator     <RKBS_Evaluator>);
 // static_assert(isDFT_Evaluator    <RKBS_Evaluator>);
 static_assert(is1E_RKBS_Evaluator   <RKBS_Evaluator>);

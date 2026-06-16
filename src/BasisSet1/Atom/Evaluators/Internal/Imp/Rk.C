@@ -2,7 +2,7 @@
 module;
 #include <cassert>
 module qchem.BasisSet.Atom.Evaluators.Internal.Rk;
-import qchem.BasisSet.Atom.Evaluators.IBS;
+import qchem.BasisSet.Atom.Evaluators;
 
 bool Rk::isSupported(const Cache4_Client* cl) const
 {

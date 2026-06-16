@@ -3,7 +3,7 @@ module;
 #include <vector>
 #include <iosfwd>
 #include "forward.H"
-export module qchem.BasisSet.Atom.Evaluators.IBS;
+export module qchem.BasisSet.Atom.Evaluators;
 export import qchem.BasisSet.Atom.Evaluators.Internal.ExponentGrouper;
 export import qchem.BasisSet.Internal.ERI3;
 export import qchem.Symmetry.Irrep;

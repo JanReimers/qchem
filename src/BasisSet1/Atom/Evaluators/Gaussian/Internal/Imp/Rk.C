@@ -6,7 +6,7 @@ module;
 #include <blaze/Math.h>
 module qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.Rk; 
 import qchem.BasisSet.Atom.Internal.PascalTriangle;
-import qchem.BasisSet.Atom.Evaluators.IBS;
+import qchem.BasisSet.Atom.Evaluators;
 import qchem.Math;
 
 using std::cout;

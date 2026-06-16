@@ -3,24 +3,25 @@ module;
 #include <concepts>
 export module qchem.BasisSet.Atom.Evaluators.Concepts;
 export import qchem.BasisSet.Atom.Evaluators.Internal.ExponentGrouper;
-import qchem.BasisSet.Atom.Evaluators.IBS;
+import qchem.BasisSet.Atom.Evaluators;
 import qchem.BasisSet.Internal.Cache4;
 import qchem.Types;
 
 export namespace BasisSet::Atom::Evaluators
 {
 
-template <class E> concept isGeneric_Evaluator = requires (E e,size_t i, size_t j, const rvec3_t& r)
+// We probably want all evaluators to support this for plotting and numerical integration unit tests.  
+// But to get a ground state calculation this is only required for DFT and Fit evaluators.
+template <class E> concept isOpr_Evaluator = requires (E e,size_t i, size_t j, const rvec3_t& r)
 {
+    e.operator()(r);
+    e.Gradient  (r);
+};
+
     // {e.size()} -> std::same_as<size_t>;
     // {e.maxSpan()} -> std::same_as<size_t>;
     // {e.indices()} -> std::same_as<iv_t>;
     // {e.indices(i)} -> std::same_as<iv_t>;
-    e.operator()(r);
-    e.Gradient  (r);
-    // e.Norm     (i);
-};
-
 
 template <class E> concept is1E_NR_Evaluator = std::derived_from<E, Evaluator> && requires  (E e,size_t i, size_t j, const rvec3_t& r)
 {
@@ -33,7 +34,7 @@ template <class E> concept is1E_NR_Evaluator = std::derived_from<E, Evaluator> &
 
 
 
-template <class E> concept isFit_Evaluator = std::derived_from<E, Evaluator> && requires  (E e,size_t i, size_t j, size_t ic)
+template <class E> concept isFit_Evaluator = std::derived_from<E, Evaluator> && isOpr_Evaluator<E> && requires  (E e,size_t i, size_t j, size_t ic)
 {
     e.Norm     (i);
     e.Charge   (i);
@@ -41,7 +42,7 @@ template <class E> concept isFit_Evaluator = std::derived_from<E, Evaluator> && 
     e.Repulsion(i,j);
 };
 // Support 3C Overlap and Repulsion for DFT.  This is NR/RKB agnostic.
-template <class E> concept isDFT_Evaluator = std::derived_from<E, Evaluator> && requires (E e,size_t i, size_t j, size_t ic)
+template <class E> concept isDFT_Evaluator = std::derived_from<E, Evaluator> && isOpr_Evaluator<E> && requires (E e,size_t i, size_t j, size_t ic)
 {
     e.Overlap  (i,j,e,ic); 
     e.Repulsion(i,j,e,ic);

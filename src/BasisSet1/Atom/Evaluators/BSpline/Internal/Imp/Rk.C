@@ -7,7 +7,7 @@ module;
 #include <cassert>
 #include <bspline/Core.h>
 module qchem.BasisSet.Atom.Evaluators.BSpline.Internal.Rk;
-import qchem.BasisSet.Atom.Evaluators.IBS;
+import qchem.BasisSet.Atom.Evaluators;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.GLQuadrature;
 
 using std::cout;

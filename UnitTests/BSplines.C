@@ -12,7 +12,7 @@ import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.GLQuadrature;
 import qchem.BasisSet.Atom.Evaluators.BSpline.IBS;
 import qchem.BasisSet.Atom.Evaluators.BSpline.IBS_r;
 import qchem.BasisSet.Atom.Evaluators.Internal.Rk;
-import qchem.BasisSet.Atom.Evaluators.IBS;
+import qchem.BasisSet.Atom.Evaluators;
 
 import qchem.Factory;
 import qchem.Mesh.Integrator;
