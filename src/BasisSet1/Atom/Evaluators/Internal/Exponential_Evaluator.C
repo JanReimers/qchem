@@ -4,8 +4,9 @@ module;
 #include <vector>
 #include <blaze/math/views/Subvector.h>
 export module qchem.BasisSet.Atom.Evaluators.Internal.ExponentialEvaluator;
+import qchem.BasisSet.Atom.Evaluators.Internal.Grouper;
 export import qchem.BasisSet.Atom.Evaluators;
-import qchem.Symmetry.Spherical;
+export import qchem.Symmetry.Spherical;
 
 export namespace BasisSet::Atom::Evaluators
 {

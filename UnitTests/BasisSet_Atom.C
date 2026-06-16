@@ -10,7 +10,7 @@ import qchem.Unittests.BasisSetPool;
 import qchem.BasisSet.Atom.Evaluators.Slater.IBS;
 import qchem.BasisSet.Atom.Evaluators.Gaussian.IBS; 
 import qchem.BasisSet.Atom.Evaluators.BSpline.IBS;
-import qchem.BasisSet.Atom.Evaluators.Concepts;
+import qchem.BasisSet.Atom.Evaluators;
 
 import qchem.Mesh.Integrator;
 import qchem.Hamiltonian.Types;

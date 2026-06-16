@@ -16,7 +16,6 @@ import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.BasisSet.Orbital_HF_IBS;
 import qchem.BasisSet.Internal.DB_Cache;
 import qchem.BasisSet.Atom.Evaluators;
-import qchem.BasisSet.Atom.Evaluators.Concepts;
 import qchem.BasisSet.Internal.Cache4;
 import qchem.Symmetry.Factory;
 

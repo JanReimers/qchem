@@ -8,6 +8,7 @@ export import qchem.BasisSet.Atom.Evaluators;
 export import qchem.Symmetry;
 import qchem.BasisSet.Atom.Evaluators.Internal.NR_Angular;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.Rk;
+import qchem.BasisSet.Atom.Evaluators.Internal.Grouper;
 // required by Cache4
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.GLQuadrature;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.SplineGrouper;

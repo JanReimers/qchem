@@ -5,7 +5,7 @@ module;
 export module qchem.BasisSet.Atom.Evaluators.BSpline.IBS;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.Common; 
 import qchem.BasisSet.Atom.Evaluators.Internal.NR_Angular;
-import qchem.BasisSet.Atom.Evaluators.Concepts;
+import qchem.BasisSet.Atom.Evaluators;
 import qchem.Symmetry.Spherical;
 import qchem.BasisSet.Internal.Cache4;
 // import qchem.Symmetry;

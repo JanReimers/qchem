@@ -8,7 +8,6 @@ export import qchem.Symmetry.ElectronConfiguration;
 
 import qchem.BasisSet.Fit_IBS;
 import qchem.BasisSet.Atom.Evaluators;
-import qchem.BasisSet.Atom.Evaluators.Concepts;
 import qchem.BasisSet.Atom.IBS;
 import qchem.BasisSet.Internal.BasisSetImp;
 import qchem.BasisSet.Internal.Orbital_DHF_IBS;

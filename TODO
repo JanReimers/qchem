@@ -138,7 +138,7 @@ Upgrade existing features:
         -Vxc->LDAxc->ExchangeFunctional   Can we get rid of LDAxc?
 
     Atom evulators:
-        -Need to import qchem.BasisSet.Atom.Evaluators.Internal.Grouper; to get generic Grouper
+        Fixed: -Need to import qchem.BasisSet.Atom.Evaluators.Internal.Grouper; to get generic Grouper
         Fixed: -DirectAk and ExchangeAk in Evaluator interface force HF support
         -Evaluator Getl() returns int instead of size_t OK?
         -Evaluator virtual inherit VectorFunction?
