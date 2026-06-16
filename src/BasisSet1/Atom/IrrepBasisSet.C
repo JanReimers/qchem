@@ -18,6 +18,7 @@ import qchem.BasisSet.Internal.DB_Cache;
 import qchem.BasisSet.Atom.Evaluators;
 import qchem.BasisSet.Internal.Cache4;
 import qchem.Symmetry.Factory;
+import qchem.Constants;
 
 export namespace BasisSet
 {
@@ -68,7 +69,7 @@ protected:
         return S;
     }
 };
-template <is1E_NR_Evaluator E> class Integrals_Kinetic
+template <is1E_Evaluator E> class Integrals_Kinetic
 : public virtual BasisSet::Integrals_Kinetic<double>
 {
 protected:
@@ -153,7 +154,7 @@ public:
 //
 //  1E NR orbital for atoms.  Use mixins to get the integral evaluations.
 //
-template <is1E_NR_Evaluator E> class Orbital_1E_IBS
+template <is1E_Evaluator E> class Orbital_1E_IBS
     : public virtual BasisSet::Orbital_1E_IBS<double> //This part has the symmetry.
     , public Integrals_Overlap<E>
     , public Integrals_Kinetic<E>
@@ -220,24 +221,20 @@ protected:
 
 };
 
-template <is1E_RKBL_Evaluator E> class Orbital_RKBL_IBS
+template <is1E_Evaluator E> class Orbital_RKBL_IBS
     : public virtual BasisSet::Orbital_RKBL_IBS<double> 
     , public Integrals_Overlap<E>
+    , public Integrals_Kinetic<E> //Used internally only.
     , public Integrals_Nuclear<E>
 {
 public:
     virtual rmat_t  MakeKinetic(const Orbital_RKBS_IBS<double>& rkbs) const
     {
         auto& ea=dynamic_cast<const E&>(*this);
-        auto& eb=dynamic_cast<const E::RKBS_t&>(rkbs);
+        auto& eb=dynamic_cast<const E&>(rkbs); //The RKBS evaluator should be derived from the RKBL evaluator.
         assert(ea.Getl()==eb.Getl());
-        int l=ea.Getl();
-        rmat_t S(ea.size(),eb.size());
-        for (auto i:ea.indices())
-            for (auto j:eb.indices())
-                S(i,j)= 0.5*(ea.Grad2(i,j,eb) + l*(l+1)*ea.Inv_r2(i,j,eb));
-
-        return S;
+        assert(ea.size()==eb.size());
+        return Integrals_Kinetic<E>::MakeKinetic()/(2*c_light);
     }
     virtual std::ostream&  Write(std::ostream& os) const
     {
@@ -245,7 +242,7 @@ public:
     }
 };
 
-template <is1E_RKBS_Evaluator E> class Orbital_RKBS_IBS
+template <is1E_Evaluator E> class Orbital_RKBS_IBS
     : public virtual BasisSet::Orbital_RKBS_IBS<double> 
     , public Integrals_Kinetic<E>
     , public Integrals_Nuclear<E> //RKBS Evaluator overrides Inv_r1 definition

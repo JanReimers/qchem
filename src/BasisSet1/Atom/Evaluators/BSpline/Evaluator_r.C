@@ -99,9 +99,9 @@ protected:
     std::unique_ptr<GLCache1D> itsGL1D; //We have to hold a pointer, because we don't know grid early enough in the constructor.
 };
 
-static_assert(  isOpr_Evaluator<Evaluator_r<6>>);
-static_assert(is1E_NR_Evaluator<Evaluator_r<6>>);
-static_assert(   isHF_Evaluator<Evaluator_r<6>>);
+static_assert(isOpr_Evaluator<Evaluator_r<6>>);
+static_assert( is1E_Evaluator<Evaluator_r<6>>);
+static_assert( isHF_Evaluator<Evaluator_r<6>>);
 
 
 } //namespace

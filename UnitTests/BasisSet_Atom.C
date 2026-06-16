@@ -27,7 +27,7 @@ using BasisSet::Real_OIBS;
 //
 //  Testing common to all atom basis set evaluators
 //
-template <isNR_1E_HF_Evaluator E> class BasisSet_Common : public ::testing::Test
+template <is1E_HF_Evaluator E> class BasisSet_Common : public ::testing::Test
 {
 public:
     BasisSet_Common() 
@@ -67,7 +67,7 @@ public:
     MeshIntegrator<double>* mintegrator;
     Real_BS* bs;
 };
-template <isNR_1E_HF_Evaluator E> void BasisSet_Common<E>::TestOverlap(double eps) const
+template <is1E_HF_Evaluator E> void BasisSet_Common<E>::TestOverlap(double eps) const
 {
     EXPECT_GT(evals.size(),0);
     size_t index=0;
@@ -86,7 +86,7 @@ template <isNR_1E_HF_Evaluator E> void BasisSet_Common<E>::TestOverlap(double ep
         EXPECT_NEAR(max(abs(S-Snum)),0.0,eps);
     }
 }
-template <isNR_1E_HF_Evaluator E> void BasisSet_Common<E>::TestGrad2  (double eps) const
+template <is1E_HF_Evaluator E> void BasisSet_Common<E>::TestGrad2  (double eps) const
 {
     for (auto ev:evals)
     {
@@ -100,7 +100,7 @@ template <isNR_1E_HF_Evaluator E> void BasisSet_Common<E>::TestGrad2  (double ep
     }
         
 }
-template <isNR_1E_HF_Evaluator E> void BasisSet_Common<E>::TestInv_r1 (double eps) const
+template <is1E_HF_Evaluator E> void BasisSet_Common<E>::TestInv_r1 (double eps) const
 {
     for (auto ev:evals)
     {
@@ -114,7 +114,7 @@ template <isNR_1E_HF_Evaluator E> void BasisSet_Common<E>::TestInv_r1 (double ep
     }
         
 }
-template <isNR_1E_HF_Evaluator E> void BasisSet_Common<E>::TestInv_r2 (double eps) const
+template <is1E_HF_Evaluator E> void BasisSet_Common<E>::TestInv_r2 (double eps) const
 {
     for (auto ev:evals)
     {

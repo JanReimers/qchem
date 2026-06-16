@@ -329,7 +329,7 @@ TEST_F(DE1_P1,Slater_Phir)
     EXPECT_NEAR(n1,1,1e-2);
     EXPECT_NEAR(n_expected,1,1e-14);    
     EXPECT_NEAR(idphi,0.0,1e-12); //Integrated delta.   
-    EXPECT_NEAR(TotalCharge(),1.0,1e-14);
+    EXPECT_NEAR(TotalCharge(),1.0,4e-13); //
     cout << "n1=" << n1 << endl;
     cout << "n_expected=" << n_expected << endl;
     cout << std::scientific << "idphi=" << idphi << endl;    

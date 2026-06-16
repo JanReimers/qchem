@@ -135,11 +135,73 @@ public:
 
 };
 
-static_assert(  isOpr_Evaluator<NR_Evaluator>);
-static_assert(is1E_NR_Evaluator<NR_Evaluator>);
-static_assert(  isFit_Evaluator<NR_Evaluator>);
-static_assert(  isDFT_Evaluator<NR_Evaluator>);
-static_assert(   isHF_Evaluator<NR_Evaluator>);
+static_assert(isOpr_Evaluator<NR_Evaluator>);
+static_assert( is1E_Evaluator<NR_Evaluator>);
+static_assert(isFit_Evaluator<NR_Evaluator>);
+static_assert(isDFT_Evaluator<NR_Evaluator>);
+static_assert( isHF_Evaluator<NR_Evaluator>);
+
+
+
+class RKBL_Evaluator : public RKB_Angular, public Radial
+{
+public:
+    RKBL_Evaluator(size_t N, double emin, double emax, const sym_t& ir)
+        : RKB_Angular(ir)
+        , Radial(N,emin,emax,ir)
+        {}
+    RKBL_Evaluator(const rvec_t& es, const sym_t& ir, size_t ltrim=0)
+        : RKB_Angular(ir)
+        , Radial(es,ir,ltrim)
+        {}
+
+    virtual int Getl() const override {return RKB_Angular::Getl();}
+};
+
+static_assert(isOpr_Evaluator<RKBL_Evaluator>);
+static_assert( is1E_Evaluator<RKBL_Evaluator>);
+static_assert( isHF_Evaluator<RKBL_Evaluator>);
+
+// RKB small-component evaluator: shares Gaussian radial with NR Evaluator.
+class RKBS_Evaluator :  public RKBL_Evaluator
+{
+public:
+    RKBS_Evaluator(size_t N, double emin, double emax, const sym_t& ir)
+        : RKBL_Evaluator(N,emin,emax,ir)
+        {ns=norms();}
+    RKBS_Evaluator(const rvec_t& es, const sym_t& ir, size_t ltrim=0)
+        : RKBL_Evaluator(es,ir,ltrim)
+        {ns=norms();}
+    virtual rvec_t norms() const;
+
+    virtual int Getl() const override {return RKB_Angular::Getl();}
+
+    double Inv_r1(size_t i,size_t j) const
+    {
+        // Small-component nuclear attraction <Q|1/r|Q> with Q=((l+1+κ)/r - 2er)r^l e^-er^2.
+        // The κ-dependent terms (spin-orbit) vanish for j=l+1/2 (κ<0, l+1+κ=0) and are
+        // present for j=l-1/2 (κ>0, l+1+κ=2l+1), splitting e.g. 2p1/2 from 2p3/2.
+        double ab=es[i]+es[j];
+        double t=4*es[i]*es[j]*::Gaussian::Integral(ab,2*l+1);
+        if (Getκ()>0)
+        {
+            double kt=l+1+Getκ();
+            t += kt*kt*::Gaussian::Integral(ab,2*l-3) - 2*kt*ab*::Gaussian::Integral(ab,2*l-1);
+        }
+        return t*ns[i]*ns[j];
+    }
+
+    virtual rvec_t     operator() (const rvec3_t&) const override;
+    virtual rvec3vec_t Gradient   (const rvec3_t&) const override;
+
+    virtual std::string Name() const override;
+
+private:
+    rvec_t eval(const rvec3_t&) const;
+};
+
+static_assert(isOpr_Evaluator<RKBS_Evaluator>);
+static_assert( is1E_Evaluator<RKBS_Evaluator>); 
 
 class Gaussian_Cache4 : public  Cache4
 {
@@ -171,91 +233,6 @@ private:
     ExponentGrouper grouper;
 };
 
-
-// RKB small-component evaluator: shares Gaussian radial with NR Evaluator.
-class RKBS_Evaluator :  public RKB_Angular, public Radial
-{
-public:
-    RKBS_Evaluator(size_t N, double emin, double emax, const sym_t& ir)
-        : RKB_Angular(ir)
-        , Radial(N,emin,emax,ir)
-        {ns=norms();}
-    RKBS_Evaluator(const rvec_t& es, const sym_t& ir, size_t ltrim=0)
-        : RKB_Angular(ir)
-        , Radial(es,ir,ltrim)
-        {ns=norms();}
-    virtual rvec_t norms() const;
-
-    virtual int Getl() const override {return RKB_Angular::Getl();}
-    using Radial::l;
-    using Radial::Grad2;
-    using Radial::Inv_r2;
-    friend class RKBL_Evaluator;
-
-    double Inv_r1(size_t i,size_t j) const
-    {
-        // Small-component nuclear attraction <Q|1/r|Q> with Q=((l+1+κ)/r - 2er)r^l e^-er^2.
-        // The κ-dependent terms (spin-orbit) vanish for j=l+1/2 (κ<0, l+1+κ=0) and are
-        // present for j=l-1/2 (κ>0, l+1+κ=2l+1), splitting e.g. 2p1/2 from 2p3/2.
-        double ab=es[i]+es[j];
-        double t=4*es[i]*es[j]*::Gaussian::Integral(ab,2*l+1);
-        if (Getκ()>0)
-        {
-            double kt=l+1+Getκ();
-            t += kt*kt*::Gaussian::Integral(ab,2*l-3) - 2*kt*ab*::Gaussian::Integral(ab,2*l-1);
-        }
-        return t*ns[i]*ns[j];
-    }
-
-    virtual rvec_t     operator() (const rvec3_t&) const override;
-    virtual rvec3vec_t Gradient   (const rvec3_t&) const override;
-
-    virtual std::string Name() const override;
-
-private:
-    rvec_t eval(const rvec3_t&) const;
-};
-
-static_assert(    isOpr_Evaluator<RKBS_Evaluator>);
-static_assert(is1E_RKBS_Evaluator<RKBS_Evaluator>); 
-
-class RKBL_Evaluator : public RKB_Angular, public Radial
-{
-public:
-    RKBL_Evaluator(size_t N, double emin, double emax, const sym_t& ir)
-        : RKB_Angular(ir)
-        , Radial(N,emin,emax,ir)
-        {}
-    RKBL_Evaluator(const rvec_t& es, const sym_t& ir, size_t ltrim=0)
-        : RKB_Angular(ir)
-        , Radial(es,ir,ltrim)
-        {}
-
-    virtual int Getl() const override {return RKB_Angular::Getl();}
-
-    using RKBS_t=RKBS_Evaluator;
-    // using Radial::Grad2; //unhide
-    // using Radial::Inv_r2; //unhide
-
-    double Grad2(size_t i,size_t j, const RKBS_t& s) const
-    {
-        assert(l==s.l);
-        double t=es[i]+s.es[j];
-        size_t l1=l+1;
-        return  (l1*l1           * ::Gaussian::Integral(t,2*l-2)
-                -2*l1 * t        * ::Gaussian::Integral(t,2*l  )
-                +4*es[i]*s.es[j] * ::Gaussian::Integral(t,2*l+2))*ns[i]*s.ns[j] ;
-    }
-    double Inv_r2(size_t i,size_t j, const RKBS_t& b) const
-    {
-        assert(l==b.l);
-        return ::Gaussian::Integral(es[i]+b.es[j],2*l-2)*ns[i]*b.ns[j]; //Already has 4*Pi
-    }
-};
-
-static_assert(    isOpr_Evaluator<RKBL_Evaluator>);
-static_assert(is1E_RKBL_Evaluator<RKBL_Evaluator>);
-static_assert(     isHF_Evaluator<RKBL_Evaluator>);
 
 
 } //namespace

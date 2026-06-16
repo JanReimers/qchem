@@ -80,9 +80,9 @@ protected:
     rvec_t norms() const; //assumes es,l are already initialized
 };
 
-static_assert(  isOpr_Evaluator<Evaluator<6>>);
-static_assert(is1E_NR_Evaluator<Evaluator<6>>);
-static_assert(   isHF_Evaluator<Evaluator<6>>);
+static_assert(isOpr_Evaluator<Evaluator<6>>);
+static_assert( is1E_Evaluator<Evaluator<6>>);
+static_assert( isHF_Evaluator<Evaluator<6>>);
 
 
 } //namespace

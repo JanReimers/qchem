@@ -150,9 +150,9 @@ Upgrade existing features:
         Done:-Clean up FitBS construction.
             RKBS_Evaluator(const rvec_t& es, int _kappa, int l, const ivec_t& mls) : Evaluator(es,l,mls), kappa(_kappa) {ns=norms();}
             RKBS_Evaluator(const rvec_t& es, int _kappa, int l) : RKBS_Evaluator(es,_kappa,l,{}) {}
-        R   KBS_Evaluator(size_t N, double emin, double emax, int _kappa, int l);
+            RKBS_Evaluator(size_t N, double emin, double emax, int _kappa, int l);
             -What is l doing in there?  For Rescale which is for fit basis generation.
-        -The only purpose of isRKBL_Evaluator concept is to require cross kinetic functions.
+        Done: -The only purpose of isRKBL_Evaluator concept is to require cross kinetic functions.
             Strict RKB requires S and L to have identical raw (before sigma*p ops) basis functions.
             So in practive the LS and SL kinetic matrices are just 1/(2c) * LL kinetic.
             How to best express this in code? Options

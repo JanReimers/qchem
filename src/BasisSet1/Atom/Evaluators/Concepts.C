@@ -28,7 +28,7 @@ template <class E> concept isFit_Evaluator = std::derived_from<E, Evaluator> && 
 };
 
 // One electron inline integrals for NR (Non-Relativistic) Hamiltonians.
-template <class E> concept is1E_NR_Evaluator = std::derived_from<E, Evaluator> && requires  (E e,size_t i, size_t j, const rvec3_t& r)
+template <class E> concept is1E_Evaluator = std::derived_from<E, Evaluator> && requires  (E e,size_t i, size_t j, const rvec3_t& r)
 {
     {e.Norm     (i)} -> std::same_as<double>;
     {e.Overlap(i,j)} -> std::same_as<double>; 
@@ -79,11 +79,11 @@ template <class E> concept isHF_Evaluator = std::derived_from<E, HF_Evaluator> &
 
 
 // Full service 1E+DFT+HF
-template <class E> concept isNR_1E_DFT_HF_Evaluator = is1E_NR_Evaluator<E> && isDFT_Evaluator<E>  && isHF_Evaluator<E>;
+template <class E> concept is1E_DFT_HF_Evaluator = is1E_Evaluator<E> && isDFT_Evaluator<E>  && isHF_Evaluator<E>;
 // partial service 1E+HF
-template <class E> concept isNR_1E_HF_Evaluator = is1E_NR_Evaluator<E> && isHF_Evaluator<E>;
+template <class E> concept is1E_HF_Evaluator = is1E_Evaluator<E> && isHF_Evaluator<E>;
 // NR/RKB agnostic 1E integrals (Internal use)
-template <class E> concept is1E_Evaluator = is1E_NR_Evaluator<E> || is1E_RKBL_Evaluator<E>;
+template <class E> concept is1E_Evaluator = is1E_Evaluator<E> || is1E_RKBL_Evaluator<E>;
 // Combine HF wih RKB
 template <class E> concept isHF_RKBL_Evaluator = is1E_RKBL_Evaluator<E> && isHF_Evaluator<E>;
 
