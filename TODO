@@ -1,8 +1,23 @@
 Turn on/off vscode popups: search quickSuggestions
 Understand type erasure: https://youtu.be/m3UmABVf55g?t=2134
 
+Claude.md:  Coding conventions and other pointers
+    -There is a hierarcy library contains many modules which contain many classes.
+        The compiler will enforce no cyclic dependencies between modules.
+        The linker will enforce no cyclic dependencies between libraries.
+        Cyclic dependencies between tightly coupled classes within one module is allowed.
+    -Only re-export modules that don't internal in name .Internal. The goal is to avoid importing anything internal accross library boundaries.
+    -The only header in project if forward.H and it is used to forward declare unit test classes the need access
+     to internals of certain library classes.
+    -Use CamelBack for names, but surround acronyms with under scores like HF_Evaluator, or HF_DFT_Evaluator
+    -I make liberal use of abstract interface base classes with no data (default constructors).  These are
+    always derived from with virtual inheritance.  This makes lots of diamonds in the tree, but they should be harmless diamonds.
+    Some OOP people are surprised by this.
 
-    Code review:
+
+
+
+Code review:
     Point group project:
         -Can we move SymEigen3 into Matrix3D<T>?
             
@@ -123,6 +138,7 @@ Upgrade existing features:
         -Vxc->LDAxc->ExchangeFunctional   Can we get rid of LDAxc?
 
     Atom evulators:
+        -Need to import qchem.BasisSet.Atom.Evaluators.Internal.ExponentGrouper; to get generic Grouper
         -DirectAk and ExchangeAk in Evaluator interface force HF support
         -Evaluator Getl() returns int instead of size_t OK?
         -Evaluator virtual inherit VectorFunction?

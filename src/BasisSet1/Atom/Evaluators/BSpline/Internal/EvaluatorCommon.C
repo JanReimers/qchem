@@ -5,9 +5,9 @@ module;
 
 export module qchem.BasisSet.Atom.Evaluators.BSpline.Internal.Common;
 export import qchem.BasisSet.Atom.Evaluators;
-export import qchem.BasisSet.Atom.Evaluators.Internal.NR_Angular;
+export import qchem.Symmetry;
+import qchem.BasisSet.Atom.Evaluators.Internal.NR_Angular;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.Rk;
-
 // required by Cache4
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.GLQuadrature;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.SplineGrouper;

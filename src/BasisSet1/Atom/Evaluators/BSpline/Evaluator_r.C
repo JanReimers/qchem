@@ -5,6 +5,7 @@ module;
 #include <functional>
 export module qchem.BasisSet.Atom.Evaluators.BSpline.IBS_r;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.Common;
+import qchem.BasisSet.Atom.Evaluators.Internal.NR_Angular;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.GLQuadrature;
 import qchem.BasisSet.Atom.Evaluators.Concepts;
 import qchem.BasisSet.Internal.Cache4;

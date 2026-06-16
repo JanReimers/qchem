@@ -5,8 +5,6 @@ module;
 #include "forward.H"
 export module qchem.BasisSet.Atom.Evaluators;
 export import qchem.BasisSet.Atom.Evaluators.Internal.ExponentGrouper;
-export import qchem.BasisSet.Internal.ERI3;
-export import qchem.Symmetry.Irrep;
 export import qchem.VectorFunction;
 export import qchem.Streamable;
 
@@ -14,8 +12,6 @@ import qchem.BasisSet.Internal.Cache4;
 
 export namespace BasisSet::Atom::Evaluators
 {
-using dERI3=ERI3<double>;
-
 //
 //  Abstract inteface for all evaluators.  We need to use mixins when creating the final (concrete) evaluators in order to support
 //  Any combination of:
@@ -62,7 +58,7 @@ class Angular
 {
 public:
     virtual std::string AngularID () const=0; // For creating keys into cache database.
-    // These are only required for HF and DHF ERI calculations.
+    // These are only required for HF and DHF ERI calculations. And fully implemented for HF and DHF.
     virtual rvec11_t DirectAk  (const Evaluator& other) const = 0;
     virtual rvec11_t ExchangeAk(const Evaluator& other) const = 0;
 };
