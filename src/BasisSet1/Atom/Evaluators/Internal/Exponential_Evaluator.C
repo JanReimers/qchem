@@ -10,7 +10,7 @@ import qchem.Symmetry.Spherical;
 export namespace BasisSet::Atom::Evaluators
 {
     
-class ExponentialEvaluator : public virtual Evaluator
+class ExponentialEvaluator : public virtual Evaluator, public virtual HF_Evaluator
 {
 public:
     ExponentialEvaluator(const rvec_t& _es, int l)
@@ -36,7 +36,7 @@ public:
     virtual void   Register(Grouper*) override; //Set up unique spline or exponent indexes.
     virtual std::string RadialID() const override;
     virtual size_t size() const override { return ns.size(); }
-    virtual size_t es_index(size_t i     ) const override {return es_indices[i];}
+    virtual size_t es_index(size_t i     ) const {return es_indices[i];}
 
     virtual rvec_t Norm() const override { return ns; }
 

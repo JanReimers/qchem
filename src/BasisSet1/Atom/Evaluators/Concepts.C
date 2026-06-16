@@ -1,17 +1,20 @@
 // File: BasisSet1/Atom/Evaluators/Concepts.C Concept contracts for various evaluator types.
 module;
-
+#include <concepts>
 export module qchem.BasisSet.Atom.Evaluators.Concepts;
+export import qchem.BasisSet.Atom.Evaluators.Internal.ExponentGrouper;
 import qchem.BasisSet.Internal.Cache4;
-
 import qchem.Types;
 
 export namespace BasisSet::Atom::Evaluators
 {
 
-template <class E> concept isGeneric_Evaluator = requires (const E& e,size_t i, size_t j, const rvec3_t& r)
+template <class E> concept isGeneric_Evaluator = requires (E e,size_t i, size_t j, const rvec3_t& r)
 {
-    e.size();
+    {e.size()} -> std::same_as<size_t>;
+    {e.maxSpan()} -> std::same_as<size_t>;
+    {e.indices()} -> std::same_as<iv_t>;
+    {e.indices(i)} -> std::same_as<iv_t>;
     e.operator()(r);
     e.Gradient  (r);
     e.Norm     (i);
@@ -43,9 +46,10 @@ template <class E> concept isDFT_Evaluator = requires (E e,size_t i, size_t j, s
 };
 // Support 4C Hartree-Fock (HF) *or* Dirac-Hartree-Fock (DHF) Direct and Exchange integrals and a four index caching mechanism. 
 // This is NR/RKB agnostic 
-template <class E> concept isHF_Evaluator = isGeneric_Evaluator<E> && requires (E a,size_t l,const Cacheable* c ,rvec11_t Ak)
+template <class E> concept isHF_Evaluator = isGeneric_Evaluator<E> && requires (E a,size_t l,const Cacheable* c, Grouper* g ,rvec11_t Ak)
 {
-    a.maxSpan   ();
+    a.Register(g);
+    a.es_index(l);
     a.RadialType(); 
     a.indices   ();
     a.MakeCache4();

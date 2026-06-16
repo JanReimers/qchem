@@ -27,7 +27,7 @@ std::ostream& operator<<(std::ostream& os, const bspline::Grid<double>& grid)
 }
 
 
-template <size_t K> class EvaluatorCommon : public virtual Evaluators::Evaluator
+template <size_t K> class EvaluatorCommon : public virtual Evaluators::Evaluator , public virtual Evaluators::HF_Evaluator
 {
 protected:
     typedef bspline::Spline<double, K> spline_t;
@@ -37,7 +37,7 @@ public:
     virtual void   Register(Grouper*) override; //Set up unique spline or exponent indexes.
     virtual size_t maxSpan () const override {return Getl()<=K ? K-Getl() : 0;}  //assume no overlap for indices separated by > maxSpan
     virtual size_t size    () const override { return ns.size(); }
-    virtual size_t es_index(size_t i     ) const override {return es_indices[i];}
+    virtual size_t es_index(size_t i     ) const {return es_indices[i];}
     virtual rvec_t Norm    () const override { return ns; }
     static double direct(const Cacheable* c, size_t la, size_t lc,const rvec11_t& Ak)
     {

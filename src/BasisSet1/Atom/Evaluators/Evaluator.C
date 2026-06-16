@@ -32,17 +32,16 @@ class Evaluator
     , public VectorFunction<double> //Try virtual and get: virtual function 'VectorFunction<double>::GetVectorSize' has more than one final overrider in ...
 {
 public:
-    virtual size_t        GetVectorSize() const {return size();}
+    virtual size_t  GetVectorSize() const {return size();}
     //  Used **everywhere***
     virtual int     Getl    () const = 0;
     //  For radial
-    virtual void    Register(Grouper*)=0; //Set up unique spline or exponent indexes.
     virtual size_t  size    () const = 0;
     virtual size_t  maxSpan () const {return size();}  //assume no overlap for indeces separated by > maxSpan
     virtual rvec_t  Norm    () const = 0;
             iv_t    indices (             ) const {return iv_t(size_t(0),size());} //For range loops
             iv_t    indices (size_t start ) const {return iv_t(start    ,size());} //For range loops
-    virtual size_t  es_index(size_t i     ) const =0; //Get the index of basis function i in the grouper.
+    // virtual size_t  es_index(size_t i     ) const =0; //Get the index of basis function i in the grouper.
     // For angular
 
     // For Streamable.
@@ -50,6 +49,12 @@ public:
     // For creating keys into cache database.
     virtual std::string RadialID () const=0;
     virtual std::string Name     () const=0;
+};
+
+class HF_Evaluator
+{
+public:
+    virtual void    Register(Grouper*)=0;
 };
 
 class Angular

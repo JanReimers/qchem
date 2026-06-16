@@ -155,8 +155,9 @@ public:
     virtual void Register(Cache4_Client * eval)
     {
         assert(eval);
-        Evaluator* geval=dynamic_cast<Evaluator*>(eval);
-        geval->Register(&grouper); //Look for new exponents and get indies for exponents in geval.
+        auto hfeval=dynamic_cast<HF_Evaluator*>(eval);
+        assert(hfeval);
+        hfeval->Register(&grouper); //Look for new exponents and get indies for exponents in geval.
         //
         //  At this point we need sweep through all Cacheable* (Rks) in Cache4::cache_t
         //  and check if geval is supported (geval.l <= Rk.LMax).
@@ -213,10 +214,10 @@ public:
         return t*ns[i]*ns[j];
     }
 
-    virtual rvec_t     operator() (const rvec3_t&) const;
-    virtual rvec3vec_t Gradient   (const rvec3_t&) const;
+    virtual rvec_t     operator() (const rvec3_t&) const override;
+    virtual rvec3vec_t Gradient   (const rvec3_t&) const override;
 
-    virtual std::string Name() const;
+    virtual std::string Name() const override;
 
 private:
     rvec_t eval(const rvec3_t&) const;
