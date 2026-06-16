@@ -26,32 +26,33 @@ using dERI3=ERI3<double>;
 //  18 combinations.  A good starting point is the just implement Physics: NR(radial)+Spherical(Angluar) for Hamiltonian:1E and then add
 //  support for more integrals later. Spherical(Angluar) is independent Radial basis so it is already implemented.
 //
+//  We use these abstract interfaces to define what virtual functions are required for various evaluators.  These virtual
+//    functions only get used outside hot loops.
+//  We use concepts (./Concepts.C) to define what inline (non-virtual) functions are required.  These mostly used
+//    in hot loops.
+//
+//  This mixture of OOD methodolgies obviously adds complexity, but is required for efficiency and good design.
+//
 class Evaluator
-    : public virtual Cache4_Client
-    , public virtual Streamable
+    : public virtual Streamable
     , public VectorFunction<double> //Try virtual and get: virtual function 'VectorFunction<double>::GetVectorSize' has more than one final overrider in ...
 {
 public:
     virtual size_t  GetVectorSize() const {return size();}
-    //  Used **everywhere***
-    virtual int     Getl    () const = 0;
-    //  For radial
+    
+    virtual int     Getl    () const = 0; //  l is Used **everywhere**
     virtual size_t  size    () const = 0;
-    virtual size_t  maxSpan () const {return size();}  //assume no overlap for indeces separated by > maxSpan
-    virtual rvec_t  Norm    () const = 0;
-            iv_t    indices (             ) const {return iv_t(size_t(0),size());} //For range loops
-            iv_t    indices (size_t start ) const {return iv_t(start    ,size());} //For range loops
-    // virtual size_t  es_index(size_t i     ) const =0; //Get the index of basis function i in the grouper.
-    // For angular
-
-    // For Streamable.
-    virtual std::ostream& Write  (std::ostream&) const=0;
-    // For creating keys into cache database.
-    virtual std::string RadialID () const=0;
-    virtual std::string Name     () const=0;
+    virtual size_t  maxSpan () const {return size();}  //assume no overlap for indices separated by > maxSpan
+    virtual rvec_t  Norm    () const = 0; //Normalization constants.
+    virtual std::ostream& Write    (std::ostream&) const=0;
+    virtual std::string   RadialID () const=0; // For creating keys into cache database.
+    virtual std::string   Name     () const=0;
+    // Helper functions for range based loops.
+    iv_t indices(             ) const {return iv_t(size_t(0),size());} 
+    iv_t indices(size_t start ) const {return iv_t(start    ,size());} //Use this for 2nd index of symmetric matrices.
 };
 
-class HF_Evaluator
+class HF_Evaluator : public virtual Cache4_Client
 {
 public:
     virtual void    Register(Grouper*)=0;
@@ -60,8 +61,7 @@ public:
 class Angular
 {
 public:
-    // For creating keys into cache database.
-    virtual std::string AngularID () const=0;
+    virtual std::string AngularID () const=0; // For creating keys into cache database.
     // These are only required for HF and DHF ERI calculations.
     virtual rvec11_t DirectAk  (const Evaluator& other) const = 0;
     virtual rvec11_t ExchangeAk(const Evaluator& other) const = 0;
