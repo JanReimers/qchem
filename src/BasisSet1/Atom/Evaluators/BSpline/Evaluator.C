@@ -40,11 +40,6 @@ public:
         static const auto T = -X<2>{} * Dx<2>{} - 2 * X<1>{} * Dx<1>{};
         return BilinearForm{T}(splines[i],splines[j])*FourPi*ns[i]*ns[j]; 
     } 
-    double Grad2  (size_t i,size_t j,const Evaluator& b) const 
-    {
-        static const auto T = -X<2>{} * Dx<2>{} - 2 * X<1>{} * Dx<1>{};
-        return BilinearForm{T}(splines[i],b.splines[j])*FourPi*ns[i]*b.ns[j]; 
-    } 
     double Inv_r1 (size_t i,size_t j) const 
     {
         return BilinearForm{X<1>{}}(splines[i],splines[j])*FourPi*ns[i]*ns[j];
@@ -52,10 +47,6 @@ public:
     double Inv_r2 (size_t i,size_t j) const 
     {
         return BilinearForm{IdentityOperator{}}(splines[i],splines[j])*FourPi*ns[i]*ns[j]; 
-    } 
-    double Inv_r2 (size_t i,size_t j,const Evaluator& b) const 
-    {
-        return BilinearForm{IdentityOperator{}}(splines[i],b.splines[j])*FourPi*ns[i]*b.ns[j]; 
     } 
     double Charge (size_t i) const
     {
@@ -65,6 +56,17 @@ public:
     {
         return 1.0/sqrt(BilinearForm{X<2>{}}(splines[i],splines[i])*FourPi);
     }
+
+    // Future RKB support
+// double Grad2  (size_t i,size_t j,const Evaluator& b) const 
+// {
+//     static const auto T = -X<2>{} * Dx<2>{} - 2 * X<1>{} * Dx<1>{};
+//     return BilinearForm{T}(splines[i],b.splines[j])*FourPi*ns[i]*b.ns[j]; 
+// } 
+// double Inv_r2 (size_t i,size_t j,const Evaluator& b) const 
+// {
+//     return BilinearForm{IdentityOperator{}}(splines[i],b.splines[j])*FourPi*ns[i]*b.ns[j]; 
+// } 
 
     using Evaluators::Evaluator::Norm;
     using Evaluators::Evaluator::size;

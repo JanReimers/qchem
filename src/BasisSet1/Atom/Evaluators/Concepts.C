@@ -2,7 +2,7 @@
 module;
 #include <concepts>
 export module qchem.BasisSet.Atom.Evaluators.Concepts;
-export import qchem.BasisSet.Atom.Evaluators.Internal.ExponentGrouper;
+export import qchem.BasisSet.Atom.Evaluators.Internal.Grouper;
 import qchem.BasisSet.Atom.Evaluators;
 import qchem.BasisSet.Internal.Cache4;
 import qchem.Types;

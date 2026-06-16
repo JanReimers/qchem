@@ -14,7 +14,7 @@ using std::endl;
 import qchem.BasisSet.Atom.Evaluators; 
 import qchem.BasisSet.Atom.Evaluators.Gaussian.IBS; 
 import qchem.BasisSet.Atom.Evaluators.Internal.Rk;
-import qchem.BasisSet.Atom.Evaluators.Internal.ExponentGrouper;
+import qchem.BasisSet.Atom.Evaluators.Internal.Grouper;
 import qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.Rk; 
 import qchem.stl_io;
 import qchem.BasisSet.Atom.Factory;

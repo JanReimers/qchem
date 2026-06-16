@@ -4,7 +4,7 @@ module;
 #include <iosfwd>
 #include "forward.H"
 export module qchem.BasisSet.Atom.Evaluators;
-export import qchem.BasisSet.Atom.Evaluators.Internal.ExponentGrouper;
+export import qchem.BasisSet.Atom.Evaluators.Internal.Grouper;
 export import qchem.VectorFunction;
 export import qchem.Streamable;
 

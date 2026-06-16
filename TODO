@@ -138,7 +138,7 @@ Upgrade existing features:
         -Vxc->LDAxc->ExchangeFunctional   Can we get rid of LDAxc?
 
     Atom evulators:
-        -Need to import qchem.BasisSet.Atom.Evaluators.Internal.ExponentGrouper; to get generic Grouper
+        -Need to import qchem.BasisSet.Atom.Evaluators.Internal.Grouper; to get generic Grouper
         Fixed: -DirectAk and ExchangeAk in Evaluator interface force HF support
         -Evaluator Getl() returns int instead of size_t OK?
         -Evaluator virtual inherit VectorFunction?
@@ -167,7 +167,7 @@ Upgrade existing features:
             HF energies are fine though!?!?
             Bspline Rk symmetry is good to 1e-16!
         -Can groupers be registered at Evaluator construction?
-        -Refactor Evluators and so that we can remove fake Overlap3C and Repulsion3C,
+        Done: -Refactor Evluators and so that we can remove fake Overlap3C and Repulsion3C,
         -Use console tables for dumping basis sets?
         -Slater norm takes n=l+1, Gaussian norm takes l.
         -Gaussian integrals use recursion, should use Fact[n]/pow(2,n)

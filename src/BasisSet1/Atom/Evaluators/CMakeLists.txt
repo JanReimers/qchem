@@ -1,7 +1,7 @@
 # add_library(qcAtom_BS1)
 target_sources(qcAtom_BS1 PRIVATE
     Internal/Imp/AngularIntegrals.C
-    Internal/Imp/ExponentGrouper.C
+    Internal/Imp/Grouper.C
     Internal/Imp/Exponential_Evaluator.C
     Internal/Imp/Wigner3j.C
     Internal/Imp/RelWigner3j.C
@@ -20,7 +20,7 @@ target_sources(qcAtom_BS1 PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Internal/RelAngularIntegrals.C
     Internal/NR_Angular.C
     Internal/RKBL_Angular.C
-    Internal/ExponentGrouper.C
+    Internal/Grouper.C
     Internal/Exponential_Evaluator.C
     Internal/FillPower.C
     Internal/PascalTriangle.C

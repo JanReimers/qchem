@@ -40,11 +40,6 @@ public:
         static const auto T = -Dx<2>{};
         return BilinearForm{T}(splines[i],splines[j])*FourPi*ns[i]*ns[j]; 
     } 
-    double Grad2  (size_t i,size_t j,const Evaluator_r& b) const 
-    {
-        static const auto T = -Dx<2>{};
-        return BilinearForm{T}(splines[i],b.splines[j])*FourPi*ns[i]*b.ns[j]; 
-    } 
     double Inv_r1 (size_t i,size_t j) const 
     {
         const spline_t &a=splines[i], &b=splines[j];
@@ -65,16 +60,6 @@ public:
         };
         return itsGL1D->Integrate(xm2)*FourPi*ns[i]*ns[j];
     } 
-    double Inv_r2 (size_t i,size_t j,const Evaluator_r& _b) const 
-    {
-        const spline_t &a=splines[i], &b=_b.splines[j];
-        std::function< double (double)> xm2 = [&a,&b](double r)
-        {
-            assert(r!=0.0);
-            return a(r)*b(r)/(r*r);
-        };
-        return itsGL1D->Integrate(xm2)*FourPi*ns[i]*_b.ns[j];
-    } 
     double Charge (size_t i) const
     {
         return LinearForm{IdentityOperator{}}(splines[i])*ns[i]*FourPi;
@@ -83,7 +68,24 @@ public:
     {
         return 1.0/sqrt(BilinearForm{IdentityOperator{}}(splines[i],splines[i])*FourPi);
     }
-    
+
+    // Future RKB support.
+    // double Grad2  (size_t i,size_t j,const Evaluator_r& b) const 
+    // {
+    //     static const auto T = -Dx<2>{};
+    //     return BilinearForm{T}(splines[i],b.splines[j])*FourPi*ns[i]*b.ns[j]; 
+    // } 
+    // double Inv_r2 (size_t i,size_t j,const Evaluator_r& _b) const 
+    // {
+    //     const spline_t &a=splines[i], &b=_b.splines[j];
+    //     std::function< double (double)> xm2 = [&a,&b](double r)
+    //     {
+    //         assert(r!=0.0);
+    //         return a(r)*b(r)/(r*r);
+    //     };
+    //     return itsGL1D->Integrate(xm2)*FourPi*ns[i]*_b.ns[j];
+    // } 
+
     using Evaluators::Evaluator::Norm;
     using Evaluators::Evaluator::size;
 

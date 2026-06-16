@@ -5,7 +5,7 @@ module;
 #include <map>
 #include <cassert>
 export module qchem.BasisSet.Atom.Evaluators.BSpline.Internal.SplineGrouper;
-export import qchem.BasisSet.Atom.Evaluators.Internal.ExponentGrouper;
+import qchem.BasisSet.Atom.Evaluators.Internal.Grouper;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.GLQuadrature;
 
 // 
