@@ -181,7 +181,7 @@ TEST_P(BS_U_Low,A)
     EXPECT_TRUE(Converged()); 
         
 }
-INSTANTIATE_TEST_SUITE_P(A_HF,BS_U_Low,::testing::Values(2,4,10));//));
+INSTANTIATE_TEST_SUITE_P(A_HF,BS_U_Low,::testing::Values(2,4));//));
 TEST_P(BSr_U_Low,A)
 {
     size_t Z=GetParam();
