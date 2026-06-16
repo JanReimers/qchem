@@ -54,7 +54,7 @@ protected:
 //  Implement these integral engines separately as they shared between NR and RKB 1E orbital IBS implementations.
 //  Fit_IBS also uses Overlap.
 //
-template <is1E_Evaluator1 E> class Integrals_Overlap
+template <is1E_Evaluator E> class Integrals_Overlap
 : public virtual BasisSet::Integrals_Overlap<double>
 {
 protected:
@@ -85,7 +85,7 @@ protected:
         return S;
     }
 };
-template <is1E_Evaluator1 E> class Integrals_Nuclear
+template <is1E_Evaluator E> class Integrals_Nuclear
 : public virtual BasisSet::Integrals_Nuclear<double>
 {
 protected:
@@ -221,7 +221,7 @@ protected:
 
 };
 
-template <is1E_RKBLS_Evaluator E> class Orbital_RKBL_IBS
+template <is1E_RKBL_Evaluator E> class Orbital_RKBL_IBS
     : public virtual BasisSet::Orbital_RKBL_IBS<double> 
     , public Integrals_Overlap<E>
     , public Integrals_Nuclear<E>

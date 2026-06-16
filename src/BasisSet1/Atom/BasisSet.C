@@ -21,7 +21,8 @@ namespace Atom {
 
 using namespace Evaluators;
 
-template <isFull_NR_Evaluator Evaluator> class BasisSet_HF
+// Full service NR: 1E, DFT and HF
+template <isNR_1E_DFT_HF_Evaluator Evaluator> class BasisSet_HF
     : public virtual Real_BS
     , public BasisSetImp<double>
 {
@@ -81,7 +82,8 @@ public:
     }
 };
 
-template <is1E_HF_Evaluator Evaluator> class BasisSet_1E_HF
+// NR: 1E and HF, but no DFT
+template <isNR_1E_HF_Evaluator Evaluator> class BasisSet_1E_HF
     : public virtual Real_BS
     , public BasisSetImp<double>
 {
@@ -129,7 +131,7 @@ public:
 
 };
 
-template <isHF_RKBLS_Evaluator LEvaluator, is1E_RKBS_Evaluator SEvaluator> class BasisSet_RKB
+template <isHF_RKBL_Evaluator LEvaluator, is1E_RKBS_Evaluator SEvaluator> class BasisSet_RKB
     : public virtual Real_BS
     , public BasisSetImp<double>
 {

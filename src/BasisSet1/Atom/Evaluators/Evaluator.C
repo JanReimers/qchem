@@ -52,6 +52,7 @@ class HF_Evaluator : public virtual Cache4_Client
 {
 public:
     virtual void    Register(Grouper*)=0;
+    virtual Cache4* MakeCache4() const=0;
 };
 
 class Angular

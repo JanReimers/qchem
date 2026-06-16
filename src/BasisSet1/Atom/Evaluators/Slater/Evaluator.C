@@ -142,10 +142,11 @@ public:
     using Radial::l;
 };
 
-static_assert(is1E_NR_Evaluator     <NR_Evaluator>);
-static_assert(isFit_Evaluator    <NR_Evaluator>);
-static_assert(isDFT_Evaluator    <NR_Evaluator>);
-static_assert(isHF_Evaluator     <NR_Evaluator>);
+static_assert(  isOpr_Evaluator<NR_Evaluator>);
+static_assert(is1E_NR_Evaluator<NR_Evaluator>);
+static_assert(  isFit_Evaluator<NR_Evaluator>);
+static_assert(  isDFT_Evaluator<NR_Evaluator>);
+static_assert(   isHF_Evaluator<NR_Evaluator>);
 
 
 
@@ -193,10 +194,8 @@ private:
     rvec_t eval(const rvec3_t&) const;
 };
 
-static_assert(isOpr_Evaluator<RKBS_Evaluator>);
-//static_assert(is1E_Evaluator     <RKBS_Evaluator>);
-// static_assert(isDFT_Evaluator    <RKBS_Evaluator>);
-static_assert(is1E_RKBS_Evaluator   <RKBS_Evaluator>);
+static_assert(    isOpr_Evaluator<RKBS_Evaluator>);
+static_assert(is1E_RKBS_Evaluator<RKBS_Evaluator>);
 
 class RKBL_Evaluator : public RKB_Angular, public Radial
 {
@@ -230,8 +229,10 @@ public:
         return ::Slater::Integral(es[i]+b.es[j],2*l-2)*ns[i]*b.ns[j]; //Already has 4*Pi
     }
 };
-static_assert(is1E_RKBLS_Evaluator   <RKBL_Evaluator>);
-static_assert(isHF_Evaluator     <RKBL_Evaluator>);
+
+static_assert(    isOpr_Evaluator<RKBL_Evaluator>);
+static_assert(is1E_RKBL_Evaluator<RKBL_Evaluator>);
+static_assert(     isHF_Evaluator<RKBL_Evaluator>);
 
 class Slater_Cache4 : public  Cache4
 {

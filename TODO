@@ -139,12 +139,12 @@ Upgrade existing features:
 
     Atom evulators:
         -Need to import qchem.BasisSet.Atom.Evaluators.Internal.ExponentGrouper; to get generic Grouper
-        -DirectAk and ExchangeAk in Evaluator interface force HF support
+        Fixed: -DirectAk and ExchangeAk in Evaluator interface force HF support
         -Evaluator Getl() returns int instead of size_t OK?
         -Evaluator virtual inherit VectorFunction?
             Demands and overrider
-        -qchem.BasisSet.Atom.Evaluators; --> qchem.BasisSet.Atom.Evaluators;
-        -Sort out all the atomic concepts and then how to combine them
+        Done: -qchem.BasisSet.Atom.Evaluators.IBS; --> qchem.BasisSet.Atom.Evaluators;
+        Done: -Sort out all the atomic concepts and then how to combine them
             is_NR_Angular, is_RKB_Angular for the angular parts.
         -RadialType and Name are the same?
         -Clean up FitBS construction.
@@ -152,7 +152,7 @@ Upgrade existing features:
         RKBS_Evaluator(const rvec_t& es, int _kappa, int l) : RKBS_Evaluator(es,_kappa,l,{}) {}
         RKBS_Evaluator(size_t N, double emin, double emax, int _kappa, int l);
         -What is l doing in there?  For Rescale which is for fit basis generation.
-        -The only purpose of isRKBLS_Evaluator concept is to require cross kinetic functions.
+        -The only purpose of isRKBL_Evaluator concept is to require cross kinetic functions.
             Strict RKB requires S and L to have identical raw (before sigma*p ops) basis functions.
             So in practive the LS and SL kinetic matrices are just 1/(2c) * LL kinetic.
             How to best express this in code? Options

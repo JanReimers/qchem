@@ -43,7 +43,7 @@ a small interface, and composing them with C++20 concepts and mixins:
 
 1. **Basis function ("Evaluator")** — *how* a radial/spatial function and its integrals are
    computed (Slater, Gaussian, B-spline, RKB small component, …). Defined by C++20
-   `concept`s (`is1E_Evaluator`, `isHF_Evaluator`, `isRKBLS_Evaluator`, …) so a basis type
+   `concept`s (`is1E_Evaluator`, `isHF_Evaluator`, `isRKBL_Evaluator`, …) so a basis type
    only has to provide the integral primitives it can support — and the type system enforces
    the rest.
 
