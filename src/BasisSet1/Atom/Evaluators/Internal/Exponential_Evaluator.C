@@ -14,11 +14,6 @@ export namespace BasisSet::Atom::Evaluators
 class ExponentialEvaluator : public virtual Evaluator, public virtual HF_Evaluator
 {
 public:
-    ExponentialEvaluator(const rvec_t& _es, int l)
-        : es(_es)
-        , grouper(0)
-        , isEvenTempered(EvenTempered(es))
-        {};
     ExponentialEvaluator(const rvec_t& _es, const sym_t& ir, size_t ltrim=0)
         : es()
         , grouper(0)

@@ -16,6 +16,7 @@ public:
     IrrepBasisSetImp(const sym_t& sym) : itsSymmetry(sym) {assert(itsSymmetry);}
     //! Readonly ref to the polymorphic Symmetry object.
     virtual const Symmetry::Symmetry& GetSymmetry() const {return *itsSymmetry;}
+    virtual const           sym_t   & GetSymt    () const {return  itsSymmetry;}
     //! Irrep basis sets are spin agnostic, so caller must specify the spin in order to a full set of QNs.
     virtual Irrep GetIrrep(const Spin& s) const
     {

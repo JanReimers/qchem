@@ -23,10 +23,6 @@ export namespace BasisSet::Atom::Evaluators::Gaussian
 class Radial : public ExponentialEvaluator
 {
 public:
-    Radial(const rvec_t& _es, int _l) 
-    : ExponentialEvaluator(_es,_l)
-    , l(_l) 
-    {ns=norms();}
     Radial(const rvec_t& _es, const sym_t& ir, size_t ltrim=0)
         : ExponentialEvaluator(_es,ir,ltrim) 
         , l(Symmetry::Getl(ir))
@@ -127,10 +123,6 @@ private:
 class NR_Evaluator : public Radial, public NR_Angular
 {
 public:
-    // Used only for the rescale operation to make Fit basis sets.
-    NR_Evaluator(const rvec_t& es, int l, const ivec_t& mls={})
-        : Radial(es,l), NR_Angular(l,mls) {}
-
     NR_Evaluator(const rvec_t& es, const sym_t& ir, size_t ltrim=0)
         : Radial(es,ir,ltrim)
         , NR_Angular(ir) {}
@@ -138,7 +130,7 @@ public:
         : Radial(N,emin,emax,ir)
         , NR_Angular(ir) {}
 
-    NR_Evaluator Rescale(double scale_factor) const { return NR_Evaluator(scale_factor*es,Getl()); }
+    NR_Evaluator Rescale(double scale_factor, sym_t s) const { return NR_Evaluator(scale_factor*es,s); }
     virtual int Getl() const override {return NR_Angular::Getl();}
 
 };

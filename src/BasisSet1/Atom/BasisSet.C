@@ -35,15 +35,15 @@ public:
         , public Evaluator
     {
     public:
-        EOrbital_HF_IBS(size_t N, double rmin, double rmax, const sym_t& yl)
-        : IrrepBasisSetImp<Evaluator>(yl)
-        , Evaluator(N,rmin,rmax,yl)
+        EOrbital_HF_IBS(size_t N, double rmin, double rmax, const sym_t& ir)
+        : IrrepBasisSetImp<Evaluator>(ir)
+        , Evaluator(N,rmin,rmax,ir)
         {
             theGlobalCache->Register(this); //Can this move to the evaluator level?
         };
-        EOrbital_HF_IBS(const rvec_t& es, const sym_t& yl, size_t ltrim=0)
-        : IrrepBasisSetImp<Evaluator>(yl)
-        , Evaluator(es,yl,ltrim)
+        EOrbital_HF_IBS(const rvec_t& es, const sym_t& ir, size_t ltrim=0)
+        : IrrepBasisSetImp<Evaluator>(ir)
+        , Evaluator(es,ir,ltrim)
         {
             theGlobalCache->Register(this);
         };
@@ -51,11 +51,11 @@ public:
 
         virtual Fit_IBS* CreateCDFitBasisSet(const Cluster*) const 
         {
-            return new EFit_IBS(Evaluator::Rescale(2.0));
+            return new EFit_IBS(Evaluator::Rescale(2.0, this->GetSymt()));
         }
         virtual Fit_IBS* CreateVxcFitBasisSet(const Cluster*) const
         {
-            return new EFit_IBS(Evaluator::Rescale(2.0/3.0));
+            return new EFit_IBS(Evaluator::Rescale(2.0/3.0, this->GetSymt()));
         }
 
         virtual std::ostream&  Write(std::ostream& os) const

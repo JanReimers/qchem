@@ -54,6 +54,7 @@ template <class T> class IrrepBasisSet
 public:
     //! Readonly ref to the polymorphic Symmetry object.
     virtual const Symmetry::Symmetry& GetSymmetry() const=0;
+    virtual const           sym_t   & GetSymt    () const=0;
     //! Irrep basis sets are spin agnostic, so caller must specify the spin in order to a full set of QNs.
     virtual Irrep GetIrrep(const Spin& s) const=0;
     virtual size_t GetNumFunctions() const=0;
