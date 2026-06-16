@@ -18,11 +18,13 @@ using dERI3=ERI3<double>;
 
 //
 //  Abstract inteface for all evaluators.  We need to use mixins when creating the final (concrete) evaluators in order to support
-//  Any combination of {Radial basis: BS,SG,SL}*{Physics: NR(radial)+Spherical(Angluar),RKB(radial)+SphericalSpiner(angular)}*{1E,DFT,HF}
+//  Any combination of:
+//      {Radial basis: BS,SG,SL}*{Physics: NR(radial)+Spherical(Angluar),RKB(radial)+SphericalSpiner(angular)}*{Hamiltonian: 1E,DFT,HF}
 //  This gives a total of 3x2x3=18 combinations.  In practice it is not that bad. For each of the 6 radial/physics combinations we
 //  just need final evaluators that support as much as possible out of set {1E,DFT,HF}.
 //  The mixin flexiblity is important when working a new basis set type.  You ar not force the implement everything required for all
-//  18 combinations.  A good starting point is the just implement 
+//  18 combinations.  A good starting point is the just implement Physics: NR(radial)+Spherical(Angluar) for Hamiltonian:1E and then add
+//  support for more integrals later. Spherical(Angluar) is independent Radial basis so it is already implemented.
 //
 class Evaluator
     : public virtual Cache4_Client

@@ -129,7 +129,7 @@ public:
 
 };
 
-template <isRKBLS_Evaluator LEvaluator, isRKBLS_Evaluator SEvaluator> class BasisSet_RKB
+template <isHF_RKBLS_Evaluator LEvaluator, is1E_RKBS_Evaluator SEvaluator> class BasisSet_RKB
     : public virtual Real_BS
     , public BasisSetImp<double>
 {

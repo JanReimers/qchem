@@ -143,7 +143,7 @@ public:
 };
 
 static_assert(isGeneric_Evaluator<NR_Evaluator>);
-static_assert(is1E_Evaluator     <NR_Evaluator>);
+static_assert(is1E_NR_Evaluator     <NR_Evaluator>);
 static_assert(isFit_Evaluator    <NR_Evaluator>);
 static_assert(isDFT_Evaluator    <NR_Evaluator>);
 static_assert(isHF_Evaluator     <NR_Evaluator>);
@@ -177,53 +177,27 @@ private:
     ExponentGrouper grouper;
 };
 
-class RKBL_Evaluator : public RKB_Angular, public Radial
-{
-public:
-    RKBL_Evaluator(size_t N, double emin, double emax, const sym_t& ir)
-        : RKB_Angular(ir)
-        , Radial(N,emin,emax,ir)
-        {}
-    RKBL_Evaluator(const rvec_t& es, const sym_t& ir, size_t ltrim=0)
-        : RKB_Angular(ir)
-        , Radial(es,ir,ltrim)
-        {}
-
-    virtual int Getl() const override {return RKB_Angular::Getl();}
-
-    using Radial::Grad2; //unhide
-    using Radial::Inv_r2; //unhide
-
-    double Grad2(size_t i,size_t j, const RKBL_Evaluator& s) const
-    {
-        assert(l==s.l);
-        double t=es[i]+s.es[j];
-        size_t l1=l+1;
-        return  (l1*l1           * ::Gaussian::Integral(t,2*l-2)
-                -2*l1 * t        * ::Gaussian::Integral(t,2*l  )
-                +4*es[i]*s.es[j] * ::Gaussian::Integral(t,2*l+2))*ns[i]*s.ns[j] ;
-    }
-    double Inv_r2(size_t i,size_t j, const RKBL_Evaluator& b) const
-    {
-        assert(l==b.l);
-        return ::Gaussian::Integral(es[i]+b.es[j],2*l-2)*ns[i]*b.ns[j]; //Already has 4*Pi
-    }
-};
-static_assert(is1E_Evaluator     <RKBL_Evaluator>);
-static_assert(isRKBLS_Evaluator   <RKBL_Evaluator>);
-static_assert(isHF_Evaluator     <RKBL_Evaluator>);
 
 // RKB small-component evaluator: shares Gaussian radial with NR Evaluator.
-class RKBS_Evaluator : public RKBL_Evaluator
+class RKBS_Evaluator :  public RKB_Angular, public Radial
 {
 public:
     RKBS_Evaluator(size_t N, double emin, double emax, const sym_t& ir)
-        : RKBL_Evaluator(N,emin,emax,ir)
+        : RKB_Angular(ir)
+        , Radial(N,emin,emax,ir)
         {ns=norms();}
     RKBS_Evaluator(const rvec_t& es, const sym_t& ir, size_t ltrim=0)
-        : RKBL_Evaluator(es,ir,ltrim)
+        : RKB_Angular(ir)
+        , Radial(es,ir,ltrim)
         {ns=norms();}
     virtual rvec_t norms() const;
+
+    virtual int Getl() const override {return RKB_Angular::Getl();}
+    using Radial::l;
+    using Radial::Grad2;
+    using Radial::Inv_r2;
+    friend class RKBL_Evaluator;
+
     double Inv_r1(size_t i,size_t j) const
     {
         // Small-component nuclear attraction <Q|1/r|Q> with Q=((l+1+κ)/r - 2er)r^l e^-er^2.
@@ -245,15 +219,47 @@ public:
     virtual std::string Name() const;
 
 private:
-    using Radial::l;
     rvec_t eval(const rvec3_t&) const;
 };
 
 static_assert(isGeneric_Evaluator<RKBS_Evaluator>);
-static_assert(is1E_Evaluator     <RKBS_Evaluator>);
-static_assert(isFit_Evaluator    <RKBS_Evaluator>);
-static_assert(isDFT_Evaluator    <RKBS_Evaluator>);
-static_assert(isRKBLS_Evaluator   <RKBS_Evaluator>); 
+static_assert(is1E_RKBS_Evaluator   <RKBS_Evaluator>); 
+
+class RKBL_Evaluator : public RKB_Angular, public Radial
+{
+public:
+    RKBL_Evaluator(size_t N, double emin, double emax, const sym_t& ir)
+        : RKB_Angular(ir)
+        , Radial(N,emin,emax,ir)
+        {}
+    RKBL_Evaluator(const rvec_t& es, const sym_t& ir, size_t ltrim=0)
+        : RKB_Angular(ir)
+        , Radial(es,ir,ltrim)
+        {}
+
+    virtual int Getl() const override {return RKB_Angular::Getl();}
+
+    using RKBS_t=RKBS_Evaluator;
+    // using Radial::Grad2; //unhide
+    // using Radial::Inv_r2; //unhide
+
+    double Grad2(size_t i,size_t j, const RKBS_t& s) const
+    {
+        assert(l==s.l);
+        double t=es[i]+s.es[j];
+        size_t l1=l+1;
+        return  (l1*l1           * ::Gaussian::Integral(t,2*l-2)
+                -2*l1 * t        * ::Gaussian::Integral(t,2*l  )
+                +4*es[i]*s.es[j] * ::Gaussian::Integral(t,2*l+2))*ns[i]*s.ns[j] ;
+    }
+    double Inv_r2(size_t i,size_t j, const RKBS_t& b) const
+    {
+        assert(l==b.l);
+        return ::Gaussian::Integral(es[i]+b.es[j],2*l-2)*ns[i]*b.ns[j]; //Already has 4*Pi
+    }
+};
+static_assert(is1E_RKBLS_Evaluator   <RKBL_Evaluator>);
+static_assert(isHF_Evaluator     <RKBL_Evaluator>);
 
 
 } //namespace

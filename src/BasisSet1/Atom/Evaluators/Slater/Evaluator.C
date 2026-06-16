@@ -39,7 +39,16 @@ public:
     {
         return ::Slater::Integral(es[i]+es[j],2*l)*ns[i]*ns[j]; //Already has 4*Pi and r^2 from dr.
     } 
-    double Grad2(size_t i,size_t j) const
+    double Inv_r1(size_t i,size_t j) const
+    {
+        return ::Slater::Integral(es[i]+es[j],2*l-1)*ns[i]*ns[j]; //Already has 4*Pi
+    }
+    double Overlap(size_t i,size_t j, const Radial& c, size_t ic) const
+    {
+        return ::Slater::Integral(es[i]+es[j]+c.es[ic],2*l+c.l)*ns[i]*ns[j]*c.ns[ic]; //Already has 4*Pi and r^2 from dr.
+    }
+
+        double Grad2(size_t i,size_t j) const
     {
         double ab=es[i]+es[j];
         double Term1=(l+1)*(l+1)*::Slater::Integral(ab,2*l-2); //SlaterIntegral already has 4*Pi
@@ -47,18 +56,11 @@ public:
         double Term3=es[i]*es[j]*::Slater::Integral(ab,2*l);
         return (Term1+Term2+Term3)*ns[i]*ns[j];
     } 
-    double Inv_r1(size_t i,size_t j) const
-    {
-        return ::Slater::Integral(es[i]+es[j],2*l-1)*ns[i]*ns[j]; //Already has 4*Pi
-    }
     double Inv_r2(size_t i,size_t j) const
     {
         return ::Slater::Integral(es[i]+es[j],2*l-2)*ns[i]*ns[j]; //Already has 4*Pi
     }
-    double Overlap(size_t i,size_t j, const Radial& c, size_t ic) const
-    {
-        return ::Slater::Integral(es[i]+es[j]+c.es[ic],2*l+c.l)*ns[i]*ns[j]*c.ns[ic]; //Already has 4*Pi and r^2 from dr.
-    }
+
     double Repulsion(size_t i,size_t j, const Radial& c, size_t ic) const
     {
         ::Slater::RkEngine cd(es[i]+es[j],c.es[ic],std::max(l,c.l));
@@ -137,13 +139,100 @@ public:
 
     NR_Evaluator Rescale(double scale_factor) const { return NR_Evaluator(scale_factor*es,Radial::l); }
     virtual int Getl() const override {return NR_Angular::Getl();}
+    using Radial::l;
 };
 
 static_assert(isGeneric_Evaluator<NR_Evaluator>);
-static_assert(is1E_Evaluator     <NR_Evaluator>);
+static_assert(is1E_NR_Evaluator     <NR_Evaluator>);
 static_assert(isFit_Evaluator    <NR_Evaluator>);
 static_assert(isDFT_Evaluator    <NR_Evaluator>);
 static_assert(isHF_Evaluator     <NR_Evaluator>);
+
+
+
+// RKB small-component evaluator: shares Slater radial with NR Evaluator.
+class RKBS_Evaluator : public RKB_Angular, public Radial
+{
+public:
+    RKBS_Evaluator(size_t N, double emin, double emax, const sym_t& ir)
+        : RKB_Angular(ir)
+        , Radial(N,emin,emax,ir)
+        {ns=norms();}
+    RKBS_Evaluator(const rvec_t& es, const sym_t& ir, size_t ltrim=0)
+        : RKB_Angular(ir)
+        , Radial(es,ir,ltrim)
+        {ns=norms();}
+    rvec_t norms() const;
+
+    virtual int Getl() const override {return RKB_Angular::Getl();}
+    
+    using Radial::Grad2;
+    using Radial::Inv_r2;
+    using Radial::l;
+    friend class RKBL_Evaluator;
+    
+    double Inv_r1(size_t i,size_t j) const
+    {
+        // Small-component nuclear attraction <Q|1/r|Q> with Q=((l+1+κ)/r - e)r^l e^-er.
+        // The κ-dependent terms (the spin-orbit piece) vanish for j=l+1/2 (κ<0, l+1+κ=0)
+        // and are present for j=l-1/2 (κ>0, l+1+κ=2l+1), splitting e.g. 2p1/2 from 2p3/2.
+        double ab=es[i]+es[j];
+        double t=es[i]*es[j]*::Slater::Integral(ab,2*l-1);
+        if (Getκ()>0)
+        {
+            double kt=l+1+Getκ();
+            t += kt*kt*::Slater::Integral(ab,2*l-3) - kt*ab*::Slater::Integral(ab,2*l-2);
+        }
+        return t*ns[i]*ns[j]; //Already has 4*Pi
+    }
+
+    virtual rvec_t     operator() (const rvec3_t&) const;
+    virtual rvec3vec_t Gradient   (const rvec3_t&) const;
+
+    virtual std::string Name() const;
+private:
+    rvec_t eval(const rvec3_t&) const;
+};
+
+static_assert(isGeneric_Evaluator<RKBS_Evaluator>);
+//static_assert(is1E_Evaluator     <RKBS_Evaluator>);
+// static_assert(isDFT_Evaluator    <RKBS_Evaluator>);
+static_assert(is1E_RKBS_Evaluator   <RKBS_Evaluator>);
+
+class RKBL_Evaluator : public RKB_Angular, public Radial
+{
+public:
+    RKBL_Evaluator(size_t N, double emin, double emax, const sym_t& ir)
+        : RKB_Angular(ir)
+        , Radial(N,emin,emax,ir)
+        {}
+    RKBL_Evaluator(const rvec_t& es, const sym_t& ir, size_t ltrim=0)
+        : RKB_Angular(ir)
+        , Radial(es,ir,ltrim)
+        {}
+    
+    using RKBS_t=RKBS_Evaluator;
+    virtual int Getl() const override {return RKB_Angular::Getl();}
+    // using Radial::Grad2; //unhide
+    // using Radial::Inv_r2; //unhide
+
+    double Grad2(size_t i,size_t j, const RKBS_t& s) const
+    {
+        assert(l==s.l);
+        double ab=es[i]+s.es[j];
+        double Term1=(l+1)*(l+1)  *::Slater::Integral(ab,2*l-2); //SlaterIntegral already has 4*Pi
+        double Term2=-(l+1)*ab    *::Slater::Integral(ab,2*l-1);
+        double Term3=es[i]*s.es[j]*::Slater::Integral(ab,2*l);
+        return (Term1+Term2+Term3)*ns[i]*s.ns[j];
+    }
+    double Inv_r2(size_t i,size_t j, const RKBS_t& b) const
+    {
+        assert(l==b.l);
+        return ::Slater::Integral(es[i]+b.es[j],2*l-2)*ns[i]*b.ns[j]; //Already has 4*Pi
+    }
+};
+static_assert(is1E_RKBLS_Evaluator   <RKBL_Evaluator>);
+static_assert(isHF_Evaluator     <RKBL_Evaluator>);
 
 class Slater_Cache4 : public  Cache4
 {
@@ -173,82 +262,5 @@ private:
     friend class Cache4Tests;
     ExponentGrouper grouper;
 };
-
-class RKBL_Evaluator : public RKB_Angular, public Radial
-{
-public:
-    RKBL_Evaluator(size_t N, double emin, double emax, const sym_t& ir)
-        : RKB_Angular(ir)
-        , Radial(N,emin,emax,ir)
-        {}
-    RKBL_Evaluator(const rvec_t& es, const sym_t& ir, size_t ltrim=0)
-        : RKB_Angular(ir)
-        , Radial(es,ir,ltrim)
-        {}
-    
-    virtual int Getl() const override {return RKB_Angular::Getl();}
-    using Radial::Grad2; //unhide
-    using Radial::Inv_r2; //unhide
-
-    double Grad2(size_t i,size_t j, const RKBL_Evaluator& s) const
-    {
-        assert(l==s.l);
-        double ab=es[i]+s.es[j];
-        double Term1=(l+1)*(l+1)  *::Slater::Integral(ab,2*l-2); //SlaterIntegral already has 4*Pi
-        double Term2=-(l+1)*ab    *::Slater::Integral(ab,2*l-1);
-        double Term3=es[i]*s.es[j]*::Slater::Integral(ab,2*l);
-        return (Term1+Term2+Term3)*ns[i]*s.ns[j];
-    }
-    double Inv_r2(size_t i,size_t j, const RKBL_Evaluator& b) const
-    {
-        assert(l==b.l);
-        return ::Slater::Integral(es[i]+b.es[j],2*l-2)*ns[i]*b.ns[j]; //Already has 4*Pi
-    }
-};
-static_assert(is1E_Evaluator     <RKBL_Evaluator>);
-static_assert(isRKBLS_Evaluator   <RKBL_Evaluator>);
-static_assert(isHF_Evaluator     <RKBL_Evaluator>);
-
-// RKB small-component evaluator: shares Slater radial with NR Evaluator.
-class RKBS_Evaluator : public RKBL_Evaluator
-{
-public:
-    RKBS_Evaluator(size_t N, double emin, double emax, const sym_t& ir)
-        : RKBL_Evaluator(N,emin,emax,ir)
-        {ns=norms();}
-    RKBS_Evaluator(const rvec_t& es, const sym_t& ir, size_t ltrim=0)
-        : RKBL_Evaluator(es,ir,ltrim)
-        {ns=norms();}
-    rvec_t norms() const;
-
-    double Inv_r1(size_t i,size_t j) const
-    {
-        // Small-component nuclear attraction <Q|1/r|Q> with Q=((l+1+κ)/r - e)r^l e^-er.
-        // The κ-dependent terms (the spin-orbit piece) vanish for j=l+1/2 (κ<0, l+1+κ=0)
-        // and are present for j=l-1/2 (κ>0, l+1+κ=2l+1), splitting e.g. 2p1/2 from 2p3/2.
-        double ab=es[i]+es[j];
-        double t=es[i]*es[j]*::Slater::Integral(ab,2*l-1);
-        if (Getκ()>0)
-        {
-            double kt=l+1+Getκ();
-            t += kt*kt*::Slater::Integral(ab,2*l-3) - kt*ab*::Slater::Integral(ab,2*l-2);
-        }
-        return t*ns[i]*ns[j]; //Already has 4*Pi
-    }
-
-    virtual rvec_t     operator() (const rvec3_t&) const;
-    virtual rvec3vec_t Gradient   (const rvec3_t&) const;
-
-    virtual std::string Name() const;
-private:
-    using Radial::l;
-    rvec_t eval(const rvec3_t&) const;
-};
-
-static_assert(isGeneric_Evaluator<RKBS_Evaluator>);
-static_assert(is1E_Evaluator     <RKBS_Evaluator>);
-static_assert(isFit_Evaluator    <RKBS_Evaluator>);
-static_assert(isDFT_Evaluator    <RKBS_Evaluator>);
-static_assert(isRKBLS_Evaluator   <RKBS_Evaluator>);
 
 } // namespace

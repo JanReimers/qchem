@@ -78,7 +78,7 @@ protected:
 };
 
 static_assert(isGeneric_Evaluator<Evaluator<6>>);
-static_assert(is1E_Evaluator     <Evaluator<6>>);
+static_assert(is1E_NR_Evaluator     <Evaluator<6>>);
 // static_assert(isFit_Evaluator    <Evaluator<6>>);
 // static_assert(isDFT_Evaluator    <Evaluator<6>>);
 // static_assert(isRKBLS_Evaluator   <Evaluator<6>>);
