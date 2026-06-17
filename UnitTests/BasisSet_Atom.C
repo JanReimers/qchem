@@ -2,7 +2,6 @@
 #include "gtest/gtest.h"
 #include <nlohmann/json.hpp>
 #include <iostream>
-#include <blaze/Math.h>
 using std::cout;
 using std::endl;
 
@@ -16,7 +15,7 @@ import qchem.Mesh.Integrator;
 import qchem.Hamiltonian.Types;
 import qchem.Symmetry.Factory;
 import qchem.ElectronConfiguration.AtomNR;
-
+import qchem.Blaze;
 
 using qchem::Hamiltonian::ohfbs_t;
 using qchem::Hamiltonian::obs_t;
@@ -78,12 +77,12 @@ template <is1E_HF_Evaluator E> void BasisSet_Common<E>::TestOverlap(double eps) 
         for (auto i:iv_t(0,N))
             for (auto j:iv_t(i,N))
                 S(i,j)= ev->Overlap(i,j);
-        for (auto d:diagonal(S)) EXPECT_NEAR(d,1.0,1e-15);
+        for (auto d:blazem::diagonal(S)) EXPECT_NEAR(d,1.0,1e-15);
         rsmat_t Snum = mintegrator->Overlap(*ev);
         cout.precision(2);
         // cout << S-Snum << endl;
         cout << "l=" << index++ << std::endl;
-        EXPECT_NEAR(max(abs(S-Snum)),0.0,eps);
+        EXPECT_NEAR(blazem::max(blazem::abs(S-Snum)),0.0,eps);
     }
 }
 template <is1E_HF_Evaluator E> void BasisSet_Common<E>::TestGrad2  (double eps) const
@@ -96,7 +95,7 @@ template <is1E_HF_Evaluator E> void BasisSet_Common<E>::TestGrad2  (double eps) 
             for (auto j:iv_t(i,N))
                 S(i,j)= ev->Grad2(i,j);
         rsmat_t Snum = mintegrator->Grad2(*ev);
-        EXPECT_NEAR(max(abs(S-Snum)),0.0,eps);
+        EXPECT_NEAR(blazem::max(blazem::abs(S-Snum)),0.0,eps);
     }
         
 }
@@ -110,7 +109,7 @@ template <is1E_HF_Evaluator E> void BasisSet_Common<E>::TestInv_r1 (double eps) 
             for (auto j:iv_t(i,N))
                 S(i,j)= ev->Inv_r1(i,j);
         rsmat_t Snum = mintegrator->Inv_r1(*ev);
-        EXPECT_NEAR(max(abs(S-Snum)),0.0,eps);
+        EXPECT_NEAR(blazem::max(blazem::abs(S-Snum)),0.0,eps);
     }
         
 }
@@ -124,7 +123,7 @@ template <is1E_HF_Evaluator E> void BasisSet_Common<E>::TestInv_r2 (double eps) 
             for (auto j:iv_t(i,N))
                 S(i,j)= ev->Inv_r2(i,j);
         rsmat_t Snum = mintegrator->Inv_r2(*ev);
-        EXPECT_NEAR(max(abs(S-Snum)),0.0,eps);
+        EXPECT_NEAR(blazem::max(blazem::abs(S-Snum)),0.0,eps);
     }
         
 }

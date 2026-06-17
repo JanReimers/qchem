@@ -2,7 +2,6 @@
 
 #include "gtest/gtest.h"
 #include <iomanip>
-#include <blaze/Math.h>
 import qchem.LAParams;
 import qchem.BasisSet;
 import qchem.BasisSet.Molecule.PolarizedGaussian;
@@ -10,6 +9,7 @@ import qchem.Mesh.Integrator;
 import qchem.Cluster;
 import qchem.Symmetry;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Readers.Gaussian94;
+import qchem.Blaze;
 
 using namespace BasisSet::Molecule;
 using BasisSet::Real_OIBS;
@@ -81,8 +81,8 @@ TEST_F(MeshIntegralsTests, PolGaussianOverlap)
             {
                 // cout << *ibs << endl;
                 rsmat_t delta= ibs->Overlap()-mi.Overlap(*ibs);
-                double err=norm(delta);
-                double merr=max(abs(delta));
+                double err=blazem::norm(delta);
+                double merr=blazem::max(blazem::abs(delta));
                 if (err<min1)
                 {
                     min1=err;

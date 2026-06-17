@@ -2,8 +2,8 @@
 
 #include "gtest/gtest.h"
 #include <iostream>
-#include <blaze/Math.h>
 import qchem.BasisSet.Atom.Evaluators.Internal.AngularIntegrals;
+import qchem.Blaze;
 
 using std::cout;
 using std::endl;
@@ -61,8 +61,8 @@ TEST_F(AngularTests,FullSums)
 
         dac_sum/=(2*la+1)*(2*lc+1);
         eac_sum/=(2*la+1)*(2*lc+1);
-        EXPECT_NEAR(max(abs(dac-dac_sum)),0.0,1e-12);
-        EXPECT_NEAR(max(abs(eac-eac_sum)),0.0,3e-14);
+        EXPECT_NEAR(blazem::max(blazem::abs(dac-dac_sum)),0.0,1e-12);
+        EXPECT_NEAR(blazem::max(blazem::abs(eac-eac_sum)),0.0,3e-14);
         // cout << la << " " << lc << "  |  " << Max(fabs(dac-dac_sum))  << " " << Max(fabs(eac-eac_sum)) << endl;
     
     }

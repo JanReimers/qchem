@@ -3,11 +3,11 @@
 #include "gtest/gtest.h"
 #include <set>
 #include <iostream>
-#include <blaze/Math.h>
 import qchem.Symmetry.Orbital; 
 import qchem.Streamable;
 import qchem.Symmetry.Factory;
 import qchem.Symmetry.Spherical;
+import qchem.Blaze;
 
 using std::cout; 
 using std::endl;
@@ -38,13 +38,13 @@ public:
     {
         assert(ml1>=ml0);
         size_t N=ml1-ml0+1;
-        return blaze::linspace(N,ml0,ml1);
+        return blazem::linspace(N,ml0,ml1);
     }
     static rvec_t make_mjs(double mj0, double mj1)
     {
         assert(mj1>=mj0);
         size_t N=mj1-mj0+1;
-        return blaze::linspace(N,mj0,mj1);
+        return blazem::linspace(N,mj0,mj1);
     }
     size_t LMax;
     int κ_max;

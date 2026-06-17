@@ -1,7 +1,6 @@
 // File A_DHF.C  Atom Dirac-Hartree-Fock tests.
 #include "gtest/gtest.h"
 #include <nlohmann/json.hpp>
-#include <blaze/Math.h>
 #include <iostream>
 #include <iomanip>
 import qchem.Unittests.QchemTester;
@@ -15,6 +14,7 @@ import qchem.Cluster;
 import qchem.Streamable;
 import qchem.Energy;
 import qchem.Symmetry.Spherical; //Symmetry::Getκ for picking p1/2 vs p3/2 orbitals
+import qchem.Blaze;
 
 using std::cout;
 using std::endl;

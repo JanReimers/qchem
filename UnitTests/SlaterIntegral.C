@@ -6,7 +6,6 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
-#include <blaze/Math.h>
 
 import qchem.LAParams;
 import qchem.Factory;
@@ -16,6 +15,7 @@ import qchem.Constants;
 import qchem.Mesh.Integrator;
 import qchem.Cluster;
 import qchem.Symmetry.Spherical;
+import qchem.Blaze;
 
 using std::cout;
 using std::endl;
@@ -63,9 +63,9 @@ TEST_F(SlaterRadialIntegralTests, Overlap)
     for (auto oi:bs->Iterate<Real_OIBS >())
     {
         rsmat_t S=oi->Overlap();
-        for (auto d:blaze::diagonal(S)) EXPECT_NEAR(d,1.0,1e-15);
+        for (auto d:blazem::diagonal(S)) EXPECT_NEAR(d,1.0,1e-15);
         rsmat_t Snum = mintegrator->Overlap(*oi);
-        EXPECT_NEAR(max(abs(S-Snum)),0.0,1e-8);
+        EXPECT_NEAR(blazem::max(blazem::abs(S-Snum)),0.0,1e-8);
     }
 }
 
@@ -75,7 +75,7 @@ TEST_F(SlaterRadialIntegralTests, Nuclear)
     {
         rsmat_t Hn=oi->Nuclear(cl);
         rsmat_t Hnnum = -1*mintegrator->Inv_r1(*oi);
-        EXPECT_NEAR(max(abs(Hn-Hnnum)),0.0,1e-7);
+        EXPECT_NEAR(blazem::max(blazem::abs(Hn-Hnnum)),0.0,1e-7);
 
     }
 }
@@ -88,7 +88,7 @@ TEST_F(SlaterRadialIntegralTests, Kinetic)
         //cout << S << endl;
         int l=Getl(oi->GetSymmetry());;
         rsmat_t Knum = mintegrator->Grad2(*oi) + l*(l+1)*mintegrator->Inv_r2(*oi);
-        EXPECT_NEAR(max(abs(K-Knum)),0.0,1e-10);
+        EXPECT_NEAR(blazem::max(blazem::abs(K-Knum)),0.0,1e-10);
         
         // cout << "K=" << K << endl;
         // cout << "Knum=" << Knum << endl;

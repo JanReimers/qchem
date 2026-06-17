@@ -1,14 +1,14 @@
 // File: UnitTests/BasisSet_DHF.C  Unit test the Atom RKB basis sets
+#include <blaze/Math.h>
 #include "gtest/gtest.h"
 #include <iostream>
-#include <blaze/Math.h>
 #include <nlohmann/json.hpp>
 using std::cout;
 using std::endl;
 
 import qchem.BasisSet.Atom.Factory;
 import qchem.BasisSet.Orbital_DHF_IBS;
-
+import qchem.Blaze;
 
 class Basis1_RKB_Tests : public ::testing::Test
 {

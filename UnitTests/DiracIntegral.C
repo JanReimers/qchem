@@ -5,7 +5,6 @@
 #include "nlohmann/json.hpp"
 #include <iostream>
 #include <iomanip>
-#include <blaze/Math.h>
 import qchem.LAParams;
 import qchem.Factory;
 import qchem.BasisSet.Internal.ERI4;
@@ -14,6 +13,8 @@ import qchem.Cluster;
 import qchem.Mesh.Integrator;
 import qchem.Streamable;
 import qchem.BasisSet.Internal.Orbital_DHF_IBS;
+import qchem.Blaze;
+
 using BasisSet::Real_OIBS;
 using Real_IBS=Real_OIBS;
 using RKB_OIBS=BasisSet::Orbital_RKB_IBS_Imp<double>;
@@ -100,7 +101,7 @@ TEST_F(DiracIntegralTests, SlaterOverlap)
     {
         rsmat_t S=oi->Overlap();
         {
-            rvec_t d=blaze::diagonal(S);
+            rvec_t d=blazem::diagonal(S);
             for (size_t i=0;i<d.size()/2;i++) EXPECT_NEAR(d[i],1.0,1e-15);
         }
         // cout << std::fixed << std::setprecision(3) << std::setw(6) << S << S1 << endl;
@@ -109,7 +110,7 @@ TEST_F(DiracIntegralTests, SlaterOverlap)
         rsmat_t Snum=merge_diag(SLnum,SSnum);
         // cout << Snum << S << endl;
 
-        EXPECT_NEAR(max(abs(S-Snum)),0.0,1e-14);
+        EXPECT_NEAR(blazem::max(blazem::abs(S-Snum)),0.0,1e-14);
     }
 }
 
@@ -120,7 +121,7 @@ TEST_F(DiracIntegralTests, GaussianOverlap)
     {
         rsmat_t S=oi->Overlap();
         {
-            rvec_t d=blaze::diagonal(S);
+            rvec_t d=blazem::diagonal(S);
             for (size_t i=0;i<d.size()/2;i++) EXPECT_NEAR(d[i],1.0,1e-15);
         }
         // cout << std::fixed << std::setprecision(3) << std::setw(6) << S << S1 << endl;
@@ -129,7 +130,7 @@ TEST_F(DiracIntegralTests, GaussianOverlap)
 //        cout << SLnum << SSnum << endl;
         rsmat_t Snum=merge_diag(SLnum,SSnum);
         // cout << Max(fabs(S-Snum)) << endl;
-        EXPECT_NEAR(max(abs(S-Snum)),0.0,1e-14);
+        EXPECT_NEAR(blazem::max(blazem::abs(S-Snum)),0.0,1e-14);
     }
 }
 
@@ -146,7 +147,7 @@ TEST_F(DiracIntegralTests, SlaterNuclear)
         rsmat_t Vennum=merge_diag(VenLnum,VenSnum);
         //cout << "Ven=" << Ven << endl << "Ven num=" << Vennum << endl;
         //Because of the singularity at the origin, the error is larger than the other integrals.
-        EXPECT_NEAR(max(abs(Ven-Vennum)),0.0,1e-11);        
+        EXPECT_NEAR(blazem::max(blazem::abs(Ven-Vennum)),0.0,1e-11);        
     }
 }
 
@@ -164,7 +165,7 @@ TEST_F(DiracIntegralTests, GaussianNuclear)
         //cout << "Ven=" << Ven << endl << "Ven num=" << Vennum << endl;
         // cout << "Ven=" << Ven << endl << "Ven1=" << Ven1 << endl;
         //Because of the singularity at the origin, the error is larger than the other integrals.
-        EXPECT_NEAR(max(abs(Ven-Vennum)),0.0,1e-11);        
+        EXPECT_NEAR(blazem::max(blazem::abs(Ven-Vennum)),0.0,1e-11);        
     }
 }
 
@@ -175,14 +176,14 @@ TEST_F(DiracIntegralTests, SlaterKinetic)
     for (auto oi:sbs->Iterate<Real_OIBS >())
     {
         rsmat_t K=oi->Kinetic();
-        rvec_t d=blaze::diagonal(K);    
+        rvec_t d=blazem::diagonal(K);    
         for (size_t i=0;i<d.size();i++) EXPECT_NEAR(d[i],0.0,1e-15);       
         //cout << std::fixed << std::setprecision(3) << std::setw(6) << K << endl;
          rmat_t KnumL = -c_light*mintegrator->Grada_b(*GetLarge(oi),*GetSmall(oi));
 
         rsmat_t Knum=merge_off_diag(KnumL);
         cout << "K=" << K << endl << "Knum=" << Knum << endl;
-        EXPECT_NEAR(max(abs(K-Knum)),0.0,1e-11);      
+        EXPECT_NEAR(blazem::max(blazem::abs(K-Knum)),0.0,1e-11);      
     }
 }
 TEST_F(DiracIntegralTests, GaussianKinetic)
@@ -191,13 +192,13 @@ TEST_F(DiracIntegralTests, GaussianKinetic)
     for (auto oi:gbs->Iterate<Real_OIBS >())
     {
         rsmat_t K=oi->Kinetic();
-        rvec_t d=blaze::diagonal(K);    
+        rvec_t d=blazem::diagonal(K);    
         for (size_t i=0;i<d.size();i++) EXPECT_NEAR(d[i],0.0,1e-15);       
         //cout << std::fixed << std::setprecision(3) << std::setw(6) << K << endl;
          rmat_t KnumL = -c_light*mintegrator->Grada_b(*GetLarge(oi),*GetSmall(oi));
         rsmat_t Knum=merge_off_diag(KnumL);
         // cout << "K=" << K << endl << "Knum=" << Knum << endl;
-        EXPECT_NEAR(max(abs(K-Knum)),0.0,1e-11);         
+        EXPECT_NEAR(blazem::max(blazem::abs(K-Knum)),0.0,1e-11);         
     }
 }
 
@@ -213,8 +214,8 @@ TEST_F(DiracIntegralTests, Contraction)
             D(i,j)=std::rand();
         }
     rmat_t Hf(H),Df(D);
-    double c =sum(H %D );
-    double cf=sum(Hf%Df);
+    double c =blazem::sum(H %D );
+    double cf=blazem::sum(Hf%Df);
     EXPECT_NEAR(c,cf,5e-15);
 }
 

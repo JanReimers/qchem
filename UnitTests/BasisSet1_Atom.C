@@ -1,7 +1,6 @@
 // File: UnitTests/BasisSet_Atom1.C  Unit test the Atom IBS Evaluators
 #include "gtest/gtest.h"
 #include <iostream>
-#include <blaze/Math.h>
 #include <nlohmann/json.hpp>
 using std::cout;
 using std::endl;
@@ -9,6 +8,7 @@ using std::endl;
 import qchem.Unittests.BasisSetPool;
 import qchem.BasisSet.Orbital_HF_IBS;
 import qchem.BasisSet.Orbital_DFT_IBS;
+import qchem.Blaze;
 
 using enum BasisSet::Atom::Type;
 class DBCach1Tests : public ::testing::Test

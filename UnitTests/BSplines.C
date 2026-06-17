@@ -6,7 +6,6 @@
 #include <bspline/Core.h>
 #include <iostream>
 #include <iomanip>
-#include <blaze/Math.h>
 
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.GLQuadrature;
 import qchem.BasisSet.Atom.Evaluators.BSpline.IBS;
@@ -22,6 +21,8 @@ import qchem.Symmetry.Spherical;
 import qchem.stl_io;
 import qchem.Streamable;
 import qchem.Constants;
+import qchem.Blaze;
+
 using std::cout;
 using std::endl;
 using namespace BasisSet::Atom::Evaluators;
@@ -273,13 +274,13 @@ TEST_F(BSplineTests, Overlap)
     {
         cout << *ibs << endl;
         rsmat_t S=ibs->Overlap();
-        for (auto d:blaze::diagonal(S)) EXPECT_NEAR(d,1.0,1e-15);
+        for (auto d:blazem::diagonal(S)) EXPECT_NEAR(d,1.0,1e-15);
         for (auto i:iv_t(0,S.rows()-K-1)) //Check banded
             for (auto j:iv_t(i+K+1,S.rows())) 
                 EXPECT_EQ(S(i,j),0.0);
             
         rsmat_t Snum = mintegrator->Overlap(*ibs);
-        EXPECT_NEAR(max(abs(S-Snum)),0.0,3e-6);
+        EXPECT_NEAR(blazem::max(blazem::abs(S-Snum)),0.0,3e-6);
 
         // cout << "S=" << S << endl;
         // cout << "Snum=" << Snum << endl;
@@ -325,7 +326,7 @@ TEST_F(BSplineTests, Nuclear)
             for (auto j:iv_t(i+K+1,Ven.rows())) EXPECT_EQ(Ven(i,j),0.0);
         
         rsmat_t Vennum = -cl->GetNuclearCharge()*mintegrator->Inv_r1(*ibs);
-        EXPECT_NEAR(max(abs(Ven-Vennum)),0.0,1e-7);
+        EXPECT_NEAR(blazem::max(blazem::abs(Ven-Vennum)),0.0,1e-7);
 
         // cout << "Ven=" << Ven << endl;
         // cout << "Vennum=" << Vennum << endl;
@@ -348,7 +349,7 @@ TEST_F(BSplineTests, Kinetic)
         rsmat_t Tnum = mintegrator->Grad2(*ibs);
         rsmat_t Cen  = mintegrator->Inv_r2(*ibs);
         Tnum+=l*(l+1)*Cen;
-        EXPECT_NEAR(max(abs(T-Tnum)),0.0,3e-5);
+        EXPECT_NEAR(blazem::max(blazem::abs(T-Tnum)),0.0,3e-5);
         
         // cout << "T=" << T << endl;
         // cout << "Tnum=" << Tnum << endl;

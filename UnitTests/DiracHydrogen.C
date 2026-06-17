@@ -1,5 +1,4 @@
 // Dirac hydrogen atom with RKB Gaussian basis (even-tempered)
-#include <blaze/Math.h>
 #include <iostream>
 #include <vector>
 #include <cmath>

@@ -25,6 +25,9 @@ export
 
     using blaze::operator<<;
 
+    using blaze::begin;
+    using blaze::end;
+
 }
 
 
@@ -58,5 +61,6 @@ export namespace blazem
     using blaze::sum;
     using blaze::norm;
     using blaze::linspace;
+    using blaze::diagonal;
 }
 

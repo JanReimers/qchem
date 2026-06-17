@@ -1,10 +1,10 @@
 #include <iostream>
 #include <iomanip>
-#include <blaze/Math.h>
 #include "gtest/gtest.h"
 
 import qchem.Unittests.QchemTester;
 import qchem.LASolver;
+import qchem.Blaze;
 
 using std::cout;
 using std::endl;
