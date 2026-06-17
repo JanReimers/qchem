@@ -3,7 +3,6 @@ module;
 #include <iostream>
 #include <cassert>
 #include <iomanip>
-#include "blaze/Math.h" 
 module qchem.SCFAccelerator.Internal.SCFAcceleratorDIIS;
 import qchem.SCFAccelerator.Internal.SCFIrrepAcceleratorNull;
 import qchem.Blaze;
@@ -36,7 +35,7 @@ void SCFIrrepAcceleratorDIIS::UseFD(const rsmat_t& F, const rsmat_t& DPrime)
     assert(itsFPrime.columns()==DPrime.columns());
     itsDPrime=DPrime;
     itsE=itsFPrime*itsDPrime-itsDPrime*itsFPrime;
-    itsEn=norm(itsE);
+    itsEn=blazem::norm(itsE);
 }
 
 LASolver<double>::UUd_t SCFIrrepAcceleratorDIIS::NextOrbitals()
@@ -51,7 +50,7 @@ rsmat_t SCFIrrepAcceleratorDIIS::Project()
         return itsFPrime;
     else
     {
-        double err=fabs(sum(itsCs)-1.0);
+        double err=fabs(blazem::sum(itsCs)-1.0);
         if (err>1e-13)
             cout << "Warning: SCFIrrepAcceleratorDIIS::Project() fabs(Sum(itsCs)-1.0)<>e-13 ." << endl;
         assert(itsCs.size()==itsFPrimes.size());
@@ -115,7 +114,7 @@ double SCFAcceleratorDIIS::GetMinSV(const rsmat_t& B)
 {
     rvec_t s;
     rmat_t  U,Vt;
-    blaze::svd(B,U,s,Vt);
+    blazem::svd(B,U,s,Vt);
     return s[s.size()-1];
 }
 
@@ -124,8 +123,8 @@ rvec_t SCFAcceleratorDIIS::SolveC(const rsmat_t& B)
     size_t N=B.rows();
     rvec_t v(N,0.0);
     v[N-1]=1.0;
-    rvec_t C=blaze::solve(B,v);
-    return subvector(C,0,N-1);   
+    rvec_t C=blazem::solve(B,v);
+    return blazem::subvector(C,0,N-1);   
 }
 SCFAcceleratorDIIS::md_t SCFAcceleratorDIIS::BuildB() const
 {
@@ -166,7 +165,7 @@ size_t SCFAcceleratorDIIS::Append1()
 
 bool SCFAcceleratorDIIS::CalculateProjections()
 {
-    blaze::clear(itsCs);
+    blazem::clear(itsCs);
     itsEn=0.0;
     bailoutReason="            ";
     for (auto k:itsIrreps) 

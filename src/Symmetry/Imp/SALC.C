@@ -4,8 +4,8 @@ module;
 #include <string>
 #include <algorithm>
 #include <cassert>
-#include "blaze/Math.h"
 module qchem.Symmetry.SALC;
+import qchem.Blaze;
 
 namespace Symmetry
 {
@@ -36,12 +36,12 @@ SALCs BuildSALCs(const std::vector<AoShell>& shells, const AbelianGroup& g,
         P /= h;
 
         // Orthonormal basis of col(P) by modified Gram-Schmidt over the columns.
-        std::vector<blaze::DynamicVector<double>> basis;
+        std::vector<rvec_t> basis;
         for (size_t j=0;j<nAO;++j)
         {
-            blaze::DynamicVector<double> v = column(P, j);
-            for (const auto& b : basis) v -= dot(b, v) * b;    // remove projections
-            double nv = norm(v);
+            rvec_t v = blazem::column(P, j);
+            for (const auto& b : basis) v -= blazem::dot(b, v) * b;    // remove projections
+            double nv = blazem::norm(v);
             if (nv > 1e-9) { v /= nv; basis.push_back(v); }
         }
 

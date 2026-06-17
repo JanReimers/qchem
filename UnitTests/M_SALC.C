@@ -3,11 +3,11 @@
 #include <vector>
 #include <string>
 #include <map>
-#include "blaze/Math.h"
 import qchem.Symmetry.SALC;          // BuildSALCs, SALCs
 import qchem.Symmetry.AbelianGroup;  // BuildAbelianGroup
 import qchem.Symmetry.PointGroup;    // SymPoint
 import qchem.Math;
+import qchem.Blaze;
 
 using namespace Symmetry;
 

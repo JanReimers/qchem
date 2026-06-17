@@ -24,6 +24,8 @@ export namespace blazem
     using blaze::eigen;
     using blaze::svd;
     using blaze::inv;
+    using blaze::solve;
+    using blaze::clear;
     using blaze::subvector;
     using blaze::submatrix;
     using blaze::trans;
@@ -40,6 +42,7 @@ export namespace blazem
     using blaze::sum;
     using blaze::norm;
     using blaze::outer;
+    using blaze::dot;
     using blaze::linspace;
     using blaze::diagonal;
     using blaze::isZero;

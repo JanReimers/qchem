@@ -5,7 +5,6 @@
 #include <cassert>
 #include "nlohmann/json.hpp"
 #include "gtest/gtest.h"
-#include "blaze/Math.h"
 
 import qchem.BasisSet.Orbital_1E_IBS;
 import qchem.BasisSet;
@@ -21,6 +20,7 @@ import qchem.Symmetry.Spin;
 
 import qchem.WaveFunction.Types;
 import qchem.Math;
+import qchem.Blaze;
 
 using qchem::WaveFunction::bs_t;
 

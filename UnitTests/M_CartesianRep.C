@@ -2,10 +2,9 @@
 #include <gtest/gtest.h>
 #include <vector>
 #include <array>
-#include "blaze/Math.h"            // matrix operator* in this (non-module) TU
 import qchem.Symmetry.CartesianRep;
 import qchem.Symmetry.PointGroup;   // SymOp, to obtain operation matrices
-
+import qchem.Blaze; // matrix operator* in this (non-module) TU
 using namespace Symmetry;
 
 static std::vector<IVec3> Pshell() { return {{1,0,0},{0,1,0},{0,0,1}}; }

@@ -4,12 +4,12 @@
 #include <string>
 #include <map>
 #include <algorithm>
-#include "blaze/Math.h"
 import qchem.BasisSet.Molecule.PolarizedGaussian.Symmetry;  // ExtractAoShells, ClusterToSymPoints
 import qchem.BasisSet.Molecule.PolarizedGaussian;            // Orbital_IBS
 import qchem.Symmetry.SALC;                                   // BuildAbelianGroup, BuildSALCs, BuildOperationRep
 import qchem.Cluster;                                         // Molecule, Atom
 import qchem.Types;
+import qchem.Blaze;
 
 using namespace BasisSet::Molecule::PolarizedGaussian;
 using namespace Symmetry;

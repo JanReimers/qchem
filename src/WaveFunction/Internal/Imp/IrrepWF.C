@@ -4,9 +4,8 @@ module;
 #include <cassert>
 #include <memory>
 #include <vector>
-#include "blaze/Math.h" 
-import qchem.SCFAccelerator;
 module qchem.WaveFunction.Internal.IrrepWF;
+import qchem.SCFAccelerator;
 import qchem.Orbitals.Factory;
 import qchem.Blaze;
 
