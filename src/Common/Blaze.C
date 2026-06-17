@@ -9,6 +9,7 @@ export
 {
     using blaze::DenseIterator;
     using blaze::operator==;
+    using blaze::operator!=;
 
     using blaze::operator+;
     using blaze::operator/;

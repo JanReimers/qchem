@@ -4,7 +4,6 @@ module;
 #include <iostream>
 #include <initializer_list>
 #include <vector>
-#include <blaze/Math.h>
 
 module qchem.ElectronConfiguration.AtomNR;
 import Common.PeriodicTable;
@@ -12,6 +11,7 @@ import qchem.Symmetry.Irrep;
 import qchem.Symmetry.Spherical;
 import qchem.Symmetry.Factory;
 import qchem.stl_io;
+import qchem.Blaze;
 
 using std::cout;
 using std::endl;

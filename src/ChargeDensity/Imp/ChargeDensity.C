@@ -2,10 +2,9 @@
 module;
 #include <iostream>
 #include <cassert>
-#include <blaze/Math.h>
 module qchem.ChargeDensity;
-
 import qchem.Symmetry.Spin;
+import qchem.Blaze;
 
 namespace qchem::ChargeDensity
 {

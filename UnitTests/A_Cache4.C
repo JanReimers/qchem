@@ -6,7 +6,6 @@
 #include <string>
 #include <memory>
 #include "../src/forward.H"
-// #include <blaze/Math.h>
 #include <nlohmann/json.hpp>
 using std::cout;
 using std::endl;

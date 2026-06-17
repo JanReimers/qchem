@@ -3,11 +3,13 @@ module;
 #include <iomanip>
 #include <cassert>
 #include <algorithm>
-#include <cmath>
+// #include <cmath>
 #include <blaze/Math.h>
 module qchem.Symmetry.Internal.Spherical;
 import qchem.Common.Strings; //To get SPDFG string table.
 import qchem.stl_io;
+// import qchem.Blaze;
+import qchem.Math;
 
 using std::cout;
 using std::endl;
@@ -57,14 +59,14 @@ size_t Ωκmj::SequenceIndex() const //Used for op<
     std::sort(sorted_mjs.begin(), sorted_mjs.end());
 
     double j_val = Getj();
-    int mj_steps = static_cast<int>(std::lround(2.0 * j_val));
+    int mj_steps = static_cast<int>(lround(2.0 * j_val));
     size_t value_range = static_cast<size_t>(2 * mj_steps + 1);
     size_t size_range = 16;
 
     size_t code = kappa_code;
     code = code * size_range + sorted_mjs.size();
     for (double mj : sorted_mjs) {
-        int mj_code = static_cast<int>(std::lround((mj + j_val) * 2.0));
+        int mj_code = static_cast<int>(lround((mj + j_val) * 2.0));
         assert(mj_code >= 0 && static_cast<size_t>(mj_code) < value_range);
         code = code * value_range + static_cast<size_t>(mj_code);
     }

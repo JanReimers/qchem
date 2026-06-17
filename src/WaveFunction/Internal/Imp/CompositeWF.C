@@ -3,7 +3,6 @@ module;
 #include <cassert>
 #include <memory>
 #include "tabulate/table.hpp"
-// #include <blaze/Math.h>
 module qchem.WaveFunction.Internal.CompositeWF;
 import qchem.WaveFunction.Types;
 import qchem.SCFAccelerator;

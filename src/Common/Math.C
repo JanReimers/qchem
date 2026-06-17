@@ -23,6 +23,7 @@ export
     using std::isfinite;
     using std::max;
     using std::min;
+    using std::lround;
 
 }
 
