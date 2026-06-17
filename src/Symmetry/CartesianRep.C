@@ -6,7 +6,7 @@
 // centroid) a function transforms as phi(r) -> phi(R^{-1} r), so the monomial maps to
 // p(R^{-1} u), a degree-L polynomial = a linear combination of the shell's monomials.  This
 // builds that (#components x #components) matrix.  Pure math (no basis/Gaussian knowledge);
-// the molecular basis rep-builder (in BasisSet1) combines it with the center permutation.
+// the molecular basis rep-builder (in BasisSet) combines it with the center permutation.
 module;
 #include <vector>
 #include <array>

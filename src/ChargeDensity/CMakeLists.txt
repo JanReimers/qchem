@@ -20,7 +20,7 @@ target_sources(qcChargeDensity PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES F
 
 set_property(TARGET qcChargeDensity PROPERTY CXX_STANDARD 20)
 target_include_directories(qcChargeDensity PRIVATE ${PROJECT_SOURCE_DIR}/submodules/blaze)
-target_link_libraries(qcChargeDensity PUBLIC qcFitting qcBasisSet1 qcSymmetry qcCluster qcMesh qcCommon) 
+target_link_libraries(qcChargeDensity PUBLIC qcFitting qcBasisSet qcSymmetry qcCluster qcMesh qcCommon) 
 target_compile_options(qcChargeDensity PRIVATE 
     $<$<CONFIG:Debug>:-g -O0>
     $<$<CONFIG:Release>: -O2 -pg>

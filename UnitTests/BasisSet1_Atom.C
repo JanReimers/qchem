@@ -237,7 +237,7 @@ TEST_F(DBCach1Tests,SlaterRepulsion3C)
 
 //
 //  For efficiency legacy calculations do Jcdab=Jabcd.Transpose().   
-//  The BasisSet1 version recalculates Jcdab directly and does not yet do
+//  The BasisSet version recalculates Jcdab directly and does not yet do
 //  the Transpose call.  For Guassian and Slater this results in a minor error <1e-15.  For BSpline near the origin
 //  we get much bigger errors.  Perhaps this related to problems encountered when trying to reproduce Saitos results with
 //  rmin=0.0001.

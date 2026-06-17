@@ -73,7 +73,7 @@ src/
   Symmetry/      spherical harmonics & spherical spinors, electron configurations
   Cluster/       atoms and molecules (nuclear framework)
   Mesh/          numerical integration grids
-  BasisSet1/     Evaluators (Slater/Gaussian/BSpline ± RKB), IrrepBasisSets, factories
+  BasisSet/     Evaluators (Slater/Gaussian/BSpline ± RKB), IrrepBasisSets, factories
   Hamiltonian/   HF, DFT (libxc), Dirac terms; energy breakdown
   ChargeDensity/ density matrices, direct/exchange accumulation
   Orbitals/ WaveFunction/ SCFIterator/ SCFAccelerator/   the SCF loop

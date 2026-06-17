@@ -12,7 +12,7 @@ set_property(TARGET qcOrbitals PROPERTY CXX_STANDARD 20)
 target_include_directories(qcOrbitals PRIVATE 
       ${PROJECT_SOURCE_DIR}/submodules/blaze
 )
-target_link_libraries(qcOrbitals PUBLIC qcChargeDensity qcBasisSet1 qcSymmetry qcCluster qcMesh qcCommon)
+target_link_libraries(qcOrbitals PUBLIC qcChargeDensity qcBasisSet qcSymmetry qcCluster qcMesh qcCommon)
 target_compile_options(qcOrbitals PRIVATE 
     $<$<CONFIG:Debug>:-g -O0>
     $<$<CONFIG:Release>: -O2 -pg>

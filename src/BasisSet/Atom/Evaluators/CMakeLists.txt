@@ -1,0 +1,30 @@
+# add_library(qcAtom_BS)
+target_sources(qcAtom_BS PRIVATE
+    Internal/Imp/AngularIntegrals.C
+    Internal/Imp/Grouper.C
+    Internal/Imp/Exponential_Evaluator.C
+    Internal/Imp/Wigner3j.C
+    Internal/Imp/RelWigner3j.C
+    Internal/Imp/RelAngularIntegrals.C
+    Internal/Imp/NR_Angular.C
+    Internal/Imp/RKBL_Angular.C
+    Internal/Imp/Rk.C 
+)
+target_sources(qcAtom_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
+    Evaluator.C
+    Internal/Rk.C
+    Internal/AngularIntegrals.C
+    Internal/Wigner3j.C
+    Internal/RelWigner3j.C
+    Internal/RelAngularIntegrals.C
+    Internal/NR_Angular.C
+    Internal/RKBL_Angular.C
+    Internal/Grouper.C
+    Internal/Exponential_Evaluator.C
+    Internal/FillPower.C
+    Internal/PascalTriangle.C
+)
+
+add_subdirectory(BSpline)
+add_subdirectory(Gaussian)
+add_subdirectory(Slater)

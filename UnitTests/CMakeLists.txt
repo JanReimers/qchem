@@ -12,7 +12,7 @@ link_directories(
 # 
 add_executable(UTMain gtestmain.C QchemTesterImp.C BasisSetPoolImp.C 
     json.C EigenSolverUT.C ERI4.C MeshIntegrals.C UTCluster.C  PeriodicTable.C
-    BSplines.C DiracIntegral.C SlaterIntegral.C GaussianIntegral.C UTBasisSet.C BasisSet1_Atom.C BasisSet_Atom.C BasisSet1_DHF.C
+    BSplines.C DiracIntegral.C SlaterIntegral.C GaussianIntegral.C UTBasisSet.C BasisSet_Atom.C BasisSet_Atom.C BasisSet_DHF.C
     A_HF_U.C A_HF_P.C A_DHF.C A_HF_U.C A_DFT.C A_DFT_U.C M_PG_U.C
     SymQN.C ElectronConfigurations.C  Angular.C Libxc.C
     ElectronConfigurations_Dirac.C RelAngular.C M_PointGroup.C M_CartesianRep.C M_CharacterTable.C M_SALC.C M_PGSymmetry.C
@@ -100,7 +100,7 @@ target_include_directories(UTSym PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/tabulate/include
 
 )
-target_link_libraries(UTSym PUBLIC qcFactory qcBasisSet1 qcSymmetry gtest lapack wignerSymbols)
+target_link_libraries(UTSym PUBLIC qcFactory qcBasisSet qcSymmetry gtest lapack wignerSymbols)
 set_property(TARGET UTSym PROPERTY CXX_STANDARD 20)
 # Cluster module
 add_executable(UTCluster gtestmain.C UTCluster.C)
@@ -108,7 +108,7 @@ target_link_libraries(UTCluster PUBLIC qcCluster gtest)
 set_property(TARGET UTCluster PROPERTY CXX_STANDARD 20)
 # BasisSet module
 add_executable(UTBasisSet gtestmain.C UTBasisSet.C BasisSet_Atom.C)
-target_link_libraries(UTBasisSet PUBLIC qcAtom_BS1 lapack wignerSymbols gtest) #qcLattice_BS
+target_link_libraries(UTBasisSet PUBLIC qcAtom_BS lapack wignerSymbols gtest) #qcLattice_BS
 target_include_directories(UTBasisSet PRIVATE ${PROJECT_SOURCE_DIR}/submodules/blaze)
 set_property(TARGET UTBasisSet PROPERTY CXX_STANDARD 20)
 

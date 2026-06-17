@@ -42,7 +42,7 @@ target_include_directories(qcHamiltonian PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/blaze
     ${PROJECT_BINARY_DIR}/submodules/libxc
     )
-target_link_libraries(qcHamiltonian PUBLIC xc qcChargeDensity qcFitting qcBasisSet1 qcSymmetry qcCluster qcMesh qcCommon)
+target_link_libraries(qcHamiltonian PUBLIC xc qcChargeDensity qcFitting qcBasisSet qcSymmetry qcCluster qcMesh qcCommon)
 target_compile_options(qcHamiltonian PRIVATE 
     $<$<CONFIG:Debug>:-g -O0>
     $<$<CONFIG:Release>: -O2 -pg>
