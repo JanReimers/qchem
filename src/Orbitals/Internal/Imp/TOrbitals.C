@@ -3,8 +3,6 @@ module;
 #include <cassert>
 #include <iostream>
 #include <memory>
-#include "blaze/Math.h" 
-
 module qchem.Orbitals.Internal.OrbitalsImp;
 import qchem.Orbitals.Internal.OrbitalImp;
 import qchem.ChargeDensity.Factory;
@@ -84,7 +82,7 @@ template <class T> void TOrbitalsImp<T>::UpdateOrbitals(const mat_t<T>& U, const
  //               std::cout << "o=" << o->GetEigenEnergy() << std::endl;
         if (e[i]<=e_positron) continue; //Strip out all the positron orbitals.
         size_t principle_QN=itsQNs.sym->GetPrincipleOffset() + index++;
-        Orbital* o=new TOrbitalImp<T>(itsBasisSet,blaze::column(U,i), blaze::column(UPrime,i), e[i],Orbital_QNs(principle_QN,itsQNs));
+        Orbital* o=new TOrbitalImp<T>(itsBasisSet,blazem::column(U,i), blazem::column(UPrime,i), e[i],Orbital_QNs(principle_QN,itsQNs));
         itsOrbitals.push_back(std::unique_ptr<Orbital>(o));
 
     }

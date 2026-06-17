@@ -39,6 +39,7 @@ export namespace blazem
     using blaze::row;
     using blaze::sum;
     using blaze::norm;
+    using blaze::outer;
     using blaze::linspace;
     using blaze::diagonal;
     using blaze::isZero;

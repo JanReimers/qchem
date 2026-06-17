@@ -3,8 +3,9 @@ module;
 #include <iostream>
 #include <iomanip>
 #include <complex>
-#include "blaze/Math.h" 
+#include <cassert>
 module qchem.Orbitals.Internal.OrbitalImp;
+import qchem.Blaze;
 
 namespace qchem::Orbitals
 {
@@ -27,9 +28,9 @@ template <class T> void TOrbitalImp<T>::AddDensityMatrix(smat_t<T>& D, smat_t<T>
     
     if (IsOccupied()) 
     {
-        smat_t<T> CCd=blaze::outer(itsCoeff,conj(itsCoeff))*GetOccupation();
+        smat_t<T> CCd=blazem::outer(itsCoeff,blazem::conj(itsCoeff))*GetOccupation();
         D+=CCd;
-        smat_t<T> CCd_prime=blaze::outer(itsCoeffPrime,conj(itsCoeffPrime))*GetOccupation();
+        smat_t<T> CCd_prime=blazem::outer(itsCoeffPrime,blazem::conj(itsCoeffPrime))*GetOccupation();
         DPrime+=CCd_prime;
     }
 }
@@ -44,7 +45,7 @@ template <class T> T TOrbitalImp<T>::operator()(const rvec3_t& r) const
 {
     rvec_t gr=(*itsBasisSet)(r);
     assert(gr.size()==itsCoeff.size());
-    return trans(itsCoeff) * gr;
+    return blazem::trans(itsCoeff) * gr;
 }
 
 //BUG

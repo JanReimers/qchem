@@ -4,11 +4,11 @@ module;
 #include <iomanip>
 #include <complex>
 #include <cassert>
-#include "blaze/Math.h"
 module qchem.Mesh.Integrator;
 import qchem.Blaze;
 import qchem.Vector3D;
 import qchem.Math;
+import qchem.Blaze;
 
 using std::cout;
 using std::endl;
@@ -46,7 +46,7 @@ template <class T> rvec_t MeshIntegrator<T>::Integrate(const Vf& v) const
         iw++;
     }
 
-    assert(!isnan(ret));
+    assert(!blazem::isnan(ret));
     return ret;
 }
 
@@ -64,7 +64,7 @@ template <class T> rvec_t MeshIntegrator<T>::Normalize(const Vf& v) const
         iw++;          
     }
 
-    ret=1.0/sqrt(ret);
+    ret=1.0/blazem::sqrt(ret);
     return ret;
 }
 
@@ -96,9 +96,9 @@ template <class T> vec_t<T> MeshIntegrator<T>::Overlap(const Rf& f,const Vf& v) 
     vec_t<T> ret(n,T(0.0));
 
     const mat_t<T> & sv(v(*itsMesh));
-    assert(!isnan(sv));
+    assert(!blazem::isnan(sv));
     const rvec_t& sf(f(*itsMesh));
-    assert(!isnan(sf));
+    assert(!blazem::isnan(sf));
     int iw=0;
     for (auto rw:*itsMesh)
     {
@@ -107,7 +107,7 @@ template <class T> vec_t<T> MeshIntegrator<T>::Overlap(const Rf& f,const Vf& v) 
         
         iw++;
     }
-    assert(!isnan(ret));
+    assert(!blazem::isnan(ret));
     return ret;
 }
 
@@ -129,7 +129,7 @@ template <class T> mat_t<T> MeshIntegrator<T>::Overlap(const Vf& f,const Vf& g) 
         iw++;
     }
 
-    assert(!isnan(ret));
+    assert(!blazem::isnan(ret));
     return ret;
 }
 
@@ -156,7 +156,7 @@ template <class T> smat_t<T> MeshIntegrator<T>::Overlap3C(const Vf& f,const Sf& 
             }
         }
 
-    assert(!isnan(ret));
+    assert(!blazem::isnan(ret));
     return ret;
 }
 
@@ -184,7 +184,7 @@ template <class T> smat_t<T> MeshIntegrator<T>::Repulsion(const Vf& f) const
                     ret(i,j)+=(std::conj(sf(i,iw))*sf(j,jw)+std::conj(sf(i,jw))*sf(j,iw))*oor;
         }
     }
-    assert(!isnan(ret));
+    assert(!blazem::isnan(ret));
     return ret;
 }
 
@@ -210,7 +210,7 @@ template <class T> vec_t<T> MeshIntegrator<T>::Repulsion(const Rf& h, const Vf& 
                 ret[i]+=(sf(i,iw)*std::conj(sh[jw])+sf(i,jw)*std::conj(sh[iw]))*oor;
         }
     }
-    assert(!isnan(ret));
+    assert(!blazem::isnan(ret));
     return ret;
 }
 
@@ -239,7 +239,7 @@ template <class T> mat_t<T> MeshIntegrator<T>::Repulsion(const Vf& f,const Vf& g
                     ret(i,j)+=(std::conj(sf(i,iw))*sg(j,jw)+std::conj(sf(i,jw))*sg(j,iw))*oor;
         }
     }
-    assert(!isnan(ret));
+    assert(!blazem::isnan(ret));
     return ret;
 }
 
