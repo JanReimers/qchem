@@ -5,7 +5,6 @@ module;
 #include <cassert>
 #include <iostream>
 #include "forward.H"
-#include <blaze/Math.h>
 
 export module qchem.BasisSet.Atom.IBS;
 import qchem.BasisSet.Internal.IrrepBasisSetImp;
@@ -19,6 +18,7 @@ import qchem.BasisSet.Atom.Evaluators;
 import qchem.BasisSet.Internal.Cache4;
 import qchem.Symmetry.Factory;
 import qchem.Constants;
+import qchem.Blaze;
 
 export namespace BasisSet
 {

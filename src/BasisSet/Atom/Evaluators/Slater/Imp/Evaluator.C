@@ -2,14 +2,13 @@
 module;
 #include <cassert>
 #include <iostream>
-#include <blaze/math/DynamicVector.h>
 
 module qchem.BasisSet.Atom.Evaluators.Slater.IBS;
 import qchem.BasisSet.Atom.Evaluators.Slater.Internal.Rk; 
 import qchem.BasisSet.Atom.Evaluators.Slater.Internal.Integrals; 
 import qchem.BasisSet.Atom.Evaluators.Slater.Internal.ExponentScaler; 
 import qchem.Math;
-
+import qchem.Blaze;
 
 namespace BasisSet::Atom::Evaluators::Slater
 {

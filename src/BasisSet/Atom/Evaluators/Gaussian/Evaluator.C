@@ -1,7 +1,7 @@
 // File: BasisSet/Atom/Evaluators/Gaussian/Evaluator.C
 module;
 #include <iosfwd>
-#include <blaze/Math.h>
+#include <cassert>
 export module qchem.BasisSet.Atom.Evaluators.Gaussian.IBS;
 import qchem.BasisSet.Atom.Evaluators.Internal.ExponentialEvaluator;
 import qchem.BasisSet.Atom.Evaluators.Internal.NR_Angular;
@@ -10,9 +10,11 @@ import qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.GaussianIntegrals;
 import qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.Rk;
 import qchem.BasisSet.Atom.Evaluators.Internal.Grouper;
 import qchem.BasisSet.Atom.Evaluators;
+import qchem.BasisSet.Internal.Cache4;
 import qchem.Symmetry.Spherical;
 import qchem.IntPow;
-import qchem.BasisSet.Internal.Cache4;
+import qchem.Math;
+import qchem.Blaze;
 
 
 export namespace BasisSet::Atom::Evaluators::Gaussian
@@ -60,7 +62,7 @@ public:
     }
     double Repulsion(size_t i,size_t j, const Radial& c, size_t ic) const
     {
-        ::Gaussian::RkEngine cd(es[i]+es[j],c.es[ic],std::max(l,c.l));
+        ::Gaussian::RkEngine cd(es[i]+es[j],c.es[ic],max(l,c.l));
         return cd.DirectR0  (l,c.l)*FourPi2*ns[i]*ns[j]*c.ns[ic];
     }
     double Repulsion(size_t i,size_t j) const
@@ -70,7 +72,7 @@ public:
     }
     double Repulsion(size_t i,size_t j, const Radial& b) const
     {
-        ::Gaussian::RkEngine cd(es[i],b.es[j],std::max(l,b.l));
+        ::Gaussian::RkEngine cd(es[i],b.es[j],max(l,b.l));
         return cd.DirectR0  (l,b.l)*FourPi2*ns[i]*b.ns[j];
     }
 
@@ -107,7 +109,7 @@ protected:
     rvec_t norms() const; //assumes es,l are already initialized
     template <class v> static v gaussian(double r,size_t l,const v& e, const v& n)
     {
-        return n*uintpow(r,l)*exp(-e*r*r);
+        return n*uintpow(r,l)*blazem::exp(-e*r*r);
     }
     template <class v> static v grad_gaussian(double r,size_t l,const v& e, const v& n)
     {

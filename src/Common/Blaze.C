@@ -1,10 +1,27 @@
 // File: Common/Convert.C
 module;
-#include <blaze/math/SymmetricMatrix.h>
+#include "blaze/math/dense/DenseVector.h"
+#include <blaze/Math.h>
 export module qchem.Blaze;
 export import qchem.Types;
 
 export 
+{
+    using blaze::DenseIterator;
+    // using blaze::Iterator_t;
+    using blaze::operator==;
+    using blaze::operator+;
+    using blaze::operator/;
+    using blaze::operator*;
+    using blaze::operator-;
+    using blaze::operator+=;
+    using blaze::operator-=;
+    using blaze::operator*=;
+    using blaze::operator/=;
+}
+
+
+export namespace blazem
 {
     template <typename T> smat_t<T> zero(size_t N)
     {
@@ -12,6 +29,16 @@ export
         for ( size_t j=0; j<z.columns(); ++j) column(z,j)=0.0;
         return z;
     }
+
+    
+    using blaze::DynamicVector;
+    using blaze::Subvector;
+    using blaze::subvector;
+    using blaze::exp;
+    using blaze::abs;
+    using blaze::max;
+    using blaze::min;
+    using blaze::size;
 
 }
 

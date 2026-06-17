@@ -3,11 +3,11 @@ module;
 #include <iostream>
 #include <cassert>
 #include <vector>
-#include <blaze/Math.h>
 module qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.Rk; 
 import qchem.BasisSet.Atom.Internal.PascalTriangle;
 import qchem.BasisSet.Atom.Evaluators;
 import qchem.Math;
+import qchem.Blaze;
 
 using std::cout;
 using std::endl;
@@ -120,7 +120,7 @@ double RkEngine::ExchangeRk(size_t la,size_t lb, const rvec11_t& Ak) const
 
 size_t RkEngine::RAMsize() const
 {
-    return blaze::size(Iab)+blaze::size(Icd);
+    return blazem::size(Iab)+blazem::size(Icd);
 }
 
 } //namespace

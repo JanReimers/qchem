@@ -1,14 +1,13 @@
 // File: BasisSet/Atom/Evaluators/Internal/Imp/RelAngularIntegrals.C
 module;
 #include "wignerSymbols/wignerSymbols-cpp.h"
-#include <blaze/Math.h>
 #include <cassert>
-#include <cmath>
 
 module qchem.BasisSet.Atom.Evaluators.Internal.RelAngularIntegrals;
 import qchem.BasisSet.Atom.Evaluators.Internal.AngularIntegrals;
 import qchem.Symmetry.Spherical; //SphericalSpinor::j, l
 import qchem.Math; //FourPi2
+import qchem.Blaze;
 
 namespace RelAngularIntegrals
 {

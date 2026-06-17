@@ -84,7 +84,7 @@ int main() {
     std::vector<double> norm(N);
     for (int i = 0; i < N; ++i) norm[i] = gaussian_norm(alphas[i]);
 
-    rsmat_t S_LL=zero<double>(N), V_LL=zero<double>(N), V_SS=zero<double>(N),T_LS=zero<double>(N),P2=zero<double>(N);
+    rsmat_t S_LL=blazem::zero<double>(N), V_LL=blazem::zero<double>(N), V_SS=blazem::zero<double>(N),T_LS=blazem::zero<double>(N),P2=blazem::zero<double>(N);
 
     for (int i = 0; i < N; ++i) {
         for (int j = i; j < N; ++j) {
@@ -98,8 +98,8 @@ int main() {
     }
 
     const int M = 2 * N;
-    rsmat_t H=zero<double>(M), S=zero<double>(M);
-    rsmat_t T=zero<double>(M), V=zero<double>(M), R=zero<double>(M);
+    rsmat_t H=blazem::zero<double>(M), S=blazem::zero<double>(M);
+    rsmat_t T=blazem::zero<double>(M), V=blazem::zero<double>(M), R=blazem::zero<double>(M);
 
     // Build RKB small-component via p^2 = 2 * T_nonrel
     // rsmat_t P = 2.0 * T_nonrel; // P_{ij} = <phi_i|p^2|phi_j>

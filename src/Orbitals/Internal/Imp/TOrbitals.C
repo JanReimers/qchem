@@ -25,7 +25,7 @@ template <class T> TOrbitalsImp<T>::
 TOrbitalsImp(const tobs_t<T>* bs, Spin ms)
     : itsBasisSet(bs)
     , itsQNs(bs->GetIrrep(ms))
-    , itsD(zero<T>( bs->GetNumFunctions()))
+    , itsD(blazem::zero<T>( bs->GetNumFunctions()))
 {
     assert(itsBasisSet->GetNumFunctions()>0);  
 };
@@ -100,8 +100,8 @@ template <class T> typename TOrbitalsImp<T>::ds_t TOrbitalsImp<T>::TakeElectrons
     //
     //  Now the orbitals are accupied we can build the density matrix.
     //
-    itsD=zero<T>(itsD.rows());
-    smat_t<T> DPrime(zero<T>(itsD.rows()));
+    itsD=blazem::zero<T>(itsD.rows());
+    smat_t<T> DPrime(blazem::zero<T>(itsD.rows()));
     for (auto o:Iterate<TOrbital<double>>()) o->AddDensityMatrix(itsD,DPrime);
     return std::make_tuple(ne,DPrime);
 }

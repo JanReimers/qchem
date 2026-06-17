@@ -2,11 +2,12 @@
 module;
 #include <string>
 #include <vector>
-#include <blaze/math/views/Subvector.h>
+#include <cassert>
 export module qchem.BasisSet.Atom.Evaluators.Internal.ExponentialEvaluator;
 import qchem.BasisSet.Atom.Evaluators.Internal.Grouper;
 export import qchem.BasisSet.Atom.Evaluators;
 export import qchem.Symmetry.Spherical;
+import qchem.Blaze;
 
 export namespace BasisSet::Atom::Evaluators
 {
@@ -26,7 +27,7 @@ public:
             size_t nback=l*ltrim;
             assert(_es.size()>nfront+nback);
             size_t n=_es.size()-nfront-nback;
-            es=blaze::subvector(_es,nfront,n);
+            es=blazem::subvector(_es,nfront,n);
         };
     virtual ~ExponentialEvaluator() {}; //g++ 15.2 BUG Compiler implemented destructor not created with -O2.
     virtual void   Register(Grouper*) override; //Set up unique spline or exponent indexes.

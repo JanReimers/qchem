@@ -1,22 +1,16 @@
 // File: BasisSet/Atom/Gaussian/RKB/Imp/Evaluator.C
 module;
 #include <cassert>
-#include <blaze/math/DynamicVector.h>
-
+#include <string>
 module qchem.BasisSet.Atom.Evaluators.Gaussian.IBS; 
 import qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.GaussianIntegrals; 
 import qchem.Symmetry.Factory;
 import qchem.Math;
+import qchem.Blaze;
 
 namespace BasisSet::Atom::Evaluators::Gaussian
 {
 
-// RKBS_Evaluator::RKBS_Evaluator(size_t N, double emin, double emax, int _κ, int l)
-//     : Evaluator(Radial::exponents(N,emin,emax,Symmetry::YFactory()), l)
-//     , κ(_κ)
-// {
-//     ns=norms();
-// }
 std::string RKBS_Evaluator::Name() const
 {
     return "SG RKB ";

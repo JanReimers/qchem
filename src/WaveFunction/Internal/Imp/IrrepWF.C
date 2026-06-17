@@ -22,7 +22,7 @@ IrrepWF::IrrepWF(const obs_t* bs, LASolver<double>* lasb,const Irrep& qns,SCFIrr
     , itsOrbitals   (qchem::Orbitals::Factory(bs,qns.ms))
     , itsIrrep      (qns)
     , itsAccelerator(acc)
-    , itsDPrime     (zero<double>(bs->GetNumFunctions()))
+    , itsDPrime     (blazem::zero<double>(bs->GetNumFunctions()))
 {
     assert(itsOrbitals);
     assert(itsAccelerator);

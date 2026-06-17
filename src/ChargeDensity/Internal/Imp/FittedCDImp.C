@@ -36,7 +36,7 @@ template <class T> smat_t<T> FittedCDImp<T>::GetRepulsion(const odftbs_t* bs) co
     assert(bs);
     const ERI3<T>& repulsions=bs->Repulsion3C(*itsBasisSet);
     int n=bs->GetNumFunctions();
-    smat_t<T> J=zero<T>(n);
+    smat_t<T> J=blazem::zero<T>(n);
     size_t i=0;
     for (auto c:itsFitCoeff) J+=c*repulsions[i++];
     assert(!isnan(J));

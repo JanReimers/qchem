@@ -42,7 +42,7 @@ void HamiltonianImp::InsertStandardTerms(const cl_t & cl)
 rsmat_t HamiltonianImp::GetMatrix(const obs_t* bs,const Spin& S,const DM_CD* cd)
 {
     int n=bs->GetNumFunctions();
-    rsmat_t H=zero<double>(n);
+    rsmat_t H=blazem::zero<double>(n);
     for (auto& t:itsSHTs) H+=t->GetMatrix(bs,S);
     // Leave these terms out if we don't have guess for the charge density.
     if (cd)

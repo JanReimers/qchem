@@ -1,9 +1,9 @@
 // File: BasisSet/Atom/Evaluators/Internal/Imp/NR_Angular.C
 module;
-#include <blaze/Math.h>
 #include <sstream>
 module qchem.BasisSet.Atom.Evaluators.Internal.NR_Angular;
 import qchem.BasisSet.Atom.Evaluators.Internal.AngularIntegrals;
+import qchem.Blaze;
 
 namespace BasisSet::Atom::Evaluators
 {

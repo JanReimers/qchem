@@ -10,6 +10,7 @@ export
 {
     using std::sqrt;
     using std::fabs;
+    using std::abs;
     using std::floor;
     using std::ceil;
     using std::pow;
@@ -19,6 +20,9 @@ export
     using std::sin;
     using std::cos;
     using std::acos;
+    using std::isfinite;
+    using std::max;
+    using std::min;
 
 }
 

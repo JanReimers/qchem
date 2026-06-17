@@ -20,7 +20,7 @@ Vnn::Vnn(const cl_t& cl)
 rsmat_t Vnn::CalculateMatrix(const obs_t* bs,const Spin&) const
 {
     int n=bs->GetNumFunctions();
-    rsmat_t ret=zero<double>(n);
+    rsmat_t ret=blazem::zero<double>(n);
     return ret;
 }
 

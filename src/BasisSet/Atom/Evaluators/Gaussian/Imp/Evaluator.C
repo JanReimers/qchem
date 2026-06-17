@@ -2,13 +2,12 @@
 module;
 #include <cassert>
 #include <iostream>
-#include <blaze/math/DynamicVector.h>
-
 module qchem.BasisSet.Atom.Evaluators.Gaussian.IBS; 
 import qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.Rk; 
 import qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.GaussianIntegrals; 
 import qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.ExponentScaler; 
 import qchem.Math;
+import qchem.Blaze;
 
 namespace BasisSet::Atom::Evaluators::Gaussian
 {

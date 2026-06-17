@@ -37,7 +37,7 @@ template <class T> smat_t<T> Orbital_RKB_IBS_Imp<T>::merge_diag(const smat_t<T>&
 {
     size_t Nl=l.rows();
     size_t Ns=s.rows();
-    smat_t<T> ls=zero<T>(Nl+Ns);
+    smat_t<T> ls=blazem::zero<T>(Nl+Ns);
     for (auto i:iv_t(0,Nl))
         for (auto j:iv_t(i,Nl))
             ls(i,j)=l(i,j);
@@ -51,7 +51,7 @@ template <class T> smat_t<T> Orbital_RKB_IBS_Imp<T>::merge_off_diag(const mat_t<
     size_t Nl=ls.rows();
     size_t Ns=ls.columns();
     assert(Nl==Ns);
-    smat_t<T> k=zero<T>(Nl+Ns);
+    smat_t<T> k=blazem::zero<T>(Nl+Ns);
     for (auto i:iv_t(0,Nl))
         for (auto j:iv_t(0,Nl))
             k(i,Ns+j)=ls(i,j);
@@ -80,7 +80,7 @@ template <class T> smat_t<T> Orbital_RKB_IBS_Imp<T>::MakeNuclear(const Cluster* 
 template <class T> smat_t<T> Orbital_RKB_IBS_Imp<T>::MakeRestMass() const
 {
     smat_t<T> rs=itsRKBS->MakeOverlap();
-    smat_t<T> rl=zero<T>(rs.rows());
+    smat_t<T> rl=blazem::zero<T>(rs.rows());
     return merge_diag(rl,rs);
 }
 

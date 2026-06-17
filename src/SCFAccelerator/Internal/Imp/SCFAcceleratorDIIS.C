@@ -56,7 +56,7 @@ rsmat_t SCFIrrepAcceleratorDIIS::Project()
             cout << "Warning: SCFIrrepAcceleratorDIIS::Project() fabs(Sum(itsCs)-1.0)<>e-13 ." << endl;
         assert(itsCs.size()==itsFPrimes.size());
         // Now do the projection for the Fock matrix.
-        rsmat_t Fproj=zero<double>(itsFPrime.rows()) ;
+        rsmat_t Fproj=blazem::zero<double>(itsFPrime.rows()) ;
         size_t  i=0;
         for (const auto& f:itsFPrimes) Fproj+=itsCs[i++]*f;
         return Fproj;
@@ -130,7 +130,7 @@ rvec_t SCFAcceleratorDIIS::SolveC(const rsmat_t& B)
 SCFAcceleratorDIIS::md_t SCFAcceleratorDIIS::BuildB() const
 {
     size_t  N=GetNProj();
-    rsmat_t B=zero<double>(N+1);
+    rsmat_t B=blazem::zero<double>(N+1);
     for (size_t  i=0;i<N;i++)
     {
         B(i,N)=1.0; //B is symmetric so no need to set B(N,i)=1.0

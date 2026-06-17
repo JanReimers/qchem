@@ -9,7 +9,7 @@ template <> ERI4T<double,mat_t>::ERI4T(size_t Nab, size_t Ncd) : itsData(Nab,Nab
 }
 template <> ERI4T<double,smat_t>::ERI4T(size_t Nab, size_t Ncd) : itsData(Nab)
 {
-     smat_t<double> Jcd=zero<double>(Ncd);
+     smat_t<double> Jcd=blazem::zero<double>(Ncd);
      for (auto i:iv_t(0,Nab))
         for (auto j:iv_t(i,Nab)) itsData(i,j)=Jcd;
 }

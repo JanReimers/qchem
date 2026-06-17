@@ -2,12 +2,11 @@
 module;
 #include <cassert>
 #include <vector>
-#include <blaze/Math.h>
-
 module qchem.BasisSet.Atom.Evaluators.Slater.Internal.Rk; 
 import qchem.BasisSet.Atom.Evaluators;
 import qchem.BasisSet.Atom.Internal.PascalTriangle;
 import qchem.Math;
+import qchem.Blaze;
 
 namespace Slater
 {
@@ -91,7 +90,7 @@ double RkEngine::ExchangeRk(size_t la,size_t lb, const rvec11_t& Ak) const
     assert(lb>=0);
     assert(la<=itsLMax);
     assert(lb<=itsLMax);
-    size_t kmin=std::abs((int)la-(int)lb);
+    size_t kmin=abs((int)la-(int)lb);
     size_t kmax=la+lb;
     size_t N=(kmax-kmin)/2+1;
     double ret(0.0);
@@ -108,7 +107,7 @@ double RkEngine::ExchangeRk(size_t la,size_t lb, const rvec11_t& Ak) const
 
 size_t RkEngine::RAMsize() const
 {
-    return blaze::size(Iab)+blaze::size(Icd);
+    return blazem::size(Iab)+blazem::size(Icd);
 }
 
 } //namespace

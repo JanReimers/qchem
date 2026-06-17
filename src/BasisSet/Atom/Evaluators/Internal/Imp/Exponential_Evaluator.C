@@ -2,10 +2,9 @@
 module;
 #include <cassert>
 #include <iostream>
-#include <blaze/math/DynamicVector.h>
-
 module qchem.BasisSet.Atom.Evaluators.Internal.ExponentialEvaluator;
 import qchem.Math;
+import qchem.Blaze;
 
 namespace BasisSet::Atom::Evaluators
 {

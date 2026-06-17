@@ -20,6 +20,7 @@ Claude.md:  Coding conventions and other pointers
 Code review:
     Point group project:
         -Can we move SymEigen3 into Matrix3D<T>?
+    Why does BasisSet depend on LASolver?
 Questions:
     For atoms it is common to do numerical solution of the radial DE instead of using basis sets.
     Is there a way to fit that solution approach into the framwwork form this project?  
@@ -135,8 +136,10 @@ Major Features:
 
 Upgrade existing features:
     Top level
-        -Critical review of cmake files.
+        Done: -Critical review of cmake files.
             Best way to define compile flags in one place
+        Done: -Reorg unit testing so it lives in each libraray.
+            -Save notes from AI discussion. doc/cmakenotes.md
         -Hunt for acronyms and make sure they are documented in Types.C
         -Use constexpr for building static lookup tables.
         -define LMAX in one place.  Might >1 versions, but still define in one place.
@@ -332,3 +335,6 @@ OOD Refactor:
             -Fixed all memory leaks with valgrind (Cache4), no effect.
             -{70,2} passes, He (or Ne)  is unaffected by doing 70 first.
             -Debug and Release are the same. 
+
+
+

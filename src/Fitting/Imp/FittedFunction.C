@@ -92,7 +92,7 @@ template <class T> smat_t<T> FittedFunctionImp<T>::
 FitGet3CenterOverlap(const obs_t<T>* bs) const
 {
     const ERI3<T>& O3=bs->Overlap3C(*itsBasisSet);
-    smat_t<T> J=zero<T>(bs->GetNumFunctions());
+    smat_t<T> J=blazem::zero<T>(bs->GetNumFunctions());
     size_t i=0;
     for (auto c:itsFitCoeff) J+=c*O3[i++];
     assert(!isnan(J));

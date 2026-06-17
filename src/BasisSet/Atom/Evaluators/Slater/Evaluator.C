@@ -1,7 +1,7 @@
 // File: BasisSet/Atom/Evaluators/Slater/Evaluator.C
 module;
 #include <iosfwd>
-#include <blaze/Math.h>
+#include <cassert>
 export module qchem.BasisSet.Atom.Evaluators.Slater.IBS;
 export import qchem.BasisSet.Atom.Evaluators.Internal.ExponentialEvaluator;
 import qchem.BasisSet.Atom.Evaluators.Internal.NR_Angular;
@@ -11,8 +11,10 @@ import qchem.BasisSet.Atom.Evaluators.Slater.Internal.Rk;
 import qchem.BasisSet.Atom.Evaluators.Internal.Grouper;
 import qchem.BasisSet.Atom.Evaluators;
 import qchem.BasisSet.Internal.Cache4;
-import qchem.IntPow;
 import qchem.Symmetry.Spherical;
+import qchem.IntPow;
+import qchem.Blaze;
+import qchem.Math;
 
 export namespace BasisSet::Atom::Evaluators::Slater
 {
@@ -60,7 +62,7 @@ public:
 
     double Repulsion(size_t i,size_t j, const Radial& c, size_t ic) const
     {
-        ::Slater::RkEngine cd(es[i]+es[j],c.es[ic],std::max(l,c.l));
+        ::Slater::RkEngine cd(es[i]+es[j],c.es[ic],max(l,c.l));
         return cd.DirectR0  (l,c.l)*FourPi2*ns[i]*ns[j]*c.ns[ic];
     }
     double Repulsion(size_t i,size_t j) const
@@ -70,7 +72,7 @@ public:
     }
     double Repulsion(size_t i,size_t j, const Radial& b) const
     {
-        ::Slater::RkEngine cd(es[i],b.es[j],std::max(l,b.l));
+        ::Slater::RkEngine cd(es[i],b.es[j],max(l,b.l));
         return cd.DirectR0  (l,b.l)*FourPi2*ns[i]*b.ns[j];
     }
     double Charge(size_t i) const
@@ -109,7 +111,7 @@ protected:
 
     template <class v> static v slater(double r,size_t l,const v& e, const v& n)
     {
-        return n*uintpow(r,l)*exp(-e*r);
+        return n*uintpow(r,l)*blazem::exp(-e*r);
     }
     template <class v> static v grad_slater(double r,size_t l,const v& e, const v& n)
     {

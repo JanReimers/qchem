@@ -1,11 +1,11 @@
 // File: BasisSet/Atom/Evaluators/Internal/Imp/RKBL_Angular.C
 module;
-#include <blaze/Math.h>
 #include <sstream>
 #include <cassert>
 module qchem.BasisSet.Atom.Evaluators.Internal.RKBL_Angular;
 import qchem.BasisSet.Atom.Evaluators.Internal.RelAngularIntegrals;
 import qchem.Symmetry.Spherical; // SphericalSpinor::j(κ)
+import qchem.Blaze;
 
 namespace BasisSet::Atom::Evaluators
 {
@@ -56,7 +56,7 @@ rvec11_t RKB_Angular::ExchangeAk(const Evaluator& other) const
         for (double mjb : o.mjs)
         {
             rvec11_t k = RelAngularIntegrals::Exchange(κ, o.κ, mja, mjb);
-            if (max(abs(k))>0.0) { Ak += k; ++ncontrib; }
+            if (blazem::max(blazem::abs(k))>0.0) { Ak += k; ++ncontrib; }
         }
         if (ncontrib>0) Ak /= (double)ncontrib;
     }

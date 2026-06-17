@@ -75,7 +75,7 @@ template <class T> rvec_t MeshIntegrator<T>::Normalize(const Vf& v) const
 template <class T> smat_t<T> MeshIntegrator<T>::Overlap(const Vf& v) const
 {
     size_t n=v.GetVectorSize();
-    smat_t<T> ret=zero<T>(n);
+    smat_t<T> ret=blazem::zero<T>(n);
 
     const mat_t<T>& sf(v(*itsMesh));
     int iw=0;
@@ -140,7 +140,7 @@ template <class T> mat_t<T> MeshIntegrator<T>::Overlap(const Vf& f,const Vf& g) 
 template <class T> smat_t<T> MeshIntegrator<T>::Overlap3C(const Vf& f,const Sf& g) const
 {
     size_t n=f.GetVectorSize();
-    smat_t<T> ret=zero<T>(n);
+    smat_t<T> ret=blazem::zero<T>(n);
 
     const mat_t<T>& sf(f(*itsMesh));
     const vec_t<T>& sg(g(*itsMesh));
@@ -167,7 +167,7 @@ template <class T> smat_t<T> MeshIntegrator<T>::Overlap3C(const Vf& f,const Sf& 
 template <class T> smat_t<T> MeshIntegrator<T>::Repulsion(const Vf& f) const
 {
     size_t n=f.GetVectorSize();
-    smat_t<T> ret=zero<T>(n);
+    smat_t<T> ret=blazem::zero<T>(n);
 
     const mat_t<T>& sf(f(*itsMesh));
     int iw=0;
@@ -251,7 +251,7 @@ template <class T> mat_t<T> MeshIntegrator<T>::Repulsion(const Vf& f,const Vf& g
 template <class T> smat_t<T> MeshIntegrator<T>::Repulsion3C(const Vf& f, const Sf& h) const
 {
     size_t n=f.GetVectorSize();
-    smat_t<T> ret=zero<T>(n);
+    smat_t<T> ret=blazem::zero<T>(n);
 
     const mat_t<T>& sf(f(*itsMesh));
     const vec_t<T>& sh(h(*itsMesh));
@@ -277,7 +277,7 @@ template <class T> smat_t<T> MeshIntegrator<T>::Repulsion3C(const Vf& f, const S
 template <class T> smat_t<T> MeshIntegrator<T>::Inv_r1(const Vf& f) const
 {
     size_t n=f.GetVectorSize();
-    smat_t<T> ret=zero<T>(n);
+    smat_t<T> ret=blazem::zero<T>(n);
 
     const mat_t<T>& sf(f(*itsMesh));
 
@@ -296,7 +296,7 @@ template <class T> smat_t<T> MeshIntegrator<T>::Inv_r1(const Vf& f) const
 template <class T> smat_t<T> MeshIntegrator<T>::Inv_r2(const Vf& f) const
 {
     size_t n=f.GetVectorSize();
-    smat_t<T> ret=zero<T>(n);
+    smat_t<T> ret=blazem::zero<T>(n);
 
     const mat_t<T>& sf(f(*itsMesh));
 
@@ -317,7 +317,7 @@ template <class T> smat_t<T> MeshIntegrator<T>::Inv_r2(const Vf& f) const
 template <class T> smat_t<T> MeshIntegrator<T>::Grad2(const Vf& f) const
 {
     size_t n=f.GetVectorSize();
-    smat_t<T> ret=zero<T>(n);
+    smat_t<T> ret=blazem::zero<T>(n);
 
     const mat_t<Vec3>& sf(f.Gradient(*itsMesh));
 

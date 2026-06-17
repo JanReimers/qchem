@@ -63,7 +63,7 @@ TEST_F(ERI4Tests,MatMulTimings)
     random(Dcd);
     std::chrono::duration<double> elapsed_seconds1,elapsed_seconds2;
     {
-        rsmat_t Jab=zero<double>(Nab);
+        rsmat_t Jab=blazem::zero<double>(Nab);
         auto start = std::chrono::system_clock::now();
         for (size_t i=0;i<Nrep;i++)
             MatMul(Jab,Jabcd,Dcd);
@@ -72,7 +72,7 @@ TEST_F(ERI4Tests,MatMulTimings)
         std::cout << "MatMul(Jabcd,Dcd) elapsed time: " << elapsed_seconds1.count() << "s" << std::endl;
     }
     {        
-        rsmat_t Jcd=zero<double>(Ncd);
+        rsmat_t Jcd=blazem::zero<double>(Ncd);
         auto start = std::chrono::system_clock::now();
         for (size_t i=0;i<Nrep;i++)
             MatMul(Jcd,Dab,Jabcd);
@@ -98,12 +98,12 @@ TEST_F(ERI4Tests,Transpose)
     random(Dab);
     random(Dcd);
 
-    rsmat_t Jab1=zero<double>(Nab), Jab2=zero<double>(Nab);
+    rsmat_t Jab1=blazem::zero<double>(Nab), Jab2=blazem::zero<double>(Nab);
     MatMul(Jab1,Jabcd,Dcd);
     MatMul(Jab2,Dcd,Jcdab);
     EXPECT_EQ(Jab1,Jab2);
     
-    rsmat_t Jcd1=zero<double>(Ncd), Jcd2=zero<double>(Ncd);
+    rsmat_t Jcd1=blazem::zero<double>(Ncd), Jcd2=blazem::zero<double>(Ncd);
     MatMul(Jcd1,Dab,Jabcd);
     MatMul(Jcd2,Jcdab,Dab);
     EXPECT_EQ(Jcd1,Jcd2);

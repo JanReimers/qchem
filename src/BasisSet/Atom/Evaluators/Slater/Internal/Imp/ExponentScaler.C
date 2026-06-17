@@ -1,10 +1,10 @@
 // File: src/BasisSet/Atom/Evaluators/Slater/Internal/Imp/ExponentScaler.C  Rescale Slater exponents based in angular momentum L.
 module;
-#include <blaze/math/Subvector.h>
 module qchem.BasisSet.Atom.Evaluators.Slater.Internal.ExponentScaler;
 import qchem.BasisSet.Atom.Internal.FillPower;
 import qchem.Symmetry.Spherical;
 import qchem.Math;
+import qchem.Blaze;
 
 namespace Slater
 {
@@ -25,7 +25,7 @@ rvec_t ExponentScaler::Get_es(size_t L) const
     int N=itsN-1*L;
     if (N<1) N=1;
     if (N+L>itsN) L=itsN-N;
-    return blaze::subvector(es,L,N);
+    return blazem::subvector(es,L,N);
 }
 
 rvec_t ExponentScaler::Get_es (const sym_t& ir) const

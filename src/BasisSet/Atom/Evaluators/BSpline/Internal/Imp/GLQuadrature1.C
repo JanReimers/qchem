@@ -5,7 +5,7 @@ module;
 #include <functional>
 #include <map>
 #include <bspline/Core.h>
-#include <blaze/Math.h>
+import qchem.Blaze;
 
 module qchem.BasisSet.Atom.Evaluators.BSpline.Internal.GLQuadrature;
 using std::cout;
@@ -46,8 +46,8 @@ double GLCache1D::Integrate(const std::function< double (double)>& f, const sup_
     assert(rmin<rmax);
     assert(a.getGrid()==grid);
     assert(b.getGrid()==grid);
-    assert(std::isfinite(f(rmin)));
-    assert(std::isfinite(f(rmax)));
+    assert(isfinite(f(rmin)));
+    assert(isfinite(f(rmax)));
     sup_t sab=a.calcIntersection(b);
     if (!sab.containsIntervals()) return 0.0; //No support overlap, so interal=0;
     if (rmin<=sab.front() && rmax>=sab.back()) return Integrate(f,a,b); //Integration falls outside support so return full integral.
