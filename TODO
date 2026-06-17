@@ -1,5 +1,3 @@
-Turn on/off vscode popups: search quickSuggestions
-Understand type erasure: https://youtu.be/m3UmABVf55g?t=2134
 
 
 # TODO
@@ -17,15 +15,14 @@ Notes, bugs, and plans for the qchem6 project. This file is markdown-enabled so 
 ### Point group project
 
 - Can we move `SymEigen3` into `Matrix3D<T>`?
-- Fixed: Why does `BasisSet` depend on `LASolver`?
 - `src/BasisSet/Internal/Imp/Orbital_DHF_IBS.C::merge_xxx` use `blazem::submatrix`
 
 ## Questions
 
 - For atoms it is common to do numerical solution of the radial DE instead of using basis sets.
-- Is there a way to fit that solution approach into the framework for this project?
-- What if the radial solution is treated as an irrep basis set (IBS) with one basis function?
-- An alternate implementation of `UpdateOrbitals` (`src/Orbitals/Internal/Imp/TOrbitals.C`) would then do a numerical radial
+  Is there a way to fit that solution approach into the framework for this project?
+  What if the radial solution is treated as an irrep basis set (IBS) with one basis function?
+  An alternate implementation of `UpdateOrbitals` (`src/Orbitals/Internal/Imp/TOrbitals.C`) would then do a numerical radial
   solution for each irrep using the current charge density.
 
 ## Major Features
