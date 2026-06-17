@@ -1,10 +1,10 @@
 // File: BasisSet/Imp/Fit_IBS.C  Imple,ent a few function for a fit basis set
 module;
 #include <cassert>
-#include "blaze/Math.h"
 module qchem.BasisSet.Fit_IBS;
 import qchem.Mesh.Integrator;
 import qchem.BasisSet.Internal.DB_Cache;
+import qchem.Blaze;
 
 namespace BasisSet
 {
@@ -96,11 +96,11 @@ rvec_t Fit_IBS::Repulsion(const Mesh* m,const Sf& f) const
 
  rsmat_t Fit_IBS::MakeInvOverlap  () const
  {
-    return blaze::inv(MakeOverlap());
+    return blazem::inv(MakeOverlap());
  }
  rsmat_t Fit_IBS::MakeInvRepulsion() const
  {
-   return blaze::inv(MakeRepulsion());
+   return blazem::inv(MakeRepulsion());
  }
 
 } //namespace

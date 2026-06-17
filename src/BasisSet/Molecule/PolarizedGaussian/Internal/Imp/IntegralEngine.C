@@ -3,7 +3,6 @@ module;
 
 #include <cassert>
 #include <memory>
-#include "blaze/Math.h"
 module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IntegralEngine;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.RadialFunction;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.PGData;

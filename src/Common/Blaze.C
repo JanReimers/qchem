@@ -21,6 +21,7 @@ export namespace blazem
     using blaze::Subvector;
     using blaze::eigen;
     using blaze::svd;
+    using blaze::inv;
     using blaze::subvector;
     using blaze::submatrix;
     using blaze::trans;
@@ -37,6 +38,8 @@ export namespace blazem
     using blaze::norm;
     using blaze::linspace;
     using blaze::diagonal;
+    using blaze::isZero;
+    using blaze::conj;
 }
 
 // Export a number of overloaded operators.  These have to go into the global namespace.
