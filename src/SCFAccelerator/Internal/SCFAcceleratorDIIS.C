@@ -3,9 +3,9 @@ module;
 #include <deque>
 #include <vector>
 #include <iostream>
-#include <blaze/Math.h>
 export module qchem.SCFAccelerator.Internal.SCFAcceleratorDIIS;
 export import qchem.SCFAccelerator;
+import qchem.Blaze;
 
 export namespace qchem::SCFAccelerators
 {
@@ -38,7 +38,7 @@ private:
     friend class SCFAcceleratorDIIS;
     size_t GetNproj() const {return itsEs.size();}
     double GetError() const {return itsEn;}
-    double GetError(size_t i, size_t j) const {return sum(itsEs[i] % itsEs[j]);}
+    double GetError(size_t i, size_t j) const {return blazem::sum(itsEs[i] % itsEs[j]);}
     void Append1();
     void Purge1();
     

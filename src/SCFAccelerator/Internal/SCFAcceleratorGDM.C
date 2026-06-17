@@ -13,9 +13,9 @@
 module;
 #include <iosfwd>
 #include <vector>
-#include <blaze/Math.h>
 export module qchem.SCFAccelerator.Internal.SCFAcceleratorGDM;
 export import qchem.SCFAccelerator;
+import qchem.Blaze;
 
 export namespace qchem::SCFAccelerators
 {

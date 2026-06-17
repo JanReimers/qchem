@@ -3,10 +3,11 @@ module;
 #include <cassert>
 #include <cmath>
 #include <iostream>
+#include <iomanip>
 #include <vector>
-#include <blaze/Math.h>
 module qchem.SCFAccelerator.Internal.SCFAcceleratorGDM;
 import qchem.SCFAccelerator.Internal.SCFIrrepAcceleratorNull;
+import qchem.Blaze;
 
 namespace qchem::SCFAccelerators
 {
@@ -30,10 +31,10 @@ static rsmat_t sympart(const rmat_t& B)
 static rmat_t TransportOp(const rmat_t& Y, const rmat_t& U, const rvec_t& theta, const rmat_t& Vt)
 {
     size_t n=Y.rows(), no=Y.columns();
-    blaze::DiagonalMatrix<rmat_t> Dc(no),Ds(no);
+    blazem::DiagonalMatrix<rmat_t> Dc(no),Ds(no);
     for (size_t k=0;k<no;k++){ Dc(k,k)=std::cos(theta[k]); Ds(k,k)=std::sin(theta[k]); }
-    rmat_t A = -Y*trans(Vt)*Ds + U*Dc;       // n x no
-    rmat_t T = A*trans(U) - U*trans(U);       // n x n
+    rmat_t A = -Y*blazem::trans(Vt)*Ds + U*Dc;       // n x no
+    rmat_t T = A*blazem::trans(U) - U*blazem::trans(U);       // n x n
     for (size_t k=0;k<n;k++) T(k,k)+=1.0;     // + I  (the (I - U U^T) part)
     return T;
 }
@@ -49,7 +50,7 @@ void SCFIrrepAcceleratorGDM::UseFD(const rsmat_t& F, const rsmat_t& DPrime)
 {
     itsFp = itsLASolver->Transform(F);          // F' = Vd F V (orthonormal basis)
     rmat_t E = itsFp*DPrime - DPrime*itsFp;      // [F',D'] commutator (anti-symmetric)
-    itsEn = norm(E);
+    itsEn = blazem::norm(E);
 }
 
 LASolver<double>::UUd_t SCFIrrepAcceleratorGDM::NextOrbitals()
@@ -77,20 +78,20 @@ bool SCFIrrepAcceleratorGDM::ComputeStep()
     size_t nv=n-no;
 
     // Fock in the current MO (orthonormal) basis, and its blocks.
-    rmat_t FMO  = trans(itsCp)*itsFp*itsCp;
-    rmat_t Cocc = blaze::submatrix(itsCp,0,0 ,n,no);
-    rmat_t Cvir = blaze::submatrix(itsCp,0,no,n,nv);
-    rsmat_t Foo = sympart(blaze::submatrix(FMO,0 ,0 ,no,no));
-    rsmat_t Fvv = sympart(blaze::submatrix(FMO,no,no,nv,nv));
-    rmat_t Fov  = blaze::submatrix(FMO,no,0,nv,no);
+    rmat_t FMO  = blazem::trans(itsCp)*itsFp*itsCp;
+    rmat_t Cocc = blazem::submatrix(itsCp,0,0 ,n,no);
+    rmat_t Cvir = blazem::submatrix(itsCp,0,no,n,nv);
+    rsmat_t Foo = sympart(blazem::submatrix(FMO,0 ,0 ,no,no));
+    rsmat_t Fvv = sympart(blazem::submatrix(FMO,no,no,nv,nv));
+    rmat_t Fov  = blazem::submatrix(FMO,no,0,nv,no);
 
     // (1) Pseudo-canonicalize: diagonalize occ-occ and virt-virt blocks.
     rvec_t eo, ev; rmat_t Ro, Rv;
-    blaze::eigen(Foo, eo, Ro);
-    blaze::eigen(Fvv, ev, Rv);
+    blazem::eigen(Foo, eo, Ro);
+    blazem::eigen(Fvv, ev, Rv);
     rmat_t CoccPC = Cocc*Ro;
     rmat_t CvirPC = Cvir*Rv;
-    rmat_t g = trans(Rv)*Fov*Ro;        // nv x no  orbital gradient (o-v block)
+    rmat_t g = blazem::trans(Rv)*Fov*Ro;        // nv x no  orbital gradient (o-v block)
 
     // (2) Preconditioned gradient; lift gradient and PG to full ambient tangents at CoccPC.
     rmat_t PG(nv,no);
@@ -99,7 +100,7 @@ bool SCFIrrepAcceleratorGDM::ComputeStep()
             PG(a,i) = g(a,i)/(ev[a]-eo[i]);
     rmat_t Gfull  = CvirPC*g;
     rmat_t PGfull = CvirPC*PG;
-    double denom  = sum(g % PG);
+    double denom  = blazem::sum(g % PG);
 
     // (3) Conjugate-gradient direction (Polak-Ribiere) with parallel transport.
     rmat_t Dfull;
@@ -108,26 +109,26 @@ bool SCFIrrepAcceleratorGDM::ComputeStep()
         rmat_t T   = TransportOp(itsYprev,itsUgeo,itsSgeo,itsVtgeo);
         rmat_t PGt = T*itsPGprev*Ro;
         rmat_t Dt  = T*itsDprev *Ro;
-        double beta = (sum(Gfull % PGfull) - sum(Gfull % PGt))/itsDenomPrev;
+        double beta = (blazem::sum(Gfull % PGfull) - blazem::sum(Gfull % PGt))/itsDenomPrev;
         if (beta<0.0) beta=0.0;
         Dfull = -PGfull + beta*Dt;
-        if (sum(Gfull % Dfull) >= 0.0) Dfull = -PGfull;
+        if (blazem::sum(Gfull % Dfull) >= 0.0) Dfull = -PGfull;
     }
     else
         Dfull = -PGfull;
 
     // (4) Default step length from the diagonal quadratic model:  t* = -<g,d>/<d,H d>.
-    rmat_t d = trans(CvirPC)*Dfull;
-    double gd=sum(g % d), dHd=0.0;
+    rmat_t d = blazem::trans(CvirPC)*Dfull;
+    double gd=blazem::sum(g % d), dHd=0.0;
     for (size_t a=0;a<nv;a++)
         for (size_t i=0;i<no;i++) dHd += d(a,i)*d(a,i)*(ev[a]-eo[i]);
     double t = (dHd>0.0) ? -gd/dHd : 1.0;
-    if (t<=0.0) { Dfull=-PGfull; d=trans(CvirPC)*Dfull; t=1.0; }
+    if (t<=0.0) { Dfull=-PGfull; d=blazem::trans(CvirPC)*Dfull; t=1.0; }
 
     // (5) SVD of the tangent H=Dfull -> geodesic factors.
     rmat_t H = CvirPC*d;
     rmat_t U,Vt; rvec_t s;
-    blaze::svd(H,U,s,Vt);
+    blazem::svd(H,U,s,Vt);
 
     itsScoccPC=CoccPC; itsScvirPC=CvirPC; itsSU=U; itsSVt=Vt; itsSs=s;
     itsSeo=eo; itsSev=ev; itsSPGfull=PGfull; itsSDfull=Dfull; itsSdenom=denom; itsStdef=t;
@@ -143,21 +144,21 @@ LASolver<double>::UUd_t SCFIrrepAcceleratorGDM::OrbitalsAt(double t, bool commit
     rvec_t s=itsSs;
     double frac = itsStdef*t;          // t is a fraction of the default (quadratic-model) step
     // Trust radius: cap the largest principal rotation angle (cf. ComputeStep).
-    double amax = (s.size()>0) ? max(s)*frac : 0.0;
+    double amax = (s.size()>0) ? blazem::max(s)*frac : 0.0;
     if (amax>itsParams.Trust) frac *= itsParams.Trust/amax;
     rvec_t theta = s*frac;
-    blaze::DiagonalMatrix<rmat_t> Dc(no),Ds(no);
+    blazem::DiagonalMatrix<rmat_t> Dc(no),Ds(no);
     for (size_t k=0;k<no;k++){ Dc(k,k)=std::cos(theta[k]); Ds(k,k)=std::sin(theta[k]); }
-    rmat_t Co = itsScoccPC*trans(itsSVt)*Dc*itsSVt + itsSU*Ds*itsSVt;   // new occupied
+    rmat_t Co = itsScoccPC*blazem::trans(itsSVt)*Dc*itsSVt + itsSU*Ds*itsSVt;   // new occupied
 
     // Complete to a full orthonormal set: virtuals orthogonal to the new occupied block.
-    rmat_t W0 = itsScvirPC - Co*(trans(Co)*itsScvirPC);
+    rmat_t W0 = itsScvirPC - Co*(blazem::trans(Co)*itsScvirPC);
     rmat_t Uw,Vtw; rvec_t sw;
-    blaze::svd(W0,Uw,sw,Vtw);
+    blazem::svd(W0,Uw,sw,Vtw);
 
     rmat_t Cnew(n,n);
-    blaze::submatrix(Cnew,0,0 ,n,no) = Co;
-    blaze::submatrix(Cnew,0,no,n,nv) = Uw;
+    blazem::submatrix(Cnew,0,0 ,n,no) = Co;
+    blazem::submatrix(Cnew,0,no,n,nv) = Uw;
     rvec_t e(n);
     for (size_t i=0;i<no;i++) e[i]    = itsSeo[i];
     for (size_t a=0;a<nv;a++) e[no+a] = itsSev[a];

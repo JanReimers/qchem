@@ -39,9 +39,13 @@ export namespace blazem
 
     
     using blaze::DynamicVector;
+    using blaze::DiagonalMatrix;
     using blaze::Subvector;
+    using blaze::eigen;
+    using blaze::svd;
     using blaze::subvector;
     using blaze::submatrix;
+    using blaze::trans;
     using blaze::exp;
     using blaze::acos;
     using blaze::abs;
