@@ -1,345 +1,117 @@
 Turn on/off vscode popups: search quickSuggestions
 Understand type erasure: https://youtu.be/m3UmABVf55g?t=2134
 
-Claude.md:  Coding conventions and other pointers
-    -There is a hierarcy: library contains, many modules, which contain many classes.
-        The compiler will enforce no cyclic dependencies between modules.
-        The linker will enforce no cyclic dependencies between libraries.
-        Cyclic dependencies between tightly coupled classes within one module is allowed.
-    -Only re-export modules that don't have .Internal. in module name. The goal is to avoid importing anything internal accross library boundaries.
-    -The only header in the project if forward.H and it is used to forward declare unit test classes the need access
-     to internals of certain library classes.  Header for submodules are used, 
-    -Use CamelBack for names, but surround acronyms with under scores like HF_Evaluator, or HF_DFT_Evaluator
-    -I make liberal use of abstract interface base classes with no data (default constructors).  These are
-    always derived from with virtual inheritance.  This makes lots of diamonds in the tree, but they should be harmless diamonds.
-    Some OOP people are surprised by this.
+
+# TODO
+
+Notes, bugs, and plans for the qchem6 project. This file is markdown-enabled so headings fold in VS Code.
+
+## Quick items
+
+- Turn on/off vscode popups: search `quickSuggestions`
+- Understand type erasure: https://youtu.be/m3UmABVf55g?t=2134
 
 
+## Code review
 
+### Point group project
 
-Code review:
-    Point group project:
-        -Can we move SymEigen3 into Matrix3D<T>?
-    Fixed: Why does BasisSet depend on LASolver?
-    src/BasisSet/Internal/Imp/Orbital_DHF_IBS.C::merge_xxx use blazem::submatrix
-Questions:
-    For atoms it is common to do numerical solution of the radial DE instead of using basis sets.
-    Is there a way to fit that solution approach into the framwwork form this project?  
-    What if the radial solution is treated as an irrep basis set (IBS) with one basis function.    
-    An alternate implementation of UpdateOrbitals (src/Orbitals/Internal/Imp/TOrbitals.C) would 
-    then do a numerical radial solution for each irrep using the current charge density.
-    I suspect there are many difficult details left out of my proposal.
+- Can we move `SymEigen3` into `Matrix3D<T>`?
+- Fixed: Why does `BasisSet` depend on `LASolver`?
+- `src/BasisSet/Internal/Imp/Orbital_DHF_IBS.C::merge_xxx` use `blazem::submatrix`
 
-Major Features:
-    Convergence acceleration.
-        Done: Geometric Direct Minimization (GDM)
-            Read up on BFDS method, Numerical Recipes section 10.7
-            Make some notes that translate into our notation.
-            The original paper is very hard to follow.
-        DIIS singular B
-            Shprd & Minkoff 2007 eq 23.  Linear Least Squares much better condition number.
-            SVD and trunctate B?
-                We dont need a uniqe c vector, just need any c than minimizes ||e||
-        EDIIS
+## Questions
 
-    DFT upgrade:
-        Hand code Voscos exchange.
-        Should we have separate Vxc, Vex, and Vcorr ?
-        Reproducing the NIST rests is a major pain in the ass.
-            1) Vosko does not define rs, he just says "the usual definition" ... grrrrr
-            2) Many formulas are all sloppy with fractions rs=3/2Pirho  WTF is in the basement?? .... grrrrr
-            3) Vosko uses a Slater like Vx but we don;t know what the prefactor (alpha) is. (more fractions problems)
-            4) Libxc has a Slater function (id=1) but it has no ext_params !?!?  should have alpha no???
-    
-    Perterbation support:
-        OOD/SOLID architecture for handling perterbations
-            Hard code: first order and second order 
-            Demo first order with SO-coupling for HF and DHF.
-            Demo second order with Moller-Plesset MP2.
+- For atoms it is common to do numerical solution of the radial DE instead of using basis sets.
+- Is there a way to fit that solution approach into the framework for this project?
+- What if the radial solution is treated as an irrep basis set (IBS) with one basis function?
+- An alternate implementation of `UpdateOrbitals` (`src/Orbitals/Internal/Imp/TOrbitals.C`) would then do a numerical radial
+  solution for each irrep using the current charge density.
 
-    Configuration Interation:
-        Full CI?
-        Truncated
-        Multi reference
-        -Rank in terms of code complexity for this project.  How much of current infrastructure needs to change?
-        -Rank in terms of usefulness/popularity in the real world of users.
-        -Our is to demonstrate that our OOD/OOA supports it.
-    
-    Parallel execution:
-        -OMP?  Results in useless gprof output
-        -From Brave AI
-            -LLVMs built-in instrumentation profiling is the primary modern replacement for gprof when using Clang, 
-            utilizing the -fprofile-instr-generate and -fcoverage-mapping flags to provide detailed line-level execution 
-            counts and source-based coverage. 
-            -Linux Perf: A kernel-based profiler that captures hardware and software events, providing a call 
-            graph and addressing blocking time issues that gprof misses.
-        -Use parallel when looping over irreps for AccumulateDirect and AccumulateExchange
-            Could also parallel the loop over hamiltonian terms??
-    
-    Molecules basis set upgrade:
-        Stage 1: Migrate polarized gaussian basis sets to start using cache_4 abstraction for caching radial integrals and
-            any look up tables.
-        Stage 2: Use the evaluator/concepts framework for Polarized/Cartesian Gaussians
-            -Move Concepts.C and abstract Evaluator interface out from BasisSet1/Atom up 
-                the general structure (atom/molecule/solid) neutral BasisSet1 level.
-            -Migrate Polarized Gaussians over the Evaluator framework with three evaluators
-            1) Hand coded McMurchie & Davidson (existing code)
-            2) libcint version (Some confusion with how things are normalized .. or not.)
-            3) Other?  Ask Claude
-        Stage 3:  More evalautors.
-            4) Hand coded Spherical Gaussian
-            5) libcint version
-        Stage 4: 
-            Can atoms and Molecules use the same four index loop for Direct and exchange integrals?
-            We want that code to migrate from from BasisSet1/Atom up 
-                the general structure (atom/molecule/solid) neutral BasisSet1 level
-        Stage 5:
-            If we get all this working there is going to a lot abstract stuff at the general BasisSet1 level, which is fantastic.
-            But people (and Claude!) need to understand that stuff.
-            So we need to make some in code documentation.  Is DOxygen suitable?  Or is there a modern replacement that you recommend?
-                I have a Doxyfile in the project root directory.  I havent tried it lately!
-            The in code documentation should 
-                1) make liberal use of inline Latex for all math expressions.
-                2) Define indexing (ijkl,abcd,nm,greek versions) conventions the are used
-                3) Define all acronyms (see Types.C)
-                4) Define math symbol conventions for basis function, Irrep basis sets, full basis sets, SALC irrep basis sets, irrep labels.
-                    I am sure the literature is all over the place on this, so the best we can do is pick symbols that are most conventional
-                     in the modern (last ~~20 year?) literature.
-            DOxygen makes class inheritance hierarcies, but they get big fast.  
-                So we need to restrict it to just BasisSet1 level and prevent it from digging into the Atom/Molecule/Lattice sub folders.
-                Ideally we get 
-                    1) a class diagram that is just for clients of basis, has no Internal classes
-                    2) Another diagram for basis set developers and focuses on the internal classes.
-            Finally is there a good way to host the doxygen docs at gitbub (separate repo maybe?) and then link to from README.md file.
-    Solids:
-        /plan
-        Lets use capital letters for SOLID OOD principles and lower case "solid" for solid materials with a periodic lattice stucture.
-        This plan is about solids or lattices.
-        Ultimate (abititious!) target: Something like VASP/ABINIT that handles (ultra soft) psuepotentials.
-            Whether or not HF or DHF is supported is solely based on if the Evaluator for the basis set satisfies the
-            concept constratints for those integrals.
-        The infrastucture in qchem is only half set up for complex basis sets/Hamiltonians/Orbitals etc.
+## Major Features
+
+### Convergence acceleration
+
+- Done: Geometric Direct Minimization (GDM)
+  - Read up on BFDS method, Numerical Recipes section 10.7
+  - Make notes that translate into our notation.
+  - The original paper is very hard to follow.
+- DIIS singular B
+  - Shprd & Minkoff 2007 eq 23. Linear Least Squares gives a much better condition number.
+  - Consider SVD and truncating B.
+- EDIIS
+
+### DFT upgrade
+
+- Hand code Vosko's exchange.
+- Consider separate `Vxc`, `Vex`, and `Vcorr`.
+- Reproducing the NIST tests is tricky (various formula ambiguities).
+
+### Perturbation support
+
+- OOD/SOLID architecture for handling perturbations (first and second order).
+- Demo first order with SO-coupling for HF and DHF.
+- Demo second order with Moller–Plesset (MP2).
+
+### Configuration Interaction
+
+- Full CI?
+- Truncated, multi-reference, and ranking by complexity/usefulness.
+
+### Parallel execution
+
+- Consider OpenMP; beware gprof output issues.
+- Use LLVM profiling (`-fprofile-instr-generate`, `-fcoverage-mapping`) and Linux `perf` for profiling.
+- Use parallel loops over irreps for `AccumulateDirect` and `AccumulateExchange`.
+
+## Molecules basis set upgrade
+
+- Stage 1: Migrate polarized Gaussian basis sets to use `cache_4` abstraction for radial integrals.
+- Stage 2: Use evaluator/concepts framework for Polarized/Cartesian Gaussians.
+  - Move `Concepts.C` and the abstract Evaluator interface up to the general BasisSet1 level.
+  - Migrate polarized Gaussians to three evaluators: hand-coded McMurchie & Davidson, libcint, etc.
+- Stage 3–5: additional evaluators, shared four-index loops, documentation (Doxygen), and hosting docs on GitHub.
+
+## Solids
+
+- Plan for solids/lattices; aim for VASP/ABINIT-like targets eventually.
+- Investigate conditional deduction of `hmat_t` from `T` to select `blaze::SymmetricMatrix` vs `blaze::HermitianMatrix`.
+
+## Upgrade existing features
+
+### Top level
+
+- Done: Critical review of CMake files.
+- Done: Reorg unit testing so tests live in each library (`doc/cmakenotes.md`).
+- Hunt for acronyms and document in `Types.C`.
+
+### Dirac/RKB
+
+- 1s orbital not properly normalized.
+- Track factors (0.5, c, 2c) for kinetic matrices.
+
+### Atom evaluators
+
+- Gaussian integrals should use recursion with `Fact[n]/pow(2,n)` — consider `constexpr`.
+
+## Clean up
+
+- Simplify `LASolver` internals.
+- Sort out PG cache — keep one cache in `DB_cache`.
+
+## OOD Refactor
+
+- Use a `FunctionFitter` instance instead of inheriting from fitted function implementations.
+- Redesign fitting so fitted objects contain a `Fitter*`.
+
+## Bugs and notes
+
+- Investigate BSpline integral inaccuracies for `l>0`.
+- Misc bug notes and test outputs preserved below.
         We need to somehow seemlessly change between blaze::SymmetricMatrix and blaze::HermitianMatrix. 
+
         Aside: I like using dcmplx=std::complex<double>; ... it the same number of chars as double so things line up nicely in class
+
             interface.
+
         lets start the thought process with LASolver in mind.
-            Can we conditionaly deduce (at compile time) hmat_t  from T such that
-                hmat_t<double>=blaze::SymmetricMatrix<double> or
-                hmat_t<dcmplx>=blaze::HermitianMatrix<dcmplx>
-            Modern c++ must have a way to do this without doing partial class specializatons.
-        Next we need a highly trivial 1 electron (no ERIs yet) plane wave problem in order to get solids off the ground.
-            Maybe just a hydrogen cubic lattice.  At high lattice spacing we know energy should be ~-0.5au/unit_cell (?)
-        We have BlockQN in the Symmetry library for wave vector irreps.
-        We have UnitCell and Lattice in the Cluster library (maybe should be renamed Cluster->Stucture even though Atom is normally 
-            thought of as a structure).  
-        Once we have the demo problem up and running we can think about next steps.  There must some useful models that are intermediate in 
-            coding difficulty between PW and Pseudo potentials.
-
-Upgrade existing features:
-    Top level
-        Done: -Critical review of cmake files.
-            Best way to define compile flags in one place
-        Done: -Reorg unit testing so it lives in each libraray.
-            -Save notes from AI discussion. doc/cmakenotes.md
-        -Hunt for acronyms and make sure they are documented in Types.C
-        -Use constexpr for building static lookup tables.
-        -define LMAX in one place.  Might >1 versions, but still define in one place.
-        -Logging
-
-    Dirac/RKB:
-        -1s orbital is not properly normalized.  Shape is correct.
-        -Figure out a clean way tracking factors of 0.5, c, 2c etc for kinetic matrices.
-        -Support Slater integrals Rk for LLSS
-            k>0 is hard ... four terms
-            Confirm with claude that LLLS is zero
-        -Finite size nucleaus
-    DFT:
-        -Vxc->LDAxc->ExchangeFunctional   Can we get rid of LDAxc?
-
-    Atom evulators:
-        -Gaussian integrals use recursion, should use Fact[n]/pow(2,n)
-            Can we use constexpr features here?
-        -Bspline-r Rk symmetry is not good at all.  
-            HF energies are fine though!?!?
-            Bspline Rk symmetry is good to 1e-16!
-
-        Low priority:
-        -Can groupers be registered at Evaluator construction?
-        -Evaluator Getl() returns int instead of size_t OK?
-        -Evaluator virtual inherit VectorFunction?
-            Demands and overrider
-        -RadialType and Name are the same?
-        -Use console tables for dumping basis sets?
-        -Slater norm takes n=l+1, Gaussian norm takes l.
-
-    DBCache:
-        Better name?
-        Get critical review from Claude
-        -Intermediate: Save all slater integrals Rk and recalculates J/K on demand.
-        -When to use Jcdab=Jabcd.Transpose()?
-            Avoid transposing for every iteration.
-        -It would be nice to have hook or call back into DBcache that lets the cache know and scf 
-            has completed and some RAM clean up is warrented.  The Intermediate version could then
-            scrub all J/K tables but keep all cach4 data.
-
-        -cach4 RAM is very small.  Good candidate for dumping to disk.
-            Put it in a place that can be reached by both Debig and Release builds.
-            Use ceral ... not yet in submodules.
-            Need to remember to delete this thing if the relevent code changes.
-        -Make a Direct version of DB_cache ... dont cache anything!!  (this used to be called DirectSCF)
-    ElectronConfiguration:
-        -Figure out EC for Ce Z=58 ground state.
-        -Need a way to hop electrons in Atom_EC
-        -Can we now move this out of symmetry?  No more circular dependencies.
-    Cluster:
-        -Rename to Structure
-        -Try using std::single_view for Atom
-        
-    Modules
-        Done: -Can we export what we need in Blaze.C?
-            There are a few instances where headers <algorithm> and <gtest> need op== and the
-            header code cannot see the exported module stuff.
-        -json lib already supports module, we just dont use it yet.
-            devlopment branch supports module in experimental mode.
-            Maybe we exort some stuff we need a-la blaze.
-    Build:
-        -Sort out compile options in CMake for gcc and clang.
-        -Try gcc 16
-        Done: -Get Claude to review cmake setp up.  Less duplication of compile options?
-        Things like -pthread -pg -fomp need to be everywhere or nowhere.
-
-Clean up:
-    -Simplify LASolver internals.
-    -Sort out PG cache ... keep one cache in DB_cache.
-    -ERI3<T>, ERI4 make consistent.
-    -Still lots of tests not using the BasisSetPool.
-
-OOD Refactor:
-    -Use a FunctionFitter instance instead of inheriting from fitted function imp.
-        -Get rid of ScalarFFClient::GetScalarFunction
-        -ExFunctional should be a VectorFunction ... evaluate the whole mesh at once.
-        -Get rid of FittedFunctionImp, less burdensome for client.
-    -Redesign fitting so fitted objects contain a Fitter*
-
-    -ScalarFunction has Gradient which we dont always want to support (PITA)
-        Make a separate ScalarFunction_G  to add the gradient?
-    -Everything->Cluster->Mesh 
-        One tweak fo Mesh and you get ~100% rebuild. Not good.
-
-
-        
-
-
-
- 
-    -Blaze improvements
-        modules, Header unit.
-            -Still experimental in clang++ 21
-            -cd submodules/blaze
-            -/opt/LLVM-21.1.6-Linux-X64/bin/clang++ -I. -std=gnu++20 -fmodule-header=user -xc++-user-header blaze/Math.h -o Math.pcm
-            -Add to target_compile_options
-                -fmodule-file=${PROJECT_SOURCE_DIR}/submodules/blaze/Math.pcm
-            -Get odd compiler errors later on.
-        SymmetrixMatrix
-            S(N,3.14) initialize constructor
-            S=3.14 set to constant
-        Bounds checking in DEBUG mode.
-    	
-            
-    -SHould each library have its own unit test app?
-        We still want to constantly run all tests.  Is one massive UTMain still the right choice?
-
-   
-    
-
-
-
-    -How to handle mismatches between {basis set} {hamiltonian} {structure} Examples:
-         BSpline basis, DFT/DHF hamiltonian -- BSpline has no DFT or RKB evaluator yet.
-         SG (atom only) basis for any Molecule.
-         Currently these should throw bad cast exceptions.
-         We should catch those and re-throw some domain specifc excpetions:  
-            BasisSetSupport exception which contains basis set type and required/missing support RKB or DFT.  Client: DiracKinetic FittedVee
-    
-    -PG refactor
-        Hermite2 only used by CDCache
-        -Move all Hermite related classes into MnD folder?
-        -Move GaussianCD.C
-        -PolarizedGaussian/Imp/IrrepBasisSet.C CreateCDFitBasisSet use factory
-        -G-orbs for gaussians?
-            Fixed -Hermite2 crashes for L=3 (f orbitals).
-            Fixed -What are those horrible lookup tables!!
-            Need to unit test with PG basis for uranium.
-        -GaussianRF.C has its own DFact tables.  Use the global tables.
-    
-    
-
-    -Mesh refactor Refactor mesh hold std::vector<rvec3_t> rs and std::vector<double> ws and make the 3 iterator proxies
-        1) riterator
-        2) witerator
-        3) rwiterator
-        -Molecule mesh gives crappy integrals.  
-        -Something wrong with Molecular mesh generation.
-           
- 
-        
-    -BSplines should use (symmetric) banded matricies for space/time efficiency.
-
-    -Restore gtkapp:
-        Orbital vector heat map.
-        Orbitals:
-            swap colour and line increments.
-            Too many line Ylm basis sets!
-                Just plot distinct eigen energies?
-        Add BSplines
-        Ouput panel.
-        Put Atom name and electron config in title.
-        NO legend if only one line.
-        Missing features:
-            1) Hide one axis (or set colour for one axis)
-            2) Disable legend entries.
-
-
-    -Fix orbital phases to 1s, 2p , 3d are always >0?
-
-
-    -SVD/Eigen truncation ... we need no know which L is getting truncated.
-
-
-    -Slater_m, SG_m basis sets:
-        Add real spherical harmonic angular functions for g(r).
-        replace m with ml?  or m = {mj,ml} depending on context?
-
-    -Do we need to store both J and K,  PolG just stores one ERI4.
-        With separate Vee and Vxc it seems we need to store J and K separatly.
-        We could just store JK=J-0.5*K to save space, but then we need a combined Ham term.
-        How doe PolG do it with just J?
-    -If N_nucleus=1 (atom) leave out Vnn term.
-
-
-     BUG: Investigate why BSpline integral tests are so inaccurate for l>0.
-        Happens when splines are too closely packed.  (even though overlap is nowhere near singular)
-    BUG: 2 center repulsion for atoms with l>0 might be wrong.  Does 2*la, should be 1*la
-        Affects CD fitting for l>0
-        Maybe just do not support l>0 ?
-    -Bug: Multiple/A_PG_DFT_P.Multiple/3 (8119 ms)
-        wrong occ/degen in spin down column.
-
-        Bugs
-    -Check BSpline_IBS_Evaluator copy constructor, seems to increase size.
-    -BUG: A_Pool.C TEST_P(A_HF_U,SlaterHFGroundStates) with Z={2,70}
-        Iteration count changes depending on history (with or without doing Z=2 first)
-            Z={2,70}
-#569639│ │   7  -13384.679047495079  7.2e-04 -2.2e+01 8.0e+01 3.0e+00   2    1.6e-01              0.80 
-#569639│ │   8  -13391.423364152806  1.0e-03  9.5e-01 1.6e+01 4.0e+00   3    8.7e-01              1.00 
-#569639│ │   9  -13390.326320096632  1.7e-03  2.5e-01 1.2e+01 4.2e+00   4    3.1e-01              0.80 
-#569639│ │  10  -13389.982256369474  2.8e-04  3.7e+00 9.5e+00 7.9e+00   4    8.7e-02              0.64 
-            Z={70}  same up to iteration #8 then 
-#569817│ │   9  -13390.344948675369  2.1e-03 -3.3e-01 1.2e+01 3.6e+00   4    1.4e-01              0.80 
-#569817│ │  10  -13391.370281448179  1.7e-03  4.7e+00 2.4e+00 8.4e+00   4    4.3e-02              1.00 
-            -Fixed all memory leaks with valgrind (Cache4), no effect.
-            -{70,2} passes, He (or Ne)  is unaffected by doing 70 first.
-            -Debug and Release are the same. 
-
-
-

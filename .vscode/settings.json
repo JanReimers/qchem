@@ -128,7 +128,8 @@
         "codecvt": "cpp",
         "regex": "cpp",
         "ranges": "cpp",
-        "shared_mutex": "cpp"
+        "shared_mutex": "cpp",
+        "TODO": "markdown"
     },
     "cmake.buildDirectory": "${workspaceFolder}/build/${buildType}",
     // "C_Cpp.default.intelliSenseMode": "linux-clang-x64"
