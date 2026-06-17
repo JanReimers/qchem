@@ -1,8 +1,8 @@
 module;
 #include <cassert>
 #include <iostream>
-#include <blaze/Math.h>
 module qchem.Cluster.MoleculeMesh;
+import qchem.Blaze;
 
 double          Poly             (double,int m_mu);
 
@@ -54,7 +54,7 @@ MoleculeMesh::MoleculeMesh(const Cluster& cl, const MeshParams& mp)
 
             if(natom>1 && P[ia]>0)
             {
-                double relativeWeight=P[ia]/blaze::sum(P);
+                double relativeWeight=P[ia]/blazem::sum(P);
 //                cout << "ia,r,w=" << ia << " " << r << " " << relativeWeight << endl;
                 push_back(::r(rw),::w(rw)*relativeWeight);
             }

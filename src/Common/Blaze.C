@@ -42,6 +42,7 @@ export namespace blazem
     using blaze::subvector;
     using blaze::submatrix;
     using blaze::exp;
+    using blaze::acos;
     using blaze::abs;
     using blaze::max;
     using blaze::min;
@@ -51,5 +52,6 @@ export namespace blazem
     using blaze::column;
     using blaze::sum;
     using blaze::norm;
+    using blaze::linspace;
 }
 

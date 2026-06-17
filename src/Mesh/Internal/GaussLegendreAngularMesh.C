@@ -2,10 +2,9 @@
 module;
 #include <iostream>
 #include <cassert>
-#include <blaze/Math.h>
-
 module qchem.Mesh.Internal.Types;
 import qchem.Math;
+import qchem.Blaze;
 
 void GaussLegendre(double x1, double x2, rvec_t& x, rvec_t& w, int n)
 {
@@ -51,7 +50,7 @@ GaussLegendreAngularMesh::GaussLegendreAngularMesh(int L, int)
     rvec_t thetas(numTheta);
     rvec_t Wt(numTheta);
     GaussLegendre(-1.0,1.0,thetas,Wt,numTheta);
-    thetas=blaze::acos(thetas);
+    thetas=blazem::acos(thetas);
 #if DEBUG_OUTPUT
     cout << "Sum of theta weigths = " << Sum(Wt) << std::endl;
 #endif

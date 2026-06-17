@@ -2,10 +2,9 @@
 module;
 #include <iostream>
 #include <cassert>
-#include <blaze/Math.h>
 module qchem.Mesh.Internal.Types;
 import qchem.Math;
-
+import qchem.Blaze;
 
 GaussAngularMesh::GaussAngularMesh(int numDir)
 {
