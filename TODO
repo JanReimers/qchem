@@ -20,7 +20,7 @@ Claude.md:  Coding conventions and other pointers
 Code review:
     Point group project:
         -Can we move SymEigen3 into Matrix3D<T>?
-    Why does BasisSet depend on LASolver?
+    Fixed: Why does BasisSet depend on LASolver?
     src/BasisSet/Internal/Imp/Orbital_DHF_IBS.C::merge_xxx use blazem::submatrix
 Questions:
     For atoms it is common to do numerical solution of the radial DE instead of using basis sets.
@@ -196,13 +196,17 @@ Upgrade existing features:
         -Try using std::single_view for Atom
         
     Modules
-        -Can we export what we need in Blaze.C?
-        -json lib already support module, we just dont use it yet.
+        Done: -Can we export what we need in Blaze.C?
+            There are a few instances where headers <algorithm> and <gtest> need op== and the
+            header code cannot see the exported module stuff.
+        -json lib already supports module, we just dont use it yet.
+            devlopment branch supports module in experimental mode.
+            Maybe we exort some stuff we need a-la blaze.
     Build:
         -Sort out compile options in CMake for gcc and clang.
         -Try gcc 16
-        -Get Claude to review cmake setp up.  Less duplication of compile options?
-                THinks like -pg -fomp need to be everywhere or nowhere.
+        Done: -Get Claude to review cmake setp up.  Less duplication of compile options?
+        Things like -pthread -pg -fomp need to be everywhere or nowhere.
 
 Clean up:
     -Simplify LASolver internals.
