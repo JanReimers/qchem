@@ -3,12 +3,12 @@ module;
 #include <iomanip>
 #include <cassert>
 #include <algorithm>
-// #include <cmath>
-#include <blaze/Math.h>
+#include <blaze/math/dense/DenseIterator.h> //In order for std::sort to work.
+
 module qchem.Symmetry.Internal.Spherical;
 import qchem.Common.Strings; //To get SPDFG string table.
 import qchem.stl_io;
-// import qchem.Blaze;
+import qchem.Blaze;
 import qchem.Math;
 
 using std::cout;

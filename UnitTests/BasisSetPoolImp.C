@@ -2,10 +2,11 @@
 module;
 #include <ranges>
 #include <nlohmann/json.hpp>
-#include <blaze/Math.h>
+#include <blaze/math/dense/DenseIterator.h> //In order for std::sort to work.
 #include <iostream>
 module qchem.Unittests.BasisSetPool;
 import qchem.Math;
+import qchem.Blaze;
 
 rvec_t stride(const rvec_t& v, size_t s)
 {
@@ -46,11 +47,11 @@ rvec_t SlaterExponents(BasisSetAccuracy acc,size_t Z)
     
     size_t NZ=floor(N-14*(1.-sqrt(Z/100.)));
     // std::cout << "Z,N,NZ=" << Z << " " << N << " " << NZ << std::endl;
-    exponents=blaze::subvector(exponents,0,NZ);  //Trim off all the large exponents for smaller Z
+    exponents=blazem::subvector(exponents,0,NZ);  //Trim off all the large exponents for smaller Z
     if (acc==BasisSetAccuracy::Medium)
     {
         size_t N1= NZ/6.;
-        exponents=blaze::subvector(exponents,N1,NZ-N1-1); //Take awau N1 small exponents, and one large exponent.
+        exponents=blazem::subvector(exponents,N1,NZ-N1-1); //Take awau N1 small exponents, and one large exponent.
     }
     else if(acc==BasisSetAccuracy::Low)
     {
@@ -84,11 +85,11 @@ rvec_t GaussianExponents(BasisSetAccuracy acc,size_t Z)
     
     size_t NZ=floor(N-18*(1.-sqrt(Z/100.)));
     // std::cout << "Z,N,NZ=" << Z << " " << N << " " << NZ << std::endl;
-    exponents=blaze::subvector(exponents,0,NZ);  //Trim off all the large exponents for smaller Z
+    exponents=blazem::subvector(exponents,0,NZ);  //Trim off all the large exponents for smaller Z
     if (acc==BasisSetAccuracy::Medium)
     {
         size_t N1=NZ/12.-2;
-        exponents=blaze::subvector(exponents,N1,NZ-2*N1); //Take away N1 small exponents, and one large exponent.
+        exponents=blazem::subvector(exponents,N1,NZ-2*N1); //Take away N1 small exponents, and one large exponent.
     }
     else if(acc==BasisSetAccuracy::Low)
     {

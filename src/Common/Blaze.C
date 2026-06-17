@@ -1,36 +1,12 @@
 // File: Common/Convert.C
 module;
-#include "blaze/math/dense/DenseVector.h"
 #include <blaze/Math.h>
 export module qchem.Blaze;
 export import qchem.Types;
-
-export 
-{
-    using blaze::DenseIterator;
-    using blaze::operator==;
-    using blaze::operator!=;
-
-    using blaze::operator+;
-    using blaze::operator/;
-    using blaze::operator*;
-    using blaze::operator-;
-
-    using blaze::operator+=;
-    using blaze::operator-=;
-    using blaze::operator*=;
-    using blaze::operator/=;
-
-    using blaze::operator%;
-
-    using blaze::operator<<;
-
-    using blaze::begin;
-    using blaze::end;
-
-}
-
-
+//
+//  Export some blaze functions into a new namespace blazem in order get them into a module BMI file.
+//  This is basically a way of making a pre-compiled header for some blaze function we need.
+//
 export namespace blazem
 {
     template <typename T> smat_t<T> zero(size_t N)
@@ -39,8 +15,7 @@ export namespace blazem
         for ( size_t j=0; j<z.columns(); ++j) column(z,j)=0.0;
         return z;
     }
-
-    
+   
     using blaze::DynamicVector;
     using blaze::DiagonalMatrix;
     using blaze::Subvector;
@@ -62,5 +37,34 @@ export namespace blazem
     using blaze::norm;
     using blaze::linspace;
     using blaze::diagonal;
+}
+
+// Export a number of overloaded operators.  These have to go into the global namespace.
+export 
+{
+    using blaze::DenseIterator;
+    using blaze::operator==;
+    using blaze::operator!=;
+    // using blaze::operator<;
+    // using blaze::operator<=;
+    // using blaze::operator>;
+    // using blaze::operator>=;
+
+    using blaze::operator+;
+    using blaze::operator/;
+    using blaze::operator*;
+    using blaze::operator-;
+
+    using blaze::operator+=;
+    using blaze::operator-=;
+    using blaze::operator*=;
+    using blaze::operator/=;
+
+    using blaze::operator%;
+
+    using blaze::operator<<;
+
+    using blaze::begin;
+    using blaze::end;
 }
 

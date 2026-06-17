@@ -4,7 +4,7 @@ module;
 #include <iomanip>
 #include <cassert>
 #include <algorithm>
-#include <blaze/Math.h>
+#include <blaze/math/dense/DenseIterator.h> //In order for std::sort to work.
 
 module qchem.Symmetry.Internal.Spherical;
 import qchem.Common.Strings;

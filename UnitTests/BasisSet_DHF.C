@@ -1,5 +1,5 @@
 // File: UnitTests/BasisSet_DHF.C  Unit test the Atom RKB basis sets
-#include <blaze/Math.h>
+#include <blaze/math/expressions/DMatDMatEqualExpr.h>
 #include "gtest/gtest.h"
 #include <iostream>
 #include <nlohmann/json.hpp>

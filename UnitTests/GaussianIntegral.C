@@ -1,6 +1,5 @@
 // File: ERIList.C  Test the DFT persistance classes
-
-#include <blaze/Math.h>
+#include <blaze/math/expressions/DMatDMatEqualExpr.h>
 #include "gtest/gtest.h"
 #include "nlohmann/json.hpp"
 #include <iostream>
