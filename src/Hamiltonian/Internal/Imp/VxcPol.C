@@ -4,8 +4,6 @@ module;
 #include <iostream>
 #include <memory>
 #include <vector>
-#include "blaze/Math.h" 
-
 module qchem.Hamiltonian.Internal.Terms;
 import qchem.Hamiltonian.Types;
 import qchem.Energy;

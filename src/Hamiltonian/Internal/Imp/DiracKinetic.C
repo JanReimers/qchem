@@ -1,12 +1,11 @@
 // File: DiracKinetic.C  Kinetic energy term for the Dirac hamiltonian.
 module;
 #include <iostream>
-#include "blaze/Math.h" 
-
 module qchem.Hamiltonian.Internal.Terms;
 import qchem.ChargeDensity;
 import qchem.Energy;
 import qchem.Constants;
+import qchem.Blaze;
 
 namespace qchem::Hamiltonian
 {

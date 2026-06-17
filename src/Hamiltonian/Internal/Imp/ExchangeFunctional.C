@@ -1,9 +1,9 @@
 // File: Imp/ExchangeFunctional.C   Exchange potential for DFT.
 module;
 #include <cassert>
-#include "blaze/Math.h"
 module qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.ChargeDensity;
+import qchem.Blaze;
 
 namespace qchem::Hamiltonian
 {
