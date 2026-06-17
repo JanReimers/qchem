@@ -20,9 +20,7 @@ target_include_directories(qcCluster PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/json/single_include
     ${PROJECT_SOURCE_DIR}/submodules/blaze
 )
-target_compile_options(qcCluster PRIVATE 
-    $<$<CONFIG:Debug>:-g -O0 >
-    $<$<CONFIG:Release>: -O2 -pg>
-)
 set_property(TARGET qcCluster PROPERTY CXX_STANDARD 20)
+target_compile_options(qcCluster PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
+target_compile_definitions(qcCluster PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
 target_link_libraries(qcCluster PUBLIC qcMesh qcCommon)

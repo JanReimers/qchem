@@ -13,10 +13,8 @@ target_sources(qcElConfig PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Molecule_EC.C
     ) 
 
-target_compile_options(qcElConfig PRIVATE -Wall 
-    $<$<CONFIG:Debug>:-g -O0>
-    $<$<CONFIG:Release>: -O2 -pg>
-)
+target_compile_options(qcElConfig PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
+target_compile_definitions(qcElConfig PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
 target_include_directories(qcElConfig PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_SOURCE_DIR}/submodules/blaze)
 # This linker association is required in order for cmake/gcc to find .gcm binaru module  interfact (BMI) files!!!!!
 target_link_libraries(qcElConfig PUBLIC qcSymmetry)

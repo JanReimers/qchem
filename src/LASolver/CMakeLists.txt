@@ -14,5 +14,7 @@ set_property(TARGET qcLASolver PROPERTY CXX_STANDARD 20)
 target_include_directories(qcLASolver PRIVATE 
       ${PROJECT_SOURCE_DIR}/submodules/blaze
 )
+target_compile_options(qcLASolver PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
+target_compile_definitions(qcLASolver PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
 target_link_libraries(qcLASolver PUBLIC qcCommon) 
 

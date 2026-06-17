@@ -134,6 +134,14 @@ Major Features:
             coding difficulty between PW and Pseudo potentials.
 
 Upgrade existing features:
+    Top level
+        -Critical review of cmake files.
+            Best way to define compile flags in one place
+        -Hunt for acronyms and make sure they are documented in Types.C
+        -Use constexpr for building static lookup tables.
+        -define LMAX in one place.  Might >1 versions, but still define in one place.
+        -Logging
+
     Dirac/RKB:
         -1s orbital is not properly normalized.  Shape is correct.
         -Figure out a clean way tracking factors of 0.5, c, 2c etc for kinetic matrices.
@@ -286,13 +294,10 @@ OOD Refactor:
 
     -Fix orbital phases to 1s, 2p , 3d are always >0?
 
-    -Use constexpr for building static lookup tables.
-    -define LMAX in one place.  Might >1 versions, but still define in one place.
 
     -SVD/Eigen truncation ... we need no know which L is getting truncated.
 
-    -Hunt for acronyms and make sure they are documented in Types.C
-    -Logging
+
     -Slater_m, SG_m basis sets:
         Add real spherical harmonic angular functions for g(r).
         replace m with ml?  or m = {mj,ml} depending on context?

@@ -25,14 +25,8 @@ target_sources(UTMain PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES Qche
 #-Wno-unknown-pragmas
 # -Wno-cpp  Suppress warning messages emitted by #warning directives.
 
-target_compile_options(UTMain PRIVATE -Wall 
-    $<$<CONFIG:Debug>:-g -O0>
-    $<$<CONFIG:Release>: -O2 -pg>
-)
-target_compile_definitions(UTMain PRIVATE ${CXX_COMMON_DEFINES}
-    $<$<CONFIG:Debug>:-DDEBUG>
-    $<$<CONFIG:Release>:-DNDEBUG>
-)
+target_compile_options(UTMain PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
+target_compile_definitions(UTMain PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
 set_property(TARGET UTMain PROPERTY CXX_STANDARD 20)
 
 target_link_options(UTMain PRIVATE )
@@ -44,21 +38,15 @@ target_include_directories(UTMain PRIVATE
     ${PROJECT_BINARY_DIR}/submodules/libxc
     ${PROJECT_SOURCE_DIR}/submodules/wignerSymbols/include
 )
-target_link_libraries(UTMain PUBLIC qchem qcCommon)
+target_link_libraries(UTMain PUBLIC qchem qcCommon xc)
 
 # -isystem /usr/include/c++/v1
 # --gcc-toolchain=/opt/gcc-15
 add_executable(UTMain1 gtestmain.C QchemTesterImp.C BasisSetPoolImp.C A_Pool.C A_HF_U.C A_HF_P.C)
 target_sources(UTMain1 PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES QchemTester.C BasisSetPool.C)
 
-target_compile_options(UTMain1 PRIVATE -Wall 
-    $<$<CONFIG:Debug>:-g -O0>
-    $<$<CONFIG:Release>: -O2 -pg>
-)
-target_compile_definitions(UTMain1 PRIVATE 
-    $<$<CONFIG:Debug>:-DDEBUG>
-    $<$<CONFIG:Release>:-DNDEBUG>
-)
+target_compile_options(UTMain1 PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
+target_compile_definitions(UTMain1 PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
 set_property(TARGET UTMain1 PROPERTY CXX_STANDARD 20)
 
 target_link_options(UTMain1 PRIVATE -pg )
@@ -75,14 +63,8 @@ target_link_libraries(UTMain1 PUBLIC qchem qcCommon)
 # scfrun: command-line SCF driver for accelerator tuning (no recompile).
 add_executable(scfrun scfrun.C QchemTesterImp.C BasisSetPoolImp.C)
 target_sources(scfrun PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES QchemTester.C BasisSetPool.C)
-target_compile_options(scfrun PRIVATE -Wall
-    $<$<CONFIG:Debug>:-g -O0>
-    $<$<CONFIG:Release>: -O2>
-)
-target_compile_definitions(scfrun PRIVATE
-    $<$<CONFIG:Debug>:-DDEBUG>
-    $<$<CONFIG:Release>:-DNDEBUG>
-)
+target_compile_options(scfrun PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
+target_compile_definitions(scfrun PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
 set_property(TARGET scfrun PROPERTY CXX_STANDARD 20)
 target_include_directories(scfrun PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/BSplinebasis/include
@@ -112,14 +94,8 @@ target_link_libraries(UTBasisSet PUBLIC qcAtom_BS lapack wignerSymbols gtest) #q
 target_include_directories(UTBasisSet PRIVATE ${PROJECT_SOURCE_DIR}/submodules/blaze)
 set_property(TARGET UTBasisSet PROPERTY CXX_STANDARD 20)
 
-target_compile_definitions(UTBasisSet PRIVATE 
-    $<$<CONFIG:Debug>:-DDEBUG>
-    $<$<CONFIG:Release>:-DNDEBUG>
-)
-target_compile_options(UTBasisSet PRIVATE -Wall -Wno-unknown-pragmas -Wno-cpp 
-    $<$<CONFIG:Debug>:-g -O0>
-    $<$<CONFIG:Release>: -O2>
-)
+target_compile_options(UTBasisSet PRIVATE -Wno-unknown-pragmas -Wno-cpp ${CXX_COMMON_COMPILE_OPTIONS})
+target_compile_definitions(UTBasisSet PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
 
 add_executable(DiracHydrogen DiracHydrogen.C)
 target_include_directories(DiracHydrogen PRIVATE ${PROJECT_SOURCE_DIR}/submodules/blaze)
