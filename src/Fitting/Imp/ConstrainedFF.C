@@ -1,10 +1,10 @@
 // File: ConstrainedFF.C  General constrained fit.
 module;
 #include <iostream>
-#include "blaze/Math.h"
 module qchem.FittedFunctionImp;
 import qchem.FittedFunctionClient;
 import qchem.Fitting.Types;
+import qchem.Blaze;
 
 namespace qchem::Fitting
 {
@@ -20,7 +20,7 @@ template <class T> ConstrainedFF<T>::
 ConstrainedFF(bs_t& fbs, const vec_t<T>& theg, mesh_t&  m)
     : FittedFunctionImp<T>(fbs,m)
     , g  (theg)
-    , gS (blaze::trans(g)*fbs->InvRepulsion())
+    , gS (blazem::trans(g)*fbs->InvRepulsion())
     , gSg(gS*g)
 {	
 }

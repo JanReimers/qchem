@@ -1,15 +1,12 @@
 // File: FittedFunctionImp.C  Implementation for Fitted Functions.
 module;
 #include <memory> // for std::shared_ptr
-#include "blaze/Math.h"
-
 export module qchem.FittedFunctionImp;
 export import qchem.FittedFunctionClient;
 export import qchem.FittedFunction;
 export import qchem.Mesh;
-
 import qchem.Fitting.Types;
-
+import qchem.Blaze;
 //--------------------------------------------------------------------------
 //
 //  The fit function and fit basis set are assumed to be real valued. 

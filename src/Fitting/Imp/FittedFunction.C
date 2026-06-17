@@ -3,7 +3,6 @@ module;
 #include <iostream>
 #include <cassert>
 #include <vector>
-#include "blaze/Math.h"
 module qchem.FittedFunctionImp;
 import qchem.FittedFunction;
 import qchem.Fitting.Types;
@@ -79,13 +78,13 @@ FitGet2CenterOverlap(const fbs_t* bs) const
 {
     // No UT coverage.
     assert(false);
-    return trans(itsBasisSet->Overlap(itsMesh.get(),*bs))*itsFitCoeff;
+    return blazem::trans(itsBasisSet->Overlap(itsMesh.get(),*bs))*itsFitCoeff;
 }
 
 template <class T> vec_t<T> FittedFunctionImp<T>::
 FitGet2CenterRepulsion(const fbs_t* bs) const
 {
-    return trans(itsBasisSet->Repulsion(*bs))*itsFitCoeff;
+    return blazem::trans(itsBasisSet->Repulsion(*bs))*itsFitCoeff;
 }
 
 template <class T> smat_t<T> FittedFunctionImp<T>::
@@ -95,7 +94,7 @@ FitGet3CenterOverlap(const obs_t<T>* bs) const
     smat_t<T> J=blazem::zero<T>(bs->GetNumFunctions());
     size_t i=0;
     for (auto c:itsFitCoeff) J+=c*O3[i++];
-    assert(!isnan(J));
+    assert(!blazem::isnan(J));
     return J;
 }
 
@@ -108,7 +107,7 @@ template <class T> double FittedFunctionImp<T>::
 FitGetOverlap(const FittedFunctionImp<T>* ffi) const
 {
     return
-        trans(itsFitCoeff) *
+        blazem::trans(itsFitCoeff) *
         itsBasisSet->Overlap(itsMesh.get(),*ffi->itsBasisSet) *
         ffi->itsFitCoeff;
 }
@@ -117,13 +116,13 @@ template <class T> double FittedFunctionImp<T>::
 FitGetRepulsion(const FittedFunctionImp<T>* ffi) const
 {
     return
-        trans(itsFitCoeff) * itsBasisSet->Repulsion(*ffi->itsBasisSet.get()) *
+        blazem::trans(itsFitCoeff) * itsBasisSet->Repulsion(*ffi->itsBasisSet.get()) *
         ffi->itsFitCoeff;
 }
 
 template <class T> double FittedFunctionImp<T>::FitGetCharge() const
 {
-    return trans(itsFitCoeff) * itsBasisSet->Charge();
+    return blazem::trans(itsFitCoeff) * itsBasisSet->Charge();
 }
 
 //------------------------------------------------------------------------
@@ -143,7 +142,7 @@ template <class T> double FittedFunctionImp<T>::FitGetChangeFrom(const FittedFun
     const FittedFunctionImp<T>* ffi = dynamic_cast<const FittedFunctionImp<T>*>(&ff);
     assert(ffi);
     assert(itsBasisSet->GetID() == ffi->itsBasisSet->GetID());
-    return max(abs(itsFitCoeff - ffi->itsFitCoeff));
+    return blazem::max(blazem::abs(itsFitCoeff - ffi->itsFitCoeff));
 }
 
 template <class T> void FittedFunctionImp<T>::ReScale(double factor)
@@ -157,7 +156,7 @@ template <class T> void FittedFunctionImp<T>::ReScale(double factor)
 //
 template <class T> double  FittedFunctionImp<T>::operator()(const rvec3_t& r) const
 {
-    return trans(itsFitCoeff) * (*itsBasisSet)(r);
+    return blazem::trans(itsFitCoeff) * (*itsBasisSet)(r);
 }
 
 template <class T> rvec3_t  FittedFunctionImp<T>::Gradient(const rvec3_t& r) const
