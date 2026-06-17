@@ -1,7 +1,6 @@
 // File: BasisSet/Imp/Orbital_DHF_IBS.C
 module;
 #include <cassert>
-#include <blaze/Math.h>
 module qchem.BasisSet.Internal.Orbital_DHF_IBS;
 import qchem.BasisSet.Internal.DB_Cache;
 import qchem.Blaze;
@@ -99,7 +98,7 @@ template <class T> ERI4 Orbital_RKB_HF_IBS_Imp<T>::MakeDirect  (const Orbital_HF
         for (size_t b:iv_t(a,Nab))
         {
             rsmat_t Jcd(2*Ncd);
-            blaze::submatrix(Jcd,0,0,Ncd,Ncd)=LLLL(a,b);
+            blazem::submatrix(Jcd,0,0,Ncd,Ncd)=LLLL(a,b);
             J(a,b)=Jcd;
         }
     return J;
@@ -119,7 +118,7 @@ template <class T> ERI4 Orbital_RKB_HF_IBS_Imp<T>::MakeExchange(const Orbital_HF
         for (size_t b:iv_t(a,Nab))
         {
             rsmat_t Kcd(2*Ncd);
-            blaze::submatrix(Kcd,0,0,Ncd,Ncd)=LLLL(a,b);
+            blazem::submatrix(Kcd,0,0,Ncd,Ncd)=LLLL(a,b);
             K(a,b)=Kcd;
         }
     return K;

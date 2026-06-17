@@ -1,7 +1,6 @@
 module;
 #include <cassert>
 #include <iostream>
-#include <blaze/Math.h>
 module qchem.BasisSet.Internal.ERI4;
 import qchem.Blaze;
 
@@ -13,7 +12,7 @@ void MatMul(rsmat_t& Sab, const ERI4& gabcd,const rsmat_t& Scd)
     assert(Sab.rows()==Nab);
     for (auto ia:iv_t(0,Nab))
         for (auto ib:iv_t(ia,Nab))
-            Sab(ia,ib)+=sum(gabcd(ia,ib) % Scd); //Dot(DirectMultiply(A,B))
+            Sab(ia,ib)+=blazem::sum(gabcd(ia,ib) % Scd); //Dot(DirectMultiply(A,B))
 }
 
 ERI4 ERI4::Transpose() const
@@ -37,12 +36,12 @@ bool operator==(const ERI4& a, const ERI4& b)
     }
     for (size_t i=0;i<a.Nab();i++)
         for (size_t j=0;j<a.Nab();j++)
-            if (norm(a(i,j)-b(i,j))>eps) 
+            if (blazem::norm(a(i,j)-b(i,j))>eps) 
             {
                 std::cout << "a(" << i << "," << j << ")=" << a(i,j);
                 std::cout << "b(" << i << "," << j << ")=" << b(i,j);
                 std::cout << "[a-b](" << i << "," << j << ")=" << a(i,j)-b(i,j);
-                std::cout << "norm(a(i,j)-b(i,j))=" << norm(a(i,j)-b(i,j)) << std::endl;
+                std::cout << "norm(a(i,j)-b(i,j))=" << blazem::norm(a(i,j)-b(i,j)) << std::endl;
                 return false;
             }
     return true;
@@ -56,14 +55,14 @@ double fnorm(const ERI4& a, const ERI4& b)
     for (size_t i=0;i<a.Nab();i++)
         for (size_t j=0;j<a.Nab();j++)
         {
-            double norm_ab=norm(a(i,j)-b(i,j));
+            double norm_ab=blazem::norm(a(i,j)-b(i,j));
             ret+=norm_ab*norm_ab;
             if (norm_ab>0.001) 
             {
                 // std::cout << std::setprecision(12) << "a(" << i << "," << j << ")=" << a(i,j);
                 // std::cout << std::setprecision(12) << "b(" << i << "," << j << ")=" << b(i,j);
                 std::cout << "[a-b](" << i << "," << j << ")=" << a(i,j)-b(i,j);
-                std::cout << "norm(a(i,j)-b(i,j))=" << norm(a(i,j)-b(i,j)) << std::endl;
+                std::cout << "norm(a(i,j)-b(i,j))=" << blazem::norm(a(i,j)-b(i,j)) << std::endl;
                 
             }
         }
@@ -78,8 +77,8 @@ double relative_fnorm(const ERI4& a, const ERI4& b)
     for (size_t i=0;i<a.Nab();i++)
         for (size_t j=0;j<a.Nab();j++)
         {
-            double norm_ab=norm(a(i,j)-b(i,j));
-            double avg_norm_ab=(norm(a(i,j))+norm(b(i,j)))/2.0;
+            double norm_ab=blazem::norm(a(i,j)-b(i,j));
+            double avg_norm_ab=(blazem::norm(a(i,j))+blazem::norm(b(i,j)))/2.0;
             if (avg_norm_ab>0.0) norm_ab/=avg_norm_ab;
             ret+=norm_ab*norm_ab;
         }

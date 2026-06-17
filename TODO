@@ -21,6 +21,7 @@ Code review:
     Point group project:
         -Can we move SymEigen3 into Matrix3D<T>?
     Why does BasisSet depend on LASolver?
+    src/BasisSet/Internal/Imp/Orbital_DHF_IBS.C::merge_xxx use blazem::submatrix
 Questions:
     For atoms it is common to do numerical solution of the radial DE instead of using basis sets.
     Is there a way to fit that solution approach into the framwwork form this project?  

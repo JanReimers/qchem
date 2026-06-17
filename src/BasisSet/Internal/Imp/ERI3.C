@@ -1,7 +1,6 @@
 module;
 #include <cassert>
 #include <iostream>
-#include <blaze/Math.h>
 module qchem.BasisSet.Internal.ERI3;
 import qchem.Blaze;
 
@@ -12,7 +11,7 @@ template <class T> double fnorm(const ERI3<T>& a, const ERI3<T>& b)
     auto mb=b.begin();
     for (auto ma:a)
     {
-        double norm_ab=norm(ma-*mb);
+        double norm_ab=blazem::norm(ma-*mb);
         ret+=norm_ab*norm_ab;
         mb++;
     }
@@ -27,8 +26,8 @@ template <class T> double relative_fnorm(const ERI3<T>& a, const ERI3<T>& b)
     for (auto ma:a)
     {
         // std::cout << "ma=" << ma << std::endl << "mb=" << *mb << std::endl << std::endl ;
-        double norm_ab=norm(ma-*mb);
-        double avg_norm_ab=(norm(ma)+norm(*mb))/2.0;
+        double norm_ab=blazem::norm(ma-*mb);
+        double avg_norm_ab=(blazem::norm(ma)+blazem::norm(*mb))/2.0;
         if (avg_norm_ab>0.0) norm_ab/=avg_norm_ab;
         ret+=norm_ab*norm_ab;
         mb++;

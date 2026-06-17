@@ -1,9 +1,9 @@
 // File: BasisSet/Imp/Orbital_DFT_IBS.C
 module;
 #include <cassert>
-#include <blaze/Math.h>
 module qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.BasisSet.Internal.DB_Cache;
+import qchem.Blaze;
 
 namespace BasisSet
 {
@@ -32,7 +32,7 @@ template <class T> vec_t<T> Orbital_DFT_IBS<T>::Overlap3C(const smat_t<T>& Dcd, 
     vec_t<T> ret(c->GetNumFunctions());
     auto& S=this->Overlap3C(*c);
     for(auto i:iv_t(0,S.size()))
-        ret[i]=sum(Dcd%S[i]);
+        ret[i]=blazem::sum(Dcd%S[i]);
     return ret;
 }
 
@@ -41,7 +41,7 @@ template <class T> vec_t<T> Orbital_DFT_IBS<T>::Repulsion3C(const smat_t<T>& Dcd
     vec_t<T> ret(c->GetNumFunctions());
     auto& R=this->Repulsion3C(*c);
     for(auto i:iv_t(0,R.size()))
-        ret[i]=sum(Dcd%R[i]);
+        ret[i]=blazem::sum(Dcd%R[i]);
     return ret;
 }
 

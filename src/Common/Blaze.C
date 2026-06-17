@@ -8,16 +8,22 @@ export import qchem.Types;
 export 
 {
     using blaze::DenseIterator;
-    // using blaze::Iterator_t;
     using blaze::operator==;
+
     using blaze::operator+;
     using blaze::operator/;
     using blaze::operator*;
     using blaze::operator-;
+
     using blaze::operator+=;
     using blaze::operator-=;
     using blaze::operator*=;
     using blaze::operator/=;
+
+    using blaze::operator%;
+
+    using blaze::operator<<;
+
 }
 
 
@@ -34,6 +40,7 @@ export namespace blazem
     using blaze::DynamicVector;
     using blaze::Subvector;
     using blaze::subvector;
+    using blaze::submatrix;
     using blaze::exp;
     using blaze::abs;
     using blaze::max;
@@ -42,5 +49,7 @@ export namespace blazem
     using blaze::isnan;
     using blaze::sqrt;
     using blaze::column;
+    using blaze::sum;
+    using blaze::norm;
 }
 
