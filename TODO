@@ -2,13 +2,13 @@ Turn on/off vscode popups: search quickSuggestions
 Understand type erasure: https://youtu.be/m3UmABVf55g?t=2134
 
 Claude.md:  Coding conventions and other pointers
-    -There is a hierarcy library contains many modules which contain many classes.
+    -There is a hierarcy: library contains, many modules, which contain many classes.
         The compiler will enforce no cyclic dependencies between modules.
         The linker will enforce no cyclic dependencies between libraries.
         Cyclic dependencies between tightly coupled classes within one module is allowed.
-    -Only re-export modules that don't internal in name .Internal. The goal is to avoid importing anything internal accross library boundaries.
-    -The only header in project if forward.H and it is used to forward declare unit test classes the need access
-     to internals of certain library classes.
+    -Only re-export modules that don't have .Internal. in module name. The goal is to avoid importing anything internal accross library boundaries.
+    -The only header in the project if forward.H and it is used to forward declare unit test classes the need access
+     to internals of certain library classes.  Header for submodules are used, 
     -Use CamelBack for names, but surround acronyms with under scores like HF_Evaluator, or HF_DFT_Evaluator
     -I make liberal use of abstract interface base classes with no data (default constructors).  These are
     always derived from with virtual inheritance.  This makes lots of diamonds in the tree, but they should be harmless diamonds.

@@ -63,13 +63,13 @@ TEST(SALC, columns_are_irrep_eigenvectors)
 
     for (size_t c=0;c<s.O.columns();++c)
     {
-        blaze::DynamicVector<double> v = column(s.O, c);
+        blazem::DynamicVector<double> v = blazem::column(s.O, c);
         size_t r = irow[s.irrep[c]];
         for (size_t k=0;k<M.size();++k)
         {
-            blaze::DynamicVector<double> Mv  = M[k]*v;
-            blaze::DynamicVector<double> chv = double(g.table.chi[r][k]) * v;
-            EXPECT_LT(norm(Mv - chv), 1e-9) << "irrep " << s.irrep[c] << " col " << c
+            blazem::DynamicVector<double> Mv  = M[k]*v;
+            blazem::DynamicVector<double> chv = double(g.table.chi[r][k]) * v;
+            EXPECT_LT(blazem::norm(Mv - chv), 1e-9) << "irrep " << s.irrep[c] << " col " << c
                                             << " op " << g.table.opTags[k];
         }
     }

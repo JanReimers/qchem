@@ -57,16 +57,16 @@ public:
 
 
 
-typedef blaze::SymmetricMatrix < blaze::DynamicMatrix <double ,blaze::columnMajor >> bSMat;
-typedef blaze::DynamicMatrix <double ,blaze::columnMajor > bMat;
-typedef blaze::DynamicVector <double ,blaze::columnMajor > bVec;
-typedef blaze::IdentityMatrix<double,blaze::columnMajor> bUnit;
-typedef blaze::UpperMatrix< bMat > bU;
-typedef blaze::LowerMatrix< bMat > bL;
+// typedef blazem::SymmetricMatrix < blazem::DynamicMatrix <double ,blaze::columnMajor >> rsmat_t;
+// typedef blazem::DynamicMatrix <double ,blazem::columnMajor > rmat_t;
+// typedef blazem::DynamicVector <double ,blazem::columnMajor > rvec_t;
+typedef blazem::IdentityMatrix<double> bUnit;
+typedef blazem::UpperMatrix< rmat_t > bU;
+typedef blazem::LowerMatrix< rmat_t > bL;
 
 
 
-void zeroLower(bMat& m)
+void zeroLower(rmat_t& m)
 {
     size_t N=m.rows();
     for (size_t i=0;i<N;i++)
@@ -82,18 +82,18 @@ TEST_F(OrthogonalizeTests, BlazeDemo)
     for (auto ibs:bs->Iterate<Real_OIBS>())
     {
         size_t N=ibs->GetNumFunctions();
-        bMat  bM=ibs->Overlap();
+        rmat_t  bM=ibs->Overlap();
         
-        blaze::potrf( bM, 'U' );
-        blaze::trtri( bM, 'U', 'N' );
+        blazem::potrf( bM, 'U' );
+        blazem::trtri( bM, 'U', 'N' );
         // blaze::potri( bM, 'U' ); gives the wrong answer!!
         
         zeroLower(bM);
       
         bU U(bM);
-        bL L(blaze::trans(U));
-        bSMat bS=ibs->Overlap();
-        double err=blaze::norm(L*bS*U-bUnit(N));
+        bL L(blazem::trans(U));
+        rsmat_t bS=ibs->Overlap();
+        double err=blazem::norm(L*bS*U-bUnit(N));
         cout << "N=" << N << ", error=" << err << endl;
         cout << "------------------------------------" << endl;
         EXPECT_NEAR(err,0.0,N*N*N*1e-14);
@@ -114,22 +114,22 @@ TEST_F(OrthogonalizeTests, Blaze)
         {
             for (auto ortho:orthos)
             {
-                bSMat S=ibs->Overlap();
+                rsmat_t S=ibs->Overlap();
                 LASolver<double>* las=LASolver<double>::Factory(ortho,trunc_tol);
                 las->SetBasisOverlap(S);
                 auto I=las->Transform(S);
                 bUnit I1(I.rows());
                 
                 double eps=1.2e-15*pow(N,3);
-                cout << OrthStrs[ortho] << " " << ibs->GetSymmetry() << " " << N << " " << blaze::norm(I-I1) << " " << eps << endl;
+                cout << OrthStrs[ortho] << " " << ibs->GetSymmetry() << " " << N << " " << blazem::norm(I-I1) << " " << eps << endl;
                 if (N<9)
                 {
-                    EXPECT_NEAR(blaze::norm(I-I1),0.0,eps);
+                    EXPECT_NEAR(blazem::norm(I-I1),0.0,eps);
                     // EXPECT_NEAR(Norm(I-I1),0.0,eps);
                 }
                 else if (N<12)
                 {
-                    EXPECT_NEAR(blaze::norm(I-I1),0.0,N*eps);
+                    EXPECT_NEAR(blazem::norm(I-I1),0.0,N*eps);
                     // EXPECT_NEAR(Norm(I-I1),0.0,N*eps);
                 }
             }

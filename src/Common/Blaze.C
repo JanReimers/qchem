@@ -20,6 +20,7 @@ export namespace blazem
     using blaze::DiagonalMatrix;
     using blaze::UpperMatrix;
     using blaze::LowerMatrix;
+    using blaze::IdentityMatrix;
     using blaze::Subvector;
     using blaze::eigen;
     using blaze::svd;

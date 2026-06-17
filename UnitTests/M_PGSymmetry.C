@@ -50,13 +50,13 @@ TEST(PGSymmetry, water_extract_and_SALCs)
 
     for (size_t c=0;c<salc.O.columns();++c)
     {
-        blaze::DynamicVector<double> v = column(salc.O, c);
+        blazem::DynamicVector<double> v = blazem::column(salc.O, c);
         size_t r = irow[salc.irrep[c]];
         for (size_t k=0;k<M.size();++k)
         {
-            blaze::DynamicVector<double> Mv  = M[k]*v;
-            blaze::DynamicVector<double> chv = double(g.table.chi[r][k]) * v;
-            EXPECT_LT(norm(Mv - chv), 1e-8) << "irrep " << salc.irrep[c] << " op " << g.table.opTags[k];
+            blazem::DynamicVector<double> Mv  = M[k]*v;
+            blazem::DynamicVector<double> chv = double(g.table.chi[r][k]) * v;
+            EXPECT_LT(blazem::norm(Mv - chv), 1e-8) << "irrep " << salc.irrep[c] << " op " << g.table.opTags[k];
         }
     }
 }
