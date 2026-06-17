@@ -1,5 +1,5 @@
-// File:  ElectronCounts.C  Simple structure that store electron configuration counts for each l state.
-export module qchem.Symmetry.ElectronCounts;
+// File:  ElectronConfigurations/ElectronCounts.C  Simple structure that store electron configuration counts for each l state.
+export module qchem.ElectronConfiguration.ElectronCounts;
 export import qchem.Symmetry.Spin;
 
 export const int LMax=3;

@@ -1,7 +1,7 @@
-// File: Symmetry/ElectronConfiguration.C Interface for and electron configuration.
+// File: ElectronConfigurations/ElectronConfiguration.C Interface for and electron configuration.
 module;
 #include <set>
-export module qchem.Symmetry.ElectronConfiguration;
+export module qchem.ElectronConfiguration;
 export import qchem.Symmetry.Irrep;
 
 export class ElectronConfiguration

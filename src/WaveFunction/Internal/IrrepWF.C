@@ -9,7 +9,7 @@ export import qchem.LASolver;
 export import qchem.Hamiltonian;
 export import qchem.ChargeDensity;
 export import qchem.Symmetry.Irrep;
-export import qchem.Symmetry.ElectronConfiguration;
+export import qchem.ElectronConfiguration;
 
 export namespace qchem::WaveFunction
 {

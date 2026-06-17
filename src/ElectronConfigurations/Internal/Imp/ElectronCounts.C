@@ -1,7 +1,7 @@
-// File:  ElectronCountsImp.C  Simple structure that store electron configuration counts for each l state.
+// File:  ElectronConfigurations/IMp/ElectronCounts.C  Simple structure that store electron configuration counts for each l state.
 module;
 #include <cassert>
-module qchem.Symmetry.ElectronCounts;
+module qchem.ElectronConfiguration.ElectronCounts;
 
 int ElCounts_l::GetN(Spin s) const
 {

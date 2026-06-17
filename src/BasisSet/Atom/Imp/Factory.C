@@ -4,8 +4,8 @@ module;
 #include <nlohmann/json.hpp>
 
 module qchem.BasisSet.Atom.Factory;
-import qchem.Symmetry.AtomEC;
-import qchem.Symmetry.Atom_Dirac_EC;
+import qchem.ElectronConfiguration.AtomNR;
+import qchem.ElectronConfiguration.AtomDirac;
 import qchem.BasisSet.Atom.BasisSet;
 import qchem.BasisSet.Atom.Evaluators.BSpline.IBS;
 import qchem.BasisSet.Atom.Evaluators.BSpline.IBS_r;
@@ -23,7 +23,7 @@ Real_BS* Factory(const nlohmann::json& js,size_t Z)
 {
     Type type=js["type"].template get<Type>();
     if (type==Type::Slater_RKB || type==Type::Gaussian_RKB)
-        return Factory(js,Atom_Dirac_EC(Z));
+        return Factory(js,AtomDirac_EC(Z));
     else
         return Factory(js,Atom_EC(Z));
 }

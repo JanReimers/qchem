@@ -4,7 +4,7 @@ module;
 export module qchem.BasisSet.Atom.BasisSet;
 export import qchem.BasisSet;
 export import qchem.BasisSet.Orbital_HF_IBS;
-export import qchem.Symmetry.ElectronConfiguration;
+export import qchem.ElectronConfiguration;
 
 import qchem.BasisSet.Fit_IBS;
 import qchem.BasisSet.Atom.Evaluators;

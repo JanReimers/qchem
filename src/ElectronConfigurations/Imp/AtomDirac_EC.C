@@ -1,16 +1,16 @@
-// File: Symmetry/Imp/Atom_Dirac_EC.C  Electron configuration for atoms.
+// File: ElectronConfigurations/Imp/AtomDirac_EC.C  Electron configuration for atoms.
 module;
 #include <cassert>
 #include <cstdlib>
 #include <algorithm>
 
-module qchem.Symmetry.Atom_Dirac_EC;
+module qchem.ElectronConfiguration.AtomDirac;
 import qchem.Symmetry.Irrep;
 import qchem.Symmetry.Spherical;
 import qchem.Symmetry.Factory;
 
 
-Atom_Dirac_EC::Atom_Dirac_EC(int Z) : Atom_EC(Z, NsOnly_t{})
+AtomDirac_EC::AtomDirac_EC(int Z) : Atom_EC(Z, NsOnly_t{})
 {
     double s=0.5; //electron spin.
     for (size_t l:iv_t(0,itsLMax+1))

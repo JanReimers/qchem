@@ -1,4 +1,4 @@
-// File: Atom_ECImp.C  Electron configuration for atoms.
+// File: ElectronConfigurations/Imp/Atom_EC.C  Electron configuration for atoms.
 module;
 #include <cassert>
 #include <iostream>
@@ -6,7 +6,7 @@ module;
 #include <vector>
 #include <blaze/Math.h>
 
-module qchem.Symmetry.AtomEC;
+module qchem.ElectronConfiguration.AtomNR;
 import Common.PeriodicTable;
 import qchem.Symmetry.Irrep;
 import qchem.Symmetry.Spherical;

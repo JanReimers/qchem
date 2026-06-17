@@ -1,12 +1,12 @@
-// File: Symmetry/Atom_EC.C  Electron configuration for atoms.
+// File: ElectronConfigurations/Atom_EC.C  Electron configuration for atoms.
 module;
 #include <map>
 #include "forward.H"
 
-export module qchem.Symmetry.AtomEC;
-export import qchem.Symmetry.ElectronConfiguration;
+export module qchem.ElectronConfiguration.AtomNR;
+export import qchem.ElectronConfiguration;
 
-import qchem.Symmetry.ElectronCounts;
+import qchem.ElectronConfiguration.ElectronCounts;
 const int Nshell=8;
 
 export class Atom_EC : public virtual ElectronConfiguration

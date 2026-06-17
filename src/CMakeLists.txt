@@ -1,5 +1,6 @@
 add_subdirectory(Common)
 add_subdirectory(Symmetry)
+add_subdirectory(ElectronConfigurations)
 add_subdirectory(Mesh)
 add_subdirectory(Cluster)
 add_subdirectory(LASolver)

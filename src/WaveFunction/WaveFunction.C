@@ -6,7 +6,7 @@ export import qchem.EnergyLevel;
 export import qchem.Hamiltonian;
 export import qchem.ChargeDensity;
 export import qchem.Symmetry.Irrep;
-export import qchem.Symmetry.ElectronConfiguration;
+export import qchem.ElectronConfiguration;
 import qchem.ScalarFunction;
 export import qchem.Orbitals;
 

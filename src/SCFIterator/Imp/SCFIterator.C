@@ -16,7 +16,7 @@ import qchem.Hamiltonian;
 import qchem.Energy; 
 import qchem.ChargeDensity;
 
-import qchem.Symmetry.ElectronConfiguration;
+import qchem.ElectronConfiguration;
 import qchem.Math;
 
 using std::cout;

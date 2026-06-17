@@ -5,7 +5,7 @@ import qchem.WaveFunction.Types;
 export import qchem.SCFAccelerator;
 export import qchem.WaveFunction.SCF;
 export import qchem.Hamiltonian;
-export import qchem.Symmetry.ElectronConfiguration;
+export import qchem.ElectronConfiguration;
 
 export namespace qchem::WaveFunction
 {

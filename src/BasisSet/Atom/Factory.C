@@ -3,7 +3,7 @@ module;
 #include <nlohmann/json_fwd.hpp>
 export module qchem.BasisSet.Atom.Factory;
 export import qchem.BasisSet;
-export import qchem.Symmetry.ElectronConfiguration;
+export import qchem.ElectronConfiguration;
 
 
 export namespace BasisSet::Atom

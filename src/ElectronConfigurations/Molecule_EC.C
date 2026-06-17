@@ -1,6 +1,6 @@
-// File: Symmetry/Molecule_EC.C  Electron configuration for a Molecule.
-export module qchem.Symmetry.MoleculeEC;
-export import qchem.Symmetry.ElectronConfiguration;
+// File: ElectronConfigurations/Molecule_EC.C  Electron configuration for a Molecule.
+export module qchem.ElectronConfiguration.Molecule;
+export import qchem.ElectronConfiguration;
 
 export class Molecule_EC : public virtual ElectronConfiguration
 {

@@ -1,7 +1,7 @@
-// File: Symmetry/Molecule_ECImp.C  Electron configuration for a Molecule.
+// File: ElectronConfigurations/Imp/Molecule_EC.C  Electron configuration for a Molecule.
 module;
 #include <iostream>
-module qchem.Symmetry.MoleculeEC;
+module qchem.ElectronConfiguration.Molecule;
 import qchem.Symmetry.Factory;
 using std::cout;
 using std::endl;

@@ -1,11 +1,7 @@
 add_library(qcSymmetry) 
 target_sources(qcSymmetry PRIVATE 
     Imp/Spherical.C
-    Imp/Atom_EC.C  
-    Imp/Atom_Dirac_EC.C
-    Imp/ElectronCounts.C 
     Imp/Irrep.C  
-    Imp/Molecule_EC.C  
     Imp/Orbital_QNs.C  
     Imp/Symmetry.C
     Imp/Factory.C
@@ -25,12 +21,7 @@ target_sources(qcSymmetry PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Symmetry.C 
     Irrep.C 
     Orbital_QNs.C 
-    ElectronCounts.C 
     Spherical.C 
-    ElectronConfiguration.C
-    Atom_EC.C 
-    Atom_Dirac_EC.C
-    Molecule_EC.C
     Factory.C
     PointGroup.C
     CartesianRep.C
@@ -49,6 +40,6 @@ target_compile_options(qcSymmetry PRIVATE -Wall
 )
 target_include_directories(qcSymmetry PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJECT_SOURCE_DIR}/submodules/blaze)
 # This linker association is required in order for cmake/gcc to find .gcm binaru module  interfact (BMI) files!!!!!
-target_link_libraries(qcSymmetry PRIVATE qcCommon)
+target_link_libraries(qcSymmetry PUBLIC qcCommon)
 set_property(TARGET qcSymmetry PROPERTY CXX_STANDARD 20)
   

@@ -8,7 +8,7 @@ export import qchem.BasisSet.Orbital_1E_IBS;
 export import qchem.BasisSet.Fit_IBS;
 export import qchem.Cluster;
 export import qchem.Symmetry;
-export import qchem.Symmetry.ElectronConfiguration;
+export import qchem.ElectronConfiguration;
 
 import Common.Iterators;
 export import qchem.Streamable;

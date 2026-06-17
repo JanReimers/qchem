@@ -4,9 +4,9 @@ module;
 #include <nlohmann/json.hpp>
 #include <iostream>
 module qchem.Unittests.QchemTester;
-import qchem.Symmetry.AtomEC;
-import qchem.Symmetry.Atom_Dirac_EC;
-import qchem.Symmetry.MoleculeEC;
+import qchem.ElectronConfiguration.AtomNR;
+import qchem.ElectronConfiguration.AtomDirac;
+import qchem.ElectronConfiguration.Molecule;
 import qchem.SCFAccelerator.Factory;
 import qchem.Math;
 
@@ -195,7 +195,7 @@ Real_BS* TestAtom::GetBasisSet (const nlohmann::json& js) const
     return BasisSet::Atom::Factory(js,itsZ);
 }
 
-TestDiracAtom::TestDiracAtom(int Z, int q) : QchemTester(new Atom_Dirac_EC(Z-q)), itsq(q)
+TestDiracAtom::TestDiracAtom(int Z, int q) : QchemTester(new AtomDirac_EC(Z-q)), itsq(q)
 {
     itsCluster=cl_t(new Atom(Z,q,Vector3D<double>(0,0,0)));
 };

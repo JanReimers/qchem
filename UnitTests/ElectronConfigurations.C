@@ -11,7 +11,7 @@ import qchem.Symmetry.Irrep;
 import qchem.Symmetry.Spherical;
 import qchem.Symmetry.Factory;
 
-import qchem.Symmetry.AtomEC;
+import qchem.ElectronConfiguration.AtomNR;
 import qchem.Factory;
 import qchem.Common.Strings;
 

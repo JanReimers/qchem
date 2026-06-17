@@ -8,7 +8,7 @@ module qchem.WaveFunction.Internal.CompositeWF;
 import qchem.WaveFunction.Types;
 import qchem.SCFAccelerator;
 import qchem.CompositeCD;
-import qchem.Symmetry.ElectronConfiguration;
+import qchem.ElectronConfiguration;
 import qchem.LASolver;
 
 namespace qchem::WaveFunction
