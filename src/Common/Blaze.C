@@ -18,6 +18,8 @@ export namespace blazem
    
     using blaze::DynamicVector;
     using blaze::DiagonalMatrix;
+    using blaze::UpperMatrix;
+    using blaze::LowerMatrix;
     using blaze::Subvector;
     using blaze::eigen;
     using blaze::svd;
@@ -34,12 +36,17 @@ export namespace blazem
     using blaze::isnan;
     using blaze::sqrt;
     using blaze::column;
+    using blaze::row;
     using blaze::sum;
     using blaze::norm;
     using blaze::linspace;
     using blaze::diagonal;
     using blaze::isZero;
+    using blaze::isSquare;
     using blaze::conj;
+    using blaze::potrf;
+    using blaze::trtri;
+    
 }
 
 // Export a number of overloaded operators.  These have to go into the global namespace.

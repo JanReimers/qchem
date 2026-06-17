@@ -1,11 +1,10 @@
 // File: LASolver/LASolver.C  Linear algebra for Lowden orthogonalization and eigan solutions.
 module;
 #include <tuple>
-#include "blaze/Math.h" 
 export module qchem.LASolver;
 export import qchem.LAParams;
 export import qchem.Types;
-
+import qchem.Blaze;
 
 
 //#################################################################################

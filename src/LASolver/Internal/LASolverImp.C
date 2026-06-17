@@ -1,9 +1,9 @@
 // File: LASolver/Internal/LASolverImp.C  Linear algebra for Lowden orthogonalization and eigen solutions.
 module;
 #include <string>
-#include "blaze/Math.h" 
 export module qchem.LASolver.Internal.Common;
 export import qchem.LASolver;
+import qchem.Blaze;
 
 //#################################################################################
 //
@@ -34,9 +34,9 @@ export template <class T> class LASolverCommon
     virtual mat_t<T>    BackTransform(const mat_t<T>& Uprime) const {return V*Uprime;}
     virtual rvec_t   Get_BS_Diagonal() const {return Diag;}
     typedef LASolver<T> Base;
-    typedef blaze::   UpperMatrix< mat_t<T>> umat_t;
-    typedef blaze::   LowerMatrix< mat_t<T>> lmat_t;
-    typedef blaze::DiagonalMatrix<rmat_t   > dmat_t; //For eigen and singular values.
+    // typedef blaze::   UpperMatrix< mat_t<T>> umat_t;
+    // typedef blaze::   LowerMatrix< mat_t<T>> lmat_t;
+    typedef blazem::DiagonalMatrix<rmat_t   > dmat_t; //For eigen and singular values.
     typedef typename Base::   Ud_t    Ud_t;
     typedef typename Base::  UUd_t   UUd_t; //U,U',E  where U' has not been back transformed, U=V*Uprime.
 
