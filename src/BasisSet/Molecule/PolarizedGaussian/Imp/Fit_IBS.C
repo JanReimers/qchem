@@ -1,13 +1,12 @@
 // File: BasisSet/Molecule/PolarizedGaussian/Imp/Fit_IBS.C  Polarized Gaussian fit basis set, for MO calculations.
 module;
 #include <cassert>
-#include <algorithm> //Need std::max
+// #include <algorithm> //Need std::max
 #include <iostream>
 #include <fstream>
 #include <string>
 #include <memory>
 #include <vector>
-#include <blaze/Math.h>
 
 module qchem.BasisSet.Molecule.PolarizedGaussian;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;
@@ -19,6 +18,7 @@ import qchem.Symmetry.Unit;
 import qchem.stl_io;
 import qchem.Streamable;
 import qchem.Math;
+import qchem.Blaze;
 
 namespace BasisSet::Molecule::PolarizedGaussian
 {
@@ -52,7 +52,7 @@ rmat_t EFit_IBS::MakeRepulsion(const Fit_IBS& _b) const
         for (size_t ib=0;ib<Nb;ib++)
             s(ia,ib)=a->radials[ia]->Integrate(Repulsion2C,
                 b->radials[ib],a->pols[ia],b->pols[ib],cache)*a->ns[ia]*b->ns[ib];
-    assert(!isnan(s));
+    assert(!blazem::isnan(s));
     return s;
 }
 

@@ -1,7 +1,5 @@
 // File: PolarizedGaussian/Readers/Gaussian94.C  Class for reading basis sets from a Gaussian 94 formatted file.
 module;
-
-
 #include <iostream>
 #include <cassert>
 #include <memory>
@@ -9,14 +7,13 @@ module;
 #include <algorithm>
 #include <unistd.h>
 #include <vector>
-#include <blaze/Math.h>
 module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Readers.Gaussian94;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Radial.ContractedGaussianRF;
 import Common.PeriodicTable;
 import qchem.Cluster;
 import qchem.Types;
-
+import qchem.Blaze;
 
 using std::ws;
 namespace BasisSet::Molecule::PolarizedGaussian
@@ -173,12 +170,12 @@ RadialFunction* Gaussian94Reader::ReadContracted(int nCont, int maxL, const Atom
         for (unsigned int l=1; l<=itsLs.size(); l++) itsStream >> coeff(i-1,l-1);
         radials.push_back(new GaussianRF(exponent,atom.itsR,maxL));
     }
-    if (itsLs.size()>1 && blaze::column(coeff,0) != blaze::column(coeff,1))
+    if (itsLs.size()>1 && blazem::column(coeff,0) != blazem::column(coeff,1))
     {
         std::cerr << "Gaussian94Reader::ReadContracted contraction coeffs vary with L, not handeled yet" << std::endl;
         exit(-1);
     }
-    return new ContractedGaussianRF(blaze::column(coeff,0),radials);
+    return new ContractedGaussianRF(blazem::column(coeff,0),radials);
 }
 
 //

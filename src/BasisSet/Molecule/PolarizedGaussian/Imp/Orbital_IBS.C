@@ -7,20 +7,20 @@ module;
 #include <string>
 #include <memory>
 #include <vector>
-#include <blaze/Math.h>
 
 module qchem.BasisSet.Molecule.PolarizedGaussian;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IntegralEngine;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Readers.Gaussian94;
+import qchem.BasisSet.Internal.IntegralEnums;
 import qchem.BasisSet;
 import qchem.Cluster;
 import qchem.Symmetry.Unit;
 import qchem.stl_io;
 import qchem.Streamable;
 import qchem.Math;
+import qchem.Blaze;
 
-import qchem.BasisSet.Internal.IntegralEnums;
 
 namespace BasisSet::Molecule::PolarizedGaussian
 {

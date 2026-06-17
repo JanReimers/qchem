@@ -39,6 +39,8 @@ export namespace blazem
     using blaze::max;
     using blaze::min;
     using blaze::size;
-
+    using blaze::isnan;
+    using blaze::sqrt;
+    using blaze::column;
 }
 

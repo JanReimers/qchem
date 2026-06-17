@@ -6,15 +6,15 @@ module;
 #include <cassert>
 #include <vector>
 #include <memory>
-#include <blaze/Math.h>
 module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Radial.ContractedGaussianRF;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite1;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite3;
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Block;
 
 import qchem.stl_io;
 import qchem.Streamable;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Block;
+import qchem.Blaze;
 
 namespace BasisSet::Molecule::PolarizedGaussian
 {

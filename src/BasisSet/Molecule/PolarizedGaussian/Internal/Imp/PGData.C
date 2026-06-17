@@ -1,9 +1,10 @@
 // File: BasisSet/Molecule/PolarizedGaussian/Internal/Imp/PGData.C
 module;
 #include <vector>
-#include <blaze/Math.h>
+#include <string>
 module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.PGData;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
+import qchem.Blaze;
 
 namespace BasisSet::Molecule::PolarizedGaussian
 {
@@ -22,7 +23,7 @@ namespace BasisSet::Molecule::PolarizedGaussian
     CDCache cache;
     for (size_t i=0;i<N;i++)
         ns[i]=radials[i]->Integrate(Overlap2C,radials[i],pols[i],pols[i],cache);
-    ns=1.0/sqrt(ns);
+    ns=1.0/blazem::sqrt(ns);
 }
 
 std::string PGData::RadialID () const

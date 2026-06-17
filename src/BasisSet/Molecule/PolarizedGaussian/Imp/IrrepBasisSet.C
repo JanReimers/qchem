@@ -7,7 +7,6 @@ module;
 #include <string>
 #include <memory>
 #include <vector>
-#include <blaze/Math.h>
 
 module qchem.BasisSet.Molecule.PolarizedGaussian;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;
@@ -19,6 +18,7 @@ import qchem.Symmetry.Unit;
 import qchem.stl_io;
 import qchem.Streamable;
 import qchem.Math;
+import qchem.Blaze;
 
 namespace BasisSet::Molecule::PolarizedGaussian
 {
