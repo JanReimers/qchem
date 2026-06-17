@@ -1,11 +1,10 @@
 // File: BasisSetFrame.cpp  GTK frame to show and manage basis set settings.
 
 #include "BasisSetFrame.H"
-#include "Atom/l/Slater_BS_Evaluator.H"
-#include "Atom/ml/Slater_BS_Evaluator.H"
-#include "Atom/l/Gaussian_BS_Evaluator.H"
-#include "Atom/ml/Gaussian_BS_Evaluator.H"
 
+import qchem.BasisSet.Atom.Factory;
+
+using namespace BasisSet::Atom;
 
 BasisSetFrame::BasisSetFrame() : Glib::ObjectBase("basisset_frame") {}
 
@@ -17,7 +16,7 @@ BasisSetFrame::BasisSetFrame(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Bu
   , itsEmax(refBuilder->get_widget<Gtk::Entry>("basisset_emax"))
   , itsN(refBuilder->get_widget<Gtk::SpinButton>("basisset_N"))
 {
-  itsEnumDD->init({SlaterYl,SlaterYlm,GaussianYl,GaussianYlm} , {"Slater Yl","Slater Ylm","Gaussian Yl","Gaussian Ylm"} );
+  itsEnumDD->init({Slater,Gaussian,BSpline6,BSpliner6,Gaussian_RKB,Slater_RKB} , {"Slater","Gaussian","BSpline6","BSpliner6","Gaussian_RKB","Slater_RKB"} );
 }
   
 BasisSetFrame::~BasisSetFrame() {};
@@ -28,21 +27,7 @@ BasisSet* BasisSetFrame::create(size_t LMax) const
   emin=Glib::Ascii::strtod(itsEmin->get_text());
   emax=Glib::Ascii::strtod(itsEmax->get_text());
   N=itsN->get_value_as_int();
-  BasisSet* bs=0;
-  switch (bstype)
-  {
-    case SlaterYl : 
-      bs=new Atoml::Slater::BasisSet(N,emin,emax,LMax);
-      break;
-    case SlaterYlm : 
-      bs=new Atom_ml::Slater::BasisSet(N,emin,emax,LMax);
-      break;
-    case GaussianYl : 
-      bs= new Atoml::Gaussian::BasisSet(N,emin,emax,LMax);
-      break;
-    case GaussianYlm : 
-      bs= new Atom_ml::Gaussian::BasisSet(N,emin,emax,LMax);
-      break;
-  } 
-  return bs;
+  size_t Z=2;
+  nlohmann::json js={{"type",type},{"N",N},{"emin",emin},{"emax",emax}}
+  return Factory(js,Z);
 }

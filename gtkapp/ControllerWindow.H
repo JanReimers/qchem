@@ -10,7 +10,9 @@ class HamiltonianFrame;
 class LAParamsFrame;
 class SCFIterationParamsFrame;
 class MeshFrame;
-class SCFIterator;
+
+import qchem.SCFIterator;
+using namespace qchem::SCFIterator;
 
 class ControllerWindow : public Gtk::Window
 {

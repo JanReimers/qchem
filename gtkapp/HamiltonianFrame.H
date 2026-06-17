@@ -5,15 +5,15 @@
 
 #include "enumDropDown.H"
 #include <gtkmm.h>
-#include <types.H>
 import qchem.LAParams;
-
+import qchem.Hamiltonian;
+import qchem.WaveFunction;
 
 class PlotWindow;
 
 class HamiltonianFrame : public Gtk::Frame
 {
-  enum htypes {H1E,HF,DFT,D1E,DHF};
+  // enum htypes {H1E,HF,DFT,D1E,DHF};
 public:
   typedef std::shared_ptr<const Cluster> cl_t;
   HamiltonianFrame();
@@ -22,7 +22,7 @@ public:
   // void init();
 
   Hamiltonian*  create(const cl_t& cl,const MeshParams* m, const BasisSet* bs) const;
-  WaveFunction* create(BasisSet*, ElectronConfiguration*) const; //Decides polarized or un-polarized
+  // WaveFunction* create(BasisSet*, ElectronConfiguration*) const; //Decides polarized or un-polarized
   PlotWindow*   create_orbital_pw(BasisSet*,WaveFunction*) const; //Decides polarized or un-polarized
   PlotWindow*   create_el_pw(WaveFunction*) const; //Decides polarized or un-polarized
   PlotWindow*   create_diag_pw(BasisSet*,WaveFunction*, qchem::Ortho) const; //Decide spin and diag type: SVD,Eigen,Cholsky
@@ -44,7 +44,7 @@ private:
   enumDropDown<htypes>* itsEnumDD;
   Gtk::CheckButton* itsPolarized;
 
-  mutable htypes h_type;
+  mutable qchem::Hamiltonian::Model h_type;
   mutable bool   is_polarized;
 };
 

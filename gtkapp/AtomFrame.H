@@ -3,7 +3,7 @@
 #define _AtomFrame_H_
 
 #include <gtkmm.h>
-#include <types.H>
+import qchem.Cluster;
 
 class AtomFrame : public Gtk::Frame
 {
@@ -12,7 +12,7 @@ public:
   AtomFrame(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& refBuilder);
   virtual ~AtomFrame();
 
-  Molecule* create() const;
+  Cluster* create() const;
   template<class Archive>  void save(Archive & archive) const
   {
     Z=itsZ_spin->get_value_as_int();

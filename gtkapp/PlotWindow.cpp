@@ -39,22 +39,22 @@ template <class T> void FillPower(std::valarray<T>& arr,T start, T stop)
   for (int n=0;i!=std::end(arr);i++,n++) *i=T(start*std::exp(n*del));
 }
 
-#include <WaveFunction.H>
-#include <BasisSet/BasisSet.H>
+import qchem.WaveFunction;
+import qchem.BasisSet;
 import qchem.Orbitals;
-#include <Symmetry/Orbital_QNs.H>
+import qchem.Symmetry.Orbital;
 void Orbital_PW::AddLines(const BasisSet* bs, const WaveFunction* wf, Spin s, Glib::ustring symbol)
 {
   std::valarray<double> x(100);
   FillPower(x,0.1,10.0);
-  BasisSet::symv_t Irreps=bs->GetSymmetries();
+  BasisSet::symv_t Irreps=bs->GetIrreps();
   bool use_symbols=symbol!="";
   Glib::ustring spin_symbol="";
   if (s==Spin::Up) spin_symbol="↑";
   if (s==Spin::Down) spin_symbol="↓";
 
   int line=use_symbols ? Gtk::PLplot::LineStyle::NONE : Gtk::PLplot::LineStyle::CONTINUOUS;
-  for (auto sym:bs->GetSymmetries())
+  for (auto sym:bs->GetIrreps())
   {
     Irrep qns(s,sym);
     int num_unocc=1; //How many un=occupied orbitals to show?
@@ -255,12 +255,12 @@ Polarized_EnergyLevel_PW::Polarized_EnergyLevel_PW(const WaveFunction* wf)
 
 }
 
-#include "oml/vector.h"
 
-template <class T> std::valarray<T> to_valarray(const Vector<T>& v)
+template <class T> std::valarray<T> to_valarray(const vect<T>& v)
 {
   std::valarray<T> ret(v.size());
-  for (int i:v.arr_indices()) ret[i]=v[i];
+  size_t i=0;
+  for (auto iv:v) ret[i++]=iv;
   return ret;
 }
 

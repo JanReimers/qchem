@@ -3,7 +3,8 @@
 #define _SCFFrame_H_
 
 #include <gtkmm.h>
-#include <types.H>
+import qchem.SCFParams;
+import qchem.SCFIterator;
 
 class SCFIterationParamsFrame : public Gtk::Frame
 {

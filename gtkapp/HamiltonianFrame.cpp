@@ -1,9 +1,10 @@
 // File: HamiltonianFrame.cpp  GTK frame to show and manage Hamiltonian settings.
 
 #include "HamiltonianFrame.H"
-#include "Hamiltonians.H"
 #include <iostream>
 
+import qchem.Hamiltonians;
+using namespace qchem::Hamiltonian;
 
 HamiltonianFrame::HamiltonianFrame() {};
 HamiltonianFrame::HamiltonianFrame(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& refBuilder)
@@ -12,7 +13,7 @@ HamiltonianFrame::HamiltonianFrame(BaseObjectType* cobject, const Glib::RefPtr<G
   , itsEnumDD(Gtk::Builder::get_widget_derived<enumDropDown<htypes>>(refBuilder, "ham_dropdown"))
   , itsPolarized(refBuilder->get_widget<Gtk::CheckButton>("ham_polarized"))
 {
-  itsEnumDD->init({H1E,HF,DFT,D1E,DHF},{"1-Electron (1E)","Hatree-Fock (HF)","Density-Functional (DFT)","Dirac 1E","Dirac HF"});
+  itsEnumDD->init({E1,HF,DE1,DHF},{"1-Electron (1E)","Hatree-Fock (HF)","Dirac 1E","Dirac HF"});
   
 }
 
@@ -24,41 +25,22 @@ Hamiltonian* HamiltonianFrame::create(const cl_t& cl,const MeshParams* m, const 
 {
   h_type=itsEnumDD->GetType();
   is_polarized=itsPolarized->get_active();
-  Hamiltonian* h=0;
-  switch (h_type)
-  {
-    case H1E : 
-      h=new Ham_1E(cl);
-      break;
-    case HF : 
-      h= is_polarized ? (Hamiltonian*)new Ham_HF_P(cl) : (Hamiltonian*)new Ham_HF_U(cl);
-      break;
-    case DFT : 
-      assert(m);
-      h= is_polarized ? (Hamiltonian*)new Ham_DFT_P(cl,0.7,*m,bs) : (Hamiltonian*)new Ham_DFT_U(cl,0.7,*m,bs);
-      break;
-    case D1E : 
-      h= new Ham_DHF_1E(cl);
-      break;
-    case DHF : 
-      h= new Ham_DHF(cl);
-      break;
-  } 
-  return h;
+  Pol pol= itsPolarized->get_active() ? Pol::Polarized : Pol::UnPolarized;
+  return Factory(h_type,pol,cl);
 }
 
-#include "Imp/WaveFunction/UnPolarizedWF.H"
-#include "Imp/WaveFunction/PolarizedWF.H"
+// #include "Imp/WaveFunction/UnPolarizedWF.H"
+// #include "Imp/WaveFunction/PolarizedWF.H"
 
-WaveFunction* HamiltonianFrame::create(BasisSet* bs, ElectronConfiguration* ec ) const
-{
-    assert(bs);
-    assert(ec);
-    if (itsPolarized->get_active())
-        return new PolarizedWF(bs,ec);
-    else
-        return new UnPolarizedWF(bs,ec);
-}
+// WaveFunction* HamiltonianFrame::create(BasisSet* bs, ElectronConfiguration* ec ) const
+// {
+//     assert(bs);
+//     assert(ec);
+//     if (itsPolarized->get_active())
+//         return new PolarizedWF(bs,ec);
+//     else
+//         return new UnPolarizedWF(bs,ec);
+// }
 
 #include "PlotWindow.H"
 PlotWindow* HamiltonianFrame::create_orbital_pw(BasisSet* bs,WaveFunction* wf) const

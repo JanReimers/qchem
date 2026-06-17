@@ -1,13 +1,9 @@
 // File: MeshFrame.cpp  GTK frame to show and manage DFT integration mesh settings.
 
 #include "MeshFrame.H"
-#include "Mesh/LogRadialMesh.H"
-#include "Mesh/MHLRadialMesh.H"
-#include "Mesh/GaussAngularMesh.H"
-#include "Mesh/GaussLegendreAngularMesh.H"
-#include "Mesh/EulerMaclarenAngularMesh.H"
 #include <iostream>
 
+// import qchem.Mesh.Factory;
 
 MeshFrame::MeshFrame(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& refBuilder) 
   : Glib::ObjectBase("mesh_frame")

@@ -4,8 +4,7 @@
 
 #include "enumDropDown.H"
 #include <gtkmm.h>
-#include <types.H>
-#include <Mesh/MeshParams.H>
+import qchem.Mesh;
 
 class MeshFrame : public Gtk::Frame
 {

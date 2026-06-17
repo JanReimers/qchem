@@ -1,8 +1,7 @@
 // File: AtomFrame.cpp GTK frame to show and manage atom settings.
 
 #include "AtomFrame.H"
-#include "Cluster/Atom.H"
-#include "Cluster/Molecule.H"
+import qchem.Cluster.Atom;
 
 AtomFrame::AtomFrame() : Glib::ObjectBase("atom_frame")
 {
@@ -21,12 +20,10 @@ AtomFrame::AtomFrame(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& 
 AtomFrame::~AtomFrame()
 { 
 }
-Molecule* AtomFrame::create() const
+Cluster* AtomFrame::create() const
 {
     Z=itsZ_spin->get_value_as_int();
     charge=itsCharge_spin->get_value_as_int();
-    Molecule* m=new Molecule();
-    m->Insert(new Atom(Z,charge));
-    return m;
+    return new Atom(Z,charge);
 }
 

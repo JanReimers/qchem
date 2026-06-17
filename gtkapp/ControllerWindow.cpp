@@ -7,10 +7,10 @@
 #include "LAParamsFrame.H"
 #include "SCFFrame.H"
 #include "MeshFrame.H"
-#include "Symmetry/Atom_EC.H"
 #include "PlotWindow.H"
 #include <fstream>
 #include <cereal/archives/json.hpp>
+import ElecttronConfiguration.Atom_EC;
 
 std::string ControllerWindow::defaultFilename=getenv("HOME")+std::string("/.qchem");
 
@@ -62,13 +62,12 @@ bool ControllerWindow::close_request()
   return false;
 }
 
-#include "Cluster/Molecule.H"
-#include "Cluster/Atom.H"
-#include <Mesh/MeshParams.H>
-#include <SCFIterator.H>
-#include <SCFParams.H>
-#include <BasisSet/BasisSet.H>
-#include <WaveFunction.H>
+import qchem.Atom;
+import qchem.Mesh;
+import qchem.SCFIterator;
+import qchem.SCFParams;
+import qchem.BasisSet;
+import qchem.WaveFunction;
 import qchem.ChargeDensity;
 
 

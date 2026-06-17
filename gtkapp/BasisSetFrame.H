@@ -4,7 +4,8 @@
 
 #include "enumDropDown.H"
 #include <gtkmm.h>
-#include <types.H>
+
+import qchem.BasisSet;
 
 class BasisSetFrame : public Gtk::Frame
 {

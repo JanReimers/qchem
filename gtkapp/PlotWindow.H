@@ -6,6 +6,11 @@
 #include "gtkmm-plplot.h"
 #include <vector>
 #include <memory>
+import qchem.BasisSet;
+import qchem.WaveFunction;
+import qchem.Symmetry;
+import qchem.Spin;
+import qchem.EnergyLevel;
 
 class PlotWindow : public Gtk::Box
 {
@@ -23,7 +28,6 @@ protected:
     std::vector<std::shared_ptr<data_t>> itsDataSets;
 };
 
-#include <types.H>
 
 class Orbital_PW : public PlotWindow
 {
@@ -53,9 +57,6 @@ public:
 
 };
 
-#include <Symmetry/Symmetry.H>
-#include <Symmetry/Spin.H>
-import qchem.EnergyLevel;
 class EnergyLevel_PW : public PlotWindow
 {
 public:

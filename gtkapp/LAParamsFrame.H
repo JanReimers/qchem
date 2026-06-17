@@ -4,7 +4,6 @@
 
 #include "enumDropDown.H"
 #include <gtkmm.h>
-#include <types.H>
 import qchem.LAParams;
 
 class LAParamsFrame : public Gtk::Frame
@@ -18,11 +17,9 @@ public:
 
   template<class Archive>  void save(Archive & archive) const
   {
-    pkg=itsPkg->GetType();
     ortho=itsOrtho->GetType();
     trunc_tol=Glib::Ascii::strtod(itsTruncationTolerance->get_text());
-    abs_tol=Glib::Ascii::strtod(itsAbsTol->get_text());
-    archive( pkg,ortho, trunc_tol, abs_tol); // serialize things by passing them to the archive
+    archive( ortho, trunc_tol); // serialize things by passing them to the archive
   }
   template<class Archive>  void load(Archive & archive)
   {
@@ -30,21 +27,16 @@ public:
     itsPkg->set_selected(pkg);
     itsOrtho->set_selected(ortho);
     itsTruncationTolerance->set_text(Glib::Ascii::dtostr(trunc_tol));
-    itsAbsTol->set_text(Glib::Ascii::dtostr(abs_tol));
   }
 
   qchem::Ortho GetOrtho() const;
 
 private:
-  enumDropDown<qchem::Pkg  >* itsPkg;
   enumDropDown<qchem::Ortho>* itsOrtho;
   Gtk::Entry*    itsTruncationTolerance;
-  Gtk::Entry*    itsAbsTol;
 
-  mutable qchem::Pkg pkg;
   mutable qchem::Ortho ortho;
   mutable double trunc_tol;
-  mutable double abs_tol;
 };
 
 #endif //_LAParamsFrame_H_
