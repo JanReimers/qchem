@@ -10,7 +10,7 @@ link_directories(
 
 #  Main
 # 
-add_executable(UTMain gtestmain.C QchemTesterImp.C BasisSetPoolImp.C 
+add_executable(UTMain gtestmain.C QchemTesterImp.C BasisSetPoolImp.C A_Pool.C
     json.C EigenSolverUT.C ERI4.C MeshIntegrals.C UTCluster.C  PeriodicTable.C
     BSplines.C DiracIntegral.C SlaterIntegral.C GaussianIntegral.C UTBasisSet.C BasisSet_Atom.C BasisSet_Atom.C BasisSet_DHF.C
     A_HF_U.C A_HF_P.C A_DHF.C A_HF_U.C A_DFT.C A_DFT_U.C M_PG_U.C
@@ -19,9 +19,6 @@ add_executable(UTMain gtestmain.C QchemTesterImp.C BasisSetPoolImp.C
     )
 target_sources(UTMain PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES QchemTester.C BasisSetPool.C)
 
-#add_executable(UTMain UTMain.C DiracIntegral.C SlaterIntegral.C GaussianIntegral.C QchemTester.C)
-#GCM_PATH := $(LIB_PATH)/gcm.cache
-#MAPPER := '-fmodule-mapper=|@g++-mapper-server -r'$(GCM_PATH)
 #-Wno-unknown-pragmas
 # -Wno-cpp  Suppress warning messages emitted by #warning directives.
 
@@ -29,7 +26,7 @@ target_compile_options(UTMain PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(UTMain PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
 set_property(TARGET UTMain PROPERTY CXX_STANDARD 20)
 
-target_link_options(UTMain PRIVATE )
+target_link_options(UTMain PRIVATE -pg)
 target_include_directories(UTMain PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/BSplinebasis/include
     ${PROJECT_SOURCE_DIR}/submodules/json/single_include
@@ -39,26 +36,6 @@ target_include_directories(UTMain PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/wignerSymbols/include
 )
 target_link_libraries(UTMain PUBLIC qchem qcCommon xc)
-
-# -isystem /usr/include/c++/v1
-# --gcc-toolchain=/opt/gcc-15
-add_executable(UTMain1 gtestmain.C QchemTesterImp.C BasisSetPoolImp.C A_Pool.C A_HF_U.C A_HF_P.C)
-target_sources(UTMain1 PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES QchemTester.C BasisSetPool.C)
-
-target_compile_options(UTMain1 PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
-target_compile_definitions(UTMain1 PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
-set_property(TARGET UTMain1 PROPERTY CXX_STANDARD 20)
-
-target_link_options(UTMain1 PRIVATE -pg )
-target_include_directories(UTMain1 PRIVATE 
-    ${PROJECT_SOURCE_DIR}/submodules/BSplinebasis/include
-    ${PROJECT_SOURCE_DIR}/submodules/json/single_include
-    ${PROJECT_SOURCE_DIR}/submodules/blaze
-    ${PROJECT_SOURCE_DIR}/submodules/tabulate/include
-
-)
-target_link_libraries(UTMain1 PUBLIC qchem qcCommon)
-
 
 # scfrun: command-line SCF driver for accelerator tuning (no recompile).
 add_executable(scfrun scfrun.C QchemTesterImp.C BasisSetPoolImp.C)
@@ -75,35 +52,12 @@ target_include_directories(scfrun PRIVATE
 target_link_libraries(scfrun PUBLIC qchem qcCommon)
 
 
-# Symmetry module
-add_executable(UTSym gtestmain.C SymQN.C ElectronConfigurations.C)
-target_include_directories(UTSym PRIVATE 
-    ${PROJECT_SOURCE_DIR}/submodules/json/single_include
-    ${PROJECT_SOURCE_DIR}/submodules/tabulate/include
+# add_executable(DiracHydrogen DiracHydrogen.C)
+# target_include_directories(DiracHydrogen PRIVATE ${PROJECT_SOURCE_DIR}/submodules/blaze)
+# target_link_libraries(DiracHydrogen PUBLIC qchem lapack blas)
+# set_property(TARGET DiracHydrogen PROPERTY CXX_STANDARD 20)
 
-)
-target_link_libraries(UTSym PUBLIC qcFactory qcBasisSet qcSymmetry gtest lapack wignerSymbols)
-set_property(TARGET UTSym PROPERTY CXX_STANDARD 20)
-# Cluster module
-add_executable(UTCluster gtestmain.C UTCluster.C)
-target_link_libraries(UTCluster PUBLIC qcCluster gtest)
-set_property(TARGET UTCluster PROPERTY CXX_STANDARD 20)
-# BasisSet module
-add_executable(UTBasisSet gtestmain.C UTBasisSet.C BasisSet_Atom.C)
-target_link_libraries(UTBasisSet PUBLIC qcAtom_BS lapack wignerSymbols gtest) #qcLattice_BS
-target_include_directories(UTBasisSet PRIVATE ${PROJECT_SOURCE_DIR}/submodules/blaze)
-set_property(TARGET UTBasisSet PROPERTY CXX_STANDARD 20)
-
-target_compile_options(UTBasisSet PRIVATE -Wno-unknown-pragmas -Wno-cpp ${CXX_COMMON_COMPILE_OPTIONS})
-target_compile_definitions(UTBasisSet PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
-
-add_executable(DiracHydrogen DiracHydrogen.C)
-target_include_directories(DiracHydrogen PRIVATE ${PROJECT_SOURCE_DIR}/submodules/blaze)
-target_link_libraries(DiracHydrogen PUBLIC qchem lapack blas)
-set_property(TARGET DiracHydrogen PROPERTY CXX_STANDARD 20)
 # setup testing
 enable_testing()
 include(CTest)
 include(GoogleTest)
-add_test(NAME Symmetry COMMAND UTSym )
-gtest_discover_tests(UTSym) 
