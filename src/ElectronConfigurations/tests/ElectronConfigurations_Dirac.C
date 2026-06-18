@@ -3,7 +3,6 @@
 
 #include "gtest/gtest.h"
 #include "tabulate/table.hpp"
-#include <nlohmann/json.hpp>
 #include <iostream>
 
 import Common.PeriodicTable;
@@ -11,18 +10,10 @@ import qchem.Symmetry.Irrep;
 import qchem.Symmetry.Spherical;
 import qchem.Symmetry.Factory;
 import qchem.ElectronConfiguration.AtomDirac;
-// import qchem.Factory;
 import qchem.Common.Strings;
 
 using std::cout;
 using std::endl;
-
-// struct ml_Breakdown
-// {
-//     std::vector<int> ml_paired;     //List of ml values for paired orbitals
-//     std::vector<int> ml_unpaired;   //List of ml values for unpaired orbitals
-//     std::vector<int> ml_unoccupied; //List of ml values for empty orbitals
-// };
 
 //----------------------------------------------------------------------------------------------
 //
@@ -41,35 +32,8 @@ public:
         Irrep qns(s,sym);
         return ac.GetN(qns);
     }
-    // ml_Breakdown GetBreadown(const AtomDirac_EC& ec,size_t l) const;
     PeriodicTableSaito pt;
 };
-
-// ml_Breakdown Dirac_EC_Tests::GetBreadown(const AtomDirac_EC& ec,size_t l) const
-// {
-//     ec.itsNs.DebugCheck(); //Check self consistency
-//     ml_Breakdown mls;
-//     size_t g=2*l+1; //degenracy
-//     size_t Nunp=abs(ec.itsNs.Nu[l]); //These can be negative Z=58 Ce.
-//     size_t Npairs= g-Nunp; // For full shell systems this ends up being zero.
-//     size_t Nempty=g-Npairs-Nunp;
-//     if (Nempty==g) //Fix up for full shell systems.
-//     {
-//         Npairs=g;
-//         Nempty=0;
-//     }
-//     // if (itsNs.Nu[l]>0)
-//     {
-//         int ml=-(int)l;
-//         for (size_t i=0;i<Nunp  ;i++) mls.ml_unpaired  .push_back(ml++);
-//         for (size_t i=0;i<Npairs;i++) mls.ml_paired    .push_back(ml++);
-//         for (size_t i=0;i<Nempty;i++) mls.ml_unoccupied.push_back(ml++);
-//         assert(ml==(int)(l+1));
-
-//     }
-    
-//     return mls;
-// }
 
 
 // TEST_F(Dirac_EC_Tests, ElectronConfigurations)
@@ -112,38 +76,6 @@ public:
 //     BS_table.column(6).format().font_color(l_colors[1]);
 //     BS_table.column(7).format().font_color(l_colors[2]);
 //     BS_table.column(8).format().font_color(l_colors[3]);
-//     cout << BS_table << endl;  
-// }
-
-// TEST_F(Dirac_EC_Tests, BasisSets)
-// {
-//     tabulate::Table BS_table;
-//     BS_table.format().multi_byte_characters(true);
-//     BS_table.add_row({"Z","Name","s","p","d","f"});
-//     nlohmann::json js = {{"N", 10},{"emin", 0.1},{"emax", 5000.0}
-//                         ,{"type",abs_t::Slater}};
-//     for (size_t Z=1;Z<=92;Z++)
-//     {
-//         tabulate::RowStream rs;
-//         rs << Z;
-//         rs << pt.GetSymbol(Z);
-//         Real_BS* bs=BasisSet::Atom::Factory(js,Z);
-//         size_t l=0;
-//         std::ostringstream os[4];
-//         for (auto ibs:bs->Iterate<Real_OIBS>())
-//         {
-//             size_t l1=Getl(ibs->GetSymmetry());
-            // if (l>0 && l1==l) os[l] << endl;
-            // if (l1>l) os[l++] << std::ends;
-            // os[l] << sym;
-//         }
-//         for (auto& osl:os) rs << osl.str();
-//         BS_table.add_row(rs);
-//     }
-//     BS_table.column(2).format().font_color(l_colors[0]);
-//     BS_table.column(3).format().font_color(l_colors[1]);
-//     BS_table.column(4).format().font_color(l_colors[2]);
-//     BS_table.column(5).format().font_color(l_colors[3]);
 //     cout << BS_table << endl;  
 // }
 

@@ -3,7 +3,6 @@
 
 #include "gtest/gtest.h"
 #include "tabulate/table.hpp"
-#include <nlohmann/json.hpp>
 #include <iostream>
 
 import Common.PeriodicTable;
@@ -12,7 +11,6 @@ import qchem.Symmetry.Spherical;
 import qchem.Symmetry.Factory;
 
 import qchem.ElectronConfiguration.AtomNR;
-import qchem.Factory;
 import qchem.Common.Strings;
 
 using std::cout;
@@ -123,38 +121,38 @@ TEST_F(ElectronConfigurationTests, ElectronConfigurations)
 
 }
 
-TEST_F(ElectronConfigurationTests, BasisSets)
-{
-    tabulate::Table BS_table;
-    BS_table.format().multi_byte_characters(true);
-    BS_table.add_row({"Z","Name","s","p","d","f"});
+// TEST_F(ElectronConfigurationTests, BasisSets)
+// {
+//     tabulate::Table BS_table;
+//     BS_table.format().multi_byte_characters(true);
+//     BS_table.add_row({"Z","Name","s","p","d","f"});
     
-    nlohmann::json js = {{"N", 10},{"emin", 0.1},{"emax", 5000.0}
-                        ,{"type",abs_t::Slater}};
-    for (size_t Z=1;Z<=92;Z++)
-    {
-        tabulate::RowStream rs;
-        rs << Z;
-        rs << pt.GetSymbol(Z);
-        Real_BS* bs=BasisSet::Atom::Factory(js,Z);
-        size_t l=0;
-        std::ostringstream os[4];
-        for (auto ibs:bs->Iterate<Real_OIBS>())
-        {
-            size_t l1=Getl(ibs->GetSymmetry());
-            if (l>0 && l1==l) os[l] << endl;
-            if (l1>l) os[l++] << std::ends;
-            os[l] << ibs->GetSymmetry();
-        }
-        for (auto& osl:os) rs << osl.str();
-        BS_table.add_row(rs);
-    }
-    BS_table.column(2).format().font_color(l_colors[0]);
-    BS_table.column(3).format().font_color(l_colors[1]);
-    BS_table.column(4).format().font_color(l_colors[2]);
-    BS_table.column(5).format().font_color(l_colors[3]);
-    cout << BS_table << endl;  
-}
+//     nlohmann::json js = {{"N", 10},{"emin", 0.1},{"emax", 5000.0}
+//                         ,{"type",abs_t::Slater}};
+//     for (size_t Z=1;Z<=92;Z++)
+//     {
+//         tabulate::RowStream rs;
+//         rs << Z;
+//         rs << pt.GetSymbol(Z);
+//         Real_BS* bs=BasisSet::Atom::Factory(js,Z);
+//         size_t l=0;
+//         std::ostringstream os[4];
+//         for (auto ibs:bs->Iterate<Real_OIBS>())
+//         {
+//             size_t l1=Getl(ibs->GetSymmetry());
+//             if (l>0 && l1==l) os[l] << endl;
+//             if (l1>l) os[l++] << std::ends;
+//             os[l] << ibs->GetSymmetry();
+//         }
+//         for (auto& osl:os) rs << osl.str();
+//         BS_table.add_row(rs);
+//     }
+//     BS_table.column(2).format().font_color(l_colors[0]);
+//     BS_table.column(3).format().font_color(l_colors[1]);
+//     BS_table.column(4).format().font_color(l_colors[2]);
+//     BS_table.column(5).format().font_color(l_colors[3]);
+//     cout << BS_table << endl;  
+// }
 
 TEST_F(ElectronConfigurationTests, Hydrogen)
 {

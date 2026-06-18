@@ -19,4 +19,5 @@ target_include_directories(qcElConfig PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJEC
 # This linker association is required in order for cmake/gcc to find .gcm binaru module  interfact (BMI) files!!!!!
 target_link_libraries(qcElConfig PUBLIC qcSymmetry)
 set_property(TARGET qcElConfig PROPERTY CXX_STANDARD 20)
-  
+
+add_subdirectory(tests)
