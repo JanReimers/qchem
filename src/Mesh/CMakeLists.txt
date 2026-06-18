@@ -30,3 +30,5 @@ set_property(TARGET qcMesh PROPERTY CXX_STANDARD 20)
 target_include_directories(qcMesh PRIVATE ${PROJECT_SOURCE_DIR}/submodules/blaze)
 # This linker association is required in order for cmake/gcc to find .gcm binaru module  interfact (BMI) files!!!!!
 target_link_libraries(qcMesh PUBLIC qcCommon) 
+
+add_subdirectory(tests)
