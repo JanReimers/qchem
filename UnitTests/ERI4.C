@@ -50,12 +50,10 @@ void random(ERI4& Jabcd)
 TEST_F(ERI4Tests,MatMulTimings)
 {
 #ifdef DEBUG
-    size_t Nrep=100;
-    size_t Nab=20,Ncd=20;
-#else
+    GTEST_SKIP() << "Timing is unreliable in Debug; runs in Release only.";
+#endif
     size_t Nrep=100;
     size_t Nab=60,Ncd=60;
-#endif
     ERI4 Jabcd(Nab,Ncd);
     rsmat_t Dab(Nab),Dcd(Ncd);
     random(Jabcd);
