@@ -102,7 +102,7 @@ PeriodicTableSaito::PeriodicTableSaito()
 {
     // Read in Saito HF data.
     {
-        std::ifstream file("../../../doc/saito.json");
+        std::ifstream file("../../../src/Common/Data/saito.json");
         assert(file);
         nlohmann::json jsondata;
         file >> jsondata;
@@ -111,7 +111,7 @@ PeriodicTableSaito::PeriodicTableSaito()
     }
     // Read in NIST DFT data
     {
-        std::ifstream file("../../../doc/nistLDA.json");
+        std::ifstream file("../../../src/Common/Data/nistLDA.json");
         assert(file);
         nlohmann::json jsondata;
         file >> jsondata;
@@ -128,7 +128,7 @@ PeriodicTableSaito::PeriodicTableSaito()
     }
     // Read in relativistic DHF data (total energy + spin-orbit split orbital eigenvalues).
     {
-        std::ifstream file("../../../doc/DHF_GS_Energies_rel.json");
+        std::ifstream file("../../../src/Common/Data/DHF_GS_Energies_rel.json");
         assert(file);
         nlohmann::json jsondata;
         file >> jsondata;

@@ -70,9 +70,21 @@ Notes, bugs, and plans for the qchem6 project. This file is markdown-enabled so 
 
 ### Stage 1: PG Use cache_4 
 - Migrate polarized gaussian PG basis sets to start using cache_4 abstraction for caching radial integrals and any look up tables.
+ This is mostly about handling 3 center (DFT) and 4 center (HF) integrals.
+
+| Aspect | Atom | Molecule | Solid |
+|--------|------|----------|-------|
+| Grouper: sharing primatives between irreps | Yes | No | ? |
+| Ak: Angular integrals | Yes | No | No |
+| Contractions | No | Yes | ? |
+
+- Currently the PG code uses 4 way virtual dispatch to handle combinations of contracteds and primatives in integrals.  Unlike julia, c++ has no native support for multiple dispatch so the code is complex and possibly slow.
+- A better approach might be to make outer product matricies of contraction coefficients Cab_a'b' (a' labels primative) for the pairs ab, and cd in <ab|cd>
+- Following McMurchie & Davidson (M&D) the code uses the concept of a charge distribution Ω_ab for storing any data associated the ab pair.  matricies of contraction coefficients Cab can also be stored in Ω_ab
+
 ### Stage 2: PG Use Evaluator and concepts
 - Move Concepts.C and abstract Evaluator interface out from BasisSet1/Atom up to the general structure neutral BasisSet level.
-- This is the existing McMurchie & Davidson code.
+- This is the existing M&D code.
 ### Stage 3: More evalautors.
 - libcint for PG (this lib has different conventions normalizing)
 - libcint version for Spherical Gaussian
@@ -150,6 +162,14 @@ Notes, bugs, and plans for the qchem6 project. This file is markdown-enabled so 
 - Redesign fitting so fitted objects contain a `Fitter*`.
 
 ## Bugs and notes
+
+- Slow test: filer=BS_U_Low,Pool He is very slow but only if BSplineOrthogonality runs first.  BSplineOrthogonality fills
+  DBCache with nothing other than a lot of Overlap matricies.  gprof thinks both cases are identical!!
+  Need a real profiler to figure this out.
+  For now we scrub the cache after the BasisSetPoolTests/XXXOrthogonality tests.
+  Another hint.  THis only showed up when add one more grid point to Bspline RadialType ?!?
+  Maybe we need valgrind???
+    
 
 - Investigate BSpline integral inaccuracies for `l>0`.
 - Misc bug notes and test outputs preserved below.

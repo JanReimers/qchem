@@ -54,7 +54,7 @@ TEST_F(PeriodicTableTests,DumpToCSV)
 
 TEST_F(PeriodicTableTests,ReadSaito)
 {
-    std::ifstream file("../../../doc/saito.json");
+    std::ifstream file("../../../src/Common/Data/saito.json");
     assert(file);
     nlohmann::json jsondata;
     file >> jsondata;
