@@ -79,7 +79,6 @@ public:
     virtual ERI4         MakeExchange   (const ::BasisSet::Orbital_HF_IBS<double>& b) const;
 private:
     rsmat_t Integrate(qchem::IType3C type , const RadialFunction* rc, const Polarization& pc) const;
-    mutable CDCache cache; //Cache of all Gaussian pair charge distributions.
 };
 // Use E prefix to avoid name clash with the interface class Fit_IBS
 class EFit_IBS
