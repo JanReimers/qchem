@@ -5,7 +5,7 @@ link_directories(
 )
 
 add_executable(UTMain gtestmain.C QchemTesterImp.C BasisSetPoolImp.C A_Pool.C
-    json.C EigenSolverUT.C ERI4.C MeshIntegrals.C UTCluster.C
+    json.C EigenSolverUT.C ERI4.C MeshIntegrals.C
     BSplines.C DiracIntegral.C SlaterIntegral.C GaussianIntegral.C UTBasisSet.C BasisSet_Atom.C BasisSet_Atom.C BasisSet_DHF.C
     A_HF_U.C A_HF_P.C A_DHF.C A_HF_U.C A_DFT.C A_DFT_U.C M_PG_U.C
     SymQN.C ElectronConfigurations.C  Angular.C Libxc.C

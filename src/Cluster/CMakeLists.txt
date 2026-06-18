@@ -23,4 +23,6 @@ target_include_directories(qcCluster PRIVATE
 set_property(TARGET qcCluster PROPERTY CXX_STANDARD 20)
 target_compile_options(qcCluster PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(qcCluster PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
-target_link_libraries(qcCluster PUBLIC qcMesh qcCommon)
+target_link_libraries(qcCluster PUBLIC qcMesh qcCommon gtest)
+
+add_subdirectory(tests)
