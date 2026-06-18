@@ -40,4 +40,5 @@ target_include_directories(qcSymmetry PRIVATE ${PROJECT_SOURCE_DIR}/src ${PROJEC
 # This linker association is required in order for cmake/gcc to find .gcm binaru module  interfact (BMI) files!!!!!
 target_link_libraries(qcSymmetry PUBLIC qcCommon)
 set_property(TARGET qcSymmetry PROPERTY CXX_STANDARD 20)
-  
+
+add_subdirectory(tests)

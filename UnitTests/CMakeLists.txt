@@ -8,8 +8,8 @@ add_executable(UTMain gtestmain.C QchemTesterImp.C BasisSetPoolImp.C A_Pool.C
     json.C EigenSolverUT.C ERI4.C MeshIntegrals.C
     BSplines.C DiracIntegral.C SlaterIntegral.C GaussianIntegral.C UTBasisSet.C BasisSet_Atom.C BasisSet_Atom.C BasisSet_DHF.C
     A_HF_U.C A_HF_P.C A_DHF.C A_HF_U.C A_DFT.C A_DFT_U.C M_PG_U.C
-    SymQN.C ElectronConfigurations.C  Angular.C Libxc.C
-    ElectronConfigurations_Dirac.C RelAngular.C M_PointGroup.C M_CartesianRep.C M_CharacterTable.C M_SALC.C M_PGSymmetry.C
+     ElectronConfigurations.C  Angular.C Libxc.C
+    ElectronConfigurations_Dirac.C RelAngular.C  M_PGSymmetry.C
     )
 target_sources(UTMain PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES QchemTester.C BasisSetPool.C)
 
