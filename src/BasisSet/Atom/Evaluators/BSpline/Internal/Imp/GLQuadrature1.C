@@ -5,9 +5,10 @@ module;
 #include <functional>
 #include <map>
 #include <bspline/Core.h>
-import qchem.Blaze;
 
 module qchem.BasisSet.Atom.Evaluators.BSpline.Internal.GLQuadrature;
+import qchem.Blaze;
+
 using std::cout;
 using std::endl;
 
@@ -27,7 +28,7 @@ GLQuadrature::GLQuadrature(const double& rmin, const double& rmax,int N)
 double GLCache1D::Integrate(const std::function< double (double)>& f, const sup_t& a, const sup_t& b) const
 {
 
-    assert(a.getGrid()==grid); //Check shared pointers.
+    assert(a.getGrid()==grid); 
     assert(b.getGrid()==grid);
     double ret=0;
     sup_t sab=a.calcIntersection(b);

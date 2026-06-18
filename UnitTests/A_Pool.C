@@ -5,6 +5,7 @@
 import qchem.Unittests.QchemTester;
 import qchem.LASolver;
 import qchem.Blaze;
+import qchem.BasisSet.Internal.DB_Cache_RAM;
 
 using std::cout;
 using std::endl;
@@ -15,6 +16,11 @@ using BasisSet::Real_OIBS;
 class BasisSetPoolTests : public ::testing::Test
 {
 public:
+    ~BasisSetPoolTests()
+    {
+        delete BasisSet::theGlobalCache;  
+        BasisSet::theGlobalCache=new BasisSet::IntegralsCache_RAM<double>(true); 
+    }
     void Orthogonality(BasisSet::Atom::Type type)
     {
         const double trunc_tol=0;
@@ -30,7 +36,7 @@ public:
                     // cout << BasisSetAccuracyStrs[static_cast<size_t>(acc)] << " " << *ibs;
                     LASolver<double>* las=LASolver<double>::Factory(qchem::Cholsky,trunc_tol);
                     las->SetBasisOverlap(ibs->Overlap());
-                    double smin=blaze::min(las->Get_BS_Diagonal());
+                    double smin=blazem::min(las->Get_BS_Diagonal());
                     cout << BasisSetAccuracyStrs[static_cast<size_t>(acc)] << " " 
                         << std::setprecision(2) << std::setw(6) << smin << "  " << *ibs;
                     EXPECT_GE(smin,1e-13);

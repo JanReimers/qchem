@@ -65,21 +65,23 @@ template <size_t K> void EvaluatorCommon<K>::Register(Grouper* _grouper)
     for (auto s:splines) es_indices.push_back(grouper->Insert(s,Getl()));
 }
 
+// We need at least the first three grid points as itsGrid[0]==0.0 and contains no distinguishing info.
 template <size_t K> std::string EvaluatorCommon<K>::RadialID () const
 {
     std::ostringstream os;
     os << Name() << " grid: N=" << itsGrid.size() << " {";
-    assert(itsGrid.size()>2);
+    assert(itsGrid.size()>3);
     os << itsGrid[0] << "," << itsGrid[1] << "," << itsGrid[2] << " ... " << itsGrid[itsGrid.size()-1];
     os << "}";
     return os.str();
 }
 
+// We need at least the first three grid points as itsGrid[0]==0.0 and contains no distinguishing info.
 template <size_t K> std::string EvaluatorCommon<K>::RadialType() const
 {
     assert(itsGrid.size()>2);
     std::ostringstream os;
-    os << Name() << " grid=<" << itsGrid[0] << "," << itsGrid[1] << " ... " << itsGrid[itsGrid.size()-1] << "}";
+    os << Name() << " grid=<" << itsGrid[0] << "," << itsGrid[1] << "," << itsGrid[2] << " ... " << itsGrid[itsGrid.size()-1] << "}";
     return os.str();
 }
 
