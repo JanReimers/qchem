@@ -24,5 +24,6 @@ target_compile_options(qcAtom_BS PRIVATE
 target_compile_definitions(qcAtom_BS PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
 
 set_property(TARGET qcAtom_BS PROPERTY CXX_STANDARD 20)
-target_link_libraries(qcAtom_BS PUBLIC qcBasisSet qcElConfig qcCluster)
+target_link_libraries(qcAtom_BS PUBLIC qcBasisSet qcElConfig qcCluster wignerSymbols lapack)
 add_subdirectory(Evaluators)
+add_subdirectory(tests)

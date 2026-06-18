@@ -7,10 +7,9 @@
 #include <fstream>
 #include <iomanip>
 
-import qchem.LAParams;
-import qchem.Factory;
+import qchem.BasisSet.Atom.Factory;
 import qchem.BasisSet.Internal.ERI4;
-
+import qchem.BasisSet;
 import qchem.Constants;
 import qchem.Mesh.Integrator;
 import qchem.Cluster;
@@ -19,8 +18,8 @@ import qchem.Blaze;
 
 using std::cout;
 using std::endl;
-
-
+using Real_BS  =BasisSet::Real_BS;
+using Real_OIBS=BasisSet::Real_OIBS;
 //----------------------------------------------------------------------------------------------
 //
 //  Testing class
@@ -35,7 +34,7 @@ public:
     , cl(new Atom(Z,0.0,Vector3D(0,0,0)))
     {
         nlohmann::json js = {
-        {"type",abs_t::Slater},
+        {"type",BasisSet::Atom::Type::Slater},
         {"N", 6}, {"emin", 0.1}, {"emax", 10.0},
         };
         bs=BasisSet::Atom::Factory(js,75);

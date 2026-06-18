@@ -7,13 +7,14 @@
 #include <iostream>
 #include <iomanip>
 
+import qchem.BasisSet.Atom.Factory;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.GLQuadrature;
 import qchem.BasisSet.Atom.Evaluators.BSpline.IBS;
 import qchem.BasisSet.Atom.Evaluators.BSpline.IBS_r;
 import qchem.BasisSet.Atom.Evaluators.Internal.Rk;
 import qchem.BasisSet.Atom.Evaluators;
+import qchem.BasisSet;
 
-import qchem.Factory;
 import qchem.Mesh.Integrator;
 import qchem.Cluster;
 import qchem.Symmetry.Factory;
@@ -26,6 +27,8 @@ import qchem.Blaze;
 using std::cout;
 using std::endl;
 using namespace BasisSet::Atom::Evaluators;
+using Real_BS  =BasisSet::Real_BS;
+using Real_OIBS=BasisSet::Real_OIBS;
 
 class BSplineTests : public ::testing::Test
 {
@@ -44,7 +47,7 @@ public:
     void Init(int N, double rmin, double rmax)
     {
         nlohmann::json js = {
-        {"type",abs_t::BSpline6},
+        {"type",BasisSet::Atom::Type::BSpline6},
         {"N", N}, {"rmin", rmin}, {"rmax", rmax},
         };
         bs=BasisSet::Atom::Factory(js,75);

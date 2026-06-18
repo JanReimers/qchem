@@ -5,12 +5,12 @@
 #include <iostream>
 #include <fstream>
 
+import qchem.BasisSet.Atom.Factory;
 import qchem.BasisSet.Atom.Evaluators.Gaussian.IBS;
 import qchem.BasisSet.Atom.Evaluators.Internal.Rk;
 import qchem.BasisSet.Atom.Evaluators;
+import qchem.BasisSet;
 
-import qchem.LAParams;
-import qchem.Factory;
 import qchem.Constants;
 import qchem.Mesh.Integrator;
 import qchem.Cluster;
@@ -20,7 +20,8 @@ import qchem.Blaze;
 
 using std::cout;
 using std::endl;
-
+using Real_BS=BasisSet::Real_BS;
+using Real_OIBS=BasisSet::Real_OIBS;
 
 //----------------------------------------------------------------------------------------------
 //
@@ -37,7 +38,7 @@ public:
     , mintegrator()
     {
         nlohmann::json js = {
-        {"type",abs_t::Gaussian},
+        {"type",BasisSet::Atom::Type::Gaussian},
         {"N", 5}, {"emin", 0.01}, {"emax", 100.0},
         };
         bs=BasisSet::Atom::Factory(js,75);

@@ -5,9 +5,10 @@
 #include "nlohmann/json.hpp"
 #include <iostream>
 #include <iomanip>
-import qchem.LAParams;
-import qchem.Factory;
+
+import qchem.BasisSet.Atom.Factory;
 import qchem.BasisSet.Internal.ERI4;
+import qchem.BasisSet;
 import qchem.Math;
 import qchem.Cluster;
 import qchem.Mesh.Integrator;
@@ -15,6 +16,7 @@ import qchem.Streamable;
 import qchem.BasisSet.Internal.Orbital_DHF_IBS;
 import qchem.Blaze;
 
+using BasisSet::Real_BS;
 using BasisSet::Real_OIBS;
 using Real_IBS=Real_OIBS;
 using RKB_OIBS=BasisSet::Orbital_RKB_IBS_Imp<double>;
@@ -39,9 +41,9 @@ public:
     , gbs(0)
     , cl(new Atom(Z,0.0,Vector3D(0,0,0)))
     {
-        nlohmann::json js = {{"type",abs_t::Slater_RKB}, {"N", 3}, {"emin", 0.1}, {"emax", 10.0} };
+        nlohmann::json js = {{"type",BasisSet::Atom::Type::Slater_RKB}, {"N", 3}, {"emin", 0.1}, {"emax", 10.0} };
         sbs=BasisSet::Atom::Factory(js,2);
-        js = {{"type",abs_t::Gaussian_RKB}, {"N", 3}, {"emin", 0.1}, {"emax", 10.0} };
+        js = {{"type",BasisSet::Atom::Type::Gaussian_RKB}, {"N", 3}, {"emin", 0.1}, {"emax", 10.0} };
         gbs=BasisSet::Atom::Factory(js,2);
         MeshParams mp({qchem::MHL,200,3,2.0,qchem::Gauss,1,0,0,3});
         mintegrator=new MeshIntegrator<double>(cl->CreateMesh(mp));
