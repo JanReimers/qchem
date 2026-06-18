@@ -10,7 +10,6 @@ MnD/Imp/AuxillaryFJ.C
 Internal/Imp/CDCache.C
 Internal/Imp/Block.C
 Internal/Imp/PGData.C
-Internal/Imp/IntegralEngine.C
 Internal/Imp/Polarization.C
 MnD/Imp/Hermite2.C
 MnD/Imp/Hermite1.C
@@ -33,7 +32,6 @@ target_sources(qcMolecule_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
     MnD/AuxillaryFJ.C
     Internal/CDCache.C
     Internal/Block.C
-    Internal/IntegralEngine.C
     Internal/Polarization.C
     MnD/Triangle.C
     MnD/Hermite1.C

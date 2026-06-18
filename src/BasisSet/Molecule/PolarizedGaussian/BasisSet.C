@@ -7,7 +7,6 @@ import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.CDCache;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Block;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.PGData;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.IntegralEngine;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.RadialFunction;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Reader;
 

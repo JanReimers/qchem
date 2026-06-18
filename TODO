@@ -23,7 +23,7 @@ Notes, bugs, and plans for the qchem6 project. This file is markdown-enabled so 
   Is there a way to fit that solution approach into the framework for this project?
   What if the radial solution is treated as an irrep basis set (IBS) with one basis function?
   An alternate implementation of `UpdateOrbitals` (`src/Orbitals/Internal/Imp/TOrbitals.C`) would then do a numerical radial
-  solution for each irrep using the current charge density.
+  solution for each irrep using the current charge density. I suspect there are many difficult details left out of my proposal.
 
 ## Major Features
 
@@ -52,27 +52,75 @@ Notes, bugs, and plans for the qchem6 project. This file is markdown-enabled so 
 
 ### Configuration Interaction
 
-- Full CI?
-- Truncated, multi-reference, and ranking by complexity/usefulness.
+- Full CI, Truncated, multi-reference
+- Our goal is to demonstrate that our OO design or architecture supports it.
+- Rank in terms of 
+    1) code complexity for this project.  How much of current infrastructure needs to change?
+    2) usefulness/popularity in the real world of users.
 
 ### Parallel execution
 
 - Consider OpenMP; beware gprof output issues.
 - Use LLVM profiling (`-fprofile-instr-generate`, `-fcoverage-mapping`) and Linux `perf` for profiling.
-- Use parallel loops over irreps for `AccumulateDirect` and `AccumulateExchange`.
+- Use parallel loops over 
+    1) irreps for `AccumulateDirect` and `AccumulateExchange`.
+    2) Hamiltonian terms??
 
-## Molecules basis set upgrade
+## Molecular basis set upgrade
 
-- Stage 1: Migrate polarized Gaussian basis sets to use `cache_4` abstraction for radial integrals.
-- Stage 2: Use evaluator/concepts framework for Polarized/Cartesian Gaussians.
-  - Move `Concepts.C` and the abstract Evaluator interface up to the general BasisSet1 level.
-  - Migrate polarized Gaussians to three evaluators: hand-coded McMurchie & Davidson, libcint, etc.
-- Stage 3–5: additional evaluators, shared four-index loops, documentation (Doxygen), and hosting docs on GitHub.
+### Stage 1: PG Use cache_4 
+- Migrate polarized gaussian PG basis sets to start using cache_4 abstraction for caching radial integrals and any look up tables.
+### Stage 2: PG Use Evaluator and concepts
+- Move Concepts.C and abstract Evaluator interface out from BasisSet1/Atom up to the general structure neutral BasisSet level.
+- This is the existing McMurchie & Davidson code.
+### Stage 3: More evalautors.
+- libcint for PG (this lib has different conventions normalizing)
+- libcint version for Spherical Gaussian
+- Our own Spherical Gaussian using McMurchie & Davidson code.
+### Stage 4: Generalized ERI loops
+- Can atoms and Molecules use the same four index loop for Direct and exchange integrals?
+- We want that code to migrate from from BasisSet/Atom up to the general structure neutral BasisSet level
+### Stage 5:
+- If we get all this working there is going to a lot abstract stuff at the general BasisSet level, which is fantastic.
+- But people (and Claude!) need to understand that stuff.
+- So we need to make some in code documentation.  Is DOxygen suitable?  Or is there a modern replacement that you recommend?
+    I have a Doxyfile in the project root directory.  I havent tried it lately!
+- The in code documentation should 
+    1) make liberal use of inline Latex for all math expressions.
+    2) Define indexing (ijkl,abcd,nm,greek versions) conventions the are used
+    3) Define all acronyms (see Types.C)
+    4) Define math symbol conventions for basis function, Irrep basis sets, full basis sets, SALC irrep basis sets, irrep labels.
+        I am sure the literature is all over the place on this, so the best we can do is pick symbols that are most conventional
+            in the modern (last ~~20 year?) literature.
+    DOxygen makes class inheritance hierarcies, but they get big fast.  
+        So we need to restrict it to just BasisSet1 level and prevent it from digging into the Atom/Molecule/Lattice sub folders.
+        Ideally we get 
+            1) a class diagram that is just for clients of basis, has no Internal classes
+            2) Another diagram for basis set developers and focuses on the internal classes.
+    Finally is there a good way to host the doxygen docs at gitbub (separate repo maybe?) and then link to from README.md file.
+
 
 ## Solids
-
-- Plan for solids/lattices; aim for VASP/ABINIT-like targets eventually.
-- Investigate conditional deduction of `hmat_t` from `T` to select `blaze::SymmetricMatrix` vs `blaze::HermitianMatrix`.
+- Lets use capital letters for SOLID OOD principles and lower case "solid" for solid materials with a periodic lattice stucture.
+- This plan is about solids or lattices.
+- Ultimate (abititious!) target: Something like VASP/ABINIT that handles (ultra soft) psuepotentials.
+    Whether or not HF or DHF is supported is solely based on if the Evaluator for the basis set satisfies the
+    concept constratints for those integrals.
+- The infrastucture in qchem is only half set up for complex basis sets/Hamiltonians/Orbitals etc.
+- We need to somehow seemlessly change between blaze::SymmetricMatrix and blaze::HermitianMatrix. 
+- Aside: I like using dcmplx=std::complex<double>; ... it the same number of chars as double so things line up nicely in class
+    interface.
+- lets start the thought process with LASolver in mind.
+    Can we conditionaly deduce (at compile time) hmat_t  from T such that
+        hmat_t<double>=blaze::SymmetricMatrix<double> or
+        hmat_t<dcmplx>=blaze::HermitianMatrix<dcmplx>
+    Modern c++ must have a way to do this without doing partial class specializatons.
+- Next we need a highly trivial 1 electron (no ERIs yet) plane wave problem in order to get solids off the ground.
+    Maybe just a hydrogen cubic lattice.  At high lattice spacing we know energy should be ~-0.5au/unit_cell (?)
+- We have BlockQN in the Symmetry library for wave vector irreps.
+- We have UnitCell and Lattice in the Cluster library (maybe should be renamed Cluster->Stucture even though Atom is normally 
+    thought of as a structure).  
+- Once we have the demo problem up and running we can think about next steps.  There must some useful models that are intermediate in coding difficulty between PW and Pseudo potentials.
 
 ## Upgrade existing features
 
