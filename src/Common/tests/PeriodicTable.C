@@ -1,6 +1,7 @@
 // File: PeriodicTable.C  Test the periodic table class, or database.
 #include "gtest/gtest.h"
 #include <vector>
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <nlohmann/json.hpp>
@@ -54,7 +55,8 @@ TEST_F(PeriodicTableTests,DumpToCSV)
 
 TEST_F(PeriodicTableTests,ReadSaito)
 {
-    std::ifstream file("../../../src/Common/Data/saito.json");
+    std::filesystem::path data_dir = COMMON_DATA_PATH;
+    std::ifstream file(data_dir / "saito.json");
     assert(file);
     nlohmann::json jsondata;
     file >> jsondata;

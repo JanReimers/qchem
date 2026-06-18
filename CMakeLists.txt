@@ -35,8 +35,16 @@ target_link_libraries(qchem qcWaveFunction qcSCFAccelerator qcOrbitals qcHamilto
 add_subdirectory(src)
 add_subdirectory(./UnitTests)
 add_subdirectory(./gtkapp)
+
+add_custom_target(allTests
+    DEPENDS UTMain qcCommon_tests
+    COMMENT "Build all unit test executables"
+)
+# Disable embedded submodule tests so ctest only runs this project's tests.
+set(BUILD_TESTING OFF CACHE BOOL "Disable embedded submodule tests" FORCE)
 add_subdirectory(./submodules/wignerSymbols)
 add_subdirectory(./submodules/libxc)
+set(BUILD_TESTING ON CACHE BOOL "Enable testing for this project" FORCE)
 
 Blaze_Import(
    QUIET

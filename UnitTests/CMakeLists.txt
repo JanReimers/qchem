@@ -1,17 +1,11 @@
-# cmake_minimum_required(VERSION 3.30.0)
 
-#variable_watch(__CMAKE_CXX_COMPILER_OUTPUT)
-
-#file (GLOB_RECURSE qchem_HEADERS CONFIGURE_DEPENDS "include/*.H")
 link_directories( 
     $<$<CONFIG:Debug>:  submodules/wignerSymbols/build submodules/libxc/build>
     $<$<CONFIG:Release>:  submodules/wignerSymbols/build submodules/libxc/build>
 )
 
-#  Main
-# 
 add_executable(UTMain gtestmain.C QchemTesterImp.C BasisSetPoolImp.C A_Pool.C
-    json.C EigenSolverUT.C ERI4.C MeshIntegrals.C UTCluster.C  PeriodicTable.C
+    json.C EigenSolverUT.C ERI4.C MeshIntegrals.C UTCluster.C
     BSplines.C DiracIntegral.C SlaterIntegral.C GaussianIntegral.C UTBasisSet.C BasisSet_Atom.C BasisSet_Atom.C BasisSet_DHF.C
     A_HF_U.C A_HF_P.C A_DHF.C A_HF_U.C A_DFT.C A_DFT_U.C M_PG_U.C
     SymQN.C ElectronConfigurations.C  Angular.C Libxc.C
@@ -61,3 +55,4 @@ target_link_libraries(scfrun PUBLIC qchem qcCommon)
 enable_testing()
 include(CTest)
 include(GoogleTest)
+# gtest_discover_tests(UTMain)
