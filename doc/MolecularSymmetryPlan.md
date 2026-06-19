@@ -57,9 +57,17 @@ decorator's `MakeOverlap/Kinetic/Nuclear` call the raw COMPUTE `raw->MakeX()`, N
 access mid-Set.  So raw 1-e is recomputed per irrep (cheap); the 2-e AO ERIs stay cached.)
 
 **NEXT STEPS:**
-1. **General global aufbau** -- a `CompositeAufbauWF` (subclass of CompositeWF) that overrides
-   `FillOrbitals` to collect all irreps' orbital energies, fill the globally-lowest N/2, and
-   set per-irrep occupations each iteration.  Replaces the hand-coded `MolecularSym_EC`.
+1. **[DONE] General global aufbau.**  `CompositeWF` fills the globally-lowest orbitals across
+   all irreps each iteration when `ec->UsesAufbau()` (Molecule_EC -> true; atoms -> false).
+   `IrrepWF::FillOrbitals(double ne)` (empties stale occ first) + `CompositeWF::
+   FillOrbitalsAufbau` (per spin channel: gather every irrep's orbital eigen-energy + capacity,
+   sort, greedily fill to the channel total, occupy each irrep).  Validated: `M_PG_Sym.C` now
+   runs symmetric water HF with a plain `Molecule_EC` (no hand-coded occupation) and matches the
+   non-symmetric energy.  (Design: a gated method on CompositeWF rather than a separate
+   `CompositeAufbauWF` subclass -- the aufbau is identical for Un/Polarized and forking the
+   leaves would duplicate it; `MolecularSym_EC` remains for forcing a specific occupation.)
+   Caveat: GDM needs per-irrep `nocc` at accelerator creation, which the aufbau doesn't know
+   up front (DIIS only checks occ>0, so it's fine); GDM+aufbau is a TODO.
 2. Molecular Factory hook (bridge -> detect -> BuildSALCs -> wrap in SAB) + a polarized path.
 3. Optimisation: the 2-e decorator rebuilds the AO Coulomb/exchange once per (irrep,cd-irrep)
    pair (N^2 per iteration); sum the back-transformed densities first, build once, slice all.
