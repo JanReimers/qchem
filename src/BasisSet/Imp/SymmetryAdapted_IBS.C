@@ -59,9 +59,13 @@ void SymmetryAdapted_IBS::AccumulateExchange(rsmat_t& Kab, const rsmat_t& Dcd,
     for (size_t i=0;i<Kblk.rows();++i) for (size_t j=0;j<=i;++j) Kab(i,j) += 0.5*(Kblk(i,j)+Kblk(j,i));
 }
 
-rsmat_t SymmetryAdapted_IBS::MakeOverlap()                 const {return Transform(itsRaw->Overlap());}
-rsmat_t SymmetryAdapted_IBS::MakeKinetic()                 const {return Transform(itsRaw->Kinetic());}
-rsmat_t SymmetryAdapted_IBS::MakeNuclear(const Cluster* cl) const {return Transform(itsRaw->Nuclear(cl));}
+// Use the raw COMPUTE (MakeX), not the cached accessor (X()): the decorator's own cached
+// accessor is mid Has/Set when MakeOverlap runs, and a nested cache Has/Set on the raw would
+// clobber the cache's stateful "last key" and mis-file the transformed block.  (So the raw
+// 1-e matrix is recomputed per irrep; cheap, and the transformed block is still cached.)
+rsmat_t SymmetryAdapted_IBS::MakeOverlap()                 const {return Transform(itsRaw->MakeOverlap());}
+rsmat_t SymmetryAdapted_IBS::MakeKinetic()                 const {return Transform(itsRaw->MakeKinetic());}
+rsmat_t SymmetryAdapted_IBS::MakeNuclear(const Cluster* cl) const {return Transform(itsRaw->MakeNuclear(cl));}
 
 std::string SymmetryAdapted_IBS::RadialID()  const {return itsRaw->RadialID();}
 std::string SymmetryAdapted_IBS::AngularID() const {return itsRaw->AngularID() + "_" + itsLabel;}
