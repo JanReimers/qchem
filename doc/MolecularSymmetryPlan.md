@@ -4,7 +4,7 @@ Design notes for adding point-group symmetry (and, eventually, space / magnetic 
 Brillouin-zone symmetry) to the molecular SCF path. Captured from a design discussion;
 this is a living document.
 
-## ⟢ RESUME HERE (current status, 2026-06-14)
+## ⟢ RESUME HERE (current status; reindexed 2026-06-21 after the unit-test migration)
 
 **Done and committed** — the whole group-theory engine + the bridge to the real basis:
 
@@ -15,12 +15,15 @@ this is a living document.
 | 3a tables | `AbelianCharacterTable` (8 abelian, Mulliken labels) | `src/Symmetry/CharacterTable.C` | `M_CharacterTable.C` |
 | 3a ops | `BuildAbelianGroup` (concrete ops in molecule frame) | `src/Symmetry/AbelianGroup.C` | `M_PointGroup.C` |
 | 3b SALC | `BuildSALCs` → transform **O** (irrep-blocked, labelled) | `src/Symmetry/SALC.C` | `M_SALC.C` |
-| 5a bridge | `ExtractAoShells` + `ClusterToSymPoints` (PG basis → symmetry) | `src/BasisSet1/Molecule/PolarizedGaussian/Symmetry.C` | `M_PGSymmetry.C` |
+| 5a bridge | `ExtractAoShells` + `ClusterToSymPoints` (PG basis → symmetry) | `src/BasisSet/Molecule/PolarizedGaussian/Symmetry.C` | `M_PGSymmetry.C` |
 
 `qcSymmetry` stays LAPACK-free. ~40 tests, all green. **O is produced and validated on a real
-24-function H₂O basis** (every SALC column an irrep eigenvector `M(g)v = χ(g)v`). Build/run:
-`cmake --build build/Debug --target UTMain -j4`, then
-`./build/Debug/UnitTests/UTMain --gtest_filter='PGSymmetry.*:SALC.*:...'`.
+24-function H₂O basis** (every SALC column an irrep eigenvector `M(g)v = χ(g)v`).
+**Build/test (per-library targets, post-migration — `UTMain` is gone):** symmetry =
+`cmake --build build/Debug --target UTSymmetry -j4` then
+`./build/Debug/src/Symmetry/tests/UTSymmetry`; the PG bridge =
+`--target UTMolecule_BS` then `./build/Debug/src/BasisSet/Molecule/tests/UTMolecule_BS`. Test
+sources live in `src/<Lib>/tests/`. (`src/BasisSet1` was renamed to `src/BasisSet`.)
 
 **Decision locked (the 2-electron fork): Option 1 — the decorator.** Build J and K in the AO
 basis (existing engine untouched), then transform the 2-index density/Fock in/out:
@@ -38,7 +41,7 @@ through the totally-symmetric mean field, which is why "build `F_AO`, slice" is 
 1. `SymmetryAdapted_IBS` (per irrep): IS-A `Orbital_1E_IBS`, holds `{raw Orbital_1E_IBS*, O_Γ
    block (nAO×dΓ), irrep sym_t}`. `MakeOverlap()=O_Γᵀ·raw->Overlap()·O_Γ` (same for Kinetic/
    Nuclear), `GetNumFunctions()=dΓ`, `GetSymmetry()`=the irrep, `RadialID()/AngularID()`=raw's
-   + irrep suffix (cache key). Lives in BasisSet1 (PG area or a generic SymmetryAdapted module).
+   + irrep suffix (cache key). Lives in BasisSet (PG area or a generic SymmetryAdapted module).
 2. `SymmetryAdaptedBasisSet` (IS-A `BasisSet<double>`): holds raw molecular basis + O (from
    `BuildSALCs` via the stage-5a bridge), creates one `SymmetryAdapted_IBS` per irrep block.
 3. Test: build the H₂O/N₂ basis, make the irrep IBSs, assert `O_Γᵀ S_raw O_Γ` block-diagonal
@@ -117,7 +120,7 @@ The center permutation comes from step 1; the angular part is the **real-Cartesi
 real-spherical) rotation matrix `D^l(g)`. This is the bug-prone step (d/f ordering,
 Cartesian vs spherical conventions). Building blocks already exist (`Wigner3j`/`RelWigner3j`
 in the atomic angular code; `D^l` is adjacent). Needs basis knowledge ⇒ lives in
-**BasisSet1** (or a thin BasisSet↔Symmetry adapter), consuming Symmetry's `Group`.
+**BasisSet** (or a thin BasisSet↔Symmetry adapter), consuming Symmetry's `Group`.
 
 **3) SALCs → O.** Projection operator `P^Γ = (l_Γ/h) Σ_g χ^Γ(g)* R(g)` applied to the AOs
 gives irrep Γ's combinations.
@@ -130,7 +133,7 @@ GDM uses). So O only block-diagonalizes; orthonormalization stays where it alrea
 **4) Where O lives** — split by responsibility:
 - **Symmetry library**: abstract `Group` (ops, multiplication, character table) +
   `PointGroup` + detection. Basis-agnostic; the home for future `SpaceGroup` / `MagneticGroup`.
-- **BasisSet1**: the rep-builder (step 2) and the `SymmetryAdapted_IBS` decorator that
+- **BasisSet**: the rep-builder (step 2) and the `SymmetryAdapted_IBS` decorator that
   stores and applies O. O is *produced* by the bridge (needs the basis) and *consumed* by
   the decorator. Symmetry never learns what a Gaussian is; BasisSet never learns what a
   character table is.
@@ -189,7 +192,7 @@ on the engine — do **not** couple it to this.
 
 - `src/Cluster/Cluster.C` — `Cluster` interface (centers, Z, `GetAtomIndex`).
 - `src/Symmetry/` — `Symmetry`, `Irrep`, `BlochQN` (where `Group`/`PointGroup` go).
-- `src/BasisSet1/IrrepBasisSet.C` — the IBS interface + 1-e integral mixins.
-- `src/BasisSet1/Orbital_HF_IBS.C` — Direct/Exchange + `Accumulate*` (2-e Fock build).
-- `src/BasisSet1/Molecule/PolarizedGaussian/` — the existing Cartesian molecular basis
+- `src/BasisSet/IrrepBasisSet.C` — the IBS interface + 1-e integral mixins.
+- `src/BasisSet/Orbital_HF_IBS.C` — Direct/Exchange + `Accumulate*` (2-e Fock build).
+- `src/BasisSet/Molecule/PolarizedGaussian/` — the existing Cartesian molecular basis
   (`Block`, `Polarization`, `IntegralEngine`, McMurchie–Davidson).
