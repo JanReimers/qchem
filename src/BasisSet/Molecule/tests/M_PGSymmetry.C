@@ -7,6 +7,7 @@
 import qchem.BasisSet.Molecule.PolarizedGaussian.Symmetry;  // ExtractAoShells, ClusterToSymPoints
 import qchem.BasisSet.Molecule.PolarizedGaussian;            // Orbital_IBS
 import qchem.BasisSet.SymmetryAdapted_IBS;                    // SymmetryAdapted_IBS (1-e decorator)
+import qchem.BasisSet.Molecule.SymmetryAdaptedBasisSet;       // SymmetryAdaptedBasisSet (per-irrep)
 import qchem.Symmetry.SALC;                                   // BuildAbelianGroup, BuildSALCs, BuildOperationRep
 import qchem.Cluster;                                         // Molecule, Atom
 import qchem.Types;
@@ -15,7 +16,8 @@ import qchem.Math;                                            // fabs
 
 using namespace BasisSet::Molecule::PolarizedGaussian;
 using namespace Symmetry;
-using SymmetryAdapted_IBS = ::BasisSet::SymmetryAdapted_IBS;   // ::BasisSet (the class clashes)
+using SymmetryAdapted_IBS      = ::BasisSet::SymmetryAdapted_IBS;          // ::BasisSet (the class clashes)
+using SymmetryAdaptedBasisSet  = ::BasisSet::Molecule::SymmetryAdaptedBasisSet;
 
 // Build a real Cartesian-Gaussian basis on H2O, extract its shells, and run the full
 // symmetry pipeline (detect -> abelian group -> SALCs).  Validates the bridge end to end.
@@ -104,4 +106,36 @@ TEST(PGSymmetry, decorator_blocks_real_overlap)
         for (size_t a=0;a<dG;a++) for (size_t b=0;b<dG;b++)
             EXPECT_LT(fabs(Sblk(a,b) - OtSO(start+a,start+b)), 1e-9);
     }
+}
+
+// The top-level SymmetryAdaptedBasisSet: one labelled IrrepBasisSet per non-empty irrep,
+// iterable exactly like an atomic basis, the irrep blocks summing to the full AO space.
+TEST(PGSymmetry, symmetry_adapted_basis_set)
+{
+    Molecule h2o;
+    h2o.Insert(new Atom(8, 0, rvec3_t(0, 0,      0.117)));
+    h2o.Insert(new Atom(1, 0, rvec3_t(0, 0.757, -0.467)));
+    h2o.Insert(new Atom(1, 0, rvec3_t(0,-0.757, -0.467)));
+    rvec_t exps{1.0, 0.25};
+    Orbital_IBS ibs(exps, 1, &h2o);
+
+    auto shells = ExtractAoShells(ibs);
+    auto pts    = ClusterToSymPoints(h2o);
+    auto g      = BuildAbelianGroup(pts, 1e-4);
+    auto salc   = BuildSALCs(shells, g, Centroid(pts), 1e-4);
+
+    SymmetryAdaptedBasisSet sab(&ibs, salc);
+
+    // Iterate the irrep IBSs: blocks sum to the full AO count, each carries a valid C2v label.
+    size_t nIBS=0, nfunc=0;
+    for (auto oi : sab.Iterate<::BasisSet::Real_OIBS>())
+    {
+        ++nIBS;
+        nfunc += oi->GetNumFunctions();
+        std::string lab = oi->GetSymmetry().GetLabel();
+        EXPECT_TRUE(lab=="A1"||lab=="A2"||lab=="B1"||lab=="B2") << "unexpected irrep label: " << lab;
+    }
+    EXPECT_EQ(nfunc, ibs.GetNumFunctions());        // SALC blocks span the AO space
+    EXPECT_EQ(sab.GetNumFunctions(), ibs.GetNumFunctions());
+    EXPECT_GE(nIBS, 2u);                            // water (s+p) populates A1, B1, B2
 }

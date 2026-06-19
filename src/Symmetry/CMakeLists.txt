@@ -10,6 +10,7 @@ target_sources(qcSymmetry PRIVATE
     Imp/CharacterTable.C
     Imp/AbelianGroup.C
     Imp/SALC.C
+    Imp/MolecularIrrep.C
     Internal/Imp/Unit.C
     Internal/Imp/Yl.C  
     Internal/Imp/Ylm.C 
@@ -28,6 +29,7 @@ target_sources(qcSymmetry PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     CharacterTable.C
     AbelianGroup.C
     SALC.C
+    MolecularIrrep.C
     Internal/Spherical.C
     Internal/BlochQN.C
     Internal/Unit.C
