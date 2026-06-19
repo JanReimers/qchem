@@ -1,4 +1,4 @@
-// File: UnitTests/M_PGSymmetry.C  PG basis -> symmetry bridge (stage 5 wiring) on a real basis.
+// File: BasisSet/Molecule/tests/M_PGSymmetry.C  PG basis -> symmetry bridge (stage 5 wiring) on a real basis.
 #include "gtest/gtest.h"
 #include <vector>
 #include <string>
@@ -50,12 +50,12 @@ TEST(PGSymmetry, water_extract_and_SALCs)
 
     for (size_t c=0;c<salc.O.columns();++c)
     {
-        blazem::DynamicVector<double> v = blazem::column(salc.O, c);
+        rvec_t v = blazem::column(salc.O, c);
         size_t r = irow[salc.irrep[c]];
         for (size_t k=0;k<M.size();++k)
         {
-            blazem::DynamicVector<double> Mv  = M[k]*v;
-            blazem::DynamicVector<double> chv = double(g.table.chi[r][k]) * v;
+            rvec_t Mv  = M[k]*v;
+            rvec_t chv = double(g.table.chi[r][k]) * v;
             EXPECT_LT(blazem::norm(Mv - chv), 1e-8) << "irrep " << salc.irrep[c] << " op " << g.table.opTags[k];
         }
     }
