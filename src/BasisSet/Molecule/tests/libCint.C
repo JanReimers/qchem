@@ -1,22 +1,27 @@
 // File libCint.C   test the libCint molecular integral library
 
 #include "gtest/gtest.h"
-//#include "PolarizedGaussian/IEClient.H"
-#include "PolarizedGaussian/IntegralEngine.H"
-#include "PolarizedGaussian/Block.H"
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Readers.Gaussian94;
-
-
-import qchem.BasisSet.Molecule.PolarizedGaussian;
-import qchem.LAParams;
 #include "oml/vector3d.h"
 #include "oml/smatrix.h"
 #include <vector>
 #include <iostream>
+#include <filesystem>
+#ifndef BASISSET_DATA_PATH
+#error "BASISSET_DATA_PATH must be defined by CMake"
+#endif
 
+//#include "PolarizedGaussian/IEClient.H"
+#include "PolarizedGaussian/IntegralEngine.H"
+#include "PolarizedGaussian/Block.H"
+
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Readers.Gaussian94;
+import qchem.BasisSet.Molecule.PolarizedGaussian;
+import qchem.LAParams;
 import qchem.Atom;
 import qchem.Molecule;
 import qchem.Types;
+
+static const std::filesystem::path basisset_data_dir = BASISSET_DATA_PATH;
 
 extern "C" {
 #include "cint.h"
@@ -37,7 +42,7 @@ public:
     : cl(MakeN2())
     , ie(new PolarizedGaussian::IntegralEngine())
     , lap({qchem::Lapack,qchem::SVD,1e-4,1e-12})
-    , reader("../BasisSetData/dzvp.bsd")
+    , reader(basisset_data_dir / "dzvp.bsd")
     , bs(new PolarizedGaussian::BasisSet(lap,&reader,cl))
     {
         

@@ -15,6 +15,7 @@ target_sources(UTMain PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES Qche
 
 target_compile_options(UTMain PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(UTMain PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
+target_compile_definitions(UTMain PRIVATE ${BasisDataPath})
 set_property(TARGET UTMain PROPERTY CXX_STANDARD 20)
 
 target_link_options(UTMain PRIVATE -pg)

@@ -1,11 +1,16 @@
 // File A_HF.C  Atom Hartree-Fock tests.
 #include "gtest/gtest.h"
 #include <nlohmann/json.hpp>
+#include <filesystem>
+#ifndef BASISSET_DATA_PATH
+#error "BASISSET_DATA_PATH must be defined by CMake"
+#endif
 
 import qchem.Unittests.QchemTester;
-
 import qchem.Hamiltonian.Factory;
 import qchem.Cluster;
+
+static const std::filesystem::path basisset_data_dir = BASISSET_DATA_PATH;
 
 Molecule* MakeN2()
 {
@@ -28,7 +33,7 @@ class M_PG_HF_U : public ::testing::Test
 public:
     M_PG_HF_U() : TestMolecule(MakeN2()) 
     {
-        nlohmann::json js = { {"filepath","../../../BasisSetData/dzvp.bsd"} };
+        nlohmann::json js = { {"filepath",basisset_data_dir / "dzvp.bsd"} };
         QchemTester::Init(js);
     };
    
@@ -44,7 +49,7 @@ class M_PG_DFT_U : public ::testing::Test
 public:
     M_PG_DFT_U() : TestMolecule(MakeN2())
     {
-        nlohmann::json js = { {"filepath","../../../BasisSetData/dzvp.bsd"} };
+        nlohmann::json js = { {"filepath",basisset_data_dir / "dzvp.bsd"} };
         QchemTester::Init(js);
     };
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const

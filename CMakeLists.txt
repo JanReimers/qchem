@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 3.31.6)
 # set(CMAKE_CXX_MODULE_STD cxx_std_23)
 project(qchem VERSION 0.1.0 LANGUAGES CXX)
 
+set(BasisDataPath "BASISSET_DATA_PATH=\"${PROJECT_SOURCE_DIR}/BasisSetData\"" CACHE INTERNAL "BasisSet data path compile definition")
+set(CommonDataPath "COMMON_DATA_PATH=\"${PROJECT_SOURCE_DIR}/src/Common/Data\"" CACHE INTERNAL "Common data path compile definition")
 
 enable_language (Fortran)
 enable_testing()

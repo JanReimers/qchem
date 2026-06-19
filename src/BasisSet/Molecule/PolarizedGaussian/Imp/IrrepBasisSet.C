@@ -7,6 +7,11 @@ module;
 #include <string>
 #include <memory>
 #include <vector>
+#include <filesystem>
+#ifndef BASISSET_DATA_PATH
+#error "BASISSET_DATA_PATH must be defined by CMake"
+#endif
+static const std::filesystem::path basisset_data_dir = BASISSET_DATA_PATH;
 
 module qchem.BasisSet.Molecule.PolarizedGaussian;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;
@@ -230,13 +235,13 @@ Orbital_IBS::Orbital_IBS(   const rvec_t& exponents, size_t L)
 Fit_IBS* Orbital_IBS::CreateCDFitBasisSet(const Cluster* cl) const
 {
     // The A1 files support Z=1-54 (H-Te)  A2 version only go up to Zn
-    PolarizedGaussian::Gaussian94Reader reader("../../../BasisSetData/A1_coul.bsd");
+    PolarizedGaussian::Gaussian94Reader reader(basisset_data_dir / "A1_coul.bsd");
     return new EFit_IBS(&reader,cl);
 }
 Fit_IBS* Orbital_IBS::CreateVxcFitBasisSet(const Cluster* cl) const
 {
     // The A1 files support Z=1-54 (H-Te)  A2 version only go up to Zn
-    PolarizedGaussian::Gaussian94Reader reader("../../../BasisSetData/A1_exch.bsd");
+    PolarizedGaussian::Gaussian94Reader reader(basisset_data_dir / "A1_exch.bsd");
     return new EFit_IBS(&reader,cl);
 }
 

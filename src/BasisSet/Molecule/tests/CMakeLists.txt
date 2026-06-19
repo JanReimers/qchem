@@ -6,7 +6,8 @@ add_executable(UTMolecule_BS ../../Atom/tests/gtestmain.C
 )
 
 target_compile_options(UTMolecule_BS PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
-target_compile_definitions(UTMolecule_BS PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS} BASISSET_DATA_PATH=\"${PROJECT_SOURCE_DIR}/BasisSetData\")
+target_compile_definitions(UTMolecule_BS PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
+target_compile_definitions(UTMolecule_BS PRIVATE ${BasisDataPath})
 set_property(TARGET UTMolecule_BS PROPERTY CXX_STANDARD 20)
 
 target_include_directories(UTMolecule_BS PRIVATE
