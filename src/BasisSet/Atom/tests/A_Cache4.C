@@ -1,11 +1,11 @@
-// File: UnitTests/A_Cache4.C  Unit test the Atom Cach4 system for storing 4 index redial Slater integrals.
+// File: UnitTests/A_Cache4.C  Unit test the Atom Cach4 system for storing 4 index radial Slater integrals.
 #include "gtest/gtest.h"
 #include <gmock/gmock.h>
 #include <iostream>
 #include <map>
 #include <string>
 #include <memory>
-#include "../src/forward.H"
+#include "../../src/forward.H"
 #include <nlohmann/json.hpp>
 using std::cout;
 using std::endl;
@@ -15,9 +15,15 @@ import qchem.BasisSet.Atom.Evaluators.Gaussian.IBS;
 import qchem.BasisSet.Atom.Evaluators.Internal.Rk;
 import qchem.BasisSet.Atom.Evaluators.Internal.Grouper;
 import qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.Rk; 
+import qchem.BasisSet.Atom.Evaluators.Internal.ExponentialEvaluator;
 import qchem.stl_io;
 import qchem.BasisSet.Atom.Factory;
 import qchem.BasisSet.Orbital_HF_IBS;
+
+using namespace BasisSet::Atom;
+using namespace BasisSet::Atom::Evaluators;
+using enum BasisSetAccuracy;
+using GCache4=BasisSet::Atom::Evaluators::Gaussian::Gaussian_Cache4;
 
 class Cache4Tests : public ::testing::Test
 {
@@ -27,34 +33,32 @@ public:
 
     }
 
-    const ExponentGrouper& GetGrouper(const Gaussian_Cache4* gc)
+    const ExponentGrouper& GetGrouper(const GCache4* gc)
     {
         assert(gc);
         return gc->grouper; //friend access.
     }
 
-    const std::vector<size_t>& maxls(const Gaussian_Cache4* gc)
+    const std::vector<size_t>& maxls(const GCache4* gc)
     {
         return GetGrouper(gc).maxls;
     }
 
-    const std::vector<size_t>& es_indices(const Evaluator* e)
+    const std::vector<size_t>& es_indices(const ExponentialEvaluator* e)
     {
         return e->es_indices;
     }
 
-    void Init(size_t Z,nlohmann::json js, BasisSet::Atom::Type type1, BasisSet::Atom::Type type2)
+    void Init(size_t Z, Type type1, Type type2)
     {
         delete bs1;
         delete bs2;
-        js["type"]=type1;
-        bs1=BasisSet::Atom::Factory(js,Z);
-        js["type"]=type2;
-        bs2=BasisSet::Atom::Factory(js,Z);
+        bs1=BasisSet::Atom::Factory(N3,type1,Z);
+        bs2=BasisSet::Atom::Factory(N3,type2,Z);
     }
-    void InitBSpline6(size_t Z) {Init(Z,{{"N", 5}, {"rmin", 0.25}, {"rmax", 4}},BasisSet::Atom::Type::BSpline6,BasisSet::Atom::Type::BSpline6_2);}
-    void InitGaussian(size_t Z) {Init(Z,{{"N", 5}, {"emin", 0.25}, {"emax", 4}},BasisSet::Atom::Type::Gaussian,BasisSet::Atom::Type::Gaussian2);}
-    void InitSlater  (size_t Z) {Init(Z,{{"N", 5}, {"emin", 0.25}, {"emax", 4}},BasisSet::Atom::Type::Slater  ,BasisSet::Atom::Type::Slater2);}
+    void InitBSpline6(size_t Z) {Init(Z,Type::BSpline6,Type::BSpline6);}
+    void InitGaussian(size_t Z) {Init(Z,Type::Gaussian,Type::Gaussian);}
+    void InitSlater  (size_t Z) {Init(Z,Type::Slater  ,Type::Slater);}
 
     void TestDirect(double eps, bool testTranspose=true)
     {
@@ -111,7 +115,7 @@ public:
     
     void TestDirect(size_t Z,nlohmann::json js)
     {
-        bs1=BasisSet::Atom::Factory(js,Z);
+        bs1=Factory(js,Z);
         using BasisSet::Real_HF_OIBS;
         for (auto ibs:bs1->Iterate<Real_HF_OIBS>())
         {
@@ -131,7 +135,7 @@ TEST_F(Cache4Tests,HF2_SG_Reentry)
 {
     delete bs1;
     nlohmann::json js={{"N", 5}, {"emin", 0.25}, {"emax", 4}};
-    js["type"]=BasisSet::Atom::Type::Gaussian2;
+    js["type"]=Type::Gaussian;
     for (size_t Z:{2,18,36,86})
         TestDirect(Z,js);
 
@@ -145,7 +149,7 @@ TEST_F(Cache4Tests,HF2_SL_Reentry)
 {
     delete bs1;
     nlohmann::json js={{"N", 5}, {"emin", 0.25}, {"emax", 4}};
-    js["type"]=BasisSet::Atom::Type::Slater2;
+    js["type"]=Type::Slater;
     for (size_t Z:{2,18,36,86})
         TestDirect(Z,js);
 
@@ -160,7 +164,7 @@ TEST_F(Cache4Tests,HF2_BS_Reentry)
 {
     delete bs1;
     nlohmann::json js={{"N", 5}, {"rmin", 0.25}, {"rmax", 4}};
-    js["type"]=BasisSet::Atom::Type::BSpline6_2;
+    js["type"]=Type::BSpline6;
     for (size_t Z:{2,18,36,86})
         TestDirect(Z,js);
 

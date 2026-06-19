@@ -1,6 +1,7 @@
 # Tests for qcAtom_BS
 
 add_executable(UTAtom_BS gtestmain.C
+   A_Cache4.C
    A_Pool.C
    Angular.C 
    BasisSet_Atom.C

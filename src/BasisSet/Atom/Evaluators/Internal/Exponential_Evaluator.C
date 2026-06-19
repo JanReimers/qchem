@@ -3,6 +3,8 @@ module;
 #include <string>
 #include <vector>
 #include <cassert>
+#include "forward.H"
+
 export module qchem.BasisSet.Atom.Evaluators.Internal.ExponentialEvaluator;
 import qchem.BasisSet.Atom.Evaluators.Internal.Grouper;
 export import qchem.BasisSet.Atom.Evaluators;
@@ -38,6 +40,7 @@ public:
     virtual rvec_t Norm() const override { return ns; }
 
 protected:
+    friend ::Cache4Tests;
     static bool EvenTempered(const rvec_t&);
     rvec_t es;
     rvec_t ns;

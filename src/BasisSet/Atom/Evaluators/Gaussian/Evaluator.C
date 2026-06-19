@@ -2,6 +2,7 @@
 module;
 #include <iosfwd>
 #include <cassert>
+#include "forward.H"
 export module qchem.BasisSet.Atom.Evaluators.Gaussian.IBS;
 import qchem.BasisSet.Atom.Evaluators.Internal.ExponentialEvaluator;
 import qchem.BasisSet.Atom.Evaluators.Internal.NR_Angular;
@@ -231,7 +232,7 @@ public:
             grouper.LMax(ia,ib,ic,id));
     }
 private:
-    friend class Cache4Tests;
+    friend ::Cache4Tests;
     ExponentGrouper grouper;
 };
 
