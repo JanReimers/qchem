@@ -26,21 +26,20 @@ namespace BasisSet::Molecule::PolarizedGaussian
     ns=1.0/blazem::sqrt(ns);
 }
 
+// Cache identity of the whole molecular basis.  The radial/angular split is atomic bias (for an
+// atom the centre is pinned, so radial x angular is a complete key); a molecule also needs the
+// centres -- the 2-electron ERIs, overlap and kinetic are all orientation-dependent, so two
+// geometries with the same basis must not collide in the cache.  We therefore fold everything --
+// radial, centre and polarization per function -- into RadialID and leave AngularID empty.
 std::string PGData::RadialID () const
 {
     std::ostringstream os;
     os << " PG { ";
-    for (auto r:radials) os << *r << " ";
+    for (size_t i=0;i<radials.size();++i)
+        os << *radials[i] << "@" << radials[i]->GetCenter() << ":" << pols[i] << " ";
     os << "}";
     return os.str();
 }
-std::string PGData::AngularID() const
-{
-    std::ostringstream os;
-    os << "{ ";
-    for (auto p:pols) os << p << " ";
-    os << "}";
-    return os.str();
-}
+std::string PGData::AngularID() const { return ""; }
 
 }
