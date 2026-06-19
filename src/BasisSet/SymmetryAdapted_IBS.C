@@ -11,6 +11,8 @@
 module;
 #include <string>
 #include <iosfwd>
+#include <map>
+#include <memory>
 export module qchem.BasisSet.SymmetryAdapted_IBS;
 export import qchem.BasisSet.Orbital_1E_IBS;
 export import qchem.BasisSet.Orbital_HF_IBS;         // HF 2-electron mixin + ERI4
@@ -21,6 +23,22 @@ import qchem.Types;
 export namespace BasisSet
 {
 
+// Shared by one basis's irrep decorators: memoizes the AO Coulomb/exchange built from each
+// cd-irrep density block (raw->AccumulateDirect/Exchange), so the O(nAO^4) AO build happens
+// once per cd-irrep per SCF iteration -- not once per (irrep, cd-irrep) pair (was N^2/iter).
+// Keyed by the cd-irrep IBS pointer; invalidated when that block's density changes.
+class SymFockCache
+{
+public:
+    const rsmat_t& Direct  (const Orbital_HF_IBS<double>* raw, const void* cd,
+                            const rmat_t& Ocd, const rsmat_t& Dcd);
+    const rsmat_t& Exchange(const Orbital_HF_IBS<double>* raw, const void* cd,
+                            const rmat_t& Ocd, const rsmat_t& Dcd);
+private:
+    struct Entry { rsmat_t D, M; bool valid=false; };
+    std::map<const void*, Entry> itsJ, itsK;
+};
+
 class SymmetryAdapted_IBS
     : public virtual Orbital_1E_IBS<double>
     , public virtual Orbital_HF_IBS<double>  // HF Coulomb/exchange (the 2-electron path)
@@ -29,8 +47,11 @@ class SymmetryAdapted_IBS
 public:
     // raw: the whole-molecule AO basis (not owned).  Oblock: this irrep's SALC columns
     // (nAO x dGamma).  label: Mulliken irrep label (used for the cache key + display).
+    // cache: optional, shared across the irreps of one basis (turns the 2-e build N^2 -> N per
+    // iteration).  Null -> build the AO Coulomb/exchange directly each call (fine for tests).
     SymmetryAdapted_IBS(const Orbital_1E_IBS<double>* raw, const rmat_t& Oblock,
-                        const std::string& label, const sym_t& sym);
+                        const std::string& label, const sym_t& sym,
+                        std::shared_ptr<SymFockCache> cache = nullptr);
 
     virtual size_t GetNumFunctions() const {return itsO.columns();}
     const rmat_t&  GetO() const {return itsO;}        // this irrep's SALC columns
@@ -67,6 +88,7 @@ private:
     const Orbital_HF_IBS<double>* itsRawHF;           // same object, HF interface (for the AO J/K build)
     rmat_t                        itsO;               // this irrep's SALC columns (nAO x dGamma)
     std::string                   itsLabel;           // Mulliken irrep label
+    std::shared_ptr<SymFockCache> itsCache;           // shared AO J/K cache (null = build directly)
 };
 
 } //namespace
