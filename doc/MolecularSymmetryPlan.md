@@ -73,22 +73,41 @@ access mid-Set.  So raw 1-e is recomputed per irrep (cheap); the 2-e AO ERIs sta
    wrap) and the returned SAB holds the raw basis alive (`KeepAlive`), so it is self-contained.
    Polarized works unchanged (the aufbau loops per spin channel); `M_PG_Sym.C` checks closed-
    shell water symmetric-vs-non-symmetric for both Pol::UnPolarized and Pol::Polarized.
-3. Optimisation: the 2-e decorator rebuilds the AO Coulomb/exchange once per (irrep,cd-irrep)
-   pair (N^2 per iteration); sum the back-transformed densities first, build once, slice all.
+3. **[DONE]** Optimisation: the 2-e decorator rebuilt the AO Coulomb/exchange once per
+   (irrep,cd-irrep) pair (N^2/iter), but the build depends only on the cd-irrep.  Added
+   `SymFockCache` (`src/BasisSet/SymmetryAdapted_IBS.C`), shared by all the irrep decorators of
+   one basis (created in `SymmetryAdaptedBasisSet`): it memoizes the AO J/K per cd-irrep, keyed
+   by the cd-irrep IBS pointer and invalidated when that block's density changes -> built once
+   per iteration, reused across the target irreps (N, not N^2).  Build/slice factored into
+   `BuildAOFock`/`AddSlice`; cache optional (null -> build directly, as the per-library tests do).
+   Energy unchanged; the Fock-bound polarized water run dropped ~8.5s -> 1.4s.
 4. **[DONE]** Real DZVP basis in `M_PG_Sym.C` (via `Molecule::Factory` + `BASISSET_DATA_PATH`),
    replacing the crude 2-exponent programmatic basis.  Also fixed the test geometry to BOHR (it
    was Angstrom -- the code uses atomic units, cf. M_PG_U.C's N2 at +/-1.03 a0).  Water HF/DZVP
    now = -76.0229 Ha, virial 2+V/K ~ 0, O 1s at -20.54 -- all physical; the test asserts sym ==
    non-sym AND the absolute energy/virial are sane, for both polarizations.
-5. Add an `M_PG_Sym` test with the water coordinates NOT centred and randomly rotated.  Expected
-   to work as-is (the machinery is centroid-relative and detects axes in any orientation; the
-   `{A1:6,B1:2,B2:2}` occupation is rotation-robust).  Watch the detection/SALC `tol`: a random
-   orientation may need it loosened so the cross-irrep blocks still vanish cleanly.
+5. **[DONE]** Three `M_PG_Sym` tests (`water_translated`, `water_rotated`,
+   `water_rotated_translated`) drive symmetric HF for water moved off the canonical frame -- pure
+   translation, a generic Euler rotation, and both -- each asserting sym == non-sym (1e-6) and ==
+   the canonical -76.0229 (HF is invariant under rigid motion).  The symmetry pipeline itself was
+   already frame-agnostic (centroid-relative); detection, SALCs and all four integral types
+   (S/T/V/J/K) block-diagonalise perfectly in any orientation (verified directly).  The d-shell
+   Cartesian rep is non-unitary under rotation, but that does NOT break block-diagonalisation
+   (M(g) is unitary w.r.t. the AO overlap S, which is what matters).
+   **Blocker found & fixed (a concrete instance of the cache-review item below):** the molecular
+   integral cache key `(RadialID, AngularID)` had NO geometry, so a rotated water silently reused
+   a canonical water's orientation-dependent ERIs/overlap/kinetic (translation was invariant, so
+   it slipped through), giving a non-variational -146 Ha.  Fixed by folding radial+centre+pol
+   into `PGData::RadialID` and leaving `AngularID` empty (the radial/angular split is atomic
+   bias).  Only `Nuclear` had been geometry-aware (via `cl->ID()`).
 
 Separate project (flagged, not symmetry-specific): a **critical review of the integral caching
-system** -- the global cache's stateful `Has()`-stashes-key / `Set()`-uses-key protocol is
-re-entrancy-unsafe (a nested cached access mid-Set clobbers the last key; bit both the
-SymmetryAdapted_IBS decorator and earlier work).
+system**.  Two concrete defects found so far: (a) the stateful `Has()`-stashes-key /
+`Set()`-uses-key protocol is re-entrancy-unsafe (a nested cached access mid-Set clobbers the last
+key; bit the decorator's `MakeOverlap`); (b) the `(RadialID, AngularID)` key is atom-biased --
+complete for an atom (pinned centre) but missing geometry for a molecule, so distinct geometries
+collided (fixed ad hoc by stuffing centres into the molecular `RadialID`; the principled fix is
+an explicit geometry/centre component in the key).
 
 (Below: the original blocker analysis, now resolved.)
 **(resolved) the OCCUPATION/AUFBAU blocker:**
