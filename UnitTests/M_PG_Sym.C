@@ -14,6 +14,7 @@ import qchem.BasisSet.Molecule.Factory;                       // Molecule::Facto
 import qchem.BasisSet.Molecule.SymmetryAdaptedBasisSet;       // SymmetryAdaptedBasisSet, SymmetryAdapt
 import qchem.ElectronConfiguration.Molecule;                  // Molecule_EC
 import qchem.Types;
+import qchem.Math;                                            // cos, sin (for the rotation test)
 
 #ifndef BASISSET_DATA_PATH
 #error "BASISSET_DATA_PATH must be defined by CMake"
@@ -73,3 +74,52 @@ static void CheckWaterHF(Pol pol)
 
 TEST(M_PG_Sym, water_HF_unpolarized) { CheckWaterHF(Pol::UnPolarized); }
 TEST(M_PG_Sym, water_HF_polarized)   { CheckWaterHF(Pol::Polarized); }
+
+// Rotate v by Euler (Rz(a) Ry(b) Rx(c)) -- a generic, non-axis-aligned orientation.
+static Vector3D<double> Rotate(const Vector3D<double>& v, double a, double b, double c)
+{
+    double x=v.x, y=v.y, z=v.z;
+    double y1=cos(c)*y - sin(c)*z, z1=sin(c)*y + cos(c)*z;                 // Rx(c)
+    double x2=cos(b)*x  + sin(b)*z1, z2=-sin(b)*x + cos(b)*z1;             // Ry(b)
+    double x3=cos(a)*x2 - sin(a)*y1, y3=sin(a)*x2 + cos(a)*y1;             // Rz(a)
+    return Vector3D<double>(x3, y3, z2);
+}
+
+// The canonical water, rigidly rotated to a generic orientation and translated off the origin.
+static Molecule* MakeWaterMoved(double a=0.7, double b=1.1, double c=0.3,
+                                Vector3D<double> T=Vector3D<double>(2.0,-3.0,1.5))
+{
+    Vector3D<double> O(0,0,0), H1(0,1.431,1.107), H2(0,-1.431,1.107);
+    Molecule* w = new Molecule();
+    w->Insert(new Atom(8, 0, Rotate(O ,a,b,c)+T));
+    w->Insert(new Atom(1, 0, Rotate(H1,a,b,c)+T));
+    w->Insert(new Atom(1, 0, Rotate(H2,a,b,c)+T));
+    return w;
+}
+
+// Symmetric == non-symmetric HF for a water displaced off the canonical frame, AND equal to the
+// canonical -76.0229 (HF is invariant under rigid rotation/translation).  Exercises the whole
+// pipeline -- detection, SALCs and the 2-e decorator -- in a generic orientation.  (Relies on the
+// 2-electron integral cache being geometry-aware; the canonical run is in the same process.)
+static void CheckMovedWaterHF(Molecule* m)
+{
+    auto mol = std::shared_ptr<Molecule>(m);
+    cl_t cl  = mol;
+    nlohmann::json js = { {"filepath", basisset_data_dir / "dzvp.bsd"} };
+
+    Real_BS* bsRef = BasisSet::Molecule::Factory(js, mol.get());      // non-symmetric reference
+    Molecule_EC ecRef(mol->GetNumElectrons());
+    EnergyBreakdown ebRef = RunHF(bsRef, &ecRef, cl, Pol::UnPolarized);
+
+    auto rawBasis = std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(js, mol.get()));
+    auto* sab = BasisSet::Molecule::SymmetryAdapt(rawBasis, *mol, 1e-4);  // symmetry-adapted
+    Molecule_EC ecSym(mol->GetNumElectrons());
+    EnergyBreakdown ebSym = RunHF(sab, &ecSym, cl, Pol::UnPolarized);
+
+    EXPECT_NEAR(ebSym.GetTotalEnergy(), ebRef.GetTotalEnergy(), 1e-6) << "symmetric == non-symmetric";
+    EXPECT_NEAR(ebSym.GetTotalEnergy(), -76.022903, 1e-4) << "invariant under rigid rotation/translation";
+}
+
+TEST(M_PG_Sym, water_translated)         { CheckMovedWaterHF(MakeWaterMoved(0,0,0,      Vector3D<double>(2.0,-3.0,1.5))); }
+TEST(M_PG_Sym, water_rotated)            { CheckMovedWaterHF(MakeWaterMoved(0.7,1.1,0.3, Vector3D<double>(0,0,0)));       }
+TEST(M_PG_Sym, water_rotated_translated) { CheckMovedWaterHF(MakeWaterMoved(0.7,1.1,0.3, Vector3D<double>(2.0,-3.0,1.5)));}
