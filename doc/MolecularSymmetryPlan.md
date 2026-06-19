@@ -37,7 +37,30 @@ irrep-specific `(RadialID, AngularID)` key — both raw and transformed cached, 
 The density is block-diagonal by irrep (one isolated `D_Γ` per irrep); blocks couple only
 through the totally-symmetric mean field, which is why "build `F_AO`, slice" is natural.
 
-**NEXT STEP — stage 4, the 1-electron decorator (start here):**
+**STAGE 4 IS DONE (1-e + 2-e, all tested with real integrals).**  `SymmetryAdapted_IBS`
+(`src/BasisSet/SymmetryAdapted_IBS.C`) wraps the raw whole-molecule IBS + an `O_Gamma` block:
+1-electron = `O^T M_raw O` (cached per irrep); 2-electron = build the AO Coulomb/exchange from
+each cd-irrep density block via the raw IBS (linear in D, NO 4-index transform) and slice
+`O^T J_AO O` -- `Orbital_HF_IBS::AccumulateDirect/Exchange` made virtual for this.
+`SymmetryAdaptedBasisSet` (`.../PolarizedGaussian/SymmetryAdaptedBasisSet.C`) presents one
+labelled `SymmetryAdapted_IBS` per irrep; `MolecularIrrep` carries the Mulliken label.  Tests:
+`src/BasisSet/Molecule/tests/M_PGSymmetry.C` (UTMolecule_BS) -- 1-e blocks vs real overlap,
+SAB iteration + labels, and the 2-e Coulomb matches `O^T J_AO O` on a real H2O s+p basis.
+
+**NEXT STEP — end-to-end molecular HF.  The blocker is OCCUPATION/AUFBAU, not the Fock:**
+- `CompositeWF::FillOrbitals` does `w->FillOrbitals(itsEC)` per irrep, i.e. each irrep takes a
+  FIXED electron count `ec->GetN(irrep)`.  Right for atoms; wrong for a symmetric molecule,
+  where the occupied MOs fill the *globally-lowest* across irrep blocks (the per-irrep
+  occupation is an SCF result, not known a priori).  Need a **global aufbau across irreps**:
+  collect all irreps' orbital energies, fill the lowest N/2 globally, set per-irrep occupations.
+  (First-validation shortcut: hand-code a known molecule's per-irrep occupation -- e.g. water
+  a1:3,b1:1,b2:1 -- into the EC, run HF with fixed occupations, compare energy; then generalise.)
+- Then a molecular Factory hook that wraps a basis in a `SymmetryAdaptedBasisSet` (extract
+  shells+points via the bridge -> detect -> BuildSALCs -> wrap), and an H2O HF run vs the
+  non-symmetric energy, confirming irrep-labelled orbitals.
+
+(Historical: the original stage-4 plan -- the 1-electron decorator -- below; now done.)
+**(done) stage 4, the 1-electron decorator:**
 1. `SymmetryAdapted_IBS` (per irrep): IS-A `Orbital_1E_IBS`, holds `{raw Orbital_1E_IBS*, O_Γ
    block (nAO×dΓ), irrep sym_t}`. `MakeOverlap()=O_Γᵀ·raw->Overlap()·O_Γ` (same for Kinetic/
    Nuclear), `GetNumFunctions()=dΓ`, `GetSymmetry()`=the irrep, `RadialID()/AngularID()`=raw's
