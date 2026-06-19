@@ -63,6 +63,18 @@ access mid-Set.  So raw 1-e is recomputed per irrep (cheap); the 2-e AO ERIs sta
 2. Molecular Factory hook (bridge -> detect -> BuildSALCs -> wrap in SAB) + a polarized path.
 3. Optimisation: the 2-e decorator rebuilds the AO Coulomb/exchange once per (irrep,cd-irrep)
    pair (N^2 per iteration); sum the back-transformed densities first, build once, slice all.
+4. Use a REAL basis set in `UnitTests/M_PG_Sym.C` (a contracted .bsd file), as `M_PG_U.C` does
+   (`{"filepath","../../../BasisSetData/dzvp.bsd"}`), instead of the crude programmatic 2-exponent
+   s+p basis -- a stronger end-to-end check.
+5. Add an `M_PG_Sym` test with the water coordinates NOT centred and randomly rotated.  Expected
+   to work as-is (the machinery is centroid-relative and detects axes in any orientation; the
+   `{A1:6,B1:2,B2:2}` occupation is rotation-robust).  Watch the detection/SALC `tol`: a random
+   orientation may need it loosened so the cross-irrep blocks still vanish cleanly.
+
+Separate project (flagged, not symmetry-specific): a **critical review of the integral caching
+system** -- the global cache's stateful `Has()`-stashes-key / `Set()`-uses-key protocol is
+re-entrancy-unsafe (a nested cached access mid-Set clobbers the last key; bit both the
+SymmetryAdapted_IBS decorator and earlier work).
 
 (Below: the original blocker analysis, now resolved.)
 **(resolved) the OCCUPATION/AUFBAU blocker:**
