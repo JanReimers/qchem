@@ -14,7 +14,7 @@ export import qchem.Types;
 //  quadruple nested loop required for evaluating direct and exchange integrals
 //  over gaussian/slater/b-spline irrep basis sets.
 //
-export class Rk : public virtual Cacheable
+export class Rk : public virtual Cacheable4
 {
 public:
     typedef rvec11_t rvec11_t;

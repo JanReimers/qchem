@@ -70,14 +70,14 @@ void Cache4::loop_3(size_t _i3) const
         i3_cache = &i->second;    
 }
 
-const Cacheable* Cache4::loop_4(size_t _i4)  const
+const Cacheable4* Cache4::loop_4(size_t _i4)  const
 {
     i4=_i4;
     cache_4& c=*i3_cache; //De-reference for readability.
     auto i=c.find(i4);
     if (i==c.end())
     {
-        const auto [iterator,success]=c.insert({i4,std::unique_ptr<const Cacheable>(Create(i1,i2,i3,i4))});
+        const auto [iterator,success]=c.insert({i4,std::unique_ptr<const Cacheable4>(Create(i1,i2,i3,i4))});
         assert(success);
         i=iterator;
     }

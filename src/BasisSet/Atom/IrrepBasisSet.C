@@ -297,7 +297,7 @@ template <isHF_Evaluator E> ERI4 Orbital_HF_IBS<E>::MakeDirect(const BasisSet::O
                         assert(false);
                     }
                     double norm=a.Norm(ia)*a.Norm(ib)*c.Norm(ic)*c.Norm(id);
-                    const Cacheable* rk=Rk_cache->loop_4(c.es_index(id));
+                    const Cacheable4* rk=Rk_cache->loop_4(c.es_index(id));
                     double AkacRkac=E::direct(rk,la,lc,Akac);  //static call.
                     Jab(ic,id)=AkacRkac*norm;
                 }
@@ -335,7 +335,7 @@ template <isHF_Evaluator E> ERI4 Orbital_HF_IBS<E>::MakeExchange(const BasisSet:
                 {
                     if (id>ib+spancd || ib>id+spanab) continue;
                     double norm=a.Norm(ia)*a.Norm(ib)*c.Norm(ic)*c.Norm(id);
-                    const Cacheable* rk=Rk_cache->loop_4(c.es_index(id));
+                    const Cacheable4* rk=Rk_cache->loop_4(c.es_index(id));
                     double AkacRKac=E::exchange(rk,la,lc,Akac); //static call.
                     if (ic==id)
                         Kab(ic,id)=AkacRKac*norm; 

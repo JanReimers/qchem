@@ -66,33 +66,9 @@ Notes, bugs, and plans for the qchem6 project. This file is markdown-enabled so 
     1) irreps for `AccumulateDirect` and `AccumulateExchange`.
     2) Hamiltonian terms??
 
-## Molecular basis set upgrade
 
-### Stage 1: PG Use cache_4 
-- Migrate polarized gaussian PG basis sets to start using cache_4 abstraction for caching radial integrals and any look up tables.
- This is mostly about handling 3 center (DFT) and 4 center (HF) integrals.
 
-| Aspect | Atom | Molecule | Solid |
-|--------|------|----------|-------|
-| Grouper: sharing primatives between irreps | Yes | No | ? |
-| Ak: Angular integrals | Yes | No | No |
-| Contractions | No | Yes | ? |
-
-- Currently the PG code uses 4 way virtual dispatch to handle combinations of contracteds and primatives in integrals.  Unlike julia, c++ has no native support for multiple dispatch so the code is complex and possibly slow.
-- A better approach might be to make outer product matricies of contraction coefficients Cab_a'b' (a' labels primative) for the pairs ab, and cd in <ab|cd>
-- Following McMurchie & Davidson (M&D) the code uses the concept of a charge distribution Ω_ab for storing any data associated the ab pair.  matricies of contraction coefficients Cab can also be stored in Ω_ab
-
-### Stage 2: PG Use Evaluator and concepts
-- Move Concepts.C and abstract Evaluator interface out from BasisSet1/Atom up to the general structure neutral BasisSet level.
-- This is the existing M&D code.
-### Stage 3: More evalautors.
-- libcint for PG (this lib has different conventions normalizing)
-- libcint version for Spherical Gaussian
-- Our own Spherical Gaussian using McMurchie & Davidson code.
-### Stage 4: Generalized ERI loops
-- Can atoms and Molecules use the same four index loop for Direct and exchange integrals?
-- We want that code to migrate from from BasisSet/Atom up to the general structure neutral BasisSet level
-### Stage 5:
+### Docs:
 - If we get all this working there is going to a lot abstract stuff at the general BasisSet level, which is fantastic.
 - But people (and Claude!) need to understand that stuff.
 - So we need to make some in code documentation.  Is DOxygen suitable?  Or is there a modern replacement that you recommend?

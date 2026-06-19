@@ -104,7 +104,7 @@ template <class E> concept isDFT_Evaluator = std::derived_from<E, Evaluator> && 
 };
 // Support 4 center Hartree-Fock (HF) *or* Dirac-Hartree-Fock (DHF) Direct and Exchange integrals and a four index caching mechanism. 
 // This is NR/RKB agnostic 
-template <class E> concept isHF_Evaluator = std::derived_from<E, HF_Evaluator> && requires (E a,size_t l,const Cacheable* c, Grouper* g ,rvec11_t Ak)
+template <class E> concept isHF_Evaluator = std::derived_from<E, HF_Evaluator> && requires (E a,size_t l,const Cacheable4* c, Grouper* g ,rvec11_t Ak)
 {
     {a.direct    (c,l,l,Ak)} -> std::same_as<double>;
     {a.exchange  (c,l,l,Ak)} -> std::same_as<double>;

@@ -7,6 +7,12 @@ Notes:
         4) Z=1-56 phi(r)=1/r option gives slighty better results for K=6.
         5) Z=92: 
 
+| Aspect | Atom | Molecule | Solid |
+|--------|------|----------|-------|
+| Grouper: sharing primatives between irreps | Yes | No | ? |
+| Ak: Angular integrals | Yes | No | No |
+| Contractions | No | Yes | ? |
+
       
     -Relativistic:
         https://github.com/drjuls/AMBiT/tree/master/src

@@ -106,7 +106,7 @@ template <size_t K> void Cache4<K>::Register(Cache4_Client * eval)
     geval->Register(&grouper);
     if (geval->Getl()>itsMaxl) itsMaxl=geval->Getl();
     //
-    //  At this point we need sweep through all Cacheable* (Rks) in Cache4::cache_t
+    //  At this point we need sweep through all Cacheable4* (Rks) in Cache4::cache_t
     //  and check if geval is supported (geval.l <= Rk.LMax).
     //  All unsupport Rks will be removed.  These will then automatically be recreated next time
     //  loop_4 is called.

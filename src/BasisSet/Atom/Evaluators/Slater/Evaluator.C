@@ -93,12 +93,12 @@ public:
     virtual std::string RadialType() const;
     virtual Cache4*    MakeCache4() const;
     using rvec11_t=rvec11_t;
-    static double direct(const Cacheable* c, size_t la, size_t lc,const rvec11_t& Ak)
+    static double direct(const Cacheable4* c, size_t la, size_t lc,const rvec11_t& Ak)
     {
         const ::Slater::RkEngine* cd = dynamic_cast<const ::Slater::RkEngine*>(c);
         return cd->DirectRk  (la,lc,Ak); // contract over k Rk*Ak
     }
-    static double exchange(const Cacheable* c, size_t la, size_t lc,const rvec11_t& Ak)
+    static double exchange(const Cacheable4* c, size_t la, size_t lc,const rvec11_t& Ak)
     {
         const ::Slater::RkEngine* cd = dynamic_cast<const ::Slater::RkEngine*>(c);
         return cd->ExchangeRk(la,lc,Ak); // contract over k Rk*Ak, exchange version is more complicated
@@ -216,7 +216,7 @@ public:
         assert(hfeval);
         hfeval->Register(&grouper);
         //
-        //  At this point we need sweep through all Cacheable* (Rks) in Cache4::cache_t
+        //  At this point we need sweep through all Cacheable4* (Rks) in Cache4::cache_t
         //  and check if geval is supported (geval.l <= Rk.LMax).
         //  All unsupport Rks will be removed.  These will then automatically be recreated next time
         //  loop_4 is called.

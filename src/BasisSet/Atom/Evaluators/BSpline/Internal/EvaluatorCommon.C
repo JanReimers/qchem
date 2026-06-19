@@ -40,12 +40,12 @@ public:
     virtual size_t size    () const override { return ns.size(); }
     virtual size_t es_index(size_t i     ) const {return es_indices[i];}
     virtual rvec_t Norm    () const override { return ns; }
-    static double direct(const Cacheable* c, size_t la, size_t lc,const rvec11_t& Ak)
+    static double direct(const Cacheable4* c, size_t la, size_t lc,const rvec11_t& Ak)
     {
         const ::BSpline::RkEngine<K>* cd = dynamic_cast<const ::BSpline::RkEngine<K>*>(c);
         return cd->DirectRk  (la,lc,Ak); // contract over k Rk*Ak
     }
-    static double exchange(const Cacheable* c, size_t la, size_t lc,const rvec11_t& Ak)
+    static double exchange(const Cacheable4* c, size_t la, size_t lc,const rvec11_t& Ak)
     {
         const ::BSpline::RkEngine<K>* cd = dynamic_cast<const ::BSpline::RkEngine<K>*>(c);
         return cd->ExchangeRk(la,lc,Ak); // contract over k Rk*Ak, exchange version is more complicated
