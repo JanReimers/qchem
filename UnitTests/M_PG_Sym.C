@@ -29,38 +29,41 @@ static Molecule* MakeWater()
     return w;
 }
 
-static double RunHF(const BasisSet::BasisSet<double>* bs, const ElectronConfiguration* ec, const cl_t& cl)
+static double RunHF(const BasisSet::BasisSet<double>* bs, const ElectronConfiguration* ec,
+                    const cl_t& cl, Pol pol)
 {
-    Hamiltonian* ham = Factory(Model::HF, Pol::UnPolarized, cl);
+    Hamiltonian* ham = Factory(Model::HF, pol, cl);
     nlohmann::json jsacc = {{"NProj",4},{"EMax",0.1},{"EMin",1e-7},{"SVTol",5e-9}};
     auto* acc = qchem::SCFAccelerators::Factory(qchem::SCFAccelerators::Type::DIIS, jsacc);
     qchem::SCFIterator::SCFIterator scf(bs, ec, ham, acc);
     //          NMaxIter MinDro  MinDFD  MinVirial MinFD  relax MergeTol verbose
-    scf.Iterate({60,     1e-6,   1e-8,   1e2,      1e-6,  0.5,  1e-4,    false});
+    scf.Iterate({60,     1e-6,   1e-8,   1e2,      1e-6,  0.5,  1e-4,    true});
     return scf.GetEnergy().GetTotalEnergy();
 }
 
-TEST(M_PG_Sym, water_HF_matches_nonsymmetric)
+// Symmetry-adapted water HF must equal the non-symmetric run, both for the closed-shell
+// unpolarized and (since water is closed shell) the polarized Hamiltonian.
+static void CheckWaterHF(Pol pol)
 {
     auto mol = std::shared_ptr<Molecule>(MakeWater());
     cl_t cl  = mol;
     rvec_t exps{1.0, 0.25};
 
-    // --- non-symmetric reference: one Orbital_IBS, all 10 electrons ---
+    // non-symmetric reference: one Orbital_IBS, aufbau over the single block
     auto* bsRef = new PG::BasisSet();
     bsRef->Insert(new PG::Orbital_IBS(exps, 1, mol.get()));
     Molecule_EC ecRef(mol->GetNumElectrons());
-    double Eref = RunHF(bsRef, &ecRef, cl);
+    double Eref = RunHF(bsRef, &ecRef, cl, pol);
 
-    // --- symmetry-adapted: per-irrep blocks, occupation by GLOBAL AUFBAU across irreps ---
-    auto* raw  = new PG::Orbital_IBS(exps, 1, mol.get());     // referenced by the SAB
-    auto  shells = PG::ExtractAoShells(*raw);
-    auto  pts    = PG::ClusterToSymPoints(*mol);
-    auto  grp    = Symmetry::BuildAbelianGroup(pts, 1e-4);
-    auto  salc   = Symmetry::BuildSALCs(shells, grp, Symmetry::Centroid(pts), 1e-4);
-    auto* sab  = new BasisSet::Molecule::SymmetryAdaptedBasisSet(raw, salc);
-    Molecule_EC ecSym(mol->GetNumElectrons());               // same EC as the reference -> aufbau
-    double Esym = RunHF(sab, &ecSym, cl);
+    // symmetry-adapted via the factory hook: per-irrep blocks, global aufbau
+    auto rawBasis = std::shared_ptr<PG::BasisSet>(new PG::BasisSet());
+    rawBasis->Insert(new PG::Orbital_IBS(exps, 1, mol.get()));
+    auto* sab = BasisSet::Molecule::SymmetryAdapt(rawBasis, *mol, 1e-4);
+    Molecule_EC ecSym(mol->GetNumElectrons());
+    double Esym = RunHF(sab, &ecSym, cl, pol);
 
-    EXPECT_NEAR(Esym, Eref, 1e-5) << "symmetric HF (aufbau) energy must match the non-symmetric run";
+    EXPECT_NEAR(Esym, Eref, 1e-5) << "symmetric HF (aufbau) must match the non-symmetric run";
 }
+
+TEST(M_PG_Sym, water_HF_unpolarized) { CheckWaterHF(Pol::UnPolarized); }
+TEST(M_PG_Sym, water_HF_polarized)   { CheckWaterHF(Pol::Polarized); }
