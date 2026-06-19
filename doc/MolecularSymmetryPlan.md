@@ -75,9 +75,11 @@ access mid-Set.  So raw 1-e is recomputed per irrep (cheap); the 2-e AO ERIs sta
    shell water symmetric-vs-non-symmetric for both Pol::UnPolarized and Pol::Polarized.
 3. Optimisation: the 2-e decorator rebuilds the AO Coulomb/exchange once per (irrep,cd-irrep)
    pair (N^2 per iteration); sum the back-transformed densities first, build once, slice all.
-4. Use a REAL basis set in `UnitTests/M_PG_Sym.C` (a contracted .bsd file), as `M_PG_U.C` does
-   (`{"filepath","../../../BasisSetData/dzvp.bsd"}`), instead of the crude programmatic 2-exponent
-   s+p basis -- a stronger end-to-end check.
+4. **[DONE]** Real DZVP basis in `M_PG_Sym.C` (via `Molecule::Factory` + `BASISSET_DATA_PATH`),
+   replacing the crude 2-exponent programmatic basis.  Also fixed the test geometry to BOHR (it
+   was Angstrom -- the code uses atomic units, cf. M_PG_U.C's N2 at +/-1.03 a0).  Water HF/DZVP
+   now = -76.0229 Ha, virial 2+V/K ~ 0, O 1s at -20.54 -- all physical; the test asserts sym ==
+   non-sym AND the absolute energy/virial are sane, for both polarizations.
 5. Add an `M_PG_Sym` test with the water coordinates NOT centred and randomly rotated.  Expected
    to work as-is (the machinery is centroid-relative and detects axes in any orientation; the
    `{A1:6,B1:2,B2:2}` occupation is rotation-robust).  Watch the detection/SALC `tol`: a random
