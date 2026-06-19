@@ -18,7 +18,7 @@ import qchem.Blaze;
 
 using std::cout;
 using std::endl;
-using enum BasisSetAccuracy;
+using enum BasisSet::Atom::BasisSetAccuracy;
 
 
 // Dirac energy for a single electron in a hydrogenic atom.

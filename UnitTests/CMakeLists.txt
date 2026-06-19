@@ -4,14 +4,14 @@ link_directories(
     $<$<CONFIG:Release>:  submodules/wignerSymbols/build submodules/libxc/build>
 )
 
-add_executable(UTMain gtestmain.C QchemTesterImp.C BasisSetPoolImp.C A_Pool.C
+add_executable(UTMain gtestmain.C QchemTesterImp.C 
     json.C EigenSolverUT.C MeshIntegrals.C
-    UTBasisSet.C BasisSet_Atom.C BasisSet_Atom.C 
+    UTBasisSet.C 
     A_HF_U.C A_HF_P.C A_DHF.C A_HF_U.C A_DFT.C A_DFT_U.C M_PG_U.C
         Libxc.C
       M_PGSymmetry.C
     )
-target_sources(UTMain PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES QchemTester.C BasisSetPool.C)
+target_sources(UTMain PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES QchemTester.C)
 
 #-Wno-unknown-pragmas
 # -Wno-cpp  Suppress warning messages emitted by #warning directives.
@@ -32,8 +32,8 @@ target_include_directories(UTMain PRIVATE
 target_link_libraries(UTMain PUBLIC qchem qcCommon xc)
 
 # scfrun: command-line SCF driver for accelerator tuning (no recompile).
-add_executable(scfrun scfrun.C QchemTesterImp.C BasisSetPoolImp.C)
-target_sources(scfrun PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES QchemTester.C BasisSetPool.C)
+add_executable(scfrun scfrun.C QchemTesterImp.C)
+target_sources(scfrun PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES QchemTester.C )
 target_compile_options(scfrun PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(scfrun PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
 set_property(TARGET scfrun PROPERTY CXX_STANDARD 20)

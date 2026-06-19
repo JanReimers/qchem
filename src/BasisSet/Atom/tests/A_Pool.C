@@ -2,13 +2,15 @@
 #include <iomanip>
 #include "gtest/gtest.h"
 
-import qchem.Unittests.QchemTester;
+import qchem.BasisSet.Atom.Factory;
 import qchem.LASolver;
 import qchem.Blaze;
 import qchem.BasisSet.Internal.DB_Cache_RAM;
 
 using std::cout;
 using std::endl;
+
+using namespace BasisSet::Atom;
 using enum BasisSetAccuracy;
 using BasisSet::Real_BS;
 using BasisSet::Real_OIBS;
@@ -30,7 +32,7 @@ public:
             for (auto acc:{Low,Medium,High})
             {
                 
-                BasisSet::Real_BS* bs=PoolFactory(acc,type,Z);
+                BasisSet::Real_BS* bs=Factory(acc,type,Z);
                 for (auto ibs:bs->Iterate<Real_OIBS>())
                 {
                     // cout << BasisSetAccuracyStrs[static_cast<size_t>(acc)] << " " << *ibs;

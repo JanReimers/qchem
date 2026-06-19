@@ -4,7 +4,7 @@
 #include <iostream>
 #include <chrono>
 #include <ctime>
-#include <blaze/math/expressions/DMatDMatEqualExpr.h>
+#include <blaze/math/expressions/DMatDMatEqualExpr.h> //op== inside gtest header.
 using std::cout;
 using std::endl;
 import qchem.BasisSet.Internal.ERI4;

@@ -2,15 +2,20 @@
 #include "gtest/gtest.h"
 #include <iostream>
 #include <nlohmann/json.hpp>
+#include <blaze/math/expressions/DMatDMatEqualExpr.h> //op== inside gtest header.
+
 using std::cout;
 using std::endl;
 
-import qchem.Unittests.BasisSetPool;
+import qchem.BasisSet.Atom.Factory;
 import qchem.BasisSet.Orbital_HF_IBS;
 import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.Blaze;
 
-using enum BasisSet::Atom::Type;
+using namespace BasisSet::Atom;
+using enum Type;
+using enum BasisSetAccuracy;
+
 class DBCach1Tests : public ::testing::Test
 {
 public:
@@ -31,8 +36,8 @@ public:
     }
     void Init(BasisSet::Atom::Type type)
     {
-        bs1=PoolFactory(BasisSetAccuracy::Low,type,Z);
-        bs2=PoolFactory(BasisSetAccuracy::Low,type,Z);
+        bs1=Factory(Low,type,Z);
+        bs2=Factory(Low,type,Z);
     }
   
     void TestOverlap() const

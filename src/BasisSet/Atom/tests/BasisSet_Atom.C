@@ -5,23 +5,27 @@
 using std::cout;
 using std::endl;
 
-import qchem.Unittests.BasisSetPool;
+import qchem.BasisSet.Atom.Factory;
 import qchem.BasisSet.Atom.Evaluators.Slater.IBS;
 import qchem.BasisSet.Atom.Evaluators.Gaussian.IBS; 
 import qchem.BasisSet.Atom.Evaluators.BSpline.IBS;
 import qchem.BasisSet.Atom.Evaluators;
+import qchem.BasisSet.Orbital_HF_IBS;
+import qchem.BasisSet;
 
 import qchem.Mesh.Integrator;
-import qchem.Hamiltonian.Types;
 import qchem.Symmetry.Factory;
 import qchem.ElectronConfiguration.AtomNR;
 import qchem.Blaze;
 
-using qchem::Hamiltonian::ohfbs_t;
-using qchem::Hamiltonian::obs_t;
-using namespace BasisSet::Atom::Evaluators;
+using obs_t   =BasisSet::Orbital_1E_IBS<double>;
+using ohfbs_t =BasisSet::Orbital_HF_IBS<double>;
 using BasisSet::Real_BS;
 using BasisSet::Real_OIBS;
+using namespace BasisSet::Atom;
+using namespace Evaluators;
+using enum BasisSetAccuracy;
+
 //----------------------------------------------------------------------------------------
 //
 //  Testing common to all atom basis set evaluators
@@ -145,7 +149,6 @@ template <is1E_HF_Evaluator E> void BasisSet_Common<E>::TestInv_r2 (double eps) 
 //
 //  Testing atom Slater basis set evaluators
 //
-
 class BasisSet_SL: public BasisSet_Common<Slater::NR_Evaluator>
 {
 public:
@@ -155,7 +158,7 @@ public:
         Atom_EC ec(86); //Radon has f orbtials with no magnetic splitting.
         for (auto ir:ec.GetIrreps())
             Insert(new Slater::NR_Evaluator(es,ir)); 
-        bs=PoolFactory(BasisSetAccuracy::N3,BasisSet::Atom::Type::Slater,86);
+        bs=Factory(N3,Type::Slater,86);
         cout << es << endl << *bs << endl;
     }
     
@@ -287,14 +290,10 @@ public:
 
     BasisSet_SG() : BasisSet_Common()
     {
-        // for (size_t l=0;l<=LMax;l++)
-        //     Insert(new Evaluator(es,l));    
-        // bs=new AtomBS::Gaussian::BasisSet(es,LMax);
-
         Atom_EC ec(86); //Radon has f orbtials with no magnetic splitting.
         for (auto ir:ec.GetIrreps())
             Insert(new Gaussian::NR_Evaluator(es,ir)); 
-        bs=PoolFactory(BasisSetAccuracy::N3,BasisSet::Atom::Type::Gaussian,86);
+        bs=Factory(N3,Type::Gaussian,86);
     }
     static double R0(double a, double b, int la, int lb);
 };
@@ -408,7 +407,7 @@ public:
         for (size_t l=0;l<=3;l++)
             Insert(new BSpline::Evaluator<6>(5,0.01,20.0,Symmetry::YFactory(l)));
 
-        bs=PoolFactory(BasisSetAccuracy::N5,BasisSet::Atom::Type::BSpline6,86);
+        bs=Factory(N5,Type::BSpline6,86);
     }
    
 };

@@ -39,7 +39,7 @@ void QchemTester::Init(const nlohmann::json& js, bool verbose,LAParams lap)
 
 void QchemTester::Init(BasisSetAccuracy acc, BasisSet::Atom::Type type,bool verbose,LAParams lap)
 {
-    Init(PoolFactory(acc,type,GetZ()),verbose,lap); 
+    Init(Factory(acc,type,GetZ()),verbose,lap); 
 }
     
 

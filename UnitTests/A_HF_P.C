@@ -7,7 +7,7 @@ const bool verbose=true;
 
 using std::cout;
 using std::endl;
-using enum BasisSetAccuracy;
+using enum BasisSet::Atom::BasisSetAccuracy;
 using namespace qchem::Hamiltonian;
 class A_HF_P : public ::testing::TestWithParam<size_t>, public TestAtom
 {

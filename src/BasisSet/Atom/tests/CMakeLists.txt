@@ -1,12 +1,15 @@
 # Tests for qcAtom_BS
 
 add_executable(UTAtom_BS gtestmain.C
+   A_Pool.C
    Angular.C 
+   BasisSet_Atom.C
    BasisSet_DHF.C 
    BSplines.C 
-   ERI4.C 
+   DBCache.C
 #    DiracHydrogen.C
    DiracIntegral.C 
+   ERI4.C 
    GaussianIntegral.C 
 #    GaussianERIIntegral.C
    RelAngular.C 
@@ -26,6 +29,6 @@ target_include_directories(UTAtom_BS PRIVATE
     # ${PROJECT_SOURCE_DIR}/submodules/tabulate/include
 )
 
-target_link_libraries(UTAtom_BS PRIVATE qcAtom_BS gtest)
+target_link_libraries(UTAtom_BS PRIVATE qcAtom_BS qcLASolver gtest)
 
 gtest_discover_tests(UTAtom_BS)

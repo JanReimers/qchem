@@ -5,9 +5,9 @@ module;
 #include <nlohmann/json.hpp>
 
 export module qchem.Unittests.QchemTester;
-export import qchem.Unittests.BasisSetPool;
-export import qchem.Hamiltonian;
+export import qchem.BasisSet.Atom.Factory;
 export import qchem.Hamiltonian.Factory;
+export import qchem.Hamiltonian;
 export import qchem.SCFParams;
 import qchem.SCFIterator;
 import qchem.LAParams;
@@ -24,6 +24,7 @@ export using qchem::Orbitals::Orbital;
 export using qchem::Orbitals::Orbitals;
 using qchem::Hamiltonian::Hamiltonian;
 using qchem::SCFIterator::SCFIterator;
+using namespace BasisSet::Atom;
 
 export class QchemTester
 {
