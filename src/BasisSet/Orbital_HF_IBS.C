@@ -17,8 +17,9 @@ public:
     const   ERI4&          Exchange(const Orbital_HF_IBS<T>& c) const;
     // Client code rarely need ERIs directly, they only need the contraction over a density matrix.
     // In addition they only need the accumulation of these contractions over many Irreps.
-    void AccumulateDirect  (rsmat_t& Sab, const smat_t<T>& Dcd, const Orbital_HF_IBS<T>* bs_cd) const;
-    void AccumulateExchange(rsmat_t& Sab, const smat_t<T>& Dcd, const Orbital_HF_IBS<T>* bs_cd) const;
+    // Virtual so a SALC decorator can build these in the AO basis and slice to its irrep block.
+    virtual void AccumulateDirect  (rsmat_t& Sab, const smat_t<T>& Dcd, const Orbital_HF_IBS<T>* bs_cd) const;
+    virtual void AccumulateExchange(rsmat_t& Sab, const smat_t<T>& Dcd, const Orbital_HF_IBS<T>* bs_cd) const;
 };
 
 typedef Orbital_HF_IBS<double>    Real_HF_OIBS;

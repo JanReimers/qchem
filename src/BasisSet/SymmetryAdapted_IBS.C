@@ -13,6 +13,7 @@ module;
 #include <iosfwd>
 export module qchem.BasisSet.SymmetryAdapted_IBS;
 export import qchem.BasisSet.Orbital_1E_IBS;
+export import qchem.BasisSet.Orbital_HF_IBS;         // HF 2-electron mixin + ERI4
 import qchem.BasisSet.Internal.IrrepBasisSetImp;
 import qchem.Cluster;
 import qchem.Types;
@@ -22,6 +23,7 @@ export namespace BasisSet
 
 class SymmetryAdapted_IBS
     : public virtual Orbital_1E_IBS<double>
+    , public virtual Orbital_HF_IBS<double>  // HF Coulomb/exchange (the 2-electron path)
     , public IrrepBasisSetImp<double>        // provides GetSymmetry / GetSymt / GetIrrep
 {
 public:
@@ -31,11 +33,21 @@ public:
                         const std::string& label, const sym_t& sym);
 
     virtual size_t GetNumFunctions() const {return itsO.columns();}
+    const rmat_t&  GetO() const {return itsO;}        // this irrep's SALC columns
 
     // 1-electron integrals in the irrep basis (O^T M_raw O).
     virtual rsmat_t MakeOverlap()                 const;
     virtual rsmat_t MakeKinetic()                 const;
     virtual rsmat_t MakeNuclear(const Cluster* cl) const;
+
+    // 2-electron (HF): build the AO Coulomb/exchange from the cd-irrep's density block (linear
+    // in D, so no 4-index ERI transform) and slice to this irrep.  Summed over the cd irreps by
+    // the charge density, this yields O^T J_AO(D_total) O.
+    virtual void AccumulateDirect  (rsmat_t& Jab, const rsmat_t& Dcd, const Orbital_HF_IBS<double>* bs_cd) const;
+    virtual void AccumulateExchange(rsmat_t& Kab, const rsmat_t& Dcd, const Orbital_HF_IBS<double>* bs_cd) const;
+    // Pure-virtual ERI accessors -- unused here (Accumulate* are overridden); never called.
+    virtual ERI4 MakeDirect  (const Orbital_HF_IBS<double>&) const {return ERI4();}
+    virtual ERI4 MakeExchange(const Orbital_HF_IBS<double>&) const {return ERI4();}
 
     // Distinct IDs so the global cache keys the transformed blocks per irrep.
     virtual std::string RadialID()  const;
@@ -52,6 +64,7 @@ private:
     rsmat_t Transform(const rsmat_t& Mraw) const;     // O^T Mraw O, symmetrized
 
     const Orbital_1E_IBS<double>* itsRaw;             // raw whole-molecule AO basis (not owned)
+    const Orbital_HF_IBS<double>* itsRawHF;           // same object, HF interface (for the AO J/K build)
     rmat_t                        itsO;               // this irrep's SALC columns (nAO x dGamma)
     std::string                   itsLabel;           // Mulliken irrep label
 };

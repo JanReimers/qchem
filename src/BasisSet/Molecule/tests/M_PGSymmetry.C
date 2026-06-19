@@ -139,3 +139,60 @@ TEST(PGSymmetry, symmetry_adapted_basis_set)
     EXPECT_EQ(sab.GetNumFunctions(), ibs.GetNumFunctions());
     EXPECT_GE(nIBS, 2u);                            // water (s+p) populates A1, B1, B2
 }
+
+// The 2-electron (HF Coulomb) path: the decorator builds J per irrep from the per-irrep
+// density blocks (linear in D, no 4-index ERI transform), and summed over the cd irreps must
+// equal the AO Coulomb built from the total density and sliced -- O_Gamma^T J_AO O_Gamma.
+TEST(PGSymmetry, decorator_coulomb_matches_AO_slice)
+{
+    Molecule h2o;
+    h2o.Insert(new Atom(8, 0, rvec3_t(0, 0,      0.117)));
+    h2o.Insert(new Atom(1, 0, rvec3_t(0, 0.757, -0.467)));
+    h2o.Insert(new Atom(1, 0, rvec3_t(0,-0.757, -0.467)));
+    rvec_t exps{1.0, 0.25};
+    Orbital_IBS ibs(exps, 1, &h2o);
+
+    auto shells = ExtractAoShells(ibs);
+    auto pts    = ClusterToSymPoints(h2o);
+    auto g      = BuildAbelianGroup(pts, 1e-4);
+    auto salc   = BuildSALCs(shells, g, Centroid(pts), 1e-4);
+    size_t nAO  = salc.O.columns();
+
+    // Per-irrep decorators, SALC blocks, and a symmetric non-zero density block per irrep.
+    std::vector<SymmetryAdapted_IBS*> sad;
+    std::vector<rmat_t>  Ob;
+    std::vector<rsmat_t> Db;
+    for (size_t r=0; r+1<salc.blockStart.size(); ++r)
+    {
+        size_t start=salc.blockStart[r], dG=salc.blockStart[r+1]-start;
+        if (dG==0) continue;
+        rmat_t Or = blazem::submatrix(salc.O, 0, start, nAO, dG);
+        Ob.push_back(Or);
+        sad.push_back(new SymmetryAdapted_IBS(&ibs, Or, salc.irrep[start], ibs.GetSymt()));
+        rsmat_t D = blazem::zero<double>(dG);
+        for (size_t a=0;a<dG;a++) D(a,a)=0.5;        // 0.5 * I  (symmetric, non-zero)
+        Db.push_back(D);
+    }
+    size_t nIrr = sad.size();
+
+    // Total AO density and its AO Coulomb (the reference).
+    rsmat_t Dtot = blazem::zero<double>(nAO);
+    for (size_t r=0;r<nIrr;r++)
+    {
+        rmat_t t = Ob[r]*Db[r]*blazem::trans(Ob[r]);
+        for (size_t i=0;i<nAO;i++) for (size_t j=0;j<=i;j++) Dtot(i,j) += 0.5*(t(i,j)+t(j,i));
+    }
+    rsmat_t Jao = blazem::zero<double>(nAO);
+    ibs.AccumulateDirect(Jao, Dtot, &ibs);
+
+    // Each irrep's decorator J, summed over cd irreps, equals O_Gamma^T J_AO O_Gamma.
+    for (size_t G=0; G<nIrr; ++G)
+    {
+        rsmat_t Jg = blazem::zero<double>(sad[G]->GetNumFunctions());
+        for (size_t C=0; C<nIrr; ++C) sad[G]->AccumulateDirect(Jg, Db[C], sad[C]);
+        rmat_t Jref = blazem::trans(Ob[G]) * Jao * Ob[G];
+        for (size_t a=0;a<Jg.rows();a++) for (size_t b=0;b<Jg.rows();b++)
+            EXPECT_LT(fabs(Jg(a,b) - Jref(a,b)), 1e-8) << "irrep " << G << " (" << a << "," << b << ")";
+    }
+    for (auto p:sad) delete p;
+}
