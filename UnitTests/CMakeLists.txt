@@ -5,11 +5,8 @@ link_directories(
 )
 
 add_executable(UTMain gtestmain.C QchemTesterImp.C 
-    json.C EigenSolverUT.C 
-    UTBasisSet.C 
+    EigenSolverUT.C 
     A_HF_U.C A_HF_P.C A_DHF.C A_HF_U.C A_DFT.C A_DFT_U.C M_PG_U.C
-        Libxc.C
-      
     )
 target_sources(UTMain PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES QchemTester.C)
 

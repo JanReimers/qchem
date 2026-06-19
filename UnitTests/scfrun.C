@@ -10,6 +10,7 @@
 #include <map>
 #include <nlohmann/json.hpp>
 
+import qchem.BasisSet.Atom.Factory;
 import qchem.Unittests.QchemTester;       // QchemTester, TestAtom, TestDiracAtom, BasisSetAccuracy
 import qchem.Hamiltonian.Factory;         // Model, Pol, Factory
 import qchem.BasisSet.Internal.DB_Cache_RAM; // theGlobalCache (the integrals cache)
@@ -18,6 +19,7 @@ using std::cout;
 using std::endl;
 using std::string;
 using namespace qchem::Hamiltonian;       // Model, Pol, Factory
+using namespace BasisSet::Atom;
 
 // Config-driven concrete fixtures: the Hamiltonian model/polarization come from the CLI.
 class CliAtom : public TestAtom
