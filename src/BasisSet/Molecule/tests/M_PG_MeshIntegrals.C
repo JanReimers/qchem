@@ -2,13 +2,13 @@
 
 #include "gtest/gtest.h"
 #include <iomanip>
-import qchem.LAParams;
-import qchem.BasisSet;
+#include <filesystem>
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Readers.Gaussian94;
 import qchem.BasisSet.Molecule.PolarizedGaussian;
+import qchem.BasisSet;
 import qchem.Mesh.Integrator;
 import qchem.Cluster;
 import qchem.Symmetry;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Readers.Gaussian94;
 import qchem.Blaze;
 
 using namespace BasisSet::Molecule;
@@ -17,6 +17,10 @@ using BasisSet::Real_OIBS;
 using std::cout;
 using std::endl;
 using std::setw;
+#ifndef BASISSET_DATA_PATH
+#error "BASISSET_DATA_PATH must be defined by CMake"
+#endif
+static const std::filesystem::path basisset_data_dir = BASISSET_DATA_PATH;
 
 // double norm1(const SMatrix<double>& m)
 // {
@@ -31,7 +35,7 @@ class MeshIntegralsTests : public ::testing::Test
 public:
     MeshIntegralsTests()
     : Z(5)
-    , reader("../../../BasisSetData/dzvp.bsd")
+    , reader(basisset_data_dir / "dzvp.bsd")
     , bs(0)
     , cl(new Atom(Z,0.0,Vector3D(0,0,0)))
     {
