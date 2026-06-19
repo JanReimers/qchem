@@ -68,7 +68,11 @@ access mid-Set.  So raw 1-e is recomputed per irrep (cheap); the 2-e AO ERIs sta
    leaves would duplicate it; `MolecularSym_EC` remains for forcing a specific occupation.)
    Caveat: GDM needs per-irrep `nocc` at accelerator creation, which the aufbau doesn't know
    up front (DIIS only checks occ>0, so it's fine); GDM+aufbau is a TODO.
-2. Molecular Factory hook (bridge -> detect -> BuildSALCs -> wrap in SAB) + a polarized path.
+2. **[DONE]** Molecular Factory hook + polarized.  `BasisSet::Molecule::SymmetryAdapt(rawBasis,
+   cluster, tol)` runs the whole pipeline (find PG IBS -> extract -> detect -> BuildSALCs ->
+   wrap) and the returned SAB holds the raw basis alive (`KeepAlive`), so it is self-contained.
+   Polarized works unchanged (the aufbau loops per spin channel); `M_PG_Sym.C` checks closed-
+   shell water symmetric-vs-non-symmetric for both Pol::UnPolarized and Pol::Polarized.
 3. Optimisation: the 2-e decorator rebuilds the AO Coulomb/exchange once per (irrep,cd-irrep)
    pair (N^2 per iteration); sum the back-transformed densities first, build once, slice all.
 4. Use a REAL basis set in `UnitTests/M_PG_Sym.C` (a contracted .bsd file), as `M_PG_U.C` does
