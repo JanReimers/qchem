@@ -6,13 +6,16 @@
 #include <algorithm>
 import qchem.BasisSet.Molecule.PolarizedGaussian.Symmetry;  // ExtractAoShells, ClusterToSymPoints
 import qchem.BasisSet.Molecule.PolarizedGaussian;            // Orbital_IBS
+import qchem.BasisSet.SymmetryAdapted_IBS;                    // SymmetryAdapted_IBS (1-e decorator)
 import qchem.Symmetry.SALC;                                   // BuildAbelianGroup, BuildSALCs, BuildOperationRep
 import qchem.Cluster;                                         // Molecule, Atom
 import qchem.Types;
 import qchem.Blaze;
+import qchem.Math;                                            // fabs
 
 using namespace BasisSet::Molecule::PolarizedGaussian;
 using namespace Symmetry;
+using SymmetryAdapted_IBS = ::BasisSet::SymmetryAdapted_IBS;   // ::BasisSet (the class clashes)
 
 // Build a real Cartesian-Gaussian basis on H2O, extract its shells, and run the full
 // symmetry pipeline (detect -> abelian group -> SALCs).  Validates the bridge end to end.
@@ -58,5 +61,47 @@ TEST(PGSymmetry, water_extract_and_SALCs)
             rvec_t chv = double(g.table.chi[r][k]) * v;
             EXPECT_LT(blazem::norm(Mv - chv), 1e-8) << "irrep " << salc.irrep[c] << " op " << g.table.opTags[k];
         }
+    }
+}
+
+// The 1-electron decorator: each irrep's SymmetryAdapted_IBS must return the matching block
+// of O^T S_raw O, computed from the REAL overlap integrals -- and O must block-diagonalize
+// that real overlap (cross-irrep elements vanish).
+TEST(PGSymmetry, decorator_blocks_real_overlap)
+{
+    Molecule h2o;
+    h2o.Insert(new Atom(8, 0, rvec3_t(0, 0,      0.117)));
+    h2o.Insert(new Atom(1, 0, rvec3_t(0, 0.757, -0.467)));
+    h2o.Insert(new Atom(1, 0, rvec3_t(0,-0.757, -0.467)));
+    rvec_t exps{1.0, 0.25};
+    Orbital_IBS ibs(exps, 1, &h2o);
+
+    auto shells = ExtractAoShells(ibs);
+    auto pts    = ClusterToSymPoints(h2o);
+    auto g      = BuildAbelianGroup(pts, 1e-4);
+    rvec3_t o   = Centroid(pts);
+    auto salc   = BuildSALCs(shells, g, o, 1e-4);
+
+    const rsmat_t& Sraw = ibs.Overlap();        // REAL overlap integrals (normalized, 24x24)
+    size_t nAO = Sraw.rows();
+    ASSERT_EQ(nAO, salc.O.columns());
+
+    // O block-diagonalizes the real overlap: cross-irrep elements vanish.
+    rmat_t OtSO = blazem::trans(salc.O) * Sraw * salc.O;
+    for (size_t i=0;i<nAO;i++) for (size_t j=0;j<nAO;j++)
+        if (salc.irrep[i] != salc.irrep[j])
+            EXPECT_LT(fabs(OtSO(i,j)), 1e-8) << "cross-irrep " << salc.irrep[i] << "/" << salc.irrep[j];
+
+    // Each irrep's decorator returns its diagonal block of O^T S_raw O.
+    for (size_t r=0; r+1<salc.blockStart.size(); ++r)
+    {
+        size_t start = salc.blockStart[r], dG = salc.blockStart[r+1]-start;
+        if (dG==0) continue;
+        rmat_t Or = blazem::submatrix(salc.O, 0, start, nAO, dG);
+        SymmetryAdapted_IBS sa(&ibs, Or, salc.irrep[start], ibs.GetSymt());
+        EXPECT_EQ(sa.GetNumFunctions(), dG);
+        rsmat_t Sblk = sa.MakeOverlap();
+        for (size_t a=0;a<dG;a++) for (size_t b=0;b<dG;b++)
+            EXPECT_LT(fabs(Sblk(a,b) - OtSO(start+a,start+b)), 1e-9);
     }
 }
