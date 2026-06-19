@@ -4,6 +4,8 @@ module;
 #include <iomanip>
 #include <cassert>
 #include <vector>
+#include <string>
+#include <cctype>
 
 module qchem.SCFIterator;
 import qchem.SCFParams;
@@ -28,6 +30,32 @@ using std::ios;
 
 namespace qchem::SCFIterator
 {
+
+// Compact textbook electron configuration of the current orbitals, e.g. (1a₁)²(2a₁)²(1b₂)²...:
+// every occupied level (energy-ordered) as (n + Mulliken-label)^occupation, the label lowercased
+// with its digits subscripted and the occupation superscripted.  Lets the per-iteration trace
+// show which irreps the electrons sit in (and catch any occupation flips under acceleration).
+static std::string ConfigString(const qchem::WaveFunction::WaveFunction* wf)
+{
+    static const char* SUB[]={"₀","₁","₂","₃","₄","₅","₆","₇","₈","₉"};
+    static const char* SUP[]={"⁰","¹","²","³","⁴","⁵","⁶","⁷","⁸","⁹"};
+    auto script=[](int v,const char** t){ std::string d; if(v<=0) return std::string(t[0]);
+        while(v>0){ d=std::string(t[v%10])+d; v/=10; } return d; };
+    std::string cfg;
+    auto els = wf->GetEnergyLevels();
+    for (auto it=els.begin(); it!=els.end(); ++it)
+    {
+        const auto& lvl = it->second;
+        int occ=(int)(lvl.occ+0.5);
+        if (occ<=0) continue;
+        std::string lab;
+        for (char c : lvl.qns.sym->GetLabel())
+            if (std::isdigit((unsigned char)c)) lab += SUB[c-'0'];
+            else                                lab += (char)std::tolower((unsigned char)c);
+        cfg += "(" + std::to_string(lvl.qns.n) + lab + ")" + script(occ,SUP);
+    }
+    return cfg;
+}
 
 
 SCFIterator::SCFIterator(const bs_t* bs, const ElectronConfiguration* ec,class Hamiltonian* H,SCFAccelerator* acc,DM_CD* cd)
@@ -81,7 +109,7 @@ bool SCFIterator::Iterate(const SCFParams& ipar)
         cout << endl << endl;
         cout << " #           Etotal       " << idealVirial << "+V/K    Δ[F,D]    Δρ    ";
         itsAccelerator->ShowLabels(cout);
-        cout << "   relax" << endl;
+        cout << "   relax   Configuration" << endl;
         cout << "                         ";
         cout << "(" << setw(8) << std::scientific << setw(5) << setprecision(0) << ipar.MinVirial  << ")  ";
         cout << "(" << setw(8) << std::scientific << setw(5) << setprecision(0) << ipar.MinΔFD  << ")  ";
@@ -245,7 +273,8 @@ void SCFIterator::DisplayEnergies(int i, const EnergyBreakdown& eb, double relax
     cout << setw(8) << std::scientific << setw(8) << setprecision(1) << dE  << " ";
     cout << setw(8) << std::scientific << setw(7) << setprecision(1) << dCD << " ";
     itsAccelerator->ShowConvergence(cout);
-    cout << setw(4) << std::fixed << setw(4) << setprecision(2) << relax << " ";
+    cout << setw(4) << std::fixed << setw(4) << setprecision(2) << relax << "  ";
+    cout << ConfigString(itsWaveFunction);
     cout << endl;
 }
 

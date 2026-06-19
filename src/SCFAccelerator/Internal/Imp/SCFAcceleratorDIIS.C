@@ -168,14 +168,15 @@ bool SCFAcceleratorDIIS::CalculateProjections()
     blazem::clear(itsCs);
     itsEn=0.0;
     bailoutReason="            ";
-    for (auto k:itsIrreps) 
+    for (auto k:itsIrreps)
     {
+        // An unoccupied irrep (e.g. A2 for H2O's ground state) has D'=0, so [F',D']==0 forever.
+        // With the molecular aufbau the per-irrep occupation isn't known when the accelerators are
+        // created, so every irrep -- including empty ones -- gets a real DIIS accelerator instead
+        // of a Null.  An empty irrep contributes nothing to the error or the B matrix, so let it
+        // act as a Null here (skip it) rather than bailing the whole extrapolation.  (For atoms,
+        // empty channels ARE Null and never reach this loop.)
         double Enk=k->GetError();
-        if (Enk==0.0) 
-        {
-            bailoutReason="Enk==0.0    ";
-            return false;
-        }
         itsEn+=Enk*Enk;
     }
     itsEn=sqrt(itsEn);

@@ -44,11 +44,13 @@ private:
     const bs_t*                  itsBS;
     const ElectronConfiguration* itsEC;
     bool                         itsAufbau;   //molecular aufbau across irreps (vs fixed per-irrep EC)
+    bool                         itsOccFrozen=false; //freeze the per-irrep aufbau once the accelerator engages
     SCFAccelerator*              itsAccelerator;
     EnergyLevels                 itsELevels;
     LAParams                     itsLAParams; //Numerical control of general eigen solution.
 
     std::map<Spin,EnergyLevels>  itsSpin_ELevels;
+    std::map<Spin,std::map<IrrepWF*,double>> itsAufbauNe; //last per-irrep occupation (frozen when accelerating)
 
     std::vector<uiwf_t>                   itsIWFs;
     std::map<Irrep,IrrepWF*>         itsQNWFs; //sort by Irrep for easy lookup.

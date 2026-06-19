@@ -69,7 +69,10 @@ CompositeWF::~CompositeWF()
 void CompositeWF::DoSCFIteration(Hamiltonian& ham,const DM_CD* cd)
 {
     for (auto& w:itsIWFs) w->CalculateH(ham,cd); //Feed F,D' into all the irre eccelerators.
-    itsAccelerator->CalculateProjections();
+    // Once the accelerator extrapolates, freeze the per-irrep occupation: re-running the aufbau on
+    // the (non-physical) extrapolated Fock can flip the occupation (e.g. B2->A1 in H2O), wrecking
+    // convergence.  Sticky -- it stays frozen for the rest of the run.
+    if (itsAccelerator->CalculateProjections()) itsOccFrozen=true;
     for (auto& w:itsIWFs) w->DoSCFIteration();
 }
 
@@ -163,21 +166,24 @@ void CompositeWF::FillOrbitalsAufbau(double mergeTol)
         if (wfs.empty()) continue;
         double Nc = (double)itsEC->GetN(wfs.front()->GetQNs());   // total electrons in this spin channel
 
-        std::vector<Slot> slots;                                  // every orbital across the channel
-        for (auto w : wfs)
-            for (auto o : w->GetOrbitals()->Iterate<qchem::Orbitals::Orbital>())
-                slots.push_back({o->GetEigenEnergy(), w, (double)o->GetDegeneracy()});
-        std::sort(slots.begin(), slots.end(), [](const Slot& a, const Slot& b){return a.e<b.e;});
-
-        std::map<IrrepWF*,double> ne;                             // per-irrep electron count
-        for (auto w : wfs) ne[w]=0.0;
-        double rem = Nc;
-        for (const auto& sl : slots)                              // fill lowest-first
+        std::map<IrrepWF*,double>& ne = itsAufbauNe[s];           // per-irrep electron count (persisted)
+        if (!itsOccFrozen)                                        // recompute only while not frozen
         {
-            if (rem<=0.0) break;
-            double take = std::min(sl.cap, rem);
-            ne[sl.w] += take;
-            rem -= take;
+            std::vector<Slot> slots;                              // every orbital across the channel
+            for (auto w : wfs)
+                for (auto o : w->GetOrbitals()->Iterate<qchem::Orbitals::Orbital>())
+                    slots.push_back({o->GetEigenEnergy(), w, (double)o->GetDegeneracy()});
+            std::sort(slots.begin(), slots.end(), [](const Slot& a, const Slot& b){return a.e<b.e;});
+
+            for (auto w : wfs) ne[w]=0.0;
+            double rem = Nc;
+            for (const auto& sl : slots)                          // fill lowest-first
+            {
+                if (rem<=0.0) break;
+                double take = std::min(sl.cap, rem);
+                ne[sl.w] += take;
+                rem -= take;
+            }
         }
 
         for (auto w : wfs)                                        // occupy + collect energy levels
