@@ -47,7 +47,25 @@ labelled `SymmetryAdapted_IBS` per irrep; `MolecularIrrep` carries the Mulliken 
 `src/BasisSet/Molecule/tests/M_PGSymmetry.C` (UTMolecule_BS) -- 1-e blocks vs real overlap,
 SAB iteration + labels, and the 2-e Coulomb matches `O^T J_AO O` on a real H2O s+p basis.
 
-**NEXT STEP — end-to-end molecular HF.  The blocker is OCCUPATION/AUFBAU, not the Fock:**
+**END-TO-END SYMMETRIC HF WORKS (water).**  `UnitTests/M_PG_Sym.C` (in UTMain) runs HF for
+water two ways -- plain single-IBS vs `SymmetryAdaptedBasisSet` with a fixed C2v occupation
+`{A1:6,B1:2,B2:2}` (`MolecularSym_EC`, `src/ElectronConfigurations/MolecularSym_EC.C`) -- and
+the energies agree to 1e-5.  So the whole stack is validated; molecules reuse the atomic
+per-irrep WaveFunction/ChargeDensity/accelerator machinery unchanged.  (Cache note: the
+decorator's `MakeOverlap/Kinetic/Nuclear` call the raw COMPUTE `raw->MakeX()`, NOT the cached
+`raw->X()` -- the global cache's stateful Has/Set "last key" gets clobbered by a nested cached
+access mid-Set.  So raw 1-e is recomputed per irrep (cheap); the 2-e AO ERIs stay cached.)
+
+**NEXT STEPS:**
+1. **General global aufbau** -- a `CompositeAufbauWF` (subclass of CompositeWF) that overrides
+   `FillOrbitals` to collect all irreps' orbital energies, fill the globally-lowest N/2, and
+   set per-irrep occupations each iteration.  Replaces the hand-coded `MolecularSym_EC`.
+2. Molecular Factory hook (bridge -> detect -> BuildSALCs -> wrap in SAB) + a polarized path.
+3. Optimisation: the 2-e decorator rebuilds the AO Coulomb/exchange once per (irrep,cd-irrep)
+   pair (N^2 per iteration); sum the back-transformed densities first, build once, slice all.
+
+(Below: the original blocker analysis, now resolved.)
+**(resolved) the OCCUPATION/AUFBAU blocker:**
 - `CompositeWF::FillOrbitals` does `w->FillOrbitals(itsEC)` per irrep, i.e. each irrep takes a
   FIXED electron count `ec->GetN(irrep)`.  Right for atoms; wrong for a symmetric molecule,
   where the occupied MOs fill the *globally-lowest* across irrep blocks (the per-irrep
