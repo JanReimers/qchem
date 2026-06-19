@@ -8,6 +8,7 @@ module;
 #include <fstream>
 #include <memory>
 #include <chrono>
+#include <functional>
 export module qchem.BasisSet.Internal.DB_Cache_RAM;
 export import qchem.BasisSet.Internal.DB_Cache;
 import qchem.BasisSet.Internal.ERI4;
@@ -26,25 +27,15 @@ template  <class T> struct IntegralsCache_RAM
 public:
     IntegralsCache_RAM(bool makelog=false);
     virtual ~IntegralsCache_RAM(); //Report some RAM usage
-    virtual bool Has(Ix1,const IBS_ID_t&) const;
-    virtual bool Has(Ix2,const IBS_ID_t&,const IBS_ID_t&) const;
-    virtual bool Has(I2n,const IBS_ID_t&,const Cluster_ID_t&) const;
-    // Numerically integrated, with a corresponding mesh ID 
-    virtual bool Has(I1C,const IBS_ID_t&,const Mesh_ID_t&   ) const;
-    virtual bool Has(I2x,const IBS_ID_t&,const IBS_ID_t&,const Mesh_ID_t&) const;
 
-    virtual const rvec_t   & GetVec () const; 
-    virtual const smat_t<T>& GetSMat() const; 
-    virtual const  mat_t<T>& GetMat () const; 
-    virtual const ERI3  <T>& GetERI3() const; 
-    virtual const ERI4     & GetERI4() const; 
-
-    virtual const rvec_t&    Set(const rvec_t   &); 
-    virtual const smat_t<T>& Set(const smat_t<T>&); 
-    virtual const  mat_t<T>& Set(const  mat_t<T>&); 
-    virtual const ERI3  <T>& Set(const   ERI3<T>&); 
-    virtual const ERI4     & SetDirect  (const ERI4&); 
-    virtual const ERI4     & SetExchange(const ERI4&); 
+    virtual const rvec_t&    Get(I1C,const IBS_ID_t&,                     std::function<rvec_t   ()>);
+    virtual const smat_t<T>& Get(I2C,const IBS_ID_t&,                     std::function<smat_t<T>()>);
+    virtual const smat_t<T>& Get(I2n,const IBS_ID_t&,const Cluster_ID_t&, std::function<smat_t<T>()>);
+    virtual const  mat_t<T>& Get(I2x,const IBS_ID_t&,const IBS_ID_t&,     std::function< mat_t<T>()>);
+    virtual const ERI3  <T>& Get(I3C,const IBS_ID_t&,const IBS_ID_t&,     std::function<ERI3  <T>()>);
+    virtual const ERI4     & Get(I4C,const IBS_ID_t&,const IBS_ID_t&,     std::function<ERI4     ()>);
+    virtual const rvec_t&    Get(I1C,const IBS_ID_t&,const Mesh_ID_t&,                 std::function<rvec_t()>);
+    virtual const rmat_t&    Get(I2x,const IBS_ID_t&,const IBS_ID_t&,const Mesh_ID_t&, std::function<rmat_t()>);
 
     void Register(Cache4_Client* eval);
     const Cache4* GetCache4(const RadialTypeID_t& type) const;
@@ -75,30 +66,14 @@ private:
     mutable std::map<id_pair_t,time_t> ERI4_timestamps; //Get functions need to update this
     // std::map<std::chrono::sys_seconds,std::pair<IBS_ID_t,IBS_ID_t>> ERI4_Oldest;  //Sort by time stamp
 
-    void ReportRAMUsage(std::ostream&) const; 
+    void ReportRAMUsage(std::ostream&) const;
     static size_t Report(const map4_t&, const std::string&, bool verbose); // in MB
-    void RunGarbageCollector();
-    size_t Purge(map4_t& eri4s,const id_pair_t& old);
+    // GC evicts the oldest ERI4s; `protect` is the entry just inserted (never evicted).
+    void RunGarbageCollector(const id_pair_t& protect);
+    size_t Purge(map4_t& eri4s,const id_pair_t& old,const id_pair_t& protect);
 
     using val_t=std::unique_ptr<Cache4>;
     using cach4_t=std::map<RadialTypeID_t,val_t>;
-
-
-    mutable std::variant<typename map1_t::const_iterator,typename map1m_t::const_iterator> its1CIterator;
-    mutable std::variant<typename map2_t::const_iterator,typename mapn_t::const_iterator> its2CIterator;
-    mutable mapx_t::const_iterator its2xIterator;
-    mutable map3_t::const_iterator its3CIterator;
-    mutable std::map<IBS_ID_t,ERI4>::const_iterator its4CIterator; //Iterator into the inner map.
-    mutable map2xm_t::const_iterator its2xmIterator;
-    
-    mutable key1_t   itsLastKey1;
-    mutable key1m_t  itsLastKey1m;
-    mutable key2_t   itsLastKey2;
-    mutable keyn_t   itsLastKeyn;
-    mutable keyx_t   itsLastKeyx;
-    mutable key2xm_t itsLastKey2xm;
-    mutable key3_t   itsLastKey3;
-    mutable IBS_ID_t itsLastKey4a,itsLastKey4b;
 
     map1_t itsVecs;  //Vectors (charge)
     map2_t itsSMats; //Symmetric 2 center matrices

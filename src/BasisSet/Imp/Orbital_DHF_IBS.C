@@ -11,9 +11,8 @@ namespace BasisSet
 {
     auto cache=theGlobalCache;
     assert(cache);
-    return cache->Has(IntegralsCache_Base::I2C::RestMass,IntegralsCache_Base::IBS_ID_t(RadialID(),AngularID()))
-        ? cache->GetSMat() : cache->Set(MakeRestMass());
-    
+    return cache->Get(IntegralsCache_Base::I2C::RestMass,IntegralsCache_Base::IBS_ID_t(RadialID(),AngularID()),
+        [this]{ return MakeRestMass(); });
 }
 
 template class Orbital_RKB_IBS<double>;

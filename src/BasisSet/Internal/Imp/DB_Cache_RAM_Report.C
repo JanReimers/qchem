@@ -70,7 +70,7 @@ std::ostream& operator << (std::ostream& os, const std::pair<IntegralsCache_Base
 {
     return os << " a=" << ids.first << "   b=" << ids.second;
 }
-template <class T>  size_t IntegralsCache_RAM<T>::Purge(map4_t& eri4s,const id_pair_t& old)
+template <class T>  size_t IntegralsCache_RAM<T>::Purge(map4_t& eri4s,const id_pair_t& old,const id_pair_t& protect)
 {
     size_t ret=0;
     auto i1=eri4s.find(old.first);
@@ -79,10 +79,10 @@ template <class T>  size_t IntegralsCache_RAM<T>::Purge(map4_t& eri4s,const id_p
         auto i2=i1->second.find(old.second);
         if (i2!=i1->second.end())
         {
-            bool ab1=i1->first ==itsLastKey4a;
-            bool ab2=i2->first==itsLastKey4b;
-            bool ba1=i1->first ==itsLastKey4b;
-            bool ba2=i2->first==itsLastKey4a;
+            bool ab1=i1->first==protect.first;
+            bool ab2=i2->first==protect.second;
+            bool ba1=i1->first==protect.second;
+            bool ba2=i2->first==protect.first;
             // itsLogger << "bools=" << ab1 << " " << ab2 << " " << ba1 << " " << ba2 << endl;
             assert(!(ab1&&ab2));
             assert(!(ba1&&ba2));
@@ -95,7 +95,7 @@ template <class T>  size_t IntegralsCache_RAM<T>::Purge(map4_t& eri4s,const id_p
     }
     return ret;
 }
-template <class T>  void IntegralsCache_RAM<T>::RunGarbageCollector()
+template <class T>  void IntegralsCache_RAM<T>::RunGarbageCollector(const id_pair_t& protect)
 {
     // itsLogger << "Running IntegralsCache_RAM garbage collector:" << endl;
     // ReportRAMUsage(itsLogger);
@@ -122,21 +122,21 @@ template <class T>  void IntegralsCache_RAM<T>::RunGarbageCollector()
         // itsLogger << "old=" << oldab;
         id_pair_t oldba=std::make_pair(oldab.second,oldab.first);
         size_t ram=0;
-        bool ab1=oldab.first==itsLastKey4a;
-        bool ab2=oldab.second==itsLastKey4b;
-        bool ba1=oldab.first==itsLastKey4b;
-        bool ba2=oldab.second==itsLastKey4a;
+        bool ab1=oldab.first==protect.first;
+        bool ab2=oldab.second==protect.second;
+        bool ba1=oldab.first==protect.second;
+        bool ba2=oldab.second==protect.first;
         // itsLogger << "bools=" << ab1 << " " << ab2 << " " << ba1 << " " << ba2 << endl;
         if ((ab1&&ab2) || (ba1&&ba2))
         {
-            //  itsLogger << "   Purge itsLastKey4 a&&b clash." << endl;
+            //  itsLogger << "   Purge protected a&&b clash." << endl;
         }
         else
         {
-            ram+=Purge(Jac,oldab);
-            ram+=Purge(Kab,oldab);
-            ram+=Purge(Jac,oldba);
-            ram+=Purge(Kab,oldba);
+            ram+=Purge(Jac,oldab,protect);
+            ram+=Purge(Kab,oldab,protect);
+            ram+=Purge(Jac,oldba,protect);
+            ram+=Purge(Kab,oldba,protect);
             assert(ram>0);
             {   
                 ERI4_timestamps.erase(oldab);

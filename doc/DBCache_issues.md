@@ -4,6 +4,49 @@ Consolidated from the molecular-symmetry work, where the cache was hit repeatedl
 `IntegralsCache_RAM` (`src/BasisSet/Internal/Imp/DB_Cache_RAM.C`), interface `IntegralsCache_Base`
 (`src/BasisSet/Internal/DB_Cache.C`).  `theGlobalCache` is a process-global singleton.
 
+## Interface improvement  (DONE)
+Replaced the `Has()`/`GetXXX()`/`Set()` protocol with a single self-contained
+`Get(type, ids…, make)` call, where `make` is a `std::function<Result()>` lambda that
+captures any extra args (cluster, mesh, partner IBS).  Client code is now e.g.
+```c++
+return cache->Get(I2C::Kinetic, {RadialID(),AngularID()}, [this]{ return MakeKinetic(); });
+return cache->Get(I2n::Nuclear, {RadialID(),AngularID()}, cl->ID(),
+                  [this,cl]{ return MakeNuclear(cl); });
+```
+All 16 call sites migrated; the old `Has`/`Set`/`GetVec`/`GetSMat`/`GetMat`/`GetERI3`/`GetERI4`/
+`SetDirect`/`SetExchange` API and the `Ix1`/`Ix2` variants are deleted.
+
+### Original notes (kept for context)
+Typical client code looked like this
+```c++
+
+return cache->Has(IntegralsCache_Base::I2C::Overlap,IntegralsCache_Base::IBS_ID_t(RadialID(),AngularID()))
+    ? cache->GetSMat() : cache->Set(MakeOverlap());
+
+```
+or
+```c++
+
+ return cache->Has(IntegralsCache_Base::I2n::Nuclear,IntegralsCache_Base::IBS_ID_t(RadialID(),AngularID()),cl->ID())
+        ? cache->GetSMat() : cache->Set(MakeNuclear(cl));
+
+```
+where cl is Cluster&.  This puts a burden on the client to make the if statement.  The reason for this is that I don't how to
+pass the MakeXXX(sometimes 0 sometimes 1 argument) function into the cache.  If there is a c++20 (or earlier) way to do this, then  we can reduce the burden on the client to something like
+```c++
+ return cache->Get(IntegralType,UniqueIDForBasisSet,CallThisFunctionIfYouDontAlreadyHaveIt);
+or
+ return cache->Get(IntegralType,UniqueIDForBasisSet,CallThisFunctionIfYouDontAlreadyHaveIt,ClusterOrSOmeOtherArgument);
+
+```
+If you can think of a way to this that would be great.  I would like establish this first as it may impact our descision on how
+to solve problems A&B below.
+
+## Scope: How much stuff is worth caching?
+Another thing to think about: Perhaps caching 1-electron integrals is a waste of effort, only cache 3 and 4 center ERI integrals.  One
+option to deal with this is at construction the DBCache gets a list of bools telling which type to cache and which ones are direct methods (always calls the MakeXXX function) so to speak.  The other is just rip out all the 1E function calls.  Interested in your opinion.  Maybe you know the big commercial programs do.
+Keep in mind we want go beyond atoms and molecules, and use this cache for solids as well. 
+
 There are three distinct problems; (B) is the serious one.
 
 ## A. The key is atom-biased — missing geometry  (worked around)
@@ -23,9 +66,17 @@ geometry-aware").  **Principled fix:** an explicit geometry/centre component in 
 centres stuffed into "RadialID"; and retire the radial/angular split for the molecular path (it
 only made sense for atoms).
 
-## B. Has()/Set() is not re-entrant — shared stateful "last key"  (the real bug)
+## B. Has()/Set() is not re-entrant — shared stateful "last key"  (FIXED)
 
-`Has(...)` does the map lookup AND stashes the looked-up key and iterator in **mutable members** of
+**Fixed** by the `Get(type, ids…, make)` redesign above.  Each `Get` does its own `find`,
+computes `make()` into a local (which may itself perform nested cached `Get`s), then `insert`s —
+holding no find-iterator across `make()`.  No `itsLastKeyX`/iterator members remain, so the
+clobbering scenario below can no longer occur.  The 4-centre GC's "don't evict what I just made"
+protection now takes the freshly-inserted key as a parameter (`RunGarbageCollector(protect)` /
+`Purge(…, protect)`) instead of reading shared `itsLastKey4a/b`.
+
+### Original analysis (kept for context)
+`Has(...)` did the map lookup AND stashed the looked-up key and iterator in **mutable members** of
 the cache, e.g. `itsLastKey2`, `itsLastKeyx`/`its2xIterator`, `itsLastKey3`/`its3CIterator`,
 `itsLastKeyn` (DB_Cache_RAM.C:140-233).  `Set(value)` then relies on those stashed members to file
 the value in the slot `Has()` found.
@@ -58,8 +109,12 @@ Consequences seen this session:
 Once (B) is fixed, the decorator can use the **cached** raw 3C (fast) instead of recompute, and
 multiple geometries / sym-vs-non-sym runs can share a process safely.
 
-## C. Order / cross-run pollution  (a symptom of B)
+## C. Order / cross-run pollution  (FIXED via B)
 
+Should be gone now that (B) is fixed — confirm by restoring DFT+SALC (next section) and
+re-running the sym/non-sym and atomic-DFT/HF tests in one process.
+
+### Original analysis (kept for context)
 Because of (B), running several computations with the same basis in one process can corrupt later
 ones (the DFT sym run after the non-sym run, or unrelated atomic DFT tests after the SALC tests).
 The atomic DFT/HF tests in `UTMain` are sensitive to this.  Fixing (B) should remove it.

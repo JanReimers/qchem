@@ -13,40 +13,38 @@ const  rvec_t& Fit_IBS::Charge   () const
 {
     auto cache=theGlobalCache;
     assert(cache);
-    return cache->Has(IntegralsCache_Base::I1C::Charge,IntegralsCache_Base::IBS_ID_t(RadialID(),AngularID()))
-        ? cache->GetVec() : cache->Set(MakeCharge());
+    return cache->Get(IntegralsCache_Base::I1C::Charge,IntegralsCache_Base::IBS_ID_t(RadialID(),AngularID()),
+        [this]{ return MakeCharge(); });
 }
 const rsmat_t& Fit_IBS::Repulsion() const
 {
     auto cache=theGlobalCache;
     assert(cache);
-    return cache->Has(IntegralsCache_Base::I2C::Repulsion,IntegralsCache_Base::IBS_ID_t(RadialID(),AngularID()))
-        ? cache->GetSMat() : cache->Set(MakeRepulsion());
+    return cache->Get(IntegralsCache_Base::I2C::Repulsion,IntegralsCache_Base::IBS_ID_t(RadialID(),AngularID()),
+        [this]{ return MakeRepulsion(); });
 }
 const  rmat_t& Fit_IBS::Repulsion(const Fit_IBS& b) const
 {
     auto cache=theGlobalCache;
     assert(cache);
-    return cache->Has(IntegralsCache_Base::I2x::Repulsion
+    return cache->Get(IntegralsCache_Base::I2x::Repulsion
             ,IntegralsCache_Base::IBS_ID_t(  RadialID(),  AngularID())
             ,IntegralsCache_Base::IBS_ID_t(b.RadialID(),b.AngularID())
-        )
-
-        ? cache->GetMat() : cache->Set(MakeRepulsion(b));
+            ,[this,&b]{ return MakeRepulsion(b); });
 }
 const rsmat_t& Fit_IBS::InvOverlap() const
 {
     auto cache=theGlobalCache;
     assert(cache);
-    return cache->Has(IntegralsCache_Base::I2C::InvOverlap,IntegralsCache_Base::IBS_ID_t(RadialID(),AngularID()))
-        ? cache->GetSMat() : cache->Set(MakeInvOverlap());
+    return cache->Get(IntegralsCache_Base::I2C::InvOverlap,IntegralsCache_Base::IBS_ID_t(RadialID(),AngularID()),
+        [this]{ return MakeInvOverlap(); });
 }
 const rsmat_t& Fit_IBS::InvRepulsion() const
 {
     auto cache=theGlobalCache;
     assert(cache);
-    return cache->Has(IntegralsCache_Base::I2C::InvRepulsion,IntegralsCache_Base::IBS_ID_t(RadialID(),AngularID()))
-        ? cache->GetSMat() : cache->Set(MakeInvRepulsion());
+    return cache->Get(IntegralsCache_Base::I2C::InvRepulsion,IntegralsCache_Base::IBS_ID_t(RadialID(),AngularID()),
+        [this]{ return MakeInvRepulsion(); });
 }
 
 const rvec_t& Fit_IBS::Norm(const Mesh* m) const
@@ -54,8 +52,8 @@ const rvec_t& Fit_IBS::Norm(const Mesh* m) const
     assert(m);
     auto cache=theGlobalCache;
     assert(cache);
-    return cache->Has(IntegralsCache_Base::I1C::Normalization,IntegralsCache_Base::IBS_ID_t(RadialID(),AngularID()),m->ID())
-        ? cache->GetVec() : cache->Set(MakeNorm(m));
+    return cache->Get(IntegralsCache_Base::I1C::Normalization,IntegralsCache_Base::IBS_ID_t(RadialID(),AngularID()),m->ID(),
+        [this,m]{ return MakeNorm(m); });
 }
 
 const rmat_t& Fit_IBS::Overlap(const Mesh* m,const Fit_IBS& b) const
@@ -63,11 +61,11 @@ const rmat_t& Fit_IBS::Overlap(const Mesh* m,const Fit_IBS& b) const
     assert(m);
     auto cache=theGlobalCache;
     assert(cache);
-    return cache->Has(IntegralsCache_Base::I2x::Overlap,
+    return cache->Get(IntegralsCache_Base::I2x::Overlap,
         IntegralsCache_Base::IBS_ID_t(  RadialID(),  AngularID()),
         IntegralsCache_Base::IBS_ID_t(b.RadialID(),b.AngularID()),
-        m->ID())
-        ? cache->GetMat() : cache->Set(MakeOverlap(m,b));
+        m->ID(),
+        [this,m,&b]{ return MakeOverlap(m,b); });
 }
 rvec_t Fit_IBS::MakeNorm   (const Mesh* m) const
 {

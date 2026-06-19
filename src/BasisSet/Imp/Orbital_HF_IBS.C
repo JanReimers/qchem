@@ -15,9 +15,8 @@ template <class T> const ERI4& Orbital_HF_IBS<T>::Direct(const Orbital_HF_IBS<T>
     assert(cache);
     IntegralsCache_Base::IBS_ID_t ab(RadialID(),AngularID());
     IntegralsCache_Base::IBS_ID_t cd(c.RadialID(),c.AngularID());
-    return cache->Has(IntegralsCache_Base::I4C::Direct,ab,cd)
-        ? cache->GetERI4() 
-        : cache->SetDirect(MakeDirect(c));
+    return cache->Get(IntegralsCache_Base::I4C::Direct,ab,cd,
+        [this,&c]{ return MakeDirect(c); });
 }
 
 template <class T> const   ERI4&  Orbital_HF_IBS<T>::Exchange(const Orbital_HF_IBS<T>& c) const
@@ -26,8 +25,8 @@ template <class T> const   ERI4&  Orbital_HF_IBS<T>::Exchange(const Orbital_HF_I
     assert(cache);
     IntegralsCache_Base::IBS_ID_t ab(RadialID(),AngularID());
     IntegralsCache_Base::IBS_ID_t cd(c.RadialID(),c.AngularID());
-    return cache->Has(IntegralsCache_Base::I4C::Exchange,ab,cd)
-        ? cache->GetERI4() : cache->SetExchange(MakeExchange(c));
+    return cache->Get(IntegralsCache_Base::I4C::Exchange,ab,cd,
+        [this,&c]{ return MakeExchange(c); });
 }
 
 template <class T> void Orbital_HF_IBS<T>::AccumulateDirect(rsmat_t& Sab, const smat_t<T>& Dcd, const Orbital_HF_IBS<T>* cd) const
