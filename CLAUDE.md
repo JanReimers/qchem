@@ -18,3 +18,5 @@ Brief notes about module/library conventions, naming, and includes.
 - Prefer `import qchem.Blaze` over `#include <blaze/Math.h>` — feel free to add symbols you need to
     `src/Common/Blaze.C`. There are a couple of exceptions, for example `std::sort` cannot see exported Blaze
     `op==` or `op!=` for iterators.
+- Miss understanding: " you've told me never to call ninja directly (cmake handles it)" I only recommended cmake because you were
+  struggling to get the ninja to build.  You had to iterate by touching certain files to trigger rebuilds.  It looked inefficient at the time.  Any if ninja is working well and prefer, then go ahead.
