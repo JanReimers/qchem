@@ -39,9 +39,11 @@ protected:
 
 private:
     typedef std::unique_ptr<IrrepWF> uiwf_t;
+    void FillOrbitalsAufbau(double mergeTol); //fill globally-lowest orbitals across all irreps
 
-    const bs_t*                  itsBS; 
+    const bs_t*                  itsBS;
     const ElectronConfiguration* itsEC;
+    bool                         itsAufbau;   //molecular aufbau across irreps (vs fixed per-irrep EC)
     SCFAccelerator*              itsAccelerator;
     EnergyLevels                 itsELevels;
     LAParams                     itsLAParams; //Numerical control of general eigen solution.

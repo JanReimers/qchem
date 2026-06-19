@@ -52,15 +52,15 @@ TEST(M_PG_Sym, water_HF_matches_nonsymmetric)
     Molecule_EC ecRef(mol->GetNumElectrons());
     double Eref = RunHF(bsRef, &ecRef, cl);
 
-    // --- symmetry-adapted: per-irrep blocks, fixed C2v occupation (a1:6, b1:2, b2:2) ---
+    // --- symmetry-adapted: per-irrep blocks, occupation by GLOBAL AUFBAU across irreps ---
     auto* raw  = new PG::Orbital_IBS(exps, 1, mol.get());     // referenced by the SAB
     auto  shells = PG::ExtractAoShells(*raw);
     auto  pts    = PG::ClusterToSymPoints(*mol);
     auto  grp    = Symmetry::BuildAbelianGroup(pts, 1e-4);
     auto  salc   = Symmetry::BuildSALCs(shells, grp, Symmetry::Centroid(pts), 1e-4);
     auto* sab  = new BasisSet::Molecule::SymmetryAdaptedBasisSet(raw, salc);
-    MolecularSym_EC ecSym({{"A1",6},{"B1",2},{"B2",2}});
+    Molecule_EC ecSym(mol->GetNumElectrons());               // same EC as the reference -> aufbau
     double Esym = RunHF(sab, &ecSym, cl);
 
-    EXPECT_NEAR(Esym, Eref, 1e-5) << "symmetric HF energy must match the non-symmetric run";
+    EXPECT_NEAR(Esym, Eref, 1e-5) << "symmetric HF (aufbau) energy must match the non-symmetric run";
 }

@@ -35,6 +35,7 @@ public:
     const Orbitals*     GetOrbitals     () const;
           Orbitals*     GetOrbitals     ()      ;
     const EnergyLevels& FillOrbitals    (const ElectronConfiguration*);
+    const EnergyLevels& FillOrbitals    (double ne); //occupy with a given electron count (aufbau)
     void                DisplayEigen    () const;
     const Irrep&    GetQNs          () const {return itsIrrep;}
     rvec_t      Get_BS_Diagonal () const;

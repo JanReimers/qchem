@@ -2,6 +2,9 @@
 module;
 #include <cassert>
 #include <memory>
+#include <vector>
+#include <map>
+#include <algorithm>
 #include "tabulate/table.hpp"
 module qchem.WaveFunction.Internal.CompositeWF;
 import qchem.WaveFunction.Types;
@@ -9,6 +12,7 @@ import qchem.SCFAccelerator;
 import qchem.CompositeCD;
 import qchem.ElectronConfiguration;
 import qchem.LASolver;
+import qchem.Orbitals;          // Orbital (eigen-energy, degeneracy) for the aufbau
 
 namespace qchem::WaveFunction
 {
@@ -22,6 +26,7 @@ LAParams DefaultLAP({qchem::Cholsky,1e-12});
 CompositeWF::CompositeWF(const bs_t* bs,const ElectronConfiguration* ec,SCFAccelerator* acc )
     : itsBS(bs)
     , itsEC(ec)
+    , itsAufbau(ec->UsesAufbau())
     , itsAccelerator(acc)
     , itsLAParams(DefaultLAP) //gcc-15.0.1 segfault here
 
@@ -136,14 +141,52 @@ void CompositeWF::FillOrbitals(double mergeTol)
 {
     itsELevels.clear();
     itsSpin_ELevels.clear();
-    for (auto& w:itsIWFs) 
+    if (itsAufbau) { FillOrbitalsAufbau(mergeTol); return; }
+    for (auto& w:itsIWFs)                              // fixed per-irrep occupation (atoms etc.)
     {
         EnergyLevels els=w->FillOrbitals(itsEC);
         itsELevels.merge(els,mergeTol);
         Spin s=w->GetQNs().ms;
         itsSpin_ELevels[s].merge(els,mergeTol);
     }
-        
+}
+
+// Molecular aufbau: per spin channel, occupy the globally-lowest orbitals across all irreps,
+// then fill each irrep with its resulting electron count.  The point-group irrep an occupied
+// MO lands in is an OUTPUT of the SCF (unlike an atom's fixed l-occupation), so the per-irrep
+// counts are recomputed every iteration from the current eigenvalues.
+void CompositeWF::FillOrbitalsAufbau(double mergeTol)
+{
+    struct Slot { double e; IrrepWF* w; double cap; };
+    for (auto& [s, wfs] : itsSpinWFs)
+    {
+        if (wfs.empty()) continue;
+        double Nc = (double)itsEC->GetN(wfs.front()->GetQNs());   // total electrons in this spin channel
+
+        std::vector<Slot> slots;                                  // every orbital across the channel
+        for (auto w : wfs)
+            for (auto o : w->GetOrbitals()->Iterate<qchem::Orbitals::Orbital>())
+                slots.push_back({o->GetEigenEnergy(), w, (double)o->GetDegeneracy()});
+        std::sort(slots.begin(), slots.end(), [](const Slot& a, const Slot& b){return a.e<b.e;});
+
+        std::map<IrrepWF*,double> ne;                             // per-irrep electron count
+        for (auto w : wfs) ne[w]=0.0;
+        double rem = Nc;
+        for (const auto& sl : slots)                              // fill lowest-first
+        {
+            if (rem<=0.0) break;
+            double take = std::min(sl.cap, rem);
+            ne[sl.w] += take;
+            rem -= take;
+        }
+
+        for (auto w : wfs)                                        // occupy + collect energy levels
+        {
+            EnergyLevels els = w->FillOrbitals(ne[w]);
+            itsELevels.merge(els, mergeTol);
+            itsSpin_ELevels[s].merge(els, mergeTol);
+        }
+    }
 }
 
 } //namespace

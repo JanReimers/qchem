@@ -18,4 +18,8 @@ public:
     virtual int    GetN(const Irrep&) const=0;
     virtual syms_t GetIrreps() const=0;
     virtual void   Display() const=0;
+    // When true, the wave function fills the globally-lowest orbitals across all irreps each
+    // iteration (a molecular aufbau) and GetN gives the TOTAL per spin channel; when false the
+    // per-irrep GetN count is taken as fixed (atoms / hand-set occupations).
+    virtual bool   UsesAufbau() const {return false;}
 };

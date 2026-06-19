@@ -73,16 +73,22 @@ void IrrepWF::MoveOrbitals(double t, bool commit)
 //
 const EnergyLevels& IrrepWF::FillOrbitals(const ElectronConfiguration* ec)
 {
-    
-    double ne=ec->GetN(itsIrrep); // Step one: How many electron for this Irrep={spin,symmetry} ?
-    std::tie(ne,itsDPrime)=itsOrbitals->TakeElectrons(ne); // Step two: Dump electrons into the orbitals and then calculate a density matrix.
-    assert(ne==0.0); //There must be enough orbitals to take all electrons for the Irrep.  If not the basis set is too small.
-    
-    // Step three: Make a list of energy levels.  Degenerate levels should get merged.
+    return FillOrbitals((double)ec->GetN(itsIrrep)); // electrons for this Irrep={spin,symmetry}
+}
+
+const EnergyLevels& IrrepWF::FillOrbitals(double ne)
+{
+    // Empty first: the aufbau occupation can shift between iterations, and TakeElectrons only
+    // overwrites the orbitals it fills (leaving stale occupation on the rest).
+    for (auto o:itsOrbitals->Iterate<qchem::Orbitals::Orbital>()) o->Empty();
+    std::tie(ne,itsDPrime)=itsOrbitals->TakeElectrons(ne); // occupy lowest-first, build density
+    assert(ne==0.0); //enough orbitals to take all electrons; if not the basis set is too small.
+
+    // List of energy levels.  Degenerate levels should get merged.
     itsELevels.clear();
     for (auto o:itsOrbitals->Iterate<qchem::Orbitals::Orbital>())
         itsELevels.insert(qchem::Orbitals::EnergyLevel(o));
-    
+
     return itsELevels;
 }
 

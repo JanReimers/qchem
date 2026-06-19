@@ -11,6 +11,7 @@ public:
     virtual int    GetN(const Irrep& qns) const;
     virtual syms_t GetIrreps() const;
     virtual void Display() const;
+    virtual bool UsesAufbau() const {return true;}   // molecular aufbau across point-group irreps
 private:
     int Ne;
 };
