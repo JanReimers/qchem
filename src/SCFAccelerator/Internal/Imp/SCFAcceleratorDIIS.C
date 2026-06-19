@@ -170,13 +170,17 @@ bool SCFAcceleratorDIIS::CalculateProjections()
     bailoutReason="            ";
     for (auto k:itsIrreps)
     {
-        // An unoccupied irrep (e.g. A2 for H2O's ground state) has D'=0, so [F',D']==0 forever.
-        // With the molecular aufbau the per-irrep occupation isn't known when the accelerators are
-        // created, so every irrep -- including empty ones -- gets a real DIIS accelerator instead
-        // of a Null.  An empty irrep contributes nothing to the error or the B matrix, so let it
-        // act as a Null here (skip it) rather than bailing the whole extrapolation.  (For atoms,
-        // empty channels ARE Null and never reach this loop.)
+        // Zero error guards two cases that must NOT extrapolate: (1) the zero-initial-density first
+        // iterations (every channel's [F',D']==0 until it has a density -- atoms rely on this), and
+        // (2) a permanently-empty irrep (A2 for H2O).  Bailing here is correct for (1); it also
+        // blocked DIIS for symmetric molecules via (2), but enabling that exposed a deeper
+        // shared-coefficient overshoot -- see doc/SCF_DIIS_SALC_notes.md.  So keep the bail.
         double Enk=k->GetError();
+        if (Enk==0.0)
+        {
+            bailoutReason="Enk==0.0    ";
+            return false;
+        }
         itsEn+=Enk*Enk;
     }
     itsEn=sqrt(itsEn);

@@ -5,21 +5,28 @@ SCF runs the per-irrep machinery (one `IrrepWF` + one `SCFIrrepAccelerator` per 
 built for atoms. Three things had to change to make DIIS behave for molecules; two are fixed, one
 is still open.
 
-## 1. DIIS never engaged — empty irreps blocked it  (FIXED)
+## 1. DIIS never engaged — empty irreps blocked it  (OPEN — first fix REVERTED)
 
-`SCFAcceleratorDIIS::CalculateProjections` sums the per-irrep commutator error and **bailed the
-whole extrapolation** the moment any irrep reported `GetError()==0`. For a molecule that includes
+`SCFAcceleratorDIIS::CalculateProjections` sums the per-irrep commutator error and **bails the
+whole extrapolation** the moment any irrep reports `GetError()==0`. For a molecule that includes
 **unoccupied irreps** (e.g. A₂ for H₂O's ground state): `D'=0` there, so `[F',D']≡0` every
-iteration → DIIS never ran (`Bail=Enk==0.0`), only plain linear mixing.
+iteration → DIIS never runs (`Bail=Enk==0.0`), only plain linear mixing.
 
 Why atoms are immune: `Atom_EC::GetN` returns the *per-channel* occupation, so empty channels get
 `occ=0` → a `Null` accelerator that never reaches the loop. `Molecule_EC::GetN` returns the
 **total** (the per-irrep split is an aufbau *output*, unknown when the accelerators are created),
 so every irrep — empty ones included — gets a real DIIS accelerator.
 
-Fix: an empty irrep contributes nothing to the error or the B matrix, so it now simply acts as a
-Null in `CalculateProjections` (skip it, don't bail). (Doing a literal `Null` injection would need
-the per-irrep occupation at `Create` time, which the aufbau doesn't know yet.)
+Attempted fix (REVERTED): skip zero-error irreps instead of bailing.  **This broke ~18 atomic
+HF/DHF/DFT tests** (e.g. Li HF off by 3.4%): the `Enk==0.0` bail *also* guards the zero-initial-
+density first iterations, where every occupied channel legitimately has `[F',D']==0` until it has a
+density.  Skipping it let DIIS extrapolate from a zero/garbage seed → bad early step → wrong
+convergence.  So the bail is restored and DIIS again does NOT engage for symmetric molecules.
+
+A correct fix must distinguish a **permanently-empty** irrep (skip it) from a **not-yet-seeded /
+transiently-zero** occupied channel (still bail) — e.g. give the empty irrep a real `Null`
+accelerator once the aufbau occupation is known (after iteration 1), rather than a per-iteration
+`GetError()==0` heuristic.  And it must still solve issue 3 (the overshoot) to be worthwhile.
 
 ## 2. Occupation flipped under acceleration — global aufbau on the extrapolated Fock  (FIXED)
 
