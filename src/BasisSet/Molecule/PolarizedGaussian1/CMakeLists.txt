@@ -8,7 +8,7 @@ Imp/SymmetryAdapt.C
 MnD/Imp/Triangle3D.C
 MnD/Imp/AuxillaryData.C
 MnD/Imp/AuxillaryFJ.C
-Internal/Imp/CDCache.C
+Internal/Imp/Omega.C
 Internal/Imp/Block.C
 Internal/Imp/PGData.C
 Internal/Imp/Polarization.C
@@ -17,7 +17,6 @@ MnD/Imp/Hermite1.C
 MnD/Imp/RNLM.C
 Readers/Imp/Gaussian94.C
 Radial/Imp/GaussianH3.C
-Radial/Omega.C
 Radial/Imp/GaussianRF.C
 )
 target_sources(qcMolecule_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
@@ -28,7 +27,7 @@ target_sources(qcMolecule_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
     Reader.C
 
     MnD/AuxillaryFJ.C
-    Internal/CDCache.C
+    Internal/Omega.C
     Internal/Block.C
     Internal/Polarization.C
     MnD/Triangle.C

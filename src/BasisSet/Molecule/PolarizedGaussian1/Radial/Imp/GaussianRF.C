@@ -10,7 +10,7 @@ module;
 
 module qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.GaussianRF;
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.Radial.GaussianH3;
-import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.CDCache;
+import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.Omega;
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.MnD.Hermite1;
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.MnD.Hermite3;
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.MnD.RNLM;

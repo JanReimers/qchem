@@ -1,10 +1,13 @@
-// File: CDCache.C
+// File: Omega.C  Charge distribution Ω for a primitive pair + the global Ω/RNLM Cache2 access points.
 module;
 #include <string>
-module qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.CDCache;
+#include <vector>
+module qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.Omega;
+import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.Polarization;
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.MnD.RNLM;
 import qchem.BasisSet.Internal.DB_Cache;   // theGlobalCache, Register/GetCache2
 import qchem.BasisSet.Internal.Cache2;     // Cache2, Cacheable2, Cache2_Client
+import qchem.Math;                          // exp (Ω ctor)
 namespace BasisSet::Molecule::PolarizedGaussian1
 {
 
@@ -65,6 +68,57 @@ const RNLM& findRNLM(const GData& ab,const GData& c)
             return new RNLM_C2(ab.L+c.L, alpha, ab.R-c.R);
         });
     return static_cast<const RNLM_C2&>(w).rnlm;
+}
+
+//------------------------------------------------------------------------------------------------
+//  Ω (charge distribution for a primitive pair) methods.
+//------------------------------------------------------------------------------------------------
+Ω::~Ω()
+{
+    delete itsSelfRNLM;
+}
+
+// 2-centre self-auxiliary: RNLM(Ltotal, ab/AlphaP, AB) -- built once, owned by this Ω.
+const RNLM& Ω::SelfRNLM() const
+{
+    if (!itsSelfRNLM) itsSelfRNLM = new RNLM(Ltotal, ab/AlphaP, AB);
+    return *itsSelfRNLM;
+}
+
+std::vector<std::vector<Polarization>> Ω::theNMLs;
+
+static std::vector<Polarization> MakeAllPolarizations(int Lmax)
+{
+    std::vector<Polarization> list;
+    for (int n=0; n<=Lmax; n++)
+        for (int l=0; l<=Lmax-n; l++)
+            for (int m=0; m<=Lmax-n-l; m++)
+                list.push_back(Polarization(n,l,m));
+    return list;
+}
+
+void Ω::MakeNMLs()
+{
+    for (int L=0; L<=10; L++) theNMLs.push_back(MakeAllPolarizations(L));
+}
+
+Ω::Ω(const GData& g1,const GData& g2)
+    : Ltotal(g1.L + g2.L)
+    , a     (g1.Alpha)
+    , b     (g2.Alpha)
+    , ab    (a * b)
+    , AlphaP(a + b)
+    , AB    (g1.R - g2.R)
+    , P     ( (a*g1.R + b*g2.R) / AlphaP)
+    , Eij   ( exp(-ab / AlphaP * (AB*AB)) )
+    , H2    (AlphaP, P - g1.R, P - g2.R, g1.L+1, g2.L+1)
+{
+    if (theNMLs.size()==0) MakeNMLs();
+}
+
+size_t Ω::RAMsize() const
+{
+    return sizeof(Ω); // includes the by-value Hermite2 block
 }
 
 } //namespace BasisSet::Molecule::PolarizedGaussian1

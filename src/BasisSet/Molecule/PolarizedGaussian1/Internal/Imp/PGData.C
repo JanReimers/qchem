@@ -3,7 +3,6 @@ module;
 #include <vector>
 #include <string>
 module qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.PGData;
-import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.CDCache;
 import qchem.Blaze;
 
 namespace BasisSet::Molecule::PolarizedGaussian1

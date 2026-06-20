@@ -15,7 +15,7 @@ module;
 export module qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.GaussianRF;
 import qchem.Blaze;                 // rvec_t (contraction coefficients)
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.Polarization;
-import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.CDCache;
+import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.Omega;
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.GData;
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.MnD.Hermite1;
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.MnD.Hermite3;

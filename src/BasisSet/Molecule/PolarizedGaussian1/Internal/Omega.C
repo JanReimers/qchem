@@ -1,11 +1,9 @@
-// File: CDCache.C
+// File: Omega.C  Ω = charge distribution for a primitive pair; + global Ω/RNLM Cache2 access points.
 module;
-#include <tuple>
-#include <map>
 #include <vector>
 #include <iosfwd>
 
-export module qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.CDCache;
+export module qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.Omega;
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.MnD.Hermite2;
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.GData;
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.MnD.RNLM;

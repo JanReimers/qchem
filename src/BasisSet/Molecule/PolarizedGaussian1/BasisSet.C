@@ -3,7 +3,6 @@ module;
 #include <vector>
 #include <memory>
 export module qchem.BasisSet.Molecule.PolarizedGaussian1;
-import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.CDCache;
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.Block;
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.Polarization;
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.PGData;
