@@ -2,6 +2,7 @@
 
 add_executable(UTCommon gtestmain.C
     PeriodicTable.C
+    Blaze.C
 )
 
 target_compile_options(UTCommon PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
