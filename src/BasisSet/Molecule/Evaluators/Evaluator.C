@@ -12,6 +12,9 @@
 //    Molecular HF uses the 4-centre McMurchie-Davidson integrals instead.
 //  - Kinetic:  the building block is the FULL Cartesian \f$-\nabla^2\f$ (see Grad2 below) -- there is no
 //    separate centrifugal \f$l(l+1)\langle r^{-2}\rangle\f$ term (that is an atom radial/angular split).
+//  - NOT (yet) a VectorFunction<double>:  the atom Evaluator is one so it can be evaluated on the DFT
+//    mesh via operator()(r).  Molecular Cartesian grid-eval belongs with the DFT (3-centre) increment,
+//    so for the 1E-first cut the base is just Streamable; VectorFunction + operator()(r) come back then.
 //
 // As in the atom design: virtual functions for the cold paths, C++20 concepts for the inline hot-loop
 // kernels.  Start with 1E (Overlap/Kinetic/Nuclear); DFT (3-centre) and HF (4-centre) concepts come
@@ -20,7 +23,6 @@ module;
 #include <iosfwd>
 #include <concepts>
 export module qchem.BasisSet.Molecule.Evaluators;
-export import qchem.VectorFunction;
 export import qchem.Streamable;
 import qchem.Types;
 
@@ -31,11 +33,8 @@ export namespace BasisSet::Molecule::Evaluators
 // hot loops (sizing, identity, streaming); the per-element integral kernels are the concepts below.
 class Evaluator
     : public virtual Streamable
-    , public VectorFunction<double>
 {
 public:
-    virtual size_t  GetVectorSize() const {return size();}
-
     virtual size_t  size    () const = 0;                  // number of basis functions (components)
     virtual size_t  maxSpan () const {return size();}      // assume no overlap for |i-j| > maxSpan
     virtual rvec_t  Norm    () const = 0;                  // per-component normalization constants
