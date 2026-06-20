@@ -56,7 +56,15 @@ const std::vector<std::string> theDHFOrbitalLabels({
 #error "COMMON_DATA_PATH must be defined by CMake"
 #endif
 
-static const std::filesystem::path common_data_dir = COMMON_DATA_PATH;
+// Construct-on-first-use: this path is read from the ctors of static PeriodicTable* objects that may
+// live in other translation units (e.g. QchemTester::itsPT).  A namespace-scope global would be a
+// static-initialization-order fiasco -- it could still be zero-initialized when such a ctor runs,
+// giving a null path string and a crash.  A function-local static is initialized on first call.
+static const std::filesystem::path& common_data_dir()
+{
+    static const std::filesystem::path p = COMMON_DATA_PATH;
+    return p;
+}
 
 ElementRecordSaito::ElementRecordSaito(nlohmann::json& j) : Z(j["Z"]), Symbol(j["symbol"]),  ValConfigString(j["valance"]), Term(j["term"]), MaxL(0), Energy_HF(j["HFEnergy"])
 {
@@ -109,7 +117,7 @@ PeriodicTableSaito::PeriodicTableSaito()
 {
     // Read in Saito HF data.
     {
-        std::ifstream file(common_data_dir / "saito.json");
+        std::ifstream file(common_data_dir() / "saito.json");
         assert(file);
         nlohmann::json jsondata;
         file >> jsondata;
@@ -118,7 +126,7 @@ PeriodicTableSaito::PeriodicTableSaito()
     }
     // Read in NIST DFT data
     {
-        std::ifstream file(common_data_dir / "nistLDA.json");
+        std::ifstream file(common_data_dir() / "nistLDA.json");
         assert(file);
         nlohmann::json jsondata;
         file >> jsondata;
@@ -135,7 +143,7 @@ PeriodicTableSaito::PeriodicTableSaito()
     }
     // Read in relativistic DHF data (total energy + spin-orbit split orbital eigenvalues).
     {
-        std::ifstream file(common_data_dir / "DHF_GS_Energies_rel.json");
+        std::ifstream file(common_data_dir() / "DHF_GS_Energies_rel.json");
         assert(file);
         nlohmann::json jsondata;
         file >> jsondata;
