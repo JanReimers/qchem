@@ -3,6 +3,7 @@ module;
 #include <map>
 #include <memory>
 #include <string>
+#include <iosfwd>
 export module qchem.BasisSet.Internal.Cache4;
 
 
@@ -55,16 +56,22 @@ public:
 //     } 
     virtual size_t RAMsize() const; //Optional override
     virtual const Cacheable4* Create(size_t i1,size_t i2,size_t i3,size_t i4) const=0;
+
+    // Hit/miss stats (see Cache2).  Report takes the cache's name (its RadialType key).
+    size_t Lookups() const {return itsLookups;}
+    size_t Inserts() const {return itsInserts;}
+    void   Report(std::ostream&, const std::string& name) const;
 private:
 
-    typedef std::map<size_t,std::unique_ptr<const Cacheable4>> cache_4; 
-    typedef std::map<size_t,cache_4> cache_3; 
-    typedef std::map<size_t,cache_3> cache_2; 
-    typedef std::map<size_t,cache_2> cache_t; 
-    
+    typedef std::map<size_t,std::unique_ptr<const Cacheable4>> cache_4;
+    typedef std::map<size_t,cache_4> cache_3;
+    typedef std::map<size_t,cache_3> cache_2;
+    typedef std::map<size_t,cache_2> cache_t;
+
     mutable cache_t cache;
     mutable cache_2* i1_cache;
     mutable cache_3* i2_cache;
     mutable cache_4* i3_cache;
     mutable size_t i1,i2,i3,i4; //Current indexes
+    mutable size_t itsLookups=0, itsInserts=0; //hit/miss stats
 };

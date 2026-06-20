@@ -4,6 +4,9 @@ module;
 #include <memory>
 #include <cassert>
 #include <functional>
+#include <iostream>
+#include <iomanip>
+#include <string>
 module qchem.BasisSet.Internal.Cache2;
 
 
@@ -35,15 +38,26 @@ size_t Cache2::RAMsize() const
 
 const Cacheable2& Cache2::get(size_t i1, size_t i2, std::function<const Cacheable2*()> make) const
 {
+    ++itsLookups;
     cache_2& sub = cache[i1];                 // creates an empty sub-map on first use
     auto it = sub.find(i2);
     if (it==sub.end())
     {
+        ++itsInserts;
         const auto [iterator,success]=sub.insert({i2,std::unique_ptr<const Cacheable2>(make())});
         assert(success);
         it=iterator;
     }
     return *it->second;
+}
+
+void Cache2::Report(std::ostream& os, const std::string& name) const
+{
+    double reuse = itsLookups ? 100.0*(1.0 - double(itsInserts)/double(itsLookups)) : 0.0;
+    os << "    " << std::left << std::setw(12) << name << std::right
+       << " entries=" << std::setw(9) << itsInserts
+       << " lookups=" << std::setw(10) << itsLookups
+       << " reuse="   << std::setw(6) << std::setprecision(4) << reuse << "%" << std::endl;
 }
 
 const Cacheable2* Cache2::Create(size_t,size_t) const
@@ -63,10 +77,12 @@ void Cache2::loop_1(size_t _i1) const
 const Cacheable2* Cache2::loop_2(size_t _i2) const
 {
     i2=_i2;
+    ++itsLookups;
     cache_2& c=*i1_cache; //De-reference for readability.
     auto i=c.find(i2);
     if (i==c.end())
     {
+        ++itsInserts;
         const auto [iterator,success]=c.insert({i2,std::unique_ptr<const Cacheable2>(Create(i1,i2))});
         assert(success);
         i=iterator;

@@ -3,6 +3,8 @@ module;
 #include <map>
 #include <memory>
 #include <iostream>
+#include <iomanip>
+#include <string>
 #include <cassert>
 module qchem.BasisSet.Internal.Cache4;
 
@@ -73,13 +75,24 @@ void Cache4::loop_3(size_t _i3) const
 const Cacheable4* Cache4::loop_4(size_t _i4)  const
 {
     i4=_i4;
+    ++itsLookups;
     cache_4& c=*i3_cache; //De-reference for readability.
     auto i=c.find(i4);
     if (i==c.end())
     {
+        ++itsInserts;
         const auto [iterator,success]=c.insert({i4,std::unique_ptr<const Cacheable4>(Create(i1,i2,i3,i4))});
         assert(success);
         i=iterator;
     }
-    return i->second.get();    
+    return i->second.get();
+}
+
+void Cache4::Report(std::ostream& os, const std::string& name) const
+{
+    double reuse = itsLookups ? 100.0*(1.0 - double(itsInserts)/double(itsLookups)) : 0.0;
+    os << "    " << std::left << std::setw(12) << name << std::right
+       << " entries=" << std::setw(9) << itsInserts
+       << " lookups=" << std::setw(10) << itsLookups
+       << " reuse="   << std::setw(6) << std::setprecision(4) << reuse << "%" << std::endl;
 }

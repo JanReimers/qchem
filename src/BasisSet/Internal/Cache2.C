@@ -12,6 +12,7 @@ module;
 #include <map>
 #include <memory>
 #include <string>
+#include <iosfwd>
 #include <functional>
 export module qchem.BasisSet.Internal.Cache2;
 
@@ -65,6 +66,12 @@ public:
 
     virtual size_t            RAMsize() const;  //Optional override
     virtual const Cacheable2* Create(size_t i1,size_t i2) const; //default: unused by the facade form
+
+    // Hit/miss stats (high reuse = the cache is shared, e.g. Omega across SALC irreps).  Report takes
+    // the cache's name (its RadialType key, which the cache itself does not store).
+    size_t Lookups() const {return itsLookups;}
+    size_t Inserts() const {return itsInserts;}
+    void   Report(std::ostream&, const std::string& name) const;
 private:
 
     typedef std::map<size_t,std::unique_ptr<const Cacheable2>> cache_2;
@@ -73,4 +80,5 @@ private:
     mutable cache_t  cache;
     mutable cache_2* i1_cache;
     mutable size_t   i1,i2; //Current indexes
+    mutable size_t   itsLookups=0, itsInserts=0; //hit/miss stats
 };

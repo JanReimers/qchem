@@ -59,6 +59,12 @@ template <class T>  void IntegralsCache_RAM<T>::ReportRAMUsage(std::ostream& os)
     os << "  Jac   data: "  << ram(J_ram,sizeof(T)) << percent(J_ram,total) << endl;
     os << "  Kab   data: "  << ram(K_ram,sizeof(T)) << percent(K_ram,total) << endl;
     os << "  Cach4 data: "  << ram(cach4_ram,sizeof(T)) << percent(cach4_ram,total) << endl;
+
+    // Per-cache hit/miss stats (charge distributions Omega, RNLM, atomic Slater Rk).  High reuse
+    // means the cache is being shared (e.g. Omega across SALC irreps over one raw basis).
+    if (!itsCache2s.empty() || !itsCache4s.empty()) os << "  cache reuse:" << endl;
+    for (auto& i:itsCache2s) i.second->Report(os, i.first);
+    for (auto& i:itsCache4s) i.second->Report(os, i.first);
 }
 
 std::ostream& operator << (std::ostream& os, const std::pair<IntegralsCache_Base::IBS_ID_t,IntegralsCache_Base::IBS_ID_t>& ids)
