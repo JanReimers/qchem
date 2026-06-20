@@ -16,6 +16,7 @@ module;
 export module qchem.BasisSet.SymmetryAdapted_IBS;
 export import qchem.BasisSet.Orbital_1E_IBS;
 export import qchem.BasisSet.Orbital_HF_IBS;         // HF 2-electron mixin + ERI4
+export import qchem.BasisSet.Orbital_DFT_IBS;        // DFT 3-centre mixin (fitted Coulomb / Vxc)
 import qchem.BasisSet.Internal.IrrepBasisSetImp;
 import qchem.Cluster;
 import qchem.Types;
@@ -42,6 +43,7 @@ private:
 class SymmetryAdapted_IBS
     : public virtual Orbital_1E_IBS<double>
     , public virtual Orbital_HF_IBS<double>  // HF Coulomb/exchange (the 2-electron path)
+    , public virtual Orbital_DFT_IBS<double> // DFT 3-centre fitted Coulomb / Vxc
     , public IrrepBasisSetImp<double>        // provides GetSymmetry / GetSymt / GetIrrep
 {
 public:
@@ -70,6 +72,19 @@ public:
     virtual ERI4 MakeDirect  (const Orbital_HF_IBS<double>&) const {return ERI4();}
     virtual ERI4 MakeExchange(const Orbital_HF_IBS<double>&) const {return ERI4();}
 
+    // DFT 3-centre fitted Coulomb / Vxc.  The cached accessors Overlap3C/Repulsion3C are inherited
+    // from Orbital_DFT_IBS unchanged: they key the *transformed* block under this irrep's
+    // AngularID and, on a miss, call our MakeXxx3C below.  MakeXxx3C transforms the raw basis's
+    // *cached* 3C (now safe -- the integral cache is re-entrant), so the raw 3C is computed once
+    // and shared by every irrep.  Fit bases are atom-centred (geometry, not symmetry), so creation
+    // delegates to the raw DFT basis.
+    virtual Fit_IBS* CreateCDFitBasisSet (const Cluster*) const;
+    virtual Fit_IBS* CreateVxcFitBasisSet(const Cluster*) const;
+protected:
+    virtual ERI3<double> MakeOverlap3C  (const Fit_IBS& c) const;
+    virtual ERI3<double> MakeRepulsion3C(const Fit_IBS& c) const;
+public:
+
     // Distinct IDs so the global cache keys the transformed blocks per irrep.
     virtual std::string RadialID()  const;
     virtual std::string AngularID() const;
@@ -82,10 +97,12 @@ public:
     virtual std::ostream& Write(std::ostream&) const;
 
 private:
-    rsmat_t Transform(const rsmat_t& Mraw) const;     // O^T Mraw O, symmetrized
+    rsmat_t      Transform(const rsmat_t& Mraw) const;          // O^T Mraw O, symmetrized
+    ERI3<double> TransformERI3(const ERI3<double>& raw) const;  // Transform each fit-function matrix
 
-    const Orbital_1E_IBS<double>* itsRaw;             // raw whole-molecule AO basis (not owned)
-    const Orbital_HF_IBS<double>* itsRawHF;           // same object, HF interface (for the AO J/K build)
+    const Orbital_1E_IBS<double>*  itsRaw;            // raw whole-molecule AO basis (not owned)
+    const Orbital_HF_IBS<double>*  itsRawHF;          // same object, HF interface (for the AO J/K build)
+    const Orbital_DFT_IBS<double>* itsRawDFT;         // same object, DFT interface (raw 3C + fit bases)
     rmat_t                        itsO;               // this irrep's SALC columns (nAO x dGamma)
     std::string                   itsLabel;           // Mulliken irrep label
     std::shared_ptr<SymFockCache> itsCache;           // shared AO J/K cache (null = build directly)

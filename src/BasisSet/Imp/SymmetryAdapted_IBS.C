@@ -69,7 +69,8 @@ SymmetryAdapted_IBS::SymmetryAdapted_IBS(const Orbital_1E_IBS<double>* raw, cons
                                          const std::string& label, const sym_t& sym,
                                          std::shared_ptr<SymFockCache> cache)
     : IrrepBasisSetImp<double>(sym), itsRaw(raw)
-    , itsRawHF(dynamic_cast<const Orbital_HF_IBS<double>*>(raw))   // same object, HF face
+    , itsRawHF (dynamic_cast<const Orbital_HF_IBS <double>*>(raw))  // same object, HF  face
+    , itsRawDFT(dynamic_cast<const Orbital_DFT_IBS<double>*>(raw))  // same object, DFT face
     , itsO(Oblock), itsLabel(label), itsCache(cache)
 {}
 
@@ -78,6 +79,25 @@ rsmat_t SymmetryAdapted_IBS::Transform(const rsmat_t& Mraw) const
 {
     return SymCopy(blazem::trans(itsO) * Mraw * itsO);   // dGamma x dGamma
 }
+
+// Transform each fit-function matrix of a 3C tensor: O^T m O (linear in the AO 3C, like J/K).
+ERI3<double> SymmetryAdapted_IBS::TransformERI3(const ERI3<double>& raw) const
+{
+    ERI3<double> out; out.reserve(raw.size());
+    for (const auto& m : raw) out.push_back(Transform(m));         // dGamma x dGamma per fit fn
+    return out;
+}
+
+// DFT 3-centre integrals in the irrep basis.  These are the cache-miss compute hooks invoked by
+// the inherited Overlap3C/Repulsion3C accessors; they transform the raw basis's *cached* 3C (the
+// integral cache is re-entrant now, so the nested cached access is safe).  The raw 3C is therefore
+// computed once and shared across all irreps; only the cheap O^T (.) O transform is per irrep.
+ERI3<double> SymmetryAdapted_IBS::MakeOverlap3C  (const Fit_IBS& c) const { return TransformERI3(itsRawDFT->Overlap3C(c));   }
+ERI3<double> SymmetryAdapted_IBS::MakeRepulsion3C(const Fit_IBS& c) const { return TransformERI3(itsRawDFT->Repulsion3C(c)); }
+
+// Fit bases are atom-centred (geometry, not symmetry), so reuse the raw basis's unchanged.
+Fit_IBS* SymmetryAdapted_IBS::CreateCDFitBasisSet (const Cluster* cl) const { return itsRawDFT->CreateCDFitBasisSet(cl);  }
+Fit_IBS* SymmetryAdapted_IBS::CreateVxcFitBasisSet(const Cluster* cl) const { return itsRawDFT->CreateVxcFitBasisSet(cl); }
 
 // Coulomb / exchange are linear in the density, so build the AO matrix from the cd-irrep's
 // density block and slice to this irrep (no 4-index ERI transform).  The AO build depends only
@@ -101,13 +121,12 @@ void SymmetryAdapted_IBS::AccumulateExchange(rsmat_t& Kab, const rsmat_t& Dcd,
     else          AddSlice(Kab, itsO, BuildAOFock(true, itsRawHF, cd->itsO, Dcd));
 }
 
-// Use the raw COMPUTE (MakeX), not the cached accessor (X()): the decorator's own cached
-// accessor is mid Has/Set when MakeOverlap runs, and a nested cache Has/Set on the raw would
-// clobber the cache's stateful "last key" and mis-file the transformed block.  (So the raw
-// 1-e matrix is recomputed per irrep; cheap, and the transformed block is still cached.)
-rsmat_t SymmetryAdapted_IBS::MakeOverlap()                 const {return Transform(itsRaw->MakeOverlap());}
-rsmat_t SymmetryAdapted_IBS::MakeKinetic()                 const {return Transform(itsRaw->MakeKinetic());}
-rsmat_t SymmetryAdapted_IBS::MakeNuclear(const Cluster* cl) const {return Transform(itsRaw->MakeNuclear(cl));}
+// Transform the raw basis's *cached* 1-e matrix (Overlap/Kinetic/Nuclear): the raw matrix is
+// computed once and shared by every irrep.  The nested cached access is safe now that the integral
+// cache is re-entrant (these MakeXxx run as the cache-miss hook of this irrep's own cached block).
+rsmat_t SymmetryAdapted_IBS::MakeOverlap()                 const {return Transform(itsRaw->Overlap());}
+rsmat_t SymmetryAdapted_IBS::MakeKinetic()                 const {return Transform(itsRaw->Kinetic());}
+rsmat_t SymmetryAdapted_IBS::MakeNuclear(const Cluster* cl) const {return Transform(itsRaw->Nuclear(cl));}
 
 std::string SymmetryAdapted_IBS::RadialID()  const {return itsRaw->RadialID();}
 std::string SymmetryAdapted_IBS::AngularID() const {return itsRaw->AngularID() + "_" + itsLabel;}

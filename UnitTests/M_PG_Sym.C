@@ -15,6 +15,7 @@ import qchem.BasisSet.Molecule.SymmetryAdaptedBasisSet;       // SymmetryAdapted
 import qchem.ElectronConfiguration.Molecule;                  // Molecule_EC
 import qchem.Types;
 import qchem.Math;                                            // cos, sin (for the rotation test)
+import qchem.Mesh;                                            // MeshParams (DFT)
 
 #ifndef BASISSET_DATA_PATH
 #error "BASISSET_DATA_PATH must be defined by CMake"
@@ -45,6 +46,46 @@ static EnergyBreakdown RunHF(const BasisSet::BasisSet<double>* bs, const Electro
     scf.Iterate({60,     1e-7,   1e-9,   1e2,      1e-7,  0.5,  1e-4,    true});
     return scf.GetEnergy();
 }
+
+static EnergyBreakdown RunDFT(const BasisSet::BasisSet<double>* bs, const ElectronConfiguration* ec,
+                              const cl_t& cl, Pol pol)
+{
+    MeshParams mp({qchem::MHL,30,3,2.0,qchem::Gauss,12,0,0,2});
+    Hamiltonian* ham = Factory(pol, cl, 0.7, mp, bs);            // Xalpha DFT
+    nlohmann::json jsacc = {{"NProj",4},{"EMax",0.1},{"EMin",1e-7},{"SVTol",5e-9}};
+    auto* acc = qchem::SCFAccelerators::Factory(qchem::SCFAccelerators::Type::DIIS, jsacc);
+    qchem::SCFIterator::SCFIterator scf(bs, ec, ham, acc);
+    scf.Iterate({60, 1e-7, 1e-9, 1e2, 1e-7, 0.5, 1e-4, true});
+    return scf.GetEnergy();
+}
+
+// Symmetry-adapted Xalpha-DFT water (fitted Coulomb + fitted Vxc) must equal the non-symmetric DFT
+// run: the decorator transforms the 3-centre integrals by O, like J/K, building each from the raw
+// basis's *cached* 3C (re-entrant integral cache) -- so the raw 3C is shared across irreps.
+static void CheckWaterDFT(Pol pol, double tol)
+{
+    auto mol = std::shared_ptr<Molecule>(MakeWater());
+    cl_t cl  = mol;
+    nlohmann::json js = { {"filepath", basisset_data_dir / "dzvp.bsd"} };
+
+    Real_BS* bsRef = BasisSet::Molecule::Factory(js, mol.get());
+    Molecule_EC ecRef(mol->GetNumElectrons());
+    EnergyBreakdown ebRef = RunDFT(bsRef, &ecRef, cl, pol);
+
+    auto rawBasis = std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(js, mol.get()));
+    auto* sab = BasisSet::Molecule::SymmetryAdapt(rawBasis, *mol, 1e-4);
+    Molecule_EC ecSym(mol->GetNumElectrons());
+    EnergyBreakdown ebSym = RunDFT(sab, &ecSym, cl, pol);
+
+    EXPECT_NEAR(ebSym.GetTotalEnergy(), ebRef.GetTotalEnergy(), tol) << "DFT symmetric == non-symmetric";
+}
+
+TEST(M_PG_Sym, water_DFT_unpolarized) { CheckWaterDFT(Pol::UnPolarized, 1e-5); }
+// Polarized (unrestricted) Xalpha: a small (~2e-4) symmetric-vs-non-symmetric residual remains --
+// the two-spin-channel SCF converges to slightly different points (see the SALC DIIS/occupation
+// notes in doc/SCF_DIIS_SALC_notes.md); the decorator transform itself is exact (unpolarized matches
+// to <1e-5).
+TEST(M_PG_Sym, water_DFT_polarized)   { CheckWaterDFT(Pol::Polarized, 1e-3); }
 
 // Symmetry-adapted water HF (real DZVP basis) must equal the non-symmetric run, both for the
 // closed-shell unpolarized and (since water is closed shell) the polarized Hamiltonian -- and

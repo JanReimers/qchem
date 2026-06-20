@@ -121,9 +121,16 @@ The atomic DFT/HF tests in `UTMain` are sensitive to this.  Fixing (B) should re
 
 ## After the DBCache fix — return to the symmetry work
 
-- Re-do **DFT + SALC** properly: the decorator (3C transform by O, fit-basis delegation, derive
-  `SymmetryAdapted_IBS` from `Orbital_DFT_IBS`) was correct and gave matching sym/non-sym energies;
-  it just needs the cache to be re-entrant so it can cache (not recompute) the raw 3C.  The diff
-  was reverted out of `src/BasisSet/SymmetryAdapted_IBS.C` + `.../Imp/...` and `Orbital_DFT_IBS.C`.
+- **DFT + SALC — DONE.**  `SymmetryAdapted_IBS` now derives from `Orbital_DFT_IBS<double>` and
+  overrides only the compute hooks `MakeOverlap3C`/`MakeRepulsion3C` (+ fit-basis delegation to the
+  raw DFT basis); the cached `Overlap3C`/`Repulsion3C` accessors are inherited unchanged.  The
+  compute hooks transform the raw basis's **cached** 3C (`itsRawDFT->Overlap3C(c)`), now safe under
+  the re-entrant `Get` — so the raw 3C is computed once and shared by every irrep, and the
+  transformed block is cached per irrep under its own AngularID.  The earlier raw-COMPUTE
+  work-around (and the per-fit-basis local memoization) is gone; the 1-e path was likewise switched
+  from `itsRaw->MakeOverlap()` back to the cached `itsRaw->Overlap()`.  Tests:
+  `M_PG_Sym.water_DFT_unpolarized` (matches to <1e-5) and `water_DFT_polarized` (≈2e-4 residual from
+  the SALC DIIS/occupation topic below, not the transform).  (The reverted WIP lived in
+  `git stash@{0}`; reconstructed cleaner here, so that stash is now superseded.)
 - The molecular-symmetry **DIIS** is a *separate* topic (see doc/SCF_DIIS_SALC_notes.md): empty-
   irrep handling + the shared-coefficient overshoot, independent of the cache.
