@@ -2,10 +2,30 @@
 
 Context: a `SymmetryAdaptedBasisSet` presents one `IrrepBasisSet` per point-group irrep, so the
 SCF runs the per-irrep machinery (one `IrrepWF` + one `SCFIrrepAccelerator` per irrep) that was
-built for atoms. Three things had to change to make DIIS behave for molecules; two are fixed, one
-is still open.
+built for atoms. Three things had to change to make DIIS behave for molecules.
 
-## 1. DIIS never engaged — empty irreps blocked it  (OPEN — first fix REVERTED)
+> **Resolution (2026-06-19).** Fixing only issue 1 (the empty-irrep DIIS bail) turned out to be
+> enough: with DIIS engaging cleanly, symmetric H₂O HF converges *identically* to the non-symmetric
+> reference (DIIS at iter 7, converged ~iter 10) — and issues 2 and 3 **did not reproduce**. The
+> occupation never flips and there is no crater. Best reading: on the current code (after the
+> DBCache re-entrancy + geometry-key fixes) issue 2 was a *consequence* of issue 3's crater — the
+> aufbau flipped on the garbage extrapolated Fock — and issue 3 itself no longer occurs. MOM (the
+> overlap-based occupation tracker) was prototyped as the principled cure for issue 2; it is in the
+> tree but **parked behind `constexpr bool EnableMOM=false`** (CompositeWF) since it is not
+> load-bearing for these closed-shell cases. Keep it for excited-state / ΔSCF / hard open-shell.
+> Per-section status is updated below.
+
+## 1. DIIS never engaged — empty irreps blocked it  (FIXED)
+
+**Fixed** with a process-level *seeded* discriminator in `SCFAcceleratorDIIS::CalculateProjections`:
+once any irrep has shown a nonzero error we are past the zero-density start (`itsSeeded=true`), so
+from then on an *exactly*-zero error means a **permanently-empty** irrep → skip it (it contributes
+nothing) instead of bailing the whole extrapolation. Before seeding, a zero error still bails (the
+not-yet-seeded first iterations atoms rely on). Atoms are doubly safe: they seed on iteration 1 and
+have no empty DIIS channels anyway (`Atom_EC::GetN` gives empties a `Null` accelerator). The ~18
+atomic tests the earlier naive "skip zero-error" attempt broke all pass.
+
+### Original analysis (kept for context)
 
 `SCFAcceleratorDIIS::CalculateProjections` sums the per-irrep commutator error and **bails the
 whole extrapolation** the moment any irrep reports `GetError()==0`. For a molecule that includes
@@ -28,20 +48,32 @@ transiently-zero** occupied channel (still bail) — e.g. give the empty irrep a
 accelerator once the aufbau occupation is known (after iteration 1), rather than a per-iteration
 `GetError()==0` heuristic.  And it must still solve issue 3 (the overshoot) to be worthwhile.
 
-## 2. Occupation flipped under acceleration — global aufbau on the extrapolated Fock  (FIXED)
+## 2. Occupation flipped under acceleration — global aufbau on the extrapolated Fock  (DID NOT REPRODUCE)
 
+Once issue 1 was fixed, the documented flip (`A1=6,B1=2,B2=2` → `A1=8,B1=2,B2=0`) **did not occur**:
+the Configuration trace shows `(1a₁)²(2a₁)²(1b₁)²(3a₁)²(1b₂)²` stable from iteration 2 through DIIS
+engagement and convergence. Verified by running with MOM disabled *and* the old sticky-freeze
+removed — still no flip. Conclusion: the flip was driven by issue 3's crater (a garbage extrapolated
+Fock), not an independent defect; with no crater the aufbau stays put. The sticky-freeze was
+therefore removed in favour of (parked) MOM. The per-iteration **Configuration** column in the SCF
+trace — e.g. `(1a₁)²(2a₁)²(1b₁)²(3a₁)²(1b₂)²` — makes any occupation churn visible.
+
+### Original analysis (kept for context)
 With the molecular aufbau the per-irrep occupation is recomputed every iteration from the current
 eigenvalues. Once DIIS engages, those eigenvalues come from the **DIIS-extrapolated** (non-physical)
 Fock, and for H₂O the close B₂/A₁ valence levels reorder → the aufbau flips `A1=6,B1=2,B2=2` to
-`A1=8,B1=2,B2=0` → wrong state.
+`A1=8,B1=2,B2=0` → wrong state.  (Original fix: a sticky per-irrep occupation freeze; superseded.)
 
-Fix: `CompositeWF` freezes the per-irrep occupation (sticky) the first time the accelerator
-extrapolates (`CalculateProjections()` returns true). Near convergence the occupation shouldn't
-move anyway; DIIS then extrapolates within a fixed occupation. A new per-iteration **Configuration**
-column in the SCF trace — e.g. `(1a₁)²(2a₁)²(1b₁)²(3a₁)²(1b₂)²` — makes occupation churn visible.
+## 3. The shared-coefficient multi-irrep DIIS step overshoots  (DID NOT REPRODUCE on current code)
 
-## 3. OPEN: the shared-coefficient multi-irrep DIIS step overshoots
+With issue 1 fixed, symmetric H₂O HF no longer craters: DIIS drives Δ[F,D] down monotonically
+(iters 7–10: 4.0e-2 → 1.4e-3 → 1.8e-4 → 2.0e-5) exactly like the non-symmetric reference — the
+−70.17 crater and the ~57-iteration recovery are gone. The original analysis below may still apply
+to harder/larger systems (genuinely disparate per-irrep convergence rates), in which case the
+shared-coefficient safeguard is the right tool; for now it is not needed. **Watch for it** when the
+single shared-coefficient extrapolation meets very stiff multi-block problems.
 
+### Original analysis (kept for context)
 Even with (1) and (2) fixed, the **first** multi-irrep DIIS step deterministically craters
 (H₂O/DZVP: total energy → −70.1699437, the same value regardless of `EMax`), then recovers over
 ~12 iterations — twice. Net: ~57 iterations vs 26 with no DIIS, i.e. DIIS currently makes the
@@ -61,8 +93,8 @@ Candidate fixes (SCF-convergence policy — TBD):
 - cap the DIIS coefficient norm and fall back to the plain step when it is exceeded, or
 - restart (purge) the DIIS history on a detected energy rise so it doesn't re-overshoot.
 
-Until then DIIS *engages* for SALC bases (issues 1–2 fixed, occupation visible) but the overshoot
-makes it net-slower; the safeguard in (3) is the remaining work.
+As of the resolution above, DIIS *engages* for SALC bases and converges as fast as the
+non-symmetric run; the overshoot safeguard is held in reserve, not currently needed.
 
 # Some notes from my research
 

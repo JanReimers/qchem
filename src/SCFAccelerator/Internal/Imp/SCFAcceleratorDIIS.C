@@ -168,17 +168,19 @@ bool SCFAcceleratorDIIS::CalculateProjections()
     blazem::clear(itsCs);
     itsEn=0.0;
     bailoutReason="            ";
+    // A zero error guards two distinct cases: (1) the zero-initial-density first iterations (every
+    // channel's [F',D']==0 until it has a density -- atoms rely on this), and (2) a permanently-empty
+    // irrep (e.g. A2 for H2O).  We must still BAIL on (1) but SKIP (2), else symmetric molecules
+    // never extrapolate.  Discriminator: once any irrep has shown a nonzero error we are "seeded"
+    // (past case 1), so from then on an exactly-zero error means a permanently-empty irrep.
+    for (auto k:itsIrreps) if (k->GetError()!=0.0) itsSeeded=true;
     for (auto k:itsIrreps)
     {
-        // Zero error guards two cases that must NOT extrapolate: (1) the zero-initial-density first
-        // iterations (every channel's [F',D']==0 until it has a density -- atoms rely on this), and
-        // (2) a permanently-empty irrep (A2 for H2O).  Bailing here is correct for (1); it also
-        // blocked DIIS for symmetric molecules via (2), but enabling that exposed a deeper
-        // shared-coefficient overshoot -- see doc/SCF_DIIS_SALC_notes.md.  So keep the bail.
         double Enk=k->GetError();
         if (Enk==0.0)
         {
-            bailoutReason="Enk==0.0    ";
+            if (itsSeeded) continue;            // permanently-empty irrep: contributes nothing, skip it
+            bailoutReason="Enk==0.0    ";       // not yet seeded (zero-density start): must bail
             return false;
         }
         itsEn+=Enk*Enk;

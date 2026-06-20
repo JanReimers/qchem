@@ -93,6 +93,38 @@ const EnergyLevels& IrrepWF::FillOrbitals(double ne)
 }
 
 
+// MOM: score each current orbital by the norm of its projection onto the reference occupied
+// subspace.  Coefficients are in the orthonormal basis (metric = I), so the overlap of orbital j
+// with reference orbital i is just the dot product; the score is sqrt(sum_i <ref_i|j>^2) in [0,1].
+// Storage order matches Iterate<Orbital> (same underlying vector), so scores align with the aufbau.
+rvec_t IrrepWF::MOMScores() const
+{
+    assert(itsOrbitals);
+    if (itsRefOccCPrime.columns()==0) return rvec_t();          // no reference captured yet
+    std::vector<double> sc;
+    for (auto o:itsOrbitals->Iterate<qchem::Orbitals::TOrbital<double>>())
+    {
+        rvec_t proj=blazem::trans(itsRefOccCPrime)*o->GetCoeffPrime();   // (nref) overlaps
+        sc.push_back(blazem::norm(proj));
+    }
+    rvec_t scores(sc.size());
+    for (size_t i=0;i<sc.size();++i) scores[i]=sc[i];
+    return scores;
+}
+
+// Snapshot the currently-occupied orbitals' C' columns as the reference for the next iteration.
+// An unoccupied irrep clears its reference (no continuation to track).
+void IrrepWF::CaptureMOMReference()
+{
+    assert(itsOrbitals);
+    std::vector<vec_t<double>> cols;
+    for (auto o:itsOrbitals->Iterate<qchem::Orbitals::TOrbital<double>>())
+        if (o->IsOccupied()) cols.push_back(o->GetCoeffPrime());
+    if (cols.empty()) { itsRefOccCPrime.clear(); return; }
+    itsRefOccCPrime.resize(cols.front().size(),cols.size());
+    for (size_t j=0;j<cols.size();++j) blazem::column(itsRefOccCPrime,j)=cols[j];
+}
+
 DM_CD* IrrepWF::GetChargeDensity() const
 {
     assert(itsOrbitals);

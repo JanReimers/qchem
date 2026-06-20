@@ -22,6 +22,12 @@ using std::endl;
 
 LAParams DefaultLAP({qchem::Cholsky,1e-12});
 
+// MOM (Maximum Overlap Method) occupation tracking is implemented but parked: for the current
+// closed-shell cases the empty-irrep DIIS discriminator already gives clean convergence with no
+// occupation flip, so MOM is not load-bearing (see doc/SCF_DIIS_SALC_notes.md).  The machinery is
+// kept compiled; this flag gates only its call sites.  Flip to true for excited-state / hard cases.
+constexpr bool EnableMOM=false;
+
 
 CompositeWF::CompositeWF(const bs_t* bs,const ElectronConfiguration* ec,SCFAccelerator* acc )
     : itsBS(bs)
@@ -69,10 +75,12 @@ CompositeWF::~CompositeWF()
 void CompositeWF::DoSCFIteration(Hamiltonian& ham,const DM_CD* cd)
 {
     for (auto& w:itsIWFs) w->CalculateH(ham,cd); //Feed F,D' into all the irre eccelerators.
-    // Once the accelerator extrapolates, freeze the per-irrep occupation: re-running the aufbau on
-    // the (non-physical) extrapolated Fock can flip the occupation (e.g. B2->A1 in H2O), wrecking
-    // convergence.  Sticky -- it stays frozen for the rest of the run.
-    if (itsAccelerator->CalculateProjections()) itsOccFrozen=true;
+    // Once the accelerator extrapolates, switch the molecular aufbau from eigenvalue order to MOM
+    // (overlap): re-running a plain aufbau on the (non-physical) extrapolated Fock can flip the
+    // occupation (e.g. a near-degenerate B2<->A1 swap in H2O), wrecking convergence.  MOM keeps the
+    // occupied orbitals that match the previous (settled) ones by shape.  Sticky for the rest of run.
+    [[maybe_unused]] const bool engaged = itsAccelerator->CalculateProjections();
+    if constexpr (EnableMOM) if (engaged) itsMOMActive=true;
     for (auto& w:itsIWFs) w->DoSCFIteration();
 }
 
@@ -154,36 +162,50 @@ void CompositeWF::FillOrbitals(double mergeTol)
     }
 }
 
-// Molecular aufbau: per spin channel, occupy the globally-lowest orbitals across all irreps,
-// then fill each irrep with its resulting electron count.  The point-group irrep an occupied
-// MO lands in is an OUTPUT of the SCF (unlike an atom's fixed l-occupation), so the per-irrep
-// counts are recomputed every iteration from the current eigenvalues.
+// Molecular aufbau: per spin channel, pick which orbitals across all irreps are occupied, then
+// fill each irrep with its resulting electron count.  The point-group irrep an occupied MO lands
+// in is an OUTPUT of the SCF (unlike an atom's fixed l-occupation).  Two selection rules:
+//   * plain aufbau (default): occupy the globally-lowest eigenvalues;
+//   * MOM (once the accelerator engages): occupy the orbitals with the largest overlap onto the
+//     previous iteration's occupied subspace, so a near-degenerate cross-irrep pair on the
+//     (non-physical) extrapolated Fock cannot flip the configuration.
+// Either way the per-irrep references are re-captured at the end for the next iteration's MOM.
 void CompositeWF::FillOrbitalsAufbau(double mergeTol)
 {
-    struct Slot { double e; IrrepWF* w; double cap; };
+    struct Slot { double key; IrrepWF* w; double cap; };
     for (auto& [s, wfs] : itsSpinWFs)
     {
         if (wfs.empty()) continue;
         double Nc = (double)itsEC->GetN(wfs.front()->GetQNs());   // total electrons in this spin channel
 
-        std::map<IrrepWF*,double>& ne = itsAufbauNe[s];           // per-irrep electron count (persisted)
-        if (!itsOccFrozen)                                        // recompute only while not frozen
-        {
-            std::vector<Slot> slots;                              // every orbital across the channel
-            for (auto w : wfs)
-                for (auto o : w->GetOrbitals()->Iterate<qchem::Orbitals::Orbital>())
-                    slots.push_back({o->GetEigenEnergy(), w, (double)o->GetDegeneracy()});
-            std::sort(slots.begin(), slots.end(), [](const Slot& a, const Slot& b){return a.e<b.e;});
+        std::map<IrrepWF*,rvec_t> mom;                            // per-irrep MOM scores (empty if no ref)
+        if constexpr (EnableMOM) if (itsMOMActive) for (auto w : wfs) mom[w]=w->MOMScores();
 
-            for (auto w : wfs) ne[w]=0.0;
-            double rem = Nc;
-            for (const auto& sl : slots)                          // fill lowest-first
+        std::vector<Slot> slots;                                  // every orbital across the channel
+        for (auto w : wfs)
+        {
+            size_t idx=0;
+            const rvec_t& sc = mom[w];                            // empty unless MOM active & referenced
+            for (auto o : w->GetOrbitals()->Iterate<qchem::Orbitals::Orbital>())
             {
-                if (rem<=0.0) break;
-                double take = std::min(sl.cap, rem);
-                ne[sl.w] += take;
-                rem -= take;
+                // MOM: higher overlap = occupy first (unreferenced/empty irrep scores 0).
+                // Aufbau: lower eigenvalue = occupy first, so key on -energy for a common "bigger wins".
+                double key = itsMOMActive ? (idx<sc.size() ? sc[idx] : 0.0) : -o->GetEigenEnergy();
+                slots.push_back({key, w, (double)o->GetDegeneracy()});
+                ++idx;
             }
+        }
+        std::sort(slots.begin(), slots.end(), [](const Slot& a, const Slot& b){return a.key>b.key;});
+
+        std::map<IrrepWF*,double>& ne = itsAufbauNe[s];
+        for (auto w : wfs) ne[w]=0.0;
+        double rem = Nc;
+        for (const auto& sl : slots)                              // fill highest-priority first
+        {
+            if (rem<=0.0) break;
+            double take = std::min(sl.cap, rem);
+            ne[sl.w] += take;
+            rem -= take;
         }
 
         for (auto w : wfs)                                        // occupy + collect energy levels
@@ -192,6 +214,7 @@ void CompositeWF::FillOrbitalsAufbau(double mergeTol)
             itsELevels.merge(els, mergeTol);
             itsSpin_ELevels[s].merge(els, mergeTol);
         }
+        if constexpr (EnableMOM) for (auto w : wfs) w->CaptureMOMReference(); // reference for next iteration's MOM
     }
 }
 

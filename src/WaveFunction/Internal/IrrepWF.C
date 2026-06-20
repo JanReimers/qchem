@@ -36,6 +36,13 @@ public:
           Orbitals*     GetOrbitals     ()      ;
     const EnergyLevels& FillOrbitals    (const ElectronConfiguration*);
     const EnergyLevels& FillOrbitals    (double ne); //occupy with a given electron count (aufbau)
+
+    // Maximum Overlap Method (MOM): score each *current* orbital by how much it overlaps the
+    // reference occupied subspace (previous iteration's occupied orbitals), so occupation can
+    // follow orbital character instead of eigenvalue.  Empty if no reference captured yet.
+    rvec_t              MOMScores       () const;
+    void                CaptureMOMReference()      ; //snapshot the occupied orbitals as the next reference
+
     void                DisplayEigen    () const;
     const Irrep&    GetQNs          () const {return itsIrrep;}
     rvec_t      Get_BS_Diagonal () const;
@@ -51,6 +58,7 @@ public:
     SCFIrrepAccelerator* itsAccelerator;
     rsmat_t              itsDPrime; // DPrime=C'*Cd',  U*D*Ud, D=C*Cd (outer product)
     rsmat_t              itsF;
-}; 
+    rmat_t               itsRefOccCPrime; // MOM reference: occupied C' columns (nbasis x nocc); empty=none
+};
 
 } //namespace

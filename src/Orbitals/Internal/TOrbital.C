@@ -42,6 +42,7 @@ public:
     TOrbitalImp(const tobs_t<T>*,const vec_t<T>& C, const vec_t<T>& CPrime, double e, const Orbital_QNs&);
 
     virtual void   AddDensityMatrix(smat_t<T>& D, smat_t<T>& DPrime) const;
+    virtual const vec_t<T>& GetCoeffPrime() const {return itsCoeffPrime;}
 
     virtual T         operator()(const rvec3_t&) const;
     virtual vec3_t<T> Gradient  (const rvec3_t&) const;

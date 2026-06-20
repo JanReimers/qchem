@@ -99,6 +99,7 @@ private:
     rvec_t itsCs;
     std::string bailoutReason;
     int itsStuckCount=0; //consecutive past-EMax iterations with no successful extrapolation.
+    bool itsSeeded=false; //true once any irrep has had a nonzero error (past the zero-density start)
 };
 
 } //namespace

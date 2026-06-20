@@ -50,6 +50,9 @@ template <class T> class TOrbital
 {
 public:
     virtual void AddDensityMatrix(smat_t<T> & D, smat_t<T> & DPrime) const=0;
+    //! Coefficients in the *orthonormal* basis (C'); the metric there is the identity, so MOM
+    //! orbital overlaps are plain dot products of these vectors.
+    virtual const vec_t<T>& GetCoeffPrime() const=0;
 };
 
 
