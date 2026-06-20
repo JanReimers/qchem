@@ -15,6 +15,7 @@
 
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.GaussianRF;   // GaussianRF, IType
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.Polarization; // Polarization
+import qchem.BasisSet.Internal.IntegralEnums;                            // qchem::IType3C
 import qchem.Cluster;                                                     // Molecule, Atom, Cluster
 import qchem.Types;                                                       // rvec3_t
 
@@ -115,3 +116,32 @@ TEST(M_PG1_Oracle, eri)
               << ", max err=" << maxerr << std::endl;
     EXPECT_EQ(fails,0u); EXPECT_GT(n,0u);
 }
+
+// 3-centre (DFT): PG1 Integrate is called on the third centre c, with a,b as args.
+static void check3C(const json& section, const char* name, qchem::IType3C type)
+{
+    size_t n=0, fails=0; double maxerr=0;
+    for (const auto& rec : section)
+    {
+        GaussianRF a=makeShell(rec["a"]), b=makeShell(rec["b"]), c=makeShell(rec["c"]);
+        for (const auto& el : rec["elements"])
+        {
+            Polarization pa=pol(el["a"]), pb=pol(el["b"]), pc=pol(el["c"]);
+            double norm = a.GetNormalization(pa)*b.GetNormalization(pb)*c.GetNormalization(pc);
+            double got = norm * c.Integrate(type, a, b, pa, pb, pc);   // this=c
+            double ref = el["value"].get<double>();
+            double err = std::fabs(got-ref); maxerr=std::max(maxerr,err); ++n;
+            if (err>TOL && fails<6)
+                ADD_FAILURE() << name << " mismatch a=" << rec["a"] << " b=" << rec["b"] << " c=" << rec["c"]
+                              << " pa=" << el["a"] << " pb=" << el["b"] << " pc=" << el["c"]
+                              << " pg1=" << got << " oracle=" << ref << " err=" << err;
+            if (err>TOL) ++fails;
+        }
+    }
+    std::cout << "[oracle] " << name << ": " << n << " elements, " << fails << " > " << TOL
+              << ", max err=" << maxerr << std::endl;
+    EXPECT_EQ(fails,0u); EXPECT_GT(n,0u);
+}
+
+TEST(M_PG1_Oracle, overlap3c)   { check3C(loadRef()["overlap3c"],   "overlap3c",   qchem::Overlap3C);   }
+TEST(M_PG1_Oracle, repulsion3c) { check3C(loadRef()["repulsion3c"], "repulsion3c", qchem::Repulsion3C); }

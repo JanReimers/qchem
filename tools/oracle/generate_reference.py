@@ -89,6 +89,40 @@ def eri():
     print(f"  eri: {len(out)} quads, {sum(len(r['elements']) for r in out)} elements")
     return out
 
+# --- 3-centre (DFT): pyscf int3c1e (<ab|c> overlap) and int3c2e ((ab|c) Coulomb). -----------------
+# gbasis has no 3-centre, so use pyscf/libcint and renormalize per-component via pyscf's OWN overlap
+# diagonal (verified to reproduce the per-component unit-self-overlap convention to ~1e-16), so the
+# libcint Cartesian normalization never leaks in.
+from pyscf import gto
+C3_EXP    = [1.1, 0.9, 1.3]
+C3_CENTER = [[0.0,0.0,0.0],[0.0,0.0,1.1],[0.6,0.0,0.3]]
+
+def _mol3(La,Lb,Lc):
+    m = gto.Mole()
+    m.atom  = [["H1",tuple(C3_CENTER[0])],["H2",tuple(C3_CENTER[1])],["H3",tuple(C3_CENTER[2])]]
+    m.basis = {"H1":[[La,[C3_EXP[0],1.0]]],"H2":[[Lb,[C3_EXP[1],1.0]]],"H3":[[Lc,[C3_EXP[2],1.0]]]}
+    m.cart=True; m.unit="Bohr"; m.spin=1; m.build(verbose=0)  # 3 H = 3 electrons (odd)
+    return m
+
+def three_centre(name, intor):
+    out=[]
+    for La,Lb,Lc in itertools.product(range(LMAX+1), repeat=3):
+        m=_mol3(La,Lb,Lc)
+        dnorm=np.sqrt(np.diag(m.intor("int1e_ovlp_cart")))     # per-component self-overlap
+        M=m.intor(intor)/dnorm[:,None,None]/dnorm[None,:,None]/dnorm[None,None,:]
+        pa,pb,pc=powers(La),powers(Lb),powers(Lc)
+        na,nb=len(pa),len(pb)
+        elems=[]
+        for i,fa in enumerate(pa):
+         for j,fb in enumerate(pb):
+          for k,fc in enumerate(pc):
+            elems.append({"a":list(fa),"b":list(fb),"c":list(fc),
+                          "value":float(M[i, na+j, na+nb+k])})
+        out.append({"a":shell_json(C3_EXP[0],C3_CENTER[0],La),"b":shell_json(C3_EXP[1],C3_CENTER[1],Lb),
+                    "c":shell_json(C3_EXP[2],C3_CENTER[2],Lc),"elements":elems})
+    print(f"  {name}: {len(out)} triples, {sum(len(r['elements']) for r in out)} elements")
+    return out
+
 def main():
     data = {"meta": {"engine": "gbasis", "LMAX": LMAX,
                      "normalization": "per-cartesian-component unit self-overlap"}}
@@ -102,6 +136,8 @@ def main():
     # (negative for +Z), matching PG1's Nuclear convention; sum over the charges.
     data["nuclear"] = two_centre("nuclear", lambda b: point_charge_integral(b, ncoords, ncharges).sum(axis=-1))
     data["eri"]     = eri()
+    data["overlap3c"]   = three_centre("overlap3c",   "int3c1e_cart")  # <ab|c>
+    data["repulsion3c"] = three_centre("repulsion3c", "int3c2e_cart")  # (ab|c)
     with open("tools/oracle/reference_integrals.json", "w") as f:
         json.dump(data, f)
     print("wrote tools/oracle/reference_integrals.json")
