@@ -1,0 +1,67 @@
+// File: Cache2.C  Cache object based on two unsigned integer indices.
+//
+// The molecular analogue of Cache4.  Atoms cache the expensive 4-index Slater integrals Rk (Cache4);
+// molecules cache the expensive 2-index charge distributions Omega_ab -- the Hermite expansion for a
+// primitive pair.  2-centre integrals are trivial for atoms (the angular part factors out) but not
+// for molecules, which is why molecules want a Cache2 and atoms never did.
+//
+// As with Cache4, the string RadialType key is paid once (in the global cache, keyed by RadialType);
+// within a Cache2 the two indices are plain integers descended by loop_1/loop_2, so the inner loop is
+// a single-index lookup -- no per-pair string keys.
+module;
+#include <map>
+#include <memory>
+#include <string>
+export module qchem.BasisSet.Internal.Cache2;
+
+
+export class Cache2; //fwd
+
+//
+//  Derive from this class if you know how to create a Cache2 derived object.
+//
+export class Cache2_Client
+{
+public:
+    virtual ~Cache2_Client() {};
+    virtual std::string RadialType() const=0; //Used as the map key in the database.
+    virtual Cache2*     MakeCache2() const=0;
+};
+//
+//  Abstract base for the type being cached.  For molecules these are the charge distributions
+//  Omega_ab (GaussianCD).
+//
+export class Cacheable2
+{
+public:
+    virtual ~Cacheable2() {};
+    virtual bool   isSupported(const Cache2_Client*) const=0;
+    virtual size_t RAMsize() const=0;
+};
+
+//
+//  Derive from this class if you need to run two index loops to build 2-centre data.  Cached objects
+//  are keyed on two unsigned integer indices.  The two index lookup is executed as each index is
+//  looped over (loop_1 descends, loop_2 returns/creates), leaving a one index lookup in the inner
+//  loop.  Use covariant return types for the loop_2 overload.
+//
+export class Cache2
+{
+public:
+    virtual ~Cache2();
+    virtual void Register(Cache2_Client*)=0;   // pure (subclass assigns indices) + base body below
+
+    void                      loop_1(size_t i1) const;
+    virtual const Cacheable2* loop_2(size_t i2) const;
+
+    virtual size_t            RAMsize() const;  //Optional override
+    virtual const Cacheable2* Create(size_t i1,size_t i2) const=0;
+private:
+
+    typedef std::map<size_t,std::unique_ptr<const Cacheable2>> cache_2;
+    typedef std::map<size_t,cache_2> cache_t;
+
+    mutable cache_t  cache;
+    mutable cache_2* i1_cache;
+    mutable size_t   i1,i2; //Current indexes
+};
