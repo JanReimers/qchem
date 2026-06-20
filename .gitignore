@@ -49,3 +49,6 @@ old/PlaneWave/PlaneWaveIE.C
 submodules/blaze
 
 submodules/wignerSymbols
+# Python oracle (reference-integral generator) virtualenv
+tools/oracle/.venv/
+tools/oracle/__pycache__/
