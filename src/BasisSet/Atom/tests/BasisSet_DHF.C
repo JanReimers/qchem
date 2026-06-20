@@ -56,6 +56,8 @@ public:
         auto ibs2=bs2->Iterate<OIBS>().begin();
         for (auto ibs1:bs1->Iterate<OIBS>())
         {
+            // Kinetic() here (a Dirac/RKB basis -> relativistic kinetic block) is just a representative
+            // cached matrix for the cache-identity check; its physics is incidental here.
             auto& S1=ibs1->Kinetic();
             auto& S2=(*ibs2)->Kinetic();
             EXPECT_EQ(S1,S2);

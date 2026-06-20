@@ -8,6 +8,8 @@ import qchem.Blaze;
 namespace BasisSet
 {
 
+// Cached RELATIVISTIC kinetic (RKB L/S cross term); see the \warning in
+// BasisSet/Internal/Orbital_DHF_IBS.C re the c_light/2 factors.
 template <class T> const mat_t<T>& Orbital_RKBL_IBS<T>::Kinetic(const Orbital_RKBS_IBS<T>& rkbs) const
 {
     auto cache=theGlobalCache;
@@ -61,6 +63,11 @@ template <class T> smat_t<T> Orbital_RKB_IBS_Imp<T>::MakeOverlap() const
     smat_t<T> os=itsRKBS->MakeOverlap();
     return merge_diag(ol,os);
 }
+// Combined RKB kinetic ENERGY block (the Dirac \f$c\,\vec\sigma\cdot\vec p\f$ term), placed off-diagonal
+// in the L/S 2x2 structure.  itsRKBL->MakeKinetic(rkbs) already carries a 1/(2 c_light); multiplying by
+// c_light here leaves ~1/2*<p^2> -- the c_light factors cancel.  This is the override of the 1E
+// MakeKinetic() virtual for a Dirac basis, so it means relativistic kinetic, NOT <p^2>.
+// WARNING: factor placement UNVERIFIED (see BasisSet/Internal/Orbital_DHF_IBS.C); guarded by A_DHF.
 template <class T> smat_t<T> Orbital_RKB_IBS_Imp<T>::MakeKinetic() const
 {
     mat_t<T> kls=c_light*itsRKBL->MakeKinetic(*itsRKBS);

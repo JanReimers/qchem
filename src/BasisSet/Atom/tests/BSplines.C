@@ -344,7 +344,7 @@ TEST_F(BSplineTests, Kinetic)
     for (auto ibs:bs->Iterate<const Real_OIBS>())
     {
         cout << ibs->GetSymmetry();
-        rsmat_t T=ibs->Kinetic();
+        rsmat_t T=ibs->Kinetic();   // the <p^2>=<-nabla^2> block (no 1/2) = Grad2 + l(l+1)<r^-2>; see Orbital_1E_IBS.C
         for (auto i:iv_t(0,T.rows()-K-1)) //Check banded
             for (auto j:iv_t(i+K+1,T.rows())) EXPECT_EQ(T(i,j),0.0);
         

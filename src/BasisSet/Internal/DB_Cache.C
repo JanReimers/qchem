@@ -33,8 +33,10 @@ struct IntegralsCache_Base
 public:
     virtual ~IntegralsCache_Base() {};
     enum class I1C  {Charge, Normalization};
+    // I2C::Kinetic = cache key for the <p^2>=<-nabla^2> building block (no 1/2; see Orbital_1E_IBS.C).
     enum class I2C  {Overlap, Repulsion,Kinetic,Nuclear,RestMass, InvOverlap, InvRepulsion};
     enum class I2n  {Nuclear};
+    // I2x::Kinetic = cache key for the RKB (relativistic) L/S cross kinetic; see Orbital_DHF_IBS.C.
     enum class I2x  {Kinetic, Repulsion,Overlap};
     enum class I3C  {Overlap, Repulsion}; // <ab|c> and <ar|1/r12|c>
     enum class I4C  {Direct,Exchange}; // <ab|cd> and <ar|1/r12|cd>

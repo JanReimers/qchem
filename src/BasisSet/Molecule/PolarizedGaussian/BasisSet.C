@@ -70,6 +70,9 @@ public:
     virtual Fit_IBS* CreateVxcFitBasisSet(const Cluster *) const;
 
     virtual rsmat_t      MakeOverlap() const {return MakeIntegrals(PolarizedGaussian::Overlap2C,this);}
+    // Kinetic BUILDING BLOCK = \f$\langle p^2\rangle=\langle-\nabla^2\rangle\f$ (NOT energy, no 1/2;
+    // see BasisSet/Orbital_1E_IBS.C).  For Cartesian Gaussians Grad2 is already the full \f$-\nabla^2\f$
+    // (no separate centrifugal term -- the angular momentum is in the polynomial).
     virtual rsmat_t      MakeKinetic() const {return MakeIntegrals(Grad2,this);}
     virtual rsmat_t      MakeNuclear(const Cluster* cl) const {return MakeIntegrals(PolarizedGaussian::Nuclear,this,cl);}
     virtual ERI3<double> MakeOverlap3C  (const Fit_IBS& c) const; //Used for DFT

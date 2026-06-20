@@ -22,7 +22,7 @@ public:
 
     EnergyBreakdown& operator+=  (const EnergyBreakdown&);
 
-    double Kinetic;
+    double Kinetic;   //!< Kinetic ENERGY value \f$\langle T\rangle\f$ (NR: \f$\tfrac12\langle p^2\rangle\f$; Dirac: relativistic). The actual energy, not the <p^2> block.
     double Enn;
     double Een;
     double Eee;

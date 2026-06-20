@@ -18,6 +18,8 @@ export namespace qchem::Hamiltonian
 
 using ChargeDensity::Polarized_CD;
 
+// Non-relativistic kinetic ENERGY term \f$T=-\tfrac12\nabla^2 = \tfrac12\langle p^2\rangle\f$.
+// (Applies the 1/2 to the basis-set \f$\langle p^2\rangle\f$ block; see Imp/Kinetic.C.)
 class Kinetic
     : public virtual Static_HT
     , private        Static_HT_Imp
@@ -30,6 +32,8 @@ private:
     virtual rsmat_t CalculateMatrix(const obs_t*,const Spin&) const;
 };
 
+// Relativistic kinetic ENERGY term (Dirac \f$c\,\vec\sigma\cdot\vec p\f$); consumes the RKB-assembled
+// relativistic kinetic block directly (no 1/2). See Imp/DiracKinetic.C for the unverified-factor note.
 class DiracKinetic
     : public virtual Static_HT
     , private        Static_HT_Imp

@@ -59,6 +59,8 @@ public:
         auto ibs2=bs2->Iterate<OIBS>().begin();
         for (auto ibs1:bs1->Iterate<OIBS>())
         {
+            // Kinetic() here is just a representative cached 1e matrix (the <p^2> block) used to
+            // check the cache returns the SAME object for the same key -- its physics is incidental.
             auto& S1=ibs1->Kinetic();
             auto& S2=(*ibs2)->Kinetic();
             EXPECT_EQ(S1,S2);

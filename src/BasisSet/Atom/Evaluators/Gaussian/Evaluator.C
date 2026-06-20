@@ -41,6 +41,16 @@ public:
     {
         return ::Gaussian::Integral(es[i]+es[j],2*l)*ns[i]*ns[j]; //Already has 4*Pi and r^2 from dr.
     } 
+    // Radial part of the kinetic building block \f$\langle i|-\nabla^2|j\rangle\f$ for spherical
+    // Gaussians \f$r^{l}e^{-e r^2}Y_{lm}\f$ -- the gradient-dot-gradient form, positive-definite.
+    // In spherical coordinates \f$-\nabla^2 = -\frac{1}{r^2}\frac{d}{dr}\!\big(r^2\frac{d}{dr}\big)
+    // + \frac{l(l+1)}{r^2}\f$; this returns the radial-derivative piece -- the centrifugal term
+    // \f$l(l+1)\langle i|r^{-2}|j\rangle\f$ is added in MakeKinetic.  With \f$t=e_i+e_j\f$ and
+    // \f$I(t,p)\equiv\f$ ::Gaussian::Integral (the radial moment \f$\int_0^\infty r^p e^{-t r^2}\f$
+    // with the \f$4\pi r^2 dr\f$ measure folded in):
+    // \f[ \texttt{Grad2}_{ij} = (l\!+\!1)^2 I(t,2l\!-\!2) - 2(l\!+\!1)\,t\,I(t,2l)
+    //                          + 4 e_i e_j\,I(t,2l\!+\!2) . \f]
+    // Like every "Grad2" this is \f$-\nabla^2\f$ (not \f$+\nabla^2\f$); \f$T=\tfrac12\,\texttt{Grad2}\f$.
     double Grad2(size_t i,size_t j) const
     {
         double t=es[i]+es[j];
@@ -48,7 +58,7 @@ public:
         return  (l1*l1         * ::Gaussian::Integral(t,2*l-2)
                 -2*l1 * t      * ::Gaussian::Integral(t,2*l  )
                 +4*es[i]*es[j] * ::Gaussian::Integral(t,2*l+2))*ns[i]*ns[j] ;
-    } 
+    }
     double Inv_r1(size_t i,size_t j) const
     {
         return ::Gaussian::Integral(es[i]+es[j],2*l-1)*ns[i]*ns[j]; //Already has 4*Pi

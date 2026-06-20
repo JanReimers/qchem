@@ -25,7 +25,11 @@ template <class T> class Orbital_RKBL_IBS
     , public virtual IrrepBasisSet_IDs //avoid using statements for RadialID,AngularID
 {
 public:
-    //! L/S cross Grad^2 \f$ \left\langle a\left|-\frac{1}{2}\nabla^{2}\right|b\right\rangle =-\frac{1}{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)\nabla^{2}g_{b}\left(\vec{r}\right)\f$
+    //! RELATIVISTIC kinetic, L/S cross term (RKB).  Built from the \f$\langle p^2\rangle\f$ block (see
+    //! BasisSet/Orbital_1E_IBS.C) dressed with \f$c_{light}\f$/2 factors in the RKB chain.
+    //! \warning Those c_light / 2 factors (here, atom Orbital_RKBL_IBS::MakeKinetic, and
+    //! Imp/Orbital_DHF_IBS.C) appear to cancel out to the right answer but are UNVERIFIED -- the
+    //! literature conventions are inconsistent.  Defer to a dedicated relativistic-kinetic cleanup.
     virtual const mat_t<T>&     Kinetic(const Orbital_RKBS_IBS<T>& rkbs) const;
     virtual       mat_t<T>  MakeKinetic(const Orbital_RKBS_IBS<T>& rkbs) const=0;
 

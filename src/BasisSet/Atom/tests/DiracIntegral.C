@@ -177,9 +177,11 @@ TEST_F(DiracIntegralTests, SlaterKinetic)
     
     for (auto oi:sbs->Iterate<Real_OIBS >())
     {
+        // Dirac basis: Kinetic() is the RELATIVISTIC kinetic (c*sigma*p), L/S off-diagonal -> zero
+        // diagonal, == -c_light * <grad a|grad b> off-diagonal.  Not the <p^2> block. (See Orbital_DHF_IBS.C.)
         rsmat_t K=oi->Kinetic();
-        rvec_t d=blazem::diagonal(K);    
-        for (size_t i=0;i<d.size();i++) EXPECT_NEAR(d[i],0.0,1e-15);       
+        rvec_t d=blazem::diagonal(K);
+        for (size_t i=0;i<d.size();i++) EXPECT_NEAR(d[i],0.0,1e-15);
         //cout << std::fixed << std::setprecision(3) << std::setw(6) << K << endl;
          rmat_t KnumL = -c_light*mintegrator->Grada_b(*GetLarge(oi),*GetSmall(oi));
 
@@ -193,9 +195,11 @@ TEST_F(DiracIntegralTests, GaussianKinetic)
     
     for (auto oi:gbs->Iterate<Real_OIBS >())
     {
+        // Dirac basis: Kinetic() is the RELATIVISTIC kinetic (c*sigma*p), L/S off-diagonal -> zero
+        // diagonal, == -c_light * <grad a|grad b> off-diagonal.  Not the <p^2> block. (See Orbital_DHF_IBS.C.)
         rsmat_t K=oi->Kinetic();
-        rvec_t d=blazem::diagonal(K);    
-        for (size_t i=0;i<d.size();i++) EXPECT_NEAR(d[i],0.0,1e-15);       
+        rvec_t d=blazem::diagonal(K);
+        for (size_t i=0;i<d.size();i++) EXPECT_NEAR(d[i],0.0,1e-15);
         //cout << std::fixed << std::setprecision(3) << std::setw(6) << K << endl;
          rmat_t KnumL = -c_light*mintegrator->Grada_b(*GetLarge(oi),*GetSmall(oi));
         rsmat_t Knum=merge_off_diag(KnumL);

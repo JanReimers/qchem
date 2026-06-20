@@ -73,7 +73,10 @@ template <is1E_Evaluator E> class Integrals_Kinetic
 : public virtual BasisSet::Integrals_Kinetic<double>
 {
 protected:
-    virtual smat_t<double> MakeKinetic() const 
+    // Builds the kinetic BUILDING BLOCK \f$\langle p^2\rangle=\langle -\nabla^2\rangle\f$ (NOT energy,
+    // no 1/2 -- see BasisSet/Orbital_1E_IBS.C).  For atoms \f$-\nabla^2\f$ splits into the radial
+    // gradient piece e.Grad2(i,j) plus the centrifugal (angular) term \f$l(l+1)\langle r^{-2}\rangle\f$.
+    virtual smat_t<double> MakeKinetic() const
     {
         auto& e=dynamic_cast<const E&>(*this);
         int l=e.Getl();
@@ -228,6 +231,11 @@ template <is1E_Evaluator E> class Orbital_RKBL_IBS
     , public Integrals_Nuclear<E>
 {
 public:
+    // RELATIVISTIC kinetic (RKB L/S cross term).  Integrals_Kinetic<E>::MakeKinetic() is the
+    // \f$\langle p^2\rangle=\langle-\nabla^2\rangle\f$ block (no 1/2); here it is scaled by 1/(2 c_light).
+    // WARNING: this 1/(2 c_light) and the c_light in Imp/Orbital_DHF_IBS.C::MakeKinetic() multiply out
+    // to ~1/2 -- the c's cancel.  Whether each factor sits in the *right* place is UNVERIFIED (see the
+    // \warning in BasisSet/Internal/Orbital_DHF_IBS.C); kept as-is, guarded by A_DHF.
     virtual rmat_t  MakeKinetic(const Orbital_RKBS_IBS<double>& rkbs) const
     {
         auto& ea=dynamic_cast<const E&>(*this);
@@ -248,6 +256,11 @@ template <is1E_Evaluator E> class Orbital_RKBS_IBS
     , public Integrals_Nuclear<E> //RKBS Evaluator overrides Inv_r1 definition
 {
 public:
+    // RKB small-component OVERLAP.  In RKB the small-component metric \f$\langle\chi^S|\chi^S\rangle\f$
+    // is proportional to \f$\langle p^2\rangle\f$, so this reuses the kinetic \f$\langle p^2\rangle\f$
+    // block (Integrals_Kinetic::MakeKinetic, no 1/2) as the overlap.  Any \f$1/(4c^2)\f$ normally
+    // expected here is absent -- presumed to cancel against RestMass/scaling elsewhere; UNVERIFIED
+    // (see the \warning in BasisSet/Internal/Orbital_DHF_IBS.C).
     virtual rsmat_t MakeOverlap() const
     {
         return Integrals_Kinetic<E>::MakeKinetic();

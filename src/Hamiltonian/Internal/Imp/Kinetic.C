@@ -12,9 +12,12 @@ namespace qchem::Hamiltonian
 {
 
 
+// The NON-RELATIVISTIC kinetic ENERGY term \f$T=-\tfrac12\nabla^2\f$.  This is the boundary where
+// "kinetic energy" is actually born: bs->Kinetic() returns the building block \f$\langle p^2\rangle=
+// \langle-\nabla^2\rangle\f$ (no 1/2 -- see BasisSet/Orbital_1E_IBS.C), and the 1/2 is applied HERE.
 rsmat_t Kinetic::CalculateMatrix(const obs_t* bs,const Spin&) const
 {
-    return 0.5*bs->Kinetic();
+    return 0.5*bs->Kinetic();   // T = 1/2 * <p^2>
 }
 
 void Kinetic::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
