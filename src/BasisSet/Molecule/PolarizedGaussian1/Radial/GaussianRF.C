@@ -29,15 +29,18 @@ import qchem.Cluster;
 
 export namespace BasisSet::Molecule::PolarizedGaussian1
 {
-
 // 2-centre integral kinds (was in the now-deleted RadialFunction interface).
 enum IType {Overlap2C, Repulsion2C, Grad2, Nuclear};
+}
 
 //
 //  Internal primitive Gaussian: a single exponent at a centre with maximum L.  Carries the M&D
-//  integral kernels (2C/3C/4C) plus the charge-distribution data (GData) the cache keys on.  This
-//  is a plain helper, NOT a RadialFunction -- it is never the target of virtual dispatch.
+//  integral kernels (2C/3C/4C) plus the charge-distribution data (GData) the cache keys on.  This is
+//  a MODULE-INTERNAL helper -- not exported, not a RadialFunction, never a target of dispatch.  Only
+//  GaussianRF (same module) uses it.
 //
+namespace BasisSet::Molecule::PolarizedGaussian1
+{
 class PrimGaussian : private UniqueIDImp
 {
 public:
@@ -74,6 +77,11 @@ private:
     int               itsL;
     mutable Hermite1* itsH1;
 };
+
+} // namespace (module-internal: PrimGaussian is not exported)
+
+export namespace BasisSet::Molecule::PolarizedGaussian1
+{
 
 //
 //  THE radial function: a contracted Gaussian.  itsPrims.size()==1 (coeff 1.0) is an uncontracted

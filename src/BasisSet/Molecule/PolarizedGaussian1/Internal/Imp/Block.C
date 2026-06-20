@@ -11,18 +11,15 @@ namespace BasisSet::Molecule::PolarizedGaussian1
 
 Block::Block()
     : itsRadial(0)
-    , itsN     (0)
 {};
 
-Block::Block(GaussianRF* rf, size_t N)
+Block::Block(GaussianRF* rf)
     : itsRadial(rf)
-    , itsN     (N)
 {};
 
 Block::Block(const Block& bfb)
     : itsRadial(new GaussianRF(*bfb.itsRadial))
     , itsPols  (bfb.itsPols)
-    , itsN     (bfb.itsN)
 {};
 
 Block::~Block()
@@ -57,7 +54,7 @@ Block* Block::Clone() const
 Block* Block::Clone(const rvec3_t& newCenter) const
 {
     GaussianRF* newRF=new GaussianRF(itsRadial->AtCenter(newCenter));
-    Block* ret= new Block(newRF,itsN);
+    Block* ret= new Block(newRF);
     for (std::vector<Polarization>::const_iterator b(itsPols.begin()); b!=itsPols.end(); b++) ret->Add(*b);
     return ret;
 }

@@ -22,7 +22,7 @@ class Block
 {
 public:
     Block(                         );
-    Block(GaussianRF*, size_t  );
+    Block(GaussianRF*               );
     Block(const Block&);
     ~Block(); //g++ 15.2 BUG Compiler generated, or inline destructor does instance std::vector templates destructor.
 
@@ -42,7 +42,6 @@ public:
 
     GaussianRF*           itsRadial; //Common radial function.
     std::vector<Polarization> itsPols;   //All polarizations for this block.
-    size_t                    itsN;      //Index of first basis function in block.
 };
 
 } //namespace BasisSet::Molecule::PolarizedGaussian1

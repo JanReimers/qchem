@@ -104,14 +104,13 @@ IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Cluster* cl)
 //
 //  Automatically build the basis set from a list of atoms and a basis function reader.
 //
-    int nbasis=1,i=0;
+    int i=0;
     for (auto r:radials)
     {
-        Block* bfb=new Block(r,nbasis);
+        Block* bfb=new Block(r);
         for (auto& p:MakePolarizations(Ls[i]))
         {
             bfb->Add(p);
-            nbasis++;
         }
         itsBlocks.push_back(std::unique_ptr<Block>(bfb));
         i++;
@@ -125,7 +124,6 @@ IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Cluster* cl)
 IrrepBasisSet::IrrepBasisSet(const rvec_t& es, size_t LMax, const Cluster* cl)
     : IrrepBasisSetImp<double>(sym_t(new UnitQN))
 {
-    int nbasis=1;
     for (auto& atom:*cl)
     {
         for (size_t L=0;L<=LMax;L++)
@@ -134,11 +132,10 @@ IrrepBasisSet::IrrepBasisSet(const rvec_t& es, size_t LMax, const Cluster* cl)
             for (auto e:es)
             {
                 GaussianRF* r=new GaussianRF(e,atom->itsR,L);
-                Block* bfb=new Block(r,nbasis);
+                Block* bfb=new Block(r);
                 for (auto& p:Ps)
                 {
                     bfb->Add(p);
-                    nbasis++;
                 }
                 itsBlocks.push_back(std::unique_ptr<Block>(bfb));
             }
@@ -153,16 +150,14 @@ IrrepBasisSet::IrrepBasisSet(const rvec_t& es, size_t LMax, const Cluster* cl)
 IrrepBasisSet::IrrepBasisSet(const rvec_t& es, size_t L)
     : IrrepBasisSetImp<double>(sym_t(new UnitQN))
 {
-    int nbasis=1;
     std::vector<Polarization> Ps=MakePolarizations(L);
     for (auto e:es)
     {
         GaussianRF* r=new GaussianRF(e,rvec3_t(0,0,0),L);
-        Block* bfb=new Block(r,nbasis);
+        Block* bfb=new Block(r);
         for (auto& p:Ps)
         {
             bfb->Add(p);
-            nbasis++;
         }
         itsBlocks.push_back(std::unique_ptr<Block>(bfb));
     }
