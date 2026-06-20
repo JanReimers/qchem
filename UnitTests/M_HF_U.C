@@ -54,15 +54,17 @@ class M_HF_U_Water : public M_HF_U { public: M_HF_U_Water() : M_HF_U(MakeWater()
 static const SCFParams scf = {20, 1e-4, 1e-7, 1e-13, 1e-5, 1.0, 1e-4, false};
 
 #ifndef DEBUG
+// Anchors are the converged HF/DZVP total energies (pinned to catch movement -- "did E move",
+// not a physical-accuracy claim).
 TEST_F(M_HF_U_N2, N2)            // slow in Debug (~80s); Release-only
 {
     Iterate(scf);
-    EXPECT_LT(fabs(RelativeError(-109.251)), 1e-2);
+    EXPECT_LT(fabs(RelativeError(-108.94524)), 1e-4);
 }
 #endif
 
 TEST_F(M_HF_U_Water, Water)
 {
     Iterate(scf);
-    EXPECT_LT(fabs(RelativeError(-76.0229)), 1e-2);
+    EXPECT_LT(fabs(RelativeError(-76.022903)), 1e-5);
 }

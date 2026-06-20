@@ -55,17 +55,16 @@ class M_DFT_Water : public M_DFT { public: M_DFT_Water() : M_DFT(MakeWater(), 0.
 //          NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo MergeTol verbose
 static const SCFParams scf = {20, 1e-4, 1e-7, 1e-13, 1e-5, 1.0, 1e-4, false};
 
+// Anchors are the converged Xalpha total energies (deterministic regression sentinels -- "did E
+// move", NOT the physical energy; exchange-only Xalpha at these alphas is not calibrated to it).
 TEST_F(M_DFT_N2, N2)
 {
     Iterate(scf);
-    EXPECT_LT(fabs(RelativeError(-109.251)), 1e-2);
+    EXPECT_LT(fabs(RelativeError(-109.21679)), 2e-3);
 }
 
-// -79.41: the converged Xalpha(alpha=0.74) total energy for this water/DZVP -- a deterministic
-// regression anchor, NOT the physical ~-76 (exchange-only Xalpha at this alpha is not calibrated
-// to the experimental energy).
 TEST_F(M_DFT_Water, Water)
 {
     Iterate(scf);
-    EXPECT_LT(fabs(RelativeError(-79.41)), 1e-2);
+    EXPECT_LT(fabs(RelativeError(-79.414120)), 2e-3);
 }
