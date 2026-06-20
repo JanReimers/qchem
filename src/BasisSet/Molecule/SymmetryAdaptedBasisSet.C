@@ -32,10 +32,8 @@ private:
     std::shared_ptr<const ::BasisSet::BasisSet<double>> itsRawBasis;  // raw AO basis (kept alive)
 };
 
-// Factory hook: build the symmetry-adapted basis from a raw molecular AO basis + its cluster.
-// Runs the whole pipeline (extract shells -> detect point group -> BuildSALCs -> wrap), and the
-// returned object owns the raw basis (via KeepAlive), so it is self-contained.
-SymmetryAdaptedBasisSet* SymmetryAdapt(std::shared_ptr<const ::BasisSet::BasisSet<double>> rawBasis,
-                                       const Cluster& cl, double tol=1e-4);
+// The SymmetryAdapt(rawBasis, cl) factory is basis-specific (it extracts AO shells from the concrete
+// PGData) and lives in each basis tree: PolarizedGaussian::SymmetryAdapt and
+// PolarizedGaussian1::SymmetryAdapt.  Both build this same Molecule-general SymmetryAdaptedBasisSet.
 
 } //namespace

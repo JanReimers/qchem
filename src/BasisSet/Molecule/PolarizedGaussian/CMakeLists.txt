@@ -1,7 +1,7 @@
 target_sources(qcMolecule_BS PRIVATE
 Imp/BasisSet.C
 Imp/Symmetry.C
-Imp/SymmetryAdaptedBasisSet.C
+Imp/SymmetryAdapt.C
 Imp/IrrepBasisSet.C
 Imp/Fit_IBS.C
 Imp/Orbital_IBS.C
@@ -27,7 +27,7 @@ target_sources(qcMolecule_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
     Internal/PGData.C
     BasisSet.C
     Symmetry.C
-    SymmetryAdaptedBasisSet.C
+    SymmetryAdapt.C
     RadialFunction.C;
     Reader.C
 
