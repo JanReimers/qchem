@@ -160,21 +160,21 @@ GaussianRF* Gaussian94Reader::ReadContracted(int nCont, int maxL, const Atom& at
     assert(nCont>0);
     assert(maxL>=0);
     rmat_t coeff(nCont,itsLs.size());
-    std::vector<double> exponents;
+    rvec_t exponents(nCont);                       // length known up front -> size once, no builder
 
     for (int i=1; i<=nCont; i++)
     {
         double exponent=0;
         itsStream >> exponent;
         for (unsigned int l=1; l<=itsLs.size(); l++) itsStream >> coeff(i-1,l-1);
-        exponents.push_back(exponent);
+        exponents[i-1]=exponent;
     }
     if (itsLs.size()>1 && blazem::column(coeff,0) != blazem::column(coeff,1))
     {
         std::cerr << "Gaussian94Reader::ReadContracted contraction coeffs vary with L, not handeled yet" << std::endl;
         exit(-1);
     }
-    std::vector<double> coeffs(nCont);
+    rvec_t coeffs(nCont);
     for (int i=0; i<nCont; ++i) coeffs[i] = coeff(i,0);
     return new GaussianRF(coeffs, exponents, atom.itsR, maxL);
 }

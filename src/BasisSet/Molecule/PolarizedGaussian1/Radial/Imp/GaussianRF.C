@@ -15,6 +15,7 @@ import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.MnD.Hermite1;
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.MnD.Hermite3;
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.MnD.RNLM;
 
+import qchem.Blaze;     // rvec_t (itsCoeff)
 import qchem.Cluster;
 import qchem.Math;
 
@@ -306,10 +307,11 @@ GaussianRF::GaussianRF(double theExponent, const rvec3_t& theCenter, int theL)
     , itsL     (theL)
 {
     itsPrims.push_back(std::make_unique<PrimGaussian>(theExponent,theCenter,theL));
-    itsCoeff.push_back(1.0);
+    itsCoeff.resize(1);
+    itsCoeff[0]=1.0;
 }
 
-GaussianRF::GaussianRF(const vd_t& coeffs, const vd_t& exponents, const rvec3_t& theCenter, int theL)
+GaussianRF::GaussianRF(const rvec_t& coeffs, const rvec_t& exponents, const rvec3_t& theCenter, int theL)
     : itsCenter(theCenter)
     , itsL     (theL)
     , itsCoeff (coeffs)

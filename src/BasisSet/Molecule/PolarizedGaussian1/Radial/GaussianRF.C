@@ -8,12 +8,12 @@
 // GaussianRF::Integrate over primitive pairs/triples/quads -- no dynamic_cast, no re-dispatch.
 module;
 #include <iosfwd>
-#include <set>
 #include <string>
 #include <vector>
 #include <memory>
 
 export module qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.GaussianRF;
+import qchem.Blaze;                 // rvec_t (contraction coefficients)
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.Polarization;
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.CDCache;
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.GData;
@@ -94,14 +94,12 @@ class GaussianRF
     , private UniqueIDImp
 {
 public:
-    typedef std::set   <double> sd_t;
-    typedef std::vector<double> vd_t;
     typedef const GaussianRF    rf_t;
     typedef const Polarization  po_t;
 
     GaussianRF();
     GaussianRF(double Exp, const rvec3_t& Center, int L);                       // uncontracted
-    GaussianRF(const vd_t& coeffs, const vd_t& exponents, const rvec3_t& Center, int L); // contracted
+    GaussianRF(const rvec_t& coeffs, const rvec_t& exponents, const rvec3_t& Center, int L); // contracted
     GaussianRF(const GaussianRF&);                       // deep-copies the primitives
     GaussianRF& operator=(const GaussianRF&);
     GaussianRF(GaussianRF&&) = default;
@@ -134,7 +132,7 @@ private:
     rvec3_t                                    itsCenter;
     int                                        itsL;
     std::vector<std::unique_ptr<PrimGaussian>> itsPrims;
-    std::vector<double>                        itsCoeff;  // normalization-folded contraction coeffs
+    rvec_t                                     itsCoeff;  // normalization-folded contraction coeffs
 };
 
 } //namespace BasisSet::Molecule::PolarizedGaussian1
