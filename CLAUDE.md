@@ -20,3 +20,4 @@ Brief notes about module/library conventions, naming, and includes.
     `op==` or `op!=` for iterators.
 - Miss understanding: " you've told me never to call ninja directly (cmake handles it)" I only recommended cmake because you were
   struggling to get the ninja to build.  You had to iterate by touching certain files to trigger rebuilds.  It looked inefficient at the time.  Any if ninja is working well and prefer, then go ahead.
+- Prefer classes to do/answer high level operations/questions rather expose internal data with lots of Get functions.  Not a rule just a "prefer" ... src/ChargeDensity/Internal/IrrepCD.C is a great example it has no GetDensityMatrix().  And from other direction, the outer ChargeDensity classes have no GetIrrepCD() methods. 

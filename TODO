@@ -21,6 +21,22 @@ Notes, bugs, and plans for the qchem6 project. This file is markdown-enabled so 
 - DFT support for SALC?
 - Output ElCOnfigs in tetbook format: (1a₁)²(2a₁)²(1b₂)²(3a₁)²(1b₁)²
 - Migrate qchem tester over to the new Molecule_EC
+
+### Polarized Gaussian refactor
+    -enum IType {Overlap2C, Repulsion2C, Grad2, Nuclear};  can we use the enums in src/BasisSet/Internal/DB_Cache.C?
+    -L itsL ... on the atom I *mostly* switched to lower case l.  But I still use upper case for LMax.
+    -PrimGaussian this class smells like an internal implementation detail.
+    -In GaussianRF: "typedef std::vector<double> vd_t;" prefer rvec_t (which is blaze) BUT the blaze doesn't support push_back.  Is that the case here?  If so (this shows in many places, including your recent MOM code) maybe we should add a helper function in Blaze.C
+    and "already know the size version" and an "size not knowt in advance" version.  The helper keeps a current index, and the client
+    caode just does something like push_back(my_rvec,next_element); The "size not knowt in advance" doubles the size (or capcity) when nessecary.  Put warning in comments "This is NOT for hot code"
+    -Does PGData still need    
+        std::string RadialID () const;
+        std::string AngularID() const;
+        for now ?
+    -I see that Block is only used for construction (which is fine basis set files are layed out that way), and the integrals code only uses the flattened version. But I recall McMurche & Davidson saying "blocks" of integrals should be evaluated together for efficiency. I just want confirm (now or later) the we are achieving the same thing throught the caching mechanism.
+    -THis line in Block: "size_t                    itsN;      //Index of first basis function in block." looks suspicious ... presumably the block needs to know where it lands in flattened list of basis functions?  But I don't see it getting used anywhere.
+    
+
 ## Questions
 
 - For atoms it is common to do numerical solution of the radial DE instead of using basis sets.
@@ -135,6 +151,38 @@ Notes, bugs, and plans for the qchem6 project. This file is markdown-enabled so 
 
 - Simplify `LASolver` internals.
 - Sort out PG cache — keep one cache in `DB_cache`.
+- `constexpr` the static numeric lookup tables. `Fact`/`DFact`/`Twon` (`src/Common/Factorials.C`),
+  `DoubleFactData` (PrimGaussian in `Radial/Imp/GaussianRF.C`), and the Pascal/binomial triangle
+  (`src/BasisSet/Atom/Evaluators/Internal/PascalTriangle.C`) are pure integer/double recurrences of
+  fixed size -> ideal for `constexpr std::array<double,N>` filled by a constexpr function (clean
+  C++20, no container/JSON caveats). Three wins: removes the runtime "Initializing..." startup work;
+  removes the forced-static-init-before-main hack (e.g. `static FactorialTables theFactoriTables`),
+  which is the SAME static-init-order-fiasco class just fixed in PeriodicTable (mutable globals are
+  zero-filled until that ctor runs); and turns mutable globals into immutable constants.
+  Caveat: `Wigner3j`/`RelWigner3j` use sqrt of factorial ratios and `std::sqrt` isn't `constexpr`
+  before C++26 -> need a hand-rolled constexpr sqrt (Newton) or keep those runtime for now.
+- (Weaker, separate case) PeriodicTable Saito/NIST/DHF *data* is read from JSON at startup into static
+  objects. NOT constexpr-parseable (`nlohmann::json` isn't constexpr; constexpr vector/string don't
+  persist pre-C++23/26). If wanted, do it via a build-time JSON->codegen step emitting
+  `constexpr std::array<Record,N>` + `std::string_view`. Motivation is robustness (kills the SIOF
+  class + the COMMON_DATA_PATH runtime dependency), not speed. Cheaper interim: Meyers singletons.
+- Home-grow Wigner symbols and drop the `wignerSymbols` submodule. Usage surface is tiny: only
+  `wigner3j` + `clebschGordan` (no 6j/9j), in production just `RelAngularIntegrals.C` (DHF angular)
+  plus `RelAngular.C` (which uses the submodule as a TEST ORACLE). CG is a 3j in disguise
+  (CG = (-1)^(j1-j2+M) sqrt(2J+1) 3j(...)), so one correct `wigner3j` covers it. 3j is a finite
+  factorial sum (Racah formula) -> trivial once `Fact[]` is constexpr (above). The rel calls pass
+  RUNTIME k/kappa, so `std::sqrt` is fine there; a home-grown constexpr sqrt is the bonus that also
+  lets the integer-l `Wigner3j.C` lookup table become a compile-time table (unifying both Wigner
+  paths). Plan: write home-grown `wigner3j`, keep submodule as the oracle in `RelAngular.C` until it
+  matches across all cases, THEN drop from production (and eventually the build). Risk: half-integer
+  args + phase/selection conventions -- the existing oracle test de-risks it.
+- `QchemTester::itsPT` (static `PeriodicTableSaito`): make it construct-on-first-use
+  (`static const PeriodicTableSaito& PT(){ static const PeriodicTableSaito t; return t; }`), drop the
+  static member, replace `itsPT.` with `PT().`. Do NOT move it to gtestmain.C like `theGlobalCache`:
+  itsPT is immutable read-only (never reset, unlike the cache, which is main-managed precisely BECAUSE
+  it's scrubbed between tests), AND `QchemTester` is also used by `scfrun.C` (a separate main) -- the
+  gtestmain pattern would leave itsPT uninitialized there. (The SIOF crash itself is already fixed via
+  the common_data_dir path; this is the remaining cleanliness step.)
 
 ## OOD Refactor
 
@@ -149,7 +197,17 @@ Notes, bugs, and plans for the qchem6 project. This file is markdown-enabled so 
   For now we scrub the cache after the BasisSetPoolTests/XXXOrthogonality tests.
   Another hint.  THis only showed up when add one more grid point to Bspline RadialType ?!?
   Maybe we need valgrind???
-    
+  UPDATE (2026-06-20): an ASan build is now set up at `build/ASan` (clang -fsanitize=address). Run
+  `ASAN_OPTIONS=detect_leaks=1 build/ASan/UnitTests/UTMain --gtest_filter=...`. Faster than valgrind
+  for this codebase and catches stack/global overflows too (but NOT uninitialized reads -> valgrind).
+
+- DFT fit-basis leak (found via ASan 2026-06-20): the DFT Hamiltonian builds a CD fit basis
+  (`BasisSet::CreateCDFitBasisSet` -> `EFit_IBS`) that is never freed -- LSan shows the fit-basis
+  radials leaking on water_DFT (old PG ~1.6MB / 21k allocs, new PG1 ~0.6MB). The HF path is
+  leak-clean. Pre-existing in BOTH trees (shared Hamiltonian/fit-basis ownership), not the PG
+  refactor. Fix: pin down who owns the result of CreateCDFitBasisSet and ensure ~Ham_DFT_U (or the
+  SCFIterator) deletes it.
+
 
 - Investigate BSpline integral inaccuracies for `l>0`.
 - Misc bug notes and test outputs preserved below.
