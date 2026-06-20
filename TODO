@@ -23,19 +23,21 @@ Notes, bugs, and plans for the qchem6 project. This file is markdown-enabled so 
 - Migrate qchem tester over to the new Molecule_EC
 
 ### Polarized Gaussian refactor
-    -enum IType {Overlap2C, Repulsion2C, Grad2, Nuclear};  can we use the enums in src/BasisSet/Internal/DB_Cache.C?
-    -L itsL ... on the atom I *mostly* switched to lower case l.  But I still use upper case for LMax.
-    -PrimGaussian this class smells like an internal implementation detail.
-    -In GaussianRF: "typedef std::vector<double> vd_t;" prefer rvec_t (which is blaze) BUT the blaze doesn't support push_back.  Is that the case here?  If so (this shows in many places, including your recent MOM code) maybe we should add a helper function in Blaze.C
-    and "already know the size version" and an "size not knowt in advance" version.  The helper keeps a current index, and the client
-    caode just does something like push_back(my_rvec,next_element); The "size not knowt in advance" doubles the size (or capcity) when nessecary.  Put warning in comments "This is NOT for hot code"
-    -Does PGData still need    
-        std::string RadialID () const;
-        std::string AngularID() const;
-        for now ?
-    -I see that Block is only used for construction (which is fine basis set files are layed out that way), and the integrals code only uses the flattened version. But I recall McMurche & Davidson saying "blocks" of integrals should be evaluated together for efficiency. I just want confirm (now or later) the we are achieving the same thing throught the caching mechanism.
-    -THis line in Block: "size_t                    itsN;      //Index of first basis function in block." looks suspicious ... presumably the block needs to know where it lands in flattened list of basis functions?  But I don't see it getting used anywhere.
     
+1. enum IType {Overlap2C, Repulsion2C, Grad2, Nuclear};  can we use the enums in src/BasisSet/Internal/DB_Cache.C?
+
+2. L itsL ... on the atom I *mostly* switched to lower case l.  But I still use upper case for LMax.
+3. *Done:* PrimGaussian this class smells like an internal implementation detail.
+4. *Done:* In GaussianRF: "typedef std::vector<double> vd_t;" prefer rvec_t (which is blaze) BUT the blaze doesn't support push_back.  Is that the case here?  If so (this shows in many places, including your recent MOM code) maybe we should add a helper function in Blaze.C
+and "already know the size version" and an "size not knowt in advance" version.  The helper keeps a current index, and the client code just does something like push_back(my_rvec,next_element); The "size not knowt in advance" doubles the size (or capcity) when nessecary.  Put warning in comments "This is NOT for hot code"
+5. *Yes:* -Does PGData still need    
+    std::string RadialID () const;
+    std::string AngularID() const;
+    for now ?  
+6. *Qualified Yes:* With caching there is a std::map look up cost. -I see that Block is only used for construction (which is fine basis set files are layed out that way), and the integrals code only uses the flattened version. But I recall McMurche & Davidson saying "blocks" of integrals should be evaluated together for efficiency. I just want confirm (now or later) the we are achieving the same thing throught the caching mechanism.
+
+- *Done:* itsN is gone. - THis line in Block: "size_t                    itsN;      //Index of first basis function in block." looks suspicious ... presumably the block needs to know where it lands in flattened list of basis functions?  But I don't see it getting used anywhere.
+
 
 ## Questions
 
