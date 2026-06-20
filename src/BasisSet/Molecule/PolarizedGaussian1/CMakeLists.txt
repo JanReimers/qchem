@@ -16,7 +16,7 @@ MnD/Imp/Hermite1.C
 MnD/Imp/RNLM.C
 Readers/Imp/Gaussian94.C
 Radial/Imp/GaussianH3.C
-Radial/GaussianCD.C
+Radial/Omega.C
 Radial/Imp/GaussianRF.C
 )
 target_sources(qcMolecule_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES

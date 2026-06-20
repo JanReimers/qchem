@@ -1,4 +1,4 @@
-// File: GaussianCD.C  Charge distribution for two  gaussians.
+// File: Ω.C  Charge distribution for two  gaussians.
 module;
 #include <vector>
 module qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.CDCache;
@@ -8,7 +8,7 @@ import qchem.Math;
 namespace BasisSet::Molecule::PolarizedGaussian1
 {
 
-std::vector<std::vector<Polarization>> GaussianCD::theNMLs;
+std::vector<std::vector<Polarization>> Ω::theNMLs;
 
 std::vector<Polarization> MakeAllPolarizations(int Lmax)
 {
@@ -20,7 +20,7 @@ std::vector<Polarization> MakeAllPolarizations(int Lmax)
     return list;
 }
 
-void GaussianCD::MakeNMLs()
+void Ω::MakeNMLs()
 {
     for (int L=0; L<=10; L++) theNMLs.push_back(MakeAllPolarizations(L));
 }
@@ -29,7 +29,7 @@ void GaussianCD::MakeNMLs()
 //
 //  Construction zone
 //
-GaussianCD::GaussianCD(const GData& g1,const GData& g2)
+Ω::Ω(const GData& g1,const GData& g2)
     : Ltotal(g1.L + g2.L)
     , a     (g1.Alpha)
     , b     (g2.Alpha)
@@ -43,9 +43,9 @@ GaussianCD::GaussianCD(const GData& g1,const GData& g2)
     if (theNMLs.size()==0) MakeNMLs();
 };
 
-size_t GaussianCD::RAMsize() const
+size_t Ω::RAMsize() const
 {
-    return sizeof(GaussianCD); // includes the by-value Hermite2 block
+    return sizeof(Ω); // includes the by-value Hermite2 block
 }
 
 

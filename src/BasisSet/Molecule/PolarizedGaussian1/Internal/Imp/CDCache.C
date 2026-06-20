@@ -9,7 +9,7 @@ import Common.UniqueID;
 namespace BasisSet::Molecule::PolarizedGaussian1
 {
 
-// Omega_ab (GaussianCD) lives in ONE process-global Cache2, keyed by the primitive UniqueID pair
+// Omega_ab (Ω) lives in ONE process-global Cache2, keyed by the primitive UniqueID pair
 // (primA.ID, primB.ID).  Because the key is the primitive identity, Omega is shared automatically
 // wherever primitive objects are shared (e.g. SALC irreps over one raw basis).  Registered once.
 namespace
@@ -31,7 +31,7 @@ CDCache::CDCache() : CDlookups(0), CDinserts(0), RNLMlookups(0), RNLMinserts(0) 
 
 CDCache::~CDCache()
 {
-    // Omega/GaussianCD are owned by the global Cache2 now; only the RNLM caches are local.
+    // Omega/Ω are owned by the global Cache2 now; only the RNLM caches are local.
     for (auto r:RNLMcache1) delete r.second;
     for (auto r:RNLMcache) delete r.second;
 }
@@ -55,14 +55,14 @@ CDCache::ids_t CDCache::Sort(UniqueID::IDtype i1,UniqueID::IDtype i2)
     return i1<=i2 ? std::make_pair(i1,i2) : std::make_pair(i2,i1);
 }
 
-const GaussianCD& CDCache::findCD(const GData& a,const GData& b)
+const Ω& CDCache::findCD(const GData& a,const GData& b)
 {
     CDlookups++;
     // Delegate to the process-global Cache2 (keyed by the primitive UniqueID pair).  On a miss it
-    // builds the GaussianCD via the lambda; the Cache2 owns the stored object.
+    // builds the Ω via the lambda; the Cache2 owns the stored object.
     const Cacheable2& cd = OmegaCache()->get(a.ID, b.ID,
-        [&a,&b]() -> const Cacheable2* { return new GaussianCD(a,b); });
-    return static_cast<const GaussianCD&>(cd);
+        [&a,&b]() -> const Cacheable2* { return new Ω(a,b); });
+    return static_cast<const Ω&>(cd);
 }
 
 const RNLM& CDCache::find(const GData& ab,const GData& c)
@@ -79,7 +79,7 @@ const RNLM& CDCache::find(const GData& ab,const GData& c)
         return *(i->second);
 }
 
-const RNLM& CDCache::find(const GaussianCD& ab)
+const RNLM& CDCache::find(const Ω& ab)
 {
     RNLMlookups++;
     id_t key=ab.GetID();

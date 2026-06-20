@@ -53,7 +53,7 @@ const Hermite1& PrimGaussian::GetH1() const
 //
 //  Messy helper function for Laplacian operator.
 //
-static double GetGrad2(const Polarization& p1, const Polarization& p2, const GaussianCD& ab)
+static double GetGrad2(const Polarization& p1, const Polarization& p2, const Ω& ab)
 {
     static Polarization p0(0,0,0), x(1,0,0), y(0,1,0), z(0,0,1);
     const Polarization& P1 = p1;
@@ -82,7 +82,7 @@ double PrimGaussian::Integrate2C(IType type, const PrimGaussian* a, const PrimGa
 {
     double s = 0.0;
     Polarization zero(0,0,0);
-    const GaussianCD& ab = cache.findCD(a->GetGData(), b->GetGData());
+    const Ω& ab = cache.findCD(a->GetGData(), b->GetGData());
     switch (type)
     {
         case Overlap2C :
@@ -90,7 +90,7 @@ double PrimGaussian::Integrate2C(IType type, const PrimGaussian* a, const PrimGa
             break;
         case Repulsion2C :
             {
-                auto NLMs = GaussianCD::GetNMLs(a->GetL());
+                auto NLMs = Ω::GetNMLs(a->GetL());
                 const Hermite1& H1a = a->GetH1();
                 const Hermite1& H1b = b->GetH1();
                 const RNLM& R = cache.find(ab);
@@ -132,7 +132,7 @@ double PrimGaussian::Integrate2C(IType type, const PrimGaussian* a, const PrimGa
                 for (auto& atom:*cl)
                     R.Add(RNLM(ab.Ltotal,ab.AlphaP,ab.P-atom->itsR), -1.0*(atom->itsZ));
 
-                auto NLMs = GaussianCD::GetNMLs(ab.Ltotal);
+                auto NLMs = Ω::GetNMLs(ab.Ltotal);
                 const Polarization Pab = pa + pb;
                 for (auto bNLM:NLMs)
                 {
@@ -163,10 +163,10 @@ double PrimGaussian::Integrate3C(qchem::IType3C type, const PrimGaussian* ga, co
             break;
         case qchem::Repulsion3C :
             {
-                const GaussianCD& ab(cache.findCD(ga->GetGData(), gb->GetGData()));
+                const Ω& ab(cache.findCD(ga->GetGData(), gb->GetGData()));
                 const RNLM&        R(cache.find(ab.GetGData(), gc->GetGData()));
 
-                auto NLMs = GaussianCD::GetNMLs(ab.Ltotal);
+                auto NLMs = Ω::GetNMLs(ab.Ltotal);
                 const Hermite1& Hc = gc->GetH1();
                 const Polarization Pab = pa+pb;
                 for (auto nlm:NLMs)
@@ -199,11 +199,11 @@ double PrimGaussian::Integrate4C(const PrimGaussian* ga, const PrimGaussian* gb,
                                  const Polarization& pc, const Polarization& pd,
                                  CDCache& cache, const PrimGaussian* gc, const PrimGaussian* gd)
 {
-    const GaussianCD& ab(cache.findCD(ga->GetGData(), gb->GetGData()));
-    const GaussianCD& cd(cache.findCD(gc->GetGData(), gd->GetGData()));
+    const Ω& ab(cache.findCD(ga->GetGData(), gb->GetGData()));
+    const Ω& cd(cache.findCD(gc->GetGData(), gd->GetGData()));
 
-    const std::vector<Polarization>& abNLMs = GaussianCD::GetNMLs(ab.Ltotal);
-    const std::vector<Polarization>& cdNLMs = GaussianCD::GetNMLs(cd.Ltotal);
+    const std::vector<Polarization>& abNLMs = Ω::GetNMLs(ab.Ltotal);
+    const std::vector<Polarization>& cdNLMs = Ω::GetNMLs(cd.Ltotal);
 
     double lambda = 2*Pi52/(ab.AlphaP*cd.AlphaP*sqrt(ab.AlphaP+cd.AlphaP)); //M&D 3.31
     lambda *= ab.Eij*cd.Eij; //M&D 2.25

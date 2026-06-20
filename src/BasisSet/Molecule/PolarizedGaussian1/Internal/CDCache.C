@@ -16,9 +16,9 @@ import Common.UniqueIDImp;
 
 export namespace BasisSet::Molecule::PolarizedGaussian1
 {
-struct GaussianCD : public UniqueIDImp, public Cacheable2
+struct Ω : public UniqueIDImp, public Cacheable2
 {
-    GaussianCD(const GData&,const GData&);
+    Ω(const GData&,const GData&);
     GData GetGData() const {return GData{GetID(),AlphaP,P,Ltotal};};
 
     virtual bool   isSupported(const Cache2_Client*) const {return false;} // never auto-evicted
@@ -51,9 +51,9 @@ class CDCache
 public:
     CDCache();
     ~CDCache();
-    const GaussianCD& findCD(const GData&,const GData&);
+    const Ω& findCD(const GData&,const GData&);
     const RNLM&       find(const GData&,const GData&);
-    const RNLM&       find(const GaussianCD&);
+    const RNLM&       find(const Ω&);
     
     void Report(std::ostream&) const;
 private:
@@ -66,7 +66,7 @@ private:
     static ids_t Sort(id_t,id_t);
     
     size_t CDlookups,CDinserts;
-    // Omega_ab (GaussianCD) now lives in the process-global Cache2 (see Imp findCD), not here.
+    // Omega_ab (Ω) now lives in the process-global Cache2 (see Imp findCD), not here.
     size_t RNLMlookups,RNLMinserts;
     std::map<id_t ,const RNLM*> RNLMcache1; // For 2 centres, or CD. 
     std::map<ids_t,const RNLM*> RNLMcache; // For 3 centres.
