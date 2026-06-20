@@ -4,6 +4,7 @@ module;
 #include <iostream>
 #include <iomanip>
 #include <cassert>
+#include <string>
 #include <vector>
 #include <memory>
 
@@ -323,6 +324,42 @@ GaussianRF::GaussianRF(const vd_t& coeffs, const vd_t& exponents, const rvec3_t&
 
 GaussianRF::~GaussianRF() {}
 
+// Deep-copy the primitives (a copy is a distinct object and gets its own UniqueID).
+GaussianRF::GaussianRF(const GaussianRF& o)
+    : itsCenter(o.itsCenter)
+    , itsL     (o.itsL)
+    , itsCoeff (o.itsCoeff)
+{
+    for (auto& g:o.itsPrims)
+        itsPrims.push_back(std::make_unique<PrimGaussian>(g->GetExponent(),o.itsCenter,o.itsL));
+}
+
+GaussianRF& GaussianRF::operator=(const GaussianRF& o)
+{
+    if (this!=&o)
+    {
+        itsCenter = o.itsCenter;
+        itsL      = o.itsL;
+        itsCoeff  = o.itsCoeff;
+        itsPrims.clear();
+        for (auto& g:o.itsPrims)
+            itsPrims.push_back(std::make_unique<PrimGaussian>(g->GetExponent(),o.itsCenter,o.itsL));
+    }
+    return *this;
+}
+
+// The same radial (exponents + contraction) placed at a new centre.
+GaussianRF GaussianRF::AtCenter(const rvec3_t& newCenter) const
+{
+    GaussianRF ret;
+    ret.itsCenter = newCenter;
+    ret.itsL      = itsL;
+    ret.itsCoeff  = itsCoeff;
+    for (auto& g:itsPrims)
+        ret.itsPrims.push_back(std::make_unique<PrimGaussian>(g->GetExponent(),newCenter,itsL));
+    return ret;
+}
+
 bool GaussianRF::operator==(const GaussianRF& g) const
 {
     if (norm(itsCenter-g.itsCenter) >= 0.01) return false;          // same centre (0.01 a.u.)
@@ -351,16 +388,14 @@ double GaussianRF::GetCharge(const Polarization& p) const
     return ret;
 }
 
-GaussianRF::sd_t GaussianRF::GetExponents() const
+// Centre-independent identity (L + per-primitive exponent,coeff): symmetry-equivalent shells on
+// different atoms share it, so the symmetry code can match them without exposing raw exponents.
+std::string GaussianRF::TypeID() const
 {
-    sd_t ret;
-    for (auto& g:itsPrims) ret.insert(g->GetExponent());
-    return ret;
-}
-
-GaussianRF::vd_t GaussianRF::GetCoeff() const
-{
-    return itsCoeff;
+    std::string key = std::to_string(itsL);
+    for (size_t i=0;i<itsPrims.size();++i)
+        key += ":" + std::to_string(itsPrims[i]->GetExponent()) + "," + std::to_string(itsCoeff[i]);
+    return key;
 }
 
 double GaussianRF::Integrate(IType type, rf_t& rb, po_t& pa, po_t& pb, CDCache& cache, const Cluster* cl) const
@@ -412,28 +447,6 @@ std::ostream& GaussianRF::Write(std::ostream& os) const
         os << "}";
     }
     return os;
-}
-
-GaussianRF* GaussianRF::Clone() const
-{
-    GaussianRF* ret = new GaussianRF();
-    ret->itsCenter = itsCenter;
-    ret->itsL      = itsL;
-    ret->itsCoeff  = itsCoeff;
-    for (auto& g:itsPrims)
-        ret->itsPrims.push_back(std::make_unique<PrimGaussian>(g->GetExponent(),itsCenter,itsL));
-    return ret;
-}
-
-GaussianRF* GaussianRF::Clone(const rvec3_t& newCenter) const
-{
-    GaussianRF* ret = new GaussianRF();
-    ret->itsCenter = newCenter;
-    ret->itsL      = itsL;
-    ret->itsCoeff  = itsCoeff;
-    for (auto& g:itsPrims)
-        ret->itsPrims.push_back(std::make_unique<PrimGaussian>(g->GetExponent(),newCenter,itsL));
-    return ret;
 }
 
 double GaussianRF::operator()(const rvec3_t& r) const

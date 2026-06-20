@@ -9,6 +9,7 @@
 module;
 #include <iosfwd>
 #include <set>
+#include <string>
 #include <vector>
 #include <memory>
 
@@ -93,17 +94,22 @@ public:
     GaussianRF();
     GaussianRF(double Exp, const rvec3_t& Center, int L);                       // uncontracted
     GaussianRF(const vd_t& coeffs, const vd_t& exponents, const rvec3_t& Center, int L); // contracted
+    GaussianRF(const GaussianRF&);                       // deep-copies the primitives
+    GaussianRF& operator=(const GaussianRF&);
+    GaussianRF(GaussianRF&&) = default;
+    GaussianRF& operator=(GaussianRF&&) = default;
     ~GaussianRF();
 
     using UniqueIDImp::GetID;
     const rvec3_t& GetCenter() const {return itsCenter;}
     int            GetL     () const {return itsL;}
 
-    bool   operator==      (const GaussianRF&) const;  // ignores L (centre + prims)
-    double GetNormalization(const Polarization&) const;
-    double GetCharge       (const Polarization&) const;
-    sd_t   GetExponents    (                   ) const;
-    vd_t   GetCoeff        (                   ) const;
+    GaussianRF  AtCenter(const rvec3_t& newCenter) const;   // same radial, placed at newCenter
+
+    bool        operator==      (const GaussianRF&) const;  // ignores L (centre + prims)
+    double      GetNormalization(const Polarization&) const;
+    double      GetCharge       (const Polarization&) const;
+    std::string TypeID          (                   ) const; // centre-independent identity (L+prims)
 
     // Exactly three integral entry points (2C/3C/4C); the old peel-off overloads are gone, and with
     // one concrete radial type there is no downcast: arguments are GaussianRF directly.
@@ -112,8 +118,6 @@ public:
     double Integrate(rf_t& ra, rf_t& rb, rf_t& rc, po_t& pa, po_t& pb, po_t& pc, po_t& pd, CDCache&) const; // this is D
 
     virtual std::ostream& Write(std::ostream&  ) const;
-    GaussianRF*           Clone(               ) const;
-    GaussianRF*           Clone(const rvec3_t& ) const;
 
     virtual double  operator()(const rvec3_t&) const;
     virtual rvec3_t Gradient  (const rvec3_t&) const;

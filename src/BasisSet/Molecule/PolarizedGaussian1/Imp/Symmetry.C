@@ -17,10 +17,7 @@ using Symmetry::IVec3;
 // equivalent shells on different atoms share it, so the center permutation can match them.
 static int ShellTypeId(const GaussianRF* r, std::map<std::string,int>& types)
 {
-    std::string key = std::to_string(r->GetL());
-    for (double e : r->GetExponents()) key += ":" + std::to_string(e);
-    key += "|";
-    for (double c : r->GetCoeff()) key += ":" + std::to_string(c);
+    const std::string& key = r->TypeID();
     auto it = types.find(key);
     if (it != types.end()) return it->second;
     int id = (int)types.size();

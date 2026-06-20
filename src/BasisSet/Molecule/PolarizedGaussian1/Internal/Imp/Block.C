@@ -20,7 +20,7 @@ Block::Block(GaussianRF* rf, size_t N)
 {};
 
 Block::Block(const Block& bfb)
-    : itsRadial(bfb.itsRadial->Clone())
+    : itsRadial(new GaussianRF(*bfb.itsRadial))
     , itsPols  (bfb.itsPols)
     , itsN     (bfb.itsN)
 {};
@@ -56,7 +56,7 @@ Block* Block::Clone() const
 
 Block* Block::Clone(const rvec3_t& newCenter) const
 {
-    GaussianRF* newRF=itsRadial->Clone(newCenter);
+    GaussianRF* newRF=new GaussianRF(itsRadial->AtCenter(newCenter));
     Block* ret= new Block(newRF,itsN);
     for (std::vector<Polarization>::const_iterator b(itsPols.begin()); b!=itsPols.end(); b++) ret->Add(*b);
     return ret;
