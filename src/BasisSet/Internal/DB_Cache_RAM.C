@@ -15,6 +15,7 @@ import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.Internal.ERI3;
 import qchem.BasisSet.Internal.IntegralEnums;
 import qchem.BasisSet.Internal.Cache4;
+import qchem.BasisSet.Internal.Cache2;
 import qchem.Types;
  
 export namespace BasisSet {
@@ -39,6 +40,9 @@ public:
 
     void Register(Cache4_Client* eval);
     const Cache4* GetCache4(const RadialTypeID_t& type) const;
+
+    void Register(Cache2_Client* eval);
+    const Cache2* GetCache2(const RadialTypeID_t& type) const;
 
 private:
     using key1_t=std::tuple<I1C,IBS_ID_t>; //Integral key for one IBS, 1 centers.
@@ -74,6 +78,8 @@ private:
 
     using val_t=std::unique_ptr<Cache4>;
     using cach4_t=std::map<RadialTypeID_t,val_t>;
+    using val2_t=std::unique_ptr<Cache2>;
+    using cach2_t=std::map<RadialTypeID_t,val2_t>;
 
     map1_t itsVecs;  //Vectors (charge)
     map2_t itsSMats; //Symmetric 2 center matrices
@@ -86,6 +92,7 @@ private:
     map2xm_t itsmMats;  //Numerically integrated
 
     cach4_t itsCache4s; //4 index Radial integral caches.  String identifies IBS type {Slater,BSpline<K>,POlGaussian,etc}
+    cach2_t itsCache2s; //2 index charge-distribution caches (molecular Omega_ab), keyed by RadialType
 
     bool itsMakeLog;
     mutable std::ofstream itsLogger;

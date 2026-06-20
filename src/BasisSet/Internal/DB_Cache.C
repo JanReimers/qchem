@@ -8,6 +8,7 @@ import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.Internal.ERI3;
 import qchem.BasisSet.Internal.IntegralEnums;
 import qchem.BasisSet.Internal.Cache4;
+import qchem.BasisSet.Internal.Cache2;
 import qchem.Types;
  
 export namespace BasisSet {
@@ -73,6 +74,10 @@ public:
     // 4 center radial Slater integrals, Rk for HF calculations
     virtual void Register(Cache4_Client* eval)=0;
     virtual const Cache4* GetCache4(const RadialTypeID_t& type) const=0;
+
+    // 2 center charge distributions Omega_ab (molecular Gaussians); analogue of Cache4.
+    virtual void Register(Cache2_Client* eval)=0;
+    virtual const Cache2* GetCache2(const RadialTypeID_t& type) const=0;
 
 };
 
