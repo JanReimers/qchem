@@ -63,16 +63,16 @@ IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Cluster* cl)
     //  Read in all the radial functions.  These are usually contracted Gaussians, but could also
     //  be single Gaussians.
     //
-    std::vector<RadialFunction*> radials;
+    std::vector<GaussianRF*> radials;
     std::vector<std::vector<int> >    Ls;
     for (auto atom:*cl) //Loop over atoms.
     {
         bsr->FindAtom(*atom);
-        RadialFunction* rf=0;
+        GaussianRF* rf=0;
         while ((rf=bsr->ReadNext(*atom))) //Read in the radial function/
         {
             bool duplicate=false;
-            std::vector<RadialFunction*>::iterator b(radials.begin());
+            std::vector<GaussianRF*>::iterator b(radials.begin());
             for (size_t i=0; b!=radials.end(); i++,b++)
                 if (**b==*rf) //Check for a duplicate, ingnoring Lmax.
                 {
@@ -133,7 +133,7 @@ IrrepBasisSet::IrrepBasisSet(const rvec_t& es, size_t LMax, const Cluster* cl)
             std::vector<Polarization> Ps=MakePolarizations(L);
             for (auto e:es)
             {
-                RadialFunction* r=new GaussianRF(e,atom->itsR,L);
+                GaussianRF* r=new GaussianRF(e,atom->itsR,L);
                 Block* bfb=new Block(r,nbasis);
                 for (auto& p:Ps)
                 {
@@ -157,7 +157,7 @@ IrrepBasisSet::IrrepBasisSet(const rvec_t& es, size_t L)
     std::vector<Polarization> Ps=MakePolarizations(L);
     for (auto e:es)
     {
-        RadialFunction* r=new GaussianRF(e,rvec3_t(0,0,0),L);
+        GaussianRF* r=new GaussianRF(e,rvec3_t(0,0,0),L);
         Block* bfb=new Block(r,nbasis);
         for (auto& p:Ps)
         {
@@ -189,7 +189,7 @@ rvec_t IrrepBasisSet::operator() (const rvec3_t& r) const
     rvec_t ret(size());
     for (size_t i=0;i<size();i++)
     {
-        const RadialFunction& rf=*radials[i];
+        const GaussianRF& rf=*radials[i];
         rvec3_t dr=r-rf.GetCenter();
         ret[i]= ns[i]*pols[i](dr) * rf(r);
     }
@@ -200,7 +200,7 @@ rvec3vec_t IrrepBasisSet::Gradient   (const rvec3_t& r) const
     rvec3vec_t ret(size());
     for (size_t i=0;i<size();i++)
     {
-        const RadialFunction& rf=*radials[i];
+        const GaussianRF& rf=*radials[i];
         rvec3_t dr=r-rf.GetCenter();
         ret[i]= ns[i]*(pols[i].Gradient(dr) * rf(r) + pols[i](dr) * rf.Gradient(r));
     }

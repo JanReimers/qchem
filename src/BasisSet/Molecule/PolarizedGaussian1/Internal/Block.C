@@ -5,7 +5,7 @@ module;
 #include <vector>
 export module qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.Block;
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.Polarization;
-import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.RadialFunction;
+import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.GaussianRF;
 import qchem.Streamable;
 import qchem.Types;
 
@@ -22,7 +22,7 @@ class Block
 {
 public:
     Block(                         );
-    Block(RadialFunction*, size_t  );
+    Block(GaussianRF*, size_t  );
     Block(const Block&);
     ~Block(); //g++ 15.2 BUG Compiler generated, or inline destructor does instance std::vector templates destructor.
 
@@ -40,7 +40,7 @@ public:
     virtual Block* Clone  (             ) const;
     virtual Block* Clone  (const rvec3_t& ) const;
 
-    RadialFunction*           itsRadial; //Common radial function.
+    GaussianRF*           itsRadial; //Common radial function.
     std::vector<Polarization> itsPols;   //All polarizations for this block.
     size_t                    itsN;      //Index of first basis function in block.
 };

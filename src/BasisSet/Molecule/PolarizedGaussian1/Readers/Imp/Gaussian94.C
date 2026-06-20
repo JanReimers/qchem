@@ -123,10 +123,10 @@ bool Gaussian94Reader::FindAtom(const Atom& theAtom)
 //  Returns a 0 pointer if there is nothing more to read.
 //  Assumes coefficients for all L's are the same.
 //
-RadialFunction* Gaussian94Reader::ReadNext(const Atom& atom)
+GaussianRF* Gaussian94Reader::ReadNext(const Atom& atom)
 {
     int    nCont=0, MaxL;
-    RadialFunction* ret=0;
+    GaussianRF* ret=0;
 
     if ((MaxL=ReadLs()) >= 0)              //if ReadLs<0 then we have reached the end of the atom.
     {
@@ -146,7 +146,7 @@ RadialFunction* Gaussian94Reader::ReadNext(const Atom& atom)
     return ret;
 }
 
-RadialFunction* Gaussian94Reader::ReadPrimative(int maxL, const Atom& atom)
+GaussianRF* Gaussian94Reader::ReadPrimative(int maxL, const Atom& atom)
 {
     assert(maxL>=0);
     double exponent,c;
@@ -155,7 +155,7 @@ RadialFunction* Gaussian94Reader::ReadPrimative(int maxL, const Atom& atom)
     return new GaussianRF(exponent,atom.itsR,maxL);
 }
 
-RadialFunction* Gaussian94Reader::ReadContracted(int nCont, int maxL, const Atom& atom)
+GaussianRF* Gaussian94Reader::ReadContracted(int nCont, int maxL, const Atom& atom)
 {
     assert(nCont>0);
     assert(maxL>=0);

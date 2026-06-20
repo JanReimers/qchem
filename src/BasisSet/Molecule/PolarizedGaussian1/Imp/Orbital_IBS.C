@@ -24,14 +24,14 @@ import qchem.Blaze;
 namespace BasisSet::Molecule::PolarizedGaussian1
 {
 
-rsmat_t Orbital_IBS::Integrate(qchem::IType3C type , const RadialFunction* rc, const Polarization& pc) const
+rsmat_t Orbital_IBS::Integrate(qchem::IType3C type , const GaussianRF* rc, const Polarization& pc) const
 {
     auto ab=dynamic_cast<const PGData*>(this);
     int N=ab->size();
     rsmat_t s(N);
     for (size_t ia=0;ia<N;ia++)
         for (size_t ib=ia;ib<N;ib++)
-            s(ia,ib)=rc->Integrate(type,ab->radials[ia],ab->radials[ib],ab->pols[ia],ab->pols[ib],pc,cache)*ab->ns[ia]*ab->ns[ib];
+            s(ia,ib)=rc->Integrate(type,*ab->radials[ia],*ab->radials[ib],ab->pols[ia],ab->pols[ib],pc,cache)*ab->ns[ia]*ab->ns[ib];
         
     return s;    
 }
@@ -43,7 +43,7 @@ rsmat_t MakeIntegrals(IType t2C,const PGData* ab,CDCache& cache, const Cluster* 
     rsmat_t s(N);
     for (size_t ia=0;ia<N;ia++)
         for (size_t ib=ia;ib<N;ib++)
-            s(ia,ib)=ab->radials[ia]->Integrate(t2C,ab->radials[ib],ab->pols[ia],ab->pols[ib],cache,cl)*ab->ns[ia]*ab->ns[ib];
+            s(ia,ib)=ab->radials[ia]->Integrate(t2C,*ab->radials[ib],ab->pols[ia],ab->pols[ib],cache,cl)*ab->ns[ia]*ab->ns[ib];
 
     return s;
 }
@@ -94,7 +94,7 @@ ERI4 Orbital_IBS::MakeDirect  (const Orbital_HF_IBS<double>& _c) const
                         //std::cout << "abcd=(" << ia << "," << ib << "," << ic << "," << id << ")" << std::endl;
                         double norm=a->ns[ia]*a->ns[ib]*c->ns[ic]*c->ns[id];
                         assert(c->radials[id]);
-                        Jab(ic,id)=norm * c->radials[id]->Integrate(a->radials[ia],a->radials[ib],c->radials[ic],a->pols[ia],a->pols[ib],c->pols[ic],c->pols[id],cache);
+                        Jab(ic,id)=norm * c->radials[id]->Integrate(*a->radials[ia],*a->radials[ib],*c->radials[ic],a->pols[ia],a->pols[ib],c->pols[ic],c->pols[id],cache);
                 }
         }
     return J;
@@ -120,11 +120,11 @@ ERI4 Orbital_IBS::MakeExchange(const Orbital_HF_IBS<double>& _b) const
                     double norm=a->ns[ia]*b->ns[ib]*a->ns[ic]*b->ns[id];
                     assert(b->radials[id]);
                     if (ib==id)
-                        Kac(ib,id)=norm * b->radials[id]->Integrate(a->radials[ia],b->radials[ib],a->radials[ic],a->pols[ia],b->pols[ib],a->pols[ic],b->pols[id],cache);
+                        Kac(ib,id)=norm * b->radials[id]->Integrate(*a->radials[ia],*b->radials[ib],*a->radials[ic],a->pols[ia],b->pols[ib],a->pols[ic],b->pols[id],cache);
                     else if (ib<id)
-                        Kac(ib,id)+=0.5*norm * b->radials[id]->Integrate(a->radials[ia],b->radials[ib],a->radials[ic],a->pols[ia],b->pols[ib],a->pols[ic],b->pols[id],cache);
+                        Kac(ib,id)+=0.5*norm * b->radials[id]->Integrate(*a->radials[ia],*b->radials[ib],*a->radials[ic],a->pols[ia],b->pols[ib],a->pols[ic],b->pols[id],cache);
                     else 
-                        Kac(id,ib)+=0.5*norm * b->radials[id]->Integrate(a->radials[ia],b->radials[ib],a->radials[ic],a->pols[ia],b->pols[ib],a->pols[ic],b->pols[id],cache);
+                        Kac(id,ib)+=0.5*norm * b->radials[id]->Integrate(*a->radials[ia],*b->radials[ib],*a->radials[ic],a->pols[ia],b->pols[ib],a->pols[ic],b->pols[id],cache);
                 }        
             }
     return K;

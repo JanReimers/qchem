@@ -4,7 +4,7 @@ module;
 #include <string>
 #include <map>
 module qchem.BasisSet.Molecule.PolarizedGaussian1.Symmetry;
-import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.RadialFunction;
+import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.GaussianRF;
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.Polarization;
 
 namespace BasisSet::Molecule::PolarizedGaussian1
@@ -15,7 +15,7 @@ using Symmetry::IVec3;
 
 // A center-independent id for a radial shell (L + exponents + coefficients): symmetry-
 // equivalent shells on different atoms share it, so the center permutation can match them.
-static int ShellTypeId(const RadialFunction* r, std::map<std::string,int>& types)
+static int ShellTypeId(const GaussianRF* r, std::map<std::string,int>& types)
 {
     std::string key = std::to_string(r->GetL());
     for (double e : r->GetExponents()) key += ":" + std::to_string(e);
@@ -36,7 +36,7 @@ std::vector<AoShell> ExtractAoShells(const PGData& pg)
     size_t i = 0;
     while (i < n)
     {
-        const RadialFunction* r = pg.radials[i];   // all functions of one block share this radial
+        const GaussianRF* r = pg.radials[i];   // all functions of one block share this radial
         AoShell sh;
         sh.center    = r->GetCenter();
         sh.offset    = i;

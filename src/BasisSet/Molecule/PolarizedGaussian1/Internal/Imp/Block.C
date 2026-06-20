@@ -3,7 +3,7 @@ module;
 #include <iomanip>
 #include <vector>
 module qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.Block;
-import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.RadialFunction;
+import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.GaussianRF;
 import qchem.stl_io;
 
 namespace BasisSet::Molecule::PolarizedGaussian1
@@ -14,7 +14,7 @@ Block::Block()
     , itsN     (0)
 {};
 
-Block::Block(RadialFunction* rf, size_t N)
+Block::Block(GaussianRF* rf, size_t N)
     : itsRadial(rf)
     , itsN     (N)
 {};
@@ -56,7 +56,7 @@ Block* Block::Clone() const
 
 Block* Block::Clone(const rvec3_t& newCenter) const
 {
-    RadialFunction* newRF=itsRadial->Clone(newCenter);
+    GaussianRF* newRF=itsRadial->Clone(newCenter);
     Block* ret= new Block(newRF,itsN);
     for (std::vector<Polarization>::const_iterator b(itsPols.begin()); b!=itsPols.end(); b++) ret->Add(*b);
     return ret;

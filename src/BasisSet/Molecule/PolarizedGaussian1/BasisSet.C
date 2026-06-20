@@ -7,7 +7,7 @@ import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.CDCache;
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.Block;
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.Polarization;
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.PGData;
-import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.RadialFunction;
+import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.GaussianRF;
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Reader;
 
 import qchem.BasisSet.Internal.BasisSetImp;
@@ -79,7 +79,7 @@ public:
     virtual ERI4         MakeDirect     (const ::BasisSet::Orbital_HF_IBS<double>& c) const;
     virtual ERI4         MakeExchange   (const ::BasisSet::Orbital_HF_IBS<double>& b) const;
 private:
-    rsmat_t Integrate(qchem::IType3C type , const RadialFunction* rc, const Polarization& pc) const;
+    rsmat_t Integrate(qchem::IType3C type , const GaussianRF* rc, const Polarization& pc) const;
 };
 // Use E prefix to avoid name clash with the interface class Fit_IBS
 class EFit_IBS

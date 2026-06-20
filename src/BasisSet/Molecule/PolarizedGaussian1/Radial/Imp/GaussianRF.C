@@ -296,19 +296,22 @@ rvec3_t PrimGaussian::Gradient(const rvec3_t& r) const
 //
 
 GaussianRF::GaussianRF()
-    : RadialCommon()
+    : itsCenter(0,0,0)
+    , itsL     (0)
 {}
 
 GaussianRF::GaussianRF(double theExponent, const rvec3_t& theCenter, int theL)
-    : RadialCommon(theCenter,theL)
+    : itsCenter(theCenter)
+    , itsL     (theL)
 {
     itsPrims.push_back(std::make_unique<PrimGaussian>(theExponent,theCenter,theL));
     itsCoeff.push_back(1.0);
 }
 
 GaussianRF::GaussianRF(const vd_t& coeffs, const vd_t& exponents, const rvec3_t& theCenter, int theL)
-    : RadialCommon(theCenter,theL)
-    , itsCoeff(coeffs)
+    : itsCenter(theCenter)
+    , itsL     (theL)
+    , itsCoeff (coeffs)
 {
     assert(coeffs.size()==exponents.size());
     for (size_t i=0;i<exponents.size();++i)
@@ -318,25 +321,17 @@ GaussianRF::GaussianRF(const vd_t& coeffs, const vd_t& exponents, const rvec3_t&
         itsCoeff[i] *= itsPrims[i]->GetNormalization(Polarization(theL,0,0));
 }
 
-Hermite1* GaussianRF::MakeH1() const
-{
-    // Combined (contracted) Hermite1; provided for RadialCommon::GetH1 completeness.
-    Hermite1* ret = new Hermite1;
-    for (size_t i=0;i<itsPrims.size();++i) ret->Add(itsPrims[i]->GetH1(), itsCoeff[i]);
-    return ret;
-}
+GaussianRF::~GaussianRF() {}
 
-bool GaussianRF::operator==(const RadialFunction& rf) const
+bool GaussianRF::operator==(const GaussianRF& g) const
 {
-    const GaussianRF* g = dynamic_cast<const GaussianRF*>(&rf);
-    if (!g) return false;
-    if (!RadialCommon::operator==(rf)) return false;
-    if (itsPrims.size()!=g->itsPrims.size()) return false;
+    if (norm(itsCenter-g.itsCenter) >= 0.01) return false;          // same centre (0.01 a.u.)
+    if (itsPrims.size()!=g.itsPrims.size()) return false;
     for (size_t i=0;i<itsPrims.size();++i)
     {
-        double ea=itsPrims[i]->GetExponent(), eb=g->itsPrims[i]->GetExponent();
+        double ea=itsPrims[i]->GetExponent(), eb=g.itsPrims[i]->GetExponent();
         if (fabs((ea-eb)/(ea+eb)*2.0) >= 0.001) return false;       // exponents within 0.1%
-        if (itsCoeff[i]!=g->itsCoeff[i]) return false;
+        if (itsCoeff[i]!=g.itsCoeff[i]) return false;
     }
     return true;
 }
@@ -356,68 +351,54 @@ double GaussianRF::GetCharge(const Polarization& p) const
     return ret;
 }
 
-RadialFunction::sd_t GaussianRF::GetExponents() const
+GaussianRF::sd_t GaussianRF::GetExponents() const
 {
     sd_t ret;
     for (auto& g:itsPrims) ret.insert(g->GetExponent());
     return ret;
 }
 
-RadialFunction::vd_t GaussianRF::GetCoeff() const
+GaussianRF::vd_t GaussianRF::GetCoeff() const
 {
     return itsCoeff;
 }
 
-double GaussianRF::Integrate(IType type, rf_t* rb, po_t& pa, po_t& pb, CDCache& cache, const Cluster* cl) const
+double GaussianRF::Integrate(IType type, rf_t& rb, po_t& pa, po_t& pb, CDCache& cache, const Cluster* cl) const
 {
-    const GaussianRF* gb = dynamic_cast<const GaussianRF*>(rb);
     double s = 0.0;
     for (size_t i=0;i<itsPrims.size();++i)
-        for (size_t j=0;j<gb->itsPrims.size();++j)
-            s += itsCoeff[i]*gb->itsCoeff[j]
-                 * PrimGaussian::Integrate2C(type, itsPrims[i].get(), gb->itsPrims[j].get(), pa, pb, cache, cl);
+        for (size_t j=0;j<rb.itsPrims.size();++j)
+            s += itsCoeff[i]*rb.itsCoeff[j]
+                 * PrimGaussian::Integrate2C(type, itsPrims[i].get(), rb.itsPrims[j].get(), pa, pb, cache, cl);
     return s;
 }
 
 // this is centre C: <ab|c>
-double GaussianRF::Integrate(qchem::IType3C type, rf_t* ra, rf_t* rb, po_t& pa, po_t& pb, po_t& pc, CDCache& cache) const
+double GaussianRF::Integrate(qchem::IType3C type, rf_t& ra, rf_t& rb, po_t& pa, po_t& pb, po_t& pc, CDCache& cache) const
 {
-    const GaussianRF* ga = dynamic_cast<const GaussianRF*>(ra);
-    const GaussianRF* gb = dynamic_cast<const GaussianRF*>(rb);
     double s = 0.0;
-    for (size_t i=0;i<ga->itsPrims.size();++i)
-        for (size_t j=0;j<gb->itsPrims.size();++j)
+    for (size_t i=0;i<ra.itsPrims.size();++i)
+        for (size_t j=0;j<rb.itsPrims.size();++j)
             for (size_t k=0;k<itsPrims.size();++k)
-                s += ga->itsCoeff[i]*gb->itsCoeff[j]*itsCoeff[k]
-                     * PrimGaussian::Integrate3C(type, ga->itsPrims[i].get(), gb->itsPrims[j].get(),
+                s += ra.itsCoeff[i]*rb.itsCoeff[j]*itsCoeff[k]
+                     * PrimGaussian::Integrate3C(type, ra.itsPrims[i].get(), rb.itsPrims[j].get(),
                                                  pa, pb, pc, cache, itsPrims[k].get());
     return s;
 }
 
 // this is centre D: (ab|cd)
-double GaussianRF::Integrate(rf_t* ra, rf_t* rb, rf_t* rc, po_t& pa, po_t& pb, po_t& pc, po_t& pd, CDCache& cache) const
+double GaussianRF::Integrate(rf_t& ra, rf_t& rb, rf_t& rc, po_t& pa, po_t& pb, po_t& pc, po_t& pd, CDCache& cache) const
 {
-    const GaussianRF* ga = dynamic_cast<const GaussianRF*>(ra);
-    const GaussianRF* gb = dynamic_cast<const GaussianRF*>(rb);
-    const GaussianRF* gc = dynamic_cast<const GaussianRF*>(rc);
     double s = 0.0;
-    for (size_t i=0;i<ga->itsPrims.size();++i)
-        for (size_t j=0;j<gb->itsPrims.size();++j)
-            for (size_t k=0;k<gc->itsPrims.size();++k)
+    for (size_t i=0;i<ra.itsPrims.size();++i)
+        for (size_t j=0;j<rb.itsPrims.size();++j)
+            for (size_t k=0;k<rc.itsPrims.size();++k)
                 for (size_t l=0;l<itsPrims.size();++l)
-                    s += ga->itsCoeff[i]*gb->itsCoeff[j]*gc->itsCoeff[k]*itsCoeff[l]
-                         * PrimGaussian::Integrate4C(ga->itsPrims[i].get(), gb->itsPrims[j].get(),
+                    s += ra.itsCoeff[i]*rb.itsCoeff[j]*rc.itsCoeff[k]*itsCoeff[l]
+                         * PrimGaussian::Integrate4C(ra.itsPrims[i].get(), rb.itsPrims[j].get(),
                                                      pa, pb, pc, pd, cache,
-                                                     gc->itsPrims[k].get(), itsPrims[l].get());
+                                                     rc.itsPrims[k].get(), itsPrims[l].get());
     return s;
-}
-
-Hermite3* GaussianRF::GetH3(const RadialFunction&, const RadialFunction&) const
-{
-    // The 3-centre overlap path now contracts via Integrate (over primitive triples) and calls
-    // PrimGaussian::GetH3 directly, so a contracted radial-level GetH3 is never needed.
-    assert(false);
-    return 0;
 }
 
 std::ostream& GaussianRF::Write(std::ostream& os) const
@@ -433,7 +414,7 @@ std::ostream& GaussianRF::Write(std::ostream& os) const
     return os;
 }
 
-RadialFunction* GaussianRF::Clone() const
+GaussianRF* GaussianRF::Clone() const
 {
     GaussianRF* ret = new GaussianRF();
     ret->itsCenter = itsCenter;
@@ -444,7 +425,7 @@ RadialFunction* GaussianRF::Clone() const
     return ret;
 }
 
-RadialFunction* GaussianRF::Clone(const rvec3_t& newCenter) const
+GaussianRF* GaussianRF::Clone(const rvec3_t& newCenter) const
 {
     GaussianRF* ret = new GaussianRF();
     ret->itsCenter = newCenter;

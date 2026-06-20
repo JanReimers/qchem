@@ -3,7 +3,7 @@ module;
 
 #include <vector>
 export module qchem.BasisSet.Molecule.PolarizedGaussian1.Reader;
-export import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.RadialFunction;
+export import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.GaussianRF;
 export import qchem.Cluster;
  
 export namespace BasisSet::Molecule::PolarizedGaussian1
@@ -18,7 +18,7 @@ class Reader
 public:
     virtual ~Reader() {};
 
-    virtual RadialFunction*  ReadNext(const Atom&)      =0;
+    virtual GaussianRF*  ReadNext(const Atom&)      =0;
     virtual bool             FindAtom(const Atom&)      =0;
     virtual std::vector<int> GetLs   (           ) const=0;
 };

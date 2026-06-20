@@ -6,7 +6,7 @@ module;
 export module qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.PGData;
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.Block;
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.Polarization;
-import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.RadialFunction;
+import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.GaussianRF;
 import qchem.Types;
 
 export namespace BasisSet::Molecule::PolarizedGaussian1
@@ -19,7 +19,7 @@ struct PGData
     std::string BasisSetID() const; // geometry-aware cache identity: radial @ centre : pol per fn
 
     void Init(std::vector<const Block*>&);
-    std::vector<const RadialFunction*> radials; // Flattened radials
+    std::vector<const GaussianRF*> radials; // Flattened radials
     std::vector<Polarization>          pols;    // Flattened polarizations
     rvec_t                             ns;      //Norm constants
 

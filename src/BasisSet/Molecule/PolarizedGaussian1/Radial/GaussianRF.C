@@ -8,12 +8,11 @@
 // GaussianRF::Integrate over primitive pairs/triples/quads -- no dynamic_cast, no re-dispatch.
 module;
 #include <iosfwd>
+#include <set>
 #include <vector>
 #include <memory>
 
 export module qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.GaussianRF;
-import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.RadialFunction;
-import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.Radial.Common;
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.Polarization;
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.CDCache;
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.GData;
@@ -21,11 +20,17 @@ import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.MnD.Hermite1;
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.MnD.Hermite3;
 
 import qchem.BasisSet.Internal.IntegralEnums;
+import Common.UniqueID;
 import Common.UniqueIDImp;
+import qchem.ScalarFunction;
+import qchem.Streamable;
 import qchem.Cluster;
 
 export namespace BasisSet::Molecule::PolarizedGaussian1
 {
+
+// 2-centre integral kinds (was in the now-deleted RadialFunction interface).
+enum IType {Overlap2C, Repulsion2C, Grad2, Nuclear};
 
 //
 //  Internal primitive Gaussian: a single exponent at a centre with maximum L.  Carries the M&D
@@ -75,39 +80,47 @@ private:
 //  function normalization is supplied separately via the self-overlap, as before).
 //
 class GaussianRF
-    : public virtual RadialFunction
-    , public RadialCommon
+    : public virtual ScalarFunction<double>
+    , public virtual Streamable
+    , private UniqueIDImp
 {
 public:
+    typedef std::set   <double> sd_t;
+    typedef std::vector<double> vd_t;
+    typedef const GaussianRF    rf_t;
+    typedef const Polarization  po_t;
+
     GaussianRF();
     GaussianRF(double Exp, const rvec3_t& Center, int L);                       // uncontracted
     GaussianRF(const vd_t& coeffs, const vd_t& exponents, const rvec3_t& Center, int L); // contracted
+    ~GaussianRF();
 
-    virtual bool   operator==      (const RadialFunction&) const;
-    virtual double GetNormalization(const Polarization&  ) const;
-    virtual double GetCharge       (const Polarization&  ) const;
-    virtual sd_t   GetExponents    (                     ) const;
-    virtual vd_t   GetCoeff        (                     ) const;
+    using UniqueIDImp::GetID;
+    const rvec3_t& GetCenter() const {return itsCenter;}
+    int            GetL     () const {return itsL;}
 
-    typedef RadialFunction::rf_t rf_t;
-    typedef RadialFunction::po_t po_t;
-    // Exactly three integral entry points (2C/3C/4C); the old peel-off overloads are gone.
-    virtual double Integrate(IType, rf_t* rb, po_t& pa, po_t& pb, CDCache&, const Cluster* cl=0) const;
-    virtual double Integrate(qchem::IType3C, rf_t* ra, rf_t* rb, po_t& pa, po_t& pb, po_t& pc, CDCache&) const; // this is C
-    virtual double Integrate(rf_t* ra, rf_t* rb, rf_t* rc, po_t& pa, po_t& pb, po_t& pc, po_t& pd, CDCache&) const; // this is D
+    bool   operator==      (const GaussianRF&) const;  // ignores L (centre + prims)
+    double GetNormalization(const Polarization&) const;
+    double GetCharge       (const Polarization&) const;
+    sd_t   GetExponents    (                   ) const;
+    vd_t   GetCoeff        (                   ) const;
 
-    virtual Hermite3* GetH3 (const RadialFunction&, const RadialFunction&) const;
+    // Exactly three integral entry points (2C/3C/4C); the old peel-off overloads are gone, and with
+    // one concrete radial type there is no downcast: arguments are GaussianRF directly.
+    double Integrate(IType, rf_t& rb, po_t& pa, po_t& pb, CDCache&, const Cluster* cl=0) const;
+    double Integrate(qchem::IType3C, rf_t& ra, rf_t& rb, po_t& pa, po_t& pb, po_t& pc, CDCache&) const; // this is C
+    double Integrate(rf_t& ra, rf_t& rb, rf_t& rc, po_t& pa, po_t& pb, po_t& pc, po_t& pd, CDCache&) const; // this is D
 
-    virtual std::ostream&   Write(std::ostream&  ) const;
-    virtual RadialFunction* Clone(               ) const;
-    virtual RadialFunction* Clone(const rvec3_t& ) const;
+    virtual std::ostream& Write(std::ostream&  ) const;
+    GaussianRF*           Clone(               ) const;
+    GaussianRF*           Clone(const rvec3_t& ) const;
 
     virtual double  operator()(const rvec3_t&) const;
     virtual rvec3_t Gradient  (const rvec3_t&) const;
 
 private:
-    virtual Hermite1* MakeH1() const;                 // combined H1 (RadialCommon::GetH1)
-
+    rvec3_t                                    itsCenter;
+    int                                        itsL;
     std::vector<std::unique_ptr<PrimGaussian>> itsPrims;
     std::vector<double>                        itsCoeff;  // normalization-folded contraction coeffs
 };
