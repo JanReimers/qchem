@@ -49,14 +49,14 @@ namespace
     }
 }
 
-const Ω& CDCache::findCD(const GData& a,const GData& b)
+const Ω& findΩ(const GData& a,const GData& b)
 {
     const Cacheable2& cd = OmegaCache()->get(a.ID, b.ID,
         [&a,&b]() -> const Cacheable2* { return new Ω(a,b); });
     return static_cast<const Ω&>(cd);
 }
 
-const RNLM& CDCache::find(const GData& ab,const GData& c)
+const RNLM& findRNLM(const GData& ab,const GData& c)
 {
     const Cacheable2& w = RNLMCache()->get(ab.ID, c.ID,
         [&ab,&c]() -> const Cacheable2*

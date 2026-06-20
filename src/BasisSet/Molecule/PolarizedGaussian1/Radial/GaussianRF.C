@@ -62,14 +62,14 @@ public:
 
     // M&D integral kernels over primitives.  a/b/c/d are primitive Gaussians.
     static double Integrate2C(IType, const PrimGaussian* a, const PrimGaussian* b,
-                              const Polarization& pa, const Polarization& pb, CDCache&, const Cluster* cl);
+                              const Polarization& pa, const Polarization& pb, const Cluster* cl);
     static double Integrate3C(qchem::IType3C, const PrimGaussian* a, const PrimGaussian* b,
                               const Polarization& pa, const Polarization& pb, const Polarization& pc,
-                              CDCache&, const PrimGaussian* c);
+                              const PrimGaussian* c);
     static double Integrate4C(const PrimGaussian* a, const PrimGaussian* b,
                               const Polarization& pa, const Polarization& pb,
                               const Polarization& pc, const Polarization& pd,
-                              CDCache&, const PrimGaussian* c, const PrimGaussian* d);
+                              const PrimGaussian* c, const PrimGaussian* d);
 
 private:
     double            itsExponent;
@@ -119,9 +119,9 @@ public:
 
     // Exactly three integral entry points (2C/3C/4C); the old peel-off overloads are gone, and with
     // one concrete radial type there is no downcast: arguments are GaussianRF directly.
-    double Integrate(IType, rf_t& rb, po_t& pa, po_t& pb, CDCache&, const Cluster* cl=0) const;
-    double Integrate(qchem::IType3C, rf_t& ra, rf_t& rb, po_t& pa, po_t& pb, po_t& pc, CDCache&) const; // this is C
-    double Integrate(rf_t& ra, rf_t& rb, rf_t& rc, po_t& pa, po_t& pb, po_t& pc, po_t& pd, CDCache&) const; // this is D
+    double Integrate(IType, rf_t& rb, po_t& pa, po_t& pb, const Cluster* cl=0) const;
+    double Integrate(qchem::IType3C, rf_t& ra, rf_t& rb, po_t& pa, po_t& pb, po_t& pc) const; // this is C
+    double Integrate(rf_t& ra, rf_t& rb, rf_t& rc, po_t& pa, po_t& pb, po_t& pc, po_t& pd) const; // this is D
 
     virtual std::ostream& Write(std::ostream&  ) const;
 

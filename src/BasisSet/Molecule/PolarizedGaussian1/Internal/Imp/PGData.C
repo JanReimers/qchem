@@ -20,9 +20,8 @@ namespace BasisSet::Molecule::PolarizedGaussian1
     
     size_t N=radials.size();
     ns.resize(N);
-    CDCache cache;
     for (size_t i=0;i<N;i++)
-        ns[i]=radials[i]->Integrate(Overlap2C,*radials[i],pols[i],pols[i],cache);
+        ns[i]=radials[i]->Integrate(Overlap2C,*radials[i],pols[i],pols[i]);
     ns=1.0/blazem::sqrt(ns);
 }
 

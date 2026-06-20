@@ -23,7 +23,7 @@ import qchem.BasisSet.Internal.IntegralEnums;
 export namespace BasisSet::Molecule::PolarizedGaussian1
 {
 
-rsmat_t MakeIntegrals(IType,const PGData* ab, CDCache&,const Cluster*cl =0);
+rsmat_t MakeIntegrals(IType,const PGData* ab,const Cluster*cl =0);
 
 class IrrepBasisSet
         : public virtual Real_IBS,
@@ -55,7 +55,6 @@ class IrrepBasisSet
     
         bv_t itsBlocks;
     protected:
-        mutable CDCache cache; //Cache of all Gaussian pair charge distributions.
     };
 class Orbital_IBS
     : public virtual Orbital_1E_IBS<double>
@@ -71,9 +70,9 @@ public:
     virtual Fit_IBS* CreateCDFitBasisSet(const Cluster *) const;
     virtual Fit_IBS* CreateVxcFitBasisSet(const Cluster *) const;
 
-    virtual rsmat_t      MakeOverlap() const {return MakeIntegrals(PolarizedGaussian1::Overlap2C,this,cache);}
-    virtual rsmat_t      MakeKinetic() const {return MakeIntegrals(Grad2,this,cache);}
-    virtual rsmat_t      MakeNuclear(const Cluster* cl) const {return MakeIntegrals(PolarizedGaussian1::Nuclear,this,cache,cl);}
+    virtual rsmat_t      MakeOverlap() const {return MakeIntegrals(PolarizedGaussian1::Overlap2C,this);}
+    virtual rsmat_t      MakeKinetic() const {return MakeIntegrals(Grad2,this);}
+    virtual rsmat_t      MakeNuclear(const Cluster* cl) const {return MakeIntegrals(PolarizedGaussian1::Nuclear,this,cl);}
     virtual ERI3<double> MakeOverlap3C  (const Fit_IBS& c) const; //Used for DFT
     virtual ERI3<double> MakeRepulsion3C(const Fit_IBS& c) const; //Used for DFT
     virtual ERI4         MakeDirect     (const ::BasisSet::Orbital_HF_IBS<double>& c) const;
@@ -89,9 +88,9 @@ class EFit_IBS
 public:
     EFit_IBS(Reader *, const Cluster *);
 
-    virtual rsmat_t MakeOverlap() const {return MakeIntegrals(PolarizedGaussian1::Overlap2C,this,cache);}
+    virtual rsmat_t MakeOverlap() const {return MakeIntegrals(PolarizedGaussian1::Overlap2C,this);}
     virtual  rvec_t MakeCharge   () const;
-    virtual rsmat_t MakeRepulsion() const {return MakeIntegrals(Repulsion2C,this,cache);}
+    virtual rsmat_t MakeRepulsion() const {return MakeIntegrals(Repulsion2C,this);}
     virtual  rmat_t MakeRepulsion(const Fit_IBS& b) const;
 };
 class BasisSet 

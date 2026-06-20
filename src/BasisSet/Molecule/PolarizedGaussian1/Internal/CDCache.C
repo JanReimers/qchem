@@ -53,16 +53,10 @@ private:
 
 
     
-// Stateless forwarder: all PG charge-distribution caching now lives in the process-global Cache2s
-// (Ω keyed by primitive pair; 3/4-centre RNLM keyed by the two Ω ids; 2-centre self-RNLM on each Ω).
-// CDCache holds no state -- it just forwards.  (TODO: drop the threaded CDCache& param and call the
-// find functions directly, then delete this class.)
-class CDCache
-{
-public:
-    const Ω&    findCD(const GData&,const GData&);          // global Ω Cache2
-    const RNLM& find  (const GData&,const GData&);          // global 3/4-centre RNLM Cache2
-};
+// All PG charge-distribution caching lives in the process-global Cache2s; these free functions are
+// the only access points (no per-IBS cache object is threaded any more).
+const Ω&    findΩ   (const GData&, const GData&);          // global Ω Cache2 (primitive pair)
+const RNLM& findRNLM(const GData&, const GData&);          // global 3/4-centre RNLM Cache2
 
 } //namespace BasisSet::Molecule::PolarizedGaussian1
 

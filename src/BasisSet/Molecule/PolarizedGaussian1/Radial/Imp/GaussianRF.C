@@ -78,11 +78,11 @@ static double GetGrad2(const Polarization& p1, const Polarization& p2, const Ω&
 }
 
 double PrimGaussian::Integrate2C(IType type, const PrimGaussian* a, const PrimGaussian* b,
-                                 const Polarization& pa, const Polarization& pb, CDCache& cache, const Cluster* cl)
+                                 const Polarization& pa, const Polarization& pb, const Cluster* cl)
 {
     double s = 0.0;
     Polarization zero(0,0,0);
-    const Ω& ab = cache.findCD(a->GetGData(), b->GetGData());
+    const Ω& ab = findΩ(a->GetGData(), b->GetGData());
     switch (type)
     {
         case Overlap2C :
@@ -149,7 +149,7 @@ double PrimGaussian::Integrate2C(IType type, const PrimGaussian* a, const PrimGa
 
 double PrimGaussian::Integrate3C(qchem::IType3C type, const PrimGaussian* ga, const PrimGaussian* gb,
                                  const Polarization& pa, const Polarization& pb, const Polarization& pc,
-                                 CDCache& cache, const PrimGaussian* gc)
+                                 const PrimGaussian* gc)
 {
     double s = 0.0;
     switch (type)
@@ -163,8 +163,8 @@ double PrimGaussian::Integrate3C(qchem::IType3C type, const PrimGaussian* ga, co
             break;
         case qchem::Repulsion3C :
             {
-                const Ω& ab(cache.findCD(ga->GetGData(), gb->GetGData()));
-                const RNLM&        R(cache.find(ab.GetGData(), gc->GetGData()));
+                const Ω& ab(findΩ(ga->GetGData(), gb->GetGData()));
+                const RNLM&        R(findRNLM(ab.GetGData(), gc->GetGData()));
 
                 auto NLMs = Ω::GetNMLs(ab.Ltotal);
                 const Hermite1& Hc = gc->GetH1();
@@ -197,17 +197,17 @@ double PrimGaussian::Integrate3C(qchem::IType3C type, const PrimGaussian* ga, co
 double PrimGaussian::Integrate4C(const PrimGaussian* ga, const PrimGaussian* gb,
                                  const Polarization& pa, const Polarization& pb,
                                  const Polarization& pc, const Polarization& pd,
-                                 CDCache& cache, const PrimGaussian* gc, const PrimGaussian* gd)
+                                 const PrimGaussian* gc, const PrimGaussian* gd)
 {
-    const Ω& ab(cache.findCD(ga->GetGData(), gb->GetGData()));
-    const Ω& cd(cache.findCD(gc->GetGData(), gd->GetGData()));
+    const Ω& ab(findΩ(ga->GetGData(), gb->GetGData()));
+    const Ω& cd(findΩ(gc->GetGData(), gd->GetGData()));
 
     const std::vector<Polarization>& abNLMs = Ω::GetNMLs(ab.Ltotal);
     const std::vector<Polarization>& cdNLMs = Ω::GetNMLs(cd.Ltotal);
 
     double lambda = 2*Pi52/(ab.AlphaP*cd.AlphaP*sqrt(ab.AlphaP+cd.AlphaP)); //M&D 3.31
     lambda *= ab.Eij*cd.Eij; //M&D 2.25
-    const RNLM& rnlm(cache.find(ab.GetGData(), cd.GetGData())); //M&D section 4A
+    const RNLM& rnlm(findRNLM(ab.GetGData(), cd.GetGData())); //M&D section 4A
 
     double s = 0.0;
     const Polarization Pab = pa + pb;
@@ -400,18 +400,18 @@ std::string GaussianRF::TypeID() const
     return key;
 }
 
-double GaussianRF::Integrate(IType type, rf_t& rb, po_t& pa, po_t& pb, CDCache& cache, const Cluster* cl) const
+double GaussianRF::Integrate(IType type, rf_t& rb, po_t& pa, po_t& pb, const Cluster* cl) const
 {
     double s = 0.0;
     for (size_t i=0;i<itsPrims.size();++i)
         for (size_t j=0;j<rb.itsPrims.size();++j)
             s += itsCoeff[i]*rb.itsCoeff[j]
-                 * PrimGaussian::Integrate2C(type, itsPrims[i].get(), rb.itsPrims[j].get(), pa, pb, cache, cl);
+                 * PrimGaussian::Integrate2C(type, itsPrims[i].get(), rb.itsPrims[j].get(), pa, pb, cl);
     return s;
 }
 
 // this is centre C: <ab|c>
-double GaussianRF::Integrate(qchem::IType3C type, rf_t& ra, rf_t& rb, po_t& pa, po_t& pb, po_t& pc, CDCache& cache) const
+double GaussianRF::Integrate(qchem::IType3C type, rf_t& ra, rf_t& rb, po_t& pa, po_t& pb, po_t& pc) const
 {
     double s = 0.0;
     for (size_t i=0;i<ra.itsPrims.size();++i)
@@ -419,12 +419,12 @@ double GaussianRF::Integrate(qchem::IType3C type, rf_t& ra, rf_t& rb, po_t& pa, 
             for (size_t k=0;k<itsPrims.size();++k)
                 s += ra.itsCoeff[i]*rb.itsCoeff[j]*itsCoeff[k]
                      * PrimGaussian::Integrate3C(type, ra.itsPrims[i].get(), rb.itsPrims[j].get(),
-                                                 pa, pb, pc, cache, itsPrims[k].get());
+                                                 pa, pb, pc, itsPrims[k].get());
     return s;
 }
 
 // this is centre D: (ab|cd)
-double GaussianRF::Integrate(rf_t& ra, rf_t& rb, rf_t& rc, po_t& pa, po_t& pb, po_t& pc, po_t& pd, CDCache& cache) const
+double GaussianRF::Integrate(rf_t& ra, rf_t& rb, rf_t& rc, po_t& pa, po_t& pb, po_t& pc, po_t& pd) const
 {
     double s = 0.0;
     for (size_t i=0;i<ra.itsPrims.size();++i)
@@ -433,7 +433,7 @@ double GaussianRF::Integrate(rf_t& ra, rf_t& rb, rf_t& rc, po_t& pa, po_t& pb, p
                 for (size_t l=0;l<itsPrims.size();++l)
                     s += ra.itsCoeff[i]*rb.itsCoeff[j]*rc.itsCoeff[k]*itsCoeff[l]
                          * PrimGaussian::Integrate4C(ra.itsPrims[i].get(), rb.itsPrims[j].get(),
-                                                     pa, pb, pc, pd, cache,
+                                                     pa, pb, pc, pd,
                                                      rc.itsPrims[k].get(), itsPrims[l].get());
     return s;
 }
