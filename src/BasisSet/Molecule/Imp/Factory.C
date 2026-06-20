@@ -4,8 +4,8 @@ module;
 #include <nlohmann/json.hpp>
 
 module qchem.BasisSet.Molecule.Factory;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Readers.Gaussian94;
-import qchem.BasisSet.Molecule.PolarizedGaussian;
+import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.Readers.Gaussian94;
+import qchem.BasisSet.Molecule.PolarizedGaussian1;
 
 using json = nlohmann::json;
 
@@ -13,11 +13,9 @@ namespace BasisSet::Molecule
 {
     BasisSet<double>* Factory(const nlohmann::json& js,const Cluster* cl)
     {
-       
-
         std::string filepath=js["filepath"].template get<std::string>();
-        PolarizedGaussian::Gaussian94Reader reader(filepath);
-        return new PolarizedGaussian::BasisSet(&reader,cl);  
+        PolarizedGaussian1::Gaussian94Reader reader(filepath);
+        return new PolarizedGaussian1::BasisSet(&reader,cl);
     }
 }
 

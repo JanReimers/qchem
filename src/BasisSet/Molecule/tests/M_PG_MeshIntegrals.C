@@ -7,8 +7,8 @@
 #error "BASISSET_DATA_PATH must be defined by CMake"
 #endif
 
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Readers.Gaussian94;
-import qchem.BasisSet.Molecule.PolarizedGaussian;
+import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.Readers.Gaussian94;
+import qchem.BasisSet.Molecule.PolarizedGaussian1;
 import qchem.BasisSet;
 import qchem.Mesh.Integrator;
 import qchem.Cluster;
@@ -46,7 +46,7 @@ public:
     
     void InitAtom()
     {
-        bs=new PolarizedGaussian::BasisSet(&reader,cl);
+        bs=new PolarizedGaussian1::BasisSet(&reader,cl);
     }
     
     void InitMolecule()
@@ -55,12 +55,12 @@ public:
         m->Insert(new Atom(Z,0.0,Vector3D( 1.,0.,0.)));
         m->Insert(new Atom(Z,0.0,Vector3D(-1.,0.,0.)));
         cl=m;
-        bs=new PolarizedGaussian::BasisSet(&reader,cl);        
+        bs=new PolarizedGaussian1::BasisSet(&reader,cl);        
     }
     
     int Z;
-    PolarizedGaussian::Gaussian94Reader reader;
-    PolarizedGaussian::BasisSet* bs;
+    PolarizedGaussian1::Gaussian94Reader reader;
+    PolarizedGaussian1::BasisSet* bs;
     Cluster* cl;
 };
 

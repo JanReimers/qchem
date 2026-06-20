@@ -1,6 +1,11 @@
-// File: UnitTests/M_PG_Sym.C  Symmetric molecular HF integration test (stage 4 end-to-end).
-// Drives an HF SCF for water two ways -- a plain single-IBS basis and a SymmetryAdaptedBasisSet
-// (per-irrep blocks) with a fixed C2v occupation -- and checks the total energies agree.
+// File: UnitTests/M_Sym.C  Molecular symmetry-adapted SCF integration tests (SALC end-to-end).
+//
+// Drives an SCF for water two ways -- a plain single-IBS basis and a SymmetryAdaptedBasisSet (one IBS
+// per C2v irrep, global aufbau) -- and checks the total energies agree.  The raw basis comes from the
+// production factory (PolarizedGaussian), so SymmetryAdapt builds per-irrep blocks over the SAME raw
+// primitives; Omega_ab is computed once and shared across irreps via the global Cache2.  Covers HF and
+// Xalpha-DFT (un/polarized) plus rigid rotation/translation invariance -- the "water-moved" cases that
+// proved important for catching geometry-key / cache bugs.
 #include "gtest/gtest.h"
 #include <nlohmann/json.hpp>
 #include <memory>
@@ -10,9 +15,9 @@ import qchem.Cluster;                                         // Molecule, Atom
 import qchem.SCFIterator;                                     // SCFIterator, SCFParams, EnergyBreakdown
 import qchem.Hamiltonian.Factory;                             // Factory, Model, Pol, cl_t
 import qchem.SCFAccelerator.Factory;                          // SCFAccelerators::Factory, Type
-import qchem.BasisSet.Molecule.Factory;                       // Molecule::Factory (real basis from file)
+import qchem.BasisSet.Molecule.Factory;                       // Molecule::Factory (production basis = PG1)
 import qchem.BasisSet.Molecule.SymmetryAdaptedBasisSet;       // SymmetryAdaptedBasisSet (general class)
-import qchem.BasisSet.Molecule.PolarizedGaussian.SymmetryAdapt; // PolarizedGaussian::SymmetryAdapt
+import qchem.BasisSet.Molecule.PolarizedGaussian1.SymmetryAdapt; // PG1 SymmetryAdapt hook
 import qchem.ElectronConfiguration.Molecule;                  // Molecule_EC
 import qchem.Types;
 import qchem.Math;                                            // cos, sin (for the rotation test)
@@ -25,6 +30,7 @@ static const std::filesystem::path basisset_data_dir = BASISSET_DATA_PATH;
 
 using namespace qchem::Hamiltonian;
 using ::BasisSet::Real_BS;
+namespace PG1 = ::BasisSet::Molecule::PolarizedGaussian1;
 
 static Molecule* MakeWater()
 {
@@ -44,7 +50,7 @@ static EnergyBreakdown RunHF(const BasisSet::BasisSet<double>* bs, const Electro
     auto* acc = qchem::SCFAccelerators::Factory(qchem::SCFAccelerators::Type::DIIS, jsacc);
     qchem::SCFIterator::SCFIterator scf(bs, ec, ham, acc);
     //          NMaxIter MinDro  MinDFD  MinVirial MinFD  relax MergeTol verbose
-    scf.Iterate({60,     1e-7,   1e-9,   1e2,      1e-7,  0.5,  1e-4,    true});
+    scf.Iterate({60,     1e-7,   1e-9,   1e2,      1e-7,  0.5,  1e-4,    false});
     return scf.GetEnergy();
 }
 
@@ -56,7 +62,7 @@ static EnergyBreakdown RunDFT(const BasisSet::BasisSet<double>* bs, const Electr
     nlohmann::json jsacc = {{"NProj",4},{"EMax",0.1},{"EMin",1e-7},{"SVTol",5e-9}};
     auto* acc = qchem::SCFAccelerators::Factory(qchem::SCFAccelerators::Type::DIIS, jsacc);
     qchem::SCFIterator::SCFIterator scf(bs, ec, ham, acc);
-    scf.Iterate({60, 1e-7, 1e-9, 1e2, 1e-7, 0.5, 1e-4, true});
+    scf.Iterate({60, 1e-7, 1e-9, 1e2, 1e-7, 0.5, 1e-4, false});
     return scf.GetEnergy();
 }
 
@@ -74,19 +80,19 @@ static void CheckWaterDFT(Pol pol, double tol)
     EnergyBreakdown ebRef = RunDFT(bsRef, &ecRef, cl, pol);
 
     auto rawBasis = std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(js, mol.get()));
-    auto* sab = BasisSet::Molecule::PolarizedGaussian::SymmetryAdapt(rawBasis, *mol, 1e-4);
+    auto* sab = PG1::SymmetryAdapt(rawBasis, *mol, 1e-4);
     Molecule_EC ecSym(mol->GetNumElectrons());
     EnergyBreakdown ebSym = RunDFT(sab, &ecSym, cl, pol);
 
     EXPECT_NEAR(ebSym.GetTotalEnergy(), ebRef.GetTotalEnergy(), tol) << "DFT symmetric == non-symmetric";
 }
 
-TEST(M_PG_Sym, water_DFT_unpolarized) { CheckWaterDFT(Pol::UnPolarized, 1e-5); }
+TEST(M_Sym, water_DFT_unpolarized) { CheckWaterDFT(Pol::UnPolarized, 1e-5); }
 // Polarized (unrestricted) Xalpha: a small (~2e-4) symmetric-vs-non-symmetric residual remains --
 // the two-spin-channel SCF converges to slightly different points (see the SALC DIIS/occupation
 // notes in doc/SCF_DIIS_SALC_notes.md); the decorator transform itself is exact (unpolarized matches
 // to <1e-5).
-TEST(M_PG_Sym, water_DFT_polarized)   { CheckWaterDFT(Pol::Polarized, 1e-3); }
+TEST(M_Sym, water_DFT_polarized)   { CheckWaterDFT(Pol::Polarized, 1e-3); }
 
 // Symmetry-adapted water HF (real DZVP basis) must equal the non-symmetric run, both for the
 // closed-shell unpolarized and (since water is closed shell) the polarized Hamiltonian -- and
@@ -102,9 +108,9 @@ static void CheckWaterHF(Pol pol)
     Molecule_EC ecRef(mol->GetNumElectrons());
     EnergyBreakdown ebRef = RunHF(bsRef, &ecRef, cl, pol);
 
-    // symmetry-adapted via the factory hook: per-irrep blocks, global aufbau
+    // symmetry-adapted via the PG1 hook: per-irrep blocks, global aufbau
     auto rawBasis = std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(js, mol.get()));
-    auto* sab = BasisSet::Molecule::PolarizedGaussian::SymmetryAdapt(rawBasis, *mol, 1e-4);
+    auto* sab = PG1::SymmetryAdapt(rawBasis, *mol, 1e-4);
     Molecule_EC ecSym(mol->GetNumElectrons());
     EnergyBreakdown ebSym = RunHF(sab, &ecSym, cl, pol);
 
@@ -114,8 +120,8 @@ static void CheckWaterHF(Pol pol)
     EXPECT_NEAR(ebRef.GetVirial(), -2.0, 0.02) << "virial 2+V/K should be ~0 at the HF minimum";
 }
 
-TEST(M_PG_Sym, water_HF_unpolarized) { CheckWaterHF(Pol::UnPolarized); }
-TEST(M_PG_Sym, water_HF_polarized)   { CheckWaterHF(Pol::Polarized); }
+TEST(M_Sym, water_HF_unpolarized) { CheckWaterHF(Pol::UnPolarized); }
+TEST(M_Sym, water_HF_polarized)   { CheckWaterHF(Pol::Polarized); }
 
 // Rotate v by Euler (Rz(a) Ry(b) Rx(c)) -- a generic, non-axis-aligned orientation.
 static Vector3D<double> Rotate(const Vector3D<double>& v, double a, double b, double c)
@@ -154,7 +160,7 @@ static void CheckMovedWaterHF(Molecule* m)
     EnergyBreakdown ebRef = RunHF(bsRef, &ecRef, cl, Pol::UnPolarized);
 
     auto rawBasis = std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(js, mol.get()));
-    auto* sab = BasisSet::Molecule::PolarizedGaussian::SymmetryAdapt(rawBasis, *mol, 1e-4);  // symmetry-adapted
+    auto* sab = PG1::SymmetryAdapt(rawBasis, *mol, 1e-4);  // symmetry-adapted
     Molecule_EC ecSym(mol->GetNumElectrons());
     EnergyBreakdown ebSym = RunHF(sab, &ecSym, cl, Pol::UnPolarized);
 
@@ -162,6 +168,6 @@ static void CheckMovedWaterHF(Molecule* m)
     EXPECT_NEAR(ebSym.GetTotalEnergy(), -76.022903, 1e-4) << "invariant under rigid rotation/translation";
 }
 
-TEST(M_PG_Sym, water_translated)         { CheckMovedWaterHF(MakeWaterMoved(0,0,0,      Vector3D<double>(2.0,-3.0,1.5))); }
-TEST(M_PG_Sym, water_rotated)            { CheckMovedWaterHF(MakeWaterMoved(0.7,1.1,0.3, Vector3D<double>(0,0,0)));       }
-TEST(M_PG_Sym, water_rotated_translated) { CheckMovedWaterHF(MakeWaterMoved(0.7,1.1,0.3, Vector3D<double>(2.0,-3.0,1.5)));}
+TEST(M_Sym, water_translated)         { CheckMovedWaterHF(MakeWaterMoved(0,0,0,      Vector3D<double>(2.0,-3.0,1.5))); }
+TEST(M_Sym, water_rotated)            { CheckMovedWaterHF(MakeWaterMoved(0.7,1.1,0.3, Vector3D<double>(0,0,0)));       }
+TEST(M_Sym, water_rotated_translated) { CheckMovedWaterHF(MakeWaterMoved(0.7,1.1,0.3, Vector3D<double>(2.0,-3.0,1.5)));}

@@ -33,7 +33,7 @@ private:
 };
 
 // The SymmetryAdapt(rawBasis, cl) factory is basis-specific (it extracts AO shells from the concrete
-// PGData) and lives in each basis tree: PolarizedGaussian::SymmetryAdapt and
-// PolarizedGaussian1::SymmetryAdapt.  Both build this same Molecule-general SymmetryAdaptedBasisSet.
+// PGData) and lives in the basis tree: PolarizedGaussian1::SymmetryAdapt builds this same
+// Molecule-general SymmetryAdaptedBasisSet.
 
 } //namespace
