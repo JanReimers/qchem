@@ -31,8 +31,8 @@ CDCache::CDCache() : CDlookups(0), CDinserts(0), RNLMlookups(0), RNLMinserts(0) 
 
 CDCache::~CDCache()
 {
-    // Omega/Ω are owned by the global Cache2 now; only the RNLM caches are local.
-    for (auto r:RNLMcache1) delete r.second;
+    // Omega/Ω are owned by the global Cache2; the 2-centre self-RNLM is owned by each Ω.  Only the
+    // 3/4-centre RNLM cache is local.
     for (auto r:RNLMcache) delete r.second;
 }
 
@@ -74,19 +74,6 @@ const RNLM& CDCache::find(const GData& ab,const GData& c)
         RNLMinserts++;
         double alpha =ab.Alpha*c.Alpha/(ab.Alpha+c.Alpha);
         return *(RNLMcache[key]=new RNLM(ab.L+c.L,alpha,ab.R-c.R));
-    }
-    else
-        return *(i->second);
-}
-
-const RNLM& CDCache::find(const Ω& ab)
-{
-    RNLMlookups++;
-    id_t key=ab.GetID();
-    if (auto i=RNLMcache1.find(key);i==RNLMcache1.end())
-    {
-        RNLMinserts++;
-        return *(RNLMcache1[key]=new RNLM(ab.Ltotal,ab.ab/ab.AlphaP,ab.AB));
     }
     else
         return *(i->second);

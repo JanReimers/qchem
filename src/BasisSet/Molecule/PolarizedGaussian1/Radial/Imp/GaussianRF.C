@@ -93,7 +93,7 @@ double PrimGaussian::Integrate2C(IType type, const PrimGaussian* a, const PrimGa
                 auto NLMs = Ω::GetNMLs(a->GetL());
                 const Hermite1& H1a = a->GetH1();
                 const Hermite1& H1b = b->GetH1();
-                const RNLM& R = cache.find(ab);
+                const RNLM& R = ab.SelfRNLM();
 
                 double factor = 1.0/(ab.ab*sqrt(ab.AlphaP));
                 factor = (pb.GetTotalL()%2) ? -factor : factor;

@@ -3,10 +3,23 @@ module;
 #include <vector>
 module qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.CDCache;
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.Polarization;
+import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.MnD.RNLM;
 import qchem.Math;
 
 namespace BasisSet::Molecule::PolarizedGaussian1
 {
+
+Ω::~Ω()
+{
+    delete itsSelfRNLM;
+}
+
+// 2-centre self-auxiliary: RNLM(Ltotal, ab/AlphaP, AB) -- built once, owned by this Ω.
+const RNLM& Ω::SelfRNLM() const
+{
+    if (!itsSelfRNLM) itsSelfRNLM = new RNLM(Ltotal, ab/AlphaP, AB);
+    return *itsSelfRNLM;
+}
 
 std::vector<std::vector<Polarization>> Ω::theNMLs;
 

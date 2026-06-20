@@ -19,10 +19,15 @@ export namespace BasisSet::Molecule::PolarizedGaussian1
 struct Ω : public UniqueIDImp, public Cacheable2
 {
     Ω(const GData&,const GData&);
+    ~Ω();
     GData GetGData() const {return GData{GetID(),AlphaP,P,Ltotal};};
 
     virtual bool   isSupported(const Cache2_Client*) const {return false;} // never auto-evicted
     virtual size_t RAMsize() const;
+
+    // The 2-centre self-auxiliary RNLM(this) is 1:1 with the charge distribution, so it is a lazy
+    // member rather than a separate cache entry.  Used by the 2-centre Coulomb (Repulsion2C).
+    const RNLM& SelfRNLM() const;
 
 //
 //  Raw data defining the charge distribution, all pickeled.
@@ -42,6 +47,8 @@ struct Ω : public UniqueIDImp, public Cacheable2
     }
     static void MakeNMLs();
     static std::vector<std::vector<Polarization>> theNMLs; //A list of all NMLs for each LMax.
+private:
+    mutable RNLM* itsSelfRNLM=nullptr;  // lazily built by SelfRNLM()
 };
 
 
@@ -53,8 +60,7 @@ public:
     ~CDCache();
     const Ω& findCD(const GData&,const GData&);
     const RNLM&       find(const GData&,const GData&);
-    const RNLM&       find(const Ω&);
-    
+
     void Report(std::ostream&) const;
 private:
     static inline double Efficiency(size_t N, size_t Nl)
@@ -68,8 +74,7 @@ private:
     size_t CDlookups,CDinserts;
     // Omega_ab (Ω) now lives in the process-global Cache2 (see Imp findCD), not here.
     size_t RNLMlookups,RNLMinserts;
-    std::map<id_t ,const RNLM*> RNLMcache1; // For 2 centres, or CD. 
-    std::map<ids_t,const RNLM*> RNLMcache; // For 3 centres.
+    std::map<ids_t,const RNLM*> RNLMcache; // For 3/4 centres (RNLM between two charge distributions).
     
 };
 
