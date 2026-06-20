@@ -15,9 +15,9 @@ import qchem.Cluster;                                         // Molecule, Atom
 import qchem.SCFIterator;                                     // SCFIterator, SCFParams, EnergyBreakdown
 import qchem.Hamiltonian.Factory;                             // Factory, Model, Pol, cl_t
 import qchem.SCFAccelerator.Factory;                          // SCFAccelerators::Factory, Type
-import qchem.BasisSet.Molecule.Factory;                       // Molecule::Factory (production basis = PG1)
+import qchem.BasisSet.Molecule.Factory;                       // Molecule::Factory (production basis = PG)
 import qchem.BasisSet.Molecule.SymmetryAdaptedBasisSet;       // SymmetryAdaptedBasisSet (general class)
-import qchem.BasisSet.Molecule.PolarizedGaussian1.SymmetryAdapt; // PG1 SymmetryAdapt hook
+import qchem.BasisSet.Molecule.PolarizedGaussian.SymmetryAdapt; // PG SymmetryAdapt hook
 import qchem.ElectronConfiguration.Molecule;                  // Molecule_EC
 import qchem.Types;
 import qchem.Math;                                            // cos, sin (for the rotation test)
@@ -30,7 +30,7 @@ static const std::filesystem::path basisset_data_dir = BASISSET_DATA_PATH;
 
 using namespace qchem::Hamiltonian;
 using ::BasisSet::Real_BS;
-namespace PG1 = ::BasisSet::Molecule::PolarizedGaussian1;
+namespace PG = ::BasisSet::Molecule::PolarizedGaussian;
 
 static Molecule* MakeWater()
 {
@@ -80,7 +80,7 @@ static void CheckWaterDFT(Pol pol, double tol)
     EnergyBreakdown ebRef = RunDFT(bsRef, &ecRef, cl, pol);
 
     auto rawBasis = std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(js, mol.get()));
-    auto* sab = PG1::SymmetryAdapt(rawBasis, *mol, 1e-4);
+    auto* sab = PG::SymmetryAdapt(rawBasis, *mol, 1e-4);
     Molecule_EC ecSym(mol->GetNumElectrons());
     EnergyBreakdown ebSym = RunDFT(sab, &ecSym, cl, pol);
 
@@ -108,9 +108,9 @@ static void CheckWaterHF(Pol pol)
     Molecule_EC ecRef(mol->GetNumElectrons());
     EnergyBreakdown ebRef = RunHF(bsRef, &ecRef, cl, pol);
 
-    // symmetry-adapted via the PG1 hook: per-irrep blocks, global aufbau
+    // symmetry-adapted via the PG hook: per-irrep blocks, global aufbau
     auto rawBasis = std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(js, mol.get()));
-    auto* sab = PG1::SymmetryAdapt(rawBasis, *mol, 1e-4);
+    auto* sab = PG::SymmetryAdapt(rawBasis, *mol, 1e-4);
     Molecule_EC ecSym(mol->GetNumElectrons());
     EnergyBreakdown ebSym = RunHF(sab, &ecSym, cl, pol);
 
@@ -160,7 +160,7 @@ static void CheckMovedWaterHF(Molecule* m)
     EnergyBreakdown ebRef = RunHF(bsRef, &ecRef, cl, Pol::UnPolarized);
 
     auto rawBasis = std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(js, mol.get()));
-    auto* sab = PG1::SymmetryAdapt(rawBasis, *mol, 1e-4);  // symmetry-adapted
+    auto* sab = PG::SymmetryAdapt(rawBasis, *mol, 1e-4);  // symmetry-adapted
     Molecule_EC ecSym(mol->GetNumElectrons());
     EnergyBreakdown ebSym = RunHF(sab, &ecSym, cl, Pol::UnPolarized);
 

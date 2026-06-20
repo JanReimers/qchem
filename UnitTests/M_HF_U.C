@@ -3,7 +3,7 @@
 // Production path: BasisSet::Molecule::Factory builds the PolarizedGaussian (M&D) molecular basis.
 // Here we drive a full SCF for N2 and water through QchemTester and check the converged total energy
 // against a reference (relative error < 1%) -- the same total-energy check used for the atom A_HF
-// tests.  (Integral correctness to machine precision is covered separately by M_PG1_Oracle.)
+// tests.  (Integral correctness to machine precision is covered separately by M_PG_Oracle.)
 #include "gtest/gtest.h"
 #include <nlohmann/json.hpp>
 #include <filesystem>
