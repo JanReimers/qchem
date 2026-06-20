@@ -6,7 +6,7 @@ link_directories(
 
 add_executable(UTMain gtestmain.C QchemTesterImp.C 
     EigenSolverUT.C 
-    A_HF_U.C A_HF_P.C A_DHF.C A_HF_U.C A_DFT.C A_DFT_U.C M_PG_U.C M_PG_Sym.C M_PG1_vs_PG.C M_PG1_Sym.C M_PG1_Oracle.C
+    A_HF_U.C A_HF_P.C A_DHF.C A_HF_U.C A_DFT.C A_DFT_U.C M_PG_U.C M_PG_Sym.C M_PG1_vs_PG.C M_PG1_Sym.C
     )
 target_sources(UTMain PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES QchemTester.C)
 
@@ -16,7 +16,6 @@ target_sources(UTMain PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES Qche
 target_compile_options(UTMain PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(UTMain PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
 target_compile_definitions(UTMain PRIVATE ${BasisDataPath})
-target_compile_definitions(UTMain PRIVATE ORACLE_DATA_PATH="${PROJECT_SOURCE_DIR}/tools/oracle")
 set_property(TARGET UTMain PROPERTY CXX_STANDARD 20)
 
 target_link_options(UTMain PRIVATE -pg)
