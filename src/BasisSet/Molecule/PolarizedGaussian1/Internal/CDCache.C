@@ -53,29 +53,15 @@ private:
 
 
     
+// Stateless forwarder: all PG charge-distribution caching now lives in the process-global Cache2s
+// (Ω keyed by primitive pair; 3/4-centre RNLM keyed by the two Ω ids; 2-centre self-RNLM on each Ω).
+// CDCache holds no state -- it just forwards.  (TODO: drop the threaded CDCache& param and call the
+// find functions directly, then delete this class.)
 class CDCache
 {
 public:
-    CDCache();
-    ~CDCache();
-    const Ω& findCD(const GData&,const GData&);
-    const RNLM&       find(const GData&,const GData&);
-
-    void Report(std::ostream&) const;
-private:
-    static inline double Efficiency(size_t N, size_t Nl)
-    {
-        return 100*(1.0-N/(double)Nl);
-    } 
-    typedef UniqueID::IDtype id_t;
-    typedef std::pair<id_t,id_t> ids_t;
-    static ids_t Sort(id_t,id_t);
-    
-    size_t CDlookups,CDinserts;
-    // Omega_ab (Ω) now lives in the process-global Cache2 (see Imp findCD), not here.
-    size_t RNLMlookups,RNLMinserts;
-    std::map<ids_t,const RNLM*> RNLMcache; // For 3/4 centres (RNLM between two charge distributions).
-    
+    const Ω&    findCD(const GData&,const GData&);          // global Ω Cache2
+    const RNLM& find  (const GData&,const GData&);          // global 3/4-centre RNLM Cache2
 };
 
 } //namespace BasisSet::Molecule::PolarizedGaussian1
