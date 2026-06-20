@@ -32,6 +32,8 @@ gprof-N1-newIE.out
 
 *.out
 
+*.log
+
 *.ods#
 
 build/
