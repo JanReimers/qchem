@@ -79,8 +79,6 @@ public:
     virtual ERI3<double> MakeRepulsion3C(const Fit_IBS& c) const; //Used for DFT
     virtual ERI4         MakeDirect     (const ::BasisSet::Orbital_HF_IBS<double>& c) const;
     virtual ERI4         MakeExchange   (const ::BasisSet::Orbital_HF_IBS<double>& b) const;
-private:
-    rsmat_t Integrate(qchem::IType3C type , const GaussianRF* rc, const Polarization& pc) const;
 };
 // Use E prefix to avoid name clash with the interface class Fit_IBS
 class EFit_IBS

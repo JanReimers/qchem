@@ -26,18 +26,6 @@ import qchem.Blaze;
 namespace BasisSet::Molecule::PolarizedGaussian
 {
 
-rsmat_t Orbital_IBS::Integrate(qchem::IType3C type , const GaussianRF* rc, const Polarization& pc) const
-{
-    auto ab=dynamic_cast<const PGData*>(this);
-    int N=ab->size();
-    rsmat_t s(N);
-    for (size_t ia=0;ia<N;ia++)
-        for (size_t ib=ia;ib<N;ib++)
-            s(ia,ib)=rc->Integrate(type,*ab->radials[ia],*ab->radials[ib],ab->pols[ia],ab->pols[ib],pc)*ab->ns[ia]*ab->ns[ib];
-        
-    return s;    
-}
-
 rsmat_t MakeIntegrals(IType t2C,const PGData* ab, const Cluster* cl)
 {
     assert(ab);
@@ -67,84 +55,75 @@ rsmat_t Orbital_IBS::MakeNuclear(const Cluster* cl) const
     return Evaluators::NuclearMatrix(Evaluators::PG_Evaluator(*this, cl));
 }
 
+// 3-centre (DFT) integrals through the evaluator: for each fit component ic, build the symmetric
+// (ia,ib) block via the evaluator's ThreeC kernel (which folds in all three normalizations).
+static ERI3<double> Make3C(qchem::IType3C type, const PGData& a, const PGData& c)
+{
+    Evaluators::PG_Evaluator aE(a, nullptr), cE(c, nullptr);
+    size_t Na=aE.size(), Nc=cE.size();
+    ERI3<double> s3;
+    for (size_t ic=0; ic<Nc; ic++)
+    {
+        rsmat_t s(Na);
+        for (size_t ia=0; ia<Na; ia++)
+            for (size_t ib=ia; ib<Na; ib++)
+                s(ia,ib)=aE.ThreeC(type, ia, aE, ib, cE, ic);
+        s3.push_back(s);
+    }
+    return s3;
+}
 ERI3<double> Orbital_IBS::MakeOverlap3C(const Fit_IBS& _c) const
 {
-    auto c=dynamic_cast<const PGData*>(&_c);
-    int Nc=c->size();
-    ERI3<double> s3;
-    for (size_t ic=0;ic<Nc;ic++)
-    {
-        rsmat_t s=Integrate(qchem::Overlap3C,c->radials[ic],c->pols[ic]);
-        s*=c->ns[ic];
-        s3.push_back(s);
-    } 
-    return s3;   
+    return Make3C(qchem::Overlap3C, *this, *dynamic_cast<const PGData*>(&_c));
 }
 ERI3<double> Orbital_IBS::MakeRepulsion3C(const Fit_IBS& _c) const
 {
-    auto c=dynamic_cast<const PGData*>(&_c);
-    int Nc=c->size();
-    ERI3<double> s3;
-    for (size_t ic=0;ic<Nc;ic++)
-    {
-        rsmat_t s=Integrate(qchem::Repulsion3C,c->radials[ic],c->pols[ic]);
-        s*=c->ns[ic];
-        s3.push_back(s);
-    }    
-    return s3;
+    return Make3C(qchem::Repulsion3C, *this, *dynamic_cast<const PGData*>(&_c));
 }
 
+// 4-centre HF Coulomb (ab|cd): a,b on this orbital basis, c,d on the partner.  The intricate ERI loop
+// + symmetry packing is unchanged (hoisting it is plan Goal D); only the per-element integral now goes
+// through the evaluator's FourC kernel (which folds in all four normalizations).
 ERI4 Orbital_IBS::MakeDirect  (const Orbital_HF_IBS<double>& _c) const
 {
-    const PGData* a=this;
     const PGData* c=dynamic_cast<const PGData* >(&_c);
-    assert(a);
     assert(c);
-    size_t Na=a->size(), Nc=c->size();
+    Evaluators::PG_Evaluator aE(*this, nullptr), cE(*c, nullptr);
+    size_t Na=aE.size(), Nc=cE.size();
     ERI4 J(Na,Nc);
-    
+
     for (size_t ia:iv_t(0,Na))
         for (size_t ib:iv_t(ia,Na))
         {
             rsmat_t& Jab=J(ia,ib);
             for (size_t ic:iv_t(0,Nc))
                 for (size_t id:iv_t(ic,Nc))
-                {
-                        //std::cout << "abcd=(" << ia << "," << ib << "," << ic << "," << id << ")" << std::endl;
-                        double norm=a->ns[ia]*a->ns[ib]*c->ns[ic]*c->ns[id];
-                        assert(c->radials[id]);
-                        Jab(ic,id)=norm * c->radials[id]->Integrate(*a->radials[ia],*a->radials[ib],*c->radials[ic],a->pols[ia],a->pols[ib],c->pols[ic],c->pols[id]);
-                }
+                    Jab(ic,id)=aE.FourC(ia, aE, ib, cE, ic, cE, id);   // (a a | c c) slots
         }
     return J;
 }
 
+// 4-centre HF Exchange: slots (a b | a b).  Symmetry packing preserved exactly; element via FourC.
 ERI4 Orbital_IBS::MakeExchange(const Orbital_HF_IBS<double>& _b) const
 {
-    const PGData* a=this;
     const PGData* b=dynamic_cast<const PGData* >(&_b);
-    assert(a);
     assert(b);
-    size_t Na=a->size(), Nb=b->size();
+    Evaluators::PG_Evaluator aE(*this, nullptr), bE(*b, nullptr);
+    size_t Na=aE.size(), Nb=bE.size();
     ERI4 K(Na,Nb);
     for (size_t ia:iv_t(0,Na))
         for (size_t ib:iv_t(0,Nb))
-           
+
             for (size_t ic:iv_t(ia,Na))
             {
                 rsmat_t& Kac=K(ia,ic);
                 for (size_t id:iv_t(0,Nb))
                 {
-                  //std::cout << "abcd=(" << ia << "," << ib << "," << ic << "," << id << ")" << std::endl;
-                    double norm=a->ns[ia]*b->ns[ib]*a->ns[ic]*b->ns[id];
-                    assert(b->radials[id]);
-                    if (ib==id)
-                        Kac(ib,id)=norm * b->radials[id]->Integrate(*a->radials[ia],*b->radials[ib],*a->radials[ic],a->pols[ia],b->pols[ib],a->pols[ic],b->pols[id]);
-                    else if (ib<id)
-                        Kac(ib,id)+=0.5*norm * b->radials[id]->Integrate(*a->radials[ia],*b->radials[ib],*a->radials[ic],a->pols[ia],b->pols[ib],a->pols[ic],b->pols[id]);
-                    else 
-                        Kac(id,ib)+=0.5*norm * b->radials[id]->Integrate(*a->radials[ia],*b->radials[ib],*a->radials[ic],a->pols[ia],b->pols[ib],a->pols[ic],b->pols[id]);
-                }        
+                    double v=aE.FourC(ia, bE, ib, aE, ic, bE, id);   // (a b | a b) slots
+                    if (ib==id)      Kac(ib,id) = v;
+                    else if (ib<id)  Kac(ib,id)+= 0.5*v;
+                    else             Kac(id,ib)+= 0.5*v;
+                }
             }
     return K;
 }
