@@ -156,9 +156,11 @@ double PrimGaussian::Integrate3C(qchem::IType3C type, const PrimGaussian* ga, co
     {
         case qchem::Overlap3C :
             {
-                Hermite3* H3 = gc->GetH3(*ga,*gb);
-                s = (*H3)(pa,pb,pc);
-                delete H3;
+                // 3-centre Hermite block, cached by primitive triple in the global Cache3 (the build
+                // logic stays here; findH3 just caches the result, no new/delete per call).
+                const Hermite3& H3 = findH3(ga->GetID(), gb->GetID(), gc->GetID(),
+                                            [&]() -> Hermite3* { return gc->GetH3(*ga,*gb); });
+                s = H3(pa,pb,pc);
             }
             break;
         case qchem::Repulsion3C :

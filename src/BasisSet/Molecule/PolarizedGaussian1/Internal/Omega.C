@@ -2,14 +2,17 @@
 module;
 #include <vector>
 #include <iosfwd>
+#include <functional>
 
 export module qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.Omega;
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.MnD.Hermite2;
+import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.MnD.Hermite3;
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.GData;
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.MnD.RNLM;
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.Polarization;
 
 import qchem.BasisSet.Internal.Cache2;   // Cacheable2 (Omega_ab lives in the global Cache2)
+import Common.UniqueID;                  // UniqueID::IDtype
 import Common.UniqueIDImp;
 
 export namespace BasisSet::Molecule::PolarizedGaussian1
@@ -55,6 +58,12 @@ private:
 // the only access points (no per-IBS cache object is threaded any more).
 const Ω&    findΩ   (const GData&, const GData&);          // global Ω Cache2 (primitive pair)
 const RNLM& findRNLM(const GData&, const GData&);          // global 3/4-centre RNLM Cache2
+
+// 3-centre Hermite block (GaussianH3) for a primitive triple, cached in the global Cache3.  The
+// build logic (PrimGaussian::GetH3) lives in the radial module, so it is supplied as `make` to avoid
+// a module cycle; findH3 just caches the result keyed by the three primitive ids.
+const Hermite3& findH3(UniqueID::IDtype a, UniqueID::IDtype b, UniqueID::IDtype c,
+                       std::function<Hermite3*()> make);
 
 } //namespace BasisSet::Molecule::PolarizedGaussian1
 

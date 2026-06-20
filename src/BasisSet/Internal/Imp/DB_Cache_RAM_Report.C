@@ -62,8 +62,9 @@ template <class T>  void IntegralsCache_RAM<T>::ReportRAMUsage(std::ostream& os)
 
     // Per-cache hit/miss stats (charge distributions Omega, RNLM, atomic Slater Rk).  High reuse
     // means the cache is being shared (e.g. Omega across SALC irreps over one raw basis).
-    if (!itsCache2s.empty() || !itsCache4s.empty()) os << "  cache reuse:" << endl;
+    if (!itsCache2s.empty() || !itsCache3s.empty() || !itsCache4s.empty()) os << "  cache reuse:" << endl;
     for (auto& i:itsCache2s) i.second->Report(os, i.first);
+    for (auto& i:itsCache3s) i.second->Report(os, i.first);
     for (auto& i:itsCache4s) i.second->Report(os, i.first);
 }
 

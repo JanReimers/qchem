@@ -176,6 +176,32 @@ template <class T> const Cache2* IntegralsCache_RAM<T>::GetCache2(const RadialTy
     return it->second.get();
 }
 
+template <class T> void IntegralsCache_RAM<T>::Register(Cache3_Client* eval)
+{
+    RadialTypeID_t key=eval->RadialType();
+    auto it=itsCache3s.find(key);
+    if (it==itsCache3s.end())
+    {
+        const auto [iterator, success]=itsCache3s.insert({key,val3_t(eval->MakeCache3())});
+        assert(success);
+        it=iterator;
+    }
+    it->second->Register(eval);
+}
+
+template <class T> const Cache3* IntegralsCache_RAM<T>::GetCache3(const RadialTypeID_t& type) const
+{
+    auto it=itsCache3s.find(type);
+    if (it==itsCache3s.end())
+    {
+        std::cerr << "Cache3 error: Cannot find radial type '" << type << "', known types are:" << std::endl;
+        for (auto& i:itsCache3s)
+            std::cerr << i.first << std::endl;
+    }
+    assert(it!=itsCache3s.end());
+    return it->second.get();
+}
+
 //
 // Self-contained lookup-or-compute.  No shared itsLastKeyX / iterator state, so these are
 // re-entrant: make() may perform nested cached Get()s.  std::map is node-based, so the

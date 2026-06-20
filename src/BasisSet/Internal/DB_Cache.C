@@ -9,6 +9,7 @@ import qchem.BasisSet.Internal.ERI3;
 import qchem.BasisSet.Internal.IntegralEnums;
 import qchem.BasisSet.Internal.Cache4;
 import qchem.BasisSet.Internal.Cache2;
+import qchem.BasisSet.Internal.Cache3;
 import qchem.Types;
  
 export namespace BasisSet {
@@ -78,6 +79,10 @@ public:
     // 2 center charge distributions Omega_ab (molecular Gaussians); analogue of Cache4.
     virtual void Register(Cache2_Client* eval)=0;
     virtual const Cache2* GetCache2(const RadialTypeID_t& type) const=0;
+
+    // 3 center Hermite blocks (molecular DFT Overlap3C); analogue of Cache4.
+    virtual void Register(Cache3_Client* eval)=0;
+    virtual const Cache3* GetCache3(const RadialTypeID_t& type) const=0;
 
 };
 

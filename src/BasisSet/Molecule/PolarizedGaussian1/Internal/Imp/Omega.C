@@ -1,12 +1,16 @@
-// File: Omega.C  Charge distribution Ω for a primitive pair + the global Ω/RNLM Cache2 access points.
+// File: Omega.C  Charge distribution Ω for a primitive pair + the global Ω/RNLM/H3 Cache access points.
 module;
 #include <string>
 #include <vector>
+#include <memory>
+#include <functional>
 module qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.Omega;
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.Polarization;
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.MnD.RNLM;
-import qchem.BasisSet.Internal.DB_Cache;   // theGlobalCache, Register/GetCache2
+import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.MnD.Hermite3;
+import qchem.BasisSet.Internal.DB_Cache;   // theGlobalCache, Register/GetCache{2,3}
 import qchem.BasisSet.Internal.Cache2;     // Cache2, Cacheable2, Cache2_Client
+import qchem.BasisSet.Internal.Cache3;     // Cache3, Cacheable3, Cache3_Client
 import qchem.Math;                          // exp (Ω ctor)
 namespace BasisSet::Molecule::PolarizedGaussian1
 {
@@ -50,6 +54,26 @@ namespace
         (void)reg;
         return BasisSet::theGlobalCache->GetCache2("PG1.RNLM");
     }
+
+    // Cacheable3 wrapper holding the 3-centre Hermite block (GaussianH3, via the Hermite3 base).
+    struct H3_C3 : public Cacheable3
+    {
+        std::unique_ptr<Hermite3> h3;
+        explicit H3_C3(Hermite3* p) : h3(p) {}
+        bool   isSupported(const Cache3_Client*) const override {return false;}
+        size_t RAMsize() const override {return sizeof(H3_C3);}
+    };
+    struct H3Client : Cache3_Client
+    {
+        std::string RadialType() const override {return "PG1.H3";}
+        Cache3*     MakeCache3() const override {return new Cache3;}
+    };
+    const Cache3* H3Cache()
+    {
+        static bool reg = []{ static H3Client c; BasisSet::theGlobalCache->Register(&c); return true; }();
+        (void)reg;
+        return BasisSet::theGlobalCache->GetCache3("PG1.H3");
+    }
 }
 
 const Ω& findΩ(const GData& a,const GData& b)
@@ -68,6 +92,14 @@ const RNLM& findRNLM(const GData& ab,const GData& c)
             return new RNLM_C2(ab.L+c.L, alpha, ab.R-c.R);
         });
     return static_cast<const RNLM_C2&>(w).rnlm;
+}
+
+const Hermite3& findH3(UniqueID::IDtype a, UniqueID::IDtype b, UniqueID::IDtype c,
+                       std::function<Hermite3*()> make)
+{
+    const Cacheable3& w = H3Cache()->get(a, b, c,
+        [&make]() -> const Cacheable3* { return new H3_C3(make()); });
+    return *static_cast<const H3_C3&>(w).h3;
 }
 
 //------------------------------------------------------------------------------------------------
