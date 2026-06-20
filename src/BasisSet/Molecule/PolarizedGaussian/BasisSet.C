@@ -69,12 +69,12 @@ public:
     virtual Fit_IBS* CreateCDFitBasisSet(const Cluster *) const;
     virtual Fit_IBS* CreateVxcFitBasisSet(const Cluster *) const;
 
-    virtual rsmat_t      MakeOverlap() const {return MakeIntegrals(PolarizedGaussian::Overlap2C,this);}
-    // Kinetic BUILDING BLOCK = \f$\langle p^2\rangle=\langle-\nabla^2\rangle\f$ (NOT energy, no 1/2;
-    // see BasisSet/Orbital_1E_IBS.C).  For Cartesian Gaussians Grad2 is already the full \f$-\nabla^2\f$
-    // (no separate centrifugal term -- the angular momentum is in the polynomial).
-    virtual rsmat_t      MakeKinetic() const {return MakeIntegrals(Grad2,this);}
-    virtual rsmat_t      MakeNuclear(const Cluster* cl) const {return MakeIntegrals(PolarizedGaussian::Nuclear,this,cl);}
+    // 1E integrals are built through the molecular Evaluator (PG_Evaluator + the generic matrix
+    // builders) -- see Imp/Orbital_IBS.C.  MakeKinetic returns the <p^2>=<-nabla^2> building block
+    // (no 1/2 -- the Hamiltonian's; no centrifugal -- Cartesian; see BasisSet/Orbital_1E_IBS.C).
+    virtual rsmat_t      MakeOverlap() const;
+    virtual rsmat_t      MakeKinetic() const;
+    virtual rsmat_t      MakeNuclear(const Cluster* cl) const;
     virtual ERI3<double> MakeOverlap3C  (const Fit_IBS& c) const; //Used for DFT
     virtual ERI3<double> MakeRepulsion3C(const Fit_IBS& c) const; //Used for DFT
     virtual ERI4         MakeDirect     (const ::BasisSet::Orbital_HF_IBS<double>& c) const;

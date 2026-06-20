@@ -11,6 +11,8 @@ module;
 module qchem.BasisSet.Molecule.PolarizedGaussian;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Readers.Gaussian94;
+import qchem.BasisSet.Molecule.Evaluators;       // generic 1E matrix builders
+import qchem.BasisSet.Molecule.Evaluators.PG;    // PG_Evaluator
 import qchem.BasisSet.Internal.IntegralEnums;
 import qchem.BasisSet;
 import qchem.Cluster;
@@ -36,7 +38,7 @@ rsmat_t Orbital_IBS::Integrate(qchem::IType3C type , const GaussianRF* rc, const
     return s;    
 }
 
-rsmat_t MakeIntegrals(IType t2C,const PGData* ab, const Cluster* cl) 
+rsmat_t MakeIntegrals(IType t2C,const PGData* ab, const Cluster* cl)
 {
     assert(ab);
     int N=ab->size();
@@ -46,6 +48,23 @@ rsmat_t MakeIntegrals(IType t2C,const PGData* ab, const Cluster* cl)
             s(ia,ib)=ab->radials[ia]->Integrate(t2C,*ab->radials[ib],ab->pols[ia],ab->pols[ib],cl)*ab->ns[ia]*ab->ns[ib];
 
     return s;
+}
+
+// The orbital 1E integrals now flow through the molecular Evaluator: wrap this IBS (an Orbital_IBS
+// IS-A PGData) in a PG_Evaluator view and let the generic, basis-agnostic builders run the i,j loop.
+// (EFit_IBS still uses MakeIntegrals for its Overlap2C/Repulsion2C fit integrals -- not 1E concepts.)
+// MakeKinetic returns the <p^2>=<-nabla^2> block (no 1/2; see BasisSet/Orbital_1E_IBS.C).
+rsmat_t Orbital_IBS::MakeOverlap() const
+{
+    return Evaluators::OverlapMatrix(Evaluators::PG_Evaluator(*this, nullptr));
+}
+rsmat_t Orbital_IBS::MakeKinetic() const
+{
+    return Evaluators::KineticMatrix(Evaluators::PG_Evaluator(*this, nullptr));
+}
+rsmat_t Orbital_IBS::MakeNuclear(const Cluster* cl) const
+{
+    return Evaluators::NuclearMatrix(Evaluators::PG_Evaluator(*this, cl));
 }
 
 ERI3<double> Orbital_IBS::MakeOverlap3C(const Fit_IBS& _c) const
