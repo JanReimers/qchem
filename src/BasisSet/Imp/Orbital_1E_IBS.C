@@ -12,7 +12,7 @@ template <class T> const smat_t<T>& Integrals_Kinetic<T>::Kinetic() const
 {
     auto cache=theGlobalCache;
     assert(cache);
-    return cache->Get(IntegralsCache_Base::I2C::Kinetic,IntegralsCache_Base::IBS_ID_t(RadialID(),AngularID()),
+    return cache->Get(IntegralsCache_Base::I2C::Kinetic,this,
         [this]{ return MakeKinetic(); });
 }
 
@@ -21,7 +21,7 @@ template <class T> const smat_t<T>& Integrals_Nuclear<T>::Nuclear(const Cluster*
     assert(cl);
     auto cache=theGlobalCache;
     assert(cache);
-    return cache->Get(IntegralsCache_Base::I2n::Nuclear,IntegralsCache_Base::IBS_ID_t(RadialID(),AngularID()),cl->ID(),
+    return cache->Get(IntegralsCache_Base::I2n::Nuclear,this,cl->ID(),
         [this,cl]{ return MakeNuclear(cl); });
 }
 

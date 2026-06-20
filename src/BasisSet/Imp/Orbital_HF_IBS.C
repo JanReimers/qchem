@@ -13,9 +13,7 @@ template <class T> const ERI4& Orbital_HF_IBS<T>::Direct(const Orbital_HF_IBS<T>
 {
     auto cache=theGlobalCache;
     assert(cache);
-    IntegralsCache_Base::IBS_ID_t ab(RadialID(),AngularID());
-    IntegralsCache_Base::IBS_ID_t cd(c.RadialID(),c.AngularID());
-    return cache->Get(IntegralsCache_Base::I4C::Direct,ab,cd,
+    return cache->Get(IntegralsCache_Base::I4C::Direct,this,&c,
         [this,&c]{ return MakeDirect(c); });
 }
 
@@ -23,9 +21,7 @@ template <class T> const   ERI4&  Orbital_HF_IBS<T>::Exchange(const Orbital_HF_I
 {
     auto cache=theGlobalCache;
     assert(cache);
-    IntegralsCache_Base::IBS_ID_t ab(RadialID(),AngularID());
-    IntegralsCache_Base::IBS_ID_t cd(c.RadialID(),c.AngularID());
-    return cache->Get(IntegralsCache_Base::I4C::Exchange,ab,cd,
+    return cache->Get(IntegralsCache_Base::I4C::Exchange,this,&c,
         [this,&c]{ return MakeExchange(c); });
 }
 

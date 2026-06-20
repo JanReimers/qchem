@@ -85,10 +85,12 @@ protected:
     virtual ERI3<double> MakeRepulsion3C(const Fit_IBS& c) const;
 public:
 
-    // Distinct IDs so the global cache keys the transformed blocks per irrep.
-    virtual std::string RadialID()  const;
-    virtual std::string AngularID() const;
-    virtual std::string Name()      const;
+    // RadialID/AngularID delegate to the raw basis unchanged; the per-irrep cache distinction
+    // lives in BasisSetID() (raw id + "[label]"), so each irrep's transformed blocks key separately.
+    virtual std::string RadialID()   const;
+    virtual std::string AngularID()  const;
+    virtual std::string BasisSetID() const;
+    virtual std::string Name()       const;
 
     // VectorFunction: a SALC evaluated at r is O^T applied to the raw AO values.
     virtual rvec_t     operator()(const rvec3_t&) const;

@@ -11,7 +11,18 @@ import qchem.BasisSet.Internal.Cache4;
 import qchem.Types;
  
 export namespace BasisSet {
-    
+
+// A cache client supplies its own identity string.  The cache uses it verbatim as the per-basis
+// key axis and knows nothing about what is being cached (atoms, molecules, solids).  The contract:
+// equal physics (same exponents / angular momenta / contraction AND same centres / orientation)
+// MUST give equal strings, and any difference MUST give different strings -- the client owns ID
+// assembly because it differs completely for atoms, molecules and solids.  (See IrrepBasisSet_IDs
+// for the default atom assembly and PGData for the molecular, geometry-aware one.)
+struct DBCacheClient
+{
+    virtual ~DBCacheClient() = default;
+    virtual std::string BasisSetID() const = 0;
+};
 
 // Non-template bass class helps avoid so many annoying using statements in derived classes
 // (in C++ typedefs don't get pulled in from template base classes)
@@ -25,7 +36,7 @@ public:
     enum class I2x  {Kinetic, Repulsion,Overlap};
     enum class I3C  {Overlap, Repulsion}; // <ab|c> and <ar|1/r12|c>
     enum class I4C  {Direct,Exchange}; // <ab|cd> and <ar|1/r12|cd>
-    using IBS_ID_t=std::tuple<std::string,std::string>; // <RadialID,AngularID> identifies and IBS
+    using IBS_ID_t=std::string;        // internal per-basis key axis = DBCacheClient::BasisSetID()
     using Cluster_ID_t=std::string;
     using Mesh_ID_t=std::string;
     using RadialTypeID_t=std::string;
@@ -49,15 +60,15 @@ public:
     // protocol: on a miss the make() lambda is invoked (it may itself perform nested
     // cached Get()s safely), the result is stored, and a reference to the *stored*
     // object is returned.  No shared "last key"/iterator state, so it is re-entrant.
-    virtual const rvec_t&    Get(I1C,const IBS_ID_t&,                     std::function<rvec_t   ()> make)=0; // Charge       -> vectors
-    virtual const smat_t<T>& Get(I2C,const IBS_ID_t&,                     std::function<smat_t<T>()> make)=0; // 2C sym mats
-    virtual const smat_t<T>& Get(I2n,const IBS_ID_t&,const Cluster_ID_t&, std::function<smat_t<T>()> make)=0; // Nuclear
-    virtual const  mat_t<T>& Get(I2x,const IBS_ID_t&,const IBS_ID_t&,     std::function< mat_t<T>()> make)=0; // cross IBS
-    virtual const ERI3  <T>& Get(I3C,const IBS_ID_t&,const IBS_ID_t&,     std::function<ERI3  <T>()> make)=0; // 3 centre
-    virtual const ERI4&      Get(I4C,const IBS_ID_t&,const IBS_ID_t&,     std::function<ERI4     ()> make)=0; // 4 centre
+    virtual const rvec_t&    Get(I1C,const DBCacheClient*,                          std::function<rvec_t   ()> make)=0; // Charge       -> vectors
+    virtual const smat_t<T>& Get(I2C,const DBCacheClient*,                          std::function<smat_t<T>()> make)=0; // 2C sym mats
+    virtual const smat_t<T>& Get(I2n,const DBCacheClient*,const Cluster_ID_t&,      std::function<smat_t<T>()> make)=0; // Nuclear
+    virtual const  mat_t<T>& Get(I2x,const DBCacheClient*,const DBCacheClient*,     std::function< mat_t<T>()> make)=0; // cross IBS
+    virtual const ERI3  <T>& Get(I3C,const DBCacheClient*,const DBCacheClient*,     std::function<ERI3  <T>()> make)=0; // 3 centre
+    virtual const ERI4&      Get(I4C,const DBCacheClient*,const DBCacheClient*,     std::function<ERI4     ()> make)=0; // 4 centre
     // Numerically integrated variants, keyed also by a mesh ID.
-    virtual const rvec_t&    Get(I1C,const IBS_ID_t&,const Mesh_ID_t&,                 std::function<rvec_t()> make)=0; // Norm
-    virtual const rmat_t&    Get(I2x,const IBS_ID_t&,const IBS_ID_t&,const Mesh_ID_t&, std::function<rmat_t()> make)=0; // mesh overlap
+    virtual const rvec_t&    Get(I1C,const DBCacheClient*,const Mesh_ID_t&,                      std::function<rvec_t()> make)=0; // Norm
+    virtual const rmat_t&    Get(I2x,const DBCacheClient*,const DBCacheClient*,const Mesh_ID_t&, std::function<rmat_t()> make)=0; // mesh overlap
 
     // 4 center radial Slater integrals, Rk for HF calculations
     virtual void Register(Cache4_Client* eval)=0;

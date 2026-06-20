@@ -22,7 +22,7 @@ template <class T> size_t IntegralsCache_RAM<T>::Report(const map4_t& m4, const 
     {
         nt+=j.second.size();
         if (verbose)
-            cout << "        "  << j.second.size() << "  i=" << std::get<1>(i.first) << "  j=" << std::get<1>(j.first) << endl;
+            cout << "        "  << j.second.size() << "  i=" << i.first << "  j=" << j.first << endl;
     }
     if (verbose) cout << "  Total:" << nt << endl;
     return nt;
@@ -59,11 +59,6 @@ template <class T>  void IntegralsCache_RAM<T>::ReportRAMUsage(std::ostream& os)
     os << "  Jac   data: "  << ram(J_ram,sizeof(T)) << percent(J_ram,total) << endl;
     os << "  Kab   data: "  << ram(K_ram,sizeof(T)) << percent(K_ram,total) << endl;
     os << "  Cach4 data: "  << ram(cach4_ram,sizeof(T)) << percent(cach4_ram,total) << endl;
-}
-
-std::ostream& operator << (std::ostream& os, const IntegralsCache_Base::IBS_ID_t& ids)
-{
-    return os << "radial=" << std::get<0>(ids) << " angular=" << std::get<1>(ids);
 }
 
 std::ostream& operator << (std::ostream& os, const std::pair<IntegralsCache_Base::IBS_ID_t,IntegralsCache_Base::IBS_ID_t>& ids)

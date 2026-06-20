@@ -16,6 +16,7 @@ struct PGData
 {
     std::string RadialID () const;
     std::string AngularID() const;
+    std::string BasisSetID() const; // geometry-aware cache identity: radial @ centre : pol per fn
 
     void Init(std::vector<const Block*>&);
     std::vector<const RadialFunction*> radials; // Flattened radials

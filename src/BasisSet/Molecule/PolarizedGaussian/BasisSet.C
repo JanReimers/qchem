@@ -45,6 +45,7 @@ class IrrepBasisSet
 
         virtual std::string RadialID () const {return PGData::RadialID();}
         virtual std::string AngularID() const {return PGData::AngularID();}
+        virtual std::string BasisSetID() const {return PGData::BasisSetID();} // geometry-aware (override radial|angular default)
         virtual std::string Name     () const;
         virtual std::ostream &Write(std::ostream &) const;
 

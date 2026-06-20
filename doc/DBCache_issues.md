@@ -47,24 +47,37 @@ Another thing to think about: Perhaps caching 1-electron integrals is a waste of
 option to deal with this is at construction the DBCache gets a list of bools telling which type to cache and which ones are direct methods (always calls the MakeXXX function) so to speak.  The other is just rip out all the 1E function calls.  Interested in your opinion.  Maybe you know the big commercial programs do.
 Keep in mind we want go beyond atoms and molecules, and use this cache for solids as well. 
 
-There are three distinct problems; (B) is the serious one.
+There were three distinct problems (B was the serious one); **all three are now fixed** — see each
+section.  This doc is kept as the record of what they were and how they were resolved.
 
-## A. The key is atom-biased — missing geometry  (worked around)
+## A. The key is atom-biased — missing geometry  (FIXED)
 
-Every quantity is keyed by `IBS_ID_t(RadialID, AngularID)`.  For an **atom** that is complete (the
-centre is pinned at the nucleus).  For a **molecule** it is not: overlap, kinetic and the 2-/3-
-centre electron integrals are all orientation-dependent, but `RadialID`/`AngularID` historically
-encoded only exponents and angular momenta — no atom centres.  Only `Nuclear` was geometry-aware
-(it also keys on `cl->ID()`, and `Atom::ID()` includes `R=<pos>`).
+**Fixed:** the cache no longer assembles the per-basis key from `(RadialID, AngularID)`.  Identity
+is now the **client's** job, via a one-method interface owned by the cache:
 
-Symptom: two same-basis molecules at different orientations collided — a rotated water reused a
-canonical water's ERIs and gave a non-variational -146 Ha instead of -76.02.
+```c++
+struct DBCacheClient { virtual std::string BasisSetID() const = 0; };
+```
 
-Work-around in place: `PGData::RadialID()` now folds radial+centre+polarization per function into
-the key and `PGData::AngularID()` is empty (commit "make the molecular-basis integral cache key
-geometry-aware").  **Principled fix:** an explicit geometry/centre component in the key, not
-centres stuffed into "RadialID"; and retire the radial/angular split for the molecular path (it
-only made sense for atoms).
+`Get(...)` takes `const DBCacheClient*` (two of them for cross-IBS quantities) and uses
+`client->BasisSetID()` verbatim as the per-basis key axis — it knows nothing about atoms /
+molecules / solids.  ID assembly lives where the geometry knowledge is:
+- `IrrepBasisSet_IDs` (inherits `DBCacheClient`) provides the default `RadialID()+"|"+AngularID()`
+  — complete for an **atom** (centre pinned at the nucleus).  `RadialID`/`AngularID` are retained
+  as the atom's building blocks; the radial/angular split is no longer the cache key.
+- `PGData::BasisSetID()` (molecular) folds radial @ centre : pol per function — geometry-aware.
+  `PGData::RadialID()`/`AngularID()` are restored to clean basis-only strings (the geometry hack is
+  gone).  The molecular IBS overrides `BasisSetID()`; otherwise it would fall back to the
+  geometry-free default and collide again.
+- `SymmetryAdapted_IBS::BasisSetID()` = `raw->BasisSetID() + "[label]"` (per-irrep), replacing the
+  old `AngularID()`-with-label hack; `RadialID`/`AngularID` delegate to the raw basis unchanged.
+
+`IrrepBasisSet_IDs::GetID()` (used as basis identity by `IrrepCD`/`FittedFunction`) now delegates to
+`BasisSetID()`, so there is a single identity source.
+
+Original symptom (now covered by tests): two same-basis molecules at different orientations
+collided — a rotated water reused a canonical water's ERIs and gave a non-variational -146 Ha
+instead of -76.02.  `M_PG_Sym` rotated/translated water + DFT all pass.
 
 ## B. Has()/Set() is not re-entrant — shared stateful "last key"  (FIXED)
 

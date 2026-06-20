@@ -11,7 +11,7 @@ namespace BasisSet
 {
     auto cache=theGlobalCache;
     assert(cache);
-    return cache->Get(IntegralsCache_Base::I2C::RestMass,IntegralsCache_Base::IBS_ID_t(RadialID(),AngularID()),
+    return cache->Get(IntegralsCache_Base::I2C::RestMass,this,
         [this]{ return MakeRestMass(); });
 }
 

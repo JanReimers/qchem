@@ -12,9 +12,7 @@ template <class T> const mat_t<T>& Orbital_RKBL_IBS<T>::Kinetic(const Orbital_RK
 {
     auto cache=theGlobalCache;
     assert(cache);
-    return cache->Get(IntegralsCache_Base::I2x::Kinetic,
-            IntegralsCache_Base::IBS_ID_t(     RadialID(),     AngularID()),
-            IntegralsCache_Base::IBS_ID_t(rkbs.RadialID(),rkbs.AngularID()),
+    return cache->Get(IntegralsCache_Base::I2x::Kinetic,this,&rkbs,
             [this,&rkbs]{ return MakeKinetic(rkbs); });
 }
 

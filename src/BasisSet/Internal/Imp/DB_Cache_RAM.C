@@ -110,11 +110,7 @@ namespace BasisSet
  
 
 
-std::ostream& operator<<(std::ostream& os,IntegralsCache_Base::IBS_ID_t id)
-{
-    return os << std::get<0>(id) << " " << std::get<1>(id);
-}
-template <class T> IntegralsCache_RAM<T>::IntegralsCache_RAM(bool makelog) 
+template <class T> IntegralsCache_RAM<T>::IntegralsCache_RAM(bool makelog)
     : itsMakeLog(makelog)
     , itsMaxRAM(4096) // in MB
     , itsTotalRAM(0) // in MB
@@ -160,8 +156,9 @@ template <class T> const Cache4* IntegralsCache_RAM<T>::GetCache4(const RadialTy
 // returned reference stays valid as later (or nested) inserts grow the map.  We always
 // compute make() into a local *before* inserting, holding no find-iterator across it.
 //
-template <class T> const rvec_t& IntegralsCache_RAM<T>::Get(I1C i1c,const IBS_ID_t& id,std::function<rvec_t()> make)
+template <class T> const rvec_t& IntegralsCache_RAM<T>::Get(I1C i1c,const DBCacheClient* bs,std::function<rvec_t()> make)
 {
+    IBS_ID_t id=bs->BasisSetID();
     key1_t key(i1c,id);
     if (auto i=itsVecs.find(key); i!=itsVecs.end()) return i->second;
     if (itsMakeLog) itsLogger << "I1C " << std::format("{:<12}",i1c) << " compute a=" << id << std::endl;
@@ -171,8 +168,9 @@ template <class T> const rvec_t& IntegralsCache_RAM<T>::Get(I1C i1c,const IBS_ID
     return it->second;
 }
 
-template <class T> const smat_t<T>& IntegralsCache_RAM<T>::Get(I2C i2c,const IBS_ID_t& id,std::function<smat_t<T>()> make)
+template <class T> const smat_t<T>& IntegralsCache_RAM<T>::Get(I2C i2c,const DBCacheClient* bs,std::function<smat_t<T>()> make)
 {
+    IBS_ID_t id=bs->BasisSetID();
     key2_t key(i2c,id);
     if (auto i=itsSMats.find(key); i!=itsSMats.end()) return i->second;
     if (itsMakeLog) itsLogger << "I2C " << std::format("{:<12}",i2c) << " compute a=" << id << std::endl;
@@ -182,8 +180,9 @@ template <class T> const smat_t<T>& IntegralsCache_RAM<T>::Get(I2C i2c,const IBS
     return it->second;
 }
 
-template <class T> const smat_t<T>& IntegralsCache_RAM<T>::Get(I2n i2n,const IBS_ID_t& id,const Cluster_ID_t& cl,std::function<smat_t<T>()> make)
+template <class T> const smat_t<T>& IntegralsCache_RAM<T>::Get(I2n i2n,const DBCacheClient* bs,const Cluster_ID_t& cl,std::function<smat_t<T>()> make)
 {
+    IBS_ID_t id=bs->BasisSetID();
     keyn_t key(id,cl);
     if (auto i=itsNMats.find(key); i!=itsNMats.end()) return i->second;
     if (itsMakeLog) itsLogger << "I2n " << std::format("{:<12}",i2n) << " compute a=" << id << " cluster=" << cl << std::endl;
@@ -193,8 +192,9 @@ template <class T> const smat_t<T>& IntegralsCache_RAM<T>::Get(I2n i2n,const IBS
     return it->second;
 }
 
-template <class T> const mat_t<T>& IntegralsCache_RAM<T>::Get(I2x i2x,const IBS_ID_t& ida,const IBS_ID_t& idb,std::function<mat_t<T>()> make)
+template <class T> const mat_t<T>& IntegralsCache_RAM<T>::Get(I2x i2x,const DBCacheClient* a,const DBCacheClient* b,std::function<mat_t<T>()> make)
 {
+    IBS_ID_t ida=a->BasisSetID(), idb=b->BasisSetID();
     keyx_t key(i2x,ida,idb);
     if (auto i=itsMats.find(key); i!=itsMats.end()) return i->second;
     if (itsMakeLog) itsLogger << "I2x " << std::format("{:<12}",i2x) << " compute a=" << ida << " b=" << idb << std::endl;
@@ -204,8 +204,9 @@ template <class T> const mat_t<T>& IntegralsCache_RAM<T>::Get(I2x i2x,const IBS_
     return it->second;
 }
 
-template <class T> const ERI3<T>& IntegralsCache_RAM<T>::Get(I3C i3c,const IBS_ID_t& ida,const IBS_ID_t& idb,std::function<ERI3<T>()> make)
+template <class T> const ERI3<T>& IntegralsCache_RAM<T>::Get(I3C i3c,const DBCacheClient* a,const DBCacheClient* b,std::function<ERI3<T>()> make)
 {
+    IBS_ID_t ida=a->BasisSetID(), idb=b->BasisSetID();
     key3_t key(i3c,ida,idb);
     if (auto i=itsERI3s.find(key); i!=itsERI3s.end()) return i->second;
     if (itsMakeLog) itsLogger << "I3C " << std::format("{:<12}",i3c) << " compute a=" << ida << " b=" << idb << std::endl;
@@ -215,8 +216,9 @@ template <class T> const ERI3<T>& IntegralsCache_RAM<T>::Get(I3C i3c,const IBS_I
     return it->second;
 }
 
-template <class T> const ERI4& IntegralsCache_RAM<T>::Get(I4C i4c,const IBS_ID_t& ida,const IBS_ID_t& idb,std::function<ERI4()> make)
+template <class T> const ERI4& IntegralsCache_RAM<T>::Get(I4C i4c,const DBCacheClient* a,const DBCacheClient* b,std::function<ERI4()> make)
 {
+    IBS_ID_t ida=a->BasisSetID(), idb=b->BasisSetID();
     map4_t& m = (i4c==IntegralsCache<T>::I4C::Direct) ? Jac : Kab;
     if (auto ia=m.find(ida); ia!=m.end())
     {
@@ -237,8 +239,9 @@ template <class T> const ERI4& IntegralsCache_RAM<T>::Get(I4C i4c,const IBS_ID_t
     return it->second;
 }
 
-template <class T> const rvec_t& IntegralsCache_RAM<T>::Get(I1C i1c,const IBS_ID_t& id,const Mesh_ID_t& mid,std::function<rvec_t()> make)
+template <class T> const rvec_t& IntegralsCache_RAM<T>::Get(I1C i1c,const DBCacheClient* bs,const Mesh_ID_t& mid,std::function<rvec_t()> make)
 {
+    IBS_ID_t id=bs->BasisSetID();
     key1m_t key(i1c,id,mid);
     if (auto i=itsmVecs.find(key); i!=itsmVecs.end()) return i->second;
     if (itsMakeLog) itsLogger << "1Cm " << std::format("{:<12}",i1c) << " compute a=" << id << " mesh=" << mid << std::endl;
@@ -248,8 +251,9 @@ template <class T> const rvec_t& IntegralsCache_RAM<T>::Get(I1C i1c,const IBS_ID
     return it->second;
 }
 
-template <class T> const rmat_t& IntegralsCache_RAM<T>::Get(I2x i2x,const IBS_ID_t& ida,const IBS_ID_t& idb,const Mesh_ID_t& mid,std::function<rmat_t()> make)
+template <class T> const rmat_t& IntegralsCache_RAM<T>::Get(I2x i2x,const DBCacheClient* a,const DBCacheClient* b,const Mesh_ID_t& mid,std::function<rmat_t()> make)
 {
+    IBS_ID_t ida=a->BasisSetID(), idb=b->BasisSetID();
     key2xm_t key(i2x,ida,idb,mid);
     if (auto i=itsmMats.find(key); i!=itsmMats.end()) return i->second;
     if (itsMakeLog) itsLogger << "2xm " << std::format("{:<12}",i2x) << " compute a=" << ida << " b=" << idb << " mesh=" << mid << std::endl;

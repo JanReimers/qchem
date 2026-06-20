@@ -28,14 +28,14 @@ public:
     IntegralsCache_RAM(bool makelog=false);
     virtual ~IntegralsCache_RAM(); //Report some RAM usage
 
-    virtual const rvec_t&    Get(I1C,const IBS_ID_t&,                     std::function<rvec_t   ()>);
-    virtual const smat_t<T>& Get(I2C,const IBS_ID_t&,                     std::function<smat_t<T>()>);
-    virtual const smat_t<T>& Get(I2n,const IBS_ID_t&,const Cluster_ID_t&, std::function<smat_t<T>()>);
-    virtual const  mat_t<T>& Get(I2x,const IBS_ID_t&,const IBS_ID_t&,     std::function< mat_t<T>()>);
-    virtual const ERI3  <T>& Get(I3C,const IBS_ID_t&,const IBS_ID_t&,     std::function<ERI3  <T>()>);
-    virtual const ERI4     & Get(I4C,const IBS_ID_t&,const IBS_ID_t&,     std::function<ERI4     ()>);
-    virtual const rvec_t&    Get(I1C,const IBS_ID_t&,const Mesh_ID_t&,                 std::function<rvec_t()>);
-    virtual const rmat_t&    Get(I2x,const IBS_ID_t&,const IBS_ID_t&,const Mesh_ID_t&, std::function<rmat_t()>);
+    virtual const rvec_t&    Get(I1C,const DBCacheClient*,                          std::function<rvec_t   ()>);
+    virtual const smat_t<T>& Get(I2C,const DBCacheClient*,                          std::function<smat_t<T>()>);
+    virtual const smat_t<T>& Get(I2n,const DBCacheClient*,const Cluster_ID_t&,      std::function<smat_t<T>()>);
+    virtual const  mat_t<T>& Get(I2x,const DBCacheClient*,const DBCacheClient*,     std::function< mat_t<T>()>);
+    virtual const ERI3  <T>& Get(I3C,const DBCacheClient*,const DBCacheClient*,     std::function<ERI3  <T>()>);
+    virtual const ERI4     & Get(I4C,const DBCacheClient*,const DBCacheClient*,     std::function<ERI4     ()>);
+    virtual const rvec_t&    Get(I1C,const DBCacheClient*,const Mesh_ID_t&,                      std::function<rvec_t()>);
+    virtual const rmat_t&    Get(I2x,const DBCacheClient*,const DBCacheClient*,const Mesh_ID_t&, std::function<rmat_t()>);
 
     void Register(Cache4_Client* eval);
     const Cache4* GetCache4(const RadialTypeID_t& type) const;

@@ -3,20 +3,26 @@ module;
 #include <string>
 export module qchem.BasisSet.IrrepBasisSet;
 export import qchem.Symmetry.Irrep;
+export import qchem.BasisSet.Internal.DB_Cache;     // DBCacheClient (the cache key contract)
 import qchem.VectorFunction;
 import qchem.Streamable;
 
 export namespace BasisSet
 {
 
-//  The are used for caching 1) radial Slater integrals R_k(abcd) 2) Direct/Exchange integrals
-class IrrepBasisSet_IDs
+//  RadialID/AngularID identify the radial (exponents/contraction) and angular pieces of a basis;
+//  they are the building blocks an atom uses for its cache identity.  BasisSetID() is the single
+//  identity string the integral cache keys on (see DBCacheClient): the default here concatenates
+//  radial|angular (complete for an atom -- centre pinned at the nucleus), and a molecular / solid
+//  basis overrides it to fold in the centres / orientation (see PGData::BasisSetID).
+class IrrepBasisSet_IDs : public virtual DBCacheClient
 {
 public:
     virtual std::string  RadialID() const=0;
     virtual std::string AngularID() const=0;
     virtual std::string Name     () const=0;
-    virtual std::string GetID() const {return RadialID()+AngularID();}
+    virtual std::string BasisSetID() const override {return RadialID()+"|"+AngularID();}
+    virtual std::string GetID() const {return BasisSetID();}
 };
 
 //--------------------------------------------------------------------------------
