@@ -11,14 +11,18 @@ import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.GData;
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.MnD.RNLM;
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.Polarization;
 
-import Common.UniqueIDImp; 
+import qchem.BasisSet.Internal.Cache2;   // Cacheable2 (Omega_ab lives in the global Cache2)
+import Common.UniqueIDImp;
 
 export namespace BasisSet::Molecule::PolarizedGaussian1
 {
-struct GaussianCD : public UniqueIDImp
+struct GaussianCD : public UniqueIDImp, public Cacheable2
 {
     GaussianCD(const GData&,const GData&);
     GData GetGData() const {return GData{GetID(),AlphaP,P,Ltotal};};
+
+    virtual bool   isSupported(const Cache2_Client*) const {return false;} // never auto-evicted
+    virtual size_t RAMsize() const;
 
 //
 //  Raw data defining the charge distribution, all pickeled.
@@ -62,7 +66,7 @@ private:
     static ids_t Sort(id_t,id_t);
     
     size_t CDlookups,CDinserts;
-    std::map<ids_t,const GaussianCD*> GCDcache;
+    // Omega_ab (GaussianCD) now lives in the process-global Cache2 (see Imp findCD), not here.
     size_t RNLMlookups,RNLMinserts;
     std::map<id_t ,const RNLM*> RNLMcache1; // For 2 centres, or CD. 
     std::map<ids_t,const RNLM*> RNLMcache; // For 3 centres.

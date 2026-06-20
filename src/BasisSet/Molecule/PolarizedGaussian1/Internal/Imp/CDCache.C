@@ -3,15 +3,35 @@ module;
 #include <iomanip>
 module qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.CDCache;
 import qchem.BasisSet.Molecule.PolarizedGaussian1.Internal.MnD.RNLM;
-import Common.UniqueID; 
+import qchem.BasisSet.Internal.DB_Cache;   // theGlobalCache, Register/GetCache2
+import qchem.BasisSet.Internal.Cache2;     // Cache2, Cacheable2, Cache2_Client
+import Common.UniqueID;
 namespace BasisSet::Molecule::PolarizedGaussian1
 {
+
+// Omega_ab (GaussianCD) lives in ONE process-global Cache2, keyed by the primitive UniqueID pair
+// (primA.ID, primB.ID).  Because the key is the primitive identity, Omega is shared automatically
+// wherever primitive objects are shared (e.g. SALC irreps over one raw basis).  Registered once.
+namespace
+{
+    struct OmegaClient : Cache2_Client
+    {
+        std::string RadialType() const override {return "PG1.Omega";}
+        Cache2*     MakeCache2() const override {return new Cache2;}
+    };
+    const Cache2* OmegaCache()
+    {
+        static bool reg = []{ static OmegaClient c; BasisSet::theGlobalCache->Register(&c); return true; }();
+        (void)reg;
+        return BasisSet::theGlobalCache->GetCache2("PG1.Omega");
+    }
+}
 
 CDCache::CDCache() : CDlookups(0), CDinserts(0), RNLMlookups(0), RNLMinserts(0) {};
 
 CDCache::~CDCache()
 {
-    for (auto c:GCDcache) delete c.second;
+    // Omega/GaussianCD are owned by the global Cache2 now; only the RNLM caches are local.
     for (auto r:RNLMcache1) delete r.second;
     for (auto r:RNLMcache) delete r.second;
 }
@@ -38,14 +58,11 @@ CDCache::ids_t CDCache::Sort(UniqueID::IDtype i1,UniqueID::IDtype i2)
 const GaussianCD& CDCache::findCD(const GData& a,const GData& b)
 {
     CDlookups++;
-    ids_t key=std::make_pair(a.ID,b.ID);
-    if (auto i=GCDcache.find(key);i==GCDcache.end())
-    {
-        CDinserts++;
-        return *(GCDcache[key]=new GaussianCD(a,b));
-    }
-    else
-        return *(i->second);
+    // Delegate to the process-global Cache2 (keyed by the primitive UniqueID pair).  On a miss it
+    // builds the GaussianCD via the lambda; the Cache2 owns the stored object.
+    const Cacheable2& cd = OmegaCache()->get(a.ID, b.ID,
+        [&a,&b]() -> const Cacheable2* { return new GaussianCD(a,b); });
+    return static_cast<const GaussianCD&>(cd);
 }
 
 const RNLM& CDCache::find(const GData& ab,const GData& c)

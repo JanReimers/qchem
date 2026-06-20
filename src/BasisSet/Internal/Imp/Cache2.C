@@ -3,6 +3,7 @@ module;
 #include <map>
 #include <memory>
 #include <cassert>
+#include <functional>
 module qchem.BasisSet.Internal.Cache2;
 
 
@@ -30,6 +31,24 @@ size_t Cache2::RAMsize() const
         for (auto& b:a.second)
             ram+=b.second->RAMsize();
     return ram;
+}
+
+const Cacheable2& Cache2::get(size_t i1, size_t i2, std::function<const Cacheable2*()> make) const
+{
+    cache_2& sub = cache[i1];                 // creates an empty sub-map on first use
+    auto it = sub.find(i2);
+    if (it==sub.end())
+    {
+        const auto [iterator,success]=sub.insert({i2,std::unique_ptr<const Cacheable2>(make())});
+        assert(success);
+        it=iterator;
+    }
+    return *it->second;
+}
+
+const Cacheable2* Cache2::Create(size_t,size_t) const
+{
+    return nullptr; // facade (get) form does not use Create; override for the loop_2 descent form
 }
 
 void Cache2::loop_1(size_t _i1) const

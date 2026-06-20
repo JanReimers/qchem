@@ -43,6 +43,10 @@ GaussianCD::GaussianCD(const GData& g1,const GData& g2)
     if (theNMLs.size()==0) MakeNMLs();
 };
 
+size_t GaussianCD::RAMsize() const
+{
+    return sizeof(GaussianCD); // includes the by-value Hermite2 block
+}
 
 
 } //namespace BasisSet::Molecule::PolarizedGaussian1

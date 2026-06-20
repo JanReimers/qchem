@@ -12,6 +12,7 @@ module;
 #include <map>
 #include <memory>
 #include <string>
+#include <functional>
 export module qchem.BasisSet.Internal.Cache2;
 
 
@@ -49,13 +50,21 @@ export class Cache2
 {
 public:
     virtual ~Cache2();
-    virtual void Register(Cache2_Client*)=0;   // pure (subclass assigns indices) + base body below
+    virtual void Register(Cache2_Client*);     //base body erases unsupported; subclass may extend
 
+    // Facade form: re-entrant find-or-make on (i1,i2).  On a miss make() is invoked (it may perform
+    // nested cached gets on OTHER Cache2s), the result is stored and a reference to the STORED object
+    // is returned.  Use this when the caller already has the data to build the entry.  const because
+    // the storage is mutable -- so a `const Cache2*` from GetCache2 can still populate.
+    const Cacheable2& get(size_t i1, size_t i2, std::function<const Cacheable2*()> make) const;
+
+    // Descent form (for hot loops): loop_1 descends to the i1 sub-map, loop_2 returns/creates via
+    // Create.  Override Create in a subclass that knows how to build from indices alone.
     void                      loop_1(size_t i1) const;
     virtual const Cacheable2* loop_2(size_t i2) const;
 
     virtual size_t            RAMsize() const;  //Optional override
-    virtual const Cacheable2* Create(size_t i1,size_t i2) const=0;
+    virtual const Cacheable2* Create(size_t i1,size_t i2) const; //default: unused by the facade form
 private:
 
     typedef std::map<size_t,std::unique_ptr<const Cacheable2>> cache_2;
