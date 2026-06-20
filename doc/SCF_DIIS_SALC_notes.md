@@ -63,3 +63,42 @@ Candidate fixes (SCF-convergence policy — TBD):
 
 Until then DIIS *engages* for SALC bases (issues 1–2 fixed, occupation visible) but the overshoot
 makes it net-slower; the safeguard in (3) is the remaining work.
+
+# Some notes from my research
+
+Research into controlling electron configuration oscillations during Self-Consistent Field (SCF) iterations highlights several key algorithmic interventions. 
+
+Orbital Mixing and Tracking The Method of Occupied-Moving (MOM) is a primary technique for oscillating systems, where occupied orbitals are selected by "shape" similarity to a previous stable iteration rather than by eigenvalue, preventing unwanted orbital swapping.  This is often combined with DIIS (Direct Inversion in the Iterative Subspace) but should be activated only once oscillatory behavior is detected to ensure stability. 
+
+Damping and Level Shifting To dampen large fluctuations in early iterations, algorithms employ Fock matrix damping (static mixing of adjacent Fock matrices) or keyword-based damping protocols like SlowConv and VerySlowConv in ORCA, which increase mixing parameters to control charge sloshing.  Additionally, Level Shifting artificially raises the energy of virtual orbitals to widen the HOMO-LUMO gap, thereby stabilizing the iteration process for systems with small energy gaps or metallic character. 
+
+Advanced Convergence Algorithms For pathological cases where standard methods fail, Second-Order SCF (SOSCF) provides quadratic convergence near the solution, while the Trust Region Augmented Hessian (TRAH) algorithm acts as a robust second-order fallback that automatically activates when DIIS struggles.  These methods ensure convergence to a true local minimum on the orbital rotation surface, even for open-shell transition metals and complex metal clusters.
+
+## Maximum Overlap Method (MOM)
+The foundational paper for preventing orbital swapping and maintaining specific electronic configurations is:
+
+Gilbert, A. T. B.; Besley, N. A.; Gill, P. M. W. "Self-Consistent Field Calculations of Excited States Using the Maximum Overlap Method (MOM)." J. Phys.  Chem. A 2008, 112 (50), 13164–13171. DOI: 10.1021/jp801738f.
+This work introduces the algorithm of maximizing overlap between occupied orbitals of successive iterations to avoid variational collapse and oscillation.
+Barca, G. M. J.; Gilbert, A. T. B.; Gill, P. M. W. "Simple Algorithms for Excited-State SCF Calculations." J. Chem.  Theory Comput. 2018, 14, 1501–1509.  DOI: 10.1021/acs.jctc.7b01234.
+Discusses the Initial Maximum Overlap Method (IMOM), which maximizes overlap with the initial guess rather than the previous cycle, offering improved stability for difficult cases. 
+
+## Trust-Region Augmented Hessian (TRAH)
+For robust convergence in open-shell and antiferromagnetic systems where DIIS fails:
+
+Helmich-Paris, B. "A trust-region augmented Hessian implementation for restricted and unrestricted Hartree–Fock and Kohn–Sham methods." J. Chem.  Phys. 2021, 154, 164104. DOI: 10.1063/5.0040798.
+Demonstrates that TRAH-SCF achieves convergence for notoriously difficult open-shell molecules where standard DIIS diverges, often finding lower-energy symmetry-broken solutions. 
+
+## Damping, Level Shifting, and DIIS Variants
+Key references for stabilization techniques involving mixing and energy gaps:
+
+Pulay, P. "Convergence acceleration of iterative sequences.  The case of SCF iteration." Chem. Phys. Lett. 1980, 73 (2), 393–398.  DOI: 10.1016/0009-2614(80)80396-4.
+The original formulation of DIIS, the standard acceleration method which can induce oscillations if applied too early. 
+Kudin, K. N.; Scuseria, G. E.; Cancès, E. "A black-box self-consistent field convergence algorithm: One step closer." J. Chem.  Phys. 2002, 116, 8255. DOI: 10.1063/1.1470195.
+Introduces EDIIS (Energy-DIIS) and discusses combining it with CDIIS to handle oscillatory behavior and ensure global convergence. 
+Rabuck, D. D.; Scuseria, G. E. "Improving self-consistent field convergence by varying occupation numbers." J. Chem.  Phys. 1999, 110, 695. DOI: 10.1063/1.478176.
+Discusses the use of Fermi-Dirac smearing (fractional occupations) and dynamic damping to stabilize convergence in systems with small HOMO-LUMO gaps. 
+
+## General Convergence Reviews
+Cancès, E.; Mennucci, B.; Tomasi, J. "A new integral equation formalism for the polarizable continuum model: Theoretical background and applications to isotropic and anisotropic dielectrics." J. Chem. Phys. 1997, 107, 3032. (Note: While focused on PCM, Cancès has extensive reviews on SCF math).
+Klamroth, T. "On the convergence of the SCF iteration for the Kohn-Sham equations." ESAIM: M2AN 2007, 41 (2), 307–322.  DOI: 10.1051/m2an:2007016.
+Provides a mathematical analysis of discontinuous changes in occupation numbers and how broadening techniques stabilize the iteration. 

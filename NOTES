@@ -13,6 +13,18 @@ Notes:
 | Ak: Angular integrals | Yes | No | No |
 | Contractions | No | Yes | ? |
 
+3) GDM on scfrun — I remember (it's this session)
+Not purged. GDM engages two ways:
+
+--accel directmin — GDM owns the whole loop from the start (geodesic line search, no mixing). Great for closed shells, but stalls from a cold start on open shells / far from convergence (Nd failed from-start), so it's not the one to watch trigger.
+--accel Ladder --switchat <tol> — the one you want. DIIS runs first; once [F,D] < switchat (near convergence) the ladder hands off to the GDM direct-min polisher and prints:
+*** SCF accelerator ladder: rung 0 near convergence (err=…) -> advancing to rung 1 ***
+After that line, the trace switches to GDM's columns (you'll see the Nactive count of irreps stepping). That's the visible kick-in.
+To make it obvious, in Release, on a hard case:
+
+scfrun --Z 60 --model HF --pol P --basis BSpline6 --acc High \
+       --accel Ladder --switchat 1e-4 --minfd 1e-8 --maxiter 120
+You'll see DIIS to ~1e-4, the hand-off message, then GDM polishing the tail (this is the Nd 57→27 case). Lower --switchat hands off later; raise it to hand off sooner. It's a small topic — fine to do in any session, no need to set one aside.
       
     -Relativistic:
         https://github.com/drjuls/AMBiT/tree/master/src

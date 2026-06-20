@@ -8,6 +8,7 @@ Notes, bugs, and plans for the qchem6 project. This file is markdown-enabled so 
 
 - Turn on/off vscode popups: search `quickSuggestions`
 - Understand type erasure: https://youtu.be/m3UmABVf55g?t=2134
+- Use basis set path inside the Molecul::Factory ... don't burden the user.
 
 
 ## Code review
@@ -16,7 +17,10 @@ Notes, bugs, and plans for the qchem6 project. This file is markdown-enabled so 
 
 - Can we move `SymEigen3` into `Matrix3D<T>`?
 - `src/BasisSet/Internal/Imp/Orbital_DHF_IBS.C::merge_xxx` use `blazem::submatrix`
-
+- but GDM+aufbau is a TODO. GDM needs per-irrep nocc at accelerator-creation time, which the aufbau doesn't know up front. DIIS only checks occ>0, so it's fine
+- DFT support for SALC?
+- Output ElCOnfigs in tetbook format: (1a₁)²(2a₁)²(1b₂)²(3a₁)²(1b₁)²
+- Migrate qchem tester over to the new Molecule_EC
 ## Questions
 
 - For atoms it is common to do numerical solution of the radial DE instead of using basis sets.
