@@ -4,6 +4,7 @@ Imp/Symmetry.C
 Imp/IrrepBasisSet.C
 Imp/Fit_IBS.C
 Imp/Orbital_IBS.C
+Imp/SymmetryAdapt.C
 MnD/Imp/Triangle3D.C
 MnD/Imp/AuxillaryData.C
 MnD/Imp/AuxillaryFJ.C
@@ -23,6 +24,7 @@ target_sources(qcMolecule_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
     Internal/PGData.C
     BasisSet.C
     Symmetry.C
+    SymmetryAdapt.C
     Reader.C
 
     MnD/AuxillaryFJ.C
