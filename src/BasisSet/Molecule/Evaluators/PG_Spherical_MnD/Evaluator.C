@@ -35,9 +35,7 @@ struct SphData
 
     size_t      size() const {return comps.size();}
     void        Init();              // fills ns from the raw self-overlaps (uses the Cartesian kernel)
-    std::string RadialID () const;   // basis-only: the radials (no geometry)
-    std::string AngularID() const;   // basis-only: the per-component solid-harmonic monomial expansions
-    std::string BasisSetID() const;  // geometry-aware cache identity (folds in the centres)
+    std::string BasisSetID() const;  // geometry-aware cache identity (the integral cache key)
 };
 
 class NR_Evaluator : public virtual Evaluator, public SphData
@@ -47,7 +45,6 @@ public:
 
     virtual size_t        size    () const {return SphData::size();}
     virtual rvec_t        Norm    () const {return ns;}
-    virtual std::string   RadialID() const {return SphData::RadialID();}
     virtual std::string   Name    () const {return "SphericalGaussian";}
     virtual std::ostream& Write   (std::ostream& os) const {return os << "PG_Spherical_MnD::NR_Evaluator[" << size() << "]";}
 

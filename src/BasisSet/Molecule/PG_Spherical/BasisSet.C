@@ -44,9 +44,7 @@ class IrrepBasisSet
         virtual rvec_t     operator() (const rvec3_t&) const;
         virtual rvec3vec_t Gradient   (const rvec3_t&) const;
 
-        virtual std::string RadialID () const {return SphData::RadialID();}
-        virtual std::string AngularID() const {return SphData::AngularID();}
-        virtual std::string BasisSetID() const {return SphData::BasisSetID();} // geometry-aware
+        virtual std::string BasisSetID() const {return SphData::BasisSetID();} // geometry-aware cache key (RadialID/AngularID stay "")
         virtual std::string Name     () const {return "Sph. Gaussian ";}
         virtual std::ostream &Write(std::ostream&) const;
 

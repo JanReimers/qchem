@@ -23,33 +23,10 @@ void SphData::Init()
     }
 }
 
-// Cache identity, mirroring PGData's split.  RadialID/AngularID are the basis-only pieces (radials /
-// solid-harmonic monomials, no geometry); BasisSetID below is the geometry-aware key the integral cache
-// uses.  The "PGSph" tag keeps every key distinct from the Cartesian PG basis so the global matrix cache
-// never confuses the two (the underlying primitive/Omega caches ARE shared -- that is correct/desirable).
-std::string SphData::RadialID() const
-{
-    std::ostringstream os;
-    os << " PGSph { ";
-    for (const auto& c : comps) os << *c.radial << " ";
-    os << "}";
-    return os.str();
-}
-std::string SphData::AngularID() const
-{
-    std::ostringstream os;
-    os << "{ ";
-    for (const auto& c : comps)
-    {
-        os << "[";
-        for (const auto& t : c.terms) os << t.c << "*" << t.p << " ";
-        os << "] ";
-    }
-    os << "}";
-    return os.str();
-}
-// Geometry-aware: radial @ centre : monomial expansion, per component -- two geometries with the same
-// spherical basis must not collide (overlap/kinetic/ERIs are all orientation-dependent).
+// Geometry-aware cache identity: radial @ centre : monomial expansion, per component -- two geometries
+// with the same spherical basis must not collide (overlap/kinetic/ERIs are all orientation-dependent).
+// The "PGSph" tag keeps every key distinct from the Cartesian PG basis so the global matrix cache never
+// confuses the two (the underlying primitive/Omega caches ARE shared -- that is correct/desirable).
 std::string SphData::BasisSetID() const
 {
     std::ostringstream os;

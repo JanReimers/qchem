@@ -39,7 +39,6 @@ public:
     // --- cold-path Evaluator interface ---
     virtual size_t        size    () const {return PGData::size();}
     virtual rvec_t        Norm    () const {return ns;}
-    virtual std::string   RadialID() const {return PGData::RadialID();}
     virtual std::string   Name    () const {return "PolarizedGaussian";}
     virtual std::ostream& Write   (std::ostream& os) const {return os << "PG_Cart_MnD::NR_Evaluator[" << size() << "]";}
 

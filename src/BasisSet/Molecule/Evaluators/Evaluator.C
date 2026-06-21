@@ -40,7 +40,6 @@ public:
     virtual size_t  maxSpan () const {return size();}      // assume no overlap for |i-j| > maxSpan
     virtual rvec_t  Norm    () const = 0;                  // per-component normalization constants
     virtual std::ostream& Write    (std::ostream&) const=0;
-    virtual std::string   RadialID () const=0;             // key fragment for the integral cache
     virtual std::string   Name     () const=0;
     // Helpers for range-based loops over the i,j matrix indices.
     iv_t indices(             ) const {return iv_t(size_t(0),size());}

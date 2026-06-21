@@ -18,8 +18,11 @@ export namespace BasisSet
 class IrrepBasisSet_IDs : public virtual DBCacheClient
 {
 public:
-    virtual std::string  RadialID() const=0;
-    virtual std::string AngularID() const=0;
+    // Atoms split their identity into radial x angular (centre pinned at the nucleus, so the default
+    // BasisSetID below is complete).  Molecular / solid bases instead override BasisSetID directly to be
+    // geometry-aware and leave these empty -- hence non-pure "" defaults rather than =0.
+    virtual std::string  RadialID() const {return "";}
+    virtual std::string AngularID() const {return "";}
     virtual std::string Name     () const=0;
     virtual std::string BasisSetID() const override {return RadialID()+"|"+AngularID();}
     virtual std::string GetID() const {return BasisSetID();}
