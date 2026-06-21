@@ -13,7 +13,7 @@ import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Radial.GaussianH3;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Omega;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite1;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite3;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.RNLM;
+import qchem.BasisSet.Molecule.Evaluators.Internal.MnD;   // generic MnD core (RNLM, ...)
 
 import qchem.Blaze;     // rvec_t (itsCoeff)
 import qchem.Cluster;
@@ -21,6 +21,7 @@ import qchem.Math;
 
 namespace BasisSet::Molecule::PolarizedGaussian
 {
+using Evaluators::Internal::MnD::RNLM;
 //#######################################################################
 //
 //   PrimGaussian: primitive Gaussian + M&D kernels

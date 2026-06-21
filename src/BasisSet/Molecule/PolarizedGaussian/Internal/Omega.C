@@ -8,7 +8,7 @@ export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Omega;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite2;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite3;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GData;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.RNLM;
+import qchem.BasisSet.Molecule.Evaluators.Internal.MnD;   // generic MnD core (RNLM, ...)
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
 
 import qchem.BasisSet.Internal.Cache2;   // Cacheable2 (Omega_ab lives in the global Cache2)
@@ -17,6 +17,7 @@ import Common.UniqueIDImp;
 
 export namespace BasisSet::Molecule::PolarizedGaussian
 {
+using Evaluators::Internal::MnD::RNLM;
 struct Ω : public UniqueIDImp, public Cacheable2
 {
     Ω(const GData&,const GData&);

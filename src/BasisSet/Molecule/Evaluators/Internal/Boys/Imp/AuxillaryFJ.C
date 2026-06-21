@@ -2,11 +2,13 @@
 module;
 #include <cassert>
 
-module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.AuxillaryFJ;
+module qchem.BasisSet.Molecule.Evaluators.Internal.Boys.AuxillaryFJ;
 import qchem.Math;
 
+static double Factorial[]= {1,1,2,6,24,120,720};
 
-double Factorial[]= {1,1,2,6,24,120,720};
+namespace BasisSet::Molecule::Evaluators::Internal::Boys
+{
 
 void AuxillaryFJ::GetFjAt(double T, rvec_t& Fj) const
 {
@@ -44,3 +46,5 @@ void AuxillaryFJ::GetFjAt(double T, rvec_t& Fj) const
         for (int j=0; j<jmax; j++) Fj[j+1]=((2*j+1)*Fj[j]-et)/(2*T);
     }
 }
+
+} //namespace

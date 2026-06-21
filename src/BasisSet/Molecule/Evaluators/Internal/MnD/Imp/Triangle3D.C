@@ -1,10 +1,13 @@
-// File: BasisSet/Molecule/PolarizedGaussian/MnD/Imp/Triangle3D.C  A 3-index triangular data structure.
+// File: BasisSet/Molecule/Evaluators/Internal/MnD/Imp/Triangle3D.C  A 3-index triangular data structure.
 module;
 #include <cassert>
 #include <iostream>
 #include <vector>
-module qchem.BasisSet.Molecule.PolarizedGaussian.MnD.Triangle3D;
+module qchem.BasisSet.Molecule.Evaluators.Internal.MnD.Triangle3D;
 import qchem.stl_io;
+
+namespace BasisSet::Molecule::Evaluators::Internal::MnD
+{
 
 Triangle3D::Triangle3D()
     : N(-1)
@@ -73,5 +76,7 @@ std::ostream&  Triangle3D::Write(std::ostream& os) const
     }
     return os;
 }
+
+} //namespace
 
 

@@ -4,10 +4,11 @@ module;
 export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
 import qchem.Types;
 import qchem.IntPow;
+import qchem.BasisSet.Molecule.Evaluators.Internal.MnD.Index3;  // Cartesian->Hermite index seam
 
 export namespace BasisSet::Molecule::PolarizedGaussian
 {
-    
+
 class Polarization
 {
 public:
@@ -54,6 +55,10 @@ public:
         return intpow(r.x,n)*intpow(r.y,l)*intpow(r.z,m);
     }
     rvec3_t  Gradient     (const rvec3_t& r) const;
+
+    // A Cartesian polarization IS a Hermite (N,L,M) index to the generic MnD core (RNLM etc.); the
+    // monomial above is the Cartesian-only part.  Implicit so existing rnlm(pa+pb) call sites are unchanged.
+    operator Evaluators::Internal::MnD::Index3() const {return {n,l,m};}
 
     int   GetTotalL  () const;
     int   GetMaximumL() const;

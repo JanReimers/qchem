@@ -1,8 +1,8 @@
-// File: BasisSet/Molecule/PolarizedGaussian/MnD/Triangle3D.C  A 3-index triangular data structure.
+// File: BasisSet/Molecule/Evaluators/Internal/MnD/Triangle3D.C  A 3-index triangular data structure.
 module;
 #include <iosfwd>
 #include <vector>
-export module qchem.BasisSet.Molecule.PolarizedGaussian.MnD.Triangle3D;
+export module qchem.BasisSet.Molecule.Evaluators.Internal.MnD.Triangle3D;
 import qchem.Streamable;
 
 #if DEBUG
@@ -10,10 +10,13 @@ import qchem.Streamable;
 #else
 #define CHECK(i,j,k)
 #endif
+
+export namespace BasisSet::Molecule::Evaluators::Internal::MnD
+{
 //
 //  Implements an triangle data structure, where N+L+M is always < MaxSum.
 //
-export class Triangle3D
+class Triangle3D
     : public virtual Streamable
 {
 public:
@@ -47,6 +50,8 @@ private:
     int     N;
     std::vector<double> itsData;
 };
+
+} //namespace
 
 #undef CHECK
 

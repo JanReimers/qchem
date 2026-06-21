@@ -6,7 +6,7 @@ module;
 #include <functional>
 module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Omega;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.RNLM;
+import qchem.BasisSet.Molecule.Evaluators.Internal.MnD;   // generic MnD core (RNLM, ...)
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite3;
 import qchem.BasisSet.Internal.DB_Cache;   // theGlobalCache, Register/GetCache{2,3}
 import qchem.BasisSet.Internal.Cache2;     // Cache2, Cacheable2, Cache2_Client

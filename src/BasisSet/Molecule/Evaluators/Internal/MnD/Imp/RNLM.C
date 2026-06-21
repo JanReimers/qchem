@@ -1,16 +1,17 @@
-// File: PolarizedGaussian/MnD/Imp/RNLM.C  Manager the RNLM Auxillary functions.
+// File: BasisSet/Molecule/Evaluators/Internal/MnD/Imp/RNLM.C  Manage the R_NLM Hermite Coulomb auxiliaries.
 module;
 #include <iostream>
 #include <cassert>
 #include <vector>
-module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.RNLM;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.AuxillaryFJ;
+module qchem.BasisSet.Molecule.Evaluators.Internal.MnD.RNLM;
+import qchem.BasisSet.Molecule.Evaluators.Internal.Boys.AuxillaryFJ;
 import qchem.IntPow;
 
 #define MAX 16
 
-namespace BasisSet::Molecule::PolarizedGaussian
+namespace BasisSet::Molecule::Evaluators::Internal::MnD
 {
+using Boys::AuxillaryFJ;
 
 
 RNLM::RNLM() : itsData() {};
@@ -72,4 +73,4 @@ void RNLM::Add(const RNLM& theR, double theScale)
 }
 
 
-} //namespace BasisSet::Molecule::PolarizedGaussian
+} //namespace
