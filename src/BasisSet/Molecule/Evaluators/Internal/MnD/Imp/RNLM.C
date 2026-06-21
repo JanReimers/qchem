@@ -16,7 +16,7 @@ using Boys::AuxillaryFJ;
 
 RNLM::RNLM() : itsData() {};
 
-RNLM::RNLM(int Max, double Alpha, const rvec3_t& dR)
+RNLM::RNLM(int Max, double α, const rvec3_t& dR)
     : itsLMax(Max)
     , itsData()
 {
@@ -31,7 +31,7 @@ RNLM::RNLM(int Max, double Alpha, const rvec3_t& dR)
     }
 
     assert(Max<=AuxillaryFJ::thejMax);
-    double T=Alpha*dR*dR;
+    double T=α*dR*dR;
     rvec_t Fj(Max+1,0.0);
     {
         AuxillaryFJ FjCalculator;
@@ -42,13 +42,13 @@ RNLM::RNLM(int Max, double Alpha, const rvec3_t& dR)
     Triangle3D* Rjs=&theRjs[AuxillaryFJ::thejMax-Max];
 //  for (int j=0;j<=Max;j++) Rjs.push_back(new Triangle(Max-j));
 
-    Rjs[Max](0,0,0)=uintpow(-2.0*Alpha,Max)*Fj[Max];
+    Rjs[Max](0,0,0)=uintpow(-2.0*α,Max)*Fj[Max];
     for (int j=Max-1; j>=0; j--)
     {
         Triangle3D& Rj  =Rjs[j  ];
         const Triangle3D& Rjp1=Rjs[j+1];
 
-        Rj(0,0,0)=intpow(-2.0*Alpha,j)*Fj[j];
+        Rj(0,0,0)=intpow(-2.0*α,j)*Fj[j];
         int n=Max-j;
         for (int M=0; M<n; M++)
         {

@@ -43,7 +43,7 @@ using ::BasisSet::Molecule::Evaluators::Internal::MnD::RNLM;  // Ω's self-auxil
 struct GData
 {
     size_t   ID;      // content-based registry index (NOT the old per-object UniqueID)
-    double   Alpha;   // exponent
+    double   α;   // exponent
     rvec3_t  R;       // centre
     int      L;       // actually a maximum L
 };
@@ -99,7 +99,7 @@ struct Ω : public Cacheable2
 {
     Ω(const GData&,const GData&);
     ~Ω();
-    GData GetGData() const {return GData{itsIndex,AlphaP,P,Ltotal};}
+    GData GetGData() const {return GData{itsIndex,αₚ,P,Ltotal};}
 
     virtual bool   isSupported(const Cache2_Client*) const {return false;} // never auto-evicted
     virtual size_t RAMsize() const;
@@ -111,7 +111,7 @@ struct Ω : public Cacheable2
     size_t   itsIndex;     // content-based registry id (the RNLM cache keys on it); set first
     int      Ltotal;       // total angular momentum
     double   a,b;          // exponents
-    double   ab,AlphaP;    // a*b, a+b
+    double   ab,αₚ;    // a*b, a+b
     rvec3_t  AB,P;         // A-B, new centre
     double   Eij;          // scale factor
     Hermite2 H2;           // Hermite coefficients

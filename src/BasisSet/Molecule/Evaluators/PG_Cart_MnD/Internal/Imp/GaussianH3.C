@@ -26,13 +26,13 @@ GaussianH3::GaussianH3()
     , itsScale(-1.0)
 {};
 
-GaussianH3::GaussianH3(double AlphaP, const rvec3_t& PA, const rvec3_t& PB, const rvec3_t& PC, int LA, int LB, int LC, double Scale)
+GaussianH3::GaussianH3(double αₚ, const rvec3_t& PA, const rvec3_t& PB, const rvec3_t& PC, int LA, int LB, int LC, double Scale)
     : itsLA   (LA)
     , itsLB   (LB)
     , itsLC   (LC)
     , itsScale(Scale)
 {
-    double a12=1.0/(2*AlphaP);
+    double a12=1.0/(2*αₚ);
     itsa12s[0]=1.0;
     for (int n=1; n<=itsLA+itsLB+itsLC; n++) itsa12s[n]=itsa12s[n-1]*a12;
 

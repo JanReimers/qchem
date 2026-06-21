@@ -147,7 +147,7 @@ const RNLM& findRNLM(const GData& ab,const GData& c)
     const Cacheable2& w = RNLMCache()->get(ab.ID, c.ID,
         [&ab,&c]() -> const Cacheable2*
         {
-            double alpha = ab.Alpha*c.Alpha/(ab.Alpha+c.Alpha);
+            double alpha = ab.α*c.α/(ab.α+c.α);
             return new RNLM_C2(ab.L+c.L, alpha, ab.R-c.R);
         });
     return static_cast<const RNLM_C2&>(w).rnlm;
@@ -167,10 +167,10 @@ const Hermite3& findH3(const PrimGaussian* ga, const PrimGaussian* gb, const Pri
 //--------------------------------------------------------------------------------------------------
 Ω::~Ω() { delete itsSelfRNLM; }
 
-// 2-centre self-auxiliary: RNLM(Ltotal, ab/AlphaP, AB) -- built once, owned by this Ω.
+// 2-centre self-auxiliary: RNLM(Ltotal, ab/αₚ, AB) -- built once, owned by this Ω.
 const RNLM& Ω::SelfRNLM() const
 {
-    if (!itsSelfRNLM) itsSelfRNLM = new RNLM(Ltotal, ab/AlphaP, AB);
+    if (!itsSelfRNLM) itsSelfRNLM = new RNLM(Ltotal, ab/αₚ, AB);
     return *itsSelfRNLM;
 }
 
@@ -194,14 +194,14 @@ void Ω::MakeNMLs()
 Ω::Ω(const GData& g1,const GData& g2)
     : itsIndex(theIds().ChargeDist(g1.ID, g2.ID))   // content-based id (disjoint from primitive ids)
     , Ltotal(g1.L + g2.L)
-    , a     (g1.Alpha)
-    , b     (g2.Alpha)
+    , a     (g1.α)
+    , b     (g2.α)
     , ab    (a * b)
-    , AlphaP(a + b)
+    , αₚ(a + b)
     , AB    (g1.R - g2.R)
-    , P     ( (a*g1.R + b*g2.R) / AlphaP)
-    , Eij   ( exp(-ab / AlphaP * (AB*AB)) )
-    , H2    (AlphaP, P - g1.R, P - g2.R, g1.L+1, g2.L+1)
+    , P     ( (a*g1.R + b*g2.R) / αₚ)
+    , Eij   ( exp(-ab / αₚ * (AB*AB)) )
+    , H2    (αₚ, P - g1.R, P - g2.R, g1.L+1, g2.L+1)
 {
     if (theNMLs.size()==0) MakeNMLs();
 }
@@ -287,7 +287,7 @@ double PrimGaussian::Overlap2C(const PrimGaussian* a, const PrimGaussian* b,
 {
     const Ω& ab = findΩ(a->GetGData(), b->GetGData());
     Polarization zero(0,0,0);
-    return pow(Pi/ab.AlphaP,1.5)*ab.Eij*ab.H2(zero,pa,pb);
+    return pow(Pi/ab.αₚ,1.5)*ab.Eij*ab.H2(zero,pa,pb);
 }
 
 double PrimGaussian::Repulsion2C(const PrimGaussian* a, const PrimGaussian* b,
@@ -299,7 +299,7 @@ double PrimGaussian::Repulsion2C(const PrimGaussian* a, const PrimGaussian* b,
     const Hermite1& H1b = b->GetH1();
     const RNLM& R = ab.SelfRNLM();
 
-    double factor = 1.0/(ab.ab*sqrt(ab.AlphaP));
+    double factor = 1.0/(ab.ab*sqrt(ab.αₚ));
     factor = (pb.GetTotalL()%2) ? -factor : factor;
 
     double s = 0.0;
@@ -328,7 +328,7 @@ double PrimGaussian::Grad2(const PrimGaussian* a, const PrimGaussian* b,
                            const Polarization& pa, const Polarization& pb)
 {
     const Ω& ab = findΩ(a->GetGData(), b->GetGData());
-    double factor = pow(Pi/ab.AlphaP,1.5)*ab.Eij;
+    double factor = pow(Pi/ab.αₚ,1.5)*ab.Eij;
     double h = GetGrad2(pa,pb,ab);
     return h!=0 ? factor*h : 0.0;
 }
@@ -340,7 +340,7 @@ double PrimGaussian::Nuclear(const PrimGaussian* a, const PrimGaussian* b,
     const Ω& ab = findΩ(a->GetGData(), b->GetGData());
     RNLM R;
     for (auto& atom:*cl)
-        R.Add(RNLM(ab.Ltotal,ab.AlphaP,ab.P-atom->itsR), -1.0*(atom->itsZ));
+        R.Add(RNLM(ab.Ltotal,ab.αₚ,ab.P-atom->itsR), -1.0*(atom->itsZ));
 
     auto NLMs = Ω::GetNMLs(ab.Ltotal);
     const Polarization Pab = pa + pb;
@@ -351,7 +351,7 @@ double PrimGaussian::Nuclear(const PrimGaussian* a, const PrimGaussian* b,
         if (double h = ab.H2(bNLM,pa,pb); h!=0)
             s += h*R(bNLM);
     }
-    return s * 2*Pi/ab.AlphaP*ab.Eij;
+    return s * 2*Pi/ab.αₚ*ab.Eij;
 }
 
 // 3-centre overlap <ab|c>: the Hermite block, cached by primitive triple in the global Cache3 (the build
@@ -389,7 +389,7 @@ double PrimGaussian::Repulsion3C(const PrimGaussian* ga, const PrimGaussian* gb,
                 }
         if (Rs!=0) s += hab*Rs;
     }
-    double factor = 1.0/(ab.AlphaP*gc->GetExponent()*sqrt(ab.AlphaP+gc->GetExponent()));
+    double factor = 1.0/(ab.αₚ*gc->GetExponent()*sqrt(ab.αₚ+gc->GetExponent()));
     factor = (pc.GetTotalL()%2) ? -factor : factor;
     return s * 2*Pi52 * ab.Eij*factor;
 }
@@ -405,7 +405,7 @@ double PrimGaussian::Repulsion4C(const PrimGaussian* ga, const PrimGaussian* gb,
     const std::vector<Polarization>& abNLMs = Ω::GetNMLs(ab.Ltotal);
     const std::vector<Polarization>& cdNLMs = Ω::GetNMLs(cd.Ltotal);
 
-    double lambda = 2*Pi52/(ab.AlphaP*cd.AlphaP*sqrt(ab.AlphaP+cd.AlphaP)); //M&D 3.31
+    double lambda = 2*Pi52/(ab.αₚ*cd.αₚ*sqrt(ab.αₚ+cd.αₚ)); //M&D 3.31
     lambda *= ab.Eij*cd.Eij; //M&D 2.25
     const RNLM& rnlm(findRNLM(ab.GetGData(), cd.GetGData())); //M&D section 4A
 

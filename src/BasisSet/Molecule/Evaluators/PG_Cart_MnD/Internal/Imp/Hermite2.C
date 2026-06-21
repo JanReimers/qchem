@@ -92,7 +92,7 @@ inline rvec3_t operator*(const rvec3_t& a, const int& b)
 
 //using std::cout;
 //using std::endl;
-Hermite2::Hermite2(double AlphaP, const rvec3_t& PA, const rvec3_t& PB, int _LA, int _LB)
+Hermite2::Hermite2(double αₚ, const rvec3_t& PA, const rvec3_t& PB, int _LA, int _LB)
     : LA(_LA)
     , LB(_LB)
     , LAB((LA+1)*(LB+1))
@@ -105,7 +105,7 @@ Hermite2::Hermite2(double AlphaP, const rvec3_t& PA, const rvec3_t& PB, int _LA,
     assert(_LB>=0);
    // cout << "Hermite 2 constructor" << endl;
     
-    double a12=1.0/(2*AlphaP);
+    double a12=1.0/(2*αₚ);
     Assign(0,0,0,rvec3_t(1,1,1)); //d_0^00 
     //
     // Layered approach:  na+nb = layer.  

@@ -34,7 +34,7 @@ class Hermite2
 {
 public:
     //Hermite2();
-    Hermite2(double AlphaP, const rvec3_t& PA, const rvec3_t& PB, int LA, int LB);
+    Hermite2(double αₚ, const rvec3_t& PA, const rvec3_t& PB, int LA, int LB);
     ~Hermite2();
     double operator()(const Polarization& P,const Polarization& Pa,const Polarization& Pb) const;
 

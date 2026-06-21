@@ -18,7 +18,7 @@ export namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
 //
 //  No attempt at optimizing storage space is made here as these data structures
 //  are intended for "on the fly" calculation.
-//  The Scale parameter is applied to every data element, if scale=Eabc*(Pi/AlphaQ)^3/2 the
+//  The Scale parameter is applied to every data element, if scale=Eabc*(Pi/αQ)^3/2 the
 //  op() returns the overlap integral directly.
 //
 
@@ -27,7 +27,7 @@ class GaussianH3 : public Hermite3
 {
 public:
     GaussianH3();
-    GaussianH3(double AlphaP, const rvec3_t& PA, const rvec3_t& PB, const rvec3_t& PC, int LA, int LB, int LC, double Scale=1.0);
+    GaussianH3(double αₚ, const rvec3_t& PA, const rvec3_t& PB, const rvec3_t& PC, int LA, int LB, int LC, double Scale=1.0);
 
     virtual double operator()(const Polarization& Pa,const Polarization& Pb,const Polarization& Pc) const;
 

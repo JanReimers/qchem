@@ -23,10 +23,10 @@ Hermite1::Hermite1()
 
 
 
-Hermite1::Hermite1(double AlphaP, int L)
+Hermite1::Hermite1(double αₚ, int L)
     : itsL(L)
 {
-    double a12=1.0/(2*AlphaP);
+    double a12=1.0/(2*αₚ);
 
     for (int n=0; n<=itsL; n++)
         for (int N=0; N<=itsL; N++) def[N][n] = Getdef(N-1,n-1)*a12 + Getdef(N+1,n-1)*(N+1);

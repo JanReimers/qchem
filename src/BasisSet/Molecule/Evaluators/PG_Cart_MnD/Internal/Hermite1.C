@@ -28,7 +28,7 @@ class Hermite1
 {
 public:
     Hermite1();
-    Hermite1(double AlphaP, int L);
+    Hermite1(double αₚ, int L);
  
     double  operator()(const Polarization& P,const Polarization& p) const;
 
