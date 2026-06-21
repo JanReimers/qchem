@@ -10,7 +10,7 @@ module;
 
 module qchem.BasisSet.Molecule.PolarizedGaussian;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Readers.Gaussian94;
+import qchem.BasisSet.Molecule.Readers.Gaussian94;
 import qchem.BasisSet;
 import qchem.Cluster;
 import qchem.Symmetry.Unit;

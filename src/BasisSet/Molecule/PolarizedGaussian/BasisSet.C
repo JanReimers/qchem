@@ -7,7 +7,7 @@ import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Block;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.PGData;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Reader;
+import qchem.BasisSet.Molecule.Reader;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD;  // NR_Evaluator: the IBS IS-A evaluator (base subobject)
 import qchem.BasisSet.Molecule.IBS;                     // Molecule::Orbital_{1E,DFT,HF}_IBS<E> templated mixins
 

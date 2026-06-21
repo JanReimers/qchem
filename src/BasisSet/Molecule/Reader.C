@@ -1,12 +1,12 @@
-// File: Reader.C  Abstract interface for a basis set reader.
+// File: BasisSet/Molecule/Reader.C  Abstract interface for a molecular basis-set reader.
 module;
 
 #include <vector>
-export module qchem.BasisSet.Molecule.PolarizedGaussian.Reader;
+export module qchem.BasisSet.Molecule.Reader;
 export import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
 export import qchem.Cluster;
  
-export namespace BasisSet::Molecule::PolarizedGaussian
+export namespace BasisSet::Molecule
 {
 using namespace ::BasisSet::Molecule::Evaluators::PG_Cart_MnD;  // Cartesian glue moved out to PG_Cart_MnD
 
@@ -24,5 +24,5 @@ public:
     virtual std::vector<int> GetLs   (           ) const=0;
 };
 
-} //namespace BasisSet::Molecule::PolarizedGaussian
+} //namespace BasisSet::Molecule
 

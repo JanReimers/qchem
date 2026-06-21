@@ -1,12 +1,12 @@
-// File: Gaussian94Reader.C  Class for reading basis sets from a Gaussian 94 formatted file.
+// File: BasisSet/Molecule/Readers/Gaussian94.C  Reader for Gaussian-94 formatted basis-set files.
 module;
 #include <fstream>
 #include <string>
 #include <vector>
-export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Readers.Gaussian94;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Reader;
+export module qchem.BasisSet.Molecule.Readers.Gaussian94;
+import qchem.BasisSet.Molecule.Reader;
 
-export namespace BasisSet::Molecule::PolarizedGaussian
+export namespace BasisSet::Molecule
 {
 using namespace ::BasisSet::Molecule::Evaluators::PG_Cart_MnD;  // Cartesian glue moved out to PG_Cart_MnD
 //------------------------------------------------------------------
@@ -40,5 +40,5 @@ private:
     std::vector<int> itsLs;
 };
 
-} //namespace BasisSet::Molecule::PolarizedGaussian
+} //namespace BasisSet::Molecule
 

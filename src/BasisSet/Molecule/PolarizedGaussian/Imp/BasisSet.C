@@ -7,7 +7,7 @@ module;
 // namespace BasisSet::Molecule::PolarizedGaussian{class Reader;} /* g++-15.2 BUG? not handling forward class decs as well as clang++ 20,21*/
 
 module qchem.BasisSet.Molecule.PolarizedGaussian;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Reader;
+import qchem.BasisSet.Molecule.Reader;
 import qchem.Cluster;
 import qchem.Math;
 

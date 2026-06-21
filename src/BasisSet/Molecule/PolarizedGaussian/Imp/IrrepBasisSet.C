@@ -15,7 +15,7 @@ static const std::filesystem::path basisset_data_dir = BASISSET_DATA_PATH;
 
 module qchem.BasisSet.Molecule.PolarizedGaussian;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Readers.Gaussian94;
+import qchem.BasisSet.Molecule.Readers.Gaussian94;
 import qchem.BasisSet;
 import qchem.Cluster;
 import qchem.Symmetry.Unit;
@@ -231,13 +231,13 @@ Orbital_IBS::Orbital_IBS(   const rvec_t& exponents, size_t L)
 Fit_IBS* Orbital_IBS::CreateCDFitBasisSet(const Cluster* cl) const
 {
     // The A1 files support Z=1-54 (H-Te)  A2 version only go up to Zn
-    PolarizedGaussian::Gaussian94Reader reader(basisset_data_dir / "A1_coul.bsd");
+    Gaussian94Reader reader(basisset_data_dir / "A1_coul.bsd");
     return new EFit_IBS(&reader,cl);
 }
 Fit_IBS* Orbital_IBS::CreateVxcFitBasisSet(const Cluster* cl) const
 {
     // The A1 files support Z=1-54 (H-Te)  A2 version only go up to Zn
-    PolarizedGaussian::Gaussian94Reader reader(basisset_data_dir / "A1_exch.bsd");
+    Gaussian94Reader reader(basisset_data_dir / "A1_exch.bsd");
     return new EFit_IBS(&reader,cl);
 }
 

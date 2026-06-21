@@ -1,4 +1,4 @@
-// File: PolarizedGaussian/Readers/Gaussian94.C  Class for reading basis sets from a Gaussian 94 formatted file.
+// File: BasisSet/Molecule/Readers/Imp/Gaussian94.C  Reader for Gaussian-94 formatted basis-set files.
 module;
 #include <iostream>
 #include <cassert>
@@ -7,7 +7,7 @@ module;
 #include <algorithm>
 #include <unistd.h>
 #include <vector>
-module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Readers.Gaussian94;
+module qchem.BasisSet.Molecule.Readers.Gaussian94;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
 import Common.PeriodicTable;
 import qchem.Cluster;
@@ -15,7 +15,7 @@ import qchem.Types;
 import qchem.Blaze;
 
 using std::ws;
-namespace BasisSet::Molecule::PolarizedGaussian
+namespace BasisSet::Molecule
 {
 using namespace ::BasisSet::Molecule::Evaluators::PG_Cart_MnD;  // Cartesian glue moved out to PG_Cart_MnD
     
@@ -254,4 +254,4 @@ int ToNumber(char c)
     return ret;
 }
 
-} //namespace BasisSet::Molecule::PolarizedGaussian
+} //namespace BasisSet::Molecule
