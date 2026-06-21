@@ -7,6 +7,8 @@ module;
 #include <string>
 #include <vector>
 #include <memory>
+#include <map>
+#include <utility>
 
 module qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.GaussianH3;
@@ -28,8 +30,50 @@ using Evaluators::Internal::MnD::RNLM;
 
 //#######################################################################
 //
+//   Content-based identity registry -- replaces the old per-object UniqueID.  Each distinct primitive
+//   (exponent, centre, max-L) and each distinct charge-distribution pair gets a stable index from ONE
+//   shared counter, so primitive ids and Ω ids never collide in the RNLM cache (which keys on a mix of
+//   the two).  Content keys mean two equal primitives in different IBSs share a Cache2/3 entry (the
+//   reuse win, as the atom ExponentGrouper does for Cache4).  The registry is a serialisable symbol
+//   table: a future per-job disk cache would persist it next to Cache{2,3} -- nothing here blocks that.
+//
+namespace
+{
+    struct PrimKey
+    {
+        double e, x, y, z; int L;
+        bool operator<(const PrimKey& o) const
+        {
+            if (e!=o.e) return e<o.e;
+            if (x!=o.x) return x<o.x;
+            if (y!=o.y) return y<o.y;
+            if (z!=o.z) return z<o.z;
+            return L<o.L;
+        }
+    };
+    class IdRegistry
+    {
+    public:
+        size_t Primitive  (double e, const rvec3_t& R, int L) {return intern(itsPrims, PrimKey{e,R.x,R.y,R.z,L});}
+        size_t ChargeDist (size_t a, size_t b)                {return intern(itsPairs, std::make_pair(a,b));}
+    private:
+        template <class Map, class Key> size_t intern(Map& m, const Key& k)
+        {
+            auto [it, fresh] = m.try_emplace(k, itsNext);
+            if (fresh) ++itsNext;
+            return it->second;
+        }
+        size_t                                    itsNext = 0;
+        std::map<PrimKey,size_t>                   itsPrims;
+        std::map<std::pair<size_t,size_t>,size_t>  itsPairs;
+    };
+    IdRegistry& theIds() {static IdRegistry r; return r;}
+}
+
+//#######################################################################
+//
 //   Charge distribution Ω + the global Cache2/Cache3 access points.
-//   All PG charge-distribution caching lives in process-global Cache2s, keyed by UniqueIDs so entries
+//   All PG charge-distribution caching lives in process-global Cache2s, keyed by registry indices so entries
 //   are shared wherever the underlying objects are shared (e.g. SALC irreps over one raw basis):
 //     - Ω keyed by the primitive pair (primA.ID, primB.ID)
 //     - 3/4-centre RNLM keyed by the two charge-distribution ids (ab.ID, c.ID)
@@ -148,7 +192,8 @@ void Ω::MakeNMLs()
 }
 
 Ω::Ω(const GData& g1,const GData& g2)
-    : Ltotal(g1.L + g2.L)
+    : itsIndex(theIds().ChargeDist(g1.ID, g2.ID))   // content-based id (disjoint from primitive ids)
+    , Ltotal(g1.L + g2.L)
     , a     (g1.Alpha)
     , b     (g2.Alpha)
     , ab    (a * b)
@@ -169,7 +214,8 @@ size_t Ω::RAMsize() const {return sizeof(Ω);} // includes the by-value Hermite
 //
 
 PrimGaussian::PrimGaussian(double theExponent, const rvec3_t& theCenter, int theL)
-    : itsExponent(theExponent)
+    : itsIndex   (theIds().Primitive(theExponent, theCenter, theL))
+    , itsExponent(theExponent)
     , itsCenter  (theCenter)
     , itsL       (theL)
     , itsH1      (0)
@@ -480,7 +526,8 @@ GaussianRF::GaussianRF(const rvec_t& coeffs, const rvec_t& exponents, const rvec
 
 GaussianRF::~GaussianRF() {}
 
-// Deep-copy the primitives (a copy is a distinct object and gets its own UniqueID).
+// Deep-copy the primitives (rebuilt from exponent/centre/L, so an equal copy interns to the SAME
+// registry index -- and therefore shares cache entries, unlike the old per-object UniqueID).
 GaussianRF::GaussianRF(const GaussianRF& o)
     : itsCenter(o.itsCenter)
     , itsL     (o.itsL)

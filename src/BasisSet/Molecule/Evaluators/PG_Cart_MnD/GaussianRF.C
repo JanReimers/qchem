@@ -22,8 +22,6 @@ import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Hermite3;
 import qchem.BasisSet.Molecule.Evaluators.Internal.MnD;                   // RNLM (Ω self-auxiliary)
 import qchem.BasisSet.Internal.Cache2;                                    // Cacheable2 (Ω is cached)
 
-import Common.UniqueID;
-import Common.UniqueIDImp;
 import qchem.ScalarFunction;
 import qchem.Streamable;
 import qchem.Cluster;
@@ -31,7 +29,7 @@ import qchem.Cluster;
 //
 //  MODULE-INTERNAL implementation of the radial integrals -- none of this is exported, and only the
 //  PrimGaussian kernels (same module) touch it:
-//    GData -- the cache identity of one primitive (exponent, centre, max-L, UniqueID).
+//    GData -- the cache identity of one primitive (exponent, centre, max-L + a content-based index).
 //    Ω     -- the McMurchie-Davidson charge distribution of a PRIMITIVE PAIR (Hermite coeffs + the
 //             auxiliary RNLM); cached in the process-global Cache2.
 //    findΩ/findRNLM/findH3 -- the global Cache2/Cache3 access points.
@@ -44,23 +42,23 @@ using ::BasisSet::Molecule::Evaluators::Internal::MnD::RNLM;  // Ω's self-auxil
 
 struct GData
 {
-    UniqueID::IDtype  ID;
-    double            Alpha;  // exponent
-    rvec3_t           R;      // centre
-    int               L;      // actually a maximum L
+    size_t   ID;      // content-based registry index (NOT the old per-object UniqueID)
+    double   Alpha;   // exponent
+    rvec3_t  R;       // centre
+    int      L;       // actually a maximum L
 };
 
-class PrimGaussian : private UniqueIDImp
+class PrimGaussian
 {
 public:
     PrimGaussian(double Exp, const rvec3_t& Center, int L);
     ~PrimGaussian();
 
-    using UniqueIDImp::GetID;
+    size_t          GetID      () const {return itsIndex;}   // content-based registry index
     double          GetExponent() const {return itsExponent;}
     const rvec3_t&  GetCenter  () const {return itsCenter;}
     int             GetL       () const {return itsL;}
-    GData           GetGData   () const {return GData{GetID(),itsExponent,itsCenter,itsL};}
+    GData           GetGData   () const {return GData{itsIndex,itsExponent,itsCenter,itsL};}
     const Hermite1& GetH1      () const;                              // cached Hermite1(exp,L)
     Hermite3*       GetH3      (const PrimGaussian&, const PrimGaussian&) const; // this is centre C
 
@@ -89,6 +87,7 @@ public:
                               const Polarization& pc, const Polarization& pd);
 
 private:
+    size_t            itsIndex;     // registry index; set first (registry interns on exponent/centre/L)
     double            itsExponent;
     rvec3_t           itsCenter;
     int               itsL;
@@ -96,11 +95,11 @@ private:
 };
 
 // Ω: the M&D charge distribution of a primitive pair (a,b).  Lives in the process-global Cache2.
-struct Ω : public UniqueIDImp, public Cacheable2
+struct Ω : public Cacheable2
 {
     Ω(const GData&,const GData&);
     ~Ω();
-    GData GetGData() const {return GData{GetID(),AlphaP,P,Ltotal};}
+    GData GetGData() const {return GData{itsIndex,AlphaP,P,Ltotal};}
 
     virtual bool   isSupported(const Cache2_Client*) const {return false;} // never auto-evicted
     virtual size_t RAMsize() const;
@@ -109,6 +108,7 @@ struct Ω : public UniqueIDImp, public Cacheable2
     // member rather than a separate cache entry.  Used by the 2-centre Coulomb (Repulsion2C).
     const RNLM& SelfRNLM() const;
 
+    size_t   itsIndex;     // content-based registry id (the RNLM cache keys on it); set first
     int      Ltotal;       // total angular momentum
     double   a,b;          // exponents
     double   ab,AlphaP;    // a*b, a+b
@@ -141,7 +141,6 @@ export namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
 class GaussianRF
     : public virtual ScalarFunction<double>
     , public virtual Streamable
-    , private UniqueIDImp
 {
 public:
     typedef const GaussianRF    rf_t;
@@ -156,7 +155,6 @@ public:
     GaussianRF& operator=(GaussianRF&&) = default;
     ~GaussianRF();
 
-    using UniqueIDImp::GetID;
     const rvec3_t& GetCenter() const {return itsCenter;}
     int            GetL     () const {return itsL;}
 
