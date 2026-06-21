@@ -18,17 +18,16 @@ module;
 #include <ostream>
 export module qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD;
 import qchem.BasisSet.Molecule.Evaluators;                             // Evaluator + concepts
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.PGData;      // PGData
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;  // GaussianRF named kernels
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;// Polarization
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.PGData;      // PGData
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;  // GaussianRF named kernels
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;// Polarization
 import qchem.Cluster;
 import qchem.Types;
 
 export namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
 {
-namespace PG = ::BasisSet::Molecule::PolarizedGaussian;
 
-class NR_Evaluator : public virtual Evaluator, public PG::PGData
+class NR_Evaluator : public virtual Evaluator, public PGData
 {
 public:
     // The evaluator OWNS its data (IS-A PGData) rather than viewing one: it is a base subobject of the PG

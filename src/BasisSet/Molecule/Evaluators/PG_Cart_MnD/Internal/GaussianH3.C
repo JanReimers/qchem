@@ -1,13 +1,13 @@
 // File: GaussianH3.C  Class for managing 3 function Hermite coefficients.
 module;
 #include <iosfwd>
-export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Radial.GaussianH3;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite3;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
+export module qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.GaussianH3;
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Hermite3;
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;
 import qchem.Types;
 
 #define LMAX 3
-export namespace BasisSet::Molecule::PolarizedGaussian
+export namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
 {
 //
 //  Encapsulate calculation and storage of Hermite expansion coefficients
@@ -56,5 +56,5 @@ private:
     double   itsScale;
 };
 
-} //namespace BasisSet::Molecule::PolarizedGaussian
+} //namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
 

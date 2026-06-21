@@ -4,10 +4,11 @@ module;
 #include <cassert>
 module qchem.BasisSet.Molecule.PolarizedGaussian.SymmetryAdapt;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Symmetry;        // ExtractAoShells, ClusterToSymPoints (+ SALC pipeline)
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.PGData; // PGData
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.PGData; // PGData
 
 namespace BasisSet::Molecule::PolarizedGaussian
 {
+using namespace ::BasisSet::Molecule::Evaluators::PG_Cart_MnD;  // Cartesian glue moved out to PG_Cart_MnD
 
 ::BasisSet::Molecule::SymmetryAdaptedBasisSet*
 SymmetryAdapt(std::shared_ptr<const ::BasisSet::BasisSet<double>> rawBasis, const Cluster& cl, double tol)

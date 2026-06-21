@@ -6,8 +6,8 @@ module;
 #include <iomanip>
 #include <vector>
 
-module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite2;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
+module qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Hermite2;
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;
 import qchem.Math;
 
 std::ostream& operator << (std::ostream& os, const std::vector<double>& v)
@@ -16,7 +16,7 @@ std::ostream& operator << (std::ostream& os, const std::vector<double>& v)
     return os;
 }
 
-namespace BasisSet::Molecule::PolarizedGaussian
+namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
 {
 //----------------------------------------------------------------------------------------
 //
@@ -244,4 +244,4 @@ Hermite2* Hermite2::Clone() const
 }
 
 
-} //namespace BasisSet::Molecule::PolarizedGaussian
+} //namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD

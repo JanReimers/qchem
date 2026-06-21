@@ -14,8 +14,8 @@
 #include <cmath>
 #include <functional>
 
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;   // GaussianRF named kernels
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization; // Polarization
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;   // GaussianRF named kernels
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization; // Polarization
 import qchem.Cluster;                                                     // Molecule, Atom, Cluster
 import qchem.Types;                                                       // rvec3_t
 
@@ -23,7 +23,7 @@ import qchem.Types;                                                       // rve
 #error "ORACLE_DATA_PATH must be defined by CMake"
 #endif
 using json = nlohmann::json;
-namespace PG = BasisSet::Molecule::PolarizedGaussian;
+namespace PG = BasisSet::Molecule::Evaluators::PG_Cart_MnD;
 using PG::GaussianRF;
 using PG::Polarization;
 

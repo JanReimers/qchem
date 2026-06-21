@@ -4,11 +4,12 @@ module;
 #include <string>
 #include <map>
 module qchem.BasisSet.Molecule.PolarizedGaussian.Symmetry;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;
 
 namespace BasisSet::Molecule::PolarizedGaussian
 {
+using namespace ::BasisSet::Molecule::Evaluators::PG_Cart_MnD;  // Cartesian glue moved out to PG_Cart_MnD
 using Symmetry::AoShell;
 using Symmetry::SymPoint;
 using Symmetry::IVec3;

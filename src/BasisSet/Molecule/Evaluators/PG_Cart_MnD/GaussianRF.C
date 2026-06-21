@@ -13,13 +13,13 @@ module;
 #include <vector>
 #include <memory>
 
-export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;
+export module qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.Blaze;                 // rvec_t (contraction coefficients)
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Omega;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GData;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite1;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite3;
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Omega;
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.GData;
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Hermite1;
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Hermite3;
 
 import Common.UniqueID;
 import Common.UniqueIDImp;
@@ -33,7 +33,7 @@ import qchem.Cluster;
 //  a MODULE-INTERNAL helper -- not exported, not a RadialFunction, never a target of dispatch.  Only
 //  GaussianRF (same module) uses it.
 //
-namespace BasisSet::Molecule::PolarizedGaussian
+namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
 {
 class PrimGaussian : private UniqueIDImp
 {
@@ -82,7 +82,7 @@ private:
 
 } // namespace (module-internal: PrimGaussian is not exported)
 
-export namespace BasisSet::Molecule::PolarizedGaussian
+export namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
 {
 
 //
@@ -141,4 +141,4 @@ private:
     rvec_t                                     itsCoeff;  // normalization-folded contraction coeffs
 };
 
-} //namespace BasisSet::Molecule::PolarizedGaussian
+} //namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD

@@ -3,10 +3,10 @@ module;
 #include <vector>
 #include <memory>
 export module qchem.BasisSet.Molecule.PolarizedGaussian;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Block;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.PGData;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Block;
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.PGData;
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Reader;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD;  // NR_Evaluator: the IBS IS-A evaluator (base subobject)
 import qchem.BasisSet.Molecule.IBS;                     // Molecule::Orbital_{1E,DFT,HF}_IBS<E> templated mixins
@@ -21,6 +21,7 @@ import qchem.BasisSet.Orbital_HF_IBS;
 
 export namespace BasisSet::Molecule::PolarizedGaussian
 {
+using namespace ::BasisSet::Molecule::Evaluators::PG_Cart_MnD;  // Cartesian glue moved out to PG_Cart_MnD
 
 rsmat_t MakeOverlap2C  (const PGData* ab);   // EFit 2-centre fit integrals (named radial kernels)
 rsmat_t MakeRepulsion2C(const PGData* ab);

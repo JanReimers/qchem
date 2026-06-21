@@ -3,7 +3,7 @@ module;
 #include <cassert>
 
 module qchem.BasisSet.Molecule.PolarizedGaussian;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.Blaze;
 
 // The orbital 1E / 3C (DFT) / 4C (HF) integral building now lives entirely in the Molecule-generic,
@@ -12,6 +12,7 @@ import qchem.Blaze;
 // they call the raw radials' named kernels directly, not the 1E/3C/4C evaluator concepts.
 namespace BasisSet::Molecule::PolarizedGaussian
 {
+using namespace ::BasisSet::Molecule::Evaluators::PG_Cart_MnD;  // Cartesian glue moved out to PG_Cart_MnD
 
 rsmat_t MakeOverlap2C(const PGData* ab)
 {

@@ -8,6 +8,7 @@ import qchem.BasisSet.Molecule.PolarizedGaussian.Reader;
 
 export namespace BasisSet::Molecule::PolarizedGaussian
 {
+using namespace ::BasisSet::Molecule::Evaluators::PG_Cart_MnD;  // Cartesian glue moved out to PG_Cart_MnD
 //------------------------------------------------------------------
 //
 //  Read in radial functions from a Gaussian 94 basis set file.

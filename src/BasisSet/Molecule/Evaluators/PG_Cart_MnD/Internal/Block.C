@@ -3,13 +3,13 @@ module;
 #include <iosfwd>
 #include <cassert>
 #include <vector>
-export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Block;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;
+export module qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Block;
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.Streamable;
 import qchem.Types;
 
-export namespace BasisSet::Molecule::PolarizedGaussian
+export namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
 {
 
 //-----------------------------------------------------------------------
@@ -44,5 +44,5 @@ public:
     std::vector<Polarization> itsPols;   //All polarizations for this block.
 };
 
-} //namespace BasisSet::Molecule::PolarizedGaussian
+} //namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
 

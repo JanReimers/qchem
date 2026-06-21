@@ -1,10 +1,10 @@
 
 
-export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GData;
+export module qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.GData;
 export import Common.UniqueID; 
 export import qchem.Types;
 
-export namespace BasisSet::Molecule::PolarizedGaussian
+export namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
 {
 struct GData
 {

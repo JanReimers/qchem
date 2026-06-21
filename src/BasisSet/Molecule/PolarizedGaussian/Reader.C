@@ -3,11 +3,12 @@ module;
 
 #include <vector>
 export module qchem.BasisSet.Molecule.PolarizedGaussian.Reader;
-export import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;
+export import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
 export import qchem.Cluster;
  
 export namespace BasisSet::Molecule::PolarizedGaussian
 {
+using namespace ::BasisSet::Molecule::Evaluators::PG_Cart_MnD;  // Cartesian glue moved out to PG_Cart_MnD
 
 //-------------------------------------------------------------------------
 //

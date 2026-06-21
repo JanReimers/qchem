@@ -1,9 +1,9 @@
 // File: Polarization.C  Structure describing just the polarization portion of a basis function.
 module;
 #include <iostream>
-module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
+module qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;
 
-namespace BasisSet::Molecule::PolarizedGaussian
+namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
 {
 
 int Polarization::GetMaximumL() const
@@ -41,4 +41,4 @@ std::ostream& operator<<(std::ostream& os, const Polarization& p)
 }
 
 
-} //namespace BasisSet::Molecule::PolarizedGaussian
+} //namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD

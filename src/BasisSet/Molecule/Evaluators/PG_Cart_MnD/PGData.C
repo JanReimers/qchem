@@ -3,13 +3,13 @@ module;
 #include <vector>
 #include <string>
 
-export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.PGData;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Block;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;
+export module qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.PGData;
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Block;
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.Types;
 
-export namespace BasisSet::Molecule::PolarizedGaussian
+export namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
 {
 
 struct PGData

@@ -8,18 +8,18 @@ module;
 #include <vector>
 #include <memory>
 
-module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Radial.GaussianH3;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Omega;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite1;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite3;
+module qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.GaussianH3;
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Omega;
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Hermite1;
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Hermite3;
 import qchem.BasisSet.Molecule.Evaluators.Internal.MnD;   // generic MnD core (RNLM, ...)
 
 import qchem.Blaze;     // rvec_t (itsCoeff)
 import qchem.Cluster;
 import qchem.Math;
 
-namespace BasisSet::Molecule::PolarizedGaussian
+namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
 {
 using Evaluators::Internal::MnD::RNLM;
 //#######################################################################
@@ -518,4 +518,4 @@ rvec3_t GaussianRF::Gradient(const rvec3_t& r) const
     return ret;
 }
 
-} //namespace BasisSet::Molecule::PolarizedGaussian
+} //namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD

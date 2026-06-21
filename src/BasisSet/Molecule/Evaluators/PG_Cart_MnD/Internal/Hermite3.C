@@ -1,9 +1,9 @@
 // File: PolarizedGaussian/MnD/Hermite3.C  Interface class for managing 3 function Hermite coefficients
-export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite3;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
+export module qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Hermite3;
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;
 
 
-export namespace BasisSet::Molecule::PolarizedGaussian
+export namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
 {
 
 //
@@ -24,5 +24,5 @@ public:
     virtual double operator()(const Polarization& Pa,const Polarization& Pb,const Polarization& Pc) const =0;
 };
 
-} //namespace BasisSet::Molecule::PolarizedGaussian
+} //namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
 

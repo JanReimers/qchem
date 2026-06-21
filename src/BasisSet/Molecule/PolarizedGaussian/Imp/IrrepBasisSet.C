@@ -14,7 +14,7 @@ module;
 static const std::filesystem::path basisset_data_dir = BASISSET_DATA_PATH;
 
 module qchem.BasisSet.Molecule.PolarizedGaussian;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Readers.Gaussian94;
 import qchem.BasisSet;
 import qchem.Cluster;
@@ -26,6 +26,7 @@ import qchem.Blaze;
 
 namespace BasisSet::Molecule::PolarizedGaussian
 {
+using namespace ::BasisSet::Molecule::Evaluators::PG_Cart_MnD;  // Cartesian glue moved out to PG_Cart_MnD
 
 template <class T> T Max(const std::vector<T>& v)
 {

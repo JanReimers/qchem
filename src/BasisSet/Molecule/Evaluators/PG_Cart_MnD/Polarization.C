@@ -1,12 +1,12 @@
 // File: Polarization.C  Structure describing just the polarization portion of a basis function.
 module;
 #include <iosfwd>
-export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
+export module qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;
 import qchem.Types;
 import qchem.IntPow;
 import qchem.BasisSet.Molecule.Evaluators.Internal.MnD.Index3;  // Cartesian->Hermite index seam
 
-export namespace BasisSet::Molecule::PolarizedGaussian
+export namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
 {
 
 class Polarization
@@ -80,5 +80,5 @@ inline int   Polarization::GetSign    () const
     return GetTotalL()%2==0 ? 1 : -1;
 }
 
-} //namespace BasisSet::Molecule::PolarizedGaussian
+} //namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
 

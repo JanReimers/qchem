@@ -8,7 +8,7 @@ module;
 #include <unistd.h>
 #include <vector>
 module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Readers.Gaussian94;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
 import Common.PeriodicTable;
 import qchem.Cluster;
 import qchem.Types;
@@ -17,6 +17,7 @@ import qchem.Blaze;
 using std::ws;
 namespace BasisSet::Molecule::PolarizedGaussian
 {
+using namespace ::BasisSet::Molecule::Evaluators::PG_Cart_MnD;  // Cartesian glue moved out to PG_Cart_MnD
     
 int ToNumber(char c);
 template <class T> T Max(const std::vector<T>& v)

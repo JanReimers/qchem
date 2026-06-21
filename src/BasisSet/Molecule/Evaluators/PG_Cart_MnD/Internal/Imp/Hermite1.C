@@ -2,7 +2,7 @@
 module;
 #include <iostream>
 #include <cassert>
-module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite1;
+module qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Hermite1;
 import qchem.IntPow;
 
 //----------------------------------------------------------------------------------------
@@ -13,7 +13,7 @@ import qchem.IntPow;
 
 
 //----------------------------------------------------------------------------------------
-namespace BasisSet::Molecule::PolarizedGaussian
+namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
 {
 
 
@@ -132,4 +132,4 @@ void Hermite1::Clear()
 //     return os;
 // }
 
-} //namespace BasisSet::Molecule::PolarizedGaussian
+} //namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD

@@ -12,7 +12,7 @@
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD;                 // NR_Evaluator
 import qchem.BasisSet.Molecule.PolarizedGaussian;                      // Orbital_IBS
 import qchem.BasisSet.Orbital_1E_IBS;                                  // cached Overlap()/Kinetic()/Nuclear() accessors
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.PGData;      // PGData (the base of Orbital_IBS)
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.PGData;      // PGData (the base of Orbital_IBS)
 import qchem.Cluster;                                                  // Molecule, Atom
 import qchem.Types;
 import qchem.Blaze;

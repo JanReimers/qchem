@@ -4,15 +4,15 @@ module;
 #include <vector>
 #include <memory>
 #include <functional>
-module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Omega;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
+module qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Omega;
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;
 import qchem.BasisSet.Molecule.Evaluators.Internal.MnD;   // generic MnD core (RNLM, ...)
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite3;
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Hermite3;
 import qchem.BasisSet.Internal.DB_Cache;   // theGlobalCache, Register/GetCache{2,3}
 import qchem.BasisSet.Internal.Cache2;     // Cache2, Cacheable2, Cache2_Client
 import qchem.BasisSet.Internal.Cache3;     // Cache3, Cacheable3, Cache3_Client
 import qchem.Math;                          // exp (Ω ctor)
-namespace BasisSet::Molecule::PolarizedGaussian
+namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
 {
 
 // All PG charge-distribution caching lives in process-global Cache2s, keyed by UniqueIDs so entries
@@ -153,4 +153,4 @@ size_t Ω::RAMsize() const
     return sizeof(Ω); // includes the by-value Hermite2 block
 }
 
-} //namespace BasisSet::Molecule::PolarizedGaussian
+} //namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD

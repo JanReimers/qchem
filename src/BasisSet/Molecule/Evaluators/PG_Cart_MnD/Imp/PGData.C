@@ -2,10 +2,10 @@
 module;
 #include <vector>
 #include <string>
-module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.PGData;
+module qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.PGData;
 import qchem.Blaze;
 
-namespace BasisSet::Molecule::PolarizedGaussian
+namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
 {
     void PGData::Init(std::vector<const Block*>& blocks)
 {

@@ -4,18 +4,18 @@ module;
 #include <iosfwd>
 #include <functional>
 
-export module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Omega;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite2;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite3;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GData;
+export module qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Omega;
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Hermite2;
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Hermite3;
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.GData;
 import qchem.BasisSet.Molecule.Evaluators.Internal.MnD;   // generic MnD core (RNLM, ...)
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;
 
 import qchem.BasisSet.Internal.Cache2;   // Cacheable2 (Omega_ab lives in the global Cache2)
 import Common.UniqueID;                  // UniqueID::IDtype
 import Common.UniqueIDImp;
 
-export namespace BasisSet::Molecule::PolarizedGaussian
+export namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
 {
 using Evaluators::Internal::MnD::RNLM;
 struct Ω : public UniqueIDImp, public Cacheable2
@@ -66,5 +66,5 @@ const RNLM& findRNLM(const GData&, const GData&);          // global 3/4-centre 
 const Hermite3& findH3(UniqueID::IDtype a, UniqueID::IDtype b, UniqueID::IDtype c,
                        std::function<Hermite3*()> make);
 
-} //namespace BasisSet::Molecule::PolarizedGaussian
+} //namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
 

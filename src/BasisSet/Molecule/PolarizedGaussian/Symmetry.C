@@ -7,11 +7,12 @@ module;
 #include <vector>
 export module qchem.BasisSet.Molecule.PolarizedGaussian.Symmetry;
 export import qchem.Symmetry.SALC;        // AoShell, SymPoint, BuildSALCs (transitively)
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.PGData;
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.PGData;
 import qchem.Cluster;
 
 export namespace BasisSet::Molecule::PolarizedGaussian
 {
+using namespace ::BasisSet::Molecule::Evaluators::PG_Cart_MnD;  // Cartesian glue moved out to PG_Cart_MnD
 
 // The AO shell layout of a (flattened) PG basis: one AoShell per Gaussian block, with its
 // center, Cartesian monomials, per-component normalization, a center-independent shellType

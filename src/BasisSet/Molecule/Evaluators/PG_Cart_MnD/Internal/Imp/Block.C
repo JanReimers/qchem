@@ -2,11 +2,11 @@
 module;
 #include <iomanip>
 #include <vector>
-module qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Block;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;
+module qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Block;
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.stl_io;
 
-namespace BasisSet::Molecule::PolarizedGaussian
+namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
 {
 
 Block::Block()
@@ -59,4 +59,4 @@ Block* Block::Clone(const rvec3_t& newCenter) const
     return ret;
 }
 
-} //namespace BasisSet::Molecule::PolarizedGaussian
+} //namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD

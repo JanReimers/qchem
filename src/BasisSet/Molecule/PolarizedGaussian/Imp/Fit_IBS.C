@@ -9,7 +9,7 @@ module;
 #include <vector>
 
 module qchem.BasisSet.Molecule.PolarizedGaussian;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Readers.Gaussian94;
 import qchem.BasisSet;
 import qchem.Cluster;
@@ -21,6 +21,7 @@ import qchem.Blaze;
 
 namespace BasisSet::Molecule::PolarizedGaussian
 {
+using namespace ::BasisSet::Molecule::Evaluators::PG_Cart_MnD;  // Cartesian glue moved out to PG_Cart_MnD
 
 rvec_t EFit_IBS::MakeCharge() const
 {
