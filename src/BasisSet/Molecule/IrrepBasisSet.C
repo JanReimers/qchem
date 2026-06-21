@@ -65,19 +65,25 @@ protected:
 };
 
 // --- 3-centre (DFT fit): <ab|c> for each fit component c ------------------------------------------
-template <Evaluators::isDFT_Evaluator E> class Orbital_DFT_IBS
+// Forward Cast().*ThreeC_Matrix(fit) when E delivers ERI3 (isM_DFT_Evaluator); else run the Make3C loop.
+template <class E> requires (Evaluators::isDFT_Evaluator<E> || Evaluators::isM_DFT_Evaluator<E>)
+class Orbital_DFT_IBS
     : public virtual ::BasisSet::Orbital_DFT_IBS<double>
 {
 protected:
     virtual ERI3<double> MakeOverlap3C  (const Fit_IBS& c) const
     {
-        return Make3C(c, [](const E& aE, size_t ia, size_t ib, const E& cE, size_t ic)
-                            {return aE.OverlapThreeC(ia, aE, ib, cE, ic);});
+        if constexpr (Evaluators::isM_DFT_Evaluator<E>)
+            return dynamic_cast<const E&>(*this).OverlapThreeC_Matrix(dynamic_cast<const E&>(c));
+        else return Make3C(c, [](const E& aE, size_t ia, size_t ib, const E& cE, size_t ic)
+                                   {return aE.OverlapThreeC(ia, aE, ib, cE, ic);});
     }
     virtual ERI3<double> MakeRepulsion3C(const Fit_IBS& c) const
     {
-        return Make3C(c, [](const E& aE, size_t ia, size_t ib, const E& cE, size_t ic)
-                            {return aE.RepulsionThreeC(ia, aE, ib, cE, ic);});
+        if constexpr (Evaluators::isM_DFT_Evaluator<E>)
+            return dynamic_cast<const E&>(*this).RepulsionThreeC_Matrix(dynamic_cast<const E&>(c));
+        else return Make3C(c, [](const E& aE, size_t ia, size_t ib, const E& cE, size_t ic)
+                                   {return aE.RepulsionThreeC(ia, aE, ib, cE, ic);});
     }
 private:
     // For each fit component ic, build the symmetric (ia,ib) block via the supplied named 3-centre kernel
@@ -104,13 +110,17 @@ private:
 // --- 4-centre (HF): Direct (ab|cd) and Exchange ---------------------------------------------------
 // The intricate ERI loop + symmetry packing is unchanged (hoisting it further is plan Goal D); the
 // per-element integral goes through the evaluator's FourC kernel (which folds in all four norms).
-template <Evaluators::isHF_Evaluator E> class Orbital_HF_IBS
+template <class E> requires (Evaluators::isHF_Evaluator<E> || Evaluators::isM_HF_Evaluator<E>)
+class Orbital_HF_IBS
     : public virtual ::BasisSet::Orbital_HF_IBS<double>
 {
 protected:
     // 4-centre HF Coulomb (ab|cd): a,b on this orbital basis, c,d on the partner.
     virtual ERI4 MakeDirect(const ::BasisSet::Orbital_HF_IBS<double>& _c) const
     {
+        if constexpr (Evaluators::isM_HF_Evaluator<E>)
+            return dynamic_cast<const E&>(*this).DirectMatrix(dynamic_cast<const E&>(_c));
+        else {
         const E& aE=dynamic_cast<const E&>(*this);
         const E& cE=dynamic_cast<const E&>(_c);
         size_t Na=aE.size(), Nc=cE.size();
@@ -124,10 +134,14 @@ protected:
                         Jab(ic,id)=aE.FourC(ia, aE, ib, cE, ic, cE, id);   // (a a | c c) slots
             }
         return J;
+        }
     }
     // 4-centre HF Exchange: slots (a b | a b).  Symmetry packing preserved exactly.
     virtual ERI4 MakeExchange(const ::BasisSet::Orbital_HF_IBS<double>& _b) const
     {
+        if constexpr (Evaluators::isM_HF_Evaluator<E>)
+            return dynamic_cast<const E&>(*this).ExchangeMatrix(dynamic_cast<const E&>(_b));
+        else {
         const E& aE=dynamic_cast<const E&>(*this);
         const E& bE=dynamic_cast<const E&>(_b);
         size_t Na=aE.size(), Nb=bE.size();
@@ -146,6 +160,7 @@ protected:
                     }
                 }
         return K;
+        }
     }
 };
 

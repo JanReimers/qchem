@@ -26,6 +26,8 @@ export module qchem.BasisSet.Molecule.Evaluators;
 export import qchem.Streamable;
 import qchem.Types;
 import qchem.Cluster;  // Cluster* threaded through the Nuclear kernel
+import qchem.BasisSet.Internal.ERI3;   // ERI3<double> -- return type of the isM_DFT concept
+import qchem.BasisSet.Internal.ERI4;   // ERI4         -- return type of the isM_HF  concept
 
 export namespace BasisSet::Molecule::Evaluators
 {
@@ -109,8 +111,30 @@ template <class E> concept isHF_Evaluator = std::derived_from<E, Evaluator>
     {e.FourC(iA, e, iB, e, iC, e, iD)} -> std::same_as<double>;   // (ab|cd)
 };
 
-// Composite the molecular Orbital_IBS will instantiate against (it IS-A 1E + DFT + HF).
-template <class E> concept is1E_DFT_HF_Evaluator = is1E_Evaluator<E> && isDFT_Evaluator<E> && isHF_Evaluator<E>;
+// Matrix-delivery siblings of isDFT/isHF (see isM_1E_Evaluator above): an opaque assembler / block library
+// hands back the assembled ERI3 (3-centre, for each fit component) and ERI4 (4-centre) directly, instead of
+// per-element 3C/4C kernels.  The fit / partner basis is passed as the SAME evaluator type E (as the scalar
+// mixins reach it via dynamic_cast<const E&>).  The DFT/HF mixins dispatch on these vs the scalar concepts.
+// NOTE: ExchangeMatrix must hand back ERI4 in our packing convention -- the diagnostic for whether a block
+// library wants its own (block-granularity) category that lets the framework own the packing.
+template <class E> concept isM_DFT_Evaluator = std::derived_from<E, Evaluator>
+    && requires (const E e, const E fit)
+{
+    {e.OverlapThreeC_Matrix  (fit)} -> std::same_as<ERI3<double>>;
+    {e.RepulsionThreeC_Matrix(fit)} -> std::same_as<ERI3<double>>;
+};
+template <class E> concept isM_HF_Evaluator = std::derived_from<E, Evaluator>
+    && requires (const E e, const E partner)
+{
+    {e.DirectMatrix  (partner)} -> std::same_as<ERI4>;
+    {e.ExchangeMatrix(partner)} -> std::same_as<ERI4>;
+};
+
+// Composite the molecular Orbital_IBS will instantiate against (it IS-A 1E + DFT + HF).  A basis is wired
+// from a scalar evaluator (this) or an all-matrix one (isM_1E_DFT_HF_Evaluator) -- the IBS mixins accept
+// either per integral tier.
+template <class E> concept is1E_DFT_HF_Evaluator  = is1E_Evaluator<E>  && isDFT_Evaluator<E>  && isHF_Evaluator<E>;
+template <class E> concept isM_1E_DFT_HF_Evaluator = isM_1E_Evaluator<E> && isM_DFT_Evaluator<E> && isM_HF_Evaluator<E>;
 
 // The basis-agnostic i,j / 3C / 4C matrix-build loops that consume these kernels live in the templated
 // IBS mixins (qchem.BasisSet.Molecule.IBS), mirroring the atom Integrals_*<E> / Orbital_*_IBS<E> pattern.
