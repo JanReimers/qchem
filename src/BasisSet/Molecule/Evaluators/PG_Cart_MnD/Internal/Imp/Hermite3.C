@@ -1,4 +1,4 @@
-// File: GaussianH3.C   Class for managing 3 function Hermite coefficients.
+// File: Hermite3.C   Class for managing 3 function Hermite coefficients.
 module;
 
 #include <iostream>
@@ -19,14 +19,14 @@ namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
 //  Construction zone.
 //
 
-GaussianH3::GaussianH3()
+Hermite3::Hermite3()
     : itsLA   (0)
     , itsLB   (0)
     , itsLC   (0)
     , itsScale(-1.0)
 {};
 
-GaussianH3::GaussianH3(double αₚ, const rvec3_t& PA, const rvec3_t& PB, const rvec3_t& PC, int LA, int LB, int LC, double Scale)
+Hermite3::Hermite3(double αₚ, const rvec3_t& PA, const rvec3_t& PB, const rvec3_t& PC, int LA, int LB, int LC, double Scale)
     : itsLA   (LA)
     , itsLB   (LB)
     , itsLC   (LC)
@@ -111,7 +111,7 @@ GaussianH3::GaussianH3(double αₚ, const rvec3_t& PA, const rvec3_t& PB, const
 }
 
 
-double GaussianH3::GetAny(const Array4D def, int N, int na, int nb, int nc) const
+double Hermite3::GetAny(const Array4D def, int N, int na, int nb, int nc) const
 {
 //  cout << "(N,n1,n2) = (" << N << "," << na << "," << nb << ")" << std::endl;
     assert(N <=itsLA+itsLB+itsLC);
@@ -139,7 +139,7 @@ double GaussianH3::GetAny(const Array4D def, int N, int na, int nb, int nc) cons
 }
 
 //#if DEBUG
-double GaussianH3::operator()(const Polarization& Pa,const Polarization& Pb,const Polarization& Pc) const
+double Hermite3::operator()(const Polarization& Pa,const Polarization& Pb,const Polarization& Pc) const
 {
 //  cout << Pa << Pb << Pc << " " << itsLA << " " << itsLB << " " << itsLC << std::endl;
     if (Pa.GetTotalL() >itsLA)
@@ -161,58 +161,8 @@ double GaussianH3::operator()(const Polarization& Pa,const Polarization& Pb,cons
 //    << " e=" << e[0][Pa.l][Pb.l][Pc.l] << " f=" << f[0][Pa.m][Pb.m][Pc.m] << std::endl;
     return itsScale * d[0][Pa.n][Pb.n][Pc.n] * e[0][Pa.l][Pb.l][Pc.l] * f[0][Pa.m][Pb.m][Pc.m];
 }
-//#endif
-/*
-//
-//  Assumes Scale=0.0 indicates no data yet.
-//
-void GaussianH3::Add(const GaussianH3& h3, double AddingScale)
-{
-//  cout << "GaussianH3::Add       LA,LB,LC " << itsLA << "," << itsLB << "," << itsLC << std::endl;
-//  cout << "GaussianH3::Add other LA,LB,LC " << h3.itsLA << "," <<  h3.itsLB << "," <<  h3.itsLC << std::endl;
-  if (itsScale==-1.0)
-  {
-//    cout << "GaussianH3::Add clearing" << std::endl;
-    itsScale=1.0;
-    itsLA=h3.itsLA;
-    itsLB=h3.itsLB;
-    itsLC=h3.itsLC;
-  }
-   else
-  {
-    if (itsLA != h3.itsLA) F_Error("GaussianH3::Add LA's don't match");
-    if (itsLB != h3.itsLB) F_Error("GaussianH3::Add LB's don't match");
-    if (itsLC != h3.itsLC) F_Error("GaussianH3::Add LC's don't match");
-  }
 
-  for (int n=0;n<=itsLA;n++)
-    for (int l=0;l<=itsLB;l++)
-      for (int m=0;m<=itsLC;m++)
-      {
-	d[0][n][l][m]+=AddingScale*h3.d[0][n][l][m];
-	e[0][n][l][m]+=AddingScale*h3.e[0][n][l][m];
-	f[0][n][l][m]+=AddingScale*h3.f[0][n][l][m];
-      }
-}
-
-void GaussianH3::Clear()
-{
-  for (int n=0;n<=itsLA;n++)
-    for (int l=0;l<=itsLB;l++)
-      for (int m=0;m<=itsLC;m++)
-      {
-	d[0][n][l][m]=0.0;
-	e[0][n][l][m]=0.0;
-	f[0][n][l][m]=0.0;
-      }
-  for(int i=0;i<=itsLA+itsLB+itsLC;i++) itsa12s[i]=0.0;
-  itsScale=-1.0;
-  itsLA=0; itsLB=0;itsLC=0;
-}
-
-*/
-
-std::ostream& operator<<(std::ostream& os,const GaussianH3& h3)
+std::ostream& operator<<(std::ostream& os,const Hermite3& h3)
 {
     os << "scale " << h3.itsScale << ", LA " << h3.itsLA << ", LB " << h3.itsLB << ", LC " << h3.itsLC << std::endl;
 

@@ -11,7 +11,7 @@ module;
 #include <utility>
 
 module qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
-import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Hermite;   // Hermite1/2/3 + GaussianH3
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Hermite;   // Hermite1/2/3
 import qchem.BasisSet.Molecule.Evaluators.Internal.MnD;   // generic MnD core (RNLM, ...)
 import qchem.BasisSet.Internal.DB_Cache;   // theGlobalCache, Register/GetCache{2,3}
 import qchem.BasisSet.Internal.Cache2;     // Cache2, Cacheable2, Cache2_Client
@@ -111,7 +111,7 @@ namespace
         return BasisSet::theGlobalCache->GetCache2("PG.RNLM");
     }
 
-    // Cacheable3 wrapper holding the 3-centre Hermite block (GaussianH3, via the Hermite3 base).
+    // Cacheable3 wrapper holding the 3-centre Hermite block.
     struct H3_C3 : public Cacheable3
     {
         std::unique_ptr<Hermite3> h3;
@@ -445,7 +445,7 @@ Hermite3* PrimGaussian::GetH3(const PrimGaussian& g1, const PrimGaussian& g2) co
 
     double Eabc = pow(Pi/alphaQ,1.5)*exp( -(a*b*AB*AB + a*c*AC*AC + b*c*BC*BC) / alphaQ );
 
-    return new GaussianH3(alphaQ,Q-A,Q-B,Q-C,La,Lb,Lc,Eabc);
+    return new Hermite3(alphaQ,Q-A,Q-B,Q-C,La,Lb,Lc,Eabc);
 }
 
 //

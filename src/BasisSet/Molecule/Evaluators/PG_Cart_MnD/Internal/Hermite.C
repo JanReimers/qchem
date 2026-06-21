@@ -1,12 +1,12 @@
 // File: BasisSet/Molecule/Evaluators/PG_Cart_MnD/Internal/Hermite.C
 //
 // The Cartesian McMurchie-Davidson Hermite-coefficient blocks for the PG integrals, gathered into one
-// module (the Imp stays split across Imp/Hermite1.C, Imp/Hermite2.C, Imp/GaussianH3.C as before):
-//   Hermite1   -- 1-function Hermite expansion coefficients.
-//   Hermite2   -- 2-function block (a primitive pair; the Ω charge distribution's coefficients).
-//   Hermite3   -- abstract interface base for a 3-function block.
-//   GaussianH3 -- concrete 3-function block (derives Hermite3).
-// Each op() returns the product over the three Cartesian directions (cheap zero checks first).
+// module (the Imp stays split across Imp/Hermite1.C, Imp/Hermite2.C, Imp/Hermite3.C):
+//   Hermite1 -- 1-function Hermite expansion coefficients.
+//   Hermite2 -- 2-function block (a primitive pair; the Ω charge distribution's coefficients).
+//   Hermite3 -- 3-function block (a primitive triple; the 3-centre overlap).
+// All three are concrete value classes.  Each op() returns the product over the three Cartesian
+// directions (cheap zero checks first).
 module;
 #include <iosfwd>
 #include <vector>
@@ -88,31 +88,23 @@ private:
     #endif
 };
 
-//   nnn          abstract interface base for primitive and contracted 3-function blocks.
-//  d
-//   0
+//    _=
+//   nnn          3-function block (concrete, like Hermite1/Hermite2).  No storage optimization
+//  d             (on-the-fly calculation); with Scale=Eabc*(Pi/αQ)^3/2 op() returns the overlap integral.
+//   0            (Was an abstract Hermite3 interface + a GaussianH3 implementation, but the Stage-1
+//                single-radial collapse left only one implementation -- merged; reintroduce a base only
+//                if a second 3-block type, e.g. for PG_Spherical_MnD, actually needs one.)
 class Hermite3
 {
 public:
-    virtual ~Hermite3() {};
-    virtual double operator()(const Polarization& Pa,const Polarization& Pb,const Polarization& Pc) const =0;
-};
+    Hermite3();
+    Hermite3(double αₚ, const rvec3_t& PA, const rvec3_t& PB, const rvec3_t& PC, int LA, int LB, int LC, double Scale=1.0);
 
-//    _=
-//   nnn          concrete 3-function block.  No storage optimization (on-the-fly calculation); with
-//  d             Scale=Eabc*(Pi/αQ)^3/2 the op() returns the overlap integral directly.
-//   0
-class GaussianH3 : public Hermite3
-{
-public:
-    GaussianH3();
-    GaussianH3(double αₚ, const rvec3_t& PA, const rvec3_t& PB, const rvec3_t& PC, int LA, int LB, int LC, double Scale=1.0);
-
-    virtual double operator()(const Polarization& Pa,const Polarization& Pb,const Polarization& Pc) const;
+    double operator()(const Polarization& Pa,const Polarization& Pb,const Polarization& Pc) const;
 
 private:
     typedef double Array4D[3*LMAX+1][LMAX+1][LMAX+1][LMAX+1];
-    friend std::ostream& operator<<(std::ostream&,const GaussianH3&);
+    friend std::ostream& operator<<(std::ostream&,const Hermite3&);
 
     double GetAny(const Array4D, int N, int na, int nb, int nc) const;
     double Getd(int N, int na, int nb, int nc) const {return GetAny(d,N,na,nb,nc);}
