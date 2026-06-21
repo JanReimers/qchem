@@ -156,6 +156,14 @@ public:
     const rvec3_t& GetCenter() const {return itsCenter;}
     int            GetL     () const {return itsL;}
 
+    // Raw primitive data, for an external integral engine (libcint) that packs its own atm/bas/env.
+    // itsCoeff are the normalization-folded contraction coefficients (c_i * primitive-norm); since that
+    // primitive norm has the SAME exponent-dependence as libcint's CINTgto_norm, feeding these straight to
+    // libcint reproduces this radial's contracted shape (the per-component overall scale is then fixed by
+    // renormalizing to unit self-overlap -- exactly what PGData::ns does for the M&D path).
+    rvec_t         GetExponents() const;
+    const rvec_t&  GetCoeffs   () const {return itsCoeff;}
+
     GaussianRF  AtCenter(const rvec3_t& newCenter) const;   // same radial, placed at newCenter
 
     bool        operator==      (const GaussianRF&) const;  // ignores L (centre + prims)

@@ -523,6 +523,13 @@ GaussianRF::GaussianRF(const rvec_t& coeffs, const rvec_t& exponents, const rvec
 
 GaussianRF::~GaussianRF() {}
 
+rvec_t GaussianRF::GetExponents() const
+{
+    rvec_t es(itsPrims.size());
+    for (size_t i=0;i<itsPrims.size();++i) es[i]=itsPrims[i]->GetExponent();
+    return es;
+}
+
 // Deep-copy the primitives (rebuilt from exponent/centre/L, so an equal copy interns to the SAME
 // registry index -- and therefore shares cache entries, unlike the old per-object UniqueID).
 GaussianRF::GaussianRF(const GaussianRF& o)

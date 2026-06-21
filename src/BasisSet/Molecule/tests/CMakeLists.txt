@@ -7,6 +7,7 @@ add_executable(UTMolecule_BS ../../Atom/tests/gtestmain.C
    M_Evaluator.C
    M_MEvaluator.C
    M_Spherical.C
+   M_LibCint.C
 )
 
 target_compile_options(UTMolecule_BS PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})

@@ -16,6 +16,8 @@ target_sources(qcMolecule_BS PRIVATE
     # PG_Spherical_MnD (reuses PG_Cart_MnD + a cart->spherical transform)
     PG_Spherical_MnD/Imp/SolidHarmonics.C
     PG_Spherical_MnD/Imp/Evaluator.C
+    # PG_Cart_LibCint (matrix-delivery evaluator: same PG_Cart basis integrated by libcint)
+    PG_Cart_LibCint/Imp/Evaluator.C
 )
 target_sources(qcMolecule_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Evaluator.C
@@ -36,5 +38,13 @@ target_sources(qcMolecule_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
 
     PG_Spherical_MnD/SolidHarmonics.C
     PG_Spherical_MnD/Evaluator.C
+
+    PG_Cart_LibCint/Evaluator.C
 )
 target_include_directories(qcMolecule_BS PRIVATE ${PROJECT_SOURCE_DIR}/submodules/blaze)
+# libcint: the PG_Cart_LibCint Imp includes cint_funcs.h (-> generated cint.h in the build tree) and links
+# the static cint target.  PUBLIC link so UTMolecule_BS resolves the libcint symbols transitively.
+target_include_directories(qcMolecule_BS PRIVATE
+    ${PROJECT_SOURCE_DIR}/submodules/libcint/include
+    ${PROJECT_BINARY_DIR}/submodules/libcint/include)
+target_link_libraries(qcMolecule_BS PUBLIC cint)

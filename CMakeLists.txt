@@ -46,6 +46,13 @@ add_custom_target(allTests
 set(BUILD_TESTING OFF CACHE BOOL "Disable embedded submodule tests" FORCE)
 add_subdirectory(./submodules/wignerSymbols)
 add_subdirectory(./submodules/libxc)
+# libcint (Apache-2.0): block-oriented Gaussian integral library, used by the PG_Cart_LibCint
+# matrix-delivery evaluator.  Build it static with no Fortran interface (we call the C API directly).
+set(ENABLE_STATIC ON CACHE BOOL "Build libcint as a static library" FORCE)
+set(WITH_FORTRAN  OFF CACHE BOOL "libcint Fortran interface (unused)" FORCE)
+add_subdirectory(./submodules/libcint)
+# qcMolecule_BS is a shared library, so the static cint must be position-independent.
+set_property(TARGET cint PROPERTY POSITION_INDEPENDENT_CODE ON)
 set(BUILD_TESTING ON CACHE BOOL "Enable testing for this project" FORCE)
 
 Blaze_Import(
