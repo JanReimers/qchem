@@ -95,129 +95,123 @@ static double GetGrad2(const Polarization& p1, const Polarization& p2, const Ω&
     return txx+tyy+tzz;
 }
 
-double PrimGaussian::Integrate2C(IType type, const PrimGaussian* a, const PrimGaussian* b,
-                                 const Polarization& pa, const Polarization& pb, const Cluster* cl)
+double PrimGaussian::Overlap2C(const PrimGaussian* a, const PrimGaussian* b,
+                               const Polarization& pa, const Polarization& pb)
 {
-    double s = 0.0;
-    Polarization zero(0,0,0);
     const Ω& ab = findΩ(a->GetGData(), b->GetGData());
-    switch (type)
-    {
-        case Overlap2C :
-            s = pow(Pi/ab.AlphaP,1.5)*ab.Eij*ab.H2(zero,pa,pb);
-            break;
-        case Repulsion2C :
-            {
-                auto NLMs = Ω::GetNMLs(a->GetL());
-                const Hermite1& H1a = a->GetH1();
-                const Hermite1& H1b = b->GetH1();
-                const RNLM& R = ab.SelfRNLM();
-
-                double factor = 1.0/(ab.ab*sqrt(ab.AlphaP));
-                factor = (pb.GetTotalL()%2) ? -factor : factor;
-
-                for (auto bNLM:NLMs)
-                {
-                    if (bNLM > pa) continue;
-                    double ha = H1a(bNLM,pa);
-                    if (ha==0.0) continue;
-                    double RR = 0.0;
-                    for (int n=0; n<=pb.n; n++)
-                        for (int l=0; l<=pb.l; l++)
-                            for (int m=0; m<=pb.m; m++)
-                            {
-                                Polarization NLMp(n,l,m);
-                                double hb = H1b(NLMp,pb);
-                                if (hb!=0.0)
-                                    RR += hb*R(bNLM+NLMp);
-                            }
-                    s += ha*RR;
-                }
-                s *= 2*Pi52*factor;
-            }
-            break;
-        case Grad2 :
-            {
-                double factor = pow(Pi/ab.AlphaP,1.5)*ab.Eij;
-                double h = GetGrad2(pa,pb,ab);
-                if (h!=0) s = factor*h;
-            }
-            break;
-        case Nuclear :
-            {
-                assert(cl);
-                RNLM R;
-                for (auto& atom:*cl)
-                    R.Add(RNLM(ab.Ltotal,ab.AlphaP,ab.P-atom->itsR), -1.0*(atom->itsZ));
-
-                auto NLMs = Ω::GetNMLs(ab.Ltotal);
-                const Polarization Pab = pa + pb;
-                for (auto bNLM:NLMs)
-                {
-                    if (bNLM > Pab) continue;
-                    if (double h = ab.H2(bNLM,pa,pb); h!=0)
-                        s += h*R(bNLM);
-                }
-                s *= 2*Pi/ab.AlphaP*ab.Eij;
-            }
-            break;
-    }
-    return s;
+    Polarization zero(0,0,0);
+    return pow(Pi/ab.AlphaP,1.5)*ab.Eij*ab.H2(zero,pa,pb);
 }
 
-double PrimGaussian::Integrate3C(qchem::IType3C type, const PrimGaussian* ga, const PrimGaussian* gb,
-                                 const Polarization& pa, const Polarization& pb, const Polarization& pc,
-                                 const PrimGaussian* gc)
+double PrimGaussian::Repulsion2C(const PrimGaussian* a, const PrimGaussian* b,
+                                 const Polarization& pa, const Polarization& pb)
 {
-    double s = 0.0;
-    switch (type)
-    {
-        case qchem::Overlap3C :
-            {
-                // 3-centre Hermite block, cached by primitive triple in the global Cache3 (the build
-                // logic stays here; findH3 just caches the result, no new/delete per call).
-                const Hermite3& H3 = findH3(ga->GetID(), gb->GetID(), gc->GetID(),
-                                            [&]() -> Hermite3* { return gc->GetH3(*ga,*gb); });
-                s = H3(pa,pb,pc);
-            }
-            break;
-        case qchem::Repulsion3C :
-            {
-                const Ω& ab(findΩ(ga->GetGData(), gb->GetGData()));
-                const RNLM&        R(findRNLM(ab.GetGData(), gc->GetGData()));
+    const Ω& ab = findΩ(a->GetGData(), b->GetGData());
+    auto NLMs = Ω::GetNMLs(a->GetL());
+    const Hermite1& H1a = a->GetH1();
+    const Hermite1& H1b = b->GetH1();
+    const RNLM& R = ab.SelfRNLM();
 
-                auto NLMs = Ω::GetNMLs(ab.Ltotal);
-                const Hermite1& Hc = gc->GetH1();
-                const Polarization Pab = pa+pb;
-                for (auto nlm:NLMs)
+    double factor = 1.0/(ab.ab*sqrt(ab.AlphaP));
+    factor = (pb.GetTotalL()%2) ? -factor : factor;
+
+    double s = 0.0;
+    for (auto bNLM:NLMs)
+    {
+        if (bNLM > pa) continue;
+        double ha = H1a(bNLM,pa);
+        if (ha==0.0) continue;
+        double RR = 0.0;
+        for (int n=0; n<=pb.n; n++)
+            for (int l=0; l<=pb.l; l++)
+                for (int m=0; m<=pb.m; m++)
                 {
-                    if (nlm > Pab) continue;
-                    double hab = ab.H2(nlm,pa,pb);
-                    if (hab==0.0) continue;
-                    double Rs = 0.0;
-                    for (int n=0; n<=pc.n; n++)
-                        for (int l=0; l<=pc.l; l++)
-                            for (int m=0; m<=pc.m; m++)
-                            {
-                                Polarization NLMp(n,l,m);
-                                if (double h = Hc(NLMp,pc); h!=0.0)
-                                    Rs += h*R(nlm+NLMp);
-                            }
-                    if (Rs!=0) s += hab*Rs;
+                    Polarization NLMp(n,l,m);
+                    double hb = H1b(NLMp,pb);
+                    if (hb!=0.0)
+                        RR += hb*R(bNLM+NLMp);
                 }
-                double factor = 1.0/(ab.AlphaP*gc->GetExponent()*sqrt(ab.AlphaP+gc->GetExponent()));
-                factor = (pc.GetTotalL()%2) ? -factor : factor;
-                s *= 2*Pi52 * ab.Eij*factor;
-            }
-            break;
+        s += ha*RR;
     }
-    return s;
+    return s * 2*Pi52*factor;
 }
 
-double PrimGaussian::Integrate4C(const PrimGaussian* ga, const PrimGaussian* gb,
+// <p^2>=<-nabla^2> building block (no 1/2; the Hamiltonian's).
+double PrimGaussian::Grad2(const PrimGaussian* a, const PrimGaussian* b,
+                           const Polarization& pa, const Polarization& pb)
+{
+    const Ω& ab = findΩ(a->GetGData(), b->GetGData());
+    double factor = pow(Pi/ab.AlphaP,1.5)*ab.Eij;
+    double h = GetGrad2(pa,pb,ab);
+    return h!=0 ? factor*h : 0.0;
+}
+
+double PrimGaussian::Nuclear(const PrimGaussian* a, const PrimGaussian* b,
+                             const Polarization& pa, const Polarization& pb, const Cluster* cl)
+{
+    assert(cl);
+    const Ω& ab = findΩ(a->GetGData(), b->GetGData());
+    RNLM R;
+    for (auto& atom:*cl)
+        R.Add(RNLM(ab.Ltotal,ab.AlphaP,ab.P-atom->itsR), -1.0*(atom->itsZ));
+
+    auto NLMs = Ω::GetNMLs(ab.Ltotal);
+    const Polarization Pab = pa + pb;
+    double s = 0.0;
+    for (auto bNLM:NLMs)
+    {
+        if (bNLM > Pab) continue;
+        if (double h = ab.H2(bNLM,pa,pb); h!=0)
+            s += h*R(bNLM);
+    }
+    return s * 2*Pi/ab.AlphaP*ab.Eij;
+}
+
+// 3-centre overlap <ab|c>: the Hermite block, cached by primitive triple in the global Cache3 (the build
+// logic stays here; findH3 just caches the result, no new/delete per call).
+double PrimGaussian::Overlap3C(const PrimGaussian* ga, const PrimGaussian* gb, const PrimGaussian* gc,
+                               const Polarization& pa, const Polarization& pb, const Polarization& pc)
+{
+    const Hermite3& H3 = findH3(ga->GetID(), gb->GetID(), gc->GetID(),
+                                [&]() -> Hermite3* { return gc->GetH3(*ga,*gb); });
+    return H3(pa,pb,pc);
+}
+
+double PrimGaussian::Repulsion3C(const PrimGaussian* ga, const PrimGaussian* gb, const PrimGaussian* gc,
+                                 const Polarization& pa, const Polarization& pb, const Polarization& pc)
+{
+    const Ω& ab(findΩ(ga->GetGData(), gb->GetGData()));
+    const RNLM&        R(findRNLM(ab.GetGData(), gc->GetGData()));
+
+    auto NLMs = Ω::GetNMLs(ab.Ltotal);
+    const Hermite1& Hc = gc->GetH1();
+    const Polarization Pab = pa+pb;
+    double s = 0.0;
+    for (auto nlm:NLMs)
+    {
+        if (nlm > Pab) continue;
+        double hab = ab.H2(nlm,pa,pb);
+        if (hab==0.0) continue;
+        double Rs = 0.0;
+        for (int n=0; n<=pc.n; n++)
+            for (int l=0; l<=pc.l; l++)
+                for (int m=0; m<=pc.m; m++)
+                {
+                    Polarization NLMp(n,l,m);
+                    if (double h = Hc(NLMp,pc); h!=0.0)
+                        Rs += h*R(nlm+NLMp);
+                }
+        if (Rs!=0) s += hab*Rs;
+    }
+    double factor = 1.0/(ab.AlphaP*gc->GetExponent()*sqrt(ab.AlphaP+gc->GetExponent()));
+    factor = (pc.GetTotalL()%2) ? -factor : factor;
+    return s * 2*Pi52 * ab.Eij*factor;
+}
+
+double PrimGaussian::Repulsion4C(const PrimGaussian* ga, const PrimGaussian* gb,
+                                 const PrimGaussian* gc, const PrimGaussian* gd,
                                  const Polarization& pa, const Polarization& pb,
-                                 const Polarization& pc, const Polarization& pd,
-                                 const PrimGaussian* gc, const PrimGaussian* gd)
+                                 const Polarization& pc, const Polarization& pd)
 {
     const Ω& ab(findΩ(ga->GetGData(), gb->GetGData()));
     const Ω& cd(findΩ(gc->GetGData(), gd->GetGData()));
@@ -420,31 +414,70 @@ std::string GaussianRF::TypeID() const
     return key;
 }
 
-double GaussianRF::Integrate(IType type, rf_t& rb, po_t& pa, po_t& pb, const Cluster* cl) const
+// --- 2-centre: contract the primitive pairs over the matching named PrimGaussian kernel -------------
+double GaussianRF::Overlap2C(rf_t& rb, po_t& pa, po_t& pb) const
 {
     double s = 0.0;
     for (size_t i=0;i<itsPrims.size();++i)
         for (size_t j=0;j<rb.itsPrims.size();++j)
             s += itsCoeff[i]*rb.itsCoeff[j]
-                 * PrimGaussian::Integrate2C(type, itsPrims[i].get(), rb.itsPrims[j].get(), pa, pb, cl);
+                 * PrimGaussian::Overlap2C(itsPrims[i].get(), rb.itsPrims[j].get(), pa, pb);
+    return s;
+}
+double GaussianRF::Repulsion2C(rf_t& rb, po_t& pa, po_t& pb) const
+{
+    double s = 0.0;
+    for (size_t i=0;i<itsPrims.size();++i)
+        for (size_t j=0;j<rb.itsPrims.size();++j)
+            s += itsCoeff[i]*rb.itsCoeff[j]
+                 * PrimGaussian::Repulsion2C(itsPrims[i].get(), rb.itsPrims[j].get(), pa, pb);
+    return s;
+}
+double GaussianRF::Grad2(rf_t& rb, po_t& pa, po_t& pb) const
+{
+    double s = 0.0;
+    for (size_t i=0;i<itsPrims.size();++i)
+        for (size_t j=0;j<rb.itsPrims.size();++j)
+            s += itsCoeff[i]*rb.itsCoeff[j]
+                 * PrimGaussian::Grad2(itsPrims[i].get(), rb.itsPrims[j].get(), pa, pb);
+    return s;
+}
+double GaussianRF::Nuclear(rf_t& rb, po_t& pa, po_t& pb, const Cluster* cl) const
+{
+    double s = 0.0;
+    for (size_t i=0;i<itsPrims.size();++i)
+        for (size_t j=0;j<rb.itsPrims.size();++j)
+            s += itsCoeff[i]*rb.itsCoeff[j]
+                 * PrimGaussian::Nuclear(itsPrims[i].get(), rb.itsPrims[j].get(), pa, pb, cl);
     return s;
 }
 
-// this is centre C: <ab|c>
-double GaussianRF::Integrate(qchem::IType3C type, rf_t& ra, rf_t& rb, po_t& pa, po_t& pb, po_t& pc) const
+// --- 3-centre <ab|c> (this is centre C) -------------------------------------------------------------
+double GaussianRF::Overlap3C(rf_t& ra, rf_t& rb, po_t& pa, po_t& pb, po_t& pc) const
 {
     double s = 0.0;
     for (size_t i=0;i<ra.itsPrims.size();++i)
         for (size_t j=0;j<rb.itsPrims.size();++j)
             for (size_t k=0;k<itsPrims.size();++k)
                 s += ra.itsCoeff[i]*rb.itsCoeff[j]*itsCoeff[k]
-                     * PrimGaussian::Integrate3C(type, ra.itsPrims[i].get(), rb.itsPrims[j].get(),
-                                                 pa, pb, pc, itsPrims[k].get());
+                     * PrimGaussian::Overlap3C(ra.itsPrims[i].get(), rb.itsPrims[j].get(), itsPrims[k].get(),
+                                               pa, pb, pc);
+    return s;
+}
+double GaussianRF::Repulsion3C(rf_t& ra, rf_t& rb, po_t& pa, po_t& pb, po_t& pc) const
+{
+    double s = 0.0;
+    for (size_t i=0;i<ra.itsPrims.size();++i)
+        for (size_t j=0;j<rb.itsPrims.size();++j)
+            for (size_t k=0;k<itsPrims.size();++k)
+                s += ra.itsCoeff[i]*rb.itsCoeff[j]*itsCoeff[k]
+                     * PrimGaussian::Repulsion3C(ra.itsPrims[i].get(), rb.itsPrims[j].get(), itsPrims[k].get(),
+                                                 pa, pb, pc);
     return s;
 }
 
-// this is centre D: (ab|cd)
-double GaussianRF::Integrate(rf_t& ra, rf_t& rb, rf_t& rc, po_t& pa, po_t& pb, po_t& pc, po_t& pd) const
+// --- 4-centre (ab|cd) (this is centre D) ------------------------------------------------------------
+double GaussianRF::Repulsion4C(rf_t& ra, rf_t& rb, rf_t& rc, po_t& pa, po_t& pb, po_t& pc, po_t& pd) const
 {
     double s = 0.0;
     for (size_t i=0;i<ra.itsPrims.size();++i)
@@ -452,9 +485,9 @@ double GaussianRF::Integrate(rf_t& ra, rf_t& rb, rf_t& rc, po_t& pa, po_t& pb, p
             for (size_t k=0;k<rc.itsPrims.size();++k)
                 for (size_t l=0;l<itsPrims.size();++l)
                     s += ra.itsCoeff[i]*rb.itsCoeff[j]*rc.itsCoeff[k]*itsCoeff[l]
-                         * PrimGaussian::Integrate4C(ra.itsPrims[i].get(), rb.itsPrims[j].get(),
-                                                     pa, pb, pc, pd,
-                                                     rc.itsPrims[k].get(), itsPrims[l].get());
+                         * PrimGaussian::Repulsion4C(ra.itsPrims[i].get(), rb.itsPrims[j].get(),
+                                                     rc.itsPrims[k].get(), itsPrims[l].get(),
+                                                     pa, pb, pc, pd);
     return s;
 }
 

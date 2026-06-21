@@ -26,7 +26,6 @@ export module qchem.BasisSet.Molecule.Evaluators;
 export import qchem.Streamable;
 import qchem.Types;
 import qchem.Cluster;  // Cluster* threaded through the Nuclear kernel + NuclearMatrix builder
-import qchem.BasisSet.Internal.IntegralEnums;  // qchem::IType3C (DFT 3-centre selector)
 import qchem.Blaze;   // rsmat_t construction/indexing in the generic matrix builders below
 
 export namespace BasisSet::Molecule::Evaluators
@@ -83,9 +82,10 @@ template <class E> concept is1E_Evaluator = std::derived_from<E, Evaluator> && r
 // not the evaluator -- so requiring isOpr would (correctly) reject PG_Evaluator today.  When grid-eval
 // moves onto the evaluator, fold isOpr<E> back into isDFT_Evaluator to match the atom side.
 template <class E> concept isDFT_Evaluator = std::derived_from<E, Evaluator>
-    && requires (const E e, qchem::IType3C t, size_t iA, size_t iB, size_t iC)
+    && requires (const E e, size_t iA, size_t iB, size_t iC)
 {
-    {e.ThreeC(t, iA, e, iB, e, iC)} -> std::same_as<double>;   // <ab|c>, M&D 3-centre
+    {e.OverlapThreeC  (iA, e, iB, e, iC)} -> std::same_as<double>;   // <ab|c> overlap,   M&D 3-centre
+    {e.RepulsionThreeC(iA, e, iB, e, iC)} -> std::same_as<double>;   // <ab|c> repulsion, M&D 3-centre
 };
 
 // 4-centre electron-repulsion (ab|cd), M&D 4-centre.  No Cache4/Grouper (that is the atom Ak design);

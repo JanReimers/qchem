@@ -12,10 +12,10 @@
 #include <fstream>
 #include <filesystem>
 #include <cmath>
+#include <functional>
 
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;   // GaussianRF, IType
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;   // GaussianRF named kernels
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization; // Polarization
-import qchem.BasisSet.Internal.IntegralEnums;                            // qchem::IType3C
 import qchem.Cluster;                                                     // Molecule, Atom, Cluster
 import qchem.Types;                                                       // rvec3_t
 
@@ -43,10 +43,10 @@ static json loadRef()
     json d; f >> d; return d;
 }
 
-// Shared driver for the 2-centre sections (overlap/kinetic/nuclear).  `factor` reconciles any sign/
-// scale convention; `cl` is the nuclei for the Nuclear integral (null otherwise).
-static void check2C(const json& section, const char* name, PG::IType type, double factor,
-                    const Cluster* cl)
+// Shared driver for the 2-centre sections (overlap/kinetic/nuclear).  `kern` is the named radial kernel
+// to exercise (a.Overlap2C/Grad2/Nuclear); `factor` reconciles any sign/scale convention.
+using Kernel2C = std::function<double(const GaussianRF&, const GaussianRF&, const Polarization&, const Polarization&)>;
+static void check2C(const json& section, const char* name, Kernel2C kern, double factor)
 {
     size_t n=0, fails=0; double maxerr=0;
     for (const auto& rec : section)
@@ -55,7 +55,7 @@ static void check2C(const json& section, const char* name, PG::IType type, doubl
         for (const auto& e : rec["elements"])
         {
             Polarization pa = pol(e["a"]), pb = pol(e["b"]);
-            double got = a.GetNormalization(pa)*b.GetNormalization(pb)*a.Integrate(type,b,pa,pb,cl)*factor;
+            double got = a.GetNormalization(pa)*b.GetNormalization(pb)*kern(a,b,pa,pb)*factor;
             double ref = e["value"].get<double>();
             double err = std::fabs(got-ref); maxerr = std::max(maxerr,err); ++n;
             if (err>TOL && fails<6)
@@ -70,13 +70,20 @@ static void check2C(const json& section, const char* name, PG::IType type, doubl
     EXPECT_EQ(fails,0u); EXPECT_GT(n,0u);
 }
 
-TEST(M_PG_Oracle, overlap) { check2C(loadRef()["overlap"], "overlap", PG::Overlap2C, 1.0, nullptr); }
+TEST(M_PG_Oracle, overlap)
+{
+    check2C(loadRef()["overlap"], "overlap",
+            [](const GaussianRF& a, const GaussianRF& b, const Polarization& pa, const Polarization& pb)
+              {return a.Overlap2C(b,pa,pb);}, 1.0);
+}
 
 TEST(M_PG_Oracle, kinetic)
 {
     // PG's 'Grad2' is the bare -nabla^2 (= 2x the -1/2 nabla^2 kinetic; the 1/2 lives in the
     // Hamiltonian), so kinetic = 0.5 * Grad2.  Verified: PG/oracle == 2.0 exactly across the sweep.
-    check2C(loadRef()["kinetic"], "kinetic", PG::Grad2, 0.5, nullptr);
+    check2C(loadRef()["kinetic"], "kinetic",
+            [](const GaussianRF& a, const GaussianRF& b, const Polarization& pa, const Polarization& pb)
+              {return a.Grad2(b,pa,pb);}, 0.5);
 }
 
 TEST(M_PG_Oracle, nuclear)
@@ -88,7 +95,9 @@ TEST(M_PG_Oracle, nuclear)
         auto c = nuc["center"];
         mol.Insert(new Atom((int)nuc["Z"].get<double>(), 0, Vector3D<double>(c[0],c[1],c[2])));
     }
-    check2C(d["nuclear"], "nuclear", PG::Nuclear, 1.0, &mol);
+    check2C(d["nuclear"], "nuclear",
+            [&mol](const GaussianRF& a, const GaussianRF& b, const Polarization& pa, const Polarization& pb)
+                  {return a.Nuclear(b,pa,pb,&mol);}, 1.0);
 }
 
 TEST(M_PG_Oracle, eri)
@@ -103,7 +112,7 @@ TEST(M_PG_Oracle, eri)
             Polarization pa=pol(el["a"]), pb=pol(el["b"]), pc=pol(el["c"]), pd=pol(el["d"]);
             double norm = a.GetNormalization(pa)*b.GetNormalization(pb)
                         * c.GetNormalization(pc)*e.GetNormalization(pd);
-            double got = norm * e.Integrate(a,b,c, pa,pb,pc,pd);   // this=d (4th centre)
+            double got = norm * e.Repulsion4C(a,b,c, pa,pb,pc,pd);   // this=d (4th centre)
             double ref = el["value"].get<double>();
             double err = std::fabs(got-ref); maxerr=std::max(maxerr,err); ++n;
             if (err>TOL && fails<6)
@@ -117,8 +126,10 @@ TEST(M_PG_Oracle, eri)
     EXPECT_EQ(fails,0u); EXPECT_GT(n,0u);
 }
 
-// 3-centre (DFT): PG Integrate is called on the third centre c, with a,b as args.
-static void check3C(const json& section, const char* name, qchem::IType3C type)
+// 3-centre (DFT): the named kernel is called on the third centre c, with a,b as args.
+using Kernel3C = std::function<double(const GaussianRF&, const GaussianRF&, const GaussianRF&,
+                                      const Polarization&, const Polarization&, const Polarization&)>;
+static void check3C(const json& section, const char* name, Kernel3C kern)
 {
     size_t n=0, fails=0; double maxerr=0;
     for (const auto& rec : section)
@@ -128,7 +139,7 @@ static void check3C(const json& section, const char* name, qchem::IType3C type)
         {
             Polarization pa=pol(el["a"]), pb=pol(el["b"]), pc=pol(el["c"]);
             double norm = a.GetNormalization(pa)*b.GetNormalization(pb)*c.GetNormalization(pc);
-            double got = norm * c.Integrate(type, a, b, pa, pb, pc);   // this=c
+            double got = norm * kern(c, a, b, pa, pb, pc);   // this=c
             double ref = el["value"].get<double>();
             double err = std::fabs(got-ref); maxerr=std::max(maxerr,err); ++n;
             if (err>TOL && fails<6)
@@ -143,5 +154,17 @@ static void check3C(const json& section, const char* name, qchem::IType3C type)
     EXPECT_EQ(fails,0u); EXPECT_GT(n,0u);
 }
 
-TEST(M_PG_Oracle, overlap3c)   { check3C(loadRef()["overlap3c"],   "overlap3c",   qchem::Overlap3C);   }
-TEST(M_PG_Oracle, repulsion3c) { check3C(loadRef()["repulsion3c"], "repulsion3c", qchem::Repulsion3C); }
+TEST(M_PG_Oracle, overlap3c)
+{
+    check3C(loadRef()["overlap3c"], "overlap3c",
+            [](const GaussianRF& c, const GaussianRF& a, const GaussianRF& b,
+               const Polarization& pa, const Polarization& pb, const Polarization& pc)
+              {return c.Overlap3C(a,b,pa,pb,pc);});
+}
+TEST(M_PG_Oracle, repulsion3c)
+{
+    check3C(loadRef()["repulsion3c"], "repulsion3c",
+            [](const GaussianRF& c, const GaussianRF& a, const GaussianRF& b,
+               const Polarization& pa, const Polarization& pb, const Polarization& pc)
+              {return c.Repulsion3C(a,b,pa,pb,pc);});
+}

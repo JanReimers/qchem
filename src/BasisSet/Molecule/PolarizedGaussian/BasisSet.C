@@ -19,12 +19,11 @@ import qchem.Types;
 import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.BasisSet.Orbital_HF_IBS;
 
-import qchem.BasisSet.Internal.IntegralEnums;
-
 export namespace BasisSet::Molecule::PolarizedGaussian
 {
 
-rsmat_t MakeIntegrals(IType,const PGData* ab,const Cluster*cl =0);
+rsmat_t MakeOverlap2C  (const PGData* ab);   // EFit 2-centre fit integrals (named radial kernels)
+rsmat_t MakeRepulsion2C(const PGData* ab);
 
 class IrrepBasisSet
         : public virtual Real_IBS,
@@ -83,9 +82,9 @@ class EFit_IBS
 public:
     EFit_IBS(Reader *, const Cluster *);
 
-    virtual rsmat_t MakeOverlap() const {return MakeIntegrals(PolarizedGaussian::Overlap2C,this);}
+    virtual rsmat_t MakeOverlap() const {return MakeOverlap2C(this);}
     virtual  rvec_t MakeCharge   () const;
-    virtual rsmat_t MakeRepulsion() const {return MakeIntegrals(Repulsion2C,this);}
+    virtual rsmat_t MakeRepulsion() const {return MakeRepulsion2C(this);}
     virtual  rmat_t MakeRepulsion(const Fit_IBS& b) const;
 };
 class BasisSet 

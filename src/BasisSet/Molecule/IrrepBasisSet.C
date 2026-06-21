@@ -22,7 +22,6 @@ import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.BasisSet.Orbital_HF_IBS;
 import qchem.BasisSet.Fit_IBS;
 import qchem.BasisSet.Internal.ERI4;
-import qchem.BasisSet.Internal.IntegralEnums;   // qchem::IType3C, Overlap3C, Repulsion3C
 import qchem.BasisSet.Molecule.Evaluators;      // concepts + generic 1E matrix builders
 import qchem.Cluster;
 import qchem.Types;
@@ -49,12 +48,21 @@ template <Evaluators::isDFT_Evaluator E> class Orbital_DFT_IBS
     : public virtual ::BasisSet::Orbital_DFT_IBS<double>
 {
 protected:
-    virtual ERI3<double> MakeOverlap3C  (const Fit_IBS& c) const {return Make3C(qchem::Overlap3C  , c);}
-    virtual ERI3<double> MakeRepulsion3C(const Fit_IBS& c) const {return Make3C(qchem::Repulsion3C, c);}
+    virtual ERI3<double> MakeOverlap3C  (const Fit_IBS& c) const
+    {
+        return Make3C(c, [](const E& aE, size_t ia, size_t ib, const E& cE, size_t ic)
+                            {return aE.OverlapThreeC(ia, aE, ib, cE, ic);});
+    }
+    virtual ERI3<double> MakeRepulsion3C(const Fit_IBS& c) const
+    {
+        return Make3C(c, [](const E& aE, size_t ia, size_t ib, const E& cE, size_t ic)
+                            {return aE.RepulsionThreeC(ia, aE, ib, cE, ic);});
+    }
 private:
-    // For each fit component ic, build the symmetric (ia,ib) block via the evaluator's ThreeC kernel
+    // For each fit component ic, build the symmetric (ia,ib) block via the supplied named 3-centre kernel
     // (which folds in all three normalizations).
-    ERI3<double> Make3C(qchem::IType3C type, const Fit_IBS& _c) const
+    template <class Kernel>
+    ERI3<double> Make3C(const Fit_IBS& _c, Kernel kernel) const
     {
         const E& aE=dynamic_cast<const E&>(*this);
         const E& cE=dynamic_cast<const E&>(_c);
@@ -65,7 +73,7 @@ private:
             rsmat_t s(Na);
             for (size_t ia=0; ia<Na; ia++)
                 for (size_t ib=ia; ib<Na; ib++)
-                    s(ia,ib)=aE.ThreeC(type, ia, aE, ib, cE, ic);
+                    s(ia,ib)=kernel(aE, ia, ib, cE, ic);
             s3.push_back(s);
         }
         return s3;

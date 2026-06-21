@@ -49,7 +49,7 @@ rmat_t EFit_IBS::MakeRepulsion(const Fit_IBS& _b) const
     rmat_t s(Na,Nb);
     for (size_t ia=0;ia<Na;ia++)
         for (size_t ib=0;ib<Nb;ib++)
-            s(ia,ib)=a->radials[ia]->Integrate(Repulsion2C,
+            s(ia,ib)=a->radials[ia]->Repulsion2C(
                 *b->radials[ib],a->pols[ia],b->pols[ib])*a->ns[ia]*b->ns[ib];
     assert(!blazem::isnan(s));
     return s;

@@ -3,9 +3,10 @@
 // Stage-1 collapse of the old 4-way virtual dispatch.  There is now exactly ONE RadialFunction
 // implementation, GaussianRF, which always holds a list of primitive Gaussians (an uncontracted
 // function is just a 1-primitive contraction with coefficient 1.0).  The per-primitive Gaussian
-// math lives in the internal PrimGaussian helper (data + the M&D Integrate2C/3C/4C kernels); it is
-// NOT a RadialFunction and is never dispatched on.  Contraction is the explicit outer loop in
-// GaussianRF::Integrate over primitive pairs/triples/quads -- no dynamic_cast, no re-dispatch.
+// math lives in the internal PrimGaussian helper (data + the named M&D kernels Overlap2C/Repulsion2C/
+// Grad2/Nuclear/Overlap3C/Repulsion3C/Repulsion4C); it is NOT a RadialFunction and is never dispatched
+// on.  Each GaussianRF named kernel is the explicit contraction loop over primitive pairs/triples/quads
+// calling the matching PrimGaussian kernel -- no enum/switch, no dynamic_cast, no re-dispatch.
 module;
 #include <iosfwd>
 #include <string>
@@ -20,18 +21,11 @@ import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GData;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite1;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.MnD.Hermite3;
 
-import qchem.BasisSet.Internal.IntegralEnums;
 import Common.UniqueID;
 import Common.UniqueIDImp;
 import qchem.ScalarFunction;
 import qchem.Streamable;
 import qchem.Cluster;
-
-export namespace BasisSet::Molecule::PolarizedGaussian
-{
-// 2-centre integral kinds (was in the now-deleted RadialFunction interface).
-enum IType {Overlap2C, Repulsion2C, Grad2, Nuclear};
-}
 
 //
 //  Internal primitive Gaussian: a single exponent at a centre with maximum L.  Carries the M&D
@@ -60,16 +54,24 @@ public:
     double          operator()(const rvec3_t&) const;
     rvec3_t         Gradient  (const rvec3_t&) const;
 
-    // M&D integral kernels over primitives.  a/b/c/d are primitive Gaussians.
-    static double Integrate2C(IType, const PrimGaussian* a, const PrimGaussian* b,
+    // M&D integral kernels over primitives -- one named function per integral, no enum/switch dispatch
+    // (that was residue of the retired multiple-dispatch gauntlet).  a/b/c/d are primitive Gaussians.
+    static double Overlap2C  (const PrimGaussian* a, const PrimGaussian* b,
+                              const Polarization& pa, const Polarization& pb);
+    static double Repulsion2C(const PrimGaussian* a, const PrimGaussian* b,
+                              const Polarization& pa, const Polarization& pb);
+    static double Grad2      (const PrimGaussian* a, const PrimGaussian* b,        // <p^2> block, no 1/2
+                              const Polarization& pa, const Polarization& pb);
+    static double Nuclear    (const PrimGaussian* a, const PrimGaussian* b,
                               const Polarization& pa, const Polarization& pb, const Cluster* cl);
-    static double Integrate3C(qchem::IType3C, const PrimGaussian* a, const PrimGaussian* b,
-                              const Polarization& pa, const Polarization& pb, const Polarization& pc,
-                              const PrimGaussian* c);
-    static double Integrate4C(const PrimGaussian* a, const PrimGaussian* b,
+    static double Overlap3C  (const PrimGaussian* a, const PrimGaussian* b, const PrimGaussian* c,
+                              const Polarization& pa, const Polarization& pb, const Polarization& pc);
+    static double Repulsion3C(const PrimGaussian* a, const PrimGaussian* b, const PrimGaussian* c,
+                              const Polarization& pa, const Polarization& pb, const Polarization& pc);
+    static double Repulsion4C(const PrimGaussian* a, const PrimGaussian* b,
+                              const PrimGaussian* c, const PrimGaussian* d,
                               const Polarization& pa, const Polarization& pb,
-                              const Polarization& pc, const Polarization& pd,
-                              const PrimGaussian* c, const PrimGaussian* d);
+                              const Polarization& pc, const Polarization& pd);
 
 private:
     double            itsExponent;
@@ -117,11 +119,15 @@ public:
     double      GetCharge       (const Polarization&) const;
     std::string TypeID          (                   ) const; // centre-independent identity (L+prims)
 
-    // Exactly three integral entry points (2C/3C/4C); the old peel-off overloads are gone, and with
-    // one concrete radial type there is no downcast: arguments are GaussianRF directly.
-    double Integrate(IType, rf_t& rb, po_t& pa, po_t& pb, const Cluster* cl=0) const;
-    double Integrate(qchem::IType3C, rf_t& ra, rf_t& rb, po_t& pa, po_t& pb, po_t& pc) const; // this is C
-    double Integrate(rf_t& ra, rf_t& rb, rf_t& rc, po_t& pa, po_t& pb, po_t& pc, po_t& pd) const; // this is D
+    // Named integral entry points (2C/3C/4C); each contracts its primitives over the matching named
+    // PrimGaussian kernel.  No enum/switch -- the old peel-off dispatch and its IType tag are both gone.
+    double Overlap2C  (rf_t& rb, po_t& pa, po_t& pb                ) const;
+    double Repulsion2C(rf_t& rb, po_t& pa, po_t& pb                ) const;
+    double Grad2      (rf_t& rb, po_t& pa, po_t& pb                ) const;   // <p^2> block, no 1/2
+    double Nuclear    (rf_t& rb, po_t& pa, po_t& pb, const Cluster* cl) const;
+    double Overlap3C  (rf_t& ra, rf_t& rb, po_t& pa, po_t& pb, po_t& pc) const; // this is centre C
+    double Repulsion3C(rf_t& ra, rf_t& rb, po_t& pa, po_t& pb, po_t& pc) const; // this is centre C
+    double Repulsion4C(rf_t& ra, rf_t& rb, rf_t& rc, po_t& pa, po_t& pb, po_t& pc, po_t& pd) const; // this is D
 
     virtual std::ostream& Write(std::ostream&  ) const;
 

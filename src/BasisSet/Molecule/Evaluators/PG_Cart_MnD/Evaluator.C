@@ -19,9 +19,8 @@ module;
 export module qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD;
 import qchem.BasisSet.Molecule.Evaluators;                             // Evaluator + concepts
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.PGData;      // PGData
-import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;  // GaussianRF, IType
+import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;  // GaussianRF named kernels
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;// Polarization
-import qchem.BasisSet.Internal.IntegralEnums;                          // qchem::IType3C
 import qchem.Cluster;
 import qchem.Types;
 
@@ -49,9 +48,12 @@ public:
     // Grad2 is the FULL Cartesian \f$\langle p^2\rangle=\langle-\nabla^2\rangle\f$ block: NO 1/2 (that is
     // the Hamiltonian's), NO centrifugal term (atom-only).  Nuclear is the multi-centre attraction.
     double Norm   (size_t i)          const {return ns[i];}
-    double Overlap(size_t i,size_t j) const {return Integrate(PG::Overlap2C, i, j);}
-    double Grad2  (size_t i,size_t j) const {return Integrate(PG::Grad2,     i, j);}
-    double Nuclear(size_t i,size_t j,const Cluster* cl=0) const {return Integrate(PG::Nuclear, i, j, cl);}
+    double Overlap(size_t i,size_t j) const {return radials[i]->Overlap2C(*radials[j], pols[i], pols[j]) * ns[i]*ns[j];}
+    double Grad2  (size_t i,size_t j) const {return radials[i]->Grad2    (*radials[j], pols[i], pols[j]) * ns[i]*ns[j];}
+    double Nuclear(size_t i,size_t j,const Cluster* cl=0) const
+    {
+        return radials[i]->Nuclear(*radials[j], pols[i], pols[j], cl) * ns[i]*ns[j];
+    }
 
     // --- 3-centre (DFT) and 4-centre (HF) kernels ---------------------------------------------------
     // General multi-evaluator elements: each (evaluator, index) pair names one basis component, so the
@@ -59,34 +61,27 @@ public:
     // `this` is the A slot.  Normalizations of every slot are folded in, matching MakeOverlap3C /
     // MakeDirect / MakeExchange.  (A member may read another same-type evaluator's private data.)
 
-    // <ab|c> 3-centre integral of the given IType3C (M&D Integrate3C, called on the C radial).
-    double ThreeC(qchem::IType3C t, size_t iA,
-                  const NR_Evaluator& eB, size_t iB,
-                  const NR_Evaluator& eC, size_t iC) const
+    // <ab|c> 3-centre integrals (M&D, evaluated on the C radial) -- one named function per kind.
+    double OverlapThreeC(size_t iA, const NR_Evaluator& eB, size_t iB, const NR_Evaluator& eC, size_t iC) const
     {
-        return eC.radials[iC]->Integrate(t, *radials[iA], *eB.radials[iB],
-                                         pols[iA], eB.pols[iB], eC.pols[iC])
+        return eC.radials[iC]->Overlap3C(*radials[iA], *eB.radials[iB], pols[iA], eB.pols[iB], eC.pols[iC])
+             * ns[iA] * eB.ns[iB] * eC.ns[iC];
+    }
+    double RepulsionThreeC(size_t iA, const NR_Evaluator& eB, size_t iB, const NR_Evaluator& eC, size_t iC) const
+    {
+        return eC.radials[iC]->Repulsion3C(*radials[iA], *eB.radials[iB], pols[iA], eB.pols[iB], eC.pols[iC])
              * ns[iA] * eB.ns[iB] * eC.ns[iC];
     }
 
-    // (ab|cd) 4-centre electron-repulsion integral (M&D Integrate4C, called on the D radial).
+    // (ab|cd) 4-centre electron-repulsion integral (M&D, evaluated on the D radial).
     double FourC(size_t iA,
                  const NR_Evaluator& eB, size_t iB,
                  const NR_Evaluator& eC, size_t iC,
                  const NR_Evaluator& eD, size_t iD) const
     {
-        return eD.radials[iD]->Integrate(*radials[iA], *eB.radials[iB],
-                                         *eC.radials[iC],
-                                         pols[iA], eB.pols[iB],
-                                         eC.pols[iC], eD.pols[iD])
+        return eD.radials[iD]->Repulsion4C(*radials[iA], *eB.radials[iB], *eC.radials[iC],
+                                           pols[iA], eB.pols[iB], eC.pols[iC], eD.pols[iD])
              * ns[iA] * eB.ns[iB] * eC.ns[iC] * eD.ns[iD];
-    }
-
-private:
-    double Integrate(PG::IType t, size_t i, size_t j, const Cluster* cl=0) const
-    {
-        return radials[i]->Integrate(t, *radials[j], pols[i], pols[j], cl)
-             * ns[i] * ns[j];
     }
 };
 
