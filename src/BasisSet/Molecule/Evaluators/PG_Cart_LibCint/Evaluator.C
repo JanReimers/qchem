@@ -40,11 +40,14 @@ export namespace BasisSet::Molecule::Evaluators::PG_Cart_LibCint
 class NR_Evaluator : public virtual Evaluator, public PG_Cart_MnD::PGData
 {
 public:
-    // Built over an already-flattened PGData (the component set + order) and the cluster (nuclei: shell
-    // centres + charges).  Unlike the M&D evaluator the cluster IS evaluator state here -- libcint needs
-    // the geometry to pack atm/bas/env up front; the NuclearMatrix(cl) arg supplies the charges.
+    // As a base subobject of a libcint IBS: default-construct, let the IBS fill the PGData (component set +
+    // order) via PGData::Init, then call Init(cl) to pack libcint's atm/bas/env.  Unlike the M&D evaluator
+    // the cluster IS evaluator state here -- libcint needs the geometry up front; NuclearMatrix(cl) supplies
+    // the charges.  The (data,cl) ctor is the standalone form (a copy of an existing PGData) used by tests.
+    NR_Evaluator();
     NR_Evaluator(const PG_Cart_MnD::PGData& data, const Cluster* cl);
     ~NR_Evaluator();
+    void Init(const Cluster* cl);   // build the libcint shell/atom tables from this (populated) PGData
 
     // --- cold-path Evaluator interface ---
     virtual size_t        size() const {return PGData::size();}

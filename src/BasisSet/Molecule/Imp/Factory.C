@@ -10,6 +10,7 @@ import qchem.BasisSet.Molecule.Readers.Gaussian94;
 import qchem.BasisSet.Molecule.BasisFiles;
 import qchem.BasisSet.Molecule.PG_Cart;
 import qchem.BasisSet.Molecule.PG_Spherical;
+import qchem.BasisSet.Molecule.PG_Cart_LibCint;
 
 using json = nlohmann::json;
 
@@ -47,6 +48,12 @@ namespace BasisSet::Molecule
             std::string valid;
             for (const auto& [n,b] : theNames) valid += (valid.empty()?"":", ") + n;
             throw std::runtime_error("Molecule::Factory: unknown basis \"" + name + "\"; valid: " + valid);
+        }
+        // Optional js["engine"]: "mnd" (default, McMurchie-Davidson) or "libcint" (Cartesian only, HF).
+        if (js.value("engine", std::string("mnd")) == "libcint")
+        {
+            Gaussian94Reader reader(BasisFile(theFiles.at(it->second)));
+            return new PG_Cart_LibCint::BasisSet(&reader, cl);
         }
         return Factory(it->second, cl, js.value("spherical", false));
     }

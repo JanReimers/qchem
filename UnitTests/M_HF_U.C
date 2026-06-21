@@ -65,6 +65,32 @@ TEST_F(M_HF_U_Water, Water)
     EXPECT_LT(fabs(RelativeError(-76.022903)), 1e-5);
 }
 
+// --- The Cartesian basis integrated by libcint through the same SCF --------------------------------
+// js["engine"]="libcint" selects the PG_Cart_LibCint matrix-delivery evaluator (same dzvp data, same
+// Cartesian component set as the M&D path).  Since libcint's integrals match M&D to <1e-10 element-wise
+// (M_LibCint guard), the converged HF energy must equal the Cartesian anchor -- this is the end-to-end
+// cross-check of the external engine through a real SCF.
+class M_HF_U_LibCint : public ::testing::Test, public TestMolecule
+{
+public:
+    M_HF_U_LibCint(Molecule* m) : TestMolecule(m)
+    {
+        nlohmann::json js = { {"basis", "dzvp"}, {"engine", "libcint"} };
+        QchemTester::Init(js);
+    }
+    virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
+    {
+        return Factory(Model::HF, Pol::UnPolarized, cluster);
+    }
+};
+class M_HF_U_LibCint_Water : public M_HF_U_LibCint { public: M_HF_U_LibCint_Water() : M_HF_U_LibCint(MakeWater()) {} };
+
+TEST_F(M_HF_U_LibCint_Water, Water)
+{
+    Iterate(scf);
+    EXPECT_LT(fabs(RelativeError(-76.022903)), 1e-5);   // same converged E as the M&D Cartesian path
+}
+
 // --- The spherical-Gaussian (PG_Spherical) basis through the same SCF ------------------------------
 // Same dzvp data file, but js["spherical"]=true selects the real-solid-harmonic basis.  The 5 spherical
 // d's are a strict subset of the 6 Cartesian d's (the missing 6th, xx+yy+zz, is an l=0 contaminant), so

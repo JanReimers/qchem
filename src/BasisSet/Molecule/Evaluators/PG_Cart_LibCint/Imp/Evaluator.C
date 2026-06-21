@@ -94,10 +94,18 @@ static std::vector<Polarization> LibcintCartOrder(int l)
     return v;
 }
 
+NR_Evaluator::NR_Evaluator() = default;
+
 NR_Evaluator::NR_Evaluator(const PGData& data, const Cluster* cl)
-    : itsImp(new Imp)
 {
     static_cast<PGData&>(*this) = data;             // own the component layout + order (size/Norm/ns)
+    Init(cl);
+}
+
+// Build the libcint shell + atom tables from this evaluator's (already-populated) PGData and the cluster.
+void NR_Evaluator::Init(const Cluster* cl)
+{
+    itsImp.reset(new Imp);
     Imp& m = *itsImp;
     m.N = PGData::size();
 
