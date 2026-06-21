@@ -12,11 +12,12 @@ export namespace BasisSet::Molecule
     // in Imp/Factory.C.
     enum class Basis { DZVP, DZVP2, TZVP, ORB, ORB1 };
 
-    // C++ entry point (compile-time typo-proof).
-    Real_BS* Factory(Basis basis, const Cluster* cl);
+    // C++ entry point (compile-time typo-proof).  spherical=true builds the real-solid-harmonic
+    // (PG_Spherical) basis from the same data file; false (default) the Cartesian (PG_Cart) one.
+    Real_BS* Factory(Basis basis, const Cluster* cl, bool spherical=false);
 
     // Config-driven entry point: js["basis"] is a basis NAME (e.g. "dzvp"); an unknown name throws with
-    // the list of valid names.  (Was js["filepath"] -- a raw path the caller had to build.)
+    // the list of valid names.  Optional js["spherical"] (bool, default false) picks the angular kind.
     Real_BS* Factory(const nlohmann::json& js,const Cluster* cl);
 }
 

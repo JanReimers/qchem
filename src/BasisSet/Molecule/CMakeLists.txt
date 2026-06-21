@@ -20,5 +20,6 @@ target_compile_definitions(qcMolecule_BS PRIVATE ${BasisDataPath})
 
 target_link_libraries(qcMolecule_BS PUBLIC qcBasisSet qcElConfig qcCluster)
 add_subdirectory(PG_Cart)
+add_subdirectory(PG_Spherical)
 add_subdirectory(Evaluators)
 add_subdirectory(tests)

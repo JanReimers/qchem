@@ -1,0 +1,76 @@
+// File BasisSet/Molecule/PG_Spherical/BasisSet.C
+//
+// The spherical-Gaussian molecular orbital basis -- the IBS tree parallel to PG_Cart, but built on the
+// transform-on-Cartesian PG_Spherical_MnD evaluator.  The ONLY divergence from PG_Cart is how the data is
+// built (each shell expands into its 2l+1 real solid harmonics, not the (l+1)(l+2)/2 Cartesian monomials);
+// every integral, the cache and the SCF machinery are inherited unchanged.  HF (1E + 4-centre) only for
+// now; the DFT 3-centre fit (a spherical EFit_IBS) is the next increment.
+module;
+#include <vector>
+#include <memory>
+export module qchem.BasisSet.Molecule.PG_Spherical;
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;        // the radial (shared with PG_Cart)
+import qchem.BasisSet.Molecule.Reader;
+import qchem.BasisSet.Molecule.Evaluators.PG_Spherical_MnD;              // NR_Evaluator: the IBS IS-A evaluator
+import qchem.BasisSet.Molecule.IBS;                                      // Molecule::Orbital_{1E,HF}_IBS<E> mixins
+
+import qchem.BasisSet.Internal.BasisSetImp;
+import qchem.BasisSet.Internal.IrrepBasisSetImp;
+import qchem.BasisSet.Orbital_HF_IBS;
+import qchem.Cluster;
+import qchem.Types;
+
+export namespace BasisSet::Molecule::PG_Spherical
+{
+namespace Sph = ::BasisSet::Molecule::Evaluators::PG_Spherical_MnD;
+namespace Cart = ::BasisSet::Molecule::Evaluators::PG_Cart_MnD;
+
+class IrrepBasisSet
+        : public virtual Real_IBS,
+          public IrrepBasisSetImp<double>,
+          public Sph::NR_Evaluator                 // IS-A spherical evaluator, which IS-A SphData
+    {
+    public:
+        IrrepBasisSet(Reader*, const Cluster*);
+        IrrepBasisSet(const rvec_t& exponents, size_t L, const Cluster*);
+        virtual ~IrrepBasisSet();
+
+        virtual size_t  GetNumFunctions() const {return SphData::size();}
+        virtual size_t  size() const {return SphData::size();}
+        virtual rvec_t     operator() (const rvec3_t&) const;
+        virtual rvec3vec_t Gradient   (const rvec3_t&) const;
+
+        virtual std::string RadialID () const {return SphData::RadialID();}
+        virtual std::string AngularID() const {return SphData::AngularID();}
+        virtual std::string BasisSetID() const {return SphData::BasisSetID();} // geometry-aware
+        virtual std::string Name     () const {return "Sph. Gaussian ";}
+        virtual std::ostream &Write(std::ostream&) const;
+
+    private:
+        std::vector<std::unique_ptr<Cart::GaussianRF>> itsRadials;  // owns the radials comps point into
+    };
+
+// All 1E / 4-centre integral building is inherited from the Molecule-generic, evaluator-templated mixins
+// (instantiated with the spherical NR_Evaluator -- the IBS IS-A that evaluator).  Nothing spherical-specific
+// remains in the IBS itself.
+class Orbital_IBS
+    : public Molecule::Orbital_1E_IBS<Sph::NR_Evaluator>
+    , public Molecule::Orbital_HF_IBS<Sph::NR_Evaluator>
+    , public IrrepBasisSet
+{
+public:
+    Orbital_IBS(Reader*, const Cluster*);
+    Orbital_IBS(const rvec_t& exponents, size_t L, const Cluster*);
+};
+
+class BasisSet
+    : public virtual ::BasisSet::BasisSet<double>
+    , public ::BasisSet::BasisSetImp<double>
+{
+public:
+    BasisSet() {};
+    BasisSet(Reader*, const Cluster*);
+    virtual void Insert(bs_t* bs);
+};
+
+} //namespace

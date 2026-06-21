@@ -34,8 +34,10 @@ struct SphData
     rvec_t                 ns;      // per-component normalisation (1/sqrt(raw self-overlap))
 
     size_t      size() const {return comps.size();}
-    void        Init();             // fills ns from the raw self-overlaps (uses the Cartesian kernel)
-    std::string RadialID() const;   // cache identity (distinct from the Cartesian basis)
+    void        Init();              // fills ns from the raw self-overlaps (uses the Cartesian kernel)
+    std::string RadialID () const;   // basis-only: the radials (no geometry)
+    std::string AngularID() const;   // basis-only: the per-component solid-harmonic monomial expansions
+    std::string BasisSetID() const;  // geometry-aware cache identity (folds in the centres)
 };
 
 class NR_Evaluator : public virtual Evaluator, public SphData

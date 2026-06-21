@@ -9,6 +9,7 @@ module qchem.BasisSet.Molecule.Factory;
 import qchem.BasisSet.Molecule.Readers.Gaussian94;
 import qchem.BasisSet.Molecule.BasisFiles;
 import qchem.BasisSet.Molecule.PG_Cart;
+import qchem.BasisSet.Molecule.PG_Spherical;
 
 using json = nlohmann::json;
 
@@ -30,9 +31,10 @@ namespace BasisSet::Molecule
         {"orb"  , Basis::ORB  }, {"orb1" , Basis::ORB1 },
     };
 
-    BasisSet<double>* Factory(Basis basis, const Cluster* cl)
+    BasisSet<double>* Factory(Basis basis, const Cluster* cl, bool spherical)
     {
         Gaussian94Reader reader(BasisFile(theFiles.at(basis)));
+        if (spherical) return new PG_Spherical::BasisSet(&reader,cl);
         return new PG_Cart::BasisSet(&reader,cl);
     }
 
@@ -46,6 +48,6 @@ namespace BasisSet::Molecule
             for (const auto& [n,b] : theNames) valid += (valid.empty()?"":", ") + n;
             throw std::runtime_error("Molecule::Factory: unknown basis \"" + name + "\"; valid: " + valid);
         }
-        return Factory(it->second, cl);
+        return Factory(it->second, cl, js.value("spherical", false));
     }
 }

@@ -64,3 +64,34 @@ TEST_F(M_HF_U_Water, Water)
     Iterate(scf);
     EXPECT_LT(fabs(RelativeError(-76.022903)), 1e-5);
 }
+
+// --- The spherical-Gaussian (PG_Spherical) basis through the same SCF ------------------------------
+// Same dzvp data file, but js["spherical"]=true selects the real-solid-harmonic basis.  The 5 spherical
+// d's are a strict subset of the 6 Cartesian d's (the missing 6th, xx+yy+zz, is an l=0 contaminant), so
+// the spherical basis is variationally a SUBSET: E_sph >= E_cart, by only the small contaminant gap.
+// That inequality (oracle-free) validates the new basis end-to-end through the production SCF; the pinned
+// value is the usual "did E move" regression anchor.
+class M_HF_U_Sph : public ::testing::Test, public TestMolecule
+{
+public:
+    M_HF_U_Sph(Molecule* m) : TestMolecule(m)
+    {
+        nlohmann::json js = { {"basis", "dzvp"}, {"spherical", true} };
+        QchemTester::Init(js);
+    }
+    virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
+    {
+        return Factory(Model::HF, Pol::UnPolarized, cluster);
+    }
+};
+class M_HF_U_Sph_Water : public M_HF_U_Sph { public: M_HF_U_Sph_Water() : M_HF_U_Sph(MakeWater()) {} };
+
+TEST_F(M_HF_U_Sph_Water, Water)
+{
+    Iterate(scf);
+    const double E_cart = -76.022903;          // the Cartesian-DZVP anchor (water has one O d shell)
+    const double E_sph  = TotalEnergy();
+    EXPECT_GT(E_sph, E_cart);                  // variational subset: dropping the d contaminant raises E
+    EXPECT_LT(E_sph - E_cart, 0.05);           // ... but only slightly (the contaminant is a minor fn)
+    EXPECT_LT(fabs(RelativeError(-76.020277)), 1e-5);  // regression anchor (just above the Cartesian E)
+}
