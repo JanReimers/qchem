@@ -39,24 +39,28 @@ class IrrepBasisSet
     public:
         typedef std::vector<std::unique_ptr<Cart::Block>> bv_t;
 
-        IrrepBasisSet(Reader*, const Cluster*);
-        IrrepBasisSet(const rvec_t& exponents, size_t L, const Cluster*);
+        IrrepBasisSet(Reader*, const Cluster*, bool spherical=false);
+        IrrepBasisSet(const rvec_t& exponents, size_t L, const Cluster*, bool spherical=false);
         virtual ~IrrepBasisSet();
 
-        virtual size_t  GetNumFunctions() const {return PGData::size();}
-        virtual size_t  size() const {return PGData::size();}
+        // The number of functions is the evaluator's delivered count (Cartesian (l+1)(l+2)/2 or spherical
+        // 2l+1 per shell), NOT the raw Cartesian PGData count -- in spherical mode they differ.
+        virtual size_t  GetNumFunctions() const {return NR_Evaluator::size();}
+        virtual size_t  size() const {return NR_Evaluator::size();}
         virtual rvec_t     operator() (const rvec3_t&) const;
         virtual rvec3vec_t Gradient   (const rvec3_t&) const;
 
-        // Geometry-aware cache key with a DISTINCT prefix from the M&D PG_Cart IBS (whose key is " PG {..").
-        // Without this the global Jac/Kab cache (keyed on BasisSetID) would serve M&D's matrices to the
-        // libcint run in the same process -- so each engine must cache independently (as PG1-vs-PG did).
-        virtual std::string BasisSetID() const {return "LibCint " + PGData::BasisSetID();}
+        // Geometry-aware cache key with a DISTINCT prefix per engine+mode: the global Jac/Kab cache keys on
+        // BasisSetID, and PGData's is " PG {.." == the M&D PG_Cart IBS, so without a distinct prefix the
+        // libcint run would serve / be served M&D's cached matrices in the same process (as PG1-vs-PG).
+        virtual std::string BasisSetID() const
+        { return (itsSpherical ? "LibCintSph " : "LibCint ") + PGData::BasisSetID(); }
         virtual std::string Name     () const {return "Pol. Gaussian (libcint) ";}
         virtual std::ostream &Write(std::ostream&) const;
 
     private:
         bv_t itsBlocks;
+        bool itsSpherical=false;
     };
 
 // 1E + 4-centre HF inherited from the Molecule-generic, evaluator-templated mixins instantiated with the
@@ -68,8 +72,8 @@ class Orbital_IBS
     , public IrrepBasisSet
 {
 public:
-    Orbital_IBS(Reader*, const Cluster*);
-    Orbital_IBS(const rvec_t& exponents, size_t L, const Cluster*);
+    Orbital_IBS(Reader*, const Cluster*, bool spherical=false);
+    Orbital_IBS(const rvec_t& exponents, size_t L, const Cluster*, bool spherical=false);
 };
 
 class BasisSet
@@ -78,7 +82,7 @@ class BasisSet
 {
 public:
     BasisSet() {};
-    BasisSet(Reader*, const Cluster*);
+    BasisSet(Reader*, const Cluster*, bool spherical=false);
     virtual void Insert(bs_t* bs);
 };
 

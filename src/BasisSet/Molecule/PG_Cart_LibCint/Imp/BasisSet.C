@@ -9,9 +9,9 @@ import qchem.Cluster;
 namespace BasisSet::Molecule::PG_Cart_LibCint
 {
 
-BasisSet::BasisSet(Reader* reader, const Cluster* cl)
+BasisSet::BasisSet(Reader* reader, const Cluster* cl, bool spherical)
 {
-    Insert(new Orbital_IBS(reader,cl));   // a single C1 irrep (no SALC)
+    Insert(new Orbital_IBS(reader,cl,spherical));   // a single C1 irrep (no SALC)
 }
 
 void BasisSet::Insert(bs_t* bs)

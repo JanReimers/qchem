@@ -49,11 +49,12 @@ namespace BasisSet::Molecule
             for (const auto& [n,b] : theNames) valid += (valid.empty()?"":", ") + n;
             throw std::runtime_error("Molecule::Factory: unknown basis \"" + name + "\"; valid: " + valid);
         }
-        // Optional js["engine"]: "mnd" (default, McMurchie-Davidson) or "libcint" (Cartesian only, HF).
+        // Optional js["engine"]: "mnd" (default, McMurchie-Davidson) or "libcint" (HF only).  With
+        // js["spherical"]=true the libcint engine delivers native real-spherical functions (an HF oracle).
         if (js.value("engine", std::string("mnd")) == "libcint")
         {
             Gaussian94Reader reader(BasisFile(theFiles.at(it->second)));
-            return new PG_Cart_LibCint::BasisSet(&reader, cl);
+            return new PG_Cart_LibCint::BasisSet(&reader, cl, js.value("spherical", false));
         }
         return Factory(it->second, cl, js.value("spherical", false));
     }

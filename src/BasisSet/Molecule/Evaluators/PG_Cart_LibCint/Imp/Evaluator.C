@@ -46,15 +46,19 @@ struct ShellDesc
     int                 l;
     std::vector<double> exp;    // primitive exponents
     std::vector<double> coef;   // PG normalization-folded contraction coefficients
-    std::vector<size_t> lc2pg;  // libcint-cart component -> global PG component index (this evaluator)
+    std::vector<size_t> lc2pg;  // libcint component -> global output index (Cartesian: PG order; spherical:
+                                // sequential = libcint's native real-spherical order)
 };
 
 struct NR_Evaluator::Imp
 {
+    bool                   spherical=false;
     std::vector<AtomRec>   atoms;
     std::vector<ShellDesc> shells;
-    rvec_t                 scale;   // per global component: 1/sqrt(native self-overlap)  (PG order)
-    size_t                 N=0;     // number of components
+    rvec_t                 scale;   // per global component: 1/sqrt(native self-overlap)
+    size_t                 N=0;     // number of delivered components ((l+1)(l+2)/2 cart, 2l+1 sph, per shell)
+
+    int dim(int l) const {return spherical ? 2*l+1 : (l+1)*(l+2)/2;}   // components per shell
 
     // Build atm/bas/env for the shared atom table + a concatenation of shell lists (slots).  Shell ids in
     // the returned bas run in the order the ShellDesc pointers are given.
@@ -103,11 +107,12 @@ NR_Evaluator::NR_Evaluator(const PGData& data, const Cluster* cl)
 }
 
 // Build the libcint shell + atom tables from this evaluator's (already-populated) PGData and the cluster.
-void NR_Evaluator::Init(const Cluster* cl)
+void NR_Evaluator::Init(const Cluster* cl, bool spherical)
 {
     itsImp.reset(new Imp);
     Imp& m = *itsImp;
-    m.N = PGData::size();
+    m.spherical = spherical;
+    size_t Ncart = PGData::size();                  // # Cartesian components flattened in the PGData
 
     // Atom table (shell centres + nuclear charges) from the cluster.
     for (auto a:*cl) m.atoms.push_back(AtomRec{a->itsZ, a->itsR.x, a->itsR.y, a->itsR.z});
@@ -119,15 +124,18 @@ void NR_Evaluator::Init(const Cluster* cl)
         assert(false && "shell centre does not match a nucleus"); return 0;
     };
 
-    // Regroup flattened components into shells: a new shell begins when the radial pointer OR the total L
-    // changes (PGData lays out block-by-block, MakePolarizations groups by L, so runs are contiguous).
-    for (size_t i=0;i<m.N;)
+    // Regroup the flattened Cartesian components into shells: a new shell begins when the radial pointer OR
+    // the total L changes (PGData lays out block-by-block, MakePolarizations groups by L, so runs are
+    // contiguous).  Packing into libcint is the SAME (Cartesian shell defs) for both modes; only the
+    // delivered component count + order differ (Cartesian -> PG permutation; spherical -> 2l+1 sequential).
+    size_t gout=0;
+    for (size_t i=0;i<Ncart;)
     {
         const GaussianRF* r = radials[i];
         int L = pols[i].GetTotalL();
         size_t j=i;
-        std::vector<size_t> gidx;                   // global component indices in PG order for this shell
-        while (j<m.N && radials[j]==r && pols[j].GetTotalL()==L) gidx.push_back(j++);
+        std::vector<size_t> gidx;                   // global Cartesian component indices (PG order)
+        while (j<Ncart && radials[j]==r && pols[j].GetTotalL()==L) gidx.push_back(j++);
         assert((int)gidx.size()==ncart(L) && "shell is not a complete Cartesian set");
 
         ShellDesc sh;
@@ -135,33 +143,41 @@ void NR_Evaluator::Init(const Cluster* cl)
         sh.l    = L;
         { rvec_t es=r->GetExponents(); const rvec_t& cs=r->GetCoeffs();
           for (size_t k=0;k<es.size();++k){ sh.exp.push_back(es[k]); sh.coef.push_back(cs[k]); } }
-        // libcint-cart order -> PG global index (match (lx,ly,lz) to this shell's PG pols)
-        for (const Polarization& lp:LibcintCartOrder(L))
-        {
-            size_t hit=gidx.size();
-            for (size_t k=0;k<gidx.size();++k) if (pols[gidx[k]]==lp){ hit=k; break; }
-            assert(hit<gidx.size() && "missing Cartesian component"); sh.lc2pg.push_back(gidx[hit]);
-        }
+        if (spherical)
+            for (int p=0;p<m.dim(L);++p) sh.lc2pg.push_back(gout++);    // libcint-native sph order, sequential
+        else
+            for (const Polarization& lp:LibcintCartOrder(L))           // libcint-cart order -> PG global index
+            {
+                size_t hit=gidx.size();
+                for (size_t k=0;k<gidx.size();++k) if (pols[gidx[k]]==lp){ hit=k; break; }
+                assert(hit<gidx.size() && "missing Cartesian component"); sh.lc2pg.push_back(gidx[hit]);
+            }
         m.shells.push_back(std::move(sh));
         i=j;
     }
+    m.N = spherical ? gout : Ncart;
 
-    // Per-component scale = 1/sqrt(native self-overlap) (libcint does not unit-normalize Cartesians).
+    // Per-component scale = 1/sqrt(native self-overlap) (libcint does not unit-normalize Cartesians; the
+    // _sph harmonics are already normalized, so this is ~1 there, but compute it anyway -- convention-free).
     m.scale.resize(m.N);
     std::vector<const ShellDesc*> self; for (auto& s:m.shells) self.push_back(&s);
     std::vector<int> atm,bas; std::vector<double> env; Imp::BuildMol(m.atoms, self, atm,bas,env);
     int natm=(int)m.atoms.size(), nbas=(int)m.shells.size();
+    IntFn ovlp = spherical ? int1e_ovlp_sph : int1e_ovlp_cart;
     std::vector<double> buf;
     for (size_t s=0;s<m.shells.size();++s)
     {
-        int d=ncart(m.shells[s].l); buf.assign((size_t)d*d, 0.0);
+        int d=m.dim(m.shells[s].l); buf.assign((size_t)d*d, 0.0);
         int shls[2]={(int)s,(int)s};
-        int1e_ovlp_cart(buf.data(), nullptr, shls, atm.data(), natm, bas.data(), nbas, env.data(), nullptr, nullptr);
+        ovlp(buf.data(), nullptr, shls, atm.data(), natm, bas.data(), nbas, env.data(), nullptr, nullptr);
         for (int p=0;p<d;++p) m.scale[m.shells[s].lc2pg[p]] = 1.0/std::sqrt(buf[p+d*p]);
     }
 }
 
 NR_Evaluator::~NR_Evaluator() = default;
+
+size_t NR_Evaluator::size() const {return itsImp ? itsImp->N     : PGData::size();}
+rvec_t NR_Evaluator::Norm() const {return itsImp ? itsImp->scale : ns;}
 
 std::ostream& NR_Evaluator::Write(std::ostream& os) const
 {
@@ -176,13 +192,15 @@ rsmat_t NR_Evaluator::Build1(int which) const
     std::vector<const ShellDesc*> self; for (auto& s:m.shells) self.push_back(&s);
     std::vector<int> atm,bas; std::vector<double> env; Imp::BuildMol(m.atoms, self, atm,bas,env);
     int natm=(int)m.atoms.size(), nbas=(int)m.shells.size();
-    IntFn fn   = which==0 ? int1e_ovlp_cart : which==1 ? int1e_kin_cart : int1e_nuc_cart;
+    IntFn fn   = m.spherical
+        ? (which==0 ? int1e_ovlp_sph  : which==1 ? int1e_kin_sph  : int1e_nuc_sph)
+        : (which==0 ? int1e_ovlp_cart : which==1 ? int1e_kin_cart : int1e_nuc_cart);
     double pre = which==1 ? 2.0 : 1.0;   // KineticMatrix is <-nabla^2> = 2 x libcint's T = -1/2 nabla^2
     std::vector<double> buf;
     for (size_t si=0;si<m.shells.size();++si)
         for (size_t sj=si;sj<m.shells.size();++sj)
         {
-            int di=ncart(m.shells[si].l), dj=ncart(m.shells[sj].l);
+            int di=m.dim(m.shells[si].l), dj=m.dim(m.shells[sj].l);
             buf.assign((size_t)di*dj, 0.0);
             int shls[2]={(int)si,(int)sj};
             fn(buf.data(), nullptr, shls, atm.data(), natm, bas.data(), nbas, env.data(), nullptr, nullptr);
@@ -200,6 +218,7 @@ rsmat_t NR_Evaluator::NuclearMatrix(const Cluster*) const {return Build1(2);} //
 ERI3<double> NR_Evaluator::Build3(const NR_Evaluator& fit, int which) const
 {
     const Imp& a=*itsImp; const Imp& c=*fit.itsImp;
+    assert(!a.spherical && "3-centre (DFT) is Cartesian-only for the libcint evaluator");
     std::vector<const ShellDesc*> sh; for (auto& s:a.shells) sh.push_back(&s);
     size_t cOff=sh.size();           for (auto& s:c.shells) sh.push_back(&s);
     std::vector<int> atm,bas; std::vector<double> env; Imp::BuildMol(a.atoms, sh, atm,bas,env);
@@ -212,7 +231,7 @@ ERI3<double> NR_Evaluator::Build3(const NR_Evaluator& fit, int which) const
         for (size_t si=0;si<a.shells.size();++si)
             for (size_t sj=si;sj<a.shells.size();++sj)
             {
-                int di=ncart(a.shells[si].l), dj=ncart(a.shells[sj].l), dk=ncart(c.shells[sk].l);
+                int di=a.dim(a.shells[si].l), dj=a.dim(a.shells[sj].l), dk=c.dim(c.shells[sk].l);
                 buf.assign((size_t)di*dj*dk, 0.0);
                 int shls[3]={(int)si,(int)sj,(int)(cOff+sk)};
                 fn(buf.data(), nullptr, shls, atm.data(), natm, bas.data(), nbas, env.data(), nullptr, nullptr);
@@ -248,11 +267,12 @@ std::vector<double> NR_Evaluator::Compute4(const NR_Evaluator& B, const NR_Evalu
       for (size_t sc=0;sc<mc.shells.size();++sc)
        for (size_t sd=0;sd<md.shells.size();++sd)
        {
-           int da=ncart(A.shells[sa].l), db=ncart(mb.shells[sb].l),
-               dc=ncart(mc.shells[sc].l), dd=ncart(md.shells[sd].l);
+           int da=A.dim(A.shells[sa].l), db=mb.dim(mb.shells[sb].l),
+               dc=mc.dim(mc.shells[sc].l), dd=md.dim(md.shells[sd].l);
            buf.assign((size_t)da*db*dc*dd, 0.0);
            int shls[4]={(int)(oA+sa),(int)(oB+sb),(int)(oC+sc),(int)(oD+sd)};
-           int2e_cart(buf.data(), nullptr, shls, atm.data(), natm, bas.data(), nbas, env.data(), nullptr, nullptr);
+           IntFn fn = A.spherical ? int2e_sph : int2e_cart;
+           fn(buf.data(), nullptr, shls, atm.data(), natm, bas.data(), nbas, env.data(), nullptr, nullptr);
            for (int p=0;p<da;++p){ size_t gia=A.shells[sa].lc2pg[p];
             for (int q=0;q<db;++q){ size_t gib=mb.shells[sb].lc2pg[q];
              for (int rr=0;rr<dc;++rr){ size_t gic=mc.shells[sc].lc2pg[rr];

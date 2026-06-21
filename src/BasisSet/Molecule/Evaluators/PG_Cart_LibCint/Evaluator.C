@@ -47,11 +47,16 @@ public:
     NR_Evaluator();
     NR_Evaluator(const PG_Cart_MnD::PGData& data, const Cluster* cl);
     ~NR_Evaluator();
-    void Init(const Cluster* cl);   // build the libcint shell/atom tables from this (populated) PGData
+    // Build the libcint shell/atom tables from this (populated) PGData.  spherical=false delivers Cartesian
+    // components (int*_cart, permuted to PG order); spherical=true delivers libcint-native real-spherical
+    // (2l+1) components via int*_sph -- an HF-only oracle, since the spherical order is libcint's own (the
+    // HF energy is basis-ordering invariant, so it still cross-checks PG_Spherical without matching its
+    // harmonic convention).
+    void Init(const Cluster* cl, bool spherical=false);
 
-    // --- cold-path Evaluator interface ---
-    virtual size_t        size() const {return PGData::size();}
-    virtual rvec_t        Norm() const {return ns;}
+    // --- cold-path Evaluator interface (size / per-component Norm come from the built libcint tables) ---
+    virtual size_t        size() const;
+    virtual rvec_t        Norm() const;
     virtual std::string   Name() const {return "PolarizedGaussian(libcint)";}
     virtual std::ostream& Write(std::ostream&) const;
 

@@ -91,6 +91,31 @@ TEST_F(M_HF_U_LibCint_Water, Water)
     EXPECT_LT(fabs(RelativeError(-76.022903)), 1e-5);   // same converged E as the M&D Cartesian path
 }
 
+// libcint with native real-spherical functions (engine=libcint + spherical) -- the INDEPENDENT spherical
+// oracle PG_Spherical lacked.  The HF energy is basis-ordering invariant, so even though libcint's harmonic
+// order/convention differs from PG_Spherical's it must converge to the same -76.020277 (the M&D spherical
+// value), validating the spherical basis end-to-end against a second engine.
+class M_HF_U_LibCintSph : public ::testing::Test, public TestMolecule
+{
+public:
+    M_HF_U_LibCintSph(Molecule* m) : TestMolecule(m)
+    {
+        nlohmann::json js = { {"basis", "dzvp"}, {"engine", "libcint"}, {"spherical", true} };
+        QchemTester::Init(js);
+    }
+    virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
+    {
+        return Factory(Model::HF, Pol::UnPolarized, cluster);
+    }
+};
+class M_HF_U_LibCintSph_Water : public M_HF_U_LibCintSph { public: M_HF_U_LibCintSph_Water() : M_HF_U_LibCintSph(MakeWater()) {} };
+
+TEST_F(M_HF_U_LibCintSph_Water, Water)
+{
+    Iterate(scf);
+    EXPECT_LT(fabs(RelativeError(-76.020277)), 1e-5);   // == PG_Spherical (M&D) spherical HF energy
+}
+
 // --- The spherical-Gaussian (PG_Spherical) basis through the same SCF ------------------------------
 // Same dzvp data file, but js["spherical"]=true selects the real-solid-harmonic basis.  The 5 spherical
 // d's are a strict subset of the 6 Cartesian d's (the missing 6th, xx+yy+zz, is an l=0 contaminant), so

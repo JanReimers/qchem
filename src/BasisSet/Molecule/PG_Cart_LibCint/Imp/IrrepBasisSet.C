@@ -52,8 +52,8 @@ static std::vector<Polarization> MakePolarizations(int L)
 //----------------------------------------------------------------
 //  Orbital Cartesian-Gaussian basis set, read identically to PG_Cart.
 //
-IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Cluster* cl)
-    : IrrepBasisSetImp<double>(sym_t(new UnitQN))
+IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Cluster* cl, bool spherical)
+    : IrrepBasisSetImp<double>(sym_t(new UnitQN)), itsSpherical(spherical)
 {
     std::vector<GaussianRF*> radials;
     std::vector<std::vector<int> >    Ls;
@@ -91,11 +91,11 @@ IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Cluster* cl)
     std::vector<const Block*> bls;
     for (auto& bl:itsBlocks) bls.push_back(bl.get());
     PGData::Init(bls);
-    NR_Evaluator::Init(cl);            // pack the flattened components into libcint
+    NR_Evaluator::Init(cl, spherical);   // pack the flattened components into libcint (cart or sph)
 };
 
-IrrepBasisSet::IrrepBasisSet(const rvec_t& es, size_t LMax, const Cluster* cl)
-    : IrrepBasisSetImp<double>(sym_t(new UnitQN))
+IrrepBasisSet::IrrepBasisSet(const rvec_t& es, size_t LMax, const Cluster* cl, bool spherical)
+    : IrrepBasisSetImp<double>(sym_t(new UnitQN)), itsSpherical(spherical)
 {
     for (auto& atom:*cl)
         for (size_t L=0;L<=LMax;L++)
@@ -111,13 +111,18 @@ IrrepBasisSet::IrrepBasisSet(const rvec_t& es, size_t LMax, const Cluster* cl)
     std::vector<const Block*> bls;
     for (auto& bl:itsBlocks) bls.push_back(bl.get());
     PGData::Init(bls);
-    NR_Evaluator::Init(cl);
+    NR_Evaluator::Init(cl, spherical);
 }
 
 IrrepBasisSet::~IrrepBasisSet() {};
 
+// Cartesian grid-eval (used only on the DFT mesh, not HF).  In spherical mode the delivered functions are
+// libcint's real solid harmonics in libcint's own order/convention, which we deliberately do NOT reproduce
+// here (the spherical libcint path is an HF-only oracle, validated by the basis-ordering-invariant energy);
+// so grid-eval is unavailable there.
 rvec_t IrrepBasisSet::operator() (const rvec3_t& r) const
 {
+    assert(!itsSpherical && "grid-eval unavailable for the spherical libcint oracle (HF-only)");
     rvec_t ret(size());
     for (size_t i=0;i<size();i++)
     {
@@ -129,6 +134,7 @@ rvec_t IrrepBasisSet::operator() (const rvec3_t& r) const
 }
 rvec3vec_t IrrepBasisSet::Gradient (const rvec3_t& r) const
 {
+    assert(!itsSpherical && "grid-eval unavailable for the spherical libcint oracle (HF-only)");
     rvec3vec_t ret(size());
     for (size_t i=0;i<size();i++)
     {
@@ -142,7 +148,7 @@ rvec3vec_t IrrepBasisSet::Gradient (const rvec3_t& r) const
 std::ostream& IrrepBasisSet::Write(std::ostream& os) const {return os << BasisSetID();}
 
 //----------------------------------------------------------------
-Orbital_IBS::Orbital_IBS(Reader* bsr, const Cluster* cl)                  : IrrepBasisSet(bsr,cl) {};
-Orbital_IBS::Orbital_IBS(const rvec_t& es, size_t L, const Cluster* cl)   : IrrepBasisSet(es,L,cl) {};
+Orbital_IBS::Orbital_IBS(Reader* bsr, const Cluster* cl, bool sph)                : IrrepBasisSet(bsr,cl,sph) {};
+Orbital_IBS::Orbital_IBS(const rvec_t& es, size_t L, const Cluster* cl, bool sph) : IrrepBasisSet(es,L,cl,sph) {};
 
 } //namespace BasisSet::Molecule::PG_Cart_LibCint
