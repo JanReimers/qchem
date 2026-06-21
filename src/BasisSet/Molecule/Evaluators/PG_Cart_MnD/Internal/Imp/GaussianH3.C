@@ -4,7 +4,7 @@ module;
 #include <iostream>
 #include <cassert>
 
-module qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.GaussianH3;
+module qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Hermite;
 namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
 {
 //----------------------------------------------------------------------------------------

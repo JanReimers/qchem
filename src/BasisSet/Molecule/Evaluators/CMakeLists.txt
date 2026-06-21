@@ -29,9 +29,6 @@ target_sources(qcMolecule_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
     PG_Cart_MnD/Polarization.C
     PG_Cart_MnD/GaussianRF.C
     PG_Cart_MnD/Internal/Block.C
-    PG_Cart_MnD/Internal/GaussianH3.C
-    PG_Cart_MnD/Internal/Hermite1.C
-    PG_Cart_MnD/Internal/Hermite2.C
-    PG_Cart_MnD/Internal/Hermite3.C
+    PG_Cart_MnD/Internal/Hermite.C     # Hermite1/2/3 + GaussianH3 (Imp split below)
 )
 target_include_directories(qcMolecule_BS PRIVATE ${PROJECT_SOURCE_DIR}/submodules/blaze)

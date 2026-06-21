@@ -11,10 +11,7 @@ module;
 #include <utility>
 
 module qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
-import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.GaussianH3;
-import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Hermite1;
-import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Hermite2;
-import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Hermite3;
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Hermite;   // Hermite1/2/3 + GaussianH3
 import qchem.BasisSet.Molecule.Evaluators.Internal.MnD;   // generic MnD core (RNLM, ...)
 import qchem.BasisSet.Internal.DB_Cache;   // theGlobalCache, Register/GetCache{2,3}
 import qchem.BasisSet.Internal.Cache2;     // Cache2, Cacheable2, Cache2_Client

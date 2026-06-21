@@ -16,9 +16,7 @@ module;
 export module qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.Blaze;                 // rvec_t (contraction coefficients)
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;
-import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Hermite1;
-import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Hermite2;  // Ω.H2 (charge distribution)
-import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Hermite3;
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Hermite;   // Hermite1/2/3 + GaussianH3
 import qchem.BasisSet.Molecule.Evaluators.Internal.MnD;                   // RNLM (Ω self-auxiliary)
 import qchem.BasisSet.Internal.Cache2;                                    // Cacheable2 (Ω is cached)
 
@@ -187,4 +185,4 @@ private:
     rvec_t                                     itsCoeff;  // normalization-folded contraction coeffs
 };
 
-} //namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
+} //namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD 

@@ -6,7 +6,7 @@ module;
 #include <iomanip>
 #include <vector>
 
-module qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Hermite2;
+module qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Hermite;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;
 import qchem.Math;
 

@@ -2,7 +2,7 @@
 module;
 #include <iostream>
 #include <cassert>
-module qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Hermite1;
+module qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Hermite;
 import qchem.IntPow;
 
 //----------------------------------------------------------------------------------------
