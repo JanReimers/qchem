@@ -1,4 +1,4 @@
-// File BasisSet/Molecule/PolarizedGaussian/Internal/PGData.C Flattened rep of PG IBS suitable for integral evaluation.
+// File: BasisSet/Molecule/Evaluators/PG_Cart_MnD/PGData.C  Flattened rep of PG IBS suitable for integral evaluation.
 module;
 #include <vector>
 #include <string>

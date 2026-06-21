@@ -1,4 +1,4 @@
-// File: PolarizedGaussian/MnD/Hermite3.C  Interface class for managing 3 function Hermite coefficients
+// File: BasisSet/Molecule/Evaluators/PG_Cart_MnD/Internal/Hermite3.C  Interface class for managing 3 function Hermite coefficients
 export module qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Hermite3;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;
 

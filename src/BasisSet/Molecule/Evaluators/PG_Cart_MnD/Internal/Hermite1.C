@@ -1,4 +1,4 @@
-// File: PolarizedGaussian/MnD/Hermite1.C  Class for managing 1 function Hermite coefficients
+// File: BasisSet/Molecule/Evaluators/PG_Cart_MnD/Internal/Hermite1.C  Class for managing 1 function Hermite coefficients
 module;
 
 #include <iosfwd>
