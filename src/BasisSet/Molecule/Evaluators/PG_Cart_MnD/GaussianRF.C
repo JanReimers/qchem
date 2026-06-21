@@ -16,10 +16,11 @@ module;
 export module qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.Blaze;                 // rvec_t (contraction coefficients)
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;
-import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Omega;
-import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.GData;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Hermite1;
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Hermite2;  // Ω.H2 (charge distribution)
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Hermite3;
+import qchem.BasisSet.Molecule.Evaluators.Internal.MnD;                   // RNLM (Ω self-auxiliary)
+import qchem.BasisSet.Internal.Cache2;                                    // Cacheable2 (Ω is cached)
 
 import Common.UniqueID;
 import Common.UniqueIDImp;
@@ -28,13 +29,27 @@ import qchem.Streamable;
 import qchem.Cluster;
 
 //
-//  Internal primitive Gaussian: a single exponent at a centre with maximum L.  Carries the M&D
-//  integral kernels (2C/3C/4C) plus the charge-distribution data (GData) the cache keys on.  This is
-//  a MODULE-INTERNAL helper -- not exported, not a RadialFunction, never a target of dispatch.  Only
-//  GaussianRF (same module) uses it.
+//  MODULE-INTERNAL implementation of the radial integrals -- none of this is exported, and only the
+//  PrimGaussian kernels (same module) touch it:
+//    GData -- the cache identity of one primitive (exponent, centre, max-L, UniqueID).
+//    Ω     -- the McMurchie-Davidson charge distribution of a PRIMITIVE PAIR (Hermite coeffs + the
+//             auxiliary RNLM); cached in the process-global Cache2.
+//    findΩ/findRNLM/findH3 -- the global Cache2/Cache3 access points.
+//  (Previously these were the separate Internal.GData / Internal.Omega modules; folded in here since
+//  nothing else uses them -- which also lets findH3 build the block directly, no cycle-breaker lambda.)
 //
 namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
 {
+using ::BasisSet::Molecule::Evaluators::Internal::MnD::RNLM;  // Ω's self-auxiliary
+
+struct GData
+{
+    UniqueID::IDtype  ID;
+    double            Alpha;  // exponent
+    rvec3_t           R;      // centre
+    int               L;      // actually a maximum L
+};
+
 class PrimGaussian : private UniqueIDImp
 {
 public:
@@ -80,7 +95,40 @@ private:
     mutable Hermite1* itsH1;
 };
 
-} // namespace (module-internal: PrimGaussian is not exported)
+// Ω: the M&D charge distribution of a primitive pair (a,b).  Lives in the process-global Cache2.
+struct Ω : public UniqueIDImp, public Cacheable2
+{
+    Ω(const GData&,const GData&);
+    ~Ω();
+    GData GetGData() const {return GData{GetID(),AlphaP,P,Ltotal};}
+
+    virtual bool   isSupported(const Cache2_Client*) const {return false;} // never auto-evicted
+    virtual size_t RAMsize() const;
+
+    // The 2-centre self-auxiliary RNLM(this) is 1:1 with the charge distribution, so it is a lazy
+    // member rather than a separate cache entry.  Used by the 2-centre Coulomb (Repulsion2C).
+    const RNLM& SelfRNLM() const;
+
+    int      Ltotal;       // total angular momentum
+    double   a,b;          // exponents
+    double   ab,AlphaP;    // a*b, a+b
+    rvec3_t  AB,P;         // A-B, new centre
+    double   Eij;          // scale factor
+    Hermite2 H2;           // Hermite coefficients
+
+    static const std::vector<Polarization>& GetNMLs(int LMax) {return theNMLs[LMax];}
+    static void MakeNMLs();
+    static std::vector<std::vector<Polarization>> theNMLs;     // all NMLs per LMax
+private:
+    mutable RNLM* itsSelfRNLM=nullptr;  // lazily built by SelfRNLM()
+};
+
+// Global Cache2/Cache3 access points (the only way the kernels reach Ω / the auxiliaries).
+const Ω&        findΩ   (const GData& a, const GData& b);                          // primitive pair
+const RNLM&     findRNLM(const GData& ab, const GData& c);                         // 3/4-centre RNLM
+const Hermite3& findH3  (const PrimGaussian* a, const PrimGaussian* b, const PrimGaussian* c); // <ab|c>
+
+} // namespace (module-internal: PrimGaussian, GData, Ω, find* are not exported)
 
 export namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
 {

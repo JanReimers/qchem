@@ -10,7 +10,6 @@ target_sources(qcMolecule_BS PRIVATE
     PG_Cart_MnD/Imp/Polarization.C
     PG_Cart_MnD/Imp/GaussianRF.C
     PG_Cart_MnD/Internal/Imp/Block.C
-    PG_Cart_MnD/Internal/Imp/Omega.C
     PG_Cart_MnD/Internal/Imp/GaussianH3.C
     PG_Cart_MnD/Internal/Imp/Hermite1.C
     PG_Cart_MnD/Internal/Imp/Hermite2.C
@@ -30,8 +29,6 @@ target_sources(qcMolecule_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
     PG_Cart_MnD/Polarization.C
     PG_Cart_MnD/GaussianRF.C
     PG_Cart_MnD/Internal/Block.C
-    PG_Cart_MnD/Internal/Omega.C
-    PG_Cart_MnD/Internal/GData.C
     PG_Cart_MnD/Internal/GaussianH3.C
     PG_Cart_MnD/Internal/Hermite1.C
     PG_Cart_MnD/Internal/Hermite2.C
