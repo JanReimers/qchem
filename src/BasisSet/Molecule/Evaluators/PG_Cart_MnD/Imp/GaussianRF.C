@@ -83,11 +83,23 @@ namespace
         std::string RadialType() const override {return "PG.Omega";}
         Cache2*     MakeCache2() const override {return new Cache2;}
     };
+    // Memoize the Cache2* per theGlobalCache instance.  GetCache2 is a std::map<std::string,...>::find
+    // (string compare), and findΩ runs it on EVERY call from the innermost contraction loops -- profiling
+    // (callgrind, water/dzvp) put that per-call string lookup at ~13% of MnD integral time.  Caching the
+    // pointer turns it into a pointer compare; the owner guard re-fetches if theGlobalCache is swapped
+    // (e.g. a test teardown), so it stays correct.
     const Cache2* OmegaCache()
     {
-        static bool reg = []{ static OmegaClient c; BasisSet::theGlobalCache->Register(&c); return true; }();
-        (void)reg;
-        return BasisSet::theGlobalCache->GetCache2("PG.Omega");
+        static const void*   owner = nullptr;
+        static const Cache2* cache = nullptr;
+        if (owner != BasisSet::theGlobalCache)
+        {
+            static OmegaClient c;
+            BasisSet::theGlobalCache->Register(&c);
+            cache = BasisSet::theGlobalCache->GetCache2("PG.Omega");
+            owner = BasisSet::theGlobalCache;
+        }
+        return cache;
     }
 
     // Cacheable2 wrapper so an RNLM can live in a Cache2 (RNLM itself is a low-level MnD type and
@@ -104,11 +116,18 @@ namespace
         std::string RadialType() const override {return "PG.RNLM";}
         Cache2*     MakeCache2() const override {return new Cache2;}
     };
-    const Cache2* RNLMCache()
+    const Cache2* RNLMCache()   // memoized per theGlobalCache instance (see OmegaCache)
     {
-        static bool reg = []{ static RNLMClient c; BasisSet::theGlobalCache->Register(&c); return true; }();
-        (void)reg;
-        return BasisSet::theGlobalCache->GetCache2("PG.RNLM");
+        static const void*   owner = nullptr;
+        static const Cache2* cache = nullptr;
+        if (owner != BasisSet::theGlobalCache)
+        {
+            static RNLMClient c;
+            BasisSet::theGlobalCache->Register(&c);
+            cache = BasisSet::theGlobalCache->GetCache2("PG.RNLM");
+            owner = BasisSet::theGlobalCache;
+        }
+        return cache;
     }
 
     // Cacheable3 wrapper holding the 3-centre Hermite block.
@@ -124,11 +143,18 @@ namespace
         std::string RadialType() const override {return "PG.H3";}
         Cache3*     MakeCache3() const override {return new Cache3;}
     };
-    const Cache3* H3Cache()
+    const Cache3* H3Cache()   // memoized per theGlobalCache instance (see OmegaCache)
     {
-        static bool reg = []{ static H3Client c; BasisSet::theGlobalCache->Register(&c); return true; }();
-        (void)reg;
-        return BasisSet::theGlobalCache->GetCache3("PG.H3");
+        static const void*   owner = nullptr;
+        static const Cache3* cache = nullptr;
+        if (owner != BasisSet::theGlobalCache)
+        {
+            static H3Client c;
+            BasisSet::theGlobalCache->Register(&c);
+            cache = BasisSet::theGlobalCache->GetCache3("PG.H3");
+            owner = BasisSet::theGlobalCache;
+        }
+        return cache;
     }
 }
 
