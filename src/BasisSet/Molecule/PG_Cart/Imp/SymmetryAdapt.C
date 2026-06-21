@@ -1,12 +1,12 @@
-// File: BasisSet/Molecule/PolarizedGaussian/Imp/SymmetryAdapt.C
+// File: BasisSet/Molecule/PG_Cart/Imp/SymmetryAdapt.C
 module;
 #include <memory>
 #include <cassert>
-module qchem.BasisSet.Molecule.PolarizedGaussian.SymmetryAdapt;
-import qchem.BasisSet.Molecule.PolarizedGaussian.Symmetry;        // ExtractAoShells, ClusterToSymPoints (+ SALC pipeline)
+module qchem.BasisSet.Molecule.PG_Cart.SymmetryAdapt;
+import qchem.BasisSet.Molecule.PG_Cart.Symmetry;        // ExtractAoShells, ClusterToSymPoints (+ SALC pipeline)
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.PGData; // PGData
 
-namespace BasisSet::Molecule::PolarizedGaussian
+namespace BasisSet::Molecule::PG_Cart
 {
 using namespace ::BasisSet::Molecule::Evaluators::PG_Cart_MnD;  // Cartesian glue moved out to PG_Cart_MnD
 

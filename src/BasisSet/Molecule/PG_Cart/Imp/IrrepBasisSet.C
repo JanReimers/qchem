@@ -13,7 +13,7 @@ module;
 #endif
 static const std::filesystem::path basisset_data_dir = BASISSET_DATA_PATH;
 
-module qchem.BasisSet.Molecule.PolarizedGaussian;
+module qchem.BasisSet.Molecule.PG_Cart;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.BasisSet.Molecule.Readers.Gaussian94;
 import qchem.BasisSet;
@@ -24,7 +24,7 @@ import qchem.Streamable;
 import qchem.Math;
 import qchem.Blaze;
 
-namespace BasisSet::Molecule::PolarizedGaussian
+namespace BasisSet::Molecule::PG_Cart
 {
 using namespace ::BasisSet::Molecule::Evaluators::PG_Cart_MnD;  // Cartesian glue moved out to PG_Cart_MnD
 
@@ -250,4 +250,4 @@ EFit_IBS::EFit_IBS(Reader* bsr, const Cluster* cl)
 {};
 
  
-} //namespace BasisSet::Molecule::PolarizedGaussian
+} //namespace BasisSet::Molecule::PG_Cart

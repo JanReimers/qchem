@@ -17,6 +17,6 @@ target_compile_definitions(qcMolecule_BS PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS
 target_compile_definitions(qcMolecule_BS PRIVATE ${BasisDataPath})
 
 target_link_libraries(qcMolecule_BS PUBLIC qcBasisSet qcElConfig qcCluster)
-add_subdirectory(PolarizedGaussian)
+add_subdirectory(PG_Cart)
 add_subdirectory(Evaluators)
 add_subdirectory(tests)

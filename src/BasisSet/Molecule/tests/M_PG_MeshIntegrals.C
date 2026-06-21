@@ -8,7 +8,7 @@
 #endif
 
 import qchem.BasisSet.Molecule.Readers.Gaussian94;
-import qchem.BasisSet.Molecule.PolarizedGaussian;
+import qchem.BasisSet.Molecule.PG_Cart;
 import qchem.BasisSet;
 import qchem.Mesh.Integrator;
 import qchem.Cluster;
@@ -46,7 +46,7 @@ public:
     
     void InitAtom()
     {
-        bs=new PolarizedGaussian::BasisSet(&reader,cl);
+        bs=new PG_Cart::BasisSet(&reader,cl);
     }
     
     void InitMolecule()
@@ -55,12 +55,12 @@ public:
         m->Insert(new Atom(Z,0.0,Vector3D( 1.,0.,0.)));
         m->Insert(new Atom(Z,0.0,Vector3D(-1.,0.,0.)));
         cl=m;
-        bs=new PolarizedGaussian::BasisSet(&reader,cl);        
+        bs=new PG_Cart::BasisSet(&reader,cl);        
     }
     
     int Z;
     ::BasisSet::Molecule::Gaussian94Reader reader;
-    PolarizedGaussian::BasisSet* bs;
+    PG_Cart::BasisSet* bs;
     Cluster* cl;
 };
 

@@ -5,7 +5,7 @@ module;
 
 module qchem.BasisSet.Molecule.Factory;
 import qchem.BasisSet.Molecule.Readers.Gaussian94;
-import qchem.BasisSet.Molecule.PolarizedGaussian;
+import qchem.BasisSet.Molecule.PG_Cart;
 
 using json = nlohmann::json;
 
@@ -15,7 +15,7 @@ namespace BasisSet::Molecule
     {
         std::string filepath=js["filepath"].template get<std::string>();
         Gaussian94Reader reader(filepath);
-        return new PolarizedGaussian::BasisSet(&reader,cl);
+        return new PG_Cart::BasisSet(&reader,cl);
     }
 }
 

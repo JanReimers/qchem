@@ -4,8 +4,8 @@
 #include <string>
 #include <map>
 #include <algorithm>
-import qchem.BasisSet.Molecule.PolarizedGaussian.Symmetry;  // ExtractAoShells, ClusterToSymPoints
-import qchem.BasisSet.Molecule.PolarizedGaussian;           // Orbital_IBS
+import qchem.BasisSet.Molecule.PG_Cart.Symmetry;  // ExtractAoShells, ClusterToSymPoints
+import qchem.BasisSet.Molecule.PG_Cart;           // Orbital_IBS
 import qchem.BasisSet.Orbital_1E_IBS;                         // cached Overlap() accessor (interface)
 import qchem.BasisSet.SymmetryAdapted_IBS;                    // SymmetryAdapted_IBS (1-e decorator)
 import qchem.BasisSet.Molecule.SymmetryAdaptedBasisSet;       // SymmetryAdaptedBasisSet (per-irrep)
@@ -15,7 +15,7 @@ import qchem.Types;
 import qchem.Blaze;
 import qchem.Math;                                            // fabs
 
-using namespace BasisSet::Molecule::PolarizedGaussian;
+using namespace BasisSet::Molecule::PG_Cart;
 using namespace Symmetry;
 using SymmetryAdapted_IBS      = ::BasisSet::SymmetryAdapted_IBS;          // ::BasisSet (the class clashes)
 using SymmetryAdaptedBasisSet  = ::BasisSet::Molecule::SymmetryAdaptedBasisSet;

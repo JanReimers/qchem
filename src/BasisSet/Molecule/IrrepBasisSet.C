@@ -8,7 +8,7 @@
 //
 // As on the atom side, each mixin `dynamic_cast<const E&>(*this)`s to reach the evaluator base subobject
 // of the final IBS (the IBS IS-A E -- see the view->base-subobject collapse in the PG tree).  The loop
-// bodies are exactly the ones that used to be hand-written in PolarizedGaussian/Imp/Orbital_IBS.C.
+// bodies are exactly the ones that used to be hand-written in PG_Cart/Imp/Orbital_IBS.C.
 //
 // Divergence from atom (expected -- "copy, don't share" until the common subset is proven, plan Goal C):
 //  - 1E Kinetic here is the full Cartesian <p^2>=<-nabla^2> (no centrifugal split; that is atom-only).

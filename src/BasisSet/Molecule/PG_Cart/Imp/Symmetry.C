@@ -1,13 +1,13 @@
-// File: BasisSet/Molecule/PolarizedGaussian/Imp/Symmetry.C
+// File: BasisSet/Molecule/PG_Cart/Imp/Symmetry.C
 module;
 #include <vector>
 #include <string>
 #include <map>
-module qchem.BasisSet.Molecule.PolarizedGaussian.Symmetry;
+module qchem.BasisSet.Molecule.PG_Cart.Symmetry;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;
 
-namespace BasisSet::Molecule::PolarizedGaussian
+namespace BasisSet::Molecule::PG_Cart
 {
 using namespace ::BasisSet::Molecule::Evaluators::PG_Cart_MnD;  // Cartesian glue moved out to PG_Cart_MnD
 using Symmetry::AoShell;

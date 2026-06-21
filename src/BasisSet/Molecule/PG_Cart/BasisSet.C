@@ -1,8 +1,8 @@
-// File BasisSet/Molecule/PolarizedGaussian/BasisSet.C
+// File BasisSet/Molecule/PG_Cart/BasisSet.C
 module;
 #include <vector>
 #include <memory>
-export module qchem.BasisSet.Molecule.PolarizedGaussian;
+export module qchem.BasisSet.Molecule.PG_Cart;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Block;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.PGData;
@@ -19,7 +19,7 @@ import qchem.Types;
 import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.BasisSet.Orbital_HF_IBS;
 
-export namespace BasisSet::Molecule::PolarizedGaussian
+export namespace BasisSet::Molecule::PG_Cart
 {
 using namespace ::BasisSet::Molecule::Evaluators::PG_Cart_MnD;  // Cartesian glue moved out to PG_Cart_MnD
 

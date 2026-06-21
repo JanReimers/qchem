@@ -10,7 +10,7 @@
 #include <vector>
 
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD;                 // NR_Evaluator
-import qchem.BasisSet.Molecule.PolarizedGaussian;                      // Orbital_IBS
+import qchem.BasisSet.Molecule.PG_Cart;                      // Orbital_IBS
 import qchem.BasisSet.Orbital_1E_IBS;                                  // cached Overlap()/Kinetic()/Nuclear() accessors
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.PGData;      // PGData (the base of Orbital_IBS)
 import qchem.Cluster;                                                  // Molecule, Atom
@@ -18,7 +18,7 @@ import qchem.Types;
 import qchem.Blaze;
 
 using BasisSet::Molecule::Evaluators::PG_Cart_MnD::NR_Evaluator;
-using BasisSet::Molecule::PolarizedGaussian::Orbital_IBS;
+using BasisSet::Molecule::PG_Cart::Orbital_IBS;
 
 TEST(M_Evaluator, kernels_match_IBS_integrals)
 {

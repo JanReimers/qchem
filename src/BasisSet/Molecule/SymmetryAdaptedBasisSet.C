@@ -1,4 +1,4 @@
-// File: BasisSet/Molecule/PolarizedGaussian/SymmetryAdaptedBasisSet.C
+// File: BasisSet/Molecule/PG_Cart/SymmetryAdaptedBasisSet.C
 // A molecular basis re-expressed in symmetry-adapted (SALC) blocks: one SymmetryAdapted_IBS
 // per point-group irrep, each carrying its Mulliken label.  The SCF iterator / accelerators
 // iterate these IBSs exactly as they do the l-channels of an atom -- the molecular case is
@@ -33,7 +33,7 @@ private:
 };
 
 // The SymmetryAdapt(rawBasis, cl) factory is basis-specific (it extracts AO shells from the concrete
-// PGData) and lives in the basis tree: PolarizedGaussian::SymmetryAdapt builds this same
+// PGData) and lives in the basis tree: PG_Cart::SymmetryAdapt builds this same
 // Molecule-general SymmetryAdaptedBasisSet.
 
 } //namespace

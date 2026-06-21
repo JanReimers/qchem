@@ -17,7 +17,7 @@ import qchem.Hamiltonian.Factory;                             // Factory, Model,
 import qchem.SCFAccelerator.Factory;                          // SCFAccelerators::Factory, Type
 import qchem.BasisSet.Molecule.Factory;                       // Molecule::Factory (production basis = PG)
 import qchem.BasisSet.Molecule.SymmetryAdaptedBasisSet;       // SymmetryAdaptedBasisSet (general class)
-import qchem.BasisSet.Molecule.PolarizedGaussian.SymmetryAdapt; // PG SymmetryAdapt hook
+import qchem.BasisSet.Molecule.PG_Cart.SymmetryAdapt; // PG SymmetryAdapt hook
 import qchem.ElectronConfiguration.Molecule;                  // Molecule_EC
 import qchem.Types;
 import qchem.Math;                                            // cos, sin (for the rotation test)
@@ -30,7 +30,7 @@ static const std::filesystem::path basisset_data_dir = BASISSET_DATA_PATH;
 
 using namespace qchem::Hamiltonian;
 using ::BasisSet::Real_BS;
-namespace PG = ::BasisSet::Molecule::PolarizedGaussian;
+namespace PG = ::BasisSet::Molecule::PG_Cart;
 
 static Molecule* MakeWater()
 {
