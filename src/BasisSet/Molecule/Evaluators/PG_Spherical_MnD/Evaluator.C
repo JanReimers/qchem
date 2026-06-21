@@ -98,6 +98,25 @@ public:
         return s * ns[iA]*eB.ns[iB]*eC.ns[iC]*eD.ns[iD];
     }
 
+    // --- fit-basis support (DFT): the 2-centre Coulomb metric and the per-component charge, transform-
+    // summed like everything else.  Repulsion2C has a cross-evaluator form (this fit x another fit).
+    double Repulsion2C(size_t i,const NR_Evaluator& e,size_t j) const
+    {
+        double s = 0.0;
+        for (const auto& ta : comps[i].terms)
+            for (const auto& tb : e.comps[j].terms)
+                s += ta.c*tb.c * comps[i].radial->Repulsion2C(*e.comps[j].radial, ta.p, tb.p);
+        return s * ns[i]*e.ns[j];
+    }
+    double Repulsion2C(size_t i,size_t j) const {return Repulsion2C(i,*this,j);}
+    // sum_a c_a <monomial_a> ; for l>0 harmonics this cancels to 0 (only the s-component carries charge).
+    double Charge(size_t i) const
+    {
+        double s = 0.0;
+        for (const auto& t : comps[i].terms) s += t.c * comps[i].radial->GetCharge(t.p);
+        return s * ns[i];
+    }
+
 private:
     // <ab|O|c> over the three harmonics' monomials.  `kernel` is invoked as kernel(rc, ra, rb, pa, pb, pc)
     // -- `this`/centre-C convention of the Cartesian 3-centre kernels.

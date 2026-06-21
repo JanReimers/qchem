@@ -1,6 +1,8 @@
 target_sources(qcMolecule_BS PRIVATE
 Imp/BasisSet.C
 Imp/IrrepBasisSet.C
+Imp/Orbital_IBS.C
+Imp/Fit_IBS.C
 )
 target_sources(qcMolecule_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     BasisSet.C

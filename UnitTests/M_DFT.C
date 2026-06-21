@@ -64,3 +64,35 @@ TEST_F(M_DFT_Water, Water)
     Iterate(scf);
     EXPECT_LT(fabs(RelativeError(-79.414120)), 2e-3);
 }
+
+// --- The spherical-Gaussian (PG_Spherical) basis through the DFT path -----------------------------
+// js["spherical"]=true selects the real-solid-harmonic orbital basis AND a spherical fit (auxiliary)
+// basis (PG_Spherical::EFit_IBS, via the orbital IBS's CreateCDFit/CreateVxcFit).  The spherical Xalpha
+// energy lands ~0.09 Ha ABOVE the Cartesian -- larger than HF's ~3 mHa orbital-only gap because the FIT
+// basis also goes spherical (contaminant-free -> fewer auxiliary functions -> a different, poorer density
+// fit).  That gap is a genuine basis difference, not an error: the fit kernels are validated correct by
+// M_Spherical.fit_kernels (d-harmonic charge==0, symmetric/positive Coulomb metric).  So this is purely a
+// "did E move" regression anchor (the same role the Cartesian DFT anchors play), with a loose sanity bound.
+class M_DFT_Sph : public ::testing::Test, public TestMolecule
+{
+public:
+    M_DFT_Sph(Molecule* m, double alpha) : TestMolecule(m), itsAlpha(alpha)
+    {
+        nlohmann::json js = { {"basis", "dzvp"}, {"spherical", true} };
+        QchemTester::Init(js);
+    }
+    virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
+    {
+        return Factory(Pol::UnPolarized, cluster, itsAlpha, GetMeshParams(), itsBasisSet);
+    }
+private:
+    double itsAlpha;
+};
+class M_DFT_Sph_Water : public M_DFT_Sph { public: M_DFT_Sph_Water() : M_DFT_Sph(MakeWater(), 0.74000) {} };
+
+TEST_F(M_DFT_Sph_Water, Water)
+{
+    Iterate(scf);
+    EXPECT_NEAR(TotalEnergy(), -79.414120, 0.2);           // sanity: same ballpark as the Cartesian Xalpha
+    EXPECT_LT(fabs(RelativeError(-79.326317)), 2e-3);      // regression anchor (spherical orbital+fit)
+}

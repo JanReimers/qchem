@@ -11,6 +11,8 @@ import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;
 import qchem.BasisSet.Molecule.Evaluators.PG_Spherical_MnD.SolidHarmonics;   // SphericalShell, CartTerm
 import qchem.BasisSet.Molecule.Reader;
+import qchem.BasisSet.Molecule.Readers.Gaussian94;   // the auto fit-basis reader
+import qchem.BasisSet.Molecule.BasisFiles;           // A1_coul/A1_exch path (owned by BasisFiles)
 import qchem.Cluster;
 import qchem.Symmetry.Unit;
 import qchem.stl_io;
@@ -133,9 +135,27 @@ std::ostream& IrrepBasisSet::Write(std::ostream& os) const
 
 //----------------------------------------------------------------
 //
-// Orbital spherical-Gaussian basis set (1E + HF; the DFT 3-centre fit is a later increment).
+// Orbital spherical-Gaussian basis set (1E + HF + DFT 3-centre fit).
 //
 Orbital_IBS::Orbital_IBS(Reader* bsr, const Cluster* cl)            : IrrepBasisSet(bsr,cl) {};
 Orbital_IBS::Orbital_IBS(const rvec_t& es, size_t L, const Cluster* cl) : IrrepBasisSet(es,L,cl) {};
+
+Fit_IBS* Orbital_IBS::CreateCDFitBasisSet(const Cluster* cl) const
+{
+    // The A1 files support Z=1-54 (H-Te); A2 only to Zn.  Same auxiliary data as PG_Cart, read spherically.
+    Gaussian94Reader reader(BasisFile("A1_coul.bsd"));
+    return new EFit_IBS(&reader,cl);
+}
+Fit_IBS* Orbital_IBS::CreateVxcFitBasisSet(const Cluster* cl) const
+{
+    Gaussian94Reader reader(BasisFile("A1_exch.bsd"));
+    return new EFit_IBS(&reader,cl);
+}
+
+//----------------------------------------------------------------
+//
+//  Fit spherical-Gaussian basis set.
+//
+EFit_IBS::EFit_IBS(Reader* bsr, const Cluster* cl) : IrrepBasisSet(bsr,cl) {};
 
 } //namespace BasisSet::Molecule::PG_Spherical

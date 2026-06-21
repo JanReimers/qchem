@@ -109,3 +109,31 @@ TEST(M_Spherical, evaluator_3C4C_symmetry)
         EXPECT_NEAR(ev.RepulsionThreeC(a,ev,b,ev,c), ev.RepulsionThreeC(b,ev,a,ev,c), 1e-12) << "repulsion3c (ab|c)!=(ba|c)";
     }
 }
+
+// --- Increment 5: the DFT fit-basis kernels (Charge + 2-centre Coulomb metric) --------------------
+// The defining property of a spherical fit basis: every l>0 real solid harmonic is contaminant-free, so
+// its monopole charge integral is exactly zero -- only the s components carry charge.  (This is what makes
+// the spherical fit smaller than the Cartesian one: the Cartesian d-shell's xx+yy+zz is an l=0 charge-
+// carrying function the spherical shell drops.)  Plus the Coulomb metric is symmetric + positive.
+TEST(M_Spherical, fit_kernels)
+{
+    std::vector<GaussianRF> radials; radials.reserve(2);
+    radials.push_back(GaussianRF(0.90, rvec3_t(0,0,0), 0));   // s
+    radials.push_back(GaussianRF(0.70, rvec3_t(0,0,0), 2));   // d
+
+    NR_Evaluator ev;
+    auto add = [&](size_t r,int l){ for (auto& t : SphericalShell(l)) ev.comps.push_back({&radials[r],t}); };
+    add(0,0); add(1,2);     // 1 s + 5 d = 6 components
+    ev.Init();
+
+    EXPECT_GT(ev.Charge(0), 0.0) << "s component should carry charge";
+    for (size_t i=1;i<6;i++)
+        EXPECT_NEAR(ev.Charge(i), 0.0, 1e-12) << "d harmonic " << i << " is not contaminant-free (charge!=0)";
+
+    for (size_t i=0;i<6;i++)
+    {
+        EXPECT_GT(ev.Repulsion2C(i,i), 0.0) << "self Coulomb metric must be positive (" << i << ")";
+        for (size_t j=0;j<6;j++)
+            EXPECT_NEAR(ev.Repulsion2C(i,j), ev.Repulsion2C(j,i), 1e-12) << "Coulomb metric not symmetric ("<<i<<","<<j<<")";
+    }
+}
