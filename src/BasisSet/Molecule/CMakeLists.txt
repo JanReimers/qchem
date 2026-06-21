@@ -3,6 +3,7 @@ target_sources(qcMolecule_BS PRIVATE Imp/Factory.C
 Imp/SymmetryAdaptedBasisSet.C
 PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES Factory.C
 SymmetryAdaptedBasisSet.C
+IrrepBasisSet.C
 )
 target_include_directories(qcMolecule_BS PRIVATE 
     ${PROJECT_SOURCE_DIR}/submodules/json/single_include

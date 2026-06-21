@@ -8,6 +8,8 @@ import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.Polarization;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.PGData;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.GaussianRF;
 import qchem.BasisSet.Molecule.PolarizedGaussian.Reader;
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD;  // NR_Evaluator: the IBS IS-A evaluator (base subobject)
+import qchem.BasisSet.Molecule.IBS;                     // Molecule::Orbital_{1E,DFT,HF}_IBS<E> templated mixins
 
 import qchem.BasisSet.Internal.BasisSetImp;
 import qchem.BasisSet.Internal.ERI4;
@@ -27,7 +29,7 @@ rsmat_t MakeIntegrals(IType,const PGData* ab,const Cluster*cl =0);
 class IrrepBasisSet
         : public virtual Real_IBS,
           public IrrepBasisSetImp<double>,
-          public PGData
+          public Evaluators::PG_Cart_MnD::NR_Evaluator   // IS-A evaluator, which IS-A PGData
     {
     public:
         typedef std::vector<std::unique_ptr<Block>> bv_t;
@@ -55,10 +57,14 @@ class IrrepBasisSet
         bv_t itsBlocks;
     protected:
     };
+// All of the 1E / 3C / 4C integral building is inherited from the Molecule-generic, evaluator-templated
+// mixins (instantiated with PG_Evaluator -- the IBS IS-A PG_Evaluator base subobject).  The loops there
+// are the basis-agnostic ones; nothing PG-specific remains in the IBS itself.  MakeKinetic returns the
+// <p^2>=<-nabla^2> building block (no 1/2 -- the Hamiltonian's; no centrifugal -- Cartesian).
 class Orbital_IBS
-    : public virtual Orbital_1E_IBS<double>
-    , public virtual Orbital_HF_IBS<double>
-    , public virtual Orbital_DFT_IBS<double>
+    : public Molecule::Orbital_1E_IBS <Evaluators::PG_Cart_MnD::NR_Evaluator>
+    , public Molecule::Orbital_HF_IBS <Evaluators::PG_Cart_MnD::NR_Evaluator>
+    , public Molecule::Orbital_DFT_IBS<Evaluators::PG_Cart_MnD::NR_Evaluator>
     , public IrrepBasisSet
 {
 public:
@@ -68,17 +74,6 @@ public:
 
     virtual Fit_IBS* CreateCDFitBasisSet(const Cluster *) const;
     virtual Fit_IBS* CreateVxcFitBasisSet(const Cluster *) const;
-
-    // 1E integrals are built through the molecular Evaluator (PG_Evaluator + the generic matrix
-    // builders) -- see Imp/Orbital_IBS.C.  MakeKinetic returns the <p^2>=<-nabla^2> building block
-    // (no 1/2 -- the Hamiltonian's; no centrifugal -- Cartesian; see BasisSet/Orbital_1E_IBS.C).
-    virtual rsmat_t      MakeOverlap() const;
-    virtual rsmat_t      MakeKinetic() const;
-    virtual rsmat_t      MakeNuclear(const Cluster* cl) const;
-    virtual ERI3<double> MakeOverlap3C  (const Fit_IBS& c) const; //Used for DFT
-    virtual ERI3<double> MakeRepulsion3C(const Fit_IBS& c) const; //Used for DFT
-    virtual ERI4         MakeDirect     (const ::BasisSet::Orbital_HF_IBS<double>& c) const;
-    virtual ERI4         MakeExchange   (const ::BasisSet::Orbital_HF_IBS<double>& b) const;
 };
 // Use E prefix to avoid name clash with the interface class Fit_IBS
 class EFit_IBS

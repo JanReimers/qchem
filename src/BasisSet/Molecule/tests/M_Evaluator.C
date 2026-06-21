@@ -9,14 +9,15 @@
 #include "gtest/gtest.h"
 #include <vector>
 
-import qchem.BasisSet.Molecule.Evaluators.PG;                          // PG_Evaluator
+import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD;                 // NR_Evaluator
 import qchem.BasisSet.Molecule.PolarizedGaussian;                      // Orbital_IBS
+import qchem.BasisSet.Orbital_1E_IBS;                                  // cached Overlap()/Kinetic()/Nuclear() accessors
 import qchem.BasisSet.Molecule.PolarizedGaussian.Internal.PGData;      // PGData (the base of Orbital_IBS)
 import qchem.Cluster;                                                  // Molecule, Atom
 import qchem.Types;
 import qchem.Blaze;
 
-using BasisSet::Molecule::Evaluators::PG_Evaluator;
+using BasisSet::Molecule::Evaluators::PG_Cart_MnD::NR_Evaluator;
 using BasisSet::Molecule::PolarizedGaussian::Orbital_IBS;
 
 TEST(M_Evaluator, kernels_match_IBS_integrals)
@@ -29,18 +30,22 @@ TEST(M_Evaluator, kernels_match_IBS_integrals)
     rvec_t exps{1.0, 0.25};
     Orbital_IBS ibs(exps, 1, &h2o);                          // s + p shells, 2 exponents each
 
-    PG_Evaluator ev(ibs, &h2o);                              // wrap the IBS (as PGData) + cluster
+    const NR_Evaluator& ev = ibs;                            // the IBS IS-A evaluator; cluster is per-call
     ASSERT_EQ(ev.size(), ibs.GetNumFunctions());
 
-    const rsmat_t& S = ibs.Overlap();        // normalized 1E matrices the IBS already builds
-    const rsmat_t& K = ibs.Kinetic();        // the <p^2> block (no 1/2)
-    const rsmat_t& V = ibs.Nuclear(&h2o);
+    // The cached 1E matrix accessors live on the IBS interface.  Reach them through the interface
+    // reference: on the concrete Orbital_IBS the bare names now collide with the evaluator's element
+    // kernels (Overlap(i,j), Nuclear(i,j,cl)), since the IBS IS-A PG_Evaluator.
+    const BasisSet::Orbital_1E_IBS<double>& bs1e = ibs;
+    const rsmat_t& S = bs1e.Overlap();       // normalized 1E matrices the IBS already builds
+    const rsmat_t& K = bs1e.Kinetic();       // the <p^2> block (no 1/2)
+    const rsmat_t& V = bs1e.Nuclear(&h2o);
 
     for (size_t i=0; i<ev.size(); ++i)
         for (size_t j=i; j<ev.size(); ++j)
         {
             EXPECT_NEAR(ev.Overlap(i,j), S(i,j), 1e-12) << "overlap ("<<i<<","<<j<<")";
             EXPECT_NEAR(ev.Grad2  (i,j), K(i,j), 1e-12) << "grad2/kinetic ("<<i<<","<<j<<")";
-            EXPECT_NEAR(ev.Nuclear(i,j), V(i,j), 1e-12) << "nuclear ("<<i<<","<<j<<")";
+            EXPECT_NEAR(ev.Nuclear(i,j,&h2o), V(i,j), 1e-12) << "nuclear ("<<i<<","<<j<<")";
         }
 }

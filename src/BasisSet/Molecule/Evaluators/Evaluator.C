@@ -25,6 +25,8 @@ module;
 export module qchem.BasisSet.Molecule.Evaluators;
 export import qchem.Streamable;
 import qchem.Types;
+import qchem.Cluster;  // Cluster* threaded through the Nuclear kernel + NuclearMatrix builder
+import qchem.BasisSet.Internal.IntegralEnums;  // qchem::IType3C (DFT 3-centre selector)
 import qchem.Blaze;   // rsmat_t construction/indexing in the generic matrix builders below
 
 export namespace BasisSet::Molecule::Evaluators
@@ -62,13 +64,40 @@ template <class E> concept isOpr_Evaluator = requires (E e, const rvec3_t& r)
 // The 1/2 of \f$T=-\tfrac12\nabla^2\f$ is applied at the Hamiltonian boundary, NOT here
 // (see BasisSet/Orbital_1E_IBS.C).  Nuclear(i,j) is the full multi-centre attraction
 // \f$\sum_c -Z_c\langle i|\,|r-R_c|^{-1}|j\rangle\f$ (the evaluator carries the cluster).
-template <class E> concept is1E_Evaluator = std::derived_from<E, Evaluator> && requires (E e,size_t i,size_t j)
+template <class E> concept is1E_Evaluator = std::derived_from<E, Evaluator> && requires (E e,size_t i,size_t j,const Cluster* cl)
 {
-    {e.Norm    (i)  } -> std::same_as<double>;
-    {e.Overlap (i,j)} -> std::same_as<double>;
-    {e.Grad2   (i,j)} -> std::same_as<double>;   // <p^2> = <-nabla^2>, full Cartesian, no 1/2
-    {e.Nuclear (i,j)} -> std::same_as<double>;   // multi-centre sum_c -Z_c/|r-R_c|
+    {e.Norm    (i)     } -> std::same_as<double>;
+    {e.Overlap (i,j)   } -> std::same_as<double>;
+    {e.Grad2   (i,j)   } -> std::same_as<double>;   // <p^2> = <-nabla^2>, full Cartesian, no 1/2
+    {e.Nuclear (i,j,cl)} -> std::same_as<double>;   // multi-centre sum_c -Z_c/|r-R_c|; cluster passed per call
 };
+
+// --- 3-centre (DFT) and 4-centre (HF) inline kernels ----------------------------------------------
+// These mirror the atom isDFT_Evaluator / isHF_Evaluator concepts, but the molecular kernels are
+// *multi-evaluator*: each (evaluator, index) pair names one basis component, so the same kernel serves
+// Coulomb and Exchange (the caller maps its loop indices into the slots).  `e` is the A slot; the
+// remaining evaluators are passed as same-type references (a member may read another evaluator's data).
+//
+// Divergence from atom: NO isOpr_Evaluator requirement here.  The molecular DFT 3-centre integrals are
+// analytic (M&D ThreeC); numerical grid-eval for the XC potential still lives on the IBS (operator()(r)),
+// not the evaluator -- so requiring isOpr would (correctly) reject PG_Evaluator today.  When grid-eval
+// moves onto the evaluator, fold isOpr<E> back into isDFT_Evaluator to match the atom side.
+template <class E> concept isDFT_Evaluator = std::derived_from<E, Evaluator>
+    && requires (const E e, qchem::IType3C t, size_t iA, size_t iB, size_t iC)
+{
+    {e.ThreeC(t, iA, e, iB, e, iC)} -> std::same_as<double>;   // <ab|c>, M&D 3-centre
+};
+
+// 4-centre electron-repulsion (ab|cd), M&D 4-centre.  No Cache4/Grouper (that is the atom Ak design);
+// molecular caching is the Cache2/Cache3 work of plan Stages 2-3, layered on later.
+template <class E> concept isHF_Evaluator = std::derived_from<E, Evaluator>
+    && requires (const E e, size_t iA, size_t iB, size_t iC, size_t iD)
+{
+    {e.FourC(iA, e, iB, e, iC, e, iD)} -> std::same_as<double>;   // (ab|cd)
+};
+
+// Composite the molecular Orbital_IBS will instantiate against (it IS-A 1E + DFT + HF).
+template <class E> concept is1E_DFT_HF_Evaluator = is1E_Evaluator<E> && isDFT_Evaluator<E> && isHF_Evaluator<E>;
 
 // --- Generic 1E matrix builders -------------------------------------------------------------------
 // The basis-set-agnostic i,j matrix-build loops, driven purely by the evaluator's inline kernels.
@@ -91,16 +120,16 @@ template <is1E_Evaluator E> rsmat_t KineticMatrix(const E& e)   // <p^2>=<-nabla
     for (auto i:e.indices()) for (auto j:e.indices(i)) S(i,j)=e.Grad2(i,j);
     return S;
 }
-template <is1E_Evaluator E> rsmat_t NuclearMatrix(const E& e)
+template <is1E_Evaluator E> rsmat_t NuclearMatrix(const E& e, const Cluster* cl)
 {
     rsmat_t S(e.size());
-    for (auto i:e.indices()) for (auto j:e.indices(i)) S(i,j)=e.Nuclear(i,j);
+    for (auto i:e.indices()) for (auto j:e.indices(i)) S(i,j)=e.Nuclear(i,j,cl);
     return S;
 }
 
 // TODO (later increments, will diverge from atom's Cache4/Angular design):
 //  - isFit_Evaluator  : Charge/Overlap/Repulsion for auxiliary fit basis sets.
-//  - isDFT_Evaluator  : 3-centre Overlap/Repulsion (DFT), via the molecular Cache2/Cache3.
-//  - isHF_Evaluator   : 4-centre Direct/Exchange via McMurchie-Davidson (no Cache4/Grouper).
+//  - generic DFT/HF matrix builders (3C/4C loops, currently in PolarizedGaussian/Imp/Orbital_IBS.C):
+//    lift into Orbital_DFT_IBS<E>/Orbital_HF_IBS<E> mixins once the view->base-subobject collapse lands.
 
 } //namespace

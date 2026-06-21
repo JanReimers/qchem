@@ -6,6 +6,7 @@
 #include <algorithm>
 import qchem.BasisSet.Molecule.PolarizedGaussian.Symmetry;  // ExtractAoShells, ClusterToSymPoints
 import qchem.BasisSet.Molecule.PolarizedGaussian;           // Orbital_IBS
+import qchem.BasisSet.Orbital_1E_IBS;                         // cached Overlap() accessor (interface)
 import qchem.BasisSet.SymmetryAdapted_IBS;                    // SymmetryAdapted_IBS (1-e decorator)
 import qchem.BasisSet.Molecule.SymmetryAdaptedBasisSet;       // SymmetryAdaptedBasisSet (per-irrep)
 import qchem.Symmetry.SALC;                                   // BuildAbelianGroup, BuildSALCs, BuildOperationRep
@@ -84,7 +85,8 @@ TEST(PGSymmetry, decorator_blocks_real_overlap)
     rvec3_t o   = Centroid(pts);
     auto salc   = BuildSALCs(shells, g, o, 1e-4);
 
-    const rsmat_t& Sraw = ibs.Overlap();        // REAL overlap integrals (normalized, 24x24)
+    const ::BasisSet::Orbital_1E_IBS<double>& bsi = ibs;  // cached Overlap() lives on the interface (collides
+    const rsmat_t& Sraw = bsi.Overlap();        // with the evaluator kernel on the concrete IBS now)
     size_t nAO = Sraw.rows();
     ASSERT_EQ(nAO, salc.O.columns());
 
