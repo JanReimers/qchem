@@ -100,7 +100,7 @@ class M_HF_U_LibCintSph : public ::testing::Test, public TestMolecule
 public:
     M_HF_U_LibCintSph(Molecule* m) : TestMolecule(m)
     {
-        nlohmann::json js = { {"basis", "dzvp"}, {"engine", "libcint"}, {"spherical", true} };
+        nlohmann::json js = { {"basis", "dzvp"}, {"engine", "libcint"}, {"angular", "spherical"} };
         QchemTester::Init(js);
     }
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
@@ -117,7 +117,7 @@ TEST_F(M_HF_U_LibCintSph_Water, Water)
 }
 
 // --- The spherical-Gaussian (PG_Spherical) basis through the same SCF ------------------------------
-// Same dzvp data file, but js["spherical"]=true selects the real-solid-harmonic basis.  The 5 spherical
+// Same dzvp data file, but js["angular"]="spherical" selects the real-solid-harmonic basis.  The 5 spherical
 // d's are a strict subset of the 6 Cartesian d's (the missing 6th, xx+yy+zz, is an l=0 contaminant), so
 // the spherical basis is variationally a SUBSET: E_sph >= E_cart, by only the small contaminant gap.
 // That inequality (oracle-free) validates the new basis end-to-end through the production SCF; the pinned
@@ -127,7 +127,7 @@ class M_HF_U_Sph : public ::testing::Test, public TestMolecule
 public:
     M_HF_U_Sph(Molecule* m) : TestMolecule(m)
     {
-        nlohmann::json js = { {"basis", "dzvp"}, {"spherical", true} };
+        nlohmann::json js = { {"basis", "dzvp"}, {"angular", "spherical"} };
         QchemTester::Init(js);
     }
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const

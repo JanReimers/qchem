@@ -66,7 +66,7 @@ TEST_F(M_DFT_Water, Water)
 }
 
 // --- The spherical-Gaussian (PG_Spherical) basis through the DFT path -----------------------------
-// js["spherical"]=true selects the real-solid-harmonic orbital basis AND a spherical fit (auxiliary)
+// js["angular"]="spherical" selects the real-solid-harmonic orbital basis AND a spherical fit (auxiliary)
 // basis (PG_Spherical::EFit_IBS, via the orbital IBS's CreateCDFit/CreateVxcFit).  The spherical Xalpha
 // energy lands ~0.09 Ha ABOVE the Cartesian -- larger than HF's ~3 mHa orbital-only gap because the FIT
 // basis also goes spherical (contaminant-free -> fewer auxiliary functions -> a different, poorer density
@@ -78,7 +78,7 @@ class M_DFT_Sph : public ::testing::Test, public TestMolecule
 public:
     M_DFT_Sph(Molecule* m, double alpha) : TestMolecule(m), itsAlpha(alpha)
     {
-        nlohmann::json js = { {"basis", "dzvp"}, {"spherical", true} };
+        nlohmann::json js = { {"basis", "dzvp"}, {"angular", "spherical"} };
         QchemTester::Init(js);
     }
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
