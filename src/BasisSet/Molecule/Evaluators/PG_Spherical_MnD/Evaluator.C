@@ -69,7 +69,48 @@ public:
                                     {return a.Nuclear(b,pa,pb,cl);});
     }
 
+    // --- 3-centre (DFT) and 4-centre (HF): same Cartesian kernels, summed over every slot's monomials.
+    double OverlapThreeC(size_t iA,const NR_Evaluator& eB,size_t iB,const NR_Evaluator& eC,size_t iC) const
+    {
+        return ThreeCSum(iA,eB,iB,eC,iC,[](const Cart::GaussianRF& rc,const Cart::GaussianRF& ra,const Cart::GaussianRF& rb,
+                                           const Cart::Polarization& pa,const Cart::Polarization& pb,const Cart::Polarization& pc)
+                                          {return rc.Overlap3C(ra,rb,pa,pb,pc);});
+    }
+    double RepulsionThreeC(size_t iA,const NR_Evaluator& eB,size_t iB,const NR_Evaluator& eC,size_t iC) const
+    {
+        return ThreeCSum(iA,eB,iB,eC,iC,[](const Cart::GaussianRF& rc,const Cart::GaussianRF& ra,const Cart::GaussianRF& rb,
+                                           const Cart::Polarization& pa,const Cart::Polarization& pb,const Cart::Polarization& pc)
+                                          {return rc.Repulsion3C(ra,rb,pa,pb,pc);});
+    }
+    double FourC(size_t iA,const NR_Evaluator& eB,size_t iB,const NR_Evaluator& eC,size_t iC,
+                 const NR_Evaluator& eD,size_t iD) const
+    {
+        double s = 0.0;
+        for (const auto& ta : comps[iA].terms)
+            for (const auto& tb : eB.comps[iB].terms)
+                for (const auto& tc : eC.comps[iC].terms)
+                    for (const auto& td : eD.comps[iD].terms)
+                        s += ta.c*tb.c*tc.c*td.c
+                           * eD.comps[iD].radial->Repulsion4C(*comps[iA].radial, *eB.comps[iB].radial,
+                                                              *eC.comps[iC].radial, ta.p, tb.p, tc.p, td.p);
+        return s * ns[iA]*eB.ns[iB]*eC.ns[iC]*eD.ns[iD];
+    }
+
 private:
+    // <ab|O|c> over the three harmonics' monomials.  `kernel` is invoked as kernel(rc, ra, rb, pa, pb, pc)
+    // -- `this`/centre-C convention of the Cartesian 3-centre kernels.
+    template <class Kernel>
+    double ThreeCSum(size_t iA,const NR_Evaluator& eB,size_t iB,const NR_Evaluator& eC,size_t iC,Kernel kernel) const
+    {
+        double s = 0.0;
+        for (const auto& ta : comps[iA].terms)
+            for (const auto& tb : eB.comps[iB].terms)
+                for (const auto& tc : eC.comps[iC].terms)
+                    s += ta.c*tb.c*tc.c
+                       * kernel(*eC.comps[iC].radial, *comps[iA].radial, *eB.comps[iB].radial, ta.p, tb.p, tc.p);
+        return s * ns[iA]*eB.ns[iB]*eC.ns[iC];
+    }
+
     // <chi_i | O | chi_j> = (sum over the two harmonics' Cartesian monomials of c_a c_b <a|O|b>) * n_i n_j.
     template <class Kernel> double TransformSum(size_t i,size_t j,Kernel kernel) const
     {
@@ -81,6 +122,8 @@ private:
     }
 };
 
-static_assert(is1E_Evaluator<NR_Evaluator>, "PG_Spherical_MnD::NR_Evaluator must satisfy is1E_Evaluator");
+static_assert(is1E_Evaluator <NR_Evaluator>, "PG_Spherical_MnD::NR_Evaluator must satisfy is1E_Evaluator");
+static_assert(isDFT_Evaluator<NR_Evaluator>, "PG_Spherical_MnD::NR_Evaluator must satisfy isDFT_Evaluator");
+static_assert( isHF_Evaluator<NR_Evaluator>, "PG_Spherical_MnD::NR_Evaluator must satisfy isHF_Evaluator");
 
 } //namespace

@@ -79,3 +79,33 @@ TEST(M_Spherical, evaluator_1E)
                 EXPECT_NEAR(s, 0.0, 1e-12) << "same-centre components ("<<i<<","<<j<<") not orthogonal";
         }
 }
+
+// --- Increment 3: the 3-centre (DFT) and 4-centre (HF) kernels ------------------------------------
+// Two d shells on two centres (10 components).  The transform-summed 3C/4C must obey the standard
+// integral permutation symmetries -- (ab|c)=(ba|c) and (ab|cd)=(ba|cd)=(ab|dc)=(cd|ab) -- which the
+// Cartesian kernels (oracle-verified) already satisfy and the spherical transform must preserve.
+TEST(M_Spherical, evaluator_3C4C_symmetry)
+{
+    std::vector<GaussianRF> radials; radials.reserve(2);
+    radials.push_back(GaussianRF(0.70, rvec3_t(0,0, 0.0), 2));   // d on A
+    radials.push_back(GaussianRF(0.60, rvec3_t(0,0, 1.2), 2));   // d on B
+
+    NR_Evaluator ev;
+    auto addShell = [&](size_t r,int l){ for (auto& t : SphericalShell(l)) ev.comps.push_back({&radials[r],t}); };
+    addShell(0,2); addShell(1,2);     // 10 components (0..4 on A, 5..9 on B)
+    ev.Init();
+    ASSERT_EQ(ev.size(), size_t(10));
+
+    const int idx[][4] = { {0,1,2,3}, {0,5,7,9}, {2,2,8,8}, {1,6,3,4} };
+    for (const auto& q : idx)
+    {
+        int a=q[0], b=q[1], c=q[2], d=q[3];
+        double abcd = ev.FourC(a,ev,b,ev,c,ev,d);
+        EXPECT_NEAR(abcd, ev.FourC(b,ev,a,ev,c,ev,d), 1e-11) << "(ab|cd) != (ba|cd)";
+        EXPECT_NEAR(abcd, ev.FourC(a,ev,b,ev,d,ev,c), 1e-11) << "(ab|cd) != (ab|dc)";
+        EXPECT_NEAR(abcd, ev.FourC(c,ev,d,ev,a,ev,b), 1e-11) << "(ab|cd) != (cd|ab)";
+
+        EXPECT_NEAR(ev.OverlapThreeC  (a,ev,b,ev,c), ev.OverlapThreeC  (b,ev,a,ev,c), 1e-12) << "overlap3c (ab|c)!=(ba|c)";
+        EXPECT_NEAR(ev.RepulsionThreeC(a,ev,b,ev,c), ev.RepulsionThreeC(b,ev,a,ev,c), 1e-12) << "repulsion3c (ab|c)!=(ba|c)";
+    }
+}
