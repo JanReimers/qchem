@@ -38,8 +38,21 @@ public:
     virtual ~Cache3();
     virtual void Register(Cache3_Client*);     //base body erases unsupported; subclass may extend
 
-    // Facade form: re-entrant find-or-make on (i1,i2,i3).  const because the storage is mutable.
-    const Cacheable3& get(size_t i1, size_t i2, size_t i3, std::function<const Cacheable3*()> make) const;
+    // Facade form: re-entrant find-or-make on (i1,i2,i3).  const because the storage is mutable.  make is a
+    // TEMPLATE parameter (not std::function) so the hot, ~all-hits path builds no wrapper (see Cache2::get).
+    template <class Make>
+    const Cacheable3& get(size_t i1, size_t i2, size_t i3, Make&& make) const
+    {
+        ++itsLookups;
+        cache_3& sub = cache[i1][i2];              // outer maps: find-or-create the (i1,i2) sub-map
+        auto it = sub.find(i3);
+        if (it==sub.end())
+        {
+            ++itsInserts;
+            it = sub.emplace(i3, std::unique_ptr<const Cacheable3>(make())).first;
+        }
+        return *it->second;
+    }
 
     // Descent form: loop_1/loop_2 descend, loop_3 returns/creates via Create.
     void                      loop_1(size_t i1) const;

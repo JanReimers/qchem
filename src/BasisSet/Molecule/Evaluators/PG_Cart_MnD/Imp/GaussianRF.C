@@ -417,14 +417,10 @@ double PrimGaussian::Repulsion3C(const PrimGaussian* ga, const PrimGaussian* gb,
     return s * 2*Pi52 * ab.Eij*factor;
 }
 
-double PrimGaussian::Repulsion4C(const PrimGaussian* ga, const PrimGaussian* gb,
-                                 const PrimGaussian* gc, const PrimGaussian* gd,
+double PrimGaussian::Repulsion4C(const Ω& ab, const Ω& cd,
                                  const Polarization& pa, const Polarization& pb,
                                  const Polarization& pc, const Polarization& pd)
 {
-    const Ω& ab(findΩ(ga->GetGData(), gb->GetGData()));
-    const Ω& cd(findΩ(gc->GetGData(), gd->GetGData()));
-
     const std::vector<Polarization>& abNLMs = Ω::GetNMLs(ab.Ltotal);
     const std::vector<Polarization>& cdNLMs = Ω::GetNMLs(cd.Ltotal);
 
@@ -696,15 +692,28 @@ double GaussianRF::Repulsion3C(rf_t& ra, rf_t& rb, po_t& pa, po_t& pb, po_t& pc)
 // --- 4-centre (ab|cd) (this is centre D) ------------------------------------------------------------
 double GaussianRF::Repulsion4C(rf_t& ra, rf_t& rb, rf_t& rc, po_t& pa, po_t& pb, po_t& pc, po_t& pd) const
 {
+    const size_t ni=ra.itsPrims.size(), nj=rb.itsPrims.size(),
+                 nk=rc.itsPrims.size(), nl=itsPrims.size();
+    // Hoist the Ω (charge-distribution) lookups out of the inner contraction: ab is constant across the
+    // (k,l) loop and the cd table is reused across every (i,j), so findΩ runs ni*nj+nk*nl times instead of
+    // ni*nj*nk*nl (each is a cached red-black-tree lookup).  Cache entries are never evicted, so the Ω
+    // addresses stay valid for the duration of this call.
+    std::vector<const Ω*> cdΩ(nk*nl);
+    for (size_t k=0;k<nk;++k)
+        for (size_t l=0;l<nl;++l)
+            cdΩ[k*nl+l] = &findΩ(rc.itsPrims[k]->GetGData(), itsPrims[l]->GetGData());
+
     double s = 0.0;
-    for (size_t i=0;i<ra.itsPrims.size();++i)
-        for (size_t j=0;j<rb.itsPrims.size();++j)
-            for (size_t k=0;k<rc.itsPrims.size();++k)
-                for (size_t l=0;l<itsPrims.size();++l)
-                    s += ra.itsCoeff[i]*rb.itsCoeff[j]*rc.itsCoeff[k]*itsCoeff[l]
-                         * PrimGaussian::Repulsion4C(ra.itsPrims[i].get(), rb.itsPrims[j].get(),
-                                                     rc.itsPrims[k].get(), itsPrims[l].get(),
-                                                     pa, pb, pc, pd);
+    for (size_t i=0;i<ni;++i)
+        for (size_t j=0;j<nj;++j)
+        {
+            const Ω& ab = findΩ(ra.itsPrims[i]->GetGData(), rb.itsPrims[j]->GetGData());
+            const double cij = ra.itsCoeff[i]*rb.itsCoeff[j];
+            for (size_t k=0;k<nk;++k)
+                for (size_t l=0;l<nl;++l)
+                    s += cij*rc.itsCoeff[k]*itsCoeff[l]
+                         * PrimGaussian::Repulsion4C(ab, *cdΩ[k*nl+l], pa, pb, pc, pd);
+        }
     return s;
 }
 

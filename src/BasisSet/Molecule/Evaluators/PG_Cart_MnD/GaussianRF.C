@@ -46,6 +46,8 @@ struct GData
     int      L;       // actually a maximum L
 };
 
+struct Ω;   // the charge distribution of a primitive pair (defined below); 4C takes two by ref
+
 class PrimGaussian
 {
 public:
@@ -79,8 +81,9 @@ public:
                               const Polarization& pa, const Polarization& pb, const Polarization& pc);
     static double Repulsion3C(const PrimGaussian* a, const PrimGaussian* b, const PrimGaussian* c,
                               const Polarization& pa, const Polarization& pb, const Polarization& pc);
-    static double Repulsion4C(const PrimGaussian* a, const PrimGaussian* b,
-                              const PrimGaussian* c, const PrimGaussian* d,
+    // (ab|cd) given the two charge distributions directly: the caller (GaussianRF::Repulsion4C) hoists the
+    // findΩ lookups out of the inner contraction loop, so this hot kernel does no cache descent for Ω.
+    static double Repulsion4C(const Ω& ab, const Ω& cd,
                               const Polarization& pa, const Polarization& pb,
                               const Polarization& pc, const Polarization& pd);
 

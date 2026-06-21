@@ -36,21 +36,6 @@ size_t Cache2::RAMsize() const
     return ram;
 }
 
-const Cacheable2& Cache2::get(size_t i1, size_t i2, std::function<const Cacheable2*()> make) const
-{
-    ++itsLookups;
-    cache_2& sub = cache[i1];                 // creates an empty sub-map on first use
-    auto it = sub.find(i2);
-    if (it==sub.end())
-    {
-        ++itsInserts;
-        const auto [iterator,success]=sub.insert({i2,std::unique_ptr<const Cacheable2>(make())});
-        assert(success);
-        it=iterator;
-    }
-    return *it->second;
-}
-
 void Cache2::Report(std::ostream& os, const std::string& name) const
 {
     double reuse = itsLookups ? 100.0*(1.0 - double(itsInserts)/double(itsLookups)) : 0.0;

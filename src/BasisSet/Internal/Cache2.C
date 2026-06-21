@@ -57,7 +57,23 @@ public:
     // nested cached gets on OTHER Cache2s), the result is stored and a reference to the STORED object
     // is returned.  Use this when the caller already has the data to build the entry.  const because
     // the storage is mutable -- so a `const Cache2*` from GetCache2 can still populate.
-    const Cacheable2& get(size_t i1, size_t i2, std::function<const Cacheable2*()> make) const;
+    //
+    // make is a TEMPLATE parameter (not std::function): findΩ/findRNLM call get() from the innermost
+    // contraction loops, and the cache is ~99.9% hits, so a std::function would heap/construct a wrapper
+    // every call only to (almost) never invoke it -- profiling put that at several % of MnD integral time.
+    template <class Make>
+    const Cacheable2& get(size_t i1, size_t i2, Make&& make) const
+    {
+        ++itsLookups;
+        cache_2& sub = cache[i1];                  // outer map: find-or-create the i1 sub-map
+        auto it = sub.find(i2);
+        if (it==sub.end())
+        {
+            ++itsInserts;
+            it = sub.emplace(i2, std::unique_ptr<const Cacheable2>(make())).first;
+        }
+        return *it->second;
+    }
 
     // Descent form (for hot loops): loop_1 descends to the i1 sub-map, loop_2 returns/creates via
     // Create.  Override Create in a subclass that knows how to build from indices alone.

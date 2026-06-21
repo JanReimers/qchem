@@ -34,21 +34,6 @@ size_t Cache3::RAMsize() const
     return ram;
 }
 
-const Cacheable3& Cache3::get(size_t i1, size_t i2, size_t i3, std::function<const Cacheable3*()> make) const
-{
-    ++itsLookups;
-    cache_3& sub = cache[i1][i2];              // creates empty sub-maps on first use
-    auto it = sub.find(i3);
-    if (it==sub.end())
-    {
-        ++itsInserts;
-        const auto [iterator,success]=sub.insert({i3,std::unique_ptr<const Cacheable3>(make())});
-        assert(success);
-        it=iterator;
-    }
-    return *it->second;
-}
-
 void Cache3::Report(std::ostream& os, const std::string& name) const
 {
     double reuse = itsLookups ? 100.0*(1.0 - double(itsInserts)/double(itsLookups)) : 0.0;
