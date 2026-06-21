@@ -25,8 +25,7 @@ module;
 export module qchem.BasisSet.Molecule.Evaluators;
 export import qchem.Streamable;
 import qchem.Types;
-import qchem.Cluster;  // Cluster* threaded through the Nuclear kernel + NuclearMatrix builder
-import qchem.Blaze;   // rsmat_t construction/indexing in the generic matrix builders below
+import qchem.Cluster;  // Cluster* threaded through the Nuclear kernel
 
 export namespace BasisSet::Molecule::Evaluators
 {
@@ -99,37 +98,9 @@ template <class E> concept isHF_Evaluator = std::derived_from<E, Evaluator>
 // Composite the molecular Orbital_IBS will instantiate against (it IS-A 1E + DFT + HF).
 template <class E> concept is1E_DFT_HF_Evaluator = is1E_Evaluator<E> && isDFT_Evaluator<E> && isHF_Evaluator<E>;
 
-// --- Generic 1E matrix builders -------------------------------------------------------------------
-// The basis-set-agnostic i,j matrix-build loops, driven purely by the evaluator's inline kernels.
-// (Mirrors the atom Integrals_Overlap<E>/Integrals_Kinetic<E> mixins; these are the natural candidates
-// to hoist to the generic BasisSet level later -- plan Goal C.)  They fill the upper triangle of a
-// symmetric matrix; rsmat_t mirrors the lower.
+// The basis-agnostic i,j / 3C / 4C matrix-build loops that consume these kernels live in the templated
+// IBS mixins (qchem.BasisSet.Molecule.IBS), mirroring the atom Integrals_*<E> / Orbital_*_IBS<E> pattern.
 //
-// KineticMatrix returns the kinetic BUILDING BLOCK \f$\langle p^2\rangle=\langle-\nabla^2\rangle\f$,
-// i.e. just the sum of Grad2 -- NO 1/2 (the Hamiltonian applies it) and NO centrifugal term (the
-// molecular Grad2 is already the full Cartesian \f$-\nabla^2\f$).  See BasisSet/Orbital_1E_IBS.C.
-template <is1E_Evaluator E> rsmat_t OverlapMatrix(const E& e)
-{
-    rsmat_t S(e.size());
-    for (auto i:e.indices()) for (auto j:e.indices(i)) S(i,j)=e.Overlap(i,j);
-    return S;
-}
-template <is1E_Evaluator E> rsmat_t KineticMatrix(const E& e)   // <p^2>=<-nabla^2> block, no 1/2
-{
-    rsmat_t S(e.size());
-    for (auto i:e.indices()) for (auto j:e.indices(i)) S(i,j)=e.Grad2(i,j);
-    return S;
-}
-template <is1E_Evaluator E> rsmat_t NuclearMatrix(const E& e, const Cluster* cl)
-{
-    rsmat_t S(e.size());
-    for (auto i:e.indices()) for (auto j:e.indices(i)) S(i,j)=e.Nuclear(i,j,cl);
-    return S;
-}
-
-// TODO (later increments, will diverge from atom's Cache4/Angular design):
-//  - isFit_Evaluator  : Charge/Overlap/Repulsion for auxiliary fit basis sets.
-//  - generic DFT/HF matrix builders (3C/4C loops, currently in PolarizedGaussian/Imp/Orbital_IBS.C):
-//    lift into Orbital_DFT_IBS<E>/Orbital_HF_IBS<E> mixins once the view->base-subobject collapse lands.
+// TODO (later increment): isFit_Evaluator (Charge/Overlap/Repulsion for auxiliary fit basis sets).
 
 } //namespace

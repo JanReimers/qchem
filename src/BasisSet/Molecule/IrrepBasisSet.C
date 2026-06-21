@@ -37,9 +37,26 @@ template <Evaluators::is1E_Evaluator E> class Orbital_1E_IBS
     : public virtual ::BasisSet::Orbital_1E_IBS<double>
 {
 protected:
-    virtual rsmat_t MakeOverlap(                 ) const {return Evaluators::OverlapMatrix(Cast()    );}
-    virtual rsmat_t MakeKinetic(                 ) const {return Evaluators::KineticMatrix(Cast()    );}
-    virtual rsmat_t MakeNuclear(const Cluster* cl) const {return Evaluators::NuclearMatrix(Cast(), cl);}
+    virtual rsmat_t MakeOverlap() const
+    {
+        const E& e=Cast(); rsmat_t S(e.size());
+        for (auto i:e.indices()) for (auto j:e.indices(i)) S(i,j)=e.Overlap(i,j);
+        return S;
+    }
+    // <p^2>=<-nabla^2> building block: NO 1/2 (the Hamiltonian applies it) and NO centrifugal term (the
+    // molecular Grad2 is already the full Cartesian -nabla^2).  See BasisSet/Orbital_1E_IBS.C.
+    virtual rsmat_t MakeKinetic() const
+    {
+        const E& e=Cast(); rsmat_t S(e.size());
+        for (auto i:e.indices()) for (auto j:e.indices(i)) S(i,j)=e.Grad2(i,j);
+        return S;
+    }
+    virtual rsmat_t MakeNuclear(const Cluster* cl) const
+    {
+        const E& e=Cast(); rsmat_t S(e.size());
+        for (auto i:e.indices()) for (auto j:e.indices(i)) S(i,j)=e.Nuclear(i,j,cl);
+        return S;
+    }
     const E& Cast() const {return dynamic_cast<const E&>(*this);}
 };
 
