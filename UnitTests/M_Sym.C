@@ -23,10 +23,6 @@ import qchem.Types;
 import qchem.Math;                                            // cos, sin (for the rotation test)
 import qchem.Mesh;                                            // MeshParams (DFT)
 
-#ifndef BASISSET_DATA_PATH
-#error "BASISSET_DATA_PATH must be defined by CMake"
-#endif
-static const std::filesystem::path basisset_data_dir = BASISSET_DATA_PATH;
 
 using namespace qchem::Hamiltonian;
 using ::BasisSet::Real_BS;
@@ -73,7 +69,7 @@ static void CheckWaterDFT(Pol pol, double tol)
 {
     auto mol = std::shared_ptr<Molecule>(MakeWater());
     cl_t cl  = mol;
-    nlohmann::json js = { {"filepath", basisset_data_dir / "dzvp.bsd"} };
+    nlohmann::json js = { {"basis", "dzvp"} };
 
     Real_BS* bsRef = BasisSet::Molecule::Factory(js, mol.get());
     Molecule_EC ecRef(mol->GetNumElectrons());
@@ -101,7 +97,7 @@ static void CheckWaterHF(Pol pol)
 {
     auto mol = std::shared_ptr<Molecule>(MakeWater());
     cl_t cl  = mol;
-    nlohmann::json js = { {"filepath", basisset_data_dir / "dzvp.bsd"} };
+    nlohmann::json js = { {"basis", "dzvp"} };
 
     // non-symmetric reference
     Real_BS* bsRef = BasisSet::Molecule::Factory(js, mol.get());
@@ -153,7 +149,7 @@ static void CheckMovedWaterHF(Molecule* m)
 {
     auto mol = std::shared_ptr<Molecule>(m);
     cl_t cl  = mol;
-    nlohmann::json js = { {"filepath", basisset_data_dir / "dzvp.bsd"} };
+    nlohmann::json js = { {"basis", "dzvp"} };
 
     Real_BS* bsRef = BasisSet::Molecule::Factory(js, mol.get());      // non-symmetric reference
     Molecule_EC ecRef(mol->GetNumElectrons());

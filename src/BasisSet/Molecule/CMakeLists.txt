@@ -1,10 +1,12 @@
 add_library(qcMolecule_BS)
 target_sources(qcMolecule_BS PRIVATE Imp/Factory.C
 Imp/SymmetryAdaptedBasisSet.C
+Imp/BasisFiles.C
 Readers/Imp/Gaussian94.C
 PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES Factory.C
 SymmetryAdaptedBasisSet.C
 IrrepBasisSet.C
+BasisFiles.C
 Reader.C
 Readers/Gaussian94.C
 )

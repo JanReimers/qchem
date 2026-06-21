@@ -7,15 +7,11 @@
 #include "gtest/gtest.h"
 #include <nlohmann/json.hpp>
 #include <filesystem>
-#ifndef BASISSET_DATA_PATH
-#error "BASISSET_DATA_PATH must be defined by CMake"
-#endif
 
 import qchem.Unittests.QchemTester;
 import qchem.Hamiltonian.Factory;
 import qchem.Cluster;
 
-static const std::filesystem::path basisset_data_dir = BASISSET_DATA_PATH;
 using namespace qchem::Hamiltonian;
 
 static Molecule* MakeN2()
@@ -39,7 +35,7 @@ class M_HF_U : public ::testing::Test, public TestMolecule
 public:
     M_HF_U(Molecule* m) : TestMolecule(m)
     {
-        nlohmann::json js = { {"filepath", basisset_data_dir / "dzvp.bsd"} };
+        nlohmann::json js = { {"basis", "dzvp"} };
         QchemTester::Init(js);
     }
     virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
