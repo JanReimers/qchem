@@ -24,7 +24,9 @@ set(CXX_SCAN_FOR_MODULES on)
 # Common compile flags for all targets
 set(CXX_COMMON_COMPILE_OPTIONS
     $<$<CONFIG:Debug>:-g -O0>
-    $<$<CONFIG:Release>:-O2 -pg>
+    # Release keeps -O2; -g + frame pointers make it profilable (perf/callgrind) with negligible runtime
+    # cost.  Dropped -pg (gprof): inaccurate on optimized code and superseded by perf/callgrind/PGO.
+    $<$<CONFIG:Release>:-O2 -g -fno-omit-frame-pointer>
 )
 set(CXX_COMMON_COMPILE_DEFINITIONS
     $<$<CONFIG:Debug>:-DDEBUG>
