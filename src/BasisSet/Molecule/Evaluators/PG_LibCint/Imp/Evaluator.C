@@ -1,4 +1,4 @@
-// File: BasisSet/Molecule/Evaluators/PG_Cart_LibCint/Imp/Evaluator.C
+// File: BasisSet/Molecule/Evaluators/PG_LibCint/Imp/Evaluator.C
 //
 // libcint packing + matrix assembly for the Cartesian PG basis.  See Evaluator.C for the why; this file
 // is the how:
@@ -22,14 +22,14 @@ extern "C" {
 CINTIntegralFunction int3c1e_cart;   // 3-centre overlap  <ab|c>
 CINTIntegralFunction int3c2e_cart;   // 3-centre Coulomb  (ab|c)
 }
-module qchem.BasisSet.Molecule.Evaluators.PG_Cart_LibCint;
+module qchem.BasisSet.Molecule.Evaluators.PG_LibCint;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.PGData;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;
 import qchem.Cluster;
 import qchem.Types;
 
-namespace BasisSet::Molecule::Evaluators::PG_Cart_LibCint
+namespace BasisSet::Molecule::Evaluators::PG_LibCint
 {
 using PG_Cart_MnD::PGData;
 using PG_Cart_MnD::Polarization;
@@ -181,7 +181,7 @@ rvec_t NR_Evaluator::Norm() const {return itsImp ? itsImp->scale : ns;}
 
 std::ostream& NR_Evaluator::Write(std::ostream& os) const
 {
-    return os << "PG_Cart_LibCint::NR_Evaluator[" << size() << "]";
+    return os << "PG_LibCint::NR_Evaluator[" << size() << "]";
 }
 
 // --- 1E: loop shell pairs, scatter each block into the symmetric PG-ordered matrix ----------------

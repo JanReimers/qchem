@@ -46,7 +46,7 @@ add_custom_target(allTests
 set(BUILD_TESTING OFF CACHE BOOL "Disable embedded submodule tests" FORCE)
 add_subdirectory(./submodules/wignerSymbols)
 add_subdirectory(./submodules/libxc)
-# libcint (Apache-2.0): block-oriented Gaussian integral library, used by the PG_Cart_LibCint
+# libcint (Apache-2.0): block-oriented Gaussian integral library, used by the PG_LibCint
 # matrix-delivery evaluator.  Build it static with no Fortran interface (we call the C API directly).
 set(ENABLE_STATIC ON CACHE BOOL "Build libcint as a static library" FORCE)
 set(WITH_FORTRAN  OFF CACHE BOOL "libcint Fortran interface (unused)" FORCE)

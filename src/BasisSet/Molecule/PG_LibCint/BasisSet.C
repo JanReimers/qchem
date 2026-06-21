@@ -1,23 +1,25 @@
-// File: BasisSet/Molecule/PG_Cart_LibCint/BasisSet.C
+// File: BasisSet/Molecule/PG_LibCint/BasisSet.C
 //
-// Production orbital-basis tree for the Cartesian PG basis integrated by libcint -- the IBS parallel to
-// PG_Cart, but built on the matrix-delivery PG_Cart_LibCint evaluator instead of PG_Cart_MnD.  The data
+// Production orbital-basis tree for the PG basis integrated by libcint -- the IBS parallel to PG_Cart /
+// PG_Spherical, but built on the matrix-delivery PG_LibCint evaluator instead of PG_Cart_MnD.  The data
 // (radials, blocks, PGData component layout) is read EXACTLY as in PG_Cart -- only the integral engine
 // differs -- so a full SCF run here is the end-to-end cross-check of libcint against M&D (HF total energy,
 // which is basis-ordering invariant; the per-element match is already in tests/M_LibCint.C).
 //
-// HF only (1E + 4-centre).  The basis is a single C1 IrrepBasisSet (no SALC), enough for the energy
-// cross-check.  A DFT 3-centre fit (a libcint EFit_IBS) and a native-spherical sibling are later increments.
+// HF only (1E + 4-centre), a single C1 IrrepBasisSet (no SALC) -- enough for the energy cross-check.  The
+// `spherical` flag selects the evaluator's int*_sph mode (PG_LibCint serves both angular kinds from one
+// tree, unlike the M&D side); spherical is the independent HF oracle for PG_Spherical.  A DFT 3-centre fit
+// (a libcint EFit_IBS) is a later increment.
 module;
 #include <vector>
 #include <memory>
-export module qchem.BasisSet.Molecule.PG_Cart_LibCint;
+export module qchem.BasisSet.Molecule.PG_LibCint;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Block;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.PGData;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.BasisSet.Molecule.Reader;
-import qchem.BasisSet.Molecule.Evaluators.PG_Cart_LibCint;   // NR_Evaluator: the IBS IS-A evaluator base
+import qchem.BasisSet.Molecule.Evaluators.PG_LibCint;   // NR_Evaluator: the IBS IS-A evaluator base
 import qchem.BasisSet.Molecule.IBS;                          // Molecule::Orbital_{1E,HF}_IBS<E> mixins
 
 import qchem.BasisSet.Internal.BasisSetImp;
@@ -26,10 +28,10 @@ import qchem.BasisSet.Orbital_HF_IBS;
 import qchem.Cluster;
 import qchem.Types;
 
-export namespace BasisSet::Molecule::PG_Cart_LibCint
+export namespace BasisSet::Molecule::PG_LibCint
 {
 namespace Cart = ::BasisSet::Molecule::Evaluators::PG_Cart_MnD;
-namespace LC   = ::BasisSet::Molecule::Evaluators::PG_Cart_LibCint;
+namespace LC   = ::BasisSet::Molecule::Evaluators::PG_LibCint;
 
 class IrrepBasisSet
         : public virtual Real_IBS,

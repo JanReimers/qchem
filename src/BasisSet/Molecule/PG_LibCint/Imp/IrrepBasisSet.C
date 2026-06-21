@@ -1,4 +1,4 @@
-// File: BasisSet/Molecule/PG_Cart_LibCint/Imp/IrrepBasisSet.C  Cartesian PG basis, integrated by libcint.
+// File: BasisSet/Molecule/PG_LibCint/Imp/IrrepBasisSet.C  Cartesian PG basis, integrated by libcint.
 //
 // The radial-read / de-dup loop and the Cartesian angular expansion (MakePolarizations) are copied verbatim
 // from PG_Cart so the (radial, polarization) component set -- and therefore the component ORDER -- is
@@ -11,7 +11,7 @@ module;
 #include <memory>
 #include <vector>
 
-module qchem.BasisSet.Molecule.PG_Cart_LibCint;
+module qchem.BasisSet.Molecule.PG_LibCint;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Block;
@@ -22,7 +22,7 @@ import qchem.stl_io;
 import qchem.Math;
 import qchem.Blaze;
 
-namespace BasisSet::Molecule::PG_Cart_LibCint
+namespace BasisSet::Molecule::PG_LibCint
 {
 using Cart::GaussianRF;
 using Cart::Polarization;
@@ -151,4 +151,4 @@ std::ostream& IrrepBasisSet::Write(std::ostream& os) const {return os << BasisSe
 Orbital_IBS::Orbital_IBS(Reader* bsr, const Cluster* cl, bool sph)                : IrrepBasisSet(bsr,cl,sph) {};
 Orbital_IBS::Orbital_IBS(const rvec_t& es, size_t L, const Cluster* cl, bool sph) : IrrepBasisSet(es,L,cl,sph) {};
 
-} //namespace BasisSet::Molecule::PG_Cart_LibCint
+} //namespace BasisSet::Molecule::PG_LibCint

@@ -66,7 +66,7 @@ TEST_F(M_HF_U_Water, Water)
 }
 
 // --- The Cartesian basis integrated by libcint through the same SCF --------------------------------
-// js["engine"]="libcint" selects the PG_Cart_LibCint matrix-delivery evaluator (same dzvp data, same
+// js["engine"]="libcint" selects the PG_LibCint matrix-delivery evaluator (same dzvp data, same
 // Cartesian component set as the M&D path).  Since libcint's integrals match M&D to <1e-10 element-wise
 // (M_LibCint guard), the converged HF energy must equal the Cartesian anchor -- this is the end-to-end
 // cross-check of the external engine through a real SCF.

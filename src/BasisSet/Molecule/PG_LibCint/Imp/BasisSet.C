@@ -1,12 +1,12 @@
-// File: BasisSet/Molecule/PG_Cart_LibCint/Imp/BasisSet.C  Cartesian PG basis (libcint engine) container.
+// File: BasisSet/Molecule/PG_LibCint/Imp/BasisSet.C  Cartesian PG basis (libcint engine) container.
 module;
 #include <memory>
 
-module qchem.BasisSet.Molecule.PG_Cart_LibCint;
+module qchem.BasisSet.Molecule.PG_LibCint;
 import qchem.BasisSet.Molecule.Reader;
 import qchem.Cluster;
 
-namespace BasisSet::Molecule::PG_Cart_LibCint
+namespace BasisSet::Molecule::PG_LibCint
 {
 
 BasisSet::BasisSet(Reader* reader, const Cluster* cl, bool spherical)

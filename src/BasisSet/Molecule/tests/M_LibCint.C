@@ -1,6 +1,6 @@
 // File: BasisSet/Molecule/tests/M_LibCint.C
 //
-// Guard for the PG_Cart_LibCint matrix-delivery evaluator: it integrates the SAME Cartesian PG basis as
+// Guard for the PG_LibCint matrix-delivery evaluator: it integrates the SAME Cartesian PG basis as
 // PG_Cart_MnD but via the external libcint library.  Because it reproduces PGData's component ORDER and
 // unit-self-overlap NORMALIZATION, every matrix / ERI it delivers must equal -- element for element -- what
 // the M&D scalar IBS builds through its public accessors (the M&D path is itself oracle-validated to machine
@@ -14,7 +14,7 @@
 
 import qchem.BasisSet.Molecule.Evaluators;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.PGData;     // PGData (the IBS IS-A one)
-import qchem.BasisSet.Molecule.Evaluators.PG_Cart_LibCint;        // the evaluator under test
+import qchem.BasisSet.Molecule.Evaluators.PG_LibCint;        // the evaluator under test
 import qchem.BasisSet.Molecule.PG_Cart;                           // Orbital_IBS (M&D reference)
 import qchem.BasisSet.Orbital_1E_IBS;
 import qchem.BasisSet.Orbital_DFT_IBS;
@@ -27,7 +27,7 @@ import qchem.Types;
 import qchem.Blaze;
 
 using BasisSet::Molecule::PG_Cart::Orbital_IBS;
-using LibCintEval = BasisSet::Molecule::Evaluators::PG_Cart_LibCint::NR_Evaluator;
+using LibCintEval = BasisSet::Molecule::Evaluators::PG_LibCint::NR_Evaluator;
 using PGData      = BasisSet::Molecule::Evaluators::PG_Cart_MnD::PGData;
 
 static Molecule* MakeWater()

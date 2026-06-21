@@ -10,7 +10,7 @@ import qchem.BasisSet.Molecule.Readers.Gaussian94;
 import qchem.BasisSet.Molecule.BasisFiles;
 import qchem.BasisSet.Molecule.PG_Cart;
 import qchem.BasisSet.Molecule.PG_Spherical;
-import qchem.BasisSet.Molecule.PG_Cart_LibCint;
+import qchem.BasisSet.Molecule.PG_LibCint;
 
 using json = nlohmann::json;
 
@@ -54,7 +54,7 @@ namespace BasisSet::Molecule
         if (js.value("engine", std::string("mnd")) == "libcint")
         {
             Gaussian94Reader reader(BasisFile(theFiles.at(it->second)));
-            return new PG_Cart_LibCint::BasisSet(&reader, cl, js.value("spherical", false));
+            return new PG_LibCint::BasisSet(&reader, cl, js.value("spherical", false));
         }
         return Factory(it->second, cl, js.value("spherical", false));
     }
