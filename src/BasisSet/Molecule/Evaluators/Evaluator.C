@@ -69,6 +69,21 @@ template <class E> concept is1E_Evaluator = std::derived_from<E, Evaluator> && r
     {e.Nuclear (i,j,cl)} -> std::same_as<double>;   // multi-centre sum_c -Z_c/|r-R_c|; cluster passed per call
 };
 
+// --- Matrix-delivery 1E evaluators (isM_*) --------------------------------------------------------
+// The SECOND evaluator-customer category: an "opaque assembler" that produces whole 1E matrices itself
+// rather than per-element kernels -- a disk / external-code source, or a block-oriented integral library
+// (libcint/libint) that computes shell blocks.  The IBS mixin FORWARDS these instead of running the i,j
+// loop (and such an evaluator opts OUT of the shared Omega/RNLM cache -- it owns its own assembly).  An
+// evaluator satisfies is1E_Evaluator (cheap per-element kernels, we loop) OR this (it hands us the matrix);
+// the 1E mixin dispatches on which.  KineticMatrix is the <p^2>=<-nabla^2> block (no 1/2), like Grad2.
+template <class E> concept isM_1E_Evaluator = std::derived_from<E, Evaluator>
+    && requires (const E e, const Cluster* cl)
+{
+    {e.OverlapMatrix()  } -> std::same_as<rsmat_t>;
+    {e.KineticMatrix()  } -> std::same_as<rsmat_t>;
+    {e.NuclearMatrix(cl)} -> std::same_as<rsmat_t>;
+};
+
 // --- 3-centre (DFT) and 4-centre (HF) inline kernels ----------------------------------------------
 // These mirror the atom isDFT_Evaluator / isHF_Evaluator concepts, but the molecular kernels are
 // *multi-evaluator*: each (evaluator, index) pair names one basis component, so the same kernel serves

@@ -5,6 +5,7 @@ add_executable(UTMolecule_BS ../../Atom/tests/gtestmain.C
    M_PG_MeshIntegrals.C
    M_PG_Oracle.C
    M_Evaluator.C
+   M_MEvaluator.C
    M_Spherical.C
 )
 

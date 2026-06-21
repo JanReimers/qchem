@@ -31,31 +31,35 @@ export namespace BasisSet::Molecule
 {
 
 // --- 1E: Overlap / Kinetic(<p^2>) / Nuclear -------------------------------------------------------
-// The element kernels and the i,j loop both live on the evaluator side (Evaluators::*Matrix); this mixin
-// just forwards the IBS's MakeXxx() virtuals onto them.
-template <Evaluators::is1E_Evaluator E> class Orbital_1E_IBS
+// Two evaluator granularities, one mixin: if E delivers whole matrices (isM_1E_Evaluator -- an opaque
+// assembler / block library), FORWARD; otherwise (is1E_Evaluator -- cheap per-element kernels) run the i,j
+// loop.  The concrete IBS just instantiates with its evaluator; the framework adapts to whichever concept
+// it satisfies.  (An evaluator that satisfied both would take the forward path, but the two are disjoint in
+// practice -- a kernel evaluator wants the loop + shared cache, an assembler hands us the matrix.)
+template <class E> requires (Evaluators::is1E_Evaluator<E> || Evaluators::isM_1E_Evaluator<E>)
+class Orbital_1E_IBS
     : public virtual ::BasisSet::Orbital_1E_IBS<double>
 {
 protected:
     virtual rsmat_t MakeOverlap() const
     {
-        const E& e=Cast(); rsmat_t S(e.size());
-        for (auto i:e.indices()) for (auto j:e.indices(i)) S(i,j)=e.Overlap(i,j);
-        return S;
+        if constexpr (Evaluators::isM_1E_Evaluator<E>) return Cast().OverlapMatrix();
+        else { const E& e=Cast(); rsmat_t S(e.size());
+               for (auto i:e.indices()) for (auto j:e.indices(i)) S(i,j)=e.Overlap(i,j); return S; }
     }
     // <p^2>=<-nabla^2> building block: NO 1/2 (the Hamiltonian applies it) and NO centrifugal term (the
     // molecular Grad2 is already the full Cartesian -nabla^2).  See BasisSet/Orbital_1E_IBS.C.
     virtual rsmat_t MakeKinetic() const
     {
-        const E& e=Cast(); rsmat_t S(e.size());
-        for (auto i:e.indices()) for (auto j:e.indices(i)) S(i,j)=e.Grad2(i,j);
-        return S;
+        if constexpr (Evaluators::isM_1E_Evaluator<E>) return Cast().KineticMatrix();
+        else { const E& e=Cast(); rsmat_t S(e.size());
+               for (auto i:e.indices()) for (auto j:e.indices(i)) S(i,j)=e.Grad2(i,j); return S; }
     }
     virtual rsmat_t MakeNuclear(const Cluster* cl) const
     {
-        const E& e=Cast(); rsmat_t S(e.size());
-        for (auto i:e.indices()) for (auto j:e.indices(i)) S(i,j)=e.Nuclear(i,j,cl);
-        return S;
+        if constexpr (Evaluators::isM_1E_Evaluator<E>) return Cast().NuclearMatrix(cl);
+        else { const E& e=Cast(); rsmat_t S(e.size());
+               for (auto i:e.indices()) for (auto j:e.indices(i)) S(i,j)=e.Nuclear(i,j,cl); return S; }
     }
     const E& Cast() const {return dynamic_cast<const E&>(*this);}
 };
