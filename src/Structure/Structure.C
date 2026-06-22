@@ -78,6 +78,9 @@ public:
     Molecule() {};
     Molecule(const Structure& m);
     Molecule(const Molecule& m) : Molecule(static_cast<const Structure&>(m)) {};
+    //  Owns its Atoms, so it needs a deep-copy assignment (rule of three);
+    //  copy-and-swap reuses the copy ctor and is self-assignment safe.
+    Molecule& operator=(Molecule m) {itsAtoms.swap(m.itsAtoms); return *this;}
     virtual ~Molecule();
     virtual void   Insert     (Atom* a);
     virtual size_t GetNumAtoms() const;
