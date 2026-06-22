@@ -132,10 +132,17 @@
         "TODO": "markdown"
     },
     "cmake.buildDirectory": "${workspaceFolder}/build/${buildType}",
-    "cmake.autoScanForKits": false,
+    // "cmake.autoScanForKits": false,
     "files.watcherExclude": {
-    "**/build/Debug/**": true,
-    "**/build/Release/**": true
+    "**/build/Debug/**/*.o": true,
+    "**/build/Debug/**/*.obj": true,
+    "**/build/Debug/**/*.cmake": true,
+    "**/build/Debug/CMakeFiles/**": true,
+    
+    "**/build/Release/**/*.o": true,
+    "**/build/Release/**/*.obj": true,
+    "**/build/Release/**/*.cmake": true,
+    "**/build/Release/CMakeFiles/**": true
 }
     // "C_Cpp.default.intelliSenseMode": "linux-clang-x64"
     "C_Cpp.intelliSenseEngine": "disabled",
