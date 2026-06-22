@@ -10,6 +10,7 @@ module qchem.Lattice;
 import qchem.Structure.MoleculeMesh;
 import qchem.Streamable;
 import qchem.Math;
+import qchem.Blaze; //for op!= on blaze iterators (range-for over rvec3vec_t)
 
 //--------------------------------------------------------------------------
 //
@@ -158,63 +159,62 @@ rvec3_t Lattice::GetCoordinate(size_t SiteNumber) const
 //
 //  Advanced lattice questions.
 //
-std::vector<double> Lattice::GetDistances(size_t NumShells) const
+rvec_t Lattice::GetDistances(size_t NumShells) const
 {
     double maxd=itsUnitCell.GetMinimumCellEdge()*NumShells; //Initial guess.
-    std::vector<double> distances;
+    std::vector<double> distances; //scratch buffer: built by push_back, then sorted
 
-    std::vector<rvec3_t> super_cells=GetSuperCells(maxd);
+    rvec3vec_t super_cells=GetSuperCells(maxd);
 
     for (auto a1:itsUnitCell)
         for (auto a2:itsUnitCell)
-            for (std::vector<rvec3_t>::const_iterator c(super_cells.begin()); c!=super_cells.end(); c++)
+            for (auto& c:super_cells)
             {
-                double d=itsUnitCell.GetDistance(*c + a2->itsR - a1->itsR);
+                double d=itsUnitCell.GetDistance(c + a2->itsR - a1->itsR);
                 if(d>0 && d<=maxd && Find(d,distances)==distances.size()) distances.push_back(d);
             }
 
     std::sort(distances.begin(),distances.end());
     assert(distances.size()>=NumShells); //guess radius minEdge*NumShells should be ample
-    return std::vector<double>(distances.begin(),
-                               distances.begin()+std::min(NumShells,distances.size()));
+    return rvec_t(std::min(NumShells,distances.size()),distances.data());
 }
 
-std::vector<rvec3_t> Lattice::GetBonds(size_t BasisNumber, double Distance) const
+rvec3vec_t Lattice::GetBonds(size_t BasisNumber, double Distance) const
 {
     assert(BasisNumber<GetNumBasisSites());
     assert(Distance>0);
 
-    std::vector<rvec3_t> ret;
+    std::vector<rvec3_t> ret; //scratch buffer: size not known up front
     rvec3_t rb=GetBasisVector(BasisNumber);
-    std::vector<rvec3_t> super_cells=GetSuperCells(Distance);
+    rvec3vec_t super_cells=GetSuperCells(Distance);
 
     for (auto a:itsUnitCell)
-        for (std::vector<rvec3_t>::const_iterator c(super_cells.begin()); c!=super_cells.end(); c++)
+        for (auto& c:super_cells)
         {
-            rvec3_t bond = a->itsR + *c - rb;
+            rvec3_t bond = a->itsR + c - rb;
             double mbond=itsUnitCell.GetDistance(bond);
             if (fabs(mbond-Distance) < itsTolerence) ret.push_back(bond);
         }
-    return ret;
+    return rvec3vec_t(ret.size(),ret.data());
 }
 
-std::vector<rvec3_t> Lattice::GetBondsInSphere(size_t BasisNumber, double Distance) const
+rvec3vec_t Lattice::GetBondsInSphere(size_t BasisNumber, double Distance) const
 {
     assert(BasisNumber<GetNumBasisSites());
     assert(Distance>0);
 
-    std::vector<rvec3_t> ret;
+    std::vector<rvec3_t> ret; //scratch buffer: size not known up front
     rvec3_t rb=GetBasisVector(BasisNumber);
-    std::vector<rvec3_t> super_cells=GetSuperCells(Distance);
+    rvec3vec_t super_cells=GetSuperCells(Distance);
 
     for (auto a:itsUnitCell)
-        for (std::vector<rvec3_t>::const_iterator c(super_cells.begin()); c!=super_cells.end(); c++)
+        for (auto& c:super_cells)
         {
-            rvec3_t bond = a->itsR + *c - rb;
+            rvec3_t bond = a->itsR + c - rb;
             double mbond=itsUnitCell.GetDistance(bond);
             if (mbond<Distance+itsTolerence) ret.push_back(bond);
         }
-    return ret;
+    return rvec3vec_t(ret.size(),ret.data());
 }
 
 std::vector<ivec3_t>  Lattice::GetCellsInSphere(double rmax) const
@@ -253,14 +253,15 @@ size_t  Lattice::Find(double r,const std::vector<double>& lis) const
     return ret;
 }
 
-std::vector<rvec3_t> Lattice::GetSuperCells(double MaxDistance) const
+rvec3vec_t Lattice::GetSuperCells(double MaxDistance) const
 {
-    std::vector<rvec3_t> ret;
     Vector3D<int> nc=itsUnitCell.GetNumCells(MaxDistance);
+    rvec3vec_t ret((2*nc.x+1)*(2*nc.y+1)*(2*nc.z+1)); //full box, size known up front
+    size_t k=0;
     for (int ix=-nc.x; ix<=nc.x; ix++)
         for (int iy=-nc.y; iy<=nc.y; iy++)
             for (int iz=-nc.z; iz<=nc.z; iz++)
-                ret.push_back(ivec3_t(ix,iy,iz));
+                ret[k++]=ivec3_t(ix,iy,iz);
     return ret;
 }
 

@@ -82,9 +82,9 @@ public:
     rvec3_t         GetCoordinate  (size_t SiteNumber) const;
     void          SplitCoordinate(const rvec3_t& r, rvec3_t& basis, Vector3D<int>& cell) const;
 
-    std::vector<double> GetDistances    (size_t NumShells) const;
-    std::vector<rvec3_t>  GetBonds        (size_t BasisNumber, double distance) const;
-    std::vector<rvec3_t>  GetBondsInSphere(size_t BasisNumber, double distance) const;
+    rvec_t      GetDistances    (size_t NumShells) const;
+    rvec3vec_t  GetBonds        (size_t BasisNumber, double distance) const;
+    rvec3vec_t  GetBondsInSphere(size_t BasisNumber, double distance) const;
     std::vector<ivec3_t>  GetCellsInSphere(double distance) const;
 
     std::ostream& Write(std::ostream&) const;
@@ -92,7 +92,7 @@ public:
 private:
     size_t      Find(const rvec3_t&               ) const; //Search unit cell.
     size_t      Find(double,const std::vector<double>&) const;
-    std::vector<rvec3_t>  GetSuperCells(double MaxDistance) const;
+    rvec3vec_t  GetSuperCells(double MaxDistance) const;
     rvec3_t        GetBasisVector(size_t BasisNumber  ) const;
 
     UnitCell       itsUnitCell;  //Unit cell dimensions, no atoms.
