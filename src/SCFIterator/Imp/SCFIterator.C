@@ -274,7 +274,7 @@ void SCFIterator::DisplayEnergies(int i, const EnergyBreakdown& eb, double relax
     cout << setw(8) << std::scientific << setw(7) << setprecision(1) << dCD << " ";
     itsAccelerator->ShowConvergence(cout);
     cout << setw(4) << std::fixed << setw(4) << setprecision(2) << relax << "  ";
-    cout << ConfigString(itsWaveFunction);
+    // cout << ConfigString(itsWaveFunction);
     cout << endl;
 }
 
