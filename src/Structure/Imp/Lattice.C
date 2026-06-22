@@ -180,7 +180,9 @@ std::vector<double> Lattice::GetDistances(size_t NumShells) const
             }
 
     std::sort(distances.begin(),distances.end());
-    return std::vector<double>(distances.begin(),distances.begin()+NumShells);
+    assert(distances.size()>=NumShells); //guess radius minEdge*NumShells should be ample
+    return std::vector<double>(distances.begin(),
+                               distances.begin()+std::min(NumShells,distances.size()));
 }
 
 std::vector<rvec3_t> Lattice::GetBonds(size_t BasisNumber, double Distance) const
