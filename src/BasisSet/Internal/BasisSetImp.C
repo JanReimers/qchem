@@ -1,6 +1,7 @@
 // File: src/BasisSet/Internal/BasisSetImp.C  Common implementation for a full basis set.
 module;
 #include <memory>
+#include <vector>
 #include <cassert>
 export module qchem.BasisSet.Internal.BasisSetImp;
 export import qchem.Types;
@@ -15,10 +16,12 @@ template <class T> class BasisSetImp
 {
 public:
     
+    using bs_t = typename BasisSet<T>::bs_t;
+
     virtual size_t GetNumFunctions() const
     {
         size_t ret=0;
-        for (auto& bs:*this) 
+        for (auto& bs:itsBasisSets)
             ret+=bs->GetNumFunctions();
         return ret;
     }
@@ -39,16 +42,16 @@ protected:
     void Insert(Orbital_1E_IBS<T>* bs)
     {
         assert(bs);
-        itsBasisSets.push_back(std::unique_ptr<typename BasisSet<T>::bs_t>(bs));
+        itsBasisSets.push_back(std::unique_ptr<bs_t>(bs));
     }
 
-    using const_iterator=BasisSet<T>::const_iterator;
-    virtual const_iterator begin() const {return itsBasisSets.begin();}
-    virtual const_iterator end  () const {return itsBasisSets.end  ();}
+    virtual size_t      GetNumIBS()      const {return itsBasisSets.size();}
+    virtual const bs_t* GetIBS(size_t i) const {return itsBasisSets[i].get();}
+
     friend class SlaterRadialIntegralTests;
     friend class DiracIntegralTests;
 
-    BasisSet<T>::bsv_t itsBasisSets;
+    std::vector<std::unique_ptr<bs_t>> itsBasisSets;
 };
 
 } //namespace

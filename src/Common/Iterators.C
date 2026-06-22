@@ -78,3 +78,48 @@ private:
     std::size_t itsI=0;
 };
 
+//----------------------------------------------------------------------------
+//
+//  Downcasting flavour of IndexIterator: indexes C via operator[] (which
+//  returns some base pointer) and yields it dynamic_cast to D*.  Same role as
+//  D_iterator above, but index-based, so the container's storage type never
+//  leaks into its interface -- it only has to expose operator[] and a count.
+//
+export template <class D, class C> class D_IndexIterator
+{
+public:
+    using reference         = D*;
+    using value_type        = D*;
+    using difference_type   = std::ptrdiff_t;
+    using iterator_concept  = std::forward_iterator_tag;
+    using iterator_category = std::input_iterator_tag;
+
+    D_IndexIterator() = default;
+    D_IndexIterator(const C* c, std::size_t i) : itsC(c), itsI(i) {};
+
+    D* operator*() const
+    {
+        D* d=dynamic_cast<D*>((*itsC)[itsI]);
+        assert(d);
+        return d;
+    }
+    D_IndexIterator& operator++()    {++itsI; return *this;}
+    D_IndexIterator  operator++(int) {D_IndexIterator t(*this); ++itsI; return t;}
+
+    bool operator==(const D_IndexIterator&) const = default;
+private:
+    const C*    itsC=nullptr;
+    std::size_t itsI=0;
+};
+
+export template <class D, class C> class D_IndexProxy
+{
+public:
+    D_IndexProxy(const C* c, std::size_t n) : itsC(c), itsN(n) {};
+    D_IndexIterator<D,C> begin() const {return D_IndexIterator<D,C>(itsC,0);}
+    D_IndexIterator<D,C> end  () const {return D_IndexIterator<D,C>(itsC,itsN);}
+private:
+    const C*    itsC;
+    std::size_t itsN;
+};
+

@@ -25,33 +25,27 @@ template <class T> class BasisSet
     : public virtual Streamable
 {
 public:
-    typedef Orbital_1E_IBS<T> bs_t; 
-    typedef std::vector<std::unique_ptr<bs_t>> bsv_t;
-    typedef bsv_t::const_iterator const_iterator;
-    
-    virtual ~BasisSet() {}; 
+    typedef Orbital_1E_IBS<T> bs_t;
+
+    virtual ~BasisSet() {};
     virtual size_t   GetNumFunctions() const=0;
     virtual irrepv_t GetIrreps(const Spin& ms) const=0;
-    
+
     virtual Fit_IBS* CreateCDFitBasisSet(const Structure* cl) const;
     virtual Fit_IBS* CreateVxcFitBasisSet(const Structure* cl) const;
 
-private:
-    virtual const_iterator begin() const=0;
-    virtual const_iterator end  () const=0;
-
-    
-public:
-    // These facilutate iteration but return pointers dyn-cast'ed to derived types (T);
+    // Iterate returns IBS pointers dynamic_cast'ed to the requested derived
+    // type D.  It is built on the two primitives below, so how a concrete
+    // BasisSet stores its IBSs stays private to that class.
     template <class D> auto Iterate() const
     {
-        return D_iterator_proxy<const D,const_iterator>(begin(),end());
+        return D_IndexProxy<const D, BasisSet>(this, GetNumIBS());
     }
-    template <class D> auto Iterate(const D* start) const
-    {
-        return D_iterator_proxy<const D,const_iterator>(begin(),end(),start);
-    }
+    const bs_t* operator[](size_t i) const {return GetIBS(i);}
 
+protected:
+    virtual size_t      GetNumIBS()    const=0; //Number of Irrep basis sets.
+    virtual const bs_t* GetIBS(size_t) const=0; //The only storage-specific primitive.
 };
 
 typedef BasisSet<double>    Real_BS;
