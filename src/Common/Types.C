@@ -41,7 +41,9 @@ using rvec3vec_t=vec3vec_t<double>;
 using ivec3_t = vec3_t<int>;
 
 // Complex (dcmplx) counterparts of the real aliases above, for plane-wave / Bloch work.
-using csmat_t=smat_t<dcmplx>;
+// Hermitian (chmat_t), not symmetric: a complex-symmetric matrix is rarely physical, whereas
+// overlap / kinetic / potential blocks are Hermitian.  (chmat_t mirrors rhmat_t.)
+using chmat_t=hmat_t<dcmplx>;
 using cvec_t=vec_t<dcmplx>;
 using cvec3vec_t=vec3vec_t<dcmplx>;
 

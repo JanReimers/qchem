@@ -10,7 +10,7 @@ namespace BasisSet
 
 // Cached accessor for the kinetic BUILDING BLOCK \f$\langle p^2\rangle=\langle-\nabla^2\rangle\f$
 // (NOT the kinetic energy -- no 1/2; see BasisSet/Orbital_1E_IBS.C).
-template <class T> const smat_t<T>& Integrals_Kinetic<T>::Kinetic() const
+template <class T> const hmat_t<T>& Integrals_Kinetic<T>::Kinetic() const
 {
     auto cache=theGlobalCache;
     assert(cache);
@@ -18,7 +18,7 @@ template <class T> const smat_t<T>& Integrals_Kinetic<T>::Kinetic() const
         [this]{ return MakeKinetic(); });
 }
 
-template <class T> const smat_t<T>& Integrals_Nuclear<T>::Nuclear(const Structure* cl) const
+template <class T> const hmat_t<T>& Integrals_Nuclear<T>::Nuclear(const Structure* cl) const
 {
     assert(cl);
     auto cache=theGlobalCache;

@@ -7,7 +7,7 @@ import qchem.BasisSet.Internal.DB_Cache;
 namespace BasisSet
 {
 
-template <class T> const smat_t<T>& Integrals_Overlap<T>::Overlap() const
+template <class T> const hmat_t<T>& Integrals_Overlap<T>::Overlap() const
 {
     auto cache=theGlobalCache;
     assert(cache);

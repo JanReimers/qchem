@@ -45,10 +45,10 @@ std::vector<double> FreeElectronReference(double a, ivec3_t N, ivec3_t kIndex, d
 }
 
 // Diagonalise H = 1/2 * Kinetic + V and return the sorted eigenvalues (V optional / nullptr for V=0).
-std::vector<double> SolveBands(const PlaneWave_IBS& pw, const csmat_t* V=nullptr)
+std::vector<double> SolveBands(const PlaneWave_IBS& pw, const chmat_t* V=nullptr)
 {
     size_t n=pw.GetNumFunctions();
-    csmat_t p2=pw.MakeKinetic();
+    chmat_t p2=pw.MakeKinetic();
     hmat_t<dcmplx> H(n), S(n);
     for (size_t i=0;i<n;i++)
     {
@@ -85,7 +85,7 @@ void CheckKPoint(double a, ivec3_t N, ivec3_t kIndex, double Ecut)
     ASSERT_EQ(pw.GetNumFunctions(),ref.size());          // same G-set
 
     // Overlap is the identity (plane waves are orthonormal over the cell).
-    csmat_t S=pw.MakeOverlap();
+    chmat_t S=pw.MakeOverlap();
     for (size_t i=0;i<pw.GetNumFunctions();i++)
     {
         EXPECT_NEAR(std::real(dcmplx(S(i,i))),1.0,1e-14);
@@ -116,7 +116,7 @@ double HydrogenE0(double a, double Ecut, size_t* npw=nullptr)
     PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(0,0,0),Ecut);
     if (npw) *npw=pw.GetNumFunctions();
     Atom H(1,rvec3_t(0,0,0));
-    csmat_t V=pw.MakeNuclear(&H);
+    chmat_t V=pw.MakeNuclear(&H);
     std::vector<double> bands=SolveBands(pw,&V);
     return bands.front();
 }
@@ -143,7 +143,7 @@ TEST_F(PlaneWaveTests, CosineMatrixStructure)
     PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(0,0,0),8.0);
 
     auto Vtilde=CosineVtilde(V0);
-    csmat_t V=pw.MakePotential(Vtilde);
+    chmat_t V=pw.MakePotential(Vtilde);
     size_t n=pw.GetNumFunctions();
     ASSERT_EQ(V.rows(),n);
     for (size_t i=0;i<n;i++)
@@ -169,10 +169,10 @@ TEST_F(PlaneWaveTests, CosineTraceInvariant)
     Lattice_3D lat(cell,N);
     PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(1,0,0),8.0);
 
-    csmat_t V=pw.MakePotential(CosineVtilde(V0));
+    chmat_t V=pw.MakePotential(CosineVtilde(V0));
     std::vector<double> bands=SolveBands(pw,&V);
 
-    csmat_t p2=pw.MakeKinetic();
+    chmat_t p2=pw.MakeKinetic();
     double kineticSum=0.0, bandSum=0.0;
     for (size_t i=0;i<pw.GetNumFunctions();i++) kineticSum += 0.5*std::real(dcmplx(p2(i,i)));
     for (double e:bands) bandSum += e;
@@ -188,7 +188,7 @@ TEST_F(PlaneWaveTests, CosineZeroRecoversEmptyLattice)
     Lattice_3D lat(cell,N);
     PlaneWave_IBS pw(lat.Reciprocal(),N,k,Ecut);
 
-    csmat_t V=pw.MakePotential(CosineVtilde(0.0));
+    chmat_t V=pw.MakePotential(CosineVtilde(0.0));
     std::vector<double> bands=SolveBands(pw,&V);
     std::vector<double> ref=FreeElectronReference(a,N,k,Ecut);
     ASSERT_EQ(bands.size(),ref.size());
@@ -205,7 +205,7 @@ TEST_F(PlaneWaveTests, CosineGroundStatePerturbation)
     Lattice_3D lat(cell,N);
     PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(0,0,0),8.0);
 
-    csmat_t V=pw.MakePotential(CosineVtilde(V0));
+    chmat_t V=pw.MakePotential(CosineVtilde(V0));
     std::vector<double> bands=SolveBands(pw,&V);
 
     double E0_pt2 = -3.0*V0*V0*a*a/(4*Pi*Pi);
@@ -224,7 +224,7 @@ TEST_F(PlaneWaveTests, HydrogenPotentialMatrixElement)
     Lattice_3D lat(cell,N);
     PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(0,0,0),6.0);
     Atom H(1,rvec3_t(0,0,0));
-    csmat_t V=pw.MakeNuclear(&H);
+    chmat_t V=pw.MakeNuclear(&H);
 
     size_t n=pw.GetNumFunctions();
     double nearest=-1.0/(Pi*a);     // expected coupling between G and G +/- b_i

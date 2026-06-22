@@ -45,9 +45,9 @@ public:
     ivec3_t GetGIndex(size_t i) const {return itsG[i];}
 
     // 1E integral building blocks (no 1/2 on Kinetic -- the Hamiltonian applies it).
-    virtual csmat_t MakeOverlap () const;                  //!< Identity (PWs orthonormal over the cell).
-    virtual csmat_t MakeKinetic () const;                  //!< Diagonal \f$|k+G|^2 = \langle p^2\rangle\f$.
-    virtual csmat_t MakeNuclear (const Structure*) const;  //!< Zero stub (see TODO -- milestone 2.3).
+    virtual chmat_t MakeOverlap () const;                  //!< Identity (PWs orthonormal over the cell).
+    virtual chmat_t MakeKinetic () const;                  //!< Diagonal \f$|k+G|^2 = \langle p^2\rangle\f$.
+    virtual chmat_t MakeNuclear (const Structure*) const;  //!< Bare-Coulomb structure factor (Hermitian).
 
     //! \brief Assemble \f$ \langle G|V|G'\rangle = \tilde V(G-G') \f$ from a caller-supplied G-space
     //! potential, keyed by the reciprocal-index difference \f$\Delta m = m(G)-m(G')\f$.
@@ -55,8 +55,9 @@ public:
     //! This is the reusable G-space potential assembly: the milestone-2.2 separable cosine and the
     //! milestone-2.3 nuclear structure factor are both just particular \f$\tilde V\f$ suppliers.
     //! \note Returns smat_t (symmetric) -- correct for a real, even \f$\tilde V\f$ (the cosine).  A
-    //! genuinely Hermitian-but-not-symmetric \f$\tilde V\f$ (complex structure factor) will need hmat_t.
-    csmat_t MakePotential(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const;
+    //! \f$\tilde V\f$ should satisfy \f$\tilde V(-\Delta m)=\overline{\tilde V(\Delta m)}\f$ so the
+    //! result is Hermitian (chmat_t); this holds for the cosine and the nuclear structure factor.
+    chmat_t MakePotential(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const;
 
     // VectorFunction: the plane-wave values / gradients at a point.
     virtual cvec_t     operator() (const rvec3_t& r) const;

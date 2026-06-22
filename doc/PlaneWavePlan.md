@@ -49,9 +49,11 @@ Do them in this order — each isolates a different piece:
    Confirmed the warned slow cusp convergence empirically — at `a=8`, `E_cut`=4→6
    gives only ≈ −0.136→−0.149, so the test asserts convergence *behaviour*, not a
    −0.5 value (which needs far higher `E_cut` / a pseudized nucleus).
-   ⚠ `MakeNuclear` returns `csmat_t` (symmetric) — correct only for a real
-   (centrosymmetric) atom set like one atom at the origin; **off-origin / multi-atom
-   cells make `V` Hermitian-not-symmetric and need an `hmat_t` path** (see §6.3).
+   The 1E integral building blocks now return `hmat_t<T>` (`chmat_t` for complex):
+   Hermitian for `dcmplx`, identical `SymmetricMatrix` for real `T` (so atom/molecule
+   bases are unaffected). `MakeNuclear` fills a `HermitianMatrix`, so off-origin /
+   multi-atom cells (complex phases) assemble correctly — the earlier `csmat_t`
+   symmetric-storage seam is closed.
 
 ## 3. Scope insight — the 1-electron target needs much less than full SCF
 

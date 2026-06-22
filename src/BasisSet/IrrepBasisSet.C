@@ -42,8 +42,8 @@ public:
 template <class T> class Integrals_Overlap : public virtual IrrepBasisSet_IDs
 {
 public:
-    virtual smat_t<T>  MakeOverlap() const=0; //Only called once for a given {radial,angular} ID pair.
-    const   smat_t<T>&     Overlap() const;
+    virtual hmat_t<T>  MakeOverlap() const=0; //Only called once for a given {radial,angular} ID pair.
+    const   hmat_t<T>&     Overlap() const;
 };
 //----------------------------------------------------------------------------
 //

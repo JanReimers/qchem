@@ -17,6 +17,16 @@ export namespace blazem
         return z;
     }
 
+    // Hermitian counterpart of zero(): an NxN zeroed hmat_t (SymmetricMatrix for real T,
+    // HermitianMatrix for complex T).  A zero matrix is trivially Hermitian, so the per-column
+    // scalar zeroing keeps the adaptor's invariant.
+    template <typename T> hmat_t<T> zeroH(size_t N)
+    {
+        hmat_t<T> z(N);
+        for ( size_t j=0; j<z.columns(); ++j) column(z,j)=0.0;
+        return z;
+    }
+
     //
     //  Accumulate a blaze vector when the final length is not known up front.  push_back() grows by
     //  doubling, so N appends cost O(N) total -- a naive resize-by-1 each time would be O(N^2) since

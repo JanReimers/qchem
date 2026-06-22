@@ -47,21 +47,21 @@ rvec3_t PlaneWave_IBS::GetGCartesian(const ivec3_t& m) const
 }
 
 // Plane waves are orthonormal over the cell: <G|G'> = delta_{GG'}.
-csmat_t PlaneWave_IBS::MakeOverlap() const
+chmat_t PlaneWave_IBS::MakeOverlap() const
 {
     size_t n=GetNumFunctions();
-    csmat_t S=blazem::zero<dcmplx>(n);   // smat_t(n) does NOT zero the off-diagonals
+    chmat_t S=blazem::zeroH<dcmplx>(n);   // hmat_t(n) does NOT zero the off-diagonals
     for (size_t i=0; i<n; i++) S(i,i)=1.0;
     return S;
 }
 
 // <p^2> = <-nabla^2> building block (NO 1/2 -- the Hamiltonian applies it).  For a plane wave
 // -nabla^2 e^{i(k+G).r} = |k+G|^2 e^{i(k+G).r}, so the matrix is diagonal in |k+G|^2.
-csmat_t PlaneWave_IBS::MakeKinetic() const
+chmat_t PlaneWave_IBS::MakeKinetic() const
 {
     const UnitCell& B=itsRecip.GetCell();
     size_t n=GetNumFunctions();
-    csmat_t S=blazem::zero<dcmplx>(n);   // off-diagonals are exactly zero
+    chmat_t S=blazem::zeroH<dcmplx>(n);   // off-diagonals are exactly zero
     for (size_t i=0; i<n; i++)
     {
         double kG=B.GetDistance(itsK+itsG[i]); // |k+G|
@@ -74,15 +74,14 @@ csmat_t PlaneWave_IBS::MakeKinetic() const
 //   <G|V|G'> = V(dG) = -(4 pi / Omega) Sum_a Z_a e^{-i dG.tau_a} / |dG|^2,   dG = G-G' != 0.
 // The dG=0 term (the divergent G=0 Coulomb component) is dropped -- the conventional uniform
 // neutralising background; it contributes only a finite per-cell shift that -> 0 as the cell grows.
-// NOTE: with off-origin atoms V is Hermitian but NOT symmetric; the smat_t (csmat_t) return then
-// cannot represent the phase asymmetry -- this is correct only for a real (centrosymmetric) atom set,
-// e.g. a single atom at the origin (the milestone-2.3 hydrogen test).  General cells need an hmat_t
-// path (see doc/PlaneWavePlan.md sec.6.3 + the smat/hmat seam note).
-csmat_t PlaneWave_IBS::MakeNuclear(const Structure* cl) const
+// The result is Hermitian: V(-dG) = conj(V(dG)) since the structure factor conjugates under dG -> -dG.
+// Filling the upper triangle of a HermitianMatrix auto-sets the lower as the conjugate, so off-origin /
+// multi-atom cells (complex phases) are handled correctly.
+chmat_t PlaneWave_IBS::MakeNuclear(const Structure* cl) const
 {
     const UnitCell& B=itsRecip.GetCell();
     size_t n=GetNumFunctions();
-    csmat_t V=blazem::zero<dcmplx>(n);
+    chmat_t V=blazem::zeroH<dcmplx>(n);
     for (size_t i=0; i<n; i++)
         for (size_t j=i; j<n; j++)
         {
@@ -97,11 +96,11 @@ csmat_t PlaneWave_IBS::MakeNuclear(const Structure* cl) const
     return V;
 }
 
-// <G|V|G'> = Vtilde(m(G) - m(G')).  Fill the upper triangle; SymmetricMatrix mirrors it.
-csmat_t PlaneWave_IBS::MakePotential(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const
+// <G|V|G'> = Vtilde(m(G) - m(G')).  Fill the upper triangle; HermitianMatrix mirrors the conjugate.
+chmat_t PlaneWave_IBS::MakePotential(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const
 {
     size_t n=GetNumFunctions();
-    csmat_t V=blazem::zero<dcmplx>(n);
+    chmat_t V=blazem::zeroH<dcmplx>(n);
     for (size_t i=0; i<n; i++)
         for (size_t j=i; j<n; j++)
             V(i,j)=Vtilde(itsG[i]-itsG[j]);

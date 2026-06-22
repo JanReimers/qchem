@@ -35,9 +35,9 @@ template <class T> class Integrals_Kinetic : public virtual IrrepBasisSet_IDs
 {
 public:
     //! \return \f$\langle p^2\rangle=\langle -\nabla^2\rangle\f$ (NO 1/2). Built once per {radial,angular} ID pair.
-    virtual smat_t<T>  MakeKinetic() const=0;
+    virtual hmat_t<T>  MakeKinetic() const=0;
     //! Cached accessor for the \f$\langle p^2\rangle\f$ block (see MakeKinetic()).
-    const   smat_t<T>&     Kinetic() const;
+    const   hmat_t<T>&     Kinetic() const;
 };
 
 //! \brief Interface for electron-nucleus attraction integrals.
@@ -45,8 +45,8 @@ public:
 template <class T> class Integrals_Nuclear : public virtual IrrepBasisSet_IDs
 {
 public:
-    virtual smat_t<T>  MakeNuclear(const Structure* cl) const=0; //Only called once for a given {radial,angular, structure} ID triple.
-    const   smat_t<T>&     Nuclear(const Structure* cl) const;
+    virtual hmat_t<T>  MakeNuclear(const Structure* cl) const=0; //Only called once for a given {radial,angular, structure} ID triple.
+    const   hmat_t<T>&     Nuclear(const Structure* cl) const;
 };
 
 
