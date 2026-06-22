@@ -1,6 +1,7 @@
 // File: LASolver/Imp/Factory.C
 module;
 #include <cassert>
+#include <iostream>
 module qchem.LASolver;
 import qchem.LASolver.Internal.Lapack;
 
@@ -10,9 +11,14 @@ template <class T> LASolver<T>* LASolver<T>::
     LASolver<T>* ret = nullptr;
     switch (ortho)
     {
-    case qchem::Cholsky: ret = new LASolverCholsky<T>(TruncationTolerance); break;
-    case qchem::Eigen:   ret = new LASolverEigen  <T>(TruncationTolerance); break;
-    case qchem::SVD:     ret = new LASolverSVD    <T>(TruncationTolerance); break;
+    case qchem::Cholsky:
+        if (TruncationTolerance != 0)
+            std::cerr << "Warning: LASolverCholsky ignores TruncationTolerance ("
+                      << TruncationTolerance << "); Cholesky does not truncate.\n";
+        ret = new LASolverCholsky<T>();
+        break;
+    case qchem::Eigen:   ret = new LASolverEigen<T>(TruncationTolerance); break;
+    case qchem::SVD:     ret = new LASolverSVD  <T>(TruncationTolerance); break;
     }
     assert(ret);
     return ret;

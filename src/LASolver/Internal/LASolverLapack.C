@@ -56,7 +56,7 @@ export template <class T> class LASolverCholsky : public virtual LASolver<T>
     using umat_t = blazem::UpperMatrix<mat_t<T>>;
     using lmat_t = blazem::LowerMatrix<mat_t<T>>;
 public:
-    LASolverCholsky(double tol) : itsTruncationTolerance(tol) {}
+    LASolverCholsky() {}
 
     void       SetBasisOverlap(const hmat_t<T>& S)          override;
     rvec_t     Get_BS_Diagonal()                       const override { return itsD; }
@@ -65,7 +65,6 @@ public:
     hmat_t<T>  Transform  (const hmat_t<T>& M)         const override;
     mat_t<T>   BackTransform(const mat_t<T>& Uprime)   const override;
 private:
-    double   itsTruncationTolerance;
     umat_t   itsV;    // U^{-1}, upper triangular
     lmat_t   itsVd;   // trans(U^{-1}), lower triangular
     rvec_t   itsD;
