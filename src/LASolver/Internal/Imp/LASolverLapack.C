@@ -190,10 +190,10 @@ template <class T> void LASolverSVD<T>::Truncate(mat_t<T>& U, rvec_t& s, mat_t<T
 }
 
 //=============================================================================
-//  LASolverCholsky
+//  LASolverCholesky
 //=============================================================================
 
-template <class T> void LASolverCholsky<T>::SetBasisOverlap(const hmat_t<T>& S)
+template <class T> void LASolverCholesky<T>::SetBasisOverlap(const hmat_t<T>& S)
 {
     mat_t<T> Sm(S);
     blazem::potrf(Sm, 'U');
@@ -213,25 +213,25 @@ template <class T> void LASolverCholsky<T>::SetBasisOverlap(const hmat_t<T>& S)
 }
 
 template <class T> typename LASolver<T>::Ud_t
-LASolverCholsky<T>::Solve(const hmat_t<T>& H) const
+LASolverCholesky<T>::Solve(const hmat_t<T>& H) const
 {
     return solve_impl<T>(H, itsVd, itsV);
 }
 
 template <class T> typename LASolver<T>::UUd_t
-LASolverCholsky<T>::SolveOrtho(const hmat_t<T>& Hprime) const
+LASolverCholesky<T>::SolveOrtho(const hmat_t<T>& Hprime) const
 {
     return solve_ortho_impl<T>(Hprime, itsV);
 }
 
 template <class T> hmat_t<T>
-LASolverCholsky<T>::Transform(const hmat_t<T>& M) const
+LASolverCholesky<T>::Transform(const hmat_t<T>& M) const
 {
     return transform_impl<T>(M, itsVd, itsV);
 }
 
 template <class T> mat_t<T>
-LASolverCholsky<T>::BackTransform(const mat_t<T>& Uprime) const
+LASolverCholesky<T>::BackTransform(const mat_t<T>& Uprime) const
 {
     return itsV * Uprime;
 }
@@ -242,7 +242,7 @@ LASolverCholsky<T>::BackTransform(const mat_t<T>& Uprime) const
 
 template class LASolverEigen  <double>;
 template class LASolverSVD    <double>;
-template class LASolverCholsky<double>;
+template class LASolverCholesky<double>;
 template class LASolverEigen  <dcmplx>;
 template class LASolverSVD    <dcmplx>;
-template class LASolverCholsky<dcmplx>;
+template class LASolverCholesky<dcmplx>;

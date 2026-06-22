@@ -76,7 +76,7 @@ int main() {
     const double beta = 2.0;
     const int N = 22;
 
-    LASolver<double>* las=LASolver<double>::Factory(qchem::Cholsky,1e-12);
+    LASolver<double>* las=LASolver<double>::Factory(qchem::Cholesky,1e-12);
 
     std::vector<double> alphas(N);
     for (int i = 0; i < N; ++i) alphas[i] = alpha0 * std::pow(beta, i);

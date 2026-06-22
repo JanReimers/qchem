@@ -25,7 +25,7 @@ public:
   // WaveFunction* create(BasisSet*, ElectronConfiguration*) const; //Decides polarized or un-polarized
   PlotWindow*   create_orbital_pw(BasisSet*,WaveFunction*) const; //Decides polarized or un-polarized
   PlotWindow*   create_el_pw(WaveFunction*) const; //Decides polarized or un-polarized
-  PlotWindow*   create_diag_pw(BasisSet*,WaveFunction*, qchem::Ortho) const; //Decide spin and diag type: SVD,Eigen,Cholsky
+  PlotWindow*   create_diag_pw(BasisSet*,WaveFunction*, qchem::Ortho) const; //Decide spin and diag type: SVD,Eigen,Cholesky
   
   template<class Archive>  void save(Archive & archive) const
   {

@@ -11,11 +11,11 @@ template <class T> LASolver<T>* LASolver<T>::
     LASolver<T>* ret = nullptr;
     switch (ortho)
     {
-    case qchem::Cholsky:
+    case qchem::Cholesky:
         if (TruncationTolerance != 0)
-            std::cerr << "Warning: LASolverCholsky ignores TruncationTolerance ("
+            std::cerr << "Warning: LASolverCholesky ignores TruncationTolerance ("
                       << TruncationTolerance << "); Cholesky does not truncate.\n";
-        ret = new LASolverCholsky<T>();
+        ret = new LASolverCholesky<T>();
         break;
     case qchem::Eigen:   ret = new LASolverEigen<T>(TruncationTolerance); break;
     case qchem::SVD:     ret = new LASolverSVD  <T>(TruncationTolerance); break;

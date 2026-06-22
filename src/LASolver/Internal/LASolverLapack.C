@@ -48,7 +48,7 @@ private:
     rvec_t   itsD;
 };
 
-export template <class T> class LASolverCholsky : public virtual LASolver<T>
+export template <class T> class LASolverCholesky : public virtual LASolver<T>
 {
     typedef LASolver<T> Base;
     typedef typename Base::Ud_t  Ud_t;
@@ -56,7 +56,7 @@ export template <class T> class LASolverCholsky : public virtual LASolver<T>
     using umat_t = blazem::UpperMatrix<mat_t<T>>;
     using lmat_t = blazem::LowerMatrix<mat_t<T>>;
 public:
-    LASolverCholsky() {}
+    LASolverCholesky() {}
 
     void       SetBasisOverlap(const hmat_t<T>& S)          override;
     rvec_t     Get_BS_Diagonal()                       const override { return itsD; }

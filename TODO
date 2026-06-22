@@ -118,15 +118,16 @@ Notes, bugs, and plans for the qchem6 project. This file is markdown-enabled so 
 - The infrastucture in qchem is only half set up for complex basis sets/Hamiltonians/Orbitals etc.
 ### prep work for solids
 #### LASolverUpgrade:
-- There is an extra layer in the class hierarchy that I have not got around to removing yet. (I won't bore you with the history)
+- This is prep for supporting plane waves for lattices.
+- I think LASolverCommon is not adding much value.  For Cholesky it would better to V and Vd is balze triangular matrices
+  having LASolverCommon thwarts this.
 - We need some unit tests for double.  I prefer not link to libqcAtom_BS to get overlap matricies, same for Ham matricies.  Hopefully we can just mock up some simple overlap and psuedo Ham matrices to test with.
 - We need to somehow seemlessly change between blaze::SymmetricMatrix and blaze::HermitianMatrix. 
     Can we conditionaly deduce (at compile time) hmat_t  from T such that
                 hmat_t<double>=blaze::SymmetricMatrix<double> or
                 hmat_t<dcmplx>=blaze::HermitianMatrix<dcmplx>
             Modern c++ must have a way to do this without doing partial class specializatons.
-- Cosmetic: I like using dcmplx=std::complex<double>; (already in src/Common/Types.C)... it has the same number of chars as double so things line up nicely in class interface.
-- I thought SVD/Eigen options would be useful in case the overlap is close to singular .. then we truncate and push on.  But truncating introduces float noise.  The user gets an answer, which better than a singular matrix exception. But maybe supporting these options is not adding any value?  Any idea if/how commercial qchem software tries handle near singular overlap?  One thing I found with Cholesky is that if you are near singular, you can;t see it in the diagonal elements.  They are always big O(.1).
+- 
 #### Review src/Cluster/Lattice 
 - and the unit tests.
 - Is this what we need?

@@ -7,7 +7,7 @@ import qchem.Blaze;
 
 export namespace qchem
 {
-    enum Ortho {Cholsky, Eigen, SVD};
+    enum Ortho {Cholesky, Eigen, SVD};
 }
 
 //#################################################################################

@@ -9,7 +9,7 @@ LAParamsFrame::LAParamsFrame(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Bu
   , itsOrtho(Gtk::Builder::get_widget_derived<enumDropDown<qchem::Ortho>>(refBuilder, "la_ortho"))
   , itsTruncationTolerance(refBuilder->get_widget<Gtk::Entry>("la_trunc"))
 {
-  itsOrtho->init({qchem::Cholsky,qchem::Eigen,qchem::SVD},{"Cholsky","Eigen","SVD"});
+  itsOrtho->init({qchem::Cholesky,qchem::Eigen,qchem::SVD},{"Cholesky","Eigen","SVD"});
 }
 
 

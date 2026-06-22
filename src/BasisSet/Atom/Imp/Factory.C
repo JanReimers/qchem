@@ -147,7 +147,7 @@ rvec_t SlaterExponents(BasisSetAccuracy acc,size_t Z)
     // beta               needs to be empircally adjusted to get non singular overlap matrices (smin>=tol) for acc=High.
     //    Using SVD     decomposition of S, we need beta >=1.27 for Slater functions (tol=1e-13).
     //    Using Eigen   decomposition of S, we need beta >=1.27 for Slater functions (tol=1e-13)..
-    //    Using Cholsky decomposition of S, we need beta >=1.23 for Slater functions (tol=0.00043)..
+    //    Using Cholesky decomposition of S, we need beta >=1.23 for Slater functions (tol=0.00043)..
     // These betas are too low fo actuall calculations.  They get lost iterating in noise.
     // tol, emin and emax needs to be empircally adjusted to get good HF ground state energies for *all* atoms!
     // 
@@ -187,7 +187,7 @@ rvec_t GaussianExponents(BasisSetAccuracy acc,size_t Z)
     // beta               needs to be empircally adjusted to get non singular overlap matrices (smin>=tol) for acc=Extreme.
     //    Using SVD     decomposition of S, we need beta >=1.27 for Slater functions (tol=1e-13).
     //    Using Eigen   decomposition of S, we need beta >=1.27 for Slater functions (tol=1e-13)..
-    //    Using Cholsky decomposition of S, we need beta >=1.23 for Slater functions (tol=0.00043)..
+    //    Using Cholesky decomposition of S, we need beta >=1.23 for Slater functions (tol=0.00043)..
     // tol, emin and emax needs to be empircally adjusted to get good HF ground state energies for *all* atoms!
     // 
     // Good for He emin=0.1, beta=1.30, emax=500. NZ=floor(N-14+Z*14/100.);

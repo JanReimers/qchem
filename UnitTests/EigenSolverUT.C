@@ -100,8 +100,8 @@ TEST_F(OrthogonalizeTests, BlazeDemo)
 }
 
 
-qchem::Ortho orthos[] = {qchem::SVD,qchem::Eigen,qchem::Cholsky};
-std::string OrthStrs[]={"Cholsky","Eigen  ","SVD    "};
+qchem::Ortho orthos[] = {qchem::SVD,qchem::Eigen,qchem::Cholesky};
+std::string OrthStrs[]={"Cholesky","Eigen  ","SVD    "};
 
 TEST_F(OrthogonalizeTests, Blaze)
 {

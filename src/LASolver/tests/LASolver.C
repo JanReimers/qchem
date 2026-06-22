@@ -57,7 +57,7 @@ static void check_eigvec_equation(const rsmat_t& H, const rsmat_t& S,
 }
 
 // ---------------------------------------------------------------------------
-//  Parametrized fixture — same tests run for Cholsky / Eigen / SVD
+//  Parametrized fixture — same tests run for Cholesky / Eigen / SVD
 // ---------------------------------------------------------------------------
 
 class LASolverTest : public ::testing::TestWithParam<qchem::Ortho>
@@ -154,10 +154,10 @@ TEST_P(LASolverTest, SolveOrthoConsistentWithSolve)
 }
 
 INSTANTIATE_TEST_SUITE_P(AllMethods, LASolverTest,
-    ::testing::Values(qchem::Cholsky, qchem::Eigen, qchem::SVD),
+    ::testing::Values(qchem::Cholesky, qchem::Eigen, qchem::SVD),
     [](const ::testing::TestParamInfo<qchem::Ortho>& info) -> std::string {
         switch (info.param) {
-            case qchem::Cholsky: return "Cholsky";
+            case qchem::Cholesky: return "Cholesky";
             case qchem::Eigen:   return "Eigen";
             case qchem::SVD:     return "SVD";
         }

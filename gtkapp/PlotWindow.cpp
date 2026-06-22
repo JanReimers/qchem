@@ -264,8 +264,8 @@ template <class T> std::valarray<T> to_valarray(const vect<T>& v)
   return ret;
 }
 
-const std::string ortho_titles[3]={"Cholsky Decomposition Diagonals","Eigen Values","Singlar Values"};
-const std::string ortho_ynames[3]={"Cholsky Diagonals","Eigen Values","Singular Values"};
+const std::string ortho_titles[3]={"Cholesky Decomposition Diagonals","Eigen Values","Singlar Values"};
+const std::string ortho_ynames[3]={"Cholesky Diagonals","Eigen Values","Singular Values"};
 
 
 Diagonal_PW::Diagonal_PW(const BasisSet* bs,const WaveFunction* wf, qchem::Ortho ortho, Spin s)
