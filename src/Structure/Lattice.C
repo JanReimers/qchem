@@ -55,7 +55,7 @@ public:
     std::vector<double> GetDistances    (size_t NumShells) const;
     std::vector<rvec3_t>  GetBonds        (size_t BasisNumber, double distance) const;
     std::vector<rvec3_t>  GetBondsInSphere(size_t BasisNumber, double distance) const;
-    std::vector<ivec3_t>  GetCellsInSphere(double distance);
+    std::vector<ivec3_t>  GetCellsInSphere(double distance) const;
 
     std::ostream& Write(std::ostream&) const;
 
