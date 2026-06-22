@@ -45,7 +45,7 @@ public:
 template <class T> class Integrals_Nuclear : public virtual IrrepBasisSet_IDs
 {
 public:
-    virtual smat_t<T>  MakeNuclear(const Cluster* cl) const=0; //Only called once for a given {radial,angular, cluster} ID triple.
+    virtual smat_t<T>  MakeNuclear(const Cluster* cl) const=0; //Only called once for a given {radial,angular, structure} ID triple.
     const   smat_t<T>&     Nuclear(const Cluster* cl) const;
 };
 

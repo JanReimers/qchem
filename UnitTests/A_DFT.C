@@ -21,20 +21,20 @@ class A_DFT_U : public ::testing::TestWithParam<size_t>, public TestAtom
 {
 public:
     A_DFT_U() : TestAtom(GetParam()) {};
-    virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
+    virtual Hamiltonian* GetHamiltonian(cl_t& structure) const
     {
         double alpha_ex=QchemTester::itsPTold.GetSlaterAlpha(GetZ());
-        return Factory(Pol::UnPolarized,cluster,alpha_ex,GetMeshParams(),itsBasisSet);
+        return Factory(Pol::UnPolarized,structure,alpha_ex,GetMeshParams(),itsBasisSet);
     }
 };
 class M_DFT_U : public ::testing::TestWithParam<size_t>, public TestMolecule
 {
 public:
     M_DFT_U() : TestMolecule(new Atom(GetParam(),0.0,Vector3D<double>(0,0,0))) {};
-    virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
+    virtual Hamiltonian* GetHamiltonian(cl_t& structure) const
     {
         double alpha_ex=QchemTester::itsPTold.GetSlaterAlpha(GetZ());
-        return Factory(Pol::UnPolarized,cluster,alpha_ex,GetMeshParams(),itsBasisSet);
+        return Factory(Pol::UnPolarized,structure,alpha_ex,GetMeshParams(),itsBasisSet);
     }
 };
 
@@ -110,10 +110,10 @@ class A_DFT_P : public ::testing::TestWithParam<size_t>, public TestAtom
 {
 public:
     A_DFT_P() : TestAtom(GetParam()) {};
-    virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
+    virtual Hamiltonian* GetHamiltonian(cl_t& structure) const
     {
         double alpha_ex=QchemTester::itsPTold.GetSlaterAlpha(GetZ());
-        return Factory(Pol::Polarized,cluster,alpha_ex,GetMeshParams(),itsBasisSet);
+        return Factory(Pol::Polarized,structure,alpha_ex,GetMeshParams(),itsBasisSet);
     }
 };
 class M_DFT_P : public ::testing::TestWithParam<size_t>, public TestMolecule
@@ -124,10 +124,10 @@ public:
         nlohmann::json js = { {"basis", "dzvp"} };
         QchemTester::Init(js);
     };
-    virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
+    virtual Hamiltonian* GetHamiltonian(cl_t& structure) const
     {
         double alpha_ex=QchemTester::itsPTold.GetSlaterAlpha(GetZ());
-        return Factory(Pol::Polarized,cluster,alpha_ex,GetMeshParams(),itsBasisSet);
+        return Factory(Pol::Polarized,structure,alpha_ex,GetMeshParams(),itsBasisSet);
     }
 };
 class A_SG_DFT_P : public A_DFT_P {};

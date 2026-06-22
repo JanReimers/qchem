@@ -13,7 +13,7 @@ import qchem.Mesh;
 //----------------------------------------------------------------------------
 //
 //  A lattice is a big square block of unit cells.  Each unit cell has a bunch
-//  of atoms in it.  You can create a molecule type cluster and insert it
+//  of atoms in it.  You can create a molecule type structure and insert it
 //  into the lattice at construction time.  The molecule is then repated in each
 //  unit cell.  Or you can create a lattice with no atoms.  Each atom inserted
 //  goes into every unit cell.  For a bond structure calculation the spatial

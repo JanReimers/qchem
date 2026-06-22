@@ -62,13 +62,13 @@ template <class E> concept isOpr_Evaluator = requires (E e, const rvec3_t& r)
 // the FULL Cartesian negative-Laplacian (positive-definite), with NO 1/2 and NO centrifugal term.
 // The 1/2 of \f$T=-\tfrac12\nabla^2\f$ is applied at the Hamiltonian boundary, NOT here
 // (see BasisSet/Orbital_1E_IBS.C).  Nuclear(i,j) is the full multi-centre attraction
-// \f$\sum_c -Z_c\langle i|\,|r-R_c|^{-1}|j\rangle\f$ (the evaluator carries the cluster).
+// \f$\sum_c -Z_c\langle i|\,|r-R_c|^{-1}|j\rangle\f$ (the evaluator carries the structure).
 template <class E> concept is1E_Evaluator = std::derived_from<E, Evaluator> && requires (E e,size_t i,size_t j,const Cluster* cl)
 {
     {e.Norm    (i)     } -> std::same_as<double>;
     {e.Overlap (i,j)   } -> std::same_as<double>;
     {e.Grad2   (i,j)   } -> std::same_as<double>;   // <p^2> = <-nabla^2>, full Cartesian, no 1/2
-    {e.Nuclear (i,j,cl)} -> std::same_as<double>;   // multi-centre sum_c -Z_c/|r-R_c|; cluster passed per call
+    {e.Nuclear (i,j,cl)} -> std::same_as<double>;   // multi-centre sum_c -Z_c/|r-R_c|; structure passed per call
 };
 
 // --- Matrix-delivery 1E evaluators (isM_*) --------------------------------------------------------

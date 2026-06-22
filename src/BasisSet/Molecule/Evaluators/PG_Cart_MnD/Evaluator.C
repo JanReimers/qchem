@@ -32,7 +32,7 @@ class NR_Evaluator : public virtual Evaluator, public PGData
 public:
     // The evaluator OWNS its data (IS-A PGData) rather than viewing one: it is a base subobject of the PG
     // IrrepBasisSet, exactly as the atom evaluators are bases of their IBS.  The default constructor builds
-    // an empty PGData; the host IBS fills it via PGData::Init.  The cluster is NOT evaluator state -- it is
+    // an empty PGData; the host IBS fills it via PGData::Init.  The structure is NOT evaluator state -- it is
     // passed per call to the Nuclear kernel.
     NR_Evaluator() = default;
 

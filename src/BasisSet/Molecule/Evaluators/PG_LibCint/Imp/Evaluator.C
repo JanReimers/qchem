@@ -106,7 +106,7 @@ NR_Evaluator::NR_Evaluator(const PGData& data, const Cluster* cl)
     Init(cl);
 }
 
-// Build the libcint shell + atom tables from this evaluator's (already-populated) PGData and the cluster.
+// Build the libcint shell + atom tables from this evaluator's (already-populated) PGData and the structure.
 void NR_Evaluator::Init(const Cluster* cl, bool spherical)
 {
     itsImp.reset(new Imp);
@@ -114,7 +114,7 @@ void NR_Evaluator::Init(const Cluster* cl, bool spherical)
     m.spherical = spherical;
     size_t Ncart = PGData::size();                  // # Cartesian components flattened in the PGData
 
-    // Atom table (shell centres + nuclear charges) from the cluster.
+    // Atom table (shell centres + nuclear charges) from the structure.
     for (auto a:*cl) m.atoms.push_back(AtomRec{a->itsZ, a->itsR.x, a->itsR.y, a->itsR.z});
     auto findAtom = [&](const rvec3_t& R)->int
     {

@@ -30,7 +30,7 @@ TEST(M_Evaluator, kernels_match_IBS_integrals)
     rvec_t exps{1.0, 0.25};
     Orbital_IBS ibs(exps, 1, &h2o);                          // s + p shells, 2 exponents each
 
-    const NR_Evaluator& ev = ibs;                            // the IBS IS-A evaluator; cluster is per-call
+    const NR_Evaluator& ev = ibs;                            // the IBS IS-A evaluator; structure is per-call
     ASSERT_EQ(ev.size(), ibs.GetNumFunctions());
 
     // The cached 1E matrix accessors live on the IBS interface.  Reach them through the interface

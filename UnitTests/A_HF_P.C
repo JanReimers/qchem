@@ -13,9 +13,9 @@ class A_HF_P : public ::testing::TestWithParam<size_t>, public TestAtom
 {
 public:
     A_HF_P() : TestAtom(GetParam()) {};
-    virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
+    virtual Hamiltonian* GetHamiltonian(cl_t& structure) const
     {
-        return Factory(Model::HF,Pol::Polarized,cluster);
+        return Factory(Model::HF,Pol::Polarized,structure);
     }
 };
 

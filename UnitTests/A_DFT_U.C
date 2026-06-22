@@ -12,11 +12,11 @@ class A_DFT_U : public ::testing::TestWithParam<size_t>, public TestAtom
 {
 public:
     A_DFT_U() : TestAtom(GetParam()) {};
-    virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
+    virtual Hamiltonian* GetHamiltonian(cl_t& structure) const
     {
         ex=new Libxc_LDA_Exchange(7,Spin::None,GetZ());
         cout << *ex << endl;
-        Hamiltonian* H=Factory(Pol::UnPolarized,cluster,ex,GetMeshParams(),itsBasisSet);
+        Hamiltonian* H=Factory(Pol::UnPolarized,structure,ex,GetMeshParams(),itsBasisSet);
         // cout << *H << endl;
         return H;
     }

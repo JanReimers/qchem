@@ -237,7 +237,7 @@ template <class T> const smat_t<T>& IntegralsCache_RAM<T>::Get(I2n i2n,const DBC
     IBS_ID_t id=bs->BasisSetID();
     keyn_t key(id,cl);
     if (auto i=itsNMats.find(key); i!=itsNMats.end()) return i->second;
-    if (itsMakeLog) itsLogger << "I2n " << std::format("{:<12}",i2n) << " compute a=" << id << " cluster=" << cl << std::endl;
+    if (itsMakeLog) itsLogger << "I2n " << std::format("{:<12}",i2n) << " compute a=" << id << " structure=" << cl << std::endl;
     auto v=make();
     const auto [it,ok]=itsNMats.insert({key,std::move(v)});
     assert(ok);

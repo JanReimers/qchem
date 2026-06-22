@@ -38,9 +38,9 @@ public:
         nlohmann::json js = { {"basis", "dzvp"} };
         QchemTester::Init(js);
     }
-    virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
+    virtual Hamiltonian* GetHamiltonian(cl_t& structure) const
     {
-        return Factory(Model::HF, Pol::UnPolarized, cluster);
+        return Factory(Model::HF, Pol::UnPolarized, structure);
     }
 };
 class M_HF_U_N2    : public M_HF_U { public: M_HF_U_N2()    : M_HF_U(MakeN2())    {} };
@@ -78,9 +78,9 @@ public:
         nlohmann::json js = { {"basis", "dzvp"}, {"engine", "libcint"} };
         QchemTester::Init(js);
     }
-    virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
+    virtual Hamiltonian* GetHamiltonian(cl_t& structure) const
     {
-        return Factory(Model::HF, Pol::UnPolarized, cluster);
+        return Factory(Model::HF, Pol::UnPolarized, structure);
     }
 };
 class M_HF_U_LibCint_Water : public M_HF_U_LibCint { public: M_HF_U_LibCint_Water() : M_HF_U_LibCint(MakeWater()) {} };
@@ -103,9 +103,9 @@ public:
         nlohmann::json js = { {"basis", "dzvp"}, {"engine", "libcint"}, {"angular", "spherical"} };
         QchemTester::Init(js);
     }
-    virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
+    virtual Hamiltonian* GetHamiltonian(cl_t& structure) const
     {
-        return Factory(Model::HF, Pol::UnPolarized, cluster);
+        return Factory(Model::HF, Pol::UnPolarized, structure);
     }
 };
 class M_HF_U_LibCintSph_Water : public M_HF_U_LibCintSph { public: M_HF_U_LibCintSph_Water() : M_HF_U_LibCintSph(MakeWater()) {} };
@@ -130,9 +130,9 @@ public:
         nlohmann::json js = { {"basis", "dzvp"}, {"angular", "spherical"} };
         QchemTester::Init(js);
     }
-    virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const
+    virtual Hamiltonian* GetHamiltonian(cl_t& structure) const
     {
-        return Factory(Model::HF, Pol::UnPolarized, cluster);
+        return Factory(Model::HF, Pol::UnPolarized, structure);
     }
 };
 class M_HF_U_Sph_Water : public M_HF_U_Sph { public: M_HF_U_Sph_Water() : M_HF_U_Sph(MakeWater()) {} };

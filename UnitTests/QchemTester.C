@@ -66,7 +66,7 @@ protected:
     // Orbital Basis Set functions SG, PG, Slater
     virtual Real_BS* GetBasisSet   (const nlohmann::json&) const=0;
     // Hamiltonian functions HF,semi HF, DFT all Pol or un-polarized.
-    virtual Hamiltonian* GetHamiltonian(cl_t& cluster) const=0;
+    virtual Hamiltonian* GetHamiltonian(cl_t& structure) const=0;
 protected:
     cl_t                   itsCluster;
     ElectronConfiguration* itsEC;

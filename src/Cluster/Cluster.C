@@ -1,4 +1,4 @@
-// File: Cluster.C  A cluster of atoms, Molecule, unit cell, solid all with spatial struture defined.
+// File: Cluster.C  A structure of atoms, Molecule, unit cell, solid all with spatial struture defined.
 module;
 #include <vector>
 #include <memory>
