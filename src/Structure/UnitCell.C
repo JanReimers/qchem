@@ -1,4 +1,4 @@
-// File: UnitCell.C  Unit cell for a lattice.
+// File: Structure/UnitCell.C  Unit cell for a lattice.
 module;
 #include <iosfwd>
 export module Structure.UnitCell;
@@ -18,8 +18,6 @@ public:
 
     using Molecule::Insert;
     using Molecule::GetNumAtoms;
-    using Molecule::begin;
-    using Molecule::end;
 
     UnitCell      MakeReciprocalCell() const;
 

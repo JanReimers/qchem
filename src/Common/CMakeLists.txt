@@ -4,11 +4,9 @@ add_library(qcCommon)
 target_sources(qcCommon PRIVATE  Imp/PeriodicTable.C Imp/OldPeriodicTable.C)
 target_sources(qcCommon PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
     Constants.cpp 
-    Factorials.C 
-    PeriodicTable.C 
-    UniqueID.C  
-    UniqueIDImp.C 
-    intpow.C 
+    Factorials.C
+    PeriodicTable.C
+    intpow.C
     Iterators.C
     stl_io.C
     stream.C

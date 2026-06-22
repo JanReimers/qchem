@@ -1,5 +1,9 @@
 #include <memory>
-#include "gtest/gtest.h"    
+#include <vector>
+#include <ranges>
+#include <algorithm>
+#include <iterator>
+#include "gtest/gtest.h"
 
 using std::cout;
 using std::endl;
@@ -8,6 +12,11 @@ import qchem.Structure;
 import Structure.UnitCell;
 import qchem.Lattice;
 import qchem.Math;
+
+//  The storage-agnostic index iterator must model a full forward iterator so
+//  that range-based for AND the C++20 <ranges> adaptors both work on it.
+static_assert(std::forward_iterator<Structure::const_iterator>);
+static_assert(std::ranges::forward_range<Structure>);
 
 class StructureTests : public ::testing::Test
 {};
@@ -24,6 +33,40 @@ TEST_F(StructureTests, Atom)
     cout << "          F-=" << F_minus << endl;
     cout << "         Na+=" << Na_plus << endl;
   
+}
+
+TEST_F(StructureTests, AtomValueSemantics)
+{
+    //  With the dummy/self-pointer kludge gone, an Atom is a plain value type:
+    //  it can be stored by value and relocated (vector growth moves elements),
+    //  and it still iterates as a one-element structure consisting of itself.
+    Atom na(11,1,{1,2,3});
+    std::vector<Atom> v;
+    for (int i=0;i<8;i++) v.push_back(na); //Forces reallocation -> moves.
+    v[2].itsR={7,8,9};
+    EXPECT_EQ(v[0].itsR,rvec3_t(1,2,3));
+    EXPECT_EQ(v[2].itsR,rvec3_t(7,8,9));
+    EXPECT_EQ(v[2].GetNumAtoms(),1u);
+    for (auto* a:v[2]) EXPECT_EQ(a->itsR,rvec3_t(7,8,9)); //self-range after moves.
+}
+
+TEST_F(StructureTests, RangeIteration)
+{
+    Molecule h2o;
+    h2o.Insert(new Atom(8,0,{0,0,0}));
+    h2o.Insert(new Atom(1,0,{0,0,1}));
+    h2o.Insert(new Atom(1,0,{0,1,0}));
+
+    //  Plain range-based for: yields Atom* by value through the index iterator.
+    int n=0,Zsum=0;
+    for (auto a:h2o) {n++; Zsum+=a->itsZ;}
+    EXPECT_EQ(n,3);
+    EXPECT_EQ(Zsum,10);
+
+    //  C++20 <ranges> adaptors now compose on a Structure with no storage exposed.
+    EXPECT_EQ(std::ranges::count_if(h2o,[](Atom* a){return a->itsZ==1;}),2);
+    auto Zs=h2o | std::views::transform([](Atom* a){return a->itsZ;});
+    EXPECT_EQ(std::ranges::max(Zs),8);
 }
 
 TEST_F(StructureTests, UnitCell)

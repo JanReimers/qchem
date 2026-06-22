@@ -363,7 +363,7 @@ double PrimGaussian::Nuclear(const PrimGaussian* a, const PrimGaussian* b,
     assert(cl);
     const Ω& ab = findΩ(a->GetGData(), b->GetGData());
     RNLM R;
-    for (auto& atom:*cl)
+    for (auto atom:*cl)
         R.Add(RNLM(ab.Ltotal,ab.αₚ,ab.P-atom->itsR), -1.0*(atom->itsZ));
 
     auto NLMs = Ω::GetNMLs(ab.Ltotal);

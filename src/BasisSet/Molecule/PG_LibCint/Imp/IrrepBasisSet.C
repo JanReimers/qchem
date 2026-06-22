@@ -97,7 +97,7 @@ IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Structure* cl, bool spherical)
 IrrepBasisSet::IrrepBasisSet(const rvec_t& es, size_t LMax, const Structure* cl, bool spherical)
     : IrrepBasisSetImp<double>(sym_t(new UnitQN)), itsSpherical(spherical)
 {
-    for (auto& atom:*cl)
+    for (auto atom:*cl)
         for (size_t L=0;L<=LMax;L++)
         {
             std::vector<Polarization> Ps=MakePolarizations((int)L);

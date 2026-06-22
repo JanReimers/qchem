@@ -87,7 +87,7 @@ IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Structure* cl)
 IrrepBasisSet::IrrepBasisSet(const rvec_t& es, size_t LMax, const Structure* cl)
     : IrrepBasisSetImp<double>(sym_t(new UnitQN))
 {
-    for (auto& atom:*cl)
+    for (auto atom:*cl)
         for (size_t L=0;L<=LMax;L++)
             for (auto e:es)
             {

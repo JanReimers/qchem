@@ -171,8 +171,8 @@ std::vector<double> Lattice::GetDistances(size_t NumShells) const
 
     std::vector<rvec3_t> super_cells=GetSuperCells(maxd);
 
-    for (auto& a1:itsUnitCell)
-        for (auto& a2:itsUnitCell)
+    for (auto a1:itsUnitCell)
+        for (auto a2:itsUnitCell)
             for (std::vector<rvec3_t>::const_iterator c(super_cells.begin()); c!=super_cells.end(); c++)
             {
                 double d=itsUnitCell.GetDistance(*c + a2->itsR - a1->itsR);
@@ -192,7 +192,7 @@ std::vector<rvec3_t> Lattice::GetBonds(size_t BasisNumber, double Distance) cons
     rvec3_t rb=GetBasisVector(BasisNumber);
     std::vector<rvec3_t> super_cells=GetSuperCells(Distance);
 
-    for (auto& a:itsUnitCell)
+    for (auto a:itsUnitCell)
         for (std::vector<rvec3_t>::const_iterator c(super_cells.begin()); c!=super_cells.end(); c++)
         {
             rvec3_t bond = a->itsR + *c - rb;
@@ -211,7 +211,7 @@ std::vector<rvec3_t> Lattice::GetBondsInSphere(size_t BasisNumber, double Distan
     rvec3_t rb=GetBasisVector(BasisNumber);
     std::vector<rvec3_t> super_cells=GetSuperCells(Distance);
 
-    for (auto& a:itsUnitCell)
+    for (auto a:itsUnitCell)
         for (std::vector<rvec3_t>::const_iterator c(super_cells.begin()); c!=super_cells.end(); c++)
         {
             rvec3_t bond = a->itsR + *c - rb;
@@ -253,7 +253,7 @@ size_t  Lattice::Find(const rvec3_t& r) const //Search within the primary unit c
 {
     size_t ret=GetNumBasisSites();
     size_t i=0;
-    for (auto& a:itsUnitCell)
+    for (auto a:itsUnitCell)
     {
         if (itsUnitCell.GetDistance(r - a->itsR) < itsTolerence)
         {
@@ -293,7 +293,7 @@ rvec3_t Lattice::GetBasisVector(size_t BasisNumber) const
     assert(BasisNumber<GetNumBasisSites());
     rvec3_t ret;
     {
-        for (auto& b:itsUnitCell)
+        for (auto b:itsUnitCell)
         {
             if (BasisNumber==0)
             {

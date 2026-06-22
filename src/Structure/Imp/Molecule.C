@@ -43,7 +43,7 @@ std::ostream& Molecule::Write(std::ostream& os) const
     << ", net charge "<< GetNetCharge() << "(e)" << std::endl;
     os << "Atom #  Element  Position vector" << std::endl;
     int i=1;
-    for (auto& b:*this) os << std::setw(5) << i++ << "   " << *b << std::endl;
+    for (auto b:*this) os << std::setw(5) << i++ << "   " << *b << std::endl;
     // os << std::endl;
 
     return os;

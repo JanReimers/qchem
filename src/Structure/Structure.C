@@ -4,10 +4,9 @@ module;
 #include <memory>
 
 export module qchem.Structure;
-import Common.UniqueID; 
-import qchem.Mesh; 
+import qchem.Mesh;
 import qchem.Streamable;
-import Common.UniqueIDImp;
+import Common.Iterators;
 
 export class Atom;
 
@@ -19,14 +18,9 @@ export class Atom;
 //! Each structure needs to know how to create an efficient numerical integration mesh.
 //
 export class Structure
-    : public virtual UniqueID
-    , public virtual Streamable
+    : public virtual Streamable
 {
 public:
-    typedef std::vector<Atom*> av_t;
-    typedef av_t::      iterator       iterator;
-    typedef av_t::const_iterator const_iterator;
-
     virtual ~Structure() {};
 
     virtual std::string ID          () const;
@@ -37,46 +31,48 @@ public:
 
     virtual size_t GetAtomIndex(const rvec3_t&, double tol=0.0) const;
     virtual Mesh*  CreateMesh(const MeshParams&) const=0;
-     
-    virtual const_iterator begin() const=0;
-    virtual const_iterator end  () const=0;
-    virtual       iterator begin()      =0;
-    virtual       iterator end  ()      =0;
+
+    //  Element access and range-based iteration are built on the single
+    //  storage primitive GetAtom() below, so a concrete Structure is free to
+    //  store its atoms however it likes (Molecule keeps a vector, an Atom just
+    //  returns itself, a future periodic cell could synthesize them).
+    Atom* operator[](size_t i) const {return GetAtom(i);}
+    typedef IndexIterator<Structure> const_iterator;
+    const_iterator begin() const {return const_iterator(this,0);}
+    const_iterator end  () const {return const_iterator(this,GetNumAtoms());}
+
+protected:
+    virtual Atom* GetAtom(size_t) const=0; //The only storage-specific primitive.
 };
 
 export class Atom
     : public Structure
-    , public UniqueIDImp
 {
 public:
-    Atom(const Atom& a);
-    Atom(int Z); 
+    Atom(int Z);
     Atom(int Z, double charge);
     Atom(int Z, const rvec3_t& R);
     Atom(int Z, double charge, const rvec3_t& R);
+    //  Copy/move/assign are all defaulted: an Atom is now a plain value type
+    //  (no self-reference, no UniqueID), so it is freely relocatable.
 
     virtual size_t GetNumAtoms      () const {return 1;}
     virtual Mesh*  CreateMesh(const MeshParams&) const;
 
     virtual std::string   ID     () const;
     virtual std::ostream& Write  (std::ostream&) const;
-    
-    virtual const_iterator begin() const {return dummy.begin();}
-    virtual const_iterator end  () const {return dummy.end  ();} 
-    virtual       iterator begin()       {return dummy.begin();}
-    virtual       iterator end  ()       {return dummy.end  ();} 
 
     int     itsZ;      //Atomic number.
     double  itsCharge; //Net charge. Z-numElectrons.
     rvec3_t itsR;      //Spatial position.
-private:
-    av_t  dummy; //Kludge to get iterators from Atom* .
-    Atom& operator=(const Atom&); //Why?  Rule of 5/6
+
+protected:
+    //  An Atom is a one-element structure consisting of itself.
+    virtual Atom* GetAtom(size_t) const {return const_cast<Atom*>(this);}
 };
 
-export class Molecule 
+export class Molecule
     : public virtual Structure
-    , public UniqueIDImp
 {
 public:
     Molecule() {};
@@ -86,17 +82,14 @@ public:
     virtual void   Insert     (Atom* a);
     virtual size_t GetNumAtoms() const;
     virtual Mesh*  CreateMesh (const MeshParams&) const;
-       
+
     virtual std::ostream& Write(std::ostream&) const;
 
-    virtual const_iterator begin() const {return itsAtoms.begin();}
-    virtual const_iterator end  () const {return itsAtoms.end  ();} 
-    virtual       iterator begin()       {return itsAtoms.begin();}
-    virtual       iterator end  ()       {return itsAtoms.end  ();} 
+protected:
+    virtual Atom* GetAtom(size_t i) const {return itsAtoms[i];}
 
 private:
-    av_t    itsAtoms;
-    
+    std::vector<Atom*> itsAtoms;
 };
 
 

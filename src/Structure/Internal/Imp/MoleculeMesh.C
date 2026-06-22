@@ -16,7 +16,7 @@ MoleculeMesh::MoleculeMesh(const Structure& cl, const MeshParams& mp)
 
     int natom=cl.GetNumAtoms();
     size_t ia=0;
-    for (auto& a:cl) 
+    for (auto a:cl)
     {
         Mesh* mesh_a= a->CreateMesh(mp);
         for (auto rw: *mesh_a)
@@ -25,11 +25,11 @@ MoleculeMesh::MoleculeMesh(const Structure& cl, const MeshParams& mp)
             // Load up up matrix of cutoff profiles.
             rmat_t s(natom,natom);
             size_t ib=0;
-            for (auto& b:cl)
+            for (auto b:cl)
             {
                 double Rb=norm(r-b->itsR);
                 size_t ic=0;
-                for (auto& c:cl)
+                for (auto c:cl)
                 {
                     
                     if (ib!=ic) 

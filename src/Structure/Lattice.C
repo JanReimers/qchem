@@ -1,11 +1,10 @@
-// File: Lattice.C Define a 3D infite lattice.
+// File: Structure/Lattice.C Define a 3D infite lattice.
 module;
 #include <vector>
 #include <iosfwd>
 #include <memory>
 
 export module qchem.Lattice;
-import Common.UniqueIDImp;
 export import qchem.Structure;
 export import Structure.UnitCell;
 import qchem.Mesh;
@@ -16,12 +15,10 @@ import qchem.Mesh;
 //  of atoms in it.  You can create a molecule type structure and insert it
 //  into the lattice at construction time.  The molecule is then repated in each
 //  unit cell.  Or you can create a lattice with no atoms.  Each atom inserted
-//  goes into every unit cell.  For a bond structure calculation the spatial
+//  goes into every unit cell.  For a band structure calculation the spatial
 //  extent of the lattice determines the number of k-points in the first zone,
 //  and also determines the normalization constant for plane wave basis
 //  functions.
-//  ClustrerBrowsing through the lattice only really browses through the
-//  primary unit cell.
 //
 export class Lattice
 {
@@ -30,15 +27,6 @@ public:
     typedef std::shared_ptr<Structure> cl_t;
     Lattice(const UnitCell&, const Vector3D<int>&);                //Empty unit cell.
     
-    // virtual void   Insert        (Atom*)      ;
-    // virtual size_t GetNumAtoms        () const;
-    // virtual int    GetNuclearCharge   () const;
-    // virtual double GetNetCharge       () const;
-    // virtual double GetNumElectrons    () const;
-    // virtual Mesh*  CreateMesh(const MeshParams&) const;
-
-    //virtual ChargeDensity* GetChargeDensity   () const;
-
     const  UnitCell& GetUnitCell() const
     {
         return itsUnitCell;
@@ -69,11 +57,6 @@ public:
     std::vector<rvec3_t>  GetBondsInSphere(size_t BasisNumber, double distance) const;
     std::vector<ivec3_t>  GetCellsInSphere(double distance);
 
-    // virtual const_iterator begin() const {return itsUnitCell.begin();}
-    // virtual const_iterator end  () const {return itsUnitCell.end  ();} 
-    // virtual       iterator begin()       {return itsUnitCell.begin();}
-    // virtual       iterator end  ()       {return itsUnitCell.end  ();} 
-    
     std::ostream& Write(std::ostream&) const;
 
 private:
