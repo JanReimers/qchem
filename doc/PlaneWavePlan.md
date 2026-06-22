@@ -81,7 +81,29 @@ signatures** (the `Types.C` double seam) + the `TOrbitals.C:103` `<double>`→`<
 fix. Watch for `blazem::trans` vs `ctrans` (conjugate transpose) once it compiles
 — e.g. `TOrbital.C:48 blazem::trans(itsCoeff)*gr`.
 
-## 5. Fresh-session checklist
+## 5. Evaluator framework — the PW basis set should fit it
+
+Integral/value evaluation in this codebase is converging on a shared **Evaluator**
+concept that spans Atom and Molecule basis sets. The PW basis set should slot into
+the same framework rather than grow a one-off path. See
+[MolecularBasisSetPlan.md](MolecularBasisSetPlan.md), "Longer-term direction":
+
+- **B. Lift the Evaluator idea to PG basis sets** — move
+  `src/BasisSet/Atom/Evaluators/Evaluator.C` out to
+  `src/BasisSet/Internal/Evaluator.C` so any basis set (incl. plane waves) can reuse it.
+- **C. Hoist the 1E integral loops** (`Integrals_Overlap/Kinetic/Nuclear`) to a
+  basis-set-agnostic level.
+
+That plan **already names plane waves as the risk case**: the Lattice tree has its
+own `IBS_Evaluator` (complex-valued, with k-point phase factors), and item C carries
+a ⚠ spike — *confirm a single 1E loop signature genuinely unifies Atom / Molecule /
+Lattice, because k-point phases may break the "just loop i,j" assumption.* So when
+building the PW `IrrepBasisSet` / its evaluator (§6.1), design it to fit that shared
+interface, and treat the **k-point-phase unification as the open risk to validate
+early** — it constrains the shared Evaluator interface for all three sectors. See
+also `[[project_evaluator_framework_friction]]` and `[[project_pg_refactor_plan]]`.
+
+## 6. Fresh-session checklist
 
 1. PW `IrrepBasisSet`: a k-point's `{G : ½|k+G|² < E_cut}` set (from
    `ReciprocalLattice::GetGVectors`), each a normalised plane wave `e^{i(k+G)·r}/√V`.
