@@ -34,12 +34,9 @@ Lattice::Lattice(const UnitCell& cell, const Vector3D<int>& Limits)
 //  Structure stuff.
 //
 
-Lattice Lattice::Reciprocal(double Emax) const
+ReciprocalLattice Lattice::Reciprocal() const
 {
-    UnitCell RLCell=itsUnitCell.MakeReciprocalCell();
-    ivec3_t Nr=RLCell.GetNumCells(Emax);
-    return Lattice(RLCell,Nr); //This should automatically be move op.
-
+    return ReciprocalLattice(itsUnitCell.MakeReciprocalCell());
 }
 
 
@@ -222,27 +219,7 @@ std::vector<rvec3_t> Lattice::GetBondsInSphere(size_t BasisNumber, double Distan
 
 std::vector<ivec3_t>  Lattice::GetCellsInSphere(double rmax) const
 {
-    assert(rmax>0);
-    std::vector<ivec3_t> ret;
-    ivec3_t nc=itsUnitCell.GetNumCells(rmax);
-    ivec3_t i;
-    for (i.x=-nc.x; i.x<=nc.x; i.x++)
-        for (i.y=-nc.y; i.y<=nc.y; i.y++)
-            for (i.z=-nc.z; i.z<=nc.z; i.z++)
-                if (itsUnitCell.GetDistance(i)<=rmax) ret.push_back(i);
-                
-    return ret;
-}
-
-std::vector<rvec3_t>  Lattice::GetReciprocalGrid() const
-{
-    std::vector<rvec3_t> grid;
-    rvec3_t k;
-    for (k.x=0; k.x<itsLimits.x; k.x++)
-        for (k.y=0; k.y<itsLimits.y; k.y++)
-            for (k.z=0; k.z<itsLimits.z; k.z++)
-                grid.push_back(rvec3_t(k.x/itsLimits.x,k.y/itsLimits.y,k.z/itsLimits.z));
-    return grid;
+    return itsUnitCell.CellsInSphere(rmax); //direct lattice vectors R within rmax
 }
 //--------------------------------------------------------
 //

@@ -1,6 +1,7 @@
 // File: Structure/UnitCell.C  Unit cell for a lattice.
 module;
 #include <iosfwd>
+#include <vector>
 export module Structure.UnitCell;
 export import qchem.Types;
 import qchem.Structure;
@@ -31,6 +32,10 @@ public:
     double      GetMinimumCellEdge(                  ) const; //!< \f$\min_i |a_i|\f$ (a.u.).
     double      GetDistance       (const rvec3_t& f  ) const; //!< \f$\sqrt{f^\top M f}\f$ for fractional \f$f\f$ (a.u.).
     vec3_t<int> GetNumCells       (double MaxDistance) const; //!< Cells per axis to cover a sphere of radius MaxDistance.
+
+    //! Integer cell-index triples \f$n\f$ with \f$\lVert A n\rVert \le\f$ MaxDistance.  Pure
+    //! cell geometry, so it serves both direct (R) and reciprocal (G) lattices.
+    std::vector<vec3_t<int>> CellsInSphere(double MaxDistance) const;
 
     std::ostream&  Write(std::ostream&) const;
 

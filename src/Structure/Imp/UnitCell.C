@@ -2,6 +2,7 @@
 module;
 #include <cassert>
 #include <iostream>
+#include <vector>
 
 module Structure.UnitCell;
 import qchem.Math;
@@ -72,6 +73,19 @@ Vector3D<int> UnitCell::GetNumCells(double MaxDistance) const
 double UnitCell::GetDistance(const rvec3_t& f) const
 {
     return sqrt(f*itsM*f); // ‖A f‖ for fractional f
+}
+
+std::vector<vec3_t<int>> UnitCell::CellsInSphere(double MaxDistance) const
+{
+    assert(MaxDistance>0);
+    std::vector<vec3_t<int>> ret;
+    vec3_t<int> nc=GetNumCells(MaxDistance);
+    vec3_t<int> n;
+    for (n.x=-nc.x; n.x<=nc.x; n.x++)
+        for (n.y=-nc.y; n.y<=nc.y; n.y++)
+            for (n.z=-nc.z; n.z<=nc.z; n.z++)
+                if (GetDistance(n)<=MaxDistance) ret.push_back(n);
+    return ret;
 }
 
 std::ostream& UnitCell::Write(std::ostream& os) const

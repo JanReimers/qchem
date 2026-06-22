@@ -137,15 +137,18 @@ TEST_F(StructureTests, Lattice)
     for (size_t i=0;i<Si.GetNumSites();i++)
         EXPECT_EQ(Si.GetSiteNumber(Si.GetCoordinate(i)),i);
  
+    //  Reciprocal lattice: a distinct type now (no longer a punned Lattice).
     double Emax=2.0;
-    Lattice Rl=Si.Reciprocal(Emax);
-    // cout << "Si reciprocal lattice = " << Rl << endl;
-    std::vector<ivec3_t> cells =Rl.GetCellsInSphere(Emax);
-    UnitCell Rc=Rl.GetUnitCell();
-    for (auto c:cells)
-        EXPECT_LT(Rc.GetDistance(c),Emax);
+    ReciprocalLattice Rl=Si.Reciprocal();
+    EXPECT_NEAR(Rl.GetCell().GetCellVolume(),pow(2*Pi,3)/SiCell.GetCellVolume(),1e-9);
+    std::vector<ivec3_t> Gs=Rl.GetGVectors(Emax);
+    EXPECT_GT(Gs.size(),1u);
+    for (auto m:Gs) EXPECT_LT(Rl.GetGLength(m),Emax);
 
-    std::vector<rvec3_t> ks=Si.GetReciprocalGrid();
-    cout << "BZ grid:" << endl;
-    for (auto k:ks) cout << "   "  << k << endl;
+    //  Brillouin-zone sampling: a 2x2x2 Monkhorst-Pack (Γ-centred) grid, weights sum to 1.
+    KMesh ks=Si.MakeKMesh();
+    EXPECT_EQ(ks.size(),8u);
+    double wsum=0; for (auto& kp:ks) wsum+=kp.weight;
+    EXPECT_NEAR(wsum,1.0,1e-12);
+    cout << "BZ " << ks;
 }

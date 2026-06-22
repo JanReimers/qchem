@@ -8,12 +8,14 @@ target_sources(qcStructure PRIVATE
     Internal/Imp/AtomMesh.C 
     Internal/Imp/MoleculeMesh.C 
     )
-target_sources(qcStructure PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
-    Structure.C 
-    UnitCell.C 
-    Lattice.C 
-    Internal/UnitCellMesh.C 
-    Internal/AtomMesh.C 
+target_sources(qcStructure PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
+    Structure.C
+    UnitCell.C
+    ReciprocalLattice.C
+    KMesh.C
+    Lattice.C
+    Internal/UnitCellMesh.C
+    Internal/AtomMesh.C
     Internal/MoleculeMesh.C
     )
 target_include_directories(qcStructure PRIVATE 

@@ -7,6 +7,8 @@ module;
 export module qchem.Lattice;
 export import qchem.Structure;
 export import Structure.UnitCell;
+export import qchem.ReciprocalLattice;
+export import qchem.KMesh;
 import qchem.Mesh;
 
 //! \brief A crystal lattice: a UnitCell repeated on a Bravais lattice, together
@@ -61,8 +63,11 @@ public:
     {
         return GetNumUnitCells()*itsUnitCell.GetCellVolume();
     }
-    Lattice   Reciprocal      (double Emax) const;  //Create the assosiated  reciprical Lattice;
-    std::vector<rvec3_t>  GetReciprocalGrid() const;
+    //! The dual reciprocal lattice (\f$B = 2\pi A^{-\top}\f$).  Apply the energy /
+    //! \f$|G|\f$ cutoff later via ReciprocalLattice::GetGVectors().
+    ReciprocalLattice Reciprocal() const;
+    //! Monkhorst–Pack Brillouin-zone sampling using itsLimits as the divisions.
+    KMesh       MakeKMesh() const {return KMesh(itsLimits);}
     ivec3_t     GetLimits() const {return itsLimits;}
 
     size_t    GetNumSites     () const;
