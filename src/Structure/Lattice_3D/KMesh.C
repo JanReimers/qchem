@@ -1,4 +1,4 @@
-// File: Structure/KMesh.C  A sampling of the Brillouin zone.
+// File: Structure/Lattice_3D/KMesh.C  A sampling of the Brillouin zone.
 module;
 #include <vector>
 #include <iostream>

@@ -1,4 +1,4 @@
-// File: Structure/ReciprocalLattice.C  The reciprocal lattice dual to a Lattice.
+// File: Structure/Lattice_3D/ReciprocalLattice.C  The reciprocal lattice dual to a Lattice_3D.
 module;
 #include <vector>
 #include <iosfwd>
