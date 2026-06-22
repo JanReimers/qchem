@@ -21,10 +21,18 @@ Do them in this order — each isolates a different piece:
 1. **Empty lattice (free electron), V = 0.** Eigenvalues are exactly `½|k+G|²`.
    Validates G-vector generation, k-points, the kinetic operator, and the
    eigensolver with zero potential ambiguity. The standard first PW check; exact.
+   **DONE (2026-06-22):** `BasisSet::Lattice_3D::PlaneWave_IBS` (a concrete
+   `Orbital_1E_IBS<dcmplx>`) in `src/BasisSet/Lattice_3D/`, lib `qcLattice_BS`,
+   test `UnitTests/PlaneWaveUT.C` (Γ + off-Γ) matches `½|k+G|²` to 1e-10.
 2. **Separable cosine potential** `V₀·Σᵢcos(2π xᵢ/a)`. Its PW matrix elements are
    nonzero only between `G` and `G ± bᵢ` (sparse, exactly representable). 1D case
    = Mathieu equation with known bands. Validates potential-matrix assembly with
    no singularity.
+   **DONE (2026-06-22):** reusable `PlaneWave_IBS::MakePotential(Vtilde)` assembles
+   `⟨G|V|G'⟩ = Ṽ(m−m')` (the cosine and the milestone-2.3 nuclear structure factor
+   are both just `Ṽ` suppliers). Tests: exact sparse V structure, traceless ⇒
+   `ΣE = Σ½|k+G|²` exactly, `V₀→0` recovers milestone 1, and the Γ ground state
+   matches 2nd-order PT `−3V₀²a²/(4π²)` to 1%.
 3. **Hydrogen, bare Coulomb, large `a` → −0.5 Ha/cell** (the headline physics).
    Caveats — bake into the tolerance:
    - The 1s **cusp converges slowly** in PW (`FT(−1/r)=−4π/G²`); approach −0.5
@@ -34,6 +42,16 @@ Do them in this order — each isolates a different piece:
      neutralizing background) → a finite-cell shift that → 0 as `a → ∞`.
    - Large `a` ⇒ flat bands ⇒ **Γ-point only suffices** (so hydrogen does NOT
      stress k-points; the empty-lattice test does that better).
+   **DONE (2026-06-22):** `PlaneWave_IBS::MakeNuclear` assembles the bare-Coulomb
+   structure factor `V(ΔG) = −(4π/Ω)·Σ_a Z_a e^{−iΔG·τ_a}/|ΔG|²`, `ΔG=0` dropped.
+   Tests: exact nearest-G coupling `−1/(πa)` (single H at origin), and end-to-end
+   variational convergence (E0 monotone-decreasing in `E_cut`, bound, above −0.5).
+   Confirmed the warned slow cusp convergence empirically — at `a=8`, `E_cut`=4→6
+   gives only ≈ −0.136→−0.149, so the test asserts convergence *behaviour*, not a
+   −0.5 value (which needs far higher `E_cut` / a pseudized nucleus).
+   ⚠ `MakeNuclear` returns `csmat_t` (symmetric) — correct only for a real
+   (centrosymmetric) atom set like one atom at the origin; **off-origin / multi-atom
+   cells make `V` Hermitian-not-symmetric and need an `hmat_t` path** (see §6.3).
 
 ## 3. Scope insight — the 1-electron target needs much less than full SCF
 

@@ -40,6 +40,11 @@ using rvec3_t=vec3_t<double>;
 using rvec3vec_t=vec3vec_t<double>;
 using ivec3_t = vec3_t<int>;
 
+// Complex (dcmplx) counterparts of the real aliases above, for plane-wave / Bloch work.
+using csmat_t=smat_t<dcmplx>;
+using cvec_t=vec_t<dcmplx>;
+using cvec3vec_t=vec3vec_t<dcmplx>;
+
 // Used for angular intgrals Ak arrays.
 typedef blaze::StaticVector<double,11> rvec11_t; //la+lc+1<=11 support up to i orbitals.  Good luck finding a stable nucleus!
 typedef std::ranges::iota_view<size_t,size_t> iv_t; //For range based loops
