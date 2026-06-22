@@ -1,11 +1,11 @@
-// File: Lattice.C Define a 3D infite lattice.
+// File: Structure/Lattice_3D/Imp/Lattice_3D.C Define a 3D infinite lattice.
 module;
 #include <iostream>
 #include <cassert>
 #include <algorithm> //sort
 #include <vector>
 
-module qchem.Lattice;
+module qchem.Lattice_3D;
 
 import qchem.Structure.MoleculeMesh;
 import qchem.Streamable;
@@ -16,14 +16,14 @@ import qchem.Blaze; //for op!= on blaze iterators (range-for over rvec3vec_t)
 //
 //  Construction zone.
 //
-// Lattice::Lattice(            )
+// Lattice_3D::Lattice(            )
 //     : itsUnitCell (            )
 //     , itsLimits   (0,0,0       )
 //     , itsAtoms    (new Molecule)
 //     , itsTolerence(0.0001      )
 // {}
 
-Lattice::Lattice(const UnitCell& cell, const Vector3D<int>& Limits)
+Lattice_3D::Lattice_3D(const UnitCell& cell, const Vector3D<int>& Limits)
     : itsUnitCell (cell        )
     , itsLimits   (Limits      )
     , itsTolerence(0.0001      )
@@ -35,7 +35,7 @@ Lattice::Lattice(const UnitCell& cell, const Vector3D<int>& Limits)
 //  Structure stuff.
 //
 
-ReciprocalLattice Lattice::Reciprocal() const
+ReciprocalLattice Lattice_3D::Reciprocal() const
 {
     return ReciprocalLattice(itsUnitCell.MakeReciprocalCell());
 }
@@ -45,17 +45,17 @@ ReciprocalLattice Lattice::Reciprocal() const
 //
 //  Simple lattice questions.
 //
-size_t Lattice::GetNumSites() const
+size_t Lattice_3D::GetNumSites() const
 {
     return GetNumBasisSites() * GetNumUnitCells();
 }
 
-size_t Lattice::GetNumBasisSites() const
+size_t Lattice_3D::GetNumBasisSites() const
 {
     return itsUnitCell.GetNumAtoms();
 }
 
-size_t Lattice::GetNumUnitCells() const
+size_t Lattice_3D::GetNumUnitCells() const
 {
     return itsLimits.x * itsLimits.y * itsLimits.z;
 }
@@ -64,7 +64,7 @@ size_t Lattice::GetNumUnitCells() const
 //
 //  Coordinate to site number translations.
 //
-size_t Lattice::GetSiteNumber(const rvec3_t& r) const
+size_t Lattice_3D::GetSiteNumber(const rvec3_t& r) const
 {
     rvec3_t basis;
     Vector3D<int> cell;
@@ -82,7 +82,7 @@ size_t Lattice::GetSiteNumber(const rvec3_t& r) const
     return sitenum;
 }
 
-size_t Lattice::GetBasisNumber(const rvec3_t& r) const
+size_t Lattice_3D::GetBasisNumber(const rvec3_t& r) const
 {
     rvec3_t basis;
     Vector3D<int> cell;
@@ -93,13 +93,13 @@ size_t Lattice::GetBasisNumber(const rvec3_t& r) const
     return ret;
 }
 
-size_t Lattice::GetBasisNumber(size_t SiteNumber) const
+size_t Lattice_3D::GetBasisNumber(size_t SiteNumber) const
 {
     assert(SiteNumber<GetNumSites());
     return SiteNumber%GetNumBasisSites();
 }
 
-void Lattice::SplitCoordinate(const rvec3_t& r, rvec3_t& basis, Vector3D<int>& cell) const
+void Lattice_3D::SplitCoordinate(const rvec3_t& r, rvec3_t& basis, Vector3D<int>& cell) const
 {
     cell.x=(int)floor(r.x);
     cell.y=(int)floor(r.y);
@@ -118,7 +118,7 @@ void Lattice::SplitCoordinate(const rvec3_t& r, rvec3_t& basis, Vector3D<int>& c
     if (cell.z < 0) cell.z+=itsLimits.z;
 }
 
-Vector3D<int> Lattice::GetCellCoord (const rvec3_t& r) const
+Vector3D<int> Lattice_3D::GetCellCoord (const rvec3_t& r) const
 {
     rvec3_t basis;
     Vector3D<int> ret;
@@ -127,7 +127,7 @@ Vector3D<int> Lattice::GetCellCoord (const rvec3_t& r) const
 }
 
 
-rvec3_t Lattice::GetCoordinate(size_t SiteNumber) const
+rvec3_t Lattice_3D::GetCoordinate(size_t SiteNumber) const
 {
     assert(SiteNumber<GetNumSites());
     size_t ib=GetBasisNumber(SiteNumber);
@@ -159,7 +159,7 @@ rvec3_t Lattice::GetCoordinate(size_t SiteNumber) const
 //
 //  Advanced lattice questions.
 //
-rvec_t Lattice::GetDistances(size_t NumShells) const
+rvec_t Lattice_3D::GetDistances(size_t NumShells) const
 {
     double maxd=itsUnitCell.GetMinimumCellEdge()*NumShells; //Initial guess.
     std::vector<double> distances; //scratch buffer: built by push_back, then sorted
@@ -179,7 +179,7 @@ rvec_t Lattice::GetDistances(size_t NumShells) const
     return rvec_t(std::min(NumShells,distances.size()),distances.data());
 }
 
-rvec3vec_t Lattice::GetBonds(size_t BasisNumber, double Distance) const
+rvec3vec_t Lattice_3D::GetBonds(size_t BasisNumber, double Distance) const
 {
     assert(BasisNumber<GetNumBasisSites());
     assert(Distance>0);
@@ -198,7 +198,7 @@ rvec3vec_t Lattice::GetBonds(size_t BasisNumber, double Distance) const
     return rvec3vec_t(ret.size(),ret.data());
 }
 
-rvec3vec_t Lattice::GetBondsInSphere(size_t BasisNumber, double Distance) const
+rvec3vec_t Lattice_3D::GetBondsInSphere(size_t BasisNumber, double Distance) const
 {
     assert(BasisNumber<GetNumBasisSites());
     assert(Distance>0);
@@ -217,7 +217,7 @@ rvec3vec_t Lattice::GetBondsInSphere(size_t BasisNumber, double Distance) const
     return rvec3vec_t(ret.size(),ret.data());
 }
 
-std::vector<ivec3_t>  Lattice::GetCellsInSphere(double rmax) const
+std::vector<ivec3_t>  Lattice_3D::GetCellsInSphere(double rmax) const
 {
     return itsUnitCell.CellsInSphere(rmax); //direct lattice vectors R within rmax
 }
@@ -225,7 +225,7 @@ std::vector<ivec3_t>  Lattice::GetCellsInSphere(double rmax) const
 //
 //  Private unitilities.
 //
-size_t  Lattice::Find(const rvec3_t& r) const //Search within the primary unit cell.
+size_t  Lattice_3D::Find(const rvec3_t& r) const //Search within the primary unit cell.
 {
     size_t ret=GetNumBasisSites();
     size_t i=0;
@@ -241,7 +241,7 @@ size_t  Lattice::Find(const rvec3_t& r) const //Search within the primary unit c
     return ret;
 }
 
-size_t  Lattice::Find(double r,const std::vector<double>& lis) const
+size_t  Lattice_3D::Find(double r,const std::vector<double>& lis) const
 {
     size_t ret=lis.size();
     size_t i=0;
@@ -253,7 +253,7 @@ size_t  Lattice::Find(double r,const std::vector<double>& lis) const
     return ret;
 }
 
-rvec3vec_t Lattice::GetSuperCells(double MaxDistance) const
+rvec3vec_t Lattice_3D::GetSuperCells(double MaxDistance) const
 {
     Vector3D<int> nc=itsUnitCell.GetNumCells(MaxDistance);
     rvec3vec_t ret((2*nc.x+1)*(2*nc.y+1)*(2*nc.z+1)); //full box, size known up front
@@ -265,7 +265,7 @@ rvec3vec_t Lattice::GetSuperCells(double MaxDistance) const
     return ret;
 }
 
-rvec3_t Lattice::GetBasisVector(size_t BasisNumber) const
+rvec3_t Lattice_3D::GetBasisVector(size_t BasisNumber) const
 {
     assert(BasisNumber<GetNumBasisSites());
     rvec3_t ret;
@@ -288,7 +288,7 @@ using std::endl;
 //
 //  Streamable stuff.
 //
-std::ostream& Lattice::Write(std::ostream& os) const
+std::ostream& Lattice_3D::Write(std::ostream& os) const
 {
     os << itsUnitCell << endl << itsLimits;
 

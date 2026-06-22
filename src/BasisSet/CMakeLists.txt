@@ -49,5 +49,5 @@ target_compile_options(qcBasisSet PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(qcBasisSet PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
 add_subdirectory(Atom)
 add_subdirectory(Molecule)
-# add_subdirectory(Lattice)
+# add_subdirectory(Lattice_3D)
 

@@ -10,7 +10,7 @@ using std::endl;
 
 import qchem.Structure;
 import qchem.UnitCell;
-import qchem.Lattice;
+import qchem.Lattice_3D;
 import qchem.Math;
 
 //  The storage-agnostic index iterator must model a full forward iterator so
@@ -108,7 +108,7 @@ TEST_F(StructureTests, UnitCell)
     EXPECT_NEAR(back.GetDistance({1,1,1}),tri.GetDistance({1,1,1}),1e-9);
 }
 
-TEST_F(StructureTests, Lattice)
+TEST_F(StructureTests, Lattice_3D)
 {
     double a_0=0.529177; //Ångstrom
     UnitCell SiCell(5.43/a_0); //Convert Ångstrom to atomic units a.u.
@@ -120,7 +120,7 @@ TEST_F(StructureTests, Lattice)
     SiCell.Insert(new Atom(14,0,rvec3_t{.75,.75,.25}));
     SiCell.Insert(new Atom(14,0,rvec3_t{.25,.75,.75}));
     SiCell.Insert(new Atom(14,0,rvec3_t{.75,.25,.75}));
-    Lattice Si(SiCell,ivec3_t(2,2,2));
+    Lattice_3D Si(SiCell,ivec3_t(2,2,2));
     // cout << "Si lattice = " << Si << endl;
     EXPECT_EQ(SiCell.GetNumAtoms(),8);
     EXPECT_EQ(SiCell.GetNuclearCharge(),8*14);

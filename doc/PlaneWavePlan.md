@@ -2,14 +2,16 @@
 
 Prep notes for implementing a plane-wave (PW) electronic-structure calculation,
 written 2026-06-22 at the end of the `src/Structure` groundwork session. Symbol
-and units conventions are documented in `src/Structure/Lattice.C` (Doxygen).
+and units conventions are documented in `src/Structure/Lattice_3D/Lattice_3D.C`
+(Doxygen).
 
 ## 1. Geometry groundwork — DONE
 
 `src/Structure` is ready for periodic work:
 - `UnitCell` stores the cell matrix `A` (columns = lattice vectors `aᵢ`); `ToCartesian(f)=A·f`.
-- `ReciprocalLattice` (`Lattice::Reciprocal()`): `B = 2π·A⁻ᵀ`, `GetGVectors(Gmax)`, `GetGLength(m)`.
-- `KMesh` (`Lattice::MakeKMesh()`): Monkhorst–Pack `(k,weight)` list (Γ-centred or shifted), ready for later IBZ symmetry reduction.
+- `Lattice_3D` (was `Lattice`; module `qchem.Lattice_3D`, folder `src/Structure/Lattice_3D/`) — renamed in anticipation of `Lattice_1D` (polymers) and `Lattice_2D` (graphene) as sibling folders.
+- `ReciprocalLattice` (`Lattice_3D::Reciprocal()`): `B = 2π·A⁻ᵀ`, `GetGVectors(Gmax)`, `GetGLength(m)`.
+- `KMesh` (`Lattice_3D::MakeKMesh()`): Monkhorst–Pack `(k,weight)` list (Γ-centred or shifted), ready for later IBZ symmetry reduction.
 - `UnitCell::CellsInSphere` for real-space lattice sums (Ewald real part later).
 
 ## 2. Validation targets (staged, simplest first)
@@ -83,7 +85,9 @@ fix. Watch for `blazem::trans` vs `ctrans` (conjugate transpose) once it compile
 
 1. PW `IrrepBasisSet`: a k-point's `{G : ½|k+G|² < E_cut}` set (from
    `ReciprocalLattice::GetGVectors`), each a normalised plane wave `e^{i(k+G)·r}/√V`.
-2. Kinetic `MakeGrad2`/`MakeKinetic`: diagonal `½|k+G|²` (see `Lattice.C` conventions; mind the ½ — `[[project_kinetic_p2_conventions]]`).
+   New code goes under `src/BasisSet/Lattice_3D/` (placeholder folder reserved;
+   `# add_subdirectory(Lattice_3D)` in `src/BasisSet/CMakeLists.txt` to wire it in).
+2. Kinetic `MakeGrad2`/`MakeKinetic`: diagonal `½|k+G|²` (see the `Lattice_3D.C` conventions; mind the ½ — `[[project_kinetic_p2_conventions]]`).
 3. `V_ext` matrix: `V(G−G')` from the structure factor `Σ_atoms Z·e^{-i(G−G')·τ}` × `FT(potential)`; drop/define the `G=0` term.
 4. Complex Hermitian eigensolver per k-point → bands; energy/cell.
 5. Targets 2.1 → 2.2 → 2.3 with the tolerances above.

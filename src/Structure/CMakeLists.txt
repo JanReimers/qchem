@@ -3,9 +3,9 @@ target_sources(qcStructure PRIVATE
     Imp/Atom.C 
     Imp/Structure.C 
     Imp/Molecule.C 
-    Imp/UnitCell.C 
-    Imp/Lattice.C
-    Internal/Imp/AtomMesh.C 
+    Imp/UnitCell.C
+    Lattice_3D/Imp/Lattice_3D.C
+    Internal/Imp/AtomMesh.C
     Internal/Imp/MoleculeMesh.C 
     )
 target_sources(qcStructure PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
@@ -13,7 +13,7 @@ target_sources(qcStructure PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     UnitCell.C
     ReciprocalLattice.C
     KMesh.C
-    Lattice.C
+    Lattice_3D/Lattice_3D.C
     Internal/UnitCellMesh.C
     Internal/AtomMesh.C
     Internal/MoleculeMesh.C

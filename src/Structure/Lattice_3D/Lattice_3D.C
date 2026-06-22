@@ -1,10 +1,10 @@
-// File: Structure/Lattice.C Define a 3D infite lattice.
+// File: Structure/Lattice_3D/Lattice_3D.C Define a 3D infinite lattice.
 module;
 #include <vector>
 #include <iosfwd>
 #include <memory>
 
-export module qchem.Lattice;
+export module qchem.Lattice_3D;
 export import qchem.Structure;
 export import qchem.UnitCell;
 export import qchem.ReciprocalLattice;
@@ -47,12 +47,11 @@ import qchem.Mesh;
 //! \par Cutoffs
 //! \f$E_{\max}\f$ (Hartree) bounds the plane-wave set \f$\{\,G : \tfrac12\lVert k+G\rVert^2 < E_{\max}\,\}\f$.
 //
-export class Lattice
+export class Lattice_3D
 {
 public:
-    // Lattice();
     typedef std::shared_ptr<Structure> cl_t;
-    Lattice(const UnitCell&, const Vector3D<int>&);                //Empty unit cell.
+    Lattice_3D(const UnitCell&, const Vector3D<int>&);                //Empty unit cell.
     
     const  UnitCell& GetUnitCell() const
     {
