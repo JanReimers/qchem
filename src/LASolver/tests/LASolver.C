@@ -67,7 +67,7 @@ protected:
 
     void SetUp() override
     {
-        solver.reset(LASolver<double>::Factory(GetParam(), 1e-12));
+        solver.reset(LASolver<double>::Factory(GetParam()));
     }
 };
 

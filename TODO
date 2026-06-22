@@ -129,8 +129,8 @@ Notes, bugs, and plans for the qchem6 project. This file is markdown-enabled so 
             Modern c++ must have a way to do this without doing partial class specializatons.
 - 
 #### Review src/Cluster/Lattice 
-- and the unit tests.
-- Is this what we need?
+- Rename to Structure
+- Try using std::single_view for Atom
 #### dcmplx outside BasisSet
 -Are the {ChargeDensity, Hamiltonian, Orbital, WaveFunction, SCFIterator} libraries ready for T=dcmplx?
 

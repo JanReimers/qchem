@@ -45,7 +45,7 @@ void CompositeWF::MakeIrrepWFs(Spin s)
 
     for (auto b:itsBS->Iterate<obs_t>())
     {
-        LASolver<double>* lasb=LASolver<double>::Factory(qchem::Cholesky, 1e-12);
+        LASolver<double>* lasb=LASolver<double>::Factory(qchem::Cholesky);
         lasb->SetBasisOverlap(b->Overlap());
         // std::cout << "Minimum singular value for basis set overlap= " << blaze::min(lasb->Get_BS_Diagonal()) << std::endl;
         Irrep qns(b->GetIrrep(s));

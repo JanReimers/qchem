@@ -102,6 +102,7 @@ TEST_F(OrthogonalizeTests, BlazeDemo)
 
 qchem::Ortho orthos[] = {qchem::SVD,qchem::Eigen,qchem::Cholesky};
 std::string OrthStrs[]={"Cholesky","Eigen  ","SVD    "};
+auto tol_for = [](qchem::Ortho o,double tol ){ return o == qchem::Cholesky ? 0.0 : tol; };
 
 TEST_F(OrthogonalizeTests, Blaze)
 {
@@ -114,7 +115,7 @@ TEST_F(OrthogonalizeTests, Blaze)
             for (auto ortho:orthos)
             {
                 rsmat_t S=ibs->Overlap();
-                LASolver<double>* las=LASolver<double>::Factory(ortho,trunc_tol);
+                LASolver<double>* las=LASolver<double>::Factory(ortho,tol_for(ortho,1e-12));
                 las->SetBasisOverlap(S);
                 auto I=las->Transform(S);
                 bUnit I1(I.rows());
@@ -150,7 +151,7 @@ TEST_F(OrthogonalizeTests, BlazeHydrogen)
     {
         for (auto ortho:orthos)
         {
-            LASolver<double>* las=LASolver<double>::Factory(ortho,trunc_tol/10);
+            LASolver<double>* las=LASolver<double>::Factory(ortho,tol_for(ortho,trunc_tol/10));
             las->SetBasisOverlap(ibs->Overlap());
             auto [U,e]=las->Solve(Ham->GetMatrix(ibs,Spin::Down,0));
             cout << "s=" << las->Get_BS_Diagonal() << endl;

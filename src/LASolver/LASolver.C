@@ -38,7 +38,7 @@ public:
     typedef std::tuple<mat_t<T>         ,rvec_t> Ud_t;
     typedef std::tuple<mat_t<T>,mat_t<T>,rvec_t> UUd_t; //U,U',E  where U' has not been back transformed, U=V*Uprime.
 
-    static  LASolver* Factory(qchem::Ortho ortho, double TruncationTolerance);
+    static  LASolver* Factory(qchem::Ortho ortho, double TruncationTolerance=0.0);
 
     //! Factor S=U*Ud then invert U, V=U^-1  and store V and Vd.
     virtual void       SetBasisOverlap(const hmat_t<T>& S)=0;

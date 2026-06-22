@@ -36,7 +36,7 @@ public:
                 for (auto ibs:bs->Iterate<Real_OIBS>())
                 {
                     // cout << BasisSetAccuracyStrs[static_cast<size_t>(acc)] << " " << *ibs;
-                    LASolver<double>* las=LASolver<double>::Factory(qchem::Cholesky,trunc_tol);
+                    LASolver<double>* las=LASolver<double>::Factory(qchem::Cholesky);
                     las->SetBasisOverlap(ibs->Overlap());
                     double smin=blazem::min(las->Get_BS_Diagonal());
                     cout << BasisSetAccuracyStrs[static_cast<size_t>(acc)] << " " 
@@ -50,9 +50,6 @@ public:
     }
 };
 
-
-// qchem::Ortho orthos[] = {qchem::SVD,qchem::Eigen,qchem::Cholesky};
-// std::string OrthStrs[]={"Cholesky","Eigen  ","SVD    "};
 
 TEST_F(BasisSetPoolTests,SlaterOrthogonality)
 {
