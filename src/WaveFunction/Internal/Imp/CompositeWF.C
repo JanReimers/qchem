@@ -20,8 +20,6 @@ namespace qchem::WaveFunction
 using std::cerr;
 using std::endl;
 
-LAParams DefaultLAP({qchem::Cholsky,1e-12});
-
 // MOM (Maximum Overlap Method) occupation tracking is implemented but parked: for the current
 // closed-shell cases the empty-irrep DIIS discriminator already gives clean convergence with no
 // occupation flip, so MOM is not load-bearing (see doc/SCF_DIIS_SALC_notes.md).  The machinery is
@@ -34,8 +32,6 @@ CompositeWF::CompositeWF(const bs_t* bs,const ElectronConfiguration* ec,SCFAccel
     , itsEC(ec)
     , itsAufbau(ec->UsesAufbau())
     , itsAccelerator(acc)
-    , itsLAParams(DefaultLAP) //gcc-15.0.1 segfault here
-
 {
     assert(itsBS);
     assert(itsEC);
@@ -49,7 +45,7 @@ void CompositeWF::MakeIrrepWFs(Spin s)
 
     for (auto b:itsBS->Iterate<obs_t>())
     {
-        LASolver<double>* lasb=LASolver<double>::Factory(itsLAParams.BasisOrthoAlgorithm,itsLAParams.TruncationTolerance);
+        LASolver<double>* lasb=LASolver<double>::Factory(qchem::Cholsky, 1e-12);
         lasb->SetBasisOverlap(b->Overlap());
         // std::cout << "Minimum singular value for basis set overlap= " << blaze::min(lasb->Get_BS_Diagonal()) << std::endl;
         Irrep qns(b->GetIrrep(s));

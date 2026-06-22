@@ -32,18 +32,18 @@ QchemTester::~QchemTester()
     delete itsSCFIterator;
 }
 
-void QchemTester::Init(const nlohmann::json& js, bool verbose,LAParams lap)
+void QchemTester::Init(const nlohmann::json& js, bool verbose)
 {
-    Init(GetBasisSet(js),verbose,lap);
+    Init(GetBasisSet(js), verbose);
 }
 
-void QchemTester::Init(BasisSetAccuracy acc, BasisSet::Atom::Type type,bool verbose,LAParams lap)
+void QchemTester::Init(BasisSetAccuracy acc, BasisSet::Atom::Type type, bool verbose)
 {
-    Init(Factory(acc,type,GetZ()),verbose,lap); 
+    Init(Factory(acc, type, GetZ()), verbose);
 }
-    
 
-void QchemTester::Init(Real_BS* bs, bool verbose,LAParams lap)
+
+void QchemTester::Init(Real_BS* bs, bool verbose)
 {
     itsBasisSet=bs;
     

@@ -6,7 +6,6 @@
 //   H3: 3x3 symmetric "Hamiltonian", diagonally dominant
 //       → H = [[6,2,0],[2,8,2],[0,2,10]]
 #include <gtest/gtest.h>
-import qchem.LAParams;
 import qchem.LASolver;
 import qchem.Blaze;
 

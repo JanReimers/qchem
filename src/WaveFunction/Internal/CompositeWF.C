@@ -47,8 +47,6 @@ private:
     bool                         itsMOMActive=false; //once the accelerator engages, pick occupation by MOM (overlap) not eigenvalue
     SCFAccelerator*              itsAccelerator;
     EnergyLevels                 itsELevels;
-    LAParams                     itsLAParams; //Numerical control of general eigen solution.
-
     std::map<Spin,EnergyLevels>  itsSpin_ELevels;
     std::map<Spin,std::map<IrrepWF*,double>> itsAufbauNe; //per-irrep electron count (recomputed each iteration)
 

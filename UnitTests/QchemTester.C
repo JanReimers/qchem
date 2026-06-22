@@ -10,7 +10,6 @@ export import qchem.Hamiltonian.Factory;
 export import qchem.Hamiltonian;
 export import qchem.SCFParams;
 import qchem.SCFIterator;
-import qchem.LAParams;
 import qchem.Cluster;
 import qchem.Orbitals;
 import qchem.Mesh; //To get Meshparams
@@ -31,9 +30,9 @@ export class QchemTester
 public:
     QchemTester(ElectronConfiguration* ec);
     virtual ~QchemTester();
-    void   Init(const nlohmann::json&, bool verbose=false, LAParams lap={qchem::Cholsky,1e-12});
-    void   Init(Real_BS*, bool verbose=false, LAParams lap={qchem::Cholsky,1e-12});
-    void   Init(BasisSetAccuracy acc, BasisSet::Atom::Type type,bool verbose=false,LAParams lap={qchem::Cholsky,1e-12});
+    void   Init(const nlohmann::json&, bool verbose=false);
+    void   Init(Real_BS*, bool verbose=false);
+    void   Init(BasisSetAccuracy acc, BasisSet::Atom::Type type, bool verbose=false);
     void   Iterate(const SCFParams&);
     // Choose the SCF accelerator via JSON, e.g. {"type":"Ladder","floor":1e-4,"stall":5}.
     // "type" is "DIIS" (default), "GDM", or "Ladder"; other keys override the defaults.

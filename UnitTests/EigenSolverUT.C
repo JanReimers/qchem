@@ -10,7 +10,6 @@ import qchem.BasisSet.Orbital_1E_IBS;
 import qchem.BasisSet;
 using Real_OIBS=BasisSet::Real_OIBS;
 
-import qchem.LAParams;
 import qchem.LASolver;
 
 import qchem.Factory;

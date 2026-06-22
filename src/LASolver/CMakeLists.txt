@@ -5,7 +5,6 @@ target_sources(qcLASolver PRIVATE
     )
 target_sources(qcLASolver PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     LASolver.C
-    LAParams.C
     Internal/LASolverLapack.C
 )
 set_property(TARGET qcLASolver PROPERTY CXX_STANDARD 20)

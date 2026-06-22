@@ -2,10 +2,13 @@
 module;
 #include <tuple>
 export module qchem.LASolver;
-export import qchem.LAParams;
 export import qchem.Types;
 import qchem.Blaze;
 
+export namespace qchem
+{
+    enum Ortho {Cholsky, Eigen, SVD};
+}
 
 //#################################################################################
 //
