@@ -3,7 +3,7 @@ module;
 #include <vector>
 #include <iosfwd>
 export module qchem.ReciprocalLattice;
-export import Structure.UnitCell;
+export import qchem.UnitCell;
 import qchem.Streamable;
 
 //! \brief The reciprocal lattice dual to a (direct) Lattice.

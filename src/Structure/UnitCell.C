@@ -2,7 +2,7 @@
 module;
 #include <iosfwd>
 #include <vector>
-export module Structure.UnitCell;
+export module qchem.UnitCell;
 export import qchem.Types;
 import qchem.Structure;
 import qchem.Matrix3D;

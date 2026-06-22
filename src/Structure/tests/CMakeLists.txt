@@ -14,6 +14,6 @@ target_include_directories(UTStructure PRIVATE
     # ${PROJECT_SOURCE_DIR}/submodules/tabulate/include
 )
 
-target_link_libraries(UTStructure PRIVATE qcStructure)
+target_link_libraries(UTStructure PRIVATE qcStructure gtest)
 
 gtest_discover_tests(UTStructure)

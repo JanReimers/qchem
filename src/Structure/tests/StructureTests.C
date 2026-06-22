@@ -9,7 +9,7 @@ using std::cout;
 using std::endl;
 
 import qchem.Structure;
-import Structure.UnitCell;
+import qchem.UnitCell;
 import qchem.Lattice;
 import qchem.Math;
 

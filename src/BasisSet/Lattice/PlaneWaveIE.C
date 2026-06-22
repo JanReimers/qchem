@@ -5,7 +5,7 @@
 
 
 
-import Structure.UnitCell;
+import qchem.UnitCell;
 
 class PlaneWaveBS;
 template <class T> class SList;

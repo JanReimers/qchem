@@ -5,7 +5,7 @@ using std::endl;
 
 // import qchem.BasisSet.Lattice.PlaneWave;
 import qchem.Structure;
-import Structure.UnitCell;
+import qchem.UnitCell;
 import qchem.Lattice;
 
 

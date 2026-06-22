@@ -6,7 +6,7 @@ module;
 
 export module qchem.Lattice;
 export import qchem.Structure;
-export import Structure.UnitCell;
+export import qchem.UnitCell;
 export import qchem.ReciprocalLattice;
 export import qchem.KMesh;
 import qchem.Mesh;

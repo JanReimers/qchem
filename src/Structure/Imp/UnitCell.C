@@ -4,7 +4,7 @@ module;
 #include <iostream>
 #include <vector>
 
-module Structure.UnitCell;
+module qchem.UnitCell;
 import qchem.Math;
 
 //  Build the cell matrix A (columns = lattice vectors a₁,a₂,a₃) from the cell
