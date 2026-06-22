@@ -18,7 +18,7 @@ import qchem.BasisSet.Internal.Cache2;     // Cache2, Cacheable2, Cache2_Client
 import qchem.BasisSet.Internal.Cache3;     // Cache3, Cacheable3, Cache3_Client
 
 import qchem.Blaze;     // rvec_t (itsCoeff)
-import qchem.Cluster;
+import qchem.Structure;
 import qchem.Math;
 
 namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
@@ -358,7 +358,7 @@ double PrimGaussian::Grad2(const PrimGaussian* a, const PrimGaussian* b,
 }
 
 double PrimGaussian::Nuclear(const PrimGaussian* a, const PrimGaussian* b,
-                             const Polarization& pa, const Polarization& pb, const Cluster* cl)
+                             const Polarization& pa, const Polarization& pb, const Structure* cl)
 {
     assert(cl);
     const Ω& ab = findΩ(a->GetGData(), b->GetGData());
@@ -663,7 +663,7 @@ double GaussianRF::Grad2(rf_t& rb, po_t& pa, po_t& pb) const
                  * PrimGaussian::Grad2(itsPrims[i].get(), rb.itsPrims[j].get(), pa, pb);
     return s;
 }
-double GaussianRF::Nuclear(rf_t& rb, po_t& pa, po_t& pb, const Cluster* cl) const
+double GaussianRF::Nuclear(rf_t& rb, po_t& pa, po_t& pb, const Structure* cl) const
 {
     double s = 0.0;
     for (size_t i=0;i<itsPrims.size();++i)

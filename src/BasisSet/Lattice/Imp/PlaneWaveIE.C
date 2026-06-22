@@ -9,8 +9,8 @@
 #include "BasisSetImplementation/PlaneWave/PlaneWaveBF.H"
 #include "BasisSetImplementation/PlaneWave/PlaneWaveBS.H"
 #include "BasisSetImplementation/PlaneWave/BlochQN.H"
-#include "Cluster/ClusterBrowser.H"
-#include "Cluster/Atom.H"
+#include "Structure/StructureBrowser.H"
+#include "Structure/Atom.H"
 #include "Misc/ptr_vector.h"
 #include "Misc/MatrixList.H"
 #include "Misc/DFTDefines.H"
@@ -271,9 +271,9 @@ PlaneWaveIE::SMat PlaneWaveIE::MakeGrad2() const
     return ret;
 }
 
-double FormFactor(const Cluster&, const rvec3_t& G);
+double FormFactor(const Structure&, const rvec3_t& G);
 
-PlaneWaveIE::SMat PlaneWaveIE::MakeNuclear(const Cluster& theCluster) const
+PlaneWaveIE::SMat PlaneWaveIE::MakeNuclear(const Structure& theStructure) const
 {
     CheckBasisSet();
     SMat ret(itsN,itsN);
@@ -286,16 +286,16 @@ PlaneWaveIE::SMat PlaneWaveIE::MakeNuclear(const Cluster& theCluster) const
         {
             rvec3_t G=*b1-*b2;
             double mG=itsRLCell.GetDistance(G);
-            if (mG > epsilon) ret(i1,i2)=4*Pi*FormFactor(theCluster,G)/(mG*mG);
+            if (mG > epsilon) ret(i1,i2)=4*Pi*FormFactor(theStructure,G)/(mG*mG);
         }
     }
     return ret;
 }
 
-double FormFactor(const Cluster& cl, const rvec3_t& G)
+double FormFactor(const Structure& cl, const rvec3_t& G)
 {
     double ret=0;
-    for (ClusterBrowser b(cl); b; b++)
+    for (StructureBrowser b(cl); b; b++)
         ret+=b->itsZ*cos(2*Pi*G*b->itsR);
 
     return ret;

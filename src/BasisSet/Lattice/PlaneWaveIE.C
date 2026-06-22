@@ -5,7 +5,7 @@
 
 
 
-import Cluster.UnitCell;
+import Structure.UnitCell;
 
 class PlaneWaveBS;
 template <class T> class SList;
@@ -30,7 +30,7 @@ public:
     
     virtual  SMatrix<T> MakeOverlap  (                 ) const;
     virtual  SMatrix<T> MakeGrad2  (                 ) const;
-    virtual  SMatrix<T> MakeNuclear  (const Cluster&   ) const;
+    virtual  SMatrix<T> MakeNuclear  (const Structure&   ) const;
     virtual  SMatrix<T> MakeRepulsion(                 ) const; //Used for charge and Vxc fitting.
     virtual   Mat MakeRepulsion(const AnalyticIE*,const AnalyticIE*) const; //Used for charge and Vxc fitting.
 

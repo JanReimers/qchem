@@ -3,12 +3,12 @@ module;
 #include <cassert>
 #include <memory>
 
-module qchem.Cluster;
-import qchem.Cluster.MoleculeMesh;
+module qchem.Structure;
+import qchem.Structure.MoleculeMesh;
 import qchem.stl_io;
 import qchem.Streamable;
 
-Molecule::Molecule(const Cluster& cl)
+Molecule::Molecule(const Structure& cl)
 {
     for (auto a:cl)
     {

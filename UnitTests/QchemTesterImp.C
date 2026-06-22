@@ -17,7 +17,7 @@ PeriodicTableSaito QchemTester::itsPT;
 PeriodicTable QchemTester::itsPTold; //need this just for DFT alpha exchange values 
 
 QchemTester::QchemTester(ElectronConfiguration* ec)
-: itsCluster(0)
+: itsStructure(0)
 , itsEC(ec)
 , itsBasisSet(0)
 , itsSCFIterator(0)
@@ -47,15 +47,15 @@ void QchemTester::Init(Real_BS* bs, bool verbose)
 {
     itsBasisSet=bs;
     
-    assert(itsCluster);
-    assert(&*itsCluster);
+    assert(itsStructure);
+    assert(&*itsStructure);
     assert(itsBasisSet);
     // if (verbose)
     {
         std::cout << " " << *itsBasisSet << std::endl;
     }
     int Z=GetZ();
-    itsHamiltonian=GetHamiltonian(itsCluster);
+    itsHamiltonian=GetHamiltonian(itsStructure);
     nlohmann::json jsacc={{"NProj",4},{"EMax",Z*Z*0.1/32},{"EMin",1e-7},{"SVTol",5e-9}};
     using qchem::SCFAccelerators::Type;
     std::string ts="DIIS";
@@ -151,25 +151,25 @@ double QchemTester::RelativeError(double E,bool quiet) const
 
 double QchemTester::RelativeHFError(bool quiet) const
 {
-    double E_HF=itsPT.GetEnergyHF(itsCluster->GetNuclearCharge());
+    double E_HF=itsPT.GetEnergyHF(itsStructure->GetNuclearCharge());
     return RelativeError(E_HF,quiet);
 }
 
 double QchemTester::RelativeDFTError(bool quiet) const
 {
-    double E_DFT=itsPT.GetEnergyDFT(itsCluster->GetNuclearCharge());
+    double E_DFT=itsPT.GetEnergyDFT(itsStructure->GetNuclearCharge());
     return RelativeError(E_DFT,quiet);
 }
 
 double QchemTester::RelativeDHFError(bool quiet) const
 {
-    double E_DHF=itsPT.GetEnergyDHF(itsCluster->GetNuclearCharge());
+    double E_DHF=itsPT.GetEnergyDHF(itsStructure->GetNuclearCharge());
     return RelativeError(E_DHF,quiet);
 }
 
 int QchemTester::GetZ() const
 {
-    return GetCluster()->GetNuclearCharge();
+    return GetStructure()->GetNuclearCharge();
 }
 
 irrepv_t QchemTester::GetIrreps(const Spin& ms) const
@@ -182,7 +182,7 @@ irrepv_t QchemTester::GetIrreps(const Spin& ms) const
 TestAtom::TestAtom(int Z, int q) : QchemTester(new Atom_EC(Z-q)) //Pass in the electr4on config.
 {
     itsZ=Z-q;
-    itsCluster=cl_t(new Atom(Z,q,Vector3D<double>(0,0,0)));
+    itsStructure=cl_t(new Atom(Z,q,Vector3D<double>(0,0,0)));
 };
 
 MeshParams TestAtom::GetMeshParams() const
@@ -197,7 +197,7 @@ Real_BS* TestAtom::GetBasisSet (const nlohmann::json& js) const
 
 TestDiracAtom::TestDiracAtom(int Z, int q) : QchemTester(new AtomDirac_EC(Z-q)), itsq(q)
 {
-    itsCluster=cl_t(new Atom(Z,q,Vector3D<double>(0,0,0)));
+    itsStructure=cl_t(new Atom(Z,q,Vector3D<double>(0,0,0)));
 };
 
 MeshParams TestDiracAtom::GetMeshParams() const
@@ -210,9 +210,9 @@ Real_BS* TestDiracAtom::GetBasisSet (const nlohmann::json& js) const
     return BasisSet::Atom::Factory(js,GetZ()-itsq);
 }
 
-TestMolecule::TestMolecule(Cluster* m) : QchemTester(new Molecule_EC(m->GetNumElectrons())) 
+TestMolecule::TestMolecule(Structure* m) : QchemTester(new Molecule_EC(m->GetNumElectrons())) 
 {
-    itsCluster=cl_t(m);
+    itsStructure=cl_t(m);
 };
 
 MeshParams TestMolecule::GetMeshParams() const
@@ -221,7 +221,7 @@ MeshParams TestMolecule::GetMeshParams() const
 }
 Real_BS* TestMolecule::GetBasisSet (const nlohmann::json& js) const
 {
-    return BasisSet::Molecule::Factory(js,GetCluster());
+    return BasisSet::Molecule::Factory(js,GetStructure());
 }
 
 

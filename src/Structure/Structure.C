@@ -1,9 +1,9 @@
-// File: Cluster.C  A structure of atoms, Molecule, unit cell, solid all with spatial struture defined.
+// File: Structure.C  A structure of atoms, Molecule, unit cell, solid all with spatial struture defined.
 module;
 #include <vector>
 #include <memory>
 
-export module qchem.Cluster;
+export module qchem.Structure;
 import Common.UniqueID; 
 import qchem.Mesh; 
 import qchem.Streamable;
@@ -18,7 +18,7 @@ export class Atom;
 //! this means faking the iteration, which is a bit messy.
 //! Each structure needs to know how to create an efficient numerical integration mesh.
 //
-export class Cluster
+export class Structure
     : public virtual UniqueID
     , public virtual Streamable
 {
@@ -27,7 +27,7 @@ public:
     typedef av_t::      iterator       iterator;
     typedef av_t::const_iterator const_iterator;
 
-    virtual ~Cluster() {};
+    virtual ~Structure() {};
 
     virtual std::string ID          () const;
     virtual size_t GetNumAtoms      () const=0;
@@ -45,7 +45,7 @@ public:
 };
 
 export class Atom
-    : public Cluster
+    : public Structure
     , public UniqueIDImp
 {
 public:
@@ -75,13 +75,13 @@ private:
 };
 
 export class Molecule 
-    : public virtual Cluster
+    : public virtual Structure
     , public UniqueIDImp
 {
 public:
     Molecule() {};
-    Molecule(const Cluster& m);
-    Molecule(const Molecule& m) : Molecule(static_cast<const Cluster&>(m)) {};
+    Molecule(const Structure& m);
+    Molecule(const Molecule& m) : Molecule(static_cast<const Structure&>(m)) {};
     virtual ~Molecule();
     virtual void   Insert     (Atom* a);
     virtual size_t GetNumAtoms() const;

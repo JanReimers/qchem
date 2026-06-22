@@ -6,7 +6,7 @@ import qchem.Hamiltonian.Internal.Terms;
 import qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.Hamiltonian.Internal.SlaterExchange;
 import qchem.Hamiltonian.Types;
-import qchem.Cluster;
+import qchem.Structure;
 
 namespace qchem::Hamiltonian
 {

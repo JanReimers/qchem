@@ -96,8 +96,8 @@ ERI3<double> SymmetryAdapted_IBS::MakeOverlap3C  (const Fit_IBS& c) const { retu
 ERI3<double> SymmetryAdapted_IBS::MakeRepulsion3C(const Fit_IBS& c) const { return TransformERI3(itsRawDFT->Repulsion3C(c)); }
 
 // Fit bases are atom-centred (geometry, not symmetry), so reuse the raw basis's unchanged.
-Fit_IBS* SymmetryAdapted_IBS::CreateCDFitBasisSet (const Cluster* cl) const { return itsRawDFT->CreateCDFitBasisSet(cl);  }
-Fit_IBS* SymmetryAdapted_IBS::CreateVxcFitBasisSet(const Cluster* cl) const { return itsRawDFT->CreateVxcFitBasisSet(cl); }
+Fit_IBS* SymmetryAdapted_IBS::CreateCDFitBasisSet (const Structure* cl) const { return itsRawDFT->CreateCDFitBasisSet(cl);  }
+Fit_IBS* SymmetryAdapted_IBS::CreateVxcFitBasisSet(const Structure* cl) const { return itsRawDFT->CreateVxcFitBasisSet(cl); }
 
 // Coulomb / exchange are linear in the density, so build the AO matrix from the cd-irrep's
 // density block and slice to this irrep (no 4-index ERI transform).  The AO build depends only
@@ -128,7 +128,7 @@ rsmat_t SymmetryAdapted_IBS::MakeOverlap()                 const {return Transfo
 // Kinetic() here is the \f$\langle p^2\rangle=\langle-\nabla^2\rangle\f$ block (no 1/2), just transformed
 // into the SALC basis -- the 1/2 / energy meaning is applied later (see BasisSet/Orbital_1E_IBS.C).
 rsmat_t SymmetryAdapted_IBS::MakeKinetic()                 const {return Transform(itsRaw->Kinetic());}
-rsmat_t SymmetryAdapted_IBS::MakeNuclear(const Cluster* cl) const {return Transform(itsRaw->Nuclear(cl));}
+rsmat_t SymmetryAdapted_IBS::MakeNuclear(const Structure* cl) const {return Transform(itsRaw->Nuclear(cl));}
 
 std::string SymmetryAdapted_IBS::RadialID()   const {return itsRaw->RadialID();}
 std::string SymmetryAdapted_IBS::AngularID()  const {return itsRaw->AngularID();}

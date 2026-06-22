@@ -16,7 +16,7 @@ import qchem.BasisSet.Atom.Evaluators;
 import qchem.BasisSet;
 
 import qchem.Mesh.Integrator;
-import qchem.Cluster;
+import qchem.Structure;
 import qchem.Symmetry.Factory;
 import qchem.Symmetry.Spherical;
 import qchem.stl_io;
@@ -69,7 +69,7 @@ public:
     size_t LMax;
     Real_BS* bs;
     std::vector<const ibs_t*> itsIBSs;
-    Cluster* cl;
+    Structure* cl;
     MeshIntegrator<double>* mintegrator;
     std::vector<double> knots;
     std::vector<spline_t> splines;

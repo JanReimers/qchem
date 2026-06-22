@@ -10,7 +10,7 @@ import qchem.BasisSet.Atom.Factory;
 import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet;
 import qchem.Math;
-import qchem.Cluster;
+import qchem.Structure;
 import qchem.Mesh.Integrator;
 import qchem.Streamable;
 import qchem.BasisSet.Internal.Orbital_DHF_IBS;
@@ -79,7 +79,7 @@ public:
     int Lmax, Z;
     Real_BS* sbs;
     Real_BS* gbs;
-    Cluster* cl;
+    Structure* cl;
     MeshIntegrator<double>* mintegrator;
 };
 

@@ -22,7 +22,7 @@ import qchem.BasisSet.Internal.Cache2;                                    // Cac
 
 import qchem.ScalarFunction;
 import qchem.Streamable;
-import qchem.Cluster;
+import qchem.Structure;
 
 //
 //  MODULE-INTERNAL implementation of the radial integrals -- none of this is exported, and only the
@@ -76,7 +76,7 @@ public:
     static double Grad2      (const PrimGaussian* a, const PrimGaussian* b,        // <p^2> block, no 1/2
                               const Polarization& pa, const Polarization& pb);
     static double Nuclear    (const PrimGaussian* a, const PrimGaussian* b,
-                              const Polarization& pa, const Polarization& pb, const Cluster* cl);
+                              const Polarization& pa, const Polarization& pb, const Structure* cl);
     static double Overlap3C  (const PrimGaussian* a, const PrimGaussian* b, const PrimGaussian* c,
                               const Polarization& pa, const Polarization& pb, const Polarization& pc);
     static double Repulsion3C(const PrimGaussian* a, const PrimGaussian* b, const PrimGaussian* c,
@@ -179,7 +179,7 @@ public:
     double Overlap2C  (rf_t& rb, po_t& pa, po_t& pb                ) const;
     double Repulsion2C(rf_t& rb, po_t& pa, po_t& pb                ) const;
     double Grad2      (rf_t& rb, po_t& pa, po_t& pb                ) const;   // <p^2> block, no 1/2
-    double Nuclear    (rf_t& rb, po_t& pa, po_t& pb, const Cluster* cl) const;
+    double Nuclear    (rf_t& rb, po_t& pa, po_t& pb, const Structure* cl) const;
     double Overlap3C  (rf_t& ra, rf_t& rb, po_t& pa, po_t& pb, po_t& pc) const; // this is centre C
     double Repulsion3C(rf_t& ra, rf_t& rb, po_t& pa, po_t& pb, po_t& pc) const; // this is centre C
     double Repulsion4C(rf_t& ra, rf_t& rb, rf_t& rc, po_t& pa, po_t& pb, po_t& pc, po_t& pd) const; // this is D

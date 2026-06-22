@@ -18,7 +18,7 @@ template <class T> const smat_t<T>& Integrals_Kinetic<T>::Kinetic() const
         [this]{ return MakeKinetic(); });
 }
 
-template <class T> const smat_t<T>& Integrals_Nuclear<T>::Nuclear(const Cluster* cl) const
+template <class T> const smat_t<T>& Integrals_Nuclear<T>::Nuclear(const Structure* cl) const
 {
     assert(cl);
     auto cache=theGlobalCache;

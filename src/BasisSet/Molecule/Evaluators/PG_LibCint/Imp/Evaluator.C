@@ -26,7 +26,7 @@ module qchem.BasisSet.Molecule.Evaluators.PG_LibCint;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.PGData;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;
-import qchem.Cluster;
+import qchem.Structure;
 import qchem.Types;
 
 namespace BasisSet::Molecule::Evaluators::PG_LibCint
@@ -100,14 +100,14 @@ static std::vector<Polarization> LibcintCartOrder(int l)
 
 NR_Evaluator::NR_Evaluator() = default;
 
-NR_Evaluator::NR_Evaluator(const PGData& data, const Cluster* cl)
+NR_Evaluator::NR_Evaluator(const PGData& data, const Structure* cl)
 {
     static_cast<PGData&>(*this) = data;             // own the component layout + order (size/Norm/ns)
     Init(cl);
 }
 
 // Build the libcint shell + atom tables from this evaluator's (already-populated) PGData and the structure.
-void NR_Evaluator::Init(const Cluster* cl, bool spherical)
+void NR_Evaluator::Init(const Structure* cl, bool spherical)
 {
     itsImp.reset(new Imp);
     Imp& m = *itsImp;
@@ -212,7 +212,7 @@ rsmat_t NR_Evaluator::Build1(int which) const
 }
 rsmat_t NR_Evaluator::OverlapMatrix()             const {return Build1(0);}
 rsmat_t NR_Evaluator::KineticMatrix()             const {return Build1(1);}
-rsmat_t NR_Evaluator::NuclearMatrix(const Cluster*) const {return Build1(2);} // atm already carries the nuclei
+rsmat_t NR_Evaluator::NuclearMatrix(const Structure*) const {return Build1(2);} // atm already carries the nuclei
 
 // --- 3-centre <ab|c>: one symmetric (ia,ib) block per fit component ic ----------------------------
 ERI3<double> NR_Evaluator::Build3(const NR_Evaluator& fit, int which) const

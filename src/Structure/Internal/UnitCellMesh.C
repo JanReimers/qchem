@@ -1,8 +1,8 @@
 // File: UnitCellMesh.C  UnitCell mesh implementation.
 module;
 
-export module Cluster.UnitCellMesh;
-import Cluster.UnitCell;
+export module Structure.UnitCellMesh;
+import Structure.UnitCell;
 import qchem.Mesh;
 import qchem.Math;
 

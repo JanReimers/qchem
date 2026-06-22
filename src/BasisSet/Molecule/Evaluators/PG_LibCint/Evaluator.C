@@ -31,7 +31,7 @@ import qchem.BasisSet.Molecule.Evaluators;                       // Evaluator + 
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.PGData;    // PGData (component layout + ordering)
 import qchem.BasisSet.Internal.ERI3;                             // ERI3<double>
 import qchem.BasisSet.Internal.ERI4;                             // ERI4
-import qchem.Cluster;
+import qchem.Structure;
 import qchem.Types;
 
 export namespace BasisSet::Molecule::Evaluators::PG_LibCint
@@ -45,14 +45,14 @@ public:
     // the structure IS evaluator state here -- libcint needs the geometry up front; NuclearMatrix(cl) supplies
     // the charges.  The (data,cl) ctor is the standalone form (a copy of an existing PGData) used by tests.
     NR_Evaluator();
-    NR_Evaluator(const PG_Cart_MnD::PGData& data, const Cluster* cl);
+    NR_Evaluator(const PG_Cart_MnD::PGData& data, const Structure* cl);
     ~NR_Evaluator();
     // Build the libcint shell/atom tables from this (populated) PGData.  spherical=false delivers Cartesian
     // components (int*_cart, permuted to PG order); spherical=true delivers libcint-native real-spherical
     // (2l+1) components via int*_sph -- an HF-only oracle, since the spherical order is libcint's own (the
     // HF energy is basis-ordering invariant, so it still cross-checks PG_Spherical without matching its
     // harmonic convention).
-    void Init(const Cluster* cl, bool spherical=false);
+    void Init(const Structure* cl, bool spherical=false);
 
     // --- cold-path Evaluator interface (size / per-component Norm come from the built libcint tables) ---
     virtual size_t        size() const;
@@ -63,7 +63,7 @@ public:
     // --- isM_1E (whole 1E matrices, PG order, unit-self-overlap normalized) ---
     rsmat_t OverlapMatrix()                  const;
     rsmat_t KineticMatrix()                  const;   // <p^2>=<-nabla^2> block (no 1/2), like MnD Grad2
-    rsmat_t NuclearMatrix(const Cluster* cl) const;
+    rsmat_t NuclearMatrix(const Structure* cl) const;
 
     // --- isM_DFT (3-centre <ab|c>, one symmetric (ia,ib) block per fit component ic) ---
     ERI3<double> OverlapThreeC_Matrix  (const NR_Evaluator& fit) const;   // int3c1e (overlap)

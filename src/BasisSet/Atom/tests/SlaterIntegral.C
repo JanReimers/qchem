@@ -12,7 +12,7 @@ import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet;
 import qchem.Constants;
 import qchem.Mesh.Integrator;
-import qchem.Cluster;
+import qchem.Structure;
 import qchem.Symmetry.Spherical;
 import qchem.Blaze;
 
@@ -51,7 +51,7 @@ public:
     
     int Lmax, Z;
     Real_BS* bs;
-    Cluster* cl;
+    Structure* cl;
     MeshIntegrator<double>* mintegrator;
     MeshIntegrator<double>* rmintegrator;
 };

@@ -6,7 +6,7 @@ module;
 
 module qchem.Hamiltonian.Internal.Terms;
 import qchem.Energy;
-import qchem.Cluster;
+import qchem.Structure;
 import qchem.Blaze;
 
 namespace qchem::Hamiltonian
@@ -14,7 +14,7 @@ namespace qchem::Hamiltonian
 
 Vnn::Vnn(const cl_t& cl)
     : Static_HT_Imp()
-    , theCluster(cl)
+    , theStructure(cl)
 {};
 
 rsmat_t Vnn::CalculateMatrix(const obs_t* bs,const Spin&) const
@@ -27,8 +27,8 @@ rsmat_t Vnn::CalculateMatrix(const obs_t* bs,const Spin&) const
 void Vnn::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
 {
     double vnn=0.0;
-    for(const auto& atom1:*theCluster)
-        for(const auto& atom2:*theCluster)
+    for(const auto& atom1:*theStructure)
+        for(const auto& atom2:*theStructure)
         {
             Vector3D<double> r1=atom1->itsR, r2=atom2->itsR;
             if (r1!=r2) vnn += 0.5 * atom1->itsZ * atom2->itsZ / norm(r1-r2);
@@ -39,7 +39,7 @@ void Vnn::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
 
 std::ostream& Vnn::Write(std::ostream& os) const
 {
-    size_t Na=theCluster->GetNumAtoms();
+    size_t Na=theStructure->GetNumAtoms();
     os << "    Nuclear-Nuclear potential ZiZj/|Ri-Rj| with " << Na*(Na-1) << " nucleus pairs." << std::endl;
     return os;
 }

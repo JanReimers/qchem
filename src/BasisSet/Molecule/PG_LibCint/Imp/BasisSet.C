@@ -4,12 +4,12 @@ module;
 
 module qchem.BasisSet.Molecule.PG_LibCint;
 import qchem.BasisSet.Molecule.Reader;
-import qchem.Cluster;
+import qchem.Structure;
 
 namespace BasisSet::Molecule::PG_LibCint
 {
 
-BasisSet::BasisSet(Reader* reader, const Cluster* cl, bool spherical)
+BasisSet::BasisSet(Reader* reader, const Structure* cl, bool spherical)
 {
     Insert(new Orbital_IBS(reader,cl,spherical));   // a single C1 irrep (no SALC)
 }

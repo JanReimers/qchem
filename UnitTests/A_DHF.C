@@ -10,7 +10,7 @@ import qchem.Factory;
 import qchem.Math;
 import qchem.Mesh;
 import qchem.Mesh.Integrator;
-import qchem.Cluster;
+import qchem.Structure;
 import qchem.Streamable;
 import qchem.Energy;
 import qchem.Symmetry.Spherical; //Symmetry::Getκ for picking p1/2 vs p3/2 orbitals
@@ -203,7 +203,7 @@ double S12g(double r,double alpha)
 
 using qchem::Orbitals::TOrbital;
 
-std::tuple<double,double,double> Integrate(const Orbital* o,const Cluster*  cl, double alpha)
+std::tuple<double,double,double> Integrate(const Orbital* o,const Structure*  cl, double alpha)
 {
     const TOrbital<double>* to=dynamic_cast<const TOrbital<double>*>(o);
     MeshParams mp({qchem::MHL,200,3,2.0,qchem::Gauss,1,0,0,3});
@@ -260,7 +260,7 @@ TEST_F(A_SG_E1,Phir)
     irrepv_t qns=GetIrreps(Spin::None);
     const Orbital* orb0=GetOrbital(0,qns[0]);
     double n1,n_expected,idphi;
-    std::tie(n1,n_expected,idphi)=Integrate(orb0,GetCluster(),0.0);
+    std::tie(n1,n_expected,idphi)=Integrate(orb0,GetStructure(),0.0);
     EXPECT_NEAR(n1,1,1e-14);
     EXPECT_NEAR(n_expected,1,1e-14);    
     EXPECT_NEAR(idphi,0.0,1e-14); //Integrated delta.    
@@ -299,7 +299,7 @@ TEST_F(DE1_P1,Gaussian_Phir)
     BasisSet::irrepv_t qns=GetIrreps(Spin::Up);
     const Orbital* orb0=GetOrbital(0,qns[0]);
     double n1,n_expected,idphi;
-    std::tie(n1,n_expected,idphi)=Integrate(orb0,GetCluster(),1/c_light);
+    std::tie(n1,n_expected,idphi)=Integrate(orb0,GetStructure(),1/c_light);
     EXPECT_NEAR(n1,1,1e-2); //Calcuated orbital is not well normalized
     EXPECT_NEAR(n_expected,1,1e-14); //Analytic orbital is well normalized.   
     EXPECT_NEAR(idphi,0.0,1e-13); //Integrated delta.     
@@ -325,7 +325,7 @@ TEST_F(DE1_P1,Slater_Phir)
     BasisSet::irrepv_t qns=GetIrreps(Spin::Up);
     const Orbital* orb0=GetOrbital(0,qns[0]);
     double n1,n_expected,idphi;
-    std::tie(n1,n_expected,idphi)=Integrate(orb0,GetCluster(),1/c_light);
+    std::tie(n1,n_expected,idphi)=Integrate(orb0,GetStructure(),1/c_light);
     EXPECT_NEAR(n1,1,1e-2);
     EXPECT_NEAR(n_expected,1,1e-14);    
     EXPECT_NEAR(idphi,0.0,1e-12); //Integrated delta.   

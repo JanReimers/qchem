@@ -32,7 +32,7 @@ public:
 
     virtual const rvec_t&    Get(I1C,const DBCacheClient*,                          std::function<rvec_t   ()>);
     virtual const smat_t<T>& Get(I2C,const DBCacheClient*,                          std::function<smat_t<T>()>);
-    virtual const smat_t<T>& Get(I2n,const DBCacheClient*,const Cluster_ID_t&,      std::function<smat_t<T>()>);
+    virtual const smat_t<T>& Get(I2n,const DBCacheClient*,const Structure_ID_t&,      std::function<smat_t<T>()>);
     virtual const  mat_t<T>& Get(I2x,const DBCacheClient*,const DBCacheClient*,     std::function< mat_t<T>()>);
     virtual const ERI3  <T>& Get(I3C,const DBCacheClient*,const DBCacheClient*,     std::function<ERI3  <T>()>);
     virtual const ERI4     & Get(I4C,const DBCacheClient*,const DBCacheClient*,     std::function<ERI4     ()>);
@@ -52,7 +52,7 @@ private:
     using key1_t=std::tuple<I1C,IBS_ID_t>; //Integral key for one IBS, 1 centers.
     using key2_t=std::tuple<I2C,IBS_ID_t>; //Integral key for one IBS, 2 centers.
     using keyx_t=std::tuple<I2x,IBS_ID_t,IBS_ID_t>; //Integral key for cross IBS integrals.
-    using keyn_t=std::tuple<IBS_ID_t,Cluster_ID_t>; //Integral key for nuclear integrals.
+    using keyn_t=std::tuple<IBS_ID_t,Structure_ID_t>; //Integral key for nuclear integrals.
     using key3_t=std::tuple<I3C,IBS_ID_t,IBS_ID_t>; //Integral key for 3 center ERI integrals between 2 IBSs.
 
     using key1m_t=std::tuple<I1C,IBS_ID_t,Mesh_ID_t>; //Integral key for one IBS and a mesh, 1 centers.

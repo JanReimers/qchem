@@ -7,7 +7,7 @@ import qchem.Unittests.QchemTester;
 
 import qchem.Hamiltonian.Factory;
 import qchem.Factory;
-import qchem.Cluster;
+import qchem.Structure;
 
 
 inline SCFParams dft_scf_params(int Z) 

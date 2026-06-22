@@ -2,7 +2,7 @@
 module;
 export module qchem.BasisSet.Orbital_1E_IBS;
 export import qchem.BasisSet.IrrepBasisSet;
-export import qchem.Cluster;
+export import qchem.Structure;
 
 export namespace BasisSet
 {
@@ -45,8 +45,8 @@ public:
 template <class T> class Integrals_Nuclear : public virtual IrrepBasisSet_IDs
 {
 public:
-    virtual smat_t<T>  MakeNuclear(const Cluster* cl) const=0; //Only called once for a given {radial,angular, structure} ID triple.
-    const   smat_t<T>&     Nuclear(const Cluster* cl) const;
+    virtual smat_t<T>  MakeNuclear(const Structure* cl) const=0; //Only called once for a given {radial,angular, structure} ID triple.
+    const   smat_t<T>&     Nuclear(const Structure* cl) const;
 };
 
 

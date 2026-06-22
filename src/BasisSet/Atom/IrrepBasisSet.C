@@ -92,7 +92,7 @@ template <is1E_Evaluator E> class Integrals_Nuclear
 : public virtual BasisSet::Integrals_Nuclear<double>
 {
 protected:
-    virtual smat_t<double> MakeNuclear(const Cluster* cl) const 
+    virtual smat_t<double> MakeNuclear(const Structure* cl) const 
     {
         assert(cl);
         assert(cl->GetNumAtoms()==1); //This supposed to be an atom after all!

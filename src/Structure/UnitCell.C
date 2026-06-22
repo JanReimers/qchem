@@ -1,14 +1,14 @@
 // File: UnitCell.C  Unit cell for a lattice.
 module;
 #include <iosfwd>
-export module Cluster.UnitCell;
+export module Structure.UnitCell;
 export import qchem.Types;
-import qchem.Cluster;
+import qchem.Structure;
 import qchem.Matrix3D;
 import qchem.Streamable;
 
 export class UnitCell
-    : public virtual Cluster
+    : public virtual Structure
     , private Molecule //Hold atom basis.
 {
 public:

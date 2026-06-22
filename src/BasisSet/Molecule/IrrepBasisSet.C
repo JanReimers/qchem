@@ -23,7 +23,7 @@ import qchem.BasisSet.Orbital_HF_IBS;
 import qchem.BasisSet.Fit_IBS;
 import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.Molecule.Evaluators;      // concepts + generic 1E matrix builders
-import qchem.Cluster;
+import qchem.Structure;
 import qchem.Types;
 import qchem.Blaze;
 
@@ -55,7 +55,7 @@ protected:
         else { const E& e=Cast(); rsmat_t S(e.size());
                for (auto i:e.indices()) for (auto j:e.indices(i)) S(i,j)=e.Grad2(i,j); return S; }
     }
-    virtual rsmat_t MakeNuclear(const Cluster* cl) const
+    virtual rsmat_t MakeNuclear(const Structure* cl) const
     {
         if constexpr (Evaluators::isM_1E_Evaluator<E>) return Cast().NuclearMatrix(cl);
         else { const E& e=Cast(); rsmat_t S(e.size());

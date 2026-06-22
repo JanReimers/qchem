@@ -21,7 +21,7 @@ import qchem.BasisSet.Molecule.Evaluators;                             // Evalua
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.PGData;      // PGData
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;  // GaussianRF named kernels
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;// Polarization
-import qchem.Cluster;
+import qchem.Structure;
 import qchem.Types;
 
 export namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
@@ -48,7 +48,7 @@ public:
     double Norm   (size_t i)          const {return ns[i];}
     double Overlap(size_t i,size_t j) const {return radials[i]->Overlap2C(*radials[j], pols[i], pols[j]) * ns[i]*ns[j];}
     double Grad2  (size_t i,size_t j) const {return radials[i]->Grad2    (*radials[j], pols[i], pols[j]) * ns[i]*ns[j];}
-    double Nuclear(size_t i,size_t j,const Cluster* cl=0) const
+    double Nuclear(size_t i,size_t j,const Structure* cl=0) const
     {
         return radials[i]->Nuclear(*radials[j], pols[i], pols[j], cl) * ns[i]*ns[j];
     }

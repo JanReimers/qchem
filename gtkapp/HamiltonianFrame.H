@@ -15,7 +15,7 @@ class HamiltonianFrame : public Gtk::Frame
 {
   // enum htypes {H1E,HF,DFT,D1E,DHF};
 public:
-  typedef std::shared_ptr<const Cluster> cl_t;
+  typedef std::shared_ptr<const Structure> cl_t;
   HamiltonianFrame();
   HamiltonianFrame(BaseObjectType* cobject, const Glib::RefPtr<Gtk::Builder>& refBuilder);
   virtual ~HamiltonianFrame();

@@ -4,17 +4,15 @@
 using std::cout;
 using std::endl;
 
-import qchem.Cluster;
-import Cluster.UnitCell;
+import qchem.Structure;
+import Structure.UnitCell;
 import qchem.Lattice;
 import qchem.Math;
 
-class ClusterTests : public ::testing::Test
-{
+class StructureTests : public ::testing::Test
+{};
 
-}; 
-
-TEST_F(ClusterTests, Atom)
+TEST_F(StructureTests, Atom)
 {
     Atom B(5,0);
     Atom F_minus(9,-1);
@@ -28,7 +26,7 @@ TEST_F(ClusterTests, Atom)
   
 }
 
-TEST_F(ClusterTests, UnitCell)
+TEST_F(StructureTests, UnitCell)
 {
     UnitCell cubic(4,4,4,90,90,90);
     EXPECT_EQ(cubic.GetCellVolume(),64);
@@ -50,7 +48,7 @@ TEST_F(ClusterTests, UnitCell)
     cout << "   triclinic = " << tri << endl;
 }
 
-TEST_F(ClusterTests, Lattice)
+TEST_F(StructureTests, Lattice)
 {
     double a_0=0.529177; //Ångstrom
     UnitCell SiCell(5.43/a_0); //Convert Ångstrom to atomic units a.u.

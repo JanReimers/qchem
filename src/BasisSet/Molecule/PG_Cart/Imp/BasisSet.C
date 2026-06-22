@@ -8,14 +8,14 @@ module;
 
 module qchem.BasisSet.Molecule.PG_Cart;
 import qchem.BasisSet.Molecule.Reader;
-import qchem.Cluster;
+import qchem.Structure;
 import qchem.Math;
 
 namespace BasisSet::Molecule::PG_Cart
 {
 
 
-BasisSet::BasisSet( Reader* reader, const Cluster* cl)
+BasisSet::BasisSet( Reader* reader, const Structure* cl)
 {
     Insert(new ::BasisSet::Molecule::PG_Cart::Orbital_IBS(reader,cl));
 }

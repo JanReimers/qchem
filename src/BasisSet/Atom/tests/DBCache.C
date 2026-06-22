@@ -167,7 +167,7 @@ public:
         }
     }
     size_t N,Z;
-    Cluster *cl_hydrogen,*cl_hydrogen_100,*cl_helium;
+    Structure *cl_hydrogen,*cl_hydrogen_100,*cl_helium;
     BasisSet::Real_BS *bs1,*bs2;
 };
 

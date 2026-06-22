@@ -3,7 +3,7 @@ module;
 #include <cassert>
 #include <iostream>
 
-module Cluster.UnitCell;
+module Structure.UnitCell;
 import qchem.Math;
 
 

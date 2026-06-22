@@ -14,7 +14,7 @@ import qchem.BasisSet.Molecule.IBS;                     // Molecule::Orbital_{1E
 import qchem.BasisSet.Internal.BasisSetImp;
 import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.Internal.IrrepBasisSetImp;
-import qchem.Cluster;
+import qchem.Structure;
 import qchem.Types;
 import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.BasisSet.Orbital_HF_IBS;
@@ -34,8 +34,8 @@ class IrrepBasisSet
     public:
         typedef std::vector<std::unique_ptr<Block>> bv_t;
     
-        IrrepBasisSet(Reader *, const Cluster *);
-        IrrepBasisSet(const rvec_t &exponents, size_t L, const Cluster *);
+        IrrepBasisSet(Reader *, const Structure *);
+        IrrepBasisSet(const rvec_t &exponents, size_t L, const Structure *);
         IrrepBasisSet(const rvec_t &exponents, size_t L);
         virtual ~IrrepBasisSet(); //g++ 15.2 BUG Compiler generated, or inline destructor does instance std::vector templates destructor.
 
@@ -66,12 +66,12 @@ class Orbital_IBS
     , public IrrepBasisSet
 {
 public:
-    Orbital_IBS(Reader *, const Cluster *);
-    Orbital_IBS(const rvec_t& exponents, size_t L, const Cluster *);
+    Orbital_IBS(Reader *, const Structure *);
+    Orbital_IBS(const rvec_t& exponents, size_t L, const Structure *);
     Orbital_IBS(const rvec_t& exponents, size_t L);
 
-    virtual Fit_IBS* CreateCDFitBasisSet(const Cluster *) const;
-    virtual Fit_IBS* CreateVxcFitBasisSet(const Cluster *) const;
+    virtual Fit_IBS* CreateCDFitBasisSet(const Structure *) const;
+    virtual Fit_IBS* CreateVxcFitBasisSet(const Structure *) const;
 };
 // Use E prefix to avoid name clash with the interface class Fit_IBS
 class EFit_IBS
@@ -79,7 +79,7 @@ class EFit_IBS
     , public IrrepBasisSet
 {
 public:
-    EFit_IBS(Reader *, const Cluster *);
+    EFit_IBS(Reader *, const Structure *);
 
     virtual rsmat_t MakeOverlap() const {return MakeOverlap2C(this);}
     virtual  rvec_t MakeCharge   () const;
@@ -92,7 +92,7 @@ class BasisSet
 {
 public:
     BasisSet() {};
-    BasisSet( Reader*, const Cluster*);
+    BasisSet( Reader*, const Structure*);
     virtual void Insert(bs_t* bs);
 
 };

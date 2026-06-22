@@ -7,7 +7,7 @@ module;
 
 module qchem.Lattice;
 
-import qchem.Cluster.MoleculeMesh;
+import qchem.Structure.MoleculeMesh;
 import qchem.Streamable;
 import qchem.Math;
 
@@ -31,7 +31,7 @@ Lattice::Lattice(const UnitCell& cell, const Vector3D<int>& Limits)
 
 //---------------------------------------------------------
 //
-//  Cluster stuff.
+//  Structure stuff.
 //
 
 Lattice Lattice::Reciprocal(double Emax) const

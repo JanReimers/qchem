@@ -5,7 +5,7 @@ module;
 export module qchem.Hamiltonian.Internal.Hamiltonian;
 export import qchem.Hamiltonian;
 import qchem.Hamiltonian.Types;
-import qchem.Cluster;
+import qchem.Structure;
 
 export namespace qchem::Hamiltonian
 {
@@ -25,7 +25,7 @@ public:
     virtual std::ostream&   Write(std::ostream&) const;
  
 protected:
-    typedef std::shared_ptr<const Cluster> cl_t;
+    typedef std::shared_ptr<const Structure> cl_t;
     void InsertStandardTerms(const cl_t & cl);
     typedef std::vector<std::unique_ptr< Static_HT>> shtv_t;
     typedef std::vector<std::unique_ptr<Dynamic_HT>> dhtv_t;

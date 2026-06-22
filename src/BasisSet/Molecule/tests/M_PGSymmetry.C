@@ -4,13 +4,13 @@
 #include <string>
 #include <map>
 #include <algorithm>
-import qchem.BasisSet.Molecule.PG_Cart.Symmetry;  // ExtractAoShells, ClusterToSymPoints
+import qchem.BasisSet.Molecule.PG_Cart.Symmetry;  // ExtractAoShells, StructureToSymPoints
 import qchem.BasisSet.Molecule.PG_Cart;           // Orbital_IBS
 import qchem.BasisSet.Orbital_1E_IBS;                         // cached Overlap() accessor (interface)
 import qchem.BasisSet.SymmetryAdapted_IBS;                    // SymmetryAdapted_IBS (1-e decorator)
 import qchem.BasisSet.Molecule.SymmetryAdaptedBasisSet;       // SymmetryAdaptedBasisSet (per-irrep)
 import qchem.Symmetry.SALC;                                   // BuildAbelianGroup, BuildSALCs, BuildOperationRep
-import qchem.Cluster;                                         // Molecule, Atom
+import qchem.Structure;                                         // Molecule, Atom
 import qchem.Types;
 import qchem.Blaze;
 import qchem.Math;                                            // fabs
@@ -33,7 +33,7 @@ TEST(PGSymmetry, water_extract_and_SALCs)
     Orbital_IBS ibs(exps, 1, &h2o);                          // s + p shells, 2 exponents each
 
     auto shells = ExtractAoShells(ibs);
-    auto pts    = ClusterToSymPoints(h2o);
+    auto pts    = StructureToSymPoints(h2o);
 
     // nAO = 3 atoms * (2 s-functions + 2 p-shells * 3) = 3 * 8 = 24.
     size_t nAO = 0;
@@ -80,7 +80,7 @@ TEST(PGSymmetry, decorator_blocks_real_overlap)
     Orbital_IBS ibs(exps, 1, &h2o);
 
     auto shells = ExtractAoShells(ibs);
-    auto pts    = ClusterToSymPoints(h2o);
+    auto pts    = StructureToSymPoints(h2o);
     auto g      = BuildAbelianGroup(pts, 1e-4);
     rvec3_t o   = Centroid(pts);
     auto salc   = BuildSALCs(shells, g, o, 1e-4);
@@ -122,7 +122,7 @@ TEST(PGSymmetry, symmetry_adapted_basis_set)
     Orbital_IBS ibs(exps, 1, &h2o);
 
     auto shells = ExtractAoShells(ibs);
-    auto pts    = ClusterToSymPoints(h2o);
+    auto pts    = StructureToSymPoints(h2o);
     auto g      = BuildAbelianGroup(pts, 1e-4);
     auto salc   = BuildSALCs(shells, g, Centroid(pts), 1e-4);
 
@@ -155,7 +155,7 @@ TEST(PGSymmetry, decorator_coulomb_matches_AO_slice)
     Orbital_IBS ibs(exps, 1, &h2o);
 
     auto shells = ExtractAoShells(ibs);
-    auto pts    = ClusterToSymPoints(h2o);
+    auto pts    = StructureToSymPoints(h2o);
     auto g      = BuildAbelianGroup(pts, 1e-4);
     auto salc   = BuildSALCs(shells, g, Centroid(pts), 1e-4);
     size_t nAO  = salc.O.columns();

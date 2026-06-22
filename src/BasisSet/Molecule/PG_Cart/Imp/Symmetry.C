@@ -52,7 +52,7 @@ std::vector<AoShell> ExtractAoShells(const PGData& pg)
     return shells;
 }
 
-std::vector<SymPoint> ClusterToSymPoints(const Cluster& cl)
+std::vector<SymPoint> StructureToSymPoints(const Structure& cl)
 {
     std::vector<SymPoint> pts;
     for (auto atom : cl) pts.push_back(SymPoint{atom->itsZ, atom->itsR});

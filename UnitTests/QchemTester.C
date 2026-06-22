@@ -10,7 +10,7 @@ export import qchem.Hamiltonian.Factory;
 export import qchem.Hamiltonian;
 export import qchem.SCFParams;
 import qchem.SCFIterator;
-import qchem.Cluster;
+import qchem.Structure;
 import qchem.Orbitals;
 import qchem.Mesh; //To get Meshparams
 import qchem.Factory;
@@ -55,10 +55,10 @@ public:
     size_t          GetIterationCount() const;
     irrepv_t        GetIrreps(const Spin& ms) const;
 protected:
-    typedef std::shared_ptr<const Cluster> cl_t;
+    typedef std::shared_ptr<const Structure> cl_t;
 
     // Atom of Molecule functions
-    virtual const Cluster*  GetCluster   () const {return itsCluster.get();}
+    virtual const Structure*  GetStructure   () const {return itsStructure.get();}
     virtual MeshParams      GetMeshParams() const=0;
     virtual int             GetZ         () const;
     virtual const ElectronConfiguration* GetElectronConfiguration() const {return itsEC;}
@@ -68,7 +68,7 @@ protected:
     // Hamiltonian functions HF,semi HF, DFT all Pol or un-polarized.
     virtual Hamiltonian* GetHamiltonian(cl_t& structure) const=0;
 protected:
-    cl_t                   itsCluster;
+    cl_t                   itsStructure;
     ElectronConfiguration* itsEC;
     Real_BS*               itsBasisSet;
     Hamiltonian*           itsHamiltonian;
@@ -107,7 +107,7 @@ private:
 export class TestMolecule : public QchemTester
 {
 public:
-    TestMolecule(Cluster*);
+    TestMolecule(Structure*);
     virtual MeshParams  GetMeshParams() const;
 private:
     virtual Real_BS* GetBasisSet (const nlohmann::json&) const;

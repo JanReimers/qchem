@@ -2,6 +2,7 @@
 #include "gtest/gtest.h"
 import qchem.Blaze;
 
+
 // VecBuilder: doubling growth + take() shrinks to the logical length, values preserved in order.
 TEST(VecBuilder, DoublingAndTake)
 {

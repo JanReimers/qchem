@@ -7,7 +7,7 @@ module;
 #include <memory>
 export module qchem.BasisSet.Molecule.SymmetryAdaptedBasisSet;
 export import qchem.BasisSet;                         // BasisSet<double>, Orbital_1E_IBS
-export import qchem.Cluster;                          // Cluster (for the factory hook)
+export import qchem.Structure;                          // Structure (for the factory hook)
 import qchem.BasisSet.Internal.BasisSetImp;           // BasisSetImp (iteration/Insert)
 import qchem.BasisSet.SymmetryAdapted_IBS;            // the per-irrep decorator
 import qchem.Symmetry.SALC;                           // SALCs (the transform O + labels)

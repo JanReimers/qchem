@@ -128,7 +128,7 @@ Notes, bugs, and plans for the qchem6 project. This file is markdown-enabled so 
                 hmat_t<dcmplx>=blaze::HermitianMatrix<dcmplx>
             Modern c++ must have a way to do this without doing partial class specializatons.
 - 
-#### Review src/Cluster/Lattice 
+#### Review src/Structure/Lattice 
 - Rename to Structure
 - Try using std::single_view for Atom
 #### dcmplx outside BasisSet
@@ -137,7 +137,7 @@ Notes, bugs, and plans for the qchem6 project. This file is markdown-enabled so 
 - Next we need a highly trivial 1 electron (no ERIs yet) plane wave problem in order to get solids off the ground.
     Maybe just a hydrogen cubic lattice.  At high lattice spacing we know energy should be ~-0.5au/unit_cell (?)
 - We have BlockQN in the Symmetry library for wave vector irreps.
-- We have UnitCell and Lattice in the Cluster library (maybe should be renamed Cluster->Stucture even though Atom is normally 
+- We have UnitCell and Lattice in the Structure library (maybe should be renamed Structure->Stucture even though Atom is normally 
     thought of as a structure).  
 - Once we have the demo problem up and running we can think about next steps.  There must some useful models that are intermediate in coding difficulty between PW and Pseudo potentials.
 

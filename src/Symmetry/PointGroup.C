@@ -5,8 +5,8 @@
 // shared origin (the molecular centroid), and IsSymmetryOf() tests whether an operation
 // maps a set of labelled points (e.g. nuclei tagged by Z) onto itself.  Detection
 // (enumerating the valid operations and naming the group) is built on these in a later
-// increment.  Deliberately decoupled from Cluster: it operates on SymPoint, so a thin
-// Cluster->SymPoint adapter can sit on top without qcSymmetry depending on qcCluster.
+// increment.  Deliberately decoupled from Structure: it operates on SymPoint, so a thin
+// Structure->SymPoint adapter can sit on top without qcSymmetry depending on qcStructure.
 module;
 #include <vector>
 #include <string>

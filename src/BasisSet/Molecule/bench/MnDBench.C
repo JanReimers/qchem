@@ -22,7 +22,7 @@ import qchem.BasisSet.Molecule.BasisFiles;
 import qchem.BasisSet.Orbital_1E_IBS;            // Overlap()/Kinetic()/Nuclear()
 import qchem.BasisSet.Orbital_HF_IBS;            // Direct()/Exchange()
 import qchem.BasisSet.Internal.DB_Cache_RAM;     // theGlobalCache (created here, as the gtest main does)
-import qchem.Cluster;
+import qchem.Structure;
 import qchem.Types;
 
 using namespace BasisSet::Molecule;              // Gaussian94Reader, BasisFile, PG_Cart::, PG_LibCint::
@@ -45,7 +45,7 @@ static Molecule* MakeWaters(int n)   // n waters along z, ~6 Bohr apart (geometr
 }
 
 template <class IBS>
-static double TimeIntegrals(const char* tag, IBS& ibs, const Cluster* cl)
+static double TimeIntegrals(const char* tag, IBS& ibs, const Structure* cl)
 {
     const BasisSet::Orbital_1E_IBS<double>& e1 = ibs;
     const BasisSet::Orbital_HF_IBS<double>& hf = ibs;

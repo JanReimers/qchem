@@ -13,7 +13,7 @@ import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.BasisSet.Molecule.Readers.Gaussian94;
 import qchem.BasisSet.Molecule.BasisFiles;   // the auto fit-basis files (path owned by BasisFiles)
 import qchem.BasisSet;
-import qchem.Cluster;
+import qchem.Structure;
 import qchem.Symmetry.Unit;
 import qchem.stl_io;
 import qchem.Streamable;
@@ -53,7 +53,7 @@ std::vector<Polarization> MakePolarizations(int L)
 //
 //  Common implementation for orbital and fit basis sets.
 //
-IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Cluster* cl)
+IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Structure* cl)
     : IrrepBasisSetImp<double>(sym_t(new UnitQN))
 {
     //
@@ -118,7 +118,7 @@ IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Cluster* cl)
     PGData::Init(bls);
 };
 
-IrrepBasisSet::IrrepBasisSet(const rvec_t& es, size_t LMax, const Cluster* cl)
+IrrepBasisSet::IrrepBasisSet(const rvec_t& es, size_t LMax, const Structure* cl)
     : IrrepBasisSetImp<double>(sym_t(new UnitQN))
 {
     for (auto& atom:*cl)
@@ -214,23 +214,23 @@ std::string IrrepBasisSet::Name() const
 //
 // Orbital PG basis set.
 //
-Orbital_IBS::Orbital_IBS(Reader* bsr, const Cluster* cl)
+Orbital_IBS::Orbital_IBS(Reader* bsr, const Structure* cl)
     : IrrepBasisSet(bsr,cl)
 {};
-Orbital_IBS::Orbital_IBS(   const rvec_t& exponents, size_t L, const Cluster* cl)
+Orbital_IBS::Orbital_IBS(   const rvec_t& exponents, size_t L, const Structure* cl)
     : IrrepBasisSet(exponents,L,cl)
 {};
 Orbital_IBS::Orbital_IBS(   const rvec_t& exponents, size_t L)
     : IrrepBasisSet(exponents,L)
 {};
     
-Fit_IBS* Orbital_IBS::CreateCDFitBasisSet(const Cluster* cl) const
+Fit_IBS* Orbital_IBS::CreateCDFitBasisSet(const Structure* cl) const
 {
     // The A1 files support Z=1-54 (H-Te)  A2 version only go up to Zn
     Gaussian94Reader reader(BasisFile("A1_coul.bsd"));
     return new EFit_IBS(&reader,cl);
 }
-Fit_IBS* Orbital_IBS::CreateVxcFitBasisSet(const Cluster* cl) const
+Fit_IBS* Orbital_IBS::CreateVxcFitBasisSet(const Structure* cl) const
 {
     // The A1 files support Z=1-54 (H-Te)  A2 version only go up to Zn
     Gaussian94Reader reader(BasisFile("A1_exch.bsd"));
@@ -241,7 +241,7 @@ Fit_IBS* Orbital_IBS::CreateVxcFitBasisSet(const Cluster* cl) const
 //
 //  Fit PG basis set.
 //
-EFit_IBS::EFit_IBS(Reader* bsr, const Cluster* cl)
+EFit_IBS::EFit_IBS(Reader* bsr, const Structure* cl)
 : IrrepBasisSet(bsr,cl)
 {};
 

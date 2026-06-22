@@ -71,7 +71,7 @@ This is the SOLID payoff in practice: single-responsibility pieces, open for ext
 src/
   Common/        constants, periodic table, math
   Symmetry/      spherical harmonics & spherical spinors, electron configurations
-  Cluster/       atoms and molecules (nuclear framework)
+  Structure/       atoms and molecules (nuclear framework)
   Mesh/          numerical integration grids
   BasisSet/     Evaluators (Slater/Gaussian/BSpline ± RKB), IrrepBasisSets, factories
   Hamiltonian/   HF, DFT (libxc), Dirac terms; energy breakdown

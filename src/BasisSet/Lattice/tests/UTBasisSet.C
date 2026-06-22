@@ -4,8 +4,8 @@ using std::cout;
 using std::endl;
 
 // import qchem.BasisSet.Lattice.PlaneWave;
-import qchem.Cluster;
-import Cluster.UnitCell;
+import qchem.Structure;
+import Structure.UnitCell;
 import qchem.Lattice;
 
 

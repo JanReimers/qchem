@@ -25,7 +25,7 @@ module;
 export module qchem.BasisSet.Molecule.Evaluators;
 export import qchem.Streamable;
 import qchem.Types;
-import qchem.Cluster;  // Cluster* threaded through the Nuclear kernel
+import qchem.Structure;  // Structure* threaded through the Nuclear kernel
 import qchem.BasisSet.Internal.ERI3;   // ERI3<double> -- return type of the isM_DFT concept
 import qchem.BasisSet.Internal.ERI4;   // ERI4         -- return type of the isM_HF  concept
 
@@ -63,7 +63,7 @@ template <class E> concept isOpr_Evaluator = requires (E e, const rvec3_t& r)
 // The 1/2 of \f$T=-\tfrac12\nabla^2\f$ is applied at the Hamiltonian boundary, NOT here
 // (see BasisSet/Orbital_1E_IBS.C).  Nuclear(i,j) is the full multi-centre attraction
 // \f$\sum_c -Z_c\langle i|\,|r-R_c|^{-1}|j\rangle\f$ (the evaluator carries the structure).
-template <class E> concept is1E_Evaluator = std::derived_from<E, Evaluator> && requires (E e,size_t i,size_t j,const Cluster* cl)
+template <class E> concept is1E_Evaluator = std::derived_from<E, Evaluator> && requires (E e,size_t i,size_t j,const Structure* cl)
 {
     {e.Norm    (i)     } -> std::same_as<double>;
     {e.Overlap (i,j)   } -> std::same_as<double>;
@@ -79,7 +79,7 @@ template <class E> concept is1E_Evaluator = std::derived_from<E, Evaluator> && r
 // evaluator satisfies is1E_Evaluator (cheap per-element kernels, we loop) OR this (it hands us the matrix);
 // the 1E mixin dispatches on which.  KineticMatrix is the <p^2>=<-nabla^2> block (no 1/2), like Grad2.
 template <class E> concept isM_1E_Evaluator = std::derived_from<E, Evaluator>
-    && requires (const E e, const Cluster* cl)
+    && requires (const E e, const Structure* cl)
 {
     {e.OverlapMatrix()  } -> std::same_as<rsmat_t>;
     {e.KineticMatrix()  } -> std::same_as<rsmat_t>;

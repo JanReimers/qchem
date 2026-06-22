@@ -10,7 +10,7 @@
 
 import qchem.Unittests.QchemTester;
 import qchem.Hamiltonian.Factory;
-import qchem.Cluster;
+import qchem.Structure;
 
 using namespace qchem::Hamiltonian;
 

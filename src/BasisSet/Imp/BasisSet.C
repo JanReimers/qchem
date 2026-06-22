@@ -5,12 +5,12 @@ import qchem.BasisSet.Orbital_DFT_IBS;
 
 namespace BasisSet
 {
-template <class T> Fit_IBS* BasisSet<T>::CreateCDFitBasisSet(const Cluster* cl) const
+template <class T> Fit_IBS* BasisSet<T>::CreateCDFitBasisSet(const Structure* cl) const
 {   
     auto dft=*Iterate<Orbital_DFT_IBS<double>>().begin();
     return dft->CreateCDFitBasisSet(cl);
 }
-template <class T> Fit_IBS* BasisSet<T>::CreateVxcFitBasisSet(const Cluster* cl) const
+template <class T> Fit_IBS* BasisSet<T>::CreateVxcFitBasisSet(const Structure* cl) const
 {
     auto dft=*Iterate<Orbital_DFT_IBS<double>>().begin();
     return dft->CreateVxcFitBasisSet(cl);

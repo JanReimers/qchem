@@ -1,5 +1,5 @@
 // File: AtomMesh.C  Atom centered mesh interface.
-export module qchem.Cluster.AtomMesh;
+export module qchem.Structure.AtomMesh;
 import qchem.Mesh;
 import qchem.RadialMesh;
 

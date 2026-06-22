@@ -19,4 +19,4 @@ target_include_directories(qcSCFAccelerator PRIVATE
 )
 target_compile_options(qcSCFAccelerator PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(qcSCFAccelerator PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
-target_link_libraries(qcSCFAccelerator PUBLIC qcLASolver qcSymmetry qcCluster qcMesh qcCommon) 
+target_link_libraries(qcSCFAccelerator PUBLIC qcLASolver qcSymmetry qcStructure qcMesh qcCommon) 

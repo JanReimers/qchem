@@ -17,7 +17,7 @@ import qchem.BasisSet.Molecule.Evaluators;                                  // E
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;           // Cartesian kernels (reused)
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;
 import qchem.BasisSet.Molecule.Evaluators.PG_Spherical_MnD.SolidHarmonics;  // SphericalShell, CartTerm
-import qchem.Cluster;
+import qchem.Structure;
 import qchem.Types;
 
 export namespace BasisSet::Molecule::Evaluators::PG_Spherical_MnD
@@ -61,7 +61,7 @@ public:
                                    const Cart::Polarization& pa,const Cart::Polarization& pb)
                                   {return a.Grad2(b,pa,pb);});
     }
-    double Nuclear(size_t i,size_t j,const Cluster* cl=0) const
+    double Nuclear(size_t i,size_t j,const Structure* cl=0) const
     {
         return TransformSum(i,j,[cl](const Cart::GaussianRF& a,const Cart::GaussianRF& b,
                                      const Cart::Polarization& pa,const Cart::Polarization& pb)

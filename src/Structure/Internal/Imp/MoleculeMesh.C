@@ -1,7 +1,7 @@
 module;
 #include <cassert>
 #include <iostream>
-module qchem.Cluster.MoleculeMesh;
+module qchem.Structure.MoleculeMesh;
 import qchem.Blaze;
 
 double          Poly             (double,int m_mu);
@@ -10,7 +10,7 @@ double          Poly             (double,int m_mu);
 //  Use Becke's fuzzy polyedra algorithm for integrating over a molecule.
 //  See A. D. Becke, J. Chem. Phys, 88(4), page 2547 (1988).
 //
-MoleculeMesh::MoleculeMesh(const Cluster& cl, const MeshParams& mp)
+MoleculeMesh::MoleculeMesh(const Structure& cl, const MeshParams& mp)
 {
     assert(mp.m_mu>=0);
 

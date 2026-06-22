@@ -21,7 +21,7 @@ import qchem.BasisSet.Orbital_HF_IBS;                         // public Direct()
 import qchem.BasisSet.Fit_IBS;
 import qchem.BasisSet.Internal.ERI3;                          // ERI3<double>, fnorm
 import qchem.BasisSet.Internal.ERI4;                          // ERI4, fnorm
-import qchem.Cluster;
+import qchem.Structure;
 import qchem.Types;
 import qchem.Blaze;
 
@@ -64,7 +64,7 @@ public:
     // --- isM_1E ---
     rsmat_t OverlapMatrix()                  const {return Build1([&](size_t i,size_t j){return its.Overlap(i,j);});}
     rsmat_t KineticMatrix()                  const {return Build1([&](size_t i,size_t j){return its.Grad2  (i,j);});}
-    rsmat_t NuclearMatrix(const Cluster* cl) const {return Build1([&](size_t i,size_t j){return its.Nuclear(i,j,cl);});}
+    rsmat_t NuclearMatrix(const Structure* cl) const {return Build1([&](size_t i,size_t j){return its.Nuclear(i,j,cl);});}
 
     // --- isM_DFT (3-centre) ---
     ERI3<double> OverlapThreeC_Matrix(const Matrix_Adapter& fit) const

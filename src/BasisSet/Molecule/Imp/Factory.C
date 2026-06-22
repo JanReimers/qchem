@@ -55,7 +55,7 @@ namespace BasisSet::Molecule
         return it->second;
     }
 
-    BasisSet<double>* Factory(BasisSetData data, const Cluster* cl, Engine engine, Angular angular)
+    BasisSet<double>* Factory(BasisSetData data, const Structure* cl, Engine engine, Angular angular)
     {
         Gaussian94Reader reader(BasisFile(theFiles.at(data)));
         const bool spherical = (angular==Angular::Spherical);
@@ -69,7 +69,7 @@ namespace BasisSet::Molecule
         return new PG_Cart::BasisSet(&reader, cl);
     }
 
-    BasisSet<double>* Factory(const json& js, const Cluster* cl)
+    BasisSet<double>* Factory(const json& js, const Structure* cl)
     {
         BasisSetData data    = Resolve(js, "basis",   "",          theBasisNames);  // required
         Engine       engine  = Resolve(js, "engine",  "mnd",       theEngines);

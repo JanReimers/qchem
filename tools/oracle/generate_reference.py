@@ -20,7 +20,7 @@ from gbasis.integrals.electron_repulsion import electron_repulsion_integral
 
 LMAX = 3                                   # s,p,d,f  (PG1 Hermite machinery is capped at f for now)
 
-# Fixed point charges for the nuclear-attraction sweep (shared with the C++ Cluster).
+# Fixed point charges for the nuclear-attraction sweep (shared with the C++ Structure).
 NUCLEI = [{"Z": 6.0, "center": [0.0, 0.0, 0.4]}, {"Z": 2.0, "center": [-0.6, 0.5, -0.3]}]
 
 def shell(alpha, center, L):

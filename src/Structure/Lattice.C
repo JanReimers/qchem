@@ -6,8 +6,8 @@ module;
 
 export module qchem.Lattice;
 import Common.UniqueIDImp;
-export import qchem.Cluster;
-export import Cluster.UnitCell;
+export import qchem.Structure;
+export import Structure.UnitCell;
 import qchem.Mesh;
 
 //----------------------------------------------------------------------------
@@ -27,7 +27,7 @@ export class Lattice
 {
 public:
     // Lattice();
-    typedef std::shared_ptr<Cluster> cl_t;
+    typedef std::shared_ptr<Structure> cl_t;
     Lattice(const UnitCell&, const Vector3D<int>&);                //Empty unit cell.
     
     // virtual void   Insert        (Atom*)      ;

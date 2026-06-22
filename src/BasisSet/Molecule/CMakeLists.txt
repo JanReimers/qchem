@@ -18,7 +18,7 @@ target_compile_options(qcMolecule_BS PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(qcMolecule_BS PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
 target_compile_definitions(qcMolecule_BS PRIVATE ${BasisDataPath})
 
-target_link_libraries(qcMolecule_BS PUBLIC qcBasisSet qcElConfig qcCluster)
+target_link_libraries(qcMolecule_BS PUBLIC qcBasisSet qcElConfig qcStructure)
 add_subdirectory(PG_Cart)
 add_subdirectory(PG_Spherical)
 add_subdirectory(PG_LibCint)

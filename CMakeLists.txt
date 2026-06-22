@@ -35,13 +35,13 @@ set(CXX_COMMON_COMPILE_DEFINITIONS
 
 target_compile_options(qchem PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(qchem PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
-target_link_libraries(qchem qcWaveFunction qcSCFAccelerator qcOrbitals qcHamiltonian qcChargeDensity qcFitting qcFactory qcMolecule_BS qcAtom_BS qcBasisSet qcLASolver qcCluster qcMesh qcSymmetry wignerSymbols lapack blas gtest )
+target_link_libraries(qchem qcWaveFunction qcSCFAccelerator qcOrbitals qcHamiltonian qcChargeDensity qcFitting qcFactory qcMolecule_BS qcAtom_BS qcBasisSet qcLASolver qcStructure qcMesh qcSymmetry wignerSymbols lapack blas gtest )
 add_subdirectory(src)
 add_subdirectory(./UnitTests)
 add_subdirectory(./gtkapp)
 
 add_custom_target(allTests
-    DEPENDS UTMain UTCommon UTMesh UTCluster UTSymmetry UTElConfig UTAtom_BS UTMolecule_BS UTLASolver 
+    DEPENDS UTMain UTCommon UTMesh UTStructure UTSymmetry UTElConfig UTAtom_BS UTMolecule_BS UTLASolver 
     COMMENT "Build all unit test executables"
 )
 # Disable embedded submodule tests so ctest only runs this project's tests.

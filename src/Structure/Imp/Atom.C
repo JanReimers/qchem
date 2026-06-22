@@ -1,8 +1,8 @@
 module;
 #include <cassert>
 #include <nlohmann/json.hpp>
-module qchem.Cluster;
-import qchem.Cluster.AtomMesh;
+module qchem.Structure;
+import qchem.Structure.AtomMesh;
 import qchem.Mesh.Factory;
 import qchem.Vector3D;
 using json = nlohmann::json;

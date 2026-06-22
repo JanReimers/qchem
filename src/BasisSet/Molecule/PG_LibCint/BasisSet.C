@@ -25,7 +25,7 @@ import qchem.BasisSet.Molecule.IBS;                          // Molecule::Orbita
 import qchem.BasisSet.Internal.BasisSetImp;
 import qchem.BasisSet.Internal.IrrepBasisSetImp;
 import qchem.BasisSet.Orbital_HF_IBS;
-import qchem.Cluster;
+import qchem.Structure;
 import qchem.Types;
 
 export namespace BasisSet::Molecule::PG_LibCint
@@ -41,8 +41,8 @@ class IrrepBasisSet
     public:
         typedef std::vector<std::unique_ptr<Cart::Block>> bv_t;
 
-        IrrepBasisSet(Reader*, const Cluster*, bool spherical=false);
-        IrrepBasisSet(const rvec_t& exponents, size_t L, const Cluster*, bool spherical=false);
+        IrrepBasisSet(Reader*, const Structure*, bool spherical=false);
+        IrrepBasisSet(const rvec_t& exponents, size_t L, const Structure*, bool spherical=false);
         virtual ~IrrepBasisSet();
 
         // The number of functions is the evaluator's delivered count (Cartesian (l+1)(l+2)/2 or spherical
@@ -74,8 +74,8 @@ class Orbital_IBS
     , public IrrepBasisSet
 {
 public:
-    Orbital_IBS(Reader*, const Cluster*, bool spherical=false);
-    Orbital_IBS(const rvec_t& exponents, size_t L, const Cluster*, bool spherical=false);
+    Orbital_IBS(Reader*, const Structure*, bool spherical=false);
+    Orbital_IBS(const rvec_t& exponents, size_t L, const Structure*, bool spherical=false);
 };
 
 class BasisSet
@@ -84,7 +84,7 @@ class BasisSet
 {
 public:
     BasisSet() {};
-    BasisSet(Reader*, const Cluster*, bool spherical=false);
+    BasisSet(Reader*, const Structure*, bool spherical=false);
     virtual void Insert(bs_t* bs);
 };
 

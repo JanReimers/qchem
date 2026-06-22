@@ -11,7 +11,7 @@
 #include <memory>
 #include <filesystem>
 
-import qchem.Cluster;                                         // Molecule, Atom
+import qchem.Structure;                                         // Molecule, Atom
 import qchem.SCFIterator;                                     // SCFIterator, SCFParams, EnergyBreakdown
 import qchem.Hamiltonian.Factory;                             // Factory, Model, Pol, cl_t
 import qchem.SCFAccelerator.Factory;                          // SCFAccelerators::Factory, Type

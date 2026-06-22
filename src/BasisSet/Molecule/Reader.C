@@ -4,7 +4,7 @@ module;
 #include <vector>
 export module qchem.BasisSet.Molecule.Reader;
 export import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
-export import qchem.Cluster;
+export import qchem.Structure;
  
 export namespace BasisSet::Molecule
 {

@@ -13,7 +13,7 @@ class BasisSet_Lattice : public ::testing::Test
     : N(2)
     , SiBasis(new Molecule())
     , SiCell(5.43/a_0) //Convert lattice constant to atom units (au).
-    , Si(SiCell,ivec3_t(N,N,N),std::shared_ptr<Cluster>(SiBasis))
+    , Si(SiCell,ivec3_t(N,N,N),std::shared_ptr<Structure>(SiBasis))
     {
         SiBasis->Insert(new Atom(14,0,rvec3_t{ 0, 0, 0}));
         SiBasis->Insert(new Atom(14,0,rvec3_t{.5,.5, 0}));

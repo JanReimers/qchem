@@ -49,11 +49,11 @@ public:
         };
 
 
-        virtual Fit_IBS* CreateCDFitBasisSet(const Cluster*) const 
+        virtual Fit_IBS* CreateCDFitBasisSet(const Structure*) const 
         {
             return new EFit_IBS(Evaluator::Rescale(2.0, this->GetSymt()));
         }
-        virtual Fit_IBS* CreateVxcFitBasisSet(const Cluster*) const
+        virtual Fit_IBS* CreateVxcFitBasisSet(const Structure*) const
         {
             return new EFit_IBS(Evaluator::Rescale(2.0/3.0, this->GetSymt()));
         }

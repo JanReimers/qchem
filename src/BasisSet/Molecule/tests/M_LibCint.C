@@ -22,7 +22,7 @@ import qchem.BasisSet.Orbital_HF_IBS;
 import qchem.BasisSet.Fit_IBS;
 import qchem.BasisSet.Internal.ERI3;
 import qchem.BasisSet.Internal.ERI4;
-import qchem.Cluster;
+import qchem.Structure;
 import qchem.Types;
 import qchem.Blaze;
 

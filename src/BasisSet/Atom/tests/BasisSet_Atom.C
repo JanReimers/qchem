@@ -66,7 +66,7 @@ public:
     rvec_t es;
     size_t N,LMax;
     std::vector<E*> evals;
-    Cluster* cl;
+    Structure* cl;
     MeshIntegrator<double>* mintegrator;
     Real_BS* bs;
 };

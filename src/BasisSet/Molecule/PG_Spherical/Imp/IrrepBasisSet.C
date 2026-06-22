@@ -13,7 +13,7 @@ import qchem.BasisSet.Molecule.Evaluators.PG_Spherical_MnD.SolidHarmonics;   // 
 import qchem.BasisSet.Molecule.Reader;
 import qchem.BasisSet.Molecule.Readers.Gaussian94;   // the auto fit-basis reader
 import qchem.BasisSet.Molecule.BasisFiles;           // A1_coul/A1_exch path (owned by BasisFiles)
-import qchem.Cluster;
+import qchem.Structure;
 import qchem.Symmetry.Unit;
 import qchem.stl_io;
 import qchem.Math;
@@ -31,7 +31,7 @@ template <class T> T Max(const std::vector<T>& v) {return *std::max_element(v.be
 //
 //  Orbital spherical-Gaussian basis set.
 //
-IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Cluster* cl)
+IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Structure* cl)
     : IrrepBasisSetImp<double>(sym_t(new UnitQN))
 {
     //
@@ -84,7 +84,7 @@ IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Cluster* cl)
     SphData::Init();
 };
 
-IrrepBasisSet::IrrepBasisSet(const rvec_t& es, size_t LMax, const Cluster* cl)
+IrrepBasisSet::IrrepBasisSet(const rvec_t& es, size_t LMax, const Structure* cl)
     : IrrepBasisSetImp<double>(sym_t(new UnitQN))
 {
     for (auto& atom:*cl)
@@ -137,16 +137,16 @@ std::ostream& IrrepBasisSet::Write(std::ostream& os) const
 //
 // Orbital spherical-Gaussian basis set (1E + HF + DFT 3-centre fit).
 //
-Orbital_IBS::Orbital_IBS(Reader* bsr, const Cluster* cl)            : IrrepBasisSet(bsr,cl) {};
-Orbital_IBS::Orbital_IBS(const rvec_t& es, size_t L, const Cluster* cl) : IrrepBasisSet(es,L,cl) {};
+Orbital_IBS::Orbital_IBS(Reader* bsr, const Structure* cl)            : IrrepBasisSet(bsr,cl) {};
+Orbital_IBS::Orbital_IBS(const rvec_t& es, size_t L, const Structure* cl) : IrrepBasisSet(es,L,cl) {};
 
-Fit_IBS* Orbital_IBS::CreateCDFitBasisSet(const Cluster* cl) const
+Fit_IBS* Orbital_IBS::CreateCDFitBasisSet(const Structure* cl) const
 {
     // The A1 files support Z=1-54 (H-Te); A2 only to Zn.  Same auxiliary data as PG_Cart, read spherically.
     Gaussian94Reader reader(BasisFile("A1_coul.bsd"));
     return new EFit_IBS(&reader,cl);
 }
-Fit_IBS* Orbital_IBS::CreateVxcFitBasisSet(const Cluster* cl) const
+Fit_IBS* Orbital_IBS::CreateVxcFitBasisSet(const Structure* cl) const
 {
     Gaussian94Reader reader(BasisFile("A1_exch.bsd"));
     return new EFit_IBS(&reader,cl);
@@ -156,6 +156,6 @@ Fit_IBS* Orbital_IBS::CreateVxcFitBasisSet(const Cluster* cl) const
 //
 //  Fit spherical-Gaussian basis set.
 //
-EFit_IBS::EFit_IBS(Reader* bsr, const Cluster* cl) : IrrepBasisSet(bsr,cl) {};
+EFit_IBS::EFit_IBS(Reader* bsr, const Structure* cl) : IrrepBasisSet(bsr,cl) {};
 
 } //namespace BasisSet::Molecule::PG_Spherical

@@ -41,7 +41,7 @@ public:
     enum class I3C  {Overlap, Repulsion}; // <ab|c> and <ar|1/r12|c>
     enum class I4C  {Direct,Exchange}; // <ab|cd> and <ar|1/r12|cd>
     using IBS_ID_t=std::string;        // internal per-basis key axis = DBCacheClient::BasisSetID()
-    using Cluster_ID_t=std::string;
+    using Structure_ID_t=std::string;
     using Mesh_ID_t=std::string;
     using RadialTypeID_t=std::string;
 
@@ -66,7 +66,7 @@ public:
     // object is returned.  No shared "last key"/iterator state, so it is re-entrant.
     virtual const rvec_t&    Get(I1C,const DBCacheClient*,                          std::function<rvec_t   ()> make)=0; // Charge       -> vectors
     virtual const smat_t<T>& Get(I2C,const DBCacheClient*,                          std::function<smat_t<T>()> make)=0; // 2C sym mats
-    virtual const smat_t<T>& Get(I2n,const DBCacheClient*,const Cluster_ID_t&,      std::function<smat_t<T>()> make)=0; // Nuclear
+    virtual const smat_t<T>& Get(I2n,const DBCacheClient*,const Structure_ID_t&,      std::function<smat_t<T>()> make)=0; // Nuclear
     virtual const  mat_t<T>& Get(I2x,const DBCacheClient*,const DBCacheClient*,     std::function< mat_t<T>()> make)=0; // cross IBS
     virtual const ERI3  <T>& Get(I3C,const DBCacheClient*,const DBCacheClient*,     std::function<ERI3  <T>()> make)=0; // 3 centre
     virtual const ERI4&      Get(I4C,const DBCacheClient*,const DBCacheClient*,     std::function<ERI4     ()> make)=0; // 4 centre

@@ -16,7 +16,7 @@ import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Block;
 import qchem.BasisSet.Molecule.Reader;
-import qchem.Cluster;
+import qchem.Structure;
 import qchem.Symmetry.Unit;
 import qchem.stl_io;
 import qchem.Math;
@@ -52,7 +52,7 @@ static std::vector<Polarization> MakePolarizations(int L)
 //----------------------------------------------------------------
 //  Orbital Cartesian-Gaussian basis set, read identically to PG_Cart.
 //
-IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Cluster* cl, bool spherical)
+IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Structure* cl, bool spherical)
     : IrrepBasisSetImp<double>(sym_t(new UnitQN)), itsSpherical(spherical)
 {
     std::vector<GaussianRF*> radials;
@@ -94,7 +94,7 @@ IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Cluster* cl, bool spherical)
     NR_Evaluator::Init(cl, spherical);   // pack the flattened components into libcint (cart or sph)
 };
 
-IrrepBasisSet::IrrepBasisSet(const rvec_t& es, size_t LMax, const Cluster* cl, bool spherical)
+IrrepBasisSet::IrrepBasisSet(const rvec_t& es, size_t LMax, const Structure* cl, bool spherical)
     : IrrepBasisSetImp<double>(sym_t(new UnitQN)), itsSpherical(spherical)
 {
     for (auto& atom:*cl)
@@ -148,7 +148,7 @@ rvec3vec_t IrrepBasisSet::Gradient (const rvec3_t& r) const
 std::ostream& IrrepBasisSet::Write(std::ostream& os) const {return os << BasisSetID();}
 
 //----------------------------------------------------------------
-Orbital_IBS::Orbital_IBS(Reader* bsr, const Cluster* cl, bool sph)                : IrrepBasisSet(bsr,cl,sph) {};
-Orbital_IBS::Orbital_IBS(const rvec_t& es, size_t L, const Cluster* cl, bool sph) : IrrepBasisSet(es,L,cl,sph) {};
+Orbital_IBS::Orbital_IBS(Reader* bsr, const Structure* cl, bool sph)                : IrrepBasisSet(bsr,cl,sph) {};
+Orbital_IBS::Orbital_IBS(const rvec_t& es, size_t L, const Structure* cl, bool sph) : IrrepBasisSet(es,L,cl,sph) {};
 
 } //namespace BasisSet::Molecule::PG_LibCint

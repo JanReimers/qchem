@@ -18,7 +18,7 @@ export import qchem.BasisSet.Orbital_1E_IBS;
 export import qchem.BasisSet.Orbital_HF_IBS;         // HF 2-electron mixin + ERI4
 export import qchem.BasisSet.Orbital_DFT_IBS;        // DFT 3-centre mixin (fitted Coulomb / Vxc)
 import qchem.BasisSet.Internal.IrrepBasisSetImp;
-import qchem.Cluster;
+import qchem.Structure;
 import qchem.Types;
 
 export namespace BasisSet
@@ -61,7 +61,7 @@ public:
     // 1-electron integrals in the irrep basis (O^T M_raw O).
     virtual rsmat_t MakeOverlap()                 const;
     virtual rsmat_t MakeKinetic()                 const;
-    virtual rsmat_t MakeNuclear(const Cluster* cl) const;
+    virtual rsmat_t MakeNuclear(const Structure* cl) const;
 
     // 2-electron (HF): build the AO Coulomb/exchange from the cd-irrep's density block (linear
     // in D, so no 4-index ERI transform) and slice to this irrep.  Summed over the cd irreps by
@@ -78,8 +78,8 @@ public:
     // *cached* 3C (now safe -- the integral cache is re-entrant), so the raw 3C is computed once
     // and shared by every irrep.  Fit bases are atom-centred (geometry, not symmetry), so creation
     // delegates to the raw DFT basis.
-    virtual Fit_IBS* CreateCDFitBasisSet (const Cluster*) const;
-    virtual Fit_IBS* CreateVxcFitBasisSet(const Cluster*) const;
+    virtual Fit_IBS* CreateCDFitBasisSet (const Structure*) const;
+    virtual Fit_IBS* CreateVxcFitBasisSet(const Structure*) const;
 protected:
     virtual ERI3<double> MakeOverlap3C  (const Fit_IBS& c) const;
     virtual ERI3<double> MakeRepulsion3C(const Fit_IBS& c) const;

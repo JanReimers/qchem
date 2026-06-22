@@ -10,7 +10,7 @@ module;
 module qchem.BasisSet.Molecule.Readers.Gaussian94;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
 import Common.PeriodicTable;
-import qchem.Cluster;
+import qchem.Structure;
 import qchem.Types;
 import qchem.Blaze;
 

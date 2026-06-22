@@ -232,7 +232,7 @@ template <class T> const smat_t<T>& IntegralsCache_RAM<T>::Get(I2C i2c,const DBC
     return it->second;
 }
 
-template <class T> const smat_t<T>& IntegralsCache_RAM<T>::Get(I2n i2n,const DBCacheClient* bs,const Cluster_ID_t& cl,std::function<smat_t<T>()> make)
+template <class T> const smat_t<T>& IntegralsCache_RAM<T>::Get(I2n i2n,const DBCacheClient* bs,const Structure_ID_t& cl,std::function<smat_t<T>()> make)
 {
     IBS_ID_t id=bs->BasisSetID();
     keyn_t key(id,cl);

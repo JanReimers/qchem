@@ -9,7 +9,7 @@ export import qchem.BasisSet.IrrepBasisSet;
 export import qchem.BasisSet.Orbital_1E_IBS;
 export import qchem.BasisSet.Orbital_HF_IBS;
 export import qchem.BasisSet.Orbital_DHF_IBS;
-export import qchem.Cluster;
+export import qchem.Structure;
 import qchem.Blaze;
 
 
@@ -53,7 +53,7 @@ template <class T> class Orbital_RKB_IBS_Imp
 public:
     virtual smat_t<T> MakeOverlap () const;
     virtual smat_t<T> MakeKinetic () const;
-    virtual smat_t<T> MakeNuclear (const Cluster*) const;
+    virtual smat_t<T> MakeNuclear (const Structure*) const;
     virtual smat_t<T> MakeRestMass() const;
     
     virtual size_t GetNumFunctions() const {return itsRKBL->GetNumFunctions() + itsRKBS->GetNumFunctions(); }

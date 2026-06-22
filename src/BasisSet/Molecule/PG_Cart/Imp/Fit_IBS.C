@@ -12,7 +12,7 @@ module qchem.BasisSet.Molecule.PG_Cart;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.BasisSet.Molecule.Readers.Gaussian94;
 import qchem.BasisSet;
-import qchem.Cluster;
+import qchem.Structure;
 import qchem.Symmetry.Unit;
 import qchem.stl_io;
 import qchem.Streamable;

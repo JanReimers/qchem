@@ -2,7 +2,7 @@ module;
 #include <vector>
 
 
-module qchem.Cluster.AtomMesh;
+module qchem.Structure.AtomMesh;
 import qchem.RadialMesh;
 
 

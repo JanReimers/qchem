@@ -21,7 +21,7 @@ module;
 #include <nlohmann/json_fwd.hpp>
 export module qchem.BasisSet.Molecule.Factory;
 export import qchem.BasisSet;
-export import qchem.Cluster;
+export import qchem.Structure;
 
 export namespace BasisSet::Molecule
 {
@@ -37,10 +37,10 @@ export namespace BasisSet::Molecule
     enum class Angular { Cartesian, Spherical };
 
     // C++ entry point (compile-time typo-proof).  The three axes are independent; all combinations are valid.
-    Real_BS* Factory(BasisSetData data, const Cluster* cl,
+    Real_BS* Factory(BasisSetData data, const Structure* cl,
                      Engine engine = Engine::MnD, Angular angular = Angular::Cartesian);
 
     // Config-driven entry point (see the key table above).  An unknown "basis"/"engine"/"angular" value, or
     // a missing "basis", throws with the list of valid values.
-    Real_BS* Factory(const nlohmann::json& js, const Cluster* cl);
+    Real_BS* Factory(const nlohmann::json& js, const Structure* cl);
 }

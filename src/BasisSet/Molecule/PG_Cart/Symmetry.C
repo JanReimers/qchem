@@ -8,7 +8,7 @@ module;
 export module qchem.BasisSet.Molecule.PG_Cart.Symmetry;
 export import qchem.Symmetry.SALC;        // AoShell, SymPoint, BuildSALCs (transitively)
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.PGData;
-import qchem.Cluster;
+import qchem.Structure;
 
 export namespace BasisSet::Molecule::PG_Cart
 {
@@ -20,6 +20,6 @@ using namespace ::BasisSet::Molecule::Evaluators::PG_Cart_MnD;  // Cartesian glu
 std::vector<Symmetry::AoShell> ExtractAoShells(const PGData& pg);
 
 // The nuclear point set (species = Z, position) for point-group detection.
-std::vector<Symmetry::SymPoint> ClusterToSymPoints(const Cluster& cl);
+std::vector<Symmetry::SymPoint> StructureToSymPoints(const Structure& cl);
 
 } //namespace

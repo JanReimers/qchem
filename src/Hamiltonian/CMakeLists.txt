@@ -42,7 +42,7 @@ target_include_directories(qcHamiltonian PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/blaze
     ${PROJECT_BINARY_DIR}/submodules/libxc
     )
-target_link_libraries(qcHamiltonian PUBLIC qcBasisSet qcFitting qcOrbitals qcSymmetry qcCluster qcMesh qcCommon qcLASolver xc)
+target_link_libraries(qcHamiltonian PUBLIC qcBasisSet qcFitting qcOrbitals qcSymmetry qcStructure qcMesh qcCommon qcLASolver xc)
 target_compile_options(qcHamiltonian PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(qcHamiltonian PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
 

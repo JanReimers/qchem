@@ -13,7 +13,7 @@ using Real_OIBS=BasisSet::Real_OIBS;
 import qchem.LASolver;
 
 import qchem.Factory;
-import qchem.Cluster;
+import qchem.Structure;
 import qchem.Hamiltonian.Factory;
 import qchem.Symmetry.Spin;
 
@@ -142,8 +142,8 @@ TEST_F(OrthogonalizeTests, Blaze)
 TEST_F(OrthogonalizeTests, BlazeHydrogen)
 {
     using namespace qchem::Hamiltonian;
-    typedef std::shared_ptr<const Cluster> cl_t;
-    Cluster* cla=new Atom(1,0);
+    typedef std::shared_ptr<const Structure> cl_t;
+    Structure* cla=new Atom(1,0);
         Hamiltonian* Ham=qchem::Hamiltonian::Factory(Model::E1,Pol::Polarized,cl_t(cla));
     double beta=Set(21,1);
     cout << "Beta=" << beta << endl;

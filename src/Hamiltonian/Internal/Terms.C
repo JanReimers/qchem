@@ -5,7 +5,7 @@ module;
 export module qchem.Hamiltonian.Internal.Terms;
 import qchem.Hamiltonian.Internal.Term;
 import qchem.Hamiltonian.Internal.ExFunctional;
-import qchem.Cluster;
+import qchem.Structure;
 import qchem.FittedFunctionImp;
 import qchem.ChargeDensity;
 import qchem.FittedCD;
@@ -66,7 +66,7 @@ class Vnn
     , private        Static_HT_Imp
 {
 public:
-    typedef std::shared_ptr<const Cluster> cl_t;
+    typedef std::shared_ptr<const Structure> cl_t;
     Vnn(const cl_t& cl);
     // Required by HamiltonianTerm
     virtual void GetEnergy       (EnergyBreakdown&,const DM_CD* cd               ) const;
@@ -74,7 +74,7 @@ public:
     virtual std::ostream& Write(std::ostream&) const;
 private:
     virtual rsmat_t CalculateMatrix(const obs_t*,const Spin&) const;
-    cl_t theCluster;
+    cl_t theStructure;
 };
 
 class Ven
@@ -82,7 +82,7 @@ class Ven
     , private        Static_HT_Imp
 {
 public:
-    typedef std::shared_ptr<const Cluster> cl_t;
+    typedef std::shared_ptr<const Structure> cl_t;
     Ven(const cl_t& cl);
     // Required by HamiltonianTerm
     virtual void GetEnergy       (EnergyBreakdown&,const DM_CD* cd               ) const;
@@ -93,7 +93,7 @@ public:
 private:
     virtual rsmat_t CalculateMatrix(const obs_t*,const Spin&) const;
 
-    cl_t theCluster;
+    cl_t theStructure;
 };
 
 //###############################################################################

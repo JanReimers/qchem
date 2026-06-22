@@ -6,12 +6,12 @@ export import qchem.Hamiltonian;
 import qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.Hamiltonian.Types;
 import qchem.Mesh;
-import qchem.Cluster;
+import qchem.Structure;
 
 
 export namespace qchem::Hamiltonian
 {
-    typedef std::shared_ptr<const Cluster> cl_t;
+    typedef std::shared_ptr<const Structure> cl_t;
     enum class Model {E1,HF,DE1,DHF}; //E1 is 1 electron. DE1 is Dirac 1 electron.
     enum class Pol   {UnPolarized,Polarized};
     Hamiltonian* Factory(Model,Pol,const cl_t& cl);

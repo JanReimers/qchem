@@ -16,7 +16,7 @@
 
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;   // GaussianRF named kernels
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization; // Polarization
-import qchem.Cluster;                                                     // Molecule, Atom, Cluster
+import qchem.Structure;                                                     // Molecule, Atom, Structure
 import qchem.Types;                                                       // rvec3_t
 
 #ifndef ORACLE_DATA_PATH

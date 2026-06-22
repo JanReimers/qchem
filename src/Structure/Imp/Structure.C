@@ -3,10 +3,10 @@ module;
 #include <vector>
 #include <memory>
 
-module qchem.Cluster;
+module qchem.Structure;
  
 
-std::string Cluster::ID() const
+std::string Structure::ID() const
 {
     std::string id;
     for(auto& b:*this) id+=b->ID()+" ";
@@ -14,26 +14,26 @@ std::string Cluster::ID() const
 }
 
 
-int Cluster::GetNuclearCharge() const
+int Structure::GetNuclearCharge() const
 {
     int chg=0;
     for(auto& b:*this) chg+=b->itsZ;
     return chg;
 }
-double Cluster::GetNetCharge() const
+double Structure::GetNetCharge() const
 {
     int chg=0;
     for(auto& b:*this) chg+=b->itsCharge;
     return chg;
 }
 
-double Cluster::GetNumElectrons() const
+double Structure::GetNumElectrons() const
 {
     return GetNuclearCharge()-GetNetCharge();
 }
 
 
-size_t Cluster::GetAtomIndex(const rvec3_t& r, double tol) const
+size_t Structure::GetAtomIndex(const rvec3_t& r, double tol) const
 {
     size_t ret=0;
     for (auto& a:*this)

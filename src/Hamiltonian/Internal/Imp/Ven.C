@@ -14,7 +14,7 @@ namespace qchem::Hamiltonian
 
 Ven::Ven(const cl_t& cl)
     : Static_HT_Imp()
-    , theCluster(cl)
+    , theStructure(cl)
 {
     assert(cl->GetNumAtoms()>0);
 };
@@ -22,8 +22,8 @@ Ven::Ven(const cl_t& cl)
 
 rsmat_t Ven::CalculateMatrix(const obs_t* bs,const Spin&) const
 {
-    // std::cout << "Ven=" << bs->Nuclear(&*theCluster) << std::endl;
-    return bs->Nuclear(&*theCluster);
+    // std::cout << "Ven=" << bs->Nuclear(&*theStructure) << std::endl;
+    return bs->Nuclear(&*theStructure);
 }
 
 void Ven::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
@@ -33,7 +33,7 @@ void Ven::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
 
 std::ostream& Ven::Write(std::ostream& os) const
 {
-    os << "    Nuclear-electron potential Zi/|Ri-r| with " << theCluster->GetNumAtoms() << " atoms." << std::endl;
+    os << "    Nuclear-electron potential Zi/|Ri-r| with " << theStructure->GetNumAtoms() << " atoms." << std::endl;
     return os;
 }
 

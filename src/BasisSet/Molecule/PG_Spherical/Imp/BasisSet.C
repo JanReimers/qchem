@@ -5,12 +5,12 @@ module;
 
 module qchem.BasisSet.Molecule.PG_Spherical;
 import qchem.BasisSet.Molecule.Reader;
-import qchem.Cluster;
+import qchem.Structure;
 
 namespace BasisSet::Molecule::PG_Spherical
 {
 
-BasisSet::BasisSet(Reader* reader, const Cluster* cl)
+BasisSet::BasisSet(Reader* reader, const Structure* cl)
 {
     Insert(new ::BasisSet::Molecule::PG_Spherical::Orbital_IBS(reader,cl));
 }

@@ -11,7 +11,7 @@ import qchem.BasisSet.Molecule.Readers.Gaussian94;
 import qchem.BasisSet.Molecule.PG_Cart;
 import qchem.BasisSet;
 import qchem.Mesh.Integrator;
-import qchem.Cluster;
+import qchem.Structure;
 import qchem.Symmetry;
 import qchem.Blaze;
 
@@ -61,7 +61,7 @@ public:
     int Z;
     ::BasisSet::Molecule::Gaussian94Reader reader;
     PG_Cart::BasisSet* bs;
-    Cluster* cl;
+    Structure* cl;
 };
 
 TEST_F(MeshIntegralsTests, PolGaussianOverlap)
