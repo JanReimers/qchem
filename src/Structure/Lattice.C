@@ -34,7 +34,7 @@ public:
 
     double GetLatticeVolume() const
     {
-        return GetNumSites()*itsUnitCell.GetCellVolume();
+        return GetNumUnitCells()*itsUnitCell.GetCellVolume();
     }
     Lattice   Reciprocal      (double Emax) const;  //Create the assosiated  reciprical Lattice;
     std::vector<rvec3_t>  GetReciprocalGrid() const;

@@ -109,7 +109,7 @@ TEST_F(StructureTests, Lattice)
     EXPECT_EQ(SiCell.GetNuclearCharge(),8*14);
     EXPECT_EQ(SiCell.GetNetCharge(),0);
     EXPECT_EQ(SiCell.GetNumElectrons(),8*14);
-    EXPECT_EQ(Si.GetLatticeVolume(),pow(4*5.43/a_0,3));
+    EXPECT_EQ(Si.GetLatticeVolume(),pow(2*5.43/a_0,3)); //2x2x2 supercell = (2*edge)^3
     EXPECT_EQ(Si.GetNumSites(),64);
     EXPECT_EQ(Si.GetNumBasisSites(),8);
     EXPECT_EQ(Si.GetNumUnitCells(),8);
