@@ -9,16 +9,41 @@ export import qchem.Structure;
 export import Structure.UnitCell;
 import qchem.Mesh;
 
-//----------------------------------------------------------------------------
-//
-//  A lattice is a big square block of unit cells.  Each unit cell has a bunch
-//  of atoms in it.  You can create a molecule type structure and insert it
-//  into the lattice at construction time.  The molecule is then repated in each
-//  unit cell.  Or you can create a lattice with no atoms.  Each atom inserted
-//  goes into every unit cell.  For a band structure calculation the spatial
-//  extent of the lattice determines the number of k-points in the first zone,
-//  and also determines the normalization constant for plane wave basis
-//  functions.
+//! \brief A crystal lattice: a UnitCell repeated on a Bravais lattice, together
+//! with the Brillouin-zone sampling used for plane-wave / band-structure work.
+//!
+//! A lattice is a block of unit cells.  A molecule-type structure inserted at
+//! construction is repeated in every cell; the spatial extent then fixes the
+//! number of k-points in the first zone and the plane-wave normalization.
+//!
+//! \par Symbol and units conventions (Hartree atomic units throughout)
+//! Lengths are in Bohr \f$a_0\f$, energies in Hartree, reciprocal-space
+//! quantities in \f$a_0^{-1}\f$.  Capitals denote \f$3\times3\f$ matrices (or
+//! the lattice vectors that form their columns); lower case denotes lengths,
+//! continuous points, or dimensionless fractional coordinates.
+//!
+//! \par Direct (real) space
+//!  - \f$A\f$ — cell matrix; columns are the primitive lattice vectors
+//!    \f$a_1,a_2,a_3\f$.  A Cartesian position is \f$r = A f\f$.  [length]
+//!  - \f$a_i\f$ — primitive lattice vectors (columns of \f$A\f$).  [length]
+//!  - \f$a,b,c\f$ — cell edge lengths \f$|a_i|\f$.  [length]
+//!  - \f$\alpha,\beta,\gamma\f$ — cell angles, \f$\alpha=\angle(a_2,a_3)\f$,
+//!    \f$\beta=\angle(a_1,a_3)\f$, \f$\gamma=\angle(a_1,a_2)\f$.  [rad, dimensionless]
+//!  - \f$M\f$ — metric tensor \f$M = A^\top A\f$, so \f$\lVert r\rVert^2 = f^\top M f\f$.  [length\f$^2\f$]
+//!  - \f$R\f$ — a direct lattice translation, \f$R = A n,\; n\in\mathbb{Z}^3\f$.  [length]
+//!  - \f$r\f$ — a Cartesian position.  [length]
+//!  - \f$f,n\f$ — fractional cell coordinates (\f$n\f$ integer); \f$r = A f\f$.  [dimensionless]
+//!
+//! \par Reciprocal space (the \f$2\pi\f$ lives in \f$B\f$, so \f$b_i\cdot a_j = 2\pi\delta_{ij}\f$)
+//!  - \f$B\f$ — reciprocal cell matrix, \f$B = 2\pi A^{-\top}\f$; columns \f$b_i\f$.  [1/length]
+//!  - \f$b_i\f$ — primitive reciprocal lattice vectors.  [1/length]
+//!  - \f$G\f$ — a reciprocal lattice vector \f$G = B m,\; m\in\mathbb{Z}^3\f$; the
+//!    plane-wave label in \f$e^{iG\cdot r}\f$.  [1/length]
+//!  - \f$k\f$ — a crystal momentum, i.e. a continuous point in the Brillouin zone.  [1/length]
+//!  - \f$K\f$ — a sampled \f$k\f$-point (a node of the Monkhorst–Pack mesh).  [1/length]
+//!
+//! \par Cutoffs
+//! \f$E_{\max}\f$ (Hartree) bounds the plane-wave set \f$\{\,G : \tfrac12\lVert k+G\rVert^2 < E_{\max}\,\}\f$.
 //
 export class Lattice
 {

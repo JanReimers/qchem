@@ -71,24 +71,41 @@ TEST_F(StructureTests, RangeIteration)
 
 TEST_F(StructureTests, UnitCell)
 {
+    //  Geometry is compared with EXPECT_NEAR: A-matrix vs metric-tensor routes
+    //  to the same value differ at the ULP level, which is physically irrelevant.
     UnitCell cubic(4,4,4,90,90,90);
-    EXPECT_EQ(cubic.GetCellVolume(),64);
-    EXPECT_EQ(cubic.GetMinimumCellEdge(),4);
-    EXPECT_EQ(cubic.GetDistance(rvec3_t{1,1,1}),4*sqrt(3));
+    EXPECT_NEAR(cubic.GetCellVolume(),64,1e-9);
+    EXPECT_NEAR(cubic.GetMinimumCellEdge(),4,1e-9);
+    EXPECT_NEAR(cubic.GetDistance(rvec3_t{1,1,1}),4*sqrt(3),1e-9);
     EXPECT_EQ(cubic.GetNumCells(9),Vector3D<int>(3,3,3));
+    rvec3_t rc=cubic.ToCartesian({0.5,0.5,0.5}); // r = A f
+    EXPECT_NEAR(rc.x,2,1e-12); EXPECT_NEAR(rc.y,2,1e-12); EXPECT_NEAR(rc.z,2,1e-12);
     cout << "       cubic = " << cubic << endl;
+
     UnitCell ortho(4,5,6,90,90,90);
-    EXPECT_EQ(ortho.GetCellVolume(),120);
-    EXPECT_EQ(ortho.GetMinimumCellEdge(),4);
-    EXPECT_EQ(ortho.GetDistance(rvec3_t{1,1,1}),sqrt(4*4+5*5+6*6));
+    EXPECT_NEAR(ortho.GetCellVolume(),120,1e-9);
+    EXPECT_NEAR(ortho.GetMinimumCellEdge(),4,1e-9);
+    EXPECT_NEAR(ortho.GetDistance(rvec3_t{1,1,1}),sqrt(4*4+5*5+6*6),1e-9);
     EXPECT_EQ(ortho.GetNumCells(9),Vector3D<int>(3,2,2));
+    rvec3_t ro=ortho.ToCartesian({1,1,1});
+    EXPECT_NEAR(ro.x,4,1e-12); EXPECT_NEAR(ro.y,5,1e-12); EXPECT_NEAR(ro.z,6,1e-12);
     cout << "orthorhombic = " << ortho << endl;
+
     UnitCell tri(4,5,6,80,95,75);
-    EXPECT_EQ(tri.GetCellVolume(),113.04412274615466);
-    EXPECT_EQ(tri.GetMinimumCellEdge(),4);
-    EXPECT_EQ(tri.GetDistance(rvec3_t{1,1,1}),9.6740982428456377);
-    EXPECT_EQ(tri.GetNumCells(12),Vector3D<int>(3,3,2));
+    EXPECT_NEAR(tri.GetCellVolume(),113.04412274615466,1e-9);
+    EXPECT_NEAR(tri.GetMinimumCellEdge(),4,1e-9);
+    EXPECT_NEAR(tri.GetDistance(rvec3_t{1,1,1}),9.6740982428456377,1e-9);
+    EXPECT_EQ(tri.GetNumCells(12),Vector3D<int>(4,3,3)); //interplanar spacing, not edge length
     cout << "   triclinic = " << tri << endl;
+
+    //  Reciprocal cell B = 2π A⁻ᵀ: volume is (2π)³/V, and reciprocal-of-
+    //  reciprocal returns the original cell (the 2π convention round-trips).
+    UnitCell recip=tri.MakeReciprocalCell();
+    EXPECT_NEAR(recip.GetCellVolume(),pow(2*Pi,3)/tri.GetCellVolume(),1e-12);
+    UnitCell back=recip.MakeReciprocalCell();
+    EXPECT_NEAR(back.GetCellVolume(),tri.GetCellVolume(),1e-9);
+    EXPECT_NEAR(back.GetDistance({1,0,0}),tri.GetDistance({1,0,0}),1e-9);
+    EXPECT_NEAR(back.GetDistance({1,1,1}),tri.GetDistance({1,1,1}),1e-9);
 }
 
 TEST_F(StructureTests, Lattice)
@@ -109,7 +126,7 @@ TEST_F(StructureTests, Lattice)
     EXPECT_EQ(SiCell.GetNuclearCharge(),8*14);
     EXPECT_EQ(SiCell.GetNetCharge(),0);
     EXPECT_EQ(SiCell.GetNumElectrons(),8*14);
-    EXPECT_EQ(Si.GetLatticeVolume(),pow(2*5.43/a_0,3)); //2x2x2 supercell = (2*edge)^3
+    EXPECT_NEAR(Si.GetLatticeVolume(),pow(2*5.43/a_0,3),1e-6); //2x2x2 supercell = (2*edge)^3
     EXPECT_EQ(Si.GetNumSites(),64);
     EXPECT_EQ(Si.GetNumBasisSites(),8);
     EXPECT_EQ(Si.GetNumUnitCells(),8);
