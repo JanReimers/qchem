@@ -47,6 +47,8 @@ export namespace blazem
     using blaze::DiagonalMatrix;
     using blaze::UpperMatrix;
     using blaze::LowerMatrix;
+    using blaze::HermitianMatrix;
+    using blaze::ctrans;
     using blaze::IdentityMatrix;
     using blaze::Subvector;
     using blaze::eigen;
@@ -76,6 +78,7 @@ export namespace blazem
     using blaze::isZero;
     using blaze::isSquare;
     using blaze::conj;
+    using blaze::real;
     using blaze::potrf;
     using blaze::trtri;
     

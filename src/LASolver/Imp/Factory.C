@@ -7,22 +7,16 @@ import qchem.LASolver.Internal.Lapack;
 template <class T> LASolver<T>* LASolver<T>::
     Factory(qchem::Ortho ortho, double TruncationTolerance)
 {
-    LASolver<T>* ret=0;
+    LASolver<T>* ret = nullptr;
     switch (ortho)
     {
-    case qchem::Cholsky :
-        ret=new LASolverCholsky<T>(TruncationTolerance);
-        break;
-    case qchem::Eigen :
-        ret=new LASolverEigen<T>(TruncationTolerance);
-        break;
-    case qchem::SVD :
-        ret=new LASolverSVD<T>(TruncationTolerance);
-        break;
-    break;
+    case qchem::Cholsky: ret = new LASolverCholsky<T>(TruncationTolerance); break;
+    case qchem::Eigen:   ret = new LASolverEigen  <T>(TruncationTolerance); break;
+    case qchem::SVD:     ret = new LASolverSVD    <T>(TruncationTolerance); break;
     }
     assert(ret);
     return ret;
 }
 
-template LASolver<double>* LASolver<double>::Factory(qchem::Ortho ortho, double TruncationTolerance);
+template LASolver<double>* LASolver<double>::Factory(qchem::Ortho, double);
+template LASolver<dcmplx>* LASolver<dcmplx>::Factory(qchem::Ortho, double);

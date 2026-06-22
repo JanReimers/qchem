@@ -3,6 +3,7 @@ module;
 #include <blaze/Math.h>
 #include <complex>
 #include <ranges>
+#include <type_traits>
 export module qchem.Types;
 export import qchem.Vector3D;
 
@@ -18,6 +19,10 @@ using dcmplx=std::complex<double>;
 template <typename T> using vec3_t = Vector3D<T>;
 template <typename T> using  mat_t = blaze::DynamicMatrix<T,blaze::columnMajor>;
 template <typename T> using smat_t = blaze::SymmetricMatrix<mat_t<T>>;
+template <typename T> using hmat_t = std::conditional_t<
+    std::is_floating_point_v<T>,
+    blaze::SymmetricMatrix<mat_t<T>>,
+    blaze::HermitianMatrix<mat_t<T>>>;
 template <typename T> using  vec_t = blaze::DynamicVector<T>;
 template <typename T> using  row_t = blaze::DynamicVector<T,blaze::rowVector>;
 template <typename T> using  col_t = blaze::DynamicVector<T,blaze::columnVector>;
@@ -30,6 +35,7 @@ using  rrow_t= row_t<double>;
 using  rcol_t= col_t<double>;
 using  rmat_t= mat_t<double>;
 using rsmat_t=smat_t<double>;
+using rhmat_t=hmat_t<double>;
 using rvec3_t=vec3_t<double>;
 using rvec3vec_t=vec3vec_t<double>;
 using ivec3_t = vec3_t<int>;
