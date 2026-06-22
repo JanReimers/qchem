@@ -132,10 +132,68 @@
         "TODO": "markdown"
     },
     "cmake.buildDirectory": "${workspaceFolder}/build/${buildType}",
+    "cmake.autoScanForKits": false,
+    "files.watcherExclude": {
+    "**/build/Debug/**": true,
+    "**/build/Release/**": true
+}
     // "C_Cpp.default.intelliSenseMode": "linux-clang-x64"
     "C_Cpp.intelliSenseEngine": "disabled",
     // "clangd.path": "/path/to/clangd",
     // "clangd.arguments": ["--log=verbose", "--background-index"]
-    
+    "testMate.cpp.test.advancedExecutables": [
+  {
+    "pattern": "build/Debug/**/UT*",
+    "cwd": "${workspaceFolder}/build/Debug",
+    "gtest": {
+      "testGrouping": {
+        "groupByLabel": {
+          "label": "Debug Tests",
+          "groupByExecutable": {
+            "label": "${filename}",
+            "description": "${relDirpath}"
+          }
+        }
+      }
+    },
+    "catch2": {
+      "testGrouping": {
+        "groupByLabel": {
+          "label": "Debug Tests",
+          "groupByExecutable": {
+            "label": "${filename}",
+            "description": "${relDirpath}"
+          }
+        }
+      }
+    }
+  },
+  {
+    "pattern": "build/Release/**/UT*",
+    "cwd": "${workspaceFolder}/build/Release",
+    "gtest": {
+      "testGrouping": {
+        "groupByLabel": {
+          "label": "Release Tests",
+          "groupByExecutable": {
+            "label": "${filename}",
+            "description": "${relDirpath}"
+          }
+        }
+      }
+    },
+    "catch2": {
+      "testGrouping": {
+        "groupByLabel": {
+          "label": "Release Tests",
+          "groupByExecutable": {
+            "label": "${filename}",
+            "description": "${relDirpath}"
+          }
+        }
+      }
+    }
+  }
+]   
 
 }
