@@ -182,7 +182,7 @@ void CompositeWF::FillOrbitalsAufbau(double mergeTol)
         {
             size_t idx=0;
             const rvec_t& sc = mom[w];                            // empty unless MOM active & referenced
-            for (auto o : w->GetOrbitals()->Iterate<qchem::Orbitals::Orbital>())
+            for (auto o : w->GetOrbitals()->Iterate())
             {
                 // MOM: higher overlap = occupy first (unreferenced/empty irrep scores 0).
                 // Aufbau: lower eigenvalue = occupy first, so key on -energy for a common "bigger wins".

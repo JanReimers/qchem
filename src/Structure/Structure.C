@@ -37,7 +37,7 @@ public:
     //  store its atoms however it likes (Molecule keeps a vector, an Atom just
     //  returns itself, a future periodic cell could synthesize them).
     Atom* operator[](size_t i) const {return GetAtom(i);}
-    typedef IndexIterator<Structure> const_iterator;
+    typedef IndexIterator<const Structure> const_iterator;
     const_iterator begin() const {return const_iterator(this,0);}
     const_iterator end  () const {return const_iterator(this,GetNumAtoms());}
 

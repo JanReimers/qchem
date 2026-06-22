@@ -44,8 +44,8 @@ template <class T> size_t  TOrbitalsImp<T>::GetNumOrbitals() const
 template <class T> size_t  TOrbitalsImp<T>::GetNumOccOrbitals() const
 {
     size_t  n=0;
-    for (auto& o:*this)
-        if (o->IsOccupied()) 
+    for (auto o:this->Iterate())
+        if (o->IsOccupied())
             n++;
 
     return n;
@@ -55,8 +55,8 @@ template <class T> double TOrbitalsImp<T>::GetEigenValueChange(const Orbitals& o
     // No UT coverage
     // TODO: OrbitalGroup should return a vector of energies.
     double del=0;
-    auto b2=og.Iterate<Orbital>().begin();
-    for (auto b1:Iterate<Orbital>())
+    auto b2=og.Iterate().begin();
+    for (auto b1:this->Iterate())
     {
         const Orbital* o2=*b2;
         del+=Square(b1->GetEigenEnergy()-o2->GetEigenEnergy());
@@ -90,7 +90,7 @@ template <class T> void TOrbitalsImp<T>::UpdateOrbitals(const mat_t<T>& U, const
 template <class T> typename TOrbitalsImp<T>::ds_t TOrbitalsImp<T>::TakeElectrons(double ne)
 {
     // Dump electrons into orbitals, starting from the lowest energy.
-    for (auto o:this->template Iterate<Orbital>())
+    for (auto o:this->Iterate())
     {
         ne=o->TakeElectrons(ne);
         if (ne<=0.0) break;

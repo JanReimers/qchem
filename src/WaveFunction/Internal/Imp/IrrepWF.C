@@ -80,13 +80,13 @@ const EnergyLevels& IrrepWF::FillOrbitals(double ne)
 {
     // Empty first: the aufbau occupation can shift between iterations, and TakeElectrons only
     // overwrites the orbitals it fills (leaving stale occupation on the rest).
-    for (auto o:itsOrbitals->Iterate<qchem::Orbitals::Orbital>()) o->Empty();
+    for (auto o:itsOrbitals->Iterate()) o->Empty();
     std::tie(ne,itsDPrime)=itsOrbitals->TakeElectrons(ne); // occupy lowest-first, build density
     assert(ne==0.0); //enough orbitals to take all electrons; if not the basis set is too small.
 
     // List of energy levels.  Degenerate levels should get merged.
     itsELevels.clear();
-    for (auto o:itsOrbitals->Iterate<qchem::Orbitals::Orbital>())
+    for (auto o:itsOrbitals->Iterate())
         itsELevels.insert(qchem::Orbitals::EnergyLevel(o));
 
     return itsELevels;

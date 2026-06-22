@@ -67,10 +67,6 @@ public:
 class Orbitals : public virtual Streamable
 {
 public:
-    typedef std::vector<std::unique_ptr<Orbital>> ov_t;
-    typedef ov_t::      iterator       iterator;
-    typedef ov_t::const_iterator const_iterator;
-
     virtual ~Orbitals() {};
     virtual size_t         GetNumOrbitals     (               ) const=0;
     virtual size_t         GetNumOccOrbitals  (               ) const=0;
@@ -78,32 +74,22 @@ public:
     virtual DM_CD*         GetChargeDensity   (               ) const=0;
     //! This will hold spin and symmetry QNs, without the principle QN.
     virtual Irrep      GetQNs() const=0;
-    
-private:
-    virtual const_iterator begin() const=0;
-    virtual const_iterator end  () const=0;
-    virtual       iterator begin()      =0;
-    virtual       iterator end  ()      =0;
-    
-public:
 
-    template <class D> auto Iterate() const
-    {
-        return D_iterator_proxy<const D,const_iterator>(begin(),end());
-    }
-    template <class D> auto Iterate(const D* start) const
-    {
-        return D_iterator_proxy<const D,const_iterator>(begin(),end(),start);
-    }
-     template <class D> auto Iterate() 
-    {
-        return D_iterator_proxy<D,iterator>(begin(),end());
-    }
-    template <class D> auto Iterate(const D* start) 
-    {
-        return D_iterator_proxy<D,iterator>(begin(),end(),start);
-    }
+    //  Iterate() with no type argument yields the base Orbital* directly (no
+    //  cast); Iterate<D>() dynamic_cast's each to the requested derived type D.
+    //  Both come in const and mutable flavours (the latter for e.g. Empty()),
+    //  over storage kept private by the concrete Orbitals.
+    auto Iterate() const {return IndexProxy<const Orbitals>(this, GetNumOrbitals());}
+    auto Iterate()       {return IndexProxy<      Orbitals>(this, GetNumOrbitals());}
+    template <class D> auto Iterate() const {return D_IndexProxy<const D, const Orbitals>(this, GetNumOrbitals());}
+    template <class D> auto Iterate()       {return D_IndexProxy<D, Orbitals>(this, GetNumOrbitals());}
 
+    const Orbital* operator[](size_t i) const {return GetOrbital(i);}
+          Orbital* operator[](size_t i)       {return GetOrbital(i);}
+
+protected:
+    virtual const Orbital* GetOrbital(size_t) const=0; //the only storage-specific
+    virtual       Orbital* GetOrbital(size_t)      =0; //primitives
 };
 
 //---------------------------------------------------------

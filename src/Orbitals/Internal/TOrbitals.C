@@ -1,6 +1,8 @@
 // File: TOrbitals.C  
 module;
 #include <iosfwd>
+#include <vector>
+#include <memory>
 export module qchem.Orbitals.Internal.OrbitalsImp;
 export import qchem.Orbitals;
 export import qchem.Symmetry.Irrep;
@@ -36,10 +38,8 @@ public:
     virtual vec3vec_t<T> Gradient   (const rvec3_t&) const;
 
 
-    virtual const_iterator begin() const {return itsOrbitals.begin();}
-    virtual const_iterator end  () const {return itsOrbitals.end  ();} 
-    virtual       iterator begin()       {return itsOrbitals.begin();}
-    virtual       iterator end  ()       {return itsOrbitals.end  ();} 
+    virtual const Orbital* GetOrbital(size_t i) const {return itsOrbitals[i].get();}
+    virtual       Orbital* GetOrbital(size_t i)       {return itsOrbitals[i].get();}
 
 
     virtual std::ostream&          Write(std::ostream&) const;
@@ -48,7 +48,7 @@ private:
     TOrbitalsImp(const TOrbitalsImp&);
 
     const tobs_t<T>*  itsBasisSet;
-    ov_t              itsOrbitals;
+    std::vector<std::unique_ptr<Orbital>> itsOrbitals;
     Irrep         itsQNs;
     smat_t<T>         itsD; // DPrime=C'*Cd',  U*D*Ud, D=C*Cd (outer product)
 };

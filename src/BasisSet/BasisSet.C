@@ -34,12 +34,14 @@ public:
     virtual Fit_IBS* CreateCDFitBasisSet(const Structure* cl) const;
     virtual Fit_IBS* CreateVxcFitBasisSet(const Structure* cl) const;
 
-    // Iterate returns IBS pointers dynamic_cast'ed to the requested derived
-    // type D.  It is built on the two primitives below, so how a concrete
-    // BasisSet stores its IBSs stays private to that class.
+    // Iterate() with no type argument yields the base bs_t* directly (no cast);
+    // Iterate<D>() dynamic_cast's each IBS to the requested derived type D.
+    // Built on the two primitives below, so storage stays private to the
+    // concrete BasisSet.
+    auto Iterate() const {return IndexProxy<const BasisSet>(this, GetNumIBS());}
     template <class D> auto Iterate() const
     {
-        return D_IndexProxy<const D, BasisSet>(this, GetNumIBS());
+        return D_IndexProxy<const D, const BasisSet>(this, GetNumIBS());
     }
     const bs_t* operator[](size_t i) const {return GetIBS(i);}
 
