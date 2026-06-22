@@ -18,25 +18,24 @@ Notes, bugs, and plans for the qchem6 project. This file is markdown-enabled so 
 - Can we move `SymEigen3` into `Matrix3D<T>`?
 - `src/BasisSet/Internal/Imp/Orbital_DHF_IBS.C::merge_xxx` use `blazem::submatrix`
 - but GDM+aufbau is a TODO. GDM needs per-irrep nocc at accelerator-creation time, which the aufbau doesn't know up front. DIIS only checks occ>0, so it's fine
-- DFT support for SALC?
-- Output ElCOnfigs in tetbook format: (1a₁)²(2a₁)²(1b₂)²(3a₁)²(1b₁)²
 - Migrate qchem tester over to the new Molecule_EC
 
 ### Polarized Gaussian refactor
-    
-1. enum IType {Overlap2C, Repulsion2C, Grad2, Nuclear};  can we use the enums in src/BasisSet/Internal/DB_Cache.C?
 
+1. In PrimGaussian the Interate{2,3,4}C functions are all static.  This is good, keeps symmetry between a and b.
+    In GaussianRF they are all member functions.  Can they also be made static and restore a/b symmetry?
 2. L itsL ... on the atom I *mostly* switched to lower case l.  But I still use upper case for LMax.
-3. *Done:* PrimGaussian this class smells like an internal implementation detail.
-4. *Done:* In GaussianRF: "typedef std::vector<double> vd_t;" prefer rvec_t (which is blaze) BUT the blaze doesn't support push_back.  Is that the case here?  If so (this shows in many places, including your recent MOM code) maybe we should add a helper function in Blaze.C
-and "already know the size version" and an "size not knowt in advance" version.  The helper keeps a current index, and the client code just does something like push_back(my_rvec,next_element); The "size not knowt in advance" doubles the size (or capcity) when nessecary.  Put warning in comments "This is NOT for hot code"
+3. Still some  std::vector<double> usage in the MnD internal.  Save this for and full MnD code review and refactor.
+   And that is only after some profiling which I recall should show that the H2 constructor is the hot code.  And before that we need to find a decent profiler (gprof is no longer functional).
+
+
+#### later:
+1. enum IType {Overlap2C, Repulsion2C, Grad2, Nuclear};  can we use the enums in src/BasisSet/Internal/DB_Cache.C?
 5. *Yes:* -Does PGData still need    
     std::string RadialID () const;
     std::string AngularID() const;
     for now ?  
-6. *Qualified Yes:* With caching there is a std::map look up cost. -I see that Block is only used for construction (which is fine basis set files are layed out that way), and the integrals code only uses the flattened version. But I recall McMurche & Davidson saying "blocks" of integrals should be evaluated together for efficiency. I just want confirm (now or later) the we are achieving the same thing throught the caching mechanism.
 
-- *Done:* itsN is gone. - THis line in Block: "size_t                    itsN;      //Index of first basis function in block." looks suspicious ... presumably the block needs to know where it lands in flattened list of basis functions?  But I don't see it getting used anywhere.
 
 
 ## Questions
@@ -117,14 +116,23 @@ and "already know the size version" and an "size not knowt in advance" version. 
     Whether or not HF or DHF is supported is solely based on if the Evaluator for the basis set satisfies the
     concept constratints for those integrals.
 - The infrastucture in qchem is only half set up for complex basis sets/Hamiltonians/Orbitals etc.
+### prep work for solids
+#### LASolverUpgrade:
+- There is an extra layer in the class hierarchy that I have not got around to removing yet. (I won't bore you with the history)
+- We need some unit tests for double.  I prefer not link to libqcAtom_BS to get overlap matricies, same for Ham matricies.  Hopefully we can just mock up some simple overlap and psuedo Ham matrices to test with.
 - We need to somehow seemlessly change between blaze::SymmetricMatrix and blaze::HermitianMatrix. 
-- Aside: I like using dcmplx=std::complex<double>; ... it the same number of chars as double so things line up nicely in class
-    interface.
-- lets start the thought process with LASolver in mind.
     Can we conditionaly deduce (at compile time) hmat_t  from T such that
-        hmat_t<double>=blaze::SymmetricMatrix<double> or
-        hmat_t<dcmplx>=blaze::HermitianMatrix<dcmplx>
-    Modern c++ must have a way to do this without doing partial class specializatons.
+                hmat_t<double>=blaze::SymmetricMatrix<double> or
+                hmat_t<dcmplx>=blaze::HermitianMatrix<dcmplx>
+            Modern c++ must have a way to do this without doing partial class specializatons.
+- Cosmetic: I like using dcmplx=std::complex<double>; (already in src/Common/Types.C)... it has the same number of chars as double so things line up nicely in class interface.
+- I thought SVD/Eigen options would be useful in case the overlap is close to singular .. then we truncate and push on.  But truncating introduces float noise.  The user gets an answer, which better than a singular matrix exception. But maybe supporting these options is not adding any value?  Any idea if/how commercial qchem software tries handle near singular overlap?  One thing I found with Cholesky is that if you are near singular, you can;t see it in the diagonal elements.  They are always big O(.1).
+#### Review src/Cluster/Lattice 
+- and the unit tests.
+- Is this what we need?
+#### dcmplx outside BasisSet
+-Are the {ChargeDensity, Hamiltonian, Orbital, WaveFunction, SCFIterator} libraries ready for T=dcmplx?
+
 - Next we need a highly trivial 1 electron (no ERIs yet) plane wave problem in order to get solids off the ground.
     Maybe just a hydrogen cubic lattice.  At high lattice spacing we know energy should be ~-0.5au/unit_cell (?)
 - We have BlockQN in the Symmetry library for wave vector irreps.
@@ -215,8 +223,16 @@ and "already know the size version" and an "size not knowt in advance" version. 
 - Misc bug notes and test outputs preserved below.
         We need to somehow seemlessly change between blaze::SymmetricMatrix and blaze::HermitianMatrix. 
 
-        Aside: I like using dcmplx=std::complex<double>; ... it the same number of chars as double so things line up nicely in class
-
-            interface.
+        Aside: I like using dcmplx=std::complex<double>; ... it the same number of chars as double so things line up nicely in class interface.
 
         lets start the thought process with LASolver in mind.
+
+-How to handle mismatches between {basis set} {hamiltonian} {structure} Examples:
+         BSpline basis, DFT/DHF hamiltonian -- BSpline has no DFT or RKB evaluator yet.
+         SG (atom only) basis for any Molecule.
+         LibCint with DFT.  No three center integrals.
+         Currently these should throw bad cast exceptions.
+         We should catch those and re-throw some domain specifc excpetions:  
+            BasisSetSupport exception which contains basis set type and required/missing support RKB or DFT.  Client: DiracKinetic FittedVee
+    
+-DO something about globalDBCache_RAM creation at startup.

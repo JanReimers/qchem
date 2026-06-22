@@ -13,6 +13,14 @@ Notes:
 | Ak: Angular integrals | Yes | No | No |
 | Contractions | No | Yes | ? |
 
+Other PG integral libraries:
+GPU: https://github.com/Yingqi-Tian/GPU_OMD
+LIBRETA no repo
+https://github.com/evaleev/libint
+ERD: https://github.com/psi4/erd  Description: It contains the AcesIII electron repulsion integrals by N. Flocke and V. Lotrich (University of Florida), wrapped in CMake for easier integration with Psi4. 
+
+
+
 3) GDM on scfrun — I remember (it's this session)
 Not purged. GDM engages two ways:
 
