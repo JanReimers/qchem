@@ -22,7 +22,7 @@ int Structure::GetNuclearCharge() const
 }
 double Structure::GetNetCharge() const
 {
-    int chg=0;
+    double chg=0;
     for(auto b:*this) chg+=b->itsCharge;
     return chg;
 }
