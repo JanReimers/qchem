@@ -4,12 +4,14 @@ add_library(qcLattice_BS)
 target_sources(qcLattice_BS PRIVATE
     Imp/PlaneWave_IBS.C
     Imp/APW_IBS.C
+    Imp/LAPW_IBS.C
 )
 target_sources(qcLattice_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     LocalPotential.C
     SeparablePotential.C
     PlaneWave_IBS.C
     APW_IBS.C
+    LAPW_IBS.C
 )
 target_include_directories(qcLattice_BS PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/blaze

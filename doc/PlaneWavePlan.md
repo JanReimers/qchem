@@ -80,8 +80,18 @@ framework spans *both* within the solids sector:
   free-electron energies, non-singular between them, converging with l_max. `APW_IBS`
   shares the `IrrepBasisSet<dcmplx>` base with `PlaneWave_IBS` but **not** the
   energy-independent `Orbital_1E_IBS` (APW's overlap is E-dependent) — confirming each
-  lineage-B IBS carries its own interface needs. Next: LAPW (linearised → a true band
-  solver), then a real (l>0) potential where −0.5 becomes an achievable check.
+  lineage-B IBS carries its own interface needs.
+  **Lineage B, second IBS (DONE) — `LAPW_IBS`** (`src/BasisSet/Lattice_3D/LAPW_IBS.C`):
+  the linearised method. Inside the sphere the radial function is `a_l·u_l + b_l·u̇_l`
+  at a fixed linearization energy `E_l`, with value+derivative matching at `R` (2×2
+  Wronskian → `a_l,b_l`). `H` and `O` are then energy-independent (`MakeHamiltonian()`,
+  `MakeOverlap()`), so a single generalised eigenproblem `Hc=εOc` (`LASolver`) yields
+  the whole band — a true band solver, unlike APW's per-energy determinant. Built from
+  the symmetric-gradient form (Hermitian; sidesteps the `u/u̇` Hamiltonian asymmetry);
+  radial integrals by Simpson (integrands vanish at r=0). Test: the empty-lattice bands
+  reproduce `½|k+G|²`, with the linearization error smallest near `E_l` (≈1e-9 on the
+  level at `E_l`, growing to ≈1e-4 far from it). Reuses the `qchem::Math` Bessel/Legendre.
+  Next: a real (l>0) potential where −0.5 becomes an achievable check.
 
 **Rung 1 (DONE, lineage A) — local potential abstraction.** `LocalPotential`
 (`src/BasisSet/Lattice_3D/LocalPotential.C`) is the open/closed extension point:
