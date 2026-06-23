@@ -12,6 +12,8 @@
 #include <src/xc.h>
 #include "gtest/gtest.h"
 
+import qchem.Hamiltonian.Internal.VWN_Correlation;   // the production functional under test
+
 namespace
 {
 constexpr double kPi = 3.14159265358979323846;
@@ -109,5 +111,18 @@ TEST_F(LDA_XC, ExchangeVirialIsExact_CorrelationVirialIsNot)
         printf("rho=%6.2f  eps_c=% .6f  (3/4)v_c=% .6f  rel.diff=%.1f%%\n",
                rho, ec, threeQuarterVc, 100*rel);
         EXPECT_GT(rel, 0.05) << "rho="<<rho;   // correlation virial is off by >5% -- formula does not hold
+    }
+}
+
+// The production VWN_Correlation functional (promoted from the validated formulas above) must reproduce
+// libxc LDA_C_VWN for both the potential v_c (GetVxc) and the energy density eps_c (GetEpsXc).
+TEST_F(LDA_XC, VWN_CorrelationClassMatchesLibxc)
+{
+    qchem::Hamiltonian::VWN_Correlation vwn;
+    for (double rho : {0.01, 0.1, 0.5, 1.0, 5.0, 50.0})
+    {
+        double exc,vxc; Libxc(7, rho, exc, vxc);
+        EXPECT_NEAR(vwn.GetEpsXc(rho), exc, 1e-9) << "rho="<<rho;   // energy density
+        EXPECT_NEAR(vwn.GetVxc  (rho), vxc, 1e-9) << "rho="<<rho;   // potential
     }
 }

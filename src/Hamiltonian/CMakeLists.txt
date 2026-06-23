@@ -30,9 +30,10 @@ target_sources(qcHamiltonian PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
     Internal/HamiltonianTerm.C 
     Internal/Hamiltonians.C 
     Internal/ExchangeFunctional.C  
-    Internal/SlaterExchange.C 
-    Internal/Libxc_LDA_Exchange.C 
-    Internal/LDAVxc.C 
+    Internal/SlaterExchange.C
+    Internal/VWN_Correlation.C
+    Internal/Libxc_LDA_Exchange.C
+    Internal/LDAVxc.C
     Internal/Terms.C
 )
 
