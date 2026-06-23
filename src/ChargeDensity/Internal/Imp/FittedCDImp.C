@@ -17,15 +17,19 @@ namespace qchem::ChargeDensity
 //  Construction zone.
 //
 template <class T> FittedCDImp<T>::FittedCDImp(bs_t& bs, mesh_t& m, double totalCharge)
-    : itsFitter(std::make_unique<Fitting::FunctionFitter<double>>(bs,m)) //Coulomb-metric density fit (composed)
+    // Charge-CONSTRAINED Coulomb-metric density fit (Dunlap-Connolly-Sabin 1979): every DoFit yields a
+    // density of exactly totalCharge, variationally -- no post-hoc rescale needed.
+    : itsFitter(std::make_unique<Fitting::IntegralConstrainedFF<double>>(bs,m))
 {
-    itsFitter->ReScale(totalCharge);
+    itsFitter->ReScale(totalCharge);   // normalize the initial guess (each DoFit then re-imposes the charge)
     assert(totalCharge>0);
     assert(fabs(totalCharge-itsFitter->FitGetCharge())<1e-10);
 };
 
 template <class T> FittedCDImp<T>::FittedCDImp(const FittedCDImp& o)
-    : itsFitter(std::make_unique<Fitting::FunctionFitter<double>>(*o.itsFitter)) //deep-copy the fit
+    // NOTE: copies the base fitter -- slices the IntegralConstrainedFF constraint.  Harmless today (Clone
+    // is unused); revisit (polymorphic fitter clone) when Clone is needed, e.g. polarized CD from unpolarized.
+    : itsFitter(std::make_unique<Fitting::FunctionFitter<double>>(*o.itsFitter))
 {};
 
 
