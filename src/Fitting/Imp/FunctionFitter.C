@@ -2,7 +2,7 @@
 module;
 #include <memory>
 module qchem.Fitting.FunctionFitter;
-import qchem.Fitting.Internal.FittedFunctionImp;   // FittedFunctionImp + IntegralConstrainedFF (the concrete fitters)
+import qchem.Fitting.Internal.FunctionFitterImp;   // FunctionFitterImp + IntegralConstrainedFF (the concrete fitters)
 
 namespace qchem::Fitting
 {
@@ -12,7 +12,7 @@ MakeFunctionFitter(FitFlavour flavour, std::shared_ptr<const fbs_t>& bs, std::sh
 {
     switch (flavour)
     {
-        case FitFlavour::Unconstrained:     return std::make_unique<FittedFunctionImp<double>>     (bs,m);
+        case FitFlavour::Unconstrained:     return std::make_unique<FunctionFitterImp<double>>     (bs,m);
         case FitFlavour::ChargeConstrained: return std::make_unique<IntegralConstrainedFF<double>>(bs,m);
     }
     return nullptr;

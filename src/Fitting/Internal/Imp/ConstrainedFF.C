@@ -1,7 +1,7 @@
 // File: ConstrainedFF.C  General constrained fit.
 module;
 #include <iostream>
-module qchem.Fitting.Internal.FittedFunctionImp;
+module qchem.Fitting.Internal.FunctionFitterImp;
 import qchem.Fitting.Types;
 import qchem.Blaze;
 
@@ -9,7 +9,7 @@ namespace qchem::Fitting
 {
 
 template <class T> ConstrainedFF<T>::ConstrainedFF()
-    : FittedFunctionImp<T>()
+    : FunctionFitterImp<T>()
     , g  ( )
     , gS ( )
     , gSg(0)
@@ -17,7 +17,7 @@ template <class T> ConstrainedFF<T>::ConstrainedFF()
 
 template <class T> ConstrainedFF<T>::
 ConstrainedFF(bs_t& fbs, const vec_t<T>& theg, mesh_t&  m)
-    : FittedFunctionImp<T>(fbs,m)
+    : FunctionFitterImp<T>(fbs,m)
     , g  (theg)
     , gS (blazem::trans(g)*fbs->InvRepulsion())
     , gSg(gS*g)
@@ -26,7 +26,7 @@ ConstrainedFF(bs_t& fbs, const vec_t<T>& theg, mesh_t&  m)
 
 template <class T> void ConstrainedFF<T>::DoFit(const ScalarFFClient& ffc)
 {
-    FittedFunctionImp<T>::DoFitInternal(ffc);   // scalar (potential) fit: overlap metric, unconstrained
+    FunctionFitterImp<T>::DoFitInternal(ffc);   // scalar (potential) fit: overlap metric, unconstrained
 }
 template <class T> void ConstrainedFF<T>::DoFit(const DensityFFClient& ffc)
 {
@@ -37,7 +37,7 @@ template <class T> void ConstrainedFF<T>::DoFit(const DensityFFClient& ffc)
     //   c = c0 - lambda J^-1 g,  lambda = (g.c0 - N)/(g.J^-1 g) = (g.c0 - N)/gSg,  J^-1 g = trans(gS).
     // Minimizes the Coulomb self-energy of the residual subject to exact charge, so the fitted Vee is
     // variational (error second order in the fit error) rather than relying on a post-hoc rescale.
-    FittedFunctionImp<T>::DoFitInternal(ffc);                       // c0 -> itsFitCoeff (unconstrained)
+    FunctionFitterImp<T>::DoFitInternal(ffc);                       // c0 -> itsFitCoeff (unconstrained)
     T N      = ffc.FitGetConstraint();
     T lambda = (blazem::trans(g)*this->itsFitCoeff - N) / gSg;
     this->itsFitCoeff -= lambda * blazem::trans(gS);                // enforce g.c = N exactly
@@ -45,7 +45,7 @@ template <class T> void ConstrainedFF<T>::DoFit(const DensityFFClient& ffc)
 
 template <class T> std::ostream& ConstrainedFF<T>::Write(std::ostream& os) const
 {
-    FittedFunctionImp<T>::Write(os);
+    FunctionFitterImp<T>::Write(os);
     os << g << gS;
     return os;
 }

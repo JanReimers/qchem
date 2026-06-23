@@ -14,7 +14,7 @@
 // interface was a spurious third actor: the Fitter *is* the fitted result you query.)
 //
 // Clients COMPOSE a fitter obtained from the Factory and use only this interface; the concrete
-// implementation (FittedFunctionImp and its constrained variants) stays hidden behind the Factory.
+// implementation (FunctionFitterImp and its constrained variants) stays hidden behind the Factory.
 module;
 #include <iosfwd>
 #include <memory>

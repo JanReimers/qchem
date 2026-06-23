@@ -194,8 +194,7 @@ private:
 //  Separate from a potential fit (different coefficients) but meant to SHARE its fit basis, so the
 //  3-centre integrals are computed once.  Needed because eps_c != 3/4 v_c -- the exchange virial
 //  (eps_x = 3/4 v_x) used by FittedVxc::GetEnergy is correct for exchange but wrong for correlation.
-//  (Still inherits FittedFunctionImp to reach FitGet3CenterOverlap -- same coupling as FittedVxc; both
-//  are candidates for the planned FunctionFitter composition refactor.)
+//  Composes a Fitting::FunctionFitter (from the Factory); FitGet3CenterOverlap is queried on it.
 //
 class FittedEpsXc
     : public virtual ChargeDensity::Dynamic_CC

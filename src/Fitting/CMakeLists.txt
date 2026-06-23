@@ -1,10 +1,10 @@
 add_library(qcFitting) 
 target_sources(qcFitting PRIVATE
     Imp/FunctionFitter.C
-    Internal/Imp/ConstrainedFF.C  Internal/Imp/FittedFunction.C  Internal/Imp/IntegralConstrainedFF.C)
+    Internal/Imp/ConstrainedFF.C  Internal/Imp/FunctionFitterImp.C  Internal/Imp/IntegralConstrainedFF.C)
 target_sources(qcFitting PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     FunctionFitter.C
-    Internal/FittedFunctionImp.C
+    Internal/FunctionFitterImp.C
     Types.C
 )
 set_property(TARGET qcFitting PROPERTY CXX_STANDARD 20)

@@ -1,7 +1,7 @@
-// File: FittedFunctionImp.C  Concrete least-squares fitter implementing Fitting::FunctionFitter.
+// File: FunctionFitterImp.C  Concrete least-squares fitter implementing Fitting::FunctionFitter.
 module;
 #include <memory> // for std::shared_ptr
-export module qchem.Fitting.Internal.FittedFunctionImp;
+export module qchem.Fitting.Internal.FunctionFitterImp;
 export import qchem.Fitting.FunctionFitter;  // FunctionFitter<T>, ScalarFFClient, DensityFFClient, ScalarFunction
 import qchem.Fitting.Types;
 import qchem.Blaze;
@@ -13,16 +13,16 @@ import qchem.Blaze;
 export namespace qchem::Fitting
 {
 
-template <class T> class FittedFunctionImp
+template <class T> class FunctionFitterImp
     : public virtual FunctionFitter<T>
 {
 public:
     typedef std::shared_ptr<const Mesh>  mesh_t;
     typedef std::shared_ptr<const fbs_t> bs_t;
 
-    FittedFunctionImp(                                         );
-    FittedFunctionImp(bs_t&, mesh_t&);
-    ~FittedFunctionImp();
+    FunctionFitterImp(                                         );
+    FunctionFitterImp(bs_t&, mesh_t&);
+    ~FunctionFitterImp();
 
     virtual void   DoFit           (const ScalarFFClient& )      ;
     virtual void   DoFit           (const DensityFFClient& )      ;
@@ -42,7 +42,7 @@ protected:
     virtual void   DoFitInternal(const ScalarFFClient&,double constraint=0);
     virtual void   DoFitInternal(const DensityFFClient&,double constraint=0);
     //! Coulomb repulsion energy with another fit (self-repulsion uses *this).
-    double FitGetRepulsion(const FittedFunctionImp*) const;
+    double FitGetRepulsion(const FunctionFitterImp*) const;
 
 public: //Client code needs read access to this data.
     bs_t     itsBasisSet;
@@ -51,9 +51,9 @@ public: //Client code needs read access to this data.
 };
 
 template <class T> class ConstrainedFF
-    : public FittedFunctionImp<T>
+    : public FunctionFitterImp<T>
 {
-    typedef FittedFunctionImp<T> Base;
+    typedef FunctionFitterImp<T> Base;
 public:
     typedef typename Base::mesh_t mesh_t;
     typedef typename Base::bs_t   bs_t;
