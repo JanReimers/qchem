@@ -105,7 +105,7 @@ chmat_t PlaneWave_IBS::MakeSeparablePotential(const Structure* cl, const Separab
 {
     const UnitCell& B=itsRecip.GetCell();
     size_t n=GetNumFunctions();
-    std::vector<double> q(n);                       // |k+G| for each plane wave
+    rvec_t q(n);                                    // |k+G| for each plane wave
     for (size_t i=0; i<n; i++) q[i]=B.GetDistance(itsk+itsG[i]);
 
     chmat_t V=blazem::zeroH<dcmplx>(n);

@@ -8,7 +8,8 @@ module;
 
 module qchem.BasisSet.Lattice_3D.APW_IBS;
 import qchem.Symmetry.Factory;   // BlochFactory
-import qchem.Math;               // Pi, FourPi, Cube + qchem::Math special functions (Bessel, Legendre)
+import qchem.Math;               // Pi, FourPi, Cube
+import qchem.SpecialFunctions;
 import qchem.Blaze;              // zeroH
 import qchem.Vector3D;           // dot product (operator*)
 
@@ -45,20 +46,20 @@ chmat_t APW_IBS::MakeSecular(double E) const
     double q=std::sqrt(2.0*E), qR=q*R;
 
     // Per-l radial log-derivative u_l'(R)/u_l(R) = q j_l'(qR)/j_l(qR).
-    std::vector<double> jq =qchem::Math::SphericalBessel(L,qR);
-    std::vector<double> jqp=qchem::Math::SphericalBesselPrime(L,qR,jq);
-    std::vector<double> logd(L+1,0.0);
+    rvec_t jq =SpecialFunctions::SphericalBessel(L,qR);
+    rvec_t jqp=SpecialFunctions::SphericalBesselPrime(L,qR,jq);
+    rvec_t logd(L+1,0.0);
     for (int l=0; l<=L; l++) logd[l]=q*jqp[l]/jq[l];
 
     // Per-plane-wave Cartesian K=k+G, magnitude, and j_l(|K|R).
     std::vector<rvec3_t> K(n);
-    std::vector<double>  Kmag(n);
-    std::vector<std::vector<double>> jKR(n);
+    rvec_t  Kmag(n);
+    std::vector<rvec_t> jKR(n);
     for (size_t i=0; i<n; i++)
     {
         K[i]=B.ToCartesian(itsk+itsG[i]);
         Kmag[i]=std::sqrt(K[i]*K[i]);
-        jKR[i]=qchem::Math::SphericalBessel(L, Kmag[i]*R);
+        jKR[i]=SpecialFunctions::SphericalBessel(L, Kmag[i]*R);
     }
 
     chmat_t G=blazem::zeroH<dcmplx>(n);
@@ -69,12 +70,12 @@ chmat_t APW_IBS::MakeSecular(double E) const
             // Interstitial overlap O^I = full-cell PW overlap minus the inside-sphere part.
             double OI;
             if (i==j) OI=1.0 - Vs/Omega;
-            else { rvec3_t dG=K[i]-K[j]; double dg=std::sqrt(dG*dG); OI=-(FourPi*R*R/Omega)*qchem::Math::SphericalBessel1(dg*R)/dg; }
+            else { rvec3_t dG=K[i]-K[j]; double dg=std::sqrt(dG*dG); OI=-(FourPi*R*R/Omega)*SpecialFunctions::SphericalBessel1(dg*R)/dg; }
             double gamma=(0.5*KdotK - E)*OI;
             // Sphere/surface term: Sum_l (2l+1) P_l(cos g) j_l(K_i R) j_l(K_j R) u_l'(R)/u_l(R).
             double cosg=(Kmag[i]>1e-12 && Kmag[j]>1e-12) ? KdotK/(Kmag[i]*Kmag[j]) : 1.0;
             cosg=std::max(-1.0,std::min(1.0,cosg));
-            std::vector<double> P=qchem::Math::LegendreP(L,cosg);
+            rvec_t P=SpecialFunctions::LegendreP(L,cosg);
             double sphere=0.0;
             for (int l=0; l<=L; l++) sphere += (2*l+1)*P[l]*jKR[i][l]*jKR[j][l]*logd[l];
             sphere *= 2.0*Pi*R*R/Omega;

@@ -63,9 +63,15 @@ public:
     virtual std::ostream& Write(std::ostream&) const;
 
 private:
-    // Assemble the kinetic <p^2> block, the overlap, and the nuclear <V> block in one radial-quadrature
-    // + matching pass (they share the radial tables and the matching coefficients a_l,b_l).
-    void Assemble(chmat_t& Kp2, chmat_t& O, chmat_t& Vnuc) const;
+    // The kinetic <p^2>, overlap and nuclear <V> blocks all come from one radial-quadrature + matching
+    // pass (they share the radial tables and the matching coefficients a_l,b_l).  Assemble() does that
+    // pass once and caches the three; each MakeXXX() returns its block from the cache.  (The Make*
+    // methods are the framework's build hooks; for double the global integral cache calls each once,
+    // here we cache locally so the three Make* calls don't repeat the work.)
+    void Assemble() const;
+
+    mutable bool    itsCached=false;
+    mutable chmat_t itsKp2, itsO, itsVnuc;
 
     ReciprocalLattice    itsRecip;
     rvec3_t              itsk;
