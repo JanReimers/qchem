@@ -405,6 +405,59 @@ TEST_F(PlaneWaveTests, SeparableNonlocalIsRankOne)
     EXPECT_NEAR(lambda,trace,1e-10);          // the lone eigenvalue carries the whole trace
 }
 
+// An l=1 (p-channel) projector carries the angular weight (2l+1)P_1(cos gamma) = 3 cos gamma, gamma the
+// angle between k+G and k+G'.  Single projector at the origin: V(G,G') = (3D/Omega) cos gamma b_i b_j.
+// The signature of l=1 vs l=0 is the angular dependence: parallel k+G couple x3, PERPENDICULAR k+G do
+// not couple at all, and anti-parallel couple with a sign flip.
+TEST_F(PlaneWaveTests, SeparableNonlocalL1AngularFactor)
+{
+    double a=8.0, sigma=1.0, D=0.7;
+    ivec3_t N(1,1,1);
+    UnitCell cell(a);
+    Lattice_3D lat(cell,N);
+    PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(0,0,0),6.0);
+    Atom H(1,rvec3_t(0,0,0));
+
+    chmat_t V=pw.MakeSeparablePotential(&H,GaussianProjector(sigma,D,/*l=*/1));
+    size_t n=pw.GetNumFunctions();
+    double Omega=a*a*a, b=2*Pi/a;
+    auto idx=[&](ivec3_t m)->size_t{ for(size_t i=0;i<n;i++){ ivec3_t g=pw.GetGIndex(i);
+                             if(g.x==m.x&&g.y==m.y&&g.z==m.z) return i; } return n; };
+    auto bfac=[&](ivec3_t m){ double G2=b*b*(m.x*m.x+m.y*m.y+m.z*m.z);
+                             return std::exp(-0.5*sigma*sigma*G2); };
+
+    size_t ix=idx(ivec3_t(1,0,0)), iy=idx(ivec3_t(0,1,0)), imx=idx(ivec3_t(-1,0,0));
+    ASSERT_LT(ix,n); ASSERT_LT(iy,n); ASSERT_LT(imx,n);
+    double b1=bfac(ivec3_t(1,0,0));
+    EXPECT_NEAR(std::real(dcmplx(V(ix,ix))),  (3*D/Omega)*b1*b1, 1e-12);   // parallel: cos=1  -> x3
+    EXPECT_NEAR(std::real(dcmplx(V(ix,iy))),  0.0,               1e-12);   // perpendicular: cos=0 -> 0
+    EXPECT_NEAR(std::real(dcmplx(V(ix,imx))),-(3*D/Omega)*b1*b1, 1e-12);   // anti-parallel: cos=-1 -> -x3
+}
+
+// One l=1 radial projector spans m = -1,0,+1, so its V_NL has rank 2l+1 = 3 (the l=0 case was rank 1).
+// Off-Gamma so every k+G has a defined direction (no k+G = 0).
+TEST_F(PlaneWaveTests, SeparableNonlocalL1IsRankThree)
+{
+    double a=8.0;
+    ivec3_t N(4,4,4), k(1,0,0);
+    UnitCell cell(a);
+    Lattice_3D lat(cell,N);
+    PlaneWave_IBS pw(lat.Reciprocal(),N,k,6.0);
+    Atom H(1,rvec3_t(0,0,0));
+
+    chmat_t V=pw.MakeSeparablePotential(&H,GaussianProjector(1.0,0.7,/*l=*/1));
+    size_t n=pw.GetNumFunctions();
+    double trace=0.0;
+    for (size_t i=0;i<n;i++) trace += std::real(dcmplx(V(i,i)));
+
+    rvec_t d; mat_t<dcmplx> U;
+    blazem::eigen(V,d,U);
+    int nonzero=0; double sum=0.0;
+    for (size_t i=0;i<d.size();i++) if (std::abs(d[i])>1e-10) { nonzero++; sum+=d[i]; }
+    EXPECT_EQ(nonzero,3);                     // m = -1,0,+1 => rank 2l+1
+    EXPECT_NEAR(sum,trace,1e-10);             // the 3 nonzero eigenvalues carry the whole trace
+}
+
 // Composition: the external block is V = V_loc + V_nonlocal.  A repulsive (D>0) projector that the
 // smooth ground state overlaps must raise E0 relative to the local-only potential.
 TEST_F(PlaneWaveTests, LocalPlusNonlocalRaisesGroundState)

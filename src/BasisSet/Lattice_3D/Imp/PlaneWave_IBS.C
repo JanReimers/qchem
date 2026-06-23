@@ -1,5 +1,6 @@
 // File: BasisSet/Lattice_3D/Imp/PlaneWave_IBS.C  Plane-wave irrep basis set implementation.
 module;
+#include <algorithm>
 #include <complex>
 #include <functional>
 #include <iostream>
@@ -10,6 +11,7 @@ module qchem.BasisSet.Lattice_3D.PlaneWave_IBS;
 import qchem.Symmetry.Factory;   // BlochFactory
 import qchem.Structure;          // Atom (itsZ, itsR) + atom iteration for MakeNuclear
 import qchem.Math;               // Pi, FourPi, sqrt, cos, sin, pow, Cube
+import qchem.SpecialFunctions;   // LegendreP (the (2l+1)P_l angular factor)
 import qchem.BasisSet.Lattice_3D.Internal.GVectors;   // BuildGs
 import qchem.Blaze;
 import qchem.Vector3D;           // dot product (operator*) + vector arithmetic
@@ -90,27 +92,44 @@ chmat_t PlaneWave_IBS::MakeLocalPotential(const Structure* cl, const LocalPotent
     });
 }
 
-// V_NL(G,G') = (1/Omega) Sum_a e^{-i(G-G').tau_a} Sum_p betã_p(|k+G|) D_p betã_p(|k+G'|).
-// (The k-point phases of <k+G|beta> and <beta|k+G'> cancel, leaving the structure-factor phase.)
-// Per atom & projector this is rank-1: |beta> D <beta|.  Hermitian; real for atoms at the origin.
+// V_NL(G,G') = (1/Omega) Sum_a e^{-i(G-G').tau_a} Sum_p (2l_p+1) P_{l_p}(cos gamma) betã_p(|k+G|) D_p
+//              betã_p(|k+G'|),  gamma = angle(k+G, k+G').
+// The angular factor (2l+1)P_l(cos gamma) is the addition-theorem sum Sum_m Y_lm(q^)Y*_lm(q'^) over the
+// projector's m -- the same structure the APW/LAPW sphere terms use; l=0 gives P_0=1 (the s-channel).
+// (The k-point phases of <k+G|beta>, <beta|k+G'> cancel, leaving the structure-factor phase.)
+// Per atom & projector & m this is rank-1: |beta> D <beta|.  Hermitian; real for atoms at the origin.
 chmat_t PlaneWave_IBS::MakeSeparablePotential(const Structure* cl, const SeparablePotential& v) const
 {
     const UnitCell& B=itsRecip.GetCell();
     size_t n=GetNumFunctions();
+    constexpr double kZeroTol=1e-12;
     rvec_t q(n);                                    // |k+G| for each plane wave
-    for (size_t i=0; i<n; i++) q[i]=B.GetDistance(itsk+itsG[i]);
+    std::vector<rvec3_t> kG(n);                     // k+G (Cartesian), for the angle cos gamma
+    for (size_t i=0; i<n; i++) { kG[i]=B.ToCartesian(itsk+itsG[i]); q[i]=B.GetDistance(itsk+itsG[i]); }
+
+    int maxL=0;                                     // highest projector channel present
+    for (Atom* a : *cl)
+        for (size_t p=0; p<v.NumProjectors(a->itsZ); p++)
+            maxL=std::max(maxL, v.AngularMomentum(a->itsZ,p));
 
     chmat_t V=blazem::zeroH<dcmplx>(n);
     for (size_t i=0; i<n; i++)
         for (size_t j=i; j<n; j++)
         {
             rvec3_t dG=B.ToCartesian(rvec3_t(itsG[i]-itsG[j]));
+            double cosg=(q[i]>kZeroTol && q[j]>kZeroTol) ? (kG[i]*kG[j])/(q[i]*q[j]) : 1.0;
+            cosg=std::max(-1.0,std::min(1.0,cosg));
+            rvec_t P=SpecialFunctions::LegendreP(maxL,cosg);
             dcmplx acc(0.0);
             for (Atom* a : *cl)
             {
-                double s=0.0;                       // Sum_p betã_p(q_i) D_p betã_p(q_j)
+                double s=0.0;                       // Sum_p (2l+1)P_l(cos gamma) betã_p(q_i) D_p betã_p(q_j)
                 for (size_t p=0; p<v.NumProjectors(a->itsZ); p++)
-                    s += v.Projector(a->itsZ,p,q[i])*v.Coefficient(a->itsZ,p)*v.Projector(a->itsZ,p,q[j]);
+                {
+                    int l=v.AngularMomentum(a->itsZ,p);
+                    s += (2*l+1)*P[l] * v.Projector(a->itsZ,p,q[i])*v.Coefficient(a->itsZ,p)
+                                       *v.Projector(a->itsZ,p,q[j]);
+                }
                 acc += s*std::exp(dcmplx(0.0,-(dG*a->itsR)));
             }
             V(i,j)=acc/itsVolume;

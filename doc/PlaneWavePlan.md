@@ -131,13 +131,18 @@ while bare Coulomb keeps crawling; `σ→0` reproduces `BareCoulomb` element-by-
 `D_p`. `PlaneWave_IBS::MakeSeparablePotential` assembles the Kleinman–Bylander
 form `V_NL = Σ_a Σ_p |β^a_p⟩ D_p ⟨β^a_p|` = `(1/Ω) Σ_a e^{−iΔG·τ_a} Σ_p
 β̃_p(|k+G|) D_p β̃_p(|k+G'|)`. The external one-body potential is now `V = V_loc +
-V_NL` — both model-parameterized contributions summed into `H(k)`. Demonstrator
-implementation: `GaussianProjector` (one s-channel projector, `β̃=e^{−σ²q²/2}`);
-l>0 needs `Y_lm(q̂)` + spherical-Bessel transforms (the production-PP extension).
-Tests: exact rank-1 matrix element `(D/Ω)β̃ᵢβ̃ⱼ`; a single projector yields exactly
-one nonzero eigenvalue equal to the trace (separability); and a repulsive projector
-added to `V_loc` raises the ground state. The same separable structure underlies
-USPP and PAW.
+V_NL` — both model-parameterized contributions summed into `H(k)`. Each projector
+carries an angular momentum `l` (`SeparablePotential::AngularMomentum`); its rank-1
+radial product is weighted by the addition-theorem factor `(2l+1)P_l(cosγ)`, `γ` the
+angle between `k+G` and `k+G'` — the **same** angular structure the APW/LAPW sphere
+terms use. `l=0` (`P_0=1`) is the s-channel; `l>0` is now supported (a production PP
+additionally obtains `β̃_l(q)` from a spherical-Bessel `j_l` transform of `β_l(r)`).
+Demonstrator: `GaussianProjector(σ, D, l)` (`β̃=e^{−σ²q²/2}`, default `l=0`).
+Tests — l=0: exact rank-1 matrix element `(D/Ω)β̃ᵢβ̃ⱼ`, one nonzero eigenvalue =
+trace, repulsive projector raises `E0`; l=1: exact `(3D/Ω)cosγ·β̃ᵢβ̃ⱼ` (parallel `k+G`
+couple ×3, **perpendicular decouple**, anti-parallel flip sign), and a single `l=1`
+projector has rank `2l+1 = 3` (the `m=−1,0,+1` channels). The same separable structure
+underlies USPP and PAW.
 
 **Rung 3 (PARTIAL, lineage A) — a real published pseudopotential (HGH/GTH).**
 `HGH_LocalPotential` (`LocalPotential.C`) is the analytic Goedecker / Hartwigsen–
@@ -149,11 +154,12 @@ HGH-H parameters (`r_loc=0.2, C1=−4.0663326, C2=0.6778322`). Test
 (Coulomb tail preserved) and is strictly softer at large G (core pseudized), and the
 ground state matches the bare-Coulomb result — because **hydrogen has no core to
 pseudize**, so its NCPP is local-only and ≈ bare (no convergence payoff, no projectors).
-TODO — the payoff (a soft core element converging far faster than all-electron) and the
-nonlocal HGH projectors (`h^l_{ij}` matrices) need: a real core-bearing element's
-parameters, the HGH analytic projector form factors, and — for l>0 (p/d) channels —
-the `(2l+1)P_l(cosγ)` angular factor in `MakeSeparablePotential` (the same angular
-structure APW/LAPW already use). l=0 (s-only) elements work with the current machinery.
+The `l>0` KB
+angular machinery is now in place (rung 2). TODO — the payoff (a soft core element
+converging far faster than all-electron) and the real nonlocal HGH projectors
+(`h^l_{ij}` matrices) need: a real core-bearing element's published parameters and the
+HGH analytic projector form factors `β̃_l(q)`. Then a real element (Si, Na, Al, ...)
+drops straight into `MakeLocalPotential` + `MakeSeparablePotential`.
 
 ## 2c. k-sampling / band structure — the shared k-layer
 
