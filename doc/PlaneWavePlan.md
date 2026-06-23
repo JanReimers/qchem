@@ -55,6 +55,33 @@ Do them in this order — each isolates a different piece:
    multi-atom cells (complex phases) assemble correctly — the earlier `csmat_t`
    symmetric-storage seam is closed.
 
+## 2b. Beyond bare Coulomb — two lineages, and the pseudopotential ladder
+
+Two distinct families improve on a plain plane-wave (PW) calculation. They have
+**different destinations**, and the project aims to demonstrate the shared OOD
+framework spans *both* within the solids sector:
+
+- **Lineage A — smooth-potential / pseudopotential.** The basis stays plane waves;
+  the *potential* is made smooth so the PW basis converges fast.
+  Ladder: local pseudopotential → Kleinman–Bylander separable nonlocal projectors
+  (norm-conserving) → ultrasoft → PAW.
+- **Lineage B — augmented all-electron bases.** Keep the bare Coulomb, enrich the
+  *basis* with atom-centred functions inside muffin-tin spheres: APW → LAPW →
+  FLAPW (and LMTO/NMTO). Heavier; the all-electron "gold standard". A future
+  `APW_IBS` sibling of `PlaneWave_IBS` under `src/BasisSet/Lattice_3D/`.
+
+**Rung 1 (DONE, lineage A) — local potential abstraction.** `LocalPotential`
+(`src/BasisSet/Lattice_3D/LocalPotential.C`) is the open/closed extension point:
+it supplies only a per-species reciprocal form factor `v(Z,|G|²)`, while
+`PlaneWave_IBS::MakeLocalPotential` folds in `1/Ω`, the structure factor, and the
+`G=0` drop. Implementations: `BareCoulomb` (`−4πZ/G²`) and `GaussianSmearedNucleus`
+(`−4πZ·e^{−σ²G²/2}/G²`, the rung-1 local pseudopotential). `MakeNuclear` is now just
+`MakeLocalPotential(cl, BareCoulomb())`. Tests confirm the cusp is tamed: at `a=8,
+σ=0.5` the smeared energy is converged by `E_cut=6` (drift ~1e-4 to `E_cut=12`)
+while bare Coulomb keeps crawling; `σ→0` reproduces `BareCoulomb` element-by-element.
+Next rung: KB separable nonlocal projectors (`⟨G|β_lm⟩ D_l ⟨β_lm|G'⟩`) — the same
+structure underlies USPP and PAW.
+
 ## 3. Scope insight — the 1-electron target needs much less than full SCF
 
 `H = T + V_ext` is a **single diagonalisation** — no self-consistency, no

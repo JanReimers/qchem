@@ -74,26 +74,28 @@ chmat_t PlaneWave_IBS::MakeKinetic() const
 //   <G|V|G'> = V(dG) = -(4 pi / Omega) Sum_a Z_a e^{-i dG.tau_a} / |dG|^2,   dG = G-G' != 0.
 // The dG=0 term (the divergent G=0 Coulomb component) is dropped -- the conventional uniform
 // neutralising background; it contributes only a finite per-cell shift that -> 0 as the cell grows.
-// The result is Hermitian: V(-dG) = conj(V(dG)) since the structure factor conjugates under dG -> -dG.
-// Filling the upper triangle of a HermitianMatrix auto-sets the lower as the conjugate, so off-origin /
-// multi-atom cells (complex phases) are handled correctly.
+// Bare nuclear Coulomb is just the local potential with the BareCoulomb form factor.
 chmat_t PlaneWave_IBS::MakeNuclear(const Structure* cl) const
 {
+    return MakeLocalPotential(cl, BareCoulomb());
+}
+
+// V(dG) = (1/Omega) Sum_a v(Z_a,|dG|^2) e^{-i dG.tau_a}, dG=0 dropped (neutralising background).
+// The result is Hermitian: V(-dG) = conj(V(dG)) since the structure factor conjugates under dG -> -dG
+// (the real form factor v is even).  Filling the upper triangle of a HermitianMatrix auto-sets the
+// lower as the conjugate, so off-origin / multi-atom cells (complex phases) are handled correctly.
+chmat_t PlaneWave_IBS::MakeLocalPotential(const Structure* cl, const LocalPotential& v) const
+{
     const UnitCell& B=itsRecip.GetCell();
-    size_t n=GetNumFunctions();
-    chmat_t V=blazem::zeroH<dcmplx>(n);
-    for (size_t i=0; i<n; i++)
-        for (size_t j=i; j<n; j++)
-        {
-            ivec3_t dm=itsG[i]-itsG[j];
-            if (dm.x==0 && dm.y==0 && dm.z==0) continue; // drop dG=0 (includes the diagonal)
-            rvec3_t dG=B.ToCartesian(rvec3_t(dm));        // dG = B.dm  (Cartesian)
-            double g2=dG*dG;
-            dcmplx sf(0.0);                               // structure factor Sum_a Z_a e^{-i dG.tau_a}
-            for (Atom* a : *cl) sf += dcmplx(a->itsZ)*std::exp(dcmplx(0.0,-(dG*a->itsR)));
-            V(i,j) = -(FourPi/itsVolume)*sf/g2;
-        }
-    return V;
+    return MakePotential([&](const ivec3_t& dm)->dcmplx
+    {
+        if (dm.x==0 && dm.y==0 && dm.z==0) return dcmplx(0.0); // drop dG=0
+        rvec3_t dG=B.ToCartesian(rvec3_t(dm));                  // dG = B.dm (Cartesian)
+        double g2=dG*dG;
+        dcmplx acc(0.0);                                        // (form factor) x (structure factor)
+        for (Atom* a : *cl) acc += v.FormFactor(a->itsZ,g2)*std::exp(dcmplx(0.0,-(dG*a->itsR)));
+        return acc/itsVolume;
+    });
 }
 
 // <G|V|G'> = Vtilde(m(G) - m(G')).  Fill the upper triangle; HermitianMatrix mirrors the conjugate.

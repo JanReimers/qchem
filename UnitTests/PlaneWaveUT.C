@@ -20,6 +20,9 @@ import qchem.Blaze;
 import qchem.Math;           // Pi
 
 using BasisSet::Lattice_3D::PlaneWave_IBS;
+using BasisSet::Lattice_3D::LocalPotential;
+using BasisSet::Lattice_3D::BareCoulomb;
+using BasisSet::Lattice_3D::GaussianSmearedNucleus;
 
 namespace
 {
@@ -107,16 +110,17 @@ std::function<dcmplx(const ivec3_t&)> CosineVtilde(double V0)
     };
 }
 
-// Gamma-point hydrogen ground state: bare Coulomb nucleus (Z=1) at the cell origin, large-a isolation.
-double HydrogenE0(double a, double Ecut, size_t* npw=nullptr)
+// Gamma-point hydrogen ground state for a given local potential: Z=1 nucleus at the cell origin,
+// large-a isolation (flat bands => Gamma only suffices).
+double HydrogenE0(double a, double Ecut, const LocalPotential& v, size_t* npw=nullptr)
 {
-    ivec3_t N(1,1,1);                       // large a => flat bands => Gamma only suffices
+    ivec3_t N(1,1,1);
     UnitCell cell(a);
     Lattice_3D lat(cell,N);
     PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(0,0,0),Ecut);
     if (npw) *npw=pw.GetNumFunctions();
     Atom H(1,rvec3_t(0,0,0));
-    chmat_t V=pw.MakeNuclear(&H);
+    chmat_t V=pw.MakeLocalPotential(&H,v);
     std::vector<double> bands=SolveBands(pw,&V);
     return bands.front();
 }
@@ -250,9 +254,59 @@ TEST_F(PlaneWaveTests, HydrogenPotentialMatrixElement)
 TEST_F(PlaneWaveTests, HydrogenVariationalConvergence)
 {
     double a=8.0;
-    double E_low =HydrogenE0(a,4.0);
-    double E_high=HydrogenE0(a,6.0);
+    double E_low =HydrogenE0(a,4.0,BareCoulomb());
+    double E_high=HydrogenE0(a,6.0,BareCoulomb());
     EXPECT_LT(E_high,E_low+1e-9);            // bigger basis (same H) cannot raise the variational energy
     EXPECT_LT(E_high,-0.05);                 // genuinely bound, attractive potential of the right order
     EXPECT_GT(E_high,-0.5);                  // still well above the exact -0.5 at this (cutoff, cell)
+}
+
+// --- Rung 1: Gaussian-smeared nucleus (local pseudopotential) -- the cusp is removed ---------------
+
+TEST_F(PlaneWaveTests, DISABLED_SmearedCalibration)
+{
+    double a=8.0;
+    for (double Ecut : {4.0,6.0,9.0,12.0})
+    {
+        double Eb=HydrogenE0(a,Ecut,BareCoulomb());
+        double Es=HydrogenE0(a,Ecut,GaussianSmearedNucleus(0.5));
+        printf("Ecut=%4.1f  bare=% .5f  smeared(0.5)=% .5f\n",Ecut,Eb,Es);
+    }
+}
+
+// sigma -> 0 must reproduce the bare Coulomb potential matrix element by element.
+TEST_F(PlaneWaveTests, SmearedZeroRecoversBareCoulomb)
+{
+    double a=8.0;
+    ivec3_t N(1,1,1);
+    UnitCell cell(a);
+    Lattice_3D lat(cell,N);
+    PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(0,0,0),6.0);
+    Atom H(1,rvec3_t(0,0,0));
+
+    chmat_t Vbare    = pw.MakeLocalPotential(&H,BareCoulomb());
+    chmat_t Vtiny    = pw.MakeLocalPotential(&H,GaussianSmearedNucleus(1e-6));
+    size_t n=pw.GetNumFunctions();
+    for (size_t i=0;i<n;i++)
+        for (size_t j=0;j<n;j++)
+            EXPECT_NEAR(std::real(dcmplx(Vtiny(i,j))),std::real(dcmplx(Vbare(i,j))),1e-8);
+}
+
+// The cusp is gone, so the smeared energy converges FAST with Ecut, unlike the bare-Coulomb crawl.
+// Observed (a=8, sigma=0.5): Ecut 4->6 moves smeared by ~8e-4 (and only ~1e-4 more out to 12),
+// while bare moves ~1.3e-2 and keeps crawling.
+TEST_F(PlaneWaveTests, SmearedConvergesFast)
+{
+    double a=8.0;
+    GaussianSmearedNucleus vsm(0.5);
+    double Es_lo=HydrogenE0(a,4.0,vsm);
+    double Es_hi=HydrogenE0(a,6.0,vsm);
+    double Eb_lo=HydrogenE0(a,4.0,BareCoulomb());
+    double Eb_hi=HydrogenE0(a,6.0,BareCoulomb());
+
+    double smearedDrift=std::abs(Es_hi-Es_lo);
+    double bareDrift   =std::abs(Eb_hi-Eb_lo);
+    EXPECT_LT(Es_hi,Es_lo+1e-9);             // still variational
+    EXPECT_LT(smearedDrift,5e-3);            // nearly converged already at modest Ecut
+    EXPECT_LT(smearedDrift,bareDrift);       // and converging much faster than bare Coulomb
 }

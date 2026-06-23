@@ -18,6 +18,7 @@ export module qchem.BasisSet.Lattice_3D.PlaneWave_IBS;
 import qchem.BasisSet.Orbital_1E_IBS;
 import qchem.BasisSet.Internal.IrrepBasisSetImp;   // IrrepBasisSetImp<T>: GetSymmetry/GetSymt/GetIrrep
 export import qchem.ReciprocalLattice;             // ctor takes a ReciprocalLattice (carries the B cell)
+export import qchem.BasisSet.Lattice_3D.LocalPotential; // LocalPotential form-factor abstraction
 import qchem.Structure;
 import qchem.Types;
 
@@ -47,7 +48,13 @@ public:
     // 1E integral building blocks (no 1/2 on Kinetic -- the Hamiltonian applies it).
     virtual chmat_t MakeOverlap () const;                  //!< Identity (PWs orthonormal over the cell).
     virtual chmat_t MakeKinetic () const;                  //!< Diagonal \f$|k+G|^2 = \langle p^2\rangle\f$.
-    virtual chmat_t MakeNuclear (const Structure*) const;  //!< Bare-Coulomb structure factor (Hermitian).
+    virtual chmat_t MakeNuclear (const Structure*) const;  //!< Bare-Coulomb structure factor (= MakeLocalPotential with BareCoulomb).
+
+    //! \brief Assemble any local external potential: \f$ \langle G|V|G'\rangle = \frac1\Omega \sum_a
+    //! v(Z_a,|\Delta G|^2)\, e^{-i\Delta G\cdot\tau_a} \f$, \f$\Delta G=G-G'\ne 0\f$ (the \f$\Delta G=0\f$
+    //! term is dropped -- uniform neutralising background).  The species form factor \a v selects the
+    //! potential model (bare Coulomb, Gaussian-smeared nucleus, pseudopotential, ...).  Hermitian.
+    chmat_t MakeLocalPotential(const Structure* cl, const LocalPotential& v) const;
 
     //! \brief Assemble \f$ \langle G|V|G'\rangle = \tilde V(G-G') \f$ from a caller-supplied G-space
     //! potential, keyed by the reciprocal-index difference \f$\Delta m = m(G)-m(G')\f$.
