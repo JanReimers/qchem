@@ -36,22 +36,31 @@ public:
     virtual rvec3_t  Gradient  (const rvec3_t&) const;
 
     virtual std::ostream& Write(std::ostream&) const;
-protected:
-    virtual void   DoFitInternal(const ScalarFFClient&,double constraint=0);
-    virtual void   DoFitInternal(const DensityFFClient&,double constraint=0);
 
+    // Fit-derived quantities.  PUBLIC so client code can COMPOSE a fitter (hold one and call these)
+    // rather than INHERIT FittedFunctionImp -- see FunctionFitter alias below.
     virtual vec_t<T>    FitGet2CenterOverlap  (const fbs_t*) const;
     virtual vec_t<T>    FitGet2CenterRepulsion(const fbs_t*) const;
     virtual smat_t<T>   FitGet3CenterOverlap  (const obs_t<T>*) const;
     virtual double FitGetCharge   (                    ) const;
     virtual double FitGetRepulsion(const FittedFunctionImp*) const;
     virtual double FitGetOverlap  (const FittedFunctionImp*) const;
+protected:
+    virtual void   DoFitInternal(const ScalarFFClient&,double constraint=0);
+    virtual void   DoFitInternal(const DensityFFClient&,double constraint=0);
 
 public: //Client code needs read access to this data.
     bs_t     itsBasisSet;
     vec_t<T> itsFitCoeff;
     mesh_t   itsMesh;
 };
+
+//! \brief A least-squares function fitter that client code COMPOSES (holds and delegates to) rather than
+//! inheriting.  Currently an alias for the unconstrained FittedFunctionImp; the constraint variants
+//! (ConstrainedFF/IntegralConstrainedFF) are dormant -- their constraint is computed but never applied
+//! (Imp/ConstrainedFF.C).  Step 2 reintroduces a real charge constraint per Dunlap, Connolly & Sabin,
+//! J. Chem. Phys. 71, 3396 (1979).
+template <class T> using FunctionFitter = FittedFunctionImp<T>;
 
 template <class T> class ConstrainedFF
     : public FittedFunctionImp<T>

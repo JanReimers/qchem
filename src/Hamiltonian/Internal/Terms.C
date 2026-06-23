@@ -197,17 +197,17 @@ private:
 //  are candidates for the planned FunctionFitter composition refactor.)
 //
 class FittedEpsXc
-    : public         Fitting::FittedFunctionImp<double>
-    , public virtual ChargeDensity::Dynamic_CC
+    : public virtual ChargeDensity::Dynamic_CC
 {
 public:
-    typedef Fitting::FittedFunctionImp<double>::mesh_t mesh_t;
-    typedef Fitting::FittedFunctionImp<double>::bs_t   bs_t;
+    typedef Fitting::FunctionFitter<double>::mesh_t mesh_t;
+    typedef Fitting::FunctionFitter<double>::bs_t   bs_t;
 
     FittedEpsXc(bs_t& fitBasisSet, mesh_t&, const ExFunctional* ex);
     //! Re-fits eps_xc for this density and returns its matrix Sum_a c_a <Oi|f_a|Oj> for contraction.
     virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&,const DM_CD* cd) const;
 private:
+    std::unique_ptr<Fitting::FunctionFitter<double>> itsFitter;  //!< COMPOSED fitter (not inherited)
     const ExFunctional* itsEx;   //!< non-owning; the XC functional supplying eps_xc (owned by the term)
     mutable rsmat_t     itsMat;
 };

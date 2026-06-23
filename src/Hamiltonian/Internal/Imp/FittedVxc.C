@@ -33,17 +33,17 @@ private:
 } // namespace
 
 FittedEpsXc::FittedEpsXc(bs_t& bs, mesh_t& m, const ExFunctional* ex)
-    : FittedFunctionImp<double>(bs,m)
+    : itsFitter(std::make_unique<Fitting::FunctionFitter<double>>(bs,m))   // COMPOSE, don't inherit
     , itsEx(ex)
 {}
 
 const rsmat_t& FittedEpsXc::GetMatrix(const obs_t* bs,const Spin&,const DM_CD* cd) const
 {
     EpsXcDensity epsxc(itsEx,cd);
-    const_cast<FittedEpsXc*>(this)->DoFit(epsxc);        // fit eps_xc(rho) for this density
+    itsFitter->DoFit(epsxc);                             // fit eps_xc(rho) for this density
     auto dftbs=dynamic_cast<const odftbs_t*>(bs);
     assert(dftbs);
-    itsMat=FitGet3CenterOverlap(dftbs);                  // Sum_a c_a <Oi|f_a|Oj>
+    itsMat=itsFitter->FitGet3CenterOverlap(dftbs);       // Sum_a c_a <Oi|f_a|Oj>
     return itsMat;
 }
 
