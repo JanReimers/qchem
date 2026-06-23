@@ -48,8 +48,8 @@ const rsmat_t& FittedEpsXc::GetMatrix(const obs_t* bs,const Spin&,const DM_CD* c
 }
 
 FittedVxc::FittedVxc(bs_t& bs, ex_t& lda,mesh_t& m)
-    : FittedFunctionImp<double>(bs,m) //Use regular overlap for fitting.
-    , itsLDAVxc                (new LDAVxc(lda))
+    : itsFitter(std::make_unique<Fitting::FunctionFitter<double>>(bs,m)) // regular-overlap fit, COMPOSED
+    , itsLDAVxc(new LDAVxc(lda))
 {};
 
 FittedVxc::~FittedVxc()
@@ -59,7 +59,7 @@ FittedVxc::~FittedVxc()
 
 void FittedVxc::UseChargeDensity(const DM_CD* cd)
 {
-   
+
 }
 
 //########################################################################
@@ -81,11 +81,10 @@ rsmat_t FittedVxc::CalcMatrix(const obs_t* bs,const Spin& s,const DM_CD* cd) con
     if (newCD(cd))
     {
         itsLDAVxc->UseChargeDensity(cd);
-        FittedVxc* cfvxc=const_cast<FittedVxc*>(this);
-        cfvxc->DoFit(*itsLDAVxc); //use the callback GetFunctionOverlap
+        itsFitter->DoFit(*itsLDAVxc); //fit v_xc(rho) onto the aux basis (callback GetScalarFunction)
     }
     auto dftbs=dynamic_cast<const odftbs_t*>(bs);
-    return FitGet3CenterOverlap(dftbs);
+    return itsFitter->FitGet3CenterOverlap(dftbs);
 }
 
 void FittedVxc::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
@@ -93,15 +92,14 @@ void FittedVxc::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
     if (newCD(cd))
     {
         itsLDAVxc->UseChargeDensity(cd);
-        FittedVxc* cfvxc=const_cast<FittedVxc*>(this);
-        cfvxc->DoFit(*itsLDAVxc); //use the callback GetFunctionOverlap
+        itsFitter->DoFit(*itsLDAVxc);
     }
-    te.Exc += 3.0/4.0 *cd->DM_Contract(this,cd);
+    te.Exc += 3.0/4.0 *cd->DM_Contract(this,cd);   // exchange virial: eps_x = 3/4 v_x (exact)
 }
 
 std::ostream& FittedVxc::Write(std::ostream& os) const
 {
-    FittedFunctionImp<double>::Write(os);
+    itsFitter->Write(os);
     os << itsLDAVxc;
     return os;
 }

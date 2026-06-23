@@ -220,29 +220,26 @@ private:
 //  use FittedVcorr below.
 //
 class FittedVxc
-    : public virtual Fitting::FittedFunction
-    , public virtual Dynamic_HT
+    : public virtual Dynamic_HT
     , private        Dynamic_HT_Imp
-    , public         Fitting::FittedFunctionImp<double>
 {
 public:
-    typedef Fitting::FittedFunctionImp<double>::mesh_t mesh_t;
-    typedef Fitting::FittedFunctionImp<double>::bs_t   bs_t;
+    typedef Fitting::FunctionFitter<double>::mesh_t mesh_t;
+    typedef Fitting::FunctionFitter<double>::bs_t   bs_t;
     typedef std::shared_ptr<ExFunctional>     ex_t;
 
     FittedVxc(bs_t& VxcFitBasisSet, ex_t&, mesh_t&);
     ~FittedVxc();
     virtual void GetEnergy       (EnergyBreakdown&,const DM_CD* cd              ) const;
-    // Required by FittablePotential.
     virtual void UseChargeDensity(const DM_CD* exact);
 
     virtual std::ostream&   Write(std::ostream&) const;
 
-
 private:
     virtual rsmat_t CalcMatrix(const obs_t*,const Spin&,const DM_CD* cd) const;
 
-    FittablePotential* itsLDAVxc; //Something to fit to.
+    std::unique_ptr<Fitting::FunctionFitter<double>> itsFitter; //!< COMPOSED v_xc fit (was inherited)
+    FittablePotential* itsLDAVxc;                               //!< the v_xc=Vxc(rho) function to fit
 };
 
 //###############################################################################
