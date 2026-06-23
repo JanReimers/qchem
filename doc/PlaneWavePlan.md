@@ -155,11 +155,22 @@ HGH-H parameters (`r_loc=0.2, C1=−4.0663326, C2=0.6778322`). Test
 ground state matches the bare-Coulomb result — because **hydrogen has no core to
 pseudize**, so its NCPP is local-only and ≈ bare (no convergence payoff, no projectors).
 The `l>0` KB
-angular machinery is now in place (rung 2). TODO — the payoff (a soft core element
-converging far faster than all-electron) and the real nonlocal HGH projectors
-(`h^l_{ij}` matrices) need: a real core-bearing element's published parameters and the
-HGH analytic projector form factors `β̃_l(q)`. Then a real element (Si, Na, Al, ...)
-drops straight into `MakeLocalPotential` + `MakeSeparablePotential`.
+angular machinery is in place (rung 2). **Silicon (GTH-LDA q4) is now implemented**:
+`HGH_LocalPotential::Silicon()` (Zion=4) + `HGH_SeparablePotential::Silicon()`. The
+nonlocal class carries the analytic HGH momentum-space projectors `β̃_i^l(q) =
+(1/4π)·π^{5/4}q^l√(r_l^{2l+3})Q_i^l(qr_l)e^{−(qr_l)²/2}` (the `1/4π` makes them the bare
+spherical-Bessel transforms — cross-checked by hand against `∫β_1^0(r)j_0(qr)r²dr`), and
+diagonalises each coupled `h^l` matrix into independent scalar KB projectors
+(`h^l=Σλ_α v_α v_α^T` → `D_α=λ_α`, `β_α=(1/√4π)Σ_i v_{α,i}β̃_i^l`), so the generic
+`(2l+1)P_l` assembler is reused unchanged. Tests: the s-channel 2×2 diagonalisation
+recovers its eigenvalues as KB coefficients, the p projector vanishes at `q=0` (`β~q^l`),
+and the full `V=V_loc+V_NL` assembles into a Hermitian, real-spectrum `H(k)`.
+**Important — quantitative Si bands need DFT:** the HGH *ionic* potential alone (no
+Hartree/XC) is not the self-consistent crystal potential, so non-self-consistent bands
+are not Si's. This rung delivers the ionic-potential machinery; the DFT self-consistency
+(Hartree + XC) turns it into a real Si band structure + the indirect Γ→X gap. TODO next:
+the **diamond crystal** (FCC primitive cell via `UnitCell(Matrix3D)`, 2-atom basis at
+`±(1/8,1/8,1/8)a`) and the FCC band path, then DFT.
 
 ## 2c. k-sampling / band structure — the shared k-layer
 

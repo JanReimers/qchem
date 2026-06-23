@@ -72,6 +72,8 @@ public:
 
     //! Hydrogen, HGH (LDA): no nonlocal projectors (H has no core), so this local part is the whole PP.
     static HGH_LocalPotential Hydrogen() {return HGH_LocalPotential(1.0, 0.2, -4.0663326, 0.6778322);}
+    //! Silicon, GTH-LDA q4 (CP2K database): Zion=4 valence; local C1 only. Pair with HGH_SeparablePotential::Silicon().
+    static HGH_LocalPotential Silicon()  {return HGH_LocalPotential(4.0, 0.44, -7.33610297, 0.0);}
 
     virtual double FormFactor(int /*Z*/, double G2) const     // Z ignored: itsZion is the species
     {

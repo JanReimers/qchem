@@ -26,6 +26,7 @@ using BasisSet::Lattice_3D::GaussianSmearedNucleus;
 using BasisSet::Lattice_3D::HGH_LocalPotential;
 using BasisSet::Lattice_3D::SeparablePotential;
 using BasisSet::Lattice_3D::GaussianProjector;
+using BasisSet::Lattice_3D::HGH_SeparablePotential;
 
 namespace
 {
@@ -476,4 +477,65 @@ TEST_F(PlaneWaveTests, LocalPlusNonlocalRaisesGroundState)
     std::vector<double> locOnly=SolveBands(pw,&Vloc);
     std::vector<double> combined=SolveBands(pw,&Vtot);
     EXPECT_GT(combined.front(),locOnly.front());   // repulsive nonlocal pushes the ground state up
+}
+
+// --- A real material: HGH silicon (GTH-LDA q4), local + nonlocal s,p projectors ---------------------
+
+// The HGH-Si nonlocal part has a 2x2 s-channel and a 1x1 p-channel.  Diagonalising the s h-matrix must
+// recover its eigenvalues as the KB coefficients; the p projector (l=1) vanishes at q=0 (beta ~ q^l),
+// while the s projectors (l=0) do not.
+TEST_F(PlaneWaveTests, HGHSiliconNonlocalChannels)
+{
+    HGH_SeparablePotential si=HGH_SeparablePotential::Silicon();
+    ASSERT_EQ(si.NumProjectors(14), 3u);
+
+    std::vector<int>    ls;
+    std::vector<double> D;
+    for (size_t p=0;p<3;p++){ ls.push_back(si.AngularMomentum(14,p)); D.push_back(si.Coefficient(14,p)); }
+    EXPECT_EQ(std::count(ls.begin(),ls.end(),0), 2);     // two s projectors
+    EXPECT_EQ(std::count(ls.begin(),ls.end(),1), 1);     // one p projector
+
+    std::sort(D.begin(),D.end());
+    EXPECT_NEAR(D[0], 2.72701346, 1e-6);                 // p (h11)
+    EXPECT_NEAR(D[1], 2.753267,   1e-5);                 // s, smaller eigenvalue of the 2x2 h-matrix
+    EXPECT_NEAR(D[2], 6.411857,   1e-5);                 // s, larger eigenvalue
+
+    for (size_t p=0;p<3;p++)                             // angular character at q=0
+    {
+        double b0=si.Projector(14,p,0.0);
+        if (si.AngularMomentum(14,p)==1) EXPECT_NEAR(b0,0.0,1e-12);   // p ~ q -> 0
+        else                             EXPECT_GT(std::abs(b0),0.0); // s finite
+    }
+}
+
+// The full real HGH-Si one-body potential V = V_loc + V_nonlocal assembles into a well-formed (Hermitian,
+// real-spectrum) H(k) for a Si pseudo-atom.  Quantitative Si bands need the DFT Hartree+XC self-consistency;
+// this pins the ionic-potential machinery that the DFT step builds on.
+TEST_F(PlaneWaveTests, HGHSiliconHamiltonianWellFormed)
+{
+    double a=10.0;
+    ivec3_t N(1,1,1);
+    UnitCell cell(a);
+    Lattice_3D lat(cell,N);
+    PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(0,0,0),5.0);
+    Atom Si(14,rvec3_t(0,0,0));
+
+    chmat_t Vloc=pw.MakeLocalPotential(&Si,HGH_LocalPotential::Silicon());
+    chmat_t Vnl =pw.MakeSeparablePotential(&Si,HGH_SeparablePotential::Silicon());
+    size_t n=pw.GetNumFunctions();
+
+    double vnlmax=0.0;                                   // nonlocal is non-trivial and Hermitian
+    for (size_t i=0;i<n;i++)
+        for (size_t j=0;j<n;j++)
+        {
+            vnlmax=std::max(vnlmax,std::abs(dcmplx(Vnl(i,j))));
+            EXPECT_NEAR(std::real(dcmplx(Vnl(i,j))), std::real(dcmplx(Vnl(j,i))), 1e-12);
+            EXPECT_NEAR(std::imag(dcmplx(Vnl(i,j))),-std::imag(dcmplx(Vnl(j,i))), 1e-12);
+        }
+    EXPECT_GT(vnlmax,0.0);
+
+    chmat_t Vtot=Vloc+Vnl;
+    std::vector<double> e=SolveBands(pw,&Vtot);          // generalized eigensolve succeeds, real spectrum
+    ASSERT_EQ(e.size(),n);
+    for (double ei : e) EXPECT_TRUE(std::isfinite(ei));
 }

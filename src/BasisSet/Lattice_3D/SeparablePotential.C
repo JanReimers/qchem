@@ -16,10 +16,13 @@
 // spherically-symmetric s-channel.  The radial form factor beta-tilde_l(|q|) is a model input here (the
 // production norm-conserving / PAW route obtains it from a spherical-Bessel transform j_l of beta_l(r)).
 module;
+#include <cassert>
 #include <cmath>
+#include <utility>
+#include <vector>
 
 export module qchem.BasisSet.Lattice_3D.SeparablePotential;
-import qchem.Math;
+import qchem.Math;   // Pi, FourPi
 
 export namespace BasisSet::Lattice_3D
 {
@@ -57,6 +60,90 @@ private:
     double itsSigma; //!< Projector width (Bohr).
     double itsD;     //!< KB coefficient (energy).
     int    itsL;     //!< Angular-momentum channel.
+};
+
+//! \brief A real norm-conserving pseudopotential's nonlocal part in the analytic Goedecker / Hartwigsen-
+//! Goedecker-Hutter (HGH) form.  Each angular channel \a l supplies a projector radius \f$r_l\f$ and a
+//! symmetric coupling matrix \f$h^l_{ij}\f$ (1-3 projectors).  The reciprocal radial projectors are the
+//! closed-form HGH momentum-space functions \f$\tilde\beta_i^l(q)=\frac{1}{4\pi}\,
+//! \pi^{5/4} q^l \sqrt{r_l^{2l+3}}\,Q_i^l(qr_l)\,e^{-(qr_l)^2/2}\f$ (the \f$4\pi\f$ makes them the bare
+//! spherical-Bessel transforms \f$\int\beta_i^l(r)j_l(qr)r^2dr\f$, cross-checked analytically).
+//!
+//! The coupled \f$h^l\f$ is diagonalised once into independent Kleinman-Bylander projectors: with
+//! \f$h^l=\sum_\alpha\lambda_\alpha v_\alpha v_\alpha^T\f$, projector \f$\alpha\f$ has KB coefficient
+//! \f$D_\alpha=\lambda_\alpha\f$ and form factor \f$\tilde\beta_\alpha(q)=\frac{1}{\sqrt{4\pi}}
+//! \sum_i v_{\alpha,i}\,\pi^{5/4} q^l\sqrt{r_l^{2l+3}}Q_i^l e^{-(qr_l)^2/2}\f$, so the generic
+//! (2l+1)P_l(cosγ) assembler in PlaneWave_IBS reproduces \f$\frac1\Omega(2l+1)P_l\sum_{ij}\tilde\beta_i
+//! h_{ij}\tilde\beta_j\f$ exactly.
+class HGH_SeparablePotential : public SeparablePotential
+{
+public:
+    //! Silicon, GTH-LDA q4 (CP2K database): s-channel 2x2, p-channel 1x1.
+    static HGH_SeparablePotential Silicon()
+    {
+        HGH_SeparablePotential v;
+        v.AddChannel(0, 0.42273813, {{5.90692831,-1.26189397},{-1.26189397,3.25819622}});
+        v.AddChannel(1, 0.48427842, {{2.72701346}});
+        return v;
+    }
+
+    virtual size_t NumProjectors  (int)         const {return itsProj.size();}
+    virtual double Coefficient    (int, size_t p) const {return itsProj[p].D;}
+    virtual int    AngularMomentum(int, size_t p) const {return itsProj[p].l;}
+    virtual double Projector      (int, size_t p, double q) const
+    {
+        const Proj& pr=itsProj[p];
+        double s=0.0;                                          // (1/sqrt 4pi) Sum_i v_i projG_i(q)
+        for (size_t i=0;i<pr.v.size();i++) s += pr.v[i]*ProjG(q, pr.l, static_cast<int>(i), pr.rl);
+        return s/std::sqrt(FourPi);
+    }
+
+private:
+    struct Proj { int l; double rl; double D; std::vector<double> v; };  //!< one diagonalised KB projector
+    std::vector<Proj> itsProj;
+
+    //! Diagonalise a channel's symmetric h-matrix into independent KB projectors.
+    void AddChannel(int l, double rl, const std::vector<std::vector<double>>& h)
+    {
+        for (auto& [lambda,v] : SymEig(h)) itsProj.push_back(Proj{l, rl, lambda, std::move(v)});
+    }
+
+    //! Eigenpairs (lambda, normalised eigenvector) of a small symmetric matrix (HGH needs only 1x1, 2x2).
+    static std::vector<std::pair<double,std::vector<double>>> SymEig(const std::vector<std::vector<double>>& h)
+    {
+        size_t n=h.size();
+        if (n==1) return {{h[0][0], std::vector<double>{1.0}}};
+        assert(n==2 && "HGH h-matrix: only 1x1 and 2x2 are tabulated here");
+        double a=h[0][0], b=h[0][1], d=h[1][1];
+        double mid=0.5*(a+d), rad=std::sqrt(0.25*(a-d)*(a-d)+b*b);
+        auto evec=[&](double lam)->std::vector<double>
+        {
+            std::vector<double> v = (std::abs(b)>1e-300) ? std::vector<double>{b, lam-a}
+                                  : (lam>=a ? std::vector<double>{1.0,0.0} : std::vector<double>{0.0,1.0});
+            double nrm=std::sqrt(v[0]*v[0]+v[1]*v[1]); v[0]/=nrm; v[1]/=nrm; return v;
+        };
+        return {{mid+rad, evec(mid+rad)}, {mid-rad, evec(mid-rad)}};
+    }
+
+    //! HGH momentum-space polynomial Q_i^l(x), x=q r_l (Goedecker/HGH; pyscf _qli, 0-indexed i).
+    static double Qli(double x, int l, int i)
+    {
+        using std::sqrt;
+        if (l==0 && i==0) return 4*sqrt(2.0);
+        if (l==0 && i==1) return 8*sqrt(2.0/15)*(3-x*x);
+        if (l==0 && i==2) return (16.0/3)*sqrt(2.0/105)*(15-10*x*x+x*x*x*x);
+        if (l==1 && i==0) return 8*sqrt(1.0/3);
+        if (l==1 && i==1) return 16*sqrt(1.0/105)*(5-x*x);
+        if (l==2 && i==0) return 8*sqrt(2.0/15);
+        assert(false && "HGH Q_i^l: channel not tabulated"); return 0.0;
+    }
+
+    //! Reciprocal HGH projector projG_li(q) = Q_i^l(q r_l) pi^{5/4} q^l sqrt(r_l^{2l+3}) e^{-(q r_l)^2/2}.
+    static double ProjG(double q, int l, int i, double rl)
+    {
+        double x=q*rl, ql=(l==0)?1.0:std::pow(q, static_cast<double>(l));
+        return Qli(x,l,i)*std::pow(Pi,1.25)*ql*std::sqrt(std::pow(rl,2*l+3))*std::exp(-0.5*x*x);
+    }
 };
 
 } //namespace
