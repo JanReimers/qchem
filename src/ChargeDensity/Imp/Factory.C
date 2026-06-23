@@ -18,9 +18,9 @@ DM_CD*    PolarizedCD_Factory(DM_CD* up,DM_CD* dn)
     return new Polarized_CDImp(up,dn);
 }
 
-FittedCD* FittedCD_Factory(bs_t& fbs, mesh_t& m, double totalCharge)
+std::unique_ptr<FittedCD> FittedCD_Factory(bs_t& fbs, mesh_t& m, double totalCharge)
 {
-    return new FittedCDImp<double>(fbs,m,totalCharge);
+    return std::make_unique<FittedCDImp<double>>(fbs,m,totalCharge);
 }
 
 } //namespace

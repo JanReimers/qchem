@@ -177,12 +177,13 @@ public:
     typedef std::shared_ptr<const Mesh>  mesh_t;
     typedef std::shared_ptr<const fbs_t> bs_t;
     FittedVee(bs_t& chargeDensityFitBasisSet, mesh_t& m, double numElectrons);
+    ~FittedVee();   // anchored in the Imp TU (FittedCD complete there) so the unique_ptr can delete it
     virtual void GetEnergy       (EnergyBreakdown&,const DM_CD* cd      ) const;
     virtual std::ostream& Write(std::ostream& os) const {return os;}
 private:
     virtual rsmat_t CalcMatrix(const obs_t*,const Spin&,const DM_CD* cd) const;
 
-    ChargeDensity::FittedCD* itsFittedChargeDensity;
+    std::unique_ptr<ChargeDensity::FittedCD> itsFittedChargeDensity;   //!< owned (was a leaked raw ptr)
 };
 
 //###############################################################################

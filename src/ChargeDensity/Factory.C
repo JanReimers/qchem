@@ -14,6 +14,6 @@ export namespace qchem::ChargeDensity
 
     DM_CD*        IrrepCD_Factory(const mat_t<double>& DM,const obs_t* bs, Irrep);
     DM_CD*    PolarizedCD_Factory(DM_CD* up,DM_CD* down);
-    FittedCD*    FittedCD_Factory(bs_t&, mesh_t&, double totalCharge); 
+    std::unique_ptr<FittedCD> FittedCD_Factory(bs_t&, mesh_t&, double totalCharge); //!< caller owns the result
 
 } //namespace

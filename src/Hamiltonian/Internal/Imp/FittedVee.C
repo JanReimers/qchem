@@ -21,6 +21,8 @@ FittedVee::FittedVee(bs_t& chargeDensityFitBasisSet, mesh_t&  m, double numElect
     assert(itsFittedChargeDensity);
 };
 
+FittedVee::~FittedVee() = default;   // FittedCD is complete here, so the unique_ptr deletes it correctly
+
 //########################################################################
 //
 //  This is where we calculate the overlap of the fit basis functions with

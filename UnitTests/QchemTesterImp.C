@@ -29,7 +29,7 @@ QchemTester::~QchemTester()
 {
     delete itsEC;
     delete itsBasisSet;
-    delete itsSCFIterator;
+    delete itsSCFIterator;   // owns and deletes itsHamiltonian (-> its terms -> the DFT fit bases)
 }
 
 void QchemTester::Init(const nlohmann::json& js, bool verbose)
