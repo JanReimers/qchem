@@ -12,7 +12,9 @@ target_sources(qcCommon PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     stream.C
     Types.C
     Blaze.C
+    vector2d.C
     vector3d.C
+    matrix2d.C
     matrix3d.C
     Strings.C
     Math.C

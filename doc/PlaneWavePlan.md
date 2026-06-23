@@ -106,6 +106,11 @@ framework spans *both* within the solids sector:
   Limitation: `l≥1` needs a log radial grid (the centrifugal `l(l+1)/r²` makes uniform-grid
   RK4 stiff near the origin); the `l=0` 1s demonstrator avoids it. `R→a/2` makes the sphere
   fill the cell → near-singular overlap (keep `R<a/2`).
+  The assembly is structured as three acts (constructor-time): **`MuffinTinRadialBlocks`**
+  (solve `u_l`,`u̇_l`; form the 2×2 overlap/kinetic/potential blocks in the `{u,u̇}` basis),
+  **`MatchAugmentation`** (value+slope matching at `R` = a 2×2 solve; Wronskian = `det`),
+  **`CombineBlocks`** (`H = interstitial + Σ_l (2l+1)Pₗ(cosγ)·cᵢ·(blockₗ·cⱼ)`). The 2×2
+  blocks and 2-vector matching coefficients use `Matrix2D`/`Vector2D` (`rmat2d_t`/`rvec2d_t`).
 
 **Rung 1 (DONE, lineage A) — local potential abstraction.** `LocalPotential`
 (`src/BasisSet/Lattice_3D/LocalPotential.C`) is the open/closed extension point:

@@ -63,15 +63,29 @@ public:
     virtual std::ostream& Write(std::ostream&) const;
 
 private:
-    // The kinetic <p^2>, overlap and nuclear <V> blocks all come from one radial-quadrature + matching
-    // pass (they share the radial tables and the matching coefficients a_l,b_l).  Assemble() does that
-    // pass once and caches the three; each MakeXXX() returns its block from the cache.  (The Make*
-    // methods are the framework's build hooks; for double the global integral cache calls each once,
-    // here we cache locally so the three Make* calls don't repeat the work.)
-    void Assemble() const;
+    //! One angular channel l, expressed in the two-function radial basis {u_l, udot_l}.  The three
+    //! operator blocks are 2x2 symmetric matrices in that basis, so a muffin-tin matrix element is the
+    //! quadratic form  c_i . (block . c_j)  in the matching coefficients (see CombineBlocks).
+    struct RadialBlock
+    {
+        rmat2d_t boundary;   //!< [[u, udot],[u', udot']] at r=Rmt; det = Wronskian, and it solves the matching
+        rmat2d_t overlap;    //!< <u_a|u_b>
+        rmat2d_t kinetic;    //!< <p^2> = <-grad^2>   (NO 1/2)
+        rmat2d_t potential;  //!< <u_a|V|u_b>,  V=-Z/r
+    };
+    //! One plane wave k+G, augmented inside the sphere by matching value and slope at r=Rmt.
+    struct AugmentedWave
+    {
+        rvec3_t               K;      //!< k+G (Cartesian)
+        double                Knorm;  //!< |k+G|
+        std::vector<rvec2d_t> c;      //!< matching coefficients (a_l, b_l), one 2-vector per l
+    };
 
-    mutable bool    itsCached=false;
-    mutable chmat_t itsKp2, itsO, itsVnuc;
+    // The constructor runs these three acts once and stores the assembled blocks (below).
+    std::vector<RadialBlock>   MuffinTinRadialBlocks() const;                              // Act 1
+    std::vector<AugmentedWave> MatchAugmentation(const std::vector<RadialBlock>&) const;   // Act 2
+    void                       CombineBlocks(const std::vector<RadialBlock>&,
+                                             const std::vector<AugmentedWave>&);           // Act 3
 
     ReciprocalLattice    itsRecip;
     rvec3_t              itsk;
@@ -81,6 +95,7 @@ private:
     double               itsElin;
     double               itsZ;       //!< Nuclear charge (muffin-tin V=-Z/r); 0 = empty lattice.
     std::vector<ivec3_t> itsG;
+    chmat_t              itsOvlp, itsKp2, itsVnuc;   //!< assembled in the constructor (Act 3)
 };
 
 } //namespace

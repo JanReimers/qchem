@@ -6,6 +6,7 @@ module;
 #include <type_traits>
 export module qchem.Types;
 export import qchem.Vector3D;
+export import qchem.Matrix2D;   // brings in Vector2D too (fixed 2x2 / 2-vector)
 
 export
 {
@@ -17,6 +18,8 @@ using std::size_t; //gcc-15-1 rejects this.
 using dcmplx=std::complex<double>;
 
 template <typename T> using vec3_t = Vector3D<T>;
+template <typename T> using vec2_t = Vector2D<T>;
+template <typename T> using mat2d_t = Matrix2D<T>;
 template <typename T> using  mat_t = blaze::DynamicMatrix<T,blaze::columnMajor>;
 template <typename T> using smat_t = blaze::SymmetricMatrix<mat_t<T>>;
 template <typename T> using hmat_t = std::conditional_t<
@@ -39,6 +42,8 @@ using rhmat_t=hmat_t<double>;
 using rvec3_t=vec3_t<double>;
 using rvec3vec_t=vec3vec_t<double>;
 using ivec3_t = vec3_t<int>;
+using rvec2d_t=vec2_t<double>;     // fixed 2-vector (e.g. LAPW matching coefficients)
+using rmat2d_t=mat2d_t<double>;    // fixed 2x2 matrix (e.g. LAPW {u,udot}-basis blocks)
 
 // Complex (dcmplx) counterparts of the real aliases above, for plane-wave / Bloch work.
 // Hermitian (chmat_t), not symmetric: a complex-symmetric matrix is rarely physical, whereas
