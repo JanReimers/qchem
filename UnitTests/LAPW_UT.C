@@ -21,9 +21,12 @@ using BasisSet::Lattice_3D::LAPW_IBS;
 
 namespace
 {
-std::vector<double> Bands(const LAPW_IBS& b)
+std::vector<double> Bands(const LAPW_IBS& b, const Structure* cl)
 {
-    chmat_t H=b.MakeHamiltonian(), O=b.MakeOverlap();
+    // Honour Orbital_1E_IBS: assemble the Hamiltonian as H = 1/2 Kinetic + Nuclear, exactly as the
+    // Hamiltonian layer does for atoms/molecules/plane waves.
+    chmat_t O=b.MakeOverlap();
+    chmat_t H=0.5*b.MakeKinetic() + b.MakeNuclear(cl);
     LASolver<dcmplx>* las=LASolver<dcmplx>::Factory(qchem::Eigen);
     las->SetBasisOverlap(O);
     auto [U,e]=las->Solve(H);
@@ -59,7 +62,7 @@ TEST_F(LAPWTests, DISABLED_Calibration)
     for (double El : {0.1,0.2,0.4})
     {
         LAPW_IBS b(lat.Reciprocal(),N,k,Ecut,R,lmax,El);
-        std::vector<double> bands=Bands(b);
+        std::vector<double> bands=Bands(b,&cell);
         printf("--- Elin=%.2f  nPW=%zu ---\n",El,b.GetNumFunctions());
         for (int i=0;i<6 && i<(int)bands.size();i++)
             printf("  band[%d]=% .6f  free=% .6f  d=% .2e\n",i,bands[i],fe[i],bands[i]-fe[i]);
@@ -74,7 +77,7 @@ TEST_F(LAPWTests, EmptyLatticeBandsMatchFreeElectron)
     UnitCell cell(a); Lattice_3D lat(cell,N);
     LAPW_IBS b(lat.Reciprocal(),N,k,Ecut,R,lmax,El);
 
-    std::vector<double> bands=Bands(b), fe=FreeEnergies(a,kf,3);
+    std::vector<double> bands=Bands(b,&cell), fe=FreeEnergies(a,kf,3);
     ASSERT_GE(bands.size(),5u);
     for (int i=0;i<5;i++) EXPECT_NEAR(bands[i],fe[i],1e-4);  // linearised, so not exact -- but close
 }
@@ -88,7 +91,7 @@ TEST_F(LAPWTests, LinearizationMostAccurateNearElin)
     UnitCell cell(a); Lattice_3D lat(cell,N);
     std::vector<double> fe=FreeEnergies(a,kf,3);
     LAPW_IBS b(lat.Reciprocal(),N,k,Ecut,R,lmax,fe[1]); // E_l on the 2nd level
-    std::vector<double> bands=Bands(b);
+    std::vector<double> bands=Bands(b,&cell);
 
     double errNear=std::abs(bands[1]-fe[1]);            // at E_l
     double errFar =std::abs(bands[0]-fe[0]);            // below E_l

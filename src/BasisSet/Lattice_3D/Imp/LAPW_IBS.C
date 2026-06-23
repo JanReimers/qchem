@@ -36,7 +36,7 @@ LAPW_IBS::LAPW_IBS(const ReciprocalLattice& recip, const ivec3_t& N, const ivec3
     }
 }
 
-void LAPW_IBS::Assemble(chmat_t& H, chmat_t& O) const
+void LAPW_IBS::Assemble(chmat_t& Kp2, chmat_t& O) const
 {
     const UnitCell& B=itsRecip.GetCell();
     size_t n=GetNumFunctions();
@@ -62,8 +62,8 @@ void LAPW_IBS::Assemble(chmat_t& H, chmat_t& O) const
     // --- radial integrals over [0,R] by composite Simpson (all integrands vanish at r=0) -----------
     const int NQ=400;                       // even
     double h=R/NQ;
-    std::vector<double> Suu(L+1,0.0),Suud(L+1,0.0),Sudud(L+1,0.0);
-    std::vector<double> Tuu(L+1,0.0),Tuud(L+1,0.0),Tudud(L+1,0.0);
+    std::vector<double> Suu(L+1,0.0),Suud(L+1,0.0),Sudud(L+1,0.0);   // overlaps  <u_a|u_b>
+    std::vector<double> Kuu(L+1,0.0),Kuud(L+1,0.0),Kudud(L+1,0.0);   // <p^2> pieces (NO 1/2)
     for (int iq=1; iq<=NQ; iq++)            // iq=0 (r=0) contributes nothing
     {
         double r=iq*h;
@@ -82,9 +82,9 @@ void LAPW_IBS::Assemble(chmat_t& H, chmat_t& O) const
             Suu[l]   += w* u*u*r2;
             Suud[l]  += w* u*ud*r2;
             Sudud[l] += w* ud*ud*r2;
-            Tuu[l]   += w* 0.5*(up*up*r2 + l*(l+1)*u*u);
-            Tuud[l]  += w* 0.5*(up*udp*r2 + l*(l+1)*u*ud);
-            Tudud[l] += w* 0.5*(udp*udp*r2 + l*(l+1)*ud*ud);
+            Kuu[l]   += w*(up*up*r2 + l*(l+1)*u*u);       // <p^2> = int (u'^2 r^2 + l(l+1) u^2) dr
+            Kuud[l]  += w*(up*udp*r2 + l*(l+1)*u*ud);
+            Kudud[l] += w*(udp*udp*r2 + l*(l+1)*ud*ud);
         }
     }
 
@@ -110,9 +110,9 @@ void LAPW_IBS::Assemble(chmat_t& H, chmat_t& O) const
         }
     }
 
-    // --- assemble H and O = interstitial + muffin-tin -----------------------------------------------
-    H=blazem::zeroH<dcmplx>(n);
-    O=blazem::zeroH<dcmplx>(n);
+    // --- assemble <p^2> and O = interstitial + muffin-tin -------------------------------------------
+    Kp2=blazem::zeroH<dcmplx>(n);
+    O  =blazem::zeroH<dcmplx>(n);
     for (size_t i=0; i<n; i++)
         for (size_t j=i; j<n; j++)
         {
@@ -124,23 +124,30 @@ void LAPW_IBS::Assemble(chmat_t& H, chmat_t& O) const
             double cosg=(Kmag[i]>1e-12 && Kmag[j]>1e-12) ? KdotK/(Kmag[i]*Kmag[j]) : 1.0;
             cosg=std::max(-1.0,std::min(1.0,cosg));
             std::vector<double> P=qchem::Math::LegendreP(L,cosg);
-            double sphereO=0.0, sphereH=0.0;
+            double sphereO=0.0, sphereK=0.0;
             for (int l=0; l<=L; l++)
             {
                 double ai=a[i][l], bi=b[i][l], aj=a[j][l], bj=b[j][l];
                 double pref=(2*l+1)*P[l];
                 sphereO += pref*( ai*aj*Suu[l] + (ai*bj+bi*aj)*Suud[l] + bi*bj*Sudud[l] );
-                sphereH += pref*( ai*aj*Tuu[l] + (ai*bj+bi*aj)*Tuud[l] + bi*bj*Tudud[l] );
+                sphereK += pref*( ai*aj*Kuu[l] + (ai*bj+bi*aj)*Kuud[l] + bi*bj*Kudud[l] );
             }
             sphereO *= FourPi/Omega;
-            sphereH *= FourPi/Omega;
-            O(i,j)=dcmplx(OI + sphereO, 0.0);
-            H(i,j)=dcmplx(0.5*KdotK*OI + sphereH, 0.0);
+            sphereK *= FourPi/Omega;
+            O  (i,j)=dcmplx(OI + sphereO, 0.0);
+            Kp2(i,j)=dcmplx(KdotK*OI + sphereK, 0.0);   // <p^2> (NO 1/2; the Hamiltonian applies it)
         }
 }
 
-chmat_t LAPW_IBS::MakeOverlap()     const { chmat_t H,O; Assemble(H,O); return O; }
-chmat_t LAPW_IBS::MakeHamiltonian() const { chmat_t H,O; Assemble(H,O); return H; }
+chmat_t LAPW_IBS::MakeOverlap() const { chmat_t K,O; Assemble(K,O); return O; }
+chmat_t LAPW_IBS::MakeKinetic() const { chmat_t K,O; Assemble(K,O); return K; }
+
+// Empty lattice (V=0 inside the sphere): no potential, so the nuclear block is zero.  The l>0
+// muffin-tin potential (radial Schrodinger solve + <phi|V|phi>) plugs in here next.
+chmat_t LAPW_IBS::MakeNuclear(const Structure*) const
+{
+    return blazem::zeroH<dcmplx>(GetNumFunctions());
+}
 
 cvec_t LAPW_IBS::operator()(const rvec3_t& r) const
 {

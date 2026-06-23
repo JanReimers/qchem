@@ -91,7 +91,13 @@ framework spans *both* within the solids sector:
   radial integrals by Simpson (integrands vanish at r=0). Test: the empty-lattice bands
   reproduce `½|k+G|²`, with the linearization error smallest near `E_l` (≈1e-9 on the
   level at `E_l`, growing to ≈1e-4 far from it). Reuses the `qchem::Math` Bessel/Legendre.
-  Next: a real (l>0) potential where −0.5 becomes an achievable check.
+  **Because `H` and `O` are energy-independent at fixed `E_l`, `LAPW_IBS` derives from
+  `Orbital_1E_IBS<dcmplx>`** — the *same* 1E interface as atoms/molecules/plane waves:
+  `MakeOverlap` / `MakeKinetic` (⟨p²⟩, no ½) / `MakeNuclear` (zero for the empty lattice).
+  The band is then `H = ½·Kinetic + Nuclear` solved as `Hc=εOc`. (The energy-dependence
+  friction was specific to *self-consistent* APW; fixing `E_l` makes the basis functions
+  fixed objects, dissolving it.) Next: a real (l>0) muffin-tin potential — radial
+  Schrödinger solve for `u_l`, `MakeNuclear` = `⟨φ|V|φ⟩` — where −0.5 becomes checkable.
 
 **Rung 1 (DONE, lineage A) — local potential abstraction.** `LocalPotential`
 (`src/BasisSet/Lattice_3D/LocalPotential.C`) is the open/closed extension point:

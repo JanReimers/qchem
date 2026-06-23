@@ -12,17 +12,21 @@
 // asymmetry), O from int phi* phi'.  The eigenvalues reproduce the free-electron ladder 1/2|k+G|^2 up to
 // the LAPW linearization error (smallest near E_l).
 //
-// Like APW_IBS, LAPW_IBS shares the IrrepBasisSet<dcmplx> base with PlaneWave_IBS but is its own class
-// with its own (generalized-eigenproblem) interface -- lineage B is a sequence of such IBS types.
+// Because H and O are energy-independent at fixed E_l, LAPW_IBS honours the SAME Orbital_1E_IBS<dcmplx>
+// interface as atoms / molecules / plane waves: MakeOverlap, MakeKinetic (<p^2>, no 1/2), MakeNuclear.
+// The Hamiltonian is then assembled the usual way, H = 1/2 Kinetic + Nuclear, and solved as the
+// generalized problem H c = e O c.  (The energy-dependent friction was specific to *self-consistent*
+// APW; fixing E_l removes it -- the augmented basis functions become fixed objects.)
 module;
 #include <iosfwd>
 #include <string>
 #include <vector>
 
 export module qchem.BasisSet.Lattice_3D.LAPW_IBS;
-import qchem.BasisSet.IrrepBasisSet;
+import qchem.BasisSet.Orbital_1E_IBS;             // Orbital_1E_IBS<dcmplx>: Overlap/Kinetic/Nuclear
 import qchem.BasisSet.Internal.IrrepBasisSetImp;
 export import qchem.ReciprocalLattice;
+import qchem.Structure;
 import qchem.Types;
 
 export namespace BasisSet::Lattice_3D
@@ -30,7 +34,7 @@ export namespace BasisSet::Lattice_3D
 
 //! \brief Linearized Augmented Plane Wave basis for one k-point (single origin muffin-tin sphere).
 class LAPW_IBS
-    : public virtual BasisSet::IrrepBasisSet<dcmplx>
+    : public virtual BasisSet::Orbital_1E_IBS<dcmplx>
     , public         BasisSet::IrrepBasisSetImp<dcmplx>
 {
 public:
@@ -41,10 +45,11 @@ public:
 
     virtual size_t GetNumFunctions() const {return itsG.size();}
 
-    //! \brief Energy-independent overlap O(k) and Hamiltonian H(k) (empty lattice, V=0).  Both Hermitian
-    //! (real for the single origin sphere).  Solve the generalized problem H c = e O c for the band.
-    chmat_t MakeOverlap()     const;
-    chmat_t MakeHamiltonian() const;
+    // Orbital_1E_IBS building blocks (energy-independent at fixed E_l; Hermitian, real for one origin
+    // sphere).  Assemble H = 1/2 Kinetic + Nuclear and solve the generalized problem H c = e O c.
+    virtual chmat_t MakeOverlap() const;                 //!< <phi_i|phi_j>
+    virtual chmat_t MakeKinetic() const;                 //!< <p^2> = <phi_i|-grad^2|phi_j> (NO 1/2)
+    virtual chmat_t MakeNuclear(const Structure*) const; //!< <phi_i|V|phi_j>; zero for the empty lattice
 
     // VectorFunction: interstitial plane-wave value (in-sphere augmentation not evaluated pointwise).
     virtual cvec_t     operator() (const rvec3_t& r) const;
@@ -55,8 +60,9 @@ public:
     virtual std::ostream& Write(std::ostream&) const;
 
 private:
-    // Assemble both H and O in one radial-quadrature + matching pass (they share a_l,b_l).
-    void Assemble(chmat_t& H, chmat_t& O) const;
+    // Assemble the kinetic <p^2> block and the overlap in one radial-quadrature + matching pass
+    // (they share the matching coefficients a_l,b_l).
+    void Assemble(chmat_t& Kp2, chmat_t& O) const;
 
     ReciprocalLattice    itsRecip;
     rvec3_t              itsk;
