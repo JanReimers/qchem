@@ -67,8 +67,21 @@ framework spans *both* within the solids sector:
   (norm-conserving) → ultrasoft → PAW.
 - **Lineage B — augmented all-electron bases.** Keep the bare Coulomb, enrich the
   *basis* with atom-centred functions inside muffin-tin spheres: APW → LAPW →
-  FLAPW (and LMTO/NMTO). Heavier; the all-electron "gold standard". A future
-  `APW_IBS` sibling of `PlaneWave_IBS` under `src/BasisSet/Lattice_3D/`.
+  FLAPW (and LMTO/NMTO). Heavier; the all-electron "gold standard". A *sequence* of
+  IBS types, each its own class (and eventually its own Evaluator) under
+  `src/BasisSet/Lattice_3D/`.
+  **Lineage B, first IBS (DONE) — `APW_IBS`** (`src/BasisSet/Lattice_3D/APW_IBS.C`):
+  plane waves in the interstitial, value-matched to free-particle radial solutions
+  inside a single origin muffin-tin sphere. Fixed-energy demonstrator: the secular
+  matrix `Γ(E)=H(E)−E·O(E)` (`MakeSecular(E)`) is built per energy parameter and is
+  singular exactly at the free-electron energies `½|k+G|²` (empty-lattice limit). The
+  radial integral collapses to a surface log-derivative `u_l'(R)/u_l(R)` (no radial
+  quadrature). Test: `Γ(E)` singular (min|eig|→0, machine-zero by l_max=8) at the
+  free-electron energies, non-singular between them, converging with l_max. `APW_IBS`
+  shares the `IrrepBasisSet<dcmplx>` base with `PlaneWave_IBS` but **not** the
+  energy-independent `Orbital_1E_IBS` (APW's overlap is E-dependent) — confirming each
+  lineage-B IBS carries its own interface needs. Next: LAPW (linearised → a true band
+  solver), then a real (l>0) potential where −0.5 becomes an achievable check.
 
 **Rung 1 (DONE, lineage A) — local potential abstraction.** `LocalPotential`
 (`src/BasisSet/Lattice_3D/LocalPotential.C`) is the open/closed extension point:
