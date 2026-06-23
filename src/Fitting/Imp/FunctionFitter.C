@@ -2,7 +2,7 @@
 module;
 #include <memory>
 module qchem.Fitting.FunctionFitter;
-import qchem.FittedFunctionImp;   // FittedFunctionImp + IntegralConstrainedFF (the concrete fitters)
+import qchem.Fitting.Internal.FittedFunctionImp;   // FittedFunctionImp + IntegralConstrainedFF (the concrete fitters)
 
 namespace qchem::Fitting
 {

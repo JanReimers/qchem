@@ -1,7 +1,7 @@
 // File: FittedFunctionImp.C  Concrete least-squares fitter implementing Fitting::FunctionFitter.
 module;
 #include <memory> // for std::shared_ptr
-export module qchem.FittedFunctionImp;
+export module qchem.Fitting.Internal.FittedFunctionImp;
 export import qchem.Fitting.FunctionFitter;  // FunctionFitter<T>, ScalarFFClient, DensityFFClient, ScalarFunction
 import qchem.Fitting.Types;
 import qchem.Blaze;

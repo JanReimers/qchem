@@ -1,6 +1,6 @@
 // File: IntegralConstrainedFF.C  Integral constrained fit.
 module;
-module qchem.FittedFunctionImp;
+module qchem.Fitting.Internal.FittedFunctionImp;
 import qchem.Fitting.Types;
 
 namespace qchem::Fitting

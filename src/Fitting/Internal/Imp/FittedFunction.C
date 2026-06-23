@@ -3,7 +3,7 @@ module;
 #include <iostream>
 #include <cassert>
 #include <vector>
-module qchem.FittedFunctionImp;
+module qchem.Fitting.Internal.FittedFunctionImp;
 import qchem.Fitting.Types;
 
 import qchem.Mesh;
