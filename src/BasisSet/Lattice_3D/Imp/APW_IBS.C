@@ -9,9 +9,16 @@ module;
 module qchem.BasisSet.Lattice_3D.APW_IBS;
 import qchem.Symmetry.Factory;   // BlochFactory
 import qchem.Math;               // Pi, FourPi, Cube
-import qchem.SpecialFunctions;
+import qchem.SpecialFunctions;   // SphericalBessel, SphericalBessel1, SphericalBesselPrime, LegendreP
 import qchem.Blaze;              // zeroH
-import qchem.Vector3D;           // dot product (operator*)
+import qchem.Vector3D;           // dot product (operator*), norm
+
+namespace
+{
+// |k+G| below this is treated as zero (the Gamma-point G=0 wave): its augmentation direction is
+// irrelevant (only l=0 survives, since j_l(0)=delta_l0).
+constexpr double kZeroTol = 1e-12;   // TODO: Make External
+}
 
 namespace BasisSet::Lattice_3D
 {
@@ -36,30 +43,33 @@ APW_IBS::APW_IBS(const ReciprocalLattice& recip, const ivec3_t& N, const ivec3_t
     }
 }
 
+// APW has a SINGLE radial function u_l per channel (not LAPW's {u_l, udot_l} pair), so the secular
+// matrix is energy-dependent -- it must be rebuilt per trial energy E (hence MakeSecular(E), not the
+// constructor-time blocks of LAPW), and the sphere coupling is a scalar per l (no 2x2 quadratic form).
 chmat_t APW_IBS::MakeSecular(double E) const
 {
     const UnitCell& B=itsRecip.GetCell();
     size_t n=GetNumFunctions();
-    int    L=static_cast<int>(itsLmax);
-    double R=itsRmt, Omega=itsVolume;
-    double Vs=FourPi*R*R*R/3.0;
-    double q=std::sqrt(2.0*E), qR=q*R;
+    int    lmax=static_cast<int>(itsLmax);
+    double Rmt=itsRmt, Ω=itsVolume;
+    double Vsphere=FourPi*Rmt*Rmt*Rmt/3.0;
+    double q=std::sqrt(2.0*E), qR=q*Rmt;
 
     // Per-l radial log-derivative u_l'(R)/u_l(R) = q j_l'(qR)/j_l(qR).
-    rvec_t jq =SpecialFunctions::SphericalBessel(L,qR);
-    rvec_t jqp=SpecialFunctions::SphericalBesselPrime(L,qR,jq);
-    rvec_t logd(L+1,0.0);
-    for (int l=0; l<=L; l++) logd[l]=q*jqp[l]/jq[l];
+    rvec_t jq =SpecialFunctions::SphericalBessel(lmax,qR);
+    rvec_t jqp=SpecialFunctions::SphericalBesselPrime(lmax,qR,jq);
+    rvec_t logd(lmax+1,0.0);
+    for (int l=0; l<=lmax; l++) logd[l]=q*jqp[l]/jq[l];
 
     // Per-plane-wave Cartesian K=k+G, magnitude, and j_l(|K|R).
     std::vector<rvec3_t> K(n);
-    rvec_t  Kmag(n);
+    rvec_t  Knorm(n);
     std::vector<rvec_t> jKR(n);
     for (size_t i=0; i<n; i++)
     {
         K[i]=B.ToCartesian(itsk+itsG[i]);
-        Kmag[i]=std::sqrt(K[i]*K[i]);
-        jKR[i]=SpecialFunctions::SphericalBessel(L, Kmag[i]*R);
+        Knorm[i]=norm(K[i]);
+        jKR[i]=SpecialFunctions::SphericalBessel(lmax, Knorm[i]*Rmt);
     }
 
     chmat_t G=blazem::zeroH<dcmplx>(n);
@@ -68,18 +78,19 @@ chmat_t APW_IBS::MakeSecular(double E) const
         {
             double KdotK=K[i]*K[j];
             // Interstitial overlap O^I = full-cell PW overlap minus the inside-sphere part.
-            double OI;
-            if (i==j) OI=1.0 - Vs/Omega;
-            else { rvec3_t dG=K[i]-K[j]; double dg=std::sqrt(dG*dG); OI=-(FourPi*R*R/Omega)*SpecialFunctions::SphericalBessel1(dg*R)/dg; }
-            double gamma=(0.5*KdotK - E)*OI;
+            double overlapItstl;
+            if (i==j) overlapItstl=1.0 - Vsphere/Ω;
+            else { rvec3_t dG=K[i]-K[j]; double dg=norm(dG);
+                   overlapItstl=-(FourPi*Rmt*Rmt/Ω)*SpecialFunctions::SphericalBessel1(dg*Rmt)/dg; }
+            double interstitial=(0.5*KdotK - E)*overlapItstl;          // (1/2 K.K' - E) * O^I
             // Sphere/surface term: Sum_l (2l+1) P_l(cos g) j_l(K_i R) j_l(K_j R) u_l'(R)/u_l(R).
-            double cosg=(Kmag[i]>1e-12 && Kmag[j]>1e-12) ? KdotK/(Kmag[i]*Kmag[j]) : 1.0;
-            cosg=std::max(-1.0,std::min(1.0,cosg));
-            rvec_t P=SpecialFunctions::LegendreP(L,cosg);
+            double cos_γij=(Knorm[i]>kZeroTol && Knorm[j]>kZeroTol) ? KdotK/(Knorm[i]*Knorm[j]) : 1.0;
+            cos_γij=std::max(-1.0,std::min(1.0,cos_γij));
+            rvec_t P=SpecialFunctions::LegendreP(lmax,cos_γij);
             double sphere=0.0;
-            for (int l=0; l<=L; l++) sphere += (2*l+1)*P[l]*jKR[i][l]*jKR[j][l]*logd[l];
-            sphere *= 2.0*Pi*R*R/Omega;
-            G(i,j)=dcmplx(gamma+sphere, 0.0);   // single sphere at the origin => real
+            for (int l=0; l<=lmax; l++) sphere += (2*l+1)*P[l]*jKR[i][l]*jKR[j][l]*logd[l];
+            sphere *= 2.0*Pi*Rmt*Rmt/Ω;
+            G(i,j)=dcmplx(interstitial+sphere, 0.0);   // single sphere at the origin => real
         }
     return G;
 }
