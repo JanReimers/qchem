@@ -1,4 +1,6 @@
 // File: FittedCDImp.C  Fitted charge density.
+module;
+#include <memory>
 export module qchem.ChargeDensity.Imp.FittedCD;
 import qchem.ChargeDensity.Types;
 import qchem.FittedCD;
@@ -14,28 +16,31 @@ export namespace qchem::ChargeDensity
 //
 template <class T> class FittedCDImp
     : public virtual FittedCD
-    , public         Fitting::IntegralConstrainedFF<T> //Pick up the DoFit method.
 {
-     typedef typename Fitting::IntegralConstrainedFF<T>::mesh_t mesh_t;
-     typedef typename Fitting::IntegralConstrainedFF<T>::bs_t   bs_t;
+     typedef typename Fitting::FunctionFitter<T>::mesh_t mesh_t;
+     typedef typename Fitting::FunctionFitter<T>::bs_t   bs_t;
 public:
     FittedCDImp(bs_t&, mesh_t&, double totalCharge);
+    FittedCDImp(const FittedCDImp&);   //!< deep-copies the fitter (for Clone)
 
+    // FittedCD
     virtual smat_t<T> GetRepulsion    (const odftbs_t*) const;
-    virtual double    GetSelfRepulsion(                      ) const;  //Does GetRepulsion(*this);
-    
-    virtual double  operator()(const rvec3_t&) const; // No UT coverage
-    virtual rvec3_t Gradient  (const rvec3_t&) const; // No UT coverage
+    virtual double    GetSelfRepulsion(               ) const;  //Does GetRepulsion(*this);
+    virtual FittedCD* Clone           (               ) const;
 
-    virtual FittedCD* Clone(        ) const;
+    // FittedFunction -- delegate to the COMPOSED fitter (was inherited from IntegralConstrainedFF).
+    virtual void   DoFit           (const Fitting::ScalarFFClient&  c)      {itsFitter->DoFit(c);}
+    virtual void   DoFit           (const Fitting::DensityFFClient& c)      {itsFitter->DoFit(c);}
+    virtual void   ReScale         (double factor)                         {itsFitter->ReScale(factor);}
+    virtual void   FitMixIn        (const Fitting::FittedFunction& g,double f);
+    virtual double FitGetChangeFrom(const Fitting::FittedFunction& g) const;
+
+    // ScalarFunction
+    virtual double  operator()(const rvec3_t& r) const {return (*itsFitter)(r);}      // No UT coverage
+    virtual rvec3_t Gradient  (const rvec3_t& r) const {return itsFitter->Gradient(r);} // No UT coverage
 
 private:
-    using Fitting::FittedFunctionImp<T>::FitGetCharge;
-    using Fitting::FittedFunctionImp<T>::FitGet2CenterOverlap;
-    using Fitting::FittedFunctionImp<T>::FitGet2CenterRepulsion;
-    using Fitting::FittedFunctionImp<T>::itsFitCoeff;
-    using Fitting::FittedFunctionImp<T>::itsBasisSet;
-    
+    std::unique_ptr<Fitting::FunctionFitter<T>> itsFitter;   //!< COMPOSED fit (was inherited)
 };
 
 } //namespace
