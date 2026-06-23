@@ -18,18 +18,26 @@ import qchem.Types;                     // rvec_t, chmat_t, ivec3_t
 export namespace BasisSet::Lattice_3D
 {
 
-//! Solve the one-electron problem for one k-point: assemble H = 1/2 Kinetic + Nuclear(cl) and the
-//! overlap O, then solve the generalized eigenproblem H c = e O c.  Returns the band energies
-//! (LASolver order, ascending).  Works for any Orbital_1E_IBS<dcmplx> -- the k lives inside \a ibs.
-inline rvec_t SolveBands(const BasisSet::Orbital_1E_IBS<dcmplx>& ibs, const Structure* cl)
+//! Solve the one-electron problem for one k-point with an explicit external-potential block: assemble
+//! H = 1/2 Kinetic + Vext and the overlap O, then solve the generalized eigenproblem H c = e O c.
+//! Returns the band energies (LASolver order, ascending).  Works for any Orbital_1E_IBS<dcmplx> -- the
+//! k lives inside \a ibs.  Vext is whatever external potential the caller chose (a nuclear structure
+//! factor, a model cosine via MakePotential, a pseudopotential, ...).
+inline rvec_t SolveBands(const BasisSet::Orbital_1E_IBS<dcmplx>& ibs, const chmat_t& Vext)
 {
     chmat_t O=ibs.MakeOverlap();
-    chmat_t H=0.5*ibs.MakeKinetic() + ibs.MakeNuclear(cl);
+    chmat_t H=0.5*ibs.MakeKinetic() + Vext;
     LASolver<dcmplx>* las=LASolver<dcmplx>::Factory(qchem::Eigen);
     las->SetBasisOverlap(O);
     auto [U,e]=las->Solve(H);
     delete las;
     return e;
+}
+
+//! Convenience: the external potential is the nuclear attraction of the atoms in \a cl.
+inline rvec_t SolveBands(const BasisSet::Orbital_1E_IBS<dcmplx>& ibs, const Structure* cl)
+{
+    return SolveBands(ibs, ibs.MakeNuclear(cl));
 }
 
 //! High-symmetry k-path as integer k-labels (the crystal momentum is k = kIndex/N).  Walks the corner
