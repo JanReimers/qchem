@@ -135,6 +135,17 @@ one nonzero eigenvalue equal to the trace (separability); and a repulsive projec
 added to `V_loc` raises the ground state. The same separable structure underlies
 USPP and PAW.
 
+## 2c. k-sampling / band structure — the shared k-layer
+
+`src/BasisSet/Lattice_3D/BandStructure.C` (module `qchem.BasisSet.Lattice_3D.BandStructure`) is the
+lineage-agnostic k-layer: `SolveBands(ibs, cl)` assembles `H = ½·Kinetic + Nuclear(cl)`, `O = Overlap`
+for any `Orbital_1E_IBS<dcmplx>` and solves the generalised problem `Hc=εOc` (one routine for PlaneWave
+*and* LAPW), and `KPath(corners, ptsPerSeg)` walks a high-symmetry path as integer k-labels `kIndex/N`.
+Test (`BandStructureUT.C`): the empty-lattice band structure along Γ–X–M–Γ reproduces the exact folded
+free-electron ladder `½|k+G|²` — to 1e-10 for plane waves, and to the single-`E_l` linearization spread
+(~1e-2) for LAPW (real LAPW tightens this with per-`l` `E_l` / local orbitals). This per-k solve is the
+unit the coming self-consistent (DFT) density `ρ(r)=Σ_k w_k Σ_n^occ|ψ_{nk}|²` sums over.
+
 ## 3. Scope insight — the 1-electron target needs much less than full SCF
 
 `H = T + V_ext` is a **single diagonalisation** — no self-consistency, no
