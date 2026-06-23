@@ -6,6 +6,7 @@ link_directories(
 
 add_executable(UTMain gtestmain.C QchemTesterImp.C 
     EigenSolverUT.C
+    LDA_XC_UT.C
     PlaneWaveUT.C
     APW_UT.C
     LAPW_UT.C
