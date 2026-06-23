@@ -2,7 +2,6 @@
 module;
 #include <iostream>
 module qchem.FittedFunctionImp;
-import qchem.FittedFunctionClient;
 import qchem.Fitting.Types;
 import qchem.Blaze;
 

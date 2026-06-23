@@ -4,7 +4,7 @@ module;
 export module qchem.ChargeDensity.Imp.FittedCD;
 import qchem.ChargeDensity.Types;
 import qchem.FittedCD;
-import qchem.FittedFunctionImp;
+import qchem.Fitting.FunctionFitter;   // Fitting::FunctionFitter (composed, via the Factory)
 
 export namespace qchem::ChargeDensity
 {
@@ -23,17 +23,11 @@ public:
     FittedCDImp(bs_t&, mesh_t&, double totalCharge);
     FittedCDImp(const FittedCDImp&) = delete;   //!< copying would slice the fitter's constraint
 
-    // FittedCD
+    // FittedCD  (DoFit delegates to the COMPOSED fitter; the fitter answers the energy queries)
+    virtual void      DoFit           (const Fitting::DensityFFClient& c)      {itsFitter->DoFit(c);}
     virtual smat_t<T> GetRepulsion    (const odftbs_t*) const;
     virtual double    GetSelfRepulsion(               ) const;  //Does GetRepulsion(*this);
     virtual FittedCD* Clone           (               ) const;
-
-    // FittedFunction -- delegate to the COMPOSED fitter (was inherited from IntegralConstrainedFF).
-    virtual void   DoFit           (const Fitting::ScalarFFClient&  c)      {itsFitter->DoFit(c);}
-    virtual void   DoFit           (const Fitting::DensityFFClient& c)      {itsFitter->DoFit(c);}
-    virtual void   ReScale         (double factor)                         {itsFitter->ReScale(factor);}
-    virtual void   FitMixIn        (const Fitting::FittedFunction& g,double f);
-    virtual double FitGetChangeFrom(const Fitting::FittedFunction& g) const;
 
     // ScalarFunction
     virtual double  operator()(const rvec3_t& r) const {return (*itsFitter)(r);}      // No UT coverage

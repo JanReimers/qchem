@@ -1,6 +1,6 @@
 // File: ChargeDensity.C  Interface for a charge density 
 export module qchem.ChargeDensity;
-import qchem.FittedFunctionClient;
+import qchem.Fitting.FunctionFitter;   // Fitting::DensityFFClient
 export import qchem.Symmetry.Spin;
 import qchem.ScalarFunction;
 import qchem.ChargeDensity.Types;

@@ -4,6 +4,7 @@ module;
 export module qchem.Hamiltonian.Internal.LDAVxc;
 import qchem.Hamiltonian.Internal.Term;
 import qchem.Hamiltonian.Internal.ExFunctional;
+import qchem.Fitting.FunctionFitter;   // Fitting::ScalarFFClient (the fit-callback role lives on this impl)
 import qchem.ScalarFunction;
 import qchem.Hamiltonian.Types;
 

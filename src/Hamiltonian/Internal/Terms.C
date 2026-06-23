@@ -5,8 +5,9 @@ module;
 export module qchem.Hamiltonian.Internal.Terms;
 import qchem.Hamiltonian.Internal.Term;
 import qchem.Hamiltonian.Internal.ExFunctional;
+import qchem.Hamiltonian.Internal.LDAVxc;     // LDAVxc (the v_xc fit client held by FittedVxc)
 import qchem.Structure;
-import qchem.FittedFunctionImp;
+import qchem.Fitting.FunctionFitter;          // Fitting::FunctionFitter (composed; clients never see the impl)
 import qchem.ChargeDensity;
 import qchem.FittedCD;
 import qchem.Mesh;
@@ -239,7 +240,7 @@ private:
     virtual rsmat_t CalcMatrix(const obs_t*,const Spin&,const DM_CD* cd) const;
 
     std::unique_ptr<Fitting::FunctionFitter<double>> itsFitter; //!< COMPOSED v_xc fit (was inherited)
-    FittablePotential* itsLDAVxc;                               //!< the v_xc=Vxc(rho) function to fit
+    LDAVxc*            itsLDAVxc;   //!< the v_xc=Vxc(rho) function to fit (concrete: it IS the ScalarFFClient)
 };
 
 //###############################################################################

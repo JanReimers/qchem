@@ -3,7 +3,6 @@ module;
 #include <map>
 export module qchem.Hamiltonian.Internal.Term;
 export import qchem.Hamiltonian;
-export import qchem.FittedFunctionClient;
 import qchem.Hamiltonian.Types;
 
 import qchem.Symmetry.Irrep;
@@ -60,9 +59,10 @@ protected:
     mutable rsmat_t itsMat;
 };
 
+// A density-dependent Hamiltonian potential term.  (No longer a Fitting::ScalarFFClient -- the
+// "I can answer the fitter's questions" role belongs on the concrete LDAVxc, not this term interface.)
 class FittablePotential
     : public virtual Dynamic_HT
-    , public virtual Fitting::ScalarFFClient
 {
 public:
     virtual void UseChargeDensity(const DM_CD*)       =0;

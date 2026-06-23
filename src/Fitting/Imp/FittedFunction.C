@@ -1,10 +1,9 @@
-// File: FittedFunctionImp.C  Common imp for Fitted Functions.
+    // File: FittedFunctionImp.C  Common imp for Fitted Functions.
 module;
 #include <iostream>
 #include <cassert>
 #include <vector>
 module qchem.FittedFunctionImp;
-import qchem.FittedFunction;
 import qchem.Fitting.Types;
 
 import qchem.Mesh;
@@ -71,22 +70,8 @@ template <class T> void FittedFunctionImp<T>::DoFitInternal(const DensityFFClien
 
 //---------------------------------------------------------------------------
 //
-//  Provide Overlap and Repulsion matricies for derived classes.
+//  Fit-derived quantities the clients query (the "what's your overlap/repulsion with this basis?" side).
 //
-template <class T> vec_t<T> FittedFunctionImp<T>::
-FitGet2CenterOverlap(const fbs_t* bs) const
-{
-    // No UT coverage.
-    assert(false);
-    return blazem::trans(itsBasisSet->Overlap(itsMesh.get(),*bs))*itsFitCoeff;
-}
-
-template <class T> vec_t<T> FittedFunctionImp<T>::
-FitGet2CenterRepulsion(const fbs_t* bs) const
-{
-    return blazem::trans(itsBasisSet->Repulsion(*bs))*itsFitCoeff;
-}
-
 template <class T> smat_t<T> FittedFunctionImp<T>::
 FitGet3CenterOverlap(const obs_t<T>* bs) const
 {
@@ -98,18 +83,15 @@ FitGet3CenterOverlap(const obs_t<T>* bs) const
     return J;
 }
 
-//-------------------------------------------------------------------------------------
-//
-//  Get overlap and repulsion with a charge density.  And total charge.
-//  Again only for derived classes.
-//
-template <class T> double FittedFunctionImp<T>::
-FitGetOverlap(const FittedFunctionImp<T>* ffi) const
+template <class T> smat_t<T> FittedFunctionImp<T>::
+FitGet3CenterRepulsion(const obs_t<T>* bs) const
 {
-    return
-        blazem::trans(itsFitCoeff) *
-        itsBasisSet->Overlap(itsMesh.get(),*ffi->itsBasisSet) *
-        ffi->itsFitCoeff;
+    const ERI3<T>& R3=bs->Repulsion3C(*itsBasisSet);
+    smat_t<T> J=blazem::zero<T>(bs->GetNumFunctions());
+    size_t i=0;
+    for (auto c:itsFitCoeff) J+=c*R3[i++];
+    assert(!blazem::isnan(J));
+    return J;
 }
 
 template <class T> double FittedFunctionImp<T>::
@@ -118,6 +100,11 @@ FitGetRepulsion(const FittedFunctionImp<T>* ffi) const
     return
         blazem::trans(itsFitCoeff) * itsBasisSet->Repulsion(*ffi->itsBasisSet.get()) *
         ffi->itsFitCoeff;
+}
+
+template <class T> double FittedFunctionImp<T>::FitGetSelfRepulsion() const
+{
+    return FitGetRepulsion(this);   // <fit|1/r12|fit>
 }
 
 template <class T> double FittedFunctionImp<T>::FitGetCharge() const
@@ -129,7 +116,7 @@ template <class T> double FittedFunctionImp<T>::FitGetCharge() const
 //
 //  Handy utilities for fitted functions.
 //
-template <class T> void FittedFunctionImp<T>::FitMixIn(const FittedFunction& ff,double c)
+template <class T> void FittedFunctionImp<T>::FitMixIn(const FunctionFitter<T>& ff,double c)
 {
     const FittedFunctionImp<T>* ffi = dynamic_cast<const FittedFunctionImp<T>*>(&ff);
     assert(ffi);
@@ -137,7 +124,7 @@ template <class T> void FittedFunctionImp<T>::FitMixIn(const FittedFunction& ff,
     itsFitCoeff = itsFitCoeff*(1-c) + ffi->itsFitCoeff*c;
 }
 
-template <class T> double FittedFunctionImp<T>::FitGetChangeFrom(const FittedFunction& ff) const
+template <class T> double FittedFunctionImp<T>::FitGetChangeFrom(const FunctionFitter<T>& ff) const
 {
     const FittedFunctionImp<T>* ffi = dynamic_cast<const FittedFunctionImp<T>*>(&ff);
     assert(ffi);

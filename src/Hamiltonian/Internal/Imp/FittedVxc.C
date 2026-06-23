@@ -33,7 +33,7 @@ private:
 } // namespace
 
 FittedEpsXc::FittedEpsXc(bs_t& bs, mesh_t& m, const ExFunctional* ex)
-    : itsFitter(std::make_unique<Fitting::FunctionFitter<double>>(bs,m))   // COMPOSE, don't inherit
+    : itsFitter(Fitting::MakeFunctionFitter(Fitting::FitFlavour::Unconstrained,bs,m)) // composed, via Factory
     , itsEx(ex)
 {}
 
@@ -48,7 +48,7 @@ const rsmat_t& FittedEpsXc::GetMatrix(const obs_t* bs,const Spin&,const DM_CD* c
 }
 
 FittedVxc::FittedVxc(bs_t& bs, ex_t& lda,mesh_t& m)
-    : itsFitter(std::make_unique<Fitting::FunctionFitter<double>>(bs,m)) // regular-overlap fit, COMPOSED
+    : itsFitter(Fitting::MakeFunctionFitter(Fitting::FitFlavour::Unconstrained,bs,m)) // potential fit, via Factory
     , itsLDAVxc(new LDAVxc(lda))
 {};
 

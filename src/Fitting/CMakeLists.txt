@@ -1,8 +1,7 @@
 add_library(qcFitting) 
-target_sources(qcFitting PRIVATE Imp/ConstrainedFF.C  Imp/FittedFunction.C  Imp/IntegralConstrainedFF.C)
-target_sources(qcFitting PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
-    FittedFunction.C
-    FittedFunctionClient.C
+target_sources(qcFitting PRIVATE Imp/ConstrainedFF.C  Imp/FittedFunction.C  Imp/IntegralConstrainedFF.C  Imp/FunctionFitter.C)
+target_sources(qcFitting PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
+    FunctionFitter.C
     FittedFunctionImp.C
     Types.C
 )
