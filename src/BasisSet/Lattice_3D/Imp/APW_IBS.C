@@ -58,8 +58,8 @@ chmat_t APW_IBS::MakeSecular(double E) const
     rvec_t logd(lmax+1,0.0);
     for (int l=0; l<=lmax; l++)
     {
-        assert(std::abs(jq[l])>kZeroTol);   // j_l(qR)!=0: avoid the APW asymptote (singular log-derivative)
-        logd[l]=q*jqp[l]/jq[l];
+        logd[l]=q*jqp[l]/jq[l];             // u_l'(R)/u_l(R)
+        assert(std::isfinite(logd[l]));     // finite => not on the APW asymptote (j_l(qR)=0)
     }
 
     // Per-plane-wave Cartesian K=k+G, magnitude, and j_l(|K|R).

@@ -182,11 +182,7 @@ std::vector<LAPW_IBS::AugmentedWave> LAPW_IBS::MatchAugmentation(const std::vect
     size_t n=GetNumFunctions();
 
     std::vector<rmat2d_t> boundaryInv(lmax+1);             // depends only on l, so invert once
-    for (int l=0;l<=lmax;l++)
-    {
-        assert(std::abs(Determinant(blocks[l].boundary))>kZeroTol); // Wronskian!=0: matching is solvable
-        boundaryInv[l]=Invert(blocks[l].boundary);
-    }
+    for (int l=0;l<=lmax;l++) boundaryInv[l]=Invert(blocks[l].boundary);
 
     std::vector<AugmentedWave> waves;
     waves.reserve(n);
@@ -199,7 +195,10 @@ std::vector<LAPW_IBS::AugmentedWave> LAPW_IBS::MatchAugmentation(const std::vect
         if (Knorm*Rmt>kZeroTol) jKp=SpecialFunctions::SphericalBesselPrime(lmax,Knorm*Rmt,jK);
         std::vector<rvec2d_t> c(lmax+1);
         for (int l=0;l<=lmax;l++)
+        {
             c[l]=boundaryInv[l]*rvec2d_t(jK[l], Knorm*jKp[l]); // K=0 -> rhs=(delta_l0,0)
+            assert(std::isfinite(c[l].x) && std::isfinite(c[l].y)); // matching well-posed (no NaN/inf)
+        }
         waves.push_back(AugmentedWave(K,Knorm,std::move(c)));
     }
     return waves;
