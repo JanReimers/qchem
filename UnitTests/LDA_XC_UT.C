@@ -90,3 +90,24 @@ TEST_F(LDA_XC, VWN5CorrelationMatchesLibxc)
         EXPECT_NEAR(VWN::V_c  (rho), vxc, 1e-9) << "rho="<<rho;
     }
 }
+
+// The DFT energy code (FittedVxc::GetEnergy) builds Exc = 3/4 <rho|Vxc>.  The 3/4 is the EXCHANGE
+// virial: for Dirac exchange eps_x = 3/4 v_x EXACTLY, so that formula is exact for pure exchange.  But
+// for correlation eps_c != 3/4 v_c, so the same formula is simply WRONG on the correlation part.  This
+// is a formula confound for any Dirac+VWN energy -- independent of grid/fit -- and is a likely source of
+// the historical exchange "fudge factor" (tuned to make the lumped 3/4<rho|Vxc> match NIST for one Z).
+TEST_F(LDA_XC, ExchangeVirialIsExact_CorrelationVirialIsNot)
+{
+    for (double rho : {0.01, 0.1, 0.5, 1.0, 5.0})
+    {
+        // exchange: eps_x == 3/4 v_x to machine precision
+        EXPECT_NEAR(DiracEps_x(rho), 0.75*DiracV_x(rho), 1e-13) << "rho="<<rho;
+
+        // correlation: eps_c differs materially from 3/4 v_c
+        double ec=VWN::Eps_c(rho), threeQuarterVc=0.75*VWN::V_c(rho);
+        double rel=std::abs(ec-threeQuarterVc)/std::abs(ec);
+        printf("rho=%6.2f  eps_c=% .6f  (3/4)v_c=% .6f  rel.diff=%.1f%%\n",
+               rho, ec, threeQuarterVc, 100*rel);
+        EXPECT_GT(rel, 0.05) << "rho="<<rho;   // correlation virial is off by >5% -- formula does not hold
+    }
+}
