@@ -39,9 +39,12 @@ class LAPW_IBS
 {
 public:
     //! \param Ecut interstitial plane-wave cutoff; \param Rmt muffin-tin radius; \param lmax angular
-    //! cutoff; \param Elin linearization energy E_l (>0) for the radial functions u_l, udot_l.
+    //! cutoff; \param Elin linearization energy E_l for the radial functions u_l, udot_l; \param Z
+    //! nuclear charge of the (single, origin) atom -- muffin-tin potential V=-Z/r inside the sphere,
+    //! V=0 in the interstitial.  Z=0 is the empty lattice (free radial functions, analytic Bessel).
+    //! In an augmented method the potential defines the basis, so Z is fixed at construction.
     LAPW_IBS(const ReciprocalLattice& recip, const ivec3_t& N, const ivec3_t& kIndex,
-             double Ecut, double Rmt, size_t lmax, double Elin);
+             double Ecut, double Rmt, size_t lmax, double Elin, double Z=0.0);
 
     virtual size_t GetNumFunctions() const {return itsG.size();}
 
@@ -49,7 +52,7 @@ public:
     // sphere).  Assemble H = 1/2 Kinetic + Nuclear and solve the generalized problem H c = e O c.
     virtual chmat_t MakeOverlap() const;                 //!< <phi_i|phi_j>
     virtual chmat_t MakeKinetic() const;                 //!< <p^2> = <phi_i|-grad^2|phi_j> (NO 1/2)
-    virtual chmat_t MakeNuclear(const Structure*) const; //!< <phi_i|V|phi_j>; zero for the empty lattice
+    virtual chmat_t MakeNuclear(const Structure*) const; //!< <phi_i|V|phi_j>, V=-Z/r (uses the ctor Z)
 
     // VectorFunction: interstitial plane-wave value (in-sphere augmentation not evaluated pointwise).
     virtual cvec_t     operator() (const rvec3_t& r) const;
@@ -60,9 +63,9 @@ public:
     virtual std::ostream& Write(std::ostream&) const;
 
 private:
-    // Assemble the kinetic <p^2> block and the overlap in one radial-quadrature + matching pass
-    // (they share the matching coefficients a_l,b_l).
-    void Assemble(chmat_t& Kp2, chmat_t& O) const;
+    // Assemble the kinetic <p^2> block, the overlap, and the nuclear <V> block in one radial-quadrature
+    // + matching pass (they share the radial tables and the matching coefficients a_l,b_l).
+    void Assemble(chmat_t& Kp2, chmat_t& O, chmat_t& Vnuc) const;
 
     ReciprocalLattice    itsRecip;
     rvec3_t              itsk;
@@ -70,6 +73,7 @@ private:
     double               itsRmt;
     size_t               itsLmax;
     double               itsElin;
+    double               itsZ;       //!< Nuclear charge (muffin-tin V=-Z/r); 0 = empty lattice.
     std::vector<ivec3_t> itsG;
 };
 

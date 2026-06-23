@@ -96,8 +96,16 @@ framework spans *both* within the solids sector:
   `MakeOverlap` / `MakeKinetic` (⟨p²⟩, no ½) / `MakeNuclear` (zero for the empty lattice).
   The band is then `H = ½·Kinetic + Nuclear` solved as `Hc=εOc`. (The energy-dependence
   friction was specific to *self-consistent* APW; fixing `E_l` makes the basis functions
-  fixed objects, dissolving it.) Next: a real (l>0) muffin-tin potential — radial
-  Schrödinger solve for `u_l`, `MakeNuclear` = `⟨φ|V|φ⟩` — where −0.5 becomes checkable.
+  fixed objects, dissolving it.)
+  **Real muffin-tin potential (DONE, l=0):** `LAPW_IBS` takes a nuclear charge `Z`
+  (V=−Z/r inside the sphere, 0 in the interstitial). For `Z≠0` the radial function `u_l`
+  is the regular solution of −½∇²−Z/r at `E_l` (RK4 outward integration; `u̇_l` by finite
+  difference in `E`), so the augmentation **captures the 1s cusp**, and `MakeNuclear`=`⟨φ|V|φ⟩`.
+  Test: muffin-tin hydrogen (`Z=1`, `E_l=−0.5`, `R=5`, `a=12`) gives a ground state
+  **≈ −0.4997 Ha** — the headline −0.5, recovered where bare plane waves crawl to ≈ −0.16.
+  Limitation: `l≥1` needs a log radial grid (the centrifugal `l(l+1)/r²` makes uniform-grid
+  RK4 stiff near the origin); the `l=0` 1s demonstrator avoids it. `R→a/2` makes the sphere
+  fill the cell → near-singular overlap (keep `R<a/2`).
 
 **Rung 1 (DONE, lineage A) — local potential abstraction.** `LocalPotential`
 (`src/BasisSet/Lattice_3D/LocalPotential.C`) is the open/closed extension point:

@@ -1,4 +1,4 @@
-// File: BasisSet/Lattice_3D/Imp/LAPW_IBS.C  LAPW Hamiltonian/overlap assembly.
+// File: BasisSet/Lattice_3D/Imp/LAPW_IBS.C  LAPW Hamiltonian/overlap/nuclear assembly.
 module;
 #include <complex>
 #include <cmath>
@@ -12,11 +12,92 @@ import qchem.Math;               // Pi, FourPi, Cube + qchem::Math special funct
 import qchem.Blaze;              // zeroH
 import qchem.Vector3D;           // dot product (operator*)
 
+namespace
+{
+// Radial-function table on the grid r[0..NQ] (r[0]=0, r[NQ]=R): the muffin-tin radial function
+// u_l(r)=R_l(r) at the linearization energy, its r-derivative u_l', the energy derivative udot_l, and
+// udot_l' -- plus their boundary values at R.  V(r)=-Z/r inside the sphere (Z=0 => free, analytic).
+struct RadTab { std::vector<double> u,up,ud,udp; double uR,upR,udR,udpR; };
+
+// Regular radial solution u_l=R_l and u_l' on the grid (V=-Z/r, energy E).  Z=0: analytic Bessel
+// j_l(qr).  Z!=0: RK4 integration of P''=f P with P=r R_l, f(r)=l(l+1)/r^2 - 2Z/r - 2E, started from
+// the r^{l+1} series at r[1] (regular at the origin).
+void SolveRadial(int l,double E,double Z,const std::vector<double>& r,double R,
+                 std::vector<double>& u,std::vector<double>& up,double& uR,double& upR)
+{
+    int NQ=static_cast<int>(r.size())-1;
+    u.assign(NQ+1,0.0); up.assign(NQ+1,0.0);
+    if (Z==0.0)
+    {
+        double q=std::sqrt(2.0*E);
+        for (int i=1;i<=NQ;i++){ double x=q*r[i];
+            std::vector<double> j=qchem::Math::SphericalBessel(l,x);
+            std::vector<double> jp=qchem::Math::SphericalBesselPrime(l,x,j);
+            u[i]=j[l]; up[i]=q*jp[l]; }
+        std::vector<double> jR=qchem::Math::SphericalBessel(l,q*R);
+        std::vector<double> jpR=qchem::Math::SphericalBesselPrime(l,q*R,jR);
+        uR=jR[l]; upR=q*jpR[l];
+        return;
+    }
+    auto f=[&](double rr){ return l*(l+1)/(rr*rr) - 2.0*Z/rr - 2.0*E; };
+    double h=R/NQ;
+    double P=std::pow(r[1],l+1), Q=(l+1)*std::pow(r[1],l);   // u ~ r^l series start at r[1]
+    u[1]=P/r[1]; up[1]=Q/r[1]-P/(r[1]*r[1]);
+    for (int i=1;i<NQ;i++)
+    {
+        double rr=r[i];
+        double k1P=Q,           k1Q=f(rr)*P;
+        double k2P=Q+0.5*h*k1Q, k2Q=f(rr+0.5*h)*(P+0.5*h*k1P);
+        double k3P=Q+0.5*h*k2Q, k3Q=f(rr+0.5*h)*(P+0.5*h*k2P);
+        double k4P=Q+h*k3Q,     k4Q=f(rr+h)*(P+h*k3P);
+        P+=h/6.0*(k1P+2*k2P+2*k3P+k4P);
+        Q+=h/6.0*(k1Q+2*k2Q+2*k3Q+k4Q);
+        double rn=r[i+1];
+        u[i+1]=P/rn; up[i+1]=Q/rn-P/(rn*rn);
+    }
+    uR=u[NQ]; upR=up[NQ];
+}
+
+// Build u_l, u_l', udot_l, udot_l' (udot = d/dE).  Z=0: analytic.  Z!=0: u from the ODE at E, udot by
+// central finite difference of the ODE solution in E.
+RadTab BuildRadial(int l,double E,double Z,const std::vector<double>& r,double R)
+{
+    int NQ=static_cast<int>(r.size())-1;
+    RadTab t;
+    if (Z==0.0)
+    {
+        double q=std::sqrt(2.0*E);
+        t.u.assign(NQ+1,0.0); t.up.assign(NQ+1,0.0); t.ud.assign(NQ+1,0.0); t.udp.assign(NQ+1,0.0);
+        for (int i=1;i<=NQ;i++){ double rr=r[i],x=q*rr;
+            std::vector<double> j=qchem::Math::SphericalBessel(l,x);
+            std::vector<double> jp=qchem::Math::SphericalBesselPrime(l,x,j);
+            double jlpp=-(2.0/x)*jp[l]-(1.0-l*(l+1)/(x*x))*j[l];
+            t.u[i]=j[l]; t.up[i]=q*jp[l]; t.ud[i]=(rr/q)*jp[l]; t.udp[i]=(1.0/q)*jp[l]+rr*jlpp; }
+        double xR=q*R;
+        std::vector<double> jR=qchem::Math::SphericalBessel(l,xR);
+        std::vector<double> jpR=qchem::Math::SphericalBesselPrime(l,xR,jR);
+        double jRpp=-(2.0/xR)*jpR[l]-(1.0-l*(l+1)/(xR*xR))*jR[l];
+        t.uR=jR[l]; t.upR=q*jpR[l]; t.udR=(R/q)*jpR[l]; t.udpR=(1.0/q)*jpR[l]+R*jRpp;
+        return t;
+    }
+    double d=1e-4;
+    std::vector<double> u0,up0,up_,upp,um,upm; double uR0,upR0,uRp,upRp,uRm,upRm;
+    SolveRadial(l,E,    Z,r,R,u0,up0,uR0,upR0);
+    SolveRadial(l,E+d,  Z,r,R,up_,upp,uRp,upRp);
+    SolveRadial(l,E-d,  Z,r,R,um,upm,uRm,upRm);
+    t.u=u0; t.up=up0; t.uR=uR0; t.upR=upR0;
+    t.ud.assign(NQ+1,0.0); t.udp.assign(NQ+1,0.0);
+    for (int i=0;i<=NQ;i++){ t.ud[i]=(up_[i]-um[i])/(2*d); t.udp[i]=(upp[i]-upm[i])/(2*d); }
+    t.udR=(uRp-uRm)/(2*d); t.udpR=(upRp-upRm)/(2*d);
+    return t;
+}
+} // anon namespace
+
 namespace BasisSet::Lattice_3D
 {
 
 LAPW_IBS::LAPW_IBS(const ReciprocalLattice& recip, const ivec3_t& N, const ivec3_t& kIndex,
-                   double Ecut, double Rmt, size_t lmax, double Elin)
+                   double Ecut, double Rmt, size_t lmax, double Elin, double Z)
     : BasisSet::IrrepBasisSetImp<dcmplx>(Symmetry::BlochFactory(N,kIndex))
     , itsRecip(recip)
     , itsk(kIndex.x/static_cast<double>(N.x),
@@ -26,6 +107,7 @@ LAPW_IBS::LAPW_IBS(const ReciprocalLattice& recip, const ivec3_t& N, const ivec3
     , itsRmt(Rmt)
     , itsLmax(lmax)
     , itsElin(Elin)
+    , itsZ(Z)
 {
     const UnitCell& B=itsRecip.GetCell();
     double Gmax=sqrt(2*Ecut)+B.GetDistance(itsk);
@@ -36,85 +118,77 @@ LAPW_IBS::LAPW_IBS(const ReciprocalLattice& recip, const ivec3_t& N, const ivec3
     }
 }
 
-void LAPW_IBS::Assemble(chmat_t& Kp2, chmat_t& O) const
+void LAPW_IBS::Assemble(chmat_t& Kp2, chmat_t& O, chmat_t& Vnuc) const
 {
     const UnitCell& B=itsRecip.GetCell();
     size_t n=GetNumFunctions();
     int    L=static_cast<int>(itsLmax);
     double R=itsRmt, Omega=itsVolume;
     double Vs=FourPi*R*R*R/3.0;
-    double q=std::sqrt(2.0*itsElin), qR=q*R;
 
-    // --- radial functions and their r-derivatives at the sphere boundary r=R (per l) ---------------
-    // u_l(r)=j_l(qr), udot_l(r)=(r/q) j_l'(qr); evaluated/differentiated at R.
-    std::vector<double> jq =qchem::Math::SphericalBessel(L,qR);
-    std::vector<double> jqp=qchem::Math::SphericalBesselPrime(L,qR,jq);
-    std::vector<double> uR(L+1),upR(L+1),udR(L+1),udpR(L+1);
-    for (int l=0; l<=L; l++)
-    {
-        double jlpp=-(2.0/qR)*jqp[l]-(1.0-l*(l+1)/(qR*qR))*jq[l]; // j_l''(qR)
-        uR[l]=jq[l];
-        upR[l]=q*jqp[l];
-        udR[l]=(R/q)*jqp[l];
-        udpR[l]=(1.0/q)*jqp[l]+R*jlpp;
-    }
-
-    // --- radial integrals over [0,R] by composite Simpson (all integrands vanish at r=0) -----------
-    const int NQ=400;                       // even
+    // radial grid r[0..NQ]
+    const int NQ=800;
     double h=R/NQ;
-    std::vector<double> Suu(L+1,0.0),Suud(L+1,0.0),Sudud(L+1,0.0);   // overlaps  <u_a|u_b>
-    std::vector<double> Kuu(L+1,0.0),Kuud(L+1,0.0),Kudud(L+1,0.0);   // <p^2> pieces (NO 1/2)
-    for (int iq=1; iq<=NQ; iq++)            // iq=0 (r=0) contributes nothing
+    std::vector<double> r(NQ+1);
+    for (int i=0;i<=NQ;i++) r[i]=i*h;
+
+    // per-l radial tables, boundary values, and radial integrals (overlap S, kinetic K, nuclear V)
+    std::vector<double> uR(L+1),upR(L+1),udR(L+1),udpR(L+1);
+    std::vector<double> Suu(L+1,0),Suud(L+1,0),Sudud(L+1,0);
+    std::vector<double> Kuu(L+1,0),Kuud(L+1,0),Kudud(L+1,0);
+    std::vector<double> Vuu(L+1,0),Vuud(L+1,0),Vudud(L+1,0);
+    for (int l=0;l<=L;l++)
     {
-        double r=iq*h;
-        double w=(iq==NQ ? 1.0 : (iq%2 ? 4.0 : 2.0))*h/3.0;
-        double x=q*r;
-        std::vector<double> j =qchem::Math::SphericalBessel(L,x);
-        std::vector<double> jp=qchem::Math::SphericalBesselPrime(L,x,j);
-        double r2=r*r;
-        for (int l=0; l<=L; l++)
+        RadTab t=BuildRadial(l,itsElin,itsZ,r,R);
+        uR[l]=t.uR; upR[l]=t.upR; udR[l]=t.udR; udpR[l]=t.udpR;
+        for (int i=1;i<=NQ;i++)               // i=0 (r=0) contributes nothing
         {
-            double jlpp=-(2.0/x)*jp[l]-(1.0-l*(l+1)/(x*x))*j[l];
-            double u =j[l];
-            double up=q*jp[l];
-            double ud =(r/q)*jp[l];
-            double udp=(1.0/q)*jp[l]+r*jlpp;
+            double w=(i==NQ ? 1.0 : (i%2 ? 4.0 : 2.0))*h/3.0;   // composite Simpson
+            double rr=r[i], r2=rr*rr;
+            double u=t.u[i],up=t.up[i],ud=t.ud[i],udp=t.udp[i];
             Suu[l]   += w* u*u*r2;
             Suud[l]  += w* u*ud*r2;
             Sudud[l] += w* ud*ud*r2;
-            Kuu[l]   += w*(up*up*r2 + l*(l+1)*u*u);       // <p^2> = int (u'^2 r^2 + l(l+1) u^2) dr
+            Kuu[l]   += w*(up*up*r2 + l*(l+1)*u*u);            // <p^2> = int(u'^2 r^2 + l(l+1)u^2)
             Kuud[l]  += w*(up*udp*r2 + l*(l+1)*u*ud);
             Kudud[l] += w*(udp*udp*r2 + l*(l+1)*ud*ud);
+            if (itsZ!=0.0)                                     // <V> = int u_a (-Z/r) u_b r^2 dr
+            {
+                Vuu[l]   += w*(-itsZ)*u*u*rr;
+                Vuud[l]  += w*(-itsZ)*u*ud*rr;
+                Vudud[l] += w*(-itsZ)*ud*ud*rr;
+            }
         }
     }
 
-    // --- per-plane-wave K=k+G, |K|, j_l(|K|R), j_l'(|K|R), and the matching coefficients a_l,b_l ----
+    // per-plane-wave K=k+G, |K|, and the matching coefficients a_l,b_l (value+derivative at R)
     std::vector<rvec3_t> K(n);
     std::vector<double>  Kmag(n);
     std::vector<std::vector<double>> a(n),b(n);
-    for (size_t i=0; i<n; i++)
+    for (size_t i=0;i<n;i++)
     {
         K[i]=B.ToCartesian(itsk+itsG[i]);
         Kmag[i]=std::sqrt(K[i]*K[i]);
         double KR=Kmag[i]*R;
         std::vector<double> jK =qchem::Math::SphericalBessel(L,KR);
-        std::vector<double> jKp=qchem::Math::SphericalBesselPrime(L,KR,jK);
+        std::vector<double> jKp(L+1,0.0);
+        if (KR>1e-12) jKp=qchem::Math::SphericalBesselPrime(L,KR,jK); // K=0: j_l'(0) contributes 0 below
         a[i].assign(L+1,0.0); b[i].assign(L+1,0.0);
-        for (int l=0; l<=L; l++)
+        for (int l=0;l<=L;l++)
         {
-            double rhs1=jK[l];               // j_l(K R)
-            double rhs2=Kmag[i]*jKp[l];      // K j_l'(K R)
-            double W=uR[l]*udpR[l]-upR[l]*udR[l];          // Wronskian
+            double rhs1=jK[l], rhs2=Kmag[i]*jKp[l];   // K=0 -> rhs1=delta_{l0}, rhs2=0
+            double W=uR[l]*udpR[l]-upR[l]*udR[l];
             a[i][l]=(rhs1*udpR[l]-rhs2*udR[l])/W;
             b[i][l]=(uR[l]*rhs2-upR[l]*rhs1)/W;
         }
     }
 
-    // --- assemble <p^2> and O = interstitial + muffin-tin -------------------------------------------
-    Kp2=blazem::zeroH<dcmplx>(n);
-    O  =blazem::zeroH<dcmplx>(n);
-    for (size_t i=0; i<n; i++)
-        for (size_t j=i; j<n; j++)
+    // assemble <p^2>, O, and <V>  = interstitial + muffin-tin
+    Kp2 =blazem::zeroH<dcmplx>(n);
+    O   =blazem::zeroH<dcmplx>(n);
+    Vnuc=blazem::zeroH<dcmplx>(n);
+    for (size_t i=0;i<n;i++)
+        for (size_t j=i;j<n;j++)
         {
             double OI;
             if (i==j) OI=1.0 - Vs/Omega;
@@ -124,30 +198,24 @@ void LAPW_IBS::Assemble(chmat_t& Kp2, chmat_t& O) const
             double cosg=(Kmag[i]>1e-12 && Kmag[j]>1e-12) ? KdotK/(Kmag[i]*Kmag[j]) : 1.0;
             cosg=std::max(-1.0,std::min(1.0,cosg));
             std::vector<double> P=qchem::Math::LegendreP(L,cosg);
-            double sphereO=0.0, sphereK=0.0;
-            for (int l=0; l<=L; l++)
+            double sphereO=0.0, sphereK=0.0, sphereV=0.0;
+            for (int l=0;l<=L;l++)
             {
                 double ai=a[i][l], bi=b[i][l], aj=a[j][l], bj=b[j][l];
                 double pref=(2*l+1)*P[l];
-                sphereO += pref*( ai*aj*Suu[l] + (ai*bj+bi*aj)*Suud[l] + bi*bj*Sudud[l] );
-                sphereK += pref*( ai*aj*Kuu[l] + (ai*bj+bi*aj)*Kuud[l] + bi*bj*Kudud[l] );
+                sphereO += pref*( ai*aj*Suu[l]   + (ai*bj+bi*aj)*Suud[l]   + bi*bj*Sudud[l] );
+                sphereK += pref*( ai*aj*Kuu[l]   + (ai*bj+bi*aj)*Kuud[l]   + bi*bj*Kudud[l] );
+                sphereV += pref*( ai*aj*Vuu[l]   + (ai*bj+bi*aj)*Vuud[l]   + bi*bj*Vudud[l] );
             }
-            sphereO *= FourPi/Omega;
-            sphereK *= FourPi/Omega;
-            O  (i,j)=dcmplx(OI + sphereO, 0.0);
-            Kp2(i,j)=dcmplx(KdotK*OI + sphereK, 0.0);   // <p^2> (NO 1/2; the Hamiltonian applies it)
+            O   (i,j)=dcmplx(OI + sphereO*FourPi/Omega, 0.0);
+            Kp2 (i,j)=dcmplx(KdotK*OI + sphereK*FourPi/Omega, 0.0);   // <p^2> (NO 1/2)
+            Vnuc(i,j)=dcmplx(sphereV*FourPi/Omega, 0.0);              // muffin-tin V; interstitial V=0
         }
 }
 
-chmat_t LAPW_IBS::MakeOverlap() const { chmat_t K,O; Assemble(K,O); return O; }
-chmat_t LAPW_IBS::MakeKinetic() const { chmat_t K,O; Assemble(K,O); return K; }
-
-// Empty lattice (V=0 inside the sphere): no potential, so the nuclear block is zero.  The l>0
-// muffin-tin potential (radial Schrodinger solve + <phi|V|phi>) plugs in here next.
-chmat_t LAPW_IBS::MakeNuclear(const Structure*) const
-{
-    return blazem::zeroH<dcmplx>(GetNumFunctions());
-}
+chmat_t LAPW_IBS::MakeOverlap() const { chmat_t K,O,V; Assemble(K,O,V); return O; }
+chmat_t LAPW_IBS::MakeKinetic() const { chmat_t K,O,V; Assemble(K,O,V); return K; }
+chmat_t LAPW_IBS::MakeNuclear(const Structure*) const { chmat_t K,O,V; Assemble(K,O,V); return V; }
 
 cvec_t LAPW_IBS::operator()(const rvec3_t& r) const
 {
@@ -181,13 +249,14 @@ cvec3vec_t LAPW_IBS::Gradient(const rvec3_t& r) const
 std::string LAPW_IBS::BasisSetID() const
 {
     return Name()+"|nG="+std::to_string(itsG.size())+"|Rmt="+std::to_string(itsRmt)
-                 +"|lmax="+std::to_string(itsLmax)+"|El="+std::to_string(itsElin);
+                 +"|lmax="+std::to_string(itsLmax)+"|El="+std::to_string(itsElin)
+                 +"|Z="+std::to_string(itsZ);
 }
 
 std::ostream& LAPW_IBS::Write(std::ostream& os) const
 {
     return os << Name() << " IBS: " << GetNumFunctions() << " plane waves, Rmt=" << itsRmt
-              << " lmax=" << itsLmax << " Elin=" << itsElin << ", " << GetSymmetry();
+              << " lmax=" << itsLmax << " Elin=" << itsElin << " Z=" << itsZ << ", " << GetSymmetry();
 }
 
 } //namespace

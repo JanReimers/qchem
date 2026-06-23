@@ -53,6 +53,23 @@ std::vector<double> FreeEnergies(double a, rvec3_t kf, int mr)
 
 class LAPWTests : public ::testing::Test {};
 
+TEST_F(LAPWTests, DISABLED_HydrogenCalibration)
+{
+    double El=-0.5, Z=1.0;          // hydrogen: 1s energy is exactly -0.5 Ha
+    ivec3_t N(1,1,1), k(0,0,0);     // Gamma, large cell => flat, 1s is the ground state
+    for (double a : {12.0})
+      for (double R : {4.0,5.0})    // R -> a/2 makes the sphere fill the cell (singular overlap)
+        for (double Ecut : {0.5,1.0,2.0})
+        {
+            size_t lmax=0;          // 1s is pure l=0 (l>=1 radial ODE needs a log grid -- follow-up)
+            UnitCell cell(a); Lattice_3D lat(cell,N);
+            LAPW_IBS b(lat.Reciprocal(),N,k,Ecut,R,lmax,El,Z);
+            std::vector<double> bands=Bands(b,&cell);
+            printf("a=%.0f R=%.0f Ecut=%.1f nPW=%3zu  E0=% .5f (want -0.5)\n",
+                   a,R,Ecut,b.GetNumFunctions(),bands.front());
+        }
+}
+
 TEST_F(LAPWTests, DISABLED_Calibration)
 {
     double a=8.0, R=2.0, Ecut=2.0; size_t lmax=8;
@@ -96,4 +113,17 @@ TEST_F(LAPWTests, LinearizationMostAccurateNearElin)
     double errNear=std::abs(bands[1]-fe[1]);            // at E_l
     double errFar =std::abs(bands[0]-fe[0]);            // below E_l
     EXPECT_LT(errNear,errFar);
+}
+
+// Real l=0 muffin-tin potential V=-Z/r: the radial function solves -1/2 nabla^2 - Z/r at E_l, so the
+// augmentation captures the 1s cusp and the hydrogen ground state comes out ~ -0.5 Ha -- where bare
+// plane waves only crawl to ~ -0.16 at comparable cutoffs (PlaneWaveUT HydrogenVariationalConvergence).
+TEST_F(LAPWTests, HydrogenGroundStateNearMinusHalf)
+{
+    double a=12.0, R=5.0, Ecut=1.0, El=-0.5, Z=1.0; size_t lmax=0;
+    ivec3_t N(1,1,1), k(0,0,0);                         // Gamma; 1s is the ground state
+    UnitCell cell(a); Lattice_3D lat(cell,N);
+    LAPW_IBS b(lat.Reciprocal(),N,k,Ecut,R,lmax,El,Z);
+    double E0=Bands(b,&cell).front();
+    EXPECT_NEAR(E0,-0.5,2e-3);                          // muffin-tin truncation + linearization
 }
