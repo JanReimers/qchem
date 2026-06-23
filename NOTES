@@ -1,5 +1,21 @@
 Notes:        
-    
+
+Two lineages for abinito in solids:
+The acronym forest splits into two lineages with different destinations, and this resolves your question cleanly:
+
+Lineage A — smooth-potential / pseudopotential (your stated goal): the basis stays plane waves. You never augment it. 
+What changes is the potential: you replace the singular −Z/r with something smooth, so the PW basis converges fast.
+
+local pseudopotential → Kleinman–Bylander separable nonlocal projectors (NCPP) → ultrasoft (USPP) → PAW.
+Lineage B — augmented all-electron bases: APW → LAPW → FLAPW (and LMTO/NMTO). These keep the bare Coulomb and instead 
+make the basis richer — atomic-like radial functions × Yₗₘ inside muffin-tin spheres, PW in the interstitial, matched 
+at the sphere boundary. This is the all-electron "gold standard" (WIEN2k/FLEUR/Elk), but it's a big machine 
+(sphere matching, radial Schrödinger solutions, energy-linearization) and it leads away from pseudopotentials — 
+you'd discard it when you adopt PP.
+
+
+
+
         -Saito paper conclusions
         1) 50 basis functions, r={0.003...40} is enough for Z=1-92
         2) phi(r)=sum{Bi}, and phi(r)=1/r * sum{Bi} both work

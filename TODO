@@ -9,7 +9,9 @@ Notes, bugs, and plans for the qchem6 project. This file is markdown-enabled so 
 - Turn on/off vscode popups: search `quickSuggestions`
 - Understand type erasure: https://youtu.be/m3UmABVf55g?t=2134
 - Use basis set path inside the Molecul::Factory ... don't burden the user.
-
+- Matrix3D/Vecor3D and the 2D version.  Should these all be covnverted to blaze::StaticXXXX.   By defualt blaze does some
+  fancey memory alignment magic they may help performance.
+  Types.C add mat3d_t and rmat3d_t for consistency.
 
 ## Code review
 
@@ -64,6 +66,9 @@ Notes, bugs, and plans for the qchem6 project. This file is markdown-enabled so 
 - Hand code Vosko's exchange.
 - Consider separate `Vxc`, `Vex`, and `Vcorr`.
 - Reproducing the NIST tests is tricky (various formula ambiguities).
+- Use a `FunctionFitter` instance instead of inheriting from fitted function implementations.
+- Redesign fitting so fitted objects contain a `Fitter*`.
+
 
 ### Perturbation support
 
@@ -115,31 +120,29 @@ Notes, bugs, and plans for the qchem6 project. This file is markdown-enabled so 
 - Ultimate (abititious!) target: Something like VASP/ABINIT that handles (ultra soft) psuepotentials.
     Whether or not HF or DHF is supported is solely based on if the Evaluator for the basis set satisfies the
     concept constratints for those integrals.
-- The infrastucture in qchem is only half set up for complex basis sets/Hamiltonians/Orbitals etc.
-### prep work for solids
-#### LASolverUpgrade:
-- This is prep for supporting plane waves for lattices.
-- I think LASolverCommon is not adding much value.  For Cholesky it would better to V and Vd is balze triangular matrices
-  having LASolverCommon thwarts this.
-- We need some unit tests for double.  I prefer not link to libqcAtom_BS to get overlap matricies, same for Ham matricies.  Hopefully we can just mock up some simple overlap and psuedo Ham matrices to test with.
-- We need to somehow seemlessly change between blaze::SymmetricMatrix and blaze::HermitianMatrix. 
-    Can we conditionaly deduce (at compile time) hmat_t  from T such that
-                hmat_t<double>=blaze::SymmetricMatrix<double> or
-                hmat_t<dcmplx>=blaze::HermitianMatrix<dcmplx>
-            Modern c++ must have a way to do this without doing partial class specializatons.
-- 
-#### Review src/Structure/Lattice 
-- Rename to Structure
-- Try using std::single_view for Atom
-#### dcmplx outside BasisSet
--Are the {ChargeDensity, Hamiltonian, Orbital, WaveFunction, SCFIterator} libraries ready for T=dcmplx?
 
-- Next we need a highly trivial 1 electron (no ERIs yet) plane wave problem in order to get solids off the ground.
-    Maybe just a hydrogen cubic lattice.  At high lattice spacing we know energy should be ~-0.5au/unit_cell (?)
-- We have BlockQN in the Symmetry library for wave vector irreps.
-- We have UnitCell and Lattice in the Structure library (maybe should be renamed Structure->Stucture even though Atom is normally 
-    thought of as a structure).  
-- Once we have the demo problem up and running we can think about next steps.  There must some useful models that are intermediate in coding difficulty between PW and Pseudo potentials.
+### Code review comments
+- The src/Symmetry project-module may need enhancements as you proceed.  Also please say when you think it is
+an efficient time to get space group symmery up and running so we can block diagonalize (SALC) each Boch block.  We can start a fresh session for that feature.
+- for consistency with the existing real basis functon work, it would nice to replace smat_t<dcmplx> -> csmat_t (corresponding to rsmat_t in Types.C).  If your see problems with this let me know.
+- same again for vec_t<dcmplx> -> cvec_t vec3vec_t<dcmplx> -> cvec3vec_t
+- src/BasisSet/Lattice_3D/Imp/PlaneWave_IBS.C line 63:smat_t<dcmplx> S(n); do we need to assign it to zero<dcmplx>(N);
+  right now it looks like all the off diag elements are uninitialized.
+- Much later, looks for multiple instance of 2*Pi, Cube(2*Pi)
+
+- "APW_IBS is an IrrepBasisSet<dcmplx> sibling of PlaneWave_IBS — same base interface — but deliberately not an Orbital_1E_IBS, because APW's overlap is energy-dependent." 
+Answer: we have to solve a nonline sec equation by iterating:
+guess E₀, build H(E₀), O(E₀);
+solve the linear generalized problem H(E₀)c = ε·O(E₀)c → eigenvalues ε_n(E₀);
+pick the relevant ε_n =: E₁, set E₀ ← E₁, repeat until E₁ = E₀ (the fixed point ε_n(E*) = E*).
+Its almost like a SCF iterator except 1) we finding E* instead of a converged charge density and 2) S(E) also changes with each iteration just the H.
+
+
+1) Do PW, APW and LAPW all use the same (or similar) algo for building the G array from Emax?  If so lets break it out into a BuildGs(....) function that works for all three and put it in a new src/BasisSet/Lattice_3D/Internal folder.  
+2) The NAN issue reminds me that you are not in the habit of using asserts.  I have to use them because I am much
+more error prone than you are.  What are your thoughts on this?
+3) My convention of using itsBlah for member variables (and theBlah for rare static stuff) is very old (Robert C. Martin early 1990s). I have been ignoring it in some code recent code precisely because I don't want all those its prefixes in formulas.  Maybe we should drop the its prefixes for numerical members that appear in formulas.  Its (ha ha) a tradeoff, no silver bullet. What do you think?
+
 
 ## Upgrade existing features
 
@@ -160,7 +163,6 @@ Notes, bugs, and plans for the qchem6 project. This file is markdown-enabled so 
 
 ## Clean up
 
-- Simplify `LASolver` internals.
 - Sort out PG cache — keep one cache in `DB_cache`.
 - `constexpr` the static numeric lookup tables. `Fact`/`DFact`/`Twon` (`src/Common/Factorials.C`),
   `DoubleFactData` (PrimGaussian in `Radial/Imp/GaussianRF.C`), and the Pascal/binomial triangle
@@ -197,8 +199,6 @@ Notes, bugs, and plans for the qchem6 project. This file is markdown-enabled so 
 
 ## OOD Refactor
 
-- Use a `FunctionFitter` instance instead of inheriting from fitted function implementations.
-- Redesign fitting so fitted objects contain a `Fitter*`.
 
 ## Bugs and notes
 
