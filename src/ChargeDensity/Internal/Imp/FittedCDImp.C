@@ -26,11 +26,6 @@ template <class T> FittedCDImp<T>::FittedCDImp(bs_t& bs, mesh_t& m, double total
     assert(fabs(totalCharge-itsFitter->FitGetCharge())<1e-10);
 };
 
-template <class T> FittedCDImp<T>::FittedCDImp(const FittedCDImp& o)
-    // NOTE: copies the base fitter -- slices the IntegralConstrainedFF constraint.  Harmless today (Clone
-    // is unused); revisit (polymorphic fitter clone) when Clone is needed, e.g. polarized CD from unpolarized.
-    : itsFitter(std::make_unique<Fitting::FunctionFitter<double>>(*o.itsFitter))
-{};
 
 
 //-----------------------------------------------------------------------------
@@ -75,7 +70,10 @@ template <class T> double FittedCDImp<T>::FitGetChangeFrom(const Fitting::Fitted
 
 template <class T> FittedCD* FittedCDImp<T>::Clone() const
 {
-    return new FittedCDImp<T>(*this);
+    // Unused today.  A correct Clone needs a POLYMORPHIC fitter clone (so the constrained fitter isn't
+    // sliced); implement when Clone is actually needed -- e.g. building a polarized CD from unpolarized.
+    assert(false && "FittedCDImp::Clone not implemented -- see polarized-CD TODO");
+    return nullptr;
 }
 
 

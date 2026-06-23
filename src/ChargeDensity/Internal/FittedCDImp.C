@@ -21,7 +21,7 @@ template <class T> class FittedCDImp
      typedef typename Fitting::FunctionFitter<T>::bs_t   bs_t;
 public:
     FittedCDImp(bs_t&, mesh_t&, double totalCharge);
-    FittedCDImp(const FittedCDImp&);   //!< deep-copies the fitter (for Clone)
+    FittedCDImp(const FittedCDImp&) = delete;   //!< copying would slice the fitter's constraint
 
     // FittedCD
     virtual smat_t<T> GetRepulsion    (const odftbs_t*) const;
