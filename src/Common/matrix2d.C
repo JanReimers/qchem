@@ -74,6 +74,10 @@ auto operator*(const Matrix2D<T2>& m, const Vector2D<T1>& v) {return Vector2D(m.
 template <class T1, class T2> inline
 auto operator*(const Vector2D<T1>& v, const Matrix2D<T2>& m) {return Vector2D(m.M11*v.x + m.M21*v.y, m.M12*v.x + m.M22*v.y);}
 
+//! Outer product  a (x) b :  (a b^T)_{ij} = a_i b_j.
+template <class T> inline Matrix2D<T> Outer(const Vector2D<T>& a, const Vector2D<T>& b)
+{ return Matrix2D<T>(a.x*b.x, a.x*b.y, a.y*b.x, a.y*b.y); }
+
 template <class T> inline T Determinant(const Matrix2D<T>& m) {return m.M11*m.M22 - m.M12*m.M21;}
 
 template <class T> inline Matrix2D<T> Invert(const Matrix2D<T>& m)

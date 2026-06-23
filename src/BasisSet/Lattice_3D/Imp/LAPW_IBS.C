@@ -8,6 +8,10 @@
 //                                     (a 2x2 solve) to get the augmentation coefficients c_l=(a_l,b_l);
 //   Act 3  CombineBlocks          -- H_ij = interstitial (plane wave) + muffin-tin, where the muffin-tin
 //                                     part is sum_l (2l+1) P_l(cos g) * c_i . (block_l . c_j).
+//
+// The radial state at a grid point is carried as a single 2x2:  Phi = [[u, udot],[u', udot']]  -- rows are
+// value and slope, columns are u and udot.  Phi at r=Rmt is the boundary matrix that solves the matching;
+// the radial integral blocks are Simpson integrals of outer products of its value/slope rows.
 module;
 #include <complex>
 #include <cmath>
@@ -28,33 +32,45 @@ namespace
 // and the augmentation direction is irrelevant (only l=0 survives, since j_l(0)=delta_l0).
 constexpr double kZeroTol = 1e-12;   // TODO: Make External
 
-// Raw radial functions on the grid: u_l=R_l, u_l', and (energy derivatives) udot_l, udot_l'.
-struct RadialTable { rvec_t u,up,ud,udp; double uR,upR,udR,udpR; };
+// Composite-Simpson integral over the radial grid r (NQ even):  integral f(r) dr ~ sum_i w_i f(r_i).
+// Generic in the integrand's value type (here a 2x2 rmat2d_t); f(i) returns the integrand at r[i].
+template <class F> auto Simpson(const rvec_t& r, F f)
+{
+    int    NQ=static_cast<int>(r.size())-1;
+    double h=r[1]-r[0];
+    auto acc=(h/3.0)*f(0);                                    // i=0 endpoint
+    for (int i=1;i<=NQ;i++)
+    {
+        double w=(i==NQ ? 1.0 : (i%2 ? 4.0 : 2.0))*h/3.0;
+        acc += w*f(i);
+    }
+    return acc;
+}
 
-// Regular radial solution u_l=R_l and u_l' on the grid (V=-Z/r, energy E).  Z=0: analytic Bessel
-// j_l(qr).  Z!=0: RK4 integration of P''=f P with P=r R_l, f(r)=l(l+1)/r^2 - 2Z/r - 2E, started from
-// the r^{l+1} series at r[1] (regular at the origin).
-void SolveRadial(int l,double E,double Z,const rvec_t& r,double Rmt,
-                 rvec_t& u,rvec_t& up,double& uR,double& upR)
+// The radial state on the grid: Phi[i] = [[u, udot],[u', udot']] at r[i] (rows value/slope, cols u/udot).
+// boundary = Phi at r=Rmt (== Phi.back()), the matrix that solves the value+slope matching.
+struct RadialTable { std::vector<rmat2d_t> Phi; rmat2d_t boundary; };
+
+// (value, slope) = (u_l(r_i), u_l'(r_i)) of the regular radial solution of -1/2 grad^2 - Znuc/r at energy E.
+// Znuc=0: analytic Bessel j_l(qr).  Znuc!=0: RK4 of P''=f P (P=r R_l), f=l(l+1)/r^2 - 2 Znuc/r - 2E,
+// started from the r^{l+1} series at r[1].  The endpoint r[NQ]=Rmt gives the boundary (value,slope).
+std::vector<rvec2d_t> SolveRadial(int l,double E,double Znuc,const rvec_t& r)
 {
     int NQ=static_cast<int>(r.size())-1;
-    u=rvec_t(NQ+1,0.0); up=rvec_t(NQ+1,0.0);
-    if (Z==0.0)
+    std::vector<rvec2d_t> us(NQ+1, rvec2d_t(0,0));
+    if (Znuc==0.0)
     {
         double q=std::sqrt(2.0*E);
         for (int i=1;i<=NQ;i++){ double x=q*r[i];
-            rvec_t j=SpecialFunctions::SphericalBessel(l,x);
+            rvec_t j =SpecialFunctions::SphericalBessel(l,x);
             rvec_t jp=SpecialFunctions::SphericalBesselPrime(l,x,j);
-            u[i]=j[l]; up[i]=q*jp[l]; }
-        rvec_t jR=SpecialFunctions::SphericalBessel(l,q*Rmt);
-        rvec_t jpR=SpecialFunctions::SphericalBesselPrime(l,q*Rmt,jR);
-        uR=jR[l]; upR=q*jpR[l];
-        return;
+            us[i]=rvec2d_t(j[l], q*jp[l]); }
+        return us;
     }
-    auto f=[&](double rr){ return l*(l+1)/(rr*rr) - 2.0*Z/rr - 2.0*E; };
-    double h=Rmt/NQ;
-    double P=std::pow(r[1],l+1), Q=(l+1)*std::pow(r[1],l);   // u ~ r^l series start at r[1]
-    u[1]=P/r[1]; up[1]=Q/r[1]-P/(r[1]*r[1]);
+    auto f=[&](double rr){ return l*(l+1)/(rr*rr) - 2.0*Znuc/rr - 2.0*E; };
+    double h=r[1]-r[0];
+    double P=std::pow(r[1],l+1), Q=(l+1)*std::pow(r[1],l);    // u ~ r^l series start at r[1]
+    us[1]=rvec2d_t(P/r[1], Q/r[1]-P/(r[1]*r[1]));
     for (int i=1;i<NQ;i++)
     {
         double rr=r[i];
@@ -65,43 +81,41 @@ void SolveRadial(int l,double E,double Z,const rvec_t& r,double Rmt,
         P+=h/6.0*(k1P+2*k2P+2*k3P+k4P);
         Q+=h/6.0*(k1Q+2*k2Q+2*k3Q+k4Q);
         double rn=r[i+1];
-        u[i+1]=P/rn; up[i+1]=Q/rn-P/(rn*rn);
+        us[i+1]=rvec2d_t(P/rn, Q/rn-P/(rn*rn));
     }
-    uR=u[NQ]; upR=up[NQ];
+    return us;
 }
 
-// u_l, u_l', udot_l, udot_l' (udot = d/dE).  Z=0: analytic.  Z!=0: u from the ODE at E, udot by central
-// finite difference of the ODE solution in E.
-RadialTable BuildRadial(int l,double E,double Z,const rvec_t& r,double Rmt)
+// Build Phi[i] = [[u, udot],[u', udot']].  Znuc=0: analytic.  Znuc!=0: u from the ODE at E, udot by
+// central finite difference of the ODE solution in E.  Phi[0] is left zero (r=0 contributes nothing).
+RadialTable BuildRadial(int l,double E,double Znuc,const rvec_t& r)
 {
     int NQ=static_cast<int>(r.size())-1;
-    RadialTable t;
-    if (Z==0.0)
+    std::vector<rmat2d_t> Phi(NQ+1, rmat2d_t(0,0,0,0));
+    if (Znuc==0.0)
     {
         double q=std::sqrt(2.0*E);
-        t.u=rvec_t(NQ+1,0.0); t.up=rvec_t(NQ+1,0.0); t.ud=rvec_t(NQ+1,0.0); t.udp=rvec_t(NQ+1,0.0);
         for (int i=1;i<=NQ;i++){ double rr=r[i],x=q*rr;
-            rvec_t j=SpecialFunctions::SphericalBessel(l,x);
+            rvec_t j =SpecialFunctions::SphericalBessel(l,x);
             rvec_t jp=SpecialFunctions::SphericalBesselPrime(l,x,j);
             double jlpp=-(2.0/x)*jp[l]-(1.0-l*(l+1)/(x*x))*j[l];
-            t.u[i]=j[l]; t.up[i]=q*jp[l]; t.ud[i]=(rr/q)*jp[l]; t.udp[i]=(1.0/q)*jp[l]+rr*jlpp; }
-        double xR=q*Rmt;
-        rvec_t jR=SpecialFunctions::SphericalBessel(l,xR);
-        rvec_t jpR=SpecialFunctions::SphericalBesselPrime(l,xR,jR);
-        double jRpp=-(2.0/xR)*jpR[l]-(1.0-l*(l+1)/(xR*xR))*jR[l];
-        t.uR=jR[l]; t.upR=q*jpR[l]; t.udR=(Rmt/q)*jpR[l]; t.udpR=(1.0/q)*jpR[l]+Rmt*jRpp;
-        return t;
+            double u=j[l], up=q*jp[l], ud=(rr/q)*jp[l], udp=(1.0/q)*jp[l]+rr*jlpp;
+            Phi[i]=rmat2d_t(u, ud, up, udp); }                 // [[u,udot],[u',udot']]
     }
-    double d=1e-4;
-    rvec_t u0,up0,up_,upp,um,upm; double uR0,upR0,uRp,upRp,uRm,upRm;
-    SolveRadial(l,E,    Z,r,Rmt,u0,up0,uR0,upR0);
-    SolveRadial(l,E+d,  Z,r,Rmt,up_,upp,uRp,upRp);
-    SolveRadial(l,E-d,  Z,r,Rmt,um,upm,uRm,upRm);
-    t.u=u0; t.up=up0; t.uR=uR0; t.upR=upR0;
-    t.ud=rvec_t(NQ+1,0.0); t.udp=rvec_t(NQ+1,0.0);
-    for (int i=0;i<=NQ;i++){ t.ud[i]=(up_[i]-um[i])/(2*d); t.udp[i]=(upp[i]-upm[i])/(2*d); }
-    t.udR=(uRp-uRm)/(2*d); t.udpR=(upRp-upRm)/(2*d);
-    return t;
+    else
+    {
+        double d=1e-4;
+        std::vector<rvec2d_t> uE=SolveRadial(l,E,  Znuc,r);
+        std::vector<rvec2d_t> uP=SolveRadial(l,E+d,Znuc,r);
+        std::vector<rvec2d_t> uM=SolveRadial(l,E-d,Znuc,r);
+        for (int i=1;i<=NQ;i++)
+        {
+            rvec2d_t udot=(uP[i]-uM[i])/(2*d);                 // (udot, udot')
+            Phi[i]=rmat2d_t(uE[i].x, udot.x, uE[i].y, udot.y); // [[u,udot],[u',udot']]
+        }
+    }
+    rmat2d_t boundary=Phi[NQ];                             // grab before moving Phi out
+    return RadialTable{ std::move(Phi), boundary };
 }
 } // anon namespace
 
@@ -109,7 +123,7 @@ namespace BasisSet::Lattice_3D
 {
 
 LAPW_IBS::LAPW_IBS(const ReciprocalLattice& recip, const ivec3_t& N, const ivec3_t& kIndex,
-                   double Ecut, double Rmt, size_t lmax, double Elin, double Z)
+                   double Ecut, double Rmt, size_t lmax, double Elin, double Znuc)
     : BasisSet::IrrepBasisSetImp<dcmplx>(Symmetry::BlochFactory(N,kIndex))
     , itsRecip(recip)
     , itsk(kIndex.x/static_cast<double>(N.x),
@@ -119,7 +133,7 @@ LAPW_IBS::LAPW_IBS(const ReciprocalLattice& recip, const ivec3_t& N, const ivec3
     , itsRmt(Rmt)
     , itsLmax(lmax)
     , itsElin(Elin)
-    , itsZ(Z)
+    , itsZnuc(Znuc)
 {
     const UnitCell& B=itsRecip.GetCell();
     double Gmax=sqrt(2*Ecut)+B.GetDistance(itsk);
@@ -135,37 +149,26 @@ LAPW_IBS::LAPW_IBS(const ReciprocalLattice& recip, const ivec3_t& N, const ivec3
 }
 
 // Act 1: inside the sphere, solve u_l & udot_l and integrate their overlap / kinetic / potential blocks.
+// Each block is a Simpson integral of an outer product of Phi's value row v=(u,udot) and/or slope row
+// s=(u',udot'):  overlap = int r^2 v(x)v;  kinetic = int [r^2 s(x)s + l(l+1) v(x)v];  V = int (-Znuc r) v(x)v.
 std::vector<LAPW_IBS::RadialBlock> LAPW_IBS::MuffinTinRadialBlocks() const
 {
     int    lmax=static_cast<int>(itsLmax);
-    double Rmt=itsRmt, Elin=itsElin, Z=itsZ;
+    double Rmt=itsRmt, Elin=itsElin, Znuc=itsZnuc;
     constexpr int NQ=800;                                  // TODO: Make External (radial-quadrature points)
-    double h=Rmt/NQ;
     rvec_t r=blazem::linspace(NQ+1, 0.0, Rmt);             // radial grid r[0]=0 .. r[NQ]=Rmt
 
     std::vector<RadialBlock> blocks(lmax+1);
     for (int l=0;l<=lmax;l++)
     {
-        RadialTable t=BuildRadial(l,Elin,Z,r,Rmt);
-        double Suu=0,Suud=0,Sudud=0, Kuu=0,Kuud=0,Kudud=0, Vuu=0,Vuud=0,Vudud=0;
-        for (int i=1;i<=NQ;i++)                            // i=0 (r=0) contributes nothing
-        {
-            double w=(i==NQ ? 1.0 : (i%2 ? 4.0 : 2.0))*h/3.0;   // composite Simpson
-            double rr=r[i], r2=rr*rr;
-            double u=t.u[i],up=t.up[i],ud=t.ud[i],udp=t.udp[i];
-            Suu   += w* u*u*r2;   Suud  += w* u*ud*r2;   Sudud += w* ud*ud*r2;
-            Kuu   += w*(up*up*r2   + l*(l+1)*u*u);              // <p^2> = int(u'^2 r^2 + l(l+1)u^2)
-            Kuud  += w*(up*udp*r2  + l*(l+1)*u*ud);
-            Kudud += w*(udp*udp*r2 + l*(l+1)*ud*ud);
-            if (Z!=0.0)                                        // <V> = int u_a (-Z/r) u_b r^2 dr
-            {
-                Vuu   += w*(-Z)*u*u*rr;  Vuud += w*(-Z)*u*ud*rr;  Vudud += w*(-Z)*ud*ud*rr;
-            }
-        }
-        blocks[l].boundary =rmat2d_t(t.uR, t.udR, t.upR, t.udpR);  // [[u,udot],[u',udot']] at Rmt
-        blocks[l].overlap  =rmat2d_t(Suu, Suud, Suud, Sudud);
-        blocks[l].kinetic  =rmat2d_t(Kuu, Kuud, Kuud, Kudud);
-        blocks[l].potential=rmat2d_t(Vuu, Vuud, Vuud, Vudud);
+        RadialTable t=BuildRadial(l,Elin,Znuc,r);
+        rmat2d_t overlap  =Simpson(r,[&](int i){ rvec2d_t v=t.Phi[i].GetRow(1);
+                                                 return r[i]*r[i]*Outer(v,v); });
+        rmat2d_t kinetic  =Simpson(r,[&](int i){ rvec2d_t v=t.Phi[i].GetRow(1), s=t.Phi[i].GetRow(2);
+                                                 return r[i]*r[i]*Outer(s,s) + double(l*(l+1))*Outer(v,v); });
+        rmat2d_t potential=Simpson(r,[&](int i){ rvec2d_t v=t.Phi[i].GetRow(1);
+                                                 return (-Znuc*r[i])*Outer(v,v); });
+        blocks[l]=RadialBlock{ t.boundary, overlap, kinetic, potential };
     }
     return blocks;
 }
@@ -182,7 +185,8 @@ std::vector<LAPW_IBS::AugmentedWave> LAPW_IBS::MatchAugmentation(const std::vect
     std::vector<rmat2d_t> boundaryInv(lmax+1);             // depends only on l, so invert once
     for (int l=0;l<=lmax;l++) boundaryInv[l]=Invert(blocks[l].boundary);
 
-    std::vector<AugmentedWave> waves(n);
+    std::vector<AugmentedWave> waves;
+    waves.reserve(n);
     for (size_t i=0;i<n;i++)
     {
         rvec3_t K=B.ToCartesian(itsk+itsG[i]);
@@ -190,9 +194,10 @@ std::vector<LAPW_IBS::AugmentedWave> LAPW_IBS::MatchAugmentation(const std::vect
         rvec_t  jK =SpecialFunctions::SphericalBessel(lmax,Knorm*Rmt);
         rvec_t  jKp(lmax+1,0.0);
         if (Knorm*Rmt>kZeroTol) jKp=SpecialFunctions::SphericalBesselPrime(lmax,Knorm*Rmt,jK);
-        waves[i].K=K; waves[i].Knorm=Knorm; waves[i].c.resize(lmax+1);
+        std::vector<rvec2d_t> c(lmax+1);
         for (int l=0;l<=lmax;l++)
-            waves[i].c[l]=boundaryInv[l]*rvec2d_t(jK[l], Knorm*jKp[l]); // K=0 -> rhs=(delta_l0,0)
+            c[l]=boundaryInv[l]*rvec2d_t(jK[l], Knorm*jKp[l]); // K=0 -> rhs=(delta_l0,0)
+        waves.push_back(AugmentedWave(K,Knorm,std::move(c)));
     }
     return waves;
 }
@@ -275,13 +280,13 @@ std::string LAPW_IBS::BasisSetID() const
 {
     return Name()+"|nG="+std::to_string(itsG.size())+"|Rmt="+std::to_string(itsRmt)
                  +"|lmax="+std::to_string(itsLmax)+"|El="+std::to_string(itsElin)
-                 +"|Z="+std::to_string(itsZ);
+                 +"|Z="+std::to_string(itsZnuc);
 }
 
 std::ostream& LAPW_IBS::Write(std::ostream& os) const
 {
     return os << Name() << " IBS: " << GetNumFunctions() << " plane waves, Rmt=" << itsRmt
-              << " lmax=" << itsLmax << " Elin=" << itsElin << " Z=" << itsZ << ", " << GetSymmetry();
+              << " lmax=" << itsLmax << " Elin=" << itsElin << " Z=" << itsZnuc << ", " << GetSymmetry();
 }
 
 } //namespace

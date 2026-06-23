@@ -39,12 +39,12 @@ class LAPW_IBS
 {
 public:
     //! \param Ecut interstitial plane-wave cutoff; \param Rmt muffin-tin radius; \param lmax angular
-    //! cutoff; \param Elin linearization energy E_l for the radial functions u_l, udot_l; \param Z
-    //! nuclear charge of the (single, origin) atom -- muffin-tin potential V=-Z/r inside the sphere,
-    //! V=0 in the interstitial.  Z=0 is the empty lattice (free radial functions, analytic Bessel).
-    //! In an augmented method the potential defines the basis, so Z is fixed at construction.
+    //! cutoff; \param Elin linearization energy E_l for the radial functions u_l, udot_l; \param Znuc
+    //! nuclear charge of the (single, origin) atom -- muffin-tin potential V=-Znuc/r inside the sphere,
+    //! V=0 in the interstitial.  Znuc=0 is the empty lattice (free radial functions, analytic Bessel).
+    //! In an augmented method the potential defines the basis, so Znuc is fixed at construction.
     LAPW_IBS(const ReciprocalLattice& recip, const ivec3_t& N, const ivec3_t& kIndex,
-             double Ecut, double Rmt, size_t lmax, double Elin, double Z=0.0);
+             double Ecut, double Rmt, size_t lmax, double Elin, double Znuc=0.0);
 
     virtual size_t GetNumFunctions() const {return itsG.size();}
 
@@ -79,6 +79,8 @@ private:
         rvec3_t               K;      //!< k+G (Cartesian)
         double                Knorm;  //!< |k+G|
         std::vector<rvec2d_t> c;      //!< matching coefficients (a_l, b_l), one 2-vector per l
+        AugmentedWave(const rvec3_t& K_, double Knorm_, std::vector<rvec2d_t> c_)
+            : K(K_), Knorm(Knorm_), c(std::move(c_)) {}
     };
 
     // The constructor runs these three acts once and stores the assembled blocks (below).
@@ -93,7 +95,7 @@ private:
     double               itsRmt;
     size_t               itsLmax;
     double               itsElin;
-    double               itsZ;       //!< Nuclear charge (muffin-tin V=-Z/r); 0 = empty lattice.
+    double               itsZnuc;    //!< Nuclear charge (muffin-tin V=-Znuc/r); 0 = empty lattice.
     std::vector<ivec3_t> itsG;
     chmat_t              itsOvlp, itsKp2, itsVnuc;   //!< assembled in the constructor (Act 3)
 };
