@@ -6,6 +6,7 @@
 import qchem.Unittests.QchemTester;
 
 import qchem.Hamiltonian.Factory;
+import qchem.Hamiltonian.Internal.Hamiltonians;   // Ham_DFTcorr_U (Dirac exchange + VWN correlation)
 import qchem.Factory;
 import qchem.Structure;
 
@@ -84,6 +85,40 @@ TEST_P(A_SL_DFT_U,Multiple)
     EXPECT_LT(RelativeDFTError(),2e-3);
 }
 INSTANTIATE_TEST_SUITE_P(Multiple,A_SL_DFT_U,::testing::Values(2,4,10,18,36,54));
+
+//---------------------------------------------------------------------------------------------------------------
+//  Real LSDA: Dirac exchange + VWN5 correlation (Ham_DFTcorr_U) vs the NIST atomic oracle.  Unlike the
+//  Slater-Xalpha tests above (per-Z tuned alpha absorbing correlation), this uses the actual LDA
+//  functionals with the CORRECT correlation energy E_c = integral eps_c rho (separate Vcorr term).
+class A_LDA_U : public ::testing::TestWithParam<size_t>, public TestAtom
+{
+public:
+    A_LDA_U() : TestAtom(GetParam()) {};
+    virtual Hamiltonian* GetHamiltonian(cl_t& structure) const
+    {
+        return new Ham_DFTcorr_U(structure, GetMeshParams(), itsBasisSet);
+    }
+};
+
+TEST_P(A_LDA_U,SlaterBasis)
+{
+    int Z=GetParam();
+    int N=8;
+    if (Z>20) N=10;
+    if (Z>50) N=11;
+    nlohmann::json js = {
+        {"type",abs_t::Slater},
+        {"N", N}, {"emin", 0.31}, {"emax", 3*Z},
+    };
+    QchemTester::Init(js);
+    Iterate(dft_scf_params(Z));
+    double err=RelativeDFTError();                       // vs the NIST LDA total energy (Kr: -2750.147940)
+    printf("LSDA(Dirac+VWN) Z=%2d  RelativeDFTError = %.3e\n", Z, err);
+    // Parameter-free LSDA (no tuned alpha) reproduces NIST to <0.25% at this basis/convergence; the
+    // residual is basis quality, not the functional.  Regression anchor.
+    EXPECT_LT(err, 2.5e-3);
+}
+INSTANTIATE_TEST_SUITE_P(LSDA,A_LDA_U,::testing::Values(2,10,18,36));
 
 TEST_P(A_PG_DFT_U,Multiple)
 {

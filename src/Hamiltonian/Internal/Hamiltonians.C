@@ -35,6 +35,15 @@ public:
     Ham_DFT_U(const cl_t& cl,ExFunctional*  , const MeshParams&, const bs_t* bs);
 };
 
+// Un-polarized LDA: Dirac exchange + VWN5 correlation as SEPARATE terms, so the correlation energy is the
+// correct E_c = integral eps_c rho (not the exchange virial 3/4<rho|Vc>).  Exchange and correlation share
+// one Vxc fit basis.  This is the "real" LSDA Hamiltonian for the NIST atomic oracle.
+class Ham_DFTcorr_U : public virtual Hamiltonian, private HamiltonianImp
+{
+public:
+    Ham_DFTcorr_U(const cl_t& cl, const MeshParams&, const bs_t* bs);
+};
+
 //
 //  Polarized Hartree-Fock.
 //

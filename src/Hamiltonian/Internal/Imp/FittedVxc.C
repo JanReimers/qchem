@@ -1,15 +1,51 @@
 // File: FittedVxc.C  Fitted exchange potential.
 module;
+#include <cassert>
 #include <memory>
 #include <vector>
 module qchem.Hamiltonian.Internal.Terms;
 import qchem.Hamiltonian.Internal.LDAVxc;
+import qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.Energy;
 import qchem.ChargeDensity;
+import qchem.ScalarFunction;
+import qchem.Vector3D;
 import qchem.Hamiltonian.Types;
 
 namespace qchem::Hamiltonian
 {
+
+namespace
+{
+// Present eps_xc(rho(r)) as a ScalarFFClient so it can be least-squares fitted.  Holds the density
+// directly (rho(r) = (*cd)(r)) -- this is the true energy density, distinct from the potential v_xc.
+class EpsXcDensity : public virtual ScalarFunction<double>, public Fitting::ScalarFFClient
+{
+public:
+    EpsXcDensity(const ExFunctional* ex, const DM_CD* cd) : itsEx(ex), itsCD(cd) {}
+    virtual double  operator()(const rvec3_t& r) const {return itsEx->GetEpsXc((*itsCD)(r));}
+    virtual rvec3_t Gradient  (const rvec3_t&  ) const {return rvec3_t(0,0,0);} // unused by the fit
+    virtual const ScalarFunction<double>* GetScalarFunction() const {return this;}
+private:
+    const ExFunctional* itsEx;
+    const DM_CD*        itsCD;
+};
+} // namespace
+
+FittedEpsXc::FittedEpsXc(bs_t& bs, mesh_t& m, const ExFunctional* ex)
+    : FittedFunctionImp<double>(bs,m)
+    , itsEx(ex)
+{}
+
+const rsmat_t& FittedEpsXc::GetMatrix(const obs_t* bs,const Spin&,const DM_CD* cd) const
+{
+    EpsXcDensity epsxc(itsEx,cd);
+    const_cast<FittedEpsXc*>(this)->DoFit(epsxc);        // fit eps_xc(rho) for this density
+    auto dftbs=dynamic_cast<const odftbs_t*>(bs);
+    assert(dftbs);
+    itsMat=FitGet3CenterOverlap(dftbs);                  // Sum_a c_a <Oi|f_a|Oj>
+    return itsMat;
+}
 
 FittedVxc::FittedVxc(bs_t& bs, ex_t& lda,mesh_t& m)
     : FittedFunctionImp<double>(bs,m) //Use regular overlap for fitting.
@@ -70,5 +106,20 @@ std::ostream& FittedVxc::Write(std::ostream& os) const
     return os;
 }
 
+//########################################################################
+//
+//  Correlation term: inherits FittedVxc's potential->matrix machinery (fits v_c into H), but overrides
+//  the energy to E_c = integral eps_c rho via a dedicated eps_c fit on the SAME fit basis (the exchange
+//  virial 3/4 v_c is wrong for correlation).
+//
+FittedVcorr::FittedVcorr(bs_t& bs, ex_t& vwn, mesh_t& m)
+    : FittedVxc(bs,vwn,m)
+    , itsEpsC  (bs,m,vwn.get())   // dedicated eps_c fit, SAME fit basis (3C integrals shared with v_c)
+{};
+
+void FittedVcorr::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
+{
+    te.Exc += cd->DM_Contract(&itsEpsC,cd);   // integral eps_c rho  (NOT 3/4 integral v_c rho)
+}
 
 } //namespace

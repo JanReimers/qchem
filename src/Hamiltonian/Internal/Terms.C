@@ -188,9 +188,36 @@ private:
 
 //###############################################################################
 //
-//  Linear least squares fit the exchange potential.  The fit basis set is
-//  inserted by the constructor,  and is not owned by FittedVxc, and as such
-//  does not get deleted by ~FittedVee.  The LDA function is owned by Vxc.
+//  A dedicated least-squares fit of an XC ENERGY DENSITY eps_xc(rho(r)) to the auxiliary fit basis,
+//  exposed as a Dynamic_CC so the density contracts it:  E_xc = integral eps_xc rho = <rho|eps_xc_fit>.
+//  Separate from a potential fit (different coefficients) but meant to SHARE its fit basis, so the
+//  3-centre integrals are computed once.  Needed because eps_c != 3/4 v_c -- the exchange virial
+//  (eps_x = 3/4 v_x) used by FittedVxc::GetEnergy is correct for exchange but wrong for correlation.
+//  (Still inherits FittedFunctionImp to reach FitGet3CenterOverlap -- same coupling as FittedVxc; both
+//  are candidates for the planned FunctionFitter composition refactor.)
+//
+class FittedEpsXc
+    : public         Fitting::FittedFunctionImp<double>
+    , public virtual ChargeDensity::Dynamic_CC
+{
+public:
+    typedef Fitting::FittedFunctionImp<double>::mesh_t mesh_t;
+    typedef Fitting::FittedFunctionImp<double>::bs_t   bs_t;
+
+    FittedEpsXc(bs_t& fitBasisSet, mesh_t&, const ExFunctional* ex);
+    //! Re-fits eps_xc for this density and returns its matrix Sum_a c_a <Oi|f_a|Oj> for contraction.
+    virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&,const DM_CD* cd) const;
+private:
+    const ExFunctional* itsEx;   //!< non-owning; the XC functional supplying eps_xc (owned by the term)
+    mutable rsmat_t     itsMat;
+};
+
+//###############################################################################
+//
+//  Linear least squares fit the exchange-correlation potential.  The fit basis set is inserted by the
+//  constructor and is not owned by FittedVxc.  The XC functional is owned by the inner LDAVxc.
+//  Energy uses the exchange virial E_xc = 3/4 <rho|Vxc> -- correct for (pure) exchange; for correlation
+//  use FittedVcorr below.
 //
 class FittedVxc
     : public virtual Fitting::FittedFunction
@@ -210,12 +237,27 @@ public:
     virtual void UseChargeDensity(const DM_CD* exact);
 
     virtual std::ostream&   Write(std::ostream&) const;
-    
+
 
 private:
     virtual rsmat_t CalcMatrix(const obs_t*,const Spin&,const DM_CD* cd) const;
 
     FittablePotential* itsLDAVxc; //Something to fit to.
+};
+
+//###############################################################################
+//
+//  Correlation term.  Same potential->matrix machinery as FittedVxc (fits v_c into H), but the ENERGY is
+//  E_c = integral eps_c rho via a dedicated FittedEpsXc on the SAME fit basis -- NOT the 3/4 exchange
+//  virial (eps_c != 3/4 v_c).  Pair with an exchange FittedVxc(Dirac) to assemble a full LDA Hamiltonian.
+//
+class FittedVcorr : public FittedVxc
+{
+public:
+    FittedVcorr(bs_t& VcorrFitBasisSet, ex_t&, mesh_t&);
+    virtual void GetEnergy(EnergyBreakdown&,const DM_CD* cd) const;
+private:
+    FittedEpsXc itsEpsC;   //!< dedicated eps_c fit for the correlation energy (shares the fit basis)
 };
 
 //###############################################################################
