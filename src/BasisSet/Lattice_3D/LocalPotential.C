@@ -13,7 +13,7 @@ module;
 #include <cmath>
 
 export module qchem.BasisSet.Lattice_3D.LocalPotential;
-import qchem.Math; // FourPi
+import qchem.Math; // FourPi, Pi
 
 export namespace BasisSet::Lattice_3D
 {
@@ -51,6 +51,39 @@ public:
     }
 private:
     double itsSigma; //!< Smearing width (Bohr).
+};
+
+//! \brief Local part of a real norm-conserving pseudopotential in the analytic Goedecker / Hartwigsen-
+//! Goedecker-Hutter (HGH) form [Hartwigsen, Goedecker, Hutter, PRB 58, 3641 (1998); Goedecker, Teter,
+//! Hutter, PRB 54, 1703 (1996)].  In real space
+//! \f$V_{loc}(r) = -\frac{Z_{ion}}{r}\,\mathrm{erf}\!\big(\tfrac{r}{\sqrt2\,r_{loc}}\big)
+//!                + e^{-r^2/2r_{loc}^2}\sum_{i=1}^{4} C_i\,(r/r_{loc})^{2i-2}\f$:
+//! the erf softens the \f$-Z_{ion}/r\f$ singularity (long-range Coulomb preserved, core pseudized),
+//! and the Gaussian-polynomial fits the rest.  Both pieces Fourier-transform in closed form, so the
+//! reciprocal form factor below is analytic -- no radial tables.  \f$Z_{ion}\f$ is the VALENCE charge.
+//! Unlike the all-electron LAPW, absolute levels are shifted by the dropped \f$G=0\f$ term, but the
+//! softness (fast \f$E_{cut}\f$ convergence) and band-energy DIFFERENCES are physical.
+class HGH_LocalPotential : public LocalPotential
+{
+public:
+    //! \a Zion = valence charge, \a rloc = local radius, \a c = {C1,C2,C3,C4} polynomial coefficients.
+    HGH_LocalPotential(double Zion, double rloc, double c1, double c2, double c3=0.0, double c4=0.0)
+        : itsZion(Zion), itsRloc(rloc), itsC1(c1), itsC2(c2), itsC3(c3), itsC4(c4) {}
+
+    //! Hydrogen, HGH (LDA): no nonlocal projectors (H has no core), so this local part is the whole PP.
+    static HGH_LocalPotential Hydrogen() {return HGH_LocalPotential(1.0, 0.2, -4.0663326, 0.6778322);}
+
+    virtual double FormFactor(int /*Z*/, double G2) const     // Z ignored: itsZion is the species
+    {
+        double t=G2*itsRloc*itsRloc;                          // (G r_loc)^2
+        double g=std::exp(-0.5*t);
+        double coulomb=-FourPi*itsZion/G2 * g;                // softened -Z_ion/r tail
+        double poly=itsC1 + itsC2*(3-t) + itsC3*(15-10*t+t*t) + itsC4*(105-105*t+21*t*t-t*t*t);
+        double twopi32=std::pow(2*Pi, 1.5);
+        return coulomb + twopi32*itsRloc*itsRloc*itsRloc * g * poly;
+    }
+private:
+    double itsZion, itsRloc, itsC1, itsC2, itsC3, itsC4;
 };
 
 } //namespace

@@ -139,6 +139,22 @@ one nonzero eigenvalue equal to the trace (separability); and a repulsive projec
 added to `V_loc` raises the ground state. The same separable structure underlies
 USPP and PAW.
 
+**Rung 3 (PARTIAL, lineage A) — a real published pseudopotential (HGH/GTH).**
+`HGH_LocalPotential` (`LocalPotential.C`) is the analytic Goedecker / Hartwigsen–
+Goedecker–Hutter local form [HGH, PRB 58, 3641 (1998)]: `V_loc(r) = −(Z_ion/r)·
+erf(r/√2 r_loc) + e^{−r²/2r_loc²}Σ Cᵢ(r/r_loc)^{2i−2}`, whose reciprocal form factor
+is closed-form (no radial tables). `HGH_LocalPotential::Hydrogen()` carries the real
+HGH-H parameters (`r_loc=0.2, C1=−4.0663326, C2=0.6778322`). Test
+(`HGHHydrogenIsRealButCoreless`): the form factor tracks bare `−4πZ/G²` at small G
+(Coulomb tail preserved) and is strictly softer at large G (core pseudized), and the
+ground state matches the bare-Coulomb result — because **hydrogen has no core to
+pseudize**, so its NCPP is local-only and ≈ bare (no convergence payoff, no projectors).
+TODO — the payoff (a soft core element converging far faster than all-electron) and the
+nonlocal HGH projectors (`h^l_{ij}` matrices) need: a real core-bearing element's
+parameters, the HGH analytic projector form factors, and — for l>0 (p/d) channels —
+the `(2l+1)P_l(cosγ)` angular factor in `MakeSeparablePotential` (the same angular
+structure APW/LAPW already use). l=0 (s-only) elements work with the current machinery.
+
 ## 2c. k-sampling / band structure — the shared k-layer
 
 `src/BasisSet/Lattice_3D/BandStructure.C` (module `qchem.BasisSet.Lattice_3D.BandStructure`) is the

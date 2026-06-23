@@ -23,6 +23,7 @@ using BasisSet::Lattice_3D::PlaneWave_IBS;
 using BasisSet::Lattice_3D::LocalPotential;
 using BasisSet::Lattice_3D::BareCoulomb;
 using BasisSet::Lattice_3D::GaussianSmearedNucleus;
+using BasisSet::Lattice_3D::HGH_LocalPotential;
 using BasisSet::Lattice_3D::SeparablePotential;
 using BasisSet::Lattice_3D::GaussianProjector;
 
@@ -274,6 +275,47 @@ TEST_F(PlaneWaveTests, DISABLED_SmearedCalibration)
         double Es=HydrogenE0(a,Ecut,GaussianSmearedNucleus(0.5));
         printf("Ecut=%4.1f  bare=% .5f  smeared(0.5)=% .5f\n",Ecut,Eb,Es);
     }
+}
+
+// --- Real norm-conserving pseudopotential: HGH hydrogen (local; H has no core projectors) ----------
+
+TEST_F(PlaneWaveTests, DISABLED_HGHCalibration)
+{
+    double a=7.0;
+    HGH_LocalPotential h=HGH_LocalPotential::Hydrogen();
+    for (double Ecut : {4.0,6.0,9.0,12.0})
+    {
+        size_t npw=0;
+        double Eh=HydrogenE0(a,Ecut,h,&npw);
+        double Eb=HydrogenE0(a,Ecut,BareCoulomb());
+        printf("Ecut=%5.1f  npw=%4zu  HGH-H=% .5f  bare=% .5f\n",Ecut,npw,Eh,Eb);
+    }
+    // form factor: HGH should track bare -4pi Z/G^2 at small G (Coulomb tail) and be Gaussian-soft at large G
+    for (double G2 : {0.1,1.0,5.0,25.0,100.0})
+        printf("G2=%6.1f  HGH=% .5f  bare=% .5f  ratio=% .4f\n",
+               G2,h.FormFactor(1,G2),BareCoulomb().FormFactor(1,G2),
+               h.FormFactor(1,G2)/BareCoulomb().FormFactor(1,G2));
+}
+
+// HGH hydrogen is a REAL norm-conserving pseudopotential -- but a degenerate one: hydrogen has no core
+// electrons to pseudize, so the PP carries no nonlocal projectors and its local part stays essentially
+// the bare -Z/r (the erf only softens the large-G tail).  This pins that correct behaviour:
+//  (1) the form factor tracks bare -4pi Z/G^2 at small G (the long-range Coulomb is preserved),
+//  (2) it is strictly softer than bare at large G (the would-be core is pseudized),
+//  (3) the ground state matches the bare-Coulomb result -- the no-core limit.
+// The pseudopotential PAYOFF (a soft potential that converges far faster than all-electron) shows up for
+// CORE-bearing elements, which also carry the nonlocal l-channel projectors -- the next rung of lineage A.
+TEST_F(PlaneWaveTests, HGHHydrogenIsRealButCoreless)
+{
+    HGH_LocalPotential h=HGH_LocalPotential::Hydrogen();
+    BareCoulomb bare;
+    EXPECT_NEAR(h.FormFactor(1,1.0)/bare.FormFactor(1,1.0), 1.0, 2e-3);                 // (1) Coulomb tail
+    EXPECT_LT(std::abs(h.FormFactor(1,100.0)), std::abs(bare.FormFactor(1,100.0)));     // (2) softer core
+
+    double a=7.0, Ecut=9.0;                                                            // (3) no-core limit
+    double Eh=HydrogenE0(a,Ecut,h), Eb=HydrogenE0(a,Ecut,bare);
+    EXPECT_LT(Eh,-0.05);                                                               // genuinely bound
+    EXPECT_NEAR(Eh,Eb,3e-3);                                                           // H coreless -> ~bare
 }
 
 // sigma -> 0 must reproduce the bare Coulomb potential matrix element by element.
