@@ -98,6 +98,34 @@ chmat_t PlaneWave_IBS::MakeLocalPotential(const Structure* cl, const LocalPotent
     });
 }
 
+// V_NL(G,G') = (1/Omega) Sum_a e^{-i(G-G').tau_a} Sum_p betã_p(|k+G|) D_p betã_p(|k+G'|).
+// (The k-point phases of <k+G|beta> and <beta|k+G'> cancel, leaving the structure-factor phase.)
+// Per atom & projector this is rank-1: |beta> D <beta|.  Hermitian; real for atoms at the origin.
+chmat_t PlaneWave_IBS::MakeSeparablePotential(const Structure* cl, const SeparablePotential& v) const
+{
+    const UnitCell& B=itsRecip.GetCell();
+    size_t n=GetNumFunctions();
+    std::vector<double> q(n);                       // |k+G| for each plane wave
+    for (size_t i=0; i<n; i++) q[i]=B.GetDistance(itsK+itsG[i]);
+
+    chmat_t V=blazem::zeroH<dcmplx>(n);
+    for (size_t i=0; i<n; i++)
+        for (size_t j=i; j<n; j++)
+        {
+            rvec3_t dG=B.ToCartesian(rvec3_t(itsG[i]-itsG[j]));
+            dcmplx acc(0.0);
+            for (Atom* a : *cl)
+            {
+                double s=0.0;                       // Sum_p betã_p(q_i) D_p betã_p(q_j)
+                for (size_t p=0; p<v.NumProjectors(a->itsZ); p++)
+                    s += v.Projector(a->itsZ,p,q[i])*v.Coefficient(a->itsZ,p)*v.Projector(a->itsZ,p,q[j]);
+                acc += s*std::exp(dcmplx(0.0,-(dG*a->itsR)));
+            }
+            V(i,j)=acc/itsVolume;
+        }
+    return V;
+}
+
 // <G|V|G'> = Vtilde(m(G) - m(G')).  Fill the upper triangle; HermitianMatrix mirrors the conjugate.
 chmat_t PlaneWave_IBS::MakePotential(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const
 {

@@ -6,6 +6,7 @@ target_sources(qcLattice_BS PRIVATE
 )
 target_sources(qcLattice_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     LocalPotential.C
+    SeparablePotential.C
     PlaneWave_IBS.C
 )
 target_include_directories(qcLattice_BS PRIVATE

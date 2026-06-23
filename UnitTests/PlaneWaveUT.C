@@ -23,6 +23,8 @@ using BasisSet::Lattice_3D::PlaneWave_IBS;
 using BasisSet::Lattice_3D::LocalPotential;
 using BasisSet::Lattice_3D::BareCoulomb;
 using BasisSet::Lattice_3D::GaussianSmearedNucleus;
+using BasisSet::Lattice_3D::SeparablePotential;
+using BasisSet::Lattice_3D::GaussianProjector;
 
 namespace
 {
@@ -309,4 +311,74 @@ TEST_F(PlaneWaveTests, SmearedConvergesFast)
     EXPECT_LT(Es_hi,Es_lo+1e-9);             // still variational
     EXPECT_LT(smearedDrift,5e-3);            // nearly converged already at modest Ecut
     EXPECT_LT(smearedDrift,bareDrift);       // and converging much faster than bare Coulomb
+}
+
+// --- Rung 2: Kleinman-Bylander separable NONLOCAL potential -- V_NL = |beta> D <beta| -------------
+
+// One s-channel Gaussian projector at the origin gives V_NL(G,G') = (D/Omega) b_i b_j exactly, with
+// b_i = exp(-sigma^2 |k+G_i|^2 / 2).  At Gamma (cubic), |G_i|^2 = (2 pi/a)^2 |m_i|^2.
+TEST_F(PlaneWaveTests, SeparableNonlocalMatrixElement)
+{
+    double a=8.0, sigma=1.0, D=0.7;
+    ivec3_t N(1,1,1);
+    UnitCell cell(a);
+    Lattice_3D lat(cell,N);
+    PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(0,0,0),6.0);
+    Atom H(1,rvec3_t(0,0,0));
+
+    chmat_t V=pw.MakeSeparablePotential(&H,GaussianProjector(sigma,D));
+    size_t n=pw.GetNumFunctions();
+    double Omega=a*a*a, b=2*Pi/a;
+    auto bfac=[&](size_t i){ ivec3_t m=pw.GetGIndex(i); double G2=b*b*(m.x*m.x+m.y*m.y+m.z*m.z);
+                             return std::exp(-0.5*sigma*sigma*G2); };
+    for (size_t i=0;i<n;i++)
+        for (size_t j=0;j<n;j++)
+        {
+            double expect=(D/Omega)*bfac(i)*bfac(j);
+            EXPECT_NEAR(std::real(dcmplx(V(i,j))),expect,1e-12);
+            EXPECT_DOUBLE_EQ(std::imag(dcmplx(V(i,j))),0.0);
+        }
+}
+
+// A single projector makes V_NL rank 1: exactly one nonzero eigenvalue, equal to the trace.
+TEST_F(PlaneWaveTests, SeparableNonlocalIsRankOne)
+{
+    double a=8.0;
+    ivec3_t N(1,1,1);
+    UnitCell cell(a);
+    Lattice_3D lat(cell,N);
+    PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(0,0,0),6.0);
+    Atom H(1,rvec3_t(0,0,0));
+
+    chmat_t V=pw.MakeSeparablePotential(&H,GaussianProjector(1.0,0.7));
+    size_t n=pw.GetNumFunctions();
+    double trace=0.0;
+    for (size_t i=0;i<n;i++) trace += std::real(dcmplx(V(i,i)));
+
+    rvec_t d; mat_t<dcmplx> U;
+    blazem::eigen(V,d,U);
+    int nonzero=0; double lambda=0.0;
+    for (size_t i=0;i<d.size();i++) if (std::abs(d[i])>1e-10) { nonzero++; lambda=d[i]; }
+    EXPECT_EQ(nonzero,1);                     // separable single projector => rank 1
+    EXPECT_NEAR(lambda,trace,1e-10);          // the lone eigenvalue carries the whole trace
+}
+
+// Composition: the external block is V = V_loc + V_nonlocal.  A repulsive (D>0) projector that the
+// smooth ground state overlaps must raise E0 relative to the local-only potential.
+TEST_F(PlaneWaveTests, LocalPlusNonlocalRaisesGroundState)
+{
+    double a=8.0;
+    ivec3_t N(1,1,1);
+    UnitCell cell(a);
+    Lattice_3D lat(cell,N);
+    PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(0,0,0),6.0);
+    Atom H(1,rvec3_t(0,0,0));
+
+    chmat_t Vloc=pw.MakeLocalPotential(&H,GaussianSmearedNucleus(0.5));
+    chmat_t Vnl =pw.MakeSeparablePotential(&H,GaussianProjector(1.0,0.5)); // repulsive
+    chmat_t Vtot=Vloc+Vnl;
+
+    std::vector<double> locOnly=SolveBands(pw,&Vloc);
+    std::vector<double> combined=SolveBands(pw,&Vtot);
+    EXPECT_GT(combined.front(),locOnly.front());   // repulsive nonlocal pushes the ground state up
 }

@@ -18,7 +18,8 @@ export module qchem.BasisSet.Lattice_3D.PlaneWave_IBS;
 import qchem.BasisSet.Orbital_1E_IBS;
 import qchem.BasisSet.Internal.IrrepBasisSetImp;   // IrrepBasisSetImp<T>: GetSymmetry/GetSymt/GetIrrep
 export import qchem.ReciprocalLattice;             // ctor takes a ReciprocalLattice (carries the B cell)
-export import qchem.BasisSet.Lattice_3D.LocalPotential; // LocalPotential form-factor abstraction
+export import qchem.BasisSet.Lattice_3D.LocalPotential;      // local potential form-factor abstraction
+export import qchem.BasisSet.Lattice_3D.SeparablePotential; // KB nonlocal projector abstraction
 import qchem.Structure;
 import qchem.Types;
 
@@ -55,6 +56,12 @@ public:
     //! term is dropped -- uniform neutralising background).  The species form factor \a v selects the
     //! potential model (bare Coulomb, Gaussian-smeared nucleus, pseudopotential, ...).  Hermitian.
     chmat_t MakeLocalPotential(const Structure* cl, const LocalPotential& v) const;
+
+    //! \brief Assemble the separable (Kleinman-Bylander) NONLOCAL potential \f$ \langle G|V_{NL}|G'\rangle
+    //! = \frac1\Omega \sum_a e^{-i\Delta G\cdot\tau_a} \sum_p \tilde\beta_p(|k+G|)\,D_p\,\tilde\beta_p(|k+G'|)\f$.
+    //! The external one-body potential is then \f$V = V_{loc} + V_{NL}\f$ (both summed into \f$H(k)\f$).
+    //! Hermitian; per atom & projector this is a rank-1 \f$|\beta\rangle D\langle\beta|\f$ contribution.
+    chmat_t MakeSeparablePotential(const Structure* cl, const SeparablePotential& v) const;
 
     //! \brief Assemble \f$ \langle G|V|G'\rangle = \tilde V(G-G') \f$ from a caller-supplied G-space
     //! potential, keyed by the reciprocal-index difference \f$\Delta m = m(G)-m(G')\f$.

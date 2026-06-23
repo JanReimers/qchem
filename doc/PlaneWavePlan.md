@@ -79,8 +79,19 @@ it supplies only a per-species reciprocal form factor `v(Z,|G|²)`, while
 `MakeLocalPotential(cl, BareCoulomb())`. Tests confirm the cusp is tamed: at `a=8,
 σ=0.5` the smeared energy is converged by `E_cut=6` (drift ~1e-4 to `E_cut=12`)
 while bare Coulomb keeps crawling; `σ→0` reproduces `BareCoulomb` element-by-element.
-Next rung: KB separable nonlocal projectors (`⟨G|β_lm⟩ D_l ⟨β_lm|G'⟩`) — the same
-structure underlies USPP and PAW.
+**Rung 2 (DONE, lineage A) — separable nonlocal.** `SeparablePotential`
+(`src/BasisSet/Lattice_3D/SeparablePotential.C`) is the nonlocal sibling of
+`LocalPotential`: per-species projector form factors `β̃_p(|q|)` + KB coefficients
+`D_p`. `PlaneWave_IBS::MakeSeparablePotential` assembles the Kleinman–Bylander
+form `V_NL = Σ_a Σ_p |β^a_p⟩ D_p ⟨β^a_p|` = `(1/Ω) Σ_a e^{−iΔG·τ_a} Σ_p
+β̃_p(|k+G|) D_p β̃_p(|k+G'|)`. The external one-body potential is now `V = V_loc +
+V_NL` — both model-parameterized contributions summed into `H(k)`. Demonstrator
+implementation: `GaussianProjector` (one s-channel projector, `β̃=e^{−σ²q²/2}`);
+l>0 needs `Y_lm(q̂)` + spherical-Bessel transforms (the production-PP extension).
+Tests: exact rank-1 matrix element `(D/Ω)β̃ᵢβ̃ⱼ`; a single projector yields exactly
+one nonzero eigenvalue equal to the trace (separability); and a repulsive projector
+added to `V_loc` raises the ground state. The same separable structure underlies
+USPP and PAW.
 
 ## 3. Scope insight — the 1-electron target needs much less than full SCF
 
