@@ -25,14 +25,13 @@ import qchem.Symmetry.Factory;   // BlochFactory
 import qchem.Math;               // Pi, FourPi, Cube
 import qchem.SpecialFunctions;   // SphericalBessel, SphericalBessel1, SphericalBesselPrime, LegendreP
 import qchem.BasisSet.Lattice_3D.Internal.GVectors;   // BuildGs
+import qchem.BasisSet.Lattice_3D.Internal.KPlusG;     // KPlusG (Cartesian k+G, |k+G|, cos gamma) + kZeroTol
 import qchem.Blaze;              // zeroH
 import qchem.Vector3D;           // dot product (operator*), norm
 
 namespace
 {
-// |k+G| below this is treated as zero (the Gamma-point G=0 wave): the j_l'(0) singularity is skipped
-// and the augmentation direction is irrelevant (only l=0 survives, since j_l(0)=delta_l0).
-constexpr double kZeroTol = 1e-12;   // TODO: Make External
+using BasisSet::Lattice_3D::Internal::kZeroTol;  // |k+G| below this -> skip the j_l'(0) singularity
 
 // integral f(r) dr over a LOGARITHMIC grid (r uniform in x=ln r): composite Simpson in x with the
 // dr = r dx Jacobian, so integral f dr = sum_i w_i^x f(r_i) r_i.  The log grid clusters points near the
@@ -189,12 +188,12 @@ std::vector<LAPW_IBS::AugmentedWave> LAPW_IBS::MatchAugmentation(const std::vect
     std::vector<rmat2d_t> boundaryInv(lmax+1);             // depends only on l, so invert once
     for (int l=0;l<=lmax;l++) boundaryInv[l]=Invert(blocks[l].boundary);
 
+    Internal::KPlusG kg(B, itsk, itsG);                    // Cartesian k+G, |k+G|
     std::vector<AugmentedWave> waves;
     waves.reserve(n);
     for (size_t i=0;i<n;i++)
     {
-        rvec3_t K=B.ToCartesian(itsk+itsG[i]);
-        double  Knorm=norm(K);
+        double  Knorm=kg.Norm(i);
         rvec_t  jK =SpecialFunctions::SphericalBessel(lmax,Knorm*Rmt);
         rvec_t  jKp(lmax+1,0.0);
         if (Knorm*Rmt>kZeroTol) jKp=SpecialFunctions::SphericalBesselPrime(lmax,Knorm*Rmt,jK);
@@ -204,7 +203,7 @@ std::vector<LAPW_IBS::AugmentedWave> LAPW_IBS::MatchAugmentation(const std::vect
             c[l]=boundaryInv[l]*rvec2d_t(jK[l], Knorm*jKp[l]); // K=0 -> rhs=(delta_l0,0)
             assert(std::isfinite(c[l].x) && std::isfinite(c[l].y)); // matching well-posed (no NaN/inf)
         }
-        waves.push_back(AugmentedWave(K,Knorm,std::move(c)));
+        waves.push_back(AugmentedWave(std::move(c)));
     }
     return waves;
 }
@@ -218,6 +217,7 @@ void LAPW_IBS::CombineBlocks(const std::vector<RadialBlock>& blocks, const std::
     double Vsphere=FourPi*Rmt*Rmt*Rmt/3.0;
     size_t n=GetNumFunctions();
 
+    Internal::KPlusG kg(itsRecip.GetCell(), itsk, itsG);   // Cartesian k+G, |k+G|, cos gamma
     itsOvlp=blazem::zeroH<dcmplx>(n);
     itsKp2 =blazem::zeroH<dcmplx>(n);
     itsVnuc=blazem::zeroH<dcmplx>(n);
@@ -227,13 +227,10 @@ void LAPW_IBS::CombineBlocks(const std::vector<RadialBlock>& blocks, const std::
             // interstitial overlap: full-cell PW overlap (delta_ij) minus the part inside the sphere.
             double overlapItstl;
             if (i==j) overlapItstl=1.0 - Vsphere/Ω;
-            else { rvec3_t dG=waves[i].K-waves[j].K; double dg=norm(dG);
+            else { rvec3_t dG=kg.K(i)-kg.K(j); double dg=norm(dG);
                    overlapItstl=-(FourPi*Rmt*Rmt/Ω)*SpecialFunctions::SphericalBessel1(dg*Rmt)/dg; }
-            double KdotK=waves[i].K*waves[j].K;
-            double cos_γij=(waves[i].Knorm>kZeroTol && waves[j].Knorm>kZeroTol)
-                           ? KdotK/(waves[i].Knorm*waves[j].Knorm) : 1.0;
-            cos_γij=std::max(-1.0,std::min(1.0,cos_γij));
-            rvec_t P=SpecialFunctions::LegendreP(lmax,cos_γij);
+            double KdotK=kg.K(i)*kg.K(j);
+            rvec_t P=SpecialFunctions::LegendreP(lmax, kg.CosGamma(i,j));
 
             double sphereO=0.0, sphereK=0.0, sphereV=0.0;
             for (int l=0;l<=lmax;l++)

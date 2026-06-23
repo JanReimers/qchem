@@ -13,6 +13,7 @@ import qchem.Structure;          // Atom (itsZ, itsR) + atom iteration for MakeN
 import qchem.Math;               // Pi, FourPi, sqrt, cos, sin, pow, Cube
 import qchem.SpecialFunctions;   // LegendreP (the (2l+1)P_l angular factor)
 import qchem.BasisSet.Lattice_3D.Internal.GVectors;   // BuildGs
+import qchem.BasisSet.Lattice_3D.Internal.KPlusG;     // KPlusG (Cartesian k+G, |k+G|, cos gamma)
 import qchem.Blaze;
 import qchem.Vector3D;           // dot product (operator*) + vector arithmetic
 
@@ -102,10 +103,7 @@ chmat_t PlaneWave_IBS::MakeSeparablePotential(const Structure* cl, const Separab
 {
     const UnitCell& B=itsRecip.GetCell();
     size_t n=GetNumFunctions();
-    constexpr double kZeroTol=1e-12;
-    rvec_t q(n);                                    // |k+G| for each plane wave
-    std::vector<rvec3_t> kG(n);                     // k+G (Cartesian), for the angle cos gamma
-    for (size_t i=0; i<n; i++) { kG[i]=B.ToCartesian(itsk+itsG[i]); q[i]=B.GetDistance(itsk+itsG[i]); }
+    Internal::KPlusG kg(B, itsk, itsG);             // Cartesian k+G, |k+G|, and cos(gamma)
 
     int maxL=0;                                     // highest projector channel present
     for (Atom* a : *cl)
@@ -117,9 +115,7 @@ chmat_t PlaneWave_IBS::MakeSeparablePotential(const Structure* cl, const Separab
         for (size_t j=i; j<n; j++)
         {
             rvec3_t dG=B.ToCartesian(rvec3_t(itsG[i]-itsG[j]));
-            double cosg=(q[i]>kZeroTol && q[j]>kZeroTol) ? (kG[i]*kG[j])/(q[i]*q[j]) : 1.0;
-            cosg=std::max(-1.0,std::min(1.0,cosg));
-            rvec_t P=SpecialFunctions::LegendreP(maxL,cosg);
+            rvec_t P=SpecialFunctions::LegendreP(maxL, kg.CosGamma(i,j));
             dcmplx acc(0.0);
             for (Atom* a : *cl)
             {
@@ -127,8 +123,8 @@ chmat_t PlaneWave_IBS::MakeSeparablePotential(const Structure* cl, const Separab
                 for (size_t p=0; p<v.NumProjectors(a->itsZ); p++)
                 {
                     int l=v.AngularMomentum(a->itsZ,p);
-                    s += (2*l+1)*P[l] * v.Projector(a->itsZ,p,q[i])*v.Coefficient(a->itsZ,p)
-                                       *v.Projector(a->itsZ,p,q[j]);
+                    s += (2*l+1)*P[l] * v.Projector(a->itsZ,p,kg.Norm(i))*v.Coefficient(a->itsZ,p)
+                                       *v.Projector(a->itsZ,p,kg.Norm(j));
                 }
                 acc += s*std::exp(dcmplx(0.0,-(dG*a->itsR)));
             }

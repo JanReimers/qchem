@@ -73,14 +73,12 @@ private:
         rmat2d_t kinetic;    //!< <p^2> = <-grad^2>   (NO 1/2)
         rmat2d_t potential;  //!< <u_a|V|u_b>,  V=-Z/r
     };
-    //! One plane wave k+G, augmented inside the sphere by matching value and slope at r=Rmt.
+    //! The augmentation of one plane wave k+G: its value+slope matching coefficients (a_l,b_l) per l.
+    //! (The k+G geometry itself lives in Internal::KPlusG.)
     struct AugmentedWave
     {
-        rvec3_t               K;      //!< k+G (Cartesian)
-        double                Knorm;  //!< |k+G|
         std::vector<rvec2d_t> c;      //!< matching coefficients (a_l, b_l), one 2-vector per l
-        AugmentedWave(const rvec3_t& K_, double Knorm_, std::vector<rvec2d_t> c_)
-            : K(K_), Knorm(Knorm_), c(std::move(c_)) {}
+        explicit AugmentedWave(std::vector<rvec2d_t> c_) : c(std::move(c_)) {}
     };
 
     // The constructor runs these three acts once and stores the assembled blocks (below).

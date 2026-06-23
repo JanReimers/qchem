@@ -12,15 +12,9 @@ import qchem.Symmetry.Factory;   // BlochFactory
 import qchem.Math;               // Pi, FourPi, Cube
 import qchem.SpecialFunctions;   // SphericalBessel, SphericalBessel1, SphericalBesselPrime, LegendreP
 import qchem.BasisSet.Lattice_3D.Internal.GVectors;   // BuildGs
+import qchem.BasisSet.Lattice_3D.Internal.KPlusG;     // KPlusG (Cartesian k+G, |k+G|, cos gamma)
 import qchem.Blaze;              // zeroH
 import qchem.Vector3D;           // dot product (operator*), norm
-
-namespace
-{
-// |k+G| below this is treated as zero (the Gamma-point G=0 wave): its augmentation direction is
-// irrelevant (only l=0 survives, since j_l(0)=delta_l0).
-constexpr double kZeroTol = 1e-12;   // TODO: Make External
-}
 
 namespace BasisSet::Lattice_3D
 {
@@ -62,32 +56,24 @@ chmat_t APW_IBS::MakeSecular(double E) const
         assert(std::isfinite(logd[l]));     // finite => not on the APW asymptote (j_l(qR)=0)
     }
 
-    // Per-plane-wave Cartesian K=k+G, magnitude, and j_l(|K|R).
-    std::vector<rvec3_t> K(n);
-    rvec_t  Knorm(n);
+    // Per-plane-wave Cartesian K=k+G, magnitude (via KPlusG), and j_l(|K|R).
+    Internal::KPlusG kg(B, itsk, itsG);
     std::vector<rvec_t> jKR(n);
-    for (size_t i=0; i<n; i++)
-    {
-        K[i]=B.ToCartesian(itsk+itsG[i]);
-        Knorm[i]=norm(K[i]);
-        jKR[i]=SpecialFunctions::SphericalBessel(lmax, Knorm[i]*Rmt);
-    }
+    for (size_t i=0; i<n; i++) jKR[i]=SpecialFunctions::SphericalBessel(lmax, kg.Norm(i)*Rmt);
 
     chmat_t G=blazem::zeroH<dcmplx>(n);
     for (size_t i=0; i<n; i++)
         for (size_t j=i; j<n; j++)
         {
-            double KdotK=K[i]*K[j];
+            double KdotK=kg.K(i)*kg.K(j);
             // Interstitial overlap O^I = full-cell PW overlap minus the inside-sphere part.
             double overlapItstl;
             if (i==j) overlapItstl=1.0 - Vsphere/Ω;
-            else { rvec3_t dG=K[i]-K[j]; double dg=norm(dG);
+            else { rvec3_t dG=kg.K(i)-kg.K(j); double dg=norm(dG);
                    overlapItstl=-(FourPi*Rmt*Rmt/Ω)*SpecialFunctions::SphericalBessel1(dg*Rmt)/dg; }
             double interstitial=(0.5*KdotK - E)*overlapItstl;          // (1/2 K.K' - E) * O^I
             // Sphere/surface term: Sum_l (2l+1) P_l(cos g) j_l(K_i R) j_l(K_j R) u_l'(R)/u_l(R).
-            double cos_γij=(Knorm[i]>kZeroTol && Knorm[j]>kZeroTol) ? KdotK/(Knorm[i]*Knorm[j]) : 1.0;
-            cos_γij=std::max(-1.0,std::min(1.0,cos_γij));
-            rvec_t P=SpecialFunctions::LegendreP(lmax,cos_γij);
+            rvec_t P=SpecialFunctions::LegendreP(lmax, kg.CosGamma(i,j));
             double sphere=0.0;
             for (int l=0; l<=lmax; l++) sphere += (2*l+1)*P[l]*jKR[i][l]*jKR[j][l]*logd[l];
             sphere *= 2.0*Pi*Rmt*Rmt/Ω;
