@@ -53,6 +53,18 @@ std::vector<double> FreeEnergies(double a, rvec3_t kf, int mr)
 
 class LAPWTests : public ::testing::Test {};
 
+TEST_F(LAPWTests, DISABLED_HydrogenVsLmax)
+{
+    double a=12.0, R=5.0, Ecut=1.0, El=-0.5, Z=1.0;
+    ivec3_t N(1,1,1), k(0,0,0);
+    UnitCell cell(a); Lattice_3D lat(cell,N);
+    for (size_t lmax : {0u,1u,2u,3u,4u})
+    {
+        LAPW_IBS b(lat.Reciprocal(),N,k,Ecut,R,lmax,El,Z);
+        printf("lmax=%zu  E0=% .6f\n",lmax,Bands(b,&cell).front());
+    }
+}
+
 TEST_F(LAPWTests, DISABLED_HydrogenCalibration)
 {
     double El=-0.5, Z=1.0;          // hydrogen: 1s energy is exactly -0.5 Ha
@@ -115,12 +127,14 @@ TEST_F(LAPWTests, LinearizationMostAccurateNearElin)
     EXPECT_LT(errNear,errFar);
 }
 
-// Real l=0 muffin-tin potential V=-Z/r: the radial function solves -1/2 nabla^2 - Z/r at E_l, so the
+// Real muffin-tin potential V=-Z/r: the radial function solves -1/2 nabla^2 - Z/r at E_l, so the
 // augmentation captures the 1s cusp and the hydrogen ground state comes out ~ -0.5 Ha -- where bare
 // plane waves only crawl to ~ -0.16 at comparable cutoffs (PlaneWaveUT HydrogenVariationalConvergence).
+// lmax=2 here: the l>=1 radial channels (centrifugal l(l+1)/r^2) are now solved on the logarithmic
+// grid -- they used to make the uniform-grid RK4 blow up (NaN), forcing l=0 only.
 TEST_F(LAPWTests, HydrogenGroundStateNearMinusHalf)
 {
-    double a=12.0, R=5.0, Ecut=1.0, El=-0.5, Z=1.0; size_t lmax=0;
+    double a=12.0, R=5.0, Ecut=1.0, El=-0.5, Z=1.0; size_t lmax=2;
     ivec3_t N(1,1,1), k(0,0,0);                         // Gamma; 1s is the ground state
     UnitCell cell(a); Lattice_3D lat(cell,N);
     LAPW_IBS b(lat.Reciprocal(),N,k,Ecut,R,lmax,El,Z);

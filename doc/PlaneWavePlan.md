@@ -103,9 +103,13 @@ framework spans *both* within the solids sector:
   difference in `E`), so the augmentation **captures the 1s cusp**, and `MakeNuclear`=`⟨φ|V|φ⟩`.
   Test: muffin-tin hydrogen (`Z=1`, `E_l=−0.5`, `R=5`, `a=12`) gives a ground state
   **≈ −0.4997 Ha** — the headline −0.5, recovered where bare plane waves crawl to ≈ −0.16.
-  Limitation: `l≥1` needs a log radial grid (the centrifugal `l(l+1)/r²` makes uniform-grid
-  RK4 stiff near the origin); the `l=0` 1s demonstrator avoids it. `R→a/2` makes the sphere
-  fill the cell → near-singular overlap (keep `R<a/2`).
+  `l≥1` radial channels are solved on a **logarithmic grid** (`r_i = rmin·e^{i·dx}`) with
+  **variable-step RK4** — the shrinking step near the origin keeps the centrifugal
+  `l(l+1)/r²` stiffness bounded (`h²f ~ dx²·l(l+1)`), where a uniform grid blew up (NaN).
+  Radial integrals use `RadialIntegral` = composite Simpson in `x=ln r` with the `dr=r·dx`
+  Jacobian. Hydrogen with `lmax=2` gives the same −0.4997 (the 1s is `l=0`; the `l≥1`
+  channels are now stable, not NaN). `R→a/2` makes the sphere fill the cell → near-singular
+  overlap (keep `R<a/2`).
   The assembly is structured as three acts (constructor-time): **`MuffinTinRadialBlocks`**
   (solve `u_l`,`u̇_l`; form the 2×2 overlap/kinetic/potential blocks in the `{u,u̇}` basis),
   **`MatchAugmentation`** (value+slope matching at `R` = a 2×2 solve; Wronskian = `det`),

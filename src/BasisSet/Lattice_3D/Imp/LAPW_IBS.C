@@ -25,7 +25,7 @@ import qchem.Symmetry.Factory;   // BlochFactory
 import qchem.Math;               // Pi, FourPi, Cube
 import qchem.SpecialFunctions;   // SphericalBessel, SphericalBessel1, SphericalBesselPrime, LegendreP
 import qchem.BasisSet.Lattice_3D.Internal.GVectors;   // BuildGs
-import qchem.Blaze;              // zeroH, linspace
+import qchem.Blaze;              // zeroH
 import qchem.Vector3D;           // dot product (operator*), norm
 
 namespace
@@ -34,17 +34,19 @@ namespace
 // and the augmentation direction is irrelevant (only l=0 survives, since j_l(0)=delta_l0).
 constexpr double kZeroTol = 1e-12;   // TODO: Make External
 
-// Composite-Simpson integral over the radial grid r (NQ even):  integral f(r) dr ~ sum_i w_i f(r_i).
-// Generic in the integrand's value type (here a 2x2 rmat2d_t); f(i) returns the integrand at r[i].
-template <class F> auto Simpson(const rvec_t& r, F f)
+// integral f(r) dr over a LOGARITHMIC grid (r uniform in x=ln r): composite Simpson in x with the
+// dr = r dx Jacobian, so integral f dr = sum_i w_i^x f(r_i) r_i.  The log grid clusters points near the
+// origin, which keeps the centrifugal stiffness h^2*(l(l+1)/r^2) ~ dx^2*l(l+1) bounded for all l (the
+// uniform grid was stiff for l>=1).  Generic in f's value type (here a 2x2 rmat2d_t); f(i)=integrand at r[i].
+template <class F> auto RadialIntegral(const rvec_t& r, F f)
 {
     int    NQ=static_cast<int>(r.size())-1;
-    double h=r[1]-r[0];
-    auto acc=(h/3.0)*f(0);                                    // i=0 endpoint
+    double dx=std::log(r[1]/r[0]);                           // uniform step in x=ln r
+    auto acc=(dx/3.0)*r[0]*f(0);                             // i=0 endpoint (+ dr/dx = r Jacobian)
     for (int i=1;i<=NQ;i++)
     {
-        double w=(i==NQ ? 1.0 : (i%2 ? 4.0 : 2.0))*h/3.0;
-        acc += w*f(i);
+        double w=(i==NQ ? 1.0 : (i%2 ? 4.0 : 2.0))*dx/3.0;
+        acc += w*r[i]*f(i);
     }
     return acc;
 }
@@ -53,9 +55,10 @@ template <class F> auto Simpson(const rvec_t& r, F f)
 // boundary = Phi at r=Rmt (== Phi.back()), the matrix that solves the value+slope matching.
 struct RadialTable { std::vector<rmat2d_t> Phi; rmat2d_t boundary; };
 
-// (value, slope) = (u_l(r_i), u_l'(r_i)) of the regular radial solution of -1/2 grad^2 - Znuc/r at energy E.
-// Znuc=0: analytic Bessel j_l(qr).  Znuc!=0: RK4 of P''=f P (P=r R_l), f=l(l+1)/r^2 - 2 Znuc/r - 2E,
-// started from the r^{l+1} series at r[1].  The endpoint r[NQ]=Rmt gives the boundary (value,slope).
+// (value, slope) = (u_l(r_i), u_l'(r_i)) of the regular radial solution of -1/2 grad^2 - Znuc/r at energy E,
+// on the logarithmic grid r (r[0]=rmin>0, r[NQ]=Rmt).  Znuc=0: analytic Bessel j_l(qr).  Znuc!=0:
+// VARIABLE-step RK4 of P''=f P (P=r R_l), f=l(l+1)/r^2 - 2 Znuc/r - 2E, from the r^{l+1} series at r[0];
+// the log grid's shrinking step near the origin keeps the centrifugal term stable for l>=1.
 std::vector<rvec2d_t> SolveRadial(int l,double E,double Znuc,const rvec_t& r)
 {
     int NQ=static_cast<int>(r.size())-1;
@@ -64,19 +67,18 @@ std::vector<rvec2d_t> SolveRadial(int l,double E,double Znuc,const rvec_t& r)
     {
         assert(E>0.0);                                       // free radial solution j_l(sqrt(2E) r)
         double q=std::sqrt(2.0*E);
-        for (int i=1;i<=NQ;i++){ double x=q*r[i];
+        for (int i=0;i<=NQ;i++){ double x=q*r[i];
             rvec_t j =SpecialFunctions::SphericalBessel(l,x);
             rvec_t jp=SpecialFunctions::SphericalBesselPrime(l,x,j);
             us[i]=rvec2d_t(j[l], q*jp[l]); }
         return us;
     }
     auto f=[&](double rr){ return l*(l+1)/(rr*rr) - 2.0*Znuc/rr - 2.0*E; };
-    double h=r[1]-r[0];
-    double P=std::pow(r[1],l+1), Q=(l+1)*std::pow(r[1],l);    // u ~ r^l series start at r[1]
-    us[1]=rvec2d_t(P/r[1], Q/r[1]-P/(r[1]*r[1]));
-    for (int i=1;i<NQ;i++)
+    double P=std::pow(r[0],l+1), Q=(l+1)*std::pow(r[0],l);    // u ~ r^l series start at r[0]=rmin
+    us[0]=rvec2d_t(P/r[0], Q/r[0]-P/(r[0]*r[0]));
+    for (int i=0;i<NQ;i++)
     {
-        double rr=r[i];
+        double rr=r[i], h=r[i+1]-r[i];                       // variable step on the log grid
         double k1P=Q,           k1Q=f(rr)*P;
         double k2P=Q+0.5*h*k1Q, k2Q=f(rr+0.5*h)*(P+0.5*h*k1P);
         double k3P=Q+0.5*h*k2Q, k3Q=f(rr+0.5*h)*(P+0.5*h*k2P);
@@ -89,17 +91,17 @@ std::vector<rvec2d_t> SolveRadial(int l,double E,double Znuc,const rvec_t& r)
     return us;
 }
 
-// Build Phi[i] = [[u, udot],[u', udot']].  Znuc=0: analytic.  Znuc!=0: u from the ODE at E, udot by
-// central finite difference of the ODE solution in E.  Phi[0] is left zero (r=0 contributes nothing).
+// Build Phi[i] = [[u, udot],[u', udot']] on the log grid.  Znuc=0: analytic.  Znuc!=0: u from the ODE
+// at E, udot by central finite difference of the ODE solution in E.
 RadialTable BuildRadial(int l,double E,double Znuc,const rvec_t& r)
 {
     int NQ=static_cast<int>(r.size())-1;
-    std::vector<rmat2d_t> Phi(NQ+1, rmat2d_t(0,0,0,0));
+    std::vector<rmat2d_t> Phi(NQ+1);
     if (Znuc==0.0)
     {
         assert(E>0.0);                                       // free radial solution j_l(sqrt(2E) r)
         double q=std::sqrt(2.0*E);
-        for (int i=1;i<=NQ;i++){ double rr=r[i],x=q*rr;
+        for (int i=0;i<=NQ;i++){ double rr=r[i],x=q*rr;
             rvec_t j =SpecialFunctions::SphericalBessel(l,x);
             rvec_t jp=SpecialFunctions::SphericalBesselPrime(l,x,j);
             double jlpp=-(2.0/x)*jp[l]-(1.0-l*(l+1)/(x*x))*j[l];
@@ -112,7 +114,7 @@ RadialTable BuildRadial(int l,double E,double Znuc,const rvec_t& r)
         std::vector<rvec2d_t> uE=SolveRadial(l,E,  Znuc,r);
         std::vector<rvec2d_t> uP=SolveRadial(l,E+d,Znuc,r);
         std::vector<rvec2d_t> uM=SolveRadial(l,E-d,Znuc,r);
-        for (int i=1;i<=NQ;i++)
+        for (int i=0;i<=NQ;i++)
         {
             rvec2d_t udot=(uP[i]-uM[i])/(2*d);                 // (udot, udot')
             Phi[i]=rmat2d_t(uE[i].x, udot.x, uE[i].y, udot.y); // [[u,udot],[u',udot']]
@@ -154,19 +156,22 @@ std::vector<LAPW_IBS::RadialBlock> LAPW_IBS::MuffinTinRadialBlocks() const
 {
     int    lmax=static_cast<int>(itsLmax);
     double Rmt=itsRmt, Elin=itsElin, Znuc=itsZnuc;
-    constexpr int NQ=800;                                  // TODO: Make External (radial-quadrature points)
-    rvec_t r=blazem::linspace(NQ+1, 0.0, Rmt);             // radial grid r[0]=0 .. r[NQ]=Rmt
+    constexpr int    NQ=800;                               // TODO: Make External (radial-quadrature points)
+    constexpr double rmin=1e-5;                            // TODO: Make External (log-grid inner radius, Bohr)
+    rvec_t r(NQ+1);                                        // logarithmic grid r[0]=rmin .. r[NQ]=Rmt
+    double dx=std::log(Rmt/rmin)/NQ;
+    for (int i=0;i<=NQ;i++) r[i]=rmin*std::exp(i*dx);
 
     std::vector<RadialBlock> blocks(lmax+1);
     for (int l=0;l<=lmax;l++)
     {
         RadialTable t=BuildRadial(l,Elin,Znuc,r);
-        rmat2d_t overlap  =Simpson(r,[&](int i){ rvec2d_t v=t.Phi[i].GetRow(1);
-                                                 return r[i]*r[i]*Outer(v,v); });
-        rmat2d_t kinetic  =Simpson(r,[&](int i){ rvec2d_t v=t.Phi[i].GetRow(1), s=t.Phi[i].GetRow(2);
-                                                 return r[i]*r[i]*Outer(s,s) + double(l*(l+1))*Outer(v,v); });
-        rmat2d_t potential=Simpson(r,[&](int i){ rvec2d_t v=t.Phi[i].GetRow(1);
-                                                 return (-Znuc*r[i])*Outer(v,v); });
+        rmat2d_t overlap  =RadialIntegral(r,[&](int i){ rvec2d_t v=t.Phi[i].GetRow(1);
+                                                        return r[i]*r[i]*Outer(v,v); });
+        rmat2d_t kinetic  =RadialIntegral(r,[&](int i){ rvec2d_t v=t.Phi[i].GetRow(1), s=t.Phi[i].GetRow(2);
+                                                        return r[i]*r[i]*Outer(s,s) + double(l*(l+1))*Outer(v,v); });
+        rmat2d_t potential=RadialIntegral(r,[&](int i){ rvec2d_t v=t.Phi[i].GetRow(1);
+                                                        return (-Znuc*r[i])*Outer(v,v); });
         blocks[l]=RadialBlock{ t.boundary, overlap, kinetic, potential };
     }
     return blocks;
