@@ -10,6 +10,7 @@ module qchem.BasisSet.Lattice_3D.PlaneWave_IBS;
 import qchem.Symmetry.Factory;   // BlochFactory
 import qchem.Structure;          // Atom (itsZ, itsR) + atom iteration for MakeNuclear
 import qchem.Math;               // Pi, FourPi, sqrt, cos, sin, pow, Cube
+import qchem.BasisSet.Lattice_3D.Internal.GVectors;   // BuildGs
 import qchem.Blaze;
 import qchem.Vector3D;           // dot product (operator*) + vector arithmetic
 
@@ -29,16 +30,7 @@ PlaneWave_IBS::PlaneWave_IBS(const ReciprocalLattice& recip, const ivec3_t& N,
     // |det B| = (2 pi)^3 / |det A|, so the direct cell volume V = (2 pi)^3 / V_recip.
     , itsVolume(Cube(2*Pi)/recip.GetCell().GetCellVolume())
 {
-    // Enumerate G = B m with |G| <= sqrt(2 Ecut) + |k|, then keep the cutoff set
-    // { G : 1/2 |k+G|^2 < Ecut }.  |k| widens the search sphere so no in-cutoff G is missed.
-    const UnitCell& B=itsRecip.GetCell();
-    double kLen=B.GetDistance(itsk);
-    double Gmax=sqrt(2*Ecut)+kLen;
-    for (const ivec3_t& m : itsRecip.GetGVectors(Gmax))
-    {
-        double kG=B.GetDistance(itsk+m); // |k+G|
-        if (0.5*kG*kG < Ecut) itsG.push_back(m);
-    }
+    itsG = Internal::BuildGs(itsRecip, itsk, Ecut);   // { G : 1/2|k+G|^2 < Ecut }
 }
 
 rvec3_t PlaneWave_IBS::GetGCartesian(const ivec3_t& m) const

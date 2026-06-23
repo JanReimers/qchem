@@ -13,6 +13,7 @@
 // value and slope, columns are u and udot.  Phi at r=Rmt is the boundary matrix that solves the matching;
 // the radial integral blocks are Simpson integrals of outer products of its value/slope rows.
 module;
+#include <cassert>
 #include <complex>
 #include <cmath>
 #include <iostream>
@@ -23,6 +24,7 @@ module qchem.BasisSet.Lattice_3D.LAPW_IBS;
 import qchem.Symmetry.Factory;   // BlochFactory
 import qchem.Math;               // Pi, FourPi, Cube
 import qchem.SpecialFunctions;   // SphericalBessel, SphericalBessel1, SphericalBesselPrime, LegendreP
+import qchem.BasisSet.Lattice_3D.Internal.GVectors;   // BuildGs
 import qchem.Blaze;              // zeroH, linspace
 import qchem.Vector3D;           // dot product (operator*), norm
 
@@ -60,6 +62,7 @@ std::vector<rvec2d_t> SolveRadial(int l,double E,double Znuc,const rvec_t& r)
     std::vector<rvec2d_t> us(NQ+1, rvec2d_t(0,0));
     if (Znuc==0.0)
     {
+        assert(E>0.0);                                       // free radial solution j_l(sqrt(2E) r)
         double q=std::sqrt(2.0*E);
         for (int i=1;i<=NQ;i++){ double x=q*r[i];
             rvec_t j =SpecialFunctions::SphericalBessel(l,x);
@@ -94,6 +97,7 @@ RadialTable BuildRadial(int l,double E,double Znuc,const rvec_t& r)
     std::vector<rmat2d_t> Phi(NQ+1, rmat2d_t(0,0,0,0));
     if (Znuc==0.0)
     {
+        assert(E>0.0);                                       // free radial solution j_l(sqrt(2E) r)
         double q=std::sqrt(2.0*E);
         for (int i=1;i<=NQ;i++){ double rr=r[i],x=q*rr;
             rvec_t j =SpecialFunctions::SphericalBessel(l,x);
@@ -135,13 +139,8 @@ LAPW_IBS::LAPW_IBS(const ReciprocalLattice& recip, const ivec3_t& N, const ivec3
     , itsElin(Elin)
     , itsZnuc(Znuc)
 {
-    const UnitCell& B=itsRecip.GetCell();
-    double Gmax=sqrt(2*Ecut)+B.GetDistance(itsk);
-    for (const ivec3_t& m : itsRecip.GetGVectors(Gmax))
-    {
-        double kG=B.GetDistance(itsk+m);
-        if (0.5*kG*kG < Ecut) itsG.push_back(m);
-    }
+    assert(Rmt>0.0);
+    itsG = Internal::BuildGs(itsRecip, itsk, Ecut);
     // Assemble the blocks once, at construction (everything below is fixed by the inputs above).
     std::vector<RadialBlock>   blocks = MuffinTinRadialBlocks();   // Act 1
     std::vector<AugmentedWave> waves  = MatchAugmentation(blocks); // Act 2
@@ -183,7 +182,11 @@ std::vector<LAPW_IBS::AugmentedWave> LAPW_IBS::MatchAugmentation(const std::vect
     size_t n=GetNumFunctions();
 
     std::vector<rmat2d_t> boundaryInv(lmax+1);             // depends only on l, so invert once
-    for (int l=0;l<=lmax;l++) boundaryInv[l]=Invert(blocks[l].boundary);
+    for (int l=0;l<=lmax;l++)
+    {
+        assert(std::abs(Determinant(blocks[l].boundary))>kZeroTol); // Wronskian!=0: matching is solvable
+        boundaryInv[l]=Invert(blocks[l].boundary);
+    }
 
     std::vector<AugmentedWave> waves;
     waves.reserve(n);

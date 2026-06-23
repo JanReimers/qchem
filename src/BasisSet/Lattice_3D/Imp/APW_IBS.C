@@ -1,5 +1,6 @@
 // File: BasisSet/Lattice_3D/Imp/APW_IBS.C  Augmented Plane Wave secular-matrix assembly.
 module;
+#include <cassert>
 #include <complex>
 #include <cmath>
 #include <iostream>
@@ -10,6 +11,7 @@ module qchem.BasisSet.Lattice_3D.APW_IBS;
 import qchem.Symmetry.Factory;   // BlochFactory
 import qchem.Math;               // Pi, FourPi, Cube
 import qchem.SpecialFunctions;   // SphericalBessel, SphericalBessel1, SphericalBesselPrime, LegendreP
+import qchem.BasisSet.Lattice_3D.Internal.GVectors;   // BuildGs
 import qchem.Blaze;              // zeroH
 import qchem.Vector3D;           // dot product (operator*), norm
 
@@ -34,13 +36,8 @@ APW_IBS::APW_IBS(const ReciprocalLattice& recip, const ivec3_t& N, const ivec3_t
     , itsRmt(Rmt)
     , itsLmax(lmax)
 {
-    const UnitCell& B=itsRecip.GetCell();
-    double Gmax=sqrt(2*Ecut)+B.GetDistance(itsk);
-    for (const ivec3_t& m : itsRecip.GetGVectors(Gmax))
-    {
-        double kG=B.GetDistance(itsk+m);
-        if (0.5*kG*kG < Ecut) itsG.push_back(m);
-    }
+    assert(Rmt>0.0);
+    itsG = Internal::BuildGs(itsRecip, itsk, Ecut);
 }
 
 // APW has a SINGLE radial function u_l per channel (not LAPW's {u_l, udot_l} pair), so the secular
@@ -59,7 +56,11 @@ chmat_t APW_IBS::MakeSecular(double E) const
     rvec_t jq =SpecialFunctions::SphericalBessel(lmax,qR);
     rvec_t jqp=SpecialFunctions::SphericalBesselPrime(lmax,qR,jq);
     rvec_t logd(lmax+1,0.0);
-    for (int l=0; l<=lmax; l++) logd[l]=q*jqp[l]/jq[l];
+    for (int l=0; l<=lmax; l++)
+    {
+        assert(std::abs(jq[l])>kZeroTol);   // j_l(qR)!=0: avoid the APW asymptote (singular log-derivative)
+        logd[l]=q*jqp[l]/jq[l];
+    }
 
     // Per-plane-wave Cartesian K=k+G, magnitude, and j_l(|K|R).
     std::vector<rvec3_t> K(n);
