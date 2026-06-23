@@ -21,8 +21,8 @@ PlaneWave_IBS::PlaneWave_IBS(const ReciprocalLattice& recip, const ivec3_t& N,
     : BasisSet::IrrepBasisSetImp<dcmplx>(Symmetry::BlochFactory(N,kIndex))
     , itsRecip(recip)
     , itsN(N)
-    , itsKIndex(kIndex)
-    , itsK(kIndex.x/static_cast<double>(N.x),
+    , itskIndex(kIndex)
+    , itsk(kIndex.x/static_cast<double>(N.x),
            kIndex.y/static_cast<double>(N.y),
            kIndex.z/static_cast<double>(N.z))
     , itsEcut(Ecut)
@@ -32,11 +32,11 @@ PlaneWave_IBS::PlaneWave_IBS(const ReciprocalLattice& recip, const ivec3_t& N,
     // Enumerate G = B m with |G| <= sqrt(2 Ecut) + |k|, then keep the cutoff set
     // { G : 1/2 |k+G|^2 < Ecut }.  |k| widens the search sphere so no in-cutoff G is missed.
     const UnitCell& B=itsRecip.GetCell();
-    double kLen=B.GetDistance(itsK);
+    double kLen=B.GetDistance(itsk);
     double Gmax=sqrt(2*Ecut)+kLen;
     for (const ivec3_t& m : itsRecip.GetGVectors(Gmax))
     {
-        double kG=B.GetDistance(itsK+m); // |k+G|
+        double kG=B.GetDistance(itsk+m); // |k+G|
         if (0.5*kG*kG < Ecut) itsG.push_back(m);
     }
 }
@@ -64,7 +64,7 @@ chmat_t PlaneWave_IBS::MakeKinetic() const
     chmat_t S=blazem::zeroH<dcmplx>(n);   // off-diagonals are exactly zero
     for (size_t i=0; i<n; i++)
     {
-        double kG=B.GetDistance(itsK+itsG[i]); // |k+G|
+        double kG=B.GetDistance(itsk+itsG[i]); // |k+G|
         S(i,i)=kG*kG;
     }
     return S;
@@ -106,7 +106,7 @@ chmat_t PlaneWave_IBS::MakeSeparablePotential(const Structure* cl, const Separab
     const UnitCell& B=itsRecip.GetCell();
     size_t n=GetNumFunctions();
     std::vector<double> q(n);                       // |k+G| for each plane wave
-    for (size_t i=0; i<n; i++) q[i]=B.GetDistance(itsK+itsG[i]);
+    for (size_t i=0; i<n; i++) q[i]=B.GetDistance(itsk+itsG[i]);
 
     chmat_t V=blazem::zeroH<dcmplx>(n);
     for (size_t i=0; i<n; i++)
@@ -144,7 +144,7 @@ cvec_t PlaneWave_IBS::operator()(const rvec3_t& r) const
     cvec_t v(n);
     for (size_t i=0; i<n; i++)
     {
-        double phase=GetGCartesian(itsG[i])*r + itsRecip.GetCell().ToCartesian(itsK)*r; // (k+G).r
+        double phase=GetGCartesian(itsG[i])*r + itsRecip.GetCell().ToCartesian(itsk)*r; // (k+G).r
         v[i]=dcmplx(cos(phase),sin(phase))*invSqrtV;
     }
     return v;
@@ -156,7 +156,7 @@ cvec3vec_t PlaneWave_IBS::Gradient(const rvec3_t& r) const
     const dcmplx im(0.0,1.0);
     size_t n=GetNumFunctions();
     double invSqrtV=1.0/sqrt(itsVolume);
-    rvec3_t kCart=itsRecip.GetCell().ToCartesian(itsK);
+    rvec3_t kCart=itsRecip.GetCell().ToCartesian(itsk);
     cvec3vec_t g(n);
     for (size_t i=0; i<n; i++)
     {
@@ -171,7 +171,7 @@ cvec3vec_t PlaneWave_IBS::Gradient(const rvec3_t& r) const
 std::string PlaneWave_IBS::BasisSetID() const
 {
     return Name()+"|N="+std::to_string(itsN.x)+","+std::to_string(itsN.y)+","+std::to_string(itsN.z)
-                 +"|k="+std::to_string(itsKIndex.x)+","+std::to_string(itsKIndex.y)+","+std::to_string(itsKIndex.z)
+                 +"|k="+std::to_string(itskIndex.x)+","+std::to_string(itskIndex.y)+","+std::to_string(itskIndex.z)
                  +"|Ecut="+std::to_string(itsEcut)
                  +"|nG="+std::to_string(itsG.size());
 }

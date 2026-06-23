@@ -19,7 +19,7 @@ APW_IBS::APW_IBS(const ReciprocalLattice& recip, const ivec3_t& N, const ivec3_t
                  double Ecut, double Rmt, size_t lmax)
     : BasisSet::IrrepBasisSetImp<dcmplx>(Symmetry::BlochFactory(N,kIndex))
     , itsRecip(recip)
-    , itsK(kIndex.x/static_cast<double>(N.x),
+    , itsk(kIndex.x/static_cast<double>(N.x),
            kIndex.y/static_cast<double>(N.y),
            kIndex.z/static_cast<double>(N.z))
     , itsVolume(Cube(2*Pi)/recip.GetCell().GetCellVolume())
@@ -27,10 +27,10 @@ APW_IBS::APW_IBS(const ReciprocalLattice& recip, const ivec3_t& N, const ivec3_t
     , itsLmax(lmax)
 {
     const UnitCell& B=itsRecip.GetCell();
-    double Gmax=sqrt(2*Ecut)+B.GetDistance(itsK);
+    double Gmax=sqrt(2*Ecut)+B.GetDistance(itsk);
     for (const ivec3_t& m : itsRecip.GetGVectors(Gmax))
     {
-        double kG=B.GetDistance(itsK+m);
+        double kG=B.GetDistance(itsk+m);
         if (0.5*kG*kG < Ecut) itsG.push_back(m);
     }
 }
@@ -56,7 +56,7 @@ chmat_t APW_IBS::MakeSecular(double E) const
     std::vector<std::vector<double>> jKR(n);
     for (size_t i=0; i<n; i++)
     {
-        K[i]=B.ToCartesian(itsK+itsG[i]);
+        K[i]=B.ToCartesian(itsk+itsG[i]);
         Kmag[i]=std::sqrt(K[i]*K[i]);
         jKR[i]=qchem::Math::SphericalBessel(L, Kmag[i]*R);
     }
@@ -90,7 +90,7 @@ cvec_t APW_IBS::operator()(const rvec3_t& r) const
     cvec_t v(n);
     for (size_t i=0; i<n; i++)
     {
-        double phase=itsRecip.GetCell().ToCartesian(itsK+itsG[i])*r; // (k+G).r  (interstitial value)
+        double phase=itsRecip.GetCell().ToCartesian(itsk+itsG[i])*r; // (k+G).r  (interstitial value)
         v[i]=dcmplx(cos(phase),sin(phase))*inv;
     }
     return v;
@@ -104,7 +104,7 @@ cvec3vec_t APW_IBS::Gradient(const rvec3_t& r) const
     cvec3vec_t g(n);
     for (size_t i=0; i<n; i++)
     {
-        rvec3_t K=itsRecip.GetCell().ToCartesian(itsK+itsG[i]);
+        rvec3_t K=itsRecip.GetCell().ToCartesian(itsk+itsG[i]);
         double phase=K*r;
         dcmplx val=dcmplx(cos(phase),sin(phase))*inv;
         g[i]=vec3_t<dcmplx>(im*K.x*val, im*K.y*val, im*K.z*val);

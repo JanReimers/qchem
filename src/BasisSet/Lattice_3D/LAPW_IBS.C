@@ -59,7 +59,7 @@ private:
     void Assemble(chmat_t& H, chmat_t& O) const;
 
     ReciprocalLattice    itsRecip;
-    rvec3_t              itsK;
+    rvec3_t              itsk;
     double               itsVolume;
     double               itsRmt;
     size_t               itsLmax;

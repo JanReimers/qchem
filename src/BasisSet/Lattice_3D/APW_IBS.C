@@ -62,7 +62,7 @@ public:
 
 private:
     ReciprocalLattice    itsRecip;  //!< Reciprocal cell (matrix B).
-    rvec3_t              itsK;      //!< Fractional crystal momentum k = kIndex/N.
+    rvec3_t              itsk;      //!< Fractional crystal momentum k = kIndex/N.
     double               itsVolume; //!< Direct cell volume Omega.
     double               itsRmt;    //!< Muffin-tin radius (Bohr).
     size_t               itsLmax;   //!< Angular-momentum cutoff.

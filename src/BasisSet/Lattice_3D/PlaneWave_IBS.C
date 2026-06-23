@@ -87,8 +87,8 @@ private:
 
     ReciprocalLattice    itsRecip;  //!< Reciprocal cell (matrix \f$B\f$); source of G and |k+G|.
     ivec3_t              itsN;      //!< BZ grid divisions (for the cache key).
-    ivec3_t              itsKIndex; //!< Integer k-label (for the cache key).
-    rvec3_t              itsK;      //!< Fractional crystal momentum \f$k=kIndex/N\f$.
+    ivec3_t              itskIndex; //!< Integer k-label (for the cache key).
+    rvec3_t              itsk;      //!< Fractional crystal momentum \f$k=kIndex/N\f$.
     double               itsEcut;   //!< Energy cutoff (Hartree).
     double               itsVolume; //!< Direct cell volume \f$V\f$ (for the \f$1/\sqrt V\f$ norm).
     std::vector<ivec3_t> itsG;      //!< Surviving reciprocal index triples \f$m\f$ (\f$G=Bm\f$).
