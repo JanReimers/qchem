@@ -12,6 +12,11 @@ Notes, bugs, and plans for the qchem6 project. This file is markdown-enabled so 
 - Matrix3D/Vecor3D and the 2D version.  Should these all be covnverted to blaze::StaticXXXX.   By defualt blaze does some
   fancey memory alignment magic they may help performance.
   Types.C add mat3d_t and rmat3d_t for consistency.
+-we now have tiny diffs in three submodules: blaze, wignerSymbols and libxc.  Part of this is suppressing
+CMake noise about Min versions.  Maybe there is a better way to deal with this.  Tow other are compiler warnings in blaze and time stamped xc.h for useless recompile in libxc.  How to the deal with this?  Keep a patch and apply it after checkout?
+
+The cause: submodules/libxc/CMakeLists.txt localizes the <xc_version.h> include in xc.h via an unconditional file(WRITE), which bumps xc.h's mtime on every cmake reconfigure. So every CMakeLists edit (constant during dev) forced Libxc_LDA_Exchange.C to recompile. Patched to write-only-if-content-changed (matching what configure_file does for config.h). Verified: two forced reconfigures now leave xc.h's mtime untouched and Libxc is not rebuilt.
+
 
 ## Code review
 
@@ -63,11 +68,69 @@ Notes, bugs, and plans for the qchem6 project. This file is markdown-enabled so 
 
 ### DFT upgrade
 
-- Hand code Vosko's exchange.
-- Consider separate `Vxc`, `Vex`, and `Vcorr`.
-- Reproducing the NIST tests is tricky (various formula ambiguities).
-- Use a `FunctionFitter` instance instead of inheriting from fitted function implementations.
-- Redesign fitting so fitted objects contain a `Fitter*`.
+#### Oracle.
+
+- DFT is not really abinito, so finding an oracle is more difficult that for HF.
+  Neverhteless the class PeriodicTableSaito (now miss named) has GetEnergyDFT and those numbers come
+  from NIST https://math.nist.gov/DFTdata/atomdata/tables/ptable.html.
+  They have an exchange and a separate correlation potential described here: https://math.nist.gov/DFTdata/atomdata/node3.html#SECTION00021000000000000000
+  and in this paper: S. H. Vosko, L. Wilk, and M. Nusair, Can. J. Phys. 58, 1200 (1980); S. H. Vosko and L. Wilk, Phys. Rev. B 22, 3812 (1980).
+- libxc has the Vosko correlation implelemented.  See src/Hamiltonian/Internal/Libxc_LDA_Exchange.C
+- BUT I tried some of simple exchange functions in libxc and using them I can't get agreement in the energies.
+- I think we need to:
+1. Consider separate `Vxc`, `Vex`, and `Vcorr` terms in src/Hamiltonian/Internal/Terms.C.
+2. In src/Hamiltonian/Internal/Hamiltonians.C make new versions of Ham_DFT_{U,P}->Ham_DFTcorr_{U,P} and use separate Vex and Vcorr terms.
+3. Hand code Vosko the exchange term so we have full control.
+4. If we can reproduce the NIST energies then we have an oracle.
+
+#### Friendly interface
+- For libxc, the client code is expected to look up a function id.  Can we pick a few of the available functionals
+  that we are likely to want for developing and testing in our work in BasisSet/Lattice_3D, (Si in particular) and make emuns for them.
+  If the functionals require parameters, handle that for the user.  In short make the user unaware that libxc is under the hood.
+
+#### How to handle Atom (pure radial) efficiently
+
+- Every IBS basis set supports rvec_t op()(const rvec3_t&) for getting a vector of values needed for fitting ρ(r) and Vxc(ρ(r))
+- This is the right interface for molecules and solids.  It is a little clunky for atoms, where efficiency suggests op()(double r) is better.
+- Right now for atoms we make a mesh with an angular component going along one axis (say x, I forget which one). and that ends up feeding an rvec3_t(r,0,0) into op()(const rvec3_t&).
+- Also atom op()(const rvec3_t&) does not inlcude any angular dependence, it is fake, just radial.  
+- BUT in the future I want to make a flashy GUI app for atoms that can display orbitals (iso surfaces) with pretty colours.  In order for that work I need to use real versions of the spherical harmonics (Ylm+i*Yl-m etc) in order to plot the orbitals.
+- THis will break DFT unless we use expensive grids with more angular directions.  Good source of numerical bugs.
+- Looking for options to fix this.
+1. make a separate op()(double r) just atoms.  Violates SOLID
+2. Internal flag to indicate spherical harmonics on or off.
+3. orther??
+- We can deffer this decision until I do the flashy GUI app.
+
+The cleaner framing: you're conflating evaluation with integration.
+
+op()(rvec3_t) is the universal evaluation interface and should stay semantically honest — full angular dependence with real Ylm. That's what the GUI needs, and it's not optional truth.
+Atomic DFT integration should exploit spherical symmetry analytically (1-D radial quadrature × 4π), not fake a 3-D grid down one axis. Make that a polymorphic integrator/quadrature strategy selected by the basis set's symmetry (the atom already carries YFactory symmetry — let that choose the radial integrator). The molecule/solid path uses a 3-D grid integrator.
+So: don't fake op(), and don't flag it — separate the integration concern. A fast op()(double r) can exist as the internal fast-path the radial integrator calls, not as a public alternative. Deferring to GUI time is fine, but lock the principle now ("op(rvec3_t) is always honest") so the deferral doesn't quietly accrete a flag.
+
+#### Fitting 
+
+- The Fitting project-module needs a refactor.  
+- Right now client code (FittedVee, FittedVxc, FittedCD) must inherit from src/Fitting/FittedFunctionImp.C.  Not good, not SOLID.
+- How to fix?  I propose a `FunctionFitter` fitter interface.  Client uses a Factory to get one.  They have options:
+1. Unconstrained
+2. Constrained (I think this is actually charge constrained)
+3. IntegralConstrained 
+- If you have an alternate proposel let me know.
+- FunctionFitter is polymorphic so we have the recurring queston: Does the factory return a raw pointer, std:shared_ptr, std::unique_ptr or something else?
+- The Fitting project-module needs more docs. Again use latex for formulas.
+
+Code review:
+- Factory.
+- File name src/Fitting/FittedFunctionImp.C
+#### Bug
+
+- Bug From another session:DFT fit-basis leak (found via ASan 2026-06-20): the DFT Hamiltonian builds a CD fit basis
+  (`BasisSet::CreateCDFitBasisSet` -> `EFit_IBS`) that is never freed -- LSan shows the fit-basis
+  radials leaking on water_DFT (old PG ~1.6MB / 21k allocs, new PG1 ~0.6MB). The HF path is
+  leak-clean. Pre-existing in BOTH trees (shared Hamiltonian/fit-basis ownership), not the PG
+  refactor. Fix: pin down who owns the result of CreateCDFitBasisSet and ensure ~Ham_DFT_U (or the
+  SCFIterator) deletes it.
 
 
 ### Perturbation support
@@ -122,13 +185,6 @@ Notes, bugs, and plans for the qchem6 project. This file is markdown-enabled so 
     concept constratints for those integrals.
 
 ### Code review comments
-- The src/Symmetry project-module may need enhancements as you proceed.  Also please say when you think it is
-an efficient time to get space group symmery up and running so we can block diagonalize (SALC) each Boch block.  We can start a fresh session for that feature.
-- for consistency with the existing real basis functon work, it would nice to replace smat_t<dcmplx> -> csmat_t (corresponding to rsmat_t in Types.C).  If your see problems with this let me know.
-- same again for vec_t<dcmplx> -> cvec_t vec3vec_t<dcmplx> -> cvec3vec_t
-- src/BasisSet/Lattice_3D/Imp/PlaneWave_IBS.C line 63:smat_t<dcmplx> S(n); do we need to assign it to zero<dcmplx>(N);
-  right now it looks like all the off diag elements are uninitialized.
-- Much later, looks for multiple instance of 2*Pi, Cube(2*Pi)
 
 - "APW_IBS is an IrrepBasisSet<dcmplx> sibling of PlaneWave_IBS — same base interface — but deliberately not an Orbital_1E_IBS, because APW's overlap is energy-dependent." 
 Answer: we have to solve a nonline sec equation by iterating:
@@ -137,11 +193,20 @@ solve the linear generalized problem H(E₀)c = ε·O(E₀)c → eigenvalues ε_
 pick the relevant ε_n =: E₁, set E₀ ← E₁, repeat until E₁ = E₀ (the fixed point ε_n(E*) = E*).
 Its almost like a SCF iterator except 1) we finding E* instead of a converged charge density and 2) S(E) also changes with each iteration just the H.
 
+My view of this higher mid level plan is now 1) GO suitably far along Lineage A and B. 2) For lineage A create a generic template <isM_1E_Evalualtor E> class EPlaneWave_IBS<E> and start migrating the hard coded PW IBSs one at a time.  Most code and member data moves into the evaluators.  3) Figure how to graft this process onto the lineage B versions.    4) Start thinking about e-e repulsion, this requires a top level DFT upgrade first, and I am specing that out now.
 
-1) Do PW, APW and LAPW all use the same (or similar) algo for building the G array from Emax?  If so lets break it out into a BuildGs(....) function that works for all three and put it in a new src/BasisSet/Lattice_3D/Internal folder.  
-2) The NAN issue reminds me that you are not in the habit of using asserts.  I have to use them because I am much
-more error prone than you are.  What are your thoughts on this?
-3) My convention of using itsBlah for member variables (and theBlah for rare static stuff) is very old (Robert C. Martin early 1990s). I have been ignoring it in some code recent code precisely because I don't want all those its prefixes in formulas.  Maybe we should drop the its prefixes for numerical members that appear in formulas.  Its (ha ha) a tradeoff, no silver bullet. What do you think?
+What about GPW after FLAPW ... we already have integral engines in src/BasisSet/Molecule if that helps
+
+"How should the PW complex density handle DM_CD's Gaussian/HF/fit-only methods (AccumulateDirect/Exchange, GetRepulsion3C, FitGetConstraint) that plane waves never use?"  
+- We will need to somehow split up tDM_CD into 1E, DFT and HF mixin versions along the same lines as for basis functions.
+  This is exactly the sort refactoring I want to discover.  What are the correct abstractions for a clean implentation
+  of everything {atom/molecule/Lattice_3D//Lattice_2D//Lattice_1D}*{1E,DFT,HF}*{Pol,unPol}
+
+Is virtual hmat_t<T> MakeExternalPotential(const Structure*) const=0; the analogue of MakeNuclear in the atom/moleulce parts of BasisSet?  If so we now have three names for the what I think are the same thing: ExternalPotential, Ven, and Nuclear.   I don't like ExternalPotential.  External to what?  All those nuclei are *in* the lattice.  I see External and I think of an EM field origininating from outside the NxNxN lattice.  
+
+-Pin list:  Review ElConfig and electron dumping. 
+
+
 
 
 ## Upgrade existing features
@@ -163,7 +228,6 @@ more error prone than you are.  What are your thoughts on this?
 
 ## Clean up
 
-- Sort out PG cache — keep one cache in `DB_cache`.
 - `constexpr` the static numeric lookup tables. `Fact`/`DFact`/`Twon` (`src/Common/Factorials.C`),
   `DoubleFactData` (PrimGaussian in `Radial/Imp/GaussianRF.C`), and the Pascal/binomial triangle
   (`src/BasisSet/Atom/Evaluators/Internal/PascalTriangle.C`) are pure integer/double recurrences of
@@ -212,22 +276,10 @@ more error prone than you are.  What are your thoughts on this?
   `ASAN_OPTIONS=detect_leaks=1 build/ASan/UnitTests/UTMain --gtest_filter=...`. Faster than valgrind
   for this codebase and catches stack/global overflows too (but NOT uninitialized reads -> valgrind).
 
-- DFT fit-basis leak (found via ASan 2026-06-20): the DFT Hamiltonian builds a CD fit basis
-  (`BasisSet::CreateCDFitBasisSet` -> `EFit_IBS`) that is never freed -- LSan shows the fit-basis
-  radials leaking on water_DFT (old PG ~1.6MB / 21k allocs, new PG1 ~0.6MB). The HF path is
-  leak-clean. Pre-existing in BOTH trees (shared Hamiltonian/fit-basis ownership), not the PG
-  refactor. Fix: pin down who owns the result of CreateCDFitBasisSet and ensure ~Ham_DFT_U (or the
-  SCFIterator) deletes it.
 
 
 - Investigate BSpline integral inaccuracies for `l>0`.
-- Misc bug notes and test outputs preserved below.
-        We need to somehow seemlessly change between blaze::SymmetricMatrix and blaze::HermitianMatrix. 
-
-        Aside: I like using dcmplx=std::complex<double>; ... it the same number of chars as double so things line up nicely in class interface.
-
-        lets start the thought process with LASolver in mind.
-
+       
 -How to handle mismatches between {basis set} {hamiltonian} {structure} Examples:
          BSpline basis, DFT/DHF hamiltonian -- BSpline has no DFT or RKB evaluator yet.
          SG (atom only) basis for any Molecule.
@@ -237,3 +289,5 @@ more error prone than you are.  What are your thoughts on this?
             BasisSetSupport exception which contains basis set type and required/missing support RKB or DFT.  Client: DiracKinetic FittedVee
     
 -DO something about globalDBCache_RAM creation at startup.
+
+
