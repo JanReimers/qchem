@@ -32,6 +32,7 @@
 #include "gtest/gtest.h"
 
 import qchem.BasisSet.Lattice_3D.PlaneWave_IBS;
+import qchem.BasisSet.Lattice_3D.BasisSet;   // Factory(Type::PW, lat, Ecut, loc, nl) -> Complex_BS*
 import qchem.Lattice_3D;     // UnitCell, Lattice_3D, ReciprocalLattice
 import qchem.Types;          // dcmplx, ivec3_t, rvec_t, mat_t, chmat_t
 import qchem.Blaze;          // mat_t<dcmplx>
@@ -989,13 +990,6 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaMatchesPrototype)
     EXPECT_NEAR(E.GetTotalEnergy(),   1.468, 5e-3);              // matches the standalone prototype Si-Gamma
 }
 
-// A BasisSet<dcmplx> holding the single plane-wave block (the Bloch irrep) -- the container the
-// framework WaveFunction iterates over.  Owns the IBS (deleted with the BasisSet).
-struct PW_BasisSet : public BasisSet::BasisSetImp<dcmplx>
-{
-    explicit PW_BasisSet(PlaneWave_IBS* pw) { Insert(pw); }
-};
-
 // The SAME Si-Gamma Kohn-Sham problem as FrameworkSiliconGammaMatchesPrototype, but now driven by the
 // REAL framework cSCFIterator (no hand-rolled SCF loop): cSCFIterator -> cWaveFunction (UnPolarizedWF
 // -> IrrepWF) -> tSCFAcceleratorNull<dcmplx> diagonalize -> TOrbitals<dcmplx> fill -> IrrepCD<dcmplx>,
@@ -1008,20 +1002,23 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaThroughSCFIterator)
     Matrix3D<double> Amat(0.0,h,h,  h,0.0,h,  h,h,0.0);
     UnitCell          cell(Amat);
     Lattice_3D        lat(cell, ivec3_t(1,1,1));
-    PlaneWave_IBS*    pw=new PlaneWave_IBS(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
 
     auto si=std::make_shared<Molecule>();
     si->Insert(new Atom(14, rvec3_t(0,0,0)));
     si->Insert(new Atom(14, rvec3_t(0.25*a,0.25*a,0.25*a)));
-    HGH_LocalPotential     loc=HGH_LocalPotential::Silicon();      // must outlive the SCF run (pw holds &loc)
+    HGH_LocalPotential     loc=HGH_LocalPotential::Silicon();      // must outlive the SCF run (the basis holds &loc)
     HGH_SeparablePotential nl =HGH_SeparablePotential::Silicon();
-    pw->SetPseudopotential(&loc, &nl);
 
-    Irrep      irr=pw->GetIrrep(Spin::None);
-    size_t     n  =pw->GetNumFunctions();
+    // The basis comes from the factory as an abstract BasisSet<dcmplx>; it owns its plane-wave Bloch
+    // block(s) and (for now) carries the pseudopotential.  Single-k -> one block at Gamma.
+    namespace L3=BasisSet::Lattice_3D;
+    std::unique_ptr<BasisSet::Complex_BS> bs(L3::Factory(L3::Type::PW, lat, 4.0, &loc, &nl));
+    const auto* pw=(*bs)[0];                         // the single Bloch block (for the seed density below)
+
+    Irrep      irr=bs->GetIrreps(Spin::None)[0];
+    size_t     n  =bs->GetNumFunctions();
     const int  Nelec=8;
 
-    PW_BasisSet bs(pw);                  // owns pw
     Crystal_EC  ec(irr, Nelec);
 
     // Framework Hamiltonian (heap; the SCFIterator takes ownership).
@@ -1040,7 +1037,7 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaThroughSCFIterator)
     for (size_t i=0;i<n;i++) D0(i,i)=double(Nelec)/double(n);
     auto* seed=new qchem::ChargeDensity::IrrepCD<dcmplx>(D0, pw, irr);
 
-    qchem::SCFIterator::cSCFIterator scf(&bs, &ec, ham, acc, seed);
+    qchem::SCFIterator::cSCFIterator scf(bs.get(), &ec, ham, acc, seed);
 
     SCFParams par;
     par.NMaxIter      =80;

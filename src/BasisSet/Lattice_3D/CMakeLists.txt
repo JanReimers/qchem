@@ -5,6 +5,7 @@ target_sources(qcLattice_BS PRIVATE
     Imp/PlaneWave_IBS.C
     Imp/APW_IBS.C
     Imp/LAPW_IBS.C
+    Imp/BasisSet.C
 )
 target_sources(qcLattice_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Internal/GVectors.C
@@ -15,6 +16,7 @@ target_sources(qcLattice_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILE
     APW_IBS.C
     LAPW_IBS.C
     BandStructure.C
+    BasisSet.C
 )
 target_include_directories(qcLattice_BS PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/blaze
