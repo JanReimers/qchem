@@ -12,9 +12,8 @@ target_sources(qcHamiltonian PRIVATE
     Internal/Imp/Vnn.C 
     Internal/Imp/FittedVxcPol.C 
     Internal/Imp/FittedVee.C 
-    Internal/Imp/FittedVxc.C 
-    Internal/Imp/HamiltonianTerm.C  
-    Internal/Imp/HamiltonianImp.C  
+    Internal/Imp/FittedVxc.C
+    Internal/Imp/HamiltonianImp.C
     Internal/Imp/Hamiltonians.C 
     Internal/Imp/ExchangeFunctional.C  
     Internal/Imp/SlaterExchange.C 

@@ -19,7 +19,7 @@ export namespace qchem::SCFIterator
 class SCFIterator
 {
 public:
-    SCFIterator(const bs_t*, const ElectronConfiguration*, class Hamiltonian*,SCFAccelerator*,DM_CD* cd=0);
+    SCFIterator(const bs_t*, const ElectronConfiguration*, ::Hamiltonian*,SCFAccelerator*,DM_CD* cd=0);
     virtual ~SCFIterator();
     virtual bool Iterate(const SCFParams& ipar);
     // Direct energy minimization (GDM owns the loop): geodesic line search, no density mixing.
@@ -39,7 +39,7 @@ private:
     void DisplayEigen   () const;
 
     //All owned, see destructor.
-    class Hamiltonian*    itsHamiltonian;
+    ::Hamiltonian*    itsHamiltonian;
     SCFAccelerator* itsAccelerator;
     SCFWaveFunction*      itsWaveFunction;
     DM_CD*          itsCD;

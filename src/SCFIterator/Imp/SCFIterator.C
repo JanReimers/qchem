@@ -58,7 +58,7 @@ static std::string ConfigString(const qchem::WaveFunction::WaveFunction* wf)
 }
 
 
-SCFIterator::SCFIterator(const bs_t* bs, const ElectronConfiguration* ec,class Hamiltonian* H,SCFAccelerator* acc,DM_CD* cd)
+SCFIterator::SCFIterator(const bs_t* bs, const ElectronConfiguration* ec,::Hamiltonian* H,SCFAccelerator* acc,DM_CD* cd)
     : itsHamiltonian (H )
     , itsAccelerator (acc)       
     , itsWaveFunction(qchem::WaveFunction::Factory(itsHamiltonian,bs,ec,itsAccelerator) )

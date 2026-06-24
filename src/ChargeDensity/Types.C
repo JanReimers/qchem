@@ -7,6 +7,7 @@ export import qchem.BasisSet.Orbital_HF_IBS;
 export import qchem.BasisSet.Orbital_1E_IBS;
 export import qchem.BasisSet.Orbital_DFT_IBS;
 export import qchem.BasisSet.Fit_IBS;
+import qchem.Types;   // dcmplx (for the c* instantiations)
 
 export namespace qchem::ChargeDensity
 {
@@ -14,6 +15,9 @@ export namespace qchem::ChargeDensity
     using ohfbs_t=BasisSet::Orbital_HF_IBS<double>;
     template <class T> using tobs_t=BasisSet::Orbital_1E_IBS<T>;
     template <class T> using todftbs_t=BasisSet::Orbital_DFT_IBS<T>;
-    using obs_t=tobs_t<double>;
-    using odftbs_t=todftbs_t<double>;
+    // r* = <double>, c* = <dcmplx> (mirrors rsmat_t/chmat_t); bare names transitional (= r*).
+    using robs_t=tobs_t<double>;        using cobs_t=tobs_t<dcmplx>;
+    using rodftbs_t=todftbs_t<double>;  using codftbs_t=todftbs_t<dcmplx>;
+    using obs_t=robs_t;
+    using odftbs_t=rodftbs_t;
 }

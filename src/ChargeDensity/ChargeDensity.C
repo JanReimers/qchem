@@ -9,19 +9,32 @@ export namespace qchem::ChargeDensity
 {
 //
 //  These little interfaces allow us to invert a dependency with Hamiltonian Terms.
+//  Templated on the matrix element type T (double for atoms/molecules; dcmplx for the
+//  plane-wave lattice lineage where k-points make the blocks Hermitian-complex).  For T=double,
+//  hmat_t<double> IS rsmat_t and tobs_t<double> IS obs_t, so the aliases below leave all existing
+//  real code source- and binary-unchanged.
 //
-class Static_CC //Contract client for static Ham terms.
+template <class T> class tDM_CD;   // forward (the contract clients name it)
+
+template <class T> class tStatic_CC //Contract client for static Ham terms.
 {
 public:
-    virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&) const=0;    
+    virtual const hmat_t<T>& GetMatrix(const tobs_t<T>*,const Spin&) const=0;
 };
 
-class DM_CD;
-class Dynamic_CC //Contract client for dynamic (CD dependent) Ham terms.
+template <class T> class tDynamic_CC //Contract client for dynamic (CD dependent) Ham terms.
 {
 public:
-    virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&,const DM_CD*) const=0;    
+    virtual const hmat_t<T>& GetMatrix(const tobs_t<T>*,const Spin&,const tDM_CD<T>*) const=0;
 };
+
+// Naming convention (mirrors rsmat_t/chmat_t in Common/Types.C): r* = <double>, c* = <dcmplx>.
+// The bare names are TRANSITIONAL aliases to the r* version so existing real code is untouched;
+// the full bare->r* rename across the codebase is pinned as a post-integration cleanup pass.
+using rStatic_CC  = tStatic_CC<double>;   using cStatic_CC  = tStatic_CC<dcmplx>;
+using rDynamic_CC = tDynamic_CC<double>;  using cDynamic_CC = tDynamic_CC<dcmplx>;
+using Static_CC   = rStatic_CC;
+using Dynamic_CC  = rDynamic_CC;
 
 //----------------------------------------------------------------------------------
 //
@@ -36,25 +49,30 @@ public:
 //
 //  This is the interface for a charge density representation based on the density matrix.
 //
-class DM_CD 
+template <class T> class tDM_CD
 : public virtual ScalarFunction<double>
 , public virtual Fitting::DensityFFClient //Fitted function can be fit to this.
 {
 public:
-    virtual double DM_Contract(const Static_CC*) const=0; //Amounts to Integral(ro*V*d3r);
-    virtual double DM_Contract(const Dynamic_CC*,const DM_CD*) const=0; //Amounts to Integral(ro*V(ro)*d3r);
+    virtual double DM_Contract(const tStatic_CC<T>*) const=0; //Amounts to Integral(ro*V*d3r);
+    virtual double DM_Contract(const tDynamic_CC<T>*,const tDM_CD<T>*) const=0; //Integral(ro*V(ro)*d3r);
 
-    virtual void   ReScale      (double factor         )      =0;  //Ro *= factor
-    virtual void   MixIn        (const DM_CD&,double)      =0;  //this = (1-c)*this + c*that.
-    virtual double GetChangeFrom(const DM_CD&       ) const=0;  //Convergence check.
+    virtual void   ReScale      (double factor              )      =0;  //Ro *= factor
+    virtual void   MixIn        (const tDM_CD<T>&,double      )      =0;  //this = (1-c)*this + c*that.
+    virtual double GetChangeFrom(const tDM_CD<T>&            ) const=0;  //Convergence check.
 
     virtual double GetTotalCharge  () const=0;  // <ro>
     virtual double FitGetConstraint() const {return  GetTotalCharge();}
 
-    virtual void AccumulateDirect  (rsmat_t& Jab, const ohfbs_t*) const=0;
-    virtual void AccumulateExchange(rsmat_t& Kab, const ohfbs_t*) const=0;
+    // HF/fit-specific (real, Gaussian-basis) -- the dcmplx plane-wave density NA-asserts these.
+    virtual void AccumulateDirect  (hmat_t<T>& Jab, const ohfbs_t*) const=0;
+    virtual void AccumulateExchange(hmat_t<T>& Kab, const ohfbs_t*) const=0;
 
 };
+
+using rDM_CD = tDM_CD<double>;  
+using cDM_CD = tDM_CD<dcmplx>;
+using DM_CD  = rDM_CD;          // transitional bare alias
 
 //---------------------------------------------------------------------------------------
 //
