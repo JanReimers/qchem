@@ -14,35 +14,41 @@ import qchem.Blaze;
 namespace qchem::Hamiltonian
 {
 
-HamiltonianImp::HamiltonianImp() 
+template <class T> tHamiltonianImp<T>::tHamiltonianImp()
     : itsIsPolarized(false)
     , itsIsRelativistic(false)
 {};
 
-void HamiltonianImp::Add(Static_HT* p)
+template <class T> void tHamiltonianImp<T>::Add(tStatic_HT<T>* p)
 {
-    itsSHTs.push_back(std::unique_ptr<Static_HT>(p));
+    itsSHTs.push_back(std::unique_ptr<tStatic_HT<T>>(p));
     itsIsPolarized    = itsIsPolarized    || p->IsPolarized();
     itsIsRelativistic = itsIsRelativistic || p->IsRelativistic();
 }
-void HamiltonianImp::Add(Dynamic_HT* p)
+template <class T> void tHamiltonianImp<T>::Add(tDynamic_HT<T>* p)
 {
-    itsDHTs.push_back(std::unique_ptr<Dynamic_HT>(p));
+    itsDHTs.push_back(std::unique_ptr<tDynamic_HT<T>>(p));
     itsIsPolarized    = itsIsPolarized    || p->IsPolarized();
     itsIsRelativistic = itsIsRelativistic || p->IsRelativistic();
 }
 
-void HamiltonianImp::InsertStandardTerms(const cl_t & cl)
+// The molecular standard terms (Kinetic/Vnn/Ven) are double-only; the complex (plane-wave) Hamiltonian
+// builds its terms explicitly, so this is NA there.
+template <> void tHamiltonianImp<double>::InsertStandardTerms(const cl_t & cl)
 {
     Add(new Kinetic);
     Add(new Vnn(cl));
     Add(new Ven(cl));
 }
+template <> void tHamiltonianImp<dcmplx>::InsertStandardTerms(const cl_t &)
+{
+    assert(false && "InsertStandardTerms: the complex Hamiltonian assembles its terms explicitly");
+}
 
-rsmat_t HamiltonianImp::GetMatrix(const obs_t* bs,const Spin& S,const DM_CD* cd)
+template <class T> hmat_t<T> tHamiltonianImp<T>::GetMatrix(const tobs_t<T>* bs,const Spin& S,const tDM_CD<T>* cd)
 {
     int n=bs->GetNumFunctions();
-    rsmat_t H=blazem::zero<double>(n);
+    hmat_t<T> H=blazem::zeroH<T>(n);
     for (auto& t:itsSHTs) H+=t->GetMatrix(bs,S);
     // Leave these terms out if we don't have guess for the charge density.
     if (cd)
@@ -51,7 +57,7 @@ rsmat_t HamiltonianImp::GetMatrix(const obs_t* bs,const Spin& S,const DM_CD* cd)
 }
 
 
-EnergyBreakdown HamiltonianImp::GetTotalEnergy( const DM_CD* cd ) const
+template <class T> EnergyBreakdown tHamiltonianImp<T>::GetTotalEnergy( const tDM_CD<T>* cd ) const
 {
     assert(cd);
     EnergyBreakdown e;
@@ -61,7 +67,7 @@ EnergyBreakdown HamiltonianImp::GetTotalEnergy( const DM_CD* cd ) const
 }
 
 
-std::ostream& HamiltonianImp::Write(std::ostream& os) const
+template <class T> std::ostream& tHamiltonianImp<T>::Write(std::ostream& os) const
 {
     if (itsIsPolarized) os << "Polarized ";
     if (itsIsRelativistic) os << "Relativistic ";
@@ -71,5 +77,8 @@ std::ostream& HamiltonianImp::Write(std::ostream& os) const
     os << itsDHTs;
     return os;
 }
+
+template class tHamiltonianImp<double>;
+template class tHamiltonianImp<dcmplx>;
 
 } //namespace

@@ -10,30 +10,35 @@ import qchem.Structure;
 export namespace qchem::Hamiltonian
 {
 
-class HamiltonianImp
-    : public virtual Hamiltonian
+// Templated on T (rX/cX convention): the bare HamiltonianImp is the <double> alias the existing concrete
+// Hamiltonians derive from; cHamiltonianImp is the dcmplx (plane-wave) instantiation.
+template <class T> class tHamiltonianImp
+    : public virtual tHamiltonian<T>
 {
 public:
-    HamiltonianImp();
-    virtual void Add(Static_HT* );
-    virtual void Add(Dynamic_HT*);
+    tHamiltonianImp();
+    virtual void Add( tStatic_HT<T>* );
+    virtual void Add(tDynamic_HT<T>*);
 
-    virtual rsmat_t         GetMatrix(const obs_t*,const Spin& S,const DM_CD*);
-    virtual EnergyBreakdown GetTotalEnergy  (const DM_CD* ) const;
+    virtual hmat_t<T>       GetMatrix(const tobs_t<T>*,const Spin& S,const tDM_CD<T>*);
+    virtual EnergyBreakdown GetTotalEnergy  (const tDM_CD<T>* ) const;
     virtual bool            IsPolarized() const {return itsIsPolarized;}
     virtual bool            IsRelativistic() const {return itsIsRelativistic;}
     virtual std::ostream&   Write(std::ostream&) const;
- 
+
 protected:
     typedef std::shared_ptr<const Structure> cl_t;
-    void InsertStandardTerms(const cl_t & cl);
-    typedef std::vector<std::unique_ptr< Static_HT>> shtv_t;
-    typedef std::vector<std::unique_ptr<Dynamic_HT>> dhtv_t;
+    void InsertStandardTerms(const cl_t & cl);   // molecular standard terms (double only)
+    typedef std::vector<std::unique_ptr< tStatic_HT<T>>> shtv_t;
+    typedef std::vector<std::unique_ptr<tDynamic_HT<T>>> dhtv_t;
 
     shtv_t itsSHTs;
     dhtv_t itsDHTs;
     bool   itsIsPolarized;
     bool   itsIsRelativistic;
 };
+
+using HamiltonianImp  = tHamiltonianImp<double>;
+using cHamiltonianImp = tHamiltonianImp<dcmplx>;
 
 } //namespace

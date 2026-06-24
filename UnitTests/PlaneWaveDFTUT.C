@@ -41,6 +41,8 @@ import qchem.Hamiltonian.Internal.SlaterExchange;   // Dirac exchange (alpha=2/3
 import qchem.Hamiltonian.Internal.VWN_Correlation;  // VWN5 correlation (validated vs libxc)
 import qchem.Hamiltonian.Internal.PWTerms;          // PW_External (dcmplx Hamiltonian term)
 import qchem.Hamiltonian;                           // cStatic_HT / cDynamic_HT aliases (public term interfaces)
+import qchem.Hamiltonian.Internal.Hamiltonian;      // cHamiltonianImp (the dcmplx Hamiltonian = sum of terms)
+import qchem.Energy;                                // EnergyBreakdown
 import qchem.ChargeDensity.Imp.IrrepCD;             // IrrepCD<dcmplx> (concrete complex density)
 import qchem.Symmetry.Irrep;                        // Irrep
 import qchem.LASolver;                              // complex Hermitian eigensolver
@@ -897,6 +899,87 @@ TEST_F(PlaneWaveDFT, PWDynamicTermsMatchBasis)
     for (size_t i=0;i<n;i++)
         for (size_t j=i;j<n;j++)
             EXPECT_NEAR(std::abs(dcmplx(Mx(i,j))-dcmplx(refx(i,j))), 0.0, 1e-10);
+}
+
+// THE STAGE-3 PAYOFF: silicon (Gamma) self-consistent DFT run entirely through the FRAMEWORK objects --
+// a dcmplx HamiltonianImp summing the PW Kohn-Sham terms (kinetic + external PP + Hartree + Dirac + VWN),
+// an IrrepCD<dcmplx> density built from the complex orbitals, and the framework energy bookkeeping --
+// reproducing the standalone prototype's Si-Gamma result (Etot=1.468, 8 valence electrons).  A thin SCF
+// driver stands in for the (not-yet-complexified) WaveFunction/SCFIterator orchestration.
+TEST_F(PlaneWaveDFT, FrameworkSiliconGammaMatchesPrototype)
+{
+    using namespace qchem::Hamiltonian;
+    const double a=10.26, h=0.5*a;
+    Matrix3D<double> Amat(0.0,h,h,  h,0.0,h,  h,h,0.0);
+    UnitCell          cell(Amat);
+    Lattice_3D        lat(cell, ivec3_t(1,1,1));
+    ReciprocalLattice recip(lat.Reciprocal());
+    PlaneWave_IBS     pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
+
+    auto si=std::make_shared<Molecule>();
+    si->Insert(new Atom(14, rvec3_t(0,0,0)));
+    si->Insert(new Atom(14, rvec3_t(0.25*a,0.25*a,0.25*a)));
+    HGH_LocalPotential     loc=HGH_LocalPotential::Silicon();
+    HGH_SeparablePotential nl =HGH_SeparablePotential::Silicon();
+    pw.SetPseudopotential(&loc, &nl);
+
+    // Framework Hamiltonian: a dcmplx HamiltonianImp summing the PW Kohn-Sham terms.
+    cHamiltonianImp ham;
+    ham.Add(new PW_Kinetic);
+    ham.Add(new PW_External(si));
+    ham.Add(new PW_Hartree);
+    ham.Add(new PW_XC(std::make_shared<SlaterExchange> (2.0/3.0)));   // Dirac exchange
+    ham.Add(new PW_XC(std::make_shared<VWN_Correlation>()));          // VWN5 correlation
+
+    const int Nelec=8, Nocc=Nelec/2;
+    size_t  n=pw.GetNumFunctions();
+    Irrep   irr=pw.GetIrrep(Spin::None);
+    chmat_t S=pw.MakeOverlap();
+
+    // Seed a UNIFORM density (Hartree+XC present from iteration 0, as real PW codes do): D = (N/n) I.
+    hmat_t<dcmplx> Dprev=blazem::zeroH<dcmplx>(n);
+    for (size_t i=0;i<n;i++) Dprev(i,i)=double(Nelec)/double(n);
+    auto cd=std::make_unique<qchem::ChargeDensity::IrrepCD<dcmplx>>(Dprev, &pw, irr);
+
+    bool converged=false; double Eprev=1e30;
+    qchem::EnergyBreakdown E;
+    for (int it=0; it<400; it++)
+    {
+        chmat_t H=ham.GetMatrix(&pw, Spin::None, cd.get());      // sums the framework terms for the current density
+        LASolver<dcmplx>* las=LASolver<dcmplx>::Factory(qchem::Eigen);
+        las->SetBasisOverlap(S);
+        auto sol=las->Solve(H);
+        delete las;
+        mat_t<dcmplx> U=std::get<0>(sol); rvec_t e=std::get<1>(sol);
+
+        std::vector<size_t> idx(e.size());                       // occupy the Nocc lowest bands
+        for (size_t i=0;i<idx.size();i++) idx[i]=i;
+        std::sort(idx.begin(),idx.end(),[&](size_t aa,size_t bb){return e[aa]<e[bb];});
+
+        hmat_t<dcmplx> D=blazem::zeroH<dcmplx>(n);                // density matrix D = Sum_occ 2 c c^H (Hermitian)
+        for (int k=0;k<Nocc;k++)
+        {
+            size_t c=idx[k];
+            for (size_t i=0;i<n;i++)
+                for (size_t j=i;j<n;j++)
+                    D(i,j) += 2.0*dcmplx(U(i,c))*std::conj(dcmplx(U(j,c)));
+        }
+        Dprev = hmat_t<dcmplx>(0.6*Dprev + 0.4*D);               // linear mixing
+        cd=std::make_unique<qchem::ChargeDensity::IrrepCD<dcmplx>>(Dprev, &pw, irr);
+
+        // GetTotalEnergy(new cd) computes the energy AND invalidates the dynamic terms' Irrep-keyed cache
+        // (their GetEnergy calls newCD) so the NEXT GetMatrix rebuilds the Hartree/XC matrices fresh.
+        E=ham.GetTotalEnergy(cd.get());
+        double Etot=E.GetTotalEnergy();
+        if (std::abs(Etot-Eprev)<1e-7) { converged=true; break; }
+        Eprev=Etot;
+    }
+    ASSERT_TRUE(converged);
+    std::cout << "[Si framework-Gamma] charge="<<cd->GetTotalCharge()<<" Etot="<<E.GetTotalEnergy()
+              << "  (Ekin="<<E.Kinetic<<" Een="<<E.Een<<" Eee="<<E.Eee<<" Exc="<<E.Exc<<")" << std::endl;
+
+    EXPECT_NEAR(cd->GetTotalCharge(), 8.0, 1e-6);                 // 8 valence electrons
+    EXPECT_NEAR(E.GetTotalEnergy(),   1.468, 5e-3);              // matches the standalone prototype Si-Gamma
 }
 
 } //namespace

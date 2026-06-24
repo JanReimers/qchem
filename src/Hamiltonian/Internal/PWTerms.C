@@ -35,6 +35,20 @@ private:
     cl_t theStructure;
 };
 
+//! Non-relativistic kinetic ENERGY term T = 1/2 <p^2> for a plane-wave basis (diagonal in |k+G|^2).
+//! Static (density-independent).  Uses the uncached MakeKinetic() block (the symmetric cache is bypassed
+//! by the complex path).
+class PW_Kinetic
+    : public virtual cStatic_HT
+    , private        cStatic_HT_Imp
+{
+public:
+    virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
+    virtual std::ostream& Write(std::ostream&) const;
+private:
+    virtual chmat_t CalculateMatrix(const cobs_t*, const Spin&) const;
+};
+
 //! Hartree (classical Coulomb) term for a plane-wave basis (density-dependent).  Asks the basis for the
 //! Hartree matrix of the current density; the Poisson solve is the basis's business (G-space for PW).
 class PW_Hartree

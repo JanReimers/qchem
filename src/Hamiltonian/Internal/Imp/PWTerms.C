@@ -62,6 +62,24 @@ std::ostream& PW_External::Write(std::ostream& os) const
     return os << "    PW external (pseudo)potential with " << theStructure->GetNumAtoms() << " atoms." << std::endl;
 }
 
+//----------------------------------------------------------------------------------- Kinetic
+chmat_t PW_Kinetic::CalculateMatrix(const cobs_t* bs, const Spin&) const
+{
+    chmat_t T=bs->MakeKinetic();   // <p^2> block (no 1/2)
+    T*=0.5;                        // T = 1/2 <p^2>
+    return T;
+}
+
+void PW_Kinetic::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
+{
+    te.Kinetic=cd->DM_Contract(this);   // <T> = integral rho (1/2 p^2)
+}
+
+std::ostream& PW_Kinetic::Write(std::ostream& os) const
+{
+    return os << "    PW kinetic energy 1/2<p^2>." << std::endl;
+}
+
 //----------------------------------------------------------------------------------- Hartree
 chmat_t PW_Hartree::CalcMatrix(const cobs_t* bs, const Spin&, const cDM_CD* cd) const
 {
