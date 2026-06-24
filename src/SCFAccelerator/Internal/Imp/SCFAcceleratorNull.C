@@ -3,15 +3,20 @@ module qchem.SCFAccelerator.Internal.SCFIrrepAcceleratorNull;
 
 namespace qchem::SCFAccelerators
 {
-void SCFIrrepAcceleratorNull::UseFD(const smat_t<double>& F, const smat_t<double>& DPrime)
+template <class T> void tSCFIrrepAcceleratorNull<T>::UseFD(const hmat_t<T>& F, const hmat_t<T>& DPrime)
 {
     itsFPrime=itsLASolver->Transform(F);
 }
 
-LASolver<double>::UUd_t SCFIrrepAcceleratorNull::NextOrbitals()
+template <class T> typename LASolver<T>::UUd_t tSCFIrrepAcceleratorNull<T>::NextOrbitals()
 {
     return itsLASolver->SolveOrtho(itsFPrime);
 }
+
+template class tSCFIrrepAcceleratorNull<double>;
+template class tSCFIrrepAcceleratorNull<dcmplx>;
+template class tSCFAcceleratorNull<double>;
+template class tSCFAcceleratorNull<dcmplx>;
 
 } //namespace
 
