@@ -34,7 +34,7 @@ template <class T> IrrepCD<T>::IrrepCD(const DenSMat& D,const tobs_t<T>* theBasi
     assert(itsBasisSet);
 };
 
-template <> bool IrrepCD<double>::IsZero() const
+template <class T> bool IrrepCD<T>::IsZero() const
 {
     // return max(abs(itsDensityMatrix))==0.0;
     return blazem::isZero(itsDensityMatrix);
@@ -72,16 +72,19 @@ template <class T> rvec_t IrrepCD<T>::GetRepulsion3C(const fbs_t* fbs) const
 }
 
 
-template <class T> double IrrepCD<T>::DM_Contract(const Static_CC* v) const
+// Energy = trace(D V) = Sum_ij D_ij V_ji = Sum_ij D_ij trans(V)_ij = sum(D % trans(V)).  For real
+// symmetric V this is identical to sum(D % V) (the old form); for complex HERMITIAN D,V the transpose
+// matters -- sum(D % V) would silently give the wrong (still-real) value.
+template <class T> double IrrepCD<T>::DM_Contract(const tStatic_CC<T>* v) const
 {
-    T ComplexE=blazem::sum(itsDensityMatrix % v->GetMatrix(itsBasisSet,itsSpin)); //% is the blaze op for the Shur (direct) product.
+    T ComplexE=blazem::sum(itsDensityMatrix % blazem::trans(v->GetMatrix(itsBasisSet,itsSpin)));
     assert(fabs(std::imag(ComplexE))<1e-8);
     return std::real(ComplexE);
 }
 
-template <class T> double IrrepCD<T>::DM_Contract(const Dynamic_CC* v,const DM_CD* cd) const
+template <class T> double IrrepCD<T>::DM_Contract(const tDynamic_CC<T>* v,const tDM_CD<T>* cd) const
 {
-    T ComplexE=blazem::sum(itsDensityMatrix % v->GetMatrix(itsBasisSet,itsSpin,cd)); //% is the blaze op for the Shur (direct) product.
+    T ComplexE=blazem::sum(itsDensityMatrix % blazem::trans(v->GetMatrix(itsBasisSet,itsSpin,cd)));
     assert(fabs(std::imag(ComplexE))<1e-8);
     return std::real(ComplexE);
 }
@@ -102,7 +105,7 @@ template <class T> void IrrepCD<T>::ReScale(double factor)
     itsDensityMatrix*=factor;
 }
 
-template <class T> void IrrepCD<T>::MixIn(const DM_CD& cd,double c)
+template <class T> void IrrepCD<T>::MixIn(const tDM_CD<T>& cd,double c)
 {
     const IrrepCD<T>* eicd = dynamic_cast<const IrrepCD<T>*>(&cd);
     assert(eicd);
@@ -110,12 +113,12 @@ template <class T> void IrrepCD<T>::MixIn(const DM_CD& cd,double c)
     itsDensityMatrix = itsDensityMatrix*(1-c) + eicd->itsDensityMatrix*c;
 }
 
-template <class T> double IrrepCD<T>::GetChangeFrom(const DM_CD& cd) const
+template <class T> double IrrepCD<T>::GetChangeFrom(const tDM_CD<T>& cd) const
 {
     const IrrepCD<T>* eicd = dynamic_cast<const IrrepCD<T>*>(&cd);
     assert(eicd);
     assert(itsBasisSet->GetID() == eicd->itsBasisSet->GetID());
-    return blazem::norm(itsDensityMatrix - eicd->itsDensityMatrix);
+    return std::real(blazem::norm(itsDensityMatrix - eicd->itsDensityMatrix));
 }
 
 //-------------------------------------------------------------------------
@@ -147,7 +150,29 @@ template <class T> std::ostream& IrrepCD<T>::Write(std::ostream& os) const
 }
 
 template class IrrepCD<double>;
-//template class ExactIrrepCD<std::complex<double> >;
+
+// --- Complex (plane-wave) density.  HF and density-fitting do NOT apply (the plane-wave path uses
+// neither 4-centre exchange nor an auxiliary fit), so those are NA; the gradient (GGA/plotting) is not
+// yet wired for complex and is unused by the LDA SCF.  The remaining members are the generic templates
+// above (DM_Contract, op()(r), GetTotalCharge, MixIn, GetChangeFrom, ...), which are complex-correct.
+template <> void IrrepCD<dcmplx>::AccumulateDirect(hmat_t<dcmplx>&, const ohfbs_t*) const
+{ assert(false && "AccumulateDirect: HF not applicable to a complex plane-wave density"); }
+template <> void IrrepCD<dcmplx>::AccumulateExchange(hmat_t<dcmplx>&, const ohfbs_t*) const
+{ assert(false && "AccumulateExchange: HF not applicable to a complex plane-wave density"); }
+template <> rvec_t IrrepCD<dcmplx>::GetRepulsion3C(const fbs_t*) const
+{ assert(false && "GetRepulsion3C: density fitting not used by the plane-wave path"); return rvec_t(); }
+template <> rvec3_t IrrepCD<dcmplx>::Gradient(const rvec3_t&) const
+{ return rvec3_t(0,0,0); }   // No UT coverage; GGA/plotting gradient not yet wired for complex.
+
+// The cached Overlap() accessor is typed for the (symmetric) double cache, which complex bypasses
+// (the smat_t->hmat_t cache refactor is pinned).  Use the uncached virtual MakeOverlap() directly --
+// for plane waves it is the identity, so this is just trace(D) = the electron count.
+template <> double IrrepCD<dcmplx>::GetTotalCharge() const
+{
+    return std::real(blazem::sum(itsDensityMatrix % blazem::trans(itsBasisSet->MakeOverlap())));
+}
+
+template class IrrepCD<dcmplx>;
 
 
 

@@ -17,26 +17,26 @@ export namespace qchem::ChargeDensity
 //  be a summation of these guys.
 //
 template <class T> class IrrepCD
-    : public virtual DM_CD
+    : public virtual tDM_CD<T>
 {
 public:
     typedef  mat_t<T>  DenMat;
-    typedef smat_t<T> DenSMat; //Type for the density matrix.
-    
+    typedef hmat_t<T> DenSMat; //Density matrix: HERMITIAN (= symmetric for real T, byte-identical there).
+
     IrrepCD();
     IrrepCD(const DenSMat&,const tobs_t<T>*, Irrep);
 
-    virtual void AccumulateDirect  (rsmat_t& Sab, const ohfbs_t*) const;
-    virtual void AccumulateExchange(rsmat_t& Sab, const ohfbs_t*) const;
+    virtual void AccumulateDirect  (hmat_t<T>& Sab, const ohfbs_t*) const;
+    virtual void AccumulateExchange(hmat_t<T>& Sab, const ohfbs_t*) const;
     virtual rvec_t    GetRepulsion3C(const fbs_t*) const;
 
-    virtual double DM_Contract(const Static_CC*) const;
-    virtual double DM_Contract(const Dynamic_CC*,const DM_CD*) const;
+    virtual double DM_Contract(const tStatic_CC<T>*) const;
+    virtual double DM_Contract(const tDynamic_CC<T>*,const tDM_CD<T>*) const;
     virtual double GetTotalCharge(                      ) const;
 
-    virtual void   ReScale      (double factor         )      ; // No UT coverage
-    virtual void   MixIn        (const DM_CD&,double)      ;  //this = (1-c)*this + c*that.
-    virtual double GetChangeFrom(const DM_CD&       ) const;  //MaxAbs(delta density matrix)
+    virtual void   ReScale      (double factor              )      ; // No UT coverage
+    virtual void   MixIn        (const tDM_CD<T>&,double)      ;  //this = (1-c)*this + c*that.
+    virtual double GetChangeFrom(const tDM_CD<T>&       ) const;  //MaxAbs(delta density matrix)
 
     virtual double operator()(const rvec3_t&) const;
     virtual rvec3_t  Gradient  (const rvec3_t&) const; // No UT coverage
