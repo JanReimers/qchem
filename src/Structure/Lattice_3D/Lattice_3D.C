@@ -58,6 +58,11 @@ public:
         return itsUnitCell;
     }
 
+    //! \brief The crystal's atomic structure -- a copy of the unit cell's atom basis (Cartesian a.u.) as
+    //! an abstract Structure.  The Hamiltonian's external term consumes this: the lattice carries all the
+    //! information needed to build the external potential's structure factor.
+    std::shared_ptr<const Structure> GetStructure() const;
+
     double GetLatticeVolume() const
     {
         return GetNumUnitCells()*itsUnitCell.GetCellVolume();

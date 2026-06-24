@@ -6,6 +6,7 @@ module;
 
 module qchem.UnitCell;
 import qchem.Math;
+import qchem.Structure;   // Atom (AddAtom inserts atoms given in fractional coordinates)
 
 //  Build the cell matrix A (columns = lattice vectors a₁,a₂,a₃) from the cell
 //  lengths a,b,c and angles α,β,γ (radians), in the standard orientation
@@ -43,6 +44,18 @@ rvec3_t UnitCell::ToCartesian(const rvec3_t& f) const
 {
     return itsA*f; // r = A f
 }
+
+void UnitCell::AddAtom(int Z, const rvec3_t& f)
+{
+    Insert(new Atom(Z, ToCartesian(f))); // store in Cartesian a.u. (r = A f)
+}
+
+// FCC primitive cell: columns are the half-face-diagonal lattice vectors (h = a/2); |det A| = a^3/4.
+FCCUnitCell::FCCUnitCell(double a)
+    : UnitCell(Matrix3D<double>(0.0, a/2, a/2,
+                                a/2, 0.0, a/2,
+                                a/2, a/2, 0.0))
+{}
 
 double UnitCell::GetCellVolume() const
 {

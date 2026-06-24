@@ -23,6 +23,11 @@ public:
     using Molecule::Insert;
     using Molecule::GetNumAtoms;
 
+    //! \brief Add an atom of nuclear charge \a Z at FRACTIONAL cell coordinates \a f (\f$r=Af\f$).
+    //! Convenience over Insert(new Atom(Z, ToCartesian(f))) so a crystal basis can be specified in
+    //! cell coordinates (the natural way to give a diamond/FCC two-atom basis).
+    void AddAtom(int Z, const rvec3_t& f);
+
     UnitCell MakeReciprocalCell() const;                  //!< Reciprocal cell, \f$B = 2\pi A^{-\top}\f$.
 
     //! Cartesian (a.u.) position of a point given in fractional cell coordinates: \f$ r = A f \f$.
@@ -42,6 +47,16 @@ public:
 private:
     Matrix3D<double> itsA; //!< Cell matrix; columns are the lattice vectors \f$a_i\f$ (a.u.).
     Matrix3D<double> itsM; //!< Metric tensor \f$M = A^\top A\f$ (a.u.\f$^2\f$), cached.
+};
+
+//! \brief Face-centred-cubic primitive cell of conventional cubic lattice constant \a a: the primitive
+//! lattice vectors (columns of \f$A\f$) are the half-face diagonals \f$\tfrac a2(0,1,1),\,\tfrac a2(1,0,1),
+//! \,\tfrac a2(1,1,0)\f$; cell volume \f$a^3/4\f$.  Add the atom basis with AddAtom in fractional
+//! coordinates (e.g. diamond: \f$(0,0,0)\f$ and \f$(\tfrac14,\tfrac14,\tfrac14)\f$).
+export class FCCUnitCell : public UnitCell
+{
+public:
+    explicit FCCUnitCell(double a);
 };
 
 

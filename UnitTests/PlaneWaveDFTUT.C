@@ -999,14 +999,12 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaMatchesPrototype)
 TEST_F(PlaneWaveDFT, FrameworkSiliconGammaThroughSCFIterator)
 {
     using namespace qchem::Hamiltonian;
-    const double a=10.26, h=0.5*a;
-    Matrix3D<double> Amat(0.0,h,h,  h,0.0,h,  h,h,0.0);
-    UnitCell          cell(Amat);
-    Lattice_3D        lat(cell, ivec3_t(1,1,1));
+    const double a=10.26;                       // Si conventional cubic lattice constant (a.u.)
+    FCCUnitCell cell(a);                         // FCC primitive cell
+    cell.AddAtom(14, {0,0,0});                   // Si diamond two-atom basis, FRACTIONAL coordinates
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D  lat(cell, ivec3_t(1,1,1));
 
-    auto si=std::make_shared<Molecule>();
-    si->Insert(new Atom(14, rvec3_t(0,0,0)));
-    si->Insert(new Atom(14, rvec3_t(0.25*a,0.25*a,0.25*a)));
     HGH_LocalPotential     loc=HGH_LocalPotential::Silicon();      // must outlive the SCF run (the basis holds &loc)
     HGH_SeparablePotential nl =HGH_SeparablePotential::Silicon();
 
@@ -1023,8 +1021,9 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaThroughSCFIterator)
     Crystal_EC  ec(irr, Nelec);
 
     // Plane-wave LDA Kohn-Sham Hamiltonian from the Ham factory family: kinetic + external(pseudo) +
-    // Hartree + Dirac exchange + VWN5 correlation (heap; the SCFIterator takes ownership).
-    cHamiltonian* ham=new Ham_PW_DFT(si);
+    // Hartree + Dirac exchange + VWN5 correlation (heap; the SCFIterator takes ownership).  The atoms
+    // are sourced from the lattice -- the structure carries all the external-potential information.
+    cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure());
 
     // No-acceleration manager (plain diagonalize each iteration) for the complex path.
     auto* acc=new qchem::SCFAccelerators::tSCFAcceleratorNull<dcmplx>();

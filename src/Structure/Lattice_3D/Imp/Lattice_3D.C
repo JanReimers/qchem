@@ -4,6 +4,7 @@ module;
 #include <cassert>
 #include <algorithm> //sort
 #include <vector>
+#include <memory>    //make_shared (GetStructure)
 
 module qchem.Lattice_3D;
 
@@ -38,6 +39,11 @@ Lattice_3D::Lattice_3D(const UnitCell& cell, const Vector3D<int>& Limits)
 ReciprocalLattice Lattice_3D::Reciprocal() const
 {
     return ReciprocalLattice(itsUnitCell.MakeReciprocalCell());
+}
+
+std::shared_ptr<const Structure> Lattice_3D::GetStructure() const
+{
+    return std::make_shared<UnitCell>(itsUnitCell); // deep-copies the atom basis (Cartesian a.u.)
 }
 
 
