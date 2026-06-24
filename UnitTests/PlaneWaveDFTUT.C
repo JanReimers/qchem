@@ -982,4 +982,32 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaMatchesPrototype)
     EXPECT_NEAR(E.GetTotalEnergy(),   1.468, 5e-3);              // matches the standalone prototype Si-Gamma
 }
 
+// Regression guard for the Hamiltonian-framework cache bug: Dynamic_HT_Imp::GetMatrix must invalidate
+// its Irrep-keyed cache when the density changes (else it returns a STALE matrix to any caller that
+// didn't happen to call GetTotalEnergy(new cd) in between).  Two different densities (same Irrep, no
+// GetEnergy between): the second GetMatrix must reflect the second density, not return the first's
+// (uniform => zero) Hartree matrix.  Was a DISABLED known-failure; fixed by the cd-change cache clear.
+TEST_F(PlaneWaveDFT, DynamicTermCacheFreshAcrossDensity)
+{
+    PWFixture F;
+    size_t  n=F.pw.GetNumFunctions();
+    Irrep   irr=F.pw.GetIrrep(Spin::None);
+
+    hmat_t<dcmplx> D1=blazem::zeroH<dcmplx>(n);  D1(0,0)=2.0;                            // uniform density
+    hmat_t<dcmplx> D2=blazem::zeroH<dcmplx>(n);  D2(0,0)=1.0; D2(0,1)=1.0; D2(1,1)=1.0;  // modulated density
+    qchem::ChargeDensity::IrrepCD<dcmplx> cd1(D1,&F.pw,irr), cd2(D2,&F.pw,irr);
+
+    qchem::Hamiltonian::PW_Hartree   hart;
+    qchem::Hamiltonian::cDynamic_HT* ht=&hart;
+    ht->GetMatrix(&F.pw, Spin::None, &cd1);                       // populates the cache for cd1
+    const chmat_t& M2 = ht->GetMatrix(&F.pw, Spin::None, &cd2);   // BUG: returns cd1's stale matrix
+
+    double  Eh; chmat_t ref2=F.pw.IntegralHartree(cd2,Eh);        // the correct V_H for cd2
+    double  diff=0.0;
+    for (size_t i=0;i<n;i++)
+        for (size_t j=i;j<n;j++)
+            diff=std::max(diff, std::abs(dcmplx(M2(i,j))-dcmplx(ref2(i,j))));
+    EXPECT_NEAR(diff, 0.0, 1e-10);   // fails today (M2 is cd1's matrix); passes after the cache-invalidation fix
+}
+
 } //namespace

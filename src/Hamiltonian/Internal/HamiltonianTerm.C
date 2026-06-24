@@ -55,11 +55,18 @@ public:
     virtual const hmat_t<T>& GetMatrix(const tobs_t<T>* bs,const Spin& s,const tDM_CD<T>* cd) const
     {
         assert(bs);
+        // The cache keys on Irrep, not the density.  If the density has changed, the cached matrices are
+        // stale -- drop them so we recompute for the new cd.  This makes GetMatrix self-correcting rather
+        // than relying on the SCFIterator calling GetTotalEnergy (-> newCD) between iterations (an
+        // undocumented ordering contract that silently returned stale matrices to other callers).
+        // We clear only the matrix cache here; itsCD is left to CalcMatrix's newCD() so the concrete
+        // terms (FittedVee/FittedVxc) still see newCD()==true and refit exactly once per new density.
+        if (cd!=itsCD) this->itsCache.clear();
         Irrep qns(bs->GetIrrep(s));
         if (auto i=this->itsCache.find(qns);i==this->itsCache.end())
-            return this->itsCache[qns]=CalcMatrix(bs,s,cd); //This could clear the cache if cd is new.
+            return this->itsCache[qns]=CalcMatrix(bs,s,cd);
         else
-            return i->second; //Cache version
+            return i->second; //Cache version (same cd, already computed for this Irrep)
     }
 
 protected:
