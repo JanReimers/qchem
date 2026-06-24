@@ -3,6 +3,7 @@ module;
 #include <memory>
 module qchem.Hamiltonian.Internal.Hamiltonians;
 import qchem.Hamiltonian.Internal.Terms;
+import qchem.Hamiltonian.Internal.PWTerms;        // PW_Kinetic/External/Hartree/XC (the plane-wave KS terms)
 import qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.Hamiltonian.Internal.SlaterExchange;
 import qchem.Hamiltonian.Internal.VWN_Correlation;
@@ -57,6 +58,19 @@ Ham_DFTcorr_U::Ham_DFTcorr_U(const st_t& st, const MeshParams& mp, const bs_t* b
     Add(new FittedVxc  (XFitBasis, exch, m));
     FittedVxc::ex_t corr(new VWN_Correlation());                 // VWN5 correlation
     Add(new FittedVcorr(XFitBasis, corr, m));
+}
+
+// Plane-wave LDA Kohn-Sham: the five G-space framework terms.  Exchange and correlation are SEPARATE
+// PW_XC terms (Dirac + VWN5), mirroring Ham_DFTcorr_U, so the correlation energy is the correct
+// E_c = integral eps_c rho.  No fit basis / mesh: the plane-wave basis owns the integration, and the
+// pseudopotential is carried by the basis (the external term just supplies the structure factor).
+Ham_PW_DFT::Ham_PW_DFT(const st_t& st)
+{
+    Add(new PW_Kinetic);
+    Add(new PW_External(st));
+    Add(new PW_Hartree);
+    Add(new PW_XC(std::make_shared<SlaterExchange>(2.0/3.0)));    // Dirac exchange (alpha = 2/3)
+    Add(new PW_XC(std::make_shared<VWN_Correlation>()));          // VWN5 correlation
 }
 
 Ham_HF_P::Ham_HF_P(const st_t& st)

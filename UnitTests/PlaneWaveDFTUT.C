@@ -43,6 +43,7 @@ import qchem.Hamiltonian.Internal.VWN_Correlation;  // VWN5 correlation (validat
 import qchem.Hamiltonian.Internal.PWTerms;          // PW_External (dcmplx Hamiltonian term)
 import qchem.Hamiltonian;                           // cStatic_HT / cDynamic_HT aliases (public term interfaces)
 import qchem.Hamiltonian.Internal.Hamiltonian;      // cHamiltonianImp (the dcmplx Hamiltonian = sum of terms)
+import qchem.Hamiltonian.Internal.Hamiltonians;     // Ham_PW_DFT (the assembled plane-wave LDA KS Hamiltonian)
 import qchem.Energy;                                // EnergyBreakdown
 import qchem.ChargeDensity.Imp.IrrepCD;             // IrrepCD<dcmplx> (concrete complex density)
 import qchem.Symmetry.Irrep;                        // Irrep
@@ -1021,13 +1022,9 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaThroughSCFIterator)
 
     Crystal_EC  ec(irr, Nelec);
 
-    // Framework Hamiltonian (heap; the SCFIterator takes ownership).
-    cHamiltonianImp* ham=new cHamiltonianImp;
-    ham->Add(new PW_Kinetic);
-    ham->Add(new PW_External(si));
-    ham->Add(new PW_Hartree);
-    ham->Add(new PW_XC(std::make_shared<SlaterExchange> (2.0/3.0)));   // Dirac exchange
-    ham->Add(new PW_XC(std::make_shared<VWN_Correlation>()));          // VWN5 correlation
+    // Plane-wave LDA Kohn-Sham Hamiltonian from the Ham factory family: kinetic + external(pseudo) +
+    // Hartree + Dirac exchange + VWN5 correlation (heap; the SCFIterator takes ownership).
+    cHamiltonian* ham=new Ham_PW_DFT(si);
 
     // No-acceleration manager (plain diagonalize each iteration) for the complex path.
     auto* acc=new qchem::SCFAccelerators::tSCFAcceleratorNull<dcmplx>();

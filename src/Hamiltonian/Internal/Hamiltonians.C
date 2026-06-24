@@ -45,6 +45,19 @@ public:
 };
 
 //
+// Plane-wave LDA Kohn-Sham (dcmplx): kinetic + external(pseudo) + Hartree + Dirac exchange + VWN5
+// correlation, assembled from the qcHamiltonian plane-wave terms (PWTerms).  Unlike the molecular DFT
+// Hamiltonians it needs NO fit basis / mesh -- the plane-wave basis assembles every matrix in G-space
+// and carries the pseudopotential (configured by the BasisSet factory), so this only needs the
+// structure for the external term's structure factor.  Pair with a plane-wave BasisSet + cSCFIterator.
+//
+class Ham_PW_DFT : public virtual cHamiltonian, private cHamiltonianImp
+{
+public:
+    Ham_PW_DFT(const st_t& st);
+};
+
+//
 //  Polarized Hartree-Fock.
 //
 class Ham_HF_P : public virtual Hamiltonian, private HamiltonianImp
