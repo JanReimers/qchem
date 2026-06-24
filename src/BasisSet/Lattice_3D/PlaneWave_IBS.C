@@ -21,6 +21,7 @@ export import qchem.ReciprocalLattice;             // ctor takes a ReciprocalLat
 export import qchem.BasisSet.Lattice_3D.LocalPotential;      // local potential form-factor abstraction
 export import qchem.BasisSet.Lattice_3D.SeparablePotential; // KB nonlocal projector abstraction
 import qchem.Structure;
+import qchem.Symmetry;                             // sym_t (the Bloch irrep handed to the ctor)
 import qchem.Types;
 
 export namespace BasisSet::Lattice_3D
@@ -33,10 +34,18 @@ class PlaneWave_IBS
     , public         BasisSet::IrrepBasisSetImp<dcmplx> // supplies GetSymmetry/GetSymt/GetIrrep + itsSymmetry
 {
 public:
+    //! \brief Primary constructor: the Bloch symmetry IS the k-label (mirrors the atom IBSs, which take
+    //! an abstract \c sym_t and pry out their quantum number).  The crystal momentum is read from the
+    //! irrep via Symmetry::Getk; the basis owns no copy of the BZ grid.
     //! \param recip   the reciprocal lattice (its UnitCell matrix is \f$B=2\pi A^{-\top}\f$).
+    //! \param irrep   the Bloch irrep (a BlochQN); \f$k\f$ = Symmetry::Getk(irrep).
+    //! \param Ecut    plane-wave energy cutoff (Hartree): keep \f$G\f$ with \f$\tfrac12|k+G|^2<E_{cut}\f$.
+    PlaneWave_IBS(const ReciprocalLattice& recip, const sym_t& irrep, double Ecut);
+
+    //! \brief Convenience constructor for tests/callers that work directly in BZ-grid indices: builds
+    //! the Bloch irrep \c BlochFactory(N,kIndex) and delegates to the primary constructor above.
     //! \param N       Brillouin-zone grid divisions (context for the integer k-label).
     //! \param kIndex  integer k-label; the fractional crystal momentum is \f$k = kIndex/N\f$.
-    //! \param Ecut    plane-wave energy cutoff (Hartree): keep \f$G\f$ with \f$\tfrac12|k+G|^2<E_{cut}\f$.
     PlaneWave_IBS(const ReciprocalLattice& recip, const ivec3_t& N,
                   const ivec3_t& kIndex, double Ecut);
 
@@ -89,7 +98,7 @@ public:
     virtual cvec3vec_t Gradient   (const rvec3_t& r) const;
 
     virtual std::string Name      () const {return "PlaneWave";}
-    virtual std::string BasisSetID() const; // geometry-aware cache key (N, kIndex, Ecut, nG)
+    virtual std::string BasisSetID() const; // geometry-aware cache key (k, Ecut, nG)
 
     virtual std::ostream& Write(std::ostream&) const;
 
@@ -101,9 +110,7 @@ private:
     const LocalPotential*     itsLocalPP=nullptr;  //!< external local pseudopotential (non-owning).
     const SeparablePotential* itsSepPP  =nullptr;  //!< external KB nonlocal pseudopotential (non-owning).
     ReciprocalLattice    itsRecip;  //!< Reciprocal cell (matrix \f$B\f$); source of G and |k+G|.
-    ivec3_t              itsN;      //!< BZ grid divisions (for the cache key).
-    ivec3_t              itskIndex; //!< Integer k-label (for the cache key).
-    rvec3_t              itsk;      //!< Fractional crystal momentum \f$k=kIndex/N\f$.
+    rvec3_t              itsk;      //!< Fractional crystal momentum \f$k\f$ (read from the Bloch irrep).
     double               itsEcut;   //!< Energy cutoff (Hartree).
     double               itsVolume; //!< Direct cell volume \f$V\f$ (for the \f$1/\sqrt V\f$ norm).
     std::vector<ivec3_t> itsG;      //!< Surviving reciprocal index triples \f$m\f$ (\f$G=Bm\f$).

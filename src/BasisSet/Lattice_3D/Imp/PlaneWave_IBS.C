@@ -9,7 +9,8 @@ module;
 #include <vector>
 
 module qchem.BasisSet.Lattice_3D.PlaneWave_IBS;
-import qchem.Symmetry.Factory;   // BlochFactory
+import qchem.Symmetry.Factory;   // BlochFactory (the convenience ctor builds the Bloch irrep)
+import qchem.Symmetry.BlochQN;   // Symmetry::Getk (prys k out of the abstract Bloch irrep)
 import qchem.Structure;          // Atom (itsZ, itsR) + atom iteration for MakeNuclear
 import qchem.Math;               // Pi, FourPi, sqrt, cos, sin, pow, Cube
 import qchem.SpecialFunctions;   // LegendreP (the (2l+1)P_l angular factor)
@@ -21,21 +22,22 @@ import qchem.Vector3D;           // dot product (operator*) + vector arithmetic
 namespace BasisSet::Lattice_3D
 {
 
-PlaneWave_IBS::PlaneWave_IBS(const ReciprocalLattice& recip, const ivec3_t& N,
-                             const ivec3_t& kIndex, double Ecut)
-    : BasisSet::IrrepBasisSetImp<dcmplx>(Symmetry::BlochFactory(N,kIndex))
+PlaneWave_IBS::PlaneWave_IBS(const ReciprocalLattice& recip, const sym_t& irrep, double Ecut)
+    : BasisSet::IrrepBasisSetImp<dcmplx>(irrep)
     , itsRecip(recip)
-    , itsN(N)
-    , itskIndex(kIndex)
-    , itsk(kIndex.x/static_cast<double>(N.x),
-           kIndex.y/static_cast<double>(N.y),
-           kIndex.z/static_cast<double>(N.z))
+    , itsk(Symmetry::Getk(irrep))   // the Bloch irrep IS the k-label; pry it out (mirrors Getl on atoms)
     , itsEcut(Ecut)
     // |det B| = (2 pi)^3 / |det A|, so the direct cell volume V = (2 pi)^3 / V_recip.
     , itsVolume(Cube(2*Pi)/recip.GetCell().GetCellVolume())
 {
     itsG = Internal::BuildGs(itsRecip, itsk, Ecut);   // { G : 1/2|k+G|^2 < Ecut }
 }
+
+// Convenience: build the Bloch irrep from BZ-grid indices and delegate to the primary constructor.
+PlaneWave_IBS::PlaneWave_IBS(const ReciprocalLattice& recip, const ivec3_t& N,
+                             const ivec3_t& kIndex, double Ecut)
+    : PlaneWave_IBS(recip, Symmetry::BlochFactory(N,kIndex), Ecut)
+{}
 
 rvec3_t PlaneWave_IBS::GetGCartesian(const ivec3_t& m) const
 {
@@ -296,8 +298,7 @@ cvec3vec_t PlaneWave_IBS::Gradient(const rvec3_t& r) const
 
 std::string PlaneWave_IBS::BasisSetID() const
 {
-    return Name()+"|N="+std::to_string(itsN.x)+","+std::to_string(itsN.y)+","+std::to_string(itsN.z)
-                 +"|k="+std::to_string(itskIndex.x)+","+std::to_string(itskIndex.y)+","+std::to_string(itskIndex.z)
+    return Name()+"|k="+std::to_string(itsk.x)+","+std::to_string(itsk.y)+","+std::to_string(itsk.z)
                  +"|Ecut="+std::to_string(itsEcut)
                  +"|nG="+std::to_string(itsG.size());
 }

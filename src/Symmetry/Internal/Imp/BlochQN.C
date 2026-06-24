@@ -29,3 +29,9 @@ std::ostream& BlochQN::Write(std::ostream& os) const
 {
     return os << k;
 }
+
+namespace Symmetry
+{
+rvec3_t Getk(const sym_t& s)     {return Getk(*s.get());}
+rvec3_t Getk(const Symmetry& s)  {return dynamic_cast<const BlochQN&>(s).Getk();}
+}
