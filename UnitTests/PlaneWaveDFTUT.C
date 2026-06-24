@@ -50,6 +50,16 @@ using BasisSet::Lattice_3D::HGH_SeparablePotential;
 namespace
 {
 
+// A ScalarFunction<double> wrapping a lambda f(r) -- to hand real-space fields to the basis's
+// high-level integral methods (IntegralPotential/IntegralHartree/Integral).
+struct FieldFn : public ScalarFunction<double>
+{
+    std::function<double(const rvec3_t&)> f;
+    explicit FieldFn(std::function<double(const rvec3_t&)> g) : f(g) {}
+    virtual double  operator()(const rvec3_t& r) const {return f(r);}
+    virtual rvec3_t Gradient  (const rvec3_t&  ) const {return rvec3_t(0,0,0);}
+};
+
 // Order ivec3_t lexicographically so it can key the rho~ map.
 struct IVecLess
 {
@@ -722,6 +732,103 @@ TEST_F(PlaneWaveDFT, ScfSiliconBZSampled)
     EXPECT_NEAR(Omega*std::real(RhoAt(R.rho,ivec3_t(0,0,0))), 8.0, 1e-6);   // 8 valence e-
     EXPECT_NEAR(R.Etot_band, R.Etot_direct, 1e-5);                          // stationary fixed point
     EXPECT_GT (R.gap, 0.0);                                                 // Si is a semiconductor
+}
+
+// --- Stage 2: the basis-level high-level DFT capability (DFTPotential_IBS), validated against the
+// prototype's analytic/free-function results.  These are the questions the framework terms will ask --
+// the term hands a real-space ScalarFunction and the basis owns the integration (no G-vectors exposed).
+
+// Integral(f) = integral f d3r over the cell: a constant integrates to const*Omega; a reciprocal
+// cosine integrates to zero.
+TEST_F(PlaneWaveDFT, BasisIntegralScalar)
+{
+    PWFixture F;
+    FieldFn cst([](const rvec3_t&){return 2.5;});
+    EXPECT_NEAR(F.pw.Integral(cst), 2.5*F.Omega, 1e-9*F.Omega);
+
+    rvec3_t G0=F.B().ToCartesian(rvec3_t(1,0,0));
+    FieldFn cosfn([&](const rvec3_t& r){return std::cos(G0*r);});
+    EXPECT_NEAR(F.pw.Integral(cosfn), 0.0, 1e-9*F.Omega);
+}
+
+// IntegralHartree on a single-cosine density rho = rho0 + 2A cos(G0.r) reproduces the Poisson result
+// (E_H = Omega 4 pi A^2/|G0|^2, V_H~(G0) = 4 pi A/|G0|^2) -- same check as HartreeSingleCosineMatchesPoisson,
+// now driven entirely through the basis's high-level method (the basis samples + transforms internally).
+TEST_F(PlaneWaveDFT, BasisIntegralHartreeMatchesPoisson)
+{
+    PWFixture F;
+    const double rho0=2.0/F.Omega, A=0.01;
+    rvec3_t G0=F.B().ToCartesian(rvec3_t(1,0,0));
+    double  g02=G0*G0;
+    FieldFn rho([&](const rvec3_t& r){return rho0 + 2*A*std::cos(G0*r);});
+
+    double  Eh=0.0;
+    chmat_t VH=F.pw.IntegralHartree(rho, Eh);
+    EXPECT_NEAR(Eh, F.Omega*4*Pi*A*A/g02, 1e-7);
+
+    size_t n=F.pw.GetNumFunctions(); bool found=false;
+    for (size_t i=0;i<n && !found;i++)
+        for (size_t j=0;j<n && !found;j++)
+            if (F.pw.GetGIndex(i)-F.pw.GetGIndex(j)==ivec3_t(1,0,0))
+            {
+                EXPECT_NEAR(std::real(dcmplx(VH(i,j))), 4*Pi*A/g02, 1e-7);
+                found=true;
+            }
+    EXPECT_TRUE(found);
+}
+
+// IntegralPotential of a constant V is V*Identity; of a reciprocal cosine has Vtilde(+/-e)=1/2.
+TEST_F(PlaneWaveDFT, BasisIntegralPotentialConstAndCosine)
+{
+    PWFixture F;
+    size_t n=F.pw.GetNumFunctions();
+
+    FieldFn cst([](const rvec3_t&){return 0.7;});
+    chmat_t Vc=F.pw.IntegralPotential(cst);
+    for (size_t i=0;i<n;i++)
+    {
+        EXPECT_NEAR(std::real(dcmplx(Vc(i,i))), 0.7, 1e-9);
+        for (size_t j=i+1;j<n;j++) EXPECT_NEAR(std::abs(dcmplx(Vc(i,j))), 0.0, 1e-9);
+    }
+
+    rvec3_t G0=F.B().ToCartesian(rvec3_t(1,0,0));
+    FieldFn cosfn([&](const rvec3_t& r){return std::cos(G0*r);});
+    chmat_t Vk=F.pw.IntegralPotential(cosfn);
+    bool found=false;
+    for (size_t i=0;i<n && !found;i++)
+        for (size_t j=0;j<n && !found;j++)
+            if (F.pw.GetGIndex(i)-F.pw.GetGIndex(j)==ivec3_t(1,0,0))
+            {
+                EXPECT_NEAR(std::real(dcmplx(Vk(i,j))), 0.5, 1e-9);
+                found=true;
+            }
+    EXPECT_TRUE(found);
+}
+
+// MakeExternalPotential (with the Si PP configured on the basis) equals the explicit local+KB assembly.
+TEST_F(PlaneWaveDFT, BasisExternalPotentialMatchesPPAssembly)
+{
+    const double a=10.26, h=0.5*a;
+    Matrix3D<double> Amat(0.0,h,h,  h,0.0,h,  h,h,0.0);
+    UnitCell          cell(Amat);
+    Lattice_3D        lat(cell, ivec3_t(1,1,1));
+    ReciprocalLattice recip(lat.Reciprocal());
+    PlaneWave_IBS     pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
+
+    Molecule si;
+    si.Insert(new Atom(14, rvec3_t(0,0,0)));
+    si.Insert(new Atom(14, rvec3_t(0.25*a,0.25*a,0.25*a)));
+    HGH_LocalPotential     loc=HGH_LocalPotential::Silicon();
+    HGH_SeparablePotential nl =HGH_SeparablePotential::Silicon();
+
+    chmat_t ref = pw.MakeLocalPotential(&si,loc) + pw.MakeSeparablePotential(&si,nl);
+    pw.SetPseudopotential(&loc, &nl);
+    chmat_t got = pw.MakeExternalPotential(&si);
+
+    size_t n=pw.GetNumFunctions();
+    for (size_t i=0;i<n;i++)
+        for (size_t j=i;j<n;j++)
+            EXPECT_NEAR(std::abs(dcmplx(got(i,j))-dcmplx(ref(i,j))), 0.0, 1e-12);
 }
 
 } //namespace

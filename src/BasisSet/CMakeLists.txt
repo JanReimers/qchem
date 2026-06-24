@@ -23,6 +23,7 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   BasisSet.C
   IrrepBasisSet.C
   Orbital_1E_IBS.C
+  DFTPotential_IBS.C
   Orbital_HF_IBS.C
   Orbital_DFT_IBS.C
   Orbital_DHF_IBS.C

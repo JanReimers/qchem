@@ -15,7 +15,7 @@ module;
 #include <vector>
 
 export module qchem.BasisSet.Lattice_3D.PlaneWave_IBS;
-import qchem.BasisSet.Orbital_1E_IBS;
+export import qchem.BasisSet.DFTPotential_IBS;     // the abstract DFT-integration capability this implements
 import qchem.BasisSet.Internal.IrrepBasisSetImp;   // IrrepBasisSetImp<T>: GetSymmetry/GetSymt/GetIrrep
 export import qchem.ReciprocalLattice;             // ctor takes a ReciprocalLattice (carries the B cell)
 export import qchem.BasisSet.Lattice_3D.LocalPotential;      // local potential form-factor abstraction
@@ -29,7 +29,7 @@ export namespace BasisSet::Lattice_3D
 //! \brief Plane-wave basis for a single k-point: the normalised waves
 //! \f$ e^{i(k+G)\cdot r}/\sqrt V \f$ over the cutoff set \f$\{G:\tfrac12|k+G|^2<E_{cut}\}\f$.
 class PlaneWave_IBS
-    : public virtual BasisSet::Orbital_1E_IBS<dcmplx> // overlap/kinetic/nuclear + symmetry interface
+    : public virtual BasisSet::DFTPotential_IBS<dcmplx> // 1E + DFT-integration (Hartree/XC/external) capability
     , public         BasisSet::IrrepBasisSetImp<dcmplx> // supplies GetSymmetry/GetSymt/GetIrrep + itsSymmetry
 {
 public:
@@ -44,7 +44,18 @@ public:
 
     //! Reciprocal-index label \f$m\f$ of basis function \a i (its plane wave is \f$e^{i(k+G)\cdot r}\f$,
     //! \f$G = B\,m\f$).  This integer triple is the defining quantum number of the plane wave.
-    ivec3_t GetGIndex(size_t i) const {return itsG[i];}
+    virtual ivec3_t GetGIndex(size_t i) const {return itsG[i];}
+
+    // --- DFTPotential_IBS capability: high-level "do XYZ" questions the KS potential terms ask. ---
+    // The basis owns the integration (its own FFT grid); the terms never see G-vectors or the mesh.
+    virtual chmat_t IntegralPotential(const ScalarFunction<double>& V) const;            //!< <i|V|j>
+    virtual chmat_t IntegralHartree  (const ScalarFunction<double>& rho, double& Eh) const; //!< <i|V_H[rho]|j>
+    virtual double  Integral         (const ScalarFunction<double>& f) const;            //!< integral f d3r
+    virtual chmat_t MakeExternalPotential(const Structure* cl) const;                    //!< <i|V_ext|j>
+    //! Configure the external pseudopotential (non-owning; the caller keeps them alive).  If unset,
+    //! MakeExternalPotential falls back to the bare nuclear (-Z/r) structure factor.
+    void SetPseudopotential(const LocalPotential* loc, const SeparablePotential* nl=nullptr)
+        {itsLocalPP=loc; itsSepPP=nl;}
 
     // 1E integral building blocks (no 1/2 on Kinetic -- the Hamiltonian applies it).
     virtual chmat_t MakeOverlap () const;                  //!< Identity (PWs orthonormal over the cell).
@@ -71,7 +82,7 @@ public:
     //! \note Returns smat_t (symmetric) -- correct for a real, even \f$\tilde V\f$ (the cosine).  A
     //! \f$\tilde V\f$ should satisfy \f$\tilde V(-\Delta m)=\overline{\tilde V(\Delta m)}\f$ so the
     //! result is Hermitian (chmat_t); this holds for the cosine and the nuclear structure factor.
-    chmat_t MakePotential(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const;
+    virtual chmat_t MakePotential(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const;
 
     // VectorFunction: the plane-wave values / gradients at a point.
     virtual cvec_t     operator() (const rvec3_t& r) const;
@@ -84,7 +95,11 @@ public:
 
 private:
     rvec3_t GetGCartesian(const ivec3_t& m) const; //!< \f$ G = B\,m \f$ in Cartesian a.u.
+    std::vector<rvec3_t> UniformGrid(const ivec3_t& npts) const; //!< fractional XC grid (Omega/prod weight).
+    ivec3_t AutoGrid() const;       //!< grid divisions resolving the basis difference set (no aliasing).
 
+    const LocalPotential*     itsLocalPP=nullptr;  //!< external local pseudopotential (non-owning).
+    const SeparablePotential* itsSepPP  =nullptr;  //!< external KB nonlocal pseudopotential (non-owning).
     ReciprocalLattice    itsRecip;  //!< Reciprocal cell (matrix \f$B\f$); source of G and |k+G|.
     ivec3_t              itsN;      //!< BZ grid divisions (for the cache key).
     ivec3_t              itskIndex; //!< Integer k-label (for the cache key).

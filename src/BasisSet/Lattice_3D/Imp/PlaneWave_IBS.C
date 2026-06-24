@@ -4,6 +4,7 @@ module;
 #include <complex>
 #include <functional>
 #include <iostream>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -39,6 +40,124 @@ PlaneWave_IBS::PlaneWave_IBS(const ReciprocalLattice& recip, const ivec3_t& N,
 rvec3_t PlaneWave_IBS::GetGCartesian(const ivec3_t& m) const
 {
     return itsRecip.GetCell().ToCartesian(rvec3_t(m)); // B m
+}
+
+// Uniform N1xN2xN3 grid of FRACTIONAL coordinates r=(i1/N1,i2/N2,i3/N3) -- the XC real-space grid
+// (uniform weight Omega/prod(N); dG.r = 2 pi dm.r_frac makes the rho(G)<->rho(r) transform a plain DFT).
+std::vector<rvec3_t> PlaneWave_IBS::UniformGrid(const ivec3_t& n) const
+{
+    std::vector<rvec3_t> g;
+    g.reserve(static_cast<size_t>(n.x)*n.y*n.z);
+    for (int i1=0;i1<n.x;i1++)
+        for (int i2=0;i2<n.y;i2++)
+            for (int i3=0;i3<n.z;i3++)
+                g.push_back(rvec3_t(i1/double(n.x), i2/double(n.y), i3/double(n.z)));
+    return g;
+}
+
+namespace
+{
+//! Lexicographic ordering so a reciprocal-index triple can key a map.
+struct IVecLess
+{
+    bool operator()(const ivec3_t& a,const ivec3_t& b) const
+    { if (a.x!=b.x) return a.x<b.x; if (a.y!=b.y) return a.y<b.y; return a.z<b.z; }
+};
+
+//! Forward-transform a real field sampled on the fractional grid to its Fourier components
+//! \f$\tilde V(\Delta m)=\frac1{N}\sum_r V(r)e^{-i2\pi\Delta m\cdot r}\f$ over the difference set
+//! \f$\{m_i-m_j\}\f$ (the only components the matrix \f$\langle G_i|V|G_j\rangle\f$ needs).
+std::map<ivec3_t,dcmplx,IVecLess>
+ForwardDFTDiffSet(const std::vector<ivec3_t>& G, const std::vector<rvec3_t>& frac,
+                  const std::vector<double>& field)
+{
+    std::map<ivec3_t,dcmplx,IVecLess> vt;
+    size_t n=G.size(), Npts=frac.size();
+    for (size_t i=0;i<n;i++)
+        for (size_t j=0;j<n;j++)
+        {
+            ivec3_t dm=G[i]-G[j];
+            if (vt.find(dm)!=vt.end()) continue;
+            dcmplx s(0.0);
+            for (size_t q=0;q<Npts;q++)
+            {
+                double ph=-2*Pi*(dm.x*frac[q].x + dm.y*frac[q].y + dm.z*frac[q].z);
+                s += field[q]*dcmplx(cos(ph),sin(ph));
+            }
+            vt[dm]=s/double(Npts);
+        }
+    return vt;
+}
+} //anon
+
+// Grid divisions resolving the difference set without aliasing: N > 2*(2*maxComp).
+ivec3_t PlaneWave_IBS::AutoGrid() const
+{
+    int m=0;
+    for (const ivec3_t& g : itsG)
+    {
+        int ax=g.x<0?-g.x:g.x, ay=g.y<0?-g.y:g.y, az=g.z<0?-g.z:g.z;
+        m=std::max(m, std::max(ax, std::max(ay,az)));
+    }
+    int nn=4*m+1;
+    return ivec3_t(nn,nn,nn);
+}
+
+// <i|V|j> for a real-space scalar potential V: sample V on the (Cartesian) grid, forward-DFT to
+// Vtilde(dm), assemble.  The XC term passes V(r)=v_xc(rho(r)); the integration is OUR business.
+chmat_t PlaneWave_IBS::IntegralPotential(const ScalarFunction<double>& V) const
+{
+    std::vector<rvec3_t> frac=UniformGrid(AutoGrid());
+    UnitCell A=itsRecip.GetCell().MakeReciprocalCell();          // direct cell (reciprocal of the reciprocal)
+    std::vector<double> field(frac.size());
+    for (size_t q=0;q<frac.size();q++) field[q]=V(A.ToCartesian(frac[q]));
+    auto vt=ForwardDFTDiffSet(itsG,frac,field);
+    return MakePotential([&vt](const ivec3_t& dm)->dcmplx
+        { auto it=vt.find(dm); return it==vt.end()?dcmplx(0.0):it->second; });
+}
+
+// Hartree matrix + energy for a density rho: rho~(dm) via the grid DFT, then V_H~(dm)=4 pi rho~/|G|^2
+// (dm=0 dropped, neutralising background); E_H = (Omega/2) Sum_{G!=0} 4 pi |rho~|^2/|G|^2.
+chmat_t PlaneWave_IBS::IntegralHartree(const ScalarFunction<double>& rho, double& Eh) const
+{
+    std::vector<rvec3_t> frac=UniformGrid(AutoGrid());
+    UnitCell A=itsRecip.GetCell().MakeReciprocalCell();
+    std::vector<double> field(frac.size());
+    for (size_t q=0;q<frac.size();q++) field[q]=rho(A.ToCartesian(frac[q]));
+    auto rg=ForwardDFTDiffSet(itsG,frac,field);
+    Eh=0.0;
+    for (const auto& kv : rg)
+    {
+        if (kv.first.x==0 && kv.first.y==0 && kv.first.z==0) continue;
+        rvec3_t G=GetGCartesian(kv.first);
+        Eh += FourPi*std::norm(kv.second)/(G*G);
+    }
+    Eh *= 0.5*itsVolume;
+    return MakePotential([this,&rg](const ivec3_t& dm)->dcmplx
+    {
+        if (dm.x==0 && dm.y==0 && dm.z==0) return dcmplx(0.0);
+        rvec3_t G=GetGCartesian(dm);
+        auto it=rg.find(dm);
+        return FourPi*(it==rg.end()?dcmplx(0.0):it->second)/(G*G);
+    });
+}
+
+// Scalar integral integral f d3r over the cell: uniform-grid quadrature (weight Omega/Npts).
+double PlaneWave_IBS::Integral(const ScalarFunction<double>& f) const
+{
+    std::vector<rvec3_t> frac=UniformGrid(AutoGrid());
+    UnitCell A=itsRecip.GetCell().MakeReciprocalCell();
+    double s=0.0;
+    for (const rvec3_t& p : frac) s += f(A.ToCartesian(p));
+    return s*itsVolume/double(frac.size());
+}
+
+// Configured external (pseudo)potential matrix: local PP (+ KB nonlocal) if set, else bare -Z/r.
+chmat_t PlaneWave_IBS::MakeExternalPotential(const Structure* cl) const
+{
+    if (itsLocalPP && itsSepPP) return MakeLocalPotential(cl,*itsLocalPP)+MakeSeparablePotential(cl,*itsSepPP);
+    if (itsLocalPP)             return MakeLocalPotential(cl,*itsLocalPP);
+    return MakeNuclear(cl);
 }
 
 // Plane waves are orthonormal over the cell: <G|G'> = delta_{GG'}.
