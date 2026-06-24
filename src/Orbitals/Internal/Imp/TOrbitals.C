@@ -106,7 +106,12 @@ template <class T> typename TOrbitalsImp<T>::ds_t TOrbitalsImp<T>::TakeElectrons
 
 template <class T> tDM_CD<T>* TOrbitalsImp<T>::GetChargeDensity() const
 {
-    return qchem::ChargeDensity::IrrepCD_Factory(itsD,itsBasisSet,GetQNs());
+    // Scale by the irrep's BZ weight (1 for atoms/molecules; w_k for a Bloch k-point) so the composite
+    // density sums to the BZ average Sum_k w_k rho_k.  The orbitals' occupations stay physical (the
+    // accelerator works on the unscaled D'); only the charge-density object carries the weight.
+    double w=GetQNs().sym->GetWeight();
+    hmat_t<T> Dw = (w==1.0) ? itsD : hmat_t<T>(w*itsD);
+    return qchem::ChargeDensity::IrrepCD_Factory(Dw,itsBasisSet,GetQNs());
 }
 
 

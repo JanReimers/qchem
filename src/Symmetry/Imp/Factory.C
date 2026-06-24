@@ -27,9 +27,9 @@ sym_t     ΩFactory(int κ,const rvec_t& mjs)
     else
         return sym_t(new Ωκmj(κ,mjs));
 }
-sym_t BlochFactory(ivec3_t N, ivec3_t k)
+sym_t BlochFactory(ivec3_t N, ivec3_t k, double weight)
 {
-    return sym_t(new BlochQN(N,k));
+    return sym_t(new BlochQN(N,k,weight));
 }
 sym_t  UnitFactory()
 {

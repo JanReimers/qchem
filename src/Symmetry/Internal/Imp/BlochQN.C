@@ -4,10 +4,11 @@ module;
 #include <cassert>
 module qchem.Symmetry.BlochQN;
 
-BlochQN::BlochQN(ivec3_t _N, ivec3_t _ik) 
+BlochQN::BlochQN(ivec3_t _N, ivec3_t _ik, double _weight)
     : N(_N)
     , ik(_ik)
-    , k(ik.x/static_cast<double>(N.x),ik.y/static_cast<double>(N.y),ik.z/static_cast<double>(N.z)) 
+    , k(ik.x/static_cast<double>(N.x),ik.y/static_cast<double>(N.y),ik.z/static_cast<double>(N.z))
+    , weight(_weight)
 {
     //assert(N!=0uz);
     assert(N.x>0);
