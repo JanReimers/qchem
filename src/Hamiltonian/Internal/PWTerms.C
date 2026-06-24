@@ -11,6 +11,7 @@ module;
 export module qchem.Hamiltonian.Internal.PWTerms;
 import qchem.Hamiltonian.Internal.Term;        // cStatic_HT / cDynamic_HT + their _Imp cache bases
 import qchem.BasisSet.DFTPotential_IBS;         // the abstract capability the terms dynamic_cast to
+import qchem.Hamiltonian.Internal.ExFunctional; // the LDA functional the XC term composes with the density
 import qchem.Hamiltonian.Types;                 // cobs_t
 import qchem.Structure;
 
@@ -32,6 +33,40 @@ public:
 private:
     virtual chmat_t CalculateMatrix(const cobs_t*, const Spin&) const;
     cl_t theStructure;
+};
+
+//! Hartree (classical Coulomb) term for a plane-wave basis (density-dependent).  Asks the basis for the
+//! Hartree matrix of the current density; the Poisson solve is the basis's business (G-space for PW).
+class PW_Hartree
+    : public virtual cDynamic_HT
+    , private        cDynamic_HT_Imp
+{
+public:
+    virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
+    virtual std::ostream& Write(std::ostream&) const;
+private:
+    virtual chmat_t CalcMatrix(const cobs_t*, const Spin&, const cDM_CD*) const;
+};
+
+//! Exchange-correlation term for a plane-wave basis, carrying ONE LDA functional (so a full LDA uses a
+//! Dirac PW_XC + a VWN PW_XC, mirroring the molecular SlaterExchange+VWN split).  The matrix is the basis
+//! integral of v_xc(rho(r)); the energy is integral eps_xc(rho) rho.  Both are real-space scalar fields
+//! the term composes (functional o density) and hands to the basis -- the basis owns the integration.
+class PW_XC
+    : public virtual cDynamic_HT
+    , private        cDynamic_HT_Imp
+{
+public:
+    typedef std::shared_ptr<ExFunctional> xc_t;
+    PW_XC(const xc_t&);
+    virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
+    virtual std::ostream& Write(std::ostream&) const;
+private:
+    virtual chmat_t CalcMatrix(const cobs_t*, const Spin&, const cDM_CD*) const;
+    xc_t itsXc;
+    //! The basis is captured from CalcMatrix so GetEnergy (which has no basis parameter) can ask it for
+    //! the energy integral integral eps_xc rho with the current density.  Same basis every iteration.
+    mutable const BasisSet::DFTPotential_IBS<dcmplx>* itsBasis=nullptr;
 };
 
 } //namespace

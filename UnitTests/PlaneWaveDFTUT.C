@@ -40,7 +40,9 @@ import qchem.Hamiltonian.Internal.ExFunctional;     // the validated LDA functio
 import qchem.Hamiltonian.Internal.SlaterExchange;   // Dirac exchange (alpha=2/3), eps_x = 3/4 v_x
 import qchem.Hamiltonian.Internal.VWN_Correlation;  // VWN5 correlation (validated vs libxc)
 import qchem.Hamiltonian.Internal.PWTerms;          // PW_External (dcmplx Hamiltonian term)
-import qchem.Hamiltonian;                           // cStatic_HT alias (the public term interface)
+import qchem.Hamiltonian;                           // cStatic_HT / cDynamic_HT aliases (public term interfaces)
+import qchem.ChargeDensity.Imp.IrrepCD;             // IrrepCD<dcmplx> (concrete complex density)
+import qchem.Symmetry.Irrep;                        // Irrep
 import qchem.LASolver;                              // complex Hermitian eigensolver
 import qchem.Structure;                             // Molecule, Atom (the Si diamond basis)
 import qchem.Matrix3D;                              // Matrix3D<double> (the FCC cell matrix)
@@ -861,6 +863,40 @@ TEST_F(PlaneWaveDFT, PWExternalTermMatchesBasis)
     for (size_t i=0;i<n;i++)
         for (size_t j=i;j<n;j++)
             EXPECT_NEAR(std::abs(dcmplx(M(i,j))-dcmplx(ref(i,j))), 0.0, 1e-12);
+}
+
+// The PW_Hartree and PW_XC dynamic terms route a complex density (IrrepCD<dcmplx>) through the framework
+// and must reproduce the basis's IntegralHartree / IntegralPotential -- the inversion working for the
+// density-dependent terms.  We feed a hand-built Hermitian density matrix (2 electrons in (e0+e1)/sqrt2).
+TEST_F(PlaneWaveDFT, PWDynamicTermsMatchBasis)
+{
+    PWFixture F;
+    size_t n=F.pw.GetNumFunctions();
+
+    hmat_t<dcmplx> D=blazem::zeroH<dcmplx>(n);     // Hermitian density matrix
+    D(0,0)=1.0; D(0,1)=1.0; D(1,1)=1.0;            // sets D(1,0)=conj(D(0,1)) -> a non-uniform density
+    Irrep irr=F.pw.GetIrrep(Spin::None);
+    qchem::ChargeDensity::IrrepCD<dcmplx> cd(D, &F.pw, irr);
+
+    // Hartree term matrix == basis IntegralHartree of the same density.
+    qchem::Hamiltonian::PW_Hartree   h;
+    qchem::Hamiltonian::cDynamic_HT* ht=&h;
+    const chmat_t& Mh = ht->GetMatrix(&F.pw, Spin::None, &cd);
+    double Eh; chmat_t refh = F.pw.IntegralHartree(cd, Eh);
+    for (size_t i=0;i<n;i++)
+        for (size_t j=i;j<n;j++)
+            EXPECT_NEAR(std::abs(dcmplx(Mh(i,j))-dcmplx(refh(i,j))), 0.0, 1e-10);
+
+    // XC term (Dirac exchange) matrix == basis IntegralPotential of v_xc(rho(r)).
+    auto dirac=std::make_shared<qchem::Hamiltonian::SlaterExchange>(2.0/3.0);
+    qchem::Hamiltonian::PW_XC        xc(dirac);
+    qchem::Hamiltonian::cDynamic_HT* xt=&xc;
+    const chmat_t& Mx = xt->GetMatrix(&F.pw, Spin::None, &cd);
+    FieldFn vxcfield([&](const rvec3_t& r){return dirac->GetVxc(cd(r));});
+    chmat_t refx = F.pw.IntegralPotential(vxcfield);
+    for (size_t i=0;i<n;i++)
+        for (size_t j=i;j<n;j++)
+            EXPECT_NEAR(std::abs(dcmplx(Mx(i,j))-dcmplx(refx(i,j))), 0.0, 1e-10);
 }
 
 } //namespace
