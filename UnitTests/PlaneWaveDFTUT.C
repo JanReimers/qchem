@@ -48,6 +48,12 @@ import qchem.Symmetry.Irrep;                        // Irrep
 import qchem.LASolver;                              // complex Hermitian eigensolver
 import qchem.Structure;                             // Molecule, Atom (the Si diamond basis)
 import qchem.Matrix3D;                              // Matrix3D<double> (the FCC cell matrix)
+import qchem.SCFIterator;                           // cSCFIterator (the real framework SCF driver)
+import qchem.SCFParams;                             // SCFParams
+import qchem.WaveFunction;                          // cWaveFunction (read view of the converged state)
+import qchem.ElectronConfiguration;                 // ElectronConfiguration base
+import qchem.SCFAccelerator.Internal.SCFIrrepAcceleratorNull; // tSCFAcceleratorNull<dcmplx>
+import qchem.BasisSet.Internal.BasisSetImp;         // BasisSetImp<dcmplx> (single-block BasisSet container)
 
 using BasisSet::Lattice_3D::PlaneWave_IBS;
 using BasisSet::Lattice_3D::HGH_LocalPotential;
@@ -980,6 +986,101 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaMatchesPrototype)
 
     EXPECT_NEAR(cd->GetTotalCharge(), 8.0, 1e-6);                 // 8 valence electrons
     EXPECT_NEAR(E.GetTotalEnergy(),   1.468, 5e-3);              // matches the standalone prototype Si-Gamma
+}
+
+// Minimal single-k Bloch electron configuration: a fixed Nval electrons in the single Bloch irrep,
+// no cross-irrep aufbau (the plane-wave block IS the irrep).  Stand-in for a proper Crystal_EC module.
+struct Crystal_EC : public virtual ElectronConfiguration
+{
+    Crystal_EC(const Irrep& irr, int nval) : itsIrrep(irr), itsNval(nval) {}
+    virtual int    GetN(const Irrep&) const {return itsNval;}
+    virtual syms_t GetIrreps() const { syms_t s; s.insert(itsIrrep.sym); return s; }
+    virtual void   Display() const {}
+    virtual bool   UsesAufbau() const {return false;}
+    Irrep itsIrrep;
+    int   itsNval;
+};
+
+// A BasisSet<dcmplx> holding the single plane-wave block (the Bloch irrep) -- the container the
+// framework WaveFunction iterates over.  Owns the IBS (deleted with the BasisSet).
+struct PW_BasisSet : public BasisSet::BasisSetImp<dcmplx>
+{
+    explicit PW_BasisSet(PlaneWave_IBS* pw) { Insert(pw); }
+};
+
+// The SAME Si-Gamma Kohn-Sham problem as FrameworkSiliconGammaMatchesPrototype, but now driven by the
+// REAL framework cSCFIterator (no hand-rolled SCF loop): cSCFIterator -> cWaveFunction (UnPolarizedWF
+// -> IrrepWF) -> tSCFAcceleratorNull<dcmplx> diagonalize -> TOrbitals<dcmplx> fill -> IrrepCD<dcmplx>,
+// with the dcmplx HamiltonianImp summing the PW terms.  This is the milestone that retires the "k-loop
+// in the IBS": single-k plane-wave DFT IS now Hamiltonian = Sum terms + SCFIterator, like atoms/molecules.
+TEST_F(PlaneWaveDFT, FrameworkSiliconGammaThroughSCFIterator)
+{
+    using namespace qchem::Hamiltonian;
+    const double a=10.26, h=0.5*a;
+    Matrix3D<double> Amat(0.0,h,h,  h,0.0,h,  h,h,0.0);
+    UnitCell          cell(Amat);
+    Lattice_3D        lat(cell, ivec3_t(1,1,1));
+    PlaneWave_IBS*    pw=new PlaneWave_IBS(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
+
+    auto si=std::make_shared<Molecule>();
+    si->Insert(new Atom(14, rvec3_t(0,0,0)));
+    si->Insert(new Atom(14, rvec3_t(0.25*a,0.25*a,0.25*a)));
+    HGH_LocalPotential     loc=HGH_LocalPotential::Silicon();      // must outlive the SCF run (pw holds &loc)
+    HGH_SeparablePotential nl =HGH_SeparablePotential::Silicon();
+    pw->SetPseudopotential(&loc, &nl);
+
+    Irrep      irr=pw->GetIrrep(Spin::None);
+    size_t     n  =pw->GetNumFunctions();
+    const int  Nelec=8;
+
+    PW_BasisSet bs(pw);                  // owns pw
+    Crystal_EC  ec(irr, Nelec);
+
+    // Framework Hamiltonian (heap; the SCFIterator takes ownership).
+    cHamiltonianImp* ham=new cHamiltonianImp;
+    ham->Add(new PW_Kinetic);
+    ham->Add(new PW_External(si));
+    ham->Add(new PW_Hartree);
+    ham->Add(new PW_XC(std::make_shared<SlaterExchange> (2.0/3.0)));   // Dirac exchange
+    ham->Add(new PW_XC(std::make_shared<VWN_Correlation>()));          // VWN5 correlation
+
+    // No-acceleration manager (plain diagonalize each iteration) for the complex path.
+    auto* acc=new qchem::SCFAccelerators::tSCFAcceleratorNull<dcmplx>();
+
+    // Seed a UNIFORM density (Hartree+XC active from iteration 0, as real PW codes do): D = (N/n) I.
+    hmat_t<dcmplx> D0=blazem::zeroH<dcmplx>(n);
+    for (size_t i=0;i<n;i++) D0(i,i)=double(Nelec)/double(n);
+    auto* seed=new qchem::ChargeDensity::IrrepCD<dcmplx>(D0, pw, irr);
+
+    qchem::SCFIterator::cSCFIterator scf(&bs, &ec, ham, acc, seed);
+
+    SCFParams par;
+    par.NMaxIter      =80;
+    // The energy converges to 1.468057 (== the prototype) by ~iter 10, but the Null accelerator has no
+    // DIIS damping, so the density matrix drifts marginally within Si's degenerate Gamma_25' occupied
+    // manifold (energy flat to 1e-9, |Delta rho| dips to ~1e-5 then slowly grows).  Converge at the
+    // density dip with a realistic plane-wave tolerance; a complex DIIS accelerator is future work.
+    par.MinΔρ         =1e-4;
+    par.MinΔFD        =1e30;   // Null accelerator reports no [F,D] error
+    par.MinVirial     =1e30;   // pseudopotential calc: the textbook -V/K=2 virial does not hold
+    par.MinFD         =1e30;
+    par.StartingRelaxRo=0.4;
+    par.MergeTol      =1e-4;
+    par.Verbose       =false;
+    scf.Iterate(par);
+
+    const qchem::WaveFunction::cWaveFunction* wf=scf.GetWaveFunction();
+    auto* cd=wf->GetChargeDensity();              // caller owns the returned (composite) density
+    double charge=cd->GetTotalCharge();
+    delete cd;
+    qchem::EnergyBreakdown E=scf.GetEnergy();
+    std::cout << "[Si SCFIterator-Gamma] iters="<<scf.GetIterationCount()<<" charge="<<charge
+              << " Etot="<<E.GetTotalEnergy()
+              << "  (Ekin="<<E.Kinetic<<" Een="<<E.Een<<" Eee="<<E.Eee<<" Exc="<<E.Exc<<")" << std::endl;
+
+    EXPECT_TRUE(scf.Converged());
+    EXPECT_NEAR(charge,             8.0,   1e-6);   // 8 valence electrons
+    EXPECT_NEAR(E.GetTotalEnergy(), 1.468, 5e-3);   // matches the standalone prototype Si-Gamma
 }
 
 // Regression guard for the Hamiltonian-framework cache bug: Dynamic_HT_Imp::GetMatrix must invalidate

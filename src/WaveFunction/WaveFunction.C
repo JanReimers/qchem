@@ -15,6 +15,7 @@ namespace qchem::WaveFunction
 {
 
 export using qchem::ChargeDensity::DM_CD;
+export using qchem::ChargeDensity::tDM_CD;
 export using qchem::Orbitals::EnergyLevels;
 using Hamiltonian::Hamiltonian;
 using Orbitals::Orbitals; //Keep this one last, otherwise it interferes with the two previous declarations!
@@ -23,15 +24,19 @@ using Orbitals::Orbitals; //Keep this one last, otherwise it interferes with the
 // Every client (testers, persistence, future property/post-HF code) depends on this.
 // The mutating, SCF-loop-driving methods live in SCFWaveFunction (see SCFWaveFunction.C),
 // which only the SCFIterator uses -- an Interface Segregation split.
-export class WaveFunction
+//
+// Templated on the matrix element type T (rX/cX); WaveFunction is the <double> alias (atoms/
+// molecules), cWaveFunction the <dcmplx> instantiation (plane-wave / Bloch-irrep) -- only the
+// charge-density type varies with T (the spin density stays a real ScalarFunction).
+export template <class T> class tWaveFunction
 {
 public:
     typedef ScalarFunction<double> sf_t;
     typedef std::vector<Irrep> iqns_t;
-    virtual ~WaveFunction() {};
+    virtual ~tWaveFunction() {};
 
     virtual const Orbitals* GetOrbitals     (const Irrep&         ) const=0;
-    virtual DM_CD*          GetChargeDensity() const=0;
+    virtual tDM_CD<T>*      GetChargeDensity() const=0;
     virtual sf_t*           GetSpinDensity  () const=0; //Returns a null ptr for un polarized WF.
     virtual EnergyLevels    GetEnergyLevels () const=0;
     virtual iqns_t          GetQNs          () const=0;
@@ -39,7 +44,10 @@ public:
 
 
 private:
-    WaveFunction& operator=(const WaveFunction&);
+    tWaveFunction& operator=(const tWaveFunction&);
 };
+
+export using WaveFunction  = tWaveFunction<double>;
+export using cWaveFunction = tWaveFunction<dcmplx>;
 
 } //namespace

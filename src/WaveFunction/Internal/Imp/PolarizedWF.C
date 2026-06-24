@@ -21,34 +21,34 @@ using std::cout;
 using std::endl;
 
 
-PolarizedWF::PolarizedWF(const bs_t* bs,const ElectronConfiguration* ec,SCFAccelerator* acc)
-    : CompositeWF(bs,ec,acc) 
+template <class T> tPolarizedWF<T>::tPolarizedWF(const tbs_t<T>* bs,const ElectronConfiguration* ec,tSCFAccelerator<T>* acc)
+    : tCompositeWF<T>(bs,ec,acc)
 {
-    MakeIrrepWFs(Spin::Up);
-    MakeIrrepWFs(Spin::Down);
+    this->MakeIrrepWFs(Spin::Up);
+    this->MakeIrrepWFs(Spin::Down);
 };
 
-DM_CD* PolarizedWF::GetChargeDensity() const
+template <class T> tDM_CD<T>* tPolarizedWF<T>::GetChargeDensity() const
 {
     return PolarizedCD_Factory(GetChargeDensity(Spin::Up),GetChargeDensity(Spin::Down));
 }
 
-WaveFunction::sf_t* PolarizedWF::GetSpinDensity() const
+template <class T> typename tPolarizedWF<T>::sf_t* tPolarizedWF<T>::GetSpinDensity() const
 {
     return new qchem::ChargeDensity::SpinDensity(GetChargeDensity(Spin::Up),GetChargeDensity(Spin::Down));
 }
 
 
-void PolarizedWF::DisplayEigen() const
+template <class T> void tPolarizedWF<T>::DisplayEigen() const
 {
     Table eigen_table;
     eigen_table.format().multi_byte_characters(true);
     eigen_table.add_row({"Occ/Degen ↑","ϵ↑ (au)","n,Symmetry","Occ/Degen ↓","ϵ↓ (au)","ϵ↑-ϵ↓ (au)"});
 
 
-    EnergyLevels els_up=GetEnergyLevels(Spin::Up), els_dn=GetEnergyLevels(Spin::Down);
+    EnergyLevels els_up=this->GetEnergyLevels(Spin::Up), els_dn=this->GetEnergyLevels(Spin::Down);
     std::set<Orbital_QNs> alreadyGotIt;
-    for (auto elp:GetEnergyLevels())
+    for (auto elp:this->GetEnergyLevels())
     {
         const Orbitals::EnergyLevel& el=elp.second;
         Orbital_QNs upqns(el.qns.n,Spin::Up  ,el.qns.sym);
@@ -95,5 +95,7 @@ void PolarizedWF::DisplayEigen() const
     for (size_t i:{0,2,3}) eigen_table.column(i).format().font_align(FontAlign::center);
     cout << eigen_table << endl;
 }
+
+template class tPolarizedWF<double>;
 
 } //namespace

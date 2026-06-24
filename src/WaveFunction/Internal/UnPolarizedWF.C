@@ -10,19 +10,27 @@ import qchem.SCFAccelerator;
 export namespace qchem::WaveFunction
 {
 
-class UnPolarizedWF
-    : public virtual SCFWaveFunction
-    , public CompositeWF
+using SCFAccelerators::tSCFAccelerator;
+using ChargeDensity::tDM_CD;
+
+template <class T> class tUnPolarizedWF
+    : public virtual tSCFWaveFunction<T>
+    , public tCompositeWF<T>
 {
 public:
-    UnPolarizedWF(const bs_t*,const ElectronConfiguration*,SCFAccelerator* acc);
-    using CompositeWF::GetChargeDensity;
-    using CompositeWF::GetEnergyLevels;
+    typedef typename tWaveFunction<T>::sf_t sf_t;
 
-    virtual DM_CD*          GetChargeDensity() const {return GetChargeDensity(Spin::None);}
+    tUnPolarizedWF(const tbs_t<T>*,const ElectronConfiguration*,tSCFAccelerator<T>* acc);
+    using tCompositeWF<T>::GetChargeDensity;
+    using tCompositeWF<T>::GetEnergyLevels;
+
+    virtual tDM_CD<T>*      GetChargeDensity() const {return GetChargeDensity(Spin::None);}
     virtual sf_t*           GetSpinDensity  () const {return 0;}
-    virtual EnergyLevels    GetEnergyLevels () const {return GetEnergyLevels(Spin::None);} 
+    virtual EnergyLevels    GetEnergyLevels () const {return GetEnergyLevels(Spin::None);}
     virtual void            DisplayEigen    () const;
 };
+
+using UnPolarizedWF  = tUnPolarizedWF<double>;
+using cUnPolarizedWF = tUnPolarizedWF<dcmplx>;
 
 } //namespace

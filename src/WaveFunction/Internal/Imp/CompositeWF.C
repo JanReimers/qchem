@@ -19,6 +19,7 @@ namespace qchem::WaveFunction
 
 using std::cerr;
 using std::endl;
+using SCFAccelerators::tSCFIrrepAccelerator;
 
 // MOM (Maximum Overlap Method) occupation tracking is implemented but parked: for the current
 // closed-shell cases the empty-irrep DIIS discriminator already gives clean convergence with no
@@ -27,7 +28,7 @@ using std::endl;
 constexpr bool EnableMOM=false;
 
 
-CompositeWF::CompositeWF(const bs_t* bs,const ElectronConfiguration* ec,SCFAccelerator* acc )
+template <class T> tCompositeWF<T>::tCompositeWF(const tbs_t<T>* bs,const ElectronConfiguration* ec,tSCFAccelerator<T>* acc )
     : itsBS(bs)
     , itsEC(ec)
     , itsAufbau(ec->UsesAufbau())
@@ -37,28 +38,28 @@ CompositeWF::CompositeWF(const bs_t* bs,const ElectronConfiguration* ec,SCFAccel
     assert(itsEC);
     assert(itsAccelerator);
     assert(itsBS->GetNumFunctions()>0);
-    
+
 };
 
-void CompositeWF::MakeIrrepWFs(Spin s)
+template <class T> void tCompositeWF<T>::MakeIrrepWFs(Spin s)
 {
 
-    for (auto b:itsBS->Iterate<obs_t>())
+    for (auto b:itsBS->template Iterate<tobs_t<T>>())
     {
-        LASolver<double>* lasb=LASolver<double>::Factory(qchem::Cholesky);
+        LASolver<T>* lasb=LASolver<T>::Factory(qchem::Cholesky);
         lasb->SetBasisOverlap(b->Overlap());
         // std::cout << "Minimum singular value for basis set overlap= " << blaze::min(lasb->Get_BS_Diagonal()) << std::endl;
         Irrep qns(b->GetIrrep(s));
-        SCFIrrepAccelerator* acc=itsAccelerator->Create(lasb,qns,itsEC->GetN(qns));
-        
-        uiwf_t wf(new IrrepWF(b,lasb,qns,acc));
+        tSCFIrrepAccelerator<T>* acc=itsAccelerator->Create(lasb,qns,itsEC->GetN(qns));
+
+        uiwf_t wf(new iwf_t(b,lasb,qns,acc));
         itsQNWFs[qns]=wf.get();
         itsSpinWFs[s].push_back(wf.get());
         itsIWFs.push_back(std::move(wf)); //Do the move last. wf is invalid after the move.
     }
 }
 
-CompositeWF::~CompositeWF() 
+template <class T> tCompositeWF<T>::~tCompositeWF()
 {
     // delete itsAccelerator; NO!!!! SCFiterator deletes the accelerator.
 };
@@ -68,7 +69,7 @@ CompositeWF::~CompositeWF()
 //  This function will creat EMPTY orbtials.  One must use the FillOrbitals member function
 //  to fill up the orbitals with electrons.
 //
-void CompositeWF::DoSCFIteration(Hamiltonian& ham,const DM_CD* cd)
+template <class T> void tCompositeWF<T>::DoSCFIteration(tHamiltonian<T>& ham,const tDM_CD<T>* cd)
 {
     for (auto& w:itsIWFs) w->CalculateH(ham,cd); //Feed F,D' into all the irre eccelerators.
     // Once the accelerator extrapolates, switch the molecular aufbau from eigenvalue order to MOM
@@ -83,7 +84,7 @@ void CompositeWF::DoSCFIteration(Hamiltonian& ham,const DM_CD* cd)
 // Build the Fock and have each irrep accelerator compute its (un-taken) step.  Returns true
 // only if every irrep produced a geodesic step; false means at least one wants to diagonalize
 // (the seed step) -- the caller should fall back to DoSCFIteration().
-bool CompositeWF::BuildFockAndComputeSteps(Hamiltonian& ham,const DM_CD* cd)
+template <class T> bool tCompositeWF<T>::BuildFockAndComputeSteps(tHamiltonian<T>& ham,const tDM_CD<T>* cd)
 {
     for (auto& w:itsIWFs) w->CalculateH(ham,cd);
     bool allStepped=true;
@@ -93,34 +94,34 @@ bool CompositeWF::BuildFockAndComputeSteps(Hamiltonian& ham,const DM_CD* cd)
 
 // Move every irrep's orbitals to geodesic fraction t (commit=false for a line-search trial)
 // and refill, so GetChargeDensity() reflects the trial/updated orbitals.
-void CompositeWF::MoveOrbitals(double t, bool commit, double mergeTol)
+template <class T> void tCompositeWF<T>::MoveOrbitals(double t, bool commit, double mergeTol)
 {
     for (auto& w:itsIWFs) w->MoveOrbitals(t,commit);
     FillOrbitals(mergeTol);
 }
 
-DM_CD* CompositeWF::GetChargeDensity(Spin s) const
+template <class T> tDM_CD<T>* tCompositeWF<T>::GetChargeDensity(Spin s) const
 {
-    using qchem::ChargeDensity::Composite_CD;
+    using qchem::ChargeDensity::tComposite_CD;
     auto i = itsSpinWFs.find(s);
     assert(i!=itsSpinWFs.end());
-    Composite_CD* cd = new Composite_CD();
+    tComposite_CD<T>* cd = new tComposite_CD<T>();
     for (auto& w:i->second) cd->Insert(w->GetChargeDensity());
     return cd;
 }
 
-EnergyLevels CompositeWF::GetEnergyLevels (Spin s) const 
+template <class T> EnergyLevels tCompositeWF<T>::GetEnergyLevels (Spin s) const
 {
     auto i = itsSpin_ELevels.find(s);
     assert(i!=itsSpin_ELevels.end());
     return i->second;
-} 
-
-const Orbitals* CompositeWF::GetOrbitals(const Irrep& qns) const
-{
-    return const_cast<CompositeWF*>(this)->GetOrbitals(qns);
 }
-Orbitals* CompositeWF::GetOrbitals(const Irrep& qns) 
+
+template <class T> const Orbitals* tCompositeWF<T>::GetOrbitals(const Irrep& qns) const
+{
+    return const_cast<tCompositeWF*>(this)->GetOrbitals(qns);
+}
+template <class T> Orbitals* tCompositeWF<T>::GetOrbitals(const Irrep& qns)
 {
     auto i=itsQNWFs.find(qns);
     if (i==itsQNWFs.end())
@@ -135,7 +136,7 @@ Orbitals* CompositeWF::GetOrbitals(const Irrep& qns)
 
 }
 
-CompositeWF::iqns_t CompositeWF::GetQNs() const
+template <class T> typename tCompositeWF<T>::iqns_t tCompositeWF<T>::GetQNs() const
 {
     iqns_t iqns;
     for (auto q:itsQNWFs) iqns.push_back(q.first);
@@ -144,7 +145,7 @@ CompositeWF::iqns_t CompositeWF::GetQNs() const
 
 
 
-void CompositeWF::FillOrbitals(double mergeTol)
+template <class T> void tCompositeWF<T>::FillOrbitals(double mergeTol)
 {
     itsELevels.clear();
     itsSpin_ELevels.clear();
@@ -166,15 +167,15 @@ void CompositeWF::FillOrbitals(double mergeTol)
 //     previous iteration's occupied subspace, so a near-degenerate cross-irrep pair on the
 //     (non-physical) extrapolated Fock cannot flip the configuration.
 // Either way the per-irrep references are re-captured at the end for the next iteration's MOM.
-void CompositeWF::FillOrbitalsAufbau(double mergeTol)
+template <class T> void tCompositeWF<T>::FillOrbitalsAufbau(double mergeTol)
 {
-    struct Slot { double key; IrrepWF* w; double cap; };
+    struct Slot { double key; iwf_t* w; double cap; };
     for (auto& [s, wfs] : itsSpinWFs)
     {
         if (wfs.empty()) continue;
         double Nc = (double)itsEC->GetN(wfs.front()->GetQNs());   // total electrons in this spin channel
 
-        std::map<IrrepWF*,rvec_t> mom;                            // per-irrep MOM scores (empty if no ref)
+        std::map<iwf_t*,rvec_t> mom;                              // per-irrep MOM scores (empty if no ref)
         if constexpr (EnableMOM) if (itsMOMActive) for (auto w : wfs) mom[w]=w->MOMScores();
 
         std::vector<Slot> slots;                                  // every orbital across the channel
@@ -193,7 +194,7 @@ void CompositeWF::FillOrbitalsAufbau(double mergeTol)
         }
         std::sort(slots.begin(), slots.end(), [](const Slot& a, const Slot& b){return a.key>b.key;});
 
-        std::map<IrrepWF*,double>& ne = itsAufbauNe[s];
+        std::map<iwf_t*,double>& ne = itsAufbauNe[s];
         for (auto w : wfs) ne[w]=0.0;
         double rem = Nc;
         for (const auto& sl : slots)                              // fill highest-priority first
@@ -213,5 +214,8 @@ void CompositeWF::FillOrbitalsAufbau(double mergeTol)
         if constexpr (EnableMOM) for (auto w : wfs) w->CaptureMOMReference(); // reference for next iteration's MOM
     }
 }
+
+template class tCompositeWF<double>;
+template class tCompositeWF<dcmplx>;
 
 } //namespace

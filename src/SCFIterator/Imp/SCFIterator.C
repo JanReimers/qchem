@@ -35,7 +35,7 @@ namespace qchem::SCFIterator
 // every occupied level (energy-ordered) as (n + Mulliken-label)^occupation, the label lowercased
 // with its digits subscripted and the occupation superscripted.  Lets the per-iteration trace
 // show which irreps the electrons sit in (and catch any occupation flips under acceleration).
-static std::string ConfigString(const qchem::WaveFunction::WaveFunction* wf)
+template <class T> static std::string ConfigString(const qchem::WaveFunction::tWaveFunction<T>* wf)
 {
     static const char* SUB[]={"₀","₁","₂","₃","₄","₅","₆","₇","₈","₉"};
     static const char* SUP[]={"⁰","¹","²","³","⁴","⁵","⁶","⁷","⁸","⁹"};
@@ -58,9 +58,9 @@ static std::string ConfigString(const qchem::WaveFunction::WaveFunction* wf)
 }
 
 
-SCFIterator::SCFIterator(const bs_t* bs, const ElectronConfiguration* ec,::Hamiltonian* H,SCFAccelerator* acc,DM_CD* cd)
+template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const ElectronConfiguration* ec,ham_t* H,acc_t* acc,tDM_CD<T>* cd)
     : itsHamiltonian (H )
-    , itsAccelerator (acc)       
+    , itsAccelerator (acc)
     , itsWaveFunction(qchem::WaveFunction::Factory(itsHamiltonian,bs,ec,itsAccelerator) )
     , itsCD          (0)
     , itsOldCD       (0)
@@ -73,7 +73,7 @@ SCFIterator::SCFIterator(const bs_t* bs, const ElectronConfiguration* ec,::Hamil
 }
 
 
-void SCFIterator::Initialize(DM_CD* cd)
+template <class T> void tSCFIterator<T>::Initialize(tDM_CD<T>* cd)
 {
     itsWaveFunction->DoSCFIteration(*itsHamiltonian,cd);
     itsWaveFunction->FillOrbitals(0.0001);
@@ -89,7 +89,7 @@ void SCFIterator::Initialize(DM_CD* cd)
 //  Recall that the wavefunction is not owned buy this.
 //
 
-SCFIterator::~SCFIterator()
+template <class T> tSCFIterator<T>::~tSCFIterator()
 {
     delete itsHamiltonian;
     delete itsAccelerator;
@@ -98,7 +98,7 @@ SCFIterator::~SCFIterator()
     delete itsOldCD;
 }
 
-bool SCFIterator::Iterate(const SCFParams& ipar)
+template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
 {
     assert(itsWaveFunction);
     assert(itsHamiltonian);
@@ -228,7 +228,7 @@ bool SCFIterator::Iterate(const SCFParams& ipar)
 // then a backtracking line search along the geodesic (the first fraction from 1 that lowers
 // the total energy is accepted) -- no density mixing.  Falls back to a diagonalizing
 // iteration in the seed step (before the accelerators have orbitals).
-DM_CD* SCFIterator::DirectMinStep(double Ecur, double mergeTol)
+template <class T> tDM_CD<T>* tSCFIterator<T>::DirectMinStep(double Ecur, double mergeTol)
 {
     if (!itsWaveFunction->BuildFockAndComputeSteps(*itsHamiltonian,itsCD))
     {
@@ -240,7 +240,7 @@ DM_CD* SCFIterator::DirectMinStep(double Ecur, double mergeTol)
     for (int k=0;k<12;k++)
     {
         itsWaveFunction->MoveOrbitals(t,false,mergeTol);                 //trial
-        DM_CD* cdt=itsWaveFunction->GetChargeDensity();
+        tDM_CD<T>* cdt=itsWaveFunction->GetChargeDensity();
         double Et=itsHamiltonian->GetTotalEnergy(cdt).GetTotalEnergy();
         delete cdt;
         if (Et<Ecur) break;
@@ -251,19 +251,19 @@ DM_CD* SCFIterator::DirectMinStep(double Ecur, double mergeTol)
 }
 
 
-void SCFIterator::DisplayEigen() const
+template <class T> void tSCFIterator<T>::DisplayEigen() const
 {
     itsWaveFunction->DisplayEigen();
 }
 
-EnergyBreakdown SCFIterator::GetEnergy() const
+template <class T> EnergyBreakdown tSCFIterator<T>::GetEnergy() const
 {
     return itsHamiltonian->GetTotalEnergy(itsCD);
 }
 
 
 
-void SCFIterator::DisplayEnergies(int i, const EnergyBreakdown& eb, double relax, double dE, double dCD, size_t idealVirial) const
+template <class T> void tSCFIterator<T>::DisplayEnergies(int i, const EnergyBreakdown& eb, double relax, double dE, double dCD, size_t idealVirial) const
 {
     cout.setf(ios::fixed,ios::floatfield);
     cout << setw(3)  << i << " ";
@@ -279,5 +279,8 @@ void SCFIterator::DisplayEnergies(int i, const EnergyBreakdown& eb, double relax
 }
 
 //-------------------------------------------------------------------------------------------------------------------------
+
+template class tSCFIterator<double>;
+template class tSCFIterator<dcmplx>;
 
 } //namespace

@@ -10,19 +10,29 @@ import qchem.WaveFunction.Types;
 export namespace qchem::WaveFunction
 {
 
-class PolarizedWF
-    : public virtual SCFWaveFunction
-    , public CompositeWF
+using SCFAccelerators::tSCFAccelerator;
+using ChargeDensity::tDM_CD;
+
+// Polarized (spin up/down) wave function.  Templated for uniformity, but only the <double> alias
+// is instantiated: the spin-density / polarized-CD aggregation is a real Gaussian-basis facility
+// (the plane-wave dcmplx lineage is unpolarized -- the Factory never builds a dcmplx PolarizedWF).
+template <class T> class tPolarizedWF
+    : public virtual tSCFWaveFunction<T>
+    , public tCompositeWF<T>
 {
 public:
-    PolarizedWF(const bs_t*,const ElectronConfiguration*,SCFAccelerator* acc);
-    using CompositeWF::GetEnergyLevels;
-    using CompositeWF::GetChargeDensity;
+    typedef typename tWaveFunction<T>::sf_t sf_t;
 
-    virtual DM_CD*          GetChargeDensity() const;
-    virtual sf_t*           GetSpinDensity  () const; 
+    tPolarizedWF(const tbs_t<T>*,const ElectronConfiguration*,tSCFAccelerator<T>* acc);
+    using tCompositeWF<T>::GetEnergyLevels;
+    using tCompositeWF<T>::GetChargeDensity;
+
+    virtual tDM_CD<T>*      GetChargeDensity() const;
+    virtual sf_t*           GetSpinDensity  () const;
     virtual void            DisplayEigen    () const;
 
 };
+
+using PolarizedWF = tPolarizedWF<double>;
 
 } //namespace

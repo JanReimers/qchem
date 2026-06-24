@@ -14,43 +14,43 @@ namespace qchem::ChargeDensity
 //
 //  Construction zone.
 //
-Composite_CD::Composite_CD()
+template <class T> tComposite_CD<T>::tComposite_CD()
 {};
 
-void Composite_CD::Insert(DM_CD* cd)
+template <class T> void tComposite_CD<T>::Insert(tDM_CD<T>* cd)
 {
-    itsCDs.push_back(std::unique_ptr<DM_CD>(cd));
+    itsCDs.push_back(std::unique_ptr<tDM_CD<T>>(cd));
 }
 
 //-----------------------------------------------------------------------------
 //
 //  Total energy terms for a charge density.
 //
-void Composite_CD::AccumulateDirect(rsmat_t& Jab, const ohfbs_t* bs_ab) const
+template <class T> void tComposite_CD<T>::AccumulateDirect(hmat_t<T>& Jab, const ohfbs_t* bs_ab) const
 {
     for (auto& c:itsCDs) c->AccumulateDirect(Jab,bs_ab);
 }
 
-void Composite_CD::AccumulateExchange(rsmat_t& Kab, const ohfbs_t* bs_ab) const
+template <class T> void tComposite_CD<T>::AccumulateExchange(hmat_t<T>& Kab, const ohfbs_t* bs_ab) const
 {
     for (auto& c:itsCDs) c->AccumulateExchange(Kab,bs_ab);
 }
 
-double Composite_CD::DM_Contract(const Static_CC* v) const
+template <class T> double tComposite_CD<T>::DM_Contract(const tStatic_CC<T>* v) const
 {
     double ret=0.0;
     for (auto& c:itsCDs) ret+=c->DM_Contract(v);
     return ret;
 }
 
-double Composite_CD::DM_Contract(const Dynamic_CC* v,const DM_CD* cd) const
+template <class T> double tComposite_CD<T>::DM_Contract(const tDynamic_CC<T>* v,const tDM_CD<T>* cd) const
 {
     double ret=0.0;
     for (auto& c:itsCDs) ret+=c->DM_Contract(v,cd);
     return ret;
 }
 
-double Composite_CD::GetTotalCharge() const
+template <class T> double tComposite_CD<T>::GetTotalCharge() const
 {
     double ret=0.0;
     for (auto& c:itsCDs) ret+=c->GetTotalCharge();
@@ -61,7 +61,7 @@ double Composite_CD::GetTotalCharge() const
 //
 //  Required by fitting routines.
 //
-rvec_t Composite_CD::GetRepulsion3C(const fbs_t* fbs) const
+template <class T> rvec_t tComposite_CD<T>::GetRepulsion3C(const fbs_t* fbs) const
 {
     rvec_t ret(fbs->GetNumFunctions(),0);
     for (auto& c:itsCDs) ret+=c->GetRepulsion3C(fbs);
@@ -72,15 +72,15 @@ rvec_t Composite_CD::GetRepulsion3C(const fbs_t* fbs) const
 //
 //  SCF convergence stuff.
 //
-void Composite_CD::ReScale(double factor)
+template <class T> void tComposite_CD<T>::ReScale(double factor)
 {
     // No UT coverage
     for (auto& c:itsCDs) c->ReScale(factor);
 }
 
-void Composite_CD::MixIn(const DM_CD& cd,double f)
+template <class T> void tComposite_CD<T>::MixIn(const tDM_CD<T>& cd,double f)
 {
-    const Composite_CD* ecd = dynamic_cast<const Composite_CD*>(&cd);
+    const tComposite_CD* ecd = dynamic_cast<const tComposite_CD*>(&cd);
     assert(ecd);
     auto  b(ecd->itsCDs.begin());
     for (auto& c:itsCDs)
@@ -90,9 +90,9 @@ void Composite_CD::MixIn(const DM_CD& cd,double f)
     }
 }
 
-double Composite_CD::GetChangeFrom(const DM_CD& cd) const
+template <class T> double tComposite_CD<T>::GetChangeFrom(const tDM_CD<T>& cd) const
 {
-    const Composite_CD* ecd = dynamic_cast<const Composite_CD*>(&cd);
+    const tComposite_CD* ecd = dynamic_cast<const tComposite_CD*>(&cd);
     assert(ecd);
     assert(itsCDs.size()==ecd->itsCDs.size());
     auto  b(ecd->itsCDs.begin());
@@ -109,14 +109,14 @@ double Composite_CD::GetChangeFrom(const DM_CD& cd) const
 //
 //  Real space function stuff.
 //
-double Composite_CD::operator()(const rvec3_t& r) const
+template <class T> double tComposite_CD<T>::operator()(const rvec3_t& r) const
 {
     double ret=0.0;
     for (auto& c:itsCDs) ret+=c->operator()(r);
     return ret;
 }
 
-rvec3_t Composite_CD::Gradient  (const rvec3_t& r) const
+template <class T> rvec3_t tComposite_CD<T>::Gradient  (const rvec3_t& r) const
 {
     // No UT coverage
     rvec3_t ret(0,0,0);
@@ -124,5 +124,7 @@ rvec3_t Composite_CD::Gradient  (const rvec3_t& r) const
     return ret;
 }
 
+template class tComposite_CD<double>;
+template class tComposite_CD<dcmplx>;
 
 } //namespace

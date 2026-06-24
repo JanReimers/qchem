@@ -13,36 +13,41 @@ export namespace qchem::ChargeDensity
 //--------------------------------------------------------------------------
 //
 //  Full charge density represented Compositely as sum of density matricies.
+//  Templated on the matrix element type T (rX/cX); the <double> alias preserves the existing
+//  real callers, the <dcmplx> instantiation aggregates the plane-wave (Bloch-irrep) densities.
 //
-class Composite_CD
-    : public virtual DM_CD
+template <class T> class tComposite_CD
+    : public virtual tDM_CD<T>
 {
 public:
-    Composite_CD();
-    void Insert(DM_CD*);
+    tComposite_CD();
+    void Insert(tDM_CD<T>*);
 
-    virtual void AccumulateDirect  (rsmat_t& Sab, const ohfbs_t*) const;
-    virtual void AccumulateExchange(rsmat_t& Sab, const ohfbs_t*) const;
+    virtual void AccumulateDirect  (hmat_t<T>& Sab, const ohfbs_t*) const;
+    virtual void AccumulateExchange(hmat_t<T>& Sab, const ohfbs_t*) const;
 
-    virtual double DM_Contract(const Static_CC*) const;
-    virtual double DM_Contract(const Dynamic_CC*,const DM_CD*) const;
+    virtual double DM_Contract(const tStatic_CC<T>*) const;
+    virtual double DM_Contract(const tDynamic_CC<T>*,const tDM_CD<T>*) const;
 
     virtual double GetTotalCharge      (                     ) const;
 
     virtual rvec_t GetRepulsion3C(const fbs_t*) const;
 
     virtual void   ReScale      (double factor         )      ;  // No UT coverage//Ro *= factor
-    virtual void   MixIn        (const DM_CD&,double)      ;  //this = (1-c)*this + c*that.
-    virtual double GetChangeFrom(const DM_CD&       ) const;  //MaxAbs(delta density matrix)
+    virtual void   MixIn        (const tDM_CD<T>&,double)      ;  //this = (1-c)*this + c*that.
+    virtual double GetChangeFrom(const tDM_CD<T>&       ) const;  //MaxAbs(delta density matrix)
 
     virtual double operator()(const rvec3_t&) const;
     virtual rvec3_t  Gradient  (const rvec3_t&) const;
 
 private:
-    Composite_CD(const Composite_CD&);
+    tComposite_CD(const tComposite_CD&);
 
-    typedef std::vector<std::unique_ptr<DM_CD>> cdv_t;
+    typedef std::vector<std::unique_ptr<tDM_CD<T>>> cdv_t;
     cdv_t itsCDs;
 };
+
+using Composite_CD  = tComposite_CD<double>;   // transitional bare alias (= r*)
+using rComposite_CD = tComposite_CD<double>;   using cComposite_CD = tComposite_CD<dcmplx>;
 
 } //namespace

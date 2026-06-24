@@ -15,23 +15,27 @@ export namespace qchem::WaveFunction
 {
 
 using ChargeDensity::DM_CD;
-using Hamiltonian::Hamiltonian;
+using ChargeDensity::tDM_CD;
+using qchem::Hamiltonian::Hamiltonian;   // <double> alias still re-exported for the (not-yet-templated) WF hierarchy
+using qchem::Hamiltonian::tHamiltonian;  // (qchem:: qualifies the namespace, else the alias above shadows it)
 using Orbitals::TOrbitals;
 using Orbitals::EnergyLevels;
 using Orbitals::Orbitals; //Keep this one here, otherwise it interferes with the two previous declarations!
-using SCFAccelerators::SCFIrrepAccelerator;
+using SCFAccelerators::tSCFIrrepAccelerator;
 
-class IrrepWF
+// Per-irrep wave function, templated on the matrix element type T (rX/cX); IrrepWF is the <double>
+// alias (atom/molecule), cIrrepWF the dcmplx (plane-wave / Bloch-irrep) instantiation.
+template <class T> class tIrrepWF
 {
 public:
-    IrrepWF(const obs_t*, LASolver<double>*, const Irrep& ,SCFIrrepAccelerator*);
-    ~IrrepWF();
+    tIrrepWF(const tobs_t<T>*, LASolver<T>*, const Irrep& ,tSCFIrrepAccelerator<T>*);
+    ~tIrrepWF();
 
-    void                CalculateH      (Hamiltonian&,const DM_CD*   )      ;
+    void                CalculateH      (tHamiltonian<T>&,const tDM_CD<T>*   )      ;
     void                DoSCFIteration  ()      ;
     bool                ComputeStep     ()      ; //direct-min: accelerator computes its step
     void                MoveOrbitals    (double t, bool commit)      ; //move to geodesic fraction t
-    DM_CD*              GetChargeDensity() const;
+    tDM_CD<T>*          GetChargeDensity() const;
     const Orbitals*     GetOrbitals     () const;
           Orbitals*     GetOrbitals     ()      ;
     const EnergyLevels& FillOrbitals    (const ElectronConfiguration*);
@@ -48,17 +52,20 @@ public:
     rvec_t      Get_BS_Diagonal () const;
 
  private:
-    IrrepWF(const IrrepWF&);
+    tIrrepWF(const tIrrepWF&);
 
-    const obs_t*         itsBasisSet;
-    LASolver<double>*    itsLASolver;
-    TOrbitals<double>*   itsOrbitals; //Owned
-    Irrep            itsIrrep;
-    EnergyLevels         itsELevels;
-    SCFIrrepAccelerator* itsAccelerator;
-    rsmat_t              itsDPrime; // DPrime=C'*Cd',  U*D*Ud, D=C*Cd (outer product)
-    rsmat_t              itsF;
-    rmat_t               itsRefOccCPrime; // MOM reference: occupied C' columns (nbasis x nocc); empty=none
+    const tobs_t<T>*         itsBasisSet;
+    LASolver<T>*             itsLASolver;
+    TOrbitals<T>*            itsOrbitals; //Owned
+    Irrep                    itsIrrep;
+    EnergyLevels             itsELevels;
+    tSCFIrrepAccelerator<T>* itsAccelerator;
+    hmat_t<T>                itsDPrime; // DPrime=C'*Cd',  U*D*Ud, D=C*Cd (outer product)
+    hmat_t<T>                itsF;
+    mat_t<T>                 itsRefOccCPrime; // MOM reference: occupied C' columns (nbasis x nocc); empty=none
 };
+
+using IrrepWF  = tIrrepWF<double>;
+using cIrrepWF = tIrrepWF<dcmplx>;
 
 } //namespace

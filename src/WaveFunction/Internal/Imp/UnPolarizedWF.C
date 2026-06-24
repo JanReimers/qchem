@@ -15,21 +15,21 @@ namespace qchem::WaveFunction
 
 using namespace tabulate;
 
-UnPolarizedWF::UnPolarizedWF(const bs_t* bs,const ElectronConfiguration* ec,SCFAccelerator* acc)
-    : CompositeWF(bs,ec,acc)
+template <class T> tUnPolarizedWF<T>::tUnPolarizedWF(const tbs_t<T>* bs,const ElectronConfiguration* ec,tSCFAccelerator<T>* acc)
+    : tCompositeWF<T>(bs,ec,acc)
 {
-    MakeIrrepWFs(Spin::None);
+    this->MakeIrrepWFs(Spin::None);
 };
 
 
 
-void UnPolarizedWF::DisplayEigen() const
+template <class T> void tUnPolarizedWF<T>::DisplayEigen() const
 {
     Table eigen_table;
     eigen_table.format().multi_byte_characters(true);
     eigen_table.add_row({"Occ/Degen","ϵ (au)","Symmetry"});
        
-    for (auto [e,el]:GetEnergyLevels())
+    for (auto [e,el]:this->GetEnergyLevels())
     {
        
         if (e>0.0 || el.occ==0) break;
@@ -54,5 +54,8 @@ void UnPolarizedWF::DisplayEigen() const
     for (size_t i:{0,2}) eigen_table.column(i).format().font_align(FontAlign::center);
     std::cout << eigen_table << std::endl;
 }
+
+template class tUnPolarizedWF<double>;
+template class tUnPolarizedWF<dcmplx>;
 
 } //namespace
