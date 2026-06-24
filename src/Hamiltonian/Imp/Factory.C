@@ -7,7 +7,7 @@ import qchem.Hamiltonian.Internal.Hamiltonians;
 namespace qchem::Hamiltonian
 {
     
-    Hamiltonian* Factory(Model m,Pol p, const cl_t& cl)
+    Hamiltonian* Factory(Model m,Pol p, const st_t& st)
     {
         Hamiltonian* h=0;
         switch (p)
@@ -17,16 +17,16 @@ namespace qchem::Hamiltonian
                 switch (m)
                 {
                     case Model::E1:
-                        h=new Ham_1E(cl);
+                        h=new Ham_1E(st);
                         break;
                     case Model::HF:
-                        h=new Ham_HF_U(cl);
+                        h=new Ham_HF_U(st);
                         break;
                     case Model::DE1:
-                        h=new Ham_DHF_1E(cl);
+                        h=new Ham_DHF_1E(st);
                         break;
                     case Model::DHF:
-                        h=new Ham_DHF_U(cl);
+                        h=new Ham_DHF_U(st);
                         break;
                 }
                 break;
@@ -36,16 +36,16 @@ namespace qchem::Hamiltonian
                 switch (m)
                 {
                 case Model::E1:
-                    h=new Ham_1E(cl);
+                    h=new Ham_1E(st);
                     break;
                 case Model::HF:
-                    h=new Ham_HF_P(cl);
+                    h=new Ham_HF_P(st);
                     break;
                 case Model::DE1:
-                    h=new Ham_DHF_1E(cl);
+                    h=new Ham_DHF_1E(st);
                     break;
                 case Model::DHF:
-                    h=new Ham_DHF_P(cl);
+                    h=new Ham_DHF_P(st);
                     break;
                 }
             break;
@@ -55,32 +55,32 @@ namespace qchem::Hamiltonian
         return h;
     }
     //DFT version
-    Hamiltonian* Factory(Pol p,const cl_t& cl,ExFunctional* ex  , const MeshParams& mp, const bs_t* bs)
+    Hamiltonian* Factory(Pol p,const st_t& st,ExFunctional* ex  , const MeshParams& mp, const bs_t* bs)
     {
         Hamiltonian* h=0;
         switch (p)
         {
             case Pol::UnPolarized:
-                h=new Ham_DFT_U(cl,ex,mp,bs);
+                h=new Ham_DFT_U(st,ex,mp,bs);
                 break;
             case Pol::Polarized:
-                h=new Ham_DFT_P(cl,ex,mp,bs);
+                h=new Ham_DFT_P(st,ex,mp,bs);
                 break;
         }
         assert(h);
         return h;
     }
 
-    Hamiltonian* Factory(Pol p,const cl_t& cl,double alpha  , const MeshParams& mp, const bs_t* bs)
+    Hamiltonian* Factory(Pol p,const st_t& st,double alpha  , const MeshParams& mp, const bs_t* bs)
     {
         Hamiltonian* h=0;
         switch (p)
         {
             case Pol::UnPolarized:
-                h=new Ham_DFT_U(cl,alpha,mp,bs);
+                h=new Ham_DFT_U(st,alpha,mp,bs);
                 break;
             case Pol::Polarized:
-                h=new Ham_DFT_P(cl,alpha,mp,bs);
+                h=new Ham_DFT_P(st,alpha,mp,bs);
                 break;
         }
         assert(h);

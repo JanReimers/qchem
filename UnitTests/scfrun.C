@@ -27,14 +27,14 @@ class CliAtom : public TestAtom
     Model m; Pol p;
 public:
     CliAtom(int Z,int q,Model _m,Pol _p) : TestAtom(Z,q), m(_m), p(_p) {}
-    virtual Hamiltonian* GetHamiltonian(cl_t& c) const override { return Factory(m,p,c); }
+    virtual Hamiltonian* GetHamiltonian(st_t& c) const override { return Factory(m,p,c); }
 };
 class CliDiracAtom : public TestDiracAtom
 {
     Model m; Pol p;
 public:
     CliDiracAtom(int Z,int q,Model _m,Pol _p) : TestDiracAtom(Z,q), m(_m), p(_p) {}
-    virtual Hamiltonian* GetHamiltonian(cl_t& c) const override { return Factory(m,p,c); }
+    virtual Hamiltonian* GetHamiltonian(st_t& c) const override { return Factory(m,p,c); }
 };
 
 int main(int argc, char** argv)

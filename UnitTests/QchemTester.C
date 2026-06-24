@@ -55,7 +55,7 @@ public:
     size_t          GetIterationCount() const;
     irrepv_t        GetIrreps(const Spin& ms) const;
 protected:
-    typedef std::shared_ptr<const Structure> cl_t;
+    typedef std::shared_ptr<const Structure> st_t;
 
     // Atom of Molecule functions
     virtual const Structure*  GetStructure   () const {return itsStructure.get();}
@@ -66,9 +66,9 @@ protected:
     // Orbital Basis Set functions SG, PG, Slater
     virtual Real_BS* GetBasisSet   (const nlohmann::json&) const=0;
     // Hamiltonian functions HF,semi HF, DFT all Pol or un-polarized.
-    virtual Hamiltonian* GetHamiltonian(cl_t& structure) const=0;
+    virtual Hamiltonian* GetHamiltonian(st_t& structure) const=0;
 protected:
-    cl_t                   itsStructure;
+    st_t                   itsStructure;
     ElectronConfiguration* itsEC;
     Real_BS*               itsBasisSet;
     Hamiltonian*           itsHamiltonian;

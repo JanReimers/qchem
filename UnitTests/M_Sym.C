@@ -13,7 +13,7 @@
 
 import qchem.Structure;                                         // Molecule, Atom
 import qchem.SCFIterator;                                     // SCFIterator, SCFParams, EnergyBreakdown
-import qchem.Hamiltonian.Factory;                             // Factory, Model, Pol, cl_t
+import qchem.Hamiltonian.Factory;                             // Factory, Model, Pol, st_t
 import qchem.SCFAccelerator.Factory;                          // SCFAccelerators::Factory, Type
 import qchem.BasisSet.Molecule.Factory;                       // Molecule::Factory (production basis = PG)
 import qchem.BasisSet.Molecule.SymmetryAdaptedBasisSet;       // SymmetryAdaptedBasisSet (general class)
@@ -39,9 +39,9 @@ static Molecule* MakeWater()
 }
 
 static EnergyBreakdown RunHF(const BasisSet::BasisSet<double>* bs, const ElectronConfiguration* ec,
-                             const cl_t& cl, Pol pol)
+                             const st_t& st, Pol pol)
 {
-    Hamiltonian* ham = Factory(Model::HF, pol, cl);
+    Hamiltonian* ham = Factory(Model::HF, pol, st);
     nlohmann::json jsacc = {{"NProj",4},{"EMax",0.1},{"EMin",1e-7},{"SVTol",5e-9}};
     auto* acc = qchem::SCFAccelerators::Factory(qchem::SCFAccelerators::Type::DIIS, jsacc);
     qchem::SCFIterator::SCFIterator scf(bs, ec, ham, acc);
@@ -51,10 +51,10 @@ static EnergyBreakdown RunHF(const BasisSet::BasisSet<double>* bs, const Electro
 }
 
 static EnergyBreakdown RunDFT(const BasisSet::BasisSet<double>* bs, const ElectronConfiguration* ec,
-                              const cl_t& cl, Pol pol)
+                              const st_t& st, Pol pol)
 {
     MeshParams mp({qchem::MHL,30,3,2.0,qchem::Gauss,12,0,0,2});
-    Hamiltonian* ham = Factory(pol, cl, 0.7, mp, bs);            // Xalpha DFT
+    Hamiltonian* ham = Factory(pol, st, 0.7, mp, bs);            // Xalpha DFT
     nlohmann::json jsacc = {{"NProj",4},{"EMax",0.1},{"EMin",1e-7},{"SVTol",5e-9}};
     auto* acc = qchem::SCFAccelerators::Factory(qchem::SCFAccelerators::Type::DIIS, jsacc);
     qchem::SCFIterator::SCFIterator scf(bs, ec, ham, acc);
@@ -68,17 +68,17 @@ static EnergyBreakdown RunDFT(const BasisSet::BasisSet<double>* bs, const Electr
 static void CheckWaterDFT(Pol pol, double tol)
 {
     auto mol = std::shared_ptr<Molecule>(MakeWater());
-    cl_t cl  = mol;
+    st_t st  = mol;
     nlohmann::json js = { {"basis", "dzvp"} };
 
     Real_BS* bsRef = BasisSet::Molecule::Factory(js, mol.get());
     Molecule_EC ecRef(mol->GetNumElectrons());
-    EnergyBreakdown ebRef = RunDFT(bsRef, &ecRef, cl, pol);
+    EnergyBreakdown ebRef = RunDFT(bsRef, &ecRef, st, pol);
 
     auto rawBasis = std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(js, mol.get()));
     auto* sab = PG::SymmetryAdapt(rawBasis, *mol, 1e-4);
     Molecule_EC ecSym(mol->GetNumElectrons());
-    EnergyBreakdown ebSym = RunDFT(sab, &ecSym, cl, pol);
+    EnergyBreakdown ebSym = RunDFT(sab, &ecSym, st, pol);
 
     EXPECT_NEAR(ebSym.GetTotalEnergy(), ebRef.GetTotalEnergy(), tol) << "DFT symmetric == non-symmetric";
 }
@@ -96,19 +96,19 @@ TEST(M_Sym, water_DFT_polarized)   { CheckWaterDFT(Pol::Polarized, 1e-3); }
 static void CheckWaterHF(Pol pol)
 {
     auto mol = std::shared_ptr<Molecule>(MakeWater());
-    cl_t cl  = mol;
+    st_t st  = mol;
     nlohmann::json js = { {"basis", "dzvp"} };
 
     // non-symmetric reference
     Real_BS* bsRef = BasisSet::Molecule::Factory(js, mol.get());
     Molecule_EC ecRef(mol->GetNumElectrons());
-    EnergyBreakdown ebRef = RunHF(bsRef, &ecRef, cl, pol);
+    EnergyBreakdown ebRef = RunHF(bsRef, &ecRef, st, pol);
 
     // symmetry-adapted via the PG hook: per-irrep blocks, global aufbau
     auto rawBasis = std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(js, mol.get()));
     auto* sab = PG::SymmetryAdapt(rawBasis, *mol, 1e-4);
     Molecule_EC ecSym(mol->GetNumElectrons());
-    EnergyBreakdown ebSym = RunHF(sab, &ecSym, cl, pol);
+    EnergyBreakdown ebSym = RunHF(sab, &ecSym, st, pol);
 
     EXPECT_NEAR(ebSym.GetTotalEnergy(), ebRef.GetTotalEnergy(), 1e-6) << "symmetric == non-symmetric";
     // physical sanity (water HF/DZVP): total energy near -76 Ha, virial 2+V/K near 0.
@@ -148,17 +148,17 @@ static Molecule* MakeWaterMoved(double a=0.7, double b=1.1, double c=0.3,
 static void CheckMovedWaterHF(Molecule* m)
 {
     auto mol = std::shared_ptr<Molecule>(m);
-    cl_t cl  = mol;
+    st_t st  = mol;
     nlohmann::json js = { {"basis", "dzvp"} };
 
     Real_BS* bsRef = BasisSet::Molecule::Factory(js, mol.get());      // non-symmetric reference
     Molecule_EC ecRef(mol->GetNumElectrons());
-    EnergyBreakdown ebRef = RunHF(bsRef, &ecRef, cl, Pol::UnPolarized);
+    EnergyBreakdown ebRef = RunHF(bsRef, &ecRef, st, Pol::UnPolarized);
 
     auto rawBasis = std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(js, mol.get()));
     auto* sab = PG::SymmetryAdapt(rawBasis, *mol, 1e-4);  // symmetry-adapted
     Molecule_EC ecSym(mol->GetNumElectrons());
-    EnergyBreakdown ebSym = RunHF(sab, &ecSym, cl, Pol::UnPolarized);
+    EnergyBreakdown ebSym = RunHF(sab, &ecSym, st, Pol::UnPolarized);
 
     EXPECT_NEAR(ebSym.GetTotalEnergy(), ebRef.GetTotalEnergy(), 1e-6) << "symmetric == non-symmetric";
     EXPECT_NEAR(ebSym.GetTotalEnergy(), -76.022903, 1e-4) << "invariant under rigid rotation/translation";

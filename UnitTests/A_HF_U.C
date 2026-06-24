@@ -13,7 +13,7 @@ class A_HF_U : public ::testing::TestWithParam<size_t>, public TestAtom
 {
 public:
     A_HF_U() : TestAtom(GetParam()) {};
-    virtual Hamiltonian* GetHamiltonian(cl_t& structure) const
+    virtual Hamiltonian* GetHamiltonian(st_t& structure) const
     {
         return Factory(Model::HF,Pol::UnPolarized,structure);
     }

@@ -27,8 +27,8 @@ public:
     virtual std::ostream&   Write(std::ostream&) const;
 
 protected:
-    typedef std::shared_ptr<const Structure> cl_t;
-    void InsertStandardTerms(const cl_t & cl);   // molecular standard terms (double only)
+    typedef std::shared_ptr<const Structure> st_t;
+    void InsertStandardTerms(const st_t & st);   // molecular standard terms (double only)
     typedef std::vector<std::unique_ptr< tStatic_HT<T>>> shtv_t;
     typedef std::vector<std::unique_ptr<tDynamic_HT<T>>> dhtv_t;
 

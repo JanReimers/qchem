@@ -50,7 +50,7 @@ import qchem.Mesh;
 export class Lattice_3D
 {
 public:
-    typedef std::shared_ptr<Structure> cl_t;
+    typedef std::shared_ptr<Structure> st_t;
     Lattice_3D(const UnitCell&, const Vector3D<int>&);                //Empty unit cell.
     
     const  UnitCell& GetUnitCell() const

@@ -11,11 +11,11 @@ import qchem.Structure;
 
 export namespace qchem::Hamiltonian
 {
-    typedef std::shared_ptr<const Structure> cl_t;
+    typedef std::shared_ptr<const Structure> st_t;
     enum class Model {E1,HF,DE1,DHF}; //E1 is 1 electron. DE1 is Dirac 1 electron.
     enum class Pol   {UnPolarized,Polarized};
-    Hamiltonian* Factory(Model,Pol,const cl_t& cl);
-    Hamiltonian* Factory(Pol,const cl_t& cl,ExFunctional* , const MeshParams&, const bs_t*); //DFT version
-    Hamiltonian* Factory(Pol,const cl_t& cl,double alpha  , const MeshParams&, const bs_t*); //DFT version
+    Hamiltonian* Factory(Model,Pol,const st_t& st);
+    Hamiltonian* Factory(Pol,const st_t& st,ExFunctional* , const MeshParams&, const bs_t*); //DFT version
+    Hamiltonian* Factory(Pol,const st_t& st,double alpha  , const MeshParams&, const bs_t*); //DFT version
 
 } // namespace

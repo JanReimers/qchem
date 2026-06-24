@@ -12,11 +12,11 @@ import qchem.ChargeDensity;
 namespace qchem::Hamiltonian
 {
 
-Ven::Ven(const cl_t& cl)
+Ven::Ven(const st_t& st)
     : Static_HT_Imp()
-    , theStructure(cl)
+    , theStructure(st)
 {
-    assert(cl->GetNumAtoms()>0);
+    assert(st->GetNumAtoms()>0);
 };
 
 

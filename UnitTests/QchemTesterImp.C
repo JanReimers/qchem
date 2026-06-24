@@ -182,7 +182,7 @@ irrepv_t QchemTester::GetIrreps(const Spin& ms) const
 TestAtom::TestAtom(int Z, int q) : QchemTester(new Atom_EC(Z-q)) //Pass in the electr4on config.
 {
     itsZ=Z-q;
-    itsStructure=cl_t(new Atom(Z,q,Vector3D<double>(0,0,0)));
+    itsStructure=st_t(new Atom(Z,q,Vector3D<double>(0,0,0)));
 };
 
 MeshParams TestAtom::GetMeshParams() const
@@ -197,7 +197,7 @@ Real_BS* TestAtom::GetBasisSet (const nlohmann::json& js) const
 
 TestDiracAtom::TestDiracAtom(int Z, int q) : QchemTester(new AtomDirac_EC(Z-q)), itsq(q)
 {
-    itsStructure=cl_t(new Atom(Z,q,Vector3D<double>(0,0,0)));
+    itsStructure=st_t(new Atom(Z,q,Vector3D<double>(0,0,0)));
 };
 
 MeshParams TestDiracAtom::GetMeshParams() const
@@ -212,7 +212,7 @@ Real_BS* TestDiracAtom::GetBasisSet (const nlohmann::json& js) const
 
 TestMolecule::TestMolecule(Structure* m) : QchemTester(new Molecule_EC(m->GetNumElectrons())) 
 {
-    itsStructure=cl_t(m);
+    itsStructure=st_t(m);
 };
 
 MeshParams TestMolecule::GetMeshParams() const

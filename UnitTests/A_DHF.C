@@ -37,7 +37,7 @@ class HF_P : public ::testing::TestWithParam<size_t>, public TestAtom
 {
     public:
     HF_P() : TestAtom(GetParam(),GetParam()-1) {}; //Hydrogenic ion Z with charge (Z-1)+
-    virtual Hamiltonian* GetHamiltonian(cl_t& structure) const
+    virtual Hamiltonian* GetHamiltonian(st_t& structure) const
     {
         return Factory(Model::HF,Pol::Polarized,structure);
     }
@@ -47,7 +47,7 @@ class DE1 : public ::testing::TestWithParam<size_t>, public TestDiracAtom
 {
     public:
     DE1() : TestDiracAtom(GetParam(),GetParam()-1) {}; //Hydrogenic ion Z with charge (Z-1)+
-    virtual Hamiltonian* GetHamiltonian(cl_t& structure) const
+    virtual Hamiltonian* GetHamiltonian(st_t& structure) const
     {
         return Factory(Model::DE1,Pol::Polarized,structure);
     }
@@ -57,7 +57,7 @@ class DHF_P : public ::testing::TestWithParam<size_t>, public TestDiracAtom
 {
     public:
     DHF_P() : TestDiracAtom(GetParam(),GetParam()-1) {}; //Hydrogenic ion Z with charge (Z-1)+
-    virtual Hamiltonian* GetHamiltonian(cl_t& structure) const
+    virtual Hamiltonian* GetHamiltonian(st_t& structure) const
     {
         return Factory(Model::DHF,Pol::Polarized,structure);
     }
@@ -238,7 +238,7 @@ class E1_U : public ::testing::Test, public TestAtom
 {
     public:
     E1_U() : TestAtom(1,0) {}; //Hydrogenic ion Z with charge (Z-1)+
-    virtual Hamiltonian* GetHamiltonian(cl_t& structure) const
+    virtual Hamiltonian* GetHamiltonian(st_t& structure) const
     {
         return Factory(Model::E1,Pol::UnPolarized,structure);
     }
@@ -277,7 +277,7 @@ class DE1_P1 : public ::testing::Test, public TestDiracAtom
 {
     public:
     DE1_P1() : TestDiracAtom(1,0) {}; //Hydrogenic ion Z with charge (Z-1)+
-    virtual Hamiltonian* GetHamiltonian(cl_t& structure) const
+    virtual Hamiltonian* GetHamiltonian(st_t& structure) const
     {
         return Factory(Model::DE1,Pol::Polarized,structure);
     }
@@ -365,7 +365,7 @@ class DHF_U : public ::testing::TestWithParam<size_t>, public TestDiracAtom
 {
     public:
     DHF_U() : TestDiracAtom(GetParam(),0) {}; //Neutral atom Z
-    virtual Hamiltonian* GetHamiltonian(cl_t& structure) const
+    virtual Hamiltonian* GetHamiltonian(st_t& structure) const
     {
         return Factory(Model::DHF,Pol::UnPolarized,structure);
     }
@@ -409,7 +409,7 @@ class DHF_B_Pol : public ::testing::Test, public TestDiracAtom
 {
     public:
     DHF_B_Pol() : TestDiracAtom(5,0) {}; //Neutral Boron
-    virtual Hamiltonian* GetHamiltonian(cl_t& structure) const
+    virtual Hamiltonian* GetHamiltonian(st_t& structure) const
     {
         return Factory(Model::DHF,Pol::Polarized,structure);
     }
@@ -441,7 +441,7 @@ class DHF_Xe : public ::testing::Test, public TestDiracAtom
 {
     public:
     DHF_Xe() : TestDiracAtom(54,0) {}; //Neutral Xenon
-    virtual Hamiltonian* GetHamiltonian(cl_t& structure) const
+    virtual Hamiltonian* GetHamiltonian(st_t& structure) const
     {
         return Factory(Model::DHF,Pol::UnPolarized,structure);
     }

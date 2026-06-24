@@ -13,7 +13,7 @@ export namespace qchem::Hamiltonian
 class Ham_1E : public virtual Hamiltonian, private HamiltonianImp
 {
 public:
-    Ham_1E(const cl_t& cl);
+    Ham_1E(const st_t& st);
 };
 
 //
@@ -22,7 +22,7 @@ public:
 class Ham_HF_U : public virtual Hamiltonian, private HamiltonianImp
 {
 public:
-    Ham_HF_U(const cl_t& cl);
+    Ham_HF_U(const st_t& st);
 };
 
 //
@@ -31,8 +31,8 @@ public:
 class Ham_DFT_U : public virtual Hamiltonian, private HamiltonianImp
 {
 public:
-    Ham_DFT_U(const cl_t& cl,double alpha_ex, const MeshParams&, const bs_t* bs);
-    Ham_DFT_U(const cl_t& cl,ExFunctional*  , const MeshParams&, const bs_t* bs);
+    Ham_DFT_U(const st_t& st,double alpha_ex, const MeshParams&, const bs_t* bs);
+    Ham_DFT_U(const st_t& st,ExFunctional*  , const MeshParams&, const bs_t* bs);
 };
 
 // Un-polarized LDA: Dirac exchange + VWN5 correlation as SEPARATE terms, so the correlation energy is the
@@ -41,7 +41,7 @@ public:
 class Ham_DFTcorr_U : public virtual Hamiltonian, private HamiltonianImp
 {
 public:
-    Ham_DFTcorr_U(const cl_t& cl, const MeshParams&, const bs_t* bs);
+    Ham_DFTcorr_U(const st_t& st, const MeshParams&, const bs_t* bs);
 };
 
 //
@@ -50,7 +50,7 @@ public:
 class Ham_HF_P : public virtual Hamiltonian, private HamiltonianImp
 {
 public:
-    Ham_HF_P(const cl_t& cl);
+    Ham_HF_P(const st_t& st);
 };
 
 
@@ -60,15 +60,15 @@ public:
 class Ham_DFT_P : public virtual Hamiltonian, private HamiltonianImp
 {
 public:
-    Ham_DFT_P(const cl_t& cl,double alpha_ex, const MeshParams&, const bs_t* or_bs);
-    Ham_DFT_P(const cl_t& cl,ExFunctional*  , const MeshParams&, const bs_t* or_bs);
+    Ham_DFT_P(const st_t& st,double alpha_ex, const MeshParams&, const bs_t* or_bs);
+    Ham_DFT_P(const st_t& st,ExFunctional*  , const MeshParams&, const bs_t* or_bs);
 };
 
 
 class Ham_DHF_1E : public virtual Hamiltonian, private HamiltonianImp
 {
 public:
-    Ham_DHF_1E(const cl_t& cl);
+    Ham_DHF_1E(const st_t& st);
 };
 
 //
@@ -77,13 +77,13 @@ public:
 class Ham_DHF_U : public virtual Hamiltonian, private HamiltonianImp
 {
 public:
-    Ham_DHF_U(const cl_t& cl);
+    Ham_DHF_U(const st_t& st);
 };
 
 class Ham_DHF_P : public virtual Hamiltonian, private HamiltonianImp
 {
 public:
-    Ham_DHF_P(const cl_t& cl);
+    Ham_DHF_P(const st_t& st);
 };
 
 } //namespace

@@ -26,13 +26,13 @@ class PW_External
     , private        cStatic_HT_Imp
 {
 public:
-    typedef std::shared_ptr<const Structure> cl_t;
-    PW_External(const cl_t& cl);
+    typedef std::shared_ptr<const Structure> st_t;
+    PW_External(const st_t& st);
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
     virtual std::ostream& Write(std::ostream&) const;
 private:
     virtual chmat_t CalculateMatrix(const cobs_t*, const Spin&) const;
-    cl_t theStructure;
+    st_t theStructure;
 };
 
 //! Non-relativistic kinetic ENERGY term T = 1/2 <p^2> for a plane-wave basis (diagonal in |k+G|^2).

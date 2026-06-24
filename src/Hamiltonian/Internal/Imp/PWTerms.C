@@ -35,11 +35,11 @@ private:
 };
 } //anon
 
-PW_External::PW_External(const cl_t& cl)
+PW_External::PW_External(const st_t& st)
     : cStatic_HT_Imp()
-    , theStructure(cl)
+    , theStructure(st)
 {
-    assert(cl->GetNumAtoms()>0);
+    assert(st->GetNumAtoms()>0);
 }
 
 // Ask the basis for the configured external (pseudo)potential matrix.  The dynamic_cast is the

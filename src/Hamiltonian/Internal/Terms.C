@@ -62,13 +62,13 @@ private:
 class Vnn : public virtual Static_HT, private Static_HT_Imp
 {
 public:
-    typedef std::shared_ptr<const Structure> cl_t;
-    Vnn(const cl_t& cl);
+    typedef std::shared_ptr<const Structure> st_t;
+    Vnn(const st_t& st);
     virtual void          GetEnergy(EnergyBreakdown&,const DM_CD* cd) const;
     virtual std::ostream& Write    (std::ostream&) const;
 private:
     virtual rsmat_t CalculateMatrix(const obs_t*,const Spin&) const;
-    cl_t theStructure;
+    st_t theStructure;
 };
 
 //
@@ -77,13 +77,13 @@ private:
 class Ven : public virtual Static_HT, private Static_HT_Imp
 {
 public:
-    typedef std::shared_ptr<const Structure> cl_t;
-    Ven(const cl_t& cl);
+    typedef std::shared_ptr<const Structure> st_t;
+    Ven(const st_t& st);
     virtual void          GetEnergy(EnergyBreakdown&,const DM_CD* cd) const;
     virtual std::ostream& Write    (std::ostream&) const;
 private:
     virtual rsmat_t CalculateMatrix(const obs_t*,const Spin&) const;
-    cl_t theStructure;
+    st_t theStructure;
 };
 
 //###############################################################################

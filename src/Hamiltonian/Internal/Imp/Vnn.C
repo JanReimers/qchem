@@ -12,9 +12,9 @@ import qchem.Blaze;
 namespace qchem::Hamiltonian
 {
 
-Vnn::Vnn(const cl_t& cl)
+Vnn::Vnn(const st_t& st)
     : Static_HT_Imp()
-    , theStructure(cl)
+    , theStructure(st)
 {};
 
 rsmat_t Vnn::CalculateMatrix(const obs_t* bs,const Spin&) const

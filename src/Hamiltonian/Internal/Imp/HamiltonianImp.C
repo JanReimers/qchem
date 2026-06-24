@@ -34,13 +34,13 @@ template <class T> void tHamiltonianImp<T>::Add(tDynamic_HT<T>* p)
 
 // The molecular standard terms (Kinetic/Vnn/Ven) are double-only; the complex (plane-wave) Hamiltonian
 // builds its terms explicitly, so this is NA there.
-template <> void tHamiltonianImp<double>::InsertStandardTerms(const cl_t & cl)
+template <> void tHamiltonianImp<double>::InsertStandardTerms(const st_t & st)
 {
     Add(new Kinetic);
-    Add(new Vnn(cl));
-    Add(new Ven(cl));
+    Add(new Vnn(st));
+    Add(new Ven(st));
 }
-template <> void tHamiltonianImp<dcmplx>::InsertStandardTerms(const cl_t &)
+template <> void tHamiltonianImp<dcmplx>::InsertStandardTerms(const st_t &)
 {
     assert(false && "InsertStandardTerms: the complex Hamiltonian assembles its terms explicitly");
 }

@@ -38,7 +38,7 @@ public:
         nlohmann::json js = { {"basis", "dzvp"} };
         QchemTester::Init(js);
     }
-    virtual Hamiltonian* GetHamiltonian(cl_t& structure) const
+    virtual Hamiltonian* GetHamiltonian(st_t& structure) const
     {
         return Factory(Pol::UnPolarized, structure, itsAlpha, GetMeshParams(), itsBasisSet);
     }
@@ -81,7 +81,7 @@ public:
         nlohmann::json js = { {"basis", "dzvp"}, {"angular", "spherical"} };
         QchemTester::Init(js);
     }
-    virtual Hamiltonian* GetHamiltonian(cl_t& structure) const
+    virtual Hamiltonian* GetHamiltonian(st_t& structure) const
     {
         return Factory(Pol::UnPolarized, structure, itsAlpha, GetMeshParams(), itsBasisSet);
     }
