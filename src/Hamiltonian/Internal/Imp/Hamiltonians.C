@@ -1,4 +1,4 @@
-// File:: Hamiltonians.C  Create fully implemented Hamiltonians
+// File:: Hamiltonian/Internal/Imp/Hamiltonians.C  Create fully implemented Hamiltonians
 module;
 #include <memory>
 module qchem.Hamiltonian.Internal.Hamiltonians;

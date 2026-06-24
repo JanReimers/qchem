@@ -1,4 +1,4 @@
-// File:: Hamiltonians.H  Create fully implemented Hamiltonians
+// File:: Hamiltonian/Internal/Hamiltonians.C  Create fully implemented Hamiltonians
 export module qchem.Hamiltonian.Internal.Hamiltonians;
 import qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.Hamiltonian.Internal.Hamiltonian;
