@@ -39,6 +39,8 @@ import qchem.Math;           // Pi
 import qchem.Hamiltonian.Internal.ExFunctional;     // the validated LDA functional interface
 import qchem.Hamiltonian.Internal.SlaterExchange;   // Dirac exchange (alpha=2/3), eps_x = 3/4 v_x
 import qchem.Hamiltonian.Internal.VWN_Correlation;  // VWN5 correlation (validated vs libxc)
+import qchem.Hamiltonian.Internal.PWTerms;          // PW_External (dcmplx Hamiltonian term)
+import qchem.Hamiltonian;                           // cStatic_HT alias (the public term interface)
 import qchem.LASolver;                              // complex Hermitian eigensolver
 import qchem.Structure;                             // Molecule, Atom (the Si diamond basis)
 import qchem.Matrix3D;                              // Matrix3D<double> (the FCC cell matrix)
@@ -829,6 +831,36 @@ TEST_F(PlaneWaveDFT, BasisExternalPotentialMatchesPPAssembly)
     for (size_t i=0;i<n;i++)
         for (size_t j=i;j<n;j++)
             EXPECT_NEAR(std::abs(dcmplx(got(i,j))-dcmplx(ref(i,j))), 0.0, 1e-12);
+}
+
+// The PW_External Hamiltonian term (cStatic_HT<dcmplx>) routes through the framework's GetMatrix path
+// and the abstract DFTPotential_IBS dynamic_cast -- its matrix must equal the basis's external assembly.
+// This is the dependency inversion working end-to-end through a real Hamiltonian term.
+TEST_F(PlaneWaveDFT, PWExternalTermMatchesBasis)
+{
+    const double a=10.26, h=0.5*a;
+    Matrix3D<double> Amat(0.0,h,h,  h,0.0,h,  h,h,0.0);
+    UnitCell          cell(Amat);
+    Lattice_3D        lat(cell, ivec3_t(1,1,1));
+    ReciprocalLattice recip(lat.Reciprocal());
+    PlaneWave_IBS     pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
+
+    auto si=std::make_shared<Molecule>();
+    si->Insert(new Atom(14, rvec3_t(0,0,0)));
+    si->Insert(new Atom(14, rvec3_t(0.25*a,0.25*a,0.25*a)));
+    HGH_LocalPotential     loc=HGH_LocalPotential::Silicon();
+    HGH_SeparablePotential nl =HGH_SeparablePotential::Silicon();
+    pw.SetPseudopotential(&loc, &nl);
+
+    qchem::Hamiltonian::PW_External   ext(si);
+    qchem::Hamiltonian::cStatic_HT*   term=&ext;        // the public term interface (as the Hamiltonian holds it)
+    const chmat_t& M  = term->GetMatrix(&pw, Spin::None);
+    chmat_t        ref= pw.MakeExternalPotential(si.get());
+
+    size_t n=pw.GetNumFunctions();
+    for (size_t i=0;i<n;i++)
+        for (size_t j=i;j<n;j++)
+            EXPECT_NEAR(std::abs(dcmplx(M(i,j))-dcmplx(ref(i,j))), 0.0, 1e-12);
 }
 
 } //namespace
