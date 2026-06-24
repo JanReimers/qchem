@@ -6,5 +6,6 @@ import qchem.Orbitals.Internal.OrbitalsImp;
 export namespace qchem::Orbitals
 {
     TOrbitals<double>* Factory(const obs_t* bs, Spin ms);
+    TOrbitals<dcmplx>* Factory(const tobs_t<dcmplx>* bs, Spin ms);   // plane-wave (complex) orbitals
 }
 

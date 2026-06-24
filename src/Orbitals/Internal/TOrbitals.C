@@ -30,7 +30,7 @@ public:
     virtual size_t    GetNumOrbitals     (               ) const;
     virtual size_t    GetNumOccOrbitals  (               ) const;
     virtual double    GetEigenValueChange(const Orbitals&) const;
-    virtual DM_CD*    GetChargeDensity   () const;
+    virtual tDM_CD<T>* GetChargeDensity  () const;
     virtual void      UpdateOrbitals     (const mat_t<T>& U, const mat_t<T>& UPrime, const rvec_t& e);
     virtual Irrep GetQNs() const;
     
@@ -50,7 +50,7 @@ private:
     const tobs_t<T>*  itsBasisSet;
     std::vector<std::unique_ptr<Orbital>> itsOrbitals;
     Irrep         itsQNs;
-    smat_t<T>         itsD; // DPrime=C'*Cd',  U*D*Ud, D=C*Cd (outer product)
+    hmat_t<T>         itsD; // density matrix D=C*Cd (outer product); Hermitian (= symmetric for real T)
 };
 
 } //namespace

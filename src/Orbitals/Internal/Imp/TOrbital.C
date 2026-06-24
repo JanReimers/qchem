@@ -23,14 +23,15 @@ TOrbitalImp(const tobs_t<T>* bs,const vec_t<T>& _C,const vec_t<T>& _CPrime,doubl
 {
 };
 
-template <class T> void TOrbitalImp<T>::AddDensityMatrix(smat_t<T>& D, smat_t<T>& DPrime) const
+template <class T> void TOrbitalImp<T>::AddDensityMatrix(hmat_t<T>& D, hmat_t<T>& DPrime) const
 {
-    
-    if (IsOccupied()) 
+    // D += occ * |C><C|.  The outer product C_i conj(C_j) is HERMITIAN (= symmetric for real T), so it
+    // fills a HermitianMatrix; the diagonal occ*|C_i|^2 is real.
+    if (IsOccupied())
     {
-        smat_t<T> CCd=blazem::outer(itsCoeff,blazem::conj(itsCoeff))*GetOccupation();
+        hmat_t<T> CCd=blazem::outer(itsCoeff,blazem::conj(itsCoeff))*GetOccupation();
         D+=CCd;
-        smat_t<T> CCd_prime=blazem::outer(itsCoeffPrime,blazem::conj(itsCoeffPrime))*GetOccupation();
+        hmat_t<T> CCd_prime=blazem::outer(itsCoeffPrime,blazem::conj(itsCoeffPrime))*GetOccupation();
         DPrime+=CCd_prime;
     }
 }
@@ -43,7 +44,7 @@ template <class T> void TOrbitalImp<T>::AddDensityMatrix(smat_t<T>& D, smat_t<T>
 //
 template <class T> T TOrbitalImp<T>::operator()(const rvec3_t& r) const
 {
-    rvec_t gr=(*itsBasisSet)(r);
+    vec_t<T> gr=(*itsBasisSet)(r);   // was hardcoded rvec_t (basis values are complex for the PW case)
     assert(gr.size()==itsCoeff.size());
     return blazem::trans(itsCoeff) * gr;
 }
@@ -73,6 +74,6 @@ template <class T> std::ostream& TOrbitalImp<T>::Write(std::ostream& os) const
 
 
 template class TOrbitalImp<double>;
-// template class TOrbitalImp<std::complex<double> >;
+template class TOrbitalImp<dcmplx>;
 
 } //namespace

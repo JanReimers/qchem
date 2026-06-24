@@ -8,6 +8,10 @@ namespace qchem::Orbitals
     {
         return new  TOrbitalsImp<double>(bs,ms);
     }
+    TOrbitals<dcmplx>* Factory(const tobs_t<dcmplx>* bs, Spin ms)
+    {
+        return new  TOrbitalsImp<dcmplx>(bs,ms);
+    }
 }
 
 

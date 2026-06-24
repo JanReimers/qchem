@@ -15,6 +15,7 @@ export namespace qchem::Orbitals
 {
 
 using qchem::ChargeDensity::DM_CD;
+using qchem::ChargeDensity::tDM_CD;
 
 //#############################################################
 //
@@ -49,7 +50,7 @@ template <class T> class TOrbital
     , public virtual ScalarFunction<T>
 {
 public:
-    virtual void AddDensityMatrix(smat_t<T> & D, smat_t<T> & DPrime) const=0;
+    virtual void AddDensityMatrix(hmat_t<T> & D, hmat_t<T> & DPrime) const=0;  // DM is Hermitian (=symmetric for real T)
     //! Coefficients in the *orthonormal* basis (C'); the metric there is the identity, so MOM
     //! orbital overlaps are plain dot products of these vectors.
     virtual const vec_t<T>& GetCoeffPrime() const=0;
@@ -71,7 +72,8 @@ public:
     virtual size_t         GetNumOrbitals     (               ) const=0;
     virtual size_t         GetNumOccOrbitals  (               ) const=0;
     virtual double         GetEigenValueChange(const Orbitals&) const=0;
-    virtual DM_CD*         GetChargeDensity   (               ) const=0;
+    // GetChargeDensity moved to TOrbitals<T> (it returns the T-typed density tDM_CD<T>*; a complex
+    // orbital group yields a complex density, which the non-templated base cannot express).
     //! This will hold spin and symmetry QNs, without the principle QN.
     virtual Irrep      GetQNs() const=0;
 
@@ -106,10 +108,11 @@ public:
     {
         return GetNumOrbitals();
     }
-    typedef std::tuple<double,smat_t<T>> ds_t;
+    typedef std::tuple<double,hmat_t<T>> ds_t;   // {remaining electrons, DPrime} (DPrime Hermitian)
 
     virtual void  UpdateOrbitals(const mat_t<T>& U, const mat_t<T>& UPrime, const rvec_t& e)=0;
     virtual ds_t TakeElectrons (double ne)=0;
+    virtual tDM_CD<T>* GetChargeDensity() const=0;   // the T-typed density (moved off the Orbitals base)
 
 };
 

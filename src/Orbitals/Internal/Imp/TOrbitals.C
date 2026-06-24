@@ -23,7 +23,7 @@ template <class T> TOrbitalsImp<T>::
 TOrbitalsImp(const tobs_t<T>* bs, Spin ms)
     : itsBasisSet(bs)
     , itsQNs(bs->GetIrrep(ms))
-    , itsD(blazem::zero<T>( bs->GetNumFunctions()))
+    , itsD(blazem::zeroH<T>( bs->GetNumFunctions()))
 {
     assert(itsBasisSet->GetNumFunctions()>0);  
 };
@@ -98,13 +98,13 @@ template <class T> typename TOrbitalsImp<T>::ds_t TOrbitalsImp<T>::TakeElectrons
     //
     //  Now the orbitals are accupied we can build the density matrix.
     //
-    itsD=blazem::zero<T>(itsD.rows());
-    smat_t<T> DPrime(blazem::zero<T>(itsD.rows()));
-    for (auto o:Iterate<TOrbital<double>>()) o->AddDensityMatrix(itsD,DPrime);
+    itsD=blazem::zeroH<T>(itsD.rows());
+    hmat_t<T> DPrime(blazem::zeroH<T>(itsD.rows()));
+    for (auto o:Iterate<TOrbital<T>>()) o->AddDensityMatrix(itsD,DPrime);   // was hardcoded TOrbital<double>
     return std::make_tuple(ne,DPrime);
 }
 
-template <class T> DM_CD* TOrbitalsImp<T>::GetChargeDensity() const
+template <class T> tDM_CD<T>* TOrbitalsImp<T>::GetChargeDensity() const
 {
     return qchem::ChargeDensity::IrrepCD_Factory(itsD,itsBasisSet,GetQNs());
 }
@@ -159,5 +159,6 @@ template <class T> std::ostream& TOrbitalsImp<T>::Write(std::ostream& os) const
 }
 
 template class TOrbitalsImp<double>;
+template class TOrbitalsImp<dcmplx>;
 
 } //namespace
