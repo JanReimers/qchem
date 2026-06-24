@@ -52,6 +52,7 @@ import qchem.SCFIterator;                           // cSCFIterator (the real fr
 import qchem.SCFParams;                             // SCFParams
 import qchem.WaveFunction;                          // cWaveFunction (read view of the converged state)
 import qchem.ElectronConfiguration;                 // ElectronConfiguration base
+import qchem.ElectronConfiguration.Crystal;         // Crystal_EC (single-k Bloch configuration)
 import qchem.SCFAccelerator.Internal.SCFIrrepAcceleratorNull; // tSCFAcceleratorNull<dcmplx>
 import qchem.BasisSet.Internal.BasisSetImp;         // BasisSetImp<dcmplx> (single-block BasisSet container)
 
@@ -987,19 +988,6 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaMatchesPrototype)
     EXPECT_NEAR(cd->GetTotalCharge(), 8.0, 1e-6);                 // 8 valence electrons
     EXPECT_NEAR(E.GetTotalEnergy(),   1.468, 5e-3);              // matches the standalone prototype Si-Gamma
 }
-
-// Minimal single-k Bloch electron configuration: a fixed Nval electrons in the single Bloch irrep,
-// no cross-irrep aufbau (the plane-wave block IS the irrep).  Stand-in for a proper Crystal_EC module.
-struct Crystal_EC : public virtual ElectronConfiguration
-{
-    Crystal_EC(const Irrep& irr, int nval) : itsIrrep(irr), itsNval(nval) {}
-    virtual int    GetN(const Irrep&) const {return itsNval;}
-    virtual syms_t GetIrreps() const { syms_t s; s.insert(itsIrrep.sym); return s; }
-    virtual void   Display() const {}
-    virtual bool   UsesAufbau() const {return false;}
-    Irrep itsIrrep;
-    int   itsNval;
-};
 
 // A BasisSet<dcmplx> holding the single plane-wave block (the Bloch irrep) -- the container the
 // framework WaveFunction iterates over.  Owns the IBS (deleted with the BasisSet).
