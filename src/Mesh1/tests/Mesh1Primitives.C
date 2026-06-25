@@ -183,6 +183,17 @@ TEST(Mesh1_Quadrature, KineticGrad2)
     EXPECT_NEAR(K(0,0),Pi/2.0,1e-10);
 }
 
+// Projection of a scalar field onto the basis: integral f a_i d^3r.  With a=f=exp(-2r),
+// p_0 = integral exp(-4r) d^3r = pi/8.
+TEST(Mesh1_Quadrature, ScalarProjection)
+{
+    Mesh m=MakeProduct();
+    ExpBasis a;
+    auto p=Overlap(m,a,ExpScalar());           // ExpScalar = exp(-2r); a = exp(-2r)
+    ASSERT_EQ(p.size(),1u);
+    EXPECT_NEAR(p[0],Pi/8.0,1e-10);
+}
+
 //================================================================================================
 //  6. Two-basis (rectangular) overlap: <a|a> off the Hermitian path equals pi/8.
 //================================================================================================

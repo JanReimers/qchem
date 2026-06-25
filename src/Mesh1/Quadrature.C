@@ -81,6 +81,23 @@ export template <class T> mat_t<T> Overlap(const Mesh& m, const BasisField<T>& a
     return M;
 }
 
+//! integral f a_i d^3r  -- projection of a scalar field f onto each basis function (the
+//! least-squares fit RHS: <f_a | f>).  Returns a vector, not a matrix.
+export template <class T> vec_t<T> Overlap(const Mesh& m, const BasisField<T>& a, const ScalarField<double>& f)
+{
+    size_t n=a.size();
+    vec_t<T> p(n, T(0));
+    const rvec3vec_t& R=m.Points();
+    const rvec_t&     W=m.Weights();
+    for (size_t k=0; k<m.size(); k++)
+    {
+        double   fv=f(R[k]);
+        vec_t<T> av=a(R[k]);
+        for (size_t i=0; i<n; i++) p[i]+=Conj(av[i])*fv*W[k];
+    }
+    return p;
+}
+
 //! <a_i | V | a_j>  -- subsumes Inv_r1 (V=1/r), Inv_r2 (V=1/r^2) and the DFT potential (V=vxc).
 export template <class T> hmat_t<T> WeightedOverlap(const Mesh& m, const BasisField<T>& a, const ScalarField<double>& V)
 {
