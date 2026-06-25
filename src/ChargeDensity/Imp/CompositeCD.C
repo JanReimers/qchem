@@ -3,6 +3,7 @@ module;
 #include <cassert>
 #include <vector>
 #include <memory>
+#include <type_traits>
 module qchem.CompositeCD;
 import qchem.ChargeDensity.Types;
 import qchem.Blaze;
@@ -122,6 +123,27 @@ template <class T> rvec3_t tComposite_CD<T>::Gradient  (const rvec3_t& r) const
     rvec3_t ret(0,0,0);
     for (auto& c:itsCDs) ret+=c->Gradient(r);
     return ret;
+}
+
+// rho-tilde(Delta-m) = Sum_blocks rho-tilde_k (each block already BZ-weighted) = the BZ average Sum_k w_k rho_k.
+template <class T> FourierMap tComposite_CD<T>::GetFourierDensity() const
+{
+    if constexpr (std::is_same_v<T,dcmplx>)
+    {
+        FourierMap rg;
+        for (const auto& c : itsCDs)
+        {
+            auto* fc=dynamic_cast<const FourierDensity*>(c.get());
+            assert(fc && "composite block is not a FourierDensity (plane-wave path)");
+            for (const auto& kv : fc->GetFourierDensity()) rg[kv.first]+=kv.second;
+        }
+        return rg;
+    }
+    else
+    {
+        assert(false && "a finite (non-periodic) density has no reciprocal-lattice Fourier series");
+        return FourierMap{};
+    }
 }
 
 template class tComposite_CD<double>;

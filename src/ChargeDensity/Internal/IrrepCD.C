@@ -5,6 +5,7 @@ export module qchem.ChargeDensity.Imp.IrrepCD;
 
 export import qchem.ChargeDensity;
 export import qchem.Symmetry.Irrep;
+export import qchem.ChargeDensity.FourierDensity;   // G-space rho-tilde (plane-wave path)
 import qchem.ChargeDensity.Types;
 
 export namespace qchem::ChargeDensity
@@ -18,6 +19,7 @@ export namespace qchem::ChargeDensity
 //
 template <class T> class IrrepCD
     : public virtual tDM_CD<T>
+    , public virtual FourierDensity   // native reciprocal-space rho-tilde (periodic/dcmplx path)
 {
 public:
     typedef  mat_t<T>  DenMat;
@@ -40,6 +42,10 @@ public:
 
     virtual double operator()(const rvec3_t&) const;
     virtual rvec3_t  Gradient  (const rvec3_t&) const; // No UT coverage
+
+    //! Reciprocal-space coefficients rho-tilde(Delta-m) of THIS block (= basis->MakeFourierDensity(D)).
+    //! The periodic density's native representation; a finite density has none (real path NA-asserts).
+    virtual FourierMap GetFourierDensity() const;
 
     virtual std::ostream&       Write(std::ostream&) const;
 

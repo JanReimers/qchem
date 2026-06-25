@@ -4,6 +4,7 @@ module;
 #include <memory>
 export module qchem.CompositeCD;
 export import qchem.ChargeDensity;
+export import qchem.ChargeDensity.FourierDensity;   // G-space rho-tilde (summed over k-blocks)
 import qchem.ChargeDensity.Types;
 
 
@@ -18,6 +19,7 @@ export namespace qchem::ChargeDensity
 //
 template <class T> class tComposite_CD
     : public virtual tDM_CD<T>
+    , public virtual FourierDensity   // reciprocal-space rho-tilde = sum over the (BZ-weighted) blocks
 {
 public:
     tComposite_CD();
@@ -39,6 +41,10 @@ public:
 
     virtual double operator()(const rvec3_t&) const;
     virtual rvec3_t  Gradient  (const rvec3_t&) const;
+
+    //! Sum the contained blocks' G-space coefficients: \f$\tilde\rho(\Delta m)=\sum_k w_k\tilde\rho_k\f$
+    //! (each block already carries its BZ weight).  Plane-wave (dcmplx) path; NA-asserts for double.
+    virtual FourierMap GetFourierDensity() const;
 
 private:
     tComposite_CD(const tComposite_CD&);

@@ -4,11 +4,13 @@ module;
 #include <complex>
 #include <iostream>
 #include <stdlib.h>
+#include <type_traits>
 #include <vector>
 
 module qchem.ChargeDensity.Imp.IrrepCD;
 import qchem.Symmetry;
 import qchem.Blaze;
+import qchem.BasisSet.FourierDFT_IBS;   // cast the basis UP to the G-space capability (dcmplx path)
 
 namespace qchem::ChargeDensity
 {
@@ -137,6 +139,24 @@ template <class T> rvec3_t IrrepCD<T>::Gradient(const rvec3_t& r) const
     vec_t<T> phir=(*itsBasisSet)(r);
     vec_t<rvec3_t > gphir=itsBasisSet->Gradient(r);
     return GradientContraction(gphir,phir,itsDensityMatrix);
+}
+
+// rho-tilde from the density matrix, via the basis's G-space capability (plane-wave / dcmplx only).
+// itsDensityMatrix already carries the BZ weight w_k (TOrbitals::GetChargeDensity scales it), so the
+// composite's sum over blocks is the BZ average Sum_k w_k rho_k.
+template <class T> FourierMap IrrepCD<T>::GetFourierDensity() const
+{
+    if constexpr (std::is_same_v<T,dcmplx>)
+    {
+        auto* fb=dynamic_cast<const BasisSet::FourierDFT_IBS*>(itsBasisSet);
+        assert(fb && "GetFourierDensity requires a FourierDFT_IBS (plane-wave) basis");
+        return fb->MakeFourierDensity(itsDensityMatrix);
+    }
+    else
+    {
+        assert(false && "a finite (non-periodic) density has no reciprocal-lattice Fourier series");
+        return FourierMap{};
+    }
 }
 
 
