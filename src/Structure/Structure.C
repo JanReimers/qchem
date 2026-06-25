@@ -29,6 +29,11 @@ public:
     virtual double GetNumElectrons  () const;
     virtual double GetNetCharge     () const;
 
+    //! \brief True for a bounded (molecular/atomic) structure, false for a periodically-repeated one
+    //! (a UnitCell/lattice).  The ion-ion (Vnn) Hamiltonian term uses this to choose a direct pair sum
+    //! for a finite structure vs an Ewald lattice sum for a periodic one.
+    virtual bool   isFinite         () const {return true;}
+
     virtual size_t GetAtomIndex(const rvec3_t&, double tol=0.0) const;
     virtual Mesh*  CreateMesh(const MeshParams&) const=0;
 

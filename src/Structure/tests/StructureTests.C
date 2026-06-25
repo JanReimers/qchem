@@ -211,3 +211,18 @@ TEST_F(StructureTests, EwaldCsClMadelung)
     EXPECT_NEAR(EwaldEnergy(cscl,q,0.3), eCell, 1e-8);
     EXPECT_NEAR(EwaldEnergy(cscl,q,0.9), eCell, 1e-8);
 }
+
+// isFinite() distinguishes a bounded molecular structure from a periodic cell -- the predicate the Vnn
+// Hamiltonian term uses to choose a direct pair sum vs an Ewald lattice sum.
+TEST_F(StructureTests, isFinite)
+{
+    Atom h(1,0,{0,0,0});
+    EXPECT_TRUE(h.isFinite());
+    Molecule m;
+    m.Insert(new Atom(1,0,{0,0,0}));
+    m.Insert(new Atom(1,0,{0,0,1.4}));
+    EXPECT_TRUE(m.isFinite());
+    FCCUnitCell si(10.26);
+    si.AddAtom(14,{0,0,0});
+    EXPECT_FALSE(si.isFinite());
+}

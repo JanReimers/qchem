@@ -45,6 +45,7 @@ import qchem.Hamiltonian.Internal.PWTerms;          // PW_External (dcmplx Hamil
 import qchem.Hamiltonian;                           // cStatic_HT / cDynamic_HT aliases (public term interfaces)
 import qchem.Hamiltonian.Internal.Hamiltonian;      // cHamiltonianImp (the dcmplx Hamiltonian = sum of terms)
 import qchem.Hamiltonian.Internal.Hamiltonians;     // Ham_PW_DFT (the assembled plane-wave LDA KS Hamiltonian)
+import qchem.Hamiltonian.Internal.Terms;            // Vnn (ion-ion term: pair sum / Ewald via isFinite)
 import qchem.Energy;                                // EnergyBreakdown
 import qchem.ChargeDensity.Imp.IrrepCD;             // IrrepCD<dcmplx> (concrete complex density)
 import qchem.Symmetry.Irrep;                        // Irrep
@@ -722,6 +723,27 @@ TEST_F(PlaneWaveDFT, ScfSiliconDiamondConverges)
     EXPECT_NEAR(Omega*std::real(RhoAt(R.rho,ivec3_t(0,0,0))), double(Nval), 1e-6);  // 8 valence e-
     EXPECT_NEAR(R.Etot_band, R.Etot_direct, 1e-5);                                  // stationary fixed point
     EXPECT_LT(Etot, 0.0);   // ion-ion Madelung + G=0 alignment make the total energy negative
+}
+
+// The generalized Vnn Hamiltonian term: for a periodic Structure (isFinite()==false) it routes the
+// ion-ion energy through the Ewald lattice sum (charges = the cell atoms' itsZ = the ion/valence charge),
+// rather than the conditionally-convergent direct pair sum used for finite molecules.
+TEST_F(PlaneWaveDFT, VnnPeriodicUsesEwald)
+{
+    const double a=10.26, h=0.5*a;
+    Matrix3D<double> A(0.0,h,h,  h,0.0,h,  h,h,0.0);   // FCC primitive
+    auto cell=std::make_shared<UnitCell>(A);
+    cell->AddAtom(4,rvec3_t(0.0,0.0,0.0));             // itsZ = Zion = 4 (Si valence)
+    cell->AddAtom(4,rvec3_t(0.25,0.25,0.25));
+    std::shared_ptr<const Structure> st=cell;
+    EXPECT_FALSE(st->isFinite());
+
+    qchem::Hamiltonian::Vnn vnn(st);
+    EnergyBreakdown eb;
+    vnn.GetEnergy(eb, nullptr);                        // periodic branch ignores the density
+    double ref=EwaldEnergy(*cell, rvec_t{4.0,4.0});
+    EXPECT_NEAR(eb.Enn, ref, 1e-9);                    // routes through Ewald
+    EXPECT_NEAR(eb.Enn, -8.40046, 1e-4);              // == the Si ion-ion Madelung energy
 }
 
 // Silicon again, but BZ-sampled over a 2x2x2 Monkhorst-Pack mesh (8 k-points) instead of Gamma-only.

@@ -23,6 +23,8 @@ public:
     using Molecule::Insert;
     using Molecule::GetNumAtoms;
 
+    bool isFinite() const override {return false;}   //!< A periodic cell is NOT finite (Vnn -> Ewald).
+
     //! \brief Add an atom of nuclear charge \a Z at FRACTIONAL cell coordinates \a f (\f$r=Af\f$).
     //! Convenience over Insert(new Atom(Z, ToCartesian(f))) so a crystal basis can be specified in
     //! cell coordinates (the natural way to give a diamond/FCC two-atom basis).
