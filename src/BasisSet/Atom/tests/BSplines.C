@@ -15,8 +15,10 @@ import qchem.BasisSet.Atom.Evaluators.Internal.Rk;
 import qchem.BasisSet.Atom.Evaluators;
 import qchem.BasisSet;
 
-import qchem.Mesh.Integrator;
 import qchem.Structure;
+import qchem.Structure.MolecularMesh1;   // MakeMolecularMesh (qcMesh1 mesh)
+import qchem.Mesh1.Quadrature;           // qcMesh1 quadrature + ScalarField/BasisField
+import qchem.VectorFunction;
 import qchem.Symmetry.Factory;
 import qchem.Symmetry.Spherical;
 import qchem.stl_io;
@@ -26,6 +28,34 @@ import qchem.Blaze;
 
 using std::cout;
 using std::endl;
+
+namespace
+{
+class BFView : public qcMesh1::BasisField<double>
+{
+    const VectorFunction<double>& its;
+public:
+    explicit BFView(const VectorFunction<double>& v) : its(v) {}
+    size_t     size()                       const override {return its.GetVectorSize();}
+    rvec_t     operator()(const rvec3_t& r) const override {return its(r);}
+    rvec3vec_t Gradient  (const rvec3_t& r) const override {return its.Gradient(r);}
+};
+struct OneOverR  : qcMesh1::ScalarField<double>
+{
+    double  operator()(const rvec3_t& r) const override {double m=norm(r); return m==0.0?0.0:1.0/m;}
+    rvec3_t Gradient  (const rvec3_t&)   const override {return rvec3_t(0,0,0);}
+};
+struct OneOverR2 : qcMesh1::ScalarField<double>
+{
+    double  operator()(const rvec3_t& r) const override {double m=norm(r); return m==0.0?0.0:1.0/(m*m);}
+    rvec3_t Gradient  (const rvec3_t&)   const override {return rvec3_t(0,0,0);}
+};
+qcMesh1::Mesh AtomMesh1(const Structure& cl, int nRadial, int mhl_m, double alpha, int nAngular)
+{
+    return MakeMolecularMesh(cl, {.radial=qcMesh1::RadialKind::MHL, .nRadial=nRadial, .mhl_m=mhl_m,
+                                  .mhl_alpha=alpha, .angular=qcMesh1::AngularKind::Gauss, .nAngular=nAngular});
+}
+} //anon
 using namespace BasisSet::Atom::Evaluators;
 using Real_BS  =BasisSet::Real_BS;
 using Real_OIBS=BasisSet::Real_OIBS;
@@ -41,8 +71,7 @@ public:
         , cl(new Atom(1,0.0,Vector3D(0,0,0)))
     {
         
-        MeshParams mp({qchem::MHL,500,3,2.0,qchem::Gauss,1,0,0,3});
-        mintegrator=new MeshIntegrator<double>(cl->CreateMesh(mp));
+        itsMesh=AtomMesh1(*cl,500,3,2.0,1);
     }
     void Init(int N, double rmin, double rmax)
     {
@@ -70,7 +99,7 @@ public:
     Real_BS* bs;
     std::vector<const ibs_t*> itsIBSs;
     Structure* cl;
-    MeshIntegrator<double>* mintegrator;
+    qcMesh1::Mesh itsMesh;
     std::vector<double> knots;
     std::vector<spline_t> splines;
 };
@@ -282,7 +311,7 @@ TEST_F(BSplineTests, Overlap)
             for (auto j:iv_t(i+K+1,S.rows())) 
                 EXPECT_EQ(S(i,j),0.0);
             
-        rsmat_t Snum = mintegrator->Overlap(*ibs);
+        rsmat_t Snum = qcMesh1::Overlap(itsMesh,BFView(*ibs));
         EXPECT_NEAR(blazem::max(blazem::abs(S-Snum)),0.0,3e-6);
 
         // cout << "S=" << S << endl;
@@ -328,7 +357,7 @@ TEST_F(BSplineTests, Nuclear)
         for (auto i:iv_t(0,Ven.rows()-K-1)) //Check banded
             for (auto j:iv_t(i+K+1,Ven.rows())) EXPECT_EQ(Ven(i,j),0.0);
         
-        rsmat_t Vennum = -cl->GetNuclearCharge()*mintegrator->Inv_r1(*ibs);
+        rsmat_t Vennum = -cl->GetNuclearCharge()*qcMesh1::WeightedOverlap(itsMesh,BFView(*ibs),OneOverR());
         EXPECT_NEAR(blazem::max(blazem::abs(Ven-Vennum)),0.0,1e-7);
 
         // cout << "Ven=" << Ven << endl;
@@ -349,8 +378,8 @@ TEST_F(BSplineTests, Kinetic)
             for (auto j:iv_t(i+K+1,T.rows())) EXPECT_EQ(T(i,j),0.0);
         
         int l=Getl(ibs->GetSymmetry());
-        rsmat_t Tnum = mintegrator->Grad2(*ibs);
-        rsmat_t Cen  = mintegrator->Inv_r2(*ibs);
+        rsmat_t Tnum = qcMesh1::KineticGrad2(itsMesh,BFView(*ibs));
+        rsmat_t Cen  = qcMesh1::WeightedOverlap(itsMesh,BFView(*ibs),OneOverR2());
         Tnum+=l*(l+1)*Cen;
         EXPECT_NEAR(blazem::max(blazem::abs(T-Tnum)),0.0,3e-5);
         

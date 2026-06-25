@@ -8,9 +8,9 @@ import qchem.Hamiltonian.Factory;
 import qchem.Orbitals;
 import qchem.Factory;
 import qchem.Math;
-import qchem.Mesh;
-import qchem.Mesh.Integrator;
 import qchem.Structure;
+import qchem.Structure.MolecularMesh1;   // MakeMolecularMesh (qcMesh1 mesh)
+import qchem.Mesh1;                       // qcMesh1::Mesh / MeshParams
 import qchem.Streamable;
 import qchem.Energy;
 import qchem.Symmetry.Spherical; //Symmetry::Getκ for picking p1/2 vs p3/2 orbitals
@@ -206,31 +206,30 @@ using qchem::Orbitals::TOrbital;
 std::tuple<double,double,double> Integrate(const Orbital* o,const Structure*  cl, double alpha)
 {
     const TOrbital<double>* to=dynamic_cast<const TOrbital<double>*>(o);
-    MeshParams mp({qchem::MHL,200,3,2.0,qchem::Gauss,1,0,0,3});
-    Mesh* m=cl->CreateMesh(mp);
-    
+    qcMesh1::Mesh m = MakeMolecularMesh(*cl, {.radial=qcMesh1::RadialKind::MHL, .nRadial=200, .mhl_m=3,
+                                             .mhl_alpha=2.0, .angular=qcMesh1::AngularKind::Gauss, .nAngular=1});
+    const rvec3vec_t& R=m.Points();
+    const rvec_t&     W=m.Weights();
+
     // First get the norm constant for the orbital.  FUDGE.  At least we know phir has the correct shape!
     double n1=0.0;
-    for (auto rw:*m) 
+    for (size_t i=0;i<m.size();i++)
     {
-        Vector3D<double> vr=r(rw);
+        const Vector3D<double>& vr=R[i];
         if (norm(vr)==0.0) continue;
         double phir=fabs(to->operator()(vr));
-        n1+=phir*phir*w(rw);
+        n1+=phir*phir*W[i];
     }
     double n_expected=0.0,idphi=0.0;
     cout.precision(5);
-    for (auto rw:*m) 
+    for (size_t i=0;i<m.size();i++)
     {
-        Vector3D<double> vr=r(rw);
+        const Vector3D<double>& vr=R[i];
         if (norm(vr)==0.0) continue;
-        double phir=fabs(to->operator()(vr))*1/sqrt(n1),phir_expected=S12g(vr.x,alpha);//,PhiNRL=S12g(vr.x,0.0);
+        double phir=fabs(to->operator()(vr))*1/sqrt(n1),phir_expected=S12g(vr.x,alpha);
         double dphir=phir-phir_expected;
-
-        n_expected+=phir_expected*phir_expected*w(rw);
-        idphi+=dphir*dphir*w(rw);
-        // cout << "r=" << vr.x << "phir_expected=" << phir_expected << " dphir=" << dphir << " dphir*w=" << dphir*w(rw) <<  endl;
-        
+        n_expected+=phir_expected*phir_expected*W[i];
+        idphi+=dphir*dphir*W[i];
     }
     return std::make_tuple(n1,n_expected,idphi);
 }

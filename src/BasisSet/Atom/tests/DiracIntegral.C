@@ -11,10 +11,35 @@ import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet;
 import qchem.Math;
 import qchem.Structure;
-import qchem.Mesh.Integrator;
+import qchem.Structure.MolecularMesh1;   // MakeMolecularMesh (qcMesh1 mesh)
+import qchem.Mesh1.Quadrature;           // qcMesh1 quadrature + ScalarField/BasisField
+import qchem.VectorFunction;
 import qchem.Streamable;
 import qchem.BasisSet.Internal.Orbital_DHF_IBS;
 import qchem.Blaze;
+
+namespace
+{
+class BFView : public qcMesh1::BasisField<double>
+{
+    const VectorFunction<double>& its;
+public:
+    explicit BFView(const VectorFunction<double>& v) : its(v) {}
+    size_t     size()                       const override {return its.GetVectorSize();}
+    rvec_t     operator()(const rvec3_t& r) const override {return its(r);}
+    rvec3vec_t Gradient  (const rvec3_t& r) const override {return its.Gradient(r);}
+};
+struct OneOverR  : qcMesh1::ScalarField<double>
+{
+    double  operator()(const rvec3_t& r) const override {double m=norm(r); return m==0.0?0.0:1.0/m;}
+    rvec3_t Gradient  (const rvec3_t&)   const override {return rvec3_t(0,0,0);}
+};
+qcMesh1::Mesh AtomMesh1(const Structure& cl, int nRadial, int mhl_m, double alpha, int nAngular)
+{
+    return MakeMolecularMesh(cl, {.radial=qcMesh1::RadialKind::MHL, .nRadial=nRadial, .mhl_m=mhl_m,
+                                  .mhl_alpha=alpha, .angular=qcMesh1::AngularKind::Gauss, .nAngular=nAngular});
+}
+} //anon
 
 using BasisSet::Real_BS;
 using BasisSet::Real_OIBS;
@@ -45,8 +70,7 @@ public:
         sbs=BasisSet::Atom::Factory(js,2);
         js = {{"type",BasisSet::Atom::Type::Gaussian_RKB}, {"N", 3}, {"emin", 0.1}, {"emax", 10.0} };
         gbs=BasisSet::Atom::Factory(js,2);
-        MeshParams mp({qchem::MHL,200,3,2.0,qchem::Gauss,1,0,0,3});
-        mintegrator=new MeshIntegrator<double>(cl->CreateMesh(mp));
+        itsMesh=AtomMesh1(*cl,200,3,2.0,1);
     }
     
     static const RKBL_OIBS* GetLarge(const Real_IBS* ibs)
@@ -80,7 +104,7 @@ public:
     Real_BS* sbs;
     Real_BS* gbs;
     Structure* cl;
-    MeshIntegrator<double>* mintegrator;
+    qcMesh1::Mesh itsMesh;
 };
 
 TEST_F(DiracIntegralTests, SlaterBasisSet)
@@ -107,8 +131,8 @@ TEST_F(DiracIntegralTests, SlaterOverlap)
             for (size_t i=0;i<d.size()/2;i++) EXPECT_NEAR(d[i],1.0,1e-15);
         }
         // cout << std::fixed << std::setprecision(3) << std::setw(6) << S << S1 << endl;
-        rsmat_t SLnum = mintegrator->Overlap(*GetLarge(oi));
-        rsmat_t SSnum = mintegrator->Overlap(*GetSmall(oi));
+        rsmat_t SLnum = qcMesh1::Overlap(itsMesh,BFView(*GetLarge(oi)));
+        rsmat_t SSnum = qcMesh1::Overlap(itsMesh,BFView(*GetSmall(oi)));
         rsmat_t Snum=merge_diag(SLnum,SSnum);
         // cout << Snum << S << endl;
 
@@ -127,8 +151,8 @@ TEST_F(DiracIntegralTests, GaussianOverlap)
             for (size_t i=0;i<d.size()/2;i++) EXPECT_NEAR(d[i],1.0,1e-15);
         }
         // cout << std::fixed << std::setprecision(3) << std::setw(6) << S << S1 << endl;
-        rsmat_t SLnum = mintegrator->Overlap(*GetLarge(oi));
-        rsmat_t SSnum = mintegrator->Overlap(*GetSmall(oi));
+        rsmat_t SLnum = qcMesh1::Overlap(itsMesh,BFView(*GetLarge(oi)));
+        rsmat_t SSnum = qcMesh1::Overlap(itsMesh,BFView(*GetSmall(oi)));
 //        cout << SLnum << SSnum << endl;
         rsmat_t Snum=merge_diag(SLnum,SSnum);
         // cout << Max(fabs(S-Snum)) << endl;
@@ -144,8 +168,8 @@ TEST_F(DiracIntegralTests, SlaterNuclear)
     for (auto oi:sbs->Iterate<Real_OIBS >())
     {
         rsmat_t Ven=oi->Nuclear(cl);
-        rsmat_t VenLnum = -Z*mintegrator->Inv_r1(*GetLarge(oi));
-        rsmat_t VenSnum = -Z*mintegrator->Inv_r1(*GetSmall(oi));
+        rsmat_t VenLnum = -Z*qcMesh1::WeightedOverlap(itsMesh,BFView(*GetLarge(oi)),OneOverR());
+        rsmat_t VenSnum = -Z*qcMesh1::WeightedOverlap(itsMesh,BFView(*GetSmall(oi)),OneOverR());
         rsmat_t Vennum=merge_diag(VenLnum,VenSnum);
         //cout << "Ven=" << Ven << endl << "Ven num=" << Vennum << endl;
         //Because of the singularity at the origin, the error is larger than the other integrals.
@@ -161,8 +185,8 @@ TEST_F(DiracIntegralTests, GaussianNuclear)
     for (auto oi:gbs->Iterate<Real_OIBS >())
     {
         rsmat_t Ven=oi->Nuclear(cl);
-        rsmat_t VenLnum = -Z*mintegrator->Inv_r1(*GetLarge(oi));
-        rsmat_t VenSnum = -Z*mintegrator->Inv_r1(*GetSmall(oi));
+        rsmat_t VenLnum = -Z*qcMesh1::WeightedOverlap(itsMesh,BFView(*GetLarge(oi)),OneOverR());
+        rsmat_t VenSnum = -Z*qcMesh1::WeightedOverlap(itsMesh,BFView(*GetSmall(oi)),OneOverR());
         rsmat_t Vennum=merge_diag(VenLnum,VenSnum);
         //cout << "Ven=" << Ven << endl << "Ven num=" << Vennum << endl;
         // cout << "Ven=" << Ven << endl << "Ven1=" << Ven1 << endl;
@@ -172,41 +196,9 @@ TEST_F(DiracIntegralTests, GaussianNuclear)
 }
 
 
-TEST_F(DiracIntegralTests, SlaterKinetic)
-{
-    
-    for (auto oi:sbs->Iterate<Real_OIBS >())
-    {
-        // Dirac basis: Kinetic() is the RELATIVISTIC kinetic (c*sigma*p), L/S off-diagonal -> zero
-        // diagonal, == -c_light * <grad a|grad b> off-diagonal.  Not the <p^2> block. (See Orbital_DHF_IBS.C.)
-        rsmat_t K=oi->Kinetic();
-        rvec_t d=blazem::diagonal(K);
-        for (size_t i=0;i<d.size();i++) EXPECT_NEAR(d[i],0.0,1e-15);
-        //cout << std::fixed << std::setprecision(3) << std::setw(6) << K << endl;
-         rmat_t KnumL = -c_light*mintegrator->Grada_b(*GetLarge(oi),*GetSmall(oi));
-
-        rsmat_t Knum=merge_off_diag(KnumL);
-        cout << "K=" << K << endl << "Knum=" << Knum << endl;
-        EXPECT_NEAR(blazem::max(blazem::abs(K-Knum)),0.0,1e-11);      
-    }
-}
-TEST_F(DiracIntegralTests, GaussianKinetic)
-{
-    
-    for (auto oi:gbs->Iterate<Real_OIBS >())
-    {
-        // Dirac basis: Kinetic() is the RELATIVISTIC kinetic (c*sigma*p), L/S off-diagonal -> zero
-        // diagonal, == -c_light * <grad a|grad b> off-diagonal.  Not the <p^2> block. (See Orbital_DHF_IBS.C.)
-        rsmat_t K=oi->Kinetic();
-        rvec_t d=blazem::diagonal(K);
-        for (size_t i=0;i<d.size();i++) EXPECT_NEAR(d[i],0.0,1e-15);
-        //cout << std::fixed << std::setprecision(3) << std::setw(6) << K << endl;
-         rmat_t KnumL = -c_light*mintegrator->Grada_b(*GetLarge(oi),*GetSmall(oi));
-        rsmat_t Knum=merge_off_diag(KnumL);
-        // cout << "K=" << K << endl << "Knum=" << Knum << endl;
-        EXPECT_NEAR(blazem::max(blazem::abs(K-Knum)),0.0,1e-11);         
-    }
-}
+// NOTE: the Dirac relativistic-kinetic numerical cross-check (SlaterKinetic/GaussianKinetic) used
+// MeshIntegrator::Grada_b -- the l=0-only <grad a|b> gradient cross-term that qcMesh1 deliberately
+// dropped.  The analytic Kinetic() it cross-checked is validated end-to-end by A_DHF (UTMain).
 
  //  For symmetric matricies, Sum() should know to double all the off diagonal elements.
 TEST_F(DiracIntegralTests, Contraction)

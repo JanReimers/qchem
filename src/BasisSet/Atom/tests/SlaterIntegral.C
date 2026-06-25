@@ -11,8 +11,10 @@ import qchem.BasisSet.Atom.Factory;
 import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet;
 import qchem.Constants;
-import qchem.Mesh.Integrator;
 import qchem.Structure;
+import qchem.Structure.MolecularMesh1;   // MakeMolecularMesh (qcMesh1 mesh)
+import qchem.Mesh1.Quadrature;           // qcMesh1 quadrature + ScalarField/BasisField
+import qchem.VectorFunction;
 import qchem.Symmetry.Spherical;
 import qchem.Blaze;
 
@@ -20,6 +22,34 @@ using std::cout;
 using std::endl;
 using Real_BS  =BasisSet::Real_BS;
 using Real_OIBS=BasisSet::Real_OIBS;
+
+namespace
+{
+class BFView : public qcMesh1::BasisField<double>
+{
+    const VectorFunction<double>& its;
+public:
+    explicit BFView(const VectorFunction<double>& v) : its(v) {}
+    size_t     size()                       const override {return its.GetVectorSize();}
+    rvec_t     operator()(const rvec3_t& r) const override {return its(r);}
+    rvec3vec_t Gradient  (const rvec3_t& r) const override {return its.Gradient(r);}
+};
+struct OneOverR  : qcMesh1::ScalarField<double>
+{
+    double  operator()(const rvec3_t& r) const override {double m=norm(r); return m==0.0?0.0:1.0/m;}
+    rvec3_t Gradient  (const rvec3_t&)   const override {return rvec3_t(0,0,0);}
+};
+struct OneOverR2 : qcMesh1::ScalarField<double>
+{
+    double  operator()(const rvec3_t& r) const override {double m=norm(r); return m==0.0?0.0:1.0/(m*m);}
+    rvec3_t Gradient  (const rvec3_t&)   const override {return rvec3_t(0,0,0);}
+};
+qcMesh1::Mesh AtomMesh1(const Structure& cl, int nRadial, int mhl_m, double alpha, int nAngular)
+{
+    return MakeMolecularMesh(cl, {.radial=qcMesh1::RadialKind::MHL, .nRadial=nRadial, .mhl_m=mhl_m,
+                                  .mhl_alpha=alpha, .angular=qcMesh1::AngularKind::Gauss, .nAngular=nAngular});
+}
+} //anon
 //----------------------------------------------------------------------------------------------
 //
 //  Testing class
@@ -38,22 +68,13 @@ public:
         {"N", 6}, {"emin", 0.1}, {"emax", 10.0},
         };
         bs=BasisSet::Atom::Factory(js,75);
-        MeshParams mp({qchem::MHL,200,3,2.0,qchem::Gauss,1,0,0,3});
-        mintegrator=new MeshIntegrator<double>(cl->CreateMesh(mp));
-        MeshParams rmp({qchem::MHL,200,3,2.0,qchem::Gauss,50,0,0,3}); // was 32 (dropped buggy rule); 50 is exact
-        rmintegrator=new MeshIntegrator<double>(cl->CreateMesh(rmp));
-        //cout << *bs << endl;
+        itsMesh=AtomMesh1(*cl,200,3,2.0,1);
     }
-    
-    // bool   supported(const Evaluator&,const Evaluator&,int ia, int ib, int ic, int id) const;
-    // double R0       (const Evaluator&,const Evaluator&,int ia, int ib, int ic, int id) const;
-    
-    
+
     int Lmax, Z;
     Real_BS* bs;
     Structure* cl;
-    MeshIntegrator<double>* mintegrator;
-    MeshIntegrator<double>* rmintegrator;
+    qcMesh1::Mesh itsMesh;
 };
 
 
@@ -63,7 +84,7 @@ TEST_F(SlaterRadialIntegralTests, Overlap)
     {
         rsmat_t S=oi->Overlap();
         for (auto d:blazem::diagonal(S)) EXPECT_NEAR(d,1.0,1e-15);
-        rsmat_t Snum = mintegrator->Overlap(*oi);
+        rsmat_t Snum = qcMesh1::Overlap(itsMesh,BFView(*oi));
         EXPECT_NEAR(blazem::max(blazem::abs(S-Snum)),0.0,1e-8);
     }
 }
@@ -73,7 +94,7 @@ TEST_F(SlaterRadialIntegralTests, Nuclear)
     for (auto oi:bs->Iterate<Real_OIBS >())
     {
         rsmat_t Hn=oi->Nuclear(cl);
-        rsmat_t Hnnum = -1*mintegrator->Inv_r1(*oi);
+        rsmat_t Hnnum = -1*qcMesh1::WeightedOverlap(itsMesh,BFView(*oi),OneOverR());
         EXPECT_NEAR(blazem::max(blazem::abs(Hn-Hnnum)),0.0,1e-7);
 
     }
@@ -87,7 +108,8 @@ TEST_F(SlaterRadialIntegralTests, Kinetic)
         //cout << S << endl;
         int l=Getl(oi->GetSymmetry());;
         // ...which equals Grad2 (radial) + centrifugal l(l+1)<r^-2>, confirming the no-1/2 convention.
-        rsmat_t Knum = mintegrator->Grad2(*oi) + l*(l+1)*mintegrator->Inv_r2(*oi);
+        rsmat_t Knum = qcMesh1::KineticGrad2(itsMesh,BFView(*oi))
+                     + l*(l+1)*qcMesh1::WeightedOverlap(itsMesh,BFView(*oi),OneOverR2());
         EXPECT_NEAR(blazem::max(blazem::abs(K-Knum)),0.0,1e-10);
         
         // cout << "K=" << K << endl;
