@@ -11,7 +11,9 @@ using std::endl;
 import qchem.Structure;
 import qchem.UnitCell;
 import qchem.Lattice_3D;
+import qchem.Ewald;
 import qchem.Math;
+import qchem.Types;   // rvec_t
 
 //  The storage-agnostic index iterator must model a full forward iterator so
 //  that range-based for AND the C++20 <ranges> adaptors both work on it.
@@ -151,4 +153,61 @@ TEST_F(StructureTests, Lattice_3D)
     double wsum=0; for (auto& kp:ks) wsum+=kp.weight;
     EXPECT_NEAR(wsum,1.0,1e-12);
     cout << "BZ " << ks;
+}
+
+//================================ Ewald ion-ion sum ====================================================
+
+// The split parameter η is a pure convergence knob: a correct Ewald total is η-INDEPENDENT.  This only
+// holds if the real, reciprocal, self, and background terms all carry the right coefficients and signs,
+// so it is a strong end-to-end correctness check.  Silicon (covalent, two +4 ion cores, FCC primitive).
+TEST_F(StructureTests, EwaldEtaIndependence)
+{
+    FCCUnitCell si(10.26);                 // Si lattice constant in bohr
+    si.AddAtom(14,{0.0,0.0,0.0});
+    si.AddAtom(14,{0.25,0.25,0.25});
+    rvec_t q{4.0,4.0};                      // Zion = 4 per Si (covalent: both cores positive)
+
+    double eAuto=EwaldEnergy(si,q);         // balanced default η
+    double eLo  =EwaldEnergy(si,q,0.15);    // under-split (real sum reaches far)
+    double eHi  =EwaldEnergy(si,q,0.50);    // over-split (reciprocal sum reaches far)
+    cout << "Si FCC ion-ion Ewald (Zion=4): " << eAuto << " Ha  (η-scan "
+         << eLo << " / " << eHi << ")\n";
+    // η-independence to ~1e-8: for a NET-CHARGED cell (Q=8 here) the η-dependent background term
+    // (~-5 Ha) cancels against the real/reciprocal sums, costing ~8 digits in double precision; the
+    // neutral CsCl test below has no such cancellation and agrees to machine precision.
+    EXPECT_NEAR(eAuto,eLo,1e-7);
+    EXPECT_NEAR(eAuto,eHi,1e-7);
+    EXPECT_LT(eAuto,0.0);                    // ion-ion Madelung energy is negative
+
+    // Rigid translation of the whole basis leaves the lattice energy unchanged.
+    FCCUnitCell si2(10.26);
+    si2.AddAtom(14,{0.10,0.20,0.30});
+    si2.AddAtom(14,{0.35,0.45,0.55});
+    EXPECT_NEAR(EwaldEnergy(si2,q),eAuto,1e-9);
+}
+
+// Absolute anchor against a textbook Madelung constant.  CsCl = a simple-cubic cell with a +1 cation at
+// the origin and a -1 anion at the body centre (an IONIC ±1 lattice; net charge 0 so the background term
+// vanishes -- a clean, convention-free check).  The electrostatic energy per ion is -α q²/R with the CsCl
+// Madelung constant α=1.762675 and R the nearest-neighbour distance a√3/2.  EwaldEnergy returns the total
+// per cell = ½ΣΣ; with two equivalent ions (each at Madelung potential -α/R) that already equals the
+// per-ion energy, so α = -E_cell·R (no further ½).
+TEST_F(StructureTests, EwaldCsClMadelung)
+{
+    const double a=2.0;
+    UnitCell cscl(a);                       // simple cubic, edge a
+    cscl.AddAtom(55,{0.0,0.0,0.0});         // Cs site (Z cosmetic; charge comes from q)
+    cscl.AddAtom(17,{0.5,0.5,0.5});         // Cl site
+    rvec_t q{+1.0,-1.0};
+
+    double eCell  = EwaldEnergy(cscl,q);
+    double R      = a*sqrt(3.0)/2.0;        // nearest-neighbour distance
+    double alphaCsCl = 1.7626748;           // CsCl Madelung constant (nearest-neighbour convention)
+    cout << "CsCl Ewald/cell=" << eCell << "  Madelung α=" << -eCell*R
+         << " (lit " << alphaCsCl << ")\n";
+    EXPECT_NEAR(-eCell*R, alphaCsCl, 1e-6);
+
+    // η-independence holds for the neutral lattice too.
+    EXPECT_NEAR(EwaldEnergy(cscl,q,0.3), eCell, 1e-8);
+    EXPECT_NEAR(EwaldEnergy(cscl,q,0.9), eCell, 1e-8);
 }

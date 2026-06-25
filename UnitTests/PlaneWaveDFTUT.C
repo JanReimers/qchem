@@ -34,6 +34,7 @@
 import qchem.BasisSet.Lattice_3D.PlaneWave_IBS;
 import qchem.BasisSet.Lattice_3D.BasisSet;   // Factory(Type::PW, lat, Ecut, loc, nl) -> Complex_BS*
 import qchem.Lattice_3D;     // UnitCell, Lattice_3D, ReciprocalLattice
+import qchem.Ewald;          // EwaldEnergy (ion-ion Madelung term -> physical total energy)
 import qchem.Types;          // dcmplx, ivec3_t, rvec_t, mat_t, chmat_t
 import qchem.Blaze;          // mat_t<dcmplx>
 import qchem.Math;           // Pi
@@ -697,14 +698,24 @@ TEST_F(PlaneWaveDFT, ScfSiliconDiamondConverges)
 
     SCFResult R=RunSCF(pw, recip.GetCell(), Omega, Vext, Nval, Ng, vxcOf, epsOf, 0.4, 1e-8, 400);
 
+    // Ion-ion (Ewald) energy of the two Si4+ cores: turns the electronic energy (which drops the G=0
+    // potential and has no ion-ion term) into a physical, NEGATIVE total.  The Ewald cell carries the
+    // same FCC geometry and the diamond basis given in fractional coordinates; charges = Zion = 4.
+    UnitCell ecell(A);
+    ecell.AddAtom(14, rvec3_t(0.0,0.0,0.0));
+    ecell.AddAtom(14, rvec3_t(0.25,0.25,0.25));
+    double Eii  = EwaldEnergy(ecell, rvec_t{4.0,4.0});
+    double Etot = R.Etot_direct + Eii;
+
     std::cout << "[Si] nG="<<pw.GetNumFunctions()<<" grid="<<(4*m+1)<<"^3 iters="<<R.iters
               << " converged="<<R.converged << "\n  Ekin="<<R.Ekin<<" Eext="<<R.Eext
-              << " E_H="<<R.EH<<" E_xc="<<R.Exc << "\n  Etot(band)="<<R.Etot_band
-              << " Etot(direct)="<<R.Etot_direct << std::endl;
+              << " E_H="<<R.EH<<" E_xc="<<R.Exc << "\n  Etot(elec)="<<R.Etot_direct
+              << " E_ion-ion(Ewald)="<<Eii << "  Etot(elec+ion-ion)="<<Etot << std::endl;
 
     ASSERT_TRUE(R.converged);
     EXPECT_NEAR(Omega*std::real(RhoAt(R.rho,ivec3_t(0,0,0))), double(Nval), 1e-6);  // 8 valence e-
     EXPECT_NEAR(R.Etot_band, R.Etot_direct, 1e-5);                                  // stationary fixed point
+    EXPECT_LT(Etot, 0.0);   // adding the ion-ion Madelung energy makes the total energy negative
 }
 
 // Silicon again, but BZ-sampled over a 2x2x2 Monkhorst-Pack mesh (8 k-points) instead of Gamma-only.

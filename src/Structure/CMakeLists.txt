@@ -11,6 +11,7 @@ target_sources(qcStructure PRIVATE
 target_sources(qcStructure PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Structure.C
     UnitCell.C
+    Ewald.C
     Lattice_3D/ReciprocalLattice.C
     Lattice_3D/KMesh.C
     Lattice_3D/Lattice_3D.C

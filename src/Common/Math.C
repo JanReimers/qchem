@@ -9,6 +9,7 @@ export import qchem.Factorials;
 export
 {
     using std::sqrt;
+    using std::cbrt;
     using std::fabs;
     using std::abs;
     using std::floor;
@@ -20,6 +21,8 @@ export
     using std::sin;
     using std::cos;
     using std::acos;
+    using std::erf;
+    using std::erfc;
     using std::isfinite;
     using std::max;
     using std::min;
