@@ -55,7 +55,12 @@ static EnergyBreakdown RunDFT(const BasisSet::BasisSet<double>* bs, const Electr
 {
     MeshParams mp({qchem::MHL,30,3,2.0,qchem::Gauss,12,0,0,2});
     Hamiltonian* ham = Factory(pol, st, 0.7, mp, bs);            // Xalpha DFT
-    nlohmann::json jsacc = {{"NProj",4},{"EMax",0.1},{"EMin",1e-7},{"SVTol",5e-9}};
+    // EMax gates DIIS on the [F,D] commutator norm: DIIS only engages once it drops below EMax.  The
+    // non-symmetric *polarized* water Xalpha SCF oscillates with a commutator of ~2-4 that plain mixing
+    // never damps below 0.1, so at EMax=0.1 DIIS never engaged and the run limit-cycled (its iterate at
+    // the iteration cap was heap-layout-sensitive -- the "M_Sym layout UB" red herring).  EMax=100 lets
+    // DIIS drive from the start: both the non-symmetric and SALC runs converge to the same point.
+    nlohmann::json jsacc = {{"NProj",4},{"EMax",100.0},{"EMin",1e-7},{"SVTol",5e-9}};
     auto* acc = qchem::SCFAccelerators::Factory(qchem::SCFAccelerators::Type::DIIS, jsacc);
     qchem::SCFIterator::SCFIterator scf(bs, ec, ham, acc);
     scf.Iterate({60, 1e-7, 1e-9, 1e2, 1e-7, 0.5, 1e-4, false});
@@ -84,11 +89,11 @@ static void CheckWaterDFT(Pol pol, double tol)
 }
 
 TEST(M_Sym, water_DFT_unpolarized) { CheckWaterDFT(Pol::UnPolarized, 1e-5); }
-// Polarized (unrestricted) Xalpha: a small (~2e-4) symmetric-vs-non-symmetric residual remains --
-// the two-spin-channel SCF converges to slightly different points (see the SALC DIIS/occupation
-// notes in doc/SCF_DIIS_SALC_notes.md); the decorator transform itself is exact (unpolarized matches
-// to <1e-5).
-TEST(M_Sym, water_DFT_polarized)   { CheckWaterDFT(Pol::Polarized, 1e-3); }
+// Polarized (unrestricted) Xalpha: with DIIS driving from the start (EMax raised in RunDFT) the
+// non-symmetric and SALC runs converge to the SAME stationary point to ~12 digits -- the SALC
+// transform is exact.  (The old loose 1e-3 here was masking a non-convergent non-symmetric run, not a
+// real spin-channel difference; see RunDFT's EMax comment and memory project_msym_layout_ub.)
+TEST(M_Sym, water_DFT_polarized)   { CheckWaterDFT(Pol::Polarized, 1e-6); }
 
 // Symmetry-adapted water HF (real DZVP basis) must equal the non-symmetric run, both for the
 // closed-shell unpolarized and (since water is closed shell) the polarized Hamiltonian -- and

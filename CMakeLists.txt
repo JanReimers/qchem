@@ -21,6 +21,13 @@ set_property(TARGET qchem PROPERTY CXX_STANDARD 20)
 
 set(CXX_SCAN_FOR_MODULES on)
 
+# RelChecked: a Release build (optimized -O2 codegen, i.e. the production object layout) but with
+# asserts LIVE and blaze bounds checking on.  It catches layout-sensitive UB that -O0 Debug reshuffles
+# away and that NDEBUG'd Release/ASan hide.  Configure with -DCMAKE_BUILD_TYPE=Release -DQCHEM_RELCHECKED=ON
+# (Release, not a custom config name, because libxc's safeguard rejects unknown build types).
+# See project_msym_layout_ub.
+option(QCHEM_RELCHECKED "Release codegen with asserts live + blaze bounds checks (no NDEBUG)" OFF)
+
 # Common compile flags for all targets
 set(CXX_COMMON_COMPILE_OPTIONS
     $<$<CONFIG:Debug>:-g -O0>
@@ -30,8 +37,13 @@ set(CXX_COMMON_COMPILE_OPTIONS
 )
 set(CXX_COMMON_COMPILE_DEFINITIONS
     $<$<CONFIG:Debug>:-DDEBUG>
-    $<$<CONFIG:Release>:-DNDEBUG>
 )
+if(QCHEM_RELCHECKED)
+    # No -DNDEBUG (codebase asserts live) + blaze BLAZE_USER_ASSERT -> assert() (bounds checks live).
+    list(APPEND CXX_COMMON_COMPILE_DEFINITIONS -DBLAZE_USER_ASSERTION=1)
+else()
+    list(APPEND CXX_COMMON_COMPILE_DEFINITIONS $<$<CONFIG:Release>:-DNDEBUG>)
+endif()
 
 target_compile_options(qchem PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(qchem PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
