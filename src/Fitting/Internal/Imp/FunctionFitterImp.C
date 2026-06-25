@@ -6,7 +6,6 @@ module;
 module qchem.Fitting.Internal.FunctionFitterImp;
 import qchem.Fitting.Types;
 
-import qchem.Mesh1;
 import qchem.Streamable;
 import qchem.Blaze;
 
@@ -20,21 +19,18 @@ namespace qchem::Fitting
 //  is that all overlap integrals are replaced with repulsion integrals.
 //
 template <class T> FunctionFitterImp<T>::
-FunctionFitterImp(bs_t& fbs,mesh_t& m)
+FunctionFitterImp(bs_t& fbs)
     : itsBasisSet(fbs)
     , itsFitCoeff(fbs->GetNumFunctions(),0.0)
-    , itsMesh    (m)
 {
-    assert(itsMesh);
     itsFitCoeff[0]=1.0/itsBasisSet->Charge()[0]; //Wild guess with the correct total charge.
 };
 
 template <class T> FunctionFitterImp<T>::FunctionFitterImp()
     : itsBasisSet (    )
     , itsFitCoeff (    )
-    , itsMesh     (0   )
 {
-    
+
 };
 
 template <class T> FunctionFitterImp<T>::~FunctionFitterImp()
@@ -59,7 +55,7 @@ template <class T> void FunctionFitterImp<T>::DoFit(const DensityFFClient& ffc)
 template <class T> void FunctionFitterImp<T>::DoFitInternal(const ScalarFFClient& ffc,double constraint)
 {
     auto Sinv=itsBasisSet->InvOverlap();
-    itsFitCoeff= Sinv * itsBasisSet->Overlap(itsMesh.get(),*ffc.GetScalarFunction());
+    itsFitCoeff= Sinv * itsBasisSet->Overlap(*ffc.GetScalarFunction());
 }
 
 template <class T> void FunctionFitterImp<T>::DoFitInternal(const DensityFFClient& ffc,double constraint)

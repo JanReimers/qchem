@@ -8,12 +8,12 @@ namespace qchem::Fitting
 {
 
 std::unique_ptr<FunctionFitter<double>>
-MakeFunctionFitter(FitFlavour flavour, std::shared_ptr<const fbs_t>& bs, std::shared_ptr<const qcMesh1::Mesh>& m)
+MakeFunctionFitter(FitFlavour flavour, std::shared_ptr<const fbs_t>& bs)
 {
     switch (flavour)
     {
-        case FitFlavour::Unconstrained:     return std::make_unique<FunctionFitterImp<double>>     (bs,m);
-        case FitFlavour::ChargeConstrained: return std::make_unique<IntegralConstrainedFF<double>>(bs,m);
+        case FitFlavour::Unconstrained:     return std::make_unique<FunctionFitterImp<double>>     (bs);
+        case FitFlavour::ChargeConstrained: return std::make_unique<IntegralConstrainedFF<double>>(bs);
     }
     return nullptr;
 }

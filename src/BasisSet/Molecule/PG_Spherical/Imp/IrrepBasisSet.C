@@ -140,16 +140,20 @@ std::ostream& IrrepBasisSet::Write(std::ostream& os) const
 Orbital_IBS::Orbital_IBS(Reader* bsr, const Structure* cl)            : IrrepBasisSet(bsr,cl) {};
 Orbital_IBS::Orbital_IBS(const rvec_t& es, size_t L, const Structure* cl) : IrrepBasisSet(es,L,cl) {};
 
-Fit_IBS* Orbital_IBS::CreateCDFitBasisSet(const Structure* cl) const
+Fit_IBS* Orbital_IBS::CreateCDFitBasisSet(const Structure* cl, const MeshParams& mp) const
 {
     // The A1 files support Z=1-54 (H-Te); A2 only to Zn.  Same auxiliary data as PG_Cart, read spherically.
     Gaussian94Reader reader(BasisFile("A1_coul.bsd"));
-    return new EFit_IBS(&reader,cl);
+    auto* f = new EFit_IBS(&reader,cl);
+    f->SetMesh(*cl, mp);
+    return f;
 }
-Fit_IBS* Orbital_IBS::CreateVxcFitBasisSet(const Structure* cl) const
+Fit_IBS* Orbital_IBS::CreateVxcFitBasisSet(const Structure* cl, const MeshParams& mp) const
 {
     Gaussian94Reader reader(BasisFile("A1_exch.bsd"));
-    return new EFit_IBS(&reader,cl);
+    auto* f = new EFit_IBS(&reader,cl);
+    f->SetMesh(*cl, mp);
+    return f;
 }
 
 //----------------------------------------------------------------

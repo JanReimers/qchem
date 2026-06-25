@@ -1,14 +1,13 @@
 // File: BasisSet/Imp/Fit_IBS.C  Implement the numerical (mesh-quadrature) parts of a fit basis set.
 //
-// The fit quadrature now runs over a qcMesh1::Mesh via the qcMesh1 free-function quadrature.  Fit_IBS
-// is already a pointwise VectorFunction (operator()(r), Gradient(r)); we expose it to qcMesh1 through
-// tiny view adapters rather than changing its class hierarchy.
+// A fit basis OWNS its quadrature mesh (the Becke molecular mesh, built from its Structure in
+// SetMesh).  The numerical integrals run over that mesh via the qcMesh1 free-function quadrature;
+// Fit_IBS is already a pointwise VectorFunction, exposed to qcMesh1 through tiny view adapters.
 module;
 #include <cassert>
-#include <sstream>
-#include <string>
 module qchem.BasisSet.Fit_IBS;
-import qchem.Mesh1.Quadrature;        // qcMesh1::Mesh, BasisField, ScalarField, Normalize, Overlap
+import qchem.Mesh1.Quadrature;          // qcMesh1::Mesh, BasisField, ScalarField, Normalize, Overlap
+import qchem.Structure.MolecularMesh1;  // MakeMolecularMesh (the Becke mesh)
 import qchem.BasisSet.Internal.DB_Cache;
 import qchem.Blaze;
 
@@ -38,16 +37,25 @@ public:
     rvec3_t Gradient  (const rvec3_t& r) const override {return its.Gradient(r);}
 };
 
-// Cache key for a mesh (the geometry-free Mesh has no ID; mirror the old Mesh::ID summary).
-std::string MeshKey(const qcMesh1::Mesh* m)
+// The fitted-DFT path always built per-atom meshes via Atom::CreateMesh, which hardwired MHL radial
+// + Gauss angular (ignoring radial_t/angle_t).  Reproduce that exactly so energies are unchanged.
+qcMesh1::MeshParams Translate(const MeshParams& mp)
 {
-    std::ostringstream os;
-    os << "N=" << m->size();
-    if (m->size()>0) os << " " << m->Weights()[0] << " " << m->Points()[0];
-    if (m->size()>1) { size_t l=m->size()-1; os << " " << m->Weights()[l] << " " << m->Points()[l]; }
-    return os.str();
+    qcMesh1::MeshParams np;
+    np.radial   = qcMesh1::RadialKind::MHL;
+    np.nRadial  = static_cast<int>(mp.Nradial);
+    np.mhl_m    = static_cast<int>(mp.MHL_m);
+    np.mhl_alpha= mp.MHL_alpha;
+    np.angular  = qcMesh1::AngularKind::Gauss;
+    np.nAngular = static_cast<int>(mp.Nangle);
+    return np;
 }
 } //anon
+
+void Fit_IBS::SetMesh(const Structure& cl, const MeshParams& mp)
+{
+    itsMesh = MakeMolecularMesh(cl, Translate(mp), static_cast<int>(mp.m_mu));
+}
 
 const  rvec_t& Fit_IBS::Charge   () const
 {
@@ -85,39 +93,26 @@ const rsmat_t& Fit_IBS::InvRepulsion() const
         [this]{ return MakeInvRepulsion(); });
 }
 
-const rvec_t& Fit_IBS::Norm(const qcMesh1::Mesh* m) const
+// The mesh is fixed per fit basis, so the normalisation caches on `this` alone (no mesh key).
+const rvec_t& Fit_IBS::Norm() const
 {
-    assert(m);
     auto cache=theGlobalCache;
     assert(cache);
-    return cache->Get(IntegralsCache_Base::I1C::Normalization,this,MeshKey(m),
-        [this,m]{ return MakeNorm(m); });
+    return cache->Get(IntegralsCache_Base::I1C::Normalization,this,
+        [this]{ return MakeNorm(); });
 }
 
-const rmat_t& Fit_IBS::Overlap(const qcMesh1::Mesh* m,const Fit_IBS& b) const
+rvec_t Fit_IBS::MakeNorm() const
 {
-    assert(m);
-    auto cache=theGlobalCache;
-    assert(cache);
-    return cache->Get(IntegralsCache_Base::I2x::Overlap,this,&b,MeshKey(m),
-        [this,m,&b]{ return MakeOverlap(m,b); });
+    assert(itsMesh.size()>0);   // SetMesh must run before any numerical integral
+    return qcMesh1::Normalize(itsMesh, FitBasisView(*this));
 }
 
-rvec_t Fit_IBS::MakeNorm(const qcMesh1::Mesh* m) const
+rvec_t Fit_IBS::Overlap(const Sf& f) const
 {
-    return qcMesh1::Normalize(*m, FitBasisView(*this));
-}
-
-rmat_t Fit_IBS::MakeOverlap(const qcMesh1::Mesh* m,const Fit_IBS& b) const
-{
-    return qcMesh1::Overlap(*m, FitBasisView(*this), FitBasisView(b));
-}
-
-rvec_t Fit_IBS::Overlap(const qcMesh1::Mesh* m,const Sf& f) const
-{
-    const rvec_t& n=Norm(m);
+    assert(itsMesh.size()>0);
     // <f_a|f> projection, normalised: component-wise multiply by the fit-basis norms.
-    return qcMesh1::Overlap(*m, FitBasisView(*this), ScalarFnView(f)) * n;
+    return qcMesh1::Overlap(itsMesh, FitBasisView(*this), ScalarFnView(f)) * Norm();
 }
 
 rsmat_t Fit_IBS::MakeInvOverlap  () const

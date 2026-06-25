@@ -71,7 +71,7 @@ TEST(M_LibCint, matrix_3C_4C_match_scalar)
     EXPECT_LT(fnorm(lc.ExchangeMatrix(lc), hf.Exchange(ibs)), 1e-10);
 
     // 3-centre (DFT): a real Coulomb-fit basis from the orbital IBS; reference = public Overlap3C/Repulsion3C.
-    BasisSet::Fit_IBS* fit = ibs.CreateCDFitBasisSet(h2o);
+    BasisSet::Fit_IBS* fit = ibs.CreateCDFitBasisSet(h2o,MeshParams({qchem::MHL,30,2,2.0,qchem::Gauss,6,0,0,3}));
     LibCintEval lfit(dynamic_cast<const PGData&>(*fit), h2o);
     const BasisSet::Orbital_DFT_IBS<double>& dft = ibs;
     EXPECT_LT(fnorm(lc.OverlapThreeC_Matrix(lfit),   dft.Overlap3C(*fit)),   1e-10);

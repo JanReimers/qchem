@@ -11,8 +11,8 @@ template <class T> IntegralConstrainedFF<T>::IntegralConstrainedFF()
 {};
 
 template <class T> IntegralConstrainedFF<T>::
-IntegralConstrainedFF(bs_t& fbs, mesh_t&  m)
-    : ConstrainedFF<T>(fbs,fbs->Charge(),m)
+IntegralConstrainedFF(bs_t& fbs)
+    : ConstrainedFF<T>(fbs,fbs->Charge())
     {};
 
 template class IntegralConstrainedFF<double>;

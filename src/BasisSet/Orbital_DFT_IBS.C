@@ -19,8 +19,8 @@ public:
     //! 3 centre repulsion used for DFT \f$\left\langle a\left(1\right)b\left(1\right)\left|\frac{1}{r_{12}}\right|c\left(2\right)\right\rangle =\int d^{3}\vec{r}_{1}\:d^{3}\vec{r}_{2}\:g_{a}\left(\vec{r}_{1}\right)g_{b}\left(\vec{r}_{1}\right)\frac{1}{r_{12}}f_{c}\left(\vec{r}_{2}\right) \f$
     virtual const ERI3<T>& Repulsion3C(const Fit_IBS& c) const;
 
-    virtual Fit_IBS* CreateCDFitBasisSet (const Structure*) const=0;
-    virtual Fit_IBS* CreateVxcFitBasisSet(const Structure*) const=0;
+    virtual Fit_IBS* CreateCDFitBasisSet (const Structure*, const MeshParams&) const=0;
+    virtual Fit_IBS* CreateVxcFitBasisSet(const Structure*, const MeshParams&) const=0;
     virtual vec_t<T> Overlap3C  (const smat_t<T>& Dcd, const Fit_IBS* c) const;
     virtual vec_t<T> Repulsion3C(const smat_t<T>& Dcd, const Fit_IBS* c) const;
 protected:

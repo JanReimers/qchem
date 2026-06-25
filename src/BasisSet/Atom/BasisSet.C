@@ -49,13 +49,17 @@ public:
         };
 
 
-        virtual Fit_IBS* CreateCDFitBasisSet(const Structure*) const 
+        virtual Fit_IBS* CreateCDFitBasisSet(const Structure* cl, const MeshParams& mp) const
         {
-            return new EFit_IBS(Evaluator::Rescale(2.0, this->GetSymt()));
+            auto* f = new EFit_IBS(Evaluator::Rescale(2.0, this->GetSymt()));
+            f->SetMesh(*cl, mp);
+            return f;
         }
-        virtual Fit_IBS* CreateVxcFitBasisSet(const Structure*) const
+        virtual Fit_IBS* CreateVxcFitBasisSet(const Structure* cl, const MeshParams& mp) const
         {
-            return new EFit_IBS(Evaluator::Rescale(2.0/3.0, this->GetSymt()));
+            auto* f = new EFit_IBS(Evaluator::Rescale(2.0/3.0, this->GetSymt()));
+            f->SetMesh(*cl, mp);
+            return f;
         }
 
         virtual std::ostream&  Write(std::ostream& os) const

@@ -20,7 +20,6 @@ module;
 #include <memory>
 export module qchem.Fitting.FunctionFitter;
 export import qchem.ScalarFunction;   // ScalarFunction<double> (operator(), Gradient) + Types
-export import qchem.Mesh1;            // qcMesh1::Mesh (the fit quadrature mesh)
 import qchem.Fitting.Types;           // fbs_t, obs_t<T>
 import qchem.Blaze;                   // smat_t<T>
 
@@ -47,7 +46,6 @@ public:
 template <class T> class FunctionFitter : public virtual ScalarFunction<double>
 {
 public:
-    typedef std::shared_ptr<const qcMesh1::Mesh>  mesh_t;
     typedef std::shared_ptr<const fbs_t> bs_t;
 
     // --- "please fit me" + post-fit utilities ---
@@ -80,6 +78,6 @@ enum class FitFlavour
 //! \brief Create a fitter of the requested flavour on the given fit basis + mesh.  Caller owns the result;
 //! the concrete type stays hidden behind the FunctionFitter interface.
 std::unique_ptr<FunctionFitter<double>>
-MakeFunctionFitter(FitFlavour, std::shared_ptr<const fbs_t>&, std::shared_ptr<const qcMesh1::Mesh>&);
+MakeFunctionFitter(FitFlavour, std::shared_ptr<const fbs_t>&);
 
 } //namespace

@@ -17,10 +17,9 @@ export namespace qchem::ChargeDensity
 template <class T> class FittedCDImp
     : public virtual FittedCD
 {
-     typedef typename Fitting::FunctionFitter<T>::mesh_t mesh_t;
      typedef typename Fitting::FunctionFitter<T>::bs_t   bs_t;
 public:
-    FittedCDImp(bs_t&, mesh_t&, double totalCharge);
+    FittedCDImp(bs_t&, double totalCharge);
     FittedCDImp(const FittedCDImp&) = delete;   //!< copying would slice the fitter's constraint
 
     // FittedCD  (DoFit delegates to the COMPOSED fitter; the fitter answers the energy queries)

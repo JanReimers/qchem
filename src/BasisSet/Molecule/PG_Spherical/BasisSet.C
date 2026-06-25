@@ -65,8 +65,8 @@ public:
     Orbital_IBS(Reader*, const Structure*);
     Orbital_IBS(const rvec_t& exponents, size_t L, const Structure*);
 
-    virtual Fit_IBS* CreateCDFitBasisSet (const Structure*) const;
-    virtual Fit_IBS* CreateVxcFitBasisSet(const Structure*) const;
+    virtual Fit_IBS* CreateCDFitBasisSet (const Structure*, const MeshParams&) const;
+    virtual Fit_IBS* CreateVxcFitBasisSet(const Structure*, const MeshParams&) const;
 };
 // The spherical fit (auxiliary) basis: same IBS tree, exposing the Coulomb-fit metric + charges.  E prefix
 // to avoid the clash with the interface class Fit_IBS (as in PG_Cart).

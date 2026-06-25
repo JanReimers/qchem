@@ -13,9 +13,9 @@ namespace qchem::Hamiltonian
 {
 
 
-FittedVxcPol::FittedVxcPol(bs_t& bs, ex_t& lda, mesh_t& m)
-    : itsUpVxc               (new FittedVxc(bs,lda,m))
-    , itsDownVxc             (new FittedVxc(bs,lda,m))
+FittedVxcPol::FittedVxcPol(bs_t& bs, ex_t& lda)
+    : itsUpVxc               (new FittedVxc(bs,lda))
+    , itsDownVxc             (new FittedVxc(bs,lda))
 {
     assert(itsUpVxc);
     assert(itsDownVxc);

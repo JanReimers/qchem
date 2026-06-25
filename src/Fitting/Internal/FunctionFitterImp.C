@@ -17,11 +17,10 @@ template <class T> class FunctionFitterImp
     : public virtual FunctionFitter<T>
 {
 public:
-    typedef std::shared_ptr<const qcMesh1::Mesh>  mesh_t;
     typedef std::shared_ptr<const fbs_t> bs_t;
 
     FunctionFitterImp(                                         );
-    FunctionFitterImp(bs_t&, mesh_t&);
+    FunctionFitterImp(bs_t&);
     ~FunctionFitterImp();
 
     virtual void   DoFit           (const ScalarFFClient& )      ;
@@ -47,7 +46,6 @@ protected:
 public: //Client code needs read access to this data.
     bs_t     itsBasisSet;
     vec_t<T> itsFitCoeff;
-    mesh_t   itsMesh;
 };
 
 template <class T> class ConstrainedFF
@@ -55,11 +53,10 @@ template <class T> class ConstrainedFF
 {
     typedef FunctionFitterImp<T> Base;
 public:
-    typedef typename Base::mesh_t mesh_t;
     typedef typename Base::bs_t   bs_t;
 
     ConstrainedFF();
-    ConstrainedFF(bs_t&, const vec_t<T>& g, mesh_t&  m);
+    ConstrainedFF(bs_t&, const vec_t<T>& g);
 
     virtual void   DoFit(const ScalarFFClient&);
     virtual void   DoFit(const DensityFFClient&);
@@ -75,11 +72,10 @@ template <class T> class IntegralConstrainedFF
     : public ConstrainedFF<T>
 {
 public:
-    typedef typename ConstrainedFF<T>::mesh_t mesh_t;
     typedef typename ConstrainedFF<T>::bs_t   bs_t;
 
     IntegralConstrainedFF(              );
-    IntegralConstrainedFF(bs_t&, mesh_t&);
+    IntegralConstrainedFF(bs_t&);
 };
 
 } //namespace

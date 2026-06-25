@@ -15,8 +15,8 @@ import qchem.Hamiltonian.Types;
 namespace qchem::Hamiltonian
 {
 
-FittedVee::FittedVee(bs_t& chargeDensityFitBasisSet, mesh_t&  m, double numElectrons)
-    : itsFittedChargeDensity(ChargeDensity::FittedCD_Factory(chargeDensityFitBasisSet,m,numElectrons))
+FittedVee::FittedVee(bs_t& chargeDensityFitBasisSet, double numElectrons)
+    : itsFittedChargeDensity(ChargeDensity::FittedCD_Factory(chargeDensityFitBasisSet,numElectrons))
 {
     assert(itsFittedChargeDensity);
 };

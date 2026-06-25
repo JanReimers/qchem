@@ -16,8 +16,8 @@ template <class T> ConstrainedFF<T>::ConstrainedFF()
 {}
 
 template <class T> ConstrainedFF<T>::
-ConstrainedFF(bs_t& fbs, const vec_t<T>& theg, mesh_t&  m)
-    : FunctionFitterImp<T>(fbs,m)
+ConstrainedFF(bs_t& fbs, const vec_t<T>& theg)
+    : FunctionFitterImp<T>(fbs)
     , g  (theg)
     , gS (blazem::trans(g)*fbs->InvRepulsion())
     , gSg(gS*g)
