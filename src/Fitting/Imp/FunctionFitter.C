@@ -8,7 +8,7 @@ namespace qchem::Fitting
 {
 
 std::unique_ptr<FunctionFitter<double>>
-MakeFunctionFitter(FitFlavour flavour, std::shared_ptr<const fbs_t>& bs, std::shared_ptr<const Mesh>& m)
+MakeFunctionFitter(FitFlavour flavour, std::shared_ptr<const fbs_t>& bs, std::shared_ptr<const qcMesh1::Mesh>& m)
 {
     switch (flavour)
     {

@@ -11,6 +11,7 @@ import qchem.Fitting.FunctionFitter;          // Fitting::FunctionFitter (compos
 import qchem.ChargeDensity;
 import qchem.FittedCD;
 import qchem.Mesh;
+import qchem.Mesh1;                   // qcMesh1::Mesh (fitted-potential quadrature mesh)
 import qchem.Hamiltonian.Types;
 
 
@@ -146,7 +147,7 @@ private:
 class FittedVee : public virtual Dynamic_HT, private Dynamic_HT_Imp
 {
 public:
-    typedef std::shared_ptr<const Mesh>  mesh_t;
+    typedef std::shared_ptr<const qcMesh1::Mesh>  mesh_t;
     typedef std::shared_ptr<const fbs_t> bs_t;
     FittedVee(bs_t& chargeDensityFitBasisSet, mesh_t& m, double numElectrons);
     ~FittedVee();   // anchored in the Imp TU (FittedCD complete there) so the unique_ptr can delete it
@@ -187,10 +188,10 @@ private:
 class FittedVxcPol : public virtual Dynamic_HT, private Dynamic_HT_Imp_NoCache
 {
 public:
-    typedef std::shared_ptr<const Mesh>          mesh_t;
+    typedef std::shared_ptr<const qcMesh1::Mesh>  mesh_t;
     typedef std::shared_ptr<const fbs_t>         bs_t;
     typedef std::shared_ptr<      ExFunctional>  ex_t;
-    
+
     FittedVxcPol(bs_t&, ex_t&, mesh_t& );
    ~FittedVxcPol();
     // Required by HamiltonianTerm

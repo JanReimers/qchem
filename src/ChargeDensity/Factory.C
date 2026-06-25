@@ -5,11 +5,12 @@ export module qchem.ChargeDensity.Factory;
 export import qchem.ChargeDensity;
 export import qchem.FittedCD;
 import qchem.ChargeDensity.Types;
+import qchem.Mesh1;                   // qcMesh1::Mesh
 
 
 export namespace qchem::ChargeDensity
 {
-    typedef std::shared_ptr<const Mesh>  mesh_t;
+    typedef std::shared_ptr<const qcMesh1::Mesh>  mesh_t;
     typedef std::shared_ptr<const fbs_t> bs_t;
 
     template <class T> tDM_CD<T>* IrrepCD_Factory(const hmat_t<T>& DM,const tobs_t<T>* bs, Irrep); // DM Hermitian

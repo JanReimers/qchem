@@ -5,7 +5,7 @@ module;
 #include <vector>
 
 module qchem.ChargeDensity.Imp.FittedCD;
-import qchem.Mesh;
+import qchem.Mesh1;
 import qchem.Blaze;
 import qchem.Math;
 

@@ -6,7 +6,7 @@ module;
 module qchem.Fitting.Internal.FunctionFitterImp;
 import qchem.Fitting.Types;
 
-import qchem.Mesh;
+import qchem.Mesh1;
 import qchem.Streamable;
 import qchem.Blaze;
 

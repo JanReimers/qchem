@@ -3,7 +3,8 @@ module;
 export module qchem.BasisSet.Fit_IBS;
 export import qchem.BasisSet.IrrepBasisSet;
 export import qchem.ScalarFunction;
-export import qchem.Mesh;
+export import qchem.Mesh;             // old Mesh still re-exported for downstream evaluators
+export import qchem.Mesh1;            // qcMesh1::Mesh -- the fit quadrature mesh
 
 export namespace BasisSet
 {
@@ -22,17 +23,14 @@ public:
     const rsmat_t& InvOverlap() const;
     const rsmat_t& InvRepulsion() const;
 
-    // Pure numerial versions
-    virtual  const rvec_t& Norm   (const Mesh*        ) const; //Numerical .
-    // virtual  const rvec_t& Charge (const Mesh*        ) const=0; //Numerical .
-    virtual  const rmat_t& Overlap(const Mesh*,const Fit_IBS& b) const; //Numerical X overlap.
+    // Pure numerical versions (quadrature over the qcMesh1 fit mesh).
+    virtual  const rvec_t& Norm   (const qcMesh1::Mesh*) const; //Numerical .
+    virtual  const rmat_t& Overlap(const qcMesh1::Mesh*,const Fit_IBS& b) const; //Numerical X overlap.
     //
-    //  These are used for charge and Vxc fitting.  They change with iterations
-    //  So they MUST not be cached.
+    //  This is used for Vxc fitting.  It changes with iterations, so it MUST NOT be cached.
     //
     typedef ScalarFunction<double> Sf;
-    virtual rvec_t Overlap    (const Mesh*,const Sf&) const; //Numerical  
-    virtual rvec_t Repulsion  (const Mesh*,const Sf&) const; //Numerical 
+    virtual rvec_t Overlap    (const qcMesh1::Mesh*,const Sf&) const; //Numerical projection <f_a|f>
 
 protected:
     virtual  rvec_t MakeCharge      () const=0; 
@@ -41,9 +39,8 @@ protected:
     virtual rsmat_t MakeInvOverlap  () const;
     virtual rsmat_t MakeInvRepulsion() const;
 
-    virtual  rvec_t MakeNorm   (const Mesh*        ) const; //Numerical .
-    // virtual  rvec_t MakeCharge (const Mesh*        ) const; //Numerical .
-    virtual  rmat_t MakeOverlap(const Mesh*,const Fit_IBS& b) const; //Numerical X overlap.
+    virtual  rvec_t MakeNorm   (const qcMesh1::Mesh*) const; //Numerical .
+    virtual  rmat_t MakeOverlap(const qcMesh1::Mesh*,const Fit_IBS& b) const; //Numerical X overlap.
 
 };
 

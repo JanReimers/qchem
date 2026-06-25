@@ -9,9 +9,34 @@ import qchem.Hamiltonian.Internal.SlaterExchange;
 import qchem.Hamiltonian.Internal.VWN_Correlation;
 import qchem.Hamiltonian.Types;
 import qchem.Structure;
+import qchem.Structure.MolecularMesh1;   // MakeMolecularMesh (the clean-room Becke mesh)
+import qchem.Mesh1;                       // qcMesh1::Mesh / MeshParams
 
 namespace qchem::Hamiltonian
 {
+
+namespace
+{
+// The fitted-potential mesh is the Becke molecular mesh.  The old DFT path hardwired MHL radial +
+// Gauss angular (Atom::CreateMesh), so reproduce that mapping from the old MeshParams.
+qcMesh1::MeshParams Translate(const MeshParams& mp)
+{
+    qcMesh1::MeshParams np;
+    np.radial   = qcMesh1::RadialKind::MHL;
+    np.nRadial  = static_cast<int>(mp.Nradial);
+    np.mhl_m    = static_cast<int>(mp.MHL_m);
+    np.mhl_alpha= mp.MHL_alpha;
+    np.angular  = qcMesh1::AngularKind::Gauss;
+    np.nAngular = static_cast<int>(mp.Nangle);
+    return np;
+}
+// Build the shared fit mesh for a structure (atoms -> single-center; molecules -> Becke).
+std::shared_ptr<const qcMesh1::Mesh> MakeFitMesh(const Structure& st, const MeshParams& mp)
+{
+    return std::make_shared<const qcMesh1::Mesh>(
+        MakeMolecularMesh(st, Translate(mp), static_cast<int>(mp.m_mu)));
+}
+} //anon
 
 Ham_1E::Ham_1E(const st_t& st) 
 {
@@ -35,7 +60,7 @@ Ham_DFT_U::Ham_DFT_U(const st_t& st,ExFunctional* ex, const MeshParams& mp, cons
     InsertStandardTerms(st);
        
     FittedVee::bs_t   CFitBasis(bs->CreateCDFitBasisSet(st.get()));
-    FittedVee::mesh_t m(st->CreateMesh(mp));
+    FittedVee::mesh_t m = MakeFitMesh(*st, mp);
     Add(new FittedVee(CFitBasis,m,st->GetNumElectrons()));
 
     FittedVxc::ex_t XcFunct(ex);
@@ -50,7 +75,7 @@ Ham_DFTcorr_U::Ham_DFTcorr_U(const st_t& st, const MeshParams& mp, const bs_t* b
     InsertStandardTerms(st);
 
     FittedVee::bs_t   CFitBasis(bs->CreateCDFitBasisSet(st.get()));
-    FittedVee::mesh_t m(st->CreateMesh(mp));
+    FittedVee::mesh_t m = MakeFitMesh(*st, mp);
     Add(new FittedVee(CFitBasis,m,st->GetNumElectrons()));
 
     FittedVxc::bs_t XFitBasis(bs->CreateVxcFitBasisSet(st.get())); // ONE Vxc fit basis, shared X and C
@@ -90,7 +115,7 @@ Ham_DFT_P::Ham_DFT_P(const st_t& st,ExFunctional* ex, const MeshParams& mp, cons
 {
     InsertStandardTerms(st);
     FittedVee::bs_t CFitBasis(bs->CreateCDFitBasisSet(st.get()));
-    FittedVee::mesh_t  m(st->CreateMesh(mp));
+    FittedVee::mesh_t  m = MakeFitMesh(*st, mp);
     Add(new FittedVee(CFitBasis,m,st->GetNumElectrons()));
     
     FittedVxcPol::ex_t XcFunct(ex);
