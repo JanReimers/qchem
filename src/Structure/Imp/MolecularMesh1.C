@@ -39,14 +39,14 @@ qcMesh1::Mesh MakeMolecularMesh(const Structure& cl, const qcMesh1::MeshParams& 
     std::vector<rvec3_t> R(natom);
     for (size_t i=0; i<natom; i++) R[i]=cl[i]->itsR;
 
-    auto rad=MakeRadial(mp);             // one single-center template reused (ShiftOrigin per atom)
-    auto ang=MakeAngular(mp);
+    qcMesh1::RadialMesh  rad=MakeRadial(mp);   // one single-center template reused (ShiftOrigin per atom)
+    qcMesh1::AngularMesh ang=MakeAngular(mp);
 
     MeshBuilder out;
     std::vector<double> dist(natom), P(natom);
     for (size_t ia=0; ia<natom; ia++)
     {
-        qcMesh1::Mesh am=ProductMesh(*rad,*ang);
+        qcMesh1::Mesh am=ProductMesh(rad,ang);
         am.ShiftOrigin(R[ia]);
         const rvec3vec_t& pts=am.Points();
         const rvec_t&     wts=am.Weights();

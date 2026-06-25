@@ -1,26 +1,27 @@
-// File: Internal/LinearRadialMesh.C  Uniform radial mesh with trapezoidal r^2 weights.
+// File: Internal/LinearRadialMesh.C  Uniform radial mesh builder with trapezoidal r^2 weights.
 // Elementary quadrature (NOT a transplanted special scheme): r_i evenly spaced on [start,stop],
 // w_i = (trapezoid weight in r) * r_i^2, so sum_i w_i f(r_i) ~ integral_start^stop r^2 f dr.
 module;
 #include <cassert>
-module qchem.Mesh1.Radial.Internal;
+#include <utility>
+module qchem.Mesh1.Radial;
 
 namespace qcMesh1
 {
 
-LinearRadialMesh::LinearRadialMesh(double start, double stop, int NumPoints)
+RadialMesh LinearRadial(double start, double stop, int NumPoints)
 {
     assert(NumPoints>=2);
-    itsR.resize(NumPoints);
-    itsW.resize(NumPoints);
+    rvec_t R(NumPoints), W(NumPoints);
     double dr=(stop-start)/(NumPoints-1);
     for (int i=0; i<NumPoints; i++)
     {
         double r=start+i*dr;
         double trap=(i==0 || i==NumPoints-1) ? 0.5*dr : dr;
-        itsR[i]=r;
-        itsW[i]=trap*r*r;
+        R[i]=r;
+        W[i]=trap*r*r;
     }
+    return RadialMesh(std::move(R), std::move(W));
 }
 
 } //namespace qcMesh1

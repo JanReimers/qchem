@@ -79,9 +79,9 @@ TEST(Mesh1_GaussLegendre, PolynomialExactness)
 //================================================================================================
 static double RadialIntegralExp(const MeshParams& p)
 {
-    auto m=MakeRadial(p);
+    RadialMesh m=MakeRadial(p);
     double I=0;
-    for (size_t i=0;i<m->size();i++) I+=m->W()[i]*std::exp(-2*m->R()[i]);
+    for (size_t i=0;i<m.size();i++) I+=m.W()[i]*std::exp(-2*m.R()[i]);
     return I;
 }
 
@@ -107,10 +107,10 @@ TEST(Mesh1_Radial, Linear)
 // sum W = 4*pi, and integral z^2 dOmega = 4*pi/3 to the scheme's tolerance ztol.
 static void CheckAngular(const MeshParams& p, double sumtol, double ztol)
 {
-    auto a=MakeAngular(p);
-    EXPECT_NEAR(Sum(a->W()),FourPi,sumtol);
+    AngularMesh a=MakeAngular(p);
+    EXPECT_NEAR(Sum(a.W()),FourPi,sumtol);
     double zz=0;
-    for (size_t j=0;j<a->size();j++) zz+=a->W()[j]*a->Dirs()[j].z*a->Dirs()[j].z;
+    for (size_t j=0;j<a.size();j++) zz+=a.W()[j]*a.Dirs()[j].z*a.Dirs()[j].z;
     EXPECT_NEAR(zz,FourPi/3.0,ztol);
 }
 TEST(Mesh1_Angular, Gauss)
@@ -139,9 +139,9 @@ static Mesh MakeProduct()
     MeshParams p;
     p.radial=RadialKind::MHL; p.nRadial=200; p.mhl_m=2; p.mhl_alpha=3.0;
     p.angular=AngularKind::Gauss; p.nAngular=12;
-    auto rad=MakeRadial(p);
-    auto ang=MakeAngular(p);
-    return ProductMesh(*rad,*ang);
+    RadialMesh  rad=MakeRadial(p);
+    AngularMesh ang=MakeAngular(p);
+    return ProductMesh(rad,ang);
 }
 
 TEST(Mesh1_Product, ExpIntegral)        // integral exp(-2r) d^3r = 4*pi * 0.25 = pi

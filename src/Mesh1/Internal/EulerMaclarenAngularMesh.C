@@ -1,23 +1,24 @@
-// File: Internal/EulerMaclarenAngularMesh.C  Euler-Maclaren(theta) x uniform(phi) angular mesh.
+// File: Internal/EulerMaclarenAngularMesh.C  Euler-Maclaren(theta) x uniform(phi) angular builder.
 // Transplanted VERBATIM from src/Mesh/Internal/EulerMaclarenAngularMesh.C.  m in {1,2,3} sets the
 // theta variable transform / clustering.  Weights sum to 4*pi.
 module;
 #include <cmath>
 #include <cassert>
-module qchem.Mesh1.Angular.Internal;
+#include <utility>
+module qchem.Mesh1.Angular;
 import qchem.Math;
 
 namespace qcMesh1
 {
 
-EulerMaclarenAngularMesh::EulerMaclarenAngularMesh(int L, int m)
+AngularMesh EulerMaclarenAngular(int L, int m)
 {
     assert(m>=1 && m<=3);
     int numTheta=(L+1)/2;
     int numPhi  =(L+1);
     int numDir  =numTheta*numPhi;
-    itsD.resize(numDir);
-    itsW.resize(numDir);
+    rvec3vec_t D(numDir);
+    rvec_t     W(numDir);
 
     rvec_t thetas(numTheta), Wt(numTheta);
     {
@@ -49,10 +50,11 @@ EulerMaclarenAngularMesh::EulerMaclarenAngularMesh(int L, int m)
         for (int ip=0; ip<numPhi; ip++,k++)
         {
             double t=thetas[it], p=delPhi*ip;
-            itsD[k]=rvec3_t(std::sin(t)*std::sin(p), std::sin(t)*std::cos(p), std::cos(t));
-            itsW[k]=Wt[it]*delPhi;
+            D[k]=rvec3_t(std::sin(t)*std::sin(p), std::sin(t)*std::cos(p), std::cos(t));
+            W[k]=Wt[it]*delPhi;
         }
     assert(k==numDir);
+    return AngularMesh(std::move(D), std::move(W));
 }
 
 } //namespace qcMesh1

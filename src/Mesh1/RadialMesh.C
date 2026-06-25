@@ -1,10 +1,11 @@
-// File: RadialMesh.C  Abstract radial quadrature mesh + typed factory.
+// File: RadialMesh.C  Radial quadrature mesh (concrete value type) + typed factory.
 //
 // A 1D radial mesh: nodes r_i and weights w_i with the r^2 jacobian ALREADY folded into w_i, so
-// that  sum_i w_i f(r_i) ~ integral_0^inf r^2 f(r) dr.  Storage lives in the base (every concrete
-// stores the same two arrays); the concretes only differ in how they fill them.
+// that  sum_i w_i f(r_i) ~ integral_0^inf r^2 f(r) dr.  The schemes (MHL/Log/Linear) are plain
+// builder FUNCTIONS that return a RadialMesh -- no class hierarchy (the old per-scheme classes did
+// nothing but fill these two arrays).
 module;
-#include <memory>
+#include <utility>
 export module qchem.Mesh1.Radial;
 export import qchem.Types;
 export import qchem.Mesh1;            // RadialKind, MeshParams
@@ -15,15 +16,25 @@ export namespace qcMesh1
 class RadialMesh
 {
 public:
-    virtual ~RadialMesh() = default;
+    RadialMesh() = default;
+    RadialMesh(rvec_t r, rvec_t w) : itsR(std::move(r)), itsW(std::move(w)) {}
     const rvec_t& R() const {return itsR;}   //!< r_i
     const rvec_t& W() const {return itsW;}   //!< w_i  (includes the r^2 jacobian)
     size_t      size() const {return itsR.size();}
-protected:
+private:
     rvec_t itsR, itsW;
 };
 
 //! \brief Build a radial mesh of the requested kind from the typed parameters.
-std::unique_ptr<RadialMesh> MakeRadial(const MeshParams&);
+RadialMesh MakeRadial(const MeshParams&);
 
 } //export namespace qcMesh1
+
+// Per-scheme builders -- declared NON-exported here, implemented in separate files; only MakeRadial
+// (above) calls them.
+namespace qcMesh1
+{
+    RadialMesh MHLRadial   (int NumPoints, int m, double alpha);
+    RadialMesh LogRadial   (double start, double stop, int NumPoints);
+    RadialMesh LinearRadial(double start, double stop, int NumPoints);
+}

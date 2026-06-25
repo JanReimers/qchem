@@ -1,7 +1,7 @@
-// File: Internal/GaussAngularMesh.C  Gauss product-free angular meshes.  Transplanted VERBATIM
-// from src/Mesh/Internal/GaussAngularMesh.C, with ONE correction: the original case-24 block
-// wrote D[29] (out of range, leaving D[19] uninitialised); by the scheme's symmetry it is
-// D[19] = ( t,-s, r).  Weights are normalised so sum = 4*pi.
+// File: Internal/GaussAngularMesh.C  Gauss product-free angular mesh builder.  Transplanted VERBATIM
+// from src/Mesh/Internal/GaussAngularMesh.C, with ONE correction: the original case-24 block wrote
+// D[29] (out of range, leaving D[19] uninitialised); by the scheme's symmetry it is D[19]=(t,-s,r).
+// Weights are normalised so sum = 4*pi.
 //
 // VERIFIED (sum W = 4*pi exactly, integral z^2 dOmega = 4*pi/3): numDir = 12, 24, 30, 50.
 //   - numDir=24, 30: the direction constants in the table are only ~7 figures (e.g. for 24
@@ -13,18 +13,17 @@ module;
 #include <cmath>
 #include <cassert>
 #include <stdexcept>
-module qchem.Mesh1.Angular.Internal;
+#include <utility>
+module qchem.Mesh1.Angular;
 import qchem.Math;
 
 namespace qcMesh1
 {
 
-GaussAngularMesh::GaussAngularMesh(int numDir)
+AngularMesh GaussAngular(int numDir)
 {
-    itsD.resize(numDir);
-    itsW.resize(numDir);
-    rvec3vec_t& D=itsD;
-    rvec_t&     W=itsW;
+    rvec3vec_t D(numDir);
+    rvec_t     W(numDir);
     for (int i=0; i<numDir; i++) W[i]=1.0/numDir;
     using std::sqrt;
     switch (numDir)
@@ -226,10 +225,11 @@ GaussAngularMesh::GaussAngularMesh(int numDir)
         break;
     }
     default:
-        throw std::runtime_error("GaussAngularMesh: unsupported numDir (use 1,2,6,8,12,24,30,50)");
+        throw std::runtime_error("GaussAngular: unsupported numDir (use 1,2,6,8,12,24,30,50)");
     }
     for (int i=0; i<numDir; i++) W[i]*=FourPi;   // normalise: sum W = 4*pi
     assert(W.size()==D.size());
+    return AngularMesh(std::move(D), std::move(W));
 }
 
 } //namespace qcMesh1

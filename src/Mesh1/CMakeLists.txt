@@ -20,8 +20,6 @@ target_sources(qcMesh1 PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Product.C
     Quadrature.C
     Builder.C
-    Internal/RadialTypes.C
-    Internal/AngularTypes.C
     )
 set_property(TARGET qcMesh1 PROPERTY CXX_STANDARD 20)
 target_include_directories(qcMesh1 PRIVATE ${PROJECT_SOURCE_DIR}/submodules/blaze)

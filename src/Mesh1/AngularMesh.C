@@ -1,9 +1,10 @@
-// File: AngularMesh.C  Abstract angular quadrature mesh + typed factory.
+// File: AngularMesh.C  Angular quadrature mesh (concrete value type) + typed factory.
 //
-// Unit directions Omega_i and weights w_i normalised so that  sum_i w_i = 4*pi  (i.e.
-// sum_i w_i g(Omega_i) ~ integral g dOmega).  Storage lives in the base; concretes fill it.
+// Unit directions Omega_i and weights w_i normalised so that  sum_i w_i = 4*pi.  The schemes
+// (Gauss / GaussLegendre / EulerMaclaren) are plain builder FUNCTIONS that return an AngularMesh --
+// no class hierarchy.
 module;
-#include <memory>
+#include <utility>
 export module qchem.Mesh1.Angular;
 export import qchem.Types;
 export import qchem.Mesh1;            // AngularKind, MeshParams
@@ -14,16 +15,26 @@ export namespace qcMesh1
 class AngularMesh
 {
 public:
-    virtual ~AngularMesh() = default;
+    AngularMesh() = default;
+    AngularMesh(rvec3vec_t d, rvec_t w) : itsD(std::move(d)), itsW(std::move(w)) {}
     const rvec3vec_t& Dirs() const {return itsD;}   //!< unit directions Omega_i
     const rvec_t&     W   () const {return itsW;}   //!< weights, sum = 4*pi
     size_t          size  () const {return itsD.size();}
-protected:
+private:
     rvec3vec_t itsD;
     rvec_t     itsW;
 };
 
 //! \brief Build an angular mesh of the requested kind from the typed parameters.
-std::unique_ptr<AngularMesh> MakeAngular(const MeshParams&);
+AngularMesh MakeAngular(const MeshParams&);
 
 } //export namespace qcMesh1
+
+// Per-scheme builders -- declared NON-exported here, implemented in separate files; only MakeAngular
+// (above) calls them.
+namespace qcMesh1
+{
+    AngularMesh GaussAngular        (int numDir);
+    AngularMesh GaussLegendreAngular(int L);
+    AngularMesh EulerMaclarenAngular(int L, int m);
+}
