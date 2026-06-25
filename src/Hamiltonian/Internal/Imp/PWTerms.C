@@ -6,6 +6,8 @@ module;
 module qchem.Hamiltonian.Internal.PWTerms;
 import qchem.Energy;
 import qchem.ChargeDensity;
+import qchem.ChargeDensity.FourierDensity;   // cast cd UP to its reciprocal-space coefficients rho-tilde
+import qchem.BasisSet.FourierDFT_IBS;         // cast bs UP to the G-space (FFT-free Hartree) capability
 import qchem.ScalarFunction;
 
 namespace qchem::Hamiltonian
@@ -84,10 +86,14 @@ std::ostream& PW_Kinetic::Write(std::ostream& os) const
 chmat_t PW_Hartree::CalcMatrix(const cobs_t* bs, const Spin&, const cDM_CD* cd) const
 {
     newCD(cd);   // dirty the Irrep cache if cd is new (the cross-iteration freshness mechanism)
-    auto pw=dynamic_cast<const BasisSet::DFTPotential_IBS<dcmplx>*>(bs);
-    assert(pw && "PW_Hartree requires a DFTPotential_IBS (e.g. plane-wave) basis");
+    // G-space Poisson solve: take the density's reciprocal-space coefficients rho-tilde (composite =
+    // Sum_k w_k rho_k) and assemble V_H(dm)=4pi rho-tilde/G^2 directly -- no O(Npts*n^2) pointwise rho(r).
+    auto pw=dynamic_cast<const BasisSet::FourierDFT_IBS*>(bs);
+    auto fd=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(cd);
+    assert(pw && "PW_Hartree requires a FourierDFT_IBS (plane-wave) basis");
+    assert(fd && "PW_Hartree requires a FourierDensity (periodic) charge density");
     double Eh;
-    return pw->IntegralHartree(*cd, Eh);   // cd IS-A ScalarFunction<double> (the density rho(r))
+    return pw->IntegralHartree(fd->GetFourierDensity(), Eh);
 }
 
 void PW_Hartree::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
