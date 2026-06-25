@@ -98,31 +98,56 @@ public:
         return s/std::sqrt(FourPi);
     }
 
-private:
-    struct Proj { int l; double rl; double D; std::vector<double> v; };  //!< one diagonalised KB projector
-    std::vector<Proj> itsProj;
-
-    //! Diagonalise a channel's symmetric h-matrix into independent KB projectors.
+    //! \brief Add an angular channel from its symmetric KB coefficient matrix \a h (the HGH h-matrix
+    //! for momentum \a l, with projector radius \a rl): diagonalise into independent KB projectors
+    //! \f$|\beta\rangle D\langle\beta|\f$.  A 0x0 \a h (a tabulated channel with no projectors) adds
+    //! nothing.  Public so the GTH table reader can assemble a potential channel-by-channel.
     void AddChannel(int l, double rl, const std::vector<std::vector<double>>& h)
     {
         for (auto& [lambda,v] : SymEig(h)) itsProj.push_back(Proj{l, rl, lambda, std::move(v)});
     }
 
-    //! Eigenpairs (lambda, normalised eigenvector) of a small symmetric matrix (HGH needs only 1x1, 2x2).
+private:
+    struct Proj { int l; double rl; double D; std::vector<double> v; };  //!< one diagonalised KB projector
+    std::vector<Proj> itsProj;
+
+    //! Eigenpairs (lambda, normalised eigenvector) of a small symmetric matrix, by cyclic Jacobi.  The KB
+    //! form needs the spectral decomposition Sum_p lambda_p v_p v_p^T, which is invariant to eigenvector
+    //! sign and ordering -- so any correct symmetric eigensolver gives the same potential.  Handles n=0
+    //! (no projectors) and n=1 (trivial) as well as the 2x2/3x3 HGH channels.
     static std::vector<std::pair<double,std::vector<double>>> SymEig(const std::vector<std::vector<double>>& h)
     {
         size_t n=h.size();
-        if (n==1) return {{h[0][0], std::vector<double>{1.0}}};
-        assert(n==2 && "HGH h-matrix: only 1x1 and 2x2 are tabulated here");
-        double a=h[0][0], b=h[0][1], d=h[1][1];
-        double mid=0.5*(a+d), rad=std::sqrt(0.25*(a-d)*(a-d)+b*b);
-        auto evec=[&](double lam)->std::vector<double>
+        std::vector<std::pair<double,std::vector<double>>> out;
+        if (n==0) return out;
+
+        std::vector<std::vector<double>> A=h;                              // working copy, diagonalised in place
+        std::vector<std::vector<double>> V(n, std::vector<double>(n,0.0)); // accumulated eigenvectors (-> identity)
+        for (size_t i=0;i<n;i++) V[i][i]=1.0;
+
+        for (int sweep=0; sweep<100; sweep++)
         {
-            std::vector<double> v = (std::abs(b)>1e-300) ? std::vector<double>{b, lam-a}
-                                  : (lam>=a ? std::vector<double>{1.0,0.0} : std::vector<double>{0.0,1.0});
-            double nrm=std::sqrt(v[0]*v[0]+v[1]*v[1]); v[0]/=nrm; v[1]/=nrm; return v;
-        };
-        return {{mid+rad, evec(mid+rad)}, {mid-rad, evec(mid-rad)}};
+            double off=0.0;
+            for (size_t p=0;p<n;p++) for (size_t q=p+1;q<n;q++) off+=A[p][q]*A[p][q];
+            if (off<1e-30) break;
+            for (size_t p=0;p<n;p++) for (size_t q=p+1;q<n;q++)
+            {
+                if (std::abs(A[p][q])<1e-300) continue;
+                double theta=(A[q][q]-A[p][p])/(2*A[p][q]);
+                double t=(theta>=0?1.0:-1.0)/(std::abs(theta)+std::sqrt(theta*theta+1.0));
+                double c=1.0/std::sqrt(t*t+1.0), s=t*c;
+                for (size_t k=0;k<n;k++) { double a=A[k][p],b=A[k][q]; A[k][p]=c*a-s*b; A[k][q]=s*a+c*b; }
+                for (size_t k=0;k<n;k++) { double a=A[p][k],b=A[q][k]; A[p][k]=c*a-s*b; A[q][k]=s*a+c*b; }
+                for (size_t k=0;k<n;k++) { double a=V[k][p],b=V[k][q]; V[k][p]=c*a-s*b; V[k][q]=s*a+c*b; }
+            }
+        }
+        for (size_t i=0;i<n;i++)
+        {
+            std::vector<double> vec(n);
+            for (size_t k=0;k<n;k++) vec[k]=V[k][i];
+            out.push_back({A[i][i], std::move(vec)});
+        }
+        return out;
     }
 
     //! HGH momentum-space polynomial Q_i^l(x), x=q r_l (Goedecker/HGH; pyscf _qli, 0-indexed i).

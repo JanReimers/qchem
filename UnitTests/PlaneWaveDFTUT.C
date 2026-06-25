@@ -46,6 +46,7 @@ import qchem.Hamiltonian;                           // cStatic_HT / cDynamic_HT 
 import qchem.Hamiltonian.Internal.Hamiltonian;      // cHamiltonianImp (the dcmplx Hamiltonian = sum of terms)
 import qchem.Hamiltonian.Internal.Hamiltonians;     // Ham_PW_DFT (the assembled plane-wave LDA KS Hamiltonian)
 import qchem.Hamiltonian.Internal.Terms;            // Vnn (ion-ion term: pair sum / Ewald via isFinite)
+import qchem.BasisSet.Lattice_3D.GTH_Potentials;    // GetGTH (CP2K GTH/HGH database reader)
 import qchem.Energy;                                // EnergyBreakdown
 import qchem.ChargeDensity.Imp.IrrepCD;             // IrrepCD<dcmplx> (concrete complex density)
 import qchem.Symmetry.Irrep;                        // Irrep
@@ -64,6 +65,8 @@ import qchem.BasisSet.Internal.BasisSetImp;         // BasisSetImp<dcmplx> (sing
 using BasisSet::Lattice_3D::PlaneWave_IBS;
 using BasisSet::Lattice_3D::HGH_LocalPotential;
 using BasisSet::Lattice_3D::HGH_SeparablePotential;
+using BasisSet::Lattice_3D::GetGTH;
+using BasisSet::Lattice_3D::GTH_PP;
 
 namespace
 {
@@ -744,6 +747,43 @@ TEST_F(PlaneWaveDFT, VnnPeriodicUsesEwald)
     double ref=EwaldEnergy(*cell, rvec_t{4.0,4.0});
     EXPECT_NEAR(eb.Enn, ref, 1e-9);                    // routes through Ewald
     EXPECT_NEAR(eb.Enn, -8.40046, 1e-4);              // == the Si ion-ion Madelung energy
+}
+
+// The GTH database reader (CP2K GTH_POTENTIALS -> JSON) must reproduce the hardcoded Si factories
+// EXACTLY: the assembled external block (local + KB nonlocal) from GetGTH("Si","LDA",4) equals the one
+// from HGH_LocalPotential::Silicon() + HGH_SeparablePotential::Silicon().  This anchors the whole
+// 101-element table against our already-validated Si.
+TEST_F(PlaneWaveDFT, GTHTableReproducesSilicon)
+{
+    const double a=10.26, h=0.5*a;
+    Matrix3D<double> A(0.0,h,h,  h,0.0,h,  h,h,0.0);
+    Lattice_3D lat(UnitCell(A), ivec3_t(1,1,1));
+    PlaneWave_IBS pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
+
+    Molecule si;
+    si.Insert(new Atom(14, rvec3_t(0,0,0)));
+    si.Insert(new Atom(14, rvec3_t(0.25*a,0.25*a,0.25*a)));
+
+    chmat_t Vhard = pw.MakeLocalPotential(&si, HGH_LocalPotential::Silicon())
+                  + pw.MakeSeparablePotential(&si, HGH_SeparablePotential::Silicon());
+
+    GTH_PP pp = GetGTH("Si","LDA",4);                  // 0 q would also work (Si default q4)
+    EXPECT_EQ(pp.zion, 4);
+    chmat_t Vtab = pw.MakeLocalPotential(&si, pp.local)
+                 + pw.MakeSeparablePotential(&si, pp.nonlocal);
+
+    ASSERT_EQ(Vhard.rows(), Vtab.rows());
+    double maxdiff=0.0;
+    for (size_t i=0;i<Vhard.rows();i++)
+        for (size_t j=0;j<Vhard.columns();j++)
+            maxdiff=std::max(maxdiff, std::abs(Vhard(i,j)-Vtab(i,j)));
+    EXPECT_LT(maxdiff, 1e-12) << "GTH table Si != hardcoded Silicon()";
+
+    // Coverage smoke: ionic-crystal species and a 3x3-channel transition metal (exercises Jacobi SymEig).
+    EXPECT_EQ(GetGTH("Na","LDA").zion, 9);             // Na default valence q9
+    EXPECT_EQ(GetGTH("Na","LDA",1).zion, 1);           // semicore-free q1
+    EXPECT_EQ(GetGTH("F","LDA").zion, 7);
+    EXPECT_EQ(GetGTH("Ti","LDA",4).zion, 4);           // 3x3 d-channel builds without error
 }
 
 // Silicon again, but BZ-sampled over a 2x2x2 Monkhorst-Pack mesh (8 k-points) instead of Gamma-only.
