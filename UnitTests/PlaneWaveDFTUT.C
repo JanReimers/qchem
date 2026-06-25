@@ -1064,6 +1064,77 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaThroughSCFIterator)
     EXPECT_NEAR(E.GetTotalEnergy(), 1.468, 5e-3);   // matches the standalone prototype Si-Gamma
 }
 
+// Stage 4 / multi-k: the SAME Si Kohn-Sham problem on a 2x2x2 Brillouin-zone mesh, through the REAL
+// cSCFIterator.  Now the basis holds 8 Bloch blocks (one per k-point); the framework's per-irrep loop
+// (MakeIrrepWFs, one IrrepWF per block) IS the BZ sum Sum_k w_k, with each block's density BZ-weighted
+// (Symmetry::GetWeight = w_k = 1/8) so the total charge is 8 (not 8*8).  Reproduces the standalone
+// prototype ScfSiliconBZSampled (Etot=0.934, gap>0).
+TEST_F(PlaneWaveDFT, FrameworkSilicon2x2x2ThroughSCFIterator)
+{
+    using namespace qchem::Hamiltonian;
+    const double a=10.26;
+    FCCUnitCell cell(a);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D  lat(cell, ivec3_t(2,2,2));       // 2x2x2 = 8 k-points
+
+    HGH_LocalPotential     loc=HGH_LocalPotential::Silicon();
+    HGH_SeparablePotential nl =HGH_SeparablePotential::Silicon();
+
+    namespace L3=BasisSet::Lattice_3D;
+    std::unique_ptr<BasisSet::Complex_BS> bs(L3::Factory(L3::Type::PW, lat, 4.0, &loc, &nl));
+    BasisSet::irrepv_t irreps=bs->GetIrreps(Spin::None);   // one Bloch irrep per k-block (8)
+
+    const int Nelec=8;
+    Crystal_EC ec(irreps, Nelec);                          // Nval per k-block; weights handle the BZ sum
+
+    cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure());
+    auto* acc=new qchem::SCFAccelerators::tSCFAcceleratorNull<dcmplx>();
+
+    // Uniform-density seed on the first block: D=(N/n0)I gives rho(r)=N/V (uniform), the total density
+    // every block's first Hartree/XC needs (a single block suffices since rho is constant).
+    const auto* pw0=(*bs)[0];
+    size_t n0=pw0->GetNumFunctions();
+    hmat_t<dcmplx> D0=blazem::zeroH<dcmplx>(n0);
+    for (size_t i=0;i<n0;i++) D0(i,i)=double(Nelec)/double(n0);
+    auto* seed=new qchem::ChargeDensity::IrrepCD<dcmplx>(D0, pw0, irreps[0]);
+
+    qchem::SCFIterator::cSCFIterator scf(bs.get(), &ec, ham, acc, seed);
+
+    SCFParams par;
+    par.NMaxIter      =80;
+    par.MinΔρ         =1e-4;
+    par.MinΔFD        =1e30;
+    par.MinVirial     =1e30;
+    par.MinFD         =1e30;
+    par.StartingRelaxRo=0.4;
+    par.MergeTol      =1e-4;
+    par.Verbose       =false;
+    scf.Iterate(par);
+
+    const qchem::WaveFunction::cWaveFunction* wf=scf.GetWaveFunction();
+    auto* cd=wf->GetChargeDensity();
+    double charge=cd->GetTotalCharge();
+    delete cd;
+    qchem::EnergyBreakdown E=scf.GetEnergy();
+
+    // Gap = lowest unoccupied - highest occupied, merged across all k-blocks (occupations are physical:
+    // 2 for filled bands, 0 above, since only the density is BZ-weighted, not the occupation).
+    double homo=-1e30, lumo=1e30;
+    for (const auto& [e,lev] : wf->GetEnergyLevels())
+        if (lev.occ>1e-6) homo=std::max(homo,e); else lumo=std::min(lumo,e);
+    double gap=lumo-homo;
+
+    std::cout << "[Si SCFIterator-2x2x2] iters="<<scf.GetIterationCount()<<" charge="<<charge
+              << " Etot="<<E.GetTotalEnergy()<<" gap="<<gap<<" Ha ("<<gap*27.2114<<" eV)"
+              << "  (Ekin="<<E.Kinetic<<" Een="<<E.Een<<" Eee="<<E.Eee<<" Exc="<<E.Exc<<")" << std::endl;
+
+    EXPECT_TRUE(scf.Converged());
+    EXPECT_NEAR(charge,             8.0,   1e-6);    // 8 valence electrons (BZ-weighted sum)
+    EXPECT_NEAR(E.GetTotalEnergy(), 0.934, 5e-3);    // matches prototype ScfSiliconBZSampled
+    EXPECT_GT(gap, 0.0);                              // Si is a semiconductor
+}
+
 // Regression guard for the Hamiltonian-framework cache bug: Dynamic_HT_Imp::GetMatrix must invalidate
 // its Irrep-keyed cache when the density changes (else it returns a STALE matrix to any caller that
 // didn't happen to call GetTotalEnergy(new cd) in between).  Two different densities (same Irrep, no

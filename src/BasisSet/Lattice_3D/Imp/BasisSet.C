@@ -1,9 +1,10 @@
 // File: BasisSet/Lattice_3D/Imp/BasisSet.C  Plane-wave basis-set container + factory implementation.
 module;
 #include <cassert>
+#include <cmath>     // lround (fractional k-point -> integer BZ-grid index)
 module qchem.BasisSet.Lattice_3D.BasisSet;
 import qchem.BasisSet.Internal.BasisSetImp;   // BasisSetImp<dcmplx> (the generic list-of-IBS container)
-import qchem.Symmetry.Factory;                // BlochFactory (the Gamma irrep)
+import qchem.Symmetry.Factory;                // BlochFactory (the Bloch irrep per k)
 import qchem.Types;
 
 namespace BasisSet::Lattice_3D
@@ -18,13 +19,19 @@ public:
     PW_BasisSet(const ::Lattice_3D& lat, double Ecut,
                 const LocalPotential* loc, const SeparablePotential* nl)
     {
-        // Single-k: one Bloch block at Gamma (kIndex 0).  Phase 2 loops the BZ k-mesh here -- the basis
-        // ctor is intended to be the one place that enumerates k (the framework's irrep = the Bloch k).
+        // ONE plane-wave block per Brillouin-zone k-point: the basis ctor is the single place that
+        // enumerates k, so the framework's per-irrep loop (each k IS a Bloch irrep) becomes the BZ sum
+        // Sum_k w_k.  The KMesh carries the points + weights (uniform 1/Nk for an unreduced grid;
+        // symmetry-reduced points/weights will plug in here later).  N=(1,1,1) -> a single Gamma block.
         ReciprocalLattice recip=lat.Reciprocal();
-        sym_t gamma=Symmetry::BlochFactory(lat.GetLimits(), ivec3_t(0,0,0));
-        auto* pw=new PlaneWave_IBS(recip, gamma, Ecut);
-        if (loc) pw->SetPseudopotential(loc,nl);   // pseudo lives on the basis until the Phase-4 wall
-        Insert(pw);                                 // BasisSetImp takes ownership
+        const ivec3_t N=lat.GetLimits();
+        for (const auto& kp : lat.MakeKMesh())
+        {
+            ivec3_t ik(std::lround(kp.k.x*N.x), std::lround(kp.k.y*N.y), std::lround(kp.k.z*N.z));
+            auto* pw=new PlaneWave_IBS(recip, Symmetry::BlochFactory(N, ik, kp.weight), Ecut);
+            if (loc) pw->SetPseudopotential(loc,nl);   // pseudo lives on the basis until the Phase-4 wall
+            Insert(pw);                                 // BasisSetImp takes ownership
+        }
     }
 };
 } //anon
