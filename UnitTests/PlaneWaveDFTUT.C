@@ -1124,7 +1124,8 @@ TEST_F(PlaneWaveDFT, FrameworkSilicon2x2x2ThroughSCFIterator)
     Crystal_EC ec(irreps, Nelec);                          // Nval per k-block; weights handle the BZ sum
 
     cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure());
-    auto* acc=new qchem::SCFAccelerators::tSCFAcceleratorNull<dcmplx>();
+    using qchem::SCFAccelerators::DIISParams;
+    auto* acc=new qchem::SCFAccelerators::cSCFAcceleratorDIIS(DIISParams{8, 0.5, 1e-10, 1e-9});
 
     // Uniform-density seed on the first block: D=(N/n0)I gives rho(r)=N/V (uniform), the total density
     // every block's first Hartree/XC needs (a single block suffices since rho is constant).
@@ -1138,9 +1139,8 @@ TEST_F(PlaneWaveDFT, FrameworkSilicon2x2x2ThroughSCFIterator)
 
     SCFParams par;
     par.NMaxIter      =80;
-    par.MinΔρ         =1e-4;   // Null floor for the BZ-sampled density (the no-FFT multi-k run is expensive;
-                               // complex DIIS reaches Etot=0.934176 exactly but costs ~22 iters / ~400s --
-                               // the single-k test is the tight-1e-7 DIIS showcase).
+    par.MinΔρ         =1e-7;   // tight: the FFT XC/Hartree made the multi-k run cheap, so complex DIIS now
+                               // converges the BZ-sampled density fully (Etot=0.934176 exactly) in seconds.
     par.MinΔFD        =1e30;
     par.MinVirial     =1e30;
     par.MinFD         =1e30;
