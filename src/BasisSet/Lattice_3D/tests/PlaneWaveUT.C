@@ -13,6 +13,7 @@
 #include "gtest/gtest.h"
 
 import qchem.BasisSet.Lattice_3D.PlaneWave_IBS;
+import qchem.BasisSet.Lattice_3D.GTH_Potentials;   // GetGTH (H, Si pseudopotentials from the database)
 import qchem.Lattice_3D;     // UnitCell, Lattice_3D, ReciprocalLattice
 import qchem.LASolver;
 import qchem.Types;
@@ -27,6 +28,8 @@ using BasisSet::Lattice_3D::HGH_LocalPotential;
 using BasisSet::Lattice_3D::SeparablePotential;
 using BasisSet::Lattice_3D::GaussianProjector;
 using BasisSet::Lattice_3D::HGH_SeparablePotential;
+using BasisSet::Lattice_3D::GetGTH;
+using BasisSet::Lattice_3D::GTH_PP;
 
 namespace
 {
@@ -283,7 +286,7 @@ TEST_F(PlaneWaveTests, DISABLED_SmearedCalibration)
 TEST_F(PlaneWaveTests, DISABLED_HGHCalibration)
 {
     double a=7.0;
-    HGH_LocalPotential h=HGH_LocalPotential::Hydrogen();
+    HGH_LocalPotential h=GetGTH("H","LDA").local;
     for (double Ecut : {4.0,6.0,9.0,12.0})
     {
         size_t npw=0;
@@ -308,7 +311,7 @@ TEST_F(PlaneWaveTests, DISABLED_HGHCalibration)
 // CORE-bearing elements, which also carry the nonlocal l-channel projectors -- the next rung of lineage A.
 TEST_F(PlaneWaveTests, HGHHydrogenIsRealButCoreless)
 {
-    HGH_LocalPotential h=HGH_LocalPotential::Hydrogen();
+    HGH_LocalPotential h=GetGTH("H","LDA").local;
     BareCoulomb bare;
     EXPECT_NEAR(h.FormFactor(1,1.0)/bare.FormFactor(1,1.0), 1.0, 2e-3);                 // (1) Coulomb tail
     EXPECT_LT(std::abs(h.FormFactor(1,100.0)), std::abs(bare.FormFactor(1,100.0)));     // (2) softer core
@@ -486,7 +489,7 @@ TEST_F(PlaneWaveTests, LocalPlusNonlocalRaisesGroundState)
 // while the s projectors (l=0) do not.
 TEST_F(PlaneWaveTests, HGHSiliconNonlocalChannels)
 {
-    HGH_SeparablePotential si=HGH_SeparablePotential::Silicon();
+    HGH_SeparablePotential si=GetGTH("Si","LDA",4).nonlocal;
     ASSERT_EQ(si.NumProjectors(14), 3u);
 
     std::vector<int>    ls;
@@ -520,8 +523,9 @@ TEST_F(PlaneWaveTests, HGHSiliconHamiltonianWellFormed)
     PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(0,0,0),5.0);
     Atom Si(14,rvec3_t(0,0,0));
 
-    chmat_t Vloc=pw.MakeLocalPotential(&Si,HGH_LocalPotential::Silicon());
-    chmat_t Vnl =pw.MakeSeparablePotential(&Si,HGH_SeparablePotential::Silicon());
+    GTH_PP siPP=GetGTH("Si","LDA",4);
+    chmat_t Vloc=pw.MakeLocalPotential(&Si,siPP.local);
+    chmat_t Vnl =pw.MakeSeparablePotential(&Si,siPP.nonlocal);
     size_t n=pw.GetNumFunctions();
 
     double vnlmax=0.0;                                   // nonlocal is non-trivial and Hermitian

@@ -11,6 +11,7 @@ add_executable(UTLattice_3D_BS ../../Atom/tests/gtestmain.C
     BandStructureUT.C
     APW_UT.C
     LAPW_UT.C
+    GTH_UT.C
 )
 
 target_compile_options(UTLattice_3D_BS PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})

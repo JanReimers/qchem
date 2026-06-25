@@ -76,13 +76,10 @@ class HGH_LocalPotential : public LocalPotential
 {
 public:
     //! \a Zion = valence charge, \a rloc = local radius, \a c = {C1,C2,C3,C4} polynomial coefficients.
+    //! Real per-element parameters come from the GTH database via GetGTH (GTH_Potentials.C), not
+    //! hardcoded factories.
     HGH_LocalPotential(double Zion, double rloc, double c1, double c2, double c3=0.0, double c4=0.0)
         : itsZion(Zion), itsRloc(rloc), itsC1(c1), itsC2(c2), itsC3(c3), itsC4(c4) {}
-
-    //! Hydrogen, HGH (LDA): no nonlocal projectors (H has no core), so this local part is the whole PP.
-    static HGH_LocalPotential Hydrogen() {return HGH_LocalPotential(1.0, 0.2, -4.0663326, 0.6778322);}
-    //! Silicon, GTH-LDA q4 (CP2K database): Zion=4 valence; local C1 only. Pair with HGH_SeparablePotential::Silicon().
-    static HGH_LocalPotential Silicon()  {return HGH_LocalPotential(4.0, 0.44, -7.33610297, 0.0);}
 
     virtual double FormFactor(int /*Z*/, double G2) const     // Z ignored: itsZion is the species
     {

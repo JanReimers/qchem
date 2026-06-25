@@ -78,14 +78,8 @@ private:
 class HGH_SeparablePotential : public SeparablePotential
 {
 public:
-    //! Silicon, GTH-LDA q4 (CP2K database): s-channel 2x2, p-channel 1x1.
-    static HGH_SeparablePotential Silicon()
-    {
-        HGH_SeparablePotential v;
-        v.AddChannel(0, 0.42273813, {{5.90692831,-1.26189397},{-1.26189397,3.25819622}});
-        v.AddChannel(1, 0.48427842, {{2.72701346}});
-        return v;
-    }
+    //! Build by adding channels (AddChannel) from real GTH parameters; the GTH database reader
+    //! (GetGTH in GTH_Potentials.C) is the per-element source, replacing hardcoded factories.
 
     virtual size_t NumProjectors  (int)         const {return itsProj.size();}
     virtual double Coefficient    (int, size_t p) const {return itsProj[p].D;}

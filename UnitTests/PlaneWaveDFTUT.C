@@ -687,8 +687,9 @@ TEST_F(PlaneWaveDFT, ScfSiliconDiamondConverges)
     si.Insert(new Atom(14, rvec3_t(0,0,0)));
     si.Insert(new Atom(14, rvec3_t(0.25*a,0.25*a,0.25*a)));
 
-    HGH_LocalPotential     loc=HGH_LocalPotential::Silicon();
-    HGH_SeparablePotential nl =HGH_SeparablePotential::Silicon();
+    GTH_PP                 siPP=GetGTH("Si","LDA",4);          // CP2K GTH-LDA q4, from the database
+    const HGH_LocalPotential&     loc=siPP.local;
+    const HGH_SeparablePotential& nl =siPP.nonlocal;
     chmat_t Vext = pw.MakeLocalPotential(&si,loc) + pw.MakeSeparablePotential(&si,nl);
 
     qchem::Hamiltonian::SlaterExchange  ex(2.0/3.0);
@@ -749,42 +750,8 @@ TEST_F(PlaneWaveDFT, VnnPeriodicUsesEwald)
     EXPECT_NEAR(eb.Enn, -8.40046, 1e-4);              // == the Si ion-ion Madelung energy
 }
 
-// The GTH database reader (CP2K GTH_POTENTIALS -> JSON) must reproduce the hardcoded Si factories
-// EXACTLY: the assembled external block (local + KB nonlocal) from GetGTH("Si","LDA",4) equals the one
-// from HGH_LocalPotential::Silicon() + HGH_SeparablePotential::Silicon().  This anchors the whole
-// 101-element table against our already-validated Si.
-TEST_F(PlaneWaveDFT, GTHTableReproducesSilicon)
-{
-    const double a=10.26, h=0.5*a;
-    Matrix3D<double> A(0.0,h,h,  h,0.0,h,  h,h,0.0);
-    Lattice_3D lat(UnitCell(A), ivec3_t(1,1,1));
-    PlaneWave_IBS pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
-
-    Molecule si;
-    si.Insert(new Atom(14, rvec3_t(0,0,0)));
-    si.Insert(new Atom(14, rvec3_t(0.25*a,0.25*a,0.25*a)));
-
-    chmat_t Vhard = pw.MakeLocalPotential(&si, HGH_LocalPotential::Silicon())
-                  + pw.MakeSeparablePotential(&si, HGH_SeparablePotential::Silicon());
-
-    GTH_PP pp = GetGTH("Si","LDA",4);                  // 0 q would also work (Si default q4)
-    EXPECT_EQ(pp.zion, 4);
-    chmat_t Vtab = pw.MakeLocalPotential(&si, pp.local)
-                 + pw.MakeSeparablePotential(&si, pp.nonlocal);
-
-    ASSERT_EQ(Vhard.rows(), Vtab.rows());
-    double maxdiff=0.0;
-    for (size_t i=0;i<Vhard.rows();i++)
-        for (size_t j=0;j<Vhard.columns();j++)
-            maxdiff=std::max(maxdiff, std::abs(Vhard(i,j)-Vtab(i,j)));
-    EXPECT_LT(maxdiff, 1e-12) << "GTH table Si != hardcoded Silicon()";
-
-    // Coverage smoke: ionic-crystal species and a 3x3-channel transition metal (exercises Jacobi SymEig).
-    EXPECT_EQ(GetGTH("Na","LDA").zion, 9);             // Na default valence q9
-    EXPECT_EQ(GetGTH("Na","LDA",1).zion, 1);           // semicore-free q1
-    EXPECT_EQ(GetGTH("F","LDA").zion, 7);
-    EXPECT_EQ(GetGTH("Ti","LDA",4).zion, 4);           // 3x3 d-channel builds without error
-}
+// (The GTH database-reader unit test lives in src/BasisSet/Lattice_3D/tests/GTH_UT.C -- it needs only
+// the basis layer, not the SCF stack.)
 
 // Silicon again, but BZ-sampled over a 2x2x2 Monkhorst-Pack mesh (8 k-points) instead of Gamma-only.
 // This exercises the irrep(k) loop, the k-dependent KB projectors, and a properly BZ-averaged density.
@@ -803,8 +770,9 @@ TEST_F(PlaneWaveDFT, ScfSiliconBZSampled)
     Molecule si;
     si.Insert(new Atom(14, rvec3_t(0,0,0)));
     si.Insert(new Atom(14, rvec3_t(0.25*a,0.25*a,0.25*a)));
-    HGH_LocalPotential     loc=HGH_LocalPotential::Silicon();
-    HGH_SeparablePotential nl =HGH_SeparablePotential::Silicon();
+    GTH_PP                 siPP=GetGTH("Si","LDA",4);          // CP2K GTH-LDA q4, from the database
+    const HGH_LocalPotential&     loc=siPP.local;
+    const HGH_SeparablePotential& nl =siPP.nonlocal;
 
     qchem::Hamiltonian::SlaterExchange  ex(2.0/3.0);
     qchem::Hamiltonian::VWN_Correlation vwn;
@@ -913,8 +881,9 @@ TEST_F(PlaneWaveDFT, BasisExternalPotentialMatchesPPAssembly)
     Molecule si;
     si.Insert(new Atom(14, rvec3_t(0,0,0)));
     si.Insert(new Atom(14, rvec3_t(0.25*a,0.25*a,0.25*a)));
-    HGH_LocalPotential     loc=HGH_LocalPotential::Silicon();
-    HGH_SeparablePotential nl =HGH_SeparablePotential::Silicon();
+    GTH_PP                 siPP=GetGTH("Si","LDA",4);          // CP2K GTH-LDA q4, from the database
+    const HGH_LocalPotential&     loc=siPP.local;
+    const HGH_SeparablePotential& nl =siPP.nonlocal;
 
     chmat_t ref = pw.MakeLocalPotential(&si,loc) + pw.MakeSeparablePotential(&si,nl);
     pw.SetPseudopotential(&loc, &nl);
@@ -941,8 +910,9 @@ TEST_F(PlaneWaveDFT, PWExternalTermMatchesBasis)
     auto si=std::make_shared<Molecule>();
     si->Insert(new Atom(14, rvec3_t(0,0,0)));
     si->Insert(new Atom(14, rvec3_t(0.25*a,0.25*a,0.25*a)));
-    HGH_LocalPotential     loc=HGH_LocalPotential::Silicon();
-    HGH_SeparablePotential nl =HGH_SeparablePotential::Silicon();
+    GTH_PP                 siPP=GetGTH("Si","LDA",4);          // CP2K GTH-LDA q4, from the database
+    const HGH_LocalPotential&     loc=siPP.local;
+    const HGH_SeparablePotential& nl =siPP.nonlocal;
     pw.SetPseudopotential(&loc, &nl);
 
     qchem::Hamiltonian::PW_External   ext(si);
@@ -1011,8 +981,9 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaMatchesPrototype)
     auto si=std::make_shared<Molecule>();
     si->Insert(new Atom(14, rvec3_t(0,0,0)));
     si->Insert(new Atom(14, rvec3_t(0.25*a,0.25*a,0.25*a)));
-    HGH_LocalPotential     loc=HGH_LocalPotential::Silicon();
-    HGH_SeparablePotential nl =HGH_SeparablePotential::Silicon();
+    GTH_PP                 siPP=GetGTH("Si","LDA",4);          // CP2K GTH-LDA q4, from the database
+    const HGH_LocalPotential&     loc=siPP.local;
+    const HGH_SeparablePotential& nl =siPP.nonlocal;
     pw.SetPseudopotential(&loc, &nl);
 
     // Framework Hamiltonian: a dcmplx HamiltonianImp summing the PW Kohn-Sham terms.
@@ -1088,8 +1059,9 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaThroughSCFIterator)
     cell.AddAtom(14, {0.25,0.25,0.25});
     Lattice_3D  lat(cell, ivec3_t(1,1,1));
 
-    HGH_LocalPotential     loc=HGH_LocalPotential::Silicon();      // must outlive the SCF run (the basis holds &loc)
-    HGH_SeparablePotential nl =HGH_SeparablePotential::Silicon();
+    GTH_PP                 siPP=GetGTH("Si","LDA",4);          // must outlive the SCF run (the basis holds &loc)
+    const HGH_LocalPotential&     loc=siPP.local;
+    const HGH_SeparablePotential& nl =siPP.nonlocal;
 
     // The basis comes from the factory as an abstract BasisSet<dcmplx>; it owns its plane-wave Bloch
     // block(s) and (for now) carries the pseudopotential.  Single-k -> one block at Gamma.
@@ -1192,8 +1164,9 @@ TEST_F(PlaneWaveDFT, FrameworkSilicon2x2x2ThroughSCFIterator)
     cell.AddAtom(14, {0.25,0.25,0.25});
     Lattice_3D  lat(cell, ivec3_t(2,2,2));       // 2x2x2 = 8 k-points
 
-    HGH_LocalPotential     loc=HGH_LocalPotential::Silicon();
-    HGH_SeparablePotential nl =HGH_SeparablePotential::Silicon();
+    GTH_PP                 siPP=GetGTH("Si","LDA",4);          // CP2K GTH-LDA q4, from the database
+    const HGH_LocalPotential&     loc=siPP.local;
+    const HGH_SeparablePotential& nl =siPP.nonlocal;
 
     namespace L3=BasisSet::Lattice_3D;
     std::unique_ptr<BasisSet::Complex_BS> bs(L3::Factory(L3::Type::PW, lat, 4.0, &loc, &nl));
