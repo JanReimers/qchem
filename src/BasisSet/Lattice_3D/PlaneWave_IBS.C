@@ -78,6 +78,7 @@ public:
     virtual chmat_t IntegralPotentialGrid(const rvec_t& Vgrid)  const override;
     virtual double  IntegralGrid        (const rvec_t& fgrid)   const override;
     virtual chmat_t MakeExternalPotential(const Structure* cl) const;                    //!< <i|V_ext|j>
+    virtual double  ExternalG0Energy(const Structure* cl, double numElectrons) const;    //!< (N/Omega) Sum_a alpha_a
     //! Configure the external pseudopotential (non-owning; the caller keeps them alive).  If unset,
     //! MakeExternalPotential falls back to the bare nuclear (-Z/r) structure factor.
     void SetPseudopotential(const LocalPotential* loc, const SeparablePotential* nl=nullptr)

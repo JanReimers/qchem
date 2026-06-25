@@ -1042,7 +1042,9 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaMatchesPrototype)
               << "  (Ekin="<<E.Kinetic<<" Een="<<E.Een<<" Eee="<<E.Eee<<" Exc="<<E.Exc<<")" << std::endl;
 
     EXPECT_NEAR(cd->GetTotalCharge(), 8.0, 1e-6);                 // 8 valence electrons
-    EXPECT_NEAR(E.GetTotalEnergy(),   1.468, 5e-3);              // matches the standalone prototype Si-Gamma
+    // This manual Hamiltonian has no ion-ion term; the band-structure (electronic) energy is the
+    // prototype anchor (the dropped-G=0 alignment Ealign is now separated out of it).
+    EXPECT_NEAR(E.GetElectronicEnergy(), 1.468, 5e-3);           // matches the standalone prototype Si-Gamma
 }
 
 // The SAME Si-Gamma Kohn-Sham problem as FrameworkSiliconGammaMatchesPrototype, but now driven by the
@@ -1055,8 +1057,8 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaThroughSCFIterator)
     using namespace qchem::Hamiltonian;
     const double a=10.26;                       // Si conventional cubic lattice constant (a.u.)
     FCCUnitCell cell(a);                         // FCC primitive cell
-    cell.AddAtom(14, {0,0,0});                   // Si diamond two-atom basis, FRACTIONAL coordinates
-    cell.AddAtom(14, {0.25,0.25,0.25});
+    cell.AddAtom(4, {0,0,0});                    // Si diamond two-atom basis (itsZ = Zion = 4 for ion-ion)
+    cell.AddAtom(4, {0.25,0.25,0.25});
     Lattice_3D  lat(cell, ivec3_t(1,1,1));
 
     GTH_PP                 siPP=GetGTH("Si","LDA",4);          // must outlive the SCF run (the basis holds &loc)
@@ -1114,8 +1116,11 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaThroughSCFIterator)
               << "  (Ekin="<<E.Kinetic<<" Een="<<E.Een<<" Eee="<<E.Eee<<" Exc="<<E.Exc<<")" << std::endl;
 
     EXPECT_TRUE(scf.Converged());
-    EXPECT_NEAR(charge,             8.0,   1e-6);   // 8 valence electrons
-    EXPECT_NEAR(E.GetTotalEnergy(), 1.468, 5e-3);   // matches the standalone prototype Si-Gamma
+    EXPECT_NEAR(charge,                  8.0,    1e-6);   // 8 valence electrons
+    EXPECT_NEAR(E.GetElectronicEnergy(), 1.468,  5e-3);   // band energy matches the standalone prototype
+    // Physical total: electronic + ion-ion Ewald (Enn) + dropped-G=0 alignment (Ealign) -- now NEGATIVE.
+    // (Underconverged at Ecut=4 / Gamma-only; the converged Si total is ~-7.9 Ha/cell.)
+    EXPECT_NEAR(E.GetTotalEnergy(),     -7.2273, 5e-3) << "Enn="<<E.Enn<<" Ealign="<<E.Ealign;
 }
 
 // G-space Hartree path: V_H assembled directly from the density's Fourier coefficients rho-tilde(dm)
@@ -1160,8 +1165,8 @@ TEST_F(PlaneWaveDFT, FrameworkSilicon2x2x2ThroughSCFIterator)
     using namespace qchem::Hamiltonian;
     const double a=10.26;
     FCCUnitCell cell(a);
-    cell.AddAtom(14, {0,0,0});
-    cell.AddAtom(14, {0.25,0.25,0.25});
+    cell.AddAtom(4, {0,0,0});                    // itsZ = Zion = 4 for the ion-ion Ewald
+    cell.AddAtom(4, {0.25,0.25,0.25});
     Lattice_3D  lat(cell, ivec3_t(2,2,2));       // 2x2x2 = 8 k-points
 
     GTH_PP                 siPP=GetGTH("Si","LDA",4);          // CP2K GTH-LDA q4, from the database
@@ -1219,8 +1224,10 @@ TEST_F(PlaneWaveDFT, FrameworkSilicon2x2x2ThroughSCFIterator)
               << "  (Ekin="<<E.Kinetic<<" Een="<<E.Een<<" Eee="<<E.Eee<<" Exc="<<E.Exc<<")" << std::endl;
 
     EXPECT_TRUE(scf.Converged());
-    EXPECT_NEAR(charge,             8.0,   1e-6);    // 8 valence electrons (BZ-weighted sum)
-    EXPECT_NEAR(E.GetTotalEnergy(), 0.934, 5e-3);    // matches prototype ScfSiliconBZSampled
+    EXPECT_NEAR(charge,                  8.0,    1e-6);    // 8 valence electrons (BZ-weighted sum)
+    EXPECT_NEAR(E.GetElectronicEnergy(), 0.934,  5e-3);    // band energy matches prototype ScfSiliconBZSampled
+    // Physical total = electronic + ion-ion Ewald (same per-cell Madelung as Gamma) + G=0 alignment.
+    EXPECT_NEAR(E.GetTotalEnergy(),     -7.7613, 5e-3) << "Enn="<<E.Enn<<" Ealign="<<E.Ealign;
     EXPECT_GT(gap, 0.0);                              // Si is a semiconductor
 }
 

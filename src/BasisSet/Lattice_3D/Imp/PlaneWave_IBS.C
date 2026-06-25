@@ -226,6 +226,19 @@ chmat_t PlaneWave_IBS::MakeExternalPotential(const Structure* cl) const
     return MakeNuclear(cl);
 }
 
+// Energy of the DROPPED G=0 local-potential component: E_alpha = (N/Omega) Sum_a alpha_a, with
+// alpha_a = the local PP's finite G->0 limit (FormFactorG0 = integral[V_loc+Z/r]).  itsVolume = Omega.
+// Only the LOCAL part has a G=0 alignment (the separable nonlocal is short-ranged); a bare-Coulomb
+// fallback (no PP set) has alpha=0.  This is an ENERGY-only term -- the G=0 potential never entered the
+// matrix (MakeLocalPotential drops dG=0), so it is added to the total energy by the external term.
+double PlaneWave_IBS::ExternalG0Energy(const Structure* cl, double numElectrons) const
+{
+    if (!itsLocalPP) return 0.0;
+    double sumAlpha=0.0;
+    for (Atom* a : *cl) sumAlpha += itsLocalPP->FormFactorG0(a->itsZ);
+    return (numElectrons/itsVolume)*sumAlpha;
+}
+
 // Plane waves are orthonormal over the cell: <G|G'> = delta_{GG'}.
 chmat_t PlaneWave_IBS::MakeOverlap() const
 {

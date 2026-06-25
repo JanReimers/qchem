@@ -8,6 +8,7 @@ namespace qchem
 EnergyBreakdown::EnergyBreakdown()
     : Kinetic  (0)
     , Enn      (0)
+    , Ealign   (0)
     , Een      (0)
     , Eee      (0)
     , EeeFit   (0)
@@ -27,6 +28,7 @@ EnergyBreakdown& EnergyBreakdown::operator+=(const EnergyBreakdown& e1)
 {
     Kinetic    += e1.Kinetic;
     Enn        += e1.Enn;
+    Ealign     += e1.Ealign;
     Een        += e1.Een;
     Eee        += e1.Eee;
     EeeFit     += e1.EeeFit;
@@ -48,6 +50,7 @@ void EnergyBreakdown::Display() const
     cout << "------------------------" << endl;
     cout << "Kinetic   :" << Kinetic << endl;
     cout << "Enn       :" << Enn << endl;
+    cout << "Ealign    :" << Ealign << endl;
     cout << "Een       :" << Een << endl;
     cout << "Eee       :" << Eee << endl;
     cout << "EeeFit    :" << EeeFit << endl;

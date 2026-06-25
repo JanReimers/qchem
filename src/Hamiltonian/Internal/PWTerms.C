@@ -11,6 +11,7 @@ module;
 export module qchem.Hamiltonian.Internal.PWTerms;
 import qchem.Hamiltonian.Internal.Term;        // cStatic_HT / cDynamic_HT + their _Imp cache bases
 import qchem.BasisSet.FourierDFT_IBS;           // the G-space capability the XC term captures for GetEnergy
+import qchem.BasisSet.DFTPotential_IBS;          // the external capability PW_External captures (G=0 alignment)
 import qchem.Hamiltonian.Internal.ExFunctional; // the LDA functional the XC term composes with the density
 import qchem.Hamiltonian.Types;                 // cobs_t
 import qchem.Structure;
@@ -33,6 +34,9 @@ public:
 private:
     virtual chmat_t CalculateMatrix(const cobs_t*, const Spin&) const;
     st_t theStructure;
+    //! Captured from CalculateMatrix so GetEnergy can ask the basis for the dropped-G=0 alignment energy
+    //! (ExternalG0Energy) with the current electron count.  Same basis every iteration.
+    mutable const BasisSet::DFTPotential_IBS<dcmplx>* itsBasis=nullptr;
 };
 
 //! Non-relativistic kinetic ENERGY term T = 1/2 <p^2> for a plane-wave basis (diagonal in |k+G|^2).
@@ -47,6 +51,24 @@ public:
     virtual std::ostream& Write(std::ostream&) const;
 private:
     virtual chmat_t CalculateMatrix(const cobs_t*, const Spin&) const;
+};
+
+//! Ion-ion (nuclear-nuclear) ENERGY term for a periodic crystal: the Ewald lattice sum of the ion cores
+//! (charges = the cell atoms' itsZ = Zion).  The dcmplx sibling of Vnn -- it adds NO matrix contribution
+//! (a constant), only the Enn energy, delegating to Ewald::NuclearRepulsion (which picks Ewald vs the
+//! direct pair sum via Structure::isFinite()).
+class PW_IonIon
+    : public virtual cStatic_HT
+    , private        cStatic_HT_Imp
+{
+public:
+    typedef std::shared_ptr<const Structure> st_t;
+    PW_IonIon(const st_t& st);
+    virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
+    virtual std::ostream& Write(std::ostream&) const;
+private:
+    virtual chmat_t CalculateMatrix(const cobs_t*, const Spin&) const;
+    st_t theStructure;
 };
 
 //! Hartree (classical Coulomb) term for a plane-wave basis (density-dependent).  Asks the basis for the

@@ -9,6 +9,9 @@ import qchem.ChargeDensity;
 import qchem.ChargeDensity.FourierDensity;   // cast cd UP to its reciprocal-space coefficients rho-tilde
 import qchem.BasisSet.FourierDFT_IBS;         // cast bs UP to the G-space (FFT Hartree/XC) capability
 import qchem.BasisSet.DFTPotential_IBS;       // PW_External still uses the real-space external matrix
+import qchem.Structure;                       // Structure (PW_IonIon ion-ion energy)
+import qchem.Ewald;                           // NuclearRepulsion (Ewald lattice sum for the crystal)
+import qchem.Blaze;                            // blazem::zeroH (PW_IonIon's zero matrix)
 
 namespace qchem::Hamiltonian
 {
@@ -27,12 +30,17 @@ chmat_t PW_External::CalculateMatrix(const cobs_t* bs, const Spin&) const
 {
     auto pw=dynamic_cast<const BasisSet::DFTPotential_IBS<dcmplx>*>(bs);
     assert(pw && "PW_External requires a DFTPotential_IBS (e.g. plane-wave) basis");
+    itsBasis=pw;                    // captured for GetEnergy's G=0 alignment (same basis every iteration)
     return pw->MakeExternalPotential(&*theStructure);
 }
 
 void PW_External::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 {
-    te.Een=cd->DM_Contract(this);   // integral rho V_ext (the density contracts our matrix)
+    // Een stays the band expectation over the (G!=0) external matrix (== the prototype's electron-ion
+    // energy).  The dropped-G=0 alignment alpha is a separate constant in te.Ealign -- kept in the total
+    // energy but NOT the matrix (see ExternalG0Energy), and out of the band-structure cross-check.
+    te.Een=cd->DM_Contract(this);                                          // integral rho V_ext (G!=0)
+    if (itsBasis) te.Ealign = itsBasis->ExternalG0Energy(&*theStructure, cd->GetTotalCharge());
 }
 
 std::ostream& PW_External::Write(std::ostream& os) const
@@ -56,6 +64,31 @@ void PW_Kinetic::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 std::ostream& PW_Kinetic::Write(std::ostream& os) const
 {
     return os << "    PW kinetic energy 1/2<p^2>." << std::endl;
+}
+
+//----------------------------------------------------------------------------------- Ion-Ion (Ewald)
+PW_IonIon::PW_IonIon(const st_t& st)
+    : cStatic_HT_Imp()
+    , theStructure(st)
+{
+    assert(st->GetNumAtoms()>0);
+}
+
+// Constant energy term: no Hamiltonian-matrix contribution (the ion-ion energy is independent of the
+// electronic state), so the matrix is zero.
+chmat_t PW_IonIon::CalculateMatrix(const cobs_t* bs, const Spin&) const
+{
+    return blazem::zeroH<dcmplx>(bs->GetNumFunctions());
+}
+
+void PW_IonIon::GetEnergy(EnergyBreakdown& te, const cDM_CD*) const
+{
+    te.Enn=NuclearRepulsion(*theStructure);   // Ewald lattice sum (periodic) -- see Ewald::NuclearRepulsion
+}
+
+std::ostream& PW_IonIon::Write(std::ostream& os) const
+{
+    return os << "    PW ion-ion (Ewald) over " << theStructure->GetNumAtoms() << " ions per cell." << std::endl;
 }
 
 //----------------------------------------------------------------------------------- Hartree

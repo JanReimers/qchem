@@ -46,6 +46,13 @@ public:
     //! The configured external (pseudo)potential matrix \f$\langle i|V_{ext}|j\rangle\f$ for this
     //! structure -- the basis owns its model (bare \f$-Z/r\f$, norm-conserving pseudopotential, ...).
     virtual hmat_t<T> MakeExternalPotential(const Structure*) const=0;
+
+    //! Energy carried by the external potential's DROPPED \f$G=0\f$ component, for a density of
+    //! \a numElectrons electrons: the uniform electron-ion alignment \f$(N/\Omega)\sum_a\alpha_a\f$
+    //! (\f$\alpha_a=\int[V_{loc}^a+Z_a/r]\f$, the local part's finite \f$G\to0\f$ limit).  It enters the
+    //! total energy but NOT the Hamiltonian matrix (the \f$G=0\f$ potential is a constant shift, dropped
+    //! from the matrix).  Default 0 -- only a basis that drops a \f$G=0\f$ component (plane waves) has it.
+    virtual double ExternalG0Energy(const Structure*, double numElectrons) const {return 0.0;}
 };
 
 } //namespace

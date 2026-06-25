@@ -67,10 +67,11 @@ Ham_DFTcorr_U::Ham_DFTcorr_U(const st_t& st, const MeshParams& mp, const bs_t* b
 Ham_PW_DFT::Ham_PW_DFT(const st_t& st)
 {
     Add(new PW_Kinetic);
-    Add(new PW_External(st));
+    Add(new PW_External(st));                                     // electron-ion (incl. G=0 alignment)
     Add(new PW_Hartree);
     Add(new PW_XC(std::make_shared<SlaterExchange>(2.0/3.0)));    // Dirac exchange (alpha = 2/3)
     Add(new PW_XC(std::make_shared<VWN_Correlation>()));          // VWN5 correlation
+    Add(new PW_IonIon(st));                                       // ion-ion Ewald -> physical total energy
 }
 
 Ham_HF_P::Ham_HF_P(const st_t& st)
