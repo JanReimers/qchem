@@ -11,6 +11,7 @@
 module;
 #include <functional>
 #include <iosfwd>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -26,6 +27,16 @@ import qchem.Types;
 
 export namespace BasisSet::Lattice_3D
 {
+
+//! Lexicographic comparator so a reciprocal-index triple \f$\Delta m\f$ can key a map.
+struct IVec3Less
+{
+    bool operator()(const ivec3_t& a, const ivec3_t& b) const
+    { if (a.x!=b.x) return a.x<b.x; if (a.y!=b.y) return a.y<b.y; return a.z<b.z; }
+};
+//! G-space components (density \f$\tilde\rho\f$ or potential \f$\tilde V\f$) keyed by the reciprocal-index
+//! difference \f$\Delta m\f$ (\f$\Delta G = B\,\Delta m\f$).
+using FourierMap = std::map<ivec3_t, dcmplx, IVec3Less>;
 
 //! \brief Plane-wave basis for a single k-point: the normalised waves
 //! \f$ e^{i(k+G)\cdot r}/\sqrt V \f$ over the cutoff set \f$\{G:\tfrac12|k+G|^2<E_{cut}\}\f$.
@@ -60,6 +71,15 @@ public:
     virtual chmat_t IntegralPotential(const ScalarFunction<double>& V) const;            //!< <i|V|j>
     virtual chmat_t IntegralHartree  (const ScalarFunction<double>& rho, double& Eh) const; //!< <i|V_H[rho]|j>
     virtual double  Integral         (const ScalarFunction<double>& f) const;            //!< integral f d3r
+
+    //! \brief Density Fourier coefficients \f$\tilde\rho(\Delta m)=\frac1\Omega\sum_{G_i-G_j=\Delta m}D_{ij}\f$
+    //! for a density matrix \a D in THIS plane-wave block.  The G-space route to the Hartree/XC matrices:
+    //! no \f$O(N_{pts}n^2)\f$ real-space sampling -- one \f$O(n^2)\f$ accumulation over the difference set.
+    FourierMap MakeFourierDensity(const chmat_t& D) const;
+    //! \brief Hartree matrix + energy directly from the density's G-space coefficients \a rho
+    //! (= MakeFourierDensity): \f$V_H(\Delta m)=4\pi\tilde\rho/|B\Delta m|^2\f$, \f$E_H=\tfrac\Omega2\sum
+    //! 4\pi|\tilde\rho|^2/G^2\f$ (\f$\Delta m=0\f$ dropped).  The FFT-free Poisson solve.
+    chmat_t IntegralHartree(const FourierMap& rho, double& Eh) const;
     virtual chmat_t MakeExternalPotential(const Structure* cl) const;                    //!< <i|V_ext|j>
     //! Configure the external pseudopotential (non-owning; the caller keeps them alive).  If unset,
     //! MakeExternalPotential falls back to the bare nuclear (-Z/r) structure factor.

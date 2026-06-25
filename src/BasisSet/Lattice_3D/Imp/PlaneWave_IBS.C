@@ -59,21 +59,14 @@ std::vector<rvec3_t> PlaneWave_IBS::UniformGrid(const ivec3_t& n) const
 
 namespace
 {
-//! Lexicographic ordering so a reciprocal-index triple can key a map.
-struct IVecLess
-{
-    bool operator()(const ivec3_t& a,const ivec3_t& b) const
-    { if (a.x!=b.x) return a.x<b.x; if (a.y!=b.y) return a.y<b.y; return a.z<b.z; }
-};
-
 //! Forward-transform a real field sampled on the fractional grid to its Fourier components
 //! \f$\tilde V(\Delta m)=\frac1{N}\sum_r V(r)e^{-i2\pi\Delta m\cdot r}\f$ over the difference set
 //! \f$\{m_i-m_j\}\f$ (the only components the matrix \f$\langle G_i|V|G_j\rangle\f$ needs).
-std::map<ivec3_t,dcmplx,IVecLess>
+FourierMap
 ForwardDFTDiffSet(const std::vector<ivec3_t>& G, const std::vector<rvec3_t>& frac,
                   const std::vector<double>& field)
 {
-    std::map<ivec3_t,dcmplx,IVecLess> vt;
+    FourierMap vt;
     size_t n=G.size(), Npts=frac.size();
     for (size_t i=0;i<n;i++)
         for (size_t j=0;j<n;j++)
@@ -120,13 +113,20 @@ chmat_t PlaneWave_IBS::IntegralPotential(const ScalarFunction<double>& V) const
 
 // Hartree matrix + energy for a density rho: rho~(dm) via the grid DFT, then V_H~(dm)=4 pi rho~/|G|^2
 // (dm=0 dropped, neutralising background); E_H = (Omega/2) Sum_{G!=0} 4 pi |rho~|^2/|G|^2.
+// Hartree from a real-space density: sample on the grid, forward-DFT to rho-tilde, then the G-space solve.
 chmat_t PlaneWave_IBS::IntegralHartree(const ScalarFunction<double>& rho, double& Eh) const
 {
     std::vector<rvec3_t> frac=UniformGrid(AutoGrid());
     UnitCell A=itsRecip.GetCell().MakeReciprocalCell();
     std::vector<double> field(frac.size());
     for (size_t q=0;q<frac.size();q++) field[q]=rho(A.ToCartesian(frac[q]));
-    auto rg=ForwardDFTDiffSet(itsG,frac,field);
+    return IntegralHartree(ForwardDFTDiffSet(itsG,frac,field), Eh);
+}
+
+// Hartree directly from the density's G-space coefficients rho-tilde (the FFT-free Poisson solve):
+//   V_H(dm) = 4 pi rho-tilde(dm)/|G|^2,   E_H = (Omega/2) Sum_{G!=0} 4 pi |rho-tilde|^2/|G|^2,  dm=0 dropped.
+chmat_t PlaneWave_IBS::IntegralHartree(const FourierMap& rg, double& Eh) const
+{
     Eh=0.0;
     for (const auto& kv : rg)
     {
@@ -142,6 +142,19 @@ chmat_t PlaneWave_IBS::IntegralHartree(const ScalarFunction<double>& rho, double
         auto it=rg.find(dm);
         return FourPi*(it==rg.end()?dcmplx(0.0):it->second)/(G*G);
     });
+}
+
+// rho-tilde(dm) = (1/Omega) Sum_{i,j: G_i-G_j=dm} D_ij.  D is Hermitian, so rho-tilde(-dm)=conj(rho-tilde(dm))
+// falls out automatically (the (j,i) pair contributes conj(D_ij) at -dm).  One O(n^2) pass, no grid.
+FourierMap PlaneWave_IBS::MakeFourierDensity(const chmat_t& D) const
+{
+    FourierMap rg;
+    size_t n=GetNumFunctions();
+    for (size_t i=0;i<n;i++)
+        for (size_t j=0;j<n;j++)
+            rg[itsG[i]-itsG[j]] += D(i,j);
+    for (auto& kv : rg) kv.second /= itsVolume;
+    return rg;
 }
 
 // Scalar integral integral f d3r over the cell: uniform-grid quadrature (weight Omega/Npts).

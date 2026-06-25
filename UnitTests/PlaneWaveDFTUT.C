@@ -1064,6 +1064,38 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaThroughSCFIterator)
     EXPECT_NEAR(E.GetTotalEnergy(), 1.468, 5e-3);   // matches the standalone prototype Si-Gamma
 }
 
+// G-space Hartree path: V_H assembled directly from the density's Fourier coefficients rho-tilde(dm)
+// (PlaneWave_IBS::MakeFourierDensity -> IntegralHartree(FourierMap)) must equal the real-space route
+// (sample rho(r) on the grid -> ForwardDFT -> V_H).  This is the O(n^2) G-space replacement for the
+// O(Npts*n^2) pointwise sampling -- the foundation of the FFT speed-up.  Fast: no SCF, one block.
+TEST_F(PlaneWaveDFT, HartreeFromFourierMatchesPointwise)
+{
+    const double a=10.26;
+    FCCUnitCell    cell(a);
+    Lattice_3D     lat(cell, ivec3_t(1,1,1));
+    PlaneWave_IBS  pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
+    size_t n=pw.GetNumFunctions();
+    ASSERT_GT(n, 3u);
+    Irrep irr=pw.GetIrrep(Spin::None);
+
+    // A non-trivial Hermitian density matrix: a uniform base plus some off-diagonal (cross-G) structure.
+    hmat_t<dcmplx> D=blazem::zeroH<dcmplx>(n);
+    for (size_t i=0;i<n;i++) D(i,i)=8.0/double(n);
+    D(0,1)=dcmplx(0.10,0.05);
+    D(0,2)=dcmplx(-0.07,0.02);
+    D(1,2)=dcmplx(0.04,-0.06);
+    qchem::ChargeDensity::IrrepCD<dcmplx> cd(D, &pw, irr);   // IS-A ScalarFunction rho(r)=phi^H D phi
+
+    double EhA, EhB;
+    chmat_t VA=pw.IntegralHartree(cd, EhA);                        // real-space: sample + ForwardDFT
+    chmat_t VB=pw.IntegralHartree(pw.MakeFourierDensity(D), EhB);  // G-space: direct from D
+
+    double maxd=0;
+    for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) maxd=std::max(maxd, std::abs(VA(i,j)-VB(i,j)));
+    EXPECT_NEAR(EhA, EhB, 1e-9);
+    EXPECT_LT(maxd, 1e-9);
+}
+
 // Stage 4 / multi-k: the SAME Si Kohn-Sham problem on a 2x2x2 Brillouin-zone mesh, through the REAL
 // cSCFIterator.  Now the basis holds 8 Bloch blocks (one per k-point); the framework's per-irrep loop
 // (MakeIrrepWFs, one IrrepWF per block) IS the BZ sum Sum_k w_k, with each block's density BZ-weighted
