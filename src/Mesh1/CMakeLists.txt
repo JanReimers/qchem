@@ -19,6 +19,7 @@ target_sources(qcMesh1 PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     AngularMesh.C
     Product.C
     Quadrature.C
+    Builder.C
     Internal/RadialTypes.C
     Internal/AngularTypes.C
     )

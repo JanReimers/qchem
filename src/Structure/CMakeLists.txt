@@ -6,7 +6,8 @@ target_sources(qcStructure PRIVATE
     Imp/UnitCell.C
     Lattice_3D/Imp/Lattice_3D.C
     Internal/Imp/AtomMesh.C
-    Internal/Imp/MoleculeMesh.C 
+    Internal/Imp/MoleculeMesh.C
+    Imp/MolecularMesh1.C
     )
 target_sources(qcStructure PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Structure.C
@@ -18,6 +19,7 @@ target_sources(qcStructure PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Internal/UnitCellMesh.C
     Internal/AtomMesh.C
     Internal/MoleculeMesh.C
+    MolecularMesh1.C
     )
 target_include_directories(qcStructure PRIVATE 
     ${PROJECT_SOURCE_DIR}/submodules/json/single_include
@@ -26,6 +28,6 @@ target_include_directories(qcStructure PRIVATE
 set_property(TARGET qcStructure PROPERTY CXX_STANDARD 20)
 target_compile_options(qcStructure PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(qcStructure PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
-target_link_libraries(qcStructure PUBLIC qcMesh qcCommon)
+target_link_libraries(qcStructure PUBLIC qcMesh qcMesh1 qcCommon)
 
 add_subdirectory(tests)
