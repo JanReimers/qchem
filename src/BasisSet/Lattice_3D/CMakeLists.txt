@@ -29,3 +29,5 @@ set_property(TARGET qcLattice_BS PROPERTY CXX_STANDARD 20)
 target_compile_options(qcLattice_BS PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(qcLattice_BS PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS} ${LatticeDataPath})
 target_link_libraries(qcLattice_BS PUBLIC qcBasisSet qcStructure qcSymmetry qcLASolver)
+
+add_subdirectory(tests)
