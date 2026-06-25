@@ -56,6 +56,7 @@ import qchem.WaveFunction;                          // cWaveFunction (read view 
 import qchem.ElectronConfiguration;                 // ElectronConfiguration base
 import qchem.ElectronConfiguration.Crystal;         // Crystal_EC (single-k Bloch configuration)
 import qchem.SCFAccelerator.Internal.SCFIrrepAcceleratorNull; // tSCFAcceleratorNull<dcmplx>
+import qchem.SCFAccelerator.Internal.SCFAcceleratorDIIS;      // cSCFAcceleratorDIIS (complex DIIS)
 import qchem.BasisSet.Internal.BasisSetImp;         // BasisSetImp<dcmplx> (single-block BasisSet container)
 
 using BasisSet::Lattice_3D::PlaneWave_IBS;
@@ -1025,8 +1026,11 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaThroughSCFIterator)
     // are sourced from the lattice -- the structure carries all the external-potential information.
     cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure());
 
-    // No-acceleration manager (plain diagonalize each iteration) for the complex path.
-    auto* acc=new qchem::SCFAccelerators::tSCFAcceleratorNull<dcmplx>();
+    // Complex DIIS (Pulay): extrapolate the Fock matrix from the [F,D]-error history.  This damps the
+    // marginal density drift within Si's degenerate Gamma_25' manifold that the Null accelerator left,
+    // so the calculation converges to a tight |Delta rho| instead of dribbling at ~1e-5.
+    using qchem::SCFAccelerators::DIISParams;
+    auto* acc=new qchem::SCFAccelerators::cSCFAcceleratorDIIS(DIISParams{8, 0.5, 1e-10, 1e-9});
 
     // Seed a UNIFORM density (Hartree+XC active from iteration 0, as real PW codes do): D = (N/n) I.
     hmat_t<dcmplx> D0=blazem::zeroH<dcmplx>(n);
@@ -1037,12 +1041,8 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaThroughSCFIterator)
 
     SCFParams par;
     par.NMaxIter      =80;
-    // The energy converges to 1.468057 (== the prototype) by ~iter 10, but the Null accelerator has no
-    // DIIS damping, so the density matrix drifts marginally within Si's degenerate Gamma_25' occupied
-    // manifold (energy flat to 1e-9, |Delta rho| dips to ~1e-5 then slowly grows).  Converge at the
-    // density dip with a realistic plane-wave tolerance; a complex DIIS accelerator is future work.
-    par.MinΔρ         =1e-4;
-    par.MinΔFD        =1e30;   // Null accelerator reports no [F,D] error
+    par.MinΔρ         =1e-7;   // tight convergence now that complex DIIS damps the degenerate-manifold drift
+    par.MinΔFD        =1e30;
     par.MinVirial     =1e30;   // pseudopotential calc: the textbook -V/K=2 virial does not hold
     par.MinFD         =1e30;
     par.StartingRelaxRo=0.4;
@@ -1103,7 +1103,9 @@ TEST_F(PlaneWaveDFT, FrameworkSilicon2x2x2ThroughSCFIterator)
 
     SCFParams par;
     par.NMaxIter      =80;
-    par.MinΔρ         =1e-4;
+    par.MinΔρ         =1e-4;   // Null floor for the BZ-sampled density (the no-FFT multi-k run is expensive;
+                               // complex DIIS reaches Etot=0.934176 exactly but costs ~22 iters / ~400s --
+                               // the single-k test is the tight-1e-7 DIIS showcase).
     par.MinΔFD        =1e30;
     par.MinVirial     =1e30;
     par.MinFD         =1e30;
