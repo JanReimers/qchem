@@ -1,11 +1,10 @@
 module;
 #include <cassert>
-#include <nlohmann/json.hpp>
+#include <sstream>
+#include <iomanip>
 module qchem.Structure;
-import qchem.Structure.AtomMesh;
-import qchem.Mesh.Factory;
+import qchem.Structure.MoleculeMesh;   // single-center mesh via the qcMesh1-backed Becke builder
 import qchem.Vector3D;
-using json = nlohmann::json;
 
 
 Atom::Atom(int Z)
@@ -29,11 +28,9 @@ Atom::Atom(int Z, double charge, const rvec3_t& R)
 
 Mesh* Atom::CreateMesh(const MeshParams& mp) const
 {
-    json js={{"N",mp.Nradial},{"m",mp.MHL_m},{"alpha",mp.MHL_alpha}};
-    RadialMesh* rm=MeshF::Factory(qchem::MHL,js);
-    js={{"Nangle",mp.Nangle}};
-    Mesh* am=MeshF::Factory(qchem::Gauss,js);  
-    return new AtomMesh(rm,am,itsR); 
+    // A single atom is a one-atom Structure; MakeMolecularMesh handles natom=1 (no Becke reweight),
+    // i.e. exactly the old MHL x Gauss product mesh -- so the numerical integrals are unchanged.
+    return new MoleculeMesh(*this,mp);
 }
 
 

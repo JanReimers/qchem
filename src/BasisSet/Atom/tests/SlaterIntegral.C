@@ -40,7 +40,7 @@ public:
         bs=BasisSet::Atom::Factory(js,75);
         MeshParams mp({qchem::MHL,200,3,2.0,qchem::Gauss,1,0,0,3});
         mintegrator=new MeshIntegrator<double>(cl->CreateMesh(mp));
-        MeshParams rmp({qchem::MHL,200,3,2.0,qchem::Gauss,32,0,0,3});
+        MeshParams rmp({qchem::MHL,200,3,2.0,qchem::Gauss,50,0,0,3}); // was 32 (dropped buggy rule); 50 is exact
         rmintegrator=new MeshIntegrator<double>(cl->CreateMesh(rmp));
         //cout << *bs << endl;
     }
