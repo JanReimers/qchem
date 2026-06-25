@@ -705,17 +705,23 @@ TEST_F(PlaneWaveDFT, ScfSiliconDiamondConverges)
     ecell.AddAtom(14, rvec3_t(0.0,0.0,0.0));
     ecell.AddAtom(14, rvec3_t(0.25,0.25,0.25));
     double Eii  = EwaldEnergy(ecell, rvec_t{4.0,4.0});
-    double Etot = R.Etot_direct + Eii;
+
+    // G=0 alignment of the local pseudopotential: the dropped G=0 potential carries a finite
+    // electron-ion shift E_alpha = (N/Omega) Sum_a alpha_a, alpha_a = integral[V_loc^a + Zion/r].
+    // (Two Si atoms, same species.)  This is the last G=0 piece needed for the absolute total energy.
+    double Ealpha = (double(Nval)/Omega) * 2.0 * loc.FormFactorG0(14);
+    double Etot   = R.Etot_direct + Eii + Ealpha;
 
     std::cout << "[Si] nG="<<pw.GetNumFunctions()<<" grid="<<(4*m+1)<<"^3 iters="<<R.iters
               << " converged="<<R.converged << "\n  Ekin="<<R.Ekin<<" Eext="<<R.Eext
               << " E_H="<<R.EH<<" E_xc="<<R.Exc << "\n  Etot(elec)="<<R.Etot_direct
-              << " E_ion-ion(Ewald)="<<Eii << "  Etot(elec+ion-ion)="<<Etot << std::endl;
+              << " E_ion-ion(Ewald)="<<Eii << " E_alpha(G=0)="<<Ealpha
+              << "\n  Etot(physical)="<<Etot << std::endl;
 
     ASSERT_TRUE(R.converged);
     EXPECT_NEAR(Omega*std::real(RhoAt(R.rho,ivec3_t(0,0,0))), double(Nval), 1e-6);  // 8 valence e-
     EXPECT_NEAR(R.Etot_band, R.Etot_direct, 1e-5);                                  // stationary fixed point
-    EXPECT_LT(Etot, 0.0);   // adding the ion-ion Madelung energy makes the total energy negative
+    EXPECT_LT(Etot, 0.0);   // ion-ion Madelung + G=0 alignment make the total energy negative
 }
 
 // Silicon again, but BZ-sampled over a 2x2x2 Monkhorst-Pack mesh (8 k-points) instead of Gamma-only.

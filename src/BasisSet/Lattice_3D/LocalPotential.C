@@ -27,6 +27,13 @@ public:
     //! excluding the \f$1/\Omega\f$ and the structure-factor phase (those are geometry, applied by
     //! the basis set).  [energy x volume]
     virtual double FormFactor(int Z, double G2) const=0;
+
+    //! \brief The finite \f$G\to 0\f$ limit of \f$v(G)+4\pi Z/G^2\f$, i.e. \f$\alpha=\int[V_{loc}(r)+Z/r]\,d^3r\f$
+    //! (the form factor with its divergent Coulomb tail removed).  This is the "\f$\alpha\f$" / G=0
+    //! alignment constant a plane-wave total energy needs: the \f$G=0\f$ electron-ion energy is
+    //! \f$(N_{el}/\Omega)\sum_a\alpha_a\f$, the uniform shift dropped along with the \f$G=0\f$ potential.
+    //! Default 0 (a pure Coulomb tail has no finite remainder). [energy x volume]
+    virtual double FormFactorG0(int Z) const {return 0.0;}
 };
 
 //! \brief Bare nuclear Coulomb \f$v(G) = -4\pi Z/G^2\f$.  Physically exact but the 1s cusp makes the
@@ -49,6 +56,8 @@ public:
     {
         return -FourPi*Z*std::exp(-0.5*itsSigma*itsSigma*G2)/G2;
     }
+    //! \f$v(G)+4\pi Z/G^2 = 4\pi Z(1-e^{-\sigma^2G^2/2})/G^2 \to 2\pi Z\sigma^2\f$ as \f$G\to0\f$.
+    virtual double FormFactorG0(int Z) const {return 2*Pi*Z*itsSigma*itsSigma;}
 private:
     double itsSigma; //!< Smearing width (Bohr).
 };
@@ -83,6 +92,15 @@ public:
         double poly=itsC1 + itsC2*(3-t) + itsC3*(15-10*t+t*t) + itsC4*(105-105*t+21*t*t-t*t*t);
         double twopi32=std::pow(2*Pi, 1.5);
         return coulomb + twopi32*itsRloc*itsRloc*itsRloc * g * poly;
+    }
+    //! G=0 alignment \f$\alpha=\int[V_{loc}+Z_{ion}/r]\,d^3r = 2\pi Z_{ion}r_{loc}^2
+    //! + (2\pi)^{3/2}r_{loc}^3(C_1+3C_2+15C_3+105C_4)\f$ (the \f$G\to0\f$ finite part: the softened
+    //! Coulomb leaves \f$2\pi Z r_{loc}^2\f$, the Gaussian-polynomial leaves the moment sum).
+    virtual double FormFactorG0(int /*Z*/) const
+    {
+        double twopi32=std::pow(2*Pi, 1.5);
+        double moments=itsC1 + 3*itsC2 + 15*itsC3 + 105*itsC4;
+        return 2*Pi*itsZion*itsRloc*itsRloc + twopi32*itsRloc*itsRloc*itsRloc*moments;
     }
 private:
     double itsZion, itsRloc, itsC1, itsC2, itsC3, itsC4;
