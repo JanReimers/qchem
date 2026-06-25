@@ -8,7 +8,6 @@ module;
 
 module qchem.Lattice_3D;
 
-import qchem.Structure.MoleculeMesh;
 import qchem.Streamable;
 import qchem.Math;
 import qchem.Blaze; //for op!= on blaze iterators (range-for over rvec3vec_t)

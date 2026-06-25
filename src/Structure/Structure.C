@@ -4,7 +4,7 @@ module;
 #include <memory>
 
 export module qchem.Structure;
-import qchem.Mesh;
+import qchem.Types;
 import qchem.Streamable;
 import Common.Iterators;
 
@@ -35,7 +35,6 @@ public:
     virtual bool   isFinite         () const {return true;}
 
     virtual size_t GetAtomIndex(const rvec3_t&, double tol=0.0) const;
-    virtual Mesh*  CreateMesh(const MeshParams&) const=0;
 
     //  Element access and range-based iteration are built on the single
     //  storage primitive GetAtom() below, so a concrete Structure is free to
@@ -62,7 +61,6 @@ public:
     //  (no self-reference, no UniqueID), so it is freely relocatable.
 
     virtual size_t GetNumAtoms      () const {return 1;}
-    virtual Mesh*  CreateMesh(const MeshParams&) const;
 
     virtual std::string   ID     () const;
     virtual std::ostream& Write  (std::ostream&) const;
@@ -89,7 +87,6 @@ public:
     virtual ~Molecule();
     virtual void   Insert     (Atom* a);
     virtual size_t GetNumAtoms() const;
-    virtual Mesh*  CreateMesh (const MeshParams&) const;
 
     virtual std::ostream& Write(std::ostream&) const;
 

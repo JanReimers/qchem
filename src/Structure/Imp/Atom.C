@@ -3,7 +3,6 @@ module;
 #include <sstream>
 #include <iomanip>
 module qchem.Structure;
-import qchem.Structure.MoleculeMesh;   // single-center mesh via the qcMesh1-backed Becke builder
 import qchem.Vector3D;
 
 
@@ -25,14 +24,6 @@ Atom::Atom(int Z, double charge, const rvec3_t& R)
     assert(itsZ>0);
     assert(itsZ<150); //Maybe there is an island of stability at Z=140!!!!
 };
-
-Mesh* Atom::CreateMesh(const MeshParams& mp) const
-{
-    // A single atom is a one-atom Structure; MakeMolecularMesh handles natom=1 (no Becke reweight),
-    // i.e. exactly the old MHL x Gauss product mesh -- so the numerical integrals are unchanged.
-    return new MoleculeMesh(*this,mp);
-}
-
 
 std::string Atom::ID() const
 {

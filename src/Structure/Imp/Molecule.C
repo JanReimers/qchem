@@ -4,7 +4,6 @@ module;
 #include <memory>
 
 module qchem.Structure;
-import qchem.Structure.MoleculeMesh;
 import qchem.stl_io;
 import qchem.Streamable;
 
@@ -29,11 +28,6 @@ void Molecule::Insert(Atom* a)
 size_t Molecule::GetNumAtoms() const
 {
     return itsAtoms.size();
-}
-
-Mesh*  Molecule::CreateMesh(const MeshParams& mp) const
-{
-    return new MoleculeMesh(*this,mp);
 }
 
 std::ostream& Molecule::Write(std::ostream& os) const
