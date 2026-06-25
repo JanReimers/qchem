@@ -9,7 +9,10 @@ export module qchem.Mesh1.Radial;
 export import qchem.Types;
 export import qchem.Mesh1;            // RadialKind, MeshParams
 
-export class RadialMesh
+export namespace qcMesh1
+{
+
+class RadialMesh
 {
 public:
     virtual ~RadialMesh() = default;
@@ -21,4 +24,6 @@ protected:
 };
 
 //! \brief Build a radial mesh of the requested kind from the typed parameters.
-export std::unique_ptr<RadialMesh> MakeRadial(const MeshParams&);
+std::unique_ptr<RadialMesh> MakeRadial(const MeshParams&);
+
+} //export namespace qcMesh1

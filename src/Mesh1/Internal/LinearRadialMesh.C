@@ -5,6 +5,9 @@ module;
 #include <cassert>
 module qchem.Mesh1.Radial.Internal;
 
+namespace qcMesh1
+{
+
 LinearRadialMesh::LinearRadialMesh(double start, double stop, int NumPoints)
 {
     assert(NumPoints>=2);
@@ -19,3 +22,5 @@ LinearRadialMesh::LinearRadialMesh(double start, double stop, int NumPoints)
         itsW[i]=trap*r*r;
     }
 }
+
+} //namespace qcMesh1

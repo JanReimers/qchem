@@ -9,6 +9,9 @@ module qchem.Mesh1.Angular.Internal;
 import qchem.Mesh1.GaussLegendre;
 import qchem.Math;
 
+namespace qcMesh1
+{
+
 GaussLegendreAngularMesh::GaussLegendreAngularMesh(int L)
 {
     int numTheta=(L+1)/2;
@@ -38,3 +41,5 @@ GaussLegendreAngularMesh::GaussLegendreAngularMesh(int L)
         }
     assert(k==numDir);
 }
+
+} //namespace qcMesh1

@@ -5,6 +5,9 @@ module;
 module qchem.Mesh1.Angular;
 import qchem.Mesh1.Angular.Internal;
 
+namespace qcMesh1
+{
+
 std::unique_ptr<AngularMesh> MakeAngular(const MeshParams& p)
 {
     switch (p.angular)
@@ -18,3 +21,5 @@ std::unique_ptr<AngularMesh> MakeAngular(const MeshParams& p)
     }
     throw std::runtime_error("MakeAngular: unknown AngularKind");
 }
+
+} //namespace qcMesh1

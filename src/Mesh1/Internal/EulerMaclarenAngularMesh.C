@@ -7,6 +7,9 @@ module;
 module qchem.Mesh1.Angular.Internal;
 import qchem.Math;
 
+namespace qcMesh1
+{
+
 EulerMaclarenAngularMesh::EulerMaclarenAngularMesh(int L, int m)
 {
     assert(m>=1 && m<=3);
@@ -51,3 +54,5 @@ EulerMaclarenAngularMesh::EulerMaclarenAngularMesh(int L, int m)
         }
     assert(k==numDir);
 }
+
+} //namespace qcMesh1

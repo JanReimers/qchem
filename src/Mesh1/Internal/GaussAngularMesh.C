@@ -16,6 +16,9 @@ module;
 module qchem.Mesh1.Angular.Internal;
 import qchem.Math;
 
+namespace qcMesh1
+{
+
 GaussAngularMesh::GaussAngularMesh(int numDir)
 {
     itsD.resize(numDir);
@@ -228,3 +231,5 @@ GaussAngularMesh::GaussAngularMesh(int numDir)
     for (int i=0; i<numDir; i++) W[i]*=FourPi;   // normalise: sum W = 4*pi
     assert(W.size()==D.size());
 }
+
+} //namespace qcMesh1

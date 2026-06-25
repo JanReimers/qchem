@@ -6,6 +6,9 @@ module;
 module qchem.Mesh1.Radial;
 import qchem.Mesh1.Radial.Internal;
 
+namespace qcMesh1
+{
+
 std::unique_ptr<RadialMesh> MakeRadial(const MeshParams& p)
 {
     switch (p.radial)
@@ -19,3 +22,5 @@ std::unique_ptr<RadialMesh> MakeRadial(const MeshParams& p)
     }
     throw std::runtime_error("MakeRadial: unknown RadialKind");
 }
+
+} //namespace qcMesh1

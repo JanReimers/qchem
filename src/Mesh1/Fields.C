@@ -9,8 +9,11 @@ module;
 export module qchem.Mesh1.Fields;
 export import qchem.Types;
 
+export namespace qcMesh1
+{
+
 //! \brief A scalar field: rho(r), vxc(r), -Z/|r-R|, 1/r, ...  Geometry/physics live in the caller.
-export template <class T> class ScalarField
+template <class T> class ScalarField
 {
 public:
     virtual ~ScalarField() = default;
@@ -20,7 +23,7 @@ public:
 
 //! \brief A basis as a vector field: [phi_i(r)].  size() is the number of basis functions
 //! (needed by the quadrature to size its matrices -- this is the one addition over the design sketch).
-export template <class T> class BasisField
+template <class T> class BasisField
 {
 public:
     virtual ~BasisField() = default;
@@ -28,3 +31,5 @@ public:
     virtual vec_t<T>     operator()(const rvec3_t&)  const = 0;   //!< [ phi_i(r) ]
     virtual vec3vec_t<T> Gradient  (const rvec3_t&)  const = 0;   //!< [ grad phi_i(r) ]
 };
+
+} //export namespace qcMesh1

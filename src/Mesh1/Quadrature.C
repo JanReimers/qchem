@@ -15,6 +15,9 @@ export import qchem.Mesh1;
 export import qchem.Mesh1.Fields;
 import qchem.Blaze;
 
+namespace qcMesh1
+{
+
 // ---- internal helpers: scalar conj/real that also work for real T (no std-namespace hacks) ----
 template <class T> inline T    Conj(const T& x) { if constexpr (std::is_floating_point_v<T>) return x; else return std::conj(x); }
 template <class T> inline auto Real(const T& x) { if constexpr (std::is_floating_point_v<T>) return x; else return std::real(x); }
@@ -127,3 +130,5 @@ export template <class T> rvec_t Normalize(const Mesh& m, const BasisField<T>& a
     }
     return 1.0/blazem::sqrt(s);
 }
+
+} //namespace qcMesh1

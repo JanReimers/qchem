@@ -8,7 +8,10 @@ export module qchem.Mesh1.Angular;
 export import qchem.Types;
 export import qchem.Mesh1;            // AngularKind, MeshParams
 
-export class AngularMesh
+export namespace qcMesh1
+{
+
+class AngularMesh
 {
 public:
     virtual ~AngularMesh() = default;
@@ -21,4 +24,6 @@ protected:
 };
 
 //! \brief Build an angular mesh of the requested kind from the typed parameters.
-export std::unique_ptr<AngularMesh> MakeAngular(const MeshParams&);
+std::unique_ptr<AngularMesh> MakeAngular(const MeshParams&);
+
+} //export namespace qcMesh1

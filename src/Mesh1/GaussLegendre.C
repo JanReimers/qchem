@@ -12,13 +12,21 @@ export module qchem.Mesh1.GaussLegendre;
 export import qchem.Types;
 import qchem.Math;
 
+export namespace qcMesh1
+{
+
 //! \brief n-point Gauss-Legendre nodes \c x and weights \c w on [a,b].  Exact for polynomials
 //! up to degree 2n-1.
-export struct GaussLegendre
+struct GaussLegendre
 {
     rvec_t x, w;
     GaussLegendre(int n, double a, double b);
 };
+
+} //export namespace qcMesh1
+
+namespace qcMesh1
+{
 
 GaussLegendre::GaussLegendre(int n, double a, double b)
     : x(n), w(n)
@@ -49,3 +57,5 @@ GaussLegendre::GaussLegendre(int n, double a, double b)
         w[n-i]  = w[i-1];
     }
 }
+
+} //namespace qcMesh1

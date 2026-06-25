@@ -6,6 +6,9 @@ module;
 module qchem.Mesh1.Radial.Internal;
 import qchem.Math;
 
+namespace qcMesh1
+{
+
 MHLRadialMesh::MHLRadialMesh(int NumPoints, int m, double alpha)
 {
     itsR.resize(NumPoints);
@@ -20,3 +23,5 @@ MHLRadialMesh::MHLRadialMesh(int NumPoints, int m, double alpha)
         itsW[i]=w;
     }
 }
+
+} //namespace qcMesh1

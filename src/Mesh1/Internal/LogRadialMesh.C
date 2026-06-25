@@ -5,6 +5,9 @@ module;
 module qchem.Mesh1.Radial.Internal;
 import qchem.Math;
 
+namespace qcMesh1
+{
+
 LogRadialMesh::LogRadialMesh(double start, double stop, int NumPoints)
 {
     itsR.resize(NumPoints);
@@ -25,3 +28,5 @@ LogRadialMesh::LogRadialMesh(double start, double stop, int NumPoints)
     itsR[NumPoints-1]=r;                          // == stop
     itsW[NumPoints-1]=1.0/3.0 * (Cube(stop)-Cube(stop/sq)); // only half annulus
 }
+
+} //namespace qcMesh1
