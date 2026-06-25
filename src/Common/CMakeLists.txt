@@ -20,6 +20,7 @@ target_sources(qcCommon PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Math.C
     SpecialFunctions.C
     FFT.C
+    FourierMap.C
     )
 
 set_property(TARGET qcCommon PROPERTY CXX_STANDARD 20)
