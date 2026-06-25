@@ -19,7 +19,7 @@ export namespace qchem::ChargeDensity
 //
 template <class T> class tComposite_CD
     : public virtual tDM_CD<T>
-    , public virtual FourierDensity   // reciprocal-space rho-tilde = sum over the (BZ-weighted) blocks
+    , public FourierDensityBase<T>    // FourierDensity on the periodic (dcmplx) path; empty on the finite path
 {
 public:
     tComposite_CD();

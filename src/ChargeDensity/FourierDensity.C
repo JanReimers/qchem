@@ -9,8 +9,10 @@
 // a DFT term reaches a periodic density's rho-tilde by dynamic_cast (abstract->abstract).  The composite
 // density sums the per-block (BZ-weighted) rho-tilde over the k-mesh.
 module;
+#include <type_traits>
 export module qchem.ChargeDensity.FourierDensity;
 export import qchem.FourierMap;
+import qchem.Types;   // dcmplx
 
 export namespace qchem::ChargeDensity
 {
@@ -23,5 +25,15 @@ public:
     //! composite sums \f$\sum_k w_k\tilde\rho_k\f$ over the k-mesh).  Keyed by reciprocal-index difference.
     virtual FourierMap GetFourierDensity() const=0;
 };
+
+//! Empty (non-polymorphic) stand-in for a FINITE density, which has no reciprocal-space representation.
+//! A density template inherits FourierDensity only on the periodic (dcmplx) path; the finite (double)
+//! path gets this empty base so its object layout is UNCHANGED -- a polymorphic virtual base would shift
+//! the object size/allocation and perturb the (basin-sensitive) molecular SCF.
+struct NoFourierDensity {};
+
+//! FourierDensity for the periodic path (T=dcmplx), the empty base for the finite path.
+template <class T> using FourierDensityBase =
+    std::conditional_t<std::is_same_v<T,dcmplx>, FourierDensity, NoFourierDensity>;
 
 } //namespace

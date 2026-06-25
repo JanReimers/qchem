@@ -19,7 +19,7 @@ export namespace qchem::ChargeDensity
 //
 template <class T> class IrrepCD
     : public virtual tDM_CD<T>
-    , public virtual FourierDensity   // native reciprocal-space rho-tilde (periodic/dcmplx path)
+    , public FourierDensityBase<T>    // FourierDensity on the periodic (dcmplx) path; empty on the finite path
 {
 public:
     typedef  mat_t<T>  DenMat;
