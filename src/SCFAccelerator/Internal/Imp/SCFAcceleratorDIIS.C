@@ -3,6 +3,7 @@ module;
 #include <iostream>
 #include <cassert>
 #include <iomanip>
+#include <complex>   // std::real
 module qchem.SCFAccelerator.Internal.SCFAcceleratorDIIS;
 import qchem.SCFAccelerator.Internal.SCFIrrepAcceleratorNull;
 import qchem.Blaze;
@@ -13,7 +14,8 @@ namespace qchem::SCFAccelerators
 using std::cout;
 using std::endl;
 
-SCFIrrepAcceleratorDIIS::SCFIrrepAcceleratorDIIS(const DIISParams& p,const LASolver<double>* lasb,const Irrep& qns,const rvec_t& cs) 
+template <class T> tSCFIrrepAcceleratorDIIS<T>::
+tSCFIrrepAcceleratorDIIS(const DIISParams& p,const LASolver<T>* lasb,const Irrep& qns,const rvec_t& cs)
     : itsParams(p)
     , itsIrrep(qns)
     , itsEn(0.0)
@@ -22,61 +24,61 @@ SCFIrrepAcceleratorDIIS::SCFIrrepAcceleratorDIIS(const DIISParams& p,const LASol
 {
     assert(itsLASolver);
 };
-SCFIrrepAcceleratorDIIS::~SCFIrrepAcceleratorDIIS() 
+template <class T> tSCFIrrepAcceleratorDIIS<T>::~tSCFIrrepAcceleratorDIIS()
 {
 
 };
 
 
-void SCFIrrepAcceleratorDIIS::UseFD(const rsmat_t& F, const rsmat_t& DPrime)
+template <class T> void tSCFIrrepAcceleratorDIIS<T>::UseFD(const hmat_t<T>& F, const hmat_t<T>& DPrime)
 {
     itsFPrime=itsLASolver->Transform(F); // Fprime = Vd*F*V
     assert(itsFPrime.rows()==DPrime.rows());
     assert(itsFPrime.columns()==DPrime.columns());
     itsDPrime=DPrime;
-    itsE=itsFPrime*itsDPrime-itsDPrime*itsFPrime;
-    itsEn=blazem::norm(itsE);
+    itsE=itsFPrime*itsDPrime-itsDPrime*itsFPrime; // [F',D'] (anti-Hermitian)
+    itsEn=std::real(blazem::norm(itsE));
 }
 
-LASolver<double>::UUd_t SCFIrrepAcceleratorDIIS::NextOrbitals()
+template <class T> typename LASolver<T>::UUd_t tSCFIrrepAcceleratorDIIS<T>::NextOrbitals()
 {
     // Fock-extrapolation accelerator: extrapolate F' then diagonalize it.
     return itsLASolver->SolveOrtho(Project());
 }
 
-rsmat_t SCFIrrepAcceleratorDIIS::Project()
+template <class T> hmat_t<T> tSCFIrrepAcceleratorDIIS<T>::Project()
 {
-    if (itsCs.size()<2) 
+    if (itsCs.size()<2)
         return itsFPrime;
     else
     {
         double err=fabs(blazem::sum(itsCs)-1.0);
         if (err>1e-13)
-            cout << "Warning: SCFIrrepAcceleratorDIIS::Project() fabs(Sum(itsCs)-1.0)<>e-13 ." << endl;
+            cout << "Warning: tSCFIrrepAcceleratorDIIS::Project() fabs(Sum(itsCs)-1.0)<>e-13 ." << endl;
         assert(itsCs.size()==itsFPrimes.size());
-        // Now do the projection for the Fock matrix.
-        rsmat_t Fproj=blazem::zero<double>(itsFPrime.rows()) ;
+        // Now do the projection for the Fock matrix (real coefficients * Hermitian F' = Hermitian).
+        hmat_t<T> Fproj=blazem::zeroH<T>(itsFPrime.rows()) ;
         size_t  i=0;
         for (const auto& f:itsFPrimes) Fproj+=itsCs[i++]*f;
         return Fproj;
     }
 }
 
-void SCFIrrepAcceleratorDIIS::Append1()
+template <class T> void tSCFIrrepAcceleratorDIIS<T>::Append1()
 {
     assert(itsEs.size()==itsFPrimes.size());
     assert(itsEns.size()==itsFPrimes.size());
     itsEs     .push_back(itsE);
     itsEns    .push_back(itsEn);
-    itsFPrimes.push_back(itsFPrime);   
+    itsFPrimes.push_back(itsFPrime);
 }
-void SCFIrrepAcceleratorDIIS::Purge1()
+template <class T> void tSCFIrrepAcceleratorDIIS<T>::Purge1()
 {
     assert(itsEs.size()==itsFPrimes.size());
     assert(itsEns.size()==itsFPrimes.size());
     itsEns    .pop_front();
     itsEs     .pop_front();
-    itsFPrimes.pop_front();    
+    itsFPrimes.pop_front();
 }
 
 //----------------------------------------------------------------------------------------------------------------------------
@@ -85,23 +87,23 @@ void SCFIrrepAcceleratorDIIS::Purge1()
 //
 
 
-SCFAcceleratorDIIS::SCFAcceleratorDIIS(const DIISParams& p) 
+template <class T> tSCFAcceleratorDIIS<T>::tSCFAcceleratorDIIS(const DIISParams& p)
 : itsParams(p)
 {};
 
-SCFAcceleratorDIIS::~SCFAcceleratorDIIS() {};
-SCFIrrepAccelerator* SCFAcceleratorDIIS::Create(const LASolver<double>* lasb,const Irrep& qns, int occ) 
+template <class T> tSCFAcceleratorDIIS<T>::~tSCFAcceleratorDIIS() {};
+template <class T> tSCFIrrepAccelerator<T>* tSCFAcceleratorDIIS<T>::Create(const LASolver<T>* lasb,const Irrep& qns, int occ)
 {
     if (occ>0)
     {
-        itsIrreps.push_back(new SCFIrrepAcceleratorDIIS(itsParams,lasb,qns,itsCs));
+        itsIrreps.push_back(new tSCFIrrepAcceleratorDIIS<T>(itsParams,lasb,qns,itsCs));
         return itsIrreps.back();
     }
     else
-        return new SCFIrrepAcceleratorNull(lasb,qns);
+        return new tSCFIrrepAcceleratorNull<T>(lasb,qns);
 }
 
-size_t SCFAcceleratorDIIS::GetNProj() const
+template <class T> size_t tSCFAcceleratorDIIS<T>::GetNProj() const
 {
     size_t N=itsIrreps[0]->GetNproj();
 #ifdef DEBUG
@@ -110,7 +112,7 @@ size_t SCFAcceleratorDIIS::GetNProj() const
     return N;
 }
 
-double SCFAcceleratorDIIS::GetMinSV(const rsmat_t& B)
+template <class T> double tSCFAcceleratorDIIS<T>::GetMinSV(const rsmat_t& B)
 {
     rvec_t s;
     rmat_t  U,Vt;
@@ -118,15 +120,15 @@ double SCFAcceleratorDIIS::GetMinSV(const rsmat_t& B)
     return s[s.size()-1];
 }
 
-rvec_t SCFAcceleratorDIIS::SolveC(const rsmat_t& B) 
+template <class T> rvec_t tSCFAcceleratorDIIS<T>::SolveC(const rsmat_t& B)
 {
     size_t N=B.rows();
     rvec_t v(N,0.0);
     v[N-1]=1.0;
     rvec_t C=blazem::solve(B,v);
-    return blazem::subvector(C,0,N-1);   
+    return blazem::subvector(C,0,N-1);
 }
-SCFAcceleratorDIIS::md_t SCFAcceleratorDIIS::BuildB() const
+template <class T> typename tSCFAcceleratorDIIS<T>::md_t tSCFAcceleratorDIIS<T>::BuildB() const
 {
     size_t  N=GetNProj();
     rsmat_t B=blazem::zero<double>(N+1);
@@ -137,33 +139,33 @@ SCFAcceleratorDIIS::md_t SCFAcceleratorDIIS::BuildB() const
             for (auto k:itsIrreps) B(i,j)+=k->GetError(i,j);
     }
     // B(N,N)=0.0;  should already be true
-    return {B,GetMinSV(B)};    
+    return {B,GetMinSV(B)};
 }
-rsmat_t SCFAcceleratorDIIS::BuildPrunedB(double svmin)
+template <class T> rsmat_t tSCFAcceleratorDIIS<T>::BuildPrunedB(double svmin)
 {
     md_t B=BuildB(); //Returns a SMat,double struct.
-    while (B.sv<svmin && GetNProj()>=2) 
+    while (B.sv<svmin && GetNProj()>=2)
     {
         Purge1(); //Must be a member function for this.
         B=BuildB();
     }
     itsLastSVMin=B.sv;
-    return B.B;    
+    return B.B;
 }
-size_t SCFAcceleratorDIIS::Purge1()
+template <class T> size_t tSCFAcceleratorDIIS<T>::Purge1()
 {
-    
+
     for (auto k:itsIrreps) k->Purge1();
     return GetNProj();
 }
-size_t SCFAcceleratorDIIS::Append1()
+template <class T> size_t tSCFAcceleratorDIIS<T>::Append1()
 {
-    
+
     for (auto k:itsIrreps) k->Append1();
     return GetNProj();
 }
 
-bool SCFAcceleratorDIIS::CalculateProjections()
+template <class T> bool tSCFAcceleratorDIIS<T>::CalculateProjections()
 {
     blazem::clear(itsCs);
     itsEn=0.0;
@@ -211,17 +213,17 @@ bool SCFAcceleratorDIIS::CalculateProjections()
         return false;
     }
 
-    itsCs=SCFAcceleratorDIIS::SolveC(B); //Irreps have a reference to this in order to do the projections.
+    itsCs=tSCFAcceleratorDIIS<T>::SolveC(B); //Irreps have a reference to this in order to do the projections.
     itsStuckCount=0;
     return true;
 }
 
 
-void SCFAcceleratorDIIS::ShowLabels(std::ostream& os) const
+template <class T> void tSCFAcceleratorDIIS<T>::ShowLabels(std::ostream& os) const
 {
     os << " [F,D]   Nproj    SVMin   Bail   ";
 }
-void SCFAcceleratorDIIS::ShowConvergence(std::ostream& os) const
+template <class T> void tSCFAcceleratorDIIS<T>::ShowConvergence(std::ostream& os) const
 {
     os << std::scientific << std::setw(7) << std::setprecision(1) << itsEn << " ";
     if (HasProjection())
@@ -233,11 +235,15 @@ void SCFAcceleratorDIIS::ShowConvergence(std::ostream& os) const
         os << "                ";
     os << bailoutReason;
 }
-double SCFAcceleratorDIIS::GetError() const
+template <class T> double tSCFAcceleratorDIIS<T>::GetError() const
 {
-      
+
     return itsEn;
 }
 
+template class tSCFIrrepAcceleratorDIIS<double>;
+template class tSCFIrrepAcceleratorDIIS<dcmplx>;
+template class tSCFAcceleratorDIIS<double>;
+template class tSCFAcceleratorDIIS<dcmplx>;
 
 } //namespace

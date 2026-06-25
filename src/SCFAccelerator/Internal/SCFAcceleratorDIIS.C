@@ -2,7 +2,9 @@
 module;
 #include <deque>
 #include <vector>
+#include <string>
 #include <iostream>
+#include <complex>   // std::real (the DIIS B-matrix metric is the real part of a Frobenius inner product)
 export module qchem.SCFAccelerator.Internal.SCFAcceleratorDIIS;
 export import qchem.SCFAccelerator;
 import qchem.Blaze;
@@ -18,56 +20,58 @@ struct DIISParams
     double SVTol;  //DIIS bails out when the minimum singular value of B matrix is < SVTol;
 };
 
+template <class T> class tSCFAcceleratorDIIS;
 
-
-class SCFAcceleratorDIIS;
-class SCFIrrepAcceleratorDIIS : public virtual SCFIrrepAccelerator
+// Per-irrep DIIS (Pulay): cache the (F', error=[F',D']) history; the manager solves for REAL coefficients
+// c_i and we extrapolate F' = Sum c_i F'_i then diagonalize.  Templated on T (rX/cX): the error metric is
+// the REAL part of the Frobenius inner product <E_i,E_j> = tr(E_i^H E_j), so the B matrix and the
+// coefficients c stay real for both paths -- only F'/D'/E and the LASolver carry T.  hmat_t<double> is
+// rsmat_t, conj/Re are identities, so the <double> instantiation is byte-identical to the original.
+template <class T> class tSCFIrrepAcceleratorDIIS : public virtual tSCFIrrepAccelerator<T>
 {
 public:
-    typedef std::deque< rmat_t> mv_t; //matrix-vector type.
-    typedef std::deque<rsmat_t> sv_t; //smatrix-vector type.
-    typedef std::deque<double> dv_t ; //doubles
-    
-    SCFIrrepAcceleratorDIIS(const DIISParams&,const LASolver<double>*,const Irrep&,const rvec_t& cs);
-    virtual ~SCFIrrepAcceleratorDIIS();
-    
-    virtual void UseFD(const rsmat_t& F, const rsmat_t& DPrime);
-    virtual LASolver<double>::UUd_t NextOrbitals();
+    typedef std::deque< mat_t<T>> mv_t; //error matrices [F',D'] (general; anti-Hermitian)
+    typedef std::deque<hmat_t<T>> sv_t; //Fock matrices (Hermitian)
+    typedef std::deque<double>    dv_t; //doubles
+
+    tSCFIrrepAcceleratorDIIS(const DIISParams&,const LASolver<T>*,const Irrep&,const rvec_t& cs);
+    virtual ~tSCFIrrepAcceleratorDIIS();
+
+    virtual void UseFD(const hmat_t<T>& F, const hmat_t<T>& DPrime);
+    virtual typename LASolver<T>::UUd_t NextOrbitals();
 private:
-    rsmat_t Project(); //DIIS-extrapolated (orthonormal-basis) Fock matrix.
-    friend class SCFAcceleratorDIIS;
+    hmat_t<T> Project(); //DIIS-extrapolated (orthonormal-basis) Fock matrix.
+    friend class tSCFAcceleratorDIIS<T>;
     size_t GetNproj() const {return itsEs.size();}
     double GetError() const {return itsEn;}
-    double GetError(size_t i, size_t j) const {return blazem::sum(itsEs[i] % itsEs[j]);}
+    //! B-matrix metric: Re tr(E_i^H E_j) = Re Sum_kl conj(E_i)_kl (E_j)_kl (real & symmetric, both paths).
+    double GetError(size_t i, size_t j) const {return std::real(blazem::sum(blazem::conj(itsEs[i]) % itsEs[j]));}
     void Append1();
     void Purge1();
-    
-    DIISParams itsParams; 
+
+    DIISParams itsParams;
     Irrep  itsIrrep;
-    // All of these are the the most recent values
-    rsmat_t    itsFPrime,itsDPrime;    
-    rmat_t     itsE;
-    double     itsEn;  // [F',D']
+    // All of these are the most recent values
+    hmat_t<T>  itsFPrime,itsDPrime;
+    mat_t<T>   itsE;
+    double     itsEn;  // ||[F',D']||
     // Caches for F',E,En
     sv_t itsFPrimes;
-    mv_t itsEs; //Error matrices [F',D']
+    mv_t itsEs;  //Error matrices [F',D']
     dv_t itsEns; //Errors ||E||=FNorm[F',D']
-    
 
-    const rvec_t& itsCs;  //Projection coefficients from SCFAcceleratorDIIS class.
+    const rvec_t& itsCs;  //Projection coefficients from the manager.
 
-    const LASolver<double>*   itsLASolver; //Knows the ortho transform
-
+    const LASolver<T>*   itsLASolver; //Knows the ortho transform
 };
 
 
-class SCFAcceleratorDIIS : public virtual SCFAccelerator
+template <class T> class tSCFAcceleratorDIIS : public virtual tSCFAccelerator<T>
 {
 public:
-
-    SCFAcceleratorDIIS(const DIISParams&);
-    ~SCFAcceleratorDIIS();
-    virtual SCFIrrepAccelerator* Create(const LASolver<double>*,const Irrep&, int occ);
+    tSCFAcceleratorDIIS(const DIISParams&);
+    ~tSCFAcceleratorDIIS();
+    virtual tSCFIrrepAccelerator<T>* Create(const LASolver<T>*,const Irrep&, int occ);
     virtual bool   CalculateProjections();
     virtual void   ShowLabels     (std::ostream&) const;
     virtual void   ShowConvergence(std::ostream&) const;
@@ -76,12 +80,10 @@ public:
     virtual bool   Exhausted() const {return itsStuckCount>=3;}
 
 private:
-    typedef std::vector<rmat_t> mv_t; //matrix-vector type.
-
-
+    // The B matrix / coefficient solve is REAL for both paths (the DIIS coefficients are real numbers).
     static double GetMinSV(const rsmat_t& B);
     static rvec_t SolveC  (const rsmat_t& B);
-    
+
     struct md_t{rsmat_t B;double sv;};
 
     md_t    BuildB() const;
@@ -91,9 +93,8 @@ private:
     size_t  GetNProj() const;
     bool    HasProjection() const {return itsCs.size()>=2;}
 
-  
     DIISParams itsParams;
-    std::vector<SCFIrrepAcceleratorDIIS*> itsIrreps;
+    std::vector<tSCFIrrepAcceleratorDIIS<T>*> itsIrreps;
 
     double itsEn,itsLastSVMin;
     rvec_t itsCs;
@@ -101,5 +102,9 @@ private:
     int itsStuckCount=0; //consecutive past-EMax iterations with no successful extrapolation.
     bool itsSeeded=false; //true once any irrep has had a nonzero error (past the zero-density start)
 };
+
+using SCFIrrepAcceleratorDIIS = tSCFIrrepAcceleratorDIIS<double>;
+using SCFAcceleratorDIIS      = tSCFAcceleratorDIIS<double>;
+using cSCFAcceleratorDIIS     = tSCFAcceleratorDIIS<dcmplx>;
 
 } //namespace
