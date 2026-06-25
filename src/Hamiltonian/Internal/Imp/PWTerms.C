@@ -7,35 +7,11 @@ module qchem.Hamiltonian.Internal.PWTerms;
 import qchem.Energy;
 import qchem.ChargeDensity;
 import qchem.ChargeDensity.FourierDensity;   // cast cd UP to its reciprocal-space coefficients rho-tilde
-import qchem.BasisSet.FourierDFT_IBS;         // cast bs UP to the G-space (FFT-free Hartree) capability
-import qchem.ScalarFunction;
+import qchem.BasisSet.FourierDFT_IBS;         // cast bs UP to the G-space (FFT Hartree/XC) capability
+import qchem.BasisSet.DFTPotential_IBS;       // PW_External still uses the real-space external matrix
 
 namespace qchem::Hamiltonian
 {
-
-namespace
-{
-// Compose an LDA functional with the density to make a real-space scalar field to hand the basis.
-// The density (cDM_CD) IS-A ScalarFunction<double>, so rho(r) = (*itsRho)(r).
-class VxcField : public virtual ScalarFunction<double>
-{
-public:
-    VxcField(const ExFunctional* xc, const ScalarFunction<double>* rho) : itsXc(xc), itsRho(rho) {}
-    virtual double  operator()(const rvec3_t& r) const {return itsXc->GetVxc((*itsRho)(r));}
-    virtual rvec3_t Gradient  (const rvec3_t&  ) const {return rvec3_t(0,0,0);}
-private:
-    const ExFunctional* itsXc;  const ScalarFunction<double>* itsRho;
-};
-class EpsXcRhoField : public virtual ScalarFunction<double>   // the XC ENERGY density eps_xc(rho) rho
-{
-public:
-    EpsXcRhoField(const ExFunctional* xc, const ScalarFunction<double>* rho) : itsXc(xc), itsRho(rho) {}
-    virtual double  operator()(const rvec3_t& r) const {double ro=(*itsRho)(r); return itsXc->GetEpsXc(ro)*ro;}
-    virtual rvec3_t Gradient  (const rvec3_t&  ) const {return rvec3_t(0,0,0);}
-private:
-    const ExFunctional* itsXc;  const ScalarFunction<double>* itsRho;
-};
-} //anon
 
 PW_External::PW_External(const st_t& st)
     : cStatic_HT_Imp()
@@ -112,22 +88,32 @@ PW_XC::PW_XC(const xc_t& xc)
     : itsXc(xc)
 {}
 
+// XC via FFT: get rho(r) on the grid (inverse FFT of the density's rho-tilde), apply v_xc pointwise,
+// forward-FFT to the matrix.  No O(Npts*n^2) pointwise density sampling.
 chmat_t PW_XC::CalcMatrix(const cobs_t* bs, const Spin&, const cDM_CD* cd) const
 {
     newCD(cd);
-    auto pw=dynamic_cast<const BasisSet::DFTPotential_IBS<dcmplx>*>(bs);
-    assert(pw && "PW_XC requires a DFTPotential_IBS (e.g. plane-wave) basis");
+    auto pw=dynamic_cast<const BasisSet::FourierDFT_IBS*>(bs);
+    auto fd=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(cd);
+    assert(pw && "PW_XC requires a FourierDFT_IBS (plane-wave) basis");
+    assert(fd && "PW_XC requires a FourierDensity (periodic) charge density");
     itsBasis=pw;                               // captured for GetEnergy (which has no basis parameter)
-    VxcField vxc(itsXc.get(), cd);             // V(r) = v_xc(rho(r))
-    return pw->IntegralPotential(vxc);
+    rvec_t rho=pw->RhoOnGrid(fd->GetFourierDensity());
+    rvec_t vxc(rho.size());
+    for (size_t q=0;q<rho.size();q++) vxc[q]=itsXc->GetVxc(rho[q]);   // V(r) = v_xc(rho(r))
+    return pw->IntegralPotentialGrid(vxc);
 }
 
 void PW_XC::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 {
     newCD(cd);
     assert(itsBasis && "PW_XC::GetEnergy called before GetMatrix");
-    EpsXcRhoField exc(itsXc.get(), cd);
-    te.Exc += itsBasis->Integral(exc);         // E_xc = integral eps_xc(rho) rho  (fresh with this cd)
+    auto fd=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(cd);
+    assert(fd);
+    rvec_t rho=itsBasis->RhoOnGrid(fd->GetFourierDensity());
+    rvec_t exc(rho.size());
+    for (size_t q=0;q<rho.size();q++) {double ro=rho[q]; exc[q]=itsXc->GetEpsXc(ro)*ro;}
+    te.Exc += itsBasis->IntegralGrid(exc);     // E_xc = integral eps_xc(rho) rho  (fresh with this cd)
 }
 
 std::ostream& PW_XC::Write(std::ostream& os) const

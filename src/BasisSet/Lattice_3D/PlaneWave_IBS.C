@@ -71,6 +71,12 @@ public:
     //! (= MakeFourierDensity): \f$V_H(\Delta m)=4\pi\tilde\rho/|B\Delta m|^2\f$, \f$E_H=\tfrac\Omega2\sum
     //! 4\pi|\tilde\rho|^2/G^2\f$ (\f$\Delta m=0\f$ dropped).  The FFT-free Poisson solve.
     virtual chmat_t IntegralHartree(const FourierMap& rho, double& Eh) const override;
+
+    // XC route (basis owns the FFTs; see FourierDFT_IBS).  rho(r) via inverse FFT of rho-tilde; the
+    // term maps the functional over the grid values and hands them back for the forward FFT / quadrature.
+    virtual rvec_t  RhoOnGrid           (const FourierMap& rho) const override;
+    virtual chmat_t IntegralPotentialGrid(const rvec_t& Vgrid)  const override;
+    virtual double  IntegralGrid        (const rvec_t& fgrid)   const override;
     virtual chmat_t MakeExternalPotential(const Structure* cl) const;                    //!< <i|V_ext|j>
     //! Configure the external pseudopotential (non-owning; the caller keeps them alive).  If unset,
     //! MakeExternalPotential falls back to the bare nuclear (-Z/r) structure factor.
@@ -117,6 +123,7 @@ private:
     rvec3_t GetGCartesian(const ivec3_t& m) const; //!< \f$ G = B\,m \f$ in Cartesian a.u.
     std::vector<rvec3_t> UniformGrid(const ivec3_t& npts) const; //!< fractional XC grid (Omega/prod weight).
     ivec3_t AutoGrid() const;       //!< grid divisions resolving the basis difference set (no aliasing).
+    ivec3_t FFTGrid()  const;       //!< AutoGrid padded to powers of two (radix-2 FFT for the XC route).
 
     const LocalPotential*     itsLocalPP=nullptr;  //!< external local pseudopotential (non-owning).
     const SeparablePotential* itsSepPP  =nullptr;  //!< external KB nonlocal pseudopotential (non-owning).

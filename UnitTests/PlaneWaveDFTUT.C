@@ -899,13 +899,16 @@ TEST_F(PlaneWaveDFT, PWDynamicTermsMatchBasis)
         for (size_t j=i;j<n;j++)
             EXPECT_NEAR(std::abs(dcmplx(Mh(i,j))-dcmplx(refh(i,j))), 0.0, 1e-10);
 
-    // XC term (Dirac exchange) matrix == basis IntegralPotential of v_xc(rho(r)).
+    // XC term (Dirac exchange) matrix == the basis's FFT route: rho(r) via inverse FFT of rho-tilde,
+    // v_xc applied pointwise on the grid, forward FFT to the matrix (what the term itself does).
     auto dirac=std::make_shared<qchem::Hamiltonian::SlaterExchange>(2.0/3.0);
     qchem::Hamiltonian::PW_XC        xc(dirac);
     qchem::Hamiltonian::cDynamic_HT* xt=&xc;
     const chmat_t& Mx = xt->GetMatrix(&F.pw, Spin::None, &cd);
-    FieldFn vxcfield([&](const rvec3_t& r){return dirac->GetVxc(cd(r));});
-    chmat_t refx = F.pw.IntegralPotential(vxcfield);
+    rvec_t rho=F.pw.RhoOnGrid(F.pw.MakeFourierDensity(D));
+    rvec_t vxc(rho.size());
+    for (size_t q=0;q<rho.size();q++) vxc[q]=dirac->GetVxc(rho[q]);
+    chmat_t refx = F.pw.IntegralPotentialGrid(vxc);
     for (size_t i=0;i<n;i++)
         for (size_t j=i;j<n;j++)
             EXPECT_NEAR(std::abs(dcmplx(Mx(i,j))-dcmplx(refx(i,j))), 0.0, 1e-10);

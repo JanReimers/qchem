@@ -1,6 +1,7 @@
 // File: BasisSet/Lattice_3D/Imp/PlaneWave_IBS.C  Plane-wave irrep basis set implementation.
 module;
 #include <algorithm>
+#include <cassert>
 #include <complex>
 #include <functional>
 #include <iostream>
@@ -16,6 +17,7 @@ import qchem.Math;               // Pi, FourPi, sqrt, cos, sin, pow, Cube
 import qchem.SpecialFunctions;   // LegendreP (the (2l+1)P_l angular factor)
 import qchem.BasisSet.Lattice_3D.Internal.GVectors;   // BuildGs
 import qchem.BasisSet.Lattice_3D.Internal.KPlusG;     // KPlusG (Cartesian k+G, |k+G|, cos gamma)
+import qchem.FFT;                                      // FFT3D / NextPow2 (the XC G-space<->real transforms)
 import qchem.Blaze;
 import qchem.Vector3D;           // dot product (operator*) + vector arithmetic
 
@@ -155,6 +157,55 @@ FourierMap PlaneWave_IBS::MakeFourierDensity(const chmat_t& D) const
             rg[itsG[i]-itsG[j]] += D(i,j);
     for (auto& kv : rg) kv.second /= itsVolume;
     return rg;
+}
+
+// AutoGrid divisions rounded up to powers of two -- radix-2 FFT for the XC route.  A larger grid still
+// resolves the difference set without aliasing, so it is at worst slightly more accurate.
+ivec3_t PlaneWave_IBS::FFTGrid() const
+{
+    ivec3_t a=AutoGrid();
+    return ivec3_t(int(qchem::FFT::NextPow2(a.x)), int(qchem::FFT::NextPow2(a.y)), int(qchem::FFT::NextPow2(a.z)));
+}
+
+// rho(r) on the FFT grid = inverse FFT of rho-tilde: rho(r_j) = Sum_dm rho-tilde(dm) e^{+i2pi dm.j/N}.
+// rho-tilde is the physical coefficient (already /Omega), so the inverse FFT takes NO 1/N normalization.
+rvec_t PlaneWave_IBS::RhoOnGrid(const FourierMap& rho) const
+{
+    ivec3_t N=FFTGrid();
+    size_t Npts=size_t(N.x)*N.y*N.z;
+    cvec_t g(Npts, dcmplx(0.0));
+    for (const auto& kv : rho)
+    {
+        int i0=((kv.first.x%N.x)+N.x)%N.x, i1=((kv.first.y%N.y)+N.y)%N.y, i2=((kv.first.z%N.z)+N.z)%N.z;
+        g[(size_t(i0)*N.y+i1)*N.z+i2]=kv.second;
+    }
+    cvec_t rr=qchem::FFT::FFT3D(g, N, +1);
+    rvec_t out(Npts);
+    for (size_t i=0;i<Npts;i++) out[i]=std::real(dcmplx(rr[i]));
+    return out;
+}
+
+// <i|V|j> from real-space potential values on the FFT grid: forward-FFT to Vtilde(dm)=(1/Npts) FFT[V],
+// then assemble (same MakePotential the other G-space routes use).
+chmat_t PlaneWave_IBS::IntegralPotentialGrid(const rvec_t& V) const
+{
+    ivec3_t N=FFTGrid();
+    size_t Npts=size_t(N.x)*N.y*N.z;
+    assert(V.size()==Npts);
+    cvec_t g(Npts, dcmplx(0.0));
+    for (size_t i=0;i<Npts;i++) g[i]=dcmplx(V[i]);
+    cvec_t Vt=qchem::FFT::FFT3D(g, N, -1);
+    return MakePotential([&](const ivec3_t& dm)->dcmplx
+    {
+        int i0=((dm.x%N.x)+N.x)%N.x, i1=((dm.y%N.y)+N.y)%N.y, i2=((dm.z%N.z)+N.z)%N.z;
+        return Vt[(size_t(i0)*N.y+i1)*N.z+i2]/double(Npts);
+    });
+}
+
+// integral f d3r on the FFT grid: uniform quadrature, weight Omega/Npts.
+double PlaneWave_IBS::IntegralGrid(const rvec_t& f) const
+{
+    return blazem::sum(f)*itsVolume/double(f.size());
 }
 
 // Scalar integral integral f d3r over the cell: uniform-grid quadrature (weight Omega/Npts).

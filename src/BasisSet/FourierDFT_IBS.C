@@ -28,6 +28,18 @@ public:
     //! \brief Hartree matrix + energy directly from the density's G-space coefficients \a rho:
     //! \f$V_H(\Delta m)=4\pi\tilde\rho/|B\Delta m|^2\f$, \f$E_H=\tfrac\Omega2\sum 4\pi|\tilde\rho|^2/G^2\f$.
     virtual hmat_t<dcmplx> IntegralHartree(const FourierMap& rho, double& Eh) const=0;
+
+    // --- XC route: the basis owns the FFTs and the real-space grid; the term owns the functional. ---
+    //! \brief Real-space density \f$\rho(r)\f$ on the basis's FFT grid (inverse FFT of \a rho).  The
+    //! values are returned in the grid's internal order; the matching IntegralPotentialGrid / IntegralGrid
+    //! consume values in the SAME order, so the term never needs the grid points -- it just maps the
+    //! functional over them (\f$v_{xc}(\rho)\f$ for the matrix, \f$\epsilon_{xc}(\rho)\rho\f$ for the energy).
+    virtual rvec_t  RhoOnGrid(const FourierMap& rho) const=0;
+    //! \brief Matrix \f$\langle i|V|j\rangle\f$ from potential values \a Vgrid on the FFT grid (forward
+    //! FFT to \f$\tilde V(\Delta m)\f$, then assemble).
+    virtual hmat_t<dcmplx> IntegralPotentialGrid(const rvec_t& Vgrid) const=0;
+    //! \brief Scalar integral \f$\int f\,d^3r\f$ from values \a fgrid on the FFT grid (uniform quadrature).
+    virtual double  IntegralGrid(const rvec_t& fgrid) const=0;
 };
 
 } //namespace

@@ -10,7 +10,7 @@ module;
 #include <memory>
 export module qchem.Hamiltonian.Internal.PWTerms;
 import qchem.Hamiltonian.Internal.Term;        // cStatic_HT / cDynamic_HT + their _Imp cache bases
-import qchem.BasisSet.DFTPotential_IBS;         // the abstract capability the terms dynamic_cast to
+import qchem.BasisSet.FourierDFT_IBS;           // the G-space capability the XC term captures for GetEnergy
 import qchem.Hamiltonian.Internal.ExFunctional; // the LDA functional the XC term composes with the density
 import qchem.Hamiltonian.Types;                 // cobs_t
 import qchem.Structure;
@@ -80,7 +80,7 @@ private:
     xc_t itsXc;
     //! The basis is captured from CalcMatrix so GetEnergy (which has no basis parameter) can ask it for
     //! the energy integral integral eps_xc rho with the current density.  Same basis every iteration.
-    mutable const BasisSet::DFTPotential_IBS<dcmplx>* itsBasis=nullptr;
+    mutable const BasisSet::FourierDFT_IBS* itsBasis=nullptr;
 };
 
 } //namespace
