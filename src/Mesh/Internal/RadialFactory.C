@@ -1,9 +1,9 @@
 // File: Internal/RadialFactory.C  MakeRadial -- dispatch to the per-scheme builder functions.
 module;
 #include <stdexcept>
-module qchem.Mesh1.Radial;
+module qchem.Mesh.Radial;
 
-namespace qcMesh1
+namespace qcMesh
 {
 
 RadialMesh MakeRadial(const MeshParams& p)
@@ -17,4 +17,4 @@ RadialMesh MakeRadial(const MeshParams& p)
     throw std::runtime_error("MakeRadial: unknown RadialKind");
 }
 
-} //namespace qcMesh1
+} //namespace qcMesh

@@ -5,10 +5,10 @@ module;
 #include <cmath>
 #include <cassert>
 #include <utility>
-module qchem.Mesh1.Angular;
+module qchem.Mesh.Angular;
 import qchem.Math;
 
-namespace qcMesh1
+namespace qcMesh
 {
 
 AngularMesh EulerMaclarenAngular(int L, int m)
@@ -57,4 +57,4 @@ AngularMesh EulerMaclarenAngular(int L, int m)
     return AngularMesh(std::move(D), std::move(W));
 }
 
-} //namespace qcMesh1
+} //namespace qcMesh

@@ -3,10 +3,10 @@
 // the first node integrates the whole inner sphere, the last only a half annulus).
 module;
 #include <utility>
-module qchem.Mesh1.Radial;
+module qchem.Mesh.Radial;
 import qchem.Math;
 
-namespace qcMesh1
+namespace qcMesh
 {
 
 RadialMesh LogRadial(double start, double stop, int NumPoints)
@@ -30,4 +30,4 @@ RadialMesh LogRadial(double start, double stop, int NumPoints)
     return RadialMesh(std::move(R), std::move(W));
 }
 
-} //namespace qcMesh1
+} //namespace qcMesh

@@ -3,7 +3,7 @@ export module qchem.Hamiltonian.Internal.Hamiltonians;
 import qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.Hamiltonian.Internal.Hamiltonian;
 import qchem.Hamiltonian.Types;
-import qchem.Mesh1;
+import qchem.Mesh;
 
 export namespace qchem::Hamiltonian
 {
@@ -31,8 +31,8 @@ public:
 class Ham_DFT_U : public virtual Hamiltonian, private HamiltonianImp
 {
 public:
-    Ham_DFT_U(const st_t& st,double alpha_ex, const qcMesh1::MeshParams&, const bs_t* bs);
-    Ham_DFT_U(const st_t& st,ExFunctional*  , const qcMesh1::MeshParams&, const bs_t* bs);
+    Ham_DFT_U(const st_t& st,double alpha_ex, const qcMesh::MeshParams&, const bs_t* bs);
+    Ham_DFT_U(const st_t& st,ExFunctional*  , const qcMesh::MeshParams&, const bs_t* bs);
 };
 
 // Un-polarized LDA: Dirac exchange + VWN5 correlation as SEPARATE terms, so the correlation energy is the
@@ -41,7 +41,7 @@ public:
 class Ham_DFTcorr_U : public virtual Hamiltonian, private HamiltonianImp
 {
 public:
-    Ham_DFTcorr_U(const st_t& st, const qcMesh1::MeshParams&, const bs_t* bs);
+    Ham_DFTcorr_U(const st_t& st, const qcMesh::MeshParams&, const bs_t* bs);
 };
 
 //
@@ -73,8 +73,8 @@ public:
 class Ham_DFT_P : public virtual Hamiltonian, private HamiltonianImp
 {
 public:
-    Ham_DFT_P(const st_t& st,double alpha_ex, const qcMesh1::MeshParams&, const bs_t* or_bs);
-    Ham_DFT_P(const st_t& st,ExFunctional*  , const qcMesh1::MeshParams&, const bs_t* or_bs);
+    Ham_DFT_P(const st_t& st,double alpha_ex, const qcMesh::MeshParams&, const bs_t* or_bs);
+    Ham_DFT_P(const st_t& st,ExFunctional*  , const qcMesh::MeshParams&, const bs_t* or_bs);
 };
 
 

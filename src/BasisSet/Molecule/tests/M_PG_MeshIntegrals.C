@@ -11,8 +11,8 @@ import qchem.BasisSet.Molecule.Readers.Gaussian94;
 import qchem.BasisSet.Molecule.PG_Cart;
 import qchem.BasisSet;
 import qchem.Structure;
-import qchem.Structure.MolecularMesh1;   // MakeMolecularMesh (qcMesh1 mesh)
-import qchem.Mesh1.Quadrature;           // qcMesh1::Overlap + BasisField
+import qchem.Structure.MolecularMesh;   // MakeMolecularMesh (qcMesh mesh)
+import qchem.Mesh.Quadrature;           // qcMesh::Overlap + BasisField
 import qchem.VectorFunction;
 import qchem.Symmetry;
 import qchem.Blaze;
@@ -22,7 +22,7 @@ using BasisSet::Real_OIBS;
 
 namespace
 {
-class BFView : public qcMesh1::BasisField<double>
+class BFView : public qcMesh::BasisField<double>
 {
     const VectorFunction<double>& its;
 public:
@@ -95,13 +95,13 @@ TEST_F(MeshIntegralsTests, PolGaussianOverlap)
         for (int aMHL=1;aMHL<=50;aMHL++)
         {
             double alpha=af*aMHL;
-            qcMesh1::Mesh mesh = MakeMolecularMesh(*cl,
-                {.radial=qcMesh1::RadialKind::MHL, .nRadial=int(Nradial), .mhl_m=int(mMHL),
-                 .mhl_alpha=alpha, .angular=qcMesh1::AngularKind::Gauss, .nAngular=12});
+            qcMesh::Mesh mesh = MakeMolecularMesh(*cl,
+                {.radial=qcMesh::RadialKind::MHL, .nRadial=int(Nradial), .mhl_m=int(mMHL),
+                 .mhl_alpha=alpha, .angular=qcMesh::AngularKind::Gauss, .nAngular=12});
             for (auto ibs:bs->Iterate<Real_OIBS>())
             {
                 // cout << *ibs << endl;
-                rsmat_t delta= ibs->Overlap()-qcMesh1::Overlap(mesh,BFView(*ibs));
+                rsmat_t delta= ibs->Overlap()-qcMesh::Overlap(mesh,BFView(*ibs));
                 double err=blazem::norm(delta);
                 double merr=blazem::max(blazem::abs(delta));
                 if (err<min1)

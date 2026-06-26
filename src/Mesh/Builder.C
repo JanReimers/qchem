@@ -4,13 +4,13 @@
 // molecular mesh: each atom contributes a variable number of surviving points), Mesh::Append's
 // resize-by-one is O(N^2).  MeshBuilder accumulates into the project's doubling blazem::VecBuilder
 // (O(N) total) and hands over a finished Mesh via the from-arrays constructor.  Opt-in module so
-// the core qchem.Mesh1 stays free of the qchem.Blaze dependency.
+// the core qchem.Mesh stays free of the qchem.Blaze dependency.
 module;
-export module qchem.Mesh1.Builder;
-export import qchem.Mesh1;
+export module qchem.Mesh.Builder;
+export import qchem.Mesh;
 import qchem.Blaze;          // blazem::VecBuilder
 
-export namespace qcMesh1
+export namespace qcMesh
 {
 
 class MeshBuilder
@@ -24,4 +24,4 @@ private:
     blazem::VecBuilder<double>  itsW;
 };
 
-} //export namespace qcMesh1
+} //export namespace qcMesh

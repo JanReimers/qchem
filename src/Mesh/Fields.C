@@ -3,13 +3,13 @@
 // These are deliberately INDEPENDENT of Mesh.  In the old qcMesh, ScalarFunction/VectorFunction
 // carried a virtual operator()(const Mesh&) -- an ISP violation that dragged Mesh into every
 // pointwise field and forced a world rebuild whenever Mesh.C changed.  Here a field knows only
-// how to answer at a single point r; the free-function quadrature (qchem.Mesh1.Quadrature) is
+// how to answer at a single point r; the free-function quadrature (qchem.Mesh.Quadrature) is
 // what streams a Mesh through it.
 module;
-export module qchem.Mesh1.Fields;
+export module qchem.Mesh.Fields;
 export import qchem.Types;
 
-export namespace qcMesh1
+export namespace qcMesh
 {
 
 //! \brief A scalar field: rho(r), vxc(r), -Z/|r-R|, 1/r, ...  Geometry/physics live in the caller.
@@ -32,4 +32,4 @@ public:
     virtual vec3vec_t<T> Gradient  (const rvec3_t&)  const = 0;   //!< [ grad phi_i(r) ]
 };
 
-} //export namespace qcMesh1
+} //export namespace qcMesh

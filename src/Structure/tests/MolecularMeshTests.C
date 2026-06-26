@@ -1,4 +1,4 @@
-// File: src/Structure/tests/MolecularMesh1Tests.C  Acceptance tests for the Becke molecular mesh.
+// File: src/Structure/tests/MolecularMeshTests.C  Acceptance tests for the Becke molecular mesh.
 //
 // The mirror of the old MoleculeMesh bug: a homonuclear dimer at separation -> 0 must integrate to
 // the SINGLE-atom result, and a well-separated dimer must be ADDITIVE (= 2 x the atom).
@@ -6,17 +6,17 @@
 #include <cmath>
 
 import qchem.Structure;                 // Molecule, Atom, Structure
-import qchem.Structure.MolecularMesh1;  // MakeMolecularMesh
-import qchem.Mesh1.Quadrature;          // qcMesh1::Integrate, ScalarField
+import qchem.Structure.MolecularMesh;  // MakeMolecularMesh
+import qchem.Mesh.Quadrature;          // qcMesh::Integrate, ScalarField
 import qchem.Math;                      // Pi32
 
 // Note: this TU sees BOTH the old global `Mesh`/`MeshParams` (via qchem.Structure) and the new
-// qcMesh1::* -- so we qualify qcMesh1:: throughout and never name a bare Mesh/MeshParams.
+// qcMesh::* -- so we qualify qcMesh:: throughout and never name a bare Mesh/MeshParams.
 
 namespace
 {
 // Gaussian exp(-|r-c|^2); integral over R^3 = pi^{3/2}.
-class GaussAt : public qcMesh1::ScalarField<double>
+class GaussAt : public qcMesh::ScalarField<double>
 {
     rvec3_t itsC;
 public:
@@ -26,7 +26,7 @@ public:
 };
 
 // Sum of two unit Gaussians centred at a and b; integral = 2 pi^{3/2}.
-class TwoGauss : public qcMesh1::ScalarField<double>
+class TwoGauss : public qcMesh::ScalarField<double>
 {
     rvec3_t itsA, itsB;
 public:
@@ -36,19 +36,19 @@ public:
     rvec3_t Gradient  (const rvec3_t&)   const override {return rvec3_t(0,0,0);}
 };
 
-qcMesh1::MeshParams Params()
+qcMesh::MeshParams Params()
 {
-    qcMesh1::MeshParams mp;
-    mp.radial=qcMesh1::RadialKind::MHL; mp.nRadial=40; mp.mhl_m=2; mp.mhl_alpha=2.0;
-    mp.angular=qcMesh1::AngularKind::Gauss; mp.nAngular=24;
+    qcMesh::MeshParams mp;
+    mp.radial=qcMesh::RadialKind::MHL; mp.nRadial=40; mp.mhl_m=2; mp.mhl_alpha=2.0;
+    mp.angular=qcMesh::AngularKind::Gauss; mp.nAngular=24;
     return mp;
 }
 } //anon
 
 // The bug's mirror: two coincident atoms must integrate to exactly the single-atom result.
-TEST(MolecularMesh1, CoincidentDimerEqualsAtom)
+TEST(MolecularMesh, CoincidentDimerEqualsAtom)
 {
-    qcMesh1::MeshParams mp=Params();
+    qcMesh::MeshParams mp=Params();
     rvec3_t o(0,0,0);
 
     Atom a(1,o);
@@ -60,16 +60,16 @@ TEST(MolecularMesh1, CoincidentDimerEqualsAtom)
     auto m2=MakeMolecularMesh(dimer,mp);
 
     GaussAt g(o);
-    double I1=qcMesh1::Integrate(m1,g);
-    double I2=qcMesh1::Integrate(m2,g);
+    double I1=qcMesh::Integrate(m1,g);
+    double I2=qcMesh::Integrate(m2,g);
     EXPECT_NEAR(I2,I1,1e-12);             // coincident dimer == single atom (no 0/0 corruption)
     EXPECT_NEAR(I1,Pi32,1e-4);            // and both reproduce integral exp(-r^2) d^3r = pi^{3/2}
 }
 
 // Additivity: a well-separated dimer integrates the sum of two atom-centred Gaussians to 2 pi^{3/2}.
-TEST(MolecularMesh1, SeparatedDimerIsAdditive)
+TEST(MolecularMesh, SeparatedDimerIsAdditive)
 {
-    qcMesh1::MeshParams mp=Params();
+    qcMesh::MeshParams mp=Params();
     rvec3_t RA(-8,0,0), RB(8,0,0);
 
     Molecule dimer;
@@ -78,13 +78,13 @@ TEST(MolecularMesh1, SeparatedDimerIsAdditive)
     auto m=MakeMolecularMesh(dimer,mp);
 
     TwoGauss f(RA,RB);
-    EXPECT_NEAR(qcMesh1::Integrate(m,f),2*Pi32,1e-3);
+    EXPECT_NEAR(qcMesh::Integrate(m,f),2*Pi32,1e-3);
 }
 
 // A far second atom must not corrupt the integral of a function localised on the first.
-TEST(MolecularMesh1, FarAtomDoesNotCorrupt)
+TEST(MolecularMesh, FarAtomDoesNotCorrupt)
 {
-    qcMesh1::MeshParams mp=Params();
+    qcMesh::MeshParams mp=Params();
     rvec3_t RA(-8,0,0), RB(8,0,0);
 
     Molecule dimer;
@@ -93,5 +93,5 @@ TEST(MolecularMesh1, FarAtomDoesNotCorrupt)
     auto m=MakeMolecularMesh(dimer,mp);
 
     GaussAt g(RA);                        // localised on atom A only
-    EXPECT_NEAR(qcMesh1::Integrate(m,g),Pi32,1e-3);
+    EXPECT_NEAR(qcMesh::Integrate(m,g),Pi32,1e-3);
 }

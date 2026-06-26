@@ -13,8 +13,8 @@ import qchem.BasisSet.Atom.Evaluators;
 import qchem.BasisSet.Orbital_HF_IBS;
 import qchem.BasisSet;
 
-import qchem.Structure.MolecularMesh1;   // MakeMolecularMesh (qcMesh1 mesh)
-import qchem.Mesh1.Quadrature;           // qcMesh1 quadrature + ScalarField/BasisField
+import qchem.Structure.MolecularMesh;   // MakeMolecularMesh (qcMesh mesh)
+import qchem.Mesh.Quadrature;           // qcMesh quadrature + ScalarField/BasisField
 import qchem.VectorFunction;
 import qchem.Symmetry.Factory;
 import qchem.ElectronConfiguration.AtomNR;
@@ -22,7 +22,7 @@ import qchem.Blaze;
 
 namespace
 {
-class BFView : public qcMesh1::BasisField<double>
+class BFView : public qcMesh::BasisField<double>
 {
     const VectorFunction<double>& its;
 public:
@@ -31,20 +31,20 @@ public:
     rvec_t     operator()(const rvec3_t& r) const override {return its(r);}
     rvec3vec_t Gradient  (const rvec3_t& r) const override {return its.Gradient(r);}
 };
-struct OneOverR  : qcMesh1::ScalarField<double>
+struct OneOverR  : qcMesh::ScalarField<double>
 {
     double  operator()(const rvec3_t& r) const override {double m=norm(r); return m==0.0?0.0:1.0/m;}
     rvec3_t Gradient  (const rvec3_t&)   const override {return rvec3_t(0,0,0);}
 };
-struct OneOverR2 : qcMesh1::ScalarField<double>
+struct OneOverR2 : qcMesh::ScalarField<double>
 {
     double  operator()(const rvec3_t& r) const override {double m=norm(r); return m==0.0?0.0:1.0/(m*m);}
     rvec3_t Gradient  (const rvec3_t&)   const override {return rvec3_t(0,0,0);}
 };
-qcMesh1::Mesh AtomMesh1(const Structure& cl, int nRadial, int mhl_m, double alpha, int nAngular)
+qcMesh::Mesh AtomMesh(const Structure& cl, int nRadial, int mhl_m, double alpha, int nAngular)
 {
-    return MakeMolecularMesh(cl, {.radial=qcMesh1::RadialKind::MHL, .nRadial=nRadial, .mhl_m=mhl_m,
-                                  .mhl_alpha=alpha, .angular=qcMesh1::AngularKind::Gauss, .nAngular=nAngular});
+    return MakeMolecularMesh(cl, {.radial=qcMesh::RadialKind::MHL, .nRadial=nRadial, .mhl_m=mhl_m,
+                                  .mhl_alpha=alpha, .angular=qcMesh::AngularKind::Gauss, .nAngular=nAngular});
 }
 } //anon
 
@@ -71,7 +71,7 @@ public:
         , bs(0)
     {
         
-        itsMesh=AtomMesh1(*cl,500,3,2.0,1);
+        itsMesh=AtomMesh(*cl,500,3,2.0,1);
     }
     ~BasisSet_Common()
     {
@@ -95,7 +95,7 @@ public:
     size_t N,LMax;
     std::vector<E*> evals;
     Structure* cl;
-    qcMesh1::Mesh itsMesh;
+    qcMesh::Mesh itsMesh;
     Real_BS* bs;
 };
 template <is1E_HF_Evaluator E> void BasisSet_Common<E>::TestOverlap(double eps) const
@@ -110,7 +110,7 @@ template <is1E_HF_Evaluator E> void BasisSet_Common<E>::TestOverlap(double eps) 
             for (auto j:iv_t(i,N))
                 S(i,j)= ev->Overlap(i,j);
         for (auto d:blazem::diagonal(S)) EXPECT_NEAR(d,1.0,1e-15);
-        rsmat_t Snum = qcMesh1::Overlap(itsMesh,BFView(*ev));
+        rsmat_t Snum = qcMesh::Overlap(itsMesh,BFView(*ev));
         cout.precision(2);
         // cout << S-Snum << endl;
         cout << "l=" << index++ << std::endl;
@@ -126,7 +126,7 @@ template <is1E_HF_Evaluator E> void BasisSet_Common<E>::TestGrad2  (double eps) 
         for (auto i:iv_t(0,N))
             for (auto j:iv_t(i,N))
                 S(i,j)= ev->Grad2(i,j);
-        rsmat_t Snum = qcMesh1::KineticGrad2(itsMesh,BFView(*ev));
+        rsmat_t Snum = qcMesh::KineticGrad2(itsMesh,BFView(*ev));
         EXPECT_NEAR(blazem::max(blazem::abs(S-Snum)),0.0,eps);
     }
         
@@ -140,7 +140,7 @@ template <is1E_HF_Evaluator E> void BasisSet_Common<E>::TestInv_r1 (double eps) 
         for (auto i:iv_t(0,N))
             for (auto j:iv_t(i,N))
                 S(i,j)= ev->Inv_r1(i,j);
-        rsmat_t Snum = qcMesh1::WeightedOverlap(itsMesh,BFView(*ev),OneOverR());
+        rsmat_t Snum = qcMesh::WeightedOverlap(itsMesh,BFView(*ev),OneOverR());
         EXPECT_NEAR(blazem::max(blazem::abs(S-Snum)),0.0,eps);
     }
         
@@ -154,7 +154,7 @@ template <is1E_HF_Evaluator E> void BasisSet_Common<E>::TestInv_r2 (double eps) 
         for (auto i:iv_t(0,N))
             for (auto j:iv_t(i,N))
                 S(i,j)= ev->Inv_r2(i,j);
-        rsmat_t Snum = qcMesh1::WeightedOverlap(itsMesh,BFView(*ev),OneOverR2());
+        rsmat_t Snum = qcMesh::WeightedOverlap(itsMesh,BFView(*ev),OneOverR2());
         EXPECT_NEAR(blazem::max(blazem::abs(S-Snum)),0.0,eps);
     }
         

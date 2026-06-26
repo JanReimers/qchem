@@ -1,7 +1,7 @@
 // File: Quadrature.C  Free-function quadrature over a Mesh.
 //
 // MeshIntegrator-the-class is gone; these are plain functions taking const Mesh& first.  The
-// physics stays with the CALLER (it supplies the field V); qcMesh1 only knows  sum_i w_i (...).
+// physics stays with the CALLER (it supplies the field V); qcMesh only knows  sum_i w_i (...).
 // Inv_r1 / Inv_r2 / the DFT IntegralPotential all collapse into ONE WeightedOverlap with V set to
 // 1/r, 1/r^2, or vxc respectively.
 //
@@ -10,12 +10,12 @@
 module;
 #include <complex>
 #include <type_traits>
-export module qchem.Mesh1.Quadrature;
-export import qchem.Mesh1;
-export import qchem.Mesh1.Fields;
+export module qchem.Mesh.Quadrature;
+export import qchem.Mesh;
+export import qchem.Mesh.Fields;
 import qchem.Blaze;
 
-namespace qcMesh1
+namespace qcMesh
 {
 
 // ---- internal helpers: scalar conj/real that also work for real T (no std-namespace hacks) ----
@@ -148,4 +148,4 @@ export template <class T> rvec_t Normalize(const Mesh& m, const BasisField<T>& a
     return 1.0/blazem::sqrt(s);
 }
 
-} //namespace qcMesh1
+} //namespace qcMesh

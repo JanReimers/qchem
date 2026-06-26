@@ -8,11 +8,11 @@
 // on a size-n vector.  The Fortran uses x(n+1-i), i.e. 0-based x[n-i].  We follow the Fortran.
 module;
 #include <cmath>
-export module qchem.Mesh1.GaussLegendre;
+export module qchem.Mesh.GaussLegendre;
 export import qchem.Types;
 import qchem.Math;
 
-export namespace qcMesh1
+export namespace qcMesh
 {
 
 //! \brief n-point Gauss-Legendre nodes \c x and weights \c w on [a,b].  Exact for polynomials
@@ -23,9 +23,9 @@ struct GaussLegendre
     GaussLegendre(int n, double a, double b);
 };
 
-} //export namespace qcMesh1
+} //export namespace qcMesh
 
-namespace qcMesh1
+namespace qcMesh
 {
 
 GaussLegendre::GaussLegendre(int n, double a, double b)
@@ -58,4 +58,4 @@ GaussLegendre::GaussLegendre(int n, double a, double b)
     }
 }
 
-} //namespace qcMesh1
+} //namespace qcMesh

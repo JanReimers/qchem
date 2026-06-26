@@ -5,11 +5,11 @@
 // no class hierarchy.
 module;
 #include <utility>
-export module qchem.Mesh1.Angular;
+export module qchem.Mesh.Angular;
 export import qchem.Types;
-export import qchem.Mesh1;            // AngularKind, MeshParams
+export import qchem.Mesh;            // AngularKind, MeshParams
 
-export namespace qcMesh1
+export namespace qcMesh
 {
 
 class AngularMesh
@@ -28,11 +28,11 @@ private:
 //! \brief Build an angular mesh of the requested kind from the typed parameters.
 AngularMesh MakeAngular(const MeshParams&);
 
-} //export namespace qcMesh1
+} //export namespace qcMesh
 
 // Per-scheme builders -- declared NON-exported here, implemented in separate files; only MakeAngular
 // (above) calls them.
-namespace qcMesh1
+namespace qcMesh
 {
     AngularMesh GaussAngular        (int numDir);
     AngularMesh GaussLegendreAngular(int L);

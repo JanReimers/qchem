@@ -185,10 +185,10 @@ TestAtom::TestAtom(int Z, int q) : QchemTester(new Atom_EC(Z-q)) //Pass in the e
     itsStructure=st_t(new Atom(Z,q,Vector3D<double>(0,0,0)));
 };
 
-qcMesh1::MeshParams TestAtom::GetMeshParams() const
+qcMesh::MeshParams TestAtom::GetMeshParams() const
 {
-    return {.radial=qcMesh1::RadialKind::MHL, .nRadial=50, .mhl_m=3, .mhl_alpha=2.0,
-            .angular=qcMesh1::AngularKind::Gauss, .nAngular=1, .beckeOrder=2};
+    return {.radial=qcMesh::RadialKind::MHL, .nRadial=50, .mhl_m=3, .mhl_alpha=2.0,
+            .angular=qcMesh::AngularKind::Gauss, .nAngular=1, .beckeOrder=2};
 }
 
 Real_BS* TestAtom::GetBasisSet (const nlohmann::json& js) const
@@ -201,10 +201,10 @@ TestDiracAtom::TestDiracAtom(int Z, int q) : QchemTester(new AtomDirac_EC(Z-q)),
     itsStructure=st_t(new Atom(Z,q,Vector3D<double>(0,0,0)));
 };
 
-qcMesh1::MeshParams TestDiracAtom::GetMeshParams() const
+qcMesh::MeshParams TestDiracAtom::GetMeshParams() const
 {
-    return {.radial=qcMesh1::RadialKind::MHL, .nRadial=50, .mhl_m=3, .mhl_alpha=2.0,
-            .angular=qcMesh1::AngularKind::Gauss, .nAngular=1, .beckeOrder=2};
+    return {.radial=qcMesh::RadialKind::MHL, .nRadial=50, .mhl_m=3, .mhl_alpha=2.0,
+            .angular=qcMesh::AngularKind::Gauss, .nAngular=1, .beckeOrder=2};
 }
 
 Real_BS* TestDiracAtom::GetBasisSet (const nlohmann::json& js) const
@@ -217,10 +217,10 @@ TestMolecule::TestMolecule(Structure* m) : QchemTester(new Molecule_EC(m->GetNum
     itsStructure=st_t(m);
 };
 
-qcMesh1::MeshParams TestMolecule::GetMeshParams() const
+qcMesh::MeshParams TestMolecule::GetMeshParams() const
 {
-    return {.radial=qcMesh1::RadialKind::MHL, .nRadial=30, .mhl_m=3, .mhl_alpha=2.0,
-            .angular=qcMesh1::AngularKind::Gauss, .nAngular=12, .beckeOrder=2};
+    return {.radial=qcMesh::RadialKind::MHL, .nRadial=30, .mhl_m=3, .mhl_alpha=2.0,
+            .angular=qcMesh::AngularKind::Gauss, .nAngular=12, .beckeOrder=2};
 }
 Real_BS* TestMolecule::GetBasisSet (const nlohmann::json& js) const
 {

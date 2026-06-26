@@ -1,4 +1,4 @@
-// File: Imp/MolecularMesh1.C  Becke molecular mesh implementation.
+// File: Imp/MolecularMesh.C  Becke molecular mesh implementation.
 //
 // See A. D. Becke, J. Chem. Phys. 88(4), 2547 (1988).  Cell function for atom i at point r:
 //   p_i(r) = prod_{j != i} s(mu_ij),   mu_ij = (|r-R_i| - |r-R_j|) / |R_i - R_j|,
@@ -9,16 +9,16 @@
 module;
 #include <vector>
 #include <cassert>
-module qchem.Structure.MolecularMesh1;
-import qchem.Mesh1.Product;         // ProductMesh, MakeRadial, MakeAngular
-import qchem.Mesh1.Builder;         // MeshBuilder (efficient incremental accumulation)
+module qchem.Structure.MolecularMesh;
+import qchem.Mesh.Product;         // ProductMesh, MakeRadial, MakeAngular
+import qchem.Mesh.Builder;         // MeshBuilder (efficient incremental accumulation)
 import qchem.Structure;             // Atom (itsR)
 import qchem.Vector3D;              // norm(rvec3_t), vector arithmetic
 
-using qcMesh1::ProductMesh;
-using qcMesh1::MakeRadial;
-using qcMesh1::MakeAngular;
-using qcMesh1::MeshBuilder;
+using qcMesh::ProductMesh;
+using qcMesh::MakeRadial;
+using qcMesh::MakeAngular;
+using qcMesh::MeshBuilder;
 
 namespace
 {
@@ -31,7 +31,7 @@ double BeckeCutoff(double mu, int k)
 }
 } //anon
 
-qcMesh1::Mesh MakeMolecularMesh(const Structure& cl, const qcMesh1::MeshParams& mp)
+qcMesh::Mesh MakeMolecularMesh(const Structure& cl, const qcMesh::MeshParams& mp)
 {
     const int beckeOrder=mp.beckeOrder;
     assert(beckeOrder>=0);
@@ -40,14 +40,14 @@ qcMesh1::Mesh MakeMolecularMesh(const Structure& cl, const qcMesh1::MeshParams& 
     std::vector<rvec3_t> R(natom);
     for (size_t i=0; i<natom; i++) R[i]=cl[i]->itsR;
 
-    qcMesh1::RadialMesh  rad=MakeRadial(mp);   // one single-center template reused (ShiftOrigin per atom)
-    qcMesh1::AngularMesh ang=MakeAngular(mp);
+    qcMesh::RadialMesh  rad=MakeRadial(mp);   // one single-center template reused (ShiftOrigin per atom)
+    qcMesh::AngularMesh ang=MakeAngular(mp);
 
     MeshBuilder out;
     std::vector<double> dist(natom), P(natom);
     for (size_t ia=0; ia<natom; ia++)
     {
-        qcMesh1::Mesh am=ProductMesh(rad,ang);
+        qcMesh::Mesh am=ProductMesh(rad,ang);
         am.ShiftOrigin(R[ia]);
         const rvec3vec_t& pts=am.Points();
         const rvec_t&     wts=am.Weights();

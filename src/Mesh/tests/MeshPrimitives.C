@@ -1,13 +1,13 @@
-// File: src/Mesh1/tests/Mesh1Primitives.C  Smoke + acceptance tests for the qcMesh1 primitives.
+// File: src/Mesh/tests/MeshPrimitives.C  Smoke + acceptance tests for the qcMesh primitives.
 #include "gtest/gtest.h"
 #include <cmath>
-import qchem.Mesh1.Product;       // Mesh, ProductMesh, MakeRadial/MakeAngular, MeshParams, enums
-import qchem.Mesh1.Quadrature;    // free functions + ScalarField/BasisField
-import qchem.Mesh1.GaussLegendre;
+import qchem.Mesh.Product;       // Mesh, ProductMesh, MakeRadial/MakeAngular, MeshParams, enums
+import qchem.Mesh.Quadrature;    // free functions + ScalarField/BasisField
+import qchem.Mesh.GaussLegendre;
 import qchem.Blaze;
 import qchem.Math;                // Pi, Pi32, FourPi
 
-using namespace qcMesh1;          // Mesh, ScalarField/BasisField, MakeRadial/MakeAngular, quadrature, ...
+using namespace qcMesh;          // Mesh, ScalarField/BasisField, MakeRadial/MakeAngular, quadrature, ...
 
 //================================================================================================
 //  Test fields: a single normalised-ish s-function phi(r) = exp(-2|r|), and some scalar potentials.
@@ -51,7 +51,7 @@ static double Sum(const rvec_t& v) {double s=0; for (size_t i=0;i<v.size();i++) 
 //================================================================================================
 //  1. Shared 1D Gauss-Legendre: known table + polynomial exactness to degree 2n-1.
 //================================================================================================
-TEST(Mesh1_GaussLegendre, TwoPointTable)
+TEST(Mesh_GaussLegendre, TwoPointTable)
 {
     GaussLegendre gl(2,-1.0,1.0);
     double r=1.0/std::sqrt(3.0);
@@ -61,7 +61,7 @@ TEST(Mesh1_GaussLegendre, TwoPointTable)
     EXPECT_NEAR(gl.w[1],1.0,1e-14);
 }
 
-TEST(Mesh1_GaussLegendre, PolynomialExactness)
+TEST(Mesh_GaussLegendre, PolynomialExactness)
 {
     const int n=5;                              // exact up to degree 2n-1 = 9
     GaussLegendre gl(n,-1.0,1.0);
@@ -85,17 +85,17 @@ static double RadialIntegralExp(const MeshParams& p)
     return I;
 }
 
-TEST(Mesh1_Radial, MHL)
+TEST(Mesh_Radial, MHL)
 {
     MeshParams p; p.radial=RadialKind::MHL; p.nRadial=200; p.mhl_m=2; p.mhl_alpha=3.0;
     EXPECT_NEAR(RadialIntegralExp(p),0.25,4e-15);
 }
-TEST(Mesh1_Radial, Log)
+TEST(Mesh_Radial, Log)
 {
     MeshParams p; p.radial=RadialKind::Log; p.nRadial=400; p.logStart=1e-4; p.logStop=40;
     EXPECT_NEAR(RadialIntegralExp(p),0.25,1e-3);
 }
-TEST(Mesh1_Radial, Linear)
+TEST(Mesh_Radial, Linear)
 {
     MeshParams p; p.radial=RadialKind::Linear; p.nRadial=4000; p.logStop=40;
     EXPECT_NEAR(RadialIntegralExp(p),0.25,1e-3);
@@ -113,7 +113,7 @@ static void CheckAngular(const MeshParams& p, double sumtol, double ztol)
     for (size_t j=0;j<a.size();j++) zz+=a.W()[j]*a.Dirs()[j].z*a.Dirs()[j].z;
     EXPECT_NEAR(zz,FourPi/3.0,ztol);
 }
-TEST(Mesh1_Angular, Gauss)
+TEST(Mesh_Angular, Gauss)
 {
     // numDir=32 was removed (inherited weight-sum bug, see GaussAngularMesh.C).
     // 24 and 30 have ~7-figure direction constants (not unit vectors) -> exact only to ~1e-7.
@@ -122,11 +122,11 @@ TEST(Mesh1_Angular, Gauss)
     CheckAngular({.angular=AngularKind::Gauss, .nAngular=30}, 1e-10, 1e-7);
     CheckAngular({.angular=AngularKind::Gauss, .nAngular=50}, 1e-10, 1e-10);
 }
-TEST(Mesh1_Angular, GaussLegendre)   // Gauss-exact in cos(theta) -> z^2 exact
+TEST(Mesh_Angular, GaussLegendre)   // Gauss-exact in cos(theta) -> z^2 exact
 {
     CheckAngular({.angular=AngularKind::GaussLegendre, .nAngular=11}, 1e-10, 1e-12);
 }
-TEST(Mesh1_Angular, EulerMaclaren)   // both the sum and z^2 are approximations for this scheme
+TEST(Mesh_Angular, EulerMaclaren)   // both the sum and z^2 are approximations for this scheme
 {
     CheckAngular({.angular=AngularKind::EulerMaclaren, .nAngular=23, .em_m=2}, 2e-3, 5e-3);
 }
@@ -144,12 +144,12 @@ static Mesh MakeProduct()
     return ProductMesh(rad,ang);
 }
 
-TEST(Mesh1_Product, ExpIntegral)        // integral exp(-2r) d^3r = 4*pi * 0.25 = pi
+TEST(Mesh_Product, ExpIntegral)        // integral exp(-2r) d^3r = 4*pi * 0.25 = pi
 {
     Mesh m=MakeProduct();
     EXPECT_NEAR(Integrate(m,ExpScalar()),Pi,1e-12);
 }
-TEST(Mesh1_Product, GaussianIntegral)   // integral exp(-r^2) d^3r = pi^{3/2}
+TEST(Mesh_Product, GaussianIntegral)   // integral exp(-r^2) d^3r = pi^{3/2}
 {
     Mesh m=MakeProduct();
     EXPECT_NEAR(Integrate(m,GaussScalar()),Pi32,1e-6);
@@ -158,7 +158,7 @@ TEST(Mesh1_Product, GaussianIntegral)   // integral exp(-r^2) d^3r = pi^{3/2}
 //================================================================================================
 //  5. Quadrature free functions against analytic <exp(-2r)|...|exp(-2r)>.
 //================================================================================================
-TEST(Mesh1_Quadrature, OverlapAndNormalize)
+TEST(Mesh_Quadrature, OverlapAndNormalize)
 {
     Mesh m=MakeProduct();
     ExpBasis a;
@@ -168,14 +168,14 @@ TEST(Mesh1_Quadrature, OverlapAndNormalize)
     auto nrm=Normalize(m,a);
     EXPECT_NEAR(nrm[0],1.0/std::sqrt(Pi/8.0),1e-10);
 }
-TEST(Mesh1_Quadrature, WeightedOverlap_OneOverR)
+TEST(Mesh_Quadrature, WeightedOverlap_OneOverR)
 {
     Mesh m=MakeProduct();
     ExpBasis a;
     auto V=WeightedOverlap(m,a,OneOverR());    // <a|1/r|a> = integral exp(-4r)/r d^3r = pi/4
     EXPECT_NEAR(V(0,0),Pi/4.0,1e-7);           // 1/r is non-smooth at the origin -> not machine-precision
 }
-TEST(Mesh1_Quadrature, KineticGrad2)
+TEST(Mesh_Quadrature, KineticGrad2)
 {
     Mesh m=MakeProduct();
     ExpBasis a;
@@ -185,7 +185,7 @@ TEST(Mesh1_Quadrature, KineticGrad2)
 
 // Projection of a scalar field onto the basis: integral f a_i d^3r.  With a=f=exp(-2r),
 // p_0 = integral exp(-4r) d^3r = pi/8.
-TEST(Mesh1_Quadrature, ScalarProjection)
+TEST(Mesh_Quadrature, ScalarProjection)
 {
     Mesh m=MakeProduct();
     ExpBasis a;
@@ -197,7 +197,7 @@ TEST(Mesh1_Quadrature, ScalarProjection)
 //================================================================================================
 //  6. Two-basis (rectangular) overlap: <a|a> off the Hermitian path equals pi/8.
 //================================================================================================
-TEST(Mesh1_Quadrature, RectangularOverlap)
+TEST(Mesh_Quadrature, RectangularOverlap)
 {
     Mesh m=MakeProduct();
     ExpBasis a;

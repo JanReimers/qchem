@@ -1,15 +1,15 @@
 // File: Internal/GaussLegendreAngularMesh.C  Gauss-Legendre(theta) x uniform(phi) angular builder.
-// Uses the SHARED qchem.Mesh1.GaussLegendre (whose indexing bug is fixed).
+// Uses the SHARED qchem.Mesh.GaussLegendre (whose indexing bug is fixed).
 // Weights: sum_theta Wt ~ 2, sum_phi Wp = 2*pi, so sum = 4*pi.
 module;
 #include <cmath>
 #include <cassert>
 #include <utility>
-module qchem.Mesh1.Angular;
-import qchem.Mesh1.GaussLegendre;
+module qchem.Mesh.Angular;
+import qchem.Mesh.GaussLegendre;
 import qchem.Math;
 
-namespace qcMesh1
+namespace qcMesh
 {
 
 AngularMesh GaussLegendreAngular(int L)
@@ -42,4 +42,4 @@ AngularMesh GaussLegendreAngular(int L)
     return AngularMesh(std::move(D), std::move(W));
 }
 
-} //namespace qcMesh1
+} //namespace qcMesh

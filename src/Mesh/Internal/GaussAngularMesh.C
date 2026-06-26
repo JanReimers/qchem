@@ -14,10 +14,10 @@ module;
 #include <cassert>
 #include <stdexcept>
 #include <utility>
-module qchem.Mesh1.Angular;
+module qchem.Mesh.Angular;
 import qchem.Math;
 
-namespace qcMesh1
+namespace qcMesh
 {
 
 AngularMesh GaussAngular(int numDir)
@@ -232,4 +232,4 @@ AngularMesh GaussAngular(int numDir)
     return AngularMesh(std::move(D), std::move(W));
 }
 
-} //namespace qcMesh1
+} //namespace qcMesh

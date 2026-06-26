@@ -3,7 +3,7 @@ module;
 export module qchem.BasisSet.Fit_IBS;
 export import qchem.BasisSet.IrrepBasisSet;
 export import qchem.ScalarFunction;
-export import qchem.Mesh1;            // qcMesh1::Mesh / MeshParams -- the fit quadrature mesh + knobs
+export import qchem.Mesh;            // qcMesh::Mesh / MeshParams -- the fit quadrature mesh + knobs
 import qchem.Structure;               // Structure (SetMesh builds the Becke mesh from it)
 
 export namespace BasisSet
@@ -25,7 +25,7 @@ public:
 
     //! Build and OWN the fit quadrature mesh (Becke, from the structure).  Called by the
     //! CreateCD/VxcFitBasisSet creators, which already hold the Structure.
-    void SetMesh(const Structure& cl, const qcMesh1::MeshParams& mp);
+    void SetMesh(const Structure& cl, const qcMesh::MeshParams& mp);
 
     // Numerical (mesh-quadrature) versions -- run over the fit basis's OWN mesh (itsMesh).
     typedef ScalarFunction<double> Sf;
@@ -42,7 +42,7 @@ protected:
     virtual  rvec_t MakeNorm   () const; //Numerical, over itsMesh.
 
 private:
-    qcMesh1::Mesh itsMesh;   //!< the fit basis's own quadrature mesh.
+    qcMesh::Mesh itsMesh;   //!< the fit basis's own quadrature mesh.
 };
 
 }//namespace

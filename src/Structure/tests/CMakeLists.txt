@@ -2,7 +2,7 @@
 
 add_executable(UTStructure ../../Common/tests/gtestmain.C
     StructureTests.C
-    MolecularMesh1Tests.C
+    MolecularMeshTests.C
 )
 
 target_compile_options(UTStructure PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
@@ -15,6 +15,6 @@ target_include_directories(UTStructure PRIVATE
     # ${PROJECT_SOURCE_DIR}/submodules/tabulate/include
 )
 
-target_link_libraries(UTStructure PRIVATE qcStructure qcMesh1 gtest)
+target_link_libraries(UTStructure PRIVATE qcStructure qcMesh gtest)
 
 gtest_discover_tests(UTStructure)

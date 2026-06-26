@@ -11,8 +11,8 @@ import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet;
 import qchem.Math;
 import qchem.Structure;
-import qchem.Structure.MolecularMesh1;   // MakeMolecularMesh (qcMesh1 mesh)
-import qchem.Mesh1.Quadrature;           // qcMesh1 quadrature + ScalarField/BasisField
+import qchem.Structure.MolecularMesh;   // MakeMolecularMesh (qcMesh mesh)
+import qchem.Mesh.Quadrature;           // qcMesh quadrature + ScalarField/BasisField
 import qchem.VectorFunction;
 import qchem.Streamable;
 import qchem.BasisSet.Internal.Orbital_DHF_IBS;
@@ -20,7 +20,7 @@ import qchem.Blaze;
 
 namespace
 {
-class BFView : public qcMesh1::BasisField<double>
+class BFView : public qcMesh::BasisField<double>
 {
     const VectorFunction<double>& its;
 public:
@@ -29,15 +29,15 @@ public:
     rvec_t     operator()(const rvec3_t& r) const override {return its(r);}
     rvec3vec_t Gradient  (const rvec3_t& r) const override {return its.Gradient(r);}
 };
-struct OneOverR  : qcMesh1::ScalarField<double>
+struct OneOverR  : qcMesh::ScalarField<double>
 {
     double  operator()(const rvec3_t& r) const override {double m=norm(r); return m==0.0?0.0:1.0/m;}
     rvec3_t Gradient  (const rvec3_t&)   const override {return rvec3_t(0,0,0);}
 };
-qcMesh1::Mesh AtomMesh1(const Structure& cl, int nRadial, int mhl_m, double alpha, int nAngular)
+qcMesh::Mesh AtomMesh(const Structure& cl, int nRadial, int mhl_m, double alpha, int nAngular)
 {
-    return MakeMolecularMesh(cl, {.radial=qcMesh1::RadialKind::MHL, .nRadial=nRadial, .mhl_m=mhl_m,
-                                  .mhl_alpha=alpha, .angular=qcMesh1::AngularKind::Gauss, .nAngular=nAngular});
+    return MakeMolecularMesh(cl, {.radial=qcMesh::RadialKind::MHL, .nRadial=nRadial, .mhl_m=mhl_m,
+                                  .mhl_alpha=alpha, .angular=qcMesh::AngularKind::Gauss, .nAngular=nAngular});
 }
 } //anon
 
@@ -70,7 +70,7 @@ public:
         sbs=BasisSet::Atom::Factory(js,2);
         js = {{"type",BasisSet::Atom::Type::Gaussian_RKB}, {"N", 3}, {"emin", 0.1}, {"emax", 10.0} };
         gbs=BasisSet::Atom::Factory(js,2);
-        itsMesh=AtomMesh1(*cl,200,3,2.0,1);
+        itsMesh=AtomMesh(*cl,200,3,2.0,1);
     }
     
     static const RKBL_OIBS* GetLarge(const Real_IBS* ibs)
@@ -104,7 +104,7 @@ public:
     Real_BS* sbs;
     Real_BS* gbs;
     Structure* cl;
-    qcMesh1::Mesh itsMesh;
+    qcMesh::Mesh itsMesh;
 };
 
 TEST_F(DiracIntegralTests, SlaterBasisSet)
@@ -131,8 +131,8 @@ TEST_F(DiracIntegralTests, SlaterOverlap)
             for (size_t i=0;i<d.size()/2;i++) EXPECT_NEAR(d[i],1.0,1e-15);
         }
         // cout << std::fixed << std::setprecision(3) << std::setw(6) << S << S1 << endl;
-        rsmat_t SLnum = qcMesh1::Overlap(itsMesh,BFView(*GetLarge(oi)));
-        rsmat_t SSnum = qcMesh1::Overlap(itsMesh,BFView(*GetSmall(oi)));
+        rsmat_t SLnum = qcMesh::Overlap(itsMesh,BFView(*GetLarge(oi)));
+        rsmat_t SSnum = qcMesh::Overlap(itsMesh,BFView(*GetSmall(oi)));
         rsmat_t Snum=merge_diag(SLnum,SSnum);
         // cout << Snum << S << endl;
 
@@ -151,8 +151,8 @@ TEST_F(DiracIntegralTests, GaussianOverlap)
             for (size_t i=0;i<d.size()/2;i++) EXPECT_NEAR(d[i],1.0,1e-15);
         }
         // cout << std::fixed << std::setprecision(3) << std::setw(6) << S << S1 << endl;
-        rsmat_t SLnum = qcMesh1::Overlap(itsMesh,BFView(*GetLarge(oi)));
-        rsmat_t SSnum = qcMesh1::Overlap(itsMesh,BFView(*GetSmall(oi)));
+        rsmat_t SLnum = qcMesh::Overlap(itsMesh,BFView(*GetLarge(oi)));
+        rsmat_t SSnum = qcMesh::Overlap(itsMesh,BFView(*GetSmall(oi)));
 //        cout << SLnum << SSnum << endl;
         rsmat_t Snum=merge_diag(SLnum,SSnum);
         // cout << Max(fabs(S-Snum)) << endl;
@@ -168,8 +168,8 @@ TEST_F(DiracIntegralTests, SlaterNuclear)
     for (auto oi:sbs->Iterate<Real_OIBS >())
     {
         rsmat_t Ven=oi->Nuclear(cl);
-        rsmat_t VenLnum = -Z*qcMesh1::WeightedOverlap(itsMesh,BFView(*GetLarge(oi)),OneOverR());
-        rsmat_t VenSnum = -Z*qcMesh1::WeightedOverlap(itsMesh,BFView(*GetSmall(oi)),OneOverR());
+        rsmat_t VenLnum = -Z*qcMesh::WeightedOverlap(itsMesh,BFView(*GetLarge(oi)),OneOverR());
+        rsmat_t VenSnum = -Z*qcMesh::WeightedOverlap(itsMesh,BFView(*GetSmall(oi)),OneOverR());
         rsmat_t Vennum=merge_diag(VenLnum,VenSnum);
         //cout << "Ven=" << Ven << endl << "Ven num=" << Vennum << endl;
         //Because of the singularity at the origin, the error is larger than the other integrals.
@@ -185,8 +185,8 @@ TEST_F(DiracIntegralTests, GaussianNuclear)
     for (auto oi:gbs->Iterate<Real_OIBS >())
     {
         rsmat_t Ven=oi->Nuclear(cl);
-        rsmat_t VenLnum = -Z*qcMesh1::WeightedOverlap(itsMesh,BFView(*GetLarge(oi)),OneOverR());
-        rsmat_t VenSnum = -Z*qcMesh1::WeightedOverlap(itsMesh,BFView(*GetSmall(oi)),OneOverR());
+        rsmat_t VenLnum = -Z*qcMesh::WeightedOverlap(itsMesh,BFView(*GetLarge(oi)),OneOverR());
+        rsmat_t VenSnum = -Z*qcMesh::WeightedOverlap(itsMesh,BFView(*GetSmall(oi)),OneOverR());
         rsmat_t Vennum=merge_diag(VenLnum,VenSnum);
         //cout << "Ven=" << Ven << endl << "Ven num=" << Vennum << endl;
         // cout << "Ven=" << Ven << endl << "Ven1=" << Ven1 << endl;
@@ -197,7 +197,7 @@ TEST_F(DiracIntegralTests, GaussianNuclear)
 
 
 // NOTE: the Dirac relativistic-kinetic numerical cross-check (SlaterKinetic/GaussianKinetic) used
-// MeshIntegrator::Grada_b -- the l=0-only <grad a|b> gradient cross-term that qcMesh1 deliberately
+// MeshIntegrator::Grada_b -- the l=0-only <grad a|b> gradient cross-term that qcMesh deliberately
 // dropped.  The analytic Kinetic() it cross-checked is validated end-to-end by A_DHF (UTMain).
 
  //  For symmetric matricies, Sum() should know to double all the off diagonal elements.

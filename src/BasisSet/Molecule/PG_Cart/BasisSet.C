@@ -70,8 +70,8 @@ public:
     Orbital_IBS(const rvec_t& exponents, size_t L, const Structure *);
     Orbital_IBS(const rvec_t& exponents, size_t L);
 
-    virtual Fit_IBS* CreateCDFitBasisSet(const Structure *, const qcMesh1::MeshParams&) const;
-    virtual Fit_IBS* CreateVxcFitBasisSet(const Structure *, const qcMesh1::MeshParams&) const;
+    virtual Fit_IBS* CreateCDFitBasisSet(const Structure *, const qcMesh::MeshParams&) const;
+    virtual Fit_IBS* CreateVxcFitBasisSet(const Structure *, const qcMesh::MeshParams&) const;
 };
 // Use E prefix to avoid name clash with the interface class Fit_IBS
 class EFit_IBS

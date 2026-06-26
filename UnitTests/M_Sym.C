@@ -21,7 +21,7 @@ import qchem.BasisSet.Molecule.PG_Cart.SymmetryAdapt; // PG SymmetryAdapt hook
 import qchem.ElectronConfiguration.Molecule;                  // Molecule_EC
 import qchem.Types;
 import qchem.Math;                                            // cos, sin (for the rotation test)
-import qchem.Mesh1;                                           // qcMesh1::MeshParams (DFT)
+import qchem.Mesh;                                           // qcMesh::MeshParams (DFT)
 
 
 using namespace qchem::Hamiltonian;
@@ -53,8 +53,8 @@ static EnergyBreakdown RunHF(const BasisSet::BasisSet<double>* bs, const Electro
 static EnergyBreakdown RunDFT(const BasisSet::BasisSet<double>* bs, const ElectronConfiguration* ec,
                               const st_t& st, Pol pol)
 {
-    qcMesh1::MeshParams mp{.radial=qcMesh1::RadialKind::MHL, .nRadial=30, .mhl_m=3, .mhl_alpha=2.0,
-                           .angular=qcMesh1::AngularKind::Gauss, .nAngular=12, .beckeOrder=2};
+    qcMesh::MeshParams mp{.radial=qcMesh::RadialKind::MHL, .nRadial=30, .mhl_m=3, .mhl_alpha=2.0,
+                           .angular=qcMesh::AngularKind::Gauss, .nAngular=12, .beckeOrder=2};
     Hamiltonian* ham = Factory(pol, st, 0.7, mp, bs);            // Xalpha DFT
     // EMax gates DIIS on the [F,D] commutator norm: DIIS only engages once it drops below EMax.  The
     // non-symmetric *polarized* water Xalpha SCF oscillates with a commutator of ~2-4 that plain mixing

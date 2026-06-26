@@ -9,8 +9,8 @@ import qchem.Orbitals;
 import qchem.Factory;
 import qchem.Math;
 import qchem.Structure;
-import qchem.Structure.MolecularMesh1;   // MakeMolecularMesh (qcMesh1 mesh)
-import qchem.Mesh1;                       // qcMesh1::Mesh / MeshParams
+import qchem.Structure.MolecularMesh;   // MakeMolecularMesh (qcMesh mesh)
+import qchem.Mesh;                       // qcMesh::Mesh / MeshParams
 import qchem.Streamable;
 import qchem.Energy;
 import qchem.Symmetry.Spherical; //Symmetry::Getκ for picking p1/2 vs p3/2 orbitals
@@ -206,8 +206,8 @@ using qchem::Orbitals::TOrbital;
 std::tuple<double,double,double> Integrate(const Orbital* o,const Structure*  cl, double alpha)
 {
     const TOrbital<double>* to=dynamic_cast<const TOrbital<double>*>(o);
-    qcMesh1::Mesh m = MakeMolecularMesh(*cl, {.radial=qcMesh1::RadialKind::MHL, .nRadial=200, .mhl_m=3,
-                                             .mhl_alpha=2.0, .angular=qcMesh1::AngularKind::Gauss, .nAngular=1});
+    qcMesh::Mesh m = MakeMolecularMesh(*cl, {.radial=qcMesh::RadialKind::MHL, .nRadial=200, .mhl_m=3,
+                                             .mhl_alpha=2.0, .angular=qcMesh::AngularKind::Gauss, .nAngular=1});
     const rvec3vec_t& R=m.Points();
     const rvec_t&     W=m.Weights();
 

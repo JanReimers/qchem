@@ -1,13 +1,13 @@
 // File: BasisSet/Imp/Fit_IBS.C  Implement the numerical (mesh-quadrature) parts of a fit basis set.
 //
 // A fit basis OWNS its quadrature mesh (the Becke molecular mesh, built from its Structure in
-// SetMesh).  The numerical integrals run over that mesh via the qcMesh1 free-function quadrature;
-// Fit_IBS is already a pointwise VectorFunction, exposed to qcMesh1 through tiny view adapters.
+// SetMesh).  The numerical integrals run over that mesh via the qcMesh free-function quadrature;
+// Fit_IBS is already a pointwise VectorFunction, exposed to qcMesh through tiny view adapters.
 module;
 #include <cassert>
 module qchem.BasisSet.Fit_IBS;
-import qchem.Mesh1.Quadrature;          // qcMesh1::Mesh, BasisField, ScalarField, Normalize, Overlap
-import qchem.Structure.MolecularMesh1;  // MakeMolecularMesh (the Becke mesh)
+import qchem.Mesh.Quadrature;          // qcMesh::Mesh, BasisField, ScalarField, Normalize, Overlap
+import qchem.Structure.MolecularMesh;  // MakeMolecularMesh (the Becke mesh)
 import qchem.BasisSet.Internal.DB_Cache;
 import qchem.Blaze;
 
@@ -16,8 +16,8 @@ namespace BasisSet
 
 namespace
 {
-// View a Fit_IBS (a pointwise VectorFunction) as a qcMesh1::BasisField for the quadrature.
-class FitBasisView : public qcMesh1::BasisField<double>
+// View a Fit_IBS (a pointwise VectorFunction) as a qcMesh::BasisField for the quadrature.
+class FitBasisView : public qcMesh::BasisField<double>
 {
     const Fit_IBS& its;
 public:
@@ -27,8 +27,8 @@ public:
     rvec3vec_t Gradient  (const rvec3_t& r) const override {return its.Gradient(r);}
 };
 
-// View an old ScalarFunction<double> as a qcMesh1::ScalarField for the quadrature.
-class ScalarFnView : public qcMesh1::ScalarField<double>
+// View an old ScalarFunction<double> as a qcMesh::ScalarField for the quadrature.
+class ScalarFnView : public qcMesh::ScalarField<double>
 {
     const ScalarFunction<double>& its;
 public:
@@ -39,7 +39,7 @@ public:
 
 } //anon
 
-void Fit_IBS::SetMesh(const Structure& cl, const qcMesh1::MeshParams& mp)
+void Fit_IBS::SetMesh(const Structure& cl, const qcMesh::MeshParams& mp)
 {
     itsMesh = MakeMolecularMesh(cl, mp);
 }
@@ -92,14 +92,14 @@ const rvec_t& Fit_IBS::Norm() const
 rvec_t Fit_IBS::MakeNorm() const
 {
     assert(itsMesh.size()>0);   // SetMesh must run before any numerical integral
-    return qcMesh1::Normalize(itsMesh, FitBasisView(*this));
+    return qcMesh::Normalize(itsMesh, FitBasisView(*this));
 }
 
 rvec_t Fit_IBS::Overlap(const Sf& f) const
 {
     assert(itsMesh.size()>0);
     // <f_a|f> projection, normalised: component-wise multiply by the fit-basis norms.
-    return qcMesh1::Overlap(itsMesh, FitBasisView(*this), ScalarFnView(f)) * Norm();
+    return qcMesh::Overlap(itsMesh, FitBasisView(*this), ScalarFnView(f)) * Norm();
 }
 
 rsmat_t Fit_IBS::MakeInvOverlap  () const

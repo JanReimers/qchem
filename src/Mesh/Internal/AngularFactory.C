@@ -1,9 +1,9 @@
 // File: Internal/AngularFactory.C  MakeAngular -- dispatch to the per-scheme builder functions.
 module;
 #include <stdexcept>
-module qchem.Mesh1.Angular;
+module qchem.Mesh.Angular;
 
-namespace qcMesh1
+namespace qcMesh
 {
 
 AngularMesh MakeAngular(const MeshParams& p)
@@ -17,4 +17,4 @@ AngularMesh MakeAngular(const MeshParams& p)
     throw std::runtime_error("MakeAngular: unknown AngularKind");
 }
 
-} //namespace qcMesh1
+} //namespace qcMesh

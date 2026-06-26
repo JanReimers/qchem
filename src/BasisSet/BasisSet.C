@@ -31,8 +31,8 @@ public:
     virtual size_t   GetNumFunctions() const=0;
     virtual irrepv_t GetIrreps(const Spin& ms) const=0;
 
-    virtual Fit_IBS* CreateCDFitBasisSet(const Structure* cl, const qcMesh1::MeshParams&) const;
-    virtual Fit_IBS* CreateVxcFitBasisSet(const Structure* cl, const qcMesh1::MeshParams&) const;
+    virtual Fit_IBS* CreateCDFitBasisSet(const Structure* cl, const qcMesh::MeshParams&) const;
+    virtual Fit_IBS* CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams&) const;
 
     // Iterate() with no type argument yields the base bs_t* directly (no cast);
     // Iterate<D>() dynamic_cast's each IBS to the requested derived type D.

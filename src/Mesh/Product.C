@@ -6,12 +6,12 @@
 //   sum_ij w_i^rad w_j^ang f(r_i Omega_j) ~ integral f d^3r.
 module;
 #include <utility>
-export module qchem.Mesh1.Product;
-export import qchem.Mesh1;
-export import qchem.Mesh1.Radial;
-export import qchem.Mesh1.Angular;
+export module qchem.Mesh.Product;
+export import qchem.Mesh;
+export import qchem.Mesh.Radial;
+export import qchem.Mesh.Angular;
 
-export namespace qcMesh1
+export namespace qcMesh
 {
 
 Mesh ProductMesh(const RadialMesh& rad, const AngularMesh& ang)
@@ -29,4 +29,4 @@ Mesh ProductMesh(const RadialMesh& rad, const AngularMesh& ang)
     return Mesh(std::move(R), std::move(W));
 }
 
-} //export namespace qcMesh1
+} //export namespace qcMesh

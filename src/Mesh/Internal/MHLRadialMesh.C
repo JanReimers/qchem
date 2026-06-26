@@ -4,10 +4,10 @@
 // The r^2 jacobian is folded into w_i.
 module;
 #include <utility>
-module qchem.Mesh1.Radial;
+module qchem.Mesh.Radial;
 import qchem.Math;
 
-namespace qcMesh1
+namespace qcMesh
 {
 
 RadialMesh MHLRadial(int NumPoints, int m, double alpha)
@@ -24,4 +24,4 @@ RadialMesh MHLRadial(int NumPoints, int m, double alpha)
     return RadialMesh(std::move(R), std::move(W));
 }
 
-} //namespace qcMesh1
+} //namespace qcMesh
