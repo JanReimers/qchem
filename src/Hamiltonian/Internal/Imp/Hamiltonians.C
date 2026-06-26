@@ -70,7 +70,7 @@ Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const BasisSet::LocalPotential* loc,
     Add(new PW_Hartree);
     Add(new PW_XC(std::make_shared<SlaterExchange>(2.0/3.0)));    // Dirac exchange (alpha = 2/3)
     Add(new PW_XC(std::make_shared<VWN_Correlation>()));          // VWN5 correlation
-    Add(new PW_IonIon(st));                                       // ion-ion Ewald -> physical total energy
+    Add(new PW_IonIon(st, loc->ZionFn()));                       // ion-ion Ewald: Zion from the PP, not itsZ
 }
 
 Ham_HF_P::Ham_HF_P(const st_t& st)

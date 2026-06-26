@@ -6,6 +6,7 @@
 // level question -- "the external matrix", "the Hartree matrix for this density".  The basis owns the
 // integration; the term owns no G-vectors or mesh.  Energies delegate to the density's DM_Contract.
 module;
+#include <functional>
 #include <iosfwd>
 #include <memory>
 export module qchem.Hamiltonian.Internal.PWTerms;
@@ -69,12 +70,15 @@ class PW_IonIon
 {
 public:
     typedef std::shared_ptr<const Structure> st_t;
-    PW_IonIon(const st_t& st);
+    //! \a zionOf maps an atom's true species Z to its ION CORE charge (the PP's valence; identity for the
+    //! all-electron baseline).  This is how the atom's itsZ stays the TRUE species while Ewald gets Zion.
+    PW_IonIon(const st_t& st, std::function<double(int)> zionOf);
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
     virtual std::ostream& Write(std::ostream&) const;
 private:
     virtual chmat_t CalculateMatrix(const cobs_t*, const Spin&) const;
     st_t theStructure;
+    std::function<double(int)> itsZionOf;
 };
 
 //! Hartree (classical Coulomb) term for a plane-wave basis (density-dependent).  Asks the basis for the

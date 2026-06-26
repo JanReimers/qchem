@@ -1,6 +1,7 @@
 // File: Hamiltonian/Internal/Imp/PWTerms.C  Plane-wave Kohn-Sham term implementations.
 module;
 #include <cassert>
+#include <functional>
 #include <iostream>
 #include <memory>
 module qchem.Hamiltonian.Internal.PWTerms;
@@ -75,11 +76,13 @@ std::ostream& PW_Kinetic::Write(std::ostream& os) const
 }
 
 //----------------------------------------------------------------------------------- Ion-Ion (Ewald)
-PW_IonIon::PW_IonIon(const st_t& st)
+PW_IonIon::PW_IonIon(const st_t& st, std::function<double(int)> zionOf)
     : cStatic_HT_Imp()
     , theStructure(st)
+    , itsZionOf(std::move(zionOf))
 {
     assert(st->GetNumAtoms()>0);
+    assert(itsZionOf && "PW_IonIon: a Z->Zion charge map is required");
 }
 
 // Constant energy term: no Hamiltonian-matrix contribution (the ion-ion energy is independent of the
@@ -91,7 +94,7 @@ chmat_t PW_IonIon::CalculateMatrix(const cobs_t* bs, const Spin&) const
 
 void PW_IonIon::GetEnergy(EnergyBreakdown& te, const cDM_CD*) const
 {
-    te.Enn=NuclearRepulsion(*theStructure);   // Ewald lattice sum (periodic) -- see Ewald::NuclearRepulsion
+    te.Enn=NuclearRepulsion(*theStructure, itsZionOf);   // Ewald with the PP's ion charges (Zion), not itsZ
 }
 
 std::ostream& PW_IonIon::Write(std::ostream& os) const

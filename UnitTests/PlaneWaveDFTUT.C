@@ -1030,8 +1030,8 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaThroughSCFIterator)
     using namespace qchem::Hamiltonian;
     const double a=10.26;                       // Si conventional cubic lattice constant (a.u.)
     FCCUnitCell cell(a);                         // FCC primitive cell
-    cell.AddAtom(4, {0,0,0});                    // Si diamond two-atom basis (itsZ = Zion = 4 for ion-ion)
-    cell.AddAtom(4, {0.25,0.25,0.25});
+    cell.AddAtom(14, {0,0,0});                   // Si diamond: itsZ = TRUE species Z = 14; Zion comes from the PP (ZionFn)
+    cell.AddAtom(14, {0.25,0.25,0.25});
     Lattice_3D  lat(cell, ivec3_t(1,1,1));
 
     GTH_PP                 siPP=GetGTH("Si","LDA",4);          // must outlive the SCF run (the term holds &loc)
@@ -1138,8 +1138,8 @@ TEST_F(PlaneWaveDFT, FrameworkSilicon2x2x2ThroughSCFIterator)
     using namespace qchem::Hamiltonian;
     const double a=10.26;
     FCCUnitCell cell(a);
-    cell.AddAtom(4, {0,0,0});                    // itsZ = Zion = 4 for the ion-ion Ewald
-    cell.AddAtom(4, {0.25,0.25,0.25});
+    cell.AddAtom(14, {0,0,0});                   // itsZ = TRUE species Z = 14 (Zion=4 supplied by the PP's ZionFn)
+    cell.AddAtom(14, {0.25,0.25,0.25});
     Lattice_3D  lat(cell, ivec3_t(2,2,2));       // 2x2x2 = 8 k-points
 
     GTH_PP                 siPP=GetGTH("Si","LDA",4);          // CP2K GTH-LDA q4, from the database

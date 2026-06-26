@@ -36,10 +36,17 @@ public:
     //! Default 0 (a pure Coulomb tail has no finite remainder). [energy x volume]
     virtual double FormFactorG0(int Z) const {return 0.0;}
 
-    // --- Adapt to the plain CALLBACKS the basis assembly consumes, so the basis names no PP type (the
-    //     pseudo-wall: physics model here, integral assembly basis-side, only a std::function crosses). ---
+    //! \brief The ION charge this local potential's \f$-Z_{ion}/r\f$ tail carries -- the charge the ion-ion
+    //! (Ewald) sum needs.  Default = the (true) nuclear charge \a Z (all-electron: BareCoulomb, Gaussian-
+    //! smeared).  A pseudopotential overrides with its VALENCE charge (HGH: \f$Z_{ion}\f$), Z-independent.
+    //! This is why it is a callback, not a getter: the answer depends on the model, not just on Z.
+    virtual double Zion(int Z) const {return double(Z);}
+
+    // --- Adapt to the plain CALLBACKS the basis assembly / ion-ion term consume, so the basis names no PP
+    //     TYPE (the pseudo-wall: physics model here, assembly basis-side, only a std::function crosses). ---
     std::function<double(int,double)> FormFactorFn()   const {return [this](int Z,double g2){return FormFactor(Z,g2);};}
     std::function<double(int)>        FormFactorG0Fn() const {return [this](int Z){return FormFactorG0(Z);};}
+    std::function<double(int)>        ZionFn()         const {return [this](int Z){return Zion(Z);};}
 };
 
 //! \brief Bare nuclear Coulomb \f$v(G) = -4\pi Z/G^2\f$.  Physically exact but the 1s cusp makes the
@@ -105,6 +112,7 @@ public:
         double moments=itsC1 + 3*itsC2 + 15*itsC3 + 105*itsC4;
         return 2*Pi*itsZion*itsRloc*itsRloc + twopi32*itsRloc*itsRloc*itsRloc*moments;
     }
+    virtual double Zion(int /*Z*/) const override {return itsZion;}   // valence charge (Z-independent)
 private:
     double itsZion, itsRloc, itsC1, itsC2, itsC3, itsC4;
 };
