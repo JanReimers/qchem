@@ -69,7 +69,7 @@ template <class T> void FunctionFitterImp<T>::DoFitInternal(const DensityFFClien
 //  Fit-derived quantities the clients query (the "what's your overlap/repulsion with this basis?" side).
 //
 template <class T> smat_t<T> FunctionFitterImp<T>::
-FitGet3CenterOverlap(const obs_t<T>* bs) const
+Overlap(const obs_t<T>* bs) const
 {
     const ERI3<T>& O3=bs->Overlap3C(*itsBasisSet);
     smat_t<T> J=blazem::zero<T>(bs->GetNumFunctions());
@@ -80,7 +80,7 @@ FitGet3CenterOverlap(const obs_t<T>* bs) const
 }
 
 template <class T> smat_t<T> FunctionFitterImp<T>::
-FitGet3CenterRepulsion(const obs_t<T>* bs) const
+Repulsion(const obs_t<T>* bs) const
 {
     const ERI3<T>& R3=bs->Repulsion3C(*itsBasisSet);
     smat_t<T> J=blazem::zero<T>(bs->GetNumFunctions());
@@ -103,7 +103,7 @@ template <class T> double FunctionFitterImp<T>::FitGetSelfRepulsion() const
     return FitGetRepulsion(this);   // <fit|1/r12|fit>
 }
 
-template <class T> double FunctionFitterImp<T>::FitGetCharge() const
+template <class T> double FunctionFitterImp<T>::Integral() const
 {
     return blazem::trans(itsFitCoeff) * itsBasisSet->Charge();
 }

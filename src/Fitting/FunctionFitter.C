@@ -7,7 +7,7 @@
 //                        what's your value at r? (or: your charge and your    GetScalarFunction(), or
 //                        3-centre repulsion with my fit basis?)"              FitGetConstraint()+GetRepulsion3C()]
 //   Client -> Fitter :  "great.  Now, what's your overlap / repulsion with   [FitGet3Center{Overlap,Repulsion},
-//                        this other (orbital) basis?"                          FitGetSelfRepulsion, FitGetCharge]
+//                        this other (orbital) basis?"                          FitGetSelfRepulsion, Integral]
 //
 // The FFClient callbacks are simply how the Fitter asks the Client its questions, so they live here with
 // the Fitter -- a client imports this ONE module and has everything.  (The old separate FittedFunction
@@ -57,13 +57,13 @@ public:
 
     // --- "what's your overlap / repulsion with this orbital basis?" ---
     //! 3-centre OVERLAP contraction Sum_a c_a <Oi|f_a|Oj> -- a fitted scalar (e.g. v_xc) as an operator matrix.
-    virtual smat_t<T> FitGet3CenterOverlap  (const obs_t<T>*) const =0;
+    virtual smat_t<T> Overlap  (const obs_t<T>*) const =0;
     //! 3-centre REPULSION contraction Sum_a c_a <Oi|f_a/r12|Oj> -- a fitted density's Coulomb (Vee) matrix.
-    virtual smat_t<T> FitGet3CenterRepulsion(const obs_t<T>*) const =0;
+    virtual smat_t<T> Repulsion(const obs_t<T>*) const =0;
     //! Coulomb self-energy <fit|1/r12|fit> (the caller applies any factor of 1/2).
     virtual double    FitGetSelfRepulsion   ()                const =0;
     //! Total charge  integral fit  = Sum_a c_a integral f_a.
-    virtual double    FitGetCharge          ()                const =0;
+    virtual double    Integral          ()                const =0;
 
     virtual std::ostream& Write(std::ostream&) const =0;   //!< describe the fit (basis + coefficients)
 };

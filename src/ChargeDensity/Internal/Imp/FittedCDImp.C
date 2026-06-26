@@ -22,7 +22,7 @@ template <class T> FittedCDImp<T>::FittedCDImp(bs_t& bs, double totalCharge)
 {
     itsFitter->ReScale(totalCharge);   // normalize the initial guess (each DoFit then re-imposes the charge)
     assert(totalCharge>0);
-    assert(fabs(totalCharge-itsFitter->FitGetCharge())<1e-10);
+    assert(fabs(totalCharge-itsFitter->Integral())<1e-10);
 };
 
 //-----------------------------------------------------------------------------
@@ -31,7 +31,7 @@ template <class T> FittedCDImp<T>::FittedCDImp(bs_t& bs, double totalCharge)
 //
 template <class T> smat_t<T> FittedCDImp<T>::GetRepulsion(const odftbs_t* bs) const
 {
-    return itsFitter->FitGet3CenterRepulsion(bs);   // Sum_a c_a <Oi|f_a/r12|Oj>
+    return itsFitter->Repulsion(bs);   // Sum_a c_a <Oi|f_a/r12|Oj>
 }
 
 template <class T> double FittedCDImp<T>::GetSelfRepulsion() const

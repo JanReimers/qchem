@@ -43,7 +43,7 @@ const rsmat_t& FittedEpsXc::GetMatrix(const obs_t* bs,const Spin&,const DM_CD* c
     itsFitter->DoFit(epsxc);                             // fit eps_xc(rho) for this density
     auto dftbs=dynamic_cast<const odftbs_t*>(bs);
     assert(dftbs);
-    itsMat=itsFitter->FitGet3CenterOverlap(dftbs);       // Sum_a c_a <Oi|f_a|Oj>
+    itsMat=itsFitter->Overlap(dftbs);       // Sum_a c_a <Oi|f_a|Oj>
     return itsMat;
 }
 
@@ -84,7 +84,7 @@ rsmat_t FittedVxc::CalcMatrix(const obs_t* bs,const Spin& s,const DM_CD* cd) con
         itsFitter->DoFit(*itsLDAVxc); //fit v_xc(rho) onto the aux basis (callback GetScalarFunction)
     }
     auto dftbs=dynamic_cast<const odftbs_t*>(bs);
-    return itsFitter->FitGet3CenterOverlap(dftbs);
+    return itsFitter->Overlap(dftbs);
 }
 
 void FittedVxc::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const

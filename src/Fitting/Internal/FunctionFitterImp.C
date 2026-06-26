@@ -33,10 +33,10 @@ public:
     virtual rvec3_t Gradient  (const rvec3_t&) const;
     virtual std::ostream& Write(std::ostream&) const;
 
-    virtual smat_t<T> FitGet3CenterOverlap  (const obs_t<T>*) const;
-    virtual smat_t<T> FitGet3CenterRepulsion(const obs_t<T>*) const;
+    virtual smat_t<T> Overlap  (const obs_t<T>*) const;
+    virtual smat_t<T> Repulsion(const obs_t<T>*) const;
     virtual double    FitGetSelfRepulsion   ()                const;  // <fit|1/r12|fit>
-    virtual double    FitGetCharge          ()                const;
+    virtual double    Integral          ()                const;
 protected:
     virtual void   DoFitInternal(const ScalarFFClient&,double constraint=0);
     virtual void   DoFitInternal(const DensityFFClient&,double constraint=0);
