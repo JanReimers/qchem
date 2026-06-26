@@ -11,12 +11,21 @@ import qchem.ChargeDensity;
 import qchem.ScalarFunction;
 import qchem.Vector3D;
 import qchem.Hamiltonian.Types;
+import qchem.BasisSet.Fit_IBS;   // Fit_IBS (the full fit basis the composed FunctionFitter holds)
 
 namespace qchem::Hamiltonian
 {
 
 namespace
 {
+// Recover the full Fit_IBS that the FunctionFitter holds from the narrow overlap-metric (SF) face we
+// take for type safety.  Always succeeds: every fit basis the creators build IS a concrete Fit_IBS.
+std::shared_ptr<const BasisSet::Fit_IBS> AsFitIBS(const std::shared_ptr<const BasisSet::FIT_SF_ABS>& sf)
+{
+    auto fbs=std::dynamic_pointer_cast<const BasisSet::Fit_IBS>(sf);
+    assert(fbs && "FittedVxc/EpsXc: the SF fit basis must be a concrete Fit_IBS");
+    return fbs;
+}
 // Present eps_xc(rho(r)) as a ScalarFFClient so it can be least-squares fitted.  Holds the density
 // directly (rho(r) = (*cd)(r)) -- this is the true energy density, distinct from the potential v_xc.
 class EpsXcDensity : public virtual ScalarFunction<double>, public Fitting::ScalarFFClient
@@ -33,9 +42,11 @@ private:
 } // namespace
 
 FittedEpsXc::FittedEpsXc(bs_t& bs, const ExFunctional* ex)
-    : itsFitter(Fitting::MakeFunctionFitter(Fitting::FitFlavour::Unconstrained,bs)) // composed, via Factory
-    , itsEx(ex)
-{}
+    : itsEx(ex)
+{
+    auto fbs=AsFitIBS(bs);   // the FunctionFitter holds the full Fit_IBS; recover it from the narrow SF face
+    itsFitter=Fitting::MakeFunctionFitter(Fitting::FitFlavour::Unconstrained,fbs); // composed, via Factory
+}
 
 const rsmat_t& FittedEpsXc::GetMatrix(const obs_t* bs,const Spin&,const DM_CD* cd) const
 {
@@ -48,9 +59,11 @@ const rsmat_t& FittedEpsXc::GetMatrix(const obs_t* bs,const Spin&,const DM_CD* c
 }
 
 FittedVxc::FittedVxc(bs_t& bs, ex_t& lda)
-    : itsFitter(Fitting::MakeFunctionFitter(Fitting::FitFlavour::Unconstrained,bs)) // potential fit, via Factory
-    , itsLDAVxc(new LDAVxc(lda))
-{};
+    : itsLDAVxc(new LDAVxc(lda))
+{
+    auto fbs=AsFitIBS(bs);   // the FunctionFitter holds the full Fit_IBS; recover it from the narrow SF face
+    itsFitter=Fitting::MakeFunctionFitter(Fitting::FitFlavour::Unconstrained,fbs); // potential fit, via Factory
+};
 
 FittedVxc::~FittedVxc()
 {

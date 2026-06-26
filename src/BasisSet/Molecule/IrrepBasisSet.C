@@ -71,14 +71,14 @@ class Orbital_DFT_IBS
     : public virtual ::BasisSet::Orbital_DFT_IBS<double>
 {
 protected:
-    virtual ERI3<double> MakeOverlap3C  (const Fit_IBS& c) const
+    virtual ERI3<double> MakeOverlap3C  (const FIT_SF_ABS& c) const
     {
         if constexpr (Evaluators::isM_DFT_Evaluator<E>)
             return dynamic_cast<const E&>(*this).OverlapThreeC_Matrix(dynamic_cast<const E&>(c));
         else return Make3C(c, [](const E& aE, size_t ia, size_t ib, const E& cE, size_t ic)
                                    {return aE.OverlapThreeC(ia, aE, ib, cE, ic);});
     }
-    virtual ERI3<double> MakeRepulsion3C(const Fit_IBS& c) const
+    virtual ERI3<double> MakeRepulsion3C(const FIT_CD_ABS& c) const
     {
         if constexpr (Evaluators::isM_DFT_Evaluator<E>)
             return dynamic_cast<const E&>(*this).RepulsionThreeC_Matrix(dynamic_cast<const E&>(c));
@@ -89,7 +89,7 @@ private:
     // For each fit component ic, build the symmetric (ia,ib) block via the supplied named 3-centre kernel
     // (which folds in all three normalizations).
     template <class Kernel>
-    ERI3<double> Make3C(const Fit_IBS& _c, Kernel kernel) const
+    ERI3<double> Make3C(const Real_IBS& _c, Kernel kernel) const   // _c is either fit face (shared Real_IBS base)
     {
         const E& aE=dynamic_cast<const E&>(*this);
         const E& cE=dynamic_cast<const E&>(_c);

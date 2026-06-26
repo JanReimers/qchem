@@ -65,8 +65,8 @@ public:
     Orbital_IBS(Reader*, const Structure*);
     Orbital_IBS(const rvec_t& exponents, size_t L, const Structure*);
 
-    virtual Fit_IBS* CreateCDFitBasisSet (const Structure*, const qcMesh::MeshParams&) const;
-    virtual Fit_IBS* CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams&) const;
+    virtual FIT_CD_ABS* CreateCDFitBasisSet (const Structure*, const qcMesh::MeshParams&) const;
+    virtual FIT_SF_ABS* CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams&) const;
 };
 // The spherical fit (auxiliary) basis: same IBS tree, exposing the Coulomb-fit metric + charges.  E prefix
 // to avoid the clash with the interface class Fit_IBS (as in PG_Cart).
@@ -80,7 +80,7 @@ public:
     virtual rsmat_t MakeOverlap  () const {return MakeOverlap2C(this);}
     virtual  rvec_t MakeCharge   () const;
     virtual rsmat_t MakeRepulsion() const {return MakeRepulsion2C(this);}
-    virtual  rmat_t MakeRepulsion(const Fit_IBS& b) const;
+    virtual  rmat_t MakeRepulsion(const FIT_CD_ABS& b) const;
 };
 
 class BasisSet

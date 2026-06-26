@@ -224,7 +224,7 @@ Orbital_IBS::Orbital_IBS(   const rvec_t& exponents, size_t L)
     : IrrepBasisSet(exponents,L)
 {};
     
-Fit_IBS* Orbital_IBS::CreateCDFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const
+FIT_CD_ABS* Orbital_IBS::CreateCDFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const
 {
     // The A1 files support Z=1-54 (H-Te)  A2 version only go up to Zn
     Gaussian94Reader reader(BasisFile("A1_coul.bsd"));
@@ -232,7 +232,7 @@ Fit_IBS* Orbital_IBS::CreateCDFitBasisSet(const Structure* cl, const qcMesh::Mes
     f->SetMesh(*cl, mp);
     return f;
 }
-Fit_IBS* Orbital_IBS::CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const
+FIT_SF_ABS* Orbital_IBS::CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const
 {
     // The A1 files support Z=1-54 (H-Te)  A2 version only go up to Zn
     Gaussian94Reader reader(BasisFile("A1_exch.bsd"));

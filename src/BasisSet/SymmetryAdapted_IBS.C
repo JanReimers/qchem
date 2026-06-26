@@ -78,11 +78,11 @@ public:
     // *cached* 3C (now safe -- the integral cache is re-entrant), so the raw 3C is computed once
     // and shared by every irrep.  Fit bases are atom-centred (geometry, not symmetry), so creation
     // delegates to the raw DFT basis.
-    virtual Fit_IBS* CreateCDFitBasisSet (const Structure*, const qcMesh::MeshParams&) const;
-    virtual Fit_IBS* CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams&) const;
+    virtual FIT_CD_ABS* CreateCDFitBasisSet (const Structure*, const qcMesh::MeshParams&) const;
+    virtual FIT_SF_ABS* CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams&) const;
 protected:
-    virtual ERI3<double> MakeOverlap3C  (const Fit_IBS& c) const;
-    virtual ERI3<double> MakeRepulsion3C(const Fit_IBS& c) const;
+    virtual ERI3<double> MakeOverlap3C  (const FIT_SF_ABS& c) const;
+    virtual ERI3<double> MakeRepulsion3C(const FIT_CD_ABS& c) const;
 public:
 
     // RadialID/AngularID delegate to the raw basis unchanged; the per-irrep cache distinction

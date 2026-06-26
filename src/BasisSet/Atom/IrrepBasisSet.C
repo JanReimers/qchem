@@ -128,7 +128,7 @@ public:
 
         return S;
     }
-    virtual  rmat_t MakeRepulsion(const Fit_IBS& f) const 
+    virtual  rmat_t MakeRepulsion(const FIT_CD_ABS& f) const
     {
         auto& ea=Cast();
         auto& eb=dynamic_cast<const Evaluator&>(f);
@@ -175,24 +175,24 @@ template <isDFT_Evaluator E> class Orbital_DFT_IBS
     : public virtual BasisSet::Orbital_DFT_IBS<double>
 {
 protected:
-    virtual ERI3<double> MakeOverlap3C  (const Fit_IBS& _c) const
+    virtual ERI3<double> MakeOverlap3C  (const FIT_SF_ABS& _c) const
     {
         auto& ab=dynamic_cast<const E&>(*this);
         auto& c =dynamic_cast<const E&>(_c);
         ERI3<double> S3;
-        for (auto ic:c.indices()) 
+        for (auto ic:c.indices())
         {
             rsmat_t S(ab.size());
             for (auto i:ab.indices())
                 for (auto j:ab.indices(i))
-                    S(i,j)=ab.Overlap(i,j,c,ic);  
+                    S(i,j)=ab.Overlap(i,j,c,ic);
             
             S3.push_back(S);
         }
         return S3;
 
     }
-    virtual ERI3<double> MakeRepulsion3C(const Fit_IBS& _c) const
+    virtual ERI3<double> MakeRepulsion3C(const FIT_CD_ABS& _c) const
     {
         auto& ab=dynamic_cast<const E&>(*this);
         auto& c =dynamic_cast<const E&>(_c);

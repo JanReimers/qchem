@@ -19,7 +19,7 @@ rvec_t EFit_IBS::MakeCharge() const
 }
 
 // Cross fit-fit Coulomb repulsion (this fit x another fit), through the evaluator's cross Repulsion2C.
-rmat_t EFit_IBS::MakeRepulsion(const Fit_IBS& _b) const
+rmat_t EFit_IBS::MakeRepulsion(const FIT_CD_ABS& _b) const
 {
     const Sph::NR_Evaluator* b=dynamic_cast<const Sph::NR_Evaluator*>(&_b);
     assert(b);

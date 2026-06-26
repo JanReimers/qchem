@@ -11,13 +11,18 @@ import qchem.ChargeDensity.Factory;
 import qchem.ChargeDensity;
 import qchem.FittedCD;
 import qchem.Hamiltonian.Types;
+import qchem.BasisSet.Fit_IBS;   // Fit_IBS (the full fit basis FittedCD holds; recovered from the narrow CD face)
 
 namespace qchem::Hamiltonian
 {
 
 FittedVee::FittedVee(bs_t& chargeDensityFitBasisSet, double numElectrons)
-    : itsFittedChargeDensity(ChargeDensity::FittedCD_Factory(chargeDensityFitBasisSet,numElectrons))
 {
+    // The FittedCD machinery (qcChargeDensity) holds the full Fit_IBS; recover it from the narrow CD face
+    // we were handed for type safety.  Always succeeds: every fit basis the creators build IS a Fit_IBS.
+    auto fbs=std::dynamic_pointer_cast<const BasisSet::Fit_IBS>(chargeDensityFitBasisSet);
+    assert(fbs && "FittedVee: the CD fit basis must be a concrete Fit_IBS");
+    itsFittedChargeDensity=ChargeDensity::FittedCD_Factory(fbs,numElectrons);
     assert(itsFittedChargeDensity);
 };
 

@@ -49,13 +49,13 @@ public:
         };
 
 
-        virtual Fit_IBS* CreateCDFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const
+        virtual FIT_CD_ABS* CreateCDFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const
         {
             auto* f = new EFit_IBS(Evaluator::Rescale(2.0, this->GetSymt()));
             f->SetMesh(*cl, mp);
             return f;
         }
-        virtual Fit_IBS* CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const
+        virtual FIT_SF_ABS* CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const
         {
             auto* f = new EFit_IBS(Evaluator::Rescale(2.0/3.0, this->GetSymt()));
             f->SetMesh(*cl, mp);

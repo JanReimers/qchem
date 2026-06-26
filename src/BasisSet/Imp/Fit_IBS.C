@@ -58,7 +58,7 @@ const rsmat_t& Fit_IBS::Repulsion() const
     return cache->Get(IntegralsCache_Base::I2C::Repulsion,this,
         [this]{ return MakeRepulsion(); });
 }
-const  rmat_t& Fit_IBS::Repulsion(const Fit_IBS& b) const
+const  rmat_t& Fit_IBS::Repulsion(const FIT_CD_ABS& b) const
 {
     auto cache=theGlobalCache;
     assert(cache);
