@@ -10,11 +10,11 @@
 //       basis owns the G-space assembly, the term owns the physics model).
 // A term reaches this the sanctioned way: holding the abstract orbital basis and dynamic_cast-ing UP.
 module;
+#include <functional>
 export module qchem.BasisSet.Band_FT_IBS;
 export import qchem.BasisSet.Orbital_1E_IBS;
 export import qchem.FourierMap;
-export import qchem.BasisSet.LocalPotential;      // the local form-factor model the term supplies
-export import qchem.BasisSet.SeparablePotential;  // the KB nonlocal projector model the term supplies
+export import qchem.BasisSet.SeparablePotential;  // the KB nonlocal projector model the term supplies (TODO: callback-ify too)
 import qchem.Structure;   // Structure -- the external-potential structure factor
 import qchem.Types;       // hmat_t<dcmplx>
 
@@ -59,10 +59,11 @@ public:
 
     // --- External (pseudo)potential assembly: reciprocal-space, from the TERM's model (the pseudo-wall). ---
     //! \brief Local external-potential matrix \f$\langle i|V_{loc}|j\rangle\f$ for \a structure, assembled
-    //! from a species form-factor model \a loc (bare \f$-Z/r\f$, Gaussian-smeared, HGH pseudopotential, ...).
-    //! The basis owns the assembly (structure factor, \f$1/\Omega\f$, \f$G=0\f$ handling); the TERM owns the
-    //! model -- physics lives Hamiltonian-side, integral assembly basis-side.
-    virtual hmat_t<dcmplx> MakeLocalPotential(const Structure*, const LocalPotential& loc) const=0;
+    //! from a species form-factor callback \a formFactor: \f$v(Z,|G|^2)\f$, the FT of one atom's local
+    //! potential (bare \f$-Z/r\f$, Gaussian-smeared, HGH, ...).  The basis owns the assembly (structure
+    //! factor, \f$1/\Omega\f$, \f$G=0\f$ handling) and names NO pseudopotential TYPE; the physics model lives
+    //! Hamiltonian-side and crosses the wall as a plain std::function.
+    virtual hmat_t<dcmplx> MakeLocalPotential(const Structure*, const std::function<double(int Z,double G2)>& formFactor) const=0;
 
     //! \brief Separable (Kleinman-Bylander) nonlocal external-potential matrix \f$\langle i|V_{NL}|j\rangle\f$
     //! for \a structure, from a projector model \a nl.  The full external block is
@@ -73,8 +74,9 @@ public:
     //! density of \a numElectrons electrons: the uniform electron-ion alignment \f$(N/\Omega)\sum_a\alpha_a\f$
     //! (\f$\alpha_a=\int[V_{loc}^a+Z_a/r]\f$, the local part's finite \f$G\to0\f$ limit).  It enters the
     //! total energy but NOT the Hamiltonian matrix (the \f$G=0\f$ potential is a constant shift, dropped from
-    //! the matrix -- a plane-wave neutralising-background artifact).
-    virtual double ExternalG0Energy(const Structure*, const LocalPotential& loc, double numElectrons) const=0;
+    //! the matrix -- a plane-wave neutralising-background artifact).  \a formFactorG0 = the model's
+    //! \f$\alpha_a=\int[V_{loc}^a+Z_a/r]\f$ callback (keyed by species Z); the basis supplies only \f$\Omega\f$.
+    virtual double ExternalG0Energy(const Structure*, const std::function<double(int Z)>& formFactorG0, double numElectrons) const=0;
 };
 
 } //namespace

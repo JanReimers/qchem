@@ -36,7 +36,7 @@ chmat_t PW_External::CalculateMatrix(const cobs_t* bs, const Spin&) const
     auto pw=dynamic_cast<const BasisSet::Band_FT_IBS*>(bs);
     assert(pw && "PW_External requires a Band_FT_IBS (e.g. plane-wave) basis");
     itsBasis=pw;                    // captured for GetEnergy's G=0 alignment (same basis every iteration)
-    chmat_t V=pw->MakeLocalPotential(&*theStructure, *itsLocal);
+    chmat_t V=pw->MakeLocalPotential(&*theStructure, itsLocal->FormFactorFn());
     if (itsSep) V += pw->MakeSeparablePotential(&*theStructure, *itsSep);
     return V;
 }
@@ -48,7 +48,7 @@ void PW_External::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
     // energy but NOT the matrix (see ExternalG0Energy), and out of the band-structure cross-check.  The
     // term supplies its local model; the basis owns Omega and the (N/Omega) Sum_a alpha_a assembly.
     te.Een=cd->DM_Contract(this);                                          // integral rho V_ext (G!=0)
-    if (itsBasis) te.Ealign = itsBasis->ExternalG0Energy(&*theStructure, *itsLocal, cd->GetTotalCharge());
+    if (itsBasis) te.Ealign = itsBasis->ExternalG0Energy(&*theStructure, itsLocal->FormFactorG0Fn(), cd->GetTotalCharge());
 }
 
 std::ostream& PW_External::Write(std::ostream& os) const

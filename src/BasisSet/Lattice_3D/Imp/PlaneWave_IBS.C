@@ -247,10 +247,10 @@ double PlaneWave_IBS::Integral(const ScalarFunction<double>& f) const
 // has alpha=0.  This is an ENERGY-only term -- the G=0 potential never entered the matrix
 // (MakeLocalPotential drops dG=0), so it is added to the total energy by the external term, which owns
 // the model and supplies it here (Omega and the cell geometry stay the basis's business).
-double PlaneWave_IBS::ExternalG0Energy(const Structure* cl, const LocalPotential& loc, double numElectrons) const
+double PlaneWave_IBS::ExternalG0Energy(const Structure* cl, const std::function<double(int)>& formFactorG0, double numElectrons) const
 {
     double sumAlpha=0.0;
-    for (Atom* a : *cl) sumAlpha += loc.FormFactorG0(a->itsZ);
+    for (Atom* a : *cl) sumAlpha += formFactorG0(a->itsZ);
     return (numElectrons/itsVolume)*sumAlpha;
 }
 
@@ -282,17 +282,17 @@ chmat_t PlaneWave_IBS::MakeKinetic() const
 //   <G|V|G'> = V(dG) = -(4 pi / Omega) Sum_a Z_a e^{-i dG.tau_a} / |dG|^2,   dG = G-G' != 0.
 // The dG=0 term (the divergent G=0 Coulomb component) is dropped -- the conventional uniform
 // neutralising background; it contributes only a finite per-cell shift that -> 0 as the cell grows.
-// Bare nuclear Coulomb is just the local potential with the BareCoulomb form factor.
+// Bare nuclear Coulomb is just the local potential with the bare-Coulomb form factor -4 pi Z/|G|^2.
 chmat_t PlaneWave_IBS::MakeNuclear(const Structure* cl) const
 {
-    return MakeLocalPotential(cl, BareCoulomb());
+    return MakeLocalPotential(cl, [](int Z,double g2){return -FourPi*Z/g2;});
 }
 
 // V(dG) = (1/Omega) Sum_a v(Z_a,|dG|^2) e^{-i dG.tau_a}, dG=0 dropped (neutralising background).
 // The result is Hermitian: V(-dG) = conj(V(dG)) since the structure factor conjugates under dG -> -dG
 // (the real form factor v is even).  Filling the upper triangle of a HermitianMatrix auto-sets the
 // lower as the conjugate, so off-origin / multi-atom cells (complex phases) are handled correctly.
-chmat_t PlaneWave_IBS::MakeLocalPotential(const Structure* cl, const LocalPotential& v) const
+chmat_t PlaneWave_IBS::MakeLocalPotential(const Structure* cl, const std::function<double(int,double)>& formFactor) const
 {
     const UnitCell& B=itsRecip.GetCell();
     return MakePotential([&](const ivec3_t& dm)->dcmplx
@@ -301,7 +301,7 @@ chmat_t PlaneWave_IBS::MakeLocalPotential(const Structure* cl, const LocalPotent
         rvec3_t dG=B.ToCartesian(rvec3_t(dm));                  // dG = B.dm (Cartesian)
         double g2=dG*dG;
         dcmplx acc(0.0);                                        // (form factor) x (structure factor)
-        for (Atom* a : *cl) acc += v.FormFactor(a->itsZ,g2)*std::exp(dcmplx(0.0,-(dG*a->itsR)));
+        for (Atom* a : *cl) acc += formFactor(a->itsZ,g2)*std::exp(dcmplx(0.0,-(dG*a->itsR)));
         return acc/itsVolume;
     });
 }

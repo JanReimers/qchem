@@ -517,7 +517,7 @@ SCFResult RunSCF_kpoints(const ReciprocalLattice& recip, const UnitCell& B, doub
             for (int kz=0;kz<Nmp.z;kz++)
             {
                 auto p=std::make_unique<PlaneWave_IBS>(recip, Nmp, ivec3_t(kx,ky,kz), Ecut);
-                Vext.push_back(p->MakeLocalPotential(&cl,loc)+p->MakeSeparablePotential(&cl,nl));
+                Vext.push_back(p->MakeLocalPotential(&cl,loc.FormFactorFn())+p->MakeSeparablePotential(&cl,nl));
                 K.push_back(p->MakeKinetic());
                 pw.push_back(std::move(p));
             }
@@ -690,7 +690,7 @@ TEST_F(PlaneWaveDFT, ScfSiliconDiamondConverges)
     GTH_PP                 siPP=GetGTH("Si","LDA",4);          // CP2K GTH-LDA q4, from the database
     const HGH_LocalPotential&     loc=siPP.local;
     const HGH_SeparablePotential& nl =siPP.nonlocal;
-    chmat_t Vext = pw.MakeLocalPotential(&si,loc) + pw.MakeSeparablePotential(&si,nl);
+    chmat_t Vext = pw.MakeLocalPotential(&si,loc.FormFactorFn()) + pw.MakeSeparablePotential(&si,nl);
 
     qchem::Hamiltonian::SlaterExchange  ex(2.0/3.0);
     qchem::Hamiltonian::VWN_Correlation vwn;
@@ -891,7 +891,7 @@ TEST_F(PlaneWaveDFT, PWExternalTermMatchesBasis)
     qchem::Hamiltonian::PW_External   ext(si, &loc, &nl);
     qchem::Hamiltonian::cStatic_HT*   term=&ext;        // the public term interface (as the Hamiltonian holds it)
     const chmat_t& M  = term->GetMatrix(&pw, Spin::None);
-    chmat_t        ref= pw.MakeLocalPotential(si.get(),loc) + pw.MakeSeparablePotential(si.get(),nl);
+    chmat_t        ref= pw.MakeLocalPotential(si.get(),loc.FormFactorFn()) + pw.MakeSeparablePotential(si.get(),nl);
 
     size_t n=pw.GetNumFunctions();
     for (size_t i=0;i<n;i++)

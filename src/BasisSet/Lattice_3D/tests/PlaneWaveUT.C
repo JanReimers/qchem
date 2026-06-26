@@ -127,7 +127,7 @@ double HydrogenE0(double a, double Ecut, const LocalPotential& v, size_t* npw=nu
     PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(0,0,0),Ecut);
     if (npw) *npw=pw.GetNumFunctions();
     Atom H(1,rvec3_t(0,0,0));
-    chmat_t V=pw.MakeLocalPotential(&H,v);
+    chmat_t V=pw.MakeLocalPotential(&H,v.FormFactorFn());
     std::vector<double> bands=SolveBands(pw,&V);
     return bands.front();
 }
@@ -332,8 +332,8 @@ TEST_F(PlaneWaveTests, SmearedZeroRecoversBareCoulomb)
     PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(0,0,0),6.0);
     Atom H(1,rvec3_t(0,0,0));
 
-    chmat_t Vbare    = pw.MakeLocalPotential(&H,BareCoulomb());
-    chmat_t Vtiny    = pw.MakeLocalPotential(&H,GaussianSmearedNucleus(1e-6));
+    chmat_t Vbare    = pw.MakeLocalPotential(&H,BareCoulomb().FormFactorFn());
+    chmat_t Vtiny    = pw.MakeLocalPotential(&H,GaussianSmearedNucleus(1e-6).FormFactorFn());
     size_t n=pw.GetNumFunctions();
     for (size_t i=0;i<n;i++)
         for (size_t j=0;j<n;j++)
@@ -473,7 +473,7 @@ TEST_F(PlaneWaveTests, LocalPlusNonlocalRaisesGroundState)
     PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(0,0,0),6.0);
     Atom H(1,rvec3_t(0,0,0));
 
-    chmat_t Vloc=pw.MakeLocalPotential(&H,GaussianSmearedNucleus(0.5));
+    chmat_t Vloc=pw.MakeLocalPotential(&H,GaussianSmearedNucleus(0.5).FormFactorFn());
     chmat_t Vnl =pw.MakeSeparablePotential(&H,GaussianProjector(1.0,0.5)); // repulsive
     chmat_t Vtot=Vloc+Vnl;
 
@@ -524,7 +524,7 @@ TEST_F(PlaneWaveTests, HGHSiliconHamiltonianWellFormed)
     Atom Si(14,rvec3_t(0,0,0));
 
     GTH_PP siPP=GetGTH("Si","LDA",4);
-    chmat_t Vloc=pw.MakeLocalPotential(&Si,siPP.local);
+    chmat_t Vloc=pw.MakeLocalPotential(&Si,siPP.local.FormFactorFn());
     chmat_t Vnl =pw.MakeSeparablePotential(&Si,siPP.nonlocal);
     size_t n=pw.GetNumFunctions();
 

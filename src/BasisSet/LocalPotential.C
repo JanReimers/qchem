@@ -11,6 +11,7 @@
 // just implementations of FormFactor(); the assembler never changes.
 module;
 #include <cmath>
+#include <functional>
 
 export module qchem.BasisSet.LocalPotential;
 import qchem.Math; // FourPi, Pi
@@ -34,6 +35,11 @@ public:
     //! \f$(N_{el}/\Omega)\sum_a\alpha_a\f$, the uniform shift dropped along with the \f$G=0\f$ potential.
     //! Default 0 (a pure Coulomb tail has no finite remainder). [energy x volume]
     virtual double FormFactorG0(int Z) const {return 0.0;}
+
+    // --- Adapt to the plain CALLBACKS the basis assembly consumes, so the basis names no PP type (the
+    //     pseudo-wall: physics model here, integral assembly basis-side, only a std::function crosses). ---
+    std::function<double(int,double)> FormFactorFn()   const {return [this](int Z,double g2){return FormFactor(Z,g2);};}
+    std::function<double(int)>        FormFactorG0Fn() const {return [this](int Z){return FormFactorG0(Z);};}
 };
 
 //! \brief Bare nuclear Coulomb \f$v(G) = -4\pi Z/G^2\f$.  Physically exact but the 1s cusp makes the
