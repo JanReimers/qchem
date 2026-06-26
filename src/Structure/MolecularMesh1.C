@@ -15,8 +15,8 @@ export module qchem.Structure.MolecularMesh1;
 export import qchem.Mesh1;          // qcMesh1::Mesh, qcMesh1::MeshParams (the result + the knobs)
 import qchem.Structure;             // Structure (brings the OLD global Mesh -- we always qualify qcMesh1::)
 
-//! \brief Becke fuzzy-Voronoi integration mesh for a finite structure.  \a beckeOrder is the number
+//! \brief Becke fuzzy-Voronoi integration mesh for a finite structure.  mp.beckeOrder is the number
 //! of smoothing iterations of Becke's cell polynomial (Becke 1988 recommends 3).  Coincident atoms
 //! (R_ab = 0) are handled explicitly: their pair coordinate mu is taken as 0, so each contributes a
 //! half-weight cell and a coincident dimer integrates to exactly the single-atom result.
-export qcMesh1::Mesh MakeMolecularMesh(const Structure& cl, const qcMesh1::MeshParams& mp, int beckeOrder=3);
+export qcMesh1::Mesh MakeMolecularMesh(const Structure& cl, const qcMesh1::MeshParams& mp);

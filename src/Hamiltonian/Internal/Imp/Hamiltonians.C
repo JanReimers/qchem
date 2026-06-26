@@ -26,11 +26,11 @@ Ham_HF_U::Ham_HF_U(const st_t& st)
 }
 
 
-Ham_DFT_U::Ham_DFT_U(const st_t& st,double alpha_ex, const MeshParams& mp, const bs_t* bs)
+Ham_DFT_U::Ham_DFT_U(const st_t& st,double alpha_ex, const qcMesh1::MeshParams& mp, const bs_t* bs)
     : Ham_DFT_U(st,new SlaterExchange(alpha_ex),mp,bs)
 {};
 
-Ham_DFT_U::Ham_DFT_U(const st_t& st,ExFunctional* ex, const MeshParams& mp, const bs_t* bs)
+Ham_DFT_U::Ham_DFT_U(const st_t& st,ExFunctional* ex, const qcMesh1::MeshParams& mp, const bs_t* bs)
 {
     InsertStandardTerms(st);
        
@@ -44,7 +44,7 @@ Ham_DFT_U::Ham_DFT_U(const st_t& st,ExFunctional* ex, const MeshParams& mp, cons
 
 // Dirac exchange + VWN5 correlation as separate terms (correct E_c = integral eps_c rho), sharing one
 // Vxc fit basis so the 3-centre integrals are computed once.
-Ham_DFTcorr_U::Ham_DFTcorr_U(const st_t& st, const MeshParams& mp, const bs_t* bs)
+Ham_DFTcorr_U::Ham_DFTcorr_U(const st_t& st, const qcMesh1::MeshParams& mp, const bs_t* bs)
 {
     InsertStandardTerms(st);
 
@@ -80,11 +80,11 @@ Ham_HF_P::Ham_HF_P(const st_t& st)
 }
 
 
-Ham_DFT_P::Ham_DFT_P(const st_t& st,double alpha_ex, const MeshParams& mp, const bs_t* bs)
+Ham_DFT_P::Ham_DFT_P(const st_t& st,double alpha_ex, const qcMesh1::MeshParams& mp, const bs_t* bs)
     : Ham_DFT_P(st,new SlaterExchange(alpha_ex,Spin(Spin::Up)),mp,bs)
 {};
 
-Ham_DFT_P::Ham_DFT_P(const st_t& st,ExFunctional* ex, const MeshParams& mp, const bs_t* bs)
+Ham_DFT_P::Ham_DFT_P(const st_t& st,ExFunctional* ex, const qcMesh1::MeshParams& mp, const bs_t* bs)
 {
     InsertStandardTerms(st);
     FittedVee::bs_t CFitBasis(bs->CreateCDFitBasisSet(st.get(), mp));

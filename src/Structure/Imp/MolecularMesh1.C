@@ -31,8 +31,9 @@ double BeckeCutoff(double mu, int k)
 }
 } //anon
 
-qcMesh1::Mesh MakeMolecularMesh(const Structure& cl, const qcMesh1::MeshParams& mp, int beckeOrder)
+qcMesh1::Mesh MakeMolecularMesh(const Structure& cl, const qcMesh1::MeshParams& mp)
 {
+    const int beckeOrder=mp.beckeOrder;
     assert(beckeOrder>=0);
     size_t natom=cl.GetNumAtoms();
 

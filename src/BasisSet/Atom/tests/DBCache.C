@@ -93,7 +93,7 @@ public:
         auto ibs2=bs2->Iterate<Real_DFT_OIBS>().begin();
         for (auto ibs1:bs1->Iterate<Real_DFT_OIBS>())
         {
-            auto ff=ibs1->CreateCDFitBasisSet(cl_hydrogen,MeshParams({qchem::MHL,30,2,2.0,qchem::Gauss,6,0,0,3}));
+            auto ff=ibs1->CreateCDFitBasisSet(cl_hydrogen,qcMesh1::MeshParams{.radial=qcMesh1::RadialKind::MHL, .nRadial=30, .mhl_m=2, .mhl_alpha=2.0, .angular=qcMesh1::AngularKind::Gauss, .nAngular=6, .beckeOrder=3});
             const ERI3<double>& E1=ibs1->Overlap3C(*ff);
             const ERI3<double>& E2=(*ibs2)->Overlap3C(*ff);
             EXPECT_EQ(E1,E2);
@@ -108,7 +108,7 @@ public:
             auto ibs2=bs2->Iterate<Real_DFT_OIBS>().begin();
             for (auto ibs1:bs1->Iterate<Real_DFT_OIBS>())
             {
-                auto ff=ibs1->CreateCDFitBasisSet(cl_hydrogen,MeshParams({qchem::MHL,30,2,2.0,qchem::Gauss,6,0,0,3}));
+                auto ff=ibs1->CreateCDFitBasisSet(cl_hydrogen,qcMesh1::MeshParams{.radial=qcMesh1::RadialKind::MHL, .nRadial=30, .mhl_m=2, .mhl_alpha=2.0, .angular=qcMesh1::AngularKind::Gauss, .nAngular=6, .beckeOrder=3});
                 const ERI3<double>& E1=ibs1->Repulsion3C(*ff);
                 const ERI3<double>& E2=(*ibs2)->Repulsion3C(*ff);
                 EXPECT_EQ(E1,E2);

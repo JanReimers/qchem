@@ -12,7 +12,7 @@ export import qchem.SCFParams;
 import qchem.SCFIterator;
 import qchem.Structure;
 import qchem.Orbitals;
-import qchem.Mesh; //To get Meshparams
+import qchem.Mesh1; //qcMesh1::MeshParams
 import qchem.Factory;
 import qchem.ElectronConfiguration;
 import Common.PeriodicTable;
@@ -59,7 +59,7 @@ protected:
 
     // Atom of Molecule functions
     virtual const Structure*  GetStructure   () const {return itsStructure.get();}
-    virtual MeshParams      GetMeshParams() const=0;
+    virtual qcMesh1::MeshParams      GetMeshParams() const=0;
     virtual int             GetZ         () const;
     virtual const ElectronConfiguration* GetElectronConfiguration() const {return itsEC;}
 
@@ -88,7 +88,7 @@ export class TestAtom : public QchemTester
 {
 public:
     TestAtom(int _Z, int _q=0);
-    virtual MeshParams GetMeshParams() const;
+    virtual qcMesh1::MeshParams GetMeshParams() const;
 private:
     virtual Real_BS* GetBasisSet (const nlohmann::json&) const;
     int itsZ;
@@ -98,7 +98,7 @@ export class TestDiracAtom : public QchemTester
 {
 public:
     TestDiracAtom(int _Z, int _q=0);
-    virtual MeshParams GetMeshParams() const;
+    virtual qcMesh1::MeshParams GetMeshParams() const;
 private:
     virtual Real_BS* GetBasisSet (const nlohmann::json&) const;
     int itsq;
@@ -108,7 +108,7 @@ export class TestMolecule : public QchemTester
 {
 public:
     TestMolecule(Structure*);
-    virtual MeshParams  GetMeshParams() const;
+    virtual qcMesh1::MeshParams  GetMeshParams() const;
 private:
     virtual Real_BS* GetBasisSet (const nlohmann::json&) const;
 };

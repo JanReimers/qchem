@@ -9,7 +9,6 @@ export import qchem.Structure;
 export import qchem.UnitCell;
 export import qchem.ReciprocalLattice;
 export import qchem.KMesh;
-import qchem.Mesh;
 
 //! \brief A crystal lattice: a UnitCell repeated on a Bravais lattice, together
 //! with the Brillouin-zone sampling used for plane-wave / band-structure work.

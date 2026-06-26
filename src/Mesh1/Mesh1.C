@@ -57,6 +57,7 @@ struct MeshParams
     double      logStart  = 1.0e-4;             double logStop   = 50.0;     //!< Log only.
     AngularKind angular   = AngularKind::Gauss;  int    nAngular  = 12;      //!< Gauss: #dirs; GL/EM: L.
     int         em_m      = 2;                                               //!< EulerMaclaren only (1..3).
+    int         beckeOrder= 3;   //!< Becke fuzzy-Voronoi smoothing iterations (molecular mesh only).
 };
 
 } //export namespace qcMesh1

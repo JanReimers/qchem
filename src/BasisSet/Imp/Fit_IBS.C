@@ -37,24 +37,11 @@ public:
     rvec3_t Gradient  (const rvec3_t& r) const override {return its.Gradient(r);}
 };
 
-// The fitted-DFT path always built per-atom meshes via Atom::CreateMesh, which hardwired MHL radial
-// + Gauss angular (ignoring radial_t/angle_t).  Reproduce that exactly so energies are unchanged.
-qcMesh1::MeshParams Translate(const MeshParams& mp)
-{
-    qcMesh1::MeshParams np;
-    np.radial   = qcMesh1::RadialKind::MHL;
-    np.nRadial  = static_cast<int>(mp.Nradial);
-    np.mhl_m    = static_cast<int>(mp.MHL_m);
-    np.mhl_alpha= mp.MHL_alpha;
-    np.angular  = qcMesh1::AngularKind::Gauss;
-    np.nAngular = static_cast<int>(mp.Nangle);
-    return np;
-}
 } //anon
 
-void Fit_IBS::SetMesh(const Structure& cl, const MeshParams& mp)
+void Fit_IBS::SetMesh(const Structure& cl, const qcMesh1::MeshParams& mp)
 {
-    itsMesh = MakeMolecularMesh(cl, Translate(mp), static_cast<int>(mp.m_mu));
+    itsMesh = MakeMolecularMesh(cl, mp);
 }
 
 const  rvec_t& Fit_IBS::Charge   () const
