@@ -20,8 +20,9 @@ module;
 #include <memory>
 export module qchem.Fitting.FunctionFitter;
 export import qchem.ScalarFunction;   // ScalarFunction<double> (operator(), Gradient) + Types
+export import qchem.FourierMap;       // the pre-computed G-space coefficients a Fourier (PW) fit receives
 import qchem.Fitting.Types;           // fbs_t, obs_t<T>
-import qchem.Blaze;                   // smat_t<T>
+import qchem.Blaze;                   // hmat_t<T>
 
 export namespace qchem::Fitting
 {
@@ -51,15 +52,18 @@ public:
     // --- "please fit me" + post-fit utilities ---
     virtual void   DoFit           (const ScalarFFClient& )            =0;  //!< fit a scalar (overlap metric)
     virtual void   DoFit           (const DensityFFClient& )           =0;  //!< fit a density (Coulomb metric)
+    //! Receive pre-computed G-space coefficients as the "fit" -- the orthonormal/exact (plane-wave) path,
+    //! where the density's rho-tilde is already the fit (no metric solve).  Gaussian fitters NA-assert.
+    virtual void   DoFit           (const FourierMap& )                =0;
     virtual void   ReScale         (double factor)                     =0;  //!< c *= factor
     virtual void   FitMixIn        (const FunctionFitter& g,double f)  =0;  //!< c = (1-f)c + f g.c
     virtual double FitGetChangeFrom(const FunctionFitter& g) const     =0;  //!< max|c - g.c| (SCF convergence)
 
     // --- "what's your overlap / repulsion with this orbital basis?" ---
     //! 3-centre OVERLAP contraction Sum_a c_a <Oi|f_a|Oj> -- a fitted scalar (e.g. v_xc) as an operator matrix.
-    virtual smat_t<T> Overlap  (const obs_t<T>*) const =0;
+    virtual hmat_t<T> Overlap  (const obs_t<T>*) const =0;
     //! 3-centre REPULSION contraction Sum_a c_a <Oi|f_a/r12|Oj> -- a fitted density's Coulomb (Vee) matrix.
-    virtual smat_t<T> Repulsion(const obs_t<T>*) const =0;
+    virtual hmat_t<T> Repulsion(const obs_t<T>*) const =0;
     //! Coulomb self-energy <fit|1/r12|fit> (the caller applies any factor of 1/2).
     virtual double    FitGetSelfRepulsion   ()                const =0;
     //! Total charge  integral fit  = Sum_a c_a integral f_a.

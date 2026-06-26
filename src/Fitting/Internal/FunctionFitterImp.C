@@ -25,6 +25,7 @@ public:
 
     virtual void   DoFit           (const ScalarFFClient& )      ;
     virtual void   DoFit           (const DensityFFClient& )      ;
+    virtual void   DoFit           (const FourierMap& )          ;  // NA: the Gaussian fitter fits via a client
     virtual void   ReScale         (double factor               )      ; //Fit *= factor
     virtual void   FitMixIn        (const FunctionFitter<T>&,double)      ; // this = this*(1-c) + that*c.
     virtual double FitGetChangeFrom(const FunctionFitter<T>&       ) const;
@@ -33,8 +34,8 @@ public:
     virtual rvec3_t Gradient  (const rvec3_t&) const;
     virtual std::ostream& Write(std::ostream&) const;
 
-    virtual smat_t<T> Overlap  (const obs_t<T>*) const;
-    virtual smat_t<T> Repulsion(const obs_t<T>*) const;
+    virtual hmat_t<T> Overlap  (const obs_t<T>*) const;
+    virtual hmat_t<T> Repulsion(const obs_t<T>*) const;
     virtual double    FitGetSelfRepulsion   ()                const;  // <fit|1/r12|fit>
     virtual double    Integral          ()                const;
 protected:

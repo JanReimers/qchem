@@ -51,6 +51,11 @@ template <class T> void FunctionFitterImp<T>::DoFit(const DensityFFClient& ffc)
 {
     DoFitInternal(ffc,0); //No contraint.
 }
+template <class T> void FunctionFitterImp<T>::DoFit(const FourierMap&)
+{
+    assert(false && "FunctionFitterImp::DoFit(FourierMap): the Gaussian fitter fits via a client callback, "
+                    "not pre-computed Fourier coefficients (that is the plane-wave path).");
+}
 
 template <class T> void FunctionFitterImp<T>::DoFitInternal(const ScalarFFClient& ffc,double constraint)
 {
@@ -68,22 +73,22 @@ template <class T> void FunctionFitterImp<T>::DoFitInternal(const DensityFFClien
 //
 //  Fit-derived quantities the clients query (the "what's your overlap/repulsion with this basis?" side).
 //
-template <class T> smat_t<T> FunctionFitterImp<T>::
+template <class T> hmat_t<T> FunctionFitterImp<T>::
 Overlap(const obs_t<T>* bs) const
 {
     const ERI3<T>& O3=bs->Overlap3C(*itsBasisSet);
-    smat_t<T> J=blazem::zero<T>(bs->GetNumFunctions());
+    hmat_t<T> J=blazem::zeroH<T>(bs->GetNumFunctions());
     size_t i=0;
     for (auto c:itsFitCoeff) J+=c*O3[i++];
     assert(!blazem::isnan(J));
     return J;
 }
 
-template <class T> smat_t<T> FunctionFitterImp<T>::
+template <class T> hmat_t<T> FunctionFitterImp<T>::
 Repulsion(const obs_t<T>* bs) const
 {
     const ERI3<T>& R3=bs->Repulsion3C(*itsBasisSet);
-    smat_t<T> J=blazem::zero<T>(bs->GetNumFunctions());
+    hmat_t<T> J=blazem::zeroH<T>(bs->GetNumFunctions());
     size_t i=0;
     for (auto c:itsFitCoeff) J+=c*R3[i++];
     assert(!blazem::isnan(J));
