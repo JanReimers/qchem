@@ -26,13 +26,10 @@ export namespace qchem::Fitting
 class FourierFunctionFitter : public virtual FunctionFitter<dcmplx>
 {
 public:
-    //! The "fit": receive the pre-computed rho-tilde (the charge density already ran MakeFourierDensity and
-    //! summed over the BZ).  Orthonormal exactness means there is nothing to solve.
-    virtual void DoFit(const ProjectedDensity_FT& rho) override {itsRhoTilde=rho;}
-
-    //! XC "fit": receive v_xc already sampled on the FFT grid (the term ran RhoOnGrid + the functional).
-    //! Stored verbatim; the forward-FFT + assembly happen in Overlap, the basis's business.
-    virtual void DoFit(const rvec_t& vgrid) override {itsVGrid=vgrid;}
+    //! The "fit": receive the G-space coefficients -- the density's rho-tilde (Hartree) OR the potential's
+    //! V-tilde (XC, the term ran ForwardGrid on v_xc).  Orthonormal exactness => nothing to solve, just store.
+    //! Repulsion then reads the map with the 4pi/G^2 Coulomb kernel; Overlap reads it with no kernel.
+    virtual void DoFit(const ProjectedDensity_FT& map) override {itsMap=map;}
 
     //! Coulomb (Hartree) matrix: delegate to the orbital basis's reciprocal-space Poisson assembly.  The
     //! orbital basis arrives as the common Orbital_1E_IBS base; cast down to the G-space capability.
@@ -41,23 +38,23 @@ public:
         auto pw=dynamic_cast<const BasisSet::Band_FT_IBS*>(bs);
         assert(pw && "FourierFunctionFitter::Repulsion requires a Band_FT_IBS (plane-wave) basis");
         double Eh;
-        return pw->Repulsion(itsRhoTilde, Eh);
+        return pw->Repulsion(itsMap, Eh);
     }
 
-    virtual std::ostream& Write(std::ostream& os) const override
-        {return os << "FourierFunctionFitter (rho-tilde)" << std::endl;}
-
-    //! XC matrix <i|v_xc|j>: delegate to the basis's grid route (forward-FFT the stored v_xc grid, assemble).
+    //! XC matrix <i|v_xc|j>: assemble directly from the stored V-tilde (no kernel).
     virtual hmat_t<dcmplx> Overlap(const obs_t<dcmplx>* bs) const override
     {
         auto pw=dynamic_cast<const BasisSet::Band_FT_IBS*>(bs);
         assert(pw && "FourierFunctionFitter::Overlap requires a Band_FT_IBS (plane-wave) basis");
-        return pw->Overlap(itsVGrid);
+        return pw->Overlap(itsMap);
     }
+
+    virtual std::ostream& Write(std::ostream& os) const override
+        {return os << "FourierFunctionFitter (G-space map)" << std::endl;}
 
     // --- NA: the AO client fits + the SCF-lifecycle helpers don't flow through the plane-wave fitter. ---
     virtual void   DoFit(const ScalarFFClient&)  override
-        {assert(false && "FourierFunctionFitter::DoFit(ScalarFFClient): PW XC samples on the grid (DoFit(rvec_t))");}
+        {assert(false && "FourierFunctionFitter::DoFit(ScalarFFClient): PW v_xc arrives as a FourierMap (ForwardGrid)");}
     virtual void   DoFit(const ProjectedDensity_AO&) override
         {assert(false && "FourierFunctionFitter::DoFit(ProjectedDensity_AO): the PW density arrives as a FourierMap");}
     virtual void   ReScale(double) override
@@ -76,8 +73,7 @@ public:
         {assert(false && "FourierFunctionFitter::Gradient: not evaluated pointwise on the PW path"); return rvec3_t(0,0,0);}
 
 private:
-    FourierMap itsRhoTilde;   //!< Hartree fit = the density's G-space coefficients (DoFit(ProjectedDensity_FT)).
-    rvec_t     itsVGrid;      //!< XC fit = v_xc sampled on the FFT grid (DoFit(rvec_t)).
+    FourierMap itsMap;   //!< the fit = G-space coefficients: rho-tilde for Hartree, V-tilde for XC.
 };
 
 } //namespace

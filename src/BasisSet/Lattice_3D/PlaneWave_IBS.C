@@ -74,9 +74,11 @@ public:
 
     // XC route (basis owns the FFTs; see Band_FT_IBS).  rho(r) via inverse FFT of rho-tilde; the
     // term maps the functional over the grid values and hands them back for the forward FFT / quadrature.
-    virtual rvec_t  RhoOnGrid           (const FourierMap& rho) const override;
-    virtual chmat_t Overlap(const rvec_t& Vgrid)  const override;
-    virtual double  Integral        (const rvec_t& fgrid)   const override;
+    virtual rvec_t     RhoOnGrid   (const FourierMap& rho) const override;
+    virtual FourierMap ForwardGrid (const rvec_t& gridValues) const override; //!< forward FFT -> Vtilde(dm)
+    virtual chmat_t    Overlap     (const FourierMap& Vtilde) const override;  //!< <i|V|j>=Vtilde(dm)
+    virtual chmat_t    Overlap     (const rvec_t& Vgrid)  const override;      //!< = Overlap(ForwardGrid(Vgrid))
+    virtual double     Integral    (const rvec_t& fgrid)   const override;
     //!< (N/Omega) Sum_a alpha_a for the supplied local model (the dropped-G=0 alignment energy).
     virtual double  ExternalG0Energy(const Structure* cl, const LocalPotential& loc, double numElectrons) const override;
 

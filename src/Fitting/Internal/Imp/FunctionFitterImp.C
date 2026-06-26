@@ -56,11 +56,6 @@ template <class T> void FunctionFitterImp<T>::DoFit(const ProjectedDensity_FT&)
     assert(false && "FunctionFitterImp::DoFit(ProjectedDensity_FT): the Gaussian fitter fits via a client "
                     "callback, not pre-computed Fourier coefficients (that is the plane-wave path).");
 }
-template <class T> void FunctionFitterImp<T>::DoFit(const rvec_t&)
-{
-    assert(false && "FunctionFitterImp::DoFit(rvec_t grid): the Gaussian XC fit samples v_xc via the "
-                    "ScalarFFClient on the Becke mesh, not on a precomputed FFT grid (that is the PW path).");
-}
 
 template <class T> void FunctionFitterImp<T>::DoFitInternal(const ScalarFFClient& ffc,double constraint)
 {

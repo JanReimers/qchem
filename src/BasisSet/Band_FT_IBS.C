@@ -45,8 +45,14 @@ public:
     //! consume values in the SAME order, so the term never needs the grid points -- it just maps the
     //! functional over them (\f$v_{xc}(\rho)\f$ for the matrix, \f$\epsilon_{xc}(\rho)\rho\f$ for the energy).
     virtual rvec_t  RhoOnGrid(const FourierMap& rho) const=0;
-    //! \brief Matrix \f$\langle i|V|j\rangle\f$ from potential values \a Vgrid on the FFT grid (forward
-    //! FFT to \f$\tilde V(\Delta m)\f$, then assemble).
+    //! \brief Forward-FFT a real-space field \a gridValues on the FFT grid to its G-space coefficients
+    //! \f$\tilde V(\Delta m)\f$ over the difference set -- the potential analogue of MakeFourierDensity (a
+    //! density's rho-tilde).  So v_xc, like rho, can be carried as a FourierMap (the projected potential).
+    virtual FourierMap ForwardGrid(const rvec_t& gridValues) const=0;
+    //! \brief Matrix \f$\langle i|V|j\rangle = \tilde V(\Delta m)\f$ from G-space coefficients \a Vtilde
+    //! (no kernel -- the overlap 3-centre is the delta).  The XC sibling of Repulsion (which carries 4pi/G^2).
+    virtual hmat_t<dcmplx> Overlap(const FourierMap& Vtilde) const=0;
+    //! \brief Matrix from potential values \a Vgrid on the FFT grid: ForwardGrid then Overlap(FourierMap).
     virtual hmat_t<dcmplx> Overlap(const rvec_t& Vgrid) const=0;
     //! \brief Scalar integral \f$\int f\,d^3r\f$ from values \a fgrid on the FFT grid (uniform quadrature).
     virtual double  Integral(const rvec_t& fgrid) const=0;

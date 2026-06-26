@@ -146,8 +146,8 @@ chmat_t PW_XC::CalcMatrix(const cobs_t* bs, const Spin&, const cDM_CD* cd) const
     rvec_t vxc(rho.size());
     for (size_t q=0;q<rho.size();q++) vxc[q]=itsXc->GetVxc(rho[q]);   // V(r) = v_xc(rho(r))
     Fitting::FourierFunctionFitter fitter;
-    fitter.DoFit(vxc);                          // hand the basis the sampled potential...
-    return fitter.Overlap(bs);                  // ...it forward-FFTs + assembles <i|v_xc|j>
+    fitter.DoFit(pw->ForwardGrid(vxc));         // project v_xc onto {G} (V-tilde, a FourierMap)...
+    return fitter.Overlap(bs);                  // ...and assemble <i|v_xc|j> (no kernel)
 }
 
 void PW_XC::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const

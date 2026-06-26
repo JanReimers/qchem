@@ -185,9 +185,10 @@ rvec_t PlaneWave_IBS::RhoOnGrid(const FourierMap& rho) const
     return out;
 }
 
-// <i|V|j> from real-space potential values on the FFT grid: forward-FFT to Vtilde(dm)=(1/Npts) FFT[V],
-// then assemble (same MakePotential the other G-space routes use).
-chmat_t PlaneWave_IBS::Overlap(const rvec_t& V) const
+// Forward-FFT a real-space grid field to its G-space coefficients Vtilde(dm)=(1/Npts) FFT[V], stored as a
+// FourierMap over the basis difference set {m_i-m_j, j>=i} -- the keys the assembly will query.  The
+// potential analogue of MakeFourierDensity (which produces rho-tilde from the density matrix).
+FourierMap PlaneWave_IBS::ForwardGrid(const rvec_t& V) const
 {
     ivec3_t N=FFTGrid();
     size_t Npts=size_t(N.x)*N.y*N.z;
@@ -195,11 +196,33 @@ chmat_t PlaneWave_IBS::Overlap(const rvec_t& V) const
     cvec_t g(Npts, dcmplx(0.0));
     for (size_t i=0;i<Npts;i++) g[i]=dcmplx(V[i]);
     cvec_t Vt=qchem::FFT::FFT3D(g, N, -1);
+    FourierMap out;
+    size_t n=GetNumFunctions();
+    for (size_t i=0;i<n;i++)
+        for (size_t j=i;j<n;j++)
+        {
+            ivec3_t dm=itsG[i]-itsG[j];
+            if (out.find(dm)==out.end())
+            {
+                int i0=((dm.x%N.x)+N.x)%N.x, i1=((dm.y%N.y)+N.y)%N.y, i2=((dm.z%N.z)+N.z)%N.z;
+                out[dm]=Vt[(size_t(i0)*N.y+i1)*N.z+i2]/double(Npts);
+            }
+        }
+    return out;
+}
+
+// <i|V|j> = Vtilde(m_i-m_j): assemble directly from the G-space coefficients (no kernel -- the overlap
+// 3-centre is the delta).  The XC sibling of Repulsion (which folds in 4pi/G^2).
+chmat_t PlaneWave_IBS::Overlap(const FourierMap& Vt) const
+{
     return MakePotential([&](const ivec3_t& dm)->dcmplx
-    {
-        int i0=((dm.x%N.x)+N.x)%N.x, i1=((dm.y%N.y)+N.y)%N.y, i2=((dm.z%N.z)+N.z)%N.z;
-        return Vt[(size_t(i0)*N.y+i1)*N.z+i2]/double(Npts);
-    });
+        { auto it=Vt.find(dm); return it==Vt.end()?dcmplx(0.0):it->second; });
+}
+
+// Real-space grid -> matrix: forward-FFT then assemble.
+chmat_t PlaneWave_IBS::Overlap(const rvec_t& V) const
+{
+    return Overlap(ForwardGrid(V));
 }
 
 // integral f d3r on the FFT grid: uniform quadrature, weight Omega/Npts.
