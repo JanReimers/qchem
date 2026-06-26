@@ -28,7 +28,7 @@ class FourierFunctionFitter : public virtual FunctionFitter<dcmplx>
 public:
     //! The "fit": receive the pre-computed rho-tilde (the charge density already ran MakeFourierDensity and
     //! summed over the BZ).  Orthonormal exactness means there is nothing to solve.
-    virtual void DoFit(const FourierMap& rho) override {itsRhoTilde=rho;}
+    virtual void DoFit(const ProjectedDensity_FT& rho) override {itsRhoTilde=rho;}
 
     //! Coulomb (Hartree) matrix: delegate to the orbital basis's reciprocal-space Poisson assembly.  The
     //! orbital basis arrives as the common Orbital_1E_IBS base; cast down to the G-space capability.
@@ -46,8 +46,8 @@ public:
     // --- NA: only DoFit(FourierMap) + Repulsion (the Hartree path) flow through this fitter today. ---
     virtual void   DoFit(const ScalarFFClient&)  override
         {assert(false && "FourierFunctionFitter::DoFit(ScalarFFClient): XC is grid-based, not via this fitter");}
-    virtual void   DoFit(const DensityFFClient&) override
-        {assert(false && "FourierFunctionFitter::DoFit(DensityFFClient): the PW density arrives as a FourierMap");}
+    virtual void   DoFit(const ProjectedDensity_AO&) override
+        {assert(false && "FourierFunctionFitter::DoFit(ProjectedDensity_AO): the PW density arrives as a FourierMap");}
     virtual void   ReScale(double) override
         {assert(false && "FourierFunctionFitter::ReScale: SCF mixing is done on the PW density, not the fitter");}
     virtual void   FitMixIn(const FunctionFitter<dcmplx>&,double) override

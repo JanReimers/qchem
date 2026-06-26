@@ -34,13 +34,22 @@ public:
     virtual const ScalarFunction<double>* GetScalarFunction() const=0;   //!< "what's your value at r?"
 };
 
-//! Callback for fitting a density rho(r)=Sum a(r)b(r)Dab built from a density matrix.
-class DensityFFClient
+//! \brief The density projected onto the fit basis, <rho|c>, for a NON-orthonormal (AO: Gaussian/Slater/
+//! BSpline) basis.  A callback the fitter queries for the DENSE projection Sum_ab D_ab<ab|c> (the Coulomb-
+//! metric RHS) plus the charge constraint; the fitter then solves c = S_rep^-1 <rho|c> (the metric solve).
+class ProjectedDensity_AO
 {
 public:
     virtual double FitGetConstraint() const=0;                 //!< "what charge should the fit have?" (= N)
-    virtual rvec_t GetRepulsion3C(const fbs_t*) const=0;        //!< "your Coulomb overlap with my fit basis"
+    virtual rvec_t GetRepulsion3C(const fbs_t*) const=0;        //!< the projection <rho|c> = Sum_ab D_ab<ab|c>
 };
+
+//! \brief The plane-wave counterpart of ProjectedDensity_AO.  On the orthonormal {G} basis the projection
+//! is already DIAGONAL -- rho-tilde(Dm) = (1/Omega) Sum_{m_i-m_j=Dm} D_ij (= MakeFourierDensity), a map keyed
+//! by Dm (efficiency, rule #2: the delta collapses Sum_ij D_ij<ij|c> to a gather over Dm-shells).  So here
+//! the projection IS the fit (no metric solve) and the container is the map itself -- hence a role ALIAS of
+//! FourierMap rather than a separate callback.
+using ProjectedDensity_FT = FourierMap;
 
 //! \brief Abstract least-squares function fitter.  Clients COMPOSE one (from the Factory) and use only
 //! this interface.  Real-valued function (ScalarFunction<double>); the matrix element type T may differ.
@@ -51,10 +60,10 @@ public:
 
     // --- "please fit me" + post-fit utilities ---
     virtual void   DoFit           (const ScalarFFClient& )            =0;  //!< fit a scalar (overlap metric)
-    virtual void   DoFit           (const DensityFFClient& )           =0;  //!< fit a density (Coulomb metric)
-    //! Receive pre-computed G-space coefficients as the "fit" -- the orthonormal/exact (plane-wave) path,
-    //! where the density's rho-tilde is already the fit (no metric solve).  Gaussian fitters NA-assert.
-    virtual void   DoFit           (const FourierMap& )                =0;
+    virtual void   DoFit           (const ProjectedDensity_AO& )           =0;  //!< fit a density (Coulomb metric)
+    //! Fit a density already projected onto an orthonormal {G} basis -- the rho-tilde IS the fit (no metric
+    //! solve), so DoFit just stores it.  Gaussian (ProjectedDensity_AO) fitters NA-assert this overload.
+    virtual void   DoFit           (const ProjectedDensity_FT& )       =0;
     virtual void   ReScale         (double factor)                     =0;  //!< c *= factor
     virtual void   FitMixIn        (const FunctionFitter& g,double f)  =0;  //!< c = (1-f)c + f g.c
     virtual double FitGetChangeFrom(const FunctionFitter& g) const     =0;  //!< max|c - g.c| (SCF convergence)

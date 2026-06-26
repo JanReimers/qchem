@@ -47,14 +47,14 @@ template <class T> void FunctionFitterImp<T>::DoFit(const ScalarFFClient& ffc)
 {
     DoFitInternal(ffc,0); //No contraint.
 }
-template <class T> void FunctionFitterImp<T>::DoFit(const DensityFFClient& ffc)
+template <class T> void FunctionFitterImp<T>::DoFit(const ProjectedDensity_AO& ffc)
 {
     DoFitInternal(ffc,0); //No contraint.
 }
-template <class T> void FunctionFitterImp<T>::DoFit(const FourierMap&)
+template <class T> void FunctionFitterImp<T>::DoFit(const ProjectedDensity_FT&)
 {
-    assert(false && "FunctionFitterImp::DoFit(FourierMap): the Gaussian fitter fits via a client callback, "
-                    "not pre-computed Fourier coefficients (that is the plane-wave path).");
+    assert(false && "FunctionFitterImp::DoFit(ProjectedDensity_FT): the Gaussian fitter fits via a client "
+                    "callback, not pre-computed Fourier coefficients (that is the plane-wave path).");
 }
 
 template <class T> void FunctionFitterImp<T>::DoFitInternal(const ScalarFFClient& ffc,double constraint)
@@ -63,7 +63,7 @@ template <class T> void FunctionFitterImp<T>::DoFitInternal(const ScalarFFClient
     itsFitCoeff= Sinv * itsBasisSet->Overlap(*ffc.GetScalarFunction());
 }
 
-template <class T> void FunctionFitterImp<T>::DoFitInternal(const DensityFFClient& ffc,double constraint)
+template <class T> void FunctionFitterImp<T>::DoFitInternal(const ProjectedDensity_AO& ffc,double constraint)
 {   
     auto Sinv=itsBasisSet->InvRepulsion();
     itsFitCoeff=Sinv * ffc.GetRepulsion3C(itsBasisSet.get());

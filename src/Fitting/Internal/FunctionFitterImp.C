@@ -2,7 +2,7 @@
 module;
 #include <memory> // for std::shared_ptr
 export module qchem.Fitting.Internal.FunctionFitterImp;
-export import qchem.Fitting.FunctionFitter;  // FunctionFitter<T>, ScalarFFClient, DensityFFClient, ScalarFunction
+export import qchem.Fitting.FunctionFitter;  // FunctionFitter<T>, ScalarFFClient, ProjectedDensity_AO, ScalarFunction
 import qchem.Fitting.Types;
 import qchem.Blaze;
 //--------------------------------------------------------------------------
@@ -24,8 +24,8 @@ public:
     ~FunctionFitterImp();
 
     virtual void   DoFit           (const ScalarFFClient& )      ;
-    virtual void   DoFit           (const DensityFFClient& )      ;
-    virtual void   DoFit           (const FourierMap& )          ;  // NA: the Gaussian fitter fits via a client
+    virtual void   DoFit           (const ProjectedDensity_AO& )      ;
+    virtual void   DoFit           (const ProjectedDensity_FT& )  ;  // NA: the Gaussian fitter fits via a client
     virtual void   ReScale         (double factor               )      ; //Fit *= factor
     virtual void   FitMixIn        (const FunctionFitter<T>&,double)      ; // this = this*(1-c) + that*c.
     virtual double FitGetChangeFrom(const FunctionFitter<T>&       ) const;
@@ -40,7 +40,7 @@ public:
     virtual double    Integral          ()                const;
 protected:
     virtual void   DoFitInternal(const ScalarFFClient&,double constraint=0);
-    virtual void   DoFitInternal(const DensityFFClient&,double constraint=0);
+    virtual void   DoFitInternal(const ProjectedDensity_AO&,double constraint=0);
     //! Coulomb repulsion energy with another fit (self-repulsion uses *this).
     double FitGetRepulsion(const FunctionFitterImp*) const;
 
@@ -60,7 +60,7 @@ public:
     ConstrainedFF(bs_t&, const vec_t<T>& g);
 
     virtual void   DoFit(const ScalarFFClient&);
-    virtual void   DoFit(const DensityFFClient&);
+    virtual void   DoFit(const ProjectedDensity_AO&);
 
     virtual std::ostream& Write    (std::ostream&) const;
 private:

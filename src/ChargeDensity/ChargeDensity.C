@@ -1,6 +1,6 @@
 // File: ChargeDensity.C  Interface for a charge density 
 export module qchem.ChargeDensity;
-import qchem.Fitting.FunctionFitter;   // Fitting::DensityFFClient
+import qchem.Fitting.FunctionFitter;   // Fitting::ProjectedDensity_AO
 export import qchem.Symmetry.Spin;
 import qchem.ScalarFunction;
 import qchem.ChargeDensity.Types;
@@ -51,7 +51,7 @@ using Dynamic_CC  = rDynamic_CC;
 //
 template <class T> class tDM_CD
 : public virtual ScalarFunction<double>
-, public virtual Fitting::DensityFFClient //Fitted function can be fit to this.
+, public virtual Fitting::ProjectedDensity_AO //Fitted function can be fit to this.
 {
 public:
     virtual double DM_Contract(const tStatic_CC<T>*) const=0; //Amounts to Integral(ro*V*d3r);

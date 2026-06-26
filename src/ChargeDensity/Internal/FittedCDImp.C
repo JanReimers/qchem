@@ -23,7 +23,7 @@ public:
     FittedCDImp(const FittedCDImp&) = delete;   //!< copying would slice the fitter's constraint
 
     // FittedCD  (DoFit delegates to the COMPOSED fitter; the fitter answers the energy queries)
-    virtual void      DoFit           (const Fitting::DensityFFClient& c)      {itsFitter->DoFit(c);}
+    virtual void      DoFit           (const Fitting::ProjectedDensity_AO& c)      {itsFitter->DoFit(c);}
     virtual smat_t<T> GetRepulsion    (const odftbs_t*) const;
     virtual double    GetSelfRepulsion(               ) const;  //Does GetRepulsion(*this);
     virtual FittedCD* Clone           (               ) const;

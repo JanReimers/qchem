@@ -28,7 +28,7 @@ template <class T> void ConstrainedFF<T>::DoFit(const ScalarFFClient& ffc)
 {
     FunctionFitterImp<T>::DoFitInternal(ffc);   // scalar (potential) fit: overlap metric, unconstrained
 }
-template <class T> void ConstrainedFF<T>::DoFit(const DensityFFClient& ffc)
+template <class T> void ConstrainedFF<T>::DoFit(const ProjectedDensity_AO& ffc)
 {
     // Robust / variational density fitting with a linear (charge) constraint, after
     //   B. I. Dunlap, J. W. D. Connolly & J. R. Sabin, J. Chem. Phys. 71(8), 3396 (1979).
