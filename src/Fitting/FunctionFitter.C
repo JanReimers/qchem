@@ -64,6 +64,9 @@ public:
     //! Fit a density already projected onto an orthonormal {G} basis -- the rho-tilde IS the fit (no metric
     //! solve), so DoFit just stores it.  Gaussian (ProjectedDensity_AO) fitters NA-assert this overload.
     virtual void   DoFit           (const ProjectedDensity_FT& )       =0;
+    //! Fit a scalar field (e.g. v_xc) already SAMPLED on the orthonormal/FFT grid -- the plane-wave XC input;
+    //! the basis forward-FFTs + assembles in Overlap.  AO fitters NA-assert (they sample via the ScalarFFClient).
+    virtual void   DoFit           (const rvec_t& gridValues)          =0;
     virtual void   ReScale         (double factor)                     =0;  //!< c *= factor
     virtual void   FitMixIn        (const FunctionFitter& g,double f)  =0;  //!< c = (1-f)c + f g.c
     virtual double FitGetChangeFrom(const FunctionFitter& g) const     =0;  //!< max|c - g.c| (SCF convergence)

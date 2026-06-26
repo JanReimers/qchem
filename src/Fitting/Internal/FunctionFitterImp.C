@@ -26,6 +26,7 @@ public:
     virtual void   DoFit           (const ScalarFFClient& )      ;
     virtual void   DoFit           (const ProjectedDensity_AO& )      ;
     virtual void   DoFit           (const ProjectedDensity_FT& )  ;  // NA: the Gaussian fitter fits via a client
+    virtual void   DoFit           (const rvec_t& )               ;  // NA: AO XC samples via the ScalarFFClient
     virtual void   ReScale         (double factor               )      ; //Fit *= factor
     virtual void   FitMixIn        (const FunctionFitter<T>&,double)      ; // this = this*(1-c) + that*c.
     virtual double FitGetChangeFrom(const FunctionFitter<T>&       ) const;

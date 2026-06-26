@@ -30,6 +30,10 @@ public:
     //! summed over the BZ).  Orthonormal exactness means there is nothing to solve.
     virtual void DoFit(const ProjectedDensity_FT& rho) override {itsRhoTilde=rho;}
 
+    //! XC "fit": receive v_xc already sampled on the FFT grid (the term ran RhoOnGrid + the functional).
+    //! Stored verbatim; the forward-FFT + assembly happen in Overlap, the basis's business.
+    virtual void DoFit(const rvec_t& vgrid) override {itsVGrid=vgrid;}
+
     //! Coulomb (Hartree) matrix: delegate to the orbital basis's reciprocal-space Poisson assembly.  The
     //! orbital basis arrives as the common Orbital_1E_IBS base; cast down to the G-space capability.
     virtual hmat_t<dcmplx> Repulsion(const obs_t<dcmplx>* bs) const override
@@ -43,9 +47,17 @@ public:
     virtual std::ostream& Write(std::ostream& os) const override
         {return os << "FourierFunctionFitter (rho-tilde)" << std::endl;}
 
-    // --- NA: only DoFit(FourierMap) + Repulsion (the Hartree path) flow through this fitter today. ---
+    //! XC matrix <i|v_xc|j>: delegate to the basis's grid route (forward-FFT the stored v_xc grid, assemble).
+    virtual hmat_t<dcmplx> Overlap(const obs_t<dcmplx>* bs) const override
+    {
+        auto pw=dynamic_cast<const BasisSet::Band_FT_IBS*>(bs);
+        assert(pw && "FourierFunctionFitter::Overlap requires a Band_FT_IBS (plane-wave) basis");
+        return pw->Overlap(itsVGrid);
+    }
+
+    // --- NA: the AO client fits + the SCF-lifecycle helpers don't flow through the plane-wave fitter. ---
     virtual void   DoFit(const ScalarFFClient&)  override
-        {assert(false && "FourierFunctionFitter::DoFit(ScalarFFClient): XC is grid-based, not via this fitter");}
+        {assert(false && "FourierFunctionFitter::DoFit(ScalarFFClient): PW XC samples on the grid (DoFit(rvec_t))");}
     virtual void   DoFit(const ProjectedDensity_AO&) override
         {assert(false && "FourierFunctionFitter::DoFit(ProjectedDensity_AO): the PW density arrives as a FourierMap");}
     virtual void   ReScale(double) override
@@ -54,8 +66,6 @@ public:
         {assert(false && "FourierFunctionFitter::FitMixIn: not used by the PW path");}
     virtual double FitGetChangeFrom(const FunctionFitter<dcmplx>&) const override
         {assert(false && "FourierFunctionFitter::FitGetChangeFrom: not used by the PW path"); return 0.0;}
-    virtual hmat_t<dcmplx> Overlap(const obs_t<dcmplx>*) const override
-        {assert(false && "FourierFunctionFitter::Overlap: the XC route is grid-based, not via this fitter"); return hmat_t<dcmplx>();}
     virtual double FitGetSelfRepulsion() const override
         {assert(false && "FourierFunctionFitter::FitGetSelfRepulsion: the term takes E_H via DM_Contract"); return 0.0;}
     virtual double Integral() const override
@@ -66,7 +76,8 @@ public:
         {assert(false && "FourierFunctionFitter::Gradient: not evaluated pointwise on the PW path"); return rvec3_t(0,0,0);}
 
 private:
-    FourierMap itsRhoTilde;   //!< the fit = the density's G-space coefficients (stored by DoFit).
+    FourierMap itsRhoTilde;   //!< Hartree fit = the density's G-space coefficients (DoFit(ProjectedDensity_FT)).
+    rvec_t     itsVGrid;      //!< XC fit = v_xc sampled on the FFT grid (DoFit(rvec_t)).
 };
 
 } //namespace

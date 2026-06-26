@@ -130,8 +130,10 @@ PW_XC::PW_XC(const xc_t& xc)
     : itsXc(xc)
 {}
 
-// XC via FFT: get rho(r) on the grid (inverse FFT of the density's rho-tilde), apply v_xc pointwise,
-// forward-FFT to the matrix.  No O(Npts*n^2) pointwise density sampling.
+// XC through a FourierFunctionFitter, mirroring FittedVxc: build v_xc on the grid (rho(r) via inverse FFT,
+// then the functional pointwise), DoFit those grid samples, ask for the Overlap matrix (the basis forward-
+// FFTs + assembles).  The XC fit input is the SAMPLED grid (rvec_t) -- the orthonormal XC sibling of the
+// Hartree FourierMap.  No O(Npts*n^2) pointwise density sampling.
 chmat_t PW_XC::CalcMatrix(const cobs_t* bs, const Spin&, const cDM_CD* cd) const
 {
     newCD(cd);
@@ -143,7 +145,9 @@ chmat_t PW_XC::CalcMatrix(const cobs_t* bs, const Spin&, const cDM_CD* cd) const
     rvec_t rho=pw->RhoOnGrid(fd->GetFourierDensity());
     rvec_t vxc(rho.size());
     for (size_t q=0;q<rho.size();q++) vxc[q]=itsXc->GetVxc(rho[q]);   // V(r) = v_xc(rho(r))
-    return pw->Overlap(vxc);
+    Fitting::FourierFunctionFitter fitter;
+    fitter.DoFit(vxc);                          // hand the basis the sampled potential...
+    return fitter.Overlap(bs);                  // ...it forward-FFTs + assembles <i|v_xc|j>
 }
 
 void PW_XC::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
