@@ -1,4 +1,4 @@
-// File: BasisSet/Lattice_3D/SeparablePotential.C  Separable (Kleinman-Bylander) NONLOCAL potential.
+// File: BasisSet/SeparablePotential.C  Separable (Kleinman-Bylander) NONLOCAL potential.
 //
 // Rung 2 of "lineage A" (see doc/PlaneWavePlan.md): a norm-conserving pseudopotential's nonlocal part
 // in Kleinman-Bylander separable form,
@@ -21,10 +21,10 @@ module;
 #include <utility>
 #include <vector>
 
-export module qchem.BasisSet.Lattice_3D.SeparablePotential;
+export module qchem.BasisSet.SeparablePotential;
 import qchem.Math;   // Pi, FourPi
 
-export namespace BasisSet::Lattice_3D
+export namespace BasisSet
 {
 
 //! \brief A separable Kleinman-Bylander nonlocal potential, supplying per-species projector form

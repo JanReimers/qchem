@@ -63,8 +63,8 @@ import qchem.SCFAccelerator.Internal.SCFAcceleratorDIIS;      // cSCFAccelerator
 import qchem.BasisSet.Internal.BasisSetImp;         // BasisSetImp<dcmplx> (single-block BasisSet container)
 
 using BasisSet::Lattice_3D::PlaneWave_IBS;
-using BasisSet::Lattice_3D::HGH_LocalPotential;
-using BasisSet::Lattice_3D::HGH_SeparablePotential;
+using BasisSet::HGH_LocalPotential;
+using BasisSet::HGH_SeparablePotential;
 using BasisSet::Lattice_3D::GetGTH;
 using BasisSet::Lattice_3D::GTH_PP;
 
@@ -72,7 +72,7 @@ namespace
 {
 
 // A ScalarFunction<double> wrapping a lambda f(r) -- to hand real-space fields to the basis's
-// high-level integral methods (IntegralPotential/IntegralHartree/Integral).
+// high-level integral methods (Overlap/Repulsion/Integral).
 struct FieldFn : public ScalarFunction<double>
 {
     std::function<double(const rvec3_t&)> f;
@@ -797,7 +797,7 @@ TEST_F(PlaneWaveDFT, ScfSiliconBZSampled)
     EXPECT_GT (R.gap, 0.0);                                                 // Si is a semiconductor
 }
 
-// --- Stage 2: the basis-level high-level DFT capability (DFTPotential_IBS), validated against the
+// --- Stage 2: the basis-level high-level DFT capability (Band_DFT_IBS), validated against the
 // prototype's analytic/free-function results.  These are the questions the framework terms will ask --
 // the term hands a real-space ScalarFunction and the basis owns the integration (no G-vectors exposed).
 
@@ -814,10 +814,10 @@ TEST_F(PlaneWaveDFT, BasisIntegralScalar)
     EXPECT_NEAR(F.pw.Integral(cosfn), 0.0, 1e-9*F.Omega);
 }
 
-// IntegralHartree on a single-cosine density rho = rho0 + 2A cos(G0.r) reproduces the Poisson result
+// Repulsion on a single-cosine density rho = rho0 + 2A cos(G0.r) reproduces the Poisson result
 // (E_H = Omega 4 pi A^2/|G0|^2, V_H~(G0) = 4 pi A/|G0|^2) -- same check as HartreeSingleCosineMatchesPoisson,
 // now driven entirely through the basis's high-level method (the basis samples + transforms internally).
-TEST_F(PlaneWaveDFT, BasisIntegralHartreeMatchesPoisson)
+TEST_F(PlaneWaveDFT, BasisRepulsionMatchesPoisson)
 {
     PWFixture F;
     const double rho0=2.0/F.Omega, A=0.01;
@@ -826,7 +826,7 @@ TEST_F(PlaneWaveDFT, BasisIntegralHartreeMatchesPoisson)
     FieldFn rho([&](const rvec3_t& r){return rho0 + 2*A*std::cos(G0*r);});
 
     double  Eh=0.0;
-    chmat_t VH=F.pw.IntegralHartree(rho, Eh);
+    chmat_t VH=F.pw.Repulsion(rho, Eh);
     EXPECT_NEAR(Eh, F.Omega*4*Pi*A*A/g02, 1e-7);
 
     size_t n=F.pw.GetNumFunctions(); bool found=false;
@@ -840,14 +840,14 @@ TEST_F(PlaneWaveDFT, BasisIntegralHartreeMatchesPoisson)
     EXPECT_TRUE(found);
 }
 
-// IntegralPotential of a constant V is V*Identity; of a reciprocal cosine has Vtilde(+/-e)=1/2.
+// Overlap of a constant field f is f*Identity; of a reciprocal cosine has f-tilde(+/-e)=1/2.
 TEST_F(PlaneWaveDFT, BasisIntegralPotentialConstAndCosine)
 {
     PWFixture F;
     size_t n=F.pw.GetNumFunctions();
 
     FieldFn cst([](const rvec3_t&){return 0.7;});
-    chmat_t Vc=F.pw.IntegralPotential(cst);
+    chmat_t Vc=F.pw.Overlap(cst);
     for (size_t i=0;i<n;i++)
     {
         EXPECT_NEAR(std::real(dcmplx(Vc(i,i))), 0.7, 1e-9);
@@ -856,7 +856,7 @@ TEST_F(PlaneWaveDFT, BasisIntegralPotentialConstAndCosine)
 
     rvec3_t G0=F.B().ToCartesian(rvec3_t(1,0,0));
     FieldFn cosfn([&](const rvec3_t& r){return std::cos(G0*r);});
-    chmat_t Vk=F.pw.IntegralPotential(cosfn);
+    chmat_t Vk=F.pw.Overlap(cosfn);
     bool found=false;
     for (size_t i=0;i<n && !found;i++)
         for (size_t j=0;j<n && !found;j++)
@@ -868,35 +868,8 @@ TEST_F(PlaneWaveDFT, BasisIntegralPotentialConstAndCosine)
     EXPECT_TRUE(found);
 }
 
-// MakeExternalPotential (with the Si PP configured on the basis) equals the explicit local+KB assembly.
-TEST_F(PlaneWaveDFT, BasisExternalPotentialMatchesPPAssembly)
-{
-    const double a=10.26, h=0.5*a;
-    Matrix3D<double> Amat(0.0,h,h,  h,0.0,h,  h,h,0.0);
-    UnitCell          cell(Amat);
-    Lattice_3D        lat(cell, ivec3_t(1,1,1));
-    ReciprocalLattice recip(lat.Reciprocal());
-    PlaneWave_IBS     pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
-
-    Molecule si;
-    si.Insert(new Atom(14, rvec3_t(0,0,0)));
-    si.Insert(new Atom(14, rvec3_t(0.25*a,0.25*a,0.25*a)));
-    GTH_PP                 siPP=GetGTH("Si","LDA",4);          // CP2K GTH-LDA q4, from the database
-    const HGH_LocalPotential&     loc=siPP.local;
-    const HGH_SeparablePotential& nl =siPP.nonlocal;
-
-    chmat_t ref = pw.MakeLocalPotential(&si,loc) + pw.MakeSeparablePotential(&si,nl);
-    pw.SetPseudopotential(&loc, &nl);
-    chmat_t got = pw.MakeExternalPotential(&si);
-
-    size_t n=pw.GetNumFunctions();
-    for (size_t i=0;i<n;i++)
-        for (size_t j=i;j<n;j++)
-            EXPECT_NEAR(std::abs(dcmplx(got(i,j))-dcmplx(ref(i,j))), 0.0, 1e-12);
-}
-
 // The PW_External Hamiltonian term (cStatic_HT<dcmplx>) routes through the framework's GetMatrix path
-// and the abstract DFTPotential_IBS dynamic_cast -- its matrix must equal the basis's external assembly.
+// and the abstract Band_DFT_IBS dynamic_cast -- its matrix must equal the basis's external assembly.
 // This is the dependency inversion working end-to-end through a real Hamiltonian term.
 TEST_F(PlaneWaveDFT, PWExternalTermMatchesBasis)
 {
@@ -913,12 +886,12 @@ TEST_F(PlaneWaveDFT, PWExternalTermMatchesBasis)
     GTH_PP                 siPP=GetGTH("Si","LDA",4);          // CP2K GTH-LDA q4, from the database
     const HGH_LocalPotential&     loc=siPP.local;
     const HGH_SeparablePotential& nl =siPP.nonlocal;
-    pw.SetPseudopotential(&loc, &nl);
 
-    qchem::Hamiltonian::PW_External   ext(si);
+    // The TERM owns the model now and asks the basis to assemble it (the pseudo-wall).
+    qchem::Hamiltonian::PW_External   ext(si, &loc, &nl);
     qchem::Hamiltonian::cStatic_HT*   term=&ext;        // the public term interface (as the Hamiltonian holds it)
     const chmat_t& M  = term->GetMatrix(&pw, Spin::None);
-    chmat_t        ref= pw.MakeExternalPotential(si.get());
+    chmat_t        ref= pw.MakeLocalPotential(si.get(),loc) + pw.MakeSeparablePotential(si.get(),nl);
 
     size_t n=pw.GetNumFunctions();
     for (size_t i=0;i<n;i++)
@@ -927,7 +900,7 @@ TEST_F(PlaneWaveDFT, PWExternalTermMatchesBasis)
 }
 
 // The PW_Hartree and PW_XC dynamic terms route a complex density (IrrepCD<dcmplx>) through the framework
-// and must reproduce the basis's IntegralHartree / IntegralPotential -- the inversion working for the
+// and must reproduce the basis's Repulsion / Overlap -- the inversion working for the
 // density-dependent terms.  We feed a hand-built Hermitian density matrix (2 electrons in (e0+e1)/sqrt2).
 TEST_F(PlaneWaveDFT, PWDynamicTermsMatchBasis)
 {
@@ -939,11 +912,11 @@ TEST_F(PlaneWaveDFT, PWDynamicTermsMatchBasis)
     Irrep irr=F.pw.GetIrrep(Spin::None);
     qchem::ChargeDensity::IrrepCD<dcmplx> cd(D, &F.pw, irr);
 
-    // Hartree term matrix == basis IntegralHartree of the same density.
+    // Hartree term matrix == basis Repulsion of the same density.
     qchem::Hamiltonian::PW_Hartree   h;
     qchem::Hamiltonian::cDynamic_HT* ht=&h;
     const chmat_t& Mh = ht->GetMatrix(&F.pw, Spin::None, &cd);
-    double Eh; chmat_t refh = F.pw.IntegralHartree(cd, Eh);
+    double Eh; chmat_t refh = F.pw.Repulsion(cd, Eh);
     for (size_t i=0;i<n;i++)
         for (size_t j=i;j<n;j++)
             EXPECT_NEAR(std::abs(dcmplx(Mh(i,j))-dcmplx(refh(i,j))), 0.0, 1e-10);
@@ -957,7 +930,7 @@ TEST_F(PlaneWaveDFT, PWDynamicTermsMatchBasis)
     rvec_t rho=F.pw.RhoOnGrid(F.pw.MakeFourierDensity(D));
     rvec_t vxc(rho.size());
     for (size_t q=0;q<rho.size();q++) vxc[q]=dirac->GetVxc(rho[q]);
-    chmat_t refx = F.pw.IntegralPotentialGrid(vxc);
+    chmat_t refx = F.pw.Overlap(vxc);
     for (size_t i=0;i<n;i++)
         for (size_t j=i;j<n;j++)
             EXPECT_NEAR(std::abs(dcmplx(Mx(i,j))-dcmplx(refx(i,j))), 0.0, 1e-10);
@@ -984,12 +957,12 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaMatchesPrototype)
     GTH_PP                 siPP=GetGTH("Si","LDA",4);          // CP2K GTH-LDA q4, from the database
     const HGH_LocalPotential&     loc=siPP.local;
     const HGH_SeparablePotential& nl =siPP.nonlocal;
-    pw.SetPseudopotential(&loc, &nl);
 
-    // Framework Hamiltonian: a dcmplx HamiltonianImp summing the PW Kohn-Sham terms.
+    // Framework Hamiltonian: a dcmplx HamiltonianImp summing the PW Kohn-Sham terms.  The external term
+    // owns the pseudopotential model (the pseudo-wall) and assembles it through the basis.
     cHamiltonianImp ham;
     ham.Add(new PW_Kinetic);
-    ham.Add(new PW_External(si));
+    ham.Add(new PW_External(si, &loc, &nl));
     ham.Add(new PW_Hartree);
     ham.Add(new PW_XC(std::make_shared<SlaterExchange> (2.0/3.0)));   // Dirac exchange
     ham.Add(new PW_XC(std::make_shared<VWN_Correlation>()));          // VWN5 correlation
@@ -1061,14 +1034,14 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaThroughSCFIterator)
     cell.AddAtom(4, {0.25,0.25,0.25});
     Lattice_3D  lat(cell, ivec3_t(1,1,1));
 
-    GTH_PP                 siPP=GetGTH("Si","LDA",4);          // must outlive the SCF run (the basis holds &loc)
+    GTH_PP                 siPP=GetGTH("Si","LDA",4);          // must outlive the SCF run (the term holds &loc)
     const HGH_LocalPotential&     loc=siPP.local;
     const HGH_SeparablePotential& nl =siPP.nonlocal;
 
     // The basis comes from the factory as an abstract BasisSet<dcmplx>; it owns its plane-wave Bloch
-    // block(s) and (for now) carries the pseudopotential.  Single-k -> one block at Gamma.
+    // block(s).  The pseudopotential model lives on the Hamiltonian term (the pseudo-wall), NOT the basis.
     namespace L3=BasisSet::Lattice_3D;
-    std::unique_ptr<BasisSet::Complex_BS> bs(L3::Factory(L3::Type::PW, lat, 4.0, &loc, &nl));
+    std::unique_ptr<BasisSet::Complex_BS> bs(L3::Factory(L3::Type::PW, lat, 4.0));
     const auto* pw=(*bs)[0];                         // the single Bloch block (for the seed density below)
 
     Irrep      irr=bs->GetIrreps(Spin::None)[0];
@@ -1079,8 +1052,8 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaThroughSCFIterator)
 
     // Plane-wave LDA Kohn-Sham Hamiltonian from the Ham factory family: kinetic + external(pseudo) +
     // Hartree + Dirac exchange + VWN5 correlation (heap; the SCFIterator takes ownership).  The atoms
-    // are sourced from the lattice -- the structure carries all the external-potential information.
-    cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure());
+    // are sourced from the lattice; the pseudopotential model is owned by the external term (pseudo-wall).
+    cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), &loc, &nl);
 
     // Complex DIIS (Pulay): extrapolate the Fock matrix from the [F,D]-error history.  This damps the
     // marginal density drift within Si's degenerate Gamma_25' manifold that the Null accelerator left,
@@ -1124,7 +1097,7 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaThroughSCFIterator)
 }
 
 // G-space Hartree path: V_H assembled directly from the density's Fourier coefficients rho-tilde(dm)
-// (PlaneWave_IBS::MakeFourierDensity -> IntegralHartree(FourierMap)) must equal the real-space route
+// (PlaneWave_IBS::MakeFourierDensity -> Repulsion(FourierMap)) must equal the real-space route
 // (sample rho(r) on the grid -> ForwardDFT -> V_H).  This is the O(n^2) G-space replacement for the
 // O(Npts*n^2) pointwise sampling -- the foundation of the FFT speed-up.  Fast: no SCF, one block.
 TEST_F(PlaneWaveDFT, HartreeFromFourierMatchesPointwise)
@@ -1146,8 +1119,8 @@ TEST_F(PlaneWaveDFT, HartreeFromFourierMatchesPointwise)
     qchem::ChargeDensity::IrrepCD<dcmplx> cd(D, &pw, irr);   // IS-A ScalarFunction rho(r)=phi^H D phi
 
     double EhA, EhB;
-    chmat_t VA=pw.IntegralHartree(cd, EhA);                        // real-space: sample + ForwardDFT
-    chmat_t VB=pw.IntegralHartree(pw.MakeFourierDensity(D), EhB);  // G-space: direct from D
+    chmat_t VA=pw.Repulsion(cd, EhA);                             // real-space: sample + ForwardDFT
+    chmat_t VB=pw.Repulsion(pw.MakeFourierDensity(D), EhB);  // G-space: direct from D
 
     double maxd=0;
     for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) maxd=std::max(maxd, std::abs(VA(i,j)-VB(i,j)));
@@ -1174,13 +1147,13 @@ TEST_F(PlaneWaveDFT, FrameworkSilicon2x2x2ThroughSCFIterator)
     const HGH_SeparablePotential& nl =siPP.nonlocal;
 
     namespace L3=BasisSet::Lattice_3D;
-    std::unique_ptr<BasisSet::Complex_BS> bs(L3::Factory(L3::Type::PW, lat, 4.0, &loc, &nl));
+    std::unique_ptr<BasisSet::Complex_BS> bs(L3::Factory(L3::Type::PW, lat, 4.0));
     BasisSet::irrepv_t irreps=bs->GetIrreps(Spin::None);   // one Bloch irrep per k-block (8)
 
     const int Nelec=8;
     Crystal_EC ec(irreps, Nelec);                          // Nval per k-block; weights handle the BZ sum
 
-    cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure());
+    cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), &loc, &nl);
     using qchem::SCFAccelerators::DIISParams;
     auto* acc=new qchem::SCFAccelerators::cSCFAcceleratorDIIS(DIISParams{8, 0.5, 1e-10, 1e-9});
 
@@ -1251,7 +1224,7 @@ TEST_F(PlaneWaveDFT, DynamicTermCacheFreshAcrossDensity)
     ht->GetMatrix(&F.pw, Spin::None, &cd1);                       // populates the cache for cd1
     const chmat_t& M2 = ht->GetMatrix(&F.pw, Spin::None, &cd2);   // BUG: returns cd1's stale matrix
 
-    double  Eh; chmat_t ref2=F.pw.IntegralHartree(cd2,Eh);        // the correct V_H for cd2
+    double  Eh; chmat_t ref2=F.pw.Repulsion(cd2,Eh);             // the correct V_H for cd2
     double  diff=0.0;
     for (size_t i=0;i<n;i++)
         for (size_t j=i;j<n;j++)

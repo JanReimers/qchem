@@ -62,10 +62,11 @@ Ham_DFTcorr_U::Ham_DFTcorr_U(const st_t& st, const qcMesh::MeshParams& mp, const
 // PW_XC terms (Dirac + VWN5), mirroring Ham_DFTcorr_U, so the correlation energy is the correct
 // E_c = integral eps_c rho.  No fit basis / mesh: the plane-wave basis owns the integration, and the
 // pseudopotential is carried by the basis (the external term just supplies the structure factor).
-Ham_PW_DFT::Ham_PW_DFT(const st_t& st)
+Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const BasisSet::LocalPotential* loc,
+                       const BasisSet::SeparablePotential* nl)
 {
     Add(new PW_Kinetic);
-    Add(new PW_External(st));                                     // electron-ion (incl. G=0 alignment)
+    Add(new PW_External(st, loc, nl));                           // electron-ion (incl. G=0 alignment)
     Add(new PW_Hartree);
     Add(new PW_XC(std::make_shared<SlaterExchange>(2.0/3.0)));    // Dirac exchange (alpha = 2/3)
     Add(new PW_XC(std::make_shared<VWN_Correlation>()));          // VWN5 correlation

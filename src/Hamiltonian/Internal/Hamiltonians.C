@@ -4,6 +4,8 @@ import qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.Hamiltonian.Internal.Hamiltonian;
 import qchem.Hamiltonian.Types;
 import qchem.Mesh;
+import qchem.BasisSet.LocalPotential;      // the PW pseudopotential model the term owns (Ham_PW_DFT ctor)
+import qchem.BasisSet.SeparablePotential;
 
 export namespace qchem::Hamiltonian
 {
@@ -47,14 +49,16 @@ public:
 //
 // Plane-wave LDA Kohn-Sham (dcmplx): kinetic + external(pseudo) + Hartree + Dirac exchange + VWN5
 // correlation, assembled from the qcHamiltonian plane-wave terms (PWTerms).  Unlike the molecular DFT
-// Hamiltonians it needs NO fit basis / mesh -- the plane-wave basis assembles every matrix in G-space
-// and carries the pseudopotential (configured by the BasisSet factory), so this only needs the
-// structure for the external term's structure factor.  Pair with a plane-wave BasisSet + cSCFIterator.
+// Hamiltonians it needs NO fit basis / mesh -- the plane-wave basis assembles every matrix in G-space.
+// The pseudopotential MODEL (local form factor + optional KB nonlocal) is OWNED here (the pseudo-wall):
+// it is handed to the external term, which asks the basis to assemble the matrix from it.  Non-owning --
+// the caller keeps the models alive for the SCF run.  Pair with a plane-wave BasisSet + cSCFIterator.
 //
 class Ham_PW_DFT : public virtual cHamiltonian, private cHamiltonianImp
 {
 public:
-    Ham_PW_DFT(const st_t& st);
+    Ham_PW_DFT(const st_t& st, const BasisSet::LocalPotential* loc,
+               const BasisSet::SeparablePotential* nl=nullptr);
 };
 
 //

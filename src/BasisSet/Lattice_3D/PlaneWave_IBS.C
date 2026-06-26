@@ -15,12 +15,12 @@ module;
 #include <vector>
 
 export module qchem.BasisSet.Lattice_3D.PlaneWave_IBS;
-export import qchem.BasisSet.DFTPotential_IBS;     // the abstract real-space DFT-integration capability
-export import qchem.BasisSet.FourierDFT_IBS;       // the abstract G-space DFT capability (+ FourierMap)
+export import qchem.BasisSet.Band_DFT_IBS;     // the abstract real-space DFT-integration capability
+export import qchem.BasisSet.Band_FT_IBS;       // the abstract G-space DFT capability (+ FourierMap)
 import qchem.BasisSet.Internal.IrrepBasisSetImp;   // IrrepBasisSetImp<T>: GetSymmetry/GetSymt/GetIrrep
 export import qchem.ReciprocalLattice;             // ctor takes a ReciprocalLattice (carries the B cell)
-export import qchem.BasisSet.Lattice_3D.LocalPotential;      // local potential form-factor abstraction
-export import qchem.BasisSet.Lattice_3D.SeparablePotential; // KB nonlocal projector abstraction
+export import qchem.BasisSet.LocalPotential;      // local potential form-factor abstraction
+export import qchem.BasisSet.SeparablePotential; // KB nonlocal projector abstraction
 import qchem.Structure;
 import qchem.Symmetry;                             // sym_t (the Bloch irrep handed to the ctor)
 import qchem.Types;
@@ -31,8 +31,8 @@ export namespace BasisSet::Lattice_3D
 //! \brief Plane-wave basis for a single k-point: the normalised waves
 //! \f$ e^{i(k+G)\cdot r}/\sqrt V \f$ over the cutoff set \f$\{G:\tfrac12|k+G|^2<E_{cut}\}\f$.
 class PlaneWave_IBS
-    : public virtual BasisSet::DFTPotential_IBS<dcmplx> // real-space DFT-integration (Hartree/XC/external)
-    , public virtual BasisSet::FourierDFT_IBS           // G-space DFT (rho-tilde -> Hartree, FFT XC)
+    : public virtual BasisSet::Band_DFT_IBS<dcmplx> // real-space DFT-integration (Hartree/XC/external)
+    , public virtual BasisSet::Band_FT_IBS           // G-space DFT (rho-tilde -> Hartree, FFT XC)
     , public         BasisSet::IrrepBasisSetImp<dcmplx> // supplies GetSymmetry/GetSymt/GetIrrep + itsSymmetry
 {
 public:
@@ -57,10 +57,10 @@ public:
     //! \f$G = B\,m\f$).  This integer triple is the defining quantum number of the plane wave.
     virtual ivec3_t GetGIndex(size_t i) const {return itsG[i];}
 
-    // --- DFTPotential_IBS capability: high-level "do XYZ" questions the KS potential terms ask. ---
+    // --- Band_DFT_IBS capability: high-level "do XYZ" questions the KS potential terms ask. ---
     // The basis owns the integration (its own FFT grid); the terms never see G-vectors or the mesh.
-    virtual chmat_t IntegralPotential(const ScalarFunction<double>& V) const;            //!< <i|V|j>
-    virtual chmat_t IntegralHartree  (const ScalarFunction<double>& rho, double& Eh) const; //!< <i|V_H[rho]|j>
+    virtual chmat_t Overlap  (const ScalarFunction<double>& f) const override;            //!< <i|f|j> (uncached)
+    virtual chmat_t Repulsion(const ScalarFunction<double>& rho, double& Eh) const override; //!< <i|V_Coul[rho]|j> (uncached)
     virtual double  Integral         (const ScalarFunction<double>& f) const;            //!< integral f d3r
 
     //! \brief Density Fourier coefficients \f$\tilde\rho(\Delta m)=\frac1\Omega\sum_{G_i-G_j=\Delta m}D_{ij}\f$
@@ -70,19 +70,15 @@ public:
     //! \brief Hartree matrix + energy directly from the density's G-space coefficients \a rho
     //! (= MakeFourierDensity): \f$V_H(\Delta m)=4\pi\tilde\rho/|B\Delta m|^2\f$, \f$E_H=\tfrac\Omega2\sum
     //! 4\pi|\tilde\rho|^2/G^2\f$ (\f$\Delta m=0\f$ dropped).  The FFT-free Poisson solve.
-    virtual chmat_t IntegralHartree(const FourierMap& rho, double& Eh) const override;
+    virtual chmat_t Repulsion(const FourierMap& rho, double& Eh) const override;
 
-    // XC route (basis owns the FFTs; see FourierDFT_IBS).  rho(r) via inverse FFT of rho-tilde; the
+    // XC route (basis owns the FFTs; see Band_FT_IBS).  rho(r) via inverse FFT of rho-tilde; the
     // term maps the functional over the grid values and hands them back for the forward FFT / quadrature.
     virtual rvec_t  RhoOnGrid           (const FourierMap& rho) const override;
-    virtual chmat_t IntegralPotentialGrid(const rvec_t& Vgrid)  const override;
-    virtual double  IntegralGrid        (const rvec_t& fgrid)   const override;
-    virtual chmat_t MakeExternalPotential(const Structure* cl) const;                    //!< <i|V_ext|j>
-    virtual double  ExternalG0Energy(const Structure* cl, double numElectrons) const;    //!< (N/Omega) Sum_a alpha_a
-    //! Configure the external pseudopotential (non-owning; the caller keeps them alive).  If unset,
-    //! MakeExternalPotential falls back to the bare nuclear (-Z/r) structure factor.
-    void SetPseudopotential(const LocalPotential* loc, const SeparablePotential* nl=nullptr)
-        {itsLocalPP=loc; itsSepPP=nl;}
+    virtual chmat_t Overlap(const rvec_t& Vgrid)  const override;
+    virtual double  Integral        (const rvec_t& fgrid)   const override;
+    //!< (N/Omega) Sum_a alpha_a for the supplied local model (the dropped-G=0 alignment energy).
+    virtual double  ExternalG0Energy(const Structure* cl, const LocalPotential& loc, double numElectrons) const override;
 
     // 1E integral building blocks (no 1/2 on Kinetic -- the Hamiltonian applies it).
     virtual chmat_t MakeOverlap () const;                  //!< Identity (PWs orthonormal over the cell).
@@ -93,13 +89,13 @@ public:
     //! v(Z_a,|\Delta G|^2)\, e^{-i\Delta G\cdot\tau_a} \f$, \f$\Delta G=G-G'\ne 0\f$ (the \f$\Delta G=0\f$
     //! term is dropped -- uniform neutralising background).  The species form factor \a v selects the
     //! potential model (bare Coulomb, Gaussian-smeared nucleus, pseudopotential, ...).  Hermitian.
-    chmat_t MakeLocalPotential(const Structure* cl, const LocalPotential& v) const;
+    virtual chmat_t MakeLocalPotential(const Structure* cl, const LocalPotential& v) const override;
 
     //! \brief Assemble the separable (Kleinman-Bylander) NONLOCAL potential \f$ \langle G|V_{NL}|G'\rangle
     //! = \frac1\Omega \sum_a e^{-i\Delta G\cdot\tau_a} \sum_p \tilde\beta_p(|k+G|)\,D_p\,\tilde\beta_p(|k+G'|)\f$.
     //! The external one-body potential is then \f$V = V_{loc} + V_{NL}\f$ (both summed into \f$H(k)\f$).
     //! Hermitian; per atom & projector this is a rank-1 \f$|\beta\rangle D\langle\beta|\f$ contribution.
-    chmat_t MakeSeparablePotential(const Structure* cl, const SeparablePotential& v) const;
+    virtual chmat_t MakeSeparablePotential(const Structure* cl, const SeparablePotential& v) const override;
 
     //! \brief Assemble \f$ \langle G|V|G'\rangle = \tilde V(G-G') \f$ from a caller-supplied G-space
     //! potential, keyed by the reciprocal-index difference \f$\Delta m = m(G)-m(G')\f$.
@@ -126,8 +122,6 @@ private:
     ivec3_t AutoGrid() const;       //!< grid divisions resolving the basis difference set (no aliasing).
     ivec3_t FFTGrid()  const;       //!< AutoGrid padded to powers of two (radix-2 FFT for the XC route).
 
-    const LocalPotential*     itsLocalPP=nullptr;  //!< external local pseudopotential (non-owning).
-    const SeparablePotential* itsSepPP  =nullptr;  //!< external KB nonlocal pseudopotential (non-owning).
     ReciprocalLattice    itsRecip;  //!< Reciprocal cell (matrix \f$B\f$); source of G and |k+G|.
     rvec3_t              itsk;      //!< Fractional crystal momentum \f$k\f$ (read from the Bloch irrep).
     double               itsEcut;   //!< Energy cutoff (Hartree).

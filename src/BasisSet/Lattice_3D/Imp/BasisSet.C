@@ -16,8 +16,7 @@ namespace
 class PW_BasisSet : public ::BasisSet::BasisSetImp<dcmplx>
 {
 public:
-    PW_BasisSet(const ::Lattice_3D& lat, double Ecut,
-                const LocalPotential* loc, const SeparablePotential* nl)
+    PW_BasisSet(const ::Lattice_3D& lat, double Ecut)
     {
         // ONE plane-wave block per Brillouin-zone k-point: the basis ctor is the single place that
         // enumerates k, so the framework's per-irrep loop (each k IS a Bloch irrep) becomes the BZ sum
@@ -29,18 +28,17 @@ public:
         {
             ivec3_t ik(std::lround(kp.k.x*N.x), std::lround(kp.k.y*N.y), std::lround(kp.k.z*N.z));
             auto* pw=new PlaneWave_IBS(recip, Symmetry::BlochFactory(N, ik, kp.weight), Ecut);
-            if (loc) pw->SetPseudopotential(loc,nl);   // pseudo lives on the basis until the Phase-4 wall
-            Insert(pw);                                 // BasisSetImp takes ownership
+            Insert(pw);                                 // BasisSetImp takes ownership (no PP: the Vpseudo
+                                                        // Hamiltonian term owns the pseudopotential model)
         }
     }
 };
 } //anon
 
-Complex_BS* Factory(Type type, const ::Lattice_3D& lat, double Ecut,
-                    const LocalPotential* loc, const SeparablePotential* nl)
+Complex_BS* Factory(Type type, const ::Lattice_3D& lat, double Ecut)
 {
     assert(type==Type::PW);
-    return new PW_BasisSet(lat, Ecut, loc, nl);
+    return new PW_BasisSet(lat, Ecut);
 }
 
 } //namespace

@@ -21,8 +21,8 @@ import qchem.Types;
 import qchem.Blaze;
 
 using BasisSet::Lattice_3D::PlaneWave_IBS;
-using BasisSet::Lattice_3D::HGH_LocalPotential;
-using BasisSet::Lattice_3D::HGH_SeparablePotential;
+using BasisSet::HGH_LocalPotential;
+using BasisSet::HGH_SeparablePotential;
 using BasisSet::Lattice_3D::GetGTH;
 using BasisSet::Lattice_3D::GTH_PP;
 

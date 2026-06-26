@@ -11,8 +11,6 @@ target_sources(qcLattice_BS PRIVATE
 target_sources(qcLattice_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Internal/GVectors.C
     Internal/KPlusG.C
-    LocalPotential.C
-    SeparablePotential.C
     GTH_Potentials.C
     PlaneWave_IBS.C
     APW_IBS.C

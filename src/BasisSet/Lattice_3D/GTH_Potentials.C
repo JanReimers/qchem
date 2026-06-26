@@ -8,8 +8,8 @@
 module;
 #include <string>
 export module qchem.BasisSet.Lattice_3D.GTH_Potentials;
-export import qchem.BasisSet.Lattice_3D.LocalPotential;
-export import qchem.BasisSet.Lattice_3D.SeparablePotential;
+export import qchem.BasisSet.LocalPotential;
+export import qchem.BasisSet.SeparablePotential;
 
 export namespace BasisSet::Lattice_3D
 {

@@ -10,7 +10,7 @@ module;
 module qchem.ChargeDensity.Imp.IrrepCD;
 import qchem.Symmetry;
 import qchem.Blaze;
-import qchem.BasisSet.FourierDFT_IBS;   // cast the basis UP to the G-space capability (dcmplx path)
+import qchem.BasisSet.Band_FT_IBS;   // cast the basis UP to the G-space capability (dcmplx path)
 
 namespace qchem::ChargeDensity
 {
@@ -148,8 +148,8 @@ template <class T> FourierMap IrrepCD<T>::GetFourierDensity() const
 {
     if constexpr (std::is_same_v<T,dcmplx>)
     {
-        auto* fb=dynamic_cast<const BasisSet::FourierDFT_IBS*>(itsBasisSet);
-        assert(fb && "GetFourierDensity requires a FourierDFT_IBS (plane-wave) basis");
+        auto* fb=dynamic_cast<const BasisSet::Band_FT_IBS*>(itsBasisSet);
+        assert(fb && "GetFourierDensity requires a Band_FT_IBS (plane-wave) basis");
         return fb->MakeFourierDensity(itsDensityMatrix);
     }
     else

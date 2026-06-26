@@ -1,4 +1,4 @@
-// File: BasisSet/Lattice_3D/LocalPotential.C  One-body LOCAL external potentials for plane-wave work.
+// File: BasisSet/LocalPotential.C  One-body LOCAL external potentials (plane-wave / pseudopotential).
 //
 // A local external potential, in a plane-wave basis, is fully specified by its reciprocal-space radial
 // form factor v(|G|^2) per nuclear species.  The plane-wave basis set folds in the cell volume 1/Omega,
@@ -12,10 +12,10 @@
 module;
 #include <cmath>
 
-export module qchem.BasisSet.Lattice_3D.LocalPotential;
+export module qchem.BasisSet.LocalPotential;
 import qchem.Math; // FourPi, Pi
 
-export namespace BasisSet::Lattice_3D
+export namespace BasisSet
 {
 
 //! \brief A one-body local external potential, defined by its reciprocal-space form factor.

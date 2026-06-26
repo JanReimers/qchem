@@ -2,7 +2,7 @@
 //
 // These are the THIN terms that complete the dependency inversion: each derives from the dcmplx term
 // base (cStatic_HT/cDynamic_HT in qcHamiltonian), holds the abstract orbital basis cobs_t, dynamic_casts
-// it UP to the abstract BasisSet::DFTPotential_IBS<dcmplx> capability (in qcBasisSet), and asks that high-
+// it UP to the abstract BasisSet::Band_DFT_IBS<dcmplx> capability (in qcBasisSet), and asks that high-
 // level question -- "the external matrix", "the Hartree matrix for this density".  The basis owns the
 // integration; the term owns no G-vectors or mesh.  Energies delegate to the density's DM_Contract.
 module;
@@ -10,8 +10,7 @@ module;
 #include <memory>
 export module qchem.Hamiltonian.Internal.PWTerms;
 import qchem.Hamiltonian.Internal.Term;        // cStatic_HT / cDynamic_HT + their _Imp cache bases
-import qchem.BasisSet.FourierDFT_IBS;           // the G-space capability the XC term captures for GetEnergy
-import qchem.BasisSet.DFTPotential_IBS;          // the external capability PW_External captures (G=0 alignment)
+import qchem.BasisSet.Band_FT_IBS;           // the reciprocal-space capability: Hartree/XC + external PP assembly
 import qchem.Hamiltonian.Internal.ExFunctional; // the LDA functional the XC term composes with the density
 import qchem.Hamiltonian.Types;                 // cobs_t
 import qchem.Structure;
@@ -19,24 +18,30 @@ import qchem.Structure;
 export namespace qchem::Hamiltonian
 {
 
-//! External (pseudo)potential for a plane-wave basis (static, density-independent).  The pseudopotential
-//! itself lives on the basis (set via PlaneWave_IBS::SetPseudopotential); this term just asks for the
-//! assembled matrix.  Pair with the kinetic, Hartree and XC terms for a full Kohn-Sham Hamiltonian.
+//! External (pseudo)potential term for a plane-wave basis (static, density-independent).  THIS is the
+//! pseudo-wall: the TERM owns the pseudopotential MODEL (an abstract local form factor + optional KB
+//! nonlocal projector), and asks the basis to ASSEMBLE the matrix from it (MakeLocalPotential +
+//! MakeSeparablePotential) -- physics lives Hamiltonian-side, integral assembly basis-side.  The models
+//! are non-owning (the caller keeps them alive).  Pair with the kinetic, Hartree and XC terms for a full
+//! Kohn-Sham Hamiltonian.
 class PW_External
     : public virtual cStatic_HT
     , private        cStatic_HT_Imp
 {
 public:
     typedef std::shared_ptr<const Structure> st_t;
-    PW_External(const st_t& st);
+    PW_External(const st_t& st, const BasisSet::LocalPotential* loc,
+                const BasisSet::SeparablePotential* nl=nullptr);
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
     virtual std::ostream& Write(std::ostream&) const;
 private:
     virtual chmat_t CalculateMatrix(const cobs_t*, const Spin&) const;
     st_t theStructure;
+    const BasisSet::LocalPotential*     itsLocal;       //!< local pseudopotential model (non-owning).
+    const BasisSet::SeparablePotential* itsSep;         //!< KB nonlocal model (non-owning; may be null).
     //! Captured from CalculateMatrix so GetEnergy can ask the basis for the dropped-G=0 alignment energy
     //! (ExternalG0Energy) with the current electron count.  Same basis every iteration.
-    mutable const BasisSet::DFTPotential_IBS<dcmplx>* itsBasis=nullptr;
+    mutable const BasisSet::Band_FT_IBS* itsBasis=nullptr;
 };
 
 //! Non-relativistic kinetic ENERGY term T = 1/2 <p^2> for a plane-wave basis (diagonal in |k+G|^2).
@@ -102,7 +107,7 @@ private:
     xc_t itsXc;
     //! The basis is captured from CalcMatrix so GetEnergy (which has no basis parameter) can ask it for
     //! the energy integral integral eps_xc rho with the current density.  Same basis every iteration.
-    mutable const BasisSet::FourierDFT_IBS* itsBasis=nullptr;
+    mutable const BasisSet::Band_FT_IBS* itsBasis=nullptr;
 };
 
 } //namespace

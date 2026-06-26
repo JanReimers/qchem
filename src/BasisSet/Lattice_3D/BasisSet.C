@@ -19,11 +19,10 @@ enum class Type { PW };
 
 //! \brief Build a 3D-periodic basis set for \a lat at energy cutoff \a Ecut.  Returns an abstract
 //! BasisSet<dcmplx> on the heap (caller owns), so callers must use the polymorphic interface.
-//! \param loc,nl  optional external pseudopotential (local + KB nonlocal) configured onto every
-//!   plane-wave block; if \a loc is null the external term falls back to the bare nuclear \f$-Z/r\f$.
+//! \note The pseudopotential model is NOT configured here: it lives on the Vpseudo Hamiltonian term
+//!   (the pseudo-wall), which calls the basis's MakeLocalPotential/MakeSeparablePotential assembly.
 //! \note Single-k for now: the returned basis holds ONE Bloch block at \f$\Gamma\f$.  Phase 2
 //!   generalises this to the full BZ k-list (intended to be the only k-loop in the framework).
-Complex_BS* Factory(Type type, const ::Lattice_3D& lat, double Ecut,
-                    const LocalPotential* loc=nullptr, const SeparablePotential* nl=nullptr);
+Complex_BS* Factory(Type type, const ::Lattice_3D& lat, double Ecut);
 
 } //namespace

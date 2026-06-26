@@ -7,8 +7,7 @@ module qchem.Hamiltonian.Internal.PWTerms;
 import qchem.Energy;
 import qchem.ChargeDensity;
 import qchem.ChargeDensity.FourierDensity;   // cast cd UP to its reciprocal-space coefficients rho-tilde
-import qchem.BasisSet.FourierDFT_IBS;         // cast bs UP to the G-space (FFT Hartree/XC) capability
-import qchem.BasisSet.DFTPotential_IBS;       // PW_External still uses the real-space external matrix
+import qchem.BasisSet.Band_FT_IBS;         // cast bs UP to the reciprocal-space capability (Hartree/XC + external PP)
 import qchem.Structure;                       // Structure (PW_IonIon ion-ion energy)
 import qchem.Ewald;                           // NuclearRepulsion (Ewald lattice sum for the crystal)
 import qchem.Blaze;                            // blazem::zeroH (PW_IonIon's zero matrix)
@@ -16,31 +15,39 @@ import qchem.Blaze;                            // blazem::zeroH (PW_IonIon's zer
 namespace qchem::Hamiltonian
 {
 
-PW_External::PW_External(const st_t& st)
+PW_External::PW_External(const st_t& st, const BasisSet::LocalPotential* loc,
+                         const BasisSet::SeparablePotential* nl)
     : cStatic_HT_Imp()
     , theStructure(st)
+    , itsLocal(loc)
+    , itsSep(nl)
 {
     assert(st->GetNumAtoms()>0);
+    assert(loc && "PW_External: the term owns the local pseudopotential model (must be non-null)");
 }
 
-// Ask the basis for the configured external (pseudo)potential matrix.  The dynamic_cast is the
-// sanctioned abstract->abstract move (cobs_t = Orbital_1E_IBS<dcmplx> down to the richer abstract
-// DFTPotential_IBS<dcmplx>); only a basis that supports G-space DFT assembly answers it.
+// Assemble the external matrix from the MODEL the term owns: ask the basis to turn the local form factor
+// (and the optional KB nonlocal projector) into <i|V_ext|j>.  The dynamic_cast is the sanctioned
+// abstract->abstract move (cobs_t = Orbital_1E_IBS<dcmplx> down to the richer abstract Band_FT_IBS); only
+// a basis that supports reciprocal-space assembly answers it.  V = V_loc + V_NL.
 chmat_t PW_External::CalculateMatrix(const cobs_t* bs, const Spin&) const
 {
-    auto pw=dynamic_cast<const BasisSet::DFTPotential_IBS<dcmplx>*>(bs);
-    assert(pw && "PW_External requires a DFTPotential_IBS (e.g. plane-wave) basis");
+    auto pw=dynamic_cast<const BasisSet::Band_FT_IBS*>(bs);
+    assert(pw && "PW_External requires a Band_FT_IBS (e.g. plane-wave) basis");
     itsBasis=pw;                    // captured for GetEnergy's G=0 alignment (same basis every iteration)
-    return pw->MakeExternalPotential(&*theStructure);
+    chmat_t V=pw->MakeLocalPotential(&*theStructure, *itsLocal);
+    if (itsSep) V += pw->MakeSeparablePotential(&*theStructure, *itsSep);
+    return V;
 }
 
 void PW_External::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 {
     // Een stays the band expectation over the (G!=0) external matrix (== the prototype's electron-ion
     // energy).  The dropped-G=0 alignment alpha is a separate constant in te.Ealign -- kept in the total
-    // energy but NOT the matrix (see ExternalG0Energy), and out of the band-structure cross-check.
+    // energy but NOT the matrix (see ExternalG0Energy), and out of the band-structure cross-check.  The
+    // term supplies its local model; the basis owns Omega and the (N/Omega) Sum_a alpha_a assembly.
     te.Een=cd->DM_Contract(this);                                          // integral rho V_ext (G!=0)
-    if (itsBasis) te.Ealign = itsBasis->ExternalG0Energy(&*theStructure, cd->GetTotalCharge());
+    if (itsBasis) te.Ealign = itsBasis->ExternalG0Energy(&*theStructure, *itsLocal, cd->GetTotalCharge());
 }
 
 std::ostream& PW_External::Write(std::ostream& os) const
@@ -97,12 +104,12 @@ chmat_t PW_Hartree::CalcMatrix(const cobs_t* bs, const Spin&, const cDM_CD* cd) 
     newCD(cd);   // dirty the Irrep cache if cd is new (the cross-iteration freshness mechanism)
     // G-space Poisson solve: take the density's reciprocal-space coefficients rho-tilde (composite =
     // Sum_k w_k rho_k) and assemble V_H(dm)=4pi rho-tilde/G^2 directly -- no O(Npts*n^2) pointwise rho(r).
-    auto pw=dynamic_cast<const BasisSet::FourierDFT_IBS*>(bs);
+    auto pw=dynamic_cast<const BasisSet::Band_FT_IBS*>(bs);
     auto fd=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(cd);
-    assert(pw && "PW_Hartree requires a FourierDFT_IBS (plane-wave) basis");
+    assert(pw && "PW_Hartree requires a Band_FT_IBS (plane-wave) basis");
     assert(fd && "PW_Hartree requires a FourierDensity (periodic) charge density");
     double Eh;
-    return pw->IntegralHartree(fd->GetFourierDensity(), Eh);
+    return pw->Repulsion(fd->GetFourierDensity(), Eh);
 }
 
 void PW_Hartree::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
@@ -126,15 +133,15 @@ PW_XC::PW_XC(const xc_t& xc)
 chmat_t PW_XC::CalcMatrix(const cobs_t* bs, const Spin&, const cDM_CD* cd) const
 {
     newCD(cd);
-    auto pw=dynamic_cast<const BasisSet::FourierDFT_IBS*>(bs);
+    auto pw=dynamic_cast<const BasisSet::Band_FT_IBS*>(bs);
     auto fd=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(cd);
-    assert(pw && "PW_XC requires a FourierDFT_IBS (plane-wave) basis");
+    assert(pw && "PW_XC requires a Band_FT_IBS (plane-wave) basis");
     assert(fd && "PW_XC requires a FourierDensity (periodic) charge density");
     itsBasis=pw;                               // captured for GetEnergy (which has no basis parameter)
     rvec_t rho=pw->RhoOnGrid(fd->GetFourierDensity());
     rvec_t vxc(rho.size());
     for (size_t q=0;q<rho.size();q++) vxc[q]=itsXc->GetVxc(rho[q]);   // V(r) = v_xc(rho(r))
-    return pw->IntegralPotentialGrid(vxc);
+    return pw->Overlap(vxc);
 }
 
 void PW_XC::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
@@ -146,7 +153,7 @@ void PW_XC::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
     rvec_t rho=itsBasis->RhoOnGrid(fd->GetFourierDensity());
     rvec_t exc(rho.size());
     for (size_t q=0;q<rho.size();q++) {double ro=rho[q]; exc[q]=itsXc->GetEpsXc(ro)*ro;}
-    te.Exc += itsBasis->IntegralGrid(exc);     // E_xc = integral eps_xc(rho) rho  (fresh with this cd)
+    te.Exc += itsBasis->Integral(exc);     // E_xc = integral eps_xc(rho) rho  (fresh with this cd)
 }
 
 std::ostream& PW_XC::Write(std::ostream& os) const

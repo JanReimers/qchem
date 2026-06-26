@@ -1,4 +1,4 @@
-// File: BasisSet/DFTPotential_IBS.C  Abstract DFT potential/energy assembly capability (mesh-integrated).
+// File: BasisSet/Band_DFT_IBS.C  Abstract DFT potential/energy assembly capability (mesh-integrated).
 //
 // PROVISIONAL interface (may be unified with the fit-based Orbital_DFT_IBS later).  It INVERTS the
 // dependency between the Hamiltonian DFT terms and the concrete basis: the DFT terms live in
@@ -16,10 +16,9 @@
 // all).  Hence the only inputs are real-space ScalarFunctions (the density IS one; the XC potential is a
 // composed one) and there are deliberately NO getters here.
 module;
-export module qchem.BasisSet.DFTPotential_IBS;
+export module qchem.BasisSet.Band_DFT_IBS;
 export import qchem.BasisSet.Orbital_1E_IBS;
 export import qchem.ScalarFunction;   // ScalarFunction<double> -- the real-space fields the term hands in
-import qchem.Structure;        // Structure -- the external-potential structure factor
 import qchem.Types;            // hmat_t<T>
 
 export namespace BasisSet
@@ -28,31 +27,25 @@ export namespace BasisSet
 //! \brief A basis that can assemble DFT potential matrices and energies by integrating real-space
 //! scalar fields on its OWN mesh.  The capability the Kohn-Sham potential terms require, with the
 //! integration scheme entirely the basis's business (see the design note above).
-template <class T> class DFTPotential_IBS
+template <class T> class Band_DFT_IBS
     : public virtual Orbital_1E_IBS<T>
 {
 public:
-    //! Matrix \f$\langle i|V|j\rangle\f$ of a real-space scalar potential \a V (e.g. the XC term passes
-    //! \f$V(r)=v_{xc}(\rho(r))\f$); the basis integrates it on its own mesh.
-    virtual hmat_t<T> IntegralPotential(const ScalarFunction<double>& V) const=0;
+    using Orbital_1E_IBS<T>::Overlap;   // keep the cached no-arg Overlap() visible beside the weighted form
 
-    //! Hartree matrix \f$\langle i|V_H[\rho]|j\rangle\f$ for the density \a rho (the Poisson solve is the
-    //! basis's business), with the Hartree energy \f$E_H=\tfrac12\int\rho V_H\f$ returned by reference.
-    virtual hmat_t<T> IntegralHartree(const ScalarFunction<double>& rho, double& Eh) const=0;
+    //! Weighted overlap matrix \f$\langle i|f|j\rangle=\int\phi_i^* f\,\phi_j\,d^3r\f$ of a real-space scalar
+    //! field \a f (e.g. the XC term passes \f$f=v_{xc}(\rho)\f$).  Direct -- \a f is the only weight, no
+    //! \f$1/r\f$ kernel.  NOT cached: \a f changes every SCF cycle, and a ScalarFunction has no cache ID
+    //! by design (the absence of an ID is the signal that this is recomputed, not keyed by BasisSetID).
+    virtual hmat_t<T> Overlap(const ScalarFunction<double>& f) const=0;
+
+    //! Coulomb repulsion matrix \f$\langle i|V_{Coul}[\rho]|j\rangle\f$ for the density \a rho (the
+    //! \f$1/r_{12}\f$ Poisson solve is the basis's business), with the repulsion energy
+    //! \f$E=\tfrac12\int\rho\,V_{Coul}\f$ returned by reference.  Not cached (the density changes each cycle).
+    virtual hmat_t<T> Repulsion(const ScalarFunction<double>& rho, double& Eh) const=0;
 
     //! Scalar integral \f$\int f\,d^3r\f$ over the cell, on the basis's own mesh (XC energy, double-counts).
     virtual double Integral(const ScalarFunction<double>& f) const=0;
-
-    //! The configured external (pseudo)potential matrix \f$\langle i|V_{ext}|j\rangle\f$ for this
-    //! structure -- the basis owns its model (bare \f$-Z/r\f$, norm-conserving pseudopotential, ...).
-    virtual hmat_t<T> MakeExternalPotential(const Structure*) const=0;
-
-    //! Energy carried by the external potential's DROPPED \f$G=0\f$ component, for a density of
-    //! \a numElectrons electrons: the uniform electron-ion alignment \f$(N/\Omega)\sum_a\alpha_a\f$
-    //! (\f$\alpha_a=\int[V_{loc}^a+Z_a/r]\f$, the local part's finite \f$G\to0\f$ limit).  It enters the
-    //! total energy but NOT the Hamiltonian matrix (the \f$G=0\f$ potential is a constant shift, dropped
-    //! from the matrix).  Default 0 -- only a basis that drops a \f$G=0\f$ component (plane waves) has it.
-    virtual double ExternalG0Energy(const Structure*, double numElectrons) const {return 0.0;}
 };
 
 } //namespace

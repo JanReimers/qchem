@@ -100,34 +100,34 @@ ivec3_t PlaneWave_IBS::AutoGrid() const
     return ivec3_t(nn,nn,nn);
 }
 
-// <i|V|j> for a real-space scalar potential V: sample V on the (Cartesian) grid, forward-DFT to
-// Vtilde(dm), assemble.  The XC term passes V(r)=v_xc(rho(r)); the integration is OUR business.
-chmat_t PlaneWave_IBS::IntegralPotential(const ScalarFunction<double>& V) const
+// <i|f|j> weighted overlap for a real-space scalar field f: sample f on the (Cartesian) grid, forward-DFT
+// to f-tilde(dm), assemble.  The XC term passes f(r)=v_xc(rho(r)); the integration is OUR business.
+chmat_t PlaneWave_IBS::Overlap(const ScalarFunction<double>& f) const
 {
     std::vector<rvec3_t> frac=UniformGrid(AutoGrid());
     UnitCell A=itsRecip.GetCell().MakeReciprocalCell();          // direct cell (reciprocal of the reciprocal)
     std::vector<double> field(frac.size());
-    for (size_t q=0;q<frac.size();q++) field[q]=V(A.ToCartesian(frac[q]));
+    for (size_t q=0;q<frac.size();q++) field[q]=f(A.ToCartesian(frac[q]));
     auto vt=ForwardDFTDiffSet(itsG,frac,field);
     return MakePotential([&vt](const ivec3_t& dm)->dcmplx
         { auto it=vt.find(dm); return it==vt.end()?dcmplx(0.0):it->second; });
 }
 
-// Hartree matrix + energy for a density rho: rho~(dm) via the grid DFT, then V_H~(dm)=4 pi rho~/|G|^2
-// (dm=0 dropped, neutralising background); E_H = (Omega/2) Sum_{G!=0} 4 pi |rho~|^2/|G|^2.
-// Hartree from a real-space density: sample on the grid, forward-DFT to rho-tilde, then the G-space solve.
-chmat_t PlaneWave_IBS::IntegralHartree(const ScalarFunction<double>& rho, double& Eh) const
+// Coulomb repulsion matrix + energy for a density rho: rho~(dm) via the grid DFT, then V_Coul~(dm)=4 pi
+// rho~/|G|^2 (dm=0 dropped, neutralising background); E = (Omega/2) Sum_{G!=0} 4 pi |rho~|^2/|G|^2.
+// From a real-space density: sample on the grid, forward-DFT to rho-tilde, then the G-space (1/r12) solve.
+chmat_t PlaneWave_IBS::Repulsion(const ScalarFunction<double>& rho, double& Eh) const
 {
     std::vector<rvec3_t> frac=UniformGrid(AutoGrid());
     UnitCell A=itsRecip.GetCell().MakeReciprocalCell();
     std::vector<double> field(frac.size());
     for (size_t q=0;q<frac.size();q++) field[q]=rho(A.ToCartesian(frac[q]));
-    return IntegralHartree(ForwardDFTDiffSet(itsG,frac,field), Eh);
+    return Repulsion(ForwardDFTDiffSet(itsG,frac,field), Eh);
 }
 
 // Hartree directly from the density's G-space coefficients rho-tilde (the FFT-free Poisson solve):
 //   V_H(dm) = 4 pi rho-tilde(dm)/|G|^2,   E_H = (Omega/2) Sum_{G!=0} 4 pi |rho-tilde|^2/|G|^2,  dm=0 dropped.
-chmat_t PlaneWave_IBS::IntegralHartree(const FourierMap& rg, double& Eh) const
+chmat_t PlaneWave_IBS::Repulsion(const FourierMap& rg, double& Eh) const
 {
     Eh=0.0;
     for (const auto& kv : rg)
@@ -187,7 +187,7 @@ rvec_t PlaneWave_IBS::RhoOnGrid(const FourierMap& rho) const
 
 // <i|V|j> from real-space potential values on the FFT grid: forward-FFT to Vtilde(dm)=(1/Npts) FFT[V],
 // then assemble (same MakePotential the other G-space routes use).
-chmat_t PlaneWave_IBS::IntegralPotentialGrid(const rvec_t& V) const
+chmat_t PlaneWave_IBS::Overlap(const rvec_t& V) const
 {
     ivec3_t N=FFTGrid();
     size_t Npts=size_t(N.x)*N.y*N.z;
@@ -203,7 +203,7 @@ chmat_t PlaneWave_IBS::IntegralPotentialGrid(const rvec_t& V) const
 }
 
 // integral f d3r on the FFT grid: uniform quadrature, weight Omega/Npts.
-double PlaneWave_IBS::IntegralGrid(const rvec_t& f) const
+double PlaneWave_IBS::Integral(const rvec_t& f) const
 {
     return blazem::sum(f)*itsVolume/double(f.size());
 }
@@ -218,24 +218,16 @@ double PlaneWave_IBS::Integral(const ScalarFunction<double>& f) const
     return s*itsVolume/double(frac.size());
 }
 
-// Configured external (pseudo)potential matrix: local PP (+ KB nonlocal) if set, else bare -Z/r.
-chmat_t PlaneWave_IBS::MakeExternalPotential(const Structure* cl) const
-{
-    if (itsLocalPP && itsSepPP) return MakeLocalPotential(cl,*itsLocalPP)+MakeSeparablePotential(cl,*itsSepPP);
-    if (itsLocalPP)             return MakeLocalPotential(cl,*itsLocalPP);
-    return MakeNuclear(cl);
-}
-
 // Energy of the DROPPED G=0 local-potential component: E_alpha = (N/Omega) Sum_a alpha_a, with
-// alpha_a = the local PP's finite G->0 limit (FormFactorG0 = integral[V_loc+Z/r]).  itsVolume = Omega.
-// Only the LOCAL part has a G=0 alignment (the separable nonlocal is short-ranged); a bare-Coulomb
-// fallback (no PP set) has alpha=0.  This is an ENERGY-only term -- the G=0 potential never entered the
-// matrix (MakeLocalPotential drops dG=0), so it is added to the total energy by the external term.
-double PlaneWave_IBS::ExternalG0Energy(const Structure* cl, double numElectrons) const
+// alpha_a = the local model's finite G->0 limit (FormFactorG0 = integral[V_loc+Z/r]).  itsVolume = Omega.
+// Only the LOCAL part has a G=0 alignment (the separable nonlocal is short-ranged); a bare-Coulomb model
+// has alpha=0.  This is an ENERGY-only term -- the G=0 potential never entered the matrix
+// (MakeLocalPotential drops dG=0), so it is added to the total energy by the external term, which owns
+// the model and supplies it here (Omega and the cell geometry stay the basis's business).
+double PlaneWave_IBS::ExternalG0Energy(const Structure* cl, const LocalPotential& loc, double numElectrons) const
 {
-    if (!itsLocalPP) return 0.0;
     double sumAlpha=0.0;
-    for (Atom* a : *cl) sumAlpha += itsLocalPP->FormFactorG0(a->itsZ);
+    for (Atom* a : *cl) sumAlpha += loc.FormFactorG0(a->itsZ);
     return (numElectrons/itsVolume)*sumAlpha;
 }
 
