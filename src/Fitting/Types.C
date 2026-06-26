@@ -9,5 +9,8 @@ export import qchem.BasisSet.Fit_IBS;
 export namespace qchem::Fitting
 {
     using fbs_t=BasisSet::Fit_IBS;
-    template <class T> using obs_t=BasisSet::Orbital_DFT_IBS<T>;
+    // The orbital basis the fitter contracts against is named by its COMMON base (Orbital_1E_IBS), so both
+    // the Gaussian (Orbital_DFT_IBS, 3-centre) and plane-wave (Band_FT_IBS, FourierMap) bases qualify; each
+    // concrete fitter dynamic_casts down to the capability it needs (abstract->abstract, sanctioned).
+    template <class T> using obs_t=BasisSet::Orbital_1E_IBS<T>;
 }

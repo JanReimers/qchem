@@ -7,7 +7,8 @@ module qchem.Hamiltonian.Internal.PWTerms;
 import qchem.Energy;
 import qchem.ChargeDensity;
 import qchem.ChargeDensity.FourierDensity;   // cast cd UP to its reciprocal-space coefficients rho-tilde
-import qchem.BasisSet.Band_FT_IBS;         // cast bs UP to the reciprocal-space capability (Hartree/XC + external PP)
+import qchem.BasisSet.Band_FT_IBS;         // cast bs UP to the reciprocal-space capability (XC + external PP)
+import qchem.Fitting.FourierFunctionFitter; // the PW fitter PW_Hartree drives (like FittedVee's FunctionFitter)
 import qchem.Structure;                       // Structure (PW_IonIon ion-ion energy)
 import qchem.Ewald;                           // NuclearRepulsion (Ewald lattice sum for the crystal)
 import qchem.Blaze;                            // blazem::zeroH (PW_IonIon's zero matrix)
@@ -102,14 +103,15 @@ std::ostream& PW_IonIon::Write(std::ostream& os) const
 chmat_t PW_Hartree::CalcMatrix(const cobs_t* bs, const Spin&, const cDM_CD* cd) const
 {
     newCD(cd);   // dirty the Irrep cache if cd is new (the cross-iteration freshness mechanism)
-    // G-space Poisson solve: take the density's reciprocal-space coefficients rho-tilde (composite =
-    // Sum_k w_k rho_k) and assemble V_H(dm)=4pi rho-tilde/G^2 directly -- no O(Npts*n^2) pointwise rho(r).
-    auto pw=dynamic_cast<const BasisSet::Band_FT_IBS*>(bs);
+    // Drive a FourierFunctionFitter exactly as FittedVee drives a FunctionFitter: DoFit the density, then
+    // ask for its Coulomb (Hartree) matrix.  The plane-wave "fit" is orthonormal/exact -- DoFit just
+    // RECEIVES the density's pre-computed rho-tilde (= Sum_k w_k rho_k) -- and Repulsion delegates the
+    // FFT-free G-space Poisson solve to the basis (Band_FT_IBS), which the fitter casts down to.
     auto fd=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(cd);
-    assert(pw && "PW_Hartree requires a Band_FT_IBS (plane-wave) basis");
     assert(fd && "PW_Hartree requires a FourierDensity (periodic) charge density");
-    double Eh;
-    return pw->Repulsion(fd->GetFourierDensity(), Eh);
+    Fitting::FourierFunctionFitter fitter;
+    fitter.DoFit(fd->GetFourierDensity());
+    return fitter.Repulsion(bs);
 }
 
 void PW_Hartree::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const

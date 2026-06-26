@@ -76,7 +76,9 @@ template <class T> void FunctionFitterImp<T>::DoFitInternal(const DensityFFClien
 template <class T> hmat_t<T> FunctionFitterImp<T>::
 Overlap(const obs_t<T>* bs) const
 {
-    const ERI3<T>& O3=bs->Overlap3C(*itsBasisSet);
+    auto dftbs=dynamic_cast<const BasisSet::Orbital_DFT_IBS<T>*>(bs); // obs_t is the 1E base; need the 3-centre one
+    assert(dftbs && "FunctionFitterImp::Overlap: Gaussian fitting needs an Orbital_DFT_IBS (3-centre) basis");
+    const ERI3<T>& O3=dftbs->Overlap3C(*itsBasisSet);
     hmat_t<T> J=blazem::zeroH<T>(bs->GetNumFunctions());
     size_t i=0;
     for (auto c:itsFitCoeff) J+=c*O3[i++];
@@ -87,7 +89,9 @@ Overlap(const obs_t<T>* bs) const
 template <class T> hmat_t<T> FunctionFitterImp<T>::
 Repulsion(const obs_t<T>* bs) const
 {
-    const ERI3<T>& R3=bs->Repulsion3C(*itsBasisSet);
+    auto dftbs=dynamic_cast<const BasisSet::Orbital_DFT_IBS<T>*>(bs); // obs_t is the 1E base; need the 3-centre one
+    assert(dftbs && "FunctionFitterImp::Repulsion: Gaussian fitting needs an Orbital_DFT_IBS (3-centre) basis");
+    const ERI3<T>& R3=dftbs->Repulsion3C(*itsBasisSet);
     hmat_t<T> J=blazem::zeroH<T>(bs->GetNumFunctions());
     size_t i=0;
     for (auto c:itsFitCoeff) J+=c*R3[i++];
