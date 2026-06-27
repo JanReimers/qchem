@@ -21,7 +21,6 @@ import qchem.BasisSet.Molecule.Readers.Gaussian94;
 import qchem.BasisSet.Molecule.BasisFiles;
 import qchem.BasisSet.Orbital_1E_IBS;            // Overlap()/Kinetic()/Nuclear()
 import qchem.BasisSet.Orbital_HF_IBS;            // Direct()/Exchange()
-import qchem.BasisSet.Internal.DB_Cache_RAM;     // theGlobalCache (created here, as the gtest main does)
 import qchem.Structure;
 import qchem.Types;
 
@@ -69,8 +68,6 @@ int main(int argc, char** argv)
     std::string basis  = argc>3 ? argv[3] : "dzvp";
     std::string file   = basis + ".bsd";
 
-    BasisSet::theGlobalCache = new BasisSet::IntegralsCache_RAM<double>(true);  // as gtestmain.C does
-
     Molecule* mol = MakeWaters(nwater);
     printf("MnDBench: %d water(s), basis=%s\n", nwater, basis.c_str());
 
@@ -90,6 +87,5 @@ int main(int argc, char** argv)
         tl = TimeIntegrals("libcint", ibs, mol);
     }
     if (tm>0 && tl>0) printf("  speedup (MnD/libcint) = %.1fx\n", tm/tl);
-    delete BasisSet::theGlobalCache;
     return 0;
 }

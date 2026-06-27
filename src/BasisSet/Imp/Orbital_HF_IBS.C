@@ -11,17 +11,13 @@ namespace BasisSet
 
 template <class T> const ERI4& Orbital_HF_IBS<T>::Direct(const Orbital_HF_IBS<T>& c) const
 {
-    auto cache=theGlobalCache;
-    assert(cache);
-    return cache->Get(IntegralsCache_Base::I4C::Direct,this,&c,
+    return theCache<T>().Get(IntegralsCache_Base::I4C::Direct,this,&c,
         [this,&c]{ return MakeDirect(c); });
 }
 
 template <class T> const   ERI4&  Orbital_HF_IBS<T>::Exchange(const Orbital_HF_IBS<T>& c) const
 {
-    auto cache=theGlobalCache;
-    assert(cache);
-    return cache->Get(IntegralsCache_Base::I4C::Exchange,this,&c,
+    return theCache<T>().Get(IntegralsCache_Base::I4C::Exchange,this,&c,
         [this,&c]{ return MakeExchange(c); });
 }
 

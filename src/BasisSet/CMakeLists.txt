@@ -9,6 +9,7 @@ target_sources(qcBasisSet PRIVATE
   Imp/Fit_IBS.C
   Imp/SymmetryAdapted_IBS.C
   Internal/Imp/Orbital_DHF_IBS.C
+  Internal/Imp/DB_Cache.C
   Internal/Imp/Cache4.C
   Internal/Imp/Cache2.C
   Internal/Imp/Cache3.C

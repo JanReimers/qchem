@@ -12,9 +12,7 @@ namespace BasisSet
 // BasisSet/Internal/Orbital_DHF_IBS.C re the c_light/2 factors.
 template <class T> const mat_t<T>& Orbital_RKBL_IBS<T>::Kinetic(const Orbital_RKBS_IBS<T>& rkbs) const
 {
-    auto cache=theGlobalCache;
-    assert(cache);
-    return cache->Get(IntegralsCache_Base::I2x::Kinetic,this,&rkbs,
+    return theCache<T>().Get(IntegralsCache_Base::I2x::Kinetic,this,&rkbs,
             [this,&rkbs]{ return MakeKinetic(rkbs); });
 }
 

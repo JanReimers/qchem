@@ -24,6 +24,13 @@ struct DBCacheClient
 {
     virtual ~DBCacheClient() = default;
     virtual std::string BasisSetID() const = 0;
+    // The leading dimension this client expects its cached 2-centre matrices to have (= number of basis
+    // functions).  The cache cross-checks it on every hit/insert, so a BasisSetID() that is not specific
+    // enough (two differently-sized geometries colliding on one key) is caught right at the cache
+    // boundary -- with operator/ID/dims in hand -- instead of as a Cholesky segfault three layers down.
+    // Named CacheDim() (NOT size()) on purpose: size() collides with the VectorFunction/diamond
+    // hierarchy.  Final overrider is the single bridge in IrrepBasisSet<T>.
+    virtual size_t CacheDim() const = 0;
 };
 
 // Non-template bass class helps avoid so many annoying using statements in derived classes
@@ -65,8 +72,10 @@ public:
     // cached Get()s safely), the result is stored, and a reference to the *stored*
     // object is returned.  No shared "last key"/iterator state, so it is re-entrant.
     virtual const rvec_t&    Get(I1C,const DBCacheClient*,                          std::function<rvec_t   ()> make)=0; // Charge       -> vectors
-    virtual const smat_t<T>& Get(I2C,const DBCacheClient*,                          std::function<smat_t<T>()> make)=0; // 2C sym mats
-    virtual const smat_t<T>& Get(I2n,const DBCacheClient*,const Structure_ID_t&,      std::function<smat_t<T>()> make)=0; // Nuclear
+    // I2C/I2n are HERMITIAN (hmat_t): identical to symmetric for double (hmat_t<double>==smat_t<double>),
+    // and correctly Hermitian (chmat_t) for the complex/plane-wave path.
+    virtual const hmat_t<T>& Get(I2C,const DBCacheClient*,                          std::function<hmat_t<T>()> make)=0; // 2C herm mats
+    virtual const hmat_t<T>& Get(I2n,const DBCacheClient*,const Structure_ID_t&,      std::function<hmat_t<T>()> make)=0; // Nuclear
     virtual const  mat_t<T>& Get(I2x,const DBCacheClient*,const DBCacheClient*,     std::function< mat_t<T>()> make)=0; // cross IBS
     virtual const ERI3  <T>& Get(I3C,const DBCacheClient*,const DBCacheClient*,     std::function<ERI3  <T>()> make)=0; // 3 centre
     virtual const ERI4&      Get(I4C,const DBCacheClient*,const DBCacheClient*,     std::function<ERI4     ()> make)=0; // 4 centre
@@ -88,7 +97,13 @@ public:
 
 };
 
-IntegralsCache<double>* theGlobalCache=0;
+// Construct-on-first-use accessor for the one process-wide integrals cache (replaces the old raw
+// `theGlobalCache` global that every main() had to `new` by hand and which leaked).  The instance is
+// a function-static IntegralsCache_RAM<T>, so it is built on first use, destroyed at exit (its dtor
+// still prints the RAM report), and its initialisation is thread-safe (C++11 magic statics).  The
+// definition lives in Internal/Imp/DB_Cache.C, where IntegralsCache_RAM<T> is complete; only the
+// instantiations explicitly listed there exist (currently just <double>).
+template <class T> IntegralsCache<T>& theCache();
 
 
 

@@ -9,9 +9,7 @@ namespace BasisSet
 
     template <class T> const smat_t<T>& Orbital_RKB_IBS<T>::RestMass() const
 {
-    auto cache=theGlobalCache;
-    assert(cache);
-    return cache->Get(IntegralsCache_Base::I2C::RestMass,this,
+    return theCache<T>().Get(IntegralsCache_Base::I2C::RestMass,this,
         [this]{ return MakeRestMass(); });
 }
 

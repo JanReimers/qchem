@@ -5,7 +5,6 @@
 import qchem.BasisSet.Atom.Factory;
 import qchem.LASolver;
 import qchem.Blaze;
-import qchem.BasisSet.Internal.DB_Cache_RAM;
 
 using std::cout;
 using std::endl;
@@ -18,11 +17,8 @@ using BasisSet::Real_OIBS;
 class BasisSetPoolTests : public ::testing::Test
 {
 public:
-    ~BasisSetPoolTests()
-    {
-        delete BasisSet::theGlobalCache;  
-        BasisSet::theGlobalCache=new BasisSet::IntegralsCache_RAM<double>(true); 
-    }
+    // The integrals cache is a process-wide construct-on-first-use singleton now; there is no longer a
+    // per-fixture cache to tear down and recreate (the Cache4 registry self-invalidates on Register).
     void Orthogonality(BasisSet::Atom::Type type)
     {
         const double trunc_tol=0;

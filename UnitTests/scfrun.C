@@ -13,7 +13,6 @@
 import qchem.BasisSet.Atom.Factory;
 import qchem.Unittests.QchemTester;       // QchemTester, TestAtom, TestDiracAtom, BasisSetAccuracy
 import qchem.Hamiltonian.Factory;         // Model, Pol, Factory
-import qchem.BasisSet.Internal.DB_Cache_RAM; // theGlobalCache (the integrals cache)
 
 using std::cout;
 using std::endl;
@@ -121,8 +120,6 @@ int main(int argc, char** argv)
     bool dirac = (model=="DHF" || model=="DE1");
     if (basis.empty()) basis = dirac ? "Slater_RKB" : "Slater";
     accj["type"]=accel;
-
-    BasisSet::theGlobalCache = new BasisSet::IntegralsCache_RAM<double>(true); //integrals cache (cf. gtestmain)
 
     // ---- string -> enum maps ----
     std::map<string,Model> models={{"HF",Model::HF},{"DHF",Model::DHF},{"E1",Model::E1},{"DE1",Model::DE1}};

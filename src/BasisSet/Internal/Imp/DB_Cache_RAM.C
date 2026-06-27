@@ -10,6 +10,7 @@ module;
 #include <format>
 #include <chrono>
 #include <functional>
+#include <stdexcept>
 module qchem.BasisSet.Internal.DB_Cache_RAM;
 
 namespace std
@@ -202,6 +203,33 @@ template <class T> const Cache3* IntegralsCache_RAM<T>::GetCache3(const RadialTy
     return it->second.get();
 }
 
+// Self-check guard: on a cache hit or insert the stored matrix MUST have the dimension the client
+// expects (CacheDim() = number of basis functions).  A mismatch means the BasisSetID() key was not
+// specific enough -- two differently-sized geometries collided on one key -- and we dump operator / ID /
+// dims and throw right here at the cache boundary, instead of letting a wrong-sized matrix detonate
+// (Cholesky segfault) several layers down.  (Same-size-different-content collisions still slip through;
+// that is a rarer, separate problem.)
+namespace
+{
+void CheckCacheDim(size_t cached,size_t expected,const std::string& op,const std::string& id)
+{
+    if (cached!=expected)
+        throw std::runtime_error(std::format(
+            "IntegralsCache dim mismatch: operator={} BasisSetID='{}' cached dim={} expected dim={}"
+            " -- BasisSetID() is not specific enough (differently-sized geometries collide on one key).",
+            op,id,cached,expected));
+}
+void CheckCacheDim2(size_t crows,size_t ccols,size_t erows,size_t ecols,
+                    const std::string& op,const std::string& ida,const std::string& idb)
+{
+    if (crows!=erows || ccols!=ecols)
+        throw std::runtime_error(std::format(
+            "IntegralsCache cross dim mismatch: operator={} a='{}' b='{}' cached={}x{} expected={}x{}"
+            " -- a BasisSetID() is not specific enough.",
+            op,ida,idb,crows,ccols,erows,ecols));
+}
+} //anon
+
 //
 // Self-contained lookup-or-compute.  No shared itsLastKeyX / iterator state, so these are
 // re-entrant: make() may perform nested cached Get()s.  std::map is node-based, so the
@@ -220,27 +248,37 @@ template <class T> const rvec_t& IntegralsCache_RAM<T>::Get(I1C i1c,const DBCach
     return it->second;
 }
 
-template <class T> const smat_t<T>& IntegralsCache_RAM<T>::Get(I2C i2c,const DBCacheClient* bs,std::function<smat_t<T>()> make)
+template <class T> const hmat_t<T>& IntegralsCache_RAM<T>::Get(I2C i2c,const DBCacheClient* bs,std::function<hmat_t<T>()> make)
 {
     IBS_ID_t id=bs->BasisSetID();
     key2_t key(i2c,id);
-    if (auto i=itsSMats.find(key); i!=itsSMats.end()) return i->second;
+    if (auto i=itsSMats.find(key); i!=itsSMats.end())
+    {
+        CheckCacheDim(i->second.rows(),bs->CacheDim(),std::format("I2C {}",i2c),id);
+        return i->second;
+    }
     if (itsMakeLog) itsLogger << "I2C " << std::format("{:<12}",i2c) << " compute a=" << id << std::endl;
     auto v=make();
     const auto [it,ok]=itsSMats.insert({key,std::move(v)});
     assert(ok);
+    CheckCacheDim(it->second.rows(),bs->CacheDim(),std::format("I2C {}",i2c),id);
     return it->second;
 }
 
-template <class T> const smat_t<T>& IntegralsCache_RAM<T>::Get(I2n i2n,const DBCacheClient* bs,const Structure_ID_t& cl,std::function<smat_t<T>()> make)
+template <class T> const hmat_t<T>& IntegralsCache_RAM<T>::Get(I2n i2n,const DBCacheClient* bs,const Structure_ID_t& cl,std::function<hmat_t<T>()> make)
 {
     IBS_ID_t id=bs->BasisSetID();
     keyn_t key(id,cl);
-    if (auto i=itsNMats.find(key); i!=itsNMats.end()) return i->second;
+    if (auto i=itsNMats.find(key); i!=itsNMats.end())
+    {
+        CheckCacheDim(i->second.rows(),bs->CacheDim(),std::format("I2n {}",i2n),id);
+        return i->second;
+    }
     if (itsMakeLog) itsLogger << "I2n " << std::format("{:<12}",i2n) << " compute a=" << id << " structure=" << cl << std::endl;
     auto v=make();
     const auto [it,ok]=itsNMats.insert({key,std::move(v)});
     assert(ok);
+    CheckCacheDim(it->second.rows(),bs->CacheDim(),std::format("I2n {}",i2n),id);
     return it->second;
 }
 
@@ -248,11 +286,18 @@ template <class T> const mat_t<T>& IntegralsCache_RAM<T>::Get(I2x i2x,const DBCa
 {
     IBS_ID_t ida=a->BasisSetID(), idb=b->BasisSetID();
     keyx_t key(i2x,ida,idb);
-    if (auto i=itsMats.find(key); i!=itsMats.end()) return i->second;
+    if (auto i=itsMats.find(key); i!=itsMats.end())
+    {
+        CheckCacheDim2(i->second.rows(),i->second.columns(),a->CacheDim(),b->CacheDim(),
+                       std::format("I2x {}",i2x),ida,idb);
+        return i->second;
+    }
     if (itsMakeLog) itsLogger << "I2x " << std::format("{:<12}",i2x) << " compute a=" << ida << " b=" << idb << std::endl;
     auto v=make();
     const auto [it,ok]=itsMats.insert({key,std::move(v)});
     assert(ok);
+    CheckCacheDim2(it->second.rows(),it->second.columns(),a->CacheDim(),b->CacheDim(),
+                   std::format("I2x {}",i2x),ida,idb);
     return it->second;
 }
 
@@ -317,5 +362,9 @@ template <class T> const rmat_t& IntegralsCache_RAM<T>::Get(I2x i2x,const DBCach
 
 template struct IntegralsCache<double>;
 template struct IntegralsCache_RAM<double>;
+// Complex (plane-wave) path: the PW lineage only needs the Hermitian I2C Overlap, but the explicit
+// instantiation pulls in every member, so all the dcmplx storage/Get variants must compile.
+template struct IntegralsCache<dcmplx>;
+template struct IntegralsCache_RAM<dcmplx>;
 
 } //namespace

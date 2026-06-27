@@ -280,11 +280,10 @@ template <isHF_Evaluator E> ERI4 Orbital_HF_IBS<E>::MakeDirect(const BasisSet::O
     auto& c=dynamic_cast<const E&>(_c);
     int la=a.Getl(), lc=c.Getl();
     assert(a.RadialType()==c.RadialType());
-    assert(BasisSet::theGlobalCache);
     size_t spanab=a.maxSpan(),spancd=c.maxSpan();
     size_t Na=a.size(), Nc=c.size();
     rvec11_t Akac=a.DirectAk(c);
-    const Cache4* Rk_cache=BasisSet::theGlobalCache->GetCache4(a.RadialType());
+    const Cache4* Rk_cache=BasisSet::theCache<double>().GetCache4(a.RadialType());
     ERI4 J(Na,Nc);
 
     for (size_t ia:a.indices())
@@ -325,12 +324,11 @@ template <isHF_Evaluator E> ERI4 Orbital_HF_IBS<E>::MakeExchange(const BasisSet:
     auto& a=dynamic_cast<const E&>(*this);
     auto& c=dynamic_cast<const E&>(_c);
     assert(a.RadialType()==c.RadialType());
-    assert(BasisSet::theGlobalCache);
     size_t spanab=a.maxSpan(),spancd=c.maxSpan();
     size_t Na=a.size(), Nc=c.size();
     int la=a.Getl(), lc=c.Getl();
     rvec11_t Akac=a.ExchangeAk(c);
-    const Cache4* Rk_cache=BasisSet::theGlobalCache->GetCache4(a.RadialType());
+    const Cache4* Rk_cache=BasisSet::theCache<double>().GetCache4(a.RadialType());
 
     ERI4 K(Na,Nc);
     for (size_t ia:a.indices())

@@ -46,46 +46,34 @@ void Fit_IBS::SetMesh(const Structure& cl, const qcMesh::MeshParams& mp)
 
 const  rvec_t& Fit_IBS::Charge   () const
 {
-    auto cache=theGlobalCache;
-    assert(cache);
-    return cache->Get(IntegralsCache_Base::I1C::Charge,this,
+    return theCache<double>().Get(IntegralsCache_Base::I1C::Charge,this,
         [this]{ return MakeCharge(); });
 }
 const rsmat_t& Fit_IBS::Repulsion() const
 {
-    auto cache=theGlobalCache;
-    assert(cache);
-    return cache->Get(IntegralsCache_Base::I2C::Repulsion,this,
+    return theCache<double>().Get(IntegralsCache_Base::I2C::Repulsion,this,
         [this]{ return MakeRepulsion(); });
 }
 const  rmat_t& Fit_IBS::Repulsion(const FIT_CD_ABS& b) const
 {
-    auto cache=theGlobalCache;
-    assert(cache);
-    return cache->Get(IntegralsCache_Base::I2x::Repulsion,this,&b
+    return theCache<double>().Get(IntegralsCache_Base::I2x::Repulsion,this,&b
             ,[this,&b]{ return MakeRepulsion(b); });
 }
 const rsmat_t& Fit_IBS::InvOverlap() const
 {
-    auto cache=theGlobalCache;
-    assert(cache);
-    return cache->Get(IntegralsCache_Base::I2C::InvOverlap,this,
+    return theCache<double>().Get(IntegralsCache_Base::I2C::InvOverlap,this,
         [this]{ return MakeInvOverlap(); });
 }
 const rsmat_t& Fit_IBS::InvRepulsion() const
 {
-    auto cache=theGlobalCache;
-    assert(cache);
-    return cache->Get(IntegralsCache_Base::I2C::InvRepulsion,this,
+    return theCache<double>().Get(IntegralsCache_Base::I2C::InvRepulsion,this,
         [this]{ return MakeInvRepulsion(); });
 }
 
 // The mesh is fixed per fit basis, so the normalisation caches on `this` alone (no mesh key).
 const rvec_t& Fit_IBS::Norm() const
 {
-    auto cache=theGlobalCache;
-    assert(cache);
-    return cache->Get(IntegralsCache_Base::I1C::Normalization,this,
+    return theCache<double>().Get(IntegralsCache_Base::I1C::Normalization,this,
         [this]{ return MakeNorm(); });
 }
 

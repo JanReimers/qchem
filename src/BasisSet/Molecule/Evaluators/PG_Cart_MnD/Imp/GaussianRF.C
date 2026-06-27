@@ -13,7 +13,7 @@ module;
 module qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Hermite;   // Hermite1/2/3
 import qchem.BasisSet.Molecule.Evaluators.Internal.MnD;   // generic MnD core (RNLM, ...)
-import qchem.BasisSet.Internal.DB_Cache;   // theGlobalCache, Register/GetCache{2,3}
+import qchem.BasisSet.Internal.DB_Cache;   // theCache<double>(), Register/GetCache{2,3}
 import qchem.BasisSet.Internal.Cache2;     // Cache2, Cacheable2, Cache2_Client
 import qchem.BasisSet.Internal.Cache3;     // Cache3, Cacheable3, Cache3_Client
 
@@ -93,12 +93,12 @@ namespace
     {
         static const void*   owner = nullptr;
         static const Cache2* cache = nullptr;
-        if (owner != BasisSet::theGlobalCache)
+        if (owner != &BasisSet::theCache<double>())
         {
             static OmegaClient c;
-            BasisSet::theGlobalCache->Register(&c);
-            cache = BasisSet::theGlobalCache->GetCache2("PG.Omega");
-            owner = BasisSet::theGlobalCache;
+            BasisSet::theCache<double>().Register(&c);
+            cache = BasisSet::theCache<double>().GetCache2("PG.Omega");
+            owner = &BasisSet::theCache<double>();
         }
         return cache;
     }
@@ -121,12 +121,12 @@ namespace
     {
         static const void*   owner = nullptr;
         static const Cache2* cache = nullptr;
-        if (owner != BasisSet::theGlobalCache)
+        if (owner != &BasisSet::theCache<double>())
         {
             static RNLMClient c;
-            BasisSet::theGlobalCache->Register(&c);
-            cache = BasisSet::theGlobalCache->GetCache2("PG.RNLM");
-            owner = BasisSet::theGlobalCache;
+            BasisSet::theCache<double>().Register(&c);
+            cache = BasisSet::theCache<double>().GetCache2("PG.RNLM");
+            owner = &BasisSet::theCache<double>();
         }
         return cache;
     }
@@ -148,12 +148,12 @@ namespace
     {
         static const void*   owner = nullptr;
         static const Cache3* cache = nullptr;
-        if (owner != BasisSet::theGlobalCache)
+        if (owner != &BasisSet::theCache<double>())
         {
             static H3Client c;
-            BasisSet::theGlobalCache->Register(&c);
-            cache = BasisSet::theGlobalCache->GetCache3("PG.H3");
-            owner = BasisSet::theGlobalCache;
+            BasisSet::theCache<double>().Register(&c);
+            cache = BasisSet::theCache<double>().GetCache3("PG.H3");
+            owner = &BasisSet::theCache<double>();
         }
         return cache;
     }

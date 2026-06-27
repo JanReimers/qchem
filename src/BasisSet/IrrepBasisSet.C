@@ -67,7 +67,10 @@ public:
     //! Irrep basis sets are spin agnostic, so caller must specify the spin in order to a full set of QNs.
     virtual Irrep GetIrrep(const Spin& s) const=0;
     virtual size_t GetNumFunctions() const=0;
-    virtual size_t GetVectorSize() const {return GetNumFunctions();}
+    virtual size_t GetVectorSize() const override {return GetNumFunctions();}
+    // The single bridge that supplies DBCacheClient::CacheDim() for EVERY concrete cache client (they
+    // are all IrrepBasisSet<T>); the abstract integral mixins stay CacheDim()-pure.
+    virtual size_t CacheDim() const override {return GetNumFunctions();}
 };
 
 typedef IrrepBasisSet<double>    Real_IBS;

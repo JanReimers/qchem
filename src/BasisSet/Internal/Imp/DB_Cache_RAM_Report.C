@@ -157,4 +157,5 @@ template <class T>  void IntegralsCache_RAM<T>::RunGarbageCollector(const id_pai
 
 
 template struct IntegralsCache_RAM<double>;
+template struct IntegralsCache_RAM<dcmplx>; // complex path: report/GC members live in this TU
 } //namespace

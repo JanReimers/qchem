@@ -39,13 +39,13 @@ public:
         : IrrepBasisSetImp<Evaluator>(ir)
         , Evaluator(N,rmin,rmax,ir)
         {
-            theGlobalCache->Register(this); //Can this move to the evaluator level?
+            theCache<double>().Register(this); //Can this move to the evaluator level?
         };
         EOrbital_HF_IBS(const rvec_t& es, const sym_t& ir, size_t ltrim=0)
         : IrrepBasisSetImp<Evaluator>(ir)
         , Evaluator(es,ir,ltrim)
         {
-            theGlobalCache->Register(this);
+            theCache<double>().Register(this);
         };
 
 
@@ -103,13 +103,13 @@ public:
         : IrrepBasisSetImp<Evaluator>(yl)
         , Evaluator(N,rmin,rmax,yl)
         {
-            theGlobalCache->Register(this);
+            theCache<double>().Register(this);
         };
         Orbital_1E_HF_IBS(const rvec_t& es, const sym_t& yl)
         : IrrepBasisSetImp<Evaluator>(yl)
         , Evaluator(es,yl)
         {
-            theGlobalCache->Register(this);
+            theCache<double>().Register(this);
         };
          virtual std::ostream&  Write(std::ostream& os) const
         {
@@ -150,13 +150,13 @@ public:
         : IrrepBasisSetImp<LEvaluator>(irrep)
         , LEvaluator(N,emin,emax,irrep)
         {
-            theGlobalCache->Register(this); //Can this move to the evaluator level?
+            theCache<double>().Register(this); //Can this move to the evaluator level?
         };
         EOrbital_RKBL_IBS(const rvec_t& es, const sym_t& irrep, size_t ltrim=0)
         : IrrepBasisSetImp<LEvaluator>(irrep)
         , LEvaluator(es,irrep,ltrim)
         {
-            theGlobalCache->Register(this);
+            theCache<double>().Register(this);
         };
 
         virtual std::ostream&  Write(std::ostream& os) const
@@ -176,13 +176,13 @@ public:
         : IrrepBasisSetImp<SEvaluator>(irrep)
         , SEvaluator(N,emin,emax,irrep) //fix κ=-1, l=0
         {
-            theGlobalCache->Register(this); //Can this move to the evaluator level?
+            theCache<double>().Register(this); //Can this move to the evaluator level?
         };
         EOrbital_RKBS_IBS(const rvec_t& es, const sym_t& irrep, size_t ltrim=0)
         : IrrepBasisSetImp<SEvaluator>(irrep)
         , SEvaluator(es,irrep,ltrim)
         {
-            theGlobalCache->Register(this);
+            theCache<double>().Register(this);
         };
 
         virtual std::ostream&  Write(std::ostream& os) const

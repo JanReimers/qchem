@@ -51,7 +51,7 @@ public:
     PlaneWave_IBS(const ReciprocalLattice& recip, const ivec3_t& N,
                   const ivec3_t& kIndex, double Ecut);
 
-    virtual size_t GetNumFunctions() const {return itsG.size();}
+    virtual size_t GetNumFunctions() const override {return itsG.size();}
 
     //! Reciprocal-index label \f$m\f$ of basis function \a i (its plane wave is \f$e^{i(k+G)\cdot r}\f$,
     //! \f$G = B\,m\f$).  This integer triple is the defining quantum number of the plane wave.
@@ -61,7 +61,7 @@ public:
     // The basis owns the integration (its own FFT grid); the terms never see G-vectors or the mesh.
     virtual chmat_t Overlap  (const ScalarFunction<double>& f) const override;            //!< <i|f|j> (uncached)
     virtual chmat_t Repulsion(const ScalarFunction<double>& rho, double& Eh) const override; //!< <i|V_Coul[rho]|j> (uncached)
-    virtual double  Integral         (const ScalarFunction<double>& f) const;            //!< integral f d3r
+    virtual double  Integral         (const ScalarFunction<double>& f) const override;   //!< integral f d3r
 
     //! \brief Density Fourier coefficients \f$\tilde\rho(\Delta m)=\frac1\Omega\sum_{G_i-G_j=\Delta m}D_{ij}\f$
     //! for a density matrix \a D in THIS plane-wave block.  The G-space route to the Hartree/XC matrices:
@@ -83,9 +83,9 @@ public:
     virtual double  ExternalG0Energy(const Structure* cl, const Pseudopotential::LocalPotential& loc, double numElectrons) const override;
 
     // 1E integral building blocks (no 1/2 on Kinetic -- the Hamiltonian applies it).
-    virtual chmat_t MakeOverlap () const;                  //!< Identity (PWs orthonormal over the cell).
-    virtual chmat_t MakeKinetic () const;                  //!< Diagonal \f$|k+G|^2 = \langle p^2\rangle\f$.
-    virtual chmat_t MakeNuclear (const Structure*) const;  //!< Bare-Coulomb structure factor (= MakeLocalPotential with BareCoulomb).
+    virtual chmat_t MakeOverlap () const override;                  //!< Identity (PWs orthonormal over the cell).
+    virtual chmat_t MakeKinetic () const override;                  //!< Diagonal \f$|k+G|^2 = \langle p^2\rangle\f$.
+    virtual chmat_t MakeNuclear (const Structure*) const override;  //!< Bare-Coulomb structure factor (= MakeLocalPotential with BareCoulomb).
 
     //! \brief Assemble any local external potential: \f$ \langle G|V|G'\rangle = \frac1\Omega \sum_a
     //! v(Z_a,|\Delta G|^2)\, e^{-i\Delta G\cdot\tau_a} \f$, \f$\Delta G=G-G'\ne 0\f$ (the \f$\Delta G=0\f$
@@ -110,13 +110,13 @@ public:
     virtual chmat_t MakePotential(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const;
 
     // VectorFunction: the plane-wave values / gradients at a point.
-    virtual cvec_t     operator() (const rvec3_t& r) const;
-    virtual cvec3vec_t Gradient   (const rvec3_t& r) const;
+    virtual cvec_t     operator() (const rvec3_t& r) const override;
+    virtual cvec3vec_t Gradient   (const rvec3_t& r) const override;
 
-    virtual std::string Name      () const {return "PlaneWave";}
-    virtual std::string BasisSetID() const; // geometry-aware cache key (k, Ecut, nG)
+    virtual std::string Name      () const override {return "PlaneWave";}
+    virtual std::string BasisSetID() const override; // geometry-aware cache key (k, Ecut, nG)
 
-    virtual std::ostream& Write(std::ostream&) const;
+    virtual std::ostream& Write(std::ostream&) const override;
 
 private:
     rvec3_t GetGCartesian(const ivec3_t& m) const; //!< \f$ G = B\,m \f$ in Cartesian a.u.

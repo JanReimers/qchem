@@ -31,8 +31,8 @@ public:
     virtual ~IntegralsCache_RAM(); //Report some RAM usage
 
     virtual const rvec_t&    Get(I1C,const DBCacheClient*,                          std::function<rvec_t   ()>);
-    virtual const smat_t<T>& Get(I2C,const DBCacheClient*,                          std::function<smat_t<T>()>);
-    virtual const smat_t<T>& Get(I2n,const DBCacheClient*,const Structure_ID_t&,      std::function<smat_t<T>()>);
+    virtual const hmat_t<T>& Get(I2C,const DBCacheClient*,                          std::function<hmat_t<T>()>);
+    virtual const hmat_t<T>& Get(I2n,const DBCacheClient*,const Structure_ID_t&,      std::function<hmat_t<T>()>);
     virtual const  mat_t<T>& Get(I2x,const DBCacheClient*,const DBCacheClient*,     std::function< mat_t<T>()>);
     virtual const ERI3  <T>& Get(I3C,const DBCacheClient*,const DBCacheClient*,     std::function<ERI3  <T>()>);
     virtual const ERI4     & Get(I4C,const DBCacheClient*,const DBCacheClient*,     std::function<ERI4     ()>);
@@ -59,8 +59,8 @@ private:
     using key2xm_t=std::tuple<I2x,IBS_ID_t,IBS_ID_t,Mesh_ID_t>; //Integral key for one IBS and a mesh, 1 centers.
 
     using map1_t=std::map<key1_t ,rvec_t   >;
-    using map2_t=std::map<key2_t ,smat_t<T>>;
-    using mapn_t=std::map<keyn_t ,smat_t<T>>;
+    using map2_t=std::map<key2_t ,hmat_t<T>>;
+    using mapn_t=std::map<keyn_t ,hmat_t<T>>;
     using mapx_t=std::map<keyx_t , mat_t<T>>;
     using map3_t=std::map<key3_t ,  ERI3<T>>;
     using map4_t=std::map<IBS_ID_t,std::map<IBS_ID_t,ERI4>>;

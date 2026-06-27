@@ -12,18 +12,14 @@ namespace BasisSet
 // (NOT the kinetic energy -- no 1/2; see BasisSet/Orbital_1E_IBS.C).
 template <class T> const hmat_t<T>& Integrals_Kinetic<T>::Kinetic() const
 {
-    auto cache=theGlobalCache;
-    assert(cache);
-    return cache->Get(IntegralsCache_Base::I2C::Kinetic,this,
+    return theCache<T>().Get(IntegralsCache_Base::I2C::Kinetic,this,
         [this]{ return MakeKinetic(); });
 }
 
 template <class T> const hmat_t<T>& Integrals_Nuclear<T>::Nuclear(const Structure* cl) const
 {
     assert(cl);
-    auto cache=theGlobalCache;
-    assert(cache);
-    return cache->Get(IntegralsCache_Base::I2n::Nuclear,this,cl->ID(),
+    return theCache<T>().Get(IntegralsCache_Base::I2n::Nuclear,this,cl->ID(),
         [this,cl]{ return MakeNuclear(cl); });
 }
 
