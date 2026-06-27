@@ -7,9 +7,9 @@
 // SeparablePotential.C for the analytic HGH forms these populate.
 module;
 #include <string>
-export module qchem.BasisSet.Lattice_3D.GTH_Potentials;
-export import qchem.BasisSet.LocalPotential;
-export import qchem.BasisSet.SeparablePotential;
+export module qchem.Pseudopotential.GTH_Potentials;
+export import qchem.Pseudopotential.LocalPotential;
+export import qchem.Pseudopotential.SeparablePotential;
 
 export namespace BasisSet::Lattice_3D
 {

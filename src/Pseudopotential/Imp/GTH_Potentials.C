@@ -7,10 +7,10 @@ module;
 #include <vector>
 #include <nlohmann/json.hpp>
 
-module qchem.BasisSet.Lattice_3D.GTH_Potentials;
+module qchem.Pseudopotential.GTH_Potentials;
 
-#ifndef LATTICE_DATA_PATH
-#error "LATTICE_DATA_PATH must be defined by CMake"
+#ifndef PSEUDO_DATA_PATH
+#error "PSEUDO_DATA_PATH must be defined by CMake"
 #endif
 
 namespace BasisSet::Lattice_3D
@@ -21,8 +21,8 @@ static const nlohmann::json& database()
 {
     static const nlohmann::json db = []
     {
-        std::ifstream f(std::filesystem::path(LATTICE_DATA_PATH) / "gth_potentials.json");
-        if (!f) throw std::runtime_error("GTH: cannot open gth_potentials.json under " LATTICE_DATA_PATH);
+        std::ifstream f(std::filesystem::path(PSEUDO_DATA_PATH) / "gth_potentials.json");
+        if (!f) throw std::runtime_error("GTH: cannot open gth_potentials.json under " PSEUDO_DATA_PATH);
         nlohmann::json j; f >> j; return j;
     }();
     return db;

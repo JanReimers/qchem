@@ -14,7 +14,7 @@ module;
 export module qchem.BasisSet.Band_FT_IBS;
 export import qchem.BasisSet.Orbital_1E_IBS;
 export import qchem.FourierMap;
-export import qchem.BasisSet.SeparablePotential;  // the KB nonlocal projector model the term supplies (TODO: callback-ify too)
+export import qchem.Pseudopotential.SeparablePotential;  // KB nonlocal model (transient: lifts off this interface in step 2)
 import qchem.Structure;   // Structure -- the external-potential structure factor
 import qchem.Types;       // hmat_t<dcmplx>
 

@@ -13,7 +13,7 @@ module;
 #include <cmath>
 #include <functional>
 
-export module qchem.BasisSet.LocalPotential;
+export module qchem.Pseudopotential.LocalPotential;
 import qchem.Math; // FourPi, Pi
 
 export namespace BasisSet

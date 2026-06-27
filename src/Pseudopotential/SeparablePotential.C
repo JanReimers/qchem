@@ -21,7 +21,7 @@ module;
 #include <utility>
 #include <vector>
 
-export module qchem.BasisSet.SeparablePotential;
+export module qchem.Pseudopotential.SeparablePotential;
 import qchem.Math;   // Pi, FourPi
 
 export namespace BasisSet

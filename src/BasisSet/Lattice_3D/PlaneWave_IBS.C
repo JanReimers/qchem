@@ -19,8 +19,8 @@ export import qchem.BasisSet.Band_DFT_IBS;     // the abstract real-space DFT-in
 export import qchem.BasisSet.Band_FT_IBS;       // the abstract G-space DFT capability (+ FourierMap)
 import qchem.BasisSet.Internal.IrrepBasisSetImp;   // IrrepBasisSetImp<T>: GetSymmetry/GetSymt/GetIrrep
 export import qchem.ReciprocalLattice;             // ctor takes a ReciprocalLattice (carries the B cell)
-export import qchem.BasisSet.LocalPotential;      // local potential form-factor abstraction
-export import qchem.BasisSet.SeparablePotential; // KB nonlocal projector abstraction
+export import qchem.Pseudopotential.LocalPotential;      // local potential form-factor abstraction
+export import qchem.Pseudopotential.SeparablePotential; // KB nonlocal projector abstraction
 import qchem.Structure;
 import qchem.Symmetry;                             // sym_t (the Bloch irrep handed to the ctor)
 import qchem.Types;

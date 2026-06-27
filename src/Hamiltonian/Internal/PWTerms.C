@@ -12,7 +12,7 @@ module;
 export module qchem.Hamiltonian.Internal.PWTerms;
 import qchem.Hamiltonian.Internal.Term;        // cStatic_HT / cDynamic_HT + their _Imp cache bases
 import qchem.BasisSet.Band_FT_IBS;           // the reciprocal-space capability: Hartree/XC + external PP assembly
-import qchem.BasisSet.LocalPotential;        // the local PP model the term OWNS (basis takes only its callback)
+import qchem.Pseudopotential.LocalPotential;        // the local PP model the term OWNS (basis takes only its callback)
 import qchem.Hamiltonian.Internal.ExFunctional; // the LDA functional the XC term composes with the density
 import qchem.Hamiltonian.Types;                 // cobs_t
 import qchem.Structure;

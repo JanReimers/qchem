@@ -1,7 +1,7 @@
 // file: GTH_UT.C  Unit test for the GTH/HGH pseudopotential database reader (GetGTH).
 //
 // The CP2K GTH_POTENTIALS database is transcoded to JSON offline (doc/scripts/ParseGTH.py) and read by
-// qchem.BasisSet.Lattice_3D.GTH_Potentials.  This pins the reader against our independently-validated
+// qchem.Pseudopotential.GTH_Potentials.  This pins the reader against our independently-validated
 // Silicon parameters: the assembled external block (local + KB nonlocal) from GetGTH("Si","LDA",4) must
 // equal the one built directly from the published CP2K Si numbers -- which anchors the whole 101-element
 // table.  A pure basis-layer test (no SCF stack), so it lives with qcLattice_BS.
@@ -13,7 +13,7 @@
 #include "gtest/gtest.h"
 
 import qchem.BasisSet.Lattice_3D.PlaneWave_IBS;
-import qchem.BasisSet.Lattice_3D.GTH_Potentials;
+import qchem.Pseudopotential.GTH_Potentials;
 import qchem.Lattice_3D;     // UnitCell, Lattice_3D, ReciprocalLattice
 import qchem.Structure;      // Molecule, Atom
 import qchem.Matrix3D;       // Matrix3D<double>

@@ -4,8 +4,8 @@ import qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.Hamiltonian.Internal.Hamiltonian;
 import qchem.Hamiltonian.Types;
 import qchem.Mesh;
-import qchem.BasisSet.LocalPotential;      // the PW pseudopotential model the term owns (Ham_PW_DFT ctor)
-import qchem.BasisSet.SeparablePotential;
+import qchem.Pseudopotential.LocalPotential;      // the PW pseudopotential model the term owns (Ham_PW_DFT ctor)
+import qchem.Pseudopotential.SeparablePotential;
 
 export namespace qchem::Hamiltonian
 {

@@ -13,7 +13,7 @@
 #include "gtest/gtest.h"
 
 import qchem.BasisSet.Lattice_3D.PlaneWave_IBS;
-import qchem.BasisSet.Lattice_3D.GTH_Potentials;   // GetGTH (H, Si pseudopotentials from the database)
+import qchem.Pseudopotential.GTH_Potentials;   // GetGTH (H, Si pseudopotentials from the database)
 import qchem.Lattice_3D;     // UnitCell, Lattice_3D, ReciprocalLattice
 import qchem.LASolver;
 import qchem.Types;

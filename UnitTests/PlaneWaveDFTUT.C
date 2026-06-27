@@ -46,7 +46,7 @@ import qchem.Hamiltonian;                           // cStatic_HT / cDynamic_HT 
 import qchem.Hamiltonian.Internal.Hamiltonian;      // cHamiltonianImp (the dcmplx Hamiltonian = sum of terms)
 import qchem.Hamiltonian.Internal.Hamiltonians;     // Ham_PW_DFT (the assembled plane-wave LDA KS Hamiltonian)
 import qchem.Hamiltonian.Internal.Terms;            // Vnn (ion-ion term: pair sum / Ewald via isFinite)
-import qchem.BasisSet.Lattice_3D.GTH_Potentials;    // GetGTH (CP2K GTH/HGH database reader)
+import qchem.Pseudopotential.GTH_Potentials;    // GetGTH (CP2K GTH/HGH database reader)
 import qchem.Energy;                                // EnergyBreakdown
 import qchem.ChargeDensity.Imp.IrrepCD;             // IrrepCD<dcmplx> (concrete complex density)
 import qchem.Symmetry.Irrep;                        // Irrep
