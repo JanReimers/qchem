@@ -12,7 +12,7 @@ module;
 export module qchem.Hamiltonian.Internal.PWTerms;
 import qchem.Hamiltonian.Internal.Term;        // cStatic_HT / cDynamic_HT + their _Imp cache bases
 import qchem.BasisSet.Band_FT_IBS;           // the reciprocal-space capability: Hartree/XC + external PP assembly
-import qchem.Pseudopotential.LocalPotential;        // the local PP model the term OWNS (basis takes only its callback)
+import qchem.Pseudopotential.Pseudo_IBS;          // external-PP assembly capability + the local/separable models the term owns
 import qchem.Hamiltonian.Internal.ExFunctional; // the LDA functional the XC term composes with the density
 import qchem.Hamiltonian.Types;                 // cobs_t
 import qchem.Structure;
@@ -43,7 +43,7 @@ private:
     const Pseudopotential::SeparablePotential* itsSep;         //!< KB nonlocal model (non-owning; may be null).
     //! Captured from CalculateMatrix so GetEnergy can ask the basis for the dropped-G=0 alignment energy
     //! (ExternalG0Energy) with the current electron count.  Same basis every iteration.
-    mutable const BasisSet::Band_FT_IBS* itsBasis=nullptr;
+    mutable const Pseudopotential::Pseudo_IBS* itsBasis=nullptr;
 };
 
 //! Non-relativistic kinetic ENERGY term T = 1/2 <p^2> for a plane-wave basis (diagonal in |k+G|^2).

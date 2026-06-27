@@ -1,21 +1,16 @@
-// File: BasisSet/Band_FT_IBS.C  Abstract reciprocal-space (Fourier / plane-wave) basis-assembly capability.
+// File: BasisSet/Band_FT_IBS.C  Abstract reciprocal-space (Fourier / plane-wave) DFT-assembly capability.
 //
 // The dual of Band_DFT_IBS: instead of integrating real-space ScalarFunctions on a mesh, this is the
 // RECIPROCAL-SPACE lineage -- a plane-wave basis and a plane-wave density share G-space coefficients (a
-// FourierMap, rho-tilde / V-tilde).  Two families of question live here, both intrinsically Fourier:
-//   (1) DENSITY-driven KS assembly: rho-tilde -> the FFT-free Hartree matrix, and the FFT XC route.  This
-//       replaces the O(Npts*n^2) pointwise density sampling with one O(n^2) projection D->rho-tilde.
-//   (2) EXTERNAL-POTENTIAL assembly: turn a per-species reciprocal form factor (the TERM's pseudopotential
-//       MODEL) into <i|V_ext|j> via the structure factor e^{-iG.tau} and 1/Omega (the pseudo-wall: the
-//       basis owns the G-space assembly, the term owns the physics model).
+// FourierMap, rho-tilde / V-tilde).  The questions here are the DENSITY-driven KS assembly: rho-tilde ->
+// the FFT-free Hartree matrix, and the FFT XC route -- replacing the O(Npts*n^2) pointwise density
+// sampling with one O(n^2) projection D->rho-tilde.  (The EXTERNAL pseudopotential assembly is a separate
+// capability, Pseudopotential::Pseudo_IBS in qcPseudopotential, so qcBasisSet names no pseudopotential type.)
 // A term reaches this the sanctioned way: holding the abstract orbital basis and dynamic_cast-ing UP.
 module;
-#include <functional>
 export module qchem.BasisSet.Band_FT_IBS;
 export import qchem.BasisSet.Orbital_1E_IBS;
 export import qchem.FourierMap;
-export import qchem.Pseudopotential.SeparablePotential;  // KB nonlocal model (transient: lifts off this interface in step 2)
-import qchem.Structure;   // Structure -- the external-potential structure factor
 import qchem.Types;       // hmat_t<dcmplx>
 
 export namespace BasisSet
@@ -56,27 +51,6 @@ public:
     virtual hmat_t<dcmplx> Overlap(const rvec_t& Vgrid) const=0;
     //! \brief Scalar integral \f$\int f\,d^3r\f$ from values \a fgrid on the FFT grid (uniform quadrature).
     virtual double  Integral(const rvec_t& fgrid) const=0;
-
-    // --- External (pseudo)potential assembly: reciprocal-space, from the TERM's model (the pseudo-wall). ---
-    //! \brief Local external-potential matrix \f$\langle i|V_{loc}|j\rangle\f$ for \a structure, assembled
-    //! from a species form-factor callback \a formFactor: \f$v(Z,|G|^2)\f$, the FT of one atom's local
-    //! potential (bare \f$-Z/r\f$, Gaussian-smeared, HGH, ...).  The basis owns the assembly (structure
-    //! factor, \f$1/\Omega\f$, \f$G=0\f$ handling) and names NO pseudopotential TYPE; the physics model lives
-    //! Hamiltonian-side and crosses the wall as a plain std::function.
-    virtual hmat_t<dcmplx> MakeLocalPotential(const Structure*, const std::function<double(int Z,double G2)>& formFactor) const=0;
-
-    //! \brief Separable (Kleinman-Bylander) nonlocal external-potential matrix \f$\langle i|V_{NL}|j\rangle\f$
-    //! for \a structure, from a projector model \a nl.  The full external block is
-    //! MakeLocalPotential + MakeSeparablePotential (\f$V=V_{loc}+V_{NL}\f$).
-    virtual hmat_t<dcmplx> MakeSeparablePotential(const Structure*, const Pseudopotential::SeparablePotential& nl) const=0;
-
-    //! \brief Energy carried by the local potential's DROPPED \f$G=0\f$ component, for the model \a loc and a
-    //! density of \a numElectrons electrons: the uniform electron-ion alignment \f$(N/\Omega)\sum_a\alpha_a\f$
-    //! (\f$\alpha_a=\int[V_{loc}^a+Z_a/r]\f$, the local part's finite \f$G\to0\f$ limit).  It enters the
-    //! total energy but NOT the Hamiltonian matrix (the \f$G=0\f$ potential is a constant shift, dropped from
-    //! the matrix -- a plane-wave neutralising-background artifact).  \a formFactorG0 = the model's
-    //! \f$\alpha_a=\int[V_{loc}^a+Z_a/r]\f$ callback (keyed by species Z); the basis supplies only \f$\Omega\f$.
-    virtual double ExternalG0Energy(const Structure*, const std::function<double(int Z)>& formFactorG0, double numElectrons) const=0;
 };
 
 } //namespace

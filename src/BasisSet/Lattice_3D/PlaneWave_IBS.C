@@ -19,8 +19,7 @@ export import qchem.BasisSet.Band_DFT_IBS;     // the abstract real-space DFT-in
 export import qchem.BasisSet.Band_FT_IBS;       // the abstract G-space DFT capability (+ FourierMap)
 import qchem.BasisSet.Internal.IrrepBasisSetImp;   // IrrepBasisSetImp<T>: GetSymmetry/GetSymt/GetIrrep
 export import qchem.ReciprocalLattice;             // ctor takes a ReciprocalLattice (carries the B cell)
-export import qchem.Pseudopotential.LocalPotential;      // local potential form-factor abstraction
-export import qchem.Pseudopotential.SeparablePotential; // KB nonlocal projector abstraction
+export import qchem.Pseudopotential.Pseudo_IBS;          // the external-PP assembly capability (+ its models)
 import qchem.Structure;
 import qchem.Symmetry;                             // sym_t (the Bloch irrep handed to the ctor)
 import qchem.Types;
@@ -31,8 +30,9 @@ export namespace BasisSet::Lattice_3D
 //! \brief Plane-wave basis for a single k-point: the normalised waves
 //! \f$ e^{i(k+G)\cdot r}/\sqrt V \f$ over the cutoff set \f$\{G:\tfrac12|k+G|^2<E_{cut}\}\f$.
 class PlaneWave_IBS
-    : public virtual BasisSet::Band_DFT_IBS<dcmplx> // real-space DFT-integration (Hartree/XC/external)
+    : public virtual BasisSet::Band_DFT_IBS<dcmplx> // real-space DFT-integration (Hartree/XC)
     , public virtual BasisSet::Band_FT_IBS           // G-space DFT (rho-tilde -> Hartree, FFT XC)
+    , public virtual Pseudopotential::Pseudo_IBS     // G-space external pseudopotential assembly (V_loc + V_NL)
     , public         BasisSet::IrrepBasisSetImp<dcmplx> // supplies GetSymmetry/GetSymt/GetIrrep + itsSymmetry
 {
 public:
@@ -80,7 +80,7 @@ public:
     virtual chmat_t    Overlap     (const rvec_t& Vgrid)  const override;      //!< = Overlap(ForwardGrid(Vgrid))
     virtual double     Integral    (const rvec_t& fgrid)   const override;
     //!< (N/Omega) Sum_a alpha_a for the supplied local model (the dropped-G=0 alignment energy).
-    virtual double  ExternalG0Energy(const Structure* cl, const std::function<double(int)>& formFactorG0, double numElectrons) const override;
+    virtual double  ExternalG0Energy(const Structure* cl, const Pseudopotential::LocalPotential& loc, double numElectrons) const override;
 
     // 1E integral building blocks (no 1/2 on Kinetic -- the Hamiltonian applies it).
     virtual chmat_t MakeOverlap () const;                  //!< Identity (PWs orthonormal over the cell).
@@ -91,7 +91,7 @@ public:
     //! v(Z_a,|\Delta G|^2)\, e^{-i\Delta G\cdot\tau_a} \f$, \f$\Delta G=G-G'\ne 0\f$ (the \f$\Delta G=0\f$
     //! term is dropped -- uniform neutralising background).  The species form factor \a v selects the
     //! potential model (bare Coulomb, Gaussian-smeared nucleus, pseudopotential, ...).  Hermitian.
-    virtual chmat_t MakeLocalPotential(const Structure* cl, const std::function<double(int,double)>& formFactor) const override;
+    virtual chmat_t MakeLocalPotential(const Structure* cl, const Pseudopotential::LocalPotential& loc) const override;
 
     //! \brief Assemble the separable (Kleinman-Bylander) NONLOCAL potential \f$ \langle G|V_{NL}|G'\rangle
     //! = \frac1\Omega \sum_a e^{-i\Delta G\cdot\tau_a} \sum_p \tilde\beta_p(|k+G|)\,D_p\,\tilde\beta_p(|k+G'|)\f$.

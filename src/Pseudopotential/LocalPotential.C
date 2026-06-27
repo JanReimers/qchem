@@ -42,10 +42,9 @@ public:
     //! This is why it is a callback, not a getter: the answer depends on the model, not just on Z.
     virtual double Zion(int Z) const {return double(Z);}
 
-    // --- Adapt to the plain CALLBACKS the basis assembly / ion-ion term consume, so the basis names no PP
-    //     TYPE (the pseudo-wall: physics model here, assembly basis-side, only a std::function crosses). ---
-    std::function<double(int,double)> FormFactorFn()   const {return [this](int Z,double g2){return FormFactor(Z,g2);};}
-    std::function<double(int)>        FormFactorG0Fn() const {return [this](int Z){return FormFactorG0(Z);};}
+    // --- Adapt Zion to the plain CALLBACK the ion-ion (Ewald) term consumes.  The reciprocal-space
+    //     assembly (Pseudo_IBS) now takes the abstract model DIRECTLY, but Ewald (NuclearRepulsion) lives
+    //     BELOW the pseudopotential layer in qcStructure, so it must take a neutral std::function. ---
     std::function<double(int)>        ZionFn()         const {return [this](int Z){return Zion(Z);};}
 };
 

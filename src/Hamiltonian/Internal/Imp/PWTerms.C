@@ -8,7 +8,8 @@ module qchem.Hamiltonian.Internal.PWTerms;
 import qchem.Energy;
 import qchem.ChargeDensity;
 import qchem.ChargeDensity.FourierDensity;   // cast cd UP to its reciprocal-space coefficients rho-tilde
-import qchem.BasisSet.Band_FT_IBS;         // cast bs UP to the reciprocal-space capability (XC + external PP)
+import qchem.BasisSet.Band_FT_IBS;         // cast bs UP to the reciprocal-space DFT capability (Hartree/XC)
+import qchem.Pseudopotential.Pseudo_IBS;   // cast bs ACROSS to the external-PP assembly capability (PW_External)
 import qchem.Fitting.FourierFunctionFitter; // the PW fitter PW_Hartree drives (like FittedVee's FunctionFitter)
 import qchem.Structure;                       // Structure (PW_IonIon ion-ion energy)
 import qchem.Ewald;                           // NuclearRepulsion (Ewald lattice sum for the crystal)
@@ -28,16 +29,16 @@ PW_External::PW_External(const st_t& st, const Pseudopotential::LocalPotential* 
     assert(loc && "PW_External: the term owns the local pseudopotential model (must be non-null)");
 }
 
-// Assemble the external matrix from the MODEL the term owns: ask the basis to turn the local form factor
-// (and the optional KB nonlocal projector) into <i|V_ext|j>.  The dynamic_cast is the sanctioned
-// abstract->abstract move (cobs_t = Orbital_1E_IBS<dcmplx> down to the richer abstract Band_FT_IBS); only
-// a basis that supports reciprocal-space assembly answers it.  V = V_loc + V_NL.
+// Assemble the external matrix from the MODELS the term owns: hand the basis the abstract local +
+// optional KB nonlocal models and let it assemble <i|V_ext|j>.  The dynamic_cast is the sanctioned
+// abstract->abstract move (cobs_t = Orbital_1E_IBS<dcmplx> ACROSS to the Pseudo_IBS capability); only a
+// basis that supports reciprocal-space PP assembly answers it.  V = V_loc + V_NL.
 chmat_t PW_External::CalculateMatrix(const cobs_t* bs, const Spin&) const
 {
-    auto pw=dynamic_cast<const BasisSet::Band_FT_IBS*>(bs);
-    assert(pw && "PW_External requires a Band_FT_IBS (e.g. plane-wave) basis");
+    auto pw=dynamic_cast<const Pseudopotential::Pseudo_IBS*>(bs);
+    assert(pw && "PW_External requires a Pseudo_IBS (e.g. plane-wave) basis");
     itsBasis=pw;                    // captured for GetEnergy's G=0 alignment (same basis every iteration)
-    chmat_t V=pw->MakeLocalPotential(&*theStructure, itsLocal->FormFactorFn());
+    chmat_t V=pw->MakeLocalPotential(&*theStructure, *itsLocal);
     if (itsSep) V += pw->MakeSeparablePotential(&*theStructure, *itsSep);
     return V;
 }
@@ -49,7 +50,7 @@ void PW_External::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
     // energy but NOT the matrix (see ExternalG0Energy), and out of the band-structure cross-check.  The
     // term supplies its local model; the basis owns Omega and the (N/Omega) Sum_a alpha_a assembly.
     te.Een=cd->DM_Contract(this);                                          // integral rho V_ext (G!=0)
-    if (itsBasis) te.Ealign = itsBasis->ExternalG0Energy(&*theStructure, itsLocal->FormFactorG0Fn(), cd->GetTotalCharge());
+    if (itsBasis) te.Ealign = itsBasis->ExternalG0Energy(&*theStructure, *itsLocal, cd->GetTotalCharge());
 }
 
 std::ostream& PW_External::Write(std::ostream& os) const

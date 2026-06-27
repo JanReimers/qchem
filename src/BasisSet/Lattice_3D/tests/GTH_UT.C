@@ -48,12 +48,12 @@ TEST(GTH_Table, ReproducesSilicon)
     si.Insert(new Atom(14, rvec3_t(0,0,0)));
     si.Insert(new Atom(14, rvec3_t(0.25*a,0.25*a,0.25*a)));
 
-    chmat_t Vref = pw.MakeLocalPotential(&si, ref_Si_local().FormFactorFn())
+    chmat_t Vref = pw.MakeLocalPotential(&si, ref_Si_local())
                  + pw.MakeSeparablePotential(&si, ref_Si_nonlocal());
 
     GTH_PP pp = GetGTH("Si","LDA",4);                            // q=0 would also work (Si default q4)
     EXPECT_EQ(pp.zion, 4);
-    chmat_t Vtab = pw.MakeLocalPotential(&si, pp.local.FormFactorFn())
+    chmat_t Vtab = pw.MakeLocalPotential(&si, pp.local)
                  + pw.MakeSeparablePotential(&si, pp.nonlocal);
 
     ASSERT_EQ(Vref.rows(), Vtab.rows());

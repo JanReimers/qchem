@@ -46,7 +46,7 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
 target_include_directories(qcBasisSet PRIVATE ${PROJECT_SOURCE_DIR}/src)
 set_property(TARGET qcBasisSet PROPERTY CXX_STANDARD 20)
 target_include_directories(qcBasisSet PRIVATE ${PROJECT_SOURCE_DIR}/submodules/blaze)
-target_link_libraries(qcBasisSet PUBLIC qcElConfig qcStructure qcMesh qcPseudopotential)  # transient: Band_FT_IBS still names SeparablePotential (step 2 severs)
+target_link_libraries(qcBasisSet PUBLIC qcElConfig qcStructure qcMesh)
 target_compile_options(qcBasisSet PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(qcBasisSet PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
 add_subdirectory(Atom)
