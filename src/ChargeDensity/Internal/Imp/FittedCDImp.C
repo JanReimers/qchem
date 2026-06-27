@@ -18,7 +18,7 @@ namespace qchem::ChargeDensity
 template <class T> FittedCDImp<T>::FittedCDImp(bs_t& bs, double totalCharge)
     // Charge-CONSTRAINED Coulomb-metric density fit (Dunlap-Connolly-Sabin 1979): every DoFit yields a
     // density of exactly totalCharge, variationally -- no post-hoc rescale needed.
-    : itsFitter(Fitting::MakeFunctionFitter(Fitting::FitFlavour::ChargeConstrained,bs))
+    : itsFitter(Fitting::MakeDensityFitter(bs))
 {
     itsFitter->ReScale(totalCharge);   // normalize the initial guess (each DoFit then re-imposes the charge)
     assert(totalCharge>0);

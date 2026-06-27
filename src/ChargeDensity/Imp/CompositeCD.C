@@ -62,7 +62,7 @@ template <class T> double tComposite_CD<T>::GetTotalCharge() const
 //
 //  Required by fitting routines.
 //
-template <class T> rvec_t tComposite_CD<T>::GetRepulsion3C(const fbs_t* fbs) const
+template <class T> rvec_t tComposite_CD<T>::GetRepulsion3C(const BasisSet::FIT_CD_ABS* fbs) const
 {
     rvec_t ret(fbs->GetNumFunctions(),0);
     for (auto& c:itsCDs) ret+=c->GetRepulsion3C(fbs);

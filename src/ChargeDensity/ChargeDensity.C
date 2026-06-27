@@ -92,7 +92,7 @@ public:
     virtual double GetTotalCharge() const;  // <ro>
     virtual double GetTotalSpin  () const;  // No UT coverage// <up>-<down>
 
-    virtual rvec_t GetRepulsion3C(const fbs_t*) const;
+    virtual rvec_t GetRepulsion3C(const BasisSet::FIT_CD_ABS*) const;
     virtual void AccumulateDirect  (rsmat_t& Jab, const ohfbs_t*) const;
     virtual void AccumulateExchange(rsmat_t& Kab, const ohfbs_t*) const;
 

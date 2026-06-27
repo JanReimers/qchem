@@ -65,7 +65,7 @@ template <> void IrrepCD<double>::AccumulateExchange(rsmat_t& Sab, const ohfbs_t
 //
 //  Required by fitting routines.
 //
-template <class T> rvec_t IrrepCD<T>::GetRepulsion3C(const fbs_t* fbs) const
+template <class T> rvec_t IrrepCD<T>::GetRepulsion3C(const BasisSet::FIT_CD_ABS* fbs) const
 {
     if (IsZero()) return rvec_t(fbs->GetNumFunctions(),0.0);
     auto dftbs=dynamic_cast<const todftbs_t<T>*>(itsBasisSet);
@@ -179,7 +179,7 @@ template <> void IrrepCD<dcmplx>::AccumulateDirect(hmat_t<dcmplx>&, const ohfbs_
 { assert(false && "AccumulateDirect: HF not applicable to a complex plane-wave density"); }
 template <> void IrrepCD<dcmplx>::AccumulateExchange(hmat_t<dcmplx>&, const ohfbs_t*) const
 { assert(false && "AccumulateExchange: HF not applicable to a complex plane-wave density"); }
-template <> rvec_t IrrepCD<dcmplx>::GetRepulsion3C(const fbs_t*) const
+template <> rvec_t IrrepCD<dcmplx>::GetRepulsion3C(const BasisSet::FIT_CD_ABS*) const
 { assert(false && "GetRepulsion3C: density fitting not used by the plane-wave path"); return rvec_t(); }
 template <> rvec3_t IrrepCD<dcmplx>::Gradient(const rvec3_t&) const
 { return rvec3_t(0,0,0); }   // No UT coverage; GGA/plotting gradient not yet wired for complex.

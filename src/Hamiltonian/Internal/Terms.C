@@ -177,7 +177,7 @@ public:
 private:
     virtual rsmat_t CalcMatrix(const obs_t*,const Spin&,const DM_CD*) const;
 
-    std::unique_ptr<Fitting::FunctionFitter<double>> itsFitter; //!< COMPOSED v_xc fit (was inherited)
+    std::unique_ptr<Fitting::FunctionFitter_Scalar<double>> itsFitter; //!< COMPOSED v_xc fit (was inherited)
     LDAVxc* itsLDAVxc;   //!< the v_xc=Vxc(rho) function to fit (concrete: it IS the ScalarFFClient)
 };
 
@@ -221,7 +221,7 @@ public:
     //! Re-fits eps_xc for this density and returns its matrix Sum_a c_a <Oi|f_a|Oj> for contraction.
     virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&,const DM_CD* cd) const;
 private:
-    std::unique_ptr<Fitting::FunctionFitter<double>> itsFitter;  //!< COMPOSED fitter (not inherited)
+    std::unique_ptr<Fitting::FunctionFitter_Scalar<double>> itsFitter;  //!< COMPOSED fitter (not inherited)
     const ExFunctional* itsEx;   //!< non-owning; the XC functional supplying eps_xc (owned by the term)
     mutable rsmat_t     itsMat;
 };

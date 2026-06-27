@@ -30,7 +30,7 @@ public:
 
     virtual void AccumulateDirect  (hmat_t<T>& Sab, const ohfbs_t*) const;
     virtual void AccumulateExchange(hmat_t<T>& Sab, const ohfbs_t*) const;
-    virtual rvec_t    GetRepulsion3C(const fbs_t*) const;
+    virtual rvec_t    GetRepulsion3C(const BasisSet::FIT_CD_ABS*) const;
 
     virtual double DM_Contract(const tStatic_CC<T>*) const;
     virtual double DM_Contract(const tDynamic_CC<T>*,const tDM_CD<T>*) const;

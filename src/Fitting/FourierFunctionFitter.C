@@ -22,8 +22,12 @@ export namespace qchem::Fitting
 
 //! \brief The plane-wave "fitter": the density's G-space coefficients (a FourierMap) ARE the fit
 //! (orthonormal, exact -- no metric solve), so DoFit stores them and the contraction delegates to
-//! Band_FT_IBS.  A FunctionFitter<dcmplx>, so the Kohn-Sham terms drive it like the molecular fitter.
-class FourierFunctionFitter : public virtual FunctionFitter<dcmplx>
+//! Band_FT_IBS.  On the orthonormal {G} basis the overlap/Coulomb metric distinction is DEGENERATE, so
+//! one object implements BOTH faces: the Density face (DoFit(rho-tilde) -> Repulsion) for Hartree and the
+//! Scalar face (DoFit(V-tilde) -> Overlap) for XC.  The Kohn-Sham terms drive it like the molecular fitter.
+class FourierFunctionFitter
+    : public virtual FunctionFitter_Scalar<dcmplx>
+    , public virtual FunctionFitter_Density<dcmplx>
 {
 public:
     //! The "fit": receive the G-space coefficients -- the density's rho-tilde (Hartree) OR the potential's
@@ -59,10 +63,14 @@ public:
         {assert(false && "FourierFunctionFitter::DoFit(ProjectedDensity_AO): the PW density arrives as a FourierMap");}
     virtual void   ReScale(double) override
         {assert(false && "FourierFunctionFitter::ReScale: SCF mixing is done on the PW density, not the fitter");}
-    virtual void   FitMixIn(const FunctionFitter<dcmplx>&,double) override
-        {assert(false && "FourierFunctionFitter::FitMixIn: not used by the PW path");}
-    virtual double FitGetChangeFrom(const FunctionFitter<dcmplx>&) const override
-        {assert(false && "FourierFunctionFitter::FitGetChangeFrom: not used by the PW path"); return 0.0;}
+    virtual void   FitMixIn(const FunctionFitter_Scalar<dcmplx>&,double) override
+        {assert(false && "FourierFunctionFitter::FitMixIn(Scalar): not used by the PW path");}
+    virtual void   FitMixIn(const FunctionFitter_Density<dcmplx>&,double) override
+        {assert(false && "FourierFunctionFitter::FitMixIn(Density): not used by the PW path");}
+    virtual double FitGetChangeFrom(const FunctionFitter_Scalar<dcmplx>&) const override
+        {assert(false && "FourierFunctionFitter::FitGetChangeFrom(Scalar): not used by the PW path"); return 0.0;}
+    virtual double FitGetChangeFrom(const FunctionFitter_Density<dcmplx>&) const override
+        {assert(false && "FourierFunctionFitter::FitGetChangeFrom(Density): not used by the PW path"); return 0.0;}
     virtual double FitGetSelfRepulsion() const override
         {assert(false && "FourierFunctionFitter::FitGetSelfRepulsion: the term takes E_H via DM_Contract"); return 0.0;}
     virtual double Integral() const override

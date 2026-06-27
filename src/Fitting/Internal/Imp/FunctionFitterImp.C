@@ -1,4 +1,4 @@
-    // File: FunctionFitterImp.C  Common imp for Fitted Functions.
+    // File: FunctionFitterImp.C  Shared coefficient machinery + the Scalar (overlap-metric) fitter.
 module;
 #include <iostream>
 #include <cassert>
@@ -12,146 +12,38 @@ import qchem.Blaze;
 namespace qchem::Fitting
 {
 
-//---------------------------------------------------------------------
+//=========================================================================== FitImpBase (shared)
 //
-//  Construction zone.  The CDFit flag indicates to fit the electric
-//  instead of the charge density.  The only difference in practice
-//  is that all overlap integrals are replaced with repulsion integrals.
+//  Coefficient + real-space machinery common to both faces.  The metric-specific DoFit + contraction
+//  live in the leaf impls; everything here touches only itsFitCoeff (+ the basis for real-space eval).
 //
-template <class T> FunctionFitterImp<T>::
-FunctionFitterImp(bs_t& fbs)
-    : itsBasisSet(fbs)
-    , itsFitCoeff(fbs->GetNumFunctions(),0.0)
+template <class T, class Face, class FBS> void FitImpBase<T,Face,FBS>::ReScale(double factor)
 {
-    itsFitCoeff[0]=1.0/itsBasisSet->Charge()[0]; //Wild guess with the correct total charge.
-};
-
-template <class T> FunctionFitterImp<T>::FunctionFitterImp()
-    : itsBasisSet (    )
-    , itsFitCoeff (    )
-{
-
-};
-
-template <class T> FunctionFitterImp<T>::~FunctionFitterImp()
-{
+    itsFitCoeff*=factor;
 }
 
-
-//--------------------------------------------------------------------------
-//
-//  Implement all DoFit functions.  The overlaps will be accumulated in
-//  itsFitCoeff by the call to GetRepulsions or GetOverlap.
-//
-template <class T> void FunctionFitterImp<T>::DoFit(const ScalarFFClient& ffc)
+template <class T, class Face, class FBS> void FitImpBase<T,Face,FBS>::FitMixIn(const Face& ff,double c)
 {
-    DoFitInternal(ffc,0); //No contraint.
-}
-template <class T> void FunctionFitterImp<T>::DoFit(const ProjectedDensity_AO& ffc)
-{
-    DoFitInternal(ffc,0); //No contraint.
-}
-template <class T> void FunctionFitterImp<T>::DoFit(const ProjectedDensity_FT&)
-{
-    assert(false && "FunctionFitterImp::DoFit(ProjectedDensity_FT): the Gaussian fitter fits via a client "
-                    "callback, not pre-computed Fourier coefficients (that is the plane-wave path).");
-}
-
-template <class T> void FunctionFitterImp<T>::DoFitInternal(const ScalarFFClient& ffc,double constraint)
-{
-    auto Sinv=itsBasisSet->InvOverlap();
-    itsFitCoeff= Sinv * itsBasisSet->Overlap(*ffc.GetScalarFunction());
-}
-
-template <class T> void FunctionFitterImp<T>::DoFitInternal(const ProjectedDensity_AO& ffc,double constraint)
-{   
-    auto Sinv=itsBasisSet->InvRepulsion();
-    itsFitCoeff=Sinv * ffc.GetRepulsion3C(itsBasisSet.get());
-}
-
-//---------------------------------------------------------------------------
-//
-//  Fit-derived quantities the clients query (the "what's your overlap/repulsion with this basis?" side).
-//
-template <class T> hmat_t<T> FunctionFitterImp<T>::
-Overlap(const obs_t<T>* bs) const
-{
-    auto dftbs=dynamic_cast<const BasisSet::Orbital_DFT_IBS<T>*>(bs); // obs_t is the 1E base; need the 3-centre one
-    assert(dftbs && "FunctionFitterImp::Overlap: Gaussian fitting needs an Orbital_DFT_IBS (3-centre) basis");
-    const ERI3<T>& O3=dftbs->Overlap3C(*itsBasisSet);
-    hmat_t<T> J=blazem::zeroH<T>(bs->GetNumFunctions());
-    size_t i=0;
-    for (auto c:itsFitCoeff) J+=c*O3[i++];
-    assert(!blazem::isnan(J));
-    return J;
-}
-
-template <class T> hmat_t<T> FunctionFitterImp<T>::
-Repulsion(const obs_t<T>* bs) const
-{
-    auto dftbs=dynamic_cast<const BasisSet::Orbital_DFT_IBS<T>*>(bs); // obs_t is the 1E base; need the 3-centre one
-    assert(dftbs && "FunctionFitterImp::Repulsion: Gaussian fitting needs an Orbital_DFT_IBS (3-centre) basis");
-    const ERI3<T>& R3=dftbs->Repulsion3C(*itsBasisSet);
-    hmat_t<T> J=blazem::zeroH<T>(bs->GetNumFunctions());
-    size_t i=0;
-    for (auto c:itsFitCoeff) J+=c*R3[i++];
-    assert(!blazem::isnan(J));
-    return J;
-}
-
-template <class T> double FunctionFitterImp<T>::
-FitGetRepulsion(const FunctionFitterImp<T>* ffi) const
-{
-    return
-        blazem::trans(itsFitCoeff) * itsBasisSet->Repulsion(*ffi->itsBasisSet.get()) *
-        ffi->itsFitCoeff;
-}
-
-template <class T> double FunctionFitterImp<T>::FitGetSelfRepulsion() const
-{
-    return FitGetRepulsion(this);   // <fit|1/r12|fit>
-}
-
-template <class T> double FunctionFitterImp<T>::Integral() const
-{
-    return blazem::trans(itsFitCoeff) * itsBasisSet->Charge();
-}
-
-//------------------------------------------------------------------------
-//
-//  Handy utilities for fitted functions.
-//
-template <class T> void FunctionFitterImp<T>::FitMixIn(const FunctionFitter<T>& ff,double c)
-{
-    const FunctionFitterImp<T>* ffi = dynamic_cast<const FunctionFitterImp<T>*>(&ff);
+    const FitImpBase* ffi = dynamic_cast<const FitImpBase*>(&ff);
     assert(ffi);
     assert(itsBasisSet->GetID() == ffi->itsBasisSet->GetID());
     itsFitCoeff = itsFitCoeff*(1-c) + ffi->itsFitCoeff*c;
 }
 
-template <class T> double FunctionFitterImp<T>::FitGetChangeFrom(const FunctionFitter<T>& ff) const
+template <class T, class Face, class FBS> double FitImpBase<T,Face,FBS>::FitGetChangeFrom(const Face& ff) const
 {
-    const FunctionFitterImp<T>* ffi = dynamic_cast<const FunctionFitterImp<T>*>(&ff);
+    const FitImpBase* ffi = dynamic_cast<const FitImpBase*>(&ff);
     assert(ffi);
     assert(itsBasisSet->GetID() == ffi->itsBasisSet->GetID());
     return blazem::max(blazem::abs(itsFitCoeff - ffi->itsFitCoeff));
 }
 
-template <class T> void FunctionFitterImp<T>::ReScale(double factor)
-{
-    itsFitCoeff*=factor;
-}
-
-//-------------------------------------------------------------------------
-//
-//  Real space function stuff.
-//
-template <class T> double  FunctionFitterImp<T>::operator()(const rvec3_t& r) const
+template <class T, class Face, class FBS> double FitImpBase<T,Face,FBS>::operator()(const rvec3_t& r) const
 {
     return blazem::trans(itsFitCoeff) * (*itsBasisSet)(r);
 }
 
-template <class T> rvec3_t  FunctionFitterImp<T>::Gradient(const rvec3_t& r) const
+template <class T, class Face, class FBS> rvec3_t FitImpBase<T,Face,FBS>::Gradient(const rvec3_t& r) const
 {
     vec_t<rvec3_t> br = itsBasisSet->Gradient(r);
     rvec3_t ret(0,0,0);
@@ -161,22 +53,41 @@ template <class T> rvec3_t  FunctionFitterImp<T>::Gradient(const rvec3_t& r) con
     return ret;
 }
 
-//-----------------------------------------------------------------------
-//
-//  Streamable stuff.
-//
-template <class T> std::ostream& FunctionFitterImp<T>::Write(std::ostream& os) const
+template <class T, class Face, class FBS> std::ostream& FitImpBase<T,Face,FBS>::Write(std::ostream& os) const
 {
     os << "Fit Function: " << std::endl;
-
     os << *itsBasisSet;
     os << std::endl;
     os << "  Coeff=" << itsFitCoeff << std::endl;
-
     return os;
 }
 
+//=========================================================================== FunctionFitterImp (Scalar)
+//
+//  Overlap-metric (potential) fit:  c = S^-1 <f_a|f>, contracted as Sum_a c_a <Oi|f_a|Oj>.
+//
+template <class T> void FunctionFitterImp<T>::DoFit(const ScalarFFClient& ffc)
+{
+    auto Sinv=this->itsBasisSet->InvOverlap();
+    this->itsFitCoeff = Sinv * this->itsBasisSet->Overlap(*ffc.GetScalarFunction());
+}
 
+template <class T> hmat_t<T> FunctionFitterImp<T>::Overlap(const obs_t<T>* bs) const
+{
+    auto dftbs=dynamic_cast<const BasisSet::Orbital_DFT_IBS<T>*>(bs); // obs_t is the 1E base; need the 3-centre one
+    assert(dftbs && "FunctionFitterImp::Overlap: Gaussian fitting needs an Orbital_DFT_IBS (3-centre) basis");
+    const ERI3<T>& O3=dftbs->Overlap3C(*this->itsBasisSet);
+    hmat_t<T> J=blazem::zeroH<T>(bs->GetNumFunctions());
+    size_t i=0;
+    for (auto c:this->itsFitCoeff) J+=c*O3[i++];
+    assert(!blazem::isnan(J));
+    return J;
+}
+
+// Both FitImpBase faces are emitted HERE, where the shared member definitions above are visible (the
+// Density-face members would otherwise be undefined: ConstrainedFF.C can't emit what it can't see).
+template class FitImpBase<double, FunctionFitter_Scalar <double>, BasisSet::FIT_SF_ABS>;
+template class FitImpBase<double, FunctionFitter_Density<double>, BasisSet::FIT_CD_ABS>;
 template class FunctionFitterImp<double>;
 
 } //namespace

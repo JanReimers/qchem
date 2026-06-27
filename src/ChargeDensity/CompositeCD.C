@@ -33,7 +33,7 @@ public:
 
     virtual double GetTotalCharge      (                     ) const;
 
-    virtual rvec_t GetRepulsion3C(const fbs_t*) const;
+    virtual rvec_t GetRepulsion3C(const BasisSet::FIT_CD_ABS*) const;
 
     virtual void   ReScale      (double factor         )      ;  // No UT coverage//Ro *= factor
     virtual void   MixIn        (const tDM_CD<T>&,double)      ;  //this = (1-c)*this + c*that.

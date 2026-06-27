@@ -17,7 +17,7 @@ export namespace qchem::ChargeDensity
 template <class T> class FittedCDImp
     : public virtual FittedCD
 {
-     typedef typename Fitting::FunctionFitter<T>::bs_t   bs_t;
+     typedef typename Fitting::FunctionFitter_Density<T>::bs_t   bs_t;
 public:
     FittedCDImp(bs_t&, double totalCharge);
     FittedCDImp(const FittedCDImp&) = delete;   //!< copying would slice the fitter's constraint
@@ -33,7 +33,7 @@ public:
     virtual rvec3_t Gradient  (const rvec3_t& r) const {return itsFitter->Gradient(r);} // No UT coverage
 
 private:
-    std::unique_ptr<Fitting::FunctionFitter<T>> itsFitter;   //!< COMPOSED fit (was inherited)
+    std::unique_ptr<Fitting::FunctionFitter_Density<T>> itsFitter;   //!< COMPOSED fit (was inherited)
 };
 
 } //namespace

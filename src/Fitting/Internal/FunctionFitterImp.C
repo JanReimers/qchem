@@ -1,8 +1,8 @@
-// File: FunctionFitterImp.C  Concrete least-squares fitter implementing Fitting::FunctionFitter.
+// File: FunctionFitterImp.C  Concrete least-squares fitters implementing the two Fitting faces.
 module;
 #include <memory> // for std::shared_ptr
 export module qchem.Fitting.Internal.FunctionFitterImp;
-export import qchem.Fitting.FunctionFitter;  // FunctionFitter<T>, ScalarFFClient, ProjectedDensity_AO, ScalarFunction
+export import qchem.Fitting.FunctionFitter;  // FunctionFitter_Scalar/_Density, the *FFClients, ScalarFunction
 import qchem.Fitting.Types;
 import qchem.Blaze;
 //--------------------------------------------------------------------------
@@ -13,56 +13,71 @@ import qchem.Blaze;
 export namespace qchem::Fitting
 {
 
-template <class T> class FunctionFitterImp
-    : public virtual FunctionFitter<T>
+//! \brief Shared implementation of the coefficient + real-space machinery common to BOTH fitter faces.
+//! Parametrised on the public face it implements (Face = FunctionFitter_Scalar/_Density<T>) and the narrow
+//! fit-basis face it holds (FBS = FIT_SF_ABS/FIT_CD_ABS).  Carries the fit coefficients and the shared
+//! ScalarFunction (operator()/Gradient), ReScale, FitMixIn/FitGetChangeFrom (coefficient-only) and Write;
+//! the metric-specific DoFit + contraction live in the leaf impls below.
+template <class T, class Face, class FBS> class FitImpBase
+    : public virtual Face
 {
 public:
-    typedef std::shared_ptr<const fbs_t> bs_t;
+    typedef std::shared_ptr<const FBS> bs_t;
 
-    FunctionFitterImp(                                         );
-    FunctionFitterImp(bs_t&);
-    ~FunctionFitterImp();
+    FitImpBase(     ) : itsBasisSet( ), itsFitCoeff( ) {}
+    FitImpBase(bs_t& fbs) : itsBasisSet(fbs), itsFitCoeff(fbs->GetNumFunctions(),0.0) {}
 
-    virtual void   DoFit           (const ScalarFFClient& )      ;
-    virtual void   DoFit           (const ProjectedDensity_AO& )      ;
-    virtual void   DoFit           (const ProjectedDensity_FT& )  ;  // NA: the Gaussian fitter fits via a client
-    virtual void   ReScale         (double factor               )      ; //Fit *= factor
-    virtual void   FitMixIn        (const FunctionFitter<T>&,double)      ; // this = this*(1-c) + that*c.
-    virtual double FitGetChangeFrom(const FunctionFitter<T>&       ) const;
+    virtual void   ReScale         (double factor)            override; // Fit *= factor
+    virtual void   FitMixIn        (const Face&,double)        override; // this = this*(1-c) + that*c
+    virtual double FitGetChangeFrom(const Face&) const         override;
 
-    virtual double  operator()(const rvec3_t&) const;
-    virtual rvec3_t Gradient  (const rvec3_t&) const;
-    virtual std::ostream& Write(std::ostream&) const;
+    virtual double  operator()(const rvec3_t&) const          override;
+    virtual rvec3_t Gradient  (const rvec3_t&) const          override;
+    virtual std::ostream& Write(std::ostream&) const          override;
 
-    virtual hmat_t<T> Overlap  (const obs_t<T>*) const;
-    virtual hmat_t<T> Repulsion(const obs_t<T>*) const;
-    virtual double    FitGetSelfRepulsion   ()                const;  // <fit|1/r12|fit>
-    virtual double    Integral          ()                const;
-protected:
-    virtual void   DoFitInternal(const ScalarFFClient&,double constraint=0);
-    virtual void   DoFitInternal(const ProjectedDensity_AO&,double constraint=0);
-    //! Coulomb repulsion energy with another fit (self-repulsion uses *this).
-    double FitGetRepulsion(const FunctionFitterImp*) const;
-
-public: //Client code needs read access to this data.
+public: // Client code needs read access to this data.
     bs_t     itsBasisSet;
     vec_t<T> itsFitCoeff;
 };
 
-template <class T> class ConstrainedFF
-    : public FunctionFitterImp<T>
+//---------------------------------------------------------------------- Scalar (overlap-metric) impl
+template <class T> class FunctionFitterImp
+    : public FitImpBase<T, FunctionFitter_Scalar<T>, BasisSet::FIT_SF_ABS>
 {
-    typedef FunctionFitterImp<T> Base;
+    typedef FitImpBase<T, FunctionFitter_Scalar<T>, BasisSet::FIT_SF_ABS> Base;
 public:
-    typedef typename Base::bs_t   bs_t;
+    typedef typename Base::bs_t bs_t;
+
+    FunctionFitterImp(     ) : Base( ) {}
+    FunctionFitterImp(bs_t& fbs) : Base(fbs) {}
+
+    virtual void      DoFit  (const ScalarFFClient&)      override;  // overlap-metric projection
+    virtual hmat_t<T> Overlap(const obs_t<T>*) const      override;  // Sum_a c_a <Oi|f_a|Oj>
+};
+
+//---------------------------------------------------------------- Density (Coulomb-metric) impl
+template <class T> class ConstrainedFF
+    : public FitImpBase<T, FunctionFitter_Density<T>, BasisSet::FIT_CD_ABS>
+{
+    typedef FitImpBase<T, FunctionFitter_Density<T>, BasisSet::FIT_CD_ABS> Base;
+public:
+    typedef typename Base::bs_t bs_t;
 
     ConstrainedFF();
     ConstrainedFF(bs_t&, const vec_t<T>& g);
 
-    virtual void   DoFit(const ScalarFFClient&);
-    virtual void   DoFit(const ProjectedDensity_AO&);
+    virtual void      DoFit    (const ProjectedDensity_AO&)  override; // Dunlap charge-constrained fit
+    virtual void      DoFit    (const ProjectedDensity_FT&)  override; // NA: the Gaussian fitter fits via a client
+    virtual hmat_t<T> Repulsion(const obs_t<T>*) const       override; // Sum_a c_a <Oi|f_a/r12|Oj>
+    virtual double    FitGetSelfRepulsion() const            override; // <fit|1/r12|fit>
+    virtual double    Integral () const                      override;
 
-    virtual std::ostream& Write    (std::ostream&) const;
+    virtual std::ostream& Write(std::ostream&) const         override;
+protected:
+    //! Unconstrained Coulomb-metric solve c0 = J^-1 <rho|f> (the constraint is applied on top in DoFit).
+    void   DoFitUnconstrained(const ProjectedDensity_AO&);
+    //! Coulomb repulsion energy with another fit (self-repulsion uses *this).
+    double FitGetRepulsion(const ConstrainedFF*) const;
 private:
     vec_t<T> g;
     row_t<T> gS;

@@ -1,21 +1,22 @@
-// File: Fitting/Imp/FunctionFitter.C  Factory for FunctionFitter -- the only place the concrete impl is named.
+// File: Fitting/Imp/FunctionFitter.C  Factory for the fitter faces -- the only place a concrete impl is named.
 module;
 #include <memory>
 module qchem.Fitting.FunctionFitter;
-import qchem.Fitting.Internal.FunctionFitterImp;   // FunctionFitterImp + IntegralConstrainedFF (the concrete fitters)
+import qchem.Fitting.Internal.FunctionFitterImp;   // FunctionFitterImp (Scalar) + IntegralConstrainedFF (Density)
 
 namespace qchem::Fitting
 {
 
-std::unique_ptr<FunctionFitter<double>>
-MakeFunctionFitter(FitFlavour flavour, std::shared_ptr<const fbs_t>& bs)
+std::unique_ptr<FunctionFitter_Scalar<double>>
+MakeScalarFitter(std::shared_ptr<const BasisSet::FIT_SF_ABS>& bs)
 {
-    switch (flavour)
-    {
-        case FitFlavour::Unconstrained:     return std::make_unique<FunctionFitterImp<double>>     (bs);
-        case FitFlavour::ChargeConstrained: return std::make_unique<IntegralConstrainedFF<double>>(bs);
-    }
-    return nullptr;
+    return std::make_unique<FunctionFitterImp<double>>(bs);
+}
+
+std::unique_ptr<FunctionFitter_Density<double>>
+MakeDensityFitter(std::shared_ptr<const BasisSet::FIT_CD_ABS>& bs)
+{
+    return std::make_unique<IntegralConstrainedFF<double>>(bs);
 }
 
 } //namespace

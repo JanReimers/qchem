@@ -6,22 +6,30 @@
 //   Fitter -> Client :  "fine, but answer a couple of questions first --     [the *FFClient callbacks:
 //                        what's your value at r? (or: your charge and your    GetScalarFunction(), or
 //                        3-centre repulsion with my fit basis?)"              FitGetConstraint()+GetRepulsion3C()]
-//   Client -> Fitter :  "great.  Now, what's your overlap / repulsion with   [FitGet3Center{Overlap,Repulsion},
+//   Client -> Fitter :  "great.  Now, what's your overlap / repulsion with   [Overlap / Repulsion,
 //                        this other (orbital) basis?"                          FitGetSelfRepulsion, Integral]
 //
 // The FFClient callbacks are simply how the Fitter asks the Client its questions, so they live here with
 // the Fitter -- a client imports this ONE module and has everything.  (The old separate FittedFunction
 // interface was a spurious third actor: the Fitter *is* the fitted result you query.)
 //
-// Clients COMPOSE a fitter obtained from the Factory and use only this interface; the concrete
-// implementation (FunctionFitterImp and its constrained variants) stays hidden behind the Factory.
+// The fitter is split along its METRIC axis into two ISP faces -- FunctionFitter_Scalar (the overlap
+// metric, for potential fits v_xc) and FunctionFitter_Density (the Coulomb metric + charge constraint,
+// for density fits rho).  Each takes its OWN narrow fit-basis face (FIT_SF_ABS / FIT_CD_ABS), so the
+// consumers no longer down-cast the narrow face back up to the concrete Fit_IBS.  The Gaussian side has
+// two distinct impls; the plane-wave FourierFunctionFitter implements BOTH faces (on an orthonormal {G}
+// basis the projection IS the fit, so the metric distinction is degenerate).
+//
+// Clients COMPOSE a fitter obtained from the Factory and use only the relevant face; the concrete
+// implementation stays hidden behind the Factory.
 module;
 #include <iosfwd>
 #include <memory>
 export module qchem.Fitting.FunctionFitter;
 export import qchem.ScalarFunction;   // ScalarFunction<double> (operator(), Gradient) + Types
 export import qchem.FourierMap;       // the pre-computed G-space coefficients a Fourier (PW) fit receives
-import qchem.Fitting.Types;           // fbs_t, obs_t<T>
+import qchem.Fitting.Types;           // obs_t<T>
+import qchem.BasisSet.Fit_IBS;        // FIT_SF_ABS / FIT_CD_ABS (the two narrow fit-basis faces)
 import qchem.Blaze;                   // hmat_t<T>
 
 export namespace qchem::Fitting
@@ -40,8 +48,8 @@ public:
 class ProjectedDensity_AO
 {
 public:
-    virtual double FitGetConstraint() const=0;                 //!< "what charge should the fit have?" (= N)
-    virtual rvec_t GetRepulsion3C(const fbs_t*) const=0;        //!< the projection <rho|c> = Sum_ab D_ab<ab|c>
+    virtual double FitGetConstraint() const=0;                                  //!< "what charge?" (= N)
+    virtual rvec_t GetRepulsion3C(const BasisSet::FIT_CD_ABS*) const=0;         //!< <rho|c> = Sum_ab D_ab<ab|c>
 };
 
 //! \brief The plane-wave counterpart of ProjectedDensity_AO.  On the orthonormal {G} basis the projection
@@ -51,46 +59,55 @@ public:
 //! FourierMap rather than a separate callback.
 using ProjectedDensity_FT = FourierMap;
 
-//! \brief Abstract least-squares function fitter.  Clients COMPOSE one (from the Factory) and use only
-//! this interface.  Real-valued function (ScalarFunction<double>); the matrix element type T may differ.
-template <class T> class FunctionFitter : public virtual ScalarFunction<double>
+//! \brief Abstract least-squares function fitter -- the SCALAR (overlap-metric) face.  Projects a pointwise
+//! field (e.g. v_xc(rho(r))) onto the fit basis in the ordinary overlap norm, then contracts it against an
+//! orbital basis as an operator matrix Sum_a c_a <Oi|f_a|Oj>.  Real-valued fit function
+//! (ScalarFunction<double>); the matrix element type T may differ.
+template <class T> class FunctionFitter_Scalar : public virtual ScalarFunction<double>
 {
 public:
-    typedef std::shared_ptr<const fbs_t> bs_t;
+    typedef std::shared_ptr<const BasisSet::FIT_SF_ABS> bs_t;   //!< overlap-metric aux basis (narrow face)
 
-    // --- "please fit me" + post-fit utilities ---
-    virtual void   DoFit           (const ScalarFFClient& )            =0;  //!< fit a scalar (overlap metric)
-    virtual void   DoFit           (const ProjectedDensity_AO& )           =0;  //!< fit a density (Coulomb metric)
+    virtual void   DoFit           (const ScalarFFClient&)                  =0;  //!< fit a scalar (overlap metric)
+    virtual hmat_t<T> Overlap      (const obs_t<T>*) const                  =0;  //!< Sum_a c_a <Oi|f_a|Oj>
+
+    // --- shared post-fit utilities (two fitters of the SAME face) ---
+    virtual void   ReScale         (double factor)                         =0;  //!< c *= factor
+    virtual void   FitMixIn        (const FunctionFitter_Scalar&,double f)  =0;  //!< c = (1-f)c + f g.c
+    virtual double FitGetChangeFrom(const FunctionFitter_Scalar&) const     =0;  //!< max|c - g.c| (SCF conv.)
+    virtual std::ostream& Write    (std::ostream&) const                    =0;  //!< describe the fit
+};
+
+//! \brief Abstract least-squares function fitter -- the DENSITY (Coulomb-metric) face.  Solves the
+//! charge-constrained density fit (Dunlap-Connolly-Sabin) in the Coulomb norm, then contracts it against an
+//! orbital basis as a Coulomb (Vee) matrix Sum_a c_a <Oi|f_a/r12|Oj>.
+template <class T> class FunctionFitter_Density : public virtual ScalarFunction<double>
+{
+public:
+    typedef std::shared_ptr<const BasisSet::FIT_CD_ABS> bs_t;   //!< Coulomb-metric aux basis (narrow face)
+
+    virtual void   DoFit           (const ProjectedDensity_AO&)             =0;  //!< fit a density (dense, metric solve)
     //! Fit a density already projected onto an orthonormal {G} basis -- the rho-tilde IS the fit (no metric
     //! solve), so DoFit just stores it.  Gaussian (ProjectedDensity_AO) fitters NA-assert this overload.
-    virtual void   DoFit           (const ProjectedDensity_FT& )       =0;
-    virtual void   ReScale         (double factor)                     =0;  //!< c *= factor
-    virtual void   FitMixIn        (const FunctionFitter& g,double f)  =0;  //!< c = (1-f)c + f g.c
-    virtual double FitGetChangeFrom(const FunctionFitter& g) const     =0;  //!< max|c - g.c| (SCF convergence)
+    virtual void   DoFit           (const ProjectedDensity_FT&)            =0;
+    virtual hmat_t<T> Repulsion    (const obs_t<T>*) const                 =0;  //!< Sum_a c_a <Oi|f_a/r12|Oj>
+    virtual double    FitGetSelfRepulsion() const                          =0;  //!< <fit|1/r12|fit> (caller halves)
+    virtual double    Integral     () const                               =0;  //!< total charge Sum_a c_a integral f_a
 
-    // --- "what's your overlap / repulsion with this orbital basis?" ---
-    //! 3-centre OVERLAP contraction Sum_a c_a <Oi|f_a|Oj> -- a fitted scalar (e.g. v_xc) as an operator matrix.
-    virtual hmat_t<T> Overlap  (const obs_t<T>*) const =0;
-    //! 3-centre REPULSION contraction Sum_a c_a <Oi|f_a/r12|Oj> -- a fitted density's Coulomb (Vee) matrix.
-    virtual hmat_t<T> Repulsion(const obs_t<T>*) const =0;
-    //! Coulomb self-energy <fit|1/r12|fit> (the caller applies any factor of 1/2).
-    virtual double    FitGetSelfRepulsion   ()                const =0;
-    //! Total charge  integral fit  = Sum_a c_a integral f_a.
-    virtual double    Integral          ()                const =0;
-
-    virtual std::ostream& Write(std::ostream&) const =0;   //!< describe the fit (basis + coefficients)
+    // --- shared post-fit utilities (two fitters of the SAME face) ---
+    virtual void   ReScale         (double factor)                         =0;  //!< c *= factor
+    virtual void   FitMixIn        (const FunctionFitter_Density&,double f) =0;  //!< c = (1-f)c + f g.c
+    virtual double FitGetChangeFrom(const FunctionFitter_Density&) const    =0;  //!< max|c - g.c| (SCF conv.)
+    virtual std::ostream& Write    (std::ostream&) const                    =0;  //!< describe the fit
 };
 
-//! Fitting flavours selected at the Factory.
-enum class FitFlavour
-{
-    Unconstrained,      //!< plain least squares -- potential fits (FittedVxc, eps_xc).
-    ChargeConstrained   //!< integral/charge-constrained density fit (Dunlap 1979) -- the charge density.
-};
+//! \brief Create a SCALAR (overlap-metric) fitter on the given overlap-metric fit basis.  Caller owns the
+//! result; the concrete type stays hidden behind the FunctionFitter_Scalar interface.
+std::unique_ptr<FunctionFitter_Scalar<double>>
+MakeScalarFitter(std::shared_ptr<const BasisSet::FIT_SF_ABS>&);
 
-//! \brief Create a fitter of the requested flavour on the given fit basis + mesh.  Caller owns the result;
-//! the concrete type stays hidden behind the FunctionFitter interface.
-std::unique_ptr<FunctionFitter<double>>
-MakeFunctionFitter(FitFlavour, std::shared_ptr<const fbs_t>&);
+//! \brief Create a DENSITY (charge-constrained Coulomb-metric) fitter on the given Coulomb-metric fit basis.
+std::unique_ptr<FunctionFitter_Density<double>>
+MakeDensityFitter(std::shared_ptr<const BasisSet::FIT_CD_ABS>&);
 
 } //namespace
