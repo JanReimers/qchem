@@ -505,7 +505,7 @@ SCFResult RunSCF(const PlaneWave_IBS& pw, const UnitCell& B, double Omega,
 // rho~(dm) (k-independent, lattice-periodic) accumulates Sum_k w_k Sum_n f c c* over all k.  For an
 // insulator (Si: 8 valence e-) exactly Nelec/2 bands are filled at EVERY k -> trivial occupation.
 SCFResult RunSCF_kpoints(const ReciprocalLattice& recip, const UnitCell& B, double Omega,
-                         const Structure& cl, const HGH_LocalPotential& loc, const HGH_SeparablePotential& nl,
+                         const Structure& st, const HGH_LocalPotential& loc, const HGH_SeparablePotential& nl,
                          const ivec3_t& Nmp, double Ecut, int Nelec, const ivec3_t& Ng,
                          const std::function<double(double)>& vxcOf, const std::function<double(double)>& epsxcOf,
                          double alpha, double tol, int maxiter)
@@ -517,7 +517,7 @@ SCFResult RunSCF_kpoints(const ReciprocalLattice& recip, const UnitCell& B, doub
             for (int kz=0;kz<Nmp.z;kz++)
             {
                 auto p=std::make_unique<PlaneWave_IBS>(recip, Nmp, ivec3_t(kx,ky,kz), Ecut);
-                Vext.push_back(p->MakeLocalPotential(&cl,loc)+p->MakeSeparablePotential(&cl,nl));
+                Vext.push_back(p->MakeLocalPotential(&st,loc)+p->MakeSeparablePotential(&st,nl));
                 K.push_back(p->MakeKinetic());
                 pw.push_back(std::move(p));
             }

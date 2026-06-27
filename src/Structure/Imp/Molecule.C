@@ -7,9 +7,9 @@ module qchem.Structure;
 import qchem.stl_io;
 import qchem.Streamable;
 
-Molecule::Molecule(const Structure& cl)
+Molecule::Molecule(const Structure& atoms)
 {
-    for (auto a:cl)
+    for (auto a:atoms)
     {
         itsAtoms.push_back(new Atom(*a));
     }

@@ -17,9 +17,9 @@ using namespace ::BasisSet::Molecule::Evaluators::PG_Cart_MnD;  // Cartesian glu
 // The AO shell layout of a (flattened) PG basis: one AoShell per Gaussian block, with its
 // center, Cartesian monomials, per-component normalization, a center-independent shellType
 // (so symmetry-equivalent shells match), and its offset in the global AO ordering.
-std::vector<Symmetry::AoShell> ExtractAoShells(const PGData& pg);
+std::vector<Symmetry::AoShell> ExtractAoShells(const PGData&);
 
 // The nuclear point set (species = Z, position) for point-group detection.
-std::vector<Symmetry::SymPoint> StructureToSymPoints(const Structure& cl);
+std::vector<Symmetry::SymPoint> StructureToSymPoints(const Structure&);
 
 } //namespace

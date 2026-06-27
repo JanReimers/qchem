@@ -11,7 +11,7 @@ namespace BasisSet::Molecule::PG_Cart
 using namespace ::BasisSet::Molecule::Evaluators::PG_Cart_MnD;  // Cartesian glue moved out to PG_Cart_MnD
 
 ::BasisSet::Molecule::SymmetryAdaptedBasisSet*
-SymmetryAdapt(std::shared_ptr<const ::BasisSet::BasisSet<double>> rawBasis, const Structure& cl, double tol)
+SymmetryAdapt(std::shared_ptr<const ::BasisSet::BasisSet<double>> rawBasis, const Structure& st, double tol)
 {
     // The molecular orbital basis is a single PG Orbital_IBS (IS-A PGData).
     const ::BasisSet::Real_OIBS* rawIBS = nullptr;
@@ -24,7 +24,7 @@ SymmetryAdapt(std::shared_ptr<const ::BasisSet::BasisSet<double>> rawBasis, cons
     assert(rawIBS && pg && "PG SymmetryAdapt: no PolarizedGaussian orbital IBS in the basis");
 
     auto shells = ExtractAoShells(*pg);
-    auto pts    = StructureToSymPoints(cl);
+    auto pts    = StructureToSymPoints(st);
     auto grp    = Symmetry::BuildAbelianGroup(pts, tol);
     auto salc   = Symmetry::BuildSALCs(shells, grp, Symmetry::Centroid(pts), tol);
 

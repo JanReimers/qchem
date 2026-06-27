@@ -265,16 +265,16 @@ template <class T> const hmat_t<T>& IntegralsCache_RAM<T>::Get(I2C i2c,const DBC
     return it->second;
 }
 
-template <class T> const hmat_t<T>& IntegralsCache_RAM<T>::Get(I2n i2n,const DBCacheClient* bs,const Structure_ID_t& cl,std::function<hmat_t<T>()> make)
+template <class T> const hmat_t<T>& IntegralsCache_RAM<T>::Get(I2n i2n,const DBCacheClient* bs,const Structure_ID_t& st,std::function<hmat_t<T>()> make)
 {
     IBS_ID_t id=bs->BasisSetID();
-    keyn_t key(id,cl);
+    keyn_t key(id,st);
     if (auto i=itsNMats.find(key); i!=itsNMats.end())
     {
         CheckCacheDim(i->second.rows(),bs->CacheDim(),std::format("I2n {}",i2n),id);
         return i->second;
     }
-    if (itsMakeLog) itsLogger << "I2n " << std::format("{:<12}",i2n) << " compute a=" << id << " structure=" << cl << std::endl;
+    if (itsMakeLog) itsLogger << "I2n " << std::format("{:<12}",i2n) << " compute a=" << id << " structure=" << st << std::endl;
     auto v=make();
     const auto [it,ok]=itsNMats.insert({key,std::move(v)});
     assert(ok);

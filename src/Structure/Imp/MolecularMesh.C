@@ -31,14 +31,14 @@ double BeckeCutoff(double mu, int k)
 }
 } //anon
 
-qcMesh::Mesh MakeMolecularMesh(const Structure& cl, const qcMesh::MeshParams& mp)
+qcMesh::Mesh MakeMolecularMesh(const Structure& atoms, const qcMesh::MeshParams& mp)
 {
     const int beckeOrder=mp.beckeOrder;
     assert(beckeOrder>=0);
-    size_t natom=cl.GetNumAtoms();
+    size_t natom=atoms.GetNumAtoms();
 
     std::vector<rvec3_t> R(natom);
-    for (size_t i=0; i<natom; i++) R[i]=cl[i]->itsR;
+    for (size_t i=0; i<natom; i++) R[i]=atoms[i]->itsR;
 
     qcMesh::RadialMesh  rad=MakeRadial(mp);   // one single-center template reused (ShiftOrigin per atom)
     qcMesh::AngularMesh ang=MakeAngular(mp);

@@ -34,9 +34,9 @@ struct OneOverR  : qcMesh::ScalarField<double>
     double  operator()(const rvec3_t& r) const override {double m=norm(r); return m==0.0?0.0:1.0/m;}
     rvec3_t Gradient  (const rvec3_t&)   const override {return rvec3_t(0,0,0);}
 };
-qcMesh::Mesh AtomMesh(const Structure& cl, int nRadial, int mhl_m, double alpha, int nAngular)
+qcMesh::Mesh AtomMesh(const Structure& st, int nRadial, int mhl_m, double alpha, int nAngular)
 {
-    return MakeMolecularMesh(cl, {.radial=qcMesh::RadialKind::MHL, .nRadial=nRadial, .mhl_m=mhl_m,
+    return MakeMolecularMesh(st, {.radial=qcMesh::RadialKind::MHL, .nRadial=nRadial, .mhl_m=mhl_m,
                                   .mhl_alpha=alpha, .angular=qcMesh::AngularKind::Gauss, .nAngular=nAngular});
 }
 } //anon

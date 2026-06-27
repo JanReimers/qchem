@@ -39,9 +39,9 @@ public:
 
 } //anon
 
-void Fit_IBS::SetMesh(const Structure& cl, const qcMesh::MeshParams& mp)
+void Fit_IBS::SetMesh(const Structure& st, const qcMesh::MeshParams& mp)
 {
-    itsMesh = MakeMolecularMesh(cl, mp);
+    itsMesh = MakeMolecularMesh(st, mp);
 }
 
 const  rvec_t& Fit_IBS::Charge   () const

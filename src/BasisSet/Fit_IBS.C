@@ -62,7 +62,7 @@ public:
 
     //! Build and OWN the fit quadrature mesh (Becke, from the structure).  Called by the
     //! CreateCD/VxcFitBasisSet creators, which already hold the Structure.
-    void SetMesh(const Structure& cl, const qcMesh::MeshParams& mp);
+    void SetMesh(const Structure&, const qcMesh::MeshParams&);
 
     // Numerical (mesh-quadrature) versions -- run over the fit basis's OWN mesh (itsMesh).
     const rvec_t& Norm   ()           const override; //!< 1/sqrt(<f_a|f_a>), cached

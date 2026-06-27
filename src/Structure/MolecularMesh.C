@@ -19,4 +19,4 @@ import qchem.Structure;             // Structure (brings the OLD global Mesh -- 
 //! of smoothing iterations of Becke's cell polynomial (Becke 1988 recommends 3).  Coincident atoms
 //! (R_ab = 0) are handled explicitly: their pair coordinate mu is taken as 0, so each contributes a
 //! half-weight cell and a coincident dimer integrates to exactly the single-atom result.
-export qcMesh::Mesh MakeMolecularMesh(const Structure& cl, const qcMesh::MeshParams& mp);
+export qcMesh::Mesh MakeMolecularMesh(const Structure&, const qcMesh::MeshParams&);

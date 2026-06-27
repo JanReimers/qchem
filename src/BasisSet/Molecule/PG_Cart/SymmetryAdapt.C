@@ -16,6 +16,6 @@ export namespace BasisSet::Molecule::PG_Cart
 // Build the symmetry-adapted basis from a raw PG molecular AO basis + its structure: extract shells ->
 // detect point group -> BuildSALCs -> wrap.  The returned object owns the raw basis (KeepAlive).
 ::BasisSet::Molecule::SymmetryAdaptedBasisSet*
-SymmetryAdapt(std::shared_ptr<const ::BasisSet::BasisSet<double>> rawBasis, const Structure& cl, double tol=1e-4);
+SymmetryAdapt(std::shared_ptr<const ::BasisSet::BasisSet<double>> rawBasis, const Structure&, double tol=1e-4);
 
 } //namespace
