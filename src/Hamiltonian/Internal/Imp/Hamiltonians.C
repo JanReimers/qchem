@@ -1,6 +1,7 @@
 // File:: Hamiltonian/Internal/Imp/Hamiltonians.C  Create fully implemented Hamiltonians
 module;
 #include <memory>
+#include <string>
 module qchem.Hamiltonian.Internal.Hamiltonians;
 import qchem.Hamiltonian.Internal.Terms;
 import qchem.Hamiltonian.Internal.PWTerms;        // PW_Kinetic/External/Hartree/XC (the plane-wave KS terms)
@@ -9,6 +10,7 @@ import qchem.Hamiltonian.Internal.SlaterExchange;
 import qchem.Hamiltonian.Internal.VWN_Correlation;
 import qchem.Hamiltonian.Types;
 import qchem.Structure;
+import qchem.Pseudopotential.GTH_Potentials;       // GetGTH (the convenience ctor's database lookup)
 
 namespace qchem::Hamiltonian
 {
@@ -62,8 +64,8 @@ Ham_DFTcorr_U::Ham_DFTcorr_U(const st_t& st, const qcMesh::MeshParams& mp, const
 // PW_XC terms (Dirac + VWN5), mirroring Ham_DFTcorr_U, so the correlation energy is the correct
 // E_c = integral eps_c rho.  No fit basis / mesh: the plane-wave basis owns the integration, and the
 // pseudopotential is carried by the basis (the external term just supplies the structure factor).
-Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const Pseudopotential::LocalPotential* loc,
-                       const Pseudopotential::SeparablePotential* nl)
+void Ham_PW_DFT::BuildTerms(const st_t& st, const Pseudopotential::LocalPotential* loc,
+                            const Pseudopotential::SeparablePotential* nl)
 {
     Add(new PW_Kinetic);
     Add(new PW_External(st, loc, nl));                           // electron-ion (incl. G=0 alignment)
@@ -71,6 +73,23 @@ Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const Pseudopotential::LocalPotential* lo
     Add(new PW_XC(std::make_shared<SlaterExchange>(2.0/3.0)));    // Dirac exchange (alpha = 2/3)
     Add(new PW_XC(std::make_shared<VWN_Correlation>()));          // VWN5 correlation
     Add(new PW_IonIon(st, loc->ZionFn()));                       // ion-ion Ewald: Zion from the PP, not itsZ
+}
+
+// Explicit-models ctor: the caller owns the models (itsOwnedPP stays null).
+Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const Pseudopotential::LocalPotential* loc,
+                       const Pseudopotential::SeparablePotential* nl)
+{
+    BuildTerms(st, loc, nl);
+}
+
+// Convenience ctor: look up the GTH/HGH pseudopotential from the database and OWN it (itsOwnedPP), then
+// build the terms against the owned local + nonlocal models.  itsOwnedPP outlives the terms (a member,
+// destroyed after the cHamiltonian base that holds them), so each term's &loc/&nl stays valid for the run.
+Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const std::string& element,
+                       const std::string& functional, int valence)
+    : itsOwnedPP(std::make_unique<Pseudopotential::GTH_PP>(Pseudopotential::GetGTH(element, functional, valence)))
+{
+    BuildTerms(st, &itsOwnedPP->local, &itsOwnedPP->nonlocal);
 }
 
 Ham_HF_P::Ham_HF_P(const st_t& st)

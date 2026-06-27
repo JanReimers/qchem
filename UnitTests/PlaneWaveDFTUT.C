@@ -1034,10 +1034,6 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaThroughSCFIterator)
     cell.AddAtom(14, {0.25,0.25,0.25});
     Lattice_3D  lat(cell, ivec3_t(1,1,1));
 
-    GTH_PP                 siPP=GetGTH("Si","LDA",4);          // must outlive the SCF run (the term holds &loc)
-    const HGH_LocalPotential&     loc=siPP.local;
-    const HGH_SeparablePotential& nl =siPP.nonlocal;
-
     // The basis comes from the factory as an abstract BasisSet<dcmplx>; it owns its plane-wave Bloch
     // block(s).  The pseudopotential model lives on the Hamiltonian term (the pseudo-wall), NOT the basis.
     namespace L3=BasisSet::Lattice_3D;
@@ -1053,7 +1049,7 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaThroughSCFIterator)
     // Plane-wave LDA Kohn-Sham Hamiltonian from the Ham factory family: kinetic + external(pseudo) +
     // Hartree + Dirac exchange + VWN5 correlation (heap; the SCFIterator takes ownership).  The atoms
     // are sourced from the lattice; the pseudopotential model is owned by the external term (pseudo-wall).
-    cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), &loc, &nl);
+    cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), "Si", "LDA", 4);   // one-call: looks up + owns the GTH PP
 
     // Complex DIIS (Pulay): extrapolate the Fock matrix from the [F,D]-error history.  This damps the
     // marginal density drift within Si's degenerate Gamma_25' manifold that the Null accelerator left,
@@ -1142,10 +1138,6 @@ TEST_F(PlaneWaveDFT, FrameworkSilicon2x2x2ThroughSCFIterator)
     cell.AddAtom(14, {0.25,0.25,0.25});
     Lattice_3D  lat(cell, ivec3_t(2,2,2));       // 2x2x2 = 8 k-points
 
-    GTH_PP                 siPP=GetGTH("Si","LDA",4);          // CP2K GTH-LDA q4, from the database
-    const HGH_LocalPotential&     loc=siPP.local;
-    const HGH_SeparablePotential& nl =siPP.nonlocal;
-
     namespace L3=BasisSet::Lattice_3D;
     std::unique_ptr<BasisSet::Complex_BS> bs(L3::Factory(L3::Type::PW, lat, 4.0));
     BasisSet::irrepv_t irreps=bs->GetIrreps(Spin::None);   // one Bloch irrep per k-block (8)
@@ -1153,7 +1145,7 @@ TEST_F(PlaneWaveDFT, FrameworkSilicon2x2x2ThroughSCFIterator)
     const int Nelec=8;
     Crystal_EC ec(irreps, Nelec);                          // Nval per k-block; weights handle the BZ sum
 
-    cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), &loc, &nl);
+    cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), "Si", "LDA", 4);   // one-call: looks up + owns the GTH PP
     using qchem::SCFAccelerators::DIISParams;
     auto* acc=new qchem::SCFAccelerators::cSCFAcceleratorDIIS(DIISParams{8, 0.5, 1e-10, 1e-9});
 
