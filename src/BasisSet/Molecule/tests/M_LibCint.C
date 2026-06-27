@@ -71,10 +71,13 @@ TEST(M_LibCint, matrix_3C_4C_match_scalar)
     EXPECT_LT(fnorm(lc.ExchangeMatrix(lc), hf.Exchange(ibs)), 1e-10);
 
     // 3-centre (DFT): a real Coulomb-fit basis from the orbital IBS; reference = public Overlap3C/Repulsion3C.
-    BasisSet::Fit_IBS* fit = ibs.CreateCDFitBasisSet(h2o,qcMesh::MeshParams{.radial=qcMesh::RadialKind::MHL, .nRadial=30, .mhl_m=2, .mhl_alpha=2.0, .angular=qcMesh::AngularKind::Gauss, .nAngular=6, .beckeOrder=3});
-    LibCintEval lfit(dynamic_cast<const PGData&>(*fit), h2o);
+    auto  cdfit = ibs.CreateCDFitBasisSet(h2o,qcMesh::MeshParams{.radial=qcMesh::RadialKind::MHL, .nRadial=30, .mhl_m=2, .mhl_alpha=2.0, .angular=qcMesh::AngularKind::Gauss, .nAngular=6, .beckeOrder=3});
+    auto vxcfit = ibs.CreateVxcFitBasisSet(h2o,qcMesh::MeshParams{.radial=qcMesh::RadialKind::MHL, .nRadial=30, .mhl_m=2, .mhl_alpha=2.0, .angular=qcMesh::AngularKind::Gauss, .nAngular=6, .beckeOrder=3});
+    LibCintEval lcdfit(dynamic_cast<const PGData&>(*cdfit), h2o);
+    LibCintEval lvxcfit(dynamic_cast<const PGData&>(*vxcfit), h2o);
     const BasisSet::Orbital_DFT_IBS<double>& dft = ibs;
-    EXPECT_LT(fnorm(lc.OverlapThreeC_Matrix(lfit),   dft.Overlap3C(*fit)),   1e-10);
-    EXPECT_LT(fnorm(lc.RepulsionThreeC_Matrix(lfit), dft.Repulsion3C(*fit)), 1e-10);
-    delete fit;
+    EXPECT_LT(fnorm(lc.OverlapThreeC_Matrix(lvxcfit),   dft.Overlap3C  (*vxcfit)),   1e-10);
+    EXPECT_LT(fnorm(lc.RepulsionThreeC_Matrix(lcdfit), dft.Repulsion3C(* cdfit)), 1e-10);
+    delete vxcfit;
+    delete  cdfit;
 }

@@ -30,13 +30,14 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
 
 - **DFT fit-basis leak** (ASan 2026-06-20): `CreateCDFitBasisSet → EFit_IBS` may leak (water_DFT). HF path is
   clean. *Verify* — the FittedCD ownership changed this session (shared_ptr FIT_CD_ABS); may be fixed.
-- **Slow test:** `BS_U_Low,Pool He` slow only if `BSplineOrthogonality` runs first (which fills DBCache with
-  Overlaps). gprof says identical (!). Currently scrub the cache after the Orthogonality tests. Only appeared
-  after adding one BSpline grid point. Needs a real profiler / valgrind. (ASan build at `build/ASan`.)
 - **Basis/Hamiltonian/Structure mismatch → domain exceptions:** BSpline+DFT/DHF (no evaluator), SG(atom-only)
   for a Molecule, LibCint+DFT (no 3-centre). These currently throw `bad_cast`; catch + re-throw a
   `BasisSetSupport` exception carrying basis type + required/missing support (RKB/DFT). Clients: `DiracKinetic`,
   `FittedVee`. (Ties to the CLAUDE.md `dynamic_cast` survey.)  I am purposly leaving aspect un-implemented ths is a static test of the mix architecture.
+- IntegralsCache RAM usage report looks messy only for BSpline<6> and BSpliner<6>
+  - For SG and SL atom basis RadialType() just returns Name().
+  - But BSpline::RadialType() returns Name()+Grid dump
+  - If you try with RadialType() just returns Name() with BSpline you get a fail in TEST_F(Cache4Tests,HF2_BS_Reentry)
 
 ## OOD principles & north-star
 
@@ -67,8 +68,9 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
   diagram (no Internal) and (2) a developer diagram (Internal). Host on GitHub, link from README.
 - **Tests** Debug Unit tests are getting up beyond 5 min again.  Release is OK at 2:15min.  With more lattice features going in we need to regularly run long tests.  Mitigations:
   1. Set a local CI pipeline put Unit tests, integration tests and some longer running tests in there.  Shedule runs.  Trigger runs.  Can we have pause button ... in case live development want priority.
-  2. Buy a new PC with 12-16 cores, 64GB ram, 2T SSD drive.  Use the new rig for live development run SI server on the old rig ... until it goes up in a puff of smoke :)
-- Try remove maybe of Types.C files in the libraries other than qcCommon.
+  2. For molecule tests use linCint integral engines ... way faster than home grown MnD code.
+  3. Buy a new PC with 12-16 cores, 64GB ram, 2T SSD drive.  Use the new rig for live development run SI server on the old rig ... until it goes up in a puff of smoke :)
+- Review the Types.C files in the libraries other than qcCommon.
 ## Solids / plane waves
 
 - **APW energy-dependent overlap** (`APW_IBS` is an `IrrepBasisSet<dcmplx>` but deliberately not an
