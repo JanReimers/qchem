@@ -1,10 +1,12 @@
 // File: FittedCDImp.C  Fitted charge density.
 module;
 #include <memory>
+#include <cassert>
 export module qchem.ChargeDensity.Imp.FittedCD;
 import qchem.ChargeDensity.Types;
+import qchem.ChargeDensity;            // DM_CD (cross-cast to its AO projection face)
 import qchem.FittedCD;
-import qchem.Fitting.FunctionFitter;   // Fitting::FunctionFitter (composed, via the Factory)
+import qchem.Fitting.FunctionFitter;   // FunctionFitter_Density (composed) + ProjectedDensity_AO (the AO face)
 
 export namespace qchem::ChargeDensity
 {
@@ -22,8 +24,13 @@ public:
     FittedCDImp(bs_t&, double totalCharge);
     FittedCDImp(const FittedCDImp&) = delete;   //!< copying would slice the fitter's constraint
 
-    // FittedCD  (DoFit delegates to the COMPOSED fitter; the fitter answers the energy queries)
-    virtual void      DoFit           (const Fitting::ProjectedDensity_AO& c)      {itsFitter->DoFit(c);}
+    // FittedCD  (DoFit cross-casts the density to its AO face, then delegates to the COMPOSED fitter)
+    virtual void      DoFit           (const DM_CD& cd)
+    {
+        auto* ao=dynamic_cast<const Fitting::ProjectedDensity_AO*>(&cd);
+        assert(ao && "FittedCD::DoFit: a fitted (molecular) density must be a ProjectedDensity_AO");
+        itsFitter->DoFit(*ao);
+    }
     virtual smat_t<T> GetRepulsion    (const odftbs_t*) const;
     virtual double    GetSelfRepulsion(               ) const;  //Does GetRepulsion(*this);
     virtual FittedCD* Clone           (               ) const;

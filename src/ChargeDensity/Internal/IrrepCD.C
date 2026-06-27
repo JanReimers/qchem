@@ -19,7 +19,8 @@ export namespace qchem::ChargeDensity
 //
 template <class T> class IrrepCD
     : public virtual tDM_CD<T>
-    , public FourierDensityBase<T>    // FourierDensity on the periodic (dcmplx) path; empty on the finite path
+    , public ProjectedDensityBase<T> // AO projection on the finite (double) path; empty on the periodic path
+    , public FourierDensityBase<T>   // FourierDensity on the periodic (dcmplx) path; empty on the finite path
 {
 public:
     typedef  mat_t<T>  DenMat;
@@ -30,7 +31,10 @@ public:
 
     virtual void AccumulateDirect  (hmat_t<T>& Sab, const ohfbs_t*) const;
     virtual void AccumulateExchange(hmat_t<T>& Sab, const ohfbs_t*) const;
-    virtual rvec_t    GetRepulsion3C(const BasisSet::FIT_CD_ABS*) const;
+    //! AO (auxiliary-basis) projection <rho|c> -- the finite (double) path's ProjectedDensity_AO face; the
+    //! periodic (dcmplx) path has no AO face (not cross-cast there), so the dcmplx body is inert.
+    virtual double FitGetConstraint() const {return GetTotalCharge();}   // AO fit RHS: the charge N
+    virtual rvec_t GetRepulsion3C(const BasisSet::FIT_CD_ABS*) const;
 
     virtual double DM_Contract(const tStatic_CC<T>*) const;
     virtual double DM_Contract(const tDynamic_CC<T>*,const tDM_CD<T>*) const;

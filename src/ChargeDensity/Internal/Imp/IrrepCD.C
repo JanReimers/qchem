@@ -65,12 +65,20 @@ template <> void IrrepCD<double>::AccumulateExchange(rsmat_t& Sab, const ohfbs_t
 //
 //  Required by fitting routines.
 //
+// AO density-fit projection <rho|c> = Sum_ab D_ab <ab|c>, the finite (double) path's ProjectedDensity_AO
+// face.  The periodic (dcmplx) density is NOT a ProjectedDensity_AO (see ProjectedDensityBase), so this is
+// never reached for dcmplx; the if-constexpr keeps the double-only 3-centre machinery out of that build.
 template <class T> rvec_t IrrepCD<T>::GetRepulsion3C(const BasisSet::FIT_CD_ABS* fbs) const
 {
-    if (IsZero()) return rvec_t(fbs->GetNumFunctions(),0.0);
-    auto dftbs=dynamic_cast<const todftbs_t<T>*>(itsBasisSet);
-    assert(dftbs);
-    return dftbs->Repulsion3C(itsDensityMatrix,fbs);
+    if constexpr (std::is_same_v<T,double>)
+    {
+        if (IsZero()) return rvec_t(fbs->GetNumFunctions(),0.0);
+        auto dftbs=dynamic_cast<const todftbs_t<T>*>(itsBasisSet);
+        assert(dftbs);
+        return dftbs->Repulsion3C(itsDensityMatrix,fbs);
+    }
+    else
+        return rvec_t();   // inert: a periodic density carries no AO projection
 }
 
 
@@ -171,16 +179,15 @@ template <class T> std::ostream& IrrepCD<T>::Write(std::ostream& os) const
 
 template class IrrepCD<double>;
 
-// --- Complex (plane-wave) density.  HF and density-fitting do NOT apply (the plane-wave path uses
-// neither 4-centre exchange nor an auxiliary fit), so those are NA; the gradient (GGA/plotting) is not
-// yet wired for complex and is unused by the LDA SCF.  The remaining members are the generic templates
-// above (DM_Contract, op()(r), GetTotalCharge, MixIn, GetChangeFrom, ...), which are complex-correct.
+// --- Complex (plane-wave) density.  HF does NOT apply (the plane-wave path uses no 4-centre exchange), so
+// those are NA; the gradient (GGA/plotting) is not yet wired for complex and is unused by the LDA SCF.  The
+// AO density-fit projection (GetRepulsion3C) is no longer forced on this path -- IrrepCD<dcmplx> is not a
+// ProjectedDensity_AO -- so its old NA-assert specialization is gone.  The remaining members are the generic
+// templates above (DM_Contract, op()(r), GetTotalCharge, MixIn, GetChangeFrom, ...), complex-correct.
 template <> void IrrepCD<dcmplx>::AccumulateDirect(hmat_t<dcmplx>&, const ohfbs_t*) const
 { assert(false && "AccumulateDirect: HF not applicable to a complex plane-wave density"); }
 template <> void IrrepCD<dcmplx>::AccumulateExchange(hmat_t<dcmplx>&, const ohfbs_t*) const
 { assert(false && "AccumulateExchange: HF not applicable to a complex plane-wave density"); }
-template <> rvec_t IrrepCD<dcmplx>::GetRepulsion3C(const BasisSet::FIT_CD_ABS*) const
-{ assert(false && "GetRepulsion3C: density fitting not used by the plane-wave path"); return rvec_t(); }
 template <> rvec3_t IrrepCD<dcmplx>::Gradient(const rvec3_t&) const
 { return rvec3_t(0,0,0); }   // No UT coverage; GGA/plotting gradient not yet wired for complex.
 

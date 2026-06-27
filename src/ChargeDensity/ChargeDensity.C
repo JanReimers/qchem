@@ -1,4 +1,6 @@
-// File: ChargeDensity.C  Interface for a charge density 
+// File: ChargeDensity.C  Interface for a charge density
+module;
+#include <type_traits>
 export module qchem.ChargeDensity;
 import qchem.Fitting.FunctionFitter;   // Fitting::ProjectedDensity_AO
 export import qchem.Symmetry.Spin;
@@ -7,6 +9,17 @@ import qchem.ChargeDensity.Types;
 
 export namespace qchem::ChargeDensity
 {
+
+//! Empty (non-polymorphic) stand-in for a PERIODIC density, which has no AO (auxiliary-basis) projection.
+//! A density template inherits Fitting::ProjectedDensity_AO only on the finite (double) path; the periodic
+//! (dcmplx) path gets this empty base, so it is NOT a ProjectedDensity_AO (FittedCD's cross-cast correctly
+//! fails) and its object layout is unchanged.  The AO mirror of NoFourierDensity / FourierDensityBase: AO
+//! projection (finite) and FT projection (periodic) are now both cross-cast capabilities, not forced bases.
+struct NoProjectedDensity {};
+
+//! ProjectedDensity_AO for the finite path (T=double), the empty base for the periodic path (T=dcmplx).
+template <class T> using ProjectedDensityBase =
+    std::conditional_t<std::is_same_v<T,double>, Fitting::ProjectedDensity_AO, NoProjectedDensity>;
 //
 //  These little interfaces allow us to invert a dependency with Hamiltonian Terms.
 //  Templated on the matrix element type T (double for atoms/molecules; dcmplx for the
@@ -51,7 +64,6 @@ using Dynamic_CC  = rDynamic_CC;
 //
 template <class T> class tDM_CD
 : public virtual ScalarFunction<double>
-, public virtual Fitting::ProjectedDensity_AO //Fitted function can be fit to this.
 {
 public:
     virtual double DM_Contract(const tStatic_CC<T>*) const=0; //Amounts to Integral(ro*V*d3r);
@@ -62,7 +74,6 @@ public:
     virtual double GetChangeFrom(const tDM_CD<T>&            ) const=0;  //Convergence check.
 
     virtual double GetTotalCharge  () const=0;  // <ro>
-    virtual double FitGetConstraint() const {return  GetTotalCharge();}
 
     // HF/fit-specific (real, Gaussian-basis) -- the dcmplx plane-wave density NA-asserts these.
     virtual void AccumulateDirect  (hmat_t<T>& Jab, const ohfbs_t*) const=0;
@@ -81,6 +92,7 @@ using DM_CD  = rDM_CD;          // transitional bare alias
 //
 class Polarized_CD
     : public virtual DM_CD
+    , public virtual ProjectedDensityBase<double>   // finite/molecular: an AO-projectable density
 {
 public:
     virtual       DM_CD* GetChargeDensity(const Spin&)      =0;
@@ -92,6 +104,7 @@ public:
     virtual double GetTotalCharge() const;  // <ro>
     virtual double GetTotalSpin  () const;  // No UT coverage// <up>-<down>
 
+    virtual double FitGetConstraint() const {return GetTotalCharge();}   // AO fit RHS: the charge N
     virtual rvec_t GetRepulsion3C(const BasisSet::FIT_CD_ABS*) const;
     virtual void AccumulateDirect  (rsmat_t& Jab, const ohfbs_t*) const;
     virtual void AccumulateExchange(rsmat_t& Kab, const ohfbs_t*) const;

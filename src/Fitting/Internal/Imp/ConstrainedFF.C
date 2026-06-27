@@ -58,12 +58,6 @@ template <class T> void ConstrainedFF<T>::DoFit(const ProjectedDensity_AO& ffc)
     this->itsFitCoeff -= lambda * blazem::trans(gS);                // enforce g.c = N exactly
 }
 
-template <class T> void ConstrainedFF<T>::DoFit(const ProjectedDensity_FT&)
-{
-    assert(false && "ConstrainedFF::DoFit(ProjectedDensity_FT): the Gaussian fitter fits via a projected "
-                    "density callback, not pre-computed Fourier coefficients (that is the plane-wave path).");
-}
-
 //---------------------------------------------------------------------------
 //
 //  Fit-derived quantities the clients query (the "what's your repulsion with this basis?" side).

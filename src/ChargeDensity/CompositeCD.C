@@ -19,7 +19,8 @@ export namespace qchem::ChargeDensity
 //
 template <class T> class tComposite_CD
     : public virtual tDM_CD<T>
-    , public FourierDensityBase<T>    // FourierDensity on the periodic (dcmplx) path; empty on the finite path
+    , public ProjectedDensityBase<T> // AO projection on the finite (double) path; empty on the periodic path
+    , public FourierDensityBase<T>   // FourierDensity on the periodic (dcmplx) path; empty on the finite path
 {
 public:
     tComposite_CD();
@@ -33,6 +34,7 @@ public:
 
     virtual double GetTotalCharge      (                     ) const;
 
+    virtual double FitGetConstraint() const {return GetTotalCharge();}   // AO fit RHS: the charge N
     virtual rvec_t GetRepulsion3C(const BasisSet::FIT_CD_ABS*) const;
 
     virtual void   ReScale      (double factor         )      ;  // No UT coverage//Ro *= factor

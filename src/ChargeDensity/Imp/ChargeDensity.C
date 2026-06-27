@@ -4,6 +4,7 @@ module;
 #include <cassert>
 module qchem.ChargeDensity;
 import qchem.Symmetry.Spin;
+import qchem.Fitting.FunctionFitter;   // Fitting::ProjectedDensity_AO (each spin block's AO face)
 import qchem.Blaze;
 
 namespace qchem::ChargeDensity
@@ -50,8 +51,12 @@ double Polarized_CD::GetTotalSpin() const
 
 rvec_t Polarized_CD::GetRepulsion3C(const BasisSet::FIT_CD_ABS* fbs) const
 {
-    return GetChargeDensity(Spin::Up  )->GetRepulsion3C(fbs)
-        +  GetChargeDensity(Spin::Down)->GetRepulsion3C(fbs);
+    // The spin blocks are finite (molecular) densities, hence ProjectedDensity_AO -- cross-cast to their AO
+    // face and sum the projections (the AO face is no longer a forced base of tDM_CD).
+    auto* up=dynamic_cast<const Fitting::ProjectedDensity_AO*>(GetChargeDensity(Spin::Up  ));
+    auto* dn=dynamic_cast<const Fitting::ProjectedDensity_AO*>(GetChargeDensity(Spin::Down));
+    assert(up && dn && "Polarized_CD spin block is not a ProjectedDensity_AO (finite path)");
+    return up->GetRepulsion3C(fbs) + dn->GetRepulsion3C(fbs);
 }
 
 //-----------------------------------------------------------------------

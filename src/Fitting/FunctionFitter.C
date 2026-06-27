@@ -87,9 +87,6 @@ public:
     typedef std::shared_ptr<const BasisSet::FIT_CD_ABS> bs_t;   //!< Coulomb-metric aux basis (narrow face)
 
     virtual void   DoFit           (const ProjectedDensity_AO&)             =0;  //!< fit a density (dense, metric solve)
-    //! Fit a density already projected onto an orthonormal {G} basis -- the rho-tilde IS the fit (no metric
-    //! solve), so DoFit just stores it.  Gaussian (ProjectedDensity_AO) fitters NA-assert this overload.
-    virtual void   DoFit           (const ProjectedDensity_FT&)            =0;
     virtual hmat_t<T> Repulsion    (const obs_t<T>*) const                 =0;  //!< Sum_a c_a <Oi|f_a/r12|Oj>
     virtual double    FitGetSelfRepulsion() const                          =0;  //!< <fit|1/r12|fit> (caller halves)
     virtual double    Integral     () const                               =0;  //!< total charge Sum_a c_a integral f_a
