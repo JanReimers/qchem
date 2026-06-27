@@ -503,7 +503,8 @@ int PeriodicTable::GetZ(const char* sp) const
 {
     std::string symbol(sp);
     int index=0;
-    if (symbol.length()==1) symbol=symbol+" ";
+    // theSymbols stores natural (unpadded) symbols -- "F", "He", ... -- so compare as-is.  (The old
+    // 1-char space-padding made GetZ("F") etc. miss and return 0, since the table holds "F" not "F ".)
     for (int i=1; i<110; i++)
     {
         if(std::string(theSymbols[i])==symbol)
