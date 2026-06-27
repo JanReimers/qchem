@@ -11,7 +11,7 @@ import qchem.Types;   // dcmplx (for the c* instantiations)
 
 export namespace qchem::ChargeDensity
 {
-    using fbs_t=BasisSet::Fit_IBS;
+    // using fbs_t=BasisSet::Fit_IBS;
     using ohfbs_t=BasisSet::Orbital_HF_IBS<double>;
     template <class T> using tobs_t=BasisSet::Orbital_1E_IBS<T>;
     template <class T> using todftbs_t=BasisSet::Orbital_DFT_IBS<T>;

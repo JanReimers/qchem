@@ -19,9 +19,9 @@ export namespace qchem::ChargeDensity
 template <class T> class FittedCDImp
     : public virtual FittedCD
 {
-     typedef typename Fitting::FunctionFitter_Density<T>::bs_t   bs_t;
+    typedef std::shared_ptr<const BasisSet::FIT_CD_ABS> fbs_t;   //!< Coulomb-metric aux basis (narrow face)
 public:
-    FittedCDImp(bs_t&, double totalCharge);
+    FittedCDImp(fbs_t&, double totalCharge);
     FittedCDImp(const FittedCDImp&) = delete;   //!< copying would slice the fitter's constraint
 
     // FittedCD  (DoFit cross-casts the density to its AO face, then delegates to the COMPOSED fitter)

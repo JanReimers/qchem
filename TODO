@@ -68,6 +68,7 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
 - **Tests** Debug Unit tests are getting up beyond 5 min again.  Release is OK at 2:15min.  With more lattice features going in we need to regularly run long tests.  Mitigations:
   1. Set a local CI pipeline put Unit tests, integration tests and some longer running tests in there.  Shedule runs.  Trigger runs.  Can we have pause button ... in case live development want priority.
   2. Buy a new PC with 12-16 cores, 64GB ram, 2T SSD drive.  Use the new rig for live development run SI server on the old rig ... until it goes up in a puff of smoke :)
+- Try remove maybe of Types.C files in the libraries other than qcCommon.
 ## Solids / plane waves
 
 - **APW energy-dependent overlap** (`APW_IBS` is an `IrrepBasisSet<dcmplx>` but deliberately not an
@@ -132,7 +133,7 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
   symmetry (atom carries YFactory). **Principle to lock now:** `op(rvec3_t)` is always honest; a fast
   `op(double r)` may exist only as the radial integrator's internal fast-path, never a public alternative.
   Defer to GUI time, but don't let the deferral accrete a flag.
-
+- Fix BSpline::EvaluatorCommon<K>::RadialType() too long, other just do Name()
 ## qcMolecule_BS
 
 1. `PrimGaussian` `Iterate{2,3,4}C` are static (good, a/b symmetry); `GaussianRF` makes them members — can
@@ -165,9 +166,6 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
   structure type have its own peculiarities?
 
 ## qcStructure
-- We need to change the typedef cl_t->st_t  (cl_t a left over from when Structure was called Cluster). Same for valriable names like cl or cluster
-  
-
 
 ## qcSymmetry
 
@@ -182,10 +180,10 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
     density/Hamiltonian symmetrization, crystal SALCs (solid analogue of the molecular SALC work).
   - Reuses the molecular point-group core: a space group ≈ point group ⋉ lattice translations.
 
-## qcCommon /qcMath
-- PeriodicTableSaito` is miss named.  Anything useful left in the old PT?
+## qcCommon 
+- PeriodicTableSaito` is miss named.  Anything useful left in the old PT before we scrub it?
 
-### new lib qcMath refactor
+## new lib qcMath refactor
 - Pull all the math like items out of qcCommon and put them in qcMath
 - qcCommon would be left with : Iterators, PeriodicTable, stl_io, Stream, Strings
   PeriodicTable will lose acces to Types.C 

@@ -40,6 +40,28 @@ Not all 30 cells need to exist. BSpline × DFT has no DFT evaluator; LibCint × 
 
 So the open target, concretely: finish the tDM_CD 1E/DFT/HF capability split (the session did the DFT-projection slice; HF accumulation is next), and make sure the three layers' theory-capability mixins line up so a new cell — say Lattice_3D × HF — drops out by composing "PW evaluator + HF capability" rather than by new monolithic code. The session proved the pattern in the PW/DFT-fit corner; generalizing it across the full matrix is the design work that remains.
 
+# maximally‑stretched single Slater determinant
+What you're doing has a name
+You're computing the ground term's energy from its maximally‑stretched single Slater determinant — the component with M_S = S and M_L = L (highest spin projection, highest orbital projection). You build it by:
+
+dropping from full spherical O(3) symmetry to the abelian axial subgroup (ml as the irrep label — exactly your "abelian‑first" SALC idea), and
+doing spin‑unrestricted SCF (separate spatial orbitals per spin, integer per‑(ml,spin) occupations).
+Your "fill the highest ml's with parallel spin first, then pair up" is literally constructing the Hund ground‑term stretched state. And the reason it sidesteps the Roothaan–Bagus coupling coefficients: those are the machinery for the restricted open‑shell route (ROHF — one set of spatial orbitals, fractional/averaged occupations, coupling coefficients to recover the correct term energy). By going unrestricted + abelian + stretched, you never need them. Your intuition that it "feels like polarized DFT" is dead on — this is the atomic analogue of symmetry‑broken spin‑polarized LSDA.
+
+Why it's exact for ground states (and agrees to ppB/ppT)
+The key theorem: a maximally‑stretched state (top of the multiplet ladder) is always a single Slater determinant, and it's a pure eigenstate of L²/S² (no other determinant shares its M_L,M_S). Hund's rules say the ground term is max‑S then max‑L — so its stretched component is always representable by exactly one determinant. For HF that determinant's energy is the exact ground‑term HF energy (no approximation), which is why you match a reference to BSpline numerical precision. This holds across s/p/d/f — B(²P), C(³P), N(⁴S), O(³P), transition‑metal dⁿ Hund terms, all fine.
+
+Where it will break
+The failure is intrinsic, not a bug: states that are not a single determinant even in their stretched form. Concretely:
+
+Open‑shell singlets / any non‑maximum‑multiplicity term. The canonical one: two unpaired electrons coupled to a singlet is (|↑↓| − |↓↑|)/√2 — two determinants. Your scheme can only build the high‑spin (triplet) single determinant. So singlet biradicals (CH₂ ¹A₁, O₂'s ¹Δ, etc.) and excited terms like carbon's ¹D/¹S are out of reach — you'd silently get the high‑spin energy instead.
+Specific J‑levels once you turn on spin–orbit: the top/bottom of a J‑ladder is a single determinant, the middle ones aren't.
+Static correlation / near‑degeneracy — not unique to you (every single‑determinant method has it), but worth flagging: transition‑metal 4s vs 3d configuration ordering, bond dissociation, etc. You may converge to the wrong configuration, not just the wrong energy.
+The dangerous part of (1) is the silent failure: nothing in the machinery tells you "this ground state needed two determinants." So when you eventually want open‑shell singlets, you'll need configuration state functions (CSFs) — a small fixed linear combination of determinants per term — which is the general version of what you're doing (and Slater's sum rule is the classic trick to back out individual term energies from sets of single‑determinant energies, if you'd rather avoid full CSF bookkeeping).
+
+Bottom line
+For atomic (and high‑spin molecular) ground states, your method is correct, not a hack — it's the stretched‑determinant / spin‑polarized single‑configuration approach, and it'll keep working across the periodic table's ground terms. It breaks the moment the target state is intrinsically multi‑determinant (open‑shell singlets first). If you want a guardrail, a cheap one is: detect when the requested occupation can't form a stretched state of a single term (e.g. two singly‑occupied irreps you're asking to spin‑pair into a singlet) and refuse/flag it — so the multi‑determinant cases announce themselves instead of returning a high‑spin number in disguise.
+
 # Group theory
 Every one of your Symmetry concrete classes labels an irreducible representation (irrep) of some group, and the "important numbers inside" are the labels of those irreps. A group theorist's umbrella name for the set of all such labels is the dual of the group, written Ĝ — the space of irreps. A physicist's "quantum number" is, almost always, "a coordinate on Ĝ."
 

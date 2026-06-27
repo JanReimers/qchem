@@ -11,11 +11,12 @@ import qchem.Math;
 namespace qchem::ChargeDensity
 {
 
+// typedef std::shared_ptr<const BasisSet::FIT_CD_ABS> fbs_t; 
 //------------------------------------------------------------------------------------
 //
 //  Construction zone.
 //
-template <class T> FittedCDImp<T>::FittedCDImp(bs_t& bs, double totalCharge)
+template <class T> FittedCDImp<T>::FittedCDImp(fbs_t& bs, double totalCharge)
     // Charge-CONSTRAINED Coulomb-metric density fit (Dunlap-Connolly-Sabin 1979): every DoFit yields a
     // density of exactly totalCharge, variationally -- no post-hoc rescale needed.
     : itsFitter(Fitting::MakeDensityFitter(bs))

@@ -66,16 +66,14 @@ using ProjectedDensity_FT = FourierMap;
 template <class T> class FunctionFitter_Scalar : public virtual ScalarFunction<double>
 {
 public:
-    typedef std::shared_ptr<const BasisSet::FIT_SF_ABS> bs_t;   //!< overlap-metric aux basis (narrow face)
-
-    virtual void   DoFit           (const ScalarFFClient&)                  =0;  //!< fit a scalar (overlap metric)
-    virtual hmat_t<T> Overlap      (const obs_t<T>*) const                  =0;  //!< Sum_a c_a <Oi|f_a|Oj>
+    virtual void      DoFit        (const ScalarFFClient&)                 =0;  //!< fit a scalar (overlap metric)
+    virtual hmat_t<T> Overlap      (const obs_t<T>*) const                 =0;  //!< Sum_a c_a <Oi|f_a|Oj>
 
     // --- shared post-fit utilities (two fitters of the SAME face) ---
     virtual void   ReScale         (double factor)                         =0;  //!< c *= factor
-    virtual void   FitMixIn        (const FunctionFitter_Scalar&,double f)  =0;  //!< c = (1-f)c + f g.c
-    virtual double FitGetChangeFrom(const FunctionFitter_Scalar&) const     =0;  //!< max|c - g.c| (SCF conv.)
-    virtual std::ostream& Write    (std::ostream&) const                    =0;  //!< describe the fit
+    virtual void   FitMixIn        (const FunctionFitter_Scalar&,double f) =0;  //!< c = (1-f)c + f g.c
+    virtual double FitGetChangeFrom(const FunctionFitter_Scalar&) const    =0;  //!< max|c - g.c| (SCF conv.)
+    virtual std::ostream& Write    (std::ostream&) const                   =0;  //!< describe the fit
 };
 
 //! \brief Abstract least-squares function fitter -- the DENSITY (Coulomb-metric) face.  Solves the
@@ -84,15 +82,13 @@ public:
 template <class T> class FunctionFitter_Density : public virtual ScalarFunction<double>
 {
 public:
-    typedef std::shared_ptr<const BasisSet::FIT_CD_ABS> bs_t;   //!< Coulomb-metric aux basis (narrow face)
-
-    virtual void   DoFit           (const ProjectedDensity_AO&)             =0;  //!< fit a density (dense, metric solve)
-    virtual hmat_t<T> Repulsion    (const obs_t<T>*) const                 =0;  //!< Sum_a c_a <Oi|f_a/r12|Oj>
-    virtual double    FitGetSelfRepulsion() const                          =0;  //!< <fit|1/r12|fit> (caller halves)
-    virtual double    Integral     () const                               =0;  //!< total charge Sum_a c_a integral f_a
+    virtual void   DoFit           (const ProjectedDensity_AO&)=0;  //!< fit a density (dense, metric solve)
+    virtual hmat_t<T> Repulsion    (const obs_t<T>*) const     =0;  //!< Sum_a c_a <Oi|f_a/r12|Oj>
+    virtual double    FitGetSelfRepulsion() const              =0;  //!< <fit|1/r12|fit> (caller halves)
+    virtual double    Integral     () const                    =0;  //!< total charge Sum_a c_a integral f_a
 
     // --- shared post-fit utilities (two fitters of the SAME face) ---
-    virtual void   ReScale         (double factor)                         =0;  //!< c *= factor
+    virtual void   ReScale         (double factor)                          =0;  //!< c *= factor
     virtual void   FitMixIn        (const FunctionFitter_Density&,double f) =0;  //!< c = (1-f)c + f g.c
     virtual double FitGetChangeFrom(const FunctionFitter_Density&) const    =0;  //!< max|c - g.c| (SCF conv.)
     virtual std::ostream& Write    (std::ostream&) const                    =0;  //!< describe the fit
