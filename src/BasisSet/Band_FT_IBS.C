@@ -68,7 +68,7 @@ public:
     //! \brief Separable (Kleinman-Bylander) nonlocal external-potential matrix \f$\langle i|V_{NL}|j\rangle\f$
     //! for \a structure, from a projector model \a nl.  The full external block is
     //! MakeLocalPotential + MakeSeparablePotential (\f$V=V_{loc}+V_{NL}\f$).
-    virtual hmat_t<dcmplx> MakeSeparablePotential(const Structure*, const SeparablePotential& nl) const=0;
+    virtual hmat_t<dcmplx> MakeSeparablePotential(const Structure*, const Pseudopotential::SeparablePotential& nl) const=0;
 
     //! \brief Energy carried by the local potential's DROPPED \f$G=0\f$ component, for the model \a loc and a
     //! density of \a numElectrons electrons: the uniform electron-ion alignment \f$(N/\Omega)\sum_a\alpha_a\f$

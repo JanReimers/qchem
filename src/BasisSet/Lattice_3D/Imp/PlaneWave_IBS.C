@@ -312,7 +312,7 @@ chmat_t PlaneWave_IBS::MakeLocalPotential(const Structure* cl, const std::functi
 // projector's m -- the same structure the APW/LAPW sphere terms use; l=0 gives P_0=1 (the s-channel).
 // (The k-point phases of <k+G|beta>, <beta|k+G'> cancel, leaving the structure-factor phase.)
 // Per atom & projector & m this is rank-1: |beta> D <beta|.  Hermitian; real for atoms at the origin.
-chmat_t PlaneWave_IBS::MakeSeparablePotential(const Structure* cl, const SeparablePotential& v) const
+chmat_t PlaneWave_IBS::MakeSeparablePotential(const Structure* cl, const Pseudopotential::SeparablePotential& v) const
 {
     const UnitCell& B=itsRecip.GetCell();
     size_t n=GetNumFunctions();

@@ -13,7 +13,7 @@ module qchem.Pseudopotential.GTH_Potentials;
 #error "PSEUDO_DATA_PATH must be defined by CMake"
 #endif
 
-namespace BasisSet::Lattice_3D
+namespace Pseudopotential
 {
 
 //! The parsed database, loaded once on first use (construct-on-first-use; no static-init-order issue).

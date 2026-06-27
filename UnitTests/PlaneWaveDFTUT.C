@@ -63,10 +63,10 @@ import qchem.SCFAccelerator.Internal.SCFAcceleratorDIIS;      // cSCFAccelerator
 import qchem.BasisSet.Internal.BasisSetImp;         // BasisSetImp<dcmplx> (single-block BasisSet container)
 
 using BasisSet::Lattice_3D::PlaneWave_IBS;
-using BasisSet::HGH_LocalPotential;
-using BasisSet::HGH_SeparablePotential;
-using BasisSet::Lattice_3D::GetGTH;
-using BasisSet::Lattice_3D::GTH_PP;
+using Pseudopotential::HGH_LocalPotential;
+using Pseudopotential::HGH_SeparablePotential;
+using Pseudopotential::GetGTH;
+using Pseudopotential::GTH_PP;
 
 namespace
 {

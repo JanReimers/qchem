@@ -97,7 +97,7 @@ public:
     //! = \frac1\Omega \sum_a e^{-i\Delta G\cdot\tau_a} \sum_p \tilde\beta_p(|k+G|)\,D_p\,\tilde\beta_p(|k+G'|)\f$.
     //! The external one-body potential is then \f$V = V_{loc} + V_{NL}\f$ (both summed into \f$H(k)\f$).
     //! Hermitian; per atom & projector this is a rank-1 \f$|\beta\rangle D\langle\beta|\f$ contribution.
-    virtual chmat_t MakeSeparablePotential(const Structure* cl, const SeparablePotential& v) const override;
+    virtual chmat_t MakeSeparablePotential(const Structure* cl, const Pseudopotential::SeparablePotential& v) const override;
 
     //! \brief Assemble \f$ \langle G|V|G'\rangle = \tilde V(G-G') \f$ from a caller-supplied G-space
     //! potential, keyed by the reciprocal-index difference \f$\Delta m = m(G)-m(G')\f$.

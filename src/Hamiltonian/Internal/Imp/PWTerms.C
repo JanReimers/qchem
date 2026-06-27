@@ -17,8 +17,8 @@ import qchem.Blaze;                            // blazem::zeroH (PW_IonIon's zer
 namespace qchem::Hamiltonian
 {
 
-PW_External::PW_External(const st_t& st, const BasisSet::LocalPotential* loc,
-                         const BasisSet::SeparablePotential* nl)
+PW_External::PW_External(const st_t& st, const Pseudopotential::LocalPotential* loc,
+                         const Pseudopotential::SeparablePotential* nl)
     : cStatic_HT_Imp()
     , theStructure(st)
     , itsLocal(loc)

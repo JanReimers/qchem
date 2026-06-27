@@ -21,15 +21,15 @@ import qchem.Blaze;
 import qchem.Math;           // Pi
 
 using BasisSet::Lattice_3D::PlaneWave_IBS;
-using BasisSet::LocalPotential;
-using BasisSet::BareCoulomb;
-using BasisSet::GaussianSmearedNucleus;
-using BasisSet::HGH_LocalPotential;
-using BasisSet::SeparablePotential;
-using BasisSet::GaussianProjector;
-using BasisSet::HGH_SeparablePotential;
-using BasisSet::Lattice_3D::GetGTH;
-using BasisSet::Lattice_3D::GTH_PP;
+using Pseudopotential::LocalPotential;
+using Pseudopotential::BareCoulomb;
+using Pseudopotential::GaussianSmearedNucleus;
+using Pseudopotential::HGH_LocalPotential;
+using Pseudopotential::SeparablePotential;
+using Pseudopotential::GaussianProjector;
+using Pseudopotential::HGH_SeparablePotential;
+using Pseudopotential::GetGTH;
+using Pseudopotential::GTH_PP;
 
 namespace
 {

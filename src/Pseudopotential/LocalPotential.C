@@ -16,7 +16,7 @@ module;
 export module qchem.Pseudopotential.LocalPotential;
 import qchem.Math; // FourPi, Pi
 
-export namespace BasisSet
+export namespace Pseudopotential
 {
 
 //! \brief A one-body local external potential, defined by its reciprocal-space form factor.

@@ -57,8 +57,8 @@ public:
 class Ham_PW_DFT : public virtual cHamiltonian, private cHamiltonianImp
 {
 public:
-    Ham_PW_DFT(const st_t& st, const BasisSet::LocalPotential* loc,
-               const BasisSet::SeparablePotential* nl=nullptr);
+    Ham_PW_DFT(const st_t& st, const Pseudopotential::LocalPotential* loc,
+               const Pseudopotential::SeparablePotential* nl=nullptr);
 };
 
 //

@@ -24,7 +24,7 @@ module;
 export module qchem.Pseudopotential.SeparablePotential;
 import qchem.Math;   // Pi, FourPi
 
-export namespace BasisSet
+export namespace Pseudopotential
 {
 
 //! \brief A separable Kleinman-Bylander nonlocal potential, supplying per-species projector form

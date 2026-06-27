@@ -21,10 +21,10 @@ import qchem.Types;
 import qchem.Blaze;
 
 using BasisSet::Lattice_3D::PlaneWave_IBS;
-using BasisSet::HGH_LocalPotential;
-using BasisSet::HGH_SeparablePotential;
-using BasisSet::Lattice_3D::GetGTH;
-using BasisSet::Lattice_3D::GTH_PP;
+using Pseudopotential::HGH_LocalPotential;
+using Pseudopotential::HGH_SeparablePotential;
+using Pseudopotential::GetGTH;
+using Pseudopotential::GTH_PP;
 
 // The CP2K GTH-LDA q4 Silicon pseudopotential, written out by hand from the database (the reference the
 // reader must reproduce).  Local: rloc=0.44, C1 only.  Nonlocal: s-channel 2x2, p-channel 1x1.

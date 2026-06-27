@@ -32,15 +32,15 @@ class PW_External
 {
 public:
     typedef std::shared_ptr<const Structure> st_t;
-    PW_External(const st_t& st, const BasisSet::LocalPotential* loc,
-                const BasisSet::SeparablePotential* nl=nullptr);
+    PW_External(const st_t& st, const Pseudopotential::LocalPotential* loc,
+                const Pseudopotential::SeparablePotential* nl=nullptr);
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
     virtual std::ostream& Write(std::ostream&) const;
 private:
     virtual chmat_t CalculateMatrix(const cobs_t*, const Spin&) const;
     st_t theStructure;
-    const BasisSet::LocalPotential*     itsLocal;       //!< local pseudopotential model (non-owning).
-    const BasisSet::SeparablePotential* itsSep;         //!< KB nonlocal model (non-owning; may be null).
+    const Pseudopotential::LocalPotential*     itsLocal;       //!< local pseudopotential model (non-owning).
+    const Pseudopotential::SeparablePotential* itsSep;         //!< KB nonlocal model (non-owning; may be null).
     //! Captured from CalculateMatrix so GetEnergy can ask the basis for the dropped-G=0 alignment energy
     //! (ExternalG0Energy) with the current electron count.  Same basis every iteration.
     mutable const BasisSet::Band_FT_IBS* itsBasis=nullptr;
