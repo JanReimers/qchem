@@ -12,6 +12,9 @@
 module;
 #include <cmath>
 #include <functional>
+#include <map>
+#include <memory>
+#include <cassert>
 
 export module qchem.Pseudopotential.LocalPotential;
 import qchem.Math; // FourPi, Pi
@@ -114,6 +117,29 @@ public:
     virtual double Zion(int /*Z*/) const override {return itsZion;}   // valence charge (Z-independent)
 private:
     double itsZion, itsRloc, itsC1, itsC2, itsC3, itsC4;
+};
+
+//! \brief A multi-species local potential: a router keyed by atomic number \a Z that forwards each
+//! query to the per-species sub-model.  This is ALL that multi-species (ionic) crystals need on the
+//! local side -- every LocalPotential method already takes \a Z (single-species HGH ignores it; this
+//! USES it to dispatch), so the basis assembly (which calls FormFactor(a->itsZ,...) per atom) is
+//! unchanged.  Hand one of these to the external term and NaF / CsI just work.
+class MultiSpecies_LocalPotential : public LocalPotential
+{
+public:
+    //! Register species \a Z's local model (atomic number Z, e.g. 11 for Na -- the atoms' itsZ).
+    void Add(int Z, std::shared_ptr<const LocalPotential> model) {itsByZ[Z]=std::move(model);}
+    virtual double FormFactor  (int Z, double G2) const override {return Get(Z).FormFactor(Z,G2);}
+    virtual double FormFactorG0(int Z)            const override {return Get(Z).FormFactorG0(Z);}
+    virtual double Zion        (int Z)            const override {return Get(Z).Zion(Z);}
+private:
+    const LocalPotential& Get(int Z) const
+    {
+        auto it=itsByZ.find(Z);
+        assert(it!=itsByZ.end() && "MultiSpecies_LocalPotential: no model registered for this species Z");
+        return *it->second;
+    }
+    std::map<int, std::shared_ptr<const LocalPotential>> itsByZ;   //!< atomic number -> that species' local model
 };
 
 } //namespace

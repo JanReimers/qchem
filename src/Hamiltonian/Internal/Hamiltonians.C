@@ -2,6 +2,9 @@
 module;
 #include <memory>
 #include <string>
+#include <utility>
+#include <vector>
+#include <initializer_list>
 export module qchem.Hamiltonian.Internal.Hamiltonians;
 import qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.Hamiltonian.Internal.Hamiltonian;
@@ -59,20 +62,31 @@ public:
 // BasisSet + cSCFIterator.  Two ways to supply the model:
 //   - explicit ctor: the caller owns the local + optional KB nonlocal models (non-owning here; they must
 //     outlive the SCF run);
-//   - convenience ctor: name the element/functional/valence and the database (GetGTH) is looked up and
-//     OWNED here -- the one-call plane-wave LDA Hamiltonian.
+//   - convenience ctors: name the element(s)/functional/valence and the database (GetGTH) is looked up
+//     and OWNED here -- the one-call plane-wave LDA Hamiltonian, single- or multi-species.
 //
 class Ham_PW_DFT : public virtual cHamiltonian, private cHamiltonianImp
 {
 public:
+    //! Explicit-models ctor: the caller owns the local + optional KB nonlocal models (non-owning here).
     Ham_PW_DFT(const st_t& st, const Pseudopotential::LocalPotential* loc,
                const Pseudopotential::SeparablePotential* nl=nullptr);
+    //! Single-species convenience ctor: look up + own the GTH PP for \a element.
     Ham_PW_DFT(const st_t& st, const std::string& element,
                const std::string& functional="LDA", int valence=0);
+    //! Multi-species convenience ctor: name each (element, valence); the database is looked up per species
+    //! and a per-Z router model (MultiSpecies_*) is built + OWNED -- e.g. Ham_PW_DFT(st, {{"Na",1},{"F",7}}).
+    Ham_PW_DFT(const st_t& st, std::initializer_list<std::pair<std::string,int>> species,
+               const std::string& functional="LDA");
 private:
     void BuildTerms(const st_t& st, const Pseudopotential::LocalPotential* loc,
                     const Pseudopotential::SeparablePotential* nl);
-    std::unique_ptr<Pseudopotential::GTH_PP> itsOwnedPP;  //!< owned model (convenience ctor); null for the explicit ctor
+    //! Look up each (element, valence) from the GTH database, build + OWN the (per-Z router) local +
+    //! separable models, and assemble the terms against them.  The single-species ctor is the 1-species case.
+    void BuildFromGTH(const st_t& st, const std::vector<std::pair<std::string,int>>& species,
+                      const std::string& functional);
+    std::shared_ptr<const Pseudopotential::LocalPotential>     itsOwnedLocal;  //!< owned model (convenience ctors); null for explicit
+    std::shared_ptr<const Pseudopotential::SeparablePotential> itsOwnedSep;
 };
 
 //

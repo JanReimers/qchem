@@ -2,6 +2,8 @@
 module;
 #include <memory>
 #include <string>
+#include <utility>
+#include <vector>
 module qchem.Hamiltonian.Internal.Hamiltonians;
 import qchem.Hamiltonian.Internal.Terms;
 import qchem.Hamiltonian.Internal.PWTerms;        // PW_Kinetic/External/Hartree/XC (the plane-wave KS terms)
@@ -10,7 +12,8 @@ import qchem.Hamiltonian.Internal.SlaterExchange;
 import qchem.Hamiltonian.Internal.VWN_Correlation;
 import qchem.Hamiltonian.Types;
 import qchem.Structure;
-import qchem.Pseudopotential.GTH_Potentials;       // GetGTH (the convenience ctor's database lookup)
+import qchem.Pseudopotential.GTH_Potentials;       // GetGTH + GTH_PP + HGH_*/MultiSpecies_* (re-exported)
+import Common.PeriodicTable;                       // PeriodicTable::GetZ(symbol) -> atomic number (the composite key)
 
 namespace qchem::Hamiltonian
 {
@@ -75,21 +78,47 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const Pseudopotential::LocalPotentia
     Add(new PW_IonIon(st, loc->ZionFn()));                       // ion-ion Ewald: Zion from the PP, not itsZ
 }
 
-// Explicit-models ctor: the caller owns the models (itsOwnedPP stays null).
+// Explicit-models ctor: the caller owns the models (itsOwnedLocal/Sep stay null).
 Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const Pseudopotential::LocalPotential* loc,
                        const Pseudopotential::SeparablePotential* nl)
 {
     BuildTerms(st, loc, nl);
 }
 
-// Convenience ctor: look up the GTH/HGH pseudopotential from the database and OWN it (itsOwnedPP), then
-// build the terms against the owned local + nonlocal models.  itsOwnedPP outlives the terms (a member,
-// destroyed after the cHamiltonian base that holds them), so each term's &loc/&nl stays valid for the run.
+// Single-species convenience ctor: the 1-species case of the multi-species build.
 Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const std::string& element,
                        const std::string& functional, int valence)
-    : itsOwnedPP(std::make_unique<Pseudopotential::GTH_PP>(Pseudopotential::GetGTH(element, functional, valence)))
 {
-    BuildTerms(st, &itsOwnedPP->local, &itsOwnedPP->nonlocal);
+    BuildFromGTH(st, {{element, valence}}, functional);
+}
+
+// Multi-species convenience ctor.
+Ham_PW_DFT::Ham_PW_DFT(const st_t& st, std::initializer_list<std::pair<std::string,int>> species,
+                       const std::string& functional)
+{
+    BuildFromGTH(st, std::vector<std::pair<std::string,int>>(species), functional);
+}
+
+// Look up each (element, valence) from the GTH database and build + OWN a per-Z router model (one
+// MultiSpecies_Local + one MultiSpecies_Separable, keyed by atomic number so the assembly's per-atom
+// FormFactor(a->itsZ,...) dispatches to the right species).  The owned models outlive the terms (members,
+// destroyed after the cHamiltonian base that holds them), so each term's &loc/&nl stays valid for the run.
+void Ham_PW_DFT::BuildFromGTH(const st_t& st, const std::vector<std::pair<std::string,int>>& species,
+                              const std::string& functional)
+{
+    PeriodicTable pt;
+    auto loc=std::make_shared<Pseudopotential::MultiSpecies_LocalPotential>();
+    auto sep=std::make_shared<Pseudopotential::MultiSpecies_SeparablePotential>();
+    for (const auto& [element, valence] : species)
+    {
+        int Z=pt.GetZ(element.c_str());                          // atomic number = the atoms' itsZ key
+        Pseudopotential::GTH_PP pp=Pseudopotential::GetGTH(element, functional, valence);
+        loc->Add(Z, std::make_shared<Pseudopotential::HGH_LocalPotential>(pp.local));
+        sep->Add(Z, std::make_shared<Pseudopotential::HGH_SeparablePotential>(pp.nonlocal));
+    }
+    itsOwnedLocal=loc;
+    itsOwnedSep  =sep;
+    BuildTerms(st, loc.get(), sep.get());
 }
 
 Ham_HF_P::Ham_HF_P(const st_t& st)

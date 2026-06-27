@@ -18,6 +18,8 @@
 module;
 #include <cassert>
 #include <cmath>
+#include <map>
+#include <memory>
 #include <utility>
 #include <vector>
 
@@ -163,6 +165,29 @@ private:
         double x=q*rl, ql=(l==0)?1.0:std::pow(q, static_cast<double>(l));
         return Qli(x,l,i)*std::pow(Pi,1.25)*ql*std::sqrt(std::pow(rl,2*l+3))*std::exp(-0.5*x*x);
     }
+};
+
+//! \brief A multi-species separable potential: the nonlocal sibling of MultiSpecies_LocalPotential -- a
+//! router keyed by atomic number \a Z forwarding to the per-species projector model.  Every method takes
+//! \a Z, so the basis assembly (which loops atoms and calls NumProjectors(a->itsZ) etc.) is unchanged.
+//! Register every species (even a purely-local one, whose model simply reports 0 projectors).
+class MultiSpecies_SeparablePotential : public SeparablePotential
+{
+public:
+    //! Register species \a Z's nonlocal projector model (atomic number, e.g. 53 for I).
+    void Add(int Z, std::shared_ptr<const SeparablePotential> model) {itsByZ[Z]=std::move(model);}
+    virtual size_t NumProjectors  (int Z)            const override {return Get(Z).NumProjectors(Z);}
+    virtual double Coefficient    (int Z, size_t p)  const override {return Get(Z).Coefficient(Z,p);}
+    virtual double Projector      (int Z, size_t p, double q) const override {return Get(Z).Projector(Z,p,q);}
+    virtual int    AngularMomentum(int Z, size_t p)  const override {return Get(Z).AngularMomentum(Z,p);}
+private:
+    const SeparablePotential& Get(int Z) const
+    {
+        auto it=itsByZ.find(Z);
+        assert(it!=itsByZ.end() && "MultiSpecies_SeparablePotential: no model registered for this species Z");
+        return *it->second;
+    }
+    std::map<int, std::shared_ptr<const SeparablePotential>> itsByZ;   //!< atomic number -> that species' projector model
 };
 
 } //namespace

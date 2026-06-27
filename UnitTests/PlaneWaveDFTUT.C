@@ -1092,6 +1092,92 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaThroughSCFIterator)
     EXPECT_NEAR(E.GetTotalEnergy(),     -7.2273, 5e-3) << "Enn="<<E.Enn<<" Ealign="<<E.Ealign;
 }
 
+// Shared Gamma-point framework-SCF driver for the multi-species crystal tests: build the PW basis from
+// the lattice, seed a UNIFORM density, run the full SCFIterator (complex DIIS), and report.  Takes
+// ownership of \a ham (the SCFIterator deletes it).  Mirrors the Si framework test body.
+namespace {
+struct FwResult { bool converged; double charge; qchem::EnergyBreakdown E; };
+FwResult RunFrameworkGamma(const Lattice_3D& lat, double Ecut, int Nelec,
+                           qchem::Hamiltonian::cHamiltonian* ham, const char* label)
+{
+    namespace L3=BasisSet::Lattice_3D;
+    std::unique_ptr<BasisSet::Complex_BS> bs(L3::Factory(L3::Type::PW, lat, Ecut));
+    const auto* pw=(*bs)[0];
+    Irrep  irr=bs->GetIrreps(Spin::None)[0];
+    size_t n  =bs->GetNumFunctions();
+    Crystal_EC ec(irr, Nelec);
+    using qchem::SCFAccelerators::DIISParams;
+    // EMax must exceed the ionic [F,D] error (~1.4-3) or DIIS bails ("En>EMax") and linear mixing
+    // oscillates on the strong Madelung field.  Engage DIIS from the start (EMax large).
+    auto* acc=new qchem::SCFAccelerators::cSCFAcceleratorDIIS(DIISParams{10, 8.0, 1e-10, 1e-9});
+    hmat_t<dcmplx> D0=blazem::zeroH<dcmplx>(n);
+    for (size_t i=0;i<n;i++) D0(i,i)=double(Nelec)/double(n);   // uniform seed: rho(r)=N/V
+    auto* seed=new qchem::ChargeDensity::IrrepCD<dcmplx>(D0, pw, irr);
+    qchem::SCFIterator::cSCFIterator scf(bs.get(), &ec, ham, acc, seed);
+    SCFParams par;
+    par.NMaxIter=120; par.MinΔρ=1e-6; par.MinΔFD=1e30; par.MinVirial=1e30; par.MinFD=1e30;
+    par.StartingRelaxRo=0.3; par.MergeTol=1e-4; par.Verbose=false;
+    scf.Iterate(par);
+    const qchem::WaveFunction::cWaveFunction* wf=scf.GetWaveFunction();
+    auto* cd=wf->GetChargeDensity();
+    double charge=cd->GetTotalCharge();
+    delete cd;
+    qchem::EnergyBreakdown E=scf.GetEnergy();
+    std::cout << "["<<label<<"] nPW="<<n<<" iters="<<scf.GetIterationCount()<<" charge="<<charge
+              << " Etot="<<E.GetTotalEnergy() << "  (Ekin="<<E.Kinetic<<" Een="<<E.Een
+              << " Eee="<<E.Eee<<" Exc="<<E.Exc<<" Enn="<<E.Enn<<" Ealign="<<E.Ealign<<")" << std::endl;
+    return {scf.Converged(), charge, E};
+}
+} // namespace
+
+// Multi-species ionic crystal NaF (rocksalt = FCC + 2-atom basis), through the full SCFIterator with the
+// multi-species Ham_PW_DFT facade.  Na (Zion=1) + F (Zion=7) = 8 valence electrons; the per-Z router model
+// dispatches Na's vs F's pseudopotential per atom.  F's tight 2p sets the (high) cutoff.
+TEST_F(PlaneWaveDFT, FrameworkNaFThroughSCFIterator)
+{
+    using namespace qchem::Hamiltonian;
+    const double a=8.73;                          // NaF lattice constant ~4.62 A (a.u.)
+    FCCUnitCell cell(a);                          // rocksalt: FCC lattice, 2-atom basis
+    cell.AddAtom(11, {0,0,0});                    // Na  (true species Z=11; Zion=1 via the PP)
+    cell.AddAtom(9,  {0.5,0.5,0.5});              // F   (true species Z=9;  Zion=7)
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+
+    cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), {{"Na",1},{"F",7}}, "LDA");  // multi-species one-call
+
+    FwResult R=RunFrameworkGamma(lat, /*Ecut*/6.0, /*Nelec*/8, ham, "NaF SCFIterator-Gamma");
+
+    EXPECT_TRUE(R.converged);
+    EXPECT_NEAR(R.charge, 8.0, 1e-6);             // 1 (Na) + 7 (F) valence electrons
+    // Regression anchor (Ecut=6, Gamma-only -> underconverged but deterministic), like the Si total.
+    // Negative: the ionic Madelung (Enn~-14) + G=0 alignment dominate.
+    EXPECT_NEAR(R.E.GetTotalEnergy(), -20.3293, 5e-3) << "Enn="<<R.E.Enn<<" Ealign="<<R.E.Ealign;
+}
+
+// Heavy multi-species ionic crystal CsI (CsCl = simple cubic + 2-atom basis).  THE d-PROJECTOR TEST: both
+// Cs (q1) and I (q7) carry l=2 (d) Kleinman-Bylander channels, the first DFT exercise of the (2l+1)P_2
+// angular path (Si/NaF are l<=1).  Cs q1 (Zion=1) deliberately avoids the semicore q9, whose l=3 (f)
+// projector the analytic HGH Qli table doesn't tabulate.  And the PP promise: Cs/I are SOFTER than F
+// (bigger r_loc), so this heavy salt needs a LOWER cutoff than NaF.
+TEST_F(PlaneWaveDFT, FrameworkCsIThroughSCFIterator)
+{
+    using namespace qchem::Hamiltonian;
+    const double a=8.63;                          // CsI lattice constant ~4.567 A (a.u.)
+    UnitCell cell(a);                             // CsCl: simple cubic, 2-atom basis
+    cell.AddAtom(55, {0,0,0});                    // Cs  (true species Z=55; Zion=1, q1 -- s,p,d channels)
+    cell.AddAtom(53, {0.5,0.5,0.5});              // I   (true species Z=53; Zion=7 -- s,p,d channels)
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+
+    cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), {{"Cs",1},{"I",7}}, "LDA");
+
+    FwResult R=RunFrameworkGamma(lat, /*Ecut*/4.0, /*Nelec*/8, ham, "CsI SCFIterator-Gamma");
+
+    EXPECT_TRUE(R.converged);
+    EXPECT_NEAR(R.charge, 8.0, 1e-6);             // 1 (Cs) + 7 (I) valence electrons (d-projectors active)
+    // Regression anchor (Ecut=4, Gamma-only).  The point is the d-channel assembly runs end-to-end;
+    // both species' l=2 Kleinman-Bylander projectors contribute via the (2l+1)P_2(cos gamma) path.
+    EXPECT_NEAR(R.E.GetTotalEnergy(), -11.3868, 5e-3) << "Enn="<<R.E.Enn<<" Ealign="<<R.E.Ealign;
+}
+
 // G-space Hartree path: V_H assembled directly from the density's Fourier coefficients rho-tilde(dm)
 // (PlaneWave_IBS::MakeFourierDensity -> Repulsion(FourierMap)) must equal the real-space route
 // (sample rho(r) on the grid -> ForwardDFT -> V_H).  This is the O(n^2) G-space replacement for the
