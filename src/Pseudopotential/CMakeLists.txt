@@ -5,7 +5,7 @@ target_sources(qcPseudopotential PRIVATE
 target_sources(qcPseudopotential PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     LocalPotential.C
     SeparablePotential.C
-    Pseudo_IBS.C
+    Integrals_Pseudo.C
     GTH_Potentials.C
     )
 target_include_directories(qcPseudopotential PRIVATE

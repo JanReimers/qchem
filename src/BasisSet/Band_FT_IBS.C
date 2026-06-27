@@ -5,7 +5,7 @@
 // FourierMap, rho-tilde / V-tilde).  The questions here are the DENSITY-driven KS assembly: rho-tilde ->
 // the FFT-free Hartree matrix, and the FFT XC route -- replacing the O(Npts*n^2) pointwise density
 // sampling with one O(n^2) projection D->rho-tilde.  (The EXTERNAL pseudopotential assembly is a separate
-// capability, Pseudopotential::Pseudo_IBS in qcPseudopotential, so qcBasisSet names no pseudopotential type.)
+// capability, Pseudopotential::Integrals_Pseudo in qcPseudopotential, so qcBasisSet names no pseudopotential type.)
 // A term reaches this the sanctioned way: holding the abstract orbital basis and dynamic_cast-ing UP.
 module;
 export module qchem.BasisSet.Band_FT_IBS;

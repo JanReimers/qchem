@@ -43,7 +43,7 @@ public:
     virtual double Zion(int Z) const {return double(Z);}
 
     // --- Adapt Zion to the plain CALLBACK the ion-ion (Ewald) term consumes.  The reciprocal-space
-    //     assembly (Pseudo_IBS) now takes the abstract model DIRECTLY, but Ewald (NuclearRepulsion) lives
+    //     assembly (Integrals_Pseudo) now takes the abstract model DIRECTLY, but Ewald (NuclearRepulsion) lives
     //     BELOW the pseudopotential layer in qcStructure, so it must take a neutral std::function. ---
     std::function<double(int)>        ZionFn()         const {return [this](int Z){return Zion(Z);};}
 };

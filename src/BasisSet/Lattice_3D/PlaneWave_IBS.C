@@ -19,7 +19,7 @@ export import qchem.BasisSet.Band_DFT_IBS;     // the abstract real-space DFT-in
 export import qchem.BasisSet.Band_FT_IBS;       // the abstract G-space DFT capability (+ FourierMap)
 import qchem.BasisSet.Internal.IrrepBasisSetImp;   // IrrepBasisSetImp<T>: GetSymmetry/GetSymt/GetIrrep
 export import qchem.ReciprocalLattice;             // ctor takes a ReciprocalLattice (carries the B cell)
-export import qchem.Pseudopotential.Pseudo_IBS;          // the external-PP assembly capability (+ its models)
+export import qchem.Pseudopotential.Integrals_Pseudo;    // the external-PP operator-assembly mixin (+ its models)
 import qchem.Structure;
 import qchem.Symmetry;                             // sym_t (the Bloch irrep handed to the ctor)
 import qchem.Types;
@@ -32,7 +32,7 @@ export namespace BasisSet::Lattice_3D
 class PlaneWave_IBS
     : public virtual BasisSet::Band_DFT_IBS<dcmplx> // real-space DFT-integration (Hartree/XC)
     , public virtual BasisSet::Band_FT_IBS           // G-space DFT (rho-tilde -> Hartree, FFT XC)
-    , public virtual Pseudopotential::Pseudo_IBS     // G-space external pseudopotential assembly (V_loc + V_NL)
+    , public virtual Pseudopotential::Integrals_Pseudo<dcmplx> // G-space external pseudopotential assembly (V_loc + V_NL)
     , public         BasisSet::IrrepBasisSetImp<dcmplx> // supplies GetSymmetry/GetSymt/GetIrrep + itsSymmetry
 {
 public:

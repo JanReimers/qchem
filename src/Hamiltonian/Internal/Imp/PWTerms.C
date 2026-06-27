@@ -9,7 +9,7 @@ import qchem.Energy;
 import qchem.ChargeDensity;
 import qchem.ChargeDensity.FourierDensity;   // cast cd UP to its reciprocal-space coefficients rho-tilde
 import qchem.BasisSet.Band_FT_IBS;         // cast bs UP to the reciprocal-space DFT capability (Hartree/XC)
-import qchem.Pseudopotential.Pseudo_IBS;   // cast bs ACROSS to the external-PP assembly capability (PW_External)
+import qchem.Pseudopotential.Integrals_Pseudo;   // cast bs ACROSS to the external-PP operator-assembly mixin (PW_External)
 import qchem.Fitting.FourierFunctionFitter; // the PW fitter PW_Hartree drives (like FittedVee's FunctionFitter)
 import qchem.Structure;                       // Structure (PW_IonIon ion-ion energy)
 import qchem.Ewald;                           // NuclearRepulsion (Ewald lattice sum for the crystal)
@@ -31,12 +31,12 @@ PW_External::PW_External(const st_t& st, const Pseudopotential::LocalPotential* 
 
 // Assemble the external matrix from the MODELS the term owns: hand the basis the abstract local +
 // optional KB nonlocal models and let it assemble <i|V_ext|j>.  The dynamic_cast is the sanctioned
-// abstract->abstract move (cobs_t = Orbital_1E_IBS<dcmplx> ACROSS to the Pseudo_IBS capability); only a
+// abstract->abstract move (cobs_t = Orbital_1E_IBS<dcmplx> ACROSS to the Integrals_Pseudo capability); only a
 // basis that supports reciprocal-space PP assembly answers it.  V = V_loc + V_NL.
 chmat_t PW_External::CalculateMatrix(const cobs_t* bs, const Spin&) const
 {
-    auto pw=dynamic_cast<const Pseudopotential::Pseudo_IBS*>(bs);
-    assert(pw && "PW_External requires a Pseudo_IBS (e.g. plane-wave) basis");
+    auto pw=dynamic_cast<const Pseudopotential::Integrals_Pseudo<dcmplx>*>(bs);
+    assert(pw && "PW_External requires an Integrals_Pseudo<dcmplx> (e.g. plane-wave) basis");
     itsBasis=pw;                    // captured for GetEnergy's G=0 alignment (same basis every iteration)
     chmat_t V=pw->MakeLocalPotential(&*theStructure, *itsLocal);
     if (itsSep) V += pw->MakeSeparablePotential(&*theStructure, *itsSep);
