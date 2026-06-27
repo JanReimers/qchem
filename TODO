@@ -1,249 +1,206 @@
-
-
 # TODO
 
-Notes, bugs, and plans for the qchem6 project. This file is markdown-enabled so headings fold in VS Code.
+Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold in VS Code.
 
-## Quick items
+## Major features (future)
 
-- Turn on/off vscode popups: search `quickSuggestions`
-- Understand type erasure: https://youtu.be/m3UmABVf55g?t=2134
-- Use basis set path inside the Molecul::Factory ... don't burden the user.
-- Matrix3D/Vecor3D and the 2D version.  Should these all be covnverted to blaze::StaticXXXX.   By defualt blaze does some
-  fancey memory alignment magic they may help performance.
-  Types.C add mat3d_t and rmat3d_t for consistency.
--we now have tiny diffs in three submodules: blaze, wignerSymbols and libxc.  Part of this is suppressing
-CMake noise about Min versions.  Maybe there is a better way to deal with this.  Tow other are compiler warnings in blaze and time stamped xc.h for useless recompile in libxc.  How to the deal with this?  Keep a patch and apply it after checkout?
+### Convergence acceleration
+- **DIIS singular B** (Shepard & Minkoff 2007 eq 23 — linear least squares for a
+  better condition number; consider SVD-truncating B); 
+- **EDIIS**
+### Perturbations 
+- OOD architecture for 1st/2nd order 
+- demo 1st order with SO-coupling (HF, DHF)
+- demo 2nd order with MP2.
 
-The cause: submodules/libxc/CMakeLists.txt localizes the <xc_version.h> include in xc.h via an unconditional file(WRITE), which bumps xc.h's mtime on every cmake reconfigure. So every CMakeLists edit (constant during dev) forced Libxc_LDA_Exchange.C to recompile. Patched to write-only-if-content-changed (matching what configure_file does for config.h). Verified: two forced reconfigures now leave xc.h's mtime untouched and Libxc is not rebuilt.
+### Configuration Interaction
+- Full/Truncated/multi-reference; 
+- goal is to show the OO design supports it.
+- Rank by (1) code complexity here, (2) real-world usefulness.
 
+### Parallel execution
+- Options: OpenMP" std::threads other?.   
+- How?
+  - Top down: loops over 
+    1. irreps in `AccumulateDirect`/`AccumulateExchange`
+    2. Hamiltonian terms
+  - Bottom up: MatMul()?
 
-## Code review
+## Bugs
 
-### Point group project
+- **DFT fit-basis leak** (ASan 2026-06-20): `CreateCDFitBasisSet → EFit_IBS` may leak (water_DFT). HF path is
+  clean. *Verify* — the FittedCD ownership changed this session (shared_ptr FIT_CD_ABS); may be fixed.
+- **Slow test:** `BS_U_Low,Pool He` slow only if `BSplineOrthogonality` runs first (which fills DBCache with
+  Overlaps). gprof says identical (!). Currently scrub the cache after the Orthogonality tests. Only appeared
+  after adding one BSpline grid point. Needs a real profiler / valgrind. (ASan build at `build/ASan`.)
+- **Basis/Hamiltonian/Structure mismatch → domain exceptions:** BSpline+DFT/DHF (no evaluator), SG(atom-only)
+  for a Molecule, LibCint+DFT (no 3-centre). These currently throw `bad_cast`; catch + re-throw a
+  `BasisSetSupport` exception carrying basis type + required/missing support (RKB/DFT). Clients: `DiracKinetic`,
+  `FittedVee`. (Ties to the CLAUDE.md `dynamic_cast` survey.)  I am purposly leaving aspect un-implemented ths is a static test of the mix architecture.
 
-- Can we move `SymEigen3` into `Matrix3D<T>`?
-- `src/BasisSet/Internal/Imp/Orbital_DHF_IBS.C::merge_xxx` use `blazem::submatrix`
-- but GDM+aufbau is a TODO. GDM needs per-irrep nocc at accelerator-creation time, which the aufbau doesn't know up front. DIIS only checks occ>0, so it's fine
-- Migrate qchem tester over to the new Molecule_EC
+## OOD principles & north-star
 
-### Polarized Gaussian refactor
-
-1. In PrimGaussian the Interate{2,3,4}C functions are all static.  This is good, keeps symmetry between a and b.
-    In GaussianRF they are all member functions.  Can they also be made static and restore a/b symmetry?
-2. L itsL ... on the atom I *mostly* switched to lower case l.  But I still use upper case for LMax.
-3. Still some  std::vector<double> usage in the MnD internal.  Save this for and full MnD code review and refactor.
-   And that is only after some profiling which I recall should show that the H2 constructor is the hot code.  And before that we need to find a decent profiler (gprof is no longer functional).
-
-
-#### later:
-1. enum IType {Overlap2C, Repulsion2C, Grad2, Nuclear};  can we use the enums in src/BasisSet/Internal/DB_Cache.C?
-5. *Yes:* -Does PGData still need    
-    std::string RadialID () const;
-    std::string AngularID() const;
-    for now ?  
-
-
+- Capital "SOLID" = OOD principles; lowercase "solid" = periodic-lattice materials.
+- Ultimate target: VASP/ABINIT-class (ultrasoft) pseudopotentials. HF/DHF support follows purely from whether
+  the Evaluator satisfies the integral concepts.
+- **Priorities (in order):** (1) correct numbers, (2) efficient (CPU/RAM), (3) easy end-user interface,
+  (4) easy developer interface for adding basis-set/pseudopotential types ← where the pseudo-wall matters,
+  (5) readable (code looks like the literature formula, e.g. `sqrt(α+β)`). The wall is not perfection: the
+  basis interface should *stabilize* after a few pseudopotential types, then the rest are a breeze.
+- **Why physical total energies matter (north-star):** voltage curves for Li/Na battery materials
+  (LiMn2O4, LiNiO2, LiCoO2): (1) TEs for different Li configs (often supercells); (2) interaction strengths
+  for a lattice-gas (Ising 0/1); (3) Monte-Carlo → V(T,x). Implies multi-species PP (done), spin+U, forces.
+- **The big abstraction question:** correct abstractions for a clean
+  `{atom/molecule/Lattice_3D/2D/1D} × {1E,DFT,HF} × {Pol,unPol}`. see the "The three axes" section in NOTES
 
 ## Questions
 
-- For atoms it is common to do numerical solution of the radial DE instead of using basis sets.
-  Is there a way to fit that solution approach into the framework for this project?
-  What if the radial solution is treated as an irrep basis set (IBS) with one basis function?
-  An alternate implementation of `UpdateOrbitals` (`src/Orbitals/Internal/Imp/TOrbitals.C`) would then do a numerical radial
-  solution for each irrep using the current charge density. I suspect there are many difficult details left out of my proposal.
+- Atoms often use a numerical radial-DE solution instead of basis sets. Fit into the framework? Treat the
+  radial solution as a 1-function IBS; an alternate `UpdateOrbitals` (`Orbitals/.../TOrbitals.C`) does a
+  numerical radial solve per irrep from the current density. (Many hard details elided.)
 
-## Major Features
+# Project wide
 
-### Convergence acceleration
+- **Docs (Doxygen):** liberal inline LaTeX; define indexing (ijkl/abcd/nm/greek) + acronyms (`Types.C`) +
+  symbol conventions (basis fn, IBS, full BS, SALC, irrep labels — pick modern-literature-conventional).
+  How to break it up?  Restrict class diagrams to the BasisSet level (not Atom/Molecule/Lattice internals); want (1) a client
+  diagram (no Internal) and (2) a developer diagram (Internal). Host on GitHub, link from README.
+- **Tests** Debug Unit tests are getting up beyond 5 min again.  Release is OK at 2:15min.  With more lattice features going in we need to regularly run long tests.  Mitigations:
+  1. Set a local CI pipeline put Unit tests, integration tests and some longer running tests in there.  Shedule runs.  Trigger runs.  Can we have pause button ... in case live development want priority.
+  2. Buy a new PC with 12-16 cores, 64GB ram, 2T SSD drive.  Use the new rig for live development run SI server on the old rig ... until it goes up in a puff of smoke :)
+## Solids / plane waves
 
-- Done: Geometric Direct Minimization (GDM)
-  - Read up on BFDS method, Numerical Recipes section 10.7
-  - Make notes that translate into our notation.
-  - The original paper is very hard to follow.
-- DIIS singular B
-  - Shprd & Minkoff 2007 eq 23. Linear Least Squares gives a much better condition number.
-  - Consider SVD and truncating B.
-- EDIIS
+- **APW energy-dependent overlap** (`APW_IBS` is an `IrrepBasisSet<dcmplx>` but deliberately not an
+  `Orbital_1E_IBS`): solve the nonlinear secular eq by iterating — guess E₀, build H(E₀),O(E₀); solve the
+  generalized problem → ε_n(E₀); set E₀←E₁ until fixed point. Like an SCF except we find E* (not a density)
+  and S(E) also changes each iteration.
+  Need to see wat real SCF looks like on APW with DFT. 
+- **Mid-level plan:** (1) go far along lineage A & B; (2) lineage A: `template<isM_1E_Evaluator E> class
+  EPlaneWave_IBS<E>`, migrate the hardcoded PW IBSs one at a time (most data → evaluators); (3) graft onto
+  lineage B; (4) e-e repulsion (needs the DFT upgrade first). Also: GPW/GAPW after FLAPW — we have Gaussian
+  integral engines in `src/BasisSet/Molecule` if that helps.
 
-### DFT upgrade
-
-#### Oracle.
-
-- DFT is not really abinito, so finding an oracle is more difficult that for HF.
-  Neverhteless the class PeriodicTableSaito (now miss named) has GetEnergyDFT and those numbers come
-  from NIST https://math.nist.gov/DFTdata/atomdata/tables/ptable.html.
-  They have an exchange and a separate correlation potential described here: https://math.nist.gov/DFTdata/atomdata/node3.html#SECTION00021000000000000000
-  and in this paper: S. H. Vosko, L. Wilk, and M. Nusair, Can. J. Phys. 58, 1200 (1980); S. H. Vosko and L. Wilk, Phys. Rev. B 22, 3812 (1980).
-- libxc has the Vosko correlation implelemented.  See src/Hamiltonian/Internal/Libxc_LDA_Exchange.C
-- BUT I tried some of simple exchange functions in libxc and using them I can't get agreement in the energies.
-- I think we need to:
-1. Consider separate `Vxc`, `Vex`, and `Vcorr` terms in src/Hamiltonian/Internal/Terms.C.
-2. In src/Hamiltonian/Internal/Hamiltonians.C make new versions of Ham_DFT_{U,P}->Ham_DFTcorr_{U,P} and use separate Vex and Vcorr terms.
-3. Hand code Vosko the exchange term so we have full control.
-4. If we can reproduce the NIST energies then we have an oracle.
-
-#### Friendly interface
-- For libxc, the client code is expected to look up a function id.  Can we pick a few of the available functionals
-  that we are likely to want for developing and testing in our work in BasisSet/Lattice_3D, (Si in particular) and make emuns for them.
-  If the functionals require parameters, handle that for the user.  In short make the user unaware that libxc is under the hood.
-
-#### How to handle Atom (pure radial) efficiently
-
-- Every IBS basis set supports rvec_t op()(const rvec3_t&) for getting a vector of values needed for fitting ρ(r) and Vxc(ρ(r))
-- This is the right interface for molecules and solids.  It is a little clunky for atoms, where efficiency suggests op()(double r) is better.
-- Right now for atoms we make a mesh with an angular component going along one axis (say x, I forget which one). and that ends up feeding an rvec3_t(r,0,0) into op()(const rvec3_t&).
-- Also atom op()(const rvec3_t&) does not inlcude any angular dependence, it is fake, just radial.  
-- BUT in the future I want to make a flashy GUI app for atoms that can display orbitals (iso surfaces) with pretty colours.  In order for that work I need to use real versions of the spherical harmonics (Ylm+i*Yl-m etc) in order to plot the orbitals.
-- THis will break DFT unless we use expensive grids with more angular directions.  Good source of numerical bugs.
-- Looking for options to fix this.
-1. make a separate op()(double r) just atoms.  Violates SOLID
-2. Internal flag to indicate spherical harmonics on or off.
-3. orther??
-- We can deffer this decision until I do the flashy GUI app.
-
-The cleaner framing: you're conflating evaluation with integration.
-
-op()(rvec3_t) is the universal evaluation interface and should stay semantically honest — full angular dependence with real Ylm. That's what the GUI needs, and it's not optional truth.
-Atomic DFT integration should exploit spherical symmetry analytically (1-D radial quadrature × 4π), not fake a 3-D grid down one axis. Make that a polymorphic integrator/quadrature strategy selected by the basis set's symmetry (the atom already carries YFactory symmetry — let that choose the radial integrator). The molecule/solid path uses a 3-D grid integrator.
-So: don't fake op(), and don't flag it — separate the integration concern. A fast op()(double r) can exist as the internal fast-path the radial integrator calls, not as a public alternative. Deferring to GUI time is fine, but lock the principle now ("op(rvec3_t) is always honest") so the deferral doesn't quietly accrete a flag.
-
-#### Fitting 
-
-- The Fitting project-module needs a refactor.  
-- Right now client code (FittedVee, FittedVxc, FittedCD) must inherit from src/Fitting/FittedFunctionImp.C.  Not good, not SOLID.
-- How to fix?  I propose a `FunctionFitter` fitter interface.  Client uses a Factory to get one.  They have options:
-1. Unconstrained
-2. Constrained (I think this is actually charge constrained)
-3. IntegralConstrained 
-- If you have an alternate proposel let me know.
-- FunctionFitter is polymorphic so we have the recurring queston: Does the factory return a raw pointer, std:shared_ptr, std::unique_ptr or something else?
-- The Fitting project-module needs more docs. Again use latex for formulas.
-
-Code review:
-- Factory.
-- File name src/Fitting/FittedFunctionImp.C
-#### Bug
-
-- Bug From another session:DFT fit-basis leak (found via ASan 2026-06-20): the DFT Hamiltonian builds a CD fit basis
-  (`BasisSet::CreateCDFitBasisSet` -> `EFit_IBS`) that is never freed -- LSan shows the fit-basis
-  radials leaking on water_DFT (old PG ~1.6MB / 21k allocs, new PG1 ~0.6MB). The HF path is
-  leak-clean. Pre-existing in BOTH trees (shared Hamiltonian/fit-basis ownership), not the PG
-  refactor. Fix: pin down who owns the result of CreateCDFitBasisSet and ensure ~Ham_DFT_U (or the
-  SCFIterator) deletes it.
+- Submodule tiny-diffs (blaze, wignerSymbols, libxc): CMake min-version noise + blaze compiler warnings.
+  libxc xc.h mtime churn is patched (write-only-if-changed). Better long-term handling? (keep a patch,
+  re-apply after checkout?)
 
 
-### Perturbation support
+# By library or project-module
 
-- OOD/SOLID architecture for handling perturbations (first and second order).
-- Demo first order with SO-coupling for HF and DHF.
-- Demo second order with Moller–Plesset (MP2).
+## qcHamiltonian
 
-### Configuration Interaction
+- **bare->r\* rename** (remove transitional aliases): bare names (`Static_HT`, `Dynamic_HT`,
+  `Hamiltonian`, `Static_CC`, `Dynamic_CC`, `DM_CD`, `Composite_CD`, `obs_t`, ...) are still
+  `using X = rX` shims so ~200 existing sites didn't churn. Do the codebase-wide rename. NOTE the
+  `rHamiltonian` rename must also dissolve the `qchem::Hamiltonian` namespace-vs-type shadow
+  (the `::Hamiltonian` / `qchem::Hamiltonian::` qualifications scattered around are working around it).
+- **newCD double-duty redesign**: `Dynamic_HT_Imp` caches by Irrep and `newCD(cd)` does two jobs
+  (cache-clear + refit-trigger). The cache-freshness bug was fixed (commit 582f1d05: GetMatrix clears
+  on cd-change), but the deeper smell remains — split the two responsibilities. See
+  [[project_hamiltonian_dynamic_cache_bug]].
 
-- Full CI, Truncated, multi-reference
-- Our goal is to demonstrate that our OO design or architecture supports it.
-- Rank in terms of 
-    1) code complexity for this project.  How much of current infrastructure needs to change?
-    2) usefulness/popularity in the real world of users.
+### Friendly libxc interface
+- Clients shouldn't have to look up a function id. Pick a few popular/common functionals we want, make enums,
+  handle params for the user — hide that libxc is under the hood.
 
-### Parallel execution
+## qcChargeDensity
+**Charge density / SCF**
+- Seeding mechanism: not user-friendly (uniform-density-seed boilerplate in the framework tests), and crude
+  for ionic charge-transfer (NaF/CsI converge but grind).
 
-- Consider OpenMP; beware gprof output issues.
-- Use LLVM profiling (`-fprofile-instr-generate`, `-fcoverage-mapping`) and Linux `perf` for profiling.
-- Use parallel loops over 
-    1) irreps for `AccumulateDirect` and `AccumulateExchange`.
-    2) Hamiltonian terms??
+## qcFitting
+
+**Small follow-ups from this session's cleanups**
+- `FIT_CD_ABS<T>` / `FIT_SF_ABS<T>` templating — left non-templated; the `<dcmplx>` vision is still open.
+- AO/FT empty-side assert asymmetry — AO empty-side is fully inert, FT empty-side still keeps a domain-guard
+  assert; symmetrize if desired.
+- `FourierFunctionFitter` delete-and-inline — kept the named object; the aggressive alternative remains.
+- XC energy `∫ε_xc·ρ` through the fitter — still on the direct grid route (needs a grid-based fit input).
+- Look at the typedefs bs_t is too vague. If it is a Fit_IBS then just say so, call it fitbs_t.
+
+## qcBasisSet
+
+## qcAtom_BS
+- **Dirac/RKB:** 1s orbital not properly normalized; track kinetic factors (0.5, c, 2c).
+- **Dirac/RKB:** `Orbital_DHF_IBS.C::merge_xxx`: use `blazem::submatrix`.
+- **Atom evaluators:** Gaussian integrals via recursion `Fact[n]/pow(2,n)` (consider `constexpr`); convert
+  the BSpline Fortran GL integrator (`Atom/Evaluators/BSpline/Internal/gauleg.f`) to C++/blaze and fold into
+  qcMesh — BSpline and PW should share one 1-D GL.
+- `op()(rvec3_t)` is the universal evaluation interface (full angular dependence, real Ylm — the future GUI
+  needs honest truth). Atom DFT integration should exploit spherical symmetry analytically (1-D radial × 4π),
+  NOT fake a 3-D grid down one axis. Make integration a polymorphic quadrature strategy chosen by the basis's
+  symmetry (atom carries YFactory). **Principle to lock now:** `op(rvec3_t)` is always honest; a fast
+  `op(double r)` may exist only as the radial integrator's internal fast-path, never a public alternative.
+  Defer to GUI time, but don't let the deferral accrete a flag.
+
+## qcMolecule_BS
+
+1. `PrimGaussian` `Iterate{2,3,4}C` are static (good, a/b symmetry); `GaussianRF` makes them members — can
+   they be static too, restoring a/b symmetry?
+2. `L`/`itsL`: mostly lowercased `l` on the atom, but still uppercase `LMax`.
+3. Some `std::vector<double>` left in MnD internal — save for a full MnD review+refactor
+4. Get RadialID() and AngularID() out of BasisSet::Molecule/qcMolecule_BS
+
+## qcLattice_3D
+**Pinned design reviews**
+- Scalars leaking through abstract interfaces: `ExternalG0Energy` (PW-specific, no molecular-ECP analogue)
+  and the `double& Eh` out-param on `Repulsion(const FourierMap&, double&)`.
+- `BasisSet<dcmplx>::Create{CD,Vxc}FitBasisSet` NA-stubs (`src/BasisSet/Imp/BasisSet.C`) — the "dirty code
+  smell" to revisit ("PW reuses its own basis for fitting" ≠ "those fakes are fine").
+- Deep fitting-boundary question — whether `Orbital_DFT_IBS`/`Band_DFT_IBS` ever merge ("where does fitting
+  belong"). Mostly resolved in practice; philosophical residue parked in `project_dft_fitting_boundary_pin`.
+
+- BZ-symmetry reduction — multi-k computes all k-points explicitly; fold to the irreducible wedge (+weights) using the crystal point group when k-counts grow. (Perf, not correctness.)
+## qcPseudoPotential
+
+**Pseudopotential / multi-species**
+- `Qli` l=3 (f) projector — the analytic HGH table stops at l=2, so heavy semicore valences (e.g. Cs **q9**)
+  aren't usable; sidestepped with Cs q1. Small self-contained addition.
+**Naming**
+- `External` → `Pseudo` sweep: `PW_External` (term) + `ExternalG0Energy` (method). "External" misleads for a
+  crystal (it's the electron system's external potential, but reads like an outside EM field). Cosmetic.
+
+## qcElConfig
+- Can we make an EC_Aufbau that does aufbau filling across irreps for atom/molecule and solids? Or does each
+  structure type have its own peculiarities?
+
+## qcStructure
+- We need to change the typedef cl_t->st_t  (cl_t a left over from when Structure was called Cluster). Same for valriable names like cl or cluster
+  
 
 
+## qcSymmetry
 
-### Docs:
-- If we get all this working there is going to a lot abstract stuff at the general BasisSet level, which is fantastic.
-- But people (and Claude!) need to understand that stuff.
-- So we need to make some in code documentation.  Is DOxygen suitable?  Or is there a modern replacement that you recommend?
-    I have a Doxyfile in the project root directory.  I havent tried it lately!
-- The in code documentation should 
-    1) make liberal use of inline Latex for all math expressions.
-    2) Define indexing (ijkl,abcd,nm,greek versions) conventions the are used
-    3) Define all acronyms (see Types.C)
-    4) Define math symbol conventions for basis function, Irrep basis sets, full basis sets, SALC irrep basis sets, irrep labels.
-        I am sure the literature is all over the place on this, so the best we can do is pick symbols that are most conventional
-            in the modern (last ~~20 year?) literature.
-    DOxygen makes class inheritance hierarcies, but they get big fast.  
-        So we need to restrict it to just BasisSet1 level and prevent it from digging into the Atom/Molecule/Lattice sub folders.
-        Ideally we get 
-            1) a class diagram that is just for clients of basis, has no Internal classes
-            2) Another diagram for basis set developers and focuses on the internal classes.
-    Finally is there a good way to host the doxygen docs at gitbub (separate repo maybe?) and then link to from README.md file.
+- **Space-group support** — extend qcSymmetry from molecular point groups + Bloch k-labels to crystal space
+  groups. Three sub-tasks: (1) **detect** the ops from cell+basis (spglib-style); (2) **represent** `{R|τ}`
+  and apply them (to k in reciprocal space; to positions/density in real space); (3) **BZ machinery** — star
+  of k, irreducible wedge, integration weights.
+  - **Tier A** — point group acting on k (+ time-reversal `k→−k`). Enough for BZ reduction (consumes only the
+    point-group part; symmorphic-friendly). This is the provider for the qcLattice_3D *BZ-symmetry reduction*
+    item.
+  - **Tier B** — full space group with fractional translations τ → non-symmorphic `e^{−iG·τ}` phases,
+    density/Hamiltonian symmetrization, crystal SALCs (solid analogue of the molecular SALC work).
+  - Reuses the molecular point-group core: a space group ≈ point group ⋉ lattice translations.
 
+## qcCommon /qcMath
+- PeriodicTableSaito` is miss named.  Anything useful left in the old PT?
 
-## Solids
-- Lets use capital letters for SOLID OOD principles and lower case "solid" for solid materials with a periodic lattice stucture.
-- This plan is about solids or lattices.
-- Ultimate (abititious!) target: Something like VASP/ABINIT that handles (ultra soft) psuepotentials.
-    Whether or not HF or DHF is supported is solely based on if the Evaluator for the basis set satisfies the
-    concept constratints for those integrals.
-
-### Code review comments
-
-- "APW_IBS is an IrrepBasisSet<dcmplx> sibling of PlaneWave_IBS — same base interface — but deliberately not an Orbital_1E_IBS, because APW's overlap is energy-dependent." 
-Answer: we have to solve a nonline sec equation by iterating:
-guess E₀, build H(E₀), O(E₀);
-solve the linear generalized problem H(E₀)c = ε·O(E₀)c → eigenvalues ε_n(E₀);
-pick the relevant ε_n =: E₁, set E₀ ← E₁, repeat until E₁ = E₀ (the fixed point ε_n(E*) = E*).
-Its almost like a SCF iterator except 1) we finding E* instead of a converged charge density and 2) S(E) also changes with each iteration just the H.
-
-My view of this higher mid level plan is now 1) GO suitably far along Lineage A and B. 2) For lineage A create a generic template <isM_1E_Evalualtor E> class EPlaneWave_IBS<E> and start migrating the hard coded PW IBSs one at a time.  Most code and member data moves into the evaluators.  3) Figure how to graft this process onto the lineage B versions.    4) Start thinking about e-e repulsion, this requires a top level DFT upgrade first, and I am specing that out now.
-
-What about GPW after FLAPW ... we already have integral engines in src/BasisSet/Molecule if that helps
-
-"How should the PW complex density handle DM_CD's Gaussian/HF/fit-only methods (AccumulateDirect/Exchange, GetRepulsion3C, FitGetConstraint) that plane waves never use?"  
-- We will need to somehow split up tDM_CD into 1E, DFT and HF mixin versions along the same lines as for basis functions.
-  This is exactly the sort refactoring I want to discover.  What are the correct abstractions for a clean implentation
-  of everything {atom/molecule/Lattice_3D//Lattice_2D//Lattice_1D}*{1E,DFT,HF}*{Pol,unPol}
-
-Is virtual hmat_t<T> MakeExternalPotential(const Structure*) const=0; the analogue of MakeNuclear in the atom/moleulce parts of BasisSet?  If so we now have three names for the what I think are the same thing: ExternalPotential, Ven, and Nuclear.   I don't like ExternalPotential.  External to what?  All those nuclei are *in* the lattice.  I see External and I think of an EM field origininating from outside the NxNxN lattice.  
-
--Pin list:  Review ElConfig and electron dumping. 
-
-
-
-
-## Upgrade existing features
-
-### Top level
-
-- Done: Critical review of CMake files.
-- Done: Reorg unit testing so tests live in each library (`doc/cmakenotes.md`).
-- Hunt for acronyms and document in `Types.C`.
-
-### Dirac/RKB
-
-- 1s orbital not properly normalized.
-- Track factors (0.5, c, 2c) for kinetic matrices.
-
-### Atom evaluators
-
-- Gaussian integrals should use recursion with `Fact[n]/pow(2,n)` — consider `constexpr`.
-
-## Clean up
-
+### new lib qcMath refactor
+- Pull all the math like items out of qcCommon and put them in qcMath
+- qcCommon would be left with : Iterators, PeriodicTable, stl_io, Stream, Strings
+  PeriodicTable will lose acces to Types.C 
+- Organize all the math items.  I am considering Wigner symbols as math in this item.
+- Rename {Math.C qchem.Math}->{CMath.C qchem.CMath}
 - `constexpr` the static numeric lookup tables. `Fact`/`DFact`/`Twon` (`src/Common/Factorials.C`),
   `DoubleFactData` (PrimGaussian in `Radial/Imp/GaussianRF.C`), and the Pascal/binomial triangle
   (`src/BasisSet/Atom/Evaluators/Internal/PascalTriangle.C`) are pure integer/double recurrences of
   fixed size -> ideal for `constexpr std::array<double,N>` filled by a constexpr function (clean
   C++20, no container/JSON caveats). Three wins: removes the runtime "Initializing..." startup work;
-  removes the forced-static-init-before-main hack (e.g. `static FactorialTables theFactoriTables`),
-  which is the SAME static-init-order-fiasco class just fixed in PeriodicTable (mutable globals are
-  zero-filled until that ctor runs); and turns mutable globals into immutable constants.
-  Caveat: `Wigner3j`/`RelWigner3j` use sqrt of factorial ratios and `std::sqrt` isn't `constexpr`
+  removes the forced-static-init-before-main hack and turns mutable globals into immutable constants.
+- Try the same for the `Wigner3j`/`RelWigner3j` tables.  But we need sqrt of factorial ratios and `std::sqrt` isn't `constexpr`
   before C++26 -> need a hand-rolled constexpr sqrt (Newton) or keep those runtime for now.
-- (Weaker, separate case) PeriodicTable Saito/NIST/DHF *data* is read from JSON at startup into static
-  objects. NOT constexpr-parseable (`nlohmann::json` isn't constexpr; constexpr vector/string don't
-  persist pre-C++23/26). If wanted, do it via a build-time JSON->codegen step emitting
-  `constexpr std::array<Record,N>` + `std::string_view`. Motivation is robustness (kills the SIOF
-  class + the COMMON_DATA_PATH runtime dependency), not speed. Cheaper interim: Meyers singletons.
-- Home-grow Wigner symbols and drop the `wignerSymbols` submodule. Usage surface is tiny: only
+  Idea: Just store the squares of the Wigner symbols. That is what we end up using anyway.
+  Home-grow Wigner symbols and drop the `wignerSymbols` submodule. Usage surface is tiny: only
   `wigner3j` + `clebschGordan` (no 6j/9j), in production just `RelAngularIntegrals.C` (DHF angular)
   plus `RelAngular.C` (which uses the submodule as a TEST ORACLE). CG is a 3j in disguise
   (CG = (-1)^(j1-j2+M) sqrt(2J+1) 3j(...)), so one correct `wigner3j` covers it. 3j is a finite
@@ -253,41 +210,8 @@ Is virtual hmat_t<T> MakeExternalPotential(const Structure*) const=0; the analog
   paths). Plan: write home-grown `wigner3j`, keep submodule as the oracle in `RelAngular.C` until it
   matches across all cases, THEN drop from production (and eventually the build). Risk: half-integer
   args + phase/selection conventions -- the existing oracle test de-risks it.
-- `QchemTester::itsPT` (static `PeriodicTableSaito`): make it construct-on-first-use
-  (`static const PeriodicTableSaito& PT(){ static const PeriodicTableSaito t; return t; }`), drop the
-  static member, replace `itsPT.` with `PT().`. Do NOT move it to gtestmain.C like `theGlobalCache`:
-  itsPT is immutable read-only (never reset, unlike the cache, which is main-managed precisely BECAUSE
-  it's scrubbed between tests), AND `QchemTester` is also used by `scfrun.C` (a separate main) -- the
-  gtestmain pattern would leave itsPT uninitialized there. (The SIOF crash itself is already fixed via
-  the common_data_dir path; this is the remaining cleanliness step.)
+- Inspect and quality check the intpow and uintpow.  These are both in middle of hot code. Is one prefered (faster) then the other?
+- Math: Move `SymEigen3` into `Matrix3D<T>`?
 
-## OOD Refactor
-
-
-## Bugs and notes
-
-- Slow test: filer=BS_U_Low,Pool He is very slow but only if BSplineOrthogonality runs first.  BSplineOrthogonality fills
-  DBCache with nothing other than a lot of Overlap matricies.  gprof thinks both cases are identical!!
-  Need a real profiler to figure this out.
-  For now we scrub the cache after the BasisSetPoolTests/XXXOrthogonality tests.
-  Another hint.  THis only showed up when add one more grid point to Bspline RadialType ?!?
-  Maybe we need valgrind???
-  UPDATE (2026-06-20): an ASan build is now set up at `build/ASan` (clang -fsanitize=address). Run
-  `ASAN_OPTIONS=detect_leaks=1 build/ASan/UnitTests/UTMain --gtest_filter=...`. Faster than valgrind
-  for this codebase and catches stack/global overflows too (but NOT uninitialized reads -> valgrind).
-
-
-
-- Investigate BSpline integral inaccuracies for `l>0`.
-       
--How to handle mismatches between {basis set} {hamiltonian} {structure} Examples:
-         BSpline basis, DFT/DHF hamiltonian -- BSpline has no DFT or RKB evaluator yet.
-         SG (atom only) basis for any Molecule.
-         LibCint with DFT.  No three center integrals.
-         Currently these should throw bad cast exceptions.
-         We should catch those and re-throw some domain specifc excpetions:  
-            BasisSetSupport exception which contains basis set type and required/missing support RKB or DFT.  Client: DiracKinetic FittedVee
-    
--DO something about globalDBCache_RAM creation at startup.
-
-
+- `Matrix3D`/`Vector3D` (and the 2D version): convert to `blaze::Static…`? Blaze's alignment magic may help
+  perf. Also add `mat3d_t`/`rmat3d_t` to `Types.C` for consistency.

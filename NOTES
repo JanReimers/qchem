@@ -1,19 +1,83 @@
 Notes:        
+- Turn on/off vscode popups: search `quickSuggestions`.
 
-Two lineages for abinito in solids:
+# Two lineages for abinito in solids:
 The acronym forest splits into two lineages with different destinations, and this resolves your question cleanly:
 
 Lineage A — smooth-potential / pseudopotential (your stated goal): the basis stays plane waves. You never augment it. 
 What changes is the potential: you replace the singular −Z/r with something smooth, so the PW basis converges fast.
 
 local pseudopotential → Kleinman–Bylander separable nonlocal projectors (NCPP) → ultrasoft (USPP) → PAW.
+
 Lineage B — augmented all-electron bases: APW → LAPW → FLAPW (and LMTO/NMTO). These keep the bare Coulomb and instead 
 make the basis richer — atomic-like radial functions × Yₗₘ inside muffin-tin spheres, PW in the interstitial, matched 
 at the sphere boundary. This is the all-electron "gold standard" (WIEN2k/FLEUR/Elk), but it's a big machine 
 (sphere matching, radial Schrödinger solutions, energy-linearization) and it leads away from pseudopotentials — 
 you'd discard it when you adopt PP.
 
+# The three axes {atom/molecule/Lattice_3D/2D/1D} × {1E,DFT,HF} × {Pol,unPol}
+Geometry / lineage: atom · molecule · Lattice_3D · Lattice_2D · Lattice_1D
+Theory level: 1E · DFT · HF
+Spin: unPolarized · Polarized
+That's ~5 × 3 × 2 ≈ 30 conceptual cells — "Lattice_3D × DFT × Polarized," "molecule × HF × unPol," and so on. "The general matrix is the open design target" means: what abstractions let all 30 cells be reached cleanly — without the two failure modes you've spent this whole session killing.
 
+The two failure modes (what NOT to do)
+30 monolithic classes — combinatorial explosion; a PolarizedDFTLattice3D_CD etc. Unmaintainable.
+One fat interface per layer with NA-asserts for the cells a given concrete doesn't support — e.g. tDM_CD carrying GetRepulsion3C (DFT) and AccumulateExchange (HF) and GetFourierDensity (solid), with most concretes assert(false)-ing the ones they don't do. That's exactly the orphan-assert smell.
+The pattern the session crystallized (what TO do)
+Each axis is an orthogonal capability mixin, and a concrete type is a composition — one choice per axis — where the theory axis defines capability interfaces and the geometry axis supplies their implementations:
+
+Basis side (already mostly there): Orbital_1E_IBS<T> (overlap/kinetic/nuclear) ⊂ Orbital_DFT_IBS<T> (+ 3-centre fit) / Orbital_HF_IBS<T> (+ 4-centre ERI), plus Band_FT_IBS and Integrals_Pseudo<T> for solids. The Evaluator fills in the geometry (radial / Gaussian / plane-wave).
+Charge-density side (the open one): this is your "split tDM_CD into 1E/DFT/HF mixins along the same lines as the basis." The session did the first cut: tDM_CD is now pure (just the DM contract), the DFT-fit projection is a cross-cast capability (ProjectedDensity_AO for molecules, FourierDensity for solids), and the HF accumulation (AccumulateDirect/Exchange) is the next capability to lift out the same way.
+Hamiltonian side: terms selected by theory + spin (already Ham_1E/Ham_DFT/Ham_HF, _U/_P).
+The crucial move is that a consumer (a Hamiltonian term) cross-casts the basis/CD to the capability it needs — dynamic_cast<const FourierDensity*>(cd), <const Integrals_Pseudo<T>*>(bs) — and a concrete only implements the capabilities it actually has. No fat base, no NA-asserts.
+
+Why the axes aren't a flat product (the subtle part)
+The theory capability's implementation depends on geometry — DFT density-fitting is dense-RI on Gaussians but diagonal/exact on plane waves (the whole AO/FT thread). So the matrix factors as: theory = capability interface (uniform), geometry = capability implementation (specialized), spin = a dimension (not a class). The AO/FT cleanup is the canonical example: one ProjectedDensity capability, an AO impl and an FT impl. Keep spin as a dimension (one DM vs up+down + LSDA branch), never a doubling.
+
+The grace note — the matrix is sparse, and that's fine
+Not all 30 cells need to exist. BSpline × DFT has no DFT evaluator; LibCint × DFT has no 3-centre. The cross-cast pattern expresses that naturally: the capability is simply absent, the dynamic_cast returns null → your planned BasisSetSupport domain exception (the "mismatch" bug item). So you populate cells on demand by composing an evaluator with capability mixins, and unsupported combinations are a clean, informative throw — not a crash, not an orphan assert.
+
+So the open target, concretely: finish the tDM_CD 1E/DFT/HF capability split (the session did the DFT-projection slice; HF accumulation is next), and make sure the three layers' theory-capability mixins line up so a new cell — say Lattice_3D × HF — drops out by composing "PW evaluator + HF capability" rather than by new monolithic code. The session proved the pattern in the PW/DFT-fit corner; generalizing it across the full matrix is the design work that remains.
+
+# Group theory
+Every one of your Symmetry concrete classes labels an irreducible representation (irrep) of some group, and the "important numbers inside" are the labels of those irreps. A group theorist's umbrella name for the set of all such labels is the dual of the group, written Ĝ — the space of irreps. A physicist's "quantum number" is, almost always, "a coordinate on Ĝ."
+
+But there's a distinction physicists routinely blur, which the math side keeps sharp — there are two roles:
+
+Which irrep (l, j/κ, k) — labels the representation itself.
+Which basis vector inside that irrep (mₗ, m_j) — these are weights: eigenvalues of the maximal commuting subalgebra (the Cartan subalgebra / maximal torus).
+So l and mₗ are not the same kind of object mathematically, even though both feel like "quantum numbers." l is a (highest) weight selecting the irrep; mₗ is a weight enumerating a basis of it.
+
+Per group, the proper names
+SO(3)/SU(2) (your Yl, Ylm, and the relativistic κ/m_j): irreps are classified by their highest weight. For su(2) the highest weight is 2j — a non-negative integer. Your half-integer spins are an artifact of the physicist's normalization (J has eigenvalues m); the mathematician's weight lattice makes them integral. So l, 2j, m_j (as 2m_j) are all integers in the weight lattice. κ is a clever single integer encoding j together with the parity/l-sign of the Dirac spinor.
+Translations (your BlochQN): the translation group is abelian, so its irreps are 1-dimensional — they're characters, χ_k(R) = e^{ik·R}. The whole set of them is the Pontryagin dual. Here k is the label, and the math name for it is just "a character of the translation group" (physicists: crystal momentum — yes, it absolutely counts as a quantum number, because translations commute with H).
+Are they always integers? — governed by compactness
+This is the elegant part, and it answers your real question. Integrality is controlled by a duality theorem (Pontryagin for abelian, Peter–Weyl for compact):
+
+G compact ⟺ Ĝ discrete (countable, integer-indexable). G discrete ⟺ Ĝ compact (continuous).
+
+Applied to translations:
+
+Group	Its dual Ĝ	The label k
+Infinite lattice ℤ³ (discrete)	torus T³ (compact, continuous) = the Brillouin zone	continuous real
+Finite lattice (ℤ_N)³	(ℤ_N)³ (finite, discrete)	k = n/N, n an integer mod N
+Continuum ℝ³	ℝ³	continuous real
+So the honest answer is not always integers — but the deviations are precisely understood:
+
+Rotation-type symmetries are compact ⟹ discrete dual ⟹ integer labels (weights). The half-integers are integers in disguise.
+A Bloch vector for an infinite crystal is continuous because the (infinite, discrete) lattice's dual is the continuous BZ torus.
+A Bloch vector for your finite N×N×N lattice is genuinely an integer n mod N — the dual of a finite group is finite.
+And that last line is exactly why your BlochQN stores (N, ik) as integers and computes k = ik/N as the rational representative: you're holding a point in the finite dual group (ℤ_N)³, and as N→∞ those points fill out the continuous BZ. Your GetWeight() / Σ_k w_k is a Riemann sum approximating the integral over that dual torus.
+
+So if you wanted one phrase to put in a comment that a mathematician would nod at: these numbers are elements of the group's dual — weights for the rotation groups, characters for the translation group — and their integrality is a corollary of the group being compact.
+
+# Pseudo potentials
+## Types:
+- HGH, SG15, PseudoDojo, FHI
+## Download
+https://github.com/cp2k/cp2k/tree/master/data. 
+https://htmlpreview.github.io/?https://github.com/cp2k/cp2k-data/blob/master/potentials/Goedecker/index.html
 
 
         -Saito paper conclusions
@@ -22,6 +86,12 @@ you'd discard it when you adopt PP.
         3) Z=1-56 K=9 vs K=6: K=6 give faster and lower HF energies.
         4) Z=1-56 phi(r)=1/r option gives slighty better results for K=6.
         5) Z=92: 
+
+## Doxygen server 
+- start
+python3 -m http.server 8019 --bind 127.0.0.1 --directory ~/Code/qchem6/build/doxygen/html
+- url http://127.0.0.1:8019/index.html
+
 
 | Aspect | Atom | Molecule | Solid |
 |--------|------|----------|-------|
@@ -35,7 +105,7 @@ LIBRETA no repo
 https://github.com/evaleev/libint
 ERD: https://github.com/psi4/erd  Description: It contains the AcesIII electron repulsion integrals by N. Flocke and V. Lotrich (University of Florida), wrapped in CMake for easier integration with Psi4. 
 
-
+One scope honesty flag: Vpseudo_HGH is lineage-A/PW specific. APW/LAPW are all-electron (muffin-tin −Z/r), so the Wall doesn't directly round-off their peg — they'd get the same pattern later (a Vmuffintin-style term hoisting the potential model out of the augmented IBS). So PW is the right first instance that establishes the pattern; the other two follow.
 
 3) GDM on scfrun — I remember (it's this session)
 Not purged. GDM engages two ways:
