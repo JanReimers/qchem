@@ -39,35 +39,29 @@ IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Structure* cl)
     //  accumulating the L list.  Copied verbatim from PG_Cart so the (radial, Ls) set is identical -- the
     //  only divergence is the angular expansion below (real solid harmonics, not Cartesian monomials).
     //
-    std::vector<GaussianRF*> radials;
+    std::vector<std::unique_ptr<GaussianRF>> radials;   // owns the radials: no manual delete, leak-proof
     std::vector<std::vector<int> >    Ls;
     for (auto atom:*cl) //Loop over atoms.
     {
         bsr->FindAtom(*atom);
-        GaussianRF* rf=0;
-        while ((rf=bsr->ReadNext(*atom))) //Read in the radial function/
+        while (std::unique_ptr<GaussianRF> rf{bsr->ReadNext(*atom)}) //Read in the radial function.
         {
             bool duplicate=false;
-            std::vector<GaussianRF*>::iterator b(radials.begin());
-            for (size_t i=0; b!=radials.end(); i++,b++)
-                if (**b==*rf) //Check for a duplicate, ingnoring Lmax.
+            for (size_t i=0; i<radials.size(); i++)
+                if (*radials[i]==*rf) //Check for a duplicate, ignoring Lmax.
                 {
                     duplicate=true;
                     std::vector<int> newLs=bsr->GetLs();
                     bool UseNewRF=Max(newLs) > Max(Ls[i]);
                     for (auto l:newLs)
                         if (std::find(Ls[i].begin(),Ls[i].end(),l)!=Ls[i].end()) Ls[i].push_back(l); //Add elements not in common.
-                    if (UseNewRF)
-                    {
-                        delete *b;            // free the lower-Lmax duplicate before dropping it (else leaked: it never reaches a Block)
-                        radials.erase(b);
-                        radials.insert(b,rf);
-                    }
-                    else          { delete rf; }
+                    if (UseNewRF) radials[i]=std::move(rf);  // replace lower-Lmax dup: old freed, new owned (no erase/insert/delete)
+                    // else: rf is the lower-Lmax duplicate -> freed automatically at scope exit
+                    break;                                   // a radial appears at most once in radials (deduped)
                 }
             if(!duplicate)
             {
-                radials.push_back(rf);
+                radials.push_back(std::move(rf));
                 Ls     .push_back(bsr->GetLs());
             }
         }
@@ -77,9 +71,9 @@ IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Structure* cl)
     //  GaussianRF objects; comps hold borrowed pointers (the heap objects never move as itsRadials grows).
     //
     int i=0;
-    for (auto r:radials)
+    for (auto& r:radials)
     {
-        itsRadials.push_back(std::unique_ptr<GaussianRF>(r));
+        itsRadials.push_back(std::move(r));
         const GaussianRF* rp=itsRadials.back().get();
         for (int L:Ls[i])
             for (auto& terms:SphericalShell(L))

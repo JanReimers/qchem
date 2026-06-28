@@ -60,40 +60,29 @@ IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Structure* cl)
     //  Read in all the radial functions.  These are usually contracted Gaussians, but could also
     //  be single Gaussians.
     //
-    std::vector<GaussianRF*> radials;
+    std::vector<std::unique_ptr<GaussianRF>> radials;   // owns the radials: no manual delete, leak-proof
     std::vector<std::vector<int> >    Ls;
     for (auto atom:*cl) //Loop over atoms.
     {
         bsr->FindAtom(*atom);
-        GaussianRF* rf=0;
-        while ((rf=bsr->ReadNext(*atom))) //Read in the radial function/
+        while (std::unique_ptr<GaussianRF> rf{bsr->ReadNext(*atom)}) //Read in the radial function.
         {
             bool duplicate=false;
-            std::vector<GaussianRF*>::iterator b(radials.begin());
-            for (size_t i=0; b!=radials.end(); i++,b++)
-                if (**b==*rf) //Check for a duplicate, ingnoring Lmax.
+            for (size_t i=0; i<radials.size(); i++)
+                if (*radials[i]==*rf) //Check for a duplicate, ignoring Lmax.
                 {
                     duplicate=true;
                     std::vector<int> newLs=bsr->GetLs();
-                    //std::vector<int>& Li=Ls[i];
                     bool UseNewRF=Max(newLs) > Max(Ls[i]);
                     for (auto l:newLs)
-                        if (std::find(Ls[i].begin(),Ls[i].end(),l)!=Ls[i].end()) Ls[i].push_back(l); //Add elements not in common.                        
-
-                    if (UseNewRF)
-                    {
-                        delete *b;            // free the lower-Lmax duplicate before dropping it (else leaked: it never reaches a Block)
-                        radials.erase(b);
-                        radials.insert(b,rf);
-                    }
-                    else
-                    {
-                        delete rf;
-                    }
+                        if (std::find(Ls[i].begin(),Ls[i].end(),l)!=Ls[i].end()) Ls[i].push_back(l); //Add elements not in common.
+                    if (UseNewRF) radials[i]=std::move(rf);  // replace lower-Lmax dup: old freed, new owned (no erase/insert/delete)
+                    // else: rf is the lower-Lmax duplicate -> freed automatically at scope exit
+                    break;                                   // a radial appears at most once in radials (deduped)
                 }
             if(!duplicate)
             {
-                radials.push_back(rf);
+                radials.push_back(std::move(rf));
                 Ls     .push_back(bsr->GetLs());
             }
         }
@@ -103,9 +92,9 @@ IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Structure* cl)
 //  Automatically build the basis set from a list of atoms and a basis function reader.
 //
     int i=0;
-    for (auto r:radials)
+    for (auto& r:radials)
     {
-        Block* bfb=new Block(r);
+        Block* bfb=new Block(r.release());   // hand ownership of the radial to the Block (Block deletes it)
         for (auto& p:MakePolarizations(Ls[i]))
         {
             bfb->Add(p);
