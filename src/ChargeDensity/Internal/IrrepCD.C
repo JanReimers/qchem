@@ -1,6 +1,7 @@
 // File: ExactIrrepCD.H  Exact charged density for ONE irreducable representation basis set.
 module;
 #include <iosfwd>
+#include <cstddef>
 export module qchem.ChargeDensity.Imp.IrrepCD;
 
 export import qchem.ChargeDensity;
@@ -40,6 +41,8 @@ public:
     virtual double DM_Contract(const tDynamic_CC<T>*,const tDM_CD<T>*) const;
     virtual double GetTotalCharge(                      ) const;
 
+    virtual size_t Version() const {return itsVersion;}
+
     virtual void   ReScale      (double factor              )      ; // No UT coverage
     virtual void   MixIn        (const tDM_CD<T>&,double)      ;  //this = (1-c)*this + c*that.
     virtual double GetChangeFrom(const tDM_CD<T>&       ) const;  //MaxAbs(delta density matrix)
@@ -60,6 +63,7 @@ private:
     const tobs_t<T>* itsBasisSet;
     Spin             itsSpin;
     Irrep        itsIrrep;
+    size_t           itsVersion;   //!< TRANSIENT freshness serial (NextDensityVersion); never serialize.
 };
 
 } //namespace

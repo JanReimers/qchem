@@ -25,6 +25,7 @@ rvec3_t  GradientContraction(const vec_t<rvec3_t >&, const vec_t<double>&, const
 //  Construction zone.
 //
 template <class T> IrrepCD<T>::IrrepCD()
+    : itsVersion(NextDensityVersion<T>())
 {};
 
 template <class T> IrrepCD<T>::IrrepCD(const DenSMat& D,const tobs_t<T>* theBasisSet,Irrep qns)
@@ -32,6 +33,7 @@ template <class T> IrrepCD<T>::IrrepCD(const DenSMat& D,const tobs_t<T>* theBasi
     , itsBasisSet(theBasisSet)
     , itsSpin(qns.ms)
     , itsIrrep(qns)
+    , itsVersion(NextDensityVersion<T>())
 {
     assert(itsBasisSet);
 };
@@ -113,6 +115,7 @@ template <class T> void IrrepCD<T>::ReScale(double factor)
 {
     // No UT coverage
     itsDensityMatrix*=factor;
+    itsVersion=NextDensityVersion<T>();   // a mutation is logically a new density
 }
 
 template <class T> void IrrepCD<T>::MixIn(const tDM_CD<T>& cd,double c)
@@ -121,6 +124,7 @@ template <class T> void IrrepCD<T>::MixIn(const tDM_CD<T>& cd,double c)
     assert(eicd);
     assert(itsBasisSet->GetID() == eicd->itsBasisSet->GetID());
     itsDensityMatrix = itsDensityMatrix*(1-c) + eicd->itsDensityMatrix*c;
+    itsVersion=NextDensityVersion<T>();   // a mutation is logically a new density
 }
 
 template <class T> double IrrepCD<T>::GetChangeFrom(const tDM_CD<T>& cd) const

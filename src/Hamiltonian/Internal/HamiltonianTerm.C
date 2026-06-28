@@ -8,6 +8,7 @@
 module;
 #include <map>
 #include <cassert>
+#include <cstddef>
 export module qchem.Hamiltonian.Internal.Term;
 export import qchem.Hamiltonian;
 import qchem.Hamiltonian.Types;
@@ -51,41 +52,45 @@ template <class T> class tDynamic_HT_Imp
     , protected tHT_Common<T>
 {
 public:
-    tDynamic_HT_Imp() : itsCD(0) {}
+    tDynamic_HT_Imp() : itsCacheVersion(size_t(-1)), itsFitVersion(size_t(-1)) {}
     virtual const hmat_t<T>& GetMatrix(const tobs_t<T>* bs,const Spin& s,const tDM_CD<T>* cd) const
     {
         assert(bs);
-        // The cache keys on Irrep, not the density.  If the density has changed, the cached matrices are
-        // stale -- drop them so we recompute for the new cd.  This makes GetMatrix self-correcting rather
-        // than relying on the SCFIterator calling GetTotalEnergy (-> newCD) between iterations (an
-        // undocumented ordering contract that silently returned stale matrices to other callers).
-        // We clear only the matrix cache here; itsCD is left to CalcMatrix's newCD() so the concrete
-        // terms (FittedVee/FittedVxc) still see newCD()==true and refit exactly once per new density.
-        if (cd!=itsCD) this->itsCache.clear();
+        assert(cd);
+        // The cache keys on Irrep, not the density.  If the density has changed (its logical-clock serial
+        // differs from the one the cache was built for), the cached matrices are stale -- drop them and
+        // recompute for the new cd.  This makes GetMatrix self-correcting for ANY caller (the serial is
+        // intrinsic to the density, stamped at construction/mutation), not just densities the SCFIterator
+        // hands us -- which is why a plain density-pointer key, or an SCFIterator-only stamp, both failed.
+        // This is now the SOLE owner of cache-freshness; newCD() only signals the concrete term to refit.
+        if (cd->Version()!=itsCacheVersion)
+        {
+            this->itsCache.clear();
+            itsCacheVersion=cd->Version();
+        }
         Irrep qns(bs->GetIrrep(s));
         if (auto i=this->itsCache.find(qns);i==this->itsCache.end())
             return this->itsCache[qns]=CalcMatrix(bs,s,cd);
         else
-            return i->second; //Cache version (same cd, already computed for this Irrep)
+            return i->second; //Cache hit (same density serial, already computed for this Irrep)
     }
 
 protected:
     // Unconditional calculation, does not use cache.
     virtual hmat_t<T> CalcMatrix(const tobs_t<T>*,const Spin&,const tDM_CD<T>* cd) const=0;
+    // Refit trigger only (the OTHER half of the former itsCD double-duty): true exactly once per new
+    // density serial, so a concrete term (FittedVee/FittedVxc) refits its fitted potential exactly once.
+    // Cache-freshness is GetMatrix's job (itsCacheVersion) -- newCD no longer touches the cache.
     bool newCD(const tDM_CD<T>* cd) const
     {
         assert(cd);
-        if (cd==itsCD)
-            return false;
-        else
-        {
-            itsCD=cd;
-            this->itsCache.clear();
-            return true;
-        }
+        if (cd->Version()==itsFitVersion) return false;
+        itsFitVersion=cd->Version();
+        return true;
     }
 
-    mutable const tDM_CD<T>* itsCD;      //Density matrix charge density.
+    mutable size_t itsCacheVersion;   //!< density serial the Irrep cache was built for
+    mutable size_t itsFitVersion;     //!< density serial the concrete term last refit for
 };
 
 // Used for polarized potentials (Vxc) which each polarization will handle its own cache.

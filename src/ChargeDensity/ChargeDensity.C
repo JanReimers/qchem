@@ -1,6 +1,8 @@
 // File: ChargeDensity.C  Interface for a charge density
 module;
 #include <type_traits>
+#include <atomic>
+#include <cstddef>
 export module qchem.ChargeDensity;
 import qchem.Fitting.FunctionFitter;   // Fitting::ProjectedDensity_AO
 export import qchem.Symmetry.Spin;
@@ -9,6 +11,20 @@ import qchem.ChargeDensity.Types;
 
 export namespace qchem::ChargeDensity
 {
+
+//! Monotonic logical-clock (Lamport) stamp for charge-density freshness.  Each new or mutated density
+//! draws the next serial; the Hamiltonian term cache compares serials to ask "is this a *different*
+//! density than the one I cached?".  It is NOT wall-clock time on purpose: a counter can never collide
+//! (two densities born the same microsecond would), never runs backward (NTP/DST jumps would), and is
+//! fully deterministic run-to-run / under any allocator (the property the whole determinism fix rests
+//! on).  Per-T so the double and dcmplx lineages stay independent.  TRANSIENT: a density's serial is
+//! runtime-only identity (like a pointer) -- never serialize it; a deserialized density re-stamps from
+//! this counter.  Cross-run / value identity (a disk cache key) is a content hash, a separate concern.
+template <class T> size_t NextDensityVersion()
+{
+    static std::atomic<size_t> theClock{0};
+    return ++theClock;   // first serial handed out is 1; 0 is the reserved "no density yet" sentinel
+}
 
 //! Empty (non-polymorphic) stand-in for a PERIODIC density, which has no AO (auxiliary-basis) projection.
 //! A density template inherits Fitting::ProjectedDensity_AO only on the finite (double) path; the periodic
@@ -75,6 +91,10 @@ public:
 
     virtual double GetTotalCharge  () const=0;  // <ro>
 
+    //! Logical-clock serial (see NextDensityVersion): distinct/mutated densities have distinct serials.
+    //! TRANSIENT runtime identity -- not part of the persisted value (never serialize it).
+    virtual size_t Version() const=0;
+
     // HF/fit-specific (real, Gaussian-basis) -- the dcmplx plane-wave density NA-asserts these.
     virtual void AccumulateDirect  (hmat_t<T>& Jab, const ohfbs_t*) const=0;
     virtual void AccumulateExchange(hmat_t<T>& Kab, const ohfbs_t*) const=0;
@@ -103,6 +123,10 @@ public:
 
     virtual double GetTotalCharge() const;  // <ro>
     virtual double GetTotalSpin  () const;  // No UT coverage// <up>-<down>
+
+    // The spin children are mutated together (MixIn/ReScale below touch both), so either child's serial
+    // tracks the polarized density's freshness; forward to Up.
+    virtual size_t Version() const {return GetChargeDensity(Spin::Up)->Version();}
 
     virtual double FitGetConstraint() const {return GetTotalCharge();}   // AO fit RHS: the charge N
     virtual rvec_t GetRepulsion3C(const BasisSet::FIT_CD_ABS*) const;

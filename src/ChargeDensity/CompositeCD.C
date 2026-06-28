@@ -2,6 +2,7 @@
 module;
 #include <vector>
 #include <memory>
+#include <cstddef>
 export module qchem.CompositeCD;
 export import qchem.ChargeDensity;
 export import qchem.ChargeDensity.FourierDensity;   // G-space rho-tilde (summed over k-blocks)
@@ -33,6 +34,10 @@ public:
     virtual double DM_Contract(const tDynamic_CC<T>*,const tDM_CD<T>*) const;
 
     virtual double GetTotalCharge      (                     ) const;
+
+    // The blocks are mutated together (MixIn/ReScale fan out to all), so any block's serial tracks the
+    // composite's freshness; forward to the first.  Empty composite -> 0 (the "no density yet" sentinel).
+    virtual size_t Version() const {return itsCDs.empty() ? 0 : itsCDs.front()->Version();}
 
     virtual double FitGetConstraint() const {return GetTotalCharge();}   // AO fit RHS: the charge N
     virtual rvec_t GetRepulsion3C(const BasisSet::FIT_CD_ABS*) const;
