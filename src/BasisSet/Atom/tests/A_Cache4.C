@@ -175,6 +175,46 @@ TEST_F(Cache4Tests,HF2_BS_Reentry)
         TestDirect(Z,js);
 }
 
+// Re-entry with DIFFERENT exponents must stay distinct.  SG/SL share ONE coarse "SG"/"SL" Cache4
+// (RadialType()==Name(), carries no exponents), so correctness rests entirely on the ExponentGrouper
+// keying each distinct exponent VALUE to its own index (Slater/Gaussian Evaluator.C use
+// grouper.unique_esv[i] directly in the integral).  If that keying ever regressed to a per-basis index,
+// the second basis would alias onto the first's cached table and fnorm(JA,JB) would collapse to 0.
+// These guard that the coarse RadialType key is SAFE for exponentials (unlike BSpline, whose grouper
+// keys splines by rmin only and therefore needs the full grid in RadialType).
+TEST_F(Cache4Tests,HF2_SG_ExponentKeyed)
+{
+    delete bs1;
+    nlohmann::json jsA={{"N", 5}, {"emin", 0.25}, {"emax", 4.0}}; jsA["type"]=Type::Gaussian;
+    nlohmann::json jsB={{"N", 5}, {"emin", 0.20}, {"emax", 3.0}}; jsB["type"]=Type::Gaussian;
+    BasisSet::Real_BS* bsA=Factory(jsA,2);
+    BasisSet::Real_BS* bsB=Factory(jsB,2);   // registers into the SAME "SG" Cache4 as bsA
+    using BasisSet::Real_HF_OIBS;
+    auto a=bsA->Iterate<Real_HF_OIBS>().begin();
+    auto b=bsB->Iterate<Real_HF_OIBS>().begin();
+    const ERI4& JA=(*a)->Direct(**a);
+    const ERI4& JB=(*b)->Direct(**b);
+    EXPECT_GT(fnorm(JA,JB),1e-3);            // distinct exponents -> distinct integrals (no aliasing)
+    delete bsA;
+    delete bsB;
+}
+TEST_F(Cache4Tests,HF2_SL_ExponentKeyed)
+{
+    delete bs1;
+    nlohmann::json jsA={{"N", 5}, {"emin", 0.25}, {"emax", 4.0}}; jsA["type"]=Type::Slater;
+    nlohmann::json jsB={{"N", 5}, {"emin", 0.20}, {"emax", 3.0}}; jsB["type"]=Type::Slater;
+    BasisSet::Real_BS* bsA=Factory(jsA,2);
+    BasisSet::Real_BS* bsB=Factory(jsB,2);   // registers into the SAME "SL" Cache4 as bsA
+    using BasisSet::Real_HF_OIBS;
+    auto a=bsA->Iterate<Real_HF_OIBS>().begin();
+    auto b=bsB->Iterate<Real_HF_OIBS>().begin();
+    const ERI4& JA=(*a)->Direct(**a);
+    const ERI4& JB=(*b)->Direct(**b);
+    EXPECT_GT(fnorm(JA,JB),1e-3);            // distinct exponents -> distinct integrals (no aliasing)
+    delete bsA;
+    delete bsB;
+}
+
 
 // TEST_F(Cache4Tests,Caching)
 // {
