@@ -481,8 +481,8 @@ Hermite3* PrimGaussian::GetH3(const PrimGaussian& g1, const PrimGaussian& g2) co
 //
 // double factorial table, starts at -1, so you have to add 1 to the index.
 //
-static double DoubleFactData[14] = {1,1,1,2,3,8,15,48,105,384,945,3840,10395,46080};
-static inline double DoubleFact(int i) {return DoubleFactData[i+1];}
+static constexpr double DoubleFactData[14] = {1,1,1,2,3,8,15,48,105,384,945,3840,10395,46080};
+static constexpr double DoubleFact(int i) {return DoubleFactData[i+1];}
 
 double PrimGaussian::GetNormalization(const Polarization& p) const
 {

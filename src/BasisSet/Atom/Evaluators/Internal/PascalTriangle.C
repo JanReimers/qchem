@@ -1,103 +1,41 @@
 // File: BasisSet/Atom/Evaluators/Internal/PascalTriangle.C
 module;
-#include <vector>
-#include <iostream>
-#include <cassert>
+#include <array>
+#include <cstddef>
 export module qchem.BasisSet.Atom.Internal.PascalTriangle;
 
-#if DEBUG
-#define CHECK(i,j) Check(i,j)
-#else
-#define CHECK(i,j)
-#endif
 //
-//  Implements an triangle data structure, where N+L+M is always < MaxSum.
+//  Pascal's triangle of binomial coefficients C(row,j), 0 <= j <= row <= N, stored row-major in a flat
+//  array (row r starts at r*(r+1)/2).  A pure integer recurrence of fixed size, so the whole table is built
+//  at COMPILE time by the constexpr constructor and exposed as an immutable constant -- no runtime
+//  "Initializing..." pass, no mutable singleton.
 //
-class Triangle2D
+export class PascalTriangle
 {
 public:
-    Triangle2D(   );
-    Triangle2D(size_t);
+    static constexpr int         N    = 9;                 //!< rows 0..N  (C(0,0) .. C(9,j))
+    static constexpr std::size_t Size = (N+1)*(N+2)/2;
 
-    double operator()(size_t row,size_t j) const
+    constexpr PascalTriangle()
     {
-        CHECK(row,j);
-        return itsData[row*(row+1)/2+j];
+        itsData[0]=1.0;
+        for (int row=1; row<=N; row++)
+        {
+            (*this)(row,0)=(*this)(row,row)=1.0;
+            for (int j=1; j<row; j++)
+                (*this)(row,j)=(*this)(row-1,j-1)+(*this)(row-1,j);
+        }
     }
-    double& operator()(size_t row, size_t j)
-    {
-        CHECK(row,j);
-        return itsData[row*(row+1)/2+j];
-    }
- 
+
+    constexpr double  operator()(int row,int j) const {return itsData[Index(row,j)];}
+    constexpr double& operator()(int row,int j)       {return itsData[Index(row,j)];}
+
+    static const PascalTriangle thePascalTriangle;
+
 private:
-    void    Check(size_t,size_t) const;
+    static constexpr std::size_t Index(int row,int j) {return row*(row+1)/2+j;}
 
-    size_t     N;
-    std::vector<double> itsData;
+    std::array<double,Size> itsData{};
 };
 
-#undef CHECK
-
-export class PascalTriangle : public Triangle2D
-{
-public:
-    static PascalTriangle thePascalTriangle;
-private:
-    PascalTriangle(int N);
-
-};
-
-PascalTriangle PascalTriangle::thePascalTriangle(9);
-
-
-PascalTriangle::PascalTriangle(int N)
-: Triangle2D(N+1)
-{
-    std::cout << "Initializing Pascal Triangle N=" << N << std::endl;
-    (*this)(0,0)=1.0;
-    for (int row=1;row<=N;row++)
-    {
-        (*this)(row,0)=(*this)(row,row)=1.0;
-        for (int j=1;j<row;j++)
-            (*this)(row,j)=(*this)(row-1,j-1)+(*this)(row-1,j);
-    }
-}
-
-Triangle2D::Triangle2D()
-    : N(-1)
-{};
-
-Triangle2D::Triangle2D(size_t theMaxSum)
-    : N(theMaxSum)
-    , itsData  ((N+1)*(N+2)/2)
-{};
-
-
-void Triangle2D::Check(size_t row,size_t j) const
-{
-    if(row*(row+1)/2+j >= itsData.size())
-    {
-        std::cerr << "Indices (" << row << "," << j 
-                  << ") exceed the Triangle data structure limits"
-                  << std::endl << "N = " << N << std::endl;
-        assert(false);
-        exit(-1);
-    }
-    if(row<0 || row>=N || j<0 || j>=N)
-    {
-        std::cerr << "Illegal indices (" << row << "," << j 
-                  << ") are not allowed in Triangle data structures"
-                  << std::endl << "N = " << N << std::endl;
-        assert(false);
-        exit(-1);
-    }   
-    if(j>row)
-    {
-        std::cerr << "j >row indices (" << row << "," << j 
-                  << ") are not allowed in Triangle data structures"
-                  << std::endl << "N = " << N << std::endl;
-        assert(false);
-        exit(-1);
-    }
-}
+inline constexpr PascalTriangle PascalTriangle::thePascalTriangle{};
