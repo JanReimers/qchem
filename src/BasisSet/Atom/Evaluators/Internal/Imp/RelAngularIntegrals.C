@@ -1,10 +1,12 @@
 // File: BasisSet/Atom/Evaluators/Internal/Imp/RelAngularIntegrals.C
 module;
-#include "wignerSymbols/wignerSymbols-cpp.h"
 #include <cassert>
+#include <cmath>            // std::abs (double)
+#include <initializer_list> // the {-0.5, 0.5} spin loops
 
 module qchem.BasisSet.Atom.Evaluators.Internal.RelAngularIntegrals;
 import qchem.BasisSet.Atom.Evaluators.Internal.AngularIntegrals;
+import qchem.BasisSet.Atom.Evaluators.Internal.Wigner3j; //Wigner::wigner3j / clebschGordan (home-grown)
 import qchem.Symmetry.Spherical; //SphericalSpinor::j, l
 import qchem.Math; //FourPi2
 import qchem.Blaze;
@@ -17,7 +19,7 @@ static double CG(int la, double ja, double mj, double ms)
 {
     double mla = mj - ms;
     if (std::abs(mla) > la) return 0.0;
-    return WignerSymbols::clebschGordan(la, 0.5, ja, mla, ms, mj);
+    return Wigner::clebschGordan(la, 0.5, ja, mla, ms, mj);
 }
 
 rvec11_t Direct (int κa, int κc, double mja, double mjc)
@@ -88,7 +90,7 @@ rvec11_t Exchange(int κa, int κc)
     rvec11_t Ak(0.0);
     for (int k=std::abs(la-lc); k<=la+lc; k+=2)
     {
-        double w=WignerSymbols::wigner3j(ja,(double)k,jc,0.5,0.0,-0.5);
+        double w=Wigner::wigner3j(ja,(double)k,jc,0.5,0.0,-0.5);
         Ak[k]=FourPi2*2.0*w*w;
     }
     return Ak;

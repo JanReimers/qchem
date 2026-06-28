@@ -1,7 +1,7 @@
 
-link_directories( 
-    $<$<CONFIG:Debug>:  submodules/wignerSymbols/build submodules/libxc/build>
-    $<$<CONFIG:Release>:  submodules/wignerSymbols/build submodules/libxc/build>
+link_directories(
+    $<$<CONFIG:Debug>:  submodules/libxc/build>
+    $<$<CONFIG:Release>:  submodules/libxc/build>
 )
 
 add_executable(UTMain gtestmain.C QchemTesterImp.C
@@ -27,7 +27,6 @@ target_include_directories(UTMain PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/blaze
     ${PROJECT_SOURCE_DIR}/submodules/tabulate/include
     ${PROJECT_BINARY_DIR}/submodules/libxc
-    ${PROJECT_SOURCE_DIR}/submodules/wignerSymbols/include
 )
 target_link_libraries(UTMain PUBLIC qchem qcCommon xc)
 

@@ -1,8 +1,8 @@
 // File: UnitTests/RelAngular.C  Tests for relativistic Wigner 3j symbols.
 #include "gtest/gtest.h"
-#include "wignerSymbols/wignerSymbols-cpp.h"
 #include <cmath>
 #include <iostream>
+import qchem.BasisSet.Atom.Evaluators.Internal.Wigner3j;        //Wigner::wigner3j (home-grown core)
 import qchem.BasisSet.Atom.Evaluators.Internal.RelWigner3j;
 import qchem.BasisSet.Atom.Evaluators.Internal.RelAngularIntegrals;
 import qchem.BasisSet.Atom.Evaluators.Internal.AngularIntegrals;
@@ -13,55 +13,20 @@ using std::endl;
 
 class RelWigner3jTests : public ::testing::Test {};
 
-// Check parity symbol against direct WignerSymbols call for all κ, k.
-TEST_F(RelWigner3jTests, ParitySymbol)
+// Spot-check the home-grown 3j core (integer + half-integer) against closed-form values, validating sign
+// AND magnitude.  Zero in the MIDDLE column: (j1 0 j3; m 0 -m) = (-1)^(j1+j3) (-1)^(j1-m)/sqrt(2j1+1)
+// (the extra (-1)^(j1+j2+j3) is the column-swap phase from the last-column form).  These pin a few exact
+// values; the completeness SumRule below + the RelAngularIntegrals tests + the DHF atom energies exercise
+// the table broadly.  (The exhaustive oracle sweep vs the wignerSymbols submodule validated the core, then
+// was retired with the submodule.)
+TEST_F(RelWigner3jTests, KnownValues)
 {
-    const int LMax=4, KMax=LMax+1;
-    for (int κa=-(KMax); κa<=KMax; κa++)
-    {
-        if (κa==0) continue;
-        double ja = κa>0 ? κa-0.5 : -κa-0.5;
-        for (int κb=-(KMax); κb<=KMax; κb++)
-        {
-            if (κb==0) continue;
-            double jb = κb>0 ? κb-0.5 : -κb-0.5;
-            for (int k=0; k<=2*LMax; k++)
-            {
-                double expected = WignerSymbols::wigner3j(ja, k, jb, 0.5, 0.0, -0.5);
-                double got      = RelWigner3j::w3j(κa, κb, k);
-                EXPECT_NEAR(got, expected, 1e-14)
-                    << "κa=" << κa << " κb=" << κb << " k=" << k;
-            }
-        }
-    }
-}
-
-// Check m-dependent symbol against direct WignerSymbols call for all κ, k, mj.
-TEST_F(RelWigner3jTests, MSymbol)
-{
-    const int LMax=4, KMax=LMax+1;
-    for (int κa=-(KMax); κa<=KMax; κa++)
-    {
-        if (κa==0) continue;
-        double ja = κa>0 ? κa-0.5 : -κa-0.5;
-        for (int κb=-(KMax); κb<=KMax; κb++)
-        {
-            if (κb==0) continue;
-            double jb = κb>0 ? κb-0.5 : -κb-0.5;
-            for (int k=0; k<=2*LMax; k++)
-            {
-                for (double mja=-ja; mja<=ja; mja+=1.0)
-                for (double mjb=-jb; mjb<=jb; mjb+=1.0)
-                {
-                    double expected = WignerSymbols::wigner3j(ja, k, jb, -mja, mja-mjb, mjb);
-                    double got      = RelWigner3j::w3j(κa, κb, k, mja, mjb);
-                    EXPECT_NEAR(got, expected, 1e-14)
-                        << "κa=" << κa << " κb=" << κb << " k=" << k
-                        << " mja=" << mja << " mjb=" << mjb;
-                }
-            }
-        }
-    }
+    EXPECT_NEAR(Wigner::wigner3j(0.5,0.0,0.5, 0.5,0.0,-0.5), -1.0/std::sqrt(2.0), 1e-15); // j=½:  -1/√2
+    EXPECT_NEAR(Wigner::wigner3j(1.5,0.0,1.5, 0.5,0.0,-0.5),  0.5,                1e-15); // j=3/2: +1/2
+    EXPECT_NEAR(Wigner::wigner3j(1.0,0.0,1.0, 0.0,0.0, 0.0), -1.0/std::sqrt(3.0), 1e-15); // integer j=1
+    EXPECT_EQ  (Wigner::wigner3j(0.5,0.0,0.5, 0.5,0.0, 0.5),  0.0);                       // selection rule
+    // Routed through the RelWigner3j (κ-indexed) wrapper: parity symbol for s_1/2 (κ=-1).
+    EXPECT_NEAR(RelWigner3j::w3j(-1,-1,0), -1.0/std::sqrt(2.0), 1e-15);
 }
 
 // Completeness sum rule: Σ_k (2k+1) * (ja k jb / ½ 0 -½)^2 = 1  [for fixed ja==jb]

@@ -49,7 +49,7 @@ endif()
 
 target_compile_options(qchem PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(qchem PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
-target_link_libraries(qchem qcWaveFunction qcSCFAccelerator qcOrbitals qcHamiltonian qcChargeDensity qcFitting qcFactory qcMolecule_BS qcAtom_BS qcLattice_BS qcBasisSet qcLASolver qcStructure qcMesh qcSymmetry wignerSymbols lapack blas gtest )
+target_link_libraries(qchem qcWaveFunction qcSCFAccelerator qcOrbitals qcHamiltonian qcChargeDensity qcFitting qcFactory qcMolecule_BS qcAtom_BS qcLattice_BS qcBasisSet qcLASolver qcStructure qcMesh qcSymmetry lapack blas gtest )
 add_subdirectory(src)
 add_subdirectory(./UnitTests)
 add_subdirectory(./gtkapp)
@@ -60,7 +60,6 @@ add_custom_target(allTests
 )
 # Disable embedded submodule tests so ctest only runs this project's tests.
 set(BUILD_TESTING OFF CACHE BOOL "Disable embedded submodule tests" FORCE)
-add_subdirectory(./submodules/wignerSymbols)
 add_subdirectory(./submodules/libxc)
 # libcint (Apache-2.0): block-oriented Gaussian integral library, used by the PG_LibCint
 # matrix-delivery evaluator.  Build it static with no Fortran interface (we call the C API directly).

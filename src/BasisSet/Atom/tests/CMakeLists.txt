@@ -26,7 +26,6 @@ target_include_directories(UTAtom_BS PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/blaze
     ${PROJECT_SOURCE_DIR}/submodules/json/single_include
     ${PROJECT_SOURCE_DIR}/submodules/BSplinebasis/include
-    ${PROJECT_SOURCE_DIR}/submodules/wignerSymbols/include
     # ${PROJECT_SOURCE_DIR}/submodules/tabulate/include
 )
 
