@@ -30,11 +30,18 @@ static Molecule* MakeWater()      // experimental geometry in BOHR, C2 axis alon
     return w;
 }
 
+// DIIS engaged from iteration 0 (EMax raised so the [F,D] commutator gate never blocks it).  Without
+// this, water-DFT's commutator never damps below the default EMax (Z^2*0.1/32 ~= 0.31) so DIIS stays off
+// and the SCF limit-cycles to a non-converged, layout-sensitive snapshot -- the same mechanism as the
+// "M_Sym layout UB" red herring (see M_Sym.C RunDFT and project_msym_layout_ub).
+static const nlohmann::json DIIS_FromStart = {{"NProj",4},{"EMax",100.0},{"EMin",1e-7},{"SVTol",5e-9}};
+
 class M_DFT : public ::testing::Test, public TestMolecule
 {
 public:
-    M_DFT(Molecule* m, double alpha) : TestMolecule(m), itsAlpha(alpha)
+    M_DFT(Molecule* m, double alpha, const nlohmann::json& acc = {}) : TestMolecule(m), itsAlpha(alpha)
     {
+        if (!acc.empty()) SetAcceleratorConfig(acc);   // before Init: Init reads the accelerator config
         nlohmann::json js = { {"basis", "dzvp"} };
         QchemTester::Init(js);
     }
@@ -46,7 +53,7 @@ private:
     double itsAlpha;
 };
 class M_DFT_N2    : public M_DFT { public: M_DFT_N2()    : M_DFT(MakeN2(),    0.75197) {} };
-class M_DFT_Water : public M_DFT { public: M_DFT_Water() : M_DFT(MakeWater(), 0.74000) {} };
+class M_DFT_Water : public M_DFT { public: M_DFT_Water() : M_DFT(MakeWater(), 0.74000, DIIS_FromStart) {} };
 
 //          NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo MergeTol verbose
 static const SCFParams scf = {20, 1e-4, 1e-7, 1e-13, 1e-5, 1.0, 1e-4, false};
@@ -62,10 +69,11 @@ TEST_F(M_DFT_N2, N2)
 TEST_F(M_DFT_Water, Water)
 {
     Iterate(scf);
-    // INTERIM anchor: deterministic value after the SCFIterator shared_ptr fix (was -79.414120, a
-    // stale-cache artifact).  Still a non-converged limit-cycle snapshot -- to be re-pinned to the
-    // converged ~ -76 once DIIS is engaged (EMax) for this test.  See project_molecule_basis_asan_findings.
-    EXPECT_LT(fabs(RelativeError(-76.123348)), 2e-3);
+    // CONVERGED Xalpha total energy (DIIS engaged from the start via DIIS_FromStart): [F,D] and Δρ reach
+    // ~1e-13 by ~iter 14, virial V/K = -2.006 (the correct ~-2, vs the buggy -2.11).  Converged() reads
+    // false only because MinVirial=1e-13 is an unsatisfiable finite-basis criterion; the energy is a true
+    // converged regression sentinel.  (Was -76.123348 interim limit-cycle, and -79.414120 stale-cache.)
+    EXPECT_LT(fabs(RelativeError(-76.1493013984)), 2e-3);
 }
 
 // --- The spherical-Gaussian (PG_Spherical) basis through the DFT path -----------------------------
@@ -79,8 +87,9 @@ TEST_F(M_DFT_Water, Water)
 class M_DFT_Sph : public ::testing::Test, public TestMolecule
 {
 public:
-    M_DFT_Sph(Molecule* m, double alpha) : TestMolecule(m), itsAlpha(alpha)
+    M_DFT_Sph(Molecule* m, double alpha, const nlohmann::json& acc = {}) : TestMolecule(m), itsAlpha(alpha)
     {
+        if (!acc.empty()) SetAcceleratorConfig(acc);   // before Init: Init reads the accelerator config
         nlohmann::json js = { {"basis", "dzvp"}, {"angular", "spherical"} };
         QchemTester::Init(js);
     }
@@ -91,11 +100,11 @@ public:
 private:
     double itsAlpha;
 };
-class M_DFT_Sph_Water : public M_DFT_Sph { public: M_DFT_Sph_Water() : M_DFT_Sph(MakeWater(), 0.74000) {} };
+class M_DFT_Sph_Water : public M_DFT_Sph { public: M_DFT_Sph_Water() : M_DFT_Sph(MakeWater(), 0.74000, DIIS_FromStart) {} };
 
 TEST_F(M_DFT_Sph_Water, Water)
 {
     Iterate(scf);
-    EXPECT_NEAR(TotalEnergy(), -76.123348, 0.2);           // sanity: same ballpark as the Cartesian Xalpha
-    EXPECT_LT(fabs(RelativeError(-76.073646)), 2e-3);      // INTERIM anchor (was -79.326317, stale-cache artifact; re-pin after DIIS)
+    EXPECT_NEAR(TotalEnergy(), -76.1493013984, 0.05);      // sanity: same ballpark as the Cartesian Xalpha
+    EXPECT_LT(fabs(RelativeError(-76.1485556624)), 2e-3);  // CONVERGED anchor (DIIS from start; was -76.073646 interim)
 }
