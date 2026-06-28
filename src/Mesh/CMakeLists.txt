@@ -24,6 +24,6 @@ target_sources(qcMesh PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
 set_property(TARGET qcMesh PROPERTY CXX_STANDARD 20)
 target_include_directories(qcMesh PRIVATE ${PROJECT_SOURCE_DIR}/submodules/blaze)
 # Linking qcCommon is also what lets cmake/gcc find its exported .gcm (BMI) files.
-target_link_libraries(qcMesh PUBLIC qcCommon)
+target_link_libraries(qcMesh PUBLIC qcMath qcCommon)
 
 add_subdirectory(tests)

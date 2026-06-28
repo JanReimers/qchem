@@ -1,4 +1,5 @@
 add_subdirectory(Common)
+add_subdirectory(Math)
 add_subdirectory(Symmetry)
 add_subdirectory(ElectronConfigurations)
 add_subdirectory(Mesh)

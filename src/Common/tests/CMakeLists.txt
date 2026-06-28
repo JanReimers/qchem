@@ -16,6 +16,6 @@ target_include_directories(UTCommon PRIVATE
     # ${PROJECT_SOURCE_DIR}/submodules/tabulate/include
 )
 
-target_link_libraries(UTCommon PRIVATE qcCommon gtest)
+target_link_libraries(UTCommon PRIVATE qcMath qcCommon gtest)
 
 gtest_discover_tests(UTCommon)

@@ -28,7 +28,7 @@ target_include_directories(UTMain PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/tabulate/include
     ${PROJECT_BINARY_DIR}/submodules/libxc
 )
-target_link_libraries(UTMain PUBLIC qchem qcCommon xc)
+target_link_libraries(UTMain PUBLIC qchem qcMath qcCommon xc)
 
 # scfrun: command-line SCF driver for accelerator tuning (no recompile).
 add_executable(scfrun scfrun.C QchemTesterImp.C)
@@ -42,7 +42,7 @@ target_include_directories(scfrun PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/blaze
     ${PROJECT_SOURCE_DIR}/submodules/tabulate/include
 )
-target_link_libraries(scfrun PUBLIC qchem qcCommon)
+target_link_libraries(scfrun PUBLIC qchem qcMath qcCommon)
 
 
 # add_executable(DiracHydrogen DiracHydrogen.C)

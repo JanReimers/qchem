@@ -13,6 +13,6 @@ target_include_directories(qcLASolver PRIVATE
 )
 target_compile_options(qcLASolver PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(qcLASolver PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
-target_link_libraries(qcLASolver PUBLIC qcCommon)
+target_link_libraries(qcLASolver PUBLIC qcMath qcCommon)
 
 add_subdirectory(tests)

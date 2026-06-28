@@ -15,4 +15,4 @@ target_include_directories(qcPseudopotential PRIVATE
 set_property(TARGET qcPseudopotential PROPERTY CXX_STANDARD 20)
 target_compile_options(qcPseudopotential PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(qcPseudopotential PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS} ${PseudoDataPath})
-target_link_libraries(qcPseudopotential PUBLIC qcCommon qcStructure)
+target_link_libraries(qcPseudopotential PUBLIC qcMath qcCommon qcStructure)
