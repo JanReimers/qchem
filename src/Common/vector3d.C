@@ -4,7 +4,7 @@ module;
 #include <iomanip>
 
 export module qchem.Vector3D;
-export import qchem.Math;
+export import qchem.CMath;
 
 
 //-----------------------------------------------------------------------------

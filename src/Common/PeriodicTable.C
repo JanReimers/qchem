@@ -8,9 +8,9 @@ module;
 
 
 export module Common.PeriodicTable;
-import qchem.Types;
+// (no math import: the periodic table is pure data -- string/double/json -- so qcCommon stays math-free.)
 
-export 
+export
 {
     const int N_Elements=110;
 

@@ -5,7 +5,7 @@ module;
 #include <complex>
 
 export module qchem.Vector2D;
-export import qchem.Math;
+export import qchem.CMath;
 
 //------------------------------------------------------------------------
 //

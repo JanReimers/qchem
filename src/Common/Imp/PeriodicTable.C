@@ -105,7 +105,7 @@ ElementRecordSaito::ElementRecordSaito(nlohmann::json& j) : Z(j["Z"]), Symbol(j[
     if (Z>20) MaxL=2;
     if (Z>57) MaxL=3;
 
-    for (size_t l:iv_t(0,4))
+    for (size_t l=0; l<4; l++)   // (plain loop: PeriodicTable no longer pulls qchem.Types for iv_t)
     {
         assert(ValConfig[l]<=2*(2*l+1));
         if (fullShells.find(Z)!=fullShells.end()) ValConfig[l]=0; //Clear out full shells.

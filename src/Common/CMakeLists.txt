@@ -17,6 +17,7 @@ target_sources(qcCommon PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     matrix2d.C
     matrix3d.C
     Strings.C
+    CMath.C
     Math.C
     SpecialFunctions.C
     FFT.C

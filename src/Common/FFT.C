@@ -14,7 +14,7 @@ module;
 #include <cassert>
 export module qchem.FFT;
 import qchem.Types;   // cvec_t, ivec3_t
-import qchem.Math;    // Pi
+import qchem.CMath;    // Pi
 
 export namespace qchem::FFT
 {

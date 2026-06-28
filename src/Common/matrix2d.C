@@ -5,7 +5,7 @@ module;
 
 export module qchem.Matrix2D;
 export import qchem.Vector2D;
-import qchem.Math;
+import qchem.CMath;
 
 //------------------------------------------------------------------------
 //

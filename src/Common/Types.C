@@ -6,6 +6,7 @@ module;
 #include <type_traits>
 export module qchem.Types;
 export import qchem.Vector3D;
+export import qchem.Matrix3D;   // fixed 3x3 (brings Vector3D too)
 export import qchem.Matrix2D;   // brings in Vector2D too (fixed 2x2 / 2-vector)
 
 export
@@ -18,6 +19,7 @@ using std::size_t; //gcc-15-1 rejects this.
 using dcmplx=std::complex<double>;
 
 template <typename T> using vec3_t = Vector3D<T>;
+template <typename T> using mat3d_t = Matrix3D<T>;
 template <typename T> using vec2_t = Vector2D<T>;
 template <typename T> using mat2d_t = Matrix2D<T>;
 template <typename T> using  mat_t = blaze::DynamicMatrix<T,blaze::columnMajor>;
@@ -40,6 +42,7 @@ using  rmat_t= mat_t<double>;
 using rsmat_t=smat_t<double>;
 using rhmat_t=hmat_t<double>;
 using rvec3_t=vec3_t<double>;
+using rmat3d_t=mat3d_t<double>;    // fixed 3x3 matrix (e.g. inertia tensor, unit cell, rotations)
 using rvec3vec_t=vec3vec_t<double>;
 using ivec3_t = vec3_t<int>;
 using rvec2d_t=vec2_t<double>;     // fixed 2-vector (e.g. LAPW matching coefficients)
