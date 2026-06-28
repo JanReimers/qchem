@@ -290,6 +290,57 @@ template <class T> inline Matrix3D<T> Invert(const Matrix3D<T>& m)
 
 //------------------------------------------------------------------------
 //
+//  Real symmetric 3x3 eigendecomposition.  double-only on purpose: the cyclic-Jacobi algorithm below is
+//  real-symmetric-specific (a complex matrix would need the Hermitian variant), so it is NOT a member of
+//  the generic Matrix3D<T>.
+//
+//! Result of SymEigen3: eigenvalue eval[i] with (unit) eigenvector evec[i];  M = sum_i eval[i] evec[i] evec[i]^T.
+struct Eigen3
+{
+    double           eval[3];
+    Vector3D<double> evec[3];   //!< the columns of the orthogonal V (M = V diag(eval) V^T)
+};
+
+//! Symmetric 3x3 eigendecomposition by cyclic Jacobi.  Dependency-free (no LAPACK) -- the matrix is tiny.
+//! \c M is ASSUMED symmetric (only the upper triangle's symmetry is relied on).
+inline Eigen3 SymEigen3(const Matrix3D<double>& M)
+{
+    double a[3][3], v[3][3]={{1,0,0},{0,1,0},{0,0,1}};
+    for (int i=0;i<3;i++) for (int j=0;j<3;j++) a[i][j]=M(i+1,j+1); // Matrix3D is 1-indexed
+    for (int sweep=0; sweep<100; ++sweep)
+    {
+        if (fabs(a[0][1])+fabs(a[0][2])+fabs(a[1][2]) < 1e-15) break;
+        for (int p=0;p<3;p++) for (int q=p+1;q<3;q++)
+        {
+            if (fabs(a[p][q]) < 1e-300) continue;
+            double theta = (a[q][q]-a[p][p])/(2.0*a[p][q]);
+            double t = ((theta>=0)?1.0:-1.0)/(fabs(theta)+sqrt(theta*theta+1.0));
+            double c = 1.0/sqrt(t*t+1.0), s = t*c;
+            double app=a[p][p], aqq=a[q][q], apq=a[p][q];
+            a[p][p]=c*c*app - 2*s*c*apq + s*s*aqq;
+            a[q][q]=s*s*app + 2*s*c*apq + c*c*aqq;
+            a[p][q]=a[q][p]=0.0;
+            for (int k=0;k<3;k++) if (k!=p && k!=q)
+            {
+                double akp=a[k][p], akq=a[k][q];
+                a[k][p]=a[p][k]=c*akp - s*akq;
+                a[k][q]=a[q][k]=s*akp + c*akq;
+            }
+            for (int k=0;k<3;k++)
+            {
+                double vkp=v[k][p], vkq=v[k][q];
+                v[k][p]=c*vkp - s*vkq;
+                v[k][q]=s*vkp + c*vkq;
+            }
+        }
+    }
+    Eigen3 e;
+    for (int i=0;i<3;i++) { e.eval[i]=a[i][i]; e.evec[i]=Vector3D<double>(v[0][i],v[1][i],v[2][i]); }
+    return e;
+}
+
+//------------------------------------------------------------------------
+//
 //  Matrix Rotations.
 //
 template <class T> inline void RotateX(Matrix3D<T>& a,T theta)

@@ -7,6 +7,7 @@ module;
 #include <algorithm>
 module qchem.Symmetry.PointGroup;
 import qchem.Math;          // Pi, sqrt, fabs, sin, cos, Square (project-wide constants/math)
+import qchem.Matrix3D;      // Matrix3D, Eigen3 + SymEigen3 (real symmetric 3x3 eigensolve)
 
 namespace Symmetry
 {
@@ -114,46 +115,11 @@ Matrix3D<double> InertiaTensor(const std::vector<SymPoint>& pts, const rvec3_t& 
     return Matrix3D<double>(Ixx,Ixy,Ixz, Ixy,Iyy,Iyz, Ixz,Iyz,Izz);
 }
 
-// Symmetric 3x3 eigendecomposition by cyclic Jacobi: M = V diag(eval) V^T, eigenvectors are
-// the columns of V.  Dependency-free (no LAPACK) -- the matrices are tiny.
-static void SymEigen3(const Matrix3D<double>& M, double eval[3], rvec3_t evec[3])
-{
-    double a[3][3], v[3][3]={{1,0,0},{0,1,0},{0,0,1}};
-    for (int i=0;i<3;i++) for (int j=0;j<3;j++) a[i][j]=M(i+1,j+1); // Matrix3D is 1-indexed
-    for (int sweep=0; sweep<100; ++sweep)
-    {
-        if (fabs(a[0][1])+fabs(a[0][2])+fabs(a[1][2]) < 1e-15) break;
-        for (int p=0;p<3;p++) for (int q=p+1;q<3;q++)
-        {
-            if (fabs(a[p][q]) < 1e-300) continue;
-            double theta = (a[q][q]-a[p][p])/(2.0*a[p][q]);
-            double t = ((theta>=0)?1.0:-1.0)/(fabs(theta)+sqrt(theta*theta+1.0));
-            double c = 1.0/sqrt(t*t+1.0), s = t*c;
-            double app=a[p][p], aqq=a[q][q], apq=a[p][q];
-            a[p][p]=c*c*app - 2*s*c*apq + s*s*aqq;
-            a[q][q]=s*s*app + 2*s*c*apq + c*c*aqq;
-            a[p][q]=a[q][p]=0.0;
-            for (int k=0;k<3;k++) if (k!=p && k!=q)
-            {
-                double akp=a[k][p], akq=a[k][q];
-                a[k][p]=a[p][k]=c*akp - s*akq;
-                a[k][q]=a[q][k]=s*akp + c*akq;
-            }
-            for (int k=0;k<3;k++)
-            {
-                double vkp=v[k][p], vkq=v[k][q];
-                v[k][p]=c*vkp - s*vkq;
-                v[k][q]=s*vkp + c*vkq;
-            }
-        }
-    }
-    for (int i=0;i<3;i++) { eval[i]=a[i][i]; evec[i]=rvec3_t(v[0][i],v[1][i],v[2][i]); }
-}
-
 PrincipalAxes ClassifyTop(const std::vector<SymPoint>& pts, const rvec3_t& origin, double rtol)
 {
-    double ev[3]; rvec3_t evec[3];
-    SymEigen3(InertiaTensor(pts,origin), ev, evec);
+    Eigen3 e = SymEigen3(InertiaTensor(pts,origin));   // real symmetric 3x3 (now a Matrix3D capability)
+    auto& ev   = e.eval;
+    auto& evec = e.evec;
 
     int idx[3]={0,1,2};                                   // sort ascending by moment
     for (int i=0;i<3;i++) for (int j=i+1;j<3;j++)
