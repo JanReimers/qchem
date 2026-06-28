@@ -16,8 +16,7 @@ double Exchange(int k,int la,int lb)
 {
     assert(k>=std::abs(la-lb));
     assert(k<=la+lb);
-    double wabk=Wigner3j::w3j(la,lb,k);
-    return FourPi2*wabk*wabk; 
+    return FourPi2*Wigner3j::w3j.sq(la,lb,k);   // (3j)^2 directly (no sqrt)
 }
 
 double Direct  (int k,int la,int lc,int ma,int mc)
@@ -45,11 +44,8 @@ double Exchange(int k,int la,int lb,int ma,int mb)
     assert(mb<= lb);
     assert(k>=std::abs(la-lb));
     assert(k<=la+lb);
-    double w3ab=Wigner3j::w3j(la,lb,k);
-    double w3ab_m=Wigner3j::w3j(la,lb,k,ma,-mb);
-//    if ((la==2 || lb==2))
-//        cout << "la,lb,k,w3ab,w3abm = (" << la << " " << lb << " " << k << ")    " <<  w3ab << "    " <<  w3ab_m << endl;
-    return FourPi2*w3ab*w3ab*w3ab_m*w3ab_m;
+    // (3j)^2 * (3j_m)^2 directly (no sqrt) -- exchange squares the symbols.
+    return FourPi2*Wigner3j::w3j.sq(la,lb,k)*Wigner3j::w3j.sq(la,lb,k,ma,-mb);
 }
 
 rvec11_t Direct (int la,int lb)
@@ -109,9 +105,8 @@ rvec11_t Exchange(int la,int lb,int ma,int mb)
     for (int k=kmin;k<=kmax;k+=2)
     {
         assert((k+la+lb)%2==0);
-        double w3ab=Wigner3j::w3j(la,lb,k);
-        double w3ab_m=Wigner3j::w3j(la,lb,k,ma,-mb);
-        Ak[k]=FourPi2*(2*la+1)*(2*lb+1)*w3ab*w3ab*w3ab_m*w3ab_m; //What about *(2k+1) ??
+        // (3j)^2 * (3j_m)^2 directly (no sqrt) -- exchange squares the symbols.
+        Ak[k]=FourPi2*(2*la+1)*(2*lb+1)*Wigner3j::w3j.sq(la,lb,k)*Wigner3j::w3j.sq(la,lb,k,ma,-mb); //What about *(2k+1) ??
     }
     return Ak;
 }

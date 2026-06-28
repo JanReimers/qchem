@@ -1,56 +1,30 @@
 // File: src/BasisSet/Atom/Evaluators/Internal/Imp/Wigner3j.C
 module;
-#include "wignerSymbols/wignerSymbols-cpp.h"
+#include <cmath>      // std::sqrt (runtime reconstruction of the signed value)
 #include <cassert>
-#include <iostream>
 module qchem.BasisSet.Atom.Evaluators.Internal.Wigner3j;
 
-Wigner3j Wigner3j::w3j;
+using namespace w3j_detail;
 
-using std::cout;
-using std::endl;
+const Wigner3j Wigner3j::w3j{};
 
-Wigner3j::Wigner3j()
+double Wigner3j::operator()(int la, int lb, int k, int ma, int mb) const
 {
-    std::cout << "Initializing Wigner 3j tables LMax=" << LMax << std::endl;
-
-    for (int la=0; la<=LMax; la++)
-        for (int lb=0; lb<=LMax; lb++)
-            for (int k=0; k<=2*LMax; k++)
-            {
-                Data[la][lb][k]=WignerSymbols::wigner3j(la,lb,k,0,0,0);
-                for (int ma=-la;ma<=la;ma++)
-                    for (int mb=-lb;mb<=lb;mb++)
-                        Data_m[la][lb][k][ma+LMax][mb+LMax]=WignerSymbols::wigner3j(la,lb,k,ma,mb,-ma-mb);
-            }
-          
-  
+    assert(la>=0); assert(la<=LMax);
+    assert(lb>=0); assert(lb<=LMax);
+    assert(k >=0); assert(k <=2*LMax);
+    assert(ma>=-la); assert(ma<=la);
+    assert(mb>=-lb); assert(mb<=lb);
+    const W& w=Table[Index(la,lb,k,ma,mb)];
+    return w.sgn*std::sqrt(w.sq);
 }
 
-double Wigner3j::operator()(int la, int lb, int k) const 
+double Wigner3j::sq(int la, int lb, int k, int ma, int mb) const
 {
-    assert(la>=0);
-    assert(la<=LMax);
-    assert(k >=0);
-    assert(k <=2*LMax);
-    assert(lb>=0);
-    assert(lb<=LMax);
-    return Data[la][lb][k];
+    assert(la>=0); assert(la<=LMax);
+    assert(lb>=0); assert(lb<=LMax);
+    assert(k >=0); assert(k <=2*LMax);
+    assert(ma>=-la); assert(ma<=la);
+    assert(mb>=-lb); assert(mb<=lb);
+    return Table[Index(la,lb,k,ma,mb)].sq;
 }
-
-double Wigner3j::operator()(int la, int lb, int k,int ma, int mb) const 
-{
-    assert(la>=0);
-    assert(la<=LMax);
-    assert(k >=0);
-    assert(k <=2*LMax);
-    assert(lb>=0);
-    assert(lb<=LMax);
-    assert(ma>=-la);
-    assert(ma<= la);
-    assert(mb>=-lb);
-    assert(mb<= lb);
-    
-    return Data_m[la][lb][k][ma+LMax][mb+LMax];
-}
-

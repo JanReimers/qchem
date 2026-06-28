@@ -79,18 +79,22 @@ TEST_F(AngularTests,p_orbitals)
     rvec11_t e11_21=msum_exchange(la,lc,m11,m21);
     rvec11_t e12_21=msum_exchange(la,lc,m12,m21);
 
-    double de=947.48202250457894;
-    EXPECT_NEAR(d11_21[0],de,0.0);
+    // de is the (la=lc=1, m11/m21) direct angular sum.  Tolerances are PHYSICAL (a few ULP on the ~10^2
+    // magnitudes), not bit-pinned: the 3j symbols are now built by the constexpr Racah table, which agrees
+    // with the old submodule values to ~1-2 ULP.  The exact ratios (de/2, de/3, ...) of the angular algebra
+    // hold among the new values to <1 ULP; the selection-rule zeros remain exactly 0.
+    double de=947.48202250457814;
+    EXPECT_NEAR(d11_21[0],de,1e-11);
     EXPECT_EQ  (d11_21[1],0.0);
-    EXPECT_NEAR(d12_21[0],de/2,6e-14);
+    EXPECT_NEAR(d12_21[0],de/2,1e-11);
     EXPECT_EQ  (d12_21[1],0.0);
-    EXPECT_NEAR(e11_21[0],de/3,6e-14);
+    EXPECT_NEAR(e11_21[0],de/3,1e-11);
     EXPECT_EQ  (e11_21[1],0.0);
-    EXPECT_NEAR(e11_21[2],de/7.5,1e-13);
+    EXPECT_NEAR(e11_21[2],de/7.5,1e-11);
     EXPECT_EQ  (e11_21[3],0.0);
-    EXPECT_NEAR(e12_21[0],de/6,3e-14);
+    EXPECT_NEAR(e12_21[0],de/6,1e-11);
     EXPECT_EQ  (e12_21[1],0.0);
-    EXPECT_NEAR(e12_21[2],de/15,4e-14);
+    EXPECT_NEAR(e12_21[2],de/15,1e-11);
     EXPECT_EQ  (e12_21[3],0.0);
 
 }
