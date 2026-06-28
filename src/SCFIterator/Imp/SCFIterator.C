@@ -62,8 +62,8 @@ template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const Elect
     : itsHamiltonian (H )
     , itsAccelerator (acc)
     , itsWaveFunction(qchem::WaveFunction::Factory(itsHamiltonian,bs,ec,itsAccelerator) )
-    , itsCD          (0)
-    , itsOldCD       (0)
+    , itsCD          (nullptr)
+    , itsOldCD       (nullptr)
     , itsIterationCount(0)
     , itsConverged(false)
 {
@@ -78,9 +78,9 @@ template <class T> void tSCFIterator<T>::Initialize(tDM_CD<T>* cd)
     itsWaveFunction->DoSCFIteration(*itsHamiltonian,cd);
     itsWaveFunction->FillOrbitals(0.0001);
 
-    itsCD=itsWaveFunction->GetChargeDensity(); //Get new charge density.
+    itsCD=cd_t(itsWaveFunction->GetChargeDensity()); //Get new charge density (std-managed).
     assert(itsCD);
-    itsOldCD=cd;
+    itsOldCD=cd_t(cd);   //take ownership of the seed (was deleted in the old dtor)
     itsIterationCount=0;
     itsConverged=false;
     // DisplayEnergies(itsIterationCount,itsHamiltonian->GetTotalEnergy(itsCD),1.0,0.0,0.0);
@@ -94,8 +94,7 @@ template <class T> tSCFIterator<T>::~tSCFIterator()
     delete itsHamiltonian;
     delete itsAccelerator;
     delete itsWaveFunction;
-    delete itsCD;
-    delete itsOldCD;
+    // itsCD / itsOldCD are shared_ptr -- freed automatically.
 }
 
 template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
@@ -141,39 +140,36 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
         {
             // GDM owns the loop: a geodesic line search drives the energy down directly, with
             // NO density mixing (the line search guarantees descent).
-            delete itsOldCD;
             itsOldCD=itsCD;
             itsCD=DirectMinStep(Eold,ipar.MergeTol);
             ChargeDensityChange = itsCD->GetChangeFrom(*itsOldCD)/itsCD->GetTotalCharge();
         }
         else
         {
-            itsWaveFunction->DoSCFIteration(*itsHamiltonian,itsCD); //Just gets a set of eigen orbitals from the Hamiltonian
+            itsWaveFunction->DoSCFIteration(*itsHamiltonian,itsCD.get()); //Just gets a set of eigen orbitals from the Hamiltonian
             itsWaveFunction->FillOrbitals(ipar.MergeTol);
 
-            delete itsOldCD;
             itsOldCD=itsCD;
-            itsCD=itsWaveFunction->GetChargeDensity(); //Get new charge density.
+            itsCD=cd_t(itsWaveFunction->GetChargeDensity()); //Get new charge density.
             ChargeDensityChange = itsCD->GetChangeFrom(*itsOldCD)/itsCD->GetTotalCharge(); //Get relative MaxAbs of change.
             if (ChargeDensityChange<1e-5) relMax=0.5;
             itsCD->MixIn(*itsOldCD,1.0-relax);                           //relaxation.
         }
         // cout << "Total charge=" << itsCD->GetTotalCharge() << endl;
 
-        eb=itsHamiltonian->GetTotalEnergy(itsCD);
+        eb=itsHamiltonian->GetTotalEnergy(itsCD.get());
         E=eb.GetTotalEnergy();
         dE=(E-Eold)/fabs(E);
         itsAccelerator->SetEnergy(E); //the ladder gates its hand-off on the energy change
         FD=itsAccelerator->GetError(); //i.e. [F,D]
         dFD=(FD-FDold);
         if (ipar.Verbose) DisplayEnergies(itsIterationCount,eb,relax,dFD,ChargeDensityChange,idealVirial);
-        if (FD>FDold && fabs(dFD)>1e-9) 
+        if (FD>FDold && fabs(dFD)>1e-9)
         {
-            delete itsCD;
-            itsCD=itsWaveFunction->GetChargeDensity(); //Get new charge density.
+            itsCD=cd_t(itsWaveFunction->GetChargeDensity()); //Get new charge density.
             ChargeDensityChange = itsCD->GetChangeFrom(*itsOldCD); //Get MaxAbs of change.
-            itsCD->MixIn(*itsOldCD,1.0-relax/4.0); 
-            eb=itsHamiltonian->GetTotalEnergy(itsCD);
+            itsCD->MixIn(*itsOldCD,1.0-relax/4.0);
+            eb=itsHamiltonian->GetTotalEnergy(itsCD.get());
             relax*=0.8;
         }
         // if (E<Eold && Eold>Eoldold) relax*=0.5;
@@ -228,26 +224,25 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
 // then a backtracking line search along the geodesic (the first fraction from 1 that lowers
 // the total energy is accepted) -- no density mixing.  Falls back to a diagonalizing
 // iteration in the seed step (before the accelerators have orbitals).
-template <class T> tDM_CD<T>* tSCFIterator<T>::DirectMinStep(double Ecur, double mergeTol)
+template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep(double Ecur, double mergeTol)
 {
-    if (!itsWaveFunction->BuildFockAndComputeSteps(*itsHamiltonian,itsCD))
+    if (!itsWaveFunction->BuildFockAndComputeSteps(*itsHamiltonian,itsCD.get()))
     {
-        itsWaveFunction->DoSCFIteration(*itsHamiltonian,itsCD);
+        itsWaveFunction->DoSCFIteration(*itsHamiltonian,itsCD.get());
         itsWaveFunction->FillOrbitals(mergeTol);
-        return itsWaveFunction->GetChargeDensity();
+        return cd_t(itsWaveFunction->GetChargeDensity());
     }
     double t=1.0;
     for (int k=0;k<12;k++)
     {
         itsWaveFunction->MoveOrbitals(t,false,mergeTol);                 //trial
-        tDM_CD<T>* cdt=itsWaveFunction->GetChargeDensity();
-        double Et=itsHamiltonian->GetTotalEnergy(cdt).GetTotalEnergy();
-        delete cdt;
+        cd_t cdt(itsWaveFunction->GetChargeDensity());                   //std-managed (no freed-address reuse)
+        double Et=itsHamiltonian->GetTotalEnergy(cdt.get()).GetTotalEnergy();
         if (Et<Ecur) break;
         t*=0.5;
     }
     itsWaveFunction->MoveOrbitals(t,true,mergeTol);                      //commit at t
-    return itsWaveFunction->GetChargeDensity();
+    return cd_t(itsWaveFunction->GetChargeDensity());
 }
 
 
@@ -258,7 +253,7 @@ template <class T> void tSCFIterator<T>::DisplayEigen() const
 
 template <class T> EnergyBreakdown tSCFIterator<T>::GetEnergy() const
 {
-    return itsHamiltonian->GetTotalEnergy(itsCD);
+    return itsHamiltonian->GetTotalEnergy(itsCD.get());
 }
 
 

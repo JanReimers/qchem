@@ -62,7 +62,10 @@ TEST_F(M_DFT_N2, N2)
 TEST_F(M_DFT_Water, Water)
 {
     Iterate(scf);
-    EXPECT_LT(fabs(RelativeError(-79.414120)), 2e-3);
+    // INTERIM anchor: deterministic value after the SCFIterator shared_ptr fix (was -79.414120, a
+    // stale-cache artifact).  Still a non-converged limit-cycle snapshot -- to be re-pinned to the
+    // converged ~ -76 once DIIS is engaged (EMax) for this test.  See project_molecule_basis_asan_findings.
+    EXPECT_LT(fabs(RelativeError(-76.123348)), 2e-3);
 }
 
 // --- The spherical-Gaussian (PG_Spherical) basis through the DFT path -----------------------------
@@ -93,6 +96,6 @@ class M_DFT_Sph_Water : public M_DFT_Sph { public: M_DFT_Sph_Water() : M_DFT_Sph
 TEST_F(M_DFT_Sph_Water, Water)
 {
     Iterate(scf);
-    EXPECT_NEAR(TotalEnergy(), -79.414120, 0.2);           // sanity: same ballpark as the Cartesian Xalpha
-    EXPECT_LT(fabs(RelativeError(-79.326317)), 2e-3);      // regression anchor (spherical orbital+fit)
+    EXPECT_NEAR(TotalEnergy(), -76.123348, 0.2);           // sanity: same ballpark as the Cartesian Xalpha
+    EXPECT_LT(fabs(RelativeError(-76.073646)), 2e-3);      // INTERIM anchor (was -79.326317, stale-cache artifact; re-pin after DIIS)
 }
