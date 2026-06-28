@@ -14,7 +14,6 @@ import qchem.Math;
 using qchem::SCFAccelerators::SCFAccelerator;
 
 PeriodicTableSaito QchemTester::itsPT;
-PeriodicTable QchemTester::itsPTold; //need this just for DFT alpha exchange values 
 
 QchemTester::QchemTester(ElectronConfiguration* ec)
 : itsStructure(0)

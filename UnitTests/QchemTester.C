@@ -76,7 +76,6 @@ protected:
     nlohmann::json         itsAccConfig; //SCF accelerator config (empty => DIIS defaults)
 public:
     static PeriodicTableSaito itsPT;
-    static PeriodicTable  itsPTold;
 };
 
 

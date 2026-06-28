@@ -163,3 +163,49 @@ PeriodicTableSaito::PeriodicTableSaito()
 
 }
 
+size_t PeriodicTableSaito::GetZ(const std::string& symbol) const
+{
+    for (size_t i=0; i<elements.size(); i++)
+        if (elements[i].Symbol==symbol) return i+1;   // Z = index+1
+    return 0;                                         // not found
+}
+
+// Schwarz X-alpha optimized exchange parameters (J.C. Slater / K. Schwarz).  Tabulated only for
+// H..Ca; everything else defaults to 0.70 via GetSlaterAlpha.  Z-indexed (slot 0 is a filler).
+namespace
+{
+    const double theSlaterAlpha[] =
+    {
+        0.0,     //filler
+        0.77679, //H
+        0.77224, //He
+        0.79118, //Li
+        0.79526, //Be
+        0.78744, //B
+        0.77657, //C
+        0.76654, //N
+        0.76454, //O
+        0.75954, //F
+        0.73100, //Ne
+        0.75110, //Na
+        0.74942, //Mg
+        0.74797, //Al
+        0.74521, //Si
+        0.74309, //P
+        0.74270, //S
+        0.74183, //Cl
+        0.722,   //Ar
+        0.7227,  //K
+        0.7220,  //Ca
+    };
+    const size_t nSlaterAlpha = sizeof(theSlaterAlpha)/sizeof(theSlaterAlpha[0]);
+}
+
+double PeriodicTableSaito::GetSlaterAlpha(size_t Z) const
+{
+    assert(Z>0);
+    double ret = (Z<nSlaterAlpha) ? theSlaterAlpha[Z] : 0.0;
+    if (ret==0.0) ret=0.70;   // default for un-tabulated / zero entries
+    return ret;
+}
+

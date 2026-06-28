@@ -24,7 +24,7 @@ public:
     A_DFT_U() : TestAtom(GetParam()) {};
     virtual Hamiltonian* GetHamiltonian(st_t& structure) const
     {
-        double alpha_ex=QchemTester::itsPTold.GetSlaterAlpha(GetZ());
+        double alpha_ex=QchemTester::itsPT.GetSlaterAlpha(GetZ());
         return Factory(Pol::UnPolarized,structure,alpha_ex,GetMeshParams(),itsBasisSet);
     }
 };
@@ -34,7 +34,7 @@ public:
     M_DFT_U() : TestMolecule(new Atom(GetParam(),0.0,Vector3D<double>(0,0,0))) {};
     virtual Hamiltonian* GetHamiltonian(st_t& structure) const
     {
-        double alpha_ex=QchemTester::itsPTold.GetSlaterAlpha(GetZ());
+        double alpha_ex=QchemTester::itsPT.GetSlaterAlpha(GetZ());
         return Factory(Pol::UnPolarized,structure,alpha_ex,GetMeshParams(),itsBasisSet);
     }
 };
@@ -147,7 +147,7 @@ public:
     A_DFT_P() : TestAtom(GetParam()) {};
     virtual Hamiltonian* GetHamiltonian(st_t& structure) const
     {
-        double alpha_ex=QchemTester::itsPTold.GetSlaterAlpha(GetZ());
+        double alpha_ex=QchemTester::itsPT.GetSlaterAlpha(GetZ());
         return Factory(Pol::Polarized,structure,alpha_ex,GetMeshParams(),itsBasisSet);
     }
 };
@@ -161,7 +161,7 @@ public:
     };
     virtual Hamiltonian* GetHamiltonian(st_t& structure) const
     {
-        double alpha_ex=QchemTester::itsPTold.GetSlaterAlpha(GetZ());
+        double alpha_ex=QchemTester::itsPT.GetSlaterAlpha(GetZ());
         return Factory(Pol::Polarized,structure,alpha_ex,GetMeshParams(),itsBasisSet);
     }
 };

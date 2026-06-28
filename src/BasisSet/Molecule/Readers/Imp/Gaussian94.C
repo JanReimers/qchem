@@ -86,7 +86,7 @@ bool Gaussian94Reader::FindAtom(const Atom& theAtom)
 {
     char atom[3];
     atom[2]=0;
-    PeriodicTable pt;
+    PeriodicTableSaito pt;
     std::string sym=pt.GetSymbol(theAtom.itsZ);
     std::transform(sym.begin(), sym.end(),sym.begin(), ::toupper);
 

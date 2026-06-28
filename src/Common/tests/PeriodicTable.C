@@ -25,7 +25,7 @@ struct ElementRecord
 
 TEST_F(PeriodicTableTests,DumpToCSV)
 {
-    PeriodicTable pt;
+    PeriodicTableSaito pt;
     std::vector<ElementRecord> recs;
     for (size_t Z:iv_t(1,92+1))
     {
@@ -65,24 +65,5 @@ TEST_F(PeriodicTableTests,ReadSaito)
         pt.push_back(ElementRecordSaito(e));
     for (auto e:pt)
         std::cout << e;
-    
-}
 
-TEST_F(PeriodicTableTests,PeriodicTableSaito)
-{
-    PeriodicTableSaito pts;
-    PeriodicTable pt;
-    for (size_t Z:iv_t(1,92+1))
-    {
-        std::cout << Z << " " << pts.GetSymbol(Z) << std::endl;
-        EXPECT_EQ(pt.GetSymbol(Z),pts.GetSymbol(Z));
-        EXPECT_EQ(pt.GetEnergyHF(Z),pts.GetEnergyHF(Z));
-        if (Z!=58) //The ground state configuration for Ce is controversial.
-            EXPECT_EQ(pt.GetNumUnpairedElectrons(Z),pts.GetNumUnpairedElectrons(Z));
-        EXPECT_EQ(pt.GetMaxL(Z),pts.GetMaxL(Z));
-        for (size_t l:iv_t(0,3+1))
-        {
-            EXPECT_EQ(pt.GetValanceConfiguration(Z)[l],pts.GetValanceConfiguration(Z)[l]);
-        }
-    }
 }
