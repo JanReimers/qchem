@@ -57,7 +57,12 @@ IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Structure* cl)
                     bool UseNewRF=Max(newLs) > Max(Ls[i]);
                     for (auto l:newLs)
                         if (std::find(Ls[i].begin(),Ls[i].end(),l)!=Ls[i].end()) Ls[i].push_back(l); //Add elements not in common.
-                    if (UseNewRF) { radials.erase(b); radials.insert(b,rf); }
+                    if (UseNewRF)
+                    {
+                        delete *b;            // free the lower-Lmax duplicate before dropping it (else leaked: it never reaches a Block)
+                        radials.erase(b);
+                        radials.insert(b,rf);
+                    }
                     else          { delete rf; }
                 }
             if(!duplicate)
