@@ -42,7 +42,7 @@ public:
     //! \f$\alpha_a=\int[V_{loc}^a+Z_a/r]\f$ (the basis supplies \f$\Omega\f$; the model supplies \f$\alpha\f$).
     //! Enters the total energy but NOT the Hamiltonian matrix (the \f$G=0\f$ potential is a dropped constant).
     //! \note Plane-wave-specific (a neutralising-background artifact); pinned for the scalar-leakage review.
-    virtual double ExternalG0Energy(const Structure*, const LocalPotential& loc, double numElectrons) const=0;
+    virtual double PseudoG0Energy(const Structure*, const LocalPotential& loc, double numElectrons) const=0;
 };
 
 }//namespace

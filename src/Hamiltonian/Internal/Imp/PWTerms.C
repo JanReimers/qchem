@@ -9,7 +9,7 @@ import qchem.Energy;
 import qchem.ChargeDensity;
 import qchem.ChargeDensity.FourierDensity;   // cast cd UP to its reciprocal-space coefficients rho-tilde
 import qchem.BasisSet.Band_FT_IBS;         // cast bs UP to the reciprocal-space DFT capability (Hartree/XC)
-import qchem.Pseudopotential.Integrals_Pseudo;   // cast bs ACROSS to the external-PP operator-assembly mixin (PW_External)
+import qchem.Pseudopotential.Integrals_Pseudo;   // cast bs ACROSS to the external-PP operator-assembly mixin (PW_Pseudo)
 import qchem.Fitting.FourierFunctionFitter; // the PW fitter PW_Hartree drives (like FittedVee's FunctionFitter)
 import qchem.Structure;                       // Structure (PW_IonIon ion-ion energy)
 import qchem.Ewald;                           // NuclearRepulsion (Ewald lattice sum for the crystal)
@@ -18,7 +18,7 @@ import qchem.Blaze;                            // blazem::zeroH (PW_IonIon's zer
 namespace qchem::Hamiltonian
 {
 
-PW_External::PW_External(const st_t& st, const Pseudopotential::LocalPotential* loc,
+PW_Pseudo::PW_Pseudo(const st_t& st, const Pseudopotential::LocalPotential* loc,
                          const Pseudopotential::SeparablePotential* nl)
     : cStatic_HT_Imp()
     , theStructure(st)
@@ -26,34 +26,34 @@ PW_External::PW_External(const st_t& st, const Pseudopotential::LocalPotential* 
     , itsSep(nl)
 {
     assert(st->GetNumAtoms()>0);
-    assert(loc && "PW_External: the term owns the local pseudopotential model (must be non-null)");
+    assert(loc && "PW_Pseudo: the term owns the local pseudopotential model (must be non-null)");
 }
 
 // Assemble the external matrix from the MODELS the term owns: hand the basis the abstract local +
 // optional KB nonlocal models and let it assemble <i|V_ext|j>.  The dynamic_cast is the sanctioned
 // abstract->abstract move (cobs_t = Orbital_1E_IBS<dcmplx> ACROSS to the Integrals_Pseudo capability); only a
 // basis that supports reciprocal-space PP assembly answers it.  V = V_loc + V_NL.
-chmat_t PW_External::CalculateMatrix(const cobs_t* bs, const Spin&) const
+chmat_t PW_Pseudo::CalculateMatrix(const cobs_t* bs, const Spin&) const
 {
     auto pw=dynamic_cast<const Pseudopotential::Integrals_Pseudo<dcmplx>*>(bs);
-    assert(pw && "PW_External requires an Integrals_Pseudo<dcmplx> (e.g. plane-wave) basis");
+    assert(pw && "PW_Pseudo requires an Integrals_Pseudo<dcmplx> (e.g. plane-wave) basis");
     itsBasis=pw;                    // captured for GetEnergy's G=0 alignment (same basis every iteration)
     chmat_t V=pw->MakeLocalPotential(&*theStructure, *itsLocal);
     if (itsSep) V += pw->MakeSeparablePotential(&*theStructure, *itsSep);
     return V;
 }
 
-void PW_External::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
+void PW_Pseudo::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 {
     // Een stays the band expectation over the (G!=0) external matrix (== the prototype's electron-ion
     // energy).  The dropped-G=0 alignment alpha is a separate constant in te.Ealign -- kept in the total
-    // energy but NOT the matrix (see ExternalG0Energy), and out of the band-structure cross-check.  The
+    // energy but NOT the matrix (see PseudoG0Energy), and out of the band-structure cross-check.  The
     // term supplies its local model; the basis owns Omega and the (N/Omega) Sum_a alpha_a assembly.
     te.Een=cd->DM_Contract(this);                                          // integral rho V_ext (G!=0)
-    if (itsBasis) te.Ealign = itsBasis->ExternalG0Energy(&*theStructure, *itsLocal, cd->GetTotalCharge());
+    if (itsBasis) te.Ealign = itsBasis->PseudoG0Energy(&*theStructure, *itsLocal, cd->GetTotalCharge());
 }
 
-std::ostream& PW_External::Write(std::ostream& os) const
+std::ostream& PW_Pseudo::Write(std::ostream& os) const
 {
     return os << "    PW external (pseudo)potential with " << theStructure->GetNumAtoms() << " atoms." << std::endl;
 }

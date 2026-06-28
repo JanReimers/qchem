@@ -71,7 +71,7 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const Pseudopotential::LocalPotentia
                             const Pseudopotential::SeparablePotential* nl)
 {
     Add(new PW_Kinetic);
-    Add(new PW_External(st, loc, nl));                           // electron-ion (incl. G=0 alignment)
+    Add(new PW_Pseudo(st, loc, nl));                           // electron-ion (incl. G=0 alignment)
     Add(new PW_Hartree);
     Add(new PW_XC(std::make_shared<SlaterExchange>(2.0/3.0)));    // Dirac exchange (alpha = 2/3)
     Add(new PW_XC(std::make_shared<VWN_Correlation>()));          // VWN5 correlation

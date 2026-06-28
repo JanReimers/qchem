@@ -26,13 +26,13 @@ export namespace qchem::Hamiltonian
 //! MakeSeparablePotential) -- physics lives Hamiltonian-side, integral assembly basis-side.  The models
 //! are non-owning (the caller keeps them alive).  Pair with the kinetic, Hartree and XC terms for a full
 //! Kohn-Sham Hamiltonian.
-class PW_External
+class PW_Pseudo
     : public virtual cStatic_HT
     , private        cStatic_HT_Imp
 {
 public:
     typedef std::shared_ptr<const Structure> st_t;
-    PW_External(const st_t& st, const Pseudopotential::LocalPotential* loc,
+    PW_Pseudo(const st_t& st, const Pseudopotential::LocalPotential* loc,
                 const Pseudopotential::SeparablePotential* nl=nullptr);
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
     virtual std::ostream& Write(std::ostream&) const;
@@ -42,7 +42,7 @@ private:
     const Pseudopotential::LocalPotential*     itsLocal;       //!< local pseudopotential model (non-owning).
     const Pseudopotential::SeparablePotential* itsSep;         //!< KB nonlocal model (non-owning; may be null).
     //! Captured from CalculateMatrix so GetEnergy can ask the basis for the dropped-G=0 alignment energy
-    //! (ExternalG0Energy) with the current electron count.  Same basis every iteration.
+    //! (PseudoG0Energy) with the current electron count.  Same basis every iteration.
     mutable const Pseudopotential::Integrals_Pseudo<dcmplx>* itsBasis=nullptr;
 };
 

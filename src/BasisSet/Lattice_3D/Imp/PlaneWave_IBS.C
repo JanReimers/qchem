@@ -247,7 +247,7 @@ double PlaneWave_IBS::Integral(const ScalarFunction<double>& f) const
 // has alpha=0.  This is an ENERGY-only term -- the G=0 potential never entered the matrix
 // (MakeLocalPotential drops dG=0), so it is added to the total energy by the external term, which owns
 // the model and supplies it here (Omega and the cell geometry stay the basis's business).
-double PlaneWave_IBS::ExternalG0Energy(const Structure* cl, const Pseudopotential::LocalPotential& loc, double numElectrons) const
+double PlaneWave_IBS::PseudoG0Energy(const Structure* cl, const Pseudopotential::LocalPotential& loc, double numElectrons) const
 {
     double sumAlpha=0.0;
     for (Atom* a : *cl) sumAlpha += loc.FormFactorG0(a->itsZ);

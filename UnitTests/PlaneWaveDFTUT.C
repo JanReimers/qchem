@@ -41,7 +41,7 @@ import qchem.Math;           // Pi
 import qchem.Hamiltonian.Internal.ExFunctional;     // the validated LDA functional interface
 import qchem.Hamiltonian.Internal.SlaterExchange;   // Dirac exchange (alpha=2/3), eps_x = 3/4 v_x
 import qchem.Hamiltonian.Internal.VWN_Correlation;  // VWN5 correlation (validated vs libxc)
-import qchem.Hamiltonian.Internal.PWTerms;          // PW_External (dcmplx Hamiltonian term)
+import qchem.Hamiltonian.Internal.PWTerms;          // PW_Pseudo (dcmplx Hamiltonian term)
 import qchem.Hamiltonian;                           // cStatic_HT / cDynamic_HT aliases (public term interfaces)
 import qchem.Hamiltonian.Internal.Hamiltonian;      // cHamiltonianImp (the dcmplx Hamiltonian = sum of terms)
 import qchem.Hamiltonian.Internal.Hamiltonians;     // Ham_PW_DFT (the assembled plane-wave LDA KS Hamiltonian)
@@ -868,10 +868,10 @@ TEST_F(PlaneWaveDFT, BasisIntegralPotentialConstAndCosine)
     EXPECT_TRUE(found);
 }
 
-// The PW_External Hamiltonian term (cStatic_HT<dcmplx>) routes through the framework's GetMatrix path
+// The PW_Pseudo Hamiltonian term (cStatic_HT<dcmplx>) routes through the framework's GetMatrix path
 // and the abstract Band_DFT_IBS dynamic_cast -- its matrix must equal the basis's external assembly.
 // This is the dependency inversion working end-to-end through a real Hamiltonian term.
-TEST_F(PlaneWaveDFT, PWExternalTermMatchesBasis)
+TEST_F(PlaneWaveDFT, PWPseudoTermMatchesBasis)
 {
     const double a=10.26, h=0.5*a;
     Matrix3D<double> Amat(0.0,h,h,  h,0.0,h,  h,h,0.0);
@@ -888,7 +888,7 @@ TEST_F(PlaneWaveDFT, PWExternalTermMatchesBasis)
     const HGH_SeparablePotential& nl =siPP.nonlocal;
 
     // The TERM owns the model now and asks the basis to assemble it (the pseudo-wall).
-    qchem::Hamiltonian::PW_External   ext(si, &loc, &nl);
+    qchem::Hamiltonian::PW_Pseudo   ext(si, &loc, &nl);
     qchem::Hamiltonian::cStatic_HT*   term=&ext;        // the public term interface (as the Hamiltonian holds it)
     const chmat_t& M  = term->GetMatrix(&pw, Spin::None);
     chmat_t        ref= pw.MakeLocalPotential(si.get(),loc) + pw.MakeSeparablePotential(si.get(),nl);
@@ -962,7 +962,7 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaMatchesPrototype)
     // owns the pseudopotential model (the pseudo-wall) and assembles it through the basis.
     cHamiltonianImp ham;
     ham.Add(new PW_Kinetic);
-    ham.Add(new PW_External(si, &loc, &nl));
+    ham.Add(new PW_Pseudo(si, &loc, &nl));
     ham.Add(new PW_Hartree);
     ham.Add(new PW_XC(std::make_shared<SlaterExchange> (2.0/3.0)));   // Dirac exchange
     ham.Add(new PW_XC(std::make_shared<VWN_Correlation>()));          // VWN5 correlation
