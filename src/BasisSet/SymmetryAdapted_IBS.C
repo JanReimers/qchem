@@ -27,17 +27,18 @@ export namespace BasisSet
 // Shared by one basis's irrep decorators: memoizes the AO Coulomb/exchange built from each
 // cd-irrep density block (raw->AccumulateDirect/Exchange), so the O(nAO^4) AO build happens
 // once per cd-irrep per SCF iteration -- not once per (irrep, cd-irrep) pair (was N^2/iter).
-// Keyed by the cd-irrep IBS pointer; invalidated when that block's density changes.
+// Keyed by the cd-irrep BasisSetID (a stable string identity, not a raw pointer -- deterministic,
+// no void*); invalidated when that block's density changes.
 class SymFockCache
 {
 public:
-    const rsmat_t& Direct  (const Orbital_HF_IBS<double>* raw, const void* cd,
+    const rsmat_t& Direct  (const Orbital_HF_IBS<double>* raw, const Orbital_HF_IBS<double>* cd,
                             const rmat_t& Ocd, const rsmat_t& Dcd);
-    const rsmat_t& Exchange(const Orbital_HF_IBS<double>* raw, const void* cd,
+    const rsmat_t& Exchange(const Orbital_HF_IBS<double>* raw, const Orbital_HF_IBS<double>* cd,
                             const rmat_t& Ocd, const rsmat_t& Dcd);
 private:
     struct Entry { rsmat_t D, M; bool valid=false; };
-    std::map<const void*, Entry> itsJ, itsK;
+    std::map<std::string, Entry> itsJ, itsK;   // key = cd-irrep BasisSetID()
 };
 
 class SymmetryAdapted_IBS

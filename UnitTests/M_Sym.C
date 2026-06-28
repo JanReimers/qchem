@@ -77,14 +77,14 @@ static void CheckWaterDFT(Pol pol, double tol)
     st_t st  = mol;
     nlohmann::json js = { {"basis", "dzvp"} };
 
-    Real_BS* bsRef = BasisSet::Molecule::Factory(js, mol.get());
+    std::unique_ptr<Real_BS> bsRef(BasisSet::Molecule::Factory(js, mol.get()));
     Molecule_EC ecRef(mol->GetNumElectrons());
-    EnergyBreakdown ebRef = RunDFT(bsRef, &ecRef, st, pol);
+    EnergyBreakdown ebRef = RunDFT(bsRef.get(), &ecRef, st, pol);
 
     auto rawBasis = std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(js, mol.get()));
-    auto* sab = PG::SymmetryAdapt(rawBasis, *mol, 1e-4);
+    std::unique_ptr<BasisSet::Molecule::SymmetryAdaptedBasisSet> sab(PG::SymmetryAdapt(rawBasis, *mol, 1e-4));
     Molecule_EC ecSym(mol->GetNumElectrons());
-    EnergyBreakdown ebSym = RunDFT(sab, &ecSym, st, pol);
+    EnergyBreakdown ebSym = RunDFT(sab.get(), &ecSym, st, pol);
 
     EXPECT_NEAR(ebSym.GetTotalEnergy(), ebRef.GetTotalEnergy(), tol) << "DFT symmetric == non-symmetric";
 }
@@ -106,15 +106,15 @@ static void CheckWaterHF(Pol pol)
     nlohmann::json js = { {"basis", "dzvp"} };
 
     // non-symmetric reference
-    Real_BS* bsRef = BasisSet::Molecule::Factory(js, mol.get());
+    std::unique_ptr<Real_BS> bsRef(BasisSet::Molecule::Factory(js, mol.get()));
     Molecule_EC ecRef(mol->GetNumElectrons());
-    EnergyBreakdown ebRef = RunHF(bsRef, &ecRef, st, pol);
+    EnergyBreakdown ebRef = RunHF(bsRef.get(), &ecRef, st, pol);
 
     // symmetry-adapted via the PG hook: per-irrep blocks, global aufbau
     auto rawBasis = std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(js, mol.get()));
-    auto* sab = PG::SymmetryAdapt(rawBasis, *mol, 1e-4);
+    std::unique_ptr<BasisSet::Molecule::SymmetryAdaptedBasisSet> sab(PG::SymmetryAdapt(rawBasis, *mol, 1e-4));
     Molecule_EC ecSym(mol->GetNumElectrons());
-    EnergyBreakdown ebSym = RunHF(sab, &ecSym, st, pol);
+    EnergyBreakdown ebSym = RunHF(sab.get(), &ecSym, st, pol);
 
     EXPECT_NEAR(ebSym.GetTotalEnergy(), ebRef.GetTotalEnergy(), 1e-6) << "symmetric == non-symmetric";
     // physical sanity (water HF/DZVP): total energy near -76 Ha, virial 2+V/K near 0.
@@ -157,14 +157,14 @@ static void CheckMovedWaterHF(Molecule* m)
     st_t st  = mol;
     nlohmann::json js = { {"basis", "dzvp"} };
 
-    Real_BS* bsRef = BasisSet::Molecule::Factory(js, mol.get());      // non-symmetric reference
+    std::unique_ptr<Real_BS> bsRef(BasisSet::Molecule::Factory(js, mol.get()));      // non-symmetric reference
     Molecule_EC ecRef(mol->GetNumElectrons());
-    EnergyBreakdown ebRef = RunHF(bsRef, &ecRef, st, Pol::UnPolarized);
+    EnergyBreakdown ebRef = RunHF(bsRef.get(), &ecRef, st, Pol::UnPolarized);
 
     auto rawBasis = std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(js, mol.get()));
-    auto* sab = PG::SymmetryAdapt(rawBasis, *mol, 1e-4);  // symmetry-adapted
+    std::unique_ptr<BasisSet::Molecule::SymmetryAdaptedBasisSet> sab(PG::SymmetryAdapt(rawBasis, *mol, 1e-4));  // symmetry-adapted
     Molecule_EC ecSym(mol->GetNumElectrons());
-    EnergyBreakdown ebSym = RunHF(sab, &ecSym, st, Pol::UnPolarized);
+    EnergyBreakdown ebSym = RunHF(sab.get(), &ecSym, st, Pol::UnPolarized);
 
     EXPECT_NEAR(ebSym.GetTotalEnergy(), ebRef.GetTotalEnergy(), 1e-6) << "symmetric == non-symmetric";
     EXPECT_NEAR(ebSym.GetTotalEnergy(), -76.022903, 1e-4) << "invariant under rigid rotation/translation";

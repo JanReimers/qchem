@@ -42,10 +42,10 @@ static void AddSlice(rsmat_t& Fab, const rmat_t& O, const rsmat_t& Mao)
 }
 
 // Memoize the AO J/K for a cd-irrep, rebuilding only when that block's density changes.
-const rsmat_t& SymFockCache::Direct(const Orbital_HF_IBS<double>* raw, const void* cd,
+const rsmat_t& SymFockCache::Direct(const Orbital_HF_IBS<double>* raw, const Orbital_HF_IBS<double>* cd,
                                     const rmat_t& Ocd, const rsmat_t& Dcd)
 {
-    Entry& e = itsJ[cd];
+    Entry& e = itsJ[cd->BasisSetID()];
     if (!e.valid || blazem::max(blazem::abs(e.D - Dcd)) > 0.0)
     {
         e.M = BuildAOFock(false, raw, Ocd, Dcd);
@@ -53,10 +53,10 @@ const rsmat_t& SymFockCache::Direct(const Orbital_HF_IBS<double>* raw, const voi
     }
     return e.M;
 }
-const rsmat_t& SymFockCache::Exchange(const Orbital_HF_IBS<double>* raw, const void* cd,
+const rsmat_t& SymFockCache::Exchange(const Orbital_HF_IBS<double>* raw, const Orbital_HF_IBS<double>* cd,
                                       const rmat_t& Ocd, const rsmat_t& Dcd)
 {
-    Entry& e = itsK[cd];
+    Entry& e = itsK[cd->BasisSetID()];
     if (!e.valid || blazem::max(blazem::abs(e.D - Dcd)) > 0.0)
     {
         e.M = BuildAOFock(true, raw, Ocd, Dcd);

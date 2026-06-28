@@ -56,7 +56,7 @@ private:
     tSCFAccelerator<T>*          itsAccelerator;
     EnergyLevels                 itsELevels;
     std::map<Spin,EnergyLevels>  itsSpin_ELevels;
-    std::map<Spin,std::map<iwf_t*,double>> itsAufbauNe; //per-irrep electron count (recomputed each iteration)
+    std::map<Spin,std::map<Irrep,double>> itsAufbauNe; //per-irrep electron count, keyed by irrep (recomputed each iteration)
 
     std::vector<uiwf_t>                itsIWFs;
     std::map<Irrep,iwf_t*>             itsQNWFs; //sort by Irrep for easy lookup.

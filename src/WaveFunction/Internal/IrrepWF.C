@@ -48,7 +48,7 @@ public:
     void                CaptureMOMReference()      ; //snapshot the occupied orbitals as the next reference
 
     void                DisplayEigen    () const;
-    const Irrep&    GetQNs          () const {return itsIrrep;}
+    const Irrep&    GetIrrep        () const {return itsIrrep;}   // this WF's irrep (the proper map key)
     rvec_t      Get_BS_Diagonal () const;
 
  private:

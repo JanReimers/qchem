@@ -154,7 +154,7 @@ template <class T> void tCompositeWF<T>::FillOrbitals(double mergeTol)
     {
         EnergyLevels els=w->FillOrbitals(itsEC);
         itsELevels.merge(els,mergeTol);
-        Spin s=w->GetQNs().ms;
+        Spin s=w->GetIrrep().ms;
         itsSpin_ELevels[s].merge(els,mergeTol);
     }
 }
@@ -173,16 +173,16 @@ template <class T> void tCompositeWF<T>::FillOrbitalsAufbau(double mergeTol)
     for (auto& [s, wfs] : itsSpinWFs)
     {
         if (wfs.empty()) continue;
-        double Nc = (double)itsEC->GetN(wfs.front()->GetQNs());   // total electrons in this spin channel
+        double Nc = (double)itsEC->GetN(wfs.front()->GetIrrep());   // total electrons in this spin channel
 
-        std::map<iwf_t*,rvec_t> mom;                              // per-irrep MOM scores (empty if no ref)
-        if constexpr (EnableMOM) if (itsMOMActive) for (auto w : wfs) mom[w]=w->MOMScores();
+        std::map<Irrep,rvec_t> mom;                              // per-irrep MOM scores (empty if no ref), keyed by irrep
+        if constexpr (EnableMOM) if (itsMOMActive) for (auto w : wfs) mom[w->GetIrrep()]=w->MOMScores();
 
         std::vector<Slot> slots;                                  // every orbital across the channel
         for (auto w : wfs)
         {
             size_t idx=0;
-            const rvec_t& sc = mom[w];                            // empty unless MOM active & referenced
+            const rvec_t& sc = mom[w->GetIrrep()];               // empty unless MOM active & referenced
             for (auto o : w->GetOrbitals()->Iterate())
             {
                 // MOM: higher overlap = occupy first (unreferenced/empty irrep scores 0).
@@ -194,20 +194,21 @@ template <class T> void tCompositeWF<T>::FillOrbitalsAufbau(double mergeTol)
         }
         std::sort(slots.begin(), slots.end(), [](const Slot& a, const Slot& b){return a.key>b.key;});
 
-        std::map<iwf_t*,double>& ne = itsAufbauNe[s];
-        for (auto w : wfs) ne[w]=0.0;
+        std::map<Irrep,double>& ne = itsAufbauNe[s];
+        for (auto w : wfs) ne[w->GetIrrep()]=0.0;
+        assert(ne.size()==wfs.size() && "aufbau key collision: irreps must be unique within a spin channel");
         double rem = Nc;
         for (const auto& sl : slots)                              // fill highest-priority first
         {
             if (rem<=0.0) break;
             double take = std::min(sl.cap, rem);
-            ne[sl.w] += take;
+            ne[sl.w->GetIrrep()] += take;
             rem -= take;
         }
 
         for (auto w : wfs)                                        // occupy + collect energy levels
         {
-            EnergyLevels els = w->FillOrbitals(ne[w]);
+            EnergyLevels els = w->FillOrbitals(ne[w->GetIrrep()]);
             itsELevels.merge(els, mergeTol);
             itsSpin_ELevels[s].merge(els, mergeTol);
         }

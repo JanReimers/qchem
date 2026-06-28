@@ -91,7 +91,7 @@ namespace
     // (e.g. a test teardown), so it stays correct.
     const Cache2* OmegaCache()
     {
-        static const void*   owner = nullptr;
+        static decltype(&BasisSet::theCache<double>()) owner = nullptr;  // typed cache-instance guard (no void*)
         static const Cache2* cache = nullptr;
         if (owner != &BasisSet::theCache<double>())
         {
@@ -119,7 +119,7 @@ namespace
     };
     const Cache2* RNLMCache()   // memoized per theGlobalCache instance (see OmegaCache)
     {
-        static const void*   owner = nullptr;
+        static decltype(&BasisSet::theCache<double>()) owner = nullptr;  // typed cache-instance guard (no void*)
         static const Cache2* cache = nullptr;
         if (owner != &BasisSet::theCache<double>())
         {
@@ -146,7 +146,7 @@ namespace
     };
     const Cache3* H3Cache()   // memoized per theGlobalCache instance (see OmegaCache)
     {
-        static const void*   owner = nullptr;
+        static decltype(&BasisSet::theCache<double>()) owner = nullptr;  // typed cache-instance guard (no void*)
         static const Cache3* cache = nullptr;
         if (owner != &BasisSet::theCache<double>())
         {
