@@ -3,9 +3,10 @@ target_sources(qcChargeDensity PRIVATE
     Imp/ChargeDensity.C  
     Imp/CompositeCD.C  
     Imp/Factory.C
-    Internal/Imp/IrrepCD.C  
-    Internal/Imp/FittedCDImp.C  
-    Internal/Imp/PolarizedCDImp.C 
+    Internal/Imp/IrrepCD.C
+    Internal/Imp/FittedCDImp.C
+    Internal/Imp/PolarizedCDImp.C
+    Imp/Seed.C
 )
 target_sources(qcChargeDensity PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
     ChargeDensity.C
@@ -13,8 +14,9 @@ target_sources(qcChargeDensity PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES F
     FourierDensity.C
     CompositeCD.C
     Factory.C
+    Seed.C
     Types.C
-    Internal/IrrepCD.C 
+    Internal/IrrepCD.C
     Internal/FittedCDImp.C 
     Internal/PolarizedCDImp.C
 )

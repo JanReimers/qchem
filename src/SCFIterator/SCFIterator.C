@@ -7,6 +7,7 @@ export import qchem.SCFAccelerator;
 export import qchem.WaveFunction;
 import qchem.WaveFunction.SCF;
 export import qchem.SCFParams;
+export import qchem.ChargeDensity.Seed;   // SeedStrategy / MakeSeedDensity
 
 export using qchem::EnergyBreakdown;
 using qchem::ChargeDensity::tDM_CD;
@@ -24,7 +25,10 @@ template <class T> class tSCFIterator
     typedef qchem::WaveFunction::tSCFWaveFunction<T> scfwf_t;
     typedef qchem::SCFAccelerators::tSCFAccelerator<T> acc_t;
 public:
-    tSCFIterator(const tbs_t<T>*, const ElectronConfiguration*, ham_t*,acc_t*,tDM_CD<T>* cd=0);
+    // The seed density is chosen by strategy (see ChargeDensity::SeedStrategy): Default resolves to
+    // each path's present-day behaviour -- molecular -> CoreGuess, plane-wave -> Uniform.
+    tSCFIterator(const tbs_t<T>*, const ElectronConfiguration*, ham_t*,acc_t*,
+                 ChargeDensity::SeedStrategy seed=ChargeDensity::SeedStrategy::Default);
     virtual ~tSCFIterator();
     virtual bool Iterate(const SCFParams& ipar);
     // Direct energy minimization (GDM owns the loop): geodesic line search, no density mixing.

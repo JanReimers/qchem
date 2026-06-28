@@ -15,8 +15,9 @@ import qchem.WaveFunction;
 import qchem.WaveFunction.Factory;
 
 import qchem.Hamiltonian;
-import qchem.Energy; 
+import qchem.Energy;
 import qchem.ChargeDensity;
+import qchem.ChargeDensity.Seed;   // SeedStrategy / MakeSeedDensity
 
 import qchem.ElectronConfiguration;
 import qchem.Math;
@@ -58,7 +59,7 @@ template <class T> static std::string ConfigString(const qchem::WaveFunction::tW
 }
 
 
-template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const ElectronConfiguration* ec,ham_t* H,acc_t* acc,tDM_CD<T>* cd)
+template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const ElectronConfiguration* ec,ham_t* H,acc_t* acc,ChargeDensity::SeedStrategy seed)
     : itsHamiltonian (H )
     , itsAccelerator (acc)
     , itsWaveFunction(qchem::WaveFunction::Factory(itsHamiltonian,bs,ec,itsAccelerator) )
@@ -69,7 +70,9 @@ template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const Elect
 {
     assert(itsHamiltonian);
     assert(itsWaveFunction);
-    Initialize(cd);
+    // Resolve the seed strategy into a concrete (heap, owned) density -- nullptr for CoreGuess.  No
+    // Structure available here yet; the SAD seeds (Phases 1-3) will need one threaded through.
+    Initialize(ChargeDensity::MakeSeedDensity<T>(seed,bs,nullptr,ec));
 }
 
 

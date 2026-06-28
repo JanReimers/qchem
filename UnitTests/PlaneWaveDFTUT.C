@@ -1038,10 +1038,8 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaThroughSCFIterator)
     // block(s).  The pseudopotential model lives on the Hamiltonian term (the pseudo-wall), NOT the basis.
     namespace L3=BasisSet::Lattice_3D;
     std::unique_ptr<BasisSet::Complex_BS> bs(L3::Factory(L3::Type::PW, lat, 4.0));
-    const auto* pw=(*bs)[0];                         // the single Bloch block (for the seed density below)
 
     Irrep      irr=bs->GetIrreps(Spin::None)[0];
-    size_t     n  =bs->GetNumFunctions();
     const int  Nelec=8;
 
     Crystal_EC  ec(irr, Nelec);
@@ -1057,12 +1055,10 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaThroughSCFIterator)
     using qchem::SCFAccelerators::DIISParams;
     auto* acc=new qchem::SCFAccelerators::cSCFAcceleratorDIIS(DIISParams{8, 0.5, 1e-10, 1e-9});
 
-    // Seed a UNIFORM density (Hartree+XC active from iteration 0, as real PW codes do): D = (N/n) I.
-    hmat_t<dcmplx> D0=blazem::zeroH<dcmplx>(n);
-    for (size_t i=0;i<n;i++) D0(i,i)=double(Nelec)/double(n);
-    auto* seed=new qchem::ChargeDensity::IrrepCD<dcmplx>(D0, pw, irr);
-
-    qchem::SCFIterator::cSCFIterator scf(bs.get(), &ec, ham, acc, seed);
+    // Seed a UNIFORM density (Hartree+XC active from iteration 0, as real PW codes do): D=(N/n) I,
+    // built centrally by MakeSeedDensity (also the plane-wave Default; passed explicitly here).
+    qchem::SCFIterator::cSCFIterator scf(bs.get(), &ec, ham, acc,
+                                         qchem::ChargeDensity::SeedStrategy::Uniform);
 
     SCFParams par;
     par.NMaxIter      =80;
@@ -1102,7 +1098,6 @@ FwResult RunFrameworkGamma(const Lattice_3D& lat, double Ecut, int Nelec,
 {
     namespace L3=BasisSet::Lattice_3D;
     std::unique_ptr<BasisSet::Complex_BS> bs(L3::Factory(L3::Type::PW, lat, Ecut));
-    const auto* pw=(*bs)[0];
     Irrep  irr=bs->GetIrreps(Spin::None)[0];
     size_t n  =bs->GetNumFunctions();
     Crystal_EC ec(irr, Nelec);
@@ -1110,10 +1105,9 @@ FwResult RunFrameworkGamma(const Lattice_3D& lat, double Ecut, int Nelec,
     // EMax must exceed the ionic [F,D] error (~1.4-3) or DIIS bails ("En>EMax") and linear mixing
     // oscillates on the strong Madelung field.  Engage DIIS from the start (EMax large).
     auto* acc=new qchem::SCFAccelerators::cSCFAcceleratorDIIS(DIISParams{10, 8.0, 1e-10, 1e-9});
-    hmat_t<dcmplx> D0=blazem::zeroH<dcmplx>(n);
-    for (size_t i=0;i<n;i++) D0(i,i)=double(Nelec)/double(n);   // uniform seed: rho(r)=N/V
-    auto* seed=new qchem::ChargeDensity::IrrepCD<dcmplx>(D0, pw, irr);
-    qchem::SCFIterator::cSCFIterator scf(bs.get(), &ec, ham, acc, seed);
+    // Uniform seed rho(r)=N/V (built centrally by MakeSeedDensity; also the plane-wave Default).
+    qchem::SCFIterator::cSCFIterator scf(bs.get(), &ec, ham, acc,
+                                         qchem::ChargeDensity::SeedStrategy::Uniform);
     SCFParams par;
     par.NMaxIter=120; par.MinΔρ=1e-6; par.MinΔFD=1e30; par.MinVirial=1e30; par.MinFD=1e30;
     par.StartingRelaxRo=0.3; par.MergeTol=1e-4; par.Verbose=false;
@@ -1236,14 +1230,10 @@ TEST_F(PlaneWaveDFT, FrameworkSilicon2x2x2ThroughSCFIterator)
     auto* acc=new qchem::SCFAccelerators::cSCFAcceleratorDIIS(DIISParams{8, 0.5, 1e-10, 1e-9});
 
     // Uniform-density seed on the first block: D=(N/n0)I gives rho(r)=N/V (uniform), the total density
-    // every block's first Hartree/XC needs (a single block suffices since rho is constant).
-    const auto* pw0=(*bs)[0];
-    size_t n0=pw0->GetNumFunctions();
-    hmat_t<dcmplx> D0=blazem::zeroH<dcmplx>(n0);
-    for (size_t i=0;i<n0;i++) D0(i,i)=double(Nelec)/double(n0);
-    auto* seed=new qchem::ChargeDensity::IrrepCD<dcmplx>(D0, pw0, irreps[0]);
-
-    qchem::SCFIterator::cSCFIterator scf(bs.get(), &ec, ham, acc, seed);
+    // every block's first Hartree/XC needs (a single block suffices since rho is constant).  Built
+    // centrally by MakeSeedDensity (Uniform); also the plane-wave Default.
+    qchem::SCFIterator::cSCFIterator scf(bs.get(), &ec, ham, acc,
+                                         qchem::ChargeDensity::SeedStrategy::Uniform);
 
     SCFParams par;
     par.NMaxIter      =80;
