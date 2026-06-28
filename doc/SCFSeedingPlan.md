@@ -56,7 +56,7 @@ Two callers, two behaviours:
 - Keep the converged answer **bit-identical**: the seed changes only the *path*, never the minimum.
 
 **Non-goals (this work)**
-- Not the qcMath refactor, not new accelerators, not forces.
+- Not not new accelerators, not forces.
 - Not perfect oxidation-state inference — IonicSAD is an opt-in Phase 3 with a simple heuristic.
 
 ## 3. Architecture
@@ -110,11 +110,55 @@ tree. **Do not add a variant or a third mechanism.**
 
 ### 3.2 SAD — atomic densities
 
-- Source: the existing atomic SCF (Atom basis + `tSCFIterator<double>`), solved **once per unique Z**
-  (neutral, spherical, same LDA functional as the target), result cached like the GTH lookup.
-- Molecular: cache the atomic DM in the atom's radial basis; map molecular basis fn → atom → block.
-- PW: cache the atomic **valence** radial density; FT to ρ_atom(|G|) form factor.
-- Spin: thread `Pol` — open-shell wants a spin-polarized atomic seed (atomic spin densities).
+A density matrix is **basis-specific** (`D_ab` only means anything relative to its `{χ_a}`), so the
+molecular face needs an atomic density *in the molecular basis block*, not in some foreign atomic
+basis. Two routes; **Route 1 is the default, Route 2 is the escape hatch.**
+
+**Route 1 — solve-in-block (no conversion, the standard SAD trick).** The molecular basis restricted to
+one centre *is* a perfectly good atomic basis. So for each unique element, run a **single-atom SCF using
+the same basis-set spec the molecule uses** (a one-atom `Structure` + the molecular Gaussian basis →
+reuses the molecular SCF machinery wholesale). The resulting `D` is **natively in the molecular block** —
+scatter it onto every atom of that element; inter-atom blocks = 0. No DM conversion, because there was
+never a basis mismatch. Solve once per unique element, cache.
+- **Spherical averaging:** an open-shell single-atom solve gives an *aspherical* DM (the
+  maximally-stretched-determinant orientation — cf. the boron p-pancake). Prefer **fractional /
+  spherically-averaged occupations** (O's four 2p as 4/3 per component) so the seed carries no arbitrary
+  orientation. *Pragmatic caveat (user):* the seed only needs to be "in the infield," so an aspherical
+  DM is often **good enough** and the averaging can be skipped for easy cases. The one place it bites is
+  **near-degenerate / symmetric / magnetic** systems (TM oxides, Jahn-Teller) — there an oriented seed
+  can break symmetry or tip the SCF into a wrong basin (same bifurcation family as the M_DFT_Water
+  convergence cliff). So: spherical for the robust default; aspherical acceptable as a cheap fast-path.
+
+**Route 2 — project a foreign atomic density** (a tabulated/numerical radial density, or a richer atomic
+basis than the molecule's). Least-squares **project** `ρ_atom` onto the molecular basis block — and the
+machinery already exists: `FunctionFitter_Density` is exactly "fit a density onto a basis under the
+Coulomb/overlap metric." Lossy (projection error) and unnecessary whenever Route 1 applies, but the way
+to consume an external density.
+
+**The SAD data file (eventually).** Route 2's natural backing store is a **basis-independent radial
+atomic-density database** (per element × functional), shaped like `saito.json` / the GTH JSON — store
+`ρ_atom(r)` on a **radial grid**, not a DM and not a Gaussian/spline expansion. *Why a grid, not an
+expansion:* both consumers **quadrature it anyway** — the molecular Route-2 projection is
+`Σ_g w_g ρ_atom(r_g) χ_a(r_g) χ_b(r_g)` on the mesh, the PW form factor is a radial transform
+`4π ∫ ρ_atom(r) sinc(Gr) r² dr` — the *same* mesh-quadrature pattern the molecular PP (Path A) and XC
+paths already run. So a grid feeds straight into existing machinery with **no fit step, no exponent
+choices, no fit conditioning**, and it's the direct output of the atomic solve; the analytic-integral
+advantage of an expansion doesn't pay off for a ballpark seed. **Store the grid-spec WITH the values**
+(grid type + `r_min`/`r_max`/`N` for a log-radial grid, or explicit abscissae) — not bare numbers.
+Consumers are on *different* grids (the Becke mesh, the FFT grid), so they **interpolate** the stored
+radial density onto their own quadrature/FFT points; lossless-for-seed-purposes since a PP-smoothed
+valence density is smooth. Keep the stored grid a standard log-radial, fine enough that interpolation
+is a non-issue. One file then serves **both faces**: the **PW** face radial-FTs it → `ρ_atom(|G|)` form
+factor; the **molecular** face projects it (Route 2) → block. That unifies AO + FT SAD onto a single
+source and removes the per-run atomic solve. Order of adoption: Route 1 (solve-in-block) is the quick,
+file-free start; the radial-grid file (`{grid-spec, ρ_atom(r)[, spin]}` per element × functional, JSON)
+is the later optimization that also feeds the PW form factor.
+
+**PW face:** the atomic **valence** radial density FT'd to `ρ_atom(|G|)`, summed with structure factors
+(§3.1) — the *same* `ρ_atom(r)` the data file would hold (no basis-block issue: PW has no atom-centred
+blocks to reconcile).
+
+**Spin:** thread `Pol` — open-shell wants a spin-polarized atomic seed (atomic spin densities).
 
 ### 3.3 IonicSAD (Phase 3, opt-in)
 

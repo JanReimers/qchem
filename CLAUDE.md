@@ -42,6 +42,8 @@ Brief notes about module/library conventions, naming, and includes.
 
 - Raw `new` ops are fine if the pointer quickly goes into a `std::unique_ptr` or `std::shared_ptr`
     (within a few lines). As a result `delete` should be rare or non-existent.
+- void* is banashed from this project. It has no place in modern c++.
+-Do not key map/set etc off pointers.
 
 ## Design
 

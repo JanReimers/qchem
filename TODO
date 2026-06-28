@@ -2,12 +2,24 @@
 
 Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold in VS Code.
 
-## Major features (future)
+# Major features (future)
 
+## Purpose: battery materials
 ### Convergence acceleration
 - **DIIS singular B** (Shepard & Minkoff 2007 eq 23 — linear least squares for a
   better condition number; consider SVD-truncating B); 
 - **EDIIS**
+### Parallel execution
+- Options: OpenMP" std::threads other?.   
+- How?
+  - Top down: loops over 
+    1. irreps in `AccumulateDirect`/`AccumulateExchange`
+    2. Hamiltonian terms
+  - Bottom up: MatMul()?
+
+### Geometry optimization
+
+## Purpose: OOD demonstration
 ### Perturbations 
 - OOD architecture for 1st/2nd order 
 - demo 1st order with SO-coupling (HF, DHF)
@@ -18,21 +30,9 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
 - goal is to show the OO design supports it.
 - Rank by (1) code complexity here, (2) real-world usefulness.
 
-### Parallel execution
-- Options: OpenMP" std::threads other?.   
-- How?
-  - Top down: loops over 
-    1. irreps in `AccumulateDirect`/`AccumulateExchange`
-    2. Hamiltonian terms
-  - Bottom up: MatMul()?
 
 ## Bugs
 
-- **DFT fit-basis leak** (ASan): dedup-radial leak FIXED (55c919cc — the IBS ctor erased a replaced
-  higher-Lmax radial without `delete`; it never reached an owning `Block`). Residual ~13.6KB is a SEPARATE
-  diffuse leak in the molecule basis `Factory`/`SymmetryAdapt` path (small objects; ownership audit = own task).
-  Also surfaced: `M_DFT_Water` gives a 4% energy error under clean ASan but PASSES Release = likely
-  uninitialized-memory read in the molecular DFT path (needs MSan / review).
 - **Basis/Hamiltonian/Structure mismatch → domain exceptions:** BSpline+DFT/DHF (no evaluator), SG(atom-only)
   for a Molecule, LibCint+DFT (no 3-centre). These currently throw `bad_cast`; catch + re-throw a
   `BasisSetSupport` exception carrying basis type + required/missing support (RKB/DFT). Clients: `DiracKinetic`,
@@ -77,6 +77,8 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
   2. For molecule tests use linCint integral engines ... way faster than home grown MnD code.
   3. Buy a new PC with 12-16 cores, 64GB ram, 2T SSD drive.  Use the new rig for live development run SI server on the old rig ... until it goes up in a puff of smoke :)
 - Review the Types.C files in the libraries other than qcCommon.
+- 
+
 ## Solids / plane waves
 
 - **APW energy-dependent overlap** (`APW_IBS` is an `IrrepBasisSet<dcmplx>` but deliberately not an
@@ -103,10 +105,6 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
   `using X = rX` shims so ~200 existing sites didn't churn. Do the codebase-wide rename. NOTE the
   `rHamiltonian` rename must also dissolve the `qchem::Hamiltonian` namespace-vs-type shadow
   (the `::Hamiltonian` / `qchem::Hamiltonian::` qualifications scattered around are working around it).
-- **newCD double-duty redesign**: `Dynamic_HT_Imp` caches by Irrep and `newCD(cd)` does two jobs
-  (cache-clear + refit-trigger). The cache-freshness bug was fixed (commit 582f1d05: GetMatrix clears
-  on cd-change), but the deeper smell remains — split the two responsibilities. See
-  [[project_hamiltonian_dynamic_cache_bug]].
 
 ### Friendly libxc interface
 - Clients shouldn't have to look up a function id. Pick a few popular/common functionals we want, make enums,
@@ -115,7 +113,17 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
 ## qcChargeDensity
 **Charge density / SCF**
 - Seeding mechanism: not user-friendly (uniform-density-seed boilerplate in the framework tests), and crude
-  for ionic charge-transfer (NaF/CsI converge but grind).
+  for ionic charge-transfer (NaF/CsI converge but grind).  see doc/SCFSeedingPlan.md
+- Harden versioning
+    virtual bool   isActive() const = 0;   // Layer 2: am I the live head of my lineage?
+    Then the consuming side asserts the invariant:
+
+    const hmat_t& GetMatrix(..., const tDM_CD* cd) const
+    {
+        assert(cd->isActive() && "computing with a superseded charge density");
+        ...
+    }
+    So if anyone hands the Hamiltonian a density that's been superseded, it fires immediately — pointing at the exact line, instead of producing a plausible-but-wrong number.
 
 ## qcFitting
 
@@ -146,6 +154,8 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
   never alias even under a coarse `"BSpline<K>"` RadialType; then `RadialType()` returns just `Name()` and the
   report is clean. Mirror the SG/SL guard: add a two-distinct-grid analogue of
   `Cache4Tests.HF2_S{G,L}_ExponentKeyed` (different grids -> distinct integrals, fnorm>0).
+- BSpline Rk routines should use cached values for all splines at all GL grid points.  find() inside BSpline(r) is is 90% of the cpu
+
 ## qcMolecule_BS
 
 1. `PrimGaussian` `Iterate{2,3,4}C` are static (good, a/b symmetry); `GaussianRF` makes them members — can
@@ -188,14 +198,3 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
 
 ## qcCommon 
 
-## new lib qcMath refactor
-- Pull all the math like items out of qcCommon and put them in qcMath
-- qcCommon would be left with : Iterators, PeriodicTable, stl_io, Stream, Strings
-  PeriodicTable will lose acces to Types.C 
-- Organize all the math items.  I am considering Wigner symbols as math in this item.
-- Rename {Math.C qchem.Math}->{CMath.C qchem.CMath}
-- Math: Move `SymEigen3` into `Matrix3D<T>`? 
-
-
-- Not sure about this one:  `Matrix3D`/`Vector3D` (and the 2D version): convert to `blaze::Static…`? Blaze's alignment magic may help
-  perf. Also add `mat3d_t`/`rmat3d_t` to `Types.C` for consistency.
