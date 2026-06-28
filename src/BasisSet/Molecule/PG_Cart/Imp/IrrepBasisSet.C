@@ -82,6 +82,7 @@ IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Structure* cl)
 
                     if (UseNewRF)
                     {
+                        delete *b;            // free the lower-Lmax duplicate before dropping it (else leaked: it never reaches a Block)
                         radials.erase(b);
                         radials.insert(b,rf);
                     }
