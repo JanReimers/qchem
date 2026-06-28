@@ -7,12 +7,7 @@
 [submodule "submodules/googletest"]
 	path = submodules/googletest
 	url = https://github.com/google/googletest
-[submodule "submodules/wignerSymbols"]
-	path = submodules/wignerSymbols
-	url = https://github.com/joeydumont/wignerSymbols
 [submodules "json"]
-	branch = master
-[submodules "wignerSymbols"]
 	branch = master
 [submodule "submodules/json"]
 	path = submodules/json

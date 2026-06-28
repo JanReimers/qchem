@@ -28,16 +28,22 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
 
 ## Bugs
 
-- **DFT fit-basis leak** (ASan 2026-06-20): `CreateCDFitBasisSet → EFit_IBS` may leak (water_DFT). HF path is
-  clean. *Verify* — the FittedCD ownership changed this session (shared_ptr FIT_CD_ABS); may be fixed.
+- **DFT fit-basis leak** (ASan): dedup-radial leak FIXED (55c919cc — the IBS ctor erased a replaced
+  higher-Lmax radial without `delete`; it never reached an owning `Block`). Residual ~13.6KB is a SEPARATE
+  diffuse leak in the molecule basis `Factory`/`SymmetryAdapt` path (small objects; ownership audit = own task).
+  Also surfaced: `M_DFT_Water` gives a 4% energy error under clean ASan but PASSES Release = likely
+  uninitialized-memory read in the molecular DFT path (needs MSan / review).
 - **Basis/Hamiltonian/Structure mismatch → domain exceptions:** BSpline+DFT/DHF (no evaluator), SG(atom-only)
   for a Molecule, LibCint+DFT (no 3-centre). These currently throw `bad_cast`; catch + re-throw a
   `BasisSetSupport` exception carrying basis type + required/missing support (RKB/DFT). Clients: `DiracKinetic`,
   `FittedVee`. (Ties to the CLAUDE.md `dynamic_cast` survey.)  I am purposly leaving aspect un-implemented ths is a static test of the mix architecture.
-- IntegralsCache RAM usage report looks messy only for BSpline<6> and BSpliner<6>
-  - For SG and SL atom basis RadialType() just returns Name().
-  - But BSpline::RadialType() returns Name()+Grid dump
-  - If you try with RadialType() just returns Name() with BSpline you get a fail in TEST_F(Cache4Tests,HF2_BS_Reentry)
+- IntegralsCache RAM report messy only for BSpline (RadialType dumps the grid). RESOLVED-as-non-bug:
+  SG/SL coarse RadialType()==Name() is SAFE — the ExponentGrouper keys each distinct exponent VALUE to its
+  own index (integral uses grouper.unique_esv[i]); guarded now by Cache4Tests.HF2_S{G,L}_ExponentKeyed.
+  BSpline is the ODD one out: its grouper keys splines by rmin ONLY (Grouper.C: "assume same rmin => same
+  rmax"), so it genuinely needs the full grid in RadialType to keep grids in separate caches -> messy report.
+  Real cleanup (low prio): give BSpline a proper grid-fingerprint grouper, then it too could use a coarse
+  RadialType and the report would be clean. NOT a correctness issue.
 
 ## OOD principles & north-star
 
@@ -115,11 +121,8 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
 
 **Small follow-ups from this session's cleanups**
 - `FIT_CD_ABS<T>` / `FIT_SF_ABS<T>` templating — left non-templated; the `<dcmplx>` vision is still open.
-- AO/FT empty-side assert asymmetry — AO empty-side is fully inert, FT empty-side still keeps a domain-guard
-  assert; symmetrize if desired.
 - `FourierFunctionFitter` delete-and-inline — kept the named object; the aggressive alternative remains.
 - XC energy `∫ε_xc·ρ` through the fitter — still on the direct grid route (needs a grid-based fit input).
-- Look at the typedefs bs_t is too vague. If it is a Fit_IBS then just say so, call it fitbs_t.
 
 ## qcBasisSet
 
@@ -135,7 +138,14 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
   symmetry (atom carries YFactory). **Principle to lock now:** `op(rvec3_t)` is always honest; a fast
   `op(double r)` may exist only as the radial integrator's internal fast-path, never a public alternative.
   Defer to GUI time, but don't let the deferral accrete a flag.
-- Fix BSpline::EvaluatorCommon<K>::RadialType() too long, other just do Name()
+- **Lossless BSpline grouper** (so `RadialType()` can drop to bare `Name()` like SG/SL, fixing the messy
+  IntegralsCache RAM report — see the Bugs note). Root cause: the spline `ExponentGrouper` keys splines by
+  `rmin` ONLY (Grouper.C: "assume same rmin => same rmax") — lossy for splines — so BSpline currently smuggles
+  the whole grid into `RadialType()` to keep distinct grids in distinct caches. Fix: give the spline grouper a
+  TRUE lossless key for a spline's identity (full knot-vector / grid fingerprint, not just rmin), so two grids
+  never alias even under a coarse `"BSpline<K>"` RadialType; then `RadialType()` returns just `Name()` and the
+  report is clean. Mirror the SG/SL guard: add a two-distinct-grid analogue of
+  `Cache4Tests.HF2_S{G,L}_ExponentKeyed` (different grids -> distinct integrals, fnorm>0).
 ## qcMolecule_BS
 
 1. `PrimGaussian` `Iterate{2,3,4}C` are static (good, a/b symmetry); `GaussianRF` makes them members — can
@@ -150,18 +160,12 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
   and the `double& Eh` out-param on `Repulsion(const FourierMap&, double&)`.
 - `BasisSet<dcmplx>::Create{CD,Vxc}FitBasisSet` NA-stubs (`src/BasisSet/Imp/BasisSet.C`) — the "dirty code
   smell" to revisit ("PW reuses its own basis for fitting" ≠ "those fakes are fine").
-- Deep fitting-boundary question — whether `Orbital_DFT_IBS`/`Band_DFT_IBS` ever merge ("where does fitting
-  belong"). Mostly resolved in practice; philosophical residue parked in `project_dft_fitting_boundary_pin`.
-
 - BZ-symmetry reduction — multi-k computes all k-points explicitly; fold to the irreducible wedge (+weights) using the crystal point group when k-counts grow. (Perf, not correctness.)
 ## qcPseudoPotential
 
 **Pseudopotential / multi-species**
 - `Qli` l=3 (f) projector — the analytic HGH table stops at l=2, so heavy semicore valences (e.g. Cs **q9**)
   aren't usable; sidestepped with Cs q1. Small self-contained addition.
-**Naming**
-- `External` → `Pseudo` sweep: `PW_External` (term) + `ExternalG0Energy` (method). "External" misleads for a
-  crystal (it's the electron system's external potential, but reads like an outside EM field). Cosmetic.
 
 ## qcElConfig
 - Can we make an EC_Aufbau that does aufbau filling across irreps for atom/molecule and solids? Or does each
@@ -183,7 +187,6 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
   - Reuses the molecular point-group core: a space group ≈ point group ⋉ lattice translations.
 
 ## qcCommon 
-- PeriodicTableSaito` is miss named.  Anything useful left in the old PT before we scrub it?
 
 ## new lib qcMath refactor
 - Pull all the math like items out of qcCommon and put them in qcMath
@@ -191,27 +194,8 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
   PeriodicTable will lose acces to Types.C 
 - Organize all the math items.  I am considering Wigner symbols as math in this item.
 - Rename {Math.C qchem.Math}->{CMath.C qchem.CMath}
-- `constexpr` the static numeric lookup tables. `Fact`/`DFact`/`Twon` (`src/Common/Factorials.C`),
-  `DoubleFactData` (PrimGaussian in `Radial/Imp/GaussianRF.C`), and the Pascal/binomial triangle
-  (`src/BasisSet/Atom/Evaluators/Internal/PascalTriangle.C`) are pure integer/double recurrences of
-  fixed size -> ideal for `constexpr std::array<double,N>` filled by a constexpr function (clean
-  C++20, no container/JSON caveats). Three wins: removes the runtime "Initializing..." startup work;
-  removes the forced-static-init-before-main hack and turns mutable globals into immutable constants.
-- Try the same for the `Wigner3j`/`RelWigner3j` tables.  But we need sqrt of factorial ratios and `std::sqrt` isn't `constexpr`
-  before C++26 -> need a hand-rolled constexpr sqrt (Newton) or keep those runtime for now.
-  Idea: Just store the squares of the Wigner symbols. That is what we end up using anyway.
-  Home-grow Wigner symbols and drop the `wignerSymbols` submodule. Usage surface is tiny: only
-  `wigner3j` + `clebschGordan` (no 6j/9j), in production just `RelAngularIntegrals.C` (DHF angular)
-  plus `RelAngular.C` (which uses the submodule as a TEST ORACLE). CG is a 3j in disguise
-  (CG = (-1)^(j1-j2+M) sqrt(2J+1) 3j(...)), so one correct `wigner3j` covers it. 3j is a finite
-  factorial sum (Racah formula) -> trivial once `Fact[]` is constexpr (above). The rel calls pass
-  RUNTIME k/kappa, so `std::sqrt` is fine there; a home-grown constexpr sqrt is the bonus that also
-  lets the integer-l `Wigner3j.C` lookup table become a compile-time table (unifying both Wigner
-  paths). Plan: write home-grown `wigner3j`, keep submodule as the oracle in `RelAngular.C` until it
-  matches across all cases, THEN drop from production (and eventually the build). Risk: half-integer
-  args + phase/selection conventions -- the existing oracle test de-risks it.
-- Inspect and quality check the intpow and uintpow.  These are both in middle of hot code. Is one prefered (faster) then the other?
-- Math: Move `SymEigen3` into `Matrix3D<T>`?
+- Math: Move `SymEigen3` into `Matrix3D<T>`? 
 
-- `Matrix3D`/`Vector3D` (and the 2D version): convert to `blaze::Static…`? Blaze's alignment magic may help
+
+- Not sure about this one:  `Matrix3D`/`Vector3D` (and the 2D version): convert to `blaze::Static…`? Blaze's alignment magic may help
   perf. Also add `mat3d_t`/`rmat3d_t` to `Types.C` for consistency.
