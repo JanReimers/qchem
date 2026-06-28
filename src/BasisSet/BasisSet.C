@@ -10,7 +10,7 @@ export import qchem.Structure;
 export import qchem.Symmetry;
 export import qchem.ElectronConfiguration;
 
-import Common.Iterators;
+import qchem.Iterators;
 export import qchem.Streamable;
 
 export namespace BasisSet

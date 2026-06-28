@@ -5,7 +5,7 @@ module;
 #include <iterator>
 #include <utility>
 #include <type_traits>
-export module Common.Iterators;
+export module qchem.Iterators;
 
 //----------------------------------------------------------------------------
 //

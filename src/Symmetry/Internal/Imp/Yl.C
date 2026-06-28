@@ -3,7 +3,7 @@ module;
 #include <iostream>
 
 module qchem.Symmetry.Internal.Spherical;
-import qchem.Common.Strings;
+import qchem.Strings;
 
 namespace Symmetry::Internal::Spherical
 {

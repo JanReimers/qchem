@@ -6,7 +6,7 @@ module;
 #include <vector>
 
 module qchem.ElectronConfiguration.AtomNR;
-import Common.PeriodicTable;
+import qchem.PeriodicTable;
 import qchem.Symmetry.Irrep;
 import qchem.Symmetry.Spherical;
 import qchem.Symmetry.Factory;

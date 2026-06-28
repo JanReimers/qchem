@@ -10,7 +10,7 @@ module qchem.WaveFunction.Internal.PolarizedWF;
 import qchem.SCFAccelerator;
 import qchem.ChargeDensity.Factory;
 import qchem.Streamable;
-import qchem.Common.Strings;
+import qchem.Strings;
 
 namespace qchem::WaveFunction
 {

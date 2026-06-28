@@ -8,7 +8,7 @@ module qchem.WaveFunction.Internal.UnPolarizedWF;
 import qchem.SCFAccelerator;
 import qchem.Symmetry;
 import qchem.Streamable;
-import qchem.Common.Strings;
+import qchem.Strings;
 
 namespace qchem::WaveFunction
 {

@@ -9,7 +9,7 @@ export import qchem.Symmetry.Orbital;
 import qchem.ScalarFunction;
 import qchem.VectorFunction;
 import qchem.Streamable;
-import Common.Iterators;
+import qchem.Iterators;
 
 export namespace qchem::Orbitals
 {

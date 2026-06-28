@@ -9,7 +9,7 @@ module;
 #include <set>
 #include <nlohmann/json.hpp>
 
-module Common.PeriodicTable;
+module qchem.PeriodicTable;
 
 
 std::ostream& operator<<(std::ostream& os, const OrbitalRecordSaito& o)

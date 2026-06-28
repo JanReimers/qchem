@@ -13,7 +13,7 @@ import qchem.Hamiltonian.Internal.VWN_Correlation;
 import qchem.Hamiltonian.Types;
 import qchem.Structure;
 import qchem.Pseudopotential.GTH_Potentials;       // GetGTH + GTH_PP + HGH_*/MultiSpecies_* (re-exported)
-import Common.PeriodicTable;                       // PeriodicTable::GetZ(symbol) -> atomic number (the composite key)
+import qchem.PeriodicTable;                       // PeriodicTable::GetZ(symbol) -> atomic number (the composite key)
 
 namespace qchem::Hamiltonian
 {

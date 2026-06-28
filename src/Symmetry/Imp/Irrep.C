@@ -4,7 +4,7 @@ module;
 #include <iostream>
 module qchem.Symmetry.Irrep;
 import qchem.Streamable;
-import qchem.Common.Strings;
+import qchem.Strings;
 
 const size_t Irrep::ms_max=3; //three states Up/Down and None.
 

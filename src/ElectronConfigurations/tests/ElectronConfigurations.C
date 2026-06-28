@@ -5,13 +5,13 @@
 #include "tabulate/table.hpp"
 #include <iostream>
 
-import Common.PeriodicTable;
+import qchem.PeriodicTable;
 import qchem.Symmetry.Irrep;
 import qchem.Symmetry.Spherical;
 import qchem.Symmetry.Factory;
 
 import qchem.ElectronConfiguration.AtomNR;
-import qchem.Common.Strings;
+import qchem.Strings;
 
 using std::cout;
 using std::endl;

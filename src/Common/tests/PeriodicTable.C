@@ -6,7 +6,7 @@
 #include <iomanip>
 #include <nlohmann/json.hpp>
 
-import Common.PeriodicTable;
+import qchem.PeriodicTable;
 import qchem.Types;
 
 class PeriodicTableTests : public ::testing::Test

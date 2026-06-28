@@ -4,7 +4,7 @@ module;
 #include "tabulate/table.hpp"
 using namespace tabulate;
 
-export module qchem.Common.Strings;
+export module qchem.Strings;
 
 export Color l_colors[]={Color::none,Color::cyan,Color::magenta ,Color::red};
 export std::string SPDFG[]={"s","p","d","f","g"};

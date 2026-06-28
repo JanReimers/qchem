@@ -15,7 +15,7 @@ import qchem.Orbitals;
 import qchem.Mesh; //qcMesh::MeshParams
 import qchem.Factory;
 import qchem.ElectronConfiguration;
-import Common.PeriodicTable;
+import qchem.PeriodicTable;
 
 export typedef BasisSet::irrepv_t irrepv_t;
 

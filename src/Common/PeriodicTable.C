@@ -7,7 +7,7 @@ module;
 #include <nlohmann/json.hpp>
 
 
-export module Common.PeriodicTable;
+export module qchem.PeriodicTable;
 // (no math import: the periodic table is pure data -- string/double/json -- so qcCommon stays math-free.)
 
 export

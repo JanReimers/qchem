@@ -6,7 +6,7 @@ module;
 export module qchem.Structure;
 import qchem.Types;
 import qchem.Streamable;
-import Common.Iterators;
+import qchem.Iterators;
 
 export class Atom;
 
