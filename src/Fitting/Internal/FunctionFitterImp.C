@@ -22,10 +22,10 @@ template <class T, class Face, class FBS> class FitImpBase
     : public virtual Face
 {
 public:
-    typedef std::shared_ptr<const FBS> bs_t;
+    typedef std::shared_ptr<const FBS> fbs_t;
 
     FitImpBase(     ) : itsBasisSet( ), itsFitCoeff( ) {}
-    FitImpBase(bs_t& fbs) : itsBasisSet(fbs), itsFitCoeff(fbs->GetNumFunctions(),0.0) {}
+    FitImpBase(fbs_t& fbs) : itsBasisSet(fbs), itsFitCoeff(fbs->GetNumFunctions(),0.0) {}
 
     virtual void   ReScale         (double factor)            override; // Fit *= factor
     virtual void   FitMixIn        (const Face&,double)        override; // this = this*(1-c) + that*c
@@ -36,7 +36,7 @@ public:
     virtual std::ostream& Write(std::ostream&) const          override;
 
 public: // Client code needs read access to this data.
-    bs_t     itsBasisSet;
+    fbs_t     itsBasisSet;
     vec_t<T> itsFitCoeff;
 };
 
@@ -46,10 +46,10 @@ template <class T> class FunctionFitterImp
 {
     typedef FitImpBase<T, FunctionFitter_Scalar<T>, BasisSet::FIT_SF_ABS> Base;
 public:
-    typedef typename Base::bs_t bs_t;
+    typedef typename Base::fbs_t fbs_t;
 
     FunctionFitterImp(     ) : Base( ) {}
-    FunctionFitterImp(bs_t& fbs) : Base(fbs) {}
+    FunctionFitterImp(fbs_t& fbs) : Base(fbs) {}
 
     virtual void      DoFit  (const ScalarFFClient&)      override;  // overlap-metric projection
     virtual hmat_t<T> Overlap(const obs_t<T>*) const      override;  // Sum_a c_a <Oi|f_a|Oj>
@@ -61,10 +61,10 @@ template <class T> class ConstrainedFF
 {
     typedef FitImpBase<T, FunctionFitter_Density<T>, BasisSet::FIT_CD_ABS> Base;
 public:
-    typedef typename Base::bs_t bs_t;
+    typedef typename Base::fbs_t fbs_t;
 
     ConstrainedFF();
-    ConstrainedFF(bs_t&, const vec_t<T>& g);
+    ConstrainedFF(fbs_t&, const vec_t<T>& g);
 
     virtual void      DoFit    (const ProjectedDensity_AO&)  override; // Dunlap charge-constrained fit
     virtual hmat_t<T> Repulsion(const obs_t<T>*) const       override; // Sum_a c_a <Oi|f_a/r12|Oj>
@@ -87,10 +87,10 @@ template <class T> class IntegralConstrainedFF
     : public ConstrainedFF<T>
 {
 public:
-    typedef typename ConstrainedFF<T>::bs_t   bs_t;
+    typedef typename ConstrainedFF<T>::fbs_t   fbs_t;
 
     IntegralConstrainedFF(              );
-    IntegralConstrainedFF(bs_t&);
+    IntegralConstrainedFF(fbs_t&);
 };
 
 } //namespace

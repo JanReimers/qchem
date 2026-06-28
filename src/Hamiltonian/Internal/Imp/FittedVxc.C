@@ -32,7 +32,7 @@ private:
 };
 } // namespace
 
-FittedEpsXc::FittedEpsXc(bs_t& bs, const ExFunctional* ex)
+FittedEpsXc::FittedEpsXc(fbs_t& bs, const ExFunctional* ex)
     : itsFitter(Fitting::MakeScalarFitter(bs))   // composed overlap-metric (Scalar) fitter, via Factory
     , itsEx(ex)
 {
@@ -48,7 +48,7 @@ const rsmat_t& FittedEpsXc::GetMatrix(const obs_t* bs,const Spin&,const DM_CD* c
     return itsMat;
 }
 
-FittedVxc::FittedVxc(bs_t& bs, ex_t& lda)
+FittedVxc::FittedVxc(fbs_t& bs, ex_t& lda)
     : itsFitter(Fitting::MakeScalarFitter(bs))   // potential (overlap-metric) fit, via Factory
     , itsLDAVxc(new LDAVxc(lda))
 {
@@ -112,7 +112,7 @@ std::ostream& FittedVxc::Write(std::ostream& os) const
 //  the energy to E_c = integral eps_c rho via a dedicated eps_c fit on the SAME fit basis (the exchange
 //  virial 3/4 v_c is wrong for correlation).
 //
-FittedVcorr::FittedVcorr(bs_t& bs, ex_t& vwn)
+FittedVcorr::FittedVcorr(fbs_t& bs, ex_t& vwn)
     : FittedVxc(bs,vwn)
     , itsEpsC  (bs,vwn.get())   // dedicated eps_c fit, SAME fit basis (3C integrals shared with v_c)
 {};

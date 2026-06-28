@@ -145,8 +145,8 @@ private:
 class FittedVee : public virtual Dynamic_HT, private Dynamic_HT_Imp
 {
 public:
-    typedef std::shared_ptr<const BasisSet::FIT_CD_ABS> bs_t;   //!< the charge-density (Coulomb-metric) fit face
-    FittedVee(bs_t& chargeDensityFitBasisSet, double numElectrons);
+    typedef std::shared_ptr<const BasisSet::FIT_CD_ABS> fbs_t;   //!< the charge-density (Coulomb-metric) fit face
+    FittedVee(fbs_t& chargeDensityFitBasisSet, double numElectrons);
     ~FittedVee();   // anchored in the Imp TU (FittedCD complete there) so the unique_ptr can delete it
     virtual void          GetEnergy(EnergyBreakdown&,const DM_CD* cd) const;
     virtual std::ostream& Write    (std::ostream& os) const {return os;}
@@ -166,10 +166,10 @@ private:
 class FittedVxc : public virtual Dynamic_HT, private Dynamic_HT_Imp
 {
 public:
-    typedef std::shared_ptr<const BasisSet::FIT_SF_ABS> bs_t;   //!< the scalar-function (overlap-metric) fit face
+    typedef std::shared_ptr<const BasisSet::FIT_SF_ABS> fbs_t;   //!< the scalar-function (overlap-metric) fit face
     typedef std::shared_ptr<ExFunctional>     ex_t;
 
-    FittedVxc(bs_t& VxcFitBasisSet, ex_t&);
+    FittedVxc(fbs_t& VxcFitBasisSet, ex_t&);
     ~FittedVxc();
     virtual void          GetEnergy       (EnergyBreakdown&,const DM_CD*) const;
     virtual void          UseChargeDensity(const DM_CD*);
@@ -184,10 +184,10 @@ private:
 class FittedVxcPol : public virtual Dynamic_HT, private Dynamic_HT_Imp_NoCache
 {
 public:
-    typedef std::shared_ptr<const BasisSet::FIT_SF_ABS> bs_t;   //!< the scalar-function (overlap-metric) fit face
+    typedef std::shared_ptr<const BasisSet::FIT_SF_ABS> fbs_t;   //!< the scalar-function (overlap-metric) fit face
     typedef std::shared_ptr<      ExFunctional>  ex_t;
 
-    FittedVxcPol(bs_t&, ex_t&);
+    FittedVxcPol(fbs_t&, ex_t&);
    ~FittedVxcPol();
     // Required by HamiltonianTerm
     virtual void GetEnergy       (EnergyBreakdown&,const DM_CD* cd         ) const;
@@ -215,9 +215,9 @@ private:
 class FittedEpsXc : public virtual ChargeDensity::Dynamic_CC
 {
 public:
-    typedef std::shared_ptr<const BasisSet::FIT_SF_ABS> bs_t;   //!< the scalar-function (overlap-metric) fit face
+    typedef std::shared_ptr<const BasisSet::FIT_SF_ABS> fbs_t;   //!< the scalar-function (overlap-metric) fit face
 
-    FittedEpsXc(bs_t& fitBasisSet, const ExFunctional* ex);
+    FittedEpsXc(fbs_t& fitBasisSet, const ExFunctional* ex);
     //! Re-fits eps_xc for this density and returns its matrix Sum_a c_a <Oi|f_a|Oj> for contraction.
     virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&,const DM_CD* cd) const;
 private:
@@ -234,7 +234,7 @@ private:
 class FittedVcorr : public FittedVxc
 {
 public:
-    FittedVcorr(bs_t& VcorrFitBasisSet, ex_t&);
+    FittedVcorr(fbs_t& VcorrFitBasisSet, ex_t&);
     virtual void GetEnergy(EnergyBreakdown&,const DM_CD* cd) const;
 private:
     FittedEpsXc itsEpsC;   //!< dedicated eps_c fit for the correlation energy (shares the fit basis)

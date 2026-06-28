@@ -39,11 +39,11 @@ Ham_DFT_U::Ham_DFT_U(const st_t& st,ExFunctional* ex, const qcMesh::MeshParams& 
 {
     InsertStandardTerms(st);
        
-    FittedVee::bs_t   CFitBasis(bs->CreateCDFitBasisSet(st.get(), mp));
+    FittedVee::fbs_t   CFitBasis(bs->CreateCDFitBasisSet(st.get(), mp));
     Add(new FittedVee(CFitBasis,st->GetNumElectrons()));
 
     FittedVxc::ex_t XcFunct(ex);
-    FittedVxc::bs_t XFitBasis(bs->CreateVxcFitBasisSet(st.get(), mp));
+    FittedVxc::fbs_t XFitBasis(bs->CreateVxcFitBasisSet(st.get(), mp));
     Add(new FittedVxc(XFitBasis, XcFunct));
 }
 
@@ -53,10 +53,10 @@ Ham_DFTcorr_U::Ham_DFTcorr_U(const st_t& st, const qcMesh::MeshParams& mp, const
 {
     InsertStandardTerms(st);
 
-    FittedVee::bs_t   CFitBasis(bs->CreateCDFitBasisSet(st.get(), mp));
+    FittedVee::fbs_t   CFitBasis(bs->CreateCDFitBasisSet(st.get(), mp));
     Add(new FittedVee(CFitBasis,st->GetNumElectrons()));
 
-    FittedVxc::bs_t XFitBasis(bs->CreateVxcFitBasisSet(st.get(), mp)); // ONE Vxc fit basis, shared X and C
+    FittedVxc::fbs_t XFitBasis(bs->CreateVxcFitBasisSet(st.get(), mp)); // ONE Vxc fit basis, shared X and C
     FittedVxc::ex_t exch(new SlaterExchange(2.0/3.0));            // Dirac exchange (alpha = 2/3)
     Add(new FittedVxc  (XFitBasis, exch));
     FittedVxc::ex_t corr(new VWN_Correlation());                 // VWN5 correlation
@@ -136,11 +136,11 @@ Ham_DFT_P::Ham_DFT_P(const st_t& st,double alpha_ex, const qcMesh::MeshParams& m
 Ham_DFT_P::Ham_DFT_P(const st_t& st,ExFunctional* ex, const qcMesh::MeshParams& mp, const bs_t* bs)
 {
     InsertStandardTerms(st);
-    FittedVee::bs_t CFitBasis(bs->CreateCDFitBasisSet(st.get(), mp));
+    FittedVee::fbs_t CFitBasis(bs->CreateCDFitBasisSet(st.get(), mp));
     Add(new FittedVee(CFitBasis,st->GetNumElectrons()));
 
     FittedVxcPol::ex_t XcFunct(ex);
-    FittedVxcPol::bs_t XFitBasis(bs->CreateVxcFitBasisSet(st.get(), mp));
+    FittedVxcPol::fbs_t XFitBasis(bs->CreateVxcFitBasisSet(st.get(), mp));
     Add(new FittedVxcPol(XFitBasis, XcFunct));
     
 }
