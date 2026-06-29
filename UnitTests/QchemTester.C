@@ -9,6 +9,7 @@ export import qchem.BasisSet.Atom.Factory;
 export import qchem.Hamiltonian.Factory;
 export import qchem.Hamiltonian;
 export import qchem.SCFParams;
+export import qchem.ChargeDensity;   // DM_CD (sampling rho(r) for the SAD atomic-density generator)
 import qchem.SCFIterator;
 import qchem.Structure;
 import qchem.Orbitals;
@@ -41,6 +42,9 @@ public:
     double          TotalEnergy() const;
     EnergyBreakdown GetEnergyBreakdown() const;
     double          TotalCharge() const;
+    //! Converged charge density (caller OWNS the returned heap density).  A ScalarFunction<double> you can
+    //! sample rho(r) from -- used by the SAD atomic-density generator (scfrun --out) to dump a radial density.
+    qchem::ChargeDensity::DM_CD* GetChargeDensity() const;
     const Real_BS*  GetBasisSet() const {return itsBasisSet;}
     Hamiltonian* GetHamiltonian() const {return itsHamiltonian;}
     const Orbitals* GetOrbitals(const Irrep& qns) const;

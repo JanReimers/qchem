@@ -214,3 +214,92 @@ the only genuinely fuzzy piece in this whole plan, so isolate it.
   (`src/Hamiltonian/Internal/Imp/PWTerms.C`, `src/BasisSet/Lattice_3D/Imp/PlaneWave_IBS.C`
   `MakeNuclear`/`PseudoG0Energy`).
 - Density container: `src/ChargeDensity/Internal/Imp/IrrepCD.C` (`IrrepCD<T>`, the `tDM_CD<T>`).
+
+---
+
+## 9. RESOLVED DESIGN (decided in a design session; supersedes the Route-1-first assumption above)
+
+> Phase 0 is **DONE & committed** (`732eace2`): `SeedStrategy{Default,CoreGuess,Uniform,SAD,IonicSAD}` +
+> `MakeSeedDensity<T>(s,bs,st,ec)` in new module `qchem.ChargeDensity.Seed`; `Uniform`=`D=(N/n)I`;
+> `Default` resolves `double`->`CoreGuess`, `dcmplx`->`Uniform`; iterator ctor's last arg is now
+> `SeedStrategy seed=Default`; PW test boilerplate deleted. 134/134 green, iters/energies bit-identical.
+
+### 9.1 Phase 1 = data-file SAD, **DFT-only** (route reversal)
+
+We jump **straight to the §3.2 "SAD data file" route, NOT Route 1 (live atom solves).** Rationale:
+relying on invisible nested SCF convergence inside every `SCFIterator` construction is fragile/optimistic;
+a curated, inspectable, committed file is robust. The atom solves move **offline** (one-time generation),
+not runtime.
+
+**Layering win — this dissolves the orchestration problem.** A *live* atom solve needs the Hamiltonian
+factory + accelerator + `SCFIterator` (top of the DAG) and the calc config (`Pol`/functional/mesh/basis-spec)
+that lives only at the `Hamiltonian::Factory` caller (`QchemTester`/`M_DFT`), NOT in the iterator. The
+data-file route needs none of that: the runtime path is **read-file -> interpolate -> fit -> assemble**, all
+inside `qcChargeDensity`'s existing deps (`qcFitting`, `qcMesh`, `qcStructure`, `qcBasisSet`). So Phase 0's
+`SeedStrategy` ctor and the `MakeSeedDensity(strategy,bs,st,ec)` signature **survive unchanged** — no
+Hamiltonian, no nested SCF, no config threading.
+
+**DFT-only.** Gate is "molecular DFT energies unchanged." A fitted-density seed CANNOT seed HF: `Ham_HF_*`
+builds **both** J and K from the density **matrix** via `AccumulateDirect`/`AccumulateExchange` (the DM-only
+methods a fit NA-asserts), so HF needs a real `D_ab` on iteration 0. DFT (`Ham_DFT_*`) consumes the density
+only through `rho(r)` (XC, `FittedVxc`) and `<rho|c>` (fitted Coulomb, `FittedVee::DoFit` -> cross-cast to
+`ProjectedDensity_AO`). So **HF keeps `CoreGuess`**; HF SAD (needs a DM seed = Route-1 territory, or a
+fit->DM projection) is a later phase.
+
+### 9.2 The seed object (the real new type-work)
+
+The seed must wear **three faces**: `tDM_CD<double>` + `ProjectedDensity_AO` + `ScalarFunction`, and
+**NA-assert the DM-only HF methods** (`AccumulateDirect`/`AccumulateExchange`), exactly like the dcmplx PW
+path. Why: `DoSCFIteration(tHamiltonian<T>&, const tDM_CD<T>*)` requires a `tDM_CD`; `FittedVee::DoFit`
+cross-casts it to `ProjectedDensity_AO` and asks `GetRepulsion3C=<rho|c>` + `FitGetConstraint=N`; `FittedVxc`
+samples `operator()(r)`. A fitted density supplies all of these from its fit coefficients
+(`<rho|c> = sum_d e_d <d|c>`, `rho(r)` directly) — **no DM**.
+
+Today's `FittedCD` is only a `ScalarFunction` and fits **from** a `DM_CD` (`DoFit(const DM_CD&)`), so it is
+NOT usable as-is. **New type needed:** a fitted-density that implements the three faces above (working name
+e.g. `SeededCD`/`FitSeed_CD`), built by fitting a **scalar** radial function.
+
+### 9.3 Assembly = per-atom split + CompositeCD (chosen over a single whole-structure fit)
+
+1. Split the molecular CD-fit basis into **per-atom `FIT_CD_ABS` groups** (basis primitive; the PG basis
+   owns it, structure-atom order — functions are already grouped by centre, see `IrrepBasisSet.C:65`).
+2. For each atom, fit its **recentred** radial `rho_elem(r)` onto that atom's group via
+   **`FunctionFitter_Scalar`** (the `ScalarFFClient`/`GetScalarFunction()` path — it takes a raw
+   `ScalarFunction`). NOTE the Coulomb-metric `FunctionFitter_Density` is **unavailable** here: its RHS
+   `GetRepulsion3C = sum_ab D_ab<ab|c>` needs a DM. So overlap-metric fit + **renormalize to the atom's
+   electron count** (good enough for a seed).
+3. Wrap each fit as the new fitted-`tDM_CD`; `Insert` into a `tComposite_CD<double>`. Renormalize the total
+   to `Nelec` (§6 representability).
+
+(`Seed()`/`MapSubBasis()` from earlier brainstorming are **dropped** — Route-1 artifacts.)
+
+### 9.4 The data file + generator
+
+- **File:** one neutral-atom radial density per element on a **log-radial grid**, JSON shaped like
+  `saito.json`/the GTH JSON: store the **grid-spec WITH the values** (`{kind, r_min, r_max, N}` or explicit
+  abscissae) `+` optional spin. Reader mirrors `GetGTH`. Consumers interpolate onto their own grid. The same
+  file later feeds the **PW form factor** (Phase 2).
+- **Functional-agnostic for now:** generate with **LDA**; other functionals read it and eat +/-1 iteration
+  (the seed only changes the path, not the converged minimum — the hard invariant). Later: a few files for
+  popular functionals; power users supply custom files.
+- **Generator: extend `scfrun.C` itself** (one-atom DFT driver, dumps `rho(r)`). scfrun's `--model` enum is
+  `HF|DHF|E1|DE1` with **no DFT** (DFT uses the other `Factory(Pol,st,alpha|ex,mesh,bs)` overload), so add a
+  DFT path + `--xc <LDA|...>` / `--alpha <float>` + `--out <json>` (or `--dump-density`), reusing the existing
+  flag vocabulary verbatim (`--Z --q --pol --basis --acc --accel --maxiter --minro/--minde/--virial/--minfd
+  --relax`, and the `--flag value` / `--flag=value` parser).
+
+### 9.5 Implementation order (each step regression-safe)
+
+a. Extend `scfrun.C` -> generate the JSON for the test elements (H, O, N, ...). Verify each `rho` integrates
+   to `Z`.
+b. JSON reader + radial interpolation onto a mesh.
+c. New fitted-density-as-`tDM_CD` type (three faces + NA-asserts).
+d. Per-atom `FIT_CD_ABS` split primitive on the basis.
+e. `MakeSeedDensity(SAD, bs, st, ec)` molecular face: per-atom scalar-fit -> `CompositeCD` -> renormalize.
+f. Flip the **molecular DFT** `Default` from `CoreGuess` to `SAD`; HF default stays `CoreGuess`. Gate: DFT
+   energies bit-identical, iters <= today.
+
+### 9.6 Deferred
+
+Route-1 live solve; per-element caching (moot — file replaces solves); per-functional file entries; HF SAD;
+spherical averaging (use the file's reference density as-is); the `tDM_CD::Seed()` virtual.

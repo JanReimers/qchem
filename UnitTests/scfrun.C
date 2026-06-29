@@ -6,13 +6,20 @@
 //
 #include <iostream>
 #include <iomanip>
+#include <fstream>
 #include <string>
+#include <vector>
 #include <map>
+#include <memory>
+#include <algorithm>
 #include <nlohmann/json.hpp>
 
 import qchem.BasisSet.Atom.Factory;
-import qchem.Unittests.QchemTester;       // QchemTester, TestAtom, TestDiracAtom, BasisSetAccuracy
+import qchem.Unittests.QchemTester;       // QchemTester, TestAtom, TestDiracAtom, BasisSetAccuracy, DM_CD
 import qchem.Hamiltonian.Factory;         // Model, Pol, Factory
+import qchem.Hamiltonian.Internal.Hamiltonians;  // Ham_DFTcorr_U (real LSDA: Dirac exchange + VWN5)
+import qchem.Math;                        // Pi
+import qchem.Types;                       // rvec3_t
 
 using std::cout;
 using std::endl;
@@ -35,6 +42,76 @@ public:
     CliDiracAtom(int Z,int q,Model _m,Pol _p) : TestDiracAtom(Z,q), m(_m), p(_p) {}
     virtual Hamiltonian* GetHamiltonian(st_t& c) const override { return Factory(m,p,c); }
 };
+// DFT atom for generating the SAD atomic-density file.  --xc LDA = real LSDA (Dirac exchange + VWN5
+// correlation, Ham_DFTcorr_U); --xc Xalpha = Slater X-alpha (alpha from --alpha, else the per-Z optimized
+// value).  Unpolarized: an open-shell atom comes out spherical-ish (fractional shell occupation), which is
+// exactly the spherically-averaged density a SAD seed wants.
+class CliDFTAtom : public TestAtom
+{
+    bool lda; double alpha;
+public:
+    CliDFTAtom(int Z,int q,bool _lda,double _alpha) : TestAtom(Z,q), lda(_lda), alpha(_alpha) {}
+    virtual Hamiltonian* GetHamiltonian(st_t& c) const override
+    {
+        if (lda) return new Ham_DFTcorr_U(c, GetMeshParams(), itsBasisSet);
+        double a = alpha>0 ? alpha : QchemTester::itsPT.GetSlaterAlpha(GetZ());
+        return Factory(Pol::UnPolarized, c, a, GetMeshParams(), itsBasisSet);
+    }
+};
+
+// Sample the converged density rho(r) on a log-radial grid (spherically averaged over a fixed direction
+// set), then MERGE the element's entry into the JSON database at `out` (saito.json-style array, one object
+// per element x functional).  Prints the integral 4*pi*int r^2 rho dr as a charge sanity check.
+static void DumpRadialDensity(QchemTester& t, int Z, int Nelec, const string& functional,
+                              const string& out, double rmin, double rmax, int ngrid)
+{
+    std::unique_ptr<qchem::ChargeDensity::DM_CD> cd(t.GetChargeDensity());   // caller owns
+
+    // 26 directions (cube faces+edges+corners), normalized -> a cheap spherical average.
+    std::vector<rvec3_t> dirs;
+    const double b=1.0/std::sqrt(2.0), c=1.0/std::sqrt(3.0);
+    const int s[]={-1,1};
+    for (int x:s){ dirs.push_back(rvec3_t(x,0,0)); dirs.push_back(rvec3_t(0,x,0)); dirs.push_back(rvec3_t(0,0,x)); }
+    for (int x:s) for (int y:s){ dirs.push_back(rvec3_t(b*x,b*y,0)); dirs.push_back(rvec3_t(b*x,0,b*y)); dirs.push_back(rvec3_t(0,b*x,b*y)); }
+    for (int x:s) for (int y:s) for (int z:s) dirs.push_back(rvec3_t(c*x,c*y,c*z));
+
+    const double lr = std::log(rmax/rmin)/(ngrid-1);   // log spacing in u=ln r
+    std::vector<double> rho(ngrid);
+    double charge=0;
+    for (int i=0;i<ngrid;i++)
+    {
+        double r = rmin*std::exp(lr*i);
+        double avg=0;
+        for (const auto& u:dirs) avg += (*cd)(u*r);
+        rho[i]=avg/dirs.size();
+        double w = (i==0||i==ngrid-1) ? 0.5 : 1.0;     // trapezoid in u; dr = r du
+        charge += w * 4.0*Pi*r*r*rho[i] * r*lr;
+    }
+
+    nlohmann::json entry = {
+        {"Z", Z}, {"symbol", QchemTester::itsPT.GetSymbol(Z)}, {"Nelec", Nelec},
+        {"functional", functional},
+        {"grid", {{"kind","log"},{"rmin",rmin},{"rmax",rmax},{"N",ngrid}}},
+        {"charge", charge},          // 4*pi*int r^2 rho dr (~ Nelec)
+        {"rho", rho},
+    };
+
+    nlohmann::json db = nlohmann::json::array();
+    { std::ifstream in(out); if (in) in >> db; }       // load existing database (if any)
+    if (!db.is_array()) db = nlohmann::json::array();
+    // replace any existing entry for this (Z, functional)
+    for (auto it=db.begin(); it!=db.end(); )
+        if ((*it).value("Z",-1)==Z && (*it).value("functional",string())==functional) it=db.erase(it);
+        else ++it;
+    db.push_back(entry);
+    std::sort(db.begin(), db.end(), [](const nlohmann::json& a, const nlohmann::json& b2)
+              { return a.value("Z",0) < b2.value("Z",0); });
+    std::ofstream(out) << db.dump(1,'\t') << endl;
+
+    cout << "density dump: " << functional << " Z=" << Z << " -> " << out
+         << "  (grid log " << rmin << ".." << rmax << " N=" << ngrid
+         << ", charge=" << std::setprecision(6) << charge << " vs Nelec=" << Nelec << ")" << endl;
+}
 
 int main(int argc, char** argv)
 {
@@ -44,6 +121,8 @@ int main(int argc, char** argv)
     nlohmann::json accj;   // accelerator config passed to QchemTester
     // SCF convergence criteria (-1 => Z-scaled default); raise precision with --minfd/--virial.
     double minro=-1, minde=1e-5, virial=5e-1, minfd=-1, relax=0.5;
+    // SAD atomic-density generation (DFT models only): dump rho(r) on a log grid to a JSON database.
+    string out=""; double rmin=1e-4, rmax=20.0, alpha=-1; int ngrid=400;
 
     // ---- help text ----
     auto usage=[&](std::ostream& os){
@@ -56,7 +135,9 @@ int main(int argc, char** argv)
         " System / method:\n"
         "  --Z <int>          atomic number                          (default 2)\n"
         "  --q <int>          net charge (electrons = Z - q)          (default 0)\n"
-        "  --model <name>     HF | DHF | E1 | DE1                     (default HF)\n"
+        "  --model <name>     HF | DHF | E1 | DE1 | LDA | Xalpha      (default HF)\n"
+        "                       (LDA/Xalpha are atom-DFT, for SAD density generation)\n"
+        "  --alpha <float>    Xalpha exchange parameter (default: per-Z optimized)\n"
         "  --pol <U|P>        Unpolarized or Polarized                (default U)\n"
         "  --basis <name>     Slater|Gaussian|BSpline6|BSpliner6|Slater_RKB|Gaussian_RKB\n"
         "                       (default Slater, or Slater_RKB for Dirac models)\n"
@@ -79,6 +160,12 @@ int main(int argc, char** argv)
         "  --virial <float>   converge when |2+V/K| < virial          (default 0.5)\n"
         "  --minro <float>    converge when charge-density change < minro (default Z*1e-4)\n"
         "  --relax <float>    initial density relaxation factor       (default 0.5)\n"
+        "\n"
+        " SAD atomic-density generation (LDA/Xalpha models only):\n"
+        "  --out <file>       merge rho(r) for this element into JSON database <file>\n"
+        "  --rmin <float>     log-grid inner radius (bohr)            (default 1e-4)\n"
+        "  --rmax <float>     log-grid outer radius (bohr)            (default 20)\n"
+        "  --ngrid <int>      number of log-grid points               (default 400)\n"
         "\n"
         "  -h, --help         show this help and exit\n";
     };
@@ -115,9 +202,15 @@ int main(int argc, char** argv)
         else if (a=="--virial")  virial=std::stod(need(i));
         else if (a=="--minro")   minro=std::stod(need(i));
         else if (a=="--relax")   relax=std::stod(need(i));
+        else if (a=="--alpha")   alpha=std::stod(need(i));
+        else if (a=="--out")     out=need(i);
+        else if (a=="--rmin")    rmin=std::stod(need(i));
+        else if (a=="--rmax")    rmax=std::stod(need(i));
+        else if (a=="--ngrid")   ngrid=std::stoi(need(i));
         else { cout<<"unknown option "<<argv[i]<<endl; usage(cout); return 1; }
     }
     bool dirac = (model=="DHF" || model=="DE1");
+    bool dft   = (model=="LDA" || model=="DFT" || model=="Xalpha");
     if (basis.empty()) basis = dirac ? "Slater_RKB" : "Slater";
     accj["type"]=accel;
 
@@ -129,13 +222,15 @@ int main(int argc, char** argv)
                                {"BSpliner6",BT::BSpliner6},{"Slater_RKB",BT::Slater_RKB},{"Gaussian_RKB",BT::Gaussian_RKB}};
     std::map<string,BasisSetAccuracy> accs={{"N3",BasisSetAccuracy::N3},{"N5",BasisSetAccuracy::N5},
                                {"Low",BasisSetAccuracy::Low},{"Medium",BasisSetAccuracy::Medium},{"High",BasisSetAccuracy::High}};
-    if (!models.count(model)||!bases.count(basis)||!accs.count(acc)){cout<<"bad model/basis/acc"<<endl;return 1;}
+    // DFT models (LDA/Xalpha) bypass the Model enum (they use the DFT Hamiltonian factory, not Factory(Model,...)).
+    if ((!dft && !models.count(model))||!bases.count(basis)||!accs.count(acc)){cout<<"bad model/basis/acc"<<endl;return 1;}
 
     cout << "scfrun: Z="<<Z<<" q="<<q<<" model="<<model<<" pol="<<pol
          << " basis="<<basis<<" acc="<<acc<<" accel="<<accel<<" : "<<accj.dump()<<endl;
 
     // ---- run ----
-    QchemTester* t = dirac ? (QchemTester*) new CliDiracAtom(Z,q,models[model],pp)
+    QchemTester* t = dft   ? (QchemTester*) new CliDFTAtom  (Z,q,model!="Xalpha",alpha)
+                   : dirac ? (QchemTester*) new CliDiracAtom(Z,q,models[model],pp)
                            : (QchemTester*) new CliAtom     (Z,q,models[model],pp);
     t->SetAcceleratorConfig(accj);
     t->Init(accs[acc], bases[basis], false);
@@ -151,6 +246,11 @@ int main(int argc, char** argv)
          << "  converged="<<(t->Converged()?"yes":"no") << endl;
     if (model=="HF")  t->RelativeHFError();
     if (model=="DHF") t->RelativeDHFError();
+
+    // ---- SAD density file (DFT models only) ----
+    if (dft && !out.empty())
+        DumpRadialDensity(*t, Z, Z-q, (model=="Xalpha"?"Xalpha":"LDA"), out, rmin, rmax, ngrid);
+
     delete t;
     return 0;
 }

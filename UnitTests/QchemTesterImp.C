@@ -96,6 +96,12 @@ double QchemTester::TotalCharge() const
     return itsSCFIterator->GetWaveFunction()->GetChargeDensity()->GetTotalCharge();
 }
 
+qchem::ChargeDensity::DM_CD* QchemTester::GetChargeDensity() const
+{
+    assert(itsSCFIterator);
+    return itsSCFIterator->GetWaveFunction()->GetChargeDensity();   // caller owns
+}
+
 const Orbitals* QchemTester::GetOrbitals(const Irrep& qns) const
 {
     return itsSCFIterator->GetWaveFunction()->GetOrbitals(qns);
