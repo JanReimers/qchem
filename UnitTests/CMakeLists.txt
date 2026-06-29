@@ -8,6 +8,7 @@ add_executable(UTMain gtestmain.C QchemTesterImp.C
     EigenSolverUT.C
     LDA_XC_UT.C
     PlaneWaveDFTUT.C
+    AtomicDensityUT.C
     A_HF_U.C A_HF_P.C A_DHF.C A_DFT.C A_DFT_U.C M_HF_U.C M_DFT.C M_Sym.C
     )
 target_sources(UTMain PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES QchemTester.C)
