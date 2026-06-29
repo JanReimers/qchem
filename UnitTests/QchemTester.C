@@ -84,7 +84,7 @@ protected:
     nlohmann::json         itsAccConfig; //SCF accelerator config (empty => DIIS defaults)
     qchem::ChargeDensity::SeedStrategy itsSeed = qchem::ChargeDensity::SeedStrategy::Default;
 public:
-    static PeriodicTableSaito itsPT;
+    static const PeriodicTableSaito& itsPT;
 };
 
 

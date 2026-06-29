@@ -163,6 +163,12 @@ PeriodicTableSaito::PeriodicTableSaito()
 
 }
 
+const PeriodicTableSaito& thePeriodicTable()
+{
+    static const PeriodicTableSaito theTable;   // loaded once, on first use
+    return theTable;
+}
+
 size_t PeriodicTableSaito::GetZ(const std::string& symbol) const
 {
     for (size_t i=0; i<elements.size(); i++)

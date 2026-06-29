@@ -13,7 +13,7 @@ import qchem.Math;
 
 using qchem::SCFAccelerators::SCFAccelerator;
 
-PeriodicTableSaito QchemTester::itsPT;
+const PeriodicTableSaito& QchemTester::itsPT = thePeriodicTable();   // the one shared table
 
 QchemTester::QchemTester(ElectronConfiguration* ec)
 : itsStructure(0)

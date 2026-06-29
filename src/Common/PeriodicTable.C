@@ -75,5 +75,11 @@ export
         }
         std::vector<ElementRecordSaito> elements;
     };
+
+    //! The one shared periodic table.  Construct-on-first-use (function-local static): the ctor reads several
+    //! JSON files, so a single instance replaces the ~handful of per-TU copies that each reloaded everything;
+    //! the function-local static also side-steps the static-initialization-order fiasco (see common_data_dir).
+    //! Returned by const reference -- the table is immutable reference data, safe to share everywhere.
+    const PeriodicTableSaito& thePeriodicTable();
 } //export block
 

@@ -16,7 +16,6 @@ import qchem.Blaze;
 using std::cout;
 using std::endl;
 
-PeriodicTableSaito pt;
 
 const int Atom_EC::FullShells[Nshell][LMax+2]=
 { // Z   s p d f
@@ -36,7 +35,7 @@ Atom_EC::Atom_EC(int Z, NsOnly_t)
     assert(Z>0);
     assert(Z<=N_Elements);
 
-    const size_t* vc=pt.GetValanceConfiguration(Z);  //Valance electron counts
+    const size_t* vc=thePeriodicTable().GetValanceConfiguration(Z);  //Valance electron counts
 
     // Step 1: Hunt for the nearest for full shell for Z.
     int ns=0;
@@ -71,7 +70,7 @@ Atom_EC::Atom_EC(int Z, NsOnly_t)
         l++;
     }
     // Step 3:  Figure out where all the unpaired electrons land.
-    AssignUnpaired(Z, pt.GetNumUnpairedElectrons(Z));
+    AssignUnpaired(Z, thePeriodicTable().GetNumUnpairedElectrons(Z));
 }
 
 // Distribute the atom's unpaired electrons into itsNs.Nu.  This is complicated by atoms like Cr with 6
@@ -199,7 +198,7 @@ Atom_EC::Atom_EC(int Z, ValenceOnly_t)
     assert(Z>0);
     assert(Z<=N_Elements);
 
-    const size_t* vc=pt.GetValanceConfiguration(Z);  //Raw valence electron counts per l
+    const size_t* vc=thePeriodicTable().GetValanceConfiguration(Z);  //Raw valence electron counts per l
     for (size_t l=0;l<=LMax;l++)
     {
         itsNs.Nf[l]=0;                 //no core: the pseudopotential replaces it
@@ -207,7 +206,7 @@ Atom_EC::Atom_EC(int Z, ValenceOnly_t)
         itsNs.N [l]=vc[l];
         if (vc[l]>0) {itsLMax=l; itsLValance=l;}
     }
-    AssignUnpaired(Z, pt.GetNumUnpairedElectrons(Z));
+    AssignUnpaired(Z, thePeriodicTable().GetNumUnpairedElectrons(Z));
 }
 
 PseudoAtom_EC::PseudoAtom_EC(int Z)

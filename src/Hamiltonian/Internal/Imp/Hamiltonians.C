@@ -135,12 +135,11 @@ Ham_PW_DFT::Ham_PW_DFT(const st_t& st, std::initializer_list<std::pair<std::stri
 void Ham_PW_DFT::BuildFromGTH(const st_t& st, const std::vector<std::pair<std::string,int>>& species,
                               const std::string& functional)
 {
-    PeriodicTableSaito pt;
     auto loc=std::make_shared<Pseudopotential::MultiSpecies_LocalPotential>();
     auto sep=std::make_shared<Pseudopotential::MultiSpecies_SeparablePotential>();
     for (const auto& [element, valence] : species)
     {
-        int Z=pt.GetZ(element);                          // atomic number = the atoms' itsZ key
+        int Z=thePeriodicTable().GetZ(element);          // atomic number = the atoms' itsZ key
         Pseudopotential::GTH_PP pp=Pseudopotential::GetGTH(element, functional, valence);
         loc->Add(Z, std::make_shared<Pseudopotential::HGH_LocalPotential>(pp.local));
         sep->Add(Z, std::make_shared<Pseudopotential::HGH_SeparablePotential>(pp.nonlocal));
