@@ -8,6 +8,7 @@ target_sources(qcChargeDensity PRIVATE
     Internal/Imp/PolarizedCDImp.C
     Imp/Seed.C
     Imp/AtomicDensity.C
+    Imp/CompositeFittedCD.C
 )
 target_sources(qcChargeDensity PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     ChargeDensity.C
@@ -17,6 +18,7 @@ target_sources(qcChargeDensity PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES F
     Factory.C
     Seed.C
     AtomicDensity.C
+    CompositeFittedCD.C
     Types.C
     Internal/IrrepCD.C
     Internal/FittedCDImp.C
