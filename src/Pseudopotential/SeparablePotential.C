@@ -185,13 +185,21 @@ private:
     static double Qli(double x, int l, int i)
     {
         using std::sqrt;
+        double x2=x*x;
         if (l==0 && i==0) return 4*sqrt(2.0);
-        if (l==0 && i==1) return 8*sqrt(2.0/15)*(3-x*x);
-        if (l==0 && i==2) return (16.0/3)*sqrt(2.0/105)*(15-10*x*x+x*x*x*x);
+        if (l==0 && i==1) return 8*sqrt(2.0/15)*(3-x2);
+        if (l==0 && i==2) return (16.0/3)*sqrt(2.0/105)*(15-10*x2+x2*x2);
         if (l==1 && i==0) return 8*sqrt(1.0/3);
-        if (l==1 && i==1) return 16*sqrt(1.0/105)*(5-x*x);
+        if (l==1 && i==1) return 16*sqrt(1.0/105)*(5-x2);
+        if (l==1 && i==2) return (32.0/3)*sqrt(1.0/1155)*(35-14*x2+x2*x2);
         if (l==2 && i==0) return 8*sqrt(2.0/15);
-        assert(false && "HGH Q_i^l: channel not tabulated"); return 0.0;
+        if (l==2 && i==1) return (16.0/3)*sqrt(2.0/105)*(7-x2);
+        if (l==3 && i==0) return 16*sqrt(1.0/105);
+        if (l==3 && i==1) return (32.0/3)*sqrt(1.0/1155)*(9-x2);
+        // The real-space ProjR is general in (l,i); these momentum-space polynomials Q_i^l are the matching
+        // closed forms (Goedecker/HGH; pyscf _qli), each cross-checked numerically by the Bessel transform
+        // int ProjR(r) j_l(qr) r^2 dr == ProjG (UTPseudopotential).  l<=3 covers all tabulated GTH/HGH species.
+        assert(false && "HGH Q_i^l: channel not tabulated (l<=3 supported)"); return 0.0;
     }
 
     //! Reciprocal HGH projector projG_li(q) = Q_i^l(q r_l) pi^{5/4} q^l sqrt(r_l^{2l+3}) e^{-(q r_l)^2/2}.
