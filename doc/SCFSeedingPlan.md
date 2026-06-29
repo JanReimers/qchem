@@ -305,10 +305,11 @@ e/f. **DONE** (`65b06892`) -- `MakeSeedDensity(SAD)` builds the `CompositeFitted
    bit-identical; N2/Sph to ~1e-10, the 20-iter-cap floor). SAD is DFT-only; molecular `Default` stays
    `CoreGuess`, DFT opts in. 138/138 green.
 
-> **Note on the ISP (option 1), still deferred:** the proper fix is to split `tDM_CD` into a DFT-only
-> `tChargeDensity` base (what the Hamiltonian framework takes) + a `tDM_CD` derived face adding the HF
-> `AccumulateDirect`/`AccumulateExchange`; the HF terms `dynamic_cast` to `tDM_CD`. Then `CompositeFittedCD`
-> is a `tChargeDensity` with no `assert(false)` stubs. Do this before HF SAD or as a cleanup pass.
+> **The ISP (option 1) is DONE** (`007b9c93`). `tDM_CD<T>` was split into a DFT-only `tChargeDensity<T>`
+> base (rho(r)/GetTotalCharge/Version/ReScale -- the Fock-build face the framework now takes) + a `tDM_CD<T>`
+> derived face adding the matrix-only ops (DM_Contract, MixIn/GetChangeFrom, HF AccumulateDirect/Exchange).
+> Energy/loop keep `tDM_CD`; the 3 HF sites (Vee/Vxc/VxcPol) `dynamic_cast` to `tDM_CD`. `CompositeFittedCD`
+> is now a clean `tChargeDensity` with **zero `assert(false)` stubs**. Release 138/138 + Debug 117/117 green.
 
 ### 9.6 Deferred
 
