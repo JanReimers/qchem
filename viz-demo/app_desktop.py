@@ -166,9 +166,23 @@ class MainWindow(QtWidgets.QMainWindow):
         self._refresh_3d()
 
 
+def default_backend():
+    """Prefer the real qchem backend (computed HF water); fall back to the
+    analytic stand-in if the nanobind extension isn't built."""
+    try:
+        from qviz.backend_qchem import QChemBackend
+        be = QChemBackend()
+        print(f"qchem backend: real HF/dzvp water, E = {be.total_energy():.6f} Ha")
+        return be
+    except Exception as e:
+        from qviz import AnalyticBackend
+        print(f"qchem extension unavailable ({e}); using analytic backend")
+        return AnalyticBackend()
+
+
 def main():
     app = QtWidgets.QApplication(sys.argv)
-    w = MainWindow(); w.show()
+    w = MainWindow(default_backend()); w.show()
     sys.exit(app.exec())
 
 

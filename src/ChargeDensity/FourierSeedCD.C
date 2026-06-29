@@ -30,7 +30,11 @@ class FourierSeedCD
 public:
     //! Build the seed for plane-wave block \a basis and structure \a st: read each element's pseudo-valence
     //! radial density (\a functional, from atomic_valence_densities.json) and prepare the form-factor sum.
-    FourierSeedCD(const BasisSet::Band_FT_IBS* basis, const Structure* st, const std::string& functional="LDA");
+    //! \a ionicScaleByZ is the per-species IonicSAD multiplier (empty => neutral SAD, all 1.0): species \c Z
+    //! gets its valence density scaled by \c (N_val - q_Z)/N_val so the seed carries the formal charge \c q_Z
+    //! (Na+ -> 0, F- -> 8/7); the total still integrates to the cell's electron count (sum of charges = 0).
+    FourierSeedCD(const BasisSet::Band_FT_IBS* basis, const Structure* st, const std::string& functional="LDA",
+                  const std::map<size_t,double>& ionicScaleByZ = {});
 
     // FourierDensity -- the native G-space representation the PW Hartree/XC terms consume.
     virtual FourierMap GetFourierDensity() const;
@@ -49,8 +53,9 @@ private:
     const BasisSet::Band_FT_IBS* itsBasis;        //!< the plane-wave block (G-space assembler); not owned
     const Structure*             itsStructure;    //!< atom Z + positions; not owned
     std::map<size_t,std::shared_ptr<const RadialDensity>> itsRadByZ; //!< per-element (Z) valence radial density
+    std::map<size_t,double>                            itsScaleByZ; //!< per-element IonicSAD multiplier (def 1.0)
     std::vector<RecentredAtomicDensity>                itsRecentred; //!< per-atom rho_atom(|r-R|) for op(r)
-    double itsCharge;     //!< total valence electron count (Sum_atoms N_val), pre-scale
+    double itsCharge;     //!< total (post-ionic-scale) valence electron count, pre-ReScale
     double itsScale=1.0;  //!< uniform scale applied by ReScale
     size_t itsVersion;    //!< transient freshness serial
 };

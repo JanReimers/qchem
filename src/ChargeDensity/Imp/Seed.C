@@ -7,6 +7,8 @@ module;
 #include <vector>
 #include <utility>
 #include <algorithm>
+#include <map>
+#include <cmath>
 
 module qchem.ChargeDensity.Seed;
 import qchem.PeriodicTable;                   // thePeriodicTable -> GetElectronegativity (the ionic heuristic)
@@ -110,8 +112,39 @@ template <class T> tChargeDensity<T>* MakeSeedDensity(SeedStrategy s, const Basi
         }
     }
     case SeedStrategy::IonicSAD:
-        assert(false && "IonicSAD seed is Phase 3");
-        return nullptr;
+    {
+        // Ionic superposition: like SAD but each species' valence density is scaled to its formal-charge
+        // electron count (Na+ -> 0, F- -> 8/7), pre-baking the charge transfer the neutral SAD leaves for
+        // the SCF.  The formal charges come from the structure-wide electronegativity heuristic
+        // (IonicFormalCharges); per-species N_val is the valence density's charge.  Plane-wave path only for
+        // now (NaF/CsI are PW); molecular IonicSAD is a later phase.
+        if constexpr (std::is_same_v<T,dcmplx>)
+        {
+            assert(st && "IonicSAD plane-wave seed needs a Structure");
+            const auto* ftbs = dynamic_cast<const BasisSet::Band_FT_IBS*>((*bs)[0]);
+            assert(ftbs && "IonicSAD plane-wave seed needs a Band_FT_IBS (plane-wave) basis");
+
+            std::vector<std::pair<int,int>> atoms;                      // {Z, N_val} per atom
+            std::map<size_t,int> nvalByZ;
+            for (size_t i=0;i<st->GetNumAtoms();i++)
+            {
+                int Z = (*st)[i]->itsZ;
+                if (!nvalByZ.count(Z))
+                    nvalByZ[Z] = (int)std::lround(GetAtomicDensity(Z,"LDA","atomic_valence_densities.json").Charge());
+                atoms.emplace_back(Z, nvalByZ[Z]);
+            }
+            std::vector<int> q = IonicFormalCharges(atoms);             // Na+1, F-1; conserves charge
+            std::map<size_t,double> scaleByZ;
+            for (size_t i=0;i<atoms.size();i++)                         // species Z -> (N_val - q)/N_val
+                scaleByZ[atoms[i].first] = double(atoms[i].second - q[i]) / double(atoms[i].second);
+            return new FourierSeedCD(ftbs, st, "LDA", scaleByZ);
+        }
+        else
+        {
+            assert(false && "molecular (AO) IonicSAD is a later phase; use SAD or the plane-wave path");
+            return nullptr;
+        }
+    }
 
     default:
         assert(false && "unknown SeedStrategy");

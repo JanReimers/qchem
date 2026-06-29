@@ -63,10 +63,25 @@ needed. To override: `QT_QPA_PLATFORM=wayland python app_desktop.py`.
 `scf_convergence.gif` (streamed ΔE / ‖[F,D]‖ / ‖Δρ‖), `contact_sheet.png`,
 and `water.qproj.h5` (a saved project, round-tripped on load).
 
-## Next step toward the real thing
+## The real backend (DONE, static pass)
 
-Write `backend_qchem.QChemBackend(ComputeBackend)` with nanobind:
-1. expose `Molecule` geometry → `Structure`;
-2. sample an existing `ChargeDensity` on a grid → `ScalarField` (zero-copy);
-3. add a per-iteration callback to the SCF driver that `yield`s `SCFStep`.
-Point `app_desktop.py` at it instead of `AnalyticBackend`. Done.
+`qviz.backend_qchem.QChemBackend` is the genuine article: it runs a molecular HF
+SCF in C++ (via the `qchem_py` nanobind module) and samples the converged
+density / HOMO / gradient. `app_desktop.py` uses it by default and falls back to
+the analytic backend if the extension isn't built. Verified: water HF/dzvp
+**E = −76.0229 Ha** (matches the `M_HF_U_Water` regression anchor).
+
+Build the extension once (full command in `doc/NanobindBindingPlan.md`):
+
+```bash
+cmake -S ../.. -B ../../build/PIC -G Ninja -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DQCHEM_PYBIND=ON \
+  -DPython_EXECUTABLE=$PWD/.venv/bin/python
+ninja -C ../../build/PIC qchem_py
+```
+
+Binding source is in `pybind/` (3-file split: a C++20 module-unit bridge, a flat
+C ABI, the nanobind layer — see the plan doc for why).
+
+Still to do: live SCF streaming (an observer hook in `SCFIterator`), more
+elements, DFT models, geometry input in the UI.

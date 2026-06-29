@@ -1108,9 +1108,10 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaThroughSCFIterator)
 // the lattice, seed a UNIFORM density, run the full SCFIterator (complex DIIS), and report.  Takes
 // ownership of \a ham (the SCFIterator deletes it).  Mirrors the Si framework test body.
 namespace {
-struct FwResult { bool converged; double charge; qchem::EnergyBreakdown E; };
+struct FwResult { bool converged; double charge; qchem::EnergyBreakdown E; size_t iters; };
 FwResult RunFrameworkGamma(const Lattice_3D& lat, double Ecut, int Nelec,
-                           qchem::Hamiltonian::cHamiltonian* ham, const char* label)
+                           qchem::Hamiltonian::cHamiltonian* ham, const char* label,
+                           qchem::ChargeDensity::SeedStrategy seed=qchem::ChargeDensity::SeedStrategy::Uniform)
 {
     namespace L3=BasisSet::Lattice_3D;
     std::unique_ptr<BasisSet::Complex_BS> bs(L3::Factory(L3::Type::PW, lat, Ecut));
@@ -1121,9 +1122,8 @@ FwResult RunFrameworkGamma(const Lattice_3D& lat, double Ecut, int Nelec,
     // EMax must exceed the ionic [F,D] error (~1.4-3) or DIIS bails ("En>EMax") and linear mixing
     // oscillates on the strong Madelung field.  Engage DIIS from the start (EMax large).
     auto* acc=new qchem::SCFAccelerators::cSCFAcceleratorDIIS(DIISParams{10, 8.0, 1e-10, 1e-9});
-    // Uniform seed rho(r)=N/V (built centrally by MakeSeedDensity; also the plane-wave Default).
-    qchem::SCFIterator::cSCFIterator scf(bs.get(), &ec, ham, acc,
-                                         qchem::ChargeDensity::SeedStrategy::Uniform);
+    // \a seed defaults to Uniform rho(r)=N/V; IonicSAD pre-bakes the formal-charge transfer (Na+ + F-).
+    qchem::SCFIterator::cSCFIterator scf(bs.get(), &ec, ham, acc, seed, lat.GetStructure().get());
     SCFParams par;
     par.NMaxIter=120; par.MinΔρ=1e-6; par.MinΔFD=1e30; par.MinVirial=1e30; par.MinFD=1e30;
     par.StartingRelaxRo=0.3; par.MergeTol=1e-4; par.Verbose=false;
@@ -1136,7 +1136,7 @@ FwResult RunFrameworkGamma(const Lattice_3D& lat, double Ecut, int Nelec,
     std::cout << "["<<label<<"] nPW="<<n<<" iters="<<scf.GetIterationCount()<<" charge="<<charge
               << " Etot="<<E.GetTotalEnergy() << "  (Ekin="<<E.Kinetic<<" Een="<<E.Een
               << " Eee="<<E.Eee<<" Exc="<<E.Exc<<" Enn="<<E.Enn<<" Ealign="<<E.Ealign<<")" << std::endl;
-    return {scf.Converged(), charge, E};
+    return {scf.Converged(), charge, E, scf.GetIterationCount()};
 }
 } // namespace
 
@@ -1152,15 +1152,28 @@ TEST_F(PlaneWaveDFT, FrameworkNaFThroughSCFIterator)
     cell.AddAtom(9,  {0.5,0.5,0.5});              // F   (true species Z=9;  Zion=7)
     Lattice_3D lat(cell, ivec3_t(1,1,1));
 
-    cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), {{"Na",1},{"F",7}}, "LDA");  // multi-species one-call
+    using SS=qchem::ChargeDensity::SeedStrategy;
+    auto mkHam=[&]{ return new Ham_PW_DFT(lat.GetStructure(), {{"Na",1},{"F",7}}, "LDA"); }; // multi-species one-call
 
-    FwResult R=RunFrameworkGamma(lat, /*Ecut*/6.0, /*Nelec*/8, ham, "NaF SCFIterator-Gamma");
+    // IonicSAD seed: the electronegativity heuristic assigns Na+ / F-, and the per-species valence densities
+    // are scaled to the formal-charge electron counts (0 e- on Na, 8 e- on F) -- the seed pre-bakes the
+    // Na->F charge transfer and CONSERVES the cell electron count.  This asserts the seed is CORRECT (charge
+    // sum rule + same converged energy as Uniform: the seed cannot change the answer).
+    FwResult I=RunFrameworkGamma(lat, /*Ecut*/6.0, /*Nelec*/8, mkHam(), "NaF IonicSAD", SS::IonicSAD);
+    FwResult U=RunFrameworkGamma(lat, /*Ecut*/6.0, /*Nelec*/8, mkHam(), "NaF Uniform",  SS::Uniform);
+    std::cout << "[NaF seed compare] IonicSAD iters="<<I.iters<<"  Uniform iters="<<U.iters << std::endl;
 
-    EXPECT_TRUE(R.converged);
-    EXPECT_NEAR(R.charge, 8.0, 1e-6);             // 1 (Na) + 7 (F) valence electrons
+    EXPECT_TRUE(I.converged);
+    EXPECT_NEAR(I.charge, 8.0, 1e-6);             // 1 (Na) + 7 (F) valence electrons, conserved by the ionic seed
     // Regression anchor (Ecut=6, Gamma-only -> underconverged but deterministic), like the Si total.
     // Negative: the ionic Madelung (Enn~-14) + G=0 alignment dominate.
-    EXPECT_NEAR(R.E.GetTotalEnergy(), -20.3293, 5e-3) << "Enn="<<R.E.Enn<<" Ealign="<<R.E.Ealign;
+    EXPECT_NEAR(I.E.GetTotalEnergy(), -20.3293, 5e-3) << "Enn="<<I.E.Enn<<" Ealign="<<I.E.Ealign;
+    EXPECT_NEAR(I.E.GetTotalEnergy(), U.E.GetTotalEnergy(), 1e-3);   // seed-independence of the converged answer
+    // NOTE: IonicSAD does NOT (yet) beat Uniform on iterations for NaF (~69 vs ~58 at Ecut=6).  The crude
+    // ionic density -- the neutral F valence scaled x8/7 -- is too COMPACT (the real F- electron is diffuse),
+    // injecting high-G content much like the Si all-electron core peak did before the smooth pseudo-valence
+    // density landed.  The iteration win awaits a proper anion (F-) pseudo-valence density; the heuristic +
+    // charge-conserving seed wiring are correct and in place.  See doc/SCFSeedingPlan.md section 3.3.
 }
 
 // Heavy multi-species ionic crystal CsI (CsCl = simple cubic + 2-atom basis).  THE d-PROJECTOR TEST: both

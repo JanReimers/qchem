@@ -14,7 +14,8 @@ module qchem.ChargeDensity.FourierSeedCD;
 namespace qchem::ChargeDensity
 {
 
-FourierSeedCD::FourierSeedCD(const BasisSet::Band_FT_IBS* basis, const Structure* st, const std::string& functional)
+FourierSeedCD::FourierSeedCD(const BasisSet::Band_FT_IBS* basis, const Structure* st, const std::string& functional,
+                             const std::map<size_t,double>& ionicScaleByZ)
     : itsBasis(basis), itsStructure(st), itsCharge(0.0)
     , itsVersion(NextDensityVersion())   // shared global clock (no cross-kind collisions)
 {
@@ -25,10 +26,14 @@ FourierSeedCD::FourierSeedCD(const BasisSet::Band_FT_IBS* basis, const Structure
         const Atom* a = (*st)[i];
         auto it = itsRadByZ.find(a->itsZ);
         if (it==itsRadByZ.end())
+        {
             it = itsRadByZ.emplace(a->itsZ,
                      std::make_shared<const RadialDensity>(
                          GetAtomicDensity(a->itsZ, functional, "atomic_valence_densities.json"))).first;
-        itsCharge += it->second->Charge();                    // ~ N_val for this atom
+            auto si = ionicScaleByZ.find(a->itsZ);            // per-species IonicSAD scale (default 1.0)
+            itsScaleByZ[a->itsZ] = (si!=ionicScaleByZ.end()) ? si->second : 1.0;
+        }
+        itsCharge += itsScaleByZ.at(a->itsZ) * it->second->Charge();   // (N_val - q_Z) for this atom
         itsRecentred.emplace_back(it->second, a->itsR);       // for real-space op(r)
     }
     assert(itsCharge>0);
@@ -42,27 +47,31 @@ FourierMap FourierSeedCD::GetFourierDensity() const
     auto memo = std::make_shared<std::map<std::pair<int,double>,double>>();
     auto formFactor = [this,memo](int Z, double g2)->double
     {
+        // The memo holds the RAW species form factor; the uniform ReScale (itsScale) and the per-species
+        // IonicSAD multiplier (itsScaleByZ) are applied on the way out.
+        double s = itsScale * itsScaleByZ.at(Z);
         auto key = std::make_pair(Z,g2);
         auto it = memo->find(key);
-        if (it!=memo->end()) return itsScale*it->second;
+        if (it!=memo->end()) return s*it->second;
         double ff = itsRadByZ.at(Z)->FormFactor(std::sqrt(g2));
         (*memo)[key]=ff;
-        return itsScale*ff;
+        return s*ff;
     };
     return itsBasis->MakeFourierDensity(itsStructure, formFactor);
 }
 
 double FourierSeedCD::operator()(const rvec3_t& r) const
 {
-    double rho=0;
-    for (const auto& d : itsRecentred) rho += d(r);
+    double rho=0;   // itsRecentred is parallel to the structure's atoms -> per-atom IonicSAD scale by Z
+    for (size_t i=0;i<itsRecentred.size();i++) rho += itsScaleByZ.at((*itsStructure)[i]->itsZ) * itsRecentred[i](r);
     return itsScale*rho;
 }
 
 rvec3_t FourierSeedCD::Gradient(const rvec3_t& r) const
 {
     rvec3_t g(0,0,0);
-    for (const auto& d : itsRecentred) g += d.Gradient(r);
+    for (size_t i=0;i<itsRecentred.size();i++)
+        g += itsScaleByZ.at((*itsStructure)[i]->itsZ) * itsRecentred[i].Gradient(r);
     return itsScale*g;
 }
 

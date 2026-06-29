@@ -83,3 +83,10 @@ Blaze_Import(
    THRESHOLD_SMP_DVECDVECADD 1000000UL
 )
 
+# Python bindings (pybind/qchem_py) -- OFF by default so the normal build is untouched.
+# Enable with: -DQCHEM_PYBIND=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON -DPython_EXECUTABLE=<venv python>
+option(QCHEM_PYBIND "Build the nanobind Python bindings (pybind/)" OFF)
+if(QCHEM_PYBIND)
+    add_subdirectory(pybind)
+endif()
+
