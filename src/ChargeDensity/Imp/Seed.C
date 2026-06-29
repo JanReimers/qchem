@@ -4,8 +4,12 @@ module;
 #include <type_traits>
 #include <cstddef>
 #include <memory>
+#include <vector>
+#include <utility>
+#include <algorithm>
 
 module qchem.ChargeDensity.Seed;
+import qchem.PeriodicTable;                   // thePeriodicTable -> GetElectronegativity (the ionic heuristic)
 import qchem.ChargeDensity.Factory;          // IrrepCD_Factory<T>
 import qchem.ChargeDensity.Types;            // tobs_t<T>
 import qchem.ChargeDensity.CompositeFittedCD;// CompositeFittedCD (the molecular SAD seed, double only)
@@ -18,6 +22,38 @@ import qchem.Types;                           // dcmplx
 
 namespace qchem::ChargeDensity
 {
+
+std::vector<int> IonicFormalCharges(const std::vector<std::pair<int,int>>& atoms)
+{
+    const size_t n=atoms.size();
+    std::vector<int>    q(n, 0);
+    std::vector<double> en(n);
+    std::vector<int>    giveCap(n), takeCap(n);   // electrons this atom can still donate / accept
+    const int closed[]={2,8,18,32};               // closed-shell valence-electron counts an acceptor fills to
+    for (size_t i=0;i<n;i++)
+    {
+        int Z=atoms[i].first, nval=atoms[i].second;
+        en[i]      = thePeriodicTable().GetElectronegativity(Z);
+        giveCap[i] = nval;                          // a donor can shed its whole valence (down to the noble core)
+        int ceil=nval; for (int c:closed) if (c>=nval) { ceil=c; break; }
+        takeCap[i] = ceil-nval;                     // an acceptor fills up to the next closed shell
+    }
+    // Greedy charge-conserving transfer: move one electron at a time from the lowest-EN atom that can still
+    // donate to the highest-EN atom that can still accept, while a real EN gap remains.
+    const double kGap=0.5;                          // min Pauling gap to call a pair ionic (NaF 3.0, CsI 1.9)
+    while (true)
+    {
+        int d=-1, a=-1;
+        for (size_t i=0;i<n;i++)
+        {
+            if (giveCap[i]>0 && (d<0 || en[i]<en[d])) d=(int)i;
+            if (takeCap[i]>0 && (a<0 || en[i]>en[a])) a=(int)i;
+        }
+        if (d<0 || a<0 || d==a || en[a]-en[d]<kGap) break;
+        q[d]+=1; q[a]-=1; giveCap[d]-=1; takeCap[a]-=1;   // donor +charge, acceptor -charge; charge conserved
+    }
+    return q;
+}
 
 template <class T> tChargeDensity<T>* MakeSeedDensity(SeedStrategy s, const BasisSet::BasisSet<T>* bs,
                                                       const Structure* st, const ElectronConfiguration* ec)
