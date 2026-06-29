@@ -1055,8 +1055,12 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaThroughSCFIterator)
     using qchem::SCFAccelerators::DIISParams;
     auto* acc=new qchem::SCFAccelerators::cSCFAcceleratorDIIS(DIISParams{8, 0.5, 1e-10, 1e-9});
 
-    // Seed a SAD density (superposition of atomic pseudo-valence densities, G-space form-factor sum):
-    // shell structure from iteration 0 -> fewer SCF iterations than the structureless uniform seed.
+    // Exercise the plane-wave SAD path (FourierSeedCD: a G-space form-factor sum of atomic valence
+    // densities).  This asserts the HARD invariant -- SAD converges to the bit-identical total energy as
+    // the Uniform seed (the rest of the PW tests use the Uniform default).  NOTE: it does NOT yet reduce
+    // the iteration count vs Uniform; the all-electron-valence density's core peak injects spurious high-G
+    // content (a true pseudo valence is smooth in the core), so the iteration win awaits the pseudo-valence
+    // radial PP solver (the Molecular-PPs project).  See doc/SCFSeedingPlan.md section 9.7.
     qchem::SCFIterator::cSCFIterator scf(bs.get(), &ec, ham, acc,
                                          qchem::ChargeDensity::SeedStrategy::SAD, lat.GetStructure().get());
 

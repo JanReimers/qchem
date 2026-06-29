@@ -327,9 +327,17 @@ spherical averaging (use the file's reference density as-is); the `tDM_CD::Seed(
   core is all-electron-peaked vs a true pseudo density — accepted (a seed only needs the bonding region in
   the ballpark). The **true pseudo-valence radial PP solver is deferred to the Molecular-PPs project**
   (a real-space Atom-PP solver belongs there).
-- **(b) TODO** — `FourierSeedCD`: a `tChargeDensity<dcmplx>` providing `GetFourierDensity()=ρ(G)` (the
-  structure-factor sum `Σ_atoms ρ_atom(|G|) e^{-iG·R}`, FT analog of `CompositeFittedCD`), consumed by
-  `PW_Hartree`/`PW_XC` via the existing `FourierDensity` cross-cast.
-- **(c) TODO** — flip the PW default to SAD; gate Si energy unchanged + **iters strictly down** (PW tests
-  converge-and-stop, so the win is visible here). NaF/CsI get a partial (neutral-SAD) win now; the
-  charge-transfer payoff is Phase 3 IonicSAD.
+- **(b) DONE** (`e108877e`) — `FourierSeedCD`: a `tChargeDensity<dcmplx>` providing `GetFourierDensity()=ρ(G)`
+  (the structure-factor sum `Σ_atoms ρ_atom(|G|) e^{-iG·R}`, FT analog of `CompositeFittedCD`), consumed by
+  `PW_Hartree`/`PW_XC` via the `FourierDensity` cross-cast. `Band_FT_IBS::MakeFourierDensity(structure,
+  formFactor)` does the G-space assembly (keeps Δm=0); `RadialDensity::FormFactor(G)` is the radial FT.
+  Si PW converges to the **bit-identical** energy (−7.2273). **Also fixed a latent bug**: the `Version()`
+  freshness serial must be ONE shared per-T clock across all density kinds (`NextDensityVersion<T>` now in
+  the `qchem.ChargeDensity` module) — the SAD seed types' private counters collided with `IrrepCD`'s,
+  causing a stale-Fock-cache false 1-iteration "convergence".
+- **(c) DEFERRED (decision)** — the all-electron-valence seed converges correctly but does **not** beat
+  Uniform on iterations for Si (15 vs 11): its core peak injects spurious high-G content (a true pseudo
+  valence is smooth there), so the iteration win is blocked on the **pseudo-valence radial PP solver**
+  (the Molecular-PPs project's Atom-PP). So the PW default **stays Uniform** for now — the SAD machinery is
+  landed/tested (energy-correct), and the win comes free once the smooth pseudo-valence density exists. No
+  ad-hoc core-smoothing hack. NaF/CsI: neutral SAD; charge-transfer payoff is Phase 3 IonicSAD.
