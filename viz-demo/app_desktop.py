@@ -46,7 +46,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.be = backend or AnalyticBackend()
         self.struct = self.be.structure()
         self.fields = {"Electron density": self.be.density(n=80),
-                       "HOMO (O 2p_z)": self.be.orbital(0, n=80)}
+                       "HOMO": self.be.orbital(0, n=80)}
         self.scf_steps: list = []
         self.setWindowTitle("qchem viz  -  feasibility demo")
         self.resize(1280, 800)
@@ -75,6 +75,17 @@ class MainWindow(QtWidgets.QMainWindow):
         rl.addWidget(self.conv, 3)
 
         ctl = QtWidgets.QFormLayout()
+
+        # molecule picker (only meaningful with the real qchem backend)
+        from qviz import molecules
+        self.mol_box = QtWidgets.QComboBox()
+        if type(self.be).__name__ == "QChemBackend":
+            self.mol_box.addItems(molecules.MOLECULES.keys())
+            self.mol_box.currentTextChanged.connect(self._switch_molecule)
+        else:
+            self.mol_box.addItem("Water (analytic)"); self.mol_box.setEnabled(False)
+        ctl.addRow("Molecule", self.mol_box)
+
         self.field_box = QtWidgets.QComboBox(); self.field_box.addItems(self.fields)
         self.field_box.currentTextChanged.connect(self._refresh_3d)
         ctl.addRow("Field", self.field_box)
@@ -92,6 +103,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.slice.valueChanged.connect(self._refresh_3d)
         ctl.addRow("Slice z", self.slice)
 
+        self.spin_on = QtWidgets.QCheckBox("spin view")
+        self.spin_on.toggled.connect(self._toggle_spin)
+        ctl.addRow(self.spin_on)
+        self._spin_timer = QtCore.QTimer(self)
+        self._spin_timer.timeout.connect(self._spin_tick)
+
         self.run_btn = QtWidgets.QPushButton("Run SCF")
         self.run_btn.clicked.connect(self._run_scf)
         ctl.addRow(self.run_btn)
@@ -103,6 +120,42 @@ class MainWindow(QtWidgets.QMainWindow):
         m = self.menuBar().addMenu("&File")
         m.addAction("Open project...", self._open)
         m.addAction("Save project...", self._save)
+
+    # -- spin (auto-rotate the camera) -------------------------------------
+    def _toggle_spin(self, on):
+        if on:
+            self._spin_timer.start(33)        # ~30 fps
+        else:
+            self._spin_timer.stop()
+
+    def _spin_tick(self):
+        self.plotter.camera.Azimuth(1.5)      # pure GL, no recompute
+        self.plotter.render()
+
+    # -- molecule switch (rebuilds the qchem backend) ----------------------
+    def _switch_molecule(self, name):
+        from qviz import molecules
+        from qviz.backend_qchem import QChemBackend
+        numbers, pos, basis, n = molecules.MOLECULES[name]
+        QtWidgets.QApplication.setOverrideCursor(QtCore.Qt.WaitCursor)
+        self.statusBar().showMessage(f"computing {name} ...")
+        QtWidgets.QApplication.processEvents()
+        try:
+            self.be = QChemBackend(numbers, pos, basis)
+            self.struct = self.be.structure()
+            self.fields = {"Electron density": self.be.density(n=n),
+                           "HOMO": self.be.orbital(0, n=n)}
+            self.field_box.blockSignals(True)
+            self.field_box.clear(); self.field_box.addItems(self.fields)
+            self.field_box.blockSignals(False)
+            self.scf_steps.clear()
+            for c in (self.c_dE, self.c_comm, self.c_drho): c.setData([], [])
+            self._refresh_3d()
+            self.statusBar().showMessage(f"{name}:  E = {self.be.total_energy():.6f} Ha")
+        except Exception as e:
+            self.statusBar().showMessage(f"{name} failed: {e}")
+        finally:
+            QtWidgets.QApplication.restoreOverrideCursor()
 
     # -- 3D refresh --------------------------------------------------------
     def _refresh_3d(self):
