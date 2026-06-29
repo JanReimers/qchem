@@ -65,6 +65,32 @@ TEST_F(M_HF_U_Water, Water)
     EXPECT_LT(fabs(RelativeError(-76.022903)), 1e-5);
 }
 
+// --- HF from a SAD seed: the matrix-free-seed bootstrap --------------------------------------------
+// HF's exact-exchange K needs the density MATRIX, so a matrix-free SAD (superposition-of-atomic-densities)
+// seed can't build the iteration-0 Fock directly.  The SCFIterator bootstraps it: runs the SAD rho through
+// a default LDA DFT sibling for one step to manufacture a real D0, then seeds HF with D0.  The converged
+// energy is seed-independent, so it must land on the SAME CoreGuess anchor -- that equality is the proof
+// the bootstrap produced a valid density.  See project_numericcd_refactor.
+class M_HF_U_SAD : public ::testing::Test, public TestMolecule
+{
+public:
+    M_HF_U_SAD() : TestMolecule(MakeWater())
+    {
+        SetSeedStrategy(qchem::ChargeDensity::SeedStrategy::SAD);   // BEFORE Init: the iterator bootstraps HF
+        nlohmann::json js = { {"basis", "dzvp"} };
+        QchemTester::Init(js);
+    }
+    virtual Hamiltonian* GetHamiltonian(st_t& structure) const
+    {
+        return Factory(Model::HF, Pol::UnPolarized, structure);
+    }
+};
+TEST_F(M_HF_U_SAD, Water)
+{
+    Iterate(scf);
+    EXPECT_LT(fabs(RelativeError(-76.022903)), 1e-5);   // identical converged E to the CoreGuess M_HF_U_Water
+}
+
 // --- The Cartesian basis integrated by libcint through the same SCF --------------------------------
 // js["engine"]="libcint" selects the PG_LibCint matrix-delivery evaluator (same dzvp data, same
 // Cartesian component set as the M&D path).  Since libcint's integrals match M&D to <1e-10 element-wise

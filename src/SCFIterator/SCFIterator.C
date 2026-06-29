@@ -65,7 +65,9 @@ private:
     typedef std::shared_ptr<tDM_CD<T>> cd_t;   //!< std-managed WORKING density (matrix-backed); no manual delete
     //! Seed the SCF: build the iteration-0 Fock from \a seed (a DFT-face tChargeDensity -- may be a fit, e.g.
     //! the SAD seed; or null for the core guess), diagonalize, and take the first real (matrix) density.
-    void Initialize(tChargeDensity<T>* seed);
+    //! \a bs / \a st are forwarded for the HF/DHF bootstrap (build a DFT sibling when the seed has no matrix
+    //! but the Hamiltonian needs one -- see project_numericcd_refactor); null is fine for the core guess.
+    void Initialize(tChargeDensity<T>* seed, const tbs_t<T>* bs, const Structure* st);
     cd_t DirectMinStep(double Ecur, double mergeTol); //one direct-min step (returns new density)
     bool itsDirectMin=false;
     void DisplayEnergies(int i, const EnergyBreakdown&,  double relax, double dE, double dCD, size_t idealVirial) const;

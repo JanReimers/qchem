@@ -7,6 +7,7 @@ module;
 #include <string>
 #include <cctype>
 #include <memory>
+#include <type_traits>
 
 module qchem.SCFIterator;
 import qchem.SCFParams;
@@ -16,6 +17,8 @@ import qchem.WaveFunction;
 import qchem.WaveFunction.Factory;
 
 import qchem.Hamiltonian;
+import qchem.Hamiltonian.Factory;  // build a DFT sibling for the HF/DHF SAD bootstrap (molecular, double-only)
+import qchem.Mesh;                 // qcMesh::MeshParams (defaulted -- a seed-quality mesh for the sibling)
 import qchem.Energy;
 import qchem.ChargeDensity;
 import qchem.ChargeDensity.Seed;   // SeedStrategy / MakeSeedDensity
@@ -72,24 +75,53 @@ template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const Elect
     assert(itsHamiltonian);
     assert(itsWaveFunction);
     // Resolve the seed strategy into a concrete (heap, owned) density -- nullptr for CoreGuess.  \a st
-    // (the structure) is consumed only by the SAD seeds.
-    Initialize(ChargeDensity::MakeSeedDensity<T>(seed,bs,st,ec));
+    // (the structure) is consumed only by the SAD seeds; bs/st are also forwarded for the HF/DHF bootstrap.
+    Initialize(ChargeDensity::MakeSeedDensity<T>(seed,bs,st,ec), bs, st);
 }
 
 
-template <class T> void tSCFIterator<T>::Initialize(tChargeDensity<T>* seed)
+template <class T> void tSCFIterator<T>::Initialize(tChargeDensity<T>* seed, const tbs_t<T>* bs, const Structure* st)
 {
     // The seed is only needed to build the iteration-0 Fock; it is NOT a working density (it may be a fit
     // with no density matrix), so own it transiently here rather than storing it as itsOldCD.
     std::unique_ptr<tChargeDensity<T>> seedOwner(seed);
-    // Iteration-0: the WaveFunction builds the Fock from the seed, diagonalizes, fills, and returns the first
-    // real (matrix-backed) density -- the seam a ScalarFunction seed / HF-bootstrap will grow into.
-    itsCD=cd_t(itsWaveFunction->Init(*itsHamiltonian, seed, 0.0001)); //first real (matrix-backed) density, std-managed
-    assert(itsCD);
     itsOldCD=nullptr;    //set in the SCF loop; the seed is not a working density
     itsIterationCount=0;
     itsConverged=false;
-    // DisplayEnergies(itsIterationCount,itsHamiltonian->GetTotalEnergy(itsCD),1.0,0.0,0.0);
+
+    // HF/DHF can't build a Fock from a matrix-FREE seed: their exact-exchange K needs the density MATRIX
+    // (Vxc::CalcMatrix asserts the density is a DM_CD).  So if the seed has no matrix (a SAD fit) and this
+    // Hamiltonian RequiresDensityMatrix(), bootstrap: run the seed through a default Dirac-Xalpha (LDA) DFT
+    // SIBLING -- built right here from bs + st (H is basis-agnostic and never held them) + a defaulted seed
+    // mesh -- for one iteration-0 step to manufacture a real D0, then let the SCF loop continue with the real
+    // HF/DHF Hamiltonian seeded by D0.  HF/DHF thus get a SAD-quality start (better than the core guess) for
+    // free.  Molecular (double) only: no dcmplx Hamiltonian requires a density matrix today.  Mirrors the
+    // core guess (whose seed step also builds the first orbitals from a non-Fock operator).
+    if constexpr (std::is_same_v<T,double>)
+    {
+        namespace H = qchem::Hamiltonian;
+        if (seed && itsHamiltonian->RequiresDensityMatrix() && !dynamic_cast<const tDM_CD<T>*>(seed))
+        {
+            assert(bs && st && "HF/DHF SAD bootstrap needs the orbital basis + structure to build a DFT sibling");
+            // The sibling is a NON-relativistic LDA Hamiltonian, so D0 is meaningful only for non-rel HF.  A
+            // relativistic DHF basis (large+small components) has no such sibling -> a matrix-free seed is a
+            // user error there (use CoreGuess).  This is exactly why Ham_DHF_* report RequiresDensityMatrix().
+            assert(!itsHamiltonian->IsRelativistic() &&
+                   "DHF cannot seed from a matrix-free (SAD) density: the LDA sibling is non-relativistic -- use CoreGuess");
+            const H::Pol pol = itsHamiltonian->IsPolarized() ? H::Pol::Polarized : H::Pol::UnPolarized;
+            // Non-owning: the sibling lives only for this Init call, and st outlives it (it is the ctor arg).
+            H::st_t stView(st, [](const Structure*){});
+            std::unique_ptr<H::Hamiltonian> dftSibling(
+                H::Factory(pol, stView, 2.0/3.0, qcMesh::MeshParams{}, bs));   // Dirac exchange (alpha=2/3)
+            itsCD=cd_t(itsWaveFunction->Init(*dftSibling, seed, 0.0001));      // D0: a real (matrix-backed) density
+            assert(itsCD);
+            return;
+        }
+    }
+    // Iteration-0: the WaveFunction builds the Fock from the seed (or core operator if null), diagonalizes,
+    // fills, and returns the first real (matrix-backed) density.
+    itsCD=cd_t(itsWaveFunction->Init(*itsHamiltonian, seed, 0.0001)); //first real (matrix-backed) density, std-managed
+    assert(itsCD);
 }
 //
 //  Recall that the wavefunction is not owned buy this.
