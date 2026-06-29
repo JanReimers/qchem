@@ -38,6 +38,7 @@ public:
     virtual void             GetEnergy(EnergyBreakdown&,  const tDM_CD<T>*) const=0;
     virtual bool             IsPolarized   () const {return false;}
     virtual bool             IsRelativistic() const {return false;}
+    virtual bool             RequiresDensityMatrix() const {return false;}
 };
 
 template <class T> class tDynamic_HT
@@ -50,6 +51,7 @@ public:
     virtual void             GetEnergy(EnergyBreakdown&,  const tDM_CD<T>*) const=0;
     virtual bool             IsPolarized   () const {return false;}
     virtual bool             IsRelativistic() const {return false;}
+    virtual bool             RequiresDensityMatrix() const {return false;}
 };
 
 template <class T> class tHamiltonian
@@ -62,6 +64,10 @@ public:
     virtual EnergyBreakdown GetTotalEnergy  (  const tDM_CD<T>*    ) const=0;
     virtual bool            IsPolarized   () const=0;
     virtual bool            IsRelativistic() const=0;
+    //! DFT/KS: the Fock is a functional of rho(r) alone -> false (can be seeded from a numeric ScalarFunction).
+    //! HF/DHF override -> true: they need the density MATRIX D for exact exchange K, so the SCFIterator must
+    //! bootstrap them (route rho through a DFT sibling to manufacture a D0).  See project_numericcd_refactor.
+    virtual bool            RequiresDensityMatrix() const {return false;}
 };
 
 // r* = <double>, c* = <dcmplx> (mirrors rsmat_t/chmat_t); bare names transitional (= r*), rename pinned.
