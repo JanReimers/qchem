@@ -53,7 +53,7 @@ template <class T> class tDynamic_HT_Imp
 {
 public:
     tDynamic_HT_Imp() : itsCacheVersion(size_t(-1)), itsFitVersion(size_t(-1)) {}
-    virtual const hmat_t<T>& GetMatrix(const tobs_t<T>* bs,const Spin& s,const tDM_CD<T>* cd) const
+    virtual const hmat_t<T>& GetMatrix(const tobs_t<T>* bs,const Spin& s,const tChargeDensity<T>* cd) const
     {
         assert(bs);
         assert(cd);
@@ -77,11 +77,11 @@ public:
 
 protected:
     // Unconditional calculation, does not use cache.
-    virtual hmat_t<T> CalcMatrix(const tobs_t<T>*,const Spin&,const tDM_CD<T>* cd) const=0;
+    virtual hmat_t<T> CalcMatrix(const tobs_t<T>*,const Spin&,const tChargeDensity<T>* cd) const=0;
     // Refit trigger only (the OTHER half of the former itsCD double-duty): true exactly once per new
     // density serial, so a concrete term (FittedVee/FittedVxc) refits its fitted potential exactly once.
     // Cache-freshness is GetMatrix's job (itsCacheVersion) -- newCD no longer touches the cache.
-    bool newCD(const tDM_CD<T>* cd) const
+    bool newCD(const tChargeDensity<T>* cd) const
     {
         assert(cd);
         if (cd->Version()==itsFitVersion) return false;
@@ -98,13 +98,13 @@ template <class T> class tDynamic_HT_Imp_NoCache
     : public virtual tDynamic_HT<T>
 {
 public:
-    virtual const hmat_t<T>& GetMatrix(const tobs_t<T>* bs,const Spin& s,const tDM_CD<T>* cd) const
+    virtual const hmat_t<T>& GetMatrix(const tobs_t<T>* bs,const Spin& s,const tChargeDensity<T>* cd) const
     {
         return itsMat=CalcMatrix(bs,s,cd);
     }
 
 protected:
-    virtual hmat_t<T> CalcMatrix(const tobs_t<T>*,const Spin&,const tDM_CD<T>* cd) const=0;
+    virtual hmat_t<T> CalcMatrix(const tobs_t<T>*,const Spin&,const tChargeDensity<T>* cd) const=0;
     mutable hmat_t<T> itsMat;
 };
 
@@ -114,7 +114,7 @@ template <class T> class tFittablePotential
     : public virtual tDynamic_HT<T>
 {
 public:
-    virtual void UseChargeDensity(const tDM_CD<T>*)       =0;
+    virtual void UseChargeDensity(const tChargeDensity<T>*)       =0;
 };
 
 // r* = <double>, c* = <dcmplx> (mirrors rsmat_t/chmat_t); bare names transitional (= r*), rename pinned.

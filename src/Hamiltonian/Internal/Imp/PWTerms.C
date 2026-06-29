@@ -104,7 +104,7 @@ std::ostream& PW_IonIon::Write(std::ostream& os) const
 }
 
 //----------------------------------------------------------------------------------- Hartree
-chmat_t PW_Hartree::CalcMatrix(const cobs_t* bs, const Spin&, const cDM_CD* cd) const
+chmat_t PW_Hartree::CalcMatrix(const cobs_t* bs, const Spin&, const cChargeDensity* cd) const
 {
     newCD(cd);   // dirty the Irrep cache if cd is new (the cross-iteration freshness mechanism)
     // Drive a FourierFunctionFitter exactly as FittedVee drives a FunctionFitter: DoFit the density, then
@@ -138,7 +138,7 @@ PW_XC::PW_XC(const xc_t& xc)
 // then the functional pointwise), DoFit those grid samples, ask for the Overlap matrix (the basis forward-
 // FFTs + assembles).  The XC fit input is the SAMPLED grid (rvec_t) -- the orthonormal XC sibling of the
 // Hartree FourierMap.  No O(Npts*n^2) pointwise density sampling.
-chmat_t PW_XC::CalcMatrix(const cobs_t* bs, const Spin&, const cDM_CD* cd) const
+chmat_t PW_XC::CalcMatrix(const cobs_t* bs, const Spin&, const cChargeDensity* cd) const
 {
     newCD(cd);
     auto pw=dynamic_cast<const BasisSet::Band_FT_IBS*>(bs);

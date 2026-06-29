@@ -103,7 +103,7 @@ public:
     virtual void          GetEnergy(EnergyBreakdown&,const DM_CD* cd ) const;
     virtual std::ostream& Write    (std::ostream&) const;
 private:
-    virtual rsmat_t CalcMatrix(const obs_t*,const Spin&,const DM_CD* cd) const;
+    virtual rsmat_t CalcMatrix(const obs_t*,const Spin&,const rChargeDensity* cd) const;
 };
 
 //###############################################################################
@@ -116,7 +116,7 @@ public:
     virtual void           GetEnergy(EnergyBreakdown&,const DM_CD* cd ) const;
     virtual std::ostream&  Write    (std::ostream&) const;
 private:
-    virtual rsmat_t CalcMatrix(const obs_t*,const Spin&,const DM_CD* cd) const;
+    virtual rsmat_t CalcMatrix(const obs_t*,const Spin&,const rChargeDensity* cd) const;
 };
 
 class VxcPol : public virtual Dynamic_HT, private Dynamic_HT_Imp_NoCache
@@ -126,7 +126,7 @@ public:
     virtual bool           IsPolarized() const {return true;}
     virtual std::ostream&  Write    (std::ostream&) const;
 private:
-    virtual rsmat_t CalcMatrix(const obs_t*,const Spin&,const DM_CD* cd) const;
+    virtual rsmat_t CalcMatrix(const obs_t*,const Spin&,const rChargeDensity* cd) const;
 };
 
 //###############################################################################
@@ -151,7 +151,7 @@ public:
     virtual void          GetEnergy(EnergyBreakdown&,const DM_CD* cd) const;
     virtual std::ostream& Write    (std::ostream& os) const {return os;}
 private:
-    virtual rsmat_t CalcMatrix(const obs_t*,const Spin&,const DM_CD* cd) const;
+    virtual rsmat_t CalcMatrix(const obs_t*,const Spin&,const rChargeDensity* cd) const;
     std::unique_ptr<ChargeDensity::FittedCD> itsFittedChargeDensity;   //!< owned (was a leaked raw ptr)
 };
 
@@ -172,10 +172,10 @@ public:
     FittedVxc(fbs_t& VxcFitBasisSet, ex_t&);
     ~FittedVxc();
     virtual void          GetEnergy       (EnergyBreakdown&,const DM_CD*) const;
-    virtual void          UseChargeDensity(const DM_CD*);
+    virtual void          UseChargeDensity(const rChargeDensity*);
     virtual std::ostream& Write           (std::ostream&) const;
 private:
-    virtual rsmat_t CalcMatrix(const obs_t*,const Spin&,const DM_CD*) const;
+    virtual rsmat_t CalcMatrix(const obs_t*,const Spin&,const rChargeDensity*) const;
 
     std::unique_ptr<Fitting::FunctionFitter_Scalar<double>> itsFitter; //!< COMPOSED v_xc fit (was inherited)
     LDAVxc* itsLDAVxc;   //!< the v_xc=Vxc(rho) function to fit (concrete: it IS the ScalarFFClient)
@@ -195,7 +195,7 @@ public:
 
     virtual std::ostream&   Write(std::ostream&) const;
 private:
-    virtual rsmat_t CalcMatrix(const obs_t*,const Spin&,const DM_CD* cd) const;
+    virtual rsmat_t CalcMatrix(const obs_t*,const Spin&,const rChargeDensity* cd) const;
 
     Dynamic_HT* itsUpVxc  ; //Spin up.
     Dynamic_HT* itsDownVxc; //Spin down.
@@ -219,7 +219,7 @@ public:
 
     FittedEpsXc(fbs_t& fitBasisSet, const ExFunctional* ex);
     //! Re-fits eps_xc for this density and returns its matrix Sum_a c_a <Oi|f_a|Oj> for contraction.
-    virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&,const DM_CD* cd) const;
+    virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&,const rChargeDensity* cd) const;
 private:
     std::unique_ptr<Fitting::FunctionFitter_Scalar<double>> itsFitter;  //!< COMPOSED fitter (not inherited)
     const ExFunctional* itsEx;   //!< non-owning; the XC functional supplying eps_xc (owned by the term)

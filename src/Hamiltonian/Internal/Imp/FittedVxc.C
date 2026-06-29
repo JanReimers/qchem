@@ -22,13 +22,13 @@ namespace
 class EpsXcDensity : public virtual ScalarFunction<double>, public Fitting::ScalarFFClient
 {
 public:
-    EpsXcDensity(const ExFunctional* ex, const DM_CD* cd) : itsEx(ex), itsCD(cd) {}
+    EpsXcDensity(const ExFunctional* ex, const rChargeDensity* cd) : itsEx(ex), itsCD(cd) {}
     virtual double  operator()(const rvec3_t& r) const {return itsEx->GetEpsXc((*itsCD)(r));}
     virtual rvec3_t Gradient  (const rvec3_t&  ) const {return rvec3_t(0,0,0);} // unused by the fit
     virtual const ScalarFunction<double>* GetScalarFunction() const {return this;}
 private:
     const ExFunctional* itsEx;
-    const DM_CD*        itsCD;
+    const rChargeDensity* itsCD;
 };
 } // namespace
 
@@ -38,7 +38,7 @@ FittedEpsXc::FittedEpsXc(fbs_t& bs, const ExFunctional* ex)
 {
 }
 
-const rsmat_t& FittedEpsXc::GetMatrix(const obs_t* bs,const Spin&,const DM_CD* cd) const
+const rsmat_t& FittedEpsXc::GetMatrix(const obs_t* bs,const Spin&,const rChargeDensity* cd) const
 {
     EpsXcDensity epsxc(itsEx,cd);
     itsFitter->DoFit(epsxc);                             // fit eps_xc(rho) for this density
@@ -59,7 +59,7 @@ FittedVxc::~FittedVxc()
     delete itsLDAVxc;
 }
 
-void FittedVxc::UseChargeDensity(const DM_CD* cd)
+void FittedVxc::UseChargeDensity(const rChargeDensity* cd)
 {
 
 }
@@ -78,7 +78,7 @@ void FittedVxc::UseChargeDensity(const DM_CD* cd)
 //
 //  This last part is carried out by the base class FitImplementation.
 
-rsmat_t FittedVxc::CalcMatrix(const obs_t* bs,const Spin& s,const DM_CD* cd) const
+rsmat_t FittedVxc::CalcMatrix(const obs_t* bs,const Spin& s,const rChargeDensity* cd) const
 {
     if (newCD(cd))
     {

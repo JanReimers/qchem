@@ -25,7 +25,7 @@ public:
     FittedCDImp(const FittedCDImp&) = delete;   //!< copying would slice the fitter's constraint
 
     // FittedCD  (DoFit cross-casts the density to its AO face, then delegates to the COMPOSED fitter)
-    virtual void      DoFit           (const DM_CD& cd)
+    virtual void      DoFit           (const rChargeDensity& cd)
     {
         auto* ao=dynamic_cast<const Fitting::ProjectedDensity_AO*>(&cd);
         assert(ao && "FittedCD::DoFit: a fitted (molecular) density must be a ProjectedDensity_AO");

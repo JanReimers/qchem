@@ -14,7 +14,7 @@ ExFunctional::ExFunctional()
 {};
 
 
-void ExFunctional::InsertChargeDensity(const DM_CD* cd)
+void ExFunctional::InsertChargeDensity(const rChargeDensity* cd)
 {
     assert(cd);
     itsChargeDensity=cd;

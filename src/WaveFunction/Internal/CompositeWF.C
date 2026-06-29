@@ -15,6 +15,7 @@ export namespace qchem::WaveFunction
 using SCFAccelerators::tSCFAccelerator;
 using qchem::Hamiltonian::tHamiltonian;
 using ChargeDensity::tDM_CD;
+using ChargeDensity::tChargeDensity;
 
 // Wave function as a list of per-irrep wave functions.  Templated on the matrix element type T
 // (rX/cX); CompositeWF is the <double> alias (atoms/molecules), cCompositeWF the <dcmplx>
@@ -28,8 +29,8 @@ public:
     tCompositeWF(const tbs_t<T>*,const ElectronConfiguration*,tSCFAccelerator<T>*);
     ~tCompositeWF();
 
-    virtual void            DoSCFIteration  (tHamiltonian<T>&,const tDM_CD<T>*   )      ;
-    virtual bool            BuildFockAndComputeSteps(tHamiltonian<T>&,const tDM_CD<T>*);
+    virtual void            DoSCFIteration  (tHamiltonian<T>&,const tChargeDensity<T>*   )      ;
+    virtual bool            BuildFockAndComputeSteps(tHamiltonian<T>&,const tChargeDensity<T>*);
     virtual void            MoveOrbitals    (double t, bool commit, double mergeTol);
     virtual const Orbitals* GetOrbitals     (const Irrep&) const;
     virtual       Orbitals* GetOrbitals     (const Irrep&)      ;

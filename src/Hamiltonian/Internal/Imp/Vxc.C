@@ -18,13 +18,15 @@ namespace qchem::Hamiltonian
 //  Let the charge density do the work.
 //
 
-rsmat_t Vxc::CalcMatrix(const obs_t* bs,const Spin&,const DM_CD* cd) const
+rsmat_t Vxc::CalcMatrix(const obs_t* bs,const Spin&,const rChargeDensity* cd) const
 {
     newCD(cd); //Set H matrix cache to dirty if cd really is new.
     auto hf_bs = dynamic_cast<const ohfbs_t*>(bs);
     assert(hf_bs);
+    const DM_CD* dm = dynamic_cast<const DM_CD*>(cd);   // HF K needs the density matrix (not a fit seed)
+    assert(dm && "Vxc (HF exchange): density must be a DM_CD");
     rsmat_t Kab=blazem::zero<double>(bs->GetNumFunctions());
-    cd->AccumulateExchange(Kab,hf_bs);
+    dm->AccumulateExchange(Kab,hf_bs);
     return Kab*-0.5;
 }
 void Vxc::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const

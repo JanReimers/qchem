@@ -41,7 +41,7 @@ FittedVxcPol::~FittedVxcPol()
 //           = Sum  { Ck <Oi|Vk|Oj> } .
 //
 //  This last part is carried out by the base class FitImplementation.
-rsmat_t FittedVxcPol::CalcMatrix(const obs_t* bs,const Spin& s,const DM_CD* cd) const
+rsmat_t FittedVxcPol::CalcMatrix(const obs_t* bs,const Spin& s,const rChargeDensity* cd) const
 {
     assert(itsUpVxc);
     assert(itsDownVxc);

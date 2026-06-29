@@ -91,7 +91,7 @@ public:
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
     virtual std::ostream& Write(std::ostream&) const;
 private:
-    virtual chmat_t CalcMatrix(const cobs_t*, const Spin&, const cDM_CD*) const;
+    virtual chmat_t CalcMatrix(const cobs_t*, const Spin&, const cChargeDensity*) const;
 };
 
 //! Exchange-correlation term for a plane-wave basis, carrying ONE LDA functional (so a full LDA uses a
@@ -108,7 +108,7 @@ public:
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
     virtual std::ostream& Write(std::ostream&) const;
 private:
-    virtual chmat_t CalcMatrix(const cobs_t*, const Spin&, const cDM_CD*) const;
+    virtual chmat_t CalcMatrix(const cobs_t*, const Spin&, const cChargeDensity*) const;
     xc_t itsXc;
     //! The basis is captured from CalcMatrix so GetEnergy (which has no basis parameter) can ask it for
     //! the energy integral integral eps_xc rho with the current density.  Same basis every iteration.

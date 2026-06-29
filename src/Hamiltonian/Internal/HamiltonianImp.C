@@ -20,7 +20,7 @@ public:
     virtual void Add( tStatic_HT<T>* );
     virtual void Add(tDynamic_HT<T>*);
 
-    virtual hmat_t<T>       GetMatrix(const tobs_t<T>*,const Spin& S,const tDM_CD<T>*);
+    virtual hmat_t<T>       GetMatrix(const tobs_t<T>*,const Spin& S,const tChargeDensity<T>*);
     virtual EnergyBreakdown GetTotalEnergy  (const tDM_CD<T>* ) const;
     virtual bool            IsPolarized() const {return itsIsPolarized;}
     virtual bool            IsRelativistic() const {return itsIsRelativistic;}

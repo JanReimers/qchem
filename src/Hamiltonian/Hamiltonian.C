@@ -11,6 +11,9 @@ export namespace qchem::Hamiltonian
 
 using ChargeDensity::tStatic_CC;
 using ChargeDensity::tDynamic_CC;
+using ChargeDensity::tChargeDensity;
+using ChargeDensity::rChargeDensity;
+using ChargeDensity::cChargeDensity;
 using ChargeDensity::tDM_CD;
 using ChargeDensity::rDM_CD;
 using ChargeDensity::cDM_CD;
@@ -42,7 +45,8 @@ template <class T> class tDynamic_HT
     , public virtual tDynamic_CC<T>
 {
 public:
-    virtual const hmat_t<T>& GetMatrix(const tobs_t<T>*,const Spin&,const tDM_CD<T>*) const=0;
+    // Fock build consumes the DFT (matrix-free) density face; energy needs the density matrix.
+    virtual const hmat_t<T>& GetMatrix(const tobs_t<T>*,const Spin&,const tChargeDensity<T>*) const=0;
     virtual void             GetEnergy(EnergyBreakdown&,  const tDM_CD<T>*) const=0;
     virtual bool             IsPolarized   () const {return false;}
     virtual bool             IsRelativistic() const {return false;}
@@ -54,7 +58,7 @@ template <class T> class tHamiltonian
 public:
     virtual void            Add             ( tStatic_HT<T>*)=0;
     virtual void            Add             (tDynamic_HT<T>*)=0;
-    virtual hmat_t<T>       GetMatrix(const tobs_t<T>*,const Spin&,const tDM_CD<T>*)=0;
+    virtual hmat_t<T>       GetMatrix(const tobs_t<T>*,const Spin&,const tChargeDensity<T>*)=0;
     virtual EnergyBreakdown GetTotalEnergy  (  const tDM_CD<T>*    ) const=0;
     virtual bool            IsPolarized   () const=0;
     virtual bool            IsRelativistic() const=0;

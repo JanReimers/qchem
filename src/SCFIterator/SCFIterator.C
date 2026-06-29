@@ -11,6 +11,7 @@ export import qchem.ChargeDensity.Seed;   // SeedStrategy / MakeSeedDensity
 
 export using qchem::EnergyBreakdown;
 using qchem::ChargeDensity::tDM_CD;
+using qchem::ChargeDensity::tChargeDensity;
 
 export namespace qchem::SCFIterator
 {
@@ -43,8 +44,10 @@ public:
     size_t              GetIterationCount() const {return itsIterationCount;}
     bool                Converged() const {return itsConverged;}
 private:
-    typedef std::shared_ptr<tDM_CD<T>> cd_t;   //!< std-managed density: no manual delete, no freed-address reuse
-    void Initialize(tDM_CD<T>* cd);  //Does on iteration to set up the exact charge density.
+    typedef std::shared_ptr<tDM_CD<T>> cd_t;   //!< std-managed WORKING density (matrix-backed); no manual delete
+    //! Seed the SCF: build the iteration-0 Fock from \a seed (a DFT-face tChargeDensity -- may be a fit, e.g.
+    //! the SAD seed; or null for the core guess), diagonalize, and take the first real (matrix) density.
+    void Initialize(tChargeDensity<T>* seed);
     cd_t DirectMinStep(double Ecur, double mergeTol); //one direct-min step (returns new density)
     bool itsDirectMin=false;
     void DisplayEnergies(int i, const EnergyBreakdown&,  double relax, double dE, double dCD, size_t idealVirial) const;

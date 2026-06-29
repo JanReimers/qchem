@@ -35,7 +35,7 @@ template <class T> tIrrepWF<T>::~tIrrepWF()
     delete itsAccelerator;
 }
 
-template <class T> void tIrrepWF<T>::CalculateH(tHamiltonian<T>& ham,const tDM_CD<T>* cd)
+template <class T> void tIrrepWF<T>::CalculateH(tHamiltonian<T>& ham,const tChargeDensity<T>* cd)
 {
     assert(itsOrbitals);
     itsF=ham.GetMatrix(itsBasisSet,itsIrrep.ms,cd); //Hamiltonian or Fock matrix in the non-orthogonal basis.

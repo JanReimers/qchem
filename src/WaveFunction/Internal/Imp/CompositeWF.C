@@ -69,7 +69,7 @@ template <class T> tCompositeWF<T>::~tCompositeWF()
 //  This function will creat EMPTY orbtials.  One must use the FillOrbitals member function
 //  to fill up the orbitals with electrons.
 //
-template <class T> void tCompositeWF<T>::DoSCFIteration(tHamiltonian<T>& ham,const tDM_CD<T>* cd)
+template <class T> void tCompositeWF<T>::DoSCFIteration(tHamiltonian<T>& ham,const tChargeDensity<T>* cd)
 {
     for (auto& w:itsIWFs) w->CalculateH(ham,cd); //Feed F,D' into all the irre eccelerators.
     // Once the accelerator extrapolates, switch the molecular aufbau from eigenvalue order to MOM
@@ -84,7 +84,7 @@ template <class T> void tCompositeWF<T>::DoSCFIteration(tHamiltonian<T>& ham,con
 // Build the Fock and have each irrep accelerator compute its (un-taken) step.  Returns true
 // only if every irrep produced a geodesic step; false means at least one wants to diagonalize
 // (the seed step) -- the caller should fall back to DoSCFIteration().
-template <class T> bool tCompositeWF<T>::BuildFockAndComputeSteps(tHamiltonian<T>& ham,const tDM_CD<T>* cd)
+template <class T> bool tCompositeWF<T>::BuildFockAndComputeSteps(tHamiltonian<T>& ham,const tChargeDensity<T>* cd)
 {
     for (auto& w:itsIWFs) w->CalculateH(ham,cd);
     bool allStepped=true;

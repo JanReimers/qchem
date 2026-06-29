@@ -16,6 +16,7 @@ export namespace qchem::WaveFunction
 
 using ChargeDensity::DM_CD;
 using ChargeDensity::tDM_CD;
+using ChargeDensity::tChargeDensity;
 using qchem::Hamiltonian::Hamiltonian;   // <double> alias still re-exported for the (not-yet-templated) WF hierarchy
 using qchem::Hamiltonian::tHamiltonian;  // (qchem:: qualifies the namespace, else the alias above shadows it)
 using Orbitals::TOrbitals;
@@ -31,7 +32,7 @@ public:
     tIrrepWF(const tobs_t<T>*, LASolver<T>*, const Irrep& ,tSCFIrrepAccelerator<T>*);
     ~tIrrepWF();
 
-    void                CalculateH      (tHamiltonian<T>&,const tDM_CD<T>*   )      ;
+    void                CalculateH      (tHamiltonian<T>&,const tChargeDensity<T>*   )      ;
     void                DoSCFIteration  ()      ;
     bool                ComputeStep     ()      ; //direct-min: accelerator computes its step
     void                MoveOrbitals    (double t, bool commit)      ; //move to geodesic fraction t

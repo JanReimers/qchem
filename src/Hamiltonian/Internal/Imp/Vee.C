@@ -24,13 +24,15 @@ namespace qchem::Hamiltonian
 //  Where ro is the charge density.
 //
 
-rsmat_t Vee::CalcMatrix(const obs_t* bs,const Spin&,const DM_CD* cd) const
+rsmat_t Vee::CalcMatrix(const obs_t* bs,const Spin&,const rChargeDensity* cd) const
 {
     newCD(cd); //Set H matrix cache to dirty if cd really is new.
     auto hf_bs = dynamic_cast<const ohfbs_t*>(bs);
     assert(hf_bs);
+    const DM_CD* dm = dynamic_cast<const DM_CD*>(cd);   // HF J needs the density matrix (not a fit seed)
+    assert(dm && "Vee (HF Coulomb): density must be a DM_CD");
     rsmat_t Jab=blazem::zero<double>(bs->GetNumFunctions());
-    cd->AccumulateDirect(Jab,hf_bs);
+    dm->AccumulateDirect(Jab,hf_bs);
     return Jab;
 }
 

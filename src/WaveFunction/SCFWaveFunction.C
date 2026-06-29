@@ -23,6 +23,7 @@ using Hamiltonian::Hamiltonian;
 using qchem::Hamiltonian::tHamiltonian;  // qchem:: qualifies the namespace (the alias above shadows it)
 using ChargeDensity::DM_CD;
 using ChargeDensity::tDM_CD;
+using ChargeDensity::tChargeDensity;
 using Orbitals::Orbitals;
 
 export template <class T> class tSCFWaveFunction : public virtual tWaveFunction<T>
@@ -30,11 +31,11 @@ export template <class T> class tSCFWaveFunction : public virtual tWaveFunction<
 public:
     using tWaveFunction<T>::GetOrbitals; //keep the const overload visible alongside the mutable one
 
-    virtual void       DoSCFIteration  (tHamiltonian<T>&,const tDM_CD<T>*)      =0;
+    virtual void       DoSCFIteration  (tHamiltonian<T>&,const tChargeDensity<T>*)      =0;
     // Direct-minimization hooks (cf. the SCFIterator direct-min loop):
     //   build the Fock and ask each accelerator to compute its step (no orbital move);
     //   returns false in the seed step (the caller should DoSCFIteration to diagonalize).
-    virtual bool       BuildFockAndComputeSteps(tHamiltonian<T>&,const tDM_CD<T>*) =0;
+    virtual bool       BuildFockAndComputeSteps(tHamiltonian<T>&,const tChargeDensity<T>*) =0;
     //   move the orbitals to geodesic fraction t (commit=false is a line-search trial) and refill.
     virtual void       MoveOrbitals    (double t, bool commit, double mergeTol) =0;
     virtual void       FillOrbitals    (double mergeTol)                        =0; //WF knows the electronic structure

@@ -28,7 +28,8 @@ template <class T> using ProjectedDensityBase =
 //  hmat_t<double> IS rsmat_t and tobs_t<double> IS obs_t, so the aliases below leave all existing
 //  real code source- and binary-unchanged.
 //
-template <class T> class tDM_CD;   // forward (the contract clients name it)
+template <class T> class tChargeDensity;   // forward (the DFT face the framework consumes)
+template <class T> class tDM_CD;           // forward (the density-matrix face)
 
 template <class T> class tStatic_CC //Contract client for static Ham terms.
 {
@@ -39,7 +40,8 @@ public:
 template <class T> class tDynamic_CC //Contract client for dynamic (CD dependent) Ham terms.
 {
 public:
-    virtual const hmat_t<T>& GetMatrix(const tobs_t<T>*,const Spin&,const tDM_CD<T>*) const=0;
+    // The density that defines V(rho) for the Fock build -- the DFT-only face (a fit has no matrix).
+    virtual const hmat_t<T>& GetMatrix(const tobs_t<T>*,const Spin&,const tChargeDensity<T>*) const=0;
 };
 
 // Naming convention (mirrors rsmat_t/chmat_t in Common/Types.C): r* = <double>, c* = <dcmplx>.
@@ -61,26 +63,38 @@ using Dynamic_CC  = rDynamic_CC;
 //    6) Calculate the orbital repulsion integrals  < i(1) | ro(2)/r12 | j(1) > for orbitals i,j.
 //    7) calculate the self repulsion = 1/2 <ro(1)|1/r12|ro(2)>
 //
-//  This is the interface for a charge density representation based on the density matrix.
+//  Base charge-density interface: everything that does NOT need a density matrix -- evaluate ro(r)
+//  (ScalarFunction), the total charge, a transient freshness serial, and uniform scaling.  A
+//  fitted/analytic density (e.g. the SAD seed, CompositeFittedCD) IS-A tChargeDensity but NOT a tDM_CD.
+//  The DFT Fock build consumes densities through THIS face; the HF terms cross-cast to tDM_CD.
 //
-template <class T> class tDM_CD
+template <class T> class tChargeDensity
 : public virtual ScalarFunction<double>
 {
 public:
-    virtual double DM_Contract(const tStatic_CC<T>*) const=0; //Amounts to Integral(ro*V*d3r);
-    virtual double DM_Contract(const tDynamic_CC<T>*,const tDM_CD<T>*) const=0; //Integral(ro*V(ro)*d3r);
-
-    virtual void   ReScale      (double factor              )      =0;  //Ro *= factor
-    virtual void   MixIn        (const tDM_CD<T>&,double      )      =0;  //this = (1-c)*this + c*that.
-    virtual double GetChangeFrom(const tDM_CD<T>&            ) const=0;  //Convergence check.
-
-    virtual double GetTotalCharge  () const=0;  // <ro>
+    virtual double GetTotalCharge() const=0;       // <ro>
+    virtual void   ReScale(double factor)     =0;  // Ro *= factor
 
     //! Monotonic logical-clock serial: distinct (or mutated) densities have distinct serials, so a cache
     //! can ask "is this a *different* density than the one I hold?".  TRANSIENT runtime identity (like a
     //! pointer) -- not part of the persisted value, never serialize it.  (Concrete densities stamp this
     //! from a per-T counter in IrrepCD's impl; composites/polarized forward to a child.)
     virtual size_t Version() const=0;
+};
+
+//  A charge density represented BY A DENSITY MATRIX: adds the matrix-only capabilities -- operator
+//  contraction (DM_Contract), SCF density mixing (MixIn/GetChangeFrom), and the Hartree-Fock J/K
+//  accumulators.  Densities with no matrix (fits) are tChargeDensity instead.
+//
+template <class T> class tDM_CD
+: public virtual tChargeDensity<T>
+{
+public:
+    virtual double DM_Contract(const tStatic_CC<T>*) const=0; //Amounts to Integral(ro*V*d3r);
+    virtual double DM_Contract(const tDynamic_CC<T>*,const tDM_CD<T>*) const=0; //Integral(ro*V(ro)*d3r);
+
+    virtual void   MixIn        (const tDM_CD<T>&,double      )      =0;  //this = (1-c)*this + c*that.
+    virtual double GetChangeFrom(const tDM_CD<T>&            ) const=0;  //Convergence check.
 
     // HF/fit-specific (real, Gaussian-basis) -- the dcmplx plane-wave density NA-asserts these.
     virtual void AccumulateDirect  (hmat_t<T>& Jab, const ohfbs_t*) const=0;
@@ -88,7 +102,8 @@ public:
 
 };
 
-using rDM_CD = tDM_CD<double>;  
+using rChargeDensity = tChargeDensity<double>;  using cChargeDensity = tChargeDensity<dcmplx>;
+using rDM_CD = tDM_CD<double>;
 using cDM_CD = tDM_CD<dcmplx>;
 using DM_CD  = rDM_CD;          // transitional bare alias
 

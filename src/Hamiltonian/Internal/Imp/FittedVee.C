@@ -35,7 +35,7 @@ FittedVee::~FittedVee() = default;   // FittedCD is complete here, so the unique
 //  Where ro is the fitted charge density.
 //
 
-rsmat_t FittedVee::CalcMatrix(const obs_t* bs,const Spin& s,const DM_CD* cd) const
+rsmat_t FittedVee::CalcMatrix(const obs_t* bs,const Spin& s,const rChargeDensity* cd) const
 {
     if (newCD(cd)) itsFittedChargeDensity->DoFit(*cd);
     auto dft_bs=dynamic_cast<const odftbs_t*>(bs);

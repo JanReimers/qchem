@@ -17,9 +17,10 @@ class FittedCD
     : public virtual ScalarFunction<double>
 {
 public:
-    //! "Fit me to this density."  Takes the density by its common DM_CD base; the (finite/molecular) impl
-    //! cross-casts to the AO projection face (ProjectedDensity_AO) it needs.
-    virtual void    DoFit          (const DM_CD&                  )      =0;
+    //! "Fit me to this density."  Takes the density by its common tChargeDensity base (so a fit-backed
+    //! density -- the SAD seed -- works too); the (finite/molecular) impl cross-casts to the AO projection
+    //! face (ProjectedDensity_AO) it needs.
+    virtual void    DoFit          (const rChargeDensity&         )      =0;
     virtual double  GetSelfRepulsion(                              ) const=0;  // 1/2 <ro(1)|1/r12|ro(2)>
     virtual rsmat_t GetRepulsion    (const odftbs_t*               ) const=0;
     //Required for creating a polarized CD from an un-polarized CD

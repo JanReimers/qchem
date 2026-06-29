@@ -45,7 +45,7 @@ template <> void tHamiltonianImp<dcmplx>::InsertStandardTerms(const st_t &)
     assert(false && "InsertStandardTerms: the complex Hamiltonian assembles its terms explicitly");
 }
 
-template <class T> hmat_t<T> tHamiltonianImp<T>::GetMatrix(const tobs_t<T>* bs,const Spin& S,const tDM_CD<T>* cd)
+template <class T> hmat_t<T> tHamiltonianImp<T>::GetMatrix(const tobs_t<T>* bs,const Spin& S,const tChargeDensity<T>* cd)
 {
     int n=bs->GetNumFunctions();
     hmat_t<T> H=blazem::zeroH<T>(n);

@@ -8,6 +8,7 @@ export namespace qchem::Hamiltonian
 {
 
 using ChargeDensity::DM_CD;
+using ChargeDensity::rChargeDensity;
 
 class ExFunctional
     : public virtual Streamable
@@ -16,7 +17,7 @@ class ExFunctional
 public:
     ExFunctional(               );
 
-    virtual void   InsertChargeDensity(const DM_CD*);
+    virtual void   InsertChargeDensity(const rChargeDensity*);
     virtual rvec_t GetVxcs(const rvec_t& ChargeDensities) const;
     virtual double GetVxc(                double ChargeDensity) const=0;
     //! \brief Energy density per particle \f$\varepsilon_{xc}(\rho)\f$, so \f$E_{xc}=\int\varepsilon_{xc}\rho\,d^3r\f$.
@@ -27,7 +28,7 @@ public:
 
 protected:
 
-    const DM_CD* itsChargeDensity;
+    const rChargeDensity* itsChargeDensity;
     bool            isPolarized;
 };
 

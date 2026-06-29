@@ -25,14 +25,14 @@ public:
     LDAVxc();
     LDAVxc(ex_t& lda);
     // Required by HamiltonianTerm
-    virtual void UseChargeDensity(const DM_CD* exact);
+    virtual void UseChargeDensity(const rChargeDensity* exact);
     virtual void GetEnergy       (EnergyBreakdown&,const DM_CD* cd         ) const;
     // Required by FittablePotential.
     virtual const ScalarFunction<double>* GetScalarFunction() const {return itsExchangeFunctional.get();}
     
     virtual std::ostream&           Write(std::ostream&) const;
 private:
-    virtual rsmat_t CalcMatrix(const obs_t*,const Spin&,const DM_CD* cd) const;
+    virtual rsmat_t CalcMatrix(const obs_t*,const Spin&,const rChargeDensity* cd) const;
 
     ex_t itsExchangeFunctional;
 };

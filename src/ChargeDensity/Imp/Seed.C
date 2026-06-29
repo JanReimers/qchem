@@ -17,8 +17,8 @@ import qchem.Types;                           // dcmplx
 namespace qchem::ChargeDensity
 {
 
-template <class T> tDM_CD<T>* MakeSeedDensity(SeedStrategy s, const BasisSet::BasisSet<T>* bs,
-                                              const Structure* st, const ElectronConfiguration* ec)
+template <class T> tChargeDensity<T>* MakeSeedDensity(SeedStrategy s, const BasisSet::BasisSet<T>* bs,
+                                                      const Structure* st, const ElectronConfiguration* ec)
 {
     assert(bs);
     assert(ec);
@@ -74,9 +74,9 @@ template <class T> tDM_CD<T>* MakeSeedDensity(SeedStrategy s, const BasisSet::Ba
     }
 }
 
-template tDM_CD<double>* MakeSeedDensity<double>(SeedStrategy, const BasisSet::BasisSet<double>*,
-                                                 const Structure*, const ElectronConfiguration*);
-template tDM_CD<dcmplx>* MakeSeedDensity<dcmplx>(SeedStrategy, const BasisSet::BasisSet<dcmplx>*,
-                                                 const Structure*, const ElectronConfiguration*);
+template tChargeDensity<double>* MakeSeedDensity<double>(SeedStrategy, const BasisSet::BasisSet<double>*,
+                                                        const Structure*, const ElectronConfiguration*);
+template tChargeDensity<dcmplx>* MakeSeedDensity<dcmplx>(SeedStrategy, const BasisSet::BasisSet<dcmplx>*,
+                                                        const Structure*, const ElectronConfiguration*);
 
 } //namespace

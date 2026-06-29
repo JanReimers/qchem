@@ -20,7 +20,7 @@ LDAVxc::LDAVxc(ex_t& lda)
     assert(&*itsExchangeFunctional);
 };
 
-void LDAVxc::UseChargeDensity(const DM_CD* cd)
+void LDAVxc::UseChargeDensity(const rChargeDensity* cd)
 {
     itsExchangeFunctional->InsertChargeDensity(cd);
 }
@@ -30,7 +30,7 @@ void LDAVxc::UseChargeDensity(const DM_CD* cd)
 //  Here Vxc is not fit to the exchange functional, so the Matrix and energy.
 //  cannot be calculated analytically.
 //
-rsmat_t LDAVxc::CalcMatrix(const obs_t* bs,const Spin&,const DM_CD* cd) const
+rsmat_t LDAVxc::CalcMatrix(const obs_t* bs,const Spin&,const rChargeDensity* cd) const
 {
     std::cerr << "LDAVxc::CalcMatrix not implementated yet" << std::endl;
     exit(-1);

@@ -6,6 +6,7 @@ module;
 #include <vector>
 #include <string>
 #include <cctype>
+#include <memory>
 
 module qchem.SCFIterator;
 import qchem.SCFParams;
@@ -76,14 +77,17 @@ template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const Elect
 }
 
 
-template <class T> void tSCFIterator<T>::Initialize(tDM_CD<T>* cd)
+template <class T> void tSCFIterator<T>::Initialize(tChargeDensity<T>* seed)
 {
-    itsWaveFunction->DoSCFIteration(*itsHamiltonian,cd);
+    // The seed is only needed to build the iteration-0 Fock; it is NOT a working density (it may be a fit
+    // with no density matrix), so own it transiently here rather than storing it as itsOldCD.
+    std::unique_ptr<tChargeDensity<T>> seedOwner(seed);
+    itsWaveFunction->DoSCFIteration(*itsHamiltonian,seed);
     itsWaveFunction->FillOrbitals(0.0001);
 
-    itsCD=cd_t(itsWaveFunction->GetChargeDensity()); //Get new charge density (std-managed).
+    itsCD=cd_t(itsWaveFunction->GetChargeDensity()); //first real (matrix-backed) density, std-managed
     assert(itsCD);
-    itsOldCD=cd_t(cd);   //take ownership of the seed (was deleted in the old dtor)
+    itsOldCD=nullptr;    //set in the SCF loop; the seed is not a working density
     itsIterationCount=0;
     itsConverged=false;
     // DisplayEnergies(itsIterationCount,itsHamiltonian->GetTotalEnergy(itsCD),1.0,0.0,0.0);
