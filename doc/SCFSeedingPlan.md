@@ -315,3 +315,21 @@ e/f. **DONE** (`65b06892`) -- `MakeSeedDensity(SAD)` builds the `CompositeFitted
 
 Route-1 live solve; per-element caching (moot — file replaces solves); per-functional file entries; HF SAD;
 spherical averaging (use the file's reference density as-is); the `tDM_CD::Seed()` virtual.
+
+### 9.7 Phase 2 (plane-wave SAD) progress
+
+- **(a) DONE** (`3682c14e`) — pseudo-valence density generator. **A cubic plane-wave box is the wrong tool
+  for a spherical atom** (breaks symmetry, fights the open-shell 3p degeneracy, O(n³), didn't converge) —
+  so reuse the robust **spherical all-electron** atom solver and **extract the valence shells**:
+  `scfrun --model LDA --valence <n>` sorts the converged atom's occupied orbitals by energy, accumulates
+  whole orbitals until `<n>` electrons, and dumps `rho_val(r)=Σ occ·|φ(r)|²` (kind=valence) to
+  `Data/atomic_valence_densities.json`. Si q4: 17 iters, charge=4.0000, 4πr²ρ peaks at r=2.08 bohr. The
+  core is all-electron-peaked vs a true pseudo density — accepted (a seed only needs the bonding region in
+  the ballpark). The **true pseudo-valence radial PP solver is deferred to the Molecular-PPs project**
+  (a real-space Atom-PP solver belongs there).
+- **(b) TODO** — `FourierSeedCD`: a `tChargeDensity<dcmplx>` providing `GetFourierDensity()=ρ(G)` (the
+  structure-factor sum `Σ_atoms ρ_atom(|G|) e^{-iG·R}`, FT analog of `CompositeFittedCD`), consumed by
+  `PW_Hartree`/`PW_XC` via the existing `FourierDensity` cross-cast.
+- **(c) TODO** — flip the PW default to SAD; gate Si energy unchanged + **iters strictly down** (PW tests
+  converge-and-stop, so the win is visible here). NaF/CsI get a partial (neutral-SAD) win now; the
+  charge-transfer payoff is Phase 3 IonicSAD.
