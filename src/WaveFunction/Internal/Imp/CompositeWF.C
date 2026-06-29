@@ -81,6 +81,14 @@ template <class T> void tCompositeWF<T>::DoSCFIteration(tHamiltonian<T>& ham,con
     for (auto& w:itsIWFs) w->DoSCFIteration();
 }
 
+// Iteration-0 seed: build the Fock from \a seed, diagonalize, fill, and hand back the first real density.
+template <class T> tDM_CD<T>* tCompositeWF<T>::Init(tHamiltonian<T>& ham,const tChargeDensity<T>* seed, double mergeTol)
+{
+    DoSCFIteration(ham, seed);
+    FillOrbitals(mergeTol);
+    return GetChargeDensity();
+}
+
 // Build the Fock and have each irrep accelerator compute its (un-taken) step.  Returns true
 // only if every irrep produced a geodesic step; false means at least one wants to diagonalize
 // (the seed step) -- the caller should fall back to DoSCFIteration().

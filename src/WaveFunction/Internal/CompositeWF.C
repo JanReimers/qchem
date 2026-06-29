@@ -25,11 +25,13 @@ template <class T> class tCompositeWF
 {
 public:
     typedef typename tWaveFunction<T>::iqns_t iqns_t;
+    using tWaveFunction<T>::GetChargeDensity;   // keep the no-arg (whole-density) overload visible past GetChargeDensity(Spin)
 
     tCompositeWF(const tbs_t<T>*,const ElectronConfiguration*,tSCFAccelerator<T>*);
     ~tCompositeWF();
 
     virtual void            DoSCFIteration  (tHamiltonian<T>&,const tChargeDensity<T>*   )      ;
+    virtual tDM_CD<T>*      Init            (tHamiltonian<T>&,const tChargeDensity<T>*, double mergeTol);
     virtual bool            BuildFockAndComputeSteps(tHamiltonian<T>&,const tChargeDensity<T>*);
     virtual void            MoveOrbitals    (double t, bool commit, double mergeTol);
     virtual const Orbitals* GetOrbitals     (const Irrep&) const;
