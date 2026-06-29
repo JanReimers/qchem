@@ -107,21 +107,28 @@ class MainWindow(QtWidgets.QMainWindow):
     # -- 3D refresh --------------------------------------------------------
     def _refresh_3d(self):
         f = self.fields[self.field_box.currentText()]
-        self.plotter.clear()
-        if f.signed:
-            scene.add_isosurface(self.plotter, f)
-        else:
-            vmax = float(f.values.max())
-            scene.add_isosurface(self.plotter, f,
-                                 levels=[self.iso.value() / 1000.0 * vmax])
-        scene.add_structure(self.plotter, self.struct)
-        if self.slice_on.isChecked():
-            grid = field_to_imagedata(f)
-            z0, z1 = f.origin[2], f.origin[2] + (f.dims[2]-1)*f.spacing[2]
-            zpos = z0 + self.slice.value()/100.0*(z1 - z0)
-            sl = grid.slice(normal="z", origin=(0, 0, zpos))
-            self.plotter.add_mesh(sl, name="slice", cmap="inferno",
-                                  show_scalar_bar=False)
+        # Batch the whole rebuild into ONE repaint. Without this, clear() + each
+        # add_mesh repaints individually, so the slice briefly vanishes (it's
+        # re-added last) -> flicker on every slider move.
+        self.plotter.suppress_rendering = True
+        try:
+            self.plotter.clear()
+            if f.signed:
+                scene.add_isosurface(self.plotter, f)
+            else:
+                vmax = float(f.values.max())
+                scene.add_isosurface(self.plotter, f,
+                                     levels=[self.iso.value() / 1000.0 * vmax])
+            scene.add_structure(self.plotter, self.struct)
+            if self.slice_on.isChecked():
+                grid = field_to_imagedata(f)
+                z0, z1 = f.origin[2], f.origin[2] + (f.dims[2]-1)*f.spacing[2]
+                zpos = z0 + self.slice.value()/100.0*(z1 - z0)
+                sl = grid.slice(normal="z", origin=(0, 0, zpos))
+                self.plotter.add_mesh(sl, name="slice", cmap="inferno",
+                                      show_scalar_bar=False)
+        finally:
+            self.plotter.suppress_rendering = False
         self.plotter.render()
 
     # -- streamed SCF ------------------------------------------------------
