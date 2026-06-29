@@ -22,8 +22,11 @@ protected:
     struct NsOnly_t {};
     Atom_EC(int Z, NsOnly_t);       //Populate itsNs only; derived classes build their own occupations.
     struct ValenceOnly_t {};
-    Atom_EC(int Z, ValenceOnly_t);  //Populate itsNs with the RAW valence shells only (no core, no
-                                    //full-subshell demotion) -- the pseudo-atom (PseudoAtom_EC) config.
+    //Populate itsNs with the RAW valence shells only (no core, no full-subshell demotion) -- the pseudo-atom
+    //(PseudoAtom_EC) config.  \a netCharge != 0 makes an ION: the neutral valence is adjusted by -netCharge
+    //electrons (anion adds to the lowest open l, cation removes from the highest occupied l), e.g. F- -> s^2
+    //p^6, Na+ -> empty valence.  Unpaired counts are recomputed by Hund's rule on the adjusted valence shell.
+    Atom_EC(int Z, int netCharge, ValenceOnly_t);
     void BuildNROccupations();
     void SetSplitOccupations(sym_t sp, sym_t su, int NCore, int gp, int gu, int Npair, int Nu);
     //! Distribute the atom's \a nup unpaired electrons into itsNs.Nu (Hund's rule on the valence shell,
@@ -46,6 +49,8 @@ protected:
 export class PseudoAtom_EC : public Atom_EC
 {
 public:
-    PseudoAtom_EC(int Z);
+    //! \a netCharge is the pseudo-ion's net charge (0 = neutral, -1 = anion e.g. F-, +1 = cation e.g. Na+);
+    //! the EC then carries (Zion - netCharge) valence electrons.
+    PseudoAtom_EC(int Z, int netCharge=0);
 };
 

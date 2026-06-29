@@ -72,14 +72,16 @@ class CliPPAtom : public TestAtom
 {
     string element; int valence;
 public:
-    // TestAtom(Z, Z-val): itsZ = val, so the orbital-basis factory builds a VALENCE-range exponent pool
-    // (no tight core functions -- those collapse/linear-depend under the soft pseudopotential), and the
-    // structure is the pseudo-ion Atom(Z, Z-val) with exactly `val` electrons.  Only the electron config
-    // needs swapping: PseudoAtom_EC(Z) gives the valence shells (e.g. Si s^2 p^2) over the atomic irreps.
-    CliPPAtom(int Z, int val) : TestAtom(Z,Z-val), element(QchemTester::itsPT.GetSymbol(Z)), valence(val)
+    // \a val is the GTH valence charge (Zion); \a netQ is the pseudo-ion's net charge (0 neutral, -1 anion
+    // e.g. F-, +1 cation e.g. Na+), so the ion carries (val - netQ) electrons.  TestAtom(Z, Z-(val-netQ))
+    // makes the structure Atom with exactly (val - netQ) electrons over a VALENCE-range basis (itsZ = the
+    // electron count; no tight core functions, which collapse under the soft PP).  The GTH lookup stays at
+    // val (Zion).  Swap the config to PseudoAtom_EC(Z, netQ): the charge-adjusted valence shells (F- -> s^2 p^6).
+    CliPPAtom(int Z, int val, int netQ=0)
+        : TestAtom(Z, Z-(val-netQ)), element(QchemTester::itsPT.GetSymbol(Z)), valence(val)
     {
         delete itsEC;
-        itsEC = new PseudoAtom_EC(Z);
+        itsEC = new PseudoAtom_EC(Z, netQ);
     }
     virtual Hamiltonian* GetHamiltonian(st_t& c) const override
     {
@@ -300,7 +302,7 @@ int main(int argc, char** argv)
          << " basis="<<basis<<" acc="<<acc<<" accel="<<accel<<" : "<<accj.dump()<<endl;
 
     // ---- run ----
-    QchemTester* t = ppmodel ? (QchemTester*) new CliPPAtom   (Z,valence)
+    QchemTester* t = ppmodel ? (QchemTester*) new CliPPAtom   (Z,valence,q)   // --q = pseudo-ion net charge
                    : dft     ? (QchemTester*) new CliDFTAtom  (Z,q,model!="Xalpha",alpha)
                    : dirac   ? (QchemTester*) new CliDiracAtom(Z,q,models[model],pp)
                              : (QchemTester*) new CliAtom     (Z,q,models[model],pp);
@@ -327,7 +329,7 @@ int main(int argc, char** argv)
         if (ppmodel)     // pseudo-VALENCE: the pseudo-atom's converged density IS the smooth valence density
         {                // (no core peak -> no spurious high-G; this is the density the PW SAD seed wants)
             std::unique_ptr<qchem::ChargeDensity::DM_CD> cd(t->GetChargeDensity());
-            DumpRadialDensity(*cd, Z, valence, functional, out, rmin, rmax, ngrid, {{"kind","valence"}});
+            DumpRadialDensity(*cd, Z, valence-q, functional, out, rmin, rmax, ngrid, {{"kind","valence"}});  // Nelec = Zion - netQ
         }
         else if (valence>0)   // all-electron pseudo-VALENCE proxy: the outermost `valence` orbitals only
         {

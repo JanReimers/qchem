@@ -219,7 +219,8 @@ rvec_t GaussianExponents(BasisSetAccuracy acc,size_t Z)
     return exponents;
 }
 
-Real_BS* Factory(BasisSetAccuracy acc, Type type,size_t Z)
+// Build the basis-spec json for a canned (accuracy, type) preset at element Z (Z sets the exponent pool).
+static nlohmann::json AccJson(BasisSetAccuracy acc, Type type, size_t Z)
 {
     using enum BasisSetAccuracy;
     nlohmann::json js;
@@ -277,7 +278,17 @@ Real_BS* Factory(BasisSetAccuracy acc, Type type,size_t Z)
             break;
         }
     }
-    return Factory(js,Z);
+    return js;
+}
+
+Real_BS* Factory(BasisSetAccuracy acc, Type type,size_t Z)
+{
+    return Factory(AccJson(acc,type,Z), Z);
+}
+
+Real_BS* Factory(BasisSetAccuracy acc, Type type, size_t Z, const ElectronConfiguration& ec)
+{
+    return Factory(AccJson(acc,type,Z), ec);   // Z -> exponent pool; ec -> which angular irreps
 }
 
 } //namespace 

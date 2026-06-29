@@ -191,26 +191,59 @@ Atom_EC::Atom_EC(int Z)
 }
 
 // Pseudo-atom: load ONLY the raw valence shells (no core, no full-subshell demotion), so a closed valence
-// subshell like Si 3s^2 stays a valence occupation instead of folding into the core.
-Atom_EC::Atom_EC(int Z, ValenceOnly_t)
+// subshell like Si 3s^2 stays a valence occupation instead of folding into the core.  netCharge != 0 makes
+// an ion (see the header): adjust the neutral valence by -netCharge electrons, then recompute the unpaired
+// count by Hund's rule on the (adjusted) valence shell.
+Atom_EC::Atom_EC(int Z, int netCharge, ValenceOnly_t)
 : itsLMax(0), itsLValance(0)
 {
     assert(Z>0);
     assert(Z<=N_Elements);
 
-    const size_t* vc=thePeriodicTable().GetValanceConfiguration(Z);  //Raw valence electron counts per l
+    const size_t* vc=thePeriodicTable().GetValanceConfiguration(Z);  //Raw NEUTRAL valence electron counts per l
+    int nv[LMax+1];
+    for (size_t l=0;l<=LMax;l++) nv[l]=int(vc[l]);
+
+    // Make the ion: add (anion) / remove (cation) -netCharge electrons.  Anion fills the lowest l that has
+    // room (capacity 2(2l+1)); cation removes from the highest l that still has electrons.  Main-group ions
+    // (the IonicSAD targets) close or empty a shell this way -- F- -> p^6, Na+ -> empty, O2- -> p^6.
+    for (int add = -netCharge; add>0; --add)         // anion: add electrons low-l first
+    {
+        int l=0; while (l<=int(LMax) && nv[l]>=2*(2*l+1)) ++l;
+        assert(l<=int(LMax) && "PseudoAtom_EC: anion overflows the valence (no open channel <= LMax)");
+        ++nv[l];
+    }
+    for (int rem = netCharge; rem>0; --rem)          // cation: remove electrons high-l first
+    {
+        int l=int(LMax); while (l>=0 && nv[l]<=0) --l;
+        assert(l>=0 && "PseudoAtom_EC: cation removes more electrons than the valence holds");
+        --nv[l];
+    }
+
     for (size_t l=0;l<=LMax;l++)
     {
         itsNs.Nf[l]=0;                 //no core: the pseudopotential replaces it
-        itsNs.Nv[l]=vc[l];
-        itsNs.N [l]=vc[l];
-        if (vc[l]>0) {itsLMax=l; itsLValance=l;}
+        itsNs.Nv[l]=nv[l];
+        itsNs.N [l]=nv[l];
+        if (nv[l]>0) {itsLMax=l; itsLValance=l;}
     }
-    AssignUnpaired(Z, thePeriodicTable().GetNumUnpairedElectrons(Z));
+    // Neutral atom: keep the periodic table's exact unpaired count (handles half-filled-shell exceptions like
+    // Cr/Cu).  Ion: recompute by Hund's rule on the (highest-l) adjusted valence shell -- n in 2g spin-orbitals
+    // gives n unpaired if n<=g else 2g-n, so a closed-shell ion (F-/Na+/O2-) is 0.  (Open-shell transition-
+    // metal ions are out of scope.)
+    int nup;
+    if (netCharge==0)
+        nup = (int)thePeriodicTable().GetNumUnpairedElectrons(Z);
+    else
+    {
+        int g=2*int(itsLValance)+1, nlv=nv[itsLValance];
+        nup = (nlv<=g) ? nlv : (2*g-nlv);
+    }
+    AssignUnpaired(Z, nup);
 }
 
-PseudoAtom_EC::PseudoAtom_EC(int Z)
-: Atom_EC(Z, ValenceOnly_t{})
+PseudoAtom_EC::PseudoAtom_EC(int Z, int netCharge)
+: Atom_EC(Z, netCharge, ValenceOnly_t{})
 {
     BuildNROccupations();
 }

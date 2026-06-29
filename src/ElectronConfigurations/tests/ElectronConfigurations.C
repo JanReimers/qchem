@@ -326,6 +326,27 @@ TEST_F(ElectronConfigurationTests, SiliconPseudoValence)
     EXPECT_EQ(ec.GetN(Irrep(Spin::None,p_occ)),2);
     EXPECT_EQ(ec.GetN(Irrep(Spin::None,p_emp)),0);   // empty-irrep lookup must be 0 (was UB)
 }
+// Pseudo-ion configs: the net charge adjusts the neutral pseudo-valence.  F- (charge -1) adds one electron
+// to close the p shell (2s^2 2p^5 -> 2s^2 2p^6); Na+ (charge +1) removes the lone 3s electron (empty valence).
+TEST_F(ElectronConfigurationTests, FluorideAnionPseudoValence)
+{
+    PseudoAtom_EC ec(9, -1);          // F-
+    sym_t s=qn(0), p=qn(1);           // closed p shell -> single (un-split) p irrep
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,s)), 1);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,s)), 1);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,p)), 3);   // p^6 closed: 3 up + 3 down
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,p)), 3);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::None,s)), 2);   // 8 valence electrons total (2s^2 2p^6)
+    EXPECT_EQ(ec.GetN(Irrep(Spin::None,p)), 6);
+}
+TEST_F(ElectronConfigurationTests, SodiumCationPseudoValence)
+{
+    PseudoAtom_EC ec(11, +1);         // Na+: removes the 3s^1 -> empty valence
+    sym_t s=qn(0);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,s)), 0);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,s)), 0);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::None,s)), 0);   // 0 valence electrons (closed Ne-like core in the PP)
+}
 TEST_F(ElectronConfigurationTests, Phosphorus)
 {
     Atom_EC ec(15);
