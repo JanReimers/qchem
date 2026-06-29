@@ -176,6 +176,57 @@ labels and callers omit what they don't set.
 
 ---
 
+## 7. One umbrella `import qchem;`
+
+**What I hit:** the bridge imports ~16 modules by hand
+(`qchem.Structure`, `qchem.ScalarFunction`, `qchem.Hamiltonian.Factory`,
+`qchem.SCFIterator`, …) and a consumer must know each module's name *and* which
+`using`/alias it provides.
+
+**Here's all I should have to write:**
+
+```cpp
+import qchem;     // re-exports the public modules AND the public usings/aliases
+```
+
+**Suggestion (lib team):** a thin umbrella module `qchem` that `export import`s the
+public-facing modules and re-exports the common `using`s. (Mirror the existing
+`qchem.Math` umbrella convention — and the CMake gotcha noted in
+`project_qcmath_library_split`: an umbrella must not re-export same-library
+siblings, which CMake reads as a bogus cycle.) Internals (`*.Internal.*`) stay out,
+per the re-export rule in CLAUDE.md.
+
+---
+
+## Division of labor: lib hands out containers, the binding marshals to raw
+
+A boundary rule worth making explicit (from the lib team):
+
+- **`void*` and raw `double*` are the BINDING's job, not the lib's.** The C ABI
+  handle (`void*`) and the `double*` grid buffers in `qcb_api.h` / `qchem_py.cpp`
+  are correct *there* — that's the language-interop layer. They must never leak
+  back into `src/`.
+- **The lib should hand out blaze / `std::` containers** (`rvec_t`, `rmat_t`,
+  `ScalarFunction`, …). The transition container → `double*` → NumPy stays on the
+  binding side.
+
+**Things currently in `pybind/qchem_bridge.cpp` that are lib-side candidates**
+(they return/operate on containers, no raw pointers needed — migrate them to
+`src/` returning blaze/std, and let the binding do the final `double*` wrap):
+
+- `Calc` (the whole assembly + converge) → the `qchem::Calculation` facade (item 1).
+- `bbox(positions, pad)` → a geometry helper on `Structure` (e.g.
+  `Structure::BoundingBox(pad)` returning two `rvec3_t`).
+- `sample_scalar` / `sample_gradient`: sampling a `ScalarFunction<double>` onto a
+  regular grid → a lib utility returning an `rvec_t` (flat) or `rmat_t`; the
+  binding then wraps that buffer as NumPy. (The grid *definition* — origin/
+  spacing/dims — is a natural small lib struct too.)
+
+What stays binding-side: the `extern "C"` ABI, the `void*` handle, the
+`double*`→`nb::ndarray` wrapping, the Python callback trampoline.
+
+---
+
 ## Net
 
 The low-level abstractions (especially `ScalarFunction`, and `Factory`
