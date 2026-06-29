@@ -320,11 +320,16 @@ int main(int argc, char** argv)
     if (model=="HF")  t->RelativeHFError();
     if (model=="DHF") t->RelativeDHFError();
 
-    // ---- SAD density file (DFT models only) ----
-    if (dft && !out.empty())
+    // ---- SAD density file (DFT + PP models) ----
+    if ((dft || ppmodel) && !out.empty())
     {
         const string functional = (model=="Xalpha"?"Xalpha":"LDA");
-        if (valence>0)   // pseudo-VALENCE: only the outermost `valence` electrons (for the plane-wave SAD seed)
+        if (ppmodel)     // pseudo-VALENCE: the pseudo-atom's converged density IS the smooth valence density
+        {                // (no core peak -> no spurious high-G; this is the density the PW SAD seed wants)
+            std::unique_ptr<qchem::ChargeDensity::DM_CD> cd(t->GetChargeDensity());
+            DumpRadialDensity(*cd, Z, valence, functional, out, rmin, rmax, ngrid, {{"kind","valence"}});
+        }
+        else if (valence>0)   // all-electron pseudo-VALENCE proxy: the outermost `valence` orbitals only
         {
             ValenceDensity vd = BuildValenceDensity(*t, valence);
             DumpRadialDensity(vd, Z, valence, functional, out, rmin, rmax, ngrid, {{"kind","valence"}});

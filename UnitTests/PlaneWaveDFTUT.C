@@ -1034,62 +1034,74 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaThroughSCFIterator)
     cell.AddAtom(14, {0.25,0.25,0.25});
     Lattice_3D  lat(cell, ivec3_t(1,1,1));
 
-    // The basis comes from the factory as an abstract BasisSet<dcmplx>; it owns its plane-wave Bloch
-    // block(s).  The pseudopotential model lives on the Hamiltonian term (the pseudo-wall), NOT the basis.
+    // Run the Si-Gamma SCF at plane-wave cutoff \a Ecut under a given SEED strategy, EVERYTHING ELSE
+    // identical (config, Hamiltonian, complex-DIIS accelerator, convergence params) -- so the only difference
+    // is the seed and the iteration counts are a fair head-to-head.  Returns iters/convergence/charge/energy.
     namespace L3=BasisSet::Lattice_3D;
-    std::unique_ptr<BasisSet::Complex_BS> bs(L3::Factory(L3::Type::PW, lat, 4.0));
+    struct Run { size_t iters; bool conv; double charge; qchem::EnergyBreakdown E; };
+    auto run=[&](double Ecut, qchem::ChargeDensity::SeedStrategy seed)
+    {
+        using namespace qchem::Hamiltonian;
+        // The basis is an abstract BasisSet<dcmplx> owning its plane-wave Bloch block(s); the PP model lives
+        // on the Hamiltonian term (the pseudo-wall), NOT the basis.
+        std::unique_ptr<BasisSet::Complex_BS> bs(L3::Factory(L3::Type::PW, lat, Ecut));
+        Irrep      irr=bs->GetIrreps(Spin::None)[0];
+        Crystal_EC ec(irr, 8);   // Si insulator: 8 valence electrons (2 atoms x Zion 4)
+        // Plane-wave LDA Kohn-Sham Hamiltonian: kinetic + external(pseudo) + Hartree + Dirac X + VWN5
+        // (heap; the SCFIterator takes ownership).  Atoms from the lattice; the PP model lives on the term.
+        cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), "Si", "LDA", 4);   // one-call: looks up + owns the GTH PP
+        // Complex DIIS (Pulay): extrapolate the Fock matrix from the [F,D] history; damps the marginal drift
+        // within Si's degenerate Gamma_25' manifold so it converges to a tight |Delta rho|.
+        using qchem::SCFAccelerators::DIISParams;
+        auto* acc=new qchem::SCFAccelerators::cSCFAcceleratorDIIS(DIISParams{8, 0.5, 1e-10, 1e-9});
+        qchem::SCFIterator::cSCFIterator scf(bs.get(), &ec, ham, acc, seed, lat.GetStructure().get());
 
-    Irrep      irr=bs->GetIrreps(Spin::None)[0];
-    const int  Nelec=8;
+        SCFParams par;
+        par.NMaxIter      =80;
+        par.MinΔρ         =1e-7;   // tight convergence (complex DIIS damps the degenerate-manifold drift)
+        par.MinΔFD        =1e30;
+        par.MinVirial     =1e30;   // pseudopotential calc: the textbook -V/K=2 virial does not hold
+        par.MinFD         =1e30;
+        par.StartingRelaxRo=0.4;
+        par.MergeTol      =1e-4;
+        par.Verbose       =false;
+        scf.Iterate(par);
 
-    Crystal_EC  ec(irr, Nelec);
+        auto* cd=scf.GetWaveFunction()->GetChargeDensity();   // caller owns the returned (composite) density
+        double charge=cd->GetTotalCharge();
+        delete cd;
+        return Run{scf.GetIterationCount(), scf.Converged(), charge, scf.GetEnergy()};
+    };
 
-    // Plane-wave LDA Kohn-Sham Hamiltonian from the Ham factory family: kinetic + external(pseudo) +
-    // Hartree + Dirac exchange + VWN5 correlation (heap; the SCFIterator takes ownership).  The atoms
-    // are sourced from the lattice; the pseudopotential model is owned by the external term (pseudo-wall).
-    cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), "Si", "LDA", 4);   // one-call: looks up + owns the GTH PP
+    // The plane-wave SAD path (FourierSeedCD: a G-space form-factor sum of the atomic VALENCE densities from
+    // atomic_valence_densities.json).  That file now holds the SMOOTH pseudo-valence Si density produced by
+    // the Atom-PP (Ham_PP_U + KB nonlocal: scfrun --model PP --valence 4 --out ...), not the old all-electron
+    // valence whose core peak injected spurious high-G content.  See doc/SCFSeedingPlan.md section 9.7.
 
-    // Complex DIIS (Pulay): extrapolate the Fock matrix from the [F,D]-error history.  This damps the
-    // marginal density drift within Si's degenerate Gamma_25' manifold that the Null accelerator left,
-    // so the calculation converges to a tight |Delta rho| instead of dribbling at ~1e-5.
-    using qchem::SCFAccelerators::DIISParams;
-    auto* acc=new qchem::SCFAccelerators::cSCFAcceleratorDIIS(DIISParams{8, 0.5, 1e-10, 1e-9});
+    // Ecut=4 / Gamma (fast, near-jellium).  Both seeds; cross-check the SAD energy vs the standalone prototype.
+    Run sad=run(4.0, qchem::ChargeDensity::SeedStrategy::SAD);
+    Run uni=run(4.0, qchem::ChargeDensity::SeedStrategy::Uniform);
+    std::cout << "[Si SCFIterator-Gamma] SAD iters="<<sad.iters<<"  Uniform iters="<<uni.iters
+              << "  SAD Etot="<<sad.E.GetTotalEnergy()
+              << "  (Ekin="<<sad.E.Kinetic<<" Een="<<sad.E.Een<<" Eee="<<sad.E.Eee<<" Exc="<<sad.E.Exc<<")" << std::endl;
 
-    // Exercise the plane-wave SAD path (FourierSeedCD: a G-space form-factor sum of atomic valence
-    // densities).  This asserts the HARD invariant -- SAD converges to the bit-identical total energy as
-    // the Uniform seed (the rest of the PW tests use the Uniform default).  NOTE: it does NOT yet reduce
-    // the iteration count vs Uniform; the all-electron-valence density's core peak injects spurious high-G
-    // content (a true pseudo valence is smooth in the core), so the iteration win awaits the pseudo-valence
-    // radial PP solver (the Molecular-PPs project).  See doc/SCFSeedingPlan.md section 9.7.
-    qchem::SCFIterator::cSCFIterator scf(bs.get(), &ec, ham, acc,
-                                         qchem::ChargeDensity::SeedStrategy::SAD, lat.GetStructure().get());
-
-    SCFParams par;
-    par.NMaxIter      =80;
-    par.MinΔρ         =1e-7;   // tight convergence now that complex DIIS damps the degenerate-manifold drift
-    par.MinΔFD        =1e30;
-    par.MinVirial     =1e30;   // pseudopotential calc: the textbook -V/K=2 virial does not hold
-    par.MinFD         =1e30;
-    par.StartingRelaxRo=0.4;
-    par.MergeTol      =1e-4;
-    par.Verbose       =false;
-    scf.Iterate(par);
-
-    const qchem::WaveFunction::cWaveFunction* wf=scf.GetWaveFunction();
-    auto* cd=wf->GetChargeDensity();              // caller owns the returned (composite) density
-    double charge=cd->GetTotalCharge();
-    delete cd;
-    qchem::EnergyBreakdown E=scf.GetEnergy();
-    std::cout << "[Si SCFIterator-Gamma] iters="<<scf.GetIterationCount()<<" charge="<<charge
-              << " Etot="<<E.GetTotalEnergy()
-              << "  (Ekin="<<E.Kinetic<<" Een="<<E.Een<<" Eee="<<E.Eee<<" Exc="<<E.Exc<<")" << std::endl;
-
-    EXPECT_TRUE(scf.Converged());
-    EXPECT_NEAR(charge,                  8.0,    1e-6);   // 8 valence electrons
-    EXPECT_NEAR(E.GetElectronicEnergy(), 1.468,  5e-3);   // band energy matches the standalone prototype
+    EXPECT_TRUE(sad.conv);
+    EXPECT_NEAR(sad.charge,                  8.0,    1e-6);   // 8 valence electrons
+    EXPECT_NEAR(sad.E.GetElectronicEnergy(), 1.468,  5e-3);   // band energy matches the standalone prototype
     // Physical total: electronic + ion-ion Ewald (Enn) + dropped-G=0 alignment (Ealign) -- now NEGATIVE.
     // (Underconverged at Ecut=4 / Gamma-only; the converged Si total is ~-7.9 Ha/cell.)
-    EXPECT_NEAR(E.GetTotalEnergy(),     -7.2273, 5e-3) << "Enn="<<E.Enn<<" Ealign="<<E.Ealign;
+    EXPECT_NEAR(sad.E.GetTotalEnergy(),     -7.2273, 5e-3) << "Enn="<<sad.E.Enn<<" Ealign="<<sad.E.Ealign;
+    EXPECT_TRUE(uni.conv);
+    EXPECT_NEAR(sad.E.GetTotalEnergy(), uni.E.GetTotalEnergy(), 1e-3);   // seed cannot change the answer
+
+    // THE SMOOTH-DENSITY WIN (regression guard).  The smooth pseudo-valence seed converges in ~12 iters here;
+    // the OLD all-electron-valence seed needed ~15 (its core peak injected spurious high-G content).  Guard
+    // the robust 3-iter improvement -- NOT a brittle tie with Uniform: at this coarse near-jellium Ecut=4 the
+    // converged density is nearly flat so Uniform (the pure G=0 seed) is already near-optimal (11).  The
+    // STRICT win over Uniform appears once the density has real structure -- e.g. Ecut=9/Gamma gives SAD 10
+    // vs Uniform 11 (verified manually) -- but a 1-iter margin behind an ~18s high-Ecut SCF is too slow and
+    // brittle to gate CI.  See doc/SCFSeedingPlan.md section 9.7.
+    EXPECT_LE(sad.iters, 13u) << "smooth pseudo-valence SAD should converge in <=13 iters (was ~15 all-electron)";
 }
 
 // Shared Gamma-point framework-SCF driver for the multi-species crystal tests: build the PW basis from
