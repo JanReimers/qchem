@@ -29,28 +29,47 @@ import qchem.Math;   // Pi, FourPi
 export namespace Pseudopotential
 {
 
-//! \brief A separable Kleinman-Bylander nonlocal potential, supplying per-species projector form
-//! factors and KB coefficients.  Open/closed extension point for the nonlocal part of a pseudopotential.
-class SeparablePotential
+//! \brief The view-NEUTRAL structural core of a separable Kleinman-Bylander nonlocal potential: how many
+//! projectors a species has, their KB coefficients, and their angular momenta.  Shared by both spectral
+//! views (cf. doc/MolecularPseudopotentialPlan.md section 2: unlike LocalPotential, the core is common; only
+//! the radial leaf -- reciprocal Projector(q) vs real BetaR(r) -- splits).
+class SeparablePotential_Base
 {
 public:
-    virtual ~SeparablePotential() {}
+    virtual ~SeparablePotential_Base() {}
     //! Number of (radial) projectors for nuclear species \a Z.
     virtual size_t NumProjectors(int Z) const=0;
     //! Kleinman-Bylander coefficient \f$D_p\f$ for projector \a p of species \a Z.  [energy]
     virtual double Coefficient  (int Z, size_t p) const=0;
-    //! Reciprocal-space radial projector form factor \f$\tilde\beta_p(|q|)\f$, \f$q=|k+G|\f$.
-    virtual double Projector    (int Z, size_t p, double q) const=0;
     //! Angular momentum \a l of projector \a p (default 0 = s-channel).  Sets the \f$(2l+1)P_l(\cos\gamma)\f$
-    //! angular weight of this projector's contribution.
+    //! angular weight (PW) / the \f$Y_{lm}\f$ projector (real space).
     virtual int    AngularMomentum(int /*Z*/, size_t /*p*/) const {return 0;}
+};
+
+//! \brief The RECIPROCAL radial leaf (+ core): the view a PLANE-WAVE basis consumes.
+class SeparablePotential : public virtual SeparablePotential_Base
+{
+public:
+    //! Reciprocal-space radial projector form factor \f$\tilde\beta_p(|q|)\f$, \f$q=|k+G|\f$.
+    virtual double Projector(int Z, size_t p, double q) const=0;
+};
+
+//! \brief The REAL-space radial leaf (+ core): the view a MOLECULAR / ATOMIC basis consumes, the radial
+//! projector \f$\beta_p(r)\f$ (the \f$Y_{lm}\f$ angular factor for channel \c AngularMomentum(p) is applied
+//! by the assembler).  Its spherical-Bessel transform reproduces the reciprocal leaf:
+//! \f$\int_0^\infty\beta_p(r)\,j_l(qr)\,r^2\,dr = \mathrm{Projector}_p(q)/\sqrt{4\pi}\f$ -- the \f$1/\sqrt{4\pi}\f$
+//! is fixed by Kleinman-Bylander consistency (validated by UTPseudopotential).
+class SeparablePotential_R : public virtual SeparablePotential_Base
+{
+public:
+    virtual double BetaR(int Z, size_t p, double r) const=0;
 };
 
 //! \brief A single Gaussian Kleinman-Bylander projector in channel \a l,
 //! \f$\tilde\beta(q)=e^{-\sigma^2 q^2/2}\f$ with coefficient \f$D\f$ -- a minimal analytic demonstrator
 //! of the separable nonlocal structure (each atom contributes a rank-1 \f$V_{NL}\f$ per channel).
 //! Defaults to l=0 (the s-channel), so existing callers are unaffected.
-class GaussianProjector : public SeparablePotential
+class GaussianProjector : public SeparablePotential, public virtual SeparablePotential_R
 {
 public:
     GaussianProjector(double sigma, double D, int l=0) : itsSigma(sigma), itsD(D), itsL(l) {}
@@ -58,6 +77,12 @@ public:
     virtual double Coefficient  (int, size_t) const {return itsD;}
     virtual double Projector    (int, size_t, double q) const {return std::exp(-0.5*itsSigma*itsSigma*q*q);}
     virtual int    AngularMomentum(int, size_t) const {return itsL;}
+    //! Real-space s-channel demonstrator: the Gaussian whose j_0 transform is sqrt(4pi) e^{-sigma^2 q^2/2},
+    //! i.e. beta(r) = (2 sqrt2 / sigma^3) e^{-r^2/2 sigma^2}.  (Consistent for l=0, the default channel.)
+    virtual double BetaR(int, size_t, double r) const
+    {
+        return 2.0*std::sqrt(2.0)/(itsSigma*itsSigma*itsSigma) * std::exp(-0.5*r*r/(itsSigma*itsSigma));
+    }
 private:
     double itsSigma; //!< Projector width (Bohr).
     double itsD;     //!< KB coefficient (energy).
@@ -77,7 +102,7 @@ private:
 //! \sum_i v_{\alpha,i}\,\pi^{5/4} q^l\sqrt{r_l^{2l+3}}Q_i^l e^{-(qr_l)^2/2}\f$, so the generic
 //! (2l+1)P_l(cosγ) assembler in PlaneWave_IBS reproduces \f$\frac1\Omega(2l+1)P_l\sum_{ij}\tilde\beta_i
 //! h_{ij}\tilde\beta_j\f$ exactly.
-class HGH_SeparablePotential : public SeparablePotential
+class HGH_SeparablePotential : public SeparablePotential, public virtual SeparablePotential_R
 {
 public:
     //! Build by adding channels (AddChannel) from real GTH parameters; the GTH database reader
@@ -92,6 +117,16 @@ public:
         double s=0.0;                                          // (1/sqrt 4pi) Sum_i v_i projG_i(q)
         for (size_t i=0;i<pr.v.size();i++) s += pr.v[i]*ProjG(q, pr.l, static_cast<int>(i), pr.rl);
         return s/std::sqrt(FourPi);
+    }
+    //! Real-space radial projector \f$\beta_p(r)=\sum_i v_i\,p_i^l(r)\f$ (the diagonalised KB combination of
+    //! the analytic HGH real-space radials).  Its \f$j_l\f$ transform reproduces \f$\mathrm{Projector}_p(q)/
+    //! \sqrt{4\pi}\f$ (the SeparablePotential_R contract; checked in UTPseudopotential).
+    virtual double BetaR(int, size_t p, double r) const
+    {
+        const Proj& pr=itsProj[p];
+        double s=0.0;
+        for (size_t i=0;i<pr.v.size();i++) s += pr.v[i]*ProjR(r, pr.l, static_cast<int>(i), pr.rl);
+        return s;
     }
 
     //! \brief Add an angular channel from its symmetric KB coefficient matrix \a h (the HGH h-matrix
@@ -165,13 +200,24 @@ private:
         double x=q*rl, ql=(l==0)?1.0:std::pow(q, static_cast<double>(l));
         return Qli(x,l,i)*std::pow(Pi,1.25)*ql*std::sqrt(std::pow(rl,2*l+3))*std::exp(-0.5*x*x);
     }
+
+    //! Real-space HGH radial projector (Goedecker/HGH normalised form, i 0-indexed):
+    //! \f$p_i^l(r)=\sqrt2\,r^{\,l+2i}\,e^{-r^2/2r_l^2}\big/\big(r_l^{\,l+(4i+3)/2}\sqrt{\Gamma(l+(4i+3)/2)}\big)\f$.
+    //! \f$\int_0^\infty p_i^l(r)\,j_l(qr)\,r^2\,dr = \mathrm{ProjG}(q,l,i,r_l)\f$ (the inverse of ProjG).
+    static double ProjR(double r, int l, int i, double rl)
+    {
+        double a = l + (4*i+3)/2.0;                       // r_l exponent and Gamma argument
+        double x = r/rl;
+        return std::sqrt(2.0) * std::pow(r, l+2*i) * std::exp(-0.5*x*x)
+             / ( std::pow(rl, a) * std::sqrt(std::tgamma(a)) );
+    }
 };
 
 //! \brief A multi-species separable potential: the nonlocal sibling of MultiSpecies_LocalPotential -- a
 //! router keyed by atomic number \a Z forwarding to the per-species projector model.  Every method takes
 //! \a Z, so the basis assembly (which loops atoms and calls NumProjectors(a->itsZ) etc.) is unchanged.
 //! Register every species (even a purely-local one, whose model simply reports 0 projectors).
-class MultiSpecies_SeparablePotential : public SeparablePotential
+class MultiSpecies_SeparablePotential : public SeparablePotential, public virtual SeparablePotential_R
 {
 public:
     //! Register species \a Z's nonlocal projector model (atomic number, e.g. 53 for I).
@@ -180,6 +226,14 @@ public:
     virtual double Coefficient    (int Z, size_t p)  const override {return Get(Z).Coefficient(Z,p);}
     virtual double Projector      (int Z, size_t p, double q) const override {return Get(Z).Projector(Z,p,q);}
     virtual int    AngularMomentum(int Z, size_t p)  const override {return Get(Z).AngularMomentum(Z,p);}
+    //! The real-space view: cross-cast the sub-model to its real radial leaf (sanctioned abstract->abstract,
+    //! via the shared SeparablePotential_Base) -- a dual-view model (HGH) is-a SeparablePotential_R too.
+    virtual double BetaR(int Z, size_t p, double r) const override
+    {
+        const auto* rface=dynamic_cast<const SeparablePotential_R*>(&Get(Z));
+        assert(rface && "MultiSpecies_SeparablePotential::BetaR: sub-model has no real-space view");
+        return rface->BetaR(Z,p,r);
+    }
 private:
     const SeparablePotential& Get(int Z) const
     {
