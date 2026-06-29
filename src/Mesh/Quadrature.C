@@ -13,10 +13,22 @@ module;
 export module qchem.Mesh.Quadrature;
 export import qchem.Mesh;
 export import qchem.Mesh.Fields;
+export import qchem.Mesh.Radial;   // RadialMesh (the 1-D radial quadrature)
 import qchem.Blaze;
 
 namespace qcMesh
 {
+
+//! integral over a RADIAL mesh of TABULATED values: sum_i w_i f_i.  The radial weights already fold in the
+//! r^2 jacobian, so for a spherical density  4*pi*Integrate(rmesh, rho) = integral rho d^3r.
+export inline double Integrate(const RadialMesh& m, const rvec_t& f)
+{
+    const rvec_t& W=m.W();
+    double s=0;
+    for (size_t i=0;i<W.size();i++) s+=W[i]*f[i];
+    return s;
+}
+
 
 // ---- internal helpers: scalar conj/real that also work for real T (no std-namespace hacks) ----
 template <class T> inline T    Conj(const T& x) { if constexpr (std::is_floating_point_v<T>) return x; else return std::conj(x); }

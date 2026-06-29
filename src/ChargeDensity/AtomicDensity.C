@@ -11,28 +11,30 @@ module;
 #include <memory>
 export module qchem.ChargeDensity.AtomicDensity;
 import qchem.ScalarFunction;   // ScalarFunction<double>, rvec3_t
+import qchem.Mesh.Quadrature;  // qcMesh::RadialMesh, MakeRadial, Integrate (radial quadrature)
 
 export namespace qchem::ChargeDensity
 {
 
-//! A neutral atom's spherically-averaged radial density rho(r), read from the SAD database and stored on a
-//! log-radial grid.  operator()(r) linearly interpolates; outside [rmin,rmax] it clamps (rho(rmin) for the
-//! core, 0 beyond rmax -- the stored tail is already ~0).
+//! A neutral atom's spherically-averaged radial density rho(r), read from the SAD database.  It lives on a
+//! qcMesh::RadialMesh (a Log mesh: nodes r_i = rmin*q^i, with the r^2 jacobian folded into the weights), so
+//! the integrals below are plain weighted sums.  operator()(r) linearly interpolates between nodes; outside
+//! [rmin,rmax] it clamps (rho(rmin) for the core, 0 beyond rmax -- the stored tail is already ~0).
 class RadialDensity
 {
 public:
-    RadialDensity(double rmin, double rmax, std::vector<double> rho);
+    RadialDensity(double rmin, double rmax, std::vector<double> rho);   //!< builds a Log RadialMesh internally
     double operator()(double r) const;   //!< interpolated rho(r)
-    double Charge() const {return itsCharge;}   //!< 4*pi*int r^2 rho dr from the stored grid (~ Nelec)
-    int    GetN() const {return (int)itsRho.size();}
+    double Charge() const {return itsCharge;}   //!< 4*pi*int r^2 rho dr (= Sum_i 4*pi*w_i rho_i; ~ Nelec)
+    int    GetN() const {return (int)itsMesh.size();}
     //! Reciprocal-space form factor \f$\tilde\rho(G)=4\pi\int_0^\infty \rho(r)\,\mathrm{sinc}(Gr)\,r^2\,dr\f$
     //! (the radial Fourier transform of a spherical density).  \f$\tilde\rho(0)=\f$ Charge().  Used by the
     //! plane-wave SAD seed's structure-factor sum.
     double FormFactor(double G) const;
 private:
-    double              itsRmin, itsRmax, itsLogStep;   //!< log grid: r_i = rmin*exp(i*itsLogStep)
-    std::vector<double> itsRho;
-    double              itsCharge;
+    qcMesh::RadialMesh  itsMesh;     //!< Log radial mesh: nodes R()[i] + r^2-folded weights W()[i]
+    rvec_t              itsRho;      //!< rho at each mesh node
+    double              itsCharge;   //!< cached 4*pi*int r^2 rho dr
 };
 
 //! Read element \a Z's radial density for \a functional from database \a dbfile (throws if absent).  The

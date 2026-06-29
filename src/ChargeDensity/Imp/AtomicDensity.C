@@ -1,5 +1,6 @@
 // File: ChargeDensity/Imp/AtomicDensity.C  SAD atomic-density database reader + radial interpolation.
 module;
+#include <cassert>
 #include <fstream>
 #include <filesystem>
 #include <stdexcept>
@@ -35,44 +36,37 @@ static const nlohmann::json& database(const std::string& dbfile)
 //----------------------------------------------------------------------------------- RadialDensity
 
 RadialDensity::RadialDensity(double rmin, double rmax, std::vector<double> rho)
-    : itsRmin(rmin), itsRmax(rmax)
-    , itsLogStep(std::log(rmax/rmin)/(rho.size()-1))
-    , itsRho(std::move(rho))
-    , itsCharge(0.0)
+    : itsMesh(qcMesh::MakeRadial({.radial=qcMesh::RadialKind::Log, .nRadial=(int)rho.size(),
+                                  .logStart=rmin, .logStop=rmax}))
+    , itsRho(rho.size(), rho.data())   // tabulated rho on the mesh nodes
+    , itsCharge(4.0*Pi*qcMesh::Integrate(itsMesh, itsRho))   // 4*pi*int r^2 rho dr (weights fold r^2)
 {
-    // 4*pi*int r^2 rho dr on the log grid: dr = r du, du = itsLogStep, trapezoid (half weight at the ends).
-    const int N = (int)itsRho.size();
-    for (int i=0;i<N;i++)
-    {
-        double r = itsRmin*std::exp(i*itsLogStep);
-        double w = (i==0||i==N-1) ? 0.5 : 1.0;
-        itsCharge += w * 4.0*Pi*r*r*itsRho[i] * r*itsLogStep;
-    }
+    assert(itsRho.size()==itsMesh.size());
 }
 
 double RadialDensity::operator()(double r) const
 {
-    if (r<=itsRmin) return itsRho.front();   // flat core clamp
-    if (r>=itsRmax) return 0.0;              // stored tail is already ~0
-    double u = std::log(r/itsRmin)/itsLogStep;
-    int    i = (int)std::floor(u);
-    if (i>=(int)itsRho.size()-1) return itsRho.back();
-    double f = u-i;
-    return itsRho[i]*(1.0-f) + itsRho[i+1]*f;
+    const rvec_t& R=itsMesh.R();
+    if (r<=R[0])            return itsRho[0];         // flat core clamp
+    if (r>=R[R.size()-1])   return 0.0;              // stored tail is already ~0
+    // bracket r between mesh nodes (monotonic) and linearly interpolate
+    size_t lo=0, hi=R.size()-1;
+    while (hi-lo>1) { size_t mid=(lo+hi)/2; if (R[mid]<=r) lo=mid; else hi=mid; }
+    double f = (r-R[lo])/(R[hi]-R[lo]);
+    return itsRho[lo]*(1.0-f) + itsRho[hi]*f;
 }
 
 double RadialDensity::FormFactor(double G) const
 {
-    // 4*pi * int_0^rmax rho(r) sinc(G r) r^2 dr, on the stored log grid (dr = r du, du = itsLogStep).
-    const int N = (int)itsRho.size();
+    // 4*pi * int rho(r) sinc(G r) r^2 dr = Sum_i 4*pi*w_i rho_i sinc(G r_i)  (w_i carries the r^2 jacobian).
+    const rvec_t& R=itsMesh.R();
+    const rvec_t& W=itsMesh.W();
     double sum = 0;
-    for (int i=0;i<N;i++)
+    for (size_t i=0;i<R.size();i++)
     {
-        double r = itsRmin*std::exp(i*itsLogStep);
-        double w = (i==0||i==N-1) ? 0.5 : 1.0;            // trapezoid in u
-        double x = G*r;
+        double x = G*R[i];
         double sinc = (x<1e-8) ? 1.0 : std::sin(x)/x;     // sinc(0)=1
-        sum += w * itsRho[i]*sinc*r*r * r*itsLogStep;
+        sum += W[i]*itsRho[i]*sinc;
     }
     return 4.0*Pi*sum;
 }

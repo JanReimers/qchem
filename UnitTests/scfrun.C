@@ -21,6 +21,7 @@ import qchem.Hamiltonian.Internal.Hamiltonians;  // Ham_DFTcorr_U (real LSDA: Di
 import qchem.Math;                        // Pi
 import qchem.Types;                       // rvec3_t
 import qchem.ScalarFunction;              // ScalarFunction<double> (density / orbital evaluation)
+import qchem.Mesh.Quadrature;             // qcMesh::RadialMesh, MakeRadial, Integrate (radial quadrature)
 
 using std::cout;
 using std::endl;
@@ -109,18 +110,18 @@ static void DumpRadialDensity(const ScalarFunction<double>& cd, int Z, int Nelec
     for (int x:s) for (int y:s){ dirs.push_back(rvec3_t(b*x,b*y,0)); dirs.push_back(rvec3_t(b*x,0,b*y)); dirs.push_back(rvec3_t(0,b*x,b*y)); }
     for (int x:s) for (int y:s) for (int z:s) dirs.push_back(rvec3_t(c*x,c*y,c*z));
 
-    const double lr = std::log(rmax/rmin)/(ngrid-1);   // log spacing in u=ln r
+    // Sample on the shared Log radial mesh (nodes r_i = rmin*q^i; weights fold in the r^2 jacobian).
+    qcMesh::RadialMesh mesh = qcMesh::MakeRadial({.radial=qcMesh::RadialKind::Log, .nRadial=ngrid,
+                                                  .logStart=rmin, .logStop=rmax});
+    const rvec_t& R=mesh.R();
     std::vector<double> rho(ngrid);
-    double charge=0;
     for (int i=0;i<ngrid;i++)
     {
-        double r = rmin*std::exp(lr*i);
         double avg=0;
-        for (const auto& u:dirs) avg += cd(u*r);
+        for (const auto& u:dirs) avg += cd(u*R[i]);
         rho[i]=avg/dirs.size();
-        double w = (i==0||i==ngrid-1) ? 0.5 : 1.0;     // trapezoid in u; dr = r du
-        charge += w * 4.0*Pi*r*r*rho[i] * r*lr;
     }
+    double charge = 4.0*Pi*qcMesh::Integrate(mesh, rvec_t(rho.size(), rho.data()));  // 4*pi*int r^2 rho dr
 
     nlohmann::json entry = {
         {"Z", Z}, {"symbol", QchemTester::itsPT.GetSymbol(Z)}, {"Nelec", Nelec},
