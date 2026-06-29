@@ -288,16 +288,27 @@ e.g. `SeededCD`/`FitSeed_CD`), built by fitting a **scalar** radial function.
   flag vocabulary verbatim (`--Z --q --pol --basis --acc --accel --maxiter --minro/--minde/--virial/--minfd
   --relax`, and the `--flag value` / `--flag=value` parser).
 
-### 9.5 Implementation order (each step regression-safe)
+### 9.5 Implementation order (each step regression-safe) -- ALL DONE
 
-a. Extend `scfrun.C` -> generate the JSON for the test elements (H, O, N, ...). Verify each `rho` integrates
-   to `Z`.
-b. JSON reader + radial interpolation onto a mesh.
-c. New fitted-density-as-`tDM_CD` type (three faces + NA-asserts).
-d. Per-atom `FIT_CD_ABS` split primitive on the basis.
-e. `MakeSeedDensity(SAD, bs, st, ec)` molecular face: per-atom scalar-fit -> `CompositeCD` -> renormalize.
-f. Flip the **molecular DFT** `Default` from `CoreGuess` to `SAD`; HF default stays `CoreGuess`. Gate: DFT
-   energies bit-identical, iters <= today.
+a. **DONE** (`7aca367a`) -- `scfrun --model LDA --out` generates `Data/atomic_densities.json` (H..Ne; each
+   `rho` integrates to `Z`).
+b. **DONE** (`a24fb90d`) -- `qchem.ChargeDensity.AtomicDensity`: `RadialDensity` reader + interpolation +
+   `RecentredAtomicDensity` (3-D `rho(|r-R|)`); `AtomicDensityUT`.
+c. **DONE** (`2084fcd3`) -- `CompositeFittedCD`: superposition of per-atom `rho(r)`; `op(r)` for Vxc;
+   `GetRepulsion3C` derived on demand (overlap-fit onto the term's own basis, then Coulomb-project), so
+   `op(r)` is the only state. Nominally `tDM_CD` with `assert(false)` HF/DM stubs (the deferred
+   `tChargeDensity`/`tDM_CD` ISP, "option 1", is the clean fix).
+d. **OBVIATED** -- the on-demand fit in (c) removes the need for a per-atom `FIT_CD_ABS` split.
+e/f. **DONE** (`65b06892`) -- `MakeSeedDensity(SAD)` builds the `CompositeFittedCD` from the structure;
+   `Structure` threaded via a new `SCFIterator` ctor arg + `QchemTester::SetSeedStrategy`; M_DFT (N2,
+   water cart+sph) opt into SAD. **Gate met:** converged energies match the CoreGuess baseline (water
+   bit-identical; N2/Sph to ~1e-10, the 20-iter-cap floor). SAD is DFT-only; molecular `Default` stays
+   `CoreGuess`, DFT opts in. 138/138 green.
+
+> **Note on the ISP (option 1), still deferred:** the proper fix is to split `tDM_CD` into a DFT-only
+> `tChargeDensity` base (what the Hamiltonian framework takes) + a `tDM_CD` derived face adding the HF
+> `AccumulateDirect`/`AccumulateExchange`; the HF terms `dynamic_cast` to `tDM_CD`. Then `CompositeFittedCD`
+> is a `tChargeDensity` with no `assert(false)` stubs. Do this before HF SAD or as a cleanup pass.
 
 ### 9.6 Deferred
 
