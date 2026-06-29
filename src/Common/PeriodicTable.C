@@ -59,6 +59,7 @@ export
         std::string GetSymbol(size_t Z) const {return get(Z).Symbol;}
         size_t      GetZ     (const std::string& symbol) const;        //!< reverse symbol -> Z lookup (0 if not found)
         double GetSlaterAlpha         (size_t Z) const;                //!< Schwarz X-alpha optimized exchange parameter (0.70 default)
+        double GetElectronegativity   (size_t Z) const;                //!< Pauling electronegativity (0.0 = noble gas / un-tabulated)
         double GetEnergyHF            (size_t Z) const {return get(Z).Energy_HF;}
         double GetEnergyDFT           (size_t Z) const {return get(Z).Energy_DFT;}
         double GetEnergyDHF           (size_t Z) const {return get(Z).Energy_DHF;}

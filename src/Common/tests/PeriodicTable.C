@@ -53,6 +53,23 @@ TEST_F(PeriodicTableTests,DumpToCSV)
 }
 
 
+TEST_F(PeriodicTableTests,Electronegativity)
+{
+    const PeriodicTableSaito& pt = thePeriodicTable();
+    // Spot-check the Z-indexing alignment across the table (a shift would misplace these).
+    EXPECT_NEAR(pt.GetElectronegativity(1),  2.20, 1e-9);   // H
+    EXPECT_NEAR(pt.GetElectronegativity(9),  3.98, 1e-9);   // F  (most electronegative)
+    EXPECT_NEAR(pt.GetElectronegativity(11), 0.93, 1e-9);   // Na
+    EXPECT_NEAR(pt.GetElectronegativity(17), 3.16, 1e-9);   // Cl
+    EXPECT_NEAR(pt.GetElectronegativity(53), 2.66, 1e-9);   // I
+    EXPECT_NEAR(pt.GetElectronegativity(55), 0.79, 1e-9);   // Cs (least electronegative tabulated)
+    EXPECT_NEAR(pt.GetElectronegativity(82), 2.33, 1e-9);   // Pb
+    EXPECT_EQ  (pt.GetElectronegativity(10), 0.0);          // Ne (noble gas: no ion)
+    // F is the most electronegative; Cs/Fr-region the least -- the ordering the IonicSAD heuristic relies on.
+    EXPECT_GT(pt.GetElectronegativity(9), pt.GetElectronegativity(11));   // F > Na  => F-, Na+
+    EXPECT_GT(pt.GetElectronegativity(53), pt.GetElectronegativity(55));  // I > Cs  => I-, Cs+
+}
+
 TEST_F(PeriodicTableTests,ReadSaito)
 {
     std::filesystem::path data_dir = COMMON_DATA_PATH;

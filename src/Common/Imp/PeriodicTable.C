@@ -215,3 +215,33 @@ double PeriodicTableSaito::GetSlaterAlpha(size_t Z) const
     return ret;
 }
 
+// Pauling electronegativity, Z-indexed (slot 0 filler).  Standard textbook scale, H..Rn.  Noble gases (and
+// a few unmeasured species) are left 0.0 -- they do not form ions, so the IonicSAD heuristic skips a 0.
+namespace
+{
+    const double thePaulingEN[] =
+    {
+        0.0,                                                     // filler
+        2.20, 0.0,                                               // H  He
+        0.98, 1.57, 2.04, 2.55, 3.04, 3.44, 3.98, 0.0,           // Li Be B  C  N  O  F  Ne
+        0.93, 1.31, 1.61, 1.90, 2.19, 2.58, 3.16, 0.0,           // Na Mg Al Si P  S  Cl Ar
+        0.82, 1.00,                                              // K  Ca
+        1.36, 1.54, 1.63, 1.66, 1.55, 1.83, 1.88, 1.91, 1.90, 1.65,  // Sc..Zn
+        1.81, 2.01, 2.18, 2.55, 2.96, 3.00,                      // Ga Ge As Se Br Kr
+        0.82, 0.95,                                              // Rb Sr
+        1.22, 1.33, 1.60, 2.16, 1.90, 2.20, 2.28, 2.20, 1.93, 1.69,  // Y..Cd
+        1.78, 1.96, 2.05, 2.10, 2.66, 2.60,                      // In Sn Sb Te I  Xe
+        0.79, 0.89,                                              // Cs Ba
+        1.10, 1.12, 1.13, 1.14, 1.13, 1.17, 1.20, 1.20, 1.10, 1.22, 1.23, 1.24, 1.25, 1.10, 1.27,  // La..Lu
+        1.30, 1.50, 2.36, 1.90, 2.20, 2.20, 2.28, 2.54, 2.00,    // Hf Ta W  Re Os Ir Pt Au Hg
+        1.62, 2.33, 2.02, 2.00, 2.20, 0.0,                       // Tl Pb Bi Po At Rn
+    };
+    const size_t nPaulingEN = sizeof(thePaulingEN)/sizeof(thePaulingEN[0]);
+}
+
+double PeriodicTableSaito::GetElectronegativity(size_t Z) const
+{
+    assert(Z>0);
+    return (Z<nPaulingEN) ? thePaulingEN[Z] : 0.0;   // 0.0 = un-tabulated / noble gas (no ion)
+}
+
