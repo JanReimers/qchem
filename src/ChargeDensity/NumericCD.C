@@ -2,24 +2,23 @@
 // densities -- the molecular SAD seed (see doc/SCFSeedingPlan.md section 9).
 //
 // It is a superposition of per-atom real-space densities rho(r) (e.g. RecentredAtomicDensity).  It carries
-// NO density matrix, so it is a DFT seed only: the Hamiltonian's DFT terms consume it through rho(r)
-// (FittedVxc samples op(r)) and the Coulomb projection <rho|c> (FittedVee re-fits via ProjectedDensity_AO).
-// The latter is derived ON DEMAND from op(r): overlap-fit onto the term's own fit basis, then Coulomb-
-// project -- so op(r) is the only state this object holds.
+// NO density matrix, so it is a DFT seed only: the Hamiltonian's DFT terms consume it purely through rho(r)
+// (FittedVxc samples op(r); FittedVee overlap-fits op(r) onto its fit basis -- the seed path of FittedCD).
+// op(r) (plus its total charge) is the ONLY state this object holds.
 //
-// It is a tChargeDensity (rho(r) + total charge), NOT a tDM_CD: a fit has no density matrix, so it cannot
-// (and need not) provide the matrix-only operations (DM contraction, SCF mixing, HF J/K).  That is exactly
+// It is therefore a PURE ScalarFunction + charge: a slim tChargeDensity (rho(r) + total charge), NOT a
+// tDM_CD and NOT a ProjectedDensity_AO.  A fit has no density matrix, so it cannot (and need not) provide
+// the matrix-only operations (DM contraction, SCF mixing, HF J/K) NOR its own Coulomb projection <rho|c>:
+// the latter overlap-fit now lives on the FittedCD side (DoFit(ScalarFunction,charge), stage 3).  That is
 // the ISP split that lets it carry no assert(false) stubs -- the DFT Fock build consumes it through the
-// tChargeDensity face (op(r) + the cross-cast ProjectedDensity_AO for the Hartree projection), and the HF
-// terms (which DO need a matrix) cross-cast to tDM_CD and so simply never see this object.
+// tChargeDensity/ScalarFunction face, and the HF terms (which DO need a matrix) cross-cast to tDM_CD and so
+// simply never see this object.
 module;
 #include <vector>
 #include <memory>
 #include <cstddef>
 export module qchem.ChargeDensity.NumericCD;
 export import qchem.ChargeDensity;             // tChargeDensity<double>
-import qchem.ChargeDensity.Types;              // FIT_CD_ABS (via Fit_IBS)
-import qchem.Fitting.FunctionFitter;           // ProjectedDensity_AO
 import qchem.ScalarFunction;                   // ScalarFunction<double>
 
 export namespace qchem::ChargeDensity
@@ -27,22 +26,17 @@ export namespace qchem::ChargeDensity
 
 class NumericCD
     : public virtual tChargeDensity<double>
-    , public virtual Fitting::ProjectedDensity_AO   // the AO projection face FittedVee::DoFit cross-casts to
 {
 public:
-    //! \a totalCharge is the seed's electron count N (the AO-fit charge constraint).
+    //! \a totalCharge is the seed's electron count N (the fit charge constraint).
     explicit NumericCD(double totalCharge);
 
     //! Add one atom's (recentred) real-space density to the superposition.
     void Insert(std::shared_ptr<const ScalarFunction<double>>);
 
-    // ScalarFunction -- the superposed rho(r) (FittedVxc) and its gradient.
+    // ScalarFunction -- the superposed rho(r) (FittedVxc samples it; FittedVee overlap-fits it) and gradient.
     virtual double  operator()(const rvec3_t&) const;
     virtual rvec3_t Gradient  (const rvec3_t&) const;
-
-    // ProjectedDensity_AO -- the Coulomb projection <rho|c> (FittedVee), derived on demand from op(r).
-    virtual double FitGetConstraint() const {return itsScale*itsCharge;}   // the AO fit RHS charge N
-    virtual rvec_t GetRepulsion3C(const BasisSet::FIT_CD_ABS*) const;
 
     // tChargeDensity -- the matrix-free face (everything a DFT seed needs).
     virtual double GetTotalCharge() const {return itsScale*itsCharge;}
