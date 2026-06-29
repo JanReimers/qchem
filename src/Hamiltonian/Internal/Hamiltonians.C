@@ -32,6 +32,7 @@ class Ham_HF_U : public virtual Hamiltonian, private HamiltonianImp
 {
 public:
     Ham_HF_U(const st_t& st);
+    virtual bool RequiresDensityMatrix() const {return true;}   // exact exchange K needs the density matrix D
 };
 
 //
@@ -112,6 +113,7 @@ class Ham_HF_P : public virtual Hamiltonian, private HamiltonianImp
 {
 public:
     Ham_HF_P(const st_t& st);
+    virtual bool RequiresDensityMatrix() const {return true;}   // exact exchange K needs the density matrix D
 };
 
 
@@ -130,6 +132,7 @@ class Ham_DHF_1E : public virtual Hamiltonian, private HamiltonianImp
 {
 public:
     Ham_DHF_1E(const st_t& st);
+    virtual bool RequiresDensityMatrix() const {return true;}   // relativistic: no non-rel DFT-sibling seed path
 };
 
 //
@@ -139,12 +142,14 @@ class Ham_DHF_U : public virtual Hamiltonian, private HamiltonianImp
 {
 public:
     Ham_DHF_U(const st_t& st);
+    virtual bool RequiresDensityMatrix() const {return true;}   // exact exchange K needs the density matrix D
 };
 
 class Ham_DHF_P : public virtual Hamiltonian, private HamiltonianImp
 {
 public:
     Ham_DHF_P(const st_t& st);
+    virtual bool RequiresDensityMatrix() const {return true;}   // exact exchange K needs the density matrix D
 };
 
 } //namespace
