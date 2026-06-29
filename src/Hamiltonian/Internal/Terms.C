@@ -11,6 +11,8 @@ import qchem.Fitting.FunctionFitter;          // Fitting::FunctionFitter (compos
 import qchem.ChargeDensity;
 import qchem.FittedCD;
 import qchem.Hamiltonian.Types;
+import qchem.Pseudopotential.LocalPotential;   // LocalPotential_R (the real-space PP local view)
+import qchem.Mesh;                             // qcMesh::MeshParams (the quadrature mesh spec)
 
 
 export namespace qchem::Hamiltonian
@@ -83,6 +85,28 @@ public:
 private:
     virtual rsmat_t CalculateMatrix(const obs_t*,const Spin&) const;
     st_t theStructure;
+};
+
+//###############################################################################
+//
+//  Local pseudopotential electron-ion term: the pseudized replacement for Ven.  Instead of the analytic
+//  -Z/r nuclear attraction it quadratures the smooth real-space V_loc(r) on the molecular/atomic mesh,
+//  <chi_i|V_loc|chi_j> = Sum_g w_g chi_i(r_g) chi_j(r_g) V_loc(r_g) (= the XC-path WeightedOverlap shape).
+//  STATIC (density-independent), so it is built once.  V_loc is the real-space PP face (LocalPotential_R).
+//
+class PP_Local : public virtual Static_HT, private Static_HT_Imp
+{
+public:
+    typedef std::shared_ptr<const Structure> st_t;
+    typedef std::shared_ptr<const Pseudopotential::LocalPotential_R> vloc_t;
+    PP_Local(const st_t& st, vloc_t vloc, const qcMesh::MeshParams& mp);
+    virtual void          GetEnergy(EnergyBreakdown&,const DM_CD* cd) const;   // Een (PP local) = DM_Contract
+    virtual std::ostream& Write    (std::ostream&) const;
+private:
+    virtual rsmat_t CalculateMatrix(const obs_t*,const Spin&) const;
+    st_t             theStructure;
+    vloc_t           itsVloc;
+    qcMesh::MeshParams itsMeshParams;
 };
 
 //###############################################################################
