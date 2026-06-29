@@ -49,7 +49,7 @@ scaffolding. Every caller re-derives it. A chemist (or I) can't self-serve.
 **Here's all I should have to write:**
 
 ```cpp
-import qchem.Calculation;                 // the missing front door
+import qchem;                              // umbrella (item 7) — or: import qchem.Calculation;
 
 qchem::Molecule h2o = {                    // Z + position (bohr)
     {8, {0, 0,      0}},
@@ -195,6 +195,14 @@ public-facing modules and re-exports the common `using`s. (Mirror the existing
 `project_qcmath_library_split`: an umbrella must not re-export same-library
 siblings, which CMake reads as a bogus cycle.) Internals (`*.Internal.*`) stay out,
 per the re-export rule in CLAUDE.md.
+
+**Relationship to the snippets above:** all the "all I should have to write"
+examples assume this umbrella — `import qchem;` makes `qchem::Calculation`,
+`qchem::Molecule`, `ScalarFunction`, … all visible at once. The granular form
+(`import qchem.Calculation;`) is the equivalent narrow alternative: same symbols,
+but it only depends on (and recompiles for) that one module. Rule of thumb:
+end-user/binding code → `import qchem;` (convenience); library-internal code that
+wants minimal recompile coupling → granular per-module imports.
 
 ---
 
