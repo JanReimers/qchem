@@ -20,6 +20,7 @@ import qchem.Hamiltonian.Factory;         // Model, Pol, Factory
 import qchem.Hamiltonian.Internal.Hamiltonians;  // Ham_DFTcorr_U (real LSDA: Dirac exchange + VWN5)
 import qchem.Math;                        // Pi
 import qchem.Types;                       // rvec3_t
+import qchem.ScalarFunction;              // ScalarFunction<double> (density / orbital evaluation)
 
 using std::cout;
 using std::endl;
@@ -59,14 +60,47 @@ public:
     }
 };
 
-// Sample the converged density rho(r) on a log-radial grid (spherically averaged over a fixed direction
-// set), then MERGE the element's entry into the JSON database at `out` (saito.json-style array, one object
-// per element x functional).  Prints the integral 4*pi*int r^2 rho dr as a charge sanity check.
-static void DumpRadialDensity(QchemTester& t, int Z, int Nelec, const string& functional,
-                              const string& out, double rmin, double rmax, int ngrid)
+// A valence density rho_val(r) = sum over the outermost orbitals of occ*|phi(r)|^2.  Built from a converged
+// spherical all-electron atom (the round-hole solver) by keeping only the top-Nval-electron orbitals -- the
+// pseudo-VALENCE source for the plane-wave SAD seed without a (square-peg) cubic plane-wave box.  The core
+// region is too peaked vs a true pseudo density, but a seed only needs the bonding region in the ballpark.
+class ValenceDensity : public virtual ScalarFunction<double>
 {
-    std::unique_ptr<qchem::ChargeDensity::DM_CD> cd(t.GetChargeDensity());   // caller owns
+    std::vector<std::pair<double,const ScalarFunction<double>*>> itsOrbs;   // (occupation, phi) -- phi owned by the WF
+public:
+    void Add(double occ, const ScalarFunction<double>* phi) { itsOrbs.push_back({occ,phi}); }
+    virtual double  operator()(const rvec3_t& r) const
+    { double rho=0; for (const auto& [occ,phi]:itsOrbs){ double v=(*phi)(r); rho+=occ*v*v; } return rho; }
+    virtual rvec3_t Gradient(const rvec3_t&) const { return rvec3_t(0,0,0); }   // unused by the radial sampler
+};
 
+// Take the converged atom's occupied orbitals, sort by energy (descending), and accumulate whole orbitals
+// until \a Nval electrons -- i.e. the outermost (valence) shells.
+static ValenceDensity BuildValenceDensity(const QchemTester& t, int Nval)
+{
+    std::vector<std::tuple<double,double,const ScalarFunction<double>*>> occ;   // (energy, occupation, phi)
+    for (const Irrep& irr : t.GetIrreps(Spin::None))
+        for (const Orbital* o : t.GetOrbitals(irr)->Iterate())
+            if (o->IsOccupied())
+            {
+                const auto* phi = dynamic_cast<const ScalarFunction<double>*>(o);
+                assert(phi && "ValenceDensity: orbital is not a ScalarFunction");
+                occ.push_back({o->GetEigenEnergy(), o->GetOccupation(), phi});
+            }
+    std::sort(occ.begin(), occ.end(), [](const auto& a, const auto& b){ return std::get<0>(a) > std::get<0>(b); });
+    ValenceDensity v; double cum=0;
+    for (const auto& [e,oc,phi] : occ) { if (cum >= Nval-1e-6) break; v.Add(oc,phi); cum+=oc; }
+    return v;
+}
+
+// Sample a density rho(r) on a log-radial grid (spherically averaged over a fixed direction set), then MERGE
+// the element's entry into the JSON database at `out` (saito.json-style array, one object per element x
+// functional).  Prints the integral 4*pi*int r^2 rho dr as a charge sanity check.  `extra` adds fields to
+// the entry (e.g. kind=valence).
+static void DumpRadialDensity(const ScalarFunction<double>& cd, int Z, int Nelec, const string& functional,
+                              const string& out, double rmin, double rmax, int ngrid,
+                              const nlohmann::json& extra = nlohmann::json::object())
+{
     // 26 directions (cube faces+edges+corners), normalized -> a cheap spherical average.
     std::vector<rvec3_t> dirs;
     const double b=1.0/std::sqrt(2.0), c=1.0/std::sqrt(3.0);
@@ -82,7 +116,7 @@ static void DumpRadialDensity(QchemTester& t, int Z, int Nelec, const string& fu
     {
         double r = rmin*std::exp(lr*i);
         double avg=0;
-        for (const auto& u:dirs) avg += (*cd)(u*r);
+        for (const auto& u:dirs) avg += cd(u*r);
         rho[i]=avg/dirs.size();
         double w = (i==0||i==ngrid-1) ? 0.5 : 1.0;     // trapezoid in u; dr = r du
         charge += w * 4.0*Pi*r*r*rho[i] * r*lr;
@@ -95,6 +129,7 @@ static void DumpRadialDensity(QchemTester& t, int Z, int Nelec, const string& fu
         {"charge", charge},          // 4*pi*int r^2 rho dr (~ Nelec)
         {"rho", rho},
     };
+    for (const auto& [k,v] : extra.items()) entry[k]=v;
 
     nlohmann::json db = nlohmann::json::array();
     { std::ifstream in(out); if (in) in >> db; }       // load existing database (if any)
@@ -123,6 +158,7 @@ int main(int argc, char** argv)
     double minro=-1, minde=1e-5, virial=5e-1, minfd=-1, relax=0.5;
     // SAD atomic-density generation (DFT models only): dump rho(r) on a log grid to a JSON database.
     string out=""; double rmin=1e-4, rmax=20.0, alpha=-1; int ngrid=400;
+    int valence=0;   // >0: dump only the outermost `valence` electrons' density (pseudo-VALENCE for PW SAD)
 
     // ---- help text ----
     auto usage=[&](std::ostream& os){
@@ -166,6 +202,8 @@ int main(int argc, char** argv)
         "  --rmin <float>     log-grid inner radius (bohr)            (default 1e-4)\n"
         "  --rmax <float>     log-grid outer radius (bohr)            (default 20)\n"
         "  --ngrid <int>      number of log-grid points               (default 400)\n"
+        "  --valence <int>    dump only the outermost <n> electrons' density (pseudo-valence\n"
+        "                       for the plane-wave SAD seed); 0 => full all-electron (default 0)\n"
         "\n"
         "  -h, --help         show this help and exit\n";
     };
@@ -207,6 +245,7 @@ int main(int argc, char** argv)
         else if (a=="--rmin")    rmin=std::stod(need(i));
         else if (a=="--rmax")    rmax=std::stod(need(i));
         else if (a=="--ngrid")   ngrid=std::stoi(need(i));
+        else if (a=="--valence") valence=std::stoi(need(i));
         else { cout<<"unknown option "<<argv[i]<<endl; usage(cout); return 1; }
     }
     bool dirac = (model=="DHF" || model=="DE1");
@@ -249,7 +288,19 @@ int main(int argc, char** argv)
 
     // ---- SAD density file (DFT models only) ----
     if (dft && !out.empty())
-        DumpRadialDensity(*t, Z, Z-q, (model=="Xalpha"?"Xalpha":"LDA"), out, rmin, rmax, ngrid);
+    {
+        const string functional = (model=="Xalpha"?"Xalpha":"LDA");
+        if (valence>0)   // pseudo-VALENCE: only the outermost `valence` electrons (for the plane-wave SAD seed)
+        {
+            ValenceDensity vd = BuildValenceDensity(*t, valence);
+            DumpRadialDensity(vd, Z, valence, functional, out, rmin, rmax, ngrid, {{"kind","valence"}});
+        }
+        else             // full all-electron density (for the molecular SAD seed)
+        {
+            std::unique_ptr<qchem::ChargeDensity::DM_CD> cd(t->GetChargeDensity());
+            DumpRadialDensity(*cd, Z, Z-q, functional, out, rmin, rmax, ngrid);
+        }
+    }
 
     delete t;
     return 0;
