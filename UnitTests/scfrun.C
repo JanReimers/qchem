@@ -205,7 +205,7 @@ int main(int argc, char** argv)
         "  --pol <U|P>        Unpolarized or Polarized                (default U)\n"
         "  --basis <name>     Slater|Gaussian|BSpline6|BSpliner6|Slater_RKB|Gaussian_RKB\n"
         "                       (default Slater, or Slater_RKB for Dirac models)\n"
-        "  --acc <name>       N3|N5|Low|Medium|High pool accuracy     (default Low)\n"
+        "  --acc <name>       Low | Medium | High pool accuracy       (default Low)\n"
         "  --accel <name>     DIIS | GDM | Ladder | directmin         (default DIIS)\n"
         "  --maxiter <int>    max SCF iterations                      (default 50)\n"
         "\n"
@@ -288,8 +288,10 @@ int main(int argc, char** argv)
     using BT=BasisSet::Atom::Type;
     std::map<string,BT> bases={{"Slater",BT::Slater},{"Gaussian",BT::Gaussian},{"BSpline6",BT::BSpline6},
                                {"BSpliner6",BT::BSpliner6},{"Slater_RKB",BT::Slater_RKB},{"Gaussian_RKB",BT::Gaussian_RKB}};
-    std::map<string,BasisSetAccuracy> accs={{"N3",BasisSetAccuracy::N3},{"N5",BasisSetAccuracy::N5},
-                               {"Low",BasisSetAccuracy::Low},{"Medium",BasisSetAccuracy::Medium},{"High",BasisSetAccuracy::High}};
+    // Only the SCF-grade pools: N3/N5 are tiny fixed-count sets (3/5 functions) for low-level unit tests,
+    // not meant to run the full SCF gauntlet.
+    std::map<string,BasisSetAccuracy> accs={{"Low",BasisSetAccuracy::Low},{"Medium",BasisSetAccuracy::Medium},
+                               {"High",BasisSetAccuracy::High}};
     // DFT models (LDA/Xalpha) and PP bypass the Model enum (they build the Hamiltonian directly, not Factory(Model,...)).
     if ((!dft && !ppmodel && !models.count(model))||!bases.count(basis)||!accs.count(acc)){cout<<"bad model/basis/acc"<<endl;return 1;}
     if (ppmodel && valence<=0){cout<<"--model PP requires --valence <n> (valence electron count)"<<endl;return 1;}
