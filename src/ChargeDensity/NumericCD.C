@@ -1,4 +1,4 @@
-// File: ChargeDensity/CompositeFittedCD.C  A DFT-only charge density built as a sum of (fitted) atomic
+// File: ChargeDensity/NumericCD.C  A DFT-only charge density built as a sum of (fitted) atomic
 // densities -- the molecular SAD seed (see doc/SCFSeedingPlan.md section 9).
 //
 // It is a superposition of per-atom real-space densities rho(r) (e.g. RecentredAtomicDensity).  It carries
@@ -16,7 +16,7 @@ module;
 #include <vector>
 #include <memory>
 #include <cstddef>
-export module qchem.ChargeDensity.CompositeFittedCD;
+export module qchem.ChargeDensity.NumericCD;
 export import qchem.ChargeDensity;             // tChargeDensity<double>
 import qchem.ChargeDensity.Types;              // FIT_CD_ABS (via Fit_IBS)
 import qchem.Fitting.FunctionFitter;           // ProjectedDensity_AO
@@ -25,13 +25,13 @@ import qchem.ScalarFunction;                   // ScalarFunction<double>
 export namespace qchem::ChargeDensity
 {
 
-class CompositeFittedCD
+class NumericCD
     : public virtual tChargeDensity<double>
     , public virtual Fitting::ProjectedDensity_AO   // the AO projection face FittedVee::DoFit cross-casts to
 {
 public:
     //! \a totalCharge is the seed's electron count N (the AO-fit charge constraint).
-    explicit CompositeFittedCD(double totalCharge);
+    explicit NumericCD(double totalCharge);
 
     //! Add one atom's (recentred) real-space density to the superposition.
     void Insert(std::shared_ptr<const ScalarFunction<double>>);

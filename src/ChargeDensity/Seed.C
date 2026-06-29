@@ -34,7 +34,7 @@ enum class SeedStrategy { Default, CoreGuess, Uniform, SAD, IonicSAD };
 //! Build the initial SCF density for basis \a bs / configuration \a ec under strategy \a s.  Returns a
 //! heap density the caller owns (the SCFIterator wraps it in a \c shared_ptr), or \c nullptr for
 //! \c CoreGuess.  The seed is a \c tChargeDensity (the DFT Fock-build face): \c Uniform/\c CoreGuess give
-//! a matrix-backed \c tDM_CD, \c SAD a fit-backed \c CompositeFittedCD.  \a st is the molecular/crystal
+//! a matrix-backed \c tDM_CD, \c SAD a fit-backed \c NumericCD.  \a st is the molecular/crystal
 //! structure -- unused for \c CoreGuess/\c Uniform, threaded for the SAD seeds (Phases 1-3).
 template <class T> tChargeDensity<T>* MakeSeedDensity(SeedStrategy s, const BasisSet::BasisSet<T>* bs,
                                                       const Structure* st, const ElectronConfiguration* ec);

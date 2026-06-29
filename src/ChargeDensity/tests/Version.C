@@ -4,13 +4,13 @@
 // serial that COLLIDES across density kinds makes a term reuse a stale cached matrix (the iter-0 seed Fock
 // for the iter-1 working density -> a false 1-iteration "convergence").  Every density kind must therefore
 // draw from the ONE shared NextDensityVersion clock.  Here we interleave the three kinds -- IrrepCD,
-// CompositeFittedCD, FourierSeedCD -- and assert their serials are strictly increasing in construction
+// NumericCD, FourierSeedCD -- and assert their serials are strictly increasing in construction
 // order (hence all distinct, monotonic, and never the reserved 0 sentinel).
 #include "gtest/gtest.h"
 #include <vector>
 
 import qchem.ChargeDensity.Imp.IrrepCD;        // IrrepCD<double> (tests may import Internal)
-import qchem.ChargeDensity.CompositeFittedCD;  // CompositeFittedCD (molecular SAD seed)
+import qchem.ChargeDensity.NumericCD;  // NumericCD (molecular SAD seed)
 import qchem.ChargeDensity.FourierSeedCD;      // FourierSeedCD (plane-wave SAD seed)
 import qchem.Lattice_3D;                        // UnitCell, Lattice_3D
 import qchem.BasisSet.Lattice_3D.BasisSet;      // L3::Factory(PW,...), Complex_BS
@@ -34,10 +34,10 @@ TEST(DensityVersion, DistinctAndMonotonicAcrossKinds)
     // Interleave the three density kinds; record each one's freshness serial in construction order.
     std::vector<size_t> v;
     IrrepCD<double>   a;                                          v.push_back(a.Version());
-    CompositeFittedCD c1(8.0);                                   v.push_back(c1.Version());
+    NumericCD c1(8.0);                                   v.push_back(c1.Version());
     IrrepCD<double>   b;                                         v.push_back(b.Version());
     FourierSeedCD     f(ftbs, lat.GetStructure().get(), "LDA");  v.push_back(f.Version());
-    CompositeFittedCD c2(4.0);                                   v.push_back(c2.Version());
+    NumericCD c2(4.0);                                   v.push_back(c2.Version());
 
     EXPECT_GT(v.front(), 0u) << "0 is the reserved 'no density yet' sentinel";
     for (size_t i=1;i<v.size();++i)

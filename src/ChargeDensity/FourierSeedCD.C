@@ -1,6 +1,6 @@
 // File: ChargeDensity/FourierSeedCD.C  Plane-wave (G-space) superposition-of-atomic-densities seed.
 //
-// The reciprocal-space twin of CompositeFittedCD: the SAD seed for the plane-wave (dcmplx) path.  Its native
+// The reciprocal-space twin of NumericCD: the SAD seed for the plane-wave (dcmplx) path.  Its native
 // representation is rho-tilde(G) = Sum_atoms rho_atom(|G|) e^{-iG.R} -- a per-species radial form factor
 // (the atomic VALENCE density's Fourier transform) assembled with structure factors, exactly the assembly
 // the local pseudopotential already uses.  It is a tChargeDensity<dcmplx> (NOT a tDM_CD: a sum of atomic
