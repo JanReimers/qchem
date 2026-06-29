@@ -63,14 +63,16 @@ Ham_DFTcorr_U::Ham_DFTcorr_U(const st_t& st, const qcMesh::MeshParams& mp, const
     Add(new FittedVcorr(XFitBasis, corr));
 }
 
-// LOCAL-pseudopotential LSDA: like Ham_DFTcorr_U but with the bare nuclear attraction (Ven) replaced by the
-// mesh-quadratured local pseudopotential V_loc(r), and NO ion-ion.  Kinetic + PP_Local + Hartree + Dirac
-// exchange + VWN5.  (KB-separable nonlocal term to follow.)
+// PSEUDOPOTENTIAL LSDA: like Ham_DFTcorr_U but with the bare nuclear attraction (Ven) replaced by the
+// mesh-quadratured local pseudopotential V_loc(r) + the KB-separable non-local projectors, and NO ion-ion.
+// Kinetic + PP_Local [+ PP_NonLocal] + Hartree + Dirac exchange + VWN5.
 Ham_PP_U::Ham_PP_U(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPotential_R> vloc,
+                   std::shared_ptr<const Pseudopotential::SeparablePotential_R> sep,
                    const qcMesh::MeshParams& mp, const bs_t* bs)
 {
     Add(new Kinetic);
-    Add(new PP_Local(st, std::move(vloc), mp));   // pseudized replacement for Ven; NO Vnn
+    Add(new PP_Local(st, std::move(vloc), mp));      // pseudized replacement for Ven; NO Vnn
+    if (sep) Add(new PP_NonLocal(st, std::move(sep), mp));   // KB separable projectors (null => local-only)
 
     FittedVee::fbs_t   CFitBasis(bs->CreateCDFitBasisSet(st.get(), mp));
     Add(new FittedVee(CFitBasis, st->GetNumElectrons()));
@@ -84,7 +86,9 @@ Ham_PP_U::Ham_PP_U(const st_t& st, std::shared_ptr<const Pseudopotential::LocalP
 
 Ham_PP_U::Ham_PP_U(const st_t& st, const std::string& element, int q, const qcMesh::MeshParams& mp,
                    const bs_t* bs)
-    : Ham_PP_U(st, std::make_shared<const Pseudopotential::HGH_LocalPotential>(Pseudopotential::GetGTH(element,"LDA",q).local),
+    : Ham_PP_U(st,
+               std::make_shared<const Pseudopotential::HGH_LocalPotential>(Pseudopotential::GetGTH(element,"LDA",q).local),
+               std::make_shared<const Pseudopotential::HGH_SeparablePotential>(Pseudopotential::GetGTH(element,"LDA",q).nonlocal),
                mp, bs)
 {}
 

@@ -53,18 +53,19 @@ public:
     Ham_DFTcorr_U(const st_t& st, const qcMesh::MeshParams&, const bs_t* bs);
 };
 
-//! Un-polarized LSDA PSEUDO-atom/molecule (LOCAL pseudopotential only, for now): kinetic + V_loc(r) (the
-//! pseudized replacement for the bare nuclear attraction, mesh-quadratured) + Hartree + Dirac exchange +
-//! VWN5 correlation.  NO Ven, NO ion-ion (single pseudized atom).  The valence electron count comes from
-//! the structure (build the Atom with charge = Z - valence).  Fill by aufbau (Molecule_EC) so the valence
-//! states land in the right angular channels.  The KB-separable nonlocal term is a follow-up.
+//! Un-polarized LSDA PSEUDO-atom/molecule: kinetic + V_loc(r) (the pseudized replacement for the bare
+//! nuclear attraction, mesh-quadratured) + the KB-separable non-local projectors + Hartree + Dirac exchange
+//! + VWN5 correlation.  NO Ven, NO ion-ion (single pseudized atom).  The valence electron count comes from
+//! the structure (build the Atom with charge = Z - valence) and the angular channels from a pseudo-atom
+//! electron configuration.  The non-local model may be null (local-only, the over-bound stepping stone).
 class Ham_PP_U : public virtual Hamiltonian, private HamiltonianImp
 {
 public:
-    //! Explicit local model (shared with the caller).
+    //! Explicit models (shared with the caller).  \a sep may be null for a local-only run.
     Ham_PP_U(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPotential_R> vloc,
+             std::shared_ptr<const Pseudopotential::SeparablePotential_R> sep,
              const qcMesh::MeshParams&, const bs_t* bs);
-    //! Convenience: look up + OWN the GTH local model for \a element at valence \a q (LDA).
+    //! Convenience: look up + OWN the GTH local + KB non-local models for \a element at valence \a q (LDA).
     Ham_PP_U(const st_t& st, const std::string& element, int q, const qcMesh::MeshParams&, const bs_t* bs);
 };
 

@@ -12,6 +12,7 @@ import qchem.ChargeDensity;
 import qchem.FittedCD;
 import qchem.Hamiltonian.Types;
 import qchem.Pseudopotential.LocalPotential;   // LocalPotential_R (the real-space PP local view)
+import qchem.Pseudopotential.SeparablePotential; // SeparablePotential_R (the real-space KB projector view)
 import qchem.Mesh;                             // qcMesh::MeshParams (the quadrature mesh spec)
 
 
@@ -106,6 +107,30 @@ private:
     virtual rsmat_t CalculateMatrix(const obs_t*,const Spin&) const;
     st_t             theStructure;
     vloc_t           itsVloc;
+    qcMesh::MeshParams itsMeshParams;
+};
+
+//###############################################################################
+//
+//  Separable (Kleinman-Bylander) NON-LOCAL pseudopotential term.  Per atom, per projector p (angular
+//  momentum l, strength D = Coefficient), per m=-l..l it is the rank-1 outer product D|b><b| with the
+//  projection vector  b_i = <chi_i | beta_p(|r-R|) Y_lm(rhat)>  (mesh quadrature; beta_p = BetaR, Y_lm
+//  unit-normalised on the sphere).  V_NL = Sum_{a,p,m} D |b><b| -- real symmetric, STATIC.  This is the
+//  repulsive (for the occupied valence l-channels) piece that lifts the over-bound local-only spectrum
+//  back to the all-electron valence eigenvalues.  Verified against the reciprocal (2l+1)P_l form.
+//
+class PP_NonLocal : public virtual Static_HT, private Static_HT_Imp
+{
+public:
+    typedef std::shared_ptr<const Structure> st_t;
+    typedef std::shared_ptr<const Pseudopotential::SeparablePotential_R> sep_t;
+    PP_NonLocal(const st_t& st, sep_t sep, const qcMesh::MeshParams& mp);
+    virtual void          GetEnergy(EnergyBreakdown&,const DM_CD* cd) const;   // Een (PP nonlocal) = DM_Contract
+    virtual std::ostream& Write    (std::ostream&) const;
+private:
+    virtual rsmat_t CalculateMatrix(const obs_t*,const Spin&) const;
+    st_t             theStructure;
+    sep_t            itsSep;
     qcMesh::MeshParams itsMeshParams;
 };
 
