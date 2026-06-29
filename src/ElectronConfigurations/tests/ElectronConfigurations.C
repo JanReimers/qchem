@@ -304,6 +304,28 @@ TEST_F(ElectronConfigurationTests, Silicon)
     EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,p2)),1);
     EXPECT_EQ(ec.GetN(Irrep(Spin::Down,p2)),1);
 }
+// Pseudo-atom (valence-only) config: Si keeps just its 3s^2 3p^2 valence over the s and p atomic irreps,
+// with NO core and NO folding of the filled 3s^2 into the core (contrast the all-electron Silicon test
+// above, where the s irrep carries 1s+2s+3s = 6 electrons).  Also exercises the Spin::None path for an
+// EMPTY (virtual) irrep -- the p{+1} sub-irrep of the open p^2 shell -- which must return 0, not garbage.
+TEST_F(ElectronConfigurationTests, SiliconPseudoValence)
+{
+    PseudoAtom_EC ec(14);
+    sym_t s     = qn(0);
+    sym_t p_occ = qn(1,{-1,0});   // the two singly-occupied p orbitals (Hund's rule, spin up)
+    sym_t p_emp = qn(1,{1});      // the empty p sub-irrep
+
+    // Spin-polarized occupations: s^2 (1 up, 1 down) + p^2 (2 up in {-1,0}, 0 down).
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,s    )),1);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,s    )),1);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,p_occ)),2);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,p_occ)),0);
+
+    // Un-polarized totals (Spin::None): 2 in s, 2 in p{-1,0}, and 0 in the empty p{+1} irrep.
+    EXPECT_EQ(ec.GetN(Irrep(Spin::None,s    )),2);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::None,p_occ)),2);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::None,p_emp)),0);   // empty-irrep lookup must be 0 (was UB)
+}
 TEST_F(ElectronConfigurationTests, Phosphorus)
 {
     Atom_EC ec(15);

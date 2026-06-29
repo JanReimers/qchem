@@ -17,7 +17,9 @@
 import qchem.BasisSet.Atom.Factory;
 import qchem.Unittests.QchemTester;       // QchemTester, TestAtom, TestDiracAtom, BasisSetAccuracy, DM_CD
 import qchem.Hamiltonian.Factory;         // Model, Pol, Factory
-import qchem.Hamiltonian.Internal.Hamiltonians;  // Ham_DFTcorr_U (real LSDA: Dirac exchange + VWN5)
+import qchem.Hamiltonian.Internal.Hamiltonians;  // Ham_DFTcorr_U (real LSDA: Dirac exchange + VWN5), Ham_PP_U
+import qchem.Structure;                    // Atom (the pseudo-ion for --model PP)
+import qchem.ElectronConfiguration.AtomNR;  // PseudoAtom_EC (valence-only atomic config for the pseudo-atom)
 import qchem.Math;                        // Pi
 import qchem.Types;                       // rvec3_t
 import qchem.ScalarFunction;              // ScalarFunction<double> (density / orbital evaluation)
@@ -58,6 +60,30 @@ public:
         if (lda) return new Ham_DFTcorr_U(c, GetMeshParams(), itsBasisSet);
         double a = alpha>0 ? alpha : QchemTester::itsPT.GetSlaterAlpha(GetZ());
         return Factory(Pol::UnPolarized, c, a, GetMeshParams(), itsBasisSet);
+    }
+};
+
+// LOCAL-pseudopotential pseudo-atom for --model PP.  Build the FULL element's orbital basis (TestAtom(Z,0) so
+// the basis factory sees the real Z), then SWAP in (a) aufbau over only the VALENCE electrons (Molecule_EC), and
+// (b) the pseudo-ion structure (Atom with charge Z-valence, i.e. `valence` electrons), so the valence states
+// fill the right angular channels over the pseudized (core-free) spectrum.  Hamiltonian = Ham_PP_U: kinetic +
+// V_loc(r) (the GTH local model, mesh-quadratured) + Hartree + Dirac exchange + VWN5.  No Ven, no ion-ion.
+class CliPPAtom : public TestAtom
+{
+    string element; int valence;
+public:
+    // TestAtom(Z, Z-val): itsZ = val, so the orbital-basis factory builds a VALENCE-range exponent pool
+    // (no tight core functions -- those collapse/linear-depend under the soft pseudopotential), and the
+    // structure is the pseudo-ion Atom(Z, Z-val) with exactly `val` electrons.  Only the electron config
+    // needs swapping: PseudoAtom_EC(Z) gives the valence shells (e.g. Si s^2 p^2) over the atomic irreps.
+    CliPPAtom(int Z, int val) : TestAtom(Z,Z-val), element(QchemTester::itsPT.GetSymbol(Z)), valence(val)
+    {
+        delete itsEC;
+        itsEC = new PseudoAtom_EC(Z);
+    }
+    virtual Hamiltonian* GetHamiltonian(st_t& c) const override
+    {
+        return new Ham_PP_U(c, element, valence, GetMeshParams(), itsBasisSet);    // GTH local model for `element`
     }
 };
 
@@ -172,8 +198,9 @@ int main(int argc, char** argv)
         " System / method:\n"
         "  --Z <int>          atomic number                          (default 2)\n"
         "  --q <int>          net charge (electrons = Z - q)          (default 0)\n"
-        "  --model <name>     HF | DHF | E1 | DE1 | LDA | Xalpha      (default HF)\n"
-        "                       (LDA/Xalpha are atom-DFT, for SAD density generation)\n"
+        "  --model <name>     HF | DHF | E1 | DE1 | LDA | Xalpha | PP  (default HF)\n"
+        "                       (LDA/Xalpha are atom-DFT, for SAD density generation;\n"
+        "                        PP = local-pseudopotential pseudo-atom, needs --valence)\n"
         "  --alpha <float>    Xalpha exchange parameter (default: per-Z optimized)\n"
         "  --pol <U|P>        Unpolarized or Polarized                (default U)\n"
         "  --basis <name>     Slater|Gaussian|BSpline6|BSpliner6|Slater_RKB|Gaussian_RKB\n"
@@ -251,6 +278,7 @@ int main(int argc, char** argv)
     }
     bool dirac = (model=="DHF" || model=="DE1");
     bool dft   = (model=="LDA" || model=="DFT" || model=="Xalpha");
+    bool ppmodel = (model=="PP"); // local-pseudopotential pseudo-atom (Ham_PP_U); --valence = valence e- count
     if (basis.empty()) basis = dirac ? "Slater_RKB" : "Slater";
     accj["type"]=accel;
 
@@ -262,16 +290,18 @@ int main(int argc, char** argv)
                                {"BSpliner6",BT::BSpliner6},{"Slater_RKB",BT::Slater_RKB},{"Gaussian_RKB",BT::Gaussian_RKB}};
     std::map<string,BasisSetAccuracy> accs={{"N3",BasisSetAccuracy::N3},{"N5",BasisSetAccuracy::N5},
                                {"Low",BasisSetAccuracy::Low},{"Medium",BasisSetAccuracy::Medium},{"High",BasisSetAccuracy::High}};
-    // DFT models (LDA/Xalpha) bypass the Model enum (they use the DFT Hamiltonian factory, not Factory(Model,...)).
-    if ((!dft && !models.count(model))||!bases.count(basis)||!accs.count(acc)){cout<<"bad model/basis/acc"<<endl;return 1;}
+    // DFT models (LDA/Xalpha) and PP bypass the Model enum (they build the Hamiltonian directly, not Factory(Model,...)).
+    if ((!dft && !ppmodel && !models.count(model))||!bases.count(basis)||!accs.count(acc)){cout<<"bad model/basis/acc"<<endl;return 1;}
+    if (ppmodel && valence<=0){cout<<"--model PP requires --valence <n> (valence electron count)"<<endl;return 1;}
 
     cout << "scfrun: Z="<<Z<<" q="<<q<<" model="<<model<<" pol="<<pol
          << " basis="<<basis<<" acc="<<acc<<" accel="<<accel<<" : "<<accj.dump()<<endl;
 
     // ---- run ----
-    QchemTester* t = dft   ? (QchemTester*) new CliDFTAtom  (Z,q,model!="Xalpha",alpha)
-                   : dirac ? (QchemTester*) new CliDiracAtom(Z,q,models[model],pp)
-                           : (QchemTester*) new CliAtom     (Z,q,models[model],pp);
+    QchemTester* t = ppmodel ? (QchemTester*) new CliPPAtom   (Z,valence)
+                   : dft     ? (QchemTester*) new CliDFTAtom  (Z,q,model!="Xalpha",alpha)
+                   : dirac   ? (QchemTester*) new CliDiracAtom(Z,q,models[model],pp)
+                             : (QchemTester*) new CliAtom     (Z,q,models[model],pp);
     t->SetAcceleratorConfig(accj);
     t->Init(accs[acc], bases[basis], false);
     if (minro<0) minro=Z*1e-4;
@@ -283,6 +313,7 @@ int main(int argc, char** argv)
     double E=t->TotalEnergy();
     cout << "RESULT  E="<<std::setprecision(10)<<E
          << "  iters="<<t->GetIterationCount()
+         << "  Nelec="<<t->TotalCharge()
          << "  converged="<<(t->Converged()?"yes":"no") << endl;
     if (model=="HF")  t->RelativeHFError();
     if (model=="DHF") t->RelativeDHFError();

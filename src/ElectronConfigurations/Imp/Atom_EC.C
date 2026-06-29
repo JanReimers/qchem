@@ -70,10 +70,14 @@ Atom_EC::Atom_EC(int Z, NsOnly_t)
         if (nv>0) itsLValance=l;
         l++;
     }
-    // Step 3:  Figure out where all the unpaired electrons land.  This is complicated by atoms like Cr
-    //          with 6 unpaired electrons.  5 are d, and 1 is s.
+    // Step 3:  Figure out where all the unpaired electrons land.
+    AssignUnpaired(Z, pt.GetNumUnpairedElectrons(Z));
+}
 
-    int nup=pt.GetNumUnpairedElectrons(Z); //Total # of unpaired electrons.
+// Distribute the atom's unpaired electrons into itsNs.Nu.  This is complicated by atoms like Cr with 6
+// unpaired electrons (5 are d, 1 is s), so a single leftover spills into the next-lower partially-filled l.
+void Atom_EC::AssignUnpaired(int Z, int nup)
+{
     int gv=2*itsLValance+1; //Degeneracy of the valance shell.
     if (itsNs.Nv[itsLValance]<=gv)
     { // <= half filled
@@ -152,9 +156,12 @@ void Atom_EC::BuildNROccupations()
         int gu=Nu, gp=g-gu; //unpaired and paired degeneracies
         if (gu==0 || gp==0) //No ml splitting: shell is fully paired or half-filled
         {
+            // Npair is the partially-filled-but-PAIRED part (nonzero only for an un-demoted closed
+            // valence subshell, e.g. the pseudo-atom's Si 3s^2); for normal atoms it is 0 here because
+            // closed valence subshells fold into Nf (NCore).  Nu is nonzero only in the gp==0 half-filled case.
             sym_t s=Symmetry::YFactory(l);
-            itsOccupations[Irrep(Spin::Up  ,s)]=NCore*g+Nu;
-            itsOccupations[Irrep(Spin::Down,s)]=NCore*g;
+            itsOccupations[Irrep(Spin::Up  ,s)]=NCore*g+Npair+Nu;
+            itsOccupations[Irrep(Spin::Down,s)]=NCore*g+Npair;
         }
         else //ml splitting: unpaired electrons occupy the lowest ml values
         {
@@ -184,18 +191,40 @@ Atom_EC::Atom_EC(int Z)
     BuildNROccupations();
 }
 
+// Pseudo-atom: load ONLY the raw valence shells (no core, no full-subshell demotion), so a closed valence
+// subshell like Si 3s^2 stays a valence occupation instead of folding into the core.
+Atom_EC::Atom_EC(int Z, ValenceOnly_t)
+: itsLMax(0), itsLValance(0)
+{
+    assert(Z>0);
+    assert(Z<=N_Elements);
+
+    const size_t* vc=pt.GetValanceConfiguration(Z);  //Raw valence electron counts per l
+    for (size_t l=0;l<=LMax;l++)
+    {
+        itsNs.Nf[l]=0;                 //no core: the pseudopotential replaces it
+        itsNs.Nv[l]=vc[l];
+        itsNs.N [l]=vc[l];
+        if (vc[l]>0) {itsLMax=l; itsLValance=l;}
+    }
+    AssignUnpaired(Z, pt.GetNumUnpairedElectrons(Z));
+}
+
+PseudoAtom_EC::PseudoAtom_EC(int Z)
+: Atom_EC(Z, ValenceOnly_t{})
+{
+    BuildNROccupations();
+}
+
 int Atom_EC::GetN(const Irrep& qns) const
 {
-    if (qns.ms==Spin::None) 
+    if (qns.ms==Spin::None)
     {
+        // A basis irrep that has no occupation entry is a legitimately-EMPTY (virtual) irrep -- e.g. the
+        // m=+1 p sub-irrep of a pseudo-atom's open p^2 shell, which is occupied only in p{-1,0}.  Return 0.
+        // (The end()-comparison was previously against the WRONG container, masking the miss with UB.)
         auto i=itsUnpolOccupations.find(qns);
-        if (i==itsOccupations.end())
-        {
-            std::cout << "Cannot find irrep=" <<  qns << endl;
-            Display();
-            exit(-1);
-        }
-        return i->second;
+        return i==itsUnpolOccupations.end() ? 0 : i->second;
     }
     auto i=itsOccupations.find(qns);
     if (i==itsOccupations.end())

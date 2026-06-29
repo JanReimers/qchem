@@ -53,6 +53,21 @@ public:
     Ham_DFTcorr_U(const st_t& st, const qcMesh::MeshParams&, const bs_t* bs);
 };
 
+//! Un-polarized LSDA PSEUDO-atom/molecule (LOCAL pseudopotential only, for now): kinetic + V_loc(r) (the
+//! pseudized replacement for the bare nuclear attraction, mesh-quadratured) + Hartree + Dirac exchange +
+//! VWN5 correlation.  NO Ven, NO ion-ion (single pseudized atom).  The valence electron count comes from
+//! the structure (build the Atom with charge = Z - valence).  Fill by aufbau (Molecule_EC) so the valence
+//! states land in the right angular channels.  The KB-separable nonlocal term is a follow-up.
+class Ham_PP_U : public virtual Hamiltonian, private HamiltonianImp
+{
+public:
+    //! Explicit local model (shared with the caller).
+    Ham_PP_U(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPotential_R> vloc,
+             const qcMesh::MeshParams&, const bs_t* bs);
+    //! Convenience: look up + OWN the GTH local model for \a element at valence \a q (LDA).
+    Ham_PP_U(const st_t& st, const std::string& element, int q, const qcMesh::MeshParams&, const bs_t* bs);
+};
+
 //
 // Plane-wave LDA Kohn-Sham (dcmplx): kinetic + external(pseudo) + Hartree + Dirac exchange + VWN5
 // correlation, assembled from the qcHamiltonian plane-wave terms (PWTerms).  Unlike the molecular DFT
