@@ -38,7 +38,9 @@ void QchemTester::Init(const nlohmann::json& js, bool verbose)
 
 void QchemTester::Init(BasisSetAccuracy acc, BasisSet::Atom::Type type, bool verbose)
 {
-    Init(Factory(acc, type, GetZ()), verbose);
+    // Irreps from the tester's actual EC (Atom_EC(Z) for a neutral atom -> identical to the Z overload;
+    // a pseudo-ion's closed/open valence for --model PP), exponents still from the element Z.
+    Init(Factory(acc, type, GetZ(), *GetElectronConfiguration()), verbose);
 }
 
 

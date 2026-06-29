@@ -23,6 +23,11 @@ export namespace BasisSet::Atom
     enum class BasisSetAccuracy {N3,N5,Low,Medium,High};
     std::string BasisSetAccuracyStrs[]={"N3     ","N5     ","Low    ", "Medium ","High   "};
     Real_BS* Factory(BasisSetAccuracy, Type,size_t Z);
+    //! As above, but the irreps come from an explicit \a ec instead of Atom_EC(Z): \a Z still sets the
+    //! exponent pool (the element), while \a ec sets WHICH angular irreps the basis carries.  Needed when
+    //! the occupied config differs from the neutral element -- e.g. a pseudo-ion (F- closed p^6 vs neutral
+    //! F open p^5); for a neutral atom pass Atom_EC(Z) and the result is identical to the Z overload.
+    Real_BS* Factory(BasisSetAccuracy, Type, size_t Z, const ElectronConfiguration& ec);
 }
 
 
