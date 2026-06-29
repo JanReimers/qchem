@@ -82,10 +82,9 @@ template <class T> void tSCFIterator<T>::Initialize(tChargeDensity<T>* seed)
     // The seed is only needed to build the iteration-0 Fock; it is NOT a working density (it may be a fit
     // with no density matrix), so own it transiently here rather than storing it as itsOldCD.
     std::unique_ptr<tChargeDensity<T>> seedOwner(seed);
-    itsWaveFunction->DoSCFIteration(*itsHamiltonian,seed);
-    itsWaveFunction->FillOrbitals(0.0001);
-
-    itsCD=cd_t(itsWaveFunction->GetChargeDensity()); //first real (matrix-backed) density, std-managed
+    // Iteration-0: the WaveFunction builds the Fock from the seed, diagonalizes, fills, and returns the first
+    // real (matrix-backed) density -- the seam a ScalarFunction seed / HF-bootstrap will grow into.
+    itsCD=cd_t(itsWaveFunction->Init(*itsHamiltonian, seed, 0.0001)); //first real (matrix-backed) density, std-managed
     assert(itsCD);
     itsOldCD=nullptr;    //set in the SCF loop; the seed is not a working density
     itsIterationCount=0;

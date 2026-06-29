@@ -32,6 +32,11 @@ public:
     using tWaveFunction<T>::GetOrbitals; //keep the const overload visible alongside the mutable one
 
     virtual void       DoSCFIteration  (tHamiltonian<T>&,const tChargeDensity<T>*)      =0;
+    //! Iteration-0 seed step: build the Fock from a \a seed density, diagonalize, fill, and return the FIRST
+    //! real (matrix-backed) density.  Bundles the DoSCFIteration+FillOrbitals+GetChargeDensity the SCFIterator
+    //! used to do by hand; the tDM_CD return makes explicit that a numeric/fit seed yields a genuine density
+    //! matrix (the seam where a ScalarFunction seed / HF-bootstrap will land -- see project_numericcd_refactor).
+    virtual tDM_CD<T>* Init            (tHamiltonian<T>&,const tChargeDensity<T>* seed, double mergeTol) =0;
     // Direct-minimization hooks (cf. the SCFIterator direct-min loop):
     //   build the Fock and ask each accelerator to compute its step (no orbital move);
     //   returns false in the seed step (the caller should DoSCFIteration to diagonalize).
