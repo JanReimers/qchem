@@ -66,8 +66,21 @@ Maps onto `qviz.data`: Structure / ScalarField / VectorField. Symbols via
 - [x] backend_qchem.QChemBackend + app_desktop.py uses it by default
 - [x] VERIFIED: water HF/dzvp E = -76.0229032 Ha (matches M_HF_U_Water anchor);
       real density + HOMO rendered (out/qchem_density.png, out/qchem_homo.png)
-- [ ] later: live SCF observer callback in SCFIterator (the streaming pass)
+- [x] live SCF streaming: SCFIterator observer hook + qcb_run_scf + backend_qchem.run_scf
+      -> real 20-iter HF/dzvp water trace (E climbs -71.88 -> -76.0229, [F,D] 6->4e-7,
+      DIIS visible ~iter 11). out/qchem_scf_convergence.gif
 - [ ] later: more elements in backend_qchem._SYMBOL; DFT model; geometry input UI
+- [ ] later: true concurrent streaming (thread + GIL) so the GUI repaints mid-run
+      (today: collect-then-replay via the app's per-step timer; fine for fast molecules)
+
+## Live SCF streaming (DONE)
+Lib change (src/SCFIterator): a `SCFProgress{iter,energy,dE,commutator,drho}` struct
++ `SetObserver(std::function<void(const SCFProgress&)>)`; the loop fires it each
+iteration (right after DisplayEnergies, ungated by Verbose). The bridge's
+`qcb_run_scf(cb)` rebuilds a fresh Hamiltonian+accelerator+SCFIterator (so it starts
+from the seed), wires the observer to a C callback, and re-converges. nanobind wraps
+a Python callable via a captureless trampoline. backend_qchem.run_scf() collects the
+push-based callbacks into SCFStep list and yields them (the app's QTimer replays).
 
 ## Build the extension
 ```

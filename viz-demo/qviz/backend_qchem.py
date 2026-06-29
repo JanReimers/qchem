@@ -77,10 +77,15 @@ class QChemBackend(ComputeBackend):
         return VectorField("grad(rho)", np.asarray(d["vectors"]),
                            tuple(d["origin"]), tuple(d["spacing"]))
 
-    # -- SCF: static-first stub --------------------------------------------
+    # -- SCF: live streaming -----------------------------------------------
     def run_scf(self):
-        """Live streaming is the next pass (needs an observer hook in
-        SCFIterator). For now yield a single converged point so the desktop
-        app's convergence panel shows the final energy without erroring."""
-        yield SCFStep(iteration=0, energy=self.total_energy(),
-                      dE=0.0, commutator=0.0, drho=0.0)
+        """Re-run the real SCF from the seed; yield one SCFStep per iteration.
+
+        The C++ side is push-based (an observer fires each iteration), so we
+        collect into a list and then yield. For a fast molecular SCF this is
+        sub-second, so the app's per-step timer animates it as a smooth replay
+        of the genuine convergence trace."""
+        steps: list[SCFStep] = []
+        self._calc.run_scf(lambda it, E, dE, comm, drho:
+                           steps.append(SCFStep(it, E, dE, comm, drho)))
+        yield from steps

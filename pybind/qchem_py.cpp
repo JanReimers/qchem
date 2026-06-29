@@ -37,6 +37,15 @@ NB_MODULE(qchem_py, mod)
              "Build a molecule (atomic numbers + flat 3N bohr positions) and converge an HF SCF.")
         .def("__del__", [](Calc& c){ if (c.h) { qcb_free(c.h); c.h = nullptr; } })
         .def("total_energy", [](Calc& c){ return qcb_energy(c.h); })
+        .def("run_scf", [](Calc& c, nb::callable cb) {
+                 // captureless trampoline -> C function pointer; user = &cb (alive for the call)
+                 auto tramp = [](void* u, int it, double E, double dE, double comm, double drho) {
+                     (*static_cast<nb::callable*>(u))(it, E, dE, comm, drho);
+                 };
+                 return qcb_run_scf(c.h, tramp, &cb);
+             }, nb::arg("callback"),
+             "Re-run the SCF from the seed, calling callback(iter, E, dE, [F,D], drho) "
+             "each iteration. Returns the iteration count.")
         .def("structure", [](Calc& c) {
                  int nat = qcb_natoms(c.h);
                  std::vector<int> Z(nat); std::vector<double> xyz(3*nat);

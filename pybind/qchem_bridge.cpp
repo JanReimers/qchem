@@ -76,8 +76,26 @@ struct Calc {
     SCFIterator*                     scf   = nullptr;   // owns ham + accelerator
     std::vector<int>    numbers;
     std::vector<double> positions;
+    int                 maxiter = 20;
     ~Calc() { delete scf; delete basis; delete ec; }
 };
+
+// (Re)build a fresh Hamiltonian + accelerator + SCFIterator on the existing basis/
+// EC/structure and converge from the seed. `obs` (if set) streams each iteration.
+void run_scf_impl(Calc* c, SCFIterator::Observer obs)
+{
+    int Ztot = 0; for (int z : c->numbers) Ztot += z;
+    auto* ham = Factory(Model::HF, Pol::UnPolarized, c->structure);
+    nlohmann::json jsacc = {{"NProj", 4}, {"EMax", Ztot*Ztot*0.1/32},
+                            {"EMin", 1e-7}, {"SVTol", 5e-9}, {"type", "DIIS"}};
+    auto* acc = qchem::SCFAccelerators::Factory(qchem::SCFAccelerators::Type::DIIS, jsacc);
+    delete c->scf;                                       // releases the previous ham + acc
+    c->scf = new SCFIterator(c->basis, c->ec, ham, acc,
+                             qchem::ChargeDensity::SeedStrategy::Default, c->structure.get());
+    if (obs) c->scf->SetObserver(std::move(obs));
+    //          NMaxIter MinΔρ MinΔE MinVirial MinFD relax mergeTol verbose
+    c->scf->Iterate({size_t(c->maxiter), 1e-4, 1e-7, 1e-13, 1e-5, 1.0, 1e-4, false});
+}
 
 } // anon namespace
 
@@ -88,27 +106,26 @@ void* qcb_make(const int* Z, int nat, const double* pos3, const char* basis, int
     auto* c = new Calc();
     c->numbers.assign(Z, Z + nat);
     c->positions.assign(pos3, pos3 + 3*nat);
+    c->maxiter = maxiter;
 
     Molecule* mol = new Molecule();
-    int Ztot = 0;
-    for (int a = 0; a < nat; ++a) {
+    for (int a = 0; a < nat; ++a)
         mol->Insert(new Atom(Z[a], 0.0, rvec3_t(pos3[3*a], pos3[3*a+1], pos3[3*a+2])));
-        Ztot += Z[a];
-    }
-    std::shared_ptr<Molecule> molp(mol);
-    c->structure = molp;
+    c->structure = std::shared_ptr<Molecule>(mol);
     c->ec    = new Molecule_EC(int(mol->GetNumElectrons()));
     c->basis = BasisSet::Molecule::Factory(nlohmann::json{{"basis", basis}}, mol);
 
-    auto* ham = Factory(Model::HF, Pol::UnPolarized, c->structure);
-    nlohmann::json jsacc = {{"NProj", 4}, {"EMax", Ztot*Ztot*0.1/32},
-                            {"EMin", 1e-7}, {"SVTol", 5e-9}, {"type", "DIIS"}};
-    auto* acc = qchem::SCFAccelerators::Factory(qchem::SCFAccelerators::Type::DIIS, jsacc);
-    c->scf = new SCFIterator(c->basis, c->ec, ham, acc,
-                             qchem::ChargeDensity::SeedStrategy::Default, mol);
-    //          NMaxIter MinΔρ MinΔE MinVirial MinFD relax mergeTol verbose
-    c->scf->Iterate({size_t(maxiter), 1e-4, 1e-7, 1e-13, 1e-5, 1.0, 1e-4, false});
+    run_scf_impl(c, {});                                 // converge so density() is ready
     return c;
+}
+
+int qcb_run_scf(void* h, qcb_scf_cb cb, void* user)
+{
+    auto* c = static_cast<Calc*>(h);
+    run_scf_impl(c, [cb, user](const qchem::SCFIterator::SCFProgress& p) {
+        cb(user, int(p.iteration), p.energy, p.dE, p.commutator, p.drho);
+    });
+    return int(c->scf->GetIterationCount());
 }
 
 void   qcb_free(void* h)        { delete static_cast<Calc*>(h); }

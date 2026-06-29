@@ -23,6 +23,12 @@ double qcb_energy(void* h);
 int    qcb_natoms(void* h);
 void   qcb_atoms (void* h, int* Z_out, double* xyz_out);   // Z_out[nat], xyz_out[3*nat]
 
+// Re-run the SCF from the seed, calling `cb` once per iteration (live convergence).
+// Leaves the calculator in a freshly-converged state. Returns the iteration count.
+typedef void (*qcb_scf_cb)(void* user, int iter, double E, double dE,
+                           double commutator, double drho);
+int qcb_run_scf(void* h, qcb_scf_cb cb, void* user);
+
 // Sample fields on an n^3 grid padded `pad` bohr past the atoms. The caller
 // preallocates `out` (n*n*n for scalars, n*n*n*3 for the vector field, C-order)
 // plus origin[3] and spacing[3]. Density/orbital/gradient all sample the same
