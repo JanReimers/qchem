@@ -27,6 +27,8 @@ target_sources(qcChargeDensity PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES F
     Internal/PolarizedCDImp.C
 )
 
+add_subdirectory(tests)
+
 set_property(TARGET qcChargeDensity PROPERTY CXX_STANDARD 20)
 target_include_directories(qcChargeDensity PRIVATE ${PROJECT_SOURCE_DIR}/submodules/blaze
     ${PROJECT_SOURCE_DIR}/submodules/json/single_include)

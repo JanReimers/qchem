@@ -13,7 +13,7 @@ namespace qchem::ChargeDensity
 {
 
 CompositeFittedCD::CompositeFittedCD(double totalCharge)
-    : itsCharge(totalCharge), itsVersion(NextDensityVersion<double>())   // shared per-T clock (no collisions)
+    : itsCharge(totalCharge), itsVersion(NextDensityVersion())   // shared global clock (no cross-kind collisions)
 {
     assert(totalCharge>0);
 }
@@ -22,7 +22,7 @@ void CompositeFittedCD::Insert(std::shared_ptr<const ScalarFunction<double>> d)
 {
     assert(d);
     itsDensities.push_back(std::move(d));
-    itsVersion=NextDensityVersion<double>();   // mutated -> a new logical density
+    itsVersion=NextDensityVersion();   // mutated -> a new logical density
 }
 
 double CompositeFittedCD::operator()(const rvec3_t& r) const
@@ -42,7 +42,7 @@ rvec3_t CompositeFittedCD::Gradient(const rvec3_t& r) const
 void CompositeFittedCD::ReScale(double factor)
 {
     itsScale *= factor;
-    itsVersion = NextDensityVersion<double>();
+    itsVersion = NextDensityVersion();
 }
 
 // <rho|c> = the Coulomb projection of this real-space density onto fit basis \a fbs.  Derived on demand

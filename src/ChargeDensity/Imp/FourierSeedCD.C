@@ -16,7 +16,7 @@ namespace qchem::ChargeDensity
 
 FourierSeedCD::FourierSeedCD(const BasisSet::Band_FT_IBS* basis, const Structure* st, const std::string& functional)
     : itsBasis(basis), itsStructure(st), itsCharge(0.0)
-    , itsVersion(NextDensityVersion<dcmplx>())   // shared per-T clock (no cross-kind collisions)
+    , itsVersion(NextDensityVersion())   // shared global clock (no cross-kind collisions)
 {
     assert(basis);
     assert(st);
@@ -69,7 +69,7 @@ rvec3_t FourierSeedCD::Gradient(const rvec3_t& r) const
 void FourierSeedCD::ReScale(double factor)
 {
     itsScale *= factor;
-    itsVersion = NextDensityVersion<dcmplx>();
+    itsVersion = NextDensityVersion();
 }
 
 } //namespace

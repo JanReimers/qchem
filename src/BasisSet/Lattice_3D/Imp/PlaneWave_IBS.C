@@ -162,7 +162,7 @@ FourierMap PlaneWave_IBS::MakeFourierDensity(const chmat_t& D) const
 // Structure-factor assembly of a per-species radial form factor (the SAD seed density face): for each
 // difference vector dm in the basis, rho(dm) = (1/Omega) Sum_atoms formFactor(Z,|B.dm|^2) e^{-i(B.dm).R}.
 // Mirrors MakeLocalPotential, but it is a DENSITY: dm=0 is KEPT (= total charge / Omega), not dropped.
-FourierMap PlaneWave_IBS::MakeFourierDensity(const Structure* cl,
+FourierMap PlaneWave_IBS::MakeFourierDensity(const Structure* atoms,
                           const std::function<double(int,double)>& formFactor) const
 {
     const UnitCell& B=itsRecip.GetCell();
@@ -176,7 +176,7 @@ FourierMap PlaneWave_IBS::MakeFourierDensity(const Structure* cl,
             rvec3_t dG=B.ToCartesian(rvec3_t(dm));
             double  g2=dG*dG;
             dcmplx  acc(0.0);                           // (form factor) x (structure factor)
-            for (Atom* a : *cl) acc += formFactor(a->itsZ,g2)*std::exp(dcmplx(0.0,-(dG*a->itsR)));
+            for (Atom* a : *atoms) acc += formFactor(a->itsZ,g2)*std::exp(dcmplx(0.0,-(dG*a->itsR)));
             rho[dm]=acc/itsVolume;
         }
     return rho;

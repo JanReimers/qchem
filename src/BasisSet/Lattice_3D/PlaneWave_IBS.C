@@ -68,7 +68,7 @@ public:
     //! no \f$O(N_{pts}n^2)\f$ real-space sampling -- one \f$O(n^2)\f$ accumulation over the difference set.
     virtual FourierMap MakeFourierDensity(const chmat_t& D) const override;
     //! \brief Structure-factor assembly of a per-species radial form factor (the SAD seed density face).
-    virtual FourierMap MakeFourierDensity(const Structure*,
+    virtual FourierMap MakeFourierDensity(const Structure* atoms,
                           const std::function<double(int Z, double g2)>& formFactor) const override;
     //! \brief Hartree matrix + energy directly from the density's G-space coefficients \a rho
     //! (= MakeFourierDensity): \f$V_H(\Delta m)=4\pi\tilde\rho/|B\Delta m|^2\f$, \f$E_H=\tfrac\Omega2\sum

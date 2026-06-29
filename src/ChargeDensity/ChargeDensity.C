@@ -14,11 +14,12 @@ export namespace qchem::ChargeDensity
 
 //! Hand out the next TRANSIENT density-freshness serial -- the monotonic logical clock the dynamic-term
 //! caches key on (Version()).  EVERY concrete density (IrrepCD, CompositeFittedCD, FourierSeedCD, ...) MUST
-//! draw from this ONE per-T counter: a serial that collides across density KINDS makes a dynamic term reuse
-//! a stale cached matrix (the iter-0 seed Fock for the iter-1 working density), which silently breaks the
-//! SCF -- see [[project_hamiltonian_dynamic_cache_bug]].  One std::atomic per T, shared program-wide via
-//! the module.  Serial 0 is the reserved "no density yet" sentinel; the first handed out is 1.
-template <class T> size_t NextDensityVersion()
+//! draw from this ONE counter: a serial that collides across density KINDS makes a dynamic term reuse a
+//! stale cached matrix (the iter-0 seed Fock for the iter-1 working density), silently breaking the SCF --
+//! see [[project_hamiltonian_dynamic_cache_bug]].  A SINGLE program-wide std::atomic (not per-T: the cache
+//! only needs globally-distinct serials, and one counter makes EVERY density's Version() unique, real or
+//! complex).  Serial 0 is the reserved "no density yet" sentinel; the first handed out is 1.
+inline size_t NextDensityVersion()
 {
     static std::atomic<size_t> theClock{0};
     return ++theClock;

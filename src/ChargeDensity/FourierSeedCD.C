@@ -48,7 +48,7 @@ public:
 private:
     const BasisSet::Band_FT_IBS* itsBasis;        //!< the plane-wave block (G-space assembler); not owned
     const Structure*             itsStructure;    //!< atom Z + positions; not owned
-    std::map<int,std::shared_ptr<const RadialDensity>> itsRadByZ;   //!< per-element valence radial density
+    std::map<size_t,std::shared_ptr<const RadialDensity>> itsRadByZ; //!< per-element (Z) valence radial density
     std::vector<RecentredAtomicDensity>                itsRecentred; //!< per-atom rho_atom(|r-R|) for op(r)
     double itsCharge;     //!< total valence electron count (Sum_atoms N_val), pre-scale
     double itsScale=1.0;  //!< uniform scale applied by ReScale

@@ -16,8 +16,8 @@ import qchem.BasisSet.Band_FT_IBS;   // cast the basis UP to the G-space capabil
 namespace qchem::ChargeDensity
 {
 
-// The density-freshness serial source (Version()) now lives in qchem.ChargeDensity as a SHARED per-T
-// counter (NextDensityVersion<T>): every density kind must draw from the same clock or their serials
+// The density-freshness serial source (Version()) now lives in qchem.ChargeDensity as a SINGLE shared
+// counter (NextDensityVersion): every density kind must draw from the same global clock or their serials
 // collide across kinds and a dynamic term reuses a stale cached matrix (see the module doc + the SAD seed
 // types CompositeFittedCD/FourierSeedCD, which also stamp from it).
 
@@ -31,7 +31,7 @@ rvec3_t  GradientContraction(const vec_t<rvec3_t >&, const vec_t<double>&, const
 //  Construction zone.
 //
 template <class T> IrrepCD<T>::IrrepCD()
-    : itsVersion(NextDensityVersion<T>())
+    : itsVersion(NextDensityVersion())
 {};
 
 template <class T> IrrepCD<T>::IrrepCD(const DenSMat& D,const tobs_t<T>* theBasisSet,Irrep qns)
@@ -39,7 +39,7 @@ template <class T> IrrepCD<T>::IrrepCD(const DenSMat& D,const tobs_t<T>* theBasi
     , itsBasisSet(theBasisSet)
     , itsSpin(qns.ms)
     , itsIrrep(qns)
-    , itsVersion(NextDensityVersion<T>())
+    , itsVersion(NextDensityVersion())
 {
     assert(itsBasisSet);
 };
@@ -121,7 +121,7 @@ template <class T> void IrrepCD<T>::ReScale(double factor)
 {
     // No UT coverage
     itsDensityMatrix*=factor;
-    itsVersion=NextDensityVersion<T>();   // a mutation is logically a new density
+    itsVersion=NextDensityVersion();   // a mutation is logically a new density
 }
 
 template <class T> void IrrepCD<T>::MixIn(const tDM_CD<T>& cd,double c)
@@ -130,7 +130,7 @@ template <class T> void IrrepCD<T>::MixIn(const tDM_CD<T>& cd,double c)
     assert(eicd);
     assert(itsBasisSet->GetID() == eicd->itsBasisSet->GetID());
     itsDensityMatrix = itsDensityMatrix*(1-c) + eicd->itsDensityMatrix*c;
-    itsVersion=NextDensityVersion<T>();   // a mutation is logically a new density
+    itsVersion=NextDensityVersion();   // a mutation is logically a new density
 }
 
 template <class T> double IrrepCD<T>::GetChangeFrom(const tDM_CD<T>& cd) const

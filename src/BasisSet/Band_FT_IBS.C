@@ -35,7 +35,7 @@ public:
     //! the difference set -- the structure-factor assembly of a per-species radial form factor \a formFactor
     //! (e.g. an atomic valence density for a SAD seed).  The density analogue of the pseudopotential's
     //! MakeLocalPotential, but it KEEPS \f$\Delta m=0\f$ (the total charge), and returns a density not a matrix.
-    virtual FourierMap MakeFourierDensity(const Structure*,
+    virtual FourierMap MakeFourierDensity(const Structure* atoms,
                           const std::function<double(int Z, double g2)>& formFactor) const=0;
 
     //! \brief Hartree matrix + energy directly from the density's G-space coefficients \a rho:
