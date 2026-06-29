@@ -2,6 +2,7 @@
 module;
 #include <type_traits>
 #include <cstddef>
+#include <atomic>
 export module qchem.ChargeDensity;
 import qchem.Fitting.FunctionFitter;   // Fitting::ProjectedDensity_AO
 export import qchem.Symmetry.Spin;
@@ -10,6 +11,18 @@ import qchem.ChargeDensity.Types;
 
 export namespace qchem::ChargeDensity
 {
+
+//! Hand out the next TRANSIENT density-freshness serial -- the monotonic logical clock the dynamic-term
+//! caches key on (Version()).  EVERY concrete density (IrrepCD, CompositeFittedCD, FourierSeedCD, ...) MUST
+//! draw from this ONE per-T counter: a serial that collides across density KINDS makes a dynamic term reuse
+//! a stale cached matrix (the iter-0 seed Fock for the iter-1 working density), which silently breaks the
+//! SCF -- see [[project_hamiltonian_dynamic_cache_bug]].  One std::atomic per T, shared program-wide via
+//! the module.  Serial 0 is the reserved "no density yet" sentinel; the first handed out is 1.
+template <class T> size_t NextDensityVersion()
+{
+    static std::atomic<size_t> theClock{0};
+    return ++theClock;
+}
 
 //! Empty (non-polymorphic) stand-in for a PERIODIC density, which has no AO (auxiliary-basis) projection.
 //! A density template inherits Fitting::ProjectedDensity_AO only on the finite (double) path; the periodic

@@ -12,10 +12,8 @@ import qchem.Blaze;                        // rvec_t, rsmat_t, matrix-vector pro
 namespace qchem::ChargeDensity
 {
 
-static size_t NextSeedVersion() {static size_t n=0; return ++n;}   // transient freshness serial
-
 CompositeFittedCD::CompositeFittedCD(double totalCharge)
-    : itsCharge(totalCharge), itsVersion(NextSeedVersion())
+    : itsCharge(totalCharge), itsVersion(NextDensityVersion<double>())   // shared per-T clock (no collisions)
 {
     assert(totalCharge>0);
 }
@@ -24,7 +22,7 @@ void CompositeFittedCD::Insert(std::shared_ptr<const ScalarFunction<double>> d)
 {
     assert(d);
     itsDensities.push_back(std::move(d));
-    itsVersion=NextSeedVersion();   // mutated -> a new logical density
+    itsVersion=NextDensityVersion<double>();   // mutated -> a new logical density
 }
 
 double CompositeFittedCD::operator()(const rvec3_t& r) const
@@ -44,7 +42,7 @@ rvec3_t CompositeFittedCD::Gradient(const rvec3_t& r) const
 void CompositeFittedCD::ReScale(double factor)
 {
     itsScale *= factor;
-    itsVersion = NextSeedVersion();
+    itsVersion = NextDensityVersion<double>();
 }
 
 // <rho|c> = the Coulomb projection of this real-space density onto fit basis \a fbs.  Derived on demand

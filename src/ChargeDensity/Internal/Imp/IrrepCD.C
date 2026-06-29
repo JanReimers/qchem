@@ -16,20 +16,10 @@ import qchem.BasisSet.Band_FT_IBS;   // cast the basis UP to the G-space capabil
 namespace qchem::ChargeDensity
 {
 
-//! Monotonic logical-clock (Lamport) source for the IrrepCD freshness serial (Version()).  Each new or
-//! mutated density draws the next value; the Hamiltonian term cache compares serials to ask "is this a
-//! *different* density than the one I cached?".  NOT wall-clock time on purpose: a counter can never
-//! collide (two densities born the same microsecond would), never runs backward (NTP/DST jumps would),
-//! and is fully deterministic run-to-run / under any allocator -- the property the whole determinism fix
-//! rests on.  Per-T so the double and dcmplx lineages stay independent.  An implementation detail of how
-//! IrrepCD self-stamps (the only caller -- composites/polarized forward to a child), so it lives here,
-//! un-exported, not in the abstract interface.  Both IrrepCD<double>/<dcmplx> instantiate in this TU, so
-//! each T has exactly one counter.
-template <class T> static size_t NextDensityVersion()
-{
-    static std::atomic<size_t> theClock{0};
-    return ++theClock;   // first serial handed out is 1; 0 is the reserved "no density yet" sentinel
-}
+// The density-freshness serial source (Version()) now lives in qchem.ChargeDensity as a SHARED per-T
+// counter (NextDensityVersion<T>): every density kind must draw from the same clock or their serials
+// collide across kinds and a dynamic term reuses a stale cached matrix (see the module doc + the SAD seed
+// types CompositeFittedCD/FourierSeedCD, which also stamp from it).
 
 typedef Vector3D<std::complex<double> > Vec3;
 

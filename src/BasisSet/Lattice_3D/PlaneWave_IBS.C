@@ -67,6 +67,9 @@ public:
     //! for a density matrix \a D in THIS plane-wave block.  The G-space route to the Hartree/XC matrices:
     //! no \f$O(N_{pts}n^2)\f$ real-space sampling -- one \f$O(n^2)\f$ accumulation over the difference set.
     virtual FourierMap MakeFourierDensity(const chmat_t& D) const override;
+    //! \brief Structure-factor assembly of a per-species radial form factor (the SAD seed density face).
+    virtual FourierMap MakeFourierDensity(const Structure*,
+                          const std::function<double(int Z, double g2)>& formFactor) const override;
     //! \brief Hartree matrix + energy directly from the density's G-space coefficients \a rho
     //! (= MakeFourierDensity): \f$V_H(\Delta m)=4\pi\tilde\rho/|B\Delta m|^2\f$, \f$E_H=\tfrac\Omega2\sum
     //! 4\pi|\tilde\rho|^2/G^2\f$ (\f$\Delta m=0\f$ dropped).  The FFT-free Poisson solve.

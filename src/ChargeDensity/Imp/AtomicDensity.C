@@ -6,10 +6,11 @@ module;
 #include <string>
 #include <vector>
 #include <memory>
+#include <map>
 #include <nlohmann/json.hpp>
 
 module qchem.ChargeDensity.AtomicDensity;
-import qchem.Math;   // std::sqrt/log/exp/floor (qchem.CMath) + norm(Vector3D)
+import qchem.Math;   // std::sqrt/log/exp/floor + Pi (qchem.CMath) + norm(Vector3D)
 
 #ifndef CHARGEDENSITY_DATA_PATH
 #error "CHARGEDENSITY_DATA_PATH must be defined by CMake"
@@ -18,17 +19,17 @@ import qchem.Math;   // std::sqrt/log/exp/floor (qchem.CMath) + norm(Vector3D)
 namespace qchem::ChargeDensity
 {
 
-//! The parsed database (array of per-element-x-functional entries), loaded once on first use.
-static const nlohmann::json& database()
+//! The parsed database (array of per-element-x-functional entries) for \a dbfile, loaded once on first use
+//! (one cache entry per file name; construct-on-first-use, no static-init-order issue).
+static const nlohmann::json& database(const std::string& dbfile)
 {
-    static const nlohmann::json db = []
-    {
-        std::ifstream f(std::filesystem::path(CHARGEDENSITY_DATA_PATH) / "atomic_densities.json");
-        if (!f) throw std::runtime_error("AtomicDensity: cannot open atomic_densities.json under "
-                                         CHARGEDENSITY_DATA_PATH);
-        nlohmann::json j; f >> j; return j;
-    }();
-    return db;
+    static std::map<std::string, nlohmann::json> cache;
+    auto it = cache.find(dbfile);
+    if (it!=cache.end()) return it->second;
+    std::ifstream f(std::filesystem::path(CHARGEDENSITY_DATA_PATH) / dbfile);
+    if (!f) throw std::runtime_error("AtomicDensity: cannot open " + dbfile + " under " CHARGEDENSITY_DATA_PATH);
+    nlohmann::json j; f >> j;
+    return cache.emplace(dbfile, std::move(j)).first->second;
 }
 
 //----------------------------------------------------------------------------------- RadialDensity
@@ -60,9 +61,25 @@ double RadialDensity::operator()(double r) const
     return itsRho[i]*(1.0-f) + itsRho[i+1]*f;
 }
 
-RadialDensity GetAtomicDensity(int Z, const std::string& functional)
+double RadialDensity::FormFactor(double G) const
 {
-    for (const nlohmann::json& e : database())
+    // 4*pi * int_0^rmax rho(r) sinc(G r) r^2 dr, on the stored log grid (dr = r du, du = itsLogStep).
+    const int N = (int)itsRho.size();
+    double sum = 0;
+    for (int i=0;i<N;i++)
+    {
+        double r = itsRmin*std::exp(i*itsLogStep);
+        double w = (i==0||i==N-1) ? 0.5 : 1.0;            // trapezoid in u
+        double x = G*r;
+        double sinc = (x<1e-8) ? 1.0 : std::sin(x)/x;     // sinc(0)=1
+        sum += w * itsRho[i]*sinc*r*r * r*itsLogStep;
+    }
+    return 4.0*Pi*sum;
+}
+
+RadialDensity GetAtomicDensity(int Z, const std::string& functional, const std::string& dbfile)
+{
+    for (const nlohmann::json& e : database(dbfile))
         if (e.value("Z",-1)==Z && e.value("functional",std::string())==functional)
         {
             const nlohmann::json& g = e.at("grid");
@@ -70,7 +87,7 @@ RadialDensity GetAtomicDensity(int Z, const std::string& functional)
                                  e.at("rho").get<std::vector<double>>());
         }
     throw std::runtime_error("AtomicDensity: no entry for Z=" + std::to_string(Z)
-                             + " functional='" + functional + "' in atomic_densities.json");
+                             + " functional='" + functional + "' in " + dbfile);
 }
 
 //-------------------------------------------------------------------------------- RecentredAtomicDensity

@@ -9,7 +9,9 @@ module qchem.ChargeDensity.Seed;
 import qchem.ChargeDensity.Factory;          // IrrepCD_Factory<T>
 import qchem.ChargeDensity.Types;            // tobs_t<T>
 import qchem.ChargeDensity.CompositeFittedCD;// CompositeFittedCD (the molecular SAD seed, double only)
+import qchem.ChargeDensity.FourierSeedCD;    // FourierSeedCD (the plane-wave SAD seed, dcmplx only)
 import qchem.ChargeDensity.AtomicDensity;    // GetAtomicDensity, RadialDensity, RecentredAtomicDensity
+import qchem.BasisSet.Band_FT_IBS;           // Band_FT_IBS (the G-space block for the PW seed)
 import qchem.Structure;                       // Structure, Atom (atom Z + positions)
 import qchem.Blaze;                           // blazem::zeroH, hmat_t
 import qchem.Types;                           // dcmplx
@@ -62,7 +64,14 @@ template <class T> tChargeDensity<T>* MakeSeedDensity(SeedStrategy s, const Basi
             }
             return cd;
         }
-        else { assert(false && "SAD plane-wave (FT) seed is Phase 2"); return nullptr; }
+        else
+        {
+            // Plane-wave (FT) SAD: rho-tilde(G) = Sum_atoms rho_atom(|G|) e^{-iG.R}, assembled by the basis.
+            assert(st && "SAD plane-wave seed needs a Structure");
+            const auto* ftbs = dynamic_cast<const BasisSet::Band_FT_IBS*>((*bs)[0]);
+            assert(ftbs && "SAD plane-wave seed needs a Band_FT_IBS (plane-wave) basis");
+            return new FourierSeedCD(ftbs, st);
+        }
     }
     case SeedStrategy::IonicSAD:
         assert(false && "IonicSAD seed is Phase 3");

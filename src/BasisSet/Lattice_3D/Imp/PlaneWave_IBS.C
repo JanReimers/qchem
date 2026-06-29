@@ -159,6 +159,29 @@ FourierMap PlaneWave_IBS::MakeFourierDensity(const chmat_t& D) const
     return rg;
 }
 
+// Structure-factor assembly of a per-species radial form factor (the SAD seed density face): for each
+// difference vector dm in the basis, rho(dm) = (1/Omega) Sum_atoms formFactor(Z,|B.dm|^2) e^{-i(B.dm).R}.
+// Mirrors MakeLocalPotential, but it is a DENSITY: dm=0 is KEPT (= total charge / Omega), not dropped.
+FourierMap PlaneWave_IBS::MakeFourierDensity(const Structure* cl,
+                          const std::function<double(int,double)>& formFactor) const
+{
+    const UnitCell& B=itsRecip.GetCell();
+    FourierMap rho;
+    size_t n=GetNumFunctions();
+    for (size_t i=0;i<n;i++)
+        for (size_t j=0;j<n;j++)
+        {
+            ivec3_t dm=itsG[i]-itsG[j];
+            if (rho.find(dm)!=rho.end()) continue;     // one value per difference vector
+            rvec3_t dG=B.ToCartesian(rvec3_t(dm));
+            double  g2=dG*dG;
+            dcmplx  acc(0.0);                           // (form factor) x (structure factor)
+            for (Atom* a : *cl) acc += formFactor(a->itsZ,g2)*std::exp(dcmplx(0.0,-(dG*a->itsR)));
+            rho[dm]=acc/itsVolume;
+        }
+    return rho;
+}
+
 // AutoGrid divisions rounded up to powers of two -- radix-2 FFT for the XC route.  A larger grid still
 // resolves the difference set without aliasing, so it is at worst slightly more accurate.
 ivec3_t PlaneWave_IBS::FFTGrid() const

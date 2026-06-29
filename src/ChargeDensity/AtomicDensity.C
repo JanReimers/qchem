@@ -25,14 +25,21 @@ public:
     double operator()(double r) const;   //!< interpolated rho(r)
     double Charge() const {return itsCharge;}   //!< 4*pi*int r^2 rho dr from the stored grid (~ Nelec)
     int    GetN() const {return (int)itsRho.size();}
+    //! Reciprocal-space form factor \f$\tilde\rho(G)=4\pi\int_0^\infty \rho(r)\,\mathrm{sinc}(Gr)\,r^2\,dr\f$
+    //! (the radial Fourier transform of a spherical density).  \f$\tilde\rho(0)=\f$ Charge().  Used by the
+    //! plane-wave SAD seed's structure-factor sum.
+    double FormFactor(double G) const;
 private:
     double              itsRmin, itsRmax, itsLogStep;   //!< log grid: r_i = rmin*exp(i*itsLogStep)
     std::vector<double> itsRho;
     double              itsCharge;
 };
 
-//! Read element \a Z's radial density for \a functional from the database (throws if absent).
-RadialDensity GetAtomicDensity(int Z, const std::string& functional="LDA");
+//! Read element \a Z's radial density for \a functional from database \a dbfile (throws if absent).  The
+//! default holds all-electron densities (the molecular SAD source); pass "atomic_valence_densities.json"
+//! for the pseudo-valence densities (the plane-wave SAD source).
+RadialDensity GetAtomicDensity(int Z, const std::string& functional="LDA",
+                               const std::string& dbfile="atomic_densities.json");
 
 //! A RadialDensity recentred at a nucleus \a R: a 3-D ScalarFunction rho(|r-R|) for the function-fitter.
 class RecentredAtomicDensity : public virtual ScalarFunction<double>

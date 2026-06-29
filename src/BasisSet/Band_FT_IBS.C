@@ -8,6 +8,7 @@
 // capability, Pseudopotential::Integrals_Pseudo in qcPseudopotential, so qcBasisSet names no pseudopotential type.)
 // A term reaches this the sanctioned way: holding the abstract orbital basis and dynamic_cast-ing UP.
 module;
+#include <functional>
 export module qchem.BasisSet.Band_FT_IBS;
 export import qchem.BasisSet.Orbital_1E_IBS;
 export import qchem.FourierMap;
@@ -29,6 +30,13 @@ public:
     //! \brief \f$\tilde\rho(\Delta m)=\frac1\Omega\sum_{G_i-G_j=\Delta m}D_{ij}\f$ for a density matrix
     //! \a D in THIS plane-wave block (one \f$O(n^2)\f$ accumulation over the difference set).
     virtual FourierMap MakeFourierDensity(const hmat_t<dcmplx>& D) const=0;
+
+    //! \brief \f$\tilde\rho(\Delta m)=\frac1\Omega\sum_{\text{atoms}} f(Z,|B\Delta m|^2)\,e^{-iG\cdot R}\f$ over
+    //! the difference set -- the structure-factor assembly of a per-species radial form factor \a formFactor
+    //! (e.g. an atomic valence density for a SAD seed).  The density analogue of the pseudopotential's
+    //! MakeLocalPotential, but it KEEPS \f$\Delta m=0\f$ (the total charge), and returns a density not a matrix.
+    virtual FourierMap MakeFourierDensity(const Structure*,
+                          const std::function<double(int Z, double g2)>& formFactor) const=0;
 
     //! \brief Hartree matrix + energy directly from the density's G-space coefficients \a rho:
     //! \f$V_H(\Delta m)=4\pi\tilde\rho/|B\Delta m|^2\f$, \f$E_H=\tfrac\Omega2\sum 4\pi|\tilde\rho|^2/G^2\f$.

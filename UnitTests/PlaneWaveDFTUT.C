@@ -1055,10 +1055,10 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaThroughSCFIterator)
     using qchem::SCFAccelerators::DIISParams;
     auto* acc=new qchem::SCFAccelerators::cSCFAcceleratorDIIS(DIISParams{8, 0.5, 1e-10, 1e-9});
 
-    // Seed a UNIFORM density (Hartree+XC active from iteration 0, as real PW codes do): D=(N/n) I,
-    // built centrally by MakeSeedDensity (also the plane-wave Default; passed explicitly here).
+    // Seed a SAD density (superposition of atomic pseudo-valence densities, G-space form-factor sum):
+    // shell structure from iteration 0 -> fewer SCF iterations than the structureless uniform seed.
     qchem::SCFIterator::cSCFIterator scf(bs.get(), &ec, ham, acc,
-                                         qchem::ChargeDensity::SeedStrategy::Uniform);
+                                         qchem::ChargeDensity::SeedStrategy::SAD, lat.GetStructure().get());
 
     SCFParams par;
     par.NMaxIter      =80;
