@@ -69,7 +69,7 @@ void QchemTester::Init(Real_BS* bs, bool verbose)
               : ts=="Ladder" ? Type::Ladder : ts=="GDM" ? Type::GDM : Type::DIIS;
     SCFAccelerator* acc=qchem::SCFAccelerators::Factory(type,jsacc);
     delete itsSCFIterator;
-    itsSCFIterator=new SCFIterator(itsBasisSet,GetElectronConfiguration(),itsHamiltonian,acc);
+    itsSCFIterator=new SCFIterator(itsBasisSet,GetElectronConfiguration(),itsHamiltonian,acc,itsSeed,itsStructure.get());
     if (directmin) itsSCFIterator->SetDirectMin(true);
     assert(itsSCFIterator);
 }

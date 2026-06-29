@@ -42,6 +42,7 @@ public:
     M_DFT(Molecule* m, double alpha, const nlohmann::json& acc = {}) : TestMolecule(m), itsAlpha(alpha)
     {
         if (!acc.empty()) SetAcceleratorConfig(acc);   // before Init: Init reads the accelerator config
+        SetSeedStrategy(qchem::ChargeDensity::SeedStrategy::SAD);   // superposition-of-atomic-densities seed
         nlohmann::json js = { {"basis", "dzvp"} };
         QchemTester::Init(js);
     }
@@ -90,6 +91,7 @@ public:
     M_DFT_Sph(Molecule* m, double alpha, const nlohmann::json& acc = {}) : TestMolecule(m), itsAlpha(alpha)
     {
         if (!acc.empty()) SetAcceleratorConfig(acc);   // before Init: Init reads the accelerator config
+        SetSeedStrategy(qchem::ChargeDensity::SeedStrategy::SAD);   // superposition-of-atomic-densities seed
         nlohmann::json js = { {"basis", "dzvp"}, {"angular", "spherical"} };
         QchemTester::Init(js);
     }

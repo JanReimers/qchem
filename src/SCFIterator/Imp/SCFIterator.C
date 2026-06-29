@@ -59,7 +59,7 @@ template <class T> static std::string ConfigString(const qchem::WaveFunction::tW
 }
 
 
-template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const ElectronConfiguration* ec,ham_t* H,acc_t* acc,ChargeDensity::SeedStrategy seed)
+template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const ElectronConfiguration* ec,ham_t* H,acc_t* acc,ChargeDensity::SeedStrategy seed,const Structure* st)
     : itsHamiltonian (H )
     , itsAccelerator (acc)
     , itsWaveFunction(qchem::WaveFunction::Factory(itsHamiltonian,bs,ec,itsAccelerator) )
@@ -70,9 +70,9 @@ template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const Elect
 {
     assert(itsHamiltonian);
     assert(itsWaveFunction);
-    // Resolve the seed strategy into a concrete (heap, owned) density -- nullptr for CoreGuess.  No
-    // Structure available here yet; the SAD seeds (Phases 1-3) will need one threaded through.
-    Initialize(ChargeDensity::MakeSeedDensity<T>(seed,bs,nullptr,ec));
+    // Resolve the seed strategy into a concrete (heap, owned) density -- nullptr for CoreGuess.  \a st
+    // (the structure) is consumed only by the SAD seeds.
+    Initialize(ChargeDensity::MakeSeedDensity<T>(seed,bs,st,ec));
 }
 
 

@@ -3,18 +3,22 @@ module;
 #include <cassert>
 #include <type_traits>
 #include <cstddef>
+#include <memory>
 
 module qchem.ChargeDensity.Seed;
-import qchem.ChargeDensity.Factory;   // IrrepCD_Factory<T>
-import qchem.ChargeDensity.Types;     // tobs_t<T>
-import qchem.Blaze;                    // blazem::zeroH, hmat_t
-import qchem.Types;                    // dcmplx
+import qchem.ChargeDensity.Factory;          // IrrepCD_Factory<T>
+import qchem.ChargeDensity.Types;            // tobs_t<T>
+import qchem.ChargeDensity.CompositeFittedCD;// CompositeFittedCD (the molecular SAD seed, double only)
+import qchem.ChargeDensity.AtomicDensity;    // GetAtomicDensity, RadialDensity, RecentredAtomicDensity
+import qchem.Structure;                       // Structure, Atom (atom Z + positions)
+import qchem.Blaze;                           // blazem::zeroH, hmat_t
+import qchem.Types;                           // dcmplx
 
 namespace qchem::ChargeDensity
 {
 
 template <class T> tDM_CD<T>* MakeSeedDensity(SeedStrategy s, const BasisSet::BasisSet<T>* bs,
-                                              const Structure* /*st -- Phases 1-3*/, const ElectronConfiguration* ec)
+                                              const Structure* st, const ElectronConfiguration* ec)
 {
     assert(bs);
     assert(ec);
@@ -42,8 +46,26 @@ template <class T> tDM_CD<T>* MakeSeedDensity(SeedStrategy s, const BasisSet::Ba
     }
 
     case SeedStrategy::SAD:
+    {
+        // Superposition of neutral atomic densities (the molecular SAD seed, double/AO path).  Drop each
+        // atom's recentred radial density (LDA DB) into a CompositeFittedCD; FittedVee/FittedVxc consume it
+        // (Coulomb projection + rho(r)).  The plane-wave (dcmplx, FT) face is Phase 2.
+        if constexpr (std::is_same_v<T,double>)
+        {
+            assert(st && "SAD seed needs a Structure (atom Z + positions)");
+            auto* cd = new CompositeFittedCD(st->GetNumElectrons());
+            for (size_t i=0;i<st->GetNumAtoms();i++)
+            {
+                const Atom* a = (*st)[i];
+                auto rad = std::make_shared<const RadialDensity>(GetAtomicDensity(a->itsZ));
+                cd->Insert(std::make_shared<const RecentredAtomicDensity>(rad, a->itsR));
+            }
+            return cd;
+        }
+        else { assert(false && "SAD plane-wave (FT) seed is Phase 2"); return nullptr; }
+    }
     case SeedStrategy::IonicSAD:
-        assert(false && "SAD / IonicSAD seeds land in SCFSeedingPlan Phases 1-3");
+        assert(false && "IonicSAD seed is Phase 3");
         return nullptr;
 
     default:

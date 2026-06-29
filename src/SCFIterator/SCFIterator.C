@@ -26,9 +26,11 @@ template <class T> class tSCFIterator
     typedef qchem::SCFAccelerators::tSCFAccelerator<T> acc_t;
 public:
     // The seed density is chosen by strategy (see ChargeDensity::SeedStrategy): Default resolves to
-    // each path's present-day behaviour -- molecular -> CoreGuess, plane-wave -> Uniform.
+    // each path's present-day behaviour -- molecular -> CoreGuess, plane-wave -> Uniform.  \a st (the
+    // structure) is needed only by the SAD seeds (atom Z + positions); null is fine otherwise.
     tSCFIterator(const tbs_t<T>*, const ElectronConfiguration*, ham_t*,acc_t*,
-                 ChargeDensity::SeedStrategy seed=ChargeDensity::SeedStrategy::Default);
+                 ChargeDensity::SeedStrategy seed=ChargeDensity::SeedStrategy::Default,
+                 const Structure* st=nullptr);
     virtual ~tSCFIterator();
     virtual bool Iterate(const SCFParams& ipar);
     // Direct energy minimization (GDM owns the loop): geodesic line search, no density mixing.

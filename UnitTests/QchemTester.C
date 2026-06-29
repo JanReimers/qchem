@@ -9,7 +9,8 @@ export import qchem.BasisSet.Atom.Factory;
 export import qchem.Hamiltonian.Factory;
 export import qchem.Hamiltonian;
 export import qchem.SCFParams;
-export import qchem.ChargeDensity;   // DM_CD (sampling rho(r) for the SAD atomic-density generator)
+export import qchem.ChargeDensity;       // DM_CD (sampling rho(r) for the SAD atomic-density generator)
+export import qchem.ChargeDensity.Seed;  // SeedStrategy (the SCF seed knob)
 import qchem.SCFIterator;
 import qchem.Structure;
 import qchem.Orbitals;
@@ -38,6 +39,9 @@ public:
     // Choose the SCF accelerator via JSON, e.g. {"type":"Ladder","floor":1e-4,"stall":5}.
     // "type" is "DIIS" (default), "GDM", or "Ladder"; other keys override the defaults.
     void   SetAcceleratorConfig(const nlohmann::json& j) {itsAccConfig=j;}
+    // Choose the SCF seed strategy (call BEFORE Init; default resolves to CoreGuess for molecules).
+    // SAD (superposition of atomic densities) is a DFT-only seed -- do not use it with HF.
+    void   SetSeedStrategy(qchem::ChargeDensity::SeedStrategy s) {itsSeed=s;}
 
     double          TotalEnergy() const;
     EnergyBreakdown GetEnergyBreakdown() const;
@@ -78,6 +82,7 @@ protected:
     Hamiltonian*           itsHamiltonian;
     SCFIterator*           itsSCFIterator;
     nlohmann::json         itsAccConfig; //SCF accelerator config (empty => DIIS defaults)
+    qchem::ChargeDensity::SeedStrategy itsSeed = qchem::ChargeDensity::SeedStrategy::Default;
 public:
     static PeriodicTableSaito itsPT;
 };
