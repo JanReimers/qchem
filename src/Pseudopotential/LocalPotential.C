@@ -22,11 +22,12 @@ import qchem.Math; // FourPi, Pi
 export namespace Pseudopotential
 {
 
-//! \brief A one-body local external potential, defined by its reciprocal-space form factor.
-class LocalPotential
+//! \brief The RECIPROCAL-space face of a local external potential: its per-species form factor.  A radial
+//! function has two spectral views; this is the \f$\tilde v(G^2)\f$ one that a PLANE-WAVE basis consumes.
+class LocalPotential_Q
 {
 public:
-    virtual ~LocalPotential() {}
+    virtual ~LocalPotential_Q() {}
     //! \brief \f$v(Z,|G|^2)\f$: the Fourier transform of a single atom's potential (\f$|G|>0\f$),
     //! excluding the \f$1/\Omega\f$ and the structure-factor phase (those are geometry, applied by
     //! the basis set).  [energy x volume]
@@ -38,7 +39,30 @@ public:
     //! \f$(N_{el}/\Omega)\sum_a\alpha_a\f$, the uniform shift dropped along with the \f$G=0\f$ potential.
     //! Default 0 (a pure Coulomb tail has no finite remainder). [energy x volume]
     virtual double FormFactorG0(int Z) const {return 0.0;}
+};
 
+//! \brief The REAL-space face: the same radial function as \f$V_{loc}(Z,r)\f$, the view a MOLECULAR /
+//! ATOMIC (Gaussian or radial) basis consumes by quadrature \f$\langle\chi_i|V_{loc}|\chi_j\rangle\f$.
+//! Split from the reciprocal face (the AO/FT axis, one level down in the PP model -- see
+//! doc/MolecularPseudopotentialPlan.md section 2): a reciprocal-only model is-a LocalPotential_Q and is
+//! simply not passable where a real-space view is required -- the wall is a type, not an NA-assert.
+class LocalPotential_R
+{
+public:
+    virtual ~LocalPotential_R() {}
+    //! \brief \f$V_{loc}(Z,r)\f$ in a.u. (the full one-atom local potential; finite at \f$r=0\f$ for a
+    //! pseudopotential -- no nuclear cusp).
+    virtual double Vloc(int Z, double r) const=0;
+};
+
+//! \brief A one-body local external potential with BOTH spectral views (the closed-form models have both)
+//! plus its ion charge.  The diamond LocalPotential_Q + LocalPotential_R is harmless (the project's house
+//! style); the basis selects the view matching its space.
+class LocalPotential
+    : public virtual LocalPotential_Q
+    , public virtual LocalPotential_R
+{
+public:
     //! \brief The ION charge this local potential's \f$-Z_{ion}/r\f$ tail carries -- the charge the ion-ion
     //! (Ewald) sum needs.  Default = the (true) nuclear charge \a Z (all-electron: BareCoulomb, Gaussian-
     //! smeared).  A pseudopotential overrides with its VALENCE charge (HGH: \f$Z_{ion}\f$), Z-independent.
@@ -57,6 +81,7 @@ class BareCoulomb : public LocalPotential
 {
 public:
     virtual double FormFactor(int Z, double G2) const {return -FourPi*Z/G2;}
+    virtual double Vloc      (int Z, double r)  const {return -double(Z)/r;}   // -Z/r (singular at r=0)
 };
 
 //! \brief Gaussian-smeared nucleus (rung-1 "local pseudopotential"): the point charge is spread into a
@@ -73,6 +98,14 @@ public:
     }
     //! \f$v(G)+4\pi Z/G^2 = 4\pi Z(1-e^{-\sigma^2G^2/2})/G^2 \to 2\pi Z\sigma^2\f$ as \f$G\to0\f$.
     virtual double FormFactorG0(int Z) const {return 2*Pi*Z*itsSigma*itsSigma;}
+    //! Real space: the point charge smeared into a Gaussian -> \f$V(r)=-Z\,\mathrm{erf}(r/\sqrt2\sigma)/r\f$
+    //! (finite \f$-Z\sqrt{2/\pi}/\sigma\f$ at \f$r=0\f$).
+    virtual double Vloc(int Z, double r) const
+    {
+        double x=r/(std::sqrt(2.0)*itsSigma);
+        return (r>1e-12) ? -double(Z)*std::erf(x)/r
+                         : -double(Z)*std::sqrt(2.0/Pi)/itsSigma;   // erf(x)/x -> 2/sqrt(pi) as x->0
+    }
 private:
     double itsSigma; //!< Smearing width (Bohr).
 };
@@ -105,6 +138,18 @@ public:
         double twopi32=std::pow(2*Pi, 1.5);
         return coulomb + twopi32*itsRloc*itsRloc*itsRloc * g * poly;
     }
+    //! Real space (the closed-form inverse FT documented above):
+    //! \f$V_{loc}(r)=-\tfrac{Z_{ion}}{r}\mathrm{erf}(\tfrac{r}{\sqrt2 r_{loc}})
+    //! + e^{-r^2/2r_{loc}^2}\sum_i C_i (r/r_{loc})^{2i-2}\f$.  Finite at \f$r=0\f$ (no nuclear cusp).
+    virtual double Vloc(int /*Z*/, double r) const
+    {
+        double x=r/itsRloc, x2=x*x;
+        double gpoly=std::exp(-0.5*x2)*(itsC1 + itsC2*x2 + itsC3*x2*x2 + itsC4*x2*x2*x2);
+        double a=std::sqrt(2.0)*itsRloc;                       // erf argument scale
+        double erfterm = (r>1e-12) ? -itsZion*std::erf(r/a)/r
+                                   : -itsZion*2.0/(std::sqrt(Pi)*a);   // erf(r/a)/r -> 2/(sqrt(pi) a)
+        return erfterm + gpoly;
+    }
     //! G=0 alignment \f$\alpha=\int[V_{loc}+Z_{ion}/r]\,d^3r = 2\pi Z_{ion}r_{loc}^2
     //! + (2\pi)^{3/2}r_{loc}^3(C_1+3C_2+15C_3+105C_4)\f$ (the \f$G\to0\f$ finite part: the softened
     //! Coulomb leaves \f$2\pi Z r_{loc}^2\f$, the Gaussian-polynomial leaves the moment sum).
@@ -131,6 +176,7 @@ public:
     void Add(int Z, std::shared_ptr<const LocalPotential> model) {itsByZ[Z]=std::move(model);}
     virtual double FormFactor  (int Z, double G2) const override {return Get(Z).FormFactor(Z,G2);}
     virtual double FormFactorG0(int Z)            const override {return Get(Z).FormFactorG0(Z);}
+    virtual double Vloc        (int Z, double r)  const override {return Get(Z).Vloc(Z,r);}
     virtual double Zion        (int Z)            const override {return Get(Z).Zion(Z);}
 private:
     const LocalPotential& Get(int Z) const
