@@ -14,7 +14,7 @@ module qchem.ChargeDensity.Seed;
 import qchem.PeriodicTable;                   // thePeriodicTable -> GetElectronegativity (the ionic heuristic)
 import qchem.ChargeDensity.Factory;          // IrrepCD_Factory<T>
 import qchem.ChargeDensity.Types;            // tobs_t<T>
-import qchem.ChargeDensity.CompositeFittedCD;// CompositeFittedCD (the molecular SAD seed, double only)
+import qchem.ChargeDensity.NumericCD;// NumericCD (the molecular SAD seed, double only)
 import qchem.ChargeDensity.FourierSeedCD;    // FourierSeedCD (the plane-wave SAD seed, dcmplx only)
 import qchem.ChargeDensity.AtomicDensity;    // GetAtomicDensity, RadialDensity, RecentredAtomicDensity
 import qchem.BasisSet.Band_FT_IBS;           // Band_FT_IBS (the G-space block for the PW seed)
@@ -88,12 +88,12 @@ template <class T> tChargeDensity<T>* MakeSeedDensity(SeedStrategy s, const Basi
     case SeedStrategy::SAD:
     {
         // Superposition of neutral atomic densities (the molecular SAD seed, double/AO path).  Drop each
-        // atom's recentred radial density (LDA DB) into a CompositeFittedCD; FittedVee/FittedVxc consume it
+        // atom's recentred radial density (LDA DB) into a NumericCD; FittedVee/FittedVxc consume it
         // (Coulomb projection + rho(r)).  The plane-wave (dcmplx, FT) face is Phase 2.
         if constexpr (std::is_same_v<T,double>)
         {
             assert(st && "SAD seed needs a Structure (atom Z + positions)");
-            auto* cd = new CompositeFittedCD(st->GetNumElectrons());
+            auto* cd = new NumericCD(st->GetNumElectrons());
             for (size_t i=0;i<st->GetNumAtoms();i++)
             {
                 const Atom* a = (*st)[i];

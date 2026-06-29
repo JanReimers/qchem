@@ -13,7 +13,7 @@ export namespace qchem::ChargeDensity
 {
 
 //! Hand out the next TRANSIENT density-freshness serial -- the monotonic logical clock the dynamic-term
-//! caches key on (Version()).  EVERY concrete density (IrrepCD, CompositeFittedCD, FourierSeedCD, ...) MUST
+//! caches key on (Version()).  EVERY concrete density (IrrepCD, NumericCD, FourierSeedCD, ...) MUST
 //! draw from this ONE counter: a serial that collides across density KINDS makes a dynamic term reuse a
 //! stale cached matrix (the iter-0 seed Fock for the iter-1 working density), silently breaking the SCF --
 //! see [[project_hamiltonian_dynamic_cache_bug]].  A SINGLE program-wide std::atomic (not per-T: the cache
@@ -79,7 +79,7 @@ using Dynamic_CC  = rDynamic_CC;
 //
 //  Base charge-density interface: everything that does NOT need a density matrix -- evaluate ro(r)
 //  (ScalarFunction), the total charge, a transient freshness serial, and uniform scaling.  A
-//  fitted/analytic density (e.g. the SAD seed, CompositeFittedCD) IS-A tChargeDensity but NOT a tDM_CD.
+//  fitted/analytic density (e.g. the SAD seed, NumericCD) IS-A tChargeDensity but NOT a tDM_CD.
 //  The DFT Fock build consumes densities through THIS face; the HF terms cross-cast to tDM_CD.
 //
 template <class T> class tChargeDensity
