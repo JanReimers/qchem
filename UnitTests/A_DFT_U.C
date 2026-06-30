@@ -43,13 +43,25 @@ TEST_P(A_DFT_U, Libxc)
     EXPECT_LT(RelativeDFTError(calc.Energy(), c.Z), c.tol);
     EXPECT_TRUE(calc.IsConverged());
 }
-// Tolerance is the HONEST method accuracy of the atomic LDA-via-libxc path vs the NIST LDA reference: ~213
-// ppm at Z=36.  That is genuine numerical/method error, NOT a functional error -- the functional is exact
-// vs libxc to machine precision (LDA_XC_UT).  It is the same few-hundred-ppm ballpark as the in-house
-// DiracVWN atom path (A_DFT_atom LSDA prints 331 ppm at Z=36), so 213 ppm is real: grid + Vxc fit, plus the
-// lumped 3/4 exchange-virial XC energy this libxc path inherits from Ham_DFT_U (the DiracVWN path fixes that
-// piece with a separate FittedVcorr; this path does not -- see the Libxc_LDA_Exchange follow-up note).  The
-// old 2e-6 "match" was fictitious: a Z=36-tuned *1.006613 fudge on the exchange potential, now removed.  The
-// 5e-4 bound reflects the real accuracy, not the fudge.
-INSTANTIATE_TEST_SUITE_P(Gaussian_High, A_DFT_U, ::testing::ValuesIn(Cases(AtomType::Gaussian, 5e-4, {50,1e-5,1e-5,1e-1,1e-6}, {36})), CaseName);
-INSTANTIATE_TEST_SUITE_P(Slater_High,   A_DFT_U, ::testing::ValuesIn(Cases(AtomType::Slater,   5e-4, {50,1e-5,1e-7,2e-2,1e-6}, {36})), CaseName);
+
+// FittedVcorr cleanliness: the libxc SVWN5 path (Dirac-X + libxc-VWN-C) and the in-house DiracVWN path
+// (SlaterExchange + VWN_Correlation) are the SAME functional with the SAME correct correlation-energy
+// treatment (both FittedVxc + FittedVcorr now), so on one atom/basis they must agree to the ~1e-9 functional
+// implementation gap (LDA_XC_UT), NOT the ~100 ppm the old lumped-energy libxc path differed by.  Kr/Slater.
+TEST(A_DFT_U_Consistency, LibxcSVWN5MatchesInHouseDiracVWN)
+{
+    const DFTCase c{AtomType::Slater, 36, 0.0, {50,1e-5,1e-7,2e-2,1e-6}};
+    AtomCalculation libxc(c.Z, 0, {.type = c.type, .accuracy = High, .model = Model::Xalpha,
+                                   .xc = XCFunctional{.kind = XC::LibXC, .libxcId = 7}}, MakeParams(c));
+    AtomCalculation dirac(c.Z, 0, {.type = c.type, .accuracy = High, .model = Model::LDA}, MakeParams(c));
+    EXPECT_NEAR(libxc.Energy(), dirac.Energy(), 1e-4);   // same SVWN5 + same correct E_c => agree (Kr ~ -2750)
+}
+// Tolerance is the HONEST accuracy of the atomic libxc SVWN5 path vs the NIST LDA reference: ~1.5 ppm
+// (Gaussian) / ~0.7 ppm (Slater) at Z=36, with NO fudge.  History: the old `2e-6` match was faked by a
+// Z=36-tuned *1.006613 exchange fudge (removed); removing it alone left ~213 ppm -- which turned out to be
+// NOT grid/fit but the lumped 3/4 exchange-virial CORRELATION energy (the libxc path used to combine X+C in
+// one FittedVxc).  Splitting it into FittedVxc(Dirac-X) + FittedVcorr(libxc-C), so E_c = integral eps_c rho,
+// dropped the error ~140x to ~1 ppm -- honestly, and it now generalises off Z=36 (the fudge did not).  The
+// functional itself is exact vs libxc (LDA_XC_UT); the residual is the true grid/Vxc-fit floor at High basis.
+INSTANTIATE_TEST_SUITE_P(Gaussian_High, A_DFT_U, ::testing::ValuesIn(Cases(AtomType::Gaussian, 5e-6, {50,1e-5,1e-5,1e-1,1e-6}, {36})), CaseName);
+INSTANTIATE_TEST_SUITE_P(Slater_High,   A_DFT_U, ::testing::ValuesIn(Cases(AtomType::Slater,   5e-6, {50,1e-5,1e-7,2e-2,1e-6}, {36})), CaseName);

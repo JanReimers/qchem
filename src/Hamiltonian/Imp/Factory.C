@@ -5,7 +5,7 @@ module;
 #include <string>
 module qchem.Hamiltonian.Factory;
 import qchem.Hamiltonian.Internal.Hamiltonians;
-import qchem.Hamiltonian.Internal.Libxc_LDA_Exchange;   // XC::LibXC selector
+import qchem.Hamiltonian.Internal.Libxc_LDA;             // XC::LibXC selector (one libxc LDA functional)
 
 namespace qchem::Hamiltonian
 {
@@ -102,10 +102,12 @@ namespace qchem::Hamiltonian
             case XC::LibXC:
                 if (p!=Pol::UnPolarized)
                     throw std::runtime_error("Factory(XCFunctional): LibXC is unpolarized-only -- the "
-                        "Libxc_LDA_Exchange wrapper is scalar (single-density) by construction.  Use "
-                        "XC::DiracVWN for polarized (spin-native VWN5) LDA.");
-                // Ham_DFT_U takes ownership of the functional (wraps it in a shared_ptr).
-                return new Ham_DFT_U(st, new Libxc_LDA_Exchange(xc.libxcId, st->GetNumElectrons()), mp, bs);
+                        "Libxc_LDA wrapper is scalar (single-density) by construction.  Use XC::DiracVWN "
+                        "for polarized (spin-native VWN5) LDA.");
+                // Dirac exchange (LDA_X, id 1) + the libxc correlation functional named by libxcId, as
+                // SEPARATE FittedVxc + FittedVcorr terms (so E_c is the correct integral eps_c rho, not the
+                // 3/4 exchange virial).  Ham_DFTcorr_U owns both functionals.
+                return new Ham_DFTcorr_U(st, new Libxc_LDA(1), new Libxc_LDA(xc.libxcId), mp, bs);
         }
         assert(false); return nullptr;
     }

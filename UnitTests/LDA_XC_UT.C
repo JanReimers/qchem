@@ -3,8 +3,10 @@
 // DFT-upgrade oracle groundwork (see doc + project_dft_upgrade_plan): hand-code the LDA functionals so
 // we have full control, and pin them against libxc to machine precision at fixed densities.  If the
 // hand-coded functionals match libxc, the XC FUNCTIONAL is correct -- so any disagreement with the NIST
-// atomic LDA energies (and the historical exchange "fudge factor" in Libxc_LDA_Exchange) is NUMERICAL
-// (radial grid / Vxc fit), not functional.
+// atomic LDA energies is NOT functional.  (The historical Z=36 exchange fudge factor that masked such a
+// disagreement turned out to be the lumped 3/4 exchange-virial CORRELATION energy, not grid/fit: computing
+// E_c = integral eps_c rho via a separate FittedVcorr term cut the libxc Kr error from ~213 ppm to ~1 ppm.
+// The fudge is gone; see A_DFT_U and the Libxc_LDA wrapper.)
 //
 //   Exchange (Dirac/Slater, spin-unpolarized):  eps_x = -3/4 (3/pi)^{1/3} rho^{1/3},  v_x = -(3/pi)^{1/3} rho^{1/3}
 //   Correlation (VWN5 paramagnetic):            Vosko-Wilk-Nusair, Can.J.Phys 58, 1200 (1980), functional V.
