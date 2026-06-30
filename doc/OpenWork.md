@@ -39,9 +39,10 @@ Reframed per the design tenet: **spin-polarized is the native formulation; unpol
 sequenced toward the battery/magnetism payoff, ideally with PBE+U.
 **Done already (D1):** closed-shell molecular HF+DFT via the facade — unified `Model` enum + Factory
 resolver, LDA + Xα, `8b8df1d0`.
-**Bug to fix here:** polarized Xα + **SAD seed** segfaults (found during the facade test migration, D;
-the facade auto-picks SAD for DFT, which the polarized path can't yet handle). Robust polarized SAD is
-part of this track.
+**Fixed (was the B entry bug):** polarized Xα + **SAD seed** segfault — `FittedVxcPol::CalcMatrix`
+null-derefed on the spin-agnostic seed (`cd85d13c`); polarized Xα water now converges to the unpolarized
+anchor to ~1e-11, and `M_DFT.WaterPolarizedSAD` guards it. So polarized Xα itself is sound; this track is
+about the *correlation* side (spin-native VWN5 + `Ham_DFTcorr` two-channel) + open-shell occupation.
 
 ---
 
@@ -158,7 +159,7 @@ New **public Hamiltonian-library API** (the long-wanted exchange-functional sele
 2. ~~**D (test → facade migration + slim QchemTester)**~~ — ✅ DONE (`585086bb`…`3c0becdd`).
 3. **A (finish Spherical SALC S2–S5)** — NEXT. Parked at a clean S1 checkpoint; resume when convenient.
 4. **B (spin-native DFT)** — plan first, build spin-first, sequence toward PBE+U / batteries.
-   *First concrete task here:* fix the polarized-Xα + SAD-seed segfault that D surfaced.
+   (The polarized-Xα + SAD-seed segfault that D surfaced is already fixed, `cd85d13c`.)
 
 Note: one library session at a time, GUI on its own branch → land each session at a clean commit and the
 whole-tree sweep (C) has nothing to collide with. Hold the line on not opening new threads.
