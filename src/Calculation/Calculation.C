@@ -1,0 +1,108 @@
+// File: Calculation/Calculation.C
+//
+// qchem::Calculation -- the production front door for a molecular SCF.  It owns the whole object
+// graph (structure copy + EC + basis + Hamiltonian + accelerator + iterator), runs the canonical
+// assemble->converge recipe, and exposes only high-level questions: Energy(), Density(), HOMO(),
+// Orbital(i).  Density and every MO ARE ScalarFunction<double>s, so a caller samples rho(r) or any
+// orbital through one interface (the standout-win that the API-ergonomics review called out).
+//
+// This is the single tested recipe that previously lived only in the QchemTester test scaffold and
+// the pybind bridge's `struct Calc`.  Concrete <double> (molecules) for now; a tCalculation<T>
+// extraction is the clean future move when a plane-wave/crystal front door is needed.
+module;
+#include <memory>
+#include <vector>
+#include <string>
+#include <utility>
+export module qchem.Calculation;
+
+import qchem.Structure;            // Structure, Molecule, Atom
+import qchem.ScalarFunction;       // ::ScalarFunction<double>
+import qchem.BasisSet;             // BasisSet::Real_BS
+import qchem.Hamiltonian.Factory;  // Hamiltonian::Model, Hamiltonian::Pol
+import qchem.ElectronConfiguration;// ElectronConfiguration
+import qchem.SCFIterator;          // SCFIterator, SCFParams, SCFProgress, EnergyBreakdown
+import qchem.Symmetry.Irrep;       // Irrep
+import qchem.ChargeDensity;        // DM_CD
+
+export namespace qchem
+{
+
+using Hamiltonian::Model;          // {E1, HF, DE1, DHF}
+using Hamiltonian::Pol;            // {UnPolarized, Polarized}
+
+//! How to set up the calculation.  Designated-initializer friendly:
+//!     Calculation calc(water, {.basis="dzvp"});
+//! `model` selects the Hamiltonian; pass 1 wires the non-DFT factory path (HF is the default).
+struct CalcOptions
+{
+    std::string basis = "sto-3g";
+    Model       model = Model::HF;
+    Pol         pol   = Pol::UnPolarized;
+};
+
+//! DIIS accelerator knobs.  These were stringly-typed json keys grepped out of tests; here they
+//! are documented fields with defaults.  eMax<=0 means "auto" -- the Z-scaled heuristic the
+//! molecular recipe has always used.  The long tail still rides through the json factory directly.
+struct AcceleratorOptions
+{
+    int    nProj = 4;
+    double eMax  = 0.0;     //!< <=0 => Z*Z*0.1/32 (the proven molecular default)
+    double eMin  = 1e-7;
+    double svTol = 5e-9;
+};
+
+class Calculation
+{
+public:
+    using sf_t       = ScalarFunction<double>;
+    using orbitals_t = qchem::Orbitals::Orbitals;
+    using Observer   = qchem::SCFIterator::SCFIterator::Observer; //!< void(const SCFProgress&)
+
+    //! Build the whole graph and converge.  \a st is DEEP-COPIED -- the facade owns its own
+    //! structure, so the caller's Molecule/Atom is left untouched and may be freed immediately.
+    explicit Calculation(const Structure&          st,
+                         const CalcOptions&         opts = {},
+                         const AcceleratorOptions&  acc  = {});
+    ~Calculation();
+
+    Calculation(const Calculation&)            = delete;  // owns raw resources; non-copyable
+    Calculation& operator=(const Calculation&) = delete;
+
+    //! Re-run the SCF (e.g. with tighter tolerances).  Invalidates references previously handed out
+    //! by Density()/HOMO()/Orbital()/Orbitals() -- the wave function is rebuilt.
+    bool Converge(const SCFParams& params = {});
+
+    //! Live per-iteration telemetry.  Set BEFORE a Converge() call to observe it (the ctor's initial
+    //! convergence runs before any observer can be attached).
+    void OnIteration(Observer obs);
+
+    double                 Energy()      const;   //!< total energy E (hartree)
+    qchem::EnergyBreakdown EnergyTerms() const;   //!< the per-term breakdown
+
+    const sf_t&      Density()           const;   //!< rho(r): sample directly, also has Gradient()
+    const sf_t&      HOMO()              const;   //!< highest occupied MO
+    const sf_t&      Orbital(size_t i)   const;   //!< i-th occupied MO (0 = lowest energy)
+    size_t           NumOccupied()       const;
+    const orbitals_t* Orbitals(const Irrep&) const; //!< the orbital set for one point-group irrep
+
+    size_t           IterationCount() const;
+    bool             IsConverged()    const;
+    const Structure& GetStructure()   const {return *itsStructure;}
+
+private:
+    typedef std::pair<double, const sf_t*> occ_t;   //!< (eigen-energy, orbital) for HOMO/Orbital(i)
+    void RebuildSampling();   //!< after a Converge: own a fresh density + sort the occupied MOs
+
+    std::shared_ptr<const Structure>     itsStructure;  //!< facade's own copy (Hamiltonian shares it)
+    CalcOptions                          itsOpts;
+    AcceleratorOptions                   itsAcc;
+    ElectronConfiguration*               itsEC    = nullptr;  //!< owned
+    BasisSet::Real_BS*                   itsBasis = nullptr;  //!< owned
+    qchem::SCFIterator::SCFIterator*     itsScf   = nullptr;  //!< owned (owns Hamiltonian + accelerator)
+    std::unique_ptr<qchem::ChargeDensity::DM_CD> itsDensity;  //!< owned converged rho(r)
+    std::vector<occ_t>                   itsOccupied;          //!< non-owning, into the wave function
+    Observer                             itsObserver;          //!< optional live-progress sink
+};
+
+} // namespace qchem
