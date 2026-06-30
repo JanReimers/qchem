@@ -16,6 +16,11 @@ import qchem.Unittests.TestUtils;    // RelativeHFError
 using namespace qchem;
 using enum BasisSetAccuracy;         // High, Medium, Low
 
+// File-local test helpers in an anonymous namespace: HFCase/the struct vocabulary are intentionally
+// per-file (each A_* test tunes its own), so internal linkage avoids ODR clashes with the same names in
+// sibling test TUs (e.g. A_HF_P's differently-shaped HFCase).
+namespace {
+
 //! One closed-shell HF atom test case: basis family + accuracy + element + the NIST relative-error bound.
 //! lowerBound adds the BSpline "not too far below" guard (EXPECT_GT(error, -1e-4)).
 struct HFCase { AtomType type; BasisSetAccuracy acc; int Z; double tol; bool lowerBound = false; };
@@ -62,6 +67,8 @@ static SCFParams HFParams(const HFCase& c)
 // Name each case by element (so test ids read .../Z2, .../Z88 instead of .../0, .../1).
 static std::string CaseName(const testing::TestParamInfo<HFCase>& i) { return "Z" + std::to_string(i.param.Z); }
 
+} // anonymous namespace
+
 class A_HF_U : public ::testing::TestWithParam<HFCase> {};
 TEST_P(A_HF_U, Energy)
 {
@@ -89,9 +96,10 @@ INSTANTIATE_TEST_SUITE_P(Slater_High,   A_HF_U, ::testing::ValuesIn(Cases(AtomTy
 #endif
 
 #ifdef MEDIUM
-// Slater/Medium is the cheap, robust grade -- sweep the whole closed-shell list here; the slower bases
-// (Gaussian, BSpline) spot-check a couple of light atoms.
-INSTANTIATE_TEST_SUITE_P(Slater_Medium,   A_HF_U, ::testing::ValuesIn(Cases(AtomType::Slater,   Medium,20e-6,false,ClosedShell)), CaseName);
+// Slater/Medium is the cheap, robust grade.  Regular runs spot-check light/mid/heavy; uncomment the
+// ClosedShell line for the full periodic sweep (fun, but ~10 s).
+INSTANTIATE_TEST_SUITE_P(Slater_Medium,   A_HF_U, ::testing::ValuesIn(Cases(AtomType::Slater,   Medium,20e-6,false,{2,18,88})), CaseName);
+// INSTANTIATE_TEST_SUITE_P(Slater_sweep,  A_HF_U, ::testing::ValuesIn(Cases(AtomType::Slater,   Medium,20e-6,false,ClosedShell)), CaseName);
 INSTANTIATE_TEST_SUITE_P(Gaussian_Medium, A_HF_U, ::testing::ValuesIn(Cases(AtomType::Gaussian, Medium,2e-4,false,{2,4})), CaseName);
 INSTANTIATE_TEST_SUITE_P(BSpline_Medium,  A_HF_U, ::testing::ValuesIn(Cases(AtomType::BSpline6, Medium,1e-6,true,{2,4})), CaseName);
 INSTANTIATE_TEST_SUITE_P(BSpliner_Medium, A_HF_U, ::testing::ValuesIn(Cases(AtomType::BSpliner6,Medium,1e-6,true,{2,4})), CaseName);
