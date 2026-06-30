@@ -9,23 +9,39 @@ module;
 #include <nlohmann/json.hpp>
 module qchem.Calculation;
 
-import qchem.BasisSet.Molecule.Factory;      // BasisSet::Molecule::Factory
-import qchem.ElectronConfiguration.Molecule; // Molecule_EC (global aufbau)
-import qchem.SCFAccelerator.Factory;         // SCFAccelerators::Type, Factory
-import qchem.WaveFunction;                    // WaveFunction (GetChargeDensity/GetOrbitals/GetQNs)
-import qchem.Orbitals;                        // Orbital, Orbitals
+import qchem.BasisSet.Molecule.Factory;             // BasisSet::Molecule::Factory
+import qchem.BasisSet.Molecule.SymmetryAdaptedBasisSet; // SymmetryAdaptedBasisSet (return of SymmetryAdapt)
+import qchem.BasisSet.Molecule.PG_Cart.SymmetryAdapt;   // PG::SymmetryAdapt (the SALC builder)
+import qchem.ElectronConfiguration.Molecule;        // Molecule_EC (global aufbau)
+import qchem.SCFAccelerator.Factory;                // SCFAccelerators::Type, Factory
+import qchem.WaveFunction;                           // WaveFunction (GetChargeDensity/GetOrbitals/GetQNs)
+import qchem.Orbitals;                               // Orbital, Orbitals
 
 namespace qchem
 {
 
+namespace PG = ::BasisSet::Molecule::PG_Cart;
 using SCFIter = qchem::SCFIterator::SCFIterator;
+
+// Build the molecular orbital basis, optionally SALC point-group-blocked.  When symmetry is off the
+// caller owns the raw basis directly; when on, the raw basis is handed to PG::SymmetryAdapt as a
+// shared_ptr that the returned SymmetryAdaptedBasisSet keep-alives -- so the facade owns (and deletes)
+// only the adapted basis, and the raw lifetime rides along.  PG::SymmetryAdapt throws if the basis has
+// no Cartesian PGData IBS (the guard); the facade only ever builds that basis today, so it is safe.
+static BasisSet::Real_BS* BuildBasis(const CalcOptions& opts, const std::shared_ptr<const Structure>& st)
+{
+    BasisSet::Real_BS* raw = BasisSet::Molecule::Factory(nlohmann::json{{"basis", opts.basis}}, st.get());
+    if (!opts.symmetry) return raw;
+    std::shared_ptr<const BasisSet::Real_BS> rawShared(raw);
+    return PG::SymmetryAdapt(rawShared, *st, opts.symmetryTol);
+}
 
 Calculation::Calculation(const Structure& st, const CalcOptions& opts, const AcceleratorOptions& acc)
     : itsStructure(std::make_shared<Molecule>(st))   // deep copy: the facade owns its own structure
     , itsOpts(opts)
     , itsAcc(acc)
 {
-    itsBasis = BasisSet::Molecule::Factory(nlohmann::json{{"basis", opts.basis}}, itsStructure.get());
+    itsBasis = BuildBasis(opts, itsStructure);                         // raw, or SALC-blocked if .symmetry
     itsEC    = new Molecule_EC(int(itsStructure->GetNumElectrons()));   // aufbau, global across irreps
     Converge();                                       // so Energy()/Density() are ready on return
 }
