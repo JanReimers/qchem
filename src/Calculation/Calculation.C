@@ -19,11 +19,13 @@ export module qchem.Calculation;
 import qchem.Structure;            // Structure, Molecule, Atom
 import qchem.ScalarFunction;       // ::ScalarFunction<double>
 import qchem.BasisSet;             // BasisSet::Real_BS
-import qchem.Hamiltonian.Factory;  // Hamiltonian::Model, Hamiltonian::Pol
+import qchem.Hamiltonian.Factory;  // Hamiltonian::Model, Hamiltonian::Pol, IsDFT, the unified resolver
+import qchem.Mesh;                 // qcMesh::MeshParams (the DFT integration grid)
 import qchem.ElectronConfiguration;// ElectronConfiguration
 import qchem.SCFIterator;          // SCFIterator, SCFParams, SCFProgress, EnergyBreakdown
 import qchem.Symmetry.Irrep;       // Irrep
 import qchem.ChargeDensity;        // DM_CD
+import qchem.ChargeDensity.Seed;   // SeedStrategy
 
 export namespace qchem
 {
@@ -31,20 +33,42 @@ export namespace qchem
 using Hamiltonian::Model;          // {E1, HF, DE1, DHF}
 using Hamiltonian::Pol;            // {UnPolarized, Polarized}
 
+//! Orbital-integral engine: the in-house MnD recursion (default) or the libcint foreign engine.
+enum class Engine  { MnD, LibCint };
+//! Angular basis convention: Cartesian Gaussians (default) or real solid-harmonic (spherical).
+enum class Angular { Cartesian, Spherical };
+
 //! How to set up the calculation.  Designated-initializer friendly:
 //!     Calculation calc(water, {.basis="dzvp"});
 //! `model` selects the Hamiltonian; pass 1 wires the non-DFT factory path (HF is the default).
 struct CalcOptions
 {
     std::string basis = "sto-3g";
-    Model       model = Model::HF;
+    Model       model = Model::HF;   //!< HF (default) | Xalpha | LDA | E1/DE1/DHF (test-only)
     Pol         pol   = Pol::UnPolarized;
+    //! Basis construction variants (threaded into BasisSet::Molecule::Factory).  Defaults reproduce
+    //! today's behaviour (in-house MnD, Cartesian).  angular==Spherical + symmetry is rejected until
+    //! the Spherical SALC track (doc/SphericalSALCPlan.md) lands -- the SALC builder needs Cartesian PGData.
+    Engine      engine  = Engine::MnD;
+    Angular     angular = Angular::Cartesian;
+    //! DFT-only knobs (ignored when model is HF/1-e/Dirac).  xalpha: the Slater exchange parameter, used
+    //! only by model==Xalpha.  mesh: the numerical XC integration grid -- defaults to the proven molecular
+    //! values; a designated initializer overrides just the resolution you care about, e.g. {.nRadial=50}.
+    double      xalpha = 0.7;
+    qcMesh::MeshParams mesh = {.radial  = qcMesh::RadialKind::MHL,   .nRadial   = 30,
+                              .mhl_m    = 3,                         .mhl_alpha = 2.0,
+                              .angular  = qcMesh::AngularKind::Gauss, .nAngular  = 12,
+                              .beckeOrder = 2};
     //! Point-group SALC blocking + per-irrep aufbau.  GUARDED TO THE CARTESIAN PG BASIS: the SALC
     //! builder needs a PolarizedGaussian (PGData) orbital IBS and throws otherwise.  Since the facade
     //! only builds the default Cartesian basis today, this is always the supported path; the guard
     //! future-proofs the day spherical/libcint deliveries are exposed (see doc/SphericalSALCPlan.md).
     bool        symmetry    = false;
     double      symmetryTol = 1e-4;   //!< geometry tolerance for point-group detection
+    //! SCF seed.  Default == auto: DFT seeds from SAD (superposition of atomic densities), HF/1-e take
+    //! the core guess.  Set explicitly to override -- e.g. {.seed=SAD} drives HF's matrix-free-seed
+    //! bootstrap (the iterator manufactures a D0 via a one-step LDA sibling).
+    qchem::ChargeDensity::SeedStrategy seed = qchem::ChargeDensity::SeedStrategy::Default;
 };
 
 //! DIIS accelerator knobs.  These were stringly-typed json keys grepped out of tests; here they

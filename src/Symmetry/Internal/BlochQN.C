@@ -9,6 +9,7 @@ export import qchem.Symmetry;
 //  Translational symmetry, Bloch function wave vector.
 //
 
+namespace qchem {
 export class BlochQN : public virtual Symmetry::Symmetry
 {
 public:
@@ -27,12 +28,13 @@ private:
     rvec3_t k;      //Real values.
     double  weight; //BZ-integration weight w_k (sum over the k-mesh = 1).
 };
+} // namespace qchem
 
 //! \brief Pry the Bloch wave vector \f$k\f$ (fractional) out of an abstract symmetry handle.
 //! Throws std::bad_cast if the symmetry is not a BlochQN.  Mirrors Symmetry::Getl / Getκ:
 //! an IBS constructor is handed an abstract \c sym_t and uses this helper to extract the one
 //! piece of concrete information it needs (here, the crystal momentum).
-export namespace Symmetry
+export namespace qchem::Symmetry
 {
 rvec3_t Getk(const sym_t&);
 rvec3_t Getk(const Symmetry&);

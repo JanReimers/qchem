@@ -8,6 +8,8 @@ module;
 export module qchem.BasisSet.Atom.Evaluators.BSpline.Internal.GLQuadrature;
 import qchem.Types;
 
+namespace qchem {
+
 export class GLCache1D;
 export class GLCache2D;
 
@@ -155,3 +157,5 @@ private:
     mat_t<GLQuadrature> itsDiagGLs_gl_grid; //Order x Ngrid
 };
 
+
+} // namespace qchem

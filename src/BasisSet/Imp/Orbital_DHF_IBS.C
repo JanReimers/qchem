@@ -4,7 +4,7 @@ module;
 module qchem.BasisSet.Orbital_DHF_IBS;
 import qchem.BasisSet.Internal.DB_Cache;
 
-namespace BasisSet
+namespace qchem::BasisSet
 {
 
     template <class T> const smat_t<T>& Orbital_RKB_IBS<T>::RestMass() const

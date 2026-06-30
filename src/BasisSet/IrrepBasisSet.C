@@ -7,7 +7,7 @@ export import qchem.BasisSet.Internal.DB_Cache;     // DBCacheClient (the cache 
 import qchem.VectorFunction;
 import qchem.Streamable;
 
-export namespace BasisSet
+export namespace qchem::BasisSet
 {
 
 //  RadialID/AngularID identify the radial (exponents/contraction) and angular pieces of a basis;

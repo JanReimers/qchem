@@ -7,7 +7,9 @@ module;
 export module qchem.ScalarFunction;
 export import qchem.Types;
 
-export template <class T> class ScalarFunction
+export namespace qchem
+{
+template <class T> class ScalarFunction
 {
 public:
     virtual ~ScalarFunction()  {};
@@ -15,3 +17,4 @@ public:
     virtual T         operator()(const rvec3_t&) const=0;
     virtual vec3_t<T> Gradient  (const rvec3_t&) const=0;
 };
+}

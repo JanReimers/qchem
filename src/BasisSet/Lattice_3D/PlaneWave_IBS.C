@@ -24,7 +24,7 @@ import qchem.Structure;
 import qchem.Symmetry;                             // sym_t (the Bloch irrep handed to the ctor)
 import qchem.Types;
 
-export namespace BasisSet::Lattice_3D
+export namespace qchem::BasisSet::Lattice_3D
 {
 
 //! \brief Plane-wave basis for a single k-point: the normalised waves

@@ -39,6 +39,18 @@ using qchem::Hamiltonian::Pol;
 using qchem::SCFIterator::SCFIterator;
 using qchem::ChargeDensity::DM_CD;
 using qchem::Orbitals::Orbital;
+// Public types that moved under qchem:: in the 2026-06 namespace unification.  (Lowercase vocabulary
+// like rvec3_t/dcmplx stays global.)  Pulled in by-name rather than `using namespace qchem;` to avoid
+// clashing with the SCFIterator/Hamiltonian/Orbitals namespace-vs-class using-declarations above.
+using qchem::Molecule;
+using qchem::Atom;
+using qchem::Structure;
+using qchem::ScalarFunction;
+using qchem::Real_BS;
+using qchem::Spin;
+using qchem::ElectronConfiguration;
+using qchem::Molecule_EC;
+namespace BasisSet = qchem::BasisSet;
 
 namespace {
 

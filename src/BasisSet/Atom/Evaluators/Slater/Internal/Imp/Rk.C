@@ -8,7 +8,7 @@ import qchem.BasisSet.Atom.Internal.PascalTriangle;
 import qchem.Math;
 import qchem.Blaze;
 
-namespace Slater
+namespace qchem::Slater
 {
 //
 //  Ranges:  

@@ -4,6 +4,8 @@ module;
 export module qchem.ElectronConfiguration.Crystal;
 export import qchem.ElectronConfiguration;
 
+namespace qchem {
+
 //! \brief Bloch electron configuration: a fixed \a Nval valence electrons in EVERY Bloch k-block, with
 //! no cross-irrep aufbau (each plane-wave block IS an irrep).  GetN returns \a Nval for any k, and
 //! UsesAufbau() is false (the per-irrep count is fixed, not filled by a global aufbau).  Each k-block's
@@ -24,3 +26,5 @@ private:
     syms_t itsSyms;   //!< The Bloch symmetries (one per k-block).
     int    itsNval;   //!< Valence electrons per k-block.
 };
+
+} // namespace qchem

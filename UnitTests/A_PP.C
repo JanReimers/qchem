@@ -7,6 +7,7 @@
 import qchem.Unittests.QchemTester;
 import qchem.Hamiltonian.Internal.Hamiltonians;       // Ham_PP_U
 import qchem.ElectronConfiguration.AtomNR;            // PseudoAtom_EC
+using namespace qchem;
 
 const bool verbose=true;
 using std::cout;
@@ -26,7 +27,7 @@ public:
         delete itsEC;
         itsEC = new PseudoAtom_EC(Z);
     }
-    virtual Hamiltonian* GetHamiltonian(st_t& c) const override
+    virtual qchem::Hamiltonian::Hamiltonian* GetHamiltonian(st_t& c) const override
     {
         return new Ham_PP_U(c, QchemTester::itsPT.GetSymbol(GetStructure()->GetNuclearCharge()),
                             itsVal, GetMeshParams(), itsBasisSet);
@@ -43,8 +44,7 @@ public: Si_PP_U() : A_PP_U(14,4) {}
 TEST_F(Si_PP_U, Medium)
 {
     QchemTester::Init(Medium, BasisSet::Atom::Type::Slater, verbose);
-    //       NMaxIter MinΔρ   MinΔFD MinVirial MinFD  StartingRelaxRo MergeTol verbose
-    Iterate({  120,    1e-7,   1e-7,  1e10,     1e-7,  0.5,            1e-7,    true});  // virial off (N/A to PP)
+    Iterate({.NMaxIter = 120, .MinΔρ = 1e-7, .MinΔFD = 1e-7, .MinVirial = 1e10, .MinFD = 1e-7, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});  // virial off (N/A to PP)
 
     EXPECT_NEAR(TotalEnergy(), -3.336910601, 1e-6);     // pinned regression anchor (Slater/Medium)
     EXPECT_NEAR(TotalCharge(),  4.0,         1e-9);     // valence electron count

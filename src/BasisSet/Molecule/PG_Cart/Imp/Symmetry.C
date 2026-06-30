@@ -7,9 +7,9 @@ module qchem.BasisSet.Molecule.PG_Cart.Symmetry;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;
 
-namespace BasisSet::Molecule::PG_Cart
+namespace qchem::BasisSet::Molecule::PG_Cart
 {
-using namespace ::BasisSet::Molecule::Evaluators::PG_Cart_MnD;  // Cartesian glue moved out to PG_Cart_MnD
+using namespace ::qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD;  // Cartesian glue moved out to PG_Cart_MnD
 using Symmetry::AoShell;
 using Symmetry::SymPoint;
 using Symmetry::IVec3;

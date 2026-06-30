@@ -10,9 +10,9 @@ import qchem.Blaze;
 // evaluator-templated mixins (qchem.BasisSet.Molecule.IBS), instantiated with PG_Evaluator.  Nothing
 // PG-specific remains here for the orbital path.  Only the EFit_IBS 2-centre fit integrals stay below:
 // they call the raw radials' named kernels directly, not the 1E/3C/4C evaluator concepts.
-namespace BasisSet::Molecule::PG_Cart
+namespace qchem::BasisSet::Molecule::PG_Cart
 {
-using namespace ::BasisSet::Molecule::Evaluators::PG_Cart_MnD;  // Cartesian glue moved out to PG_Cart_MnD
+using namespace ::qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD;  // Cartesian glue moved out to PG_Cart_MnD
 
 rsmat_t MakeOverlap2C(const PGData* ab)
 {

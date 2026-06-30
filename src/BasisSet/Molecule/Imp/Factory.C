@@ -15,7 +15,7 @@ import qchem.BasisSet.Molecule.PG_LibCint;
 
 using json = nlohmann::json;
 
-namespace BasisSet::Molecule
+namespace qchem::BasisSet::Molecule
 {
     // The registries -- the single place each axis' names live.
     static const std::map<BasisSetData, std::string> theFiles =      // axis 1: enum -> data file

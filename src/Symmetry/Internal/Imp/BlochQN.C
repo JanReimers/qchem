@@ -4,6 +4,8 @@ module;
 #include <cassert>
 module qchem.Symmetry.BlochQN;
 
+namespace qchem {
+
 BlochQN::BlochQN(ivec3_t _N, ivec3_t _ik, double _weight)
     : N(_N)
     , ik(_ik)
@@ -31,7 +33,9 @@ std::ostream& BlochQN::Write(std::ostream& os) const
     return os << k;
 }
 
-namespace Symmetry
+} // namespace qchem
+
+namespace qchem::Symmetry
 {
 rvec3_t Getk(const sym_t& s)     {return Getk(*s.get());}
 rvec3_t Getk(const Symmetry& s)  {return dynamic_cast<const BlochQN&>(s).Getk();}

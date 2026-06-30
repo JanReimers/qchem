@@ -3,7 +3,7 @@ module;
 export module qchem.BasisSet.Atom.Evaluators.Internal.AngularIntegrals;
 export import qchem.Types;
 
-export namespace AngularIntegrals
+export namespace qchem::AngularIntegrals
 {
     double Exchange(int k,int la,int lb);
     double Direct  (int k,int la,int lc,int ma,int mc);            

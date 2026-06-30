@@ -4,6 +4,7 @@
 #include <omp.h>
 #include <chrono>
 import qchem.BasisSet.Internal.ERI4;
+using namespace qchem;
 
 class OpenMPTests : public ::testing::Test
 {

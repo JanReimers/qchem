@@ -14,7 +14,7 @@ export module qchem.Symmetry.PointGroup;
 export import qchem.Types;       // rvec3_t
 export import qchem.Matrix3D;    // Matrix3D, Vector3D, Determinant, operators
 
-export namespace Symmetry
+export namespace qchem::Symmetry
 {
 
 // A point in space tagged with a species label (atomic number Z for nuclei).  Two points

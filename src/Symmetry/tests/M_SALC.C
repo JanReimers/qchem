@@ -8,8 +8,9 @@ import qchem.Symmetry.AbelianGroup;  // BuildAbelianGroup
 import qchem.Symmetry.PointGroup;    // SymPoint
 import qchem.Math;
 import qchem.Blaze;
+using namespace qchem;
 
-using namespace Symmetry;
+using namespace qchem::Symmetry;
 
 // Water, C2 along z, molecule in the yz-plane.  AO basis: O s [0], O p [1,2,3], H1 s [4],
 // H2 s [5].  Centers shared between the nuclear point set and the basis shells.

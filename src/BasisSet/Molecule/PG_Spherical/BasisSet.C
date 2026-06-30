@@ -21,10 +21,10 @@ import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.Structure;
 import qchem.Types;
 
-export namespace BasisSet::Molecule::PG_Spherical
+export namespace qchem::BasisSet::Molecule::PG_Spherical
 {
-namespace Sph = ::BasisSet::Molecule::Evaluators::PG_Spherical_MnD;
-namespace Cart = ::BasisSet::Molecule::Evaluators::PG_Cart_MnD;
+namespace Sph = ::qchem::BasisSet::Molecule::Evaluators::PG_Spherical_MnD;
+namespace Cart = ::qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD;
 
 rsmat_t MakeOverlap2C  (const Sph::NR_Evaluator* ab);   // EFit 2-centre fit integrals (transform-summed)
 rsmat_t MakeRepulsion2C(const Sph::NR_Evaluator* ab);
@@ -84,8 +84,8 @@ public:
 };
 
 class BasisSet
-    : public virtual ::BasisSet::BasisSet<double>
-    , public ::BasisSet::BasisSetImp<double>
+    : public virtual ::qchem::BasisSet::BasisSet<double>
+    , public ::qchem::BasisSet::BasisSetImp<double>
 {
 public:
     BasisSet() {};

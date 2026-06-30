@@ -1,12 +1,13 @@
 // File: BasisSet/Fit_IBS.C  Interfaces for a fitting (auxiliary) Basis Set.
 module;
+#include <string>
 export module qchem.BasisSet.Fit_IBS;
 export import qchem.BasisSet.IrrepBasisSet;
 export import qchem.ScalarFunction;
 export import qchem.Mesh;            // qcMesh::Mesh / MeshParams -- the fit quadrature mesh + knobs
 import qchem.Structure;               // Structure (SetMesh builds the Becke mesh from it)
 
-export namespace BasisSet
+export namespace qchem::BasisSet
 {
 
 //! \brief Auxiliary basis set face for a CHARGE-DENSITY fit (the Coulomb metric): the integrals
@@ -79,6 +80,8 @@ protected:
 
 private:
     qcMesh::Mesh itsMesh;   //!< the fit basis's own quadrature mesh.
+    std::string  itsMeshID; //!< identity of itsMesh (= MeshParams::ID()); the cache key axis for Norm()
+                            //!< so the SAME fit basis built with a DIFFERENT mesh gets a distinct Norm.
 };
 
 }//namespace

@@ -10,6 +10,7 @@
 import qchem.Calculation;
 import qchem.Structure;
 import qchem.Types;        // Vector3D
+using namespace qchem;
 
 using qchem::Calculation;
 
@@ -29,6 +30,22 @@ TEST(M_Calculation, WaterEnergy)
     Calculation calc(water, {.basis = "dzvp"});            // build + converge in one line
 
     const double E_ref = -76.022903;
+    EXPECT_LT(std::fabs((E_ref - calc.Energy()) / E_ref), 1e-5);
+    EXPECT_GT(calc.IterationCount(), 0u);
+}
+
+// Parameter-free LDA molecular DFT through the facade (Dirac exchange + VWN5 correlation).  The facade
+// auto-selects the SAD seed and DIIS-from-start for DFT; CalcOptions.mesh defaults to molecular values.
+// "Did E move" regression sentinel, like the HF anchor (NOT a physical-accuracy claim).
+TEST(M_Calculation, WaterLDA)
+{
+    Calculation calc(MakeWater(), {.basis = "dzvp", .model = qchem::Model::LDA});
+    // Converged parameter-free LDA total energy (Dirac exchange + VWN5 correlation), with the facade's
+    // auto DIIS-from-start + SAD seed.  Bit-stable at -75.9324615507 and now ORDER-INDEPENDENT: the
+    // ~585 ppm HF-before-DFT drift was a fit-basis Normalization cached without a mesh key (the HF SAD
+    // bootstrap's coarse seed mesh poisoned the production run); fixed by mesh-keying Fit_IBS::Norm().
+    // So the anchor can stay tight (1e-5) -- if it moves, something regressed.
+    const double E_ref = -75.9324615507;
     EXPECT_LT(std::fabs((E_ref - calc.Energy()) / E_ref), 1e-5);
     EXPECT_GT(calc.IterationCount(), 0u);
 }

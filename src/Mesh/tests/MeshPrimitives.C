@@ -6,8 +6,9 @@ import qchem.Mesh.Quadrature;    // free functions + ScalarField/BasisField
 import qchem.Mesh.GaussLegendre;
 import qchem.Blaze;
 import qchem.Math;                // Pi, Pi32, FourPi
+using namespace qchem;
 
-using namespace qcMesh;          // Mesh, ScalarField/BasisField, MakeRadial/MakeAngular, quadrature, ...
+using namespace qchem::qcMesh;          // Mesh, ScalarField/BasisField, MakeRadial/MakeAngular, quadrature, ...
 
 //================================================================================================
 //  Test fields: a single normalised-ish s-function phi(r) = exp(-2|r|), and some scalar potentials.

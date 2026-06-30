@@ -2,6 +2,8 @@
 module;
 export module qchem.BasisSet.Atom.Evaluators.Internal.RelWigner3j;
 
+namespace qchem {
+
 //
 //  Wigner 3j symbols with half-integer j arguments, for relativistic (SphericalSpinor/RKB) angular
 //  integrals.  A thin, stateless wrapper over the home-grown half-integer Racah core (Wigner::wigner3j);
@@ -25,3 +27,5 @@ private:
     static const int KMax = LMax+1;       //max |κ|
     static const int KkMax= 2*LMax+1;     //max k: ja+jb <= 2*(LMax+0.5) = 2*LMax+1
 };
+
+} // namespace qchem

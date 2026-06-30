@@ -19,6 +19,7 @@ import qchem.VectorFunction;
 import qchem.Symmetry.Factory;
 import qchem.ElectronConfiguration.AtomNR;
 import qchem.Blaze;
+using namespace qchem;
 
 namespace
 {
@@ -52,7 +53,7 @@ using obs_t   =BasisSet::Orbital_1E_IBS<double>;
 using ohfbs_t =BasisSet::Orbital_HF_IBS<double>;
 using BasisSet::Real_BS;
 using BasisSet::Real_OIBS;
-using namespace BasisSet::Atom;
+using namespace qchem::BasisSet::Atom;
 using namespace Evaluators;
 using enum BasisSetAccuracy;
 

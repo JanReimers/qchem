@@ -6,6 +6,8 @@ module;
 #include <cassert>
 module qchem.BasisSet.Atom.Evaluators.BSpline.Internal.SplineGrouper;
 import qchem.Types;
+
+namespace qchem {
 using std::cout;
 using std::endl;
 
@@ -37,3 +39,5 @@ template <size_t K> const bspline::Grid<double>& SplineGrouper<K>::Grid() const
 #define INSTANCEk(k) template class SplineGrouper<k>;
 #include "../Instance.hpp"
 
+
+} // namespace qchem

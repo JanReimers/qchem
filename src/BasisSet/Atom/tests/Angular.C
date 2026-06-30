@@ -4,6 +4,7 @@
 #include <iostream>
 import qchem.BasisSet.Atom.Evaluators.Internal.AngularIntegrals;
 import qchem.Blaze;
+using namespace qchem;
 
 using std::cout;
 using std::endl;

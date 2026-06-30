@@ -5,6 +5,8 @@ module;
 export module qchem.ElectronConfiguration.AtomDirac;
 import qchem.ElectronConfiguration.AtomNR;
 
+namespace qchem {
+
 export class AtomDirac_EC 
     : public virtual ElectronConfiguration
     , private Atom_EC
@@ -15,6 +17,8 @@ public:
     AtomDirac_EC(int Z);
     
 private:
-    friend class ElectronConfigurationTests;
+    friend class ::ElectronConfigurationTests;
 };
 
+
+} // namespace qchem

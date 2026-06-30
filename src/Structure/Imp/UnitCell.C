@@ -8,6 +8,8 @@ module qchem.UnitCell;
 import qchem.Math;
 import qchem.Structure;   // Atom (AddAtom inserts atoms given in fractional coordinates)
 
+namespace qchem {
+
 //  Build the cell matrix A (columns = lattice vectors a₁,a₂,a₃) from the cell
 //  lengths a,b,c and angles α,β,γ (radians), in the standard orientation
 //  a₁∥x, a₂ in the xy-plane.  Then M = AᵀA reproduces the usual metric tensor
@@ -112,3 +114,5 @@ std::ostream& UnitCell::Write(std::ostream& os) const
     Molecule::Write(os);
     return os;
 }
+
+} // namespace qchem

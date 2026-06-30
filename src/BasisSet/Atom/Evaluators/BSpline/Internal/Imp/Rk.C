@@ -13,7 +13,7 @@ import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.GLQuadrature;
 using std::cout;
 using std::endl;
 
-namespace BSpline
+namespace qchem::BSpline
 {
 
 template <size_t K> RkCache<K>::RkCache(const std::vector<sp_t>& splines,const GLCache1D& gl1, size_t lmax, const func_t& wp, const func_t& wm)

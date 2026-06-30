@@ -1,119 +1,87 @@
-// File A_HF.C  Atom Hartree-Fock tests.
+// File A_DFT.C  Atom DFT (Slater-Xalpha + parameter-free LSDA) total-energy tests vs the NIST oracle.
+//
+// Migrated off the QchemTester scaffold (retire QchemTester::Init): the single-atom exponent-pool tests
+// drive qchem::AtomCalculation; the A_PG tests (a single atom in the MOLECULAR dzvp basis) drive
+// qchem::Calculation.  Same bases, per-Z SCFParams, NIST oracle; anchors unchanged.  The oracle bound is
+// the scaffold's SIGNED relative error (it bounds over-binding only; under-binding passes trivially).
 #include "gtest/gtest.h"
-#include <nlohmann/json.hpp>
-#include <filesystem>
+#include <cstdio>
 
-import qchem.Unittests.QchemTester;
+import qchem.Calculation;            // Calculation (the molecular-basis-on-an-atom A_PG tests)
+import qchem.AtomCalculation;        // AtomCalculation, AtomType, Model, Pol (the atomic exponent-pool tests)
+import qchem.SCFIterator;            // SCFParams
+import qchem.Structure;              // Molecule, Atom
+import qchem.Types;                  // Vector3D
+import qchem.PeriodicTable;          // thePeriodicTable(): Slater alpha + NIST DFT oracle
+import qchem.ChargeDensity.Seed;     // SeedStrategy
+import qchem.Unittests.TestUtils;    // RelativeError, RelativeDFTError
+using namespace qchem;
 
-import qchem.Hamiltonian.Factory;
-import qchem.Hamiltonian.Internal.Hamiltonians;   // Ham_DFTcorr_U (Dirac exchange + VWN correlation)
-import qchem.Factory;
-import qchem.Structure;
-
-
-inline SCFParams dft_scf_params(int Z) 
+inline SCFParams dft_scf_params(int Z)
 {
-//           NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo MergeTol verbose
-    return {   20     ,Z*1e-3    ,1e-10  ,1e-13 ,Z*1e-4        ,0.1      ,1e-8  ,true};
+    return {.NMaxIter = 20, .MinΔρ = Z*1e-3, .MinΔFD = 1e-10, .MinVirial = 1e-13, .MinFD = Z*1e-4, .StartingRelaxRo = 0.1, .MergeTol = 1e-8, .Verbose = true};
 }
 
-using namespace qchem::Hamiltonian;
-class A_DFT_U : public ::testing::TestWithParam<size_t>, public TestAtom
+// A single atom in its own exponent-pool basis (Slater-Xalpha with per-Z alpha, or parameter-free LSDA),
+// checked against the NIST atomic DFT oracle.  Returns the SIGNED relative error.
+static double A_atom_DFT_err(int Z, AtomType type, int N, double emin, double emax, Pol pol, Model model)
 {
-public:
-    A_DFT_U() : TestAtom(GetParam()) {};
-    virtual Hamiltonian* GetHamiltonian(st_t& structure) const
-    {
-        double alpha_ex=QchemTester::itsPT.GetSlaterAlpha(GetZ());
-        return Factory(Pol::UnPolarized,structure,alpha_ex,GetMeshParams(),itsBasisSet);
-    }
-};
-class M_DFT_U : public ::testing::TestWithParam<size_t>, public TestMolecule
+    const auto& pt = thePeriodicTable();
+    AtomCalculation calc(Z, 0, {.type = type, .N = N, .emin = emin, .emax = emax,
+                                .model = model, .pol = pol, .xalpha = pt.GetSlaterAlpha(Z)},
+                         dft_scf_params(Z));
+    return RelativeDFTError(calc.Energy(), Z);
+}
+
+// A_PG: the same atom in the MOLECULAR dzvp/PolarizedGaussian basis (cross-checks the molecular basis on
+// atoms).  CoreGuess seed + the Z-scaled DIIS gate + dft_scf_params(Z) reproduce the scaffold recipe.
+static double A_PG_DFT_OracleError(int Z, Pol pol)
 {
-public:
-    M_DFT_U() : TestMolecule(new Atom(GetParam(),0.0,Vector3D<double>(0,0,0))) {};
-    virtual Hamiltonian* GetHamiltonian(st_t& structure) const
-    {
-        double alpha_ex=QchemTester::itsPT.GetSlaterAlpha(GetZ());
-        return Factory(Pol::UnPolarized,structure,alpha_ex,GetMeshParams(),itsBasisSet);
-    }
-};
+    const auto& pt = thePeriodicTable();
+    Molecule atom;
+    atom.Insert(new Atom(Z, 0.0, Vector3D<double>(0,0,0)));
+    Calculation calc(atom, {.basis  = "dzvp", .model = Model::Xalpha, .pol = pol,
+                            .xalpha = pt.GetSlaterAlpha(Z),
+                            .seed   = ChargeDensity::SeedStrategy::CoreGuess},
+                           {.eMax = Z*Z*0.1/32});
+    calc.Converge(dft_scf_params(Z));
+    return RelativeError(calc.Energy(), pt.GetEnergyDFT(Z));
+}
+
+static int slater_N(int Z) {return Z>50 ? 11 : Z>20 ? 10 : 8;}
 
 //---------------------------------------------------------------------------------------------------------------
 //
 //  Un-polarized tests.
 //
-class A_SG_DFT_U : public A_DFT_U {};
-
-class A_SL_DFT_U : public A_DFT_U {};
-
-class A_PG_DFT_U : public M_DFT_U
-{
-public:
-    void Init()
-    { 
-        nlohmann::json js = { {"basis", "dzvp"} };
-        QchemTester::Init(js);
-    }
-};
+class A_SG_DFT_U : public ::testing::TestWithParam<size_t> {};
+class A_SL_DFT_U : public ::testing::TestWithParam<size_t> {};
+class A_PG_DFT_U : public ::testing::TestWithParam<size_t> {};   // facade-driven (molecular basis on an atom)
 
 TEST_P(A_SG_DFT_U,A)
 {
     int Z=GetParam();
-    nlohmann::json js = {
-        {"type",abs_t::Gaussian},
-        {"N", 20}, {"emin", 0.05}, {"emax", 10000*Z},
-    };
-    QchemTester::Init(js);
-    Iterate(dft_scf_params(Z));
-    EXPECT_LT(RelativeDFTError(),2e-3);
+    EXPECT_LT(A_atom_DFT_err(Z, AtomType::Gaussian, 20, 0.05, 10000.0*Z, Pol::UnPolarized, Model::Xalpha), 2e-3);
 }
-INSTANTIATE_TEST_SUITE_P(A,A_SG_DFT_U,::testing::Values(2,4,10,18,36,54)); 
+INSTANTIATE_TEST_SUITE_P(A,A_SG_DFT_U,::testing::Values(2,4,10,18,36,54));
 
 TEST_P(A_SL_DFT_U,Multiple)
 {
     int Z=GetParam();
-    int N=8;
-    if (Z>20) N=10;
-    if (Z>50) N=11;
-    nlohmann::json js = {
-        {"type",abs_t::Slater},
-        {"N", N}, {"emin", 0.31}, {"emax", 3*Z},
-    };
-    QchemTester::Init(js);
-    Iterate(dft_scf_params(Z));
-    EXPECT_LT(RelativeDFTError(),2e-3);
+    EXPECT_LT(A_atom_DFT_err(Z, AtomType::Slater, slater_N(Z), 0.31, 3.0*Z, Pol::UnPolarized, Model::Xalpha), 2e-3);
 }
 INSTANTIATE_TEST_SUITE_P(Multiple,A_SL_DFT_U,::testing::Values(2,4,10,18,36,54));
 
 //---------------------------------------------------------------------------------------------------------------
-//  Real LSDA: Dirac exchange + VWN5 correlation (Ham_DFTcorr_U) vs the NIST atomic oracle.  Unlike the
-//  Slater-Xalpha tests above (per-Z tuned alpha absorbing correlation), this uses the actual LDA
-//  functionals with the CORRECT correlation energy E_c = integral eps_c rho (separate Vcorr term).
-class A_LDA_U : public ::testing::TestWithParam<size_t>, public TestAtom
-{
-public:
-    A_LDA_U() : TestAtom(GetParam()) {};
-    virtual Hamiltonian* GetHamiltonian(st_t& structure) const
-    {
-        return new Ham_DFTcorr_U(structure, GetMeshParams(), itsBasisSet);
-    }
-};
-
+//  Real LSDA: Dirac exchange + VWN5 correlation (Model::LDA -> Ham_DFTcorr_U) vs the NIST atomic oracle.
+//  Unlike the Slater-Xalpha tests above (per-Z tuned alpha absorbing correlation), this uses the actual LDA
+//  functionals with the CORRECT correlation energy (a separate Vcorr term).
+class A_LDA_U : public ::testing::TestWithParam<size_t> {};
 TEST_P(A_LDA_U,SlaterBasis)
 {
     int Z=GetParam();
-    int N=8;
-    if (Z>20) N=10;
-    if (Z>50) N=11;
-    nlohmann::json js = {
-        {"type",abs_t::Slater},
-        {"N", N}, {"emin", 0.31}, {"emax", 3*Z},
-    };
-    QchemTester::Init(js);
-    Iterate(dft_scf_params(Z));
-    double err=RelativeDFTError();                       // vs the NIST LDA total energy (Kr: -2750.147940)
-    printf("LSDA(Dirac+VWN) Z=%2d  RelativeDFTError = %.3e\n", Z, err);
+    double err=A_atom_DFT_err(Z, AtomType::Slater, slater_N(Z), 0.31, 3.0*Z, Pol::UnPolarized, Model::LDA);
+    printf("LSDA(Dirac+VWN) Z=%2d  RelativeDFTError = %.3e\n", Z, err);  // vs NIST LDA (Kr: -2750.147940)
     // Parameter-free LSDA (no tuned alpha) reproduces NIST to <0.25% at this basis/convergence; the
     // residual is basis quality, not the functional.  Regression anchor.
     EXPECT_LT(err, 2.5e-3);
@@ -122,91 +90,35 @@ INSTANTIATE_TEST_SUITE_P(LSDA,A_LDA_U,::testing::Values(2,10,18,36));
 
 TEST_P(A_PG_DFT_U,Multiple)
 {
-    Init();
-    Iterate(dft_scf_params(GetParam()));
-    EXPECT_LT(RelativeDFTError(),3e-3);   // Ar(18) is 2.94e-3 vs NIST after the deterministic SCF fix (was 2.2e-3, bug-tuned)
+    // Ar(18) is 2.94e-3 vs NIST after the deterministic SCF fix (was 2.2e-3, bug-tuned).
+    EXPECT_LT(A_PG_DFT_OracleError(GetParam(), Pol::UnPolarized), 3e-3);
 }
 INSTANTIATE_TEST_SUITE_P(Multiple,A_PG_DFT_U,::testing::Values(2,4,10,18,36));
-
-
-
-
-
-
-
-
-
 
 //---------------------------------------------------------------------------------------------------------------
 //
 //  Polarized tests.
 //
-class A_DFT_P : public ::testing::TestWithParam<size_t>, public TestAtom
-{
-public:
-    A_DFT_P() : TestAtom(GetParam()) {};
-    virtual Hamiltonian* GetHamiltonian(st_t& structure) const
-    {
-        double alpha_ex=QchemTester::itsPT.GetSlaterAlpha(GetZ());
-        return Factory(Pol::Polarized,structure,alpha_ex,GetMeshParams(),itsBasisSet);
-    }
-};
-class M_DFT_P : public ::testing::TestWithParam<size_t>, public TestMolecule
-{
-public:
-    M_DFT_P() : TestMolecule(new Atom(GetParam(),0.0,Vector3D<double>(0,0,0))) 
-    {
-        nlohmann::json js = { {"basis", "dzvp"} };
-        QchemTester::Init(js);
-    };
-    virtual Hamiltonian* GetHamiltonian(st_t& structure) const
-    {
-        double alpha_ex=QchemTester::itsPT.GetSlaterAlpha(GetZ());
-        return Factory(Pol::Polarized,structure,alpha_ex,GetMeshParams(),itsBasisSet);
-    }
-};
-class A_SG_DFT_P : public A_DFT_P {};
-class A_SL_DFT_P : public A_DFT_P {};
-class A_PG_DFT_P : public M_DFT_P {};
+class A_SG_DFT_P : public ::testing::TestWithParam<size_t> {};
+class A_SL_DFT_P : public ::testing::TestWithParam<size_t> {};
+class A_PG_DFT_P : public ::testing::TestWithParam<size_t> {};   // facade-driven (molecular basis on an atom)
 
 TEST_P(A_SG_DFT_P,Multiple)
 {
     int Z=GetParam();
-    nlohmann::json js = {
-        {"type",abs_t::Gaussian},
-        {"N", 20}, {"emin", 0.01}, {"emax", 4000*Z},
-    };
-    QchemTester::Init(js);
-    Iterate(dft_scf_params(Z));
-    EXPECT_LT(RelativeDFTError(),1e-3);
+    EXPECT_LT(A_atom_DFT_err(Z, AtomType::Gaussian, 20, 0.01, 4000.0*Z, Pol::Polarized, Model::Xalpha), 1e-3);
 }
-
-INSTANTIATE_TEST_SUITE_P(Multiple,A_SG_DFT_P,::testing::Values(1,3,7,37,53)); //,3,5,7,37,53
+INSTANTIATE_TEST_SUITE_P(Multiple,A_SG_DFT_P,::testing::Values(1,3,7,37,53));
 
 TEST_P(A_SL_DFT_P,Multiple)
 {
     int Z=GetParam();
-    int N=8;
-    if (Z>20) N=10;
-    if (Z>50) N=11;
-     nlohmann::json js = {
-        {"type",abs_t::Slater},
-        {"N", N}, {"emin", 0.31}, {"emax", 3*Z},
-    };
-    QchemTester::Init(js);
-    Iterate(dft_scf_params(Z));
-    EXPECT_LT(RelativeDFTError(),2e-3);
+    EXPECT_LT(A_atom_DFT_err(Z, AtomType::Slater, slater_N(Z), 0.31, 3.0*Z, Pol::Polarized, Model::Xalpha), 2e-3);
 }
-
-INSTANTIATE_TEST_SUITE_P(Multiple,A_SL_DFT_P,::testing::Values(1,3,7,37,53)); 
-
-
+INSTANTIATE_TEST_SUITE_P(Multiple,A_SL_DFT_P,::testing::Values(1,3,7,37,53));
 
 TEST_P(A_PG_DFT_P,Multiple)
 {
-    Iterate(dft_scf_params(GetParam()));
-    EXPECT_LT(RelativeDFTError(),5.1e-3);
+    EXPECT_LT(A_PG_DFT_OracleError(GetParam(), Pol::Polarized), 5.1e-3);
 }
 INSTANTIATE_TEST_SUITE_P(Multiple,A_PG_DFT_P,::testing::Values(3,5,11,37)); //Z=51 is slow.
-
-

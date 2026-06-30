@@ -2,6 +2,7 @@
 #include "gtest/gtest.h"
 import qchem.Unittests.QchemTester;
 import qchem.Hamiltonian.Internal.Libxc_LDA_Exchange;
+using namespace qchem;
 const bool verbose=true;
 
 using std::cout;
@@ -12,11 +13,11 @@ class A_DFT_U : public ::testing::TestWithParam<size_t>, public TestAtom
 {
 public:
     A_DFT_U() : TestAtom(GetParam()) {};
-    virtual Hamiltonian* GetHamiltonian(st_t& structure) const
+    virtual qchem::Hamiltonian::Hamiltonian* GetHamiltonian(st_t& structure) const
     {
         ex=new Libxc_LDA_Exchange(7,Spin::None,GetZ());
         cout << *ex << endl;
-        Hamiltonian* H=Factory(Pol::UnPolarized,structure,ex,GetMeshParams(),itsBasisSet);
+        qchem::Hamiltonian::Hamiltonian* H=Factory(Pol::UnPolarized,structure,ex,GetMeshParams(),itsBasisSet);
         // cout << *H << endl;
         return H;
     }
@@ -59,8 +60,7 @@ TEST_P(SG_DFT_U_High,A)
     cout << "---------------- Z=" << Z << " ---------------"<< endl;
         
     QchemTester::Init(High,BasisSet::Atom::Type::Gaussian,verbose);
-    //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo    MergeTol verbose
-    Iterate({   50     ,Z*1e-5    ,1e-5 , 1e-1      ,Z*1e-6 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
+    Iterate({.NMaxIter = 50, .MinΔρ = Z*1e-5, .MinΔFD = 1e-5, .MinVirial = 1e-1, .MinFD = Z*1e-6, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true});
     // cout << "RelativeHFError = " << RelativeHFError() << std::endl;
     EXPECT_LT(RelativeDFTError(),2e-6); 
     EXPECT_TRUE(Converged()); 
@@ -75,8 +75,7 @@ TEST_P(SL_DFT_U_High,A)
     cout << "---------------- Z=" << Z << " ---------------"<< endl;
         
     QchemTester::Init(High,BasisSet::Atom::Type::Slater,verbose);
-    //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo    MergeTol verbose
-    Iterate({   50     ,Z*1e-5    ,1e-7 , 2e-2      ,Z*1e-6 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
+    Iterate({.NMaxIter = 50, .MinΔρ = Z*1e-5, .MinΔFD = 1e-7, .MinVirial = 2e-2, .MinFD = Z*1e-6, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true});
     // cout << "RelativeHFError = " << RelativeHFError() << std::endl;
     EXPECT_LT(RelativeDFTError(),2e-6); 
     EXPECT_TRUE(Converged()); 

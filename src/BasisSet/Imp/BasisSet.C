@@ -4,7 +4,7 @@ module;
 module qchem.BasisSet;
 import qchem.BasisSet.Orbital_DFT_IBS;
 
-namespace BasisSet
+namespace qchem::BasisSet
 {
 template <class T> FIT_CD_ABS* BasisSet<T>::CreateCDFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const
 {

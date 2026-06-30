@@ -6,7 +6,7 @@ module qchem.BasisSet.Molecule.PG_LibCint;
 import qchem.BasisSet.Molecule.Reader;
 import qchem.Structure;
 
-namespace BasisSet::Molecule::PG_LibCint
+namespace qchem::BasisSet::Molecule::PG_LibCint
 {
 
 BasisSet::BasisSet(Reader* reader, const Structure* cl, bool spherical)
@@ -16,7 +16,7 @@ BasisSet::BasisSet(Reader* reader, const Structure* cl, bool spherical)
 
 void BasisSet::Insert(bs_t* bs)
 {
-    ::BasisSet::BasisSetImp<double>::Insert(bs);
+    ::qchem::BasisSet::BasisSetImp<double>::Insert(bs);
 }
 
 } //namespace

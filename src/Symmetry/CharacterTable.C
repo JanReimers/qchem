@@ -11,7 +11,7 @@ module;
 #include <vector>
 export module qchem.Symmetry.CharacterTable;
 
-export namespace Symmetry
+export namespace qchem::Symmetry
 {
 
 struct CharacterTable

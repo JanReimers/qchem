@@ -9,7 +9,7 @@ import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.Types;
 
-export namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
+export namespace qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD
 {
 
 struct PGData

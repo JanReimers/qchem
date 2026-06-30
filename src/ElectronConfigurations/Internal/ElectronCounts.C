@@ -2,6 +2,8 @@
 export module qchem.ElectronConfiguration.ElectronCounts;
 export import qchem.Symmetry.Spin;
 
+namespace qchem {
+
 export const int LMax=3;
 
 export struct ElCounts
@@ -23,3 +25,5 @@ export struct ElCounts_l
     int Nu; //# of un paired electrons (for a given l)
     int GetN(Spin s) const;
 };
+
+} // namespace qchem

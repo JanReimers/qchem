@@ -18,7 +18,7 @@ import qchem.Math;
 import qchem.Blaze;
 
 
-export namespace BasisSet::Atom::Evaluators::Gaussian
+export namespace qchem::BasisSet::Atom::Evaluators::Gaussian
 {
 
 // Gaussian::Radial holds all Gaussian-specific 1e integrals and Rk machinery,
@@ -39,14 +39,14 @@ public:
 
     double Overlap(size_t i,size_t j) const
     {
-        return ::Gaussian::Integral(es[i]+es[j],2*l)*ns[i]*ns[j]; //Already has 4*Pi and r^2 from dr.
+        return ::qchem::Gaussian::Integral(es[i]+es[j],2*l)*ns[i]*ns[j]; //Already has 4*Pi and r^2 from dr.
     } 
     // Radial part of the kinetic building block \f$\langle i|-\nabla^2|j\rangle\f$ for spherical
     // Gaussians \f$r^{l}e^{-e r^2}Y_{lm}\f$ -- the gradient-dot-gradient form, positive-definite.
     // In spherical coordinates \f$-\nabla^2 = -\frac{1}{r^2}\frac{d}{dr}\!\big(r^2\frac{d}{dr}\big)
     // + \frac{l(l+1)}{r^2}\f$; this returns the radial-derivative piece -- the centrifugal term
     // \f$l(l+1)\langle i|r^{-2}|j\rangle\f$ is added in MakeKinetic.  With \f$t=e_i+e_j\f$ and
-    // \f$I(t,p)\equiv\f$ ::Gaussian::Integral (the radial moment \f$\int_0^\infty r^p e^{-t r^2}\f$
+    // \f$I(t,p)\equiv\f$ ::qchem::Gaussian::Integral (the radial moment \f$\int_0^\infty r^p e^{-t r^2}\f$
     // with the \f$4\pi r^2 dr\f$ measure folded in):
     // \f[ \texttt{Grad2}_{ij} = (l\!+\!1)^2 I(t,2l\!-\!2) - 2(l\!+\!1)\,t\,I(t,2l)
     //                          + 4 e_i e_j\,I(t,2l\!+\!2) . \f]
@@ -55,45 +55,45 @@ public:
     {
         double t=es[i]+es[j];
         size_t l1=l+1;
-        return  (l1*l1         * ::Gaussian::Integral(t,2*l-2)
-                -2*l1 * t      * ::Gaussian::Integral(t,2*l  )
-                +4*es[i]*es[j] * ::Gaussian::Integral(t,2*l+2))*ns[i]*ns[j] ;
+        return  (l1*l1         * ::qchem::Gaussian::Integral(t,2*l-2)
+                -2*l1 * t      * ::qchem::Gaussian::Integral(t,2*l  )
+                +4*es[i]*es[j] * ::qchem::Gaussian::Integral(t,2*l+2))*ns[i]*ns[j] ;
     }
     double Inv_r1(size_t i,size_t j) const
     {
-        return ::Gaussian::Integral(es[i]+es[j],2*l-1)*ns[i]*ns[j]; //Already has 4*Pi
+        return ::qchem::Gaussian::Integral(es[i]+es[j],2*l-1)*ns[i]*ns[j]; //Already has 4*Pi
     }
     double Inv_r2(size_t i,size_t j) const
     {
-        return ::Gaussian::Integral(es[i]+es[j],2*l-2)*ns[i]*ns[j]; //Already has 4*Pi
+        return ::qchem::Gaussian::Integral(es[i]+es[j],2*l-2)*ns[i]*ns[j]; //Already has 4*Pi
     }
     double Overlap(size_t i,size_t j, const Radial& c, size_t ic) const
     {
-        return ::Gaussian::Integral(es[i]+es[j]+c.es[ic],2*l+c.l)*ns[i]*ns[j]*c.ns[ic]; //Already has 4*Pi and r^2 from dr.
+        return ::qchem::Gaussian::Integral(es[i]+es[j]+c.es[ic],2*l+c.l)*ns[i]*ns[j]*c.ns[ic]; //Already has 4*Pi and r^2 from dr.
     }
     double Repulsion(size_t i,size_t j, const Radial& c, size_t ic) const
     {
-        ::Gaussian::RkEngine cd(es[i]+es[j],c.es[ic],max(l,c.l));
+        ::qchem::Gaussian::RkEngine cd(es[i]+es[j],c.es[ic],max(l,c.l));
         return cd.DirectR0  (l,c.l)*FourPi2*ns[i]*ns[j]*c.ns[ic];
     }
     double Repulsion(size_t i,size_t j) const
     {
-        ::Gaussian::RkEngine cd(es[i],es[j],l);
+        ::qchem::Gaussian::RkEngine cd(es[i],es[j],l);
         return cd.DirectR0  (l,l)*FourPi2*ns[i]*ns[j];
     }
     double Repulsion(size_t i,size_t j, const Radial& b) const
     {
-        ::Gaussian::RkEngine cd(es[i],b.es[j],max(l,b.l));
+        ::qchem::Gaussian::RkEngine cd(es[i],b.es[j],max(l,b.l));
         return cd.DirectR0  (l,b.l)*FourPi2*ns[i]*b.ns[j];
     }
 
     double Charge(size_t i) const
     {
-        return ::Gaussian::Integral(es[i],l)*ns[i];
+        return ::qchem::Gaussian::Integral(es[i],l)*ns[i];
     }
     double Norm(size_t i) const
     {
-        return 1.0/sqrt(::Gaussian::Integral(2*es[i],2*l));
+        return 1.0/sqrt(::qchem::Gaussian::Integral(2*es[i],2*l));
     }
     virtual  rvec_t Norm     () const {return ns;}
 
@@ -106,12 +106,12 @@ public:
     using rvec11_t=rvec11_t;
     static double direct(const Cacheable4* c, size_t la, size_t lc,const rvec11_t& Ak)
     {
-        const ::Gaussian::RkEngine* cd = dynamic_cast<const ::Gaussian::RkEngine*>(c);
+        const ::qchem::Gaussian::RkEngine* cd = dynamic_cast<const ::qchem::Gaussian::RkEngine*>(c);
         return cd->DirectRk  (la,lc,Ak); // contract over k Rk*Ak
     }
     static double exchange(const Cacheable4* c, size_t la, size_t lc,const rvec11_t& Ak)
     {
-        const ::Gaussian::RkEngine* cd = dynamic_cast<const ::Gaussian::RkEngine*>(c);
+        const ::qchem::Gaussian::RkEngine* cd = dynamic_cast<const ::qchem::Gaussian::RkEngine*>(c);
         return cd->ExchangeRk(la,lc,Ak); // contract over k Rk*Ak, exchange version is more complicated
     }
 
@@ -195,11 +195,11 @@ public:
         // The κ-dependent terms (spin-orbit) vanish for j=l+1/2 (κ<0, l+1+κ=0) and are
         // present for j=l-1/2 (κ>0, l+1+κ=2l+1), splitting e.g. 2p1/2 from 2p3/2.
         double ab=es[i]+es[j];
-        double t=4*es[i]*es[j]*::Gaussian::Integral(ab,2*l+1);
+        double t=4*es[i]*es[j]*::qchem::Gaussian::Integral(ab,2*l+1);
         if (Getκ()>0)
         {
             double kt=l+1+Getκ();
-            t += kt*kt*::Gaussian::Integral(ab,2*l-3) - 2*kt*ab*::Gaussian::Integral(ab,2*l-1);
+            t += kt*kt*::qchem::Gaussian::Integral(ab,2*l-3) - 2*kt*ab*::qchem::Gaussian::Integral(ab,2*l-1);
         }
         return t*ns[i]*ns[j];
     }
@@ -232,11 +232,11 @@ public:
         //  All unsupport Rks will be removed.  These will then automatically be recreated next time
         //  loop_4 is called.
         //
-        ::Cache4::Register(eval);
+        ::qchem::Cache4::Register(eval);
     }
     virtual Rk*  Create (size_t ia,size_t ic,size_t ib,size_t id) const
     {
-        return new ::Gaussian::RkEngine(
+        return new ::qchem::Gaussian::RkEngine(
             grouper.unique_esv[ia]+grouper.unique_esv[ib],
             grouper.unique_esv[ic]+grouper.unique_esv[id],
             grouper.LMax(ia,ib,ic,id));

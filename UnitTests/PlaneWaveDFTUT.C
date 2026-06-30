@@ -61,6 +61,7 @@ import qchem.ElectronConfiguration.Crystal;         // Crystal_EC (single-k Bloc
 import qchem.SCFAccelerator.Internal.SCFIrrepAcceleratorNull; // tSCFAcceleratorNull<dcmplx>
 import qchem.SCFAccelerator.Internal.SCFAcceleratorDIIS;      // cSCFAcceleratorDIIS (complex DIIS)
 import qchem.BasisSet.Internal.BasisSetImp;         // BasisSetImp<dcmplx> (single-block BasisSet container)
+using namespace qchem;
 
 using BasisSet::Lattice_3D::PlaneWave_IBS;
 using Pseudopotential::HGH_LocalPotential;

@@ -3,8 +3,9 @@
 #include <string>
 #include <vector>
 import qchem.Symmetry.CharacterTable;
+using namespace qchem;
 
-using namespace Symmetry;
+using namespace qchem::Symmetry;
 
 // Every abelian table is square (h irreps x h ops), its first irrep is totally symmetric,
 // and its rows are orthogonal with norm^2 = h (the great orthogonality theorem, 1-D irreps).

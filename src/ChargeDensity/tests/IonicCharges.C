@@ -9,6 +9,7 @@
 #include <numeric>
 
 import qchem.ChargeDensity.Seed;   // IonicFormalCharges
+using namespace qchem;
 
 using namespace qchem::ChargeDensity;
 using P = std::pair<int,int>;      // {Z, Nval}

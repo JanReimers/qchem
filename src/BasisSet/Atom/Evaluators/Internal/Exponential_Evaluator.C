@@ -11,7 +11,7 @@ export import qchem.BasisSet.Atom.Evaluators;
 export import qchem.Symmetry.Spherical;
 import qchem.Blaze;
 
-export namespace BasisSet::Atom::Evaluators
+export namespace qchem::BasisSet::Atom::Evaluators
 {
     
 class ExponentialEvaluator : public virtual Evaluator, public virtual HF_Evaluator

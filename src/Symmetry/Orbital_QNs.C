@@ -6,6 +6,8 @@ export module qchem.Symmetry.Orbital;
 export import qchem.Symmetry.Irrep;
 export import qchem.Types;
 
+namespace qchem {
+
 export struct Orbital_QNs
     : public Irrep
 {   
@@ -24,3 +26,4 @@ private:
     static const size_t n_max; //Used for calculating sequenxe indexes.
   
 };
+} // namespace qchem

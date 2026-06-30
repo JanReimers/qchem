@@ -9,6 +9,7 @@
 import qchem.LASolver;
 import qchem.Types;
 import qchem.Blaze;
+using namespace qchem;
 
 using std::cout;
 using std::endl;

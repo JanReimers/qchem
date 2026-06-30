@@ -8,6 +8,7 @@
 #include <gtest/gtest.h>
 import qchem.LASolver;
 import qchem.Blaze;
+using namespace qchem;
 
 static constexpr double kTol = 1e-9;
 

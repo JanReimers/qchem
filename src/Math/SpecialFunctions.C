@@ -10,7 +10,7 @@ module;
 export module qchem.SpecialFunctions;
 import qchem.Types;   // rvec_t
 
-export namespace SpecialFunctions
+export namespace qchem::SpecialFunctions
 {
     //! Spherical Bessel functions \f$j_0(x)\dots j_{lmax}(x)\f$ via the stable downward (Miller)
     //! recurrence, normalised to \f$j_0=\sin x/x\f$.  Robust for all x.  \f$j_l(0)=\delta_{l0}\f$.

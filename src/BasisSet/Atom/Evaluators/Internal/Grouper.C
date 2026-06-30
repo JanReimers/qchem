@@ -4,6 +4,8 @@ module;
 #include <map>
 #include "forward.H"
 export module qchem.BasisSet.Atom.Evaluators.Internal.Grouper;
+
+namespace qchem {
 // 
 // Keep a list of unique exponents for a group Slater or Gaussian irrep basis functions.
 // For each unique exponent also store an index and the maximum l angular momentum used
@@ -20,7 +22,7 @@ export class Grouper
 public:
     size_t LMax(size_t ia, size_t ib, size_t ic, size_t id) const;
 protected:
-    friend class Cache4Tests;
+    friend class ::Cache4Tests;
     //! For each unique exponent, store the maximum l value.
     std::vector<size_t> maxls; 
 };
@@ -34,7 +36,9 @@ public:
     //! Linear array of unique exponents.
     std::vector<double> unique_esv; 
 private:
-    friend class Cache4Tests;
+    friend class ::Cache4Tests;
     std::map<double,size_t> unique_es; //Unique exponents or rmins for splines.
 };
 
+
+} // namespace qchem

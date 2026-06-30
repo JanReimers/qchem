@@ -34,7 +34,7 @@ import qchem.BasisSet.Internal.ERI4;                             // ERI4
 import qchem.Structure;
 import qchem.Types;
 
-export namespace BasisSet::Molecule::Evaluators::PG_LibCint
+export namespace qchem::BasisSet::Molecule::Evaluators::PG_LibCint
 {
 
 class NR_Evaluator : public virtual Evaluator, public PG_Cart_MnD::PGData

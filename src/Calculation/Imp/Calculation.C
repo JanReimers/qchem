@@ -6,6 +6,7 @@ module;
 #include <utility>
 #include <algorithm>
 #include <cassert>
+#include <stdexcept>
 #include <nlohmann/json.hpp>
 module qchem.Calculation;
 
@@ -20,7 +21,7 @@ import qchem.Orbitals;                               // Orbital, Orbitals
 namespace qchem
 {
 
-namespace PG = ::BasisSet::Molecule::PG_Cart;
+namespace PG = ::qchem::BasisSet::Molecule::PG_Cart;
 using SCFIter = qchem::SCFIterator::SCFIterator;
 
 // Build the molecular orbital basis, optionally SALC point-group-blocked.  When symmetry is off the
@@ -30,7 +31,18 @@ using SCFIter = qchem::SCFIterator::SCFIterator;
 // no Cartesian PGData IBS (the guard); the facade only ever builds that basis today, so it is safe.
 static BasisSet::Real_BS* BuildBasis(const CalcOptions& opts, const std::shared_ptr<const Structure>& st)
 {
-    BasisSet::Real_BS* raw = BasisSet::Molecule::Factory(nlohmann::json{{"basis", opts.basis}}, st.get());
+    const bool spherical = (opts.angular == Angular::Spherical);
+    // SALC blocking needs a Cartesian PGData orbital IBS; spherical adaptation is the Spherical SALC
+    // track (doc/SphericalSALCPlan.md), not yet wired -- reject the combination clearly rather than
+    // letting PG::SymmetryAdapt throw a less-obvious basis-type error deeper down.
+    if (opts.symmetry && spherical)
+        throw std::runtime_error("qchem::Calculation: {.symmetry=true} requires angular=Cartesian "
+                                 "(spherical SALC is not yet supported)");
+
+    const char* engine  = (opts.engine  == Engine::LibCint) ? "libcint" : "mnd";
+    const char* angular = spherical ? "spherical" : "cartesian";
+    BasisSet::Real_BS* raw = BasisSet::Molecule::Factory(
+        nlohmann::json{{"basis", opts.basis}, {"engine", engine}, {"angular", angular}}, st.get());
     if (!opts.symmetry) return raw;
     std::shared_ptr<const BasisSet::Real_BS> rawShared(raw);
     return PG::SymmetryAdapt(rawShared, *st, opts.symmetryTol);
@@ -55,18 +67,29 @@ Calculation::~Calculation()
 
 bool Calculation::Converge(const SCFParams& params)
 {
-    const int Z = itsStructure->GetNuclearCharge();
-    auto* ham = qchem::Hamiltonian::Factory(itsOpts.model, itsOpts.pol, itsStructure);
+    const int  Z   = itsStructure->GetNuclearCharge();
+    const bool dft = qchem::Hamiltonian::IsDFT(itsOpts.model);
 
-    nlohmann::json jsacc = {{"NProj", itsAcc.nProj},
-                            {"EMax",  itsAcc.eMax > 0.0 ? itsAcc.eMax : Z*Z*0.1/32},
-                            {"EMin",  itsAcc.eMin},
-                            {"SVTol", itsAcc.svTol}};
+    // The unified resolver turns the Model token into the concrete Hamiltonian; the DFT extras (mesh,
+    // orbital basis, xalpha) are ignored for HF/1-e/Dirac.
+    auto* ham = qchem::Hamiltonian::Factory(itsOpts.model, itsOpts.pol, itsStructure,
+                                            itsOpts.mesh, itsBasis, itsOpts.xalpha);
+
+    // DFT needs DIIS engaged from iteration 0: the default Z-scaled EMax gate keeps DIIS off and the DFT
+    // SCF limit-cycles to a non-converged snapshot (the "M_Sym layout UB" mechanism, see M_DFT).  So
+    // default DFT to a high EMax ("DIIS from start") unless the caller pinned one explicitly.
+    const double emax = itsAcc.eMax > 0.0 ? itsAcc.eMax : (dft ? 100.0 : Z*Z*0.1/32);
+    nlohmann::json jsacc = {{"NProj", itsAcc.nProj}, {"EMax", emax},
+                            {"EMin", itsAcc.eMin}, {"SVTol", itsAcc.svTol}};
     auto* accel = qchem::SCFAccelerators::Factory(qchem::SCFAccelerators::Type::DIIS, jsacc);
 
     delete itsScf;                                     // releases the previous Hamiltonian + accelerator
-    itsScf = new SCFIter(itsBasis, itsEC, ham, accel,
-                         qchem::ChargeDensity::SeedStrategy::Default, itsStructure.get());
+    // Seed: an explicit opts.seed wins; otherwise auto -- DFT from superposition-of-atomic-densities
+    // (SAD), HF/1-e from the core guess (Default).
+    using qchem::ChargeDensity::SeedStrategy;
+    const auto seed = (itsOpts.seed != SeedStrategy::Default) ? itsOpts.seed
+                      : (dft ? SeedStrategy::SAD : SeedStrategy::Default);
+    itsScf = new SCFIter(itsBasis, itsEC, ham, accel, seed, itsStructure.get());
     if (itsObserver) itsScf->SetObserver(itsObserver);
 
     bool ok = itsScf->Iterate(params);

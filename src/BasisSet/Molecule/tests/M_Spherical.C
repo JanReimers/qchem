@@ -14,8 +14,9 @@ import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;    // Polari
 import qchem.BasisSet.Molecule.Evaluators.PG_Spherical_MnD.SolidHarmonics;
 import qchem.BasisSet.Molecule.Evaluators.PG_Spherical_MnD;            // NR_Evaluator (1E)
 import qchem.Types;
+using namespace qchem;
 
-using namespace BasisSet::Molecule::Evaluators;
+using namespace qchem::BasisSet::Molecule::Evaluators;
 using PG_Spherical_MnD::SphericalShell;
 using PG_Spherical_MnD::NR_Evaluator;
 using PG_Cart_MnD::GaussianRF;

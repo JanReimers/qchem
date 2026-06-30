@@ -11,7 +11,7 @@ export module qchem.Pseudopotential.GTH_Potentials;
 export import qchem.Pseudopotential.LocalPotential;
 export import qchem.Pseudopotential.SeparablePotential;
 
-export namespace Pseudopotential
+export namespace qchem::Pseudopotential
 {
 
 //! \brief A complete GTH pseudopotential for one species: the ion (valence) charge plus the local and

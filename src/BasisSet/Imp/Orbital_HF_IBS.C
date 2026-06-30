@@ -6,7 +6,7 @@ import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.Internal.DB_Cache;
 import qchem.Blaze;
 
-namespace BasisSet
+namespace qchem::BasisSet
 {
 
 template <class T> const ERI4& Orbital_HF_IBS<T>::Direct(const Orbital_HF_IBS<T>& c) const

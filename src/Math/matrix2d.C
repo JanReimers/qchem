@@ -11,7 +11,8 @@ import qchem.CMath;
 //
 //  Hard coded 2x2 matrix, mirroring Matrix3D.  Default construction is the identity.
 //
-export template <class T> class Matrix2D
+export namespace qchem {
+template <class T> class Matrix2D
 {
 public:
    T M11,M12;
@@ -30,7 +31,6 @@ public:
          T& operator()(size_t i, size_t j)       {return (&M11)[2*(i-1)+j-1];}
 };
 
-export {
 
 template <class T> inline bool operator==(const Matrix2D<T>& a,const Matrix2D<T>& b)
 { return a.M11==b.M11 && a.M12==b.M12 && a.M21==b.M21 && a.M22==b.M22; }
@@ -95,4 +95,4 @@ template <class T> std::ostream& operator<<(std::ostream& os,const Matrix2D<T>& 
    return os;
 }
 
-} //export block
+} // namespace qchem

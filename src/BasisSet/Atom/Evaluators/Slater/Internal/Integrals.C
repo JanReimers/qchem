@@ -4,7 +4,7 @@ module;
 export module qchem.BasisSet.Atom.Evaluators.Slater.Internal.Integrals; 
 import qchem.Math;
 
-export namespace Slater
+export namespace qchem::Slater
 {
 //##############################################################################
 //      /

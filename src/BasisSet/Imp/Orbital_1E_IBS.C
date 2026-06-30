@@ -5,7 +5,7 @@ module qchem.BasisSet.Orbital_1E_IBS;
 
 import qchem.BasisSet.Internal.DB_Cache;
 
-namespace BasisSet
+namespace qchem::BasisSet
 {
 
 // Cached accessor for the kinetic BUILDING BLOCK \f$\langle p^2\rangle=\langle-\nabla^2\rangle\f$

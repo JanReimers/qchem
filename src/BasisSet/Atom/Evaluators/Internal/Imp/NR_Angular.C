@@ -5,7 +5,7 @@ module qchem.BasisSet.Atom.Evaluators.Internal.NR_Angular;
 import qchem.BasisSet.Atom.Evaluators.Internal.AngularIntegrals;
 import qchem.Blaze;
 
-namespace BasisSet::Atom::Evaluators
+namespace qchem::BasisSet::Atom::Evaluators
 {
 
 rvec11_t NR_Angular::DirectAk(const Evaluator& other) const

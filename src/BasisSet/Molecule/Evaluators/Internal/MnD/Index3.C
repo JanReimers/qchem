@@ -7,7 +7,7 @@
 // (it adds the monomial x^n y^l z^m on top), and a future Spherical layer would supply its own indices.
 export module qchem.BasisSet.Molecule.Evaluators.Internal.MnD.Index3;
 
-export namespace BasisSet::Molecule::Evaluators::Internal::MnD
+export namespace qchem::BasisSet::Molecule::Evaluators::Internal::MnD
 {
 
 struct Index3

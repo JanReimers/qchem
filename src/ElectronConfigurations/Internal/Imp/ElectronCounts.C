@@ -3,6 +3,8 @@ module;
 #include <cassert>
 module qchem.ElectronConfiguration.ElectronCounts;
 
+namespace qchem {
+
 int ElCounts_l::GetN(Spin s) const
 {
     assert(s!=Spin::None);
@@ -31,3 +33,4 @@ void ElCounts::DebugCheck() const
     }
 }
     
+} // namespace qchem

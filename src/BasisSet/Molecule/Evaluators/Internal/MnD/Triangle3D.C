@@ -11,7 +11,7 @@ import qchem.Streamable;
 #define CHECK(i,j,k)
 #endif
 
-export namespace BasisSet::Molecule::Evaluators::Internal::MnD
+export namespace qchem::BasisSet::Molecule::Evaluators::Internal::MnD
 {
 //
 //  Implements an triangle data structure, where N+L+M is always < MaxSum.

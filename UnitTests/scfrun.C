@@ -24,12 +24,13 @@ import qchem.Math;                        // Pi
 import qchem.Types;                       // rvec3_t
 import qchem.ScalarFunction;              // ScalarFunction<double> (density / orbital evaluation)
 import qchem.Mesh.Quadrature;             // qcMesh::RadialMesh, MakeRadial, Integrate (radial quadrature)
+using namespace qchem;
 
 using std::cout;
 using std::endl;
 using std::string;
 using namespace qchem::Hamiltonian;       // Model, Pol, Factory
-using namespace BasisSet::Atom;
+using namespace qchem::BasisSet::Atom;
 
 // Config-driven concrete fixtures: the Hamiltonian model/polarization come from the CLI.
 class CliAtom : public TestAtom
@@ -37,14 +38,14 @@ class CliAtom : public TestAtom
     Model m; Pol p;
 public:
     CliAtom(int Z,int q,Model _m,Pol _p) : TestAtom(Z,q), m(_m), p(_p) {}
-    virtual Hamiltonian* GetHamiltonian(st_t& c) const override { return Factory(m,p,c); }
+    virtual qchem::Hamiltonian::Hamiltonian* GetHamiltonian(st_t& c) const override { return Factory(m,p,c); }
 };
 class CliDiracAtom : public TestDiracAtom
 {
     Model m; Pol p;
 public:
     CliDiracAtom(int Z,int q,Model _m,Pol _p) : TestDiracAtom(Z,q), m(_m), p(_p) {}
-    virtual Hamiltonian* GetHamiltonian(st_t& c) const override { return Factory(m,p,c); }
+    virtual qchem::Hamiltonian::Hamiltonian* GetHamiltonian(st_t& c) const override { return Factory(m,p,c); }
 };
 // DFT atom for generating the SAD atomic-density file.  --xc LDA = real LSDA (Dirac exchange + VWN5
 // correlation, Ham_DFTcorr_U); --xc Xalpha = Slater X-alpha (alpha from --alpha, else the per-Z optimized
@@ -55,7 +56,7 @@ class CliDFTAtom : public TestAtom
     bool lda; double alpha;
 public:
     CliDFTAtom(int Z,int q,bool _lda,double _alpha) : TestAtom(Z,q), lda(_lda), alpha(_alpha) {}
-    virtual Hamiltonian* GetHamiltonian(st_t& c) const override
+    virtual qchem::Hamiltonian::Hamiltonian* GetHamiltonian(st_t& c) const override
     {
         if (lda) return new Ham_DFTcorr_U(c, GetMeshParams(), itsBasisSet);
         double a = alpha>0 ? alpha : QchemTester::itsPT.GetSlaterAlpha(GetZ());
@@ -83,7 +84,7 @@ public:
         delete itsEC;
         itsEC = new PseudoAtom_EC(Z, netQ);
     }
-    virtual Hamiltonian* GetHamiltonian(st_t& c) const override
+    virtual qchem::Hamiltonian::Hamiltonian* GetHamiltonian(st_t& c) const override
     {
         return new Ham_PP_U(c, element, valence, GetMeshParams(), itsBasisSet);    // GTH local model for `element`
     }

@@ -30,7 +30,8 @@ export import qchem.CMath;
   You will need to include \c io3d.h to get \c op<< and \c op>> for IO.
   \nosubgrouping
 */
-export template <class T> class Vector3D
+export namespace qchem {
+template <class T> class Vector3D
 {
  public:
   /*! \name Constructors/Assignment*/
@@ -70,8 +71,9 @@ export template <class T> class Vector3D
   T z; //!< \a z coordinate.
   //@}
 };
+} // export namespace qchem (class Vector3D)
 
-export {
+export namespace qchem {
 //-----------------------------------------------------------------------------
 //
 //  Binary algeabra.

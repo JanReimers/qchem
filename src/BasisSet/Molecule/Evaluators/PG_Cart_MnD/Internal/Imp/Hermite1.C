@@ -13,7 +13,7 @@ import qchem.IntPow;
 
 
 //----------------------------------------------------------------------------------------
-namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
+namespace qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD
 {
 
 
@@ -132,4 +132,4 @@ void Hermite1::Clear()
 //     return os;
 // }
 
-} //namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
+} //namespace qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD

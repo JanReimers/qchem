@@ -5,7 +5,8 @@
 import qchem.Symmetry.CartesianRep;
 import qchem.Symmetry.PointGroup;   // SymOp, to obtain operation matrices
 import qchem.Blaze; // matrix operator* in this (non-module) TU
-using namespace Symmetry;
+using namespace qchem;
+using namespace qchem::Symmetry;
 
 static std::vector<IVec3> Pshell() { return {{1,0,0},{0,1,0},{0,0,1}}; }
 static std::vector<IVec3> Dshell() { return {{2,0,0},{0,2,0},{0,0,2},{1,1,0},{1,0,1},{0,1,1}}; }

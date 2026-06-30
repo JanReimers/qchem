@@ -14,7 +14,7 @@ export module qchem.Symmetry.CartesianRep;
 export import qchem.Types;       // rmat_t
 export import qchem.Matrix3D;    // Matrix3D
 
-export namespace Symmetry
+export namespace qchem::Symmetry
 {
 
 using IVec3 = std::array<int,3>;   // Cartesian monomial exponents (nx,ny,nz)

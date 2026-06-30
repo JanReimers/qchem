@@ -4,7 +4,7 @@ export module qchem.BasisSet.Orbital_HF_IBS;
 export import qchem.BasisSet.Orbital_1E_IBS;
 export import qchem.BasisSet.Internal.ERI4;
 
-export namespace BasisSet
+export namespace qchem::BasisSet
 {
 
 template <class T> class Orbital_HF_IBS

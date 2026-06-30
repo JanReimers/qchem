@@ -16,6 +16,6 @@ export import qchem.Calculation;     // Calculation, CalcOptions, AcceleratorOpt
 export import qchem.SCFIterator;     // SCFParams, SCFProgress, SCFIterator + (transitive) WaveFunction,
                                      //   Orbitals, ChargeDensity, Irrep, EnergyBreakdown, Hamiltonian
 export import qchem.Structure;       // Molecule, Atom, Structure
-export import qchem.ScalarFunction;  // ::ScalarFunction<double> (the density and every MO)
-export import qchem.Types;           // Vector3D / rvec3_t, dcmplx
+export import qchem.ScalarFunction;  // qchem::ScalarFunction<double> (the density and every MO)
+export import qchem.Types;           // qchem::Vector3D / rvec3_t, dcmplx
 export import qchem.PeriodicTable;   // element symbol / Z lookups

@@ -6,6 +6,8 @@ export module  qchem.BasisSet.Atom.Internal.FillPower;
 import qchem.Math;
 import qchem.Blaze;
 
+namespace qchem {
+
 export template <class T> void FillPower(vec_t<T>& arr,T start, T stop)
 {
   size_t N=arr.size();
@@ -17,3 +19,5 @@ export template <class T> void FillPower(vec_t<T>& arr,T start, T stop)
     start*=beta;
   }
 }
+
+} // namespace qchem

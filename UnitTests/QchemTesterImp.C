@@ -6,9 +6,9 @@ module;
 module qchem.Unittests.QchemTester;
 import qchem.ElectronConfiguration.AtomNR;
 import qchem.ElectronConfiguration.AtomDirac;
-import qchem.ElectronConfiguration.Molecule;
 import qchem.SCFAccelerator.Factory;
 import qchem.Math;
+using namespace qchem;
 
 
 using qchem::SCFAccelerators::SCFAccelerator;
@@ -71,7 +71,7 @@ void QchemTester::Init(Real_BS* bs, bool verbose)
               : ts=="Ladder" ? Type::Ladder : ts=="GDM" ? Type::GDM : Type::DIIS;
     SCFAccelerator* acc=qchem::SCFAccelerators::Factory(type,jsacc);
     delete itsSCFIterator;
-    itsSCFIterator=new SCFIterator(itsBasisSet,GetElectronConfiguration(),itsHamiltonian,acc,itsSeed,itsStructure.get());
+    itsSCFIterator=new qchem::SCFIterator::SCFIterator(itsBasisSet,GetElectronConfiguration(),itsHamiltonian,acc,itsSeed,itsStructure.get());
     if (directmin) itsSCFIterator->SetDirectMin(true);
     assert(itsSCFIterator);
 }
@@ -104,14 +104,14 @@ qchem::ChargeDensity::DM_CD* QchemTester::GetChargeDensity() const
     return itsSCFIterator->GetWaveFunction()->GetChargeDensity();   // caller owns
 }
 
-const Orbitals* QchemTester::GetOrbitals(const Irrep& qns) const
+const qchem::Orbitals::Orbitals* QchemTester::GetOrbitals(const Irrep& qns) const
 {
     return itsSCFIterator->GetWaveFunction()->GetOrbitals(qns);
 }
 
 const Orbital* QchemTester::GetOrbital(size_t index, const Irrep& qns) const
 {
-    const Orbitals* orbs=GetOrbitals(qns);
+    const qchem::Orbitals::Orbitals* orbs=GetOrbitals(qns);
     assert(index<(size_t)orbs->GetNumOrbitals());
     const Orbital* o=0;
     for (auto oi:orbs->Iterate<Orbital>())
@@ -217,21 +217,6 @@ qcMesh::MeshParams TestDiracAtom::GetMeshParams() const
 Real_BS* TestDiracAtom::GetBasisSet (const nlohmann::json& js) const
 {
     return BasisSet::Atom::Factory(js,GetZ()-itsq);
-}
-
-TestMolecule::TestMolecule(Structure* m) : QchemTester(new Molecule_EC(m->GetNumElectrons())) 
-{
-    itsStructure=st_t(m);
-};
-
-qcMesh::MeshParams TestMolecule::GetMeshParams() const
-{
-    return {.radial=qcMesh::RadialKind::MHL, .nRadial=30, .mhl_m=3, .mhl_alpha=2.0,
-            .angular=qcMesh::AngularKind::Gauss, .nAngular=12, .beckeOrder=2};
-}
-Real_BS* TestMolecule::GetBasisSet (const nlohmann::json& js) const
-{
-    return BasisSet::Molecule::Factory(js,GetStructure());
 }
 
 

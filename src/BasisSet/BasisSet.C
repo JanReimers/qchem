@@ -13,7 +13,7 @@ export import qchem.ElectronConfiguration;
 import qchem.Iterators;
 export import qchem.Streamable;
 
-export namespace BasisSet
+export namespace qchem::BasisSet
 {
 typedef std::vector<Irrep> irrepv_t; 
 

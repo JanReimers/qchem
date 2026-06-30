@@ -13,7 +13,7 @@ add_executable(UTMain gtestmain.C QchemTesterImp.C
     M_Calculation.C
     M_Umbrella.C
     )
-target_sources(UTMain PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES QchemTester.C)
+target_sources(UTMain PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES QchemTester.C TestUtils.C)
 
 #-Wno-unknown-pragmas
 # -Wno-cpp  Suppress warning messages emitted by #warning directives.

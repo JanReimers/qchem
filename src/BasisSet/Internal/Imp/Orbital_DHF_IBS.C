@@ -5,7 +5,7 @@ module qchem.BasisSet.Internal.Orbital_DHF_IBS;
 import qchem.BasisSet.Internal.DB_Cache;
 import qchem.Blaze;
 
-namespace BasisSet
+namespace qchem::BasisSet
 {
 
 // Cached RELATIVISTIC kinetic (RKB L/S cross term); see the \warning in

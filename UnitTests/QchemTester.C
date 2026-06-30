@@ -18,6 +18,15 @@ import qchem.Mesh; //qcMesh::MeshParams
 import qchem.Factory;
 import qchem.ElectronConfiguration;
 import qchem.PeriodicTable;
+namespace BasisSet = qchem::BasisSet;
+namespace qcMesh   = qchem::qcMesh;
+using qchem::SCFParams;
+using qchem::Real_BS;
+using qchem::Real_OIBS;
+using qchem::ElectronConfiguration;
+using qchem::Irrep;
+using qchem::Spin;
+using qchem::Structure;
 
 export typedef BasisSet::irrepv_t irrepv_t;
 
@@ -25,7 +34,7 @@ export using qchem::Orbitals::Orbital;
 export using qchem::Orbitals::Orbitals;
 using qchem::Hamiltonian::Hamiltonian;
 using qchem::SCFIterator::SCFIterator;
-using namespace BasisSet::Atom;
+using namespace qchem::BasisSet::Atom;
 
 export class QchemTester
 {
@@ -112,14 +121,7 @@ private:
     int itsq;
 };
 
-export class TestMolecule : public QchemTester
-{
-public:
-    TestMolecule(Structure*);
-    virtual qcMesh::MeshParams  GetMeshParams() const;
-private:
-    virtual Real_BS* GetBasisSet (const nlohmann::json&) const;
-};
-
-
-
+// NOTE: the molecular TestMolecule fixture was retired -- the molecular HF/DFT/symmetry tests now drive
+// the public qchem::Calculation facade directly (OpenWork D).  What remains here is the atom/Dirac
+// harness (TestAtom / TestDiracAtom) and its NIST/Dirac oracle asserts, which the molecule-only facade
+// has no business expressing.

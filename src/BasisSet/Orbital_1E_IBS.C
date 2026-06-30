@@ -4,7 +4,7 @@ export module qchem.BasisSet.Orbital_1E_IBS;
 export import qchem.BasisSet.IrrepBasisSet;
 export import qchem.Structure;
 
-export namespace BasisSet
+export namespace qchem::BasisSet
 {
 
 

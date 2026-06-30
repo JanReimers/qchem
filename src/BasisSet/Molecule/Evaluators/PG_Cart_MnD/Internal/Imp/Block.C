@@ -6,7 +6,7 @@ module qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Block;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.stl_io;
 
-namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
+namespace qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD
 {
 
 Block::Block()
@@ -59,4 +59,4 @@ Block* Block::Clone(const rvec3_t& newCenter) const
     return ret;
 }
 
-} //namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
+} //namespace qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD

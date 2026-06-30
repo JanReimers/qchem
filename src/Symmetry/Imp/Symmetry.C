@@ -3,7 +3,7 @@ module;
 #include <sstream>
 
 module qchem.Symmetry;
-namespace Symmetry
+namespace qchem::Symmetry
 {
 
 std::string Symmetry::GetLabel() const

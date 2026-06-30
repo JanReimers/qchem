@@ -7,7 +7,7 @@ module;
 module qchem.BasisSet.Internal.DB_Cache;
 import qchem.BasisSet.Internal.DB_Cache_RAM;
 
-namespace BasisSet
+namespace qchem::BasisSet
 {
 
 template <class T> IntegralsCache<T>& theCache()

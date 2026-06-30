@@ -7,7 +7,7 @@ export module qchem.BasisSet.Atom.Evaluators.Internal.NR_Angular;
 export import qchem.BasisSet.Atom.Evaluators;
 import qchem.Symmetry.Spherical;
 
-export namespace BasisSet::Atom::Evaluators
+export namespace qchem::BasisSet::Atom::Evaluators
 {
 
 class NR_Angular : public virtual Angular

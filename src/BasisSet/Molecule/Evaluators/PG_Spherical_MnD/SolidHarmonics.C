@@ -16,9 +16,9 @@ module;
 export module qchem.BasisSet.Molecule.Evaluators.PG_Spherical_MnD.SolidHarmonics;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;
 
-export namespace BasisSet::Molecule::Evaluators::PG_Spherical_MnD
+export namespace qchem::BasisSet::Molecule::Evaluators::PG_Spherical_MnD
 {
-namespace Cart = ::BasisSet::Molecule::Evaluators::PG_Cart_MnD;
+namespace Cart = ::qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD;
 
 // One term of a spherical function's Cartesian-monomial expansion.
 struct CartTerm

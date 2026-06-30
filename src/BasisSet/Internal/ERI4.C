@@ -4,6 +4,8 @@ export module qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.Internal.ERI4T;
 export import qchem.Types;
 
+namespace qchem {
+
 export class ERI4 : public ERI4T<double,smat_t>
 {
 public:
@@ -30,3 +32,5 @@ export bool operator==(const ERI4& a, const ERI4& b);
 export double fnorm(const ERI4& a, const ERI4& b);
 export double relative_fnorm(const ERI4& a, const ERI4& b);
 
+
+} // namespace qchem

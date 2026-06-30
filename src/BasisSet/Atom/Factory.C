@@ -6,7 +6,7 @@ export import qchem.BasisSet;
 export import qchem.ElectronConfiguration;
 
 
-export namespace BasisSet::Atom
+export namespace qchem::BasisSet::Atom
 {
     enum class Type {Slater,Gaussian,BSpline6,BSpliner6,Gaussian_RKB,Slater_RKB};
     // Use these for custom basis sets.

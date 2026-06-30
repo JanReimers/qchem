@@ -7,7 +7,7 @@ import qchem.Math;
 //
 //  Hand coded Gaussian integrals.
 //
-namespace Gaussian
+namespace qchem::Gaussian
 {
 double Oddl (double a, int n)
 {

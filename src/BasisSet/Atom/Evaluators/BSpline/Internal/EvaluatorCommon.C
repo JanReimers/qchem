@@ -13,7 +13,7 @@ import qchem.BasisSet.Atom.Evaluators.Internal.Grouper;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.GLQuadrature;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.SplineGrouper;
 
-export namespace BasisSet::Atom::Evaluators::BSpline::Internal
+export namespace qchem::BasisSet::Atom::Evaluators::BSpline::Internal
 {
 std::ostream& operator<<(std::ostream& os, const bspline::Support<double>& sup)
 {
@@ -42,12 +42,12 @@ public:
     virtual rvec_t Norm    () const override { return ns; }
     static double direct(const Cacheable4* c, size_t la, size_t lc,const rvec11_t& Ak)
     {
-        const ::BSpline::RkEngine<K>* cd = dynamic_cast<const ::BSpline::RkEngine<K>*>(c);
+        const ::qchem::BSpline::RkEngine<K>* cd = dynamic_cast<const ::qchem::BSpline::RkEngine<K>*>(c);
         return cd->DirectRk  (la,lc,Ak); // contract over k Rk*Ak
     }
     static double exchange(const Cacheable4* c, size_t la, size_t lc,const rvec11_t& Ak)
     {
-        const ::BSpline::RkEngine<K>* cd = dynamic_cast<const ::BSpline::RkEngine<K>*>(c);
+        const ::qchem::BSpline::RkEngine<K>* cd = dynamic_cast<const ::qchem::BSpline::RkEngine<K>*>(c);
         return cd->ExchangeRk(la,lc,Ak); // contract over k Rk*Ak, exchange version is more complicated
     }
     virtual std::ostream& Write(std::ostream&) const override;
@@ -67,9 +67,9 @@ protected:
     std::vector<size_t> es_indices; //Unique spline index
 };
 
-template <size_t K> class Cache4 : public  ::Cache4
+template <size_t K> class Cache4 : public  ::qchem::Cache4
 {
-    using func_t=::BSpline::RkEngine<K>::func_t;
+    using func_t=::qchem::BSpline::RkEngine<K>::func_t;
 public:
     Cache4(const bspline::Grid<double>& grid,const func_t& wp, const func_t& wm, size_t Kp);
     ~Cache4() {delete itsRkCache;}
@@ -84,7 +84,7 @@ private:
     GLCache2D   itsGL2D;
 
     SplineGrouper<K> grouper;
-    ::BSpline::RkCache<K>* itsRkCache;
+    ::qchem::BSpline::RkCache<K>* itsRkCache;
 };
 
 } //namespace

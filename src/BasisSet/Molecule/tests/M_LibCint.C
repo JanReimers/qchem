@@ -25,6 +25,7 @@ import qchem.BasisSet.Internal.ERI4;
 import qchem.Structure;
 import qchem.Types;
 import qchem.Blaze;
+using namespace qchem;
 
 using BasisSet::Molecule::PG_Cart::Orbital_IBS;
 using LibCintEval = BasisSet::Molecule::Evaluators::PG_LibCint::NR_Evaluator;

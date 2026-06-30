@@ -1,23 +1,28 @@
-// File A_HF_U.C  Atom Hartree-Fock tests for Unpolarized (closed shell) atoms.
+// File A_HF_U.C  Atom Hartree-Fock tests for Unpolarized (closed shell) atoms (facade-driven).
+//
+// Migrated off the QchemTester/TestAtom scaffold onto qchem::AtomCalculation -- the single-atom sibling
+// of the molecular qchem::Calculation front door (OpenWork: retire QchemTester::Init).  Same atomic
+// exponent-pool bases, same per-Z SCFParams, same NIST oracle (RelativeHFError now a free Z-keyed helper);
+// anchors unchanged.
 #include "gtest/gtest.h"
-import qchem.Unittests.QchemTester;
-
-const bool verbose=true;
+import qchem.AtomCalculation;        // AtomCalculation, AtomCalcOptions, AtomType, BasisSetAccuracy, Model
+import qchem.SCFIterator;            // SCFParams
+import qchem.Unittests.TestUtils;    // RelativeHFError
+using namespace qchem;
 
 using std::cout;
 using std::endl;
-using namespace BasisSet::Atom;
 using enum BasisSetAccuracy;
-using namespace qchem::Hamiltonian;
-class A_HF_U : public ::testing::TestWithParam<size_t>, public TestAtom
+
+const bool verbose=true;
+
+// Run a closed-shell HF atom through the facade; report the signed NIST relative error and convergence.
+static double HF_Eerr(size_t Z, AtomType type, BasisSetAccuracy acc, const SCFParams& p, bool& converged)
 {
-public:
-    A_HF_U() : TestAtom(GetParam()) {};
-    virtual Hamiltonian* GetHamiltonian(st_t& structure) const
-    {
-        return Factory(Model::HF,Pol::UnPolarized,structure);
-    }
-};
+    AtomCalculation calc(Z, 0, {.type = type, .accuracy = acc, .model = Model::HF, .pol = Pol::UnPolarized}, p);
+    converged = calc.IsConverged();
+    return RelativeHFError(calc.Energy(), int(Z));
+}
 
 #ifdef DEBUG
 #define LOW
@@ -28,217 +33,166 @@ public:
 
 
 #ifdef HIGH
-class BS_U_High : public A_HF_U {};
+class BS_U_High : public ::testing::TestWithParam<size_t> {};
 TEST_P(BS_U_High,A)
 {
     size_t Z=GetParam();
     cout << "---------------- Z=" << Z << " ---------------"<< endl;
-        
-    QchemTester::Init(High,BasisSet::Atom::Type::BSpline6,verbose);
-    //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo    MergeTol verbose
-    Iterate({   50     ,Z*1e-7    ,1e-7 , 2.5e-13      ,Z*1e-7 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
-    double Eerr=RelativeHFError();
+    bool conv; double Eerr=HF_Eerr(Z, AtomType::BSpline6, High,
+        {.NMaxIter = 50, .MinΔρ = Z*1e-7, .MinΔFD = 1e-7, .MinVirial = 2.5e-13, .MinFD = Z*1e-7, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true}, conv);
     EXPECT_LT(Eerr,1e-9);
     EXPECT_GT(Eerr,-1e-4);
-    EXPECT_TRUE(Converged());        
+    EXPECT_TRUE(conv);
 }
 INSTANTIATE_TEST_SUITE_P(A_HF,BS_U_High,::testing::Values(2,88));
 // 2,4,10,12,18,20,30,36,38,46,48,54,56,70,80,86,88
-class BSr_U_High : public A_HF_U {};
+class BSr_U_High : public ::testing::TestWithParam<size_t> {};
 TEST_P(BSr_U_High,A)
 {
     size_t Z=GetParam();
     cout << "---------------- Z=" << Z << " ---------------"<< endl;
-        
-    QchemTester::Init(High,BasisSet::Atom::Type::BSpliner6,verbose);
-    //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo    MergeTol verbose
-    Iterate({   50     ,Z*1e-7    ,1e-7 , 2.5e-13      ,Z*1e-7 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
-    double Eerr=RelativeHFError();
+    bool conv; double Eerr=HF_Eerr(Z, AtomType::BSpliner6, High,
+        {.NMaxIter = 50, .MinΔρ = Z*1e-7, .MinΔFD = 1e-7, .MinVirial = 2.5e-13, .MinFD = Z*1e-7, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true}, conv);
     EXPECT_LT(Eerr,1e-9);
     EXPECT_GT(Eerr,-1e-4);
-    EXPECT_TRUE(Converged());        
+    EXPECT_TRUE(conv);
 }
 INSTANTIATE_TEST_SUITE_P(A_HF,BSr_U_High,::testing::Values(2,88));
-class SG_U_High : public A_HF_U {};
+class SG_U_High : public ::testing::TestWithParam<size_t> {};
 TEST_P(SG_U_High,A)
 {
     size_t Z=GetParam();
     cout << "---------------- Z=" << Z << " ---------------"<< endl;
-        
-    QchemTester::Init(High,BasisSet::Atom::Type::Gaussian,verbose);
-    //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo    MergeTol verbose
-    Iterate({   50     ,Z*1e-5    ,1e-7 , 1e-5      ,Z*1e-6 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
-    // cout << "RelativeHFError = " << RelativeHFError() << std::endl;
-    EXPECT_LT(RelativeHFError(),2e-6); 
-    EXPECT_TRUE(Converged()); 
-        
+    bool conv; double Eerr=HF_Eerr(Z, AtomType::Gaussian, High,
+        {.NMaxIter = 50, .MinΔρ = Z*1e-5, .MinΔFD = 1e-7, .MinVirial = 1e-5, .MinFD = Z*1e-6, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true}, conv);
+    EXPECT_LT(Eerr,2e-6);
+    EXPECT_TRUE(conv);
 }
-INSTANTIATE_TEST_SUITE_P(A_HF,SG_U_High,::testing::Values(2,36));//)); 
+INSTANTIATE_TEST_SUITE_P(A_HF,SG_U_High,::testing::Values(2,36));//));
 
-class SL_U_High : public A_HF_U {};
+class SL_U_High : public ::testing::TestWithParam<size_t> {};
 TEST_P(SL_U_High,A)
 {
     size_t Z=GetParam();
     cout << "---------------- Z=" << Z << " ---------------"<< endl;
-        
-    QchemTester::Init(High,BasisSet::Atom::Type::Slater,verbose);
-    //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo    MergeTol verbose
-    Iterate({   32     ,Z*1e-5    ,1e-7 , 1e-6      ,Z*1e-6 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
-    // cout << "RelativeHFError = " << RelativeHFError() << std::endl;
-    EXPECT_LT(RelativeHFError(),1e-6); 
-    EXPECT_TRUE(Converged()); 
-        
+    bool conv; double Eerr=HF_Eerr(Z, AtomType::Slater, High,
+        {.NMaxIter = 32, .MinΔρ = Z*1e-5, .MinΔFD = 1e-7, .MinVirial = 1e-6, .MinFD = Z*1e-6, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true}, conv);
+    EXPECT_LT(Eerr,1e-6);
+    EXPECT_TRUE(conv);
 }
-INSTANTIATE_TEST_SUITE_P(A_HF,SL_U_High,::testing::Values(2,88));//)); 
+INSTANTIATE_TEST_SUITE_P(A_HF,SL_U_High,::testing::Values(2,88));//));
 
 #endif //HIGH
 
 #ifdef MEDIUM
 
-class BS_U_Medium : public A_HF_U {};
+class BS_U_Medium : public ::testing::TestWithParam<size_t> {};
 TEST_P(BS_U_Medium,A)
 {
     size_t Z=GetParam();
     cout << "---------------- Z=" << Z << " ---------------"<< endl;
-        
-    QchemTester::Init(Medium,BasisSet::Atom::Type::BSpline6,verbose);
-    //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo    MergeTol verbose
-    Iterate({   30     ,Z*1e-7    ,1e-7 , 2.5e-7      ,Z*1e-7 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
-    double Eerr=RelativeHFError();
+    bool conv; double Eerr=HF_Eerr(Z, AtomType::BSpline6, Medium,
+        {.NMaxIter = 30, .MinΔρ = Z*1e-7, .MinΔFD = 1e-7, .MinVirial = 2.5e-7, .MinFD = Z*1e-7, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true}, conv);
     EXPECT_LT(Eerr,1e-6);
     EXPECT_GT(Eerr,-1e-4);
-    EXPECT_TRUE(Converged()); 
-        
+    EXPECT_TRUE(conv);
 }
-INSTANTIATE_TEST_SUITE_P(A_HF,BS_U_Medium,::testing::Values(2,4));//)); 
-class BSr_U_Medium : public A_HF_U {};
+INSTANTIATE_TEST_SUITE_P(A_HF,BS_U_Medium,::testing::Values(2,4));//));
+class BSr_U_Medium : public ::testing::TestWithParam<size_t> {};
 TEST_P(BSr_U_Medium,A)
 {
     size_t Z=GetParam();
     cout << "---------------- Z=" << Z << " ---------------"<< endl;
-        
-    QchemTester::Init(Medium,BasisSet::Atom::Type::BSpliner6,verbose);
-    //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo    MergeTol verbose
-    Iterate({   30     ,Z*1e-7    ,1e-7 , 2.5e-7      ,Z*1e-7 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
-    double Eerr=RelativeHFError();
+    bool conv; double Eerr=HF_Eerr(Z, AtomType::BSpliner6, Medium,
+        {.NMaxIter = 30, .MinΔρ = Z*1e-7, .MinΔFD = 1e-7, .MinVirial = 2.5e-7, .MinFD = Z*1e-7, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true}, conv);
     EXPECT_LT(Eerr,1e-6);
     EXPECT_GT(Eerr,-1e-4);
-    EXPECT_TRUE(Converged()); 
-        
+    EXPECT_TRUE(conv);
 }
-INSTANTIATE_TEST_SUITE_P(A_HF,BSr_U_Medium,::testing::Values(2,4));//)); 
+INSTANTIATE_TEST_SUITE_P(A_HF,BSr_U_Medium,::testing::Values(2,4));//));
 
-class SG_U_Medium : public A_HF_U {};
+class SG_U_Medium : public ::testing::TestWithParam<size_t> {};
 TEST_P(SG_U_Medium,A)
 {
     size_t Z=GetParam();
     cout << "---------------- Z=" << Z << " ---------------"<< endl;
-        
-    QchemTester::Init(Medium,BasisSet::Atom::Type::Gaussian,verbose);
-    //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo    MergeTol verbose
-    Iterate({   50     ,Z*1e-5    ,1e-7 , 5e-2      ,Z*1e-6 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
-    // cout << "RelativeHFError = " << RelativeHFError() << std::endl;
-    EXPECT_LT(RelativeHFError(),2e-4); 
-    EXPECT_TRUE(Converged()); 
-        
+    bool conv; double Eerr=HF_Eerr(Z, AtomType::Gaussian, Medium,
+        {.NMaxIter = 50, .MinΔρ = Z*1e-5, .MinΔFD = 1e-7, .MinVirial = 5e-2, .MinFD = Z*1e-6, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true}, conv);
+    EXPECT_LT(Eerr,2e-4);
+    EXPECT_TRUE(conv);
 }
-INSTANTIATE_TEST_SUITE_P(A_HF,SG_U_Medium,::testing::Values(2,4));//)); 
+INSTANTIATE_TEST_SUITE_P(A_HF,SG_U_Medium,::testing::Values(2,4));//));
 
-class SL_U_Medium : public A_HF_U {};
+class SL_U_Medium : public ::testing::TestWithParam<size_t> {};
 TEST_P(SL_U_Medium,A)
 {
     size_t Z=GetParam();
     cout << "---------------- Z=" << Z << " ---------------"<< endl;
-        
-    QchemTester::Init(Medium,BasisSet::Atom::Type::Slater,verbose);
-    //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo    MergeTol verbose
-    Iterate({   22     ,Z*1e-4    ,1e-5 , 5e-4      ,Z*1e-6 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
-    EXPECT_LT(RelativeHFError(),20e-6); 
-    EXPECT_TRUE(Converged()); 
-        
+    bool conv; double Eerr=HF_Eerr(Z, AtomType::Slater, Medium,
+        {.NMaxIter = 22, .MinΔρ = Z*1e-4, .MinΔFD = 1e-5, .MinVirial = 5e-4, .MinFD = Z*1e-6, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true}, conv);
+    EXPECT_LT(Eerr,20e-6);
+    EXPECT_TRUE(conv);
 }
 
-INSTANTIATE_TEST_SUITE_P(A_HF,SL_U_Medium,::testing::Values(2,88));//)); 
+INSTANTIATE_TEST_SUITE_P(A_HF,SL_U_Medium,::testing::Values(2,88));//));
 
 #endif //MEDIUM
 
 #ifdef LOW
 
-class BS_U_Low : public A_HF_U {};
-class BSr_U_Low : public A_HF_U {};
+class BS_U_Low : public ::testing::TestWithParam<size_t> {};
+class BSr_U_Low : public ::testing::TestWithParam<size_t> {};
 #ifdef DEBUG
 TEST_P(BS_U_Low,A)
 {
     size_t Z=GetParam();
     cout << "---------------- Z=" << Z << " ---------------"<< endl;
-        
-    QchemTester::Init(Low,BasisSet::Atom::Type::BSpline6,verbose);
-    //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo    MergeTol verbose
-    Iterate({   30     ,Z*1e-7    ,1e-7 , 5e-5      ,Z*1e-7 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
-    // cout << "RelativeHFError = " << RelativeHFError() << std::endl;
-    double Eerr=RelativeHFError();
+    bool conv; double Eerr=HF_Eerr(Z, AtomType::BSpline6, Low,
+        {.NMaxIter = 30, .MinΔρ = Z*1e-7, .MinΔFD = 1e-7, .MinVirial = 5e-5, .MinFD = Z*1e-7, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true}, conv);
     EXPECT_LT(Eerr,40e-6);
     EXPECT_GT(Eerr,-1e-4);
-    EXPECT_TRUE(Converged()); 
-        
+    EXPECT_TRUE(conv);
 }
 INSTANTIATE_TEST_SUITE_P(A_HF,BS_U_Low,::testing::Values(2,4));//));
 TEST_P(BSr_U_Low,A)
 {
     size_t Z=GetParam();
     cout << "---------------- Z=" << Z << " ---------------"<< endl;
-        
-    QchemTester::Init(Low,BasisSet::Atom::Type::BSpliner6,verbose);
-    //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo    MergeTol verbose
-    Iterate({   30     ,Z*1e-7    ,1e-7 , 5e-5      ,Z*1e-7 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
-    // cout << "RelativeHFError = " << RelativeHFError() << std::endl;
-    double Eerr=RelativeHFError();
+    bool conv; double Eerr=HF_Eerr(Z, AtomType::BSpliner6, Low,
+        {.NMaxIter = 30, .MinΔρ = Z*1e-7, .MinΔFD = 1e-7, .MinVirial = 5e-5, .MinFD = Z*1e-7, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true}, conv);
     EXPECT_LT(Eerr,40e-6);
     EXPECT_GT(Eerr,-1e-4);
-    EXPECT_TRUE(Converged()); 
-        
+    EXPECT_TRUE(conv);
 }
-INSTANTIATE_TEST_SUITE_P(A_HF,BSr_U_Low,::testing::Values(2,4));//)); 
+INSTANTIATE_TEST_SUITE_P(A_HF,BSr_U_Low,::testing::Values(2,4));//));
 #else
 TEST_P(BS_U_Low,A)
 {
     size_t Z=GetParam();
     cout << "---------------- Z=" << Z << " ---------------"<< endl;
-        
-    QchemTester::Init(Low,BasisSet::Atom::Type::BSpline6,verbose);
-    //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo    MergeTol verbose
-    Iterate({   30     ,Z*1e-7    ,1e-7 , 5e-5      ,Z*1e-7 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
-    // cout << "RelativeHFError = " << RelativeHFError() << std::endl;
-    double Eerr=RelativeHFError();
+    bool conv; double Eerr=HF_Eerr(Z, AtomType::BSpline6, Low,
+        {.NMaxIter = 30, .MinΔρ = Z*1e-7, .MinΔFD = 1e-7, .MinVirial = 5e-5, .MinFD = Z*1e-7, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true}, conv);
     EXPECT_LT(Eerr,40e-6);
     EXPECT_GT(Eerr,-1e-4);
-    EXPECT_TRUE(Converged()); 
-        
+    EXPECT_TRUE(conv);
 }
-INSTANTIATE_TEST_SUITE_P(A_HF,BS_U_Low,::testing::Values(2,4));//)); 
+INSTANTIATE_TEST_SUITE_P(A_HF,BS_U_Low,::testing::Values(2,4));//));
 #endif
 
-class SL_U_Low : public A_HF_U {};
+class SL_U_Low : public ::testing::TestWithParam<size_t> {};
 TEST_P(SL_U_Low,A)
 {
     size_t Z=GetParam();
     cout << "---------------- Z=" << Z << " ---------------"<< endl;
-        
-    QchemTester::Init(Low,BasisSet::Atom::Type::Slater,verbose);
-    //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo    MergeTol verbose
-    Iterate({   30     ,Z*1e-4    ,1e-4 , 5e-1      ,Z*2e-5 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
-    // cout << "RelativeHFError = " << RelativeHFError() << std::endl;
-    EXPECT_LT(RelativeHFError(),0.01); //1% 
-    EXPECT_TRUE(Converged()); 
-        
+    bool conv; double Eerr=HF_Eerr(Z, AtomType::Slater, Low,
+        {.NMaxIter = 30, .MinΔρ = Z*1e-4, .MinΔFD = 1e-4, .MinVirial = 5e-1, .MinFD = Z*2e-5, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true}, conv);
+    EXPECT_LT(Eerr,0.01); //1%
+    EXPECT_TRUE(conv);
 }
 #ifdef DEBUG
 INSTANTIATE_TEST_SUITE_P(A_HF,SL_U_Low,::testing::Values(2,4,10));//));
 #else
-INSTANTIATE_TEST_SUITE_P(A_HF,SL_U_Low,::testing::Values(2,88));//)); 
+INSTANTIATE_TEST_SUITE_P(A_HF,SL_U_Low,::testing::Values(2,88));//));
 #endif
 
 #endif //LOW
-
-
-

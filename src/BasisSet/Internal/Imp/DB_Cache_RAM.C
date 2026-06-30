@@ -11,11 +11,12 @@ module;
 #include <chrono>
 #include <functional>
 #include <stdexcept>
+#include <tuple>
 module qchem.BasisSet.Internal.DB_Cache_RAM;
 
 namespace std
 {
-    using I1C=BasisSet::IntegralsCache_Base::I1C;
+    using I1C=qchem::BasisSet::IntegralsCache_Base::I1C;
     template <> struct formatter<I1C> : formatter<string_view> {  
     auto format(I1C c, std::format_context& ctx) const {  
         string_view name;  
@@ -27,7 +28,7 @@ namespace std
     }  
     }; 
 
-    using I2C=BasisSet::IntegralsCache_Base::I2C;
+    using I2C=qchem::BasisSet::IntegralsCache_Base::I2C;
     template <> struct formatter<I2C> : formatter<string_view> 
     {  
         auto format(I2C c, format_context& ctx) const 
@@ -45,7 +46,7 @@ namespace std
             return formatter<string_view>::format(name, ctx);  
         }
     };  
-    using I2x=BasisSet::IntegralsCache_Base::I2x;
+    using I2x=qchem::BasisSet::IntegralsCache_Base::I2x;
     template <> struct formatter<I2x> : formatter<string_view> 
     {  
         auto format(I2x c, format_context& ctx) const 
@@ -60,7 +61,7 @@ namespace std
         }
     };  
 
-    using I2n=BasisSet::IntegralsCache_Base::I2n;
+    using I2n=qchem::BasisSet::IntegralsCache_Base::I2n;
     template <> struct formatter<I2n> : formatter<string_view> 
     {  
         auto format(I2n c, format_context& ctx) const 
@@ -73,7 +74,7 @@ namespace std
         }
     };  
 
-    using I3C=BasisSet::IntegralsCache_Base::I3C;
+    using I3C=qchem::BasisSet::IntegralsCache_Base::I3C;
     template <> struct formatter<I3C> : formatter<string_view> 
     {  
         auto format(I3C c, format_context& ctx) const 
@@ -87,7 +88,7 @@ namespace std
         }
     };  
 
-    using I4C=BasisSet::IntegralsCache_Base::I4C;
+    using I4C=qchem::BasisSet::IntegralsCache_Base::I4C;
     template <> struct formatter<I4C> : formatter<string_view> 
     {  
         auto format(I4C c, format_context& ctx) const 
@@ -102,7 +103,7 @@ namespace std
     };  
 
 }
-namespace BasisSet
+namespace qchem::BasisSet
 {
 
 //
@@ -358,6 +359,56 @@ template <class T> const rmat_t& IntegralsCache_RAM<T>::Get(I2x i2x,const DBCach
     const auto [it,ok]=itsmMats.insert({key,std::move(v)});
     assert(ok);
     return it->second;
+}
+
+// --- Troubleshooting / DBCache-unit-test Clear() hooks (see the declarations in the interface partition).
+// kCacheTestHooks is the compile-time switch -- the constexpr-bool idiom (cf. EnableMOM in CompositeWF.C),
+// NO preprocessor.  Default true so the DBCache unit tests run in the normal Release UTMain; flip to false
+// to drop the bodies from a hardened production build (they are unreachable from production code anyway,
+// which only holds the abstract IntegralsCache<T> face).  Each erases the entries for one operator; the
+// enum value comparison is on std::get<0>(key) (the operator slot) for every keyed map.
+constexpr bool kCacheTestHooks = true;
+
+template <class T> void IntegralsCache_RAM<T>::Clear(I1C op)
+{
+    if constexpr (kCacheTestHooks)
+    {
+        std::erase_if(itsVecs,  [&](const auto& kv){ return std::get<0>(kv.first)==op; });
+        std::erase_if(itsmVecs, [&](const auto& kv){ return std::get<0>(kv.first)==op; });
+    }
+}
+template <class T> void IntegralsCache_RAM<T>::Clear(I2C op)
+{
+    if constexpr (kCacheTestHooks)
+        std::erase_if(itsSMats, [&](const auto& kv){ return std::get<0>(kv.first)==op; });
+}
+template <class T> void IntegralsCache_RAM<T>::Clear(I2n)
+{
+    // keyn_t = (IBS_ID_t, Structure_ID_t) carries no I2n value (Nuclear is the only operator), so the
+    // whole nuclear map is the single operator's worth of entries.
+    if constexpr (kCacheTestHooks)
+        itsNMats.clear();
+}
+template <class T> void IntegralsCache_RAM<T>::Clear(I2x op)
+{
+    if constexpr (kCacheTestHooks)
+    {
+        std::erase_if(itsMats,  [&](const auto& kv){ return std::get<0>(kv.first)==op; });
+        std::erase_if(itsmMats, [&](const auto& kv){ return std::get<0>(kv.first)==op; });
+    }
+}
+template <class T> void IntegralsCache_RAM<T>::Clear(I3C op)
+{
+    if constexpr (kCacheTestHooks)
+        std::erase_if(itsERI3s, [&](const auto& kv){ return std::get<0>(kv.first)==op; });
+}
+template <class T> void IntegralsCache_RAM<T>::Clear(I4C op)
+{
+    // Jac/Kab are nested id->id->ERI4 maps with no operator in the key; Direct lives in Jac, Exchange in
+    // Kab.  ERI4_timestamps / itsTotalRAM are advisory GC bookkeeping (stale entries are tolerated and
+    // self-correct), so a troubleshooting clear leaves them be.
+    if constexpr (kCacheTestHooks)
+        (op==I4C::Direct ? Jac : Kab).clear();
 }
 
 template struct IntegralsCache<double>;

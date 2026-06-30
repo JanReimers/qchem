@@ -3,7 +3,7 @@ module;
 export module qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.Rk; 
 export import qchem.BasisSet.Atom.Evaluators.Internal.Rk;
 
-export namespace Gaussian
+export namespace qchem::Gaussian
 {
 //
 // Store exponents and derivative tables for a 4 electron charge distribution ab|cd

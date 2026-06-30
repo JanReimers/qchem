@@ -3,7 +3,7 @@ module;
 export module qchem.BasisSet.Atom.Evaluators.Slater.Internal.Rk; 
 export import qchem.BasisSet.Atom.Evaluators.Internal.Rk;
 
-export namespace Slater
+export namespace qchem::Slater
 {
 //
 // Store exponents and derivative tables for a 4 electron charge distribution ab|cd

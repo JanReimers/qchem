@@ -19,9 +19,9 @@ import qchem.Streamable;
 import qchem.Math;
 import qchem.Blaze;
 
-namespace BasisSet::Molecule::PG_Cart
+namespace qchem::BasisSet::Molecule::PG_Cart
 {
-using namespace ::BasisSet::Molecule::Evaluators::PG_Cart_MnD;  // Cartesian glue moved out to PG_Cart_MnD
+using namespace ::qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD;  // Cartesian glue moved out to PG_Cart_MnD
 
 rvec_t EFit_IBS::MakeCharge() const
 {

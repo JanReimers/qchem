@@ -3,7 +3,7 @@ module;
 #include <stdexcept>
 module qchem.Mesh.Radial;
 
-namespace qcMesh
+namespace qchem::qcMesh
 {
 
 RadialMesh MakeRadial(const MeshParams& p)
@@ -17,4 +17,4 @@ RadialMesh MakeRadial(const MeshParams& p)
     throw std::runtime_error("MakeRadial: unknown RadialKind");
 }
 
-} //namespace qcMesh
+} //namespace qchem::qcMesh

@@ -2,6 +2,7 @@
 module;
 #include <iosfwd>
 #include <cassert>
+#include "forward.H"
 export module qchem.BasisSet.Atom.Evaluators.Slater.IBS;
 export import qchem.BasisSet.Atom.Evaluators.Internal.ExponentialEvaluator;
 import qchem.BasisSet.Atom.Evaluators.Internal.NR_Angular;
@@ -16,7 +17,7 @@ import qchem.IntPow;
 import qchem.Blaze;
 import qchem.Math;
 
-export namespace BasisSet::Atom::Evaluators::Slater
+export namespace qchem::BasisSet::Atom::Evaluators::Slater
 {
 
 // Slater::Radial holds all Slater-specific 1e integrals and Rk machinery,
@@ -36,52 +37,52 @@ public:
     virtual std::ostream& Write   (std::ostream&) const;
     double Overlap(size_t i,size_t j) const
     {
-        return ::Slater::Integral(es[i]+es[j],2*l)*ns[i]*ns[j]; //Already has 4*Pi and r^2 from dr.
+        return ::qchem::Slater::Integral(es[i]+es[j],2*l)*ns[i]*ns[j]; //Already has 4*Pi and r^2 from dr.
     } 
     double Inv_r1(size_t i,size_t j) const
     {
-        return ::Slater::Integral(es[i]+es[j],2*l-1)*ns[i]*ns[j]; //Already has 4*Pi
+        return ::qchem::Slater::Integral(es[i]+es[j],2*l-1)*ns[i]*ns[j]; //Already has 4*Pi
     }
     double Overlap(size_t i,size_t j, const Radial& c, size_t ic) const
     {
-        return ::Slater::Integral(es[i]+es[j]+c.es[ic],2*l+c.l)*ns[i]*ns[j]*c.ns[ic]; //Already has 4*Pi and r^2 from dr.
+        return ::qchem::Slater::Integral(es[i]+es[j]+c.es[ic],2*l+c.l)*ns[i]*ns[j]*c.ns[ic]; //Already has 4*Pi and r^2 from dr.
     }
 
         double Grad2(size_t i,size_t j) const
     {
         double ab=es[i]+es[j];
-        double Term1=(l+1)*(l+1)*::Slater::Integral(ab,2*l-2); //SlaterIntegral already has 4*Pi
-        double Term2=-(l+1)*ab  *::Slater::Integral(ab,2*l-1);
-        double Term3=es[i]*es[j]*::Slater::Integral(ab,2*l);
+        double Term1=(l+1)*(l+1)*::qchem::Slater::Integral(ab,2*l-2); //SlaterIntegral already has 4*Pi
+        double Term2=-(l+1)*ab  *::qchem::Slater::Integral(ab,2*l-1);
+        double Term3=es[i]*es[j]*::qchem::Slater::Integral(ab,2*l);
         return (Term1+Term2+Term3)*ns[i]*ns[j];
     } 
     double Inv_r2(size_t i,size_t j) const
     {
-        return ::Slater::Integral(es[i]+es[j],2*l-2)*ns[i]*ns[j]; //Already has 4*Pi
+        return ::qchem::Slater::Integral(es[i]+es[j],2*l-2)*ns[i]*ns[j]; //Already has 4*Pi
     }
 
     double Repulsion(size_t i,size_t j, const Radial& c, size_t ic) const
     {
-        ::Slater::RkEngine cd(es[i]+es[j],c.es[ic],max(l,c.l));
+        ::qchem::Slater::RkEngine cd(es[i]+es[j],c.es[ic],max(l,c.l));
         return cd.DirectR0  (l,c.l)*FourPi2*ns[i]*ns[j]*c.ns[ic];
     }
     double Repulsion(size_t i,size_t j) const
     {
-        ::Slater::RkEngine cd(es[i],es[j],l);
+        ::qchem::Slater::RkEngine cd(es[i],es[j],l);
         return cd.DirectR0  (l,l)*FourPi2*ns[i]*ns[j];
     }
     double Repulsion(size_t i,size_t j, const Radial& b) const
     {
-        ::Slater::RkEngine cd(es[i],b.es[j],max(l,b.l));
+        ::qchem::Slater::RkEngine cd(es[i],b.es[j],max(l,b.l));
         return cd.DirectR0  (l,b.l)*FourPi2*ns[i]*b.ns[j];
     }
     double Charge(size_t i) const
     {
-        return ::Slater::Integral(es[i],l)*ns[i];
+        return ::qchem::Slater::Integral(es[i],l)*ns[i];
     }
     double Norm(size_t i) const
     {
-        return 1.0/sqrt(::Slater::Integral(2*es[i],2*l));
+        return 1.0/sqrt(::qchem::Slater::Integral(2*es[i],2*l));
     }
 
     virtual  rvec_t Norm     () const {return ns;}
@@ -95,12 +96,12 @@ public:
     using rvec11_t=rvec11_t;
     static double direct(const Cacheable4* c, size_t la, size_t lc,const rvec11_t& Ak)
     {
-        const ::Slater::RkEngine* cd = dynamic_cast<const ::Slater::RkEngine*>(c);
+        const ::qchem::Slater::RkEngine* cd = dynamic_cast<const ::qchem::Slater::RkEngine*>(c);
         return cd->DirectRk  (la,lc,Ak); // contract over k Rk*Ak
     }
     static double exchange(const Cacheable4* c, size_t la, size_t lc,const rvec11_t& Ak)
     {
-        const ::Slater::RkEngine* cd = dynamic_cast<const ::Slater::RkEngine*>(c);
+        const ::qchem::Slater::RkEngine* cd = dynamic_cast<const ::qchem::Slater::RkEngine*>(c);
         return cd->ExchangeRk(la,lc,Ak); // contract over k Rk*Ak, exchange version is more complicated
     }
 
@@ -185,11 +186,11 @@ public:
         // The κ-dependent terms (the spin-orbit piece) vanish for j=l+1/2 (κ<0, l+1+κ=0)
         // and are present for j=l-1/2 (κ>0, l+1+κ=2l+1), splitting e.g. 2p1/2 from 2p3/2.
         double ab=es[i]+es[j];
-        double t=es[i]*es[j]*::Slater::Integral(ab,2*l-1);
+        double t=es[i]*es[j]*::qchem::Slater::Integral(ab,2*l-1);
         if (Getκ()>0)
         {
             double kt=l+1+Getκ();
-            t += kt*kt*::Slater::Integral(ab,2*l-3) - kt*ab*::Slater::Integral(ab,2*l-2);
+            t += kt*kt*::qchem::Slater::Integral(ab,2*l-3) - kt*ab*::qchem::Slater::Integral(ab,2*l-2);
         }
         return t*ns[i]*ns[j]; //Already has 4*Pi
     }
@@ -221,17 +222,17 @@ public:
         //  All unsupport Rks will be removed.  These will then automatically be recreated next time
         //  loop_4 is called.
         //
-        ::Cache4::Register(eval);
+        ::qchem::Cache4::Register(eval);
     }
     virtual Rk*  Create (size_t ia,size_t ic,size_t ib,size_t id) const
     {
-        return new ::Slater::RkEngine(
+        return new ::qchem::Slater::RkEngine(
             grouper.unique_esv[ia]+grouper.unique_esv[ib],
             grouper.unique_esv[ic]+grouper.unique_esv[id],
             grouper.LMax(ia,ib,ic,id));
     }
 private:
-    friend class Cache4Tests;
+    friend class ::Cache4Tests;
     ExponentGrouper grouper;
 };
 

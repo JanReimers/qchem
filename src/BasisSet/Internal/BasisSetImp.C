@@ -3,12 +3,13 @@ module;
 #include <memory>
 #include <vector>
 #include <cassert>
+#include "forward.H"
 export module qchem.BasisSet.Internal.BasisSetImp;
 export import qchem.Types;
 export import qchem.BasisSet;
 import qchem.stl_io;
 
-export namespace BasisSet
+export namespace qchem::BasisSet
 {
 
 template <class T> class BasisSetImp
@@ -48,8 +49,8 @@ protected:
     virtual size_t      GetNumIBS()      const {return itsBasisSets.size();}
     virtual const bs_t* GetIBS(size_t i) const {return itsBasisSets[i].get();}
 
-    friend class SlaterRadialIntegralTests;
-    friend class DiracIntegralTests;
+    friend class ::SlaterRadialIntegralTests;
+    friend class ::DiracIntegralTests;
 
     std::vector<std::unique_ptr<bs_t>> itsBasisSets;
 };

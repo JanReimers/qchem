@@ -4,7 +4,7 @@ export module qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.ExponentScaler;
 import qchem.Types;
 import qchem.Symmetry.Irrep;
 
-export namespace Gaussian
+export namespace qchem::Gaussian
 {
 
 class ExponentScaler

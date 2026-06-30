@@ -8,7 +8,7 @@ import qchem.Symmetry.BlochQN;
 import qchem.Symmetry.Unit;
 
 
-namespace Symmetry
+namespace qchem::Symmetry
 {
 using namespace Internal::Spherical;
 

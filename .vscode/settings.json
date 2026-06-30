@@ -28,7 +28,6 @@
     
         "git.ignoredRepositories": [
         "submodules/wignerSymbols",
-        "submodules/blaze",
         "submodules/BSplinebasis",
         "submodules/tabulate",
         "submodules/googletest",

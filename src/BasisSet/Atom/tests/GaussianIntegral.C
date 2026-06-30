@@ -19,6 +19,7 @@ import qchem.VectorFunction;             // VectorFunction<double> (the basis ev
 import qchem.Symmetry.Spherical;
 import qchem.Symmetry.Factory;
 import qchem.Blaze;
+using namespace qchem;
 
 using std::cout;
 using std::endl;
@@ -129,7 +130,7 @@ TEST_F(GaussianRadialIntegralTests, Kinetic)
 
 TEST_F(GaussianRadialIntegralTests,RkSymmetry_l0)
 {
-    using namespace BasisSet::Atom::Evaluators::Gaussian;
+    using namespace qchem::BasisSet::Atom::Evaluators::Gaussian;
     typedef rvec11_t rvec11_t; 
     auto eval=new NR_Evaluator(15,.03,20.0,Symmetry::YFactory(0));
     auto cache4=eval->MakeCache4();

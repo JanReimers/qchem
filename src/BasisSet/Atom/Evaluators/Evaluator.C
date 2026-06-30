@@ -11,7 +11,7 @@ import qchem.BasisSet.Internal.Cache4;
 import qchem.Types;
 
 
-export namespace BasisSet::Atom::Evaluators
+export namespace qchem::BasisSet::Atom::Evaluators
 {
 //
 //  Abstract inteface for all evaluators.  We need to use mixins when creating the final (concrete) evaluators in order to support

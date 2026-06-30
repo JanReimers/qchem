@@ -29,7 +29,7 @@ import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;
 import qchem.Structure;
 import qchem.Types;
 
-namespace BasisSet::Molecule::Evaluators::PG_LibCint
+namespace qchem::BasisSet::Molecule::Evaluators::PG_LibCint
 {
 using PG_Cart_MnD::PGData;
 using PG_Cart_MnD::Polarization;

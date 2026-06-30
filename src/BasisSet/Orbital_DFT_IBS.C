@@ -6,7 +6,7 @@ export import qchem.BasisSet.Orbital_1E_IBS;
 export import qchem.BasisSet.Fit_IBS;
 export import qchem.BasisSet.Internal.ERI3;
 
-export namespace BasisSet
+export namespace qchem::BasisSet
 {
 
 template <class T> class Orbital_DFT_IBS

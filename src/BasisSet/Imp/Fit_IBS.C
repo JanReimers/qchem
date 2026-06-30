@@ -11,7 +11,7 @@ import qchem.Structure.MolecularMesh;  // MakeMolecularMesh (the Becke mesh)
 import qchem.BasisSet.Internal.DB_Cache;
 import qchem.Blaze;
 
-namespace BasisSet
+namespace qchem::BasisSet
 {
 
 namespace
@@ -41,7 +41,8 @@ public:
 
 void Fit_IBS::SetMesh(const Structure& st, const qcMesh::MeshParams& mp)
 {
-    itsMesh = MakeMolecularMesh(st, mp);
+    itsMesh   = MakeMolecularMesh(st, mp);
+    itsMeshID = mp.ID();   // cache key axis for the mesh-dependent Norm() (see Norm below)
 }
 
 const  rvec_t& Fit_IBS::Charge   () const
@@ -70,10 +71,16 @@ const rsmat_t& Fit_IBS::InvRepulsion() const
         [this]{ return MakeInvRepulsion(); });
 }
 
-// The mesh is fixed per fit basis, so the normalisation caches on `this` alone (no mesh key).
+// Norm() is a MESH QUADRATURE (qcMesh::Normalize over itsMesh), so it MUST be keyed by the mesh as well
+// as the basis: the same fit basis (same BasisSetID) built with a different mesh has a different Norm.
+// We therefore use the mesh-keyed I1C cache variant (Mesh_ID = MeshParams::ID(), stamped in SetMesh).
+// Keying on BasisSetID alone silently served, e.g., the HF SAD bootstrap's coarse-seed-mesh Norm to a
+// later production DFT run on a finer mesh -> a ~585 ppm energy drift (the analytic Charge/Repulsion/
+// Inv* below are mesh-independent and correctly stay keyed on the basis alone).
 const rvec_t& Fit_IBS::Norm() const
 {
-    return theCache<double>().Get(IntegralsCache_Base::I1C::Normalization,this,
+    assert(!itsMeshID.empty());   // SetMesh must run before any numerical integral
+    return theCache<double>().Get(IntegralsCache_Base::I1C::Normalization,this,itsMeshID,
         [this]{ return MakeNorm(); });
 }
 

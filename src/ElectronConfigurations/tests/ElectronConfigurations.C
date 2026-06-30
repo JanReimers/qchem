@@ -12,6 +12,7 @@ import qchem.Symmetry.Factory;
 
 import qchem.ElectronConfiguration.AtomNR;
 import qchem.Strings;
+using namespace qchem;
 
 using std::cout;
 using std::endl;

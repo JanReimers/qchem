@@ -5,7 +5,7 @@ import qchem.BasisSet.Atom.Internal.FillPower;
 import qchem.Symmetry.Spherical;
 import qchem.Blaze;
 
-namespace Gaussian
+namespace qchem::Gaussian
 {
 
 
@@ -16,7 +16,7 @@ namespace Gaussian
     , itsemax(emax)
     , es(N)
 {
-    ::FillPower(es,itsemin,itsemax);
+    qchem::FillPower(es,itsemin,itsemax);
 };
 
 rvec_t ExponentScaler::Get_es(size_t L) const

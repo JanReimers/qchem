@@ -3,7 +3,7 @@ module;
 #include <iostream>
 module qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;
 
-namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
+namespace qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD
 {
 
 int Polarization::GetMaximumL() const
@@ -41,4 +41,4 @@ std::ostream& operator<<(std::ostream& os, const Polarization& p)
 }
 
 
-} //namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
+} //namespace qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD

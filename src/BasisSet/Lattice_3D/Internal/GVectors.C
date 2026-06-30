@@ -8,7 +8,7 @@ export module qchem.BasisSet.Lattice_3D.Internal.GVectors;
 import qchem.ReciprocalLattice;   // ReciprocalLattice, UnitCell
 import qchem.Types;               // ivec3_t, rvec3_t
 
-export namespace BasisSet::Lattice_3D::Internal
+export namespace qchem::BasisSet::Lattice_3D::Internal
 {
 //! The reciprocal-lattice index triples \f$m\f$ (\f$G=B\,m\f$) in the plane-wave cutoff set
 //! \f$\{G : \tfrac12|k+G|^2 < E_{cut}\}\f$, shared by every plane-wave-based lattice basis set

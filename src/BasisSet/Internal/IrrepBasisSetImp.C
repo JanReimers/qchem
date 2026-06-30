@@ -6,7 +6,7 @@ export module qchem.BasisSet.Internal.IrrepBasisSetImp;
 import qchem.BasisSet.IrrepBasisSet;
 import qchem.Symmetry.Irrep;
 
-export namespace BasisSet
+export namespace qchem::BasisSet
 {
 
 template <class T> class IrrepBasisSetImp

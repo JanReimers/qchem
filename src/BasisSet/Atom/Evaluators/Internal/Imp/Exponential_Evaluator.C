@@ -6,7 +6,7 @@ module qchem.BasisSet.Atom.Evaluators.Internal.ExponentialEvaluator;
 import qchem.Math;
 import qchem.Blaze;
 
-namespace BasisSet::Atom::Evaluators
+namespace qchem::BasisSet::Atom::Evaluators
 {
 
 void ExponentialEvaluator::Register(Grouper* _grouper)

@@ -8,7 +8,7 @@ module;
 module qchem.Mesh.Angular;
 import qchem.Math;
 
-namespace qcMesh
+namespace qchem::qcMesh
 {
 
 AngularMesh EulerMaclarenAngular(int L, int m)
@@ -57,4 +57,4 @@ AngularMesh EulerMaclarenAngular(int L, int m)
     return AngularMesh(std::move(D), std::move(W));
 }
 
-} //namespace qcMesh
+} //namespace qchem::qcMesh

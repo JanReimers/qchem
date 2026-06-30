@@ -7,7 +7,7 @@ module;
 module qchem.Symmetry.SALC;
 import qchem.Blaze;
 
-namespace Symmetry
+namespace qchem::Symmetry
 {
 
 SALCs BuildSALCs(const std::vector<AoShell>& shells, const AbelianGroup& g,

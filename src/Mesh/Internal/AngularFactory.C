@@ -3,7 +3,7 @@ module;
 #include <stdexcept>
 module qchem.Mesh.Angular;
 
-namespace qcMesh
+namespace qchem::qcMesh
 {
 
 AngularMesh MakeAngular(const MeshParams& p)
@@ -17,4 +17,4 @@ AngularMesh MakeAngular(const MeshParams& p)
     throw std::runtime_error("MakeAngular: unknown AngularKind");
 }
 
-} //namespace qcMesh
+} //namespace qchem::qcMesh

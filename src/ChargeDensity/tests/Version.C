@@ -16,6 +16,7 @@ import qchem.Lattice_3D;                        // UnitCell, Lattice_3D
 import qchem.BasisSet.Lattice_3D.BasisSet;      // L3::Factory(PW,...), Complex_BS
 import qchem.BasisSet.Band_FT_IBS;              // Band_FT_IBS
 import qchem.Types;                             // rvec3_t, ivec3_t
+using namespace qchem;
 
 using namespace qchem::ChargeDensity;
 
@@ -23,7 +24,7 @@ TEST(DensityVersion, DistinctAndMonotonicAcrossKinds)
 {
     // A minimal plane-wave block + a one-atom (Si, in atomic_valence_densities.json) structure for the
     // FourierSeedCD.  Tiny Ecut: we only construct, never run the SCF or GetFourierDensity.
-    namespace L3 = BasisSet::Lattice_3D;
+    namespace L3 = ::qchem::BasisSet::Lattice_3D;
     UnitCell   cell(10.0);
     cell.AddAtom(14, rvec3_t(0,0,0));            // Si (Z=14)
     Lattice_3D lat(cell, ivec3_t(1,1,1));

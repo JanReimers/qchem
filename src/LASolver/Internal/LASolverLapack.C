@@ -4,6 +4,8 @@ export module qchem.LASolver.Internal.Lapack;
 export import qchem.LASolver;
 import qchem.Blaze;
 
+namespace qchem {
+
 export template <class T> class LASolverEigen : public virtual LASolver<T>
 {
     typedef LASolver<T> Base;
@@ -69,3 +71,5 @@ private:
     lmat_t   itsVd;   // trans(U^{-1}), lower triangular
     rvec_t   itsD;
 };
+
+} // namespace qchem

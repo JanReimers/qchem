@@ -20,7 +20,7 @@ import qchem.Symmetry.Factory;
 import qchem.Constants;
 import qchem.Blaze;
 
-export namespace BasisSet
+export namespace qchem::BasisSet
 {
 namespace Atom
 {

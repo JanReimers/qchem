@@ -6,6 +6,8 @@ export module qchem.ReciprocalLattice;
 export import qchem.UnitCell;
 import qchem.Streamable;
 
+namespace qchem {
+
 //! \brief The reciprocal lattice dual to a (direct) Lattice.
 //!
 //! Holds the reciprocal UnitCell — whose cell matrix is \f$B = 2\pi A^{-\top}\f$,
@@ -33,3 +35,5 @@ public:
 private:
     UnitCell itsCell; //!< Reciprocal cell: its lattice matrix is \f$B = 2\pi A^{-\top}\f$.
 };
+
+} // namespace qchem

@@ -11,7 +11,7 @@ export import qchem.BasisSet;                          // Complex_BS (= BasisSet
 export import qchem.Lattice_3D;                        // Lattice_3D (the crystal structure + BZ grid)
 export import qchem.BasisSet.Lattice_3D.PlaneWave_IBS; // PlaneWave_IBS + LocalPotential/SeparablePotential
 
-export namespace BasisSet::Lattice_3D
+export namespace qchem::BasisSet::Lattice_3D
 {
 
 //! \brief Which 3D-periodic basis to build.  PW = plane waves (lineage A); APW/LAPW (lineage B) follow.
@@ -23,6 +23,6 @@ enum class Type { PW };
 //!   (the pseudo-wall), which calls the basis's MakeLocalPotential/MakeSeparablePotential assembly.
 //! \note Single-k for now: the returned basis holds ONE Bloch block at \f$\Gamma\f$.  Phase 2
 //!   generalises this to the full BZ k-list (intended to be the only k-loop in the framework).
-Complex_BS* Factory(Type type, const ::Lattice_3D& lat, double Ecut);
+Complex_BS* Factory(Type type, const ::qchem::Lattice_3D& lat, double Ecut);
 
 } //namespace

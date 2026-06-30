@@ -16,7 +16,7 @@ export import qchem.Pseudopotential.SeparablePotential;
 import qchem.Structure;   // Structure -- the external-potential structure-factor source (positions, Z)
 import qchem.Types;       // hmat_t<T>
 
-export namespace Pseudopotential
+export namespace qchem::Pseudopotential
 {
 
 //! \brief Pseudopotential operator-assembly mixin: builds the external (pseudo)potential matrix blocks

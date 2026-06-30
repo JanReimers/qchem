@@ -9,6 +9,7 @@ import qchem.Structure;                 // Molecule, Atom, Structure
 import qchem.Structure.MolecularMesh;  // MakeMolecularMesh
 import qchem.Mesh.Quadrature;          // qcMesh::Integrate, ScalarField
 import qchem.Math;                      // Pi32
+using namespace qchem;
 
 // Note: this TU sees BOTH the old global `Mesh`/`MeshParams` (via qchem.Structure) and the new
 // qcMesh::* -- so we qualify qcMesh:: throughout and never name a bare Mesh/MeshParams.

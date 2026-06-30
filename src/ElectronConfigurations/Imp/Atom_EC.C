@@ -13,6 +13,8 @@ import qchem.Symmetry.Factory;
 import qchem.stl_io;
 import qchem.Blaze;
 
+namespace qchem {
+
 using std::cout;
 using std::endl;
 
@@ -308,3 +310,5 @@ void Atom_EC::Display() const
     cout << "-------------------------------------------" << endl;
 }
    
+
+} // namespace qchem

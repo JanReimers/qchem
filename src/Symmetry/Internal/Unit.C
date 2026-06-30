@@ -5,6 +5,8 @@ export module qchem.Symmetry.Unit;
 export import qchem.Symmetry;
 export import qchem.Types;
 
+namespace qchem {
+
 export class UnitQN
     : public virtual Symmetry::Symmetry
 {
@@ -18,3 +20,5 @@ public:
 };
 
 
+
+} // namespace qchem

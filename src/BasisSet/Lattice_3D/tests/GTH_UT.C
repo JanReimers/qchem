@@ -19,6 +19,7 @@ import qchem.Structure;      // Molecule, Atom
 import qchem.Matrix3D;       // Matrix3D<double>
 import qchem.Types;
 import qchem.Blaze;
+using namespace qchem;
 
 using BasisSet::Lattice_3D::PlaneWave_IBS;
 using Pseudopotential::HGH_LocalPotential;

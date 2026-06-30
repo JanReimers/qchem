@@ -8,6 +8,8 @@ module;
 export module qchem.FourierMap;
 import qchem.Types;   // ivec3_t, dcmplx
 
+namespace qchem {
+
 //! Lexicographic comparator so a reciprocal-index triple \f$\Delta m\f$ can key a map.
 export struct IVec3Less
 {
@@ -18,3 +20,5 @@ export struct IVec3Less
 //! G-space components (density \f$\tilde\rho\f$ or potential \f$\tilde V\f$) keyed by the reciprocal-index
 //! difference \f$\Delta m\f$ (\f$\Delta G = B\,\Delta m\f$).
 export using FourierMap = std::map<ivec3_t, dcmplx, IVec3Less>;
+
+} // namespace qchem

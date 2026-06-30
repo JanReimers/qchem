@@ -4,7 +4,7 @@ module;
 #include <vector>
 module qchem.Symmetry.CharacterTable;
 
-namespace Symmetry
+namespace qchem::Symmetry
 {
 
 CharacterTable AbelianCharacterTable(const std::string& s)

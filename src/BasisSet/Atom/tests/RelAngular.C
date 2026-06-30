@@ -7,6 +7,7 @@ import qchem.BasisSet.Atom.Evaluators.Internal.RelWigner3j;
 import qchem.BasisSet.Atom.Evaluators.Internal.RelAngularIntegrals;
 import qchem.BasisSet.Atom.Evaluators.Internal.AngularIntegrals;
 import qchem.Blaze;
+using namespace qchem;
 
 using std::cout;
 using std::endl;

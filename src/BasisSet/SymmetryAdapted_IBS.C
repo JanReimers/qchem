@@ -21,7 +21,7 @@ import qchem.BasisSet.Internal.IrrepBasisSetImp;
 import qchem.Structure;
 import qchem.Types;
 
-export namespace BasisSet
+export namespace qchem::BasisSet
 {
 
 // Shared by one basis's irrep decorators: memoizes the AO Coulomb/exchange built from each

@@ -13,6 +13,7 @@
 #include "gtest/gtest.h"
 
 import qchem.Hamiltonian.Internal.VWN_Correlation;   // the production functional under test
+using namespace qchem;
 
 namespace
 {

@@ -23,6 +23,8 @@ import qchem.UnitCell;
 import qchem.Structure;  // Atom (positions)
 import qchem.Math;       // erfc, exp, sqrt, cos, sin, Pi, cbrt
 
+namespace qchem {
+
 //! Electrostatic (Madelung) energy per cell of the point charges \a q sitting at the UnitCell's atom
 //! positions, lattice-repeated in a uniform neutralising background.  \a q is indexed like the cell's
 //! atoms (q[a] is the charge of cell[a]); pass the ION CORE charges (valence/pseudo-ion charge).
@@ -129,3 +131,5 @@ export double NuclearRepulsion(const Structure& st)
 {
     return NuclearRepulsion(st, [](int Z){return double(Z);});
 }
+
+} // namespace qchem

@@ -9,6 +9,8 @@ import qchem.Symmetry.Irrep;
 import qchem.Symmetry.Spherical;
 import qchem.Symmetry.Factory;
 
+namespace qchem {
+
 
 AtomDirac_EC::AtomDirac_EC(int Z) : Atom_EC(Z, NsOnly_t{})
 {
@@ -100,3 +102,5 @@ AtomDirac_EC::AtomDirac_EC(int Z) : Atom_EC(Z, NsOnly_t{})
 
 
    
+
+} // namespace qchem

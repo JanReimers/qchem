@@ -10,6 +10,8 @@ module;
 export module qchem.Symmetry.MolecularIrrep;
 export import qchem.Symmetry;
 
+namespace qchem {
+
 export class MolecularIrrep
     : public virtual Symmetry::Symmetry
 {
@@ -25,3 +27,5 @@ private:
     std::string itsLabel;
     size_t      itsIndex;
 };
+
+} // namespace qchem

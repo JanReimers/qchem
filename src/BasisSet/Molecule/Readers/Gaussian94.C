@@ -6,9 +6,9 @@ module;
 export module qchem.BasisSet.Molecule.Readers.Gaussian94;
 import qchem.BasisSet.Molecule.Reader;
 
-export namespace BasisSet::Molecule
+export namespace qchem::BasisSet::Molecule
 {
-using namespace ::BasisSet::Molecule::Evaluators::PG_Cart_MnD;  // Cartesian glue moved out to PG_Cart_MnD
+using namespace ::qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD;  // Cartesian glue moved out to PG_Cart_MnD
 //------------------------------------------------------------------
 //
 //  Read in radial functions from a Gaussian 94 basis set file.
@@ -40,5 +40,5 @@ private:
     std::vector<int> itsLs;
 };
 
-} //namespace BasisSet::Molecule
+} //namespace qchem::BasisSet::Molecule
 

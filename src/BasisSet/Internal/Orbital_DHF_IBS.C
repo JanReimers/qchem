@@ -13,7 +13,7 @@ export import qchem.Structure;
 import qchem.Blaze;
 
 
-export namespace BasisSet
+export namespace qchem::BasisSet
 {
 
 template <class T> class Orbital_RKBS_IBS;

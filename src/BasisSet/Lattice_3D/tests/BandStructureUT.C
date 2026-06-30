@@ -16,6 +16,7 @@ import qchem.BasisSet.Lattice_3D.LAPW_IBS;
 import qchem.Lattice_3D;                          // UnitCell, Lattice_3D, ReciprocalLattice
 import qchem.Types;
 import qchem.Math;                                // Pi
+using namespace qchem;
 
 using BasisSet::Lattice_3D::SolveBands;
 using BasisSet::Lattice_3D::KPath;

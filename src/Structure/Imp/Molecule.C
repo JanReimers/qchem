@@ -7,6 +7,8 @@ module qchem.Structure;
 import qchem.stl_io;
 import qchem.Streamable;
 
+namespace qchem {
+
 Molecule::Molecule(const Structure& atoms)
 {
     for (auto a:atoms)
@@ -43,3 +45,5 @@ std::ostream& Molecule::Write(std::ostream& os) const
     return os;
 }
 
+
+} // namespace qchem

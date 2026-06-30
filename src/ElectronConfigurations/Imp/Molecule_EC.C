@@ -3,6 +3,8 @@ module;
 #include <iostream>
 module qchem.ElectronConfiguration.Molecule;
 import qchem.Symmetry.Factory;
+
+namespace qchem {
 using std::cout;
 using std::endl;
 
@@ -25,3 +27,5 @@ void Molecule_EC::Display() const
 {
     cout << "Ne: " << Ne << endl;
 }
+
+} // namespace qchem

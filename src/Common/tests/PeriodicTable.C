@@ -8,6 +8,7 @@
 
 import qchem.PeriodicTable;
 import qchem.Types;
+using namespace qchem;
 
 class PeriodicTableTests : public ::testing::Test
 {};

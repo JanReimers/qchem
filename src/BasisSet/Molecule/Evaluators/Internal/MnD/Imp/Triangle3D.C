@@ -6,7 +6,7 @@ module;
 module qchem.BasisSet.Molecule.Evaluators.Internal.MnD.Triangle3D;
 import qchem.stl_io;
 
-namespace BasisSet::Molecule::Evaluators::Internal::MnD
+namespace qchem::BasisSet::Molecule::Evaluators::Internal::MnD
 {
 
 Triangle3D::Triangle3D()

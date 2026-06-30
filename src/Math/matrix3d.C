@@ -13,7 +13,8 @@ import qchem.CMath;
 //  been overloaded. Also has convenient methods for making
 //  3D rotation matricies.
 //
-export template <class T> class Matrix3D
+export namespace qchem {
+template <class T> class Matrix3D
 {
 public:
    T M11,M12,M13;
@@ -93,7 +94,6 @@ template <class T> inline Vector3D<T> Matrix3D<T>::GetCol(size_t c) const
    return Vector3D<T>((*this)(1,c),(*this)(2,c),(*this)(3,c));
 }
 
-export {
 //------------------------------------------------------------------------
 //
 //  Comparison
@@ -369,8 +369,6 @@ template <class T> inline void RotationZ(Matrix3D<T>& a,T theta)
 
 template <class T> std::ostream& operator<<(std::ostream& os,const Matrix3D<T>& a);
 
-} // export block
-
 //------------------------------------------------------------------------
 //
 //  Matrix IO
@@ -395,5 +393,5 @@ template <class T> std::ostream& operator<<(std::ostream& os,const Matrix3D<T>& 
   return os;
 }
 
-
+} // namespace qchem
 

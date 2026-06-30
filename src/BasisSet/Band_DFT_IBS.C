@@ -21,7 +21,7 @@ export import qchem.BasisSet.Orbital_1E_IBS;
 export import qchem.ScalarFunction;   // ScalarFunction<double> -- the real-space fields the term hands in
 import qchem.Types;            // hmat_t<T>
 
-export namespace BasisSet
+export namespace qchem::BasisSet
 {
 
 //! \brief A basis that can assemble DFT potential matrices and energies by integrating real-space

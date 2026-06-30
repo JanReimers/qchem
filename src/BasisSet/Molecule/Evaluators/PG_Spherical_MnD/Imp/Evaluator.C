@@ -5,7 +5,7 @@ module;
 module qchem.BasisSet.Molecule.Evaluators.PG_Spherical_MnD;
 import qchem.Math;   // sqrt
 
-namespace BasisSet::Molecule::Evaluators::PG_Spherical_MnD
+namespace qchem::BasisSet::Molecule::Evaluators::PG_Spherical_MnD
 {
 
 // Per-component normalisation: 1/sqrt(<chi_i|chi_i>), the raw spherical self-overlap assembled from the

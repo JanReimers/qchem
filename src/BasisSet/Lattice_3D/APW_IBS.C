@@ -30,7 +30,7 @@ import qchem.BasisSet.Internal.IrrepBasisSetImp;     // GetSymmetry/GetSymt/GetI
 export import qchem.ReciprocalLattice;
 import qchem.Types;
 
-export namespace BasisSet::Lattice_3D
+export namespace qchem::BasisSet::Lattice_3D
 {
 
 //! \brief Augmented Plane Wave basis for one k-point (single muffin-tin sphere at the cell origin).

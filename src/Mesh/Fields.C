@@ -9,7 +9,7 @@ module;
 export module qchem.Mesh.Fields;
 export import qchem.Types;
 
-export namespace qcMesh
+export namespace qchem::qcMesh
 {
 
 //! \brief A scalar field: rho(r), vxc(r), -Z/|r-R|, 1/r, ...  Geometry/physics live in the caller.
@@ -32,4 +32,4 @@ public:
     virtual vec3vec_t<T> Gradient  (const rvec3_t&)  const = 0;   //!< [ grad phi_i(r) ]
 };
 
-} //export namespace qcMesh
+} //export namespace qchem::qcMesh

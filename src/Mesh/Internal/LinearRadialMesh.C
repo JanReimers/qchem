@@ -6,7 +6,7 @@ module;
 #include <utility>
 module qchem.Mesh.Radial;
 
-namespace qcMesh
+namespace qchem::qcMesh
 {
 
 RadialMesh LinearRadial(double start, double stop, int NumPoints)
@@ -24,4 +24,4 @@ RadialMesh LinearRadial(double start, double stop, int NumPoints)
     return RadialMesh(std::move(R), std::move(W));
 }
 
-} //namespace qcMesh
+} //namespace qchem::qcMesh

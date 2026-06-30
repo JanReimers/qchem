@@ -3,7 +3,7 @@ module;
 module qchem.BasisSet.IrrepBasisSet;
 import qchem.BasisSet.Internal.DB_Cache;
 
-namespace BasisSet
+namespace qchem::BasisSet
 {
 
 // Hermitian-correct for both lineages now: hmat_t<double> is symmetric (rsmat_t), hmat_t<dcmplx> is

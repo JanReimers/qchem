@@ -6,7 +6,7 @@ module;
 module qchem.BasisSet.Molecule.PG_Spherical;
 import qchem.Blaze;
 
-namespace BasisSet::Molecule::PG_Spherical
+namespace qchem::BasisSet::Molecule::PG_Spherical
 {
 
 // Per-fit-component charge.  EFit_IBS IS-A spherical NR_Evaluator, so Charge(i) is the inherited

@@ -11,7 +11,7 @@ export module qchem.Symmetry.AbelianGroup;
 export import qchem.Symmetry.PointGroup;       // SymPoint, SymOp, DetectPointGroup, finders
 export import qchem.Symmetry.CharacterTable;   // CharacterTable
 
-export namespace Symmetry
+export namespace qchem::Symmetry
 {
 
 struct AbelianGroup

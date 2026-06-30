@@ -21,7 +21,7 @@ import qchem.FFT;                                      // FFT3D / NextPow2 (the 
 import qchem.Blaze;
 import qchem.Vector3D;           // dot product (operator*) + vector arithmetic
 
-namespace BasisSet::Lattice_3D
+namespace qchem::BasisSet::Lattice_3D
 {
 
 PlaneWave_IBS::PlaneWave_IBS(const ReciprocalLattice& recip, const sym_t& irrep, double Ecut)
