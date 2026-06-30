@@ -26,7 +26,7 @@ Extend point-group SALC adaptation from the Cartesian PG basis to the two spheri
 
 ---
 
-## B. Spin-native DFT (was "D2 polarized")  ·  NOT STARTED  ·  plan: `doc/FacadeDFTPlan.md` (D2) + tenet `feedback_spin_polarized_primary`
+## B. Spin-native DFT (was "D2 polarized")  ·  IN PROGRESS (B1 done)  ·  plan: `doc/SpinNativeDFTPlan.md` + tenet `feedback_spin_polarized_primary`
 
 Reframed per the design tenet: **spin-polarized is the native formulation; unpolarized is the
 ζ=0 efficiency collapse** — not "add the polarized special case." Four pieces, all spin-first:
@@ -35,8 +35,21 @@ Reframed per the design tenet: **spin-polarized is the native formulation; unpol
 3. open-shell molecular occupation `(n↑,n↓)` — `Molecule_EC(Ne)` is closed-shell aufbau only.
 4. facade multiplicity on `CalcOptions`.
 
-**Next step:** write a short spin-native DFT plan doc before code (scope the four pieces). Best
-sequenced toward the battery/magnetism payoff, ideally with PBE+U.
+**Plan doc DONE** (`doc/SpinNativeDFTPlan.md`): scopes the four pieces into staged B1–B4, grounded in the
+real types. Key finding surfaced: **correlation does NOT separate by spin channel** (exchange does) — so
+`FittedVxcPol`'s two-independent-channel split can't carry correlation; v_c^σ(ρ↑,ρ↓) couples both channels
+through r_s and ζ, needing a two-channel functional face + a `FittedVcorrPol` that fits against the full
+`Polarized_CD`. Full VWN5 spin params (ferro + spin-stiffness) tabulated in the doc.
+
+**B1 DONE** (uncommitted): spin-native VWN5 in `VWN_Correlation.C` — para/ferro/spin-stiffness branches via
+a shared `Gval`/`dGdx`, `EvalRZ(ρ,ζ)` returning ε_c + (r_s,ζ) partials, public two-channel face
+`GetEpsC(rUp,rDn)`/`GetVc(rUp,rDn,Spin)`. Scalar face = ζ=0 collapse, byte-identical (anchors unmoved).
+`LDA_XC_UT` extended: vs libxc `LDA_C_VWN` polarized on an (r_s,ζ) grid to 1e-9 + a collapse-consistency
+check. **150/150 UTMain green.**
+
+**Next step:** **B2** — `FittedVcorrPol` + `Ham_DFTcorr_P` consuming the B1 two-channel face (fit against
+the full `Polarized_CD`, NOT the per-channel split exchange uses) + seed fallback + un-gate the two Factory
+"polarized LDA not yet wired" throws. Order B2→B3→B4 forced (Ham term → occupation → facade).
 **Done already (D1):** closed-shell molecular HF+DFT via the facade — unified `Model` enum + Factory
 resolver, LDA + Xα, `8b8df1d0`.
 **Fixed (was the B entry bug):** polarized Xα + **SAD seed** segfault — `FittedVxcPol::CalcMatrix`

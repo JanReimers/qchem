@@ -13,6 +13,7 @@
 #include "gtest/gtest.h"
 
 import qchem.Hamiltonian.Internal.VWN_Correlation;   // the production functional under test
+import qchem.Symmetry.Spin;                          // Spin::Up / Spin::Down for the polarized face
 using namespace qchem;
 
 namespace
@@ -66,6 +67,17 @@ void Libxc(int id, double rho, double& exc, double& vxc)
     double r[1]={rho}, e[1]={0}, v[1]={0};
     xc_lda_exc_vxc(&f, 1, r, e, v);
     exc=e[0]; vxc=v[0];
+    xc_func_end(&f);
+}
+
+// libxc POLARIZED exc & (v_up, v_down) for a functional id at one (rho_up, rho_down).
+void LibxcPol(int id, double rup, double rdn, double& exc, double& vup, double& vdn)
+{
+    xc_func_type f;
+    ASSERT_EQ(xc_func_init(&f, id, XC_POLARIZED), 0);
+    double r[2]={rup,rdn}, e[1]={0}, v[2]={0,0};   // rho=[up,down]; vxc=[v_up,v_down]
+    xc_lda_exc_vxc(&f, 1, r, e, v);
+    exc=e[0]; vup=v[0]; vdn=v[1];
     xc_func_end(&f);
 }
 } // namespace
@@ -125,5 +137,38 @@ TEST_F(LDA_XC, VWN_CorrelationClassMatchesLibxc)
         double exc,vxc; Libxc(7, rho, exc, vxc);
         EXPECT_NEAR(vwn.GetEpsXc(rho), exc, 1e-9) << "rho="<<rho;   // energy density
         EXPECT_NEAR(vwn.GetVxc  (rho), vxc, 1e-9) << "rho="<<rho;   // potential
+    }
+}
+
+// SPIN-NATIVE: the two-channel face eps_c(rho_up,rho_down) and v_c^{up,down} must reproduce libxc
+// LDA_C_VWN (id 7 = VWN5) in XC_POLARIZED mode across the polarization range.  zeta=0 is the unpolarized
+// collapse (rho_up=rho_down) and must also agree with the scalar face above.
+TEST_F(LDA_XC, VWN5PolarizedMatchesLibxc)
+{
+    qchem::Hamiltonian::VWN_Correlation vwn;
+    for (double rho  : {0.01, 0.1, 0.5, 1.0, 5.0})
+    for (double zeta : {0.0, 0.25, 0.5, 0.75, 0.95})
+    {
+        double rup=0.5*rho*(1.0+zeta), rdn=0.5*rho*(1.0-zeta);
+        double exc,vup,vdn; LibxcPol(7, rup, rdn, exc, vup, vdn);
+        EXPECT_NEAR(vwn.GetEpsC(rup,rdn),            exc, 1e-9) << "rho="<<rho<<" zeta="<<zeta;
+        EXPECT_NEAR(vwn.GetVc(rup,rdn,Spin::Up),     vup, 1e-9) << "rho="<<rho<<" zeta="<<zeta;
+        EXPECT_NEAR(vwn.GetVc(rup,rdn,Spin::Down),   vdn, 1e-9) << "rho="<<rho<<" zeta="<<zeta;
+    }
+}
+
+// The zeta=0 collapse of the spin-native face must equal the scalar (paramagnetic) face byte-for-byte:
+// rho_up=rho_down=rho/2  =>  eps_c(rho/2,rho/2)==GetEpsXc(rho), v_c^up==v_c^down==GetVxc(rho).
+TEST_F(LDA_XC, SpinNativeCollapsesToScalarFace)
+{
+    qchem::Hamiltonian::VWN_Correlation vwn;
+    for (double rho : {0.01, 0.1, 0.5, 1.0, 5.0, 50.0})
+    {
+        double h=0.5*rho;
+        // eps_c collapse is exact (the zeta-dependent terms vanish identically at zeta=0);
+        // v_c collapse is exact up to a few ULP (rs vs x*x reassociation in the r_s-derivative term).
+        EXPECT_DOUBLE_EQ(vwn.GetEpsC(h,h),          vwn.GetEpsXc(rho)) << "rho="<<rho;
+        EXPECT_NEAR(vwn.GetVc(h,h,Spin::Up),   vwn.GetVxc(rho), 1e-12) << "rho="<<rho;
+        EXPECT_NEAR(vwn.GetVc(h,h,Spin::Down), vwn.GetVxc(rho), 1e-12) << "rho="<<rho;
     }
 }
