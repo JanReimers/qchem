@@ -98,32 +98,36 @@ track **B**.
 
 ---
 
-## E. Retire QchemTester::Init — atom tests onto qchem::AtomCalculation  ·  PARTIAL  ·  (follow-on to D)
+## E. Retire QchemTester — atom tests onto qchem::AtomCalculation  ·  ✅ DONE  ·  (follow-on to D)
 
-Goal (user, "otherwise new tests appear on the old system"): no test/driver calls `QchemTester::Init`.
-A and B do **not** block this — everything the atom tests need already exists; it is pure facade plumbing.
+Goal (user, "otherwise new tests appear on the old system") EXCEEDED: not just `QchemTester::Init` retired
+— the **whole `QchemTester`/`TestAtom`/`TestDiracAtom`/`TestMolecule` scaffold is deleted** (`97963b63`).
+A and B did not block it.
 
-Built a SIBLING `qchem::AtomCalculation` (NOT an extension — the GUI team is actively on `Calculation`,
-keep its surface stable).  `src/Calculation/AtomCalculation.{C,Imp}`: AtomCalcOptions (atomic
-exponent-pool basis = AtomType + BasisSetAccuracy or {N,emin,emax}; model/pol/xalpha; nAngular=1 mesh;
-seed=CoreGuess), model-driven EC (Dirac→AtomDirac_EC else Atom_EC), ctor converges ONCE with SCFParams,
-GetIrreps/GetOrbital/GetStructure accessors for the Dirac diagnostics.  Free Z-keyed oracle helpers
+Built a SIBLING `qchem::AtomCalculation` (NOT an extension — the GUI team is actively on `Calculation`, so
+its surface stays untouched).  AtomCalcOptions: atomic exponent-pool basis (AtomType + BasisSetAccuracy or
+{N,emin,emax}); model/pol/xalpha; the `xc` exchange-functional selector; `pseudopotential`/`valence`;
+nAngular=1 mesh; seed=CoreGuess; an `accelerator` json escape hatch.  Model-driven EC, ctor converges once
+with SCFParams, GetIrreps/GetOrbital/GetStructure accessors.  Free Z-keyed oracle helpers
 RelativeHF/DFT/DHFError(E,Z) in UnitTests/TestUtils.C.
+
+New **public Hamiltonian-library API** (the long-wanted exchange-functional selector):
+`qchem::Hamiltonian::XCFunctional{kind,alpha,libxcId}` + `enum XC{SlaterXalpha,DiracVWN,LibXC}` +
+`Factory(Pol,st,XCFunctional,mesh,bs)`, and a public PP `Factory(st,element,valence,mesh,bs)`.  Internals
+(ExFunctional / Ham_PP_U) no longer leak.
 
 | File | Status |
 |---|---|
-| A_HF_U / A_HF_P (atom HF, un/pol) | ✅ migrated (`bf36a405`,`8f72981c`) |
-| A_DHF (Dirac: DE1 ions, DHF oracle, Phir, fine structure) | ✅ migrated (`0e70b05f`) |
-| A_DFT atomic (Slater-Xα + LSDA) + A_PG | ✅ migrated (`54dfcd51`) |
-| A_DFT_U (libxc exchange) | ⬜ needs a PUBLIC `ExFunctional`/libxc selector (it lives in Hamiltonian/Internal) |
-| A_PP (Si pseudopotential) | ⬜ needs a PUBLIC PP Factory (`Ham_PP_U` is in Hamiltonian/Internal; no public Factory) |
-| scfrun (CLI driver; also `--model PP`) | ⬜ driver rewrite onto AtomCalculation; blocked by the PP Factory |
-| delete `QchemTester::Init` | ⬜ after the three above |
+| A_HF_U / A_HF_P | ✅ `bf36a405`,`8f72981c` |
+| A_DHF (DE1 ions, DHF oracle, Phir, fine structure) | ✅ `0e70b05f` |
+| A_DFT atomic (Slater-Xα + LSDA) + A_PG | ✅ `54dfcd51` |
+| A_DFT_U (libxc via `{.xc=XCFunctional{.kind=XC::LibXC,.libxcId=7}}`) | ✅ `45f88cf9` |
+| A_PP (Si PP via `{.pseudopotential=true}`) | ✅ `45f88cf9` |
+| scfrun (CLI driver; all models + `--model PP` ions + accelerator tuning) | ✅ `97963b63` |
+| delete the QchemTester scaffold | ✅ `97963b63` |
 
-**Blocker for the rest = Hamiltonian-library public API, not the facade:** `Ham_PP_U` and `ExFunctional`
-are Internal with no public Factory.  Finishing means adding a public PP Factory (valuable anyway for the
-battery north-star) and a public exchange-functional selector, then migrating A_DFT_U/A_PP/scfrun and
-deleting `Init`.  146/146 UTMain green throughout; anchors byte-identical.
+146/146 UTMain green throughout; allTests + scfrun build; anchors byte-identical.  Future: `Calculation`
+(molecular) can adopt the same `XCFunctional` selector when the GUI team is ready.
 
 ## Bigger milestone on the horizon (not dangling, just flagged)
 
