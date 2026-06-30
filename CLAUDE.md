@@ -2,6 +2,10 @@
 
 Brief notes about module/library conventions, naming, and includes.
 
+## My high level biases
+
+- I used to work on frustrated magnets so one of my biases is that I don't like the "closed shell only, polarized is a special case" mind set. Ultimately I want everything available Pol and UnPol ... and for me UnPol is the special case for efficiency.
+
 ## Build & test
 
 - Build & test: `cd build/Release && ninja UTMain`, then `./UnitTests/UTMain` (filter `-A_*` for

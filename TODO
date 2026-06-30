@@ -77,6 +77,7 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
   2. For molecule tests use linCint integral engines ... way faster than home grown MnD code.
   3. Buy a new PC with 12-16 cores, 64GB ram, 2T SSD drive.  Use the new rig for live development run SI server on the old rig ... until it goes up in a puff of smoke :)
 - Review the Types.C files in the libraries other than qcCommon.
+- Is there anything we can do about the large (50-80MB) BMI file sizes?
 
 ## GUI apps, planning
 - The end goal is to make GUI apps for 

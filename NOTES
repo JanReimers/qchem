@@ -1,5 +1,9 @@
 Notes:        
 - Turn on/off vscode popups: search `quickSuggestions`.
+
+# DBCache and Fit_IBS
+One forward-looking note: this was the "same-size, different-content" collision class the Stage-3 guard explicitly can't catch. The durable lesson — now in the comments and memory — is that any mesh-dependent cached quantity must carry the mesh in its key. If you'd like, I could do a quick audit for other mesh-quadrature results cached on a mesh-less key (I didn't find others in Fit_IBS, but the numerical I2x mesh-overlap path is worth a glance), but the bug you reported is closed.
+
 # Direc DFT
 
 Yes — very much so. The combination you describe is Dirac–Kohn–Sham (DKS), i.e. 4-component relativistic DFT, and it's mainstream. Nothing about RKB cares whether the two-electron part is exact exchange (DHF) or a DFT functional — RKB is just the basis-side prescription (small component = (σ·p) acting on the large component) that gives the right non-relativistic limit and avoids variational collapse. So bolting a DFT Fock onto your existing RKB machinery is completely standard.
