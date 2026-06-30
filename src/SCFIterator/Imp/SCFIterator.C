@@ -202,6 +202,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
         FD=itsAccelerator->GetError(); //i.e. [F,D]
         dFD=(FD-FDold);
         if (ipar.Verbose) DisplayEnergies(itsIterationCount,eb,relax,dFD,ChargeDensityChange,idealVirial);
+        if (itsObserver) itsObserver({itsIterationCount, E, fabs(E-Eold), FD, ChargeDensityChange});
         if (FD>FDold && fabs(dFD)>1e-9)
         {
             itsCD=cd_t(itsWaveFunction->GetChargeDensity()); //Get new charge density.

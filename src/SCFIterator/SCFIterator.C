@@ -1,6 +1,7 @@
 // File: SCFIterator/SCFIterator.C  Interface for an object that manages SCF convergence.
 module;
 #include <memory>
+#include <functional>
 export module qchem.SCFIterator;
 import qchem.SCFIterator.Types;
 export import qchem.SCFAccelerator;
@@ -15,6 +16,18 @@ using qchem::ChargeDensity::tChargeDensity;
 
 export namespace qchem::SCFIterator
 {
+
+//! Per-iteration progress, handed to an Observer each SCF step so a client (a GUI,
+//! a logger) can watch convergence live without owning the loop.  All real-valued
+//! (energies/residuals are real for both the rX and cX paths).
+struct SCFProgress
+{
+    size_t iteration;
+    double energy;       //!< total energy E (hartree)
+    double dE;           //!< |E_n - E_{n-1}|
+    double commutator;   //!< [F,D] (the accelerator/DIIS error)
+    double drho;         //!< relative charge-density change
+};
 
 // Templated on the matrix element type T (rX/cX); SCFIterator is the <double> alias (atoms/
 // molecules), cSCFIterator the <dcmplx> instantiation that drives single-k plane-wave DFT through
@@ -36,6 +49,11 @@ public:
     virtual bool Iterate(const SCFParams& ipar);
     // Direct energy minimization (GDM owns the loop): geodesic line search, no density mixing.
     void SetDirectMin(bool b) {itsDirectMin=b;}
+
+    // Watch convergence live: the observer (if set) fires once per SCF iteration with
+    // the current SCFProgress.  Read-only telemetry -- the observer must not drive the loop.
+    using Observer = std::function<void(const SCFProgress&)>;
+    void SetObserver(Observer obs) {itsObserver=std::move(obs);}
 
     // SCFIterator drives the mutable SCFWaveFunction, but only ever hands clients the const
     // read view (they can query the converged state, never drive someone else's SCF loop).
@@ -64,6 +82,7 @@ private:
 
     size_t          itsIterationCount;
     bool            itsConverged;
+    Observer        itsObserver;   //!< optional live-progress sink (default empty)
 };
 
 using SCFIterator  = tSCFIterator<double>;
