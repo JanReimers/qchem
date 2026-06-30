@@ -8,6 +8,14 @@ not developing the internals. Grounded in friction actually hit, not theory.
 Each item: **what I hit → impact → "all I should have to write" → suggestion**.
 Ordered by payoff.
 
+> **STATUS (2026, after the lib-team facade pass) — grade: A.** Items 1, 2, 3, 5,
+> 7 plus the live-progress Observer are implemented as `qchem::Calculation` +
+> `qchem::AtomCalculation` + the `qchem` umbrella, and the whole test suite was
+> migrated onto the facade. Item 4 (namespace unification) and item 6 (named
+> parameters) are now DONE too (see those sections). Remaining integrator task is
+> on the binding side: refactor `pybind/qchem_bridge.cpp` onto `qchem::Calculation`
+> (shrinks it and picks up the new `qchem::` names + DFT for free).
+
 ---
 
 ## ✅ The standout win (keep doing this)
@@ -125,7 +133,11 @@ fixed-occupation EC to telegraph it's a special case, e.g.
 
 ---
 
-## 4. Namespace placement is unpredictable
+## 4. Namespace placement is unpredictable  ✅ DONE (108ced3b "Namespace unification")
+
+> Resolved: all public types/namespaces moved under `qchem::` (now
+> `qchem::ScalarFunction`, `qchem::Spin`, `qchem::BasisSet::…`). Original friction
+> below, for the record.
 
 **What I hit:** `qchem::ChargeDensity`, `qchem::Orbitals`, `qchem::SCFIterator`,
 `qchem::Hamiltonian` are under `qchem::` — but `ScalarFunction`, `Spin`,
@@ -157,22 +169,25 @@ keep `json` as the escape hatch for the long tail.
 
 ---
 
-## 6. `SCFParams` is an 8-field positional aggregate
+## 6. `SCFParams` positional init → named parameters  ✅ DONE (34ccf302)
+
+> Resolved as **designated initializers with default member initializers** — and
+> deliberately KEEPING the compact UTF field names (the author likes them: "almost
+> like a modern language"). My original gripe was the *positional* `{60,1e-7,…}`
+> form and the decoder comments, NOT the names; the UTF names are a feature. The
+> real want was named parameters, which we now have.
 
 **What I hit:** `{60, 1e-7, 1e-9, 1e2, 1e-7, 0.5, 1e-4, false}` — eight unlabeled
-values. The tell: **every call site in the codebase writes a decoder comment
-above it** (`// NMaxIter MinΔρ MinΔFD MinVirial MinFD relax MergeTol verbose`).
-When the code always annotates a struct, the struct is too hard to use. (The
-unicode field names `MinΔFD`/`MinΔρ` also read nicely but are painful to type.)
+values, every call site carrying a `// NMaxIter MinΔρ MinΔFD …` decoder comment.
 
-**Here's all I should have to write:**
+**Here's all I should have to write (now real):**
 
 ```cpp
-calc.Converge({.maxIter=60, .minFD=1e-7});     // everything else defaulted
+calc.Converge({.NMaxIter=60, .MinFD=1e-7});    // named, UTF labels kept, rest defaulted
 ```
 
-**Suggestion:** ASCII field names + defaults so designated initializers carry the
-labels and callers omit what they don't set.
+**Delivered:** `SCFParams` is a designated-init-friendly aggregate with defaults;
+positional and per-field assignment still work too.
 
 ---
 
