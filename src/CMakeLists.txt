@@ -16,3 +16,4 @@ add_subdirectory(SCFAccelerator)
 add_subdirectory(WaveFunction)
 add_subdirectory(SCFIterator)
 add_subdirectory(Calculation)
+add_subdirectory(Umbrella)         # the `qchem` umbrella module -- must come after its re-exports
