@@ -1,7 +1,7 @@
 // File: BasisSet/Molecule/PG_Cart/Imp/SymmetryAdapt.C
 module;
 #include <memory>
-#include <cassert>
+#include <stdexcept>
 module qchem.BasisSet.Molecule.PG_Cart.SymmetryAdapt;
 import qchem.BasisSet.Molecule.PG_Cart.Symmetry;        // ExtractAoShells, StructureToSymPoints (+ SALC pipeline)
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.PGData; // PGData
@@ -21,7 +21,12 @@ SymmetryAdapt(std::shared_ptr<const ::BasisSet::BasisSet<double>> rawBasis, cons
         pg = dynamic_cast<const PGData*>(ibs);
         if (pg) { rawIBS = ibs; break; }
     }
-    assert(rawIBS && pg && "PG SymmetryAdapt: no PolarizedGaussian orbital IBS in the basis");
+    // Guard (not an assert): symmetry adaptation needs the Cartesian PolarizedGaussian (PGData) shells.
+    // The spherical / libcint-spherical deliveries are not yet supported -- see doc/SphericalSALCPlan.md.
+    if (!(rawIBS && pg))
+        throw std::runtime_error("PG::SymmetryAdapt: basis has no Cartesian PolarizedGaussian (PGData) "
+                                 "orbital IBS; symmetry adaptation is only supported for the default "
+                                 "Cartesian PG basis (not spherical/libcint).");
 
     auto shells = ExtractAoShells(*pg);
     auto pts    = StructureToSymPoints(st);

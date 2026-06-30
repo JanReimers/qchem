@@ -39,6 +39,12 @@ struct CalcOptions
     std::string basis = "sto-3g";
     Model       model = Model::HF;
     Pol         pol   = Pol::UnPolarized;
+    //! Point-group SALC blocking + per-irrep aufbau.  GUARDED TO THE CARTESIAN PG BASIS: the SALC
+    //! builder needs a PolarizedGaussian (PGData) orbital IBS and throws otherwise.  Since the facade
+    //! only builds the default Cartesian basis today, this is always the supported path; the guard
+    //! future-proofs the day spherical/libcint deliveries are exposed (see doc/SphericalSALCPlan.md).
+    bool        symmetry    = false;
+    double      symmetryTol = 1e-4;   //!< geometry tolerance for point-group detection
 };
 
 //! DIIS accelerator knobs.  These were stringly-typed json keys grepped out of tests; here they

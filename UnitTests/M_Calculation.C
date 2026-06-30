@@ -33,6 +33,17 @@ TEST(M_Calculation, WaterEnergy)
     EXPECT_GT(calc.IterationCount(), 0u);
 }
 
+// {.symmetry=true} SALC-blocks the (Cartesian PG) basis + does global aufbau across irreps.  The
+// converged total energy must match the un-blocked run -- the M_Sym invariant, now through the facade.
+TEST(M_Calculation, WaterSymmetry)
+{
+    Calculation calc(MakeWater(), {.basis = "dzvp", .symmetry = true});
+
+    const double E_ref = -76.022903;                       // identical to the un-blocked WaterEnergy anchor
+    EXPECT_LT(std::fabs((E_ref - calc.Energy()) / E_ref), 1e-5);
+    EXPECT_GT(calc.IterationCount(), 0u);
+}
+
 // The caller's Molecule is deep-copied: it survives being passed in and may be used afterwards.
 TEST(M_Calculation, OwnsItsOwnStructure)
 {

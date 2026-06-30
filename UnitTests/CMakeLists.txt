@@ -11,6 +11,7 @@ add_executable(UTMain gtestmain.C QchemTesterImp.C
     AtomicDensityUT.C
     A_HF_U.C A_HF_P.C A_DHF.C A_DFT.C A_DFT_U.C A_PP.C M_HF_U.C M_DFT.C M_Sym.C
     M_Calculation.C
+    M_Umbrella.C
     )
 target_sources(UTMain PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES QchemTester.C)
 
@@ -30,7 +31,7 @@ target_include_directories(UTMain PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/tabulate/include
     ${PROJECT_BINARY_DIR}/submodules/libxc
 )
-target_link_libraries(UTMain PUBLIC qchem qcMath qcCommon xc)
+target_link_libraries(UTMain PUBLIC qcUmbrella qchem qcMath qcCommon xc)
 
 # scfrun: command-line SCF driver for accelerator tuning (no recompile).
 add_executable(scfrun scfrun.C QchemTesterImp.C)
