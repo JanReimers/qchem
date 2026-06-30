@@ -7,6 +7,7 @@ target_sources(qcSymmetry PRIVATE
     Imp/Factory.C
     Imp/PointGroup.C
     Imp/CartesianRep.C
+    Imp/SphericalRep.C
     Imp/CharacterTable.C
     Imp/AbelianGroup.C
     Imp/SALC.C
@@ -26,6 +27,7 @@ target_sources(qcSymmetry PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Factory.C
     PointGroup.C
     CartesianRep.C
+    SphericalRep.C
     CharacterTable.C
     AbelianGroup.C
     SALC.C

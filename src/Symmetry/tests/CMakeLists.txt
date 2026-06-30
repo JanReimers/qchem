@@ -3,8 +3,9 @@
 add_executable(UTSymmetry ../../Common/tests/gtestmain.C
    SymQN.C
    M_PointGroup.C 
-   M_CartesianRep.C 
-   M_CharacterTable.C 
+   M_CartesianRep.C
+   M_SphericalRep.C
+   M_CharacterTable.C
    M_SALC.C
 )
 
