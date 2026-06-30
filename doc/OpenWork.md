@@ -42,14 +42,29 @@ resolver, LDA + Xα, `8b8df1d0`.
 
 ---
 
-## C. Namespace unification (review item 4)  ·  NOT STARTED  ·  plan: `doc/APIErgonomicsReview.md` §4
+## C. Namespace unification (review item 4)  ·  ✅ DONE `108ced3b`  ·  plan: `doc/APIErgonomicsReview.md` §4
 
-Move `ScalarFunction`/`Spin`/`Vector3D`/`BasisSet::` under `qchem::`. Whole-tree mechanical sweep;
-compile-time-checked (no runtime risk), but huge blast radius.
+Whole-tree sweep — **full unification** (user-chosen): not just the four review-named symbols but
+*everything* under `qchem::`. Moved: `ScalarFunction`, `Spin`, the `Vector3D` geometry family
+(`Vector3D`/`Matrix3D`/`Vector2D`/`Matrix2D`), the `BasisSet::` tree, the stray library namespaces
+(`Symmetry`/`qcMesh`/`Pseudopotential`/evaluator-helpers/`SpecialFunctions`/`blazem`), and the ~39
+global-scope class-definition files (`Structure`/`Atom`/`Molecule`, `UnitCell`, `Lattice_3D`,
+`ElectronConfiguration`+`*_EC`, `Irrep`/`MolecularIrrep`/`Orbital_QNs`, `SCFParams`, `Real_BS`/
+`Real_OIBS`, `Cache2/3/4`, `ERI*`, `FourierMap`, …) + their `Imp/` units.
 
-**Next step:** none yet — **do this LAST**, as one deliberate sweep when the tree is otherwise quiet,
-so it never collides with in-flight feature diffs and sweeps the new code in the same pass. Its
-consumer benefit is already largely delivered by the `import qchem;` umbrella, so there's no urgency.
+Left global by design (intentional vocabulary, per CLAUDE.md "dcmplx is global"): the lowercase `_t`
+aliases (`rvec_t`/`rmat_t`/`rvec3_t`/`dcmplx`/…) in `Types.C`, the cmath/IntPow passthroughs, display
+tables (`Strings`), `std`-container `op<<` (`stl_io` — ADL needs std reach), `PeriodicTable` lookups,
+the `qchem` umbrella, and internal `detail` namespaces.
+
+Gotchas captured for posterity: (a) blaze + stl_io operator re-exports had to be *mirrored* into
+`namespace qchem` or they get shadowed by the in-qchem `Vector3D` operators for qchem-scope code
+(`Blaze.C`/`stl_io.C`); (b) test/harness `using namespace qchem;` collides with the
+namespace-vs-class pattern (`qchem::Hamiltonian::Hamiltonian`) → qualify those class uses; (c)
+`forward.H` test-friend decls qualified to `::XxxTests`.
+
+Verified: UTMain 146/146 (matches pre-sweep anchor); `allTests`+`scfrun` build; sampled per-module
+suites green. pybind (OFF by default) updated by-name, not compiler-checked.
 
 ---
 
