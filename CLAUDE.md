@@ -8,6 +8,9 @@ Brief notes about module/library conventions, naming, and includes.
     fast runs; a full run including the `A_*` tests is the regression anchor).
 - Calling ninja directly is fine. (I earlier suggested cmake only because ninja rebuilds were flaky —
     needing file-touches to trigger them. If ninja works well for you, use it.)
+- There are interation tests in the (now mis-named) Unitests folder.  The exe target is UTMain
+- But there are also lot of actual unit tests in most of project-module (library) folders, under tests in each one.
+- allTests is the CMake target to include them.  It if fine to just focuse on UTMain or one pertinent unit test while devloping, but please build and pass every thing before any big commits.
 
 ## Modules & libraries
 
@@ -43,7 +46,7 @@ Brief notes about module/library conventions, naming, and includes.
 - Raw `new` ops are fine if the pointer quickly goes into a `std::unique_ptr` or `std::shared_ptr`
     (within a few lines). As a result `delete` should be rare or non-existent.
 - void* is banashed from this project. It has no place in modern c++.
--Do not key map/set etc off pointers.
+- Do not key map/set etc off pointers.
 
 ## Design
 
