@@ -15,6 +15,7 @@ module;
 #include <vector>
 #include <string>
 #include <utility>
+#include <optional>
 export module qchem.AtomCalculation;
 
 import qchem.Structure;             // Structure, Atom
@@ -55,6 +56,16 @@ struct AtomCalcOptions
     Model  model  = Model::HF;          //!< HF (default) | E1 | DE1/DHF (Dirac) | Xalpha | LDA
     Pol    pol    = Pol::UnPolarized;
     double xalpha = 0.7;                 //!< Slater-Xalpha exchange parameter (model==Xalpha only)
+
+    //! DFT exchange-correlation override.  When set, the DFT Hamiltonian uses this functional (e.g. a
+    //! libxc LDA) via the public XC selector, instead of the model's built-in Xalpha/LDA.  (model is then
+    //! only used to decide HF/Dirac vs DFT -- any DFT model works.)
+    std::optional<qchem::Hamiltonian::XCFunctional> xc;
+
+    //! Pseudo-atom: replace the all-electron nuclear attraction with the GTH local + KB nonlocal PP (LDA
+    //! XC), and use a valence-only PseudoAtom_EC.  The valence electron count is Z - charge; the element is
+    //! looked up from Z.
+    bool   pseudopotential = false;
 
     //! Atomic XC integration grid: the proven atom values (one angular point -- atoms are spherical).
     qcMesh::MeshParams mesh = {.radial  = qcMesh::RadialKind::MHL,   .nRadial   = 50,

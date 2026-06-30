@@ -1,6 +1,7 @@
 // File: Hamiltonian/Factory.C Construct and return various Hamiltonian types.
 module;
 #include <memory>
+#include <string>
 export module qchem.Hamiltonian.Factory;
 export import qchem.Hamiltonian;
 import qchem.Hamiltonian.Internal.ExFunctional;
@@ -32,5 +33,39 @@ export namespace qchem::Hamiltonian
     //! HF/1-e/Dirac, so a single call serves every method.  This is also the compact "default Hamiltonian"
     //! entry the unit tests want -- no manual mesh/functional/fit assembly.
     Hamiltonian* Factory(Model,Pol,const st_t& st, const qcMesh::MeshParams&, const bs_t*, double xalpha);
+
+    //=== Exchange-correlation functional selector ====================================================
+    //! Which exchange-correlation functional a DFT Hamiltonian uses.  A value-type selector so callers
+    //! pick a functional WITHOUT touching the Internal ExFunctional hierarchy (the public front door to
+    //! the functional zoo).  Extend here as new functionals land (PBE/GGA is the next milestone).
+    enum class XC
+    {
+        SlaterXalpha,   //!< Slater-Dirac exchange only, scaled by alpha (classic Xα; alpha=2/3 is pure Dirac)
+        DiracVWN,       //!< Dirac exchange (alpha=2/3) + VWN5 correlation -- parameter-free LSDA (== Model::LDA)
+        LibXC,          //!< an LDA functional from libxc, selected by integer id (libxc.gitlab.io/functionals)
+    };
+
+    //! A chosen functional plus its parameters.  Designated-initializer friendly:
+    //!     XCFunctional{.kind=XC::SlaterXalpha, .alpha=0.7}
+    //!     XCFunctional{.kind=XC::LibXC,        .libxcId=7}
+    struct XCFunctional
+    {
+        XC     kind    = XC::DiracVWN;
+        double alpha   = 2.0/3.0;   //!< exchange scaling, XC::SlaterXalpha only
+        int    libxcId = 1;         //!< libxc functional id, XC::LibXC only (1 = LDA_X / Slater)
+    };
+
+    //! Build a DFT Hamiltonian with the selected exchange-correlation functional.  This hides the Internal
+    //! ExFunctional construction + its ownership transfer; the returned Hamiltonian owns its functional(s).
+    //! (Polarized is supported for SlaterXalpha; DiracVWN/LibXC are unpolarized-only today -- they throw
+    //! for Pol::Polarized, mirroring the Model::LDA limitation.)
+    Hamiltonian* Factory(Pol, const st_t& st, const XCFunctional&, const qcMesh::MeshParams&, const bs_t*);
+
+    //=== Pseudopotential ============================================================================
+    //! Build a pseudopotential Hamiltonian for `element` (e.g. "Si") with `valence` (zion) valence
+    //! electrons: the all-electron nuclear attraction is replaced by the GTH local + KB-separable nonlocal
+    //! pseudopotential, with LDA exchange-correlation.  The public front door to Ham_PP_U.
+    Hamiltonian* Factory(const st_t& st, const std::string& element, int valence,
+                         const qcMesh::MeshParams&, const bs_t*);
 
 } // namespace

@@ -9,9 +9,10 @@ module;
 #include <nlohmann/json.hpp>
 module qchem.AtomCalculation;
 
-import qchem.Hamiltonian.Factory;                   // Factory(Model,Pol,st,mesh,bs,xalpha), IsDFT
-import qchem.ElectronConfiguration.AtomNR;          // Atom_EC
+import qchem.Hamiltonian.Factory;                   // Factory(...), IsDFT, XCFunctional (XC selector)
+import qchem.ElectronConfiguration.AtomNR;          // Atom_EC, PseudoAtom_EC
 import qchem.ElectronConfiguration.AtomDirac;       // AtomDirac_EC
+import qchem.PeriodicTable;                          // thePeriodicTable().GetSymbol(Z) (the PP element)
 import qchem.SCFAccelerator.Factory;                // SCFAccelerators::Type, Factory
 import qchem.WaveFunction;                           // WaveFunction (GetChargeDensity/GetOrbitals/GetQNs)
 import qchem.Orbitals;                               // Orbital, Orbitals
@@ -46,9 +47,11 @@ AtomCalculation::AtomCalculation(int Z, int charge, const AtomCalcOptions& opts,
     , itsAcc(acc)
     , itsStructure(std::make_shared<Atom>(Z, double(charge), rvec3_t(0,0,0)))
 {
-    // The EC follows the model: relativistic models need the Dirac (j-coupled) configuration.
-    itsEC = IsDirac(opts.model) ? static_cast<ElectronConfiguration*>(new AtomDirac_EC(itsNe))
-                                : static_cast<ElectronConfiguration*>(new Atom_EC(itsNe));
+    // The EC follows the model: a pseudo-atom uses the valence-only PseudoAtom_EC (keyed by the full Z);
+    // relativistic models need the Dirac (j-coupled) configuration; everything else is a plain Atom_EC.
+    itsEC = opts.pseudopotential ? static_cast<ElectronConfiguration*>(new PseudoAtom_EC(itsZ))
+          : IsDirac(opts.model)  ? static_cast<ElectronConfiguration*>(new AtomDirac_EC(itsNe))
+          :                        static_cast<ElectronConfiguration*>(new Atom_EC(itsNe));
     itsBasis = BuildBasis(opts, Z, *itsEC);
     Converge(params);
 }
@@ -62,8 +65,14 @@ AtomCalculation::~AtomCalculation()
 
 bool AtomCalculation::Converge(const SCFParams& params)
 {
-    auto* ham = qchem::Hamiltonian::Factory(itsOpts.model, itsOpts.pol, itsStructure,
-                                            itsOpts.mesh, itsBasis, itsOpts.xalpha);
+    namespace H = qchem::Hamiltonian;
+    // Three DFT/HF routes: a pseudopotential (PP front door, valence electrons = itsNe), an explicit XC
+    // functional override (the public selector, e.g. libxc), or the model's built-in Hamiltonian/functional.
+    auto* ham = itsOpts.pseudopotential
+        ? H::Factory(itsStructure, thePeriodicTable().GetSymbol(itsZ), itsNe, itsOpts.mesh, itsBasis)
+        : itsOpts.xc.has_value()
+            ? H::Factory(itsOpts.pol, itsStructure, *itsOpts.xc, itsOpts.mesh, itsBasis)
+            : H::Factory(itsOpts.model, itsOpts.pol, itsStructure, itsOpts.mesh, itsBasis, itsOpts.xalpha);
 
     // Atoms use the proven Z-scaled DIIS gate (EMax = Z^2*0.1/32) unless the caller pins one.
     const double emax = itsAcc.eMax > 0.0 ? itsAcc.eMax : itsZ*itsZ*0.1/32;

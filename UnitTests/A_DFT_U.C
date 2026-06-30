@@ -1,85 +1,51 @@
-// File A_DFT_U.C  Atom DFT tests for Unpolarized (closed shell) atoms.  Using libxc for exchange functionals
+// File A_DFT_U.C  Atom DFT tests using a libxc exchange functional (facade-driven).
+//
+// Migrated off QchemTester onto qchem::AtomCalculation with the new public exchange-functional selector:
+// CalcOptions.xc = XCFunctional{.kind=XC::LibXC, .libxcId=7} routes the DFT Hamiltonian through libxc
+// (functional id 7) instead of the built-in Slater-Xα.  Same High Gaussian/Slater bases, per-Z SCFParams,
+// NIST oracle; anchors unchanged.
 #include "gtest/gtest.h"
-import qchem.Unittests.QchemTester;
-import qchem.Hamiltonian.Internal.Libxc_LDA_Exchange;
+import qchem.AtomCalculation;        // AtomCalculation, AtomType, Model, Pol
+import qchem.Hamiltonian.Factory;    // XCFunctional, XC (the exchange-functional selector)
+import qchem.SCFIterator;            // SCFParams
+import qchem.Unittests.TestUtils;    // RelativeDFTError
 using namespace qchem;
-const bool verbose=true;
-
 using std::cout;
 using std::endl;
-using enum BasisSet::Atom::BasisSetAccuracy;
-using namespace qchem::Hamiltonian;
-class A_DFT_U : public ::testing::TestWithParam<size_t>, public TestAtom
+using enum BasisSetAccuracy;
+using namespace qchem::Hamiltonian;  // XCFunctional, XC
+
+const bool verbose=true;
+
+// libxc LDA (functional id 7) atom DFT; report signed NIST relative error + convergence.
+static double Libxc_DFT_err(size_t Z, AtomType type, const SCFParams& p, bool& converged)
 {
-public:
-    A_DFT_U() : TestAtom(GetParam()) {};
-    virtual qchem::Hamiltonian::Hamiltonian* GetHamiltonian(st_t& structure) const
-    {
-        ex=new Libxc_LDA_Exchange(7,Spin::None,GetZ());
-        cout << *ex << endl;
-        qchem::Hamiltonian::Hamiltonian* H=Factory(Pol::UnPolarized,structure,ex,GetMeshParams(),itsBasisSet);
-        // cout << *H << endl;
-        return H;
-    }
-private:
-    mutable ExFunctional* ex;
-};
+    AtomCalculation calc(Z, 0, {.type = type, .accuracy = High, .model = Model::Xalpha, .pol = Pol::UnPolarized,
+                                .xc = XCFunctional{.kind = XC::LibXC, .libxcId = 7}}, p);
+    converged = calc.IsConverged();
+    return RelativeDFTError(calc.Energy(), int(Z));
+}
 
-
-// "2": {
-//     "Etot": -2.834836,
-//     "Ekin": 2.767922,
-//     "Ecoul": 1.99612,
-//     "Eenuc": -6.625564,
-//     "Exc": -0.973314,
-//     "1s": -0.570425,
-//     "Symbol": "He",
-//     "Z": 2
-//   },
-// "36": {
-//     "Etot": -2750.14794,
-//     "Ekin": 2747.813142,
-//     "Ecoul": 1171.723688,
-//     "Eenuc": -6577.865761,
-//     "Exc": -91.819009,
-//     "1s": -509.982989,
-//     "2s": -66.285953,
-//     "2p": -60.017328,
-//     "3s": -9.315192,
-//     "3p": -7.086634,
-//     "3d": -3.074109,
-//     "4s": -0.820574,
-//     "4p": -0.34634,
-//     "Symbol": "Kr",
-//     "Z": 36
-//   },
-class SG_DFT_U_High : public A_DFT_U {};
+class SG_DFT_U_High : public ::testing::TestWithParam<size_t> {};
 TEST_P(SG_DFT_U_High,A)
 {
     size_t Z=GetParam();
     cout << "---------------- Z=" << Z << " ---------------"<< endl;
-        
-    QchemTester::Init(High,BasisSet::Atom::Type::Gaussian,verbose);
-    Iterate({.NMaxIter = 50, .MinΔρ = Z*1e-5, .MinΔFD = 1e-5, .MinVirial = 1e-1, .MinFD = Z*1e-6, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true});
-    // cout << "RelativeHFError = " << RelativeHFError() << std::endl;
-    EXPECT_LT(RelativeDFTError(),2e-6); 
-    EXPECT_TRUE(Converged()); 
-        
+    bool conv; double err=Libxc_DFT_err(Z, AtomType::Gaussian,
+        {.NMaxIter = 50, .MinΔρ = Z*1e-5, .MinΔFD = 1e-5, .MinVirial = 1e-1, .MinFD = Z*1e-6, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true}, conv);
+    EXPECT_LT(err,2e-6);
+    EXPECT_TRUE(conv);
 }
-INSTANTIATE_TEST_SUITE_P(A_DFT,SG_DFT_U_High,::testing::Values(36));//)); 
+INSTANTIATE_TEST_SUITE_P(A_DFT,SG_DFT_U_High,::testing::Values(36));
 
-class SL_DFT_U_High : public A_DFT_U {};
+class SL_DFT_U_High : public ::testing::TestWithParam<size_t> {};
 TEST_P(SL_DFT_U_High,A)
 {
     size_t Z=GetParam();
     cout << "---------------- Z=" << Z << " ---------------"<< endl;
-        
-    QchemTester::Init(High,BasisSet::Atom::Type::Slater,verbose);
-    Iterate({.NMaxIter = 50, .MinΔρ = Z*1e-5, .MinΔFD = 1e-7, .MinVirial = 2e-2, .MinFD = Z*1e-6, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true});
-    // cout << "RelativeHFError = " << RelativeHFError() << std::endl;
-    EXPECT_LT(RelativeDFTError(),2e-6); 
-    EXPECT_TRUE(Converged()); 
-        
+    bool conv; double err=Libxc_DFT_err(Z, AtomType::Slater,
+        {.NMaxIter = 50, .MinΔρ = Z*1e-5, .MinΔFD = 1e-7, .MinVirial = 2e-2, .MinFD = Z*1e-6, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true}, conv);
+    EXPECT_LT(err,2e-6);
+    EXPECT_TRUE(conv);
 }
-// INSTANTIATE_TEST_SUITE_P(A_DFT,SL_DFT_U_High,::testing::Values(2,4,10,18,36,54));//)); 
-INSTANTIATE_TEST_SUITE_P(A_DFT,SL_DFT_U_High,::testing::Values(36));//)); 
+INSTANTIATE_TEST_SUITE_P(A_DFT,SL_DFT_U_High,::testing::Values(36));
