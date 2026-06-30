@@ -19,7 +19,8 @@ export module qchem.Calculation;
 import qchem.Structure;            // Structure, Molecule, Atom
 import qchem.ScalarFunction;       // ::ScalarFunction<double>
 import qchem.BasisSet;             // BasisSet::Real_BS
-import qchem.Hamiltonian.Factory;  // Hamiltonian::Model, Hamiltonian::Pol
+import qchem.Hamiltonian.Factory;  // Hamiltonian::Model, Hamiltonian::Pol, IsDFT, the unified resolver
+import qchem.Mesh;                 // qcMesh::MeshParams (the DFT integration grid)
 import qchem.ElectronConfiguration;// ElectronConfiguration
 import qchem.SCFIterator;          // SCFIterator, SCFParams, SCFProgress, EnergyBreakdown
 import qchem.Symmetry.Irrep;       // Irrep
@@ -37,8 +38,16 @@ using Hamiltonian::Pol;            // {UnPolarized, Polarized}
 struct CalcOptions
 {
     std::string basis = "sto-3g";
-    Model       model = Model::HF;
+    Model       model = Model::HF;   //!< HF (default) | Xalpha | LDA | E1/DE1/DHF (test-only)
     Pol         pol   = Pol::UnPolarized;
+    //! DFT-only knobs (ignored when model is HF/1-e/Dirac).  xalpha: the Slater exchange parameter, used
+    //! only by model==Xalpha.  mesh: the numerical XC integration grid -- defaults to the proven molecular
+    //! values; a designated initializer overrides just the resolution you care about, e.g. {.nRadial=50}.
+    double      xalpha = 0.7;
+    qcMesh::MeshParams mesh = {.radial  = qcMesh::RadialKind::MHL,   .nRadial   = 30,
+                              .mhl_m    = 3,                         .mhl_alpha = 2.0,
+                              .angular  = qcMesh::AngularKind::Gauss, .nAngular  = 12,
+                              .beckeOrder = 2};
     //! Point-group SALC blocking + per-irrep aufbau.  GUARDED TO THE CARTESIAN PG BASIS: the SALC
     //! builder needs a PolarizedGaussian (PGData) orbital IBS and throws otherwise.  Since the facade
     //! only builds the default Cartesian basis today, this is always the supported path; the guard

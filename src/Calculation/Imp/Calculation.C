@@ -55,18 +55,27 @@ Calculation::~Calculation()
 
 bool Calculation::Converge(const SCFParams& params)
 {
-    const int Z = itsStructure->GetNuclearCharge();
-    auto* ham = qchem::Hamiltonian::Factory(itsOpts.model, itsOpts.pol, itsStructure);
+    const int  Z   = itsStructure->GetNuclearCharge();
+    const bool dft = qchem::Hamiltonian::IsDFT(itsOpts.model);
 
-    nlohmann::json jsacc = {{"NProj", itsAcc.nProj},
-                            {"EMax",  itsAcc.eMax > 0.0 ? itsAcc.eMax : Z*Z*0.1/32},
-                            {"EMin",  itsAcc.eMin},
-                            {"SVTol", itsAcc.svTol}};
+    // The unified resolver turns the Model token into the concrete Hamiltonian; the DFT extras (mesh,
+    // orbital basis, xalpha) are ignored for HF/1-e/Dirac.
+    auto* ham = qchem::Hamiltonian::Factory(itsOpts.model, itsOpts.pol, itsStructure,
+                                            itsOpts.mesh, itsBasis, itsOpts.xalpha);
+
+    // DFT needs DIIS engaged from iteration 0: the default Z-scaled EMax gate keeps DIIS off and the DFT
+    // SCF limit-cycles to a non-converged snapshot (the "M_Sym layout UB" mechanism, see M_DFT).  So
+    // default DFT to a high EMax ("DIIS from start") unless the caller pinned one explicitly.
+    const double emax = itsAcc.eMax > 0.0 ? itsAcc.eMax : (dft ? 100.0 : Z*Z*0.1/32);
+    nlohmann::json jsacc = {{"NProj", itsAcc.nProj}, {"EMax", emax},
+                            {"EMin", itsAcc.eMin}, {"SVTol", itsAcc.svTol}};
     auto* accel = qchem::SCFAccelerators::Factory(qchem::SCFAccelerators::Type::DIIS, jsacc);
 
     delete itsScf;                                     // releases the previous Hamiltonian + accelerator
-    itsScf = new SCFIter(itsBasis, itsEC, ham, accel,
-                         qchem::ChargeDensity::SeedStrategy::Default, itsStructure.get());
+    // DFT seeds from superposition-of-atomic-densities (SAD); HF/1-e take the core guess (Default).
+    const auto seed = dft ? qchem::ChargeDensity::SeedStrategy::SAD
+                          : qchem::ChargeDensity::SeedStrategy::Default;
+    itsScf = new SCFIter(itsBasis, itsEC, ham, accel, seed, itsStructure.get());
     if (itsObserver) itsScf->SetObserver(itsObserver);
 
     bool ok = itsScf->Iterate(params);

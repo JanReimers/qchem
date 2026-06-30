@@ -33,6 +33,22 @@ TEST(M_Calculation, WaterEnergy)
     EXPECT_GT(calc.IterationCount(), 0u);
 }
 
+// Parameter-free LDA molecular DFT through the facade (Dirac exchange + VWN5 correlation).  The facade
+// auto-selects the SAD seed and DIIS-from-start for DFT; CalcOptions.mesh defaults to molecular values.
+// "Did E move" regression sentinel, like the HF anchor (NOT a physical-accuracy claim).
+TEST(M_Calculation, WaterLDA)
+{
+    Calculation calc(MakeWater(), {.basis = "dzvp", .model = qchem::Model::LDA});
+    // Converged parameter-free LDA total energy (Dirac exchange + VWN5 correlation), with the facade's
+    // auto DIIS-from-start + SAD seed.  Isolated value is -75.9324615507 (bit-stable).  Tolerance is the
+    // loose "did E move" 2e-3 the molecular DFT anchors use (M_DFT): a *pre-existing* cross-test
+    // contamination drifts every DFT energy by ~585 ppm when an HF molecular test runs first (global
+    // state HF leaves behind -- see the determinism follow-up), which M_DFT's tolerance also absorbs.
+    const double E_ref = -75.9324615507;
+    EXPECT_LT(std::fabs((E_ref - calc.Energy()) / E_ref), 2e-3);
+    EXPECT_GT(calc.IterationCount(), 0u);
+}
+
 // {.symmetry=true} SALC-blocks the (Cartesian PG) basis + does global aufbau across irreps.  The
 // converged total energy must match the un-blocked run -- the M_Sym invariant, now through the facade.
 TEST(M_Calculation, WaterSymmetry)
