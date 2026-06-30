@@ -14,12 +14,14 @@
 #include <algorithm>
 #include <nlohmann/json.hpp>
 
-import qchem.BasisSet.Atom.Factory;
-import qchem.Unittests.QchemTester;       // QchemTester, TestAtom, TestDiracAtom, BasisSetAccuracy, DM_CD
-import qchem.Hamiltonian.Factory;         // Model, Pol, Factory
-import qchem.Hamiltonian.Internal.Hamiltonians;  // Ham_DFTcorr_U (real LSDA: Dirac exchange + VWN5), Ham_PP_U
-import qchem.Structure;                    // Atom (the pseudo-ion for --model PP)
-import qchem.ElectronConfiguration.AtomNR;  // PseudoAtom_EC (valence-only atomic config for the pseudo-atom)
+import qchem.AtomCalculation;             // AtomCalculation, AtomCalcOptions, AtomType, BasisSetAccuracy, Model, Pol
+import qchem.Hamiltonian.Factory;         // XCFunctional (the exchange-functional selector)
+import qchem.PeriodicTable;               // thePeriodicTable(): symbol / per-Z Slater alpha
+import qchem.SCFIterator;                 // SCFParams
+import qchem.Unittests.TestUtils;         // RelativeHFError / RelativeDHFError (Z-keyed oracle)
+import qchem.Symmetry.Irrep;              // Irrep
+import qchem.Symmetry.Spin;               // Spin
+import qchem.Orbitals;                    // Orbital (valence-density build)
 import qchem.Math;                        // Pi
 import qchem.Types;                       // rvec3_t
 import qchem.ScalarFunction;              // ScalarFunction<double> (density / orbital evaluation)
@@ -29,66 +31,7 @@ using namespace qchem;
 using std::cout;
 using std::endl;
 using std::string;
-using namespace qchem::Hamiltonian;       // Model, Pol, Factory
-using namespace qchem::BasisSet::Atom;
-
-// Config-driven concrete fixtures: the Hamiltonian model/polarization come from the CLI.
-class CliAtom : public TestAtom
-{
-    Model m; Pol p;
-public:
-    CliAtom(int Z,int q,Model _m,Pol _p) : TestAtom(Z,q), m(_m), p(_p) {}
-    virtual qchem::Hamiltonian::Hamiltonian* GetHamiltonian(st_t& c) const override { return Factory(m,p,c); }
-};
-class CliDiracAtom : public TestDiracAtom
-{
-    Model m; Pol p;
-public:
-    CliDiracAtom(int Z,int q,Model _m,Pol _p) : TestDiracAtom(Z,q), m(_m), p(_p) {}
-    virtual qchem::Hamiltonian::Hamiltonian* GetHamiltonian(st_t& c) const override { return Factory(m,p,c); }
-};
-// DFT atom for generating the SAD atomic-density file.  --xc LDA = real LSDA (Dirac exchange + VWN5
-// correlation, Ham_DFTcorr_U); --xc Xalpha = Slater X-alpha (alpha from --alpha, else the per-Z optimized
-// value).  Unpolarized: an open-shell atom comes out spherical-ish (fractional shell occupation), which is
-// exactly the spherically-averaged density a SAD seed wants.
-class CliDFTAtom : public TestAtom
-{
-    bool lda; double alpha;
-public:
-    CliDFTAtom(int Z,int q,bool _lda,double _alpha) : TestAtom(Z,q), lda(_lda), alpha(_alpha) {}
-    virtual qchem::Hamiltonian::Hamiltonian* GetHamiltonian(st_t& c) const override
-    {
-        if (lda) return new Ham_DFTcorr_U(c, GetMeshParams(), itsBasisSet);
-        double a = alpha>0 ? alpha : QchemTester::itsPT.GetSlaterAlpha(GetZ());
-        return Factory(Pol::UnPolarized, c, a, GetMeshParams(), itsBasisSet);
-    }
-};
-
-// LOCAL-pseudopotential pseudo-atom for --model PP.  Build the FULL element's orbital basis (TestAtom(Z,0) so
-// the basis factory sees the real Z), then SWAP in (a) aufbau over only the VALENCE electrons (Molecule_EC), and
-// (b) the pseudo-ion structure (Atom with charge Z-valence, i.e. `valence` electrons), so the valence states
-// fill the right angular channels over the pseudized (core-free) spectrum.  Hamiltonian = Ham_PP_U: kinetic +
-// V_loc(r) (the GTH local model, mesh-quadratured) + Hartree + Dirac exchange + VWN5.  No Ven, no ion-ion.
-class CliPPAtom : public TestAtom
-{
-    string element; int valence;
-public:
-    // \a val is the GTH valence charge (Zion); \a netQ is the pseudo-ion's net charge (0 neutral, -1 anion
-    // e.g. F-, +1 cation e.g. Na+), so the ion carries (val - netQ) electrons.  TestAtom(Z, Z-(val-netQ))
-    // makes the structure Atom with exactly (val - netQ) electrons over a VALENCE-range basis (itsZ = the
-    // electron count; no tight core functions, which collapse under the soft PP).  The GTH lookup stays at
-    // val (Zion).  Swap the config to PseudoAtom_EC(Z, netQ): the charge-adjusted valence shells (F- -> s^2 p^6).
-    CliPPAtom(int Z, int val, int netQ=0)
-        : TestAtom(Z, Z-(val-netQ)), element(QchemTester::itsPT.GetSymbol(Z)), valence(val)
-    {
-        delete itsEC;
-        itsEC = new PseudoAtom_EC(Z, netQ);
-    }
-    virtual qchem::Hamiltonian::Hamiltonian* GetHamiltonian(st_t& c) const override
-    {
-        return new Ham_PP_U(c, element, valence, GetMeshParams(), itsBasisSet);    // GTH local model for `element`
-    }
-};
+using namespace qchem::Hamiltonian;       // Model, Pol, XCFunctional, XC
 
 // A valence density rho_val(r) = sum over the outermost orbitals of occ*|phi(r)|^2.  Built from a converged
 // spherical all-electron atom (the round-hole solver) by keeping only the top-Nval-electron orbitals -- the
@@ -106,11 +49,11 @@ public:
 
 // Take the converged atom's occupied orbitals, sort by energy (descending), and accumulate whole orbitals
 // until \a Nval electrons -- i.e. the outermost (valence) shells.
-static ValenceDensity BuildValenceDensity(const QchemTester& t, int Nval)
+static ValenceDensity BuildValenceDensity(const AtomCalculation& t, int Nval)
 {
     std::vector<std::tuple<double,double,const ScalarFunction<double>*>> occ;   // (energy, occupation, phi)
     for (const Irrep& irr : t.GetIrreps(Spin::None))
-        for (const Orbital* o : t.GetOrbitals(irr)->Iterate())
+        for (const auto* o : t.Orbitals(irr)->template Iterate<qchem::Orbitals::Orbital>())
             if (o->IsOccupied())
             {
                 const auto* phi = dynamic_cast<const ScalarFunction<double>*>(o);
@@ -153,7 +96,7 @@ static void DumpRadialDensity(const ScalarFunction<double>& cd, int Z, int Nelec
     double charge = 4.0*Pi*qcMesh::Integrate(mesh, rvec_t(rho.size(), rho.data()));  // 4*pi*int r^2 rho dr
 
     nlohmann::json entry = {
-        {"Z", Z}, {"symbol", QchemTester::itsPT.GetSymbol(Z)}, {"Nelec", Nelec},
+        {"Z", Z}, {"symbol", thePeriodicTable().GetSymbol(Z)}, {"Nelec", Nelec},
         {"functional", functional},
         {"grid", {{"kind","log"},{"rmin",rmin},{"rmax",rmax},{"N",ngrid}}},
         {"charge", charge},          // 4*pi*int r^2 rho dr (~ Nelec)
@@ -183,7 +126,7 @@ int main(int argc, char** argv)
     // ---- defaults ----
     int    Z=2, q=0, maxiter=50;
     string model="HF", pol="U", basis="", acc="Low", accel="DIIS";
-    nlohmann::json accj;   // accelerator config passed to QchemTester
+    nlohmann::json accj;   // accelerator config (forwarded to AtomCalculation)
     // SCF convergence criteria (-1 => Z-scaled default); raise precision with --minfd/--virial.
     double minro=-1, minde=1e-5, virial=5e-1, minfd=-1, relax=0.5;
     // SAD atomic-density generation (DFT models only): dump rho(r) on a log grid to a JSON database.
@@ -288,7 +231,7 @@ int main(int argc, char** argv)
     // ---- string -> enum maps ----
     std::map<string,Model> models={{"HF",Model::HF},{"DHF",Model::DHF},{"E1",Model::E1},{"DE1",Model::DE1}};
     Pol pp = (pol=="P"||pol=="Polarized") ? Pol::Polarized : Pol::UnPolarized;
-    using BT=BasisSet::Atom::Type;
+    using BT=AtomType;
     std::map<string,BT> bases={{"Slater",BT::Slater},{"Gaussian",BT::Gaussian},{"BSpline6",BT::BSpline6},
                                {"BSpliner6",BT::BSpliner6},{"Slater_RKB",BT::Slater_RKB},{"Gaussian_RKB",BT::Gaussian_RKB}};
     // Only the SCF-grade pools: N3/N5 are tiny fixed-count sets (3/5 functions) for low-level unit tests,
@@ -302,48 +245,54 @@ int main(int argc, char** argv)
     cout << "scfrun: Z="<<Z<<" q="<<q<<" model="<<model<<" pol="<<pol
          << " basis="<<basis<<" acc="<<acc<<" accel="<<accel<<" : "<<accj.dump()<<endl;
 
-    // ---- run ----
-    QchemTester* t = ppmodel ? (QchemTester*) new CliPPAtom   (Z,valence,q)   // --q = pseudo-ion net charge
-                   : dft     ? (QchemTester*) new CliDFTAtom  (Z,q,model!="Xalpha",alpha)
-                   : dirac   ? (QchemTester*) new CliDiracAtom(Z,q,models[model],pp)
-                             : (QchemTester*) new CliAtom     (Z,q,models[model],pp);
-    t->SetAcceleratorConfig(accj);
-    t->Init(accs[acc], bases[basis], false);
+    // ---- run (one AtomCalculation, the model/functional/PP chosen by options) ----
+    AtomCalcOptions opts;
+    opts.type        = bases[basis];
+    opts.accuracy    = accs[acc];
+    opts.accelerator = accj;                  // full accelerator config (type + tuned knobs) -- the escape hatch
+    if (ppmodel)
+    {
+        opts.pseudopotential = true;
+        opts.valence         = valence;       // GTH Zion (electrons = Zion - net charge)
+    }
+    else if (dft)
+    {
+        opts.pol = Pol::UnPolarized;
+        if (model=="Xalpha") { opts.model=Model::Xalpha; opts.xalpha = alpha>0 ? alpha : thePeriodicTable().GetSlaterAlpha(Z); }
+        else                   opts.model=Model::LDA;    // real LSDA: Dirac exchange + VWN5
+    }
+    else { opts.model = models[model]; opts.pol = pp; }   // HF / Dirac (AtomCalculation picks the EC from the model)
+
     if (minro<0) minro=Z*1e-4;
     if (minfd<0) minfd=Z*2e-5;
-    //       NMaxIter   MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo MergeTol verbose
-    t->Iterate({(size_t)maxiter, minro, minde, virial, minfd, relax, 1e-7, true});
+    // electrons = Z - q normally; for a pseudo-ion, electrons = Zion - q  (charge so that Z-charge = that count).
+    const int charge = ppmodel ? Z-(valence-q) : q;
+    //          NMaxIter  MinDeltaRo MinDelE MinVirial MinError StartingRelaxRo MergeTol verbose
+    AtomCalculation calc(Z, charge, opts,
+                         {(size_t)maxiter, minro, minde, virial, minfd, relax, 1e-7, true});
 
     // ---- report ----
-    double E=t->TotalEnergy();
+    double E=calc.Energy();
     cout << "RESULT  E="<<std::setprecision(10)<<E
-         << "  iters="<<t->GetIterationCount()
-         << "  Nelec="<<t->TotalCharge()
-         << "  converged="<<(t->Converged()?"yes":"no") << endl;
-    if (model=="HF")  t->RelativeHFError();
-    if (model=="DHF") t->RelativeDHFError();
+         << "  iters="<<calc.IterationCount()
+         << "  Nelec="<<calc.TotalCharge()
+         << "  converged="<<(calc.IsConverged()?"yes":"no") << endl;
+    if (model=="HF")  RelativeHFError (E, Z);
+    if (model=="DHF") RelativeDHFError(E, Z);
 
     // ---- SAD density file (DFT + PP models) ----
     if ((dft || ppmodel) && !out.empty())
     {
         const string functional = (model=="Xalpha"?"Xalpha":"LDA");
-        if (ppmodel)     // pseudo-VALENCE: the pseudo-atom's converged density IS the smooth valence density
-        {                // (no core peak -> no spurious high-G; this is the density the PW SAD seed wants)
-            std::unique_ptr<qchem::ChargeDensity::DM_CD> cd(t->GetChargeDensity());
-            DumpRadialDensity(*cd, Z, valence-q, functional, out, rmin, rmax, ngrid, {{"kind","valence"}});  // Nelec = Zion - netQ
-        }
-        else if (valence>0)   // all-electron pseudo-VALENCE proxy: the outermost `valence` orbitals only
+        if (ppmodel)             // pseudo-VALENCE: the pseudo-atom's converged density IS the smooth valence density
+            DumpRadialDensity(calc.Density(), Z, valence-q, functional, out, rmin, rmax, ngrid, {{"kind","valence"}});
+        else if (valence>0)      // all-electron pseudo-VALENCE proxy: the outermost `valence` orbitals only
         {
-            ValenceDensity vd = BuildValenceDensity(*t, valence);
+            ValenceDensity vd = BuildValenceDensity(calc, valence);
             DumpRadialDensity(vd, Z, valence, functional, out, rmin, rmax, ngrid, {{"kind","valence"}});
         }
-        else             // full all-electron density (for the molecular SAD seed)
-        {
-            std::unique_ptr<qchem::ChargeDensity::DM_CD> cd(t->GetChargeDensity());
-            DumpRadialDensity(*cd, Z, Z-q, functional, out, rmin, rmax, ngrid);
-        }
+        else                     // full all-electron density (for the molecular SAD seed)
+            DumpRadialDensity(calc.Density(), Z, Z-q, functional, out, rmin, rmax, ngrid);
     }
-
-    delete t;
     return 0;
 }

@@ -16,6 +16,7 @@ module;
 #include <string>
 #include <utility>
 #include <optional>
+#include <nlohmann/json.hpp>
 export module qchem.AtomCalculation;
 
 import qchem.Structure;             // Structure, Atom
@@ -63,9 +64,11 @@ struct AtomCalcOptions
     std::optional<qchem::Hamiltonian::XCFunctional> xc;
 
     //! Pseudo-atom: replace the all-electron nuclear attraction with the GTH local + KB nonlocal PP (LDA
-    //! XC), and use a valence-only PseudoAtom_EC.  The valence electron count is Z - charge; the element is
-    //! looked up from Z.
+    //! XC), and use a valence-only PseudoAtom_EC.  The element is looked up from Z.  `valence` is the GTH
+    //! Zion; 0 means "use the electron count Z-charge" (a neutral pseudo-atom).  For a pseudo-ion set both:
+    //! electrons = Z - charge, Zion = valence, net charge = Zion - electrons (e.g. F⁻: valence=7, one extra e).
     bool   pseudopotential = false;
+    int    valence         = 0;
 
     //! Atomic XC integration grid: the proven atom values (one angular point -- atoms are spherical).
     qcMesh::MeshParams mesh = {.radial  = qcMesh::RadialKind::MHL,   .nRadial   = 50,
@@ -74,6 +77,12 @@ struct AtomCalcOptions
                               .beckeOrder = 2};
     //! SCF seed.  Default == auto: CoreGuess (atoms never use the molecular SAD seed).
     qchem::ChargeDensity::SeedStrategy seed = qchem::ChargeDensity::SeedStrategy::Default;
+
+    //! Accelerator escape hatch for the long tail (accelerator TUNING: GDM/Ladder/directmin + their knobs).
+    //! Empty => the typed AcceleratorOptions DIIS path.  Non-empty => a full accelerator config merged over
+    //! the Z-scaled DIIS defaults, with "type" selecting DIIS/GDM/Ladder/directmin (mirrors the long-serving
+    //! scfrun knobs).  The common path stays typed; this is only for the accelerator-sweep driver.
+    nlohmann::json accelerator;
 };
 
 class AtomCalculation
