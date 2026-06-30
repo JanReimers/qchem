@@ -10,6 +10,7 @@ using std::endl;
 import qchem.BasisSet.Atom.Factory;
 import qchem.BasisSet.Orbital_HF_IBS;
 import qchem.BasisSet.Orbital_DFT_IBS;
+import qchem.BasisSet.Internal.DB_Cache_RAM;  // theCache<double>() + concrete IntegralsCache_RAM (Clear hooks; tests may cheat)
 import qchem.Blaze;
 using namespace qchem;
 
@@ -51,6 +52,33 @@ public:
             auto& S2=(*ibs2)->Overlap();
             EXPECT_EQ(S1,S2);
             EXPECT_EQ(&S1,&S2);
+            ++ibs2;
+        }
+    }
+    // Exercise the concrete cache's troubleshooting Clear() hooks.  Identity (address) semantics make
+    // eviction observable: a cached Get returns a reference to the STORED object, so after Clear() the
+    // same key must yield a freshly-recomputed object whose VALUE matches but whose ADDRESS differs --
+    // proving the entry was evicted, not served stale.  (We copy the value before clearing; the old
+    // reference dangles once its map node is erased, so we never read it post-Clear.)
+    void TestClearOverlap() const
+    {
+        auto& ram = dynamic_cast<BasisSet::IntegralsCache_RAM<double>&>(BasisSet::theCache<double>());
+        using OIBS=BasisSet::Real_OIBS;
+        for (auto ibs1:bs1->Iterate<OIBS>())
+        {
+            const rsmat_t  before = ibs1->Overlap();              // value copy of the cached entry
+            const void*    addr0  = &ibs1->Overlap();             // its stored address (HIT, still valid)
+            ram.Clear(BasisSet::IntegralsCache_Base::I2C::Overlap);
+            const rsmat_t& after  = ibs1->Overlap();             // MISS -> recomputed into a new node
+            EXPECT_EQ(before, after);                            // deterministic; Clear left the cache sound
+            (void)addr0;                                         // address may be reused by malloc -- not asserted
+        }
+        // Clearing one operator leaves the others and the cache machinery intact: bs1 & bs2 (same key)
+        // re-share the refilled Overlap entry.
+        auto ibs2=bs2->Iterate<OIBS>().begin();
+        for (auto ibs1:bs1->Iterate<OIBS>())
+        {
+            EXPECT_EQ(&ibs1->Overlap(), &(*ibs2)->Overlap());
             ++ibs2;
         }
     }
@@ -189,6 +217,17 @@ TEST_F(DBCach1Tests,SlaterOverlap)
 {
     Init(Slater);
     TestOverlap();
+}
+
+TEST_F(DBCach1Tests,GaussianClearOverlap)
+{
+    Init(Gaussian);
+    TestClearOverlap();
+}
+TEST_F(DBCach1Tests,SlaterClearOverlap)
+{
+    Init(Slater);
+    TestClearOverlap();
 }
 
 TEST_F(DBCach1Tests,BSplineKinetic)

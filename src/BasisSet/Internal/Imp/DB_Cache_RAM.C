@@ -11,6 +11,7 @@ module;
 #include <chrono>
 #include <functional>
 #include <stdexcept>
+#include <tuple>
 module qchem.BasisSet.Internal.DB_Cache_RAM;
 
 namespace std
@@ -358,6 +359,56 @@ template <class T> const rmat_t& IntegralsCache_RAM<T>::Get(I2x i2x,const DBCach
     const auto [it,ok]=itsmMats.insert({key,std::move(v)});
     assert(ok);
     return it->second;
+}
+
+// --- Troubleshooting / DBCache-unit-test Clear() hooks (see the declarations in the interface partition).
+// kCacheTestHooks is the compile-time switch -- the constexpr-bool idiom (cf. EnableMOM in CompositeWF.C),
+// NO preprocessor.  Default true so the DBCache unit tests run in the normal Release UTMain; flip to false
+// to drop the bodies from a hardened production build (they are unreachable from production code anyway,
+// which only holds the abstract IntegralsCache<T> face).  Each erases the entries for one operator; the
+// enum value comparison is on std::get<0>(key) (the operator slot) for every keyed map.
+constexpr bool kCacheTestHooks = true;
+
+template <class T> void IntegralsCache_RAM<T>::Clear(I1C op)
+{
+    if constexpr (kCacheTestHooks)
+    {
+        std::erase_if(itsVecs,  [&](const auto& kv){ return std::get<0>(kv.first)==op; });
+        std::erase_if(itsmVecs, [&](const auto& kv){ return std::get<0>(kv.first)==op; });
+    }
+}
+template <class T> void IntegralsCache_RAM<T>::Clear(I2C op)
+{
+    if constexpr (kCacheTestHooks)
+        std::erase_if(itsSMats, [&](const auto& kv){ return std::get<0>(kv.first)==op; });
+}
+template <class T> void IntegralsCache_RAM<T>::Clear(I2n)
+{
+    // keyn_t = (IBS_ID_t, Structure_ID_t) carries no I2n value (Nuclear is the only operator), so the
+    // whole nuclear map is the single operator's worth of entries.
+    if constexpr (kCacheTestHooks)
+        itsNMats.clear();
+}
+template <class T> void IntegralsCache_RAM<T>::Clear(I2x op)
+{
+    if constexpr (kCacheTestHooks)
+    {
+        std::erase_if(itsMats,  [&](const auto& kv){ return std::get<0>(kv.first)==op; });
+        std::erase_if(itsmMats, [&](const auto& kv){ return std::get<0>(kv.first)==op; });
+    }
+}
+template <class T> void IntegralsCache_RAM<T>::Clear(I3C op)
+{
+    if constexpr (kCacheTestHooks)
+        std::erase_if(itsERI3s, [&](const auto& kv){ return std::get<0>(kv.first)==op; });
+}
+template <class T> void IntegralsCache_RAM<T>::Clear(I4C op)
+{
+    // Jac/Kab are nested id->id->ERI4 maps with no operator in the key; Direct lives in Jac, Exchange in
+    // Kab.  ERI4_timestamps / itsTotalRAM are advisory GC bookkeeping (stale entries are tolerated and
+    // self-correct), so a troubleshooting clear leaves them be.
+    if constexpr (kCacheTestHooks)
+        (op==I4C::Direct ? Jac : Kab).clear();
 }
 
 template struct IntegralsCache<double>;

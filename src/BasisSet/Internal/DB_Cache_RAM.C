@@ -48,6 +48,22 @@ public:
     void Register(Cache3_Client* eval);
     const Cache3* GetCache3(const RadialTypeID_t& type) const;
 
+    // --- Troubleshooting / DBCache-unit-test hooks.  DELIBERATELY on the concrete RAM type, NOT on the
+    // abstract IntegralsCache<T> face: production code only ever holds that face (via theCache<T>()), so it
+    // physically cannot reach these; a DBCache test holds/casts the RAM type (tests may cheat).  Each erases
+    // the cached entries for ONE operator -- the enum TYPE picks the map, the VALUE picks the operator (the
+    // granularity that localised the fit-basis Norm bug: Clear(I1C::Normalization) vs Clear(I1C::Charge)).
+    // NOT for general test teardown -- clearing between tests would HIDE cross-run contamination, the very
+    // bug class this caught.  The registry caches (Cache2/3/4) are NOT clearable here: clients (GaussianRF)
+    // memoise them by raw pointer, so freeing them mid-process would dangle.  Bodies compile out when
+    // kCacheTestHooks is false (see the Imp TU).
+    void Clear(I1C op);   //!< itsVecs + itsmVecs (the mesh-keyed variant)
+    void Clear(I2C op);   //!< itsSMats
+    void Clear(I2n op);   //!< itsNMats (one operator -> whole map)
+    void Clear(I2x op);   //!< itsMats + itsmMats (the mesh-keyed variant)
+    void Clear(I3C op);   //!< itsERI3s
+    void Clear(I4C op);   //!< Jac (Direct) / Kab (Exchange)
+
 private:
     using key1_t=std::tuple<I1C,IBS_ID_t>; //Integral key for one IBS, 1 centers.
     using key2_t=std::tuple<I2C,IBS_ID_t>; //Integral key for one IBS, 2 centers.
