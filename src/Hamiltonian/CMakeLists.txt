@@ -12,8 +12,9 @@ target_sources(qcHamiltonian PRIVATE
     Internal/Imp/Vxc.C 
     Internal/Imp/VxcPol.C 
     Internal/Imp/Vnn.C 
-    Internal/Imp/FittedVxcPol.C 
-    Internal/Imp/FittedVee.C 
+    Internal/Imp/FittedVxcPol.C
+    Internal/Imp/FittedVcorrPol.C
+    Internal/Imp/FittedVee.C
     Internal/Imp/FittedVxc.C
     Internal/Imp/PWTerms.C
     Internal/Imp/HamiltonianImp.C

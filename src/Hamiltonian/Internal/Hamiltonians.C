@@ -54,6 +54,15 @@ public:
     Ham_DFTcorr_U(const st_t& st, const qcMesh::MeshParams&, const bs_t* bs);
 };
 
+// Spin-native (polarized) LSDA: Dirac exchange (FittedVxcPol) + spin-native VWN5 correlation
+// (FittedVcorrPol) as separate terms sharing one Vxc fit basis.  The U = ζ=0 collapse; this is the
+// open-shell / magnetism path (OpenWork B).  Correlation couples both spin channels -- see FittedVcorrPol.
+class Ham_DFTcorr_P : public virtual Hamiltonian, private HamiltonianImp
+{
+public:
+    Ham_DFTcorr_P(const st_t& st, const qcMesh::MeshParams&, const bs_t* bs);
+};
+
 //! Un-polarized LSDA PSEUDO-atom/molecule: kinetic + V_loc(r) (the pseudized replacement for the bare
 //! nuclear attraction, mesh-quadratured) + the KB-separable non-local projectors + Hartree + Dirac exchange
 //! + VWN5 correlation.  NO Ven, NO ion-ion (single pseudized atom).  The valence electron count comes from

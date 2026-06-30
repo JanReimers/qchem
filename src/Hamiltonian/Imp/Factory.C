@@ -120,10 +120,8 @@ namespace qchem::Hamiltonian
             case Model::Xalpha:
                 return Factory(p,st,xalpha,mp,bs);            // Slater-Xalpha (Ham_DFT_U/P)
             case Model::LDA:
-                if (p!=Pol::UnPolarized)
-                    throw std::runtime_error("Factory: polarized LDA is not yet wired -- only unpolarized "
-                                             "Ham_DFTcorr_U exists today (see doc/FacadeDFTPlan.md, stage D2).");
-                return new Ham_DFTcorr_U(st,mp,bs);           // parameter-free LDA: Dirac X + VWN5 C
+                return p==Pol::UnPolarized ? static_cast<Hamiltonian*>(new Ham_DFTcorr_U(st,mp,bs))   // Dirac X + VWN5 C
+                                           : static_cast<Hamiltonian*>(new Ham_DFTcorr_P(st,mp,bs));   // spin-native (OpenWork B)
         }
         assert(false); return nullptr;
     }
@@ -139,9 +137,8 @@ namespace qchem::Hamiltonian
             case XC::SlaterXalpha:
                 return Factory(p,st,xc.alpha,mp,bs);          // Slater-Dirac exchange, scaled by alpha
             case XC::DiracVWN:
-                if (p!=Pol::UnPolarized)
-                    throw std::runtime_error("Factory(XCFunctional): DiracVWN (LSDA) is unpolarized-only today.");
-                return new Ham_DFTcorr_U(st,mp,bs);
+                return p==Pol::UnPolarized ? static_cast<Hamiltonian*>(new Ham_DFTcorr_U(st,mp,bs))
+                                           : static_cast<Hamiltonian*>(new Ham_DFTcorr_P(st,mp,bs));   // spin-native VWN5
             case XC::LibXC:
                 if (p!=Pol::UnPolarized)
                     throw std::runtime_error("Factory(XCFunctional): LibXC is unpolarized-only today.");

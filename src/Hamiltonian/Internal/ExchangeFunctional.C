@@ -3,6 +3,7 @@ export module qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.ChargeDensity;
 import qchem.ScalarFunction;
 import qchem.Streamable;
+import qchem.Symmetry.Spin;   // Spin -- the requested channel of the spin-native correlation face
 
 export namespace qchem::Hamiltonian
 {
@@ -32,4 +33,22 @@ protected:
     bool            isPolarized;
 };
 
-} //namespace 
+//! \brief Spin-native correlation face (no data; an abstract capability mixin).
+//!
+//! Correlation does NOT separate by spin channel the way Slater exchange does: \f$v_c^\sigma\f$ and
+//! \f$\varepsilon_c\f$ COUPLE both densities (through \f$r_s(\rho_\uparrow+\rho_\downarrow)\f$ and
+//! \f$\zeta\f$), so they cannot be expressed through the single-density \c ExFunctional::GetVxc face that
+//! channel-separable exchange uses.  A correlation functional that supports polarized DFT implements this
+//! two-channel face; \c FittedVcorrPol consumes it.  Unpolarized is the \f$\rho_\uparrow=\rho_\downarrow\f$
+//! collapse (so \c GetVc(h,h,s)==\c ExFunctional::GetVxc(2h)).
+class SpinCorrelation
+{
+public:
+    virtual ~SpinCorrelation() {}
+    //! Correlation energy density per particle \f$\varepsilon_c(\rho_\uparrow,\rho_\downarrow)\f$.
+    virtual double GetEpsC(double rhoUp, double rhoDown) const=0;
+    //! Channel correlation potential \f$v_c^\sigma=\varepsilon_c+\rho\,\partial\varepsilon_c/\partial\rho_\sigma\f$.
+    virtual double GetVc  (double rhoUp, double rhoDown, const Spin&) const=0;
+};
+
+} //namespace

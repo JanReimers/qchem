@@ -57,8 +57,8 @@ export namespace qchem::Hamiltonian
 
     //! Build a DFT Hamiltonian with the selected exchange-correlation functional.  This hides the Internal
     //! ExFunctional construction + its ownership transfer; the returned Hamiltonian owns its functional(s).
-    //! (Polarized is supported for SlaterXalpha; DiracVWN/LibXC are unpolarized-only today -- they throw
-    //! for Pol::Polarized, mirroring the Model::LDA limitation.)
+    //! (Polarized is supported for SlaterXalpha and DiracVWN -- spin-native VWN5, OpenWork B; LibXC is
+    //! unpolarized-only today and throws for Pol::Polarized.)
     Hamiltonian* Factory(Pol, const st_t& st, const XCFunctional&, const qcMesh::MeshParams&, const bs_t*);
 
     //=== Pseudopotential ============================================================================

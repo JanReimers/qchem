@@ -26,7 +26,7 @@ Extend point-group SALC adaptation from the Cartesian PG basis to the two spheri
 
 ---
 
-## B. Spin-native DFT (was "D2 polarized")  ·  IN PROGRESS (B1 done)  ·  plan: `doc/SpinNativeDFTPlan.md` + tenet `feedback_spin_polarized_primary`
+## B. Spin-native DFT (was "D2 polarized")  ·  IN PROGRESS (B1+B2 done)  ·  plan: `doc/SpinNativeDFTPlan.md` + tenet `feedback_spin_polarized_primary`
 
 Reframed per the design tenet: **spin-polarized is the native formulation; unpolarized is the
 ζ=0 efficiency collapse** — not "add the polarized special case." Four pieces, all spin-first:
@@ -47,9 +47,14 @@ a shared `Gval`/`dGdx`, `EvalRZ(ρ,ζ)` returning ε_c + (r_s,ζ) partials, publ
 `LDA_XC_UT` extended: vs libxc `LDA_C_VWN` polarized on an (r_s,ζ) grid to 1e-9 + a collapse-consistency
 check. **150/150 UTMain green.**
 
-**Next step:** **B2** — `FittedVcorrPol` + `Ham_DFTcorr_P` consuming the B1 two-channel face (fit against
-the full `Polarized_CD`, NOT the per-channel split exchange uses) + seed fallback + un-gate the two Factory
-"polarized LDA not yet wired" throws. Order B2→B3→B4 forced (Ham term → occupation → facade).
+**B2 DONE** (uncommitted): abstract `SpinCorrelation` face + `VWN_Correlation` implements it; `FittedVcorrPol`
+fits v_c^σ against the full `Polarized_CD` (+ SAD-seed ρ/2 fallback), energy via `FittedEpsCPol` Dynamic_CC
+(polarized DM_Contract sums channels ⇒ ∫ε_c·ρ); `Ham_DFTcorr_P` mirrors `_U`; both Factory throws un-gated.
+Anchor `M_DFT.WaterPolarizedLDA` collapses to the unpolarized LDA anchor to 1e-6. **151/151 green.**
+
+**Next step:** **B3** — open-shell molecular occupation `Molecule_EC(nUp,nDown)`; closed-shell `Molecule_EC(Ne)`
+becomes the collapse (delegating ctor, existing call sites untouched). `GetN(Irrep)` returns per-spin counts;
+the aufbau-per-spin SCF loop already handles asymmetric channels (no SCF change). Then B4 (facade multiplicity).
 **Done already (D1):** closed-shell molecular HF+DFT via the facade — unified `Model` enum + Factory
 resolver, LDA + Xα, `8b8df1d0`.
 **Fixed (was the B entry bug):** polarized Xα + **SAD seed** segfault — `FittedVxcPol::CalcMatrix`

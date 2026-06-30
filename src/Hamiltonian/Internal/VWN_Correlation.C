@@ -29,7 +29,7 @@ export namespace qchem::Hamiltonian
 //!                              + [\varepsilon_c^F-\varepsilon_c^P]\,f(\zeta)\,\zeta^4 \f]
 //! with \f$f(\zeta)=\frac{(1+\zeta)^{4/3}+(1-\zeta)^{4/3}-2}{2^{4/3}-2}\f$ interpolating paramagnetic
 //! (\f$\zeta=0\f$) to ferromagnetic (\f$\zeta=1\f$), and \f$\alpha_c\f$ the spin stiffness.
-class VWN_Correlation : public ExFunctional
+class VWN_Correlation : public ExFunctional, public virtual SpinCorrelation
 {
     typedef Vector3D<double> Vec3;
 public:
@@ -42,16 +42,16 @@ public:
     virtual double GetVxc  (double rho) const { return rho>0.0 ? Vc (rho) : 0.0; }
     virtual double GetEpsXc(double rho) const { return rho>0.0 ? Eps(rho) : 0.0; }
 
-    // --- spin-native two-channel face (the primary formulation) ---
+    // --- spin-native two-channel face (the primary formulation; SpinCorrelation) ---
     //! Correlation energy density \f$\varepsilon_c(\rho_\uparrow,\rho_\downarrow)\f$.
-    double GetEpsC(double rup, double rdn) const
+    virtual double GetEpsC(double rup, double rdn) const
     {
         double rho=rup+rdn;
         return rho>0.0 ? EvalRZ(rho,Zeta(rup,rdn)).eps : 0.0;
     }
     //! Channel correlation potential \f$v_c^\sigma=\varepsilon_c+\rho\,\partial\varepsilon_c/\partial\rho_\sigma\f$.
     //! Note v_c^sigma COUPLES both channels (through r_s and zeta) -- it is NOT a function of rho_sigma alone.
-    double GetVc(double rup, double rdn, const Spin& s) const
+    virtual double GetVc(double rup, double rdn, const Spin& s) const
     {
         double rho=rup+rdn;
         if (rho<=0.0) return 0.0;

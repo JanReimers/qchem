@@ -82,3 +82,16 @@ TEST(M_DFT, WaterPolarizedSAD)
                    .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false});
     EXPECT_LT(fabs(RelativeError(calc.Energy(), -76.1493013984)), 2e-3);   // == the unpolarized Xalpha anchor
 }
+
+// Spin-native (polarized) parameter-free LDA water (Dirac exchange + spin-native VWN5 correlation) through
+// the facade's auto SAD seed -- OpenWork B2: Ham_DFTcorr_P + FittedVcorrPol.  Water is closed shell, so at
+// convergence zeta=0 everywhere and the polarized run must collapse to the UNPOLARIZED LDA anchor
+// (M_Calculation.WaterLDA = -75.9324615507).  This exercises the new polarized correlation term end to end:
+// the SAD-seed fallback (rho_up=rho_down=rho/2), the per-spin v_c^sigma fit, and the two-channel E_c.
+TEST(M_DFT, WaterPolarizedLDA)
+{
+    Calculation calc(MakeWater(), {.basis = "dzvp", .model = Model::LDA, .pol = Pol::Polarized});
+    calc.Converge({.NMaxIter = 60, .MinΔρ = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2, .MinFD = 1e-7,
+                   .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false});
+    EXPECT_NEAR(calc.Energy(), -75.9324615507, 1e-6);   // collapses to the unpolarized LDA anchor (closed shell)
+}

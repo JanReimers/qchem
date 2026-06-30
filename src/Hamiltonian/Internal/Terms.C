@@ -289,5 +289,37 @@ private:
     FittedEpsXc itsEpsC;   //!< dedicated eps_c fit for the correlation energy (shares the fit basis)
 };
 
+class FittedEpsCPol;   // the polarized eps_c contraction client (defined in Imp/FittedVcorrPol.C)
+
+//###############################################################################
+//
+//  Polarized (spin-native) correlation term.  Unlike FittedVxcPol -- which delegates to two INDEPENDENT
+//  single-channel FittedVxc, valid only because Slater exchange is channel-separable -- correlation
+//  v_c^sigma(rho_up,rho_down) COUPLES both channels (through r_s and zeta), so this term fits the
+//  SpinCorrelation functional against the FULL Polarized_CD at each mesh point.  The Fock build calls
+//  CalcMatrix per spin (each fits v_c^sigma); the energy E_c = integral eps_c(rho_up,rho_down) rho uses a
+//  dedicated eps_c fit (FittedEpsCPol) that the polarized density contracts over both channels.  The seed
+//  iteration (a spin-agnostic total density, not yet a Polarized_CD) collapses to v_c^P(rho) via
+//  rho_up=rho_down=rho/2 -- the same robustness FittedVxcPol needed (cd85d13c).
+//
+class FittedVcorrPol : public virtual Dynamic_HT, private Dynamic_HT_Imp_NoCache
+{
+public:
+    typedef std::shared_ptr<const BasisSet::FIT_SF_ABS> fbs_t;   //!< the scalar-function (overlap-metric) fit face
+    typedef std::shared_ptr<SpinCorrelation>            corr_t;  //!< the spin-native correlation functional
+
+    FittedVcorrPol(fbs_t&, corr_t&);
+   ~FittedVcorrPol();
+    virtual void GetEnergy (EnergyBreakdown&, const DM_CD* cd) const;
+    virtual bool IsPolarized() const {return true;}
+    virtual std::ostream& Write(std::ostream&) const;
+private:
+    virtual rsmat_t CalcMatrix(const obs_t*, const Spin&, const rChargeDensity* cd) const;
+
+    corr_t itsCorr;                                                      //!< the correlation functional (owned)
+    std::unique_ptr<Fitting::FunctionFitter_Scalar<double>> itsVcFitter; //!< v_c^sigma potential fit
+    std::unique_ptr<FittedEpsCPol>                          itsEpsC;     //!< E_c = integral eps_c rho (energy)
+};
+
 
 } //namespace

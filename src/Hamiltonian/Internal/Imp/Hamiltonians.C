@@ -63,6 +63,23 @@ Ham_DFTcorr_U::Ham_DFTcorr_U(const st_t& st, const qcMesh::MeshParams& mp, const
     Add(new FittedVcorr(XFitBasis, corr));
 }
 
+// Spin-native polarized LSDA: mirror Ham_DFTcorr_U but with the polarized exchange (FittedVxcPol, Dirac)
+// and the polarized correlation (FittedVcorrPol, spin-native VWN5) terms, sharing one Vxc fit basis.  The
+// unpolarized Ham_DFTcorr_U is the zeta=0 collapse of this.
+Ham_DFTcorr_P::Ham_DFTcorr_P(const st_t& st, const qcMesh::MeshParams& mp, const bs_t* bs)
+{
+    InsertStandardTerms(st);
+
+    FittedVee::fbs_t   CFitBasis(bs->CreateCDFitBasisSet(st.get(), mp));
+    Add(new FittedVee(CFitBasis,st->GetNumElectrons()));
+
+    FittedVxcPol::fbs_t XFitBasis(bs->CreateVxcFitBasisSet(st.get(), mp)); // ONE Vxc fit basis, shared X and C
+    FittedVxcPol::ex_t exch(new SlaterExchange(2.0/3.0, Spin(Spin::Up))); // Dirac exchange (alpha = 2/3), polarized
+    Add(new FittedVxcPol  (XFitBasis, exch));
+    FittedVcorrPol::corr_t corr(new VWN_Correlation());                  // spin-native VWN5 correlation
+    Add(new FittedVcorrPol(XFitBasis, corr));
+}
+
 // PSEUDOPOTENTIAL LSDA: like Ham_DFTcorr_U but with the bare nuclear attraction (Ven) replaced by the
 // mesh-quadratured local pseudopotential V_loc(r) + the KB-separable non-local projectors, and NO ion-ion.
 // Kinetic + PP_Local [+ PP_NonLocal] + Hartree + Dirac exchange + VWN5.
