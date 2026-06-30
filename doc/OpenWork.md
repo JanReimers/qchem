@@ -39,6 +39,9 @@ Reframed per the design tenet: **spin-polarized is the native formulation; unpol
 sequenced toward the battery/magnetism payoff, ideally with PBE+U.
 **Done already (D1):** closed-shell molecular HF+DFT via the facade — unified `Model` enum + Factory
 resolver, LDA + Xα, `8b8df1d0`.
+**Bug to fix here:** polarized Xα + **SAD seed** segfaults (found during the facade test migration, D;
+the facade auto-picks SAD for DFT, which the polarized path can't yet handle). Robust polarized SAD is
+part of this track.
 
 ---
 
@@ -68,19 +71,30 @@ suites green. pybind (OFF by default) updated by-name, not compiler-checked.
 
 ---
 
-## D. Test → Facade migration + slim QchemTester  ·  NOT STARTED  ·  plan: `doc/TestFacadeMigrationPlan.md`
+## D. Test → Facade migration + slim QchemTester  ·  ✅ DONE  ·  plan: `doc/TestFacadeMigrationPlan.md`
 
-Make `qchem::Calculation` THE molecular recipe: migrate the `TestMolecule`-derived molecular tests
-(`M_HF_U`, `M_DFT`, `A_DFT` molecular, `M_Sym`→`{.symmetry=true}`) onto the facade, then delete
-`TestMolecule` and slim `QchemTester` to the atom/Dirac harness. Atom/Dirac/PP tests stay (facade is
-molecule-only). Revives the previously-descoped "fold QchemTester onto the facade" as a deliberate project.
+`qchem::Calculation` is now THE molecular recipe — every molecular fixture drives the public facade and
+`TestMolecule` is deleted.
 
-**Prerequisite (additive facade gap):** `CalcOptions` needs `engine`/`angular` selection (libcint /
-spherical) for the basis-variant tests — the facade only builds default Cartesian today. (spherical+symmetry
-stays guarded until A lands.) Plus extract a free `RelativeError(E,Eref)` test helper. Anchors stay
-byte-for-byte; pure refactor.
-**Next step:** fill the engine/angular `CalcOptions` gap.
-**Sequence:** right after the namespace sweep (so migrated tests use the final namespaces).
+| Stage | What | Commit |
+|---|---|---|
+| 1 | `CalcOptions` `Engine{MnD,LibCint}` / `Angular{Cartesian,Spherical}` (+ `.seed`) | `585086bb`,`8d936edc` |
+| 2 | free `RelativeError(E,Eref)` helper (`UnitTests/TestUtils.C`) | `585086bb` |
+| 3 | migrate `M_HF_U` (6), `M_DFT` (3), `M_Sym`→`{.symmetry=true}` (7), `A_DFT` `A_PG` (oracle) | `8d936edc`,`c96188c2`,`b0e85305` |
+| 4 | delete `TestMolecule`; slim `QchemTester` to the atom/Dirac harness | `3c0becdd` |
+
+Anchors byte-for-byte (the facade's default `SCFParams` == the old `scf` literal; its auto DFT recipe
+== the hand-set SAD+DIIS-from-start; default mesh == `TestMolecule::GetMeshParams()`).  Stayed on the
+scaffold by design: `TestAtom`/`TestDiracAtom` + the Z-keyed NIST/Dirac oracle asserts; `scfrun`.
+
+Two additive facade extensions were needed to migrate cleanly (both general-purpose):
+`CalcOptions.seed` (for the SAD-seed HF bootstrap test) and `AcceleratorOptions.eMax` already existed
+(used by `A_PG` to pin the Z-scaled DIIS gate).  `A_PG`'s NIST checks keep the scaffold's SIGNED
+relative-error bound (bounds over-binding only) so pass/fail is identical.
+
+⚠️ **Bug surfaced:** polarized Xα + SAD seed **segfaults** through the facade (`M_Sym` polarized DFT hit
+it; worked around with `seed=CoreGuess`).  Latent in the not-yet-built spin-native DFT path — belongs to
+track **B**.
 
 ---
 
@@ -109,13 +123,11 @@ byte-for-byte; pure refactor.
 
 ## Recommended order (user-chosen 2026-06-30)
 
-1. **C (namespace sweep)** — NEXT. Tree is quiet now (all committed, A at a clean S1 checkpoint, B/D not
-   started), which is exactly when a whole-tree sweep is safe; and doing it before resuming A/D means
-   their remaining code is written in the final namespaces. Closes the API-ergonomics core for a GUI-team
-   sign-off ("thumbs up when ready", not unblock-ASAP — the umbrella already unblocked them).
-2. **D (test → facade migration + slim QchemTester)** — right after C.
-3. **A (finish Spherical SALC S2–S5)** — parked at a clean S1 checkpoint; resume when convenient.
+1. ~~**C (namespace sweep)**~~ — ✅ DONE `108ced3b` (full unification: whole tree under `qchem::`).
+2. ~~**D (test → facade migration + slim QchemTester)**~~ — ✅ DONE (`585086bb`…`3c0becdd`).
+3. **A (finish Spherical SALC S2–S5)** — NEXT. Parked at a clean S1 checkpoint; resume when convenient.
 4. **B (spin-native DFT)** — plan first, build spin-first, sequence toward PBE+U / batteries.
+   *First concrete task here:* fix the polarized-Xα + SAD-seed segfault that D surfaced.
 
 Note: one library session at a time, GUI on its own branch → land each session at a clean commit and the
 whole-tree sweep (C) has nothing to collide with. Hold the line on not opening new threads.
