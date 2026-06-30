@@ -79,7 +79,7 @@ TEST_P(A_SL_HF_ion,A)
         {"N", N}, {"emin", Z/20.}, {"emax", Z*Z*5.},
     };
     QchemTester::Init(js);
-    Iterate({.NMaxIter = 2, .MinΔρ = Z*1e-4, .MinΔFD = 1e-7, .MinVirial = Z*1e-5, .MinFD = 1.0, .StartingRelaxRo = 1e-4, .MergeTol = true});
+    Iterate({.NMaxIter = 2, .MinΔρ = Z*1e-4, .MinΔFD = 1e-7, .MinFD = Z*1e-5, .StartingRelaxRo = 1.0, .MergeTol = 1e-4, .Verbose = true});
     EXPECT_LT(RelativeError(-0.5*Z*Z),4e-13);
 }
 
