@@ -140,7 +140,16 @@ does not** — there is no `FittedVcorrPol`.
 `XC::DiracVWN`/`XC::LibXC` branches ~L141) and return `new Ham_DFTcorr_P(st,mp,bs)` for
 `Pol::Polarized`. The `Model`/`XCFunctional` enums are unchanged — purely a new resolver branch.
 
-## Piece 3 — open-shell molecular occupation (n↑, n↓)
+## Piece 3 — open-shell molecular occupation (n↑, n↓)  ·  ✅ DONE (B3)
+
+**Landed:** [Molecule_EC](src/ElectronConfigurations/Molecule_EC.C) now stores `(itsNup, itsNdn)`. The
+two-arg `Molecule_EC(nUp,nDown)` is the spin-native form; `Molecule_EC(Ne)` is the minimal-spin collapse
+(delegating: nUp=(Ne+1)/2, nDown=Ne/2 — singlet for even Ne, doublet for odd), byte-identical to the old
+closed-shell `GetN`. `GetN(Irrep)` returns the per-spin count (None = total). No SCF-loop change — aufbau
+already fills each spin channel independently. Tests in `UTElConfig` (MoleculeClosedShellEven/MinimalSpinOdd/
+OpenShellTriplet); UTMain 151/151 unchanged (collapse byte-identical).
+
+The original scoping (kept for reference):
 
 **Today:** [Molecule_EC](src/ElectronConfigurations/Molecule_EC.C) is `Molecule_EC(int Ne)` only;
 `GetN(Irrep)` does closed-shell aufbau — odd Ne splits (Ne±1)/2 across spins, even Ne splits Ne/2. There
