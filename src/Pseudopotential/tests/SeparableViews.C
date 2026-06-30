@@ -16,8 +16,9 @@
 import qchem.Pseudopotential.GTH_Potentials;     // GetGTH, GTH_PP (real HGH parameters)
 import qchem.Mesh.Quadrature;                     // qcMesh::RadialMesh, MakeRadial
 import qchem.Math;                                // Pi
+using namespace qchem;
 
-using namespace Pseudopotential;
+using namespace qchem::Pseudopotential;
 
 // integral_0^inf BetaR_p(r) j_l(q r) r^2 dr, on a fine log radial mesh (the weights fold in r^2).
 static double BesselTransform(const HGH_SeparablePotential& sep, int Z, size_t p, int l, double q,

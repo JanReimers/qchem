@@ -2,6 +2,8 @@ module;
 module qchem.BasisSet.Internal.ERI4T;
 import qchem.Blaze;
 
+namespace qchem {
+
 template <> ERI4T<double,mat_t>::ERI4T(size_t Nab, size_t Ncd) : itsData(Nab,Nab)
 {
     mat_t<double> Jcd(Ncd,Ncd,0.0);
@@ -24,3 +26,5 @@ template <class T,template<class> class M> size_t ERI4T<T,M>::size() const
 
 template class ERI4T<double,smat_t>; //g++ 15.2 BUG internal compiler error: in import_export_decl, at cp/decl2.cc:3563
 template class ERI4T<double, mat_t>; //g++ 15.2 BUG internal compiler error: in import_export_decl, at cp/decl2.cc:3563
+
+} // namespace qchem

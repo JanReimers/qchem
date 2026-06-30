@@ -12,7 +12,7 @@ import qchem.BasisSet.Internal.Cache2;
 import qchem.BasisSet.Internal.Cache3;
 import qchem.Types;
  
-export namespace BasisSet {
+export namespace qchem::BasisSet {
 
 // A cache client supplies its own identity string.  The cache uses it verbatim as the per-basis
 // key axis and knows nothing about what is being cached (atoms, molecules, solids).  The contract:

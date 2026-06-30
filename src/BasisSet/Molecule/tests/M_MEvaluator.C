@@ -24,8 +24,9 @@ import qchem.BasisSet.Internal.ERI4;                          // ERI4, fnorm
 import qchem.Structure;
 import qchem.Types;
 import qchem.Blaze;
+using namespace qchem;
 
-using namespace BasisSet::Molecule::Evaluators;
+using namespace qchem::BasisSet::Molecule::Evaluators;
 using BasisSet::Molecule::PG_Cart::Orbital_IBS;
 using NRE = PG_Cart_MnD::NR_Evaluator;
 

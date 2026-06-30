@@ -2,7 +2,7 @@
 module;
 module qchem.Symmetry.Spherical;
 
-namespace Symmetry
+namespace qchem::Symmetry
 {
 
 size_t Getl(const sym_t& s)

@@ -29,6 +29,7 @@ import qchem.BasisSet.Lattice_3D.Internal.KPlusG;     // KPlusG (Cartesian k+G, 
 import qchem.Blaze;              // zeroH
 import qchem.Vector3D;           // dot product (operator*), norm
 
+namespace qchem {
 namespace
 {
 using BasisSet::Lattice_3D::Internal::kZeroTol;  // |k+G| below this -> skip the j_l'(0) singularity
@@ -123,8 +124,9 @@ RadialTable BuildRadial(int l,double E,double Znuc,const rvec_t& r)
     return RadialTable{ std::move(Phi), boundary };
 }
 } // anon namespace
+} // namespace qchem
 
-namespace BasisSet::Lattice_3D
+namespace qchem::BasisSet::Lattice_3D
 {
 
 LAPW_IBS::LAPW_IBS(const ReciprocalLattice& recip, const ivec3_t& N, const ivec3_t& kIndex,

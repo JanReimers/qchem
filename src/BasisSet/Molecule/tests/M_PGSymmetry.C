@@ -14,11 +14,12 @@ import qchem.Structure;                                         // Molecule, Ato
 import qchem.Types;
 import qchem.Blaze;
 import qchem.Math;                                            // fabs
+using namespace qchem;
 
-using namespace BasisSet::Molecule::PG_Cart;
-using namespace Symmetry;
-using SymmetryAdapted_IBS      = ::BasisSet::SymmetryAdapted_IBS;          // ::BasisSet (the class clashes)
-using SymmetryAdaptedBasisSet  = ::BasisSet::Molecule::SymmetryAdaptedBasisSet;
+using namespace qchem::BasisSet::Molecule::PG_Cart;
+using namespace qchem::Symmetry;
+using SymmetryAdapted_IBS      = ::qchem::BasisSet::SymmetryAdapted_IBS;          // ::BasisSet (the class clashes)
+using SymmetryAdaptedBasisSet  = ::qchem::BasisSet::Molecule::SymmetryAdaptedBasisSet;
 
 // Build a real Cartesian-Gaussian basis on H2O, extract its shells, and run the full
 // symmetry pipeline (detect -> abelian group -> SALCs).  Validates the bridge end to end.
@@ -85,7 +86,7 @@ TEST(PGSymmetry, decorator_blocks_real_overlap)
     rvec3_t o   = Centroid(pts);
     auto salc   = BuildSALCs(shells, g, o, 1e-4);
 
-    const ::BasisSet::Orbital_1E_IBS<double>& bsi = ibs;  // cached Overlap() lives on the interface (collides
+    const ::qchem::BasisSet::Orbital_1E_IBS<double>& bsi = ibs;  // cached Overlap() lives on the interface (collides
     const rsmat_t& Sraw = bsi.Overlap();        // with the evaluator kernel on the concrete IBS now)
     size_t nAO = Sraw.rows();
     ASSERT_EQ(nAO, salc.O.columns());
@@ -130,7 +131,7 @@ TEST(PGSymmetry, symmetry_adapted_basis_set)
 
     // Iterate the irrep IBSs: blocks sum to the full AO count, each carries a valid C2v label.
     size_t nIBS=0, nfunc=0;
-    for (auto oi : sab.Iterate<::BasisSet::Real_OIBS>())
+    for (auto oi : sab.Iterate<::qchem::BasisSet::Real_OIBS>())
     {
         ++nIBS;
         nfunc += oi->GetNumFunctions();

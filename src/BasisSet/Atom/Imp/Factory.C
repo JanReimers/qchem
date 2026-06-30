@@ -17,7 +17,7 @@ import qchem.Blaze;
 
 using json = nlohmann::json;
 
-namespace BasisSet::Atom
+namespace qchem::BasisSet::Atom
 {
 
 using namespace Evaluators;

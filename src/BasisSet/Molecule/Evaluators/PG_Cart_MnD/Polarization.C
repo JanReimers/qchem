@@ -6,7 +6,7 @@ import qchem.Types;
 import qchem.IntPow;
 import qchem.BasisSet.Molecule.Evaluators.Internal.MnD.Index3;  // Cartesian->Hermite index seam
 
-export namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
+export namespace qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD
 {
 
 class Polarization
@@ -80,5 +80,5 @@ inline int   Polarization::GetSign    () const
     return GetTotalL()%2==0 ? 1 : -1;
 }
 
-} //namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
+} //namespace qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD
 

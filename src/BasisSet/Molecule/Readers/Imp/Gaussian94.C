@@ -15,9 +15,9 @@ import qchem.Types;
 import qchem.Blaze;
 
 using std::ws;
-namespace BasisSet::Molecule
+namespace qchem::BasisSet::Molecule
 {
-using namespace ::BasisSet::Molecule::Evaluators::PG_Cart_MnD;  // Cartesian glue moved out to PG_Cart_MnD
+using namespace ::qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD;  // Cartesian glue moved out to PG_Cart_MnD
     
 int ToNumber(char c);
 template <class T> T Max(const std::vector<T>& v)
@@ -253,4 +253,4 @@ int ToNumber(char c)
     return ret;
 }
 
-} //namespace BasisSet::Molecule
+} //namespace qchem::BasisSet::Molecule

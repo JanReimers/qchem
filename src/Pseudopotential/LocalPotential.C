@@ -19,7 +19,7 @@ module;
 export module qchem.Pseudopotential.LocalPotential;
 import qchem.Math; // FourPi, Pi
 
-export namespace Pseudopotential
+export namespace qchem::Pseudopotential
 {
 
 //! \brief The RECIPROCAL-space face of a local external potential: its per-species form factor.  A radial

@@ -11,7 +11,7 @@ import qchem.BasisSet.Molecule.Evaluators.Internal.MnD.Triangle3D;
 import qchem.BasisSet.Molecule.Evaluators.Internal.MnD.Index3;
 import qchem.Types;
 
-export namespace BasisSet::Molecule::Evaluators::Internal::MnD
+export namespace qchem::BasisSet::Molecule::Evaluators::Internal::MnD
 {
 
 class RNLM

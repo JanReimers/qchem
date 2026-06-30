@@ -9,6 +9,7 @@ using std::cout;
 using std::endl;
 import qchem.BasisSet.Internal.ERI4;
 import qchem.Blaze;
+using namespace qchem;
 
 
 //----------------------------------------------------------------------------------------------

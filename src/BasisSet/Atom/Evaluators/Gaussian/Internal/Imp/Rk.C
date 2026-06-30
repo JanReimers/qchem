@@ -12,7 +12,7 @@ import qchem.Blaze;
 using std::cout;
 using std::endl;
 
-namespace Gaussian
+namespace qchem::Gaussian
 {
 //
 //  Ranges:  

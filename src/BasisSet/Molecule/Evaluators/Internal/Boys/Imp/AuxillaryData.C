@@ -2,7 +2,7 @@
 
 module qchem.BasisSet.Molecule.Evaluators.Internal.Boys.AuxillaryFJ;
 
-namespace BasisSet::Molecule::Evaluators::Internal::Boys
+namespace qchem::BasisSet::Molecule::Evaluators::Internal::Boys
 {
 const int AuxillaryFJ::thejMax = 16;
 

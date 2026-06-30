@@ -7,7 +7,7 @@ module;
 #endif
 module qchem.BasisSet.Molecule.BasisFiles;
 
-namespace BasisSet::Molecule
+namespace qchem::BasisSet::Molecule
 {
     static const std::filesystem::path theDataDir = BASISSET_DATA_PATH;
 

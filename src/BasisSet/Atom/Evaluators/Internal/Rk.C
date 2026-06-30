@@ -4,6 +4,8 @@ module;
 export module qchem.BasisSet.Atom.Evaluators.Internal.Rk;
 export import qchem.BasisSet.Internal.Cache4;
 export import qchem.Types;
+
+namespace qchem {
 //
 //  These are often called Slater integrals. They represent the radial part of the 
 //  2 electron repulsion integrals (ERIs) encountered in atomic Hartree-Fock (HF) 
@@ -26,3 +28,4 @@ public:
 private:
     virtual size_t LMax() const=0;
 };
+} // namespace qchem

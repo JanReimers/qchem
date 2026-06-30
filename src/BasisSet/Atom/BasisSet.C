@@ -15,7 +15,7 @@ import qchem.BasisSet.Internal.IrrepBasisSetImp;
 import qchem.BasisSet.Internal.DB_Cache;
 
 export 
-namespace BasisSet {
+namespace qchem::BasisSet {
 namespace Atom {
 
 using namespace Evaluators;
@@ -195,9 +195,9 @@ public:
     };
     class EOrbital_RKB_IBS 
         : public virtual Orbital_RKB_IBS<double>
-        , public virtual ::BasisSet::Orbital_HF_IBS<double>
+        , public virtual ::qchem::BasisSet::Orbital_HF_IBS<double>
         , public Orbital_RKB_HF_IBS_Imp<double>
-        , public ::BasisSet::IrrepBasisSetImp<double>
+        , public ::qchem::BasisSet::IrrepBasisSetImp<double>
     {
     public:
         EOrbital_RKB_IBS(size_t N, double remin, double remax, const sym_t& irrep)

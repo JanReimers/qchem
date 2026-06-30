@@ -4,6 +4,8 @@ module;
 #include <cassert>
 module qchem.BasisSet.Atom.Evaluators.Internal.Wigner3j;
 
+namespace qchem {
+
 using namespace w3j_detail;
 
 const Wigner3j Wigner3j::w3j{};
@@ -28,3 +30,5 @@ double Wigner3j::sq(int la, int lb, int k, int ma, int mb) const
     assert(mb>=-lb); assert(mb<=lb);
     return Table[Index(la,lb,k,ma,mb)].sq;
 }
+
+} // namespace qchem

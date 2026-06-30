@@ -5,11 +5,12 @@
 import qchem.BasisSet.Atom.Factory;
 import qchem.LASolver;
 import qchem.Blaze;
+using namespace qchem;
 
 using std::cout;
 using std::endl;
 
-using namespace BasisSet::Atom;
+using namespace qchem::BasisSet::Atom;
 using enum BasisSetAccuracy;
 using BasisSet::Real_BS;
 using BasisSet::Real_OIBS;

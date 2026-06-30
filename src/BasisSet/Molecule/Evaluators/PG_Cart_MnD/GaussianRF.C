@@ -34,9 +34,9 @@ import qchem.Structure;
 //  (Previously these were the separate Internal.GData / Internal.Omega modules; folded in here since
 //  nothing else uses them -- which also lets findH3 build the block directly, no cycle-breaker lambda.)
 //
-namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
+namespace qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD
 {
-using ::BasisSet::Molecule::Evaluators::Internal::MnD::RNLM;  // Ω's self-auxiliary
+using ::qchem::BasisSet::Molecule::Evaluators::Internal::MnD::RNLM;  // Ω's self-auxiliary
 
 struct GData
 {
@@ -131,7 +131,7 @@ const Hermite3& findH3  (const PrimGaussian* a, const PrimGaussian* b, const Pri
 
 } // namespace (module-internal: PrimGaussian, GData, Ω, find* are not exported)
 
-export namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
+export namespace qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD
 {
 
 //
@@ -196,4 +196,4 @@ private:
     rvec_t                                     itsCoeff;  // normalization-folded contraction coeffs
 };
 
-} //namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD  
+} //namespace qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD  

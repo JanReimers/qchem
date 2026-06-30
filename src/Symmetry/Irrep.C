@@ -6,6 +6,8 @@ export import qchem.Symmetry;
 export import qchem.Symmetry.Spin;
 import qchem.Streamable;
 
+namespace qchem {
+
 export struct Irrep
     : public virtual Streamable
 {   
@@ -30,3 +32,5 @@ export struct Irrep
 };
 
 
+
+} // namespace qchem

@@ -4,7 +4,7 @@ module;
 export module qchem.Symmetry.Internal.Spherical;
 export import qchem.Symmetry.Spherical;
 
-export namespace Symmetry::Internal::Spherical
+export namespace qchem::Symmetry::Internal::Spherical
 {
 inline constexpr size_t LMax = 4;
 

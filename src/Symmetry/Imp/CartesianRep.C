@@ -7,7 +7,7 @@ module;
 #include <cassert>
 module qchem.Symmetry.CartesianRep;
 
-namespace Symmetry
+namespace qchem::Symmetry
 {
 
 rmat_t CartesianShellRep(const Matrix3D<double>& R, const std::vector<IVec3>& exps)

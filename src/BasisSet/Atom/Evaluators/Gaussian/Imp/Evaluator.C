@@ -9,7 +9,7 @@ import qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.ExponentScaler;
 import qchem.Math;
 import qchem.Blaze;
 
-namespace BasisSet::Atom::Evaluators::Gaussian
+namespace qchem::BasisSet::Atom::Evaluators::Gaussian
 {
 //---------------------------------------------------------------------------
 //
@@ -33,7 +33,7 @@ Cache4*    Radial::MakeCache4() const
 rvec_t Radial::exponents(size_t N, double emin, double emax, const sym_t& ir)
 {
     size_t LMax=3; //TODO how do we get the real LMax(Z) into this?
-    ::Gaussian::ExponentScaler ss(N,emin,emax,LMax);
+    ::qchem::Gaussian::ExponentScaler ss(N,emin,emax,LMax);
     return ss.Get_es(ir);
 }
 
@@ -41,7 +41,7 @@ rvec_t Radial::norms() const
 {
     size_t N=es.size();    
     rvec_t ret(N);
-    for (size_t i=0;i<N;i++) ret[i]=1.0/sqrt(::Gaussian::Integral(2*es[i],2*l)); 
+    for (size_t i=0;i<N;i++) ret[i]=1.0/sqrt(::qchem::Gaussian::Integral(2*es[i],2*l)); 
     return ret;
 }
 

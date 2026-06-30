@@ -9,7 +9,7 @@ import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.Streamable;
 import qchem.Types;
 
-export namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
+export namespace qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD
 {
 
 //-----------------------------------------------------------------------
@@ -44,5 +44,5 @@ public:
     std::vector<Polarization> itsPols;   //All polarizations for this block.
 };
 
-} //namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
+} //namespace qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD
 

@@ -13,7 +13,7 @@ import qchem.Math;
 
 using std::cout;
 using std::endl;
-namespace Symmetry::Internal::Spherical
+namespace qchem::Symmetry::Internal::Spherical
 {
 
 Ωκ::Ωκ(int _κ) : κ(_κ) 

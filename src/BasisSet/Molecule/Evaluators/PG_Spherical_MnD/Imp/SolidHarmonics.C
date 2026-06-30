@@ -9,7 +9,7 @@ module;
 #include <cassert>
 module qchem.BasisSet.Molecule.Evaluators.PG_Spherical_MnD.SolidHarmonics;
 
-namespace BasisSet::Molecule::Evaluators::PG_Spherical_MnD
+namespace qchem::BasisSet::Molecule::Evaluators::PG_Spherical_MnD
 {
 using P = Cart::Polarization;   // P(a,b,c) == monomial x^a y^b z^c
 

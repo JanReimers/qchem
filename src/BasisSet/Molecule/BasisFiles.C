@@ -8,7 +8,7 @@ module;
 #include <string>
 export module qchem.BasisSet.Molecule.BasisFiles;
 
-export namespace BasisSet::Molecule
+export namespace qchem::BasisSet::Molecule
 {
     // Absolute path (as a string, for the readers) to a basis-set data file, e.g. BasisFile("dzvp.bsd").
     std::string BasisFile(const std::string& filename);

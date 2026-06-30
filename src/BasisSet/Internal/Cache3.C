@@ -13,6 +13,8 @@ module;
 #include <functional>
 export module qchem.BasisSet.Internal.Cache3;
 
+namespace qchem {
+
 
 export class Cache3; //fwd
 
@@ -78,3 +80,5 @@ private:
     mutable size_t   i1,i2,i3; //Current indexes
     mutable size_t   itsLookups=0, itsInserts=0; //hit/miss stats
 };
+
+} // namespace qchem

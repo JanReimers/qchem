@@ -9,7 +9,7 @@ module qchem.Mesh.Angular;
 import qchem.Mesh.GaussLegendre;
 import qchem.Math;
 
-namespace qcMesh
+namespace qchem::qcMesh
 {
 
 AngularMesh GaussLegendreAngular(int L)
@@ -42,4 +42,4 @@ AngularMesh GaussLegendreAngular(int L)
     return AngularMesh(std::move(D), std::move(W));
 }
 
-} //namespace qcMesh
+} //namespace qchem::qcMesh

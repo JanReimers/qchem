@@ -7,6 +7,8 @@ export module qchem.ElectronConfiguration.AtomNR;
 export import qchem.ElectronConfiguration;
 
 import qchem.ElectronConfiguration.ElectronCounts;
+
+namespace qchem {
 const int Nshell=8;
 
 export class Atom_EC : public virtual ElectronConfiguration
@@ -33,7 +35,7 @@ protected:
     //! spilling a single leftover into the next-lower partially-filled l).  Shared by both ctors.
     void AssignUnpaired(int Z, int nup);
 
-    friend class ElectronConfigurationTests;
+    friend class ::ElectronConfigurationTests;
 
     static const int FullShells[Nshell][LMax+2];
     ElCounts itsNs; //Total,core, valance and unpaired counts.
@@ -54,3 +56,5 @@ public:
     PseudoAtom_EC(int Z, int netCharge=0);
 };
 
+
+} // namespace qchem

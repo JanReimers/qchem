@@ -10,9 +10,9 @@ export import qchem.Symmetry.SALC;        // AoShell, SymPoint, BuildSALCs (tran
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.PGData;
 import qchem.Structure;
 
-export namespace BasisSet::Molecule::PG_Cart
+export namespace qchem::BasisSet::Molecule::PG_Cart
 {
-using namespace ::BasisSet::Molecule::Evaluators::PG_Cart_MnD;  // Cartesian glue moved out to PG_Cart_MnD
+using namespace ::qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD;  // Cartesian glue moved out to PG_Cart_MnD
 
 // The AO shell layout of a (flattened) PG basis: one AoShell per Gaussian block, with its
 // center, Cartesian monomials, per-component normalization, a center-independent shellType

@@ -13,7 +13,7 @@ import qchem.BasisSet.Atom.Evaluators;
 import qchem.Symmetry.Spherical;
 import qchem.Math;
 
-namespace BasisSet::Atom::Evaluators::BSpline
+namespace qchem::BasisSet::Atom::Evaluators::BSpline
 {
 
 using namespace bspline::operators; 

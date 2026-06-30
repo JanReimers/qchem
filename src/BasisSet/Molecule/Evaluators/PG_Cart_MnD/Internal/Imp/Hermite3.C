@@ -5,7 +5,7 @@ module;
 #include <cassert>
 
 module qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Hermite;
-namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
+namespace qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD
 {
 //----------------------------------------------------------------------------------------
 //
@@ -262,4 +262,4 @@ std::ostream& operator<<(std::ostream& os,const Hermite3& h3)
     return os;
 }
 
-} //namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
+} //namespace qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD

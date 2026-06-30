@@ -4,6 +4,8 @@ module;
 #include <memory>
 
 module qchem.Structure;
+
+namespace qchem {
  
 
 std::string Structure::ID() const
@@ -45,3 +47,5 @@ size_t Structure::GetAtomIndex(const rvec3_t& r, double tol) const
     assert(ret!=GetNumAtoms());
     return ret;
 }
+
+} // namespace qchem

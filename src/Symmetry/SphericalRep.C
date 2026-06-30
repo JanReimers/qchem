@@ -15,7 +15,7 @@ module;
 export module qchem.Symmetry.SphericalRep;
 export import qchem.Symmetry.CartesianRep;   // IVec3, CartesianShellRep (reused), rmat_t / Matrix3D
 
-export namespace Symmetry
+export namespace qchem::Symmetry
 {
 
 //! One harmonic's Cartesian expansion: a list of (monomial exponents, coefficient) terms.  c2s[m] is the

@@ -24,7 +24,7 @@ import qchem.BasisSet.Orbital_HF_IBS;            // Direct()/Exchange()
 import qchem.Structure;
 import qchem.Types;
 
-using namespace BasisSet::Molecule;              // Gaussian94Reader, BasisFile, PG_Cart::, PG_LibCint::
+using namespace qchem::BasisSet::Molecule;              // Gaussian94Reader, BasisFile, PG_Cart::, PG_LibCint::
 
 using clk = std::chrono::steady_clock;
 static double ms(clk::time_point a, clk::time_point b)

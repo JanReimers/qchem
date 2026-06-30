@@ -26,7 +26,7 @@ module;
 export module qchem.Pseudopotential.SeparablePotential;
 import qchem.Math;   // Pi, FourPi
 
-export namespace Pseudopotential
+export namespace qchem::Pseudopotential
 {
 
 //! \brief The view-NEUTRAL structural core of a separable Kleinman-Bylander nonlocal potential: how many

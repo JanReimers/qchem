@@ -29,7 +29,7 @@ export import qchem.ReciprocalLattice;
 import qchem.Structure;
 import qchem.Types;
 
-export namespace BasisSet::Lattice_3D
+export namespace qchem::BasisSet::Lattice_3D
 {
 
 //! \brief Linearized Augmented Plane Wave basis for one k-point (single origin muffin-tin sphere).

@@ -22,7 +22,7 @@ import qchem.stl_io;
 import qchem.Math;
 import qchem.Blaze;
 
-namespace BasisSet::Molecule::PG_LibCint
+namespace qchem::BasisSet::Molecule::PG_LibCint
 {
 using Cart::GaussianRF;
 using Cart::Polarization;
@@ -151,4 +151,4 @@ std::ostream& IrrepBasisSet::Write(std::ostream& os) const {return os << BasisSe
 Orbital_IBS::Orbital_IBS(Reader* bsr, const Structure* cl, bool sph)                : IrrepBasisSet(bsr,cl,sph) {};
 Orbital_IBS::Orbital_IBS(const rvec_t& es, size_t L, const Structure* cl, bool sph) : IrrepBasisSet(es,L,cl,sph) {};
 
-} //namespace BasisSet::Molecule::PG_LibCint
+} //namespace qchem::BasisSet::Molecule::PG_LibCint

@@ -18,10 +18,10 @@ using std::size_t; //gcc-15-1 rejects this.
 
 using dcmplx=std::complex<double>;
 
-template <typename T> using vec3_t = Vector3D<T>;
-template <typename T> using mat3d_t = Matrix3D<T>;
-template <typename T> using vec2_t = Vector2D<T>;
-template <typename T> using mat2d_t = Matrix2D<T>;
+template <typename T> using vec3_t = qchem::Vector3D<T>;
+template <typename T> using mat3d_t = qchem::Matrix3D<T>;
+template <typename T> using vec2_t = qchem::Vector2D<T>;
+template <typename T> using mat2d_t = qchem::Matrix2D<T>;
 template <typename T> using  mat_t = blaze::DynamicMatrix<T,blaze::columnMajor>;
 template <typename T> using smat_t = blaze::SymmetricMatrix<mat_t<T>>;
 template <typename T> using hmat_t = std::conditional_t<

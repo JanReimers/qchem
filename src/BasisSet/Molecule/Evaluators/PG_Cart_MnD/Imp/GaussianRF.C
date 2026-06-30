@@ -21,7 +21,7 @@ import qchem.Blaze;     // rvec_t (itsCoeff)
 import qchem.Structure;
 import qchem.Math;
 
-namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
+namespace qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD
 {
 using Evaluators::Internal::MnD::RNLM;
 using Evaluators::Internal::MnD::Index3;   // plain (n,l,m) Hermite index for the RNLM lookup
@@ -752,4 +752,4 @@ rvec3_t GaussianRF::Gradient(const rvec3_t& r) const
     return ret;
 }
 
-} //namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
+} //namespace qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD

@@ -4,7 +4,7 @@ export module qchem.BasisSet.Atom.Evaluators.Slater.Internal.ExponentScaler;
 import qchem.Types;
 import qchem.Symmetry.Irrep;
 
-export namespace Slater
+export namespace qchem::Slater
 {
 
 class ExponentScaler

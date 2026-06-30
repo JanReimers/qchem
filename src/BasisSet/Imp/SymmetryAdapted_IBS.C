@@ -7,7 +7,7 @@ module;
 module qchem.BasisSet.SymmetryAdapted_IBS;
 import qchem.Blaze;          // trans, submatrix, matrix/vector ops
 
-namespace BasisSet
+namespace qchem::BasisSet
 {
 
 // Symmetrize a (numerically near-symmetric) square matrix into an rsmat_t.

@@ -7,7 +7,7 @@ import qchem.Math;
 
 static double Factorial[]= {1,1,2,6,24,120,720};
 
-namespace BasisSet::Molecule::Evaluators::Internal::Boys
+namespace qchem::BasisSet::Molecule::Evaluators::Internal::Boys
 {
 
 void AuxillaryFJ::GetFjAt(double T, rvec_t& Fj) const

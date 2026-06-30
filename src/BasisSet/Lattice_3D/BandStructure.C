@@ -15,7 +15,7 @@ import qchem.Structure;                 // Structure (the nuclear-potential sour
 import qchem.Blaze;                     // matrix operators (scalar*, +)
 import qchem.Types;                     // rvec_t, chmat_t, ivec3_t
 
-export namespace BasisSet::Lattice_3D
+export namespace qchem::BasisSet::Lattice_3D
 {
 
 //! Solve the one-electron problem for one k-point with an explicit external-potential block: assemble

@@ -16,7 +16,7 @@ module;
 export module qchem.BasisSet.Atom.Evaluators.Internal.Wigner3j;
 import qchem.Factorials;   // qchem::Fact (constexpr factorial table)
 
-export namespace Wigner
+export namespace qchem::Wigner
 {
     constexpr int phase(int n) {return (n&1)?-1:1;}          // (-1)^n (parity-correct for n<0 too)
     constexpr int iabs(int x) {return x<0?-x:x;}
@@ -77,7 +77,7 @@ export namespace Wigner
 //
 //  Integer-l 3j lookup table for the angular ERI integrations:  (l_a l_b k; m_a m_b -m_a-m_b).
 //
-namespace w3j_detail
+namespace qchem::w3j_detail
 {
     using Wigner::W;
     constexpr W wig3j(int j1,int j2,int j3,int m1,int m2,int m3)   // integer-l convenience (doubled inside)
@@ -108,6 +108,7 @@ namespace w3j_detail
 //
 //  Serve up Wigner 3j symbols for the (integer-l) angular ERI integrations.
 //
+namespace qchem {
 export class Wigner3j
 {
 public:
@@ -123,3 +124,4 @@ private:
     Wigner3j()=default;
     static constexpr int LMax=w3j_detail::LMax;
 };
+} // namespace qchem

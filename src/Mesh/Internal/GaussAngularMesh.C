@@ -17,7 +17,7 @@ module;
 module qchem.Mesh.Angular;
 import qchem.Math;
 
-namespace qcMesh
+namespace qchem::qcMesh
 {
 
 AngularMesh GaussAngular(int numDir)
@@ -232,4 +232,4 @@ AngularMesh GaussAngular(int numDir)
     return AngularMesh(std::move(D), std::move(W));
 }
 
-} //namespace qcMesh
+} //namespace qchem::qcMesh

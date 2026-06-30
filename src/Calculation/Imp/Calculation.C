@@ -20,7 +20,7 @@ import qchem.Orbitals;                               // Orbital, Orbitals
 namespace qchem
 {
 
-namespace PG = ::BasisSet::Molecule::PG_Cart;
+namespace PG = ::qchem::BasisSet::Molecule::PG_Cart;
 using SCFIter = qchem::SCFIterator::SCFIterator;
 
 // Build the molecular orbital basis, optionally SALC point-group-blocked.  When symmetry is off the

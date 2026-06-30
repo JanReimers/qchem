@@ -8,7 +8,7 @@ module;
 #include <cassert>
 module qchem.Symmetry.SphericalRep;
 
-namespace Symmetry
+namespace qchem::Symmetry
 {
 
 // Tiny dense helpers (shells are <= 7 wide); hand-rolled so this stays independent of which free-function

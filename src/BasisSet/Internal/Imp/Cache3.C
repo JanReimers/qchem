@@ -9,6 +9,8 @@ module;
 #include <string>
 module qchem.BasisSet.Internal.Cache3;
 
+namespace qchem {
+
 
 Cache3::~Cache3()
 {
@@ -82,3 +84,5 @@ const Cacheable3* Cache3::loop_3(size_t _i3) const
     }
     return i->second.get();
 }
+
+} // namespace qchem

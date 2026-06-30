@@ -2,6 +2,8 @@ module;
 #include <iostream>
 module qchem.Symmetry.Unit;
 
+namespace qchem {
+
 UnitQN::UnitQN()
 {};
 
@@ -17,3 +19,5 @@ std::ostream& UnitQN::Write(std::ostream& os) const
     return os << "No Symmetry";
 }
 
+
+} // namespace qchem

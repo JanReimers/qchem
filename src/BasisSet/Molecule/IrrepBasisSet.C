@@ -27,7 +27,7 @@ import qchem.Structure;
 import qchem.Types;
 import qchem.Blaze;
 
-export namespace BasisSet::Molecule
+export namespace qchem::BasisSet::Molecule
 {
 
 // --- 1E: Overlap / Kinetic(<p^2>) / Nuclear -------------------------------------------------------
@@ -38,7 +38,7 @@ export namespace BasisSet::Molecule
 // practice -- a kernel evaluator wants the loop + shared cache, an assembler hands us the matrix.)
 template <class E> requires (Evaluators::is1E_Evaluator<E> || Evaluators::isM_1E_Evaluator<E>)
 class Orbital_1E_IBS
-    : public virtual ::BasisSet::Orbital_1E_IBS<double>
+    : public virtual ::qchem::BasisSet::Orbital_1E_IBS<double>
 {
 protected:
     virtual rsmat_t MakeOverlap() const
@@ -68,7 +68,7 @@ protected:
 // Forward Cast().*ThreeC_Matrix(fit) when E delivers ERI3 (isM_DFT_Evaluator); else run the Make3C loop.
 template <class E> requires (Evaluators::isDFT_Evaluator<E> || Evaluators::isM_DFT_Evaluator<E>)
 class Orbital_DFT_IBS
-    : public virtual ::BasisSet::Orbital_DFT_IBS<double>
+    : public virtual ::qchem::BasisSet::Orbital_DFT_IBS<double>
 {
 protected:
     virtual ERI3<double> MakeOverlap3C  (const FIT_SF_ABS& c) const
@@ -112,11 +112,11 @@ private:
 // per-element integral goes through the evaluator's FourC kernel (which folds in all four norms).
 template <class E> requires (Evaluators::isHF_Evaluator<E> || Evaluators::isM_HF_Evaluator<E>)
 class Orbital_HF_IBS
-    : public virtual ::BasisSet::Orbital_HF_IBS<double>
+    : public virtual ::qchem::BasisSet::Orbital_HF_IBS<double>
 {
 protected:
     // 4-centre HF Coulomb (ab|cd): a,b on this orbital basis, c,d on the partner.
-    virtual ERI4 MakeDirect(const ::BasisSet::Orbital_HF_IBS<double>& _c) const
+    virtual ERI4 MakeDirect(const ::qchem::BasisSet::Orbital_HF_IBS<double>& _c) const
     {
         if constexpr (Evaluators::isM_HF_Evaluator<E>)
             return dynamic_cast<const E&>(*this).DirectMatrix(dynamic_cast<const E&>(_c));
@@ -137,7 +137,7 @@ protected:
         }
     }
     // 4-centre HF Exchange: slots (a b | a b).  Symmetry packing preserved exactly.
-    virtual ERI4 MakeExchange(const ::BasisSet::Orbital_HF_IBS<double>& _b) const
+    virtual ERI4 MakeExchange(const ::qchem::BasisSet::Orbital_HF_IBS<double>& _b) const
     {
         if constexpr (Evaluators::isM_HF_Evaluator<E>)
             return dynamic_cast<const E&>(*this).ExchangeMatrix(dynamic_cast<const E&>(_b));

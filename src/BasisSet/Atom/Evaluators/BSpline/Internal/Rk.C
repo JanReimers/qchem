@@ -8,7 +8,7 @@ import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.GLQuadrature;
 import qchem.BasisSet.Internal.Cache4;
 export import qchem.BasisSet.Atom.Evaluators.Internal.Rk;
 
-export namespace BSpline
+export namespace qchem::BSpline
 {
 
 //

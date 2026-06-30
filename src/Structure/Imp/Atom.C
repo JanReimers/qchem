@@ -5,6 +5,8 @@ module;
 module qchem.Structure;
 import qchem.Vector3D;
 
+namespace qchem {
+
 
 Atom::Atom(int Z)
     : Atom(Z,0.0,{0,0,0})
@@ -42,3 +44,5 @@ std::ostream& Atom::Write  (std::ostream& os) const
 }
 
 
+
+} // namespace qchem

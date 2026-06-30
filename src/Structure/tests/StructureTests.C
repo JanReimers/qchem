@@ -14,6 +14,7 @@ import qchem.Lattice_3D;
 import qchem.Ewald;
 import qchem.Math;
 import qchem.Types;   // rvec_t
+using namespace qchem;
 
 //  The storage-agnostic index iterator must model a full forward iterator so
 //  that range-based for AND the C++20 <ranges> adaptors both work on it.

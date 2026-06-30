@@ -8,7 +8,7 @@ import qchem.Streamable;
 export import qchem.Types;
 
 
-export namespace Symmetry
+export namespace qchem::Symmetry
 {
 class Symmetry
     : public virtual Streamable
@@ -28,4 +28,4 @@ public:
 
 } //namespace
 // use this type to pass around polymorkpic Symmetry instances.
-export using sym_t=std::shared_ptr<const Symmetry::Symmetry>;
+export using sym_t=std::shared_ptr<const qchem::Symmetry::Symmetry>;

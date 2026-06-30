@@ -9,7 +9,7 @@ import qchem.Math;
 using std::cout;
 using std::endl;
 
-namespace AngularIntegrals
+namespace qchem::AngularIntegrals
 {
 
 double Exchange(int k,int la,int lb)

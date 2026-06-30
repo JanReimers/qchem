@@ -9,6 +9,7 @@ import qchem.ElectronConfiguration.AtomDirac;
 import qchem.ElectronConfiguration.Molecule;
 import qchem.SCFAccelerator.Factory;
 import qchem.Math;
+using namespace qchem;
 
 
 using qchem::SCFAccelerators::SCFAccelerator;
@@ -71,7 +72,7 @@ void QchemTester::Init(Real_BS* bs, bool verbose)
               : ts=="Ladder" ? Type::Ladder : ts=="GDM" ? Type::GDM : Type::DIIS;
     SCFAccelerator* acc=qchem::SCFAccelerators::Factory(type,jsacc);
     delete itsSCFIterator;
-    itsSCFIterator=new SCFIterator(itsBasisSet,GetElectronConfiguration(),itsHamiltonian,acc,itsSeed,itsStructure.get());
+    itsSCFIterator=new qchem::SCFIterator::SCFIterator(itsBasisSet,GetElectronConfiguration(),itsHamiltonian,acc,itsSeed,itsStructure.get());
     if (directmin) itsSCFIterator->SetDirectMin(true);
     assert(itsSCFIterator);
 }
@@ -104,14 +105,14 @@ qchem::ChargeDensity::DM_CD* QchemTester::GetChargeDensity() const
     return itsSCFIterator->GetWaveFunction()->GetChargeDensity();   // caller owns
 }
 
-const Orbitals* QchemTester::GetOrbitals(const Irrep& qns) const
+const qchem::Orbitals::Orbitals* QchemTester::GetOrbitals(const Irrep& qns) const
 {
     return itsSCFIterator->GetWaveFunction()->GetOrbitals(qns);
 }
 
 const Orbital* QchemTester::GetOrbital(size_t index, const Irrep& qns) const
 {
-    const Orbitals* orbs=GetOrbitals(qns);
+    const qchem::Orbitals::Orbitals* orbs=GetOrbitals(qns);
     assert(index<(size_t)orbs->GetNumOrbitals());
     const Orbital* o=0;
     for (auto oi:orbs->Iterate<Orbital>())

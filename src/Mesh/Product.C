@@ -11,7 +11,7 @@ export import qchem.Mesh;
 export import qchem.Mesh.Radial;
 export import qchem.Mesh.Angular;
 
-export namespace qcMesh
+export namespace qchem::qcMesh
 {
 
 Mesh ProductMesh(const RadialMesh& rad, const AngularMesh& ang)
@@ -29,4 +29,4 @@ Mesh ProductMesh(const RadialMesh& rad, const AngularMesh& ang)
     return Mesh(std::move(R), std::move(W));
 }
 
-} //export namespace qcMesh
+} //export namespace qchem::qcMesh

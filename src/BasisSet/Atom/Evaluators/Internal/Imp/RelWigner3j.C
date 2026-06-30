@@ -6,6 +6,8 @@ module qchem.BasisSet.Atom.Evaluators.Internal.RelWigner3j;
 import qchem.BasisSet.Atom.Evaluators.Internal.Wigner3j; //Wigner::wigner3j (home-grown half-integer 3j)
 import qchem.Symmetry.Spherical;                          //SphericalSpinor::j(κ)
 
+namespace qchem {
+
 const RelWigner3j RelWigner3j::w3j{};
 
 double RelWigner3j::operator()(int κa, int κb, int k) const
@@ -27,3 +29,5 @@ double RelWigner3j::operator()(int κa, int κb, int k, double mja, double mjb) 
     assert(mjb>=-jb && mjb<=jb);
     return Wigner::wigner3j(ja, (double)k, jb, -mja, mja-mjb, mjb);
 }
+
+} // namespace qchem

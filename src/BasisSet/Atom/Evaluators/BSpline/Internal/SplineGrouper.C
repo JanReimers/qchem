@@ -8,6 +8,8 @@ export module qchem.BasisSet.Atom.Evaluators.BSpline.Internal.SplineGrouper;
 import qchem.BasisSet.Atom.Evaluators.Internal.Grouper;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.GLQuadrature;
 
+namespace qchem {
+
 // 
 // We can use this class for splines by using the support window {rmin,rmax}.
 //
@@ -47,3 +49,5 @@ private:
     std::map<spline_t,size_t,cmpSplines1<double,K>> unique_sp; //Unique splines.
 };
 
+
+} // namespace qchem

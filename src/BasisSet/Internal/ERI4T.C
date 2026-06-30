@@ -4,6 +4,8 @@ export module qchem.BasisSet.Internal.ERI4T;
 export import qchem.Types;
 import qchem.Blaze;
 
+namespace qchem {
+
 //------------------------------------------------------------------
 //
 // Two electron repulsion integral have the following form:
@@ -35,3 +37,5 @@ private:
     M<M<T> > itsData;
 };
 
+
+} // namespace qchem

@@ -10,7 +10,7 @@ export module qchem.Mesh.Builder;
 export import qchem.Mesh;
 import qchem.Blaze;          // blazem::VecBuilder
 
-export namespace qcMesh
+export namespace qchem::qcMesh
 {
 
 class MeshBuilder
@@ -24,4 +24,4 @@ private:
     blazem::VecBuilder<double>  itsW;
 };
 
-} //export namespace qcMesh
+} //export namespace qchem::qcMesh

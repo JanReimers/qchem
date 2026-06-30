@@ -7,7 +7,7 @@ export import qchem.Symmetry;
 //
 // Spherical symmetry for atoms
 //
-export namespace Symmetry
+export namespace qchem::Symmetry
 {
 
 //---------------------------------------------------------------------------------

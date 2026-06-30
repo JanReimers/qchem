@@ -25,6 +25,7 @@ import qchem.stl_io;
 import qchem.Streamable;
 import qchem.Constants;
 import qchem.Blaze;
+using namespace qchem;
 
 using std::cout;
 using std::endl;
@@ -56,7 +57,7 @@ qcMesh::Mesh AtomMesh(const Structure& st, int nRadial, int mhl_m, double alpha,
                                   .mhl_alpha=alpha, .angular=qcMesh::AngularKind::Gauss, .nAngular=nAngular});
 }
 } //anon
-using namespace BasisSet::Atom::Evaluators;
+using namespace qchem::BasisSet::Atom::Evaluators;
 using Real_BS  =BasisSet::Real_BS;
 using Real_OIBS=BasisSet::Real_OIBS;
 
@@ -391,7 +392,7 @@ TEST_F(BSplineTests, Kinetic)
 
 // TEST_F(BSplineTests,RkSymmetry)
 // {
-//     using namespace BasisSet::Atom::Evaluators::BSpline;
+//     using namespace qchem::BasisSet::Atom::Evaluators::BSpline;
 //     typedef rvec11_t rvec11_t; 
 //     std::vector<Evaluatorevals;
 //     for (size_t l=0;l<=3;l++)
@@ -444,7 +445,7 @@ TEST_F(BSplineTests, Kinetic)
 
 TEST_F(BSplineTests,RkSymmetry_l0)
 {
-    using namespace BasisSet::Atom::Evaluators::BSpline;
+    using namespace qchem::BasisSet::Atom::Evaluators::BSpline;
     // typedef rvec11_t rvec11_t; 
     sym_t yl=Symmetry::YFactory(0);
     size_t N=5;

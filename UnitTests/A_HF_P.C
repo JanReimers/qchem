@@ -2,6 +2,7 @@
 #include "gtest/gtest.h"
 #include "nlohmann/json.hpp"
 import qchem.Unittests.QchemTester;
+using namespace qchem;
 
 const bool verbose=true;
 
@@ -13,7 +14,7 @@ class A_HF_P : public ::testing::TestWithParam<size_t>, public TestAtom
 {
 public:
     A_HF_P() : TestAtom(GetParam()) {};
-    virtual Hamiltonian* GetHamiltonian(st_t& structure) const
+    virtual qchem::Hamiltonian::Hamiltonian* GetHamiltonian(st_t& structure) const
     {
         return Factory(Model::HF,Pol::Polarized,structure);
     }

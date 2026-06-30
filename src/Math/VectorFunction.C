@@ -7,6 +7,8 @@ module;
 export module qchem.VectorFunction;
 export import qchem.Types;
 
+namespace qchem {
+
 export template <class T> class VectorFunction
 {
 public:
@@ -16,3 +18,5 @@ public:
     virtual vec_t<T>     operator() (const rvec3_t&) const=0;
     virtual vec3vec_t<T> Gradient   (const rvec3_t&) const=0;
 };
+
+} // namespace qchem

@@ -6,6 +6,8 @@ module qchem.Symmetry.Irrep;
 import qchem.Streamable;
 import qchem.Strings;
 
+namespace qchem {
+
 const size_t Irrep::ms_max=3; //three states Up/Down and None.
 
 Irrep::Irrep(Spin _ms,const sym_t& _sym) 
@@ -23,13 +25,13 @@ Irrep::~Irrep()
 }
 size_t Irrep::SequenceIndex() const
 {
-    assert(::SequenceIndex(ms)<ms_max);
+    assert(qchem::SequenceIndex(ms)<ms_max);
     size_t is=sym->SequenceIndex();
-    return is*ms_max+::SequenceIndex(ms);
+    return is*ms_max+qchem::SequenceIndex(ms);
 }
 size_t Irrep::GetDegeneracy() const
 {
-    return sym->GetDegeneracy()*::GetDegeneracy(ms);
+    return sym->GetDegeneracy()*qchem::GetDegeneracy(ms);
 }
 
 std::ostream& Irrep::Write(std::ostream& os) const
@@ -38,3 +40,5 @@ std::ostream& Irrep::Write(std::ostream& os) const
 }
 
     
+
+} // namespace qchem

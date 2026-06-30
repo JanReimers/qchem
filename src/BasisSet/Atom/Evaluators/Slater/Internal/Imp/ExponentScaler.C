@@ -6,7 +6,7 @@ import qchem.Symmetry.Spherical;
 import qchem.Math;
 import qchem.Blaze;
 
-namespace Slater
+namespace qchem::Slater
 {
 
 ExponentScaler::ExponentScaler(size_t N, double emin, double emax, size_t LMax)

@@ -6,6 +6,8 @@ export module qchem.KMesh;
 export import qchem.Types;
 import qchem.Streamable;
 
+namespace qchem {
+
 //! \brief A sampling of the Brillouin zone: a list of k-points with weights.
 //!
 //! \f$k\f$ is held in fractional reciprocal coordinates (dimensionless).  This
@@ -51,3 +53,5 @@ std::ostream& KMesh::Write(std::ostream& os) const
     for (auto& p:itsKPoints) os << "   " << p.k << "  w=" << p.weight << std::endl;
     return os;
 }
+
+} // namespace qchem

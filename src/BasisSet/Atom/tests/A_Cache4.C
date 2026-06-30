@@ -19,9 +19,10 @@ import qchem.BasisSet.Atom.Evaluators.Internal.ExponentialEvaluator;
 import qchem.stl_io;
 import qchem.BasisSet.Atom.Factory;
 import qchem.BasisSet.Orbital_HF_IBS;
+using namespace qchem;
 
-using namespace BasisSet::Atom;
-using namespace BasisSet::Atom::Evaluators;
+using namespace qchem::BasisSet::Atom;
+using namespace qchem::BasisSet::Atom::Evaluators;
 using enum BasisSetAccuracy;
 using GCache4=BasisSet::Atom::Evaluators::Gaussian::Gaussian_Cache4;
 

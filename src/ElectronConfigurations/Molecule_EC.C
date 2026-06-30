@@ -2,6 +2,8 @@
 export module qchem.ElectronConfiguration.Molecule;
 export import qchem.ElectronConfiguration;
 
+namespace qchem {
+
 export class Molecule_EC : public virtual ElectronConfiguration
 {
 public: 
@@ -15,3 +17,5 @@ public:
 private:
     int Ne;
 };
+
+} // namespace qchem

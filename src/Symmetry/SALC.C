@@ -16,7 +16,7 @@ export module qchem.Symmetry.SALC;
 export import qchem.Symmetry.AbelianGroup;   // AbelianGroup (SymOp, CharacterTable)
 export import qchem.Symmetry.CartesianRep;   // AoShell, BuildOperationRep, rmat_t
 
-export namespace Symmetry
+export namespace qchem::Symmetry
 {
 
 struct SALCs

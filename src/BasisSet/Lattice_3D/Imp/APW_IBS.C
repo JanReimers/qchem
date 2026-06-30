@@ -16,7 +16,7 @@ import qchem.BasisSet.Lattice_3D.Internal.KPlusG;     // KPlusG (Cartesian k+G, 
 import qchem.Blaze;              // zeroH
 import qchem.Vector3D;           // dot product (operator*), norm
 
-namespace BasisSet::Lattice_3D
+namespace qchem::BasisSet::Lattice_3D
 {
 
 APW_IBS::APW_IBS(const ReciprocalLattice& recip, const ivec3_t& N, const ivec3_t& kIndex,

@@ -18,6 +18,15 @@ import qchem.Mesh; //qcMesh::MeshParams
 import qchem.Factory;
 import qchem.ElectronConfiguration;
 import qchem.PeriodicTable;
+namespace BasisSet = qchem::BasisSet;
+namespace qcMesh   = qchem::qcMesh;
+using qchem::SCFParams;
+using qchem::Real_BS;
+using qchem::Real_OIBS;
+using qchem::ElectronConfiguration;
+using qchem::Irrep;
+using qchem::Spin;
+using qchem::Structure;
 
 export typedef BasisSet::irrepv_t irrepv_t;
 
@@ -25,7 +34,7 @@ export using qchem::Orbitals::Orbital;
 export using qchem::Orbitals::Orbitals;
 using qchem::Hamiltonian::Hamiltonian;
 using qchem::SCFIterator::SCFIterator;
-using namespace BasisSet::Atom;
+using namespace qchem::BasisSet::Atom;
 
 export class QchemTester
 {

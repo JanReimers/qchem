@@ -11,8 +11,9 @@ import qchem.BasisSet.Atom.Factory;
 import qchem.BasisSet.Orbital_HF_IBS;
 import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.Blaze;
+using namespace qchem;
 
-using namespace BasisSet::Atom;
+using namespace qchem::BasisSet::Atom;
 using enum Type;
 using enum BasisSetAccuracy;
 

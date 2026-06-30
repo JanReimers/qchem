@@ -28,10 +28,10 @@ import qchem.BasisSet.Orbital_HF_IBS;
 import qchem.Structure;
 import qchem.Types;
 
-export namespace BasisSet::Molecule::PG_LibCint
+export namespace qchem::BasisSet::Molecule::PG_LibCint
 {
-namespace Cart = ::BasisSet::Molecule::Evaluators::PG_Cart_MnD;
-namespace LC   = ::BasisSet::Molecule::Evaluators::PG_LibCint;
+namespace Cart = ::qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD;
+namespace LC   = ::qchem::BasisSet::Molecule::Evaluators::PG_LibCint;
 
 class IrrepBasisSet
         : public virtual Real_IBS,
@@ -79,8 +79,8 @@ public:
 };
 
 class BasisSet
-    : public virtual ::BasisSet::BasisSet<double>
-    , public ::BasisSet::BasisSetImp<double>
+    : public virtual ::qchem::BasisSet::BasisSet<double>
+    , public ::qchem::BasisSet::BasisSetImp<double>
 {
 public:
     BasisSet() {};

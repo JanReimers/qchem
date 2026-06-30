@@ -18,12 +18,13 @@ import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;   // GaussianR
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization; // Polarization
 import qchem.Structure;                                                     // Molecule, Atom, Structure
 import qchem.Types;                                                       // rvec3_t
+using namespace qchem;
 
 #ifndef ORACLE_DATA_PATH
 #error "ORACLE_DATA_PATH must be defined by CMake"
 #endif
 using json = nlohmann::json;
-namespace PG = BasisSet::Molecule::Evaluators::PG_Cart_MnD;
+namespace PG = ::qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD;
 using PG::GaussianRF;
 using PG::Polarization;
 

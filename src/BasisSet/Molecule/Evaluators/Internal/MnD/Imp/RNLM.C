@@ -9,7 +9,7 @@ import qchem.IntPow;
 
 #define MAX 16
 
-namespace BasisSet::Molecule::Evaluators::Internal::MnD
+namespace qchem::BasisSet::Molecule::Evaluators::Internal::MnD
 {
 using Boys::AuxillaryFJ;
 

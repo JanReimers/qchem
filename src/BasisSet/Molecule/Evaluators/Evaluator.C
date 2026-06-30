@@ -29,7 +29,7 @@ import qchem.Structure;  // Structure* threaded through the Nuclear kernel
 import qchem.BasisSet.Internal.ERI3;   // ERI3<double> -- return type of the isM_DFT concept
 import qchem.BasisSet.Internal.ERI4;   // ERI4         -- return type of the isM_HF  concept
 
-export namespace BasisSet::Molecule::Evaluators
+export namespace qchem::BasisSet::Molecule::Evaluators
 {
 
 // Abstract interface common to all molecular evaluators.  The virtuals here are only touched outside

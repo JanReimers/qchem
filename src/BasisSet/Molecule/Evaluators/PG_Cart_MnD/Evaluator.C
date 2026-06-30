@@ -24,7 +24,7 @@ import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;// Polarizati
 import qchem.Structure;
 import qchem.Types;
 
-export namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
+export namespace qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD
 {
 
 class NR_Evaluator : public virtual Evaluator, public PGData

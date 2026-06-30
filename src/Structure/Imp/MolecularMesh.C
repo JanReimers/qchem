@@ -15,6 +15,8 @@ import qchem.Mesh.Builder;         // MeshBuilder (efficient incremental accumul
 import qchem.Structure;             // Atom (itsR)
 import qchem.Vector3D;              // norm(rvec3_t), vector arithmetic
 
+namespace qchem {
+
 using qcMesh::ProductMesh;
 using qcMesh::MakeRadial;
 using qcMesh::MakeAngular;
@@ -76,3 +78,5 @@ qcMesh::Mesh MakeMolecularMesh(const Structure& atoms, const qcMesh::MeshParams&
     }
     return out.take();
 }
+
+} // namespace qchem

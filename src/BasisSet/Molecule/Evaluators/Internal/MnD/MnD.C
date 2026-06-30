@@ -10,3 +10,7 @@ export module qchem.BasisSet.Molecule.Evaluators.Internal.MnD;
 export import qchem.BasisSet.Molecule.Evaluators.Internal.MnD.Index3;
 export import qchem.BasisSet.Molecule.Evaluators.Internal.MnD.Triangle3D;
 export import qchem.BasisSet.Molecule.Evaluators.Internal.MnD.RNLM;
+
+namespace qchem {
+
+} // namespace qchem

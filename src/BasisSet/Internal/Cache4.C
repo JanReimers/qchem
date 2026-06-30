@@ -6,6 +6,8 @@ module;
 #include <iosfwd>
 export module qchem.BasisSet.Internal.Cache4;
 
+namespace qchem {
+
 
 export class Cache4; //fwd
 
@@ -75,3 +77,4 @@ private:
     mutable size_t i1,i2,i3,i4; //Current indexes
     mutable size_t itsLookups=0, itsInserts=0; //hit/miss stats
 };
+} // namespace qchem

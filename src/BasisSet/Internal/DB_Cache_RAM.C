@@ -19,7 +19,7 @@ import qchem.BasisSet.Internal.Cache2;
 import qchem.BasisSet.Internal.Cache3;
 import qchem.Types;
  
-export namespace BasisSet {
+export namespace qchem::BasisSet {
 
 
 template  <class T> struct IntegralsCache_RAM 

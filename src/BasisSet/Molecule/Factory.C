@@ -23,7 +23,7 @@ export module qchem.BasisSet.Molecule.Factory;
 export import qchem.BasisSet;
 export import qchem.Structure;
 
-export namespace BasisSet::Molecule
+export namespace qchem::BasisSet::Molecule
 {
     // Axis 1 -- the canned, optimized, externally generated (mostly-radial) basis-set DATA FILE.  The
     // "...Data" suffix disambiguates from the BasisSet OBJECT in code.  Add one = one enum value + one

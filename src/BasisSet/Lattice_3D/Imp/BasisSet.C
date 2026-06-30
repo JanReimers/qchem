@@ -7,16 +7,16 @@ import qchem.BasisSet.Internal.BasisSetImp;   // BasisSetImp<dcmplx> (the generi
 import qchem.Symmetry.Factory;                // BlochFactory (the Bloch irrep per k)
 import qchem.Types;
 
-namespace BasisSet::Lattice_3D
+namespace qchem::BasisSet::Lattice_3D
 {
 
 namespace
 {
 //! A BasisSet<dcmplx> holding the plane-wave Bloch block(s); owns the IBS list (deleted with the basis).
-class PW_BasisSet : public ::BasisSet::BasisSetImp<dcmplx>
+class PW_BasisSet : public ::qchem::BasisSet::BasisSetImp<dcmplx>
 {
 public:
-    PW_BasisSet(const ::Lattice_3D& lat, double Ecut)
+    PW_BasisSet(const ::qchem::Lattice_3D& lat, double Ecut)
     {
         // ONE plane-wave block per Brillouin-zone k-point: the basis ctor is the single place that
         // enumerates k, so the framework's per-irrep loop (each k IS a Bloch irrep) becomes the BZ sum
@@ -35,7 +35,7 @@ public:
 };
 } //anon
 
-Complex_BS* Factory(Type type, const ::Lattice_3D& lat, double Ecut)
+Complex_BS* Factory(Type type, const ::qchem::Lattice_3D& lat, double Ecut)
 {
     assert(type==Type::PW);
     return new PW_BasisSet(lat, Ecut);

@@ -12,7 +12,8 @@ export import qchem.CMath;
 //  Light weight 2D vector, mirroring Vector3D.  Most algebraic operators are
 //  overloaded so a Vector2D behaves like an intrinsic type.  \c * is the dot product.
 //
-export template <class T> class Vector2D
+export namespace qchem {
+template <class T> class Vector2D
 {
 public:
   Vector2D(                 ): x(0),y(0) {}
@@ -27,7 +28,6 @@ public:
   T y; //!< \a y coordinate.
 };
 
-export {
 
 template <class T1, class T2> inline
 auto operator +(const Vector2D<T1>& a,const Vector2D<T2>& b) {return Vector2D(a.x+b.x,a.y+b.y);}
@@ -81,4 +81,4 @@ template <class T> std::ostream& operator<<(std::ostream& os,const Vector2D<T>& 
     return os;
 }
 
-} //export block
+} // namespace qchem

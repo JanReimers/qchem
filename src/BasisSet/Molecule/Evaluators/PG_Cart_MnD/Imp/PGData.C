@@ -5,7 +5,7 @@ module;
 module qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.PGData;
 import qchem.Blaze;
 
-namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
+namespace qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD
 {
     void PGData::Init(std::vector<const Block*>& blocks)
 {

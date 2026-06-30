@@ -20,9 +20,9 @@ import qchem.BasisSet.Molecule.Evaluators.PG_Spherical_MnD.SolidHarmonics;  // S
 import qchem.Structure;
 import qchem.Types;
 
-export namespace BasisSet::Molecule::Evaluators::PG_Spherical_MnD
+export namespace qchem::BasisSet::Molecule::Evaluators::PG_Spherical_MnD
 {
-namespace Cart = ::BasisSet::Molecule::Evaluators::PG_Cart_MnD;
+namespace Cart = ::qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD;
 
 // Flattened spherical components.  Each is one real solid harmonic on one radial: the radial (shared
 // with the same shell's other m's) plus that harmonic's Cartesian-monomial expansion.

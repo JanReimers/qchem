@@ -8,6 +8,8 @@ import qchem.Structure;
 import qchem.Matrix3D;
 import qchem.Streamable;
 
+namespace qchem {
+
 //! \brief One periodic unit cell: the cell geometry (lattice matrix \f$A\f$)
 //! plus the atom basis it holds.  Symbol and units conventions (\f$A,a,\alpha,
 //! M,B,G,k,\dots\f$) are documented in Lattice.C.
@@ -62,3 +64,5 @@ public:
 };
 
 
+
+} // namespace qchem

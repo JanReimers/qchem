@@ -22,11 +22,12 @@ import qchem.ElectronConfiguration.Molecule;                  // Molecule_EC
 import qchem.Types;
 import qchem.Math;                                            // cos, sin (for the rotation test)
 import qchem.Mesh;                                           // qcMesh::MeshParams (DFT)
+using namespace qchem;
 
 
 using namespace qchem::Hamiltonian;
-using ::BasisSet::Real_BS;
-namespace PG = ::BasisSet::Molecule::PG_Cart;
+using ::qchem::BasisSet::Real_BS;
+namespace PG = ::qchem::BasisSet::Molecule::PG_Cart;
 
 static Molecule* MakeWater()
 {
@@ -41,7 +42,7 @@ static Molecule* MakeWater()
 static EnergyBreakdown RunHF(const BasisSet::BasisSet<double>* bs, const ElectronConfiguration* ec,
                              const st_t& st, Pol pol)
 {
-    Hamiltonian* ham = Factory(Model::HF, pol, st);
+    qchem::Hamiltonian::Hamiltonian* ham = Factory(Model::HF, pol, st);
     nlohmann::json jsacc = {{"NProj",4},{"EMax",0.1},{"EMin",1e-7},{"SVTol",5e-9}};
     auto* acc = qchem::SCFAccelerators::Factory(qchem::SCFAccelerators::Type::DIIS, jsacc);
     qchem::SCFIterator::SCFIterator scf(bs, ec, ham, acc);
@@ -54,7 +55,7 @@ static EnergyBreakdown RunDFT(const BasisSet::BasisSet<double>* bs, const Electr
 {
     qcMesh::MeshParams mp{.radial=qcMesh::RadialKind::MHL, .nRadial=30, .mhl_m=3, .mhl_alpha=2.0,
                            .angular=qcMesh::AngularKind::Gauss, .nAngular=12, .beckeOrder=2};
-    Hamiltonian* ham = Factory(pol, st, 0.7, mp, bs);            // Xalpha DFT
+    qchem::Hamiltonian::Hamiltonian* ham = Factory(pol, st, 0.7, mp, bs);            // Xalpha DFT
     // EMax gates DIIS on the [F,D] commutator norm: DIIS only engages once it drops below EMax.  The
     // non-symmetric *polarized* water Xalpha SCF oscillates with a commutator of ~2-4 that plain mixing
     // never damps below 0.1, so at EMax=0.1 DIIS never engaged and the run limit-cycled (its iterate at

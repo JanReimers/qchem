@@ -7,6 +7,8 @@ module;
 #include <type_traits>
 export module qchem.Iterators;
 
+namespace qchem {
+
 //----------------------------------------------------------------------------
 //
 //  Generic forward iterator over any container C that exposes random indexed
@@ -102,3 +104,5 @@ private:
     std::size_t itsN;
 };
 
+
+} // namespace qchem

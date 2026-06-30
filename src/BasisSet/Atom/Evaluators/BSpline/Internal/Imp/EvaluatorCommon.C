@@ -9,7 +9,7 @@ import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.SplineGrouper;
 import qchem.Symmetry.Spherical;
 import qchem.Math;
 
-namespace BasisSet::Atom::Evaluators::BSpline::Internal
+namespace qchem::BasisSet::Atom::Evaluators::BSpline::Internal
 {
 
 template <size_t K> EvaluatorCommon<K>::EvaluatorCommon(size_t Ngrid, double _rmin, double _rmax,const sym_t& ylm)
@@ -111,22 +111,22 @@ template <size_t K> void Cache4<K>::Register(Cache4_Client * eval)
     //  All unsupport Rks will be removed.  These will then automatically be recreated next time
     //  loop_4 is called.
     //
-    ::Cache4::Register(eval);
+    ::qchem::Cache4::Register(eval);
 
     delete itsRkCache;
-    itsRkCache=new ::BSpline::RkCache<K>(grouper.unique_spv,itsGL1D, itsMaxl,wp,wm);
+    itsRkCache=new ::qchem::BSpline::RkCache<K>(grouper.unique_spv,itsGL1D, itsMaxl,wp,wm);
 }
 
 template <size_t K> Rk*  Cache4<K>::Create (size_t ia,size_t ic,size_t ib,size_t id) const
 {
     assert(itsRkCache);
     size_t lmax=grouper.LMax(ia,ib,ic,id);
-    return new ::BSpline::RkEngine(grouper.unique_spv,ia,ib,ic,id,lmax,itsGL1D,itsGL2D,*itsRkCache,wp,wm);
+    return new ::qchem::BSpline::RkEngine(grouper.unique_spv,ia,ib,ic,id,lmax,itsGL1D,itsGL2D,*itsRkCache,wp,wm);
 }
 
 template <size_t K>  size_t Cache4<K>::RAMsize() const
 {
-    size_t ndoubles=::Cache4::RAMsize();
+    size_t ndoubles=::qchem::Cache4::RAMsize();
     ndoubles+=itsGL1D.RAMsize();
     ndoubles+=itsGL2D.RAMsize();
     ndoubles+=itsRkCache->RAMsize();

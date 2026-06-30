@@ -16,8 +16,9 @@ import qchem.Mesh.Quadrature;           // qcMesh::Overlap + BasisField
 import qchem.VectorFunction;
 import qchem.Symmetry;
 import qchem.Blaze;
+using namespace qchem;
 
-using namespace BasisSet::Molecule;
+using namespace qchem::BasisSet::Molecule;
 using BasisSet::Real_OIBS;
 
 namespace
@@ -74,7 +75,7 @@ public:
     }
     
     int Z;
-    ::BasisSet::Molecule::Gaussian94Reader reader;
+    ::qchem::BasisSet::Molecule::Gaussian94Reader reader;
     PG_Cart::BasisSet* bs;
     Structure* cl;
 };

@@ -20,7 +20,7 @@ import qchem.Types;
 
 typedef double Array2D[LMAX+1][LMAX+1];   // Hermite1 storage (module-internal, not exported)
 
-export namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
+export namespace qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD
 {
 
 //   n  l  m
@@ -117,4 +117,4 @@ private:
     double   itsScale;
 };
 
-} //namespace BasisSet::Molecule::Evaluators::PG_Cart_MnD
+} //namespace qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD

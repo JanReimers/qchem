@@ -19,9 +19,9 @@ import qchem.Types;
 import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.BasisSet.Orbital_HF_IBS;
 
-export namespace BasisSet::Molecule::PG_Cart
+export namespace qchem::BasisSet::Molecule::PG_Cart
 {
-using namespace ::BasisSet::Molecule::Evaluators::PG_Cart_MnD;  // Cartesian glue moved out to PG_Cart_MnD
+using namespace ::qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD;  // Cartesian glue moved out to PG_Cart_MnD
 
 rsmat_t MakeOverlap2C  (const PGData* ab);   // EFit 2-centre fit integrals (named radial kernels)
 rsmat_t MakeRepulsion2C(const PGData* ab);
@@ -87,8 +87,8 @@ public:
     virtual  rmat_t MakeRepulsion(const FIT_CD_ABS& b) const;
 };
 class BasisSet 
-    : public virtual ::BasisSet::BasisSet<double>
-    , public ::BasisSet::BasisSetImp<double>
+    : public virtual ::qchem::BasisSet::BasisSet<double>
+    , public ::qchem::BasisSet::BasisSetImp<double>
 {
 public:
     BasisSet() {};

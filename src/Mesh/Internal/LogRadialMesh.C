@@ -6,7 +6,7 @@ module;
 module qchem.Mesh.Radial;
 import qchem.Math;
 
-namespace qcMesh
+namespace qchem::qcMesh
 {
 
 RadialMesh LogRadial(double start, double stop, int NumPoints)
@@ -30,4 +30,4 @@ RadialMesh LogRadial(double start, double stop, int NumPoints)
     return RadialMesh(std::move(R), std::move(W));
 }
 
-} //namespace qcMesh
+} //namespace qchem::qcMesh

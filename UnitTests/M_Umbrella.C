@@ -7,6 +7,7 @@
 #include <cmath>
 
 import qchem;   // <-- the umbrella, nothing else
+using namespace qchem;
 
 TEST(M_Umbrella, FrontDoorViaUmbrella)
 {

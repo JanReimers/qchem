@@ -4,6 +4,8 @@ module;
 export module qchem.ElectronConfiguration;
 export import qchem.Symmetry.Irrep;
 
+namespace qchem {
+
 export class ElectronConfiguration
 {
 public:
@@ -23,3 +25,4 @@ public:
     // per-irrep GetN count is taken as fixed (atoms / hand-set occupations).
     virtual bool   UsesAufbau() const {return false;}
 };
+} // namespace qchem

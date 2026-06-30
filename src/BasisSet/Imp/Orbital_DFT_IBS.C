@@ -5,7 +5,7 @@ module qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.BasisSet.Internal.DB_Cache;
 import qchem.Blaze;
 
-namespace BasisSet
+namespace qchem::BasisSet
 {
 template <class T> const ERI3<T>& Orbital_DFT_IBS<T>::Overlap3C  (const FIT_SF_ABS& c) const
 {

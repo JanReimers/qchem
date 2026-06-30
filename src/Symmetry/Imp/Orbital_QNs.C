@@ -4,6 +4,8 @@ module;
 
 module qchem.Symmetry.Orbital;
 
+namespace qchem {
+
 const size_t Orbital_QNs::n_max=300; //Max principle QN.
 
 Orbital_QNs::Orbital_QNs(size_t _n, Spin _ms,const sym_t& _sym)
@@ -31,3 +33,5 @@ std::ostream& Orbital_QNs::Write(std::ostream& os) const
     return  Irrep::Write(os);
 }
     
+
+} // namespace qchem

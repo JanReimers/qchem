@@ -4,8 +4,9 @@
 import qchem.Symmetry.PointGroup;
 import qchem.Symmetry.AbelianGroup;   // BuildAbelianGroup (stage 3a-ii)
 import qchem.Math;            // Pi, sin, cos, fabs (project-wide, for test geometry)
+using namespace qchem;
 
-using namespace Symmetry;
+using namespace qchem::Symmetry;
 
 // Are the operations of g closed under multiplication (a genuine group)?
 static bool GroupIsClosed(const AbelianGroup& g)

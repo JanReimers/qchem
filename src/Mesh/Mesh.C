@@ -4,7 +4,7 @@
 // Points are streamed by evaluators (phi(r)); weights by integrators.  They live in totally
 // different algorithms, so they get totally separate arrays.  No polymorphism, no Clone.
 //
-// Everything lives in namespace qcMesh so the new library coexists with the old qchem.Mesh
+// Everything lives in namespace qchem::qcMesh so the new library coexists with the old qchem.Mesh
 // (which exports a global `class Mesh`) during the migration; the namespace goes away once the
 // old library is deleted.
 module;
@@ -14,7 +14,7 @@ module;
 export module qchem.Mesh;
 export import qchem.Types;
 
-export namespace qcMesh
+export namespace qchem::qcMesh
 {
 
 //! \brief A quadrature mesh: points r_i and weights w_i stored as separate arrays (SoA).
@@ -76,10 +76,10 @@ struct MeshParams
     }
 };
 
-} //export namespace qcMesh
+} //export namespace qchem::qcMesh
 
 //-----------------------------------------------------------------------------------------------
-namespace qcMesh
+namespace qchem::qcMesh
 {
 
 // Append grows the SoA arrays by one.  blaze resize copies, so this is a setup-path convenience
@@ -100,4 +100,4 @@ void Mesh::ShiftOrigin(const rvec3_t& o)
     for (size_t i=0; i<itsR.size(); i++) itsR[i]+=o;
 }
 
-} //namespace qcMesh
+} //namespace qchem::qcMesh

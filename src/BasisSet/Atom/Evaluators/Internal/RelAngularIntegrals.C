@@ -7,7 +7,7 @@ module;
 export module qchem.BasisSet.Atom.Evaluators.Internal.RelAngularIntegrals;
 export import qchem.Types;
 
-export namespace RelAngularIntegrals
+export namespace qchem::RelAngularIntegrals
 {
     // Ak coefficients for direct  <κa mja, κc mjc | 1/r12 | κa mja, κc mjc>
     rvec11_t Direct  (int κa, int κc, double mja, double mjc);

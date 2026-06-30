@@ -8,7 +8,7 @@ import qchem.Symmetry.Factory;
 import qchem.Math;
 import qchem.Blaze;
 
-namespace BasisSet::Atom::Evaluators::Gaussian
+namespace qchem::BasisSet::Atom::Evaluators::Gaussian
 {
 
 std::string RKBS_Evaluator::Name() const

@@ -8,6 +8,8 @@ import qchem.Types;
 import qchem.Streamable;
 import qchem.Iterators;
 
+namespace qchem {
+
 export class Atom;
 
 //----------------------------------------------------------------------------------------------
@@ -98,3 +100,5 @@ private:
 };
 
 
+
+} // namespace qchem

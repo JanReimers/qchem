@@ -1,19 +1,20 @@
 // File A_HF_U.C  Atom Hartree-Fock tests for Unpolarized (closed shell) atoms.
 #include "gtest/gtest.h"
 import qchem.Unittests.QchemTester;
+using namespace qchem;
 
 const bool verbose=true;
 
 using std::cout;
 using std::endl;
-using namespace BasisSet::Atom;
+using namespace qchem::BasisSet::Atom;
 using enum BasisSetAccuracy;
 using namespace qchem::Hamiltonian;
 class A_HF_U : public ::testing::TestWithParam<size_t>, public TestAtom
 {
 public:
     A_HF_U() : TestAtom(GetParam()) {};
-    virtual Hamiltonian* GetHamiltonian(st_t& structure) const
+    virtual qchem::Hamiltonian::Hamiltonian* GetHamiltonian(st_t& structure) const
     {
         return Factory(Model::HF,Pol::UnPolarized,structure);
     }

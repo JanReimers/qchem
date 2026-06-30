@@ -30,3 +30,8 @@ template <class T> std::ostream& operator<<(std::ostream& os,const std::vector<T
 template <class T> std::ostream& operator<<(std::ostream& os,const std::set   <T>& s) {return Write(os,s);}
 
 } //export block
+
+// These container op<< live in the global namespace (std-container args put nothing useful into ADL).
+// Project code now lives in qchem::*, where unqualified operator lookup stops at the qchem scope
+// (which holds Vector3D/blaze operators) before reaching global -- so re-expose them in qchem too.
+export namespace qchem { using ::operator<<; }

@@ -5,7 +5,7 @@ module;
 module qchem.Symmetry.Internal.Spherical;
 import qchem.Strings;
 
-namespace Symmetry::Internal::Spherical
+namespace qchem::Symmetry::Internal::Spherical
 {
 
 std::ostream& Yl::Write(std::ostream& os) const

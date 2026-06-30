@@ -16,6 +16,7 @@ import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.PGData;      // PGData (th
 import qchem.Structure;                                                  // Molecule, Atom
 import qchem.Types;
 import qchem.Blaze;
+using namespace qchem;
 
 using BasisSet::Molecule::Evaluators::PG_Cart_MnD::NR_Evaluator;
 using BasisSet::Molecule::PG_Cart::Orbital_IBS;

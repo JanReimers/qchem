@@ -12,24 +12,24 @@ import qchem.BasisSet.Internal.BasisSetImp;           // BasisSetImp (iteration/
 import qchem.BasisSet.SymmetryAdapted_IBS;            // the per-irrep decorator
 import qchem.Symmetry.SALC;                           // SALCs (the transform O + labels)
 
-export namespace BasisSet::Molecule
+export namespace qchem::BasisSet::Molecule
 {
 
 class SymmetryAdaptedBasisSet
-    : public virtual ::BasisSet::BasisSet<double>
-    , public ::BasisSet::BasisSetImp<double>
+    : public virtual ::qchem::BasisSet::BasisSet<double>
+    , public ::qchem::BasisSet::BasisSetImp<double>
 {
 public:
     // raw: the whole-molecule AO basis.  It is REFERENCED by the per-irrep decorators (not
     // owned here), so it must outlive this object.  salc: the SALC transform from BuildSALCs.
-    SymmetryAdaptedBasisSet(const ::BasisSet::Orbital_1E_IBS<double>* raw, const Symmetry::SALCs& salc);
+    SymmetryAdaptedBasisSet(const ::qchem::BasisSet::Orbital_1E_IBS<double>* raw, const Symmetry::SALCs& salc);
 
     // Optionally hold the raw basis alive (used by SymmetryAdapt so the returned object is
     // self-contained and the caller need not manage the raw basis lifetime separately).
-    void KeepAlive(std::shared_ptr<const ::BasisSet::BasisSet<double>> raw) {itsRawBasis = raw;}
+    void KeepAlive(std::shared_ptr<const ::qchem::BasisSet::BasisSet<double>> raw) {itsRawBasis = raw;}
 
 private:
-    std::shared_ptr<const ::BasisSet::BasisSet<double>> itsRawBasis;  // raw AO basis (kept alive)
+    std::shared_ptr<const ::qchem::BasisSet::BasisSet<double>> itsRawBasis;  // raw AO basis (kept alive)
 };
 
 // The SymmetryAdapt(rawBasis, cl) factory is basis-specific (it extracts AO shells from the concrete

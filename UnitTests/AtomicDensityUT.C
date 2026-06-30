@@ -4,6 +4,7 @@
 
 import qchem.ChargeDensity.AtomicDensity;   // GetAtomicDensity, RadialDensity, RecentredAtomicDensity
 import qchem.Types;                          // rvec3_t
+using namespace qchem;
 
 using namespace qchem::ChargeDensity;
 

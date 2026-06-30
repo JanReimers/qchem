@@ -4,6 +4,8 @@ module;
 module qchem.BasisSet.Internal.ERI4;
 import qchem.Blaze;
 
+namespace qchem {
+
 // This version is much faster.
 void MatMul(rsmat_t& Sab, const ERI4& gabcd,const rsmat_t& Scd)
 {
@@ -84,3 +86,4 @@ double relative_fnorm(const ERI4& a, const ERI4& b)
         }
     return sqrt(ret);    
 }
+} // namespace qchem

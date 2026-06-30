@@ -4,6 +4,8 @@ module;
 module qchem.BasisSet.Internal.ERI3;
 import qchem.Blaze;
 
+namespace qchem {
+
 template <class T> double fnorm(const ERI3<T>& a, const ERI3<T>& b)
 {
     double ret=0.0;
@@ -38,3 +40,5 @@ template <class T> double relative_fnorm(const ERI3<T>& a, const ERI3<T>& b)
 
 template double          fnorm<double>(const ERI3<double>& a, const ERI3<double>& b);
 template double relative_fnorm<double>(const ERI3<double>& a, const ERI3<double>& b);
+
+} // namespace qchem

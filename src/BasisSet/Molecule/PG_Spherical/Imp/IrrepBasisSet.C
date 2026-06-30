@@ -19,7 +19,7 @@ import qchem.stl_io;
 import qchem.Math;
 import qchem.Blaze;
 
-namespace BasisSet::Molecule::PG_Spherical
+namespace qchem::BasisSet::Molecule::PG_Spherical
 {
 using Cart::GaussianRF;
 using Cart::Polarization;
@@ -161,4 +161,4 @@ FIT_SF_ABS* Orbital_IBS::CreateVxcFitBasisSet(const Structure* cl, const qcMesh:
 //
 EFit_IBS::EFit_IBS(Reader* bsr, const Structure* cl) : IrrepBasisSet(bsr,cl) {};
 
-} //namespace BasisSet::Molecule::PG_Spherical
+} //namespace qchem::BasisSet::Molecule::PG_Spherical

@@ -12,6 +12,7 @@ import qchem.BasisSet.Atom.Evaluators;
 
 import qchem.BasisSet.Atom.Internal.Wigner3j;
 import qchem.Constants;
+using namespace qchem;
 
 using std::cout;
 using std::endl;

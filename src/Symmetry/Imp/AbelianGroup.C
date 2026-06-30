@@ -6,7 +6,7 @@ module;
 module qchem.Symmetry.AbelianGroup;
 import qchem.Math;          // fabs, sqrt
 
-namespace Symmetry
+namespace qchem::Symmetry
 {
 
 static rvec3_t Unit(const rvec3_t& a)

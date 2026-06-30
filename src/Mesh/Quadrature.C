@@ -16,7 +16,7 @@ export import qchem.Mesh.Fields;
 export import qchem.Mesh.Radial;   // RadialMesh (the 1-D radial quadrature)
 import qchem.Blaze;
 
-namespace qcMesh
+namespace qchem::qcMesh
 {
 
 //! integral over a RADIAL mesh of TABULATED values: sum_i w_i f_i.  The radial weights already fold in the
@@ -160,4 +160,4 @@ export template <class T> rvec_t Normalize(const Mesh& m, const BasisField<T>& a
     return 1.0/blazem::sqrt(s);
 }
 
-} //namespace qcMesh
+} //namespace qchem::qcMesh

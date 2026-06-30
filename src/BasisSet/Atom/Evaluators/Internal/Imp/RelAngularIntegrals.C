@@ -11,7 +11,7 @@ import qchem.Symmetry.Spherical; //SphericalSpinor::j, l
 import qchem.Math; //FourPi2
 import qchem.Blaze;
 
-namespace RelAngularIntegrals
+namespace qchem::RelAngularIntegrals
 {
 
 // CG coefficient <la, mj-ms; ½, ms | ja, mj>

@@ -3,7 +3,7 @@ module;
 export module qchem.Symmetry.Spin;
 export import qchem.Types;
 
-export
+export namespace qchem
 {
     enum class Spin {Down,None,Up};
     inline bool   IsPolarized  (Spin s) {return !(s==Spin::None);}

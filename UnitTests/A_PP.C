@@ -7,6 +7,7 @@
 import qchem.Unittests.QchemTester;
 import qchem.Hamiltonian.Internal.Hamiltonians;       // Ham_PP_U
 import qchem.ElectronConfiguration.AtomNR;            // PseudoAtom_EC
+using namespace qchem;
 
 const bool verbose=true;
 using std::cout;
@@ -26,7 +27,7 @@ public:
         delete itsEC;
         itsEC = new PseudoAtom_EC(Z);
     }
-    virtual Hamiltonian* GetHamiltonian(st_t& c) const override
+    virtual qchem::Hamiltonian::Hamiltonian* GetHamiltonian(st_t& c) const override
     {
         return new Ham_PP_U(c, QchemTester::itsPT.GetSymbol(GetStructure()->GetNuclearCharge()),
                             itsVal, GetMeshParams(), itsBasisSet);

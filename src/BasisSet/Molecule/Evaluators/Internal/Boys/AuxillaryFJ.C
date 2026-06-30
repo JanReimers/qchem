@@ -5,7 +5,7 @@
 export module qchem.BasisSet.Molecule.Evaluators.Internal.Boys.AuxillaryFJ;
 import qchem.Types;
 
-export namespace BasisSet::Molecule::Evaluators::Internal::Boys
+export namespace qchem::BasisSet::Molecule::Evaluators::Internal::Boys
 {
 //
 //  This class encapsulates the calculation of:

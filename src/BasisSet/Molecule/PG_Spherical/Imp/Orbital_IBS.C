@@ -10,7 +10,7 @@ module;
 module qchem.BasisSet.Molecule.PG_Spherical;
 import qchem.Blaze;
 
-namespace BasisSet::Molecule::PG_Spherical
+namespace qchem::BasisSet::Molecule::PG_Spherical
 {
 
 rsmat_t MakeOverlap2C(const Sph::NR_Evaluator* ab)

@@ -7,7 +7,7 @@ export import qchem.ScalarFunction;
 export import qchem.Mesh;            // qcMesh::Mesh / MeshParams -- the fit quadrature mesh + knobs
 import qchem.Structure;               // Structure (SetMesh builds the Becke mesh from it)
 
-export namespace BasisSet
+export namespace qchem::BasisSet
 {
 
 //! \brief Auxiliary basis set face for a CHARGE-DENSITY fit (the Coulomb metric): the integrals

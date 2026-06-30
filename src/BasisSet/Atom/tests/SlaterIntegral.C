@@ -17,6 +17,7 @@ import qchem.Mesh.Quadrature;           // qcMesh quadrature + ScalarField/Basis
 import qchem.VectorFunction;
 import qchem.Symmetry.Spherical;
 import qchem.Blaze;
+using namespace qchem;
 
 using std::cout;
 using std::endl;

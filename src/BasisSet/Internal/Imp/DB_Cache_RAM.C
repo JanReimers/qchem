@@ -15,7 +15,7 @@ module qchem.BasisSet.Internal.DB_Cache_RAM;
 
 namespace std
 {
-    using I1C=BasisSet::IntegralsCache_Base::I1C;
+    using I1C=qchem::BasisSet::IntegralsCache_Base::I1C;
     template <> struct formatter<I1C> : formatter<string_view> {  
     auto format(I1C c, std::format_context& ctx) const {  
         string_view name;  
@@ -27,7 +27,7 @@ namespace std
     }  
     }; 
 
-    using I2C=BasisSet::IntegralsCache_Base::I2C;
+    using I2C=qchem::BasisSet::IntegralsCache_Base::I2C;
     template <> struct formatter<I2C> : formatter<string_view> 
     {  
         auto format(I2C c, format_context& ctx) const 
@@ -45,7 +45,7 @@ namespace std
             return formatter<string_view>::format(name, ctx);  
         }
     };  
-    using I2x=BasisSet::IntegralsCache_Base::I2x;
+    using I2x=qchem::BasisSet::IntegralsCache_Base::I2x;
     template <> struct formatter<I2x> : formatter<string_view> 
     {  
         auto format(I2x c, format_context& ctx) const 
@@ -60,7 +60,7 @@ namespace std
         }
     };  
 
-    using I2n=BasisSet::IntegralsCache_Base::I2n;
+    using I2n=qchem::BasisSet::IntegralsCache_Base::I2n;
     template <> struct formatter<I2n> : formatter<string_view> 
     {  
         auto format(I2n c, format_context& ctx) const 
@@ -73,7 +73,7 @@ namespace std
         }
     };  
 
-    using I3C=BasisSet::IntegralsCache_Base::I3C;
+    using I3C=qchem::BasisSet::IntegralsCache_Base::I3C;
     template <> struct formatter<I3C> : formatter<string_view> 
     {  
         auto format(I3C c, format_context& ctx) const 
@@ -87,7 +87,7 @@ namespace std
         }
     };  
 
-    using I4C=BasisSet::IntegralsCache_Base::I4C;
+    using I4C=qchem::BasisSet::IntegralsCache_Base::I4C;
     template <> struct formatter<I4C> : formatter<string_view> 
     {  
         auto format(I4C c, format_context& ctx) const 
@@ -102,7 +102,7 @@ namespace std
     };  
 
 }
-namespace BasisSet
+namespace qchem::BasisSet
 {
 
 //

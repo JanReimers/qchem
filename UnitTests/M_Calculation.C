@@ -10,6 +10,7 @@
 import qchem.Calculation;
 import qchem.Structure;
 import qchem.Types;        // Vector3D
+using namespace qchem;
 
 using qchem::Calculation;
 

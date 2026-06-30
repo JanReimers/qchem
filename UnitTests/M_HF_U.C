@@ -11,6 +11,7 @@
 import qchem.Unittests.QchemTester;
 import qchem.Hamiltonian.Factory;
 import qchem.Structure;
+using namespace qchem;
 
 using namespace qchem::Hamiltonian;
 
@@ -38,7 +39,7 @@ public:
         nlohmann::json js = { {"basis", "dzvp"} };
         QchemTester::Init(js);
     }
-    virtual Hamiltonian* GetHamiltonian(st_t& structure) const
+    virtual qchem::Hamiltonian::Hamiltonian* GetHamiltonian(st_t& structure) const
     {
         return Factory(Model::HF, Pol::UnPolarized, structure);
     }
@@ -79,7 +80,7 @@ public:
         nlohmann::json js = { {"basis", "dzvp"} };
         QchemTester::Init(js);
     }
-    virtual Hamiltonian* GetHamiltonian(st_t& structure) const
+    virtual qchem::Hamiltonian::Hamiltonian* GetHamiltonian(st_t& structure) const
     {
         return Factory(Model::HF, Pol::UnPolarized, structure);
     }
@@ -103,7 +104,7 @@ public:
         nlohmann::json js = { {"basis", "dzvp"}, {"engine", "libcint"} };
         QchemTester::Init(js);
     }
-    virtual Hamiltonian* GetHamiltonian(st_t& structure) const
+    virtual qchem::Hamiltonian::Hamiltonian* GetHamiltonian(st_t& structure) const
     {
         return Factory(Model::HF, Pol::UnPolarized, structure);
     }
@@ -128,7 +129,7 @@ public:
         nlohmann::json js = { {"basis", "dzvp"}, {"engine", "libcint"}, {"angular", "spherical"} };
         QchemTester::Init(js);
     }
-    virtual Hamiltonian* GetHamiltonian(st_t& structure) const
+    virtual qchem::Hamiltonian::Hamiltonian* GetHamiltonian(st_t& structure) const
     {
         return Factory(Model::HF, Pol::UnPolarized, structure);
     }
@@ -155,7 +156,7 @@ public:
         nlohmann::json js = { {"basis", "dzvp"}, {"angular", "spherical"} };
         QchemTester::Init(js);
     }
-    virtual Hamiltonian* GetHamiltonian(st_t& structure) const
+    virtual qchem::Hamiltonian::Hamiltonian* GetHamiltonian(st_t& structure) const
     {
         return Factory(Model::HF, Pol::UnPolarized, structure);
     }

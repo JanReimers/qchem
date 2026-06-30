@@ -11,7 +11,7 @@ import qchem.Structure.MolecularMesh;  // MakeMolecularMesh (the Becke mesh)
 import qchem.BasisSet.Internal.DB_Cache;
 import qchem.Blaze;
 
-namespace BasisSet
+namespace qchem::BasisSet
 {
 
 namespace

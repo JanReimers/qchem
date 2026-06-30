@@ -5,10 +5,10 @@ module;
 export module qchem.Blaze;
 export import qchem.Types;
 //
-//  Export some blaze functions into a new namespace blazem in order get them into a module BMI file.
+//  Export some blaze functions into a new namespace qchem::blazem in order get them into a module BMI file.
 //  This is basically a way of making a pre-compiled header for some blaze function we need.
 //
-export namespace blazem
+export namespace qchem::blazem
 {
     template <typename T> smat_t<T> zero(size_t N)
     {
@@ -104,6 +104,34 @@ export
     // using blaze::operator<=;
     // using blaze::operator>;
     // using blaze::operator>=;
+
+    using blaze::operator+;
+    using blaze::operator/;
+    using blaze::operator*;
+    using blaze::operator-;
+
+    using blaze::operator+=;
+    using blaze::operator-=;
+    using blaze::operator*=;
+    using blaze::operator/=;
+
+    using blaze::operator%;
+
+    using blaze::operator<<;
+
+    using blaze::begin;
+    using blaze::end;
+}
+
+// Mirror the same blaze operators into namespace qchem.  Project code now lives in qchem::*,
+// where unqualified operator lookup stops at the qchem scope (which holds Vector3D/Matrix3D's
+// own operators) and never reaches the global re-exports above.  Re-exporting here keeps the
+// blaze operators visible to qchem-scope code (they are not ADL-reachable: the underlying
+// blaze definitions live in this module's global-module fragment, only the using-decls escape).
+export namespace qchem
+{
+    using blaze::operator==;
+    using blaze::operator!=;
 
     using blaze::operator+;
     using blaze::operator/;

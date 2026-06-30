@@ -10,7 +10,7 @@ export module qchem.Mesh.Radial;
 export import qchem.Types;
 export import qchem.Mesh;            // RadialKind, MeshParams
 
-export namespace qcMesh
+export namespace qchem::qcMesh
 {
 
 class RadialMesh
@@ -28,11 +28,11 @@ private:
 //! \brief Build a radial mesh of the requested kind from the typed parameters.
 RadialMesh MakeRadial(const MeshParams&);
 
-} //export namespace qcMesh
+} //export namespace qchem::qcMesh
 
 // Per-scheme builders -- declared NON-exported here, implemented in separate files; only MakeRadial
 // (above) calls them.
-namespace qcMesh
+namespace qchem::qcMesh
 {
     RadialMesh MHLRadial   (int NumPoints, int m, double alpha);
     RadialMesh LogRadial   (double start, double stop, int NumPoints);

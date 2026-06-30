@@ -4,6 +4,8 @@ module;
 module qchem.BasisSet.Atom.Evaluators.Internal.Grouper;
 import qchem.Types;
 
+namespace qchem {
+
 size_t ExponentGrouper::Insert(double e,size_t l)
 {
     size_t index=unique_es.size();
@@ -32,3 +34,5 @@ size_t Grouper::LMax(size_t ia, size_t ib, size_t ic, size_t id) const
 }
 
 
+
+} // namespace qchem

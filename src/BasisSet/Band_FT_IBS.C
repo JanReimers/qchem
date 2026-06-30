@@ -14,7 +14,7 @@ export import qchem.BasisSet.Orbital_1E_IBS;
 export import qchem.FourierMap;
 import qchem.Types;       // hmat_t<dcmplx>
 
-export namespace BasisSet
+export namespace qchem::BasisSet
 {
 
 //! \brief A basis that assembles matrices in reciprocal (G-)space: the density-driven KS matrices from a

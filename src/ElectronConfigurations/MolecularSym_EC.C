@@ -9,6 +9,8 @@ module;
 export module qchem.ElectronConfiguration.MolecularSym;
 export import qchem.ElectronConfiguration;
 
+namespace qchem {
+
 export class MolecularSym_EC : public virtual ElectronConfiguration
 {
 public:
@@ -22,3 +24,5 @@ public:
 private:
     std::map<std::string,int> itsOcc;
 };
+
+} // namespace qchem

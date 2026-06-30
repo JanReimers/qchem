@@ -12,7 +12,7 @@ import qchem.BasisSet.Internal.Cache4;
 import qchem.Math;
 
 
-export namespace BasisSet::Atom::Evaluators::BSpline
+export namespace qchem::BasisSet::Atom::Evaluators::BSpline
 {
 using namespace bspline::integration;
 using namespace bspline::operators; 

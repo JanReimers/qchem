@@ -6,6 +6,8 @@ module;
 module qchem.LASolver.Internal.Lapack;
 import qchem.Blaze;
 
+namespace qchem {
+
 //-----------------------------------------------------------------------------
 //  Internal helpers — not exported.  Template on V/Vd types so Blaze can use
 //  typed (triangular, etc.) matrix BLAS paths for each solver variant.
@@ -246,3 +248,5 @@ template class LASolverCholesky<double>;
 template class LASolverEigen  <dcmplx>;
 template class LASolverSVD    <dcmplx>;
 template class LASolverCholesky<dcmplx>;
+
+} // namespace qchem

@@ -6,6 +6,8 @@ module;
 module qchem.ElectronConfiguration.MolecularSym;
 import qchem.Symmetry.MolecularIrrep;
 
+namespace qchem {
+
 int MolecularSym_EC::GetN(const Irrep& qns) const
 {
     std::string label = qns.sym ? qns.sym->GetLabel() : "";
@@ -28,3 +30,5 @@ void MolecularSym_EC::Display() const
     for (const auto& [label,n] : itsOcc) std::cout << label << ":" << n << "  ";
     std::cout << std::endl;
 }
+
+} // namespace qchem

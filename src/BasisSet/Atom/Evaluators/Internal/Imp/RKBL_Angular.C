@@ -7,7 +7,7 @@ import qchem.BasisSet.Atom.Evaluators.Internal.RelAngularIntegrals;
 import qchem.Symmetry.Spherical; // SphericalSpinor::j(κ)
 import qchem.Blaze;
 
-namespace BasisSet::Atom::Evaluators
+namespace qchem::BasisSet::Atom::Evaluators
 {
 
 rvec11_t RKB_Angular::DirectAk(const Evaluator& other) const

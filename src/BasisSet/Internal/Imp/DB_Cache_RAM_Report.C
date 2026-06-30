@@ -7,7 +7,7 @@ module;
 #include <chrono>
 module qchem.BasisSet.Internal.DB_Cache_RAM;
 
-namespace BasisSet
+namespace qchem::BasisSet
 {
 
 using std::cout;

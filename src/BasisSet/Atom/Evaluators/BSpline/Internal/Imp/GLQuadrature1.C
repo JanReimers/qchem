@@ -9,6 +9,8 @@ module;
 module qchem.BasisSet.Atom.Evaluators.BSpline.Internal.GLQuadrature;
 import qchem.Blaze;
 
+namespace qchem {
+
 using std::cout;
 using std::endl;
 
@@ -108,3 +110,5 @@ size_t GLCache2D::RAMsize() const
 }
 
 
+
+} // namespace qchem

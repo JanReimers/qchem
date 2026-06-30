@@ -5,6 +5,10 @@ module;
 module qchem.LASolver;
 import qchem.LASolver.Internal.Lapack;
 
+using qchem::LASolverEigen;
+using qchem::LASolverSVD;
+using qchem::LASolverCholesky;
+
 template <class T> LASolver<T>* LASolver<T>::
     Factory(qchem::Ortho ortho, double TruncationTolerance)
 {

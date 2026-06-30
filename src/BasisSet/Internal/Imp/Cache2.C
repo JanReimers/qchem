@@ -9,6 +9,8 @@ module;
 #include <string>
 module qchem.BasisSet.Internal.Cache2;
 
+namespace qchem {
+
 
 //---------------------------------------------------------------------------------------
 
@@ -74,3 +76,5 @@ const Cacheable2* Cache2::loop_2(size_t _i2) const
     }
     return i->second.get();
 }
+
+} // namespace qchem

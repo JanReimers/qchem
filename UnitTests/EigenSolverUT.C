@@ -8,7 +8,7 @@
 
 import qchem.BasisSet.Orbital_1E_IBS;
 import qchem.BasisSet;
-using Real_OIBS=BasisSet::Real_OIBS;
+using Real_OIBS=qchem::BasisSet::Real_OIBS;
 
 import qchem.LASolver;
 
@@ -20,6 +20,7 @@ import qchem.Symmetry.Spin;
 import qchem.WaveFunction.Types;
 import qchem.Math;
 import qchem.Blaze;
+using namespace qchem;
 
 using qchem::WaveFunction::bs_t;
 
@@ -144,7 +145,7 @@ TEST_F(OrthogonalizeTests, BlazeHydrogen)
     using namespace qchem::Hamiltonian;
     typedef std::shared_ptr<const Structure> st_t;
     Structure* cla=new Atom(1,0);
-        Hamiltonian* Ham=qchem::Hamiltonian::Factory(Model::E1,Pol::Polarized,st_t(cla));
+        qchem::Hamiltonian::Hamiltonian* Ham=qchem::Hamiltonian::Factory(Model::E1,Pol::Polarized,st_t(cla));
     double beta=Set(21,1);
     cout << "Beta=" << beta << endl;
     for (auto ibs:bs->Iterate<Real_OIBS>())

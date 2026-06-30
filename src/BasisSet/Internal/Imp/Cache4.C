@@ -8,6 +8,8 @@ module;
 #include <cassert>
 module qchem.BasisSet.Internal.Cache4;
 
+namespace qchem {
+
 
 //---------------------------------------------------------------------------------------
 
@@ -96,3 +98,5 @@ void Cache4::Report(std::ostream& os, const std::string& name) const
        << " lookups=" << std::setw(10) << itsLookups
        << " reuse="   << std::setw(6) << std::setprecision(4) << reuse << "%" << std::endl;
 }
+
+} // namespace qchem

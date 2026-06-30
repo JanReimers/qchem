@@ -4,6 +4,8 @@ module;
 #include <vector>
 module qchem.ElectronConfiguration.Crystal;
 
+namespace qchem {
+
 Crystal_EC::Crystal_EC(const Irrep& irr, int nval) : itsNval(nval)
 {
     itsSyms.insert(irr.sym);
@@ -22,3 +24,5 @@ void Crystal_EC::Display() const
 {
     std::cout << "Crystal_EC: Nval=" << itsNval << " per k-block, " << itsSyms.size() << " k-block(s)" << std::endl;
 }
+
+} // namespace qchem

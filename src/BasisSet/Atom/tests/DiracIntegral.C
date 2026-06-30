@@ -17,6 +17,7 @@ import qchem.VectorFunction;
 import qchem.Streamable;
 import qchem.BasisSet.Internal.Orbital_DHF_IBS;
 import qchem.Blaze;
+using namespace qchem;
 
 namespace
 {

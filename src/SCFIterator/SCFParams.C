@@ -2,6 +2,8 @@
 export module qchem.SCFParams;
 import qchem.Types;
 
+namespace qchem {
+
 // Defaults are the proven molecular-HF recipe (matches M_HF_U / the bridge): they converge a
 // neutral molecule (e.g. water/dzvp) out of the box, so a facade caller can write
 // `calc.Converge({.NMaxIter=60})` and override only what they care about.  Positional aggregate
@@ -21,3 +23,5 @@ export struct SCFParams
 };
 
 
+
+} // namespace qchem

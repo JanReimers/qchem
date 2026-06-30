@@ -1,6 +1,7 @@
 // File: src/Common/tests/Blaze.C  Tests for blazem helpers.
 #include "gtest/gtest.h"
 import qchem.Blaze;
+using namespace qchem;
 
 
 // VecBuilder: doubling growth + take() shrinks to the logical length, values preserved in order.

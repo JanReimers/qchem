@@ -4,6 +4,8 @@ module;
 #include <cstddef>
 export module qchem.BasisSet.Atom.Internal.PascalTriangle;
 
+namespace qchem {
+
 //
 //  Pascal's triangle of binomial coefficients C(row,j), 0 <= j <= row <= N, stored row-major in a flat
 //  array (row r starts at r*(r+1)/2).  A pure integer recurrence of fixed size, so the whole table is built
@@ -39,3 +41,5 @@ private:
 };
 
 inline constexpr PascalTriangle PascalTriangle::thePascalTriangle{};
+
+} // namespace qchem
