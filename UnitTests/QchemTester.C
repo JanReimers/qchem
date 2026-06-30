@@ -121,14 +121,7 @@ private:
     int itsq;
 };
 
-export class TestMolecule : public QchemTester
-{
-public:
-    TestMolecule(Structure*);
-    virtual qcMesh::MeshParams  GetMeshParams() const;
-private:
-    virtual Real_BS* GetBasisSet (const nlohmann::json&) const;
-};
-
-
-
+// NOTE: the molecular TestMolecule fixture was retired -- the molecular HF/DFT/symmetry tests now drive
+// the public qchem::Calculation facade directly (OpenWork D).  What remains here is the atom/Dirac
+// harness (TestAtom / TestDiracAtom) and its NIST/Dirac oracle asserts, which the molecule-only facade
+// has no business expressing.

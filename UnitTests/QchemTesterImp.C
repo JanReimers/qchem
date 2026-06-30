@@ -6,7 +6,6 @@ module;
 module qchem.Unittests.QchemTester;
 import qchem.ElectronConfiguration.AtomNR;
 import qchem.ElectronConfiguration.AtomDirac;
-import qchem.ElectronConfiguration.Molecule;
 import qchem.SCFAccelerator.Factory;
 import qchem.Math;
 using namespace qchem;
@@ -218,21 +217,6 @@ qcMesh::MeshParams TestDiracAtom::GetMeshParams() const
 Real_BS* TestDiracAtom::GetBasisSet (const nlohmann::json& js) const
 {
     return BasisSet::Atom::Factory(js,GetZ()-itsq);
-}
-
-TestMolecule::TestMolecule(Structure* m) : QchemTester(new Molecule_EC(m->GetNumElectrons())) 
-{
-    itsStructure=st_t(m);
-};
-
-qcMesh::MeshParams TestMolecule::GetMeshParams() const
-{
-    return {.radial=qcMesh::RadialKind::MHL, .nRadial=30, .mhl_m=3, .mhl_alpha=2.0,
-            .angular=qcMesh::AngularKind::Gauss, .nAngular=12, .beckeOrder=2};
-}
-Real_BS* TestMolecule::GetBasisSet (const nlohmann::json& js) const
-{
-    return BasisSet::Molecule::Factory(js,GetStructure());
 }
 
 
