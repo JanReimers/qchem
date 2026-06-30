@@ -35,8 +35,7 @@ TEST_P(BS_U_High,A)
     cout << "---------------- Z=" << Z << " ---------------"<< endl;
         
     QchemTester::Init(High,BasisSet::Atom::Type::BSpline6,verbose);
-    //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo    MergeTol verbose
-    Iterate({   50     ,Z*1e-7    ,1e-7 , 2.5e-13      ,Z*1e-7 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
+    Iterate({.NMaxIter = 50, .MinΔρ = Z*1e-7, .MinΔFD = 1e-7, .MinVirial = 2.5e-13, .MinFD = Z*1e-7, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true});
     double Eerr=RelativeHFError();
     EXPECT_LT(Eerr,1e-9);
     EXPECT_GT(Eerr,-1e-4);
@@ -51,8 +50,7 @@ TEST_P(BSr_U_High,A)
     cout << "---------------- Z=" << Z << " ---------------"<< endl;
         
     QchemTester::Init(High,BasisSet::Atom::Type::BSpliner6,verbose);
-    //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo    MergeTol verbose
-    Iterate({   50     ,Z*1e-7    ,1e-7 , 2.5e-13      ,Z*1e-7 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
+    Iterate({.NMaxIter = 50, .MinΔρ = Z*1e-7, .MinΔFD = 1e-7, .MinVirial = 2.5e-13, .MinFD = Z*1e-7, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true});
     double Eerr=RelativeHFError();
     EXPECT_LT(Eerr,1e-9);
     EXPECT_GT(Eerr,-1e-4);
@@ -66,8 +64,7 @@ TEST_P(SG_U_High,A)
     cout << "---------------- Z=" << Z << " ---------------"<< endl;
         
     QchemTester::Init(High,BasisSet::Atom::Type::Gaussian,verbose);
-    //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo    MergeTol verbose
-    Iterate({   50     ,Z*1e-5    ,1e-7 , 1e-5      ,Z*1e-6 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
+    Iterate({.NMaxIter = 50, .MinΔρ = Z*1e-5, .MinΔFD = 1e-7, .MinVirial = 1e-5, .MinFD = Z*1e-6, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true});
     // cout << "RelativeHFError = " << RelativeHFError() << std::endl;
     EXPECT_LT(RelativeHFError(),2e-6); 
     EXPECT_TRUE(Converged()); 
@@ -82,8 +79,7 @@ TEST_P(SL_U_High,A)
     cout << "---------------- Z=" << Z << " ---------------"<< endl;
         
     QchemTester::Init(High,BasisSet::Atom::Type::Slater,verbose);
-    //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo    MergeTol verbose
-    Iterate({   32     ,Z*1e-5    ,1e-7 , 1e-6      ,Z*1e-6 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
+    Iterate({.NMaxIter = 32, .MinΔρ = Z*1e-5, .MinΔFD = 1e-7, .MinVirial = 1e-6, .MinFD = Z*1e-6, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true});
     // cout << "RelativeHFError = " << RelativeHFError() << std::endl;
     EXPECT_LT(RelativeHFError(),1e-6); 
     EXPECT_TRUE(Converged()); 
@@ -102,8 +98,7 @@ TEST_P(BS_U_Medium,A)
     cout << "---------------- Z=" << Z << " ---------------"<< endl;
         
     QchemTester::Init(Medium,BasisSet::Atom::Type::BSpline6,verbose);
-    //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo    MergeTol verbose
-    Iterate({   30     ,Z*1e-7    ,1e-7 , 2.5e-7      ,Z*1e-7 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
+    Iterate({.NMaxIter = 30, .MinΔρ = Z*1e-7, .MinΔFD = 1e-7, .MinVirial = 2.5e-7, .MinFD = Z*1e-7, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true});
     double Eerr=RelativeHFError();
     EXPECT_LT(Eerr,1e-6);
     EXPECT_GT(Eerr,-1e-4);
@@ -118,8 +113,7 @@ TEST_P(BSr_U_Medium,A)
     cout << "---------------- Z=" << Z << " ---------------"<< endl;
         
     QchemTester::Init(Medium,BasisSet::Atom::Type::BSpliner6,verbose);
-    //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo    MergeTol verbose
-    Iterate({   30     ,Z*1e-7    ,1e-7 , 2.5e-7      ,Z*1e-7 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
+    Iterate({.NMaxIter = 30, .MinΔρ = Z*1e-7, .MinΔFD = 1e-7, .MinVirial = 2.5e-7, .MinFD = Z*1e-7, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true});
     double Eerr=RelativeHFError();
     EXPECT_LT(Eerr,1e-6);
     EXPECT_GT(Eerr,-1e-4);
@@ -135,8 +129,7 @@ TEST_P(SG_U_Medium,A)
     cout << "---------------- Z=" << Z << " ---------------"<< endl;
         
     QchemTester::Init(Medium,BasisSet::Atom::Type::Gaussian,verbose);
-    //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo    MergeTol verbose
-    Iterate({   50     ,Z*1e-5    ,1e-7 , 5e-2      ,Z*1e-6 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
+    Iterate({.NMaxIter = 50, .MinΔρ = Z*1e-5, .MinΔFD = 1e-7, .MinVirial = 5e-2, .MinFD = Z*1e-6, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true});
     // cout << "RelativeHFError = " << RelativeHFError() << std::endl;
     EXPECT_LT(RelativeHFError(),2e-4); 
     EXPECT_TRUE(Converged()); 
@@ -151,8 +144,7 @@ TEST_P(SL_U_Medium,A)
     cout << "---------------- Z=" << Z << " ---------------"<< endl;
         
     QchemTester::Init(Medium,BasisSet::Atom::Type::Slater,verbose);
-    //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo    MergeTol verbose
-    Iterate({   22     ,Z*1e-4    ,1e-5 , 5e-4      ,Z*1e-6 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
+    Iterate({.NMaxIter = 22, .MinΔρ = Z*1e-4, .MinΔFD = 1e-5, .MinVirial = 5e-4, .MinFD = Z*1e-6, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true});
     EXPECT_LT(RelativeHFError(),20e-6); 
     EXPECT_TRUE(Converged()); 
         
@@ -173,8 +165,7 @@ TEST_P(BS_U_Low,A)
     cout << "---------------- Z=" << Z << " ---------------"<< endl;
         
     QchemTester::Init(Low,BasisSet::Atom::Type::BSpline6,verbose);
-    //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo    MergeTol verbose
-    Iterate({   30     ,Z*1e-7    ,1e-7 , 5e-5      ,Z*1e-7 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
+    Iterate({.NMaxIter = 30, .MinΔρ = Z*1e-7, .MinΔFD = 1e-7, .MinVirial = 5e-5, .MinFD = Z*1e-7, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true});
     // cout << "RelativeHFError = " << RelativeHFError() << std::endl;
     double Eerr=RelativeHFError();
     EXPECT_LT(Eerr,40e-6);
@@ -189,8 +180,7 @@ TEST_P(BSr_U_Low,A)
     cout << "---------------- Z=" << Z << " ---------------"<< endl;
         
     QchemTester::Init(Low,BasisSet::Atom::Type::BSpliner6,verbose);
-    //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo    MergeTol verbose
-    Iterate({   30     ,Z*1e-7    ,1e-7 , 5e-5      ,Z*1e-7 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
+    Iterate({.NMaxIter = 30, .MinΔρ = Z*1e-7, .MinΔFD = 1e-7, .MinVirial = 5e-5, .MinFD = Z*1e-7, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true});
     // cout << "RelativeHFError = " << RelativeHFError() << std::endl;
     double Eerr=RelativeHFError();
     EXPECT_LT(Eerr,40e-6);
@@ -206,8 +196,7 @@ TEST_P(BS_U_Low,A)
     cout << "---------------- Z=" << Z << " ---------------"<< endl;
         
     QchemTester::Init(Low,BasisSet::Atom::Type::BSpline6,verbose);
-    //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo    MergeTol verbose
-    Iterate({   30     ,Z*1e-7    ,1e-7 , 5e-5      ,Z*1e-7 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
+    Iterate({.NMaxIter = 30, .MinΔρ = Z*1e-7, .MinΔFD = 1e-7, .MinVirial = 5e-5, .MinFD = Z*1e-7, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true});
     // cout << "RelativeHFError = " << RelativeHFError() << std::endl;
     double Eerr=RelativeHFError();
     EXPECT_LT(Eerr,40e-6);
@@ -225,8 +214,7 @@ TEST_P(SL_U_Low,A)
     cout << "---------------- Z=" << Z << " ---------------"<< endl;
         
     QchemTester::Init(Low,BasisSet::Atom::Type::Slater,verbose);
-    //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo    MergeTol verbose
-    Iterate({   30     ,Z*1e-4    ,1e-4 , 5e-1      ,Z*2e-5 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
+    Iterate({.NMaxIter = 30, .MinΔρ = Z*1e-4, .MinΔFD = 1e-4, .MinVirial = 5e-1, .MinFD = Z*2e-5, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true});
     // cout << "RelativeHFError = " << RelativeHFError() << std::endl;
     EXPECT_LT(RelativeHFError(),0.01); //1% 
     EXPECT_TRUE(Converged()); 

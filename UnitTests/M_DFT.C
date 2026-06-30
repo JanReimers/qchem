@@ -56,8 +56,7 @@ private:
 class M_DFT_N2    : public M_DFT { public: M_DFT_N2()    : M_DFT(MakeN2(),    0.75197) {} };
 class M_DFT_Water : public M_DFT { public: M_DFT_Water() : M_DFT(MakeWater(), 0.74000, DIIS_FromStart) {} };
 
-//          NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo MergeTol verbose
-static const SCFParams scf = {20, 1e-4, 1e-7, 1e-13, 1e-5, 1.0, 1e-4, false};
+static const SCFParams scf = {.NMaxIter = 20, .MinΔρ = 1e-4, .MinΔFD = 1e-7, .MinVirial = 1e-13, .MinFD = 1e-5, .StartingRelaxRo = 1.0, .MergeTol = 1e-4, .Verbose = false};
 
 // Anchors are the converged Xalpha total energies (deterministic regression sentinels -- "did E
 // move", NOT the physical energy; exchange-only Xalpha at these alphas is not calibrated to it).

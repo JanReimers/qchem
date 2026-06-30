@@ -45,8 +45,7 @@ static EnergyBreakdown RunHF(const BasisSet::BasisSet<double>* bs, const Electro
     nlohmann::json jsacc = {{"NProj",4},{"EMax",0.1},{"EMin",1e-7},{"SVTol",5e-9}};
     auto* acc = qchem::SCFAccelerators::Factory(qchem::SCFAccelerators::Type::DIIS, jsacc);
     qchem::SCFIterator::SCFIterator scf(bs, ec, ham, acc);
-    //          NMaxIter MinDro  MinDFD  MinVirial MinFD  relax MergeTol verbose
-    scf.Iterate({60,     1e-7,   1e-9,   1e2,      1e-7,  0.5,  1e-4,    false});
+    scf.Iterate({.NMaxIter = 60, .MinΔρ = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2, .MinFD = 1e-7, .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false});
     return scf.GetEnergy();
 }
 
@@ -64,7 +63,7 @@ static EnergyBreakdown RunDFT(const BasisSet::BasisSet<double>* bs, const Electr
     nlohmann::json jsacc = {{"NProj",4},{"EMax",100.0},{"EMin",1e-7},{"SVTol",5e-9}};
     auto* acc = qchem::SCFAccelerators::Factory(qchem::SCFAccelerators::Type::DIIS, jsacc);
     qchem::SCFIterator::SCFIterator scf(bs, ec, ham, acc);
-    scf.Iterate({60, 1e-7, 1e-9, 1e2, 1e-7, 0.5, 1e-4, false});
+    scf.Iterate({.NMaxIter = 60, .MinΔρ = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2, .MinFD = 1e-7, .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false});
     return scf.GetEnergy();
 }
 

@@ -46,8 +46,7 @@ public:
 class M_HF_U_N2    : public M_HF_U { public: M_HF_U_N2()    : M_HF_U(MakeN2())    {} };
 class M_HF_U_Water : public M_HF_U { public: M_HF_U_Water() : M_HF_U(MakeWater()) {} };
 
-//          NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo MergeTol verbose
-static const SCFParams scf = {20, 1e-4, 1e-7, 1e-13, 1e-5, 1.0, 1e-4, false};
+static const SCFParams scf = {.NMaxIter = 20, .MinΔρ = 1e-4, .MinΔFD = 1e-7, .MinVirial = 1e-13, .MinFD = 1e-5, .StartingRelaxRo = 1.0, .MergeTol = 1e-4, .Verbose = false};
 
 #ifndef DEBUG
 // Anchors are the converged HF/DZVP total energies (pinned to catch movement -- "did E move",

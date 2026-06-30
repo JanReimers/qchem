@@ -79,8 +79,7 @@ TEST_P(A_SL_HF_ion,A)
         {"N", N}, {"emin", Z/20.}, {"emax", Z*Z*5.},
     };
     QchemTester::Init(js);
-   //  NMaxIter MinΔρ MinΔFD MinFD StartingRelaxRo MergeTol verbose
-    Iterate({2,Z*1e-4,1e-7,Z*1e-5,1.0,1e-4,true});
+    Iterate({.NMaxIter = 2, .MinΔρ = Z*1e-4, .MinΔFD = 1e-7, .MinVirial = Z*1e-5, .MinFD = 1.0, .StartingRelaxRo = 1e-4, .MergeTol = true});
     EXPECT_LT(RelativeError(-0.5*Z*Z),4e-13);
 }
 
@@ -117,8 +116,7 @@ TEST_P(A_SL_DE1,A)
         {"N", N}, {"emin", alpha}, {"emax", alpha*pow(beta,N-1)},
     };
     QchemTester::Init(js);
-    //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo    MergeTol verbose
-    Iterate({   5     ,Z*1e-5    ,1e-7 , 3e-5      ,Z*1e-6 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,false});
+    Iterate({.NMaxIter = 5, .MinΔρ = Z*1e-5, .MinΔFD = 1e-7, .MinVirial = 3e-5, .MinFD = Z*1e-6, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = false});
 
     irrepv_t qns=GetIrreps(Spin::Up);
     cout << qns[0] << endl; 
@@ -169,8 +167,7 @@ TEST_P(A_SG_DE1,A)
         {"N", N}, {"emin", alpha}, {"emax", alpha*pow(beta,N-1)},
     };
     QchemTester::Init(js);
-    //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo    MergeTol verbose
-    Iterate({   5     ,Z*1e-5    ,1e-7 , 3e-5      ,Z*1e-6 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
+    Iterate({.NMaxIter = 5, .MinΔρ = Z*1e-5, .MinΔFD = 1e-7, .MinVirial = 3e-5, .MinFD = Z*1e-6, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true});
 
     irrepv_t qns=GetIrreps(Spin::Up);
     const Orbital* orb0=GetOrbital(0,qns[0]);
@@ -252,8 +249,7 @@ TEST_F(A_SG_E1,Phir)
         {"N", N}, {"emin", alpha}, {"emax", alpha*pow(beta,N-1)},
     };
     QchemTester::Init(js,true);
-  //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo    MergeTol verbose
-    Iterate({   5     ,1e-5    ,1e-7 , 3e-5      ,1e-6 ,     0.5              ,1e-7   ,true});
+    Iterate({.NMaxIter = 5, .MinΔρ = 1e-5, .MinΔFD = 1e-7, .MinVirial = 3e-5, .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});
 
     
     irrepv_t qns=GetIrreps(Spin::None);
@@ -292,8 +288,7 @@ TEST_F(DE1_P1,Gaussian_Phir)
         {"N", N}, {"emin", alpha}, {"emax", alpha*pow(beta,N-1)},
     };
     Init(js);
-     //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo    MergeTol verbose
-    Iterate({   5     ,Z*1e-5    ,1e-7 , 3e-5      ,Z*1e-6 ,Z<40 ? 0.5 : 0.3   ,1e-7  ,true});
+    Iterate({.NMaxIter = 5, .MinΔρ = Z*1e-5, .MinΔFD = 1e-7, .MinVirial = 3e-5, .MinFD = Z*1e-6, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true});
 
     BasisSet::irrepv_t qns=GetIrreps(Spin::Up);
     const Orbital* orb0=GetOrbital(0,qns[0]);
@@ -318,8 +313,7 @@ TEST_F(DE1_P1,Slater_Phir)
         {"N", N}, {"emin", alpha}, {"emax", alpha*pow(beta,N-1)},
     };
     QchemTester::Init(js);
-    //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo    MergeTol verbose
-    Iterate({   5     ,1e-5    ,1e-7 , 3e-5      ,1e-6 ,     0.5              ,1e-7   ,false});
+    Iterate({.NMaxIter = 5, .MinΔρ = 1e-5, .MinΔFD = 1e-7, .MinVirial = 3e-5, .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = false});
 
     BasisSet::irrepv_t qns=GetIrreps(Spin::Up);
     const Orbital* orb0=GetOrbital(0,qns[0]);
@@ -373,8 +367,7 @@ class A_SL_DHF : public DHF_U {};
 TEST_P(A_SL_DHF,Energy)
 {
     QchemTester::Init(Medium,abs_t::Slater_RKB,false);
-    //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo MergeTol verbose
-    Iterate({   50    ,1e-5     ,1e-7  , 3e-5     ,1e-6   ,0.5             ,1e-7   ,true});
+    Iterate({.NMaxIter = 50, .MinΔρ = 1e-5, .MinΔFD = 1e-7, .MinVirial = 3e-5, .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});
 
     EXPECT_LT(fabs(RelativeDHFError()), 5e-3); // Low-accuracy basis; Ne (Z=10) still fails (known gap)
 }
@@ -384,8 +377,7 @@ class A_SG_DHF : public DHF_U {};
 TEST_P(A_SG_DHF,Energy)
 {
     QchemTester::Init(Low,abs_t::Gaussian_RKB,false);
-    //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo MergeTol verbose
-    Iterate({   10    ,1e-5     ,1e-7  , 3e-5     ,1e-6   ,0.5             ,1e-7   ,true});
+    Iterate({.NMaxIter = 10, .MinΔρ = 1e-5, .MinΔFD = 1e-7, .MinVirial = 3e-5, .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});
 
     EXPECT_LT(fabs(RelativeDHFError()), 5e-3); // Low-accuracy basis; Ne (Z=10) still fails (known gap)
 }
@@ -416,8 +408,7 @@ class DHF_B_Pol : public ::testing::Test, public TestDiracAtom
 TEST_F(DHF_B_Pol,P2p)
 {
     QchemTester::Init(Medium,abs_t::Slater_RKB,false);
-    //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo MergeTol verbose
-    Iterate({   50    ,1e-5     ,1e-7  , 3e-5     ,1e-6   ,0.5             ,1e-7   ,true});
+    Iterate({.NMaxIter = 50, .MinΔρ = 1e-5, .MinΔFD = 1e-7, .MinVirial = 3e-5, .MinFD = 1e-6, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});
 
     // Pick out the 2p1/2 (κ=+1) orbital among the occupied up-spin irreps.
     const Orbital* o2p=nullptr;
@@ -451,8 +442,7 @@ TEST_F(DHF_Xe,P5pSplit)
     GTEST_SKIP() << "Xe DHF (54 electrons) is too slow for Debug; runs in Release only.";
 #endif
     QchemTester::Init(Medium,abs_t::Slater_RKB,false);
-    //       NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo MergeTol verbose
-    Iterate({   50    ,1e-5     ,1e-7  , 3e-5     ,1e-6   ,0.3             ,1e-7   ,true});
+    Iterate({.NMaxIter = 50, .MinΔρ = 1e-5, .MinΔFD = 1e-7, .MinVirial = 3e-5, .MinFD = 1e-6, .StartingRelaxRo = 0.3, .MergeTol = 1e-7, .Verbose = true});
 
     // Valence 5p is the 4th occupied level (2p,3p,4p,5p) -> index 3 in each p irrep.
     const Orbital *p12=nullptr,*p32=nullptr;

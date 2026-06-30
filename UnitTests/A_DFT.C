@@ -13,8 +13,7 @@ import qchem.Structure;
 
 inline SCFParams dft_scf_params(int Z) 
 {
-//           NMaxIter MinΔρ MinΔFD MinVirial MinFD StartingRelaxRo MergeTol verbose
-    return {   20     ,Z*1e-3    ,1e-10  ,1e-13 ,Z*1e-4        ,0.1      ,1e-8  ,true};
+    return {.NMaxIter = 20, .MinΔρ = Z*1e-3, .MinΔFD = 1e-10, .MinVirial = 1e-13, .MinFD = Z*1e-4, .StartingRelaxRo = 0.1, .MergeTol = 1e-8, .Verbose = true};
 }
 
 using namespace qchem::Hamiltonian;
