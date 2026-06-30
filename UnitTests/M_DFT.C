@@ -1,112 +1,67 @@
-// File: UnitTests/M_DFT.C  Molecular un-polarized Xalpha-DFT total-energy tests.
+// File: UnitTests/M_DFT.C  Molecular un-polarized Xalpha-DFT total-energy tests (facade-driven).
 //
-// Production path: BasisSet::Molecule::Factory builds the PolarizedGaussian (M&D) molecular basis;
-// the DFT Hamiltonian adds the fitted Coulomb + Xalpha exchange on a numerical mesh.  We drive a full
-// SCF for N2 and water through QchemTester and check the converged total energy against a reference
-// (relative error < 1%) -- the same total-energy check used for the atom A_DFT tests.
+// Production path: qchem::Calculation builds the BasisSet::Molecule::Factory PolarizedGaussian (M&D)
+// basis; the Xalpha DFT Hamiltonian adds the fitted Coulomb + Xalpha exchange on a numerical mesh.  We
+// drive a full SCF for N2 and water through the facade and check the converged total energy against a
+// reference -- the same total-energy check used for the atom A_DFT tests.
+//
+// Migrated off the QchemTester/TestMolecule scaffold (OpenWork D).  The facade auto-selects the SAD seed
+// AND DIIS-from-start for DFT (CalcOptions: model is DFT -> EMax=100 so the [F,D] gate never blocks DIIS),
+// which is exactly the DIIS_FromStart + SAD recipe the scaffold set by hand here -- so anchors are
+// byte-for-byte the scaffold values; the default mesh matches TestMolecule::GetMeshParams() exactly.
 #include "gtest/gtest.h"
-#include <nlohmann/json.hpp>
-#include <filesystem>
+#include <cmath>
 
-import qchem.Unittests.QchemTester;
-import qchem.Hamiltonian.Factory;
-import qchem.Structure;
+import qchem.Calculation;            // Calculation, CalcOptions, Model, Angular
+import qchem.Structure;              // Molecule, Atom
+import qchem.Types;                  // Vector3D
+import qchem.Unittests.TestUtils;    // RelativeError
 using namespace qchem;
 
-using namespace qchem::Hamiltonian;
-
-static Molecule* MakeN2()
+static Molecule MakeN2()
 {
-    Molecule* m = new Molecule();
-    m->Insert(new Atom(7, 0, Vector3D<double>(-1.03, 0, 0)));
-    m->Insert(new Atom(7, 0, Vector3D<double>( 1.04, 0, 0)));
+    Molecule m;
+    m.Insert(new Atom(7, 0, Vector3D<double>(-1.03, 0, 0)));
+    m.Insert(new Atom(7, 0, Vector3D<double>( 1.04, 0, 0)));
     return m;
 }
-static Molecule* MakeWater()      // experimental geometry in BOHR, C2 axis along z
+static Molecule MakeWater()      // experimental geometry in BOHR, C2 axis along z
 {
-    Molecule* w = new Molecule();
-    w->Insert(new Atom(8, 0, Vector3D<double>(0,  0.0,   0.0)));
-    w->Insert(new Atom(1, 0, Vector3D<double>(0,  1.431, 1.107)));
-    w->Insert(new Atom(1, 0, Vector3D<double>(0, -1.431, 1.107)));
+    Molecule w;
+    w.Insert(new Atom(8, 0, Vector3D<double>(0,  0.0,   0.0)));
+    w.Insert(new Atom(1, 0, Vector3D<double>(0,  1.431, 1.107)));
+    w.Insert(new Atom(1, 0, Vector3D<double>(0, -1.431, 1.107)));
     return w;
 }
 
-// DIIS engaged from iteration 0 (EMax raised so the [F,D] commutator gate never blocks it).  Without
-// this, water-DFT's commutator never damps below the default EMax (Z^2*0.1/32 ~= 0.31) so DIIS stays off
-// and the SCF limit-cycles to a non-converged, layout-sensitive snapshot -- the same mechanism as the
-// "M_Sym layout UB" red herring (see M_Sym.C RunDFT and project_msym_layout_ub).
-static const nlohmann::json DIIS_FromStart = {{"NProj",4},{"EMax",100.0},{"EMin",1e-7},{"SVTol",5e-9}};
-
-class M_DFT : public ::testing::Test, public TestMolecule
-{
-public:
-    M_DFT(Molecule* m, double alpha, const nlohmann::json& acc = {}) : TestMolecule(m), itsAlpha(alpha)
-    {
-        if (!acc.empty()) SetAcceleratorConfig(acc);   // before Init: Init reads the accelerator config
-        SetSeedStrategy(qchem::ChargeDensity::SeedStrategy::SAD);   // superposition-of-atomic-densities seed
-        nlohmann::json js = { {"basis", "dzvp"} };
-        QchemTester::Init(js);
-    }
-    virtual qchem::Hamiltonian::Hamiltonian* GetHamiltonian(st_t& structure) const
-    {
-        return Factory(Pol::UnPolarized, structure, itsAlpha, GetMeshParams(), itsBasisSet);
-    }
-private:
-    double itsAlpha;
-};
-class M_DFT_N2    : public M_DFT { public: M_DFT_N2()    : M_DFT(MakeN2(),    0.75197) {} };
-class M_DFT_Water : public M_DFT { public: M_DFT_Water() : M_DFT(MakeWater(), 0.74000, DIIS_FromStart) {} };
-
-static const SCFParams scf = {.NMaxIter = 20, .MinΔρ = 1e-4, .MinΔFD = 1e-7, .MinVirial = 1e-13, .MinFD = 1e-5, .StartingRelaxRo = 1.0, .MergeTol = 1e-4, .Verbose = false};
-
 // Anchors are the converged Xalpha total energies (deterministic regression sentinels -- "did E
 // move", NOT the physical energy; exchange-only Xalpha at these alphas is not calibrated to it).
-TEST_F(M_DFT_N2, N2)
+TEST(M_DFT, N2)
 {
-    Iterate(scf);
-    EXPECT_LT(fabs(RelativeError(-109.21679)), 2e-3);
+    Calculation calc(MakeN2(), {.basis = "dzvp", .model = Model::Xalpha, .xalpha = 0.75197});
+    EXPECT_LT(fabs(RelativeError(calc.Energy(), -109.21679)), 2e-3);
 }
 
-TEST_F(M_DFT_Water, Water)
+TEST(M_DFT, Water)
 {
-    Iterate(scf);
-    // CONVERGED Xalpha total energy (DIIS engaged from the start via DIIS_FromStart): [F,D] and Δρ reach
-    // ~1e-13 by ~iter 14, virial V/K = -2.006 (the correct ~-2, vs the buggy -2.11).  Converged() reads
-    // false only because MinVirial=1e-13 is an unsatisfiable finite-basis criterion; the energy is a true
-    // converged regression sentinel.  (Was -76.123348 interim limit-cycle, and -79.414120 stale-cache.)
-    EXPECT_LT(fabs(RelativeError(-76.1493013984)), 2e-3);
+    Calculation calc(MakeWater(), {.basis = "dzvp", .model = Model::Xalpha, .xalpha = 0.74000});
+    // CONVERGED Xalpha total energy (the facade's auto DIIS-from-start): [F,D] and Δρ reach ~1e-13 by
+    // ~iter 14, virial V/K = -2.006 (the correct ~-2, vs the buggy -2.11).  A true converged regression
+    // sentinel.  (Was -76.123348 interim limit-cycle, and -79.414120 stale-cache.)
+    EXPECT_LT(fabs(RelativeError(calc.Energy(), -76.1493013984)), 2e-3);
 }
 
 // --- The spherical-Gaussian (PG_Spherical) basis through the DFT path -----------------------------
-// js["angular"]="spherical" selects the real-solid-harmonic orbital basis AND a spherical fit (auxiliary)
-// basis (PG_Spherical::EFit_IBS, via the orbital IBS's CreateCDFit/CreateVxcFit).  The spherical Xalpha
-// energy lands ~0.09 Ha ABOVE the Cartesian -- larger than HF's ~3 mHa orbital-only gap because the FIT
-// basis also goes spherical (contaminant-free -> fewer auxiliary functions -> a different, poorer density
-// fit).  That gap is a genuine basis difference, not an error: the fit kernels are validated correct by
-// M_Spherical.fit_kernels (d-harmonic charge==0, symmetric/positive Coulomb metric).  So this is purely a
-// "did E move" regression anchor (the same role the Cartesian DFT anchors play), with a loose sanity bound.
-class M_DFT_Sph : public ::testing::Test, public TestMolecule
+// angular=Spherical selects the real-solid-harmonic orbital basis AND a spherical fit (auxiliary) basis
+// (PG_Spherical::EFit_IBS, via the orbital IBS's CreateCDFit/CreateVxcFit).  The spherical Xalpha energy
+// lands ~0.09 Ha ABOVE the Cartesian -- larger than HF's ~3 mHa orbital-only gap because the FIT basis
+// also goes spherical (contaminant-free -> fewer auxiliary functions -> a different, poorer density fit).
+// That gap is a genuine basis difference, not an error: the fit kernels are validated correct by
+// M_Spherical.fit_kernels.  So this is purely a "did E move" regression anchor, with a loose sanity bound.
+TEST(M_DFT, WaterSpherical)
 {
-public:
-    M_DFT_Sph(Molecule* m, double alpha, const nlohmann::json& acc = {}) : TestMolecule(m), itsAlpha(alpha)
-    {
-        if (!acc.empty()) SetAcceleratorConfig(acc);   // before Init: Init reads the accelerator config
-        SetSeedStrategy(qchem::ChargeDensity::SeedStrategy::SAD);   // superposition-of-atomic-densities seed
-        nlohmann::json js = { {"basis", "dzvp"}, {"angular", "spherical"} };
-        QchemTester::Init(js);
-    }
-    virtual qchem::Hamiltonian::Hamiltonian* GetHamiltonian(st_t& structure) const
-    {
-        return Factory(Pol::UnPolarized, structure, itsAlpha, GetMeshParams(), itsBasisSet);
-    }
-private:
-    double itsAlpha;
-};
-class M_DFT_Sph_Water : public M_DFT_Sph { public: M_DFT_Sph_Water() : M_DFT_Sph(MakeWater(), 0.74000, DIIS_FromStart) {} };
-
-TEST_F(M_DFT_Sph_Water, Water)
-{
-    Iterate(scf);
-    EXPECT_NEAR(TotalEnergy(), -76.1493013984, 0.05);      // sanity: same ballpark as the Cartesian Xalpha
-    EXPECT_LT(fabs(RelativeError(-76.1485556624)), 2e-3);  // CONVERGED anchor (DIIS from start; was -76.073646 interim)
+    Calculation calc(MakeWater(), {.basis   = "dzvp", .model   = Model::Xalpha,
+                                   .xalpha  = 0.74000, .angular = Angular::Spherical});
+    EXPECT_NEAR(calc.Energy(), -76.1493013984, 0.05);                 // sanity: same ballpark as Cartesian
+    EXPECT_LT(fabs(RelativeError(calc.Energy(), -76.1485556624)), 2e-3);  // CONVERGED anchor (DIIS from start)
 }

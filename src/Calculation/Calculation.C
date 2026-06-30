@@ -25,6 +25,7 @@ import qchem.ElectronConfiguration;// ElectronConfiguration
 import qchem.SCFIterator;          // SCFIterator, SCFParams, SCFProgress, EnergyBreakdown
 import qchem.Symmetry.Irrep;       // Irrep
 import qchem.ChargeDensity;        // DM_CD
+import qchem.ChargeDensity.Seed;   // SeedStrategy
 
 export namespace qchem
 {
@@ -64,6 +65,10 @@ struct CalcOptions
     //! future-proofs the day spherical/libcint deliveries are exposed (see doc/SphericalSALCPlan.md).
     bool        symmetry    = false;
     double      symmetryTol = 1e-4;   //!< geometry tolerance for point-group detection
+    //! SCF seed.  Default == auto: DFT seeds from SAD (superposition of atomic densities), HF/1-e take
+    //! the core guess.  Set explicitly to override -- e.g. {.seed=SAD} drives HF's matrix-free-seed
+    //! bootstrap (the iterator manufactures a D0 via a one-step LDA sibling).
+    qchem::ChargeDensity::SeedStrategy seed = qchem::ChargeDensity::SeedStrategy::Default;
 };
 
 //! DIIS accelerator knobs.  These were stringly-typed json keys grepped out of tests; here they

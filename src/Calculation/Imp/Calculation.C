@@ -84,9 +84,11 @@ bool Calculation::Converge(const SCFParams& params)
     auto* accel = qchem::SCFAccelerators::Factory(qchem::SCFAccelerators::Type::DIIS, jsacc);
 
     delete itsScf;                                     // releases the previous Hamiltonian + accelerator
-    // DFT seeds from superposition-of-atomic-densities (SAD); HF/1-e take the core guess (Default).
-    const auto seed = dft ? qchem::ChargeDensity::SeedStrategy::SAD
-                          : qchem::ChargeDensity::SeedStrategy::Default;
+    // Seed: an explicit opts.seed wins; otherwise auto -- DFT from superposition-of-atomic-densities
+    // (SAD), HF/1-e from the core guess (Default).
+    using qchem::ChargeDensity::SeedStrategy;
+    const auto seed = (itsOpts.seed != SeedStrategy::Default) ? itsOpts.seed
+                      : (dft ? SeedStrategy::SAD : SeedStrategy::Default);
     itsScf = new SCFIter(itsBasis, itsEC, ham, accel, seed, itsStructure.get());
     if (itsObserver) itsScf->SetObserver(itsObserver);
 
