@@ -1,5 +1,6 @@
 // File: BasisSet/Fit_IBS.C  Interfaces for a fitting (auxiliary) Basis Set.
 module;
+#include <string>
 export module qchem.BasisSet.Fit_IBS;
 export import qchem.BasisSet.IrrepBasisSet;
 export import qchem.ScalarFunction;
@@ -79,6 +80,8 @@ protected:
 
 private:
     qcMesh::Mesh itsMesh;   //!< the fit basis's own quadrature mesh.
+    std::string  itsMeshID; //!< identity of itsMesh (= MeshParams::ID()); the cache key axis for Norm()
+                            //!< so the SAME fit basis built with a DIFFERENT mesh gets a distinct Norm.
 };
 
 }//namespace
