@@ -1,56 +1,26 @@
 // File: pybind/qchem_bridge.cpp
 //
-// Module unit: the global-module-fragment (#includes) de-dups against the
-// imported qchem modules' GMFs, so textually including json/STL alongside
-// `import qchem.*` no longer triggers std-header ODR errors. The public surface
-// is the flat extern "C" API in qcb_api.h (C linkage -> links from nanobind).
+// Module unit bridging qchem -> the flat extern "C" API (qcb_api.h). Now built on
+// the qchem::Calculation front door: one `import qchem;` (the umbrella) gives the
+// facade + Molecule/Atom + ScalarFunction sampling, so this file is just "build a
+// Calculation, sample its Density()/Orbital()/Gradient() onto grids". The old
+// hand-assembly (EC + basis Factory + Hamiltonian + accelerator + SCFIterator)
+// now lives once, in the lib. extern "C" gives plain C symbols -> links from the
+// nanobind TU (qchem_py.cpp), which never touches a C++20 module.
 module;
-#include <nlohmann/json.hpp>
 #include <vector>
 #include <memory>
-#include <algorithm>
-#include <utility>
-#include <cmath>
 #include <cstring>
 #include "qcb_api.h"
 
 export module qchem.bridge;
+import qchem;   // umbrella: Calculation, CalcOptions, Molecule, Atom, ScalarFunction, rvec3_t, SCFProgress
 
-import qchem.Types;                          // rvec3_t (Vector3D<double>), vec3_t
-import qchem.Structure;                      // Molecule, Atom, Structure
-import qchem.ScalarFunction;                 // ::ScalarFunction<double>
-import qchem.BasisSet;                        // Real_BS (GetIrreps)
-import qchem.BasisSet.Molecule.Factory;      // BasisSet::Molecule::Factory
-import qchem.Hamiltonian;                     // Hamiltonian
-import qchem.Hamiltonian.Factory;            // Model, Pol, Factory
-import qchem.ElectronConfiguration;          // ElectronConfiguration
-import qchem.ElectronConfiguration.Molecule; // Molecule_EC
-import qchem.SCFAccelerator;                 // SCFAccelerator
-import qchem.SCFAccelerator.Factory;         // SCFAccelerators::Type, Factory
-import qchem.SCFIterator;                    // SCFIterator, SCFParams
-import qchem.SCFParams;
-import qchem.WaveFunction;                   // tWaveFunction (GetChargeDensity/GetOrbitals)
-import qchem.Orbitals;                       // Orbitals, Orbital
-import qchem.ChargeDensity;                  // DM_CD
-import qchem.PeriodicTable;                  // (unused here; symbols mapped in Python)
-
-using qchem::Hamiltonian::Model;
-using qchem::Hamiltonian::Pol;
-using qchem::SCFIterator::SCFIterator;
-using qchem::ChargeDensity::DM_CD;
-using qchem::Orbitals::Orbital;
-// Public types that moved under qchem:: in the 2026-06 namespace unification.  (Lowercase vocabulary
-// like rvec3_t/dcmplx stays global.)  Pulled in by-name rather than `using namespace qchem;` to avoid
-// clashing with the SCFIterator/Hamiltonian/Orbitals namespace-vs-class using-declarations above.
+using qchem::Calculation;
+using qchem::CalcOptions;
 using qchem::Molecule;
 using qchem::Atom;
-using qchem::Structure;
 using qchem::ScalarFunction;
-using qchem::Real_BS;
-using qchem::Spin;
-using qchem::ElectronConfiguration;
-using qchem::Molecule_EC;
-namespace BasisSet = qchem::BasisSet;
 
 namespace {
 
@@ -80,34 +50,13 @@ void sample_scalar(const ScalarFunction<double>& f, rvec3_t lo, rvec3_t hi, int 
                 out[idx++] = f(rvec3_t(lo.x+sp.x*i, lo.y+sp.y*j, lo.z+sp.z*k));
 }
 
-// Holds the converged SCF; all qchem types stay inside.
+// The converged calculation + the geometry we were handed (for bbox / atom readout).
 struct Calc {
-    std::shared_ptr<const Structure> structure;   // also held by the Hamiltonian
-    ElectronConfiguration*           ec    = nullptr;  // owned
-    BasisSet::Real_BS*               basis = nullptr;  // owned
-    SCFIterator*                     scf   = nullptr;   // owns ham + accelerator
+    std::unique_ptr<Calculation> calc;
     std::vector<int>    numbers;
     std::vector<double> positions;
     int                 maxiter = 20;
-    ~Calc() { delete scf; delete basis; delete ec; }
 };
-
-// (Re)build a fresh Hamiltonian + accelerator + SCFIterator on the existing basis/
-// EC/structure and converge from the seed. `obs` (if set) streams each iteration.
-void run_scf_impl(Calc* c, SCFIterator::Observer obs)
-{
-    int Ztot = 0; for (int z : c->numbers) Ztot += z;
-    auto* ham = Factory(Model::HF, Pol::UnPolarized, c->structure);
-    nlohmann::json jsacc = {{"NProj", 4}, {"EMax", Ztot*Ztot*0.1/32},
-                            {"EMin", 1e-7}, {"SVTol", 5e-9}, {"type", "DIIS"}};
-    auto* acc = qchem::SCFAccelerators::Factory(qchem::SCFAccelerators::Type::DIIS, jsacc);
-    delete c->scf;                                       // releases the previous ham + acc
-    c->scf = new SCFIterator(c->basis, c->ec, ham, acc,
-                             qchem::ChargeDensity::SeedStrategy::Default, c->structure.get());
-    if (obs) c->scf->SetObserver(std::move(obs));
-    //          NMaxIter MinΔρ MinΔE MinVirial MinFD relax mergeTol verbose
-    c->scf->Iterate({size_t(c->maxiter), 1e-4, 1e-7, 1e-13, 1e-5, 1.0, 1e-4, false});
-}
 
 } // anon namespace
 
@@ -120,50 +69,49 @@ void* qcb_make(const int* Z, int nat, const double* pos3, const char* basis, int
     c->positions.assign(pos3, pos3 + 3*nat);
     c->maxiter = maxiter;
 
-    Molecule* mol = new Molecule();
+    Molecule mol;   // local; Calculation deep-copies it
     for (int a = 0; a < nat; ++a)
-        mol->Insert(new Atom(Z[a], 0.0, rvec3_t(pos3[3*a], pos3[3*a+1], pos3[3*a+2])));
-    c->structure = std::shared_ptr<Molecule>(mol);
-    c->ec    = new Molecule_EC(int(mol->GetNumElectrons()));
-    c->basis = BasisSet::Molecule::Factory(nlohmann::json{{"basis", basis}}, mol);
+        mol.Insert(new Atom(Z[a], 0.0, rvec3_t(pos3[3*a], pos3[3*a+1], pos3[3*a+2])));
 
-    run_scf_impl(c, {});                                 // converge so density() is ready
+    c->calc = std::make_unique<Calculation>(mol, CalcOptions{.basis = basis});  // build + converge
+    if (maxiter != 20)
+        c->calc->Converge({.NMaxIter = size_t(maxiter)});                        // honor a custom cap
     return c;
 }
 
 int qcb_run_scf(void* h, qcb_scf_cb cb, void* user)
 {
     auto* c = static_cast<Calc*>(h);
-    run_scf_impl(c, [cb, user](const qchem::SCFIterator::SCFProgress& p) {
+    c->calc->OnIteration([cb, user](const qchem::SCFIterator::SCFProgress& p) {
         cb(user, int(p.iteration), p.energy, p.dE, p.commutator, p.drho);
     });
-    return int(c->scf->GetIterationCount());
+    c->calc->Converge({.NMaxIter = size_t(c->maxiter)});   // re-run from the seed, streaming
+    return int(c->calc->IterationCount());
 }
 
-void   qcb_free(void* h)        { delete static_cast<Calc*>(h); }
-double qcb_energy(void* h)      { return static_cast<Calc*>(h)->scf->GetEnergy().GetTotalEnergy(); }
-int    qcb_natoms(void* h)      { return int(static_cast<Calc*>(h)->numbers.size()); }
+void   qcb_free(void* h)   { delete static_cast<Calc*>(h); }
+double qcb_energy(void* h) { return static_cast<Calc*>(h)->calc->Energy(); }
+int    qcb_natoms(void* h) { return int(static_cast<Calc*>(h)->numbers.size()); }
 
 void qcb_atoms(void* h, int* Z_out, double* xyz_out)
 {
     auto* c = static_cast<Calc*>(h);
-    std::memcpy(Z_out, c->numbers.data(), c->numbers.size()*sizeof(int));
-    std::memcpy(xyz_out, c->positions.data(), c->positions.size()*sizeof(double));
+    std::memcpy(Z_out,   c->numbers.data(),   c->numbers.size()  * sizeof(int));
+    std::memcpy(xyz_out, c->positions.data(), c->positions.size()* sizeof(double));
 }
 
 void qcb_density(void* h, int n, double pad, double* out, double* origin, double* spacing)
 {
     auto* c = static_cast<Calc*>(h);
     rvec3_t lo, hi; bbox(c->positions, pad, lo, hi);
-    std::unique_ptr<DM_CD> cd(c->scf->GetWaveFunction()->GetChargeDensity());  // caller owns
-    sample_scalar(*cd, lo, hi, n, out, origin, spacing);
+    sample_scalar(c->calc->Density(), lo, hi, n, out, origin, spacing);
 }
 
 void qcb_gradient(void* h, int n, double pad, double* out, double* origin, double* spacing)
 {
     auto* c = static_cast<Calc*>(h);
     rvec3_t lo, hi; bbox(c->positions, pad, lo, hi);
-    std::unique_ptr<DM_CD> cd(c->scf->GetWaveFunction()->GetChargeDensity());
+    const ScalarFunction<double>& rho = c->calc->Density();
     rvec3_t sp((hi.x-lo.x)/(n-1), (hi.y-lo.y)/(n-1), (hi.z-lo.z)/(n-1));
     origin[0]=lo.x; origin[1]=lo.y; origin[2]=lo.z;
     spacing[0]=sp.x; spacing[1]=sp.y; spacing[2]=sp.z;
@@ -171,7 +119,7 @@ void qcb_gradient(void* h, int n, double pad, double* out, double* origin, doubl
     for (int i = 0; i < n; ++i)
         for (int j = 0; j < n; ++j)
             for (int k = 0; k < n; ++k) {
-                vec3_t<double> g = cd->Gradient(rvec3_t(lo.x+sp.x*i, lo.y+sp.y*j, lo.z+sp.z*k));
+                vec3_t<double> g = rho.Gradient(rvec3_t(lo.x+sp.x*i, lo.y+sp.y*j, lo.z+sp.z*k));
                 out[idx++] = g.x; out[idx++] = g.y; out[idx++] = g.z;
             }
 }
@@ -180,24 +128,17 @@ void qcb_orbital(void* h, int index, int n, double pad,
                  double* out, double* origin, double* spacing, int* is_signed)
 {
     auto* c = static_cast<Calc*>(h);
-    const auto* wf = c->scf->GetWaveFunction();
-    std::vector<std::pair<double, const ScalarFunction<double>*>> occ;
-    for (const auto& irr : c->basis->GetIrreps(Spin::None))
-        for (const Orbital* o : wf->GetOrbitals(irr)->Iterate())
-            if (o->IsOccupied()) {
-                const auto* phi = dynamic_cast<const ScalarFunction<double>*>(o);
-                if (phi) occ.push_back({o->GetEigenEnergy(), phi});
-            }
-    std::sort(occ.begin(), occ.end(), [](const auto& a, const auto& b){ return a.first > b.first; });
     *is_signed = 1;
     rvec3_t lo, hi; bbox(c->positions, pad, lo, hi);
-    if (occ.empty() || index < 0 || size_t(index) >= occ.size()) {
+    const size_t nocc = c->calc->NumOccupied();
+    if (index < 0 || size_t(index) >= nocc) {        // out of range -> empty field
         std::memset(out, 0, size_t(n)*n*n*sizeof(double));
         origin[0]=lo.x; origin[1]=lo.y; origin[2]=lo.z;
         spacing[0]=spacing[1]=spacing[2]=0;
         return;
     }
-    sample_scalar(*occ[index].second, lo, hi, n, out, origin, spacing);
+    // index 0 = HOMO; Calculation::Orbital(i) is energy-ascending (0 = lowest).
+    sample_scalar(c->calc->Orbital(nocc - 1 - size_t(index)), lo, hi, n, out, origin, spacing);
 }
 
 } // extern "C"
