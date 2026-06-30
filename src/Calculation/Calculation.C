@@ -32,6 +32,11 @@ export namespace qchem
 using Hamiltonian::Model;          // {E1, HF, DE1, DHF}
 using Hamiltonian::Pol;            // {UnPolarized, Polarized}
 
+//! Orbital-integral engine: the in-house MnD recursion (default) or the libcint foreign engine.
+enum class Engine  { MnD, LibCint };
+//! Angular basis convention: Cartesian Gaussians (default) or real solid-harmonic (spherical).
+enum class Angular { Cartesian, Spherical };
+
 //! How to set up the calculation.  Designated-initializer friendly:
 //!     Calculation calc(water, {.basis="dzvp"});
 //! `model` selects the Hamiltonian; pass 1 wires the non-DFT factory path (HF is the default).
@@ -40,6 +45,11 @@ struct CalcOptions
     std::string basis = "sto-3g";
     Model       model = Model::HF;   //!< HF (default) | Xalpha | LDA | E1/DE1/DHF (test-only)
     Pol         pol   = Pol::UnPolarized;
+    //! Basis construction variants (threaded into BasisSet::Molecule::Factory).  Defaults reproduce
+    //! today's behaviour (in-house MnD, Cartesian).  angular==Spherical + symmetry is rejected until
+    //! the Spherical SALC track (doc/SphericalSALCPlan.md) lands -- the SALC builder needs Cartesian PGData.
+    Engine      engine  = Engine::MnD;
+    Angular     angular = Angular::Cartesian;
     //! DFT-only knobs (ignored when model is HF/1-e/Dirac).  xalpha: the Slater exchange parameter, used
     //! only by model==Xalpha.  mesh: the numerical XC integration grid -- defaults to the proven molecular
     //! values; a designated initializer overrides just the resolution you care about, e.g. {.nRadial=50}.

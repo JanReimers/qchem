@@ -6,6 +6,7 @@ module;
 #include <utility>
 #include <algorithm>
 #include <cassert>
+#include <stdexcept>
 #include <nlohmann/json.hpp>
 module qchem.Calculation;
 
@@ -30,7 +31,18 @@ using SCFIter = qchem::SCFIterator::SCFIterator;
 // no Cartesian PGData IBS (the guard); the facade only ever builds that basis today, so it is safe.
 static BasisSet::Real_BS* BuildBasis(const CalcOptions& opts, const std::shared_ptr<const Structure>& st)
 {
-    BasisSet::Real_BS* raw = BasisSet::Molecule::Factory(nlohmann::json{{"basis", opts.basis}}, st.get());
+    const bool spherical = (opts.angular == Angular::Spherical);
+    // SALC blocking needs a Cartesian PGData orbital IBS; spherical adaptation is the Spherical SALC
+    // track (doc/SphericalSALCPlan.md), not yet wired -- reject the combination clearly rather than
+    // letting PG::SymmetryAdapt throw a less-obvious basis-type error deeper down.
+    if (opts.symmetry && spherical)
+        throw std::runtime_error("qchem::Calculation: {.symmetry=true} requires angular=Cartesian "
+                                 "(spherical SALC is not yet supported)");
+
+    const char* engine  = (opts.engine  == Engine::LibCint) ? "libcint" : "mnd";
+    const char* angular = spherical ? "spherical" : "cartesian";
+    BasisSet::Real_BS* raw = BasisSet::Molecule::Factory(
+        nlohmann::json{{"basis", opts.basis}, {"engine", engine}, {"angular", angular}}, st.get());
     if (!opts.symmetry) return raw;
     std::shared_ptr<const BasisSet::Real_BS> rawShared(raw);
     return PG::SymmetryAdapt(rawShared, *st, opts.symmetryTol);
