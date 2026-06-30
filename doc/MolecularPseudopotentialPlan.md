@@ -135,3 +135,72 @@ already in `MultiSpecies_LocalPotential`/`MultiSpecies_SeparablePotential`, lift
 - Molecular mesh/quadrature to reuse: the Becke mesh (`src/Mesh`) + the XC quadrature path
   (`FittedVxc`/`FittedVee` in `src/Hamiltonian/Internal/Imp/`).
 - Term-side routing model: `MultiSpecies_*Potential` in the two model files.
+
+## 8. Cross-link: SAD valence-density seeding (PW) — interim fake now, PP-atom later
+
+The PW SAD seed (Phase 2 of [[project_scf_seeding_next]] / `doc/SCFSeedingPlan.md` §3.1) needs a
+**valence-only** atomic ρ(r) (Si = 4 e: 3s²3p²), but `runscf` currently emits the **all-electron** ρ
+(14 e). The "do it right" route is an **atomic pseudopotential solve** producing a true pseudo-valence
+density — which is precisely what **Path A** of this plan (GTH/HGH in a Gaussian/atom basis) unlocks. So
+this is the spin-off that ties seeding to the PP work.
+
+**Decision (2026-06-29): ship the honest fake now, defer the PP-atom solve as its own milestone.**
+
+A seed need not be correct — the converged density is a seed-independent fixed point; the seed only has to
+start near the basin with the right charge in roughly the right place. So:
+
+- **Interim seed = AE-valence ρ(r):** sum *only the valence-shell* orbital densities from the existing
+  all-electron `runscf` atom solve (`ρ_val = Σ_{3s,3p} occ·|φ|²`). Right electron count by construction,
+  correct valence extent, **no core spike**. Add a **valence filter** to `runscf`'s ρ sampling
+  (`--valence` / `--ncore`, or select n ≥ n_val from the EC). The radial ρ_val then flows through the
+  *identical* §3.1 pipeline (radial FT → ρ_atom(|G|) → structure-factor sum → composite Fourier density);
+  nothing downstream changes.
+  - **Do NOT** fake it by scaling the total (`ρ·4/14`): that keeps the 1s/2s/2p core spike, which a PW
+    basis at any sane E_cut cannot represent → aliasing / lost charge → *worse* than the Uniform seed.
+  - The only discrepancy vs a true pseudo-valence density is near-core node wiggles (AE valence orbitals
+    are core-orthogonalized); the PW basis smooths them and the SCF irons out the rest. Harmless **for a
+    seed**.
+
+- **Target seed = PP-valence ρ(r):** once the atomic PP solve lands (GTH local + KB-separable in the atom
+  solver, i.e. Path A applied to a single atom), swap the *data source* behind the **same per-element
+  valence-ρ interface**. Same pipeline, better numbers. Validate the PP-atom **independently** (pseudo-atom
+  E_tot / eigenvalues vs a reference) — it's on the battery north-star critical path (multi-species PP), so
+  it deserves its own focus, not a rushed seed-prerequisite.
+
+- **Provenance guardrail:** tag the seed data **"AE-valence (interim) → PP-valence (target)"**. It is used
+  **only** as a seed, so the AE-vs-PP core mismatch is invisible to every result.
+
+- **Gate (Phase 2 Si):** FCC Si converges to the **same** energy as the Uniform seed, in **≤** the
+  iterations. An AE-valence seed (strictly more structured than Uniform) should clear this; if it somehow
+  doesn't, that's a real data signal that the AE-vs-PP core mismatch matters — which then *raises* the
+  PP-atom priority on evidence rather than speculation.
+
+## 9. Sequencing decision (2026-06-29): Atom_PP NEXT, before ionic SAD
+
+The §8 gate fired exactly as it warned. **Phase 2(c) result:** the AE-valence SAD seed converges to the
+bit-identical Si energy but does **not** beat Uniform on iterations (Si **15 vs 11**) — its core peak
+injects spurious high-G that a true (nodeless) pseudo-valence density wouldn't. So the PW default stays
+Uniform (committed 0741fafa), and the AE-vs-PP core mismatch is now **measured, not hypothetical**. The
+"data signal" §8 anticipated has arrived → it raises the PP-atom priority on evidence.
+
+**Decision: build `Atom_PP` next (as its own validated milestone), THEN circle back to seeding.** Chosen
+over "push on to ionic SAD now" because:
+
+- **Ionic SAD's payoff is on the same shaky foundation.** Its target is charge-transfer **PW** solids
+  (NaF/CsI) — the very path where AE-valence's core peak just lost to Uniform. Doing ionic-SAD-on-AE-valence
+  now risks a murky, possibly-throwaway result (can't separate method from core-peak artifact) that gets
+  rebuilt on pseudo-valence anyway — the "fake it twice" trap.
+- **Atom_PP fixes the foundation AND is critical-path regardless.** Battery cathodes need PP solids, so
+  pseudo-atomic solves are foundational, not optional. Atom_PP uniquely: (1) yields true pseudo-valence ρ →
+  the Si seed that should actually *beat* Uniform (closes 2c with a win); (2) yields pseudo-valence *ion*
+  densities for free → ionic SAD done *right*; (3) **de-risks the PP models** — validating GTH local +
+  KB-separable real-space views on one atom (E_tot/eigenvalues vs reference) is the natural stepping stone
+  between §6 A0 (model ISP) and A1 (molecular assembly). **Atom_PP *is* "Path A on one atom."**
+- **Circling back is cheap** — the AE-valence generator + FourierSeedCD pipeline already built are the
+  harness; Atom_PP just swaps the data source behind the same per-element valence-ρ interface (§8).
+
+**Order:** (1) `Atom_PP` standalone + its own validation gate; (2) circle back — flip PW default to SAD
+with evidence (Si beats Uniform) + ionic SAD on clean pseudo-valence; (3) full `Molecule_PP` (Path A),
+for which Atom_PP was the validation stepping stone. **Do NOT** do ionic-SAD-on-AE-valence first. (Lone
+exception: if a roadmap demo needs an ionic-solid speedup before Atom_PP lands, do it on the **molecular**
+Gaussian path — no PW core-peak/aliasing problem — not PW.)

@@ -77,7 +77,18 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
   2. For molecule tests use linCint integral engines ... way faster than home grown MnD code.
   3. Buy a new PC with 12-16 cores, 64GB ram, 2T SSD drive.  Use the new rig for live development run SI server on the old rig ... until it goes up in a puff of smoke :)
 - Review the Types.C files in the libraries other than qcCommon.
-- 
+
+## GUI apps, planning
+- The end goal is to make GUI apps for 
+  1. Atoms
+  2. Molecules
+  3. Solids
+  4. Battery Materials Studio: DFT+U->Lattice Gas Model->Mone-Carlo->Voltage curves V(x,T).
+- The priorites for apps are
+  1. 2. and 3. The best-ist flashy-ist  scientific plots we can get.  x-y, surfaces, vector fields, shaded iso-surfaces, 2D slices of a 3D entity using a slider knob (think bands).
+  4. Responsive ... the data flow from the numerical code into the plots should be direct and fast.  Some x-y plots update during iterations (delta E, delta [F,D], delta rho, etc.)
+  5. A project or workspace concept.  Save and restore.
+- Solutioning: Which plotting package? Totally open on: desktop app, web app, server app for the numerical side ... I am looking for ideas and recommendations.
 
 ## Solids / plane waves
 
@@ -105,6 +116,7 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
   `using X = rX` shims so ~200 existing sites didn't churn. Do the codebase-wide rename. NOTE the
   `rHamiltonian` rename must also dissolve the `qchem::Hamiltonian` namespace-vs-type shadow
   (the `::Hamiltonian` / `qchem::Hamiltonian::` qualifications scattered around are working around it).
+- We need a graceful way to make a DFT Hamiltonian from a purely numeric (superposition of atoms) charge density.  Right now we have the misnamed CompositeFittedCD which serves this purpose, but it inherets the  tChargeDensity interface and then stubs out the function that it obviously has no (efficient) way of implementing: GetRepulsion3C. We need to 1) rename CompositeFittedCD->NumericCD 2) Allow a second construction channel for DFT Hamiltonians that accepts a ScalarFunction<double>, that is all it need to fit Vee and Vxc.  2) Make sure HF and DHF Hamiltonians do not have the alternate constructor.
 
 ### Friendly libxc interface
 - Clients shouldn't have to look up a function id. Pick a few popular/common functionals we want, make enums,
@@ -115,15 +127,18 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
 - Seeding mechanism: not user-friendly (uniform-density-seed boilerplate in the framework tests), and crude
   for ionic charge-transfer (NaF/CsI converge but grind).  see doc/SCFSeedingPlan.md
 - Harden versioning
+```c++
     virtual bool   isActive() const = 0;   // Layer 2: am I the live head of my lineage?
-    Then the consuming side asserts the invariant:
-
+```
+  Then the consuming side asserts the invariant:
+```c++
     const hmat_t& GetMatrix(..., const tDM_CD* cd) const
     {
         assert(cd->isActive() && "computing with a superseded charge density");
         ...
     }
-    So if anyone hands the Hamiltonian a density that's been superseded, it fires immediately — pointing at the exact line, instead of producing a plausible-but-wrong number.
+```
+  So if anyone hands the Hamiltonian a density that's been superseded, it fires immediately — pointing at the exact line, instead of producing a plausible-but-wrong number.
 
 ## qcFitting
 
@@ -131,8 +146,6 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
 - `FIT_CD_ABS<T>` / `FIT_SF_ABS<T>` templating — left non-templated; the `<dcmplx>` vision is still open.
 - `FourierFunctionFitter` delete-and-inline — kept the named object; the aggressive alternative remains.
 - XC energy `∫ε_xc·ρ` through the fitter — still on the direct grid route (needs a grid-based fit input).
-
-## qcBasisSet
 
 ## qcAtom_BS
 - **Dirac/RKB:** 1s orbital not properly normalized; track kinetic factors (0.5, c, 2c).
@@ -174,14 +187,12 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
 ## qcPseudoPotential
 
 **Pseudopotential / multi-species**
-- `Qli` l=3 (f) projector — the analytic HGH table stops at l=2, so heavy semicore valences (e.g. Cs **q9**)
+- `Qli`   , so heavy semicore valences (e.g. Cs **q9**)
   aren't usable; sidestepped with Cs q1. Small self-contained addition.
 
 ## qcElConfig
 - Can we make an EC_Aufbau that does aufbau filling across irreps for atom/molecule and solids? Or does each
   structure type have its own peculiarities?
-
-## qcStructure
 
 ## qcSymmetry
 
@@ -195,6 +206,4 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
   - **Tier B** — full space group with fractional translations τ → non-symmorphic `e^{−iG·τ}` phases,
     density/Hamiltonian symmetrization, crystal SALCs (solid analogue of the molecular SALC work).
   - Reuses the molecular point-group core: a space group ≈ point group ⋉ lattice translations.
-
-## qcCommon 
 

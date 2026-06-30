@@ -1,5 +1,30 @@
 Notes:        
 - Turn on/off vscode popups: search `quickSuggestions`.
+# Direc DFT
+
+Yes — very much so. The combination you describe is Dirac–Kohn–Sham (DKS), i.e. 4-component relativistic DFT, and it's mainstream. Nothing about RKB cares whether the two-electron part is exact exchange (DHF) or a DFT functional — RKB is just the basis-side prescription (small component = (σ·p) acting on the large component) that gives the right non-relativistic limit and avoids variational collapse. So bolting a DFT Fock onto your existing RKB machinery is completely standard.
+
+Piece by piece:
+
+RKB + LDA exchange is actually one of the oldest relativistic electronic-structure methods — the relativistic Dirac–Slater / DV-Xα work (Rosén & Ellis, mid-1970s) predates a lot of nonrelativistic DFT infrastructure. "Dirac + Xα" is well-trodden ground.
+DFT-style fitted Vee (density fitting / RI-J) in a 4-component context is exactly what BERTHA (Quiney/Grant/Belpassi/Tarantelli) is built around — Gaussian Coulomb-fitting of the 4-component density. DIRAC, ReSpect, and BAGEL also do DKS.
+Two real subtleties worth knowing:
+
+Small-component density. The 4-component ρ(r) = ψ†ψ includes small-component terms that are spatially very compact near nuclei. Your fit basis (and mesh) has to resolve that, or you approximate/neglect the small-component contribution to the Hartree potential (a common, usually-fine approximation).
+Relativistic vs. non-relativistic XC. Almost everyone evaluates a non-relativistic LDA/GGA functional on the relativistic density. Genuinely relativistic-LDA exchange corrections (MacDonald–Vosko) exist but are usually a minor effect next to the relativistic kinetic/potential terms — so a plain LDA Vxc is the orthodox choice, not a shortcut.
+For your codebase it's a natural convergence: you have the DHF/RKB lineage (modulo that "UNVERIFIED RKB factors" note in project_kinetic_p2_conventions) and now a fitted Vee + LDA Vxc — a DKS path is genuinely within reach. The one thing I'd verify before trusting is exactly those RKB kinetic factors, since DKS would lean on them just as hard as DHF does.
+
+
+
+# KB projectors
+
+Great question — the eigenvalues are physically meaningful, not just a numerical convenience.
+
+When you diagonalize the channel-l coupling matrix h^l = Σ_α λ_α v_α v_αᵀ, each λ_α is the Kleinman–Bylander strength of an independent, rank-1 nonlocal projector |β_α⟩λ_α⟨β_α|, with β_α = Σ_i v_{α,i} p_i an orthogonalized combination of the raw radial projectors. Concretely:
+
+Sign = attractive/repulsive. A negative λ_α lowers the energy of any wavefunction component that overlaps β_α (binding — typically the channel that must hold the valence state); a positive λ_α pushes it up. The PP is tuned so each l-channel reproduces the all-electron scattering / log-derivatives, and the λ's encode that channel's strength and energy-dependence (the multiple projectors per l capture the energy variation — semicore/accuracy).
+Diagnostic value. The λ signs/magnitudes are exactly what ghost-state analysis watches: a wrong-sign or too-strong KB term relative to the local part produces spurious bound states. So the spectrum is a sanity check on the PP itself.
+Why diagonalize at all: it decouples the (up to 3) coupled projectors per channel into independent rank-1 operators — each a cheap |β⟩λ⟨β| — which is also why the assembler can treat them one at a time.
 
 # Two lineages for abinito in solids:
 The acronym forest splits into two lineages with different destinations, and this resolves your question cleanly:

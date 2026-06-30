@@ -246,3 +246,120 @@ the library becomes self-service for chemists and bindings alike.
 
 Most of the facade already exists as `struct Calc` in `pybind/qchem_bridge.cpp`;
 lifting it into `src/` is the highest-leverage single change.
+
+---
+---
+
+# Lib-team response — review of the review (2026-06-29)
+
+Read against the codebase by someone who'd just been working the high-level layer
+(SCFIterator / Hamiltonian / ChargeDensity). Verdict: **on the mark.** The
+diagnostics are sharp — the "every call site writes a decoder comment → the struct
+is too hard to use" tell is exactly right (those decoder comments are sitting above
+the `SCFParams` literal in `M_HF_U.C` and `SCFIterator.C` today), and the central
+claim holds: the production recipe lives only in `QchemTester`, ownership lives only
+in the `SCFIterator` destructor, config keys live only in grep results.
+
+Below: one reframe of the *sequencing*, per-item verdicts with the few caveats, and
+a verified scoping result for the symmetry flag (item 3).
+
+## The reframe: build one additive layer, don't refactor internals
+
+The seven items are two different kinds of work, and they should be split hard:
+
+- **Additive consumer layer — low risk, ~80% of the win, do now:** item 1 (facade),
+  5 (options struct), 6 (`SCFParams` struct), 7 (umbrella), and the
+  container-returning utilities. None of these *change* existing code — they sit on
+  top. Shippable without touching a single internal call site.
+- **Invasive internal churn — high effort, defer or sidestep:** item 2 (rewrite
+  `SCFIterator`'s ownership signature — ripples to every call site, both
+  `double`/`dcmplx` instantiations, and the binding) and item 4 (move
+  `ScalarFunction`/`Spin`/`Vector3D`/`BasisSet::` under `qchem::` — touches nearly
+  every file).
+
+Strategic point: **the facade lets you *sidestep* the invasive items, not do them.**
+Once `qchem::Calculation` owns the whole graph, `SCFIterator`'s asymmetric ownership
+(item 2) becomes an internal detail behind the front door — so don't churn the
+iterator's ctor; make the facade the sole owner and apply the `unique_ptr`-adopted /
+`const&`-borrowed idiom *there*, where there are no existing callers to break.
+Likewise the umbrella (7) gives consumers one predictable surface, which removes most
+of item 4's pain without the file-wide namespace sweep.
+
+## Per-item verdicts
+
+- **1 (facade) — yes, first.** Highest leverage. **Non-negotiable caveat:** it must
+  become *the single recipe* — refactor `QchemTester` to sit on it. Two parallel
+  assembly paths recreate the exact drift problem being solved.
+- **2 (ownership) — real trap, but fix by encapsulation.** (Confirmed concretely: the
+  HF-bootstrap work in `SCFIterator::Initialize` had to pass `st` as a raw
+  `const Structure*` and fake a null-deleter `shared_ptr` *because* the iterator's
+  ownership story is muddy.) Let the facade own everything; leave the iterator's
+  signature alone for now.
+- **3 (symmetry as a flag) — right UX, scope it honestly.** See the verified result
+  below: it's a ~3-line facade branch, safe. Wire it "real for PG_Cart, throw/no-op
+  otherwise." The `Molecule_EC` vs `MolecularSym_EC` → `FixedIrrepOcc_EC` rename is
+  good and dovetails with the queued symmetry-naming cleanup.
+- **4 (namespaces) — real wart, lowest priority.** Highest churn-to-benefit ratio
+  here; the umbrella buys most of the discoverability. If ever done, do it as one
+  deliberate sweep, not piecemeal.
+- **5 + 6 (options/params structs) — easy wins.** Additive, contained; keep `json` as
+  the escape hatch. Offer ASCII designated-init names (keep the pretty `MinΔρ` in the
+  struct if you like it).
+- **7 (umbrella) — yes, already in motion.** The `qchem.Math` precedent and the
+  CMake no-sibling-cycle gotcha are correctly recalled.
+- **Container-vs-raw division — fully agree.** `void*`/`double*` staying binding-side
+  matches "void\* is banished" in CLAUDE.md. `sample_scalar`/`sample_gradient` belong
+  lib-side anyway (cube-file export and the viz both want them, not just Python).
+
+## Suggested sequence
+
+1. `qchem::Calculation` facade + `Converge(SCFParams{...})` + options structs
+   (items 1, 5, 6) — lifted from `struct Calc`, made *the* recipe.
+2. Umbrella `import qchem;` (7).
+3. Container utilities into `src/` (`sample_*`, `Structure::BoundingBox`).
+4. `FixedIrrepOcc_EC` rename + symmetry flag (3), coordinated with the symmetry-naming
+   cleanup.
+5. Ownership (2) absorbed by the facade; namespace unification (4) deferred to a
+   standalone sweep if ever.
+
+## Decision: molecule-only facade first
+
+`qchem::Calculation` is a **concrete `double`** class for now (not `tCalculation<T>`),
+matching the molecule GUI. It can lean directly on `Molecule_EC` aufbau, the PG_Cart
+symmetry path, and `BasisSet::Molecule::Factory`. The plane-wave (`dcmplx`)
+generalization stays a clean future move: extract `tCalculation<T>` and make today's
+class the `<double>` alias — the same rX/cX pattern already used for `tHamiltonian` /
+`tSCFIterator`. No second front door, just a templatization when a crystal GUI needs
+one.
+
+## Verified: the symmetry flag is a facade one-liner, not a basis-library change
+
+Traced against the `M_Sym` wiring. The entire symmetry machinery already exists and is
+tested end-to-end; the symmetry-specific part of a calculation is **one call** between
+the basis factory and the iterator:
+
+```cpp
+Real_BS*   raw     = Molecule::Factory(js, mol);          // unchanged
+auto       blocked = PG::SymmetryAdapt(raw, *mol, 1e-4);  // <-- the ONLY symmetry step
+Molecule_EC ec(Ne);                                       // unchanged: UsesAufbau()=true, global across irreps
+SCFIterator scf(blocked, &ec, ham, acc);                  // unchanged
+```
+
+Everything downstream of the basis is **symmetry-agnostic**: `Molecule_EC(Ne)` does
+global aufbau across point-group irreps with zero extra config (it just sees a basis
+with N IBS blocks), and `Hamiltonian` / `SCFIterator` / `WaveFunction` iterate IBS
+blocks whether there's 1 or 5. So the SALC builder, the `SymmetryAdapted_IBS`
+decorator, the per-irrep SCF, and global aufbau are all **done**.
+
+Therefore `{.symmetry=true}` is purely front-end plumbing — a ~3-line branch in the
+facade that calls the existing `PG::SymmetryAdapt`. **Placement matters:**
+
+- **Facade (do this) — zero `qcMolecule_BS` change.** The facade has the structure and
+  owns the basis; it just calls the existing builder.
+- **`Molecule::Factory` flag (avoid) — a layering downgrade.** `SymmetryAdapt` pulls in
+  the `Symmetry` / group-theory library and `PG_Cart_MnD`; making the *generic* basis
+  factory call it drags group theory into raw basis construction. Keep that dependency
+  at the calculation layer, where "this molecule is C2v" actually belongs.
+
+Net: this is a *narrower* change than feared — no new machinery, no basis-library edit,
+guarded to PG_Cart, with `M_Sym` already proving the path. A safe upgrade.
