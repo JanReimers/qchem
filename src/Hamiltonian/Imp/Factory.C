@@ -74,78 +74,56 @@ namespace qchem::Hamiltonian
         assert(h);
         return h;
     }
-    //DFT version
-    Hamiltonian* Factory(Pol p,const st_t& st,ExFunctional* ex  , const qcMesh::MeshParams& mp, const bs_t* bs)
-    {
-        Hamiltonian* h=0;
-        switch (p)
-        {
-            case Pol::UnPolarized:
-                h=new Ham_DFT_U(st,ex,mp,bs);
-                break;
-            case Pol::Polarized:
-                h=new Ham_DFT_P(st,ex,mp,bs);
-                break;
-        }
-        assert(h);
-        return h;
-    }
-
-    Hamiltonian* Factory(Pol p,const st_t& st,double alpha  , const qcMesh::MeshParams& mp, const bs_t* bs)
-    {
-        Hamiltonian* h=0;
-        switch (p)
-        {
-            case Pol::UnPolarized:
-                h=new Ham_DFT_U(st,alpha,mp,bs);
-                break;
-            case Pol::Polarized:
-                h=new Ham_DFT_P(st,alpha,mp,bs);
-                break;
-        }
-        assert(h);
-        return h;
-    }
-
-    // The unified resolver: ONE switch on Model -> the concrete polymorphic Hamiltonian, delegating to the
-    // overloads above (>= 2 calls deep at most).  HF/1-e/Dirac ignore mesh/bs/xalpha; the DFT members use
-    // them.  The functional internals (Slater/Dirac exchange, VWN correlation) are built inside the chosen
-    // Ham_* ctor, so the Model token never leaks past here.
-    Hamiltonian* Factory(Model m,Pol p,const st_t& st, const qcMesh::MeshParams& mp, const bs_t* bs, double xalpha)
+    // Map a DFT Model token to its XCFunctional.  The friendly Model shorthand is just a default-parameter
+    // XCFunctional; finer control (libxc ids, non-default correlation) goes through XCFunctional directly.
+    static XCFunctional ModelToXC(Model m, double xalpha)
     {
         switch (m)
         {
-            case Model::E1: case Model::HF: case Model::DE1: case Model::DHF:
-                return Factory(m,p,st);                       // non-DFT: mp/bs/xalpha unused
-            case Model::Xalpha:
-                return Factory(p,st,xalpha,mp,bs);            // Slater-Xalpha (Ham_DFT_U/P)
-            case Model::LDA:
-                return p==Pol::UnPolarized ? static_cast<Hamiltonian*>(new Ham_DFTcorr_U(st,mp,bs))   // Dirac X + VWN5 C
-                                           : static_cast<Hamiltonian*>(new Ham_DFTcorr_P(st,mp,bs));   // spin-native (OpenWork B)
+            case Model::Xalpha: return {XC::SlaterXalpha, xalpha};
+            case Model::LDA:    return {XC::DiracVWN};
+            default: assert(false && "ModelToXC: not a DFT Model"); return {};
         }
-        assert(false); return nullptr;
     }
 
-    // The exchange-correlation functional selector: turn a value-type XCFunctional into the concrete DFT
-    // Hamiltonian, building the Internal ExFunctional where one is needed.  SlaterXalpha and the
-    // unified-resolver Xalpha share the alpha overload; DiracVWN is the Model::LDA two-term Hamiltonian;
-    // LibXC wraps a libxc LDA functional by id.  (Internals never leak past here.)
+    // THE single DFT build site: an XCFunctional choice -> the concrete polymorphic Hamiltonian, building
+    // the Internal ExFunctional where one is needed.  Every other DFT entry point (the Model resolver, the
+    // alpha convenience) funnels through here, so the functional->Hamiltonian mapping lives in ONE place.
+    // The functional internals never leak past this switch; if/else returns keep the U/P pointer types clean.
     Hamiltonian* Factory(Pol p, const st_t& st, const XCFunctional& xc, const qcMesh::MeshParams& mp, const bs_t* bs)
     {
         switch (xc.kind)
         {
-            case XC::SlaterXalpha:
-                return Factory(p,st,xc.alpha,mp,bs);          // Slater-Dirac exchange, scaled by alpha
-            case XC::DiracVWN:
-                return p==Pol::UnPolarized ? static_cast<Hamiltonian*>(new Ham_DFTcorr_U(st,mp,bs))
-                                           : static_cast<Hamiltonian*>(new Ham_DFTcorr_P(st,mp,bs));   // spin-native VWN5
+            case XC::SlaterXalpha:   // Slater-Dirac exchange, scaled by alpha (the Ham_DFT_U/P alpha ctor owns the spin)
+                if (p==Pol::UnPolarized) return new Ham_DFT_U(st, xc.alpha, mp, bs);
+                return                          new Ham_DFT_P(st, xc.alpha, mp, bs);
+            case XC::DiracVWN:       // parameter-free LSDA: Dirac exchange + spin-native VWN5 correlation
+                if (p==Pol::UnPolarized) return new Ham_DFTcorr_U(st, mp, bs);
+                return                          new Ham_DFTcorr_P(st, mp, bs);   // spin-native (OpenWork B)
             case XC::LibXC:
                 if (p!=Pol::UnPolarized)
-                    throw std::runtime_error("Factory(XCFunctional): LibXC is unpolarized-only today.");
+                    throw std::runtime_error("Factory(XCFunctional): LibXC is unpolarized-only -- the "
+                        "Libxc_LDA_Exchange wrapper still passes a single density to xc_lda_vxc, not the two "
+                        "spin channels XC_POLARIZED needs.  Use XC::DiracVWN for polarized LDA.");
                 // Ham_DFT_U takes ownership of the functional (wraps it in a shared_ptr).
-                return Factory(p,st,new Libxc_LDA_Exchange(xc.libxcId, Spin::None, st->GetNumElectrons()),mp,bs);
+                return new Ham_DFT_U(st, new Libxc_LDA_Exchange(xc.libxcId, Spin::None, st->GetNumElectrons()), mp, bs);
         }
         assert(false); return nullptr;
+    }
+
+    // The unified one-call resolver: HF/1-e/Dirac build directly; DFT Models map to an XCFunctional and
+    // delegate to the single build site above -- so the Model token never leaks past here, and the DFT
+    // build logic is NOT duplicated between this and the XCFunctional resolver.
+    Hamiltonian* Factory(Model m,Pol p,const st_t& st, const qcMesh::MeshParams& mp, const bs_t* bs, double xalpha)
+    {
+        if (!IsDFT(m)) return Factory(m,p,st);                       // non-DFT: mp/bs/xalpha unused
+        return Factory(p, st, ModelToXC(m,xalpha), mp, bs);         // DFT: Model -> XCFunctional -> Hamiltonian
+    }
+
+    // Convenience: the Slater-Xalpha functional by alpha alone.
+    Hamiltonian* Factory(Pol p,const st_t& st,double alpha, const qcMesh::MeshParams& mp, const bs_t* bs)
+    {
+        return Factory(p, st, XCFunctional{XC::SlaterXalpha, alpha}, mp, bs);
     }
 
     // Pseudopotential front door: the all-electron nuclear attraction -> GTH local + KB nonlocal PP, LDA XC.
