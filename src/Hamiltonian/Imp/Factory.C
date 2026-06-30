@@ -6,7 +6,6 @@ module;
 module qchem.Hamiltonian.Factory;
 import qchem.Hamiltonian.Internal.Hamiltonians;
 import qchem.Hamiltonian.Internal.Libxc_LDA_Exchange;   // XC::LibXC selector
-import qchem.Symmetry.Spin;                              // Spin::None (libxc unpolarized)
 
 namespace qchem::Hamiltonian
 {
@@ -103,10 +102,10 @@ namespace qchem::Hamiltonian
             case XC::LibXC:
                 if (p!=Pol::UnPolarized)
                     throw std::runtime_error("Factory(XCFunctional): LibXC is unpolarized-only -- the "
-                        "Libxc_LDA_Exchange wrapper still passes a single density to xc_lda_vxc, not the two "
-                        "spin channels XC_POLARIZED needs.  Use XC::DiracVWN for polarized LDA.");
+                        "Libxc_LDA_Exchange wrapper is scalar (single-density) by construction.  Use "
+                        "XC::DiracVWN for polarized (spin-native VWN5) LDA.");
                 // Ham_DFT_U takes ownership of the functional (wraps it in a shared_ptr).
-                return new Ham_DFT_U(st, new Libxc_LDA_Exchange(xc.libxcId, Spin::None, st->GetNumElectrons()), mp, bs);
+                return new Ham_DFT_U(st, new Libxc_LDA_Exchange(xc.libxcId, st->GetNumElectrons()), mp, bs);
         }
         assert(false); return nullptr;
     }

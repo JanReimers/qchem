@@ -11,18 +11,15 @@ import qchem.Streamable;
 namespace qchem::Hamiltonian
 {
 
-Libxc_LDA_Exchange::Libxc_LDA_Exchange(int id, const Spin& s, double _Ne)
-: Ne(_Ne), spin(s)
+// Unpolarized-only by construction (see the header): both functionals init XC_UNPOLARIZED, so the
+// scalar single-density GetVxc below is always the correct libxc contract.
+Libxc_LDA_Exchange::Libxc_LDA_Exchange(int id, double _Ne)
+: Ne(_Ne)
 {
-    int ok= spin==Spin::None ? 
-    xc_func_init(&corr,id, XC_UNPOLARIZED) 
-    : xc_func_init(&corr,id, XC_POLARIZED);
+    int ok = xc_func_init(&corr,     id, XC_UNPOLARIZED);   // correlation functional named by id (e.g. 7=VWN)
     assert(ok==0);
-    ok= spin==Spin::None ? 
-    xc_func_init(&exchange,1, XC_UNPOLARIZED) 
-    : xc_func_init(&exchange,1, XC_POLARIZED);
+    ok     = xc_func_init(&exchange,  1, XC_UNPOLARIZED);   // Dirac exchange (LDA_X)
     assert(ok==0);
-    // std::cout <<"exchange.info->n_ext_params=" << exchange.info->ext_params.n << std::endl;
 };
 
 double Libxc_LDA_Exchange::operator()(const rvec3_t& r) const
@@ -38,8 +35,7 @@ double Libxc_LDA_Exchange::GetVxc(double rho) const
     double vcorr,vexchange;
     xc_lda_vxc(&corr    , 1, &rho, &vcorr);
     xc_lda_vxc(&exchange, 1, &rho, &vexchange);
-    // std::cout << "Ne,rho,vxc = " << Ne << " " << rho << " " << ret*Ne << std::endl; 
-    return (vcorr+vexchange*1.006613); //Fudge factor for Z=36!
+    return vcorr + vexchange;
 }
 
 rvec3_t Libxc_LDA_Exchange::Gradient(const rvec3_t& r) const
