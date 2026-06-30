@@ -1,51 +1,47 @@
 // File A_DFT_U.C  Atom DFT tests using a libxc exchange functional (facade-driven).
 //
-// Migrated off QchemTester onto qchem::AtomCalculation with the new public exchange-functional selector:
-// CalcOptions.xc = XCFunctional{.kind=XC::LibXC, .libxcId=7} routes the DFT Hamiltonian through libxc
-// (functional id 7) instead of the built-in Slater-Xα.  Same High Gaussian/Slater bases, per-Z SCFParams,
-// NIST oracle; anchors unchanged.
+// One parameterized fixture: CalcOptions.xc = XCFunctional{.kind=XC::LibXC, .libxcId=7} routes the DFT
+// Hamiltonian through libxc (functional id 7).  Each (basis) variant is an INSTANTIATE_TEST_SUITE_P; the
+// per-group SCF knobs ride at the call site.  Helpers anon-namespaced (per-file vocabulary, no ODR clash).
 #include "gtest/gtest.h"
+#include <string>
+#include <vector>
 import qchem.AtomCalculation;        // AtomCalculation, AtomType, Model, Pol
 import qchem.Hamiltonian.Factory;    // XCFunctional, XC (the exchange-functional selector)
 import qchem.SCFIterator;            // SCFParams
 import qchem.Unittests.TestUtils;    // RelativeDFTError
 using namespace qchem;
-using std::cout;
-using std::endl;
-using enum BasisSetAccuracy;
+using enum BasisSetAccuracy;         // High
 using namespace qchem::Hamiltonian;  // XCFunctional, XC
 
-const bool verbose=true;
+namespace {
 
-// libxc LDA (functional id 7) atom DFT; report signed NIST relative error + convergence.
-static double Libxc_DFT_err(size_t Z, AtomType type, const SCFParams& p, bool& converged)
-{
-    AtomCalculation calc(Z, 0, {.type = type, .accuracy = High, .model = Model::Xalpha, .pol = Pol::UnPolarized,
-                                .xc = XCFunctional{.kind = XC::LibXC, .libxcId = 7}}, p);
-    converged = calc.IsConverged();
-    return RelativeDFTError(calc.Energy(), int(Z));
-}
+struct Knobs { std::size_t nmax; double droScale, dfd, vir, fdScale; };
+struct DFTCase { AtomType type; int Z; double tol; Knobs k; };
 
-class SG_DFT_U_High : public ::testing::TestWithParam<size_t> {};
-TEST_P(SG_DFT_U_High,A)
+static SCFParams MakeParams(const DFTCase& c)
 {
-    size_t Z=GetParam();
-    cout << "---------------- Z=" << Z << " ---------------"<< endl;
-    bool conv; double err=Libxc_DFT_err(Z, AtomType::Gaussian,
-        {.NMaxIter = 50, .MinΔρ = Z*1e-5, .MinΔFD = 1e-5, .MinVirial = 1e-1, .MinFD = Z*1e-6, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true}, conv);
-    EXPECT_LT(err,2e-6);
-    EXPECT_TRUE(conv);
+    return {.NMaxIter = c.k.nmax, .MinΔρ = c.Z*c.k.droScale, .MinΔFD = c.k.dfd, .MinVirial = c.k.vir,
+            .MinFD = c.Z*c.k.fdScale, .StartingRelaxRo = c.Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true};
 }
-INSTANTIATE_TEST_SUITE_P(A_DFT,SG_DFT_U_High,::testing::Values(36));
+static std::vector<DFTCase> Cases(AtomType t, double tol, Knobs k, const std::vector<int>& Zs)
+{
+    std::vector<DFTCase> v; v.reserve(Zs.size());
+    for (int Z : Zs) v.push_back({t, Z, tol, k});
+    return v;
+}
+static std::string CaseName(const testing::TestParamInfo<DFTCase>& i) { return "Z" + std::to_string(i.param.Z); }
 
-class SL_DFT_U_High : public ::testing::TestWithParam<size_t> {};
-TEST_P(SL_DFT_U_High,A)
+} // anonymous namespace
+
+class A_DFT_U : public ::testing::TestWithParam<DFTCase> {};
+TEST_P(A_DFT_U, Libxc)
 {
-    size_t Z=GetParam();
-    cout << "---------------- Z=" << Z << " ---------------"<< endl;
-    bool conv; double err=Libxc_DFT_err(Z, AtomType::Slater,
-        {.NMaxIter = 50, .MinΔρ = Z*1e-5, .MinΔFD = 1e-7, .MinVirial = 2e-2, .MinFD = Z*1e-6, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true}, conv);
-    EXPECT_LT(err,2e-6);
-    EXPECT_TRUE(conv);
+    const DFTCase c = GetParam();
+    AtomCalculation calc(c.Z, 0, {.type = c.type, .accuracy = High, .model = Model::Xalpha, .pol = Pol::UnPolarized,
+                                  .xc = XCFunctional{.kind = XC::LibXC, .libxcId = 7}}, MakeParams(c));
+    EXPECT_LT(RelativeDFTError(calc.Energy(), c.Z), c.tol);
+    EXPECT_TRUE(calc.IsConverged());
 }
-INSTANTIATE_TEST_SUITE_P(A_DFT,SL_DFT_U_High,::testing::Values(36));
+INSTANTIATE_TEST_SUITE_P(Gaussian_High, A_DFT_U, ::testing::ValuesIn(Cases(AtomType::Gaussian, 2e-6, {50,1e-5,1e-5,1e-1,1e-6}, {36})), CaseName);
+INSTANTIATE_TEST_SUITE_P(Slater_High,   A_DFT_U, ::testing::ValuesIn(Cases(AtomType::Slater,   2e-6, {50,1e-5,1e-7,2e-2,1e-6}, {36})), CaseName);
