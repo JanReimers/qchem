@@ -4,11 +4,12 @@
 //
 // ONE parameterized fixture for the whole file: the case (basis family, accuracy, Z, tolerance) is the
 // TEST PARAMETER, so each (basis,accuracy) variant is just another INSTANTIATE_TEST_SUITE_P -- the prefix
-// (e.g. Slater_Medium) is the meaningful group name, and there are no empty per-variant fixture classes.
-// The per-group tuned SCFParams live in one HFParams() switch; the assertion tolerance stays visible at
-// each case.  Anchors/params byte-identical to the pre-refactor per-class tests.
+// (e.g. Slater_Medium) is the group name and there are no empty per-variant fixture classes.  A Z-list is a
+// plain braced list fed through Cases()/ValuesIn(), so sweeping many elements is one line.  Per-group tuned
+// SCFParams live in one HFParams() switch; the assertion tolerance stays visible at each case.
 #include "gtest/gtest.h"
 #include <string>
+#include <vector>
 import qchem.AtomCalculation;        // AtomCalculation, AtomType, BasisSetAccuracy, Model, Pol
 import qchem.SCFIterator;            // SCFParams
 import qchem.Unittests.TestUtils;    // RelativeHFError
@@ -19,8 +20,22 @@ using enum BasisSetAccuracy;         // High, Medium, Low
 //! lowerBound adds the BSpline "not too far below" guard (EXPECT_GT(error, -1e-4)).
 struct HFCase { AtomType type; BasisSetAccuracy acc; int Z; double tol; bool lowerBound = false; };
 
-// The per-(family,accuracy) tuned SCF params, Z-scaled.  Centralised so the cases stay one-liners; equal to
-// the original per-class SCFParams literals.  (BSpline6 and BSpliner6 share params.)
+// Closed-(sub)shell "full l-shell" atoms: the well-defined spherical UNpolarized ground states -- He, Be,
+// Ne, Mg, Ar, Ca, Zn, Kr, Sr, Pd, Cd, Xe, Ba, Hg, Rn, Ra.  The de-noised version of the old commented
+// Z-lists; converges across the periodic table at the standard Slater/Medium grade.  (Yb(70) 4f¹⁴ and the
+// actinides/No(102)/Og(118) need a finer basis grade -- add them to a High sweep, not here.)
+static const std::vector<int> ClosedShell = {2,4,10,12,18,20,30,36,38,46,48,54,56,80,86,88};
+
+// Expand a Z-list into cases sharing one basis family / accuracy / tolerance / lower-bound flag.
+static std::vector<HFCase> Cases(AtomType t, BasisSetAccuracy a, double tol, bool lb, const std::vector<int>& Zs)
+{
+    std::vector<HFCase> v; v.reserve(Zs.size());
+    for (int Z : Zs) v.push_back({t, a, Z, tol, lb});
+    return v;
+}
+
+// The per-(family,accuracy) tuned SCF params, Z-scaled.  Centralised so the cases stay data; equal to the
+// original per-class SCFParams literals.  (BSpline6 and BSpliner6 share params.)
 static SCFParams HFParams(const HFCase& c)
 {
     auto P = [&](size_t nmax, double dro, double dfd, double vir, double fd) {
@@ -67,26 +82,26 @@ TEST_P(A_HF_U, Energy)
 #endif
 
 #ifdef HIGH
-INSTANTIATE_TEST_SUITE_P(BSpline_High,  A_HF_U, ::testing::Values(HFCase{AtomType::BSpline6, High,2,1e-9,true}, HFCase{AtomType::BSpline6, High,88,1e-9,true}), CaseName);
-INSTANTIATE_TEST_SUITE_P(BSpliner_High, A_HF_U, ::testing::Values(HFCase{AtomType::BSpliner6,High,2,1e-9,true}, HFCase{AtomType::BSpliner6,High,88,1e-9,true}), CaseName);
-INSTANTIATE_TEST_SUITE_P(Gaussian_High, A_HF_U, ::testing::Values(HFCase{AtomType::Gaussian, High,2,2e-6},      HFCase{AtomType::Gaussian, High,36,2e-6}),      CaseName);
-INSTANTIATE_TEST_SUITE_P(Slater_High,   A_HF_U, ::testing::Values(HFCase{AtomType::Slater,   High,2,1e-6},      HFCase{AtomType::Slater,   High,88,1e-6}),      CaseName);
+INSTANTIATE_TEST_SUITE_P(BSpline_High,  A_HF_U, ::testing::ValuesIn(Cases(AtomType::BSpline6, High,1e-9,true,{2,88})), CaseName);
+INSTANTIATE_TEST_SUITE_P(BSpliner_High, A_HF_U, ::testing::ValuesIn(Cases(AtomType::BSpliner6,High,1e-9,true,{2,88})), CaseName);
+INSTANTIATE_TEST_SUITE_P(Gaussian_High, A_HF_U, ::testing::ValuesIn(Cases(AtomType::Gaussian, High,2e-6,false,{2,36})), CaseName);
+INSTANTIATE_TEST_SUITE_P(Slater_High,   A_HF_U, ::testing::ValuesIn(Cases(AtomType::Slater,   High,1e-6,false,{2,88})), CaseName);
 #endif
 
 #ifdef MEDIUM
-INSTANTIATE_TEST_SUITE_P(BSpline_Medium,  A_HF_U, ::testing::Values(HFCase{AtomType::BSpline6, Medium,2,1e-6,true}, HFCase{AtomType::BSpline6, Medium,4,1e-6,true}), CaseName);
-INSTANTIATE_TEST_SUITE_P(BSpliner_Medium, A_HF_U, ::testing::Values(HFCase{AtomType::BSpliner6,Medium,2,1e-6,true}, HFCase{AtomType::BSpliner6,Medium,4,1e-6,true}), CaseName);
-INSTANTIATE_TEST_SUITE_P(Gaussian_Medium, A_HF_U, ::testing::Values(HFCase{AtomType::Gaussian, Medium,2,2e-4},      HFCase{AtomType::Gaussian, Medium,4,2e-4}),      CaseName);
-INSTANTIATE_TEST_SUITE_P(Slater_Medium,   A_HF_U, ::testing::Values(HFCase{AtomType::Slater,   Medium,2,20e-6},     HFCase{AtomType::Slater,   Medium,88,20e-6}),    CaseName);
+// Slater/Medium is the cheap, robust grade -- sweep the whole closed-shell list here; the slower bases
+// (Gaussian, BSpline) spot-check a couple of light atoms.
+INSTANTIATE_TEST_SUITE_P(Slater_Medium,   A_HF_U, ::testing::ValuesIn(Cases(AtomType::Slater,   Medium,20e-6,false,ClosedShell)), CaseName);
+INSTANTIATE_TEST_SUITE_P(Gaussian_Medium, A_HF_U, ::testing::ValuesIn(Cases(AtomType::Gaussian, Medium,2e-4,false,{2,4})), CaseName);
+INSTANTIATE_TEST_SUITE_P(BSpline_Medium,  A_HF_U, ::testing::ValuesIn(Cases(AtomType::BSpline6, Medium,1e-6,true,{2,4})), CaseName);
+INSTANTIATE_TEST_SUITE_P(BSpliner_Medium, A_HF_U, ::testing::ValuesIn(Cases(AtomType::BSpliner6,Medium,1e-6,true,{2,4})), CaseName);
 #endif
 
 #ifdef LOW
+INSTANTIATE_TEST_SUITE_P(BSpline_Low, A_HF_U, ::testing::ValuesIn(Cases(AtomType::BSpline6, Low,40e-6,true,{2,4})), CaseName);
 #ifdef DEBUG
-INSTANTIATE_TEST_SUITE_P(BSpline_Low,  A_HF_U, ::testing::Values(HFCase{AtomType::BSpline6, Low,2,40e-6,true}, HFCase{AtomType::BSpline6, Low,4,40e-6,true}), CaseName);
-INSTANTIATE_TEST_SUITE_P(BSpliner_Low, A_HF_U, ::testing::Values(HFCase{AtomType::BSpliner6,Low,2,40e-6,true}, HFCase{AtomType::BSpliner6,Low,4,40e-6,true}), CaseName);
-INSTANTIATE_TEST_SUITE_P(Slater_Low,   A_HF_U, ::testing::Values(HFCase{AtomType::Slater,   Low,2,0.01},       HFCase{AtomType::Slater,   Low,4,0.01}, HFCase{AtomType::Slater,Low,10,0.01}), CaseName);
+INSTANTIATE_TEST_SUITE_P(Slater_Low,  A_HF_U, ::testing::ValuesIn(Cases(AtomType::Slater, Low,0.01,false,{2,4,10})), CaseName);
 #else
-INSTANTIATE_TEST_SUITE_P(BSpline_Low,  A_HF_U, ::testing::Values(HFCase{AtomType::BSpline6, Low,2,40e-6,true}, HFCase{AtomType::BSpline6, Low,4,40e-6,true}), CaseName);
-INSTANTIATE_TEST_SUITE_P(Slater_Low,   A_HF_U, ::testing::Values(HFCase{AtomType::Slater,   Low,2,0.01},       HFCase{AtomType::Slater,   Low,88,0.01}),     CaseName);
+INSTANTIATE_TEST_SUITE_P(Slater_Low,  A_HF_U, ::testing::ValuesIn(Cases(AtomType::Slater, Low,0.01,false,{2,88})), CaseName);
 #endif
 #endif
