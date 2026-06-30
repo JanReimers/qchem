@@ -26,7 +26,7 @@ Extend point-group SALC adaptation from the Cartesian PG basis to the two spheri
 
 ---
 
-## B. Spin-native DFT (was "D2 polarized")  ·  IN PROGRESS (B1+B2 done)  ·  plan: `doc/SpinNativeDFTPlan.md` + tenet `feedback_spin_polarized_primary`
+## B. Spin-native DFT (was "D2 polarized")  ·  ✅ DONE (B1–B4)  ·  plan: `doc/SpinNativeDFTPlan.md` + tenet `feedback_spin_polarized_primary`
 
 Reframed per the design tenet: **spin-polarized is the native formulation; unpolarized is the
 ζ=0 efficiency collapse** — not "add the polarized special case." Four pieces, all spin-first:
@@ -47,14 +47,19 @@ a shared `Gval`/`dGdx`, `EvalRZ(ρ,ζ)` returning ε_c + (r_s,ζ) partials, publ
 `LDA_XC_UT` extended: vs libxc `LDA_C_VWN` polarized on an (r_s,ζ) grid to 1e-9 + a collapse-consistency
 check. **150/150 UTMain green.**
 
-**B2 DONE** (uncommitted): abstract `SpinCorrelation` face + `VWN_Correlation` implements it; `FittedVcorrPol`
-fits v_c^σ against the full `Polarized_CD` (+ SAD-seed ρ/2 fallback), energy via `FittedEpsCPol` Dynamic_CC
-(polarized DM_Contract sums channels ⇒ ∫ε_c·ρ); `Ham_DFTcorr_P` mirrors `_U`; both Factory throws un-gated.
-Anchor `M_DFT.WaterPolarizedLDA` collapses to the unpolarized LDA anchor to 1e-6. **151/151 green.**
+**ALL FOUR PIECES DONE** (B1 `51157449`, B2 `4189af69`, Factory cleanup `7132d645`, B3 `02b68b24`, B4 next commit):
+- **B1** spin-native VWN5 (`VWN_Correlation` para/ferro/stiffness + two-channel `GetEpsC`/`GetVc`; vs libxc polarized).
+- **B2** `SpinCorrelation` face + `FittedVcorrPol` (fits v_c^σ against full `Polarized_CD`, energy via `FittedEpsCPol`) + `Ham_DFTcorr_P` + Factory un-gate.
+- **B3** `Molecule_EC(nUp,nDown)` spin-native; `Molecule_EC(Ne)` = minimal-spin collapse (byte-identical).
+- **B4** `CalcOptions.multiplicity` → (nUp,nDown) + auto-promote to polarized + parity-validate.
 
-**Next step:** **B3** — open-shell molecular occupation `Molecule_EC(nUp,nDown)`; closed-shell `Molecule_EC(Ne)`
-becomes the collapse (delegating ctor, existing call sites untouched). `GetN(Irrep)` returns per-spin counts;
-the aufbau-per-spin SCF loop already handles asymmetric channels (no SCF change). Then B4 (facade multiplicity).
+Anchors: `M_DFT.OxygenTripletLDA` (-149.2562876393, real ζ≠0), `OxygenTripletBelowSinglet` (Hund), `BadMultiplicityThrows`,
+`WaterPolarizedLDA` (closed-shell collapse). **154/154 UTMain green**, unpolarized anchors byte-identical throughout.
+Also did the **Factory interface cleanup** the user asked for (one DFT build site, dropped the public raw-`ExFunctional*`
+overload, honest LibXC-polarized throw).
+
+**Remaining for the north-star (separate increments, NOT this track):** spin-native GGA (PBE — gradient machinery),
+LibXC-polarized (the libxc wrapper needs two-channel `xc_lda_vxc`), and +U. The LDA *interface* is now spin-native end to end.
 **Done already (D1):** closed-shell molecular HF+DFT via the facade — unified `Model` enum + Factory
 resolver, LDA + Xα, `8b8df1d0`.
 **Fixed (was the B entry bug):** polarized Xα + **SAD seed** segfault — `FittedVxcPol::CalcMatrix`
@@ -175,9 +180,9 @@ New **public Hamiltonian-library API** (the long-wanted exchange-functional sele
 
 1. ~~**C (namespace sweep)**~~ — ✅ DONE `108ced3b` (full unification: whole tree under `qchem::`).
 2. ~~**D (test → facade migration + slim QchemTester)**~~ — ✅ DONE (`585086bb`…`3c0becdd`).
-3. **A (finish Spherical SALC S2–S5)** — NEXT. Parked at a clean S1 checkpoint; resume when convenient.
-4. **B (spin-native DFT)** — plan first, build spin-first, sequence toward PBE+U / batteries.
-   (The polarized-Xα + SAD-seed segfault that D surfaced is already fixed, `cd85d13c`.)
+3. ~~**B (spin-native DFT)**~~ — ✅ DONE (B1–B4, see above). Done before A this session. The LDA interface is
+   now spin-native end to end; PBE-GGA / LibXC-polarized / +U are separate increments toward the battery north-star.
+4. **A (finish Spherical SALC S2–S5)** — NEXT remaining thread. Parked at a clean S1 checkpoint; resume when convenient.
 
 Note: one library session at a time, GUI on its own branch → land each session at a clean commit and the
 whole-tree sweep (C) has nothing to collide with. Hold the line on not opening new threads.

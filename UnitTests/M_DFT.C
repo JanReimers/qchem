@@ -11,6 +11,7 @@
 // byte-for-byte the scaffold values; the default mesh matches TestMolecule::GetMeshParams() exactly.
 #include "gtest/gtest.h"
 #include <cmath>
+#include <stdexcept>
 
 import qchem.Calculation;            // Calculation, CalcOptions, Model, Angular
 import qchem.Structure;              // Molecule, Atom
@@ -32,6 +33,13 @@ static Molecule MakeWater()      // experimental geometry in BOHR, C2 axis along
     w.Insert(new Atom(1, 0, Vector3D<double>(0,  1.431, 1.107)));
     w.Insert(new Atom(1, 0, Vector3D<double>(0, -1.431, 1.107)));
     return w;
+}
+static Molecule MakeO2()         // O2 at the experimental bond length ~1.208 Ang = 2.282 bohr, along z
+{
+    Molecule m;
+    m.Insert(new Atom(8, 0, Vector3D<double>(0, 0,  1.141)));
+    m.Insert(new Atom(8, 0, Vector3D<double>(0, 0, -1.141)));
+    return m;
 }
 
 // Anchors are the converged Xalpha total energies (deterministic regression sentinels -- "did E
@@ -94,4 +102,41 @@ TEST(M_DFT, WaterPolarizedLDA)
     calc.Converge({.NMaxIter = 60, .MinΔρ = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2, .MinFD = 1e-7,
                    .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false});
     EXPECT_NEAR(calc.Energy(), -75.9324615507, 1e-6);   // collapses to the unpolarized LDA anchor (closed shell)
+}
+
+// OPEN-SHELL through the facade multiplicity knob (OpenWork B4): triplet O2 (16 e-, multiplicity 3 =>
+// nUp=9, nDown=7).  multiplicity>1 auto-promotes the calc to Pol::Polarized, builds Molecule_EC(9,7), and
+// runs spin-native LDA.  The spin texture is real here (the half-filled pi* gives the triplet), so this
+// genuinely exercises zeta!=0 -- not the closed-shell collapse the WaterPolarized tests hit.  "Did E move"
+// regression sentinel (converged spin-native LDA total energy).
+TEST(M_DFT, OxygenTripletLDA)
+{
+    Calculation calc(MakeO2(), {.basis = "dzvp", .model = Model::LDA, .multiplicity = 3});
+    calc.Converge({.NMaxIter = 80, .MinΔρ = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2, .MinFD = 1e-7,
+                   .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false});
+    EXPECT_NEAR(calc.Energy(), -149.2562876393, 1e-4);   // converged spin-native LDA triplet (regression anchor)
+}
+
+// Physics check that the spin channel is doing real work: the triplet ground state must lie BELOW the
+// closed-shell singlet (Hund's rule).  A flat/zero gap would mean the open-shell occupation silently
+// collapsed to closed shell -- the failure mode B3/B4 exist to prevent.
+TEST(M_DFT, OxygenTripletBelowSinglet)
+{
+    auto run = [](int mult) {
+        Calculation c(MakeO2(), {.basis = "dzvp", .model = Model::LDA, .multiplicity = mult});
+        c.Converge({.NMaxIter = 80, .MinΔρ = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2, .MinFD = 1e-7,
+                    .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false});
+        return c.Energy();
+    };
+    const double triplet = run(3);   // nUp=9, nDown=7  (Pol::Polarized, auto)
+    const double singlet = run(1);   // nUp=8, nDown=8  (closed shell)
+    EXPECT_LT(triplet, singlet - 0.01);   // triplet is the ground state, by a clear margin
+}
+
+// A multiplicity whose parity disagrees with Ne must be rejected, not silently miscounted: water has 10
+// electrons (even), so a doublet (multiplicity 2 => 2S=1, odd) is impossible.  Fail loud (B4 validation).
+TEST(M_DFT, BadMultiplicityThrows)
+{
+    EXPECT_THROW(Calculation(MakeWater(), {.basis = "sto-3g", .model = Model::LDA, .multiplicity = 2}),
+                 std::runtime_error);
 }

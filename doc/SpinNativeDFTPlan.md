@@ -168,7 +168,16 @@ nUp+nDown = Ne (Piece 4 owns the conversion).
 Spin-restricted-open vs unrestricted is a later refinement; v1 target is **unrestricted open-shell**
 (matches the polarized Hamiltonian path), with the closed-shell collapse bit-identical to today.
 
-## Piece 4 — facade multiplicity on `CalcOptions`
+## Piece 4 — facade multiplicity on `CalcOptions`  ·  ✅ DONE (B4)
+
+**Landed:** `CalcOptions.multiplicity` (= 2S+1; 0 = minimal-spin default). The facade
+([Imp/Calculation.C](src/Calculation/Imp/Calculation.C)) converts it to (nUp,nDown) via `MakeMoleculeEC`
+(nUp=(Ne+2S)/2, nDown=(Ne−2S)/2), parity-validates against Ne (throws on mismatch — fail loud), and
+auto-promotes to `Pol::Polarized` when 2S>0. multiplicity=0 keeps `Molecule_EC(Ne)` (byte-identical default).
+Anchors in `M_DFT`: `OxygenTripletLDA` (triplet O₂ -149.2562876393, genuinely ζ≠0), `OxygenTripletBelowSinglet`
+(Hund's rule — proves the spin channel does real work), `BadMultiplicityThrows`. 154/154 UTMain green.
+
+The original scoping (kept for reference):
 
 **Today:** neither `CalcOptions` ([Calculation.C:44](src/Calculation/Calculation.C)) nor
 `AtomCalcOptions` ([AtomCalculation.C:47](src/Calculation/AtomCalculation.C)) has a multiplicity/spin
@@ -190,8 +199,8 @@ reaches open-shell via `Atom_EC`'s Hund's-rule machinery, so atom-side multiplic
 |---|---|---|
 | **B1** ✅ | Spin-native VWN5 (Piece 1, face B). Keep ζ=0 bit-identical. | `LDA_XC_UT` extended: v_c^↑,v_c^↓,ε_c vs libxc `LDA_C_VWN` polarized on an (r_s,ζ) grid; ζ=0 byte-identical to current `Vc` |
 | **B2** ✅ | `FittedVcorrPol` + `Ham_DFTcorr_P` + Factory un-gate (Piece 2). Seed fallback. | `M_DFT.WaterPolarizedLDA`: closed-shell water collapses to the unpolarized LDA anchor (-75.9324615507) to 1e-6; `_U` path byte-identical |
-| **B3** | Open-shell `Molecule_EC(nUp,nDown)` + closed-shell collapse (Piece 3). | a known open-shell molecule (e.g. triplet O₂ or the doublet from an odd-Ne radical) — "did E move" sentinel; closed-shell byte-identical |
-| **B4** | `CalcOptions.multiplicity` + facade conversion + Pol auto-imply (Piece 4). | facade-level open-shell test reaching the same B3 energy through the public front door |
+| **B3** ✅ | Open-shell `Molecule_EC(nUp,nDown)` + closed-shell collapse (Piece 3). | `UTElConfig` Molecule tests (even/odd collapse + open-shell triplet); closed-shell byte-identical |
+| **B4** ✅ | `CalcOptions.multiplicity` + facade conversion + Pol auto-promote (Piece 4). | `M_DFT.OxygenTripletLDA` (-149.2562876393) + `OxygenTripletBelowSinglet` (Hund) + `BadMultiplicityThrows` |
 
 **Order is forced:** B1 (functional) → B2 (Hamiltonian term consuming it) → B3 (occupation) → B4 (facade).
 B1+B2 are the polarized *machinery*; B3+B4 are the open-shell *occupation* that exercises it. A closed-shell

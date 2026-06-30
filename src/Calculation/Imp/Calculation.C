@@ -48,13 +48,30 @@ static BasisSet::Real_BS* BuildBasis(const CalcOptions& opts, const std::shared_
     return PG::SymmetryAdapt(rawShared, *st, opts.symmetryTol);
 }
 
+// Build the molecular electron configuration from the requested multiplicity 2S+1.  multiplicity<=0 is the
+// minimal-spin default (closed-shell singlet for even Ne, doublet for odd, via Molecule_EC(Ne)); an explicit
+// value is converted to (nUp,nDown) and parity-validated against Ne (fail loud, not a silent miscount).
+static Molecule_EC* MakeMoleculeEC(int Ne, int multiplicity)
+{
+    if (multiplicity <= 0) return new Molecule_EC(Ne);    // auto / minimal spin (historical behaviour)
+    const int twoS = multiplicity - 1;                    // = nUp - nDown
+    if (twoS > Ne || ((Ne - twoS) % 2) != 0)
+        throw std::runtime_error("qchem::Calculation: multiplicity " + std::to_string(multiplicity) +
+            " (2S=" + std::to_string(twoS) + ") is incompatible with " + std::to_string(Ne) +
+            " electrons -- need 0 <= 2S <= Ne and Ne-2S even.");
+    return new Molecule_EC((Ne + twoS) / 2, (Ne - twoS) / 2);   // (nUp, nDown)
+}
+
 Calculation::Calculation(const Structure& st, const CalcOptions& opts, const AcceleratorOptions& acc)
     : itsStructure(std::make_shared<Molecule>(st))   // deep copy: the facade owns its own structure
     , itsOpts(opts)
     , itsAcc(acc)
 {
-    itsBasis = BuildBasis(opts, itsStructure);                         // raw, or SALC-blocked if .symmetry
-    itsEC    = new Molecule_EC(int(itsStructure->GetNumElectrons()));   // aufbau, global across irreps
+    // An open shell (2S>0) is unrestricted: it needs distinct up/down densities, so promote to polarized.
+    if (itsOpts.multiplicity > 1) itsOpts.pol = Pol::Polarized;
+
+    itsBasis = BuildBasis(itsOpts, itsStructure);                  // raw, or SALC-blocked if .symmetry
+    itsEC    = MakeMoleculeEC(int(itsStructure->GetNumElectrons()), itsOpts.multiplicity);
     Converge();                                       // so Energy()/Density() are ready on return
 }
 
