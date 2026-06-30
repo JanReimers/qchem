@@ -26,6 +26,8 @@ import qchem.Mesh;                  // qcMesh::MeshParams
 import qchem.ElectronConfiguration; // ElectronConfiguration
 import qchem.SCFIterator;           // SCFIterator, SCFParams, SCFProgress, EnergyBreakdown
 import qchem.Symmetry.Irrep;        // Irrep
+import qchem.Symmetry.Spin;         // Spin (per-spin irrep enumeration)
+import qchem.Orbitals;              // Orbital, Orbitals
 import qchem.ChargeDensity;         // DM_CD
 import qchem.ChargeDensity.Seed;    // SeedStrategy
 import qchem.Calculation;           // reuse AcceleratorOptions (read-only; does NOT modify Calculation)
@@ -68,14 +70,17 @@ class AtomCalculation
 public:
     using sf_t       = ScalarFunction<double>;
     using orbitals_t = qchem::Orbitals::Orbitals;
+    using orbital_t  = qchem::Orbitals::Orbital;
     using Observer   = qchem::SCFIterator::SCFIterator::Observer;
 
-    //! Build the whole graph and converge.  \a Z is the nuclear charge, \a charge the net ionic charge
-    //! (electrons = Z - charge).  The EC is chosen from the model: Dirac models get an AtomDirac_EC, the
-    //! rest an Atom_EC.
+    //! Build the whole graph and converge ONCE with \a params.  \a Z is the nuclear charge, \a charge the
+    //! net ionic charge (electrons = Z - charge).  The EC is chosen from the model: Dirac models get an
+    //! AtomDirac_EC, the rest an Atom_EC.  (Atom SCFs often want per-Z params and some are expensive, so
+    //! the params go in here -- a single converge -- rather than a default-then-reconverge.)
     explicit AtomCalculation(int Z, int charge = 0,
-                             const AtomCalcOptions&    opts = {},
-                             const AcceleratorOptions& acc  = {});
+                             const AtomCalcOptions&    opts   = {},
+                             const SCFParams&          params = {},
+                             const AcceleratorOptions& acc    = {});
     ~AtomCalculation();
 
     AtomCalculation(const AtomCalculation&)            = delete;
@@ -94,9 +99,15 @@ public:
     size_t            NumOccupied()     const;
     const orbitals_t* Orbitals(const Irrep&) const;
 
+    //! Lower-level orbital access for the atomic/Dirac diagnostics (eigenvalues, kappa, fine structure):
+    //! enumerate the per-spin irreps, and fetch the index-th orbital within one irrep.
+    BasisSet::irrepv_t GetIrreps(const Spin& ms) const;
+    const orbital_t*   GetOrbital(size_t index, const Irrep& qns) const;
+
     size_t           IterationCount() const;
     bool             IsConverged()    const;
     int              GetZ()           const {return itsZ;}
+    const Structure& GetStructure()   const {return *itsStructure;}
 
 private:
     typedef std::pair<double, const sf_t*> occ_t;

@@ -19,8 +19,7 @@ const bool verbose=true;
 // Run a closed-shell HF atom through the facade; report the signed NIST relative error and convergence.
 static double HF_Eerr(size_t Z, AtomType type, BasisSetAccuracy acc, const SCFParams& p, bool& converged)
 {
-    AtomCalculation calc(Z, 0, {.type = type, .accuracy = acc, .model = Model::HF, .pol = Pol::UnPolarized});
-    calc.Converge(p);
+    AtomCalculation calc(Z, 0, {.type = type, .accuracy = acc, .model = Model::HF, .pol = Pol::UnPolarized}, p);
     converged = calc.IsConverged();
     return RelativeHFError(calc.Energy(), int(Z));
 }

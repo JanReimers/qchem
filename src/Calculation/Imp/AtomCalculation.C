@@ -29,13 +29,17 @@ static bool IsDirac(Model m) {return m == Model::DE1 || m == Model::DHF;}
 // (the EC fixes which angular irreps the pool spans).
 static BasisSet::Real_BS* BuildBasis(const AtomCalcOptions& opts, int Z, const ElectronConfiguration& ec)
 {
+    // Explicit pool: build from the EC (which fixes the angular irreps), NOT the nuclear Z -- the
+    // Factory(json,Z) overload treats Z as an electron count, so for an ion that would over-populate the
+    // angular irreps (e.g. a 1-electron hydrogenic ion would gain p/d shells).
     if (opts.N > 0)
         return BasisSet::Atom::Factory(nlohmann::json{{"type", opts.type}, {"N", opts.N},
-                                                      {"emin", opts.emin}, {"emax", opts.emax}}, Z);
+                                                      {"emin", opts.emin}, {"emax", opts.emax}}, ec);
     return BasisSet::Atom::Factory(opts.accuracy, opts.type, Z, ec);
 }
 
-AtomCalculation::AtomCalculation(int Z, int charge, const AtomCalcOptions& opts, const AcceleratorOptions& acc)
+AtomCalculation::AtomCalculation(int Z, int charge, const AtomCalcOptions& opts,
+                                 const SCFParams& params, const AcceleratorOptions& acc)
     : itsZ(Z)
     , itsNe(Z - charge)
     , itsOpts(opts)
@@ -46,7 +50,7 @@ AtomCalculation::AtomCalculation(int Z, int charge, const AtomCalcOptions& opts,
     itsEC = IsDirac(opts.model) ? static_cast<ElectronConfiguration*>(new AtomDirac_EC(itsNe))
                                 : static_cast<ElectronConfiguration*>(new Atom_EC(itsNe));
     itsBasis = BuildBasis(opts, Z, *itsEC);
-    Converge();
+    Converge(params);
 }
 
 AtomCalculation::~AtomCalculation()
@@ -118,5 +122,20 @@ const AtomCalculation::orbitals_t* AtomCalculation::Orbitals(const Irrep& qns) c
 
 size_t AtomCalculation::IterationCount() const {return itsScf->GetIterationCount();}
 bool   AtomCalculation::IsConverged()    const {return itsScf->Converged();}
+
+BasisSet::irrepv_t AtomCalculation::GetIrreps(const Spin& ms) const
+{
+    return itsBasis->GetIrreps(ms);
+}
+
+const AtomCalculation::orbital_t* AtomCalculation::GetOrbital(size_t index, const Irrep& qns) const
+{
+    // Iterate<orbital_t>() yields the concrete orbitals in level order (matches the old QchemTester
+    // accessor) -- the plain Iterate() order is not the per-irrep level order the Dirac diagnostics want.
+    const auto* orbs = itsScf->GetWaveFunction()->GetOrbitals(qns);
+    for (const auto* o : orbs->template Iterate<orbital_t>())
+        if (index-- == 0) return o;
+    return nullptr;
+}
 
 } // namespace qchem
