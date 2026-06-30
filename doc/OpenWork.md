@@ -98,6 +98,33 @@ track **B**.
 
 ---
 
+## E. Retire QchemTester::Init — atom tests onto qchem::AtomCalculation  ·  PARTIAL  ·  (follow-on to D)
+
+Goal (user, "otherwise new tests appear on the old system"): no test/driver calls `QchemTester::Init`.
+A and B do **not** block this — everything the atom tests need already exists; it is pure facade plumbing.
+
+Built a SIBLING `qchem::AtomCalculation` (NOT an extension — the GUI team is actively on `Calculation`,
+keep its surface stable).  `src/Calculation/AtomCalculation.{C,Imp}`: AtomCalcOptions (atomic
+exponent-pool basis = AtomType + BasisSetAccuracy or {N,emin,emax}; model/pol/xalpha; nAngular=1 mesh;
+seed=CoreGuess), model-driven EC (Dirac→AtomDirac_EC else Atom_EC), ctor converges ONCE with SCFParams,
+GetIrreps/GetOrbital/GetStructure accessors for the Dirac diagnostics.  Free Z-keyed oracle helpers
+RelativeHF/DFT/DHFError(E,Z) in UnitTests/TestUtils.C.
+
+| File | Status |
+|---|---|
+| A_HF_U / A_HF_P (atom HF, un/pol) | ✅ migrated (`bf36a405`,`8f72981c`) |
+| A_DHF (Dirac: DE1 ions, DHF oracle, Phir, fine structure) | ✅ migrated (`0e70b05f`) |
+| A_DFT atomic (Slater-Xα + LSDA) + A_PG | ✅ migrated (`54dfcd51`) |
+| A_DFT_U (libxc exchange) | ⬜ needs a PUBLIC `ExFunctional`/libxc selector (it lives in Hamiltonian/Internal) |
+| A_PP (Si pseudopotential) | ⬜ needs a PUBLIC PP Factory (`Ham_PP_U` is in Hamiltonian/Internal; no public Factory) |
+| scfrun (CLI driver; also `--model PP`) | ⬜ driver rewrite onto AtomCalculation; blocked by the PP Factory |
+| delete `QchemTester::Init` | ⬜ after the three above |
+
+**Blocker for the rest = Hamiltonian-library public API, not the facade:** `Ham_PP_U` and `ExFunctional`
+are Internal with no public Factory.  Finishing means adding a public PP Factory (valuable anyway for the
+battery north-star) and a public exchange-functional selector, then migrating A_DFT_U/A_PP/scfrun and
+deleting `Init`.  146/146 UTMain green throughout; anchors byte-identical.
+
 ## Bigger milestone on the horizon (not dangling, just flagged)
 
 - **PBE / GGA** — the highest-value functional for the battery north-star, but a real library
