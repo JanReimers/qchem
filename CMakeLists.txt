@@ -56,7 +56,7 @@ add_subdirectory(./UnitTests)
 add_subdirectory(./gtkapp)
 
 add_custom_target(allTests
-    DEPENDS UTMain UTCommon UTMesh UTStructure UTSymmetry UTElConfig UTAtom_BS UTMolecule_BS UTLattice_3D_BS UTLASolver
+    DEPENDS UTMain UTCommon UTChargeDensity UTPseudopotential UTMesh UTStructure UTSymmetry UTElConfig UTAtom_BS UTMolecule_BS UTLattice_3D_BS UTLASolver
     COMMENT "Build all unit test executables"
 )
 # Disable embedded submodule tests so ctest only runs this project's tests.
