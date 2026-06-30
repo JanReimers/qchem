@@ -8,6 +8,7 @@ module;
 #include <cmath>
 #include <iostream>
 export module qchem.Unittests.TestUtils;
+import qchem.PeriodicTable;   // thePeriodicTable(): NIST/Dirac atomic reference energies (the oracle)
 
 export namespace qchem
 {
@@ -27,4 +28,14 @@ inline double RelativeError(double E, double Eref, bool quiet = false)
     }
     return error;
 }
+
+// Z-keyed oracle checks: the computed atomic energy E vs the stored NIST (HF/DFT) or Dirac (DHF) reference
+// for element Z.  Lifted out of QchemTester::RelativeHF/DFT/DHFError so AtomCalculation-driven atom tests
+// share them.  All return the SIGNED relative error (the atom tests bound it as the scaffold did).
+inline double RelativeHFError (double E, int Z, bool quiet = false)
+    {return RelativeError(E, thePeriodicTable().GetEnergyHF (Z), quiet);}
+inline double RelativeDFTError(double E, int Z, bool quiet = false)
+    {return RelativeError(E, thePeriodicTable().GetEnergyDFT(Z), quiet);}
+inline double RelativeDHFError(double E, int Z, bool quiet = false)
+    {return RelativeError(E, thePeriodicTable().GetEnergyDHF(Z), quiet);}
 } // namespace qchem
