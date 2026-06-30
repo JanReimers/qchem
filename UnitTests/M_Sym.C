@@ -16,7 +16,6 @@
 import qchem.Calculation;            // Calculation, CalcOptions, Model, Pol
 import qchem.Structure;              // Molecule, Atom
 import qchem.SCFIterator;            // SCFParams, EnergyBreakdown
-import qchem.ChargeDensity.Seed;     // SeedStrategy
 import qchem.Types;                  // Vector3D
 import qchem.Math;                   // cos, sin (for the rotation test)
 using namespace qchem;
@@ -40,11 +39,10 @@ static Molecule MakeWater()
 // else is identical between the two, so any energy difference is a SALC-transform error.
 static EnergyBreakdown Run(const Molecule& mol, Model model, Pol pol, bool symmetry)
 {
-    // CoreGuess seed (not the facade's auto SAD-for-DFT): this is an invariance test, so the converged
-    // energy is seed-independent, and SAD's polarized-DFT path is not yet robust (the spin-native DFT
-    // track, OpenWork B).  CoreGuess matches the direct-SCFIterator path this test used pre-migration.
-    Calculation calc(mol, {.basis = "dzvp", .model = model, .pol = pol, .symmetry = symmetry,
-                           .seed = ChargeDensity::SeedStrategy::CoreGuess});
+    // The facade's default seed (auto SAD for DFT, CoreGuess for HF) -- the SAD polarized-DFT path is now
+    // robust (FittedVxcPol handles the spin-agnostic seed; see M_DFT.WaterPolarizedSAD).  This is an
+    // invariance test anyway, so the converged energy is seed-independent.
+    Calculation calc(mol, {.basis = "dzvp", .model = model, .pol = pol, .symmetry = symmetry});
     calc.Converge(tight);                 // re-converge tight for the invariance tolerance
     return calc.EnergyTerms();
 }

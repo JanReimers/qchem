@@ -65,3 +65,20 @@ TEST(M_DFT, WaterSpherical)
     EXPECT_NEAR(calc.Energy(), -76.1493013984, 0.05);                 // sanity: same ballpark as Cartesian
     EXPECT_LT(fabs(RelativeError(calc.Energy(), -76.1485556624)), 2e-3);  // CONVERGED anchor (DIIS from start)
 }
+
+// Polarized Xalpha water through the facade's DEFAULT (auto SAD) seed.  This used to SEGFAULT: the SAD seed
+// is a spin-agnostic total density, and the polarized Vxc null-derefed when its dynamic_cast<Polarized_CD>
+// of the seed failed (the assert was compiled out in Release).  Fixed in FittedVxcPol::CalcMatrix -- a
+// spin-unpolarized seed (rho_up=rho_down=rho/2) maps each channel's iteration-0 Vxc to the unpolarized Vxc
+// of the total density.  Water is closed shell, so with the SAME alpha the polarized run must converge to
+// the SAME energy as the unpolarized anchor -- and it does, to ~1e-11 (confirming a correct seed Fock).
+TEST(M_DFT, WaterPolarizedSAD)
+{
+    Calculation calc(MakeWater(), {.basis = "dzvp", .model = Model::Xalpha, .xalpha = 0.74000, .pol = Pol::Polarized});
+    // Polarized water Xalpha is the oscillatory case (commutator ~2-4; see M_Sym RunDFT) -- it needs more
+    // iterations + damping than the facade's quick default, so re-Converge with tight params (DIIS already
+    // drives from the start for DFT).
+    calc.Converge({.NMaxIter = 60, .MinΔρ = 1e-7, .MinΔFD = 1e-9, .MinVirial = 1e2, .MinFD = 1e-7,
+                   .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = false});
+    EXPECT_LT(fabs(RelativeError(calc.Energy(), -76.1493013984)), 2e-3);   // == the unpolarized Xalpha anchor
+}
