@@ -116,6 +116,12 @@ public:
     double                 Energy()      const;   //!< total energy E (hartree)
     qchem::EnergyBreakdown EnergyTerms() const;   //!< the per-term breakdown
 
+    //! Structured report as a JSON document -- the formal lib->client text/data channel (vs parsing
+    //! cout).  \a kind selects the report; "orbitals" gives the energy-level table (e/occ/degen/n/irrep
+    //! label per level).  Unknown kinds return {"error": ...}.  Bulk numeric data (grids) stays on the
+    //! typed zero-copy path; this is for heterogeneous, GUI-facing metadata.
+    std::string Report(const std::string& kind) const;
+
     const sf_t&      Density()           const;   //!< rho(r): sample directly, also has Gradient()
     const sf_t&      HOMO()              const;   //!< highest occupied MO
     const sf_t&      Orbital(size_t i)   const;   //!< i-th occupied MO (0 = lowest energy)

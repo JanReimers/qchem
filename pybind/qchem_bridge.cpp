@@ -11,6 +11,8 @@ module;
 #include <vector>
 #include <memory>
 #include <cstring>
+#include <cstdlib>
+#include <string>
 #include "qcb_api.h"
 
 export module qchem.bridge;
@@ -63,7 +65,7 @@ struct Calc {
 extern "C" {
 
 void* qcb_make(const int* Z, int nat, const double* pos3,
-               const char* basis, const char* method, int maxiter)
+               const char* basis, const char* method, int symmetry, int maxiter)
 {
     auto* c = new Calc();
     c->numbers.assign(Z, Z + nat);
@@ -79,7 +81,8 @@ void* qcb_make(const int* Z, int nat, const double* pos3,
         if      (std::strcmp(method, "LDA")    == 0) model = qchem::Model::LDA;
         else if (std::strcmp(method, "Xalpha") == 0) model = qchem::Model::Xalpha;
     }
-    c->calc = std::make_unique<Calculation>(mol, CalcOptions{.basis = basis, .model = model});
+    c->calc = std::make_unique<Calculation>(
+        mol, CalcOptions{.basis = basis, .model = model, .symmetry = (symmetry != 0)});
     if (maxiter != 20)
         c->calc->Converge({.NMaxIter = size_t(maxiter)});                        // honor a custom cap
     return c;
@@ -97,6 +100,15 @@ int qcb_run_scf(void* h, qcb_scf_cb cb, void* user)
 
 void   qcb_free(void* h)   { delete static_cast<Calc*>(h); }
 double qcb_energy(void* h) { return static_cast<Calc*>(h)->calc->Energy(); }
+
+char* qcb_report(void* h, const char* kind)
+{
+    std::string s = static_cast<Calc*>(h)->calc->Report(kind ? kind : "");
+    char* out = static_cast<char*>(std::malloc(s.size() + 1));
+    std::memcpy(out, s.c_str(), s.size() + 1);
+    return out;
+}
+void qcb_free_string(char* s) { std::free(s); }
 int    qcb_natoms(void* h) { return int(static_cast<Calc*>(h)->numbers.size()); }
 
 void qcb_atoms(void* h, int* Z_out, double* xyz_out)

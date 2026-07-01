@@ -17,6 +17,7 @@ import qchem.ElectronConfiguration.Molecule;        // Molecule_EC (global aufba
 import qchem.SCFAccelerator.Factory;                // SCFAccelerators::Type, Factory
 import qchem.WaveFunction;                           // WaveFunction (GetChargeDensity/GetOrbitals/GetQNs)
 import qchem.Orbitals;                               // Orbital, Orbitals
+import qchem.EnergyLevel;                            // EnergyLevel fields (e/occ/degen/qns) for Report()
 
 namespace qchem
 {
@@ -138,6 +139,27 @@ void Calculation::OnIteration(Observer obs) {itsObserver = std::move(obs);}
 
 double                 Calculation::Energy()      const {return itsScf->GetEnergy().GetTotalEnergy();}
 qchem::EnergyBreakdown Calculation::EnergyTerms() const {return itsScf->GetEnergy();}
+
+std::string Calculation::Report(const std::string& kind) const
+{
+    nlohmann::json j;
+    if (kind == "orbitals")
+    {
+        j["kind"]   = "orbitals";
+        j["energy"] = Energy();
+        auto& levels = j["levels"] = nlohmann::json::array();
+        // GetEnergyLevels(): multimap<energy, EnergyLevel> -- already energy-ordered.
+        for (const auto& [e, lvl] : itsScf->GetWaveFunction()->GetEnergyLevels())
+            levels.push_back({{"e",     lvl.e},
+                              {"occ",   lvl.occ},
+                              {"degen", lvl.degen},
+                              {"n",     lvl.qns.n},
+                              {"label", lvl.qns.sym->GetLabel()}});
+    }
+    else
+        j["error"] = "unknown report kind: " + kind;
+    return j.dump();
+}
 
 const Calculation::sf_t& Calculation::Density() const
 {

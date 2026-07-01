@@ -17,13 +17,19 @@ extern "C" {
 
 // Build a molecule (atomic numbers + flat 3N bohr positions) and converge an SCF.
 // method: "HF" (default) | "LDA" | "Xalpha" -> CalcOptions.model.
+// symmetry: 0/1 -> CalcOptions.symmetry (SALC point-group blocking + irrep labels).
 void*  qcb_make(const int* Z, int nat, const double* pos3,
-                const char* basis, const char* method, int maxiter);
+                const char* basis, const char* method, int symmetry, int maxiter);
 void   qcb_free(void* h);
 
 double qcb_energy(void* h);
 int    qcb_natoms(void* h);
 void   qcb_atoms (void* h, int* Z_out, double* xyz_out);   // Z_out[nat], xyz_out[3*nat]
+
+// Structured JSON report (the formal text/data channel). Returns a heap string the
+// caller must release with qcb_free_string. kind: "orbitals" | ...
+char*  qcb_report(void* h, const char* kind);
+void   qcb_free_string(char* s);
 
 // Re-run the SCF from the seed, calling `cb` once per iteration (live convergence).
 // Leaves the calculator in a freshly-converged state. Returns the iteration count.

@@ -29,15 +29,22 @@ NB_MODULE(qchem_py, mod)
 
     nb::class_<Calc>(mod, "Calculator")
         .def("__init__", [](Calc* self, const std::vector<int>& Z, const std::vector<double>& pos,
-                            const std::string& basis, const std::string& method, int max_iter) {
+                            const std::string& basis, const std::string& method,
+                            bool symmetry, int max_iter) {
                  self->h = qcb_make(Z.data(), (int)Z.size(), pos.data(),
-                                    basis.c_str(), method.c_str(), max_iter);
+                                    basis.c_str(), method.c_str(), symmetry ? 1 : 0, max_iter);
              },
              nb::arg("numbers"), nb::arg("positions"),
-             nb::arg("basis") = "dzvp", nb::arg("method") = "HF", nb::arg("max_iter") = 20,
-             "Build a molecule + converge an SCF. method: HF | LDA | Xalpha.")
+             nb::arg("basis") = "dzvp", nb::arg("method") = "HF",
+             nb::arg("symmetry") = false, nb::arg("max_iter") = 20,
+             "Build a molecule + converge an SCF. method: HF|LDA|Xalpha; symmetry: SALC blocking.")
         .def("__del__", [](Calc& c){ if (c.h) { qcb_free(c.h); c.h = nullptr; } })
         .def("total_energy", [](Calc& c){ return qcb_energy(c.h); })
+        .def("report", [](Calc& c, const std::string& kind) {
+                 char* s = qcb_report(c.h, kind.c_str());
+                 std::string out(s); qcb_free_string(s);
+                 return out;                          // JSON string; Python json.loads it
+             }, nb::arg("kind"))
         .def("run_scf", [](Calc& c, nb::callable cb) {
                  // captureless trampoline -> C function pointer; user = &cb (alive for the call)
                  auto tramp = [](void* u, int it, double E, double dE, double comm, double drho) {
