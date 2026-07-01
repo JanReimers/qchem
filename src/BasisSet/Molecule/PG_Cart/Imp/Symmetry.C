@@ -9,6 +9,7 @@ module qchem.BasisSet.Molecule.PG_Cart.Symmetry;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;
 import qchem.Symmetry.CartesianRep;   // CartesianShellRep (the concrete ShellRep this basis produces)
+import qchem.Blaze;                   // blazem::VecBuilder (accumulate the per-shell norms into an rvec_t)
 
 namespace qchem::BasisSet::Molecule::PG_Cart
 {
@@ -43,15 +44,17 @@ std::vector<AoShell> ExtractAoShells(const PGData& pg)
         sh.center    = r->GetCenter();
         sh.offset    = i;
         sh.shellType = ShellTypeId(r, types);
-        std::vector<IVec3> monomials;
+        std::vector<IVec3>         monomials;
+        blazem::VecBuilder<double> norm;
         size_t j = i;
         for (; j < n && pg.radials[j] == r; ++j)
         {
             const Polarization& p = pg.pols[j];
             monomials.push_back(IVec3{p.n, p.l, p.m});
-            sh.norm.push_back(pg.ns[j]);
+            norm.Append(pg.ns[j]);
         }
-        sh.rep = std::make_shared<CartesianShellRep>(std::move(monomials));  // this shell's Cartesian rep
+        sh.rep  = std::make_shared<CartesianShellRep>(std::move(monomials));  // this shell's Cartesian rep
+        sh.norm = norm.take();
         shells.push_back(std::move(sh));
         i = j;
     }

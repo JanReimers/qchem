@@ -7,8 +7,7 @@
 // angular kind nor imports the concretes.
 module;
 export module qchem.Symmetry.ShellRep;
-export import qchem.Types;       // rmat_t
-export import qchem.Matrix3D;    // Matrix3D
+export import qchem.Types;       // rmat_t, rmat3d_t (the fixed 3x3 operation matrix)
 
 export namespace qchem::Symmetry
 {
@@ -22,7 +21,7 @@ class ShellRep
 public:
     virtual ~ShellRep() {}
     virtual size_t nComponents() const = 0;
-    virtual rmat_t Rep(const Matrix3D<double>& R) const = 0;
+    virtual rmat_t Rep(const rmat3d_t& R) const = 0;
 };
 
 } //namespace

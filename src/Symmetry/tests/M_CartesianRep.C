@@ -61,7 +61,7 @@ TEST(CartesianRep, d_shell_C2z_is_identity)
 // --- Full-basis representation on H2O (stage 2b) --------------------------------------
 //
 // AO layout (6 functions): O s [0], O p [1,2,3], H1 s [4], H2 s [5].  C2v with C2 along z.
-static AoShell Cart(int type, rvec3_t c, std::vector<IVec3> mon, std::vector<double> norm, size_t off)
+static AoShell Cart(int type, rvec3_t c, std::vector<IVec3> mon, rvec_t norm, size_t off)
 {   // a Cartesian AoShell: geometry + norm + a CartesianShellRep built from the monomials
     return AoShell{type, c, std::move(norm), off, std::make_shared<CartesianShellRep>(std::move(mon))};
 }
@@ -135,7 +135,7 @@ TEST(OperationRep, spherical_d_shell_dispatch)
 {
     rvec3_t z(0,0,1);
     Matrix3D<double> R = SymOp::Cn(z,4).Matrix();           // 90 deg about z
-    std::vector<AoShell> shells = { {0, rvec3_t(0,0,0), {1,1,1,1,1}, 0, std::make_shared<SphericalShellRep>(Dsph())} };
+    std::vector<AoShell> shells = { {0, rvec3_t(0,0,0), rvec_t{1.,1.,1.,1.,1.}, 0, std::make_shared<SphericalShellRep>(Dsph())} };
     rmat_t M = BuildOperationRep(shells, R, rvec3_t(0,0,0), 1e-9);
     rmat_t D = SphericalShellRep(Dsph()).Rep(R);
     ASSERT_EQ(M.rows(), 5u);

@@ -10,7 +10,7 @@ module;
 #include <vector>
 #include <memory>
 export module qchem.Symmetry.OperationRep;
-export import qchem.Symmetry.ShellRep;   // ShellRep (the angular rep abstraction), rmat_t / Matrix3D
+export import qchem.Symmetry.ShellRep;   // ShellRep (the angular rep abstraction), rmat_t / rmat3d_t / rvec_t
 
 export namespace qchem::Symmetry
 {
@@ -25,7 +25,7 @@ struct AoShell
 {
     int                             shellType;
     rvec3_t                         center;
-    std::vector<double>             norm;    //!< per-component normalization N_a (size = #components)
+    rvec_t                          norm;    //!< per-component normalization N_a (size = #components)
     size_t                          offset;
     std::shared_ptr<const ShellRep> rep;     //!< the shell's angular operation rep (Cartesian or spherical)
 
@@ -37,7 +37,7 @@ struct AoShell
 // per-component normalization.  Entry M(I,J) is the coefficient of normalized AO I in the transform of
 // normalized AO J, so phi_J(R^{-1} r) = sum_I M(I,J) phi_I(r).  R |-> M(R) is a representation:
 // M(R1) M(R2) = M(R1 R2).
-rmat_t BuildOperationRep(const std::vector<AoShell>& shells, const Matrix3D<double>& R,
+rmat_t BuildOperationRep(const std::vector<AoShell>& shells, const rmat3d_t& R,
                          const rvec3_t& origin, double tol);
 
 } //namespace

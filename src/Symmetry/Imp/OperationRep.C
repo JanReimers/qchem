@@ -8,7 +8,7 @@ module qchem.Symmetry.OperationRep;
 namespace qchem::Symmetry
 {
 
-rmat_t BuildOperationRep(const std::vector<AoShell>& shells, const Matrix3D<double>& R,
+rmat_t BuildOperationRep(const std::vector<AoShell>& shells, const rmat3d_t& R,
                          const rvec3_t& origin, double tol)
 {
     size_t nAO = 0;

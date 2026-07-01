@@ -32,7 +32,7 @@ class SphericalShellRep : public ShellRep
 public:
     explicit SphericalShellRep(HarmonicC2S c2s) : itsC2S(std::move(c2s)) {}
     virtual size_t nComponents() const {return itsC2S.size();}
-    virtual rmat_t Rep(const Matrix3D<double>& R) const;
+    virtual rmat_t Rep(const rmat3d_t& R) const;
 private:
     HarmonicC2S itsC2S;
 };

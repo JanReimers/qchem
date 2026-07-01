@@ -58,7 +58,7 @@ static rmat_t SmallInverse(rmat_t A)
     return I;
 }
 
-rmat_t SphericalShellRep::Rep(const Matrix3D<double>& R) const
+rmat_t SphericalShellRep::Rep(const rmat3d_t& R) const
 {
     const HarmonicC2S& c2s = itsC2S;
     const size_t nSph = c2s.size();

@@ -28,7 +28,7 @@ class CartesianShellRep : public ShellRep
 public:
     explicit CartesianShellRep(std::vector<IVec3> exps) : itsExps(std::move(exps)) {}
     virtual size_t nComponents() const {return itsExps.size();}
-    virtual rmat_t Rep(const Matrix3D<double>& R) const;
+    virtual rmat_t Rep(const rmat3d_t& R) const;
 private:
     std::vector<IVec3> itsExps;
 };

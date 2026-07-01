@@ -10,6 +10,7 @@ import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;           // C
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;         // Cart::Polarization (the monomial exps)
 import qchem.BasisSet.Molecule.Evaluators.PG_Spherical_MnD.SolidHarmonics;  // CartTerm
 import qchem.Symmetry.SphericalRep;   // HarmonicC2S, SphericalShellRep (the concrete ShellRep this basis produces)
+import qchem.Blaze;                   // blazem::VecBuilder (accumulate the per-shell norms into an rvec_t)
 
 namespace qchem::BasisSet::Molecule::PG_Spherical
 {
@@ -46,7 +47,8 @@ std::vector<AoShell> ExtractAoShells(const Sph::SphData& sph)
         sh.center    = r->GetCenter();
         sh.offset    = i;
         sh.shellType = ShellTypeId(r, types);
-        HarmonicC2S c2s;
+        HarmonicC2S                c2s;
+        blazem::VecBuilder<double> norm;
         size_t j = i;
         for (; j < n && sph.comps[j].radial == r; ++j)
         {
@@ -56,9 +58,10 @@ std::vector<AoShell> ExtractAoShells(const Sph::SphData& sph)
             for (const auto& t : sph.comps[j].terms)
                 harmonic.push_back({IVec3{t.p.n, t.p.l, t.p.m}, t.c});
             c2s.push_back(std::move(harmonic));
-            sh.norm.push_back(sph.ns[j]);            // per-harmonic normalization (folded into the rep)
+            norm.Append(sph.ns[j]);                  // per-harmonic normalization (folded into the rep)
         }
-        sh.rep = std::make_shared<SphericalShellRep>(std::move(c2s));   // this shell's spherical rep
+        sh.rep  = std::make_shared<SphericalShellRep>(std::move(c2s));   // this shell's spherical rep
+        sh.norm = norm.take();
         shells.push_back(std::move(sh));
         i = j;
     }

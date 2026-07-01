@@ -22,7 +22,7 @@ static std::vector<SymPoint> WaterPts()
 {
     return { {8,O_}, {1,H1_}, {1,H2_} };
 }
-static AoShell Cart(int type, rvec3_t c, std::vector<IVec3> mon, std::vector<double> norm, size_t off)
+static AoShell Cart(int type, rvec3_t c, std::vector<IVec3> mon, rvec_t norm, size_t off)
 {
     return AoShell{type, c, std::move(norm), off, std::make_shared<CartesianShellRep>(std::move(mon))};
 }
