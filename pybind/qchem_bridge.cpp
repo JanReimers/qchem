@@ -148,15 +148,14 @@ void qcb_orbital(void* h, int index, int n, double pad,
     auto* c = static_cast<Calc*>(h);
     *is_signed = 1;
     rvec3_t lo, hi; bbox(c->positions, pad, lo, hi);
-    const size_t nocc = c->calc->NumOccupied();
-    if (index < 0 || size_t(index) >= nocc) {        // out of range -> empty field
+    if (index < 0 || size_t(index) >= c->calc->NumOrbitals()) {   // out of range -> empty field
         std::memset(out, 0, size_t(n)*n*n*sizeof(double));
         origin[0]=lo.x; origin[1]=lo.y; origin[2]=lo.z;
         spacing[0]=spacing[1]=spacing[2]=0;
         return;
     }
-    // index 0 = HOMO; Calculation::Orbital(i) is energy-ascending (0 = lowest).
-    sample_scalar(c->calc->Orbital(nocc - 1 - size_t(index)), lo, hi, n, out, origin, spacing);
+    // index is now ABSOLUTE: the i-th MO by ascending energy (occupied or virtual).
+    sample_scalar(c->calc->Orbital(size_t(index)), lo, hi, n, out, origin, spacing);
 }
 
 } // extern "C"

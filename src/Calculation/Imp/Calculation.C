@@ -121,18 +121,19 @@ void Calculation::RebuildSampling()
     const auto* wf = itsScf->GetWaveFunction();
     itsDensity.reset(wf->GetChargeDensity());          // GetChargeDensity hands back a heap rho -- we own it
 
-    itsOccupied.clear();
+    itsOrbitals.clear(); itsNumOccupied = 0;
     for (const Irrep& irr : wf->GetQNs())
         for (const auto* o : wf->GetOrbitals(irr)->Iterate())   // Iterate() yields const Orbital*
-            if (o->IsOccupied())
-            {
-                // An Orbital IS a ScalarFunction<double> (cast between abstract faces, per CLAUDE.md).
-                const auto* phi = dynamic_cast<const sf_t*>(o);
-                assert(phi);
-                itsOccupied.push_back({o->GetEigenEnergy(), phi});
-            }
-    std::sort(itsOccupied.begin(), itsOccupied.end(),
+        {
+            // An Orbital IS a ScalarFunction<double> (cast between abstract faces, per CLAUDE.md).
+            const auto* phi = dynamic_cast<const sf_t*>(o);
+            assert(phi);
+            itsOrbitals.push_back({o->GetEigenEnergy(), phi});   // occupied AND virtual
+            if (o->IsOccupied()) ++itsNumOccupied;
+        }
+    std::sort(itsOrbitals.begin(), itsOrbitals.end(),
               [](const occ_t& a, const occ_t& b){ return a.first < b.first; });   // ascending energy
+    // aufbau: the occupied MOs are the lowest itsNumOccupied by energy, so [0,NumOccupied)=occupied.
 }
 
 void Calculation::OnIteration(Observer obs) {itsObserver = std::move(obs);}
@@ -145,8 +146,10 @@ std::string Calculation::Report(const std::string& kind) const
     nlohmann::json j;
     if (kind == "orbitals")
     {
-        j["kind"]   = "orbitals";
-        j["energy"] = Energy();
+        j["kind"]          = "orbitals";
+        j["energy"]        = Energy();
+        j["num_occupied"]  = NumOccupied();   // = LUMO index into Orbital()
+        j["num_orbitals"]  = NumOrbitals();
         auto& levels = j["levels"] = nlohmann::json::array();
         // GetEnergyLevels(): multimap<energy, EnergyLevel> -- already energy-ordered.
         for (const auto& [e, lvl] : itsScf->GetWaveFunction()->GetEnergyLevels())
@@ -169,17 +172,18 @@ const Calculation::sf_t& Calculation::Density() const
 
 const Calculation::sf_t& Calculation::HOMO() const
 {
-    assert(!itsOccupied.empty());
-    return *itsOccupied.back().second;
+    assert(itsNumOccupied > 0);
+    return *itsOrbitals[itsNumOccupied - 1].second;   // highest occupied
 }
 
 const Calculation::sf_t& Calculation::Orbital(size_t i) const
 {
-    assert(i < itsOccupied.size());
-    return *itsOccupied[i].second;
+    assert(i < itsOrbitals.size());
+    return *itsOrbitals[i].second;                    // i-th by ascending energy (occ or virtual)
 }
 
-size_t Calculation::NumOccupied() const {return itsOccupied.size();}
+size_t Calculation::NumOccupied() const {return itsNumOccupied;}
+size_t Calculation::NumOrbitals() const {return itsOrbitals.size();}
 
 const Calculation::orbitals_t* Calculation::Orbitals(const Irrep& qns) const
 {

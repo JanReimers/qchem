@@ -124,8 +124,9 @@ public:
 
     const sf_t&      Density()           const;   //!< rho(r): sample directly, also has Gradient()
     const sf_t&      HOMO()              const;   //!< highest occupied MO
-    const sf_t&      Orbital(size_t i)   const;   //!< i-th occupied MO (0 = lowest energy)
-    size_t           NumOccupied()       const;
+    const sf_t&      Orbital(size_t i)   const;   //!< i-th MO by ASCENDING energy (occupied AND virtual)
+    size_t           NumOccupied()       const;   //!< index of the LUMO (= HOMO+1); occupied are [0,NumOccupied)
+    size_t           NumOrbitals()       const;   //!< total MOs available to Orbital() (occupied + virtual)
     const orbitals_t* Orbitals(const Irrep&) const; //!< the orbital set for one point-group irrep
 
     size_t           IterationCount() const;
@@ -134,7 +135,7 @@ public:
 
 private:
     typedef std::pair<double, const sf_t*> occ_t;   //!< (eigen-energy, orbital) for HOMO/Orbital(i)
-    void RebuildSampling();   //!< after a Converge: own a fresh density + sort the occupied MOs
+    void RebuildSampling();   //!< after a Converge: own a fresh density + energy-sort ALL the MOs
 
     std::shared_ptr<const Structure>     itsStructure;  //!< facade's own copy (Hamiltonian shares it)
     CalcOptions                          itsOpts;
@@ -143,7 +144,8 @@ private:
     BasisSet::Real_BS*                   itsBasis = nullptr;  //!< owned
     qchem::SCFIterator::SCFIterator*     itsScf   = nullptr;  //!< owned (owns Hamiltonian + accelerator)
     std::unique_ptr<qchem::ChargeDensity::DM_CD> itsDensity;  //!< owned converged rho(r)
-    std::vector<occ_t>                   itsOccupied;          //!< non-owning, into the wave function
+    std::vector<occ_t>                   itsOrbitals;          //!< ALL MOs, energy-ascending; non-owning
+    size_t                               itsNumOccupied = 0;   //!< the occupied/virtual boundary (LUMO index)
     Observer                             itsObserver;          //!< optional live-progress sink
 };
 
