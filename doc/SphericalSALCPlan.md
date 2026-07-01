@@ -58,10 +58,18 @@ code, instead of a from-scratch real-Wigner-D implementation.
 - Test: faithfulness `D(R1)D(R2)=D(R1R2)`; p ⇒ `D = R`; d/f against reference D-matrices. l≤3 only
   (matches `SolidHarmonics`; l≥4 ⇒ extend that table, it asserts past f today).
 
-### Stage S2 — generalize `AoShell` / `BuildOperationRep`  ·  `qcSymmetry`  ·  modest refactor
-- `AoShell` is Cartesian-only today (`monomials` + `norm`). Add a spherical angular descriptor
-  (l + the m-ordering) and let `BuildOperationRep` dispatch Cartesian vs spherical per shell.
-- `BuildSALCs` unchanged (consumes rep matrices). Keep the Cartesian path byte-for-byte (regression).
+### Stage S2 — generalize `AoShell` / `BuildOperationRep`  ·  `qcSymmetry`  ·  ✅ DONE
+- `AoShell` + `BuildOperationRep` MOVED from `CartesianRep` into a new module
+  `qchem.Symmetry.OperationRep` (`export import`s both `CartesianRep` + `SphericalRep`).  Reason: the
+  dispatcher needs both per-shell reps, but `SphericalRep` already imports `CartesianRep`, so it cannot
+  live in either — it must sit ABOVE both.  `CartesianRep`/`SphericalRep` are now pure per-shell math.
+- `AoShell` gained `HarmonicC2S c2s` (empty ⇒ Cartesian, set ⇒ spherical) + `IsSpherical()`/`nComponents()`;
+  `BuildOperationRep` dispatches `SphericalShellRep(R,c2s)` vs `CartesianShellRep(R,monomials)` per shell.
+  `c2s` is LAST in the struct so the existing positional aggregate initializers stay valid.
+- `BuildSALCs` unchanged (consumes rep matrices).  Cartesian path byte-for-byte (M_CartesianRep/M_SALC/
+  M_Sym green); new `OperationRep.spherical_d_shell_dispatch` test.  Import churn minimal: only `SALC.C`
+  (re-export) + `M_CartesianRep.C` — every other consumer gets `AoShell`/`BuildOperationRep` transitively
+  through `SALC`.
 
 ### Stage S3 — the two extractors  ·  basis tree  ·  THE REAL COST (two conventions)
 The rep's component order must match the basis's m-order. The two spherical deliveries differ:

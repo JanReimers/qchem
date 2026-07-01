@@ -15,14 +15,21 @@ Extend point-group SALC adaptation from the Cartesian PG basis to the two spheri
 | Stage | What | Status |
 |---|---|---|
 | S1 | `SphericalShellRep` (real-spherical operation rep, `qcSymmetry`) | ✅ committed `194f9971`, 4 tests |
-| S2 | generalize `AoShell`/`BuildOperationRep` to dispatch Cartesian vs spherical | ⬜ next |
-| S3 | the two convention-matched extractors (PG_Spherical in-house; libcint-spherical foreign) | ⬜ the bulk / bug-prone |
+| S2 | generalize `AoShell`/`BuildOperationRep` to dispatch Cartesian vs spherical | ✅ new `OperationRep` module |
+| S3 | the two convention-matched extractors (PG_Spherical in-house; libcint-spherical foreign) | ⬜ next / the bulk / bug-prone |
 | S4 | dispatch in `PG::SymmetryAdapt` by orbital-IBS type | ⬜ |
 | S5 | end-to-end tests: spherical-adapted SCF == un-adapted spherical SCF | ⬜ |
 
-**Next step:** S2 — add a spherical angular descriptor to `AoShell` and let `BuildOperationRep` call
-`SphericalShellRep` (built S1) for spherical shells; keep the Cartesian path byte-identical.
-**Lifts:** the facade's `{.symmetry=true}` Cartesian-only guard, once S3a (PG_Spherical) lands.
+**S2 DONE:** `AoShell`+`BuildOperationRep` moved into a NEW module `qchem.Symmetry.OperationRep` (imports
+both `CartesianRep` + `SphericalRep`), resolving the `CartesianRep`↔`SphericalRep` cycle — the dispatcher
+can't live in either per-shell module. `AoShell` gained a `c2s` (HarmonicC2S) field; `IsSpherical()`/
+`nComponents()`; `BuildOperationRep` picks `SphericalShellRep` vs `CartesianShellRep` per shell. Cartesian
+path byte-identical (M_CartesianRep/M_SALC/M_Sym green); new `OperationRep.spherical_d_shell_dispatch` test.
+Only `SALC.C` + `M_CartesianRep.C` needed import edits (everything else gets `AoShell` transitively via SALC).
+
+**Next step:** S3a — `ExtractAoShells(const SphData&)` for the in-house `PG_Spherical` basis, populating
+`AoShell.c2s` in the `SolidHarmonics` m-ordering (self-consistent with S1's convention). Then S4 dispatch +
+S5 end-to-end. **Lifts:** the facade's `{.symmetry=true}` Cartesian-only guard, once S3a+S4 land.
 
 ---
 

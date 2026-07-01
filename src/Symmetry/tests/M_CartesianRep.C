@@ -2,7 +2,7 @@
 #include <gtest/gtest.h>
 #include <vector>
 #include <array>
-import qchem.Symmetry.CartesianRep;
+import qchem.Symmetry.OperationRep;   // AoShell + BuildOperationRep (re-exports CartesianRep: CartesianShellRep)
 import qchem.Symmetry.PointGroup;   // SymOp, to obtain operation matrices
 import qchem.Blaze; // matrix operator* in this (non-module) TU
 using namespace qchem;
@@ -108,4 +108,31 @@ TEST(CartesianRep, water_homomorphism)
     rmat_t prod = M1*M2;
     for (size_t i=0;i<6;i++) for (size_t j=0;j<6;j++)
         EXPECT_NEAR(prod(i,j), M12(i,j), 1e-10);
+}
+
+// The five real d harmonics (m=-2..+2), matching M_SphericalRep's convention.
+static HarmonicC2S Dsph()
+{
+    return {
+        {{{1,1,0}, 1.0}},                                   // xy
+        {{{0,1,1}, 1.0}},                                   // yz
+        {{{0,0,2}, 2.0}, {{2,0,0},-1.0}, {{0,2,0},-1.0}},   // 2z^2-x^2-y^2
+        {{{1,0,1}, 1.0}},                                   // xz
+        {{{2,0,0}, 1.0}, {{0,2,0},-1.0}},                   // x^2-y^2
+    };
+}
+
+// S2: BuildOperationRep must DISPATCH to the spherical per-shell rep when a shell is spherical (c2s set).
+// A single spherical d-shell at the origin maps to itself, so the whole-basis rep is exactly the per-shell
+// SphericalShellRep -- confirming the spherical branch is taken and correctly placed (5 components, norm 1).
+TEST(OperationRep, spherical_d_shell_dispatch)
+{
+    rvec3_t z(0,0,1);
+    Matrix3D<double> R = SymOp::Cn(z,4).Matrix();           // 90 deg about z
+    std::vector<AoShell> shells = { {0, rvec3_t(0,0,0), {}, {1,1,1,1,1}, 0, Dsph()} };  // c2s set => spherical
+    rmat_t M = BuildOperationRep(shells, R, rvec3_t(0,0,0), 1e-9);
+    rmat_t D = SphericalShellRep(R, Dsph());
+    ASSERT_EQ(M.rows(), 5u);
+    for (size_t i=0;i<5;i++) for (size_t j=0;j<5;j++)
+        EXPECT_NEAR(M(i,j), D(i,j), 1e-12);
 }
