@@ -104,7 +104,7 @@ size_t Ωκ::SequenceIndex() const //Used for op<
 
 size_t Ωκ::GetDegeneracy() const
 {
-    return Getj()+0.5; //(2j+1)/2 degeneracy for one spin state.
+    return Getj()+0.5; //!< \f$(2j+1)/2\f$ -- the degeneracy of one spin state of the shell.
 }
 
 std::ostream& Ωκ::Write(std::ostream& os) const

@@ -1,69 +1,75 @@
-# qcSymmetry consolidation — fewer modules/files for the quantum-number layer
+# qcSymmetry structure — SALC pipeline + QN-hierarchy notes
 
-Plan for simplifying `src/Symmetry` (qcSymmetry). Prompted by the observation that the atom-symmetry
-classes "just store quantum numbers, no functionality," spread across many tiny module/.C files. Living
-document; Phase 1 shipped, the rest staged for review because the higher-value merge touches public API.
+Working notes on simplifying the recently-built molecular-symmetry code. **Companion to
+`project_symmetry_naming_cleanup` (memory breadcrumb)** — the QN-hierarchy rename lives there; this doc
+covers the SALC/ShellRep pipeline structure and coordinates the one overlapping change (the
+`Irrep`+`Orbital_QNs` module merge, which belongs with that rename).
 
-## Diagnosis (survey)
+## The `Structure + RawBasisSet → SALC_IBS` call flow is clean
 
-qcSymmetry is ~37 `.C` files but only ~800 lines of real logic. Two populations:
+Traced `PG::SymmetryAdapt` end to end. It's a shallow, linear pipeline — the ShellRep DIP refactor already
+removed the branching, so there is no tangle to unwind:
 
-- **Algorithmic core — KEEP SEPARATE.** `PointGroup` (geometry + detection, ~350 L impl), `CharacterTable`,
-  `AbelianGroup`, `SALC`, and the rep files `ShellRep`/`CartesianRep`/`SphericalRep`/`OperationRep`. These do
-  real work (rotation algebra, character projection, Gram-Schmidt, the c2s projection). Leave them.
-- **Quantum-number storage — OVER-FRAGMENTED.** ~12 small classes that hold 1–3 fields and implement only
-  `SequenceIndex()` (an ordering key) + `Write()`: `Spin`, `Irrep`, `Orbital_QNs`, `MolecularIrrep`,
-  `UnitQN`, `BlochQN`, and the four spherical/spinor containers `Yl`/`Ylm`/`Ωκ`/`Ωκmj`. Each tends to get its
-  own module and/or `.C` file. This is the fragmentation to collapse.
+```
+Structure ─► StructureToSymPoints ─► BuildAbelianGroup ─► AbelianGroup {char table, ops}
+RawBasisSet ─► ExtractAoShells ─────────────────────────► AoShell[] {geom, norm, ShellRep}
+                          │
+   (AbelianGroup, AoShell[]) ─► BuildSALCs  ─► SALCs {O-matrix, irrep labels}
+        BuildSALCs internally:  ∀ g: BuildOperationRep(shells, R) → shell.rep→Rep(R)   (no angular branch)
+   (rawIBS, SALCs) ─► SymmetryAdaptedBasisSet ─► per-irrep SALC_IBS blocks
+```
 
-The QN classes form the intended hierarchy *by added quantum number* (see `project_symmetry_naming_cleanup`):
-`Irrep` (spin + spatial `sym_t`) ⊂ `Orbital_QNs` (+ principal n). `sym_t = shared_ptr<const Symmetry>` is the
-polymorphic spatial-symmetry handle whose concretes are `MolecularIrrep` / `Yl`/`Ylm` / `Ωκ`/`Ωκmj` / `BlochQN`
-/ `UnitQN`. `SequenceIndex()` is purely an ordering/caching key — no physics.
+Each step is one well-named function with a clear output type. The algorithmic modules
+(`PointGroup`/`AbelianGroup`/`CharacterTable`, `SALC`, the `*Rep` files) are appropriately separate and do
+real work. **No structural rework needed here.**
 
-## Staged consolidation
+## The one real smell — the `dynamic_cast` dispatch in `SymmetryAdapt`
 
-Ordered by value/risk. Internal-only merges first; the public-API one last (it's also entangled with the
-queued naming cleanup).
+`SymmetryAdapt` picks the shell extractor by casting the abstract `Real_OIBS` to the concrete `PGData` /
+`SphData`:
 
-### Phase 1 — merge the 4 spherical/spinor QN impls into one file  ·  ✅ DONE  ·  zero API change
-`Yl.C`, `Ylm.C`, `Okmj.C` are all implementation units of the SAME module
-(`qchem.Symmetry.Internal.Spherical`) — three `.C` files for one module. Merge their bodies into a single
-`Internal/Imp/Spherical.C`; the interface `Internal/Spherical.C` (which exports `Yl`/`Ylm`/`Ωκ`/`Ωκmj`) is
-unchanged, so nothing outside sees a difference. CMake: 3 impl lines → 1.
+```cpp
+if (auto* pg  = dynamic_cast<const PGData*>(ibs))  shells = ExtractAoShells(*pg);
+if (auto* sph = dynamic_cast<const SphData*>(ibs)) shells = PG_Spherical::ExtractAoShells(*sph);
+```
 
-### Phase 2 — fold `UnitQN` + `BlochQN` into one module  ·  low risk (internal, via Factory only)
-Unlike Phase 1, these are separate *modules* (`qchem.Symmetry.Unit`, `qchem.Symmetry.BlochQN`), each a
-concrete `Symmetry::Symmetry` used **only** through `Factory` (`UnitFactory`/`BlochFactory`). Merge into one
-`qchem.Symmetry.Internal.BasicQNs` (both classes) + one impl file. Only `Imp/Factory.C` imports them, so the
-blast radius is one file. Module-name change, hence "low" not "zero."
+This is (a) the abstract→concrete cast CLAUDE.md flags, and (b) the **combinatorics landmine**: every new
+`{engine}×{angular}` delivery adds another `if (cast)`, and libcint-spherical is a *trap* precisely because
+its cast to `PGData` silently succeeds with the wrong (Cartesian) components.
 
-### Phase 3 — merge `Irrep` + `Orbital_QNs` → one `qchem.Symmetry.OrbitalQNs` module  ·  MODERATE (public API)
-They're a linear hierarchy (`Orbital_QNs : Irrep`) that can't exist apart, so one module is natural. BUT
-`Irrep` is imported widely across BasisSet (`IrrepBasisSet`, `BasisSet`, the atom evaluators, tests), so this
-is an import-rename ripple (`import qchem.Symmetry.Irrep;` → `…OrbitalQNs;`) across ~20 files. Mechanical but
-wide. **Do this together with the queued `project_symmetry_naming_cleanup`** (rename `Symmetry::Symmetry`→the
-`Irrep ⊂ SpinIrrep ⊂ OrbitalQNs` naming + the `CarriesSpin()` predicate fix) so the public surface churns
-once, not twice. Left for review — it's the one with real blast radius and a naming decision attached.
+**Fix (DIP, same move as ShellRep): a virtual `GetAoShells()` on the orbital IBS.** Push the extraction into
+the type that owns the data. Then:
+```cpp
+shells = ibs->GetAoShells();          // no cast, no PGData/SphData knowledge in the orchestrator
+```
+- Kills the abstract→concrete cast; `SymmetryAdapt` becomes basis-agnostic.
+- A new basis (libcint-spherical S3b, or anything) becomes pluggable by implementing one method — it can't be
+  a silent trap because there's no cast to succeed wrongly.
+- Layering is fine: the orbital-IBS interface already depends on qcSymmetry (via `Irrep`), so returning
+  `vector<Symmetry::AoShell>` adds no new edge.
+- The two current `ExtractAoShells` (`PG_Cart`, `PG_Spherical`) share a `ShellTypeId` + block-grouping
+  skeleton; a small shared helper dedupes it as they become the two method bodies.
 
-### Not merging (by design)
-`PointGroup`, `SALC`, `CharacterTable`, `AbelianGroup`, and the `*Rep` files — real algorithms with clear
-boundaries. `Factory` + `Spherical` (abstractions + `Getl()/Getκ()` cast helpers) stay separate: `Spherical`
-is the "what can I query from a symmetry?" contract used across the atom basis, and folding it into `Factory`
-would muddle construction vs. dispatch.
+This is the highest-value structural simplification of the recently-created code. **Proposed, awaiting a go.**
+Pairs naturally with the parked `NotImplemented`/`UnsupportedCombination` exception idea (the GUI-facing
+handling of unbuilt `{cart,sph}×{MnD,libcint}×{sym}` corners).
 
-## Doxygen pass (browse-enabling)
+## Coordination with `project_symmetry_naming_cleanup`
 
-The newer rep files (`ShellRep`/`CartesianRep`/`SphericalRep`/`OperationRep`) already use `//!`. The QN
-interfaces (`Spin`, `Symmetry`, `Irrep`, `Orbital_QNs`, `Spherical`, `MolecularIrrep`) and the algorithmic
-impls (`PointGroup`, `CharacterTable`, `AbelianGroup`, `SALC`) are mostly plain `//`. Convert the QN
-interfaces to `//!`/`\brief` as each module is touched, so the hierarchy renders in Doxygen. (Done for the
-Phase-1 file + the central QN interfaces.)
+That breadcrumb owns the QN-hierarchy rename: `Symmetry::Symmetry` → the `Irrep ⊂ SpinIrrep ⊂ OrbitalQNs`
+naming (name by the added quantum number) + the `CarriesSpin()` predicate fix for the spinor double-group.
+One structural change belongs with it, not here:
 
-## Related parked item — an "unimplemented feature" exception
+- **Merge `Irrep` + `Orbital_QNs` into one `qchem.Symmetry.OrbitalQNs` module.** They're a linear hierarchy
+  (`Orbital_QNs : Irrep`) that can't exist apart. BUT `Irrep` is imported across ~20 BasisSet files, so the
+  import-rename ripple should happen **once**, together with the naming rename — do it as part of
+  `project_symmetry_naming_cleanup`, not as a standalone merge.
 
-Separate but adjacent (GUI-team-facing): the facade's feature combinatorics — `{Cartesian,Spherical}` ×
-`{MnD,libCint}` × `{symmetry,no}` × model — has holes (spherical-libcint SALC = S3b, deliberately not built).
-Today those throw `std::runtime_error`. Worth a small dedicated `NotImplemented`/`UnsupportedCombination`
-exception the GUI can catch, carrying the specific combination (engine, angular, symmetry, model) + a
-suggested working alternative, so an unbuilt corner is a clean caught error, not a surprise. Spec TBD.
+The core QN interfaces (`Spin`/`Symmetry`/`Irrep`/`Orbital_QNs`) are now doxygen'd (LaTeX formulas via
+`\f$…\f$`) so the hierarchy browses while that rename is designed.
+
+## Minor / low-interest (not prioritized)
+
+Pure `.C`-file consolidation inside `Internal/Imp/` (merging tiny same-module impl units) — low value.
+Phase 1 (the three spherical-QN impls `Yl`/`Ylm`/`Okmj` → one `Internal/Imp/Spherical.C`) is done because it
+was zero-risk/zero-API; the rest (`Unit`+`BlochQN`) isn't worth the churn on its own and is not planned.
