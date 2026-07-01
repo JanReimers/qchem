@@ -15,8 +15,10 @@
 extern "C" {
 #endif
 
-// Build a molecule (atomic numbers + flat 3N bohr positions) and converge an HF SCF.
-void*  qcb_make(const int* Z, int nat, const double* pos3, const char* basis, int maxiter);
+// Build a molecule (atomic numbers + flat 3N bohr positions) and converge an SCF.
+// method: "HF" (default) | "LDA" | "Xalpha" -> CalcOptions.model.
+void*  qcb_make(const int* Z, int nat, const double* pos3,
+                const char* basis, const char* method, int maxiter);
 void   qcb_free(void* h);
 
 double qcb_energy(void* h);

@@ -62,7 +62,8 @@ struct Calc {
 
 extern "C" {
 
-void* qcb_make(const int* Z, int nat, const double* pos3, const char* basis, int maxiter)
+void* qcb_make(const int* Z, int nat, const double* pos3,
+               const char* basis, const char* method, int maxiter)
 {
     auto* c = new Calc();
     c->numbers.assign(Z, Z + nat);
@@ -73,7 +74,12 @@ void* qcb_make(const int* Z, int nat, const double* pos3, const char* basis, int
     for (int a = 0; a < nat; ++a)
         mol.Insert(new Atom(Z[a], 0.0, rvec3_t(pos3[3*a], pos3[3*a+1], pos3[3*a+2])));
 
-    c->calc = std::make_unique<Calculation>(mol, CalcOptions{.basis = basis});  // build + converge
+    qchem::Model model = qchem::Model::HF;                          // method string -> Hamiltonian
+    if (method) {
+        if      (std::strcmp(method, "LDA")    == 0) model = qchem::Model::LDA;
+        else if (std::strcmp(method, "Xalpha") == 0) model = qchem::Model::Xalpha;
+    }
+    c->calc = std::make_unique<Calculation>(mol, CalcOptions{.basis = basis, .model = model});
     if (maxiter != 20)
         c->calc->Converge({.NMaxIter = size_t(maxiter)});                        // honor a custom cap
     return c;

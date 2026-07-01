@@ -29,12 +29,13 @@ NB_MODULE(qchem_py, mod)
 
     nb::class_<Calc>(mod, "Calculator")
         .def("__init__", [](Calc* self, const std::vector<int>& Z, const std::vector<double>& pos,
-                            const std::string& basis, int max_iter) {
-                 self->h = qcb_make(Z.data(), (int)Z.size(), pos.data(), basis.c_str(), max_iter);
+                            const std::string& basis, const std::string& method, int max_iter) {
+                 self->h = qcb_make(Z.data(), (int)Z.size(), pos.data(),
+                                    basis.c_str(), method.c_str(), max_iter);
              },
              nb::arg("numbers"), nb::arg("positions"),
-             nb::arg("basis") = "dzvp", nb::arg("max_iter") = 20,
-             "Build a molecule (atomic numbers + flat 3N bohr positions) and converge an HF SCF.")
+             nb::arg("basis") = "dzvp", nb::arg("method") = "HF", nb::arg("max_iter") = 20,
+             "Build a molecule + converge an SCF. method: HF | LDA | Xalpha.")
         .def("__del__", [](Calc& c){ if (c.h) { qcb_free(c.h); c.h = nullptr; } })
         .def("total_energy", [](Calc& c){ return qcb_energy(c.h); })
         .def("run_scf", [](Calc& c, nb::callable cb) {
