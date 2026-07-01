@@ -14,20 +14,18 @@ namespace qchem::BasisSet::Molecule::PG_Cart
 ::qchem::BasisSet::Molecule::SymmetryAdaptedBasisSet*
 SymmetryAdapt(std::shared_ptr<const ::qchem::BasisSet::BasisSet<double>> rawBasis, const Structure& st, double tol)
 {
-    // The orbital IBS produces its own AO shells (in its own angular convention) through the AoShellSource
-    // capability -- ONE abstract-to-abstract cast, no knowledge of the concrete PGData/SphData data structs
-    // and no per-delivery branch.  A basis that can't be symmetry-adapted simply isn't an AoShellSource, so
-    // the guard below reports it cleanly (e.g. libcint-spherical, S3b; see doc/SphericalSALCPlan.md).
+    // Iterate the AoShellSource face directly: the iterator does the (encapsulated) cast, and because an
+    // AoShellSource IS-A Real_OIBS we also get the raw IBS for the decorator with no cast-back.  No client
+    // dynamic_cast, no PGData/SphData knowledge, no per-delivery branch.  A delivery that can't honour a
+    // correct AO-shell layout (e.g. libcint-spherical, S3b) throws from GetAoShells (see SphericalSALCPlan).
     const ::qchem::BasisSet::Real_OIBS*  rawIBS = nullptr;
     std::vector<Symmetry::AoShell>       shells;
-    for (auto ibs : rawBasis->Iterate<const ::qchem::BasisSet::Real_OIBS>())
-        if (auto* src = dynamic_cast<const Molecule::AoShellSource*>(ibs))
-            { rawIBS = ibs; shells = src->GetAoShells(); break; }
+    for (auto src : rawBasis->Iterate<const Molecule::AoShellSource>())
+        { rawIBS = src; shells = src->GetAoShells(); break; }   // src IS-A Real_OIBS: plain upcast
 
     if (!rawIBS)
-        throw std::runtime_error("PG::SymmetryAdapt: the orbital basis is not symmetry-adaptable (no "
-                                 "AoShellSource) -- covered today are the Cartesian PolarizedGaussian and "
-                                 "in-house spherical bases; libcint-spherical is not yet wired.");
+        throw std::runtime_error("PG::SymmetryAdapt: the orbital basis is not symmetry-adaptable "
+                                 "(no AoShellSource IBS in the basis).");
 
     auto pts    = StructureToSymPoints(st);
     auto grp    = Symmetry::BuildAbelianGroup(pts, tol);
