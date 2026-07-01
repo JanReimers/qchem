@@ -127,6 +127,16 @@ void qcb_density(void* h, int n, double pad, double* out, double* origin, double
     sample_scalar(c->calc->Density(), lo, hi, n, out, origin, spacing);
 }
 
+int qcb_spin_density(void* h, int n, double pad, double* out, double* origin, double* spacing)
+{
+    auto* c = static_cast<Calc*>(h);
+    const ScalarFunction<double>* s = c->calc->SpinDensity();
+    if (!s) return 0;                                  // unpolarized: no spin field to sample
+    rvec3_t lo, hi; bbox(c->positions, pad, lo, hi);
+    sample_scalar(*s, lo, hi, n, out, origin, spacing);
+    return 1;
+}
+
 void qcb_gradient(void* h, int n, double pad, double* out, double* origin, double* spacing)
 {
     auto* c = static_cast<Calc*>(h);

@@ -42,6 +42,9 @@ int qcb_run_scf(void* h, qcb_scf_cb cb, void* user);
 // plus origin[3] and spacing[3]. Density/orbital/gradient all sample the same
 // converged state.
 void qcb_density (void* h, int n, double pad, double* out, double* origin, double* spacing);
+// Signed spin density rho_up-rho_down. Returns 1 and fills the grid when polarized;
+// returns 0 (grid untouched) for an unpolarized run, which has no net spin field.
+int  qcb_spin_density(void* h, int n, double pad, double* out, double* origin, double* spacing);
 void qcb_orbital (void* h, int index, int n, double pad,
                   double* out, double* origin, double* spacing, int* is_signed);
 void qcb_gradient(void* h, int n, double pad, double* out, double* origin, double* spacing);

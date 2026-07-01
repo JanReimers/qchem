@@ -76,6 +76,18 @@ NB_MODULE(qchem_py, mod)
                  d["spacing"] = nb::make_tuple(s[0], s[1], s[2]);
                  return d;
              }, nb::arg("n") = 64, nb::arg("pad") = 5.0)
+        .def("spin_density", [](Calc& c, int n, double pad) -> nb::object {
+                 auto arr = make_array({(size_t)n, (size_t)n, (size_t)n});
+                 double o[3], s[3];
+                 if (!qcb_spin_density(c.h, n, pad, arr.data(), o, s))
+                     return nb::none();               // unpolarized run: no spin field
+                 nb::dict d; d["values"] = arr;
+                 d["origin"] = nb::make_tuple(o[0], o[1], o[2]);
+                 d["spacing"] = nb::make_tuple(s[0], s[1], s[2]);
+                 d["signed"] = true;                  // rho_up-rho_down is signed
+                 return d;
+             }, nb::arg("n") = 64, nb::arg("pad") = 5.0,
+             "Signed spin density rho_up-rho_down on an n^3 grid; None for an unpolarized run.")
         .def("orbital", [](Calc& c, int index, int n, double pad) {
                  auto arr = make_array({(size_t)n, (size_t)n, (size_t)n});
                  double o[3], s[3]; int sgn = 0;

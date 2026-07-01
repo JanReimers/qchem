@@ -123,6 +123,7 @@ public:
     std::string Report(const std::string& kind) const;
 
     const sf_t&      Density()           const;   //!< rho(r): sample directly, also has Gradient()
+    const sf_t*      SpinDensity()       const;   //!< rho_up-rho_down; nullptr when unpolarized (no spin)
     const sf_t&      HOMO()              const;   //!< highest occupied MO
     const sf_t&      Orbital(size_t i)   const;   //!< i-th MO by ASCENDING energy (occupied AND virtual)
     size_t           NumOccupied()       const;   //!< index of the LUMO (= HOMO+1); occupied are [0,NumOccupied)
@@ -144,6 +145,7 @@ private:
     BasisSet::Real_BS*                   itsBasis = nullptr;  //!< owned
     qchem::SCFIterator::SCFIterator*     itsScf   = nullptr;  //!< owned (owns Hamiltonian + accelerator)
     std::unique_ptr<qchem::ChargeDensity::DM_CD> itsDensity;  //!< owned converged rho(r)
+    std::unique_ptr<sf_t>                itsSpinDensity;       //!< owned rho_up-rho_down; null if unpolarized
     std::vector<occ_t>                   itsOrbitals;          //!< ALL MOs, energy-ascending; non-owning
     size_t                               itsNumOccupied = 0;   //!< the occupied/virtual boundary (LUMO index)
     Observer                             itsObserver;          //!< optional live-progress sink

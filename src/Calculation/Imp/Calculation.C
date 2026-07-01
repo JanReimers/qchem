@@ -120,6 +120,7 @@ void Calculation::RebuildSampling()
 {
     const auto* wf = itsScf->GetWaveFunction();
     itsDensity.reset(wf->GetChargeDensity());          // GetChargeDensity hands back a heap rho -- we own it
+    itsSpinDensity.reset(wf->GetSpinDensity());        // heap rho_up-rho_down, or null when unpolarized
 
     itsOrbitals.clear(); itsNumOccupied = 0;
     for (const Irrep& irr : wf->GetQNs())
@@ -173,6 +174,11 @@ const Calculation::sf_t& Calculation::Density() const
 {
     assert(itsDensity);
     return *itsDensity;
+}
+
+const Calculation::sf_t* Calculation::SpinDensity() const
+{
+    return itsSpinDensity.get();   // null when the run is unpolarized (no net spin to sample)
 }
 
 const Calculation::sf_t& Calculation::HOMO() const
