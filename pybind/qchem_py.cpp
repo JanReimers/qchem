@@ -31,8 +31,11 @@ NB_MODULE(qchem_py, mod)
         .def("__init__", [](Calc* self, const std::vector<int>& Z, const std::vector<double>& pos,
                             const std::string& basis, const std::string& method,
                             bool symmetry, int max_iter) {
-                 self->h = qcb_make(Z.data(), (int)Z.size(), pos.data(),
-                                    basis.c_str(), method.c_str(), symmetry ? 1 : 0, max_iter);
+                 void* h;
+                 { nb::gil_scoped_release nogil;   // release the GIL for the C++ SCF -> a worker
+                   h = qcb_make(Z.data(), (int)Z.size(), pos.data(),   //    thread won't freeze the GUI
+                                basis.c_str(), method.c_str(), symmetry ? 1 : 0, max_iter); }
+                 self->h = h;
              },
              nb::arg("numbers"), nb::arg("positions"),
              nb::arg("basis") = "dzvp", nb::arg("method") = "HF",
@@ -46,11 +49,15 @@ NB_MODULE(qchem_py, mod)
                  return out;                          // JSON string; Python json.loads it
              }, nb::arg("kind"))
         .def("run_scf", [](Calc& c, nb::callable cb) {
-                 // captureless trampoline -> C function pointer; user = &cb (alive for the call)
+                 // captureless trampoline -> C function pointer; user = &cb (alive for the call).
+                 // The C++ SCF runs GIL-free; the per-iteration callback re-acquires it for Python.
                  auto tramp = [](void* u, int it, double E, double dE, double comm, double drho) {
+                     nb::gil_scoped_acquire gil;
                      (*static_cast<nb::callable*>(u))(it, E, dE, comm, drho);
                  };
-                 return qcb_run_scf(c.h, tramp, &cb);
+                 int n;
+                 { nb::gil_scoped_release nogil; n = qcb_run_scf(c.h, tramp, &cb); }
+                 return n;
              }, nb::arg("callback"),
              "Re-run the SCF from the seed, calling callback(iter, E, dE, [F,D], drho) "
              "each iteration. Returns the iteration count.")
