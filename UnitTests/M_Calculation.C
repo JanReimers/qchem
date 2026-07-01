@@ -61,10 +61,11 @@ TEST(M_Calculation, WaterSymmetry)
     EXPECT_GT(calc.IterationCount(), 0u);
 }
 
-// engine=LibCint + {.symmetry=true}: the libcint-Cartesian orbital IBS is ALSO symmetry-adaptable (it's an
-// AoShellSource, like the MnD bases), so this must converge to the same energy as the MnD/un-blocked run.
-// Guards the {engine=libcint}x{symmetry} combination -- previously untested, and the AoShellSource refactor
-// silently regressed it (libcint used to adapt via the PGData cast; the fix restores it).
+// engine=LibCint + {.symmetry=true}: the libcint-Cartesian orbital IBS is ALSO symmetry-adaptable (it
+// implements GetAoShells via Molecule::Orbital_1E_IBS_ABS, like the MnD bases), so this must converge to the
+// same energy as the MnD/un-blocked run.  Guards the {engine=libcint}x{symmetry} combination, previously
+// untested -- a symmetry-adaptation refactor once silently regressed it (libcint adapted via the old PGData
+// cast); this test locks it in.
 TEST(M_Calculation, WaterSymmetryLibCint)
 {
     Calculation calc(MakeWater(), {.basis = "dzvp", .engine = Engine::LibCint, .symmetry = true});

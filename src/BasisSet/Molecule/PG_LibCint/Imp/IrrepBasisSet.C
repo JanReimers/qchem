@@ -153,7 +153,7 @@ std::ostream& IrrepBasisSet::Write(std::ostream& os) const {return os << BasisSe
 Orbital_IBS::Orbital_IBS(Reader* bsr, const Structure* cl, bool sph)                : IrrepBasisSet(bsr,cl,sph) {};
 Orbital_IBS::Orbital_IBS(const rvec_t& es, size_t L, const Structure* cl, bool sph) : IrrepBasisSet(es,L,cl,sph) {};
 
-// AoShellSource: libcint-Cartesian shares PG_Cart's Cartesian PGData layout, so it reuses the same extractor.
+// Orbital_1E_IBS_ABS::GetAoShells: libcint-Cartesian shares PG_Cart's Cartesian PGData layout, so it reuses that extractor.
 // Spherical libcint carries libcint's own real-harmonic order/norm (S3b, not convention-matched) yet its
 // PGData base still holds the Cartesian layout -- reading it as Cartesian is the silent trap, so throw.
 std::vector<Symmetry::AoShell> Orbital_IBS::GetAoShells() const

@@ -18,7 +18,6 @@ import qchem.Structure;
 import qchem.Types;
 import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.BasisSet.Orbital_HF_IBS;
-import qchem.BasisSet.Molecule.AoShellSource;   // AoShellSource: this orbital basis yields its AO shells for SALC
 
 export namespace qchem::BasisSet::Molecule::PG_Cart
 {
@@ -65,7 +64,6 @@ class Orbital_IBS
     , public Molecule::Orbital_HF_IBS <Evaluators::PG_Cart_MnD::NR_Evaluator>
     , public Molecule::Orbital_DFT_IBS<Evaluators::PG_Cart_MnD::NR_Evaluator>
     , public IrrepBasisSet
-    , public Molecule::AoShellSource
 {
 public:
     Orbital_IBS(Reader *, const Structure *);
@@ -76,7 +74,7 @@ public:
     virtual FIT_SF_ABS* CreateVxcFitBasisSet(const Structure *, const qcMesh::MeshParams&) const;
 
     //! This basis's AO shells in Cartesian-monomial form (delegates to ExtractAoShells on its own PGData).
-    virtual std::vector<Symmetry::AoShell> GetAoShells() const override;
+    virtual std::vector<Symmetry::AoShell> GetAoShells() const override;   // Molecule::Orbital_1E_IBS_ABS
 };
 // Use E prefix to avoid name clash with the interface class Fit_IBS
 class EFit_IBS

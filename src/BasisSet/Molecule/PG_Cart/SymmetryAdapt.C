@@ -15,8 +15,8 @@ export namespace qchem::BasisSet::Molecule::PG_Cart
 
 //! \brief Build a symmetry-adapted basis from a raw molecular AO basis + its structure:
 //! \c Structure + \c RawBasisSet \f$\rightarrow\f$ \c SALC_IBS.  Pipeline: the orbital IBS yields its own AO
-//! shells (\c AoShellSource::GetAoShells) \f$\rightarrow\f$ detect the point group \f$\rightarrow\f$
-//! \c BuildSALCs \f$\rightarrow\f$ wrap.  The returned object owns the raw basis (KeepAlive).
+//! shells (\c Molecule::Orbital_1E_IBS_ABS::GetAoShells) \f$\rightarrow\f$ detect the point group
+//! \f$\rightarrow\f$ \c BuildSALCs \f$\rightarrow\f$ wrap.  The returned object owns the raw basis (KeepAlive).
 //! \image html salc_call_flow.svg "Structure + RawBasisSet -> SALC_IBS dataflow" width=640
 //! (source: doc/diagrams/salc_call_flow.svg; add doc/diagrams to the Doxyfile IMAGE_PATH to render.)
 ::qchem::BasisSet::Molecule::SymmetryAdaptedBasisSet*

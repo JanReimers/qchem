@@ -23,12 +23,29 @@ import qchem.BasisSet.Orbital_HF_IBS;
 import qchem.BasisSet.Fit_IBS;
 import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.Molecule.Evaluators;      // concepts + generic 1E matrix builders
+export import qchem.Symmetry.OperationRep;      // Symmetry::AoShell (the molecule-specific 1E addition)
 import qchem.Structure;
 import qchem.Types;
 import qchem.Blaze;
 
 export namespace qchem::BasisSet::Molecule
 {
+
+// --- Evaluator-neutral superclass of the molecular orbital 1E IBS ---------------------------------
+// The non-templated interface that ADDS molecule-specific operations to the generic Real_OIBS -- currently
+// just GetAoShells (the point-group SALC seam).  A client (PG::SymmetryAdapt) can Iterate<Orbital_1E_IBS_ABS>
+// to reach every molecular orbital basis polymorphically, WITHOUT knowing its evaluator; the templated
+// Orbital_1E_IBS<E> below supplies the evaluator-driven integral implementations.  Real-space by nature, so
+// it lives on the molecule side and is absent from the dcmplx plane-wave path.
+class Orbital_1E_IBS_ABS
+    : public virtual ::qchem::BasisSet::Orbital_1E_IBS<double>
+{
+public:
+    //! \brief This basis's AO shells for point-group SALC adaptation (Cartesian monomials or real solid
+    //! harmonics, in the basis's own convention).  Deliveries that cannot honour a correct layout THROW
+    //! (e.g. libcint-spherical, whose convention is unmatched -- S3b).
+    virtual std::vector<Symmetry::AoShell> GetAoShells() const = 0;
+};
 
 // --- 1E: Overlap / Kinetic(<p^2>) / Nuclear -------------------------------------------------------
 // Two evaluator granularities, one mixin: if E delivers whole matrices (isM_1E_Evaluator -- an opaque
@@ -38,7 +55,7 @@ export namespace qchem::BasisSet::Molecule
 // practice -- a kernel evaluator wants the loop + shared cache, an assembler hands us the matrix.)
 template <class E> requires (Evaluators::is1E_Evaluator<E> || Evaluators::isM_1E_Evaluator<E>)
 class Orbital_1E_IBS
-    : public virtual ::qchem::BasisSet::Orbital_1E_IBS<double>
+    : public virtual Orbital_1E_IBS_ABS     // evaluator-neutral molecule interface (IS-A Real_OIBS + GetAoShells)
 {
 protected:
     virtual rsmat_t MakeOverlap() const

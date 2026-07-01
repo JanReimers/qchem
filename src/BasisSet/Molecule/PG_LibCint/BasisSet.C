@@ -25,7 +25,6 @@ import qchem.BasisSet.Molecule.IBS;                          // Molecule::Orbita
 import qchem.BasisSet.Internal.BasisSetImp;
 import qchem.BasisSet.Internal.IrrepBasisSetImp;
 import qchem.BasisSet.Orbital_HF_IBS;
-import qchem.BasisSet.Molecule.AoShellSource;   // AoShellSource: libcint-Cartesian is symmetry-adaptable too
 import qchem.Structure;
 import qchem.Types;
 
@@ -78,7 +77,6 @@ class Orbital_IBS
     : public Molecule::Orbital_1E_IBS<LC::NR_Evaluator>
     , public Molecule::Orbital_HF_IBS<LC::NR_Evaluator>
     , public IrrepBasisSet
-    , public Molecule::AoShellSource
 {
 public:
     Orbital_IBS(Reader*, const Structure*, bool spherical=false);
@@ -87,7 +85,7 @@ public:
     //! AO shells for SALC.  Cartesian mode delegates to the Cartesian ExtractAoShells (libcint's Cartesian
     //! PGData layout matches PG_Cart's); spherical mode throws -- libcint's own real-harmonic order/norm is
     //! not yet convention-matched (S3b), so it must NOT be silently read as Cartesian.
-    virtual std::vector<Symmetry::AoShell> GetAoShells() const override;
+    virtual std::vector<Symmetry::AoShell> GetAoShells() const override;   // Molecule::Orbital_1E_IBS_ABS
 };
 
 class BasisSet

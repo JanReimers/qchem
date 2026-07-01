@@ -231,7 +231,7 @@ FIT_SF_ABS* Orbital_IBS::CreateVxcFitBasisSet(const Structure* cl, const qcMesh:
     f->SetMesh(*cl, mp);
     return f;
 }
-// AoShellSource: this orbital IBS IS-A PGData, so it hands its own Cartesian data to the extractor.
+// Orbital_1E_IBS_ABS::GetAoShells: this orbital IBS IS-A PGData, so it hands its own Cartesian data to the extractor.
 std::vector<Symmetry::AoShell> Orbital_IBS::GetAoShells() const {return ExtractAoShells(*this);}
 
 //----------------------------------------------------------------
