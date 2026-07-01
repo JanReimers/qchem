@@ -3,9 +3,12 @@ module;
 #include <vector>
 #include <string>
 #include <map>
+#include <memory>
+#include <utility>
 module qchem.BasisSet.Molecule.PG_Cart.Symmetry;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;
+import qchem.Symmetry.CartesianRep;   // CartesianShellRep (the concrete ShellRep this basis produces)
 
 namespace qchem::BasisSet::Molecule::PG_Cart
 {
@@ -13,6 +16,7 @@ using namespace ::qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD;  // Cartes
 using Symmetry::AoShell;
 using Symmetry::SymPoint;
 using Symmetry::IVec3;
+using Symmetry::CartesianShellRep;
 
 // A center-independent id for a radial shell (L + exponents + coefficients): symmetry-
 // equivalent shells on different atoms share it, so the center permutation can match them.
@@ -39,13 +43,15 @@ std::vector<AoShell> ExtractAoShells(const PGData& pg)
         sh.center    = r->GetCenter();
         sh.offset    = i;
         sh.shellType = ShellTypeId(r, types);
+        std::vector<IVec3> monomials;
         size_t j = i;
         for (; j < n && pg.radials[j] == r; ++j)
         {
             const Polarization& p = pg.pols[j];
-            sh.monomials.push_back(IVec3{p.n, p.l, p.m});
+            monomials.push_back(IVec3{p.n, p.l, p.m});
             sh.norm.push_back(pg.ns[j]);
         }
+        sh.rep = std::make_shared<CartesianShellRep>(std::move(monomials));  // this shell's Cartesian rep
         shells.push_back(std::move(sh));
         i = j;
     }

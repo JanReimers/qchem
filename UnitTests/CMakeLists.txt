@@ -4,7 +4,7 @@ link_directories(
     $<$<CONFIG:Release>:  submodules/libxc/build>
 )
 
-add_executable(UTMain gtestmain.C QchemTesterImp.C
+add_executable(UTMain gtestmain.C
     EigenSolverUT.C
     LDA_XC_UT.C
     PlaneWaveDFTUT.C
@@ -13,7 +13,10 @@ add_executable(UTMain gtestmain.C QchemTesterImp.C
     M_Calculation.C
     M_Umbrella.C
     )
-target_sources(UTMain PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES QchemTester.C TestUtils.C)
+# The QchemTester/TestAtom/TestDiracAtom/TestMolecule scaffold is RETIRED: every molecular test drives
+# qchem::Calculation and every atom/Dirac/PP test (and scfrun) drives qchem::AtomCalculation.  TestUtils
+# holds the shared free RelativeError / RelativeHF/DFT/DHFError helpers.
+target_sources(UTMain PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES TestUtils.C)
 
 #-Wno-unknown-pragmas
 # -Wno-cpp  Suppress warning messages emitted by #warning directives.
@@ -33,9 +36,10 @@ target_include_directories(UTMain PRIVATE
 )
 target_link_libraries(UTMain PUBLIC qcUmbrella qchem qcMath qcCommon xc)
 
-# scfrun: command-line SCF driver for accelerator tuning (no recompile).
-add_executable(scfrun scfrun.C QchemTesterImp.C)
-target_sources(scfrun PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES QchemTester.C )
+# scfrun: command-line SCF driver for accelerator tuning (no recompile).  Drives qchem::AtomCalculation
+# directly (no QchemTester); needs the TestUtils module for the RelativeHF/DHFError oracle helpers.
+add_executable(scfrun scfrun.C)
+target_sources(scfrun PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES TestUtils.C )
 target_compile_options(scfrun PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(scfrun PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
 set_property(TARGET scfrun PROPERTY CXX_STANDARD 20)

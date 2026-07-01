@@ -52,7 +52,16 @@ rsmat_t FittedVxcPol::CalcMatrix(const obs_t* bs,const Spin& s,const rChargeDens
         exit(-1);
     }
     const Polarized_CD* pol_cd =  dynamic_cast<const Polarized_CD*>(cd);
-    assert(pol_cd);
+    if (!pol_cd)
+    {
+        // Spin-unpolarized SEED density (e.g. the SAD total rho, implicitly rho_up = rho_down = rho/2).
+        // For Slater exchange Vx^sigma(rho/2) == Vx_unpolarized(rho_total), so each spin channel's
+        // iteration-0 Vxc is just the unpolarized Vxc of the total seed density.  (Only the seed is
+        // spin-agnostic; once the SCF builds orbitals the density is a Polarized_CD and the per-spin
+        // branch below runs.)  Previously the dynamic_cast yielded null and -- with the assert compiled
+        // out in Release -- segfaulted on the SAD-seeded polarized DFT path.
+        return (s==Spin::Up ? itsUpVxc : itsDownVxc)->GetMatrix(bs, s, cd);
+    }
 
     const DM_CD* ucd = pol_cd->GetChargeDensity(Spin::Up  );
     const DM_CD* dcd = pol_cd->GetChargeDensity(Spin::Down);

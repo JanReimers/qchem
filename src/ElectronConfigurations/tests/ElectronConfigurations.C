@@ -11,6 +11,7 @@ import qchem.Symmetry.Spherical;
 import qchem.Symmetry.Factory;
 
 import qchem.ElectronConfiguration.AtomNR;
+import qchem.ElectronConfiguration.Molecule;   // Molecule_EC (spin-native molecular occupation, OpenWork B3)
 import qchem.Strings;
 using namespace qchem;
 
@@ -755,16 +756,46 @@ TEST_F(ElectronConfigurationTests, Molybdenum)
 }
 TEST_F(ElectronConfigurationTests, Technesium)
 {
-    Atom_EC ec(43); //| s¹d⁵     | ↑ |        | ↑↑↑↑↑ 
+    Atom_EC ec(43); //| s¹d⁵     | ↑ |        | ↑↑↑↑↑
     sym_t s=qn(0);
     sym_t p=qn(1);
     sym_t d=qn(2);
-    
+
     EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,s)),5);
     EXPECT_EQ(ec.GetN(Irrep(Spin::Down,s)),5);
     EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,p)),9);
     EXPECT_EQ(ec.GetN(Irrep(Spin::Down,p)),9);
     EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,d)),5+5);
     EXPECT_EQ(ec.GetN(Irrep(Spin::Down,d)),5);
+}
+
+// --- Molecule_EC: spin-native molecular occupation (OpenWork B3) ----------------------------------
+// The single-arg Molecule_EC(Ne) is the minimal-spin collapse (singlet for even Ne, doublet for odd) and
+// must reproduce the historical closed-shell behaviour byte-for-byte; the two-arg form is the spin-native
+// open-shell (nUp, nDown).  Molecule_EC ignores the spatial irrep (global aufbau fills per spin channel),
+// so any sym exercises GetN's per-spin dispatch.
+TEST_F(ElectronConfigurationTests, MoleculeClosedShellEven)
+{
+    Molecule_EC ec(10);                 // 10 e- -> singlet: 5 up, 5 down (== the old closed-shell split)
+    sym_t s=qn(0);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,s)), 5);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,s)), 5);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::None,s)),10);
+}
+TEST_F(ElectronConfigurationTests, MoleculeMinimalSpinOdd)
+{
+    Molecule_EC ec(9);                  // 9 e- -> doublet: 5 up, 4 down (the historical odd-Ne collapse)
+    sym_t s=qn(0);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,s)), 5);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,s)), 4);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::None,s)), 9);
+}
+TEST_F(ElectronConfigurationTests, MoleculeOpenShellTriplet)
+{
+    Molecule_EC ec(9, 7);               // explicit open shell: 9 up, 7 down (triplet, nUp-nDown = 2)
+    sym_t s=qn(0);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,s)), 9);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,s)), 7);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::None,s)),16);
 }
 

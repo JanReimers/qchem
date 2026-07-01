@@ -47,9 +47,17 @@ Ham_DFT_U::Ham_DFT_U(const st_t& st,ExFunctional* ex, const qcMesh::MeshParams& 
     Add(new FittedVxc(XFitBasis, XcFunct));
 }
 
-// Dirac exchange + VWN5 correlation as separate terms (correct E_c = integral eps_c rho), sharing one
-// Vxc fit basis so the 3-centre integrals are computed once.
+// Dirac exchange + VWN5 correlation: the parameter-free in-house LSDA (delegates to the generic ctor).
 Ham_DFTcorr_U::Ham_DFTcorr_U(const st_t& st, const qcMesh::MeshParams& mp, const bs_t* bs)
+    : Ham_DFTcorr_U(st, new SlaterExchange(2.0/3.0), new VWN_Correlation(), mp, bs)
+{}
+
+// Generic separate-terms LSDA: exchange via FittedVxc (3/4 virial energy, exact for exchange) + correlation
+// via FittedVcorr (E_c = integral eps_c rho -- needs the functional's GetEpsXc), sharing ONE Vxc fit basis
+// so the 3-centre integrals are computed once.  Used by both the in-house (Slater+VWN) and libxc paths, so
+// the correct correlation energy is shared -- no path lumps X+C into a single 3/4-virial term.
+Ham_DFTcorr_U::Ham_DFTcorr_U(const st_t& st, ExFunctional* exchange, ExFunctional* correlation,
+                             const qcMesh::MeshParams& mp, const bs_t* bs)
 {
     InsertStandardTerms(st);
 
@@ -57,10 +65,27 @@ Ham_DFTcorr_U::Ham_DFTcorr_U(const st_t& st, const qcMesh::MeshParams& mp, const
     Add(new FittedVee(CFitBasis,st->GetNumElectrons()));
 
     FittedVxc::fbs_t XFitBasis(bs->CreateVxcFitBasisSet(st.get(), mp)); // ONE Vxc fit basis, shared X and C
-    FittedVxc::ex_t exch(new SlaterExchange(2.0/3.0));            // Dirac exchange (alpha = 2/3)
+    FittedVxc::ex_t exch(exchange);
     Add(new FittedVxc  (XFitBasis, exch));
-    FittedVxc::ex_t corr(new VWN_Correlation());                 // VWN5 correlation
+    FittedVxc::ex_t corr(correlation);
     Add(new FittedVcorr(XFitBasis, corr));
+}
+
+// Spin-native polarized LSDA: mirror Ham_DFTcorr_U but with the polarized exchange (FittedVxcPol, Dirac)
+// and the polarized correlation (FittedVcorrPol, spin-native VWN5) terms, sharing one Vxc fit basis.  The
+// unpolarized Ham_DFTcorr_U is the zeta=0 collapse of this.
+Ham_DFTcorr_P::Ham_DFTcorr_P(const st_t& st, const qcMesh::MeshParams& mp, const bs_t* bs)
+{
+    InsertStandardTerms(st);
+
+    FittedVee::fbs_t   CFitBasis(bs->CreateCDFitBasisSet(st.get(), mp));
+    Add(new FittedVee(CFitBasis,st->GetNumElectrons()));
+
+    FittedVxcPol::fbs_t XFitBasis(bs->CreateVxcFitBasisSet(st.get(), mp)); // ONE Vxc fit basis, shared X and C
+    FittedVxcPol::ex_t exch(new SlaterExchange(2.0/3.0, Spin(Spin::Up))); // Dirac exchange (alpha = 2/3), polarized
+    Add(new FittedVxcPol  (XFitBasis, exch));
+    FittedVcorrPol::corr_t corr(new VWN_Correlation());                  // spin-native VWN5 correlation
+    Add(new FittedVcorrPol(XFitBasis, corr));
 }
 
 // PSEUDOPOTENTIAL LSDA: like Ham_DFTcorr_U but with the bare nuclear attraction (Ven) replaced by the

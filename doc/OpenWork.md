@@ -15,18 +15,36 @@ Extend point-group SALC adaptation from the Cartesian PG basis to the two spheri
 | Stage | What | Status |
 |---|---|---|
 | S1 | `SphericalShellRep` (real-spherical operation rep, `qcSymmetry`) | ✅ committed `194f9971`, 4 tests |
-| S2 | generalize `AoShell`/`BuildOperationRep` to dispatch Cartesian vs spherical | ⬜ next |
-| S3 | the two convention-matched extractors (PG_Spherical in-house; libcint-spherical foreign) | ⬜ the bulk / bug-prone |
-| S4 | dispatch in `PG::SymmetryAdapt` by orbital-IBS type | ⬜ |
-| S5 | end-to-end tests: spherical-adapted SCF == un-adapted spherical SCF | ⬜ |
+| S2 | generalize `AoShell`/`BuildOperationRep` to dispatch Cartesian vs spherical | ✅ new `OperationRep` module (`f5abf1d2`) |
+| S3a | in-house `PG_Spherical` extractor `ExtractAoShells(SphData)` | ✅ reads basis's own c2s (zero convention risk) |
+| S3b | libcint-spherical extractor (foreign real-harmonic order/norm) | ⬜ only remaining piece |
+| S4 | dispatch in `PG::SymmetryAdapt` by orbital-IBS type | ✅ PGData/SphData; libcint-sph still guarded |
+| S5 | end-to-end tests: spherical-adapted SCF == un-adapted spherical SCF | ✅ `M_Sym.water_HF_spherical_*` |
 
-**Next step:** S2 — add a spherical angular descriptor to `AoShell` and let `BuildOperationRep` call
-`SphericalShellRep` (built S1) for spherical shells; keep the Cartesian path byte-identical.
-**Lifts:** the facade's `{.symmetry=true}` Cartesian-only guard, once S3a (PG_Spherical) lands.
+**S2 DONE:** `AoShell`+`BuildOperationRep` moved into a NEW module `qchem.Symmetry.OperationRep` (imports
+both `CartesianRep` + `SphericalRep`), resolving the `CartesianRep`↔`SphericalRep` cycle — the dispatcher
+can't live in either per-shell module. `AoShell` gained a `c2s` (HarmonicC2S) field; `IsSpherical()`/
+`nComponents()`; `BuildOperationRep` picks `SphericalShellRep` vs `CartesianShellRep` per shell. Cartesian
+path byte-identical (M_CartesianRep/M_SALC/M_Sym green); new `OperationRep.spherical_d_shell_dispatch` test.
+Only `SALC.C` + `M_CartesianRep.C` needed import edits (everything else gets `AoShell` transitively via SALC).
+
+**S3a+S4+S5 DONE** (in-house MnD-spherical SALC works end to end): new module
+`qchem.BasisSet.Molecule.PG_Spherical.Symmetry` — `ExtractAoShells(SphData)` reads the basis's OWN c2s
+(`comps[].terms`) into `AoShell.c2s`, so the rep is built in the basis's exact m-order/coeffs (no
+convention to match — the S3a risk evaporated). `SymmetryAdapt` dispatches PGData→Cartesian, SphData→
+spherical, else throws (libcint-spherical still unsupported). Facade guard relaxed: `{.symmetry=true}` +
+`angular=Spherical` now allowed for `engine=MnD`, still blocked for `engine=LibCint`. Also fixed a latent
+S2 gap: `BuildSALCs` computed `nAO` from `monomials.size()` (0 for spherical) — now `nComponents()`.
+`M_Sym.water_HF_spherical_{unpolarized,polarized}` (water/dzvp O d-shell). **157 UTMain, 14 UTSymmetry green.**
+
+**Next step (only remaining piece):** **S3b** — the libcint-spherical extractor. The bug-prone one: it must
+match **libcint's** real-harmonic ordering + normalization (a foreign convention), and libcint-spherical
+presents AS a PGData with spherical components (a trap). This is genuinely separable; the in-house spherical
+SALC is fully shippable without it.
 
 ---
 
-## B. Spin-native DFT (was "D2 polarized")  ·  NOT STARTED  ·  plan: `doc/FacadeDFTPlan.md` (D2) + tenet `feedback_spin_polarized_primary`
+## B. Spin-native DFT (was "D2 polarized")  ·  ✅ DONE (B1–B4)  ·  plan: `doc/SpinNativeDFTPlan.md` + tenet `feedback_spin_polarized_primary`
 
 Reframed per the design tenet: **spin-polarized is the native formulation; unpolarized is the
 ζ=0 efficiency collapse** — not "add the polarized special case." Four pieces, all spin-first:
@@ -35,13 +53,37 @@ Reframed per the design tenet: **spin-polarized is the native formulation; unpol
 3. open-shell molecular occupation `(n↑,n↓)` — `Molecule_EC(Ne)` is closed-shell aufbau only.
 4. facade multiplicity on `CalcOptions`.
 
-**Next step:** write a short spin-native DFT plan doc before code (scope the four pieces). Best
-sequenced toward the battery/magnetism payoff, ideally with PBE+U.
+**Plan doc DONE** (`doc/SpinNativeDFTPlan.md`): scopes the four pieces into staged B1–B4, grounded in the
+real types. Key finding surfaced: **correlation does NOT separate by spin channel** (exchange does) — so
+`FittedVxcPol`'s two-independent-channel split can't carry correlation; v_c^σ(ρ↑,ρ↓) couples both channels
+through r_s and ζ, needing a two-channel functional face + a `FittedVcorrPol` that fits against the full
+`Polarized_CD`. Full VWN5 spin params (ferro + spin-stiffness) tabulated in the doc.
+
+**B1 DONE** (uncommitted): spin-native VWN5 in `VWN_Correlation.C` — para/ferro/spin-stiffness branches via
+a shared `Gval`/`dGdx`, `EvalRZ(ρ,ζ)` returning ε_c + (r_s,ζ) partials, public two-channel face
+`GetEpsC(rUp,rDn)`/`GetVc(rUp,rDn,Spin)`. Scalar face = ζ=0 collapse, byte-identical (anchors unmoved).
+`LDA_XC_UT` extended: vs libxc `LDA_C_VWN` polarized on an (r_s,ζ) grid to 1e-9 + a collapse-consistency
+check. **150/150 UTMain green.**
+
+**ALL FOUR PIECES DONE** (B1 `51157449`, B2 `4189af69`, Factory cleanup `7132d645`, B3 `02b68b24`, B4 next commit):
+- **B1** spin-native VWN5 (`VWN_Correlation` para/ferro/stiffness + two-channel `GetEpsC`/`GetVc`; vs libxc polarized).
+- **B2** `SpinCorrelation` face + `FittedVcorrPol` (fits v_c^σ against full `Polarized_CD`, energy via `FittedEpsCPol`) + `Ham_DFTcorr_P` + Factory un-gate.
+- **B3** `Molecule_EC(nUp,nDown)` spin-native; `Molecule_EC(Ne)` = minimal-spin collapse (byte-identical).
+- **B4** `CalcOptions.multiplicity` → (nUp,nDown) + auto-promote to polarized + parity-validate.
+
+Anchors: `M_DFT.OxygenTripletLDA` (-149.2562876393, real ζ≠0), `OxygenTripletBelowSinglet` (Hund), `BadMultiplicityThrows`,
+`WaterPolarizedLDA` (closed-shell collapse). **154/154 UTMain green**, unpolarized anchors byte-identical throughout.
+Also did the **Factory interface cleanup** the user asked for (one DFT build site, dropped the public raw-`ExFunctional*`
+overload, honest LibXC-polarized throw).
+
+**Remaining for the north-star (separate increments, NOT this track):** spin-native GGA (PBE — gradient machinery),
+LibXC-polarized (the libxc wrapper needs two-channel `xc_lda_vxc`), and +U. The LDA *interface* is now spin-native end to end.
 **Done already (D1):** closed-shell molecular HF+DFT via the facade — unified `Model` enum + Factory
 resolver, LDA + Xα, `8b8df1d0`.
-**Bug to fix here:** polarized Xα + **SAD seed** segfaults (found during the facade test migration, D;
-the facade auto-picks SAD for DFT, which the polarized path can't yet handle). Robust polarized SAD is
-part of this track.
+**Fixed (was the B entry bug):** polarized Xα + **SAD seed** segfault — `FittedVxcPol::CalcMatrix`
+null-derefed on the spin-agnostic seed (`cd85d13c`); polarized Xα water now converges to the unpolarized
+anchor to ~1e-11, and `M_DFT.WaterPolarizedSAD` guards it. So polarized Xα itself is sound; this track is
+about the *correlation* side (spin-native VWN5 + `Ham_DFTcorr` two-channel) + open-shell occupation.
 
 ---
 
@@ -98,32 +140,36 @@ track **B**.
 
 ---
 
-## E. Retire QchemTester::Init — atom tests onto qchem::AtomCalculation  ·  PARTIAL  ·  (follow-on to D)
+## E. Retire QchemTester — atom tests onto qchem::AtomCalculation  ·  ✅ DONE  ·  (follow-on to D)
 
-Goal (user, "otherwise new tests appear on the old system"): no test/driver calls `QchemTester::Init`.
-A and B do **not** block this — everything the atom tests need already exists; it is pure facade plumbing.
+Goal (user, "otherwise new tests appear on the old system") EXCEEDED: not just `QchemTester::Init` retired
+— the **whole `QchemTester`/`TestAtom`/`TestDiracAtom`/`TestMolecule` scaffold is deleted** (`97963b63`).
+A and B did not block it.
 
-Built a SIBLING `qchem::AtomCalculation` (NOT an extension — the GUI team is actively on `Calculation`,
-keep its surface stable).  `src/Calculation/AtomCalculation.{C,Imp}`: AtomCalcOptions (atomic
-exponent-pool basis = AtomType + BasisSetAccuracy or {N,emin,emax}; model/pol/xalpha; nAngular=1 mesh;
-seed=CoreGuess), model-driven EC (Dirac→AtomDirac_EC else Atom_EC), ctor converges ONCE with SCFParams,
-GetIrreps/GetOrbital/GetStructure accessors for the Dirac diagnostics.  Free Z-keyed oracle helpers
+Built a SIBLING `qchem::AtomCalculation` (NOT an extension — the GUI team is actively on `Calculation`, so
+its surface stays untouched).  AtomCalcOptions: atomic exponent-pool basis (AtomType + BasisSetAccuracy or
+{N,emin,emax}); model/pol/xalpha; the `xc` exchange-functional selector; `pseudopotential`/`valence`;
+nAngular=1 mesh; seed=CoreGuess; an `accelerator` json escape hatch.  Model-driven EC, ctor converges once
+with SCFParams, GetIrreps/GetOrbital/GetStructure accessors.  Free Z-keyed oracle helpers
 RelativeHF/DFT/DHFError(E,Z) in UnitTests/TestUtils.C.
+
+New **public Hamiltonian-library API** (the long-wanted exchange-functional selector):
+`qchem::Hamiltonian::XCFunctional{kind,alpha,libxcId}` + `enum XC{SlaterXalpha,DiracVWN,LibXC}` +
+`Factory(Pol,st,XCFunctional,mesh,bs)`, and a public PP `Factory(st,element,valence,mesh,bs)`.  Internals
+(ExFunctional / Ham_PP_U) no longer leak.
 
 | File | Status |
 |---|---|
-| A_HF_U / A_HF_P (atom HF, un/pol) | ✅ migrated (`bf36a405`,`8f72981c`) |
-| A_DHF (Dirac: DE1 ions, DHF oracle, Phir, fine structure) | ✅ migrated (`0e70b05f`) |
-| A_DFT atomic (Slater-Xα + LSDA) + A_PG | ✅ migrated (`54dfcd51`) |
-| A_DFT_U (libxc exchange) | ⬜ needs a PUBLIC `ExFunctional`/libxc selector (it lives in Hamiltonian/Internal) |
-| A_PP (Si pseudopotential) | ⬜ needs a PUBLIC PP Factory (`Ham_PP_U` is in Hamiltonian/Internal; no public Factory) |
-| scfrun (CLI driver; also `--model PP`) | ⬜ driver rewrite onto AtomCalculation; blocked by the PP Factory |
-| delete `QchemTester::Init` | ⬜ after the three above |
+| A_HF_U / A_HF_P | ✅ `bf36a405`,`8f72981c` |
+| A_DHF (DE1 ions, DHF oracle, Phir, fine structure) | ✅ `0e70b05f` |
+| A_DFT atomic (Slater-Xα + LSDA) + A_PG | ✅ `54dfcd51` |
+| A_DFT_U (libxc via `{.xc=XCFunctional{.kind=XC::LibXC,.libxcId=7}}`) | ✅ `45f88cf9` |
+| A_PP (Si PP via `{.pseudopotential=true}`) | ✅ `45f88cf9` |
+| scfrun (CLI driver; all models + `--model PP` ions + accelerator tuning) | ✅ `97963b63` |
+| delete the QchemTester scaffold | ✅ `97963b63` |
 
-**Blocker for the rest = Hamiltonian-library public API, not the facade:** `Ham_PP_U` and `ExFunctional`
-are Internal with no public Factory.  Finishing means adding a public PP Factory (valuable anyway for the
-battery north-star) and a public exchange-functional selector, then migrating A_DFT_U/A_PP/scfrun and
-deleting `Init`.  146/146 UTMain green throughout; anchors byte-identical.
+146/146 UTMain green throughout; allTests + scfrun build; anchors byte-identical.  Future: `Calculation`
+(molecular) can adopt the same `XCFunctional` selector when the GUI team is ready.
 
 ## Bigger milestone on the horizon (not dangling, just flagged)
 
@@ -152,9 +198,9 @@ deleting `Init`.  146/146 UTMain green throughout; anchors byte-identical.
 
 1. ~~**C (namespace sweep)**~~ — ✅ DONE `108ced3b` (full unification: whole tree under `qchem::`).
 2. ~~**D (test → facade migration + slim QchemTester)**~~ — ✅ DONE (`585086bb`…`3c0becdd`).
-3. **A (finish Spherical SALC S2–S5)** — NEXT. Parked at a clean S1 checkpoint; resume when convenient.
-4. **B (spin-native DFT)** — plan first, build spin-first, sequence toward PBE+U / batteries.
-   *First concrete task here:* fix the polarized-Xα + SAD-seed segfault that D surfaced.
+3. ~~**B (spin-native DFT)**~~ — ✅ DONE (B1–B4, see above). Done before A this session. The LDA interface is
+   now spin-native end to end; PBE-GGA / LibXC-polarized / +U are separate increments toward the battery north-star.
+4. **A (finish Spherical SALC S2–S5)** — NEXT remaining thread. Parked at a clean S1 checkpoint; resume when convenient.
 
 Note: one library session at a time, GUI on its own branch → land each session at a clean commit and the
 whole-tree sweep (C) has nothing to collide with. Hold the line on not opening new threads.

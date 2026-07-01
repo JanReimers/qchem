@@ -16,6 +16,14 @@ Brief notes about module/library conventions, naming, and includes.
 - But there are also lot of actual unit tests in most of project-module (library) folders, under tests in each one.
 - allTests is the CMake target to include them.  It if fine to just focuse on UTMain or one pertinent unit test while devloping, but please build and pass every thing before any big commits.
 
+## pybind/ — do not modify (GUI/binding-owned)
+The `pybind/` directory is the Python binding (nanobind C++ glue that compiles
+`qchem_py.so`). It lives here only because it must compile against the C++20
+modules; it is owned by the GUI/binding side, not the lib team. Lib-side work
+MUST NOT edit `pybind/`. It links `libqchem` and rides the module build, so a lib
+API change CAN break its compile — if that happens, FLAG it for the binding owner;
+do not "fix" pybind/ yourself. (Built only under `-DQCHEM_PYBIND=ON`.)
+
 ## Modules & libraries
 
 - There is a hierarchy: a library contains many modules, which contain many classes. The compiler

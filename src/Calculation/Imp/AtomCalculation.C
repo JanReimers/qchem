@@ -9,9 +9,10 @@ module;
 #include <nlohmann/json.hpp>
 module qchem.AtomCalculation;
 
-import qchem.Hamiltonian.Factory;                   // Factory(Model,Pol,st,mesh,bs,xalpha), IsDFT
-import qchem.ElectronConfiguration.AtomNR;          // Atom_EC
+import qchem.Hamiltonian.Factory;                   // Factory(...), IsDFT, XCFunctional (XC selector)
+import qchem.ElectronConfiguration.AtomNR;          // Atom_EC, PseudoAtom_EC
 import qchem.ElectronConfiguration.AtomDirac;       // AtomDirac_EC
+import qchem.PeriodicTable;                          // thePeriodicTable().GetSymbol(Z) (the PP element)
 import qchem.SCFAccelerator.Factory;                // SCFAccelerators::Type, Factory
 import qchem.WaveFunction;                           // WaveFunction (GetChargeDensity/GetOrbitals/GetQNs)
 import qchem.Orbitals;                               // Orbital, Orbitals
@@ -23,6 +24,9 @@ namespace qchem
 using SCFIter = qchem::SCFIterator::SCFIterator;
 
 static bool IsDirac(Model m) {return m == Model::DE1 || m == Model::DHF;}
+
+// PP Zion: the explicit valence (Zion) if given, else the electron count (a neutral pseudo-atom).
+static int PPZion(const AtomCalcOptions& opts, int Ne) {return opts.valence > 0 ? opts.valence : Ne;}
 
 // Build the atomic exponent-pool basis.  An explicit pool ({type,N,emin,emax}, opts.N>0) reproduces the
 // A_SG/A_SL exponent-sweep json the scaffold built by hand; otherwise the BasisSetAccuracy preset is used
@@ -46,9 +50,12 @@ AtomCalculation::AtomCalculation(int Z, int charge, const AtomCalcOptions& opts,
     , itsAcc(acc)
     , itsStructure(std::make_shared<Atom>(Z, double(charge), rvec3_t(0,0,0)))
 {
-    // The EC follows the model: relativistic models need the Dirac (j-coupled) configuration.
-    itsEC = IsDirac(opts.model) ? static_cast<ElectronConfiguration*>(new AtomDirac_EC(itsNe))
-                                : static_cast<ElectronConfiguration*>(new Atom_EC(itsNe));
+    // The EC follows the model: a pseudo-atom uses the valence-only PseudoAtom_EC (keyed by the full Z and
+    // the net charge Zion-electrons); relativistic models need the Dirac (j-coupled) configuration;
+    // everything else is a plain Atom_EC.
+    itsEC = opts.pseudopotential ? static_cast<ElectronConfiguration*>(new PseudoAtom_EC(itsZ, PPZion(opts,itsNe)-itsNe))
+          : IsDirac(opts.model)  ? static_cast<ElectronConfiguration*>(new AtomDirac_EC(itsNe))
+          :                        static_cast<ElectronConfiguration*>(new Atom_EC(itsNe));
     itsBasis = BuildBasis(opts, Z, *itsEC);
     Converge(params);
 }
@@ -62,20 +69,39 @@ AtomCalculation::~AtomCalculation()
 
 bool AtomCalculation::Converge(const SCFParams& params)
 {
-    auto* ham = qchem::Hamiltonian::Factory(itsOpts.model, itsOpts.pol, itsStructure,
-                                            itsOpts.mesh, itsBasis, itsOpts.xalpha);
+    namespace H = qchem::Hamiltonian;
+    // Three DFT/HF routes: a pseudopotential (PP front door, valence electrons = itsNe), an explicit XC
+    // functional override (the public selector, e.g. libxc), or the model's built-in Hamiltonian/functional.
+    auto* ham = itsOpts.pseudopotential
+        ? H::Factory(itsStructure, thePeriodicTable().GetSymbol(itsZ), PPZion(itsOpts,itsNe), itsOpts.mesh, itsBasis)
+        : itsOpts.xc.has_value()
+            ? H::Factory(itsOpts.pol, itsStructure, *itsOpts.xc, itsOpts.mesh, itsBasis)
+            : H::Factory(itsOpts.model, itsOpts.pol, itsStructure, itsOpts.mesh, itsBasis, itsOpts.xalpha);
 
-    // Atoms use the proven Z-scaled DIIS gate (EMax = Z^2*0.1/32) unless the caller pins one.
+    // Atoms use the proven Z-scaled DIIS gate (EMax = Z^2*0.1/32) unless the caller pins one.  The json
+    // escape hatch (opts.accelerator) then merges over these defaults and selects the accelerator TYPE --
+    // the accelerator-tuning surface the scfrun driver needs (DIIS/GDM/Ladder/directmin).
     const double emax = itsAcc.eMax > 0.0 ? itsAcc.eMax : itsZ*itsZ*0.1/32;
     nlohmann::json jsacc = {{"NProj", itsAcc.nProj}, {"EMax", emax},
                             {"EMin", itsAcc.eMin}, {"SVTol", itsAcc.svTol}};
-    auto* accel = qchem::SCFAccelerators::Factory(qchem::SCFAccelerators::Type::DIIS, jsacc);
+    std::string ts = "DIIS";
+    if (itsOpts.accelerator.is_object() && !itsOpts.accelerator.empty())
+    {
+        for (auto& [k,v] : itsOpts.accelerator.items()) jsacc[k]=v;
+        ts = itsOpts.accelerator.value("type", std::string("DIIS"));
+    }
+    using AType = qchem::SCFAccelerators::Type;
+    const bool directmin = (ts=="directmin" || ts=="DirectMin");
+    if (directmin) jsacc["EMax"]=1e10;   // GDM always steps; the direct-min loop seeds via diagonalize
+    const AType atype = directmin ? AType::GDM : ts=="Ladder" ? AType::Ladder : ts=="GDM" ? AType::GDM : AType::DIIS;
+    auto* accel = qchem::SCFAccelerators::Factory(atype, jsacc);
 
     delete itsScf;
     // Default seed for atoms is the core guess (atoms never use the molecular SAD seed).
     using qchem::ChargeDensity::SeedStrategy;
     const auto seed = (itsOpts.seed != SeedStrategy::Default) ? itsOpts.seed : SeedStrategy::CoreGuess;
     itsScf = new SCFIter(itsBasis, itsEC, ham, accel, seed, itsStructure.get());
+    if (directmin) itsScf->SetDirectMin(true);
     if (itsObserver) itsScf->SetObserver(itsObserver);
 
     bool ok = itsScf->Iterate(params);

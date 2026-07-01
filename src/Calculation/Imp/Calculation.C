@@ -32,12 +32,13 @@ using SCFIter = qchem::SCFIterator::SCFIterator;
 static BasisSet::Real_BS* BuildBasis(const CalcOptions& opts, const std::shared_ptr<const Structure>& st)
 {
     const bool spherical = (opts.angular == Angular::Spherical);
-    // SALC blocking needs a Cartesian PGData orbital IBS; spherical adaptation is the Spherical SALC
-    // track (doc/SphericalSALCPlan.md), not yet wired -- reject the combination clearly rather than
-    // letting PG::SymmetryAdapt throw a less-obvious basis-type error deeper down.
-    if (opts.symmetry && spherical)
-        throw std::runtime_error("qchem::Calculation: {.symmetry=true} requires angular=Cartesian "
-                                 "(spherical SALC is not yet supported)");
+    // SALC now supports the Cartesian PGData basis AND the in-house MnD-spherical basis (SphData;
+    // doc/SphericalSALCPlan.md S3a/S4).  Only libcint-spherical is unwired (S3b) -- and it presents as a
+    // PGData with spherical components, which the Cartesian extractor would silently misread, so reject that
+    // one combination clearly here rather than let SymmetryAdapt take the wrong path.
+    if (opts.symmetry && spherical && opts.engine == Engine::LibCint)
+        throw std::runtime_error("qchem::Calculation: {.symmetry=true} with angular=Spherical requires "
+                                 "engine=MnD (libcint-spherical SALC is not yet supported)");
 
     const char* engine  = (opts.engine  == Engine::LibCint) ? "libcint" : "mnd";
     const char* angular = spherical ? "spherical" : "cartesian";
@@ -48,13 +49,30 @@ static BasisSet::Real_BS* BuildBasis(const CalcOptions& opts, const std::shared_
     return PG::SymmetryAdapt(rawShared, *st, opts.symmetryTol);
 }
 
+// Build the molecular electron configuration from the requested multiplicity 2S+1.  multiplicity<=0 is the
+// minimal-spin default (closed-shell singlet for even Ne, doublet for odd, via Molecule_EC(Ne)); an explicit
+// value is converted to (nUp,nDown) and parity-validated against Ne (fail loud, not a silent miscount).
+static Molecule_EC* MakeMoleculeEC(int Ne, int multiplicity)
+{
+    if (multiplicity <= 0) return new Molecule_EC(Ne);    // auto / minimal spin (historical behaviour)
+    const int twoS = multiplicity - 1;                    // = nUp - nDown
+    if (twoS > Ne || ((Ne - twoS) % 2) != 0)
+        throw std::runtime_error("qchem::Calculation: multiplicity " + std::to_string(multiplicity) +
+            " (2S=" + std::to_string(twoS) + ") is incompatible with " + std::to_string(Ne) +
+            " electrons -- need 0 <= 2S <= Ne and Ne-2S even.");
+    return new Molecule_EC((Ne + twoS) / 2, (Ne - twoS) / 2);   // (nUp, nDown)
+}
+
 Calculation::Calculation(const Structure& st, const CalcOptions& opts, const AcceleratorOptions& acc)
     : itsStructure(std::make_shared<Molecule>(st))   // deep copy: the facade owns its own structure
     , itsOpts(opts)
     , itsAcc(acc)
 {
-    itsBasis = BuildBasis(opts, itsStructure);                         // raw, or SALC-blocked if .symmetry
-    itsEC    = new Molecule_EC(int(itsStructure->GetNumElectrons()));   // aufbau, global across irreps
+    // An open shell (2S>0) is unrestricted: it needs distinct up/down densities, so promote to polarized.
+    if (itsOpts.multiplicity > 1) itsOpts.pol = Pol::Polarized;
+
+    itsBasis = BuildBasis(itsOpts, itsStructure);                  // raw, or SALC-blocked if .symmetry
+    itsEC    = MakeMoleculeEC(int(itsStructure->GetNumElectrons()), itsOpts.multiplicity);
     Converge();                                       // so Energy()/Density() are ready on return
 }
 

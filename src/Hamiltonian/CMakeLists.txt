@@ -12,15 +12,16 @@ target_sources(qcHamiltonian PRIVATE
     Internal/Imp/Vxc.C 
     Internal/Imp/VxcPol.C 
     Internal/Imp/Vnn.C 
-    Internal/Imp/FittedVxcPol.C 
-    Internal/Imp/FittedVee.C 
+    Internal/Imp/FittedVxcPol.C
+    Internal/Imp/FittedVcorrPol.C
+    Internal/Imp/FittedVee.C
     Internal/Imp/FittedVxc.C
     Internal/Imp/PWTerms.C
     Internal/Imp/HamiltonianImp.C
     Internal/Imp/Hamiltonians.C 
     Internal/Imp/ExchangeFunctional.C  
     Internal/Imp/SlaterExchange.C 
-    Internal/Imp/Libxc_LDA_Exchange.C 
+    Internal/Imp/Libxc_LDA.C
     Internal/Imp/LDAVxc.C
     )
 target_sources(qcHamiltonian PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
@@ -34,7 +35,7 @@ target_sources(qcHamiltonian PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
     Internal/ExchangeFunctional.C  
     Internal/SlaterExchange.C
     Internal/VWN_Correlation.C
-    Internal/Libxc_LDA_Exchange.C
+    Internal/Libxc_LDA.C
     Internal/LDAVxc.C
     Internal/Terms.C
     Internal/PWTerms.C

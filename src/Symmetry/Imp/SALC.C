@@ -14,7 +14,7 @@ SALCs BuildSALCs(const std::vector<AoShell>& shells, const AbelianGroup& g,
                  const rvec3_t& origin, double tol)
 {
     size_t nAO = 0;
-    for (const auto& s : shells) nAO = std::max(nAO, s.offset + s.monomials.size());
+    for (const auto& s : shells) nAO = std::max(nAO, s.offset + s.nComponents());  // angular-agnostic (Cart or sph)
     const size_t nops = g.ops.size();
     const double h = double(nops);
 

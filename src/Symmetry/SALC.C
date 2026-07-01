@@ -14,7 +14,7 @@ module;
 #include <string>
 export module qchem.Symmetry.SALC;
 export import qchem.Symmetry.AbelianGroup;   // AbelianGroup (SymOp, CharacterTable)
-export import qchem.Symmetry.CartesianRep;   // AoShell, BuildOperationRep, rmat_t
+export import qchem.Symmetry.OperationRep;   // AoShell, BuildOperationRep, rmat_t (depends only on ShellRep)
 
 export namespace qchem::Symmetry
 {

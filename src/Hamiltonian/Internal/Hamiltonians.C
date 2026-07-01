@@ -51,7 +51,22 @@ public:
 class Ham_DFTcorr_U : public virtual Hamiltonian, private HamiltonianImp
 {
 public:
-    Ham_DFTcorr_U(const st_t& st, const qcMesh::MeshParams&, const bs_t* bs);
+    Ham_DFTcorr_U(const st_t& st, const qcMesh::MeshParams&, const bs_t* bs);  //!< Dirac exchange + VWN5
+    //! Generic separate-terms LSDA: FittedVxc(\a exchange) [3/4 virial energy, exact for exchange] +
+    //! FittedVcorr(\a correlation) [E_c = integral eps_c rho, the correct correlation energy].  The
+    //! correlation functional MUST provide GetEpsXc (the energy density).  Takes ownership of both.  The
+    //! libxc LSDA path uses this with Libxc_LDA exchange/correlation; the default ctor with Slater+VWN.
+    Ham_DFTcorr_U(const st_t& st, ExFunctional* exchange, ExFunctional* correlation,
+                  const qcMesh::MeshParams&, const bs_t* bs);
+};
+
+// Spin-native (polarized) LSDA: Dirac exchange (FittedVxcPol) + spin-native VWN5 correlation
+// (FittedVcorrPol) as separate terms sharing one Vxc fit basis.  The U = ζ=0 collapse; this is the
+// open-shell / magnetism path (OpenWork B).  Correlation couples both spin channels -- see FittedVcorrPol.
+class Ham_DFTcorr_P : public virtual Hamiltonian, private HamiltonianImp
+{
+public:
+    Ham_DFTcorr_P(const st_t& st, const qcMesh::MeshParams&, const bs_t* bs);
 };
 
 //! Un-polarized LSDA PSEUDO-atom/molecule: kinetic + V_loc(r) (the pseudized replacement for the bare

@@ -10,11 +10,9 @@ using std::endl;
 
 int Molecule_EC::GetN(const Irrep& qns) const
 {
-    if (qns.ms==Spin::None) return Ne;
-    if (Ne%2==0)
-        return Ne/2;
-    else
-        return qns.ms==Spin::Up ? (Ne+1)/2 : (Ne-1)/2;
+    if (qns.ms==Spin::Up)   return itsNup;
+    if (qns.ms==Spin::Down) return itsNdn;
+    return itsNup + itsNdn;   // Spin::None -> total (unpolarized) count
 }
 
 ElectronConfiguration::syms_t Molecule_EC::GetIrreps() const
@@ -25,7 +23,7 @@ ElectronConfiguration::syms_t Molecule_EC::GetIrreps() const
 }
 void Molecule_EC::Display() const
 {
-    cout << "Ne: " << Ne << endl;
+    cout << "Nup: " << itsNup << " Ndn: " << itsNdn << " (Ne=" << itsNup+itsNdn << ")" << endl;
 }
 
 } // namespace qchem

@@ -10,44 +10,27 @@
 module;
 #include <vector>
 #include <array>
+#include <utility>
 export module qchem.Symmetry.CartesianRep;
-export import qchem.Types;       // rmat_t
-export import qchem.Matrix3D;    // Matrix3D
+export import qchem.Symmetry.ShellRep;   // ShellRep (the abstraction this implements), rmat_t / Matrix3D
 
 export namespace qchem::Symmetry
 {
 
 using IVec3 = std::array<int,3>;   // Cartesian monomial exponents (nx,ny,nz)
 
-// Representation matrix of the orthogonal operation R on a complete Cartesian shell whose
-// components are the monomials `exps` (all of the same total degree L), in the given order.
-// D(b,a) is the coefficient of monomial exps[b] in  p_a(R^{-1} u),  so the basis functions
-// transform as  phi_a(R^{-1} r) = sum_b D(b,a) phi_b(r).  R |-> D(R) is a faithful
-// representation: D(R1) D(R2) = D(R1 R2).  For L = 1 (a p-shell), D(R) = R.  Unnormalized:
-// the molecular rep-builder applies the per-component Gaussian normalization separately.
-rmat_t CartesianShellRep(const Matrix3D<double>& R, const std::vector<IVec3>& exps);
-
-//---------------------------------------------------------------------------------------
-// One Cartesian-Gaussian shell as the representation builder sees it.  Shells related by a
-// symmetry operation share the same shellType (same radial exponents + L), so the center
-// permutation can match a shell to its image; offset is the shell's first index in the
-// global AO ordering.
-struct AoShell
+//! The operation rep of a complete Cartesian shell whose components are the monomials `exps` (all of the
+//! same total degree L), in the given order.  Rep(R)(b,a) is the coefficient of monomial exps[b] in
+//! p_a(R^{-1} u), so phi_a(R^{-1} r) = sum_b Rep(b,a) phi_b(r).  R |-> Rep(R) is faithful: for L = 1 (a
+//! p-shell) Rep(R) = R.  Unnormalized -- the whole-basis builder applies per-component normalization.
+class CartesianShellRep : public ShellRep
 {
-    int                 shellType;
-    rvec3_t             center;
-    std::vector<IVec3>  monomials;   // the shell's Cartesian components, in AO order
-    std::vector<double> norm;        // per-component normalization N_a (same size as monomials)
-    size_t              offset;
+public:
+    explicit CartesianShellRep(std::vector<IVec3> exps) : itsExps(std::move(exps)) {}
+    virtual size_t nComponents() const {return itsExps.size();}
+    virtual rmat_t Rep(const Matrix3D<double>& R) const;
+private:
+    std::vector<IVec3> itsExps;
 };
-
-// Representation matrix of the operation R (acting about `origin`) on the whole AO basis
-// described by `shells`: a permutation of shells (center C -> R C, matched by shellType)
-// combined with the per-shell CartesianShellRep and per-component normalization.  Entry
-// M(I,J) is the coefficient of normalized AO I in the transform of normalized AO J, so a
-// normalized basis function transforms as phi_J(R^{-1} r) = sum_I M(I,J) phi_I(r).  As with
-// the shell rep, R |-> M(R) is a representation: M(R1) M(R2) = M(R1 R2).
-rmat_t BuildOperationRep(const std::vector<AoShell>& shells, const Matrix3D<double>& R,
-                         const rvec3_t& origin, double tol);
 
 } //namespace

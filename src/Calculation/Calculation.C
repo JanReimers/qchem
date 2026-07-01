@@ -46,6 +46,12 @@ struct CalcOptions
     std::string basis = "sto-3g";
     Model       model = Model::HF;   //!< HF (default) | Xalpha | LDA | E1/DE1/DHF (test-only)
     Pol         pol   = Pol::UnPolarized;
+    //! Spin multiplicity 2S+1.  0 (default) = minimal spin: closed-shell singlet for even Ne, doublet for
+    //! odd -- the historical behaviour.  Set explicitly for an open shell: 3 = triplet, 2 = doublet, ...
+    //! The facade converts it to (nUp,nDown) [nUp-nDown = 2S = multiplicity-1, nUp+nDown = Ne] and PROMOTES
+    //! the calculation to Pol::Polarized when 2S>0 (unrestricted open shell needs distinct up/down densities).
+    //! A multiplicity whose parity disagrees with Ne (e.g. a singlet for odd Ne) is rejected.
+    int         multiplicity = 0;
     //! Basis construction variants (threaded into BasisSet::Molecule::Factory).  Defaults reproduce
     //! today's behaviour (in-house MnD, Cartesian).  angular==Spherical + symmetry is rejected until
     //! the Spherical SALC track (doc/SphericalSALCPlan.md) lands -- the SALC builder needs Cartesian PGData.
