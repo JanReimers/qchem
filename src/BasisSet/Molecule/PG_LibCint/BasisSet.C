@@ -74,7 +74,7 @@ class IrrepBasisSet
 // libcint evaluator (the IBS IS-A that evaluator).  Because the evaluator is isM_*, the mixins FORWARD to
 // its assembled matrices instead of running the per-element loop.
 class Orbital_IBS
-    : public Molecule::Orbital_1E_IBS<LC::NR_Evaluator>
+    : public Molecule::EOrbital_1E_IBS<LC::NR_Evaluator>
     , public Molecule::Orbital_HF_IBS<LC::NR_Evaluator>
     , public IrrepBasisSet
 {
@@ -85,7 +85,7 @@ public:
     //! AO shells for SALC.  Cartesian mode delegates to the Cartesian ExtractAoShells (libcint's Cartesian
     //! PGData layout matches PG_Cart's); spherical mode throws -- libcint's own real-harmonic order/norm is
     //! not yet convention-matched (S3b), so it must NOT be silently read as Cartesian.
-    virtual std::vector<Symmetry::AoShell> GetAoShells() const override;   // Molecule::Orbital_1E_IBS_ABS
+    virtual std::vector<Symmetry::AoShell> GetAoShells() const override;   // Molecule::Orbital_1E_IBS
 };
 
 class BasisSet

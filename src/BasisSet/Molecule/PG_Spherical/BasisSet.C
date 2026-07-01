@@ -56,7 +56,7 @@ class IrrepBasisSet
 // evaluator-templated mixins (instantiated with the spherical NR_Evaluator -- the IBS IS-A that
 // evaluator).  Nothing spherical-specific remains in the IBS itself.
 class Orbital_IBS
-    : public Molecule::Orbital_1E_IBS <Sph::NR_Evaluator>
+    : public Molecule::EOrbital_1E_IBS<Sph::NR_Evaluator>
     , public Molecule::Orbital_HF_IBS <Sph::NR_Evaluator>
     , public Molecule::Orbital_DFT_IBS<Sph::NR_Evaluator>
     , public IrrepBasisSet
@@ -69,7 +69,7 @@ public:
     virtual FIT_SF_ABS* CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams&) const;
 
     //! This basis's AO shells in real-solid-harmonic form (delegates to ExtractAoShells on its own SphData).
-    virtual std::vector<Symmetry::AoShell> GetAoShells() const override;   // Molecule::Orbital_1E_IBS_ABS
+    virtual std::vector<Symmetry::AoShell> GetAoShells() const override;   // Molecule::Orbital_1E_IBS
 };
 // The spherical fit (auxiliary) basis: same IBS tree, exposing the Coulomb-fit metric + charges.  E prefix
 // to avoid the clash with the interface class Fit_IBS (as in PG_Cart).

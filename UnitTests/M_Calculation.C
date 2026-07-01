@@ -62,7 +62,7 @@ TEST(M_Calculation, WaterSymmetry)
 }
 
 // engine=LibCint + {.symmetry=true}: the libcint-Cartesian orbital IBS is ALSO symmetry-adaptable (it
-// implements GetAoShells via Molecule::Orbital_1E_IBS_ABS, like the MnD bases), so this must converge to the
+// implements GetAoShells via Molecule::Orbital_1E_IBS, like the MnD bases), so this must converge to the
 // same energy as the MnD/un-blocked run.  Guards the {engine=libcint}x{symmetry} combination, previously
 // untested -- a symmetry-adaptation refactor once silently regressed it (libcint adapted via the old PGData
 // cast); this test locks it in.

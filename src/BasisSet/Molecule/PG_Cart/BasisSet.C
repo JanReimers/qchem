@@ -60,7 +60,7 @@ class IrrepBasisSet
 // are the basis-agnostic ones; nothing PG-specific remains in the IBS itself.  MakeKinetic returns the
 // <p^2>=<-nabla^2> building block (no 1/2 -- the Hamiltonian's; no centrifugal -- Cartesian).
 class Orbital_IBS
-    : public Molecule::Orbital_1E_IBS <Evaluators::PG_Cart_MnD::NR_Evaluator>
+    : public Molecule::EOrbital_1E_IBS<Evaluators::PG_Cart_MnD::NR_Evaluator>
     , public Molecule::Orbital_HF_IBS <Evaluators::PG_Cart_MnD::NR_Evaluator>
     , public Molecule::Orbital_DFT_IBS<Evaluators::PG_Cart_MnD::NR_Evaluator>
     , public IrrepBasisSet
@@ -74,7 +74,7 @@ public:
     virtual FIT_SF_ABS* CreateVxcFitBasisSet(const Structure *, const qcMesh::MeshParams&) const;
 
     //! This basis's AO shells in Cartesian-monomial form (delegates to ExtractAoShells on its own PGData).
-    virtual std::vector<Symmetry::AoShell> GetAoShells() const override;   // Molecule::Orbital_1E_IBS_ABS
+    virtual std::vector<Symmetry::AoShell> GetAoShells() const override;   // Molecule::Orbital_1E_IBS
 };
 // Use E prefix to avoid name clash with the interface class Fit_IBS
 class EFit_IBS

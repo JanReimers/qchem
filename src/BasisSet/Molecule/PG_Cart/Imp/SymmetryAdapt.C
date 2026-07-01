@@ -6,7 +6,7 @@ module;
 #include <stdexcept>
 module qchem.BasisSet.Molecule.PG_Cart.SymmetryAdapt;
 import qchem.BasisSet.Molecule.PG_Cart.Symmetry;        // StructureToSymPoints, Centroid (+ the SALC pipeline)
-import qchem.BasisSet.Molecule.IBS;                     // Molecule::Orbital_1E_IBS_ABS::GetAoShells
+import qchem.BasisSet.Molecule.IBS;                     // Molecule::Orbital_1E_IBS::GetAoShells
 
 namespace qchem::BasisSet::Molecule::PG_Cart
 {
@@ -15,12 +15,12 @@ namespace qchem::BasisSet::Molecule::PG_Cart
 SymmetryAdapt(std::shared_ptr<const ::qchem::BasisSet::BasisSet<double>> rawBasis, const Structure& st, double tol)
 {
     // Iterate the evaluator-neutral molecular orbital interface directly: the iterator does the (encapsulated)
-    // cast, and because Orbital_1E_IBS_ABS IS-A Real_OIBS we also get the raw IBS for the decorator with no
+    // cast, and because Orbital_1E_IBS IS-A Real_OIBS we also get the raw IBS for the decorator with no
     // cast-back.  No client dynamic_cast, no PGData/SphData knowledge, no per-delivery branch.  A delivery
     // that can't honour a correct AO-shell layout (e.g. libcint-spherical, S3b) throws from GetAoShells.
     const ::qchem::BasisSet::Real_OIBS*  rawIBS = nullptr;
     std::vector<Symmetry::AoShell>       shells;
-    for (auto src : rawBasis->Iterate<const Molecule::Orbital_1E_IBS_ABS>())
+    for (auto src : rawBasis->Iterate<const Molecule::Orbital_1E_IBS>())
         { rawIBS = src; shells = src->GetAoShells(); break; }   // src IS-A Real_OIBS: plain upcast
 
     if (!rawIBS)

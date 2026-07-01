@@ -31,13 +31,14 @@ import qchem.Blaze;
 export namespace qchem::BasisSet::Molecule
 {
 
-// --- Evaluator-neutral superclass of the molecular orbital 1E IBS ---------------------------------
-// The non-templated interface that ADDS molecule-specific operations to the generic Real_OIBS -- currently
-// just GetAoShells (the point-group SALC seam).  A client (PG::SymmetryAdapt) can Iterate<Orbital_1E_IBS_ABS>
-// to reach every molecular orbital basis polymorphically, WITHOUT knowing its evaluator; the templated
-// Orbital_1E_IBS<E> below supplies the evaluator-driven integral implementations.  Real-space by nature, so
-// it lives on the molecule side and is absent from the dcmplx plane-wave path.
-class Orbital_1E_IBS_ABS
+// --- The molecular orbital 1E IBS interface -------------------------------------------------------
+// The non-templated interface that ADDS molecule-specific operations to the generic Real_OIBS
+// (::qchem::BasisSet::Orbital_1E_IBS<double>) -- currently just GetAoShells (the point-group SALC seam).
+// A client (PG::SymmetryAdapt) can Iterate<Molecule::Orbital_1E_IBS> to reach every molecular orbital basis
+// polymorphically, WITHOUT knowing its evaluator; the evaluator-templated EOrbital_1E_IBS<E> below supplies
+// the evaluator-driven integral implementations.  Real-space by nature, so it lives on the molecule side and
+// is absent from the dcmplx plane-wave path.
+class Orbital_1E_IBS
     : public virtual ::qchem::BasisSet::Orbital_1E_IBS<double>
 {
 public:
@@ -54,8 +55,8 @@ public:
 // it satisfies.  (An evaluator that satisfied both would take the forward path, but the two are disjoint in
 // practice -- a kernel evaluator wants the loop + shared cache, an assembler hands us the matrix.)
 template <class E> requires (Evaluators::is1E_Evaluator<E> || Evaluators::isM_1E_Evaluator<E>)
-class Orbital_1E_IBS
-    : public virtual Orbital_1E_IBS_ABS     // evaluator-neutral molecule interface (IS-A Real_OIBS + GetAoShells)
+class EOrbital_1E_IBS
+    : public virtual Orbital_1E_IBS         // the molecule 1E interface (IS-A Real_OIBS + GetAoShells)
 {
 protected:
     virtual rsmat_t MakeOverlap() const

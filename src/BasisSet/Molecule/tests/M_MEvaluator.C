@@ -108,7 +108,7 @@ static_assert( isM_1E_DFT_HF_Evaluator<Matrix_Adapter<NRE>>, "Matrix_Adapter is 
 static_assert(!is1E_Evaluator        <Matrix_Adapter<NRE>>, "a matrix evaluator does NOT provide scalar kernels");
 
 // Compile-check the matrix branch of all three mixins (PG_Cart already covers the scalar branches).
-template class BasisSet::Molecule::Orbital_1E_IBS <Matrix_Adapter<NRE>>;
+template class BasisSet::Molecule::EOrbital_1E_IBS<Matrix_Adapter<NRE>>;
 template class BasisSet::Molecule::Orbital_DFT_IBS<Matrix_Adapter<NRE>>;
 template class BasisSet::Molecule::Orbital_HF_IBS <Matrix_Adapter<NRE>>;
 

@@ -55,10 +55,10 @@ shells = ibs->GetAoShells();          // no cast, no PGData/SphData knowledge in
 **✅ DONE.** New abstract `qchem.BasisSet.Molecule.AoShellSource` (pure `GetAoShells()`); `PG_Cart::Orbital_IBS`
 and `PG_Spherical::Orbital_IBS` implement it (delegating to their existing `ExtractAoShells` on their own
 `PGData`/`SphData` base). **Follow-up (LSP): eliminate the client `dynamic_cast`-filter** (the "type-check instead of polymorphism"
-smell). `SymmetryAdapt` iterates the molecular orbital interface directly (`Iterate<Orbital_1E_IBS_ABS>`):
+smell). `SymmetryAdapt` iterates the molecular orbital interface directly (`Iterate<Orbital_1E_IBS>`):
 the iterator does the encapsulated cast, and since that base is-a `Real_OIBS` the raw IBS for the decorator
 falls out by plain upcast — zero client cast. **Final home (user-steered): `GetAoShells()` lives on a new
-NON-templated evaluator-neutral superclass `Molecule::Orbital_1E_IBS_ABS : public virtual Real_OIBS`** (in
+NON-templated evaluator-neutral superclass `Molecule::Orbital_1E_IBS : public virtual Real_OIBS`** (in
 `qchem.BasisSet.Molecule.IBS`), which the templated mixin `Molecule::Orbital_1E_IBS<E>` inherits — so the
 capability is part of the molecule orbital-IBS framework (inherited via the mixin, not bolted onto each
 concrete class), and is absent from the `dcmplx` plane-wave path (AO shells are real-space). The standalone
