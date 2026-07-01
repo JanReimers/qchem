@@ -10,12 +10,14 @@ module;
 #include <string>
 #include <memory>
 #include <vector>
+#include <stdexcept>
 
 module qchem.BasisSet.Molecule.PG_LibCint;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Block;
 import qchem.BasisSet.Molecule.Reader;
+import qchem.BasisSet.Molecule.PG_Cart.Symmetry;   // ExtractAoShells(const PGData&) -- libcint-Cartesian reuses it
 import qchem.Structure;
 import qchem.Symmetry.Unit;
 import qchem.stl_io;
@@ -150,5 +152,16 @@ std::ostream& IrrepBasisSet::Write(std::ostream& os) const {return os << BasisSe
 //----------------------------------------------------------------
 Orbital_IBS::Orbital_IBS(Reader* bsr, const Structure* cl, bool sph)                : IrrepBasisSet(bsr,cl,sph) {};
 Orbital_IBS::Orbital_IBS(const rvec_t& es, size_t L, const Structure* cl, bool sph) : IrrepBasisSet(es,L,cl,sph) {};
+
+// AoShellSource: libcint-Cartesian shares PG_Cart's Cartesian PGData layout, so it reuses the same extractor.
+// Spherical libcint carries libcint's own real-harmonic order/norm (S3b, not convention-matched) yet its
+// PGData base still holds the Cartesian layout -- reading it as Cartesian is the silent trap, so throw.
+std::vector<Symmetry::AoShell> Orbital_IBS::GetAoShells() const
+{
+    if (IsSpherical())
+        throw std::runtime_error("PG_LibCint::GetAoShells: libcint-spherical SALC is not wired (S3b) -- its "
+                                 "real-harmonic convention is not matched; use engine=MnD for spherical symmetry.");
+    return PG_Cart::ExtractAoShells(*this);   // *this IS-A PGData with Cartesian components
+}
 
 } //namespace qchem::BasisSet::Molecule::PG_LibCint

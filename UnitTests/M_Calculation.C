@@ -61,6 +61,19 @@ TEST(M_Calculation, WaterSymmetry)
     EXPECT_GT(calc.IterationCount(), 0u);
 }
 
+// engine=LibCint + {.symmetry=true}: the libcint-Cartesian orbital IBS is ALSO symmetry-adaptable (it's an
+// AoShellSource, like the MnD bases), so this must converge to the same energy as the MnD/un-blocked run.
+// Guards the {engine=libcint}x{symmetry} combination -- previously untested, and the AoShellSource refactor
+// silently regressed it (libcint used to adapt via the PGData cast; the fix restores it).
+TEST(M_Calculation, WaterSymmetryLibCint)
+{
+    Calculation calc(MakeWater(), {.basis = "dzvp", .engine = Engine::LibCint, .symmetry = true});
+
+    const double E_ref = -76.022903;                       // same anchor as WaterSymmetry (MnD)
+    EXPECT_LT(std::fabs((E_ref - calc.Energy()) / E_ref), 1e-5);
+    EXPECT_GT(calc.IterationCount(), 0u);
+}
+
 // The caller's Molecule is deep-copied: it survives being passed in and may be used afterwards.
 TEST(M_Calculation, OwnsItsOwnStructure)
 {

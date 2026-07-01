@@ -25,6 +25,7 @@ import qchem.BasisSet.Molecule.IBS;                          // Molecule::Orbita
 import qchem.BasisSet.Internal.BasisSetImp;
 import qchem.BasisSet.Internal.IrrepBasisSetImp;
 import qchem.BasisSet.Orbital_HF_IBS;
+import qchem.BasisSet.Molecule.AoShellSource;   // AoShellSource: libcint-Cartesian is symmetry-adaptable too
 import qchem.Structure;
 import qchem.Types;
 
@@ -60,6 +61,11 @@ class IrrepBasisSet
         virtual std::string Name     () const {return "Pol. Gaussian (libcint) ";}
         virtual std::ostream &Write(std::ostream&) const;
 
+        //! libcint serves both angular kinds from one class; spherical mode delivers 2l+1 real-harmonic
+        //! components while the PGData base still holds the Cartesian layout (so the extractor must NOT read
+        //! it as Cartesian -- see GetAoShells).
+        bool IsSpherical() const {return itsSpherical;}
+
     private:
         bv_t itsBlocks;
         bool itsSpherical=false;
@@ -72,10 +78,16 @@ class Orbital_IBS
     : public Molecule::Orbital_1E_IBS<LC::NR_Evaluator>
     , public Molecule::Orbital_HF_IBS<LC::NR_Evaluator>
     , public IrrepBasisSet
+    , public Molecule::AoShellSource
 {
 public:
     Orbital_IBS(Reader*, const Structure*, bool spherical=false);
     Orbital_IBS(const rvec_t& exponents, size_t L, const Structure*, bool spherical=false);
+
+    //! AO shells for SALC.  Cartesian mode delegates to the Cartesian ExtractAoShells (libcint's Cartesian
+    //! PGData layout matches PG_Cart's); spherical mode throws -- libcint's own real-harmonic order/norm is
+    //! not yet convention-matched (S3b), so it must NOT be silently read as Cartesian.
+    virtual std::vector<Symmetry::AoShell> GetAoShells() const override;
 };
 
 class BasisSet
