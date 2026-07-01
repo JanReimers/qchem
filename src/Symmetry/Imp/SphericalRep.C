@@ -58,8 +58,9 @@ static rmat_t SmallInverse(rmat_t A)
     return I;
 }
 
-rmat_t SphericalShellRep(const Matrix3D<double>& R, const HarmonicC2S& c2s)
+rmat_t SphericalShellRep::Rep(const Matrix3D<double>& R) const
 {
+    const HarmonicC2S& c2s = itsC2S;
     const size_t nSph = c2s.size();
 
     // Collect the distinct Cartesian monomials appearing across the harmonics -> the Cartesian shell.
@@ -74,7 +75,7 @@ rmat_t SphericalShellRep(const Matrix3D<double>& R, const HarmonicC2S& c2s)
     for (size_t m = 0; m < nSph; ++m)
         for (const auto& [e, c] : c2s[m]) C(m, index[e]) += c;
 
-    const rmat_t Dcart = CartesianShellRep(R, exps); // nCart x nCart, the Cartesian rep on `exps`
+    const rmat_t Dcart = CartesianShellRep(exps).Rep(R); // nCart x nCart, the Cartesian rep on `exps`
     const rmat_t Ct    = transpose(C);
     const rmat_t Ginv  = SmallInverse(matmul(C, Ct));            // (C C^T)^{-1}, nSph x nSph
     return matmul(Ginv, matmul(C, matmul(Dcart, Ct)));          // D_sph = (CC^T)^{-1} C Dcart C^T

@@ -3,11 +3,13 @@ module;
 #include <vector>
 #include <string>
 #include <map>
+#include <memory>
 #include <utility>
 module qchem.BasisSet.Molecule.PG_Spherical.Symmetry;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;           // Cart::GaussianRF (TypeID/GetCenter)
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;         // Cart::Polarization (the monomial exps)
 import qchem.BasisSet.Molecule.Evaluators.PG_Spherical_MnD.SolidHarmonics;  // CartTerm
+import qchem.Symmetry.SphericalRep;   // HarmonicC2S, SphericalShellRep (the concrete ShellRep this basis produces)
 
 namespace qchem::BasisSet::Molecule::PG_Spherical
 {
@@ -15,6 +17,8 @@ namespace Cart = ::qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD;
 namespace Sph  = ::qchem::BasisSet::Molecule::Evaluators::PG_Spherical_MnD;
 using Symmetry::AoShell;
 using Symmetry::IVec3;
+using Symmetry::HarmonicC2S;
+using Symmetry::SphericalShellRep;
 
 // A center-independent id for a radial shell (L + exponents + coefficients): symmetry-equivalent shells on
 // different atoms share it, so the center permutation can match them.  (Same logic as PG_Cart's helper; the
@@ -42,6 +46,7 @@ std::vector<AoShell> ExtractAoShells(const Sph::SphData& sph)
         sh.center    = r->GetCenter();
         sh.offset    = i;
         sh.shellType = ShellTypeId(r, types);
+        HarmonicC2S c2s;
         size_t j = i;
         for (; j < n && sph.comps[j].radial == r; ++j)
         {
@@ -50,9 +55,10 @@ std::vector<AoShell> ExtractAoShells(const Sph::SphData& sph)
             std::vector<std::pair<IVec3,double>> harmonic;
             for (const auto& t : sph.comps[j].terms)
                 harmonic.push_back({IVec3{t.p.n, t.p.l, t.p.m}, t.c});
-            sh.c2s.push_back(std::move(harmonic));
+            c2s.push_back(std::move(harmonic));
             sh.norm.push_back(sph.ns[j]);            // per-harmonic normalization (folded into the rep)
         }
+        sh.rep = std::make_shared<SphericalShellRep>(std::move(c2s));   // this shell's spherical rep
         shells.push_back(std::move(sh));
         i = j;
     }

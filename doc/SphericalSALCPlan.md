@@ -110,6 +110,20 @@ Each spherical mode is independently shippable:
 When S3a lands, the facade guard relaxes from "Cartesian only" to "Cartesian or MnD-spherical"; when
 S3b lands, the guard disappears.
 
+## Design note — `ShellRep` polymorphism (post-S5 refactor, DONE)
+
+The S2 `AoShell` carried a discriminated union (`monomials` xor `c2s`, told apart by `IsSpherical()`), and
+`BuildOperationRep` branched on it.  Resolved by Dependency Inversion: a new `qchem.Symmetry.ShellRep`
+abstraction (`nComponents()` + `Rep(R)`), with `CartesianShellRep` / `SphericalShellRep` as its
+implementations (they became classes holding `exps` / `c2s`).  `AoShell` now holds a
+`shared_ptr<const ShellRep>` — no monomials/c2s, no angular flag, nothing to discriminate — and
+`BuildOperationRep` just calls `rep->Rep(R)` (no branch).  Crucially the dependency inverts:
+`OperationRep`/`SALC` depend ONLY on the `ShellRep` abstraction, not on the Cartesian/spherical concretes;
+the per-basis extractors construct the concrete rep.  Diagnosis of the original flaw: `AoShell` was
+conflating two jobs — a node in the permutation structure AND the source data for the angular rep; the
+union was the symptom.  (Considered `std::variant` — rejected as a type-safe union that keeps the second
+job in `AoShell` and still forces a `visit` branch, rather than removing the responsibility.)
+
 ## Risk notes
 
 - Low-risk core (S1/S2 reuse `SolidHarmonics` + the tested Cartesian rep). The **m-ordering /

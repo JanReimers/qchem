@@ -13,7 +13,7 @@ module;
 #include <array>
 #include <utility>
 export module qchem.Symmetry.SphericalRep;
-export import qchem.Symmetry.CartesianRep;   // IVec3, CartesianShellRep (reused), rmat_t / Matrix3D
+export import qchem.Symmetry.CartesianRep;   // IVec3, CartesianShellRep (reused for the math), ShellRep
 
 export namespace qchem::Symmetry
 {
@@ -24,7 +24,17 @@ export namespace qchem::Symmetry
 //! (it cancels in the projection), so any convenient normalisation of the coefficients works.
 using HarmonicC2S = std::vector<std::vector<std::pair<IVec3, double>>>;
 
-//! Operation rep D_sph(R) on a real-spherical shell whose harmonics have the Cartesian expansion \a c2s.
-rmat_t SphericalShellRep(const Matrix3D<double>& R, const HarmonicC2S& c2s);
+//! The operation rep of a real-spherical shell whose harmonics have the Cartesian expansion \a c2s.  Built
+//! from the Cartesian rep by projecting through the c2s map (the harmonic subspace is rotation-invariant, so
+//! the projection is EXACT):  Rep(R) = (C C^T)^{-1} C  D_cart  C^T,  C = the nSph x nCart coefficient matrix.
+class SphericalShellRep : public ShellRep
+{
+public:
+    explicit SphericalShellRep(HarmonicC2S c2s) : itsC2S(std::move(c2s)) {}
+    virtual size_t nComponents() const {return itsC2S.size();}
+    virtual rmat_t Rep(const Matrix3D<double>& R) const;
+private:
+    HarmonicC2S itsC2S;
+};
 
 } //namespace

@@ -8,30 +8,28 @@
 // CartesianShellRep, so the dispatcher cannot live in either).
 module;
 #include <vector>
+#include <memory>
 export module qchem.Symmetry.OperationRep;
-export import qchem.Symmetry.CartesianRep;   // IVec3, CartesianShellRep, rmat_t / Matrix3D
-export import qchem.Symmetry.SphericalRep;   // HarmonicC2S, SphericalShellRep
+export import qchem.Symmetry.ShellRep;   // ShellRep (the angular rep abstraction), rmat_t / Matrix3D
 
 export namespace qchem::Symmetry
 {
 
 //---------------------------------------------------------------------------------------
-// One angular shell as the representation builder sees it.  Shells related by a symmetry operation share
-// the same shellType (same radial exponents + L), so the center permutation can match a shell to its
-// image; offset is the shell's first index in the global AO ordering.  A shell is EITHER Cartesian (its
-// components are the `monomials`) OR spherical (its components are the real solid harmonics whose
-// Cartesian expansion is `c2s`, in the basis's own m-ordering) -- exactly one of the two is populated.
+// One angular shell as the representation builder sees it: its place in the permutation structure (center,
+// shellType so symmetry-equivalent shells match, offset in the global AO ordering) + per-component
+// normalization + its angular rep.  The angular rep is a ShellRep (Cartesian or spherical -- the builder
+// neither knows nor cares): AoShell owns no monomials/c2s and no angular-kind flag, so there is nothing to
+// discriminate.  The per-basis extractor constructs the concrete ShellRep.
 struct AoShell
 {
-    int                 shellType;
-    rvec3_t             center;
-    std::vector<IVec3>  monomials;   //!< Cartesian components, in AO order (empty for a spherical shell)
-    std::vector<double> norm;        //!< per-component normalization N_a (size = #components)
-    size_t              offset;
-    HarmonicC2S         c2s = {};    //!< spherical harmonics' Cartesian expansion (empty for a Cartesian shell)
+    int                             shellType;
+    rvec3_t                         center;
+    std::vector<double>             norm;    //!< per-component normalization N_a (size = #components)
+    size_t                          offset;
+    std::shared_ptr<const ShellRep> rep;     //!< the shell's angular operation rep (Cartesian or spherical)
 
-    bool   IsSpherical()  const { return !c2s.empty(); }
-    size_t nComponents()  const { return IsSpherical() ? c2s.size() : monomials.size(); }
+    size_t nComponents() const { return rep->nComponents(); }
 };
 
 // Representation matrix of the operation R (acting about `origin`) on the whole AO basis described by

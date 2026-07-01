@@ -27,6 +27,7 @@ target_sources(qcSymmetry PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Spherical.C 
     Factory.C
     PointGroup.C
+    ShellRep.C
     CartesianRep.C
     SphericalRep.C
     OperationRep.C

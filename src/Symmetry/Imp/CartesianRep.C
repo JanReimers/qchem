@@ -8,8 +8,9 @@ module qchem.Symmetry.CartesianRep;
 namespace qchem::Symmetry
 {
 
-rmat_t CartesianShellRep(const Matrix3D<double>& R, const std::vector<IVec3>& exps)
+rmat_t CartesianShellRep::Rep(const Matrix3D<double>& R) const
 {
+    const std::vector<IVec3>& exps = itsExps;
     using Poly = std::map<IVec3,double>;          // monomial exponents -> coefficient
     const size_t nc = exps.size();
 

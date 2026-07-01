@@ -3,7 +3,9 @@
 #include <vector>
 #include <string>
 #include <map>
-import qchem.Symmetry.SALC;          // BuildSALCs, SALCs
+#include <memory>
+import qchem.Symmetry.SALC;          // BuildSALCs, SALCs, AoShell, BuildOperationRep
+import qchem.Symmetry.CartesianRep;  // CartesianShellRep, IVec3 (to build the test shells)
 import qchem.Symmetry.AbelianGroup;  // BuildAbelianGroup
 import qchem.Symmetry.PointGroup;    // SymPoint
 import qchem.Math;
@@ -20,13 +22,17 @@ static std::vector<SymPoint> WaterPts()
 {
     return { {8,O_}, {1,H1_}, {1,H2_} };
 }
+static AoShell Cart(int type, rvec3_t c, std::vector<IVec3> mon, std::vector<double> norm, size_t off)
+{
+    return AoShell{type, c, std::move(norm), off, std::make_shared<CartesianShellRep>(std::move(mon))};
+}
 static std::vector<AoShell> WaterShells()
 {
     return {
-        {0, O_,  {{0,0,0}},                  {1.0},         0},
-        {1, O_,  {{1,0,0},{0,1,0},{0,0,1}},  {1.0,1.0,1.0}, 1},
-        {2, H1_, {{0,0,0}},                  {1.0},         4},
-        {2, H2_, {{0,0,0}},                  {1.0},         5},
+        Cart(0, O_,  {{0,0,0}},                  {1.0},         0),
+        Cart(1, O_,  {{1,0,0},{0,1,0},{0,0,1}},  {1.0,1.0,1.0}, 1),
+        Cart(2, H1_, {{0,0,0}},                  {1.0},         4),
+        Cart(2, H2_, {{0,0,0}},                  {1.0},         5),
     };
 }
 static rvec3_t WaterOrigin() { return (O_+H1_+H2_)/3.0; }

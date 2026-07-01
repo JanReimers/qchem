@@ -28,8 +28,8 @@ rmat_t BuildOperationRep(const std::vector<AoShell>& shells, const Matrix3D<doub
             }
         assert(Bp && "BuildOperationRep: no image shell -- R is not a symmetry of the basis");
 
-        // The shell's own angular rep D(b,a): Cartesian monomials or real solid harmonics.
-        rmat_t D = B.IsSpherical() ? SphericalShellRep(R, B.c2s) : CartesianShellRep(R, B.monomials);
+        // The shell's own angular rep D(b,a) -- Cartesian or spherical, the builder does not distinguish.
+        rmat_t D = B.rep->Rep(R);
         size_t nc = B.nComponents();
         for (size_t a=0;a<nc;a++) for (size_t b=0;b<nc;b++)
             // normalized rep: (N^B_a / N^B'_b) D(b,a), placed at (image row, source col)

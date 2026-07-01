@@ -10,24 +10,27 @@
 module;
 #include <vector>
 #include <array>
+#include <utility>
 export module qchem.Symmetry.CartesianRep;
-export import qchem.Types;       // rmat_t
-export import qchem.Matrix3D;    // Matrix3D
+export import qchem.Symmetry.ShellRep;   // ShellRep (the abstraction this implements), rmat_t / Matrix3D
 
 export namespace qchem::Symmetry
 {
 
 using IVec3 = std::array<int,3>;   // Cartesian monomial exponents (nx,ny,nz)
 
-// Representation matrix of the orthogonal operation R on a complete Cartesian shell whose
-// components are the monomials `exps` (all of the same total degree L), in the given order.
-// D(b,a) is the coefficient of monomial exps[b] in  p_a(R^{-1} u),  so the basis functions
-// transform as  phi_a(R^{-1} r) = sum_b D(b,a) phi_b(r).  R |-> D(R) is a faithful
-// representation: D(R1) D(R2) = D(R1 R2).  For L = 1 (a p-shell), D(R) = R.  Unnormalized:
-// the molecular rep-builder applies the per-component Gaussian normalization separately.
-rmat_t CartesianShellRep(const Matrix3D<double>& R, const std::vector<IVec3>& exps);
-
-// The whole-basis operation rep (AoShell + BuildOperationRep) lives in qchem.Symmetry.OperationRep --
-// above BOTH this and SphericalRep, since it dispatches to either per-shell rep.
+//! The operation rep of a complete Cartesian shell whose components are the monomials `exps` (all of the
+//! same total degree L), in the given order.  Rep(R)(b,a) is the coefficient of monomial exps[b] in
+//! p_a(R^{-1} u), so phi_a(R^{-1} r) = sum_b Rep(b,a) phi_b(r).  R |-> Rep(R) is faithful: for L = 1 (a
+//! p-shell) Rep(R) = R.  Unnormalized -- the whole-basis builder applies per-component normalization.
+class CartesianShellRep : public ShellRep
+{
+public:
+    explicit CartesianShellRep(std::vector<IVec3> exps) : itsExps(std::move(exps)) {}
+    virtual size_t nComponents() const {return itsExps.size();}
+    virtual rmat_t Rep(const Matrix3D<double>& R) const;
+private:
+    std::vector<IVec3> itsExps;
+};
 
 } //namespace
