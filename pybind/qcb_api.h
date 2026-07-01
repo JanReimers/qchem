@@ -18,8 +18,8 @@ extern "C" {
 // Build a molecule (atomic numbers + flat 3N bohr positions) and converge an SCF.
 // method: "HF" (default) | "LDA" | "Xalpha" -> CalcOptions.model.
 // symmetry: 0/1 -> CalcOptions.symmetry (SALC point-group blocking + irrep labels).
-void*  qcb_make(const int* Z, int nat, const double* pos3,
-                const char* basis, const char* method, int symmetry, int maxiter);
+void*  qcb_make(const int* Z, int nat, const double* pos3, const char* basis,
+                const char* method, int symmetry, int multiplicity, int maxiter);
 void   qcb_free(void* h);
 
 double qcb_energy(void* h);

@@ -30,17 +30,17 @@ NB_MODULE(qchem_py, mod)
     nb::class_<Calc>(mod, "Calculator")
         .def("__init__", [](Calc* self, const std::vector<int>& Z, const std::vector<double>& pos,
                             const std::string& basis, const std::string& method,
-                            bool symmetry, int max_iter) {
+                            bool symmetry, int multiplicity, int max_iter) {
                  void* h;
                  { nb::gil_scoped_release nogil;   // release the GIL for the C++ SCF -> a worker
                    h = qcb_make(Z.data(), (int)Z.size(), pos.data(),   //    thread won't freeze the GUI
-                                basis.c_str(), method.c_str(), symmetry ? 1 : 0, max_iter); }
+                                basis.c_str(), method.c_str(), symmetry ? 1 : 0, multiplicity, max_iter); }
                  self->h = h;
              },
              nb::arg("numbers"), nb::arg("positions"),
-             nb::arg("basis") = "dzvp", nb::arg("method") = "HF",
-             nb::arg("symmetry") = false, nb::arg("max_iter") = 20,
-             "Build a molecule + converge an SCF. method: HF|LDA|Xalpha; symmetry: SALC blocking.")
+             nb::arg("basis") = "dzvp", nb::arg("method") = "HF", nb::arg("symmetry") = false,
+             nb::arg("multiplicity") = 0, nb::arg("max_iter") = 20,
+             "Build + converge. method: HF|LDA|Xalpha; symmetry: SALC; multiplicity: 2S+1 (0=minimal).")
         .def("__del__", [](Calc& c){ if (c.h) { qcb_free(c.h); c.h = nullptr; } })
         .def("total_energy", [](Calc& c){ return qcb_energy(c.h); })
         .def("report", [](Calc& c, const std::string& kind) {

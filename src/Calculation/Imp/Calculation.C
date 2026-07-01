@@ -153,11 +153,16 @@ std::string Calculation::Report(const std::string& kind) const
         auto& levels = j["levels"] = nlohmann::json::array();
         // GetEnergyLevels(): multimap<energy, EnergyLevel> -- already energy-ordered.
         for (const auto& [e, lvl] : itsScf->GetWaveFunction()->GetEnergyLevels())
+        {
+            const char* spin = lvl.qns.ms == Spin::Up   ? "up"
+                             : lvl.qns.ms == Spin::Down ? "down" : "none";
             levels.push_back({{"e",     lvl.e},
                               {"occ",   lvl.occ},
                               {"degen", lvl.degen},
                               {"n",     lvl.qns.n},
+                              {"spin",  spin},           // up/down (polarized) | none (restricted)
                               {"label", lvl.qns.sym->GetLabel()}});
+        }
     }
     else
         j["error"] = "unknown report kind: " + kind;

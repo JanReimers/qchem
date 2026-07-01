@@ -64,8 +64,8 @@ struct Calc {
 
 extern "C" {
 
-void* qcb_make(const int* Z, int nat, const double* pos3,
-               const char* basis, const char* method, int symmetry, int maxiter)
+void* qcb_make(const int* Z, int nat, const double* pos3, const char* basis,
+               const char* method, int symmetry, int multiplicity, int maxiter)
 {
     auto* c = new Calc();
     c->numbers.assign(Z, Z + nat);
@@ -81,8 +81,10 @@ void* qcb_make(const int* Z, int nat, const double* pos3,
         if      (std::strcmp(method, "LDA")    == 0) model = qchem::Model::LDA;
         else if (std::strcmp(method, "Xalpha") == 0) model = qchem::Model::Xalpha;
     }
+    // multiplicity=2S+1 (0 -> minimal spin); the facade promotes to Pol::Polarized when 2S>0.
     c->calc = std::make_unique<Calculation>(
-        mol, CalcOptions{.basis = basis, .model = model, .symmetry = (symmetry != 0)});
+        mol, CalcOptions{.basis = basis, .model = model,
+                         .multiplicity = multiplicity, .symmetry = (symmetry != 0)});
     if (maxiter != 20)
         c->calc->Converge({.NMaxIter = size_t(maxiter)});                        // honor a custom cap
     return c;
