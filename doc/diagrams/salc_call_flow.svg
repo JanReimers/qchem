@@ -1,0 +1,49 @@
+<svg viewBox="0 0 780 620" xmlns="http://www.w3.org/2000/svg" role="img" font-family="ui-sans-serif, system-ui, sans-serif">
+<title>SymmetryAdapt call flow</title>
+<desc>Structure and RawBasisSet feed two parallel streams that merge in BuildSALCs and are wrapped into a symmetry-adapted basis. Structure to sym-points to abelian group; RawBasisSet to ExtractAoShells to AoShell array; both into BuildSALCs (which per operation calls BuildOperationRep then each shell's ShellRep.Rep) producing a SALC transform, wrapped with the raw IBS into a SymmetryAdaptedBasisSet of per-irrep SALC IBS blocks.</desc>
+<defs>
+<marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="var(--muted,#8a8a86)"/></marker>
+<style>
+.b{fill:var(--surface,#f6f6f5);stroke:var(--accent,#4a6fa5);stroke-width:1.5;}
+.d{fill:var(--surface2,#fbfbfa);stroke:var(--border,#c7c7c2);stroke-width:1.2;stroke-dasharray:4 3;}
+.io{fill:var(--accent,#4a6fa5);}
+.t{fill:var(--text,#1c1c1a);font-size:14px;font-weight:600;}
+.ti{fill:#ffffff;font-size:14px;font-weight:700;}
+.s{fill:var(--muted,#7a7a76);font-size:11px;}
+.l{stroke:var(--muted,#8a8a86);stroke-width:1.4;fill:none;}
+.cap{fill:var(--muted,#7a7a76);font-size:11px;font-style:italic;}
+</style>
+</defs>
+
+<rect class="io" x="60" y="24" width="190" height="42" rx="8"/><text class="ti" x="155" y="50" text-anchor="middle">Structure</text>
+<rect class="io" x="530" y="24" width="190" height="42" rx="8"/><text class="ti" x="625" y="50" text-anchor="middle">RawBasisSet</text>
+
+<rect class="b" x="60" y="108" width="190" height="42" rx="8"/><text class="t" x="155" y="134" text-anchor="middle">StructureToSymPoints</text>
+<rect class="b" x="60" y="184" width="190" height="42" rx="8"/><text class="t" x="155" y="210" text-anchor="middle">BuildAbelianGroup</text>
+<rect class="d" x="60" y="260" width="190" height="46" rx="8"/><text class="t" x="155" y="281" text-anchor="middle">AbelianGroup</text><text class="s" x="155" y="297" text-anchor="middle">character table · ops</text>
+
+<rect class="b" x="530" y="108" width="190" height="46" rx="8"/><text class="t" x="625" y="129" text-anchor="middle">ExtractAoShells</text><text class="s" x="625" y="145" text-anchor="middle">dispatch: PGData | SphData</text>
+<rect class="d" x="530" y="188" width="190" height="46" rx="8"/><text class="t" x="625" y="209" text-anchor="middle">AoShell[ ]</text><text class="s" x="625" y="225" text-anchor="middle">geom · norm · ShellRep</text>
+
+<rect class="b" x="300" y="360" width="180" height="42" rx="8"/><text class="t" x="390" y="386" text-anchor="middle">BuildSALCs</text>
+<rect class="d" x="300" y="436" width="180" height="46" rx="8"/><text class="t" x="390" y="457" text-anchor="middle">SALCs</text><text class="s" x="390" y="473" text-anchor="middle">O-matrix · irrep labels</text>
+<rect class="b" x="300" y="512" width="180" height="42" rx="8"/><text class="t" x="390" y="538" text-anchor="middle">SymmetryAdaptedBasisSet</text>
+<rect class="io" x="300" y="576" width="180" height="40" rx="8"/><text class="ti" x="390" y="601" text-anchor="middle">SALC_IBS blocks</text>
+
+<text class="cap" x="500" y="372">∀ g:  BuildOperationRep(shells, R)</text>
+<text class="cap" x="500" y="388">        → shell.rep→Rep(R)   (Cartesian | spherical)</text>
+
+<path class="l" d="M155,66 L155,108" marker-end="url(#ar)"/>
+<path class="l" d="M155,150 L155,184" marker-end="url(#ar)"/>
+<path class="l" d="M155,226 L155,260" marker-end="url(#ar)"/>
+<path class="l" d="M625,66 L625,108" marker-end="url(#ar)"/>
+<path class="l" d="M625,154 L625,188" marker-end="url(#ar)"/>
+<path class="l" d="M155,306 C155,345 250,381 300,381" marker-end="url(#ar)"/>
+<path class="l" d="M625,234 C625,320 500,381 480,381" marker-end="url(#ar)"/>
+<path class="l" d="M390,402 L390,436" marker-end="url(#ar)"/>
+<path class="l" d="M390,482 L390,512" marker-end="url(#ar)"/>
+<path class="l" d="M390,554 L390,576" marker-end="url(#ar)"/>
+<path class="l" d="M625,234 C700,360 640,533 480,533" marker-end="url(#ar)" stroke-dasharray="4 3"/>
+<text class="cap" x="612" y="470" text-anchor="middle">raw IBS</text>
+<text class="cap" x="612" y="484" text-anchor="middle">(kept alive)</text>
+</svg>

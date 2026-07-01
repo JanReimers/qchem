@@ -10,6 +10,8 @@ covers the SALC/ShellRep pipeline structure and coordinates the one overlapping 
 Traced `PG::SymmetryAdapt` end to end. It's a shallow, linear pipeline — the ShellRep DIP refactor already
 removed the branching, so there is no tangle to unwind:
 
+![Structure + RawBasisSet to SALC_IBS dataflow](diagrams/salc_call_flow.svg)
+
 ```
 Structure ─► StructureToSymPoints ─► BuildAbelianGroup ─► AbelianGroup {char table, ops}
 RawBasisSet ─► ExtractAoShells ─────────────────────────► AoShell[] {geom, norm, ShellRep}
