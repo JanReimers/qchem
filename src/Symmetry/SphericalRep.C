@@ -1,13 +1,14 @@
-// File: Symmetry/SphericalRep.C  Representation of an orthogonal operation on a real-spherical shell.
-//
-// The spherical counterpart of CartesianShellRep.  A real solid harmonic chi_{l,m} is a fixed linear
-// combination of the same-degree Cartesian monomials, so the (2l+1)x(2l+1) operation rep on the harmonic
-// shell is obtained from the Cartesian rep by projecting through that c2s map.  The harmonic subspace is
-// rotation-invariant, so the projection is EXACT (not a fit):
-//     D_sph = (C C^T)^{-1} C  D_cart  C^T          ( C = the nSph x nCart coefficient matrix )
-// with the same transform convention as CartesianShellRep: chi_m(R^{-1} r) = sum_n D(n,m) chi_n(r), and
-// R |-> D_sph(R) a faithful representation.  Pure math: the c2s coefficients are supplied by the caller
-// (the molecular basis side passes its SolidHarmonics), so qcSymmetry stays self-contained + LAPACK-free.
+//! \file
+//! \brief Representation of an orthogonal operation on a real-spherical shell -- the spherical counterpart
+//! of \c CartesianShellRep.  A real solid harmonic \f$\chi_{l,m}\f$ is a fixed linear combination of the
+//! same-degree Cartesian monomials, so the \f$(2l+1)\times(2l+1)\f$ operation rep on the harmonic shell is
+//! obtained from the Cartesian rep by projecting through that c2s map.  The harmonic subspace is
+//! rotation-invariant, so the projection is EXACT (not a fit):
+//! \f[ D_{sph} = (C C^{\mathsf T})^{-1} C\, D_{cart}\, C^{\mathsf T}, \qquad
+//!     C = \text{the } n_{sph}\times n_{cart}\text{ coefficient matrix}, \f]
+//! with the same transform convention as \c CartesianShellRep: \f$\chi_m(R^{-1}r)=\sum_n D(n,m)\,\chi_n(r)\f$,
+//! and \f$R\mapsto D_{sph}(R)\f$ a faithful representation.  Pure math: the c2s coefficients are supplied by
+//! the caller (the molecular basis passes its SolidHarmonics), so qcSymmetry stays self-contained + LAPACK-free.
 module;
 #include <vector>
 #include <array>
@@ -24,9 +25,11 @@ export namespace qchem::Symmetry
 //! (it cancels in the projection), so any convenient normalisation of the coefficients works.
 using HarmonicC2S = std::vector<std::vector<std::pair<IVec3, double>>>;
 
-//! The operation rep of a real-spherical shell whose harmonics have the Cartesian expansion \a c2s.  Built
-//! from the Cartesian rep by projecting through the c2s map (the harmonic subspace is rotation-invariant, so
-//! the projection is EXACT):  Rep(R) = (C C^T)^{-1} C  D_cart  C^T,  C = the nSph x nCart coefficient matrix.
+//! \brief The operation rep of a real-spherical shell whose harmonics have the Cartesian expansion \a c2s.
+//! Built from the Cartesian rep by projecting through the c2s map (the harmonic subspace is
+//! rotation-invariant, so the projection is EXACT):
+//! \f$\text{Rep}(R) = (C C^{\mathsf T})^{-1} C\, D_{cart}\, C^{\mathsf T}\f$, with \f$C\f$ the
+//! \f$n_{sph}\times n_{cart}\f$ coefficient matrix.
 class SphericalShellRep : public ShellRep
 {
 public:
