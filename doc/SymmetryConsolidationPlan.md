@@ -56,9 +56,19 @@ shells = ibs->GetAoShells();          // no cast, no PGData/SphData knowledge in
 and `PG_Spherical::Orbital_IBS` implement it (delegating to their existing `ExtractAoShells` on their own
 `PGData`/`SphData` base). `SymmetryAdapt` now does one abstract→abstract cast and has zero PGData/SphData
 knowledge; the evaluators stay symmetry-free (AoShellSource lives in qcMolecule_BS, which already links
-qcSymmetry — no new edge). 157 UTMain / 10 UTSymmetry / 22 UTMolecule_BS green. (Also fixed a latent
-`AoShell.monomials` breakage in M_PGSymmetry left by the ShellRep refactor — that target wasn't in the build
-loop.) Pairs naturally with the parked `NotImplemented`/`UnsupportedCombination` exception idea.
+qcSymmetry — no new edge). (Also fixed a latent `AoShell.monomials` breakage in M_PGSymmetry left by the
+ShellRep refactor — that target wasn't in the build loop.) Pairs naturally with the parked
+`NotImplemented`/`UnsupportedCombination` exception idea.
+
+**Follow-up regression fix (`8254c42c`):** the refactor initially added `AoShellSource` to only the *MnD*
+bases, silently regressing **`engine=LibCint` + Cartesian + symmetry** (the facade allows it; the old code
+matched libcint via the `PGData` cast). No test caught it — every symmetry test used `engine=MnD`. Fixed:
+`PG_LibCint::Orbital_IBS` now implements `AoShellSource` (Cartesian delegates to `PG_Cart::ExtractAoShells`;
+spherical *throws* — its real-harmonic convention isn't matched, S3b, and its `PGData` base holds the
+Cartesian layout, so reading it as Cartesian would be the silent trap). Added the missing
+`{engine}×{symmetry}` guard test `M_Calculation.WaterSymmetryLibCint`. **158 UTMain green.** Lesson: the
+`{engine}×{angular}×{symmetry}` matrix needs coverage — this is the exact landmine the parked exception idea
+is about.
 
 ## Coordination with `project_symmetry_naming_cleanup`
 
