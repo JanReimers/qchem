@@ -15,6 +15,7 @@ import qchem.BasisSet.Molecule.Readers.Gaussian94;   // the auto fit-basis reade
 import qchem.BasisSet.Molecule.BasisFiles;           // A1_coul/A1_exch path (owned by BasisFiles)
 import qchem.Structure;
 import qchem.Symmetry.Unit;
+import qchem.BasisSet.Molecule.PG_Spherical.Symmetry;   // ExtractAoShells(const SphData&) -- for GetAoShells()
 import qchem.stl_io;
 import qchem.Math;
 import qchem.Blaze;
@@ -154,6 +155,8 @@ FIT_SF_ABS* Orbital_IBS::CreateVxcFitBasisSet(const Structure* cl, const qcMesh:
     f->SetMesh(*cl, mp);
     return f;
 }
+// AoShellSource: this orbital IBS IS-A SphData, so it hands its own spherical data to the extractor.
+std::vector<Symmetry::AoShell> Orbital_IBS::GetAoShells() const {return ExtractAoShells(*this);}
 
 //----------------------------------------------------------------
 //

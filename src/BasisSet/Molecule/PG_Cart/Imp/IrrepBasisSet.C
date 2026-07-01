@@ -15,6 +15,7 @@ import qchem.BasisSet.Molecule.BasisFiles;   // the auto fit-basis files (path o
 import qchem.BasisSet;
 import qchem.Structure;
 import qchem.Symmetry.Unit;
+import qchem.BasisSet.Molecule.PG_Cart.Symmetry;   // ExtractAoShells(const PGData&) -- for GetAoShells()
 import qchem.stl_io;
 import qchem.Streamable;
 import qchem.Math;
@@ -230,6 +231,8 @@ FIT_SF_ABS* Orbital_IBS::CreateVxcFitBasisSet(const Structure* cl, const qcMesh:
     f->SetMesh(*cl, mp);
     return f;
 }
+// AoShellSource: this orbital IBS IS-A PGData, so it hands its own Cartesian data to the extractor.
+std::vector<Symmetry::AoShell> Orbital_IBS::GetAoShells() const {return ExtractAoShells(*this);}
 
 //----------------------------------------------------------------
 //

@@ -52,9 +52,13 @@ shells = ibs->GetAoShells();          // no cast, no PGData/SphData knowledge in
 - The two current `ExtractAoShells` (`PG_Cart`, `PG_Spherical`) share a `ShellTypeId` + block-grouping
   skeleton; a small shared helper dedupes it as they become the two method bodies.
 
-This is the highest-value structural simplification of the recently-created code. **Proposed, awaiting a go.**
-Pairs naturally with the parked `NotImplemented`/`UnsupportedCombination` exception idea (the GUI-facing
-handling of unbuilt `{cart,sph}×{MnD,libcint}×{sym}` corners).
+**✅ DONE.** New abstract `qchem.BasisSet.Molecule.AoShellSource` (pure `GetAoShells()`); `PG_Cart::Orbital_IBS`
+and `PG_Spherical::Orbital_IBS` implement it (delegating to their existing `ExtractAoShells` on their own
+`PGData`/`SphData` base). `SymmetryAdapt` now does one abstract→abstract cast and has zero PGData/SphData
+knowledge; the evaluators stay symmetry-free (AoShellSource lives in qcMolecule_BS, which already links
+qcSymmetry — no new edge). 157 UTMain / 10 UTSymmetry / 22 UTMolecule_BS green. (Also fixed a latent
+`AoShell.monomials` breakage in M_PGSymmetry left by the ShellRep refactor — that target wasn't in the build
+loop.) Pairs naturally with the parked `NotImplemented`/`UnsupportedCombination` exception idea.
 
 ## Coordination with `project_symmetry_naming_cleanup`
 

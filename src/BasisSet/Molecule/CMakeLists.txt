@@ -5,6 +5,7 @@ Imp/BasisFiles.C
 Readers/Imp/Gaussian94.C
 PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES Factory.C
 SymmetryAdaptedBasisSet.C
+AoShellSource.C
 IrrepBasisSet.C
 BasisFiles.C
 Reader.C

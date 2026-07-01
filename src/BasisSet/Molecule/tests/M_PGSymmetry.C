@@ -38,7 +38,7 @@ TEST(PGSymmetry, water_extract_and_SALCs)
 
     // nAO = 3 atoms * (2 s-functions + 2 p-shells * 3) = 3 * 8 = 24.
     size_t nAO = 0;
-    for (const auto& s : shells) nAO = std::max(nAO, s.offset + s.monomials.size());
+    for (const auto& s : shells) nAO = std::max(nAO, s.offset + s.nComponents());
     EXPECT_EQ(nAO, 24u);
     EXPECT_EQ(pts.size(), 3u);
 
