@@ -1,8 +1,5 @@
 // File: BasisSet/Molecule/PG_Cart/Imp/SymmetryAdapt.C
-//! \file
-//! \brief Symmetry-adapt a raw molecular basis: \c Structure + \c RawBasisSet \f$\rightarrow\f$ \c SALC_IBS.
-//! \image html salc_call_flow.svg "Structure + RawBasisSet -> SALC_IBS dataflow" width=640
-//! (source: doc/diagrams/salc_call_flow.svg; add doc/diagrams to Doxyfile IMAGE_PATH to render.)
+// (Doc + the dataflow diagram live on the SymmetryAdapt declaration in the module interface.)
 module;
 #include <memory>
 #include <vector>
