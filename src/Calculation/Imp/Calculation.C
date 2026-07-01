@@ -32,12 +32,13 @@ using SCFIter = qchem::SCFIterator::SCFIterator;
 static BasisSet::Real_BS* BuildBasis(const CalcOptions& opts, const std::shared_ptr<const Structure>& st)
 {
     const bool spherical = (opts.angular == Angular::Spherical);
-    // SALC blocking needs a Cartesian PGData orbital IBS; spherical adaptation is the Spherical SALC
-    // track (doc/SphericalSALCPlan.md), not yet wired -- reject the combination clearly rather than
-    // letting PG::SymmetryAdapt throw a less-obvious basis-type error deeper down.
-    if (opts.symmetry && spherical)
-        throw std::runtime_error("qchem::Calculation: {.symmetry=true} requires angular=Cartesian "
-                                 "(spherical SALC is not yet supported)");
+    // SALC now supports the Cartesian PGData basis AND the in-house MnD-spherical basis (SphData;
+    // doc/SphericalSALCPlan.md S3a/S4).  Only libcint-spherical is unwired (S3b) -- and it presents as a
+    // PGData with spherical components, which the Cartesian extractor would silently misread, so reject that
+    // one combination clearly here rather than let SymmetryAdapt take the wrong path.
+    if (opts.symmetry && spherical && opts.engine == Engine::LibCint)
+        throw std::runtime_error("qchem::Calculation: {.symmetry=true} with angular=Spherical requires "
+                                 "engine=MnD (libcint-spherical SALC is not yet supported)");
 
     const char* engine  = (opts.engine  == Engine::LibCint) ? "libcint" : "mnd";
     const char* angular = spherical ? "spherical" : "cartesian";

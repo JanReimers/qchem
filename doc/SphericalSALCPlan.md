@@ -73,21 +73,30 @@ code, instead of a from-scratch real-Wigner-D implementation.
 
 ### Stage S3 — the two extractors  ·  basis tree  ·  THE REAL COST (two conventions)
 The rep's component order must match the basis's m-order. The two spherical deliveries differ:
-- **S3a `PG_Spherical`** — `ExtractAoShells(const SphData&)` in the in-house `SolidHarmonics`
-  m-ordering. Self-consistent (same convention as S1's `C_l`), so lowest risk. Do this first.
-- **S3b libcint-spherical** — extractor matching **libcint's** real-harmonic ordering *and*
-  normalization (a foreign convention). Must align S1's `C_l`/ordering to libcint's, or transform
-  between the two orderings. This is the bug-prone part (sign/order); needs its own verification.
+- **S3a `PG_Spherical`**  ·  ✅ DONE.  New module `qchem.BasisSet.Molecule.PG_Spherical.Symmetry` with
+  `ExtractAoShells(const SphData&)`.  KEY SIMPLIFICATION realised while building: the extractor reads the
+  basis's OWN Cartesian expansion straight out of `SphData::comps[].terms` (with `ns[]` as the per-harmonic
+  norm) — it does NOT re-derive via `SphericalShell(l)`.  So the c2s handed to `SphericalShellRep` is, by
+  construction, in the basis's exact m-order with the basis's exact coefficients — the "self-consistent, so
+  lowest risk" note became "zero convention risk."  The predicted S3a hazard evaporated.
+- **S3b libcint-spherical**  ·  ⬜ only remaining piece.  Extractor matching **libcint's** real-harmonic
+  ordering *and* normalization (a foreign convention).  Bug-prone (sign/order); needs its own verification.
+  Trap: libcint-spherical presents AS a `PGData` with spherical components, so the Cartesian extractor would
+  silently misread it — the facade guards it out (`engine=MnD` only for symmetry+spherical) until S3b lands.
 
-### Stage S4 — dispatch in `SymmetryAdapt`  ·  basis tree  ·  small
-- Pick the extractor by orbital-IBS type: Cartesian `PGData` → existing; `SphData` → S3a;
-  libcint-spherical → S3b. The `SymmetryAdaptedBasisSet` decorator is unchanged.
-- Replace the bare `assert` with a clear thrown error for any still-unsupported delivery.
+### Stage S4 — dispatch in `SymmetryAdapt`  ·  basis tree  ·  ✅ DONE
+- `SymmetryAdapt` now `dynamic_cast`s each orbital IBS to `PGData` (Cartesian → existing extractor) then
+  `SphData` (spherical → S3a); neither ⇒ a clear thrown error (libcint-spherical unsupported).  The
+  `SymmetryAdaptedBasisSet` decorator is unchanged.  (These casts are abstract→concrete data structs — the
+  established pattern for the data-carrying IBS types; flagged for the CLAUDE.md cast survey.)
+- Facade guard relaxed: `{.symmetry=true}` + `angular=Spherical` allowed for `engine=MnD`, still blocked for
+  `engine=LibCint` (S3b).
+- Latent S2 gap fixed: `BuildSALCs` computed `nAO` from `monomials.size()` (0 for spherical) — now
+  `nComponents()`, the angular-agnostic count.
 
-### Stage S5 — tests  ·  mirror `M_Sym`
-- Symmetry-adapted SCF in each spherical mode, total energy == the un-adapted spherical SCF
-  (the `M_Sym` pattern: same molecule, blocked vs single-IBS, energies agree).
-- Use a molecule with a d shell (water/dzvp has the O d) so spherical-vs-Cartesian is exercised.
+### Stage S5 — tests  ·  ✅ DONE (mirror `M_Sym`)
+- `M_Sym.water_HF_spherical_{unpolarized,polarized}`: spherical-adapted SCF total energy == the un-adapted
+  spherical SCF, water/dzvp (the O d-shell exercises the harmonic path).  157 UTMain / 14 UTSymmetry green.
 
 ## Staging / shippability
 

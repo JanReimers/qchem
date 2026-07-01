@@ -37,12 +37,13 @@ static Molecule MakeWater()
 
 // One converged run through the facade.  symmetry=true SALC-blocks the (Cartesian PG) basis; everything
 // else is identical between the two, so any energy difference is a SALC-transform error.
-static EnergyBreakdown Run(const Molecule& mol, Model model, Pol pol, bool symmetry)
+static EnergyBreakdown Run(const Molecule& mol, Model model, Pol pol, bool symmetry,
+                           Angular angular = Angular::Cartesian)
 {
     // The facade's default seed (auto SAD for DFT, CoreGuess for HF) -- the SAD polarized-DFT path is now
     // robust (FittedVxcPol handles the spin-agnostic seed; see M_DFT.WaterPolarizedSAD).  This is an
     // invariance test anyway, so the converged energy is seed-independent.
-    Calculation calc(mol, {.basis = "dzvp", .model = model, .pol = pol, .symmetry = symmetry});
+    Calculation calc(mol, {.basis = "dzvp", .model = model, .pol = pol, .angular = angular, .symmetry = symmetry});
     calc.Converge(tight);                 // re-converge tight for the invariance tolerance
     return calc.EnergyTerms();
 }
@@ -82,6 +83,23 @@ static void CheckWaterHF(Pol pol)
 
 TEST(M_Sym, water_HF_unpolarized) { CheckWaterHF(Pol::UnPolarized); }
 TEST(M_Sym, water_HF_polarized)   { CheckWaterHF(Pol::Polarized); }
+
+// SPHERICAL SALC end-to-end (OpenWork A, S3a-S5): the in-house MnD-spherical basis (real solid harmonics;
+// water/dzvp carries the O d-shell, so the harmonic path is genuinely exercised) symmetry-adapted must
+// equal the un-adapted spherical run.  This drives ExtractAoShells(SphData) + SphericalShellRep through the
+// SALC pipeline and the SymmetryAdapt SphData dispatch.  We assert only adapted == un-adapted (the SALC
+// invariant); the spherical absolute energy differs from Cartesian by the dropped d s-contaminant (see
+// M_DFT.WaterSpherical), so we bound it loosely for physical sanity.
+static void CheckWaterHFSpherical(Pol pol)
+{
+    const Molecule water = MakeWater();
+    EnergyBreakdown ebRef = Run(water, Model::HF, pol, false, Angular::Spherical);
+    EnergyBreakdown ebSym = Run(water, Model::HF, pol, true,  Angular::Spherical);
+    EXPECT_NEAR(ebSym.GetTotalEnergy(), ebRef.GetTotalEnergy(), 1e-6) << "spherical: symmetric == non-symmetric";
+    EXPECT_NEAR(ebRef.GetTotalEnergy(), -76.0, 0.5) << "physical sanity (water HF ~ -76 Ha)";
+}
+TEST(M_Sym, water_HF_spherical_unpolarized) { CheckWaterHFSpherical(Pol::UnPolarized); }
+TEST(M_Sym, water_HF_spherical_polarized)   { CheckWaterHFSpherical(Pol::Polarized); }
 
 // Rotate v by Euler (Rz(a) Ry(b) Rx(c)) -- a generic, non-axis-aligned orientation.
 static Vector3D<double> Rotate(const Vector3D<double>& v, double a, double b, double c)
