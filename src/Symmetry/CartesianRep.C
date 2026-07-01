@@ -1,12 +1,11 @@
-// File: Symmetry/CartesianRep.C  Representation of an orthogonal operation on a Cartesian shell.
-//
-// Stage 2 of the molecular-symmetry plan: how a Cartesian-Gaussian angular shell transforms
-// under a point-group operation.  A Cartesian basis function has an angular monomial
-// p(x,y,z) = x^nx y^ny z^nz of total degree L.  Under the operation with matrix R (about the
-// centroid) a function transforms as phi(r) -> phi(R^{-1} r), so the monomial maps to
-// p(R^{-1} u), a degree-L polynomial = a linear combination of the shell's monomials.  This
-// builds that (#components x #components) matrix.  Pure math (no basis/Gaussian knowledge);
-// the molecular basis rep-builder (in BasisSet) combines it with the center permutation.
+//! \file
+//! \brief Representation of an orthogonal operation on a Cartesian shell -- how a Cartesian-Gaussian angular
+//! shell transforms under a point-group operation.  A Cartesian basis function has an angular monomial
+//! \f$p(x,y,z)=x^{n_x}y^{n_y}z^{n_z}\f$ of total degree \f$L\f$.  Under the operation with matrix \f$R\f$
+//! (about the centroid) a function transforms as \f$\phi(r)\to\phi(R^{-1}r)\f$, so the monomial maps to
+//! \f$p(R^{-1}u)\f$, a degree-\f$L\f$ polynomial = a linear combination of the shell's monomials.  This
+//! builds that \f$n_c\times n_c\f$ matrix.  Pure math (no basis/Gaussian knowledge); the molecular basis
+//! rep-builder (in BasisSet) combines it with the centre permutation.
 module;
 #include <vector>
 #include <array>
@@ -17,12 +16,13 @@ export import qchem.Symmetry.ShellRep;   // ShellRep (the abstraction this imple
 export namespace qchem::Symmetry
 {
 
-using IVec3 = std::array<int,3>;   // Cartesian monomial exponents (nx,ny,nz)
+using IVec3 = std::array<int,3>;   //!< Cartesian monomial exponents \f$(n_x,n_y,n_z)\f$
 
-//! The operation rep of a complete Cartesian shell whose components are the monomials `exps` (all of the
-//! same total degree L), in the given order.  Rep(R)(b,a) is the coefficient of monomial exps[b] in
-//! p_a(R^{-1} u), so phi_a(R^{-1} r) = sum_b Rep(b,a) phi_b(r).  R |-> Rep(R) is faithful: for L = 1 (a
-//! p-shell) Rep(R) = R.  Unnormalized -- the whole-basis builder applies per-component normalization.
+//! \brief The operation rep of a complete Cartesian shell whose components are the monomials \a exps (all of
+//! the same total degree \f$L\f$), in the given order.  \f$\text{Rep}(R)(b,a)\f$ is the coefficient of
+//! monomial \c exps[b] in \f$p_a(R^{-1}u)\f$, so \f$\phi_a(R^{-1}r)=\sum_b \text{Rep}(b,a)\,\phi_b(r)\f$.
+//! \f$R\mapsto\text{Rep}(R)\f$ is faithful: for \f$L=1\f$ (a p-shell) \f$\text{Rep}(R)=R\f$.  Unnormalized --
+//! the whole-basis builder applies per-component normalization.
 class CartesianShellRep : public ShellRep
 {
 public:
