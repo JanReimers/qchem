@@ -136,14 +136,12 @@ template <size_t K> RkEngine<K>::RkEngine(const std::vector<sp_t>& splines, size
                 for (size_t i=cd0;i<std::min(iab,cd1);i++) Icd_p+=gl1[i].Integrate(wp,k,blazem::column(C1,i-cd0),blazem::column(D1,i-cd0));
                 double Icd_m=0.0;
                 for (size_t i=std::max(iab+1,cd0);i<cd1;i++) Icd_m+=gl1[i].Integrate(wm,k,blazem::column(C1,i-cd0),blazem::column(D1,i-cd0));
-                double Idiag=0.0;
-                for (size_t i1=0;i1<glout.size();i1++)
+                double Idiag=glout.Integrate([&](double r1, size_t i1)
                 {
                     double Yk1=gl2.find_grid_gl(iab,i1)  .Integrate(wp,k,blazem::column(CGG,i1),blazem::column(DGG,i1));
                     double Yk2=gl2.find_gl_grid(i1,iab+1).Integrate(wm,k,blazem::column(CGg,i1),blazem::column(DGg,i1));
-                    const double r1=glout.node(i1);
-                    Idiag+=glout.weight(i1)*((wm(r1,k)*Yk1+wp(r1,k)*Yk2)*aO[i1]*bO[i1]);
-                }
+                    return (wm(r1,k)*Yk1+wp(r1,k)*Yk2)*aO[i1]*bO[i1];
+                });
                 Rabcd_k[k]+=Idiag + Iab_m*Icd_p + Iab_p*Icd_m;
             }
         }

@@ -60,13 +60,11 @@ public:
     {
         return 2+2*xs.size();
     }
-    //! Node/weight access for callers that pre-sample a fixed integrand (e.g. a spline) at the quadrature
-    //! points once and reuse it across many weight functions -- avoids re-evaluating (and re-locating, the
-    //! B-spline binary search) the integrand per call.  A hand-rolled sum ws[i]*f(node[i]) with cached
-    //! f(node[i]) matches Integrate() term-for-term (same order/associativity) and is bit-identical.
+    //! Node access so a caller can pre-sample a fixed integrand (e.g. a B-spline) at the quadrature points
+    //! ONCE and then reuse it across many weight functions via the Integrate(w,k,u,v) overload below --
+    //! avoiding the per-call spline re-evaluation (and its knot-span binary search).
     size_t size()           const {return xs.size();}
     double node(size_t i)   const {return xs[i];}
-    double weight(size_t i) const {return ws[i];}
 private:
     friend class GLCache1D;
     friend class GLCache2D;
