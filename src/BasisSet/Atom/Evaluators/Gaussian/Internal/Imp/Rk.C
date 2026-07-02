@@ -34,7 +34,8 @@ RkEngine::RkEngine(double _eab, double _ecd, size_t _LMax)
     
     for (size_t L2:iv_t(1,Iab.columns()))
     {
-        double fL2=qchem::DFact[2*L2-1]/pow(2,L2-1); //sqrt(pi)*(2*n-1)!!/2^n/4
+        double fL2=qchem::DFact[2*L2-1]/double(1ull<<(L2-1)); //sqrt(pi)*(2*n-1)!!/2^n/4 -- 2^(n-1) is an exact
+                                                              // power of 2, so a shift replaces the libm pow (bit-identical)
         for (auto ik:iv_t(0,itsLMax+1)) f[ik]=fk(eab,eabcd,ik,L2);
         Iab(0,L2)=fL2/(eab*pow(eabcd,L2+0.5)); //This is what gets differentiated.
         //cout << "L2,Iab(0,L2) " << L2 << " " << Iab(0,L2) << endl;
