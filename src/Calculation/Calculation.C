@@ -75,6 +75,10 @@ struct CalcOptions
     //! the core guess.  Set explicitly to override -- e.g. {.seed=SAD} drives HF's matrix-free-seed
     //! bootstrap (the iterator manufactures a D0 via a one-step LDA sibling).
     qchem::ChargeDensity::SeedStrategy seed = qchem::ChargeDensity::SeedStrategy::Default;
+    //! Optional live-progress sink for the INITIAL converge that runs in the ctor.  OnIteration() can
+    //! only observe a LATER Converge() (the ctor's run happens before any observer can attach); set this
+    //! to stream that first SCF too -- fires once per iteration with the SCFProgress.
+    qchem::SCFIterator::SCFIterator::Observer onIteration = {};
 };
 
 //! DIIS accelerator knobs.  These were stringly-typed json keys grepped out of tests; here they

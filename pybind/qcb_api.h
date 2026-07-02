@@ -15,11 +15,17 @@
 extern "C" {
 #endif
 
+// Per-iteration SCF callback: (user, iteration, energy, dE, ||[F,D]||, ||drho||).
+typedef void (*qcb_scf_cb)(void* user, int iter, double E, double dE,
+                           double commutator, double drho);
+
 // Build a molecule (atomic numbers + flat 3N bohr positions) and converge an SCF.
 // method: "HF" (default) | "LDA" | "Xalpha" -> CalcOptions.model.
 // symmetry: 0/1 -> CalcOptions.symmetry (SALC point-group blocking + irrep labels).
+// cb (nullable): fires once per iteration of the INITIAL converge -- pass NULL to stay silent.
 void*  qcb_make(const int* Z, int nat, const double* pos3, const char* basis,
-                const char* method, int symmetry, int multiplicity, int maxiter);
+                const char* method, int symmetry, int multiplicity, int maxiter,
+                qcb_scf_cb cb, void* user);
 void   qcb_free(void* h);
 
 double qcb_energy(void* h);
@@ -33,8 +39,6 @@ void   qcb_free_string(char* s);
 
 // Re-run the SCF from the seed, calling `cb` once per iteration (live convergence).
 // Leaves the calculator in a freshly-converged state. Returns the iteration count.
-typedef void (*qcb_scf_cb)(void* user, int iter, double E, double dE,
-                           double commutator, double drho);
 int qcb_run_scf(void* h, qcb_scf_cb cb, void* user);
 
 // Sample fields on an n^3 grid padded `pad` bohr past the atoms. The caller

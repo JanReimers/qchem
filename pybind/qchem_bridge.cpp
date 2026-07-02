@@ -65,7 +65,8 @@ struct Calc {
 extern "C" {
 
 void* qcb_make(const int* Z, int nat, const double* pos3, const char* basis,
-               const char* method, int symmetry, int multiplicity, int maxiter)
+               const char* method, int symmetry, int multiplicity, int maxiter,
+               qcb_scf_cb cb, void* user)
 {
     auto* c = new Calc();
     c->numbers.assign(Z, Z + nat);
@@ -81,10 +82,14 @@ void* qcb_make(const int* Z, int nat, const double* pos3, const char* basis,
         if      (std::strcmp(method, "LDA")    == 0) model = qchem::Model::LDA;
         else if (std::strcmp(method, "Xalpha") == 0) model = qchem::Model::Xalpha;
     }
+    CalcOptions opts{.basis = basis, .model = model,
+                     .multiplicity = multiplicity, .symmetry = (symmetry != 0)};
+    if (cb)   // stream the INITIAL converge (runs inside the ctor) straight to the caller
+        opts.onIteration = [cb, user](const qchem::SCFIterator::SCFProgress& p) {
+            cb(user, int(p.iteration), p.energy, p.dE, p.commutator, p.drho);
+        };
     // multiplicity=2S+1 (0 -> minimal spin); the facade promotes to Pol::Polarized when 2S>0.
-    c->calc = std::make_unique<Calculation>(
-        mol, CalcOptions{.basis = basis, .model = model,
-                         .multiplicity = multiplicity, .symmetry = (symmetry != 0)});
+    c->calc = std::make_unique<Calculation>(mol, opts);
     if (maxiter != 20)
         c->calc->Converge({.NMaxIter = size_t(maxiter)});                        // honor a custom cap
     return c;

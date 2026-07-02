@@ -74,6 +74,7 @@ Calculation::Calculation(const Structure& st, const CalcOptions& opts, const Acc
 
     itsBasis = BuildBasis(itsOpts, itsStructure);                  // raw, or SALC-blocked if .symmetry
     itsEC    = MakeMoleculeEC(int(itsStructure->GetNumElectrons()), itsOpts.multiplicity);
+    if (itsOpts.onIteration) itsObserver = itsOpts.onIteration;    // stream the initial converge too
     Converge();                                       // so Energy()/Density() are ready on return
 }
 

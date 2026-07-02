@@ -30,17 +30,25 @@ NB_MODULE(qchem_py, mod)
     nb::class_<Calc>(mod, "Calculator")
         .def("__init__", [](Calc* self, const std::vector<int>& Z, const std::vector<double>& pos,
                             const std::string& basis, const std::string& method,
-                            bool symmetry, int multiplicity, int max_iter) {
+                            bool symmetry, int multiplicity, int max_iter, nb::object on_iteration) {
+                 // Optional per-iteration stream for the (single) converge: same trampoline as run_scf.
+                 auto tramp = [](void* u, int it, double E, double dE, double comm, double drho) {
+                     nb::gil_scoped_acquire gil;
+                     (*static_cast<nb::object*>(u))(it, E, dE, comm, drho);
+                 };
+                 const bool stream = !on_iteration.is_none();
                  void* h;
                  { nb::gil_scoped_release nogil;   // release the GIL for the C++ SCF -> a worker
                    h = qcb_make(Z.data(), (int)Z.size(), pos.data(),   //    thread won't freeze the GUI
-                                basis.c_str(), method.c_str(), symmetry ? 1 : 0, multiplicity, max_iter); }
+                                basis.c_str(), method.c_str(), symmetry ? 1 : 0, multiplicity, max_iter,
+                                stream ? tramp : nullptr, stream ? &on_iteration : nullptr); }
                  self->h = h;
              },
              nb::arg("numbers"), nb::arg("positions"),
              nb::arg("basis") = "dzvp", nb::arg("method") = "HF", nb::arg("symmetry") = false,
-             nb::arg("multiplicity") = 0, nb::arg("max_iter") = 20,
-             "Build + converge. method: HF|LDA|Xalpha; symmetry: SALC; multiplicity: 2S+1 (0=minimal).")
+             nb::arg("multiplicity") = 0, nb::arg("max_iter") = 20, nb::arg("on_iteration") = nb::none(),
+             "Build + converge. method: HF|LDA|Xalpha; symmetry: SALC; multiplicity: 2S+1 (0=minimal). "
+             "on_iteration(iter,E,dE,[F,D],drho) streams the converge live.")
         .def("__del__", [](Calc& c){ if (c.h) { qcb_free(c.h); c.h = nullptr; } })
         .def("total_energy", [](Calc& c){ return qcb_energy(c.h); })
         .def("report", [](Calc& c, const std::string& kind) {
