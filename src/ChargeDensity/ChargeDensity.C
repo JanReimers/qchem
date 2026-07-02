@@ -128,6 +128,12 @@ public:
     //! bra-ket pair partner; composite/polarized inherit this asserting default.
     virtual void AccumulateDirectBoth(hmat_t<T>& Ji, hmat_t<T>& Jj, const tDM_CD<T>& other) const
     { assert(false && "AccumulateDirectBoth: only a leaf (irrep) density is a bra-ket pair partner"); }
+    //! Exchange analogues of the two above.  Exchange is SAME-SPIN, so the whole-system build is per single-
+    //! spin density (Polarized_CD sums the two spin channels' K into the same blocks for the RHF term).
+    virtual void AccumulateExchangeAll(std::vector<hmat_t<T>>& Kall, const std::vector<const ohfbs_t*>& abBases) const
+    { assert(false && "AccumulateExchangeAll: only a composite/polarized density spans all irrep blocks"); }
+    virtual void AccumulateExchangeBoth(hmat_t<T>& Ki, hmat_t<T>& Kj, const tDM_CD<T>& other) const
+    { assert(false && "AccumulateExchangeBoth: only a leaf (irrep) density is a bra-ket pair partner"); }
 };
 
 using rChargeDensity = tChargeDensity<double>;  using cChargeDensity = tChargeDensity<dcmplx>;
@@ -162,7 +168,8 @@ public:
     virtual rvec_t GetRepulsion3C(const BasisSet::FIT_CD_ABS*) const;
     virtual void AccumulateDirect  (rsmat_t& Jab, const ohfbs_t*) const;
     virtual void AccumulateExchange(rsmat_t& Kab, const ohfbs_t*) const;
-    virtual void AccumulateDirectAll(std::vector<rsmat_t>& Jall, const std::vector<const ohfbs_t*>& abBases) const;  // sum both spins
+    virtual void AccumulateDirectAll  (std::vector<rsmat_t>& Jall, const std::vector<const ohfbs_t*>& abBases) const;  // sum both spins (Coulomb)
+    virtual void AccumulateExchangeAll(std::vector<rsmat_t>& Kall, const std::vector<const ohfbs_t*>& abBases) const;  // sum both spins (RHF exchange)
 
     virtual void   ReScale      (double factor              )      ;  // No UT coverage//Ro *= factor
     virtual void   MixIn        (const DM_CD&,double)      ;  //this = (1-c)*this + c*that.

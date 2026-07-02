@@ -74,6 +74,8 @@ public:
     //! (the whole-AO build already banks the full 8-fold symmetry).  See doc/ERI4Rework.md §5.4.
     virtual void AccumulateDirectBoth(rsmat_t& Ji, rsmat_t& Jj, const rsmat_t& Di, const rsmat_t& Dj,
                                       const Orbital_HF_IBS<double>* cd) const;
+    virtual void AccumulateExchangeBoth(rsmat_t& Ki, rsmat_t& Kj, const rsmat_t& Di, const rsmat_t& Dj,
+                                        const Orbital_HF_IBS<double>* cd) const;
     // Pure-virtual ERI accessors -- unused here (Accumulate* are overridden); never called.
     virtual ERI4 MakeDirect  (const Orbital_HF_IBS<double>&) const {return ERI4();}
     virtual ERI4 MakeExchange(const Orbital_HF_IBS<double>&) const {return ERI4();}

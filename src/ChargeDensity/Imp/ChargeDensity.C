@@ -35,6 +35,14 @@ void Polarized_CD::AccumulateDirectAll(std::vector<rsmat_t>& Jall,const std::vec
     GetChargeDensity(Spin::Down)->AccumulateDirectAll(Jall,abBases);
 }
 
+// The RHF (unpolarized) exchange term sums K[D_up]+K[D_down] into the same blocks (= K[D_total], then the
+// term scales by -1/2).  The polarized term instead drives AccumulateExchangeAll on ONE spin's composite.
+void Polarized_CD::AccumulateExchangeAll(std::vector<rsmat_t>& Kall,const std::vector<const ohfbs_t*>& abBases) const
+{
+    GetChargeDensity(Spin::Up  )->AccumulateExchangeAll(Kall,abBases);
+    GetChargeDensity(Spin::Down)->AccumulateExchangeAll(Kall,abBases);
+}
+
 double Polarized_CD::DM_Contract(const Static_CC* v) const
 {
     return GetChargeDensity(Spin::Up  )->DM_Contract(v)+GetChargeDensity(Spin::Down)->DM_Contract(v);

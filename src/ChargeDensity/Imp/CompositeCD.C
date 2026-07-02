@@ -58,6 +58,21 @@ template <class T> void tComposite_CD<T>::AccumulateDirectAll(std::vector<hmat_t
     }
 }
 
+// Exchange counterpart of AccumulateDirectAll (same canonical-pair structure; K(i,j)=K(j,i)^T).  Driven
+// per single-spin composite (exchange is same-spin), so the blocks it fills are one spin channel's K.
+template <class T> void tComposite_CD<T>::AccumulateExchangeAll(std::vector<hmat_t<T>>& Kall, const std::vector<const ohfbs_t*>& abBases) const
+{
+    assert(itsCDs.size()==abBases.size() && "composite blocks must be 1:1 with the context irrep bases");
+    assert(Kall.size()==abBases.size());
+    const size_t N=itsCDs.size();
+    for (size_t k=0;k<N;++k)
+    {
+        itsCDs[k]->AccumulateExchange(Kall[k],abBases[k]);                  // diagonal K(k,k)·D_k
+        for (size_t l=k+1;l<N;++l)
+            itsCDs[k]->AccumulateExchangeBoth(Kall[k],Kall[l],*itsCDs[l]);  // fused off-diagonal canonical pair
+    }
+}
+
 template <class T> double tComposite_CD<T>::DM_Contract(const tStatic_CC<T>* v) const
 {
     double ret=0.0;

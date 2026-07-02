@@ -27,6 +27,11 @@ public:
     //! RAM+build across an irrep pair.  All the symmetry bookkeeping lives in ERI4::ScatterBoth.
     virtual void AccumulateDirectBoth(rsmat_t& Ji, rsmat_t& Jj, const smat_t<T>& Di, const smat_t<T>& Dj,
                                       const Orbital_HF_IBS<T>* cd) const;
+    //! Exchange analogue of AccumulateDirectBoth: \f$K(i,j)=K(j,i)^\mathsf{T}\f$, so one fetch of the
+    //! canonical Exchange block J(this,cd) feeds both blocks (K(cd,this) never built).  Same-spin
+    //! densities only -- the caller (a single-spin density) supplies Di,Dj from one spin channel.
+    virtual void AccumulateExchangeBoth(rsmat_t& Ki, rsmat_t& Kj, const smat_t<T>& Di, const smat_t<T>& Dj,
+                                        const Orbital_HF_IBS<T>* cd) const;
 };
 
 typedef Orbital_HF_IBS<double>    Real_HF_OIBS;

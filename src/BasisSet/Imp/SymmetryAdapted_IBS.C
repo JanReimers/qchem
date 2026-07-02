@@ -132,6 +132,14 @@ void SymmetryAdapted_IBS::AccumulateDirectBoth(rsmat_t& Ji, rsmat_t& Jj, const r
     if (blazem::max(blazem::abs(Di))>0.0) cd->AccumulateDirect(Jj, Di, this); // Jj += J(j,i)·Di
 }
 
+// Exchange counterpart: same AO-slice fallback (no per-irrep-pair ERI4 in the SALC path).
+void SymmetryAdapted_IBS::AccumulateExchangeBoth(rsmat_t& Ki, rsmat_t& Kj, const rsmat_t& Di, const rsmat_t& Dj,
+                                                 const Orbital_HF_IBS<double>* cd) const
+{
+    if (blazem::max(blazem::abs(Dj))>0.0)     AccumulateExchange(Ki, Dj, cd);   // Ki += K(i,j)·Dj
+    if (blazem::max(blazem::abs(Di))>0.0) cd->AccumulateExchange(Kj, Di, this); // Kj += K(j,i)·Di
+}
+
 // Transform the raw basis's *cached* 1-e matrix (Overlap/Kinetic/Nuclear): the raw matrix is
 // computed once and shared by every irrep.  The nested cached access is safe now that the integral
 // cache is re-entrant (these MakeXxx run as the cache-miss hook of this irrep's own cached block).

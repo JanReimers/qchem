@@ -47,6 +47,14 @@ template <class T> void Orbital_HF_IBS<T>::AccumulateDirectBoth(rsmat_t& Ji, rsm
     Direct(*cd).ScatterBoth(Ji,Jj,Di,Dj);
 }
 
+// Exchange counterpart: fetch the ONE canonical Exchange block K(this,cd) and scatter into both irreps'
+// K blocks; K(cd,this) is never requested/built (doc/ERI4Rework.md §4).
+template <class T> void Orbital_HF_IBS<T>::AccumulateExchangeBoth(rsmat_t& Ki, rsmat_t& Kj, const smat_t<T>& Di, const smat_t<T>& Dj, const Orbital_HF_IBS<T>* cd) const
+{
+    assert(!blazem::isnan(Di) && !blazem::isnan(Dj));
+    Exchange(*cd).ScatterBoth(Ki,Kj,Di,Dj);
+}
+
 template class Orbital_HF_IBS<double>;
 
 } //namespace

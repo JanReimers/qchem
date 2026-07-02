@@ -3,10 +3,10 @@
 Status: Stages 1+2 DONE (committed ffcd7f18 — `ERI4::MatMul` member + `ERI4::ScatterBoth` + unit test).
 Stage 3 RESCOPED 2026-07-02 after a survey (see §5.4): the two-target driver is NOT in `ChargeDensity`, it
 needs a cross-irrep **context struct** threaded from `CompositeWF` through the Hamiltonian terms.
-**Stage 3a DONE** (inert context-struct plumbing, bit-identical — see §8.3a). **Stage 3b DONE for Coulomb/J**
-(`Vee` consumes the context; whole-system `ScatterBoth`; `Jac` RAM halved — see §8.3b); exchange/K (3b-K)
-and the belt-and-suspenders canonical cache key (3c) remain. Author: design session 2026-07-02b; rescope +
-3a + 3b(J) 2026-07-02.
+**Stage 3a DONE** (inert context-struct plumbing, bit-identical — see §8.3a). **Stage 3b DONE (Coulomb/J + Exchange/K)**
+(`Vee`/`Vxc`/`VxcPol` consume the context; whole-system `ScatterBoth`; `Jac` AND `Kab` RAM 521→369 MB —
+see §8.3b/3b-K). Only the belt-and-suspenders canonical cache key (3c) remains. Author: design session
+2026-07-02b; rescope + 3a + 3b(J+K) 2026-07-02.
 
 ## 1. Problem
 
@@ -275,8 +275,15 @@ Keep §5 (generic, bra–ket, high value) and §6 (atomic, LMax→Irrep) as sepa
      the energy path would re-materialize `J(j,i)` every iteration).  **SALC caveat:** `SymmetryAdapted_IBS`
      has no per-irrep-pair ERI4 (empty `MakeDirect` → builds the whole-AO Fock and slices), so it OVERRIDES
      `AccumulateDirectBoth` to fall back to two independent AO slices (the AO build already banks the full
-     8-fold symmetry).  **Gate:** 167 UTMain green; `Jac` RAM halved (both orientations no longer stored).
-     Exchange (K, the `Vxc`/`VxcPol` terms) is the mechanical repeat — deferred to 3b-K.
+     8-fold symmetry).  **Gate:** 167 UTMain green; `Jac` RAM 521→369 MB (off-diagonal blocks now single-
+     orientation; diagonal blocks are self-transpose and unhalvable, hence <50%).
+   - **3b-K. DONE (Exchange/K)** — the mechanical mirror of 3b for `K(i,j)=K(j,i)ᵀ`: `AccumulateExchangeBoth`
+     / `AccumulateExchangeAll` alongside the Direct versions.  Spin twist: exchange is SAME-SPIN, so the
+     whole-system build runs per single-spin density.  `Vxc` (RHF) sums both spins (`Polarized_CD::
+     AccumulateExchangeAll`) and stores blocks scaled −½; `VxcPol` (UHF) builds PER SPIN from
+     `Polarized_CD::GetChargeDensity(s)` and stores scaled −1, keyed by (spin,irrep).  Both cache the scaled
+     blocks so `GetMatrix` returns a reference; `SymmetryAdapted_IBS` gets the two-AO-slice fallback.
+     **Gate:** 167 UTMain + 109 UTAtom_BS green; `Kab` RAM 521→369 MB (now symmetric with `Jac`).
    - **3c.** Canonical `(min,max)` J/K cache key (§5.2).  NOTE: with 3b's request discipline (`Vee` only
      ever fetches canonical `Direct(i,j)`, i≤j), the non-canonical block is already never built, so RAM is
      halved WITHOUT 3c.  3c becomes belt-and-suspenders robustness (any stray non-canonical request reuses

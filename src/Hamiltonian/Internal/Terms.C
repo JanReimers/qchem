@@ -181,8 +181,16 @@ class Vxc : public virtual Dynamic_HT, private Dynamic_HT_Imp
 public:
     virtual void           GetEnergy(EnergyBreakdown&,const DM_CD* cd ) const;
     virtual std::ostream&  Write    (std::ostream&) const;
+    //! Whole-system RHF exchange via ERI4 bra-ket symmetry (doc/ERI4Rework.md §5.4), scaled -1/2 and
+    //! cached per irrep; the 3-arg (energy) reuses the stashed basis list; empty context -> per-irrep path.
+    virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&,const rChargeDensity*,const HamiltonianContext&) const;
+    virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&,const rChargeDensity*) const;
 private:
     virtual rsmat_t CalcMatrix(const obs_t*,const Spin&,const rChargeDensity* cd) const;
+    void EnsureWholeSystem(const rChargeDensity* cd) const;
+    mutable size_t itsAllVersion=size_t(-1);
+    mutable std::vector<const obs_t*> itsBases;
+    mutable std::map<std::string,rsmat_t> itsK;   //!< per-irrep exchange blocks, already scaled by -1/2
 };
 
 class VxcPol : public virtual Dynamic_HT, private Dynamic_HT_Imp_NoCache
@@ -191,8 +199,16 @@ public:
     virtual void           GetEnergy(EnergyBreakdown&,const DM_CD* cd ) const;
     virtual bool           IsPolarized() const {return true;}
     virtual std::ostream&  Write    (std::ostream&) const;
+    //! Whole-system UHF exchange, PER SPIN (K^sigma from the sigma-density only), scaled -1 and cached
+    //! per (spin,irrep); the 3-arg (energy) reuses the stash; empty context -> per-irrep path.
+    virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&,const rChargeDensity*,const HamiltonianContext&) const;
+    virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&,const rChargeDensity*) const;
 private:
     virtual rsmat_t CalcMatrix(const obs_t*,const Spin&,const rChargeDensity* cd) const;
+    void EnsureWholeSystem(const rChargeDensity* cd, const Spin& s) const;
+    mutable size_t itsAllVersion=size_t(-1);
+    mutable std::vector<const obs_t*> itsBases;
+    mutable std::map<Spin,std::map<std::string,rsmat_t>> itsK;   //!< per-spin, per-irrep K, scaled by -1
 };
 
 //###############################################################################

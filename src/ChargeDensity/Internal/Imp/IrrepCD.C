@@ -85,6 +85,18 @@ template <> void IrrepCD<double>::AccumulateDirectBoth(rsmat_t& Ji, rsmat_t& Jj,
     bs_i->AccumulateDirectBoth(Ji,Jj,itsDensityMatrix,oj->itsDensityMatrix,bs_j);
 }
 
+// Exchange counterpart (see AccumulateDirectBoth): fetches only the canonical Exchange block.
+template <> void IrrepCD<double>::AccumulateExchangeBoth(rsmat_t& Ki, rsmat_t& Kj, const tDM_CD<double>& other) const
+{
+    const IrrepCD<double>* oj=dynamic_cast<const IrrepCD<double>*>(&other);
+    assert(oj);
+    if (IsZero() && oj->IsZero()) return;
+    const ohfbs_t* bs_i=dynamic_cast<const ohfbs_t*>(itsBasisSet);
+    const ohfbs_t* bs_j=dynamic_cast<const ohfbs_t*>(oj->itsBasisSet);
+    assert(bs_i && bs_j);
+    bs_i->AccumulateExchangeBoth(Ki,Kj,itsDensityMatrix,oj->itsDensityMatrix,bs_j);
+}
+
 //------------------------------------------------------------------------------
 //
 //  Required by fitting routines.
@@ -216,6 +228,8 @@ template <> void IrrepCD<dcmplx>::AccumulateExchange(hmat_t<dcmplx>&, const ohfb
 { assert(false && "AccumulateExchange: HF not applicable to a complex plane-wave density"); }
 template <> void IrrepCD<dcmplx>::AccumulateDirectBoth(hmat_t<dcmplx>&, hmat_t<dcmplx>&, const tDM_CD<dcmplx>&) const
 { assert(false && "AccumulateDirectBoth: HF not applicable to a complex plane-wave density"); }
+template <> void IrrepCD<dcmplx>::AccumulateExchangeBoth(hmat_t<dcmplx>&, hmat_t<dcmplx>&, const tDM_CD<dcmplx>&) const
+{ assert(false && "AccumulateExchangeBoth: HF not applicable to a complex plane-wave density"); }
 template <> rvec3_t IrrepCD<dcmplx>::Gradient(const rvec3_t&) const
 { return rvec3_t(0,0,0); }   // No UT coverage; GGA/plotting gradient not yet wired for complex.
 
