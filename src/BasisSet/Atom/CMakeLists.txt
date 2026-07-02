@@ -14,11 +14,10 @@ target_include_directories(qcAtom_BS PRIVATE
     ${PROJECT_SOURCE_DIR}/src
 )
 
-target_compile_options(qcAtom_BS PRIVATE 
+target_compile_options(qcAtom_BS PRIVATE
     $<$<AND:$<CONFIG:Debug>,$<COMPILE_LANGUAGE:CXX>>:-g>
     $<$<AND:$<CONFIG:Debug>,$<COMPILE_LANGUAGE:CXX>>:-O0>
     $<$<AND:$<CONFIG:Release>,$<COMPILE_LANGUAGE:CXX>>:-O2>
-    $<$<AND:$<CONFIG:Release>,$<COMPILE_LANGUAGE:CXX>>:-pg>
 )
 target_compile_definitions(qcAtom_BS PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
 
