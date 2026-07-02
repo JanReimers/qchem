@@ -62,7 +62,7 @@ export
         double GetElectronegativity   (size_t Z) const;                //!< Pauling electronegativity (0.0 = noble gas / un-tabulated)
         double GetEnergyHF            (size_t Z) const {return get(Z).Energy_HF;} //Saito, Shiro L. Hartree–Fock–Roothaan energies and expectation values for the neutral atoms He to Uuo: The B-spline expansion method, Atomic Data and Nuclear Data Tables, 95,6, 836--870
         double GetEnergyDFT           (size_t Z) const {return get(Z).Energy_DFT;} //NIST https://math.nist.gov/DFTdata/atomdata/tables/ptable.html
-        double GetEnergyDHF           (size_t Z) const {return get(Z).Energy_DHF;}
+        double GetEnergyDHF           (size_t Z) const {return get(Z).Energy_DHF;} //Tatewaki et.al. ACS Omega 2017, 2, 9, 6072–6080
         const std::vector<DHFOrbitalRecord>& GetDHFOrbitals(size_t Z) const {return get(Z).DHFOrbitals;}
         double GetNumUnpairedElectrons(size_t Z) const {return get(Z).NUnpaired;}
         int    GetMaxL                (size_t Z) const {return get(Z).MaxL;}
