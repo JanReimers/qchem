@@ -220,8 +220,9 @@ TEST_F(Cache4Tests,HF2_BS_Reentry)
 // keying each distinct exponent VALUE to its own index (Slater/Gaussian Evaluator.C use
 // grouper.unique_esv[i] directly in the integral).  If that keying ever regressed to a per-basis index,
 // the second basis would alias onto the first's cached table and fnorm(JA,JB) would collapse to 0.
-// These guard that the coarse RadialType key is SAFE for exponentials (unlike BSpline, whose grouper
-// keys splines by rmin only and therefore needs the full grid in RadialType).
+// These guard that the coarse RadialType key is SAFE for exponentials.  BSpline gets the same treatment
+// now (RadialType()==Name(), one "BSpline<6>" Cache4 for all grids) -- see HF2_BS_GridKeyed, which relies
+// on the lossless SplineGrouper key instead of an exponent-value key.
 TEST_F(Cache4Tests,HF2_SG_ExponentKeyed)
 {
     delete bs1;
@@ -251,6 +252,29 @@ TEST_F(Cache4Tests,HF2_SL_ExponentKeyed)
     const ERI4& JA=(*a)->Direct(**a);
     const ERI4& JB=(*b)->Direct(**b);
     EXPECT_GT(fnorm(JA,JB),1e-3);            // distinct exponents -> distinct integrals (no aliasing)
+    delete bsA;
+    delete bsB;
+}
+
+// The BSpline analogue of the SG/SL exponent-keyed guard.  All BSpline<6> grids now share ONE coarse
+// "BSpline<6>" Cache4 (RadialType()==Name(), no grid in the key), so correctness rests on the lossless
+// SplineGrouper (full knot-vector key) plus per-grid GridData routing.  Two DIFFERENT grids (same N so the
+// ERI4 blocks are comparable, different rmin/rmax) must therefore yield DISTINCT integrals -- if the
+// grouper aliased their splines, or Create() routed to the wrong grid's GL/Rk tables, JB would collapse
+// onto JA's cached values and fnorm(JA,JB) would go to 0.
+TEST_F(Cache4Tests,HF2_BS_GridKeyed)
+{
+    delete bs1;
+    nlohmann::json jsA={{"N", 5}, {"rmin", 0.25}, {"rmax", 4.0}}; jsA["type"]=Type::BSpline6;
+    nlohmann::json jsB={{"N", 5}, {"rmin", 0.20}, {"rmax", 3.0}}; jsB["type"]=Type::BSpline6;
+    BasisSet::Real_BS* bsA=Factory(jsA,2);
+    BasisSet::Real_BS* bsB=Factory(jsB,2);   // registers into the SAME "BSpline<6>" Cache4 as bsA
+    using BasisSet::Real_HF_OIBS;
+    auto a=bsA->Iterate<Real_HF_OIBS>().begin();
+    auto b=bsB->Iterate<Real_HF_OIBS>().begin();
+    const ERI4& JA=(*a)->Direct(**a);
+    const ERI4& JB=(*b)->Direct(**b);
+    EXPECT_GT(fnorm(JA,JB),1e-3);            // distinct grids -> distinct integrals (no cross-grid aliasing)
     delete bsA;
     delete bsB;
 }

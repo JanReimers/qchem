@@ -16,14 +16,16 @@ using std::endl;
 namespace qchem::BSpline
 {
 
-template <size_t K> RkCache<K>::RkCache(const std::vector<sp_t>& splines,const GLCache1D& gl1, size_t lmax, const func_t& wp, const func_t& wm)
+template <size_t K> RkCache<K>::RkCache(const std::vector<sp_t>& splines,const GLCache1D& gl1, size_t lmax, const func_t& wp, const func_t& wm, const bspline::Grid<double>& grid)
 : itsMomentsPlus (splines.size())
 , itsMomentsMinus(splines.size())
 {
     for (size_t ia=0;ia<splines.size();ia++)
     {
+        if (!(splines[ia].getSupport().getGrid()==grid)) continue; //off-grid spline: not covered by this gl1
         for (size_t ib=ia;ib<splines.size();ib++)
         {
+            if (!(splines[ib].getSupport().getGrid()==grid)) continue;
             std::vector<double> mp,mm;
             for (size_t k=0;k<=2*lmax;k++)
             {

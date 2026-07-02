@@ -76,13 +76,13 @@ template <size_t K> std::string EvaluatorCommon<K>::RadialID () const
     return os.str();
 }
 
-// We need at least the first three grid points as itsGrid[0]==0.0 and contains no distinguishing info.
+// The cache key is just the family name (like SG/SL) -- one Cache4 serves all grids of this order.  The
+// grouper (keyed losslessly on the full knot vector) and the per-grid GridData bundles keep distinct grids
+// from aliasing, so the grid no longer needs smuggling into the key.  RadialID() below still carries the
+// grid for human-readable identification/reporting.
 template <size_t K> std::string EvaluatorCommon<K>::RadialType() const
 {
-    assert(itsGrid.size()>2);
-    std::ostringstream os;
-    os << Name() << " grid=<" << itsGrid[0] << "," << itsGrid[1] << "," << itsGrid[2] << " ... " << itsGrid[itsGrid.size()-1] << "}";
-    return os.str();
+    return Name();
 }
 
 template <size_t K> std::ostream&  EvaluatorCommon<K>::Write(std::ostream& os) const
@@ -90,46 +90,63 @@ template <size_t K> std::ostream&  EvaluatorCommon<K>::Write(std::ostream& os) c
     return os << " N=" << size() << " α={" << rmin << " ... " << rmax << "}";
 }
 
-template <size_t K> Cache4<K>::Cache4(const bspline::Grid<double>& grid,const func_t& _wp, const func_t& _wm, size_t Kp) 
-    : wp(_wp), wm(_wm)
-    , itsMaxl(0)
-    , itsGL1D(grid,K+Kp) //K+3 for Eval and K+1 for the 1/r version
-    , itsGL2D(grid,2*K+Kp,K+3) //2K+3 for Eval and 2K+1 for the 1/r version
-    , itsRkCache(0) 
+template <size_t K> Cache4<K>::Cache4(const func_t& _wp, const func_t& _wm, size_t _Kp)
+    : wp(_wp), wm(_wm), Kp(_Kp), itsMaxl(0)
     {
     };
+
+template <size_t K> GridData<K>& Cache4<K>::ensureGrid(const bspline::Grid<double>& g)
+{
+    for (auto& p:itsGrids) if (p->grid==g) return *p;
+    itsGrids.push_back(std::make_unique<GridData<K>>(g,Kp));
+    return *itsGrids.back();
+}
+
+template <size_t K> const GridData<K>& Cache4<K>::gridFor(const bspline::Grid<double>& g) const
+{
+    for (auto& p:itsGrids) if (p->grid==g) return *p;
+    assert(false); //Create() must only ever ask for a grid that Register() already built.
+    return *itsGrids.front();
+}
 
 template <size_t K> void Cache4<K>::Register(Cache4_Client * eval)
 {
     assert(eval);
     auto geval=dynamic_cast<Internal::EvaluatorCommon<K>*>(eval);
-    geval->Register(&grouper);
+    assert(geval);
+    geval->Register(&grouper); //insert this eval's splines (lossless keying across grids)
     if (geval->Getl()>itsMaxl) itsMaxl=geval->Getl();
+    GridData<K>& gd=ensureGrid(geval->GetGrid());
     //
-    //  At this point we need sweep through all Cacheable4* (Rks) in Cache4::cache_t
-    //  and check if geval is supported (geval.l <= Rk.LMax).
-    //  All unsupport Rks will be removed.  These will then automatically be recreated next time
-    //  loop_4 is called.
+    //  Drop any cached Rk now stale w.r.t. the (possibly) raised itsMaxl -- see Cache4::Register.
+    //  Evicted entries are recreated on the next loop_4.
     //
     ::qchem::Cache4::Register(eval);
 
-    delete itsRkCache;
-    itsRkCache=new ::qchem::BSpline::RkCache<K>(grouper.unique_spv,itsGL1D, itsMaxl,wp,wm);
+    //  (Re)build the Rk moment tables for THIS grid against the current unique-spline set.  Other grids'
+    //  tables stay valid: each grid's moments only need lmax >= that grid's own max l, and every grid
+    //  rebuilds when one of its own (higher-l) shells registers.
+    gd.rkcache=std::make_unique<::qchem::BSpline::RkCache<K>>(grouper.unique_spv,gd.gl1,itsMaxl,wp,wm,geval->GetGrid());
 }
 
 template <size_t K> Rk*  Cache4<K>::Create (size_t ia,size_t ic,size_t ib,size_t id) const
 {
-    assert(itsRkCache);
+    const bspline::Grid<double>& g=grouper.unique_spv[ia].getSupport().getGrid(); //all four share a grid
+    const GridData<K>& gd=gridFor(g);
+    assert(gd.rkcache);
     size_t lmax=grouper.LMax(ia,ib,ic,id);
-    return new ::qchem::BSpline::RkEngine(grouper.unique_spv,ia,ib,ic,id,lmax,itsGL1D,itsGL2D,*itsRkCache,wp,wm);
+    return new ::qchem::BSpline::RkEngine(grouper.unique_spv,ia,ib,ic,id,lmax,gd.gl1,gd.gl2,*gd.rkcache,wp,wm);
 }
 
 template <size_t K>  size_t Cache4<K>::RAMsize() const
 {
     size_t ndoubles=::qchem::Cache4::RAMsize();
-    ndoubles+=itsGL1D.RAMsize();
-    ndoubles+=itsGL2D.RAMsize();
-    ndoubles+=itsRkCache->RAMsize();
+    for (auto& p:itsGrids)
+    {
+        ndoubles+=p->gl1.RAMsize();
+        ndoubles+=p->gl2.RAMsize();
+        if (p->rkcache) ndoubles+=p->rkcache->RAMsize();
+    }
     return ndoubles;
 }
 

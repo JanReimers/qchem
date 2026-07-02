@@ -20,7 +20,11 @@ template <size_t K> class RkCache
     typedef std::vector<double> dv_t;
 public:
     using func_t=std::function< double (double,size_t )>;
-    RkCache(const std::vector<sp_t>& splines,const GLCache1D& gl1,size_t lmax, const func_t& wp, const func_t& wm);
+    // \a grid selects which splines this cache covers: only pairs with BOTH splines on \a grid are
+    // integrated (gl1 is built for that one grid).  The unique-spline list may span several grids now
+    // that a single "BSpline<K>" Cache4 serves them all, so off-grid pairs are left empty (never queried:
+    // an Rk's four splines always share a grid).
+    RkCache(const std::vector<sp_t>& splines,const GLCache1D& gl1,size_t lmax, const func_t& wp, const func_t& wm, const bspline::Grid<double>& grid);
     const dv_t& plus (size_t ia,size_t ib) const {return itsMomentsPlus (ia,ib);}
     const dv_t& minus(size_t ia,size_t ib) const {return itsMomentsMinus(ia,ib);}
     size_t RAMsize() const;

@@ -1,6 +1,8 @@
 // File: BasisSet/Atom/Evaluators/BSpline/Internal/EvaluatorCommon.C
 module;
 #include <vector>
+#include <memory>
+#include <utility>
 #include <bspline/Core.h>
 
 export module qchem.BasisSet.Atom.Evaluators.BSpline.Internal.Common;
@@ -55,6 +57,7 @@ public:
     virtual std::string   RadialType() const override;
 
     const spline_t& operator[](int index) const {return splines[index];}
+    const bspline::Grid<double>& GetGrid() const {return itsGrid;}
 
 protected:
     std::vector<double> MakeLogKnots(size_t NGrid, double rmin, double rmax, int l);
@@ -67,24 +70,37 @@ protected:
     std::vector<size_t> es_indices; //Unique spline index
 };
 
+// Grid-specific quadrature + Rk-moment tables.  A single "BSpline<K>" Cache4 now serves EVERY grid of
+// order K (RadialType()==Name(), like SG/SL), so the grid-dependent Gauss-Legendre caches live here --
+// one bundle per distinct grid -- instead of forcing a whole separate Cache4 (and grid string in the key)
+// per grid.
+template <size_t K> struct GridData
+{
+    GridData(const bspline::Grid<double>& g, size_t Kp) : grid(g), gl1(g,K+Kp), gl2(g,2*K+Kp,K+3) {}
+    bspline::Grid<double> grid;
+    GLCache1D gl1;
+    GLCache2D gl2;
+    std::unique_ptr<::qchem::BSpline::RkCache<K>> rkcache;
+};
+
 template <size_t K> class Cache4 : public  ::qchem::Cache4
 {
     using func_t=::qchem::BSpline::RkEngine<K>::func_t;
 public:
-    Cache4(const bspline::Grid<double>& grid,const func_t& wp, const func_t& wm, size_t Kp);
-    ~Cache4() {delete itsRkCache;}
+    Cache4(const func_t& wp, const func_t& wm, size_t Kp);
     virtual void   Register(Cache4_Client * eval);
     virtual Rk*    Create  (size_t ia,size_t ic,size_t ib,size_t id) const;
     virtual size_t RAMsize () const;
 
 private:
-    func_t wp,wm; //Weight functions for Slater integrals.
-    size_t itsMaxl;
-    GLCache1D   itsGL1D;
-    GLCache2D   itsGL2D;
+    GridData<K>&       ensureGrid(const bspline::Grid<double>& g);       //find-or-build the per-grid bundle
+    const GridData<K>& gridFor   (const bspline::Grid<double>& g) const; //Create() only asks for built grids
 
-    SplineGrouper<K> grouper;
-    ::qchem::BSpline::RkCache<K>* itsRkCache;
+    func_t wp,wm; //Weight functions for Slater integrals.
+    size_t Kp;
+    size_t itsMaxl;
+    SplineGrouper<K> grouper; //lossless across grids -- separates splines from different knot vectors
+    std::vector<std::unique_ptr<GridData<K>>> itsGrids; //one per distinct grid, keyed by GridData::grid
 };
 
 } //namespace

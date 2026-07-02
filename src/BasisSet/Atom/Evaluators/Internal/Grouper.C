@@ -13,10 +13,11 @@ namespace qchem {
 // and work out the radial integral tables up to LMax for each exponent combination. 
 // THis class should be working together with the charge distribution caching mechanism.
 //
-// We can also use this class for splines by using the support window {rmin,rmax}.
-// For now just assume if two spline have the same rmin then they also have the same rmax
-// So just pass in rmin instead of the exponent.
-//  
+// The spline analogue (SplineGrouper) keys on a spline's full identity -- its knot vector plus support
+// window -- so two splines from different grids never alias even when they share a single "BSpline<K>"
+// Cache4.  (It deliberately does NOT reduce a spline to a scalar like rmin: that was lossy and only worked
+// while each grid had its own Cache4 keyed by the whole grid string.)
+//
 export class Grouper
 {
 public:

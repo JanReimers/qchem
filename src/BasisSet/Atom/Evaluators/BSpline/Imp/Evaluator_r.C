@@ -68,7 +68,6 @@ template <size_t K> Cache4* Evaluator_r<K>::MakeCache4() const
 {
     return new Internal::Cache4<K>
     (
-        itsGrid,
         [](double r2,size_t k) {return intpow(r2,k);},
         [](double r2,size_t k) {return intpow(r2,-1-k);},
         1
