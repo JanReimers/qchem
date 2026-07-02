@@ -123,17 +123,19 @@ template <size_t K> void Cache4<K>::Register(Cache4_Client * eval)
     //
     ::qchem::Cache4::Register(eval);
 
-    //  (Re)build the Rk moment tables for THIS grid against the current unique-spline set.  Other grids'
-    //  tables stay valid: each grid's moments only need lmax >= that grid's own max l, and every grid
-    //  rebuilds when one of its own (higher-l) shells registers.
-    gd.rkcache=std::make_unique<::qchem::BSpline::RkCache<K>>(grouper.unique_spv,gd.gl1,itsMaxl,wp,wm,geval->GetGrid());
+    //  Invalidate THIS grid's Rk moment tables: the unique-spline set and/or itsMaxl may have grown.
+    //  We do NOT rebuild here -- a heavy atom registers s,p,d,f (one Register each) before any integral,
+    //  so rebuilding per channel would build the moments 4x.  Instead Create() builds them once, lazily,
+    //  by which point all channels have registered and itsMaxl is final.  Other grids keep their tables.
+    gd.rkcache.reset();
 }
 
 template <size_t K> Rk*  Cache4<K>::Create (size_t ia,size_t ic,size_t ib,size_t id) const
 {
     const bspline::Grid<double>& g=grouper.unique_spv[ia].getSupport().getGrid(); //all four share a grid
     const GridData<K>& gd=gridFor(g);
-    assert(gd.rkcache);
+    if (!gd.rkcache) //lazy first build: itsMaxl is final now (all shells registered before any lookup)
+        gd.rkcache=std::make_unique<::qchem::BSpline::RkCache<K>>(grouper.unique_spv,gd.gl1,itsMaxl,wp,wm,g);
     size_t lmax=grouper.LMax(ia,ib,ic,id);
     return new ::qchem::BSpline::RkEngine(grouper.unique_spv,ia,ib,ic,id,lmax,gd.gl1,gd.gl2,*gd.rkcache,wp,wm);
 }

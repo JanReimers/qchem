@@ -4,6 +4,7 @@ module;
 #include <iomanip>
 #include <vector>
 #include <functional>
+#include <algorithm>
 #include <cassert>
 #include <bspline/Core.h>
 module qchem.BasisSet.Atom.Evaluators.BSpline.Internal.Rk;
@@ -74,73 +75,112 @@ template <size_t K> RkEngine<K>::RkEngine(const std::vector<sp_t>& splines, size
     assert(sab.containsIntervals());
     assert(scd.containsIntervals());
     auto Sabcd=sab.calcIntersection(scd);
-    
+
     assert(sc.hasSameGrid(sd));
     assert(sa.hasSameGrid(sb));
-    bspline::Grid grid=sa.getGrid();
-    for (size_t k=0;k<=2*itsLMax;k++)
+
+    //  The support topology (which of the three cases applies) is independent of k, so decide it ONCE and
+    //  put the k loop innermost.  In the hard "all four overlap" case the B-spline VALUES at the fixed GL
+    //  nodes are also k-independent (only the weight powers wp/wm carry k), so we sample each spline at its
+    //  nodes ONCE and reuse the samples across all k.  Spline evaluation (binary search for the knot span +
+    //  polynomial) is the dominant cost, so this removes a ~(2*LMax+1)x redundancy.  A hand-rolled
+    //  sum_i weight(i)*wp(node(i),k)*u(i)*v(i) with cached u=spline(node) matches the old Integrate() calls
+    //  term-for-term (same order and associativity), so results stay bit-identical.
+    auto sample=[](const sp_t& s, const GLQuadrature& g)
+    {
+        rvec_t v(g.size());
+        for (size_t j=0;j<g.size();j++) v[j]=s(g.node(j));
+        return v;
+    };
+    if (Sabcd.containsIntervals())
     {
         // THis is hard/hot loop for the whole process.  abcd all overlap and no factoring is possible.
-        if (Sabcd.containsIntervals())
+        const size_t ab0=sab.getStartIndex(), ab1=sab.getEndIndex()-1;   // outer (ab) interval range
+        const size_t cd0=scd.getStartIndex(), cd1=scd.getEndIndex()-1;   // (cd) support interval range
+        // Engine-level samples on the 1D grids (independent of iab): a,b on gl1 and on the gl2 outer grid;
+        // c,d on gl1 over (cd)'s support.
+        std::vector<rvec_t> A1(ab1-ab0), B1(ab1-ab0), AO(ab1-ab0), BO(ab1-ab0);
+        for (size_t iab=ab0;iab<ab1;iab++)
         {
-            std::function< double (double)> wpab=[k,&wp,&a,&b](double r1) {return wp(r1,k)*a(r1)*b(r1);};
-            std::function< double (double)> wmab=[k,&wm,&a,&b](double r1) {return wm(r1,k)*a(r1)*b(r1);};
-            std::function< double (double)> wpcd=[k,&wp,&c,&d](double r2) {return wp(r2,k)*c(r2)*d(r2);};
-            std::function< double (double)> wmcd=[k,&wm,&c,&d](double r2) {return wm(r2,k)*c(r2)*d(r2);};
-            for (size_t iab=sab.getStartIndex();iab<sab.getEndIndex()-1;iab++)
+            const size_t t=iab-ab0;
+            A1[t]=sample(a,gl1[iab]);          B1[t]=sample(b,gl1[iab]);
+            AO[t]=sample(a,gl2.GL1d()[iab]);   BO[t]=sample(b,gl2.GL1d()[iab]);
+        }
+        std::vector<rvec_t> C1(cd1-cd0), D1(cd1-cd0);
+        for (size_t i=cd0;i<cd1;i++) { C1[i-cd0]=sample(c,gl1[i]); D1[i-cd0]=sample(d,gl1[i]); }
+
+        for (size_t iab=ab0;iab<ab1;iab++)
+        {
+            const size_t t=iab-ab0;
+            const GLQuadrature& glab =gl1[iab];
+            const GLQuadrature& glout=gl2.GL1d()[iab];
+            const rvec_t& a1=A1[t]; const rvec_t& b1=B1[t]; const rvec_t& aO=AO[t]; const rvec_t& bO=BO[t];
+            // Per-iab samples of c,d on the 2D inner sub-grids (these depend on iab and the outer node i1).
+            std::vector<rvec_t> CGG(glout.size()), DGG(glout.size()), CGg(glout.size()), DGg(glout.size());
+            for (size_t i1=0;i1<glout.size();i1++)
             {
-                double rab=grid[iab],rab1=grid[iab+1];
-                double Iab_p=gl1[iab].Integrate(wpab);
-                double Iab_m=gl1[iab].Integrate(wmab);
-                double Icd_p=gl1.IntegrateIndex(wpcd,scd.getStartIndex(),iab);
-                double Icd_m=gl1.IntegrateIndex(wmcd,iab+1,scd.getEndIndex()-1);
-                // These need to be in the loop because they capture iab
-                std::function< double (double,size_t)> Yk1_diag = [&gl2,&wpcd,rab,iab](double r1, size_t i1)
+                const GLQuadrature& gg=gl2.find_grid_gl(iab,i1);
+                CGG[i1]=sample(c,gg); DGG[i1]=sample(d,gg);
+                const GLQuadrature& gr=gl2.find_gl_grid(i1,iab+1);
+                CGg[i1]=sample(c,gr); DGg[i1]=sample(d,gr);
+            }
+            for (size_t k=0;k<=2*itsLMax;k++)
+            {
+                // Every term below reproduces the old GLQuadrature::Integrate(f) sum exactly: weight(j)
+                // times the SAME integrand f (e.g. wp(x,k)*a*b, evaluated left-to-right) -- the extra
+                // parentheses keep weight*(wp*a*b) rather than (weight*wp)*(a*b), which would round
+                // differently and, through the nonlinear SCF, drift the converged energy.
+                double Iab_p=0.0, Iab_m=0.0;
+                for (size_t j=0;j<glab.size();j++)
                 {
-                    // double ret=gl2.find_grid_gl(iab,i1).Integrate(wpcd);
-                    // auto gl=GLQuadrature(rab,r1,K+1);
-                    // // cout << gl.Integrate(wpcd) << " " << ret << " " << gl.Integrate(wpcd)-ret << endl;
-                    // assert(gl.Integrate(wpcd)==ret);
-                    // return ret;
-                    // return gl.Integrate(wpcd);
-                    return gl2.find_grid_gl(iab,i1).Integrate(wpcd);
-                };
-                std::function< double (double,size_t)> Yk2_diag = [&gl2,&wmcd,rab1,iab](double r1, size_t i1)
+                    const double x=glab.node(j), w=glab.weight(j);
+                    Iab_p+=w*(wp(x,k)*a1[j]*b1[j]);
+                    Iab_m+=w*(wm(x,k)*a1[j]*b1[j]);
+                }
+                // Icd_p sums gl1 intervals [cd0,iab); Icd_m sums (iab,cd1).  The old IntegrateIndex added
+                // each interval's OWN Integrate() result, so we must accumulate per interval (an inner sum
+                // per interval, then += it) to round identically -- not one flat sum over all nodes.
+                // Intervals outside (cd)'s support contribute exactly 0 (c or d vanishes), so skipping them
+                // is the same as adding 0.0 and keeps C1/D1 indexing inside [cd0,cd1).
+                double Icd_p=0.0;
+                for (size_t i=cd0;i<std::min(iab,cd1);i++)
                 {
-                    // double ret=gl2.find_gl_grid(i1,iab+1).Integrate(wmcd);
-                    // auto gl=GLQuadrature(r1,rab1,K+1);
-                    // assert(gl.Integrate(wmcd)==ret);
-                    // return ret;
-                    // return gl.Integrate(wmcd);
-                    return gl2.find_gl_grid(i1,iab+1).Integrate(wmcd);
-                };
-                std::function< double (double,size_t)> wab_diag1 = [k,&a,&b,&wp,&wm,&Yk1_diag,&Yk2_diag](double r1, size_t i1)
+                    const GLQuadrature& g=gl1[i]; const rvec_t& cu=C1[i-cd0]; const rvec_t& du=D1[i-cd0];
+                    double s=0.0;
+                    for (size_t j=0;j<g.size();j++) s+=g.weight(j)*(wp(g.node(j),k)*cu[j]*du[j]);
+                    Icd_p+=s;
+                }
+                double Icd_m=0.0;
+                for (size_t i=std::max(iab+1,cd0);i<cd1;i++)
                 {
-                    return (wm(r1,k)*Yk1_diag(r1,i1)+wp(r1,k)*Yk2_diag(r1,i1))*a(r1)*b(r1);
-                };
-                double Idiag=gl2.GL1d()[iab].Integrate(wab_diag1);
-                //  std::cout  << "iab=" << std::setw(2) << iab << " Idiag=" << std::setw(12) << Idiag 
-                // << " Iab_m=" << std::setw(12) << Iab_m << " Icd_p=" << std::setw(12) << Icd_p 
-                // << " Iab_p=" << std::setw(12) << Iab_p << " Icd_m=" << std::setw(12) << Icd_m << std::endl;
+                    const GLQuadrature& g=gl1[i]; const rvec_t& cu=C1[i-cd0]; const rvec_t& du=D1[i-cd0];
+                    double s=0.0;
+                    for (size_t j=0;j<g.size();j++) s+=g.weight(j)*(wm(g.node(j),k)*cu[j]*du[j]);
+                    Icd_m+=s;
+                }
+                double Idiag=0.0;
+                for (size_t i1=0;i1<glout.size();i1++)
+                {
+                    double Yk1=0.0;
+                    { const GLQuadrature& gg=gl2.find_grid_gl(iab,i1); const rvec_t& cu=CGG[i1]; const rvec_t& du=DGG[i1];
+                      for (size_t j=0;j<gg.size();j++) Yk1+=gg.weight(j)*(wp(gg.node(j),k)*cu[j]*du[j]); }
+                    double Yk2=0.0;
+                    { const GLQuadrature& gr=gl2.find_gl_grid(i1,iab+1); const rvec_t& cu=CGg[i1]; const rvec_t& du=DGg[i1];
+                      for (size_t j=0;j<gr.size();j++) Yk2+=gr.weight(j)*(wm(gr.node(j),k)*cu[j]*du[j]); }
+                    const double r1=glout.node(i1);
+                    Idiag+=glout.weight(i1)*((wm(r1,k)*Yk1+wp(r1,k)*Yk2)*aO[i1]*bO[i1]);
+                }
                 Rabcd_k[k]+=Idiag + Iab_m*Icd_p + Iab_p*Icd_m;
             }
-            
         }
-        // (ab) has no overlap (cd) and 2D integral factors.  Use look up tables in rkcache to
-        // integral factores.
-        else if (sab.back()<=scd.front())
-        {
-            std::vector<double> mp=rkcache.plus (ia,ib);
-            std::vector<double> mm=rkcache.minus(ic,id);
-            Rabcd_k[k]=mp[k]*mm[k];
-        }
-        else
-        {
-            assert(sab.front()>=scd.back());
-            std::vector<double> mm=rkcache.minus(ia,ib);
-            std::vector<double> mp=rkcache.plus (ic,id);
-            Rabcd_k[k]=mp[k]*mm[k];
-        }
+    }
+    // (ab) has no overlap with (cd): the 2D integral factors -- use the precomputed rkcache moment tables.
+    else if (sab.back()<=scd.front())
+        for (size_t k=0;k<=2*itsLMax;k++) Rabcd_k[k]=rkcache.plus (ia,ib)[k]*rkcache.minus(ic,id)[k];
+    else
+    {
+        assert(sab.front()>=scd.back());
+        for (size_t k=0;k<=2*itsLMax;k++) Rabcd_k[k]=rkcache.minus(ia,ib)[k]*rkcache.plus (ic,id)[k];
     }
  }
 

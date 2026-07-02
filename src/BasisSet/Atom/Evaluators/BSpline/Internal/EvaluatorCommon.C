@@ -80,7 +80,7 @@ template <size_t K> struct GridData
     bspline::Grid<double> grid;
     GLCache1D gl1;
     GLCache2D gl2;
-    std::unique_ptr<::qchem::BSpline::RkCache<K>> rkcache;
+    mutable std::unique_ptr<::qchem::BSpline::RkCache<K>> rkcache; //built lazily on first Create (see below)
 };
 
 template <size_t K> class Cache4 : public  ::qchem::Cache4
