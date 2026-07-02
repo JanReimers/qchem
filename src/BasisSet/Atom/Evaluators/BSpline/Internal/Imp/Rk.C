@@ -10,6 +10,7 @@ module;
 module qchem.BasisSet.Atom.Evaluators.BSpline.Internal.Rk;
 import qchem.BasisSet.Atom.Evaluators;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.GLQuadrature;
+import qchem.Blaze;   // rmat_t + blazem::column() for the pre-sampled B-spline value tables
 
 using std::cout;
 using std::endl;
@@ -82,91 +83,64 @@ template <size_t K> RkEngine<K>::RkEngine(const std::vector<sp_t>& splines, size
     //  The support topology (which of the three cases applies) is independent of k, so decide it ONCE and
     //  put the k loop innermost.  In the hard "all four overlap" case the B-spline VALUES at the fixed GL
     //  nodes are also k-independent (only the weight powers wp/wm carry k), so we sample each spline at its
-    //  nodes ONCE and reuse the samples across all k.  Spline evaluation (binary search for the knot span +
-    //  polynomial) is the dominant cost, so this removes a ~(2*LMax+1)x redundancy.  A hand-rolled
-    //  sum_i weight(i)*wp(node(i),k)*u(i)*v(i) with cached u=spline(node) matches the old Integrate() calls
-    //  term-for-term (same order and associativity), so results stay bit-identical.
-    auto sample=[](const sp_t& s, const GLQuadrature& g)
+    //  nodes ONCE and reuse the samples across all k via GLQuadrature::Integrate(w,k,u,v).  Spline
+    //  evaluation (binary search for the knot span + polynomial) is the dominant cost, so this removes a
+    //  ~(2*LMax+1)x redundancy; the sampled Integrate reproduces the old Integrate(f=w*u*v) term-for-term,
+    //  so results stay bit-identical.
+    // Sample a spline at every node of a quadrature into a (contiguous, column-major) matrix column.
+    auto sampleCol=[](const sp_t& s, const GLQuadrature& g, auto col)
     {
-        rvec_t v(g.size());
-        for (size_t j=0;j<g.size();j++) v[j]=s(g.node(j));
-        return v;
+        for (size_t j=0;j<g.size();j++) col[j]=s(g.node(j));
     };
     if (Sabcd.containsIntervals())
     {
         // THis is hard/hot loop for the whole process.  abcd all overlap and no factoring is possible.
         const size_t ab0=sab.getStartIndex(), ab1=sab.getEndIndex()-1;   // outer (ab) interval range
         const size_t cd0=scd.getStartIndex(), cd1=scd.getEndIndex()-1;   // (cd) support interval range
-        // Engine-level samples on the 1D grids (independent of iab): a,b on gl1 and on the gl2 outer grid;
-        // c,d on gl1 over (cd)'s support.
-        std::vector<rvec_t> A1(ab1-ab0), B1(ab1-ab0), AO(ab1-ab0), BO(ab1-ab0);
+        // Sample matrices: rows index the quadrature node, columns index the iterated interval/node, so a
+        // per-index sample is one contiguous column (rmat_t is column-major).  Sampled once, reused across
+        // all k -- spline evaluation (the binary knot-span search) is the dominant cost.
+        const size_t n1=gl1[ab0].size(), nO=gl2.GL1d()[ab0].size(), n2=gl2.find_grid_gl(ab0,0).size();
+        rmat_t A1(n1,ab1-ab0), B1(n1,ab1-ab0), AO(nO,ab1-ab0), BO(nO,ab1-ab0);  // a,b on gl1 and gl2 outer
         for (size_t iab=ab0;iab<ab1;iab++)
         {
             const size_t t=iab-ab0;
-            A1[t]=sample(a,gl1[iab]);          B1[t]=sample(b,gl1[iab]);
-            AO[t]=sample(a,gl2.GL1d()[iab]);   BO[t]=sample(b,gl2.GL1d()[iab]);
+            sampleCol(a,gl1[iab],       blazem::column(A1,t)); sampleCol(b,gl1[iab],       blazem::column(B1,t));
+            sampleCol(a,gl2.GL1d()[iab],blazem::column(AO,t)); sampleCol(b,gl2.GL1d()[iab],blazem::column(BO,t));
         }
-        std::vector<rvec_t> C1(cd1-cd0), D1(cd1-cd0);
-        for (size_t i=cd0;i<cd1;i++) { C1[i-cd0]=sample(c,gl1[i]); D1[i-cd0]=sample(d,gl1[i]); }
+        rmat_t C1(n1,cd1-cd0), D1(n1,cd1-cd0);                                    // c,d on gl1 over (cd)
+        for (size_t i=cd0;i<cd1;i++) { sampleCol(c,gl1[i],blazem::column(C1,i-cd0)); sampleCol(d,gl1[i],blazem::column(D1,i-cd0)); }
 
+        rmat_t CGG(n2,nO), DGG(n2,nO), CGg(n2,nO), DGg(n2,nO);  // c,d on the 2D inner sub-grids (per iab)
         for (size_t iab=ab0;iab<ab1;iab++)
         {
             const size_t t=iab-ab0;
             const GLQuadrature& glab =gl1[iab];
             const GLQuadrature& glout=gl2.GL1d()[iab];
-            const rvec_t& a1=A1[t]; const rvec_t& b1=B1[t]; const rvec_t& aO=AO[t]; const rvec_t& bO=BO[t];
-            // Per-iab samples of c,d on the 2D inner sub-grids (these depend on iab and the outer node i1).
-            std::vector<rvec_t> CGG(glout.size()), DGG(glout.size()), CGg(glout.size()), DGg(glout.size());
+            auto a1=blazem::column(A1,t); auto b1=blazem::column(B1,t); auto aO=blazem::column(AO,t); auto bO=blazem::column(BO,t);
             for (size_t i1=0;i1<glout.size();i1++)
             {
-                const GLQuadrature& gg=gl2.find_grid_gl(iab,i1);
-                CGG[i1]=sample(c,gg); DGG[i1]=sample(d,gg);
-                const GLQuadrature& gr=gl2.find_gl_grid(i1,iab+1);
-                CGg[i1]=sample(c,gr); DGg[i1]=sample(d,gr);
+                sampleCol(c,gl2.find_grid_gl(iab,i1),  blazem::column(CGG,i1)); sampleCol(d,gl2.find_grid_gl(iab,i1),  blazem::column(DGG,i1));
+                sampleCol(c,gl2.find_gl_grid(i1,iab+1),blazem::column(CGg,i1)); sampleCol(d,gl2.find_gl_grid(i1,iab+1),blazem::column(DGg,i1));
             }
             for (size_t k=0;k<=2*itsLMax;k++)
             {
-                // Every term below reproduces the old GLQuadrature::Integrate(f) sum exactly: weight(j)
-                // times the SAME integrand f (e.g. wp(x,k)*a*b, evaluated left-to-right) -- the extra
-                // parentheses keep weight*(wp*a*b) rather than (weight*wp)*(a*b), which would round
-                // differently and, through the nonlinear SCF, drift the converged energy.
-                double Iab_p=0.0, Iab_m=0.0;
-                for (size_t j=0;j<glab.size();j++)
-                {
-                    const double x=glab.node(j), w=glab.weight(j);
-                    Iab_p+=w*(wp(x,k)*a1[j]*b1[j]);
-                    Iab_m+=w*(wm(x,k)*a1[j]*b1[j]);
-                }
+                double Iab_p=glab.Integrate(wp,k,a1,b1);
+                double Iab_m=glab.Integrate(wm,k,a1,b1);
                 // Icd_p sums gl1 intervals [cd0,iab); Icd_m sums (iab,cd1).  The old IntegrateIndex added
-                // each interval's OWN Integrate() result, so we must accumulate per interval (an inner sum
-                // per interval, then += it) to round identically -- not one flat sum over all nodes.
-                // Intervals outside (cd)'s support contribute exactly 0 (c or d vanishes), so skipping them
-                // is the same as adding 0.0 and keeps C1/D1 indexing inside [cd0,cd1).
+                // each interval's OWN Integrate() result, so we accumulate per interval (+= its Integrate)
+                // to round identically -- not one flat sum over all nodes.  Intervals outside (cd)'s support
+                // contribute exactly 0 (c or d vanishes), so skipping them is the same as adding 0.0 and
+                // keeps C1/D1 indexing inside [cd0,cd1).
                 double Icd_p=0.0;
-                for (size_t i=cd0;i<std::min(iab,cd1);i++)
-                {
-                    const GLQuadrature& g=gl1[i]; const rvec_t& cu=C1[i-cd0]; const rvec_t& du=D1[i-cd0];
-                    double s=0.0;
-                    for (size_t j=0;j<g.size();j++) s+=g.weight(j)*(wp(g.node(j),k)*cu[j]*du[j]);
-                    Icd_p+=s;
-                }
+                for (size_t i=cd0;i<std::min(iab,cd1);i++) Icd_p+=gl1[i].Integrate(wp,k,blazem::column(C1,i-cd0),blazem::column(D1,i-cd0));
                 double Icd_m=0.0;
-                for (size_t i=std::max(iab+1,cd0);i<cd1;i++)
-                {
-                    const GLQuadrature& g=gl1[i]; const rvec_t& cu=C1[i-cd0]; const rvec_t& du=D1[i-cd0];
-                    double s=0.0;
-                    for (size_t j=0;j<g.size();j++) s+=g.weight(j)*(wm(g.node(j),k)*cu[j]*du[j]);
-                    Icd_m+=s;
-                }
+                for (size_t i=std::max(iab+1,cd0);i<cd1;i++) Icd_m+=gl1[i].Integrate(wm,k,blazem::column(C1,i-cd0),blazem::column(D1,i-cd0));
                 double Idiag=0.0;
                 for (size_t i1=0;i1<glout.size();i1++)
                 {
-                    double Yk1=0.0;
-                    { const GLQuadrature& gg=gl2.find_grid_gl(iab,i1); const rvec_t& cu=CGG[i1]; const rvec_t& du=DGG[i1];
-                      for (size_t j=0;j<gg.size();j++) Yk1+=gg.weight(j)*(wp(gg.node(j),k)*cu[j]*du[j]); }
-                    double Yk2=0.0;
-                    { const GLQuadrature& gr=gl2.find_gl_grid(i1,iab+1); const rvec_t& cu=CGg[i1]; const rvec_t& du=DGg[i1];
-                      for (size_t j=0;j<gr.size();j++) Yk2+=gr.weight(j)*(wm(gr.node(j),k)*cu[j]*du[j]); }
+                    double Yk1=gl2.find_grid_gl(iab,i1)  .Integrate(wp,k,blazem::column(CGG,i1),blazem::column(DGG,i1));
+                    double Yk2=gl2.find_gl_grid(i1,iab+1).Integrate(wm,k,blazem::column(CGg,i1),blazem::column(DGg,i1));
                     const double r1=glout.node(i1);
                     Idiag+=glout.weight(i1)*((wm(r1,k)*Yk1+wp(r1,k)*Yk2)*aO[i1]*bO[i1]);
                 }

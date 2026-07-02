@@ -33,6 +33,19 @@ public:
             ret+=ws[i]*f(xs[i],i);
         return ret;
     }
+    //! Weighted sum of a PRE-SAMPLED product integrand: sum_i weight(i) * ( w(node(i),k) * u[i] * v[i] ).
+    //! The caller samples the two factors u=f(node),v=g(node) ONCE (e.g. two B-splines in the Rk 2D
+    //! quadrature) and reuses them across all k; this reproduces Integrate(f) with f=w*u*v term-for-term
+    //! (same order and weight*(w*u*v) associativity) but never re-evaluates the splines.  Templated on the
+    //! sample containers so blaze row/column views pass through with no std::function indirection.
+    template <class W, class U, class V>
+    double Integrate(const W& w, size_t k, const U& u, const V& v) const
+    {
+        double ret=0.0;
+        for (size_t i=0;i<xs.size();i++)
+            ret+=ws[i]*(w(xs[i],k)*u[i]*v[i]);
+        return ret;
+    }
     double Integrate(const std::function< double (double)>& f, double xmin, double xmax) const
     {
         assert(xmax>=its_xmin); //Make sure caller did thier homework and checked the ranges.
