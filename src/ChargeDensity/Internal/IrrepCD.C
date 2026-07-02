@@ -32,6 +32,9 @@ public:
 
     virtual void AccumulateDirect  (hmat_t<T>& Sab, const ohfbs_t*) const;
     virtual void AccumulateExchange(hmat_t<T>& Sab, const ohfbs_t*) const;
+    //! Bra-ket pair partner (doc/ERI4Rework.md §4): scatter the canonical block J(this,other) into BOTH
+    //! Fock blocks Ji,Jj.  \a other is a sibling IrrepCD (same-class cast, as MixIn/GetChangeFrom do).
+    virtual void AccumulateDirectBoth(hmat_t<T>& Ji, hmat_t<T>& Jj, const tDM_CD<T>& other) const;
     //! AO (auxiliary-basis) projection <rho|c> -- the finite (double) path's ProjectedDensity_AO face; the
     //! periodic (dcmplx) path has no AO face (not cross-cast there), so the dcmplx body is inert.
     virtual double FitGetConstraint() const {return GetTotalCharge();}   // AO fit RHS: the charge N

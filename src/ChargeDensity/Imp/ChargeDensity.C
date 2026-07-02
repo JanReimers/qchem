@@ -2,6 +2,7 @@
 module;
 #include <iostream>
 #include <cassert>
+#include <vector>
 module qchem.ChargeDensity;
 import qchem.Symmetry.Spin;
 import qchem.Fitting.FunctionFitter;   // Fitting::ProjectedDensity_AO (each spin block's AO face)
@@ -25,6 +26,13 @@ void Polarized_CD::AccumulateExchange(rsmat_t& Kab,const ohfbs_t* bs) const
     // No UT coverage
     GetChargeDensity(Spin::Up  )->AccumulateExchange(Kab,bs);
     GetChargeDensity(Spin::Down)->AccumulateExchange(Kab,bs);
+}
+
+// Coulomb sees the TOTAL density: both spin channels scatter into the same per-irrep Fock blocks.
+void Polarized_CD::AccumulateDirectAll(std::vector<rsmat_t>& Jall,const std::vector<const ohfbs_t*>& abBases) const
+{
+    GetChargeDensity(Spin::Up  )->AccumulateDirectAll(Jall,abBases);
+    GetChargeDensity(Spin::Down)->AccumulateDirectAll(Jall,abBases);
 }
 
 double Polarized_CD::DM_Contract(const Static_CC* v) const

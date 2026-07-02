@@ -69,6 +69,22 @@ template <> void IrrepCD<double>::AccumulateExchange(rsmat_t& Sab, const ohfbs_t
     if (!IsZero()) bs_ab->AccumulateExchange(Sab,itsDensityMatrix,bs_cd);
 }
 
+// Fused bra-ket scatter of the canonical (this=i, other=j) pair into both irreps' Coulomb blocks.  The
+// partner's density is reached by a same-class cast (the IrrepCD<->IrrepCD idiom already used by MixIn /
+// GetChangeFrom).  Both densities empty -> nothing to build (mirrors the !IsZero() guard on the single
+// AccumulateDirect); otherwise ScatterBoth handles a one-sided zero exactly.  The basis fetches ONLY the
+// canonical J(i,j) block, so J(j,i) is never materialized.
+template <> void IrrepCD<double>::AccumulateDirectBoth(rsmat_t& Ji, rsmat_t& Jj, const tDM_CD<double>& other) const
+{
+    const IrrepCD<double>* oj=dynamic_cast<const IrrepCD<double>*>(&other);
+    assert(oj);
+    if (IsZero() && oj->IsZero()) return;
+    const ohfbs_t* bs_i=dynamic_cast<const ohfbs_t*>(itsBasisSet);
+    const ohfbs_t* bs_j=dynamic_cast<const ohfbs_t*>(oj->itsBasisSet);
+    assert(bs_i && bs_j);
+    bs_i->AccumulateDirectBoth(Ji,Jj,itsDensityMatrix,oj->itsDensityMatrix,bs_j);
+}
+
 //------------------------------------------------------------------------------
 //
 //  Required by fitting routines.
@@ -198,6 +214,8 @@ template <> void IrrepCD<dcmplx>::AccumulateDirect(hmat_t<dcmplx>&, const ohfbs_
 { assert(false && "AccumulateDirect: HF not applicable to a complex plane-wave density"); }
 template <> void IrrepCD<dcmplx>::AccumulateExchange(hmat_t<dcmplx>&, const ohfbs_t*) const
 { assert(false && "AccumulateExchange: HF not applicable to a complex plane-wave density"); }
+template <> void IrrepCD<dcmplx>::AccumulateDirectBoth(hmat_t<dcmplx>&, hmat_t<dcmplx>&, const tDM_CD<dcmplx>&) const
+{ assert(false && "AccumulateDirectBoth: HF not applicable to a complex plane-wave density"); }
 template <> rvec3_t IrrepCD<dcmplx>::Gradient(const rvec3_t&) const
 { return rvec3_t(0,0,0); }   // No UT coverage; GGA/plotting gradient not yet wired for complex.
 

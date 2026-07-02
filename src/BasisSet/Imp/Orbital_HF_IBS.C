@@ -37,6 +37,16 @@ template <class T> void Orbital_HF_IBS<T>::AccumulateExchange(rsmat_t& Sab, cons
     MatMul(Sab,ab->Exchange(*cd),Dcd); // ERI4 Kabcd=ab->Exchange(*cd);
 }
 
+// Fetch the ONE canonical Direct block J(this,cd) and scatter it into both irreps' Fock blocks -- the
+// bra-ket partner J(cd,this) is never requested, so it is never built or cached (doc/ERI4Rework.md §4).
+// Di/Dj may be zero (an empty irrep); ScatterBoth adds an exact zero for that side, so no pre-screen here
+// (the caller short-circuits only the both-empty case).
+template <class T> void Orbital_HF_IBS<T>::AccumulateDirectBoth(rsmat_t& Ji, rsmat_t& Jj, const smat_t<T>& Di, const smat_t<T>& Dj, const Orbital_HF_IBS<T>* cd) const
+{
+    assert(!blazem::isnan(Di) && !blazem::isnan(Dj));
+    Direct(*cd).ScatterBoth(Ji,Jj,Di,Dj);
+}
+
 template class Orbital_HF_IBS<double>;
 
 } //namespace

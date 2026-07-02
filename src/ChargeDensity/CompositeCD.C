@@ -29,6 +29,7 @@ public:
 
     virtual void AccumulateDirect  (hmat_t<T>& Sab, const ohfbs_t*) const;
     virtual void AccumulateExchange(hmat_t<T>& Sab, const ohfbs_t*) const;
+    virtual void AccumulateDirectAll(std::vector<hmat_t<T>>& Jall, const std::vector<const ohfbs_t*>& abBases) const;
 
     virtual double DM_Contract(const tStatic_CC<T>*) const;
     virtual double DM_Contract(const tDynamic_CC<T>*,const tDM_CD<T>*) const;

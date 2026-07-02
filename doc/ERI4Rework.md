@@ -3,8 +3,10 @@
 Status: Stages 1+2 DONE (committed ffcd7f18 — `ERI4::MatMul` member + `ERI4::ScatterBoth` + unit test).
 Stage 3 RESCOPED 2026-07-02 after a survey (see §5.4): the two-target driver is NOT in `ChargeDensity`, it
 needs a cross-irrep **context struct** threaded from `CompositeWF` through the Hamiltonian terms.
-**Stage 3a DONE** (inert context-struct plumbing, bit-identical — see §8.3a); 3b (Vee consumes) + 3c
-(canonical cache key) remain. Author: design session 2026-07-02b; rescope + 3a 2026-07-02.
+**Stage 3a DONE** (inert context-struct plumbing, bit-identical — see §8.3a). **Stage 3b DONE for Coulomb/J**
+(`Vee` consumes the context; whole-system `ScatterBoth`; `Jac` RAM halved — see §8.3b); exchange/K (3b-K)
+and the belt-and-suspenders canonical cache key (3c) remain. Author: design session 2026-07-02b; rescope +
+3a + 3b(J) 2026-07-02.
 
 ## 1. Problem
 
@@ -261,13 +263,25 @@ Keep §5 (generic, bra–ket, high value) and §6 (atomic, LMax→Irrep) as sepa
      overload defaulting to the existing 3-arg (so every term ignores `ctx` for free — the ~11 `CalcMatrix`
      overrides are untouched); `tHamiltonian` keeps its 3-arg (empty-context) overload for the stand-alone
      test callers (PlaneWaveDFTUT, EigenSolverUT). **Only `Vee` overrides the 4-arg in 3b.**
-   - **3b.** Wire `Vee` to consume the view via mechanism (a) — whole-system `ScatterBoth` precompute into a
-     per-irrep `J`/`K` map, per-irrep `GetMatrix` slices out; `i==j` → `MatMul`. **Gate:** Fock regression
-     anchor (§7 tight tol, NOT bit-identical).
-   - **3c.** Canonical `(min,max)` J/K cache key (§5.2), landing **with** 3b so the flip is served by the
-     fused scatter, never a 4× transpose contraction. **Gate:** one-block-per-unordered-pair reuse guard +
-     `fnorm(J(i,j),J(j,i)ᵀ)≈0`.
-   - §5.2 and 3b/3c are coupled — do not merge the cache-key change without the fused consumer.
+   - **3b. DONE (Coulomb/J only)** — `Vee` consumes the context via mechanism (a).  New seam:
+     `Orbital_HF_IBS::AccumulateDirectBoth(Ji,Jj,Di,Dj,cd)` = `Direct(*cd).ScatterBoth(...)` (fetches ONLY
+     the canonical block); `tDM_CD::AccumulateDirectAll(Jall,abBases)` (whole-system) — `Polarized_CD` sums
+     both spins, `tComposite_CD` runs the canonical-pair loop (diagonal → existing `AccumulateDirect`
+     MatMul; off-diagonal → `IrrepCD::AccumulateDirectBoth`, which sibling-casts its partner as
+     `MixIn`/`GetChangeFrom` do and keeps densities encapsulated).  `Vee` overrides BOTH `GetMatrix`
+     overloads: the 4-arg (Fock, has ctx) stashes the run-stable irrep-basis list + builds the whole-system
+     Coulomb once per density into `itsJ` (keyed by BasisSetID) + slices; the 3-arg (energy `DM_Contract`,
+     no ctx) reuses the stashed list so the post-diagonalization density gets the SAME banked build (else
+     the energy path would re-materialize `J(j,i)` every iteration).  **SALC caveat:** `SymmetryAdapted_IBS`
+     has no per-irrep-pair ERI4 (empty `MakeDirect` → builds the whole-AO Fock and slices), so it OVERRIDES
+     `AccumulateDirectBoth` to fall back to two independent AO slices (the AO build already banks the full
+     8-fold symmetry).  **Gate:** 167 UTMain green; `Jac` RAM halved (both orientations no longer stored).
+     Exchange (K, the `Vxc`/`VxcPol` terms) is the mechanical repeat — deferred to 3b-K.
+   - **3c.** Canonical `(min,max)` J/K cache key (§5.2).  NOTE: with 3b's request discipline (`Vee` only
+     ever fetches canonical `Direct(i,j)`, i≤j), the non-canonical block is already never built, so RAM is
+     halved WITHOUT 3c.  3c becomes belt-and-suspenders robustness (any stray non-canonical request reuses
+     the stored block via a transpose orientation) rather than the load-bearing change.  **Gate:**
+     one-block-per-unordered-pair reuse guard + `fnorm(J(i,j),J(j,i)ᵀ)≈0`.
 4. (Optional) flat packed storage (Option B) if profiling wants it.
 5. (Separate track) §6 atomic Rk `LMax`→`Irrep`: worst-case-irrep query + demand-grow Rk; delete
    eviction/`isSupported`; reuse guard stays green.

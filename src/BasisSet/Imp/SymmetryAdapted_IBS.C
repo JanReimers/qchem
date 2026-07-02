@@ -121,6 +121,17 @@ void SymmetryAdapted_IBS::AccumulateExchange(rsmat_t& Kab, const rsmat_t& Dcd,
     else          AddSlice(Kab, itsO, BuildAOFock(true, itsRawHF, cd->itsO, Dcd));
 }
 
+// No per-irrep-pair ERI4 here (see the header): serve the bra-ket partner as two independent AO slices.
+// Ji=irrep i's block (this=irrep i's SALC basis); Jj=irrep j's block (cd=irrep j's SALC basis).  The
+// per-side zero guard mirrors the density's pre-screen and skips the (cheap) O^T(.)O transform on an
+// empty block.
+void SymmetryAdapted_IBS::AccumulateDirectBoth(rsmat_t& Ji, rsmat_t& Jj, const rsmat_t& Di, const rsmat_t& Dj,
+                                               const Orbital_HF_IBS<double>* cd) const
+{
+    if (blazem::max(blazem::abs(Dj))>0.0)     AccumulateDirect(Ji, Dj, cd);   // Ji += J(i,j)·Dj
+    if (blazem::max(blazem::abs(Di))>0.0) cd->AccumulateDirect(Jj, Di, this); // Jj += J(j,i)·Di
+}
+
 // Transform the raw basis's *cached* 1-e matrix (Overlap/Kinetic/Nuclear): the raw matrix is
 // computed once and shared by every irrep.  The nested cached access is safe now that the integral
 // cache is re-entrant (these MakeXxx run as the cache-miss hook of this irrep's own cached block).

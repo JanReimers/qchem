@@ -69,6 +69,11 @@ public:
     // the charge density, this yields O^T J_AO(D_total) O.
     virtual void AccumulateDirect  (rsmat_t& Jab, const rsmat_t& Dcd, const Orbital_HF_IBS<double>* bs_cd) const;
     virtual void AccumulateExchange(rsmat_t& Kab, const rsmat_t& Dcd, const Orbital_HF_IBS<double>* bs_cd) const;
+    //! The SALC path builds the AO Fock and slices it -- there are no per-irrep-pair ERI4 blocks (MakeDirect
+    //! is empty), so the ERI4 bra-ket fusion does not apply.  Fall back to the two independent AO slices
+    //! (the whole-AO build already banks the full 8-fold symmetry).  See doc/ERI4Rework.md §5.4.
+    virtual void AccumulateDirectBoth(rsmat_t& Ji, rsmat_t& Jj, const rsmat_t& Di, const rsmat_t& Dj,
+                                      const Orbital_HF_IBS<double>* cd) const;
     // Pure-virtual ERI accessors -- unused here (Accumulate* are overridden); never called.
     virtual ERI4 MakeDirect  (const Orbital_HF_IBS<double>&) const {return ERI4();}
     virtual ERI4 MakeExchange(const Orbital_HF_IBS<double>&) const {return ERI4();}
