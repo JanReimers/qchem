@@ -21,17 +21,23 @@ Cache4::~Cache4()
     //             for (auto d:c.second) delete d.second;
 }
 
-//  All unsupport Rks will be removed.  These will then automatically be recreated next time
-//  loop_4 is called.
-
+//  When a client registers it may raise the maximum angular momentum of some shared exponent (grouper
+//  bumps maxl in the sibling Register call that runs just before this one).  Any already-cached Rk whose
+//  stored LMax is now too small for this client is STALE and must be dropped so loop_4 recreates it with
+//  the (now larger) grouper LMax.  We evict exactly the UNsupported entries -- isSupported(client) is
+//  (client.l <= Rk.LMax), so we keep those and erase the rest.
+//
+//  NB: erasing on the WRONG side here (evicting the supported entries) silently wipes the whole cache on
+//  every new basis -- the registering basis's l=0 shell is <= every LMax -- destroying all cross-element
+//  Rk reuse (a heavy atom can no longer warm the pool for its lighter, subset-exponent siblings).
 void Cache4::Register(Cache4_Client* client)
 {
-    for (auto& a:cache) 
-        for (auto& b:a.second) 
-            for (auto& c:b.second) 
+    for (auto& a:cache)
+        for (auto& b:a.second)
+            for (auto& c:b.second)
                 std::erase_if(c.second, [client](const auto& pair) //C++-20 magic!!
                 {
-                    return pair.second->isSupported(client);
+                    return !pair.second->isSupported(client);
                 });
 }
 

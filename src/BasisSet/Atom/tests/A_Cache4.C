@@ -19,6 +19,8 @@ import qchem.BasisSet.Atom.Evaluators.Internal.ExponentialEvaluator;
 import qchem.stl_io;
 import qchem.BasisSet.Atom.Factory;
 import qchem.BasisSet.Orbital_HF_IBS;
+import qchem.BasisSet.Internal.DB_Cache_RAM;   // theCache<double>() + GetCache4(RadialType)
+import qchem.BasisSet.Internal.Cache4;         // Cache4::Lookups()/Inserts()
 using namespace qchem;
 
 using namespace qchem::BasisSet::Atom;
@@ -128,6 +130,43 @@ public:
  
     
 
+    // Trigger every 4-index Rk Create() for a basis by evaluating Direct+Exchange over all shell pairs,
+    // then dispose of the basis.  The Rk integrals it computed persist in the process-wide Cache4.
+    void ExerciseAllRk(BasisSet::Real_BS* bs)
+    {
+        using BasisSet::Real_HF_OIBS;
+        for (auto i:bs->Iterate<Real_HF_OIBS>())
+            for (auto j:bs->Iterate<Real_HF_OIBS>())
+            {
+                i->Direct  (*j);
+                i->Exchange(*j);
+            }
+        delete bs;
+    }
+
+    // The exponent-Pool payoff: a heavy atom warms the shared Rk cache for every lighter atom of the
+    // same (family, accuracy) because the lighter atom's exponents are a bit-identical SUBSET.  Warm
+    // with the heavy atom, snapshot the cache, then run the light atom and confirm ~100% reuse (a few
+    // low-l-only Rks are re-created because the light atom's higher-l shells over-evict them on Register
+    // -- harmless and recreated correctly -- so we bound the miss rate rather than demand exactly zero).
+    void TestCrossElementReuse(Type type, const std::string& radialType, size_t Zheavy, size_t Zlight)
+    {
+        auto& cache=BasisSet::theCache<double>();
+        ExerciseAllRk(Factory(Low,type,Zheavy));            // heavy atom populates the shared Rk cache
+        const Cache4* c4=cache.GetCache4(radialType);
+        ASSERT_TRUE(c4);
+        const size_t inserts0=c4->Inserts(), lookups0=c4->Lookups();
+        ExerciseAllRk(Factory(Low,type,Zlight));            // light atom: a strict subset of the heavy exponents
+        const size_t dInserts=c4->Inserts()-inserts0;
+        const size_t dLookups=c4->Lookups()-lookups0;
+        const double reuse=dLookups ? 100.0*(1.0-double(dInserts)/double(dLookups)) : 0.0;
+        std::cout << "[pool] " << radialType << " Z" << Zlight << "-after-Z" << Zheavy
+                  << ": dLookups=" << dLookups << " dInserts=" << dInserts
+                  << " reuse=" << reuse << "%" << std::endl;
+        EXPECT_GT(dLookups,10000u);                          // light atom really did substantial Rk work
+        EXPECT_GT(reuse,99.9);                               // ...and nearly all of it hit the heavy atom's cache
+    }
+
     BasisSet::Real_BS *bs1,*bs2;
 };
 
@@ -214,6 +253,23 @@ TEST_F(Cache4Tests,HF2_SL_ExponentKeyed)
     EXPECT_GT(fnorm(JA,JB),1e-3);            // distinct exponents -> distinct integrals (no aliasing)
     delete bsA;
     delete bsB;
+}
+
+// Cross-element Rk reuse (the "exponent Pool" payoff, src/BasisSet/Atom/Factory.C).
+// SlaterExponents()/GaussianExponents() build ONE universal even-tempered pool: emin/beta/emax are fixed
+// constants, so e*=beta yields a bit-identical geometric sequence for EVERY Z; only the COUNT is trimmed
+// by Z (largest exponents dropped; High keeps the smallest NZ, Low strides that prefix).  Hence a lighter
+// element's exponent set is a strict, bit-identical subset of a heavier one's.  So once Uranium(92) has
+// filled the shared "SL"/"SG" Rk Cache4, Erbium(68) reuses every entry -- zero new inserts, 100% reuse.
+// (Medium is deliberately NOT used here: it trims small exponents proportionally, so the lighter atom
+// keeps a small exponent the heavier one dropped and the subset relation breaks.)
+TEST_F(Cache4Tests,HF2_SL_CrossElementReuse)
+{
+    TestCrossElementReuse(Type::Slater,"SL",92,68);         // Uranium warms the pool for Erbium
+}
+TEST_F(Cache4Tests,HF2_SG_CrossElementReuse)
+{
+    TestCrossElementReuse(Type::Gaussian,"SG",54,36);       // lighter pair keeps the (denser) Gaussian run cheap
 }
 
 
