@@ -69,7 +69,7 @@ TEST(M_DFT, Water)
 TEST(M_DFT, WaterSpherical)
 {
     Calculation calc(MakeWater(), {.basis   = "dzvp", .model   = Model::Xalpha,
-                                   .xalpha  = 0.74000, .angular = Angular::Spherical});
+                                   .angular = Angular::Spherical, .xalpha  = 0.74000});
     EXPECT_NEAR(calc.Energy(), -76.1493013984, 0.05);                 // sanity: same ballpark as Cartesian
     EXPECT_LT(fabs(RelativeError(calc.Energy(), -76.1485556624)), 2e-3);  // CONVERGED anchor (DIIS from start)
 }
@@ -82,7 +82,7 @@ TEST(M_DFT, WaterSpherical)
 // the SAME energy as the unpolarized anchor -- and it does, to ~1e-11 (confirming a correct seed Fock).
 TEST(M_DFT, WaterPolarizedSAD)
 {
-    Calculation calc(MakeWater(), {.basis = "dzvp", .model = Model::Xalpha, .xalpha = 0.74000, .pol = Pol::Polarized});
+    Calculation calc(MakeWater(), {.basis = "dzvp", .model = Model::Xalpha, .pol = Pol::Polarized, .xalpha = 0.74000});
     // Polarized water Xalpha is the oscillatory case (commutator ~2-4; see M_Sym RunDFT) -- it needs more
     // iterations + damping than the facade's quick default, so re-Converge with tight params (DIIS already
     // drives from the start for DFT).
