@@ -70,7 +70,8 @@ NB_MODULE(qchem_py, mod)
         .def("density", [](Calc& c, int n, double pad) {
                  auto arr = make_array({(size_t)n, (size_t)n, (size_t)n});
                  double o[3], s[3];
-                 qcb_density(c.h, n, pad, arr.data(), o, s);
+                 { nb::gil_scoped_release nogil;      // ~n^3 sample: release GIL -> GUI stays live on a worker
+                   qcb_density(c.h, n, pad, arr.data(), o, s); }
                  nb::dict d; d["values"] = arr;
                  d["origin"] = nb::make_tuple(o[0], o[1], o[2]);
                  d["spacing"] = nb::make_tuple(s[0], s[1], s[2]);
@@ -78,8 +79,9 @@ NB_MODULE(qchem_py, mod)
              }, nb::arg("n") = 64, nb::arg("pad") = 5.0)
         .def("spin_density", [](Calc& c, int n, double pad) -> nb::object {
                  auto arr = make_array({(size_t)n, (size_t)n, (size_t)n});
-                 double o[3], s[3];
-                 if (!qcb_spin_density(c.h, n, pad, arr.data(), o, s))
+                 double o[3], s[3]; int ok;
+                 { nb::gil_scoped_release nogil; ok = qcb_spin_density(c.h, n, pad, arr.data(), o, s); }
+                 if (!ok)
                      return nb::none();               // unpolarized run: no spin field
                  nb::dict d; d["values"] = arr;
                  d["origin"] = nb::make_tuple(o[0], o[1], o[2]);
@@ -91,7 +93,7 @@ NB_MODULE(qchem_py, mod)
         .def("orbital", [](Calc& c, int index, int n, double pad) {
                  auto arr = make_array({(size_t)n, (size_t)n, (size_t)n});
                  double o[3], s[3]; int sgn = 0;
-                 qcb_orbital(c.h, index, n, pad, arr.data(), o, s, &sgn);
+                 { nb::gil_scoped_release nogil; qcb_orbital(c.h, index, n, pad, arr.data(), o, s, &sgn); }
                  nb::dict d; d["values"] = arr;
                  d["origin"] = nb::make_tuple(o[0], o[1], o[2]);
                  d["spacing"] = nb::make_tuple(s[0], s[1], s[2]);
@@ -101,7 +103,7 @@ NB_MODULE(qchem_py, mod)
         .def("gradient", [](Calc& c, int n, double pad) {
                  auto arr = make_array({(size_t)n, (size_t)n, (size_t)n, 3});
                  double o[3], s[3];
-                 qcb_gradient(c.h, n, pad, arr.data(), o, s);
+                 { nb::gil_scoped_release nogil; qcb_gradient(c.h, n, pad, arr.data(), o, s); }
                  nb::dict d; d["vectors"] = arr;
                  d["origin"] = nb::make_tuple(o[0], o[1], o[2]);
                  d["spacing"] = nb::make_tuple(s[0], s[1], s[2]);
