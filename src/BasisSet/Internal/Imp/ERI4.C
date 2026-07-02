@@ -7,14 +7,38 @@ import qchem.Blaze;
 namespace qchem {
 
 // This version is much faster.
+void ERI4::MatMul(rsmat_t& Sab, const rsmat_t& Scd) const
+{
+    size_t nab=Nab();
+    assert(Sab.rows()==nab);
+    for (auto ia:iv_t(0,nab))
+        for (auto ib:iv_t(ia,nab))
+            Sab(ia,ib)+=blazem::sum((*this)(ia,ib) % Scd); //Dot(DirectMultiply(A,B))
+}
+
+// Free-function form kept for existing callers; the loop itself now lives in the member above.
 void MatMul(rsmat_t& Sab, const ERI4& gabcd,const rsmat_t& Scd)
 {
-    //std::cout << "gabcd=" << gabcd.GetLimits() << " Scd=" << Scd.GetLimits() << std::endl;
-    size_t Nab=gabcd.Nab();
-    assert(Sab.rows()==Nab);
-    for (auto ia:iv_t(0,Nab))
-        for (auto ib:iv_t(ia,Nab))
-            Sab(ia,ib)+=blazem::sum(gabcd(ia,ib) % Scd); //Dot(DirectMultiply(A,B))
+    gabcd.MatMul(Sab,Scd);
+}
+
+// Fused bra-ket scatter: one pass over J feeds BOTH Fock sub-blocks (see the header + doc/ERI4Rework.md).
+// Si gets the localized inner-block Schur sum; Sj gets the same inner block scaled by Di(a,b) and added
+// whole -- so the (ab)<->(cd) partner never triggers a transposed gather.  The off-diagonal ab pair counts
+// twice (symmetric storage), exactly mirroring the two independent contractions it replaces.
+void ERI4::ScatterBoth(rsmat_t& Si, rsmat_t& Sj, const rsmat_t& Di, const rsmat_t& Dj) const
+{
+    size_t nab=Nab();
+    assert(Si.rows()==nab && Di.rows()==nab);
+    assert(Sj.rows()==Ncd() && Dj.rows()==Ncd());
+    for (auto ia:iv_t(0,nab))
+        for (auto ib:iv_t(ia,nab))
+        {
+            const rsmat_t& Jab=(*this)(ia,ib);
+            Si(ia,ib)+=blazem::sum(Jab % Dj);      // localized: this inner block ⊙ Dj -> scalar
+            double w=(ia==ib) ? 1.0 : 2.0;         // off-diagonal (a,b) is stored once but counts twice
+            Sj+=(w*Di(ia,ib))*Jab;                 // bra-ket partner: scalar-scaled whole-block add
+        }
 }
 
 ERI4 ERI4::Transpose() const

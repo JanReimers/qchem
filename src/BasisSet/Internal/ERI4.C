@@ -12,7 +12,17 @@ public:
     typedef ERI4T<double,smat_t> Base;
     ERI4() : Base() {};
     ERI4(size_t Nab, size_t Ncd) : Base(Nab,Ncd) {};
-    friend void MatMul(rsmat_t& Sab, const ERI4& gabcd,const rsmat_t& Scd);
+    //! Contract this block against a cd-density: Sab += sum_cd J(a,b) ⊙ Dcd (each inner block summed to a
+    //! scalar -- the fast, localized direction).  Use ScatterBoth() to also feed the bra-ket partner.
+    void MatMul(rsmat_t& Sab, const rsmat_t& Dcd) const;
+    //! Fused bra-ket scatter of this canonical (i,j) block into BOTH Fock sub-blocks in ONE pass over J:
+    //!   Si += J·Dj    (inner block ⊙ Dj -> scalar; localized)
+    //!   Sj += Jᵀ·Di   (scalar Di(a,b) times the WHOLE inner block, added to Sj -- never a transposed
+    //!                  gather, so no 4× scatter penalty)
+    //! Equivalent to MatMul(Si,Dj) plus Transpose().MatMul(Sj,Di) but reads J once and needs only the one
+    //! canonical block in the cache.  All the (a,b) symmetry bookkeeping is here.  See doc/ERI4Rework.md.
+    void ScatterBoth(rsmat_t& Si, rsmat_t& Sj, const rsmat_t& Di, const rsmat_t& Dj) const;
+    friend void MatMul(rsmat_t& Sab, const ERI4& gabcd,const rsmat_t& Scd); //thin delegate to the member
     ERI4 Transpose() const;  //convert Jabcd->Jcdab;
 };
 

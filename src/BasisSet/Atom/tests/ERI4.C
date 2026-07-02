@@ -107,3 +107,26 @@ TEST_F(ERI4Tests,Transpose)
     MatMul(Jcd2,Jcdab,Dab);
     EXPECT_EQ(Jcd1,Jcd2);
 }
+
+// The fused ScatterBoth must reproduce the TWO independent contractions it replaces in the Fock build:
+//   Si += J·Dj   (localized, == free MatMul(Si,J,Dj))
+//   Sj += Jᵀ·Di  (== the whole-block-add MatMul(Sj,Di,J) above -- same order & weights, so bit-identical).
+TEST_F(ERI4Tests,ScatterBoth)
+{
+    size_t Nab=30,Ncd=40;
+    ERI4 Jabcd(Nab,Ncd);
+    random(Jabcd);
+    rsmat_t Di(Nab),Dj(Ncd);
+    random(Di);
+    random(Dj);
+
+    rsmat_t Si_ref=blazem::zero<double>(Nab), Sj_ref=blazem::zero<double>(Ncd);
+    MatMul(Si_ref,Jabcd,Dj);   // Si += J·Dj  (production free MatMul)
+    MatMul(Sj_ref,Di,Jabcd);   // Sj += Jᵀ·Di (test-local whole-block-add MatMul)
+
+    rsmat_t Si=blazem::zero<double>(Nab), Sj=blazem::zero<double>(Ncd);
+    Jabcd.ScatterBoth(Si,Sj,Di,Dj);   // one pass, both targets
+
+    EXPECT_EQ(Si,Si_ref);
+    EXPECT_EQ(Sj,Sj_ref);
+}
