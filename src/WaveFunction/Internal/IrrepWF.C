@@ -19,6 +19,7 @@ using ChargeDensity::tDM_CD;
 using ChargeDensity::tChargeDensity;
 using qchem::Hamiltonian::Hamiltonian;   // <double> alias still re-exported for the (not-yet-templated) WF hierarchy
 using qchem::Hamiltonian::tHamiltonian;  // (qchem:: qualifies the namespace, else the alias above shadows it)
+using qchem::Hamiltonian::tHamiltonianContext;   // cross-irrep view threaded into the dynamic Fock terms
 using Orbitals::TOrbitals;
 using Orbitals::EnergyLevels;
 using Orbitals::Orbitals; //Keep this one here, otherwise it interferes with the two previous declarations!
@@ -32,7 +33,7 @@ public:
     tIrrepWF(const tobs_t<T>*, LASolver<T>*, const Irrep& ,tSCFIrrepAccelerator<T>*);
     ~tIrrepWF();
 
-    void                CalculateH      (tHamiltonian<T>&,const tChargeDensity<T>*   )      ;
+    void                CalculateH      (tHamiltonian<T>&,const tChargeDensity<T>*,const tHamiltonianContext<T>&);
     void                DoSCFIteration  ()      ;
     bool                ComputeStep     ()      ; //direct-min: accelerator computes its step
     void                MoveOrbitals    (double t, bool commit)      ; //move to geodesic fraction t

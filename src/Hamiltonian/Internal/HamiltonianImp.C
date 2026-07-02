@@ -20,7 +20,8 @@ public:
     virtual void Add( tStatic_HT<T>* );
     virtual void Add(tDynamic_HT<T>*);
 
-    virtual hmat_t<T>       GetMatrix(const tobs_t<T>*,const Spin& S,const tChargeDensity<T>*);
+    using tHamiltonian<T>::GetMatrix;   // keep the base 3-arg (empty-context) convenience overload visible
+    virtual hmat_t<T>       GetMatrix(const tobs_t<T>*,const Spin& S,const tChargeDensity<T>*,const tHamiltonianContext<T>&);
     virtual EnergyBreakdown GetTotalEnergy  (const tDM_CD<T>* ) const;
     virtual bool            IsPolarized() const {return itsIsPolarized;}
     virtual bool            IsRelativistic() const {return itsIsRelativistic;}

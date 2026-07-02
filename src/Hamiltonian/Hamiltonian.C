@@ -48,6 +48,12 @@ template <class T> class tDynamic_HT
 public:
     // Fock build consumes the DFT (matrix-free) density face; energy needs the density matrix.
     virtual const hmat_t<T>& GetMatrix(const tobs_t<T>*,const Spin&,const tChargeDensity<T>*) const=0;
+    //! Cross-irrep-aware Fock build.  Default: ignore the context and defer to the one-irrep form above --
+    //! so every term is a valid consumer for free, and only a term that genuinely exploits the global view
+    //! (the Coulomb/exchange term, banking ERI4 bra-ket symmetry -- doc/ERI4Rework.md \S5.4) overrides it.
+    virtual const hmat_t<T>& GetMatrix(const tobs_t<T>* bs,const Spin& s,const tChargeDensity<T>* cd,
+                                       const tHamiltonianContext<T>&) const
+    { return GetMatrix(bs,s,cd); }
     virtual void             GetEnergy(EnergyBreakdown&,  const tDM_CD<T>*) const=0;
     virtual bool             IsPolarized   () const {return false;}
     virtual bool             IsRelativistic() const {return false;}
@@ -60,7 +66,13 @@ template <class T> class tHamiltonian
 public:
     virtual void            Add             ( tStatic_HT<T>*)=0;
     virtual void            Add             (tDynamic_HT<T>*)=0;
-    virtual hmat_t<T>       GetMatrix(const tobs_t<T>*,const Spin&,const tChargeDensity<T>*)=0;
+    //! Assemble the Fock/Hamiltonian for one irrep \a bs, given the cross-irrep \a ctx (threaded to the
+    //! dynamic terms).  This is the primary form the SCF (CompositeWF/IrrepWF) drives.
+    virtual hmat_t<T>       GetMatrix(const tobs_t<T>*,const Spin&,const tChargeDensity<T>*,const tHamiltonianContext<T>&)=0;
+    //! Convenience for callers with no cross-irrep view (e.g. stand-alone tests): builds with an empty
+    //! context, so every dynamic term takes its default (context-ignoring) path.
+    virtual hmat_t<T>       GetMatrix(const tobs_t<T>* bs,const Spin& s,const tChargeDensity<T>* cd)
+    { return GetMatrix(bs,s,cd,tHamiltonianContext<T>{}); }
     virtual EnergyBreakdown GetTotalEnergy  (  const tDM_CD<T>*    ) const=0;
     virtual bool            IsPolarized   () const=0;
     virtual bool            IsRelativistic() const=0;

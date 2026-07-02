@@ -51,6 +51,8 @@ private:
     typedef tIrrepWF<T> iwf_t;
     typedef std::unique_ptr<iwf_t> uiwf_t;
     void FillOrbitalsAufbau(double mergeTol); //fill globally-lowest orbitals across all irreps
+    //! Assemble the cross-irrep view handed to the dynamic Fock terms: every irrep's orbital basis.
+    tHamiltonianContext<T> MakeContext() const;
 
     const tbs_t<T>*              itsBS;
     const ElectronConfiguration* itsEC;

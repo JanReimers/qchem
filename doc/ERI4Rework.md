@@ -1,6 +1,10 @@
 # ERI4 Rework: a custom ERI container that owns its contraction and bra–ket symmetry
 
-Status: PLAN (survey done, not started). Author: design session 2026-07-02b.
+Status: Stages 1+2 DONE (committed ffcd7f18 — `ERI4::MatMul` member + `ERI4::ScatterBoth` + unit test).
+Stage 3 RESCOPED 2026-07-02 after a survey (see §5.4): the two-target driver is NOT in `ChargeDensity`, it
+needs a cross-irrep **context struct** threaded from `CompositeWF` through the Hamiltonian terms.
+**Stage 3a DONE** (inert context-struct plumbing, bit-identical — see §8.3a); 3b (Vee consumes) + 3c
+(canonical cache key) remain. Author: design session 2026-07-02b; rescope + 3a 2026-07-02.
 
 ## 1. Problem
 
@@ -124,12 +128,79 @@ In `Get(I4C, a, b, make)`: canonicalize to `(min,max)` by `BasisSetID` (or an ex
 store once, and return `{block, needsTransposeBit}` so the driver knows the orientation. Only ever one
 entry per unordered pair.
 
-### 5.3 Fock driver restructure
-Change the `ChargeDensity` accumulation from "each cd-density accumulates into the full `Sab`
-independently" to "iterate **canonical** irrep pairs `i≤j`, fetch the one block, call `ScatterBoth` into
-the `i` and `j` **slices** of the full Fock matrix" (`i==j` → `MatMul`). This is the most invasive part:
-the driver must hand the op **two** target sub-blocks at once, which the current one-target
-`AccumulateDirect(Sab, D_cd, bs_cd)` signature does not express.
+### 5.3 Fock driver restructure  — RESCOPED (survey 2026-07-02, see §5.4)
+Original plan: change the `ChargeDensity` accumulation from "each cd-density accumulates into the full
+`Sab` independently" to "iterate **canonical** irrep pairs `i≤j`, fetch the one block, call `ScatterBoth`
+into the `i` and `j` slices of the **full Fock matrix**" (`i==j` → `MatMul`).
+
+**That mental model was wrong about where the driver lives.** A read-only survey (§5.4) showed the Fock is
+**not** a single "full matrix" the `ChargeDensity` layer slices — it is built **one irrep block at a time,
+independently**, and no layer at or below `ChargeDensity` ever holds two irrep Fock targets at once. So the
+restructure is not a `ChargeDensity` edit; it needs a new **cross-irrep seam** threaded from `CompositeWF`
+down through the Hamiltonian terms (§5.4). This is the whole reason Stage 3 was paused for a rescope.
+
+### 5.4 The real driver, and the cross-irrep context seam (survey finding)
+
+**Call chain (atomic per-`l`-irrep ERI4 path):**
+```
+SCFIterator
+  → CompositeWF::DoSCFIteration            [OUTER loop over irreps — CompositeWF.C:74]
+      for each IrrepWF:
+        IrrepWF::CalculateH                 [IrrepWF.C:41]
+          → Hamiltonian::GetMatrix(bs = ONE irrep, S, cd)     [HamiltonianImp.C:48]
+              Σ terms:  term->GetMatrix(bs, S[, cd])
+                Vee::CalcMatrix(bs = ONE irrep, cd)            [Vee.C:27]
+                  → dm->AccumulateDirect(single Jab target, hf_bs)
+                      → CompositeCD iterates cd-irreps → IrrepCD
+                          → Orbital_HF_IBS::AccumulateDirect
+                              → MatMul(Jab, Direct(i,j), D_j)
+```
+The `Jab` reaching the `ChargeDensity` accumulation is **one** irrep's block; the composite loops the `cd`
+irreps *into that single target*. `Jab(i)` and `Jab(j)` are produced in **two different** `IrrepWF`
+`CalculateH` calls and never coexist. `ScatterBoth(Si,Sj,Di,Dj)` needs all four at once → **nothing below
+`CompositeWF` can call it.**
+
+**Scope facts:**
+- Off-diagonal `i≠j` ERI4 pairs occur **only in the atomic path today** — the molecular MnD and SALC paths
+  call `Get(I4C, raw, raw)` with the *same* whole-AO basis on both sides
+  ([SymmetryAdapted_IBS.C:32-33](../src/BasisSet/Imp/SymmetryAdapted_IBS.C) passes `raw` twice), so those
+  blocks are diagonal / self-transpose and canonicalization is a no-op for them. **But this is not a
+  permanent property**: periodic HF for **solids** will carry **k-vector irreps _and_ SALC simultaneously**,
+  giving genuine off-diagonal cross-irrep blocks. So the seam must be **general block algebra**, never
+  atom-special-cased (mirrors the §9 "solids inherit it" note).
+- **Bit-identity is unreachable** and should not be the gate: today `J(j,i)` is built by an *independent* Rk
+  quadrature; any symmetry-exploiting version derives it from `J(i,j)ᵀ`, which differs at ~1e-13 (reordered
+  sums). Pin a **tight regression anchor** (~1e-10…1e-13), not literal bit-identity. (The *`ScatterBoth`
+  unit test* vs two `MatMul`s on the **same** block stays `EXPECT_EQ` — that arithmetic really is identical.)
+- §5.2 (canonical key) and §5.3 are **coupled**: canonical-key *alone*, serving the flip via a transpose
+  view, taxes every flipped block with the ~4× scattered contraction (§2) every SCF iteration. So Stage 3
+  cannot ship the cache-key change without the fused scatter — they land together or not at all.
+
+**The seam (design direction, OOD):** `CompositeWF` must **not** learn 4-index ERI details, but it *is* the
+natural owner of the fact that a **global, cross-irrep view exists**. So:
+
+1. `CompositeWF` builds a **context struct** — the list of irreps and their per-irrep data (bases,
+   densities, Fock accumulators, and whatever else a term might need a global view of) — and **threads it
+   through** the `Hamiltonian::GetMatrix` → `term->GetMatrix`/`CalcMatrix` call chain as an extra parameter.
+2. **Every Hamiltonian _term_ may use or ignore it.** 1-e terms (Kinetic, Nuclear, Overlap) and the
+   per-irrep DFT `Vxc` ignore it and stay exactly as they are. The **Coulomb/exchange (`Vee`) term** is the
+   one consumer: given the global view it exploits the cross-irrep `J(i,j)=J(j,i)ᵀ` symmetry.
+3. **Start as a plain struct; architect a polymorphic type later** (a pointer that *answers abstract
+   questions* — "give me the canonical irrep pairs", "the Fock target / density for irrep `k`" — so atom vs
+   molecule vs solid all plug in without the term branching) **only if it still makes sense** after the
+   struct version exists.
+
+**Two candidate mechanisms for how `Vee` uses the view** (decide during implementation planning):
+- **(a) Whole-system precompute, per-irrep pull unchanged (preferred — least invasive).** On its first call
+  in an SCF iteration, `Vee`, handed the context, walks **canonical irrep pairs once**, and `ScatterBoth`s
+  each fetched block into an internal per-irrep-keyed `J`/`K` map (`i==j` → `MatMul`). Each subsequent
+  per-irrep `GetMatrix` just **slices its block out** of that map. `GetMatrix`'s one-matrix-per-irrep return
+  contract is unchanged; the two-target scatter is hidden inside the term. This is the "flat packed array
+  walked once, scattering into all targets" pattern, and it generalizes the existing
+  [`SymFockCache`](../src/BasisSet/Imp/SymmetryAdapted_IBS.C) memoize-once idea.
+- **(b) Term writes all targets directly.** The struct owns mutable per-irrep Fock accumulators; a new
+  whole-system `term->Assemble(context)` scatters into them and the per-irrep `GetMatrix` skips the Coulomb
+  term. More invasive (changes the assembly protocol + energy path); defer unless (a) proves awkward.
 
 ## 6. Generic sizing via a worst-case `Irrep` (the atomic LMax track — separate layer)
 
@@ -162,9 +233,12 @@ Keep §5 (generic, bra–ket, high value) and §6 (atomic, LMax→Irrep) as sepa
 
 ## 7. Correctness guards (fail loudly — this is the whole point)
 
-- **Fock bit-identical regression**: pin a converged HF energy AND the assembled Fock matrix before/after
-  the rework (the A_HF_dfPin idiom + an M_* molecular case). The fused `ScatterBoth` must reproduce the
-  independent double-contraction to ~1e-13.
+- **Fock regression anchor** (NOT literal bit-identity — see §5.4): pin a converged HF energy AND the
+  assembled Fock matrix before/after the rework (the A_HF_dfPin idiom + an M_* molecular case) to a **tight
+  tolerance** (~1e-10…1e-13). The fused `ScatterBoth` reproduces the independent double-contraction only to
+  ~1e-13 because today's `J(j,i)` is an independent Rk build, not `J(i,j)ᵀ`; demanding bit-identity would
+  fail on reordered sums. (The *`ScatterBoth`-vs-two-`MatMul`s* unit test on the **same** block stays
+  `EXPECT_EQ`.)
 - **Symmetry invariant**: keep/extend the `fnorm(J(i,j), J(j,i)ᵀ)≈0` assertions for Direct and Exchange.
 - **Dedup/reuse guard**: mirror `Cache4Tests.HF2_S{L,G}_CrossElementReuse` — assert that after touching
   pair `(i,j)` the cache holds ONE entry, and a request for `(j,i)` adds ZERO new blocks (regression here
@@ -178,17 +252,33 @@ Keep §5 (generic, bra–ket, high value) and §6 (atomic, LMax→Irrep) as sepa
    `const smat&` return from the public API (route raw reads through a debug `at()`), fix bench/tests.
    Bit-identical, no behaviour change. **Gate: full suite green, Fock pinned.**
 2. Add `ScatterBoth` + its unit test (§7). No driver change yet.
-3. Canonical J/K cache key (§5.2) + Fock driver restructure (§5.3) to use `ScatterBoth`. **Gate:** RAM
-   report shows one block per unordered pair; Fock bit-identical; reuse guard green.
+3. **RESCOPED (§5.4)** — the cross-irrep context seam + canonical cache key + fused scatter, as sub-stages:
+   - **3a. DONE** (inert plumbing, 167 UTMain + 109 UTAtom_BS green, all pins bit-identical). Added
+     `tHamiltonianContext<T>` (list of irrep bases) in `qchem.Hamiltonian.Types`; `CompositeWF::MakeContext()`
+     assembles it from `itsBS->Iterate<tobs_t>` and threads it via `IrrepWF::CalculateH` →
+     `tHamiltonian::GetMatrix(bs,S,cd,ctx)` → `t->GetMatrix(bs,S,cd,ctx)` on the **dynamic** terms only
+     (static terms keep the 2-arg form). Least-churn seam: `tDynamic_HT::GetMatrix(…,ctx)` is a NON-pure
+     overload defaulting to the existing 3-arg (so every term ignores `ctx` for free — the ~11 `CalcMatrix`
+     overrides are untouched); `tHamiltonian` keeps its 3-arg (empty-context) overload for the stand-alone
+     test callers (PlaneWaveDFTUT, EigenSolverUT). **Only `Vee` overrides the 4-arg in 3b.**
+   - **3b.** Wire `Vee` to consume the view via mechanism (a) — whole-system `ScatterBoth` precompute into a
+     per-irrep `J`/`K` map, per-irrep `GetMatrix` slices out; `i==j` → `MatMul`. **Gate:** Fock regression
+     anchor (§7 tight tol, NOT bit-identical).
+   - **3c.** Canonical `(min,max)` J/K cache key (§5.2), landing **with** 3b so the flip is served by the
+     fused scatter, never a 4× transpose contraction. **Gate:** one-block-per-unordered-pair reuse guard +
+     `fnorm(J(i,j),J(j,i)ᵀ)≈0`.
+   - §5.2 and 3b/3c are coupled — do not merge the cache-key change without the fused consumer.
 4. (Optional) flat packed storage (Option B) if profiling wants it.
 5. (Separate track) §6 atomic Rk `LMax`→`Irrep`: worst-case-irrep query + demand-grow Rk; delete
    eviction/`isSupported`; reuse guard stays green.
 
 ## 9. Risks / open questions
 
-- **Driver restructure (§5.3) is the real cost.** The current one-target `AccumulateDirect` must become a
-  two-target scatter over canonical pairs; the `ChargeDensity`/`CompositeCD` iteration owns this. Scope it
-  before committing to the cache-key change.
+- **Driver restructure is the real cost — and it is NOT in `ChargeDensity` (§5.4).** The survey found the
+  Fock is built one irrep at a time (outer loop in `CompositeWF::DoSCFIteration`), so the two-target scatter
+  needs a cross-irrep **context struct** threaded from `CompositeWF` through the Hamiltonian terms, not a
+  `ChargeDensity`/`CompositeCD` edit. The `ChargeDensity` layer never holds two irrep targets. Scope 3a
+  (inert struct plumbing) as its own bit-identical step before touching the cache key.
 - **`ScatterBoth` symmetry weights** (the `w=2` off-diagonal factor, `i==j` and `a==b`/`c==d` edges) are
   exactly the bookkeeping `smat<smat>` was hiding — unit-test them hard (§7).
 - **Complex `T` / plane waves**: `IrrepCD<dcmplx>::AccumulateDirect` already asserts HF-not-applicable, so

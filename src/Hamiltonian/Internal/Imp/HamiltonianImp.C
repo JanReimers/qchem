@@ -45,14 +45,14 @@ template <> void tHamiltonianImp<dcmplx>::InsertStandardTerms(const st_t &)
     assert(false && "InsertStandardTerms: the complex Hamiltonian assembles its terms explicitly");
 }
 
-template <class T> hmat_t<T> tHamiltonianImp<T>::GetMatrix(const tobs_t<T>* bs,const Spin& S,const tChargeDensity<T>* cd)
+template <class T> hmat_t<T> tHamiltonianImp<T>::GetMatrix(const tobs_t<T>* bs,const Spin& S,const tChargeDensity<T>* cd,const tHamiltonianContext<T>& ctx)
 {
     int n=bs->GetNumFunctions();
     hmat_t<T> H=blazem::zeroH<T>(n);
-    for (auto& t:itsSHTs) H+=t->GetMatrix(bs,S);
+    for (auto& t:itsSHTs) H+=t->GetMatrix(bs,S);            // static terms: no density, no cross-irrep view
     // Leave these terms out if we don't have guess for the charge density.
     if (cd)
-        for (auto& t:itsDHTs) H+=t->GetMatrix(bs,S,cd);
+        for (auto& t:itsDHTs) H+=t->GetMatrix(bs,S,cd,ctx); // dynamic terms may use or ignore ctx (default: ignore)
     return H;
 }
 
