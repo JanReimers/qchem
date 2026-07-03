@@ -159,10 +159,10 @@ public:
     //! irrep's block.  \a wholeBasis is required (HF is whole-system); a null basis throws.
     virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&,const rChargeDensity*,const bs_t* wholeBasis) const;
 private:
-    //! (Re)build the whole-system Coulomb into itsJ (keyed by BasisSetID) if stale for this density.  Uses
-    //! itsWholeBasis (stashed from the Fock build), so GetEnergy -- which has no whole-basis -- gets the
-    //! same symmetry-banked build for its (post-diagonalization) density.
-    void EnsureWholeSystem(const rChargeDensity* cd) const;
+    //! Contract the density into the whole-system Coulomb blocks itsJ (keyed by BasisSetID) if stale for
+    //! this density.  Uses itsWholeBasis (stashed from the Fock build), so GetEnergy -- which has no whole-
+    //! basis -- gets the same symmetry-banked contraction for its (post-diagonalization) density.
+    void ContractAllDirect(const rChargeDensity* cd) const;
     mutable size_t itsAllVersion=size_t(-1);        //!< density serial the whole-system Coulomb was built for
     mutable const bs_t* itsWholeBasis=nullptr;      //!< whole basis (stashed from the Fock build; stable across the run)
     mutable std::map<std::string,rsmat_t> itsJ;     //!< per-irrep Coulomb blocks, keyed by ab-basis BasisSetID
@@ -181,7 +181,7 @@ public:
     //! per irrep; \a wholeBasis is required.
     virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&,const rChargeDensity*,const bs_t* wholeBasis) const;
 private:
-    void EnsureWholeSystem(const rChargeDensity* cd) const;
+    void ContractAllExchange(const rChargeDensity* cd) const;
     mutable size_t itsAllVersion=size_t(-1);
     mutable const bs_t* itsWholeBasis=nullptr;
     mutable std::map<std::string,rsmat_t> itsK;   //!< per-irrep exchange blocks, already scaled by -1/2
@@ -197,7 +197,7 @@ public:
     //! per (spin,irrep); \a wholeBasis is required.
     virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&,const rChargeDensity*,const bs_t* wholeBasis) const;
 private:
-    void EnsureWholeSystem(const rChargeDensity* cd, const Spin& s) const;
+    void ContractAllExchange(const rChargeDensity* cd, const Spin& s) const;
     mutable size_t itsAllVersion=size_t(-1);
     mutable const bs_t* itsWholeBasis=nullptr;
     mutable std::map<Spin,std::map<std::string,rsmat_t>> itsK;   //!< per-spin, per-irrep K, scaled by -1

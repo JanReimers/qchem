@@ -32,7 +32,7 @@ namespace qchem::Hamiltonian
 // canonical ERI4 blocks are ever built/cached -- halving Coulomb ERI RAM+build vs the old per-irrep pass,
 // which fetched both J(i,j) and J(j,i).  Result is bit-close (~1e-13) to the old Fock, not bit-identical:
 // the old J(j,i) was an independent build, here it is J(i,j)^T.
-void Vee::EnsureWholeSystem(const rChargeDensity* cd) const
+void Vee::ContractAllDirect(const rChargeDensity* cd) const
 {
     assert(itsWholeBasis);
     if (cd->Version()==itsAllVersion && !itsJ.empty()) return;   // already current for this density
@@ -64,7 +64,7 @@ const rsmat_t& Vee::GetMatrix(const obs_t* bs,const Spin& s,const rChargeDensity
         throw std::runtime_error("Vee (HF Coulomb): the whole-system Fock build requires the composite basis "
                                  "(the cross-irrep view) -- GetMatrix was called with a null wholeBasis.");
     if (!itsWholeBasis) itsWholeBasis=wholeBasis;                 // stash the run-stable whole basis
-    EnsureWholeSystem(cd);
+    ContractAllDirect(cd);
     return itsJ.at(bs->BasisSetID());
 }
 
@@ -72,7 +72,7 @@ void Vee::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
 {
     // E_ee = 1/2 Tr(D.J), taken from THIS term's own whole-system Coulomb blocks -- no per-irrep GetMatrix
     // round-trip through DM_Contract (which is what kept Vee tied to the 3-arg GetMatrix / tDynamic_CC).
-    EnsureWholeSystem(cd);
+    ContractAllDirect(cd);
     te.Eee=0.5*cd->DM_ContractBlocks(itsJ);
     te.EeeFit    = 0.0;
     te.EeeFitFit = 0.0;

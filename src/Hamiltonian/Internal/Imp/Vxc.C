@@ -24,7 +24,7 @@ namespace qchem::Hamiltonian
 // Whole-system RHF exchange (doc/ERI4Rework.md §5.4): the total density scatters itself across canonical
 // irrep pairs (ScatterBoth on Exchange blocks), so K(j,i) is never built.  Blocks are stored already
 // scaled by -1/2 (the RHF exchange coefficient), so GetMatrix can hand back a reference.
-void Vxc::EnsureWholeSystem(const rChargeDensity* cd) const
+void Vxc::ContractAllExchange(const rChargeDensity* cd) const
 {
     assert(itsWholeBasis);
     if (cd->Version()==itsAllVersion && !itsK.empty()) return;
@@ -54,14 +54,14 @@ const rsmat_t& Vxc::GetMatrix(const obs_t* bs,const Spin& s,const rChargeDensity
         throw std::runtime_error("Vxc (HF exchange): the whole-system Fock build requires the composite basis "
                                  "(the cross-irrep view) -- GetMatrix was called with a null wholeBasis.");
     if (!itsWholeBasis) itsWholeBasis=wholeBasis;
-    EnsureWholeSystem(cd);
+    ContractAllExchange(cd);
     return itsK.at(bs->BasisSetID());
 }
 
 void Vxc::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
 {
     // E_x = 1/2 Tr(D.K_scaled) from this term's own whole-system (already -1/2 scaled) exchange blocks.
-    EnsureWholeSystem(cd);
+    ContractAllExchange(cd);
     te.Exc+=0.5*cd->DM_ContractBlocks(itsK);
 }
 

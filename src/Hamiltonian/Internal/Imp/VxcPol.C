@@ -32,7 +32,7 @@ namespace qchem::Hamiltonian
 // Whole-system UHF exchange for ONE spin: that spin's density scatters itself across canonical irrep pairs
 // (ScatterBoth on Exchange blocks), so K(j,i) is never built.  Cached per (spin,irrep), already scaled by
 // -1.  The version clear drops BOTH spins when the density changes; each spin builds on first request.
-void VxcPol::EnsureWholeSystem(const rChargeDensity* cd, const Spin& s) const
+void VxcPol::ContractAllExchange(const rChargeDensity* cd, const Spin& s) const
 {
     assert(itsWholeBasis);
     if (cd->Version()!=itsAllVersion) { itsK.clear(); itsAllVersion=cd->Version(); }
@@ -64,7 +64,7 @@ const rsmat_t& VxcPol::GetMatrix(const obs_t* bs,const Spin& s,const rChargeDens
         throw std::runtime_error("VxcPol (HF exchange): the whole-system Fock build requires the composite basis "
                                  "(the cross-irrep view) -- GetMatrix was called with a null wholeBasis.");
     if (!itsWholeBasis) itsWholeBasis=wholeBasis;
-    EnsureWholeSystem(cd,s);
+    ContractAllExchange(cd,s);
     return itsK.at(s).at(bs->BasisSetID());
 }
 void VxcPol::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
@@ -72,8 +72,8 @@ void VxcPol::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
     // Sum K^alpha and K^beta: each spin's density contracts with ITS OWN spin's (scaled) exchange blocks.
     const Polarized_CD* pcd=dynamic_cast<const Polarized_CD*>(cd);
     assert(pcd && "VxcPol energy: density must be polarized");
-    EnsureWholeSystem(cd,Spin::Up);
-    EnsureWholeSystem(cd,Spin::Down);
+    ContractAllExchange(cd,Spin::Up);
+    ContractAllExchange(cd,Spin::Down);
     double e = pcd->GetChargeDensity(Spin::Up )->DM_ContractBlocks(itsK.at(Spin::Up ))
              + pcd->GetChargeDensity(Spin::Down)->DM_ContractBlocks(itsK.at(Spin::Down));
     te.Exc += 0.5*e;
