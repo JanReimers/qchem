@@ -8,8 +8,9 @@ target_sources(qcHamiltonian PRIVATE
     Internal/Imp/Ven.C
     Internal/Imp/PP_Local.C
     Internal/Imp/PP_NonLocal.C
+    Internal/Imp/HF_HT.C
     Internal/Imp/Vee.C
-    Internal/Imp/Vxc.C 
+    Internal/Imp/Vxc.C
     Internal/Imp/VxcPol.C 
     Internal/Imp/Vnn.C 
     Internal/Imp/FittedVxcPol.C

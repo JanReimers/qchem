@@ -149,30 +149,49 @@ private:
 // matrix and orbital basis functions.  This is the coulomb potential used in Hartree-Fock
 // calculations.
 //
-class Vee : public virtual Dynamic_HF_HT
+// Shared whole-system machinery for the 4-index HF terms (Coulomb/exchange).  Owns the version guard, the
+// composite-basis walk, the per-irrep block cache, and the Fock-build/energy plumbing that Vee and Vxc used
+// to duplicate.  A concrete term supplies ONLY the one line that differs -- which canonical-pair contraction
+// to run (AccumulateAll: Direct vs Exchange) -- plus an optional Fock Scale (Vxc's K coefficient).  Mirrors
+// the tDynamic_HT / tDynamic_HT_Imp interface/impl split, so the tDynamic_HF_HT interface itself stays
+// data-free.
+class Dynamic_HF_HT_Imp : public virtual Dynamic_HF_HT
+{
+public:
+    //! Fock build: assemble the whole-system blocks ONCE per density from the composite \a wholeBasis using
+    //! ERI4 bra-ket symmetry (canonical pairs -> ScatterBoth), cache the per-irrep blocks, return this
+    //! irrep's block.  \a wholeBasis is required (HF is whole-system); a null basis throws.
+    virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&,const rChargeDensity*,const bs_t* wholeBasis) const;
+protected:
+    //! The one operation that distinguishes Coulomb from exchange: scatter \a dm across canonical irrep pairs
+    //! into the zeroed per-irrep blocks \a X (parallel to the HF bases \a hf).
+    virtual void   AccumulateAll(std::vector<rsmat_t>& X,const std::vector<const ohfbs_t*>& hf,const DM_CD* dm) const=0;
+    //! Fock coefficient applied to every block after the scatter (1 for Coulomb; the K coefficient for Vxc).
+    virtual double Scale() const {return 1.0;}
+    //! Contract the density into the whole-system blocks itsBlocks (keyed by BasisSetID) if stale for this
+    //! density.  Uses itsWholeBasis (stashed from the Fock build), so GetEnergy -- which has no whole-basis --
+    //! gets the same symmetry-banked contraction for its (post-diagonalization) density.
+    void ContractAll(const rChargeDensity* cd) const;
+
+    mutable size_t itsAllVersion=size_t(-1);         //!< density serial the whole-system blocks were built for
+    mutable const bs_t* itsWholeBasis=nullptr;       //!< whole basis (stashed from the Fock build; stable across the run)
+    mutable std::map<std::string,rsmat_t> itsBlocks; //!< per-irrep blocks, keyed by ab-basis BasisSetID (already scaled)
+};
+
+class Vee : public Dynamic_HF_HT_Imp
 {
 public:
     virtual void          GetEnergy(EnergyBreakdown&,const DM_CD* cd ) const;
     virtual std::ostream& Write    (std::ostream&) const;
-    //! Fock build: assemble the whole-system Coulomb ONCE per density from the composite \a wholeBasis using
-    //! ERI4 bra-ket symmetry (canonical pairs -> ScatterBoth), cache the per-irrep blocks, return this
-    //! irrep's block.  \a wholeBasis is required (HF is whole-system); a null basis throws.
-    virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&,const rChargeDensity*,const bs_t* wholeBasis) const;
-private:
-    //! Contract the density into the whole-system Coulomb blocks itsJ (keyed by BasisSetID) if stale for
-    //! this density.  Uses itsWholeBasis (stashed from the Fock build), so GetEnergy -- which has no whole-
-    //! basis -- gets the same symmetry-banked contraction for its (post-diagonalization) density.
-    void ContractAllDirect(const rChargeDensity* cd) const;
-    mutable size_t itsAllVersion=size_t(-1);        //!< density serial the whole-system Coulomb was built for
-    mutable const bs_t* itsWholeBasis=nullptr;      //!< whole basis (stashed from the Fock build; stable across the run)
-    mutable std::map<std::string,rsmat_t> itsJ;     //!< per-irrep Coulomb blocks, keyed by ab-basis BasisSetID
+protected:
+    virtual void AccumulateAll(std::vector<rsmat_t>& X,const std::vector<const ohfbs_t*>& hf,const DM_CD* dm) const;
 };
 
 //###############################################################################
 //
 //  Hartree-Fock unpolarized and polarized exchange potentials.
 //
-class Vxc : public virtual Dynamic_HF_HT
+class Vxc : public Dynamic_HF_HT_Imp
 {
 public:
     //! \a exchangeScale is the K coefficient in the Fock: -1/2 for the (spin-summed) RHF term, -1 for each
@@ -181,15 +200,11 @@ public:
     explicit Vxc(double exchangeScale) : itsScale(exchangeScale) {}
     virtual void           GetEnergy(EnergyBreakdown&,const DM_CD* cd ) const;
     virtual std::ostream&  Write    (std::ostream&) const;
-    //! Whole-system exchange via ERI4 bra-ket symmetry (doc/ERI4Rework.md §5.4), scaled by \a itsScale and
-    //! cached per irrep; \a wholeBasis is required.
-    virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&,const rChargeDensity*,const bs_t* wholeBasis) const;
+protected:
+    virtual void   AccumulateAll(std::vector<rsmat_t>& X,const std::vector<const ohfbs_t*>& hf,const DM_CD* dm) const;
+    virtual double Scale() const {return itsScale;}   //!< the Fock K coefficient, applied to every block
 private:
-    void ContractAllExchange(const rChargeDensity* cd) const;
     const double itsScale;                          //!< K coefficient in the Fock (-1/2 RHF, -1 per-spin)
-    mutable size_t itsAllVersion=size_t(-1);
-    mutable const bs_t* itsWholeBasis=nullptr;
-    mutable std::map<std::string,rsmat_t> itsK;     //!< per-irrep exchange blocks, already scaled by itsScale
 };
 
 // Polarized HF exchange = two spin-channel Vxc(-1): dispatch per spin, feeding each its own spin density

@@ -203,6 +203,17 @@ of `AccumulateDirectAll`), not a per-irrep `GetMatrix` round-trip through `DM_Co
 3-arg-only form (the stage-3a 4-arg default removed); `HamiltonianImp` gained an `itsEHTs` list +
 `Add(tDynamic_HF_HT*)`. Each term type now has exactly one `GetMatrix`.  ("HF" not "Exact" — HF isn't exact.)
 
+**REALIZED (post-cleanup): shared `Dynamic_HF_HT_Imp` mixin.** `Vee` and `Vxc` had each copy-pasted the
+whole-system contraction stash (`itsWholeBasis`/`itsAllVersion`/its block map + `ContractAll*` + `GetMatrix`),
+differing by exactly one line — which canonical-pair scatter to run (`AccumulateDirectAll` vs
+`AccumulateExchangeAll`) and Vxc's `*=itsScale`. Hoisted into a `Dynamic_HF_HT_Imp` mixin
+([Terms.C](../src/Hamiltonian/Internal/Terms.C), body in [Imp/HF_HT.C](../src/Hamiltonian/Internal/Imp/HF_HT.C))
+that owns the version guard, the composite-basis walk, one `itsBlocks` cache, and the `GetMatrix`; the term
+supplies only a `AccumulateAll` template-method hook + an optional `Scale()` (Vxc → `itsScale`, default 1).
+Mirrors the `tDynamic_HT`/`tDynamic_HT_Imp` interface/impl split, so `tDynamic_HF_HT` stays data-free and
+`VxcPol` keeps deriving the bare interface (pure dispatcher, no stash). `Vee`/`Vxc` drop from a full stash to
+their one-line hook + `GetEnergy`. Behaviour-preserving: 165 UTMain + all 91 HF/DFT energy pins green.
+
 **REALIZED (post-3b):** once the consumer was written it was clear the struct only ever held
 `vector<const tobs_t*> irrepBases`, which is *exactly* what the whole (composite) `BasisSet` already is —
 `Iterate<tobs_t>()` over it yields the per-irrep blocks. So `tHamiltonianContext` was **deleted** and the
