@@ -2,6 +2,8 @@
 module;
 #include <iosfwd>
 #include <cstddef>
+#include <map>
+#include <string>
 export module qchem.ChargeDensity.Imp.IrrepCD;
 
 export import qchem.ChargeDensity;
@@ -43,6 +45,7 @@ public:
 
     virtual double DM_Contract(const tStatic_CC<T>*) const;
     virtual double DM_Contract(const tDynamic_CC<T>*,const tDM_CD<T>*) const;
+    virtual double DM_ContractBlocks(const std::map<std::string,hmat_t<T>>&) const;
     virtual double GetTotalCharge(                      ) const;
 
     virtual size_t Version() const {return itsVersion;}

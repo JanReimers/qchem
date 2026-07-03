@@ -95,7 +95,14 @@ const rsmat_t& VxcPol::GetMatrix(const obs_t* bs,const Spin& s,const rChargeDens
 }
 void VxcPol::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
 {
-    te.Exc += 0.5*cd->DM_Contract(this,cd); //This should sum K^alpha and K^beta.
+    // Sum K^alpha and K^beta: each spin's density contracts with ITS OWN spin's (scaled) exchange blocks.
+    const Polarized_CD* pcd=dynamic_cast<const Polarized_CD*>(cd);
+    assert(pcd && "VxcPol energy: density must be polarized");
+    EnsureWholeSystem(cd,Spin::Up);
+    EnsureWholeSystem(cd,Spin::Down);
+    double e = pcd->GetChargeDensity(Spin::Up )->DM_ContractBlocks(itsK.at(Spin::Up ))
+             + pcd->GetChargeDensity(Spin::Down)->DM_ContractBlocks(itsK.at(Spin::Down));
+    te.Exc += 0.5*e;
 }
 
 std::ostream& VxcPol::Write(std::ostream& os) const

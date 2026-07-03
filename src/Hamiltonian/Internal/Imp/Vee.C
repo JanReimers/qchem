@@ -94,8 +94,10 @@ const rsmat_t& Vee::GetMatrix(const obs_t* bs,const Spin& s,const rChargeDensity
 
 void Vee::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
 {
-    newCD(cd); //Set H matrix cache to dirty if cd really is new.
-    te.Eee=0.5*cd->DM_Contract(this,cd);
+    // E_ee = 1/2 Tr(D.J), taken from THIS term's own whole-system Coulomb blocks -- no per-irrep GetMatrix
+    // round-trip through DM_Contract (which is what kept Vee tied to the 3-arg GetMatrix / tDynamic_CC).
+    EnsureWholeSystem(cd);
+    te.Eee=0.5*cd->DM_ContractBlocks(itsJ);
     te.EeeFit    = 0.0;
     te.EeeFitFit = 0.0;
 }

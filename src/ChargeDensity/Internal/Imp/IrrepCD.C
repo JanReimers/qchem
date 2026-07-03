@@ -7,6 +7,8 @@ module;
 #include <type_traits>
 #include <vector>
 #include <atomic>
+#include <map>
+#include <string>
 
 module qchem.ChargeDensity.Imp.IrrepCD;
 import qchem.Symmetry;
@@ -131,6 +133,17 @@ template <class T> double IrrepCD<T>::DM_Contract(const tStatic_CC<T>* v) const
 template <class T> double IrrepCD<T>::DM_Contract(const tDynamic_CC<T>* v,const tDM_CD<T>* cd) const
 {
     T ComplexE=blazem::sum(itsDensityMatrix % blazem::trans(v->GetMatrix(itsBasisSet,itsSpin,cd)));
+    assert(fabs(std::imag(ComplexE))<1e-8);
+    return std::real(ComplexE);
+}
+
+// This irrep's contribution to a whole-system energy: sum(D % B_i^T) with B_i the block for this basis.
+// Same contraction as DM_Contract above, but the Fock block comes from a caller-supplied map (the HF
+// term's cached blocks) instead of a per-irrep GetMatrix call -- so no GetMatrix round-trip.
+template <class T> double IrrepCD<T>::DM_ContractBlocks(const std::map<std::string,hmat_t<T>>& blocks) const
+{
+    if (IsZero()) return 0.0;
+    T ComplexE=blazem::sum(itsDensityMatrix % blazem::trans(blocks.at(itsBasisSet->BasisSetID())));
     assert(fabs(std::imag(ComplexE))<1e-8);
     return std::real(ComplexE);
 }

@@ -4,6 +4,8 @@ module;
 #include <vector>
 #include <memory>
 #include <type_traits>
+#include <map>
+#include <string>
 module qchem.CompositeCD;
 import qchem.ChargeDensity.Types;
 import qchem.Fitting.FunctionFitter;   // Fitting::ProjectedDensity_AO (each finite block's AO face)
@@ -71,6 +73,13 @@ template <class T> void tComposite_CD<T>::AccumulateExchangeAll(std::vector<hmat
         for (size_t l=k+1;l<N;++l)
             itsCDs[k]->AccumulateExchangeBoth(Kall[k],Kall[l],*itsCDs[l]);  // fused off-diagonal canonical pair
     }
+}
+
+template <class T> double tComposite_CD<T>::DM_ContractBlocks(const std::map<std::string,hmat_t<T>>& blocks) const
+{
+    double ret=0.0;
+    for (auto& c:itsCDs) ret+=c->DM_ContractBlocks(blocks);
+    return ret;
 }
 
 template <class T> double tComposite_CD<T>::DM_Contract(const tStatic_CC<T>* v) const

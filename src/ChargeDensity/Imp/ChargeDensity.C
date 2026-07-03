@@ -3,6 +3,8 @@ module;
 #include <iostream>
 #include <cassert>
 #include <vector>
+#include <map>
+#include <string>
 module qchem.ChargeDensity;
 import qchem.Symmetry.Spin;
 import qchem.Fitting.FunctionFitter;   // Fitting::ProjectedDensity_AO (each spin block's AO face)
@@ -51,6 +53,13 @@ double Polarized_CD::DM_Contract(const Static_CC* v) const
 double Polarized_CD::DM_Contract(const Dynamic_CC* v,const DM_CD* cd) const
 {
     return GetChargeDensity(Spin::Up  )->DM_Contract(v,cd)+GetChargeDensity(Spin::Down)->DM_Contract(v,cd);
+}
+
+// Coulomb / RHF-exchange energy: the same (total-density) blocks contract with BOTH spin channels
+// (= Tr(D_total.B)).  The polarized exchange term instead calls DM_ContractBlocks on ONE spin's composite.
+double Polarized_CD::DM_ContractBlocks(const std::map<std::string,rsmat_t>& blocks) const
+{
+    return GetChargeDensity(Spin::Up  )->DM_ContractBlocks(blocks)+GetChargeDensity(Spin::Down)->DM_ContractBlocks(blocks);
 }
 
 

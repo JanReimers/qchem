@@ -4,6 +4,8 @@ module;
 #include <cstddef>
 #include <atomic>
 #include <vector>
+#include <map>
+#include <string>
 #include <cassert>
 export module qchem.ChargeDensity;
 import qchem.Fitting.FunctionFitter;   // Fitting::ProjectedDensity_AO
@@ -108,6 +110,13 @@ template <class T> class tDM_CD
 public:
     virtual double DM_Contract(const tStatic_CC<T>*) const=0; //Amounts to Integral(ro*V*d3r);
     virtual double DM_Contract(const tDynamic_CC<T>*,const tDM_CD<T>*) const=0; //Integral(ro*V(ro)*d3r);
+    //! Energy contraction of THIS density against a per-irrep Fock-block map (keyed by BasisSetID):
+    //! \f$\sum_i \mathrm{sum}(D_i \odot B_i^\mathsf{T}) = \mathrm{Tr}(D\,B)\f$.  The whole-system DUAL of
+    //! AccumulateDirectAll -- lets a whole-system term (HF Coulomb/exchange) take its energy from its own
+    //! cached blocks WITHOUT a per-irrep GetMatrix round-trip through DM_Contract.  Only composite/
+    //! polarized/leaf densities implement it; the periodic path asserts out.
+    virtual double DM_ContractBlocks(const std::map<std::string,hmat_t<T>>&) const
+    { assert(false && "DM_ContractBlocks: only a finite (Gaussian) density matrix implements this"); return 0.0; }
 
     virtual void   MixIn        (const tDM_CD<T>&,double      )      =0;  //this = (1-c)*this + c*that.
     virtual double GetChangeFrom(const tDM_CD<T>&            ) const=0;  //Convergence check.
@@ -156,6 +165,7 @@ public:
 
     virtual double DM_Contract(const Static_CC*) const;
     virtual double DM_Contract(const Dynamic_CC*,const DM_CD*) const;
+    virtual double DM_ContractBlocks(const std::map<std::string,rsmat_t>&) const;   // sum both spins
 
     virtual double GetTotalCharge() const;  // <ro>
     virtual double GetTotalSpin  () const;  // No UT coverage// <up>-<down>

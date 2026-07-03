@@ -79,8 +79,9 @@ const rsmat_t& Vxc::GetMatrix(const obs_t* bs,const Spin& s,const rChargeDensity
 }
 void Vxc::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
 {
-    newCD(cd); //Set H matrix cache to dirty if cd really is new.
-    te.Exc+=0.5*cd->DM_Contract(this,cd);
+    // E_x = 1/2 Tr(D.K_scaled) from this term's own whole-system (already -1/2 scaled) exchange blocks.
+    EnsureWholeSystem(cd);
+    te.Exc+=0.5*cd->DM_ContractBlocks(itsK);
 }
 
 std::ostream& Vxc::Write(std::ostream& os) const
