@@ -175,32 +175,38 @@ private:
 class Vxc : public virtual Dynamic_HF_HT
 {
 public:
+    //! \a exchangeScale is the K coefficient in the Fock: -1/2 for the (spin-summed) RHF term, -1 for each
+    //! spin channel of the polarized term (VxcPol owns two Vxc(-1)).  Explicit -- no hidden convention: the
+    //! block contracts whatever density it is handed (total for RHF; a single spin channel for VxcPol).
+    explicit Vxc(double exchangeScale) : itsScale(exchangeScale) {}
     virtual void           GetEnergy(EnergyBreakdown&,const DM_CD* cd ) const;
     virtual std::ostream&  Write    (std::ostream&) const;
-    //! Whole-system RHF exchange via ERI4 bra-ket symmetry (doc/ERI4Rework.md §5.4), scaled -1/2 and cached
-    //! per irrep; \a wholeBasis is required.
+    //! Whole-system exchange via ERI4 bra-ket symmetry (doc/ERI4Rework.md §5.4), scaled by \a itsScale and
+    //! cached per irrep; \a wholeBasis is required.
     virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&,const rChargeDensity*,const bs_t* wholeBasis) const;
 private:
     void ContractAllExchange(const rChargeDensity* cd) const;
+    const double itsScale;                          //!< K coefficient in the Fock (-1/2 RHF, -1 per-spin)
     mutable size_t itsAllVersion=size_t(-1);
     mutable const bs_t* itsWholeBasis=nullptr;
-    mutable std::map<std::string,rsmat_t> itsK;   //!< per-irrep exchange blocks, already scaled by -1/2
+    mutable std::map<std::string,rsmat_t> itsK;     //!< per-irrep exchange blocks, already scaled by itsScale
 };
 
+// Polarized HF exchange = two spin-channel Vxc(-1): dispatch per spin, feeding each its own spin density
+// (K^sigma from D^sigma).  Mirrors FittedVxcPol's owned-pair structure -- keeps the fitted and HF polarized
+// terms consistent.
 class VxcPol : public virtual Dynamic_HF_HT
 {
 public:
+    VxcPol();
+   ~VxcPol();
     virtual void           GetEnergy(EnergyBreakdown&,const DM_CD* cd ) const;
     virtual bool           IsPolarized() const {return true;}
     virtual std::ostream&  Write    (std::ostream&) const;
-    //! Whole-system UHF exchange, PER SPIN (K^sigma from the sigma-density only), scaled -1 and cached
-    //! per (spin,irrep); \a wholeBasis is required.
     virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&,const rChargeDensity*,const bs_t* wholeBasis) const;
 private:
-    void ContractAllExchange(const rChargeDensity* cd, const Spin& s) const;
-    mutable size_t itsAllVersion=size_t(-1);
-    mutable const bs_t* itsWholeBasis=nullptr;
-    mutable std::map<Spin,std::map<std::string,rsmat_t>> itsK;   //!< per-spin, per-irrep K, scaled by -1
+    Vxc* itsUpVxc  ;   //!< owned; spin-up exchange   (K coefficient -1)
+    Vxc* itsDownVxc;   //!< owned; spin-down exchange (K coefficient -1)
 };
 
 //###############################################################################

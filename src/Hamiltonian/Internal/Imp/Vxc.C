@@ -21,9 +21,9 @@ namespace qchem::Hamiltonian
 //  Let the charge density do the work.
 //
 
-// Whole-system RHF exchange (doc/ERI4Rework.md §5.4): the total density scatters itself across canonical
-// irrep pairs (ScatterBoth on Exchange blocks), so K(j,i) is never built.  Blocks are stored already
-// scaled by -1/2 (the RHF exchange coefficient), so GetMatrix can hand back a reference.
+// Whole-system exchange (doc/ERI4Rework.md §5.4): the given density scatters itself across canonical irrep
+// pairs (ScatterBoth on Exchange blocks), so K(j,i) is never built.  Blocks are stored already scaled by
+// itsScale (the Fock K coefficient), so GetMatrix can hand back a reference.
 void Vxc::ContractAllExchange(const rChargeDensity* cd) const
 {
     assert(itsWholeBasis);
@@ -43,7 +43,7 @@ void Vxc::ContractAllExchange(const rChargeDensity* cd) const
     }
     dm->AccumulateExchangeAll(Kall,hf);
     itsK.clear();
-    for (size_t k=0;k<obs.size();++k) { Kall[k]*=-0.5; itsK[obs[k]->BasisSetID()]=std::move(Kall[k]); }
+    for (size_t k=0;k<obs.size();++k) { Kall[k]*=itsScale; itsK[obs[k]->BasisSetID()]=std::move(Kall[k]); }
     itsAllVersion=cd->Version();
 }
 

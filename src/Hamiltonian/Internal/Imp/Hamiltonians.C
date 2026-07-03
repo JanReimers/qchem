@@ -27,7 +27,7 @@ Ham_HF_U::Ham_HF_U(const st_t& st)
 {
     InsertStandardTerms(st);
     Add(new Vee);
-    Add(new Vxc);
+    Add(new Vxc(-0.5));
 }
 
 
@@ -214,7 +214,7 @@ Ham_DHF_U::Ham_DHF_U(const st_t& st)
     //Add(new Vnn(st));
     Add(new Ven(st));
     Add(new Vee());
-    Add(new Vxc());
+    Add(new Vxc(-0.5));
 }
 Ham_DHF_P::Ham_DHF_P(const st_t& st)
 {
