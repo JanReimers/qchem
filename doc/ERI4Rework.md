@@ -193,6 +193,16 @@ natural owner of the fact that a **global, cross-irrep view exists**. So:
    molecule vs solid all plug in without the term branching) **only if it still makes sense** after the
    struct version exists.
 
+**REALIZED (post-3c): a dedicated term type.** The per-irrep-facade-over-whole-system left the HF terms
+carrying two `GetMatrix` overloads (4-arg Fock + 3-arg energy) plus a stash — a mess. Root cause: an HF
+term is *whole-system* (exact 4-index, couples all irreps) and never fit the per-irrep `tDynamic_HT`
+interface. Fix: a **third term type `tDynamic_HF_HT<T>`** with a SINGLE `GetMatrix(bs,S,cd,wholeBasis)` and
+NO `tDynamic_CC` face — its energy comes from `tDM_CD::DM_ContractBlocks(map<BasisSetID,block>)` (the dual
+of `AccumulateDirectAll`), not a per-irrep `GetMatrix` round-trip through `DM_Contract`. `Vee`/`Vxc`/
+`VxcPol` moved onto it (3-arg + dead per-irrep `CalcMatrix` deleted); `tDynamic_HT` reverted to its original
+3-arg-only form (the stage-3a 4-arg default removed); `HamiltonianImp` gained an `itsEHTs` list +
+`Add(tDynamic_HF_HT*)`. Each term type now has exactly one `GetMatrix`.  ("HF" not "Exact" — HF isn't exact.)
+
 **REALIZED (post-3b):** once the consumer was written it was clear the struct only ever held
 `vector<const tobs_t*> irrepBases`, which is *exactly* what the whole (composite) `BasisSet` already is —
 `Iterate<tobs_t>()` over it yields the per-irrep blocks. So `tHamiltonianContext` was **deleted** and the
