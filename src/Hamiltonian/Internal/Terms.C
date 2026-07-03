@@ -168,14 +168,16 @@ protected:
     virtual void   AccumulateAll(std::vector<rsmat_t>& X,const std::vector<const ohfbs_t*>& hf,const DM_CD* dm) const=0;
     //! Fock coefficient applied to every block after the scatter (1 for Coulomb; the K coefficient for Vxc).
     virtual double Scale() const {return 1.0;}
-    //! Contract the density into the whole-system blocks itsBlocks (keyed by BasisSetID) if stale for this
+    //! Contract the density into the whole-system blocks itsJKs (keyed by BasisSetID) if stale for this
     //! density.  Uses itsWholeBasis (stashed from the Fock build), so GetEnergy -- which has no whole-basis --
     //! gets the same symmetry-banked contraction for its (post-diagonalization) density.
     void ContractAll(const rChargeDensity* cd) const;
 
-    mutable size_t itsAllVersion=size_t(-1);         //!< density serial the whole-system blocks were built for
-    mutable const bs_t* itsWholeBasis=nullptr;       //!< whole basis (stashed from the Fock build; stable across the run)
-    mutable std::map<std::string,rsmat_t> itsBlocks; //!< per-irrep blocks, keyed by ab-basis BasisSetID (already scaled)
+    mutable size_t itsCD_Version=size_t(-1);      //!< ID number for the most recent charge density (CD)
+    mutable const bs_t* itsWholeBasis=nullptr;    //!< whole basis (stashed from the Fock build; stable across the run)
+    //! The J (Coulomb) or K (exchange) per-irrep blocks: accumulated (over irreps) and contracted (over Dcd)
+    //! for the current charge density ID'd by itsCD_Version.  Keyed by ab-basis BasisSetID, already scaled.
+    mutable std::map<std::string,rsmat_t> itsJKs;
 };
 
 class Vee : public Dynamic_HF_HT_Imp

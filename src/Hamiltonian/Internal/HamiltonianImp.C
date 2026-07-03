@@ -26,6 +26,10 @@ public:
     virtual EnergyBreakdown GetTotalEnergy  (const tDM_CD<T>* ) const;
     virtual bool            IsPolarized() const {return itsIsPolarized;}
     virtual bool            IsRelativistic() const {return itsIsRelativistic;}
+    //! A density MATRIX (not a matrix-free fit) is required to seed the SCF iff this Hamiltonian either holds
+    //! an exact-exchange HF term (K needs D) or is relativistic (the non-rel LDA-sibling SAD bootstrap does
+    //! not apply -- see SCFIterator).  Derived from the term lists, so no concrete Hamiltonian need declare it.
+    virtual bool            RequiresDensityMatrix() const {return !itsHF_HTs.empty() || itsIsRelativistic;}
     virtual std::ostream&   Write(std::ostream&) const;
 
 protected:
@@ -33,11 +37,11 @@ protected:
     void InsertStandardTerms(const st_t & st);   // molecular standard terms (double only)
     typedef std::vector<std::unique_ptr<   tStatic_HT<T>>> shtv_t;
     typedef std::vector<std::unique_ptr<  tDynamic_HT<T>>> dhtv_t;
-    typedef std::vector<std::unique_ptr<tDynamic_HF_HT<T>>> ehtv_t;
+    typedef std::vector<std::unique_ptr<tDynamic_HF_HT<T>>> hf_htv_t;
 
-    shtv_t itsSHTs;
-    dhtv_t itsDHTs;
-    ehtv_t itsEHTs;   // whole-system HF (exact 4-index) terms
+    shtv_t   itsSHTs;
+    dhtv_t   itsDHTs;
+    hf_htv_t itsHF_HTs;   // HF capable terms require a widened interface for efficient J/K table handling.
 
     bool   itsIsPolarized;
     bool   itsIsRelativistic;

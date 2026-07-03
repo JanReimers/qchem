@@ -33,7 +33,7 @@ template <class T> void tHamiltonianImp<T>::Add(tDynamic_HT<T>* p)
 }
 template <class T> void tHamiltonianImp<T>::Add(tDynamic_HF_HT<T>* p)
 {
-    itsEHTs.push_back(std::unique_ptr<tDynamic_HF_HT<T>>(p));
+    itsHF_HTs.push_back(std::unique_ptr<tDynamic_HF_HT<T>>(p));
     itsIsPolarized    = itsIsPolarized    || p->IsPolarized();
     itsIsRelativistic = itsIsRelativistic || p->IsRelativistic();
 }
@@ -59,8 +59,8 @@ template <class T> hmat_t<T> tHamiltonianImp<T>::GetMatrix(const tobs_t<T>* bs,c
     // Leave these terms out if we don't have guess for the charge density.
     if (cd)
     {
-        for (auto& t:itsDHTs) H+=t->GetMatrix(bs,S,cd);               // per-irrep dynamic (DFT/fitted)
-        for (auto& t:itsEHTs) H+=t->GetMatrix(bs,S,cd,wholeBasis);    // whole-system HF (needs the composite basis)
+        for (auto& t:itsDHTs)   H+=t->GetMatrix(bs,S,cd);             // per-irrep dynamic (DFT/fitted)
+        for (auto& t:itsHF_HTs) H+=t->GetMatrix(bs,S,cd,wholeBasis);  // whole-system HF (needs the composite basis)
     }
     return H;
 }
@@ -72,7 +72,7 @@ template <class T> EnergyBreakdown tHamiltonianImp<T>::GetTotalEnergy( const tDM
     EnergyBreakdown e;
     for (auto& t:itsSHTs)  t->GetEnergy(e,cd);
     for (auto& t:itsDHTs)  t->GetEnergy(e,cd);
-    for (auto& t:itsEHTs)  t->GetEnergy(e,cd);
+    for (auto& t:itsHF_HTs)  t->GetEnergy(e,cd);
     return e;
 }
 
@@ -85,8 +85,8 @@ template <class T> std::ostream& tHamiltonianImp<T>::Write(std::ostream& os) con
     os << itsSHTs;
     os << "and " << itsDHTs.size() << " dynamic terms:" << std::endl;
     os << itsDHTs;
-    os << "and " << itsEHTs.size() << " Hartree-Fock terms:" << std::endl;
-    os << itsEHTs;
+    os << "and " << itsHF_HTs.size() << " Hartree-Fock terms:" << std::endl;
+    os << itsHF_HTs;
     return os;
 }
 

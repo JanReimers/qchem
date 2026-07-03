@@ -30,13 +30,13 @@ const rsmat_t& Dynamic_HF_HT_Imp::GetMatrix(const obs_t* bs,const Spin&,const rC
                                  "(the cross-irrep view) -- GetMatrix was called with a null wholeBasis.");
     if (!itsWholeBasis) itsWholeBasis=wholeBasis;                 // stash the run-stable whole basis
     ContractAll(cd);
-    return itsBlocks.at(bs->BasisSetID());
+    return itsJKs.at(bs->BasisSetID());
 }
 
 void Dynamic_HF_HT_Imp::ContractAll(const rChargeDensity* cd) const
 {
     assert(itsWholeBasis);
-    if (cd->Version()==itsAllVersion && !itsBlocks.empty()) return;   // already current for this density
+    if (cd->Version()==itsCD_Version && !itsJKs.empty()) return;   // already current for this density
     const DM_CD* dm = dynamic_cast<const DM_CD*>(cd);
     assert(dm && "HF term: density must be a DM_CD");
     std::vector<const obs_t*>   obs;                         // the whole basis's per-irrep blocks
@@ -52,13 +52,13 @@ void Dynamic_HF_HT_Imp::ContractAll(const rChargeDensity* cd) const
     }
     AccumulateAll(X,hf,dm);                                  // canonical-pair ScatterBoth into every block
     const double w=Scale();
-    itsBlocks.clear();
+    itsJKs.clear();
     for (size_t k=0;k<obs.size();++k)
     {
         if (w!=1.0) X[k]*=w;                                // no-op multiply skipped for Coulomb (w==1)
-        itsBlocks[obs[k]->BasisSetID()]=std::move(X[k]);
+        itsJKs[obs[k]->BasisSetID()]=std::move(X[k]);
     }
-    itsAllVersion=cd->Version();
+    itsCD_Version=cd->Version();
 }
 
 } //namespace

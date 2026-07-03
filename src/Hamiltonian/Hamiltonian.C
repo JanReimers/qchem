@@ -38,7 +38,6 @@ public:
     virtual void             GetEnergy(EnergyBreakdown&,  const tDM_CD<T>*) const=0;
     virtual bool             IsPolarized   () const {return false;}
     virtual bool             IsRelativistic() const {return false;}
-    virtual bool             RequiresDensityMatrix() const {return false;}
 };
 
 template <class T> class tDynamic_HT
@@ -52,7 +51,6 @@ public:
     virtual void             GetEnergy(EnergyBreakdown&,  const tDM_CD<T>*) const=0;
     virtual bool             IsPolarized   () const {return false;}
     virtual bool             IsRelativistic() const {return false;}
-    virtual bool             RequiresDensityMatrix() const {return false;}
 };
 
 // A whole-system Hartree-Fock term (exact 4-index Coulomb / exchange).  Unlike tDynamic_HT (per-irrep,
@@ -70,7 +68,6 @@ public:
     virtual void             GetEnergy(EnergyBreakdown&,  const tDM_CD<T>*) const=0;
     virtual bool             IsPolarized   () const {return false;}
     virtual bool             IsRelativistic() const {return false;}
-    virtual bool             RequiresDensityMatrix() const {return true;}   // exact exchange K needs D
 };
 
 template <class T> class tHamiltonian
@@ -92,8 +89,9 @@ public:
     virtual bool            IsPolarized   () const=0;
     virtual bool            IsRelativistic() const=0;
     //! DFT/KS: the Fock is a functional of rho(r) alone -> false (can be seeded from a numeric ScalarFunction).
-    //! HF/DHF override -> true: they need the density MATRIX D for exact exchange K, so the SCFIterator must
-    //! bootstrap them (route rho through a DFT sibling to manufacture a D0).  See project_numericcd_refactor.
+    //! HF/DHF need the density MATRIX D for exact exchange K, so the SCFIterator must bootstrap them (route rho
+    //! through a DFT sibling to manufacture a D0).  tHamiltonianImp DERIVES this from the term lists (holds an
+    //! HF term, or is relativistic) -- no concrete Hamiltonian declares it.  See project_numericcd_refactor.
     virtual bool            RequiresDensityMatrix() const {return false;}
 };
 
