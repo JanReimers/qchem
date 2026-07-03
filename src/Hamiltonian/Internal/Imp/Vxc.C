@@ -37,30 +37,31 @@ rsmat_t Vxc::CalcMatrix(const obs_t* bs,const Spin&,const rChargeDensity* cd) co
 // scaled by -1/2 (the RHF exchange coefficient), so GetMatrix can hand back a reference.
 void Vxc::EnsureWholeSystem(const rChargeDensity* cd) const
 {
-    assert(!itsBases.empty());
+    assert(itsWholeBasis);
     if (cd->Version()==itsAllVersion && !itsK.empty()) return;
     const DM_CD* dm = dynamic_cast<const DM_CD*>(cd);
     assert(dm && "Vxc (HF exchange): density must be a DM_CD");
-    const size_t N=itsBases.size();
-    std::vector<const ohfbs_t*> hf; hf.reserve(N);
-    std::vector<rsmat_t>        Kall; Kall.reserve(N);
-    for (auto* b:itsBases)
+    std::vector<const obs_t*>   obs;
+    std::vector<const ohfbs_t*> hf;
+    std::vector<rsmat_t>        Kall;
+    for (auto* b:itsWholeBasis->Iterate<obs_t>())
     {
         auto* h=dynamic_cast<const ohfbs_t*>(b);
-        assert(h && "Vxc: context irrep basis is not a Hartree-Fock orbital basis");
+        assert(h && "Vxc: irrep basis is not a Hartree-Fock orbital basis");
+        obs.push_back(b);
         hf.push_back(h);
         Kall.push_back(blazem::zero<double>(b->GetNumFunctions()));
     }
     dm->AccumulateExchangeAll(Kall,hf);
     itsK.clear();
-    for (size_t k=0;k<N;++k) { Kall[k]*=-0.5; itsK[itsBases[k]->BasisSetID()]=std::move(Kall[k]); }
+    for (size_t k=0;k<obs.size();++k) { Kall[k]*=-0.5; itsK[obs[k]->BasisSetID()]=std::move(Kall[k]); }
     itsAllVersion=cd->Version();
 }
 
-const rsmat_t& Vxc::GetMatrix(const obs_t* bs,const Spin& s,const rChargeDensity* cd,const HamiltonianContext& ctx) const
+const rsmat_t& Vxc::GetMatrix(const obs_t* bs,const Spin& s,const rChargeDensity* cd,const bs_t* wholeBasis) const
 {
-    if (ctx.irrepBases.empty()) return Dynamic_HT_Imp::GetMatrix(bs,s,cd);   // no cross-irrep view
-    if (itsBases.empty()) itsBases=ctx.irrepBases;
+    if (!wholeBasis) return Dynamic_HT_Imp::GetMatrix(bs,s,cd);   // no cross-irrep view
+    if (!itsWholeBasis) itsWholeBasis=wholeBasis;
     newCD(cd);
     EnsureWholeSystem(cd);
     return itsK.at(bs->BasisSetID());
@@ -68,7 +69,7 @@ const rsmat_t& Vxc::GetMatrix(const obs_t* bs,const Spin& s,const rChargeDensity
 
 const rsmat_t& Vxc::GetMatrix(const obs_t* bs,const Spin& s,const rChargeDensity* cd) const
 {
-    if (itsBases.empty()) return Dynamic_HT_Imp::GetMatrix(bs,s,cd);         // energy path before any Fock build
+    if (!itsWholeBasis) return Dynamic_HT_Imp::GetMatrix(bs,s,cd);   // energy path before any Fock build
     EnsureWholeSystem(cd);
     return itsK.at(bs->BasisSetID());
 }

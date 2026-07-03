@@ -2,8 +2,9 @@
 
 Status: Stages 1+2 DONE (committed ffcd7f18 — `ERI4::MatMul` member + `ERI4::ScatterBoth` + unit test).
 Stage 3 RESCOPED 2026-07-02 after a survey (see §5.4): the two-target driver is NOT in `ChargeDensity`, it
-needs a cross-irrep **context struct** threaded from `CompositeWF` through the Hamiltonian terms.
-**Stage 3a DONE** (inert context-struct plumbing, bit-identical — see §8.3a). **Stage 3b DONE (Coulomb/J + Exchange/K)**
+needs the cross-irrep view (the whole composite `BasisSet`) threaded from `CompositeWF` through the
+Hamiltonian terms.
+**Stage 3a DONE** (inert plumbing — threads `const tbs_t<T>*`, bit-identical — see §8.3a). **Stage 3b DONE (Coulomb/J + Exchange/K)**
 (`Vee`/`Vxc`/`VxcPol` consume the context; whole-system `ScatterBoth`; `Jac` AND `Kab` RAM 521→369 MB —
 see §8.3b/3b-K). Only the belt-and-suspenders canonical cache key (3c) remains. Author: design session
 2026-07-02b; rescope + 3a + 3b(J+K) 2026-07-02.
@@ -192,6 +193,13 @@ natural owner of the fact that a **global, cross-irrep view exists**. So:
    molecule vs solid all plug in without the term branching) **only if it still makes sense** after the
    struct version exists.
 
+**REALIZED (post-3b):** once the consumer was written it was clear the struct only ever held
+`vector<const tobs_t*> irrepBases`, which is *exactly* what the whole (composite) `BasisSet` already is —
+`Iterate<tobs_t>()` over it yields the per-irrep blocks. So `tHamiltonianContext` was **deleted** and the
+seam threads `const tbs_t<T>*` (the composite basis, `= BasisSet::BasisSet<T>`, nullptr = "no view") through
+`GetMatrix`.  `CompositeWF` just passes its own `itsBS`; `MakeContext` is gone.  The `BasisSet` *is* the
+polymorphic "answers abstract questions" view the point above anticipated — no wrapper needed.
+
 **Two candidate mechanisms for how `Vee` uses the view** (decide during implementation planning):
 - **(a) Whole-system precompute, per-irrep pull unchanged (preferred — least invasive).** On its first call
   in an SCF iteration, `Vee`, handed the context, walks **canonical irrep pairs once**, and `ScatterBoth`s
@@ -255,14 +263,15 @@ Keep §5 (generic, bra–ket, high value) and §6 (atomic, LMax→Irrep) as sepa
    Bit-identical, no behaviour change. **Gate: full suite green, Fock pinned.**
 2. Add `ScatterBoth` + its unit test (§7). No driver change yet.
 3. **RESCOPED (§5.4)** — the cross-irrep context seam + canonical cache key + fused scatter, as sub-stages:
-   - **3a. DONE** (inert plumbing, 167 UTMain + 109 UTAtom_BS green, all pins bit-identical). Added
-     `tHamiltonianContext<T>` (list of irrep bases) in `qchem.Hamiltonian.Types`; `CompositeWF::MakeContext()`
-     assembles it from `itsBS->Iterate<tobs_t>` and threads it via `IrrepWF::CalculateH` →
-     `tHamiltonian::GetMatrix(bs,S,cd,ctx)` → `t->GetMatrix(bs,S,cd,ctx)` on the **dynamic** terms only
-     (static terms keep the 2-arg form). Least-churn seam: `tDynamic_HT::GetMatrix(…,ctx)` is a NON-pure
-     overload defaulting to the existing 3-arg (so every term ignores `ctx` for free — the ~11 `CalcMatrix`
-     overrides are untouched); `tHamiltonian` keeps its 3-arg (empty-context) overload for the stand-alone
-     test callers (PlaneWaveDFTUT, EigenSolverUT). **Only `Vee` overrides the 4-arg in 3b.**
+   - **3a. DONE** (inert plumbing, 167 UTMain + 109 UTAtom_BS green, all pins bit-identical). Threads the
+     whole (composite) basis `const tbs_t<T>*` via `IrrepWF::CalculateH` →
+     `tHamiltonian::GetMatrix(bs,S,cd,wholeBasis)` → `t->GetMatrix(bs,S,cd,wholeBasis)` on the **dynamic**
+     terms only (static terms keep the 2-arg form); `CompositeWF` passes its own `itsBS`, a consumer does
+     `wholeBasis->Iterate<tobs_t>()`.  Least-churn seam: `tDynamic_HT::GetMatrix(…,wholeBasis)` is a NON-pure
+     overload defaulting to the existing 3-arg (so every term ignores it for free — the ~11 `CalcMatrix`
+     overrides are untouched); `tHamiltonian` keeps its 3-arg (null-basis) overload for the stand-alone test
+     callers (PlaneWaveDFTUT, EigenSolverUT).  (Originally threaded a `tHamiltonianContext<T>` wrapper struct;
+     deleted post-3b once it was clear the composite `BasisSet` already IS that view — see §5.4 REALIZED.)
    - **3b. DONE (Coulomb/J only)** — `Vee` consumes the context via mechanism (a).  New seam:
      `Orbital_HF_IBS::AccumulateDirectBoth(Ji,Jj,Di,Dj,cd)` = `Direct(*cd).ScatterBoth(...)` (fetches ONLY
      the canonical block); `tDM_CD::AccumulateDirectAll(Jall,abBases)` (whole-system) — `Polarized_CD` sums

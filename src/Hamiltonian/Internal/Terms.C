@@ -154,21 +154,21 @@ class Vee : public virtual Dynamic_HT, private Dynamic_HT_Imp
 public:
     virtual void          GetEnergy(EnergyBreakdown&,const DM_CD* cd ) const;
     virtual std::ostream& Write    (std::ostream&) const;
-    //! Fock build WITH the cross-irrep context: assemble the whole-system Coulomb ONCE per density using
+    //! Fock build WITH the whole (composite) basis: assemble the whole-system Coulomb ONCE per density using
     //! ERI4 bra-ket symmetry (canonical pairs -> ScatterBoth), cache the per-irrep blocks, and return this
-    //! irrep's block.  With an empty context (stand-alone tests) it falls back to the per-irrep base path.
-    virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&,const rChargeDensity*,const HamiltonianContext&) const;
-    //! No-context callers (the energy DM_Contract): reuse the whole-system cache when it is fresh for this
+    //! irrep's block.  With a null whole-basis (stand-alone tests) it falls back to the per-irrep base path.
+    virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&,const rChargeDensity*,const bs_t* wholeBasis) const;
+    //! No-basis callers (the energy DM_Contract): reuse the whole-system cache when it is fresh for this
     //! density, else the per-irrep base path.
     virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&,const rChargeDensity*) const;
 private:
     virtual rsmat_t CalcMatrix(const obs_t*,const Spin&,const rChargeDensity* cd) const;
     //! (Re)build the whole-system Coulomb into itsJ (keyed by BasisSetID) if stale for this density.  Uses
-    //! itsBases (the ab-irrep list stashed from the context), so the energy path -- which has no context --
-    //! also gets the symmetry-banked build for its (post-diagonalization) density.
+    //! itsWholeBasis (stashed from the Fock build), so the energy path -- which has no whole-basis -- also
+    //! gets the symmetry-banked build for its (post-diagonalization) density.
     void EnsureWholeSystem(const rChargeDensity* cd) const;
     mutable size_t itsAllVersion=size_t(-1);        //!< density serial the whole-system Coulomb was built for
-    mutable std::vector<const obs_t*> itsBases;     //!< ab-irrep bases (from the context; stable across the run)
+    mutable const bs_t* itsWholeBasis=nullptr;      //!< whole basis (stashed from the Fock build; stable across the run)
     mutable std::map<std::string,rsmat_t> itsJ;     //!< per-irrep Coulomb blocks, keyed by ab-basis BasisSetID
 };
 
@@ -182,14 +182,14 @@ public:
     virtual void           GetEnergy(EnergyBreakdown&,const DM_CD* cd ) const;
     virtual std::ostream&  Write    (std::ostream&) const;
     //! Whole-system RHF exchange via ERI4 bra-ket symmetry (doc/ERI4Rework.md §5.4), scaled -1/2 and
-    //! cached per irrep; the 3-arg (energy) reuses the stashed basis list; empty context -> per-irrep path.
-    virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&,const rChargeDensity*,const HamiltonianContext&) const;
+    //! cached per irrep; the 3-arg (energy) reuses the stashed whole basis; null basis -> per-irrep path.
+    virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&,const rChargeDensity*,const bs_t* wholeBasis) const;
     virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&,const rChargeDensity*) const;
 private:
     virtual rsmat_t CalcMatrix(const obs_t*,const Spin&,const rChargeDensity* cd) const;
     void EnsureWholeSystem(const rChargeDensity* cd) const;
     mutable size_t itsAllVersion=size_t(-1);
-    mutable std::vector<const obs_t*> itsBases;
+    mutable const bs_t* itsWholeBasis=nullptr;
     mutable std::map<std::string,rsmat_t> itsK;   //!< per-irrep exchange blocks, already scaled by -1/2
 };
 
@@ -200,14 +200,14 @@ public:
     virtual bool           IsPolarized() const {return true;}
     virtual std::ostream&  Write    (std::ostream&) const;
     //! Whole-system UHF exchange, PER SPIN (K^sigma from the sigma-density only), scaled -1 and cached
-    //! per (spin,irrep); the 3-arg (energy) reuses the stash; empty context -> per-irrep path.
-    virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&,const rChargeDensity*,const HamiltonianContext&) const;
+    //! per (spin,irrep); the 3-arg (energy) reuses the stash; null basis -> per-irrep path.
+    virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&,const rChargeDensity*,const bs_t* wholeBasis) const;
     virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&,const rChargeDensity*) const;
 private:
     virtual rsmat_t CalcMatrix(const obs_t*,const Spin&,const rChargeDensity* cd) const;
     void EnsureWholeSystem(const rChargeDensity* cd, const Spin& s) const;
     mutable size_t itsAllVersion=size_t(-1);
-    mutable std::vector<const obs_t*> itsBases;
+    mutable const bs_t* itsWholeBasis=nullptr;
     mutable std::map<Spin,std::map<std::string,rsmat_t>> itsK;   //!< per-spin, per-irrep K, scaled by -1
 };
 

@@ -45,30 +45,31 @@ rsmat_t Vee::CalcMatrix(const obs_t* bs,const Spin&,const rChargeDensity* cd) co
 // the old J(j,i) was an independent build, here it is J(i,j)^T.
 void Vee::EnsureWholeSystem(const rChargeDensity* cd) const
 {
-    assert(!itsBases.empty());
+    assert(itsWholeBasis);
     if (cd->Version()==itsAllVersion && !itsJ.empty()) return;   // already current for this density
     const DM_CD* dm = dynamic_cast<const DM_CD*>(cd);
     assert(dm && "Vee (HF Coulomb): density must be a DM_CD");
-    const size_t N=itsBases.size();
-    std::vector<const ohfbs_t*> hf; hf.reserve(N);           // HF face, for the ERI scatter
-    std::vector<rsmat_t>        Jall; Jall.reserve(N);       // one zeroed Coulomb block per irrep
-    for (auto* b:itsBases)
+    std::vector<const obs_t*>   obs;                         // the whole basis's per-irrep blocks
+    std::vector<const ohfbs_t*> hf;                          // HF face, for the ERI scatter
+    std::vector<rsmat_t>        Jall;                        // one zeroed Coulomb block per irrep
+    for (auto* b:itsWholeBasis->Iterate<obs_t>())
     {
         auto* h=dynamic_cast<const ohfbs_t*>(b);
-        assert(h && "Vee: context irrep basis is not a Hartree-Fock orbital basis");
+        assert(h && "Vee: irrep basis is not a Hartree-Fock orbital basis");
+        obs.push_back(b);
         hf.push_back(h);
         Jall.push_back(blazem::zero<double>(b->GetNumFunctions()));
     }
     dm->AccumulateDirectAll(Jall,hf);                        // canonical-pair ScatterBoth into every block
     itsJ.clear();
-    for (size_t k=0;k<N;++k) itsJ[itsBases[k]->BasisSetID()]=std::move(Jall[k]);
+    for (size_t k=0;k<obs.size();++k) itsJ[obs[k]->BasisSetID()]=std::move(Jall[k]);
     itsAllVersion=cd->Version();
 }
 
-const rsmat_t& Vee::GetMatrix(const obs_t* bs,const Spin& s,const rChargeDensity* cd,const HamiltonianContext& ctx) const
+const rsmat_t& Vee::GetMatrix(const obs_t* bs,const Spin& s,const rChargeDensity* cd,const bs_t* wholeBasis) const
 {
-    if (ctx.irrepBases.empty()) return Dynamic_HT_Imp::GetMatrix(bs,s,cd);   // no cross-irrep view: per-irrep path
-    if (itsBases.empty()) itsBases=ctx.irrepBases;                           // stash the run-stable ab-irrep list
+    if (!wholeBasis) return Dynamic_HT_Imp::GetMatrix(bs,s,cd);   // no cross-irrep view: per-irrep path
+    if (!itsWholeBasis) itsWholeBasis=wholeBasis;                 // stash the run-stable whole basis
     newCD(cd);
     EnsureWholeSystem(cd);
     return itsJ.at(bs->BasisSetID());
@@ -76,11 +77,11 @@ const rsmat_t& Vee::GetMatrix(const obs_t* bs,const Spin& s,const rChargeDensity
 
 const rsmat_t& Vee::GetMatrix(const obs_t* bs,const Spin& s,const rChargeDensity* cd) const
 {
-    // Energy / other context-free callers.  Once a Fock build has stashed the irrep list, this density
+    // Energy / other basis-free callers.  Once a Fock build has stashed the whole basis, this density
     // (typically the post-diagonalization density the energy is evaluated on) gets the SAME symmetry-banked
     // whole-system build -- so the non-canonical ERI4 blocks are never materialized here either.  Before
-    // any context has arrived (stand-alone tests), fall back to the per-irrep base path.
-    if (itsBases.empty()) return Dynamic_HT_Imp::GetMatrix(bs,s,cd);
+    // any Fock build (stand-alone tests), fall back to the per-irrep base path.
+    if (!itsWholeBasis) return Dynamic_HT_Imp::GetMatrix(bs,s,cd);
     EnsureWholeSystem(cd);
     return itsJ.at(bs->BasisSetID());
 }

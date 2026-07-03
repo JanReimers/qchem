@@ -35,10 +35,10 @@ template <class T> tIrrepWF<T>::~tIrrepWF()
     delete itsAccelerator;
 }
 
-template <class T> void tIrrepWF<T>::CalculateH(tHamiltonian<T>& ham,const tChargeDensity<T>* cd,const tHamiltonianContext<T>& ctx)
+template <class T> void tIrrepWF<T>::CalculateH(tHamiltonian<T>& ham,const tChargeDensity<T>* cd,const tbs_t<T>* wholeBasis)
 {
     assert(itsOrbitals);
-    itsF=ham.GetMatrix(itsBasisSet,itsIrrep.ms,cd,ctx); //Hamiltonian or Fock matrix in the non-orthogonal basis.
+    itsF=ham.GetMatrix(itsBasisSet,itsIrrep.ms,cd,wholeBasis); //Hamiltonian or Fock matrix in the non-orthogonal basis.
     itsAccelerator->UseFD(itsF,itsDPrime); //Feed non-ortho F into the accelerator with the (orthogonal-basis) density matrix.
 }
 

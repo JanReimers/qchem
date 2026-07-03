@@ -69,21 +69,11 @@ template <class T> tCompositeWF<T>::~tCompositeWF()
 //  This function will creat EMPTY orbtials.  One must use the FillOrbitals member function
 //  to fill up the orbitals with electrons.
 //
-// The cross-irrep view threaded to the dynamic Hamiltonian terms (doc/ERI4Rework.md §5.4): every
-// participating irrep's orbital basis, in one place, so a term CAN exploit beyond-one-irrep structure.
-// Currently inert -- no term reads it yet (stage 3a is the plumbing; the Coulomb/exchange consumer lands
-// in 3b).  The basis list is spatial-irrep only (spin is applied per IrrepWF), matching MakeIrrepWFs.
-template <class T> tHamiltonianContext<T> tCompositeWF<T>::MakeContext() const
-{
-    tHamiltonianContext<T> ctx;
-    for (auto b:itsBS->template Iterate<tobs_t<T>>()) ctx.irrepBases.push_back(b);
-    return ctx;
-}
-
 template <class T> void tCompositeWF<T>::DoSCFIteration(tHamiltonian<T>& ham,const tChargeDensity<T>* cd)
 {
-    tHamiltonianContext<T> ctx=MakeContext();
-    for (auto& w:itsIWFs) w->CalculateH(ham,cd,ctx); //Feed F,D' into all the irre eccelerators.
+    // itsBS (the whole/composite basis) IS the cross-irrep view a dynamic term may exploit: Iterate<tobs_t>()
+    // over it yields every irrep block (doc/ERI4Rework.md §5.4).  Static terms and most dynamic terms ignore it.
+    for (auto& w:itsIWFs) w->CalculateH(ham,cd,itsBS); //Feed F,D' into all the irre eccelerators.
     // Once the accelerator extrapolates, switch the molecular aufbau from eigenvalue order to MOM
     // (overlap): re-running a plain aufbau on the (non-physical) extrapolated Fock can flip the
     // occupation (e.g. a near-degenerate B2<->A1 swap in H2O), wrecking convergence.  MOM keeps the
@@ -106,8 +96,7 @@ template <class T> tDM_CD<T>* tCompositeWF<T>::Init(tHamiltonian<T>& ham,const t
 // (the seed step) -- the caller should fall back to DoSCFIteration().
 template <class T> bool tCompositeWF<T>::BuildFockAndComputeSteps(tHamiltonian<T>& ham,const tChargeDensity<T>* cd)
 {
-    tHamiltonianContext<T> ctx=MakeContext();
-    for (auto& w:itsIWFs) w->CalculateH(ham,cd,ctx);
+    for (auto& w:itsIWFs) w->CalculateH(ham,cd,itsBS);
     bool allStepped=true;
     for (auto& w:itsIWFs) allStepped &= w->ComputeStep();
     return allStepped;
