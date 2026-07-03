@@ -6,6 +6,7 @@ module;
 #include <vector>
 #include <map>
 #include <string>
+#include <stdexcept>
 module qchem.Hamiltonian.Internal.Terms;
 import qchem.Hamiltonian.Types;
 import qchem.Energy;
@@ -77,7 +78,10 @@ void VxcPol::EnsureWholeSystem(const rChargeDensity* cd, const Spin& s) const
 const rsmat_t& VxcPol::GetMatrix(const obs_t* bs,const Spin& s,const rChargeDensity* cd,const bs_t* wholeBasis) const
 {
     if (s==Spin::None) { std::cerr << "VxcPol::GetMatrix: unpolarized spin in a polarized term" << std::endl; exit(-1); }
-    if (!wholeBasis) return Dynamic_HT_Imp_NoCache::GetMatrix(bs,s,cd);
+    // Polarized HF exchange is whole-system (per spin); the composite basis is required, no null-basis caller.
+    if (!wholeBasis)
+        throw std::runtime_error("VxcPol (HF exchange): the whole-system Fock build requires the composite basis "
+                                 "(the cross-irrep view) -- GetMatrix was called with a null wholeBasis.");
     if (!itsWholeBasis) itsWholeBasis=wholeBasis;
     EnsureWholeSystem(cd,s);
     return itsK.at(s).at(bs->BasisSetID());

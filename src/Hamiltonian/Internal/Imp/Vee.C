@@ -6,6 +6,7 @@ module;
 #include <vector>
 #include <map>
 #include <string>
+#include <stdexcept>
 
 module qchem.Hamiltonian.Internal.Terms;
 import qchem.Hamiltonian.Types;
@@ -68,7 +69,12 @@ void Vee::EnsureWholeSystem(const rChargeDensity* cd) const
 
 const rsmat_t& Vee::GetMatrix(const obs_t* bs,const Spin& s,const rChargeDensity* cd,const bs_t* wholeBasis) const
 {
-    if (!wholeBasis) return Dynamic_HT_Imp::GetMatrix(bs,s,cd);   // no cross-irrep view: per-irrep path
+    // HF Coulomb is inherently whole-system (canonical-pair ScatterBoth), so the composite basis is
+    // required; there is no valid null-basis caller (the per-irrep fallback would fetch non-canonical
+    // blocks and hit the §3c cache guard).  Fail loudly rather than route to a path that cannot work.
+    if (!wholeBasis)
+        throw std::runtime_error("Vee (HF Coulomb): the whole-system Fock build requires the composite basis "
+                                 "(the cross-irrep view) -- GetMatrix was called with a null wholeBasis.");
     if (!itsWholeBasis) itsWholeBasis=wholeBasis;                 // stash the run-stable whole basis
     newCD(cd);
     EnsureWholeSystem(cd);

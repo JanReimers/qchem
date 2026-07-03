@@ -6,6 +6,7 @@ module;
 #include <vector>
 #include <map>
 #include <string>
+#include <stdexcept>
 module qchem.Hamiltonian.Internal.Terms;
 import qchem.Hamiltonian.Types;
 import qchem.ChargeDensity;
@@ -60,7 +61,10 @@ void Vxc::EnsureWholeSystem(const rChargeDensity* cd) const
 
 const rsmat_t& Vxc::GetMatrix(const obs_t* bs,const Spin& s,const rChargeDensity* cd,const bs_t* wholeBasis) const
 {
-    if (!wholeBasis) return Dynamic_HT_Imp::GetMatrix(bs,s,cd);   // no cross-irrep view
+    // RHF exchange is whole-system (see Vee): the composite basis is required, no valid null-basis caller.
+    if (!wholeBasis)
+        throw std::runtime_error("Vxc (HF exchange): the whole-system Fock build requires the composite basis "
+                                 "(the cross-irrep view) -- GetMatrix was called with a null wholeBasis.");
     if (!itsWholeBasis) itsWholeBasis=wholeBasis;
     newCD(cd);
     EnsureWholeSystem(cd);
