@@ -46,27 +46,40 @@ template <class T> class tDynamic_HT
     , public virtual tDynamic_CC<T>
 {
 public:
-    // Fock build consumes the DFT (matrix-free) density face; energy needs the density matrix.
+    // Per-irrep, density-dependent term (DFT/fitted Coulomb+Vxc): builds ONE irrep's block from the density
+    // (a fit, or rho(r)), no cross-irrep coupling.  Energy via DM_Contract (per-irrep GetMatrix round-trip).
     virtual const hmat_t<T>& GetMatrix(const tobs_t<T>*,const Spin&,const tChargeDensity<T>*) const=0;
-    //! Cross-irrep-aware Fock build: \a wholeBasis is the whole (composite) basis -- Iterate<tobs_t>() over
-    //! it yields every irrep block, the cross-irrep view a term may exploit (the Coulomb/exchange term banks
-    //! ERI4 bra-ket symmetry -- doc/ERI4Rework.md \S5.4).  Default: ignore it and defer to the one-irrep
-    //! form above, so every term is a valid consumer for free and only a term that needs the view overrides.
-    virtual const hmat_t<T>& GetMatrix(const tobs_t<T>* bs,const Spin& s,const tChargeDensity<T>* cd,
-                                       const tbs_t<T>* /*wholeBasis*/) const
-    { return GetMatrix(bs,s,cd); }
     virtual void             GetEnergy(EnergyBreakdown&,  const tDM_CD<T>*) const=0;
     virtual bool             IsPolarized   () const {return false;}
     virtual bool             IsRelativistic() const {return false;}
     virtual bool             RequiresDensityMatrix() const {return false;}
 };
 
+// A whole-system Hartree-Fock term (exact 4-index Coulomb / exchange).  Unlike tDynamic_HT (per-irrep,
+// density-only) it couples EVERY irrep block through the ERI, so it consumes the whole (composite) basis
+// -- Iterate<tobs_t>() over it yields the irrep blocks -- and builds them all together (cached, then sliced
+// per irrep).  It is deliberately NOT a tDynamic_CC: its energy comes from its OWN cached blocks
+// (DM_ContractBlocks), not a per-irrep GetMatrix round-trip -- which is why it needs only the 4-arg
+// GetMatrix, no 3-arg.  See doc/ERI4Rework.md \S5.4.
+template <class T> class tDynamic_HF_HT
+    : public virtual Streamable
+{
+public:
+    virtual const hmat_t<T>& GetMatrix(const tobs_t<T>*,const Spin&,const tChargeDensity<T>*,
+                                       const tbs_t<T>* wholeBasis) const=0;
+    virtual void             GetEnergy(EnergyBreakdown&,  const tDM_CD<T>*) const=0;
+    virtual bool             IsPolarized   () const {return false;}
+    virtual bool             IsRelativistic() const {return false;}
+    virtual bool             RequiresDensityMatrix() const {return true;}   // exact exchange K needs D
+};
+
 template <class T> class tHamiltonian
     : public virtual Streamable
 {
 public:
-    virtual void            Add             ( tStatic_HT<T>*)=0;
-    virtual void            Add             (tDynamic_HT<T>*)=0;
+    virtual void            Add             (   tStatic_HT<T>*)=0;
+    virtual void            Add             (  tDynamic_HT<T>*)=0;
+    virtual void            Add             (tDynamic_HF_HT<T>*)=0;
     //! Assemble the Fock/Hamiltonian for one irrep \a bs, given \a wholeBasis (the composite basis, threaded
     //! to the dynamic terms as the cross-irrep view).  This is the primary form the SCF (CompositeWF/IrrepWF)
     //! drives.
@@ -85,11 +98,13 @@ public:
 };
 
 // r* = <double>, c* = <dcmplx> (mirrors rsmat_t/chmat_t); bare names transitional (= r*), rename pinned.
-using rStatic_HT   = tStatic_HT<double>;   using cStatic_HT   = tStatic_HT<dcmplx>;
-using rDynamic_HT  = tDynamic_HT<double>;  using cDynamic_HT  = tDynamic_HT<dcmplx>;
+using rStatic_HT    = tStatic_HT<double>;    using cStatic_HT    = tStatic_HT<dcmplx>;
+using rDynamic_HT   = tDynamic_HT<double>;   using cDynamic_HT   = tDynamic_HT<dcmplx>;
+using rDynamic_HF_HT= tDynamic_HF_HT<double>;using cDynamic_HF_HT= tDynamic_HF_HT<dcmplx>;
 using rHamiltonian = tHamiltonian<double>; using cHamiltonian = tHamiltonian<dcmplx>;
 using Static_HT    = rStatic_HT;
 using Dynamic_HT   = rDynamic_HT;
+using Dynamic_HF_HT= rDynamic_HF_HT;
 using Hamiltonian  = rHamiltonian;
 
 } //namespace

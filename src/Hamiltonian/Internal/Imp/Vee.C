@@ -27,18 +27,6 @@ namespace qchem::Hamiltonian
 //  Where ro is the charge density.
 //
 
-rsmat_t Vee::CalcMatrix(const obs_t* bs,const Spin&,const rChargeDensity* cd) const
-{
-    newCD(cd); //Set H matrix cache to dirty if cd really is new.
-    auto hf_bs = dynamic_cast<const ohfbs_t*>(bs);
-    assert(hf_bs);
-    const DM_CD* dm = dynamic_cast<const DM_CD*>(cd);   // HF J needs the density matrix (not a fit seed)
-    assert(dm && "Vee (HF Coulomb): density must be a DM_CD");
-    rsmat_t Jab=blazem::zero<double>(bs->GetNumFunctions());
-    dm->AccumulateDirect(Jab,hf_bs);
-    return Jab;
-}
-
 // Assemble the WHOLE-system Coulomb once per density (doc/ERI4Rework.md §5.4).  The context supplies every
 // ab-irrep basis; the density scatters itself across canonical irrep pairs (ScatterBoth), so only the
 // canonical ERI4 blocks are ever built/cached -- halving Coulomb ERI RAM+build vs the old per-irrep pass,
@@ -76,18 +64,6 @@ const rsmat_t& Vee::GetMatrix(const obs_t* bs,const Spin& s,const rChargeDensity
         throw std::runtime_error("Vee (HF Coulomb): the whole-system Fock build requires the composite basis "
                                  "(the cross-irrep view) -- GetMatrix was called with a null wholeBasis.");
     if (!itsWholeBasis) itsWholeBasis=wholeBasis;                 // stash the run-stable whole basis
-    newCD(cd);
-    EnsureWholeSystem(cd);
-    return itsJ.at(bs->BasisSetID());
-}
-
-const rsmat_t& Vee::GetMatrix(const obs_t* bs,const Spin& s,const rChargeDensity* cd) const
-{
-    // Energy / other basis-free callers.  Once a Fock build has stashed the whole basis, this density
-    // (typically the post-diagonalization density the energy is evaluated on) gets the SAME symmetry-banked
-    // whole-system build -- so the non-canonical ERI4 blocks are never materialized here either.  Before
-    // any Fock build (stand-alone tests), fall back to the per-irrep base path.
-    if (!itsWholeBasis) return Dynamic_HT_Imp::GetMatrix(bs,s,cd);
     EnsureWholeSystem(cd);
     return itsJ.at(bs->BasisSetID());
 }

@@ -17,8 +17,9 @@ template <class T> class tHamiltonianImp
 {
 public:
     tHamiltonianImp();
-    virtual void Add( tStatic_HT<T>* );
-    virtual void Add(tDynamic_HT<T>*);
+    virtual void Add(   tStatic_HT<T>* );
+    virtual void Add(  tDynamic_HT<T>*);
+    virtual void Add(tDynamic_HF_HT<T>*);
 
     using tHamiltonian<T>::GetMatrix;   // keep the base 3-arg (null-basis) convenience overload visible
     virtual hmat_t<T>       GetMatrix(const tobs_t<T>*,const Spin& S,const tChargeDensity<T>*,const tbs_t<T>* wholeBasis);
@@ -30,11 +31,14 @@ public:
 protected:
     typedef std::shared_ptr<const Structure> st_t;
     void InsertStandardTerms(const st_t & st);   // molecular standard terms (double only)
-    typedef std::vector<std::unique_ptr< tStatic_HT<T>>> shtv_t;
-    typedef std::vector<std::unique_ptr<tDynamic_HT<T>>> dhtv_t;
+    typedef std::vector<std::unique_ptr<   tStatic_HT<T>>> shtv_t;
+    typedef std::vector<std::unique_ptr<  tDynamic_HT<T>>> dhtv_t;
+    typedef std::vector<std::unique_ptr<tDynamic_HF_HT<T>>> ehtv_t;
 
     shtv_t itsSHTs;
     dhtv_t itsDHTs;
+    ehtv_t itsEHTs;   // whole-system HF (exact 4-index) terms
+
     bool   itsIsPolarized;
     bool   itsIsRelativistic;
 };

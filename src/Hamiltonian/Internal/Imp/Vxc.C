@@ -21,18 +21,6 @@ namespace qchem::Hamiltonian
 //  Let the charge density do the work.
 //
 
-rsmat_t Vxc::CalcMatrix(const obs_t* bs,const Spin&,const rChargeDensity* cd) const
-{
-    newCD(cd); //Set H matrix cache to dirty if cd really is new.
-    auto hf_bs = dynamic_cast<const ohfbs_t*>(bs);
-    assert(hf_bs);
-    const DM_CD* dm = dynamic_cast<const DM_CD*>(cd);   // HF K needs the density matrix (not a fit seed)
-    assert(dm && "Vxc (HF exchange): density must be a DM_CD");
-    rsmat_t Kab=blazem::zero<double>(bs->GetNumFunctions());
-    dm->AccumulateExchange(Kab,hf_bs);
-    return Kab*-0.5;
-}
-
 // Whole-system RHF exchange (doc/ERI4Rework.md §5.4): the total density scatters itself across canonical
 // irrep pairs (ScatterBoth on Exchange blocks), so K(j,i) is never built.  Blocks are stored already
 // scaled by -1/2 (the RHF exchange coefficient), so GetMatrix can hand back a reference.
@@ -66,17 +54,10 @@ const rsmat_t& Vxc::GetMatrix(const obs_t* bs,const Spin& s,const rChargeDensity
         throw std::runtime_error("Vxc (HF exchange): the whole-system Fock build requires the composite basis "
                                  "(the cross-irrep view) -- GetMatrix was called with a null wholeBasis.");
     if (!itsWholeBasis) itsWholeBasis=wholeBasis;
-    newCD(cd);
     EnsureWholeSystem(cd);
     return itsK.at(bs->BasisSetID());
 }
 
-const rsmat_t& Vxc::GetMatrix(const obs_t* bs,const Spin& s,const rChargeDensity* cd) const
-{
-    if (!itsWholeBasis) return Dynamic_HT_Imp::GetMatrix(bs,s,cd);   // energy path before any Fock build
-    EnsureWholeSystem(cd);
-    return itsK.at(bs->BasisSetID());
-}
 void Vxc::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
 {
     // E_x = 1/2 Tr(D.K_scaled) from this term's own whole-system (already -1/2 scaled) exchange blocks.

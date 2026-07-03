@@ -29,25 +29,6 @@ namespace qchem::Hamiltonian
 //
 //           = Sum  { Ck <Oi|Vk|Oj> } .
 //
-//  This last part is carried out by the base class FitImplementation.
-rsmat_t VxcPol::CalcMatrix(const obs_t* bs,const Spin& s,const rChargeDensity* cd) const
-{
-    if  (s==Spin::None)
-    {
-        std::cerr << "PolarizedHartreeFockVxc::GetMatrix Asking for unpolarized result in Polarized Vxc" << std::endl;
-        exit(-1);
-    }
-    auto hf_bs = dynamic_cast<const ohfbs_t*>(bs);
-    assert(hf_bs);
-
-    const Polarized_CD* PolExactCD =  dynamic_cast<const Polarized_CD*>(cd);
-    assert(PolExactCD);
-    const DM_CD* SpinCD   = PolExactCD->GetChargeDensity(s); //Get CD for this spin direction
-    rsmat_t Kab=blazem::zero<double>(bs->GetNumFunctions());
-    SpinCD->AccumulateExchange(Kab,hf_bs);
-    return Kab*-1.0;
-}
-
 // Whole-system UHF exchange for ONE spin: that spin's density scatters itself across canonical irrep pairs
 // (ScatterBoth on Exchange blocks), so K(j,i) is never built.  Cached per (spin,irrep), already scaled by
 // -1.  The version clear drops BOTH spins when the density changes; each spin builds on first request.
@@ -83,13 +64,6 @@ const rsmat_t& VxcPol::GetMatrix(const obs_t* bs,const Spin& s,const rChargeDens
         throw std::runtime_error("VxcPol (HF exchange): the whole-system Fock build requires the composite basis "
                                  "(the cross-irrep view) -- GetMatrix was called with a null wholeBasis.");
     if (!itsWholeBasis) itsWholeBasis=wholeBasis;
-    EnsureWholeSystem(cd,s);
-    return itsK.at(s).at(bs->BasisSetID());
-}
-
-const rsmat_t& VxcPol::GetMatrix(const obs_t* bs,const Spin& s,const rChargeDensity* cd) const
-{
-    if (!itsWholeBasis || s==Spin::None) return Dynamic_HT_Imp_NoCache::GetMatrix(bs,s,cd);
     EnsureWholeSystem(cd,s);
     return itsK.at(s).at(bs->BasisSetID());
 }

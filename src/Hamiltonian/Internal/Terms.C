@@ -149,23 +149,19 @@ private:
 // matrix and orbital basis functions.  This is the coulomb potential used in Hartree-Fock
 // calculations.
 //
-class Vee : public virtual Dynamic_HT, private Dynamic_HT_Imp
+class Vee : public virtual Dynamic_HF_HT
 {
 public:
     virtual void          GetEnergy(EnergyBreakdown&,const DM_CD* cd ) const;
     virtual std::ostream& Write    (std::ostream&) const;
-    //! Fock build WITH the whole (composite) basis: assemble the whole-system Coulomb ONCE per density using
-    //! ERI4 bra-ket symmetry (canonical pairs -> ScatterBoth), cache the per-irrep blocks, and return this
-    //! irrep's block.  With a null whole-basis (stand-alone tests) it falls back to the per-irrep base path.
+    //! Fock build: assemble the whole-system Coulomb ONCE per density from the composite \a wholeBasis using
+    //! ERI4 bra-ket symmetry (canonical pairs -> ScatterBoth), cache the per-irrep blocks, return this
+    //! irrep's block.  \a wholeBasis is required (HF is whole-system); a null basis throws.
     virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&,const rChargeDensity*,const bs_t* wholeBasis) const;
-    //! No-basis callers (the energy DM_Contract): reuse the whole-system cache when it is fresh for this
-    //! density, else the per-irrep base path.
-    virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&,const rChargeDensity*) const;
 private:
-    virtual rsmat_t CalcMatrix(const obs_t*,const Spin&,const rChargeDensity* cd) const;
     //! (Re)build the whole-system Coulomb into itsJ (keyed by BasisSetID) if stale for this density.  Uses
-    //! itsWholeBasis (stashed from the Fock build), so the energy path -- which has no whole-basis -- also
-    //! gets the symmetry-banked build for its (post-diagonalization) density.
+    //! itsWholeBasis (stashed from the Fock build), so GetEnergy -- which has no whole-basis -- gets the
+    //! same symmetry-banked build for its (post-diagonalization) density.
     void EnsureWholeSystem(const rChargeDensity* cd) const;
     mutable size_t itsAllVersion=size_t(-1);        //!< density serial the whole-system Coulomb was built for
     mutable const bs_t* itsWholeBasis=nullptr;      //!< whole basis (stashed from the Fock build; stable across the run)
@@ -176,35 +172,31 @@ private:
 //
 //  Hartree-Fock unpolarized and polarized exchange potentials.
 //
-class Vxc : public virtual Dynamic_HT, private Dynamic_HT_Imp
+class Vxc : public virtual Dynamic_HF_HT
 {
 public:
     virtual void           GetEnergy(EnergyBreakdown&,const DM_CD* cd ) const;
     virtual std::ostream&  Write    (std::ostream&) const;
-    //! Whole-system RHF exchange via ERI4 bra-ket symmetry (doc/ERI4Rework.md §5.4), scaled -1/2 and
-    //! cached per irrep; the 3-arg (energy) reuses the stashed whole basis; null basis -> per-irrep path.
+    //! Whole-system RHF exchange via ERI4 bra-ket symmetry (doc/ERI4Rework.md §5.4), scaled -1/2 and cached
+    //! per irrep; \a wholeBasis is required.
     virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&,const rChargeDensity*,const bs_t* wholeBasis) const;
-    virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&,const rChargeDensity*) const;
 private:
-    virtual rsmat_t CalcMatrix(const obs_t*,const Spin&,const rChargeDensity* cd) const;
     void EnsureWholeSystem(const rChargeDensity* cd) const;
     mutable size_t itsAllVersion=size_t(-1);
     mutable const bs_t* itsWholeBasis=nullptr;
     mutable std::map<std::string,rsmat_t> itsK;   //!< per-irrep exchange blocks, already scaled by -1/2
 };
 
-class VxcPol : public virtual Dynamic_HT, private Dynamic_HT_Imp_NoCache
+class VxcPol : public virtual Dynamic_HF_HT
 {
 public:
     virtual void           GetEnergy(EnergyBreakdown&,const DM_CD* cd ) const;
     virtual bool           IsPolarized() const {return true;}
     virtual std::ostream&  Write    (std::ostream&) const;
     //! Whole-system UHF exchange, PER SPIN (K^sigma from the sigma-density only), scaled -1 and cached
-    //! per (spin,irrep); the 3-arg (energy) reuses the stash; null basis -> per-irrep path.
+    //! per (spin,irrep); \a wholeBasis is required.
     virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&,const rChargeDensity*,const bs_t* wholeBasis) const;
-    virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&,const rChargeDensity*) const;
 private:
-    virtual rsmat_t CalcMatrix(const obs_t*,const Spin&,const rChargeDensity* cd) const;
     void EnsureWholeSystem(const rChargeDensity* cd, const Spin& s) const;
     mutable size_t itsAllVersion=size_t(-1);
     mutable const bs_t* itsWholeBasis=nullptr;
