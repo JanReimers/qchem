@@ -1,0 +1,70 @@
+<svg viewBox="0 0 800 930" xmlns="http://www.w3.org/2000/svg" role="img" font-family="ui-sans-serif, system-ui, sans-serif">
+<title>SCF iteration + Hartree-Fock Fock-build call flow</title>
+<desc>CompositeWF::DoSCFIteration drives, per irrep, IrrepWF::CalculateH, which calls Hamiltonian::GetMatrix(bs, spin, cd, wholeBasis).  GetMatrix fans over three term families: static terms (Kinetic/Ven/Vnn, density-free), per-irrep dynamic terms (FittedVee/FittedVxc), and whole-system Hartree-Fock terms (Vee/Vxc, Dynamic_HF_HT).  The HF terms drill inward: ContractAll(cd) builds the whole-system J/K once per density (version-guarded), via dm->AccumulateDirect/ExchangeAll over canonical irrep pairs on the composite charge density, each pair reaching IrrepCD then ERI4::ScatterBoth which scatters one canonical block into both Fock sub-blocks (bra-ket symmetry), caching the scaled per-irrep blocks in itsJKs.  All three term families sum into the per-irrep Fock matrix F, which the accelerator (DIIS/MOM) consumes to produce the next orbitals; the loop repeats until converged.</desc>
+<defs>
+<marker id="ar" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="var(--muted,#8a8a86)"/></marker>
+<style>
+.b{fill:var(--surface,#f6f6f5);stroke:var(--accent,#4a6fa5);stroke-width:1.5;}
+.hf{fill:var(--surface,#f6f6f5);stroke:var(--accent,#4a6fa5);stroke-width:2.4;}
+.d{fill:var(--surface2,#fbfbfa);stroke:var(--border,#c7c7c2);stroke-width:1.2;stroke-dasharray:4 3;}
+.io{fill:var(--accent,#4a6fa5);}
+.t{fill:var(--text,#1c1c1a);font-size:14px;font-weight:600;}
+.ti{fill:#ffffff;font-size:14px;font-weight:700;}
+.tis{fill:#ffffff;font-size:11px;font-weight:500;opacity:0.92;}
+.s{fill:var(--muted,#7a7a76);font-size:11px;}
+.l{stroke:var(--muted,#8a8a86);stroke-width:1.4;fill:none;}
+.cap{fill:var(--muted,#7a7a76);font-size:11px;font-style:italic;}
+</style>
+</defs>
+
+<!-- main spine -->
+<rect class="io" x="110" y="24" width="220" height="48" rx="8"/><text class="ti" x="220" y="45" text-anchor="middle">DoSCFIteration</text><text class="tis" x="220" y="61" text-anchor="middle">CompositeWF · one SCF step</text>
+<rect class="b" x="110" y="108" width="220" height="48" rx="8"/><text class="t" x="220" y="128" text-anchor="middle">∀ irrep · IrrepWF::CalculateH</text><text class="s" x="220" y="144" text-anchor="middle">build F, feed the accelerator</text>
+<rect class="b" x="110" y="192" width="220" height="48" rx="8"/><text class="t" x="220" y="212" text-anchor="middle">Hamiltonian::GetMatrix</text><text class="s" x="220" y="228" text-anchor="middle">(bs, spin, cd, wholeBasis)</text>
+
+<!-- term fan-out -->
+<rect class="b" x="25" y="288" width="170" height="48" rx="8"/><text class="t" x="110" y="308" text-anchor="middle">Σ static terms</text><text class="s" x="110" y="324" text-anchor="middle">Kinetic · Ven · Vnn</text>
+<rect class="b" x="235" y="288" width="170" height="48" rx="8"/><text class="t" x="320" y="308" text-anchor="middle">Σ dynamic terms</text><text class="s" x="320" y="324" text-anchor="middle">FittedVee/Vxc · per-irrep</text>
+<rect class="hf" x="510" y="288" width="220" height="48" rx="8"/><text class="t" x="620" y="308" text-anchor="middle">Σ HF terms</text><text class="s" x="620" y="324" text-anchor="middle">Vee · Vxc · Dynamic_HF_HT</text>
+
+<!-- HF / ERI4 inner chain -->
+<rect class="hf" x="510" y="372" width="220" height="48" rx="8"/><text class="t" x="620" y="392" text-anchor="middle">ContractAll(cd)</text><text class="s" x="620" y="408" text-anchor="middle">once/density · version-guarded</text>
+<rect class="hf" x="500" y="456" width="240" height="48" rx="8"/><text class="t" x="620" y="476" text-anchor="middle">AccumulateDirect/ExchangeAll</text><text class="s" x="620" y="492" text-anchor="middle">CompositeCD · canonical irrep pairs</text>
+<rect class="hf" x="500" y="540" width="240" height="48" rx="8"/><text class="t" x="620" y="560" text-anchor="middle">IrrepCD → ERI4::ScatterBoth</text><text class="s" x="620" y="576" text-anchor="middle">1 canonical block → S_i and S_j</text>
+<rect class="d" x="510" y="624" width="220" height="46" rx="8"/><text class="t" x="620" y="644" text-anchor="middle">itsJKs  (cached)</text><text class="s" x="620" y="660" text-anchor="middle">per-irrep J/K blocks, scaled</text>
+
+<!-- merge to Fock, then back half -->
+<rect class="d" x="110" y="696" width="220" height="48" rx="8"/><text class="t" x="220" y="716" text-anchor="middle">F — Fock / KS matrix</text><text class="s" x="220" y="732" text-anchor="middle">Σ term blocks (this irrep)</text>
+<rect class="b" x="110" y="780" width="220" height="48" rx="8"/><text class="t" x="220" y="800" text-anchor="middle">accelerator.UseFD(F, D′)</text><text class="s" x="220" y="816" text-anchor="middle">CalculateProjections · DIIS/MOM</text>
+<rect class="b" x="110" y="864" width="220" height="48" rx="8"/><text class="t" x="220" y="884" text-anchor="middle">∀ irrep · NextOrbitals</text><text class="s" x="220" y="900" text-anchor="middle">extrapolate/diag → UpdateOrbitals</text>
+
+<!-- edges: main spine -->
+<path class="l" d="M220,72 L220,108" marker-end="url(#ar)"/>
+<path class="l" d="M220,156 L220,192" marker-end="url(#ar)"/>
+<!-- fan-out -->
+<path class="l" d="M220,240 C180,266 130,270 110,288" marker-end="url(#ar)"/>
+<path class="l" d="M220,240 C260,266 300,270 320,288" marker-end="url(#ar)"/>
+<path class="l" d="M330,216 C480,232 560,258 620,288" marker-end="url(#ar)"/>
+<!-- HF chain -->
+<path class="l" d="M620,336 L620,372" marker-end="url(#ar)"/>
+<path class="l" d="M620,420 L620,456" marker-end="url(#ar)"/>
+<path class="l" d="M620,504 L620,540" marker-end="url(#ar)"/>
+<path class="l" d="M620,588 L620,624" marker-end="url(#ar)"/>
+<!-- merges into F -->
+<path class="l" d="M110,336 C110,540 135,650 172,696" marker-end="url(#ar)"/>
+<path class="l" d="M320,336 C320,540 285,650 256,696" marker-end="url(#ar)"/>
+<path class="l" d="M510,647 C420,675 380,700 332,710" marker-end="url(#ar)"/>
+<!-- back half -->
+<path class="l" d="M220,744 L220,780" marker-end="url(#ar)"/>
+<path class="l" d="M220,828 L220,864" marker-end="url(#ar)"/>
+<!-- loop back -->
+<path class="l" d="M110,888 C18,888 18,48 110,48" marker-end="url(#ar)" stroke-dasharray="5 4"/>
+
+<!-- captions -->
+<text class="cap" x="352" y="250">wholeBasis = composite basis</text>
+<text class="cap" x="352" y="264">(the cross-irrep view · §5.4)</text>
+<text class="cap" x="492" y="556" text-anchor="end">bra–ket:</text>
+<text class="cap" x="492" y="570" text-anchor="end">J(i,j)=J(j,i)ᵀ</text>
+<text class="cap" x="348" y="690">Σ over all terms</text>
+<text class="cap" transform="translate(34,470) rotate(-90)" text-anchor="middle">next iteration · until converged</text>
+</svg>

@@ -19,64 +19,89 @@ using ChargeDensity::rDM_CD;
 using ChargeDensity::cDM_CD;
 using ChargeDensity::DM_CD;
 
-//
-//  Abstract base for any HamiltonianTerm (HT) terms in the Hamiltonian.
-//  We have two distinct types of HT:
-//  Static_HT - Does not depend on the Charge Dnesity (CD), and therefore does change during iterations
-//  Dynamic_HT - Vee, Vac which depend on the CD, and change with each iteration.
-//
-//  Templated on the matrix element type T (double for atoms/molecules; dcmplx for the plane-wave
-//  lattice lineage).  hmat_t<double> IS rsmat_t and tobs_t<double> IS obs_t, so the <double> aliases
-//  below leave all existing real code unchanged.
-//
+//! \brief A Hamiltonian is a sum of additive terms (a "HamiltonianTerm", HT) in three families, split by
+//! what each needs to assemble its one-irrep matrix block:
+//! - \ref tStatic_HT    "Static_HT"     -- density-INDEPENDENT (kinetic, nuclear attraction); built once.
+//! - \ref tDynamic_HT   "Dynamic_HT"    -- depends on \f$\rho(\mathbf r)\f$ but only PER-IRREP (a fit, or
+//!   \f$\rho\f$ on a mesh), no cross-irrep coupling: DFT \f$V_{xc}\f$, fitted Coulomb.
+//! - \ref tDynamic_HF_HT "Dynamic_HF_HT" -- WHOLE-SYSTEM Hartree-Fock (exact 4-index Coulomb/exchange),
+//!   coupling every irrep block through the ERI \f$(ab|cd)\f$.
+//!
+//! Templated on the matrix element type \c T (\c double for atoms/molecules; \c dcmplx for the plane-wave
+//! lattice lineage).  \c hmat_t<double> IS \c rsmat_t and \c tobs_t<double> IS \c obs_t, so the \c <double>
+//! aliases below leave all existing real code unchanged.
+
+//! \brief A density-INDEPENDENT Hamiltonian term (kinetic, nuclear attraction, ...): built once and reused
+//! unchanged every SCF iteration.
 template <class T> class tStatic_HT
     : public virtual Streamable
     , public virtual tStatic_CC<T>
 {
 public:
+    //! One-irrep matrix block \f$\langle i|\hat h|j\rangle\f$ for basis \a bs and spin \a s.
     virtual const hmat_t<T>& GetMatrix(const tobs_t<T>*,const Spin&) const=0;
+    //! Add this term's energy contribution (contracted against the density matrix \a cd) into the breakdown.
     virtual void             GetEnergy(EnergyBreakdown&,  const tDM_CD<T>*) const=0;
-    virtual bool             IsPolarized   () const {return false;}
-    virtual bool             IsRelativistic() const {return false;}
+    virtual bool             IsPolarized   () const {return false;}   //!< spin-dependent block? (default no)
+    virtual bool             IsRelativistic() const {return false;}   //!< relativistic (Dirac) term? (default no)
 };
 
+//! \brief A PER-IRREP density-dependent term (DFT/fitted Coulomb + \f$V_{xc}\f$): builds ONE irrep's block
+//! from the density (a fit, or \f$\rho(\mathbf r)\f$ on a mesh), with no cross-irrep coupling.
+//!
+//! Energy is taken via \c DM_Contract (a per-irrep \c GetMatrix round-trip) -- contrast \ref tDynamic_HF_HT,
+//! whose exact exchange forbids that shortcut.
 template <class T> class tDynamic_HT
     : public virtual Streamable
     , public virtual tDynamic_CC<T>
 {
 public:
-    // Per-irrep, density-dependent term (DFT/fitted Coulomb+Vxc): builds ONE irrep's block from the density
-    // (a fit, or rho(r)), no cross-irrep coupling.  Energy via DM_Contract (per-irrep GetMatrix round-trip).
+    //! This irrep's block for basis \a bs / spin \a s, built from the current density \a cd.
     virtual const hmat_t<T>& GetMatrix(const tobs_t<T>*,const Spin&,const tChargeDensity<T>*) const=0;
+    //! Add this term's energy contribution (density matrix \a cd) into the breakdown.
     virtual void             GetEnergy(EnergyBreakdown&,  const tDM_CD<T>*) const=0;
-    virtual bool             IsPolarized   () const {return false;}
-    virtual bool             IsRelativistic() const {return false;}
+    virtual bool             IsPolarized   () const {return false;}   //!< spin-dependent block? (default no)
+    virtual bool             IsRelativistic() const {return false;}   //!< relativistic (Dirac) term? (default no)
 };
 
-// A whole-system Hartree-Fock term (exact 4-index Coulomb / exchange).  Unlike tDynamic_HT (per-irrep,
-// density-only) it couples EVERY irrep block through the ERI, so it consumes the whole (composite) basis
-// -- Iterate<tobs_t>() over it yields the irrep blocks -- and builds them all together (cached, then sliced
-// per irrep).  It is deliberately NOT a tDynamic_CC: its energy comes from its OWN cached blocks
-// (DM_ContractBlocks), not a per-irrep GetMatrix round-trip -- which is why it needs only the 4-arg
-// GetMatrix, no 3-arg.  See doc/ERI4Rework.md \S5.4.
+//! \brief A WHOLE-SYSTEM Hartree-Fock term: exact 4-index Coulomb \f$J\f$ / exchange \f$K\f$.
+//!
+//! Unlike \ref tDynamic_HT (per-irrep, density-only) an HF term couples EVERY irrep block through the ERI
+//! \f$(ab|cd)\f$, so it consumes the whole (composite) basis \a wholeBasis -- \c Iterate<tobs_t>() over it
+//! yields the irrep blocks -- and builds them all together (cached, then sliced per irrep).  It is
+//! deliberately NOT a \c tDynamic_CC: its energy comes from its OWN cached blocks (\c DM_ContractBlocks),
+//! not a per-irrep \c GetMatrix round-trip -- which is why it needs only the 4-arg \c GetMatrix, no 3-arg.
+//!
+//! The call flow, from the SCF driver down into the ERI bra-ket-symmetry scatter (\c ScatterBoth that banks
+//! \f$J(i,j)=J(j,i)^{\mathsf T}\f$ by scattering one canonical block into both Fock sub-blocks):
+//! \image html scf_hf_call_flow.svg "SCF iteration + HF Fock-build: CompositeWF::DoSCFIteration inward" width=520
+//! (source: doc/diagrams/scf_hf_call_flow.svg; doc/diagrams is on the Doxyfile IMAGE_PATH.  Full rationale:
+//! doc/ERI4Rework.md \S5.4.)
 template <class T> class tDynamic_HF_HT
     : public virtual Streamable
 {
 public:
+    //! Whole-system Fock block for irrep \a bs / spin \a s from density \a cd, using \a wholeBasis (the
+    //! composite basis) as the cross-irrep view.  \a wholeBasis is REQUIRED -- a null basis throws (an HF
+    //! term cannot be built one irrep at a time).
     virtual const hmat_t<T>& GetMatrix(const tobs_t<T>*,const Spin&,const tChargeDensity<T>*,
                                        const tbs_t<T>* wholeBasis) const=0;
+    //! Add this term's energy (e.g. \f$E_{ee}=\tfrac12\,\mathrm{Tr}(D\,J)\f$) from \a cd into the breakdown.
     virtual void             GetEnergy(EnergyBreakdown&,  const tDM_CD<T>*) const=0;
-    virtual bool             IsPolarized   () const {return false;}
-    virtual bool             IsRelativistic() const {return false;}
+    virtual bool             IsPolarized   () const {return false;}   //!< per-spin exchange? (default no; VxcPol yes)
+    virtual bool             IsRelativistic() const {return false;}   //!< relativistic (Dirac) term? (default no)
 };
 
+//! \brief The assembled Hamiltonian: owns its term lists and assembles the per-irrep Fock/KS matrix the SCF
+//! diagonalizes.  Built by the \c Factory; driven by \c CompositeWF / \c IrrepWF (see the \ref tDynamic_HF_HT
+//! call-flow diagram).
 template <class T> class tHamiltonian
     : public virtual Streamable
 {
 public:
-    virtual void            Add             (   tStatic_HT<T>*)=0;
-    virtual void            Add             (  tDynamic_HT<T>*)=0;
-    virtual void            Add             (tDynamic_HF_HT<T>*)=0;
+    virtual void            Add             (   tStatic_HT<T>*)=0;   //!< take ownership of a static term
+    virtual void            Add             (  tDynamic_HT<T>*)=0;   //!< take ownership of a per-irrep dynamic term
+    virtual void            Add             (tDynamic_HF_HT<T>*)=0;  //!< take ownership of a whole-system HF term
     //! Assemble the Fock/Hamiltonian for one irrep \a bs, given \a wholeBasis (the composite basis, threaded
     //! to the dynamic terms as the cross-irrep view).  This is the primary form the SCF (CompositeWF/IrrepWF)
     //! drives.
