@@ -289,8 +289,11 @@ TEST_F(BasisSet_SL,HF_ERIs)
         auto c=evals.begin();
         for (auto cibs:bs->Iterate<ohfbs_t>())
         {
-            ERI4 J2=aibs->Direct(*cibs);
-            ERI4 K2=aibs->Exchange(*cibs);
+            if (aibs->BasisSetID() <= cibs->BasisSetID())   // ERI4 cache is canonical-only (doc/ERI4Rework.md §5.2)
+            {
+                ERI4 J2=aibs->Direct(*cibs);
+                ERI4 K2=aibs->Exchange(*cibs);
+            }
             ++c;
         }
         ++a;
@@ -403,8 +406,11 @@ TEST_F(BasisSet_SG,HF_ERIs)
         auto c=evals.begin();
         for (auto cibs:bs->Iterate<ohfbs_t>())
         {
-            ERI4 J2=aibs->Direct(*cibs);
-            ERI4 K2=aibs->Exchange(*cibs);
+            if (aibs->BasisSetID() <= cibs->BasisSetID())   // ERI4 cache is canonical-only (doc/ERI4Rework.md §5.2)
+            {
+                ERI4 J2=aibs->Direct(*cibs);
+                ERI4 K2=aibs->Exchange(*cibs);
+            }
             ++c;
         }
         ++a;

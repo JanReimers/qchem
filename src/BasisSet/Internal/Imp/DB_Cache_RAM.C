@@ -317,6 +317,16 @@ template <class T> const ERI3<T>& IntegralsCache_RAM<T>::Get(I3C i3c,const DBCac
 template <class T> const ERI4& IntegralsCache_RAM<T>::Get(I4C i4c,const DBCacheClient* a,const DBCacheClient* b,std::function<ERI4()> make)
 {
     IBS_ID_t ida=a->BasisSetID(), idb=b->BasisSetID();
+    // Canonical-only invariant (doc/ERI4Rework.md §5.2): only the a<=b (by BasisSetID) block of each
+    // unordered irrep pair may ever be built or stored.  The bra-ket partner J(b,a)=J(a,b)^T is derived on
+    // the fly by ERI4::ScatterBoth from the canonical block, so requesting it here is a programming error --
+    // fail loudly (rigid: a THROW, live in Release too, not a debug-only assert) rather than silently
+    // re-materialize a redundant orientation and quietly double the ERI cache.  Diagonal (a==b) is canonical.
+    if (ida>idb)
+        throw std::runtime_error(std::format(
+            "ERI4 cache: non-canonical {} request a='{}' b='{}' -- the bra-ket partner J(b,a)=J(a,b)^T must "
+            "never be built/stored; request the canonical (a<=b by BasisSetID) block and derive the transpose "
+            "via ERI4::ScatterBoth (doc/ERI4Rework.md §5.2).", i4c, ida, idb));
     map4_t& m = (i4c==IntegralsCache<T>::I4C::Direct) ? Jac : Kab;
     if (auto ia=m.find(ida); ia!=m.end())
     {

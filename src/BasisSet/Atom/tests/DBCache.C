@@ -146,6 +146,11 @@ public:
             }
 
         }
+    // The ERI4 cache is canonical-only (doc/ERI4Rework.md §5.2): only the a<=b (by BasisSetID) block of an
+    // unordered pair may be built/stored, and requesting the partner throws.  So we (1) fetch only the
+    // canonical block via the cache and check cross-basis reuse (same object from bs1 and bs2), (2) verify
+    // the bra-ket symmetry J(a,b)=J(b,a)^T against the UNCACHED MakeDirect of the partner, and (3) assert the
+    // non-canonical cached request is forbidden.
     void TestDirect(double eps) const
         {
             cout << *bs1 << endl;
@@ -156,17 +161,18 @@ public:
                 auto ibs22=bs2->Iterate<Real_HF_OIBS>().begin();
                 for (auto ibs12:bs1->Iterate<Real_HF_OIBS>())
                 {
-                    const ERI4& J1=ibs11->Direct(*ibs12);
-                    const ERI4& J2=(*ibs21)->Direct(**ibs22);
-                    EXPECT_EQ(J1,J2);
-                    EXPECT_EQ(&J1,&J2);
-                    const ERI4& J1ba=ibs12->Direct(*ibs11);
-                    const ERI4& J2ba=(*ibs22)->Direct(**ibs21);
-                    EXPECT_NEAR(fnorm(J1,J1ba.Transpose()),0.0,eps);
-                    EXPECT_NEAR(fnorm(J2,J2ba.Transpose()),0.0,eps);
+                    if (ibs11->BasisSetID() <= ibs12->BasisSetID())   // canonical: cache may hold it
+                    {
+                        const ERI4& J1=ibs11->Direct(*ibs12);
+                        const ERI4& J2=(*ibs21)->Direct(**ibs22);
+                        EXPECT_EQ(J1,J2);
+                        EXPECT_EQ(&J1,&J2);                            // cross-basis reuse (one cached object)
+                        ERI4 J1ba=ibs12->MakeDirect(*ibs11);          // partner built UNCACHED (cache forbids it)
+                        EXPECT_NEAR(fnorm(J1,J1ba.Transpose()),0.0,eps);
+                    }
+                    else
+                        EXPECT_ANY_THROW(ibs11->Direct(*ibs12));      // non-canonical request is forbidden
                     ++ibs22;
-                    // cout << std::setprecision(12) << "J1(0,0)(0,1)=" << J1(0,0)(0,1) << std::endl;
-                    // cout << std::setprecision(12) << "J1(0,1)(0,0)=" << J1(0,1)(0,0) << std::endl;
                 }
                 ++ibs21;
             }
@@ -174,7 +180,7 @@ public:
         }
     void TestExchange(double eps) const
     {
-        
+
         using BasisSet::Real_HF_OIBS;
         auto ibs21=bs2->Iterate<Real_HF_OIBS>().begin();
         for (auto ibs11:bs1->Iterate<Real_HF_OIBS>())
@@ -182,14 +188,17 @@ public:
             auto ibs22=bs2->Iterate<Real_HF_OIBS>().begin();
             for (auto ibs12:bs1->Iterate<Real_HF_OIBS>())
             {
-                const ERI4& K1=ibs11->Exchange(*ibs12);
-                const ERI4& K2=(*ibs21)->Exchange(**ibs22);
-                EXPECT_EQ(K1,K2);
-                EXPECT_EQ(&K1,&K2);
-                const ERI4& K1ba=ibs12->Exchange(*ibs11);
-                const ERI4& K2ba=(*ibs22)->Exchange(**ibs21);
-                EXPECT_NEAR(fnorm(K1,K1ba.Transpose()),0.0,eps);
-                EXPECT_NEAR(fnorm(K2,K2ba.Transpose()),0.0,eps);
+                if (ibs11->BasisSetID() <= ibs12->BasisSetID())       // canonical: cache may hold it
+                {
+                    const ERI4& K1=ibs11->Exchange(*ibs12);
+                    const ERI4& K2=(*ibs21)->Exchange(**ibs22);
+                    EXPECT_EQ(K1,K2);
+                    EXPECT_EQ(&K1,&K2);                                // cross-basis reuse (one cached object)
+                    ERI4 K1ba=ibs12->MakeExchange(*ibs11);            // partner built UNCACHED
+                    EXPECT_NEAR(fnorm(K1,K1ba.Transpose()),0.0,eps);
+                }
+                else
+                    EXPECT_ANY_THROW(ibs11->Exchange(*ibs12));        // non-canonical request is forbidden
                 ++ibs22;
             }
             ++ibs21;

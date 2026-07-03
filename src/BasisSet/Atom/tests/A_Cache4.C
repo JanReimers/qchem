@@ -63,6 +63,10 @@ public:
     void InitGaussian(size_t Z) {Init(Z,Type::Gaussian,Type::Gaussian);}
     void InitSlater  (size_t Z) {Init(Z,Type::Slater  ,Type::Slater);}
 
+    // The ERI4 cache is canonical-only (doc/ERI4Rework.md §5.2): only the a<=b (BasisSetID) block may be
+    // built/stored, and the partner request throws.  So fetch only the canonical block from the cache
+    // (checking cross-element reuse), verify J(a,b)=J(b,a)^T against the UNCACHED MakeDirect of the partner,
+    // and assert the non-canonical cached request is forbidden.
     void TestDirect(double eps, bool testTranspose=true)
     {
         using BasisSet::Real_HF_OIBS;
@@ -72,17 +76,17 @@ public:
             auto ibs22=bs2->Iterate<Real_HF_OIBS>().begin();
             for (auto ibs12:bs1->Iterate<Real_HF_OIBS>())
             {
-                const ERI4& J1=ibs11->Direct(*ibs12);
-                const ERI4& J2=(*ibs21)->Direct(**ibs22);
-                EXPECT_EQ(J1,J2);
-                EXPECT_EQ(&J1,&J2);
-                const ERI4& J1ba=ibs12->Direct(*ibs11);
-                const ERI4& J2ba=(*ibs22)->Direct(**ibs21);
-                if (testTranspose)
+                if (ibs11->BasisSetID() <= ibs12->BasisSetID())
                 {
-                    EXPECT_NEAR(fnorm(J1,J1ba.Transpose()),0.0,eps);
-                    EXPECT_NEAR(fnorm(J2,J2ba.Transpose()),0.0,eps);
+                    const ERI4& J1=ibs11->Direct(*ibs12);
+                    const ERI4& J2=(*ibs21)->Direct(**ibs22);
+                    EXPECT_EQ(J1,J2);
+                    EXPECT_EQ(&J1,&J2);
+                    if (testTranspose)
+                        EXPECT_NEAR(fnorm(J1,ibs12->MakeDirect(*ibs11).Transpose()),0.0,eps);
                 }
+                else
+                    EXPECT_ANY_THROW(ibs11->Direct(*ibs12));   // non-canonical request forbidden
                 ++ibs22;
             }
             ++ibs21;
@@ -98,17 +102,17 @@ public:
             auto ibs22=bs2->Iterate<Real_HF_OIBS>().begin();
             for (auto ibs12:bs1->Iterate<Real_HF_OIBS>())
             {
-                const ERI4& K1=ibs11->Exchange(*ibs12);
-                const ERI4& K2=(*ibs21)->Exchange(**ibs22);
-                EXPECT_EQ(K1,K2);
-                EXPECT_EQ(&K1,&K2);
-                const ERI4& K1ba=ibs12->Exchange(*ibs11);
-                const ERI4& K2ba=(*ibs22)->Exchange(**ibs21);
-                if (testTranspose)
+                if (ibs11->BasisSetID() <= ibs12->BasisSetID())
                 {
-                    EXPECT_NEAR(fnorm(K1,K1ba.Transpose()),0.0,eps);
-                    EXPECT_NEAR(fnorm(K2,K2ba.Transpose()),0.0,eps);
+                    const ERI4& K1=ibs11->Exchange(*ibs12);
+                    const ERI4& K2=(*ibs21)->Exchange(**ibs22);
+                    EXPECT_EQ(K1,K2);
+                    EXPECT_EQ(&K1,&K2);
+                    if (testTranspose)
+                        EXPECT_NEAR(fnorm(K1,ibs12->MakeExchange(*ibs11).Transpose()),0.0,eps);
                 }
+                else
+                    EXPECT_ANY_THROW(ibs11->Exchange(*ibs12));   // non-canonical request forbidden
                 ++ibs22;
             }
             ++ibs21;
@@ -135,12 +139,15 @@ public:
     void ExerciseAllRk(BasisSet::Real_BS* bs)
     {
         using BasisSet::Real_HF_OIBS;
+        // Only the canonical (a<=b) block of each pair may be built (the ERI4 cache is canonical-only); the
+        // partner exercises the SAME underlying Rk integrals, so canonical pairs still fully warm the pool.
         for (auto i:bs->Iterate<Real_HF_OIBS>())
             for (auto j:bs->Iterate<Real_HF_OIBS>())
-            {
-                i->Direct  (*j);
-                i->Exchange(*j);
-            }
+                if (i->BasisSetID() <= j->BasisSetID())
+                {
+                    i->Direct  (*j);
+                    i->Exchange(*j);
+                }
         delete bs;
     }
 

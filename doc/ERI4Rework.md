@@ -293,11 +293,20 @@ Keep §5 (generic, bra–ket, high value) and §6 (atomic, LMax→Irrep) as sepa
      `Polarized_CD::GetChargeDensity(s)` and stores scaled −1, keyed by (spin,irrep).  Both cache the scaled
      blocks so `GetMatrix` returns a reference; `SymmetryAdapted_IBS` gets the two-AO-slice fallback.
      **Gate:** 167 UTMain + 109 UTAtom_BS green; `Kab` RAM 521→369 MB (now symmetric with `Jac`).
-   - **3c.** Canonical `(min,max)` J/K cache key (§5.2).  NOTE: with 3b's request discipline (`Vee` only
-     ever fetches canonical `Direct(i,j)`, i≤j), the non-canonical block is already never built, so RAM is
-     halved WITHOUT 3c.  3c becomes belt-and-suspenders robustness (any stray non-canonical request reuses
-     the stored block via a transpose orientation) rather than the load-bearing change.  **Gate:**
-     one-block-per-unordered-pair reuse guard + `fnorm(J(i,j),J(j,i)ᵀ)≈0`.
+   - **3c. DONE (rigid guard, not the transpose-serving key).** Instead of §5.2's "canonicalize + serve the
+     transpose orientation" (which needs a `{block, needsTranspose}` return contract), we enforce
+     **canonical-only** and make the partner a hard error: `IntegralsCache_RAM::Get(I4C,a,b,…)` **throws**
+     (a `std::runtime_error`, live in Release — not a debug assert) when `a>b` by BasisSetID.  Production
+     fetches are made canonical at the source: `Orbital_HF_IBS::AccumulateDirect/ExchangeBoth` request the
+     min-BasisSetID block and swap the two `ScatterBoth` target/density pairs when the partner sorts first
+     (identical result, `J(b,a)=J(a,b)ᵀ`).  So the bra-ket partner can never be built or stored — the
+     invariant is structural, not a discipline every caller must remember.  Bonus: canonicalizing the fetch
+     also de-duplicates *cross-basis* storage (two bases whose iteration orders differ now agree on the
+     canonical key).  Integral-level unit tests that deliberately built both orientations
+     (`A_Cache4`/`DBCache`/`BasisSet_Atom`) now fetch only the canonical block from the cache, verify
+     symmetry against the **uncached** `MakeDirect`/`MakeExchange`, and `EXPECT_ANY_THROW` on the
+     non-canonical request (turning the old symmetry check into a guard test).  **Gate:** 167 UTMain + 109
+     UTAtom_BS green; zero guard throws in production.
 4. (Optional) flat packed storage (Option B) if profiling wants it.
 5. (Separate track) §6 atomic Rk `LMax`→`Irrep`: worst-case-irrep query + demand-grow Rk; delete
    eviction/`isSupported`; reuse guard stays green.
