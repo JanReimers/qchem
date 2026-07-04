@@ -57,18 +57,18 @@ template <class T> bool IrrepCD<T>::IsZero() const
 //
 //  Total energy terms for a charge density.
 //
-template <> void IrrepCD<double>::AccumulateDirect(rsmat_t& Sab, const ohfbs_t* bs_ab) const
+template <> void IrrepCD<double>::AccumulateDirect(rsmat_t& Jii) const
 {
-    const ohfbs_t* bs_cd=dynamic_cast<const ohfbs_t*>(itsBasisSet);
-    assert(bs_cd);
-    if (!IsZero()) bs_ab->AccumulateDirect(Sab,itsDensityMatrix,bs_cd);
+    const ohfbs_t* bs=dynamic_cast<const ohfbs_t*>(itsBasisSet);
+    assert(bs);
+    if (!IsZero()) bs->AccumulateDirect(Jii,itsDensityMatrix,bs);   // diagonal: this block's basis on both sides
 }
 
-template <> void IrrepCD<double>::AccumulateExchange(rsmat_t& Sab, const ohfbs_t* bs_ab) const
+template <> void IrrepCD<double>::AccumulateExchange(rsmat_t& Kii) const
 {
-    const ohfbs_t* bs_cd=dynamic_cast<const ohfbs_t*>(itsBasisSet);
-    assert(bs_cd);
-    if (!IsZero()) bs_ab->AccumulateExchange(Sab,itsDensityMatrix,bs_cd);
+    const ohfbs_t* bs=dynamic_cast<const ohfbs_t*>(itsBasisSet);
+    assert(bs);
+    if (!IsZero()) bs->AccumulateExchange(Kii,itsDensityMatrix,bs);
 }
 
 // One canonical irrep pair (this=i, other=j, i<=j) scattered into both irreps' Coulomb blocks.  This is the
@@ -80,7 +80,7 @@ template <> void IrrepCD<double>::AccumulateExchange(rsmat_t& Sab, const ohfbs_t
 // J(j,i) is never materialized.
 template <> void IrrepCD<double>::AccumulateDirectBoth(rsmat_t& Ji, rsmat_t& Jj, const tDM_CD<double>& other) const
 {
-    if (&other==this) { AccumulateDirect(Ji,dynamic_cast<const ohfbs_t*>(itsBasisSet)); return; }  // diagonal
+    if (&other==this) { AccumulateDirect(Ji); return; }  // diagonal self-pair: single-block contraction
     const IrrepCD<double>* oj=dynamic_cast<const IrrepCD<double>*>(&other);
     assert(oj);
     if (IsZero() && oj->IsZero()) return;
@@ -94,7 +94,7 @@ template <> void IrrepCD<double>::AccumulateDirectBoth(rsmat_t& Ji, rsmat_t& Jj,
 // Exchange block is fetched once.
 template <> void IrrepCD<double>::AccumulateExchangeBoth(rsmat_t& Ki, rsmat_t& Kj, const tDM_CD<double>& other) const
 {
-    if (&other==this) { AccumulateExchange(Ki,dynamic_cast<const ohfbs_t*>(itsBasisSet)); return; }  // diagonal
+    if (&other==this) { AccumulateExchange(Ki); return; }  // diagonal self-pair: single-block contraction
     const IrrepCD<double>* oj=dynamic_cast<const IrrepCD<double>*>(&other);
     assert(oj);
     if (IsZero() && oj->IsZero()) return;
@@ -240,9 +240,9 @@ template class IrrepCD<double>;
 // AO density-fit projection (GetRepulsion3C) is no longer forced on this path -- IrrepCD<dcmplx> is not a
 // ProjectedDensity_AO -- so its old NA-assert specialization is gone.  The remaining members are the generic
 // templates above (DM_Contract, op()(r), GetTotalCharge, MixIn, GetChangeFrom, ...), complex-correct.
-template <> void IrrepCD<dcmplx>::AccumulateDirect(hmat_t<dcmplx>&, const ohfbs_t*) const
+template <> void IrrepCD<dcmplx>::AccumulateDirect(hmat_t<dcmplx>&) const
 { assert(false && "AccumulateDirect: HF not applicable to a complex plane-wave density"); }
-template <> void IrrepCD<dcmplx>::AccumulateExchange(hmat_t<dcmplx>&, const ohfbs_t*) const
+template <> void IrrepCD<dcmplx>::AccumulateExchange(hmat_t<dcmplx>&) const
 { assert(false && "AccumulateExchange: HF not applicable to a complex plane-wave density"); }
 template <> void IrrepCD<dcmplx>::AccumulateDirectBoth(hmat_t<dcmplx>&, hmat_t<dcmplx>&, const tDM_CD<dcmplx>&) const
 { assert(false && "AccumulateDirectBoth: HF not applicable to a complex plane-wave density"); }

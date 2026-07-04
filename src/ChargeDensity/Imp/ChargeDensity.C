@@ -17,18 +17,6 @@ namespace qchem::ChargeDensity
 //
 //  Various integrals.
 //
-void Polarized_CD::AccumulateDirect(rsmat_t& Jab,const ohfbs_t* bs) const
-{
-    GetChargeDensity(Spin::Up  )->AccumulateDirect(Jab,bs);
-    GetChargeDensity(Spin::Down)->AccumulateDirect(Jab,bs);
-}
-
-void Polarized_CD::AccumulateExchange(rsmat_t& Kab,const ohfbs_t* bs) const
-{
-    // No UT coverage
-    GetChargeDensity(Spin::Up  )->AccumulateExchange(Kab,bs);
-    GetChargeDensity(Spin::Down)->AccumulateExchange(Kab,bs);
-}
 
 // Coulomb sees the TOTAL density: both spin channels scatter into the same per-irrep Fock blocks.
 void Polarized_CD::AccumulateDirectAll(std::vector<rsmat_t>& Jall) const

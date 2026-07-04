@@ -122,8 +122,8 @@ public:
     virtual double GetChangeFrom(const tDM_CD<T>&            ) const=0;  //Convergence check.
 
     // HF/fit-specific (real, Gaussian-basis) -- the dcmplx plane-wave density NA-asserts these.
-    virtual void AccumulateDirect  (hmat_t<T>& Jab, const ohfbs_t*) const=0;
-    virtual void AccumulateExchange(hmat_t<T>& Kab, const ohfbs_t*) const=0;
+    // (The single-block diagonal contraction is NOT here: it is a private IrrepCD detail the whole-system
+    //  AccumulateDirectAll loop reaches via AccumulateDirectBoth's self-pair branch -- see IrrepCD.)
 
     //! Whole-system HF Coulomb exploiting the ERI4 bra-ket symmetry \f$J(i,j)=J(j,i)^\mathsf{T}\f$
     //! (doc/ERI4Rework.md \S4/\S5.4): one uniform loop over canonical ab-irrep pairs \f$k\le l\f$ feeds BOTH
@@ -178,8 +178,6 @@ public:
 
     virtual double FitGetConstraint() const {return GetTotalCharge();}   // AO fit RHS: the charge N
     virtual rvec_t GetRepulsion3C(const BasisSet::FIT_CD_ABS*) const;
-    virtual void AccumulateDirect  (rsmat_t& Jab, const ohfbs_t*) const;
-    virtual void AccumulateExchange(rsmat_t& Kab, const ohfbs_t*) const;
     virtual void AccumulateDirectAll  (std::vector<rsmat_t>& Jall) const;  // sum both spins (Coulomb)
     virtual void AccumulateExchangeAll(std::vector<rsmat_t>& Kall) const;  // sum both spins (RHF exchange)
 

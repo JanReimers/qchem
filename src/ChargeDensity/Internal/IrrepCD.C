@@ -32,10 +32,9 @@ public:
     IrrepCD();
     IrrepCD(const DenSMat&,const tobs_t<T>*, Irrep);
 
-    virtual void AccumulateDirect  (hmat_t<T>& Sab, const ohfbs_t*) const;
-    virtual void AccumulateExchange(hmat_t<T>& Sab, const ohfbs_t*) const;
     //! Bra-ket pair partner (doc/ERI4Rework.md §4): scatter the canonical block J(this,other) into BOTH
-    //! Fock blocks Ji,Jj.  \a other is a sibling IrrepCD (same-class cast, as MixIn/GetChangeFrom do).
+    //! Fock blocks Ji,Jj.  \a other is a sibling IrrepCD (same-class cast, as MixIn/GetChangeFrom do).  When
+    //! other IS this (the diagonal self-pair) it collapses to the single-block contraction below.
     virtual void AccumulateDirectBoth  (hmat_t<T>& Ji, hmat_t<T>& Jj, const tDM_CD<T>& other) const;
     virtual void AccumulateExchangeBoth(hmat_t<T>& Ki, hmat_t<T>& Kj, const tDM_CD<T>& other) const;
     //! AO (auxiliary-basis) projection <rho|c> -- the finite (double) path's ProjectedDensity_AO face; the
@@ -65,7 +64,12 @@ public:
 
 private:
     bool IsZero() const;
-    
+    //! The diagonal (self-paired) HF contraction: Jii += J(i,i)·D_i / Kii += K(i,i)·D_i, using THIS block's
+    //! own basis on both sides.  Called only from AccumulateDirect/ExchangeBoth's self-pair branch (there is
+    //! no bra-ket partner on the diagonal); not part of the tDM_CD interface.
+    void AccumulateDirect  (hmat_t<T>& Jii) const;
+    void AccumulateExchange(hmat_t<T>& Kii) const;
+
     DenSMat          itsDensityMatrix;
     const tobs_t<T>* itsBasisSet;
     Spin             itsSpin;

@@ -30,15 +30,6 @@ template <class T> void tComposite_CD<T>::Insert(tDM_CD<T>* cd)
 //
 //  Total energy terms for a charge density.
 //
-template <class T> void tComposite_CD<T>::AccumulateDirect(hmat_t<T>& Jab, const ohfbs_t* bs_ab) const
-{
-    for (auto& c:itsCDs) c->AccumulateDirect(Jab,bs_ab);
-}
-
-template <class T> void tComposite_CD<T>::AccumulateExchange(hmat_t<T>& Kab, const ohfbs_t* bs_ab) const
-{
-    for (auto& c:itsCDs) c->AccumulateExchange(Kab,bs_ab);
-}
 
 // Whole-system Coulomb via ERI4 bra-ket symmetry (doc/ERI4Rework.md §4/§5.4).  The composite holds one
 // block per irrep in the SAME order as Jall (both come from itsBS->Iterate, see CompositeWF::MakeIrrepWFs),

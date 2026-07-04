@@ -29,8 +29,6 @@ public:
     tComposite_CD();
     void Insert(tDM_CD<T>*);
 
-    virtual void AccumulateDirect  (hmat_t<T>& Sab, const ohfbs_t*) const;
-    virtual void AccumulateExchange(hmat_t<T>& Sab, const ohfbs_t*) const;
     virtual void AccumulateDirectAll  (std::vector<hmat_t<T>>& Jall) const;
     virtual void AccumulateExchangeAll(std::vector<hmat_t<T>>& Kall) const;
 
