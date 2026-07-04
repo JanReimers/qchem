@@ -7,6 +7,7 @@ export import qchem.Types;
 import qchem.Structure;
 import qchem.Matrix3D;
 import qchem.Streamable;
+import qchem.Mesh;        // qcMesh::Mesh / MeshParams (the CreateIntegrationMesh override)
 
 namespace qchem {
 
@@ -26,6 +27,12 @@ public:
     using Molecule::GetNumAtoms;
 
     bool isFinite() const override {return false;}   //!< A periodic cell is NOT finite (Vnn -> Ewald).
+
+    //! A periodic cell's real-space integration mesh (uniform / unit-cell-Becke) is not yet implemented --
+    //! throws.  (Plane-wave DFT integrates in G-space on the basis's own grid, so it never asks for this;
+    //! this override exists to fail loudly rather than inherit Molecule's finite Becke grid, which is wrong
+    //! for a periodic cell.)
+    qcMesh::Mesh CreateIntegrationMesh(const qcMesh::MeshParams&) const override;
 
     //! \brief Add an atom of nuclear charge \a Z at FRACTIONAL cell coordinates \a f (\f$r=Af\f$).
     //! Convenience over Insert(new Atom(Z, ToCartesian(f))) so a crystal basis can be specified in

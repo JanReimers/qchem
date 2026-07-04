@@ -6,8 +6,15 @@ module;
 module qchem.Structure;
 import qchem.stl_io;
 import qchem.Streamable;
+import qchem.Structure.MolecularMesh;   // MakeMolecularMesh (the multi-centre Becke grid)
 
 namespace qchem {
+
+// A molecule's integration mesh is the multi-centre Becke-partitioned grid.
+qcMesh::Mesh Molecule::CreateIntegrationMesh(const qcMesh::MeshParams& mp) const
+{
+    return MakeMolecularMesh(*this, mp);
+}
 
 Molecule::Molecule(const Structure& atoms)
 {

@@ -12,10 +12,7 @@ import qchem.BasisSet.Internal.Orbital_DHF_IBS;
 import qchem.BasisSet.IrrepBasisSet;
 import qchem.BasisSet.Orbital_1E_IBS;
 import qchem.BasisSet.Orbital_DFT_IBS;
-import qchem.BasisSet.Mesh_Integrated_IBS;   // MeshIntegratorSource + MakeMeshIntegrator (field-operator)
 import qchem.BasisSet.Orbital_HF_IBS;
-import qchem.Mesh;                            // qcMesh::MeshParams
-import qchem.Structure;                       // Structure
 import qchem.BasisSet.Internal.DB_Cache;
 import qchem.BasisSet.Atom.Evaluators;
 import qchem.BasisSet.Internal.Cache4;
@@ -191,17 +188,7 @@ public:
 
 template <isDFT_Evaluator E> class Orbital_DFT_IBS
     : public virtual BasisSet::Orbital_DFT_IBS<double>
-    , public virtual BasisSet::MeshIntegratorSource<double>   // field-operator factory (CreateMeshIntegrator)
 {
-public:
-    // Field-operator factory (analog of CreateVxcFitBasisSet): build a Becke integrator over this atom
-    // basis (which IS-A VectorFunction<double>).  For a single atom the molecular Becke mesh reduces to the
-    // atom's radial x angular grid, so this reproduces the atom local-PP quadrature exactly.
-    virtual BasisSet::Mesh_Integrated_IBS<double>*
-    CreateMeshIntegrator(const Structure* cl, const qcMesh::MeshParams& mp) const override
-    {
-        return BasisSet::MakeMeshIntegrator(*this, cl, mp);
-    }
 protected:
     virtual ERI3<double> MakeOverlap3C  (const FIT_SF_ABS& _c) const
     {

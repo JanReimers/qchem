@@ -42,24 +42,19 @@ which both PW and molecular already populate.
 Route PP assembly through the `Fit_ABS` network the way XC already does. Two neutral primitives are needed
 beside the existing fitter (each with a molecular Becke-mesh impl and a PW G-space impl):
 
-- **(a) scalar-field → operator matrix** `⟨χᵢ|V(r)|χⱼ⟩` (local PP). ✅ **DONE.** The neutral capability
-  already existed as `Band_DFT_IBS<T>::Overlap(f)` (PW realizes it in G-space); it was extracted into a
-  shared base **`Mesh_Integrated_IBS<T>`** (`Overlap(f)` + `Integral(f)`), and a factory capability
-  **`MeshIntegratorSource<T>::CreateMeshIntegrator(structure, mp)`** — the field-operator analog of
-  `CreateVxcFitBasisSet` — was added (honouring §3.1: the orbital basis is the FACTORY of its mesh
-  integrator, since a Gaussian orbital basis owns no mesh). Molecular + atom orbital IBS mixins realize it
-  by returning a Becke integrator over themselves (`MakeBeckeMeshIntegrator(*this, …)`, the IBS IS-A
-  `VectorFunction`). `PP_Local` now obtains the integrator via the factory and calls `Overlap(V_loc)` — the
-  mesh left the term (bit-identical: same Becke mesh, same `WeightedOverlap`, just relocated behind the
-  interface). V_loc is **static + smooth**, so this is raw quadrature (no fit), correctly distinct from the
-  density/potential *fitter*. MESH SOURCE: the integrator gets its mesh from **`Structure::CreateIntegrationMesh(mp)`**
-  (a polymorphic geometry capability — Becke for a finite molecule/atom by default, uniform/unit-cell-Becke for
-  a lattice by override), so the mesh TYPE follows the geometry, not the basis; the field-operator path is
-  geometry-neutral and a Gaussian basis on a lattice would integrate on the right grid for free. RESIDUAL: the
-  SALC wrapper (`SymmetryAdapted_IBS`) does not yet delegate
-  `CreateMeshIntegrator`, so PP + point-group symmetry would fail the cast — fine today (the facade doesn't
-  offer PP+symmetry), add the one-line delegation when it does. PW could also expose `CreateMeshIntegrator`
-  returning itself for full uniformity (it already IS-A `Mesh_Integrated_IBS`); deferred to the PW-PP unify.
+- **(a) scalar-field → operator matrix** `⟨χᵢ|V(r)|χⱼ⟩` (local PP). ✅ **DONE.** The right abstraction turned
+  out to be the **mesh on the geometry**, not a field-operator capability on the basis. The mesh is a virtual
+  on `Structure`: **`Structure::CreateIntegrationMesh(mp)` (pure virtual)** — each geometry owns its most
+  efficient mesh: `Atom` → single-centre radial×angular, `Molecule` → multi-centre Becke, `UnitCell` →
+  uniform/unit-cell-Becke (throws until implemented; PW never asks — it owns its G-grid). No central `if/case`
+  dispatch (SOLID). `PP_Local::CalculateMatrix` calls that virtual directly and quadratures with the generic
+  `qcMesh::WeightedOverlap(mesh, basis, V_loc)` — so the term is geometry-neutral with **no `dynamic_cast`**
+  and no basis-side indirection. V_loc is **static + smooth**, so this is raw quadrature (no fit), correctly
+  distinct from the density/potential *fitter*. Bit-identical (same Becke mesh, same `WeightedOverlap`).
+  *(An earlier iteration routed this through a `Mesh_Integrated_IBS`/`MeshIntegratorSource` basis capability;
+  it was removed as over-abstraction — PW has its own PP term, so nothing needed the basis to manufacture the
+  integrator once the mesh lives on the geometry. `qcStructure` already links `qcMesh`, and `qchem.Mesh`
+  imports only `qchem.Types`, so coupling `Structure` to it costs ~nothing.)*
 - **(b) scalar-field → projection vector** `⟨χᵢ|β_p Yₗₘ⟩` (nonlocal KB). Molecular = `qcMesh::Overlap`;
   PW = G-space projection.
 

@@ -1,28 +1,38 @@
 // File: Hamiltonian/Internal/Imp/PP_Local.C  Local-pseudopotential term (mesh quadrature of V_loc(r)).
 //
-// The term owns only the MODEL (V_loc as a real-space field) and asks the BASIS to assemble the matrix:
-// it obtains a mesh-integrator from the orbital basis (CreateMeshIntegrator -- the field-operator analog of
-// CreateVxcFitBasisSet) and calls <i|V_loc|j>.  The mesh + quadrature are the basis's business, exactly as
-// the XC path's are (doc/MolecularPP_HarmonizationFindings.md §3a): the term is now mesh-agnostic, so the
-// same term would serve a plane-wave basis (which realizes the field-operator in G-space) unchanged.
+// The term owns only the MODEL (V_loc as a real-space field).  It asks the STRUCTURE for its integration
+// mesh -- CreateIntegrationMesh is a polymorphic geometry capability (Atom -> radial x angular, Molecule ->
+// Becke, lattice -> uniform), so the mesh TYPE follows the geometry, not this term -- and quadratures
+// <i|V_loc|j> with the generic qcMesh::WeightedOverlap (the same routine the XC path uses).  The term is
+// thus geometry-neutral without any basis-specific dispatch.
 module;
 #include <cassert>
 #include <iostream>
-#include <memory>
 
 module qchem.Hamiltonian.Internal.Terms;
 import qchem.Energy;
-import qchem.ScalarFunction;                 // V_loc(r) presented as a ScalarFunction<double>
-import qchem.BasisSet.Mesh_Integrated_IBS;   // MeshIntegratorSource -> Mesh_Integrated_IBS (the field-operator)
-import qchem.Math;                            // norm(Vector3D)
+import qchem.Mesh.Quadrature;           // qcMesh::Mesh, WeightedOverlap, ScalarField, BasisField
+import qchem.VectorFunction;            // the orbital basis IS-A VectorFunction (the integrand source)
+import qchem.Math;                      // norm(Vector3D)
 
 namespace qchem::Hamiltonian
 {
 
 namespace {
 
+// Adapt the orbital basis (a VectorFunction: r -> [chi_i(r)]) to the mesh-quadrature BasisField.
+class BFView : public qcMesh::BasisField<double>
+{
+    const VectorFunction<double>& its;
+public:
+    explicit BFView(const VectorFunction<double>& v) : its(v) {}
+    size_t     size()                       const override {return its.GetVectorSize();}
+    rvec_t     operator()(const rvec3_t& r) const override {return its(r);}
+    rvec3vec_t Gradient  (const rvec3_t& r) const override {return its.Gradient(r);}
+};
+
 // The real-space local pseudopotential as a scalar field: V_loc(r) = Sum_atoms V_loc(Z_a, |r - R_a|).
-class VlocField : public ScalarFunction<double>
+class VlocField : public qcMesh::ScalarField<double>
 {
     const Structure& cl;
     const Pseudopotential::LocalPotential_R& v;
@@ -34,7 +44,7 @@ public:
         for (size_t i=0;i<cl.GetNumAtoms();i++) { const Atom* a=cl[i]; s+=v.Vloc(a->itsZ, norm(r-a->itsR)); }
         return s;
     }
-    rvec3_t Gradient(const rvec3_t&) const override {return rvec3_t(0,0,0);}   // unused by the field-operator
+    rvec3_t Gradient(const rvec3_t&) const override {return rvec3_t(0,0,0);}   // unused by WeightedOverlap
 };
 
 } //anon
@@ -48,14 +58,8 @@ PP_Local::PP_Local(const st_t& st, vloc_t vloc, const qcMesh::MeshParams& mp)
 
 rsmat_t PP_Local::CalculateMatrix(const robs_t* bs, const Spin&) const
 {
-    // Ask the orbital basis to make a mesh-integrator, then assemble <i|V_loc|j> on it.  The basis owns the
-    // mesh (Becke grid for a molecule); the term owns only the model.  A plane-wave basis would answer this
-    // cast in G-space -- same term.
-    auto src=dynamic_cast<const BasisSet::MeshIntegratorSource<double>*>(bs);
-    assert(src && "PP_Local requires a mesh-integrating (MeshIntegratorSource) orbital basis");
-    std::unique_ptr<const BasisSet::Mesh_Integrated_IBS<double>>
-        mi(src->CreateMeshIntegrator(theStructure.get(), itsMeshParams));
-    return mi->Overlap(VlocField(*theStructure, *itsVloc));
+    qcMesh::Mesh mesh = theStructure->CreateIntegrationMesh(itsMeshParams);   // the geometry's own mesh
+    return qcMesh::WeightedOverlap(mesh, BFView(*bs), VlocField(*theStructure, *itsVloc));
 }
 
 void PP_Local::GetEnergy(EnergyBreakdown& te, const rDM_CD* cd) const

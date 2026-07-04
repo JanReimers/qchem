@@ -38,12 +38,12 @@ public:
     virtual bool   isFinite         () const {return true;}
 
     //! \brief The real-space integration mesh natural to this geometry, at resolution \a mp.  The mesh TYPE
-    //! follows the STRUCTURE, not the basis: a finite molecule/atom yields the atom-centred Becke grid (the
-    //! default here; for a single atom that is just its radial x angular grid), a periodic lattice OVERRIDES
-    //! with a uniform / unit-cell-Becke grid.  The field-operator path (BasisSet::Mesh_Integrated_IBS) asks
-    //! the structure for this, so a Gaussian/numeric orbital basis integrates on the right grid for its
-    //! geometry without knowing the mesh type.  (Plane waves own their G-grid intrinsically and do not use it.)
-    virtual qcMesh::Mesh CreateIntegrationMesh(const qcMesh::MeshParams&) const;
+    //! is the STRUCTURE's responsibility, not the basis's: an Atom builds its single-centre (radial x angular)
+    //! grid, a Molecule the multi-centre Becke grid, a periodic lattice a uniform / unit-cell-Becke grid.
+    //! Pure virtual -- each geometry owns its most efficient mesh (no central dispatch).  A real-space
+    //! orbital basis integrates a field on this via qcMesh::WeightedOverlap; plane waves own their G-grid and
+    //! do not use it.
+    virtual qcMesh::Mesh CreateIntegrationMesh(const qcMesh::MeshParams&) const=0;
 
     virtual size_t GetAtomIndex(const rvec3_t&, double tol=0.0) const;
 
@@ -73,6 +73,9 @@ public:
 
     virtual size_t GetNumAtoms      () const {return 1;}
 
+    //! A single atom's integration mesh: the atom-centred radial x angular grid (no Becke partitioning).
+    virtual qcMesh::Mesh CreateIntegrationMesh(const qcMesh::MeshParams&) const override;
+
     virtual std::string   ID     () const;
     virtual std::ostream& Write  (std::ostream&) const;
 
@@ -98,6 +101,9 @@ public:
     virtual ~Molecule();
     virtual void   Insert     (Atom* a);
     virtual size_t GetNumAtoms() const;
+
+    //! A molecule's integration mesh: the multi-centre Becke-partitioned grid.
+    virtual qcMesh::Mesh CreateIntegrationMesh(const qcMesh::MeshParams&) const override;
 
     virtual std::ostream& Write(std::ostream&) const;
 

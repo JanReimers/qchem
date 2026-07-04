@@ -3,12 +3,21 @@ module;
 #include <cassert>
 #include <iostream>
 #include <vector>
+#include <stdexcept>
 
 module qchem.UnitCell;
 import qchem.Math;
 import qchem.Structure;   // Atom (AddAtom inserts atoms given in fractional coordinates)
 
 namespace qchem {
+
+// A periodic cell's real-space integration mesh (uniform / unit-cell-Becke) is future work; fail loudly
+// rather than inherit Molecule's finite Becke grid (wrong for a periodic cell).  Plane-wave DFT never asks.
+qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams&) const
+{
+    throw std::runtime_error("UnitCell::CreateIntegrationMesh: a periodic real-space integration mesh "
+                             "(uniform / unit-cell-Becke) is not yet implemented");
+}
 
 //  Build the cell matrix A (columns = lattice vectors a₁,a₂,a₃) from the cell
 //  lengths a,b,c and angles α,β,γ (radians), in the standard orientation

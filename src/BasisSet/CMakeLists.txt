@@ -7,7 +7,6 @@ target_sources(qcBasisSet PRIVATE
   Imp/Orbital_DFT_IBS.C
   Imp/Orbital_DHF_IBS.C
   Imp/Fit_IBS.C
-  Imp/Mesh_Integrated_IBS.C
   Imp/SymmetryAdapted_IBS.C
   Internal/Imp/Orbital_DHF_IBS.C
   Internal/Imp/DB_Cache.C
@@ -31,7 +30,6 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   Orbital_DFT_IBS.C
   Orbital_DHF_IBS.C
   Fit_IBS.C
-  Mesh_Integrated_IBS.C
   SymmetryAdapted_IBS.C
   Internal/BasisSetImp.C
   Internal/IrrepBasisSetImp.C

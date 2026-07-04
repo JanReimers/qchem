@@ -4,17 +4,8 @@ module;
 #include <memory>
 
 module qchem.Structure;
-import qchem.Structure.MolecularMesh;   // MakeMolecularMesh (the Becke default for finite geometries)
 
 namespace qchem {
-
-// Default integration mesh: the atom-centred Becke grid, correct for any finite (atomic/molecular) geometry
-// -- for a single atom it collapses to that atom's radial x angular grid.  A periodic lattice overrides this
-// with its uniform / unit-cell-Becke grid; plane waves do not use it (they own their G-grid).
-qcMesh::Mesh Structure::CreateIntegrationMesh(const qcMesh::MeshParams& mp) const
-{
-    return MakeMolecularMesh(*this, mp);
-}
 
 std::string Structure::ID() const
 {

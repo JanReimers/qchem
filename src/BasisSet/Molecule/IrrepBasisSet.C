@@ -21,8 +21,6 @@ import qchem.BasisSet.Orbital_1E_IBS;
 import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.BasisSet.Orbital_HF_IBS;
 import qchem.BasisSet.Fit_IBS;
-import qchem.BasisSet.Mesh_Integrated_IBS;   // MeshIntegratorSource + MakeMeshIntegrator (field-operator)
-import qchem.Mesh;                           // qcMesh::MeshParams
 import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.Molecule.Evaluators;      // concepts + generic 1E matrix builders
 export import qchem.Symmetry.Molecule.OperationRep;      // Symmetry::Molecule::AoShell (the molecule-specific 1E addition)
@@ -89,17 +87,7 @@ protected:
 template <class E> requires (Evaluators::isDFT_Evaluator<E> || Evaluators::isM_DFT_Evaluator<E>)
 class Orbital_DFT_IBS
     : public virtual ::qchem::BasisSet::Orbital_DFT_IBS<double>
-    , public virtual ::qchem::BasisSet::MeshIntegratorSource<double>   // field-operator factory (CreateMeshIntegrator)
 {
-public:
-    // Field-operator factory (the analog of CreateVxcFitBasisSet): a mesh-free Gaussian orbital basis builds
-    // a fresh Becke integrator over ITSELF (the IBS IS-A VectorFunction<double>).  The static, smooth local
-    // pseudopotential rides this to get <i|V_loc|j> as a raw quadrature -- no auxiliary-basis fit needed.
-    virtual ::qchem::BasisSet::Mesh_Integrated_IBS<double>*
-    CreateMeshIntegrator(const Structure* cl, const qcMesh::MeshParams& mp) const override
-    {
-        return ::qchem::BasisSet::MakeMeshIntegrator(*this, cl, mp);
-    }
 protected:
     virtual ERI3<double> MakeOverlap3C  (const FIT_SF_ABS& c) const
     {
