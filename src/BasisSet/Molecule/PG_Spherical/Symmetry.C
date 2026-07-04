@@ -8,7 +8,7 @@
 module;
 #include <vector>
 export module qchem.BasisSet.Molecule.PG_Spherical.Symmetry;
-export import qchem.Symmetry.SALC;        // AoShell, BuildSALCs (transitively)
+export import qchem.Symmetry.Molecule.SALC;        // AoShell, BuildSALCs (transitively)
 import qchem.BasisSet.Molecule.Evaluators.PG_Spherical_MnD;   // SphData
 
 export namespace qchem::BasisSet::Molecule::PG_Spherical
@@ -20,6 +20,6 @@ using Evaluators::PG_Spherical_MnD::SphData;
 //! expansion (in the basis's own \f$m\f$-ordering) with per-component normalization, so \c BuildOperationRep
 //! produces the correct spherical operation rep.  (Point set reuses \c PG_Cart::StructureToSymPoints --
 //! basis-independent.)
-std::vector<Symmetry::AoShell> ExtractAoShells(const SphData&);
+std::vector<Symmetry::Molecule::AoShell> ExtractAoShells(const SphData&);
 
 } //namespace

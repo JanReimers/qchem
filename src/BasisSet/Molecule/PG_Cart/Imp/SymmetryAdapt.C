@@ -19,7 +19,7 @@ SymmetryAdapt(std::shared_ptr<const ::qchem::BasisSet::tBasisSet<double>> rawBas
     // cast-back.  No client dynamic_cast, no PGData/SphData knowledge, no per-delivery branch.  A delivery
     // that can't honour a correct AO-shell layout (e.g. libcint-spherical, S3b) throws from GetAoShells.
     const ::qchem::BasisSet::Real_OIBS*  rawIBS = nullptr;
-    std::vector<Symmetry::AoShell>       shells;
+    std::vector<Symmetry::Molecule::AoShell>       shells;
     for (auto src : rawBasis->Iterate<const Molecule::Orbital_1E_IBS>())
         { rawIBS = src; shells = src->GetAoShells(); break; }   // src IS-A Real_OIBS: plain upcast
 
@@ -28,8 +28,8 @@ SymmetryAdapt(std::shared_ptr<const ::qchem::BasisSet::tBasisSet<double>> rawBas
                                  "(no molecular orbital 1E IBS in the basis).");
 
     auto pts    = StructureToSymPoints(st);
-    auto grp    = Symmetry::BuildAbelianGroup(pts, tol);
-    auto salc   = Symmetry::BuildSALCs(shells, grp, Symmetry::Centroid(pts), tol);
+    auto grp    = Symmetry::Molecule::BuildAbelianGroup(pts, tol);
+    auto salc   = Symmetry::Molecule::BuildSALCs(shells, grp, Symmetry::Molecule::Centroid(pts), tol);
 
     auto* sab = new ::qchem::BasisSet::Molecule::SymmetryAdaptedBasisSet(rawIBS, salc);
     sab->KeepAlive(rawBasis);                    // self-contained: holds the raw basis alive

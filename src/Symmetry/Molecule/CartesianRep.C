@@ -10,10 +10,10 @@ module;
 #include <vector>
 #include <array>
 #include <utility>
-export module qchem.Symmetry.CartesianRep;
-export import qchem.Symmetry.ShellRep;   // ShellRep (the abstraction this implements), rmat_t / Matrix3D
+export module qchem.Symmetry.Molecule.CartesianRep;
+export import qchem.Symmetry.Molecule.ShellRep;   // ShellRep (the abstraction this implements), rmat_t / Matrix3D
 
-export namespace qchem::Symmetry
+export namespace qchem::Symmetry::Molecule
 {
 
 using IVec3 = std::array<int,3>;   //!< Cartesian monomial exponents \f$(n_x,n_y,n_z)\f$

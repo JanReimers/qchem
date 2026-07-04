@@ -7,11 +7,12 @@
 #include <vector>
 #include <array>
 #include <utility>
-import qchem.Symmetry.SphericalRep;
-import qchem.Symmetry.PointGroup;   // SymOp -> operation matrices
+import qchem.Symmetry.Molecule.SphericalRep;
+import qchem.Symmetry.Molecule.PointGroup;   // SymOp -> operation matrices
 import qchem.Blaze;                  // rmat_t operator* in this (non-module) TU
 using namespace qchem;
 using namespace qchem::Symmetry;
+using namespace qchem::Symmetry::Molecule;
 
 // p harmonics ordered (x,y,z): each IS a Cartesian monomial, so the rep must equal R.
 static HarmonicC2S Pxyz()

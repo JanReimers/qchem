@@ -13,7 +13,7 @@ export import qchem.Types;
 export namespace qchem::Symmetry
 {
 //! \brief Abstract SPATIAL symmetry label of an orbital/irrep -- the base of the quantum-number hierarchy
-//! (spin is added on top by \c Irrep).  Pure quantum-number identity: the concretes (\c MolecularIrrep for
+//! (spin is added on top by \c Irrep).  Pure quantum-number identity: the concretes (\c Molecule::Irrep for
 //! point-group irreps, \c Yl / \c Ylm and \c Ωκ / \c Ωκmj for atomic/Dirac shells, \c BlochQN for crystal
 //! k-points, \c UnitQN for no symmetry) carry only their labelling data.  The class does no physics -- it
 //! provides an ORDERING key (\c SequenceIndex, for sorting/caching irreps) plus block metadata (degeneracy,

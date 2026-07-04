@@ -6,10 +6,10 @@
 //! whole-basis rep-builder (\c BuildOperationRep) depends only on THIS interface, so it neither branches on
 //! angular kind nor imports the concretes.
 module;
-export module qchem.Symmetry.ShellRep;
+export module qchem.Symmetry.Molecule.ShellRep;
 export import qchem.Types;       // rmat_t, rmat3d_t (the fixed 3x3 operation matrix)
 
-export namespace qchem::Symmetry
+export namespace qchem::Symmetry::Molecule
 {
 
 //! \brief One shell's operation rep.  \c Rep(R) is the \f$n_c\times n_c\f$ matrix \f$D(b,a)\f$ with

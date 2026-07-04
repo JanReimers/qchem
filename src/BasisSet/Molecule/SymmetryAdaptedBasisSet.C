@@ -10,7 +10,7 @@ export import qchem.BasisSet;                         // tBasisSet<double>, Orbi
 export import qchem.Structure;                          // Structure (for the factory hook)
 import qchem.BasisSet.Internal.BasisSetImp;           // BasisSetImp (iteration/Insert)
 import qchem.BasisSet.SymmetryAdapted_IBS;            // the per-irrep decorator
-import qchem.Symmetry.SALC;                           // SALCs (the transform O + labels)
+import qchem.Symmetry.Molecule.SALC;                           // SALCs (the transform O + labels)
 
 export namespace qchem::BasisSet::Molecule
 {
@@ -25,7 +25,7 @@ class SymmetryAdaptedBasisSet
 public:
     //! \param raw the whole-molecule AO basis -- REFERENCED by the per-irrep decorators (not owned here), so
     //! it must outlive this object.  \param salc the SALC transform \f$O\f$ + irrep labels from \c BuildSALCs.
-    SymmetryAdaptedBasisSet(const ::qchem::BasisSet::Orbital_1E_IBS<double>* raw, const Symmetry::SALCs& salc);
+    SymmetryAdaptedBasisSet(const ::qchem::BasisSet::Orbital_1E_IBS<double>* raw, const Symmetry::Molecule::SALCs& salc);
 
     //! Optionally hold the raw basis alive (used by \c SymmetryAdapt so the returned object is self-contained
     //! and the caller need not manage the raw basis lifetime separately).

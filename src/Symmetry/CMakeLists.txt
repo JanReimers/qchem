@@ -1,42 +1,49 @@
-add_library(qcSymmetry) 
-target_sources(qcSymmetry PRIVATE 
-    Atom/Imp/Spherical.C
-    Imp/Irrep.C
-    Imp/Orbital_QNs.C  
+add_library(qcSymmetry)
+target_sources(qcSymmetry PRIVATE
+    # --- root: shared sym_t spine ---
     Imp/Symmetry.C
+    Imp/Irrep.C
+    Imp/Orbital_QNs.C
     Imp/Factory.C
-    Imp/PointGroup.C
-    Imp/CartesianRep.C
-    Imp/SphericalRep.C
-    Imp/OperationRep.C
-    Imp/CharacterTable.C
-    Imp/AbelianGroup.C
-    Imp/SALC.C
-    Imp/MolecularIrrep.C
     Imp/Unit.C
+    # --- Atom/ ---
+    Atom/Imp/Spherical.C
     Atom/Internal/Imp/SphericalQNs.C   # merged: was Yl.C + Ylm.C + Okmj.C (all impl units of one module)
+    # --- Molecule/ ---
+    Molecule/Imp/Irrep.C
+    Molecule/Imp/PointGroup.C
+    Molecule/Imp/CartesianRep.C
+    Molecule/Imp/SphericalRep.C
+    Molecule/Imp/OperationRep.C
+    Molecule/Imp/CharacterTable.C
+    Molecule/Imp/AbelianGroup.C
+    Molecule/Imp/SALC.C
+    # --- Lattice_3D/ ---
     Lattice_3D/Imp/BlochQN.C
     )
-target_sources(qcSymmetry PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
-    Spin.C 
-    Symmetry.C 
-    Irrep.C 
+target_sources(qcSymmetry PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
+    # --- root: shared sym_t spine ---
+    Spin.C
+    Symmetry.C
+    Irrep.C
     Orbital_QNs.C
-    Atom/Spherical.C
     Factory.C
-    PointGroup.C
-    ShellRep.C
-    CartesianRep.C
-    SphericalRep.C
-    OperationRep.C
-    CharacterTable.C
-    AbelianGroup.C
-    SALC.C
-    MolecularIrrep.C
-    Atom/Internal/SphericalQNs.C
-    Lattice_3D/BlochQN.C
     Unit.C
-
+    # --- Atom/ ---
+    Atom/Spherical.C
+    Atom/Internal/SphericalQNs.C
+    # --- Molecule/ ---
+    Molecule/Irrep.C
+    Molecule/PointGroup.C
+    Molecule/ShellRep.C
+    Molecule/CartesianRep.C
+    Molecule/SphericalRep.C
+    Molecule/OperationRep.C
+    Molecule/CharacterTable.C
+    Molecule/AbelianGroup.C
+    Molecule/SALC.C
+    # --- Lattice_3D/ ---
+    Lattice_3D/BlochQN.C
     )
 
 target_compile_options(qcSymmetry PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})

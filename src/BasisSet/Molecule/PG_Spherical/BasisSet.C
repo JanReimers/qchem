@@ -69,7 +69,7 @@ public:
     virtual FIT_SF_ABS* CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams&) const;
 
     //! This basis's AO shells in real-solid-harmonic form (delegates to ExtractAoShells on its own SphData).
-    virtual std::vector<Symmetry::AoShell> GetAoShells() const override;   // Molecule::Orbital_1E_IBS
+    virtual std::vector<Symmetry::Molecule::AoShell> GetAoShells() const override;   // Molecule::Orbital_1E_IBS
 };
 // The spherical fit (auxiliary) basis: same IBS tree, exposing the Coulomb-fit metric + charges.  E prefix
 // to avoid the clash with the interface class Fit_IBS (as in PG_Cart).

@@ -156,7 +156,7 @@ Orbital_IBS::Orbital_IBS(const rvec_t& es, size_t L, const Structure* cl, bool s
 // Orbital_1E_IBS::GetAoShells: libcint-Cartesian shares PG_Cart's Cartesian PGData layout, so it reuses that extractor.
 // Spherical libcint carries libcint's own real-harmonic order/norm (S3b, not convention-matched) yet its
 // PGData base still holds the Cartesian layout -- reading it as Cartesian is the silent trap, so throw.
-std::vector<Symmetry::AoShell> Orbital_IBS::GetAoShells() const
+std::vector<Symmetry::Molecule::AoShell> Orbital_IBS::GetAoShells() const
 {
     if (IsSpherical())
         throw std::runtime_error("PG_LibCint::GetAoShells: libcint-spherical SALC is not wired (S3b) -- its "

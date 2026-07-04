@@ -9,10 +9,10 @@
 module;
 #include <vector>
 #include <memory>
-export module qchem.Symmetry.OperationRep;
-export import qchem.Symmetry.ShellRep;   // ShellRep (the angular rep abstraction), rmat_t / rmat3d_t / rvec_t
+export module qchem.Symmetry.Molecule.OperationRep;
+export import qchem.Symmetry.Molecule.ShellRep;   // ShellRep (the angular rep abstraction), rmat_t / rmat3d_t / rvec_t
 
-export namespace qchem::Symmetry
+export namespace qchem::Symmetry::Molecule
 {
 
 //---------------------------------------------------------------------------------------

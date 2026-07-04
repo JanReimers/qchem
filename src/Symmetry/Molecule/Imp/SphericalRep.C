@@ -6,9 +6,9 @@ module;
 #include <map>
 #include <cmath>
 #include <cassert>
-module qchem.Symmetry.SphericalRep;
+module qchem.Symmetry.Molecule.SphericalRep;
 
-namespace qchem::Symmetry
+namespace qchem::Symmetry::Molecule
 {
 
 // Tiny dense helpers (shells are <= 7 wide); hand-rolled so this stays independent of which free-function

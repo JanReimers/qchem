@@ -2,9 +2,9 @@
 module;
 #include <string>
 #include <vector>
-module qchem.Symmetry.CharacterTable;
+module qchem.Symmetry.Molecule.CharacterTable;
 
-namespace qchem::Symmetry
+namespace qchem::Symmetry::Molecule
 {
 
 CharacterTable AbelianCharacterTable(const std::string& s)

@@ -1,12 +1,12 @@
 //! \file
 //! \brief Bridge from the Cartesian-Gaussian molecular basis to the symmetry machinery: extract the
 //! \c AoShell layout (centres, monomials, normalization, shell types) the representation/SALC builders
-//! consume, plus the nuclear point set for point-group detection.  Feeds \c Symmetry::BuildAbelianGroup /
+//! consume, plus the nuclear point set for point-group detection.  Feeds \c Symmetry::Molecule::BuildAbelianGroup /
 //! \c BuildSALCs.
 module;
 #include <vector>
 export module qchem.BasisSet.Molecule.PG_Cart.Symmetry;
-export import qchem.Symmetry.SALC;        // AoShell, SymPoint, BuildSALCs (transitively)
+export import qchem.Symmetry.Molecule.SALC;        // AoShell, SymPoint, BuildSALCs (transitively)
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.PGData;
 import qchem.Structure;
 
@@ -18,9 +18,9 @@ using namespace ::qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD;  // Cartes
 //! carrying its centre, a \c CartesianShellRep over its monomials, per-component normalization, a
 //! centre-independent \c shellType (so symmetry-equivalent shells match), and its \c offset in the global
 //! AO ordering.
-std::vector<Symmetry::AoShell> ExtractAoShells(const PGData&);
+std::vector<Symmetry::Molecule::AoShell> ExtractAoShells(const PGData&);
 
 //! \brief The nuclear point set (species \f$=Z\f$, position) for point-group detection.
-std::vector<Symmetry::SymPoint> StructureToSymPoints(const Structure&);
+std::vector<Symmetry::Molecule::SymPoint> StructureToSymPoints(const Structure&);
 
 } //namespace

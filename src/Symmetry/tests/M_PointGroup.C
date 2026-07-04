@@ -1,12 +1,13 @@
 // File: UnitTests/M_PointGroup.C  Point-group symmetry primitives (stage 1a).
 #include <gtest/gtest.h>
 #include <vector>
-import qchem.Symmetry.PointGroup;
-import qchem.Symmetry.AbelianGroup;   // BuildAbelianGroup (stage 3a-ii)
+import qchem.Symmetry.Molecule.PointGroup;
+import qchem.Symmetry.Molecule.AbelianGroup;   // BuildAbelianGroup (stage 3a-ii)
 import qchem.Math;            // Pi, sin, cos, fabs (project-wide, for test geometry)
 using namespace qchem;
 
 using namespace qchem::Symmetry;
+using namespace qchem::Symmetry::Molecule;
 
 // Are the operations of g closed under multiplication (a genuine group)?
 static bool GroupIsClosed(const AbelianGroup& g)

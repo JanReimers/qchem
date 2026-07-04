@@ -4,7 +4,7 @@ module;
 #include <string>
 #include <iostream>
 module qchem.ElectronConfiguration.MolecularSym;
-import qchem.Symmetry.MolecularIrrep;
+import qchem.Symmetry.Molecule.Irrep;
 
 namespace qchem {
 
@@ -21,7 +21,7 @@ ElectronConfiguration::syms_t MolecularSym_EC::GetIrreps() const
 {
     syms_t ret;
     int i=0;
-    for (const auto& [label,n] : itsOcc) ret.insert(sym_t(new MolecularIrrep(label, i++)));
+    for (const auto& [label,n] : itsOcc) ret.insert(sym_t(new Symmetry::Molecule::Irrep(label, i++)));
     return ret;
 }
 

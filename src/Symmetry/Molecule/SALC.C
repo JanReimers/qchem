@@ -13,11 +13,11 @@
 module;
 #include <vector>
 #include <string>
-export module qchem.Symmetry.SALC;
-export import qchem.Symmetry.AbelianGroup;   // AbelianGroup (SymOp, CharacterTable)
-export import qchem.Symmetry.OperationRep;   // AoShell, BuildOperationRep, rmat_t (depends only on ShellRep)
+export module qchem.Symmetry.Molecule.SALC;
+export import qchem.Symmetry.Molecule.AbelianGroup;   // AbelianGroup (SymOp, CharacterTable)
+export import qchem.Symmetry.Molecule.OperationRep;   // AoShell, BuildOperationRep, rmat_t (depends only on ShellRep)
 
-export namespace qchem::Symmetry
+export namespace qchem::Symmetry::Molecule
 {
 
 //! The SALC transform and its irrep bookkeeping.

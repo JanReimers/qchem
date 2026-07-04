@@ -9,17 +9,17 @@ module qchem.BasisSet.Molecule.PG_Spherical.Symmetry;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;           // Cart::GaussianRF (TypeID/GetCenter)
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;         // Cart::Polarization (the monomial exps)
 import qchem.BasisSet.Molecule.Evaluators.PG_Spherical_MnD.SolidHarmonics;  // CartTerm
-import qchem.Symmetry.SphericalRep;   // HarmonicC2S, SphericalShellRep (the concrete ShellRep this basis produces)
+import qchem.Symmetry.Molecule.SphericalRep;   // HarmonicC2S, SphericalShellRep (the concrete ShellRep this basis produces)
 import qchem.Blaze;                   // blazem::VecBuilder (accumulate the per-shell norms into an rvec_t)
 
 namespace qchem::BasisSet::Molecule::PG_Spherical
 {
 namespace Cart = ::qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD;
 namespace Sph  = ::qchem::BasisSet::Molecule::Evaluators::PG_Spherical_MnD;
-using Symmetry::AoShell;
-using Symmetry::IVec3;
-using Symmetry::HarmonicC2S;
-using Symmetry::SphericalShellRep;
+using Symmetry::Molecule::AoShell;
+using Symmetry::Molecule::IVec3;
+using Symmetry::Molecule::HarmonicC2S;
+using Symmetry::Molecule::SphericalShellRep;
 
 // A center-independent id for a radial shell (L + exponents + coefficients): symmetry-equivalent shells on
 // different atoms share it, so the center permutation can match them.  (Same logic as PG_Cart's helper; the

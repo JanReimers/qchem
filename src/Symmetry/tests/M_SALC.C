@@ -4,15 +4,16 @@
 #include <string>
 #include <map>
 #include <memory>
-import qchem.Symmetry.SALC;          // BuildSALCs, SALCs, AoShell, BuildOperationRep
-import qchem.Symmetry.CartesianRep;  // CartesianShellRep, IVec3 (to build the test shells)
-import qchem.Symmetry.AbelianGroup;  // BuildAbelianGroup
-import qchem.Symmetry.PointGroup;    // SymPoint
+import qchem.Symmetry.Molecule.SALC;          // BuildSALCs, SALCs, AoShell, BuildOperationRep
+import qchem.Symmetry.Molecule.CartesianRep;  // CartesianShellRep, IVec3 (to build the test shells)
+import qchem.Symmetry.Molecule.AbelianGroup;  // BuildAbelianGroup
+import qchem.Symmetry.Molecule.PointGroup;    // SymPoint
 import qchem.Math;
 import qchem.Blaze;
 using namespace qchem;
 
 using namespace qchem::Symmetry;
+using namespace qchem::Symmetry::Molecule;
 
 // Water, C2 along z, molecule in the yz-plane.  AO basis: O s [0], O p [1,2,3], H1 s [4],
 // H2 s [5].  Centers shared between the nuclear point set and the basis shells.

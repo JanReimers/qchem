@@ -9,9 +9,9 @@
 module;
 #include <string>
 #include <vector>
-export module qchem.Symmetry.CharacterTable;
+export module qchem.Symmetry.Molecule.CharacterTable;
 
-export namespace qchem::Symmetry
+export namespace qchem::Symmetry::Molecule
 {
 
 struct CharacterTable

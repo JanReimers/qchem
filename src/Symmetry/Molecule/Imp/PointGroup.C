@@ -5,11 +5,11 @@ module;
 #include <utility>
 #include <map>
 #include <algorithm>
-module qchem.Symmetry.PointGroup;
+module qchem.Symmetry.Molecule.PointGroup;
 import qchem.Math;          // Pi, sqrt, fabs, sin, cos, Square (project-wide constants/math)
 import qchem.Matrix3D;      // Matrix3D, Eigen3 + SymEigen3 (real symmetric 3x3 eigensolve)
 
-namespace qchem::Symmetry
+namespace qchem::Symmetry::Molecule
 {
 
 static rvec3_t Normalize(const rvec3_t& a)

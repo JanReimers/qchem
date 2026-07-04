@@ -3,10 +3,10 @@ module;
 #include <vector>
 #include <string>
 #include <cassert>
-module qchem.Symmetry.AbelianGroup;
+module qchem.Symmetry.Molecule.AbelianGroup;
 import qchem.Math;          // fabs, sqrt
 
-namespace qchem::Symmetry
+namespace qchem::Symmetry::Molecule
 {
 
 static rvec3_t Unit(const rvec3_t& a)

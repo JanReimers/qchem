@@ -13,10 +13,10 @@ module;
 #include <vector>
 #include <array>
 #include <utility>
-export module qchem.Symmetry.SphericalRep;
-export import qchem.Symmetry.CartesianRep;   // IVec3, CartesianShellRep (reused for the math), ShellRep
+export module qchem.Symmetry.Molecule.SphericalRep;
+export import qchem.Symmetry.Molecule.CartesianRep;   // IVec3, CartesianShellRep (reused for the math), ShellRep
 
-export namespace qchem::Symmetry
+export namespace qchem::Symmetry::Molecule
 {
 
 //! One harmonic's Cartesian expansion: a list of (monomial exponents, coefficient) terms.  c2s[m] is the

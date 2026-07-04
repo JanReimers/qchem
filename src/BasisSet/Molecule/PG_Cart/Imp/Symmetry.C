@@ -8,16 +8,16 @@ module;
 module qchem.BasisSet.Molecule.PG_Cart.Symmetry;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;
-import qchem.Symmetry.CartesianRep;   // CartesianShellRep (the concrete ShellRep this basis produces)
+import qchem.Symmetry.Molecule.CartesianRep;   // CartesianShellRep (the concrete ShellRep this basis produces)
 import qchem.Blaze;                   // blazem::VecBuilder (accumulate the per-shell norms into an rvec_t)
 
 namespace qchem::BasisSet::Molecule::PG_Cart
 {
 using namespace ::qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD;  // Cartesian glue moved out to PG_Cart_MnD
-using Symmetry::AoShell;
-using Symmetry::SymPoint;
-using Symmetry::IVec3;
-using Symmetry::CartesianShellRep;
+using Symmetry::Molecule::AoShell;
+using Symmetry::Molecule::SymPoint;
+using Symmetry::Molecule::IVec3;
+using Symmetry::Molecule::CartesianShellRep;
 
 // A center-independent id for a radial shell (L + exponents + coefficients): symmetry-
 // equivalent shells on different atoms share it, so the center permutation can match them.

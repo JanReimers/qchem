@@ -85,7 +85,7 @@ public:
     //! AO shells for SALC.  Cartesian mode delegates to the Cartesian ExtractAoShells (libcint's Cartesian
     //! PGData layout matches PG_Cart's); spherical mode throws -- libcint's own real-harmonic order/norm is
     //! not yet convention-matched (S3b), so it must NOT be silently read as Cartesian.
-    virtual std::vector<Symmetry::AoShell> GetAoShells() const override;   // Molecule::Orbital_1E_IBS
+    virtual std::vector<Symmetry::Molecule::AoShell> GetAoShells() const override;   // Molecule::Orbital_1E_IBS
 };
 
 class BasisSet

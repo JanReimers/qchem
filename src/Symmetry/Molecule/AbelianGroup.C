@@ -7,11 +7,11 @@
 // the SALC projector consumes: chi(g) paired with the operation rep M(g).
 module;
 #include <vector>
-export module qchem.Symmetry.AbelianGroup;
-export import qchem.Symmetry.PointGroup;       // SymPoint, SymOp, DetectPointGroup, finders
-export import qchem.Symmetry.CharacterTable;   // CharacterTable
+export module qchem.Symmetry.Molecule.AbelianGroup;
+export import qchem.Symmetry.Molecule.PointGroup;       // SymPoint, SymOp, DetectPointGroup, finders
+export import qchem.Symmetry.Molecule.CharacterTable;   // CharacterTable
 
-export namespace qchem::Symmetry
+export namespace qchem::Symmetry::Molecule
 {
 
 struct AbelianGroup

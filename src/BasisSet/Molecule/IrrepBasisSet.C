@@ -23,7 +23,7 @@ import qchem.BasisSet.Orbital_HF_IBS;
 import qchem.BasisSet.Fit_IBS;
 import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.Molecule.Evaluators;      // concepts + generic 1E matrix builders
-export import qchem.Symmetry.OperationRep;      // Symmetry::AoShell (the molecule-specific 1E addition)
+export import qchem.Symmetry.Molecule.OperationRep;      // Symmetry::Molecule::AoShell (the molecule-specific 1E addition)
 import qchem.Structure;
 import qchem.Types;
 import qchem.Blaze;
@@ -45,7 +45,7 @@ public:
     //! \brief This basis's AO shells for point-group SALC adaptation (Cartesian monomials or real solid
     //! harmonics, in the basis's own convention).  Deliveries that cannot honour a correct layout THROW
     //! (e.g. libcint-spherical, whose convention is unmatched -- S3b).
-    virtual std::vector<Symmetry::AoShell> GetAoShells() const = 0;
+    virtual std::vector<Symmetry::Molecule::AoShell> GetAoShells() const = 0;
 };
 
 // --- 1E: Overlap / Kinetic(<p^2>) / Nuclear -------------------------------------------------------

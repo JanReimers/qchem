@@ -4,10 +4,10 @@ module;
 #include <string>
 #include <algorithm>
 #include <cassert>
-module qchem.Symmetry.SALC;
+module qchem.Symmetry.Molecule.SALC;
 import qchem.Blaze;
 
-namespace qchem::Symmetry
+namespace qchem::Symmetry::Molecule
 {
 
 SALCs BuildSALCs(const std::vector<AoShell>& shells, const AbelianGroup& g,

@@ -9,7 +9,7 @@ import qchem.BasisSet.Molecule.PG_Cart;           // Orbital_IBS
 import qchem.BasisSet.Orbital_1E_IBS;                         // cached Overlap() accessor (interface)
 import qchem.BasisSet.SymmetryAdapted_IBS;                    // SymmetryAdapted_IBS (1-e decorator)
 import qchem.BasisSet.Molecule.SymmetryAdaptedBasisSet;       // SymmetryAdaptedBasisSet (per-irrep)
-import qchem.Symmetry.SALC;                                   // BuildAbelianGroup, BuildSALCs, BuildOperationRep
+import qchem.Symmetry.Molecule.SALC;                                   // BuildAbelianGroup, BuildSALCs, BuildOperationRep
 import qchem.Structure;                                         // Molecule, Atom
 import qchem.Types;
 import qchem.Blaze;
@@ -18,6 +18,7 @@ using namespace qchem;
 
 using namespace qchem::BasisSet::Molecule::PG_Cart;
 using namespace qchem::Symmetry;
+using namespace qchem::Symmetry::Molecule;
 using SymmetryAdapted_IBS      = ::qchem::BasisSet::SymmetryAdapted_IBS;          // ::BasisSet (the class clashes)
 using SymmetryAdaptedBasisSet  = ::qchem::BasisSet::Molecule::SymmetryAdaptedBasisSet;
 

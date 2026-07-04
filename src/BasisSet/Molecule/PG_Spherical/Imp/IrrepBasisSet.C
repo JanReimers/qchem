@@ -156,7 +156,7 @@ FIT_SF_ABS* Orbital_IBS::CreateVxcFitBasisSet(const Structure* cl, const qcMesh:
     return f;
 }
 // Orbital_1E_IBS::GetAoShells: this orbital IBS IS-A SphData, so it hands its own spherical data to the extractor.
-std::vector<Symmetry::AoShell> Orbital_IBS::GetAoShells() const {return ExtractAoShells(*this);}
+std::vector<Symmetry::Molecule::AoShell> Orbital_IBS::GetAoShells() const {return ExtractAoShells(*this);}
 
 //----------------------------------------------------------------
 //

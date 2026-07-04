@@ -3,12 +3,13 @@
 #include <vector>
 #include <array>
 #include <memory>
-import qchem.Symmetry.SphericalRep;   // CartesianShellRep + SphericalShellRep + IVec3 + HarmonicC2S
-import qchem.Symmetry.OperationRep;   // AoShell + BuildOperationRep
-import qchem.Symmetry.PointGroup;   // SymOp, to obtain operation matrices
+import qchem.Symmetry.Molecule.SphericalRep;   // CartesianShellRep + SphericalShellRep + IVec3 + HarmonicC2S
+import qchem.Symmetry.Molecule.OperationRep;   // AoShell + BuildOperationRep
+import qchem.Symmetry.Molecule.PointGroup;   // SymOp, to obtain operation matrices
 import qchem.Blaze; // matrix operator* in this (non-module) TU
 using namespace qchem;
 using namespace qchem::Symmetry;
+using namespace qchem::Symmetry::Molecule;
 
 static std::vector<IVec3> Pshell() { return {{1,0,0},{0,1,0},{0,0,1}}; }
 static std::vector<IVec3> Dshell() { return {{2,0,0},{0,2,0},{0,0,2},{1,1,0},{1,0,1},{0,1,1}}; }

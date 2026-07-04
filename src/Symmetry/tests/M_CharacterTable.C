@@ -2,10 +2,11 @@
 #include <gtest/gtest.h>
 #include <string>
 #include <vector>
-import qchem.Symmetry.CharacterTable;
+import qchem.Symmetry.Molecule.CharacterTable;
 using namespace qchem;
 
 using namespace qchem::Symmetry;
+using namespace qchem::Symmetry::Molecule;
 
 // Every abelian table is square (h irreps x h ops), its first irrep is totally symmetric,
 // and its rows are orthogonal with norm^2 = h (the great orthogonality theorem, 1-D irreps).

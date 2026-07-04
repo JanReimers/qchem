@@ -1,4 +1,4 @@
-// File: Symmetry/MolecularIrrep.C  A 1-D molecular point-group irrep (carries its Mulliken label).
+// File: Symmetry/Molecule/Irrep.C  A 1-D molecular point-group irrep (carries its Mulliken label).
 //
 // The Symmetry object a SymmetryAdapted_IBS carries: GetLabel() (= Write()) returns the
 // Mulliken symbol ("A1", "B2", "Ag", ...), which is what decorates the orbital eigenvalue /
@@ -7,16 +7,16 @@
 module;
 #include <string>
 #include <iosfwd>
-export module qchem.Symmetry.MolecularIrrep;
+export module qchem.Symmetry.Molecule.Irrep;
 export import qchem.Symmetry;
 
-namespace qchem {
+namespace qchem::Symmetry::Molecule {
 
-export class MolecularIrrep
-    : public virtual Symmetry::Symmetry
+export class Irrep
+    : public virtual qchem::Symmetry::Symmetry
 {
 public:
-    MolecularIrrep(const std::string& label, size_t index) : itsLabel(label), itsIndex(index) {}
+    Irrep(const std::string& label, size_t index) : itsLabel(label), itsIndex(index) {}
 
     virtual size_t SequenceIndex    () const {return itsIndex;}
     virtual size_t GetDegeneracy    () const {return 1;}      // abelian: 1-D irreps
@@ -28,4 +28,4 @@ private:
     size_t      itsIndex;
 };
 
-} // namespace qchem
+} // namespace qchem::Symmetry::Molecule

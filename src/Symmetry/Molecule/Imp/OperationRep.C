@@ -3,9 +3,9 @@ module;
 #include <vector>
 #include <algorithm>
 #include <cassert>
-module qchem.Symmetry.OperationRep;
+module qchem.Symmetry.Molecule.OperationRep;
 
-namespace qchem::Symmetry
+namespace qchem::Symmetry::Molecule
 {
 
 rmat_t BuildOperationRep(const std::vector<AoShell>& shells, const rmat3d_t& R,

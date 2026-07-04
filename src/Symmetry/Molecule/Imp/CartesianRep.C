@@ -3,9 +3,9 @@ module;
 #include <vector>
 #include <array>
 #include <map>
-module qchem.Symmetry.CartesianRep;
+module qchem.Symmetry.Molecule.CartesianRep;
 
-namespace qchem::Symmetry
+namespace qchem::Symmetry::Molecule
 {
 
 rmat_t CartesianShellRep::Rep(const rmat3d_t& R) const
