@@ -11,7 +11,7 @@ export namespace qchem::BasisSet
 
 template <class T> class Orbital_DFT_IBS
     : public virtual Orbital_1E_IBS<T>
-    , public virtual IrrepBasisSet_IDs //avoid using statements for RadialID,AngularID
+    , public virtual IrrepBasisSet_IDs   // Name / BasisSetID identity face
 {
 public:
     //! 3 centre overlap used for DFT \f$ \left\langle ab\left|1\right|c\right\rangle =\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right)f_{c}\left(\vec{r}\right) \f$.  The fit \a c is an overlap-metric (scalar-function) aux basis.

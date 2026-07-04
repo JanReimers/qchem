@@ -10,6 +10,7 @@ import qchem.BasisSet.Atom.Evaluators.Slater.IBS;
 import qchem.BasisSet.Atom.Evaluators.Gaussian.IBS; 
 import qchem.BasisSet.Atom.Evaluators.BSpline.IBS;
 import qchem.BasisSet.Atom.Evaluators;
+import qchem.BasisSet.Atom.IBS;          // Atom::RadialAngularID (the atom radial|angular identity face)
 import qchem.BasisSet.Orbital_HF_IBS;
 import qchem.BasisSet;
 
@@ -49,7 +50,6 @@ qcMesh::Mesh AtomMesh(const Structure& st, int nRadial, int mhl_m, double alpha,
 }
 } //anon
 
-using obs_t   =BasisSet::Orbital_1E_IBS<double>;
 using ohfbs_t =BasisSet::Orbital_HF_IBS<double>;
 using BasisSet::Real_BS;
 using BasisSet::Real_OIBS;
@@ -304,7 +304,7 @@ std::string angularIDs[]={"0 {}","1 {}","2 {}","3 {}"};
 TEST_F(BasisSet_SL,IDs)
 {
     size_t index=0;
-    for (auto ibs:bs->Iterate<obs_t>())
+    for (auto ibs:bs->Iterate<RadialAngularID>())
     {
         EXPECT_EQ(ibs->Name(),"SL");
         EXPECT_EQ(ibs->RadialID(),"SL N=3 {0.5 ... 2}");
@@ -420,7 +420,7 @@ TEST_F(BasisSet_SG,HF_ERIs)
 TEST_F(BasisSet_SG,IDs)
 {
     size_t index=0;
-    for (auto ibs:bs->Iterate<obs_t>())
+    for (auto ibs:bs->Iterate<RadialAngularID>())
     {
         EXPECT_EQ(ibs->Name(),"SG");
         EXPECT_EQ(ibs->RadialID(),"SG N=3 {0.5 ... 2}");
@@ -456,7 +456,7 @@ TEST_F(BasisSet_BS,Inv_r2 ) {TestInv_r2 (5e-3);}
 TEST_F(BasisSet_BS,IDs)
 {
     size_t index=0;
-    for (auto ibs:bs->Iterate<obs_t>())
+    for (auto ibs:bs->Iterate<RadialAngularID>())
     {
         // cout << "index=" << index << " ibs=" << *ibs << endl;
         EXPECT_EQ(ibs->Name(),"BSpline<6>");

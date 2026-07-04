@@ -93,10 +93,9 @@ protected:
     virtual ERI3<double> MakeRepulsion3C(const FIT_CD_ABS& c) const;
 public:
 
-    // RadialID/AngularID delegate to the raw basis unchanged; the per-irrep cache distinction
-    // lives in BasisSetID() (raw id + "[label]"), so each irrep's transformed blocks key separately.
-    virtual std::string RadialID()   const;
-    virtual std::string AngularID()  const;
+    // The per-irrep cache distinction lives in BasisSetID() (raw id + "[label]"), so each irrep's
+    // transformed blocks key separately.  (No RadialID/AngularID -- those are the atom identity face;
+    // a SALC basis is molecular, and keys on the raw basis's own BasisSetID.)
     virtual std::string BasisSetID() const;
     virtual std::string Name()       const;
 

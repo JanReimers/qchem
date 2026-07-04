@@ -8,7 +8,7 @@ export namespace qchem::BasisSet
 {
 
 template <class T> class Orbital_HF_IBS
-    : public virtual IrrepBasisSet_IDs //avoid using statements for RadialID,AngularID
+    : public virtual IrrepBasisSet_IDs   // Name / BasisSetID identity face
 {
 public:
     virtual ERI4       MakeDirect  (const Orbital_HF_IBS<T>& c) const=0; //Only called once for a given {radial,angular} ID pair.

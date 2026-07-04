@@ -44,7 +44,7 @@ class IrrepBasisSet
         virtual rvec_t     operator() (const rvec3_t&) const;
         virtual rvec3vec_t Gradient   (const rvec3_t&) const;
 
-        virtual std::string BasisSetID() const {return PGData::BasisSetID();} // geometry-aware cache key (RadialID/AngularID stay "")
+        virtual std::string BasisSetID() const {return PGData::BasisSetID();} // geometry-aware cache identity (molecular: no RadialID/AngularID)
         virtual std::string Name     () const;
         virtual std::ostream &Write(std::ostream &) const;
 

@@ -27,12 +27,27 @@ namespace Atom
 
     using namespace Evaluators;
     using EvaluatorsBase = Evaluators::Evaluator;
+
+//  Atom-only identity face.  An atom's cache identity splits into a RADIAL part (exponents / contraction /
+//  grid) and an ANGULAR part (the l,m channel); the radial part alone also keys the Slater Rk cache
+//  (Cache4), which is why atoms keep the two separable.  Centre is pinned at the nucleus, so radial|angular
+//  is a complete identity.  This lives in BasisSet/Atom because it is atom-specific: the structure-neutral
+//  BasisSet layer knows only the single BasisSetID (a neutral class that reaches for RadialID/AngularID has
+//  a design flaw -- it should compose from BasisSetID instead; cf. the RKB Orbital_RKB_IBS_Imp).
+class RadialAngularID : public virtual BasisSet::IrrepBasisSet_IDs
+{
+public:
+    virtual std::string  RadialID() const=0;
+    virtual std::string AngularID() const=0;
+    virtual std::string BasisSetID() const override {return RadialID()+"|"+AngularID();}
+};
+
 //
 //  Common IrrepBasisSet functionality for atom basis sets.  All the work is done by the evaluator
 //
 template <isOpr_Evaluator E> class IrrepBasisSetImp
     : public virtual BasisSet::IrrepBasisSet<double>
-    , public virtual IrrepBasisSet_IDs
+    , public virtual RadialAngularID   // atom identity: RadialID/AngularID compose BasisSetID
     , public BasisSet::IrrepBasisSetImp<double> //Pulls in Symmetry support
 {
 public:

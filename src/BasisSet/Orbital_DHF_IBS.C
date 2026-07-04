@@ -14,7 +14,7 @@ export namespace qchem::BasisSet
 //
 template <class T> class Orbital_RKB_IBS
     : public virtual Orbital_1E_IBS<T>
-    , public virtual IrrepBasisSet_IDs //avoid using statements for RadialID,AngularID
+    , public virtual IrrepBasisSet_IDs   // Name / BasisSetID identity face (neutral)
 {
 public:
     //! Rest mass \f$ \left\langle a\left|\left(\beta-\alpha\right)c^{2}\right|b\right\rangle =\left(\beta-\alpha\right)c^{2}\int d^{3}\vec{r}\:g_{a}\left(\vec{r}\right)g_{b}\left(\vec{r}\right) \f$
