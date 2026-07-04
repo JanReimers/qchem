@@ -42,11 +42,20 @@ which both PW and molecular already populate.
 Route PP assembly through the `Fit_ABS` network the way XC already does. Two neutral primitives are needed
 beside the existing fitter (each with a molecular Becke-mesh impl and a PW G-space impl):
 
-- **(a) scalar-field → operator matrix** `⟨χᵢ|V(r)|χⱼ⟩` (local PP). Molecular = `WeightedOverlap` on the
-  Becke mesh; PW = G-space assembly. Shape-identical to `FittedVxc::Overlap`. Design choice: V_loc is
-  **static + smooth**, so raw quadrature is *more* accurate than fit-onto-aux-basis (no fitting error, no
-  per-iteration efficiency argument) — which argues for a distinct field→operator primitive rather than
-  reusing the density/potential *fitter* verbatim.
+- **(a) scalar-field → operator matrix** `⟨χᵢ|V(r)|χⱼ⟩` (local PP). ✅ **DONE.** The neutral capability
+  already existed as `Band_DFT_IBS<T>::Overlap(f)` (PW realizes it in G-space); it was extracted into a
+  shared base **`Mesh_Integrated_IBS<T>`** (`Overlap(f)` + `Integral(f)`), and a factory capability
+  **`MeshIntegratorSource<T>::CreateMeshIntegrator(structure, mp)`** — the field-operator analog of
+  `CreateVxcFitBasisSet` — was added (honouring §3.1: the orbital basis is the FACTORY of its mesh
+  integrator, since a Gaussian orbital basis owns no mesh). Molecular + atom orbital IBS mixins realize it
+  by returning a Becke integrator over themselves (`MakeBeckeMeshIntegrator(*this, …)`, the IBS IS-A
+  `VectorFunction`). `PP_Local` now obtains the integrator via the factory and calls `Overlap(V_loc)` — the
+  mesh left the term (bit-identical: same Becke mesh, same `WeightedOverlap`, just relocated behind the
+  interface). V_loc is **static + smooth**, so this is raw quadrature (no fit), correctly distinct from the
+  density/potential *fitter*. RESIDUAL: the SALC wrapper (`SymmetryAdapted_IBS`) does not yet delegate
+  `CreateMeshIntegrator`, so PP + point-group symmetry would fail the cast — fine today (the facade doesn't
+  offer PP+symmetry), add the one-line delegation when it does. PW could also expose `CreateMeshIntegrator`
+  returning itself for full uniformity (it already IS-A `Mesh_Integrated_IBS`); deferred to the PW-PP unify.
 - **(b) scalar-field → projection vector** `⟨χᵢ|β_p Yₗₘ⟩` (nonlocal KB). Molecular = `qcMesh::Overlap`;
   PW = G-space projection.
 
