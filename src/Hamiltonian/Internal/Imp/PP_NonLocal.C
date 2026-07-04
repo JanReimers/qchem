@@ -1,4 +1,9 @@
 // File: Hamiltonian/Internal/Imp/PP_NonLocal.C  Separable (Kleinman-Bylander) non-local pseudopotential term.
+//
+// Like PP_Local, the term owns only the MODEL (the KB projectors) and asks the STRUCTURE for its integration
+// mesh (CreateIntegrationMesh -- the polymorphic geometry capability), then builds each projector's overlap
+// vector b_p = <chi_i | beta_p(|r-R|) Y_lm> with the generic qcMesh::Overlap and accumulates the rank-1
+// D|b><b|.  Geometry-neutral: no basis-specific dispatch, mesh type follows the geometry.
 module;
 #include <cassert>
 #include <cmath>
@@ -6,7 +11,6 @@ module;
 
 module qchem.Hamiltonian.Internal.Terms;
 import qchem.Energy;
-import qchem.Structure.MolecularMesh;   // MakeMolecularMesh
 import qchem.Mesh.Quadrature;           // qcMesh::Overlap(mesh, BasisField, ScalarField) -> projection vector
 import qchem.VectorFunction;            // the orbital basis IS-A VectorFunction
 import qchem.Blaze;                     // rmat_t, rvec_t, trans, outer product
@@ -103,7 +107,7 @@ PP_NonLocal::PP_NonLocal(const st_t& st, sep_t sep, const qcMesh::MeshParams& mp
 
 rsmat_t PP_NonLocal::CalculateMatrix(const robs_t* bs, const Spin&) const
 {
-    qcMesh::Mesh mesh = MakeMolecularMesh(*theStructure, itsMeshParams);   // atom-centred Becke mesh
+    qcMesh::Mesh mesh = theStructure->CreateIntegrationMesh(itsMeshParams);   // the geometry's own mesh
     BFView bf(*bs);
     size_t n=bf.size();
     rmat_t V(n,n,0.0);
