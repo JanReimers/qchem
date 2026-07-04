@@ -123,10 +123,5 @@ using rStatic_HT_Imp          = tStatic_HT_Imp<double>;          using cStatic_H
 using rDynamic_HT_Imp         = tDynamic_HT_Imp<double>;         using cDynamic_HT_Imp         = tDynamic_HT_Imp<dcmplx>;
 using rDynamic_HT_Imp_NoCache = tDynamic_HT_Imp_NoCache<double>; using cDynamic_HT_Imp_NoCache = tDynamic_HT_Imp_NoCache<dcmplx>;
 using rFittablePotential      = tFittablePotential<double>;      using cFittablePotential      = tFittablePotential<dcmplx>;
-using HT_Common              = rHT_Common;
-using Static_HT_Imp          = rStatic_HT_Imp;
-using Dynamic_HT_Imp         = rDynamic_HT_Imp;
-using Dynamic_HT_Imp_NoCache = rDynamic_HT_Imp_NoCache;
-using FittablePotential      = rFittablePotential;
 
 } //namespace

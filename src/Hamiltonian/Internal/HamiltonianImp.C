@@ -10,7 +10,7 @@ import qchem.Structure;
 export namespace qchem::Hamiltonian
 {
 
-// Templated on T (rX/cX convention): the bare HamiltonianImp is the <double> alias the existing concrete
+// Templated on T (rX/cX convention): the bare rHamiltonianImp is the <double> alias the existing concrete
 // Hamiltonians derive from; cHamiltonianImp is the dcmplx (plane-wave) instantiation.
 template <class T> class tHamiltonianImp
     : public virtual tHamiltonian<T>
@@ -47,7 +47,7 @@ protected:
     bool   itsIsRelativistic;
 };
 
-using HamiltonianImp  = tHamiltonianImp<double>;
+using rHamiltonianImp  = tHamiltonianImp<double>;
 using cHamiltonianImp = tHamiltonianImp<dcmplx>;
 
 } //namespace

@@ -17,8 +17,7 @@ export namespace qchem::WaveFunction
 using ChargeDensity::DM_CD;
 using ChargeDensity::tDM_CD;
 using ChargeDensity::tChargeDensity;
-using qchem::Hamiltonian::Hamiltonian;   // <double> alias still re-exported for the (not-yet-templated) WF hierarchy
-using qchem::Hamiltonian::tHamiltonian;  // (qchem:: qualifies the namespace, else the alias above shadows it)
+using qchem::Hamiltonian::tHamiltonian;
 // tbs_t (the whole composite basis = the cross-irrep view threaded to the dynamic Fock terms) comes from
 // qchem.WaveFunction.Types; it is the same BasisSet::BasisSet<T> the Hamiltonian layer's GetMatrix expects.
 using Orbitals::TOrbitals;

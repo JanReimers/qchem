@@ -51,28 +51,28 @@ export namespace qchem::Hamiltonian
 
     //=== The resolvers ===============================================================================
     //! Non-DFT Hamiltonians (HF / 1-electron / Dirac).  DFT Models route through the DFT resolver below.
-    Hamiltonian* Factory(Model,Pol,const st_t& st);
+    rHamiltonian* Factory(Model,Pol,const st_t& st);
 
     //! THE functional resolver -- the SINGLE place that builds a DFT Hamiltonian from a functional choice.
     //! Owns its functional(s); the Internal ExFunctional construction never leaks out.  Polarized is
     //! supported for SlaterXalpha and DiracVWN (spin-native VWN5, OpenWork B); LibXC is unpolarized-only
     //! (its libxc wrapper does not yet pass the two spin channels) and throws for Pol::Polarized.
-    Hamiltonian* Factory(Pol, const st_t& st, const XCFunctional&, const qcMesh::MeshParams&, const bs_t*);
+    rHamiltonian* Factory(Pol, const st_t& st, const XCFunctional&, const qcMesh::MeshParams&, const bs_t*);
 
     //! Unified one-call resolver: turn a Model token into the concrete polymorphic Hamiltonian.  HF/1-e/
     //! Dirac ignore mesh/basis/xalpha; the DFT members map to an XCFunctional and delegate to the resolver
     //! above.  The compact "default Hamiltonian" entry the unit tests want -- no manual functional assembly.
-    Hamiltonian* Factory(Model,Pol,const st_t& st, const qcMesh::MeshParams&, const bs_t*, double xalpha);
+    rHamiltonian* Factory(Model,Pol,const st_t& st, const qcMesh::MeshParams&, const bs_t*, double xalpha);
 
     //! Convenience for the most common DFT functional: Slater-Dirac exchange scaled by \a alpha (alpha=2/3
     //! is pure Dirac).  Equivalent to the XCFunctional resolver with XC::SlaterXalpha.
-    Hamiltonian* Factory(Pol,const st_t& st,double alpha, const qcMesh::MeshParams&, const bs_t*);
+    rHamiltonian* Factory(Pol,const st_t& st,double alpha, const qcMesh::MeshParams&, const bs_t*);
 
     //=== Pseudopotential ============================================================================
     //! Build a pseudopotential Hamiltonian for `element` (e.g. "Si") with `valence` (zion) valence
     //! electrons: the all-electron nuclear attraction is replaced by the GTH local + KB-separable nonlocal
     //! pseudopotential, with LDA exchange-correlation.  The public front door to Ham_PP_U.
-    Hamiltonian* Factory(const st_t& st, const std::string& element, int valence,
+    rHamiltonian* Factory(const st_t& st, const std::string& element, int valence,
                          const qcMesh::MeshParams&, const bs_t*);
 
 } // namespace

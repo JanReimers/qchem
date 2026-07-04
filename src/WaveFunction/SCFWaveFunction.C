@@ -19,8 +19,7 @@ export import qchem.Symmetry.Irrep;
 namespace qchem::WaveFunction
 {
 
-using Hamiltonian::Hamiltonian;
-using qchem::Hamiltonian::tHamiltonian;  // qchem:: qualifies the namespace (the alias above shadows it)
+using Hamiltonian::tHamiltonian;
 using ChargeDensity::DM_CD;
 using ChargeDensity::tDM_CD;
 using ChargeDensity::tChargeDensity;

@@ -111,7 +111,7 @@ template <class T> void tSCFIterator<T>::Initialize(tChargeDensity<T>* seed, con
             const H::Pol pol = itsHamiltonian->IsPolarized() ? H::Pol::Polarized : H::Pol::UnPolarized;
             // Non-owning: the sibling lives only for this Init call, and st outlives it (it is the ctor arg).
             H::st_t stView(st, [](const Structure*){});
-            std::unique_ptr<H::Hamiltonian> dftSibling(
+            std::unique_ptr<H::rHamiltonian> dftSibling(
                 H::Factory(pol, stView, 2.0/3.0, qcMesh::MeshParams{}, bs));   // Dirac exchange (alpha=2/3)
             itsCD=cd_t(itsWaveFunction->Init(*dftSibling, seed, 0.0001));      // D0: a real (matrix-backed) density
             assert(itsCD);

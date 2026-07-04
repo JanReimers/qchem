@@ -19,7 +19,7 @@ export namespace qchem::Hamiltonian
 //
 //  1 Electron
 //
-class Ham_1E : public virtual Hamiltonian, private HamiltonianImp
+class Ham_1E : public virtual rHamiltonian, private rHamiltonianImp
 {
 public:
     Ham_1E(const st_t& st);
@@ -28,7 +28,7 @@ public:
 //
 //  Un-polarized Hartree-Fock
 //
-class Ham_HF_U : public virtual Hamiltonian, private HamiltonianImp
+class Ham_HF_U : public virtual rHamiltonian, private rHamiltonianImp
 {
 public:
     Ham_HF_U(const st_t& st);
@@ -37,7 +37,7 @@ public:
 //
 // Un-polarized DFT, fitted Vee, and fitted DFT like Vxc
 //
-class Ham_DFT_U : public virtual Hamiltonian, private HamiltonianImp
+class Ham_DFT_U : public virtual rHamiltonian, private rHamiltonianImp
 {
 public:
     Ham_DFT_U(const st_t& st,double alpha_ex, const qcMesh::MeshParams&, const bs_t* bs);
@@ -47,7 +47,7 @@ public:
 // Un-polarized LDA: Dirac exchange + VWN5 correlation as SEPARATE terms, so the correlation energy is the
 // correct E_c = integral eps_c rho (not the exchange virial 3/4<rho|Vc>).  Exchange and correlation share
 // one Vxc fit basis.  This is the "real" LSDA Hamiltonian for the NIST atomic oracle.
-class Ham_DFTcorr_U : public virtual Hamiltonian, private HamiltonianImp
+class Ham_DFTcorr_U : public virtual rHamiltonian, private rHamiltonianImp
 {
 public:
     Ham_DFTcorr_U(const st_t& st, const qcMesh::MeshParams&, const bs_t* bs);  //!< Dirac exchange + VWN5
@@ -62,7 +62,7 @@ public:
 // Spin-native (polarized) LSDA: Dirac exchange (FittedVxcPol) + spin-native VWN5 correlation
 // (FittedVcorrPol) as separate terms sharing one Vxc fit basis.  The U = ζ=0 collapse; this is the
 // open-shell / magnetism path (OpenWork B).  Correlation couples both spin channels -- see FittedVcorrPol.
-class Ham_DFTcorr_P : public virtual Hamiltonian, private HamiltonianImp
+class Ham_DFTcorr_P : public virtual rHamiltonian, private rHamiltonianImp
 {
 public:
     Ham_DFTcorr_P(const st_t& st, const qcMesh::MeshParams&, const bs_t* bs);
@@ -73,7 +73,7 @@ public:
 //! + VWN5 correlation.  NO Ven, NO ion-ion (single pseudized atom).  The valence electron count comes from
 //! the structure (build the Atom with charge = Z - valence) and the angular channels from a pseudo-atom
 //! electron configuration.  The non-local model may be null (local-only, the over-bound stepping stone).
-class Ham_PP_U : public virtual Hamiltonian, private HamiltonianImp
+class Ham_PP_U : public virtual rHamiltonian, private rHamiltonianImp
 {
 public:
     //! Explicit models (shared with the caller).  \a sep may be null for a local-only run.
@@ -123,7 +123,7 @@ private:
 //
 //  Polarized Hartree-Fock.
 //
-class Ham_HF_P : public virtual Hamiltonian, private HamiltonianImp
+class Ham_HF_P : public virtual rHamiltonian, private rHamiltonianImp
 {
 public:
     Ham_HF_P(const st_t& st);
@@ -133,7 +133,7 @@ public:
 //
 // Un-polarized DFT, fitted Vee, and fitted DFT like Vxc
 //
-class Ham_DFT_P : public virtual Hamiltonian, private HamiltonianImp
+class Ham_DFT_P : public virtual rHamiltonian, private rHamiltonianImp
 {
 public:
     Ham_DFT_P(const st_t& st,double alpha_ex, const qcMesh::MeshParams&, const bs_t* or_bs);
@@ -141,7 +141,7 @@ public:
 };
 
 
-class Ham_DHF_1E : public virtual Hamiltonian, private HamiltonianImp
+class Ham_DHF_1E : public virtual rHamiltonian, private rHamiltonianImp
 {
 public:
     Ham_DHF_1E(const st_t& st);
@@ -150,13 +150,13 @@ public:
 //
 //  Dirac-Hartree-Fock.
 //
-class Ham_DHF_U : public virtual Hamiltonian, private HamiltonianImp
+class Ham_DHF_U : public virtual rHamiltonian, private rHamiltonianImp
 {
 public:
     Ham_DHF_U(const st_t& st);
 };
 
-class Ham_DHF_P : public virtual Hamiltonian, private HamiltonianImp
+class Ham_DHF_P : public virtual rHamiltonian, private rHamiltonianImp
 {
 public:
     Ham_DHF_P(const st_t& st);

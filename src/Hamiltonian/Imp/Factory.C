@@ -20,9 +20,9 @@ namespace qchem::Hamiltonian
                                  "Factory(Model,Pol,st,MeshParams,orbitalBasis,xalpha).");
     }
 
-    Hamiltonian* Factory(Model m,Pol p, const st_t& st)
+    rHamiltonian* Factory(Model m,Pol p, const st_t& st)
     {
-        Hamiltonian* h=0;
+        rHamiltonian* h=0;
         switch (p)
         {
             case Pol::UnPolarized:
@@ -89,7 +89,7 @@ namespace qchem::Hamiltonian
     // the Internal ExFunctional where one is needed.  Every other DFT entry point (the Model resolver, the
     // alpha convenience) funnels through here, so the functional->Hamiltonian mapping lives in ONE place.
     // The functional internals never leak past this switch; if/else returns keep the U/P pointer types clean.
-    Hamiltonian* Factory(Pol p, const st_t& st, const XCFunctional& xc, const qcMesh::MeshParams& mp, const bs_t* bs)
+    rHamiltonian* Factory(Pol p, const st_t& st, const XCFunctional& xc, const qcMesh::MeshParams& mp, const bs_t* bs)
     {
         switch (xc.kind)
         {
@@ -115,20 +115,20 @@ namespace qchem::Hamiltonian
     // The unified one-call resolver: HF/1-e/Dirac build directly; DFT Models map to an XCFunctional and
     // delegate to the single build site above -- so the Model token never leaks past here, and the DFT
     // build logic is NOT duplicated between this and the XCFunctional resolver.
-    Hamiltonian* Factory(Model m,Pol p,const st_t& st, const qcMesh::MeshParams& mp, const bs_t* bs, double xalpha)
+    rHamiltonian* Factory(Model m,Pol p,const st_t& st, const qcMesh::MeshParams& mp, const bs_t* bs, double xalpha)
     {
         if (!IsDFT(m)) return Factory(m,p,st);                       // non-DFT: mp/bs/xalpha unused
         return Factory(p, st, ModelToXC(m,xalpha), mp, bs);         // DFT: Model -> XCFunctional -> Hamiltonian
     }
 
     // Convenience: the Slater-Xalpha functional by alpha alone.
-    Hamiltonian* Factory(Pol p,const st_t& st,double alpha, const qcMesh::MeshParams& mp, const bs_t* bs)
+    rHamiltonian* Factory(Pol p,const st_t& st,double alpha, const qcMesh::MeshParams& mp, const bs_t* bs)
     {
         return Factory(p, st, XCFunctional{XC::SlaterXalpha, alpha}, mp, bs);
     }
 
     // Pseudopotential front door: the all-electron nuclear attraction -> GTH local + KB nonlocal PP, LDA XC.
-    Hamiltonian* Factory(const st_t& st, const std::string& element, int valence,
+    rHamiltonian* Factory(const st_t& st, const std::string& element, int valence,
                          const qcMesh::MeshParams& mp, const bs_t* bs)
     {
         return new Ham_PP_U(st, element, valence, mp, bs);

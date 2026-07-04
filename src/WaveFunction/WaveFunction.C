@@ -17,7 +17,6 @@ namespace qchem::WaveFunction
 export using qchem::ChargeDensity::DM_CD;
 export using qchem::ChargeDensity::tDM_CD;
 export using qchem::Orbitals::EnergyLevels;
-using Hamiltonian::Hamiltonian;
 using Orbitals::Orbitals; //Keep this one last, otherwise it interferes with the two previous declarations!
 
 // The const, queryable interface to a wave function: "what is the electronic state".

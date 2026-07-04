@@ -14,7 +14,7 @@ namespace qchem::Hamiltonian
 {
 
 Vnn::Vnn(const st_t& st)
-    : Static_HT_Imp()
+    : rStatic_HT_Imp()
     , theStructure(st)
 {};
 

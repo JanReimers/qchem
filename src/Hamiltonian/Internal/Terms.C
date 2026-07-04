@@ -26,7 +26,7 @@ using ChargeDensity::Polarized_CD;
 
 // Non-relativistic kinetic ENERGY term \f$T=-\tfrac12\nabla^2 = \tfrac12\langle p^2\rangle\f$.
 // (Applies the 1/2 to the basis-set \f$\langle p^2\rangle\f$ block; see Imp/Kinetic.C.)
-class Kinetic : public virtual Static_HT, private Static_HT_Imp
+class Kinetic : public virtual rStatic_HT, private rStatic_HT_Imp
 {
 public:
     virtual void          GetEnergy(EnergyBreakdown&,const DM_CD* cd ) const;
@@ -37,7 +37,7 @@ private:
 
 // Relativistic kinetic ENERGY term (Dirac \f$c\,\vec\sigma\cdot\vec p\f$); consumes the RKB-assembled
 // relativistic kinetic block directly (no 1/2). See Imp/DiracKinetic.C for the unverified-factor note.
-class DiracKinetic : public virtual Static_HT, private Static_HT_Imp
+class DiracKinetic : public virtual rStatic_HT, private rStatic_HT_Imp
 {
 public:
     virtual void          GetEnergy(EnergyBreakdown&,const DM_CD* cd ) const;
@@ -48,7 +48,7 @@ private:
     virtual rsmat_t CalculateMatrix(const obs_t*,const Spin&) const;
 };
 
-class RestMass : public virtual Static_HT, private Static_HT_Imp
+class RestMass : public virtual rStatic_HT, private rStatic_HT_Imp
 {
 public:
     virtual void          GetEnergy(EnergyBreakdown&,const DM_CD* cd ) const;
@@ -64,7 +64,7 @@ private:
 //  should decide at run time to do an Ewald sum.  But and Ewald sum requires more information: ionic charges
 //  around each nucleus.
 //
-class Vnn : public virtual Static_HT, private Static_HT_Imp
+class Vnn : public virtual rStatic_HT, private rStatic_HT_Imp
 {
 public:
     typedef std::shared_ptr<const Structure> st_t;
@@ -79,7 +79,7 @@ private:
 //
 //  Electron-Nuclear attraction potential.
 //
-class Ven : public virtual Static_HT, private Static_HT_Imp
+class Ven : public virtual rStatic_HT, private rStatic_HT_Imp
 {
 public:
     typedef std::shared_ptr<const Structure> st_t;
@@ -98,7 +98,7 @@ private:
 //  <chi_i|V_loc|chi_j> = Sum_g w_g chi_i(r_g) chi_j(r_g) V_loc(r_g) (= the XC-path WeightedOverlap shape).
 //  STATIC (density-independent), so it is built once.  V_loc is the real-space PP face (LocalPotential_R).
 //
-class PP_Local : public virtual Static_HT, private Static_HT_Imp
+class PP_Local : public virtual rStatic_HT, private rStatic_HT_Imp
 {
 public:
     typedef std::shared_ptr<const Structure> st_t;
@@ -122,7 +122,7 @@ private:
 //  repulsive (for the occupied valence l-channels) piece that lifts the over-bound local-only spectrum
 //  back to the all-electron valence eigenvalues.  Verified against the reciprocal (2l+1)P_l form.
 //
-class PP_NonLocal : public virtual Static_HT, private Static_HT_Imp
+class PP_NonLocal : public virtual rStatic_HT, private rStatic_HT_Imp
 {
 public:
     typedef std::shared_ptr<const Structure> st_t;
@@ -155,7 +155,7 @@ private:
 // to run (AccumulateAll: Direct vs Exchange) -- plus an optional Fock Scale (Vxc's K coefficient).  Mirrors
 // the tDynamic_HT / tDynamic_HT_Imp interface/impl split, so the tDynamic_HF_HT interface itself stays
 // data-free.
-class Dynamic_HF_HT_Imp : public virtual Dynamic_HF_HT
+class Dynamic_HF_HT_Imp : public virtual rDynamic_HF_HT
 {
 public:
     //! Fock build: assemble the whole-system blocks ONCE per density from the composite \a wholeBasis using
@@ -212,7 +212,7 @@ private:
 // Polarized HF exchange = two spin-channel Vxc(-1): dispatch per spin, feeding each its own spin density
 // (K^sigma from D^sigma).  Mirrors FittedVxcPol's owned-pair structure -- keeps the fitted and HF polarized
 // terms consistent.
-class VxcPol : public virtual Dynamic_HF_HT
+class VxcPol : public virtual rDynamic_HF_HT
 {
 public:
     VxcPol();
@@ -239,7 +239,7 @@ private:
 // involve three center integrals hence avoiding the four center integrals encountered in
 // a Hartree-Fock calculation.
 //
-class FittedVee : public virtual Dynamic_HT, private Dynamic_HT_Imp
+class FittedVee : public virtual rDynamic_HT, private rDynamic_HT_Imp
 {
 public:
     typedef std::shared_ptr<const BasisSet::FIT_CD_ABS> fbs_t;   //!< the charge-density (Coulomb-metric) fit face
@@ -260,7 +260,7 @@ private:
 //  Energy uses the exchange virial E_xc = 3/4 <rho|Vxc> -- correct for (pure) exchange; for correlation
 //  use FittedVcorr below.
 //
-class FittedVxc : public virtual Dynamic_HT, private Dynamic_HT_Imp
+class FittedVxc : public virtual rDynamic_HT, private rDynamic_HT_Imp
 {
 public:
     typedef std::shared_ptr<const BasisSet::FIT_SF_ABS> fbs_t;   //!< the scalar-function (overlap-metric) fit face
@@ -278,7 +278,7 @@ private:
     LDAVxc* itsLDAVxc;   //!< the v_xc=Vxc(rho) function to fit (concrete: it IS the ScalarFFClient)
 };
 
-class FittedVxcPol : public virtual Dynamic_HT, private Dynamic_HT_Imp_NoCache
+class FittedVxcPol : public virtual rDynamic_HT, private rDynamic_HT_Imp_NoCache
 {
 public:
     typedef std::shared_ptr<const BasisSet::FIT_SF_ABS> fbs_t;   //!< the scalar-function (overlap-metric) fit face
@@ -294,8 +294,8 @@ public:
 private:
     virtual rsmat_t CalcMatrix(const obs_t*,const Spin&,const rChargeDensity* cd) const;
 
-    Dynamic_HT* itsUpVxc  ; //Spin up.
-    Dynamic_HT* itsDownVxc; //Spin down.
+    rDynamic_HT* itsUpVxc  ; //Spin up.
+    rDynamic_HT* itsDownVxc; //Spin down.
 
 };
 
@@ -350,7 +350,7 @@ class FittedEpsCPol;   // the polarized eps_c contraction client (defined in Imp
 //  iteration (a spin-agnostic total density, not yet a Polarized_CD) collapses to v_c^P(rho) via
 //  rho_up=rho_down=rho/2 -- the same robustness FittedVxcPol needed (cd85d13c).
 //
-class FittedVcorrPol : public virtual Dynamic_HT, private Dynamic_HT_Imp_NoCache
+class FittedVcorrPol : public virtual rDynamic_HT, private rDynamic_HT_Imp_NoCache
 {
 public:
     typedef std::shared_ptr<const BasisSet::FIT_SF_ABS> fbs_t;   //!< the scalar-function (overlap-metric) fit face

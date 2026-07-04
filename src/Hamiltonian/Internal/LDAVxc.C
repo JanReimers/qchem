@@ -16,9 +16,9 @@ export namespace qchem::Hamiltonian
 //  Local density exchange potential using exact charge density.
 //
 class LDAVxc
-    : public virtual FittablePotential
+    : public virtual rFittablePotential
     , public virtual Fitting::ScalarFFClient
-    , private        Dynamic_HT_Imp
+    , private        rDynamic_HT_Imp
 {
     typedef std::shared_ptr<ExFunctional> ex_t;
 public:
@@ -27,7 +27,7 @@ public:
     // Required by HamiltonianTerm
     virtual void UseChargeDensity(const rChargeDensity* exact);
     virtual void GetEnergy       (EnergyBreakdown&,const DM_CD* cd         ) const;
-    // Required by FittablePotential.
+    // Required by rFittablePotential.
     virtual const ScalarFunction<double>* GetScalarFunction() const {return itsExchangeFunctional.get();}
     
     virtual std::ostream&           Write(std::ostream&) const;

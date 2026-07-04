@@ -13,7 +13,7 @@ namespace qchem::Hamiltonian
 {
 
 Ven::Ven(const st_t& st)
-    : Static_HT_Imp()
+    : rStatic_HT_Imp()
     , theStructure(st)
 {
     assert(st->GetNumAtoms()>0);

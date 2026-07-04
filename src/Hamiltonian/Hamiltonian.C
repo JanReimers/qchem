@@ -21,10 +21,10 @@ using ChargeDensity::DM_CD;
 
 //! \brief A Hamiltonian is a sum of additive terms (a "HamiltonianTerm", HT) in three families, split by
 //! what each needs to assemble its one-irrep matrix block:
-//! - \ref tStatic_HT    "Static_HT"     -- density-INDEPENDENT (kinetic, nuclear attraction); built once.
-//! - \ref tDynamic_HT   "Dynamic_HT"    -- depends on \f$\rho(\mathbf r)\f$ but only PER-IRREP (a fit, or
+//! - \ref tStatic_HT    "rStatic_HT"     -- density-INDEPENDENT (kinetic, nuclear attraction); built once.
+//! - \ref tDynamic_HT   "rDynamic_HT"    -- depends on \f$\rho(\mathbf r)\f$ but only PER-IRREP (a fit, or
 //!   \f$\rho\f$ on a mesh), no cross-irrep coupling: DFT \f$V_{xc}\f$, fitted Coulomb.
-//! - \ref tDynamic_HF_HT "Dynamic_HF_HT" -- WHOLE-SYSTEM Hartree-Fock (exact 4-index Coulomb/exchange),
+//! - \ref tDynamic_HF_HT "rDynamic_HF_HT" -- WHOLE-SYSTEM Hartree-Fock (exact 4-index Coulomb/exchange),
 //!   coupling every irrep block through the ERI \f$(ab|cd)\f$.
 //!
 //! Templated on the matrix element type \c T (\c double for atoms/molecules; \c dcmplx for the plane-wave
@@ -120,15 +120,12 @@ public:
     virtual bool            RequiresDensityMatrix() const {return false;}
 };
 
-// r* = <double>, c* = <dcmplx> (mirrors rsmat_t/chmat_t); bare names transitional (= r*), rename pinned.
+// r* = <double>, c* = <dcmplx> (mirrors rsmat_t/chmat_t).  No bare (prefix-less) alias: it would shadow the
+// enclosing qchem::Hamiltonian namespace -- clients name the type rHamiltonian / cHamiltonian / tHamiltonian<T>.
 using rStatic_HT    = tStatic_HT<double>;    using cStatic_HT    = tStatic_HT<dcmplx>;
 using rDynamic_HT   = tDynamic_HT<double>;   using cDynamic_HT   = tDynamic_HT<dcmplx>;
 using rDynamic_HF_HT= tDynamic_HF_HT<double>;using cDynamic_HF_HT= tDynamic_HF_HT<dcmplx>;
 using rHamiltonian = tHamiltonian<double>; using cHamiltonian = tHamiltonian<dcmplx>;
-using Static_HT    = rStatic_HT;
-using Dynamic_HT   = rDynamic_HT;
-using Dynamic_HF_HT= rDynamic_HF_HT;
-using Hamiltonian  = rHamiltonian;
 
 } //namespace
 

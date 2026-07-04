@@ -145,7 +145,7 @@ TEST_F(OrthogonalizeTests, BlazeHydrogen)
     using namespace qchem::Hamiltonian;
     typedef std::shared_ptr<const Structure> st_t;
     Structure* cla=new Atom(1,0);
-        qchem::Hamiltonian::Hamiltonian* Ham=qchem::Hamiltonian::Factory(Model::E1,Pol::Polarized,st_t(cla));
+        qchem::Hamiltonian::rHamiltonian* Ham=qchem::Hamiltonian::Factory(Model::E1,Pol::Polarized,st_t(cla));
     double beta=Set(21,1);
     cout << "Beta=" << beta << endl;
     for (auto ibs:bs->Iterate<Real_OIBS>())

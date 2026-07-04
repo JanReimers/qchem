@@ -6,7 +6,7 @@
 // LASolver (complex eigensolver).  A library that did this would invert the layering (BasisSet sits
 // BELOW Hamiltonian).  The test is the one place allowed to reach across all three.  Once the
 // Hamiltonian/SCFIterator stack is templated on T (double|dcmplx) these pieces migrate to their proper
-// homes: the density -> a dcmplx ChargeDensity, Hartree/XC -> Dynamic_HT<dcmplx> terms.
+// homes: the density -> a dcmplx ChargeDensity, Hartree/XC -> tDynamic_HT<dcmplx> terms.
 //
 // Build order (each piece tested before the next):
 //   1. density rho~(dG) from occupied bands           [this commit]
@@ -395,7 +395,7 @@ TEST_F(PlaneWaveDFT, XcUniformDensityLimit)
 // --- the SCF loop (prototype) -----------------------------------------------------------------
 // Assemble H(k) = 1/2 <p^2> + V_ext + V_H[rho] + V_xc[rho], diagonalise, occupy the lowest bands,
 // rebuild rho, linearly mix, iterate to self-consistency.  This is the hand-rolled driver that the
-// templated Hamiltonian/SCFIterator<dcmplx> will eventually replace (V_H/V_xc -> Dynamic_HT<dcmplx>).
+// templated Hamiltonian/SCFIterator<dcmplx> will eventually replace (V_H/V_xc -> tDynamic_HT<dcmplx>).
 
 struct SCFResult
 {
@@ -938,7 +938,7 @@ TEST_F(PlaneWaveDFT, PWDynamicTermsMatchBasis)
 }
 
 // THE STAGE-3 PAYOFF: silicon (Gamma) self-consistent DFT run entirely through the FRAMEWORK objects --
-// a dcmplx HamiltonianImp summing the PW Kohn-Sham terms (kinetic + external PP + Hartree + Dirac + VWN),
+// a cHamiltonianImp summing the PW Kohn-Sham terms (kinetic + external PP + Hartree + Dirac + VWN),
 // an IrrepCD<dcmplx> density built from the complex orbitals, and the framework energy bookkeeping --
 // reproducing the standalone prototype's Si-Gamma result (Etot=1.468, 8 valence electrons).  A thin SCF
 // driver stands in for the (not-yet-complexified) WaveFunction/SCFIterator orchestration.
@@ -959,7 +959,7 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaMatchesPrototype)
     const HGH_LocalPotential&     loc=siPP.local;
     const HGH_SeparablePotential& nl =siPP.nonlocal;
 
-    // Framework Hamiltonian: a dcmplx HamiltonianImp summing the PW Kohn-Sham terms.  The external term
+    // Framework Hamiltonian: a cHamiltonianImp summing the PW Kohn-Sham terms.  The external term
     // owns the pseudopotential model (the pseudo-wall) and assembles it through the basis.
     cHamiltonianImp ham;
     ham.Add(new PW_Kinetic);
@@ -1024,7 +1024,7 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaMatchesPrototype)
 // The SAME Si-Gamma Kohn-Sham problem as FrameworkSiliconGammaMatchesPrototype, but now driven by the
 // REAL framework cSCFIterator (no hand-rolled SCF loop): cSCFIterator -> cWaveFunction (UnPolarizedWF
 // -> IrrepWF) -> tSCFAcceleratorNull<dcmplx> diagonalize -> TOrbitals<dcmplx> fill -> IrrepCD<dcmplx>,
-// with the dcmplx HamiltonianImp summing the PW terms.  This is the milestone that retires the "k-loop
+// with the cHamiltonianImp summing the PW terms.  This is the milestone that retires the "k-loop
 // in the IBS": single-k plane-wave DFT IS now Hamiltonian = Sum terms + SCFIterator, like atoms/molecules.
 TEST_F(PlaneWaveDFT, FrameworkSiliconGammaThroughSCFIterator)
 {
@@ -1302,7 +1302,7 @@ TEST_F(PlaneWaveDFT, FrameworkSilicon2x2x2ThroughSCFIterator)
     EXPECT_GT(gap, 0.0);                              // Si is a semiconductor
 }
 
-// Regression guard for the Hamiltonian-framework cache bug: Dynamic_HT_Imp::GetMatrix must invalidate
+// Regression guard for the Hamiltonian-framework cache bug: rDynamic_HT_Imp::GetMatrix must invalidate
 // its Irrep-keyed cache when the density changes (else it returns a STALE matrix to any caller that
 // didn't happen to call GetTotalEnergy(new cd) in between).  Two different densities (same Irrep, no
 // GetEnergy between): the second GetMatrix must reflect the second density, not return the first's
