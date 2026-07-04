@@ -1,4 +1,6 @@
-// File: Symmetry.C  Abstract interface for symmetries that do not include spin.
+// File: Symmetry.C  Abstract interface for a symmetry-group irrep label.  Most concretes are spatial (spin
+// is added on top by Irrep), but the relativistic double group (SphericalSpinor, Ωκ) is spin-orbit coupled --
+// see CarriesSpin().
 module;
 #include <string>
 #include <memory>
@@ -29,6 +31,11 @@ public:
     //! sampling).  1 for ordinary symmetries; a Bloch k-point carries its k-mesh weight \f$w_k\f$ so a
     //! charge density built per-irrep sums to the BZ average \f$\sum_k w_k\rho_k\f$.
     virtual double GetWeight         () const {return 1.0;}
+    //! \brief Does this irrep label already carry spin (spin-orbit coupled)?  \c false for ordinary spatial
+    //! symmetries -- spin is layered on top by \c Irrep, whose \a ms is the non-relativistic spin channel.
+    //! \c true only for the relativistic double group (\c SphericalSpinor), where \f$\kappa\f$ encodes
+    //! \f$j=l\pm\tfrac12\f$; there the layer-2 \a ms is \c Spin::None (spin is already in \f$\kappa\f$).
+    virtual bool   CarriesSpin        () const {return false;}
     std::string    GetLabel          () const;      //!< human-readable label (streams \c Write to a string)
 };
 

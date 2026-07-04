@@ -51,6 +51,7 @@ public:
     virtual size_t Getl  () const {return l(Getκ());}
     virtual ivec_t Getmls() const {return {};} //Stub: RKB ERIs not yet implemented
     virtual double Getj  () const {return j(Getκ());}
+    virtual bool   CarriesSpin() const {return true;} //!< κ encodes j=l±½: spin-orbit is already in the label
     virtual int    Getκ  () const=0;
     virtual rvec_t Getmjs() const=0;
 
