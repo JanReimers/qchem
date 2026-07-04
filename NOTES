@@ -1,5 +1,86 @@
 Notes:        
 - Turn on/off vscode popups: search `quickSuggestions`.
+- ninja bug blocking build.
+D=build/Debug
+cmake -S /home/janr/Code/qchem6 -B $D          # 1. regenerate build.ninja
+find $D -name CXX.dd -delete                    # 2. purge stale collated dyndep
+rm -f $D/.ninja_deps $D/.ninja_log $D/.ninja_lock   # 3. clear the dep-log  ← decisive
+ninja -C $D <target>                            # 4. rescans dyndep, recompiles only what changed
+
+source .venv/bin/activate
+export QCHEM_BUILD=~/Code/qchem-viz/build/PIC
+python app_desktop.py 
+
+#Fitting upgrades explaines:
+Looked at the code — these are three parked refinements from a prior fitting refactor, not bugs or blockers. Here's what each means in plain terms, and my honest read on timing.
+
+What they actually are
+1. Templating FIT_CD_ABS / FIT_SF_ABS to <T>.
+These two are the "auxiliary fit basis" faces DFT uses to dodge 4-centre integrals (FIT_CD_ABS = density fit in the Coulomb metric; FIT_SF_ABS = scalar-function fit in the overlap metric). They're currently double-only classes. The "<dcmplx> vision" is to make them FIT_..._ABS<T> so the plane-wave (complex) path could share the same fitting abstraction instead of having its own. Parked because nothing needs complex fitting today — the PW path uses FourierFunctionFitter directly. Purely forward-looking generalization.
+
+2. FourierFunctionFitter "delete-and-inline."
+FourierFunctionFitter is the plane-wave fitter. In G-space with an orthonormal {G} basis, "fitting" is trivial (the coefficients are the field's Fourier components — no least-squares needed). The prior agent noted you could delete the little class and inline that trivial logic at the one call site. They kept the named class (conservative); the "aggressive alternative" is the inline. Pure code-tidiness — a keep-a-small-class-vs-inline judgment call, nothing depends on it.
+
+3. XC energy ∫ε_xc·ρ through the fitter.
+The XC energy is E_xc = ∫ ε_xc(ρ) ρ. Today exchange uses the virial shortcut E_x = ¾⟨ρ|v_x⟩ (exact for LDA exchange), and correlation goes through a dedicated FittedEpsXc fit. The vision is to route the whole thing uniformly through the fitter — but that needs the fitter to accept a grid-evaluated ε_xc as its fit input, which it doesn't cleanly do yet. This one has real future value — the ¾ virial shortcut breaks for GGA, so it becomes necessary when you add gradient functionals.
+
+My recommendation: new session, and mostly "not yet"
+None are urgent or blocking — they're "small follow-ups," and the session's already been a long one. More usefully, each has a natural trigger, and doing them before the trigger is speculative:
+
+Item	Value now	Do it when…
+1. Template fit faces	Low (no consumer)	You genuinely want PW and molecular DFT to share one fitting path — which is squarely part of your PP/PW-harmonization goal, so it may fall out of that work naturally
+2. Delete-and-inline FourierFunctionFitter	Cosmetic	Never, unless it annoys you — or fold it into item 1
+3. XC energy through the fitter	Medium	You tackle GGA (the virial shortcut fails there) — do it with the GGA work, not as an isolated cleanup
+So: I'd leave all three on the TODO rather than spend this session on them. Item 1 is worth keeping in mind as you scope the PP-harmonization work (it's the same "unify real/complex" theme), and item 3 pairs naturally with GGA when you get there.
+
+If you'd like, I can rewrite that TODO block with these triggers noted (so future-you/the next agent knows when each becomes worth doing) — but I wouldn't implement any of them right now.
+
+
+# Still in memory
+
+Good news — your persistent file-based memory survived (it lives in ~/.claude/.../memory/, independent of session transcripts). The auto-memory index (MEMORY.md) loaded at startup, so here's what I still have. It's substantial. Let me organize it by what's most likely useful to you right now.
+
+Where things stand (active / next-up threads)
+OpenWork tracker (doc/OpenWork.md is the in-repo source of truth): threads A–D. C (namespace sweep → qchem::), D (test→facade migration), B (spin-native DFT) all DONE. The one remaining thread is A — Spherical SALC, stages S2–S5... though per the spherical-SALC memory, S2/S3a/S4/S5 are actually done too, leaving only S3b = libcint-spherical SALC (guarded out as bug-prone; in-house spherical SALC is fully shippable).
+SCF seeding — flagged as the next feature to start "in a fresh session": SeedStrategy/MakeSeedDensity + SAD seed, spec in doc/SCFSeedingPlan.md. Housekeeping was all done.
+Symmetry naming cleanup (QUEUED) — big rename Symmetry::Symmetry → Irrep ⊂ SpinIrrep ⊂ OrbitalQNs, plus CarriesSpin() predicate fix. Phase 1 done; Phase 3 deliberately deferred to bundle with this rename so the API churns once.
+Recently landed (matches your git log)
+Your recent commits (VxcPol dispatcher, ContractAll{Direct,Exchange} rename, tDynamic_HF_HT term type) line up with the ERI4 rework thread — stages 1, 2, 3a, 3b (J+K) done; only 3c (canonical cache-key belt-and-suspenders) remains. Also the Dynamic_HT cache bug is fully resolved (f354f890, logical-clock serial key).
+
+Big completed refactors (for context, not action)
+NumericCD refactor, API-ergonomics facade (qchem::Calculation), facade DFT plan (D1+D2), integral cache upgrade (DBCache), qcMath library split, qcMesh1 rewrite, atom ERI caching perf (~3×), DFT upgrade plan (the Z=36 exchange-fudge removal), molecular symmetry / SALC pipeline.
+
+Long-horizon goal
+Battery cathode voltage curves (Li/Na, LiMn₂O₄/NiO₂/CoO₂) via DFT + cluster-expansion Monte Carlo — implies multi-species PP, spin+U, and forces on the critical path.
+
+Key working conventions I've retained
+Build/test: cd build/Release && ninja UTMain, then ./UnitTests/UTMain (filter -A_* for fast runs). Use UTMain — UTSym/UTBasisSet have pre-existing failures.
+Spin-polarized is the native formulation; unpolarized is the ζ=0 collapse.
+You live-edit TODO/CLAUDE.md/NOTES — never stage/commit/clobber them.
+Ninja dyndep-crash recovery ladder (without rm -rf).
+Two things worth noting: the memory reflects what was true when written — if any names a specific file/flag, I'll verify it still exists before acting on it. And what's gone is the conversational transcripts (the turn-by-turn history); the distilled facts are intact.
+
+Want me to read doc/OpenWork.md to reconcile the tracker against your current working tree, or pick up one of the next-up threads (SCF seeding, or ERI4 stage 3c)?
+
+# Rk Caching
+
+The simplification I'd actually reach for: demand-driven LMax with monotonic growth
+Don't coordinate LMax at registration at all. Instead:
+
+The requester (Direct/Exchange) already knows its shell l's, so it passes the required LMax into the lookup.
+The cached Rk stores Rabcd_k up to whatever LMax it's been asked for so far; if a later request needs more k terms, it computes the extra terms and appends — it never shrinks, never gets evicted, never gets rebuilt.
+That collapses the whole apparatus:
+
+Register() becomes trivial — just grouper index assignment. No maxl, no eviction, no rebuild.
+isSupported disappears (the value object stops knowing about cache clients).
+The nasty cross-basis case ("light atom builds R^k at LMax=1, heavy atom later needs it at LMax=3 and gets a too-small entry") becomes a top-up, not a correctness landmine.
+The complexity moves from global registration coordination to local lazy growth inside the value object — which is far easier to get right and to reason about. It's a real refactor (Gaussian/Slater derivative tables and the BSpline moment tables all need to grow incrementally rather than build-to-LMax), so it's a "next time you're in here" move, not an emergency.
+
+# High precision integration tests.
+You're definitely not the first — this is the classic golden-master / characterization test tension, and the standard resolution is a two-axis split. The key move is to stop treating "protect the hard-won numbers" and "catch code regressions" as the same test, because they have very different cost/frequency profiles.
+
+# Data flow diagrams
+The name to ask for: a data-flow diagram (DFD) — processes (functions) transforming data, with the data artifacts named on the edges and streams that fork/merge. (Colloquially "pipeline diagram"; the precise term is data-flow diagram. Just say "draw me a dataflow diagram of X" and I'll produce this style.)
 
 # DBCache and Fit_IBS
 One forward-looking note: this was the "same-size, different-content" collision class the Stage-3 guard explicitly can't catch. The durable lesson — now in the comments and memory — is that any mesh-dependent cached quantity must carry the mesh in its key. If you'd like, I could do a quick audit for other mesh-quadrature results cached on a mesh-less key (I didn't find others in Fit_IBS, but the numerical I2x mesh-overlap path is worth a glance), but the bug you reported is closed.

@@ -146,7 +146,8 @@
       "Bash(ninja -C /home/janr/Code/qchem6/build/Release UTMain)",
       "Bash(grep -E \"FAILED|error:|warning:|OK$|BUILD\")",
       "Bash(git -C /home/janr/Code/qchem6 log --oneline -3)",
-      "Bash(ninja -C /home/janr/Code/qchem6/build/Release UTLASolver UTMain)"
+      "Bash(ninja -C /home/janr/Code/qchem6/build/Release UTLASolver UTMain)",
+      "Bash(cmake -S /home/janr/Code/qchem6 -B .)"
     ]
   }
 }

@@ -19,6 +19,19 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
 
 ### Geometry optimization
 
+- New DDRNuclear integrals
+- Do we need other similar integrals for: Pressure, bulk modulus, stress/strain tensors, phonons ?
+
+### DFT, Fitted Vxc Vcorr
+- Support GGA/BPL
+- Needs: The XC energy is E_xc = ∫ ε_xc(ρ) ρ. Today exchange uses the virial shortcut E_x = ¾⟨ρ|v_x⟩ (exact for LDA exchange), and correlation goes through a dedicated FittedEpsXc fit. The vision is to route the whole thing uniformly through the fitter — but that needs the fitter to accept a grid-evaluated ε_xc as its fit input, which it doesn't cleanly do yet. This one has real future value — the ¾ virial shortcut breaks for GGA, so it becomes necessary when you add gradient functionals.
+
+
+### qcElConfig
+- Can we make an EC_Aufbau that does aufbau filling across irreps for atom/molecule and solids? Or does each
+  structure type have its own peculiarities?
+
+
 ## Purpose: OOD demonstration
 ### Perturbations 
 - OOD architecture for 1st/2nd order 
@@ -37,13 +50,6 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
   for a Molecule, LibCint+DFT (no 3-centre). These currently throw `bad_cast`; catch + re-throw a
   `BasisSetSupport` exception carrying basis type + required/missing support (RKB/DFT). Clients: `DiracKinetic`,
   `FittedVee`. (Ties to the CLAUDE.md `dynamic_cast` survey.)  I am purposly leaving aspect un-implemented ths is a static test of the mix architecture.
-- IntegralsCache RAM report messy only for BSpline (RadialType dumps the grid). RESOLVED-as-non-bug:
-  SG/SL coarse RadialType()==Name() is SAFE — the ExponentGrouper keys each distinct exponent VALUE to its
-  own index (integral uses grouper.unique_esv[i]); guarded now by Cache4Tests.HF2_S{G,L}_ExponentKeyed.
-  BSpline is the ODD one out: its grouper keys splines by rmin ONLY (Grouper.C: "assume same rmin => same
-  rmax"), so it genuinely needs the full grid in RadialType to keep grids in separate caches -> messy report.
-  Real cleanup (low prio): give BSpline a proper grid-fingerprint grouper, then it too could use a coarse
-  RadialType and the report would be clean. NOT a correctness issue.
 
 ## OOD principles & north-star
 
@@ -80,16 +86,6 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
 - Is there anything we can do about the large (50-80MB) BMI file sizes?
 
 ## GUI apps, planning
-- The end goal is to make GUI apps for 
-  1. Atoms
-  2. Molecules
-  3. Solids
-  4. Battery Materials Studio: DFT+U->Lattice Gas Model->Mone-Carlo->Voltage curves V(x,T).
-- The priorites for apps are
-  1. 2. and 3. The best-ist flashy-ist  scientific plots we can get.  x-y, surfaces, vector fields, shaded iso-surfaces, 2D slices of a 3D entity using a slider knob (think bands).
-  4. Responsive ... the data flow from the numerical code into the plots should be direct and fast.  Some x-y plots update during iterations (delta E, delta [F,D], delta rho, etc.)
-  5. A project or workspace concept.  Save and restore.
-- Solutioning: Which plotting package? Totally open on: desktop app, web app, server app for the numerical side ... I am looking for ideas and recommendations.
 
 ## Solids / plane waves
 
@@ -112,58 +108,29 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
 
 ## qcHamiltonian
 
-- **bare->r\* rename** (remove transitional aliases): bare names (`Static_HT`, `Dynamic_HT`,
-  `Hamiltonian`, `Static_CC`, `Dynamic_CC`, `DM_CD`, `Composite_CD`, `obs_t`, ...) are still
-  `using X = rX` shims so ~200 existing sites didn't churn. Do the codebase-wide rename. NOTE the
-  `rHamiltonian` rename must also dissolve the `qchem::Hamiltonian` namespace-vs-type shadow
-  (the `::Hamiltonian` / `qchem::Hamiltonian::` qualifications scattered around are working around it).
-
-### Friendly libxc interface
-- Support GGA/BPL
+### Vxc and Vcorr Exchange Functionals
 
 ## qcChargeDensity
-- Harden versioning
-```c++
-    virtual bool   isActive() const = 0;   // Layer 2: am I the live head of my lineage?
-```
-  Then the consuming side asserts the invariant:
-```c++
-    const hmat_t& GetMatrix(..., const tDM_CD* cd) const
-    {
-        assert(cd->isActive() && "computing with a superseded charge density");
-        ...
-    }
-```
-  So if anyone hands the Hamiltonian a density that's been superseded, it fires immediately — pointing at the exact line, instead of producing a plausible-but-wrong number.
 
 ## qcFitting
 
 **Small follow-ups from this session's cleanups**
 - `FIT_CD_ABS<T>` / `FIT_SF_ABS<T>` templating — left non-templated; the `<dcmplx>` vision is still open.
-- `FourierFunctionFitter` delete-and-inline — kept the named object; the aggressive alternative remains.
 - XC energy `∫ε_xc·ρ` through the fitter — still on the direct grid route (needs a grid-based fit input).
+  Do this prior to GGA
 
 ## qcAtom_BS
 - **Dirac/RKB:** 1s orbital not properly normalized; track kinetic factors (0.5, c, 2c).
 - **Dirac/RKB:** `Orbital_DHF_IBS.C::merge_xxx`: use `blazem::submatrix`.
-- **Atom evaluators:** Gaussian integrals via recursion `Fact[n]/pow(2,n)` (consider `constexpr`); convert
-  the BSpline Fortran GL integrator (`Atom/Evaluators/BSpline/Internal/gauleg.f`) to C++/blaze and fold into
-  qcMesh — BSpline and PW should share one 1-D GL.
+- **Atom evaluators:** Gaussian integrals via recursion `Fact[n]/pow(2,n)` (consider `constexpr`); 
 - `op()(rvec3_t)` is the universal evaluation interface (full angular dependence, real Ylm — the future GUI
   needs honest truth). Atom DFT integration should exploit spherical symmetry analytically (1-D radial × 4π),
   NOT fake a 3-D grid down one axis. Make integration a polymorphic quadrature strategy chosen by the basis's
   symmetry (atom carries YFactory). **Principle to lock now:** `op(rvec3_t)` is always honest; a fast
   `op(double r)` may exist only as the radial integrator's internal fast-path, never a public alternative.
   Defer to GUI time, but don't let the deferral accrete a flag.
-- **Lossless BSpline grouper** (so `RadialType()` can drop to bare `Name()` like SG/SL, fixing the messy
-  IntegralsCache RAM report — see the Bugs note). Root cause: the spline `ExponentGrouper` keys splines by
-  `rmin` ONLY (Grouper.C: "assume same rmin => same rmax") — lossy for splines — so BSpline currently smuggles
-  the whole grid into `RadialType()` to keep distinct grids in distinct caches. Fix: give the spline grouper a
-  TRUE lossless key for a spline's identity (full knot-vector / grid fingerprint, not just rmin), so two grids
-  never alias even under a coarse `"BSpline<K>"` RadialType; then `RadialType()` returns just `Name()` and the
-  report is clean. Mirror the SG/SL guard: add a two-distinct-grid analogue of
-  `Cache4Tests.HF2_S{G,L}_ExponentKeyed` (different grids -> distinct integrals, fnorm>0).
-- BSpline Rk routines should use cached values for all splines at all GL grid points.  find() inside BSpline(r) is is 90% of the cpu
+
+- Bspline: Add DFT support so we can get good comparison with NIST atom GS numbers.
 
 ## qcMolecule_BS
 
@@ -171,7 +138,6 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
    they be static too, restoring a/b symmetry?
 2. `L`/`itsL`: mostly lowercased `l` on the atom, but still uppercase `LMax`.
 3. Some `std::vector<double>` left in MnD internal — save for a full MnD review+refactor
-4. Get RadialID() and AngularID() out of BasisSet::Molecule/qcMolecule_BS
 
 ## qcLattice_3D
 **Pinned design reviews**
@@ -179,12 +145,16 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
   and the `double& Eh` out-param on `Repulsion(const FourierMap&, double&)`.
 - `BasisSet<dcmplx>::Create{CD,Vxc}FitBasisSet` NA-stubs (`src/BasisSet/Imp/BasisSet.C`) — the "dirty code
   smell" to revisit ("PW reuses its own basis for fitting" ≠ "those fakes are fine").
-- BZ-symmetry reduction — multi-k computes all k-points explicitly; fold to the irreducible wedge (+weights) using the crystal point group when k-counts grow. (Perf, not correctness.)
+- BZ-symmetry reduction — multi-k computes all k-points explicitly; fold to the irreducible wedge (+weights) using the crystal point group when k-counts grow. (Perf, not correctness.) see **Space-group support** in qcSymmetry
+- DIIS appears numerical unstable: PlaneWaveDFT.FrameworkNaFThroughSCFIterator @ UnitTests/PlaneWaveDFTUT.C:1147
+#2497317│ │ Warning: tSCFIrrepAcceleratorDIIS::Project() fabs(Sum(itsCs)-1.0)<>e-13 .
+#2497317│ │ Warning: tSCFIrrepAcceleratorDIIS::Project() fabs(Sum(itsCs)-1.0)<>e-13 .
+#2497317│ │ Warning: tSCFIrrepAcceleratorDIIS::Project() fabs(Sum(itsCs)-1.0)<>e-13 .
+#2497317│ │ [NaF IonicSAD] nPW=113 iters=69 charge=8 Etot=-20.3293  (Ekin=10.1813 Een=-18.2043 Eee=6.19581 Exc=-4.08943 Enn=-14.0034 Ealign=-0.409183)
+#2497317│ │ Warning: tSCFIrrepAcceleratorDIIS::Project(
+
 ## qcPseudoPotential
 
-## qcElConfig
-- Can we make an EC_Aufbau that does aufbau filling across irreps for atom/molecule and solids? Or does each
-  structure type have its own peculiarities?
 
 ## qcSymmetry
 
@@ -199,3 +169,5 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
     density/Hamiltonian symmetrization, crystal SALCs (solid analogue of the molecular SALC work).
   - Reuses the molecular point-group core: a space group ≈ point group ⋉ lattice translations.
 
+  
+## Code Review
