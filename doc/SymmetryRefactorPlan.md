@@ -95,11 +95,18 @@ consumer), not just the symmetry tests.
 
    *Reorg complete: 167/167 UTMain green (full run incl. `A_*`). Branch `symmetry-refactor`, 4 commits.*
 
-6. **AngularMath Stage 1** — `Monomial` → `qchem.Math.Angular`; `IVec3`→`Monomial`; `Polarization : Monomial`.
-   Byte-identical bar = whole UTMain. **Ordering gotcha:** the old `IVec3` (`std::array`) map order is
-   lexicographic; the `Polarization` map order is `LMax`-radix. Lexicographic `Monomial::operator<` matches
-   BOTH only for valid exponents `[0,64)`; verify the Hermite map keys are non-negative before relying on it.
-7. **AngularMath Stage 2** — `SolidHarmonics`/`CartTerm`/c2s → `qchem.Math.Angular`; unify `SphericalRep`.
+6. **[DONE]** AngularMath Stage 1 — `Monomial` in new `qchem.Math.Angular`; `IVec3` is now an alias for it;
+   `Polarization : qchem::Math::Monomial`. Lexicographic `Monomial::operator<` verified byte-compatible with
+   both the old `std::array` order and `Polarization`'s `LMax`-radix order (the sole Polarization-keyed map,
+   Hermite `indexCache`, has non-negative keys). **167/167 UTMain green — byte-identical** (incl. the
+   A_HF_dfPin 1e-8 self-pins). Commit on branch `symmetry-refactor`.
+
+7. **AngularMath Stage 2 (REMAINING, lower value)** — move `SphericalShell(l)` + `CartTerm` + the c2s type
+   into `qchem.Math.Angular`; unify `SphericalRep`'s `HarmonicC2S` (`pair<IVec3,double>`) with the evaluator's
+   `vector<CartTerm>`. Note: `CartTerm`'s member becomes `Monomial` (not `Polarization`), so the
+   PG_Spherical_MnD site that builds `SphData` from `SphericalShell` needs a `Monomial`→`Polarization` step
+   (add a `Polarization(const Monomial&)` ctor). Byte-identical bar = spherical SCF energies. The plan calls
+   this the softer duplication — fine to leave for when convenient.
 
 Class names are preserved verbatim in Stages 1–5 (pure move); the `MolecularIrrep`→`Irrep` file/class
 rename is the one exception (the sub-namespace makes the prefix redundant). Semantic renames
