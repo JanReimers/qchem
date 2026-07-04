@@ -65,18 +65,18 @@ TEST_P(A_HF_dfPin, SelfPin)
 // bit-stably -- the crude basis makes these physically inaccurate, but that is irrelevant to a drift guard).
 // U(92) on Slater is OMITTED: the Slater-Low basis is too crude to converge Z=92 (IsConverged() fails); the
 // BSpline/SG anchors cover U.  Physical validation vs Saito is the opt-in Accuracy=High job (see note below).
-INSTANTIATE_TEST_SUITE_P(f_U,  A_HF_dfPin, ::testing::Values(
-    PinCase{AtomType::BSpline6, Low, 92, -25663.352928188484, 1e-8},
-    PinCase{AtomType::Gaussian, Low, 92, -25661.494406485683, 1e-8},
-    PinCase{AtomType::Slater  , Low, 92, -25465.307086748297, 1e-8}), CaseName);
-INSTANTIATE_TEST_SUITE_P(f_Eu, A_HF_dfPin, ::testing::Values(
-    PinCase{AtomType::BSpline6, Low, 63, -10423.363067460416, 1e-8},
-    PinCase{AtomType::Gaussian, Low, 63, -10422.598808202592, 1e-8},
-    PinCase{AtomType::Slater,   Low, 63, -10391.314921936011, 1e-8}), CaseName);
 INSTANTIATE_TEST_SUITE_P(d_Sc, A_HF_dfPin, ::testing::Values(
     PinCase{AtomType::BSpline6, Low, 21,   -759.732835713717, 1e-8},
     PinCase{AtomType::Gaussian, Low, 21,   -759.488546501283, 1e-8},
     PinCase{AtomType::Slater,   Low, 21,   -758.357843165290, 1e-8}), CaseName);
+INSTANTIATE_TEST_SUITE_P(f_Eu, A_HF_dfPin, ::testing::Values(
+    PinCase{AtomType::BSpline6, Low, 63, -10423.363067460416, 1e-8},
+    PinCase{AtomType::Gaussian, Low, 63, -10422.598808202592, 1e-8},
+    PinCase{AtomType::Slater,   Low, 63, -10391.314921936011, 1e-8}), CaseName);
+INSTANTIATE_TEST_SUITE_P(f_U,  A_HF_dfPin, ::testing::Values(
+    PinCase{AtomType::BSpline6, Low, 92, -25663.352928188484, 1e-8},
+    PinCase{AtomType::Gaussian, Low, 92, -25661.494406485683, 1e-8},
+    PinCase{AtomType::Slater  , Low, 92, -25465.307086748297, 1e-8}), CaseName);
 
 // Opt-in physical validation (expensive): build with -DHIGH to re-run these elements at Accuracy=High and
 // bound the error vs the Saito near-HF-limit table (the A_HF_U/A_HF_P idiom).  Kept OFF by default so the
