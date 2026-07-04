@@ -5,6 +5,7 @@ module;
 #include <map>
 #include <string>
 #include <vector>
+#include <functional>
 export module qchem.Hamiltonian.Internal.Terms;
 import qchem.Hamiltonian.Internal.Term;
 import qchem.Hamiltonian.Internal.ExFunctional;
@@ -59,21 +60,24 @@ private:
 };
 
 //
-//  Nuclear-Nuclear repulsion potential.  Actually this is just an energy, it does not *need* to make
-//  a contribution to the Hamiltonian matrix.  For solids (structure type = Lattice_{1,2,3}D) this
-//  should decide at run time to do an Ewald sum.  But and Ewald sum requires more information: ionic charges
-//  around each nucleus.
+//  Nuclear-Nuclear repulsion energy.  It does not *need* to contribute to the Hamiltonian matrix (a
+//  constant), only the Enn energy: a direct Coulomb pair sum for a finite molecule, an Ewald lattice sum
+//  for a periodic cell (NuclearRepulsion picks by Structure::isFinite()).  The ion charge of each atom is
+//  supplied by a Z->charge callback: the all-electron default is identity (itsZ), a pseudopotential maps
+//  Z -> its valence Zion core charge -- so the SAME term serves both, mirroring the PW PW_IonIon term.
 //
 class Vnn : public virtual rStatic_HT, private rStatic_HT_Imp
 {
 public:
     typedef std::shared_ptr<const Structure> st_t;
-    Vnn(const st_t& st);
+    Vnn(const st_t& st);                                            //!< all-electron: ion charge = itsZ
+    Vnn(const st_t& st, std::function<double(int)> zionOf);        //!< pseudopotential: Z -> Zion core charge
     virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd) const;
     virtual std::ostream& Write    (std::ostream&) const;
 private:
     virtual rsmat_t CalculateMatrix(const robs_t*,const Spin&) const;
     st_t theStructure;
+    std::function<double(int)> itsZionOf;   //!< Z -> ion core charge (identity for the all-electron baseline)
 };
 
 //

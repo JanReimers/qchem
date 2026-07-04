@@ -25,11 +25,12 @@ namespace qchem::BasisSet::Molecule
         {BasisSetData::TZVP , "tzvp.bsd" },
         {BasisSetData::ORB  , "orb.bsd"  },
         {BasisSetData::ORB1 , "orb1.bsd" },
+        {BasisSetData::SIPP , "sipp.bsd" },
     };
     static const std::map<std::string, BasisSetData> theBasisNames = // axis 1: json name -> enum
     {
         {"dzvp" , BasisSetData::DZVP }, {"dzvp2", BasisSetData::DZVP2}, {"tzvp", BasisSetData::TZVP},
-        {"orb"  , BasisSetData::ORB  }, {"orb1" , BasisSetData::ORB1 },
+        {"orb"  , BasisSetData::ORB  }, {"orb1" , BasisSetData::ORB1 }, {"sipp", BasisSetData::SIPP},
     };
     static const std::map<std::string, Engine>  theEngines  =        // axis 2: json name -> enum
     { {"mnd", Engine::MnD}, {"libcint", Engine::LibCint} };

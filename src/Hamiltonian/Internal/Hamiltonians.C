@@ -70,14 +70,17 @@ public:
 
 //! Un-polarized LSDA PSEUDO-atom/molecule: kinetic + V_loc(r) (the pseudized replacement for the bare
 //! nuclear attraction, mesh-quadratured) + the KB-separable non-local projectors + Hartree + Dirac exchange
-//! + VWN5 correlation.  NO Ven, NO ion-ion (single pseudized atom).  The valence electron count comes from
-//! the structure (build the Atom with charge = Z - valence) and the angular channels from a pseudo-atom
-//! electron configuration.  The non-local model may be null (local-only, the over-bound stepping stone).
+//! + VWN5 correlation + ion-ion (Zion cores; a direct pair sum for a molecule, ZERO for a lone atom).  NO
+//! Ven.  The valence electron count comes from the structure (build the Atom(s) with charge = Z - valence)
+//! and the angular channels from the electron configuration.  The non-local model may be null (local-only,
+//! the over-bound stepping stone).  The SAME term list serves a single pseudo-atom and a pseudo-molecule --
+//! the PP terms loop over all atoms and the ion-ion pair sum vanishes when there is only one.
 class Ham_PP_U : public virtual rHamiltonian, private rHamiltonianImp
 {
 public:
-    //! Explicit models (shared with the caller).  \a sep may be null for a local-only run.
-    Ham_PP_U(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPotential_R> vloc,
+    //! Explicit models (shared with the caller).  \a vloc is the COMBINED local model: its real-space view
+    //! (Vloc) feeds PP_Local and its \f$Z_{ion}\f$ feeds the ion-ion term.  \a sep may be null (local-only).
+    Ham_PP_U(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPotential> vloc,
              std::shared_ptr<const Pseudopotential::SeparablePotential_R> sep,
              const qcMesh::MeshParams&, const rbs_t* bs);
     //! Convenience: look up + OWN the GTH local + KB non-local models for \a element at valence \a q (LDA).

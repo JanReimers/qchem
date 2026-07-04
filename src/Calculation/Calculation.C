@@ -71,6 +71,13 @@ struct CalcOptions
     //! future-proofs the day spherical/libcint deliveries are exposed (see doc/SphericalSALCPlan.md).
     bool        symmetry    = false;
     double      symmetryTol = 1e-4;   //!< geometry tolerance for point-group detection
+    //! Replace the bare nuclear attraction with the GTH/HGH pseudopotential (valence-only): the atoms keep
+    //! only their Zion valence electrons and the Hamiltonian gets V_loc(r) + the KB-separable projectors +
+    //! Zion ion-ion, in place of Ven.  SINGLE-SPECIES for now (all atoms the same element; multi-species is
+    //! the next increment).  Requires a valence basis in \c basis (an all-electron basis has spurious core
+    //! shells under a PP) -- e.g. {.basis="sipp", .pseudopotential=true} for silicon.  Ignores \c model
+    //! (the PP front door is always LSDA today).  See doc/MolecularPseudopotentialPlan.md.
+    bool        pseudopotential = false;
     //! SCF seed.  Default == auto: DFT seeds from SAD (superposition of atomic densities), HF/1-e take
     //! the core guess.  Set explicitly to override -- e.g. {.seed=SAD} drives HF's matrix-free-seed
     //! bootstrap (the iterator manufactures a D0 via a one-step LDA sibling).

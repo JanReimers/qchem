@@ -3,6 +3,8 @@ module;
 #include <iostream>
 #include <cassert>
 #include <vector>
+#include <functional>
+#include <utility>
 
 module qchem.Hamiltonian.Internal.Terms;
 import qchem.Energy;
@@ -14,9 +16,16 @@ namespace qchem::Hamiltonian
 {
 
 Vnn::Vnn(const st_t& st)
+    : Vnn(st, [](int Z){return double(Z);})   // all-electron default: ion charge IS the true nuclear Z
+{};
+
+Vnn::Vnn(const st_t& st, std::function<double(int)> zionOf)
     : rStatic_HT_Imp()
     , theStructure(st)
-{};
+    , itsZionOf(std::move(zionOf))
+{
+    assert(itsZionOf && "Vnn: a Z->ion-charge map is required");
+};
 
 rsmat_t Vnn::CalculateMatrix(const robs_t* bs,const Spin&) const
 {
@@ -28,7 +37,8 @@ rsmat_t Vnn::CalculateMatrix(const robs_t* bs,const Spin&) const
 void Vnn::GetEnergy(EnergyBreakdown& te,const rDM_CD* cd) const
 {
     // Pair sum for a finite molecule, Ewald lattice sum for a periodic cell (chosen by isFinite()).
-    te.Enn=NuclearRepulsion(*theStructure);
+    // Charges come from the Z->ion map: itsZ for all-electron, Zion for a pseudopotential.
+    te.Enn=NuclearRepulsion(*theStructure, itsZionOf);
 }
 
 std::ostream& Vnn::Write(std::ostream& os) const

@@ -1,0 +1,88 @@
+# Molecular Pseudopotentials — Interface Divergence & Harmonization Findings
+
+Companion to `doc/MolecularPseudopotentialPlan.md` (user-owned; not edited). This is **goal 2** of the
+Molecule_PP project: *having got it working (goal 1), record the interface divergences it exposed between
+the molecular (`src/BasisSet/Molecule`) and plane-wave (`src/BasisSet/Lattice_3D`) sides, and the concrete
+path to harmonizing them* — in service of the long-term goal of hoisting structure-neutral code up into
+`src/BasisSet`.
+
+Status at time of writing: Si₂ molecular PP converges through the `qchem::Calculation` facade
+(`A_PP.Si2_PP_U.LargeSeparation`), validated by (a) `Enn == Zion²/R` exactly and (b) `E(Si₂) ≈ 2·E(Si)`
+additivity at large R. Full UTMain green.
+
+## 1. The headline divergence: *where* PP assembly lives
+
+| | assembly site | reached via | term(s) |
+|---|---|---|---|
+| **PW** (`Lattice_3D`) | the **basis** — `Integrals_Pseudo<dcmplx>` on `PlaneWave_IBS` | `dynamic_cast` basis→capability, `MakeLocalPotential`/`MakeSeparablePotential` | one: `PW_Pseudo` |
+| **molecular** (`Molecule`) | the **term** — `MakeMolecularMesh`+`WeightedOverlap` inline | nothing (term owns the mesh) | two: `PP_Local`, `PP_NonLocal` |
+
+`Integrals_Pseudo<T>` is realized **only** by the PW basis (`<dcmplx>`); there is **no `<double>` impl**. The
+molecular path never touches it. So the plan's §1/§3 vision ("molecular realizes `Integrals_Pseudo<double>`")
+was quietly superseded by assembly-in-the-term. Net: two assembly sites, nothing hoistable.
+
+## 2. The key realization: the mesh already lives behind the `Fit_ABS` network
+
+The molecular "assembly-in-the-term" is **not** the molecular convention — it is `PP_Local` being the odd
+one out. Molecular XC assembly is *already* structure-neutral and mesh-hidden:
+
+- `Fit_IBS` owns `qcMesh::Mesh itsMesh` + `SetMesh(Structure, MeshParams)` (`src/BasisSet/Fit_IBS.C`).
+- `FIT_SF_ABS::Overlap(const Sf& f)` projects an **arbitrary scalar field** onto the fit basis over that
+  mesh — the fit basis does the quadrature.
+- `FunctionFitter_Scalar<T>` / `FunctionFitter_Density<T>` are structure-neutral templates with a molecular
+  (Becke-mesh) impl **and** a `FourierFunctionFitter` (G-space) impl. `FittedVxc` holds a fitter, hands it a
+  `ScalarFunction`, gets a matrix back, and **never sees a mesh**.
+
+So the tension "the molecular *orbital* basis would have to become mesh-aware to realize
+`Integrals_Pseudo<double>`" is a **false framing**: mesh-awareness belongs in the `Fit_ABS`/fitter network,
+which both PW and molecular already populate.
+
+## 3. Harmonization target
+
+Route PP assembly through the `Fit_ABS` network the way XC already does. Two neutral primitives are needed
+beside the existing fitter (each with a molecular Becke-mesh impl and a PW G-space impl):
+
+- **(a) scalar-field → operator matrix** `⟨χᵢ|V(r)|χⱼ⟩` (local PP). Molecular = `WeightedOverlap` on the
+  Becke mesh; PW = G-space assembly. Shape-identical to `FittedVxc::Overlap`. Design choice: V_loc is
+  **static + smooth**, so raw quadrature is *more* accurate than fit-onto-aux-basis (no fitting error, no
+  per-iteration efficiency argument) — which argues for a distinct field→operator primitive rather than
+  reusing the density/potential *fitter* verbatim.
+- **(b) scalar-field → projection vector** `⟨χᵢ|β_p Yₗₘ⟩` (nonlocal KB). Molecular = `qcMesh::Overlap`;
+  PW = G-space projection.
+
+With both behind `Fit_ABS`, **one neutral term** holds a fitter/assembler, and `Integrals_Pseudo<T>` becomes
+trivial — or unnecessary. **This is the "fold Fitting behind `Fit_ABS`" refactor**, now justified by
+concrete Molecule_PP data rather than speculation. It is the recommended next framework increment before
+Path B (semilocal ECPs).
+
+## 4. Smaller divergences found
+
+- **`PseudoG0Energy` — ELIMINATED this session.** The PP-specific G=0 alignment `(N/Ω)·Σₐ α` moved off the
+  `Integrals_Pseudo` basis interface into the `PW_Pseudo` term (which reads Ω from `UnitCell::GetCellVolume()`
+  and α from the model it already owns). `Integrals_Pseudo<T>` is now two clean universal matrix methods;
+  PW energies bit-identical.
+- **`PW_IonIon` vs molecular `Vnn` — a T-template candidate.** Both are energy-only ion-ion terms delegating
+  to `NuclearRepulsion(st, zionOf)`; they differ only in scalar type (`chmat_t` vs `rsmat_t`) and
+  finite/periodic (already handled inside `NuclearRepulsion`). This session unified the **Zion callback**
+  onto `Vnn` (one term serves all-electron via an identity default and PP via a Z→Zion map, mirroring
+  `PW_IonIon`). A future `IonIon<T>` term could collapse the two entirely.
+- **Electron-count coupling (wart).** `Ham_PP_U`/`FittedVee` read the valence count from
+  `st->GetNumElectrons()`, forcing the "atom charge = Z−Zion" encoding (real atoms carry charge 0). The
+  facade absorbs it via `MakeValenceStructure`, but a cleaner design passes the count/EC explicitly rather
+  than deriving it from structure net-charges.
+- **Basis provenance.** The molecular Factory is Gaussian-file-only, and all-electron `.bsd` files (e.g.
+  `dzvp`) carry core shells that are inconsistent with a PP. A valence-only `sipp.bsd` was authored for
+  validation; a proper GTH-optimized molecular basis family (SZV/DZVP-GTH) is the production follow-up.
+- **Single-species only.** The facade PP path requires all atoms to be the same element. The
+  `MultiSpecies_{Local,Separable}Potential` routers + per-Z `zionOf` (already built and used by PW) are the
+  next increment for hetero molecules.
+
+## 5. What landed this session (goal 1 + the cheap goal-2 wins)
+
+1. `PseudoG0Energy` eliminated (A0 closeout; PW bit-identical).
+2. `Vnn` gained an optional Z→Zion callback (all-electron default = identity) — one ion-ion term for both.
+3. `Ham_PP_U` explicit ctor now takes the **combined** `LocalPotential` (real-space view for `PP_Local` +
+   `Zion` for `Vnn`) and adds `Vnn(Zion)` — harmless (Enn=0) for a lone atom, correct for a molecule.
+4. `qchem::Calculation` facade: `{.pseudopotential=true}` (single-species), valence-ion structure, PP front
+   door, DIIS-from-start.
+5. `sipp.bsd` valence Si Gaussian basis + Factory registration; `A_PP.Si2_PP_U.LargeSeparation` anchor.

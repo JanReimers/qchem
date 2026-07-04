@@ -14,6 +14,8 @@ import qchem.BasisSet.Molecule.Factory;             // BasisSet::Molecule::Facto
 import qchem.BasisSet.Molecule.SymmetryAdaptedBasisSet; // SymmetryAdaptedBasisSet (return of SymmetryAdapt)
 import qchem.BasisSet.Molecule.PG_Cart.SymmetryAdapt;   // PG::SymmetryAdapt (the SALC builder)
 import qchem.ElectronConfiguration.Molecule;        // Molecule_EC (global aufbau)
+import qchem.PeriodicTable;                          // thePeriodicTable (Z -> element symbol, for the PP lookup)
+import qchem.Pseudopotential.GTH_Potentials;         // GetGTH (Zion for the valence electron count + PP model)
 import qchem.SCFAccelerator.Factory;                // SCFAccelerators::Type, Factory
 import qchem.WaveFunction;                           // WaveFunction (GetChargeDensity/GetOrbitals/GetQNs)
 import qchem.Orbitals;                               // Orbital, Orbitals
@@ -63,6 +65,26 @@ static Molecule_EC* MakeMoleculeEC(int Ne, int multiplicity)
     return new Molecule_EC((Ne + twoS) / 2, (Ne - twoS) / 2);   // (nUp, nDown)
 }
 
+// The pseudopotential valence charge (Zion) for element \a Z, from its default-valence GTH entry.
+static int PPZion(int Z) {return Pseudopotential::GetGTH(thePeriodicTable().GetSymbol(Z)).zion;}
+
+// Re-express a structure as its VALENCE ions for a pseudopotential run: each atom keeps its true species Z
+// (so the PP lookup and the true geometry are intact) but carries net charge Z-Zion, so GetNumElectrons()
+// reports the Zion valence count that the EC + FittedVee charge constraint consume.  Single-species for now.
+static std::shared_ptr<Structure> MakeValenceStructure(const Structure& st)
+{
+    const int Z0 = st[0]->itsZ;
+    for (size_t a=0; a<st.GetNumAtoms(); a++)
+        if (st[a]->itsZ != Z0)
+            throw std::runtime_error("qchem::Calculation: molecular pseudopotential is single-species for now "
+                                     "(all atoms must be the same element; multi-species is the next increment)");
+    const int zion = PPZion(Z0);
+    auto mol = std::make_shared<Molecule>();
+    for (size_t a=0; a<st.GetNumAtoms(); a++)
+        mol->Insert(new Atom(Z0, double(Z0 - zion), st[a]->itsR));   // charge = Z - Zion => Zion valence e-
+    return mol;
+}
+
 Calculation::Calculation(const Structure& st, const CalcOptions& opts, const AcceleratorOptions& acc)
     : itsStructure(std::make_shared<Molecule>(st))   // deep copy: the facade owns its own structure
     , itsOpts(opts)
@@ -70,6 +92,10 @@ Calculation::Calculation(const Structure& st, const CalcOptions& opts, const Acc
 {
     // An open shell (2S>0) is unrestricted: it needs distinct up/down densities, so promote to polarized.
     if (itsOpts.multiplicity > 1) itsOpts.pol = Pol::Polarized;
+
+    // A pseudopotential run works on the VALENCE ions (Z-Zion charge) so the electron count is the valence
+    // count -- built before the basis/EC, which both read it off the structure.
+    if (itsOpts.pseudopotential) itsStructure = MakeValenceStructure(*itsStructure);
 
     itsBasis = BuildBasis(itsOpts, itsStructure);                  // raw, or SALC-blocked if .symmetry
     itsEC    = MakeMoleculeEC(int(itsStructure->GetNumElectrons()), itsOpts.multiplicity);
@@ -89,14 +115,19 @@ bool Calculation::Converge(const SCFParams& params)
     const bool dft = qchem::Hamiltonian::IsDFT(itsOpts.model);
 
     // The unified resolver turns the Model token into the concrete Hamiltonian; the DFT extras (mesh,
-    // orbital basis, xalpha) are ignored for HF/1-e/Dirac.
-    auto* ham = qchem::Hamiltonian::Factory(itsOpts.model, itsOpts.pol, itsStructure,
-                                            itsOpts.mesh, itsBasis, itsOpts.xalpha);
+    // orbital basis, xalpha) are ignored for HF/1-e/Dirac.  A pseudopotential run takes the PP front door
+    // instead (LSDA valence Hamiltonian: V_loc + KB projectors + Zion ion-ion in place of Ven).
+    auto* ham = itsOpts.pseudopotential
+        ? qchem::Hamiltonian::Factory(itsStructure, thePeriodicTable().GetSymbol((*itsStructure)[0]->itsZ),
+                                      PPZion((*itsStructure)[0]->itsZ), itsOpts.mesh, itsBasis)
+        : qchem::Hamiltonian::Factory(itsOpts.model, itsOpts.pol, itsStructure,
+                                      itsOpts.mesh, itsBasis, itsOpts.xalpha);
 
-    // DFT needs DIIS engaged from iteration 0: the default Z-scaled EMax gate keeps DIIS off and the DFT
-    // SCF limit-cycles to a non-converged snapshot (the "M_Sym layout UB" mechanism, see M_DFT).  So
-    // default DFT to a high EMax ("DIIS from start") unless the caller pinned one explicitly.
-    const double emax = itsAcc.eMax > 0.0 ? itsAcc.eMax : (dft ? 100.0 : Z*Z*0.1/32);
+    // DFT (and the LSDA pseudopotential) need DIIS engaged from iteration 0: the default Z-scaled EMax gate
+    // keeps DIIS off and the SCF limit-cycles to a non-converged snapshot (the "M_Sym layout UB" mechanism,
+    // see M_DFT).  So default them to a high EMax ("DIIS from start") unless the caller pinned one.
+    const bool dftLike = dft || itsOpts.pseudopotential;
+    const double emax = itsAcc.eMax > 0.0 ? itsAcc.eMax : (dftLike ? 100.0 : Z*Z*0.1/32);
     nlohmann::json jsacc = {{"NProj", itsAcc.nProj}, {"EMax", emax},
                             {"EMin", itsAcc.eMin}, {"SVTol", itsAcc.svTol}};
     auto* accel = qchem::SCFAccelerators::Factory(qchem::SCFAccelerators::Type::DIIS, jsacc);
