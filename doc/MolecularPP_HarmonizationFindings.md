@@ -52,7 +52,11 @@ beside the existing fitter (each with a molecular Becke-mesh impl and a PW G-spa
   `VectorFunction`). `PP_Local` now obtains the integrator via the factory and calls `Overlap(V_loc)` — the
   mesh left the term (bit-identical: same Becke mesh, same `WeightedOverlap`, just relocated behind the
   interface). V_loc is **static + smooth**, so this is raw quadrature (no fit), correctly distinct from the
-  density/potential *fitter*. RESIDUAL: the SALC wrapper (`SymmetryAdapted_IBS`) does not yet delegate
+  density/potential *fitter*. MESH SOURCE: the integrator gets its mesh from **`Structure::CreateIntegrationMesh(mp)`**
+  (a polymorphic geometry capability — Becke for a finite molecule/atom by default, uniform/unit-cell-Becke for
+  a lattice by override), so the mesh TYPE follows the geometry, not the basis; the field-operator path is
+  geometry-neutral and a Gaussian basis on a lattice would integrate on the right grid for free. RESIDUAL: the
+  SALC wrapper (`SymmetryAdapted_IBS`) does not yet delegate
   `CreateMeshIntegrator`, so PP + point-group symmetry would fail the cast — fine today (the facade doesn't
   offer PP+symmetry), add the one-line delegation when it does. PW could also expose `CreateMeshIntegrator`
   returning itself for full uniformity (it already IS-A `Mesh_Integrated_IBS`); deferred to the PW-PP unify.

@@ -12,7 +12,7 @@ import qchem.BasisSet.Internal.Orbital_DHF_IBS;
 import qchem.BasisSet.IrrepBasisSet;
 import qchem.BasisSet.Orbital_1E_IBS;
 import qchem.BasisSet.Orbital_DFT_IBS;
-import qchem.BasisSet.Mesh_Integrated_IBS;   // MeshIntegratorSource + MakeBeckeMeshIntegrator (field-operator)
+import qchem.BasisSet.Mesh_Integrated_IBS;   // MeshIntegratorSource + MakeMeshIntegrator (field-operator)
 import qchem.BasisSet.Orbital_HF_IBS;
 import qchem.Mesh;                            // qcMesh::MeshParams
 import qchem.Structure;                       // Structure
@@ -200,7 +200,7 @@ public:
     virtual BasisSet::Mesh_Integrated_IBS<double>*
     CreateMeshIntegrator(const Structure* cl, const qcMesh::MeshParams& mp) const override
     {
-        return BasisSet::MakeBeckeMeshIntegrator(*this, cl, mp);
+        return BasisSet::MakeMeshIntegrator(*this, cl, mp);
     }
 protected:
     virtual ERI3<double> MakeOverlap3C  (const FIT_SF_ABS& _c) const

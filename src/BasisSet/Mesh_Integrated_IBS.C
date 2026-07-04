@@ -50,12 +50,13 @@ public:
     virtual Mesh_Integrated_IBS<T>* CreateMeshIntegrator(const Structure*, const qcMesh::MeshParams&) const=0;
 };
 
-//! \brief Build a Becke-mesh integrator for the orbital \a basis (a VectorFunction \f$[\phi_i(r)]\f$) over
-//! the atom-centred molecular mesh of \a structure at resolution \a mp -- the concrete MOLECULAR realization
-//! of \c Mesh_Integrated_IBS<double>.  The returned object holds a REFERENCE to \a basis (which must outlive
-//! it) and owns its mesh.  Caller owns the result.  (Free helper so the molecular IBS mixin needs no
-//! knowledge of the concrete integrator; lives here beside the interface as Fit_IBS's Becke mesh does.)
-Mesh_Integrated_IBS<double>* MakeBeckeMeshIntegrator(const VectorFunction<double>& basis,
-                                                     const Structure*, const qcMesh::MeshParams&);
+//! \brief Build a mesh-integrator for the orbital \a basis (a VectorFunction \f$[\phi_i(r)]\f$) over the
+//! integration mesh of \a structure at resolution \a mp -- the concrete real-space realization of
+//! \c Mesh_Integrated_IBS<double>.  The MESH TYPE is the structure's choice (Structure::CreateIntegrationMesh:
+//! Becke for a molecule/atom, uniform/unit-cell-Becke for a lattice), so this helper is geometry-agnostic.
+//! The returned object holds a REFERENCE to \a basis (which must outlive it) and owns its mesh.  Caller owns
+//! the result.  (Free helper so the orbital IBS mixins need no knowledge of the concrete integrator.)
+Mesh_Integrated_IBS<double>* MakeMeshIntegrator(const VectorFunction<double>& basis,
+                                                const Structure*, const qcMesh::MeshParams&);
 
 } //namespace

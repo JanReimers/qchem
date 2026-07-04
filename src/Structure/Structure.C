@@ -7,6 +7,7 @@ export module qchem.Structure;
 import qchem.Types;
 import qchem.Streamable;
 import qchem.Iterators;
+import qchem.Mesh;        // qcMesh::Mesh / MeshParams -- the real-space integration mesh a geometry produces
 
 namespace qchem {
 
@@ -35,6 +36,14 @@ public:
     //! (a UnitCell/lattice).  The ion-ion (Vnn) Hamiltonian term uses this to choose a direct pair sum
     //! for a finite structure vs an Ewald lattice sum for a periodic one.
     virtual bool   isFinite         () const {return true;}
+
+    //! \brief The real-space integration mesh natural to this geometry, at resolution \a mp.  The mesh TYPE
+    //! follows the STRUCTURE, not the basis: a finite molecule/atom yields the atom-centred Becke grid (the
+    //! default here; for a single atom that is just its radial x angular grid), a periodic lattice OVERRIDES
+    //! with a uniform / unit-cell-Becke grid.  The field-operator path (BasisSet::Mesh_Integrated_IBS) asks
+    //! the structure for this, so a Gaussian/numeric orbital basis integrates on the right grid for its
+    //! geometry without knowing the mesh type.  (Plane waves own their G-grid intrinsically and do not use it.)
+    virtual qcMesh::Mesh CreateIntegrationMesh(const qcMesh::MeshParams&) const;
 
     virtual size_t GetAtomIndex(const rvec3_t&, double tol=0.0) const;
 

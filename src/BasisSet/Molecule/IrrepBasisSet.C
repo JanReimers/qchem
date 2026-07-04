@@ -21,7 +21,7 @@ import qchem.BasisSet.Orbital_1E_IBS;
 import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.BasisSet.Orbital_HF_IBS;
 import qchem.BasisSet.Fit_IBS;
-import qchem.BasisSet.Mesh_Integrated_IBS;   // MeshIntegratorSource + MakeBeckeMeshIntegrator (field-operator)
+import qchem.BasisSet.Mesh_Integrated_IBS;   // MeshIntegratorSource + MakeMeshIntegrator (field-operator)
 import qchem.Mesh;                           // qcMesh::MeshParams
 import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.Molecule.Evaluators;      // concepts + generic 1E matrix builders
@@ -98,7 +98,7 @@ public:
     virtual ::qchem::BasisSet::Mesh_Integrated_IBS<double>*
     CreateMeshIntegrator(const Structure* cl, const qcMesh::MeshParams& mp) const override
     {
-        return ::qchem::BasisSet::MakeBeckeMeshIntegrator(*this, cl, mp);
+        return ::qchem::BasisSet::MakeMeshIntegrator(*this, cl, mp);
     }
 protected:
     virtual ERI3<double> MakeOverlap3C  (const FIT_SF_ABS& c) const
