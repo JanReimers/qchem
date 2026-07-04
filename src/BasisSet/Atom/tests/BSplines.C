@@ -378,7 +378,7 @@ TEST_F(BSplineTests, Kinetic)
         for (auto i:iv_t(0,T.rows()-K-1)) //Check banded
             for (auto j:iv_t(i+K+1,T.rows())) EXPECT_EQ(T(i,j),0.0);
         
-        int l=Getl(ibs->GetSymmetry());
+        int l=qchem::Symmetry::Atom::Getl(ibs->GetSymmetry());
         rsmat_t Tnum = qcMesh::KineticGrad2(itsMesh,BFView(*ibs));
         rsmat_t Cen  = qcMesh::WeightedOverlap(itsMesh,BFView(*ibs),OneOverR2());
         Tnum+=l*(l+1)*Cen;

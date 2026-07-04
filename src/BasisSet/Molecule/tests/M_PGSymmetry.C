@@ -17,8 +17,9 @@ import qchem.Math;                                            // fabs
 using namespace qchem;
 
 using namespace qchem::BasisSet::Molecule::PG_Cart;
-using namespace qchem::Symmetry;
-using namespace qchem::Symmetry::Molecule;
+// NB: no `using namespace qchem::Symmetry[::Molecule]` -- the Symmetry::Molecule NAMESPACE would collide with
+// the Structure `Molecule` class used below.  The pipeline free functions (BuildAbelianGroup/BuildSALCs/
+// BuildOperationRep/Centroid) resolve by ADL from their Symmetry::Molecule argument types instead.
 using SymmetryAdapted_IBS      = ::qchem::BasisSet::SymmetryAdapted_IBS;          // ::BasisSet (the class clashes)
 using SymmetryAdaptedBasisSet  = ::qchem::BasisSet::Molecule::SymmetryAdaptedBasisSet;
 

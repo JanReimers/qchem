@@ -119,7 +119,7 @@ TEST_F(GaussianRadialIntegralTests, Kinetic)
     {
         rsmat_t K=oi->Kinetic();   // the <p^2>=<-nabla^2> block (no 1/2); see BasisSet/Orbital_1E_IBS.C
         //cout << S << endl;
-        int l=Getl(oi->GetSymmetry());;
+        int l=qchem::Symmetry::Atom::Getl(oi->GetSymmetry());;
         // ...which equals Grad2 (radial) + centrifugal l(l+1)<r^-2>, confirming the no-1/2 convention.
         rsmat_t Knum = qcMesh::KineticGrad2(itsMesh,BFView(*oi))
                      + l*(l+1)*qcMesh::WeightedOverlap(itsMesh,BFView(*oi),OneOverR2());
