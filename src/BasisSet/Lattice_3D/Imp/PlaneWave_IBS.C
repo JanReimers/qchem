@@ -264,19 +264,6 @@ double PlaneWave_IBS::Integral(const ScalarFunction<double>& f) const
     return s*itsVolume/double(frac.size());
 }
 
-// Energy of the DROPPED G=0 local-potential component: E_alpha = (N/Omega) Sum_a alpha_a, with
-// alpha_a = the local model's finite G->0 limit (FormFactorG0 = integral[V_loc+Z/r]).  itsVolume = Omega.
-// Only the LOCAL part has a G=0 alignment (the separable nonlocal is short-ranged); a bare-Coulomb model
-// has alpha=0.  This is an ENERGY-only term -- the G=0 potential never entered the matrix
-// (MakeLocalPotential drops dG=0), so it is added to the total energy by the external term, which owns
-// the model and supplies it here (Omega and the cell geometry stay the basis's business).
-double PlaneWave_IBS::PseudoG0Energy(const Structure* cl, const Pseudopotential::LocalPotential& loc, double numElectrons) const
-{
-    double sumAlpha=0.0;
-    for (Atom* a : *cl) sumAlpha += loc.FormFactorG0(a->itsZ);
-    return (numElectrons/itsVolume)*sumAlpha;
-}
-
 // Plane waves are orthonormal over the cell: <G|G'> = delta_{GG'}.
 chmat_t PlaneWave_IBS::MakeOverlap() const
 {

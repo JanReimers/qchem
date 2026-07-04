@@ -41,9 +41,6 @@ private:
     st_t theStructure;
     const Pseudopotential::LocalPotential*     itsLocal;       //!< local pseudopotential model (non-owning).
     const Pseudopotential::SeparablePotential* itsSep;         //!< KB nonlocal model (non-owning; may be null).
-    //! Captured from CalculateMatrix so GetEnergy can ask the basis for the dropped-G=0 alignment energy
-    //! (PseudoG0Energy) with the current electron count.  Same basis every iteration.
-    mutable const Pseudopotential::Integrals_Pseudo<dcmplx>* itsBasis=nullptr;
 };
 
 //! Non-relativistic kinetic ENERGY term T = 1/2 <p^2> for a plane-wave basis (diagonal in |k+G|^2).

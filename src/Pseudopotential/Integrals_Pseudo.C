@@ -36,13 +36,6 @@ public:
     //! from the projector model \a nl: \f$\frac1\Omega\sum_a e^{-i\Delta G\cdot\tau_a}\sum_p\tilde\beta_p(|k+G|)
     //! D_p\tilde\beta_p(|k+G'|)\f$ (with the \f$(2l+1)P_l\f$ angular weight per channel).  Hermitian.
     virtual hmat_t<T> MakeSeparablePotential(const Structure*, const SeparablePotential& nl) const=0;
-
-    //! \brief Energy carried by the local potential's DROPPED \f$G=0\f$ component for the model \a loc and a
-    //! density of \a numElectrons electrons: the uniform electron-ion alignment \f$(N/\Omega)\sum_a\alpha_a\f$,
-    //! \f$\alpha_a=\int[V_{loc}^a+Z_a/r]\f$ (the basis supplies \f$\Omega\f$; the model supplies \f$\alpha\f$).
-    //! Enters the total energy but NOT the Hamiltonian matrix (the \f$G=0\f$ potential is a dropped constant).
-    //! \note Plane-wave-specific (a neutralising-background artifact); pinned for the scalar-leakage review.
-    virtual double PseudoG0Energy(const Structure*, const LocalPotential& loc, double numElectrons) const=0;
 };
 
 }//namespace

@@ -82,8 +82,6 @@ public:
     virtual chmat_t    Overlap     (const FourierMap& Vtilde) const override;  //!< <i|V|j>=Vtilde(dm)
     virtual chmat_t    Overlap     (const rvec_t& Vgrid)  const override;      //!< = Overlap(ForwardGrid(Vgrid))
     virtual double     Integral    (const rvec_t& fgrid)   const override;
-    //!< (N/Omega) Sum_a alpha_a for the supplied local model (the dropped-G=0 alignment energy).
-    virtual double  PseudoG0Energy(const Structure* cl, const Pseudopotential::LocalPotential& loc, double numElectrons) const override;
 
     // 1E integral building blocks (no 1/2 on Kinetic -- the Hamiltonian applies it).
     virtual chmat_t MakeOverlap () const override;                  //!< Identity (PWs orthonormal over the cell).

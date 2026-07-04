@@ -12,6 +12,7 @@ import qchem.BasisSet.Band_FT_IBS;         // cast bs UP to the reciprocal-space
 import qchem.Pseudopotential.Integrals_Pseudo;   // cast bs ACROSS to the external-PP operator-assembly mixin (PW_Pseudo)
 import qchem.Fitting.FourierFunctionFitter; // the PW fitter PW_Hartree drives (like FittedVee's FunctionFitter)
 import qchem.Structure;                       // Structure (PW_IonIon ion-ion energy)
+import qchem.UnitCell;                        // UnitCell::GetCellVolume() -- Omega for the G=0 alignment (term-side)
 import qchem.Ewald;                           // NuclearRepulsion (Ewald lattice sum for the crystal)
 import qchem.Blaze;                            // blazem::zeroH (PW_IonIon's zero matrix)
 
@@ -37,7 +38,6 @@ chmat_t PW_Pseudo::CalculateMatrix(const cobs_t* bs, const Spin&) const
 {
     auto pw=dynamic_cast<const Pseudopotential::Integrals_Pseudo<dcmplx>*>(bs);
     assert(pw && "PW_Pseudo requires an Integrals_Pseudo<dcmplx> (e.g. plane-wave) basis");
-    itsBasis=pw;                    // captured for GetEnergy's G=0 alignment (same basis every iteration)
     chmat_t V=pw->MakeLocalPotential(&*theStructure, *itsLocal);
     if (itsSep) V += pw->MakeSeparablePotential(&*theStructure, *itsSep);
     return V;
@@ -47,10 +47,19 @@ void PW_Pseudo::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 {
     // Een stays the band expectation over the (G!=0) external matrix (== the prototype's electron-ion
     // energy).  The dropped-G=0 alignment alpha is a separate constant in te.Ealign -- kept in the total
-    // energy but NOT the matrix (see PseudoG0Energy), and out of the band-structure cross-check.  The
-    // term supplies its local model; the basis owns Omega and the (N/Omega) Sum_a alpha_a assembly.
+    // energy but NOT the matrix, and out of the band-structure cross-check.  It is E_alpha = (N/Omega)
+    // Sum_a alpha_a with alpha_a = the model's finite G->0 limit (FormFactorG0 = integral[V_loc^a+Z/r]).
+    // The alignment is a PERIODIC neutralising-background artifact: it exists only when the Structure is a
+    // UnitCell (Omega finite); a finite/molecular Structure has no G=0 background, so no alignment term.
+    // The term owns the model (alpha) and reads Omega straight off the cell geometry -- no basis needed
+    // (the old basis-side PseudoG0Energy was a scalar PP formula leaking into the neutral basis interface).
     te.Een=cd->DM_Contract(this);                                          // integral rho V_ext (G!=0)
-    if (itsBasis) te.Ealign = itsBasis->PseudoG0Energy(&*theStructure, *itsLocal, cd->GetTotalCharge());
+    if (auto* cell=dynamic_cast<const UnitCell*>(&*theStructure))          // periodic only (Omega finite)
+    {
+        double sumAlpha=0.0;
+        for (Atom* a : *theStructure) sumAlpha += itsLocal->FormFactorG0(a->itsZ);
+        te.Ealign = (cd->GetTotalCharge()/cell->GetCellVolume())*sumAlpha;
+    }
 }
 
 std::ostream& PW_Pseudo::Write(std::ostream& os) const
