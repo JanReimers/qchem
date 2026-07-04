@@ -40,7 +40,7 @@ public:
     //! an abstract \c sym_t and pry out their quantum number).  The crystal momentum is read from the
     //! irrep via Symmetry::Getk; the basis owns no copy of the BZ grid.
     //! \param recip   the reciprocal lattice (its UnitCell matrix is \f$B=2\pi A^{-\top}\f$).
-    //! \param irrep   the Bloch irrep (a BlochQN); \f$k\f$ = Symmetry::Getk(irrep).
+    //! \param irrep   the Bloch irrep (a BlochQN); \f$k\f$ = Symmetry::Lattice_3D::Getk(irrep).
     //! \param Ecut    plane-wave energy cutoff (Hartree): keep \f$G\f$ with \f$\tfrac12|k+G|^2<E_{cut}\f$.
     PlaneWave_IBS(const ReciprocalLattice& recip, const sym_t& irrep, double Ecut);
 

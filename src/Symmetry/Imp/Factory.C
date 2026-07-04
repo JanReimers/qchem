@@ -4,7 +4,7 @@ module;
 module qchem.Symmetry.Factory;
 // We want to try hide all these imports from the main code.
 import qchem.Symmetry.Internal.Spherical;
-import qchem.Symmetry.BlochQN;
+import qchem.Symmetry.Lattice_3D.BlochQN;
 import qchem.Symmetry.Unit;
 
 
@@ -29,7 +29,7 @@ sym_t     ΩFactory(int κ,const rvec_t& mjs)
 }
 sym_t BlochFactory(ivec3_t N, ivec3_t k, double weight)
 {
-    return sym_t(new BlochQN(N,k,weight));
+    return sym_t(new Lattice_3D::BlochQN(N,k,weight));
 }
 sym_t  UnitFactory()
 {

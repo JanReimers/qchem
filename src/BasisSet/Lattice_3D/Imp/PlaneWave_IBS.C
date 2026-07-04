@@ -11,7 +11,7 @@ module;
 
 module qchem.BasisSet.Lattice_3D.PlaneWave_IBS;
 import qchem.Symmetry.Factory;   // BlochFactory (the convenience ctor builds the Bloch irrep)
-import qchem.Symmetry.BlochQN;   // Symmetry::Getk (prys k out of the abstract Bloch irrep)
+import qchem.Symmetry.Lattice_3D.BlochQN;   // Symmetry::Lattice_3D::Getk (prys k out of the abstract Bloch irrep)
 import qchem.Structure;          // Atom (itsZ, itsR) + atom iteration for MakeNuclear
 import qchem.Math;               // Pi, FourPi, sqrt, cos, sin, pow, Cube
 import qchem.SpecialFunctions;   // LegendreP (the (2l+1)P_l angular factor)
@@ -27,7 +27,7 @@ namespace qchem::BasisSet::Lattice_3D
 PlaneWave_IBS::PlaneWave_IBS(const ReciprocalLattice& recip, const sym_t& irrep, double Ecut)
     : BasisSet::IrrepBasisSetImp<dcmplx>(irrep)
     , itsRecip(recip)
-    , itsk(Symmetry::Getk(irrep))   // the Bloch irrep IS the k-label; pry it out (mirrors Getl on atoms)
+    , itsk(Symmetry::Lattice_3D::Getk(irrep))   // the Bloch irrep IS the k-label; pry it out (mirrors Getl on atoms)
     , itsEcut(Ecut)
     // |det B| = (2 pi)^3 / |det A|, so the direct cell volume V = (2 pi)^3 / V_recip.
     , itsVolume(Cube(2*Pi)/recip.GetCell().GetCellVolume())

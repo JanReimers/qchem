@@ -1,7 +1,7 @@
-// File: Symmetry/BlochQN.C  A Quantum Number translational symmetry, i.e. a wave vector.
+// File: Symmetry/Lattice_3D/BlochQN.C  A Quantum Number translational symmetry, i.e. a wave vector.
 module;
 #include <iosfwd>
-export module qchem.Symmetry.BlochQN;
+export module qchem.Symmetry.Lattice_3D.BlochQN;
 export import qchem.Types;
 export import qchem.Symmetry;
 //---------------------------------------------------------------------------------
@@ -9,8 +9,8 @@ export import qchem.Symmetry;
 //  Translational symmetry, Bloch function wave vector.
 //
 
-namespace qchem {
-export class BlochQN : public virtual Symmetry::Symmetry
+namespace qchem::Symmetry::Lattice_3D {
+export class BlochQN : public virtual qchem::Symmetry::Symmetry
 {
 public:
     BlochQN(ivec3_t _N, ivec3_t _ik, double _weight=1.0);
@@ -28,15 +28,12 @@ private:
     rvec3_t k;      //Real values.
     double  weight; //BZ-integration weight w_k (sum over the k-mesh = 1).
 };
-} // namespace qchem
 
 //! \brief Pry the Bloch wave vector \f$k\f$ (fractional) out of an abstract symmetry handle.
-//! Throws std::bad_cast if the symmetry is not a BlochQN.  Mirrors Symmetry::Getl / Getκ:
+//! Throws std::bad_cast if the symmetry is not a BlochQN.  Mirrors Symmetry::Atom::Getl / Getκ:
 //! an IBS constructor is handed an abstract \c sym_t and uses this helper to extract the one
 //! piece of concrete information it needs (here, the crystal momentum).
-export namespace qchem::Symmetry
-{
-rvec3_t Getk(const sym_t&);
-rvec3_t Getk(const Symmetry&);
-}
+export rvec3_t Getk(const sym_t&);
+export rvec3_t Getk(const qchem::Symmetry::Symmetry&);
+} // namespace qchem::Symmetry::Lattice_3D
 

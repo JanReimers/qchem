@@ -1,10 +1,10 @@
-// File: Symmetry/Imp/BlochQN.C  A Quantum Number translational symmetry, i.e. a wave vector.
+// File: Symmetry/Lattice_3D/Imp/BlochQN.C  A Quantum Number translational symmetry, i.e. a wave vector.
 module;
 #include <iostream>
 #include <cassert>
-module qchem.Symmetry.BlochQN;
+module qchem.Symmetry.Lattice_3D.BlochQN;
 
-namespace qchem {
+namespace qchem::Symmetry::Lattice_3D {
 
 BlochQN::BlochQN(ivec3_t _N, ivec3_t _ik, double _weight)
     : N(_N)
@@ -33,10 +33,7 @@ std::ostream& BlochQN::Write(std::ostream& os) const
     return os << k;
 }
 
-} // namespace qchem
+rvec3_t Getk(const sym_t& s)                     {return Getk(*s.get());}
+rvec3_t Getk(const qchem::Symmetry::Symmetry& s) {return dynamic_cast<const BlochQN&>(s).Getk();}
 
-namespace qchem::Symmetry
-{
-rvec3_t Getk(const sym_t& s)     {return Getk(*s.get());}
-rvec3_t Getk(const Symmetry& s)  {return dynamic_cast<const BlochQN&>(s).Getk();}
-}
+} // namespace qchem::Symmetry::Lattice_3D

@@ -13,9 +13,9 @@ target_sources(qcSymmetry PRIVATE
     Imp/AbelianGroup.C
     Imp/SALC.C
     Imp/MolecularIrrep.C
-    Internal/Imp/Unit.C
+    Imp/Unit.C
     Internal/Imp/Spherical.C   # merged: was Yl.C + Ylm.C + Okmj.C (all impl units of Internal.Spherical)
-    Internal/Imp/BlochQN.C
+    Lattice_3D/Imp/BlochQN.C
     )
 target_sources(qcSymmetry PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
     Spin.C 
@@ -34,10 +34,10 @@ target_sources(qcSymmetry PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     SALC.C
     MolecularIrrep.C
     Internal/Spherical.C
-    Internal/BlochQN.C
-    Internal/Unit.C
+    Lattice_3D/BlochQN.C
+    Unit.C
 
-    ) 
+    )
 
 target_compile_options(qcSymmetry PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(qcSymmetry PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
