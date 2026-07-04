@@ -103,12 +103,17 @@ consumer), not just the symmetry tests.
    Hermite `indexCache`, has non-negative keys). **167/167 UTMain green — byte-identical** (incl. the
    A_HF_dfPin 1e-8 self-pins). Commit on branch `symmetry-refactor`.
 
-7. **AngularMath Stage 2 (REMAINING, lower value)** — move `SphericalShell(l)` + `CartTerm` + the c2s type
-   into `qchem.Math.Angular`; unify `SphericalRep`'s `HarmonicC2S` (`pair<IVec3,double>`) with the evaluator's
-   `vector<CartTerm>`. Note: `CartTerm`'s member becomes `Monomial` (not `Polarization`), so the
-   PG_Spherical_MnD site that builds `SphData` from `SphericalShell` needs a `Monomial`→`Polarization` step
-   (add a `Polarization(const Monomial&)` ctor). Byte-identical bar = spherical SCF energies. The plan calls
-   this the softer duplication — fine to leave for when convenient.
+7. **[DONE]** AngularMath Stage 2 — `SphericalShell(l)` + `CartTerm` + `HarmonicC2S` now live in
+   `qchem.Math.Angular` (the evaluator's `PG_Spherical_MnD.SolidHarmonics` module is DELETED; consumers import
+   qcMath). `SphericalRep`'s c2s and the evaluator's terms are now the SAME `vector<CartTerm>` type, so the
+   PG_Spherical extractor hands the basis's own terms across with a plain copy (no re-derivation). `CartTerm`'s
+   member is `Monomial`; added an implicit `Polarization(const Monomial&)` lift so the ERI kernels take terms
+   directly, and wrapped the two real-space eval sites (`t.p(r)` / `t.p.Gradient(r)`) that call
+   `Polarization` methods; added `Monomial::operator<<` for the cache-key string. **167/167 UTMain green —
+   spherical energies byte-identical — and `allTests` builds clean.** Commit on branch `symmetry-refactor`.
+
+   *AngularMath complete. The three superseded docs (`SymmetryConsolidationPlan.md`, `AngularMathPlan.md`) can
+   now be deleted; the naming-cleanup memo stays (its rename is still a future pass).*
 
 Class names are preserved verbatim in Stages 1–5 (pure move); the `MolecularIrrep`→`Irrep` file/class
 rename is the one exception (the sub-namespace makes the prefix redundant). Semantic renames

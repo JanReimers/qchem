@@ -11,13 +11,13 @@
 
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;      // GaussianRF (Cartesian kernels)
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;    // Polarization
-import qchem.BasisSet.Molecule.Evaluators.PG_Spherical_MnD.SolidHarmonics;
+import qchem.Math.Angular;                                            // SphericalShell, CartTerm
 import qchem.BasisSet.Molecule.Evaluators.PG_Spherical_MnD;            // NR_Evaluator (1E)
 import qchem.Types;
 using namespace qchem;
 
 using namespace qchem::BasisSet::Molecule::Evaluators;
-using PG_Spherical_MnD::SphericalShell;
+using qchem::Math::SphericalShell;
 using PG_Spherical_MnD::NR_Evaluator;
 using PG_Cart_MnD::GaussianRF;
 

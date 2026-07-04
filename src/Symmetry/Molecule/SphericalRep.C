@@ -11,19 +11,19 @@
 //! the caller (the molecular basis passes its SolidHarmonics), so qcSymmetry stays self-contained + LAPACK-free.
 module;
 #include <vector>
-#include <array>
-#include <utility>
 export module qchem.Symmetry.Molecule.SphericalRep;
-export import qchem.Symmetry.Molecule.CartesianRep;   // IVec3, CartesianShellRep (reused for the math), ShellRep
+export import qchem.Symmetry.Molecule.CartesianRep;   // IVec3(=Monomial), CartesianShellRep, ShellRep; re-exports qcMath Angular
 
 export namespace qchem::Symmetry::Molecule
 {
 
-//! One harmonic's Cartesian expansion: a list of (monomial exponents, coefficient) terms.  c2s[m] is the
-//! m-th real solid harmonic of the shell, in the BASIS'S OWN m-ordering (the convention must match the
-//! basis these reps will adapt -- see the per-basis extractors).  Overall per-harmonic scale is irrelevant
-//! (it cancels in the projection), so any convenient normalisation of the coefficients works.
-using HarmonicC2S = std::vector<std::vector<std::pair<IVec3, double>>>;
+//! The c2s expansion the spherical rep projects through: a list of harmonics, each a list of
+//! (Cartesian monomial, coefficient) \c CartTerm's, in the BASIS'S OWN m-ordering (the convention must match
+//! the basis these reps adapt -- see the per-basis extractors).  This is the SAME shared type the
+//! spherical-Gaussian evaluator produces (\c qchem::Math::SphericalShell), so the extractor hands the basis's
+//! own terms across with no re-derivation.  Per-harmonic scale is irrelevant (it cancels in the projection).
+using qchem::Math::CartTerm;
+using HarmonicC2S = qchem::Math::HarmonicC2S;
 
 //! \brief The operation rep of a real-spherical shell whose harmonics have the Cartesian expansion \a c2s.
 //! Built from the Cartesian rep by projecting through the c2s map (the harmonic subspace is

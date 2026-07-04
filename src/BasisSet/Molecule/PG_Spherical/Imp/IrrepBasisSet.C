@@ -9,7 +9,7 @@ module;
 module qchem.BasisSet.Molecule.PG_Spherical;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;
-import qchem.BasisSet.Molecule.Evaluators.PG_Spherical_MnD.SolidHarmonics;   // SphericalShell, CartTerm
+import qchem.Math.Angular;                                                   // SphericalShell, CartTerm
 import qchem.BasisSet.Molecule.Reader;
 import qchem.BasisSet.Molecule.Readers.Gaussian94;   // the auto fit-basis reader
 import qchem.BasisSet.Molecule.BasisFiles;           // A1_coul/A1_exch path (owned by BasisFiles)
@@ -24,7 +24,7 @@ namespace qchem::BasisSet::Molecule::PG_Spherical
 {
 using Cart::GaussianRF;
 using Cart::Polarization;
-using Sph::SphericalShell;
+using qchem::Math::SphericalShell;
 
 template <class T> T Max(const std::vector<T>& v) {return *std::max_element(v.begin(), v.end());}
 
@@ -109,7 +109,7 @@ rvec_t IrrepBasisSet::operator() (const rvec3_t& r) const
         const GaussianRF& rf=*comps[i].radial;
         rvec3_t dr=r-rf.GetCenter();
         double ang=0.0;
-        for (const auto& t:comps[i].terms) ang += t.c * t.p(dr);
+        for (const auto& t:comps[i].terms) { const Polarization p(t.p); ang += t.c * p(dr); }
         ret[i]= ns[i]*ang*rf(r);
     }
     return ret;
@@ -122,7 +122,7 @@ rvec3vec_t IrrepBasisSet::Gradient (const rvec3_t& r) const
         const GaussianRF& rf=*comps[i].radial;
         rvec3_t dr=r-rf.GetCenter();
         rvec3_t g(0,0,0);
-        for (const auto& t:comps[i].terms) g += t.c*(t.p.Gradient(dr)*rf(r) + t.p(dr)*rf.Gradient(r));
+        for (const auto& t:comps[i].terms) { const Polarization p(t.p); g += t.c*(p.Gradient(dr)*rf(r) + p(dr)*rf.Gradient(r)); }
         ret[i]= ns[i]*g;
     }
     return ret;

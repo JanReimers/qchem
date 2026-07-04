@@ -16,7 +16,7 @@ export module qchem.BasisSet.Molecule.Evaluators.PG_Spherical_MnD;
 import qchem.BasisSet.Molecule.Evaluators;                                  // Evaluator + concepts
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;           // Cartesian kernels (reused)
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;
-import qchem.BasisSet.Molecule.Evaluators.PG_Spherical_MnD.SolidHarmonics;  // SphericalShell, CartTerm
+import qchem.Math.Angular;                                                  // SphericalShell, CartTerm, Monomial
 import qchem.Structure;
 import qchem.Types;
 
@@ -28,7 +28,7 @@ namespace Cart = ::qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD;
 // with the same shell's other m's) plus that harmonic's Cartesian-monomial expansion.
 struct SphData
 {
-    struct Component { const Cart::GaussianRF* radial; std::vector<CartTerm> terms; };
+    struct Component { const Cart::GaussianRF* radial; std::vector<qchem::Math::CartTerm> terms; };
 
     std::vector<Component> comps;
     rvec_t                 ns;      // per-component normalisation (1/sqrt(raw self-overlap))
