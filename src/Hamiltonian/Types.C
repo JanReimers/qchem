@@ -14,7 +14,7 @@ import qchem.Types;   // dcmplx (for cobs_t)
 
 export namespace qchem::Hamiltonian
 {
-    template <class T> using tbs_t=BasisSet::BasisSet<T>;         // whole (composite) basis: Iterate<tobs_t>() yields the per-irrep bases
+    template <class T> using tbs_t=BasisSet::tBasisSet<T>;         // whole (composite) basis: Iterate<tobs_t>() yields the per-irrep bases
     using bs_t    =tbs_t<double>;
     using fbs_t   =BasisSet::Fit_IBS;
     template <class T> using tobs_t=BasisSet::Orbital_1E_IBS<T>;  // T-parametric orbital basis

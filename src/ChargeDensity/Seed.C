@@ -5,7 +5,7 @@ module;
 
 export module qchem.ChargeDensity.Seed;
 export import qchem.ChargeDensity;   // tDM_CD<T>
-import qchem.BasisSet;               // BasisSet<T>, and (re-exported) Structure / ElectronConfiguration
+import qchem.BasisSet;               // tBasisSet<T>, and (re-exported) Structure / ElectronConfiguration
 
 export namespace qchem::ChargeDensity
 {
@@ -36,7 +36,7 @@ enum class SeedStrategy { Default, CoreGuess, Uniform, SAD, IonicSAD };
 //! \c CoreGuess.  The seed is a \c tChargeDensity (the DFT Fock-build face): \c Uniform/\c CoreGuess give
 //! a matrix-backed \c tDM_CD, \c SAD a fit-backed \c NumericCD.  \a st is the molecular/crystal
 //! structure -- unused for \c CoreGuess/\c Uniform, threaded for the SAD seeds (Phases 1-3).
-template <class T> tChargeDensity<T>* MakeSeedDensity(SeedStrategy s, const BasisSet::BasisSet<T>* bs,
+template <class T> tChargeDensity<T>* MakeSeedDensity(SeedStrategy s, const BasisSet::tBasisSet<T>* bs,
                                                       const Structure* st, const ElectronConfiguration* ec);
 
 } //namespace

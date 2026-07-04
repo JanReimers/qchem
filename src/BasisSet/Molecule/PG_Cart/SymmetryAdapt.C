@@ -6,7 +6,7 @@
 module;
 #include <memory>
 export module qchem.BasisSet.Molecule.PG_Cart.SymmetryAdapt;
-export import qchem.BasisSet;                              // BasisSet<double>
+export import qchem.BasisSet;                              // tBasisSet<double>
 export import qchem.Structure;                               // Structure
 import qchem.BasisSet.Molecule.SymmetryAdaptedBasisSet;    // the general SALC basis (return type)
 
@@ -20,6 +20,6 @@ export namespace qchem::BasisSet::Molecule::PG_Cart
 //! \image html salc_call_flow.svg "Structure + RawBasisSet -> SALC_IBS dataflow" width=640
 //! (source: doc/diagrams/salc_call_flow.svg; add doc/diagrams to the Doxyfile IMAGE_PATH to render.)
 ::qchem::BasisSet::Molecule::SymmetryAdaptedBasisSet*
-SymmetryAdapt(std::shared_ptr<const ::qchem::BasisSet::BasisSet<double>> rawBasis, const Structure&, double tol=1e-4);
+SymmetryAdapt(std::shared_ptr<const ::qchem::BasisSet::tBasisSet<double>> rawBasis, const Structure&, double tol=1e-4);
 
 } //namespace

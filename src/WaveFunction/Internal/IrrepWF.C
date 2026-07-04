@@ -19,7 +19,7 @@ using ChargeDensity::tDM_CD;
 using ChargeDensity::tChargeDensity;
 using qchem::Hamiltonian::tHamiltonian;
 // tbs_t (the whole composite basis = the cross-irrep view threaded to the dynamic Fock terms) comes from
-// qchem.WaveFunction.Types; it is the same BasisSet::BasisSet<T> the Hamiltonian layer's GetMatrix expects.
+// qchem.WaveFunction.Types; it is the same BasisSet::tBasisSet<T> the Hamiltonian layer's GetMatrix expects.
 using Orbitals::TOrbitals;
 using Orbitals::EnergyLevels;
 using Orbitals::Orbitals; //Keep this one here, otherwise it interferes with the two previous declarations!

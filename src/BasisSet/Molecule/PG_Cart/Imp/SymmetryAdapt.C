@@ -12,7 +12,7 @@ namespace qchem::BasisSet::Molecule::PG_Cart
 {
 
 ::qchem::BasisSet::Molecule::SymmetryAdaptedBasisSet*
-SymmetryAdapt(std::shared_ptr<const ::qchem::BasisSet::BasisSet<double>> rawBasis, const Structure& st, double tol)
+SymmetryAdapt(std::shared_ptr<const ::qchem::BasisSet::tBasisSet<double>> rawBasis, const Structure& st, double tol)
 {
     // Iterate the evaluator-neutral molecular orbital interface directly: the iterator does the (encapsulated)
     // cast, and because Orbital_1E_IBS IS-A Real_OIBS we also get the raw IBS for the decorator with no

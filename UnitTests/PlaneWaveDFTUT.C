@@ -1043,7 +1043,7 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaThroughSCFIterator)
     auto run=[&](double Ecut, qchem::ChargeDensity::SeedStrategy seed)
     {
         using namespace qchem::Hamiltonian;
-        // The basis is an abstract BasisSet<dcmplx> owning its plane-wave Bloch block(s); the PP model lives
+        // The basis is an abstract tBasisSet<dcmplx> owning its plane-wave Bloch block(s); the PP model lives
         // on the Hamiltonian term (the pseudo-wall), NOT the basis.
         std::unique_ptr<BasisSet::Complex_BS> bs(L3::Factory(L3::Type::PW, lat, Ecut));
         Irrep      irr=bs->GetIrreps(Spin::None)[0];

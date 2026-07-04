@@ -87,7 +87,7 @@ public:
 };
 
 class BasisSet
-    : public virtual ::qchem::BasisSet::BasisSet<double>
+    : public virtual ::qchem::BasisSet::tBasisSet<double>
     , public ::qchem::BasisSet::BasisSetImp<double>
 {
 public:

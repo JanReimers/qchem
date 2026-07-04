@@ -12,7 +12,7 @@ namespace qchem::BasisSet::Lattice_3D
 
 namespace
 {
-//! A BasisSet<dcmplx> holding the plane-wave Bloch block(s); owns the IBS list (deleted with the basis).
+//! A tBasisSet<dcmplx> holding the plane-wave Bloch block(s); owns the IBS list (deleted with the basis).
 class PW_BasisSet : public ::qchem::BasisSet::BasisSetImp<dcmplx>
 {
 public:

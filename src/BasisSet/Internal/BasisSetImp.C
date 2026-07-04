@@ -13,11 +13,11 @@ export namespace qchem::BasisSet
 {
 
 template <class T> class BasisSetImp
-    : public virtual BasisSet<T>
+    : public virtual tBasisSet<T>
 {
 public:
     
-    using bs_t = typename BasisSet<T>::bs_t;
+    using bs_t = typename tBasisSet<T>::bs_t;
 
     virtual size_t GetNumFunctions() const
     {

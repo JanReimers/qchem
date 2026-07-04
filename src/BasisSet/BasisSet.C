@@ -21,13 +21,13 @@ typedef std::vector<Irrep> irrepv_t;
 //
 //  Interface for a BasisSet which is assumed to a list of Irrep Basis Sets.
 //
-template <class T> class BasisSet
+template <class T> class tBasisSet
     : public virtual Streamable
 {
 public:
     typedef Orbital_1E_IBS<T> bs_t;
 
-    virtual ~BasisSet() {};
+    virtual ~tBasisSet() {};
     virtual size_t   GetNumFunctions() const=0;
     virtual irrepv_t GetIrreps(const Spin& ms) const=0;
 
@@ -38,10 +38,10 @@ public:
     // Iterate<D>() dynamic_cast's each IBS to the requested derived type D.
     // Built on the two primitives below, so storage stays private to the
     // concrete BasisSet.
-    auto Iterate() const {return IndexProxy<const BasisSet>(this, GetNumIBS());}
+    auto Iterate() const {return IndexProxy<const tBasisSet>(this, GetNumIBS());}
     template <class D> auto Iterate() const
     {
-        return D_IndexProxy<const D, const BasisSet>(this, GetNumIBS());
+        return D_IndexProxy<const D, const tBasisSet>(this, GetNumIBS());
     }
     const bs_t* operator[](size_t i) const {return GetIBS(i);}
 
@@ -50,7 +50,7 @@ protected:
     virtual const bs_t* GetIBS(size_t) const=0; //The only storage-specific primitive.
 };
 
-typedef BasisSet<double>    Real_BS;
-typedef BasisSet<dcmplx> Complex_BS;
+typedef tBasisSet<double>    Real_BS;
+typedef tBasisSet<dcmplx> Complex_BS;
 
 }//namespace

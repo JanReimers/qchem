@@ -57,7 +57,7 @@ std::vector<int> IonicFormalCharges(const std::vector<std::pair<int,int>>& atoms
     return q;
 }
 
-template <class T> tChargeDensity<T>* MakeSeedDensity(SeedStrategy s, const BasisSet::BasisSet<T>* bs,
+template <class T> tChargeDensity<T>* MakeSeedDensity(SeedStrategy s, const BasisSet::tBasisSet<T>* bs,
                                                       const Structure* st, const ElectronConfiguration* ec)
 {
     assert(bs);
@@ -152,9 +152,9 @@ template <class T> tChargeDensity<T>* MakeSeedDensity(SeedStrategy s, const Basi
     }
 }
 
-template tChargeDensity<double>* MakeSeedDensity<double>(SeedStrategy, const BasisSet::BasisSet<double>*,
+template tChargeDensity<double>* MakeSeedDensity<double>(SeedStrategy, const BasisSet::tBasisSet<double>*,
                                                         const Structure*, const ElectronConfiguration*);
-template tChargeDensity<dcmplx>* MakeSeedDensity<dcmplx>(SeedStrategy, const BasisSet::BasisSet<dcmplx>*,
+template tChargeDensity<dcmplx>* MakeSeedDensity<dcmplx>(SeedStrategy, const BasisSet::tBasisSet<dcmplx>*,
                                                         const Structure*, const ElectronConfiguration*);
 
 } //namespace
