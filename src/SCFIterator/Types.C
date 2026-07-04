@@ -7,6 +7,6 @@ export import qchem.BasisSet;
 export namespace qchem::SCFIterator
 {
     template <class T> using tbs_t=BasisSet::tBasisSet<T>;
-    using bs_t=tbs_t<double>;
+    using rbs_t=tbs_t<double>;
 }
 

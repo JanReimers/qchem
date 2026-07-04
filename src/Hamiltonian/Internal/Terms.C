@@ -29,10 +29,10 @@ using ChargeDensity::Polarized_CD;
 class Kinetic : public virtual rStatic_HT, private rStatic_HT_Imp
 {
 public:
-    virtual void          GetEnergy(EnergyBreakdown&,const DM_CD* cd ) const;
+    virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd ) const;
     virtual std::ostream& Write    (std::ostream&) const;
 private:
-    virtual rsmat_t CalculateMatrix(const obs_t*,const Spin&) const;
+    virtual rsmat_t CalculateMatrix(const robs_t*,const Spin&) const;
 };
 
 // Relativistic kinetic ENERGY term (Dirac \f$c\,\vec\sigma\cdot\vec p\f$); consumes the RKB-assembled
@@ -40,22 +40,22 @@ private:
 class DiracKinetic : public virtual rStatic_HT, private rStatic_HT_Imp
 {
 public:
-    virtual void          GetEnergy(EnergyBreakdown&,const DM_CD* cd ) const;
+    virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd ) const;
     virtual std::ostream& Write    (std::ostream&) const;
     virtual bool          IsPolarized   () const {return true;}
     virtual bool          IsRelativistic() const {return true;}
 private:
-    virtual rsmat_t CalculateMatrix(const obs_t*,const Spin&) const;
+    virtual rsmat_t CalculateMatrix(const robs_t*,const Spin&) const;
 };
 
 class RestMass : public virtual rStatic_HT, private rStatic_HT_Imp
 {
 public:
-    virtual void          GetEnergy(EnergyBreakdown&,const DM_CD* cd ) const;
+    virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd ) const;
     virtual std::ostream& Write    (std::ostream&) const;
     virtual bool          IsRelativistic() const {return true;}
 private:
-    virtual rsmat_t CalculateMatrix(const obs_t*,const Spin&) const;
+    virtual rsmat_t CalculateMatrix(const robs_t*,const Spin&) const;
 };
 
 //
@@ -69,10 +69,10 @@ class Vnn : public virtual rStatic_HT, private rStatic_HT_Imp
 public:
     typedef std::shared_ptr<const Structure> st_t;
     Vnn(const st_t& st);
-    virtual void          GetEnergy(EnergyBreakdown&,const DM_CD* cd) const;
+    virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd) const;
     virtual std::ostream& Write    (std::ostream&) const;
 private:
-    virtual rsmat_t CalculateMatrix(const obs_t*,const Spin&) const;
+    virtual rsmat_t CalculateMatrix(const robs_t*,const Spin&) const;
     st_t theStructure;
 };
 
@@ -84,10 +84,10 @@ class Ven : public virtual rStatic_HT, private rStatic_HT_Imp
 public:
     typedef std::shared_ptr<const Structure> st_t;
     Ven(const st_t& st);
-    virtual void          GetEnergy(EnergyBreakdown&,const DM_CD* cd) const;
+    virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd) const;
     virtual std::ostream& Write    (std::ostream&) const;
 private:
-    virtual rsmat_t CalculateMatrix(const obs_t*,const Spin&) const;
+    virtual rsmat_t CalculateMatrix(const robs_t*,const Spin&) const;
     st_t theStructure;
 };
 
@@ -104,10 +104,10 @@ public:
     typedef std::shared_ptr<const Structure> st_t;
     typedef std::shared_ptr<const Pseudopotential::LocalPotential_R> vloc_t;
     PP_Local(const st_t& st, vloc_t vloc, const qcMesh::MeshParams& mp);
-    virtual void          GetEnergy(EnergyBreakdown&,const DM_CD* cd) const;   // Een (PP local) = DM_Contract
+    virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd) const;   // Een (PP local) = DM_Contract
     virtual std::ostream& Write    (std::ostream&) const;
 private:
-    virtual rsmat_t CalculateMatrix(const obs_t*,const Spin&) const;
+    virtual rsmat_t CalculateMatrix(const robs_t*,const Spin&) const;
     st_t             theStructure;
     vloc_t           itsVloc;
     qcMesh::MeshParams itsMeshParams;
@@ -128,10 +128,10 @@ public:
     typedef std::shared_ptr<const Structure> st_t;
     typedef std::shared_ptr<const Pseudopotential::SeparablePotential_R> sep_t;
     PP_NonLocal(const st_t& st, sep_t sep, const qcMesh::MeshParams& mp);
-    virtual void          GetEnergy(EnergyBreakdown&,const DM_CD* cd) const;   // Een (PP nonlocal) = DM_Contract
+    virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd) const;   // Een (PP nonlocal) = DM_Contract
     virtual std::ostream& Write    (std::ostream&) const;
 private:
-    virtual rsmat_t CalculateMatrix(const obs_t*,const Spin&) const;
+    virtual rsmat_t CalculateMatrix(const robs_t*,const Spin&) const;
     st_t             theStructure;
     sep_t            itsSep;
     qcMesh::MeshParams itsMeshParams;
@@ -161,11 +161,11 @@ public:
     //! Fock build: assemble the whole-system blocks ONCE per density from the composite \a wholeBasis using
     //! ERI4 bra-ket symmetry (canonical pairs -> ScatterBoth), cache the per-irrep blocks, return this
     //! irrep's block.  \a wholeBasis is required (HF is whole-system); a null basis throws.
-    virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&,const rChargeDensity*,const bs_t* wholeBasis) const;
+    virtual const rsmat_t& GetMatrix(const robs_t*,const Spin&,const rChargeDensity*,const rbs_t* wholeBasis) const;
 protected:
     //! The one operation that distinguishes Coulomb from exchange: scatter \a dm across canonical irrep pairs
     //! into the zeroed per-irrep blocks \a X (one per irrep, same order as the density's leaves).
-    virtual void   AccumulateAll(std::vector<rsmat_t>& X,const DM_CD* dm) const=0;
+    virtual void   AccumulateAll(std::vector<rsmat_t>& X,const rDM_CD* dm) const=0;
     //! Fock coefficient applied to every block after the scatter (1 for Coulomb; the K coefficient for Vxc).
     virtual double Scale() const {return 1.0;}
     //! Contract the density into the whole-system blocks itsJKs (keyed by BasisSetID) if stale for this
@@ -174,7 +174,7 @@ protected:
     void ContractAll(const rChargeDensity* cd) const;
 
     mutable size_t itsCD_Version=size_t(-1);      //!< ID number for the most recent charge density (CD)
-    mutable const bs_t* itsWholeBasis=nullptr;    //!< whole basis (stashed from the Fock build; stable across the run)
+    mutable const rbs_t* itsWholeBasis=nullptr;    //!< whole basis (stashed from the Fock build; stable across the run)
     //! The J (Coulomb) or K (exchange) per-irrep blocks: accumulated (over irreps) and contracted (over Dcd)
     //! for the current charge density ID'd by itsCD_Version.  Keyed by ab-basis BasisSetID, already scaled.
     mutable std::map<std::string,rsmat_t> itsJKs;
@@ -183,10 +183,10 @@ protected:
 class Vee : public Dynamic_HF_HT_Imp
 {
 public:
-    virtual void          GetEnergy(EnergyBreakdown&,const DM_CD* cd ) const;
+    virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd ) const;
     virtual std::ostream& Write    (std::ostream&) const;
 protected:
-    virtual void AccumulateAll(std::vector<rsmat_t>& X,const DM_CD* dm) const;
+    virtual void AccumulateAll(std::vector<rsmat_t>& X,const rDM_CD* dm) const;
 };
 
 //###############################################################################
@@ -200,10 +200,10 @@ public:
     //! spin channel of the polarized term (VxcPol owns two Vxc(-1)).  Explicit -- no hidden convention: the
     //! block contracts whatever density it is handed (total for RHF; a single spin channel for VxcPol).
     explicit Vxc(double exchangeScale) : itsScale(exchangeScale) {}
-    virtual void           GetEnergy(EnergyBreakdown&,const DM_CD* cd ) const;
+    virtual void           GetEnergy(EnergyBreakdown&,const rDM_CD* cd ) const;
     virtual std::ostream&  Write    (std::ostream&) const;
 protected:
-    virtual void   AccumulateAll(std::vector<rsmat_t>& X,const DM_CD* dm) const;
+    virtual void   AccumulateAll(std::vector<rsmat_t>& X,const rDM_CD* dm) const;
     virtual double Scale() const {return itsScale;}   //!< the Fock K coefficient, applied to every block
 private:
     const double itsScale;                          //!< K coefficient in the Fock (-1/2 RHF, -1 per-spin)
@@ -217,10 +217,10 @@ class VxcPol : public virtual rDynamic_HF_HT
 public:
     VxcPol();
    ~VxcPol();
-    virtual void           GetEnergy(EnergyBreakdown&,const DM_CD* cd ) const;
+    virtual void           GetEnergy(EnergyBreakdown&,const rDM_CD* cd ) const;
     virtual bool           IsPolarized() const {return true;}
     virtual std::ostream&  Write    (std::ostream&) const;
-    virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&,const rChargeDensity*,const bs_t* wholeBasis) const;
+    virtual const rsmat_t& GetMatrix(const robs_t*,const Spin&,const rChargeDensity*,const rbs_t* wholeBasis) const;
 private:
     Vxc* itsUpVxc  ;   //!< owned; spin-up exchange   (K coefficient -1)
     Vxc* itsDownVxc;   //!< owned; spin-down exchange (K coefficient -1)
@@ -245,10 +245,10 @@ public:
     typedef std::shared_ptr<const BasisSet::FIT_CD_ABS> fbs_t;   //!< the charge-density (Coulomb-metric) fit face
     FittedVee(fbs_t& chargeDensityFitBasisSet, double numElectrons);
     ~FittedVee();   // anchored in the Imp TU (FittedCD complete there) so the unique_ptr can delete it
-    virtual void          GetEnergy(EnergyBreakdown&,const DM_CD* cd) const;
+    virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd) const;
     virtual std::ostream& Write    (std::ostream& os) const {return os;}
 private:
-    virtual rsmat_t CalcMatrix(const obs_t*,const Spin&,const rChargeDensity* cd) const;
+    virtual rsmat_t CalcMatrix(const robs_t*,const Spin&,const rChargeDensity* cd) const;
     std::unique_ptr<ChargeDensity::FittedCD> itsFittedChargeDensity;   //!< owned (was a leaked raw ptr)
 };
 
@@ -268,11 +268,11 @@ public:
 
     FittedVxc(fbs_t& VxcFitBasisSet, ex_t&);
     ~FittedVxc();
-    virtual void          GetEnergy       (EnergyBreakdown&,const DM_CD*) const;
+    virtual void          GetEnergy       (EnergyBreakdown&,const rDM_CD*) const;
     virtual void          UseChargeDensity(const rChargeDensity*);
     virtual std::ostream& Write           (std::ostream&) const;
 private:
-    virtual rsmat_t CalcMatrix(const obs_t*,const Spin&,const rChargeDensity*) const;
+    virtual rsmat_t CalcMatrix(const robs_t*,const Spin&,const rChargeDensity*) const;
 
     std::unique_ptr<Fitting::FunctionFitter_Scalar<double>> itsFitter; //!< COMPOSED v_xc fit (was inherited)
     LDAVxc* itsLDAVxc;   //!< the v_xc=Vxc(rho) function to fit (concrete: it IS the ScalarFFClient)
@@ -287,12 +287,12 @@ public:
     FittedVxcPol(fbs_t&, ex_t&);
    ~FittedVxcPol();
     // Required by HamiltonianTerm
-    virtual void GetEnergy       (EnergyBreakdown&,const DM_CD* cd         ) const;
+    virtual void GetEnergy       (EnergyBreakdown&,const rDM_CD* cd         ) const;
     virtual bool IsPolarized() const {return true;}
 
     virtual std::ostream&   Write(std::ostream&) const;
 private:
-    virtual rsmat_t CalcMatrix(const obs_t*,const Spin&,const rChargeDensity* cd) const;
+    virtual rsmat_t CalcMatrix(const robs_t*,const Spin&,const rChargeDensity* cd) const;
 
     rDynamic_HT* itsUpVxc  ; //Spin up.
     rDynamic_HT* itsDownVxc; //Spin down.
@@ -303,20 +303,20 @@ private:
 //
 //  This is a total energy term, not a matrix values Hamiltonian term.
 //  A dedicated least-squares fit of an XC ENERGY DENSITY eps_xc(rho(r)) to the auxiliary fit basis,
-//  exposed as a Dynamic_CC so the density contracts it:  E_xc = integral eps_xc rho = <rho|eps_xc_fit>.
+//  exposed as a rDynamic_CC so the density contracts it:  E_xc = integral eps_xc rho = <rho|eps_xc_fit>.
 //  Separate from a potential fit (different coefficients) but meant to SHARE its fit basis, so the
 //  3-centre integrals are computed once.  Needed because eps_c != 3/4 v_c -- the exchange virial
 //  (eps_x = 3/4 v_x) used by FittedVxc::GetEnergy is correct for exchange but wrong for correlation.
 //  Composes a Fitting::FunctionFitter (from the Factory); Overlap is queried on it.
 //
-class FittedEpsXc : public virtual ChargeDensity::Dynamic_CC
+class FittedEpsXc : public virtual ChargeDensity::rDynamic_CC
 {
 public:
     typedef std::shared_ptr<const BasisSet::FIT_SF_ABS> fbs_t;   //!< the scalar-function (overlap-metric) fit face
 
     FittedEpsXc(fbs_t& fitBasisSet, const ExFunctional* ex);
     //! Re-fits eps_xc for this density and returns its matrix Sum_a c_a <Oi|f_a|Oj> for contraction.
-    virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&,const rChargeDensity* cd) const;
+    virtual const rsmat_t& GetMatrix(const robs_t*,const Spin&,const rChargeDensity* cd) const;
 private:
     std::unique_ptr<Fitting::FunctionFitter_Scalar<double>> itsFitter;  //!< COMPOSED fitter (not inherited)
     const ExFunctional* itsEx;   //!< non-owning; the XC functional supplying eps_xc (owned by the term)
@@ -332,7 +332,7 @@ class FittedVcorr : public FittedVxc
 {
 public:
     FittedVcorr(fbs_t& VcorrFitBasisSet, ex_t&);
-    virtual void GetEnergy(EnergyBreakdown&,const DM_CD* cd) const;
+    virtual void GetEnergy(EnergyBreakdown&,const rDM_CD* cd) const;
 private:
     FittedEpsXc itsEpsC;   //!< dedicated eps_c fit for the correlation energy (shares the fit basis)
 };
@@ -358,11 +358,11 @@ public:
 
     FittedVcorrPol(fbs_t&, corr_t&);
    ~FittedVcorrPol();
-    virtual void GetEnergy (EnergyBreakdown&, const DM_CD* cd) const;
+    virtual void GetEnergy (EnergyBreakdown&, const rDM_CD* cd) const;
     virtual bool IsPolarized() const {return true;}
     virtual std::ostream& Write(std::ostream&) const;
 private:
-    virtual rsmat_t CalcMatrix(const obs_t*, const Spin&, const rChargeDensity* cd) const;
+    virtual rsmat_t CalcMatrix(const robs_t*, const Spin&, const rChargeDensity* cd) const;
 
     corr_t itsCorr;                                                      //!< the correlation functional (owned)
     std::unique_ptr<Fitting::FunctionFitter_Scalar<double>> itsVcFitter; //!< v_c^sigma potential fit

@@ -1,7 +1,7 @@
 // File: HamiltonianTerm.C  General implementation of a HamiltonianTerm term in the Hamiltonian.
 //
 // Templated on the matrix element type T (double for atoms/molecules; dcmplx for the plane-wave
-// lattice lineage).  hmat_t<double> IS rsmat_t and tobs_t<double> IS obs_t, so the <double> aliases
+// lattice lineage).  hmat_t<double> IS rsmat_t and tobs_t<double> IS robs_t, so the <double> aliases
 // at the bottom leave existing real code unchanged.  The cache-lookup bodies are inline here (not in a
 // separate Imp unit) because the dcmplx terms instantiate these templates in other translation units
 // and so need the definitions visible.
@@ -117,7 +117,7 @@ public:
     virtual void UseChargeDensity(const tChargeDensity<T>*)       =0;
 };
 
-// r* = <double>, c* = <dcmplx> (mirrors rsmat_t/chmat_t); bare names transitional (= r*), rename pinned.
+// r* = <double>, c* = <dcmplx> (mirrors rsmat_t/chmat_t).
 using rHT_Common              = tHT_Common<double>;              using cHT_Common              = tHT_Common<dcmplx>;
 using rStatic_HT_Imp          = tStatic_HT_Imp<double>;          using cStatic_HT_Imp          = tStatic_HT_Imp<dcmplx>;
 using rDynamic_HT_Imp         = tDynamic_HT_Imp<double>;         using cDynamic_HT_Imp         = tDynamic_HT_Imp<dcmplx>;

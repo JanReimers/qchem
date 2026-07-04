@@ -31,11 +31,11 @@ Ham_HF_U::Ham_HF_U(const st_t& st)
 }
 
 
-Ham_DFT_U::Ham_DFT_U(const st_t& st,double alpha_ex, const qcMesh::MeshParams& mp, const bs_t* bs)
+Ham_DFT_U::Ham_DFT_U(const st_t& st,double alpha_ex, const qcMesh::MeshParams& mp, const rbs_t* bs)
     : Ham_DFT_U(st,new SlaterExchange(alpha_ex),mp,bs)
 {};
 
-Ham_DFT_U::Ham_DFT_U(const st_t& st,ExFunctional* ex, const qcMesh::MeshParams& mp, const bs_t* bs)
+Ham_DFT_U::Ham_DFT_U(const st_t& st,ExFunctional* ex, const qcMesh::MeshParams& mp, const rbs_t* bs)
 {
     InsertStandardTerms(st);
        
@@ -48,7 +48,7 @@ Ham_DFT_U::Ham_DFT_U(const st_t& st,ExFunctional* ex, const qcMesh::MeshParams& 
 }
 
 // Dirac exchange + VWN5 correlation: the parameter-free in-house LSDA (delegates to the generic ctor).
-Ham_DFTcorr_U::Ham_DFTcorr_U(const st_t& st, const qcMesh::MeshParams& mp, const bs_t* bs)
+Ham_DFTcorr_U::Ham_DFTcorr_U(const st_t& st, const qcMesh::MeshParams& mp, const rbs_t* bs)
     : Ham_DFTcorr_U(st, new SlaterExchange(2.0/3.0), new VWN_Correlation(), mp, bs)
 {}
 
@@ -57,7 +57,7 @@ Ham_DFTcorr_U::Ham_DFTcorr_U(const st_t& st, const qcMesh::MeshParams& mp, const
 // so the 3-centre integrals are computed once.  Used by both the in-house (Slater+VWN) and libxc paths, so
 // the correct correlation energy is shared -- no path lumps X+C into a single 3/4-virial term.
 Ham_DFTcorr_U::Ham_DFTcorr_U(const st_t& st, ExFunctional* exchange, ExFunctional* correlation,
-                             const qcMesh::MeshParams& mp, const bs_t* bs)
+                             const qcMesh::MeshParams& mp, const rbs_t* bs)
 {
     InsertStandardTerms(st);
 
@@ -74,7 +74,7 @@ Ham_DFTcorr_U::Ham_DFTcorr_U(const st_t& st, ExFunctional* exchange, ExFunctiona
 // Spin-native polarized LSDA: mirror Ham_DFTcorr_U but with the polarized exchange (FittedVxcPol, Dirac)
 // and the polarized correlation (FittedVcorrPol, spin-native VWN5) terms, sharing one Vxc fit basis.  The
 // unpolarized Ham_DFTcorr_U is the zeta=0 collapse of this.
-Ham_DFTcorr_P::Ham_DFTcorr_P(const st_t& st, const qcMesh::MeshParams& mp, const bs_t* bs)
+Ham_DFTcorr_P::Ham_DFTcorr_P(const st_t& st, const qcMesh::MeshParams& mp, const rbs_t* bs)
 {
     InsertStandardTerms(st);
 
@@ -93,7 +93,7 @@ Ham_DFTcorr_P::Ham_DFTcorr_P(const st_t& st, const qcMesh::MeshParams& mp, const
 // Kinetic + PP_Local [+ PP_NonLocal] + Hartree + Dirac exchange + VWN5.
 Ham_PP_U::Ham_PP_U(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPotential_R> vloc,
                    std::shared_ptr<const Pseudopotential::SeparablePotential_R> sep,
-                   const qcMesh::MeshParams& mp, const bs_t* bs)
+                   const qcMesh::MeshParams& mp, const rbs_t* bs)
 {
     Add(new Kinetic);
     Add(new PP_Local(st, std::move(vloc), mp));      // pseudized replacement for Ven; NO Vnn
@@ -110,7 +110,7 @@ Ham_PP_U::Ham_PP_U(const st_t& st, std::shared_ptr<const Pseudopotential::LocalP
 }
 
 Ham_PP_U::Ham_PP_U(const st_t& st, const std::string& element, int q, const qcMesh::MeshParams& mp,
-                   const bs_t* bs)
+                   const rbs_t* bs)
     : Ham_PP_U(st,
                std::make_shared<const Pseudopotential::HGH_LocalPotential>(Pseudopotential::GetGTH(element,"LDA",q).local),
                std::make_shared<const Pseudopotential::HGH_SeparablePotential>(Pseudopotential::GetGTH(element,"LDA",q).nonlocal),
@@ -182,11 +182,11 @@ Ham_HF_P::Ham_HF_P(const st_t& st)
 }
 
 
-Ham_DFT_P::Ham_DFT_P(const st_t& st,double alpha_ex, const qcMesh::MeshParams& mp, const bs_t* bs)
+Ham_DFT_P::Ham_DFT_P(const st_t& st,double alpha_ex, const qcMesh::MeshParams& mp, const rbs_t* bs)
     : Ham_DFT_P(st,new SlaterExchange(alpha_ex,Spin(Spin::Up)),mp,bs)
 {};
 
-Ham_DFT_P::Ham_DFT_P(const st_t& st,ExFunctional* ex, const qcMesh::MeshParams& mp, const bs_t* bs)
+Ham_DFT_P::Ham_DFT_P(const st_t& st,ExFunctional* ex, const qcMesh::MeshParams& mp, const rbs_t* bs)
 {
     InsertStandardTerms(st);
     FittedVee::fbs_t CFitBasis(bs->CreateCDFitBasisSet(st.get(), mp));

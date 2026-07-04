@@ -64,7 +64,6 @@ private:
     cdv_t itsCDs;
 };
 
-using Composite_CD  = tComposite_CD<double>;   // transitional bare alias (= r*)
 using rComposite_CD = tComposite_CD<double>;   using cComposite_CD = tComposite_CD<dcmplx>;
 
 } //namespace

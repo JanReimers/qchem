@@ -14,7 +14,7 @@ BasisSet::BasisSet(Reader* reader, const Structure* cl, bool spherical)
     Insert(new Orbital_IBS(reader,cl,spherical));   // a single C1 irrep (no SALC)
 }
 
-void BasisSet::Insert(bs_t* bs)
+void BasisSet::Insert(obs_t* bs)
 {
     ::qchem::BasisSet::BasisSetImp<double>::Insert(bs);
 }

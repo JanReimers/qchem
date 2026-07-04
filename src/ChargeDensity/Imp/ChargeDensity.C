@@ -33,12 +33,12 @@ void Polarized_CD::AccumulateExchangeAll(std::vector<rsmat_t>& Kall) const
     GetChargeDensity(Spin::Down)->AccumulateExchangeAll(Kall);
 }
 
-double Polarized_CD::DM_Contract(const Static_CC* v) const
+double Polarized_CD::DM_Contract(const rStatic_CC* v) const
 {
     return GetChargeDensity(Spin::Up  )->DM_Contract(v)+GetChargeDensity(Spin::Down)->DM_Contract(v);
 }
 
-double Polarized_CD::DM_Contract(const Dynamic_CC* v,const DM_CD* cd) const
+double Polarized_CD::DM_Contract(const rDynamic_CC* v,const rDM_CD* cd) const
 {
     return GetChargeDensity(Spin::Up  )->DM_Contract(v,cd)+GetChargeDensity(Spin::Down)->DM_Contract(v,cd);
 }
@@ -76,7 +76,7 @@ rvec_t Polarized_CD::GetRepulsion3C(const BasisSet::FIT_CD_ABS* fbs) const
 //
 //  Convergence.
 //
-void Polarized_CD::MixIn(const DM_CD& cd,double c)
+void Polarized_CD::MixIn(const rDM_CD& cd,double c)
 {
     const Polarized_CD* pcd = dynamic_cast<const Polarized_CD*>(&cd);
     if (!pcd)
@@ -89,7 +89,7 @@ void Polarized_CD::MixIn(const DM_CD& cd,double c)
     AdvanceHead();   // mutated in place -> Version() moved; keep this density the lineage head
 }
 
-double Polarized_CD::GetChangeFrom(const DM_CD& cd) const
+double Polarized_CD::GetChangeFrom(const rDM_CD& cd) const
 {
     const Polarized_CD* pcd = dynamic_cast<const Polarized_CD*>(&cd);
     if (!pcd)
@@ -125,7 +125,7 @@ rvec3_t Polarized_CD::Gradient  (const rvec3_t& r) const
     return GetChargeDensity(Spin::Up)->Gradient(r) + GetChargeDensity(Spin::Down)->Gradient(r);
 }
 
-SpinDensity::SpinDensity(DM_CD* up,DM_CD* down)
+SpinDensity::SpinDensity(rDM_CD* up,rDM_CD* down)
 : itsSpinUpCD  (up  )
 , itsSpinDownCD(down)
 {

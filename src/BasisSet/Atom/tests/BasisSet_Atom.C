@@ -50,7 +50,7 @@ qcMesh::Mesh AtomMesh(const Structure& st, int nRadial, int mhl_m, double alpha,
 }
 } //anon
 
-using ohfbs_t =BasisSet::Orbital_HF_IBS<double>;
+using rohfbs_t =BasisSet::Orbital_HF_IBS<double>;
 using BasisSet::Real_BS;
 using BasisSet::Real_OIBS;
 using namespace qchem::BasisSet::Atom;
@@ -284,10 +284,10 @@ TEST_F(BasisSet_SL,AnalyticRepulsion)
 TEST_F(BasisSet_SL,HF_ERIs)
 {
     auto a=evals.begin();
-    for (auto aibs:bs->Iterate<ohfbs_t>())
+    for (auto aibs:bs->Iterate<rohfbs_t>())
     {
         auto c=evals.begin();
-        for (auto cibs:bs->Iterate<ohfbs_t>())
+        for (auto cibs:bs->Iterate<rohfbs_t>())
         {
             if (aibs->BasisSetID() <= cibs->BasisSetID())   // ERI4 cache is canonical-only (doc/ERI4Rework.md §5.2)
             {
@@ -401,10 +401,10 @@ TEST_F(BasisSet_SG,AnalyticRepulsion)
 TEST_F(BasisSet_SG,HF_ERIs)
 {
     auto a=evals.begin();
-    for (auto aibs:bs->Iterate<ohfbs_t>())
+    for (auto aibs:bs->Iterate<rohfbs_t>())
     {
         auto c=evals.begin();
-        for (auto cibs:bs->Iterate<ohfbs_t>())
+        for (auto cibs:bs->Iterate<rohfbs_t>())
         {
             if (aibs->BasisSetID() <= cibs->BasisSetID())   // ERI4 cache is canonical-only (doc/ERI4Rework.md §5.2)
             {

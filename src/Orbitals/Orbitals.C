@@ -14,7 +14,7 @@ import qchem.Iterators;
 export namespace qchem::Orbitals
 {
 
-using qchem::ChargeDensity::DM_CD;
+using qchem::ChargeDensity::rDM_CD;
 using qchem::ChargeDensity::tDM_CD;
 
 //#############################################################

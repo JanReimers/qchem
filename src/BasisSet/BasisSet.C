@@ -25,7 +25,7 @@ template <class T> class tBasisSet
     : public virtual Streamable
 {
 public:
-    typedef Orbital_1E_IBS<T> bs_t;
+    typedef Orbital_1E_IBS<T> obs_t;
 
     virtual ~tBasisSet() {};
     virtual size_t   GetNumFunctions() const=0;
@@ -34,7 +34,7 @@ public:
     virtual FIT_CD_ABS* CreateCDFitBasisSet(const Structure* cl, const qcMesh::MeshParams&) const;
     virtual FIT_SF_ABS* CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams&) const;
 
-    // Iterate() with no type argument yields the base bs_t* directly (no cast);
+    // Iterate() with no type argument yields the base obs_t* directly (no cast);
     // Iterate<D>() dynamic_cast's each IBS to the requested derived type D.
     // Built on the two primitives below, so storage stays private to the
     // concrete BasisSet.
@@ -43,11 +43,11 @@ public:
     {
         return D_IndexProxy<const D, const tBasisSet>(this, GetNumIBS());
     }
-    const bs_t* operator[](size_t i) const {return GetIBS(i);}
+    const obs_t* operator[](size_t i) const {return GetIBS(i);}
 
 protected:
     virtual size_t      GetNumIBS()    const=0; //Number of Irrep basis sets.
-    virtual const bs_t* GetIBS(size_t) const=0; //The only storage-specific primitive.
+    virtual const obs_t* GetIBS(size_t) const=0; //The only storage-specific primitive.
 };
 
 typedef tBasisSet<double>    Real_BS;

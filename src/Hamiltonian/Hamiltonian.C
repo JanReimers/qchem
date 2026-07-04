@@ -17,7 +17,7 @@ using ChargeDensity::cChargeDensity;
 using ChargeDensity::tDM_CD;
 using ChargeDensity::rDM_CD;
 using ChargeDensity::cDM_CD;
-using ChargeDensity::DM_CD;
+using ChargeDensity::rDM_CD;
 
 //! \brief A Hamiltonian is a sum of additive terms (a "HamiltonianTerm", HT) in three families, split by
 //! what each needs to assemble its one-irrep matrix block:
@@ -28,7 +28,7 @@ using ChargeDensity::DM_CD;
 //!   coupling every irrep block through the ERI \f$(ab|cd)\f$.
 //!
 //! Templated on the matrix element type \c T (\c double for atoms/molecules; \c dcmplx for the plane-wave
-//! lattice lineage).  \c hmat_t<double> IS \c rsmat_t and \c tobs_t<double> IS \c obs_t, so the \c <double>
+//! lattice lineage).  \c hmat_t<double> IS \c rsmat_t and \c tobs_t<double> IS \c robs_t, so the \c <double>
 //! aliases below leave all existing real code unchanged.
 
 //! \brief A density-INDEPENDENT Hamiltonian term (kinetic, nuclear attraction, ...): built once and reused

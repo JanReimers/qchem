@@ -22,7 +22,7 @@ import qchem.Math;
 import qchem.Blaze;
 using namespace qchem;
 
-using qchem::WaveFunction::bs_t;
+using qchem::WaveFunction::rbs_t;
 
 using std::cout;
 using std::endl;

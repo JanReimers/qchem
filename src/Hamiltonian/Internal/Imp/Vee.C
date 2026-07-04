@@ -26,12 +26,12 @@ namespace qchem::Hamiltonian
 // (AccumulateDirectAll -> ScatterBoth), so only the canonical ERI4 blocks are ever built/cached -- halving
 // Coulomb ERI RAM+build vs the old per-irrep pass, which fetched both J(i,j) and J(j,i).  Result is bit-close
 // (~1e-13) to the old Fock, not bit-identical: the old J(j,i) was an independent build, here it is J(i,j)^T.
-void Vee::AccumulateAll(std::vector<rsmat_t>& X,const DM_CD* dm) const
+void Vee::AccumulateAll(std::vector<rsmat_t>& X,const rDM_CD* dm) const
 {
     dm->AccumulateDirectAll(X);
 }
 
-void Vee::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
+void Vee::GetEnergy(EnergyBreakdown& te,const rDM_CD* cd) const
 {
     // E_ee = 1/2 Tr(D.J), taken from THIS term's own whole-system Coulomb blocks -- no per-irrep GetMatrix
     // round-trip through DM_Contract (which is what kept Vee tied to the 3-arg GetMatrix / tDynamic_CC).

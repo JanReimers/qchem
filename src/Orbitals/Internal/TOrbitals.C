@@ -14,7 +14,7 @@ import qchem.Orbitals.Types;
 export namespace qchem::Orbitals
 {
 
-using qchem::ChargeDensity::DM_CD;
+using qchem::ChargeDensity::rDM_CD;
 
 template <class T> class TOrbitalsImp
     : public virtual Orbitals

@@ -40,8 +40,8 @@ public:
 class Ham_DFT_U : public virtual rHamiltonian, private rHamiltonianImp
 {
 public:
-    Ham_DFT_U(const st_t& st,double alpha_ex, const qcMesh::MeshParams&, const bs_t* bs);
-    Ham_DFT_U(const st_t& st,ExFunctional*  , const qcMesh::MeshParams&, const bs_t* bs);
+    Ham_DFT_U(const st_t& st,double alpha_ex, const qcMesh::MeshParams&, const rbs_t* bs);
+    Ham_DFT_U(const st_t& st,ExFunctional*  , const qcMesh::MeshParams&, const rbs_t* bs);
 };
 
 // Un-polarized LDA: Dirac exchange + VWN5 correlation as SEPARATE terms, so the correlation energy is the
@@ -50,13 +50,13 @@ public:
 class Ham_DFTcorr_U : public virtual rHamiltonian, private rHamiltonianImp
 {
 public:
-    Ham_DFTcorr_U(const st_t& st, const qcMesh::MeshParams&, const bs_t* bs);  //!< Dirac exchange + VWN5
+    Ham_DFTcorr_U(const st_t& st, const qcMesh::MeshParams&, const rbs_t* bs);  //!< Dirac exchange + VWN5
     //! Generic separate-terms LSDA: FittedVxc(\a exchange) [3/4 virial energy, exact for exchange] +
     //! FittedVcorr(\a correlation) [E_c = integral eps_c rho, the correct correlation energy].  The
     //! correlation functional MUST provide GetEpsXc (the energy density).  Takes ownership of both.  The
     //! libxc LSDA path uses this with Libxc_LDA exchange/correlation; the default ctor with Slater+VWN.
     Ham_DFTcorr_U(const st_t& st, ExFunctional* exchange, ExFunctional* correlation,
-                  const qcMesh::MeshParams&, const bs_t* bs);
+                  const qcMesh::MeshParams&, const rbs_t* bs);
 };
 
 // Spin-native (polarized) LSDA: Dirac exchange (FittedVxcPol) + spin-native VWN5 correlation
@@ -65,7 +65,7 @@ public:
 class Ham_DFTcorr_P : public virtual rHamiltonian, private rHamiltonianImp
 {
 public:
-    Ham_DFTcorr_P(const st_t& st, const qcMesh::MeshParams&, const bs_t* bs);
+    Ham_DFTcorr_P(const st_t& st, const qcMesh::MeshParams&, const rbs_t* bs);
 };
 
 //! Un-polarized LSDA PSEUDO-atom/molecule: kinetic + V_loc(r) (the pseudized replacement for the bare
@@ -79,9 +79,9 @@ public:
     //! Explicit models (shared with the caller).  \a sep may be null for a local-only run.
     Ham_PP_U(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPotential_R> vloc,
              std::shared_ptr<const Pseudopotential::SeparablePotential_R> sep,
-             const qcMesh::MeshParams&, const bs_t* bs);
+             const qcMesh::MeshParams&, const rbs_t* bs);
     //! Convenience: look up + OWN the GTH local + KB non-local models for \a element at valence \a q (LDA).
-    Ham_PP_U(const st_t& st, const std::string& element, int q, const qcMesh::MeshParams&, const bs_t* bs);
+    Ham_PP_U(const st_t& st, const std::string& element, int q, const qcMesh::MeshParams&, const rbs_t* bs);
 };
 
 //
@@ -136,8 +136,8 @@ public:
 class Ham_DFT_P : public virtual rHamiltonian, private rHamiltonianImp
 {
 public:
-    Ham_DFT_P(const st_t& st,double alpha_ex, const qcMesh::MeshParams&, const bs_t* or_bs);
-    Ham_DFT_P(const st_t& st,ExFunctional*  , const qcMesh::MeshParams&, const bs_t* or_bs);
+    Ham_DFT_P(const st_t& st,double alpha_ex, const qcMesh::MeshParams&, const rbs_t* or_bs);
+    Ham_DFT_P(const st_t& st,ExFunctional*  , const qcMesh::MeshParams&, const rbs_t* or_bs);
 };
 
 

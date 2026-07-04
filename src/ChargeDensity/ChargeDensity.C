@@ -60,7 +60,7 @@ template <class T> using ProjectedDensityBase =
 //  These little interfaces allow us to invert a dependency with Hamiltonian Terms.
 //  Templated on the matrix element type T (double for atoms/molecules; dcmplx for the
 //  plane-wave lattice lineage where k-points make the blocks Hermitian-complex).  For T=double,
-//  hmat_t<double> IS rsmat_t and tobs_t<double> IS obs_t, so the aliases below leave all existing
+//  hmat_t<double> IS rsmat_t and tobs_t<double> IS robs_t, so the aliases below leave all existing
 //  real code source- and binary-unchanged.
 //
 template <class T> class tChargeDensity;   // forward (the DFT face the framework consumes)
@@ -80,12 +80,8 @@ public:
 };
 
 // Naming convention (mirrors rsmat_t/chmat_t in Common/Types.C): r* = <double>, c* = <dcmplx>.
-// The bare names are TRANSITIONAL aliases to the r* version so existing real code is untouched;
-// the full bare->r* rename across the codebase is pinned as a post-integration cleanup pass.
 using rStatic_CC  = tStatic_CC<double>;   using cStatic_CC  = tStatic_CC<dcmplx>;
 using rDynamic_CC = tDynamic_CC<double>;  using cDynamic_CC = tDynamic_CC<dcmplx>;
-using Static_CC   = rStatic_CC;
-using Dynamic_CC  = rDynamic_CC;
 
 //----------------------------------------------------------------------------------
 //
@@ -190,7 +186,6 @@ public:
 using rChargeDensity = tChargeDensity<double>;  using cChargeDensity = tChargeDensity<dcmplx>;
 using rDM_CD = tDM_CD<double>;
 using cDM_CD = tDM_CD<dcmplx>;
-using DM_CD  = rDM_CD;          // transitional bare alias
 
 //---------------------------------------------------------------------------------------
 //
@@ -198,16 +193,16 @@ using DM_CD  = rDM_CD;          // transitional bare alias
 //  Generic: Could be fitted or exact.
 //
 class Polarized_CD
-    : public virtual DM_CD
+    : public virtual rDM_CD
     , public virtual tLineageTracked<double>        // Layer-2: this top-level density tracks its SCF lineage head
     , public virtual ProjectedDensityBase<double>   // finite/molecular: an AO-projectable density
 {
 public:
-    virtual       DM_CD* GetChargeDensity(const Spin&)      =0;
-    virtual const DM_CD* GetChargeDensity(const Spin&) const=0;
+    virtual       rDM_CD* GetChargeDensity(const Spin&)      =0;
+    virtual const rDM_CD* GetChargeDensity(const Spin&) const=0;
 
-    virtual double DM_Contract(const Static_CC*) const;
-    virtual double DM_Contract(const Dynamic_CC*,const DM_CD*) const;
+    virtual double DM_Contract(const rStatic_CC*) const;
+    virtual double DM_Contract(const rDynamic_CC*,const rDM_CD*) const;
     virtual double DM_ContractBlocks(const std::map<std::string,rsmat_t>&) const;   // sum both spins
 
     virtual double GetTotalCharge() const;  // <ro>
@@ -223,8 +218,8 @@ public:
     virtual void AccumulateExchangeAll(std::vector<rsmat_t>& Kall) const;  // sum both spins (RHF exchange)
 
     virtual void   ReScale      (double factor              )      ;  // No UT coverage//Ro *= factor
-    virtual void   MixIn        (const DM_CD&,double)      ;  //this = (1-c)*this + c*that.
-    virtual double GetChangeFrom(const DM_CD&       ) const;  //Convergence check.
+    virtual void   MixIn        (const rDM_CD&,double)      ;  //this = (1-c)*this + c*that.
+    virtual double GetChangeFrom(const rDM_CD&       ) const;  //Convergence check.
 
     virtual double operator()(const rvec3_t&) const; // No UT coverage
     virtual rvec3_t  Gradient  (const rvec3_t&) const; // No UT coverage
@@ -233,13 +228,13 @@ public:
 class SpinDensity : public virtual ScalarFunction<double>
 {
 public:
-    SpinDensity(DM_CD* up,DM_CD* down);
+    SpinDensity(rDM_CD* up,rDM_CD* down);
     ~SpinDensity();
     virtual double operator()(const rvec3_t&) const; // No UT coverage
     virtual rvec3_t  Gradient  (const rvec3_t&) const; // No UT coverage
 private:
-    DM_CD* itsSpinUpCD;
-    DM_CD* itsSpinDownCD;
+    rDM_CD* itsSpinUpCD;
+    rDM_CD* itsSpinDownCD;
 };
 
 } //namespace

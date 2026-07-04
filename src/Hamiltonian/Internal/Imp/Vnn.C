@@ -18,14 +18,14 @@ Vnn::Vnn(const st_t& st)
     , theStructure(st)
 {};
 
-rsmat_t Vnn::CalculateMatrix(const obs_t* bs,const Spin&) const
+rsmat_t Vnn::CalculateMatrix(const robs_t* bs,const Spin&) const
 {
     int n=bs->GetNumFunctions();
     rsmat_t ret=blazem::zero<double>(n);
     return ret;
 }
 
-void Vnn::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
+void Vnn::GetEnergy(EnergyBreakdown& te,const rDM_CD* cd) const
 {
     // Pair sum for a finite molecule, Ewald lattice sum for a periodic cell (chosen by isFinite()).
     te.Enn=NuclearRepulsion(*theStructure);

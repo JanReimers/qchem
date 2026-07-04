@@ -91,7 +91,7 @@ template <class T> void tSCFIterator<T>::Initialize(tChargeDensity<T>* seed, con
     itsLineage=std::make_shared<qchem::ChargeDensity::Lineage>();   // one lineage per SCF run (see SetWorkingCD)
 
     // HF/DHF can't build a Fock from a matrix-FREE seed: their exact-exchange K needs the density MATRIX
-    // (Vxc::CalcMatrix asserts the density is a DM_CD).  So if the seed has no matrix (a SAD fit) and this
+    // (Vxc::CalcMatrix asserts the density is a rDM_CD).  So if the seed has no matrix (a SAD fit) and this
     // Hamiltonian RequiresDensityMatrix(), bootstrap: run the seed through a default Dirac-Xalpha (LDA) DFT
     // SIBLING -- built right here from bs + st (H is basis-agnostic and never held them) + a defaulted seed
     // mesh -- for one iteration-0 step to manufacture a real D0, then let the SCF loop continue with the real

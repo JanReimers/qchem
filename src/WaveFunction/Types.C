@@ -9,8 +9,8 @@ export import qchem.BasisSet;
 export namespace qchem::WaveFunction
 {
     template <class T> using tobs_t=BasisSet::Orbital_1E_IBS<T>;
-    using obs_t=tobs_t<double>;
+    using robs_t=tobs_t<double>;
     template <class T> using tbs_t=BasisSet::tBasisSet<T>;
-    using bs_t=tbs_t<double>;
+    using rbs_t=tbs_t<double>;
 }
 

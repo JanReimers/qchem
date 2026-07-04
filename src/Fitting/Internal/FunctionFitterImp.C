@@ -52,7 +52,7 @@ public:
     FunctionFitterImp(fbs_t& fbs) : Base(fbs) {}
 
     virtual void      DoFit  (const ScalarFFClient&)      override;  // overlap-metric projection
-    virtual hmat_t<T> Overlap(const obs_t<T>*) const      override;  // Sum_a c_a <Oi|f_a|Oj>
+    virtual hmat_t<T> Overlap(const robs_t<T>*) const      override;  // Sum_a c_a <Oi|f_a|Oj>
 };
 
 //---------------------------------------------------------------- Density (Coulomb-metric) impl
@@ -67,7 +67,7 @@ public:
     ConstrainedFF(fbs_t&, const vec_t<T>& g);
 
     virtual void      DoFit    (const ProjectedDensity_AO&)  override; // Dunlap charge-constrained fit
-    virtual hmat_t<T> Repulsion(const obs_t<T>*) const       override; // Sum_a c_a <Oi|f_a/r12|Oj>
+    virtual hmat_t<T> Repulsion(const robs_t<T>*) const       override; // Sum_a c_a <Oi|f_a/r12|Oj>
     virtual double    FitGetSelfRepulsion() const            override; // <fit|1/r12|fit>
     virtual double    Integral () const                      override;
 

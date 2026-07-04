@@ -14,7 +14,7 @@ export import qchem.Orbitals;
 namespace qchem::WaveFunction
 {
 
-export using qchem::ChargeDensity::DM_CD;
+export using qchem::ChargeDensity::rDM_CD;
 export using qchem::ChargeDensity::tDM_CD;
 export using qchem::Orbitals::EnergyLevels;
 using Orbitals::Orbitals; //Keep this one last, otherwise it interferes with the two previous declarations!

@@ -8,7 +8,7 @@ import qchem.Symmetry.Spin;   // Spin -- the requested channel of the spin-nativ
 export namespace qchem::Hamiltonian
 {
 
-using ChargeDensity::DM_CD;
+using ChargeDensity::rDM_CD;
 using ChargeDensity::rChargeDensity;
 
 class ExFunctional

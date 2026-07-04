@@ -24,7 +24,7 @@ import qchem.Mesh;                 // qcMesh::MeshParams (the DFT integration gr
 import qchem.ElectronConfiguration;// ElectronConfiguration
 import qchem.SCFIterator;          // SCFIterator, SCFParams, SCFProgress, EnergyBreakdown
 import qchem.Symmetry.Irrep;       // Irrep
-import qchem.ChargeDensity;        // DM_CD
+import qchem.ChargeDensity;        // rDM_CD
 import qchem.ChargeDensity.Seed;   // SeedStrategy
 
 export namespace qchem
@@ -136,7 +136,7 @@ private:
     ElectronConfiguration*               itsEC    = nullptr;  //!< owned
     BasisSet::Real_BS*                   itsBasis = nullptr;  //!< owned
     qchem::SCFIterator::SCFIterator*     itsScf   = nullptr;  //!< owned (owns Hamiltonian + accelerator)
-    std::unique_ptr<qchem::ChargeDensity::DM_CD> itsDensity;  //!< owned converged rho(r)
+    std::unique_ptr<qchem::ChargeDensity::rDM_CD> itsDensity;  //!< owned converged rho(r)
     std::vector<occ_t>                   itsOccupied;          //!< non-owning, into the wave function
     Observer                             itsObserver;          //!< optional live-progress sink
 };

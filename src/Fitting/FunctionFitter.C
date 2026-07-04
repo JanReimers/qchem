@@ -28,7 +28,7 @@ module;
 export module qchem.Fitting.FunctionFitter;
 export import qchem.ScalarFunction;   // ScalarFunction<double> (operator(), Gradient) + Types
 export import qchem.FourierMap;       // the pre-computed G-space coefficients a Fourier (PW) fit receives
-import qchem.Fitting.Types;           // obs_t<T>
+import qchem.Fitting.Types;           // robs_t<T>
 import qchem.BasisSet.Fit_IBS;        // FIT_SF_ABS / FIT_CD_ABS (the two narrow fit-basis faces)
 import qchem.Blaze;                   // hmat_t<T>
 
@@ -67,7 +67,7 @@ template <class T> class FunctionFitter_Scalar : public virtual ScalarFunction<d
 {
 public:
     virtual void      DoFit        (const ScalarFFClient&)                 =0;  //!< fit a scalar (overlap metric)
-    virtual hmat_t<T> Overlap      (const obs_t<T>*) const                 =0;  //!< Sum_a c_a <Oi|f_a|Oj>
+    virtual hmat_t<T> Overlap      (const robs_t<T>*) const                 =0;  //!< Sum_a c_a <Oi|f_a|Oj>
 
     // --- shared post-fit utilities (two fitters of the SAME face) ---
     virtual void   ReScale         (double factor)                         =0;  //!< c *= factor
@@ -83,7 +83,7 @@ template <class T> class FunctionFitter_Density : public virtual ScalarFunction<
 {
 public:
     virtual void   DoFit           (const ProjectedDensity_AO&)=0;  //!< fit a density (dense, metric solve)
-    virtual hmat_t<T> Repulsion    (const obs_t<T>*) const     =0;  //!< Sum_a c_a <Oi|f_a/r12|Oj>
+    virtual hmat_t<T> Repulsion    (const robs_t<T>*) const     =0;  //!< Sum_a c_a <Oi|f_a/r12|Oj>
     virtual double    FitGetSelfRepulsion() const              =0;  //!< <fit|1/r12|fit> (caller halves)
     virtual double    Integral     () const                    =0;  //!< total charge Sum_a c_a integral f_a
 

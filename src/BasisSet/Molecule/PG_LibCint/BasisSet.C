@@ -95,7 +95,7 @@ class BasisSet
 public:
     BasisSet() {};
     BasisSet(Reader*, const Structure*, bool spherical=false);
-    virtual void Insert(bs_t* bs);
+    virtual void Insert(obs_t* bs);
 };
 
 } //namespace

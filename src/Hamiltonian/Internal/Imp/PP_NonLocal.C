@@ -101,7 +101,7 @@ PP_NonLocal::PP_NonLocal(const st_t& st, sep_t sep, const qcMesh::MeshParams& mp
     assert(itsSep);
 }
 
-rsmat_t PP_NonLocal::CalculateMatrix(const obs_t* bs, const Spin&) const
+rsmat_t PP_NonLocal::CalculateMatrix(const robs_t* bs, const Spin&) const
 {
     qcMesh::Mesh mesh = MakeMolecularMesh(*theStructure, itsMeshParams);   // atom-centred Becke mesh
     BFView bf(*bs);
@@ -126,7 +126,7 @@ rsmat_t PP_NonLocal::CalculateMatrix(const obs_t* bs, const Spin&) const
     return rsmat_t(V);
 }
 
-void PP_NonLocal::GetEnergy(EnergyBreakdown& te, const DM_CD* cd) const
+void PP_NonLocal::GetEnergy(EnergyBreakdown& te, const rDM_CD* cd) const
 {
     te.Een += cd->DM_Contract(this);   // electron-ion (KB nonlocal) energy = Tr(D V_NL)
 }

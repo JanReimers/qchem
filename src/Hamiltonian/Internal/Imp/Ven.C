@@ -20,13 +20,13 @@ Ven::Ven(const st_t& st)
 };
 
 
-rsmat_t Ven::CalculateMatrix(const obs_t* bs,const Spin&) const
+rsmat_t Ven::CalculateMatrix(const robs_t* bs,const Spin&) const
 {
     // std::cout << "Ven=" << bs->Nuclear(&*theStructure) << std::endl;
     return bs->Nuclear(&*theStructure);
 }
 
-void Ven::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
+void Ven::GetEnergy(EnergyBreakdown& te,const rDM_CD* cd) const
 {
     te.Een=cd->DM_Contract(this);
 }

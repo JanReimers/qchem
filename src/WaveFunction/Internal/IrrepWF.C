@@ -14,7 +14,7 @@ export import qchem.ElectronConfiguration;
 export namespace qchem::WaveFunction
 {
 
-using ChargeDensity::DM_CD;
+using ChargeDensity::rDM_CD;
 using ChargeDensity::tDM_CD;
 using ChargeDensity::tChargeDensity;
 using qchem::Hamiltonian::tHamiltonian;

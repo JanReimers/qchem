@@ -4,7 +4,7 @@ module;
 #include <cassert>
 export module qchem.ChargeDensity.Imp.FittedCD;
 import qchem.ChargeDensity.Types;
-import qchem.ChargeDensity;            // DM_CD (cross-cast to its AO projection face)
+import qchem.ChargeDensity;            // rDM_CD (cross-cast to its AO projection face)
 import qchem.FittedCD;
 import qchem.Fitting.FunctionFitter;   // FunctionFitter_Density (composed) + ProjectedDensity_AO (the AO face)
 

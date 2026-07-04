@@ -30,7 +30,7 @@ import qchem.SCFIterator;           // SCFIterator, SCFParams, SCFProgress, Ener
 import qchem.Symmetry.Irrep;        // Irrep
 import qchem.Symmetry.Spin;         // Spin (per-spin irrep enumeration)
 import qchem.Orbitals;              // Orbital, Orbitals
-import qchem.ChargeDensity;         // DM_CD
+import qchem.ChargeDensity;         // rDM_CD
 import qchem.ChargeDensity.Seed;    // SeedStrategy
 import qchem.Calculation;           // reuse AcceleratorOptions (read-only; does NOT modify Calculation)
 
@@ -141,7 +141,7 @@ private:
     ElectronConfiguration*               itsEC    = nullptr;  //!< owned
     BasisSet::Real_BS*                   itsBasis = nullptr;  //!< owned
     qchem::SCFIterator::SCFIterator*     itsScf   = nullptr;  //!< owned (owns Hamiltonian + accelerator)
-    std::unique_ptr<qchem::ChargeDensity::DM_CD> itsDensity;
+    std::unique_ptr<qchem::ChargeDensity::rDM_CD> itsDensity;
     std::vector<occ_t>                   itsOccupied;
     Observer                             itsObserver;
 };

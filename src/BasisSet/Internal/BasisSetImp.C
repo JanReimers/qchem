@@ -17,7 +17,7 @@ template <class T> class BasisSetImp
 {
 public:
     
-    using bs_t = typename tBasisSet<T>::bs_t;
+    using obs_t = typename tBasisSet<T>::obs_t;
 
     virtual size_t GetNumFunctions() const
     {
@@ -43,16 +43,16 @@ protected:
     void Insert(Orbital_1E_IBS<T>* bs)
     {
         assert(bs);
-        itsBasisSets.push_back(std::unique_ptr<bs_t>(bs));
+        itsBasisSets.push_back(std::unique_ptr<obs_t>(bs));
     }
 
     virtual size_t      GetNumIBS()      const {return itsBasisSets.size();}
-    virtual const bs_t* GetIBS(size_t i) const {return itsBasisSets[i].get();}
+    virtual const obs_t* GetIBS(size_t i) const {return itsBasisSets[i].get();}
 
     friend class ::SlaterRadialIntegralTests;
     friend class ::DiracIntegralTests;
 
-    std::vector<std::unique_ptr<bs_t>> itsBasisSets;
+    std::vector<std::unique_ptr<obs_t>> itsBasisSets;
 };
 
 } //namespace

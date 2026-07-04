@@ -19,8 +19,8 @@ import qchem.Blaze;
 namespace qchem::Hamiltonian
 {
 
-const rsmat_t& Dynamic_HF_HT_Imp::GetMatrix(const obs_t* bs,const Spin&,const rChargeDensity* cd,
-                                            const bs_t* wholeBasis) const
+const rsmat_t& Dynamic_HF_HT_Imp::GetMatrix(const robs_t* bs,const Spin&,const rChargeDensity* cd,
+                                            const rbs_t* wholeBasis) const
 {
     // An HF term is inherently whole-system (canonical-pair ScatterBoth), so the composite basis is
     // required; there is no valid null-basis caller (the per-irrep fallback would fetch non-canonical blocks
@@ -37,11 +37,11 @@ void Dynamic_HF_HT_Imp::ContractAll(const rChargeDensity* cd) const
 {
     assert(itsWholeBasis);
     if (cd->Version()==itsCD_Version && !itsJKs.empty()) return;   // already current for this density
-    const DM_CD* dm = dynamic_cast<const DM_CD*>(cd);
-    assert(dm && "HF term: density must be a DM_CD");
-    std::vector<const obs_t*> obs;                          // the whole basis's per-irrep blocks
+    const rDM_CD* dm = dynamic_cast<const rDM_CD*>(cd);
+    assert(dm && "HF term: density must be a rDM_CD");
+    std::vector<const robs_t*> obs;                          // the whole basis's per-irrep blocks
     std::vector<rsmat_t>      X;                            // one zeroed block per irrep (same order as obs)
-    for (auto* b:itsWholeBasis->Iterate<obs_t>())
+    for (auto* b:itsWholeBasis->Iterate<robs_t>())
     {
         obs.push_back(b);
         X.push_back(blazem::zero<double>(b->GetNumFunctions()));

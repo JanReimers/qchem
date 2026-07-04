@@ -41,7 +41,7 @@ FittedVxcPol::~FittedVxcPol()
 //           = Sum  { Ck <Oi|Vk|Oj> } .
 //
 //  This last part is carried out by the base class FitImplementation.
-rsmat_t FittedVxcPol::CalcMatrix(const obs_t* bs,const Spin& s,const rChargeDensity* cd) const
+rsmat_t FittedVxcPol::CalcMatrix(const robs_t* bs,const Spin& s,const rChargeDensity* cd) const
 {
     assert(itsUpVxc);
     assert(itsDownVxc);
@@ -63,23 +63,23 @@ rsmat_t FittedVxcPol::CalcMatrix(const obs_t* bs,const Spin& s,const rChargeDens
         return (s==Spin::Up ? itsUpVxc : itsDownVxc)->GetMatrix(bs, s, cd);
     }
 
-    const DM_CD* ucd = pol_cd->GetChargeDensity(Spin::Up  );
-    const DM_CD* dcd = pol_cd->GetChargeDensity(Spin::Down);
+    const rDM_CD* ucd = pol_cd->GetChargeDensity(Spin::Up  );
+    const rDM_CD* dcd = pol_cd->GetChargeDensity(Spin::Down);
 
     rsmat_t Kab= s==Spin::Up ? itsUpVxc  ->GetMatrix(bs,s,ucd) : itsDownVxc->GetMatrix(bs,s,dcd);
     return Kab;
 }
 
 
-void FittedVxcPol::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
+void FittedVxcPol::GetEnergy(EnergyBreakdown& te,const rDM_CD* cd) const
 {
     assert(itsUpVxc);
     assert(itsDownVxc);
     const Polarized_CD* pol_cd =  dynamic_cast<const Polarized_CD*>(cd);
     assert(pol_cd);
 
-    const DM_CD* ucd = pol_cd->GetChargeDensity(Spin::Up  );
-    const DM_CD* dcd = pol_cd->GetChargeDensity(Spin::Down);
+    const rDM_CD* ucd = pol_cd->GetChargeDensity(Spin::Up  );
+    const rDM_CD* dcd = pol_cd->GetChargeDensity(Spin::Down);
     te.Exc = 0.0;
     itsUpVxc  ->GetEnergy(te,ucd);
     itsDownVxc->GetEnergy(te,dcd);

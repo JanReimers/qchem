@@ -51,13 +51,13 @@ PP_Local::PP_Local(const st_t& st, vloc_t vloc, const qcMesh::MeshParams& mp)
     assert(itsVloc);
 }
 
-rsmat_t PP_Local::CalculateMatrix(const obs_t* bs, const Spin&) const
+rsmat_t PP_Local::CalculateMatrix(const robs_t* bs, const Spin&) const
 {
     qcMesh::Mesh mesh = MakeMolecularMesh(*theStructure, itsMeshParams);   // atom-centred Becke mesh
     return qcMesh::WeightedOverlap(mesh, BFView(*bs), VlocField(*theStructure, *itsVloc));
 }
 
-void PP_Local::GetEnergy(EnergyBreakdown& te, const DM_CD* cd) const
+void PP_Local::GetEnergy(EnergyBreakdown& te, const rDM_CD* cd) const
 {
     te.Een += cd->DM_Contract(this);   // electron-ion (local PP) energy = Tr(D V_loc)
 }

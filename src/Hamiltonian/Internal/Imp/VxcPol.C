@@ -36,15 +36,15 @@ namespace qchem::Hamiltonian
 VxcPol::VxcPol()  : itsUpVxc(new Vxc(-1.0)), itsDownVxc(new Vxc(-1.0)) {}
 VxcPol::~VxcPol() { delete itsUpVxc; delete itsDownVxc; }
 
-const rsmat_t& VxcPol::GetMatrix(const obs_t* bs,const Spin& s,const rChargeDensity* cd,const bs_t* wholeBasis) const
+const rsmat_t& VxcPol::GetMatrix(const robs_t* bs,const Spin& s,const rChargeDensity* cd,const rbs_t* wholeBasis) const
 {
     if (s==Spin::None) { std::cerr << "VxcPol::GetMatrix: unpolarized spin in a polarized term" << std::endl; exit(-1); }
     const Polarized_CD* pcd = dynamic_cast<const Polarized_CD*>(cd);
     assert(pcd && "VxcPol: density must be polarized");
-    const DM_CD* SpinCD = pcd->GetChargeDensity(s);   // this spin's density
+    const rDM_CD* SpinCD = pcd->GetChargeDensity(s);   // this spin's density
     return (s==Spin::Up ? itsUpVxc : itsDownVxc)->GetMatrix(bs,s,SpinCD,wholeBasis);
 }
-void VxcPol::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
+void VxcPol::GetEnergy(EnergyBreakdown& te,const rDM_CD* cd) const
 {
     // Sum K^alpha and K^beta: each sub-Vxc contracts ITS spin's density (0.5 Tr(D^sigma . -K^sigma)).
     const Polarized_CD* pcd=dynamic_cast<const Polarized_CD*>(cd);

@@ -14,7 +14,7 @@ module;
 #include <ostream>
 export module qchem.Fitting.FourierFunctionFitter;
 export import qchem.FourierMap;                // FourierMap (the G-space coefficients DoFit receives)
-import qchem.Fitting.Types;                    // obs_t<T> (= Orbital_1E_IBS<T>, the common orbital base)
+import qchem.Fitting.Types;                    // robs_t<T> (= Orbital_1E_IBS<T>, the common orbital base)
 import qchem.BasisSet.Band_FT_IBS;             // the reciprocal-space contraction the fitter delegates to
 import qchem.Blaze;                            // hmat_t<dcmplx>
 
@@ -35,7 +35,7 @@ public:
 
     //! Coulomb (Hartree) matrix: delegate to the orbital basis's reciprocal-space Poisson assembly.  The
     //! orbital basis arrives as the common Orbital_1E_IBS base; cast down to the G-space capability.
-    hmat_t<dcmplx> Repulsion(const obs_t<dcmplx>* bs) const
+    hmat_t<dcmplx> Repulsion(const robs_t<dcmplx>* bs) const
     {
         auto pw=dynamic_cast<const BasisSet::Band_FT_IBS*>(bs);
         assert(pw && "FourierFunctionFitter::Repulsion requires a Band_FT_IBS (plane-wave) basis");
@@ -44,7 +44,7 @@ public:
     }
 
     //! XC matrix <i|v_xc|j>: assemble directly from the stored V-tilde (no kernel).
-    hmat_t<dcmplx> Overlap(const obs_t<dcmplx>* bs) const
+    hmat_t<dcmplx> Overlap(const robs_t<dcmplx>* bs) const
     {
         auto pw=dynamic_cast<const BasisSet::Band_FT_IBS*>(bs);
         assert(pw && "FourierFunctionFitter::Overlap requires a Band_FT_IBS (plane-wave) basis");

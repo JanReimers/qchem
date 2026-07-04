@@ -20,7 +20,7 @@ BasisSet::BasisSet( Reader* reader, const Structure* cl)
     Insert(new ::qchem::BasisSet::Molecule::PG_Cart::Orbital_IBS(reader,cl));
 }
 
-void BasisSet::Insert(bs_t* bs)
+void BasisSet::Insert(obs_t* bs)
 {
     ::qchem::BasisSet::BasisSetImp<double>::Insert(bs);
     // auto oibs=dynamic_cast<const Orbital_HF_IBS<double>*>(bs);

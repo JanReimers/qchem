@@ -62,9 +62,9 @@ template <class T> void ConstrainedFF<T>::DoFit(const ProjectedDensity_AO& ffc)
 //
 //  Fit-derived quantities the clients query (the "what's your repulsion with this basis?" side).
 //
-template <class T> hmat_t<T> ConstrainedFF<T>::Repulsion(const obs_t<T>* bs) const
+template <class T> hmat_t<T> ConstrainedFF<T>::Repulsion(const robs_t<T>* bs) const
 {
-    auto dftbs=dynamic_cast<const BasisSet::Orbital_DFT_IBS<T>*>(bs); // obs_t is the 1E base; need the 3-centre one
+    auto dftbs=dynamic_cast<const BasisSet::Orbital_DFT_IBS<T>*>(bs); // robs_t is the 1E base; need the 3-centre one
     assert(dftbs && "ConstrainedFF::Repulsion: Gaussian fitting needs an Orbital_DFT_IBS (3-centre) basis");
     const ERI3<T>& R3=dftbs->Repulsion3C(*this->itsBasisSet);
     hmat_t<T> J=blazem::zeroH<T>(bs->GetNumFunctions());

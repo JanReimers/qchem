@@ -20,7 +20,7 @@ namespace qchem::WaveFunction
 {
 
 using Hamiltonian::tHamiltonian;
-using ChargeDensity::DM_CD;
+using ChargeDensity::rDM_CD;
 using ChargeDensity::tDM_CD;
 using ChargeDensity::tChargeDensity;
 using Orbitals::Orbitals;

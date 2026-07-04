@@ -57,22 +57,22 @@ export namespace qchem::Hamiltonian
     //! Owns its functional(s); the Internal ExFunctional construction never leaks out.  Polarized is
     //! supported for SlaterXalpha and DiracVWN (spin-native VWN5, OpenWork B); LibXC is unpolarized-only
     //! (its libxc wrapper does not yet pass the two spin channels) and throws for Pol::Polarized.
-    rHamiltonian* Factory(Pol, const st_t& st, const XCFunctional&, const qcMesh::MeshParams&, const bs_t*);
+    rHamiltonian* Factory(Pol, const st_t& st, const XCFunctional&, const qcMesh::MeshParams&, const rbs_t*);
 
     //! Unified one-call resolver: turn a Model token into the concrete polymorphic Hamiltonian.  HF/1-e/
     //! Dirac ignore mesh/basis/xalpha; the DFT members map to an XCFunctional and delegate to the resolver
     //! above.  The compact "default Hamiltonian" entry the unit tests want -- no manual functional assembly.
-    rHamiltonian* Factory(Model,Pol,const st_t& st, const qcMesh::MeshParams&, const bs_t*, double xalpha);
+    rHamiltonian* Factory(Model,Pol,const st_t& st, const qcMesh::MeshParams&, const rbs_t*, double xalpha);
 
     //! Convenience for the most common DFT functional: Slater-Dirac exchange scaled by \a alpha (alpha=2/3
     //! is pure Dirac).  Equivalent to the XCFunctional resolver with XC::SlaterXalpha.
-    rHamiltonian* Factory(Pol,const st_t& st,double alpha, const qcMesh::MeshParams&, const bs_t*);
+    rHamiltonian* Factory(Pol,const st_t& st,double alpha, const qcMesh::MeshParams&, const rbs_t*);
 
     //=== Pseudopotential ============================================================================
     //! Build a pseudopotential Hamiltonian for `element` (e.g. "Si") with `valence` (zion) valence
     //! electrons: the all-electron nuclear attraction is replaced by the GTH local + KB-separable nonlocal
     //! pseudopotential, with LDA exchange-correlation.  The public front door to Ham_PP_U.
     rHamiltonian* Factory(const st_t& st, const std::string& element, int valence,
-                         const qcMesh::MeshParams&, const bs_t*);
+                         const qcMesh::MeshParams&, const rbs_t*);
 
 } // namespace

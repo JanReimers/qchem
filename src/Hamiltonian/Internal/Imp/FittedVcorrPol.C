@@ -13,7 +13,7 @@ module;
 module qchem.Hamiltonian.Internal.Terms;
 import qchem.Hamiltonian.Internal.ExFunctional;   // SpinCorrelation
 import qchem.Energy;
-import qchem.ChargeDensity;                        // Polarized_CD, DM_CD (re-exports Spin)
+import qchem.ChargeDensity;                        // Polarized_CD, rDM_CD (re-exports Spin)
 import qchem.ScalarFunction;
 import qchem.Vector3D;
 import qchem.Fitting.FunctionFitter;               // MakeScalarFitter / FunctionFitter_Scalar
@@ -27,7 +27,7 @@ namespace
 using ChargeDensity::Polarized_CD;
 
 // v_c^sigma(r) = corr->GetVc(rho_up(r), rho_down(r), s), presented as a fittable scalar field.  The two
-// channel densities are ScalarFunctions (a DM_CD IS-A ScalarFunction); both are sampled at each r.
+// channel densities are ScalarFunctions (a rDM_CD IS-A ScalarFunction); both are sampled at each r.
 class PolVcDensity : public virtual ScalarFunction<double>, public Fitting::ScalarFFClient
 {
 public:
@@ -71,16 +71,16 @@ private:
 };
 } // namespace
 
-// The polarized eps_c contraction client (a Dynamic_CC): fits eps_c(rho_up,rho_down) from the full
+// The polarized eps_c contraction client (a rDynamic_CC): fits eps_c(rho_up,rho_down) from the full
 // Polarized_CD (cross-cast from the cd the channel forwards) and returns the overlap matrix.  The matrix is
 // spin-independent, so when the polarized density contracts it over both channels the result is the correct
 // E_c = integral eps_c (rho_up+rho_down).
-class FittedEpsCPol : public virtual ChargeDensity::Dynamic_CC
+class FittedEpsCPol : public virtual ChargeDensity::rDynamic_CC
 {
 public:
     FittedEpsCPol(std::shared_ptr<const BasisSet::FIT_SF_ABS>& bs, const SpinCorrelation* corr)
         : itsFitter(Fitting::MakeScalarFitter(bs)), itsCorr(corr) {}
-    virtual const rsmat_t& GetMatrix(const obs_t* bs, const Spin&, const rChargeDensity* cd) const
+    virtual const rsmat_t& GetMatrix(const robs_t* bs, const Spin&, const rChargeDensity* cd) const
     {
         const Polarized_CD* pol = dynamic_cast<const Polarized_CD*>(cd);
         assert(pol && "FittedEpsCPol: the polarized correlation energy requires a Polarized_CD");
@@ -107,7 +107,7 @@ FittedVcorrPol::FittedVcorrPol(fbs_t& bs, corr_t& corr)
 
 FittedVcorrPol::~FittedVcorrPol() = default;   // out-of-line for the unique_ptr<FittedEpsCPol> member
 
-rsmat_t FittedVcorrPol::CalcMatrix(const obs_t* bs, const Spin& s, const rChargeDensity* cd) const
+rsmat_t FittedVcorrPol::CalcMatrix(const robs_t* bs, const Spin& s, const rChargeDensity* cd) const
 {
     assert(s != Spin::None && "FittedVcorrPol: a polarized term needs an Up/Down spin");
     auto dftbs = dynamic_cast<const odftbs_t*>(bs);
@@ -132,7 +132,7 @@ rsmat_t FittedVcorrPol::CalcMatrix(const obs_t* bs, const Spin& s, const rCharge
     return itsVcFitter->Overlap(dftbs);
 }
 
-void FittedVcorrPol::GetEnergy(EnergyBreakdown& te, const DM_CD* cd) const
+void FittedVcorrPol::GetEnergy(EnergyBreakdown& te, const rDM_CD* cd) const
 {
     // E_c = integral eps_c(rho_up,rho_down) rho.  The polarized DM_Contract sums both channels against the
     // (spin-independent) eps_c fit, giving integral eps_c (rho_up+rho_down) = integral eps_c rho_total.

@@ -96,7 +96,7 @@ class BasisSet
 public:
     BasisSet() {};
     BasisSet( Reader*, const Structure*);
-    virtual void Insert(bs_t* bs);
+    virtual void Insert(obs_t* bs);
 
 };
 

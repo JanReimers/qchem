@@ -59,14 +59,14 @@ template <class T> bool IrrepCD<T>::IsZero() const
 //
 template <> void IrrepCD<double>::AccumulateDirect(rsmat_t& Jii) const
 {
-    const ohfbs_t* bs=dynamic_cast<const ohfbs_t*>(itsBasisSet);
+    const rohfbs_t* bs=dynamic_cast<const rohfbs_t*>(itsBasisSet);
     assert(bs);
     if (!IsZero()) bs->AccumulateDirect(Jii,itsDensityMatrix,bs);   // diagonal: this block's basis on both sides
 }
 
 template <> void IrrepCD<double>::AccumulateExchange(rsmat_t& Kii) const
 {
-    const ohfbs_t* bs=dynamic_cast<const ohfbs_t*>(itsBasisSet);
+    const rohfbs_t* bs=dynamic_cast<const rohfbs_t*>(itsBasisSet);
     assert(bs);
     if (!IsZero()) bs->AccumulateExchange(Kii,itsDensityMatrix,bs);
 }
@@ -84,8 +84,8 @@ template <> void IrrepCD<double>::AccumulateDirectBoth(rsmat_t& Ji, rsmat_t& Jj,
     const IrrepCD<double>* oj=dynamic_cast<const IrrepCD<double>*>(&other);
     assert(oj);
     if (IsZero() && oj->IsZero()) return;
-    const ohfbs_t* bs_i=dynamic_cast<const ohfbs_t*>(itsBasisSet);
-    const ohfbs_t* bs_j=dynamic_cast<const ohfbs_t*>(oj->itsBasisSet);
+    const rohfbs_t* bs_i=dynamic_cast<const rohfbs_t*>(itsBasisSet);
+    const rohfbs_t* bs_j=dynamic_cast<const rohfbs_t*>(oj->itsBasisSet);
     assert(bs_i && bs_j);
     bs_i->AccumulateDirectBoth(Ji,Jj,itsDensityMatrix,oj->itsDensityMatrix,bs_j);
 }
@@ -98,8 +98,8 @@ template <> void IrrepCD<double>::AccumulateExchangeBoth(rsmat_t& Ki, rsmat_t& K
     const IrrepCD<double>* oj=dynamic_cast<const IrrepCD<double>*>(&other);
     assert(oj);
     if (IsZero() && oj->IsZero()) return;
-    const ohfbs_t* bs_i=dynamic_cast<const ohfbs_t*>(itsBasisSet);
-    const ohfbs_t* bs_j=dynamic_cast<const ohfbs_t*>(oj->itsBasisSet);
+    const rohfbs_t* bs_i=dynamic_cast<const rohfbs_t*>(itsBasisSet);
+    const rohfbs_t* bs_j=dynamic_cast<const rohfbs_t*>(oj->itsBasisSet);
     assert(bs_i && bs_j);
     bs_i->AccumulateExchangeBoth(Ki,Kj,itsDensityMatrix,oj->itsDensityMatrix,bs_j);
 }

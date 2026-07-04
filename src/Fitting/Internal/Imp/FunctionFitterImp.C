@@ -72,9 +72,9 @@ template <class T> void FunctionFitterImp<T>::DoFit(const ScalarFFClient& ffc)
     this->itsFitCoeff = Sinv * this->itsBasisSet->Overlap(*ffc.GetScalarFunction());
 }
 
-template <class T> hmat_t<T> FunctionFitterImp<T>::Overlap(const obs_t<T>* bs) const
+template <class T> hmat_t<T> FunctionFitterImp<T>::Overlap(const robs_t<T>* bs) const
 {
-    auto dftbs=dynamic_cast<const BasisSet::Orbital_DFT_IBS<T>*>(bs); // obs_t is the 1E base; need the 3-centre one
+    auto dftbs=dynamic_cast<const BasisSet::Orbital_DFT_IBS<T>*>(bs); // robs_t is the 1E base; need the 3-centre one
     assert(dftbs && "FunctionFitterImp::Overlap: Gaussian fitting needs an Orbital_DFT_IBS (3-centre) basis");
     const ERI3<T>& O3=dftbs->Overlap3C(*this->itsBasisSet);
     hmat_t<T> J=blazem::zeroH<T>(bs->GetNumFunctions());

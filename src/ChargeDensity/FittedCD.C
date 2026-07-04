@@ -1,7 +1,7 @@
 // File: FittedCD.C  Fitted charge density (a ScalarFunction you can fit to a density and query).
 export module qchem.FittedCD;
 import qchem.ChargeDensity.Types;
-import qchem.ChargeDensity;            // DM_CD (the density to fit; cross-cast to its AO face in the Imp)
+import qchem.ChargeDensity;            // rDM_CD (the density to fit; cross-cast to its AO face in the Imp)
 import qchem.ScalarFunction;           // ScalarFunction<double>
 
 export namespace qchem::ChargeDensity

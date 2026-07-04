@@ -38,7 +38,7 @@ FittedEpsXc::FittedEpsXc(fbs_t& bs, const ExFunctional* ex)
 {
 }
 
-const rsmat_t& FittedEpsXc::GetMatrix(const obs_t* bs,const Spin&,const rChargeDensity* cd) const
+const rsmat_t& FittedEpsXc::GetMatrix(const robs_t* bs,const Spin&,const rChargeDensity* cd) const
 {
     EpsXcDensity epsxc(itsEx,cd);
     itsFitter->DoFit(epsxc);                             // fit eps_xc(rho) for this density
@@ -78,7 +78,7 @@ void FittedVxc::UseChargeDensity(const rChargeDensity* cd)
 //
 //  This last part is carried out by the base class FitImplementation.
 
-rsmat_t FittedVxc::CalcMatrix(const obs_t* bs,const Spin& s,const rChargeDensity* cd) const
+rsmat_t FittedVxc::CalcMatrix(const robs_t* bs,const Spin& s,const rChargeDensity* cd) const
 {
     if (newCD(cd))
     {
@@ -89,7 +89,7 @@ rsmat_t FittedVxc::CalcMatrix(const obs_t* bs,const Spin& s,const rChargeDensity
     return itsFitter->Overlap(dftbs);
 }
 
-void FittedVxc::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
+void FittedVxc::GetEnergy(EnergyBreakdown& te,const rDM_CD* cd) const
 {
     if (newCD(cd))
     {
@@ -117,7 +117,7 @@ FittedVcorr::FittedVcorr(fbs_t& bs, ex_t& vwn)
     , itsEpsC  (bs,vwn.get())   // dedicated eps_c fit, SAME fit basis (3C integrals shared with v_c)
 {};
 
-void FittedVcorr::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
+void FittedVcorr::GetEnergy(EnergyBreakdown& te,const rDM_CD* cd) const
 {
     te.Exc += cd->DM_Contract(&itsEpsC,cd);   // integral eps_c rho  (NOT 3/4 integral v_c rho)
 }

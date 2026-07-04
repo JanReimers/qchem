@@ -16,12 +16,12 @@ namespace qchem::Hamiltonian
 // c_light factors, so NO extra 1/2 or c is applied here.  CAUTION: those c_light/2 factors in the RKB
 // chain (atom Orbital_RKBL_IBS::MakeKinetic, Imp/Orbital_DHF_IBS.C) appear to cancel but are
 // UNVERIFIED -- to be sorted in a dedicated relativistic-kinetic cleanup.  See BasisSet/Orbital_1E_IBS.C.
-rsmat_t DiracKinetic::CalculateMatrix(const obs_t* bs,const Spin&) const
+rsmat_t DiracKinetic::CalculateMatrix(const robs_t* bs,const Spin&) const
 {
     return bs->Kinetic();
 }
 
-void DiracKinetic::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
+void DiracKinetic::GetEnergy(EnergyBreakdown& te,const rDM_CD* cd) const
 {
     te.Kinetic=cd->DM_Contract(this);
 }

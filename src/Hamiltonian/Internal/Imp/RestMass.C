@@ -13,7 +13,7 @@ import qchem.Blaze;
 namespace qchem::Hamiltonian
 {
 
-rsmat_t RestMass::CalculateMatrix(const obs_t* bs,const Spin&) const
+rsmat_t RestMass::CalculateMatrix(const robs_t* bs,const Spin&) const
 {
     static const double f=-2.0*c_light*c_light;
     // std::cout << "Rest mass/c^2=" << bs->GetRestMass() << std::endl;
@@ -22,7 +22,7 @@ rsmat_t RestMass::CalculateMatrix(const obs_t* bs,const Spin&) const
     return f*sbs->RestMass();
 }
 
-void RestMass::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const
+void RestMass::GetEnergy(EnergyBreakdown& te,const rDM_CD* cd) const
 {
     te.RestMass=cd->DM_Contract(this);
 }

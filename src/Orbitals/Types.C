@@ -8,5 +8,5 @@ export import qchem.BasisSet.Orbital_1E_IBS;
 export namespace qchem::Orbitals
 {
     template <class T> using tobs_t=BasisSet::Orbital_1E_IBS<T>;
-    using obs_t=tobs_t<double>;
+    using robs_t=tobs_t<double>;
 }
