@@ -16,8 +16,8 @@ public:
     // mjs empty → full mj sum (closed shell or spin-averaged)
     RKB_Angular(int _κ, const rvec_t& _mjs={}) : κ(_κ), mjs(_mjs) {}
     RKB_Angular(const sym_t& sym)
-        : κ  (Symmetry::Getκ  (sym))
-        , mjs(Symmetry::Getmjs(sym)) 
+        : κ  (Symmetry::Atom::Getκ  (sym))
+        , mjs(Symmetry::Atom::Getmjs(sym)) 
         {}
 
     virtual rvec11_t    DirectAk  (const Evaluator& other) const override;

@@ -27,11 +27,11 @@ class Radial : public ExponentialEvaluator
 public:
     Radial(const rvec_t& _es, const sym_t& ir, size_t ltrim=0)
         : ExponentialEvaluator(_es,ir,ltrim) 
-        , l(Symmetry::Getl(ir))
+        , l(Symmetry::Atom::Getl(ir))
         {ns=norms();}
     Radial(size_t N, double emin, double emax, const sym_t& ir, size_t ltrim=0)
         : ExponentialEvaluator(exponents(N,emin,emax,ir),ir,ltrim) 
-        , l(Symmetry::Getl(ir))
+        , l(Symmetry::Atom::Getl(ir))
         {ns=norms();}
 
     virtual std::ostream& Write   (std::ostream&) const;

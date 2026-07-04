@@ -28,7 +28,7 @@ rvec_t ExponentScaler::Get_es(size_t L) const
 }
 rvec_t ExponentScaler::Get_es (const sym_t& ir) const
 {
-    return Get_es(Getl(ir));
+    return Get_es(Symmetry::Atom::Getl(ir));
 }
 
 } //namespace

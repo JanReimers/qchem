@@ -14,7 +14,7 @@ class NR_Angular : public virtual Angular
 {
 public:
     NR_Angular(int _l, const ivec_t& _mls) : l(_l), mls(_mls) {}
-    NR_Angular(const sym_t& sym) : NR_Angular(Symmetry::Getl(sym),Symmetry::Getmls(sym)) {};
+    NR_Angular(const sym_t& sym) : NR_Angular(Symmetry::Atom::Getl(sym),Symmetry::Atom::Getmls(sym)) {};
     virtual rvec11_t    DirectAk  (const Evaluator& other) const override;
     virtual rvec11_t    ExchangeAk(const Evaluator& other) const override;
     virtual std::string AngularID () const override;

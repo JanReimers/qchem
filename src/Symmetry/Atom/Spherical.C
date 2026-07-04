@@ -58,20 +58,20 @@ public:
 } // namespace qchem::Symmetry::Atom
 
 //---------------------------------------------------------------------------------
-// Free pry-out helpers that downcast an abstract sym_t to the atomic concretes above.  These live at the
-// Symmetry ROOT (next to sym_t), NOT in ::Atom: they are reached by ADL from many bare call sites -- e.g.
-// Getl(sym) in the evaluators -- so keeping them in qchem::Symmetry leaves that lookup (and the many
-// Evaluator::Getl() member overloads that share the name) undisturbed.  They throw std::bad_cast on a
-// type mismatch.
-export namespace qchem::Symmetry
+// Free pry-out helpers that downcast an abstract sym_t to the atomic concretes above.  They throw
+// std::bad_cast on a type mismatch.  Because they now live in ::Atom (not the Symmetry root), the argument
+// type -- the base Symmetry -- does NOT bring them in by ADL, so callers qualify them: Symmetry::Atom::Getl.
+// (Qualification also disambiguates them from the like-named Evaluator::Getl() / SphericalSpinor::Getκ()
+// member functions.)
+export namespace qchem::Symmetry::Atom
 {
 size_t Getl  (const sym_t&);   // l without knowing NR vs Dirac
-size_t Getl  (const Symmetry&);
+size_t Getl  (const qchem::Symmetry::Symmetry&);
 ivec_t Getmls(const sym_t&);   // used in one place by the atom Evaluator class
-ivec_t Getmls(const Symmetry&);
+ivec_t Getmls(const qchem::Symmetry::Symmetry&);
 int    Getκ  (const sym_t&);
-int    Getκ  (const Symmetry&);
+int    Getκ  (const qchem::Symmetry::Symmetry&);
 rvec_t Getmjs(const sym_t&);
-rvec_t Getmjs(const Symmetry&);
+rvec_t Getmjs(const qchem::Symmetry::Symmetry&);
 
-} // namespace qchem::Symmetry
+} // namespace qchem::Symmetry::Atom

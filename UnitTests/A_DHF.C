@@ -17,7 +17,7 @@ import qchem.Math;                   // c_light, Pi, Pi12, FourPi, pow, tgamma, 
 import qchem.Structure;             // Structure
 import qchem.Structure.MolecularMesh; // MakeMolecularMesh
 import qchem.Mesh;                  // qcMesh::Mesh / MeshParams
-import qchem.Symmetry.Atom.Spherical;    // Symmetry::Getκ (pick p1/2 vs p3/2)
+import qchem.Symmetry.Atom.Spherical;    // Symmetry::Atom::Getκ (pick p1/2 vs p3/2)
 import qchem.Symmetry.Spin;         // Spin
 import qchem.Types;                 // Vector3D
 import qchem.Blaze;
@@ -255,7 +255,7 @@ TEST(DHF_B_Pol,P2p)
 
     const qchem::Orbitals::Orbital* o2p=nullptr;
     for (const auto& ir:calc.GetIrreps(Spin::Up))
-        if (Symmetry::Getκ(ir.sym)==1) o2p=calc.GetOrbital(0,ir);
+        if (Symmetry::Atom::Getκ(ir.sym)==1) o2p=calc.GetOrbital(0,ir);
     ASSERT_NE(o2p,nullptr);
     double e2p=o2p->GetEigenEnergy();
     double ref=-0.30979; //periodic table 2p- for Boron
@@ -280,8 +280,8 @@ TEST(DHF_Xe,P5pSplit)
     const qchem::Orbitals::Orbital *p12=nullptr,*p32=nullptr;
     for (const auto& ir:calc.GetIrreps(Spin::Up))
     {
-        if (Symmetry::Getκ(ir.sym)== 1) p12=calc.GetOrbital(3,ir);
-        if (Symmetry::Getκ(ir.sym)==-2) p32=calc.GetOrbital(3,ir);
+        if (Symmetry::Atom::Getκ(ir.sym)== 1) p12=calc.GetOrbital(3,ir);
+        if (Symmetry::Atom::Getκ(ir.sym)==-2) p32=calc.GetOrbital(3,ir);
     }
     ASSERT_NE(p12,nullptr); ASSERT_NE(p32,nullptr);
     double e12=p12->GetEigenEnergy(), e32=p32->GetEigenEnergy();

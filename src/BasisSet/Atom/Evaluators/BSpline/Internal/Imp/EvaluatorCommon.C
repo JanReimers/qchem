@@ -15,7 +15,7 @@ namespace qchem::BasisSet::Atom::Evaluators::BSpline::Internal
 template <size_t K> EvaluatorCommon<K>::EvaluatorCommon(size_t Ngrid, double _rmin, double _rmax,const sym_t& ylm)
 : rmin(_rmin), rmax(_rmax) , itsGrid({0,1})
 {
-    int l=Symmetry::Getl(ylm);
+    int l=Symmetry::Atom::Getl(ylm);
     knots=MakeLogKnots(Ngrid,rmin,rmax,l);
     // std::cout << "Knots=" << knots << std::endl;
     splines=bspline::generateBSplines<K>(knots);

@@ -88,8 +88,10 @@ consumer), not just the symmetry tests.
 2. **[DONE]** `Lattice_3D/` — `BlochQN` moved (+ `Getk` nested to `::Lattice_3D`).
 3. **[DONE]** Root tidy — `Unit.C` lifted from `Internal/` to root.
 4. **[DONE]** `Atom/` — `Spherical`→`Atom/`; `Internal/Spherical`→`Atom/Internal/SphericalQNs` (renamed for
-   clarity). The pry-out helpers `Getl/Getmls/Getκ/Getmjs` deliberately STAY at the `qchem::Symmetry`
-   root (ADL from many bare call sites + the `Evaluator::Getl()` member name clash).
+   clarity). The pry-out helpers `Getl/Getmls/Getκ/Getmjs` also live in `qchem::Symmetry::Atom` (user call:
+   full-nesting consistency). Moving them out of the root breaks ADL for bare `Getl(sym)` calls; in practice
+   only two sites were bare free calls (`Get_es(Getl(ir))` in the Gaussian/Slater `ExponentScaler`), now
+   qualified `Symmetry::Atom::Getl` — every other `Getl(...)` was the unrelated `Evaluator::Getl()` member.
 5. **[DONE]** `Molecule/` — `MolecularIrrep`→`Molecule::Irrep` (class renamed), `SALC`, the reps,
    `PointGroup`/`AbelianGroup`/`CharacterTable`, all public and flat in `Molecule/`.
 
