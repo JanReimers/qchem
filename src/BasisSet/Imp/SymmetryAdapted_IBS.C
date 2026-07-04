@@ -149,8 +149,6 @@ rsmat_t SymmetryAdapted_IBS::MakeOverlap()                 const {return Transfo
 rsmat_t SymmetryAdapted_IBS::MakeKinetic()                 const {return Transform(itsRaw->Kinetic());}
 rsmat_t SymmetryAdapted_IBS::MakeNuclear(const Structure* cl) const {return Transform(itsRaw->Nuclear(cl));}
 
-std::string SymmetryAdapted_IBS::RadialID()   const {return itsRaw->RadialID();}
-std::string SymmetryAdapted_IBS::AngularID()  const {return itsRaw->AngularID();}
 std::string SymmetryAdapted_IBS::BasisSetID() const {return itsRaw->BasisSetID() + "[" + itsLabel + "]";}
 std::string SymmetryAdapted_IBS::Name()       const {return itsRaw->Name() + "[" + itsLabel + "]";}
 

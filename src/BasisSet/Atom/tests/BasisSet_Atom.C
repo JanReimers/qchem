@@ -10,6 +10,7 @@ import qchem.BasisSet.Atom.Evaluators.Slater.IBS;
 import qchem.BasisSet.Atom.Evaluators.Gaussian.IBS; 
 import qchem.BasisSet.Atom.Evaluators.BSpline.IBS;
 import qchem.BasisSet.Atom.Evaluators;
+import qchem.BasisSet.Atom.IBS;          // Atom::RadialAngularID (the atom radial|angular identity face)
 import qchem.BasisSet.Orbital_HF_IBS;
 import qchem.BasisSet;
 
@@ -307,8 +308,8 @@ TEST_F(BasisSet_SL,IDs)
     for (auto ibs:bs->Iterate<obs_t>())
     {
         EXPECT_EQ(ibs->Name(),"SL");
-        EXPECT_EQ(ibs->RadialID(),"SL N=3 {0.5 ... 2}");
-        EXPECT_EQ(ibs->AngularID(),angularIDs[index++]);
+        EXPECT_EQ(dynamic_cast<const BasisSet::Atom::RadialAngularID*>(ibs)->RadialID(),"SL N=3 {0.5 ... 2}");
+        EXPECT_EQ(dynamic_cast<const BasisSet::Atom::RadialAngularID*>(ibs)->AngularID(),angularIDs[index++]);
     }
 }
 //----------------------------------------------------------------------------------------
@@ -423,8 +424,8 @@ TEST_F(BasisSet_SG,IDs)
     for (auto ibs:bs->Iterate<obs_t>())
     {
         EXPECT_EQ(ibs->Name(),"SG");
-        EXPECT_EQ(ibs->RadialID(),"SG N=3 {0.5 ... 2}");
-        EXPECT_EQ(ibs->AngularID(),angularIDs[index++]);
+        EXPECT_EQ(dynamic_cast<const BasisSet::Atom::RadialAngularID*>(ibs)->RadialID(),"SG N=3 {0.5 ... 2}");
+        EXPECT_EQ(dynamic_cast<const BasisSet::Atom::RadialAngularID*>(ibs)->AngularID(),angularIDs[index++]);
     }
 }
 
@@ -460,7 +461,7 @@ TEST_F(BasisSet_BS,IDs)
     {
         // cout << "index=" << index << " ibs=" << *ibs << endl;
         EXPECT_EQ(ibs->Name(),"BSpline<6>");
-        EXPECT_EQ(ibs->RadialID(),"BSpline<6> grid: N=6 {0,0.25,0.5 ... 4}");
-        EXPECT_EQ(ibs->AngularID(),angularIDs[index++]);
+        EXPECT_EQ(dynamic_cast<const BasisSet::Atom::RadialAngularID*>(ibs)->RadialID(),"BSpline<6> grid: N=6 {0,0.25,0.5 ... 4}");
+        EXPECT_EQ(dynamic_cast<const BasisSet::Atom::RadialAngularID*>(ibs)->AngularID(),angularIDs[index++]);
     }
 }

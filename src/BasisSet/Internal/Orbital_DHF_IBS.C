@@ -22,7 +22,7 @@ template <class T> class Orbital_RKBL_IBS
     : public virtual IrrepBasisSet<T>
     , public virtual Integrals_Overlap<T>
     , public virtual Integrals_Nuclear<T>
-    , public virtual IrrepBasisSet_IDs //avoid using statements for RadialID,AngularID
+    , public virtual IrrepBasisSet_IDs   // Name / BasisSetID identity face (neutral)
 {
 public:
     //! RELATIVISTIC kinetic, L/S cross term (RKB).  Built from the \f$\langle p^2\rangle\f$ block (see
@@ -40,7 +40,7 @@ template <class T> class Orbital_RKBS_IBS
     : public virtual IrrepBasisSet<T>
     , public virtual Integrals_Overlap<T> //Also used for RestMass
     , public virtual Integrals_Nuclear<T>
-    , public virtual IrrepBasisSet_IDs //avoid using statements for RadialID,AngularID
+    , public virtual IrrepBasisSet_IDs   // Name / BasisSetID identity face (neutral)
 {
 public:
     // virtual void Insert(const Orbital_RKBL_IBS<T>* rkbl)=0;
@@ -76,9 +76,10 @@ public:
         return itsRKBL->Gradient(r) + itsRKBS->Gradient(r);
     }
 
-    virtual std::string  RadialID() const {return itsRKBL->RadialID()+itsRKBS->RadialID();}
-    virtual std::string AngularID() const {return itsRKBL->AngularID();}
-    virtual std::string Name     () const {return itsRKBL->Name();}
+    // Neutral identity: compose from the L/S components' own BasisSetID (each an atom base whose id is
+    // radial|angular).  This layer must NOT reach for atom RadialID/AngularID -- it is structure-neutral.
+    virtual std::string BasisSetID() const {return itsRKBL->BasisSetID()+"+"+itsRKBS->BasisSetID();}
+    virtual std::string Name      () const {return itsRKBL->Name();}
 
     virtual std::ostream& Write(std::ostream& os) const
     {

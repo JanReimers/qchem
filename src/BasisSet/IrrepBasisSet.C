@@ -10,21 +10,15 @@ import qchem.Streamable;
 export namespace qchem::BasisSet
 {
 
-//  RadialID/AngularID identify the radial (exponents/contraction) and angular pieces of a basis;
-//  they are the building blocks an atom uses for its cache identity.  BasisSetID() is the single
-//  identity string the integral cache keys on (see DBCacheClient): the default here concatenates
-//  radial|angular (complete for an atom -- centre pinned at the nucleus), and a molecular / solid
-//  basis overrides it to fold in the centres / orientation (see PGData::BasisSetID).
+//  BasisSetID() is the single identity string the integral cache keys on (see DBCacheClient): every
+//  concrete basis supplies it -- an atom composes it from radial|angular (Atom::RadialAngularID, an atom-
+//  only face in BasisSet/Atom), a molecular / solid basis folds in the centres / orientation (see
+//  PGData::BasisSetID).  This structure-neutral layer knows only the single BasisSetID identity.
 class IrrepBasisSet_IDs : public virtual DBCacheClient
 {
 public:
-    // Atoms split their identity into radial x angular (centre pinned at the nucleus, so the default
-    // BasisSetID below is complete).  Molecular / solid bases instead override BasisSetID directly to be
-    // geometry-aware and leave these empty -- hence non-pure "" defaults rather than =0.
-    virtual std::string  RadialID() const {return "";}
-    virtual std::string AngularID() const {return "";}
     virtual std::string Name     () const=0;
-    virtual std::string BasisSetID() const override {return RadialID()+"|"+AngularID();}
+    virtual std::string BasisSetID() const override =0;   // the cache identity; no general default
     virtual std::string GetID() const {return BasisSetID();}
 };
 
