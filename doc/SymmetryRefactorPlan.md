@@ -82,17 +82,23 @@ consumer), not just the symmetry tests.
 
 ## Stages (build + test after each; commit at green)
 
-0. **Consolidated doc** (this file) + delete the three superseded docs/notes on completion.
-1. **`CarriesSpin()` contract fix** — independent, zero ripple. Delete the false "no spin" claim in
-   `Symmetry.C`; add `virtual bool CarriesSpin() const {return false;}`, overridden `true` in
-   `SphericalSpinor`.
-2. **`Lattice_3D/`** — move `BlochQN` (smallest: one real consumer, `PlaneWave_IBS`).
-3. **Root tidy** — move `Unit.C` from `Internal/` to the root (no namespace change; public already).
-4. **`Atom/`** — move `Spherical` → `Atom/`; `Internal/Spherical` → `Atom/Internal/RealSpinorHarmonics`
-   (widest consumer set: atom evaluators + ElConfig).
-5. **`Molecule/`** — move `MolecularIrrep`→`Molecule/Irrep`, `SALC`, the reps, `PointGroup`/`AbelianGroup`/
-   `CharacterTable`.
+0. **[DONE]** Consolidated doc (this file). (Delete the three superseded docs/notes once AngularMath lands.)
+1. **[DONE]** `CarriesSpin()` contract fix — false "no spin" claim removed from `Symmetry.C`;
+   `virtual bool CarriesSpin()` added (false on base, true on `SphericalSpinor`).
+2. **[DONE]** `Lattice_3D/` — `BlochQN` moved (+ `Getk` nested to `::Lattice_3D`).
+3. **[DONE]** Root tidy — `Unit.C` lifted from `Internal/` to root.
+4. **[DONE]** `Atom/` — `Spherical`→`Atom/`; `Internal/Spherical`→`Atom/Internal/SphericalQNs` (renamed for
+   clarity). The pry-out helpers `Getl/Getmls/Getκ/Getmjs` deliberately STAY at the `qchem::Symmetry`
+   root (ADL from many bare call sites + the `Evaluator::Getl()` member name clash).
+5. **[DONE]** `Molecule/` — `MolecularIrrep`→`Molecule::Irrep` (class renamed), `SALC`, the reps,
+   `PointGroup`/`AbelianGroup`/`CharacterTable`, all public and flat in `Molecule/`.
+
+   *Reorg complete: 167/167 UTMain green (full run incl. `A_*`). Branch `symmetry-refactor`, 4 commits.*
+
 6. **AngularMath Stage 1** — `Monomial` → `qchem.Math.Angular`; `IVec3`→`Monomial`; `Polarization : Monomial`.
+   Byte-identical bar = whole UTMain. **Ordering gotcha:** the old `IVec3` (`std::array`) map order is
+   lexicographic; the `Polarization` map order is `LMax`-radix. Lexicographic `Monomial::operator<` matches
+   BOTH only for valid exponents `[0,64)`; verify the Hermite map keys are non-negative before relying on it.
 7. **AngularMath Stage 2** — `SolidHarmonics`/`CartTerm`/c2s → `qchem.Math.Angular`; unify `SphericalRep`.
 
 Class names are preserved verbatim in Stages 1–5 (pure move); the `MolecularIrrep`→`Irrep` file/class
