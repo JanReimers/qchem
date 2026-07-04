@@ -31,18 +31,18 @@ void Polarized_CD::AccumulateExchange(rsmat_t& Kab,const ohfbs_t* bs) const
 }
 
 // Coulomb sees the TOTAL density: both spin channels scatter into the same per-irrep Fock blocks.
-void Polarized_CD::AccumulateDirectAll(std::vector<rsmat_t>& Jall,const std::vector<const ohfbs_t*>& abBases) const
+void Polarized_CD::AccumulateDirectAll(std::vector<rsmat_t>& Jall) const
 {
-    GetChargeDensity(Spin::Up  )->AccumulateDirectAll(Jall,abBases);
-    GetChargeDensity(Spin::Down)->AccumulateDirectAll(Jall,abBases);
+    GetChargeDensity(Spin::Up  )->AccumulateDirectAll(Jall);
+    GetChargeDensity(Spin::Down)->AccumulateDirectAll(Jall);
 }
 
 // The RHF (unpolarized) exchange term sums K[D_up]+K[D_down] into the same blocks (= K[D_total], then the
 // term scales by -1/2).  The polarized term instead drives AccumulateExchangeAll on ONE spin's composite.
-void Polarized_CD::AccumulateExchangeAll(std::vector<rsmat_t>& Kall,const std::vector<const ohfbs_t*>& abBases) const
+void Polarized_CD::AccumulateExchangeAll(std::vector<rsmat_t>& Kall) const
 {
-    GetChargeDensity(Spin::Up  )->AccumulateExchangeAll(Kall,abBases);
-    GetChargeDensity(Spin::Down)->AccumulateExchangeAll(Kall,abBases);
+    GetChargeDensity(Spin::Up  )->AccumulateExchangeAll(Kall);
+    GetChargeDensity(Spin::Down)->AccumulateExchangeAll(Kall);
 }
 
 double Polarized_CD::DM_Contract(const Static_CC* v) const

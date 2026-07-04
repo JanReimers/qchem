@@ -41,38 +41,30 @@ template <class T> void tComposite_CD<T>::AccumulateExchange(hmat_t<T>& Kab, con
 }
 
 // Whole-system Coulomb via ERI4 bra-ket symmetry (doc/ERI4Rework.md §4/§5.4).  The composite holds one
-// block per irrep in the SAME order as the context's abBases (both come from itsBS->Iterate, see
-// CompositeWF::MakeContext / MakeIrrepWFs), so block k <-> abBases[k].  For each canonical pair (k<=l):
-//   k==l : the diagonal block, a plain MatMul (self-transpose, no partner);
-//   k< l : ONE pass over the canonical J(k,l) scatters into BOTH Jall[k] and Jall[l] -- J(l,k) is never
-//          fetched, so it is never built or cached.  Densities stay encapsulated in the IrrepCD leaves
-//          (the pair helper reaches its partner by a same-class cast, as MixIn/GetChangeFrom already do).
-template <class T> void tComposite_CD<T>::AccumulateDirectAll(std::vector<hmat_t<T>>& Jall, const std::vector<const ohfbs_t*>& abBases) const
+// block per irrep in the SAME order as Jall (both come from itsBS->Iterate, see CompositeWF::MakeIrrepWFs),
+// so block k <-> Jall[k].  ONE uniform loop over canonical pairs k<=l calls AccumulateDirectBoth, which
+// handles the diagonal (k==l, self-pair -> single localized contraction) and the off-diagonal (ONE pass over
+// the canonical J(k,l) scatters into BOTH Jall[k] and Jall[l], so J(l,k) is never fetched/built/cached) --
+// see IrrepCD::AccumulateDirectBoth.  Densities stay encapsulated in the IrrepCD leaves (the pair helper
+// reaches its partner by a same-class cast, as MixIn/GetChangeFrom already do).
+template <class T> void tComposite_CD<T>::AccumulateDirectAll(std::vector<hmat_t<T>>& Jall) const
 {
-    assert(itsCDs.size()==abBases.size() && "composite blocks must be 1:1 with the context irrep bases");
-    assert(Jall.size()==abBases.size());
+    assert(Jall.size()==itsCDs.size() && "Fock blocks must be 1:1 with the composite irrep densities");
     const size_t N=itsCDs.size();
     for (size_t k=0;k<N;++k)
-    {
-        itsCDs[k]->AccumulateDirect(Jall[k],abBases[k]);                    // diagonal J(k,k)·D_k
-        for (size_t l=k+1;l<N;++l)
-            itsCDs[k]->AccumulateDirectBoth(Jall[k],Jall[l],*itsCDs[l]);    // fused off-diagonal canonical pair
-    }
+        for (size_t l=k;l<N;++l)                                            // l>=k : diagonal + off-diagonal
+            itsCDs[k]->AccumulateDirectBoth(Jall[k],Jall[l],*itsCDs[l]);
 }
 
 // Exchange counterpart of AccumulateDirectAll (same canonical-pair structure; K(i,j)=K(j,i)^T).  Driven
 // per single-spin composite (exchange is same-spin), so the blocks it fills are one spin channel's K.
-template <class T> void tComposite_CD<T>::AccumulateExchangeAll(std::vector<hmat_t<T>>& Kall, const std::vector<const ohfbs_t*>& abBases) const
+template <class T> void tComposite_CD<T>::AccumulateExchangeAll(std::vector<hmat_t<T>>& Kall) const
 {
-    assert(itsCDs.size()==abBases.size() && "composite blocks must be 1:1 with the context irrep bases");
-    assert(Kall.size()==abBases.size());
+    assert(Kall.size()==itsCDs.size() && "Fock blocks must be 1:1 with the composite irrep densities");
     const size_t N=itsCDs.size();
     for (size_t k=0;k<N;++k)
-    {
-        itsCDs[k]->AccumulateExchange(Kall[k],abBases[k]);                  // diagonal K(k,k)·D_k
-        for (size_t l=k+1;l<N;++l)
-            itsCDs[k]->AccumulateExchangeBoth(Kall[k],Kall[l],*itsCDs[l]);  // fused off-diagonal canonical pair
-    }
+        for (size_t l=k;l<N;++l)                                            // l>=k : diagonal + off-diagonal
+            itsCDs[k]->AccumulateExchangeBoth(Kall[k],Kall[l],*itsCDs[l]);
 }
 
 template <class T> double tComposite_CD<T>::DM_ContractBlocks(const std::map<std::string,hmat_t<T>>& blocks) const

@@ -39,18 +39,14 @@ void Dynamic_HF_HT_Imp::ContractAll(const rChargeDensity* cd) const
     if (cd->Version()==itsCD_Version && !itsJKs.empty()) return;   // already current for this density
     const DM_CD* dm = dynamic_cast<const DM_CD*>(cd);
     assert(dm && "HF term: density must be a DM_CD");
-    std::vector<const obs_t*>   obs;                         // the whole basis's per-irrep blocks
-    std::vector<const ohfbs_t*> hf;                          // HF face, for the ERI scatter
-    std::vector<rsmat_t>        X;                           // one zeroed block per irrep
+    std::vector<const obs_t*> obs;                          // the whole basis's per-irrep blocks
+    std::vector<rsmat_t>      X;                            // one zeroed block per irrep (same order as obs)
     for (auto* b:itsWholeBasis->Iterate<obs_t>())
     {
-        auto* h=dynamic_cast<const ohfbs_t*>(b);
-        assert(h && "HF term: irrep basis is not a Hartree-Fock orbital basis");
         obs.push_back(b);
-        hf.push_back(h);
         X.push_back(blazem::zero<double>(b->GetNumFunctions()));
     }
-    AccumulateAll(X,hf,dm);                                  // canonical-pair ScatterBoth into every block
+    AccumulateAll(X,dm);                                    // canonical-pair scatter (diagonal + off-diagonal)
     const double w=Scale();
     itsJKs.clear();
     for (size_t k=0;k<obs.size();++k)

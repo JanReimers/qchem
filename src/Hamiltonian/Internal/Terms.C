@@ -164,8 +164,8 @@ public:
     virtual const rsmat_t& GetMatrix(const obs_t*,const Spin&,const rChargeDensity*,const bs_t* wholeBasis) const;
 protected:
     //! The one operation that distinguishes Coulomb from exchange: scatter \a dm across canonical irrep pairs
-    //! into the zeroed per-irrep blocks \a X (parallel to the HF bases \a hf).
-    virtual void   AccumulateAll(std::vector<rsmat_t>& X,const std::vector<const ohfbs_t*>& hf,const DM_CD* dm) const=0;
+    //! into the zeroed per-irrep blocks \a X (one per irrep, same order as the density's leaves).
+    virtual void   AccumulateAll(std::vector<rsmat_t>& X,const DM_CD* dm) const=0;
     //! Fock coefficient applied to every block after the scatter (1 for Coulomb; the K coefficient for Vxc).
     virtual double Scale() const {return 1.0;}
     //! Contract the density into the whole-system blocks itsJKs (keyed by BasisSetID) if stale for this
@@ -186,7 +186,7 @@ public:
     virtual void          GetEnergy(EnergyBreakdown&,const DM_CD* cd ) const;
     virtual std::ostream& Write    (std::ostream&) const;
 protected:
-    virtual void AccumulateAll(std::vector<rsmat_t>& X,const std::vector<const ohfbs_t*>& hf,const DM_CD* dm) const;
+    virtual void AccumulateAll(std::vector<rsmat_t>& X,const DM_CD* dm) const;
 };
 
 //###############################################################################
@@ -203,7 +203,7 @@ public:
     virtual void           GetEnergy(EnergyBreakdown&,const DM_CD* cd ) const;
     virtual std::ostream&  Write    (std::ostream&) const;
 protected:
-    virtual void   AccumulateAll(std::vector<rsmat_t>& X,const std::vector<const ohfbs_t*>& hf,const DM_CD* dm) const;
+    virtual void   AccumulateAll(std::vector<rsmat_t>& X,const DM_CD* dm) const;
     virtual double Scale() const {return itsScale;}   //!< the Fock K coefficient, applied to every block
 private:
     const double itsScale;                          //!< K coefficient in the Fock (-1/2 RHF, -1 per-spin)

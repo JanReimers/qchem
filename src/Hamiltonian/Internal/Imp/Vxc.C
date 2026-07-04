@@ -21,9 +21,9 @@ namespace qchem::Hamiltonian
 // (AccumulateExchangeAll -> ScatterBoth on Exchange blocks), so K(j,i) is never built.  The shared
 // ContractAll scales every block by Scale() (== itsScale, the Fock K coefficient), so GetMatrix can hand
 // back a reference to the already-scaled block.
-void Vxc::AccumulateAll(std::vector<rsmat_t>& X,const std::vector<const ohfbs_t*>& hf,const DM_CD* dm) const
+void Vxc::AccumulateAll(std::vector<rsmat_t>& X,const DM_CD* dm) const
 {
-    dm->AccumulateExchangeAll(X,hf);
+    dm->AccumulateExchangeAll(X);
 }
 
 void Vxc::GetEnergy(EnergyBreakdown& te,const DM_CD* cd) const

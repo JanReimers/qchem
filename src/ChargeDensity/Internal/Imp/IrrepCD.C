@@ -71,13 +71,16 @@ template <> void IrrepCD<double>::AccumulateExchange(rsmat_t& Sab, const ohfbs_t
     if (!IsZero()) bs_ab->AccumulateExchange(Sab,itsDensityMatrix,bs_cd);
 }
 
-// Fused bra-ket scatter of the canonical (this=i, other=j) pair into both irreps' Coulomb blocks.  The
-// partner's density is reached by a same-class cast (the IrrepCD<->IrrepCD idiom already used by MixIn /
-// GetChangeFrom).  Both densities empty -> nothing to build (mirrors the !IsZero() guard on the single
-// AccumulateDirect); otherwise ScatterBoth handles a one-sided zero exactly.  The basis fetches ONLY the
-// canonical J(i,j) block, so J(j,i) is never materialized.
+// One canonical irrep pair (this=i, other=j, i<=j) scattered into both irreps' Coulomb blocks.  This is the
+// SOLE entry point the composite loops over (i<=j, so the DIAGONAL i==j lands here too): when other IS this
+// (the self-pair) there is no bra-ket partner, so it collapses to a single localized contraction --
+// ScatterBoth on the diagonal would add J.D + J^T.D = 2 J.D (the block is bra-ket symmetric).  Off-diagonal:
+// the partner density is reached by a same-class cast (the IrrepCD<->IrrepCD idiom used by MixIn /
+// GetChangeFrom); both empty -> nothing to build; the basis fetches ONLY the canonical J(i,j) block, so
+// J(j,i) is never materialized.
 template <> void IrrepCD<double>::AccumulateDirectBoth(rsmat_t& Ji, rsmat_t& Jj, const tDM_CD<double>& other) const
 {
+    if (&other==this) { AccumulateDirect(Ji,dynamic_cast<const ohfbs_t*>(itsBasisSet)); return; }  // diagonal
     const IrrepCD<double>* oj=dynamic_cast<const IrrepCD<double>*>(&other);
     assert(oj);
     if (IsZero() && oj->IsZero()) return;
@@ -87,9 +90,11 @@ template <> void IrrepCD<double>::AccumulateDirectBoth(rsmat_t& Ji, rsmat_t& Jj,
     bs_i->AccumulateDirectBoth(Ji,Jj,itsDensityMatrix,oj->itsDensityMatrix,bs_j);
 }
 
-// Exchange counterpart (see AccumulateDirectBoth): fetches only the canonical Exchange block.
+// Exchange counterpart (see AccumulateDirectBoth): diagonal -> single AccumulateExchange, else the canonical
+// Exchange block is fetched once.
 template <> void IrrepCD<double>::AccumulateExchangeBoth(rsmat_t& Ki, rsmat_t& Kj, const tDM_CD<double>& other) const
 {
+    if (&other==this) { AccumulateExchange(Ki,dynamic_cast<const ohfbs_t*>(itsBasisSet)); return; }  // diagonal
     const IrrepCD<double>* oj=dynamic_cast<const IrrepCD<double>*>(&other);
     assert(oj);
     if (IsZero() && oj->IsZero()) return;

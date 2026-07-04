@@ -126,20 +126,22 @@ public:
     virtual void AccumulateExchange(hmat_t<T>& Kab, const ohfbs_t*) const=0;
 
     //! Whole-system HF Coulomb exploiting the ERI4 bra-ket symmetry \f$J(i,j)=J(j,i)^\mathsf{T}\f$
-    //! (doc/ERI4Rework.md \S4/\S5.4): one pass over each canonical ab-irrep pair feeds BOTH Fock blocks,
-    //! so J(j,i) is never built or stored.  \a Jall is parallel to \a abBases (the Hamiltonian context's
-    //! irrep bases) and pre-zeroed by the caller (the Vee term).  Only a composite / polarized density
-    //! -- which spans every irrep block -- implements this; a lone leaf and the periodic path assert out.
-    virtual void AccumulateDirectAll(std::vector<hmat_t<T>>& Jall, const std::vector<const ohfbs_t*>& abBases) const
+    //! (doc/ERI4Rework.md \S4/\S5.4): one uniform loop over canonical ab-irrep pairs \f$k\le l\f$ feeds BOTH
+    //! Fock blocks (diagonal included -- see AccumulateDirectBoth), so J(j,i) is never built or stored.
+    //! \a Jall is one block per irrep (same order as this composite's leaves) and pre-zeroed by the caller
+    //! (the Vee term).  Only a composite / polarized density -- which spans every irrep block -- implements
+    //! this; a lone leaf and the periodic path assert out.
+    virtual void AccumulateDirectAll(std::vector<hmat_t<T>>& Jall) const
     { assert(false && "AccumulateDirectAll: only a composite/polarized density spans all irrep blocks"); }
-    //! Fused scatter of ONE canonical pair (this=irrep i, \a other=irrep j) into their two Fock blocks --
-    //! the per-pair helper the composite's AccumulateDirectAll loop calls.  Only a leaf (IrrepCD) is a
-    //! bra-ket pair partner; composite/polarized inherit this asserting default.
+    //! Contract ONE canonical pair (this=irrep i, \a other=irrep j, i<=j) into their Fock block(s) -- the
+    //! SOLE per-pair helper the composite's AccumulateDirectAll loop calls.  Off-diagonal: fused scatter into
+    //! both Ji and Jj.  Diagonal (other IS this): a single localized contraction into Ji (no bra-ket
+    //! partner).  Only a leaf (IrrepCD) is a pair partner; composite/polarized inherit this asserting default.
     virtual void AccumulateDirectBoth(hmat_t<T>& Ji, hmat_t<T>& Jj, const tDM_CD<T>& other) const
     { assert(false && "AccumulateDirectBoth: only a leaf (irrep) density is a bra-ket pair partner"); }
     //! Exchange analogues of the two above.  Exchange is SAME-SPIN, so the whole-system build is per single-
     //! spin density (Polarized_CD sums the two spin channels' K into the same blocks for the RHF term).
-    virtual void AccumulateExchangeAll(std::vector<hmat_t<T>>& Kall, const std::vector<const ohfbs_t*>& abBases) const
+    virtual void AccumulateExchangeAll(std::vector<hmat_t<T>>& Kall) const
     { assert(false && "AccumulateExchangeAll: only a composite/polarized density spans all irrep blocks"); }
     virtual void AccumulateExchangeBoth(hmat_t<T>& Ki, hmat_t<T>& Kj, const tDM_CD<T>& other) const
     { assert(false && "AccumulateExchangeBoth: only a leaf (irrep) density is a bra-ket pair partner"); }
@@ -178,8 +180,8 @@ public:
     virtual rvec_t GetRepulsion3C(const BasisSet::FIT_CD_ABS*) const;
     virtual void AccumulateDirect  (rsmat_t& Jab, const ohfbs_t*) const;
     virtual void AccumulateExchange(rsmat_t& Kab, const ohfbs_t*) const;
-    virtual void AccumulateDirectAll  (std::vector<rsmat_t>& Jall, const std::vector<const ohfbs_t*>& abBases) const;  // sum both spins (Coulomb)
-    virtual void AccumulateExchangeAll(std::vector<rsmat_t>& Kall, const std::vector<const ohfbs_t*>& abBases) const;  // sum both spins (RHF exchange)
+    virtual void AccumulateDirectAll  (std::vector<rsmat_t>& Jall) const;  // sum both spins (Coulomb)
+    virtual void AccumulateExchangeAll(std::vector<rsmat_t>& Kall) const;  // sum both spins (RHF exchange)
 
     virtual void   ReScale      (double factor              )      ;  // No UT coverage//Ro *= factor
     virtual void   MixIn        (const DM_CD&,double)      ;  //this = (1-c)*this + c*that.
