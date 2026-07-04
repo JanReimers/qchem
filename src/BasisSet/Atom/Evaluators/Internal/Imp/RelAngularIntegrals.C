@@ -7,7 +7,7 @@ module;
 module qchem.BasisSet.Atom.Evaluators.Internal.RelAngularIntegrals;
 import qchem.BasisSet.Atom.Evaluators.Internal.AngularIntegrals;
 import qchem.BasisSet.Atom.Evaluators.Internal.Wigner3j; //Wigner::wigner3j / clebschGordan (home-grown)
-import qchem.Symmetry.Spherical; //SphericalSpinor::j, l
+import qchem.Symmetry.Atom.Spherical; //SphericalSpinor::j, l
 import qchem.Math; //FourPi2
 import qchem.Blaze;
 
@@ -24,8 +24,8 @@ static double CG(int la, double ja, double mj, double ms)
 
 rvec11_t Direct (int κa, int κc, double mja, double mjc)
 {
-    int    la=Symmetry::SphericalSpinor::l(κa), lc=Symmetry::SphericalSpinor::l(κc);
-    double ja=Symmetry::SphericalSpinor::j(κa), jc=Symmetry::SphericalSpinor::j(κc);
+    int    la=Symmetry::Atom::SphericalSpinor::l(κa), lc=Symmetry::Atom::SphericalSpinor::l(κc);
+    double ja=Symmetry::Atom::SphericalSpinor::j(κa), jc=Symmetry::Atom::SphericalSpinor::j(κc);
     assert(std::abs(mja)<=ja);
     assert(std::abs(mjc)<=jc);
     rvec11_t Ak(0.0);
@@ -47,8 +47,8 @@ rvec11_t Direct (int κa, int κc, double mja, double mjc)
 
 rvec11_t Exchange(int κa, int κb, double mja, double mjb)
 {
-    int    la=Symmetry::SphericalSpinor::l(κa), lb=Symmetry::SphericalSpinor::l(κb);
-    double ja=Symmetry::SphericalSpinor::j(κa), jb=Symmetry::SphericalSpinor::j(κb);
+    int    la=Symmetry::Atom::SphericalSpinor::l(κa), lb=Symmetry::Atom::SphericalSpinor::l(κb);
+    double ja=Symmetry::Atom::SphericalSpinor::j(κa), jb=Symmetry::Atom::SphericalSpinor::j(κb);
     assert(std::abs(mja)<=ja);
     assert(std::abs(mjb)<=jb);
     rvec11_t Ak(0.0);
@@ -66,7 +66,7 @@ rvec11_t Exchange(int κa, int κb, double mja, double mjb)
 
 rvec11_t Direct (int κa, int κc)
 {
-    double ja=Symmetry::SphericalSpinor::j(κa), jc=Symmetry::SphericalSpinor::j(κc);
+    double ja=Symmetry::Atom::SphericalSpinor::j(κa), jc=Symmetry::Atom::SphericalSpinor::j(κc);
     rvec11_t Ak(0.0);
     for (double mja=-ja; mja<=ja; mja+=1.0)
     for (double mjc=-jc; mjc<=jc; mjc+=1.0)
@@ -85,8 +85,8 @@ rvec11_t Direct (int κa, int κc)
 // spurious multipoles and a factor-of-2-too-small cross exchange.
 rvec11_t Exchange(int κa, int κc)
 {
-    int    la=Symmetry::SphericalSpinor::l(κa), lc=Symmetry::SphericalSpinor::l(κc);
-    double ja=Symmetry::SphericalSpinor::j(κa), jc=Symmetry::SphericalSpinor::j(κc);
+    int    la=Symmetry::Atom::SphericalSpinor::l(κa), lc=Symmetry::Atom::SphericalSpinor::l(κc);
+    double ja=Symmetry::Atom::SphericalSpinor::j(κa), jc=Symmetry::Atom::SphericalSpinor::j(κc);
     rvec11_t Ak(0.0);
     for (int k=std::abs(la-lc); k<=la+lc; k+=2)
     {

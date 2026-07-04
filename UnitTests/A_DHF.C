@@ -17,7 +17,7 @@ import qchem.Math;                   // c_light, Pi, Pi12, FourPi, pow, tgamma, 
 import qchem.Structure;             // Structure
 import qchem.Structure.MolecularMesh; // MakeMolecularMesh
 import qchem.Mesh;                  // qcMesh::Mesh / MeshParams
-import qchem.Symmetry.Spherical;    // Symmetry::Getκ (pick p1/2 vs p3/2)
+import qchem.Symmetry.Atom.Spherical;    // Symmetry::Getκ (pick p1/2 vs p3/2)
 import qchem.Symmetry.Spin;         // Spin
 import qchem.Types;                 // Vector3D
 import qchem.Blaze;

@@ -1,10 +1,11 @@
-// File: Symmetry/Internal/Imp/Spherical.C all spherical symmetry implementations
+// File: Symmetry/Atom/Internal/SphericalQNs.C  Concrete atomic spherical & spinor QN labels
+// (Yl/Ylm = non-relativistic l,{ml}; Ωκ/Ωκmj = Dirac κ,{mj}).  Hidden behind the Symmetry Factory.
 module;
 #include <iosfwd>
-export module qchem.Symmetry.Internal.Spherical;
-export import qchem.Symmetry.Spherical;
+export module qchem.Symmetry.Atom.Internal.SphericalQNs;
+export import qchem.Symmetry.Atom.Spherical;
 
-export namespace qchem::Symmetry::Internal::Spherical
+export namespace qchem::Symmetry::Atom::Internal
 {
 inline constexpr size_t LMax = 4;
 

@@ -9,7 +9,7 @@ module;
 module qchem.BasisSet.Atom.Evaluators.BSpline.IBS_r;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.Rk;
 import qchem.BasisSet.Atom.Evaluators.BSpline.Internal.SplineGrouper;
-import qchem.Symmetry.Spherical;
+import qchem.Symmetry.Atom.Spherical;
 import qchem.Math;
 
 namespace qchem::BasisSet::Atom::Evaluators::BSpline

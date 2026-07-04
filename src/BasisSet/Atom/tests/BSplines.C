@@ -20,7 +20,7 @@ import qchem.Structure.MolecularMesh;   // MakeMolecularMesh (qcMesh mesh)
 import qchem.Mesh.Quadrature;           // qcMesh quadrature + ScalarField/BasisField
 import qchem.VectorFunction;
 import qchem.Symmetry.Factory;
-import qchem.Symmetry.Spherical;
+import qchem.Symmetry.Atom.Spherical;
 import qchem.stl_io;
 import qchem.Streamable;
 import qchem.Constants;

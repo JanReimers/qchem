@@ -2,7 +2,7 @@
 module;
 module qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.ExponentScaler; 
 import qchem.BasisSet.Atom.Internal.FillPower;
-import qchem.Symmetry.Spherical;
+import qchem.Symmetry.Atom.Spherical;
 import qchem.Blaze;
 
 namespace qchem::Gaussian

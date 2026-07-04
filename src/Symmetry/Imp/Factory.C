@@ -3,14 +3,14 @@ module;
 #include <vector>
 module qchem.Symmetry.Factory;
 // We want to try hide all these imports from the main code.
-import qchem.Symmetry.Internal.Spherical;
+import qchem.Symmetry.Atom.Internal.SphericalQNs;
 import qchem.Symmetry.Lattice_3D.BlochQN;
 import qchem.Symmetry.Unit;
 
 
 namespace qchem::Symmetry
 {
-using namespace Internal::Spherical;
+using namespace Atom::Internal;
 
 sym_t YFactory(size_t l,const ivec_t& mls)
 {

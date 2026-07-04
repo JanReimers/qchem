@@ -1,30 +1,26 @@
-// File: Symmetry/Angular.C Common interface for various atomic (spherical) symmetries.
+// File: Symmetry/Atom/Spherical.C Common interface for various atomic (spherical) symmetries.
 module;
-export module qchem.Symmetry.Spherical;
+export module qchem.Symmetry.Atom.Spherical;
 export import qchem.Symmetry;
 
 //---------------------------------------------------------------------------------
 //
 // Spherical symmetry for atoms
 //
-export namespace qchem::Symmetry
+export namespace qchem::Symmetry::Atom
 {
 
 //---------------------------------------------------------------------------------
 //
 // Shared interface for all atom-specific symmetries: anything that carries l.
 //
-class AtomicSymmetry : public virtual Symmetry
+class AtomicSymmetry : public virtual qchem::Symmetry::Symmetry
 {
 public:
     virtual size_t GetPrincipleOffset() const {return Getl();}
     virtual size_t Getl  () const=0;
     virtual ivec_t Getmls() const=0;
 };
-
-// Helper functions for code that needs l without knowing NR vs Dirac.
-size_t Getl(const sym_t&);
-size_t Getl(const Symmetry&);
 
 //---------------------------------------------------------------------------------
 //
@@ -36,10 +32,6 @@ public:
     virtual size_t Getl  () const=0;
     virtual ivec_t Getmls() const=0;
 };
-
-// These are used in one place by the atom Evaluator class
-ivec_t Getmls(const sym_t&); //Throws bad_cast
-ivec_t Getmls(const Symmetry&); //Throws bad_cast
 
 //---------------------------------------------------------------------------------
 //
@@ -63,9 +55,23 @@ public:
     static double  j(size_t l, double s) {return l+s;}
 };
 
-int    Getκ  (const sym_t&); //Throws bad_cast
-int    Getκ  (const Symmetry&); //Throws bad_cast
-rvec_t Getmjs(const sym_t&); //Throws bad_cast
-rvec_t Getmjs(const Symmetry&); //Throws bad_cast
+} // namespace qchem::Symmetry::Atom
 
-} // namespace
+//---------------------------------------------------------------------------------
+// Free pry-out helpers that downcast an abstract sym_t to the atomic concretes above.  These live at the
+// Symmetry ROOT (next to sym_t), NOT in ::Atom: they are reached by ADL from many bare call sites -- e.g.
+// Getl(sym) in the evaluators -- so keeping them in qchem::Symmetry leaves that lookup (and the many
+// Evaluator::Getl() member overloads that share the name) undisturbed.  They throw std::bad_cast on a
+// type mismatch.
+export namespace qchem::Symmetry
+{
+size_t Getl  (const sym_t&);   // l without knowing NR vs Dirac
+size_t Getl  (const Symmetry&);
+ivec_t Getmls(const sym_t&);   // used in one place by the atom Evaluator class
+ivec_t Getmls(const Symmetry&);
+int    Getκ  (const sym_t&);
+int    Getκ  (const Symmetry&);
+rvec_t Getmjs(const sym_t&);
+rvec_t Getmjs(const Symmetry&);
+
+} // namespace qchem::Symmetry

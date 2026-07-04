@@ -1,7 +1,7 @@
-// File: Symmetry/Internal/Imp/Spherical.C  The concrete atomic (spherical / Dirac-spinor) symmetry containers.
+// File: Symmetry/Atom/Internal/Imp/SphericalQNs.C  The concrete atomic (spherical / Dirac-spinor) symmetry containers.
 //
 // Implementations of the four m-resolved / m-degenerate angular-symmetry quantum-number carriers that the
-// `qchem.Symmetry.Internal.Spherical` module exports (all constructed via the Factory):
+// `qchem.Symmetry.Atom.Internal.SphericalQNs` module exports (all constructed via the Factory):
 //   Yl    -- non-magnetic (m-degenerate) spherical harmonic Y_l                (l)
 //   Ylm   -- m-resolved spherical harmonics                                    (l + a set of m_l)
 //   Omega-kappa      -- non-magnetic Dirac spinor                              (kappa)
@@ -14,7 +14,7 @@ module;
 #include <cassert>
 #include <algorithm>
 #include <blaze/math/dense/DenseIterator.h> // so std::sort can see the Blaze iterator op==/op!=
-module qchem.Symmetry.Internal.Spherical;
+module qchem.Symmetry.Atom.Internal.SphericalQNs;
 import qchem.Strings;   // SPDFG / j2s label tables
 import qchem.stl_io;
 import qchem.Blaze;
@@ -23,7 +23,7 @@ import qchem.Math;
 using std::cout;
 using std::endl;
 
-namespace qchem::Symmetry::Internal::Spherical
+namespace qchem::Symmetry::Atom::Internal
 {
 
 //================================================================================================

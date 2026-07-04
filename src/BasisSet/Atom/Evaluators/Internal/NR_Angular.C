@@ -5,7 +5,7 @@ module;
 #include <sstream>
 export module qchem.BasisSet.Atom.Evaluators.Internal.NR_Angular;
 export import qchem.BasisSet.Atom.Evaluators;
-import qchem.Symmetry.Spherical;
+import qchem.Symmetry.Atom.Spherical;
 
 export namespace qchem::BasisSet::Atom::Evaluators
 {

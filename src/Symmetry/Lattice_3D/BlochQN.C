@@ -30,7 +30,7 @@ private:
 };
 
 //! \brief Pry the Bloch wave vector \f$k\f$ (fractional) out of an abstract symmetry handle.
-//! Throws std::bad_cast if the symmetry is not a BlochQN.  Mirrors Symmetry::Atom::Getl / Getκ:
+//! Throws std::bad_cast if the symmetry is not a BlochQN.  Mirrors Symmetry::Getl / Getκ:
 //! an IBS constructor is handed an abstract \c sym_t and uses this helper to extract the one
 //! piece of concrete information it needs (here, the crystal momentum).
 export rvec3_t Getk(const sym_t&);

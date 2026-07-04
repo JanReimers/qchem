@@ -5,7 +5,7 @@ module;
 #include <sstream>
 export module qchem.BasisSet.Atom.Evaluators.Internal.RKBL_Angular;
 export import qchem.BasisSet.Atom.Evaluators;
-import qchem.Symmetry.Spherical;
+import qchem.Symmetry.Atom.Spherical;
 
 export namespace qchem::BasisSet::Atom::Evaluators
 {
@@ -24,7 +24,7 @@ public:
     virtual rvec11_t    ExchangeAk(const Evaluator& other) const override;
     virtual std::string AngularID () const override;
 
-    virtual int   Getl  () const { return Symmetry::SphericalSpinor::l(κ);}
+    virtual int   Getl  () const { return Symmetry::Atom::SphericalSpinor::l(κ);}
     int           Getκ  () const { return κ; }
     const rvec_t& Getmjs() const { return mjs; }
 

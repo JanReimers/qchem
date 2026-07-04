@@ -12,7 +12,7 @@ import qchem.BasisSet.Atom.Evaluators.Gaussian.Internal.Rk;
 import qchem.BasisSet.Atom.Evaluators.Internal.Grouper;
 import qchem.BasisSet.Atom.Evaluators;
 import qchem.BasisSet.Internal.Cache4;
-import qchem.Symmetry.Spherical;
+import qchem.Symmetry.Atom.Spherical;
 import qchem.IntPow;
 import qchem.Math;
 import qchem.Blaze;

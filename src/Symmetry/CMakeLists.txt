@@ -1,7 +1,7 @@
 add_library(qcSymmetry) 
 target_sources(qcSymmetry PRIVATE 
-    Imp/Spherical.C
-    Imp/Irrep.C  
+    Atom/Imp/Spherical.C
+    Imp/Irrep.C
     Imp/Orbital_QNs.C  
     Imp/Symmetry.C
     Imp/Factory.C
@@ -14,15 +14,15 @@ target_sources(qcSymmetry PRIVATE
     Imp/SALC.C
     Imp/MolecularIrrep.C
     Imp/Unit.C
-    Internal/Imp/Spherical.C   # merged: was Yl.C + Ylm.C + Okmj.C (all impl units of Internal.Spherical)
+    Atom/Internal/Imp/SphericalQNs.C   # merged: was Yl.C + Ylm.C + Okmj.C (all impl units of one module)
     Lattice_3D/Imp/BlochQN.C
     )
 target_sources(qcSymmetry PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
     Spin.C 
     Symmetry.C 
     Irrep.C 
-    Orbital_QNs.C 
-    Spherical.C 
+    Orbital_QNs.C
+    Atom/Spherical.C
     Factory.C
     PointGroup.C
     ShellRep.C
@@ -33,7 +33,7 @@ target_sources(qcSymmetry PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     AbelianGroup.C
     SALC.C
     MolecularIrrep.C
-    Internal/Spherical.C
+    Atom/Internal/SphericalQNs.C
     Lattice_3D/BlochQN.C
     Unit.C
 

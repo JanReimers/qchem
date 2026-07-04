@@ -16,7 +16,7 @@ import qchem.Structure;
 import qchem.Structure.MolecularMesh;   // MakeMolecularMesh (qcMesh mesh)
 import qchem.Mesh.Quadrature;           // qcMesh::Overlap/WeightedOverlap/KineticGrad2 + views
 import qchem.VectorFunction;             // VectorFunction<double> (the basis evaluator interface)
-import qchem.Symmetry.Spherical;
+import qchem.Symmetry.Atom.Spherical;
 import qchem.Symmetry.Factory;
 import qchem.Blaze;
 using namespace qchem;

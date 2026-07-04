@@ -8,7 +8,7 @@ module;
 export module qchem.BasisSet.Atom.Evaluators.Internal.ExponentialEvaluator;
 import qchem.BasisSet.Atom.Evaluators.Internal.Grouper;
 export import qchem.BasisSet.Atom.Evaluators;
-export import qchem.Symmetry.Spherical;
+export import qchem.Symmetry.Atom.Spherical;
 import qchem.Blaze;
 
 export namespace qchem::BasisSet::Atom::Evaluators

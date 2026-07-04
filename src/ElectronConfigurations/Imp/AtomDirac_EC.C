@@ -6,7 +6,7 @@ module;
 
 module qchem.ElectronConfiguration.AtomDirac;
 import qchem.Symmetry.Irrep;
-import qchem.Symmetry.Spherical;
+import qchem.Symmetry.Atom.Spherical;
 import qchem.Symmetry.Factory;
 
 namespace qchem {
@@ -21,8 +21,8 @@ AtomDirac_EC::AtomDirac_EC(int Z) : Atom_EC(Z, NsOnly_t{})
         size_t gl=2*l+1; //l degeneracy for one spin.
         int NCoreLevels=Nf/(2*gl);
         { // fill the j=l-1/2 levels first
-            double j=Symmetry::SphericalSpinor::j(l,-s);
-            int    κ=Symmetry::SphericalSpinor::κ(l,-s);
+            double j=Symmetry::Atom::SphericalSpinor::j(l,-s);
+            int    κ=Symmetry::Atom::SphericalSpinor::κ(l,-s);
             if (κ!=0)
             {
                 int g=(2*j+1)/2; //degeneracy for one spin state
@@ -60,8 +60,8 @@ AtomDirac_EC::AtomDirac_EC(int Z) : Atom_EC(Z, NsOnly_t{})
         }
         Nf=itsNs.Nf[l];Nv=itsNs.Nv[l];Nu=abs(itsNs.Nu[l]);
         { //Then fill the j=l+1/2 levels with any left over electrons.
-            double j=Symmetry::SphericalSpinor::j(l,+s);
-            int    κ=Symmetry::SphericalSpinor::κ(l,+s);
+            double j=Symmetry::Atom::SphericalSpinor::j(l,+s);
+            int    κ=Symmetry::Atom::SphericalSpinor::κ(l,+s);
             int g=(2*j+1)/2; //degeneracy for one spin state
             assert(Nf%2==0);
             assert(Nu<=g);
