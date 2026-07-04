@@ -53,6 +53,10 @@ template <> void tHamiltonianImp<dcmplx>::InsertStandardTerms(const st_t &)
 
 template <class T> hmat_t<T> tHamiltonianImp<T>::GetMatrix(const tobs_t<T>* bs,const Spin& S,const tChargeDensity<T>* cd,const tbs_t<T>* wholeBasis)
 {
+    // Layer-2 lineage guard: never build a Fock from a SUPERSEDED density (a previous iteration's, or a stale
+    // copy).  The active (live-head) density is trivially active; a superseded one trips here at the exact
+    // call site instead of silently returning a plausible-but-wrong matrix.  See ChargeDensity::Lineage.
+    assert((!cd || cd->isActive()) && "Hamiltonian::GetMatrix computing with a superseded charge density");
     int n=bs->GetNumFunctions();
     hmat_t<T> H=blazem::zeroH<T>(n);
     for (auto& t:itsSHTs) H+=t->GetMatrix(bs,S);                       // static: no density
@@ -69,6 +73,7 @@ template <class T> hmat_t<T> tHamiltonianImp<T>::GetMatrix(const tobs_t<T>* bs,c
 template <class T> EnergyBreakdown tHamiltonianImp<T>::GetTotalEnergy( const tDM_CD<T>* cd ) const
 {
     assert(cd);
+    assert(cd->isActive() && "Hamiltonian::GetTotalEnergy computing with a superseded charge density");
     EnergyBreakdown e;
     for (auto& t:itsSHTs)  t->GetEnergy(e,cd);
     for (auto& t:itsDHTs)  t->GetEnergy(e,cd);

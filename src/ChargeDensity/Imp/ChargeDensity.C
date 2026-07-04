@@ -86,6 +86,7 @@ void Polarized_CD::MixIn(const DM_CD& cd,double c)
     }
     GetChargeDensity(Spin::Up)  -> MixIn(*pcd->GetChargeDensity(Spin::Up  ),c);
     GetChargeDensity(Spin::Down)-> MixIn(*pcd->GetChargeDensity(Spin::Down),c);
+    AdvanceHead();   // mutated in place -> Version() moved; keep this density the lineage head
 }
 
 double Polarized_CD::GetChangeFrom(const DM_CD& cd) const
@@ -105,6 +106,7 @@ void Polarized_CD::ReScale(double factor)
     // No UT coverage
     GetChargeDensity(Spin::Up)  ->ReScale(factor);
     GetChargeDensity(Spin::Down)->ReScale(factor);
+    AdvanceHead();   // mutated in place -> Version() moved; keep this density the lineage head
 }
 
 //----------------------------------------------------------------------------------

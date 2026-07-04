@@ -9,6 +9,8 @@
 #include "gtest/gtest.h"
 #include <vector>
 
+import qchem.ChargeDensity;                     // Lineage / LineagePtr (the Layer-2 SCF-lineage head)
+import qchem.CompositeCD;                       // tComposite_CD<double> (a top-level, lineage-tracked density)
 import qchem.ChargeDensity.Imp.IrrepCD;        // IrrepCD<double> (tests may import Internal)
 import qchem.ChargeDensity.NumericCD;  // NumericCD (molecular SAD seed)
 import qchem.ChargeDensity.FourierSeedCD;      // FourierSeedCD (plane-wave SAD seed)
@@ -43,4 +45,25 @@ TEST(DensityVersion, DistinctAndMonotonicAcrossKinds)
     EXPECT_GT(v.front(), 0u) << "0 is the reserved 'no density yet' sentinel";
     for (size_t i=1;i<v.size();++i)
         EXPECT_LT(v[i-1], v[i]) << "serials must strictly increase across kinds (distinct + monotonic); i=" << i;
+}
+
+// Layer-2 lineage: two top-level densities in construction order (B's front-leaf Version() > A's) sharing
+// ONE lineage -- whichever JOINED LAST is the live head; the earlier one is superseded and reports
+// isActive()==false.  This is the invariant the Hamiltonian's GetMatrix guard relies on (a superseded
+// density trips the assert instead of silently building a wrong Fock).
+TEST(DensityLineage, SupersededHeadIsInactive)
+{
+    auto lineage = std::make_shared<Lineage>();
+    tComposite_CD<double> A; A.Insert(new IrrepCD<double>());   // A.Version() = its front leaf's serial
+    tComposite_CD<double> B; B.Insert(new IrrepCD<double>());   // B constructed later -> higher serial
+
+    EXPECT_TRUE(A.isActive()) << "an un-tracked density (no lineage) is trivially active";
+    EXPECT_TRUE(B.isActive());
+
+    A.JoinLineage(lineage);
+    EXPECT_TRUE(A.isActive()) << "A just became the head";
+
+    B.JoinLineage(lineage);                              // B (newer) takes over the same lineage
+    EXPECT_TRUE (B.isActive()) << "the live head is active";
+    EXPECT_FALSE(A.isActive()) << "the superseded density is inactive -- the guard would fire on reuse";
 }

@@ -88,6 +88,7 @@ template <class T> void tSCFIterator<T>::Initialize(tChargeDensity<T>* seed, con
     itsOldCD=nullptr;    //set in the SCF loop; the seed is not a working density
     itsIterationCount=0;
     itsConverged=false;
+    itsLineage=std::make_shared<qchem::ChargeDensity::Lineage>();   // one lineage per SCF run (see SetWorkingCD)
 
     // HF/DHF can't build a Fock from a matrix-FREE seed: their exact-exchange K needs the density MATRIX
     // (Vxc::CalcMatrix asserts the density is a DM_CD).  So if the seed has no matrix (a SAD fit) and this
@@ -113,14 +114,14 @@ template <class T> void tSCFIterator<T>::Initialize(tChargeDensity<T>* seed, con
             H::st_t stView(st, [](const Structure*){});
             std::unique_ptr<H::rHamiltonian> dftSibling(
                 H::Factory(pol, stView, 2.0/3.0, qcMesh::MeshParams{}, bs));   // Dirac exchange (alpha=2/3)
-            itsCD=cd_t(itsWaveFunction->Init(*dftSibling, seed, 0.0001));      // D0: a real (matrix-backed) density
+            SetWorkingCD(cd_t(itsWaveFunction->Init(*dftSibling, seed, 0.0001)));  // D0: a real (matrix-backed) density
             assert(itsCD);
             return;
         }
     }
     // Iteration-0: the WaveFunction builds the Fock from the seed (or core operator if null), diagonalizes,
     // fills, and returns the first real (matrix-backed) density.
-    itsCD=cd_t(itsWaveFunction->Init(*itsHamiltonian, seed, 0.0001)); //first real (matrix-backed) density, std-managed
+    SetWorkingCD(cd_t(itsWaveFunction->Init(*itsHamiltonian, seed, 0.0001))); //first real (matrix-backed) density
     assert(itsCD);
 }
 //
@@ -179,7 +180,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
             // GDM owns the loop: a geodesic line search drives the energy down directly, with
             // NO density mixing (the line search guarantees descent).
             itsOldCD=itsCD;
-            itsCD=DirectMinStep(Eold,ipar.MergeTol);
+            SetWorkingCD(DirectMinStep(Eold,ipar.MergeTol));
             ChargeDensityChange = itsCD->GetChangeFrom(*itsOldCD)/itsCD->GetTotalCharge();
         }
         else
@@ -188,7 +189,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
             itsWaveFunction->FillOrbitals(ipar.MergeTol);
 
             itsOldCD=itsCD;
-            itsCD=cd_t(itsWaveFunction->GetChargeDensity()); //Get new charge density.
+            SetWorkingCD(cd_t(itsWaveFunction->GetChargeDensity())); //Get new charge density.
             ChargeDensityChange = itsCD->GetChangeFrom(*itsOldCD)/itsCD->GetTotalCharge(); //Get relative MaxAbs of change.
             if (ChargeDensityChange<1e-5) relMax=0.5;
             itsCD->MixIn(*itsOldCD,1.0-relax);                           //relaxation.
@@ -205,7 +206,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
         if (itsObserver) itsObserver({itsIterationCount, E, fabs(E-Eold), FD, ChargeDensityChange});
         if (FD>FDold && fabs(dFD)>1e-9)
         {
-            itsCD=cd_t(itsWaveFunction->GetChargeDensity()); //Get new charge density.
+            SetWorkingCD(cd_t(itsWaveFunction->GetChargeDensity())); //Get new charge density.
             ChargeDensityChange = itsCD->GetChangeFrom(*itsOldCD); //Get MaxAbs of change.
             itsCD->MixIn(*itsOldCD,1.0-relax/4.0);
             eb=itsHamiltonian->GetTotalEnergy(itsCD.get());

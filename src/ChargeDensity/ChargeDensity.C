@@ -3,6 +3,7 @@ module;
 #include <type_traits>
 #include <cstddef>
 #include <atomic>
+#include <memory>
 #include <vector>
 #include <map>
 #include <string>
@@ -28,6 +29,22 @@ inline size_t NextDensityVersion()
     static std::atomic<size_t> theClock{0};
     return ++theClock;
 }
+
+//! A "lineage" is one charge density as it EVOLVES across an SCF run: iteration k's density is superseded by
+//! iteration k+1's.  Consecutive densities are UNRELATED objects (each iteration builds a fresh one from the
+//! new orbitals), so "which one is current?" cannot be answered by a density alone -- we track it explicitly.
+//! This shared object holds one number: the Version() of whichever density is the live head.  A density is
+//! active iff its Version() still equals that head (see tLineageTracked); an older, superseded density (a
+//! kept itsOldCD, or a stale copy) has Version() < head and reports isActive()==false, so handing it to the
+//! Hamiltonian trips an assert instead of silently building a Fock from the wrong density.  Head 0 = none yet.
+class Lineage
+{
+    std::atomic<size_t> itsHead{0};
+public:
+    void   MakeHead(size_t v) {itsHead.store(v);}   //!< \a v is a NextDensityVersion serial (globally monotonic)
+    size_t Head() const       {return itsHead.load();}
+};
+using LineagePtr = std::shared_ptr<Lineage>;
 
 //! Empty (non-polymorphic) stand-in for a PERIODIC density, which has no AO (auxiliary-basis) projection.
 //! A density template inherits Fitting::ProjectedDensity_AO only on the finite (double) path; the periodic
@@ -98,6 +115,29 @@ public:
     //! pointer) -- not part of the persisted value, never serialize it.  (Concrete densities stamp this
     //! from a per-T counter in IrrepCD's impl; composites/polarized forward to a child.)
     virtual size_t Version() const=0;
+
+    //! Layer-2 SCF-lineage check: am I the live head of my lineage, or a superseded density?  (See Lineage.)
+    //! The default is "yes" -- a density that never joined a lineage (a seed, a one-off fit) is never a stale
+    //! working density, so it is trivially active.  The top-level SCF working densities override this via
+    //! tLineageTracked.  Consumers (the Hamiltonian) assert this before building a Fock from the density.
+    virtual bool isActive() const {return true;}
+    //! Become the current head of \a l (called by the SCFIterator on each new working density).  No-op for
+    //! untracked densities.
+    virtual void JoinLineage(const LineagePtr&) {}
+};
+
+//! Mixin that makes a versioned density track its SCF lineage head (see Lineage).  Mixed into the top-level
+//! densities the SCFIterator hands the Hamiltonian (tComposite_CD, Polarized_CD).  A tracked density starts
+//! with NO lineage (isActive() still true); JoinLineage makes it the head; MixIn/ReScale call AdvanceHead so
+//! the mutated density stays the head (its Version() moved, so the head must move with it).
+template <class T> class tLineageTracked : public virtual tChargeDensity<T>
+{
+    LineagePtr itsLineage;   //!< null until this density joins an SCF lineage
+protected:
+    void AdvanceHead() {if(itsLineage) itsLineage->MakeHead(this->Version());}   //!< after an in-place mutation
+public:
+    virtual bool isActive() const override {return !itsLineage || this->Version()==itsLineage->Head();}
+    virtual void JoinLineage(const LineagePtr& l) override {itsLineage=l; l->MakeHead(this->Version());}
 };
 
 //  A charge density represented BY A DENSITY MATRIX: adds the matrix-only capabilities -- operator
@@ -159,6 +199,7 @@ using DM_CD  = rDM_CD;          // transitional bare alias
 //
 class Polarized_CD
     : public virtual DM_CD
+    , public virtual tLineageTracked<double>        // Layer-2: this top-level density tracks its SCF lineage head
     , public virtual ProjectedDensityBase<double>   // finite/molecular: an AO-projectable density
 {
 public:

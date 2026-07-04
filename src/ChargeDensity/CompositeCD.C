@@ -22,6 +22,7 @@ export namespace qchem::ChargeDensity
 //
 template <class T> class tComposite_CD
     : public virtual tDM_CD<T>
+    , public virtual tLineageTracked<T> // Layer-2: this top-level density tracks its SCF lineage head
     , public ProjectedDensityBase<T> // AO projection on the finite (double) path; empty on the periodic path
     , public FourierDensityBase<T>   // FourierDensity on the periodic (dcmplx) path; empty on the finite path
 {

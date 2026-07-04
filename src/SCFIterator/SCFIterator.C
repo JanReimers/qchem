@@ -79,6 +79,13 @@ private:
     scfwf_t*        itsWaveFunction;
     cd_t            itsCD;       //!< current charge density (shared_ptr: lifetime by std, no reuse)
     cd_t            itsOldCD;    //!< previous charge density
+    //! The SCF density lineage (ChargeDensity::Lineage).  SetWorkingCD makes each new itsCD the head, so a
+    //! superseded density (itsOldCD, a stale copy) reports isActive()==false and trips the Hamiltonian's
+    //! assert if reused.  Created in Init; one per SCF run.
+    qchem::ChargeDensity::LineagePtr itsLineage;
+    //! Assign the new working density AND make it the head of itsLineage (so the previous one goes inactive).
+    //! Every itsCD (re)assignment in the working loop goes through here.
+    void SetWorkingCD(cd_t cd) {itsCD=std::move(cd); if (itsCD && itsLineage) itsCD->JoinLineage(itsLineage);}
 
     size_t          itsIterationCount;
     bool            itsConverged;

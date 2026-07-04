@@ -118,6 +118,7 @@ template <class T> void tComposite_CD<T>::ReScale(double factor)
 {
     // No UT coverage
     for (auto& c:itsCDs) c->ReScale(factor);
+    this->AdvanceHead();   // mutated in place -> Version() moved; keep this density the lineage head
 }
 
 template <class T> void tComposite_CD<T>::MixIn(const tDM_CD<T>& cd,double f)
@@ -130,6 +131,7 @@ template <class T> void tComposite_CD<T>::MixIn(const tDM_CD<T>& cd,double f)
         c->MixIn(**b,f);
         b++;
     }
+    this->AdvanceHead();   // mutated in place -> Version() moved; keep this density the lineage head
 }
 
 template <class T> double tComposite_CD<T>::GetChangeFrom(const tDM_CD<T>& cd) const
