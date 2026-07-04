@@ -17,6 +17,7 @@ target_sources(qcMath PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     matrix2d.C
     matrix3d.C
     SpecialFunctions.C
+    Angular.C
     FFT.C
     FourierMap.C
     ScalarFunction.C

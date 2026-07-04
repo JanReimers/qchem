@@ -4,51 +4,27 @@ module;
 export module qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;
 import qchem.Types;
 import qchem.IntPow;
+import qchem.Math.Angular;                                     // Monomial (the shared (n,l,m) index skeleton)
 import qchem.BasisSet.Molecule.Evaluators.Internal.MnD.Index3;  // Cartesian->Hermite index seam
 
 export namespace qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD
 {
 
-class Polarization
+//! \brief A Cartesian monomial exponent triple \f$(n,l,m)\f$ that ALSO evaluates itself in real space and
+//! maps to the generic MnD Hermite index.  The pure index skeleton -- the \a n,l,m members, axis access,
+//! ordering (\c operator<) and equality -- lives in the shared \c qchem::Math::Monomial base; Polarization
+//! adds only the evaluator-coupled behaviour (arithmetic that must return \c Polarization, real-space
+//! evaluation, and the \c Index3 conversion).
+class Polarization : public qchem::Math::Monomial
 {
 public:
-    Polarization(                    ) : n(  0),l(  0),m(  0) {};
-    Polarization(int _n,int _l,int _m) : n( _n),l( _l),m( _m) {};
-    Polarization(const Polarization& p  ) : n(p.n),l(p.l),m(p.m) {};
+    Polarization(                    ) : Monomial{0,0,0} {}
+    Polarization(int _n,int _l,int _m) : Monomial{_n,_l,_m} {}
 
-    Polarization& operator= (const Polarization& p)
-    {
-        n=p.n;
-        l=p.l;
-        m=p.m;
-        return *this;
-    }
-    Polarization  operator+ (const Polarization& p) const
-    {
-        return Polarization(n+p.n,l+p.l,m+p.m);
-    }
-    Polarization  operator- (const Polarization& p) const
-    {
-        return Polarization(n-p.n,l-p.l,m-p.m);
-    }
-    bool          operator==(const Polarization& p) const
-    {
-        return n==p.n&&l==p.l&&m==p.m;
-    }
-    bool          operator!=(const Polarization& p) const
-    {
-        return !(*this==p);
-    }
-    bool          operator>(const Polarization& p) const
-    {
-        return n>p.n|| l>p.l || m>p.m;
-    }
-    bool          operator<(const Polarization& p) const
-    {
-        int i1=  n*LMax*LMax+  l*LMax+  m;
-        int i2=p.n*LMax*LMax+p.l*LMax+p.m;
-        return i1<i2;
-    }
+    // Arithmetic MUST return Polarization (not Monomial) so the rnlm(pa+pb)->Index3 call sites are unchanged.
+    Polarization  operator+ (const Polarization& p) const {return Polarization(n+p.n, l+p.l, m+p.m);}
+    Polarization  operator- (const Polarization& p) const {return Polarization(n-p.n, l-p.l, m-p.m);}
+    bool          operator> (const Polarization& p) const {return n>p.n || l>p.l || m>p.m;}
 
     double operator   ()(const rvec3_t& r) const
     {
@@ -56,8 +32,8 @@ public:
     }
     rvec3_t  Gradient     (const rvec3_t& r) const;
 
-    // A Cartesian polarization IS a Hermite (N,L,M) index to the generic MnD core (RNLM etc.); the
-    // monomial above is the Cartesian-only part.  Implicit so existing rnlm(pa+pb) call sites are unchanged.
+    // A Cartesian polarization IS a Hermite (N,L,M) index to the generic MnD core (RNLM etc.).  Implicit so
+    // existing rnlm(pa+pb) call sites are unchanged.
     operator Evaluators::Internal::MnD::Index3() const {return {n,l,m};}
 
     int   GetTotalL  () const;
@@ -65,9 +41,6 @@ public:
     int   GetSign    () const; //(-1)^(n+l+m)
 
     friend std::ostream& operator<<(std::ostream&, const Polarization&);
-
-    int n,l,m;
-    const static int LMax=64;
 };
 
 inline int Polarization::GetTotalL() const

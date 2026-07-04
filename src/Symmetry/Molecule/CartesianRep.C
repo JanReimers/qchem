@@ -8,15 +8,15 @@
 //! rep-builder (in BasisSet) combines it with the centre permutation.
 module;
 #include <vector>
-#include <array>
 #include <utility>
 export module qchem.Symmetry.Molecule.CartesianRep;
 export import qchem.Symmetry.Molecule.ShellRep;   // ShellRep (the abstraction this implements), rmat_t / Matrix3D
+export import qchem.Math.Angular;                 // Monomial (the shared Cartesian-exponent type)
 
 export namespace qchem::Symmetry::Molecule
 {
 
-using IVec3 = std::array<int,3>;   //!< Cartesian monomial exponents \f$(n_x,n_y,n_z)\f$
+using IVec3 = qchem::Math::Monomial;   //!< Cartesian monomial exponents \f$(n_x,n_y,n_z)\f$ (shared math type)
 
 //! \brief The operation rep of a complete Cartesian shell whose components are the monomials \a exps (all of
 //! the same total degree \f$L\f$), in the given order.  \f$\text{Rep}(R)(b,a)\f$ is the coefficient of
