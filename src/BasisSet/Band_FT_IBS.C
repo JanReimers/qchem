@@ -13,6 +13,7 @@ export module qchem.BasisSet.Band_FT_IBS;
 export import qchem.BasisSet.Orbital_1E_IBS;
 export import qchem.FourierMap;
 import qchem.Types;       // hmat_t<dcmplx>
+import qchem.BasisSet.Fit_IBS;   // cFIT_CD_ABS (the auxiliary density-fit basis this basis creates) + qcMesh::MeshParams
 
 export namespace qchem::BasisSet
 {
@@ -26,6 +27,14 @@ class Band_FT_IBS
 {
 public:
     using Orbital_1E_IBS<dcmplx>::Overlap;   // keep the cached no-arg Overlap() visible beside Overlap(rvec_t)
+
+    //! \brief Create THIS basis's auxiliary density-fit basis -- the plane-wave analog of
+    //! Orbital_DFT_IBS::CreateCDFitBasisSet.  A Hartree/DFT term obtains its density fitter THROUGH this
+    //! factory (never assuming orbital==fit): a distinct \c cFIT_CD_ABS over the tunable \f$\{G\}\f$ grid
+    //! (= the orbital grid now; denser for the density later).  \a mp is accepted for interface symmetry
+    //! with the molecular factory (a plane-wave fit basis is \f$E_{cut}\f$/grid-based, so it is ignored).
+    //! Caller owns the result.
+    virtual cFIT_CD_ABS* CreateCDFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const=0;
 
     //! \brief \f$\tilde\rho(\Delta m)=\frac1\Omega\sum_{G_i-G_j=\Delta m}D_{ij}\f$ for a density matrix
     //! \a D in THIS plane-wave block (one \f$O(n^2)\f$ accumulation over the difference set).

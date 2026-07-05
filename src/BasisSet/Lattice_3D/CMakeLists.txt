@@ -12,6 +12,7 @@ target_sources(qcLattice_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILE
     Internal/KPlusG.C
     IrrepBasisSet.C
     PlaneWave_IBS.C
+    PlaneWaveFit_IBS.C
     APW_IBS.C
     LAPW_IBS.C
     BandStructure.C

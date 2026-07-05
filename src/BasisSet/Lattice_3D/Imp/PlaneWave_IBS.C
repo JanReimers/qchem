@@ -16,6 +16,7 @@ module;
 #include <vector>
 
 module qchem.BasisSet.Lattice_3D.PlaneWave_IBS;
+import qchem.BasisSet.Lattice_3D.PlaneWaveFit_IBS;   // the auxiliary density-fit basis CreateCDFitBasisSet builds
 import qchem.Symmetry.Factory;   // BlochFactory (the convenience ctor builds the Bloch irrep)
 import qchem.Symmetry.Lattice_3D.BlochQN;   // Symmetry::Lattice_3D::Getk (prys k out of the abstract Bloch irrep)
 import qchem.Structure;          // Atom (itsZ, itsR) + atom iteration for MakeNuclear
@@ -287,6 +288,13 @@ chmat_t PlaneWave_IBS::MakeSeparablePotential(const Structure* cl, const Pseudop
             V(i,j)=acc/Volume();
         }
     return V;
+}
+
+// The Band_FT_IBS factory seam: hand back a distinct auxiliary fit basis over a copy of THIS grid engine
+// (same {G} now; denser for the density later).  mp is ignored -- a plane-wave fit basis is Ecut-based.
+BasisSet::cFIT_CD_ABS* PlaneWave_IBS::CreateCDFitBasisSet(const Structure*, const qcMesh::MeshParams&) const
+{
+    return new PlaneWaveFit_IBS(*this, GetSymt());   // *this slices to its PW_Evaluator; same Bloch irrep
 }
 
 std::string PlaneWave_IBS::BasisSetID() const

@@ -3,10 +3,11 @@ module;
 #include <cassert>
 module qchem.BasisSet;
 import qchem.BasisSet.Orbital_DFT_IBS;
+import qchem.BasisSet.Band_FT_IBS;   // the dcmplx (plane-wave) density-fit factory delegate
 
 namespace qchem::BasisSet
 {
-template <class T> rFIT_CD_ABS* tBasisSet<T>::CreateCDFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const
+template <class T> FIT_CD_ABS<T>* tBasisSet<T>::CreateCDFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const
 {
     auto dft=*Iterate<Orbital_DFT_IBS<double>>().begin();
     return dft->CreateCDFitBasisSet(cl,mp);
@@ -17,9 +18,15 @@ template <class T> FIT_SF_ABS* tBasisSet<T>::CreateVxcFitBasisSet(const Structur
     return dft->CreateVxcFitBasisSet(cl,mp);
 }
 
-// Auxiliary DFT-fit basis sets are a real Gaussian-basis facility; the plane-wave (dcmplx) lineage
-// does not fit densities (it expands them in the plane-wave basis directly), so these are NA there.
-template <> rFIT_CD_ABS* tBasisSet<dcmplx>::CreateCDFitBasisSet (const Structure*, const qcMesh::MeshParams&) const { assert(false); return 0; }
+// The plane-wave (dcmplx) density-fit basis is created THROUGH the orbital basis's own factory, exactly
+// as the double path delegates to Orbital_DFT_IBS: iterate to the Band_FT_IBS (the reciprocal-space DFT
+// capability, realized by the plane-wave basis) and let it build its auxiliary cFIT_CD_ABS.
+template <> FIT_CD_ABS<dcmplx>* tBasisSet<dcmplx>::CreateCDFitBasisSet (const Structure* cl, const qcMesh::MeshParams& mp) const
+{
+    auto bft=*Iterate<Band_FT_IBS>().begin();
+    return bft->CreateCDFitBasisSet(cl,mp);
+}
+// The Vxc (overlap-metric) fit basis on the plane-wave path is the separate XC increment; still NA here.
 template <> FIT_SF_ABS* tBasisSet<dcmplx>::CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams&) const { assert(false); return 0; }
 
 template class tBasisSet<double>;

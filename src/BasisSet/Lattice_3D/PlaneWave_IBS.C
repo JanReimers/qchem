@@ -21,6 +21,7 @@ export import qchem.BasisSet.Band_DFT_IBS;     // the abstract real-space DFT-in
 export import qchem.BasisSet.Band_FT_IBS;       // the abstract G-space DFT capability (+ FourierMap)
 export import qchem.BasisSet.Lattice_3D.Evaluators.PW;   // PW_Evaluator (the shared grid engine / base subobject)
 import qchem.BasisSet.Lattice_3D.IBS;           // EPW_Orbital1E_IBS<E> (the evaluator-templated mixins)
+import qchem.BasisSet.Fit_IBS;                  // cFIT_CD_ABS (the auxiliary fit basis it creates) + qcMesh::MeshParams
 import qchem.BasisSet.Internal.IrrepBasisSetImp;   // IrrepBasisSetImp<T>: GetSymmetry/GetSymt/GetIrrep
 export import qchem.ReciprocalLattice;             // ctor takes a ReciprocalLattice (carries the B cell)
 export import qchem.Pseudopotential.Integrals_Pseudo;    // the external-PP operator-assembly mixin (+ its models)
@@ -88,6 +89,10 @@ public:
     virtual chmat_t MakeLocalPotential(const Structure* cl, const Pseudopotential::LocalPotential& loc) const override;
     //! \brief Assemble the separable (Kleinman-Bylander) nonlocal potential (rank-1 per atom, projector, m).
     virtual chmat_t MakeSeparablePotential(const Structure* cl, const Pseudopotential::SeparablePotential& v) const override;
+
+    //! \brief Create this basis's auxiliary plane-wave density-fit basis (a distinct PlaneWaveFit_IBS over
+    //! the same \f$\{G\}\f$ grid): the Band_FT_IBS factory seam a Hartree term obtains its fitter through.
+    virtual BasisSet::cFIT_CD_ABS* CreateCDFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const override;
 
     virtual std::string Name      () const override {return "PlaneWave";}
     virtual std::string BasisSetID() const override; // geometry-aware cache key (Name + k, Ecut, nG)
