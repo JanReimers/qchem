@@ -10,6 +10,7 @@ target_sources(qcLattice_BS PRIVATE
 target_sources(qcLattice_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Internal/GVectors.C
     Internal/KPlusG.C
+    IrrepBasisSet.C
     PlaneWave_IBS.C
     APW_IBS.C
     LAPW_IBS.C
@@ -26,4 +27,5 @@ target_compile_options(qcLattice_BS PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(qcLattice_BS PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
 target_link_libraries(qcLattice_BS PUBLIC qcBasisSet qcStructure qcSymmetry qcLASolver qcPseudopotential)
 
+add_subdirectory(Evaluators)
 add_subdirectory(tests)

@@ -1,4 +1,10 @@
 // File: BasisSet/Lattice_3D/Imp/PlaneWave_IBS.C  Plane-wave irrep basis set implementation.
+//
+// Grid-geometry methods (op(r), overlap/kinetic, the {G} set, MakePotential, the FFT grid) live in the
+// shared PW_Evaluator (this basis IS-A one, reached through the EPW_* mixins).  What remains here is the
+// orbital-only, atom/model-driven assembly: the density-driven G-space Hartree/XC route and the external
+// pseudopotential.  Those read the shared grid data through the evaluator accessors (Gs(), Volume(),
+// Recip(), kFrac(), GetGCartesian, MakePotential, the FFT-grid helpers).
 module;
 #include <algorithm>
 #include <cassert>
@@ -13,11 +19,10 @@ module qchem.BasisSet.Lattice_3D.PlaneWave_IBS;
 import qchem.Symmetry.Factory;   // BlochFactory (the convenience ctor builds the Bloch irrep)
 import qchem.Symmetry.Lattice_3D.BlochQN;   // Symmetry::Lattice_3D::Getk (prys k out of the abstract Bloch irrep)
 import qchem.Structure;          // Atom (itsZ, itsR) + atom iteration for MakeNuclear
-import qchem.Math;               // Pi, FourPi, sqrt, cos, sin, pow, Cube
+import qchem.Math;               // Pi, FourPi, cos, sin
 import qchem.SpecialFunctions;   // LegendreP (the (2l+1)P_l angular factor)
-import qchem.BasisSet.Lattice_3D.Internal.GVectors;   // BuildGs
 import qchem.BasisSet.Lattice_3D.Internal.KPlusG;     // KPlusG (Cartesian k+G, |k+G|, cos gamma)
-import qchem.FFT;                                      // FFT3D / NextPow2 (the XC G-space<->real transforms)
+import qchem.FFT;                                      // FFT3D (the XC G-space<->real transforms)
 import qchem.Blaze;
 import qchem.Vector3D;           // dot product (operator*) + vector arithmetic
 
@@ -26,38 +31,14 @@ namespace qchem::BasisSet::Lattice_3D
 
 PlaneWave_IBS::PlaneWave_IBS(const ReciprocalLattice& recip, const sym_t& irrep, double Ecut)
     : BasisSet::IrrepBasisSetImp<dcmplx>(irrep)
-    , itsRecip(recip)
-    , itsk(Symmetry::Lattice_3D::Getk(irrep))   // the Bloch irrep IS the k-label; pry it out (mirrors Getl on atoms)
-    , itsEcut(Ecut)
-    // |det B| = (2 pi)^3 / |det A|, so the direct cell volume V = (2 pi)^3 / V_recip.
-    , itsVolume(Cube(2*Pi)/recip.GetCell().GetCellVolume())
-{
-    itsG = Internal::BuildGs(itsRecip, itsk, Ecut);   // { G : 1/2|k+G|^2 < Ecut }
-}
+    , PW_Evaluator(recip, Symmetry::Lattice_3D::Getk(irrep), Ecut) // the Bloch irrep IS the k-label; pry it out
+{}
 
 // Convenience: build the Bloch irrep from BZ-grid indices and delegate to the primary constructor.
 PlaneWave_IBS::PlaneWave_IBS(const ReciprocalLattice& recip, const ivec3_t& N,
                              const ivec3_t& kIndex, double Ecut)
     : PlaneWave_IBS(recip, Symmetry::BlochFactory(N,kIndex), Ecut)
 {}
-
-rvec3_t PlaneWave_IBS::GetGCartesian(const ivec3_t& m) const
-{
-    return itsRecip.GetCell().ToCartesian(rvec3_t(m)); // B m
-}
-
-// Uniform N1xN2xN3 grid of FRACTIONAL coordinates r=(i1/N1,i2/N2,i3/N3) -- the XC real-space grid
-// (uniform weight Omega/prod(N); dG.r = 2 pi dm.r_frac makes the rho(G)<->rho(r) transform a plain DFT).
-std::vector<rvec3_t> PlaneWave_IBS::UniformGrid(const ivec3_t& n) const
-{
-    std::vector<rvec3_t> g;
-    g.reserve(static_cast<size_t>(n.x)*n.y*n.z);
-    for (int i1=0;i1<n.x;i1++)
-        for (int i2=0;i2<n.y;i2++)
-            for (int i3=0;i3<n.z;i3++)
-                g.push_back(rvec3_t(i1/double(n.x), i2/double(n.y), i3/double(n.z)));
-    return g;
-}
 
 namespace
 {
@@ -87,42 +68,28 @@ ForwardDFTDiffSet(const std::vector<ivec3_t>& G, const std::vector<rvec3_t>& fra
 }
 } //anon
 
-// Grid divisions resolving the difference set without aliasing: N > 2*(2*maxComp).
-ivec3_t PlaneWave_IBS::AutoGrid() const
-{
-    int m=0;
-    for (const ivec3_t& g : itsG)
-    {
-        int ax=g.x<0?-g.x:g.x, ay=g.y<0?-g.y:g.y, az=g.z<0?-g.z:g.z;
-        m=std::max(m, std::max(ax, std::max(ay,az)));
-    }
-    int nn=4*m+1;
-    return ivec3_t(nn,nn,nn);
-}
-
 // <i|f|j> weighted overlap for a real-space scalar field f: sample f on the (Cartesian) grid, forward-DFT
 // to f-tilde(dm), assemble.  The XC term passes f(r)=v_xc(rho(r)); the integration is OUR business.
 chmat_t PlaneWave_IBS::Overlap(const ScalarFunction<double>& f) const
 {
     std::vector<rvec3_t> frac=UniformGrid(AutoGrid());
-    UnitCell A=itsRecip.GetCell().MakeReciprocalCell();          // direct cell (reciprocal of the reciprocal)
+    UnitCell A=Recip().GetCell().MakeReciprocalCell();          // direct cell (reciprocal of the reciprocal)
     std::vector<double> field(frac.size());
     for (size_t q=0;q<frac.size();q++) field[q]=f(A.ToCartesian(frac[q]));
-    auto vt=ForwardDFTDiffSet(itsG,frac,field);
+    auto vt=ForwardDFTDiffSet(Gs(),frac,field);
     return MakePotential([&vt](const ivec3_t& dm)->dcmplx
         { auto it=vt.find(dm); return it==vt.end()?dcmplx(0.0):it->second; });
 }
 
-// Coulomb repulsion matrix + energy for a density rho: rho~(dm) via the grid DFT, then V_Coul~(dm)=4 pi
-// rho~/|G|^2 (dm=0 dropped, neutralising background); E = (Omega/2) Sum_{G!=0} 4 pi |rho~|^2/|G|^2.
-// From a real-space density: sample on the grid, forward-DFT to rho-tilde, then the G-space (1/r12) solve.
+// Coulomb repulsion matrix + energy for a density rho: sample on the grid, forward-DFT to rho-tilde, then
+// the G-space (1/r12) solve.
 chmat_t PlaneWave_IBS::Repulsion(const ScalarFunction<double>& rho, double& Eh) const
 {
     std::vector<rvec3_t> frac=UniformGrid(AutoGrid());
-    UnitCell A=itsRecip.GetCell().MakeReciprocalCell();
+    UnitCell A=Recip().GetCell().MakeReciprocalCell();
     std::vector<double> field(frac.size());
     for (size_t q=0;q<frac.size();q++) field[q]=rho(A.ToCartesian(frac[q]));
-    return Repulsion(ForwardDFTDiffSet(itsG,frac,field), Eh);
+    return Repulsion(ForwardDFTDiffSet(Gs(),frac,field), Eh);
 }
 
 // Hartree directly from the density's G-space coefficients rho-tilde (the FFT-free Poisson solve):
@@ -136,7 +103,7 @@ chmat_t PlaneWave_IBS::Repulsion(const FourierMap& rg, double& Eh) const
         rvec3_t G=GetGCartesian(kv.first);
         Eh += FourPi*std::norm(kv.second)/(G*G);
     }
-    Eh *= 0.5*itsVolume;
+    Eh *= 0.5*Volume();
     return MakePotential([this,&rg](const ivec3_t& dm)->dcmplx
     {
         if (dm.x==0 && dm.y==0 && dm.z==0) return dcmplx(0.0);
@@ -152,10 +119,11 @@ FourierMap PlaneWave_IBS::MakeFourierDensity(const chmat_t& D) const
 {
     FourierMap rg;
     size_t n=GetNumFunctions();
+    const std::vector<ivec3_t>& G=Gs();
     for (size_t i=0;i<n;i++)
         for (size_t j=0;j<n;j++)
-            rg[itsG[i]-itsG[j]] += D(i,j);
-    for (auto& kv : rg) kv.second /= itsVolume;
+            rg[G[i]-G[j]] += D(i,j);
+    for (auto& kv : rg) kv.second /= Volume();
     return rg;
 }
 
@@ -165,29 +133,22 @@ FourierMap PlaneWave_IBS::MakeFourierDensity(const chmat_t& D) const
 FourierMap PlaneWave_IBS::MakeFourierDensity(const Structure* atoms,
                           const std::function<double(int,double)>& formFactor) const
 {
-    const UnitCell& B=itsRecip.GetCell();
+    const UnitCell& B=Recip().GetCell();
     FourierMap rho;
     size_t n=GetNumFunctions();
+    const std::vector<ivec3_t>& G=Gs();
     for (size_t i=0;i<n;i++)
         for (size_t j=0;j<n;j++)
         {
-            ivec3_t dm=itsG[i]-itsG[j];
+            ivec3_t dm=G[i]-G[j];
             if (rho.find(dm)!=rho.end()) continue;     // one value per difference vector
             rvec3_t dG=B.ToCartesian(rvec3_t(dm));
             double  g2=dG*dG;
             dcmplx  acc(0.0);                           // (form factor) x (structure factor)
             for (Atom* a : *atoms) acc += formFactor(a->itsZ,g2)*std::exp(dcmplx(0.0,-(dG*a->itsR)));
-            rho[dm]=acc/itsVolume;
+            rho[dm]=acc/Volume();
         }
     return rho;
-}
-
-// AutoGrid divisions rounded up to powers of two -- radix-2 FFT for the XC route.  A larger grid still
-// resolves the difference set without aliasing, so it is at worst slightly more accurate.
-ivec3_t PlaneWave_IBS::FFTGrid() const
-{
-    ivec3_t a=AutoGrid();
-    return ivec3_t(int(qchem::FFT::NextPow2(a.x)), int(qchem::FFT::NextPow2(a.y)), int(qchem::FFT::NextPow2(a.z)));
 }
 
 // rho(r) on the FFT grid = inverse FFT of rho-tilde: rho(r_j) = Sum_dm rho-tilde(dm) e^{+i2pi dm.j/N}.
@@ -221,10 +182,11 @@ FourierMap PlaneWave_IBS::ForwardGrid(const rvec_t& V) const
     cvec_t Vt=qchem::FFT::FFT3D(g, N, -1);
     FourierMap out;
     size_t n=GetNumFunctions();
+    const std::vector<ivec3_t>& G=Gs();
     for (size_t i=0;i<n;i++)
         for (size_t j=i;j<n;j++)
         {
-            ivec3_t dm=itsG[i]-itsG[j];
+            ivec3_t dm=G[i]-G[j];
             if (out.find(dm)==out.end())
             {
                 int i0=((dm.x%N.x)+N.x)%N.x, i1=((dm.y%N.y)+N.y)%N.y, i2=((dm.z%N.z)+N.z)%N.z;
@@ -251,48 +213,22 @@ chmat_t PlaneWave_IBS::Overlap(const rvec_t& V) const
 // integral f d3r on the FFT grid: uniform quadrature, weight Omega/Npts.
 double PlaneWave_IBS::Integral(const rvec_t& f) const
 {
-    return blazem::sum(f)*itsVolume/double(f.size());
+    return blazem::sum(f)*Volume()/double(f.size());
 }
 
 // Scalar integral integral f d3r over the cell: uniform-grid quadrature (weight Omega/Npts).
 double PlaneWave_IBS::Integral(const ScalarFunction<double>& f) const
 {
     std::vector<rvec3_t> frac=UniformGrid(AutoGrid());
-    UnitCell A=itsRecip.GetCell().MakeReciprocalCell();
+    UnitCell A=Recip().GetCell().MakeReciprocalCell();
     double s=0.0;
     for (const rvec3_t& p : frac) s += f(A.ToCartesian(p));
-    return s*itsVolume/double(frac.size());
+    return s*Volume()/double(frac.size());
 }
 
-// Plane waves are orthonormal over the cell: <G|G'> = delta_{GG'}.
-chmat_t PlaneWave_IBS::MakeOverlap() const
-{
-    size_t n=GetNumFunctions();
-    chmat_t S=blazem::zeroH<dcmplx>(n);   // hmat_t(n) does NOT zero the off-diagonals
-    for (size_t i=0; i<n; i++) S(i,i)=1.0;
-    return S;
-}
-
-// <p^2> = <-nabla^2> building block (NO 1/2 -- the Hamiltonian applies it).  For a plane wave
-// -nabla^2 e^{i(k+G).r} = |k+G|^2 e^{i(k+G).r}, so the matrix is diagonal in |k+G|^2.
-chmat_t PlaneWave_IBS::MakeKinetic() const
-{
-    const UnitCell& B=itsRecip.GetCell();
-    size_t n=GetNumFunctions();
-    chmat_t S=blazem::zeroH<dcmplx>(n);   // off-diagonals are exactly zero
-    for (size_t i=0; i<n; i++)
-    {
-        double kG=B.GetDistance(itsk+itsG[i]); // |k+G|
-        S(i,i)=kG*kG;
-    }
-    return S;
-}
-
-// Bare-Coulomb electron-nucleus attraction in reciprocal space:
+// Bare-Coulomb electron-nucleus attraction in reciprocal space: bare -Z/r is the bare-Coulomb local model.
 //   <G|V|G'> = V(dG) = -(4 pi / Omega) Sum_a Z_a e^{-i dG.tau_a} / |dG|^2,   dG = G-G' != 0.
-// The dG=0 term (the divergent G=0 Coulomb component) is dropped -- the conventional uniform
-// neutralising background; it contributes only a finite per-cell shift that -> 0 as the cell grows.
-// Bare nuclear Coulomb is just the local potential with the bare-Coulomb form factor -4 pi Z/|G|^2.
+// The dG=0 term (the divergent G=0 Coulomb component) is dropped -- the conventional uniform background.
 chmat_t PlaneWave_IBS::MakeNuclear(const Structure* cl) const
 {
     return MakeLocalPotential(cl, Pseudopotential::BareCoulomb{});   // bare -Z/r is the bare-Coulomb local model
@@ -300,11 +236,10 @@ chmat_t PlaneWave_IBS::MakeNuclear(const Structure* cl) const
 
 // V(dG) = (1/Omega) Sum_a v(Z_a,|dG|^2) e^{-i dG.tau_a}, dG=0 dropped (neutralising background).
 // The result is Hermitian: V(-dG) = conj(V(dG)) since the structure factor conjugates under dG -> -dG
-// (the real form factor v is even).  Filling the upper triangle of a HermitianMatrix auto-sets the
-// lower as the conjugate, so off-origin / multi-atom cells (complex phases) are handled correctly.
+// (the real form factor v is even).
 chmat_t PlaneWave_IBS::MakeLocalPotential(const Structure* cl, const Pseudopotential::LocalPotential& loc) const
 {
-    const UnitCell& B=itsRecip.GetCell();
+    const UnitCell& B=Recip().GetCell();
     return MakePotential([&](const ivec3_t& dm)->dcmplx
     {
         if (dm.x==0 && dm.y==0 && dm.z==0) return dcmplx(0.0); // drop dG=0
@@ -312,21 +247,19 @@ chmat_t PlaneWave_IBS::MakeLocalPotential(const Structure* cl, const Pseudopoten
         double g2=dG*dG;
         dcmplx acc(0.0);                                        // (form factor) x (structure factor)
         for (Atom* a : *cl) acc += loc.FormFactor(a->itsZ,g2)*std::exp(dcmplx(0.0,-(dG*a->itsR)));
-        return acc/itsVolume;
+        return acc/Volume();
     });
 }
 
 // V_NL(G,G') = (1/Omega) Sum_a e^{-i(G-G').tau_a} Sum_p (2l_p+1) P_{l_p}(cos gamma) betã_p(|k+G|) D_p
 //              betã_p(|k+G'|),  gamma = angle(k+G, k+G').
-// The angular factor (2l+1)P_l(cos gamma) is the addition-theorem sum Sum_m Y_lm(q^)Y*_lm(q'^) over the
-// projector's m -- the same structure the APW/LAPW sphere terms use; l=0 gives P_0=1 (the s-channel).
-// (The k-point phases of <k+G|beta>, <beta|k+G'> cancel, leaving the structure-factor phase.)
 // Per atom & projector & m this is rank-1: |beta> D <beta|.  Hermitian; real for atoms at the origin.
 chmat_t PlaneWave_IBS::MakeSeparablePotential(const Structure* cl, const Pseudopotential::SeparablePotential& v) const
 {
-    const UnitCell& B=itsRecip.GetCell();
+    const UnitCell& B=Recip().GetCell();
     size_t n=GetNumFunctions();
-    Internal::KPlusG kg(B, itsk, itsG);             // Cartesian k+G, |k+G|, and cos(gamma)
+    const std::vector<ivec3_t>& G=Gs();
+    Internal::KPlusG kg(B, kFrac(), G);             // Cartesian k+G, |k+G|, and cos(gamma)
 
     int maxL=0;                                     // highest projector channel present
     for (Atom* a : *cl)
@@ -337,7 +270,7 @@ chmat_t PlaneWave_IBS::MakeSeparablePotential(const Structure* cl, const Pseudop
     for (size_t i=0; i<n; i++)
         for (size_t j=i; j<n; j++)
         {
-            rvec3_t dG=B.ToCartesian(rvec3_t(itsG[i]-itsG[j]));
+            rvec3_t dG=B.ToCartesian(rvec3_t(G[i]-G[j]));
             rvec_t P=SpecialFunctions::LegendreP(maxL, kg.CosGamma(i,j));
             dcmplx acc(0.0);
             for (Atom* a : *cl)
@@ -351,58 +284,14 @@ chmat_t PlaneWave_IBS::MakeSeparablePotential(const Structure* cl, const Pseudop
                 }
                 acc += s*std::exp(dcmplx(0.0,-(dG*a->itsR)));
             }
-            V(i,j)=acc/itsVolume;
+            V(i,j)=acc/Volume();
         }
     return V;
 }
 
-// <G|V|G'> = Vtilde(m(G) - m(G')).  Fill the upper triangle; HermitianMatrix mirrors the conjugate.
-chmat_t PlaneWave_IBS::MakePotential(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const
-{
-    size_t n=GetNumFunctions();
-    chmat_t V=blazem::zeroH<dcmplx>(n);
-    for (size_t i=0; i<n; i++)
-        for (size_t j=i; j<n; j++)
-            V(i,j)=Vtilde(itsG[i]-itsG[j]);
-    return V;
-}
-
-cvec_t PlaneWave_IBS::operator()(const rvec3_t& r) const
-{
-    size_t n=GetNumFunctions();
-    double invSqrtV=1.0/sqrt(itsVolume);
-    cvec_t v(n);
-    for (size_t i=0; i<n; i++)
-    {
-        double phase=GetGCartesian(itsG[i])*r + itsRecip.GetCell().ToCartesian(itsk)*r; // (k+G).r
-        v[i]=dcmplx(cos(phase),sin(phase))*invSqrtV;
-    }
-    return v;
-}
-
-cvec3vec_t PlaneWave_IBS::Gradient(const rvec3_t& r) const
-{
-    // grad e^{i(k+G).r}/sqrt(V) = i(k+G) e^{i(k+G).r}/sqrt(V).
-    const dcmplx im(0.0,1.0);
-    size_t n=GetNumFunctions();
-    double invSqrtV=1.0/sqrt(itsVolume);
-    rvec3_t kCart=itsRecip.GetCell().ToCartesian(itsk);
-    cvec3vec_t g(n);
-    for (size_t i=0; i<n; i++)
-    {
-        rvec3_t kG=kCart+GetGCartesian(itsG[i]); // k+G (Cartesian)
-        double phase=kG*r;
-        dcmplx val=dcmplx(cos(phase),sin(phase))*invSqrtV;
-        g[i]=vec3_t<dcmplx>(im*kG.x*val, im*kG.y*val, im*kG.z*val);
-    }
-    return g;
-}
-
 std::string PlaneWave_IBS::BasisSetID() const
 {
-    return Name()+"|k="+std::to_string(itsk.x)+","+std::to_string(itsk.y)+","+std::to_string(itsk.z)
-                 +"|Ecut="+std::to_string(itsEcut)
-                 +"|nG="+std::to_string(itsG.size());
+    return Name()+PW_Evaluator::IDFragment();   // Name + "|k=..|Ecut=..|nG=.."
 }
 
 std::ostream& PlaneWave_IBS::Write(std::ostream& os) const
