@@ -10,7 +10,10 @@ import qchem.ChargeDensity;
 import qchem.ChargeDensity.FourierDensity;   // cast cd UP to its reciprocal-space coefficients rho-tilde
 import qchem.BasisSet.Band_FT_IBS;         // cast bs UP to the reciprocal-space DFT capability (Hartree/XC)
 import qchem.Pseudopotential.Integrals_Pseudo;   // cast bs ACROSS to the external-PP operator-assembly mixin (PW_Pseudo)
-import qchem.Fitting.FourierFunctionFitter; // the PW fitter PW_Hartree drives (like FittedVee's FunctionFitter)
+import qchem.Fitting.FourierFunctionFitter; // the XC (overlap-metric) PW fitter PW_XC drives
+import qchem.Fitting.FunctionFitter;        // MakeDensityFitter + ProjectedDensity_G (PW_Hartree's density-fit route)
+import qchem.BasisSet.Fit_IBS;              // cFIT_CD_ABS (the fit basis obtained from the orbital basis)
+import qchem.Mesh;                          // qcMesh::MeshParams (interface arg; ignored by the PW fit basis)
 import qchem.Structure;                       // Structure::isFinite()/SumFormFactors() -- the G=0 alignment (term-side)
 import qchem.Ewald;                           // NuclearRepulsion (Ewald lattice sum for the crystal)
 import qchem.Blaze;                            // blazem::zeroH (PW_IonIon's zero matrix)
@@ -115,15 +118,19 @@ std::ostream& PW_IonIon::Write(std::ostream& os) const
 chmat_t PW_Hartree::CalcMatrix(const cobs_t* bs, const Spin&, const cChargeDensity* cd) const
 {
     newCD(cd);   // dirty the Irrep cache if cd is new (the cross-iteration freshness mechanism)
-    // Drive a FourierFunctionFitter exactly as FittedVee drives a FunctionFitter: DoFit the density, then
-    // ask for its Coulomb (Hartree) matrix.  The plane-wave "fit" is orthonormal/exact -- DoFit just
-    // RECEIVES the density's pre-computed rho-tilde (= Sum_k w_k rho_k) -- and Repulsion delegates the
-    // FFT-free G-space Poisson solve to the basis (Band_FT_IBS), which the fitter casts down to.
+    auto bft=dynamic_cast<const BasisSet::Band_FT_IBS*>(bs);
+    assert(bft && "PW_Hartree requires a Band_FT_IBS (plane-wave) basis");
     auto fd=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(cd);
     assert(fd && "PW_Hartree requires a FourierDensity (periodic) charge density");
-    Fitting::FourierFunctionFitter fitter;
-    fitter.DoFit(fd->GetFourierDensity());
-    return fitter.Repulsion(bs);
+    // Obtain the density fitter THROUGH the basis's factory (the harmonization seam -- never assume
+    // orbital==fit), exactly as FittedVee does; here at CalcMatrix time because the plane-wave Hamiltonian
+    // is built without the basis (the SCF holds both).  On the orthonormal {G} basis the projection IS the
+    // fit: DoFit just RECEIVES the density's pre-computed rho-tilde (= Sum_k w_k rho_k), and Repulsion
+    // delegates the FFT-free G-space Poisson solve to the basis (Band_FT_IBS).
+    std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(bft->CreateCDFitBasisSet(nullptr, qcMesh::MeshParams{}));
+    auto fitter=Fitting::MakeDensityFitter(fb);
+    fitter->DoFit(Fitting::ProjectedDensity_G(fd->GetFourierDensity()));
+    return fitter->Repulsion(bs);
 }
 
 void PW_Hartree::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const

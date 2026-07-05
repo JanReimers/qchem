@@ -4,6 +4,7 @@ module;
 #include <cassert>
 module qchem.Fitting.FunctionFitter;
 import qchem.Fitting.Internal.FunctionFitterImp;   // FunctionFitterImp (Scalar) + IntegralConstrainedFF (Density)
+import qchem.Fitting.Internal.OrthoFunctionFitter; // OrthoFunctionFitter (the orthonormal G-space density fit)
 
 namespace qchem::Fitting
 {
@@ -23,6 +24,14 @@ MakeDensityFitter(std::shared_ptr<const BasisSet::rFIT_CD_ABS>& bs)
     auto nonOrtho = std::dynamic_pointer_cast<const BasisSet::FIT_CD_NonOrtho>(bs);
     assert(nonOrtho && "MakeDensityFitter: a Gaussian density fit requires a FIT_CD_NonOrtho fit basis");
     return std::make_unique<IntegralConstrainedFF<double>>(nonOrtho);
+}
+
+std::unique_ptr<FunctionFitter_Density<dcmplx>>
+MakeDensityFitter(std::shared_ptr<const BasisSet::cFIT_CD_ABS>& bs)
+{
+    // An orthonormal (plane-wave) {G} fit basis: the projection IS the fit, so the minimal core fitter
+    // (no metric-solve refinement).  It holds the fit basis but delegates Repulsion to the orbital basis.
+    return std::make_unique<OrthoFunctionFitter>(bs);
 }
 
 } //namespace

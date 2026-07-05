@@ -1,14 +1,13 @@
 // File: Fitting/FourierFunctionFitter.C  Plane-wave (Fourier) function fitter.
 //
-// The orthonormal/exact sibling of the molecular fitters.  For plane waves the density's rho-tilde IS the
-// fit (the basis is orthonormal, so there is no metric solve): DoFit just RECEIVES the FourierMap the
-// charge density already computed (MakeFourierDensity + BZ sum), and the contraction delegates to the
-// basis's reciprocal-space assembly (Band_FT_IBS).  The orthonormal {G} basis makes the overlap/Coulomb
-// metric distinction DEGENERATE -- the SAME map serves Hartree (Repulsion, with the 4pi/G^2 kernel) and XC
-// (Overlap, no kernel) -- so this is ONE standalone class, not two abstract faces.
+// The orthonormal/exact sibling of the molecular fitters, for the XC (overlap-metric) route: DoFit just
+// RECEIVES the V-tilde the term computed (ForwardGrid on v_xc) and Overlap assembles <i|v_xc|j> directly
+// (no kernel), delegating to the basis's reciprocal-space assembly (Band_FT_IBS).
 //
-// It is used CONCRETELY (PW_Hartree/PW_XC stack-allocate it), never through a FunctionFitter_* base, so it
-// carries NO abstract bases and NO NA-asserts: just the three real operations it actually performs.
+// The DENSITY (Hartree) route moved to OrthoFunctionFitter (the core FunctionFitter_Density<dcmplx> face,
+// reached through the factory MakeDensityFitter) -- PW_Hartree no longer stack-allocates this.  This XC-only
+// remnant is retired when the XC/Scalar face is routed through its own ortho scalar fitter (the next
+// increment); until then PW_XC still drives it concretely.
 module;
 #include <cassert>
 #include <ostream>
@@ -21,27 +20,16 @@ import qchem.Blaze;                            // hmat_t<dcmplx>
 export namespace qchem::Fitting
 {
 
-//! \brief The plane-wave "fitter": the density's G-space coefficients (a FourierMap) ARE the fit
-//! (orthonormal, exact -- no metric solve), so DoFit stores them and the contraction delegates to
-//! Band_FT_IBS.  Standalone (no abstract base): the metric is degenerate on {G}, so one object serves both
-//! Hartree (Repulsion) and XC (Overlap).  Driven concretely by PW_Hartree / PW_XC.
+//! \brief The plane-wave XC "fitter": the potential's G-space coefficients (a FourierMap V-tilde) ARE the
+//! fit (orthonormal, exact -- no metric solve), so DoFit stores them and Overlap delegates to Band_FT_IBS.
+//! Standalone (no abstract base).  Driven concretely by PW_XC (the density/Hartree route is now
+//! OrthoFunctionFitter behind the FunctionFitter_Density face).
 class FourierFunctionFitter
 {
 public:
-    //! The "fit": receive the G-space coefficients -- the density's rho-tilde (Hartree) OR the potential's
-    //! V-tilde (XC, the term ran ForwardGrid on v_xc).  Orthonormal exactness => nothing to solve, just store.
-    //! Repulsion then reads the map with the 4pi/G^2 Coulomb kernel; Overlap reads it with no kernel.
+    //! The "fit": receive the potential's V-tilde (the term ran ForwardGrid on v_xc).  Orthonormal
+    //! exactness => nothing to solve, just store; Overlap then reads the map with no kernel.
     void DoFit(const FourierMap& map) {itsMap=map;}
-
-    //! Coulomb (Hartree) matrix: delegate to the orbital basis's reciprocal-space Poisson assembly.  The
-    //! orbital basis arrives as the common Orbital_1E_IBS base; cast down to the G-space capability.
-    hmat_t<dcmplx> Repulsion(const robs_t<dcmplx>* bs) const
-    {
-        auto pw=dynamic_cast<const BasisSet::Band_FT_IBS*>(bs);
-        assert(pw && "FourierFunctionFitter::Repulsion requires a Band_FT_IBS (plane-wave) basis");
-        double Eh;
-        return pw->Repulsion(itsMap, Eh);
-    }
 
     //! XC matrix <i|v_xc|j>: assemble directly from the stored V-tilde (no kernel).
     hmat_t<dcmplx> Overlap(const robs_t<dcmplx>* bs) const
@@ -55,7 +43,7 @@ public:
         {return os << "FourierFunctionFitter (G-space map)" << std::endl;}
 
 private:
-    FourierMap itsMap;   //!< the fit = G-space coefficients: rho-tilde for Hartree, V-tilde for XC.
+    FourierMap itsMap;   //!< the fit = the potential's V-tilde (G-space coefficients).
 };
 
 } //namespace

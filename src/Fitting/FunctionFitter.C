@@ -67,9 +67,17 @@ public:
 //! \brief The plane-wave counterpart of ProjectedDensity_AO.  On the orthonormal {G} basis the projection
 //! is already DIAGONAL -- rho-tilde(Dm) = (1/Omega) Sum_{m_i-m_j=Dm} D_ij (= MakeFourierDensity), a map keyed
 //! by Dm (efficiency, rule #2: the delta collapses Sum_ij D_ij<ij|c> to a gather over Dm-shells).  So here
-//! the projection IS the fit (no metric solve) and the container is the map itself -- hence a role ALIAS of
-//! FourierMap rather than a separate callback.
-using ProjectedDensity_FT = FourierMap;
+//! the projection IS the fit (no metric solve): this simply WRAPS the density's G-space coefficients, keeping
+//! the FourierMap container OFF the neutral ProjectedDensity<dcmplx> face (the ortho fitter cross-casts to it
+//! in DoFit, mirroring how the AO fitter cross-casts to ProjectedDensity_AO).
+class ProjectedDensity_G : public virtual ProjectedDensity<dcmplx>
+{
+public:
+    explicit ProjectedDensity_G(const FourierMap& rhoTilde) : itsMap(rhoTilde) {}
+    const FourierMap& Map() const {return itsMap;}   //!< the density's rho-tilde (the fit itself)
+private:
+    FourierMap itsMap;
+};
 
 //! \brief Abstract least-squares function fitter -- the SCALAR (overlap-metric) face.  Projects a pointwise
 //! field (e.g. v_xc(rho(r))) onto the fit basis in the ordinary overlap norm, then contracts it against an
@@ -122,5 +130,12 @@ MakeScalarFitter(std::shared_ptr<const BasisSet::FIT_SF_ABS>&);
 //! Returns the non-ortho refinement (the molecular FittedCD needs its self-energy/charge/rescale/eval).
 std::unique_ptr<FunctionFitter_Density_NonOrtho<double>>
 MakeDensityFitter(std::shared_ptr<const BasisSet::rFIT_CD_ABS>&);
+
+//! \brief Create a DENSITY fitter on an ORTHONORMAL (plane-wave, G-space) fit basis.  Returns the minimal
+//! CORE face -- the projection IS the fit, so no metric solve / self-energy / rescale (an ortho fitter
+//! carries none of the non-ortho refinement); DoFit receives a ProjectedDensity_G and Repulsion delegates
+//! the Poisson solve to the orbital Band_FT_IBS.
+std::unique_ptr<FunctionFitter_Density<dcmplx>>
+MakeDensityFitter(std::shared_ptr<const BasisSet::cFIT_CD_ABS>&);
 
 } //namespace

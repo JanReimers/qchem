@@ -6,6 +6,7 @@ target_sources(qcFitting PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     FunctionFitter.C
     FourierFunctionFitter.C
     Internal/FunctionFitterImp.C
+    Internal/OrthoFunctionFitter.C
     Types.C
 )
 set_property(TARGET qcFitting PROPERTY CXX_STANDARD 20)
