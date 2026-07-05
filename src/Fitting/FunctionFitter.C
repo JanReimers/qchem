@@ -81,29 +81,36 @@ public:
     virtual void      DoFit        (const ScalarFFClient&)                 =0;  //!< fit a scalar (overlap metric)
     virtual hmat_t<T> Overlap      (const robs_t<T>*) const                 =0;  //!< Sum_a c_a <Oi|f_a|Oj>
 
-    // --- shared post-fit utilities (two fitters of the SAME face) ---
+    // --- shared post-fit utilities ---
     virtual void   ReScale         (double factor)                         =0;  //!< c *= factor
-    virtual void   FitMixIn        (const FunctionFitter_Scalar&,double f) =0;  //!< c = (1-f)c + f g.c
-    virtual double FitGetChangeFrom(const FunctionFitter_Scalar&) const    =0;  //!< max|c - g.c| (SCF conv.)
     virtual std::ostream& Write    (std::ostream&) const                   =0;  //!< describe the fit
 };
 
-//! \brief Abstract least-squares function fitter -- the DENSITY (Coulomb-metric) face.  Solves the
-//! charge-constrained density fit (Dunlap-Connolly-Sabin) in the Coulomb norm, then contracts it against an
-//! orbital basis as a Coulomb (Vee) matrix Sum_a c_a <Oi|f_a/r12|Oj>.
-template <class T> class FunctionFitter_Density : public virtual ScalarFunction<double>
+//! \brief Abstract density fitter -- the MINIMAL CORE a Hartree term needs: fit a density, then contract it
+//! against an orbital basis as a Coulomb (Vee) matrix Sum_a c_a <Oi|f_a/r12|Oj>.  Orthonormality-neutral: no
+//! metric bookkeeping and no real-space evaluation, so an orthonormal (plane-wave) fitter implements EXACTLY
+//! this and nothing more (mirror of the FIT_CD_ABS / FIT_CD_NonOrtho split on the fit-basis side).
+template <class T> class FunctionFitter_Density
 {
 public:
+    virtual ~FunctionFitter_Density() = default;
     virtual void   DoFit           (const ProjectedDensity<T>&)=0;  //!< fit a density (impl cross-casts to its projection)
     virtual hmat_t<T> Repulsion    (const robs_t<T>*) const     =0;  //!< Sum_a c_a <Oi|f_a/r12|Oj>
-    virtual double    FitGetSelfRepulsion() const              =0;  //!< <fit|1/r12|fit> (caller halves)
-    virtual double    Integral     () const                    =0;  //!< total charge Sum_a c_a integral f_a
+    virtual std::ostream& Write    (std::ostream&) const        =0;  //!< describe the fit
+};
 
-    // --- shared post-fit utilities (two fitters of the SAME face) ---
-    virtual void   ReScale         (double factor)                          =0;  //!< c *= factor
-    virtual void   FitMixIn        (const FunctionFitter_Density&,double f) =0;  //!< c = (1-f)c + f g.c
-    virtual double FitGetChangeFrom(const FunctionFitter_Density&) const    =0;  //!< max|c - g.c| (SCF conv.)
-    virtual std::ostream& Write    (std::ostream&) const                    =0;  //!< describe the fit
+//! \brief The NON-orthonormal (Gaussian) density-fitter refinement: the charge-constrained Coulomb-metric fit
+//! (Dunlap-Connolly-Sabin) also exposes its self-energy, total charge, initial-guess rescale, and (as a
+//! ScalarFunction) its real-space value -- what the molecular FittedCD consumes.  An orthonormal fitter (the
+//! projection IS the fit) carries NONE of this.
+template <class T> class FunctionFitter_Density_NonOrtho
+    : public virtual FunctionFitter_Density<T>
+    , public virtual ScalarFunction<double>
+{
+public:
+    virtual double FitGetSelfRepulsion() const=0;      //!< <fit|1/r12|fit> (caller halves)
+    virtual double Integral           () const=0;      //!< total charge Sum_a c_a integral f_a
+    virtual void   ReScale            (double factor)=0; //!< c *= factor
 };
 
 //! \brief Create a SCALAR (overlap-metric) fitter on the given overlap-metric fit basis.  Caller owns the
@@ -111,8 +118,9 @@ public:
 std::unique_ptr<FunctionFitter_Scalar<double>>
 MakeScalarFitter(std::shared_ptr<const BasisSet::FIT_SF_ABS>&);
 
-//! \brief Create a DENSITY (charge-constrained Coulomb-metric) fitter on the given Coulomb-metric fit basis.
-std::unique_ptr<FunctionFitter_Density<double>>
+//! \brief Create a DENSITY (charge-constrained Coulomb-metric) fitter on the given non-ortho fit basis.
+//! Returns the non-ortho refinement (the molecular FittedCD needs its self-energy/charge/rescale/eval).
+std::unique_ptr<FunctionFitter_Density_NonOrtho<double>>
 MakeDensityFitter(std::shared_ptr<const BasisSet::FIT_CD_ABS>&);
 
 } //namespace

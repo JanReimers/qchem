@@ -14,7 +14,7 @@ MakeScalarFitter(std::shared_ptr<const BasisSet::FIT_SF_ABS>& bs)
     return std::make_unique<FunctionFitterImp<double>>(bs);
 }
 
-std::unique_ptr<FunctionFitter_Density<double>>
+std::unique_ptr<FunctionFitter_Density_NonOrtho<double>>
 MakeDensityFitter(std::shared_ptr<const BasisSet::FIT_CD_ABS>& bs)
 {
     // The non-ortho (Gaussian) density fit needs the Coulomb metric-solve face; recover it from the neutral

@@ -22,22 +22,6 @@ template <class T, class Face, class FBS> void FitImpBase<T,Face,FBS>::ReScale(d
     itsFitCoeff*=factor;
 }
 
-template <class T, class Face, class FBS> void FitImpBase<T,Face,FBS>::FitMixIn(const Face& ff,double c)
-{
-    const FitImpBase* ffi = dynamic_cast<const FitImpBase*>(&ff);
-    assert(ffi);
-    assert(itsBasisSet->GetID() == ffi->itsBasisSet->GetID());
-    itsFitCoeff = itsFitCoeff*(1-c) + ffi->itsFitCoeff*c;
-}
-
-template <class T, class Face, class FBS> double FitImpBase<T,Face,FBS>::FitGetChangeFrom(const Face& ff) const
-{
-    const FitImpBase* ffi = dynamic_cast<const FitImpBase*>(&ff);
-    assert(ffi);
-    assert(itsBasisSet->GetID() == ffi->itsBasisSet->GetID());
-    return blazem::max(blazem::abs(itsFitCoeff - ffi->itsFitCoeff));
-}
-
 template <class T, class Face, class FBS> double FitImpBase<T,Face,FBS>::operator()(const rvec3_t& r) const
 {
     return blazem::trans(itsFitCoeff) * (*itsBasisSet)(r);
@@ -87,7 +71,7 @@ template <class T> hmat_t<T> FunctionFitterImp<T>::Overlap(const robs_t<T>* bs) 
 // Both FitImpBase faces are emitted HERE, where the shared member definitions above are visible (the
 // Density-face members would otherwise be undefined: ConstrainedFF.C can't emit what it can't see).
 template class FitImpBase<double, FunctionFitter_Scalar <double>, BasisSet::FIT_SF_ABS>;
-template class FitImpBase<double, FunctionFitter_Density<double>, BasisSet::FIT_CD_NonOrtho>;
+template class FitImpBase<double, FunctionFitter_Density_NonOrtho<double>, BasisSet::FIT_CD_NonOrtho>;
 template class FunctionFitterImp<double>;
 
 } //namespace

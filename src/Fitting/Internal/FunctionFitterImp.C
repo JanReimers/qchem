@@ -14,10 +14,10 @@ export namespace qchem::Fitting
 {
 
 //! \brief Shared implementation of the coefficient + real-space machinery common to BOTH fitter faces.
-//! Parametrised on the public face it implements (Face = FunctionFitter_Scalar/_Density<T>) and the narrow
-//! fit-basis face it holds (FBS = FIT_SF_ABS/FIT_CD_ABS).  Carries the fit coefficients and the shared
-//! ScalarFunction (operator()/Gradient), ReScale, FitMixIn/FitGetChangeFrom (coefficient-only) and Write;
-//! the metric-specific DoFit + contraction live in the leaf impls below.
+//! Parametrised on the public face it implements (Face = FunctionFitter_Scalar / _Density_NonOrtho<T>) and
+//! the narrow fit-basis face it holds (FBS = FIT_SF_ABS / FIT_CD_NonOrtho).  Carries the fit coefficients and
+//! the shared ScalarFunction (operator()/Gradient), ReScale and Write; the metric-specific DoFit +
+//! contraction live in the leaf impls below.
 template <class T, class Face, class FBS> class FitImpBase
     : public virtual Face
 {
@@ -28,8 +28,6 @@ public:
     FitImpBase(fbs_t& fbs) : itsBasisSet(fbs), itsFitCoeff(fbs->GetNumFunctions(),0.0) {}
 
     virtual void   ReScale         (double factor)            override; // Fit *= factor
-    virtual void   FitMixIn        (const Face&,double)        override; // this = this*(1-c) + that*c
-    virtual double FitGetChangeFrom(const Face&) const         override;
 
     virtual double  operator()(const rvec3_t&) const          override;
     virtual rvec3_t Gradient  (const rvec3_t&) const          override;
@@ -57,9 +55,9 @@ public:
 
 //---------------------------------------------------------------- Density (Coulomb-metric) impl
 template <class T> class ConstrainedFF
-    : public FitImpBase<T, FunctionFitter_Density<T>, BasisSet::FIT_CD_NonOrtho>
+    : public FitImpBase<T, FunctionFitter_Density_NonOrtho<T>, BasisSet::FIT_CD_NonOrtho>
 {
-    typedef FitImpBase<T, FunctionFitter_Density<T>, BasisSet::FIT_CD_NonOrtho> Base;
+    typedef FitImpBase<T, FunctionFitter_Density_NonOrtho<T>, BasisSet::FIT_CD_NonOrtho> Base;
 public:
     typedef typename Base::fbs_t fbs_t;
 
