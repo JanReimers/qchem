@@ -184,9 +184,15 @@ G-space FFT path (which stays, rightly, its own thing).
    `ID()`. Tests `LatticeMesh.UniformCellIntegratesConstantToVolume` (Σwᵢ=Ω) and `…PeriodicCosine`
    (cos²→Ω/2, exact) in `src/Structure/tests/MolecularMeshTests.C`. The **unit-cell Becke grid remains a
    future refinement** (adaptive atom-centred weighting) — the uniform grid is the working mesh.
-2. Then confirm `PP_Local`/`PP_NonLocal` + `Vnn(zionOf)` produce a sane lattice PP energy on that mesh (they
-   need no change; they index on `itsZ` and quadrature on the structure's mesh). **Still open** — needs a
-   real-space (Gaussian/numeric) orbital basis instantiated on a `UnitCell` to route through `Ham_PP`.
+2. ⭐ **THE NEXT ACTION ITEM.** Confirm `PP_Local`/`PP_NonLocal` + `Vnn(zionOf)` produce a sane lattice PP
+   energy on that mesh (the terms need no change; they index on `itsZ` and quadrature on the structure's mesh).
+   **The uniform mesh has no consumer yet**: *the pure PW path never calls `CreateIntegrationMesh`* — it owns
+   its G-grid and assembles PP in reciprocal space (empirically confirmed — the override *threw* until this
+   commit and every PW test still passed). So the mesh's first real caller must be a **real-space
+   (Gaussian/numeric) orbital basis instantiated on a `UnitCell`**, routed through `Ham_PP`. Standing that basis
+   up on a lattice — so `CreateIntegrationMesh` finally has a client — is the concrete next step; it is the
+   **GPW seed** (a Gaussian basis with a real-space grid for the potential/density), the first place molecular
+   and lattice PP actually share code.
 3. ✅ **isFinite() cleanup DONE** (the standalone part). `PW_Pseudo::GetEnergy` no longer downcasts to
    `UnitCell`: the periodic branch is guarded by `!theStructure->isFinite()` (the same semantic predicate
    `NuclearRepulsion` uses). Ω is **not** exposed as a `Structure` getter — that would be an **LSP violation**
@@ -200,6 +206,33 @@ G-space FFT path (which stays, rightly, its own thing).
    G=0 alignment in a unified term, and fold `PW_IonIon`/`Vnn` into a single `IonIon<T>`.
 **Note:** PW itself keeps `Integrals_Pseudo<dcmplx>` + its intrinsic G-grid — the G-space FFT route is
 principled and efficient. Unification is for real-space bases on a lattice, not for plane waves.
+
+#### Grid resolution: `nUniform` vs `Ecut` (must be Nyquist-consistent once they meet)
+`nUniform` (the uniform-mesh points/axis, real-space spacing `a/n`) and `Ecut` (the plane-wave kinetic
+cutoff, `|G|²/2 ≤ Ecut` ⇒ `G_max = √(2 Ecut)`) both set a real-space length scale (atomic units are kind
+here). They are **independent today only because they serve disjoint code paths**: `Ecut` sizes the PW
+basis's *own internal FFT grid* (Nyquist-pinned so the transform is alias-free), while `nUniform` sizes the
+integration mesh that the *real-space* PP terms use — and, per step 2, those two grids never meet the same
+integrand yet (PW never calls `CreateIntegrationMesh`).
+
+They **couple the moment a band-limited PW-bandwidth quantity is integrated on the uniform mesh.** The
+midpoint rule integrates `e^{iG·r}` *exactly* (→0 for `G≠0`) only while `n` out-resolves the integrand's
+highest G, i.e. `n·2π/a > G`. So to be alias-free for wavefunction bandwidth `G_max`:
+\f[
+  n_\text{Uniform} \;\gtrsim\; \frac{a\,G_\text{max}}{\pi} \;=\; \frac{a\sqrt{2 E_\text{cut}}}{\pi},
+\f]
+and for a **density** (`|ψ|²` doubles the bandwidth — the usual "density cutoff = 4× wavefunction `Ecut`")
+another factor of 2. It is an **inequality, not an equality**: below it you alias; above it you only spend
+extra points (harmless).
+
+**Design consequence.** Keep them as *separate knobs* (different terms have different smoothness — soft
+`V_loc` needs far fewer points than the wavefunction bandwidth implies; sharp KB `β_p Y_lm` near the core may
+need more; lock-stepping to `Ecut` would over/under-resolve). BUT in the mature real-space-basis-on-a-lattice
+implementation — this is exactly **GPW** (cf. CP2K `CUTOFF`/`REL_CUTOFF`) — `nUniform` should **not** be a
+free integer the user sets: **derive it from a grid `Ecut` via the Nyquist bound above**, so the collocation
+quadrature is alias-free *by construction*. `nUniform=20` is a stand-in default precisely because step 2 has
+not yet brought the two grids together; the moment it does, replacing that default with an `Ecut`-derived `n`
+is the correct move.
 
 ### Item 2 — Fold Fitting behind `Fit_ABS`: make PW honour the fit-basis process (§3.1)
 **Goal:** the density/potential FIT path is uniform — PW obtains its fit basis via the same
