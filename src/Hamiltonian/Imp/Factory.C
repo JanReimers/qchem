@@ -3,6 +3,8 @@ module;
 #include <cassert>
 #include <stdexcept>
 #include <string>
+#include <vector>
+#include <utility>
 module qchem.Hamiltonian.Factory;
 import qchem.Hamiltonian.Internal.Hamiltonians;
 import qchem.Hamiltonian.Internal.Libxc_LDA;             // XC::LibXC selector (one libxc LDA functional)
@@ -132,6 +134,13 @@ namespace qchem::Hamiltonian
                          const qcMesh::MeshParams& mp, const rbs_t* bs)
     {
         return new Ham_PP_U(st, element, valence, mp, bs);
+    }
+
+    // Multi-species pseudopotential front door: per-Z router PP so each atom gets its own GTH pseudopotential.
+    rHamiltonian* Factory(const st_t& st, const std::vector<std::pair<std::string,int>>& species,
+                         const qcMesh::MeshParams& mp, const rbs_t* bs)
+    {
+        return new Ham_PP_U(st, species, mp, bs);
     }
 
 }

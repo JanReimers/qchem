@@ -4,6 +4,7 @@ module;
 #include <vector>
 #include <string>
 #include <utility>
+#include <set>
 #include <algorithm>
 #include <cassert>
 #include <stdexcept>
@@ -69,20 +70,31 @@ static Molecule_EC* MakeMoleculeEC(int Ne, int multiplicity)
 static int PPZion(int Z) {return Pseudopotential::GetGTH(thePeriodicTable().GetSymbol(Z)).zion;}
 
 // Re-express a structure as its VALENCE ions for a pseudopotential run: each atom keeps its true species Z
-// (so the PP lookup and the true geometry are intact) but carries net charge Z-Zion, so GetNumElectrons()
-// reports the Zion valence count that the EC + FittedVee charge constraint consume.  Single-species for now.
+// (so the PP lookup and the true geometry are intact) but carries net charge Z-Zion(its own element), so
+// GetNumElectrons() reports the total Zion valence count the EC + FittedVee charge constraint consume.
 static std::shared_ptr<Structure> MakeValenceStructure(const Structure& st)
 {
-    const int Z0 = st[0]->itsZ;
-    for (size_t a=0; a<st.GetNumAtoms(); a++)
-        if (st[a]->itsZ != Z0)
-            throw std::runtime_error("qchem::Calculation: molecular pseudopotential is single-species for now "
-                                     "(all atoms must be the same element; multi-species is the next increment)");
-    const int zion = PPZion(Z0);
     auto mol = std::make_shared<Molecule>();
     for (size_t a=0; a<st.GetNumAtoms(); a++)
-        mol->Insert(new Atom(Z0, double(Z0 - zion), st[a]->itsR));   // charge = Z - Zion => Zion valence e-
+    {
+        const int Z = st[a]->itsZ;
+        mol->Insert(new Atom(Z, double(Z - PPZion(Z)), st[a]->itsR));   // per-element charge = Z - Zion
+    }
     return mol;
+}
+
+// The distinct pseudopotential species (element, valence) present in \a st -- the per-Z router the
+// multi-species PP Hamiltonian is built from.  A single-species molecule yields a 1-element list.
+static std::vector<std::pair<std::string,int>> PPSpecies(const Structure& st)
+{
+    std::vector<std::pair<std::string,int>> species;
+    std::set<int> seen;
+    for (size_t a=0; a<st.GetNumAtoms(); a++)
+    {
+        const int Z = st[a]->itsZ;
+        if (seen.insert(Z).second) species.push_back({thePeriodicTable().GetSymbol(Z), PPZion(Z)});
+    }
+    return species;
 }
 
 Calculation::Calculation(const Structure& st, const CalcOptions& opts, const AcceleratorOptions& acc)
@@ -118,8 +130,7 @@ bool Calculation::Converge(const SCFParams& params)
     // orbital basis, xalpha) are ignored for HF/1-e/Dirac.  A pseudopotential run takes the PP front door
     // instead (LSDA valence Hamiltonian: V_loc + KB projectors + Zion ion-ion in place of Ven).
     auto* ham = itsOpts.pseudopotential
-        ? qchem::Hamiltonian::Factory(itsStructure, thePeriodicTable().GetSymbol((*itsStructure)[0]->itsZ),
-                                      PPZion((*itsStructure)[0]->itsZ), itsOpts.mesh, itsBasis)
+        ? qchem::Hamiltonian::Factory(itsStructure, PPSpecies(*itsStructure), itsOpts.mesh, itsBasis)
         : qchem::Hamiltonian::Factory(itsOpts.model, itsOpts.pol, itsStructure,
                                       itsOpts.mesh, itsBasis, itsOpts.xalpha);
 

@@ -85,6 +85,12 @@ public:
              const qcMesh::MeshParams&, const rbs_t* bs);
     //! Convenience: look up + OWN the GTH local + KB non-local models for \a element at valence \a q (LDA).
     Ham_PP_U(const st_t& st, const std::string& element, int q, const qcMesh::MeshParams&, const rbs_t* bs);
+    //! Multi-species convenience: name each \a (element, valence); the GTH database is looked up per species
+    //! and a per-Z router (MultiSpecies_Local/Separable) is built + OWNED, so each atom gets its OWN
+    //! pseudopotential (the assembly + ion-ion already route on the atoms' itsZ).  The single-species case is
+    //! a 1-element list.  E.g. Ham_PP_U(st, {{"Si",4},{"O",6}}, mesh, bs).
+    Ham_PP_U(const st_t& st, const std::vector<std::pair<std::string,int>>& species,
+             const qcMesh::MeshParams&, const rbs_t* bs);
 };
 
 //

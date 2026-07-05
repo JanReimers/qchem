@@ -119,6 +119,35 @@ Ham_PP_U::Ham_PP_U(const st_t& st, const std::string& element, int q, const qcMe
                mp, bs)
 {}
 
+// Build the per-Z router models for a multi-species pseudopotential from GTH lookups (mirrors the PW
+// Ham_PW_DFT::BuildFromGTH): one MultiSpecies_Local + one MultiSpecies_Separable keyed by atomic number, so
+// PP_Local/PP_NonLocal/Vnn -- which already index on the atoms' itsZ -- give each atom its own PP.
+namespace {
+std::shared_ptr<const Pseudopotential::LocalPotential>
+BuildMultiSpeciesLocal(const std::vector<std::pair<std::string,int>>& species)
+{
+    auto loc=std::make_shared<Pseudopotential::MultiSpecies_LocalPotential>();
+    for (const auto& [element, q] : species)
+        loc->Add(thePeriodicTable().GetZ(element),
+                 std::make_shared<const Pseudopotential::HGH_LocalPotential>(Pseudopotential::GetGTH(element,"LDA",q).local));
+    return loc;
+}
+std::shared_ptr<const Pseudopotential::SeparablePotential_R>
+BuildMultiSpeciesSep(const std::vector<std::pair<std::string,int>>& species)
+{
+    auto sep=std::make_shared<Pseudopotential::MultiSpecies_SeparablePotential>();
+    for (const auto& [element, q] : species)
+        sep->Add(thePeriodicTable().GetZ(element),
+                 std::make_shared<const Pseudopotential::HGH_SeparablePotential>(Pseudopotential::GetGTH(element,"LDA",q).nonlocal));
+    return sep;
+}
+} //anon
+
+Ham_PP_U::Ham_PP_U(const st_t& st, const std::vector<std::pair<std::string,int>>& species,
+                   const qcMesh::MeshParams& mp, const rbs_t* bs)
+    : Ham_PP_U(st, BuildMultiSpeciesLocal(species), BuildMultiSpeciesSep(species), mp, bs)
+{}
+
 // Plane-wave LDA Kohn-Sham: the five G-space framework terms.  Exchange and correlation are SEPARATE
 // PW_XC terms (Dirac + VWN5), mirroring Ham_DFTcorr_U, so the correlation energy is the correct
 // E_c = integral eps_c rho.  No fit basis / mesh: the plane-wave basis owns the integration, and the

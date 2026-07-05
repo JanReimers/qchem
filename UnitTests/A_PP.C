@@ -56,3 +56,24 @@ TEST(Si2_PP_U, LargeSeparation)
     EXPECT_NEAR(eb.Enn, 16.0/R,   1e-6);      // Zion=4 ion-ion (Z=14 -> 196/R would fail): the routing check
     EXPECT_NEAR(E2, 2.0*E1,       5e-3);      // multi-atom PP additivity: neutral fragments -> ~2x at large R
 }
+
+// MULTI-SPECIES molecular pseudopotential: an O-Si pair (GTH-LDA, O q6 + Si q4) through the facade -- each
+// atom must get its OWN pseudopotential + Zion, built by the MultiSpecies_* per-Z routers.  The robust,
+// convergence-independent validation is the ion-ion energy, which routes on each atom's own Zion:
+//   Enn = Zion_O * Zion_Si / R = 6*4/R.
+// A single-species mis-route would give 16/R (both treated as Si) or 36/R (both O); the exact 24/R confirms
+// O->Zion6 and Si->Zion4 are routed independently (and the local/nonlocal potentials use the SAME per-Z map).
+// NOTE: absolute hetero-molecule ENERGIES are NOT asserted -- a good closed-shell value needs GTH-optimized
+// valence bases + molecular-PP SCF convergence for harder (e.g. 2p^4 O) elements, a documented follow-up
+// (the ad-hoc "sipp" O valence basis over-binds and the closed-shell O state does not fully converge here).
+TEST(OSi_PP_U, MultiSpeciesRouting)
+{
+    const double R = 20.0;   // bohr
+    Molecule osi;
+    osi.Insert(new Atom(8,  0.0, Vector3D<double>(0,0,0)));   // O  : GTH q6 -> Zion 6
+    osi.Insert(new Atom(14, 0.0, Vector3D<double>(0,0,R)));   // Si : GTH q4 -> Zion 4
+    Calculation cOSi(osi, {.basis = "sipp", .pseudopotential = true});   // ctor builds the per-species PP + converges
+
+    EXPECT_NEAR(cOSi.EnergyTerms().Enn, 24.0/R, 1e-6);   // per-species Zion routing: 6*4/R (not 16/R or 36/R)
+    EXPECT_LT(cOSi.Energy(), 0.0);                       // a finite, bound total (sanity; not an accuracy claim)
+}

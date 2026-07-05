@@ -1,7 +1,7 @@
-SIPP (Si valence, pseudopotential)
+PP valence test basis (Si, O) -- uncontracted even-tempered, valence-only for GTH pseudopotentials
 
 !
-BASIS="SIPP (Si valence, pseudopotential)"
+BASIS="PP valence test basis (Si, O)"
  SI  0
  S   1  1.00
        2.00000000      1.00000000
@@ -19,4 +19,22 @@ BASIS="SIPP (Si valence, pseudopotential)"
        0.16000000      1.00000000
  P   1  1.00
        0.06000000      1.00000000
+ ****
+ O   0
+ S   1  1.00
+      10.00000000      1.00000000
+ S   1  1.00
+       2.50000000      1.00000000
+ S   1  1.00
+       0.60000000      1.00000000
+ S   1  1.00
+       0.15000000      1.00000000
+ P   1  1.00
+       7.00000000      1.00000000
+ P   1  1.00
+       1.80000000      1.00000000
+ P   1  1.00
+       0.45000000      1.00000000
+ P   1  1.00
+       0.12000000      1.00000000
  ****
