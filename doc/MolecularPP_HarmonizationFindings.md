@@ -184,15 +184,18 @@ G-space FFT path (which stays, rightly, its own thing).
    `ID()`. Tests `LatticeMesh.UniformCellIntegratesConstantToVolume` (Σwᵢ=Ω) and `…PeriodicCosine`
    (cos²→Ω/2, exact) in `src/Structure/tests/MolecularMeshTests.C`. The **unit-cell Becke grid remains a
    future refinement** (adaptive atom-centred weighting) — the uniform grid is the working mesh.
-2. ⭐ **THE NEXT ACTION ITEM.** Confirm `PP_Local`/`PP_NonLocal` + `Vnn(zionOf)` produce a sane lattice PP
-   energy on that mesh (the terms need no change; they index on `itsZ` and quadrature on the structure's mesh).
-   **The uniform mesh has no consumer yet**: *the pure PW path never calls `CreateIntegrationMesh`* — it owns
-   its G-grid and assembles PP in reciprocal space (empirically confirmed — the override *threw* until this
-   commit and every PW test still passed). So the mesh's first real caller must be a **real-space
-   (Gaussian/numeric) orbital basis instantiated on a `UnitCell`**, routed through `Ham_PP`. Standing that basis
-   up on a lattice — so `CreateIntegrationMesh` finally has a client — is the concrete next step; it is the
-   **GPW seed** (a Gaussian basis with a real-space grid for the potential/density), the first place molecular
-   and lattice PP actually share code.
+2. ✅ **DONE (term level) — the mesh has its first client.** `PP_Local`/`PP_NonLocal` now assemble on a
+   `UnitCell`'s uniform mesh with **no change** (they index on `itsZ` and quadrature on the structure's mesh).
+   Validated by `L_PP.*` (`UnitTests/L_PP.C`): the SAME Si valence Gaussian basis + GTH-LDA q4 PP assembles the
+   SAME `PP_Local` and `PP_NonLocal` matrices whether the atom is a finite `Molecule` (Becke mesh) or sits at
+   the centre of a large `UnitCell` (uniform mesh) — `‖M_cell−M_fin‖_F/‖M_fin‖_F < 1e-2` (a box big enough to
+   hold the Gaussian tails + a grid fine enough to resolve them; `⟨χ(R)|V(·−R)|χ(R)⟩` is translation-invariant,
+   so they converge). This is empirical proof that *the pure PW path never calls `CreateIntegrationMesh`* — it
+   owns its G-grid — and that the geometry-neutral terms are the shared code. It is the **GPW seed** (a Gaussian
+   basis with a real-space grid for the potential). `Vnn(zionOf)` on a `UnitCell` already routes through Ewald
+   (`PlaneWaveDFT.VnnPeriodicUsesEwald`). **Remaining for a full lattice PP *energy*:** a real-space-basis SCF
+   on a `UnitCell` (periodic images / Bloch sum of the Gaussians, and the facade preserving the concrete
+   geometry instead of deep-copying to `Molecule`) — a larger increment than the term-level mesh validation.
 3. ✅ **isFinite() cleanup DONE** (the standalone part). `PW_Pseudo::GetEnergy` no longer downcasts to
    `UnitCell`: the periodic branch is guarded by `!theStructure->isFinite()` (the same semantic predicate
    `NuclearRepulsion` uses). Ω is **not** exposed as a `Structure` getter — that would be an **LSP violation**

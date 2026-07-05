@@ -9,7 +9,7 @@ add_executable(UTMain gtestmain.C
     LDA_XC_UT.C
     PlaneWaveDFTUT.C
     AtomicDensityUT.C
-    A_HF_U.C A_HF_P.C A_HF_dfPin.C A_DHF.C A_DFT.C A_DFT_U.C A_PP.C M_HF_U.C M_DFT.C M_Sym.C
+    A_HF_U.C A_HF_P.C A_HF_dfPin.C A_DHF.C A_DFT.C A_DFT_U.C A_PP.C L_PP.C M_HF_U.C M_DFT.C M_Sym.C
     M_Calculation.C
     M_Umbrella.C
     )
