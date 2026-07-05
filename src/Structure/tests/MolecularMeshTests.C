@@ -6,7 +6,6 @@
 #include <cmath>
 
 import qchem.Structure;                 // Molecule, Atom, Structure
-import qchem.Structure.MolecularMesh;  // MakeMolecularMesh
 import qchem.Mesh.Quadrature;          // qcMesh::Integrate, ScalarField
 import qchem.Math;                      // Pi32
 using namespace qchem;
@@ -53,12 +52,12 @@ TEST(MolecularMesh, CoincidentDimerEqualsAtom)
     rvec3_t o(0,0,0);
 
     Atom a(1,o);
-    auto m1=MakeMolecularMesh(a,mp);
+    auto m1=a.CreateIntegrationMesh(mp);
 
     Molecule dimer;
     dimer.Insert(new Atom(1,o));
     dimer.Insert(new Atom(1,o));          // right on top of each other (R_ab = 0)
-    auto m2=MakeMolecularMesh(dimer,mp);
+    auto m2=dimer.CreateIntegrationMesh(mp);
 
     GaussAt g(o);
     double I1=qcMesh::Integrate(m1,g);
@@ -76,7 +75,7 @@ TEST(MolecularMesh, SeparatedDimerIsAdditive)
     Molecule dimer;
     dimer.Insert(new Atom(1,RA));
     dimer.Insert(new Atom(1,RB));
-    auto m=MakeMolecularMesh(dimer,mp);
+    auto m=dimer.CreateIntegrationMesh(mp);
 
     TwoGauss f(RA,RB);
     EXPECT_NEAR(qcMesh::Integrate(m,f),2*Pi32,1e-3);
@@ -91,7 +90,7 @@ TEST(MolecularMesh, FarAtomDoesNotCorrupt)
     Molecule dimer;
     dimer.Insert(new Atom(1,RA));
     dimer.Insert(new Atom(1,RB));
-    auto m=MakeMolecularMesh(dimer,mp);
+    auto m=dimer.CreateIntegrationMesh(mp);
 
     GaussAt g(RA);                        // localised on atom A only
     EXPECT_NEAR(qcMesh::Integrate(m,g),Pi32,1e-3);

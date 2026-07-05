@@ -15,7 +15,6 @@ import qchem.Unittests.TestUtils;    // RelativeError, RelativeDHFError
 import qchem.Orbitals;              // Orbital, TOrbital
 import qchem.Math;                   // c_light, Pi, Pi12, FourPi, pow, tgamma, sqrt
 import qchem.Structure;             // Structure
-import qchem.Structure.MolecularMesh; // MakeMolecularMesh
 import qchem.Mesh;                  // qcMesh::Mesh / MeshParams
 import qchem.Symmetry.Atom.Spherical;    // Symmetry::Atom::Getκ (pick p1/2 vs p3/2)
 import qchem.Symmetry.Spin;         // Spin
@@ -138,7 +137,7 @@ using qchem::Orbitals::TOrbital;
 std::tuple<double,double,double> Integrate(const qchem::Orbitals::Orbital* o, const Structure& cl, double alpha)
 {
     const TOrbital<double>* to=dynamic_cast<const TOrbital<double>*>(o);
-    qcMesh::Mesh m = MakeMolecularMesh(cl, {.radial=qcMesh::RadialKind::MHL, .nRadial=200, .mhl_m=3,
+    qcMesh::Mesh m = cl.CreateIntegrationMesh({.radial=qcMesh::RadialKind::MHL, .nRadial=200, .mhl_m=3,
                                             .mhl_alpha=2.0, .angular=qcMesh::AngularKind::Gauss, .nAngular=1});
     const rvec3vec_t& R=m.Points();
     const rvec_t&     W=m.Weights();

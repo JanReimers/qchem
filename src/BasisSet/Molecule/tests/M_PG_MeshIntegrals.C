@@ -11,7 +11,6 @@ import qchem.BasisSet.Molecule.Readers.Gaussian94;
 import qchem.BasisSet.Molecule.PG_Cart;
 import qchem.BasisSet;
 import qchem.Structure;
-import qchem.Structure.MolecularMesh;   // MakeMolecularMesh (qcMesh mesh)
 import qchem.Mesh.Quadrature;           // qcMesh::Overlap + BasisField
 import qchem.VectorFunction;
 import qchem.Symmetry;
@@ -96,7 +95,7 @@ TEST_F(MeshIntegralsTests, PolGaussianOverlap)
         for (int aMHL=1;aMHL<=50;aMHL++)
         {
             double alpha=af*aMHL;
-            qcMesh::Mesh mesh = MakeMolecularMesh(*cl,
+            qcMesh::Mesh mesh = cl->CreateIntegrationMesh(
                 {.radial=qcMesh::RadialKind::MHL, .nRadial=int(Nradial), .mhl_m=int(mMHL),
                  .mhl_alpha=alpha, .angular=qcMesh::AngularKind::Gauss, .nAngular=12});
             for (auto ibs:bs->Iterate<Real_OIBS>())

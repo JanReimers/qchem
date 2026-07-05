@@ -5,7 +5,6 @@ target_sources(qcStructure PRIVATE
     Imp/Molecule.C 
     Imp/UnitCell.C
     Lattice_3D/Imp/Lattice_3D.C
-    Imp/MolecularMesh.C
     )
 target_sources(qcStructure PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Structure.C
@@ -14,7 +13,6 @@ target_sources(qcStructure PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Lattice_3D/ReciprocalLattice.C
     Lattice_3D/KMesh.C
     Lattice_3D/Lattice_3D.C
-    MolecularMesh.C
     )
 target_include_directories(qcStructure PRIVATE 
     ${PROJECT_SOURCE_DIR}/submodules/json/single_include

@@ -14,7 +14,7 @@ import qchem.BasisSet.Atom.IBS;          // Atom::RadialAngularID (the atom radi
 import qchem.BasisSet.Orbital_HF_IBS;
 import qchem.BasisSet;
 
-import qchem.Structure.MolecularMesh;   // MakeMolecularMesh (qcMesh mesh)
+import qchem.Structure;
 import qchem.Mesh.Quadrature;           // qcMesh quadrature + ScalarField/BasisField
 import qchem.VectorFunction;
 import qchem.Symmetry.Factory;
@@ -45,7 +45,7 @@ struct OneOverR2 : qcMesh::ScalarField<double>
 };
 qcMesh::Mesh AtomMesh(const Structure& st, int nRadial, int mhl_m, double alpha, int nAngular)
 {
-    return MakeMolecularMesh(st, {.radial=qcMesh::RadialKind::MHL, .nRadial=nRadial, .mhl_m=mhl_m,
+    return st.CreateIntegrationMesh({.radial=qcMesh::RadialKind::MHL, .nRadial=nRadial, .mhl_m=mhl_m,
                                   .mhl_alpha=alpha, .angular=qcMesh::AngularKind::Gauss, .nAngular=nAngular});
 }
 } //anon

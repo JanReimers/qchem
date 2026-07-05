@@ -13,7 +13,6 @@ import qchem.BasisSet;
 
 import qchem.Constants;
 import qchem.Structure;
-import qchem.Structure.MolecularMesh;   // MakeMolecularMesh (qcMesh mesh)
 import qchem.Mesh.Quadrature;           // qcMesh::Overlap/WeightedOverlap/KineticGrad2 + views
 import qchem.VectorFunction;             // VectorFunction<double> (the basis evaluator interface)
 import qchem.Symmetry.Atom.Spherical;
@@ -51,7 +50,7 @@ struct OneOverR2 : qcMesh::ScalarField<double>
 // The atom integration mesh: MHL radial x Gauss angular, single-center (natom=1, no Becke).
 qcMesh::Mesh AtomMesh(const Structure& st, int nRadial, int mhl_m, double alpha, int nAngular)
 {
-    return MakeMolecularMesh(st, {.radial=qcMesh::RadialKind::MHL, .nRadial=nRadial, .mhl_m=mhl_m,
+    return st.CreateIntegrationMesh({.radial=qcMesh::RadialKind::MHL, .nRadial=nRadial, .mhl_m=mhl_m,
                                   .mhl_alpha=alpha, .angular=qcMesh::AngularKind::Gauss, .nAngular=nAngular});
 }
 } //anon

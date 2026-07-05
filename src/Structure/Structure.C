@@ -114,6 +114,10 @@ private:
     std::vector<Atom*> itsAtoms;
 };
 
-
+// Becke fuzzy-Voronoi integration mesh for a finite structure -- the shared implementation behind
+// Atom::/Molecule::CreateIntegrationMesh.  Module-INTERNAL (NOT exported): callers use CreateIntegrationMesh,
+// the public per-geometry entry point; this is the algorithm both geometries delegate to.  See Imp/Molecule.C
+// (Becke 1988; coincident atoms R_ab=0 -> mu=0 so a coincident dimer integrates to the single-atom result).
+qcMesh::Mesh MakeMolecularMesh(const Structure&, const qcMesh::MeshParams&);
 
 } // namespace qchem

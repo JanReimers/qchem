@@ -7,7 +7,6 @@ module;
 #include <cassert>
 module qchem.BasisSet.Fit_IBS;
 import qchem.Mesh.Quadrature;          // qcMesh::Mesh, BasisField, ScalarField, Normalize, Overlap
-import qchem.Structure.MolecularMesh;  // MakeMolecularMesh (the Becke mesh)
 import qchem.BasisSet.Internal.DB_Cache;
 import qchem.Blaze;
 
@@ -41,7 +40,7 @@ public:
 
 void Fit_IBS::SetMesh(const Structure& st, const qcMesh::MeshParams& mp)
 {
-    itsMesh   = MakeMolecularMesh(st, mp);
+    itsMesh   = st.CreateIntegrationMesh(mp);   // the geometry's own mesh (was MakeMolecularMesh(st,mp))
     itsMeshID = mp.ID();   // cache key axis for the mesh-dependent Norm() (see Norm below)
 }
 

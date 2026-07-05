@@ -12,7 +12,6 @@ import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet;
 import qchem.Constants;
 import qchem.Structure;
-import qchem.Structure.MolecularMesh;   // MakeMolecularMesh (qcMesh mesh)
 import qchem.Mesh.Quadrature;           // qcMesh quadrature + ScalarField/BasisField
 import qchem.VectorFunction;
 import qchem.Symmetry.Atom.Spherical;
@@ -47,7 +46,7 @@ struct OneOverR2 : qcMesh::ScalarField<double>
 };
 qcMesh::Mesh AtomMesh(const Structure& st, int nRadial, int mhl_m, double alpha, int nAngular)
 {
-    return MakeMolecularMesh(st, {.radial=qcMesh::RadialKind::MHL, .nRadial=nRadial, .mhl_m=mhl_m,
+    return st.CreateIntegrationMesh({.radial=qcMesh::RadialKind::MHL, .nRadial=nRadial, .mhl_m=mhl_m,
                                   .mhl_alpha=alpha, .angular=qcMesh::AngularKind::Gauss, .nAngular=nAngular});
 }
 } //anon

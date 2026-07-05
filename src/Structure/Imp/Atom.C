@@ -4,14 +4,14 @@ module;
 #include <iomanip>
 module qchem.Structure;
 import qchem.Vector3D;
-import qchem.Structure.MolecularMesh;   // MakeMolecularMesh (a 1-atom Becke grid == the atom-centred grid)
 
 namespace qchem {
 
-// A single atom's integration mesh is its atom-centred radial x angular grid.  MakeMolecularMesh over a
-// one-atom structure yields exactly that (the Becke cell weight is identically 1 with no other centres), so
-// there is no multi-centre overhead.  (A dedicated pure-radial quadrature that exploits spherically-symmetric
-// integrands would be more efficient still, but needs the AO's (l,m) exposed -- a later specialization.)
+// A single atom's integration mesh is its atom-centred radial x angular grid.  The shared MakeMolecularMesh
+// (Imp/Molecule.C) over a one-atom structure yields exactly that -- the Becke cell weight is identically 1
+// with no other centres, so there is no multi-centre overhead.  (A dedicated pure-radial quadrature that
+// exploits spherically-symmetric integrands would be more efficient still, but needs the AO's (l,m) exposed
+// -- a later specialization.)
 qcMesh::Mesh Atom::CreateIntegrationMesh(const qcMesh::MeshParams& mp) const
 {
     return MakeMolecularMesh(*this, mp);
