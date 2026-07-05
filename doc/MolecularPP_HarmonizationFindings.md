@@ -7,8 +7,10 @@ path to harmonizing them* — in service of the long-term goal of hoisting struc
 `src/BasisSet`.
 
 Status: Si₂ molecular PP + multi-species (O–Si) routing converge through the `qchem::Calculation` facade;
-both pseudo-atoms (Si, O) validated. Full UTMain green. **The remaining harmonization work is captured as
-explicit action items in §7** (the two convergence points), with the map below.
+both pseudo-atoms (Si, O) validated. Full UTMain green. **Both harmonization items are substantially landed —
+see §6 (what has landed: PP harmonization, the real-space lattice mesh + `L_PP`, and all four fit-basis/fitter
+interface axes); §7 is the remaining wiring** (a lattice-PP SCF; the PW Hartree/XC routing on the now-clean
+interfaces). The map below still orients the two convergence points.
 
 ![Molecular vs plane-wave PP: shared spine + divergence points](diagrams/pp_molecular_vs_pw.svg)
 
@@ -156,8 +158,9 @@ properly-conditioned molecular basis (cleaner DZVP conversion), and a robust ort
 (canonical / level-shifted) in the accelerator/LASolver. Not blocking (the atoms converge). (Do NOT cite the
 old "N5" repro — N5 is a test-only tiny pool, invalid for SCF; see `[[feedback_scf_accuracy_levels]]`.)
 
-## 6. What landed this session
+## 6. What has landed
 
+### 6.1 PP harmonization (goals 1 & 2)
 1. `PseudoG0Energy` eliminated (A0 closeout; PW bit-identical).
 2. `Vnn` gained an optional Z→Zion callback (all-electron default = identity) — one ion-ion term for both.
 3. `Ham_PP` takes the **combined** `LocalPotential` (real-space view for `PP_Local` + `Zion` for `Vnn`).
@@ -166,51 +169,49 @@ old "N5" repro — N5 is a test-only tiny pool, invalid for SCF; see `[[feedback
    + generic `qcMesh` quadrature; `MolecularMesh` module folded into `Molecule.C` and deleted.
 6. Spin-native `Ham_PP` (`Pol`), facade accelerator selection, real CP2K GTH bases, both pseudo-atoms pinned.
 
-## 7. Action items for the next session (the two convergence points)
+### 6.2 Item 1 — real-space lattice PP (DONE at the term level)
+- **Uniform lattice mesh.** `UnitCell::CreateIntegrationMesh(mp)` builds the uniform real-space grid over the
+  cell: `mp.nUniform` points/axis at cell-fractional midpoints `f=((i+½)/n,…)` mapped by `ToCartesian` (`r=Af`),
+  equal weight `Ω/n³` — the midpoint rule, exact for smooth cell-periodic integrands. `nUniform` (default 20)
+  added to `qcMesh::MeshParams` + folded into `ID()`. Tests `LatticeMesh.*`. (Adaptive unit-cell Becke grid =
+  future refinement; the uniform grid is the working mesh.)
+- **The mesh's first client (GPW seed).** `PP_Local`/`PP_NonLocal` assemble on a `UnitCell`'s uniform mesh with
+  **no change** (they index on `itsZ`, quadrature on the structure's mesh). `L_PP.*` (`UnitTests/L_PP.C`) proves
+  it: the SAME Si valence Gaussian basis + GTH-LDA q4 PP gives the SAME `PP_Local`/`PP_NonLocal` matrices whether
+  the atom is a finite `Molecule` (Becke) or centred in a large `UnitCell` (uniform), `‖ΔM‖_F/‖M‖_F < 1e-2`
+  (`⟨χ(R)|V(·−R)|χ(R)⟩` is translation-invariant → they converge). Empirical proof that *the pure PW path never
+  calls `CreateIntegrationMesh`* (it owns its G-grid) and the geometry-neutral terms are the shared code.
+  `Vnn(zionOf)` on a `UnitCell` already routes through Ewald (`PlaneWaveDFT.VnnPeriodicUsesEwald`).
+- **LSP-clean G=0 alignment.** `PW_Pseudo::GetEnergy` no longer downcasts `Structure`→`UnitCell`. Ω is **not** a
+  `Structure` getter (`CellVolume()` isn't a fair question for an `Atom`/`Molecule` — LSP); instead the new
+  **`Structure::SumFormFactors(const std::function<double(int)>&)`** answers the fair Σₐf(Zₐ) — `Atom`/`Molecule`
+  the honest sum, `UnitCell` folding in `/Ω`. The physics (a finite structure has no periodic background, so
+  `Ealign=0`) stays in the term via `!isFinite()`; a periodic cell gets `Ealign = N·SumFormFactors(FormFactorG0)`.
 
-Everything above is committed. The remaining harmonization is **two** explicit items; the diagram at the top
-marks both. Neither blocks current PP use — they are the "hoist structure-neutral code up into `src/BasisSet`"
-payoff.
+### 6.3 Item 2 groundwork — the four fit-basis/fitter axes (DONE, all bit-identical, 172/172)
+The plan's original "PW `CreateCDFitBasisSet` returns `this`" was an **SRP violation** (the orbital basis
+`Band_FT_IBS` masquerading as its own fit basis — faces even collide on `Overlap()`). Fixing it revealed the
+faces baked in *molecular* assumptions (metric-solve + real functions) that forced an orthonormal/PW fitter to
+NA-stub what it can't do. Resolved by four orthogonal **ISP/representation splits** — each a self-documenting
+*name*, no behaviour change:
+- `23c75df4` — neutral **`ProjectedDensity<T>`** (the `DoFit` argument): the AO `rvec_t` and G-space map stay
+  each impl's PRIVATE container; no lattice/"Fourier" type leaks into the neutral face. (2b, `DoFit(tChargeDensity<T>)`,
+  is impossible — `qcChargeDensity→qcFitting` already; the reverse is a linker-forbidden cycle.)
+- `379e3230` — **`FIT_CD_ABS` → minimal face + `FIT_CD_NonOrtho`** (the *metric* axis): Coulomb metric-solve
+  inputs (`Charge`/`Repulsion`/`InvRepulsion`, sole consumer `ConstrainedFF`) move to the `NonOrtho` refinement.
+- `8a62f22d` — **`FunctionFitter_Density` → core + `_NonOrtho`** (same split, at the fitter): core `{DoFit,
+  Repulsion, Write}` + `_NonOrtho` adds self-energy/charge/rescale + the `ScalarFunction` value `FittedCD` uses.
+  Deleted dead `FitMixIn`/`FitGetChangeFrom`. The coming PW ortho fitter implements only the core — **no stubs**.
+- `3439d3d2` — **`FIT_CD_ABS<T> : IrrepBasisSet<T>`** (the *representation* axis): `rFIT_CD_ABS`=`<double>` (real
+  Gaussians), `cFIT_CD_ABS`=`<dcmplx>` (honest complex `e^{iG·r}`, no NA `op(r)`). *Insight:* the aux basis is
+  distinct because of **fit tuning** (ρ-fit exponents ×2, Vxc ×2/3; PW: a denser `{G}`, ×2 for ρ), NOT
+  orthonormality — so PW **does** have a fit basis (its tunable `{G}` grid); metric and tuned-basis are
+  orthogonal axes. The `r`/`c` alias keeps the wide ripple to one char per reference.
 
-### Item 1 — Unify molecular & lattice PP for a REAL-SPACE basis
-**Goal:** a Gaussian (or numeric) orbital basis on a *lattice* reuses the molecular `PP_Local`/`PP_NonLocal`
-(+ `Vnn`) terms unchanged — closing the "two assembly sites" divergence (§1) for everything except the PW
-G-space FFT path (which stays, rightly, its own thing).
-**Steps:**
-1. ✅ **DONE.** `UnitCell::CreateIntegrationMesh(mp)` now builds the **uniform real-space grid over the cell**
-   (`src/Structure/Imp/UnitCell.C`): `mp.nUniform` points per axis at cell-fractional midpoints
-   `f=((i+½)/n,…)` mapped by `ToCartesian` (`r=Af`), each with equal weight `Ω/n³` — the midpoint rule, exact
-   for smooth cell-periodic integrands. `nUniform` (default 20) added to `qcMesh::MeshParams` + folded into
-   `ID()`. Tests `LatticeMesh.UniformCellIntegratesConstantToVolume` (Σwᵢ=Ω) and `…PeriodicCosine`
-   (cos²→Ω/2, exact) in `src/Structure/tests/MolecularMeshTests.C`. The **unit-cell Becke grid remains a
-   future refinement** (adaptive atom-centred weighting) — the uniform grid is the working mesh.
-2. ✅ **DONE (term level) — the mesh has its first client.** `PP_Local`/`PP_NonLocal` now assemble on a
-   `UnitCell`'s uniform mesh with **no change** (they index on `itsZ` and quadrature on the structure's mesh).
-   Validated by `L_PP.*` (`UnitTests/L_PP.C`): the SAME Si valence Gaussian basis + GTH-LDA q4 PP assembles the
-   SAME `PP_Local` and `PP_NonLocal` matrices whether the atom is a finite `Molecule` (Becke mesh) or sits at
-   the centre of a large `UnitCell` (uniform mesh) — `‖M_cell−M_fin‖_F/‖M_fin‖_F < 1e-2` (a box big enough to
-   hold the Gaussian tails + a grid fine enough to resolve them; `⟨χ(R)|V(·−R)|χ(R)⟩` is translation-invariant,
-   so they converge). This is empirical proof that *the pure PW path never calls `CreateIntegrationMesh`* — it
-   owns its G-grid — and that the geometry-neutral terms are the shared code. It is the **GPW seed** (a Gaussian
-   basis with a real-space grid for the potential). `Vnn(zionOf)` on a `UnitCell` already routes through Ewald
-   (`PlaneWaveDFT.VnnPeriodicUsesEwald`). **Remaining for a full lattice PP *energy*:** a real-space-basis SCF
-   on a `UnitCell` (periodic images / Bloch sum of the Gaussians, and the facade preserving the concrete
-   geometry instead of deep-copying to `Molecule`) — a larger increment than the term-level mesh validation.
-3. ✅ **isFinite() cleanup DONE** (the standalone part). `PW_Pseudo::GetEnergy` no longer downcasts to
-   `UnitCell`: the periodic branch is guarded by `!theStructure->isFinite()` (the same semantic predicate
-   `NuclearRepulsion` uses). Ω is **not** exposed as a `Structure` getter — that would be an **LSP violation**
-   (`CellVolume()` is not a fair question for an `Atom`/`Molecule`). Instead a new **`Structure::SumFormFactors
-   (const std::function<double(int Z)>&)`** answers the *fair* geometric question Σₐf(Zₐ) for any structure:
-   `Atom`/`Molecule` return the honest sum; `UnitCell` overrides to `Σₐf(Zₐ)/Ω` (folding in its own volume —
-   the G=0 background is a per-volume quantity). `GetEnergy` keeps the **physics** decision — a finite
-   structure's atoms *have* form factors but there is no periodic background, so `Ealign=0` (the `isFinite()`
-   guard), while a periodic cell gets `Ealign = N·SumFormFactors(FormFactorG0)`. The `qchem.UnitCell` import
-   dropped from `PWTerms.C`. *Still open (future, once a unified PP term across `T` is wanted):* carry the same
-   G=0 alignment in a unified term, and fold `PW_IonIon`/`Vnn` into a single `IonIon<T>`.
-**Note:** PW itself keeps `Integrals_Pseudo<dcmplx>` + its intrinsic G-grid — the G-space FFT route is
-principled and efficient. Unification is for real-space bases on a lattice, not for plane waves.
+All four interface axes (representation × metric × core/refinement × projection) are split and clean — the PW
+density-fit basis (`cFIT_CD_ABS`) + ortho fitter can now be written implementing ONLY what they genuinely do.
 
-#### Grid resolution: `nUniform` vs `Ecut` (must be Nyquist-consistent once they meet)
+### 6.4 Grid resolution: `nUniform` vs `Ecut` (analysis — must be Nyquist-consistent once they meet)
 `nUniform` (the uniform-mesh points/axis, real-space spacing `a/n`) and `Ecut` (the plane-wave kinetic
 cutoff, `|G|²/2 ≤ Ecut` ⇒ `G_max = √(2 Ecut)`) both set a real-space length scale (atomic units are kind
 here). They are **independent today only because they serve disjoint code paths**: `Ecut` sizes the PW
@@ -237,53 +238,34 @@ quadrature is alias-free *by construction*. `nUniform=20` is a stand-in default 
 not yet brought the two grids together; the moment it does, replacing that default with an `Ecut`-derived `n`
 is the correct move.
 
-### Item 2 — Fold Fitting behind `Fit_ABS`: make PW honour the fit-basis process (§3.1)
-**Goal:** the density/potential FIT path is uniform — PW obtains its fit basis via the same
-`CreateXxxFitBasisSet` factory the molecular path uses, so a single neutral term-side fitting flow serves both.
+## 7. Action items for the next session (remaining)
 
-**Design refinement (decided in-session).** The plan's original step 1 said PW `CreateCDFitBasisSet` could
-"return `this`". That is an **SRP violation**: it makes the orbital basis (`Band_FT_IBS`) masquerade as its own
-fit basis — two responsibilities on one type, whose faces even *collide* (both have `Overlap()`). So PW returns
-a **dedicated** fit-basis object. Chasing that revealed the real obstacle wasn't the masquerade but that the
-faces themselves baked in the *non-orthonormal* metric-solve, forcing an orthonormal (PW) fitter/fit-basis to
-NA-stub what it can't do. Fixed by two **ISP splits** (a *name*, no new behaviour — the reference code reads as
-self-documenting): a minimal neutral face + a `NonOrtho` refinement carrying the metric-solve bits.
+The two harmonization items are both **substantially landed** (§6.2, §6.3); what remains is wiring on the now-clean
+interfaces. Neither blocks current PP use. **Note:** PW itself keeps `Integrals_Pseudo<dcmplx>` + its intrinsic
+G-grid — the G-space FFT route is principled and efficient; unification is for real-space bases on a lattice, not
+for plane waves.
 
-**Groundwork DONE (all bit-identical, 172/172 UTMain):**
-- `23c75df4` — neutral **`ProjectedDensity<T>`** base: `FunctionFitter_Density<T>::DoFit` now takes it (was the
-  AO-specific `ProjectedDensity_AO`); the non-ortho impl cross-casts. This is the layering-correct form of
-  "`DoFit` takes the projection" — 2b (`DoFit(tChargeDensity<T>)`) is impossible (qcChargeDensity→qcFitting is
-  a hard library edge; the reverse is a cycle the linker forbids). The AO (`rvec_t`) and G-space (map)
-  containers stay each impl's PRIVATE detail — no lattice/"Fourier" type leaks into the neutral face.
-- `379e3230` — **`FIT_CD_ABS` split**: now the minimal "I am a density-fit basis" face (just `Real_IBS`, the
-  fit functions — what `CreateCDFitBasisSet` returns and `Repulsion3C` consumes); the Coulomb metric-solve
-  inputs (`Charge`/`Repulsion`/`InvRepulsion`, sole consumer `ConstrainedFF`) moved to **`FIT_CD_NonOrtho`**.
-- `8a62f22d` — **`FunctionFitter_Density` split** (symmetric, one level up): minimal core `{DoFit, Repulsion,
-  Write}` (all a Hartree term needs) + **`FunctionFitter_Density_NonOrtho`** adding self-energy/charge/rescale
-  + the `ScalarFunction` real-space value the molecular `FittedCD` uses. Also deleted `FitMixIn`/
-  `FitGetChangeFrom` (dead on both faces). The coming PW ortho fitter implements only the core — **no NA-stubs**.
-- `3439d3d2` — **`FIT_CD_ABS<T>` templated on the REPRESENTATION axis** (orthogonal to the metric axis). The
-  minimal face was still welded to `Real_IBS` (real real-space `VectorFunction<double>`) — a Gaussian
-  assumption a complex plane-wave fit basis can't meet. Now `FIT_CD_ABS<T> : IrrepBasisSet<T>`:
-  `rFIT_CD_ABS`=`<double>` (real Gaussians), `cFIT_CD_ABS`=`<dcmplx>` (honest complex `e^{iG·r}`, no NA op(r));
-  `FIT_CD_NonOrtho : rFIT_CD_ABS` (non-ortho ⟹ real). *Insight (user):* the aux basis is distinct because of
-  **fit tuning** (ρ-fit exponents ×2, Vxc ×2/3; PW: a denser `{G}`, ×2 for ρ) — NOT because of orthonormality.
-  So PW **does** have a fit basis (its tunable `{G}` grid); the metric axis (Ortho/NonOrtho) and the tuned-basis
-  axis are orthogonal. The r-prefix alias keeps the wide ripple to one char per reference.
+### Item 1 remaining — full lattice-PP *energy* (SCF)
+The terms already assemble on the lattice mesh (§6.2). Left for a real *energy*:
+1. A real-space-basis **SCF on a `UnitCell`** — periodic images / Bloch sum of the Gaussians, + teach the
+   `qchem::Calculation` facade to **preserve the concrete geometry** (it currently deep-copies to `Molecule`,
+   stripping periodicity). A larger increment than the term-level mesh validation.
+2. *(Future, once a unified PP term across `T` is wanted)* fold `PW_IonIon`/`Vnn` into a single `IonIon<T>` carrying
+   the G=0 alignment (`0` for finite, `(N/Ω)·ΣFormFactorG0` for periodic — the hardcoded-0.0 pattern).
+3. *(Future GPW)* derive `nUniform` from a grid `Ecut` via the Nyquist bound (§6.4) rather than a free integer.
 
-**All four interface axes are now split and clean (representation × metric × core/refinement × projection).** The
-PW density-fit basis (`cFIT_CD_ABS`) + ortho fitter can now be written implementing ONLY what they genuinely do.
-
-**Remaining (the actual PW Hartree routing):**
-1. A dedicated PW density-fit basis class implementing only minimal `FIT_CD_ABS` (SRP — separate from
-   `Band_FT_IBS`; carries the `{G}` grid, trivially the orbital grid now, a denser ×2 grid later per the Nyquist
-   note above). `Band_FT_IBS::CreateCDFitBasisSet` returns it; delete the `assert(false)` `<dcmplx>` stub.
-2. `ProjectedDensity_G : ProjectedDensity<dcmplx>` wrapping the rho-tilde map (rename the misnamed neutral
-   `FourierMap` alias — it's just a G-keyed coefficient map — and confine it off the neutral interface).
+### Item 2 remaining — the actual PW Hartree routing (interfaces ready, §6.3)
+1. A dedicated PW density-fit basis class implementing minimal **`cFIT_CD_ABS`** (`: IrrepBasisSet<dcmplx>` —
+   separate object, not `Band_FT_IBS`; carries the tunable `{G}` grid, = the orbital grid now, ×2 for ρ later).
+   `Band_FT_IBS::CreateCDFitBasisSet` returns it; `tBasisSet<dcmplx>::CreateCDFitBasisSet` delegates — delete the
+   `assert(false)` stub (`src/BasisSet/Imp/BasisSet.C`).
+2. `ProjectedDensity_G : ProjectedDensity<dcmplx>` wrapping the rho-tilde map (rename the misnamed `FourierMap`
+   alias — it's just a G-keyed coefficient map — and confine it off the neutral interface).
 3. An ortho density fitter implementing the **core** `FunctionFitter_Density<dcmplx>` (DoFit cross-casts to
-   `ProjectedDensity_G`; Repulsion delegates to `Band_FT_IBS`) — this is the de-abstracted `FourierFunctionFitter`
-   re-homed behind the core face, renamed `OrthoFunctionFitter`, moved to `Fitting/Internal`.
-4. Route `PW_Hartree` to obtain it via the factory; verify PW DFT energies bit-identical.
-5. Then the **XC/Scalar face** (its own `ProjectedScalar<T>` design, mirroring `ProjectedDensity<T>`) + route
+   `ProjectedDensity_G`; Repulsion delegates to `Band_FT_IBS`) — the de-abstracted `FourierFunctionFitter`
+   re-homed behind the core face, renamed **`OrthoFunctionFitter`**, moved to `Fitting/Internal`.
+4. Route `PW_Hartree` to obtain it via the factory; verify PW DFT energies **bit-identical**.
+5. Then the **XC/Scalar face** — its own `ProjectedScalar<T>` design mirroring `ProjectedDensity<T>` — + route
    `PW_XC`; only then can `OrthoFunctionFitter` fully move to `Internal` (both PW terms off the direct import).
+
 **Constraint:** never assume `orbital == fit` (§3.1); the factory is the seam even when PW's answer is trivial.
