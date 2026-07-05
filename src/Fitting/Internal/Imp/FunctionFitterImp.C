@@ -87,7 +87,7 @@ template <class T> hmat_t<T> FunctionFitterImp<T>::Overlap(const robs_t<T>* bs) 
 // Both FitImpBase faces are emitted HERE, where the shared member definitions above are visible (the
 // Density-face members would otherwise be undefined: ConstrainedFF.C can't emit what it can't see).
 template class FitImpBase<double, FunctionFitter_Scalar <double>, BasisSet::FIT_SF_ABS>;
-template class FitImpBase<double, FunctionFitter_Density<double>, BasisSet::FIT_CD_ABS>;
+template class FitImpBase<double, FunctionFitter_Density<double>, BasisSet::FIT_CD_NonOrtho>;
 template class FunctionFitterImp<double>;
 
 } //namespace

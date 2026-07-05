@@ -10,18 +10,30 @@ import qchem.Structure;               // Structure (SetMesh builds the Becke mes
 export namespace qchem::BasisSet
 {
 
-//! \brief Auxiliary basis set face for a CHARGE-DENSITY fit (the Coulomb metric): the integrals
-//! FittedVee / FittedCD need.  Density fitting solves \f$\min_c \|\rho-\sum_c c_c f_c\|_V\f$ in the
-//! Coulomb norm under a charge constraint, so this face serves the Coulomb metric \c Repulsion (the
-//! \f$\langle f_a|1/r_{12}|f_b\rangle\f$ system matrix), its inverse, the cross-repulsion against
-//! another CD fit basis (self-energy), and the per-function \c Charge.  (ISP sibling of \c FIT_SF_ABS.)
+//! \brief The MINIMAL, orthonormality-neutral face of a CHARGE-DENSITY fit basis: just "I am a density-fit
+//! basis" -- its fit FUNCTIONS, via \c Real_IBS.  This is what \c CreateCDFitBasisSet returns and what the
+//! 3-centre \c Repulsion3C consumes (it needs the functions that define each \f$f_c\f$, not their metric).
+//! The Coulomb metric-solve inputs live on the \c FIT_CD_NonOrtho refinement below: an orthonormal
+//! (plane-wave) fit basis IS-A \c FIT_CD_ABS but has NO metric solve, so it neither carries nor fakes them
+//! (SRP -- and the orbital basis must not masquerade as its own fit basis).  (ISP sibling of \c FIT_SF_ABS.)
 class FIT_CD_ABS
     : public virtual Real_IBS //Real Irrep basis Set
+{
+};
+
+//! \brief A NON-orthonormal (Gaussian/Slater/BSpline) density-fit basis: adds the Coulomb metric-solve inputs
+//! the least-squares density fit needs.  Density fitting solves \f$\min_c \|\rho-\sum_c c_c f_c\|_V\f$ in the
+//! Coulomb norm under a charge constraint, so this face serves the Coulomb metric \c Repulsion (the
+//! \f$\langle f_a|1/r_{12}|f_b\rangle\f$ system matrix), its inverse, the cross-repulsion against another CD
+//! fit basis (self-energy), and the per-function \c Charge.  SOLE consumer: the non-ortho \c ConstrainedFF
+//! density fitter.  An orthonormal (plane-wave) fit basis omits ALL of this (the projection IS the fit).
+class FIT_CD_NonOrtho
+    : public virtual FIT_CD_ABS
 {
 public:
     virtual const  rvec_t& Charge      () const=0;  //!< <f_a|1> per fit function (the charge constraint RHS)
     virtual const rsmat_t& Repulsion   () const=0;  //!< Coulomb metric <f_a|1/r12|f_b>, cached
-    virtual const  rmat_t& Repulsion   (const FIT_CD_ABS&) const=0; //!< cross Coulomb <f_a|1/r12|g_b>
+    virtual const  rmat_t& Repulsion   (const FIT_CD_ABS&) const=0; //!< cross Coulomb <f_a|1/r12|g_b> (arg = functions)
     virtual const rsmat_t& InvRepulsion() const=0;  //!< inverse of the Coulomb metric, cached
 };
 
@@ -49,7 +61,7 @@ public:
 //! (FIT_CD_ABS for a density fit, FIT_SF_ABS for a potential fit) for type safety; the union exists so
 //! one concrete object can be handed to either creator.
 class Fit_IBS
-    : public virtual FIT_CD_ABS
+    : public virtual FIT_CD_NonOrtho
     , public virtual FIT_SF_ABS
 {
 public:

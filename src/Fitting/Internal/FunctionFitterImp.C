@@ -57,9 +57,9 @@ public:
 
 //---------------------------------------------------------------- Density (Coulomb-metric) impl
 template <class T> class ConstrainedFF
-    : public FitImpBase<T, FunctionFitter_Density<T>, BasisSet::FIT_CD_ABS>
+    : public FitImpBase<T, FunctionFitter_Density<T>, BasisSet::FIT_CD_NonOrtho>
 {
-    typedef FitImpBase<T, FunctionFitter_Density<T>, BasisSet::FIT_CD_ABS> Base;
+    typedef FitImpBase<T, FunctionFitter_Density<T>, BasisSet::FIT_CD_NonOrtho> Base;
 public:
     typedef typename Base::fbs_t fbs_t;
 

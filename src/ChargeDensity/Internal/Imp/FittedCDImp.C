@@ -29,9 +29,11 @@ public:
     virtual rvec_t GetRepulsion3C(const BasisSet::FIT_CD_ABS* fbs) const
     {
         const auto* sf = dynamic_cast<const BasisSet::FIT_SF_ABS*>(fbs);
+        const auto* no = dynamic_cast<const BasisSet::FIT_CD_NonOrtho*>(fbs);   // the Coulomb metric face
         assert(sf && "ScalarSeedProjection_AO: the CD fit basis must also expose its overlap (FIT_SF_ABS) face");
+        assert(no && "ScalarSeedProjection_AO: the seed overlap-fit needs the Coulomb metric (FIT_CD_NonOrtho)");
         rvec_t e = sf->InvOverlap() * sf->Overlap(itsRho);   // overlap-metric fit coeffs (samples rho(r))
-        return fbs->Repulsion() * e;                          // Coulomb-project -> <rho_fit|f_c>
+        return no->Repulsion() * e;                          // Coulomb-project -> <rho_fit|f_c>
     }
 private:
     const ScalarFunction<double>& itsRho;
