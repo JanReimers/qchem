@@ -262,6 +262,17 @@ self-documenting): a minimal neutral face + a `NonOrtho` refinement carrying the
   Write}` (all a Hartree term needs) + **`FunctionFitter_Density_NonOrtho`** adding self-energy/charge/rescale
   + the `ScalarFunction` real-space value the molecular `FittedCD` uses. Also deleted `FitMixIn`/
   `FitGetChangeFrom` (dead on both faces). The coming PW ortho fitter implements only the core — **no NA-stubs**.
+- `3439d3d2` — **`FIT_CD_ABS<T>` templated on the REPRESENTATION axis** (orthogonal to the metric axis). The
+  minimal face was still welded to `Real_IBS` (real real-space `VectorFunction<double>`) — a Gaussian
+  assumption a complex plane-wave fit basis can't meet. Now `FIT_CD_ABS<T> : IrrepBasisSet<T>`:
+  `rFIT_CD_ABS`=`<double>` (real Gaussians), `cFIT_CD_ABS`=`<dcmplx>` (honest complex `e^{iG·r}`, no NA op(r));
+  `FIT_CD_NonOrtho : rFIT_CD_ABS` (non-ortho ⟹ real). *Insight (user):* the aux basis is distinct because of
+  **fit tuning** (ρ-fit exponents ×2, Vxc ×2/3; PW: a denser `{G}`, ×2 for ρ) — NOT because of orthonormality.
+  So PW **does** have a fit basis (its tunable `{G}` grid); the metric axis (Ortho/NonOrtho) and the tuned-basis
+  axis are orthogonal. The r-prefix alias keeps the wide ripple to one char per reference.
+
+**All four interface axes are now split and clean (representation × metric × core/refinement × projection).** The
+PW density-fit basis (`cFIT_CD_ABS`) + ortho fitter can now be written implementing ONLY what they genuinely do.
 
 **Remaining (the actual PW Hartree routing):**
 1. A dedicated PW density-fit basis class implementing only minimal `FIT_CD_ABS` (SRP — separate from
