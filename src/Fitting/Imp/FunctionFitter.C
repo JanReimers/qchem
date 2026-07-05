@@ -15,7 +15,7 @@ MakeScalarFitter(std::shared_ptr<const BasisSet::FIT_SF_ABS>& bs)
 }
 
 std::unique_ptr<FunctionFitter_Density_NonOrtho<double>>
-MakeDensityFitter(std::shared_ptr<const BasisSet::FIT_CD_ABS>& bs)
+MakeDensityFitter(std::shared_ptr<const BasisSet::rFIT_CD_ABS>& bs)
 {
     // The non-ortho (Gaussian) density fit needs the Coulomb metric-solve face; recover it from the neutral
     // fit-basis handle (a sanctioned abstract->abstract cross-cast).  An orthonormal (PW) fit basis takes the

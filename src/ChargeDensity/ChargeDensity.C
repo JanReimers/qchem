@@ -213,7 +213,7 @@ public:
     virtual size_t Version() const {return GetChargeDensity(Spin::Up)->Version();}
 
     virtual double FitGetConstraint() const {return GetTotalCharge();}   // AO fit RHS: the charge N
-    virtual rvec_t GetRepulsion3C(const BasisSet::FIT_CD_ABS*) const;
+    virtual rvec_t GetRepulsion3C(const BasisSet::rFIT_CD_ABS*) const;
     virtual void AccumulateDirectAll  (std::vector<rsmat_t>& Jall) const;  // sum both spins (Coulomb)
     virtual void AccumulateExchangeAll(std::vector<rsmat_t>& Kall) const;  // sum both spins (RHF exchange)
 

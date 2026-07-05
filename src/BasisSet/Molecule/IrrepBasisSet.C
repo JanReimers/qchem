@@ -96,7 +96,7 @@ protected:
         else return Make3C(c, [](const E& aE, size_t ia, size_t ib, const E& cE, size_t ic)
                                    {return aE.OverlapThreeC(ia, aE, ib, cE, ic);});
     }
-    virtual ERI3<double> MakeRepulsion3C(const FIT_CD_ABS& c) const
+    virtual ERI3<double> MakeRepulsion3C(const rFIT_CD_ABS& c) const
     {
         if constexpr (Evaluators::isM_DFT_Evaluator<E>)
             return dynamic_cast<const E&>(*this).RepulsionThreeC_Matrix(dynamic_cast<const E&>(c));

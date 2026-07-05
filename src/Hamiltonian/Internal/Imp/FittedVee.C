@@ -17,7 +17,7 @@ namespace qchem::Hamiltonian
 
 FittedVee::FittedVee(fbs_t& chargeDensityFitBasisSet, double numElectrons)
 {
-    // The CD fit basis arrives as the narrow Coulomb-metric (FIT_CD_ABS) face -- exactly what the
+    // The CD fit basis arrives as the narrow Coulomb-metric (rFIT_CD_ABS) face -- exactly what the
     // density-fitting machinery takes; thread it straight through (no down-cast to the concrete Fit_IBS).
     itsFittedChargeDensity=ChargeDensity::FittedCD_Factory(chargeDensityFitBasisSet,numElectrons);
     assert(itsFittedChargeDensity);

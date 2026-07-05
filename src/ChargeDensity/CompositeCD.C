@@ -44,7 +44,7 @@ public:
     virtual size_t Version() const {return itsCDs.empty() ? 0 : itsCDs.front()->Version();}
 
     virtual double FitGetConstraint() const {return GetTotalCharge();}   // AO fit RHS: the charge N
-    virtual rvec_t GetRepulsion3C(const BasisSet::FIT_CD_ABS*) const;
+    virtual rvec_t GetRepulsion3C(const BasisSet::rFIT_CD_ABS*) const;
 
     virtual void   ReScale      (double factor         )      ;  // No UT coverage//Ro *= factor
     virtual void   MixIn        (const tDM_CD<T>&,double)      ;  //this = (1-c)*this + c*that.

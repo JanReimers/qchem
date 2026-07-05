@@ -70,7 +70,7 @@ public:
     Orbital_IBS(const rvec_t& exponents, size_t L, const Structure *);
     Orbital_IBS(const rvec_t& exponents, size_t L);
 
-    virtual FIT_CD_ABS* CreateCDFitBasisSet(const Structure *, const qcMesh::MeshParams&) const override;
+    virtual rFIT_CD_ABS* CreateCDFitBasisSet(const Structure *, const qcMesh::MeshParams&) const override;
     virtual FIT_SF_ABS* CreateVxcFitBasisSet(const Structure *, const qcMesh::MeshParams&) const override;
 
     //! This basis's AO shells in Cartesian-monomial form (delegates to ExtractAoShells on its own PGData).
@@ -87,7 +87,7 @@ public:
     virtual rsmat_t MakeOverlap() const {return MakeOverlap2C(this);}
     virtual  rvec_t MakeCharge   () const;
     virtual rsmat_t MakeRepulsion() const {return MakeRepulsion2C(this);}
-    virtual  rmat_t MakeRepulsion(const FIT_CD_ABS& b) const;
+    virtual  rmat_t MakeRepulsion(const rFIT_CD_ABS& b) const;
 };
 class BasisSet 
     : public virtual ::qchem::BasisSet::tBasisSet<double>

@@ -26,7 +26,7 @@ public:
     ScalarSeedProjection_AO(const ScalarFunction<double>& rho, double charge)
         : itsRho(rho), itsCharge(charge) {}
     virtual double FitGetConstraint() const {return itsCharge;}                   // the AO fit RHS charge N
-    virtual rvec_t GetRepulsion3C(const BasisSet::FIT_CD_ABS* fbs) const
+    virtual rvec_t GetRepulsion3C(const BasisSet::rFIT_CD_ABS* fbs) const
     {
         const auto* sf = dynamic_cast<const BasisSet::FIT_SF_ABS*>(fbs);
         const auto* no = dynamic_cast<const BasisSet::FIT_CD_NonOrtho*>(fbs);   // the Coulomb metric face
@@ -41,7 +41,7 @@ private:
 };
 } //anonymous namespace
 
-// typedef std::shared_ptr<const BasisSet::FIT_CD_ABS> fbs_t; 
+// typedef std::shared_ptr<const BasisSet::rFIT_CD_ABS> fbs_t; 
 //------------------------------------------------------------------------------------
 //
 //  Construction zone.

@@ -19,7 +19,7 @@ export namespace qchem::ChargeDensity
 template <class T> class FittedCDImp
     : public virtual FittedCD
 {
-    typedef std::shared_ptr<const BasisSet::FIT_CD_ABS> fbs_t;   //!< Coulomb-metric aux basis (narrow face)
+    typedef std::shared_ptr<const BasisSet::rFIT_CD_ABS> fbs_t;   //!< Coulomb-metric aux basis (narrow face)
 public:
     FittedCDImp(fbs_t&, double totalCharge);
     FittedCDImp(const FittedCDImp&) = delete;   //!< copying would slice the fitter's constraint

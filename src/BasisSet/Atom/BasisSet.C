@@ -49,7 +49,7 @@ public:
         };
 
 
-        virtual FIT_CD_ABS* CreateCDFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const
+        virtual rFIT_CD_ABS* CreateCDFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const
         {
             auto* f = new EFit_IBS(Evaluator::Rescale(2.0, this->GetSymt()));
             f->SetMesh(*cl, mp);

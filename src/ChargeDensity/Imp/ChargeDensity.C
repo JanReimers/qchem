@@ -62,7 +62,7 @@ double Polarized_CD::GetTotalSpin() const
     return GetChargeDensity(Spin::Up)->GetTotalCharge() - GetChargeDensity(Spin::Down)->GetTotalCharge() ;
 }
 
-rvec_t Polarized_CD::GetRepulsion3C(const BasisSet::FIT_CD_ABS* fbs) const
+rvec_t Polarized_CD::GetRepulsion3C(const BasisSet::rFIT_CD_ABS* fbs) const
 {
     // The spin blocks are finite (molecular) densities, hence ProjectedDensity_AO -- cross-cast to their AO
     // face and sum the projections (the AO face is no longer a forced base of tDM_CD).

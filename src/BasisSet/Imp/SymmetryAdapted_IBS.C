@@ -93,10 +93,10 @@ ERI3<double> SymmetryAdapted_IBS::TransformERI3(const ERI3<double>& raw) const
 // integral cache is re-entrant now, so the nested cached access is safe).  The raw 3C is therefore
 // computed once and shared across all irreps; only the cheap O^T (.) O transform is per irrep.
 ERI3<double> SymmetryAdapted_IBS::MakeOverlap3C  (const FIT_SF_ABS& c) const { return TransformERI3(itsRawDFT->Overlap3C(c));   }
-ERI3<double> SymmetryAdapted_IBS::MakeRepulsion3C(const FIT_CD_ABS& c) const { return TransformERI3(itsRawDFT->Repulsion3C(c)); }
+ERI3<double> SymmetryAdapted_IBS::MakeRepulsion3C(const rFIT_CD_ABS& c) const { return TransformERI3(itsRawDFT->Repulsion3C(c)); }
 
 // Fit bases are atom-centred (geometry, not symmetry), so reuse the raw basis's unchanged.
-FIT_CD_ABS* SymmetryAdapted_IBS::CreateCDFitBasisSet (const Structure* cl, const qcMesh::MeshParams& mp) const { return itsRawDFT->CreateCDFitBasisSet(cl,mp);  }
+rFIT_CD_ABS* SymmetryAdapted_IBS::CreateCDFitBasisSet (const Structure* cl, const qcMesh::MeshParams& mp) const { return itsRawDFT->CreateCDFitBasisSet(cl,mp);  }
 FIT_SF_ABS* SymmetryAdapted_IBS::CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const { return itsRawDFT->CreateVxcFitBasisSet(cl,mp); }
 
 // Coulomb / exchange are linear in the density, so build the AO matrix from the cd-irrep's

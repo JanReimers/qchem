@@ -40,7 +40,7 @@ rvec_t EFit_IBS::MakeCharge() const
     return c;
 }
 
-rmat_t EFit_IBS::MakeRepulsion(const FIT_CD_ABS& _b) const
+rmat_t EFit_IBS::MakeRepulsion(const rFIT_CD_ABS& _b) const
 {   
     const PGData* a=dynamic_cast<const PGData*>(this);
     const PGData* b=dynamic_cast<const PGData*>(&_b);

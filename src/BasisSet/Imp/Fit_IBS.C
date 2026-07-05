@@ -54,7 +54,7 @@ const rsmat_t& Fit_IBS::Repulsion() const
     return theCache<double>().Get(IntegralsCache_Base::I2C::Repulsion,this,
         [this]{ return MakeRepulsion(); });
 }
-const  rmat_t& Fit_IBS::Repulsion(const FIT_CD_ABS& b) const
+const  rmat_t& Fit_IBS::Repulsion(const rFIT_CD_ABS& b) const
 {
     return theCache<double>().Get(IntegralsCache_Base::I2x::Repulsion,this,&b
             ,[this,&b]{ return MakeRepulsion(b); });

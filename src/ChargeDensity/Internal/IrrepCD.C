@@ -40,7 +40,7 @@ public:
     //! AO (auxiliary-basis) projection <rho|c> -- the finite (double) path's ProjectedDensity_AO face; the
     //! periodic (dcmplx) path has no AO face (not cross-cast there), so the dcmplx body is inert.
     virtual double FitGetConstraint() const {return GetTotalCharge();}   // AO fit RHS: the charge N
-    virtual rvec_t GetRepulsion3C(const BasisSet::FIT_CD_ABS*) const;
+    virtual rvec_t GetRepulsion3C(const BasisSet::rFIT_CD_ABS*) const;
 
     virtual double DM_Contract(const tStatic_CC<T>*) const;
     virtual double DM_Contract(const tDynamic_CC<T>*,const tDM_CD<T>*) const;

@@ -10,30 +10,35 @@ import qchem.Structure;               // Structure (SetMesh builds the Becke mes
 export namespace qchem::BasisSet
 {
 
-//! \brief The MINIMAL, orthonormality-neutral face of a CHARGE-DENSITY fit basis: just "I am a density-fit
-//! basis" -- its fit FUNCTIONS, via \c Real_IBS.  This is what \c CreateCDFitBasisSet returns and what the
+//! \brief The MINIMAL, metric-neutral face of a CHARGE-DENSITY fit basis: just "I am a density-fit basis" --
+//! its fit FUNCTIONS, via \c IrrepBasisSet<T>.  This is what \c CreateCDFitBasisSet returns and what the
 //! 3-centre \c Repulsion3C consumes (it needs the functions that define each \f$f_c\f$, not their metric).
-//! The Coulomb metric-solve inputs live on the \c FIT_CD_NonOrtho refinement below: an orthonormal
-//! (plane-wave) fit basis IS-A \c FIT_CD_ABS but has NO metric solve, so it neither carries nor fakes them
-//! (SRP -- and the orbital basis must not masquerade as its own fit basis).  (ISP sibling of \c FIT_SF_ABS.)
-class FIT_CD_ABS
-    : public virtual Real_IBS //Real Irrep basis Set
+//! Templated on the representation \a T so a real (Gaussian) fit basis is \c rFIT_CD_ABS (=FIT_CD_ABS<double>,
+//! real \c VectorFunction) and a plane-wave one is \c cFIT_CD_ABS (=FIT_CD_ABS<dcmplx>, the complex \f$e^{iG
+//! \cdot r}\f$ functions -- honestly complex, no NA-stub).  The two design axes are ORTHOGONAL: this T axis is
+//! the representation; the \c FIT_CD_NonOrtho refinement below is the metric axis.  (ISP sibling of \c
+//! FIT_SF_ABS.)
+template <class T> class FIT_CD_ABS
+    : public virtual IrrepBasisSet<T>
 {
 };
+using rFIT_CD_ABS = FIT_CD_ABS<double>;  //!< real (Gaussian/Slater/BSpline) density-fit basis
+using cFIT_CD_ABS = FIT_CD_ABS<dcmplx>;  //!< complex (plane-wave, G-space) density-fit basis
 
 //! \brief A NON-orthonormal (Gaussian/Slater/BSpline) density-fit basis: adds the Coulomb metric-solve inputs
 //! the least-squares density fit needs.  Density fitting solves \f$\min_c \|\rho-\sum_c c_c f_c\|_V\f$ in the
 //! Coulomb norm under a charge constraint, so this face serves the Coulomb metric \c Repulsion (the
 //! \f$\langle f_a|1/r_{12}|f_b\rangle\f$ system matrix), its inverse, the cross-repulsion against another CD
 //! fit basis (self-energy), and the per-function \c Charge.  SOLE consumer: the non-ortho \c ConstrainedFF
-//! density fitter.  An orthonormal (plane-wave) fit basis omits ALL of this (the projection IS the fit).
+//! density fitter.  It refines \c rFIT_CD_ABS -- a non-orthonormal fit basis is inherently REAL (there are no
+//! complex non-ortho fit bases); an orthonormal plane-wave basis omits ALL of this (the projection IS the fit).
 class FIT_CD_NonOrtho
-    : public virtual FIT_CD_ABS
+    : public virtual rFIT_CD_ABS
 {
 public:
     virtual const  rvec_t& Charge      () const=0;  //!< <f_a|1> per fit function (the charge constraint RHS)
     virtual const rsmat_t& Repulsion   () const=0;  //!< Coulomb metric <f_a|1/r12|f_b>, cached
-    virtual const  rmat_t& Repulsion   (const FIT_CD_ABS&) const=0; //!< cross Coulomb <f_a|1/r12|g_b> (arg = functions)
+    virtual const  rmat_t& Repulsion   (const rFIT_CD_ABS&) const=0; //!< cross Coulomb <f_a|1/r12|g_b> (arg = functions)
     virtual const rsmat_t& InvRepulsion() const=0;  //!< inverse of the Coulomb metric, cached
 };
 
@@ -58,7 +63,7 @@ public:
 //! \brief A fit basis that can do BOTH fits -- the Gaussian auxiliary basis implements all of it.  The
 //! concrete-facing union of the two ISP faces; it carries the shared quadrature mesh (built from the
 //! Structure in \c SetMesh) and the cached-accessor implementations.  Clients take the narrow face
-//! (FIT_CD_ABS for a density fit, FIT_SF_ABS for a potential fit) for type safety; the union exists so
+//! (rFIT_CD_ABS for a density fit, FIT_SF_ABS for a potential fit) for type safety; the union exists so
 //! one concrete object can be handed to either creator.
 class Fit_IBS
     : public virtual FIT_CD_NonOrtho
@@ -69,7 +74,7 @@ public:
     using Integrals_Overlap<double>::MakeOverlap;
     const  rvec_t& Charge   () const override;
     const rsmat_t& Repulsion() const override;
-    const  rmat_t& Repulsion(const FIT_CD_ABS& b) const override;
+    const  rmat_t& Repulsion(const rFIT_CD_ABS& b) const override;
     const rsmat_t& InvOverlap() const override;
     const rsmat_t& InvRepulsion() const override;
 
@@ -84,7 +89,7 @@ public:
 protected:
     virtual  rvec_t MakeCharge      () const=0;
     virtual rsmat_t MakeRepulsion   () const=0;
-    virtual  rmat_t MakeRepulsion   (const FIT_CD_ABS&) const=0;
+    virtual  rmat_t MakeRepulsion   (const rFIT_CD_ABS&) const=0;
     virtual rsmat_t MakeInvOverlap  () const;
     virtual rsmat_t MakeInvRepulsion() const;
 

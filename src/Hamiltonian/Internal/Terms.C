@@ -246,7 +246,7 @@ private:
 class FittedVee : public virtual rDynamic_HT, private rDynamic_HT_Imp
 {
 public:
-    typedef std::shared_ptr<const BasisSet::FIT_CD_ABS> fbs_t;   //!< the charge-density (Coulomb-metric) fit face
+    typedef std::shared_ptr<const BasisSet::rFIT_CD_ABS> fbs_t;   //!< the charge-density (Coulomb-metric) fit face
     FittedVee(fbs_t& chargeDensityFitBasisSet, double numElectrons);
     ~FittedVee();   // anchored in the Imp TU (FittedCD complete there) so the unique_ptr can delete it
     virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd) const;

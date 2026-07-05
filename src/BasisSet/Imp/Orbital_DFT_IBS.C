@@ -13,7 +13,7 @@ template <class T> const ERI3<T>& Orbital_DFT_IBS<T>::Overlap3C  (const FIT_SF_A
         [this,&c]{ return MakeOverlap3C(c); });
 } 
 //! 3 centre repulsion used for DFT \f$\left\langle a\left(1\right)b\left(1\right)\left|\frac{1}{r_{12}}\right|c\left(2\right)\right\rangle =\int d^{3}\vec{r}_{1}\:d^{3}\vec{r}_{2}\:g_{a}\left(\vec{r}_{1}\right)g_{b}\left(\vec{r}_{1}\right)\frac{1}{r_{12}}f_{c}\left(\vec{r}_{2}\right) \f$
-template <class T> const ERI3<T>& Orbital_DFT_IBS<T>::Repulsion3C(const FIT_CD_ABS& c) const
+template <class T> const ERI3<T>& Orbital_DFT_IBS<T>::Repulsion3C(const rFIT_CD_ABS& c) const
 {
     return theCache<T>().Get(IntegralsCache_Base::I3C::Repulsion,this,&c,
         [this,&c]{ return MakeRepulsion3C(c); });
@@ -28,7 +28,7 @@ template <class T> vec_t<T> Orbital_DFT_IBS<T>::Overlap3C(const smat_t<T>& Dcd, 
     return ret;
 }
 
-template <class T> vec_t<T> Orbital_DFT_IBS<T>::Repulsion3C(const smat_t<T>& Dcd, const FIT_CD_ABS* c) const
+template <class T> vec_t<T> Orbital_DFT_IBS<T>::Repulsion3C(const smat_t<T>& Dcd, const rFIT_CD_ABS* c) const
 {
     vec_t<T> ret(c->GetNumFunctions());
     auto& R=this->Repulsion3C(*c);

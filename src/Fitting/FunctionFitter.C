@@ -15,7 +15,7 @@
 //
 // The fitter is split along its METRIC axis into two ISP faces -- FunctionFitter_Scalar (the overlap
 // metric, for potential fits v_xc) and FunctionFitter_Density (the Coulomb metric + charge constraint,
-// for density fits rho).  Each takes its OWN narrow fit-basis face (FIT_SF_ABS / FIT_CD_ABS), so the
+// for density fits rho).  Each takes its OWN narrow fit-basis face (FIT_SF_ABS / rFIT_CD_ABS), so the
 // consumers no longer down-cast the narrow face back up to the concrete Fit_IBS.  The Gaussian side has
 // two distinct impls; the plane-wave FourierFunctionFitter implements BOTH faces (on an orthonormal {G}
 // basis the projection IS the fit, so the metric distinction is degenerate).
@@ -29,7 +29,7 @@ export module qchem.Fitting.FunctionFitter;
 export import qchem.ScalarFunction;   // ScalarFunction<double> (operator(), Gradient) + Types
 export import qchem.FourierMap;       // the pre-computed G-space coefficients a Fourier (PW) fit receives
 import qchem.Fitting.Types;           // robs_t<T>
-import qchem.BasisSet.Fit_IBS;        // FIT_SF_ABS / FIT_CD_ABS (the two narrow fit-basis faces)
+import qchem.BasisSet.Fit_IBS;        // FIT_SF_ABS / rFIT_CD_ABS (the two narrow fit-basis faces)
 import qchem.Blaze;                   // hmat_t<T>
 
 export namespace qchem::Fitting
@@ -61,7 +61,7 @@ class ProjectedDensity_AO : public virtual ProjectedDensity<double>
 {
 public:
     virtual double FitGetConstraint() const=0;                                  //!< "what charge?" (= N)
-    virtual rvec_t GetRepulsion3C(const BasisSet::FIT_CD_ABS*) const=0;         //!< <rho|c> = Sum_ab D_ab<ab|c>
+    virtual rvec_t GetRepulsion3C(const BasisSet::rFIT_CD_ABS*) const=0;         //!< <rho|c> = Sum_ab D_ab<ab|c>
 };
 
 //! \brief The plane-wave counterpart of ProjectedDensity_AO.  On the orthonormal {G} basis the projection
@@ -89,7 +89,7 @@ public:
 //! \brief Abstract density fitter -- the MINIMAL CORE a Hartree term needs: fit a density, then contract it
 //! against an orbital basis as a Coulomb (Vee) matrix Sum_a c_a <Oi|f_a/r12|Oj>.  Orthonormality-neutral: no
 //! metric bookkeeping and no real-space evaluation, so an orthonormal (plane-wave) fitter implements EXACTLY
-//! this and nothing more (mirror of the FIT_CD_ABS / FIT_CD_NonOrtho split on the fit-basis side).
+//! this and nothing more (mirror of the rFIT_CD_ABS / FIT_CD_NonOrtho split on the fit-basis side).
 template <class T> class FunctionFitter_Density
 {
 public:
@@ -121,6 +121,6 @@ MakeScalarFitter(std::shared_ptr<const BasisSet::FIT_SF_ABS>&);
 //! \brief Create a DENSITY (charge-constrained Coulomb-metric) fitter on the given non-ortho fit basis.
 //! Returns the non-ortho refinement (the molecular FittedCD needs its self-energy/charge/rescale/eval).
 std::unique_ptr<FunctionFitter_Density_NonOrtho<double>>
-MakeDensityFitter(std::shared_ptr<const BasisSet::FIT_CD_ABS>&);
+MakeDensityFitter(std::shared_ptr<const BasisSet::rFIT_CD_ABS>&);
 
 } //namespace

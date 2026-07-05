@@ -143,7 +143,7 @@ public:
 
         return S;
     }
-    virtual  rmat_t MakeRepulsion(const FIT_CD_ABS& f) const
+    virtual  rmat_t MakeRepulsion(const rFIT_CD_ABS& f) const
     {
         auto& ea=Cast();
         auto& eb=dynamic_cast<const Evaluator&>(f);
@@ -207,7 +207,7 @@ protected:
         return S3;
 
     }
-    virtual ERI3<double> MakeRepulsion3C(const FIT_CD_ABS& _c) const
+    virtual ERI3<double> MakeRepulsion3C(const rFIT_CD_ABS& _c) const
     {
         auto& ab=dynamic_cast<const E&>(*this);
         auto& c =dynamic_cast<const E&>(_c);

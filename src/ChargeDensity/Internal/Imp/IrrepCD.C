@@ -111,7 +111,7 @@ template <> void IrrepCD<double>::AccumulateExchangeBoth(rsmat_t& Ki, rsmat_t& K
 // AO density-fit projection <rho|c> = Sum_ab D_ab <ab|c>, the finite (double) path's ProjectedDensity_AO
 // face.  The periodic (dcmplx) density is NOT a ProjectedDensity_AO (see ProjectedDensityBase), so this is
 // never reached for dcmplx; the if-constexpr keeps the double-only 3-centre machinery out of that build.
-template <class T> rvec_t IrrepCD<T>::GetRepulsion3C(const BasisSet::FIT_CD_ABS* fbs) const
+template <class T> rvec_t IrrepCD<T>::GetRepulsion3C(const BasisSet::rFIT_CD_ABS* fbs) const
 {
     if constexpr (std::is_same_v<T,double>)
     {

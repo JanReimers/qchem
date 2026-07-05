@@ -31,7 +31,7 @@ public:
     virtual size_t   GetNumFunctions() const=0;
     virtual irrepv_t GetIrreps(const Spin& ms) const=0;
 
-    virtual FIT_CD_ABS* CreateCDFitBasisSet(const Structure* cl, const qcMesh::MeshParams&) const;
+    virtual rFIT_CD_ABS* CreateCDFitBasisSet(const Structure* cl, const qcMesh::MeshParams&) const;
     virtual FIT_SF_ABS* CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams&) const;
 
     // Iterate() with no type argument yields the base obs_t* directly (no cast);
