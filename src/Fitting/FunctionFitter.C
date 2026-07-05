@@ -42,10 +42,22 @@ public:
     virtual const ScalarFunction<double>* GetScalarFunction() const=0;   //!< "what's your value at r?"
 };
 
+//! \brief The density projected onto the fit basis -- the \f$\langle c|\rho\rangle\f$ a density fitter
+//! consumes, with the storage CONTAINER hidden.  A neutral MARKER base so the fitter face names ONE argument
+//! type; each concrete projection (the dense AO \c rvec_t below, or the orthonormal G-space map) is recovered
+//! by the paired fitter via a sanctioned abstract->abstract cross-cast.  Templated on the fit's scalar type
+//! \a T (AO projection = \c double; the reciprocal-space map = \c dcmplx) so it matches the fitter's \a T.
+//! This is why no lattice/"Fourier" container leaks into the structure-neutral fitting interface.
+template <class T> class ProjectedDensity
+{
+public:
+    virtual ~ProjectedDensity() = default;
+};
+
 //! \brief The density projected onto the fit basis, <rho|c>, for a NON-orthonormal (AO: Gaussian/Slater/
 //! BSpline) basis.  A callback the fitter queries for the DENSE projection Sum_ab D_ab<ab|c> (the Coulomb-
 //! metric RHS) plus the charge constraint; the fitter then solves c = S_rep^-1 <rho|c> (the metric solve).
-class ProjectedDensity_AO
+class ProjectedDensity_AO : public virtual ProjectedDensity<double>
 {
 public:
     virtual double FitGetConstraint() const=0;                                  //!< "what charge?" (= N)
@@ -82,7 +94,7 @@ public:
 template <class T> class FunctionFitter_Density : public virtual ScalarFunction<double>
 {
 public:
-    virtual void   DoFit           (const ProjectedDensity_AO&)=0;  //!< fit a density (dense, metric solve)
+    virtual void   DoFit           (const ProjectedDensity<T>&)=0;  //!< fit a density (impl cross-casts to its projection)
     virtual hmat_t<T> Repulsion    (const robs_t<T>*) const     =0;  //!< Sum_a c_a <Oi|f_a/r12|Oj>
     virtual double    FitGetSelfRepulsion() const              =0;  //!< <fit|1/r12|fit> (caller halves)
     virtual double    Integral     () const                    =0;  //!< total charge Sum_a c_a integral f_a

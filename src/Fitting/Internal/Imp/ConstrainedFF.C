@@ -43,8 +43,14 @@ template <class T> void ConstrainedFF<T>::DoFitUnconstrained(const ProjectedDens
     this->itsFitCoeff=Jinv * ffc.GetRepulsion3C(this->itsBasisSet.get());
 }
 
-template <class T> void ConstrainedFF<T>::DoFit(const ProjectedDensity_AO& ffc)
+template <class T> void ConstrainedFF<T>::DoFit(const ProjectedDensity<T>& pd)
 {
+    // NON-orthonormal (Gaussian) density fit: recover the AO projection face -- a sanctioned abstract->abstract
+    // cross-cast, the paired-fitter half of the neutral ProjectedDensity<T> seam (the {G}-map projection is the
+    // orthonormal sibling, consumed by the reciprocal-space fitter instead).
+    const auto* ffcp = dynamic_cast<const ProjectedDensity_AO*>(&pd);
+    assert(ffcp && "ConstrainedFF (non-ortho Gaussian density fit) requires a ProjectedDensity_AO projection");
+    const ProjectedDensity_AO& ffc = *ffcp;
     // Robust / variational density fitting with a linear (charge) constraint, after
     //   B. I. Dunlap, J. W. D. Connolly & J. R. Sabin, J. Chem. Phys. 71(8), 3396 (1979).
     // Do the unconstrained Coulomb-metric fit  c0 = J^-1 b  (J = Coulomb/repulsion metric, b = <f_a|rho>),
