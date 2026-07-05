@@ -7,10 +7,11 @@ path to harmonizing them* — in service of the long-term goal of hoisting struc
 `src/BasisSet`.
 
 Status: Si₂ molecular PP + multi-species (O–Si) routing converge through the `qchem::Calculation` facade;
-both pseudo-atoms (Si, O) validated. Full UTMain green. **Both harmonization items are substantially landed —
-see §6 (what has landed: PP harmonization, the real-space lattice mesh + `L_PP`, and all four fit-basis/fitter
-interface axes); §7 is the remaining wiring** (a lattice-PP SCF; the PW Hartree/XC routing on the now-clean
-interfaces). The map below still orients the two convergence points.
+both pseudo-atoms (Si, O) validated. Full UTMain green. **Both harmonization items are landed through their
+term/Hartree level — see §6** (PP harmonization, the real-space lattice mesh + `L_PP`, all four fit-basis/fitter
+interface axes, and — §6.5 — the PW density-fit **Hartree** routing through the factory via a shared `PW_Evaluator`,
+bit-identical). **§7 is the remaining wiring**: a lattice-PP SCF (Item 1) and the PW **XC** face (Item 2). The map
+below still orients the two convergence points.
 
 ![Molecular vs plane-wave PP: shared spine + divergence points](diagrams/pp_molecular_vs_pw.svg)
 
@@ -238,12 +239,46 @@ quadrature is alias-free *by construction*. `nUniform=20` is a stand-in default 
 not yet brought the two grids together; the moment it does, replacing that default with an `Ecut`-derived `n`
 is the correct move.
 
+### 6.5 Item 2 Hartree — PW density-fit through the factory (DONE, bit-identical)
+The plane-wave **Hartree** half of Item 2 is landed: `PW_Hartree` now obtains its density fitter **through
+the basis's factory**, never assuming `orbital == fit` (§3.1). A key review insight reshaped the approach —
+the new PW density-fit basis must be a *concrete* `cFIT_CD_ABS : IrrepBasisSet<dcmplx>`, so rather than
+duplicate the plane-wave `op(r)`/grid logic, we adopted the codebase's **evaluator pattern** (the templated
+IS-A `EOrbital_1E_IBS<E>` mixins, *not* composition):
+- **`PW_Evaluator`** (`src/BasisSet/Lattice_3D/Evaluators/PW/`, its own folder as the molecule side has) —
+  the plane-wave grid engine: the data (`B,k,Ecut,{G}`) in one place plus the shared evaluation tier
+  (`op(r)`/`Gradient`, overlap/kinetic matrices, `MakePotential`, the FFT grid). Templated mixins
+  `EPW_Irrep_IBS<E>` / `EPW_Orbital1E_IBS<E>` (`Lattice_3D/IrrepBasisSet.C`, module
+  `qchem.BasisSet.Lattice_3D.IBS`) forward the interface virtuals to it via `Cast()`. `PlaneWave_IBS` now
+  IS-A `PW_Evaluator` (pure relocation; the orbital-only G-space/PP methods stay on it, reading the shared
+  data through evaluator accessors). *(The orbital-side rho-tilde→Hartree/FFT-XC assembly could migrate onto
+  the evaluator too later — kept concrete for now because the lattice tests drive it directly and it is not
+  shared with the fit basis.)*
+- **`PlaneWaveFit_IBS`** — a thin `cFIT_CD_ABS` sharing that evaluator (a copy of the orbital grid). **Zero
+  stubs**: confirmed the reviewer's point that `cFIT_CD_ABS` inherits neither `Integrals_Overlap` nor
+  `Orbital_1E_IBS`, so it needs **no** `MakeOverlap`/`MakeKinetic`/`MakeNuclear` — only `op()/Gradient` (from
+  the mixin+evaluator) and symmetry (from `IrrepBasisSetImp`).
+- **The factory seam.** `CreateCDFitBasisSet`'s return type templated `rFIT_CD_ABS*` → `FIT_CD_ABS<T>*` (a
+  no-op for the double/molecular path); new `Band_FT_IBS::CreateCDFitBasisSet` (the reciprocal-space analog
+  of `Orbital_DFT_IBS::CreateCDFitBasisSet`), implemented by `PlaneWave_IBS`; the
+  `tBasisSet<dcmplx>::CreateCDFitBasisSet` **`assert(false)` stub deleted** — it now delegates to the
+  `Band_FT_IBS`, exactly as the double path delegates to `Orbital_DFT_IBS`.
+- **The fitter.** `ProjectedDensity_G` (a real wrapper replacing the misnamed `ProjectedDensity_FT` alias)
+  keeps the G-keyed `FourierMap` off the neutral `ProjectedDensity<dcmplx>` face. `OrthoFunctionFitter`
+  (`Fitting/Internal`) implements **only** the core `FunctionFitter_Density<dcmplx>` (no NA-stubs); reached
+  via a new `MakeDensityFitter(cFIT_CD_ABS)` overload. `PW_Hartree::CalcMatrix` routes
+  `bs → Band_FT_IBS → CreateCDFitBasisSet → MakeDensityFitter → DoFit(ProjectedDensity_G) → Repulsion(bs)`
+  (at CalcMatrix time — the PW Hamiltonian is built without the basis). `FourierFunctionFitter::Repulsion`
+  (its only user) removed; the XC-only `Overlap` remnant stays for `PW_XC`.
+
+All bit-identical: the 26 PW/Lattice energy anchors, 172/172 UTMain, 29/29 UTLattice_3D_BS.
+
 ## 7. Action items for the next session (remaining)
 
-The two harmonization items are both **substantially landed** (§6.2, §6.3); what remains is wiring on the now-clean
-interfaces. Neither blocks current PP use. **Note:** PW itself keeps `Integrals_Pseudo<dcmplx>` + its intrinsic
-G-grid — the G-space FFT route is principled and efficient; unification is for real-space bases on a lattice, not
-for plane waves.
+Both harmonization items are **landed through their Hartree/term level** (Item 1 §6.2; Item 2 groundwork §6.3 +
+Hartree routing §6.5). What remains is a lattice-PP SCF (Item 1) and the PW **XC** face (Item 2). Neither blocks
+current PP use. **Note:** PW itself keeps `Integrals_Pseudo<dcmplx>` + its intrinsic G-grid — the G-space FFT route
+is principled and efficient; unification is for real-space bases on a lattice, not for plane waves.
 
 ### Item 1 remaining — full lattice-PP *energy* (SCF)
 The terms already assemble on the lattice mesh (§6.2). Left for a real *energy*:
@@ -254,18 +289,16 @@ The terms already assemble on the lattice mesh (§6.2). Left for a real *energy*
    the G=0 alignment (`0` for finite, `(N/Ω)·ΣFormFactorG0` for periodic — the hardcoded-0.0 pattern).
 3. *(Future GPW)* derive `nUniform` from a grid `Ecut` via the Nyquist bound (§6.4) rather than a free integer.
 
-### Item 2 remaining — the actual PW Hartree routing (interfaces ready, §6.3)
-1. A dedicated PW density-fit basis class implementing minimal **`cFIT_CD_ABS`** (`: IrrepBasisSet<dcmplx>` —
-   separate object, not `Band_FT_IBS`; carries the tunable `{G}` grid, = the orbital grid now, ×2 for ρ later).
-   `Band_FT_IBS::CreateCDFitBasisSet` returns it; `tBasisSet<dcmplx>::CreateCDFitBasisSet` delegates — delete the
-   `assert(false)` stub (`src/BasisSet/Imp/BasisSet.C`).
-2. `ProjectedDensity_G : ProjectedDensity<dcmplx>` wrapping the rho-tilde map (rename the misnamed `FourierMap`
-   alias — it's just a G-keyed coefficient map — and confine it off the neutral interface).
-3. An ortho density fitter implementing the **core** `FunctionFitter_Density<dcmplx>` (DoFit cross-casts to
-   `ProjectedDensity_G`; Repulsion delegates to `Band_FT_IBS`) — the de-abstracted `FourierFunctionFitter`
-   re-homed behind the core face, renamed **`OrthoFunctionFitter`**, moved to `Fitting/Internal`.
-4. Route `PW_Hartree` to obtain it via the factory; verify PW DFT energies **bit-identical**.
-5. Then the **XC/Scalar face** — its own `ProjectedScalar<T>` design mirroring `ProjectedDensity<T>` — + route
-   `PW_XC`; only then can `OrthoFunctionFitter` fully move to `Internal` (both PW terms off the direct import).
+### Item 2 remaining — the XC/Scalar face (the Hartree half is DONE, §6.5)
+The density (Hartree) route is landed (§6.5): the PW density-fit basis (`PlaneWaveFit_IBS` over the shared
+`PW_Evaluator`), the factory seam (`Band_FT_IBS::CreateCDFitBasisSet`, stub deleted), `ProjectedDensity_G`,
+`OrthoFunctionFitter`, and `PW_Hartree` routed — all bit-identical. What remains is the **XC/Scalar** mirror:
+1. The **overlap-metric** counterparts: a `ProjectedScalar<T>` design mirroring `ProjectedDensity<T>`, a PW
+   Vxc fit basis (the dcmplx `CreateVxcFitBasisSet`, still an `assert(false)` stub), and an ortho **scalar**
+   fitter implementing the core `FunctionFitter_Scalar<dcmplx>`.
+2. Route `PW_XC` through it; verify PW DFT energies **bit-identical**. Only then does the XC-only
+   `FourierFunctionFitter` remnant die and `OrthoFunctionFitter` move fully off the direct import.
+3. *(Deferred cleanup, reviewer)* move the `Overlap`/`MakeOverlap` pair up from `Integrals_Overlap`/
+   `IrrepBasisSet` into `Orbital_1E_IBS` so `FIT_CD_*` provably never carries an overlap metric.
 
 **Constraint:** never assume `orbital == fit` (§3.1); the factory is the seam even when PW's answer is trivial.
