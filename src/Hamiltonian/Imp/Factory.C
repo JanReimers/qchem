@@ -130,17 +130,17 @@ namespace qchem::Hamiltonian
     }
 
     // Pseudopotential front door: the all-electron nuclear attraction -> GTH local + KB nonlocal PP, LDA XC.
-    rHamiltonian* Factory(const st_t& st, const std::string& element, int valence,
+    rHamiltonian* Factory(Pol p, const st_t& st, const std::string& element, int valence,
                          const qcMesh::MeshParams& mp, const rbs_t* bs)
     {
-        return new Ham_PP_U(st, element, valence, mp, bs);
+        return new Ham_PP(st, element, valence, mp, bs, p==Pol::Polarized);
     }
 
     // Multi-species pseudopotential front door: per-Z router PP so each atom gets its own GTH pseudopotential.
-    rHamiltonian* Factory(const st_t& st, const std::vector<std::pair<std::string,int>>& species,
+    rHamiltonian* Factory(Pol p, const st_t& st, const std::vector<std::pair<std::string,int>>& species,
                          const qcMesh::MeshParams& mp, const rbs_t* bs)
     {
-        return new Ham_PP_U(st, species, mp, bs);
+        return new Ham_PP(st, species, mp, bs, p==Pol::Polarized);
     }
 
 }

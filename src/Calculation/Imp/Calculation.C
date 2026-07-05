@@ -130,7 +130,7 @@ bool Calculation::Converge(const SCFParams& params)
     // orbital basis, xalpha) are ignored for HF/1-e/Dirac.  A pseudopotential run takes the PP front door
     // instead (LSDA valence Hamiltonian: V_loc + KB projectors + Zion ion-ion in place of Ven).
     auto* ham = itsOpts.pseudopotential
-        ? qchem::Hamiltonian::Factory(itsStructure, PPSpecies(*itsStructure), itsOpts.mesh, itsBasis)
+        ? qchem::Hamiltonian::Factory(itsOpts.pol, itsStructure, PPSpecies(*itsStructure), itsOpts.mesh, itsBasis)
         : qchem::Hamiltonian::Factory(itsOpts.model, itsOpts.pol, itsStructure,
                                       itsOpts.mesh, itsBasis, itsOpts.xalpha);
 
@@ -141,7 +141,11 @@ bool Calculation::Converge(const SCFParams& params)
     const double emax = itsAcc.eMax > 0.0 ? itsAcc.eMax : (dftLike ? 100.0 : Z*Z*0.1/32);
     nlohmann::json jsacc = {{"NProj", itsAcc.nProj}, {"EMax", emax},
                             {"EMin", itsAcc.eMin}, {"SVTol", itsAcc.svTol}};
-    auto* accel = qchem::SCFAccelerators::Factory(qchem::SCFAccelerators::Type::DIIS, jsacc);
+    using AType = qchem::SCFAccelerators::Type;
+    const AType atype = itsAcc.type=="GDM"    ? AType::GDM
+                      : itsAcc.type=="Ladder" ? AType::Ladder
+                      :                         AType::DIIS;
+    auto* accel = qchem::SCFAccelerators::Factory(atype, jsacc);
 
     delete itsScf;                                     // releases the previous Hamiltonian + accelerator
     // Seed: an explicit opts.seed wins; otherwise auto -- DFT from superposition-of-atomic-densities

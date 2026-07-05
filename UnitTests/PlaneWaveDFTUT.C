@@ -1076,7 +1076,7 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaThroughSCFIterator)
 
     // The plane-wave SAD path (FourierSeedCD: a G-space form-factor sum of the atomic VALENCE densities from
     // atomic_valence_densities.json).  That file now holds the SMOOTH pseudo-valence Si density produced by
-    // the Atom-PP (Ham_PP_U + KB nonlocal: scfrun --model PP --valence 4 --out ...), not the old all-electron
+    // the Atom-PP (Ham_PP + KB nonlocal: scfrun --model PP --valence 4 --out ...), not the old all-electron
     // valence whose core peak injected spurious high-G content.  See doc/SCFSeedingPlan.md section 9.7.
 
     // Ecut=4 / Gamma (fast, near-jellium).  Both seeds; cross-check the SAD energy vs the standalone prototype.

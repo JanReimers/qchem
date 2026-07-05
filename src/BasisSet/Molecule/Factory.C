@@ -28,7 +28,7 @@ export namespace qchem::BasisSet::Molecule
     // Axis 1 -- the canned, optimized, externally generated (mostly-radial) basis-set DATA FILE.  The
     // "...Data" suffix disambiguates from the BasisSet OBJECT in code.  Add one = one enum value + one
     // file-map entry in Imp/Factory.C.
-    enum class BasisSetData { DZVP, DZVP2, TZVP, ORB, ORB1, SIPP };  // SIPP: valence-only Si Gaussian (PP validation)
+    enum class BasisSetData { DZVP, DZVP2, TZVP, ORB, ORB1, SIPP, SZVGTH, DZVPGTH };  // SIPP: ad-hoc; SZVGTH/DZVPGTH: CP2K GTH (Si,O)
 
     // Axis 2 -- the integral engine (orthogonal to the data set and the angular representation).
     enum class Engine { MnD, LibCint };

@@ -224,7 +224,7 @@ int main(int argc, char** argv)
     }
     bool dirac = (model=="DHF" || model=="DE1");
     bool dft   = (model=="LDA" || model=="DFT" || model=="Xalpha");
-    bool ppmodel = (model=="PP"); // local-pseudopotential pseudo-atom (Ham_PP_U); --valence = valence e- count
+    bool ppmodel = (model=="PP"); // local-pseudopotential pseudo-atom (Ham_PP); --valence = valence e- count
     if (basis.empty()) basis = dirac ? "Slater_RKB" : "Slater";
     accj["type"]=accel;
 

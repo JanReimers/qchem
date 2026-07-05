@@ -88,13 +88,14 @@ Ham_DFTcorr_P::Ham_DFTcorr_P(const st_t& st, const qcMesh::MeshParams& mp, const
     Add(new FittedVcorrPol(XFitBasis, corr));
 }
 
-// PSEUDOPOTENTIAL LSDA: like Ham_DFTcorr_U but with the bare nuclear attraction (Ven) replaced by the
+// PSEUDOPOTENTIAL LSDA: like Ham_DFTcorr_U/_P but with the bare nuclear attraction (Ven) replaced by the
 // mesh-quadratured local pseudopotential V_loc(r) + the KB-separable non-local projectors, PLUS the ion-ion
 // repulsion of the Zion cores (a direct pair sum; ZERO for a lone atom, so the atom energy is unchanged).
-// Kinetic + PP_Local [+ PP_NonLocal] + Hartree + Dirac exchange + VWN5 + Vnn(Zion).
-Ham_PP_U::Ham_PP_U(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPotential> vloc,
-                   std::shared_ptr<const Pseudopotential::SeparablePotential_R> sep,
-                   const qcMesh::MeshParams& mp, const rbs_t* bs)
+// Kinetic + PP_Local [+ PP_NonLocal] + Hartree + Dirac exchange + VWN5 + Vnn(Zion).  \a polarized selects the
+// spin-native XC (FittedVxcPol + FittedVcorrPol, open shell) vs the zeta=0 unpolarized collapse.
+Ham_PP::Ham_PP(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPotential> vloc,
+               std::shared_ptr<const Pseudopotential::SeparablePotential_R> sep,
+               const qcMesh::MeshParams& mp, const rbs_t* bs, bool polarized)
 {
     Add(new Kinetic);
     Add(new Vnn(st, vloc->ZionFn()));                // ion-ion of the Zion cores (0 for one atom; Zion, not itsZ)
@@ -104,19 +105,32 @@ Ham_PP_U::Ham_PP_U(const st_t& st, std::shared_ptr<const Pseudopotential::LocalP
     FittedVee::fbs_t   CFitBasis(bs->CreateCDFitBasisSet(st.get(), mp));
     Add(new FittedVee(CFitBasis, st->GetNumElectrons()));
 
-    FittedVxc::fbs_t XFitBasis(bs->CreateVxcFitBasisSet(st.get(), mp)); // ONE Vxc fit basis, shared X and C
-    FittedVxc::ex_t exch(new SlaterExchange(2.0/3.0));            // Dirac exchange (alpha = 2/3)
-    Add(new FittedVxc  (XFitBasis, exch));
-    FittedVxc::ex_t corr(new VWN_Correlation());                 // VWN5 correlation
-    Add(new FittedVcorr(XFitBasis, corr));
+    // ONE Vxc fit basis, shared X and C.  Spin-native (polarized) is the primary path; unpolarized is the
+    // zeta=0 collapse (identical numbers for a closed shell, at half the XC work).
+    if (polarized)
+    {
+        FittedVxcPol::fbs_t XFitBasis(bs->CreateVxcFitBasisSet(st.get(), mp));
+        FittedVxcPol::ex_t  exch(new SlaterExchange(2.0/3.0, Spin(Spin::Up)));   // Dirac exchange, polarized
+        Add(new FittedVxcPol  (XFitBasis, exch));
+        FittedVcorrPol::corr_t corr(new VWN_Correlation());                      // spin-native VWN5 correlation
+        Add(new FittedVcorrPol(XFitBasis, corr));
+    }
+    else
+    {
+        FittedVxc::fbs_t XFitBasis(bs->CreateVxcFitBasisSet(st.get(), mp));
+        FittedVxc::ex_t exch(new SlaterExchange(2.0/3.0));           // Dirac exchange (alpha = 2/3)
+        Add(new FittedVxc  (XFitBasis, exch));
+        FittedVxc::ex_t corr(new VWN_Correlation());                // VWN5 correlation
+        Add(new FittedVcorr(XFitBasis, corr));
+    }
 }
 
-Ham_PP_U::Ham_PP_U(const st_t& st, const std::string& element, int q, const qcMesh::MeshParams& mp,
-                   const rbs_t* bs)
-    : Ham_PP_U(st,
-               std::make_shared<const Pseudopotential::HGH_LocalPotential>(Pseudopotential::GetGTH(element,"LDA",q).local),
-               std::make_shared<const Pseudopotential::HGH_SeparablePotential>(Pseudopotential::GetGTH(element,"LDA",q).nonlocal),
-               mp, bs)
+Ham_PP::Ham_PP(const st_t& st, const std::string& element, int q, const qcMesh::MeshParams& mp,
+               const rbs_t* bs, bool polarized)
+    : Ham_PP(st,
+             std::make_shared<const Pseudopotential::HGH_LocalPotential>(Pseudopotential::GetGTH(element,"LDA",q).local),
+             std::make_shared<const Pseudopotential::HGH_SeparablePotential>(Pseudopotential::GetGTH(element,"LDA",q).nonlocal),
+             mp, bs, polarized)
 {}
 
 // Build the per-Z router models for a multi-species pseudopotential from GTH lookups (mirrors the PW
@@ -143,9 +157,9 @@ BuildMultiSpeciesSep(const std::vector<std::pair<std::string,int>>& species)
 }
 } //anon
 
-Ham_PP_U::Ham_PP_U(const st_t& st, const std::vector<std::pair<std::string,int>>& species,
-                   const qcMesh::MeshParams& mp, const rbs_t* bs)
-    : Ham_PP_U(st, BuildMultiSpeciesLocal(species), BuildMultiSpeciesSep(species), mp, bs)
+Ham_PP::Ham_PP(const st_t& st, const std::vector<std::pair<std::string,int>>& species,
+               const qcMesh::MeshParams& mp, const rbs_t* bs, bool polarized)
+    : Ham_PP(st, BuildMultiSpeciesLocal(species), BuildMultiSpeciesSep(species), mp, bs, polarized)
 {}
 
 // Plane-wave LDA Kohn-Sham: the five G-space framework terms.  Exchange and correlation are SEPARATE

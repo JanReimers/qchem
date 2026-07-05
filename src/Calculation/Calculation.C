@@ -93,6 +93,10 @@ struct AcceleratorOptions
     double eMax  = 0.0;     //!< <=0 => Z*Z*0.1/32 (the proven molecular default)
     double eMin  = 1e-7;
     double svTol = 5e-9;
+    //! SCF accelerator: "DIIS" (default) | "GDM" (direct minimisation, robust for hard/open-shell SCF) |
+    //! "Ladder" (auto None->DIIS->GDM).  A hard pseudopotential (open-shell atom, diffuse valence) that
+    //! limit-cycles under DIIS often converges under GDM or Ladder.
+    std::string type = "DIIS";
 };
 
 class Calculation

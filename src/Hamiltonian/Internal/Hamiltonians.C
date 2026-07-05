@@ -68,29 +68,34 @@ public:
     Ham_DFTcorr_P(const st_t& st, const qcMesh::MeshParams&, const rbs_t* bs);
 };
 
-//! Un-polarized LSDA PSEUDO-atom/molecule: kinetic + V_loc(r) (the pseudized replacement for the bare
+//! Spin-native LSDA PSEUDO-atom/molecule: kinetic + V_loc(r) (the pseudized replacement for the bare
 //! nuclear attraction, mesh-quadratured) + the KB-separable non-local projectors + Hartree + Dirac exchange
 //! + VWN5 correlation + ion-ion (Zion cores; a direct pair sum for a molecule, ZERO for a lone atom).  NO
 //! Ven.  The valence electron count comes from the structure (build the Atom(s) with charge = Z - valence)
 //! and the angular channels from the electron configuration.  The non-local model may be null (local-only,
 //! the over-bound stepping stone).  The SAME term list serves a single pseudo-atom and a pseudo-molecule --
 //! the PP terms loop over all atoms and the ion-ion pair sum vanishes when there is only one.
-class Ham_PP_U : public virtual rHamiltonian, private rHamiltonianImp
+//!
+//! \a polarized selects the spin-native (open-shell) exchange-correlation -- FittedVxcPol + FittedVcorrPol,
+//! the open-shell/magnetism path -- vs the \f$\zeta=0\f$ unpolarized collapse (FittedVxc + FittedVcorr, the
+//! closed-shell efficiency case).  Everything else (kinetic/PP/Hartree/ion-ion) is spin-agnostic.
+class Ham_PP : public virtual rHamiltonian, private rHamiltonianImp
 {
 public:
     //! Explicit models (shared with the caller).  \a vloc is the COMBINED local model: its real-space view
     //! (Vloc) feeds PP_Local and its \f$Z_{ion}\f$ feeds the ion-ion term.  \a sep may be null (local-only).
-    Ham_PP_U(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPotential> vloc,
-             std::shared_ptr<const Pseudopotential::SeparablePotential_R> sep,
-             const qcMesh::MeshParams&, const rbs_t* bs);
+    Ham_PP(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPotential> vloc,
+           std::shared_ptr<const Pseudopotential::SeparablePotential_R> sep,
+           const qcMesh::MeshParams&, const rbs_t* bs, bool polarized);
     //! Convenience: look up + OWN the GTH local + KB non-local models for \a element at valence \a q (LDA).
-    Ham_PP_U(const st_t& st, const std::string& element, int q, const qcMesh::MeshParams&, const rbs_t* bs);
+    Ham_PP(const st_t& st, const std::string& element, int q, const qcMesh::MeshParams&, const rbs_t* bs,
+           bool polarized);
     //! Multi-species convenience: name each \a (element, valence); the GTH database is looked up per species
     //! and a per-Z router (MultiSpecies_Local/Separable) is built + OWNED, so each atom gets its OWN
     //! pseudopotential (the assembly + ion-ion already route on the atoms' itsZ).  The single-species case is
-    //! a 1-element list.  E.g. Ham_PP_U(st, {{"Si",4},{"O",6}}, mesh, bs).
-    Ham_PP_U(const st_t& st, const std::vector<std::pair<std::string,int>>& species,
-             const qcMesh::MeshParams&, const rbs_t* bs);
+    //! a 1-element list.  E.g. Ham_PP(st, {{"Si",4},{"O",6}}, mesh, bs, polarized).
+    Ham_PP(const st_t& st, const std::vector<std::pair<std::string,int>>& species,
+           const qcMesh::MeshParams&, const rbs_t* bs, bool polarized);
 };
 
 //

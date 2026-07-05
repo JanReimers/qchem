@@ -73,7 +73,7 @@ bool AtomCalculation::Converge(const SCFParams& params)
     // Three DFT/HF routes: a pseudopotential (PP front door, valence electrons = itsNe), an explicit XC
     // functional override (the public selector, e.g. libxc), or the model's built-in Hamiltonian/functional.
     auto* ham = itsOpts.pseudopotential
-        ? H::Factory(itsStructure, thePeriodicTable().GetSymbol(itsZ), PPZion(itsOpts,itsNe), itsOpts.mesh, itsBasis)
+        ? H::Factory(itsOpts.pol, itsStructure, thePeriodicTable().GetSymbol(itsZ), PPZion(itsOpts,itsNe), itsOpts.mesh, itsBasis)
         : itsOpts.xc.has_value()
             ? H::Factory(itsOpts.pol, itsStructure, *itsOpts.xc, itsOpts.mesh, itsBasis)
             : H::Factory(itsOpts.model, itsOpts.pol, itsStructure, itsOpts.mesh, itsBasis, itsOpts.xalpha);

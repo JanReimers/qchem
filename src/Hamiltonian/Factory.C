@@ -73,13 +73,14 @@ export namespace qchem::Hamiltonian
     //=== Pseudopotential ============================================================================
     //! Build a pseudopotential Hamiltonian for `element` (e.g. "Si") with `valence` (zion) valence
     //! electrons: the all-electron nuclear attraction is replaced by the GTH local + KB-separable nonlocal
-    //! pseudopotential, with LDA exchange-correlation.  The public front door to Ham_PP_U.
-    rHamiltonian* Factory(const st_t& st, const std::string& element, int valence,
+    //! pseudopotential, with LSDA exchange-correlation.  \a pol selects spin-native (open-shell) vs the
+    //! unpolarized collapse.  The public front door to Ham_PP.
+    rHamiltonian* Factory(Pol, const st_t& st, const std::string& element, int valence,
                          const qcMesh::MeshParams&, const rbs_t*);
 
     //! Multi-species pseudopotential Hamiltonian: name each `(element, valence)` and a per-Z router PP is
     //! built so each atom gets its own GTH pseudopotential (single species = a 1-element list).
-    rHamiltonian* Factory(const st_t& st, const std::vector<std::pair<std::string,int>>& species,
+    rHamiltonian* Factory(Pol, const st_t& st, const std::vector<std::pair<std::string,int>>& species,
                          const qcMesh::MeshParams&, const rbs_t*);
 
 } // namespace
