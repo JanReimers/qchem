@@ -11,8 +11,7 @@ import qchem.ChargeDensity.FourierDensity;   // cast cd UP to its reciprocal-spa
 import qchem.BasisSet.Band_FT_IBS;         // cast bs UP to the reciprocal-space DFT capability (Hartree/XC)
 import qchem.Pseudopotential.Integrals_Pseudo;   // cast bs ACROSS to the external-PP operator-assembly mixin (PW_Pseudo)
 import qchem.Fitting.FourierFunctionFitter; // the PW fitter PW_Hartree drives (like FittedVee's FunctionFitter)
-import qchem.Structure;                       // Structure (PW_IonIon ion-ion energy)
-import qchem.UnitCell;                        // UnitCell::GetCellVolume() -- Omega for the G=0 alignment (term-side)
+import qchem.Structure;                       // Structure::isFinite()/SumFormFactors() -- the G=0 alignment (term-side)
 import qchem.Ewald;                           // NuclearRepulsion (Ewald lattice sum for the crystal)
 import qchem.Blaze;                            // blazem::zeroH (PW_IonIon's zero matrix)
 
@@ -49,17 +48,17 @@ void PW_Pseudo::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
     // energy).  The dropped-G=0 alignment alpha is a separate constant in te.Ealign -- kept in the total
     // energy but NOT the matrix, and out of the band-structure cross-check.  It is E_alpha = (N/Omega)
     // Sum_a alpha_a with alpha_a = the model's finite G->0 limit (FormFactorG0 = integral[V_loc^a+Z/r]).
-    // The alignment is a PERIODIC neutralising-background artifact: it exists only when the Structure is a
-    // UnitCell (Omega finite); a finite/molecular Structure has no G=0 background, so no alignment term.
-    // The term owns the model (alpha) and reads Omega straight off the cell geometry -- no basis needed
+    // The alignment is a PERIODIC neutralising-background artifact: it exists only when the Structure is
+    // periodic (!isFinite(), Omega finite); a finite/molecular Structure has no G=0 background, so no
+    // alignment term.  The term owns the model (alpha) and reads Omega straight off the geometry -- no basis
     // (the old basis-side PseudoG0Energy was a scalar PP formula leaking into the neutral basis interface).
     te.Een=cd->DM_Contract(this);                                          // integral rho V_ext (G!=0)
-    if (auto* cell=dynamic_cast<const UnitCell*>(&*theStructure))          // periodic only (Omega finite)
-    {
-        double sumAlpha=0.0;
-        for (Atom* a : *theStructure) sumAlpha += itsLocal->FormFactorG0(a->itsZ);
-        te.Ealign = (cd->GetTotalCharge()/cell->GetCellVolume())*sumAlpha;
-    }
+    // A finite/molecular structure has no G=0 neutralising background, so NO alignment (even though its atoms
+    // DO have form factors -- the physics decision lives here, via isFinite(), not in the geometry).  For a
+    // periodic cell the structure folds in 1/Omega: SumFormFactors returns (1/Omega) Sum_a alpha_a.
+    if (!theStructure->isFinite())                                         // periodic only (Omega finite)
+        te.Ealign = cd->GetTotalCharge() *
+                    theStructure->SumFormFactors([this](int Z){return itsLocal->FormFactorG0(Z);});
 }
 
 std::ostream& PW_Pseudo::Write(std::ostream& os) const

@@ -6,8 +6,9 @@
 #include <cmath>
 
 import qchem.Structure;                 // Molecule, Atom, Structure
+import qchem.UnitCell;                   // UnitCell (uniform periodic mesh)
 import qchem.Mesh.Quadrature;          // qcMesh::Integrate, ScalarField
-import qchem.Math;                      // Pi32
+import qchem.Math;                      // Pi32, Pi
 using namespace qchem;
 
 // Note: this TU sees BOTH the old global `Mesh`/`MeshParams` (via qchem.Structure) and the new
@@ -94,4 +95,53 @@ TEST(MolecularMesh, FarAtomDoesNotCorrupt)
 
     GaussAt g(RA);                        // localised on atom A only
     EXPECT_NEAR(qcMesh::Integrate(m,g),Pi32,1e-3);
+}
+
+// ---- The uniform periodic (UnitCell) mesh -----------------------------------------------------------
+namespace
+{
+// f == 1 everywhere: its cell integral is exactly the cell volume Omega (validates the equal weights
+// sum to Omega for ANY n).
+class One : public qcMesh::ScalarField<double>
+{
+public:
+    double  operator()(const rvec3_t&) const override {return 1.0;}
+    rvec3_t Gradient  (const rvec3_t&) const override {return rvec3_t(0,0,0);}
+};
+
+// cos^2(2 pi x / a): a smooth cell-periodic field on a cubic cell of edge a.  Exact cell integral = Omega/2
+// (cos^2 = 1/2 + 1/2 cos(4 pi x/a), and the cos term averages to zero over the cell).  The midpoint rule
+// integrates it exactly for n >= 3 points per axis -- a strong check that the fractional-midpoint mapping
+// and weights are right.
+class CosSqX : public qcMesh::ScalarField<double>
+{
+    double itsA;
+public:
+    explicit CosSqX(double a) : itsA(a) {}
+    double  operator()(const rvec3_t& r) const override { double c=std::cos(2*Pi*r.x/itsA); return c*c; }
+    rvec3_t Gradient  (const rvec3_t&)   const override {return rvec3_t(0,0,0);}
+};
+} //anon
+
+// Uniform mesh: the equal weights must sum to the cell volume (Omega = a^3 for a cubic cell).
+TEST(LatticeMesh, UniformCellIntegratesConstantToVolume)
+{
+    const double a=5.0;
+    UnitCell cell(a);
+    qcMesh::MeshParams mp; mp.nUniform=8;
+    auto m=cell.CreateIntegrationMesh(mp);
+
+    EXPECT_EQ(m.size(), size_t(8*8*8));
+    EXPECT_NEAR(qcMesh::Integrate(m,One()), a*a*a, 1e-9);   // sum of weights = Omega
+}
+
+// A smooth cell-periodic integrand: the midpoint rule is exact -> Omega/2.
+TEST(LatticeMesh, UniformCellIntegratesPeriodicCosine)
+{
+    const double a=5.0;
+    UnitCell cell(a);
+    qcMesh::MeshParams mp; mp.nUniform=6;
+    auto m=cell.CreateIntegrationMesh(mp);
+
+    EXPECT_NEAR(qcMesh::Integrate(m,CosSqX(a)), 0.5*a*a*a, 1e-9);
 }

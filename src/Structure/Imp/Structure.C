@@ -2,10 +2,20 @@ module;
 #include <cassert>
 #include <vector>
 #include <memory>
+#include <functional>
 
 module qchem.Structure;
 
 namespace qchem {
+
+// The honest per-structure form-factor sum: Sum_a f(Z_a).  Finite structures (Atom/Molecule) use this
+// default as-is; a periodic UnitCell overrides to divide by the cell volume (the per-volume G=0 background).
+double Structure::SumFormFactors(const std::function<double(int)>& f) const
+{
+    double s=0;
+    for (auto a:*this) s+=f(a->itsZ);
+    return s;
+}
 
 std::string Structure::ID() const
 {

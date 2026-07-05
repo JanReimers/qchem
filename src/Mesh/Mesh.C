@@ -59,6 +59,7 @@ struct MeshParams
     AngularKind angular   = AngularKind::Gauss;  int    nAngular  = 12;      //!< Gauss: #dirs; GL/EM: L.
     int         em_m      = 2;                                               //!< EulerMaclaren only (1..3).
     int         beckeOrder= 3;   //!< Becke fuzzy-Voronoi smoothing iterations (molecular mesh only).
+    int         nUniform  = 20;  //!< Uniform periodic real-space grid: points per cell axis (lattice mesh only; \f$n^3\f$ total).
 
     //! \brief Compact, deterministic identity string for these parameters.  Two MeshParams give the
     //! same ID() iff they build the same quadrature, so it is the cache key for any mesh-quadrature
@@ -72,7 +73,8 @@ struct MeshParams
              + ",m"   + to_string(mhl_m)    + ",a"  + to_string(mhl_alpha)
              + ",ls"  + to_string(logStart) + ",le" + to_string(logStop)
              + ",ang" + to_string(static_cast<int>(angular)) + ",na" + to_string(nAngular)
-             + ",em"  + to_string(em_m)     + ",bo" + to_string(beckeOrder) + "}";
+             + ",em"  + to_string(em_m)     + ",bo" + to_string(beckeOrder)
+             + ",nu"  + to_string(nUniform) + "}";
     }
 };
 

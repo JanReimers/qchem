@@ -65,8 +65,8 @@ public:
     Orbital_IBS(Reader*, const Structure*);
     Orbital_IBS(const rvec_t& exponents, size_t L, const Structure*);
 
-    virtual FIT_CD_ABS* CreateCDFitBasisSet (const Structure*, const qcMesh::MeshParams&) const;
-    virtual FIT_SF_ABS* CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams&) const;
+    virtual FIT_CD_ABS* CreateCDFitBasisSet (const Structure*, const qcMesh::MeshParams&) const override;
+    virtual FIT_SF_ABS* CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams&) const override;
 
     //! This basis's AO shells in real-solid-harmonic form (delegates to ExtractAoShells on its own SphData).
     virtual std::vector<Symmetry::Molecule::AoShell> GetAoShells() const override;   // Molecule::Orbital_1E_IBS

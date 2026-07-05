@@ -177,21 +177,27 @@ payoff.
 (+ `Vnn`) terms unchanged — closing the "two assembly sites" divergence (§1) for everything except the PW
 G-space FFT path (which stays, rightly, its own thing).
 **Steps:**
-1. `UnitCell::CreateIntegrationMesh(mp)` — currently `throw`s (`src/Structure/Imp/UnitCell.C`). **Implement the
-   uniform real-space grid over the cell NOW** (points at cell-fractional midpoints via `ToCartesian`, equal
-   weight Ω/Npts). This is the ONE missing piece — the PP terms are already geometry-neutral (§3). The
-   **unit-cell Becke grid is a future refinement** (adaptive atom-centred weighting), NOT required at this
-   stage — the uniform grid is the working mesh.
+1. ✅ **DONE.** `UnitCell::CreateIntegrationMesh(mp)` now builds the **uniform real-space grid over the cell**
+   (`src/Structure/Imp/UnitCell.C`): `mp.nUniform` points per axis at cell-fractional midpoints
+   `f=((i+½)/n,…)` mapped by `ToCartesian` (`r=Af`), each with equal weight `Ω/n³` — the midpoint rule, exact
+   for smooth cell-periodic integrands. `nUniform` (default 20) added to `qcMesh::MeshParams` + folded into
+   `ID()`. Tests `LatticeMesh.UniformCellIntegratesConstantToVolume` (Σwᵢ=Ω) and `…PeriodicCosine`
+   (cos²→Ω/2, exact) in `src/Structure/tests/MolecularMeshTests.C`. The **unit-cell Becke grid remains a
+   future refinement** (adaptive atom-centred weighting) — the uniform grid is the working mesh.
 2. Then confirm `PP_Local`/`PP_NonLocal` + `Vnn(zionOf)` produce a sane lattice PP energy on that mesh (they
-   need no change; they index on `itsZ` and quadrature on the structure's mesh).
-3. (Once a unified PP term across `T` is wanted) carry the G=0 alignment in the term: `0.0` for a finite
-   structure, `(N/Ω)·Σ FormFactorG0` for a periodic one — the correct hardcoded-0.0 pattern from §4. Fold
-   `PW_IonIon`/`Vnn` into a single `IonIon<T>` while here. **Replace the `dynamic_cast<UnitCell>` in
-   `PW_Pseudo::GetEnergy` (added this session) with `Structure::isFinite()`** — the semantic predicate
-   `NuclearRepulsion` already uses; a concrete `Structure→UnitCell` downcast is a CLAUDE.md-flagged smell.
-   (This isFinite() cleanup is small and standalone — it can be done now, independent of step 1. For the
-   periodic branch's Ω, expose a neutral geometry getter, e.g. `Structure::CellVolume()`, rather than casting
-   — as the plan's §1 anticipated.)
+   need no change; they index on `itsZ` and quadrature on the structure's mesh). **Still open** — needs a
+   real-space (Gaussian/numeric) orbital basis instantiated on a `UnitCell` to route through `Ham_PP`.
+3. ✅ **isFinite() cleanup DONE** (the standalone part). `PW_Pseudo::GetEnergy` no longer downcasts to
+   `UnitCell`: the periodic branch is guarded by `!theStructure->isFinite()` (the same semantic predicate
+   `NuclearRepulsion` uses). Ω is **not** exposed as a `Structure` getter — that would be an **LSP violation**
+   (`CellVolume()` is not a fair question for an `Atom`/`Molecule`). Instead a new **`Structure::SumFormFactors
+   (const std::function<double(int Z)>&)`** answers the *fair* geometric question Σₐf(Zₐ) for any structure:
+   `Atom`/`Molecule` return the honest sum; `UnitCell` overrides to `Σₐf(Zₐ)/Ω` (folding in its own volume —
+   the G=0 background is a per-volume quantity). `GetEnergy` keeps the **physics** decision — a finite
+   structure's atoms *have* form factors but there is no periodic background, so `Ealign=0` (the `isFinite()`
+   guard), while a periodic cell gets `Ealign = N·SumFormFactors(FormFactorG0)`. The `qchem.UnitCell` import
+   dropped from `PWTerms.C`. *Still open (future, once a unified PP term across `T` is wanted):* carry the same
+   G=0 alignment in a unified term, and fold `PW_IonIon`/`Vnn` into a single `IonIon<T>`.
 **Note:** PW itself keeps `Integrals_Pseudo<dcmplx>` + its intrinsic G-grid — the G-space FFT route is
 principled and efficient. Unification is for real-space bases on a lattice, not for plane waves.
 

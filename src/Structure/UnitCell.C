@@ -2,6 +2,7 @@
 module;
 #include <iosfwd>
 #include <vector>
+#include <functional>
 export module qchem.UnitCell;
 export import qchem.Types;
 import qchem.Structure;
@@ -28,10 +29,16 @@ public:
 
     bool isFinite() const override {return false;}   //!< A periodic cell is NOT finite (Vnn -> Ewald).
 
-    //! A periodic cell's real-space integration mesh (uniform / unit-cell-Becke) is not yet implemented --
-    //! throws.  (Plane-wave DFT integrates in G-space on the basis's own grid, so it never asks for this;
-    //! this override exists to fail loudly rather than inherit Molecule's finite Becke grid, which is wrong
-    //! for a periodic cell.)
+    //! Form-factor sum PER CELL VOLUME: \f$\frac1\Omega\sum_a f(Z_a)\f$ -- the periodic G=0 background density
+    //! (the finite-structure sum, normalised by \f$\Omega\f$).  Lets the PP G=0 alignment read the geometry
+    //! without a Structure->UnitCell downcast or an LSP-violating CellVolume() on finite structures.
+    double SumFormFactors(const std::function<double(int Z)>& f) const override
+    {return Structure::SumFormFactors(f)/GetCellVolume();}
+
+    //! A periodic cell's real-space integration mesh: a UNIFORM grid of \c mp.nUniform points per axis at
+    //! cell-fractional midpoints (weight \f$\Omega/n^3\f$ each) -- the working lattice mesh for real-space PP
+    //! quadrature.  (Plane-wave DFT integrates in G-space on the basis's own grid, so it never asks for this;
+    //! an adaptive unit-cell Becke grid is a future refinement.)
     qcMesh::Mesh CreateIntegrationMesh(const qcMesh::MeshParams&) const override;
 
     //! \brief Add an atom of nuclear charge \a Z at FRACTIONAL cell coordinates \a f (\f$r=Af\f$).
@@ -53,7 +60,7 @@ public:
     //! cell geometry, so it serves both direct (R) and reciprocal (G) lattices.
     std::vector<vec3_t<int>> CellsInSphere(double MaxDistance) const;
 
-    std::ostream&  Write(std::ostream&) const;
+    std::ostream&  Write(std::ostream&) const override;
 
 private:
     Matrix3D<double> itsA; //!< Cell matrix; columns are the lattice vectors \f$a_i\f$ (a.u.).

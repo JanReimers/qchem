@@ -3,7 +3,6 @@ module;
 #include <cassert>
 #include <iostream>
 #include <vector>
-#include <stdexcept>
 
 module qchem.UnitCell;
 import qchem.Math;
@@ -11,12 +10,29 @@ import qchem.Structure;   // Atom (AddAtom inserts atoms given in fractional coo
 
 namespace qchem {
 
-// A periodic cell's real-space integration mesh (uniform / unit-cell-Becke) is future work; fail loudly
-// rather than inherit Molecule's finite Becke grid (wrong for a periodic cell).  Plane-wave DFT never asks.
-qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams&) const
+// A periodic cell's real-space integration mesh: a UNIFORM grid over the cell.  n=mp.nUniform points per
+// axis at cell-fractional midpoints f = ((i+1/2)/n, (j+1/2)/n, (k+1/2)/n), mapped to Cartesian by r = A f
+// (ToCartesian), each carrying equal weight Omega/n^3.  For a cell-periodic integrand the midpoint rule is
+// the natural (and, for smooth periodic fields, exponentially convergent) quadrature.  This is the working
+// lattice mesh that lets the geometry-neutral PP terms (PP_Local/PP_NonLocal) run on a real-space lattice
+// basis; an adaptive unit-cell Becke grid is a future refinement.  (Plane-wave DFT integrates in G-space on
+// the basis's own grid, so it never asks for this.)
+qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp) const
 {
-    throw std::runtime_error("UnitCell::CreateIntegrationMesh: a periodic real-space integration mesh "
-                             "(uniform / unit-cell-Becke) is not yet implemented");
+    const int n=mp.nUniform;
+    assert(n>0);
+    const double w=GetCellVolume()/(double(n)*n*n);   // equal weight Omega/n^3
+    rvec3vec_t R(size_t(n)*n*n);
+    rvec_t     W(size_t(n)*n*n);
+    size_t q=0;
+    for (int i=0; i<n; i++)
+        for (int j=0; j<n; j++)
+            for (int k=0; k<n; k++,q++)
+            {
+                R[q]=ToCartesian(rvec3_t((i+0.5)/n, (j+0.5)/n, (k+0.5)/n));   // r = A f, fractional midpoints
+                W[q]=w;
+            }
+    return qcMesh::Mesh(std::move(R), std::move(W));
 }
 
 //  Build the cell matrix A (columns = lattice vectors a₁,a₂,a₃) from the cell

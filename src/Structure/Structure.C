@@ -2,6 +2,7 @@
 module;
 #include <vector>
 #include <memory>
+#include <functional>
 
 export module qchem.Structure;
 import qchem.Types;
@@ -37,6 +38,14 @@ public:
     //! for a finite structure vs an Ewald lattice sum for a periodic one.
     virtual bool   isFinite         () const {return true;}
 
+    //! \brief Sum of a per-element form factor over the structure's atoms, \f$\sum_a f(Z_a)\f$ -- a fair
+    //! geometric question for ANY structure.  A periodic UnitCell normalises by its cell volume
+    //! (\f$\frac1\Omega\sum_a f(Z_a)\f$, the G=0 background being a per-volume quantity), so a caller needs no
+    //! cell-volume getter -- keeping \c CellVolume() off finite structures (no LSP violation).  The physics
+    //! decision of WHETHER the sum contributes (e.g. the PP G=0 alignment is zero for a finite structure) is
+    //! the caller's, via isFinite() -- this method only reports the geometric sum each structure can honestly give.
+    virtual double SumFormFactors   (const std::function<double(int Z)>& f) const;
+
     //! \brief The real-space integration mesh natural to this geometry, at resolution \a mp.  The mesh TYPE
     //! is the STRUCTURE's responsibility, not the basis's: an Atom builds its single-centre (radial x angular)
     //! grid, a Molecule the multi-centre Becke grid, a periodic lattice a uniform / unit-cell-Becke grid.
@@ -71,13 +80,13 @@ public:
     //  Copy/move/assign are all defaulted: an Atom is now a plain value type
     //  (no self-reference, no UniqueID), so it is freely relocatable.
 
-    virtual size_t GetNumAtoms      () const {return 1;}
+    virtual size_t GetNumAtoms      () const override {return 1;}
 
     //! A single atom's integration mesh: the atom-centred radial x angular grid (no Becke partitioning).
     virtual qcMesh::Mesh CreateIntegrationMesh(const qcMesh::MeshParams&) const override;
 
-    virtual std::string   ID     () const;
-    virtual std::ostream& Write  (std::ostream&) const;
+    virtual std::string   ID     () const override;
+    virtual std::ostream& Write  (std::ostream&) const override;
 
     int     itsZ;      //Atomic number.
     double  itsCharge; //Net charge. Z-numElectrons.
@@ -85,7 +94,7 @@ public:
 
 protected:
     //  An Atom is a one-element structure consisting of itself.
-    virtual Atom* GetAtom(size_t) const {return const_cast<Atom*>(this);}
+    virtual Atom* GetAtom(size_t) const override {return const_cast<Atom*>(this);}
 };
 
 export class Molecule
@@ -100,15 +109,15 @@ public:
     Molecule& operator=(Molecule m) {itsAtoms.swap(m.itsAtoms); return *this;}
     virtual ~Molecule();
     virtual void   Insert     (Atom* a);
-    virtual size_t GetNumAtoms() const;
+    virtual size_t GetNumAtoms() const override;
 
     //! A molecule's integration mesh: the multi-centre Becke-partitioned grid.
     virtual qcMesh::Mesh CreateIntegrationMesh(const qcMesh::MeshParams&) const override;
 
-    virtual std::ostream& Write(std::ostream&) const;
+    virtual std::ostream& Write(std::ostream&) const override;
 
 protected:
-    virtual Atom* GetAtom(size_t i) const {return itsAtoms[i];}
+    virtual Atom* GetAtom(size_t i) const override {return itsAtoms[i];}
 
 private:
     std::vector<Atom*> itsAtoms;
