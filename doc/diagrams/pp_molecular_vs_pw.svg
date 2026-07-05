@@ -1,0 +1,125 @@
+<svg viewBox="0 0 1060 860" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <style>
+    .h    { font-size: 20px; font-weight: 700; fill: #0f172a; }
+    .col  { font-size: 15px; font-weight: 700; }
+    .box  { font-size: 13px; fill: #1e293b; }
+    .sub  { font-size: 11px; fill: #475569; }
+    .badge{ font-size: 11px; font-weight: 700; }
+    .lgd  { font-size: 12px; fill: #334155; }
+  </style>
+
+  <rect x="0" y="0" width="1060" height="860" fill="#ffffff"/>
+  <text x="530" y="34" text-anchor="middle" class="h">Pseudopotential Hamiltonian — Molecular vs Plane-wave (Lattice)</text>
+  <text x="530" y="54" text-anchor="middle" class="sub">shared spine (centre) · divergence points colour-coded · ★ = §7 action item</text>
+
+  <!-- column headers -->
+  <text x="185" y="86" text-anchor="middle" class="col" fill="#1d4ed8">Molecular  ·  Ham_PP</text>
+  <text x="185" y="104" text-anchor="middle" class="sub">double · real-space · finite</text>
+  <text x="530" y="86" text-anchor="middle" class="col" fill="#334155">SHARED</text>
+  <text x="875" y="86" text-anchor="middle" class="col" fill="#6d28d9">Lattice / PW  ·  Ham_PW_DFT</text>
+  <text x="875" y="104" text-anchor="middle" class="sub">dcmplx · reciprocal (G) · periodic</text>
+
+  <!-- ================= ROW A: external (PP) potential ================= -->
+  <!-- molecular -->
+  <rect x="30" y="130" width="310" height="96" rx="8" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="45" y="152" class="box" font-weight="700">PP_Local  +  PP_NonLocal   (terms)</text>
+  <text x="45" y="172" class="sub">assemble ⟨χ|V_loc|χ⟩, ⟨χ|β·Yₗₘ⟩ in the TERM</text>
+  <text x="45" y="190" class="sub">real view: LocalPotential_R.Vloc(r), SeparablePotential_R.BetaR(r)</text>
+  <text x="45" y="208" class="sub">mesh: Structure::CreateIntegrationMesh (Becke)</text>
+  <!-- shared -->
+  <rect x="385" y="130" width="290" height="96" rx="8" fill="#f1f5f9" stroke="#64748b"/>
+  <text x="530" y="166" text-anchor="middle" class="box" font-weight="700">PP models</text>
+  <text x="530" y="188" text-anchor="middle" class="sub">LocalPotential · SeparablePotential</text>
+  <text x="530" y="206" text-anchor="middle" class="sub">(combined = is-a both faces)</text>
+  <!-- PW -->
+  <rect x="720" y="130" width="310" height="96" rx="8" fill="#ede9fe" stroke="#8b5cf6"/>
+  <text x="735" y="152" class="box" font-weight="700">PW_Pseudo   (term)</text>
+  <text x="735" y="172" class="sub">dynamic_cast → Integrals_Pseudo&lt;dcmplx&gt; on BASIS</text>
+  <text x="735" y="190" class="sub">recip view: LocalPotential_Q.FormFactor(G²)</text>
+  <text x="735" y="208" class="sub">+ G=0 align Ealign · mesh: intrinsic G-grid (Ecut)</text>
+  <!-- arrows to shared -->
+  <line x1="340" y1="178" x2="383" y2="178" stroke="#64748b" stroke-width="1.5" marker-end="url(#a)"/>
+  <line x1="720" y1="178" x2="677" y2="178" stroke="#64748b" stroke-width="1.5" marker-end="url(#a)"/>
+  <!-- badges under row A -->
+  <rect x="60" y="234" width="250" height="22" rx="11" fill="#fef3c7" stroke="#d97706"/>
+  <text x="185" y="249" text-anchor="middle" class="badge" fill="#b45309">INCIDENTAL: assembly in term vs basis</text>
+  <rect x="405" y="234" width="250" height="22" rx="11" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="530" y="249" text-anchor="middle" class="badge" fill="#15803d">PRINCIPLED: real V(r) vs recip ṽ(G²)</text>
+  <rect x="750" y="234" width="250" height="22" rx="11" fill="#fef3c7" stroke="#d97706"/>
+  <text x="875" y="249" text-anchor="middle" class="badge" fill="#b45309">G=0: molecular = 0.0 → unifiable</text>
+
+  <!-- ================= ROW B: ion-ion ================= -->
+  <rect x="30" y="284" width="310" height="52" rx="8" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="45" y="306" class="box" font-weight="700">Vnn(zionOf)</text>
+  <text x="45" y="324" class="sub">rStatic · rsmat_t</text>
+  <rect x="385" y="284" width="290" height="52" rx="8" fill="#f1f5f9" stroke="#64748b"/>
+  <text x="530" y="308" text-anchor="middle" class="box" font-weight="700">NuclearRepulsion(st, zionOf)</text>
+  <text x="530" y="326" text-anchor="middle" class="sub">pair-sum (finite) / Ewald (periodic)</text>
+  <rect x="720" y="284" width="310" height="52" rx="8" fill="#ede9fe" stroke="#8b5cf6"/>
+  <text x="735" y="306" class="box" font-weight="700">PW_IonIon(zionOf)</text>
+  <text x="735" y="324" class="sub">cStatic · chmat_t</text>
+  <line x1="340" y1="310" x2="383" y2="310" stroke="#64748b" stroke-width="1.5" marker-end="url(#a)"/>
+  <line x1="720" y1="310" x2="677" y2="310" stroke="#64748b" stroke-width="1.5" marker-end="url(#a)"/>
+  <rect x="405" y="342" width="250" height="22" rx="11" fill="#fef3c7" stroke="#d97706"/>
+  <text x="530" y="357" text-anchor="middle" class="badge" fill="#b45309">INCIDENTAL: same algo → IonIon&lt;T&gt;</text>
+
+  <!-- ================= ROW C: Hartree + XC (fit) ================= -->
+  <rect x="30" y="392" width="310" height="86" rx="8" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="45" y="414" class="box" font-weight="700">FittedVee + FittedVxc / FittedVxcPol</text>
+  <text x="45" y="434" class="sub">fitter from  bs-&gt;CreateVxcFitBasisSet(...)</text>
+  <text x="45" y="452" class="sub">→ FunctionFitter (Fit_IBS owns the mesh)</text>
+  <text x="45" y="470" class="sub">✓ honours the factory process</text>
+  <rect x="385" y="392" width="290" height="86" rx="8" fill="#f1f5f9" stroke="#64748b"/>
+  <text x="530" y="424" text-anchor="middle" class="box" font-weight="700">Fit_ABS / FunctionFitter&lt;T&gt;</text>
+  <text x="530" y="446" text-anchor="middle" class="sub">Scalar/Density faces · structure-neutral</text>
+  <text x="530" y="464" text-anchor="middle" class="sub">molecular (Becke) + Fourier (G) impls</text>
+  <rect x="720" y="392" width="310" height="86" rx="8" fill="#ede9fe" stroke="#8b5cf6"/>
+  <text x="735" y="414" class="box" font-weight="700">PW_Hartree + PW_XC</text>
+  <text x="735" y="434" class="sub">default-construct FourierFunctionFitter</text>
+  <text x="735" y="452" class="sub">on the ORBITAL basis (fit ≡ orbital)</text>
+  <text x="735" y="470" class="sub">✗ bypasses CreateXxxFitBasisSet (assert(false))</text>
+  <line x1="340" y1="435" x2="383" y2="435" stroke="#64748b" stroke-width="1.5" marker-end="url(#a)"/>
+  <line x1="720" y1="435" x2="677" y2="435" stroke="#64748b" stroke-width="1.5" marker-end="url(#a)"/>
+  <rect x="705" y="486" width="325" height="24" rx="12" fill="#fee2e2" stroke="#dc2626"/>
+  <text x="867" y="502" text-anchor="middle" class="badge" fill="#b91c1c">★ ITEM 2: PW must honour the fit-basis process (§3.1)</text>
+
+  <!-- ================= ROW D: mesh ================= -->
+  <rect x="385" y="536" width="290" height="70" rx="8" fill="#f1f5f9" stroke="#64748b"/>
+  <text x="530" y="562" text-anchor="middle" class="box" font-weight="700">Structure::CreateIntegrationMesh(mp)</text>
+  <text x="530" y="582" text-anchor="middle" class="sub">pure virtual · geometry owns its mesh</text>
+  <text x="530" y="598" text-anchor="middle" class="sub">Atom→radial · Molecule→Becke · UnitCell→(throws)</text>
+  <rect x="30" y="548" width="310" height="46" rx="8" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="185" y="568" text-anchor="middle" class="box">uses it (real-space Becke)</text>
+  <text x="185" y="585" text-anchor="middle" class="sub">PP terms are geometry-neutral</text>
+  <rect x="720" y="548" width="310" height="46" rx="8" fill="#ede9fe" stroke="#8b5cf6"/>
+  <text x="875" y="568" text-anchor="middle" class="box">does NOT use it</text>
+  <text x="875" y="585" text-anchor="middle" class="sub">owns intrinsic G-grid (FFT)</text>
+  <line x1="340" y1="571" x2="383" y2="571" stroke="#64748b" stroke-width="1.5" marker-end="url(#a)"/>
+  <line x1="720" y1="571" x2="677" y2="571" stroke="#64748b" stroke-width="1.5" marker-end="url(#a)"/>
+  <rect x="360" y="614" width="340" height="24" rx="12" fill="#fee2e2" stroke="#dc2626"/>
+  <text x="530" y="630" text-anchor="middle" class="badge" fill="#b91c1c">★ ITEM 1: UnitCell::CreateIntegrationMesh → real-space grid</text>
+  <text x="530" y="656" text-anchor="middle" class="sub">…then a Gaussian-on-lattice PP reuses PP_Local / PP_NonLocal / Vnn unchanged</text>
+
+  <!-- ================= legend ================= -->
+  <line x1="30" y1="686" x2="1030" y2="686" stroke="#e2e8f0" stroke-width="1"/>
+  <rect x="30" y="704" width="20" height="14" rx="3" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="58" y="716" class="lgd">PRINCIPLED divergence — reflects real physics/representation; keep it</text>
+  <rect x="30" y="728" width="20" height="14" rx="3" fill="#fef3c7" stroke="#d97706"/>
+  <text x="58" y="740" class="lgd">INCIDENTAL divergence — a harmonization / hoisting target</text>
+  <rect x="30" y="752" width="20" height="14" rx="3" fill="#fee2e2" stroke="#dc2626"/>
+  <text x="58" y="764" class="lgd">★ explicit §7 action item for the next session</text>
+  <rect x="560" y="704" width="20" height="14" rx="3" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="588" y="716" class="lgd">Molecular term / capability (double)</text>
+  <rect x="560" y="728" width="20" height="14" rx="3" fill="#ede9fe" stroke="#8b5cf6"/>
+  <text x="588" y="740" class="lgd">Plane-wave term / capability (dcmplx)</text>
+  <rect x="560" y="752" width="20" height="14" rx="3" fill="#f1f5f9" stroke="#64748b"/>
+  <text x="588" y="764" class="lgd">Shared spine — both sides use the same object/algorithm</text>
+
+  <text x="530" y="800" text-anchor="middle" class="sub">Kinetic (both intrinsic: Kinetic vs PW_Kinetic) — no divergence, omitted.  See doc/MolecularPP_HarmonizationFindings.md.</text>
+
+  <defs>
+    <marker id="a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 z" fill="#64748b"/>
+    </marker>
+  </defs>
+</svg>

@@ -6,20 +6,24 @@ the molecular (`src/BasisSet/Molecule`) and plane-wave (`src/BasisSet/Lattice_3D
 path to harmonizing them* — in service of the long-term goal of hoisting structure-neutral code up into
 `src/BasisSet`.
 
-Status at time of writing: Si₂ molecular PP converges through the `qchem::Calculation` facade
-(`A_PP.Si2_PP_U.LargeSeparation`), validated by (a) `Enn == Zion²/R` exactly and (b) `E(Si₂) ≈ 2·E(Si)`
-additivity at large R. Full UTMain green.
+Status: Si₂ molecular PP + multi-species (O–Si) routing converge through the `qchem::Calculation` facade;
+both pseudo-atoms (Si, O) validated. Full UTMain green. **The remaining harmonization work is captured as
+explicit action items in §7** (the two convergence points), with the map below.
+
+![Molecular vs plane-wave PP: shared spine + divergence points](diagrams/pp_molecular_vs_pw.svg)
 
 ## 1. The headline divergence: *where* PP assembly lives
 
 | | assembly site | reached via | term(s) |
 |---|---|---|---|
 | **PW** (`Lattice_3D`) | the **basis** — `Integrals_Pseudo<dcmplx>` on `PlaneWave_IBS` | `dynamic_cast` basis→capability, `MakeLocalPotential`/`MakeSeparablePotential` | one: `PW_Pseudo` |
-| **molecular** (`Molecule`) | the **term** — `MakeMolecularMesh`+`WeightedOverlap` inline | nothing (term owns the mesh) | two: `PP_Local`, `PP_NonLocal` |
+| **molecular** (`Molecule`) | the **term** — `Structure::CreateIntegrationMesh` + generic `qcMesh` quadrature | nothing (term asks the geometry for its mesh) | two: `PP_Local`, `PP_NonLocal` |
 
 `Integrals_Pseudo<T>` is realized **only** by the PW basis (`<dcmplx>`); there is **no `<double>` impl**. The
 molecular path never touches it. So the plan's §1/§3 vision ("molecular realizes `Integrals_Pseudo<double>`")
-was quietly superseded by assembly-in-the-term. Net: two assembly sites, nothing hoistable.
+was superseded by assembly-in-the-term. Net: two assembly sites — but the molecular one is now geometry-neutral
+(see §3), so unifying is a matter of teaching a *real-space lattice* to produce a mesh (§7 item 1), not writing
+a molecular `Integrals_Pseudo`.
 
 ## 2. The key realization: the mesh already lives behind the `Fit_ABS` network
 
@@ -37,79 +41,28 @@ So the tension "the molecular *orbital* basis would have to become mesh-aware to
 `Integrals_Pseudo<double>`" is a **false framing**: mesh-awareness belongs in the `Fit_ABS`/fitter network,
 which both PW and molecular already populate.
 
-## 3. Harmonization target
+## 3. Harmonization target (the two PP integral types) — ✅ DONE
 
-Route PP assembly through the `Fit_ABS` network the way XC already does. Two neutral primitives are needed
-beside the existing fitter (each with a molecular Becke-mesh impl and a PW G-space impl):
+Route PP assembly through the geometry's mesh + generic `qcMesh` quadrature. Two neutral primitives, each
+with a molecular Becke-mesh impl and a PW G-space impl:
 
 - **(a) scalar-field → operator matrix** `⟨χᵢ|V(r)|χⱼ⟩` (local PP). ✅ **DONE.** The right abstraction turned
-  out to be the **mesh on the geometry**, not a field-operator capability on the basis. The mesh is a virtual
-  on `Structure`: **`Structure::CreateIntegrationMesh(mp)` (pure virtual)** — each geometry owns its most
-  efficient mesh: `Atom` → single-centre radial×angular, `Molecule` → multi-centre Becke, `UnitCell` →
-  uniform/unit-cell-Becke (throws until implemented; PW never asks — it owns its G-grid). No central `if/case`
-  dispatch (SOLID). `PP_Local::CalculateMatrix` calls that virtual directly and quadratures with the generic
-  `qcMesh::WeightedOverlap(mesh, basis, V_loc)` — so the term is geometry-neutral with **no `dynamic_cast`**
-  and no basis-side indirection. V_loc is **static + smooth**, so this is raw quadrature (no fit), correctly
-  distinct from the density/potential *fitter*. Bit-identical (same Becke mesh, same `WeightedOverlap`).
+  out to be the **mesh on the geometry**, not a field-operator capability on the basis:
+  **`Structure::CreateIntegrationMesh(mp)` (pure virtual)** — each geometry owns its most efficient mesh
+  (`Atom` → single-centre radial×angular, `Molecule` → multi-centre Becke, `UnitCell` → uniform/unit-cell-Becke,
+  which currently throws; PW never asks — it owns its G-grid). No central `if/case` (SOLID).
+  `PP_Local::CalculateMatrix` calls that virtual and quadratures with generic `qcMesh::WeightedOverlap(mesh,
+  basis, V_loc)` — geometry-neutral, **no `dynamic_cast`**. V_loc is static + smooth, so this is raw quadrature
+  (no fit), correctly distinct from the density/potential *fitter*. Bit-identical.
   *(An earlier iteration routed this through a `Mesh_Integrated_IBS`/`MeshIntegratorSource` basis capability;
-  it was removed as over-abstraction — PW has its own PP term, so nothing needed the basis to manufacture the
-  integrator once the mesh lives on the geometry. `qcStructure` already links `qcMesh`, and `qchem.Mesh`
-  imports only `qchem.Types`, so coupling `Structure` to it costs ~nothing.)*
-- **(b) scalar-field → projection vector** `⟨χᵢ|β_p Yₗₘ⟩` (nonlocal KB). ✅ **DONE.** Same pattern as (a): the
+  removed as over-abstraction once the mesh lives on the geometry.)*
+- **(b) scalar-field → projection vector** `⟨χᵢ|β_p Yₗₘ⟩` (nonlocal KB). ✅ **DONE.** Same pattern: the
   projection primitive `qcMesh::Overlap(mesh, basis, β_p·Y_lm) → b` already existed and is generic, so the only
-  coupling was the mesh source. `PP_NonLocal::CalculateMatrix` now calls `theStructure->CreateIntegrationMesh(mp)`
-  directly (was inline `MakeMolecularMesh`) and builds each projector's `b` via `qcMesh::Overlap`, accumulating
-  the rank-1 `D|b⟩⟨b|`. Geometry-neutral, no `dynamic_cast`. Bit-identical (`Si_PP_U` = the KB test: −3.3369 vs
-  local-only −11.85). Both PP terms now assemble on the geometry's mesh with generic `qcMesh` quadrature — no
-  inline `MakeMolecularMesh`, no basis-side indirection.
+  coupling was the mesh source. `PP_NonLocal::CalculateMatrix` now calls `Structure::CreateIntegrationMesh`
+  and builds each projector's `b`, accumulating rank-1 `D|b⟩⟨b|`. Bit-identical (`Si_PP_U` KB test −3.3369).
 
-With both PP integral types routed on `Structure::CreateIntegrationMesh` + generic `qcMesh` quadrature, the
-molecular local + KB pseudopotential assembly is fully geometry-neutral. `Integrals_Pseudo<T>` stays the
-PW-only (G-space) capability; a future PW-vs-molecular PP unification is a separate, optional step. The broader
-"fold Fitting behind `Fit_ABS`" refactor (for the density/potential *fit* path, cf. §3.1) remains the recommended
-framework increment before Path B (semilocal ECPs).
-
-## 4. Multi-species molecular PP (DONE) + the convergence follow-up it exposed
-
-Multi-species molecular PP now works end-to-end: `Ham_PP_U(st, {{elem,q}…})` + `Hamiltonian::Factory(st, species, …)`
-build one `MultiSpecies_Local` + one `MultiSpecies_Separable` per-Z router (mirroring the PW `BuildFromGTH`), and
-the facade (`MakeValenceStructure` per-atom `Z−Zion`, `PPSpecies` distinct-species list) routes any molecule —
-single species is the 1-element case (Si tests still bit-identical through this path). The terms already indexed
-on the atoms' `itsZ`, so each atom gets its own local + KB potential and its own `Zion` for the ion-ion.
-Validated by `A_PP.OSi_PP_U.MultiSpeciesRouting`: **`Enn = Zion_O·Zion_Si/R = 6·4/R` exactly** (a mis-route
-would give 16/R or 36/R) — a convergence-independent proof of per-species routing.
-
-### 4.1 Convergence hardening — infrastructure DONE; remaining blocker is an accelerator/LA bug
-
-Chasing hetero-molecule energies (O–Si additivity failed by ~8 Ha, O 2p⁴ closed-shell didn't converge) drove a
-convergence-hardening pass. Three pieces landed as **correct, committed infrastructure**:
-1. **Spin-native PP Hamiltonian** — `Ham_PP_U` → **`Ham_PP`**, now `Pol`-parameterized: polarized uses
-   `FittedVxcPol` + `FittedVcorrPol` (open-shell/magnetism), unpolarized is the ζ=0 collapse (bit-identical
-   default). This is the tenet `[[feedback_spin_polarized_primary]]` applied to PP — forcing O into a
-   closed-shell singlet was the wrong, hard state. `Factory(Pol, …)` + both facades thread `pol`.
-2. **Accelerator selection on the facade** — `AcceleratorOptions.type` = `"DIIS"|"GDM"|"Ladder"` (was hardcoded
-   DIIS), so hard cases can pick GDM/Ladder.
-3. **Real GTH-optimized bases** — downloaded CP2K `SZV-GTH` and `DZVP-GTH` for Si+O, converted to Gaussian94
-   (`szvgth.bsd`, `dzvpgth.bsd`), replacing the ad-hoc `sipp` exponents.
-
-**The PP itself is sound — the O pseudo-atom converges cleanly.** Using the purpose-built ATOM path
-(`AtomCalculation`, Slater basis, High accuracy, `PseudoAtom_EC` handling the open-shell 2p⁴), the O
-pseudo-atom converges in ~70 ms to E = −13.9670584, charge = 6, `IsConverged()==true`
-(`A_PP.O_PP_U.SlaterHigh`). So both pseudo-atoms (Si, O) are validated, and the O GTH pseudopotential is fine.
-The lesson: **use `AtomCalculation` (Slater/High) for a single atom** — not the molecular Gaussian facade with
-`Molecule_EC` closed-shell.
-
-The molecular-facade throw is therefore an isolated MOLECULAR issue: `Molecule` PP with the hand-converted
-GTH Gaussian bases throws *"Invalid setup of symmetric matrix"*. gdb: `SCFAcceleratorDIIS::UseFD` →
-`LASolverCholesky::Transform` → `make_hermitian` (`src/LASolver/Internal/Imp/LASolverLapack.C:23`) wraps a
-Cholesky-transformed matrix containing **NaN/Inf** (a near-singular overlap) in a Blaze `SymmetricMatrix`.
-The most likely trigger is **my hand-converted bases**: CP2K's DZVP-GTH general contraction, split into
-segmented Gaussian94 shells, places a diffuse function on the same exponent as a contracted primitive →
-near-linear-dependence. So the first fix is a properly-conditioned molecular basis (or a cleaner conversion).
-Independently, a production code should survive a near-singular overlap, so a robust orthonormalization
-(canonical / level-shifted) in the accelerator/LASolver is a worthwhile hardening — but it is **not** blocking
-PP validation (the atoms converge). (Do NOT cite the old "N5" repro as evidence — N5 is a test-only tiny pool,
-invalid for SCF; see [[feedback_scf_accuracy_levels]].)
+Both PP terms now assemble on the geometry's mesh with generic `qcMesh` quadrature. That is what makes the
+molecular↔lattice unification (§7 item 1) a small step rather than a rewrite.
 
 ### 3.1 HARD CONSTRAINT: the fit basis is GENERATED BY the orbital basis (the *process* matters)
 
@@ -120,7 +73,7 @@ virtual FIT_CD_ABS* CreateCDFitBasisSet (const Structure*, const qcMesh::MeshPar
 virtual FIT_SF_ABS* CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams&) const;  // potential-fit basis
 ```
 
-The **molecular** path honours this: `FittedVee`/`FittedVxc`/`Ham_PP_U` call `bs->CreateXxxFitBasisSet(...)`,
+The **molecular** path honours this: `FittedVee`/`FittedVxc`/`Ham_PP` call `bs->CreateXxxFitBasisSet(...)`,
 get back a *distinct* `FIT_*_ABS`, and build the fitter on it — the orbital basis is the FACTORY of its fit
 basis (a real, separately-tuned auxiliary basis).
 
@@ -131,11 +84,12 @@ The **PW** path VIOLATES this and must NOT be copied:
   `FourierFunctionFitter` and hand it the *orbital* basis directly — hardcoding "fit basis ≡ orbital basis"
   and bypassing the generating process.
 
-**The clean target:** PW *implements* `CreateCDFitBasisSet`/`CreateVxcFitBasisSet` (the DFT/`Band_FT_IBS`
-side, with the composite delegating as the `<double>` path already does). PW is free to *return* itself, or a
-more efficient tuned-{G} fit basis — but the caller always goes THROUGH the factory method. `PW_Hartree`/
-`PW_XC` then obtain their fitter exactly as `FittedVee`/`FittedVxc` do: `MakeXxxFitter(bs->CreateXxxFitBasisSet(...))`.
-The `assert(false)` stubs die; the process is uniform even when PW's answer is trivial.
+**The clean target (§7 item 2):** PW *implements* `CreateCDFitBasisSet`/`CreateVxcFitBasisSet` (the DFT/
+`Band_FT_IBS` side, with the composite delegating as the `<double>` path already does). PW is free to *return*
+itself, or a more efficient tuned-{G} fit basis — but the caller always goes THROUGH the factory. `PW_Hartree`/
+`PW_XC` then obtain their fitter exactly as `FittedVee`/`FittedVxc` do:
+`MakeXxxFitter(bs->CreateXxxFitBasisSet(...))`. The `assert(false)` stubs die; the process is uniform even when
+PW's answer is trivial.
 
 This constraint governs the whole harmonization: whenever a fit/auxiliary structure is needed, obtain it from
 the orbital basis via its factory method — never assume the orbital basis IS the fit/aux basis. (For the raw
@@ -146,30 +100,104 @@ to any density/potential *fit* the assembler performs.)
 
 - **`PseudoG0Energy` — ELIMINATED this session.** The PP-specific G=0 alignment `(N/Ω)·Σₐ α` moved off the
   `Integrals_Pseudo` basis interface into the `PW_Pseudo` term (which reads Ω from `UnitCell::GetCellVolume()`
-  and α from the model it already owns). `Integrals_Pseudo<T>` is now two clean universal matrix methods;
-  PW energies bit-identical.
+  and α from the model it already owns). `Integrals_Pseudo<T>` is now two clean universal matrix methods.
+  **G=0 is unifiable, not a principled asymmetry:** a finite molecule drops *nothing* at G=0 (the real-space
+  mesh integrates the full `V_loc(r)`, including its `−Zion/r` tail), so the alignment is *physically* zero.
+  A unified PP term would carry `Ealign = 0` for a finite structure and `(N/Ω)Σα` for a periodic one — exactly
+  what `PW_Pseudo` already does via its `dynamic_cast<UnitCell>` guard. So the molecular value is a correct
+  hardcoded `0.0` (like `Vnn`'s identity `zionOf` default), giving a uniform interface.
 - **`PW_IonIon` vs molecular `Vnn` — a T-template candidate.** Both are energy-only ion-ion terms delegating
-  to `NuclearRepulsion(st, zionOf)`; they differ only in scalar type (`chmat_t` vs `rsmat_t`) and
-  finite/periodic (already handled inside `NuclearRepulsion`). This session unified the **Zion callback**
-  onto `Vnn` (one term serves all-electron via an identity default and PP via a Z→Zion map, mirroring
-  `PW_IonIon`). A future `IonIon<T>` term could collapse the two entirely.
-- **Electron-count coupling (wart).** `Ham_PP_U`/`FittedVee` read the valence count from
-  `st->GetNumElectrons()`, forcing the "atom charge = Z−Zion" encoding (real atoms carry charge 0). The
-  facade absorbs it via `MakeValenceStructure`, but a cleaner design passes the count/EC explicitly rather
-  than deriving it from structure net-charges.
-- **Basis provenance.** The molecular Factory is Gaussian-file-only, and all-electron `.bsd` files (e.g.
-  `dzvp`) carry core shells that are inconsistent with a PP. A valence-only `sipp.bsd` was authored for
-  validation; a proper GTH-optimized molecular basis family (SZV/DZVP-GTH) is the production follow-up.
-- **Single-species only.** The facade PP path requires all atoms to be the same element. The
-  `MultiSpecies_{Local,Separable}Potential` routers + per-Z `zionOf` (already built and used by PW) are the
-  next increment for hetero molecules.
+  to `NuclearRepulsion(st, zionOf)`; they differ only in scalar type (`chmat_t` vs `rsmat_t`). This session
+  unified the **Zion callback** onto `Vnn` (one term serves all-electron via an identity default and PP via a
+  Z→Zion map, mirroring `PW_IonIon`). A future `IonIon<T>` term could collapse the two entirely.
+- **Electron-count coupling (wart).** `Ham_PP`/`FittedVee` read the valence count from `st->GetNumElectrons()`,
+  forcing the "atom charge = Z−Zion" encoding (real atoms carry charge 0). The facade absorbs it via
+  `MakeValenceStructure`, but a cleaner design passes the count/EC explicitly rather than deriving it from
+  structure net-charges.
+- **Basis provenance — real GTH bases now in.** All-electron `.bsd` files (e.g. `dzvp`) carry core shells that
+  are inconsistent with a PP. Real CP2K `SZV-GTH`/`DZVP-GTH` (Si+O) were downloaded + converted to Gaussian94
+  (`szvgth.bsd`, `dzvpgth.bsd`). Residual: my *segmented* split of CP2K's general contraction puts a diffuse
+  function on the same exponent as a contracted primitive → near-linear-dependence; a cleaner conversion (or a
+  well-conditioned basis) is the last bit (ties to §5.1).
 
-## 5. What landed this session (goal 1 + the cheap goal-2 wins)
+## 5. Multi-species molecular PP (DONE) + the convergence follow-up it exposed
+
+Multi-species molecular PP works end-to-end: `Ham_PP(st, {{elem,q}…})` + `Hamiltonian::Factory(Pol, st, species, …)`
+build one `MultiSpecies_Local` + one `MultiSpecies_Separable` per-Z router (mirroring the PW `BuildFromGTH`),
+and the facade (`MakeValenceStructure` per-atom `Z−Zion`, `PPSpecies` distinct-species list) routes any
+molecule — single species is the 1-element case (Si tests still bit-identical). The terms already indexed on
+the atoms' `itsZ`, so each atom gets its own local + KB potential and its own `Zion` for the ion-ion.
+Validated by `A_PP.OSi_PP_U.MultiSpeciesRouting`: **`Enn = Zion_O·Zion_Si/R = 6·4/R` exactly** (a mis-route
+would give 16/R or 36/R) — a convergence-independent proof of per-species routing.
+
+### 5.1 Convergence hardening — infrastructure DONE; the atoms converge; the blocker is accelerator/LA
+
+Chasing hetero-molecule energies drove a convergence-hardening pass. Three pieces landed as **correct,
+committed infrastructure**:
+1. **Spin-native PP Hamiltonian** — `Ham_PP_U` → **`Ham_PP`**, now `Pol`-parameterized: polarized uses
+   `FittedVxcPol` + `FittedVcorrPol` (open-shell/magnetism), unpolarized is the ζ=0 collapse (bit-identical
+   default). Tenet `[[feedback_spin_polarized_primary]]` applied to PP — forcing O into a closed-shell singlet
+   was the wrong, hard state. `Factory(Pol, …)` + both facades thread `pol`.
+2. **Accelerator selection on the facade** — `AcceleratorOptions.type` = `"DIIS"|"GDM"|"Ladder"`.
+3. **Real GTH bases** — CP2K `SZV-GTH`/`DZVP-GTH` (see §4 "Basis provenance").
+
+**The PP is sound — the O pseudo-atom converges cleanly.** Via the purpose-built ATOM path (`AtomCalculation`,
+Slater basis, High accuracy, `PseudoAtom_EC` handling the open-shell 2p⁴), O converges in ~70 ms to
+E = −13.9670584, charge = 6, `IsConverged()==true` (`A_PP.O_PP_U.SlaterHigh`). Both pseudo-atoms (Si, O)
+validated. **Lesson: use `AtomCalculation` (Slater/High) for a single atom** — not the molecular Gaussian
+facade with `Molecule_EC` closed-shell.
+
+The molecular-facade throw is an isolated MOLECULAR issue in the **accelerator/LA layer** (not PP): `Molecule`
+PP with the hand-converted GTH bases throws *"Invalid setup of symmetric matrix"*. gdb:
+`SCFAcceleratorDIIS::UseFD` → `LASolverCholesky::Transform` → `make_hermitian`
+(`src/LASolver/Internal/Imp/LASolverLapack.C:23`) wraps a Cholesky-transformed matrix containing **NaN/Inf**
+(near-singular overlap) in a Blaze `SymmetricMatrix`. Two contributing fixes, both separable from PP: a
+properly-conditioned molecular basis (cleaner DZVP conversion), and a robust orthonormalization
+(canonical / level-shifted) in the accelerator/LASolver. Not blocking (the atoms converge). (Do NOT cite the
+old "N5" repro — N5 is a test-only tiny pool, invalid for SCF; see `[[feedback_scf_accuracy_levels]]`.)
+
+## 6. What landed this session
 
 1. `PseudoG0Energy` eliminated (A0 closeout; PW bit-identical).
 2. `Vnn` gained an optional Z→Zion callback (all-electron default = identity) — one ion-ion term for both.
-3. `Ham_PP_U` explicit ctor now takes the **combined** `LocalPotential` (real-space view for `PP_Local` +
-   `Zion` for `Vnn`) and adds `Vnn(Zion)` — harmless (Enn=0) for a lone atom, correct for a molecule.
-4. `qchem::Calculation` facade: `{.pseudopotential=true}` (single-species), valence-ion structure, PP front
-   door, DIIS-from-start.
-5. `sipp.bsd` valence Si Gaussian basis + Factory registration; `A_PP.Si2_PP_U.LargeSeparation` anchor.
+3. `Ham_PP` takes the **combined** `LocalPotential` (real-space view for `PP_Local` + `Zion` for `Vnn`).
+4. Molecular PP through `qchem::Calculation` facade `{.pseudopotential=true}`; Si₂ + multi-species O–Si.
+5. Harmonization (a)+(b): both PP integral types routed on `Structure::CreateIntegrationMesh` (pure virtual)
+   + generic `qcMesh` quadrature; `MolecularMesh` module folded into `Molecule.C` and deleted.
+6. Spin-native `Ham_PP` (`Pol`), facade accelerator selection, real CP2K GTH bases, both pseudo-atoms pinned.
+
+## 7. Action items for the next session (the two convergence points)
+
+Everything above is committed. The remaining harmonization is **two** explicit items; the diagram at the top
+marks both. Neither blocks current PP use — they are the "hoist structure-neutral code up into `src/BasisSet`"
+payoff.
+
+### Item 1 — Unify molecular & lattice PP for a REAL-SPACE basis
+**Goal:** a Gaussian (or numeric) orbital basis on a *lattice* reuses the molecular `PP_Local`/`PP_NonLocal`
+(+ `Vnn`) terms unchanged — closing the "two assembly sites" divergence (§1) for everything except the PW
+G-space FFT path (which stays, rightly, its own thing).
+**Steps:**
+1. `UnitCell::CreateIntegrationMesh(mp)` — implement the real-space periodic mesh (uniform grid, or a
+   unit-cell Becke) instead of the current `throw`. (`src/Structure/Imp/UnitCell.C`.) This is the ONE missing
+   piece — the PP terms are already geometry-neutral (§3).
+2. Confirm `PP_Local`/`PP_NonLocal` + `Vnn(zionOf)` produce a sane lattice PP energy on that mesh (they need
+   no change; they index on `itsZ` and quadrature on the structure's mesh).
+3. (Optional, once a unified PP term is wanted across `T`) carry the G=0 alignment in the term: `0.0` for a
+   finite structure, `(N/Ω)·Σ FormFactorG0` for a periodic one — the correct hardcoded-0.0 pattern from §4.
+   Fold `PW_IonIon`/`Vnn` into a single `IonIon<T>` while here.
+**Note:** PW itself keeps `Integrals_Pseudo<dcmplx>` + its intrinsic G-grid — the G-space FFT route is
+principled and efficient. Unification is for real-space bases on a lattice, not for plane waves.
+
+### Item 2 — Fold Fitting behind `Fit_ABS`: make PW honour the fit-basis process (§3.1)
+**Goal:** the density/potential FIT path is uniform — PW obtains its fit basis via the same
+`CreateXxxFitBasisSet` factory the molecular path uses, so a single neutral term-side fitting flow serves both.
+**Steps:**
+1. Implement `CreateCDFitBasisSet` / `CreateVxcFitBasisSet` on the PW DFT capability (`Band_FT_IBS` /
+   `PlaneWave_IBS`) — return `this` (or a tuned-{G} fit basis); the composite `tBasisSet<dcmplx>` delegates,
+   as the `<double>` path already does. Delete the `assert(false)` stubs (`src/BasisSet/Imp/BasisSet.C`).
+2. Change `PW_Hartree`/`PW_XC` (`src/Hamiltonian/Internal/Imp/PWTerms.C`) to obtain their fitter via
+   `MakeXxxFitter(bs->CreateXxxFitBasisSet(...))` instead of default-constructing a `FourierFunctionFitter`
+   over the orbital basis.
+3. Verify PW DFT energies stay bit-identical (the fitter answer is unchanged; only the *route* to it changes).
+**Constraint:** never assume `orbital == fit` (§3.1); the factory is the seam even when PW's answer is trivial.
+Related: this is the accelerator/fitting owner's domain and dovetails with the LASolver robustness (§5.1).
