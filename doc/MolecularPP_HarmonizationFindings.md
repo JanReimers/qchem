@@ -177,14 +177,20 @@ payoff.
 (+ `Vnn`) terms unchanged — closing the "two assembly sites" divergence (§1) for everything except the PW
 G-space FFT path (which stays, rightly, its own thing).
 **Steps:**
-1. `UnitCell::CreateIntegrationMesh(mp)` — implement the real-space periodic mesh (uniform grid, or a
-   unit-cell Becke) instead of the current `throw`. (`src/Structure/Imp/UnitCell.C`.) This is the ONE missing
-   piece — the PP terms are already geometry-neutral (§3).
-2. Confirm `PP_Local`/`PP_NonLocal` + `Vnn(zionOf)` produce a sane lattice PP energy on that mesh (they need
-   no change; they index on `itsZ` and quadrature on the structure's mesh).
-3. (Optional, once a unified PP term is wanted across `T`) carry the G=0 alignment in the term: `0.0` for a
-   finite structure, `(N/Ω)·Σ FormFactorG0` for a periodic one — the correct hardcoded-0.0 pattern from §4.
-   Fold `PW_IonIon`/`Vnn` into a single `IonIon<T>` while here.
+1. `UnitCell::CreateIntegrationMesh(mp)` — currently `throw`s (`src/Structure/Imp/UnitCell.C`). **A real-space
+   lattice mesh is a FUTURE enhancement, NOT required at this stage** (defer until a real-space lattice basis
+   is actually wanted — PW handles solids in G-space today). When it lands, a uniform real-space grid is the
+   minimal cut; the **unit-cell Becke grid is a further future refinement**, not needed for a first pass.
+2. Then confirm `PP_Local`/`PP_NonLocal` + `Vnn(zionOf)` produce a sane lattice PP energy on that mesh (they
+   need no change; they index on `itsZ` and quadrature on the structure's mesh).
+3. (Once a unified PP term across `T` is wanted) carry the G=0 alignment in the term: `0.0` for a finite
+   structure, `(N/Ω)·Σ FormFactorG0` for a periodic one — the correct hardcoded-0.0 pattern from §4. Fold
+   `PW_IonIon`/`Vnn` into a single `IonIon<T>` while here. **Replace the `dynamic_cast<UnitCell>` in
+   `PW_Pseudo::GetEnergy` (added this session) with `Structure::isFinite()`** — the semantic predicate
+   `NuclearRepulsion` already uses; a concrete `Structure→UnitCell` downcast is a CLAUDE.md-flagged smell.
+   (This isFinite() cleanup is small and standalone — it can be done now, independent of step 1. For the
+   periodic branch's Ω, expose a neutral geometry getter, e.g. `Structure::CellVolume()`, rather than casting
+   — as the plan's §1 anticipated.)
 **Note:** PW itself keeps `Integrals_Pseudo<dcmplx>` + its intrinsic G-grid — the G-space FFT route is
 principled and efficient. Unification is for real-space bases on a lattice, not for plane waves.
 
