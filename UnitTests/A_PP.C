@@ -77,3 +77,18 @@ TEST(OSi_PP_U, MultiSpeciesRouting)
     EXPECT_NEAR(cOSi.EnergyTerms().Enn, 24.0/R, 1e-6);   // per-species Zion routing: 6*4/R (not 16/R or 36/R)
     EXPECT_LT(cOSi.Energy(), 0.0);                       // a finite, bound total (sanity; not an accuracy claim)
 }
+// Oxygen pseudo-atom, 6 valence electrons (GTH-LDA q6), via the ATOM path: Slater basis, High accuracy,
+// PseudoAtom_EC (which handles the open-shell 2p^4 valence config).  The purpose-built pseudo-atom path,
+// like Si_PP_U -- fast (~70 ms) and well-conditioned, and it CONVERGES (unlike the molecular Gaussian facade
+// with Molecule_EC + hand-converted GTH bases, which hits a near-singular-overlap LASolver throw).  Confirms
+// the O GTH pseudopotential is sound; the molecular-hetero convergence is a separable basis/LASolver issue.
+TEST(O_PP_U, SlaterHigh)
+{
+    AtomCalculation calc(8, 8-6, {.type = AtomType::Slater, .accuracy = High, .pseudopotential = true},
+        {.NMaxIter = 150, .MinΔρ = 1e-7, .MinΔFD = 1e-7, .MinVirial = 1e10, .MinFD = 1e-7,
+         .StartingRelaxRo = 0.5, .MergeTol = 1e-7});
+
+    EXPECT_NEAR(calc.Energy(),      -13.967058370, 1e-6);   // pinned regression anchor (Slater/High)
+    EXPECT_NEAR(calc.TotalCharge(),   6.0,         1e-9);   // valence electron count
+    EXPECT_TRUE(calc.IsConverged());                        // the atom path converges cleanly
+}
