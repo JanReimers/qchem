@@ -290,11 +290,14 @@ chmat_t PlaneWave_IBS::MakeSeparablePotential(const Structure* cl, const Pseudop
     return V;
 }
 
-// The Band_FT_IBS factory seam: hand back a distinct auxiliary fit basis over a copy of THIS grid engine
-// (same {G} now; denser for the density later).  mp is ignored -- a plane-wave fit basis is Ecut-based.
+// The Band_FT_IBS factory seam: hand back a distinct auxiliary density-fit basis.  The density is
+// cell-periodic, so ITS symmetry is Gamma (k=0), NOT this orbital block's k -- build a k=0 grid engine at
+// the same Ecut and label it with a k=0 Bloch irrep.  (mp ignored -- a plane-wave fit basis is Ecut-based;
+// a denser density grid is the future x2 tuning.)
 BasisSet::cFIT_CD_ABS* PlaneWave_IBS::CreateCDFitBasisSet(const Structure*, const qcMesh::MeshParams&) const
 {
-    return new PlaneWaveFit_IBS(*this, GetSymt());   // *this slices to its PW_Evaluator; same Bloch irrep
+    PW_Evaluator gamma(Recip(), rvec3_t(0.0,0.0,0.0), Ecut());
+    return new PlaneWaveFit_IBS(gamma, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
 }
 
 std::string PlaneWave_IBS::BasisSetID() const

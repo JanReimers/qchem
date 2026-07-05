@@ -16,6 +16,7 @@ export namespace qchem::Hamiltonian
 {
     template <class T> using tbs_t=BasisSet::tBasisSet<T>;         // whole (composite) basis: Iterate<tobs_t>() yields the per-irrep bases
     using rbs_t    =tbs_t<double>;
+    using cbs_t    =tbs_t<dcmplx>;   // whole (composite) plane-wave basis (Ham_PW_DFT's fit-basis factory source)
     using fbs_t   =BasisSet::Fit_IBS;
     template <class T> using tobs_t=BasisSet::Orbital_1E_IBS<T>;  // T-parametric orbital basis
     // r* = <double>, c* = <dcmplx> (mirrors rsmat_t/chmat_t).

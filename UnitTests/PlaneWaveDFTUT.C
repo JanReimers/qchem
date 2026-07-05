@@ -33,6 +33,7 @@
 
 import qchem.BasisSet.Lattice_3D.PlaneWave_IBS;
 import qchem.BasisSet.Lattice_3D.BasisSet;   // Factory(Type::PW, lat, Ecut, loc, nl) -> Complex_BS*
+import qchem.Mesh;                           // qcMesh::MeshParams (PW_Hartree's fit-basis factory arg; ignored)
 import qchem.Lattice_3D;     // UnitCell, Lattice_3D, ReciprocalLattice
 import qchem.Ewald;          // EwaldEnergy (ion-ion Madelung term -> physical total energy)
 import qchem.Types;          // dcmplx, ivec3_t, rvec_t, mat_t, chmat_t
@@ -71,6 +72,14 @@ using Pseudopotential::GTH_PP;
 
 namespace
 {
+
+// PW_Hartree now takes its density-fit basis (from the basis's own factory) at construction, like
+// FittedVee.  These low-level term tests build one straight from the plane-wave basis at hand.
+qchem::Hamiltonian::PW_Hartree* NewPWHartree(const PlaneWave_IBS& pw)
+{
+    return new qchem::Hamiltonian::PW_Hartree(
+        qchem::Hamiltonian::PW_Hartree::fbs_t(pw.CreateCDFitBasisSet(nullptr, qcMesh::MeshParams{})));
+}
 
 // A ScalarFunction<double> wrapping a lambda f(r) -- to hand real-space fields to the basis's
 // high-level integral methods (Overlap/Repulsion/Integral).
@@ -914,8 +923,8 @@ TEST_F(PlaneWaveDFT, PWDynamicTermsMatchBasis)
     qchem::ChargeDensity::IrrepCD<dcmplx> cd(D, &F.pw, irr);
 
     // Hartree term matrix == basis Repulsion of the same density.
-    qchem::Hamiltonian::PW_Hartree   h;
-    qchem::Hamiltonian::cDynamic_HT* ht=&h;
+    std::unique_ptr<qchem::Hamiltonian::PW_Hartree> h(NewPWHartree(F.pw));
+    qchem::Hamiltonian::cDynamic_HT* ht=h.get();
     const chmat_t& Mh = ht->GetMatrix(&F.pw, Spin::None, &cd);
     double Eh; chmat_t refh = F.pw.Repulsion(cd, Eh);
     for (size_t i=0;i<n;i++)
@@ -964,7 +973,7 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaMatchesPrototype)
     cHamiltonianImp ham;
     ham.Add(new PW_Kinetic);
     ham.Add(new PW_Pseudo(si, &loc, &nl));
-    ham.Add(new PW_Hartree);
+    ham.Add(NewPWHartree(pw));
     ham.Add(new PW_XC(std::make_shared<SlaterExchange> (2.0/3.0)));   // Dirac exchange
     ham.Add(new PW_XC(std::make_shared<VWN_Correlation>()));          // VWN5 correlation
 
@@ -1050,7 +1059,7 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaThroughSCFIterator)
         Crystal_EC ec(irr, 8);   // Si insulator: 8 valence electrons (2 atoms x Zion 4)
         // Plane-wave LDA Kohn-Sham Hamiltonian: kinetic + external(pseudo) + Hartree + Dirac X + VWN5
         // (heap; the SCFIterator takes ownership).  Atoms from the lattice; the PP model lives on the term.
-        cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), "Si", "LDA", 4);   // one-call: looks up + owns the GTH PP
+        cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), bs.get(), "Si", "LDA", 4);   // one-call: looks up + owns the GTH PP
         // Complex DIIS (Pulay): extrapolate the Fock matrix from the [F,D] history; damps the marginal drift
         // within Si's degenerate Gamma_25' manifold so it converges to a tight |Delta rho|.
         using qchem::SCFAccelerators::DIISParams;
@@ -1110,12 +1119,17 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaThroughSCFIterator)
 // ownership of \a ham (the SCFIterator deletes it).  Mirrors the Si framework test body.
 namespace {
 struct FwResult { bool converged; double charge; qchem::EnergyBreakdown E; size_t iters; };
+// Takes a Ham FACTORY (not a pre-built Ham) so the Hamiltonian is built WITH the basis -- the fit-basis
+// seam: Ham_PW_DFT now needs the composite basis to create the Hartree density-fit basis (like the
+// molecular Ham DFT ctors take bs for FittedVee).
 FwResult RunFrameworkGamma(const Lattice_3D& lat, double Ecut, int Nelec,
-                           qchem::Hamiltonian::cHamiltonian* ham, const char* label,
+                           std::function<qchem::Hamiltonian::cHamiltonian*(const BasisSet::Complex_BS*)> mkHam,
+                           const char* label,
                            qchem::ChargeDensity::SeedStrategy seed=qchem::ChargeDensity::SeedStrategy::Uniform)
 {
     namespace L3=BasisSet::Lattice_3D;
     std::unique_ptr<BasisSet::Complex_BS> bs(L3::Factory(L3::Type::PW, lat, Ecut));
+    qchem::Hamiltonian::cHamiltonian* ham=mkHam(bs.get());   // build the Ham WITH the basis (fit-basis seam)
     Irrep  irr=bs->GetIrreps(Spin::None)[0];
     size_t n  =bs->GetNumFunctions();
     Crystal_EC ec(irr, Nelec);
@@ -1154,14 +1168,15 @@ TEST_F(PlaneWaveDFT, FrameworkNaFThroughSCFIterator)
     Lattice_3D lat(cell, ivec3_t(1,1,1));
 
     using SS=qchem::ChargeDensity::SeedStrategy;
-    auto mkHam=[&]{ return new Ham_PW_DFT(lat.GetStructure(), {{"Na",1},{"F",7}}, "LDA"); }; // multi-species one-call
+    auto mkHam=[&](const BasisSet::Complex_BS* bs)   // multi-species one-call; bs -> the Hartree fit basis
+        { return new Ham_PW_DFT(lat.GetStructure(), bs, {{"Na",1},{"F",7}}, "LDA"); };
 
     // IonicSAD seed: the electronegativity heuristic assigns Na+ / F-, and the per-species valence densities
     // are scaled to the formal-charge electron counts (0 e- on Na, 8 e- on F) -- the seed pre-bakes the
     // Na->F charge transfer and CONSERVES the cell electron count.  This asserts the seed is CORRECT (charge
     // sum rule + same converged energy as Uniform: the seed cannot change the answer).
-    FwResult I=RunFrameworkGamma(lat, /*Ecut*/6.0, /*Nelec*/8, mkHam(), "NaF IonicSAD", SS::IonicSAD);
-    FwResult U=RunFrameworkGamma(lat, /*Ecut*/6.0, /*Nelec*/8, mkHam(), "NaF Uniform",  SS::Uniform);
+    FwResult I=RunFrameworkGamma(lat, /*Ecut*/6.0, /*Nelec*/8, mkHam, "NaF IonicSAD", SS::IonicSAD);
+    FwResult U=RunFrameworkGamma(lat, /*Ecut*/6.0, /*Nelec*/8, mkHam, "NaF Uniform",  SS::Uniform);
     std::cout << "[NaF seed compare] IonicSAD iters="<<I.iters<<"  Uniform iters="<<U.iters << std::endl;
 
     EXPECT_TRUE(I.converged);
@@ -1191,9 +1206,10 @@ TEST_F(PlaneWaveDFT, FrameworkCsIThroughSCFIterator)
     cell.AddAtom(53, {0.5,0.5,0.5});              // I   (true species Z=53; Zion=7 -- s,p,d channels)
     Lattice_3D lat(cell, ivec3_t(1,1,1));
 
-    cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), {{"Cs",1},{"I",7}}, "LDA");
+    auto mkHam=[&](const BasisSet::Complex_BS* bs)   // bs -> the Hartree fit basis (created once in BuildTerms)
+        { return new Ham_PW_DFT(lat.GetStructure(), bs, {{"Cs",1},{"I",7}}, "LDA"); };
 
-    FwResult R=RunFrameworkGamma(lat, /*Ecut*/4.0, /*Nelec*/8, ham, "CsI SCFIterator-Gamma");
+    FwResult R=RunFrameworkGamma(lat, /*Ecut*/4.0, /*Nelec*/8, mkHam, "CsI SCFIterator-Gamma");
 
     EXPECT_TRUE(R.converged);
     EXPECT_NEAR(R.charge, 8.0, 1e-6);             // 1 (Cs) + 7 (I) valence electrons (d-projectors active)
@@ -1255,7 +1271,7 @@ TEST_F(PlaneWaveDFT, FrameworkSilicon2x2x2ThroughSCFIterator)
     const int Nelec=8;
     Crystal_EC ec(irreps, Nelec);                          // Nval per k-block; weights handle the BZ sum
 
-    cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), "Si", "LDA", 4);   // one-call: looks up + owns the GTH PP
+    cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), bs.get(), "Si", "LDA", 4);   // one-call: looks up + owns the GTH PP
     using qchem::SCFAccelerators::DIISParams;
     auto* acc=new qchem::SCFAccelerators::cSCFAcceleratorDIIS(DIISParams{8, 0.5, 1e-10, 1e-9});
 
@@ -1317,8 +1333,8 @@ TEST_F(PlaneWaveDFT, DynamicTermCacheFreshAcrossDensity)
     hmat_t<dcmplx> D2=blazem::zeroH<dcmplx>(n);  D2(0,0)=1.0; D2(0,1)=1.0; D2(1,1)=1.0;  // modulated density
     qchem::ChargeDensity::IrrepCD<dcmplx> cd1(D1,&F.pw,irr), cd2(D2,&F.pw,irr);
 
-    qchem::Hamiltonian::PW_Hartree   hart;
-    qchem::Hamiltonian::cDynamic_HT* ht=&hart;
+    std::unique_ptr<qchem::Hamiltonian::PW_Hartree> hart(NewPWHartree(F.pw));
+    qchem::Hamiltonian::cDynamic_HT* ht=hart.get();
     ht->GetMatrix(&F.pw, Spin::None, &cd1);                       // populates the cache for cd1
     const chmat_t& M2 = ht->GetMatrix(&F.pw, Spin::None, &cd2);   // BUG: returns cd1's stale matrix
 

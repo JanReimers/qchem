@@ -164,45 +164,50 @@ Ham_PP::Ham_PP(const st_t& st, const std::vector<std::pair<std::string,int>>& sp
 
 // Plane-wave LDA Kohn-Sham: the five G-space framework terms.  Exchange and correlation are SEPARATE
 // PW_XC terms (Dirac + VWN5), mirroring Ham_DFTcorr_U, so the correlation energy is the correct
-// E_c = integral eps_c rho.  No fit basis / mesh: the plane-wave basis owns the integration, and the
-// pseudopotential is carried by the basis (the external term just supplies the structure factor).
-void Ham_PW_DFT::BuildTerms(const st_t& st, const Pseudopotential::LocalPotential* loc,
+// E_c = integral eps_c rho.  The Hartree term takes a density-fit basis from the basis's own factory
+// (like FittedVee); the XC route still integrates on the basis's grid (no fit basis).  The pseudopotential
+// is carried by the basis (the external term just supplies the structure factor).
+void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotential::LocalPotential* loc,
                             const Pseudopotential::SeparablePotential* nl)
 {
+    // The Hartree density-fit basis is created ONCE here from the basis's factory (never assuming
+    // orbital==fit), exactly as the molecular DFT ctor builds FittedVee's CD fit basis -- rho is
+    // cell-periodic so its fit basis is Gamma (k=0).  mp is a no-op for a plane-wave (Ecut-based) fit basis.
+    PW_Hartree::fbs_t CFitBasis(bs->CreateCDFitBasisSet(st.get(), qcMesh::MeshParams{}));
     Add(new PW_Kinetic);
     Add(new PW_Pseudo(st, loc, nl));                           // electron-ion (incl. G=0 alignment)
-    Add(new PW_Hartree);
+    Add(new PW_Hartree(CFitBasis));
     Add(new PW_XC(std::make_shared<SlaterExchange>(2.0/3.0)));    // Dirac exchange (alpha = 2/3)
     Add(new PW_XC(std::make_shared<VWN_Correlation>()));          // VWN5 correlation
     Add(new PW_IonIon(st, loc->ZionFn()));                       // ion-ion Ewald: Zion from the PP, not itsZ
 }
 
 // Explicit-models ctor: the caller owns the models (itsOwnedLocal/Sep stay null).
-Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const Pseudopotential::LocalPotential* loc,
+Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const Pseudopotential::LocalPotential* loc,
                        const Pseudopotential::SeparablePotential* nl)
 {
-    BuildTerms(st, loc, nl);
+    BuildTerms(st, bs, loc, nl);
 }
 
 // Single-species convenience ctor: the 1-species case of the multi-species build.
-Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const std::string& element,
+Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const std::string& element,
                        const std::string& functional, int valence)
 {
-    BuildFromGTH(st, {{element, valence}}, functional);
+    BuildFromGTH(st, bs, {{element, valence}}, functional);
 }
 
 // Multi-species convenience ctor.
-Ham_PW_DFT::Ham_PW_DFT(const st_t& st, std::initializer_list<std::pair<std::string,int>> species,
+Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, std::initializer_list<std::pair<std::string,int>> species,
                        const std::string& functional)
 {
-    BuildFromGTH(st, std::vector<std::pair<std::string,int>>(species), functional);
+    BuildFromGTH(st, bs, std::vector<std::pair<std::string,int>>(species), functional);
 }
 
 // Look up each (element, valence) from the GTH database and build + OWN a per-Z router model (one
 // MultiSpecies_Local + one MultiSpecies_Separable, keyed by atomic number so the assembly's per-atom
 // FormFactor(a->itsZ,...) dispatches to the right species).  The owned models outlive the terms (members,
 // destroyed after the cHamiltonian base that holds them), so each term's &loc/&nl stays valid for the run.
-void Ham_PW_DFT::BuildFromGTH(const st_t& st, const std::vector<std::pair<std::string,int>>& species,
+void Ham_PW_DFT::BuildFromGTH(const st_t& st, const cbs_t* bs, const std::vector<std::pair<std::string,int>>& species,
                               const std::string& functional)
 {
     auto loc=std::make_shared<Pseudopotential::MultiSpecies_LocalPotential>();
@@ -216,7 +221,7 @@ void Ham_PW_DFT::BuildFromGTH(const st_t& st, const std::vector<std::pair<std::s
     }
     itsOwnedLocal=loc;
     itsOwnedSep  =sep;
-    BuildTerms(st, loc.get(), sep.get());
+    BuildTerms(st, bs, loc.get(), sep.get());
 }
 
 Ham_HF_P::Ham_HF_P(const st_t& st)

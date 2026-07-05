@@ -47,8 +47,8 @@ public:
     {
         auto pw=dynamic_cast<const BasisSet::Band_FT_IBS*>(bs);
         assert(pw && "OrthoFunctionFitter::Repulsion requires a Band_FT_IBS (plane-wave) basis");
-        double Eh;
-        return pw->Repulsion(itsMap, Eh);
+        double Eh;   // discarded here: the Hartree ENERGY is the 1/2<rho|V_H> contraction the term does in
+        return pw->Repulsion(itsMap, Eh);   // GetEnergy (DM_Contract), not this matrix-assembly by-product.
     }
 
     virtual std::ostream& Write(std::ostream& os) const override

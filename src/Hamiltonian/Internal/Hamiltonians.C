@@ -113,22 +113,24 @@ public:
 class Ham_PW_DFT : public virtual cHamiltonian, private cHamiltonianImp
 {
 public:
+    //! \a bs (the composite plane-wave basis) is the density-fit-basis source: BuildTerms builds the Hartree
+    //! fit basis from it ONCE, mirroring the molecular Ham DFT ctors that take \c bs for FittedVee.
     //! Explicit-models ctor: the caller owns the local + optional KB nonlocal models (non-owning here).
-    Ham_PW_DFT(const st_t& st, const Pseudopotential::LocalPotential* loc,
+    Ham_PW_DFT(const st_t& st, const cbs_t* bs, const Pseudopotential::LocalPotential* loc,
                const Pseudopotential::SeparablePotential* nl=nullptr);
     //! Single-species convenience ctor: look up + own the GTH PP for \a element.
-    Ham_PW_DFT(const st_t& st, const std::string& element,
+    Ham_PW_DFT(const st_t& st, const cbs_t* bs, const std::string& element,
                const std::string& functional="LDA", int valence=0);
     //! Multi-species convenience ctor: name each (element, valence); the database is looked up per species
-    //! and a per-Z router model (MultiSpecies_*) is built + OWNED -- e.g. Ham_PW_DFT(st, {{"Na",1},{"F",7}}).
-    Ham_PW_DFT(const st_t& st, std::initializer_list<std::pair<std::string,int>> species,
+    //! and a per-Z router model (MultiSpecies_*) is built + OWNED -- e.g. Ham_PW_DFT(st, bs, {{"Na",1},{"F",7}}).
+    Ham_PW_DFT(const st_t& st, const cbs_t* bs, std::initializer_list<std::pair<std::string,int>> species,
                const std::string& functional="LDA");
 private:
-    void BuildTerms(const st_t& st, const Pseudopotential::LocalPotential* loc,
+    void BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotential::LocalPotential* loc,
                     const Pseudopotential::SeparablePotential* nl);
     //! Look up each (element, valence) from the GTH database, build + OWN the (per-Z router) local +
     //! separable models, and assemble the terms against them.  The single-species ctor is the 1-species case.
-    void BuildFromGTH(const st_t& st, const std::vector<std::pair<std::string,int>>& species,
+    void BuildFromGTH(const st_t& st, const cbs_t* bs, const std::vector<std::pair<std::string,int>>& species,
                       const std::string& functional);
     std::shared_ptr<const Pseudopotential::LocalPotential>     itsOwnedLocal;  //!< owned model (convenience ctors); null for explicit
     std::shared_ptr<const Pseudopotential::SeparablePotential> itsOwnedSep;

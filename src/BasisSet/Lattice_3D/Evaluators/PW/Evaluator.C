@@ -44,6 +44,7 @@ public:
     ivec3_t                     GetGIndex(size_t i) const {return itsG[i];}      //!< reciprocal index \f$m\f$ of wave \a i
     rvec3_t                     GetGCartesian(const ivec3_t& m) const;           //!< \f$G=B\,m\f$ (Cartesian a.u.)
     double                      Volume()        const {return itsVolume;}        //!< direct cell volume \f$V\f$
+    double                      Ecut()          const {return itsEcut;}          //!< energy cutoff (Hartree)
     const ReciprocalLattice&    Recip()         const {return itsRecip;}         //!< reciprocal cell (matrix \f$B\f$)
     const rvec3_t&              kFrac()         const {return itsk;}             //!< fractional crystal momentum \f$k\f$
 

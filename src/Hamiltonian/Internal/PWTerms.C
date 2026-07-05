@@ -12,6 +12,8 @@ module;
 export module qchem.Hamiltonian.Internal.PWTerms;
 import qchem.Hamiltonian.Internal.Term;        // cStatic_HT / cDynamic_HT + their _Imp cache bases
 import qchem.BasisSet.Band_FT_IBS;           // the reciprocal-space capability: Hartree/XC + external PP assembly
+import qchem.BasisSet.Fit_IBS;               // cFIT_CD_ABS (the density-fit basis PW_Hartree is built with)
+import qchem.Fitting.FunctionFitter;         // FunctionFitter_Density<dcmplx> (the fitter PW_Hartree holds, built once)
 import qchem.Pseudopotential.Integrals_Pseudo;    // external-PP operator-assembly mixin + the local/separable models the term owns
 import qchem.Hamiltonian.Internal.ExFunctional; // the LDA functional the XC term composes with the density
 import qchem.Hamiltonian.Types;                 // cobs_t
@@ -85,10 +87,17 @@ class PW_Hartree
     , private        cDynamic_HT_Imp
 {
 public:
+    typedef std::shared_ptr<const BasisSet::cFIT_CD_ABS> fbs_t;
+    //! Built with the density-fit basis obtained from the orbital basis's factory -- exactly as FittedVee
+    //! takes its CD fit basis (BuildTerms creates it ONCE, never assuming orbital==fit).  The fitter is
+    //! built here and reused every SCF cycle (DoFit the new density, then ask for the Hartree matrix).
+    PW_Hartree(fbs_t chargeDensityFitBasisSet);
+    ~PW_Hartree();
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
     virtual std::ostream& Write(std::ostream&) const;
 private:
     virtual chmat_t CalcMatrix(const cobs_t*, const Spin&, const cChargeDensity*) const;
+    std::unique_ptr<Fitting::FunctionFitter_Density<dcmplx>> itsFitter;   //!< ortho density fitter (built once)
 };
 
 //! Exchange-correlation term for a plane-wave basis, carrying ONE LDA functional (so a full LDA uses a
