@@ -240,13 +240,39 @@ is the correct move.
 ### Item 2 — Fold Fitting behind `Fit_ABS`: make PW honour the fit-basis process (§3.1)
 **Goal:** the density/potential FIT path is uniform — PW obtains its fit basis via the same
 `CreateXxxFitBasisSet` factory the molecular path uses, so a single neutral term-side fitting flow serves both.
-**Steps:**
-1. Implement `CreateCDFitBasisSet` / `CreateVxcFitBasisSet` on the PW DFT capability (`Band_FT_IBS` /
-   `PlaneWave_IBS`) — return `this` (or a tuned-{G} fit basis); the composite `tBasisSet<dcmplx>` delegates,
-   as the `<double>` path already does. Delete the `assert(false)` stubs (`src/BasisSet/Imp/BasisSet.C`).
-2. Change `PW_Hartree`/`PW_XC` (`src/Hamiltonian/Internal/Imp/PWTerms.C`) to obtain their fitter via
-   `MakeXxxFitter(bs->CreateXxxFitBasisSet(...))` instead of default-constructing a `FourierFunctionFitter`
-   over the orbital basis.
-3. Verify PW DFT energies stay bit-identical (the fitter answer is unchanged; only the *route* to it changes).
+
+**Design refinement (decided in-session).** The plan's original step 1 said PW `CreateCDFitBasisSet` could
+"return `this`". That is an **SRP violation**: it makes the orbital basis (`Band_FT_IBS`) masquerade as its own
+fit basis — two responsibilities on one type, whose faces even *collide* (both have `Overlap()`). So PW returns
+a **dedicated** fit-basis object. Chasing that revealed the real obstacle wasn't the masquerade but that the
+faces themselves baked in the *non-orthonormal* metric-solve, forcing an orthonormal (PW) fitter/fit-basis to
+NA-stub what it can't do. Fixed by two **ISP splits** (a *name*, no new behaviour — the reference code reads as
+self-documenting): a minimal neutral face + a `NonOrtho` refinement carrying the metric-solve bits.
+
+**Groundwork DONE (all bit-identical, 172/172 UTMain):**
+- `23c75df4` — neutral **`ProjectedDensity<T>`** base: `FunctionFitter_Density<T>::DoFit` now takes it (was the
+  AO-specific `ProjectedDensity_AO`); the non-ortho impl cross-casts. This is the layering-correct form of
+  "`DoFit` takes the projection" — 2b (`DoFit(tChargeDensity<T>)`) is impossible (qcChargeDensity→qcFitting is
+  a hard library edge; the reverse is a cycle the linker forbids). The AO (`rvec_t`) and G-space (map)
+  containers stay each impl's PRIVATE detail — no lattice/"Fourier" type leaks into the neutral face.
+- `379e3230` — **`FIT_CD_ABS` split**: now the minimal "I am a density-fit basis" face (just `Real_IBS`, the
+  fit functions — what `CreateCDFitBasisSet` returns and `Repulsion3C` consumes); the Coulomb metric-solve
+  inputs (`Charge`/`Repulsion`/`InvRepulsion`, sole consumer `ConstrainedFF`) moved to **`FIT_CD_NonOrtho`**.
+- `8a62f22d` — **`FunctionFitter_Density` split** (symmetric, one level up): minimal core `{DoFit, Repulsion,
+  Write}` (all a Hartree term needs) + **`FunctionFitter_Density_NonOrtho`** adding self-energy/charge/rescale
+  + the `ScalarFunction` real-space value the molecular `FittedCD` uses. Also deleted `FitMixIn`/
+  `FitGetChangeFrom` (dead on both faces). The coming PW ortho fitter implements only the core — **no NA-stubs**.
+
+**Remaining (the actual PW Hartree routing):**
+1. A dedicated PW density-fit basis class implementing only minimal `FIT_CD_ABS` (SRP — separate from
+   `Band_FT_IBS`; carries the `{G}` grid, trivially the orbital grid now, a denser ×2 grid later per the Nyquist
+   note above). `Band_FT_IBS::CreateCDFitBasisSet` returns it; delete the `assert(false)` `<dcmplx>` stub.
+2. `ProjectedDensity_G : ProjectedDensity<dcmplx>` wrapping the rho-tilde map (rename the misnamed neutral
+   `FourierMap` alias — it's just a G-keyed coefficient map — and confine it off the neutral interface).
+3. An ortho density fitter implementing the **core** `FunctionFitter_Density<dcmplx>` (DoFit cross-casts to
+   `ProjectedDensity_G`; Repulsion delegates to `Band_FT_IBS`) — this is the de-abstracted `FourierFunctionFitter`
+   re-homed behind the core face, renamed `OrthoFunctionFitter`, moved to `Fitting/Internal`.
+4. Route `PW_Hartree` to obtain it via the factory; verify PW DFT energies bit-identical.
+5. Then the **XC/Scalar face** (its own `ProjectedScalar<T>` design, mirroring `ProjectedDensity<T>`) + route
+   `PW_XC`; only then can `OrthoFunctionFitter` fully move to `Internal` (both PW terms off the direct import).
 **Constraint:** never assume `orbital == fit` (§3.1); the factory is the seam even when PW's answer is trivial.
-Related: this is the accelerator/fitting owner's domain and dovetails with the LASolver robustness (§5.1).
