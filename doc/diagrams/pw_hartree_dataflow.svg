@@ -1,0 +1,133 @@
+<svg viewBox="0 0 1000 772" xmlns="http://www.w3.org/2000/svg" font-family="Segoe UI, Helvetica, Arial, sans-serif">
+  <style>
+    .h    { font-size: 20px; font-weight: 700; fill: #0f172a; }
+    .band { font-size: 14px; font-weight: 700; }
+    .box  { font-size: 13px; fill: #1e293b; font-weight: 700; }
+    .sub  { font-size: 11px; fill: #475569; }
+    .mono { font-size: 11px; fill: #334155; font-family: "SFMono-Regular", Consolas, monospace; }
+    .lgd  { font-size: 12px; fill: #334155; }
+  </style>
+
+  <defs>
+    <marker id="arw" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+      <path d="M0,0 L9,4.5 L0,9 z" fill="#475569"/>
+    </marker>
+    <marker id="arwg" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto">
+      <path d="M0,0 L9,4.5 L0,9 z" fill="#15803d"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1000" height="772" fill="#ffffff"/>
+  <text x="500" y="32" text-anchor="middle" class="h">Plane-wave Hartree matrix — data flow  (PW_Hartree)</text>
+  <text x="500" y="52" text-anchor="middle" class="sub">obtained through the basis factory, mirroring the molecular FittedVee · dcmplx · reciprocal (G) space</text>
+
+  <!-- ===================== SETUP band ===================== -->
+  <rect x="16" y="70" width="968" height="150" rx="10" fill="#f8fafc" stroke="#cbd5e1"/>
+  <text x="34" y="92" class="band" fill="#6d28d9">SETUP — once, in Ham_PW_DFT::BuildTerms  (the §3.1 factory seam: never assume orbital == fit)</text>
+
+  <rect x="34" y="108" width="196" height="94" rx="8" fill="#ede9fe" stroke="#7c3aed"/>
+  <text x="42" y="130" class="box">tBasisSet&lt;dcmplx&gt;</text>
+  <text x="42" y="149" class="sub">the composite plane-wave basis</text>
+  <text x="42" y="167" class="sub">(orbital; passed to the ctor)</text>
+  <text x="42" y="190" class="mono">→ Iterate&lt;Band_FT_IBS&gt;</text>
+
+  <rect x="272" y="108" width="212" height="94" rx="8" fill="#ede9fe" stroke="#7c3aed"/>
+  <text x="280" y="130" class="box">PlaneWaveFit_IBS</text>
+  <text x="280" y="149" class="sub">CreateCDFitBasisSet(st, mp)</text>
+  <text x="280" y="167" class="sub">cFIT_CD_ABS · k=0 (Γ): ρ is</text>
+  <text x="280" y="182" class="sub">cell-periodic · shares PW_Evaluator</text>
+
+  <rect x="526" y="108" width="196" height="94" rx="8" fill="#ede9fe" stroke="#7c3aed"/>
+  <text x="534" y="130" class="box">MakeDensityFitter(fb)</text>
+  <text x="534" y="149" class="sub">factory (Fitting)</text>
+  <text x="534" y="167" class="sub">orthonormal {G} ⇒ the</text>
+  <text x="534" y="182" class="sub">projection IS the fit (core face)</text>
+
+  <rect x="764" y="108" width="204" height="94" rx="8" fill="#ddd6fe" stroke="#6d28d9"/>
+  <text x="772" y="130" class="box">OrthoFunctionFitter</text>
+  <text x="772" y="149" class="sub">FunctionFitter_Density&lt;dcmplx&gt;</text>
+  <text x="772" y="167" class="sub">HELD once as</text>
+  <text x="772" y="182" class="mono">PW_Hartree::itsFitter</text>
+
+  <line x1="230" y1="155" x2="270" y2="155" stroke="#7c3aed" stroke-width="2" marker-end="url(#arw)"/>
+  <line x1="484" y1="155" x2="524" y2="155" stroke="#7c3aed" stroke-width="2" marker-end="url(#arw)"/>
+  <line x1="722" y1="155" x2="762" y2="155" stroke="#7c3aed" stroke-width="2" marker-end="url(#arw)"/>
+
+  <!-- ===================== RUN band ===================== -->
+  <rect x="16" y="238" width="968" height="330" rx="10" fill="#f8fafc" stroke="#cbd5e1"/>
+  <text x="34" y="260" class="band" fill="#1d4ed8">PER SCF CYCLE — PW_Hartree::CalcMatrix(bs, cd)</text>
+
+  <!-- density -> rho-tilde -->
+  <rect x="34" y="278" width="212" height="86" rx="8" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="42" y="300" class="box">ChargeDensity  (cd)</text>
+  <text x="42" y="319" class="sub">dynamic_cast → FourierDensity</text>
+  <text x="42" y="337" class="mono">.GetFourierDensity()</text>
+  <text x="42" y="355" class="sub">ρ̃(Δm) = Σₖ wₖ ρ̃ₖ  (BZ sum)</text>
+
+  <rect x="288" y="278" width="196" height="86" rx="8" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="296" y="300" class="box">ρ̃  (FourierMap)</text>
+  <text x="296" y="319" class="sub">G-keyed coeffs, keyed by</text>
+  <text x="296" y="337" class="sub">Δm = m(Gᵢ) − m(Gⱼ)</text>
+  <text x="296" y="355" class="sub">wrapped: ProjectedDensity_G</text>
+
+  <!-- DoFit up into the held fitter -->
+  <rect x="526" y="278" width="196" height="86" rx="8" fill="#eff6ff" stroke="#60a5fa"/>
+  <text x="534" y="300" class="box">itsFitter-&gt;DoFit(pd)</text>
+  <text x="534" y="319" class="sub">cross-cast pd → ProjectedDensity_G</text>
+  <text x="534" y="337" class="sub">store ρ̃ (no metric solve —</text>
+  <text x="534" y="355" class="sub">the projection IS the fit)</text>
+
+  <line x1="246" y1="321" x2="286" y2="321" stroke="#475569" stroke-width="2" marker-end="url(#arw)"/>
+  <line x1="484" y1="321" x2="524" y2="321" stroke="#475569" stroke-width="2" marker-end="url(#arw)"/>
+  <!-- DoFit feeds the held OrthoFunctionFitter (dashed link up to SETUP) -->
+  <path d="M624,278 L624,210" fill="none" stroke="#94a3b8" stroke-width="1.6" stroke-dasharray="5 4" marker-end="url(#arw)"/>
+  <text x="632" y="232" class="sub">stores ρ̃ in the held fitter</text>
+
+  <!-- Repulsion(bs) -> Band_FT_IBS -->
+  <rect x="526" y="404" width="196" height="96" rx="8" fill="#eff6ff" stroke="#60a5fa"/>
+  <text x="534" y="426" class="box">itsFitter-&gt;Repulsion(bs)</text>
+  <text x="534" y="445" class="sub">dynamic_cast bs → Band_FT_IBS</text>
+  <text x="534" y="463" class="sub">(the orbital basis, per k-block)</text>
+  <text x="534" y="482" class="sub">delegates the Poisson solve ↓</text>
+
+  <rect x="288" y="404" width="196" height="96" rx="8" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="296" y="426" class="box">Band_FT_IBS::Repulsion</text>
+  <text x="296" y="445" class="sub">FFT-free G-space Poisson:</text>
+  <text x="296" y="463" class="mono">V_H(Δm) = 4π ρ̃(Δm)/|BΔm|²</text>
+  <text x="296" y="482" class="sub">→ MakePotential (Δm=0 dropped)</text>
+
+  <rect x="34" y="404" width="212" height="96" rx="8" fill="#bbf7d0" stroke="#15803d"/>
+  <text x="42" y="426" class="box">⟨G|V_H|G'⟩   (chmat_t)</text>
+  <text x="42" y="445" class="sub">the Hartree matrix — one</text>
+  <text x="42" y="463" class="sub">Fock-block contribution</text>
+  <text x="42" y="482" class="sub">RETURNED by CalcMatrix</text>
+
+  <line x1="624" y1="364" x2="624" y2="402" stroke="#475569" stroke-width="2" marker-end="url(#arw)"/>
+  <line x1="526" y1="452" x2="486" y2="452" stroke="#15803d" stroke-width="2" marker-end="url(#arwg)"/>
+  <line x1="288" y1="452" x2="248" y2="452" stroke="#15803d" stroke-width="2" marker-end="url(#arwg)"/>
+
+  <!-- energy note inside run band -->
+  <rect x="764" y="404" width="204" height="96" rx="8" fill="#fef9c3" stroke="#ca8a04"/>
+  <text x="772" y="426" class="box">PW_Hartree::GetEnergy</text>
+  <text x="772" y="445" class="sub">E_H = ½⟨ρ|V_H⟩</text>
+  <text x="772" y="463" class="sub">= ½ · cd→DM_Contract(this,cd)</text>
+  <text x="772" y="482" class="sub">(Repulsion's Eh out-param is</text>
+  <text x="772" y="497" class="sub">discarded — energy is here)</text>
+  <path d="M246,430 C 700,382 760,400 780,404" fill="none" stroke="#ca8a04" stroke-width="1.4" stroke-dasharray="5 4" marker-end="url(#arw)"/>
+
+  <text x="34" y="528" class="sub">The fitter is built ONCE (SETUP) and reused every cycle: DoFit the new density, then ask for the Hartree matrix — exactly the FittedVee loop.</text>
+  <text x="34" y="546" class="sub">Repulsion delegates to the ORBITAL basis (bs) passed each call; the held fit basis is inert today (identity grid), the seam for a denser density grid (×2) later.</text>
+
+  <!-- ===================== legend ===================== -->
+  <text x="34" y="600" class="band" fill="#0f172a">Molecular parallel  (FittedVee, real / Becke-mesh)</text>
+  <rect x="34" y="612" width="14" height="14" rx="3" fill="#ede9fe" stroke="#7c3aed"/>
+  <text x="56" y="624" class="lgd">SETUP: bs→CreateCDFitBasisSet→MakeDensityFitter→held fitter — identical seam (rFIT_CD_ABS / IntegralConstrainedFF on the double path).</text>
+  <rect x="34" y="634" width="14" height="14" rx="3" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="56" y="646" class="lgd">RUN: DoFit(density) → Repulsion(orbital basis). The molecular fit SOLVES a Coulomb metric; the PW {G} fit is orthonormal, so DoFit just stores ρ̃.</text>
+  <rect x="34" y="656" width="14" height="14" rx="3" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="56" y="668" class="lgd">The Poisson solve is the BASIS's business (G-space 4π/G² for PW; a 3-centre Coulomb metric-solve for a Gaussian aux basis).</text>
+
+  <text x="34" y="702" class="sub">If the abstractions fully align, FittedVee and PW_Hartree collapse into one T-templated Hartree term — this diagram is the shared shape.</text>
+
+  <text x="984" y="762" text-anchor="end" class="sub">doc/diagrams/pw_hartree_dataflow.svg  ·  §6.5 MolecularPP_HarmonizationFindings</text>
+</svg>

@@ -271,7 +271,18 @@ IS-A `EOrbital_1E_IBS<E>` mixins, *not* composition):
   (at CalcMatrix time — the PW Hamiltonian is built without the basis). `FourierFunctionFitter::Repulsion`
   (its only user) removed; the XC-only `Overlap` remnant stays for `PW_XC`.
 
+The fitter is built **once** (in `Ham_PW_DFT::BuildTerms`, which now takes the composite basis — mirroring
+the molecular DFT ctors that take `bs` for `FittedVee`) and reused every SCF cycle: `DoFit` the new density,
+then ask for the Hartree matrix. The fit basis is a **Γ (k=0)** plane-wave set (the density is cell-periodic),
+not the orbital block's k.
+
 All bit-identical: the 26 PW/Lattice energy anchors, 172/172 UTMain, 29/29 UTLattice_3D_BS.
+
+The data flow (and its FittedVee parallel):
+
+![PW Hartree matrix — data flow](diagrams/pw_hartree_dataflow.svg)
+
+\image html pw_hartree_dataflow.svg "Plane-wave Hartree matrix evaluation: obtained through the basis factory, mirroring FittedVee."
 
 ## 7. Action items for the next session (remaining)
 
