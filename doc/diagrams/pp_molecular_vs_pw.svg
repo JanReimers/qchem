@@ -96,8 +96,8 @@
   <text x="875" y="585" text-anchor="middle" class="sub">owns intrinsic G-grid (FFT)</text>
   <line x1="340" y1="571" x2="383" y2="571" stroke="#64748b" stroke-width="1.5" marker-end="url(#a)"/>
   <line x1="720" y1="571" x2="677" y2="571" stroke="#64748b" stroke-width="1.5" marker-end="url(#a)"/>
-  <rect x="345" y="614" width="370" height="24" rx="12" fill="#fee2e2" stroke="#dc2626"/>
-  <text x="530" y="630" text-anchor="middle" class="badge" fill="#b91c1c">★ ITEM 1 (future): UnitCell::CreateIntegrationMesh → real-space grid</text>
+  <rect x="330" y="614" width="400" height="24" rx="12" fill="#fee2e2" stroke="#dc2626"/>
+  <text x="530" y="630" text-anchor="middle" class="badge" fill="#b91c1c">★ ITEM 1: UnitCell::CreateIntegrationMesh → uniform grid now (Becke = future)</text>
   <text x="530" y="656" text-anchor="middle" class="sub">…then a Gaussian-on-lattice PP reuses PP_Local / PP_NonLocal / Vnn unchanged</text>
 
   <!-- ================= legend ================= -->

@@ -177,10 +177,11 @@ payoff.
 (+ `Vnn`) terms unchanged — closing the "two assembly sites" divergence (§1) for everything except the PW
 G-space FFT path (which stays, rightly, its own thing).
 **Steps:**
-1. `UnitCell::CreateIntegrationMesh(mp)` — currently `throw`s (`src/Structure/Imp/UnitCell.C`). **A real-space
-   lattice mesh is a FUTURE enhancement, NOT required at this stage** (defer until a real-space lattice basis
-   is actually wanted — PW handles solids in G-space today). When it lands, a uniform real-space grid is the
-   minimal cut; the **unit-cell Becke grid is a further future refinement**, not needed for a first pass.
+1. `UnitCell::CreateIntegrationMesh(mp)` — currently `throw`s (`src/Structure/Imp/UnitCell.C`). **Implement the
+   uniform real-space grid over the cell NOW** (points at cell-fractional midpoints via `ToCartesian`, equal
+   weight Ω/Npts). This is the ONE missing piece — the PP terms are already geometry-neutral (§3). The
+   **unit-cell Becke grid is a future refinement** (adaptive atom-centred weighting), NOT required at this
+   stage — the uniform grid is the working mesh.
 2. Then confirm `PP_Local`/`PP_NonLocal` + `Vnn(zionOf)` produce a sane lattice PP energy on that mesh (they
    need no change; they index on `itsZ` and quadrature on the structure's mesh).
 3. (Once a unified PP term across `T` is wanted) carry the G=0 alignment in the term: `0.0` for a finite
