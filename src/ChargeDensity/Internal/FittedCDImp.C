@@ -24,9 +24,8 @@ public:
     FittedCDImp(fbs_t&, double totalCharge);
     FittedCDImp(const FittedCDImp&) = delete;   //!< copying would slice the fitter's constraint
 
-    // FittedCD  (a density-matrix density fits through its AO face; a pure rho(r) seed overlap-fits below)
+    // FittedCD  (every finite density -- matrix-backed or matrix-free seed -- fits through its own AO face)
     virtual void      DoFit           (const rChargeDensity&             );
-    virtual void      DoFit           (const ScalarFunction<double>&, double charge);
     virtual smat_t<T> GetRepulsion    (const odftbs_t*) const;
     virtual double    GetSelfRepulsion(               ) const;  //Does GetRepulsion(*this);
     virtual FittedCD* Clone           (               ) const;

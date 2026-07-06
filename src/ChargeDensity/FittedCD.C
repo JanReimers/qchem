@@ -17,15 +17,11 @@ class FittedCD
     : public virtual ScalarFunction<double>
 {
 public:
-    //! "Fit me to this density."  Takes the density by its common tChargeDensity base.  A density that
-    //! carries an exact AO projection (a real density MATRIX) is cross-cast to its ProjectedDensity_AO face;
-    //! a pure real-space seed (rho(r) + charge, no matrix -- the SAD NumericCD) falls through to the
-    //! ScalarFunction overload below, which overlap-fits it.  See project_numericcd_refactor.
+    //! "Fit me to this density."  Takes the density by its common tChargeDensity base.  EVERY finite density
+    //! -- whether it carries an exact density MATRIX (IrrepCD/CompositeCD) or is a matrix-free SAD seed
+    //! (NumericCD) -- presents its OWN density-fit projection via the ProjectedDensity_AO cross-cast; FittedCD
+    //! is agnostic to which, and knows nothing of seeding.  See project_numericcd_refactor.
     virtual void    DoFit          (const rChargeDensity&         )      =0;
-    //! "Fit me to this plain real-space density rho(r), sampled on the mesh, carrying total \a charge."
-    //! The seed path: a numeric (SAD) density has no density matrix, so the fit overlap-projects rho(r)
-    //! onto the fit basis here -- the work the old NumericCD::GetRepulsion3C did on demand, now relocated.
-    virtual void    DoFit          (const ScalarFunction<double>&, double charge) =0;
     virtual double  GetSelfRepulsion(                              ) const=0;  // 1/2 <ro(1)|1/r12|ro(2)>
     virtual rsmat_t GetRepulsion    (const odftbs_t*               ) const=0;
     //Required for creating a polarized CD from an un-polarized CD
