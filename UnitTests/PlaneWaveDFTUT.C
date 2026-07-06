@@ -954,6 +954,58 @@ TEST_F(PlaneWaveDFT, PWDynamicTermsMatchBasis)
             EXPECT_NEAR(std::abs(dcmplx(Mx(i,j))-dcmplx(refx(i,j))), 0.0, 1e-10);
 }
 
+// Item K: the XC quadrature grid now comes from the FIT basis, so relCutoff (the CP2K REL_CUTOFF density-
+// cutoff idea) is the genuine fit-accuracy lever.  (1) a larger relCutoff yields a DENSER fit {G}; (2) it
+// feeds through to the Vxc matrix (relCutoff=1 -> the orbital grid, bit-identical to the FFT route; >1 -> a
+// finer, less-aliased quadrature); (3) the matrix GRID-CONVERGES (successive refinements shrink).  The fit is
+// non-variational, so acceptance is convergence of the matrix, NEVER an energy anchor.
+TEST_F(PlaneWaveDFT, ItemK_RelCutoffDensifiesAndConvergesVxc)
+{
+    PWFixture F;
+    size_t n=F.pw.GetNumFunctions();
+    hmat_t<dcmplx> D=blazem::zeroH<dcmplx>(n);
+    D(0,0)=1.0; D(0,1)=1.0; D(1,1)=1.0;                       // non-uniform => nonlinear v_xc aliases on a coarse grid
+    Irrep irr=F.pw.GetIrrep(Spin::None);
+    qchem::ChargeDensity::IrrepCD<dcmplx> cd(D, &F.pw, irr);
+    auto dirac=std::make_shared<qchem::Hamiltonian::SlaterExchange>(2.0/3.0);
+
+    auto vxcAt=[&](double relCutoff, size_t& nGfit)
+    {
+        qcMesh::MeshParams mp; mp.relCutoff=relCutoff;
+        auto fb=qchem::Hamiltonian::PW_XC::fbs_t(F.pw.CreateVxcFitBasisSet(nullptr, mp));
+        nGfit=fb->GetNumFunctions();
+        std::unique_ptr<qchem::Hamiltonian::PW_XC> xc(new qchem::Hamiltonian::PW_XC(dirac, fb));
+        return chmat_t(static_cast<qchem::Hamiltonian::cDynamic_HT*>(xc.get())->GetMatrix(&F.pw, Spin::None, &cd));
+    };
+    auto froDiff=[&](const chmat_t& A, const chmat_t& B)
+    {
+        double s=0.0;
+        for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) s+=std::norm(dcmplx(A(i,j))-dcmplx(B(i,j)));
+        return std::sqrt(s);
+    };
+
+    size_t n1,n4,n16;
+    chmat_t M1=vxcAt(1.0,n1), M4=vxcAt(4.0,n4), M16=vxcAt(16.0,n16);
+
+    // (1) relCutoff densifies the fit {G}.
+    EXPECT_GT(n4, n1);
+    EXPECT_GT(n16, n4);
+
+    // (2) relCutoff=1 reproduces the orbital-grid FFT route exactly (the fix is inert at Gamma).
+    rvec_t rho=F.pw.RhoOnGrid(F.pw.MakeFourierDensity(D));
+    rvec_t vxc(rho.size());
+    for (size_t q=0;q<rho.size();q++) vxc[q]=dirac->GetVxc(rho[q]);
+    chmat_t refx=F.pw.Overlap(vxc);
+    for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++)
+        EXPECT_NEAR(std::abs(dcmplx(M1(i,j))-dcmplx(refx(i,j))), 0.0, 1e-10);
+
+    // (3) the denser grid CHANGES the matrix (relCutoff is live) and it GRID-CONVERGES (Cauchy: the later,
+    //     finer refinement moves the matrix less than the earlier one).
+    double d1=froDiff(M4,M1), d2=froDiff(M16,M4);
+    EXPECT_GT(d1, 1e-9);      // the fit grid actually feeds through to the quadrature
+    EXPECT_LT(d2, d1);        // convergence
+}
+
 // Item B: the ortho (plane-wave) density fitter's fitted field is a REAL, evaluatable ScalarFunction --
 // rho_fit(r) = Re Σ_dm rho~(dm) e^{i(B·dm)·r} (what the GUI plots).  Fit a non-uniform density through the
 // production Factory path, then check the fitter's op(r)/Gradient via the G_FieldEvaluator DIP seam against
