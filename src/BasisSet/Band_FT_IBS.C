@@ -36,6 +36,12 @@ public:
     //! Caller owns the result.
     virtual cFIT_CD_ABS* CreateCDFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const=0;
 
+    //! \brief Create THIS basis's auxiliary potential (Vxc) fit basis -- the overlap-metric sibling of
+    //! CreateCDFitBasisSet (the plane-wave analog of Orbital_DFT_IBS::CreateVxcFitBasisSet).  A distinct
+    //! \c cFIT_SF_ABS over the tunable \f$\{G\}\f$ grid (same grid as CD today; the two diverge with the
+    //! future denser-\f$\{G\}\f$ upgrade).  Caller owns the result.
+    virtual cFIT_SF_ABS* CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const=0;
+
     //! \brief \f$\tilde\rho(\Delta m)=\frac1\Omega\sum_{G_i-G_j=\Delta m}D_{ij}\f$ for a density matrix
     //! \a D in THIS plane-wave block (one \f$O(n^2)\f$ accumulation over the difference set).
     virtual FourierMap MakeFourierDensity(const hmat_t<dcmplx>& D) const=0;

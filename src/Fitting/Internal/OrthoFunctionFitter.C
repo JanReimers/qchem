@@ -15,10 +15,10 @@ module;
 #include <memory>
 #include <ostream>
 export module qchem.Fitting.Internal.OrthoFunctionFitter;
-export import qchem.Fitting.FunctionFitter;  // FunctionFitter_Density<dcmplx>, ProjectedDensity_G, FourierMap
+export import qchem.Fitting.FunctionFitter;  // FunctionFitter_Density/_Scalar<dcmplx>, ProjectedDensity/Scalar_G, FourierMap
 import qchem.Fitting.Types;                   // robs_t<dcmplx>
-import qchem.BasisSet.Fit_IBS;                // cFIT_CD_ABS (the held fit basis)
-import qchem.BasisSet.Band_FT_IBS;            // the reciprocal-space Poisson assembly the fit delegates to
+import qchem.BasisSet.Fit_IBS;                // cFIT_CD_ABS / cFIT_SF_ABS (the held fit bases)
+import qchem.BasisSet.Band_FT_IBS;            // the reciprocal-space assembly the fits delegate to
 import qchem.Blaze;                           // hmat_t<dcmplx>
 
 export namespace qchem::Fitting
@@ -57,6 +57,45 @@ public:
 private:
     fbs_t      itsFitBasis;   //!< the tunable {G} fit basis (the factory seam; inert until denser-grid resampling)
     FourierMap itsMap;        //!< the fit = the density's rho-tilde (received in DoFit)
+};
+
+//! \brief Scalar (overlap-metric) fitter on an orthonormal (plane-wave, G-space) fit basis -- the minimal
+//! CORE face only (no real-space eval).  The XC sibling of OrthoFunctionFitter: DoFit RECEIVES the potential's
+//! pre-computed V-tilde (a ProjectedScalar_G) and Overlap delegates the (kernel-free) assembly to the orbital
+//! Band_FT_IBS.  Created through MakeScalarFitter(cFIT_SF_ABS); holds the {G} fit basis (the factory seam,
+//! inert until the denser-{G} upgrade).
+class OrthoScalarFitter
+    : public virtual FunctionFitter_Scalar<dcmplx>
+{
+public:
+    typedef std::shared_ptr<const BasisSet::cFIT_SF_ABS> fbs_t;
+    explicit OrthoScalarFitter(const fbs_t& fbs) : itsFitBasis(fbs) {}
+
+    //! The "fit": receive the potential's V-tilde (the term forward-FFT'd v_xc).  Orthonormal exactness =>
+    //! nothing to solve, just store; the neutral argument is a ProjectedScalar_G (a sanctioned cross-cast).
+    virtual void DoFit(const ProjectedScalar<dcmplx>& ps) override
+    {
+        auto g=dynamic_cast<const ProjectedScalar_G*>(&ps);
+        assert(g && "OrthoScalarFitter::DoFit requires a ProjectedScalar_G (G-space) projection");
+        itsMap=g->Map();
+    }
+
+    //! XC matrix <i|v_xc|j> = V-tilde(dm): assemble directly from the stored G-space coefficients (no kernel),
+    //! delegating to the orbital basis's reciprocal-space assembly.
+    virtual hmat_t<dcmplx> Overlap(const robs_t<dcmplx>* bs) const override
+    {
+        auto pw=dynamic_cast<const BasisSet::Band_FT_IBS*>(bs);
+        assert(pw && "OrthoScalarFitter::Overlap requires a Band_FT_IBS (plane-wave) basis");
+        return pw->Overlap(itsMap);
+    }
+
+    virtual void ReScale(double factor) override {for (auto& kv : itsMap) kv.second *= factor;}
+    virtual std::ostream& Write(std::ostream& os) const override
+        {return os << "OrthoScalarFitter (orthonormal G-space overlap fit)" << std::endl;}
+
+private:
+    fbs_t      itsFitBasis;   //!< the {G} fit basis (the factory seam; inert until the denser-{G} upgrade)
+    FourierMap itsMap;        //!< the fit = the potential's V-tilde (received in DoFit)
 };
 
 } //namespace

@@ -300,6 +300,14 @@ BasisSet::cFIT_CD_ABS* PlaneWave_IBS::CreateCDFitBasisSet(const Structure*, cons
     return new PlaneWaveFit_IBS(gamma, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
 }
 
+// The overlap-metric (Vxc) sibling: a DISTINCT fit-basis instance (same k=0 Gamma grid as the CD one today;
+// the two diverge with the future denser-{G} upgrade).  PlaneWaveFit_IBS IS-A cFIT_SF_ABS.
+BasisSet::cFIT_SF_ABS* PlaneWave_IBS::CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams&) const
+{
+    PW_Evaluator gamma(Recip(), rvec3_t(0.0,0.0,0.0), Ecut());
+    return new PlaneWaveFit_IBS(gamma, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
+}
+
 std::string PlaneWave_IBS::BasisSetID() const
 {
     return Name()+PW_Evaluator::IDFragment();   // Name + "|k=..|Ecut=..|nG=.."

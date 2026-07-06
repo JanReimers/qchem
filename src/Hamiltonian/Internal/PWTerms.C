@@ -110,12 +110,17 @@ class PW_XC
 {
 public:
     typedef std::shared_ptr<ExFunctional> xc_t;
-    PW_XC(const xc_t&);
+    typedef std::shared_ptr<const BasisSet::cFIT_SF_ABS> fbs_t;
+    //! Built with the Vxc fit basis obtained from the orbital basis's factory (BuildTerms creates it ONCE,
+    //! never assuming orbital==fit) -- the overlap-metric sibling of PW_Hartree.
+    PW_XC(const xc_t&, fbs_t vxcFitBasisSet);
+    ~PW_XC();
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
     virtual std::ostream& Write(std::ostream&) const;
 private:
     virtual chmat_t CalcMatrix(const cobs_t*, const Spin&, const cChargeDensity*) const;
     xc_t itsXc;
+    std::unique_ptr<Fitting::FunctionFitter_Scalar<dcmplx>> itsScalarFitter;   //!< ortho scalar fitter (built once)
     //! The basis is captured from CalcMatrix so GetEnergy (which has no basis parameter) can ask it for
     //! the energy integral integral eps_xc rho with the current density.  Same basis every iteration.
     mutable const BasisSet::Band_FT_IBS* itsBasis=nullptr;

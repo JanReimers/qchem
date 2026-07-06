@@ -16,9 +16,9 @@
 // The fitter is split along its METRIC axis into two ISP faces -- FunctionFitter_Scalar (the overlap
 // metric, for potential fits v_xc) and FunctionFitter_Density (the Coulomb metric + charge constraint,
 // for density fits rho).  Each takes its OWN narrow fit-basis face (rFIT_SF_ABS / rFIT_CD_ABS), so the
-// consumers no longer down-cast the narrow face back up to the concrete Fit_IBS.  The Gaussian side has
-// two distinct impls; the plane-wave FourierFunctionFitter implements BOTH faces (on an orthonormal {G}
-// basis the projection IS the fit, so the metric distinction is degenerate).
+// consumers no longer down-cast the narrow face back up to the concrete Fit_IBS.  Each face has a Gaussian
+// (non-ortho) impl and a plane-wave (orthonormal {G}) impl -- the ortho OrthoFunctionFitter /
+// OrthoScalarFitter, where the projection IS the fit (no metric solve).
 //
 // Clients COMPOSE a fitter obtained from the Factory and use only the relevant face; the concrete
 // implementation stays hidden behind the Factory.
@@ -93,17 +93,18 @@ public:
 };
 
 //! \brief The plane-wave counterpart of ProjectedScalar_AO.  On the orthonormal {G} fit basis the projection
-//! \f$\langle c_G|f\rangle\f$ IS the fit (no metric solve) -- a plain \c cvec_t (one complex coeff per fit
-//! function), pre-computed by the term (unlike the density's rho-tilde, a scalar field carries no density
-//! matrix, so the projection is a simple vector, not a keyed map).  Wraps that vec OFF the neutral
-//! ProjectedScalar<dcmplx> face (the ortho scalar fitter cross-casts to it in DoFit).
+//! IS the fit (no metric solve): the term forward-FFTs the sampled field v_xc(r) to its G-space coefficients
+//! V-tilde(dm) (= Band_FT_IBS::ForwardGrid), and this simply WRAPS that map OFF the neutral
+//! ProjectedScalar<dcmplx> face (the ortho scalar fitter cross-casts to it in DoFit; the XC sibling of
+//! ProjectedDensity_G).  On today's grid the coefficients are keyed by the difference set; the flat
+//! per-fit-function vec view arrives with the future denser-{G} fit-basis upgrade.
 class ProjectedScalar_G : public virtual ProjectedScalar<dcmplx>
 {
 public:
-    explicit ProjectedScalar_G(const cvec_t& coeffs) : itsCoeffs(coeffs) {}
-    const cvec_t& Coeffs() const {return itsCoeffs;}   //!< <c_G|f> per fit function (the fit itself)
+    explicit ProjectedScalar_G(const FourierMap& vTilde) : itsMap(vTilde) {}
+    const FourierMap& Map() const {return itsMap;}   //!< the potential's V-tilde (the fit itself)
 private:
-    cvec_t itsCoeffs;
+    FourierMap itsMap;
 };
 
 //! \brief Abstract least-squares function fitter -- the SCALAR (overlap-metric) CORE.  Fit a pointwise field
@@ -161,6 +162,12 @@ public:
 //! result; the concrete type stays hidden behind the FunctionFitter_Scalar interface.
 std::unique_ptr<FunctionFitter_Scalar<double>>
 MakeScalarFitter(std::shared_ptr<const BasisSet::rFIT_SF_ABS>&);
+
+//! \brief Create a SCALAR fitter on an ORTHONORMAL (plane-wave, G-space) fit basis.  The projection IS the
+//! fit (no metric solve); DoFit receives a ProjectedScalar_G (the potential's V-tilde) and Overlap delegates
+//! the assembly to the orbital Band_FT_IBS.  The XC sibling of the ortho MakeDensityFitter overload.
+std::unique_ptr<FunctionFitter_Scalar<dcmplx>>
+MakeScalarFitter(std::shared_ptr<const BasisSet::cFIT_SF_ABS>&);
 
 //! \brief Create a DENSITY (charge-constrained Coulomb-metric) fitter on the given non-ortho fit basis.
 //! Returns the non-ortho refinement (the molecular FittedCD needs its self-energy/charge/rescale/eval).

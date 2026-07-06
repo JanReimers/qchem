@@ -1,17 +1,17 @@
-// File: BasisSet/Lattice_3D/PlaneWaveFit_IBS.C  Plane-wave auxiliary density-fit basis.
+// File: BasisSet/Lattice_3D/PlaneWaveFit_IBS.C  Plane-wave auxiliary (density + potential) fit basis.
 //
-// The auxiliary (density-fit) partner of PlaneWave_IBS: a cFIT_CD_ABS (= FIT_CD_ABS<dcmplx>) over the
-// same tunable {G} grid as the orbital basis (a denser grid for the density is a future ctor knob).  It
-// exists so the plane-wave density-fit path goes THROUGH the orbital basis's factory
-// (Band_FT_IBS::CreateCDFitBasisSet) exactly as the molecular path goes through
-// Orbital_DFT_IBS::CreateCDFitBasisSet -- never assuming orbital==fit -- even though on the orthonormal
-// {G} basis the projection IS the fit and this object is otherwise computationally inert (rho-tilde comes
-// from the density; the Hartree contraction delegates to the orbital Band_FT_IBS).
+// The auxiliary fit partner of PlaneWave_IBS: a plane-wave {G} basis implementing BOTH the density-fit face
+// cFIT_CD_ABS and the potential-fit face cFIT_SF_ABS (like the molecular EFit_IBS), over the same tunable
+// {G} grid as the orbital basis (distinct instances via CreateCDFitBasisSet / CreateVxcFitBasisSet; a denser
+// grid is a future joint CD+Vxc upgrade).  It exists so the plane-wave DFT-fit paths go THROUGH the orbital
+// basis's factory -- never assuming orbital==fit -- even though on the orthonormal {G} basis the projection
+// IS the fit and this object is otherwise computationally inert (rho-tilde/V-tilde come from the density/term;
+// the Hartree/XC contraction delegates to the orbital Band_FT_IBS).
 //
-// It carries NO grid logic of its own: it IS-A PW_Evaluator (a copy of the orbital basis's grid engine)
-// and the evaluator-templated EPW_Irrep_IBS<E> mixin supplies op()/Gradient/GetNumFunctions.  cFIT_CD_ABS
-// adds nothing beyond IrrepBasisSet<dcmplx>, so there are ZERO stubs here (in particular no MakeOverlap --
-// FIT_CD_ABS does not carry the overlap metric).
+// It carries NO grid logic of its own: it IS-A PW_Evaluator (a copy of the orbital basis's grid engine) and
+// the evaluator-templated EPW_Irrep_IBS<E> mixin supplies op()/Gradient/GetNumFunctions.  Both fit faces are
+// empty markers over IrrepBasisSet<dcmplx> (the Coulomb/overlap metrics live in the NonOrtho refinements,
+// which an orthonormal {G} basis omits), so there are ZERO stubs here.
 module;
 #include <iosfwd>
 #include <string>
@@ -25,10 +25,12 @@ import qchem.Symmetry;                                   // sym_t (the Bloch irr
 export namespace qchem::BasisSet::Lattice_3D
 {
 
-//! \brief Plane-wave auxiliary density-fit basis: a \c cFIT_CD_ABS over a plane-wave grid, sharing the
-//! orbital basis's PW_Evaluator.  A thin shell -- all evaluation comes from the evaluator via the mixin.
+//! \brief Plane-wave auxiliary fit basis: BOTH \c cFIT_CD_ABS (density) and \c cFIT_SF_ABS (potential) over a
+//! plane-wave grid, sharing the orbital basis's PW_Evaluator.  A thin shell -- all evaluation comes from the
+//! evaluator via the mixin.
 class PlaneWaveFit_IBS
-    : public virtual BasisSet::cFIT_CD_ABS            // FIT_CD_ABS<dcmplx> : IrrepBasisSet<dcmplx>
+    : public virtual BasisSet::cFIT_CD_ABS            // FIT_CD_ABS<dcmplx> : IrrepBasisSet<dcmplx> (density-fit face)
+    , public virtual BasisSet::cFIT_SF_ABS            // FIT_SF_ABS<dcmplx> : IrrepBasisSet<dcmplx> (potential-fit face)
     , public         EPW_Irrep_IBS<PW_Evaluator>      // op()/Gradient/GetNumFunctions from the evaluator
     , public         BasisSet::IrrepBasisSetImp<dcmplx> // GetSymmetry/GetSymt/GetIrrep
     , public         PW_Evaluator                     // the grid engine (Cast() target), copied from the orbital basis

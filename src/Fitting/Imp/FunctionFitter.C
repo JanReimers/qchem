@@ -20,6 +20,14 @@ MakeScalarFitter(std::shared_ptr<const BasisSet::rFIT_SF_ABS>& bs)
     return std::make_unique<FunctionFitterImp<double>>(nonOrtho);
 }
 
+std::unique_ptr<FunctionFitter_Scalar<dcmplx>>
+MakeScalarFitter(std::shared_ptr<const BasisSet::cFIT_SF_ABS>& bs)
+{
+    // An orthonormal (plane-wave) {G} scalar fit basis: the projection IS the fit, so the minimal core
+    // scalar fitter (no metric solve).  It holds the fit basis but delegates the assembly to the orbital basis.
+    return std::make_unique<OrthoScalarFitter>(bs);
+}
+
 std::unique_ptr<FunctionFitter_Density_NonOrtho<double>>
 MakeDensityFitter(std::shared_ptr<const BasisSet::rFIT_CD_ABS>& bs)
 {

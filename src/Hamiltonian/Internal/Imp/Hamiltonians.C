@@ -170,15 +170,16 @@ Ham_PP::Ham_PP(const st_t& st, const std::vector<std::pair<std::string,int>>& sp
 void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotential::LocalPotential* loc,
                             const Pseudopotential::SeparablePotential* nl)
 {
-    // The Hartree density-fit basis is created ONCE here from the basis's factory (never assuming
-    // orbital==fit), exactly as the molecular DFT ctor builds FittedVee's CD fit basis -- rho is
-    // cell-periodic so its fit basis is Gamma (k=0).  mp is a no-op for a plane-wave (Ecut-based) fit basis.
-    PW_Hartree::fbs_t CFitBasis(bs->CreateCDFitBasisSet(st.get(), qcMesh::MeshParams{}));
+    // The Hartree (CD) and XC (Vxc) fit bases are created ONCE here from the basis's factory (never assuming
+    // orbital==fit), exactly as the molecular DFT ctor builds FittedVee/FittedVxc's fit bases -- rho and v_xc
+    // are cell-periodic so both fit bases are Gamma (k=0).  mp is a no-op for a plane-wave (Ecut-based) fit basis.
+    PW_Hartree::fbs_t CFitBasis(bs->CreateCDFitBasisSet (st.get(), qcMesh::MeshParams{}));
+    PW_XC::fbs_t      VFitBasis(bs->CreateVxcFitBasisSet(st.get(), qcMesh::MeshParams{}));
     Add(new PW_Kinetic);
     Add(new PW_Pseudo(st, loc, nl));                           // electron-ion (incl. G=0 alignment)
     Add(new PW_Hartree(CFitBasis));
-    Add(new PW_XC(std::make_shared<SlaterExchange>(2.0/3.0)));    // Dirac exchange (alpha = 2/3)
-    Add(new PW_XC(std::make_shared<VWN_Correlation>()));          // VWN5 correlation
+    Add(new PW_XC(std::make_shared<SlaterExchange>(2.0/3.0), VFitBasis));   // Dirac exchange (alpha = 2/3)
+    Add(new PW_XC(std::make_shared<VWN_Correlation>(), VFitBasis));         // VWN5 correlation
     Add(new PW_IonIon(st, loc->ZionFn()));                       // ion-ion Ewald: Zion from the PP, not itsZ
 }
 

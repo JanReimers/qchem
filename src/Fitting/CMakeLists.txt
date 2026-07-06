@@ -4,7 +4,6 @@ target_sources(qcFitting PRIVATE
     Internal/Imp/ConstrainedFF.C  Internal/Imp/FunctionFitterImp.C  Internal/Imp/IntegralConstrainedFF.C)
 target_sources(qcFitting PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     FunctionFitter.C
-    FourierFunctionFitter.C
     Internal/FunctionFitterImp.C
     Internal/OrthoFunctionFitter.C
     Types.C

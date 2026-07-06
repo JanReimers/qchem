@@ -73,12 +73,17 @@ using Pseudopotential::GTH_PP;
 namespace
 {
 
-// PW_Hartree now takes its density-fit basis (from the basis's own factory) at construction, like
-// FittedVee.  These low-level term tests build one straight from the plane-wave basis at hand.
+// PW_Hartree/PW_XC now take their fit basis (from the basis's own factory) at construction, like
+// FittedVee/FittedVxc.  These low-level term tests build one straight from the plane-wave basis at hand.
 qchem::Hamiltonian::PW_Hartree* NewPWHartree(const PlaneWave_IBS& pw)
 {
     return new qchem::Hamiltonian::PW_Hartree(
         qchem::Hamiltonian::PW_Hartree::fbs_t(pw.CreateCDFitBasisSet(nullptr, qcMesh::MeshParams{})));
+}
+qchem::Hamiltonian::PW_XC* NewPWXC(const PlaneWave_IBS& pw, const qchem::Hamiltonian::PW_XC::xc_t& xc)
+{
+    return new qchem::Hamiltonian::PW_XC(xc,
+        qchem::Hamiltonian::PW_XC::fbs_t(pw.CreateVxcFitBasisSet(nullptr, qcMesh::MeshParams{})));
 }
 
 // A ScalarFunction<double> wrapping a lambda f(r) -- to hand real-space fields to the basis's
@@ -934,8 +939,8 @@ TEST_F(PlaneWaveDFT, PWDynamicTermsMatchBasis)
     // XC term (Dirac exchange) matrix == the basis's FFT route: rho(r) via inverse FFT of rho-tilde,
     // v_xc applied pointwise on the grid, forward FFT to the matrix (what the term itself does).
     auto dirac=std::make_shared<qchem::Hamiltonian::SlaterExchange>(2.0/3.0);
-    qchem::Hamiltonian::PW_XC        xc(dirac);
-    qchem::Hamiltonian::cDynamic_HT* xt=&xc;
+    std::unique_ptr<qchem::Hamiltonian::PW_XC> xc(NewPWXC(F.pw, dirac));
+    qchem::Hamiltonian::cDynamic_HT* xt=xc.get();
     const chmat_t& Mx = xt->GetMatrix(&F.pw, Spin::None, &cd);
     rvec_t rho=F.pw.RhoOnGrid(F.pw.MakeFourierDensity(D));
     rvec_t vxc(rho.size());
@@ -974,8 +979,8 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaMatchesPrototype)
     ham.Add(new PW_Kinetic);
     ham.Add(new PW_Pseudo(si, &loc, &nl));
     ham.Add(NewPWHartree(pw));
-    ham.Add(new PW_XC(std::make_shared<SlaterExchange> (2.0/3.0)));   // Dirac exchange
-    ham.Add(new PW_XC(std::make_shared<VWN_Correlation>()));          // VWN5 correlation
+    ham.Add(NewPWXC(pw, std::make_shared<SlaterExchange> (2.0/3.0)));   // Dirac exchange
+    ham.Add(NewPWXC(pw, std::make_shared<VWN_Correlation>()));          // VWN5 correlation
 
     const int Nelec=8, Nocc=Nelec/2;
     size_t  n=pw.GetNumFunctions();

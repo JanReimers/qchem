@@ -10,8 +10,7 @@ import qchem.ChargeDensity;
 import qchem.ChargeDensity.FourierDensity;   // cast cd UP to its reciprocal-space coefficients rho-tilde
 import qchem.BasisSet.Band_FT_IBS;         // cast bs UP to the reciprocal-space DFT capability (Hartree/XC)
 import qchem.Pseudopotential.Integrals_Pseudo;   // cast bs ACROSS to the external-PP operator-assembly mixin (PW_Pseudo)
-import qchem.Fitting.FourierFunctionFitter; // the XC (overlap-metric) PW fitter PW_XC drives
-import qchem.Fitting.FunctionFitter;        // MakeDensityFitter + ProjectedDensity_G (PW_Hartree's fitter, built in the ctor)
+import qchem.Fitting.FunctionFitter;        // Make{Density,Scalar}Fitter + Projected{Density,Scalar}_G (both PW fitters)
 import qchem.Structure;                       // Structure::isFinite()/SumFormFactors() -- the G=0 alignment (term-side)
 import qchem.Ewald;                           // NuclearRepulsion (Ewald lattice sum for the crystal)
 import qchem.Blaze;                            // blazem::zeroH (PW_IonIon's zero matrix)
@@ -144,14 +143,17 @@ std::ostream& PW_Hartree::Write(std::ostream& os) const
 }
 
 //----------------------------------------------------------------------------------- XC
-PW_XC::PW_XC(const xc_t& xc)
+// Built once (in Ham_PW_DFT::BuildTerms) with its Vxc fit basis -- the overlap-metric sibling of PW_Hartree.
+PW_XC::PW_XC(const xc_t& xc, fbs_t fb)
     : itsXc(xc)
+    , itsScalarFitter(Fitting::MakeScalarFitter(fb))   // the ortho (G-space) scalar fitter, through the factory
 {}
+PW_XC::~PW_XC() = default;   // itsScalarFitter's abstract type is complete here
 
-// XC through a FourierFunctionFitter, mirroring FittedVxc: build v_xc on the grid (rho(r) via inverse FFT,
-// then the functional pointwise), DoFit those grid samples, ask for the Overlap matrix (the basis forward-
-// FFTs + assembles).  The XC fit input is the SAMPLED grid (rvec_t) -- the orthonormal XC sibling of the
-// Hartree FourierMap.  No O(Npts*n^2) pointwise density sampling.
+// XC through the pre-built ortho scalar fitter, mirroring FittedVxc: build v_xc on the grid (rho(r) via
+// inverse FFT, then the functional pointwise), forward-FFT it to its V-tilde (the projection = the fit on
+// the orthonormal {G}), DoFit that, then ask for the <i|v_xc|j> assembly (delegated to the basis).  No
+// O(Npts*n^2) pointwise density sampling.
 chmat_t PW_XC::CalcMatrix(const cobs_t* bs, const Spin&, const cChargeDensity* cd) const
 {
     newCD(cd);
@@ -163,9 +165,8 @@ chmat_t PW_XC::CalcMatrix(const cobs_t* bs, const Spin&, const cChargeDensity* c
     rvec_t rho=pw->RhoOnGrid(fd->GetFourierDensity());
     rvec_t vxc(rho.size());
     for (size_t q=0;q<rho.size();q++) vxc[q]=itsXc->GetVxc(rho[q]);   // V(r) = v_xc(rho(r))
-    Fitting::FourierFunctionFitter fitter;
-    fitter.DoFit(pw->ForwardGrid(vxc));         // project v_xc onto {G} (V-tilde, a FourierMap)...
-    return fitter.Overlap(bs);                  // ...and assemble <i|v_xc|j> (no kernel)
+    itsScalarFitter->DoFit(Fitting::ProjectedScalar_G(pw->ForwardGrid(vxc)));   // V-tilde IS the fit
+    return itsScalarFitter->Overlap(bs);                                        // <i|v_xc|j> (no kernel)
 }
 
 void PW_XC::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
