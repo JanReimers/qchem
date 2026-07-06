@@ -55,7 +55,7 @@ public:
             f->SetMesh(*cl, mp);
             return f;
         }
-        virtual FIT_SF_ABS* CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const
+        virtual rFIT_SF_ABS* CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const
         {
             auto* f = new EFit_IBS(Evaluator::Rescale(2.0/3.0, this->GetSymt()));
             f->SetMesh(*cl, mp);

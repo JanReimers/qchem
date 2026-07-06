@@ -10,9 +10,14 @@ namespace qchem::Fitting
 {
 
 std::unique_ptr<FunctionFitter_Scalar<double>>
-MakeScalarFitter(std::shared_ptr<const BasisSet::FIT_SF_ABS>& bs)
+MakeScalarFitter(std::shared_ptr<const BasisSet::rFIT_SF_ABS>& bs)
 {
-    return std::make_unique<FunctionFitterImp<double>>(bs);
+    // The Gaussian potential fit needs the overlap metric-solve face; recover it from the neutral fit-basis
+    // handle (a sanctioned abstract->abstract cross-cast), mirroring MakeDensityFitter.  An orthonormal (PW)
+    // fit basis takes the reciprocal-space scalar fitter instead (a separate dcmplx route).
+    auto nonOrtho = std::dynamic_pointer_cast<const BasisSet::FIT_SF_NonOrtho>(bs);
+    assert(nonOrtho && "MakeScalarFitter: a Gaussian potential fit requires a FIT_SF_NonOrtho fit basis");
+    return std::make_unique<FunctionFitterImp<double>>(nonOrtho);
 }
 
 std::unique_ptr<FunctionFitter_Density_NonOrtho<double>>

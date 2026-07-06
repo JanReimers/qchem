@@ -148,7 +148,7 @@ rFIT_CD_ABS* Orbital_IBS::CreateCDFitBasisSet(const Structure* cl, const qcMesh:
     f->SetMesh(*cl, mp);
     return f;
 }
-FIT_SF_ABS* Orbital_IBS::CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const
+rFIT_SF_ABS* Orbital_IBS::CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const
 {
     Gaussian94Reader reader(BasisFile("A1_exch.bsd"));
     auto* f = new EFit_IBS(&reader,cl);

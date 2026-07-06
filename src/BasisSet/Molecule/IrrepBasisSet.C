@@ -89,7 +89,7 @@ class Orbital_DFT_IBS
     : public virtual ::qchem::BasisSet::Orbital_DFT_IBS<double>
 {
 protected:
-    virtual ERI3<double> MakeOverlap3C  (const FIT_SF_ABS& c) const
+    virtual ERI3<double> MakeOverlap3C  (const rFIT_SF_ABS& c) const
     {
         if constexpr (Evaluators::isM_DFT_Evaluator<E>)
             return dynamic_cast<const E&>(*this).OverlapThreeC_Matrix(dynamic_cast<const E&>(c));

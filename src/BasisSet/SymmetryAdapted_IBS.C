@@ -87,9 +87,9 @@ public:
     // and shared by every irrep.  Fit bases are atom-centred (geometry, not symmetry), so creation
     // delegates to the raw DFT basis.
     virtual rFIT_CD_ABS* CreateCDFitBasisSet (const Structure*, const qcMesh::MeshParams&) const;
-    virtual FIT_SF_ABS* CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams&) const;
+    virtual rFIT_SF_ABS* CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams&) const;
 protected:
-    virtual ERI3<double> MakeOverlap3C  (const FIT_SF_ABS& c) const;
+    virtual ERI3<double> MakeOverlap3C  (const rFIT_SF_ABS& c) const;
     virtual ERI3<double> MakeRepulsion3C(const rFIT_CD_ABS& c) const;
 public:
 

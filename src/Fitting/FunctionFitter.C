@@ -15,7 +15,7 @@
 //
 // The fitter is split along its METRIC axis into two ISP faces -- FunctionFitter_Scalar (the overlap
 // metric, for potential fits v_xc) and FunctionFitter_Density (the Coulomb metric + charge constraint,
-// for density fits rho).  Each takes its OWN narrow fit-basis face (FIT_SF_ABS / rFIT_CD_ABS), so the
+// for density fits rho).  Each takes its OWN narrow fit-basis face (rFIT_SF_ABS / rFIT_CD_ABS), so the
 // consumers no longer down-cast the narrow face back up to the concrete Fit_IBS.  The Gaussian side has
 // two distinct impls; the plane-wave FourierFunctionFitter implements BOTH faces (on an orthonormal {G}
 // basis the projection IS the fit, so the metric distinction is degenerate).
@@ -29,7 +29,7 @@ export module qchem.Fitting.FunctionFitter;
 export import qchem.ScalarFunction;   // ScalarFunction<double> (operator(), Gradient) + Types
 export import qchem.FourierMap;       // the pre-computed G-space coefficients a Fourier (PW) fit receives
 import qchem.Fitting.Types;           // robs_t<T>
-import qchem.BasisSet.Fit_IBS;        // FIT_SF_ABS / rFIT_CD_ABS (the two narrow fit-basis faces)
+import qchem.BasisSet.Fit_IBS;        // rFIT_SF_ABS / rFIT_CD_ABS (the two narrow fit-basis faces)
 import qchem.Blaze;                   // hmat_t<T>
 
 export namespace qchem::Fitting
@@ -124,7 +124,7 @@ public:
 //! \brief Create a SCALAR (overlap-metric) fitter on the given overlap-metric fit basis.  Caller owns the
 //! result; the concrete type stays hidden behind the FunctionFitter_Scalar interface.
 std::unique_ptr<FunctionFitter_Scalar<double>>
-MakeScalarFitter(std::shared_ptr<const BasisSet::FIT_SF_ABS>&);
+MakeScalarFitter(std::shared_ptr<const BasisSet::rFIT_SF_ABS>&);
 
 //! \brief Create a DENSITY (charge-constrained Coulomb-metric) fitter on the given non-ortho fit basis.
 //! Returns the non-ortho refinement (the molecular FittedCD needs its self-energy/charge/rescale/eval).

@@ -12,7 +12,7 @@ template <class T> FIT_CD_ABS<T>* tBasisSet<T>::CreateCDFitBasisSet(const Struct
     auto dft=*Iterate<Orbital_DFT_IBS<double>>().begin();
     return dft->CreateCDFitBasisSet(cl,mp);
 }
-template <class T> FIT_SF_ABS* tBasisSet<T>::CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const
+template <class T> FIT_SF_ABS<T>* tBasisSet<T>::CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const
 {
     auto dft=*Iterate<Orbital_DFT_IBS<double>>().begin();
     return dft->CreateVxcFitBasisSet(cl,mp);
@@ -26,8 +26,8 @@ template <> FIT_CD_ABS<dcmplx>* tBasisSet<dcmplx>::CreateCDFitBasisSet (const St
     auto bft=*Iterate<Band_FT_IBS>().begin();
     return bft->CreateCDFitBasisSet(cl,mp);
 }
-// The Vxc (overlap-metric) fit basis on the plane-wave path is the separate XC increment; still NA here.
-template <> FIT_SF_ABS* tBasisSet<dcmplx>::CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams&) const { assert(false); return 0; }
+// The Vxc (overlap-metric) fit basis on the plane-wave path is wired in the XC increment; still NA here.
+template <> FIT_SF_ABS<dcmplx>* tBasisSet<dcmplx>::CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams&) const { assert(false); return 0; }
 
 template class tBasisSet<double>;
 template class tBasisSet<dcmplx>;

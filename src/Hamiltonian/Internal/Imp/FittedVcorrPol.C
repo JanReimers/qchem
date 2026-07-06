@@ -78,7 +78,7 @@ private:
 class FittedEpsCPol : public virtual ChargeDensity::rDynamic_CC
 {
 public:
-    FittedEpsCPol(std::shared_ptr<const BasisSet::FIT_SF_ABS>& bs, const SpinCorrelation* corr)
+    FittedEpsCPol(std::shared_ptr<const BasisSet::rFIT_SF_ABS>& bs, const SpinCorrelation* corr)
         : itsFitter(Fitting::MakeScalarFitter(bs)), itsCorr(corr) {}
     virtual const rsmat_t& GetMatrix(const robs_t* bs, const Spin&, const rChargeDensity* cd) const
     {

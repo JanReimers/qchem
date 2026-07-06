@@ -7,7 +7,7 @@ import qchem.Blaze;
 
 namespace qchem::BasisSet
 {
-template <class T> const ERI3<T>& Orbital_DFT_IBS<T>::Overlap3C  (const FIT_SF_ABS& c) const
+template <class T> const ERI3<T>& Orbital_DFT_IBS<T>::Overlap3C  (const rFIT_SF_ABS& c) const
 {
     return theCache<T>().Get(IntegralsCache_Base::I3C::Overlap,this,&c,
         [this,&c]{ return MakeOverlap3C(c); });
@@ -19,7 +19,7 @@ template <class T> const ERI3<T>& Orbital_DFT_IBS<T>::Repulsion3C(const rFIT_CD_
         [this,&c]{ return MakeRepulsion3C(c); });
 } 
 
-template <class T> vec_t<T> Orbital_DFT_IBS<T>::Overlap3C(const smat_t<T>& Dcd, const FIT_SF_ABS* c) const
+template <class T> vec_t<T> Orbital_DFT_IBS<T>::Overlap3C(const smat_t<T>& Dcd, const rFIT_SF_ABS* c) const
 {
     vec_t<T> ret(c->GetNumFunctions());
     auto& S=this->Overlap3C(*c);

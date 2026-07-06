@@ -190,7 +190,7 @@ template <isDFT_Evaluator E> class Orbital_DFT_IBS
     : public virtual BasisSet::Orbital_DFT_IBS<double>
 {
 protected:
-    virtual ERI3<double> MakeOverlap3C  (const FIT_SF_ABS& _c) const
+    virtual ERI3<double> MakeOverlap3C  (const rFIT_SF_ABS& _c) const
     {
         auto& ab=dynamic_cast<const E&>(*this);
         auto& c =dynamic_cast<const E&>(_c);

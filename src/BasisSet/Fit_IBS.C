@@ -42,22 +42,38 @@ public:
     virtual const rsmat_t& InvRepulsion() const=0;  //!< inverse of the Coulomb metric, cached
 };
 
-//! \brief Auxiliary basis set face for a SCALAR-FUNCTION fit (the overlap metric): the integrals
-//! FittedVxc needs.  Potential fitting projects a pointwise field (e.g. \f$v_{xc}(\rho(\vec r))\f$)
-//! onto the fit basis in the ordinary overlap norm, so this face serves the overlap metric \c Overlap
-//! (inherited \f$\langle f_a|f_b\rangle\f$), its inverse, the projection RHS \c Overlap(Sf)
-//! \f$=\langle f_a|f\rangle\f$, and the normalisation.  (ISP sibling of \c FIT_CD_ABS.)
-class FIT_SF_ABS
-    : public virtual Integrals_Overlap<double>
-    , public virtual Real_IBS
+//! \brief The MINIMAL, metric-neutral face of a SCALAR-FUNCTION (potential) fit basis.  Potential fitting
+//! projects a pointwise field (e.g. \f$v_{xc}(\rho(\vec r))\f$) onto the fit basis in the overlap norm, so
+//! this face serves the projection RHS \c Overlap(Sf) \f$=\langle f_a|f\rangle\f$ (\a vec_t<T>, the field
+//! is always the real \f$v_{xc}(\vec r)\f$), the normalisation, and the overlap matrix (\c Integrals_Overlap).
+//! Templated on the representation \a T (mirror of \c FIT_CD_ABS): real \c rFIT_SF_ABS (Gaussian) and complex
+//! \c cFIT_SF_ABS (plane-wave, the \f$e^{iG\cdot r}\f$ fit functions -- the projection is honestly complex).
+//! The T axis is the representation; the \c FIT_SF_NonOrtho refinement below is the metric axis.  (ISP
+//! sibling of \c FIT_CD_ABS.)
+template <class T> class FIT_SF_ABS
+    : public virtual Integrals_Overlap<T>
+    , public virtual IrrepBasisSet<T>
 {
 public:
-    using Integrals_Overlap<double>::Overlap;       // the metric <f_a|f_b> (un-hidden past Overlap(Sf))
-    using Integrals_Overlap<double>::MakeOverlap;
-    typedef ScalarFunction<double> Sf;
-    virtual const  rvec_t& Norm   ()            const=0; //!< 1/sqrt(<f_a|f_a>), cached
-    virtual        rvec_t  Overlap(const Sf& f) const=0; //!< projection <f_a|f> (the fit RHS; NOT cached)
-    virtual const rsmat_t& InvOverlap()         const=0; //!< inverse of the overlap metric, cached
+    using Integrals_Overlap<T>::Overlap;       // the metric <f_a|f_b> (un-hidden past Overlap(Sf))
+    using Integrals_Overlap<T>::MakeOverlap;
+    typedef ScalarFunction<double> Sf;         //!< the fitted field is always real (v_xc(r), eps_xc(r))
+    virtual const  rvec_t& Norm   ()            const=0; //!< 1/sqrt(<f_a|f_a>), cached (real)
+    virtual        vec_t<T> Overlap(const Sf& f) const=0; //!< projection <f_a|f> (the fit RHS; NOT cached)
+};
+using rFIT_SF_ABS = FIT_SF_ABS<double>;  //!< real (Gaussian/Slater/BSpline) potential-fit basis
+using cFIT_SF_ABS = FIT_SF_ABS<dcmplx>;  //!< complex (plane-wave, G-space) potential-fit basis
+
+//! \brief A NON-orthonormal (Gaussian/Slater/BSpline) potential-fit basis: adds the overlap metric-solve
+//! input the least-squares potential fit needs -- the inverse overlap metric \f$S^{-1}\f$ (the fit is
+//! \f$c=S^{-1}\langle f|v\rangle\f$).  SOLE consumer: the non-ortho \c FunctionFitterImp scalar fitter.  It
+//! refines \c rFIT_SF_ABS -- a non-orthonormal fit basis is inherently REAL; an orthonormal plane-wave basis
+//! omits this (\f$S=I\f$, the projection IS the fit).  Mirror of \c FIT_CD_NonOrtho.
+class FIT_SF_NonOrtho
+    : public virtual rFIT_SF_ABS
+{
+public:
+    virtual const rsmat_t& InvOverlap() const=0; //!< inverse of the overlap metric, cached
 };
 
 //! \brief A fit basis that can do BOTH fits -- the Gaussian auxiliary basis implements all of it.  The
@@ -67,7 +83,7 @@ public:
 //! one concrete object can be handed to either creator.
 class Fit_IBS
     : public virtual FIT_CD_NonOrtho
-    , public virtual FIT_SF_ABS
+    , public virtual FIT_SF_NonOrtho
 {
 public:
     using Integrals_Overlap<double>::Overlap;       // un-hide the metric Overlap() past the Overlap(Sf) override

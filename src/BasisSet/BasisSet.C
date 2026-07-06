@@ -32,7 +32,7 @@ public:
     virtual irrepv_t GetIrreps(const Spin& ms) const=0;
 
     virtual FIT_CD_ABS<T>* CreateCDFitBasisSet(const Structure* cl, const qcMesh::MeshParams&) const;
-    virtual FIT_SF_ABS* CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams&) const;
+    virtual FIT_SF_ABS<T>* CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams&) const;
 
     // Iterate() with no type argument yields the base obs_t* directly (no cast);
     // Iterate<D>() dynamic_cast's each IBS to the requested derived type D.

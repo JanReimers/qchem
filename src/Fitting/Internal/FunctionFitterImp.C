@@ -15,7 +15,7 @@ export namespace qchem::Fitting
 
 //! \brief Shared implementation of the coefficient + real-space machinery common to BOTH fitter faces.
 //! Parametrised on the public face it implements (Face = FunctionFitter_Scalar / _Density_NonOrtho<T>) and
-//! the narrow fit-basis face it holds (FBS = FIT_SF_ABS / FIT_CD_NonOrtho).  Carries the fit coefficients and
+//! the narrow fit-basis face it holds (FBS = FIT_SF_NonOrtho / FIT_CD_NonOrtho).  Carries the fit coefficients and
 //! the shared ScalarFunction (operator()/Gradient), ReScale and Write; the metric-specific DoFit +
 //! contraction live in the leaf impls below.
 template <class T, class Face, class FBS> class FitImpBase
@@ -40,9 +40,9 @@ public: // Client code needs read access to this data.
 
 //---------------------------------------------------------------------- Scalar (overlap-metric) impl
 template <class T> class FunctionFitterImp
-    : public FitImpBase<T, FunctionFitter_Scalar<T>, BasisSet::FIT_SF_ABS>
+    : public FitImpBase<T, FunctionFitter_Scalar<T>, BasisSet::FIT_SF_NonOrtho>
 {
-    typedef FitImpBase<T, FunctionFitter_Scalar<T>, BasisSet::FIT_SF_ABS> Base;
+    typedef FitImpBase<T, FunctionFitter_Scalar<T>, BasisSet::FIT_SF_NonOrtho> Base;
 public:
     typedef typename Base::fbs_t fbs_t;
 

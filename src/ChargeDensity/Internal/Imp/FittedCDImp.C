@@ -8,7 +8,7 @@ module qchem.ChargeDensity.Imp.FittedCD;
 import qchem.Blaze;
 import qchem.Math;
 import qchem.ScalarFunction;             // ScalarFunction<double> (the seed face we overlap-fit)
-import qchem.BasisSet.Fit_IBS;           // FIT_SF_ABS (overlap face of the term's fit basis)
+import qchem.BasisSet.Fit_IBS;           // rFIT_SF_ABS (overlap face of the term's fit basis)
 import qchem.Fitting.FunctionFitter;     // ProjectedDensity_AO (the callback the COMPOSED fitter consumes)
 
 namespace qchem::ChargeDensity
@@ -28,9 +28,9 @@ public:
     virtual double FitGetConstraint() const {return itsCharge;}                   // the AO fit RHS charge N
     virtual rvec_t GetRepulsion3C(const BasisSet::rFIT_CD_ABS* fbs) const
     {
-        const auto* sf = dynamic_cast<const BasisSet::FIT_SF_ABS*>(fbs);
+        const auto* sf = dynamic_cast<const BasisSet::FIT_SF_NonOrtho*>(fbs);   // the overlap metric-solve face
         const auto* no = dynamic_cast<const BasisSet::FIT_CD_NonOrtho*>(fbs);   // the Coulomb metric face
-        assert(sf && "ScalarSeedProjection_AO: the CD fit basis must also expose its overlap (FIT_SF_ABS) face");
+        assert(sf && "ScalarSeedProjection_AO: the CD fit basis must also expose its overlap-metric (FIT_SF_NonOrtho) face");
         assert(no && "ScalarSeedProjection_AO: the seed overlap-fit needs the Coulomb metric (FIT_CD_NonOrtho)");
         rvec_t e = sf->InvOverlap() * sf->Overlap(itsRho);   // overlap-metric fit coeffs (samples rho(r))
         return no->Repulsion() * e;                          // Coulomb-project -> <rho_fit|f_c>

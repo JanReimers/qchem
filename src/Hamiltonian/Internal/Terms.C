@@ -267,7 +267,7 @@ private:
 class FittedVxc : public virtual rDynamic_HT, private rDynamic_HT_Imp
 {
 public:
-    typedef std::shared_ptr<const BasisSet::FIT_SF_ABS> fbs_t;   //!< the scalar-function (overlap-metric) fit face
+    typedef std::shared_ptr<const BasisSet::rFIT_SF_ABS> fbs_t;   //!< the scalar-function (overlap-metric) fit face
     typedef std::shared_ptr<ExFunctional>     ex_t;
 
     FittedVxc(fbs_t& VxcFitBasisSet, ex_t&);
@@ -285,7 +285,7 @@ private:
 class FittedVxcPol : public virtual rDynamic_HT, private rDynamic_HT_Imp_NoCache
 {
 public:
-    typedef std::shared_ptr<const BasisSet::FIT_SF_ABS> fbs_t;   //!< the scalar-function (overlap-metric) fit face
+    typedef std::shared_ptr<const BasisSet::rFIT_SF_ABS> fbs_t;   //!< the scalar-function (overlap-metric) fit face
     typedef std::shared_ptr<      ExFunctional>  ex_t;
 
     FittedVxcPol(fbs_t&, ex_t&);
@@ -316,7 +316,7 @@ private:
 class FittedEpsXc : public virtual ChargeDensity::rDynamic_CC
 {
 public:
-    typedef std::shared_ptr<const BasisSet::FIT_SF_ABS> fbs_t;   //!< the scalar-function (overlap-metric) fit face
+    typedef std::shared_ptr<const BasisSet::rFIT_SF_ABS> fbs_t;   //!< the scalar-function (overlap-metric) fit face
 
     FittedEpsXc(fbs_t& fitBasisSet, const ExFunctional* ex);
     //! Re-fits eps_xc for this density and returns its matrix Sum_a c_a <Oi|f_a|Oj> for contraction.
@@ -357,7 +357,7 @@ class FittedEpsCPol;   // the polarized eps_c contraction client (defined in Imp
 class FittedVcorrPol : public virtual rDynamic_HT, private rDynamic_HT_Imp_NoCache
 {
 public:
-    typedef std::shared_ptr<const BasisSet::FIT_SF_ABS> fbs_t;   //!< the scalar-function (overlap-metric) fit face
+    typedef std::shared_ptr<const BasisSet::rFIT_SF_ABS> fbs_t;   //!< the scalar-function (overlap-metric) fit face
     typedef std::shared_ptr<SpinCorrelation>            corr_t;  //!< the spin-native correlation functional
 
     FittedVcorrPol(fbs_t&, corr_t&);

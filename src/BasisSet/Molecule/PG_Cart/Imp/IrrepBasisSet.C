@@ -223,7 +223,7 @@ rFIT_CD_ABS* Orbital_IBS::CreateCDFitBasisSet(const Structure* cl, const qcMesh:
     f->SetMesh(*cl, mp);
     return f;
 }
-FIT_SF_ABS* Orbital_IBS::CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const
+rFIT_SF_ABS* Orbital_IBS::CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const
 {
     // The A1 files support Z=1-54 (H-Te)  A2 version only go up to Zn
     Gaussian94Reader reader(BasisFile("A1_exch.bsd"));
