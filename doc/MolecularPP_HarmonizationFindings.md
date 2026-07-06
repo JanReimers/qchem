@@ -36,9 +36,9 @@ one out. Molecular XC assembly is *already* structure-neutral and mesh-hidden:
 - `Fit_IBS` owns `qcMesh::Mesh itsMesh` + `SetMesh(Structure, MeshParams)` (`src/BasisSet/Fit_IBS.C`).
 - `FIT_SF_ABS::Overlap(const Sf& f)` projects an **arbitrary scalar field** onto the fit basis over that
   mesh — the fit basis does the quadrature.
-- `FunctionFitter_Scalar<T>` / `FunctionFitter_Density<T>` are structure-neutral templates with a molecular
-  (Becke-mesh) impl **and** a `FourierFunctionFitter` (G-space) impl. `FittedVxc` holds a fitter, hands it a
-  `ScalarFunction`, gets a matrix back, and **never sees a mesh**.
+- `FunctionFitter_Scalar<T>` / `FunctionFitter_Density<T>` are structure-neutral templates, each with a
+  molecular (Becke-mesh) impl **and** an orthonormal G-space impl (`OrthoScalarFitter` / `OrthoFunctionFitter`).
+  `FittedVxc` holds a fitter, hands it a `ScalarFunction`, gets a matrix back, and **never sees a mesh**.
 
 So the tension "the molecular *orbital* basis would have to become mesh-aware to realize
 `Integrals_Pseudo<double>`" is a **false framing**: mesh-awareness belongs in the `Fit_ABS`/fitter network,
@@ -284,10 +284,34 @@ The data flow (and its FittedVee parallel):
 
 \image html pw_hartree_dataflow.svg "Plane-wave Hartree matrix evaluation: obtained through the basis factory, mirroring FittedVee."
 
+### 6.6 Item 2 XC — PW Vxc through the factory; `FourierFunctionFitter` RETIRED (DONE, bit-identical)
+The XC (overlap-metric) half now mirrors the Hartree half, and the **last user of `FourierFunctionFitter`
+is gone — that class is deleted**. `PW_XC` runs behind the same `FunctionFitter_Scalar<dcmplx>` face the
+molecular `FittedVxc` uses.
+- **`FIT_SF_ABS<T>` templated on the representation axis** (rFIT_SF_ABS/cFIT_SF_ABS, mirror of `FIT_CD_ABS<T>`)
+  — and its core reduced to the empty `IrrepBasisSet<T>` marker, with the overlap metric (`Overlap(Sf)`/`Norm`/
+  `InvOverlap` + `Integrals_Overlap`) moved to **`FIT_SF_NonOrtho`**. So `cFIT_SF_ABS` is a clean empty marker;
+  the PW Vxc fit basis carries **no stub** (the molecular `<double>` ripple is a mechanical rename).
+- **`ProjectedScalar<T>`** (+ `ProjectedScalar_AO` = the renamed `ScalarFFClient`, + `ProjectedScalar_G` wrapping
+  the potential's V-tilde) mirrors `ProjectedDensity<T>`; the scalar `DoFit` is neutralized to it. The scalar
+  fitter face is split **core / `_NonOrtho`** (the core drops the `ScalarFunction` base, so the ortho scalar
+  fitter has no eval stub) — the exact `FunctionFitter_Density` split.
+- **`OrthoScalarFitter`** (core `FunctionFitter_Scalar<dcmplx>`, Fitting/Internal) stores the V-tilde and
+  delegates the kernel-free assembly to `Band_FT_IBS::Overlap`; reached via a new `MakeScalarFitter(cFIT_SF_ABS)`.
+  `PlaneWaveFit_IBS` now implements **both** `cFIT_CD_ABS` and `cFIT_SF_ABS` (like molecular `EFit_IBS`);
+  `Band_FT_IBS::CreateVxcFitBasisSet` returns a distinct Γ instance; `PW_XC(xc, fbs)` is built once in
+  `BuildTerms`. `FourierFunctionFitter.C` + its CMake entry + the `PWTerms` import are removed.
+
+**Scope note (grid deferral).** A genuinely distinct **denser** Vxc fit grid changes `Exc` (the nonlinear
+`v_xc` aliases onto a coarse {G}), so it cannot be bit-identical. Per the plan, this stays on **today's grid**
+(the Vxc fit basis reuses the orbital grid, like the CD one), keeping every anchor bit-identical; the denser
+{G} is a **future joint CD+Vxc grid upgrade** (both fit bases' `{G}` adjusted together). All bit-identical:
+26 PW/Lattice `Exc` anchors, 172/172 UTMain, 29/29 UTLattice_3D_BS.
+
 ## 7. Action items for the next session (remaining)
 
-Both harmonization items are **landed through their Hartree/term level** (Item 1 §6.2; Item 2 groundwork §6.3 +
-Hartree routing §6.5). What remains is a lattice-PP SCF (Item 1) and the PW **XC** face (Item 2). Neither blocks
+**Item 2 (the PW DFT-fit harmonization) is DONE end to end** — Hartree (§6.5) and XC (§6.6), `FourierFunctionFitter`
+retired. What remains is a lattice-PP SCF (Item 1) and the *(future)* denser-{G} fit-grid upgrade. Neither blocks
 current PP use. **Note:** PW itself keeps `Integrals_Pseudo<dcmplx>` + its intrinsic G-grid — the G-space FFT route
 is principled and efficient; unification is for real-space bases on a lattice, not for plane waves.
 
@@ -300,16 +324,14 @@ The terms already assemble on the lattice mesh (§6.2). Left for a real *energy*
    the G=0 alignment (`0` for finite, `(N/Ω)·ΣFormFactorG0` for periodic — the hardcoded-0.0 pattern).
 3. *(Future GPW)* derive `nUniform` from a grid `Ecut` via the Nyquist bound (§6.4) rather than a free integer.
 
-### Item 2 remaining — the XC/Scalar face (the Hartree half is DONE, §6.5)
-The density (Hartree) route is landed (§6.5): the PW density-fit basis (`PlaneWaveFit_IBS` over the shared
-`PW_Evaluator`), the factory seam (`Band_FT_IBS::CreateCDFitBasisSet`, stub deleted), `ProjectedDensity_G`,
-`OrthoFunctionFitter`, and `PW_Hartree` routed — all bit-identical. What remains is the **XC/Scalar** mirror:
-1. The **overlap-metric** counterparts: a `ProjectedScalar<T>` design mirroring `ProjectedDensity<T>`, a PW
-   Vxc fit basis (the dcmplx `CreateVxcFitBasisSet`, still an `assert(false)` stub), and an ortho **scalar**
-   fitter implementing the core `FunctionFitter_Scalar<dcmplx>`.
-2. Route `PW_XC` through it; verify PW DFT energies **bit-identical**. Only then does the XC-only
-   `FourierFunctionFitter` remnant die and `OrthoFunctionFitter` move fully off the direct import.
-3. *(Deferred cleanup, reviewer)* move the `Overlap`/`MakeOverlap` pair up from `Integrals_Overlap`/
-   `IrrepBasisSet` into `Orbital_1E_IBS` so `FIT_CD_*` provably never carries an overlap metric.
+### Item 2 — DONE (Hartree §6.5, XC §6.6)
+Both PW DFT-fit routes go through the factory seam; `FourierFunctionFitter` is deleted. The only follow-ups are
+future upgrades, not remaining harmonization work:
+1. **Denser-{G} fit grid (future, joint CD+Vxc).** A genuinely distinct, denser Vxc/CD fit grid is the physically
+   better XC/Hartree quadrature (CP2K-style density cutoff) but changes the numbers, so it lands as one deliberate
+   numerics upgrade — both fit bases' `{G}` adjusted together — separate from this bit-identical refactor. When it
+   lands, `ProjectedScalar_G`'s flat-vec view (over the fit basis's own ordered `{G}`) becomes meaningful.
+2. *(Deferred cleanup, reviewer)* move the `Overlap`/`MakeOverlap` pair up from `Integrals_Overlap`/`IrrepBasisSet`
+   into `Orbital_1E_IBS` so `FIT_*_ABS` cores provably never carry an overlap metric.
 
 **Constraint:** never assume `orbital == fit` (§3.1); the factory is the seam even when PW's answer is trivial.
