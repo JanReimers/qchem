@@ -40,11 +40,19 @@ FittedEpsXc::FittedEpsXc(fbs_t& bs, const ExFunctional* ex)
 
 const rsmat_t& FittedEpsXc::GetMatrix(const robs_t* bs,const Spin&,const rChargeDensity* cd) const
 {
-    EpsXcDensity epsxc(itsEx,cd);
-    itsFitter->DoFit(epsxc);                             // fit eps_xc(rho) for this density
+    // Re-fit eps_xc(rho) only when the density actually changes -- mirrors FittedVxc::CalcMatrix's newCD
+    // guard.  Without this the fit (and its 3-centre setup) re-ran on every GetEnergy, i.e. twice per SCF
+    // iteration.  The coefficients live in itsFitter, so a stale density reuses them; only the per-irrep
+    // Overlap below (which depends on bs) must run every call.
+    if (cd->Version()!=itsFitVersion)
+    {
+        EpsXcDensity epsxc(itsEx,cd);
+        itsFitter->DoFit(epsxc);                         // fit eps_xc(rho) for this density
+        itsFitVersion=cd->Version();
+    }
     auto dftbs=dynamic_cast<const odftbs_t*>(bs);
     assert(dftbs);
-    itsMat=itsFitter->Overlap(dftbs);       // Sum_a c_a <Oi|f_a|Oj>
+    itsMat=itsFitter->Overlap(dftbs);       // Sum_a c_a <Oi|f_a|Oj>  (per-irrep basis; runs every call)
     return itsMat;
 }
 

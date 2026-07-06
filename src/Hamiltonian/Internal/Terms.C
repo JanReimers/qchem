@@ -279,6 +279,7 @@ private:
     std::unique_ptr<Fitting::FunctionFitter_Scalar<double>> itsFitter;  //!< COMPOSED fitter (not inherited)
     const ExFunctional* itsEx;   //!< non-owning; the XC functional supplying eps_xc (owned by the term)
     mutable rsmat_t     itsMat;
+    mutable size_t      itsFitVersion=size_t(-1);   //!< density serial the eps_xc fit was last computed for
 };
 
 //###############################################################################
