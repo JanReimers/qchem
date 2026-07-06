@@ -1,2 +1,8 @@
 CompileFlags:
   CompilationDatabase: build/Debug
+If:
+  PathMatch: '.*submodules/.*'
+  # Or specifically for .gitmodules style paths:
+  # PathMatch: '.*\.git/modules/.*'
+Index:
+  Background: Skip
