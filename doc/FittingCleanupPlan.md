@@ -94,9 +94,35 @@ for symmetry, or leave it `_AO` as the more literal name. Cosmetic; bit-identica
 `n ≳ a√(2E_cut)/π` (×2 for a density-bandwidth field). User sets a physical `E_cut`; the mesh follows.
 The GPW-flavored item (see `MolecularPP_HarmonizationFindings.md` §6.4).
 
-### I. `E_xc`/`V_xc` consistency (retire the ¾-virial special case)
-Route `E_xc = ∫ε_xc·ρ` through the fitter uniformly instead of the LDA-exchange `¾⟨ρ|v_x⟩` shortcut. The
-prerequisite for GGA (the ¾ virial breaks for gradient functionals). Existing TODO.
+### I. GGA prerequisites (two seams to lay before gradient functionals)
+
+**I.1 — `E_xc`/`V_xc` consistency (retire the ¾-virial special case).** Route `E_xc = ∫ε_xc·ρ` through the
+fitter uniformly instead of the LDA-exchange `¾⟨ρ|v_x⟩` shortcut. The ¾ virial breaks for gradient
+functionals. Existing TODO.
+
+**I.2 — The grid-sizing seam (`relCutoff`).** For GGA the Vxc fit grid must be denser (the gradient
+enhancement adds bandwidth to both `v_x` and `v_c`), and *how much* denser is a property of the **functional
+type**, which only the Hamiltonian side knows. The creation point and the functionals are **co-located** in
+`Ham_PW_DFT::BuildTerms` (a few lines apart), so this is a local seam, not deep threading.
+- **Hard constraint — pass a *number*, never the functional.** `CreateVxcFitBasisSet` lives in `qcBasisSet`;
+  `ExFunctional` lives in `qcHamiltonian`, which *depends on* `qcBasisSet`. Handing an `ExFunctional&` to a
+  basis method would be a **library cycle** (linker-rejected). So the Hamiltonian distills the functional's
+  appetite to a scalar and passes that; the basis stays functional-agnostic.
+- **The seam:** `virtual double ExFunctional::GridCutoffFactor() const {return 1.0;}` (LDA→1; GGA→~1.5–2, the
+  CP2K `REL_CUTOFF` idea); a `relCutoff` **field on `MeshParams`** (default 1.0 — so `CreateVxcFitBasisSet`'s
+  signature grows a *field*, not a positional arg — dovetails with item H making `MeshParams` the grid-knob
+  vehicle). `BuildTerms` builds the functionals first, takes `max(exchange, correlation)` (**shared grid →
+  the denser of the two**, per the exchange-dominates analysis), and passes it. The fit basis scales its grid
+  `E_cut` by `relCutoff` (it already holds `itsEcut`).
+- **Scaffold it at `relCutoff = 1.0` now, wired and live** — introduce `GridCutoffFactor()` (default 1.0) +
+  the `MeshParams.relCutoff` field + the `BuildTerms` threading with the value 1, alongside the denser-grid /
+  `E_cut`-derived-grid work so that `relCutoff=1` **reproduces today's grid bit-identically**. The seam is
+  then visible and exercised (not dead), and the GGA coder's whole job on this axis is to override
+  `GridCutoffFactor()` — the grid follows automatically. (Until the `E_cut`-derived Vxc grid lands, the field
+  is threaded but the grid stays the difference set; land them together so `relCutoff` is consumed from day
+  one.)
+- Acceptance for any grid change stays a **grid-convergence study of ρ / a property vs a fine reference**, not
+  ΔE_total (the fits are non-variational — see the fit-quality note in `MolecularPP_HarmonizationFindings.md`).
 
 ### (folded) `Integrals_Overlap` placement
 Already achieved by the Stage-C refinement — `Integrals_Overlap` is untouched and inherited only where the
@@ -155,6 +181,7 @@ requirement (no `else`); the molecular seed matches `FourierSeedCD`'s "own your 
 4. **G**, **(folded)** — cosmetic/verify, cheap, fold into whatever touches those files.
 5. **C** (cast survey) — after A/E/F land (they remove the worst offenders).
 6. **D** (drop `Band_DFT_IBS<dcmplx>`) — independent; decide the test-oracle question.
-7. **H** (nUniform←E_cut), **I** (E_xc consistency / GGA prep) — larger, numerics-affecting; their own
-   increments with grid-convergence acceptance tests (NOT ΔE_total — see the fit-quality note in the
-   harmonization findings).
+7. **H** + **I.2's `relCutoff=1` scaffold** together — when the `E_cut`-derived Vxc grid lands, wire the
+   `GridCutoffFactor()`/`MeshParams.relCutoff` seam at value 1 so LDA is bit-identical and the GGA hook is
+   live. **I.1** (E_xc/`¾`-virial consistency) is a separable increment. All numerics-affecting steps use a
+   grid-convergence acceptance test (NOT ΔE_total — see the fit-quality note in the harmonization findings).
