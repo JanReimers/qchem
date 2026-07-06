@@ -1224,7 +1224,7 @@ TEST_F(PlaneWaveDFT, FrameworkCsIThroughSCFIterator)
 }
 
 // G-space Hartree path: V_H assembled directly from the density's Fourier coefficients rho-tilde(dm)
-// (PlaneWave_IBS::MakeFourierDensity -> Repulsion(FourierMap)) must equal the real-space route
+// (PlaneWave_IBS::MakeFourierDensity -> Repulsion(ΔG_Map)) must equal the real-space route
 // (sample rho(r) on the grid -> ForwardDFT -> V_H).  This is the O(n^2) G-space replacement for the
 // O(Npts*n^2) pointwise sampling -- the foundation of the FFT speed-up.  Fast: no SCF, one block.
 TEST_F(PlaneWaveDFT, HartreeFromFourierMatchesPointwise)

@@ -55,7 +55,7 @@ public:
 
     //! Sum the contained blocks' G-space coefficients: \f$\tilde\rho(\Delta m)=\sum_k w_k\tilde\rho_k\f$
     //! (each block already carries its BZ weight).  Plane-wave (dcmplx) path; NA-asserts for double.
-    virtual FourierMap GetFourierDensity() const;
+    virtual ΔG_Map GetFourierDensity() const;
 
 private:
     tComposite_CD(const tComposite_CD&);

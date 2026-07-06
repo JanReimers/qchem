@@ -23,7 +23,11 @@ for the system-wide cast survey (item C).
 
 ## Items
 
-### A. `isOrtho()` + rename the fitter factories
+### A. `isOrtho()` + rename the fitter factories  — ✅ DONE
+Landed: `isOrtho()` on the `FIT_CD_ABS`/`FIT_SF_ABS` cores (molecular `Fit_IBS`→false, `PlaneWaveFit_IBS`→true);
+factory guards the down-cast by the contract; `Make{Scalar,Density}Fitter` → 4 `Fitting::Factory` overloads.
+Bit-identical (170 non-A + PW/DFT anchors).
+
 Replace the core→NonOrtho `dynamic_cast` inside `MakeDensityFitter`/`MakeScalarFitter` (the two `<double>`
 overloads) with an explicit, mandatory predicate:
 - Add `virtual bool isOrtho() const = 0;` to the `FIT_*_ABS` cores (every fit basis must declare its metric).
@@ -58,13 +62,24 @@ Sweep all casts; classify each by the A-principle. Known finds so far: the seed 
 the `FittedCD::DoFit` capability-probe (de-greyed by item E), the ortho fitters' `ProjectedDensity_G`/
 `ProjectedScalar_G` casts (these are "I want more" — they pass). Give the survivors good throw messages.
 
-### D. Drop `Band_DFT_IBS<dcmplx>` from `PlaneWave_IBS`
+### D. Drop `Band_DFT_IBS<dcmplx>` from `PlaneWave_IBS`  — ✅ DONE (Option 1, GPW-aware)
+Decision (user Q on GPW): the abstract `Band_DFT_IBS<T>` **module/interface is KEPT** — a future GPW basis
+(Gaussian orbitals, PW/FFT density) is its intended implementer (as `<double>`), per the file's own design
+note. Only the dead `<dcmplx>` **base on `PlaneWave_IBS`** is dropped (production went fully G-space via
+`Band_FT_IBS`; nothing casts to `Band_DFT_IBS<dcmplx>` — the sole prod reference was a stale PWTerms comment,
+fixed). The 3 real-space methods (`Overlap`/`Repulsion`/`Integral`(SF)) stay as concrete **test-only oracles**
+(independent analytic cross-checks of the shared FFT/Poisson machinery GPW will reuse). Bit-identical.
+
 Production-dead: the G-space (`Band_FT_IBS`) route won; the real-space `Overlap(SF)`/`Repulsion(SF)`/
 `Integral(SF)` methods survive only as independent test oracles in `PlaneWaveDFTUT.C`. Decide: delete the
 base (and re-express/retire those tests) vs. keep them as independent oracles. Weigh their genuine
 regression value against carrying the dead base.
 
-### E. Seed owns its projection — move `ScalarSeedProjection_AO` out of `FittedCD`
+### E. Seed owns its projection — move `ScalarSeedProjection_AO` out of `FittedCD`  — ✅ DONE
+Landed per §E-spec (E now, F later): `NumericCD` IS-A `ProjectedDensity_AO`; `GetRepulsion3C` relocated onto it;
+`FittedCD::DoFit` collapsed to one guaranteed cross-cast (seed overload deleted). Bit-identical (A_DFT/M_DFT/
+M_HF_U_SAD/PlaneWave anchors). The CD→SF cross-cast now lives on `NumericCD::GetRepulsion3C` — item F.
+
 `FittedCD` should not know seeding exists. Relocate the seed's overlap-fit projection onto the seed density
 itself (`NumericCD`), making it a first-class `ProjectedDensity_AO` — mirroring how the PW seed
 (`FourierSeedCD`) already owns its `GetFourierDensity`. Bit-identical. **Detailed spec below (§E-spec).**
@@ -82,7 +97,11 @@ charge constraint — using the fit basis's `FIT_SF_NonOrtho` face **directly** 
 branch cast). Interacts with E (changes what face the seed presents), so design F before/with E. Not a
 mechanical change.
 
-### G. `ProjectedScalar_AO` → `ProjectedScalar_R`
+### G. `ProjectedScalar_AO` → `ProjectedScalar_R`  — ✅ DONE
+Renamed the scalar projection to `_R` (carries only a real-space field; a Slater/BSpline basis uses it
+identically). Density `ProjectedDensity_AO` left `_AO` (it genuinely exposes AO 3-centre `GetRepulsion3C`).
+Pure rename, bit-identical.
+
 The scalar one carries *only* a real-space field (`GetScalarFunction`) — nothing AO-specific; a Slater/
 BSpline basis uses it identically. Rename to `_R` (real-space, paired with `_G`). Separately decide whether
 to align the *density* `ProjectedDensity_AO` (which genuinely exposes AO 3-centre `GetRepulsion3C`) to `_R`
@@ -189,7 +208,12 @@ Depends on: H (grid self-sizes from `E_cut`) + I.2 (`relCutoff` seam live). Land
 Item-2 XC work. Non-bit-identical *by design* (the grid changes) → guard with a grid-convergence test, not an
 energy anchor.
 
-### J. Rename `FourierMap` → `ΔG_Map` (it's just a data structure)
+### J. Rename `FourierMap` → `ΔG_Map` (it's just a data structure)  — ✅ DONE
+Type `FourierMap` → `ΔG_Map` (Unicode Δ; toolchain verified g++15/C++20); module `qchem.FourierMap` →
+`qchem.Math.GMap`; file `src/Math/FourierMap.C` → `GMap.C`; CMake + `qchem.Math` umbrella note updated; the
+3 `export import` lines + ~30 type uses swept. Method names (`MakeFourierDensity` etc.) left as-is (honest
+FFT provenance). ninja dyndep recovery applied to build/Release. Pure rename, bit-identical (170 + PW/DFT).
+
 
 `FourierMap` (`using = std::map<ivec3_t, dcmplx, IVec3Less>` in `src/Math/FourierMap.C`) is a plain
 G-space coefficient map keyed by a reciprocal-index **difference** `ΔG = Gᵢ−Gⱼ`. The name `Fourier`

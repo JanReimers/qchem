@@ -17,7 +17,7 @@ module;
 #include <string>
 
 export module qchem.BasisSet.Lattice_3D.PlaneWave_IBS;
-export import qchem.BasisSet.Band_FT_IBS;       // the abstract G-space DFT capability (+ FourierMap)
+export import qchem.BasisSet.Band_FT_IBS;       // the abstract G-space DFT capability (+ ΔG_Map)
 export import qchem.ScalarFunction;             // ScalarFunction<double> -- the real-space oracle methods' arg
 export import qchem.BasisSet.Lattice_3D.Evaluators.PW;   // PW_Evaluator (the shared grid engine / base subobject)
 import qchem.BasisSet.Lattice_3D.IBS;           // EPW_Orbital1E_IBS<E> (the evaluator-templated mixins)
@@ -60,18 +60,18 @@ public:
     // --- Band_FT_IBS capability: density-driven KS assembly in reciprocal space (orbital-only). ---
     //! \brief Density Fourier coefficients \f$\tilde\rho(\Delta m)=\frac1\Omega\sum_{G_i-G_j=\Delta m}D_{ij}\f$
     //! for a density matrix \a D in THIS plane-wave block.
-    virtual FourierMap MakeFourierDensity(const chmat_t& D) const override;
+    virtual ΔG_Map MakeFourierDensity(const chmat_t& D) const override;
     //! \brief Structure-factor assembly of a per-species radial form factor (the SAD seed density face).
-    virtual FourierMap MakeFourierDensity(const Structure* atoms,
+    virtual ΔG_Map MakeFourierDensity(const Structure* atoms,
                           const std::function<double(int Z, double g2)>& formFactor) const override;
     //! \brief Hartree matrix + energy directly from the density's G-space coefficients \a rho
     //! (\f$V_H=4\pi\tilde\rho/|B\Delta m|^2\f$, \f$E_H=\tfrac\Omega2\sum 4\pi|\tilde\rho|^2/G^2\f$).
-    virtual chmat_t Repulsion(const FourierMap& rho, double& Eh) const override;
+    virtual chmat_t Repulsion(const ΔG_Map& rho, double& Eh) const override;
 
     // XC route (basis owns the FFTs; see Band_FT_IBS).
-    virtual rvec_t     RhoOnGrid   (const FourierMap& rho) const override;
-    virtual FourierMap ForwardGrid (const rvec_t& gridValues) const override; //!< forward FFT -> Vtilde(dm)
-    virtual chmat_t    Overlap     (const FourierMap& Vtilde) const override;  //!< <i|V|j>=Vtilde(dm)
+    virtual rvec_t     RhoOnGrid   (const ΔG_Map& rho) const override;
+    virtual ΔG_Map ForwardGrid (const rvec_t& gridValues) const override; //!< forward FFT -> Vtilde(dm)
+    virtual chmat_t    Overlap     (const ΔG_Map& Vtilde) const override;  //!< <i|V|j>=Vtilde(dm)
     virtual chmat_t    Overlap     (const rvec_t& Vgrid)  const override;      //!< = Overlap(ForwardGrid(Vgrid))
     virtual double     Integral    (const rvec_t& fgrid)   const override;
 

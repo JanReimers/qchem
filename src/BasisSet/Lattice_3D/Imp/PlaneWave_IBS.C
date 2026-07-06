@@ -46,11 +46,11 @@ namespace
 //! Forward-transform a real field sampled on the fractional grid to its Fourier components
 //! \f$\tilde V(\Delta m)=\frac1{N}\sum_r V(r)e^{-i2\pi\Delta m\cdot r}\f$ over the difference set
 //! \f$\{m_i-m_j\}\f$ (the only components the matrix \f$\langle G_i|V|G_j\rangle\f$ needs).
-FourierMap
+ΔG_Map
 ForwardDFTDiffSet(const std::vector<ivec3_t>& G, const std::vector<rvec3_t>& frac,
                   const std::vector<double>& field)
 {
-    FourierMap vt;
+    ΔG_Map vt;
     size_t n=G.size(), Npts=frac.size();
     for (size_t i=0;i<n;i++)
         for (size_t j=0;j<n;j++)
@@ -95,7 +95,7 @@ chmat_t PlaneWave_IBS::Repulsion(const ScalarFunction<double>& rho, double& Eh) 
 
 // Hartree directly from the density's G-space coefficients rho-tilde (the FFT-free Poisson solve):
 //   V_H(dm) = 4 pi rho-tilde(dm)/|G|^2,   E_H = (Omega/2) Sum_{G!=0} 4 pi |rho-tilde|^2/|G|^2,  dm=0 dropped.
-chmat_t PlaneWave_IBS::Repulsion(const FourierMap& rg, double& Eh) const
+chmat_t PlaneWave_IBS::Repulsion(const ΔG_Map& rg, double& Eh) const
 {
     Eh=0.0;
     for (const auto& kv : rg)
@@ -116,9 +116,9 @@ chmat_t PlaneWave_IBS::Repulsion(const FourierMap& rg, double& Eh) const
 
 // rho-tilde(dm) = (1/Omega) Sum_{i,j: G_i-G_j=dm} D_ij.  D is Hermitian, so rho-tilde(-dm)=conj(rho-tilde(dm))
 // falls out automatically (the (j,i) pair contributes conj(D_ij) at -dm).  One O(n^2) pass, no grid.
-FourierMap PlaneWave_IBS::MakeFourierDensity(const chmat_t& D) const
+ΔG_Map PlaneWave_IBS::MakeFourierDensity(const chmat_t& D) const
 {
-    FourierMap rg;
+    ΔG_Map rg;
     size_t n=GetNumFunctions();
     const std::vector<ivec3_t>& G=Gs();
     for (size_t i=0;i<n;i++)
@@ -131,11 +131,11 @@ FourierMap PlaneWave_IBS::MakeFourierDensity(const chmat_t& D) const
 // Structure-factor assembly of a per-species radial form factor (the SAD seed density face): for each
 // difference vector dm in the basis, rho(dm) = (1/Omega) Sum_atoms formFactor(Z,|B.dm|^2) e^{-i(B.dm).R}.
 // Mirrors MakeLocalPotential, but it is a DENSITY: dm=0 is KEPT (= total charge / Omega), not dropped.
-FourierMap PlaneWave_IBS::MakeFourierDensity(const Structure* atoms,
+ΔG_Map PlaneWave_IBS::MakeFourierDensity(const Structure* atoms,
                           const std::function<double(int,double)>& formFactor) const
 {
     const UnitCell& B=Recip().GetCell();
-    FourierMap rho;
+    ΔG_Map rho;
     size_t n=GetNumFunctions();
     const std::vector<ivec3_t>& G=Gs();
     for (size_t i=0;i<n;i++)
@@ -154,7 +154,7 @@ FourierMap PlaneWave_IBS::MakeFourierDensity(const Structure* atoms,
 
 // rho(r) on the FFT grid = inverse FFT of rho-tilde: rho(r_j) = Sum_dm rho-tilde(dm) e^{+i2pi dm.j/N}.
 // rho-tilde is the physical coefficient (already /Omega), so the inverse FFT takes NO 1/N normalization.
-rvec_t PlaneWave_IBS::RhoOnGrid(const FourierMap& rho) const
+rvec_t PlaneWave_IBS::RhoOnGrid(const ΔG_Map& rho) const
 {
     ivec3_t N=FFTGrid();
     size_t Npts=size_t(N.x)*N.y*N.z;
@@ -171,9 +171,9 @@ rvec_t PlaneWave_IBS::RhoOnGrid(const FourierMap& rho) const
 }
 
 // Forward-FFT a real-space grid field to its G-space coefficients Vtilde(dm)=(1/Npts) FFT[V], stored as a
-// FourierMap over the basis difference set {m_i-m_j, j>=i} -- the keys the assembly will query.  The
+// ΔG_Map over the basis difference set {m_i-m_j, j>=i} -- the keys the assembly will query.  The
 // potential analogue of MakeFourierDensity (which produces rho-tilde from the density matrix).
-FourierMap PlaneWave_IBS::ForwardGrid(const rvec_t& V) const
+ΔG_Map PlaneWave_IBS::ForwardGrid(const rvec_t& V) const
 {
     ivec3_t N=FFTGrid();
     size_t Npts=size_t(N.x)*N.y*N.z;
@@ -181,7 +181,7 @@ FourierMap PlaneWave_IBS::ForwardGrid(const rvec_t& V) const
     cvec_t g(Npts, dcmplx(0.0));
     for (size_t i=0;i<Npts;i++) g[i]=dcmplx(V[i]);
     cvec_t Vt=qchem::FFT::FFT3D(g, N, -1);
-    FourierMap out;
+    ΔG_Map out;
     size_t n=GetNumFunctions();
     const std::vector<ivec3_t>& G=Gs();
     for (size_t i=0;i<n;i++)
@@ -199,7 +199,7 @@ FourierMap PlaneWave_IBS::ForwardGrid(const rvec_t& V) const
 
 // <i|V|j> = Vtilde(m_i-m_j): assemble directly from the G-space coefficients (no kernel -- the overlap
 // 3-centre is the delta).  The XC sibling of Repulsion (which folds in 4pi/G^2).
-chmat_t PlaneWave_IBS::Overlap(const FourierMap& Vt) const
+chmat_t PlaneWave_IBS::Overlap(const ΔG_Map& Vt) const
 {
     return MakePotential([&](const ivec3_t& dm)->dcmplx
         { auto it=Vt.find(dm); return it==Vt.end()?dcmplx(0.0):it->second; });

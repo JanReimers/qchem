@@ -14,7 +14,7 @@ module;
 #include <cstddef>
 export module qchem.ChargeDensity.FourierSeedCD;
 export import qchem.ChargeDensity;                 // tChargeDensity<dcmplx>
-export import qchem.ChargeDensity.FourierDensity;  // FourierDensity, FourierMap
+export import qchem.ChargeDensity.FourierDensity;  // FourierDensity, ΔG_Map
 import qchem.ChargeDensity.AtomicDensity;          // RadialDensity, RecentredAtomicDensity, GetAtomicDensity
 import qchem.BasisSet.Band_FT_IBS;                  // Band_FT_IBS (the G-space assembler)
 import qchem.Structure;                             // Structure, Atom
@@ -37,7 +37,7 @@ public:
                   const std::map<size_t,double>& ionicScaleByZ = {});
 
     // FourierDensity -- the native G-space representation the PW Hartree/XC terms consume.
-    virtual FourierMap GetFourierDensity() const;
+    virtual ΔG_Map GetFourierDensity() const;
 
     // ScalarFunction<double> -- real-space rho(r) = Sum_atoms rho_atom(|r-R|) (not used by the PW Fock build,
     // which goes through GetFourierDensity, but provided so the type is whole).

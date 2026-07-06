@@ -169,11 +169,11 @@ template <class T> rvec3_t tComposite_CD<T>::Gradient  (const rvec3_t& r) const
 }
 
 // rho-tilde(Delta-m) = Sum_blocks rho-tilde_k (each block already BZ-weighted) = the BZ average Sum_k w_k rho_k.
-template <class T> FourierMap tComposite_CD<T>::GetFourierDensity() const
+template <class T> ΔG_Map tComposite_CD<T>::GetFourierDensity() const
 {
     if constexpr (std::is_same_v<T,dcmplx>)
     {
-        FourierMap rg;
+        ΔG_Map rg;
         for (const auto& c : itsCDs)
         {
             auto* fc=dynamic_cast<const FourierDensity*>(c.get());
@@ -185,7 +185,7 @@ template <class T> FourierMap tComposite_CD<T>::GetFourierDensity() const
     else
     {
         assert(false && "a finite (non-periodic) density has no reciprocal-lattice Fourier series");
-        return FourierMap{};
+        return ΔG_Map{};
     }
 }
 

@@ -1,7 +1,7 @@
 # qcMath: the math leaf library (pulled out of qcCommon).  Independent of qcCommon.
 #   - qchem.CMath  : <cmath> + Constants/IntPow/Factorials (the leaf the math core imports)
 #   - qchem.Math   : lean umbrella for outside consumers (re-exports CMath)
-#   - Types/Blaze, fixed Vector/Matrix 2D+3D, SpecialFunctions, FFT, FourierMap,
+#   - Types/Blaze, fixed Vector/Matrix 2D+3D, SpecialFunctions, FFT, GMap,
 #     ScalarFunction, VectorFunction
 add_library(qcMath)
 target_sources(qcMath PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
@@ -19,7 +19,7 @@ target_sources(qcMath PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     SpecialFunctions.C
     Angular.C
     FFT.C
-    FourierMap.C
+    GMap.C
     ScalarFunction.C
     VectorFunction.C
 )

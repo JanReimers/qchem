@@ -42,7 +42,7 @@ FourierSeedCD::FourierSeedCD(const BasisSet::Band_FT_IBS* basis, const Structure
 // rho-tilde(dm) = (1/Omega) Sum_atoms rho_atom(|B.dm|) e^{-i(B.dm).R}: the basis does the structure-factor
 // assembly (it owns the reciprocal lattice + difference set); we supply the per-species form factor (the
 // valence density's radial Fourier transform).  Memoize the FT per (Z,g2) -- many dm share |G|.
-FourierMap FourierSeedCD::GetFourierDensity() const
+ΔG_Map FourierSeedCD::GetFourierDensity() const
 {
     auto memo = std::make_shared<std::map<std::pair<int,double>,double>>();
     auto formFactor = [this,memo](int Z, double g2)->double

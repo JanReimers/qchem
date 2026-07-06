@@ -208,7 +208,7 @@ template <class T> rvec3_t IrrepCD<T>::Gradient(const rvec3_t& r) const
 // rho-tilde from the density matrix, via the basis's G-space capability (plane-wave / dcmplx only).
 // itsDensityMatrix already carries the BZ weight w_k (TOrbitals::GetChargeDensity scales it), so the
 // composite's sum over blocks is the BZ average Sum_k w_k rho_k.
-template <class T> FourierMap IrrepCD<T>::GetFourierDensity() const
+template <class T> ΔG_Map IrrepCD<T>::GetFourierDensity() const
 {
     if constexpr (std::is_same_v<T,dcmplx>)
     {
@@ -219,7 +219,7 @@ template <class T> FourierMap IrrepCD<T>::GetFourierDensity() const
     else
     {
         assert(false && "a finite (non-periodic) density has no reciprocal-lattice Fourier series");
-        return FourierMap{};
+        return ΔG_Map{};
     }
 }
 

@@ -27,7 +27,7 @@ module;
 #include <memory>
 export module qchem.Fitting.FunctionFitter;
 export import qchem.ScalarFunction;   // ScalarFunction<double> (operator(), Gradient) + Types
-export import qchem.FourierMap;       // the pre-computed G-space coefficients a Fourier (PW) fit receives
+export import qchem.Math.GMap;       // the pre-computed G-space coefficients a Fourier (PW) fit receives
 import qchem.Fitting.Types;           // robs_t<T>
 import qchem.BasisSet.Fit_IBS;        // rFIT_SF_ABS / rFIT_CD_ABS (the two narrow fit-basis faces)
 import qchem.Blaze;                   // hmat_t<T>
@@ -61,15 +61,15 @@ public:
 //! is already DIAGONAL -- rho-tilde(Dm) = (1/Omega) Sum_{m_i-m_j=Dm} D_ij (= MakeFourierDensity), a map keyed
 //! by Dm (efficiency, rule #2: the delta collapses Sum_ij D_ij<ij|c> to a gather over Dm-shells).  So here
 //! the projection IS the fit (no metric solve): this simply WRAPS the density's G-space coefficients, keeping
-//! the FourierMap container OFF the neutral ProjectedDensity<dcmplx> face (the ortho fitter cross-casts to it
+//! the ΔG_Map container OFF the neutral ProjectedDensity<dcmplx> face (the ortho fitter cross-casts to it
 //! in DoFit, mirroring how the AO fitter cross-casts to ProjectedDensity_AO).
 class ProjectedDensity_G : public virtual ProjectedDensity<dcmplx>
 {
 public:
-    explicit ProjectedDensity_G(const FourierMap& rhoTilde) : itsMap(rhoTilde) {}
-    const FourierMap& Map() const {return itsMap;}   //!< the density's rho-tilde (the fit itself)
+    explicit ProjectedDensity_G(const ΔG_Map& rhoTilde) : itsMap(rhoTilde) {}
+    const ΔG_Map& Map() const {return itsMap;}   //!< the density's rho-tilde (the fit itself)
 private:
-    FourierMap itsMap;
+    ΔG_Map itsMap;
 };
 
 //! \brief The scalar field projected onto the fit basis -- the argument a SCALAR (overlap-metric) fitter's
@@ -102,10 +102,10 @@ public:
 class ProjectedScalar_G : public virtual ProjectedScalar<dcmplx>
 {
 public:
-    explicit ProjectedScalar_G(const FourierMap& vTilde) : itsMap(vTilde) {}
-    const FourierMap& Map() const {return itsMap;}   //!< the potential's V-tilde (the fit itself)
+    explicit ProjectedScalar_G(const ΔG_Map& vTilde) : itsMap(vTilde) {}
+    const ΔG_Map& Map() const {return itsMap;}   //!< the potential's V-tilde (the fit itself)
 private:
-    FourierMap itsMap;
+    ΔG_Map itsMap;
 };
 
 //! \brief Abstract least-squares function fitter -- the SCALAR (overlap-metric) CORE.  Fit a pointwise field

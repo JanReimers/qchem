@@ -15,7 +15,7 @@ module;
 #include <memory>
 #include <ostream>
 export module qchem.Fitting.Internal.OrthoFunctionFitter;
-export import qchem.Fitting.FunctionFitter;  // FunctionFitter_Density/_Scalar<dcmplx>, ProjectedDensity/Scalar_G, FourierMap
+export import qchem.Fitting.FunctionFitter;  // FunctionFitter_Density/_Scalar<dcmplx>, ProjectedDensity/Scalar_G, ΔG_Map
 import qchem.Fitting.Types;                   // robs_t<dcmplx>
 import qchem.BasisSet.Fit_IBS;                // cFIT_CD_ABS / cFIT_SF_ABS (the held fit bases)
 import qchem.BasisSet.Band_FT_IBS;            // the reciprocal-space assembly the fits delegate to
@@ -56,7 +56,7 @@ public:
 
 private:
     fbs_t      itsFitBasis;   //!< the tunable {G} fit basis (the factory seam; inert until denser-grid resampling)
-    FourierMap itsMap;        //!< the fit = the density's rho-tilde (received in DoFit)
+    ΔG_Map itsMap;        //!< the fit = the density's rho-tilde (received in DoFit)
 };
 
 //! \brief Scalar (overlap-metric) fitter on an orthonormal (plane-wave, G-space) fit basis -- the minimal
@@ -95,7 +95,7 @@ public:
 
 private:
     fbs_t      itsFitBasis;   //!< the {G} fit basis (the factory seam; inert until the denser-{G} upgrade)
-    FourierMap itsMap;        //!< the fit = the potential's V-tilde (received in DoFit)
+    ΔG_Map itsMap;        //!< the fit = the potential's V-tilde (received in DoFit)
 };
 
 } //namespace

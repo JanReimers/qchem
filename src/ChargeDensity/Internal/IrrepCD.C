@@ -58,7 +58,7 @@ public:
 
     //! Reciprocal-space coefficients rho-tilde(Delta-m) of THIS block (= basis->MakeFourierDensity(D)).
     //! The periodic density's native representation; a finite density has none (real path NA-asserts).
-    virtual FourierMap GetFourierDensity() const;
+    virtual ΔG_Map GetFourierDensity() const;
 
     virtual std::ostream&       Write(std::ostream&) const;
 

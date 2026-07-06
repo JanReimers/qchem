@@ -11,7 +11,7 @@
 module;
 #include <type_traits>
 export module qchem.ChargeDensity.FourierDensity;
-export import qchem.FourierMap;
+export import qchem.Math.GMap;
 import qchem.Types;   // dcmplx
 
 export namespace qchem::ChargeDensity
@@ -23,7 +23,7 @@ public:
     virtual ~FourierDensity() {}
     //! \brief The density's reciprocal-space coefficients \f$\tilde\rho(\Delta m)\f$ (BZ-weighted; the
     //! composite sums \f$\sum_k w_k\tilde\rho_k\f$ over the k-mesh).  Keyed by reciprocal-index difference.
-    virtual FourierMap GetFourierDensity() const=0;
+    virtual ΔG_Map GetFourierDensity() const=0;
 };
 
 //! Empty (non-polymorphic) stand-in for a FINITE density, which has no reciprocal-space representation.
