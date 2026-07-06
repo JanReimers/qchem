@@ -16,7 +16,7 @@ import qchem.Energy;
 import qchem.ChargeDensity;                        // Polarized_CD, rDM_CD (re-exports Spin)
 import qchem.ScalarFunction;
 import qchem.Vector3D;
-import qchem.Fitting.FunctionFitter;               // MakeScalarFitter / FunctionFitter_Scalar
+import qchem.Fitting.FunctionFitter;               // Fitting::Factory / FunctionFitter_Scalar
 import qchem.Hamiltonian.Types;
 
 namespace qchem::Hamiltonian
@@ -79,7 +79,7 @@ class FittedEpsCPol : public virtual ChargeDensity::rDynamic_CC
 {
 public:
     FittedEpsCPol(std::shared_ptr<const BasisSet::rFIT_SF_ABS>& bs, const SpinCorrelation* corr)
-        : itsFitter(Fitting::MakeScalarFitter(bs)), itsCorr(corr) {}
+        : itsFitter(Fitting::Factory(bs)), itsCorr(corr) {}
     virtual const rsmat_t& GetMatrix(const robs_t* bs, const Spin&, const rChargeDensity* cd) const
     {
         const Polarized_CD* pol = dynamic_cast<const Polarized_CD*>(cd);
@@ -99,7 +99,7 @@ private:
 
 FittedVcorrPol::FittedVcorrPol(fbs_t& bs, corr_t& corr)
     : itsCorr    (corr)
-    , itsVcFitter(Fitting::MakeScalarFitter(bs))
+    , itsVcFitter(Fitting::Factory(bs))
     , itsEpsC    (std::make_unique<FittedEpsCPol>(bs, corr.get()))
 {
     assert(itsCorr);

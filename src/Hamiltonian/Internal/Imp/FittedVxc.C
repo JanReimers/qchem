@@ -33,7 +33,7 @@ private:
 } // namespace
 
 FittedEpsXc::FittedEpsXc(fbs_t& bs, const ExFunctional* ex)
-    : itsFitter(Fitting::MakeScalarFitter(bs))   // composed overlap-metric (Scalar) fitter, via Factory
+    : itsFitter(Fitting::Factory(bs))   // composed overlap-metric (Scalar) fitter, via Factory
     , itsEx(ex)
 {
 }
@@ -49,7 +49,7 @@ const rsmat_t& FittedEpsXc::GetMatrix(const robs_t* bs,const Spin&,const rCharge
 }
 
 FittedVxc::FittedVxc(fbs_t& bs, ex_t& lda)
-    : itsFitter(Fitting::MakeScalarFitter(bs))   // potential (overlap-metric) fit, via Factory
+    : itsFitter(Fitting::Factory(bs))   // potential (overlap-metric) fit, via Factory
     , itsLDAVxc(new LDAVxc(lda))
 {
 };

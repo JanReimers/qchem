@@ -42,6 +42,10 @@ public:
         , PW_Evaluator(e)
     {}
 
+    //! A plane-wave {G} fit basis IS orthonormal (metric = I, the projection IS the fit) -- the single override
+    //! satisfying the \c isOrtho contract for BOTH the density and potential fit faces.
+    bool isOrtho() const override {return true;}
+
     virtual std::string   Name      () const override {return "PlaneWaveFit";}
     virtual std::string   BasisSetID() const override {return Name()+PW_Evaluator::IDFragment();}
     virtual std::ostream& Write     (std::ostream& os) const override

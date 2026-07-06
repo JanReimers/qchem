@@ -115,7 +115,7 @@ std::ostream& PW_IonIon::Write(std::ostream& os) const
 // Built once (in Ham_PW_DFT::BuildTerms) from the basis's density-fit basis -- exactly as FittedVee is
 // built with its CD fit basis -- so the fitter is created ONCE, not per SCF cycle.
 PW_Hartree::PW_Hartree(fbs_t fb)
-    : itsFitter(Fitting::MakeDensityFitter(fb))   // the ortho (G-space) density fitter, through the factory
+    : itsFitter(Fitting::Factory(fb))   // the ortho (G-space) density fitter, through the factory
 {}
 PW_Hartree::~PW_Hartree() = default;   // itsFitter's abstract type is complete here
 
@@ -146,7 +146,7 @@ std::ostream& PW_Hartree::Write(std::ostream& os) const
 // Built once (in Ham_PW_DFT::BuildTerms) with its Vxc fit basis -- the overlap-metric sibling of PW_Hartree.
 PW_XC::PW_XC(const xc_t& xc, fbs_t fb)
     : itsXc(xc)
-    , itsScalarFitter(Fitting::MakeScalarFitter(fb))   // the ortho (G-space) scalar fitter, through the factory
+    , itsScalarFitter(Fitting::Factory(fb))   // the ortho (G-space) scalar fitter, through the factory
 {}
 PW_XC::~PW_XC() = default;   // itsScalarFitter's abstract type is complete here
 

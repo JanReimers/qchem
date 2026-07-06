@@ -6,8 +6,8 @@
 // fit needs).  DoFit RECEIVES the density's pre-computed rho-tilde (a ProjectedDensity_G) and Repulsion
 // delegates the FFT-free G-space Poisson solve to the orbital basis (Band_FT_IBS).
 //
-// It is created through the factory MakeDensityFitter(cFIT_CD_ABS) exactly as the AO fitter is created
-// through MakeDensityFitter(rFIT_CD_ABS): the plane-wave Hartree term obtains it via the basis's
+// It is created through the factory Factory(cFIT_CD_ABS) exactly as the AO fitter is created
+// through Factory(rFIT_CD_ABS): the plane-wave Hartree term obtains it via the basis's
 // CreateCDFitBasisSet, never assuming orbital==fit.  It HOLDS the fit basis (the tunable {G} grid) for the
 // future denser-grid resampling; today that resampling is the identity, so the held basis is inert.
 module;
@@ -62,7 +62,7 @@ private:
 //! \brief Scalar (overlap-metric) fitter on an orthonormal (plane-wave, G-space) fit basis -- the minimal
 //! CORE face only (no real-space eval).  The XC sibling of OrthoFunctionFitter: DoFit RECEIVES the potential's
 //! pre-computed V-tilde (a ProjectedScalar_G) and Overlap delegates the (kernel-free) assembly to the orbital
-//! Band_FT_IBS.  Created through MakeScalarFitter(cFIT_SF_ABS); holds the {G} fit basis (the factory seam,
+//! Band_FT_IBS.  Created through Factory(cFIT_SF_ABS); holds the {G} fit basis (the factory seam,
 //! inert until the denser-{G} upgrade).
 class OrthoScalarFitter
     : public virtual FunctionFitter_Scalar<dcmplx>

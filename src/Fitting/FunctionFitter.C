@@ -158,27 +158,35 @@ public:
     virtual void   ReScale            (double factor)=0; //!< c *= factor
 };
 
-//! \brief Create a SCALAR (overlap-metric) fitter on the given overlap-metric fit basis.  Caller owns the
-//! result; the concrete type stays hidden behind the FunctionFitter_Scalar interface.
+//! \name Fitter factory
+//! Create the fitter matched to a fit basis, dispatched by the basis's fit face (density vs potential) and its
+//! representation \a T (real Gaussian vs complex plane-wave); the ortho-vs-non-ortho pick within each is made
+//! by the basis's \c isOrtho() contract, not by interrogating concrete identity.  Four overloads with distinct
+//! return types (as in \c BasisSet::Factory / \c LASolver::Factory); a caller holds the narrow fit face, so the
+//! overload resolves unambiguously.  Caller owns the result; the concrete type stays hidden.
+//!@{
+
+//! Create a SCALAR (overlap-metric) fitter on the given real (Gaussian/Slater/BSpline) potential-fit basis.
 std::unique_ptr<FunctionFitter_Scalar<double>>
-MakeScalarFitter(std::shared_ptr<const BasisSet::rFIT_SF_ABS>&);
+Factory(std::shared_ptr<const BasisSet::rFIT_SF_ABS>&);
 
-//! \brief Create a SCALAR fitter on an ORTHONORMAL (plane-wave, G-space) fit basis.  The projection IS the
-//! fit (no metric solve); DoFit receives a ProjectedScalar_G (the potential's V-tilde) and Overlap delegates
-//! the assembly to the orbital Band_FT_IBS.  The XC sibling of the ortho MakeDensityFitter overload.
+//! Create a SCALAR fitter on an ORTHONORMAL (plane-wave, G-space) fit basis.  The projection IS the fit (no
+//! metric solve); DoFit receives a ProjectedScalar_G (the potential's V-tilde) and Overlap delegates the
+//! assembly to the orbital Band_FT_IBS.  The XC sibling of the ortho density overload.
 std::unique_ptr<FunctionFitter_Scalar<dcmplx>>
-MakeScalarFitter(std::shared_ptr<const BasisSet::cFIT_SF_ABS>&);
+Factory(std::shared_ptr<const BasisSet::cFIT_SF_ABS>&);
 
-//! \brief Create a DENSITY (charge-constrained Coulomb-metric) fitter on the given non-ortho fit basis.
-//! Returns the non-ortho refinement (the molecular FittedCD needs its self-energy/charge/rescale/eval).
+//! Create a DENSITY (charge-constrained Coulomb-metric) fitter on the given non-ortho fit basis.  Returns the
+//! non-ortho refinement (the molecular FittedCD needs its self-energy/charge/rescale/eval).
 std::unique_ptr<FunctionFitter_Density_NonOrtho<double>>
-MakeDensityFitter(std::shared_ptr<const BasisSet::rFIT_CD_ABS>&);
+Factory(std::shared_ptr<const BasisSet::rFIT_CD_ABS>&);
 
-//! \brief Create a DENSITY fitter on an ORTHONORMAL (plane-wave, G-space) fit basis.  Returns the minimal
-//! CORE face -- the projection IS the fit, so no metric solve / self-energy / rescale (an ortho fitter
-//! carries none of the non-ortho refinement); DoFit receives a ProjectedDensity_G and Repulsion delegates
-//! the Poisson solve to the orbital Band_FT_IBS.
+//! Create a DENSITY fitter on an ORTHONORMAL (plane-wave, G-space) fit basis.  Returns the minimal CORE face --
+//! the projection IS the fit, so no metric solve / self-energy / rescale (an ortho fitter carries none of the
+//! non-ortho refinement); DoFit receives a ProjectedDensity_G and Repulsion delegates the Poisson solve to the
+//! orbital Band_FT_IBS.
 std::unique_ptr<FunctionFitter_Density<dcmplx>>
-MakeDensityFitter(std::shared_ptr<const BasisSet::cFIT_CD_ABS>&);
+Factory(std::shared_ptr<const BasisSet::cFIT_CD_ABS>&);
+//!@}
 
 } //namespace

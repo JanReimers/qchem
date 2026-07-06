@@ -21,6 +21,12 @@ export namespace qchem::BasisSet
 template <class T> class FIT_CD_ABS
     : public virtual IrrepBasisSet<T>
 {
+public:
+    //! \brief Is this fit basis ORTHONORMAL (metric = I)?  The metric axis, declared as a mandatory contract
+    //! so the fitter Factory can pick the right fitter WITHOUT interrogating concrete identity: \c false selects
+    //! the metric-solve (non-ortho) fitter and GUARANTEES the object IS-A \c FIT_CD_NonOrtho; \c true selects the
+    //! orthonormal (plane-wave, projection-IS-the-fit) fitter.  Every fit basis must declare its metric.
+    virtual bool isOrtho() const=0;
 };
 using rFIT_CD_ABS = FIT_CD_ABS<double>;  //!< real (Gaussian/Slater/BSpline) density-fit basis
 using cFIT_CD_ABS = FIT_CD_ABS<dcmplx>;  //!< complex (plane-wave, G-space) density-fit basis
@@ -50,6 +56,11 @@ public:
 template <class T> class FIT_SF_ABS
     : public virtual IrrepBasisSet<T>
 {
+public:
+    //! \brief Is this fit basis ORTHONORMAL (metric = I)?  Mirror of \c FIT_CD_ABS::isOrtho on the overlap-metric
+    //! axis: \c false selects the overlap metric-solve fitter and GUARANTEES the object IS-A \c FIT_SF_NonOrtho;
+    //! \c true selects the orthonormal (plane-wave) scalar fitter.  Every fit basis must declare its metric.
+    virtual bool isOrtho() const=0;
 };
 using rFIT_SF_ABS = FIT_SF_ABS<double>;  //!< real (Gaussian/Slater/BSpline) potential-fit basis
 using cFIT_SF_ABS = FIT_SF_ABS<dcmplx>;  //!< complex (plane-wave, G-space) potential-fit basis
@@ -86,6 +97,9 @@ class Fit_IBS
 public:
     using Integrals_Overlap<double>::Overlap;       // un-hide the metric Overlap() past the Overlap(Sf) override
     using Integrals_Overlap<double>::MakeOverlap;
+    //! A Gaussian/Slater/BSpline auxiliary basis is inherently NON-orthonormal (it carries both metric-solve
+    //! refinements) -- the single override that satisfies the \c isOrtho contract for BOTH fit faces.
+    bool isOrtho() const override {return false;}
     const  rvec_t& Charge   () const override;
     const rsmat_t& Repulsion() const override;
     const  rmat_t& Repulsion(const rFIT_CD_ABS& b) const override;
