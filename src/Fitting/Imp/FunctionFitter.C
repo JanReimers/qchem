@@ -1,13 +1,38 @@
-// File: Fitting/Imp/FunctionFitter.C  Factory for the fitter faces -- the only place a concrete impl is named.
+// File: Fitting/Imp/FunctionFitter.C  Factory for the fitter faces + the ProjectedDensity_AO metric defaults.
 module;
 #include <memory>
 #include <cassert>
 module qchem.Fitting.FunctionFitter;
 import qchem.Fitting.Internal.FunctionFitterImp;   // FunctionFitterImp (Scalar) + IntegralConstrainedFF (Density)
 import qchem.Fitting.Internal.OrthoFunctionFitter; // OrthoFunctionFitter (the orthonormal G-space density fit)
+import qchem.BasisSet.Fit_IBS;                     // FIT_CD_NonOrtho (the Coulomb metric-solve face)
+import qchem.Blaze;                                // rsmat_t * rvec_t (the J^-1 solve)
 
 namespace qchem::Fitting
 {
+
+//---------------------------------------------------------- ProjectedDensity_AO metric defaults
+//
+//  The default unconstrained-fit STRATEGY (a density with a matrix): the Coulomb-metric solve
+//  c0 = J^-1 <rho|c>.  The seed overrides GetUnconstrainedFit (overlap metric) and never reaches here.
+//
+rvec_t ProjectedDensity_AO::GetUnconstrainedFit(const BasisSet::rFIT_CD_ABS* fbs) const
+{
+    // "I want more": broaden the neutral CD-fit face to its Coulomb metric-solve capability (the sanctioned
+    // request pattern -- a real density matrix genuinely needs J^-1).
+    auto* no = dynamic_cast<const BasisSet::FIT_CD_NonOrtho*>(fbs);
+    assert(no && "ProjectedDensity_AO::GetUnconstrainedFit: the Coulomb-metric default needs a FIT_CD_NonOrtho fit basis");
+    return no->InvRepulsion() * GetRepulsion3C(fbs);   // c0 = J^-1 <rho|c>
+}
+
+rvec_t ProjectedDensity_AO::GetRepulsion3C(const BasisSet::rFIT_CD_ABS*) const
+{
+    // Reached only if a projection uses the Coulomb-metric default WITHOUT providing a Coulomb RHS -- i.e. a
+    // matrix-free projection that forgot to override GetUnconstrainedFit.  A seed overrides that and never lands here.
+    assert(false && "ProjectedDensity_AO::GetRepulsion3C: this projection has no Coulomb RHS (a matrix-free "
+                    "seed must override GetUnconstrainedFit with its own metric instead)");
+    return rvec_t{};
+}
 
 std::unique_ptr<FunctionFitter_Scalar<double>>
 Factory(std::shared_ptr<const BasisSet::rFIT_SF_ABS>& bs)

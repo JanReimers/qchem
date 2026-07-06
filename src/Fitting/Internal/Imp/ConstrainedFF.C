@@ -35,12 +35,14 @@ ConstrainedFF(fbs_t& fbs, const vec_t<T>& theg)
 
 //--------------------------------------------------------------------------
 //
-//  DoFit:  c0 = J^-1 <rho|f>  (unconstrained Coulomb-metric solve) + the Dunlap charge constraint.
+//  DoFit:  c0 = the projection's own-metric unconstrained fit + the Dunlap charge constraint.  The metric is
+//  the projection's business (a STRATEGY dispatched by polymorphism): a density with a matrix returns the
+//  Coulomb-metric solve J^-1 <rho|c> (the ProjectedDensity_AO default); a matrix-free seed returns its
+//  overlap-metric fit S^-1<f|rho> directly.  The fitter owns only the charge constraint below.
 //
 template <class T> void ConstrainedFF<T>::DoFitUnconstrained(const ProjectedDensity_AO& ffc)
 {
-    auto Jinv=this->itsBasisSet->InvRepulsion();
-    this->itsFitCoeff=Jinv * ffc.GetRepulsion3C(this->itsBasisSet.get());
+    this->itsFitCoeff = ffc.GetUnconstrainedFit(this->itsBasisSet.get());
 }
 
 template <class T> void ConstrainedFF<T>::DoFit(const ProjectedDensity<T>& pd)

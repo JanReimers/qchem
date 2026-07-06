@@ -7,7 +7,7 @@ module;
 
 module qchem.ChargeDensity.NumericCD;
 import qchem.Blaze;                        // rvec3_t vector arithmetic (Gradient accumulation) + rvec_t
-import qchem.BasisSet.Fit_IBS;             // FIT_SF_NonOrtho / FIT_CD_NonOrtho (the two metric-solve faces)
+import qchem.BasisSet.Fit_IBS;             // FIT_SF_NonOrtho (the overlap metric-solve face)
 
 namespace qchem::ChargeDensity
 {
@@ -45,19 +45,17 @@ void NumericCD::ReScale(double factor)
     itsVersion = NextDensityVersion();
 }
 
-// The seed's own density-fit projection <rho|c>.  A numeric (SAD) seed has no density matrix, so we overlap-
-// fit our own rho(r) (e = S^-1 <f|rho>, sampling op(r)) and Coulomb-project (J e).  The downstream
-// ConstrainedFF then solves c0 = J^-1 (J e) = e + the Dunlap charge constraint -- bit-identical to the old
-// FittedCD seed path.  (Relocated from FittedCDImp::ScalarSeedProjection_AO; still carries the CD->SF cross-
-// cast to reach the overlap metric -- that is item F in doc/FittingCleanupPlan.md.)
-rvec_t NumericCD::GetRepulsion3C(const BasisSet::rFIT_CD_ABS* fbs) const
+// The seed's UNCONSTRAINED fit coefficients c0.  A numeric (SAD) seed has no density matrix, so its natural
+// fit is the OVERLAP-metric fit of its own rho(r): c0 = S^-1 <f|rho> (sampling op(r)).  It is NOT a Coulomb
+// fit -- so it overrides GetUnconstrainedFit directly (the ProjectedDensity_AO metric strategy) instead of
+// faking a Coulomb RHS and letting the fitter's J^-1 cancel it.  Only the overlap face is needed: one honest
+// "I want more" cross-cast to the S metric (item F removed the redundant J round-trip + Coulomb-face cast).
+// The fitter then imposes the Dunlap charge constraint on top.
+rvec_t NumericCD::GetUnconstrainedFit(const BasisSet::rFIT_CD_ABS* fbs) const
 {
     const auto* sf = dynamic_cast<const BasisSet::FIT_SF_NonOrtho*>(fbs);   // the overlap metric-solve face
-    const auto* no = dynamic_cast<const BasisSet::FIT_CD_NonOrtho*>(fbs);   // the Coulomb metric face
-    assert(sf && "NumericCD::GetRepulsion3C: the CD fit basis must also expose its overlap-metric (FIT_SF_NonOrtho) face");
-    assert(no && "NumericCD::GetRepulsion3C: the seed overlap-fit needs the Coulomb metric (FIT_CD_NonOrtho)");
-    rvec_t e = sf->InvOverlap() * sf->Overlap(*this);   // overlap-metric fit coeffs (samples our rho(r))
-    return no->Repulsion() * e;                         // Coulomb-project -> <rho_fit|f_c>
+    assert(sf && "NumericCD::GetUnconstrainedFit: the seed overlap-fit needs the S metric (FIT_SF_NonOrtho face)");
+    return sf->InvOverlap() * sf->Overlap(*this);   // c0 = S^-1 <f|rho>  (samples our rho(r))
 }
 
 } //namespace

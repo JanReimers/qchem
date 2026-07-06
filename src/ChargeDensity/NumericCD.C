@@ -10,11 +10,12 @@
 // (and need not) provide the matrix-only operations (DM contraction, SCF mixing, HF J/K) -- the DFT Fock build
 // consumes it through the tChargeDensity/ScalarFunction face, and the HF terms (which DO need a matrix) cross-
 // cast to tDM_CD and so simply never see this object.  It DOES, however, own its OWN density-fit projection:
-// like every finite density it IS-A Fitting::ProjectedDensity_AO, answering the fitter's <rho|c> query by
-// overlap-fitting its own rho(r) (a numeric seed has no matrix, so <rho|c> is the S-metric fit e=S^-1<f|rho>,
-// Coulomb-projected).  This mirrors how the plane-wave seed (FourierSeedCD) owns its GetFourierDensity, and
-// keeps FittedCD ignorant that seeding exists.  (Reverses the stage-3 note: the overlap-fit is back on the
-// seed, as a genuine projection, not a FittedCD stub.  The CD->SF cross-cast inside GetRepulsion3C is item F.)
+// like every finite density it IS-A Fitting::ProjectedDensity_AO.  Having no matrix, its UNCONSTRAINED fit is
+// an OVERLAP-metric fit of its own rho(r), c0 = S^-1<f|rho> -- so it overrides GetUnconstrainedFit directly
+// (the metric is a strategy dispatched by polymorphism) and never provides a Coulomb RHS.  This mirrors how the
+// plane-wave seed (FourierSeedCD) owns its GetFourierDensity, and keeps FittedCD ignorant that seeding exists.
+// (Item F: the fake J^-1(J.e)=e round-trip and its Coulomb-face cross-cast are GONE; only the honest overlap
+// cross-cast -- an "I want more" capability request for the S metric -- remains.)
 module;
 #include <vector>
 #include <memory>
@@ -43,10 +44,11 @@ public:
     virtual double  operator()(const rvec3_t&) const override;
     virtual rvec3_t Gradient  (const rvec3_t&) const override;
 
-    // ProjectedDensity_AO -- the seed's own density-fit projection: no matrix, so <rho|c> is an overlap-metric
-    // fit of rho(r), Coulomb-projected; the charge constraint is the seed's total charge.
+    // ProjectedDensity_AO -- the seed's own density-fit projection.  No matrix, so its unconstrained fit is an
+    // OVERLAP-metric fit of rho(r), c0 = S^-1<f|rho> (NOT the Coulomb default): it overrides GetUnconstrainedFit
+    // directly and never provides a Coulomb RHS (GetRepulsion3C).  The charge constraint is the seed's total charge.
     virtual double FitGetConstraint() const override {return GetTotalCharge();}          //!< the fit RHS charge N
-    virtual rvec_t GetRepulsion3C(const BasisSet::rFIT_CD_ABS*) const override;          //!< <rho|c> (overlap-fit)
+    virtual rvec_t GetUnconstrainedFit(const BasisSet::rFIT_CD_ABS*) const override;     //!< c0 = S^-1<f|rho> (overlap fit)
 
     // tChargeDensity -- the matrix-free face (everything a DFT seed needs).
     virtual double GetTotalCharge() const override {return itsScale*itsCharge;}

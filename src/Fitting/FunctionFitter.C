@@ -47,14 +47,28 @@ public:
     virtual ~ProjectedDensity() = default;
 };
 
-//! \brief The density projected onto the fit basis, <rho|c>, for a NON-orthonormal (AO: Gaussian/Slater/
-//! BSpline) basis.  A callback the fitter queries for the DENSE projection Sum_ab D_ab<ab|c> (the Coulomb-
-//! metric RHS) plus the charge constraint; the fitter then solves c = S_rep^-1 <rho|c> (the metric solve).
+//! \brief The density projected onto the fit basis, for a NON-orthonormal (AO: Gaussian/Slater/BSpline)
+//! basis.  The fitter asks for the UNCONSTRAINED fit coefficients (in the projection's own metric) plus the
+//! charge, then applies the Dunlap charge constraint.  The "which metric" is a STRATEGY dispatched by
+//! polymorphism (not a runtime enum): a density with a matrix uses the Coulomb metric (default); a matrix-free
+//! seed uses the overlap metric (override).
 class ProjectedDensity_AO : public virtual ProjectedDensity<double>
 {
 public:
     virtual double FitGetConstraint() const=0;                                  //!< "what charge?" (= N)
-    virtual rvec_t GetRepulsion3C(const BasisSet::rFIT_CD_ABS*) const=0;         //!< <rho|c> = Sum_ab D_ab<ab|c>
+
+    //! \brief The UNCONSTRAINED fit coefficients \f$c_0\f$ on fit basis \a fbs, BEFORE the Dunlap charge
+    //! constraint the fitter applies -- computed in the projection's OWN metric.  This is what the fitter
+    //! calls.  DEFAULT (a density carrying a matrix): the Coulomb-metric solve \f$c_0=J^{-1}\langle\rho|c\rangle\f$.
+    //! A matrix-free seed OVERRIDES this with its overlap-metric fit \f$S^{-1}\langle f|\rho\rangle\f$ directly
+    //! (no \f$J\f$ round-trip, no Coulomb-face cross-cast).
+    virtual rvec_t GetUnconstrainedFit(const BasisSet::rFIT_CD_ABS* fbs) const;
+
+    //! \brief The Coulomb-metric RHS \f$\langle\rho|c\rangle=\sum_{ab}D_{ab}\langle ab|c\rangle\f$ of a real
+    //! density MATRIX.  Composite/polarized densities SUM this across their blocks (the default
+    //! \c GetUnconstrainedFit then applies one \f$J^{-1}\f$).  A matrix-free seed has NO Coulomb RHS -- it
+    //! overrides \c GetUnconstrainedFit and never calls this, so the default here throws.
+    virtual rvec_t GetRepulsion3C(const BasisSet::rFIT_CD_ABS*) const;
 };
 
 //! \brief The plane-wave counterpart of ProjectedDensity_AO.  On the orthonormal {G} basis the projection

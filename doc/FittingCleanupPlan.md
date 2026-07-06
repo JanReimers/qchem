@@ -95,7 +95,16 @@ itself (`NumericCD`), making it a first-class `ProjectedDensity_AO` — mirrorin
 NOTE: this relocation carries the CD→SF cross-cast with it (item F) — do F's design first if we want to
 avoid relocating-then-reworking, or accept the relocated smell and fix in F.
 
-### F. Fix the seed-fit Coulomb round-trip + the CD→SF cross-cast  *(needs design)*
+### F. Fix the seed-fit Coulomb round-trip + the CD→SF cross-cast  — ✅ DONE
+Design (user-agreed): "unconstrained fit metric" = a STRATEGY dispatched by polymorphism, not a runtime enum.
+New `ProjectedDensity_AO::GetUnconstrainedFit(fbs)` = what the fitter calls; **default** = the Coulomb solve
+`J⁻¹·GetRepulsion3C` (real densities inherit unchanged; composites still sum the RHS then one `J⁻¹`). The seed
+**overrides** it with its overlap fit `S⁻¹⟨f|ρ⟩` directly — the fake `J⁻¹·(J·e)=e` round-trip AND the Coulomb-
+face (`no`) cross-cast are GONE; only one honest overlap cross-cast (an "I want more" for the S metric) remains.
+`GetRepulsion3C` kept for the composite RHS-summing (throwing default, so the seed needn't stub it); `J⁻¹` moved
+from the fitter into the projection default; the fitter now owns only the Dunlap constraint. Not bit-identical
+by design (drops `J·J⁻¹` fp-noise from the seed) but the SAD/DFT pins held — no re-pin needed. 171 + 34 anchors.
+
 Root cause, confirmed in code: the seed's `GetRepulsion3C` returns `J·e` (`e=S⁻¹⟨f|ρ⟩`, the overlap-fit),
 and `ConstrainedFF::DoFitUnconstrained` immediately computes `c0 = J⁻¹·(J·e) = e`. **The Coulomb metric `J`
 cancels.** So the seed's fit is really *overlap-fit `e` + Dunlap charge constraint*, faked through the
