@@ -40,8 +40,8 @@ public:
     void Insert(std::shared_ptr<const ScalarFunction<double>>);
 
     // ScalarFunction -- the superposed rho(r) (FittedVxc samples it; FittedVee overlap-fits it) and gradient.
-    virtual double  operator()(const rvec3_t&) const;
-    virtual rvec3_t Gradient  (const rvec3_t&) const;
+    virtual double  operator()(const rvec3_t&) const override;
+    virtual rvec3_t Gradient  (const rvec3_t&) const override;
 
     // ProjectedDensity_AO -- the seed's own density-fit projection: no matrix, so <rho|c> is an overlap-metric
     // fit of rho(r), Coulomb-projected; the charge constraint is the seed's total charge.
@@ -49,9 +49,9 @@ public:
     virtual rvec_t GetRepulsion3C(const BasisSet::rFIT_CD_ABS*) const override;          //!< <rho|c> (overlap-fit)
 
     // tChargeDensity -- the matrix-free face (everything a DFT seed needs).
-    virtual double GetTotalCharge() const {return itsScale*itsCharge;}
-    virtual size_t Version       () const {return itsVersion;}
-    virtual void   ReScale(double factor);
+    virtual double GetTotalCharge() const override {return itsScale*itsCharge;}
+    virtual size_t Version       () const override {return itsVersion;}
+    virtual void   ReScale(double factor) override;
 
 private:
     std::vector<std::shared_ptr<const ScalarFunction<double>>> itsDensities;  //!< per-atom rho(r)

@@ -129,7 +129,7 @@ public:
     HGH_LocalPotential(double Zion, double rloc, double c1, double c2, double c3=0.0, double c4=0.0)
         : itsZion(Zion), itsRloc(rloc), itsC1(c1), itsC2(c2), itsC3(c3), itsC4(c4) {}
 
-    virtual double FormFactor(int /*Z*/, double G2) const     // Z ignored: itsZion is the species
+    virtual double FormFactor(int /*Z*/, double G2) const override  // Z ignored: itsZion is the species
     {
         double t=G2*itsRloc*itsRloc;                          // (G r_loc)^2
         double g=std::exp(-0.5*t);
@@ -141,7 +141,7 @@ public:
     //! Real space (the closed-form inverse FT documented above):
     //! \f$V_{loc}(r)=-\tfrac{Z_{ion}}{r}\mathrm{erf}(\tfrac{r}{\sqrt2 r_{loc}})
     //! + e^{-r^2/2r_{loc}^2}\sum_i C_i (r/r_{loc})^{2i-2}\f$.  Finite at \f$r=0\f$ (no nuclear cusp).
-    virtual double Vloc(int /*Z*/, double r) const
+    virtual double Vloc(int /*Z*/, double r) const override
     {
         double x=r/itsRloc, x2=x*x;
         double gpoly=std::exp(-0.5*x2)*(itsC1 + itsC2*x2 + itsC3*x2*x2 + itsC4*x2*x2*x2);
@@ -153,7 +153,7 @@ public:
     //! G=0 alignment \f$\alpha=\int[V_{loc}+Z_{ion}/r]\,d^3r = 2\pi Z_{ion}r_{loc}^2
     //! + (2\pi)^{3/2}r_{loc}^3(C_1+3C_2+15C_3+105C_4)\f$ (the \f$G\to0\f$ finite part: the softened
     //! Coulomb leaves \f$2\pi Z r_{loc}^2\f$, the Gaussian-polynomial leaves the moment sum).
-    virtual double FormFactorG0(int /*Z*/) const
+    virtual double FormFactorG0(int /*Z*/) const override
     {
         double twopi32=std::pow(2*Pi, 1.5);
         double moments=itsC1 + 3*itsC2 + 15*itsC3 + 105*itsC4;
