@@ -48,8 +48,7 @@ public:
     {
         auto pw=dynamic_cast<const BasisSet::Band_FT_IBS*>(bs);
         assert(pw && "OrthoFunctionFitter::Repulsion requires a Band_FT_IBS (plane-wave) basis");
-        double Eh;   // discarded here: the Hartree ENERGY is the 1/2<rho|V_H> contraction the term does in
-        return pw->Repulsion(itsMap, Eh);   // GetEnergy (DM_Contract), not this matrix-assembly by-product.
+        return pw->Repulsion(itsMap);   // matrix only; the Hartree ENERGY is the 1/2<rho|V_H> DM_Contract in GetEnergy.
     }
 
     //! ScalarFunction (core): the fitted DENSITY rho_fit(r) = Re Σ_dm rho-tilde(dm) e^{i(B·dm)·r}.  We hold

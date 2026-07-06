@@ -51,9 +51,11 @@ public:
     virtual ΔG_Map MakeFourierDensity(const Structure* atoms,
                           const std::function<double(int Z, double g2)>& formFactor) const=0;
 
-    //! \brief Hartree matrix + energy directly from the density's G-space coefficients \a rho:
-    //! \f$V_H(\Delta m)=4\pi\tilde\rho/|B\Delta m|^2\f$, \f$E_H=\tfrac\Omega2\sum 4\pi|\tilde\rho|^2/G^2\f$.
-    virtual hmat_t<dcmplx> Repulsion(const ΔG_Map& rho, double& Eh) const=0;
+    //! \brief Hartree matrix directly from the density's G-space coefficients \a rho:
+    //! \f$V_H(\Delta m)=4\pi\tilde\rho/|B\Delta m|^2\f$ (the FFT-free Poisson solve).  The Hartree ENERGY is a
+    //! separate query -- production takes it as \f$\tfrac12\langle\rho|V_H\rangle\f$ (a density-matrix contraction
+    //! in the term's GetEnergy), so it is NOT returned here (was a discarded out-parameter).
+    virtual hmat_t<dcmplx> Repulsion(const ΔG_Map& rho) const=0;
 
     // NB: the FFT XC route -- the real-space grid, the inverse/forward transforms, and the
     // <i|V|j>=Vtilde(m_i-m_j) assembly -- is NOT here.  It is the plane-wave grid engine, exposed by the

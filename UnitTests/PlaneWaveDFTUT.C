@@ -931,9 +931,7 @@ TEST_F(PlaneWaveDFT, BasisRepulsionMatchesPoisson)
     double  g02=G0*G0;
     FieldFn rho([&](const rvec3_t& r){return rho0 + 2*A*std::cos(G0*r);});
 
-    double  Eh=0.0;
-    chmat_t VH=F.pw.Repulsion(rho, Eh);
-    EXPECT_NEAR(Eh, F.Omega*4*Pi*A*A/g02, 1e-7);
+    chmat_t VH=F.pw.Repulsion(rho);   // Hartree matrix; the E_H-vs-Poisson check is HartreeSingleCosineMatchesPoisson
 
     size_t n=F.pw.GetNumFunctions(); bool found=false;
     for (size_t i=0;i<n && !found;i++)
@@ -1022,7 +1020,7 @@ TEST_F(PlaneWaveDFT, PWDynamicTermsMatchBasis)
     std::unique_ptr<qchem::Hamiltonian::PW_Hartree> h(NewPWHartree(F.pw));
     qchem::Hamiltonian::cDynamic_HT* ht=h.get();
     const chmat_t& Mh = ht->GetMatrix(&F.pw, Spin::None, &cd);
-    double Eh; chmat_t refh = F.pw.Repulsion(cd, Eh);
+    chmat_t refh = F.pw.Repulsion(cd);
     for (size_t i=0;i<n;i++)
         for (size_t j=i;j<n;j++)
             EXPECT_NEAR(std::abs(dcmplx(Mh(i,j))-dcmplx(refh(i,j))), 0.0, 1e-10);
@@ -1428,13 +1426,11 @@ TEST_F(PlaneWaveDFT, HartreeFromFourierMatchesPointwise)
     D(1,2)=dcmplx(0.04,-0.06);
     qchem::ChargeDensity::IrrepCD<dcmplx> cd(D, &pw, irr);   // IS-A ScalarFunction rho(r)=phi^H D phi
 
-    double EhA, EhB;
-    chmat_t VA=pw.Repulsion(cd, EhA);                             // real-space: sample + ForwardDFT
-    chmat_t VB=pw.Repulsion(pw.MakeFourierDensity(D), EhB);  // G-space: direct from D
+    chmat_t VA=pw.Repulsion(cd);                             // real-space: sample + ForwardDFT
+    chmat_t VB=pw.Repulsion(pw.MakeFourierDensity(D));       // G-space: direct from D
 
-    double maxd=0;
+    double maxd=0;                                           // the matrices agree elementwise => so does any derived E_H
     for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) maxd=std::max(maxd, std::abs(VA(i,j)-VB(i,j)));
-    EXPECT_NEAR(EhA, EhB, 1e-9);
     EXPECT_LT(maxd, 1e-9);
 }
 
@@ -1526,7 +1522,7 @@ TEST_F(PlaneWaveDFT, DynamicTermCacheFreshAcrossDensity)
     ht->GetMatrix(&F.pw, Spin::None, &cd1);                       // populates the cache for cd1
     const chmat_t& M2 = ht->GetMatrix(&F.pw, Spin::None, &cd2);   // BUG: returns cd1's stale matrix
 
-    double  Eh; chmat_t ref2=F.pw.Repulsion(cd2,Eh);             // the correct V_H for cd2
+    chmat_t ref2=F.pw.Repulsion(cd2);                            // the correct V_H for cd2
     double  diff=0.0;
     for (size_t i=0;i<n;i++)
         for (size_t j=i;j<n;j++)

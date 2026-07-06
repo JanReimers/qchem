@@ -83,27 +83,19 @@ chmat_t PlaneWave_IBS::Overlap(const ScalarFunction<double>& f) const
 
 // Coulomb repulsion matrix + energy for a density rho: sample on the grid, forward-DFT to rho-tilde, then
 // the G-space (1/r12) solve.
-chmat_t PlaneWave_IBS::Repulsion(const ScalarFunction<double>& rho, double& Eh) const
+chmat_t PlaneWave_IBS::Repulsion(const ScalarFunction<double>& rho) const
 {
     std::vector<rvec3_t> frac=UniformGrid(AutoGrid());
     UnitCell A=Recip().GetCell().MakeReciprocalCell();
     std::vector<double> field(frac.size());
     for (size_t q=0;q<frac.size();q++) field[q]=rho(A.ToCartesian(frac[q]));
-    return Repulsion(ForwardDFTDiffSet(Gs(),frac,field), Eh);
+    return Repulsion(ForwardDFTDiffSet(Gs(),frac,field));
 }
 
 // Hartree directly from the density's G-space coefficients rho-tilde (the FFT-free Poisson solve):
 //   V_H(dm) = 4 pi rho-tilde(dm)/|G|^2,   E_H = (Omega/2) Sum_{G!=0} 4 pi |rho-tilde|^2/|G|^2,  dm=0 dropped.
-chmat_t PlaneWave_IBS::Repulsion(const ΔG_Map& rg, double& Eh) const
+chmat_t PlaneWave_IBS::Repulsion(const ΔG_Map& rg) const
 {
-    Eh=0.0;
-    for (const auto& kv : rg)
-    {
-        if (kv.first.x==0 && kv.first.y==0 && kv.first.z==0) continue;
-        rvec3_t G=GetGCartesian(kv.first);
-        Eh += FourPi*std::norm(kv.second)/(G*G);
-    }
-    Eh *= 0.5*Volume();
     return MakePotential([this,&rg](const ivec3_t& dm)->dcmplx
     {
         if (dm.x==0 && dm.y==0 && dm.z==0) return dcmplx(0.0);
