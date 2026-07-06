@@ -4,6 +4,7 @@ module;
 #include <functional>
 #include <iostream>
 #include <memory>
+#include <stdexcept>
 module qchem.Hamiltonian.Internal.PWTerms;
 import qchem.Energy;
 import qchem.ChargeDensity;
@@ -146,38 +147,51 @@ std::ostream& PW_Hartree::Write(std::ostream& os) const
 //----------------------------------------------------------------------------------- XC
 namespace
 {
-// v_xc(r) = functional(rho(r)) as a real ScalarFunction, presented as a ProjectedScalar_R the ortho scalar
-// fitter samples on the FIT basis's OWN grid (this is what fixes the old flaw of quadraturing on the orbital
-// basis's grid).  The FAST batch path inverse-FFTs the density on the fit grid (G_FieldEvaluator::RhoOnGrid)
-// then applies the functional pointwise -- the functional stays Hamiltonian-side (no qcBasisSet->qcHamiltonian
-// library cycle), while the FFT grid comes from the fit basis.  Mirrors the molecular EpsXcDensity/LDAVxc.
+// v_xc = functional(rho) on the fit basis's OWN grid, presented as a ProjectedScalar_R the ortho scalar fitter
+// samples in bulk (this is what fixed the old flaw of quadraturing on the ORBITAL basis's grid).  rho(r) is
+// PRECOMPUTED by the term (one inverse FFT, shared with GetEnergy); this field just maps the functional over
+// those grid values -- the functional stays Hamiltonian-side (no qcBasisSet->qcHamiltonian library cycle).
+// It is GRID-BOUND: only the ortho fitter samples it, in bulk, on exactly the grid rho was transformed onto.
 class PWVxcField
     : public virtual ScalarFunction<double>
     , public         Fitting::ProjectedScalar_R
 {
 public:
-    PWVxcField(const ExFunctional* xc, const ΔG_Map& rhoTilde, const BasisSet::G_FieldEvaluator* grid)
-        : itsXc(xc), itsRho(rhoTilde), itsGrid(grid) {}
+    PWVxcField(const ExFunctional* xc, const rvec_t& rhoGrid, const BasisSet::G_FieldEvaluator* grid)
+        : itsXc(xc), itsRhoGrid(rhoGrid), itsGrid(grid) {}
 
-    // Pointwise fallback: rho(r) by evaluating rho-tilde at r (a point transform), then the functional.
-    virtual double  operator()(const rvec3_t& r) const override {return itsXc->GetVxc(itsGrid->EvalField(itsRho, r));}
-    virtual rvec3_t Gradient  (const rvec3_t&  ) const override {return rvec3_t(0,0,0);}   // unused by the fit
+    // Pointwise is NOT supported: this field carries only grid values, and nothing samples it pointwise (the
+    // ortho fitter uses the bulk overload).  Make the grid-bound contract explicit rather than silently wrong.
+    virtual double  operator()(const rvec3_t&) const override
+        {throw std::logic_error("PWVxcField is grid-bound: sample it in bulk on the fit grid, not pointwise");}
+    virtual rvec3_t Gradient  (const rvec3_t&) const override {return rvec3_t(0,0,0);}
 
-    // Fast bulk path (the fitter samples on the fit grid): rho on the WHOLE grid via ONE inverse FFT, then the
-    // functional pointwise.  The points ARE the fit grid's own (GridPoints()), so RhoOnGrid aligns 1:1.
+    // Bulk: v_xc = functional(rho) at the precomputed grid values.  The points MUST be the fit grid rho was
+    // transformed onto -- assert IDENTITY (not merely size), so a future diagnostic that samples a different
+    // same-cardinality point set fails loudly instead of pairing values to the wrong points (review #2).
     virtual rvec_t  operator()(const rvec3vec_t& rs) const override
     {
-        rvec_t rho=itsGrid->RhoOnGrid(itsRho);
-        assert(rho.size()==rs.size() && "PWVxcField: batch points must be the fit basis's own grid");
-        rvec_t v(rho.size());
-        for (size_t q=0;q<rho.size();q++) v[q]=itsXc->GetVxc(rho[q]);
+        assert(SampledOnGrid(rs) && "PWVxcField: must be sampled on the fit basis's own grid (identity)");
+        rvec_t v(itsRhoGrid.size());
+        for (size_t q=0;q<v.size();q++) v[q]=itsXc->GetVxc(itsRhoGrid[q]);
         return v;
     }
 
     virtual const ScalarFunction<double>* GetScalarFunction() const override {return this;}
 private:
+    bool SampledOnGrid(const rvec3vec_t& rs) const   // debug-only identity check (GridPoints() is cached)
+    {
+        const rvec3vec_t& g=itsGrid->GridPoints();
+        if (rs.size()!=g.size()) return false;
+        for (size_t q=0;q<rs.size();q++)
+        {
+            double dx=rs[q].x-g[q].x, dy=rs[q].y-g[q].y, dz=rs[q].z-g[q].z;
+            if (dx*dx+dy*dy+dz*dz > 1e-24) return false;
+        }
+        return true;
+    }
     const ExFunctional*               itsXc;
-    ΔG_Map                            itsRho;
+    const rvec_t&                     itsRhoGrid;   // precomputed rho(r) on the fit grid (owned by PW_XC; field is transient)
     const BasisSet::G_FieldEvaluator* itsGrid;
 };
 } // anonymous
@@ -194,26 +208,31 @@ PW_XC::PW_XC(const xc_t& xc, fbs_t fb)
 }
 PW_XC::~PW_XC() = default;   // itsScalarFitter's abstract type is complete here
 
+// rho(r) on the fit grid for cd -- one inverse FFT, recomputed only on a new density serial (newCD), so
+// CalcMatrix and GetEnergy share it (whichever runs first this iteration pays; the other reuses).
+void PW_XC::RefreshRhoGrid(const cChargeDensity* cd) const
+{
+    if (!newCD(cd)) return;
+    auto fd=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(cd);
+    assert(fd && "PW_XC requires a FourierDensity (periodic) charge density");
+    itsRhoGrid=itsFitGrid->RhoOnGrid(fd->GetFourierDensity());   // on the FIT grid (matches the Vxc quadrature)
+}
+
 // XC through the pre-built ortho scalar fitter, mirroring the molecular FittedVxc: the fitter batch-samples
 // the v_xc(rho) field on the FIT basis's grid and forward-transforms it (the projection IS the fit on the
 // orthonormal {G}); the ORBITAL basis then assembles <i|v_xc|j>.  No O(Npts*n^2) pointwise density sampling.
 chmat_t PW_XC::CalcMatrix(const cobs_t* bs, const Spin&, const cChargeDensity* cd) const
 {
-    newCD(cd);
-    auto fd=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(cd);
-    assert(fd && "PW_XC requires a FourierDensity (periodic) charge density");
-    itsScalarFitter->DoFit(PWVxcField(itsXc.get(), fd->GetFourierDensity(), itsFitGrid));
+    RefreshRhoGrid(cd);
+    itsScalarFitter->DoFit(PWVxcField(itsXc.get(), itsRhoGrid, itsFitGrid));
     return itsScalarFitter->Overlap(bs);                                        // <i|v_xc|j> (no kernel)
 }
 
 void PW_XC::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 {
-    newCD(cd);
-    auto fd=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(cd);
-    assert(fd);
-    rvec_t rho=itsFitGrid->RhoOnGrid(fd->GetFourierDensity());   // on the FIT grid (matches the Vxc quadrature)
-    rvec_t exc(rho.size());
-    for (size_t q=0;q<rho.size();q++) {double ro=rho[q]; exc[q]=itsXc->GetEpsXc(ro)*ro;}
+    RefreshRhoGrid(cd);   // reuses CalcMatrix's transform this iteration (same density serial)
+    rvec_t exc(itsRhoGrid.size());
+    for (size_t q=0;q<itsRhoGrid.size();q++) {double ro=itsRhoGrid[q]; exc[q]=itsXc->GetEpsXc(ro)*ro;}
     te.Exc += itsFitGrid->Integral(exc);     // E_xc = integral eps_xc(rho) rho on the fit grid
 }
 

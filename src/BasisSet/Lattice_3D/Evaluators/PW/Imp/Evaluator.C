@@ -45,35 +45,47 @@ std::vector<rvec3_t> PW_Evaluator::UniformGrid(const ivec3_t& n) const
     return g;
 }
 
-// Grid divisions resolving the difference set without aliasing: N > 2*(2*maxComp).
+// Grid divisions resolving the difference set without aliasing: N > 2*(2*maxComp).  Cached (depends on itsG).
 ivec3_t PW_Evaluator::AutoGrid() const
 {
-    int m=0;
-    for (const ivec3_t& g : itsG)
+    if (itsAutoGrid.x==0)   // not yet computed
     {
-        int ax=g.x<0?-g.x:g.x, ay=g.y<0?-g.y:g.y, az=g.z<0?-g.z:g.z;
-        m=std::max(m, std::max(ax, std::max(ay,az)));
+        int m=0;
+        for (const ivec3_t& g : itsG)
+        {
+            int ax=g.x<0?-g.x:g.x, ay=g.y<0?-g.y:g.y, az=g.z<0?-g.z:g.z;
+            m=std::max(m, std::max(ax, std::max(ay,az)));
+        }
+        int nn=4*m+1;
+        itsAutoGrid=ivec3_t(nn,nn,nn);
     }
-    int nn=4*m+1;
-    return ivec3_t(nn,nn,nn);
+    return itsAutoGrid;
 }
 
 // AutoGrid divisions rounded up to powers of two -- radix-2 FFT for the XC route.  A larger grid still
-// resolves the difference set without aliasing, so it is at worst slightly more accurate.
+// resolves the difference set without aliasing, so it is at worst slightly more accurate.  Cached.
 ivec3_t PW_Evaluator::FFTGrid() const
 {
-    ivec3_t a=AutoGrid();
-    return ivec3_t(int(qchem::FFT::NextPow2(a.x)), int(qchem::FFT::NextPow2(a.y)), int(qchem::FFT::NextPow2(a.z)));
+    if (itsFFTGrid.x==0)   // not yet computed
+    {
+        ivec3_t a=AutoGrid();
+        itsFFTGrid=ivec3_t(int(qchem::FFT::NextPow2(a.x)), int(qchem::FFT::NextPow2(a.y)), int(qchem::FFT::NextPow2(a.z)));
+    }
+    return itsFFTGrid;
 }
 
 // Cartesian points of the FFT grid, raster order matching RhoOnGrid/ForwardFFT: r = A (i/N), A = direct cell.
-rvec3vec_t PW_Evaluator::GridPoints() const
+// Cached: the N-point mesh + the 3x3 cell inversion are built once, not per DoFit.
+const rvec3vec_t& PW_Evaluator::GridPoints() const
 {
-    std::vector<rvec3_t> frac=UniformGrid(FFTGrid());
-    UnitCell A=itsRecip.GetCell().MakeReciprocalCell();   // reciprocal of B == the direct cell
-    rvec3vec_t pts(frac.size());
-    for (size_t q=0;q<frac.size();q++) pts[q]=A.ToCartesian(frac[q]);
-    return pts;
+    if (itsGridPoints.size()==0)
+    {
+        std::vector<rvec3_t> frac=UniformGrid(FFTGrid());
+        UnitCell A=itsRecip.GetCell().MakeReciprocalCell();   // reciprocal of B == the direct cell
+        itsGridPoints.resize(frac.size());
+        for (size_t q=0;q<frac.size();q++) itsGridPoints[q]=A.ToCartesian(frac[q]);
+    }
+    return itsGridPoints;
 }
 
 // rho(r) on the FFT grid = inverse FFT of rho-tilde: rho(r_j) = Sum_dm rho-tilde(dm) e^{+i2pi dm.j/N}.
@@ -112,6 +124,12 @@ cvec_t PW_Evaluator::ForwardFFT(const rvec_t& V) const
 dcmplx PW_Evaluator::GridCoeff(const cvec_t& Vt, const ivec3_t& dm) const
 {
     ivec3_t N=FFTGrid();
+    // Alias-free ONLY while |dm| < N/2 per axis: outside that band the wrap folds a high frequency onto dm
+    // and silently returns the wrong coefficient.  Holds by construction for relCutoff>=1 (denser fit grid
+    // is protective); the real future exposure is a k!=0 XC block whose orbital difference set exceeds the
+    // Gamma fit grid -- this assert makes that path fail loudly instead of aliasing.
+    assert(2*(dm.x<0?-dm.x:dm.x)<N.x && 2*(dm.y<0?-dm.y:dm.y)<N.y && 2*(dm.z<0?-dm.z:dm.z)<N.z
+           && "GridCoeff: |dm| outside the alias-free band -- densify the fit grid (raise relCutoff)");
     int i0=((dm.x%N.x)+N.x)%N.x, i1=((dm.y%N.y)+N.y)%N.y, i2=((dm.z%N.z)+N.z)%N.z;
     return Vt[(size_t(i0)*N.y+i1)*N.z+i2];
 }

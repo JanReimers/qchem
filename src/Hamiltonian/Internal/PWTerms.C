@@ -120,12 +120,17 @@ public:
     virtual std::ostream& Write(std::ostream&) const;
 private:
     virtual chmat_t CalcMatrix(const cobs_t*, const Spin&, const cChargeDensity*) const;
+    //! Ensure \c itsRhoGrid holds \f$\rho(r)\f$ on the fit grid for \a cd, recomputing (one inverse FFT) only
+    //! on a new density serial.  Shared by CalcMatrix (fits \f$v_{xc}\f$) and GetEnergy (integrates \f$\epsilon_{xc}\rho\f$),
+    //! so the transform runs ONCE per SCF iteration, whichever runs first.
+    void RefreshRhoGrid(const cChargeDensity* cd) const;
+
     xc_t itsXc;
     std::unique_ptr<Fitting::FunctionFitter_Scalar<dcmplx>> itsScalarFitter;   //!< ortho scalar fitter (built once)
     //! The FIT basis's grid engine (from the fit basis the fitter holds): the XC quadrature grid comes from the
-    //! FIT basis, NOT the orbital basis (so relCutoff / GridCutoffFactor control it).  GetEnergy uses it for the
-    //! rho-on-grid + integral eps_xc rho quadrature; CalcMatrix's PWVxcField uses it to inverse-FFT the density.
+    //! FIT basis, NOT the orbital basis (so relCutoff / GridCutoffFactor control it).
     const BasisSet::G_FieldEvaluator* itsFitGrid=nullptr;
+    mutable rvec_t itsRhoGrid;   //!< rho(r) on the fit grid for the current density (CalcMatrix builds; GetEnergy reuses)
 };
 
 } //namespace

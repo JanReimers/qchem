@@ -77,7 +77,7 @@ public:
     //     These are CONCRETE (not the abstract Band_FT_IBS virtuals); the orbital IBS's overrides forward here. ---
     //! Cartesian points of the \c FFTGrid (raster order): \f$r=A\,(i/N)\f$.  This is the quadrature mesh a
     //! scalar fitter samples a field on; its ordering matches \c RhoOnGrid / \c ForwardFFT.
-    rvec3vec_t GridPoints() const override;
+    const rvec3vec_t& GridPoints() const override;
     //! \f$\rho(r)\f$ on the FFT grid = inverse-FFT of a G-space map keyed by the reciprocal-index difference
     //! \f$\Delta m\f$ (the coefficients are physical, already \f$/\Omega\f$, so no \f$1/N\f$).
     rvec_t   RhoOnGrid  (const ΔG_Map& rhoTilde) const override;
@@ -103,6 +103,12 @@ private:
     double               itsEcut;   //!< energy cutoff (Hartree)
     double               itsVolume; //!< direct cell volume \f$V\f$ (for the \f$1/\sqrt V\f$ norm)
     std::vector<ivec3_t> itsG;      //!< surviving reciprocal index triples \f$m\f$ (\f$G=B\,m\f$)
+    // Grid geometry depends ONLY on itsG (invariant across the SCF run); cache it lazily so AutoGrid()'s
+    // O(nG) scan (called O(n^2) times in matrix assembly) and GridPoints()'s N-point mesh + cell inversion
+    // run once, not per call.  Sentinels: {0,0,0} / empty == not yet computed.
+    mutable ivec3_t      itsAutoGrid = ivec3_t(0,0,0);
+    mutable ivec3_t      itsFFTGrid  = ivec3_t(0,0,0);
+    mutable rvec3vec_t   itsGridPoints;
 };
 
 //! \brief The plane-wave evaluator concept the EPW_* IBS mixins template against (mirrors the molecular

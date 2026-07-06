@@ -41,7 +41,7 @@ public:
 
     // --- the FFT quadrature grid engine (a fit basis quadratures v_xc on its OWN, possibly denser, grid) ---
     //! Cartesian points of the FFT grid (raster order), the quadrature mesh a scalar fitter samples a field on.
-    virtual rvec3vec_t GridPoints() const=0;
+    virtual const rvec3vec_t& GridPoints() const=0;
     //! Inverse-FFT a G-space coefficient map (keyed by reciprocal-index difference) to \f$\rho(r)\f$ on the grid.
     virtual rvec_t     RhoOnGrid  (const ΔG_Map& rhoTilde) const=0;
     //! Forward-FFT a real-space grid field to the FULL normalised (\f$/N_{pts}\f$) G-space grid (raster order).

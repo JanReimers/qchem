@@ -102,10 +102,13 @@ public:
     //! offset from) the orbital's.  Both bases carry the G_FieldEvaluator grid engine.
     virtual hmat_t<dcmplx> Overlap(const robs_t<dcmplx>* bs) const override
     {
-        auto orb=dynamic_cast<const BasisSet::G_FieldEvaluator*>(bs);
-        assert(orb && "OrthoScalarFitter::Overlap requires a plane-wave (G_FieldEvaluator) orbital basis");
+        // The orbital basis is CALLER-supplied and carries no compile-time guarantee of being plane-wave, so
+        // this is a genuine "is it?" cross-cast: a reference-cast THROWS std::bad_cast (not release-mode UB)
+        // for any future non-PW complex orbital basis.  (Contrast the fitter's own itsFitBasis casts, which
+        // its isOrtho() contract guarantees.)  Ties to the item-C dynamic_cast survey.
+        const BasisSet::G_FieldEvaluator& orb=dynamic_cast<const BasisSet::G_FieldEvaluator&>(*bs);
         const BasisSet::G_FieldEvaluator& fit=FitGrid();
-        return orb->MakePotential([&](const ivec3_t& dm)->dcmplx {return fit.GridCoeff(itsVt, dm);});
+        return orb.MakePotential([&](const ivec3_t& dm)->dcmplx {return fit.GridCoeff(itsVt, dm);});
     }
 
     virtual void ReScale(double factor) override
