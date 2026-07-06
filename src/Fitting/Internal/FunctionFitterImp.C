@@ -40,16 +40,16 @@ public: // Client code needs read access to this data.
 
 //---------------------------------------------------------------------- Scalar (overlap-metric) impl
 template <class T> class FunctionFitterImp
-    : public FitImpBase<T, FunctionFitter_Scalar<T>, BasisSet::FIT_SF_NonOrtho>
+    : public FitImpBase<T, FunctionFitter_Scalar_NonOrtho<T>, BasisSet::FIT_SF_NonOrtho>
 {
-    typedef FitImpBase<T, FunctionFitter_Scalar<T>, BasisSet::FIT_SF_NonOrtho> Base;
+    typedef FitImpBase<T, FunctionFitter_Scalar_NonOrtho<T>, BasisSet::FIT_SF_NonOrtho> Base;
 public:
     typedef typename Base::fbs_t fbs_t;
 
     FunctionFitterImp(     ) : Base( ) {}
     FunctionFitterImp(fbs_t& fbs) : Base(fbs) {}
 
-    virtual void      DoFit  (const ScalarFFClient&)      override;  // overlap-metric projection
+    virtual void      DoFit  (const ProjectedScalar<T>&) override;  // overlap-metric projection (cross-casts to _AO)
     virtual hmat_t<T> Overlap(const robs_t<T>*) const      override;  // Sum_a c_a <Oi|f_a|Oj>
 };
 

@@ -4,7 +4,7 @@ module;
 export module qchem.Hamiltonian.Internal.LDAVxc;
 import qchem.Hamiltonian.Internal.Term;
 import qchem.Hamiltonian.Internal.ExFunctional;
-import qchem.Fitting.FunctionFitter;   // Fitting::ScalarFFClient (the fit-callback role lives on this impl)
+import qchem.Fitting.FunctionFitter;   // Fitting::ProjectedScalar_AO (the fit-callback role lives on this impl)
 import qchem.ScalarFunction;
 import qchem.Hamiltonian.Types;
 
@@ -17,7 +17,7 @@ export namespace qchem::Hamiltonian
 //
 class LDAVxc
     : public virtual rFittablePotential
-    , public virtual Fitting::ScalarFFClient
+    , public virtual Fitting::ProjectedScalar_AO
     , private        rDynamic_HT_Imp
 {
     typedef std::shared_ptr<ExFunctional> ex_t;

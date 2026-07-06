@@ -50,10 +50,12 @@ template <class T, class Face, class FBS> std::ostream& FitImpBase<T,Face,FBS>::
 //
 //  Overlap-metric (potential) fit:  c = S^-1 <f_a|f>, contracted as Sum_a c_a <Oi|f_a|Oj>.
 //
-template <class T> void FunctionFitterImp<T>::DoFit(const ScalarFFClient& ffc)
+template <class T> void FunctionFitterImp<T>::DoFit(const ProjectedScalar<T>& pf)
 {
+    auto ao=dynamic_cast<const ProjectedScalar_AO*>(&pf);   // the AO projection carries the real-space field
+    assert(ao && "FunctionFitterImp::DoFit requires a ProjectedScalar_AO (a real-space field to project)");
     auto Sinv=this->itsBasisSet->InvOverlap();
-    this->itsFitCoeff = Sinv * this->itsBasisSet->Overlap(*ffc.GetScalarFunction());
+    this->itsFitCoeff = Sinv * this->itsBasisSet->Overlap(*ao->GetScalarFunction());
 }
 
 template <class T> hmat_t<T> FunctionFitterImp<T>::Overlap(const robs_t<T>* bs) const
@@ -70,7 +72,7 @@ template <class T> hmat_t<T> FunctionFitterImp<T>::Overlap(const robs_t<T>* bs) 
 
 // Both FitImpBase faces are emitted HERE, where the shared member definitions above are visible (the
 // Density-face members would otherwise be undefined: ConstrainedFF.C can't emit what it can't see).
-template class FitImpBase<double, FunctionFitter_Scalar <double>, BasisSet::FIT_SF_NonOrtho>;
+template class FitImpBase<double, FunctionFitter_Scalar_NonOrtho<double>, BasisSet::FIT_SF_NonOrtho>;
 template class FitImpBase<double, FunctionFitter_Density_NonOrtho<double>, BasisSet::FIT_CD_NonOrtho>;
 template class FunctionFitterImp<double>;
 

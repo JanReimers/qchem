@@ -35,13 +35,6 @@ import qchem.Blaze;                   // hmat_t<T>
 export namespace qchem::Fitting
 {
 
-//! Callback for fitting a plain scalar function f(r) (sampled numerically on the mesh).
-class ScalarFFClient
-{
-public:
-    virtual const ScalarFunction<double>* GetScalarFunction() const=0;   //!< "what's your value at r?"
-};
-
 //! \brief The density projected onto the fit basis -- the \f$\langle c|\rho\rangle\f$ a density fitter
 //! consumes, with the storage CONTAINER hidden.  A neutral MARKER base so the fitter face names ONE argument
 //! type; each concrete projection (the dense AO \c rvec_t below, or the orthonormal G-space map) is recovered
@@ -79,19 +72,62 @@ private:
     FourierMap itsMap;
 };
 
-//! \brief Abstract least-squares function fitter -- the SCALAR (overlap-metric) face.  Projects a pointwise
-//! field (e.g. v_xc(rho(r))) onto the fit basis in the ordinary overlap norm, then contracts it against an
-//! orbital basis as an operator matrix Sum_a c_a <Oi|f_a|Oj>.  Real-valued fit function
-//! (ScalarFunction<double>); the matrix element type T may differ.
-template <class T> class FunctionFitter_Scalar : public virtual ScalarFunction<double>
+//! \brief The scalar field projected onto the fit basis -- the argument a SCALAR (overlap-metric) fitter's
+//! DoFit consumes.  Neutral MARKER base (the mirror of ProjectedDensity<T>); each concrete projection is
+//! recovered by the paired fitter via a sanctioned abstract->abstract cross-cast.  Templated on the fit's
+//! scalar type \a T (AO field = \c double; the reciprocal-space coeffs = \c dcmplx).
+template <class T> class ProjectedScalar
 {
 public:
-    virtual void      DoFit        (const ScalarFFClient&)                 =0;  //!< fit a scalar (overlap metric)
-    virtual hmat_t<T> Overlap      (const robs_t<T>*) const                 =0;  //!< Sum_a c_a <Oi|f_a|Oj>
+    virtual ~ProjectedScalar() = default;
+};
 
-    // --- shared post-fit utilities ---
+//! \brief The AO (Gaussian/Slater/BSpline) scalar projection: it carries the real-space FIELD \f$f(\vec r)\f$
+//! (e.g. \f$v_{xc}(\rho(\vec r))\f$), and the fitter projects it onto the fit basis in the overlap norm
+//! (\f$\langle f_a|f\rangle\f$, then \f$S^{-1}\f$).  The callback by which the fitter asks "what's your value
+//! at r?" (was \c ScalarFFClient).
+class ProjectedScalar_AO : public virtual ProjectedScalar<double>
+{
+public:
+    virtual const ScalarFunction<double>* GetScalarFunction() const=0;   //!< the real-space field f(r)
+};
+
+//! \brief The plane-wave counterpart of ProjectedScalar_AO.  On the orthonormal {G} fit basis the projection
+//! \f$\langle c_G|f\rangle\f$ IS the fit (no metric solve) -- a plain \c cvec_t (one complex coeff per fit
+//! function), pre-computed by the term (unlike the density's rho-tilde, a scalar field carries no density
+//! matrix, so the projection is a simple vector, not a keyed map).  Wraps that vec OFF the neutral
+//! ProjectedScalar<dcmplx> face (the ortho scalar fitter cross-casts to it in DoFit).
+class ProjectedScalar_G : public virtual ProjectedScalar<dcmplx>
+{
+public:
+    explicit ProjectedScalar_G(const cvec_t& coeffs) : itsCoeffs(coeffs) {}
+    const cvec_t& Coeffs() const {return itsCoeffs;}   //!< <c_G|f> per fit function (the fit itself)
+private:
+    cvec_t itsCoeffs;
+};
+
+//! \brief Abstract least-squares function fitter -- the SCALAR (overlap-metric) CORE.  Fit a pointwise field
+//! (e.g. v_xc(rho(r))) onto the fit basis in the overlap norm, then contract it against an orbital basis as an
+//! operator matrix Sum_a c_a <Oi|f_a|Oj>.  Orthonormality-neutral: no real-space evaluation, so an orthonormal
+//! (plane-wave) scalar fitter implements EXACTLY this (mirror of the FunctionFitter_Density core split).  The
+//! matrix element type is \a T; the fitted field is always real.
+template <class T> class FunctionFitter_Scalar
+{
+public:
+    virtual ~FunctionFitter_Scalar() = default;
+    virtual void      DoFit        (const ProjectedScalar<T>&)             =0;  //!< fit a scalar (impl cross-casts to its projection)
+    virtual hmat_t<T> Overlap      (const robs_t<T>*) const                 =0;  //!< Sum_a c_a <Oi|f_a|Oj>
     virtual void   ReScale         (double factor)                         =0;  //!< c *= factor
     virtual std::ostream& Write    (std::ostream&) const                   =0;  //!< describe the fit
+};
+
+//! \brief The NON-orthonormal (Gaussian) scalar-fitter refinement: the fitted field is also a real-space
+//! evaluatable \c ScalarFunction (the AO fit stores coefficients over real functions).  An orthonormal
+//! (plane-wave) fitter is NOT -- its fit is a G-space vector.  Mirror of FunctionFitter_Density_NonOrtho.
+template <class T> class FunctionFitter_Scalar_NonOrtho
+    : public virtual FunctionFitter_Scalar<T>
+    , public virtual ScalarFunction<double>
+{
 };
 
 //! \brief Abstract density fitter -- the MINIMAL CORE a Hartree term needs: fit a density, then contract it
