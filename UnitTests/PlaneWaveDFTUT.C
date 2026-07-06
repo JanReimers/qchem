@@ -111,6 +111,15 @@ struct FieldFnR : public ScalarFunction<double>, public qchem::Fitting::Projecte
     virtual const ScalarFunction<double>* GetScalarFunction() const override {return this;}
 };
 
+// Real-space grid values V -> matrix <i|V|j> = Vtilde(m_i-m_j), via the G_FieldEvaluator grid engine.  Was
+// PlaneWave_IBS::Overlap(rvec_t), now production-dead (the Vxc term assembles through the fit basis's seam);
+// kept here as a test oracle: one ForwardFFT, then look each reciprocal-index difference up in the grid.
+inline chmat_t OverlapOnGrid(const qchem::BasisSet::G_FieldEvaluator& ge, const rvec_t& V)
+{
+    cvec_t Vt=ge.ForwardFFT(V);
+    return ge.MakePotential([&](const ivec3_t& dm)->dcmplx {return ge.GridCoeff(Vt, dm);});
+}
+
 // Order ivec3_t lexicographically so it can key the rho~ map.
 struct IVecLess
 {
@@ -1027,7 +1036,7 @@ TEST_F(PlaneWaveDFT, PWDynamicTermsMatchBasis)
     rvec_t rho=F.pw.RhoOnGrid(F.pw.MakeFourierDensity(D));
     rvec_t vxc(rho.size());
     for (size_t q=0;q<rho.size();q++) vxc[q]=dirac->GetVxc(rho[q]);
-    chmat_t refx = F.pw.Overlap(vxc);
+    chmat_t refx = OverlapOnGrid(F.pw, vxc);
     for (size_t i=0;i<n;i++)
         for (size_t j=i;j<n;j++)
             EXPECT_NEAR(std::abs(dcmplx(Mx(i,j))-dcmplx(refx(i,j))), 0.0, 1e-10);
@@ -1074,7 +1083,7 @@ TEST_F(PlaneWaveDFT, ItemK_RelCutoffDensifiesAndConvergesVxc)
     rvec_t rho=F.pw.RhoOnGrid(F.pw.MakeFourierDensity(D));
     rvec_t vxc(rho.size());
     for (size_t q=0;q<rho.size();q++) vxc[q]=dirac->GetVxc(rho[q]);
-    chmat_t refx=F.pw.Overlap(vxc);
+    chmat_t refx=OverlapOnGrid(F.pw, vxc);
     for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++)
         EXPECT_NEAR(std::abs(dcmplx(M1(i,j))-dcmplx(refx(i,j))), 0.0, 1e-10);
 

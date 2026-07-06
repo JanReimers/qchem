@@ -2,9 +2,9 @@
 //
 // The dual of Band_DFT_IBS: instead of integrating real-space ScalarFunctions on a mesh, this is the
 // RECIPROCAL-SPACE lineage -- a plane-wave basis and a plane-wave density share G-space coefficients (a
-// ΔG_Map, rho-tilde / V-tilde).  The questions here are the DENSITY-driven KS assembly: rho-tilde ->
-// the FFT-free Hartree matrix, and the FFT XC route -- replacing the O(Npts*n^2) pointwise density
-// sampling with one O(n^2) projection D->rho-tilde.  (The EXTERNAL pseudopotential assembly is a separate
+// ΔG_Map, rho-tilde).  The questions here are the DENSITY-driven assembly: the density-fit-basis factory,
+// D -> rho-tilde (one O(n^2) projection), and the FFT-free Hartree matrix from rho-tilde.  (The FFT XC grid
+// engine lives on the BasisSet::G_FieldEvaluator seam; the EXTERNAL pseudopotential assembly is a separate
 // capability, Pseudopotential::Integrals_Pseudo in qcPseudopotential, so qcBasisSet names no pseudopotential type.)
 // A term reaches this the sanctioned way: holding the abstract orbital basis and dynamic_cast-ing UP.
 module;
@@ -26,8 +26,6 @@ class Band_FT_IBS
     : public virtual Orbital_1E_IBS<dcmplx>
 {
 public:
-    using Orbital_1E_IBS<dcmplx>::Overlap;   // keep the cached no-arg Overlap() visible beside Overlap(rvec_t)
-
     //! \brief Create THIS basis's auxiliary density-fit basis -- the plane-wave analog of
     //! Orbital_DFT_IBS::CreateCDFitBasisSet.  A Hartree/DFT term obtains its density fitter THROUGH this
     //! factory (never assuming orbital==fit): a distinct \c cFIT_CD_ABS over the tunable \f$\{G\}\f$ grid
@@ -57,23 +55,10 @@ public:
     //! \f$V_H(\Delta m)=4\pi\tilde\rho/|B\Delta m|^2\f$, \f$E_H=\tfrac\Omega2\sum 4\pi|\tilde\rho|^2/G^2\f$.
     virtual hmat_t<dcmplx> Repulsion(const ΔG_Map& rho, double& Eh) const=0;
 
-    // --- XC route: the basis owns the FFTs and the real-space grid; the term owns the functional. ---
-    //! \brief Real-space density \f$\rho(r)\f$ on the basis's FFT grid (inverse FFT of \a rho).  The
-    //! values are returned in the grid's internal order; the matching Overlap / Integral
-    //! consume values in the SAME order, so the term never needs the grid points -- it just maps the
-    //! functional over them (\f$v_{xc}(\rho)\f$ for the matrix, \f$\epsilon_{xc}(\rho)\rho\f$ for the energy).
-    virtual rvec_t  RhoOnGrid(const ΔG_Map& rho) const=0;
-    //! \brief Forward-FFT a real-space field \a gridValues on the FFT grid to its G-space coefficients
-    //! \f$\tilde V(\Delta m)\f$ over the difference set -- the potential analogue of MakeFourierDensity (a
-    //! density's rho-tilde).  So v_xc, like rho, can be carried as a ΔG_Map (the projected potential).
-    virtual ΔG_Map ForwardGrid(const rvec_t& gridValues) const=0;
-    //! \brief Matrix \f$\langle i|V|j\rangle = \tilde V(\Delta m)\f$ from G-space coefficients \a Vtilde
-    //! (no kernel -- the overlap 3-centre is the delta).  The XC sibling of Repulsion (which carries 4pi/G^2).
-    virtual hmat_t<dcmplx> Overlap(const ΔG_Map& Vtilde) const=0;
-    //! \brief Matrix from potential values \a Vgrid on the FFT grid: ForwardGrid then Overlap(ΔG_Map).
-    virtual hmat_t<dcmplx> Overlap(const rvec_t& Vgrid) const=0;
-    //! \brief Scalar integral \f$\int f\,d^3r\f$ from values \a fgrid on the FFT grid (uniform quadrature).
-    virtual double  Integral(const rvec_t& fgrid) const=0;
+    // NB: the FFT XC route -- the real-space grid, the inverse/forward transforms, and the
+    // <i|V|j>=Vtilde(m_i-m_j) assembly -- is NOT here.  It is the plane-wave grid engine, exposed by the
+    // BasisSet::G_FieldEvaluator seam (implemented by PW_Evaluator, so both the orbital and the auxiliary fit
+    // basis carry it); the Vxc term quadratures on its FIT basis's grid through that seam, not on this one.
 };
 
 } //namespace

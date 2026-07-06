@@ -68,17 +68,12 @@ public:
     //! (\f$V_H=4\pi\tilde\rho/|B\Delta m|^2\f$, \f$E_H=\tfrac\Omega2\sum 4\pi|\tilde\rho|^2/G^2\f$).
     virtual chmat_t Repulsion(const ΔG_Map& rho, double& Eh) const override;
 
-    // XC route (basis owns the FFTs; see Band_FT_IBS).
-    virtual rvec_t     RhoOnGrid   (const ΔG_Map& rho) const override;
-    virtual ΔG_Map ForwardGrid (const rvec_t& gridValues) const override; //!< forward FFT -> Vtilde(dm)
-    virtual chmat_t    Overlap     (const ΔG_Map& Vtilde) const override;  //!< <i|V|j>=Vtilde(dm)
-    virtual chmat_t    Overlap     (const rvec_t& Vgrid)  const override;      //!< = Overlap(ForwardGrid(Vgrid))
-    virtual double     Integral    (const rvec_t& fgrid)   const override;
-
     // --- Real-space DFT-integration oracles (test-only): the same questions a future Band_DFT_IBS<T>
     // implementer (e.g. GPW: Gaussian orbitals, PW/FFT density) would answer, kept here as independent
-    // analytic cross-checks of the shared FFT/Poisson machinery.  Production is the G-space route above;
-    // no Hamiltonian term calls these, so they are concrete members, not overrides of the (dropped) base. ---
+    // analytic cross-checks of the shared FFT/Poisson machinery.  Production quadratures on the FIT basis's
+    // grid via the G_FieldEvaluator seam; no Hamiltonian term calls these.  (The grid PRIMITIVES -- RhoOnGrid,
+    // the forward transform, the <i|V|j> assembly, Integral -- now live on G_FieldEvaluator/PW_Evaluator, which
+    // this basis carries; the tests reach them there.) ---
     chmat_t Overlap  (const ScalarFunction<double>& f) const;            //!< <i|f|j> (uncached; test oracle)
     chmat_t Repulsion(const ScalarFunction<double>& rho, double& Eh) const; //!< <i|V_Coul[rho]|j> (test oracle)
     double  Integral (const ScalarFunction<double>& f) const;           //!< integral f d3r (test oracle)

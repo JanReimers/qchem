@@ -23,7 +23,6 @@ import qchem.Structure;          // Atom (itsZ, itsR) + atom iteration for MakeN
 import qchem.Math;               // Pi, FourPi, cos, sin
 import qchem.SpecialFunctions;   // LegendreP (the (2l+1)P_l angular factor)
 import qchem.BasisSet.Lattice_3D.Internal.KPlusG;     // KPlusG (Cartesian k+G, |k+G|, cos gamma)
-import qchem.FFT;                                      // FFT3D (the XC G-space<->real transforms)
 import qchem.Blaze;
 import qchem.Vector3D;           // dot product (operator*) + vector arithmetic
 
@@ -150,60 +149,6 @@ chmat_t PlaneWave_IBS::Repulsion(const ΔG_Map& rg, double& Eh) const
             rho[dm]=acc/Volume();
         }
     return rho;
-}
-
-// Band_FT_IBS override: the grid engine now lives on PW_Evaluator (shared with the auxiliary fit basis);
-// forward to it so there is ONE inverse-FFT impl, not two to keep in sync.
-rvec_t PlaneWave_IBS::RhoOnGrid(const ΔG_Map& rho) const
-{
-    return PW_Evaluator::RhoOnGrid(rho);
-}
-
-// Forward-FFT a real-space grid field to its G-space coefficients Vtilde(dm)=(1/Npts) FFT[V], stored as a
-// ΔG_Map over the basis difference set {m_i-m_j, j>=i} -- the keys the assembly will query.  The
-// potential analogue of MakeFourierDensity (which produces rho-tilde from the density matrix).
-ΔG_Map PlaneWave_IBS::ForwardGrid(const rvec_t& V) const
-{
-    ivec3_t N=FFTGrid();
-    size_t Npts=size_t(N.x)*N.y*N.z;
-    assert(V.size()==Npts);
-    cvec_t g(Npts, dcmplx(0.0));
-    for (size_t i=0;i<Npts;i++) g[i]=dcmplx(V[i]);
-    cvec_t Vt=qchem::FFT::FFT3D(g, N, -1);
-    ΔG_Map out;
-    size_t n=GetNumFunctions();
-    const std::vector<ivec3_t>& G=Gs();
-    for (size_t i=0;i<n;i++)
-        for (size_t j=i;j<n;j++)
-        {
-            ivec3_t dm=G[i]-G[j];
-            if (out.find(dm)==out.end())
-            {
-                int i0=((dm.x%N.x)+N.x)%N.x, i1=((dm.y%N.y)+N.y)%N.y, i2=((dm.z%N.z)+N.z)%N.z;
-                out[dm]=Vt[(size_t(i0)*N.y+i1)*N.z+i2]/double(Npts);
-            }
-        }
-    return out;
-}
-
-// <i|V|j> = Vtilde(m_i-m_j): assemble directly from the G-space coefficients (no kernel -- the overlap
-// 3-centre is the delta).  The XC sibling of Repulsion (which folds in 4pi/G^2).
-chmat_t PlaneWave_IBS::Overlap(const ΔG_Map& Vt) const
-{
-    return MakePotential([&](const ivec3_t& dm)->dcmplx
-        { auto it=Vt.find(dm); return it==Vt.end()?dcmplx(0.0):it->second; });
-}
-
-// Real-space grid -> matrix: forward-FFT then assemble.
-chmat_t PlaneWave_IBS::Overlap(const rvec_t& V) const
-{
-    return Overlap(ForwardGrid(V));
-}
-
-// integral f d3r on the FFT grid: forward to the shared PW_Evaluator quadrature.
-double PlaneWave_IBS::Integral(const rvec_t& f) const
-{
-    return PW_Evaluator::Integral(f);
 }
 
 // Scalar integral integral f d3r over the cell: uniform-grid quadrature (weight Omega/Npts).
