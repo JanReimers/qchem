@@ -19,6 +19,7 @@ export import qchem.Fitting.FunctionFitter;  // FunctionFitter_Density/_Scalar<d
 import qchem.Fitting.Types;                   // robs_t<dcmplx>
 import qchem.BasisSet.Fit_IBS;                // cFIT_CD_ABS / cFIT_SF_ABS (the held fit bases)
 import qchem.BasisSet.Band_FT_IBS;            // the reciprocal-space assembly the fits delegate to
+import qchem.BasisSet.G_FieldEvaluator;       // the DIP seam: inverse-transform itsMap to real space (op(r))
 import qchem.Blaze;                           // hmat_t<dcmplx>
 
 export namespace qchem::Fitting
@@ -51,16 +52,30 @@ public:
         return pw->Repulsion(itsMap, Eh);   // GetEnergy (DM_Contract), not this matrix-assembly by-product.
     }
 
+    //! ScalarFunction (core): the fitted DENSITY rho_fit(r) = Re Σ_dm rho-tilde(dm) e^{i(B·dm)·r}.  We hold
+    //! only the structure-neutral {G} fit face, so we DELEGATE the inverse transform to the basis's
+    //! G_FieldEvaluator (DIP) -- a sanctioned "I want more" cross-cast to a capability, never a cast to
+    //! concrete PW.  (What the GUI plots; the seed of the fit-residual rho - rho_fit diagnostic.)
+    virtual double  operator()(const rvec3_t& r) const override {return FieldEval().EvalField(itsMap, r);}
+    virtual rvec3_t Gradient  (const rvec3_t& r) const override {return FieldEval().EvalFieldGradient(itsMap, r);}
+
     virtual std::ostream& Write(std::ostream& os) const override
         {return os << "OrthoFunctionFitter (orthonormal G-space fit)" << std::endl;}
 
 private:
+    //! Reach the fit basis's inverse-transform capability (the DIP seam) from the neutral face we hold.
+    const BasisSet::G_FieldEvaluator& FieldEval() const
+    {
+        auto* fe=dynamic_cast<const BasisSet::G_FieldEvaluator*>(itsFitBasis.get());
+        assert(fe && "OrthoFunctionFitter: the {G} fit basis must provide G_FieldEvaluator to evaluate rho_fit(r)");
+        return *fe;
+    }
     fbs_t      itsFitBasis;   //!< the tunable {G} fit basis (the factory seam; inert until denser-grid resampling)
-    ΔG_Map itsMap;        //!< the fit = the density's rho-tilde (received in DoFit)
+    ΔG_Map     itsMap;        //!< the fit = the density's rho-tilde (received in DoFit)
 };
 
 //! \brief Scalar (overlap-metric) fitter on an orthonormal (plane-wave, G-space) fit basis -- the minimal
-//! CORE face only (no real-space eval).  The XC sibling of OrthoFunctionFitter: DoFit RECEIVES the potential's
+//! CORE face.  The XC sibling of OrthoFunctionFitter: DoFit RECEIVES the potential's
 //! pre-computed V-tilde (a ProjectedScalar_G) and Overlap delegates the (kernel-free) assembly to the orbital
 //! Band_FT_IBS.  Created through Factory(cFIT_SF_ABS); holds the {G} fit basis (the factory seam,
 //! inert until the denser-{G} upgrade).
@@ -90,12 +105,25 @@ public:
     }
 
     virtual void ReScale(double factor) override {for (auto& kv : itsMap) kv.second *= factor;}
+
+    //! ScalarFunction (core): the fitted POTENTIAL v_xc,fit(r) = Re Σ_dm V-tilde(dm) e^{i(B·dm)·r}, via the
+    //! basis's G_FieldEvaluator (DIP) -- what the GUI plots; the seed of the v_xc - v_xc,fit fit-residual.
+    virtual double  operator()(const rvec3_t& r) const override {return FieldEval().EvalField(itsMap, r);}
+    virtual rvec3_t Gradient  (const rvec3_t& r) const override {return FieldEval().EvalFieldGradient(itsMap, r);}
+
     virtual std::ostream& Write(std::ostream& os) const override
         {return os << "OrthoScalarFitter (orthonormal G-space overlap fit)" << std::endl;}
 
 private:
+    //! Reach the fit basis's inverse-transform capability (the DIP seam) from the neutral face we hold.
+    const BasisSet::G_FieldEvaluator& FieldEval() const
+    {
+        auto* fe=dynamic_cast<const BasisSet::G_FieldEvaluator*>(itsFitBasis.get());
+        assert(fe && "OrthoScalarFitter: the {G} fit basis must provide G_FieldEvaluator to evaluate v_xc,fit(r)");
+        return *fe;
+    }
     fbs_t      itsFitBasis;   //!< the {G} fit basis (the factory seam; inert until the denser-{G} upgrade)
-    ΔG_Map itsMap;        //!< the fit = the potential's V-tilde (received in DoFit)
+    ΔG_Map     itsMap;        //!< the fit = the potential's V-tilde (received in DoFit)
 };
 
 } //namespace

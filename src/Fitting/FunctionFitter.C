@@ -110,10 +110,14 @@ private:
 
 //! \brief Abstract least-squares function fitter -- the SCALAR (overlap-metric) CORE.  Fit a pointwise field
 //! (e.g. v_xc(rho(r))) onto the fit basis in the overlap norm, then contract it against an orbital basis as an
-//! operator matrix Sum_a c_a <Oi|f_a|Oj>.  Orthonormality-neutral: no real-space evaluation, so an orthonormal
-//! (plane-wave) scalar fitter implements EXACTLY this (mirror of the FunctionFitter_Density core split).  The
-//! matrix element type is \a T; the fitted field is always real.
+//! operator matrix Sum_a c_a <Oi|f_a|Oj>.  Orthonormality-neutral, so an orthonormal (plane-wave) scalar fitter
+//! implements EXACTLY this (mirror of the FunctionFitter_Density core split).  The matrix element type is \a T.
+//! The fitted FIELD is always real and EVALUATABLE (\c ScalarFunction<double>): the AO fit evaluates its
+//! coefficients over real functions; the ortho (plane-wave) fit inverse-transforms its Hermitian G-space
+//! coefficients -- \f$v_{xc,fit}(r)=\mathrm{Re}\sum_G c_G e^{iG\cdot r}\f$ is real either way (this is what the
+//! GUI plots, and the seed of the fit-residual diagnostic \f$v_{xc}-v_{xc,fit}\f$).
 template <class T> class FunctionFitter_Scalar
+    : public virtual ScalarFunction<double>   // the fitted field f(r) is real + evaluatable (AO eval / PW inverse-transform)
 {
 public:
     virtual ~FunctionFitter_Scalar() = default;
@@ -123,20 +127,14 @@ public:
     virtual std::ostream& Write    (std::ostream&) const                   =0;  //!< describe the fit
 };
 
-//! \brief The NON-orthonormal (Gaussian) scalar-fitter refinement: the fitted field is also a real-space
-//! evaluatable \c ScalarFunction (the AO fit stores coefficients over real functions).  An orthonormal
-//! (plane-wave) fitter is NOT -- its fit is a G-space vector.  Mirror of FunctionFitter_Density_NonOrtho.
-template <class T> class FunctionFitter_Scalar_NonOrtho
-    : public virtual FunctionFitter_Scalar<T>
-    , public virtual ScalarFunction<double>
-{
-};
-
 //! \brief Abstract density fitter -- the MINIMAL CORE a Hartree term needs: fit a density, then contract it
-//! against an orbital basis as a Coulomb (Vee) matrix Sum_a c_a <Oi|f_a/r12|Oj>.  Orthonormality-neutral: no
-//! metric bookkeeping and no real-space evaluation, so an orthonormal (plane-wave) fitter implements EXACTLY
-//! this and nothing more (mirror of the rFIT_CD_ABS / FIT_CD_NonOrtho split on the fit-basis side).
+//! against an orbital basis as a Coulomb (Vee) matrix Sum_a c_a <Oi|f_a/r12|Oj>.  Orthonormality-neutral (no
+//! metric bookkeeping), so an orthonormal (plane-wave) fitter implements this + the evaluatable field and
+//! nothing more (mirror of the rFIT_CD_ABS / FIT_CD_NonOrtho split on the fit-basis side).  Like the scalar
+//! core, the fitted density \f$\rho_{fit}(r)\f$ is a real, evaluatable \c ScalarFunction (AO eval / PW inverse
+//! transform) -- the GUI plots it and the fit-residual \f$\rho-\rho_{fit}\f$ measures the fit quality.
 template <class T> class FunctionFitter_Density
+    : public virtual ScalarFunction<double>   // the fitted density rho_fit(r) is real + evaluatable
 {
 public:
     virtual ~FunctionFitter_Density() = default;
@@ -146,12 +144,11 @@ public:
 };
 
 //! \brief The NON-orthonormal (Gaussian) density-fitter refinement: the charge-constrained Coulomb-metric fit
-//! (Dunlap-Connolly-Sabin) also exposes its self-energy, total charge, initial-guess rescale, and (as a
-//! ScalarFunction) its real-space value -- what the molecular FittedCD consumes.  An orthonormal fitter (the
-//! projection IS the fit) carries NONE of this.
+//! (Dunlap-Connolly-Sabin) also exposes its self-energy, total charge, and initial-guess rescale -- the
+//! genuinely-Coulomb/charge extras the molecular FittedCD consumes.  An orthonormal fitter (the projection IS
+//! the fit) carries NONE of these (the real-space value now lives on the core, above).
 template <class T> class FunctionFitter_Density_NonOrtho
     : public virtual FunctionFitter_Density<T>
-    , public virtual ScalarFunction<double>
 {
 public:
     virtual double FitGetSelfRepulsion() const=0;      //!< <fit|1/r12|fit> (caller halves)

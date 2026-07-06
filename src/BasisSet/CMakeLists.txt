@@ -26,6 +26,7 @@ target_sources(qcBasisSet PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
   Orbital_1E_IBS.C
   Band_DFT_IBS.C
   Band_FT_IBS.C
+  G_FieldEvaluator.C
   Orbital_HF_IBS.C
   Orbital_DFT_IBS.C
   Orbital_DHF_IBS.C

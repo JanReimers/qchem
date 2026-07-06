@@ -50,6 +50,9 @@ import qchem.Hamiltonian.Internal.Terms;            // Vnn (ion-ion term: pair s
 import qchem.Pseudopotential.GTH_Potentials;    // GetGTH (CP2K GTH/HGH database reader)
 import qchem.Energy;                                // EnergyBreakdown
 import qchem.ChargeDensity.Imp.IrrepCD;             // IrrepCD<dcmplx> (concrete complex density)
+import qchem.Fitting.FunctionFitter;                // Factory / ProjectedDensity_G / FunctionFitter_Density (item B)
+import qchem.Math.GMap;                             // ΔG_Map (the G-space coefficient map)
+import qchem.BasisSet.Fit_IBS;                      // cFIT_CD_ABS (the ortho density-fit basis face)
 import qchem.Symmetry.Irrep;                        // Irrep
 import qchem.LASolver;                              // complex Hermitian eigensolver
 import qchem.Structure;                             // Molecule, Atom (the Si diamond basis)
@@ -949,6 +952,46 @@ TEST_F(PlaneWaveDFT, PWDynamicTermsMatchBasis)
     for (size_t i=0;i<n;i++)
         for (size_t j=i;j<n;j++)
             EXPECT_NEAR(std::abs(dcmplx(Mx(i,j))-dcmplx(refx(i,j))), 0.0, 1e-10);
+}
+
+// Item B: the ortho (plane-wave) density fitter's fitted field is a REAL, evaluatable ScalarFunction --
+// rho_fit(r) = Re Σ_dm rho~(dm) e^{i(B·dm)·r} (what the GUI plots).  Fit a non-uniform density through the
+// production Factory path, then check the fitter's op(r)/Gradient via the G_FieldEvaluator DIP seam against
+// (a) an independent inverse transform, (b) the FFT route RhoOnGrid at r=0, (c) finite-difference gradient.
+TEST_F(PlaneWaveDFT, OrthoFitterRealSpaceField)
+{
+    PWFixture F;
+    size_t n=F.pw.GetNumFunctions();
+    hmat_t<dcmplx> D=blazem::zeroH<dcmplx>(n);
+    D(0,0)=1.0; D(0,1)=1.0; D(1,1)=1.0;                   // Hermitian, non-uniform -> a non-trivial rho~(dm)
+    ΔG_Map rhoTilde=F.pw.MakeFourierDensity(D);
+
+    // The Factory-built ortho density fitter (the production path); the core IS-A ScalarFunction<double> now.
+    auto fb=std::shared_ptr<const qchem::BasisSet::cFIT_CD_ABS>(F.pw.CreateCDFitBasisSet(nullptr, qcMesh::MeshParams{}));
+    auto fitter=qchem::Fitting::Factory(fb);
+    fitter->DoFit(qchem::Fitting::ProjectedDensity_G(rhoTilde));
+    const ScalarFunction<double>& rhoFit=*fitter;         // item B: FunctionFitter_Density<dcmplx> : ScalarFunction
+
+    const UnitCell& B=F.B();
+    auto direct=[&](const rvec3_t& r)                     // independent inverse transform (B.ToCartesian, not GetGCartesian)
+    {
+        dcmplx s(0.0);
+        for (const auto& kv:rhoTilde){rvec3_t G=B.ToCartesian(rvec3_t(kv.first)); double ph=G*r; s+=kv.second*dcmplx(std::cos(ph),std::sin(ph));}
+        return s.real();
+    };
+    for (const rvec3_t& r : {rvec3_t(0.0,0.0,0.0), rvec3_t(1.0,2.0,0.5), rvec3_t(3.1,1.7,2.4)})
+        EXPECT_NEAR(rhoFit(r), direct(r), 1e-11);
+
+    // Cross-check against the independent FFT route: RhoOnGrid[0] = rho(r=0) = Σ rho~(dm).
+    rvec_t grid=F.pw.RhoOnGrid(rhoTilde);
+    EXPECT_NEAR(rhoFit(rvec3_t(0.0,0.0,0.0)), grid[0], 1e-11);
+
+    // Gradient: finite-difference the field at a generic point.
+    rvec3_t r0(1.3,0.7,2.1), g=rhoFit.Gradient(r0);
+    const double h=1e-5;
+    EXPECT_NEAR(g.x, (rhoFit(rvec3_t(r0.x+h,r0.y,r0.z))-rhoFit(rvec3_t(r0.x-h,r0.y,r0.z)))/(2*h), 1e-4);
+    EXPECT_NEAR(g.y, (rhoFit(rvec3_t(r0.x,r0.y+h,r0.z))-rhoFit(rvec3_t(r0.x,r0.y-h,r0.z)))/(2*h), 1e-4);
+    EXPECT_NEAR(g.z, (rhoFit(rvec3_t(r0.x,r0.y,r0.z+h))-rhoFit(rvec3_t(r0.x,r0.y,r0.z-h)))/(2*h), 1e-4);
 }
 
 // THE STAGE-3 PAYOFF: silicon (Gamma) self-consistent DFT run entirely through the FRAMEWORK objects --

@@ -40,7 +40,16 @@ overloads) with an explicit, mandatory predicate:
 Supersedes the earlier "trait return face" idea (that baked in real↔non-ortho; `isOrtho()` keeps them
 decoupled). Bit-identical.
 
-### B. Lift `ScalarFunction<double>` to the fitter *cores* + give the ortho fitters real `op()(r)`
+### B. Lift `ScalarFunction<double>` to the fitter *cores* + give the ortho fitters real `op()(r)`  — ✅ DONE
+`ScalarFunction<double>` moved from `FunctionFitter_{Scalar,Density}_NonOrtho` up to the cores; scalar
+`_NonOrtho` collapsed entirely (`FunctionFitterImp` derives the core; density `_NonOrtho` keeps only
+`FitGetSelfRepulsion`/`Integral`/`ReScale`). The ortho fitters implement `op()(r)`/`Gradient` by inverse-
+transforming their `ΔG_Map` via a NEW **`G_FieldEvaluator`** abstract capability (qcBasisSet) — the SOLID-DIP
+seam: `PlaneWaveFit_IBS` implements it off its own `GetGCartesian` (owns B), the ortho fitter cross-casts its
+held `cFIT_*_ABS` → it ("I want more"), so no reciprocal lattice leaks into the fitting interface and no
+concrete `PW_Evaluator` cast. New test `OrthoFitterRealSpaceField` (op(r) vs independent transform + RhoOnGrid
++ finite-diff gradient). Existing paths bit-identical (170 + 33 anchors); the new `op()(r)` is added capability.
+
 The fitted *field* (`ρ_fit`, `v_xc,fit`) is **real and evaluatable** even for plane waves —
 `ρ_fit(r)=Σ_G c_G e^{iG·r}` is real (Hermitian coeffs). Distinct from the fit *basis*, whose complex
 `e^{iG·r}` functions force `VectorFunction<dcmplx>`. So:
