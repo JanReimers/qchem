@@ -86,24 +86,17 @@ private:
     ΔG_Map itsMap;
 };
 
-//! \brief The scalar field projected onto the fit basis -- the argument a SCALAR (overlap-metric) fitter's
-//! DoFit consumes.  Neutral MARKER base (the mirror of ProjectedDensity<T>); each concrete projection is
-//! recovered by the paired fitter via a sanctioned abstract->abstract cross-cast.  Templated on the fit's
-//! scalar type \a T (AO field = \c double; the reciprocal-space coeffs = \c dcmplx).
-template <class T> class ProjectedScalar
+//! \brief The REAL-SPACE (\c _R) scalar projection: the argument a SCALAR (overlap-metric) fitter's \c DoFit
+//! consumes.  It carries only the real-space FIELD \f$f(\vec r)\f$ (e.g. \f$v_{xc}(\rho(\vec r))\f$) --
+//! nothing basis-specific, so ANY overlap-metric fit basis (Gaussian, Slater, BSpline) consumes it
+//! identically; the fitter projects it onto the fit basis in the overlap norm (\f$\langle f_a|f\rangle\f$,
+//! then \f$S^{-1}\f$).  The callback by which the fitter asks "what's your value at r?" (was \c ScalarFFClient).
+//! (Scalar projection has a single kind -- unlike \c ProjectedDensity<T>, which stays dual AO/G -- because
+//! the ortho scalar fitter samples the SAME real field on its FFT grid rather than receiving G-space coeffs.)
+class ProjectedScalar_R
 {
 public:
-    virtual ~ProjectedScalar() = default;
-};
-
-//! \brief The REAL-SPACE (\c _R) scalar projection: it carries only the real-space FIELD \f$f(\vec r)\f$
-//! (e.g. \f$v_{xc}(\rho(\vec r))\f$) -- nothing basis-specific, so ANY overlap-metric fit basis (Gaussian,
-//! Slater, BSpline) consumes it identically; the fitter projects it onto the fit basis in the overlap norm
-//! (\f$\langle f_a|f\rangle\f$, then \f$S^{-1}\f$).  The callback by which the fitter asks "what's your value
-//! at r?" (was \c ScalarFFClient).  Paired with the reciprocal-space \c ProjectedScalar_G (\c _R vs \c _G).
-class ProjectedScalar_R : public virtual ProjectedScalar<double>
-{
-public:
+    virtual ~ProjectedScalar_R() = default;
     virtual const ScalarFunction<double>* GetScalarFunction() const=0;   //!< the real-space field f(r)
 };
 
