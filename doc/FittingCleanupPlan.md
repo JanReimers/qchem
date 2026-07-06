@@ -171,6 +171,50 @@ requirement (no `else`); the molecular seed matches `FourierSeedCD`'s "own your 
 
 ---
 
+### K. Densify the Vxc/CD fit-{G} + swap `ProjectedScalar_G` `FourierMap`→`cvec_t` (the one real fit-quality knob)
+
+The **only** genuine fit-accuracy lever in PW DFT. Two deferrals collapse into it:
+- **`cvec_t` projection.** `ProjectedScalar_G` currently carries a `FourierMap` (kept for byte-identity while
+  the fitter route landed). The projection `⟨c|v_xc⟩` is really a plain `cvec_t` (one coeff per fit-{G}, PW
+  orthonormal ⇒ `InvOverlap=I` ⇒ `c = ⟨c|v_xc⟩`). Swap `FourierMap`→`cvec_t` here (and mirror in the density
+  `ProjectedDensity_G` if it stays symmetric). Pure interface-honesty once the grid is free to differ.
+- **Denser {G}, Vxc *and* CD together.** Do them as **one simultaneous upgrade** (user pin) — the CD-fit and
+  Vxc-fit grids move in lockstep. This is what makes `relCutoff` (I.2) and the `E_cut`-derived Vxc grid (H)
+  *do* something; before this they reproduce today's difference-set grid.
+- **Acceptance is grid-convergence, never ΔE_total.** The fits are non-variational — a *better* fit can *raise*
+  E_total (Dunlap RI-J is a lower bound). Measure convergence of **ρ / a physical property vs a fine
+  reference** (ties to G's spatial fit-residual `‖ρ − ρ_fit‖` and `‖v_xc − v_xc,fit‖` diagnostics).
+
+Depends on: H (grid self-sizes from `E_cut`) + I.2 (`relCutoff` seam live). Lands the deferred half of the
+Item-2 XC work. Non-bit-identical *by design* (the grid changes) → guard with a grid-convergence test, not an
+energy anchor.
+
+### J. Rename `FourierMap` → `ΔG_Map` (it's just a data structure)
+
+`FourierMap` (`using = std::map<ivec3_t, dcmplx, IVec3Less>` in `src/Math/FourierMap.C`) is a plain
+G-space coefficient map keyed by a reciprocal-index **difference** `ΔG = Gᵢ−Gⱼ`. The name `Fourier`
+implies provenance ("where it came from"); the type doesn't care. Rename to `ΔG_Map` to emphasise it's a
+container, not a transform.
+
+Scope (user-chosen): **type + module, ASCII module name.**
+1. `src/Math/FourierMap.C`: `export using FourierMap` → `export using ΔG_Map`; rename the **module** to an
+   ASCII, non-Fourier name (`qchem.Math.GMap` — folds into the `qchem.Math` sub-lib; NOT unicode, so the
+   module name/filename stay ASCII-safe for ninja/dyndep) and rename the file `FourierMap.C → GMap.C`.
+2. Update the 5 `import qchem.FourierMap;` lines → `import qchem.Math.GMap;` (Band_FT_IBS, FourierDensity,
+   FunctionFitter, + the re-export in OrthoFunctionFitter's comment; also the `qchem.Math` umbrella note in
+   `Math.C`) and the CMake `FILES` entry.
+3. Sweep the ~30 type-name uses `FourierMap` → `ΔG_Map` (signatures in Band_FT_IBS, PlaneWave_IBS,
+   FourierDensity/FourierSeedCD/CompositeCD/IrrepCD, ProjectedDensity_G/ProjectedScalar_G, OrthoFunctionFitter
+   `itsMap`). Pure rename — no type change, bit-identical.
+4. ninja dyndep recovery on the other build dirs (module file renamed — see the recovery memo).
+
+Note: the method names `MakeFourierDensity`/`GetFourierDensity`/`ForwardGrid` are a **separate** question
+(they describe the FFT that produces the map, so "Fourier" there is arguably honest) — leave them unless we
+decide the density-carrier should also shed the word. Verify: full `UTMain` + `ninja allTests`; nothing
+numeric moves.
+
+---
+
 ## Suggested sequencing (rough)
 
 1. **B** (ScalarFunction→cores + ortho `op()(r)`) — enables GUI plotting + fit diagnostics; symmetrizes the
@@ -178,10 +222,19 @@ requirement (no `else`); the molecular seed matches `FourierSeedCD`'s "own your 
 2. **A** (`isOrtho()` + `Factory()` rename) — small, high-legibility, bit-identical.
 3. **F then E** (seed-fit redesign, then relocation) — do F's design first so E doesn't relocate a smell;
    or E now + F later if we want the separation-of-concerns win sooner.
-4. **G**, **(folded)** — cosmetic/verify, cheap, fold into whatever touches those files.
-5. **C** (cast survey) — after A/E/F land (they remove the worst offenders).
-6. **D** (drop `Band_DFT_IBS<dcmplx>`) — independent; decide the test-oracle question.
-7. **H** + **I.2's `relCutoff=1` scaffold** together — when the `E_cut`-derived Vxc grid lands, wire the
+4. **G**, **J**, **(folded)** — cosmetic renames/verify, cheap, standalone; do whenever (J is a pure
+   rename, bit-identical, but touches a module file → dyndep recovery).
+5. **D** (drop `Band_DFT_IBS<dcmplx>`) — independent; decide the test-oracle question.
+6. **H** + **I.2's `relCutoff=1` scaffold** together — when the `E_cut`-derived Vxc grid lands, wire the
    `GridCutoffFactor()`/`MeshParams.relCutoff` seam at value 1 so LDA is bit-identical and the GGA hook is
-   live. **I.1** (E_xc/`¾`-virial consistency) is a separable increment. All numerics-affecting steps use a
-   grid-convergence acceptance test (NOT ΔE_total — see the fit-quality note in the harmonization findings).
+   live. **I.1** (E_xc/`¾`-virial consistency) is a separable increment.
+7. **K** (densify Vxc/CD {G} + `cvec_t`) — *builds on* H+I.2; the first deliberately non-bit-identical
+   step. **I.1** should land before it so `E_xc` is functional-consistent under the new grid.
+8. **C** (`dynamic_cast` survey) — **dead last.** It's a codebase-wide *hardening* pass (wrap every surviving
+   cast in a throwing, info-rich guard). Every prior item churns the cast landscape — E relocates, F deletes
+   (CD→SF cross-cast), B reshapes the fitter faces, K swaps the projection carriers — so surveying earlier
+   audits casts about to move. The *principle* (capability vs identity, top of this doc) guides the refactors
+   as we go; the *survey* pins the final state once it stops moving.
+
+All numerics-affecting steps (H, I, K) use a **grid-convergence acceptance test** (NOT ΔE_total — see the
+fit-quality note in the harmonization findings).
