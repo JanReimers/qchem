@@ -60,6 +60,7 @@ struct MeshParams
     int         em_m      = 2;                                               //!< EulerMaclaren only (1..3).
     int         beckeOrder= 3;   //!< Becke fuzzy-Voronoi smoothing iterations (molecular mesh only).
     int         nUniform  = 20;  //!< Uniform periodic real-space grid: points per cell axis (lattice mesh only; \f$n^3\f$ total).
+    double      relCutoff = 1.0;  //!< Fit-grid density multiplier (CP2K \c REL_CUTOFF): the fit basis scales its \f$E_{cut}\f$ by this. 1=wavefunction bandwidth (LDA); GGA wants >1. Set by the Hamiltonian from the functional's \c GridCutoffFactor().
 
     //! \brief Compact, deterministic identity string for these parameters.  Two MeshParams give the
     //! same ID() iff they build the same quadrature, so it is the cache key for any mesh-quadrature
@@ -74,7 +75,7 @@ struct MeshParams
              + ",ls"  + to_string(logStart) + ",le" + to_string(logStop)
              + ",ang" + to_string(static_cast<int>(angular)) + ",na" + to_string(nAngular)
              + ",em"  + to_string(em_m)     + ",bo" + to_string(beckeOrder)
-             + ",nu"  + to_string(nUniform) + "}";
+             + ",nu"  + to_string(nUniform) + ",rc" + to_string(relCutoff) + "}";
     }
 };
 

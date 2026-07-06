@@ -259,10 +259,36 @@ private:
 
 //###############################################################################
 //
+//  A dedicated least-squares fit of an XC ENERGY DENSITY eps_xc(rho(r)) to the auxiliary fit basis,
+//  exposed as a rDynamic_CC so the density contracts it:  E_xc = integral eps_xc rho = <rho|eps_xc_fit>.
+//  This is a total energy term, not a matrix-valued Hamiltonian term.  Separate from a potential fit
+//  (different coefficients) but meant to SHARE its fit basis, so the 3-centre integrals are computed once.
+//  Uniform for exchange AND correlation: it reads the functional's own eps_xc (eps_x = 3/4 v_x for Dirac
+//  exchange; eps_c != 3/4 v_c for correlation; eps_xc from libxc), so no functional needs the 3/4 special
+//  case.  Composes a Fitting::FunctionFitter (from the Factory); Overlap is queried on it.
+//
+class FittedEpsXc : public virtual ChargeDensity::rDynamic_CC
+{
+public:
+    typedef std::shared_ptr<const BasisSet::rFIT_SF_ABS> fbs_t;   //!< the scalar-function (overlap-metric) fit face
+
+    FittedEpsXc(fbs_t& fitBasisSet, const ExFunctional* ex);
+    //! Re-fits eps_xc for this density and returns its matrix Sum_a c_a <Oi|f_a|Oj> for contraction.
+    virtual const rsmat_t& GetMatrix(const robs_t*,const Spin&,const rChargeDensity* cd) const;
+private:
+    std::unique_ptr<Fitting::FunctionFitter_Scalar<double>> itsFitter;  //!< COMPOSED fitter (not inherited)
+    const ExFunctional* itsEx;   //!< non-owning; the XC functional supplying eps_xc (owned by the term)
+    mutable rsmat_t     itsMat;
+};
+
+//###############################################################################
+//
 //  Linear least squares fit the unpolarized and polarized exchange-correlation potential.  The fit basis set is inserted by the
 //  constructor and is not owned by FittedVxc.  The XC functional is owned by the inner LDAVxc.
-//  Energy uses the exchange virial E_xc = 3/4 <rho|Vxc> -- correct for (pure) exchange; for correlation
-//  use FittedVcorr below.
+//  Energy is E_xc = integral eps_xc rho via a dedicated FittedEpsXc on the SAME fit basis (the fitter's
+//  3-centre integrals are shared) -- uniform for exchange, correlation, and libxc.  This retires the old
+//  3/4-virial exchange shortcut (which broke for gradient functionals).  Serves BOTH exchange (Dirac) and
+//  correlation (VWN5) -- the energy formula is the functional's own eps_xc, not a per-term special case.
 //
 class FittedVxc : public virtual rDynamic_HT, private rDynamic_HT_Imp
 {
@@ -280,6 +306,7 @@ private:
 
     std::unique_ptr<Fitting::FunctionFitter_Scalar<double>> itsFitter; //!< COMPOSED v_xc fit (was inherited)
     LDAVxc* itsLDAVxc;   //!< the v_xc=Vxc(rho) function to fit (concrete: it IS the ScalarFFClient)
+    FittedEpsXc itsEpsXc; //!< dedicated eps_xc fit for the energy (E_xc = integral eps_xc rho); shares the fit basis
 };
 
 class FittedVxcPol : public virtual rDynamic_HT, private rDynamic_HT_Imp_NoCache
@@ -301,44 +328,6 @@ private:
     rDynamic_HT* itsUpVxc  ; //Spin up.
     rDynamic_HT* itsDownVxc; //Spin down.
 
-};
-
-//###############################################################################
-//
-//  This is a total energy term, not a matrix values Hamiltonian term.
-//  A dedicated least-squares fit of an XC ENERGY DENSITY eps_xc(rho(r)) to the auxiliary fit basis,
-//  exposed as a rDynamic_CC so the density contracts it:  E_xc = integral eps_xc rho = <rho|eps_xc_fit>.
-//  Separate from a potential fit (different coefficients) but meant to SHARE its fit basis, so the
-//  3-centre integrals are computed once.  Needed because eps_c != 3/4 v_c -- the exchange virial
-//  (eps_x = 3/4 v_x) used by FittedVxc::GetEnergy is correct for exchange but wrong for correlation.
-//  Composes a Fitting::FunctionFitter (from the Factory); Overlap is queried on it.
-//
-class FittedEpsXc : public virtual ChargeDensity::rDynamic_CC
-{
-public:
-    typedef std::shared_ptr<const BasisSet::rFIT_SF_ABS> fbs_t;   //!< the scalar-function (overlap-metric) fit face
-
-    FittedEpsXc(fbs_t& fitBasisSet, const ExFunctional* ex);
-    //! Re-fits eps_xc for this density and returns its matrix Sum_a c_a <Oi|f_a|Oj> for contraction.
-    virtual const rsmat_t& GetMatrix(const robs_t*,const Spin&,const rChargeDensity* cd) const;
-private:
-    std::unique_ptr<Fitting::FunctionFitter_Scalar<double>> itsFitter;  //!< COMPOSED fitter (not inherited)
-    const ExFunctional* itsEx;   //!< non-owning; the XC functional supplying eps_xc (owned by the term)
-    mutable rsmat_t     itsMat;
-};
-//###############################################################################
-//
-//  Correlation term.  Same potential->matrix machinery as FittedVxc (fits v_c into H), but the ENERGY is
-//  E_c = integral eps_c rho via a dedicated FittedEpsXc on the SAME fit basis -- NOT the 3/4 exchange
-//  virial (eps_c != 3/4 v_c).  Pair with an exchange FittedVxc(Dirac) to assemble a full LDA Hamiltonian.
-//
-class FittedVcorr : public FittedVxc
-{
-public:
-    FittedVcorr(fbs_t& VcorrFitBasisSet, ex_t&);
-    virtual void GetEnergy(EnergyBreakdown&,const rDM_CD* cd) const;
-private:
-    FittedEpsXc itsEpsC;   //!< dedicated eps_c fit for the correlation energy (shares the fit basis)
 };
 
 class FittedEpsCPol;   // the polarized eps_c contraction client (defined in Imp/FittedVcorrPol.C)

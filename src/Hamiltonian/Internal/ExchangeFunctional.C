@@ -27,6 +27,16 @@ public:
     virtual double GetEpsXc(              double ChargeDensity) const {return 0.75*GetVxc(ChargeDensity);}
     virtual void   SetPolarized(bool p) {isPolarized=p;}
 
+    //! \brief How much denser the \f$v_{xc}\f$-fit grid must be than the wavefunction bandwidth, as a
+    //! multiplier on the fit-basis energy cutoff (the CP2K \c REL_CUTOFF idea).
+    //!
+    //! The gradient enhancement of a GGA adds bandwidth to \f$v_{xc}\f$, so its fit grid must out-resolve the
+    //! density's own {G}.  *How much* denser is a property of the FUNCTIONAL TYPE, which only the Hamiltonian
+    //! side knows.  The functional distils that appetite to a scalar here; the basis stays functional-agnostic
+    //! (handing an \c ExFunctional& to a \c qcBasisSet method would be a library cycle -- pass the NUMBER).
+    //! LDA is band-limited to the density's own bandwidth \f$\Rightarrow 1\f$; a GGA overrides with ~1.5--2.
+    virtual double GridCutoffFactor() const {return 1.0;}
+
 protected:
 
     const rChargeDensity* itsChargeDensity;

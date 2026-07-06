@@ -51,6 +51,7 @@ const rsmat_t& FittedEpsXc::GetMatrix(const robs_t* bs,const Spin&,const rCharge
 FittedVxc::FittedVxc(fbs_t& bs, ex_t& lda)
     : itsFitter(Fitting::Factory(bs))   // potential (overlap-metric) fit, via Factory
     , itsLDAVxc(new LDAVxc(lda))
+    , itsEpsXc (bs, lda.get())          // energy: E_xc = integral eps_xc rho (shares the fit basis)
 {
 };
 
@@ -91,12 +92,9 @@ rsmat_t FittedVxc::CalcMatrix(const robs_t* bs,const Spin& s,const rChargeDensit
 
 void FittedVxc::GetEnergy(EnergyBreakdown& te,const rDM_CD* cd) const
 {
-    if (newCD(cd))
-    {
-        itsLDAVxc->UseChargeDensity(cd);
-        itsFitter->DoFit(*itsLDAVxc);
-    }
-    te.Exc += 3.0/4.0 *cd->DM_Contract(this,cd);   // exchange virial: eps_x = 3/4 v_x (exact)
+    // E_xc = integral eps_xc rho, via a dedicated eps_xc fit on the same fit basis -- uniform for exchange
+    // (eps_x = 3/4 v_x), correlation (eps_c != 3/4 v_c) and libxc.  Retires the old 3/4-virial shortcut.
+    te.Exc += cd->DM_Contract(&itsEpsXc,cd);
 }
 
 std::ostream& FittedVxc::Write(std::ostream& os) const
@@ -104,22 +102,6 @@ std::ostream& FittedVxc::Write(std::ostream& os) const
     itsFitter->Write(os);
     os << itsLDAVxc;
     return os;
-}
-
-//########################################################################
-//
-//  Correlation term: inherits FittedVxc's potential->matrix machinery (fits v_c into H), but overrides
-//  the energy to E_c = integral eps_c rho via a dedicated eps_c fit on the SAME fit basis (the exchange
-//  virial 3/4 v_c is wrong for correlation).
-//
-FittedVcorr::FittedVcorr(fbs_t& bs, ex_t& vwn)
-    : FittedVxc(bs,vwn)
-    , itsEpsC  (bs,vwn.get())   // dedicated eps_c fit, SAME fit basis (3C integrals shared with v_c)
-{};
-
-void FittedVcorr::GetEnergy(EnergyBreakdown& te,const rDM_CD* cd) const
-{
-    te.Exc += cd->DM_Contract(&itsEpsC,cd);   // integral eps_c rho  (NOT 3/4 integral v_c rho)
 }
 
 } //namespace

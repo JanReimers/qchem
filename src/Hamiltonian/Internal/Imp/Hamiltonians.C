@@ -14,6 +14,7 @@ import qchem.Hamiltonian.Types;
 import qchem.Structure;
 import qchem.Pseudopotential.GTH_Potentials;       // GetGTH + GTH_PP + HGH_*/MultiSpecies_* (re-exported)
 import qchem.PeriodicTable;                       // PeriodicTable::GetZ(symbol) -> atomic number (the composite key)
+import qchem.Math;                                // max (the denser of the exchange/correlation grid factors)
 
 namespace qchem::Hamiltonian
 {
@@ -68,7 +69,7 @@ Ham_DFTcorr_U::Ham_DFTcorr_U(const st_t& st, ExFunctional* exchange, ExFunctiona
     FittedVxc::ex_t exch(exchange);
     Add(new FittedVxc  (XFitBasis, exch));
     FittedVxc::ex_t corr(correlation);
-    Add(new FittedVcorr(XFitBasis, corr));
+    Add(new FittedVxc  (XFitBasis, corr));   // energy via eps_c fit (functional's own eps_xc), not the 3/4 virial
 }
 
 // Spin-native polarized LSDA: mirror Ham_DFTcorr_U but with the polarized exchange (FittedVxcPol, Dirac)
@@ -121,7 +122,7 @@ Ham_PP::Ham_PP(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPoten
         FittedVxc::ex_t exch(new SlaterExchange(2.0/3.0));           // Dirac exchange (alpha = 2/3)
         Add(new FittedVxc  (XFitBasis, exch));
         FittedVxc::ex_t corr(new VWN_Correlation());                // VWN5 correlation
-        Add(new FittedVcorr(XFitBasis, corr));
+        Add(new FittedVxc  (XFitBasis, corr));   // energy via eps_c fit (functional's own eps_xc), not the 3/4 virial
     }
 }
 
@@ -170,16 +171,24 @@ Ham_PP::Ham_PP(const st_t& st, const std::vector<std::pair<std::string,int>>& sp
 void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotential::LocalPotential* loc,
                             const Pseudopotential::SeparablePotential* nl)
 {
+    // Build the functionals FIRST: their GridCutoffFactor() sets how dense the fit grid must be (the CP2K
+    // REL_CUTOFF seam).  Exchange and correlation share ONE Vxc fit basis, so it takes the DENSER of the two;
+    // the density (CD) fit grid moves in lockstep (item K).  LDA -> 1.0 -> today's grid, bit-identical.
+    auto exch=std::make_shared<SlaterExchange>(2.0/3.0);   // Dirac exchange (alpha = 2/3)
+    auto corr=std::make_shared<VWN_Correlation>();         // VWN5 correlation
+    qcMesh::MeshParams mp;
+    mp.relCutoff=max(exch->GridCutoffFactor(), corr->GridCutoffFactor());
+
     // The Hartree (CD) and XC (Vxc) fit bases are created ONCE here from the basis's factory (never assuming
     // orbital==fit), exactly as the molecular DFT ctor builds FittedVee/FittedVxc's fit bases -- rho and v_xc
-    // are cell-periodic so both fit bases are Gamma (k=0).  mp is a no-op for a plane-wave (Ecut-based) fit basis.
-    PW_Hartree::fbs_t CFitBasis(bs->CreateCDFitBasisSet (st.get(), qcMesh::MeshParams{}));
-    PW_XC::fbs_t      VFitBasis(bs->CreateVxcFitBasisSet(st.get(), qcMesh::MeshParams{}));
+    // are cell-periodic so both fit bases are Gamma (k=0).  A plane-wave fit basis reads only mp.relCutoff.
+    PW_Hartree::fbs_t CFitBasis(bs->CreateCDFitBasisSet (st.get(), mp));
+    PW_XC::fbs_t      VFitBasis(bs->CreateVxcFitBasisSet(st.get(), mp));
     Add(new PW_Kinetic);
     Add(new PW_Pseudo(st, loc, nl));                           // electron-ion (incl. G=0 alignment)
     Add(new PW_Hartree(CFitBasis));
-    Add(new PW_XC(std::make_shared<SlaterExchange>(2.0/3.0), VFitBasis));   // Dirac exchange (alpha = 2/3)
-    Add(new PW_XC(std::make_shared<VWN_Correlation>(), VFitBasis));         // VWN5 correlation
+    Add(new PW_XC(exch, VFitBasis));
+    Add(new PW_XC(corr, VFitBasis));
     Add(new PW_IonIon(st, loc->ZionFn()));                       // ion-ion Ewald: Zion from the PP, not itsZ
 }
 

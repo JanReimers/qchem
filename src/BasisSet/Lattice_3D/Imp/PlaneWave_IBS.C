@@ -291,20 +291,21 @@ chmat_t PlaneWave_IBS::MakeSeparablePotential(const Structure* cl, const Pseudop
 }
 
 // The Band_FT_IBS factory seam: hand back a distinct auxiliary density-fit basis.  The density is
-// cell-periodic, so ITS symmetry is Gamma (k=0), NOT this orbital block's k -- build a k=0 grid engine at
-// the same Ecut and label it with a k=0 Bloch irrep.  (mp ignored -- a plane-wave fit basis is Ecut-based;
-// a denser density grid is the future x2 tuning.)
-BasisSet::cFIT_CD_ABS* PlaneWave_IBS::CreateCDFitBasisSet(const Structure*, const qcMesh::MeshParams&) const
+// cell-periodic, so ITS symmetry is Gamma (k=0), NOT this orbital block's k -- build a k=0 grid engine and
+// label it with a k=0 Bloch irrep.  The fit basis is Ecut-based; the only knob read from mp is relCutoff
+// (the CP2K REL_CUTOFF density-cutoff multiplier).  relCutoff=1 reproduces the orbital {G} bit-identically.
+BasisSet::cFIT_CD_ABS* PlaneWave_IBS::CreateCDFitBasisSet(const Structure*, const qcMesh::MeshParams& mp) const
 {
-    PW_Evaluator gamma(Recip(), rvec3_t(0.0,0.0,0.0), Ecut());
+    PW_Evaluator gamma(Recip(), rvec3_t(0.0,0.0,0.0), Ecut()*mp.relCutoff);
     return new PlaneWaveFit_IBS(gamma, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
 }
 
-// The overlap-metric (Vxc) sibling: a DISTINCT fit-basis instance (same k=0 Gamma grid as the CD one today;
-// the two diverge with the future denser-{G} upgrade).  PlaneWaveFit_IBS IS-A cFIT_SF_ABS.
-BasisSet::cFIT_SF_ABS* PlaneWave_IBS::CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams&) const
+// The overlap-metric (Vxc) sibling: a DISTINCT fit-basis instance (same k=0 Gamma grid as the CD one when
+// relCutoff matches; a GGA's denser Vxc grid diverges them via a larger GridCutoffFactor()).
+// PlaneWaveFit_IBS IS-A cFIT_SF_ABS.
+BasisSet::cFIT_SF_ABS* PlaneWave_IBS::CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams& mp) const
 {
-    PW_Evaluator gamma(Recip(), rvec3_t(0.0,0.0,0.0), Ecut());
+    PW_Evaluator gamma(Recip(), rvec3_t(0.0,0.0,0.0), Ecut()*mp.relCutoff);
     return new PlaneWaveFit_IBS(gamma, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
 }
 
