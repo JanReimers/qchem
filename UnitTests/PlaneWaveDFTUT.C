@@ -29,6 +29,7 @@
 #include <functional>
 #include <algorithm>
 #include <iostream>
+#include <cstdio>
 #include "gtest/gtest.h"
 
 import qchem.BasisSet.Lattice_3D.PlaneWave_IBS;
@@ -51,6 +52,7 @@ import qchem.Pseudopotential.GTH_Potentials;    // GetGTH (CP2K GTH/HGH database
 import qchem.Energy;                                // EnergyBreakdown
 import qchem.ChargeDensity.Imp.IrrepCD;             // IrrepCD<dcmplx> (concrete complex density)
 import qchem.Fitting.FunctionFitter;                // Factory / ProjectedDensity_G / FunctionFitter_Density (item B)
+import qchem.BasisSet.G_FieldEvaluator;             // the grid-engine seam (GridPoints/RhoOnGrid/Integral) for the item-K probe
 import qchem.Math.GMap;                             // ΔG_Map (the G-space coefficient map)
 import qchem.BasisSet.Fit_IBS;                      // cFIT_CD_ABS (the ortho density-fit basis face)
 import qchem.Symmetry.Irrep;                        // Irrep
@@ -97,6 +99,16 @@ struct FieldFn : public ScalarFunction<double>
     explicit FieldFn(std::function<double(const rvec3_t&)> g) : f(g) {}
     virtual double  operator()(const rvec3_t& r) const {return f(r);}
     virtual rvec3_t Gradient  (const rvec3_t&  ) const {return rvec3_t(0,0,0);}
+};
+
+// A v_xc(r) real field presented as a ProjectedScalar_R, so a scalar fitter can fit it (item K probe).
+struct FieldFnR : public ScalarFunction<double>, public qchem::Fitting::ProjectedScalar_R
+{
+    std::function<double(const rvec3_t&)> f;
+    explicit FieldFnR(std::function<double(const rvec3_t&)> g) : f(g) {}
+    virtual double  operator()(const rvec3_t& r) const override {return f(r);}
+    virtual rvec3_t Gradient  (const rvec3_t&  ) const override {return rvec3_t(0,0,0);}
+    virtual const ScalarFunction<double>* GetScalarFunction() const override {return this;}
 };
 
 // Order ivec3_t lexicographically so it can key the rho~ map.
@@ -683,6 +695,73 @@ TEST_F(PlaneWaveDFT, ScfWeakCosineSelfConsistent)
     ASSERT_TRUE(R.converged);
     EXPECT_NEAR(R.Etot_band, R.Etot_direct, 1e-6);                       // stationarity / consistency
     EXPECT_GT (std::abs(RhoAt(R.rho, ivec3_t(1,0,0))), 1e-4);            // density genuinely modulated
+}
+
+// Item K EXPLORATION on a SELF-CONSISTENT density: converge the weak-cosine LDA density, then sweep the
+// Vxc FIT grid (relCutoff 1->4->16, i.e. 16^3->32^3->64^3) and print how the XC energy quadrature E_xc=∫ε ρ
+// and the SPATIAL fit residual ‖v_xc - v_xc,fit‖ behave.  Illustrative (prints a table); the density is real.
+TEST_F(PlaneWaveDFT, ItemK_Explore_ScfDensity)
+{
+    const double a=6.0, Ecut=4.0, Omega=a*a*a, V0=-0.3;
+    UnitCell          cell(a);
+    Lattice_3D        lat(cell, ivec3_t(1,1,1));
+    ReciprocalLattice recip(lat.Reciprocal());
+    PlaneWave_IBS     pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), Ecut);
+
+    qchem::Hamiltonian::SlaterExchange  ex(2.0/3.0);
+    qchem::Hamiltonian::VWN_Correlation vwn;
+    auto vxcOf=[&](double r){return ex.GetVxc (r)+vwn.GetVxc (r);};
+    auto epsOf=[&](double r){return ex.GetEpsXc(r)+vwn.GetEpsXc(r);};
+    chmat_t Vext=pw.MakePotential([V0](const ivec3_t& dm)->dcmplx
+    { return (dm.x*dm.x+dm.y*dm.y+dm.z*dm.z==1) ? dcmplx(V0) : dcmplx(0.0); });
+
+    SCFResult R=RunSCF(pw, recip.GetCell(), Omega, Vext, 2, ivec3_t(12,12,12), vxcOf, epsOf, 0.5, 1e-9, 400);
+    ASSERT_TRUE(R.converged);
+
+    ΔG_Map rho;                                              // the self-consistent density as a ΔG_Map
+    for (const auto& kv : R.rho) rho[kv.first]=kv.second;
+    FieldFnR vtrue([&](const rvec3_t& r){return vxcOf(pw.EvalField(rho, r));});   // exact v_xc(r) of the SCF density
+
+    std::vector<rvec3_t> ref;                                // fit-grid-INDEPENDENT reference points (8^3)
+    for (int i=0;i<8;i++) for (int j=0;j<8;j++) for (int k=0;k<8;k++)
+        ref.push_back(cell.ToCartesian(rvec3_t((i+0.5)/8.0,(j+0.5)/8.0,(k+0.5)/8.0)));
+
+    std::cout << "\n  SCF: converged in " << R.iters << " iters, Etot_direct=" << R.Etot_direct
+              << ", Exc(scf grid)=" << R.Exc << "\n"
+              << "  relCutoff | nG_fit |   FFT pts |      E_xc(∫ε ρ) | ‖v_xc−v_xc,fit‖\n"
+              <<   "  ----------+--------+-----------+-----------------+----------------\n";
+    std::vector<double> Excs, resids;
+    for (double rc : {1.0, 2.0, 4.0})
+    {
+        qcMesh::MeshParams mp; mp.relCutoff=rc;
+        auto fb=qchem::Hamiltonian::PW_XC::fbs_t(pw.CreateVxcFitBasisSet(nullptr, mp));
+        auto ge=dynamic_cast<const qchem::BasisSet::G_FieldEvaluator*>(fb.get());
+        size_t nG=fb->GetNumFunctions(), Npts=ge->GridPoints().size();
+
+        rvec_t rgrid=ge->RhoOnGrid(rho), exc(rgrid.size());
+        for (size_t q=0;q<rgrid.size();q++) exc[q]=epsOf(rgrid[q])*rgrid[q];
+        double Exc=ge->Integral(exc);
+
+        auto fitter=qchem::Fitting::Factory(fb);
+        fitter->DoFit(vtrue);
+        const ScalarFunction<double>& vfit=*fitter;
+        double s=0.0;
+        for (const rvec3_t& r : ref){double d=vfit(r)-vtrue(r); s+=d*d;}
+        double resid=std::sqrt(s/ref.size());
+
+        char row[256];
+        std::snprintf(row,sizeof row,"  %8.0f  | %6zu | %9zu | %15.10f | %14.6e\n",rc,nG,Npts,Exc,resid);
+        std::cout << row;
+        Excs.push_back(Exc); resids.push_back(resid);
+    }
+    std::cout << std::endl;
+
+    // The lesson, asserted: the SPATIAL fit residual converges FAST (spectrally, for this smooth density) as
+    // the grid densifies -- but the XC ENERGY is essentially BLIND to it (flat to <1e-6).  So acceptance MUST
+    // be field/density convergence vs a fine reference, NEVER dE_total (the non-variational-fit pin).
+    EXPECT_LT(resids[1], resids[0]);              // residual converges as the fit grid densifies ...
+    EXPECT_LT(resids[2], resids[1]);              // ... monotonically
+    EXPECT_LT(std::abs(Excs[2]-Excs[0]), 1e-6);   // while E_xc barely moves -- energy is the wrong yardstick
 }
 
 // Real material: silicon, diamond structure, GTH-LDA q4 pseudopotential (local + KB nonlocal).
