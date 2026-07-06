@@ -28,7 +28,7 @@ using ChargeDensity::Polarized_CD;
 
 // v_c^sigma(r) = corr->GetVc(rho_up(r), rho_down(r), s), presented as a fittable scalar field.  The two
 // channel densities are ScalarFunctions (a rDM_CD IS-A ScalarFunction); both are sampled at each r.
-class PolVcDensity : public virtual ScalarFunction<double>, public Fitting::ProjectedScalar_AO
+class PolVcDensity : public virtual ScalarFunction<double>, public Fitting::ProjectedScalar_R
 {
 public:
     PolVcDensity(const SpinCorrelation* c, const ScalarFunction<double>* up,
@@ -44,7 +44,7 @@ private:
 };
 
 // eps_c(r) = corr->GetEpsC(rho_up(r), rho_down(r)) -- the energy density (spin-independent as a value).
-class PolEpsCDensity : public virtual ScalarFunction<double>, public Fitting::ProjectedScalar_AO
+class PolEpsCDensity : public virtual ScalarFunction<double>, public Fitting::ProjectedScalar_R
 {
 public:
     PolEpsCDensity(const SpinCorrelation* c, const ScalarFunction<double>* up,

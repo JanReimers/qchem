@@ -82,17 +82,18 @@ public:
     virtual ~ProjectedScalar() = default;
 };
 
-//! \brief The AO (Gaussian/Slater/BSpline) scalar projection: it carries the real-space FIELD \f$f(\vec r)\f$
-//! (e.g. \f$v_{xc}(\rho(\vec r))\f$), and the fitter projects it onto the fit basis in the overlap norm
+//! \brief The REAL-SPACE (\c _R) scalar projection: it carries only the real-space FIELD \f$f(\vec r)\f$
+//! (e.g. \f$v_{xc}(\rho(\vec r))\f$) -- nothing basis-specific, so ANY overlap-metric fit basis (Gaussian,
+//! Slater, BSpline) consumes it identically; the fitter projects it onto the fit basis in the overlap norm
 //! (\f$\langle f_a|f\rangle\f$, then \f$S^{-1}\f$).  The callback by which the fitter asks "what's your value
-//! at r?" (was \c ScalarFFClient).
-class ProjectedScalar_AO : public virtual ProjectedScalar<double>
+//! at r?" (was \c ScalarFFClient).  Paired with the reciprocal-space \c ProjectedScalar_G (\c _R vs \c _G).
+class ProjectedScalar_R : public virtual ProjectedScalar<double>
 {
 public:
     virtual const ScalarFunction<double>* GetScalarFunction() const=0;   //!< the real-space field f(r)
 };
 
-//! \brief The plane-wave counterpart of ProjectedScalar_AO.  On the orthonormal {G} fit basis the projection
+//! \brief The plane-wave counterpart of ProjectedScalar_R.  On the orthonormal {G} fit basis the projection
 //! IS the fit (no metric solve): the term forward-FFTs the sampled field v_xc(r) to its G-space coefficients
 //! V-tilde(dm) (= Band_FT_IBS::ForwardGrid), and this simply WRAPS that map OFF the neutral
 //! ProjectedScalar<dcmplx> face (the ortho scalar fitter cross-casts to it in DoFit; the XC sibling of

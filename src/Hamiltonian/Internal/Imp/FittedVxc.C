@@ -17,9 +17,9 @@ namespace qchem::Hamiltonian
 
 namespace
 {
-// Present eps_xc(rho(r)) as a ProjectedScalar_AO so it can be least-squares fitted.  Holds the density
+// Present eps_xc(rho(r)) as a ProjectedScalar_R so it can be least-squares fitted.  Holds the density
 // directly (rho(r) = (*cd)(r)) -- this is the true energy density, distinct from the potential v_xc.
-class EpsXcDensity : public virtual ScalarFunction<double>, public Fitting::ProjectedScalar_AO
+class EpsXcDensity : public virtual ScalarFunction<double>, public Fitting::ProjectedScalar_R
 {
 public:
     EpsXcDensity(const ExFunctional* ex, const rChargeDensity* cd) : itsEx(ex), itsCD(cd) {}
