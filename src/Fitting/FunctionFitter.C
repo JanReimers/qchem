@@ -107,21 +107,6 @@ public:
     virtual const ScalarFunction<double>* GetScalarFunction() const=0;   //!< the real-space field f(r)
 };
 
-//! \brief The plane-wave counterpart of ProjectedScalar_R.  On the orthonormal {G} fit basis the projection
-//! IS the fit (no metric solve): the term forward-FFTs the sampled field v_xc(r) to its G-space coefficients
-//! V-tilde(dm) (= Band_FT_IBS::ForwardGrid), and this simply WRAPS that map OFF the neutral
-//! ProjectedScalar<dcmplx> face (the ortho scalar fitter cross-casts to it in DoFit; the XC sibling of
-//! ProjectedDensity_G).  On today's grid the coefficients are keyed by the difference set; the flat
-//! per-fit-function vec view arrives with the future denser-{G} fit-basis upgrade.
-class ProjectedScalar_G : public virtual ProjectedScalar<dcmplx>
-{
-public:
-    explicit ProjectedScalar_G(const ΔG_Map& vTilde) : itsMap(vTilde) {}
-    const ΔG_Map& Map() const {return itsMap;}   //!< the potential's V-tilde (the fit itself)
-private:
-    ΔG_Map itsMap;
-};
-
 //! \brief Abstract least-squares function fitter -- the SCALAR (overlap-metric) CORE.  Fit a pointwise field
 //! (e.g. v_xc(rho(r))) onto the fit basis in the overlap norm, then contract it against an orbital basis as an
 //! operator matrix Sum_a c_a <Oi|f_a|Oj>.  Orthonormality-neutral, so an orthonormal (plane-wave) scalar fitter
@@ -135,7 +120,12 @@ template <class T> class FunctionFitter_Scalar
 {
 public:
     virtual ~FunctionFitter_Scalar() = default;
-    virtual void      DoFit        (const ProjectedScalar<T>&)             =0;  //!< fit a scalar (impl cross-casts to its projection)
+    //! \brief Fit a REAL-SPACE scalar field \f$f(r)\f$ (e.g. \f$v_{xc}(\rho(r))\f$).  BOTH metrics take the
+    //! SAME real field: the fitter samples it on ITS OWN quadrature mesh -- an AO fit projects in the overlap
+    //! norm over its Becke mesh; an orthonormal (plane-wave) fit batch-samples on its FFT grid and forward-
+    //! transforms (the projection IS the fit).  The field's fast bulk sampling (FFT for PW) is its own private
+    //! optimization behind \c ScalarFunction::operator()(rvec3vec_t).
+    virtual void      DoFit        (const ProjectedScalar_R&)              =0;
     virtual hmat_t<T> Overlap      (const robs_t<T>*) const                 =0;  //!< Sum_a c_a <Oi|f_a|Oj>
     virtual void   ReScale         (double factor)                         =0;  //!< c *= factor
     virtual std::ostream& Write    (std::ostream&) const                   =0;  //!< describe the fit
@@ -183,8 +173,9 @@ std::unique_ptr<FunctionFitter_Scalar<double>>
 Factory(std::shared_ptr<const BasisSet::rFIT_SF_ABS>&);
 
 //! Create a SCALAR fitter on an ORTHONORMAL (plane-wave, G-space) fit basis.  The projection IS the fit (no
-//! metric solve); DoFit receives a ProjectedScalar_G (the potential's V-tilde) and Overlap delegates the
-//! assembly to the orbital Band_FT_IBS.  The XC sibling of the ortho density overload.
+//! metric solve): DoFit batch-samples the field v_xc(r) on the fit basis's OWN FFT grid and forward-transforms
+//! it, then Overlap looks the coefficients up at the orbital basis's reciprocal-index differences.  The XC
+//! sibling of the ortho density overload.
 std::unique_ptr<FunctionFitter_Scalar<dcmplx>>
 Factory(std::shared_ptr<const BasisSet::cFIT_SF_ABS>&);
 

@@ -20,7 +20,9 @@ module;
 #include <vector>
 export module qchem.BasisSet.Lattice_3D.Evaluators.PW;
 export import qchem.ReciprocalLattice;   // ReciprocalLattice / UnitCell (the B cell; source of G, |k+G|)
-import qchem.Types;                      // ivec3_t, rvec3_t, rvec_t, cvec_t, cvec3vec_t, chmat_t, dcmplx
+export import qchem.Math.GMap;           // ΔG_Map: the G-space coefficient map RhoOnGrid/ForwardFFT speak
+export import qchem.BasisSet.G_FieldEvaluator;  // the abstract grid-engine seam PW_Evaluator implements
+import qchem.Types;                      // ivec3_t, rvec3_t, rvec_t, rvec3vec_t, cvec_t, cvec3vec_t, chmat_t, dcmplx
 import qchem.Blaze;                      // hmat_t<dcmplx> (chmat_t)
 
 export namespace qchem::BasisSet::Lattice_3D
@@ -31,6 +33,7 @@ export namespace qchem::BasisSet::Lattice_3D
 //! as a base subobject and the EPW_* mixins forward the interface virtuals to it (\c dynamic_cast, the
 //! molecular \c Cast() pattern), so the polymorphic dtor below is required (cross-cast RTTI).
 class PW_Evaluator
+    : public virtual BasisSet::G_FieldEvaluator   // the grid-engine seam (EvalField + FFT quadrature) both PW bases carry
 {
 public:
     //! Build the cutoff set \f$\{G:\tfrac12|k+G|^2<E_{cut}\}\f$ from the reciprocal lattice, the fractional
@@ -58,12 +61,38 @@ public:
 
     //! \brief Assemble \f$\langle G|V|G'\rangle=\tilde V(m(G)-m(G'))\f$ from a caller-supplied G-space
     //! potential keyed by the reciprocal-index difference.  The reusable G-space assembly primitive.
-    chmat_t MakePotential(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const;
+    chmat_t MakePotential(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const override;
+
+    // --- G_FieldEvaluator: evaluate a coefficient map as a real field (via this evaluator's B) ---
+    double  EvalField        (const ΔG_Map& c, const rvec3_t& r) const override;
+    rvec3_t EvalFieldGradient(const ΔG_Map& c, const rvec3_t& r) const override;
 
     // --- FFT/quadrature grid geometry (used by the IBS G-space/XC methods) ---
     std::vector<rvec3_t> UniformGrid(const ivec3_t& n) const; //!< fractional \f$(i/n)\f$ grid (weight \f$\Omega/\prod n\f$)
     ivec3_t AutoGrid() const;   //!< divisions resolving the difference set without aliasing
     ivec3_t FFTGrid()  const;   //!< AutoGrid padded to powers of two (radix-2 FFT)
+
+    // --- the FFT quadrature engine (shared by the ORBITAL basis's DFT route AND an auxiliary fit basis, so
+    //     a fit basis quadratures v_xc on ITS OWN, possibly denser, grid instead of borrowing the orbital's).
+    //     These are CONCRETE (not the abstract Band_FT_IBS virtuals); the orbital IBS's overrides forward here. ---
+    //! Cartesian points of the \c FFTGrid (raster order): \f$r=A\,(i/N)\f$.  This is the quadrature mesh a
+    //! scalar fitter samples a field on; its ordering matches \c RhoOnGrid / \c ForwardFFT.
+    rvec3vec_t GridPoints() const override;
+    //! \f$\rho(r)\f$ on the FFT grid = inverse-FFT of a G-space map keyed by the reciprocal-index difference
+    //! \f$\Delta m\f$ (the coefficients are physical, already \f$/\Omega\f$, so no \f$1/N\f$).
+    rvec_t   RhoOnGrid  (const ΔG_Map& rhoTilde) const override;
+    //! Forward-FFT a real-space grid field to the FULL, normalised (\f$/N_{pts}\f$) G-space grid \f$\tilde V\f$
+    //! (raster order, size \f$N_{pts}\f$).  Looked up by \c GridCoeff at ANY reciprocal-index difference the
+    //! FFT grid resolves -- so the coefficient producer (a Gamma fit basis) and the consumer (a k-block orbital
+    //! basis assembling \f$\langle G_i|V|G_j\rangle=\tilde V(m_i-m_j)\f$) need NOT share a difference set.
+    cvec_t   ForwardFFT (const rvec_t& V) const override;
+    //! Look up \f$\tilde V(\Delta m)\f$ in a \c ForwardFFT grid \a Vt (this evaluator's \c FFTGrid), wrapping
+    //! \f$\Delta m\f$ into the grid.  Alias-free while \f$|\Delta m|<N/2\f$ (guaranteed for \f$relCutoff\ge1\f$).
+    dcmplx   GridCoeff  (const cvec_t& Vt, const ivec3_t& dm) const override;
+    //! Gather \f$c(G)=\tilde V(G)\f$ over this evaluator's \f$\{G\}\f$ (the fitted field for op(r) plotting).
+    ΔG_Map   FieldCoeffs(const cvec_t& Vt) const override;
+    //! \f$\int f\,d^3r\f$ on the FFT grid: uniform quadrature, weight \f$\Omega/N_{pts}\f$ (the XC energy quadrature).
+    double   Integral   (const rvec_t& f) const override;
 
     //! Cache-key fragment identifying this grid: \c "|k=..|Ecut=..|nG=..".
     std::string IDFragment() const;

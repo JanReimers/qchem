@@ -152,22 +152,11 @@ chmat_t PlaneWave_IBS::Repulsion(const ΔG_Map& rg, double& Eh) const
     return rho;
 }
 
-// rho(r) on the FFT grid = inverse FFT of rho-tilde: rho(r_j) = Sum_dm rho-tilde(dm) e^{+i2pi dm.j/N}.
-// rho-tilde is the physical coefficient (already /Omega), so the inverse FFT takes NO 1/N normalization.
+// Band_FT_IBS override: the grid engine now lives on PW_Evaluator (shared with the auxiliary fit basis);
+// forward to it so there is ONE inverse-FFT impl, not two to keep in sync.
 rvec_t PlaneWave_IBS::RhoOnGrid(const ΔG_Map& rho) const
 {
-    ivec3_t N=FFTGrid();
-    size_t Npts=size_t(N.x)*N.y*N.z;
-    cvec_t g(Npts, dcmplx(0.0));
-    for (const auto& kv : rho)
-    {
-        int i0=((kv.first.x%N.x)+N.x)%N.x, i1=((kv.first.y%N.y)+N.y)%N.y, i2=((kv.first.z%N.z)+N.z)%N.z;
-        g[(size_t(i0)*N.y+i1)*N.z+i2]=kv.second;
-    }
-    cvec_t rr=qchem::FFT::FFT3D(g, N, +1);
-    rvec_t out(Npts);
-    for (size_t i=0;i<Npts;i++) out[i]=std::real(dcmplx(rr[i]));
-    return out;
+    return PW_Evaluator::RhoOnGrid(rho);
 }
 
 // Forward-FFT a real-space grid field to its G-space coefficients Vtilde(dm)=(1/Npts) FFT[V], stored as a
@@ -211,10 +200,10 @@ chmat_t PlaneWave_IBS::Overlap(const rvec_t& V) const
     return Overlap(ForwardGrid(V));
 }
 
-// integral f d3r on the FFT grid: uniform quadrature, weight Omega/Npts.
+// integral f d3r on the FFT grid: forward to the shared PW_Evaluator quadrature.
 double PlaneWave_IBS::Integral(const rvec_t& f) const
 {
-    return blazem::sum(f)*Volume()/double(f.size());
+    return PW_Evaluator::Integral(f);
 }
 
 // Scalar integral integral f d3r over the cell: uniform-grid quadrature (weight Omega/Npts).

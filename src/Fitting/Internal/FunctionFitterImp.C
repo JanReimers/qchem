@@ -50,7 +50,7 @@ public:
     FunctionFitterImp(     ) : Base( ) {}
     FunctionFitterImp(fbs_t& fbs) : Base(fbs) {}
 
-    virtual void      DoFit  (const ProjectedScalar<T>&) override;  // overlap-metric projection (cross-casts to _AO)
+    virtual void      DoFit  (const ProjectedScalar_R&) override;  // overlap-metric projection of the field f(r)
     virtual hmat_t<T> Overlap(const robs_t<T>*) const      override;  // Sum_a c_a <Oi|f_a|Oj>
 };
 

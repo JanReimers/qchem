@@ -15,17 +15,12 @@
 module;
 #include <iosfwd>
 #include <string>
-#include <complex>   // std::complex operator* (dcmplx arithmetic in EvalField) -- not visible via imports alone
 export module qchem.BasisSet.Lattice_3D.PlaneWaveFit_IBS;
 export import qchem.BasisSet.Fit_IBS;                    // cFIT_CD_ABS (the density-fit face)
-export import qchem.BasisSet.Lattice_3D.Evaluators.PW;   // PW_Evaluator (the shared grid engine, copied in)
+export import qchem.BasisSet.Lattice_3D.Evaluators.PW;   // PW_Evaluator (the shared grid engine + G_FieldEvaluator seam)
 import qchem.BasisSet.Lattice_3D.IBS;                    // EPW_Irrep_IBS<E> (the shared evaluation tier)
 import qchem.BasisSet.Internal.IrrepBasisSetImp;         // GetSymmetry/GetSymt/GetIrrep + itsSymmetry
-import qchem.BasisSet.G_FieldEvaluator;                  // G_FieldEvaluator (the DIP seam it implements via B)
-import qchem.Math.GMap;                                  // ΔG_Map (the coefficient map to inverse-transform)
 import qchem.Symmetry;                                   // sym_t (the Bloch irrep, shared with the orbital basis)
-import qchem.Math;                                       // cos, sin
-import qchem.Vector3D;                                   // rvec3_t dot (operator*), scalar*vector, +=
 import qchem.Types;                                      // dcmplx
 
 export namespace qchem::BasisSet::Lattice_3D
@@ -37,7 +32,6 @@ export namespace qchem::BasisSet::Lattice_3D
 class PlaneWaveFit_IBS
     : public virtual BasisSet::cFIT_CD_ABS            // FIT_CD_ABS<dcmplx> : IrrepBasisSet<dcmplx> (density-fit face)
     , public virtual BasisSet::cFIT_SF_ABS            // FIT_SF_ABS<dcmplx> : IrrepBasisSet<dcmplx> (potential-fit face)
-    , public virtual BasisSet::G_FieldEvaluator       // inverse-transform a ΔG_Map to real space (the DIP seam)
     , public         EPW_Irrep_IBS<PW_Evaluator>      // op()/Gradient/GetNumFunctions from the evaluator
     , public         BasisSet::IrrepBasisSetImp<dcmplx> // GetSymmetry/GetSymt/GetIrrep
     , public         PW_Evaluator                     // the grid engine (Cast() target), copied from the orbital basis
@@ -53,33 +47,8 @@ public:
     //! satisfying the \c isOrtho contract for BOTH the density and potential fit faces.
     bool isOrtho() const override {return true;}
 
-    //! G_FieldEvaluator: inverse-transform the fitter's Hermitian coefficients c(dm) to the real field
-    //! f(r)=Re Σ_dm c(dm) e^{i(B·dm)·r}, using our OWN grid engine's B (GetGCartesian) -- no reciprocal
-    //! lattice leaks into the fitter.  Loops the sparse ΔG_Map directly (a point evaluation, not an FFT).
-    double EvalField(const ΔG_Map& c, const rvec3_t& r) const override
-    {
-        dcmplx s(0.0);
-        for (const auto& kv : c)
-        {
-            rvec3_t G = GetGCartesian(kv.first);
-            double  ph = G*r;
-            s += kv.second * dcmplx(cos(ph), sin(ph));
-        }
-        return s.real();
-    }
-    //! ∇f(r) = Σ_dm (B·dm)·(-Im[c(dm) e^{i(B·dm)·r}]) -- the gradient of the real inverse transform.
-    rvec3_t EvalFieldGradient(const ΔG_Map& c, const rvec3_t& r) const override
-    {
-        rvec3_t g(0.0,0.0,0.0);
-        for (const auto& kv : c)
-        {
-            rvec3_t G = GetGCartesian(kv.first);
-            double  ph = G*r;
-            dcmplx  ce = kv.second * dcmplx(cos(ph), sin(ph));
-            g += (-ce.imag()) * G;
-        }
-        return g;
-    }
+    // G_FieldEvaluator (EvalField/EvalFieldGradient + the FFT quadrature grid engine) is inherited from
+    // PW_Evaluator -- the fit basis quadratures v_xc on its OWN grid, no per-class grid logic here.
 
     virtual std::string   Name      () const override {return "PlaneWaveFit";}
     virtual std::string   BasisSetID() const override {return Name()+PW_Evaluator::IDFragment();}

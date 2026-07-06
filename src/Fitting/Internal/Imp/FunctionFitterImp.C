@@ -50,12 +50,10 @@ template <class T, class Face, class FBS> std::ostream& FitImpBase<T,Face,FBS>::
 //
 //  Overlap-metric (potential) fit:  c = S^-1 <f_a|f>, contracted as Sum_a c_a <Oi|f_a|Oj>.
 //
-template <class T> void FunctionFitterImp<T>::DoFit(const ProjectedScalar<T>& pf)
+template <class T> void FunctionFitterImp<T>::DoFit(const ProjectedScalar_R& r)
 {
-    auto r=dynamic_cast<const ProjectedScalar_R*>(&pf);   // the real-space projection carries the field f(r)
-    assert(r && "FunctionFitterImp::DoFit requires a ProjectedScalar_R (a real-space field to project)");
     auto Sinv=this->itsBasisSet->InvOverlap();
-    this->itsFitCoeff = Sinv * this->itsBasisSet->Overlap(*r->GetScalarFunction());
+    this->itsFitCoeff = Sinv * this->itsBasisSet->Overlap(*r.GetScalarFunction());
 }
 
 template <class T> hmat_t<T> FunctionFitterImp<T>::Overlap(const robs_t<T>* bs) const

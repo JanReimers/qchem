@@ -75,10 +75,12 @@ private:
 };
 
 //! \brief Scalar (overlap-metric) fitter on an orthonormal (plane-wave, G-space) fit basis -- the minimal
-//! CORE face.  The XC sibling of OrthoFunctionFitter: DoFit RECEIVES the potential's
-//! pre-computed V-tilde (a ProjectedScalar_G) and Overlap delegates the (kernel-free) assembly to the orbital
-//! Band_FT_IBS.  Created through Factory(cFIT_SF_ABS); holds the {G} fit basis (the factory seam,
-//! inert until the denser-{G} upgrade).
+//! CORE face.  The XC sibling of OrthoFunctionFitter: DoFit SAMPLES the real field v_xc(r) on the fit basis's
+//! OWN FFT grid (the G_FieldEvaluator grid engine, at the fit basis's -- possibly denser -- Ecut) and forward-
+//! transforms it; Overlap has the ORBITAL basis assemble <i|v_xc|j> = V-tilde(m_i-m_j), looking each difference
+//! up in the fit-grid coefficients.  This is what makes the fit grid come from the FIT basis (not the orbital):
+//! relCutoff / the functional's GridCutoffFactor now actually control the XC quadrature.  Created through
+//! Factory(cFIT_SF_ABS).
 class OrthoScalarFitter
     : public virtual FunctionFitter_Scalar<dcmplx>
 {
@@ -86,44 +88,52 @@ public:
     typedef std::shared_ptr<const BasisSet::cFIT_SF_ABS> fbs_t;
     explicit OrthoScalarFitter(const fbs_t& fbs) : itsFitBasis(fbs) {}
 
-    //! The "fit": receive the potential's V-tilde (the term forward-FFT'd v_xc).  Orthonormal exactness =>
-    //! nothing to solve, just store; the neutral argument is a ProjectedScalar_G (a sanctioned cross-cast).
-    virtual void DoFit(const ProjectedScalar<dcmplx>& ps) override
+    //! The "fit": batch-sample v_xc(r) on the fit basis's own FFT grid, then forward-transform.  Orthonormal
+    //! exactness => the projection IS the fit (no metric solve); the field's FFT fast path is its own business.
+    virtual void DoFit(const ProjectedScalar_R& ps) override
     {
-        auto g=dynamic_cast<const ProjectedScalar_G*>(&ps);
-        assert(g && "OrthoScalarFitter::DoFit requires a ProjectedScalar_G (G-space) projection");
-        itsMap=g->Map();
+        const BasisSet::G_FieldEvaluator& ge=FitGrid();
+        rvec_t vals=(*ps.GetScalarFunction())(ge.GridPoints());   // batch-sample v_xc on the fit grid
+        itsVt =ge.ForwardFFT(vals);                               // full /Npts G grid (for the assembly)
+        itsMap=ge.FieldCoeffs(itsVt);                             // fit-basis coefficients (for op(r) plotting)
     }
 
-    //! XC matrix <i|v_xc|j> = V-tilde(dm): assemble directly from the stored G-space coefficients (no kernel),
-    //! delegating to the orbital basis's reciprocal-space assembly.
+    //! XC matrix <i|v_xc|j> = V-tilde(m_i-m_j): the ORBITAL basis assembles over ITS {G}, looking each
+    //! reciprocal-index difference up in OUR fit-grid coefficients -- so the fit grid may be denser than (or
+    //! offset from) the orbital's.  Both bases carry the G_FieldEvaluator grid engine.
     virtual hmat_t<dcmplx> Overlap(const robs_t<dcmplx>* bs) const override
     {
-        auto pw=dynamic_cast<const BasisSet::Band_FT_IBS*>(bs);
-        assert(pw && "OrthoScalarFitter::Overlap requires a Band_FT_IBS (plane-wave) basis");
-        return pw->Overlap(itsMap);
+        auto orb=dynamic_cast<const BasisSet::G_FieldEvaluator*>(bs);
+        assert(orb && "OrthoScalarFitter::Overlap requires a plane-wave (G_FieldEvaluator) orbital basis");
+        const BasisSet::G_FieldEvaluator& fit=FitGrid();
+        return orb->MakePotential([&](const ivec3_t& dm)->dcmplx {return fit.GridCoeff(itsVt, dm);});
     }
 
-    virtual void ReScale(double factor) override {for (auto& kv : itsMap) kv.second *= factor;}
+    virtual void ReScale(double factor) override
+    {
+        itsVt *= factor;
+        for (auto& kv : itsMap) kv.second *= factor;
+    }
 
-    //! ScalarFunction (core): the fitted POTENTIAL v_xc,fit(r) = Re Σ_dm V-tilde(dm) e^{i(B·dm)·r}, via the
-    //! basis's G_FieldEvaluator (DIP) -- what the GUI plots; the seed of the v_xc - v_xc,fit fit-residual.
-    virtual double  operator()(const rvec3_t& r) const override {return FieldEval().EvalField(itsMap, r);}
-    virtual rvec3_t Gradient  (const rvec3_t& r) const override {return FieldEval().EvalFieldGradient(itsMap, r);}
+    //! ScalarFunction (core): the fitted POTENTIAL v_xc,fit(r) = Re Σ_G V-tilde(G) e^{iG·r} over the fit {G},
+    //! via the basis's G_FieldEvaluator -- what the GUI plots; the seed of the v_xc - v_xc,fit fit-residual.
+    virtual double  operator()(const rvec3_t& r) const override {return FitGrid().EvalField(itsMap, r);}
+    virtual rvec3_t Gradient  (const rvec3_t& r) const override {return FitGrid().EvalFieldGradient(itsMap, r);}
 
     virtual std::ostream& Write(std::ostream& os) const override
-        {return os << "OrthoScalarFitter (orthonormal G-space overlap fit)" << std::endl;}
+        {return os << "OrthoScalarFitter (plane-wave grid quadrature)" << std::endl;}
 
 private:
-    //! Reach the fit basis's inverse-transform capability (the DIP seam) from the neutral face we hold.
-    const BasisSet::G_FieldEvaluator& FieldEval() const
+    //! The fit basis's FFT grid engine (the DIP seam), reached from the neutral fit face we hold.
+    const BasisSet::G_FieldEvaluator& FitGrid() const
     {
-        auto* fe=dynamic_cast<const BasisSet::G_FieldEvaluator*>(itsFitBasis.get());
-        assert(fe && "OrthoScalarFitter: the {G} fit basis must provide G_FieldEvaluator to evaluate v_xc,fit(r)");
-        return *fe;
+        auto* ge=dynamic_cast<const BasisSet::G_FieldEvaluator*>(itsFitBasis.get());
+        assert(ge && "OrthoScalarFitter: the {G} fit basis must provide the G_FieldEvaluator grid engine");
+        return *ge;
     }
-    fbs_t      itsFitBasis;   //!< the {G} fit basis (the factory seam; inert until the denser-{G} upgrade)
-    ΔG_Map     itsMap;        //!< the fit = the potential's V-tilde (received in DoFit)
+    fbs_t      itsFitBasis;   //!< the {G} fit basis -- owns the (possibly denser) quadrature grid
+    cvec_t     itsVt;         //!< v_xc forward-FFT'd on the fit grid (full raster grid), for the operator assembly
+    ΔG_Map     itsMap;        //!< the fit-basis coefficients, for op(r)/Gradient (GUI / fit-residual)
 };
 
 } //namespace
