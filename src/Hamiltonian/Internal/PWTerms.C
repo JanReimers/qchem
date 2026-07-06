@@ -2,7 +2,7 @@
 //
 // These are the THIN terms that complete the dependency inversion: each derives from the dcmplx term
 // base (cStatic_HT/cDynamic_HT in qcHamiltonian), holds the abstract orbital basis cobs_t, dynamic_casts
-// it UP to the abstract BasisSet::Band_DFT_IBS<dcmplx> capability (in qcBasisSet), and asks that high-
+// it UP to the abstract BasisSet::Band_FT_IBS (G-space) capability (in qcBasisSet), and asks that high-
 // level question -- "the external matrix", "the Hartree matrix for this density".  The basis owns the
 // integration; the term owns no G-vectors or mesh.  Energies delegate to the density's DM_Contract.
 module;

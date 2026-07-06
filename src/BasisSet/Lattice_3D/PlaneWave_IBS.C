@@ -17,8 +17,8 @@ module;
 #include <string>
 
 export module qchem.BasisSet.Lattice_3D.PlaneWave_IBS;
-export import qchem.BasisSet.Band_DFT_IBS;     // the abstract real-space DFT-integration capability
 export import qchem.BasisSet.Band_FT_IBS;       // the abstract G-space DFT capability (+ FourierMap)
+export import qchem.ScalarFunction;             // ScalarFunction<double> -- the real-space oracle methods' arg
 export import qchem.BasisSet.Lattice_3D.Evaluators.PW;   // PW_Evaluator (the shared grid engine / base subobject)
 import qchem.BasisSet.Lattice_3D.IBS;           // EPW_Orbital1E_IBS<E> (the evaluator-templated mixins)
 import qchem.BasisSet.Fit_IBS;                  // cFIT_CD_ABS (the auxiliary fit basis it creates) + qcMesh::MeshParams
@@ -36,7 +36,6 @@ export namespace qchem::BasisSet::Lattice_3D
 //! \f$ e^{i(k+G)\cdot r}/\sqrt V \f$ over the cutoff set \f$\{G:\tfrac12|k+G|^2<E_{cut}\}\f$.
 class PlaneWave_IBS
     : public EPW_Orbital1E_IBS<PW_Evaluator>          // op()/Gradient/GetNumFunctions/MakeOverlap/MakeKinetic
-    , public virtual BasisSet::Band_DFT_IBS<dcmplx>   // real-space DFT-integration (Hartree/XC)
     , public virtual BasisSet::Band_FT_IBS            // G-space DFT (rho-tilde -> Hartree, FFT XC)
     , public virtual Pseudopotential::Integrals_Pseudo<dcmplx> // G-space external pseudopotential assembly (V_loc + V_NL)
     , public         BasisSet::IrrepBasisSetImp<dcmplx> // supplies GetSymmetry/GetSymt/GetIrrep + itsSymmetry
@@ -76,10 +75,13 @@ public:
     virtual chmat_t    Overlap     (const rvec_t& Vgrid)  const override;      //!< = Overlap(ForwardGrid(Vgrid))
     virtual double     Integral    (const rvec_t& fgrid)   const override;
 
-    // --- Band_DFT_IBS capability: real-space DFT integration on the basis's own uniform grid. ---
-    virtual chmat_t Overlap  (const ScalarFunction<double>& f) const override;            //!< <i|f|j> (uncached)
-    virtual chmat_t Repulsion(const ScalarFunction<double>& rho, double& Eh) const override; //!< <i|V_Coul[rho]|j> (uncached)
-    virtual double  Integral         (const ScalarFunction<double>& f) const override;   //!< integral f d3r
+    // --- Real-space DFT-integration oracles (test-only): the same questions a future Band_DFT_IBS<T>
+    // implementer (e.g. GPW: Gaussian orbitals, PW/FFT density) would answer, kept here as independent
+    // analytic cross-checks of the shared FFT/Poisson machinery.  Production is the G-space route above;
+    // no Hamiltonian term calls these, so they are concrete members, not overrides of the (dropped) base. ---
+    chmat_t Overlap  (const ScalarFunction<double>& f) const;            //!< <i|f|j> (uncached; test oracle)
+    chmat_t Repulsion(const ScalarFunction<double>& rho, double& Eh) const; //!< <i|V_Coul[rho]|j> (test oracle)
+    double  Integral (const ScalarFunction<double>& f) const;           //!< integral f d3r (test oracle)
 
     // --- 1E nuclear + external pseudopotential (own the atom/model data). ---
     virtual chmat_t MakeNuclear (const Structure*) const override;  //!< Bare-Coulomb structure factor.
