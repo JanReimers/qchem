@@ -19,7 +19,13 @@ namespace qchem {
 // the basis's own grid, so it never asks for this.)
 qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp) const
 {
-    const int n=mp.nUniform;
+    // Points per axis: DERIVE from a physical grid cutoff when mp.eCut>0 (the GPW / Nyquist path), else the
+    // manual mp.nUniform.  The midpoint rule integrates e^{iG.r} exactly only while the fractional spacing
+    // a/n out-resolves the field's highest G = sqrt(2 eCut): n > a*Gmax/pi, x2 for a density-bandwidth field.
+    // The longest cell edge binds an isotropic n, so a shorter axis is (harmlessly) over-resolved.
+    const int n = mp.eCut>0.0
+        ? max(1, int(ceil(2.0*GetMaximumCellEdge()*sqrt(2.0*mp.eCut)/Pi)))
+        : mp.nUniform;
     assert(n>0);
     const double w=GetCellVolume()/(double(n)*n*n);   // equal weight Omega/n^3
     rvec3vec_t R(size_t(n)*n*n);
@@ -94,6 +100,14 @@ double UnitCell::GetMinimumCellEdge() const
     double m=itsM(1,1); // Mᵢᵢ = |aᵢ|²
     if (itsM(2,2)<m) m=itsM(2,2);
     if (itsM(3,3)<m) m=itsM(3,3);
+    return sqrt(m);
+}
+
+double UnitCell::GetMaximumCellEdge() const
+{
+    double m=itsM(1,1); // Mᵢᵢ = |aᵢ|²
+    if (itsM(2,2)>m) m=itsM(2,2);
+    if (itsM(3,3)>m) m=itsM(3,3);
     return sqrt(m);
 }
 

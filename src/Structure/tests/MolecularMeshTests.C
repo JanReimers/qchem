@@ -145,3 +145,32 @@ TEST(LatticeMesh, UniformCellIntegratesPeriodicCosine)
 
     EXPECT_NEAR(qcMesh::Integrate(m,CosSqX(a)), 0.5*a*a*a, 1e-9);
 }
+
+// Item H: with a physical eCut set, nUniform is DERIVED from the Nyquist bound n = ceil(2 a sqrt(2 eCut)/pi)
+// (a = longest edge, x2 for density bandwidth) and the manual nUniform is ignored.  The longest edge binds
+// an isotropic n, so a cubic cell's three axes share it.
+TEST(LatticeMesh, ECutDerivesNyquistDivisions)
+{
+    const double a=6.0, eCut=8.0;
+    UnitCell cell(a);
+    qcMesh::MeshParams mp; mp.nUniform=3; mp.eCut=eCut;   // nUniform deliberately too small -> must be ignored
+    auto m=cell.CreateIntegrationMesh(mp);
+
+    const int nExpect=int(std::ceil(2.0*a*std::sqrt(2.0*eCut)/Pi));
+    EXPECT_EQ(m.size(), size_t(nExpect)*nExpect*nExpect);
+    EXPECT_GT(nExpect, 3);                                 // and the manual nUniform=3 was NOT used
+    EXPECT_NEAR(qcMesh::Integrate(m,One()), a*a*a, 1e-9);  // still a valid volume quadrature
+}
+
+// The derived grid is alias-free BY CONSTRUCTION for a field at the density bandwidth: cos^2(2pi x/a) has a
+// component at G = 4pi/a (|G|^2/2 = 8pi^2/a^2 ~ 2.19 a.u. for a=6), well under the density bandwidth eCut
+// resolves, so the midpoint rule integrates it exactly.
+TEST(LatticeMesh, ECutGridIsAliasFreeForDensityBandwidth)
+{
+    const double a=6.0, eCut=8.0;
+    UnitCell cell(a);
+    qcMesh::MeshParams mp; mp.eCut=eCut;
+    auto m=cell.CreateIntegrationMesh(mp);
+
+    EXPECT_NEAR(qcMesh::Integrate(m,CosSqX(a)), 0.5*a*a*a, 1e-9);
+}

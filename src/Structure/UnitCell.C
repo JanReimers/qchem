@@ -53,6 +53,7 @@ public:
 
     double      GetCellVolume     (                  ) const; //!< \f$|\det A|\f$ (a.u.\f$^3\f$).
     double      GetMinimumCellEdge(                  ) const; //!< \f$\min_i |a_i|\f$ (a.u.).
+    double      GetMaximumCellEdge(                  ) const; //!< \f$\max_i |a_i|\f$ (a.u.); the axis that binds an isotropic uniform-mesh division count.
     double      GetDistance       (const rvec3_t& f  ) const; //!< \f$\sqrt{f^\top M f}\f$ for fractional \f$f\f$ (a.u.).
     vec3_t<int> GetNumCells       (double MaxDistance) const; //!< Cells per axis to cover a sphere of radius MaxDistance.
 

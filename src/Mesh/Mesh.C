@@ -59,7 +59,8 @@ struct MeshParams
     AngularKind angular   = AngularKind::Gauss;  int    nAngular  = 12;      //!< Gauss: #dirs; GL/EM: L.
     int         em_m      = 2;                                               //!< EulerMaclaren only (1..3).
     int         beckeOrder= 3;   //!< Becke fuzzy-Voronoi smoothing iterations (molecular mesh only).
-    int         nUniform  = 20;  //!< Uniform periodic real-space grid: points per cell axis (lattice mesh only; \f$n^3\f$ total).
+    int         nUniform  = 20;  //!< Uniform periodic real-space grid: points per cell axis (lattice mesh only; \f$n^3\f$ total). Manual fallback when \c eCut<=0.
+    double      eCut      = 0.0;  //!< Real-space integration-mesh energy cutoff (a.u.). If >0, the uniform lattice mesh DERIVES its \c nUniform from the Nyquist bound \f$n\gtrsim 2a\sqrt{2E_{cut}}/\pi\f$ (\f$a\f$=longest cell edge; the \f$\times2\f$ is the density bandwidth), and \c nUniform is ignored. 0=use the manual \c nUniform.
     double      relCutoff = 1.0;  //!< Fit-grid density multiplier (CP2K \c REL_CUTOFF): the fit basis scales its \f$E_{cut}\f$ by this. 1=wavefunction bandwidth (LDA); GGA wants >1. Set by the Hamiltonian from the functional's \c GridCutoffFactor().
 
     //! \brief Compact, deterministic identity string for these parameters.  Two MeshParams give the
@@ -75,7 +76,8 @@ struct MeshParams
              + ",ls"  + to_string(logStart) + ",le" + to_string(logStop)
              + ",ang" + to_string(static_cast<int>(angular)) + ",na" + to_string(nAngular)
              + ",em"  + to_string(em_m)     + ",bo" + to_string(beckeOrder)
-             + ",nu"  + to_string(nUniform) + ",rc" + to_string(relCutoff) + "}";
+             + ",nu"  + to_string(nUniform) + ",ec" + to_string(eCut)
+             + ",rc" + to_string(relCutoff) + "}";
     }
 };
 
