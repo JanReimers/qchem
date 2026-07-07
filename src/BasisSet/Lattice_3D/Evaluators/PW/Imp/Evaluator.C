@@ -4,6 +4,7 @@ module;
 #include <algorithm>
 #include <complex>
 #include <functional>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -166,6 +167,77 @@ double PW_Evaluator::Integral(const rvec_t& f) const
         rho[dm]=acc/Volume();
     }
     return rho;
+}
+
+// Reusable local-potential assembly: <G|V|G'> = (1/Omega) Sum_a f(Z_a,|dG|^2) e^{-i dG.tau_a}, dG=0 dropped
+// (the neutralising background).  Hermitian: V(-dG)=conj(V(dG)) since the structure factor conjugates and the
+// (real) form factor is even.  MakeNuclear is this with the bare-Coulomb f; a pseudopotential local term reuses
+// it with its own form factor -- so the structure-factor loop lives ONCE, here on the grid engine.
+chmat_t PW_Evaluator::LocalPotentialMatrix(const Structure* cl,
+                          const std::function<double(int,double)>& formFactor) const
+{
+    const UnitCell& B=itsRecip.GetCell();
+    return MakePotential([&](const ivec3_t& dm)->dcmplx
+    {
+        if (dm.x==0 && dm.y==0 && dm.z==0) return dcmplx(0.0);   // drop dG=0
+        rvec3_t dG=B.ToCartesian(rvec3_t(dm));                    // dG = B.dm (Cartesian)
+        double  g2=dG*dG;
+        dcmplx  acc(0.0);                                         // (form factor) x (structure factor)
+        for (Atom* a : *cl) acc += formFactor(a->itsZ,g2)*std::exp(dcmplx(0.0,-(dG*a->itsR)));
+        return acc/Volume();
+    });
+}
+
+// Bare-Coulomb electron-nucleus attraction: the local potential with f(Z,g2) = -4 pi Z / g2, i.e.
+// <G|V|G'> = -(4 pi/Omega) Sum_a Z_a e^{-i dG.tau_a}/|dG|^2, dG=0 dropped.  The 1E nuclear block.
+chmat_t PW_Evaluator::NuclearMatrix(const Structure* cl) const
+{
+    return LocalPotentialMatrix(cl, [](int Z, double g2){ return -FourPi*Z/g2; });
+}
+
+namespace
+{
+// The delta support: one column per difference dm=G_i-G_j, listing the (i,j) pairs that hit it, row-major
+// (i outer, j inner) so a per-column left-fold reproduces the density contraction exactly.
+void BuildG_ERI3Columns(const std::vector<ivec3_t>& G, std::vector<G_ERI3::Column>& cols)
+{
+    size_t n=G.size();
+    cols.clear();
+    std::map<ivec3_t,int,IVec3Less> colOf;          // dm -> column index (build-time lookup only)
+    for (size_t i=0;i<n;i++)
+        for (size_t j=0;j<n;j++)
+        {
+            ivec3_t dm=G[i]-G[j];
+            auto it=colOf.find(dm);
+            int c;
+            if (it==colOf.end()) { c=int(cols.size()); colOf[dm]=c; cols.push_back({dm,{}}); }
+            else                   c=it->second;
+            cols[c].pairs.push_back({int(i),int(j)});
+        }
+}
+} //anon
+
+// Coulomb 3-centre tensor over this engine's {G}: delta support + diagonal Poisson kernel 4pi/|G_c|^2
+// (dm=0 -> 0, the dropped G=0 background).  A density contracts D against it (ContractG_ERI3) for V_H.
+G_ERI3 PW_Evaluator::Repulsion3CTensor() const
+{
+    G_ERI3 g;
+    BuildG_ERI3Columns(itsG, g.columns);
+    g.kernel.resize(g.columns.size());
+    for (size_t c=0;c<g.columns.size();c++)
+        g.kernel[c]=itsRecip.CoulombKernel(g.columns[c].dm);   // diagonal Poisson kernel (dm=0 -> 0)
+    g.volume=Volume();
+    return g;
+}
+
+// Overlap 3-centre tensor: delta support, EMPTY kernel (overlap metric).
+G_ERI3 PW_Evaluator::Overlap3CTensor() const
+{
+    G_ERI3 g;
+    BuildG_ERI3Columns(itsG, g.columns);
+    g.kernel.clear();                // EMPTY => overlap metric
+    g.volume=Volume();
+    return g;
 }
 
 // G_FieldEvaluator: inverse-transform the Hermitian coefficients c(dm) to the real field

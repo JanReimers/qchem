@@ -99,59 +99,9 @@ chmat_t PlaneWave_IBS::Repulsion(const ScalarFunction<double>& rho) const
     });
 }
 
-namespace
-{
-// Build the delta support: one column per difference dm=G_i-G_j, listing the (i,j) pairs that hit it, in
-// row-major order (i outer, j inner) so a per-column left-fold reproduces the old accumulation exactly.
-void BuildG_ERI3Columns(const std::vector<ivec3_t>& G, std::vector<G_ERI3::Column>& cols)
-{
-    size_t n=G.size();
-    cols.clear();
-    std::map<ivec3_t,int,IVec3Less> colOf;          // dm -> column index (build-time lookup only)
-    for (size_t i=0;i<n;i++)
-        for (size_t j=0;j<n;j++)
-        {
-            ivec3_t dm=G[i]-G[j];
-            auto it=colOf.find(dm);
-            int c;
-            if (it==colOf.end()) { c=int(cols.size()); colOf[dm]=c; cols.push_back({dm,{}}); }
-            else                   c=it->second;
-            cols[c].pairs.push_back({int(i),int(j)});
-        }
-}
-} //anon
-
-// Coulomb 3-centre <G_i G_j|G_c> = (4pi/|G_c|^2) delta(G_c,G_i-G_j)/Omega: the delta support with the
-// diagonal Poisson kernel 4pi/|G_c|^2 filled (dm=0 -> 0, the dropped G=0 background).  A
-// density contracts D against this (ContractG_ERI3) to get the Hartree potential V_H directly.  \a c is the
-// CD fit basis (declared to cover the difference set via CreateCDFitBasisSet; the delta support is orbital-
-// intrinsic today).  One-time build behind the inherited cached Band_FT_IBS::Repulsion3C.
-G_ERI3 PlaneWave_IBS::MakeRepulsion3C(const BasisSet::cFIT_CD_ABS&) const
-{
-    G_ERI3 g;
-    BuildG_ERI3Columns(Gs(), g.columns);
-    g.kernel.resize(g.columns.size());
-    for (size_t c=0;c<g.columns.size();c++)
-        g.kernel[c]=Recip().CoulombKernel(g.columns[c].dm);   // diagonal Poisson kernel (dm=0 -> 0)
-    g.volume=Volume();
-    return g;
-}
-
-// Overlap 3-centre <G_i G_j|G_c> = delta(G_c,G_i-G_j)/Omega: the delta support, NO kernel (overlap metric).
-// One-time build behind the inherited cached Band_FT_IBS::Overlap3C.  (The XC term's <i|v_xc|j> scatter is
-// the same delta contracted with the fitted v_xc coefficients.)
-G_ERI3 PlaneWave_IBS::MakeOverlap3C(const BasisSet::cFIT_SF_ABS&) const
-{
-    G_ERI3 g;
-    BuildG_ERI3Columns(Gs(), g.columns);
-    g.kernel.clear();                // EMPTY => overlap metric
-    g.volume=Volume();
-    return g;
-}
-
-
-// MakeFourierDensity moved to the shared grid engine (PW_Evaluator, Imp/Evaluator.C) so the SAD seed reaches
-// it through its OWN density-fit basis (a G_FieldEvaluator), not the orbital basis.
+// MakeRepulsion3C/MakeOverlap3C (the D-free {G} 3-centre tensor builds) moved to the shared grid engine
+// (PW_Evaluator::Repulsion3CTensor/Overlap3CTensor); EPW_Orbital_DFT_IBS forwards the Band_FT_IBS virtuals to
+// them.  MakeFourierDensity likewise moved (PW_Evaluator), so the SAD seed reaches it through its OWN fit basis.
 
 // Scalar integral integral f d3r over the cell: uniform-grid quadrature (weight Omega/Npts).
 double PlaneWave_IBS::Integral(const ScalarFunction<double>& f) const
@@ -163,29 +113,15 @@ double PlaneWave_IBS::Integral(const ScalarFunction<double>& f) const
     return s*Volume()/double(frac.size());
 }
 
-// Bare-Coulomb electron-nucleus attraction in reciprocal space: bare -Z/r is the bare-Coulomb local model.
-//   <G|V|G'> = V(dG) = -(4 pi / Omega) Sum_a Z_a e^{-i dG.tau_a} / |dG|^2,   dG = G-G' != 0.
-// The dG=0 term (the divergent G=0 Coulomb component) is dropped -- the conventional uniform background.
-chmat_t PlaneWave_IBS::MakeNuclear(const Structure* cl) const
-{
-    return MakeLocalPotential(cl, Pseudopotential::BareCoulomb{});   // bare -Z/r is the bare-Coulomb local model
-}
+// MakeNuclear (bare-Coulomb 1E block) moved to the evaluator (PW_Evaluator::NuclearMatrix), inherited via
+// EPW_Orbital1E_IBS.
 
-// V(dG) = (1/Omega) Sum_a v(Z_a,|dG|^2) e^{-i dG.tau_a}, dG=0 dropped (neutralising background).
-// The result is Hermitian: V(-dG) = conj(V(dG)) since the structure factor conjugates under dG -> -dG
-// (the real form factor v is even).
+// The external LOCAL pseudopotential: forward to the shared structure-factor assembly on the grid engine
+// (PW_Evaluator::LocalPotentialMatrix) with this model's form factor.  The Integrals_Pseudo capability stays
+// here (it owns the LocalPotential model); the assembly loop lives ONCE on the evaluator (also drives MakeNuclear).
 chmat_t PlaneWave_IBS::MakeLocalPotential(const Structure* cl, const Pseudopotential::LocalPotential& loc) const
 {
-    const UnitCell& B=Recip().GetCell();
-    return MakePotential([&](const ivec3_t& dm)->dcmplx
-    {
-        if (dm.x==0 && dm.y==0 && dm.z==0) return dcmplx(0.0); // drop dG=0
-        rvec3_t dG=B.ToCartesian(rvec3_t(dm));                  // dG = B.dm (Cartesian)
-        double g2=dG*dG;
-        dcmplx acc(0.0);                                        // (form factor) x (structure factor)
-        for (Atom* a : *cl) acc += loc.FormFactor(a->itsZ,g2)*std::exp(dcmplx(0.0,-(dG*a->itsR)));
-        return acc/Volume();
-    });
+    return LocalPotentialMatrix(cl, [&loc](int Z, double g2){ return loc.FormFactor(Z,g2); });
 }
 
 // V_NL(G,G') = (1/Omega) Sum_a e^{-i(G-G').tau_a} Sum_p (2l_p+1) P_{l_p}(cos gamma) betã_p(|k+G|) D_p

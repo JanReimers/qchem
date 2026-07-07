@@ -2,7 +2,7 @@
 //
 // The plane-wave analog of BasisSet/Molecule/IrrepBasisSet.C (module qchem.BasisSet.Molecule.IBS): the
 // interface virtuals whose bodies are pure grid geometry are basis-agnostic and driven by the evaluator,
-// so they live here once, templated on the evaluator E (constrained by isPW_Evaluator), and a concrete
+// so they live here once, templated on the evaluator E (constrained by isPW_1E_Evaluator / isPW_DFT_Evaluator), and a concrete
 // plane-wave basis (the orbital PlaneWave_IBS, its auxiliary density-fit basis, and APW/LAPW later) reuses
 // them by instantiating the mixins with its own evaluator.
 //
@@ -12,8 +12,11 @@
 module;
 export module qchem.BasisSet.Lattice_3D.IBS;
 import qchem.BasisSet.IrrepBasisSet;                  // IrrepBasisSet<dcmplx> (op()(r), GetNumFunctions)
-import qchem.BasisSet.Orbital_1E_IBS;                 // Orbital_1E_IBS<dcmplx> (MakeOverlap/MakeKinetic)
-import qchem.BasisSet.Lattice_3D.Evaluators.PW;       // PW_Evaluator + isPW_Evaluator
+import qchem.BasisSet.Orbital_1E_IBS;                 // Orbital_1E_IBS<dcmplx> (MakeOverlap/MakeKinetic/MakeNuclear)
+import qchem.BasisSet.Band_FT_IBS;                    // Band_FT_IBS (MakeRepulsion3C/MakeOverlap3C) + G_ERI3
+import qchem.BasisSet.Fit_IBS;                        // cFIT_CD_ABS / cFIT_SF_ABS (the 3-centre fit-basis args)
+import qchem.BasisSet.Lattice_3D.Evaluators.PW;       // PW_Evaluator + isPW_1E_Evaluator / isPW_DFT_Evaluator
+import qchem.Structure;                               // Structure (MakeNuclear arg)
 import qchem.Types;                                   // cvec_t, cvec3vec_t, chmat_t, rvec3_t
 
 export namespace qchem::BasisSet::Lattice_3D
@@ -21,7 +24,7 @@ export namespace qchem::BasisSet::Lattice_3D
 
 // --- Shared tier: the IrrepBasisSet<dcmplx> evaluation + sizing that BOTH the orbital and the auxiliary
 // (density-fit) plane-wave basis reuse, forwarded to the evaluator.  A cFIT_CD_ABS needs nothing more.
-template <class E> requires isPW_Evaluator<E>
+template <class E> requires isPW_1E_Evaluator<E>
 class EPW_Irrep_IBS
     : public virtual IrrepBasisSet<dcmplx>
 {
@@ -33,9 +36,9 @@ protected:
     const E& Cast() const {return dynamic_cast<const E&>(*this);}
 };
 
-// --- Orbital 1E tier: the <p^2>/overlap building blocks (matrix-delivery), on top of the shared tier.
+// --- Orbital 1E tier: the one-electron matrices (overlap/kinetic/nuclear), on top of the shared tier.
 // Used by the ORBITAL PlaneWave_IBS; an auxiliary fit basis does not carry these.
-template <class E> requires isPW_Evaluator<E>
+template <class E> requires isPW_1E_Evaluator<E>
 class EPW_Orbital1E_IBS
     : public EPW_Irrep_IBS<E>
     , public virtual Orbital_1E_IBS<dcmplx>
@@ -44,6 +47,21 @@ class EPW_Orbital1E_IBS
 public:
     virtual chmat_t MakeOverlap() const override {return Cast().OverlapMatrix();}
     virtual chmat_t MakeKinetic() const override {return Cast().KineticMatrix();}
+    virtual chmat_t MakeNuclear(const Structure* cl) const override {return Cast().NuclearMatrix(cl);}
+};
+
+// --- Orbital DFT tier: the D-free reciprocal-space 3-centre tensors, forwarded to the evaluator.  Supplies
+// the Band_FT_IBS one-time builds (the cached Repulsion3C/Overlap3C accessors call these).  The fit-basis
+// arg is the delta support's declared cover (orbital-{G} intrinsic today), so it is not threaded to the
+// evaluator yet -- GPW, whose density fit-grid does matter, will thread it here.
+template <class E> requires isPW_DFT_Evaluator<E>
+class EPW_Orbital_DFT_IBS
+    : public virtual Band_FT_IBS
+{
+protected:
+    virtual G_ERI3 MakeRepulsion3C(const cFIT_CD_ABS&) const override {return Cast().Repulsion3CTensor();}
+    virtual G_ERI3 MakeOverlap3C  (const cFIT_SF_ABS&) const override {return Cast().Overlap3CTensor();}
+    const E& Cast() const {return dynamic_cast<const E&>(*this);}
 };
 
 } //namespace

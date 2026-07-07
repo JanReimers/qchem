@@ -59,10 +59,28 @@ public:
     // --- 1E matrices (matrix-delivery, orbital tier) ---
     chmat_t OverlapMatrix() const;   //!< Identity (plane waves orthonormal over the cell)
     chmat_t KineticMatrix() const;   //!< diagonal \f$|k+G|^2=\langle p^2\rangle\f$ (no 1/2)
+    //! \brief Bare-Coulomb electron-nucleus attraction \f$\langle G|V|G'\rangle=-\frac{4\pi}\Omega\sum_a
+    //! Z_a e^{-i\Delta G\cdot\tau_a}/|\Delta G|^2\f$ (\f$\Delta G=0\f$ dropped): the 1E nuclear block, the
+    //! plane-wave analogue of the atom evaluator's \f$Z\langle a|1/r|b\rangle\f$.  Drives \c MakeNuclear.
+    chmat_t NuclearMatrix(const Structure* cl) const;
+    //! \brief Reusable local-potential assembly \f$\langle G|V|G'\rangle=\frac1\Omega\sum_a f(Z_a,|\Delta
+    //! G|^2)e^{-i\Delta G\cdot\tau_a}\f$ (\f$\Delta G=0\f$ dropped) from a per-species form factor \a f.
+    //! \c NuclearMatrix is this with \f$f=-4\pi Z/|\Delta G|^2\f$; a pseudopotential term reuses it verbatim.
+    chmat_t LocalPotentialMatrix(const Structure* cl,
+                                 const std::function<double(int Z, double g2)>& formFactor) const;
 
     //! \brief Assemble \f$\langle G|V|G'\rangle=\tilde V(m(G)-m(G'))\f$ from a caller-supplied G-space
     //! potential keyed by the reciprocal-index difference.  The reusable G-space assembly primitive.
     chmat_t MakePotential(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const override;
+
+    // --- DFT 3-centre tensors (density-driven, orbital tier): the D-free reciprocal-space gathers over THIS
+    //     engine's own {G}.  Drive the Band_FT_IBS MakeRepulsion3C/MakeOverlap3C (cached one level up). ---
+    //! \brief Coulomb tensor \f$\langle G_iG_j|G_c\rangle=(4\pi/|G_c|^2)\,\delta_{G_c,G_i-G_j}/\Omega\f$: the
+    //! delta support with the diagonal Poisson kernel filled (\f$\Delta m=0\to0\f$).
+    G_ERI3 Repulsion3CTensor() const;
+    //! \brief Overlap tensor \f$\langle G_iG_j|G_c\rangle=\delta_{G_c,G_i-G_j}/\Omega\f$: the delta support,
+    //! empty kernel (overlap metric).
+    G_ERI3 Overlap3CTensor() const;
 
     // --- G_FieldEvaluator: evaluate a coefficient map as a real field (via this evaluator's B) ---
     double  EvalField        (const ΔG_Map& c, const rvec3_t& r) const override;
@@ -115,15 +133,27 @@ private:
     mutable rvec3vec_t   itsGridPoints;
 };
 
-//! \brief The plane-wave evaluator concept the EPW_* IBS mixins template against (mirrors the molecular
-//! Evaluators concepts).  A single evaluator today; the concept documents the contract as more arrive.
-template <class E> concept isPW_Evaluator = requires (const E e, const rvec3_t& r)
+//! \brief The plane-wave 1E evaluator concept the EPW_Orbital1E_IBS mixin templates against (mirrors the
+//! molecular/atom \c is1E_Evaluator).  Grid evaluation (size/Eval) + the one-electron matrices
+//! (overlap/kinetic/nuclear).  A single evaluator today; the concept documents the contract as more arrive
+//! (GPW supplies its own \c isPW_1E_Evaluator model, and the mixin is reused unchanged).
+template <class E> concept isPW_1E_Evaluator = requires (const E e, const rvec3_t& r, const Structure* cl)
 {
-    {e.size()          } -> std::same_as<size_t>;
-    {e.Eval(r)         } -> std::same_as<cvec_t>;
-    {e.EvalGradient(r) } -> std::same_as<cvec3vec_t>;
-    {e.OverlapMatrix() } -> std::same_as<chmat_t>;
-    {e.KineticMatrix() } -> std::same_as<chmat_t>;
+    {e.size()             } -> std::same_as<size_t>;
+    {e.Eval(r)            } -> std::same_as<cvec_t>;
+    {e.EvalGradient(r)    } -> std::same_as<cvec3vec_t>;
+    {e.OverlapMatrix()    } -> std::same_as<chmat_t>;
+    {e.KineticMatrix()    } -> std::same_as<chmat_t>;
+    {e.NuclearMatrix(cl)  } -> std::same_as<chmat_t>;
+};
+
+//! \brief The plane-wave DFT evaluator concept the EPW_Orbital_DFT_IBS mixin templates against (mirrors the
+//! atom \c isDFT_Evaluator): the D-free reciprocal-space 3-centre tensors on top of the 1E tier.  GPW
+//! supplies its own model (Gaussian orbitals, PW density) and reuses the mixin unchanged.
+template <class E> concept isPW_DFT_Evaluator = isPW_1E_Evaluator<E> && requires (const E e)
+{
+    {e.Repulsion3CTensor()} -> std::same_as<G_ERI3>;
+    {e.Overlap3CTensor()  } -> std::same_as<G_ERI3>;
 };
 
 } //namespace

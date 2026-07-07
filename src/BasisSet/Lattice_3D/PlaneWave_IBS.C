@@ -35,8 +35,8 @@ export namespace qchem::BasisSet::Lattice_3D
 //! \brief Plane-wave basis for a single k-point: the normalised waves
 //! \f$ e^{i(k+G)\cdot r}/\sqrt V \f$ over the cutoff set \f$\{G:\tfrac12|k+G|^2<E_{cut}\}\f$.
 class PlaneWave_IBS
-    : public EPW_Orbital1E_IBS<PW_Evaluator>          // op()/Gradient/GetNumFunctions/MakeOverlap/MakeKinetic
-    , public virtual BasisSet::Band_FT_IBS            // G-space DFT (rho-tilde -> Hartree, FFT XC)
+    : public EPW_Orbital1E_IBS<PW_Evaluator>          // op()/Gradient/GetNumFunctions/MakeOverlap/MakeKinetic/MakeNuclear
+    , public EPW_Orbital_DFT_IBS<PW_Evaluator>        // G-space DFT: MakeRepulsion3C/MakeOverlap3C (IS-A Band_FT_IBS)
     , public virtual Pseudopotential::Integrals_Pseudo<dcmplx> // G-space external pseudopotential assembly (V_loc + V_NL)
     , public         BasisSet::IrrepBasisSetImp<dcmplx> // supplies GetSymmetry/GetSymt/GetIrrep + itsSymmetry
     , public         PW_Evaluator                     // the shared grid engine (Cast() target for the mixins)
@@ -57,11 +57,11 @@ public:
     PlaneWave_IBS(const ReciprocalLattice& recip, const ivec3_t& N,
                   const ivec3_t& kIndex, double Ecut);
 
-    // --- Band_FT_IBS capability: density-driven KS assembly in reciprocal space (orbital-only). ---
-    // The public cached accessors Repulsion3C(c)/Overlap3C(c) are inherited from Band_FT_IBS (they route
-    // through theCache<dcmplx>()); this basis supplies only the one-time BUILDS below.  (MakeFourierDensity --
-    // the SAD seed's structure-factor density -- is inherited from the PW_Evaluator grid engine
-    // (G_FieldEvaluator), so the seed reaches it through its own fit basis, not this orbital basis.)
+    // --- Band_FT_IBS capability: density-driven KS assembly in reciprocal space. ---
+    // ENTIRELY on the evaluator now: the cached accessors Repulsion3C(c)/Overlap3C(c) come from Band_FT_IBS
+    // (theCache<dcmplx>()), their one-time builds from EPW_Orbital_DFT_IBS forwarding to the evaluator's
+    // Repulsion3CTensor()/Overlap3CTensor(), and MakeFourierDensity (the SAD seed's rho-tilde) from the
+    // PW_Evaluator grid engine (G_FieldEvaluator).  This basis adds nothing here.
 
     // --- Real-space DFT-integration oracles (test-only): the same questions a future Band_DFT_IBS<T>
     // implementer (e.g. GPW: Gaussian orbitals, PW/FFT density) would answer, kept here as independent
@@ -73,8 +73,9 @@ public:
     chmat_t Repulsion(const ScalarFunction<double>& rho) const;          //!< <i|V_Coul[rho]|j> (test oracle)
     double  Integral (const ScalarFunction<double>& f) const;           //!< integral f d3r (test oracle)
 
-    // --- 1E nuclear + external pseudopotential (own the atom/model data). ---
-    virtual chmat_t MakeNuclear (const Structure*) const override;  //!< Bare-Coulomb structure factor.
+    // --- External pseudopotential assembly (owns the atom/model data). ---
+    // (MakeNuclear -- the bare-Coulomb 1E block -- is now on the evaluator (NuclearMatrix), inherited via
+    //  EPW_Orbital1E_IBS, so it is no longer declared here.)
 
     //! \brief Assemble any local external potential \f$\langle G|V|G'\rangle=\frac1\Omega\sum_a
     //! v(Z_a,|\Delta G|^2)e^{-i\Delta G\cdot\tau_a}\f$, \f$\Delta G\ne 0\f$ (\f$\Delta G=0\f$ dropped).
@@ -93,14 +94,6 @@ public:
     virtual std::string BasisSetID() const override; // geometry-aware cache key (Name + k, Ecut, nG)
 
     virtual std::ostream& Write(std::ostream&) const override;
-
-protected:
-    //! \brief One-time build of the density-free \f$\{G\}\f$ Coulomb 3-centre tensor (delta support +
-    //! diagonal \f$4\pi/|G_c|^2\f$ kernel).  Called once by the inherited cached \c Repulsion3C.
-    virtual G_ERI3 MakeRepulsion3C(const BasisSet::cFIT_CD_ABS& c) const override;
-    //! \brief One-time build of the density-free \f$\{G\}\f$ overlap 3-centre tensor (delta support, empty
-    //! kernel).  Called once by the inherited cached \c Overlap3C.
-    virtual G_ERI3 MakeOverlap3C(const BasisSet::cFIT_SF_ABS& c) const override;
 };
 
 } //namespace
