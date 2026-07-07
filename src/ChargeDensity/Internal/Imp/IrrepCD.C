@@ -21,7 +21,7 @@ namespace qchem::ChargeDensity
 // The density-freshness serial source (Version()) now lives in qchem.ChargeDensity as a SINGLE shared
 // counter (NextDensityVersion): every density kind must draw from the same global clock or their serials
 // collide across kinds and a dynamic term reuses a stale cached matrix (see the module doc + the SAD seed
-// types NumericCD/FourierSeedCD, which also stamp from it).
+// types NumericCD/SeedCD, which also stamp from it).
 
 typedef Vector3D<std::complex<double> > Vec3;
 

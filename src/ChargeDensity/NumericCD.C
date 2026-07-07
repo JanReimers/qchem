@@ -13,7 +13,7 @@
 // like every finite density it IS-A Fitting::ProjectedDensity_AO.  Having no matrix, its UNCONSTRAINED fit is
 // an OVERLAP-metric fit of its own rho(r), c0 = S^-1<f|rho> -- so it overrides GetUnconstrainedFit directly
 // (the metric is a strategy dispatched by polymorphism) and never provides a Coulomb RHS.  This mirrors how the
-// plane-wave seed (FourierSeedCD) owns its GetFourierDensity, and keeps FittedCD ignorant that seeding exists.
+// plane-wave seed (SeedCD) owns its GetFourierDensity, and keeps FittedCD ignorant that seeding exists.
 // (Item F: the fake J^-1(J.e)=e round-trip and its Coulomb-face cross-cast are GONE; only the honest overlap
 // cross-cast -- an "I want more" capability request for the S metric -- remains.)
 module;

@@ -18,7 +18,7 @@ export namespace qchem::ChargeDensity
 {
 
 //! Hand out the next TRANSIENT density-freshness serial -- the monotonic logical clock the dynamic-term
-//! caches key on (Version()).  EVERY concrete density (IrrepCD, NumericCD, FourierSeedCD, ...) MUST
+//! caches key on (Version()).  EVERY concrete density (IrrepCD, NumericCD, SeedCD, ...) MUST
 //! draw from this ONE counter: a serial that collides across density KINDS makes a dynamic term reuse a
 //! stale cached matrix (the iter-0 seed Fock for the iter-1 working density), silently breaking the SCF --
 //! see [[project_hamiltonian_dynamic_cache_bug]].  A SINGLE program-wide std::atomic (not per-T: the cache

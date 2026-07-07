@@ -1,4 +1,4 @@
-// File: ChargeDensity/FourierSeedCD.C  Plane-wave (G-space) superposition-of-atomic-densities seed.
+// File: ChargeDensity/SeedCD.C  Plane-wave (G-space) superposition-of-atomic-densities seed.
 //
 // The reciprocal-space twin of NumericCD: the SAD seed for the plane-wave (dcmplx) path.  rho-tilde(G) =
 // Sum_atoms F(Z,|G|) e^{-iG.R} -- the ANALYTIC structure-factor assembly of the per-species radial form
@@ -13,7 +13,7 @@ module;
 #include <string>
 #include <vector>
 #include <cstddef>
-export module qchem.ChargeDensity.FourierSeedCD;
+export module qchem.ChargeDensity.SeedCD;
 export import qchem.ChargeDensity;                 // tChargeDensity<dcmplx>
 export import qchem.ChargeDensity.FourierDensity;  // FourierDensity, ΔG_Map
 import qchem.ChargeDensity.AtomicDensity;          // RadialDensity, RecentredAtomicDensity, GetAtomicDensity
@@ -25,7 +25,7 @@ import qchem.ScalarFunction;                        // ScalarFunction<double>
 export namespace qchem::ChargeDensity
 {
 
-class FourierSeedCD
+class SeedCD
     : public virtual tChargeDensity<dcmplx>
     , public virtual FourierDensity
 {
@@ -36,7 +36,7 @@ public:
     //! IonicSAD multiplier (empty => neutral SAD, all 1.0): species \c Z gets its valence density scaled by
     //! \c (N_val - q_Z)/N_val so the seed carries the formal charge \c q_Z (Na+ -> 0, F- -> 8/7); the total
     //! still integrates to the cell's electron count (sum of charges = 0).
-    FourierSeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Structure* st,
+    SeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Structure* st,
                   const std::string& functional="LDA", const std::map<size_t,double>& ionicScaleByZ = {});
 
     // FourierDensity -- the native G-space representation the PW Hartree/XC terms consume.  The seed carries

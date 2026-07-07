@@ -4,7 +4,7 @@
 // serial that COLLIDES across density kinds makes a term reuse a stale cached matrix (the iter-0 seed Fock
 // for the iter-1 working density -> a false 1-iteration "convergence").  Every density kind must therefore
 // draw from the ONE shared NextDensityVersion clock.  Here we interleave the three kinds -- IrrepCD,
-// NumericCD, FourierSeedCD -- and assert their serials are strictly increasing in construction
+// NumericCD, SeedCD -- and assert their serials are strictly increasing in construction
 // order (hence all distinct, monotonic, and never the reserved 0 sentinel).
 #include "gtest/gtest.h"
 #include <vector>
@@ -13,7 +13,7 @@ import qchem.ChargeDensity;                     // Lineage / LineagePtr (the Lay
 import qchem.CompositeCD;                       // tComposite_CD<double> (a top-level, lineage-tracked density)
 import qchem.ChargeDensity.Imp.IrrepCD;        // IrrepCD<double> (tests may import Internal)
 import qchem.ChargeDensity.NumericCD;  // NumericCD (molecular SAD seed)
-import qchem.ChargeDensity.FourierSeedCD;      // FourierSeedCD (plane-wave SAD seed)
+import qchem.ChargeDensity.SeedCD;      // SeedCD (plane-wave SAD seed)
 import qchem.Lattice_3D;                        // UnitCell, Lattice_3D
 import qchem.BasisSet.Lattice_3D.BasisSet;      // L3::Factory(PW,...), Complex_BS
 import qchem.BasisSet.Band_FT_IBS;              // Band_FT_IBS
@@ -25,7 +25,7 @@ using namespace qchem::ChargeDensity;
 TEST(DensityVersion, DistinctAndMonotonicAcrossKinds)
 {
     // A minimal plane-wave block + a one-atom (Si, in atomic_valence_densities.json) structure for the
-    // FourierSeedCD.  Tiny Ecut: we only construct, never run the SCF or GetFourierDensity.
+    // SeedCD.  Tiny Ecut: we only construct, never run the SCF or GetFourierDensity.
     namespace L3 = ::qchem::BasisSet::Lattice_3D;
     UnitCell   cell(10.0);
     cell.AddAtom(14, rvec3_t(0,0,0));            // Si (Z=14)
@@ -40,7 +40,7 @@ TEST(DensityVersion, DistinctAndMonotonicAcrossKinds)
     NumericCD c1(8.0);                                   v.push_back(c1.Version());
     IrrepCD<double>   b;                                         v.push_back(b.Version());
     std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(ftbs->CreateCDFitBasisSet(lat.GetStructure().get(), qcMesh::MeshParams{}));
-    FourierSeedCD     f(fb, lat.GetStructure().get(), "LDA");    v.push_back(f.Version());
+    SeedCD     f(fb, lat.GetStructure().get(), "LDA");    v.push_back(f.Version());
     NumericCD c2(4.0);                                   v.push_back(c2.Version());
 
     EXPECT_GT(v.front(), 0u) << "0 is the reserved 'no density yet' sentinel";

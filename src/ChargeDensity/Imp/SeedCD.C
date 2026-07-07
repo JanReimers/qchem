@@ -1,4 +1,4 @@
-// File: ChargeDensity/Imp/FourierSeedCD.C  Plane-wave SAD seed (G-space form-factor assembly).
+// File: ChargeDensity/Imp/SeedCD.C  Plane-wave SAD seed (G-space form-factor assembly).
 module;
 #include <cassert>
 #include <cmath>
@@ -10,7 +10,7 @@ module;
 #include <cstddef>
 #include <utility>
 
-module qchem.ChargeDensity.FourierSeedCD;
+module qchem.ChargeDensity.SeedCD;
 import qchem.ReciprocalLattice;        // ReciprocalLattice + UnitCell::MakeReciprocalCell (the seed's own Poisson metric)
 import qchem.BasisSet.G_FieldEvaluator; // the fit basis's grid engine (its analytic MakeFourierDensity)
 
@@ -24,12 +24,12 @@ namespace
 ReciprocalLattice ReciprocalOf(const Structure* st)
 {
     const UnitCell* cell=dynamic_cast<const UnitCell*>(st);
-    assert(cell && "FourierSeedCD is periodic: its Structure must be a UnitCell");
+    assert(cell && "SeedCD is periodic: its Structure must be a UnitCell");
     return ReciprocalLattice(cell->MakeReciprocalCell());
 }
 } //anon
 
-FourierSeedCD::FourierSeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Structure* st,
+SeedCD::SeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Structure* st,
                              const std::string& functional, const std::map<size_t,double>& ionicScaleByZ)
     : itsFitBasis(fitBasis), itsStructure(st), itsRecip(ReciprocalOf(st)), itsCharge(0.0)
     , itsVersion(NextDensityVersion())   // shared global clock (no cross-kind collisions)
@@ -57,7 +57,7 @@ FourierSeedCD::FourierSeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBas
 // rho-tilde(G) = (1/Omega) Sum_atoms F(Z,|B.G|) e^{-i(B.G).R}: the seed's OWN density-fit basis (its grid
 // engine) does the analytic structure-factor assembly over its {G}; we supply the per-species form factor
 // (the valence density's 1-D radial Fourier transform).  Memoize the FT per (Z,g2) -- many G share |G|.
-ΔG_Map FourierSeedCD::StructureFactorDensity() const
+ΔG_Map SeedCD::StructureFactorDensity() const
 {
     auto memo = std::make_shared<std::map<std::pair<int,double>,double>>();
     auto formFactor = [this,memo](int Z, double g2)->double
@@ -73,13 +73,13 @@ FourierSeedCD::FourierSeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBas
         return s*ff;
     };
     auto* ge=dynamic_cast<const BasisSet::G_FieldEvaluator*>(itsFitBasis.get());
-    assert(ge && "FourierSeedCD's density-fit basis must be a G_FieldEvaluator (plane-wave grid engine)");
+    assert(ge && "SeedCD's density-fit basis must be a G_FieldEvaluator (plane-wave grid engine)");
     return ge->MakeFourierDensity(itsStructure, formFactor);
 }
 
 // The seed's metric-free rho-tilde: no D to contract, so it IS the structure-factor density (the Vxc fit
 // basis argument is ignored -- the seed's support is the orbital difference set, like every rho-tilde).
-ΔG_Map FourierSeedCD::GetFourierDensity(const BasisSet::cFIT_SF_ABS&) const
+ΔG_Map SeedCD::GetFourierDensity(const BasisSet::cFIT_SF_ABS&) const
 {
     return StructureFactorDensity();
 }
@@ -87,7 +87,7 @@ FourierSeedCD::FourierSeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBas
 // The seed's Coulomb projection V_H = 4pi rho-tilde/|G|^2: apply the diagonal Poisson kernel (reciprocal-
 // LATTICE physics -- needs only B, not the basis's {G} set) to the structure-factor rho-tilde.  The seed
 // owns its reciprocal lattice (itsRecip, built at construction), so there is NO basis round-trip.
-ΔG_Map FourierSeedCD::GetRepulsion3C(const BasisSet::cFIT_CD_ABS&) const
+ΔG_Map SeedCD::GetRepulsion3C(const BasisSet::cFIT_CD_ABS&) const
 {
     ΔG_Map VH;
     for (const auto& [dm,rt] : StructureFactorDensity())
@@ -95,14 +95,14 @@ FourierSeedCD::FourierSeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBas
     return VH;
 }
 
-double FourierSeedCD::operator()(const rvec3_t& r) const
+double SeedCD::operator()(const rvec3_t& r) const
 {
     double rho=0;   // itsRecentred is parallel to the structure's atoms -> per-atom IonicSAD scale by Z
     for (size_t i=0;i<itsRecentred.size();i++) rho += itsScaleByZ.at((*itsStructure)[i]->itsZ) * itsRecentred[i](r);
     return itsScale*rho;
 }
 
-rvec3_t FourierSeedCD::Gradient(const rvec3_t& r) const
+rvec3_t SeedCD::Gradient(const rvec3_t& r) const
 {
     rvec3_t g(0,0,0);
     for (size_t i=0;i<itsRecentred.size();i++)
@@ -110,7 +110,7 @@ rvec3_t FourierSeedCD::Gradient(const rvec3_t& r) const
     return itsScale*g;
 }
 
-void FourierSeedCD::ReScale(double factor)
+void SeedCD::ReScale(double factor)
 {
     itsScale *= factor;
     itsVersion = NextDensityVersion();
