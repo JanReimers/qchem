@@ -81,22 +81,17 @@ chmat_t PlaneWave_IBS::Overlap(const ScalarFunction<double>& f) const
         { auto it=vt.find(dm); return it==vt.end()?dcmplx(0.0):it->second; });
 }
 
-// Coulomb repulsion matrix + energy for a density rho: sample on the grid, forward-DFT to rho-tilde, then
-// the G-space (1/r12) solve.
+// Coulomb repulsion matrix for a real-space density rho (TEST ORACLE): sample on the grid, forward-DFT to
+// rho-tilde, then the G-space Poisson solve V_H(dm)=4pi rho-tilde(dm)/|G|^2 assembled as <i|V_H|j>=V_H(G_i-G_j)
+// (dm=0 dropped).  The diagonal kernel is the reciprocal lattice's (Recip().CoulombKernel); MakePotential does
+// the assembly.  (Production builds the Hartree matrix from the density's Repulsion3C tensor, not this route.)
 chmat_t PlaneWave_IBS::Repulsion(const ScalarFunction<double>& rho) const
 {
     std::vector<rvec3_t> frac=UniformGrid(AutoGrid());
     UnitCell A=Recip().GetCell().MakeReciprocalCell();
     std::vector<double> field(frac.size());
     for (size_t q=0;q<frac.size();q++) field[q]=rho(A.ToCartesian(frac[q]));
-    return Repulsion(ForwardDFTDiffSet(Gs(),frac,field));
-}
-
-// Hartree directly from the density's G-space coefficients rho-tilde (the FFT-free Poisson solve):
-//   V_H(dm) = 4 pi rho-tilde(dm)/|G|^2,   E_H = (Omega/2) Sum_{G!=0} 4 pi |rho-tilde|^2/|G|^2,  dm=0 dropped.
-// The diagonal kernel 4pi/G^2 is the reciprocal lattice's (Recip().CoulombKernel), borrowed here.
-chmat_t PlaneWave_IBS::Repulsion(const ΔG_Map& rg) const
-{
+    ΔG_Map rg=ForwardDFTDiffSet(Gs(),frac,field);
     return MakePotential([this,&rg](const ivec3_t& dm)->dcmplx
     {
         auto it=rg.find(dm);

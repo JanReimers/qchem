@@ -66,9 +66,6 @@ public:
     //! \brief Structure-factor assembly of a per-species radial form factor (the SAD seed density face).
     virtual ΔG_Map MakeFourierDensity(const Structure* atoms,
                           const std::function<double(int Z, double g2)>& formFactor) const override;
-    //! \brief Hartree matrix directly from the density's G-space coefficients \a rho
-    //! (\f$V_H=4\pi\tilde\rho/|B\Delta m|^2\f$).  Energy is a separate query (term's GetEnergy), not returned.
-    virtual chmat_t Repulsion(const ΔG_Map& rho) const override;
 
     // --- Real-space DFT-integration oracles (test-only): the same questions a future Band_DFT_IBS<T>
     // implementer (e.g. GPW: Gaussian orbitals, PW/FFT density) would answer, kept here as independent

@@ -14,11 +14,11 @@ module;
 #include <cassert>
 #include <memory>
 #include <ostream>
+#include <stdexcept>
 export module qchem.Fitting.Internal.OrthoFunctionFitter;
 export import qchem.Fitting.FunctionFitter;  // FunctionFitter_Density/_Scalar<dcmplx>, ProjectedDensity/Scalar_G, ΔG_Map
 import qchem.Fitting.Types;                   // robs_t<dcmplx>
 import qchem.BasisSet.Fit_IBS;                // cFIT_CD_ABS / cFIT_SF_ABS (the held fit bases)
-import qchem.BasisSet.Band_FT_IBS;            // the reciprocal-space assembly the fits delegate to
 import qchem.BasisSet.G_FieldEvaluator;       // the DIP seam: inverse-transform itsMap to real space (op(r))
 import qchem.Blaze;                           // hmat_t<dcmplx>
 
@@ -42,13 +42,14 @@ public:
         itsMap=g->Map();
     }
 
-    //! Coulomb (Hartree) matrix: delegate the FFT-free G-space Poisson solve to the orbital basis, which
-    //! arrives as the common Orbital_1E_IBS base and is cast down to the reciprocal-space capability.
-    virtual hmat_t<dcmplx> Repulsion(const robs_t<dcmplx>* bs) const override
+    //! Coulomb (Hartree) matrix: OBSOLETE.  The plane-wave Hartree matrix is now built from the density's
+    //! Repulsion3C tensor (D contracted to V_H, kernel baked) and assembled by PW_Hartree via MakePotential --
+    //! the density fitter is no longer on that path (it survives only for its evaluatable rho_fit(r) field).
+    //! Nothing calls this; kept to satisfy the FunctionFitter_Density interface, throwing if ever reached.
+    virtual hmat_t<dcmplx> Repulsion(const robs_t<dcmplx>*) const override
     {
-        auto pw=dynamic_cast<const BasisSet::Band_FT_IBS*>(bs);
-        assert(pw && "OrthoFunctionFitter::Repulsion requires a Band_FT_IBS (plane-wave) basis");
-        return pw->Repulsion(itsMap);   // matrix only; the Hartree ENERGY is the 1/2<rho|V_H> DM_Contract in GetEnergy.
+        throw std::logic_error("OrthoFunctionFitter::Repulsion is obsolete: the plane-wave Hartree matrix comes "
+                               "from the density's Repulsion3C tensor (PW_Hartree), not the density fitter.");
     }
 
     //! ScalarFunction (core): the fitted DENSITY rho_fit(r) = Re Σ_dm rho-tilde(dm) e^{i(B·dm)·r}.  We hold

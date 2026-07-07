@@ -98,6 +98,14 @@ qchem::Hamiltonian::PW_XC* NewPWXC(const PlaneWave_IBS& pw, const qchem::Hamilto
     std::unique_ptr<const qchem::BasisSet::cFIT_SF_ABS> vxcfb(pw.CreateVxcFitBasisSet(nullptr, qcMesh::MeshParams{}));
     return ContractG_ERI3(pw.Overlap3C(*vxcfb), D);
 }
+// Hartree matrix from a rho-tilde: <i|V_H|j> = 4pi/|G_i-G_j|^2 rho-tilde(G_i-G_j) (dm=0 dropped).  This is
+// the retired Repulsion(ΔG_Map) route, inlined as a test cross-check (production assembles the same matrix
+// from the density's Repulsion3C tensor via PW_Hartree).
+chmat_t HartreeFromRhoTilde(const PlaneWave_IBS& pw, const ΔG_Map& rt)
+{
+    return pw.MakePotential([&](const ivec3_t& dm)->dcmplx
+        { auto it=rt.find(dm); return it==rt.end()?dcmplx(0.0):pw.Recip().CoulombKernel(dm)*it->second; });
+}
 
 // A ScalarFunction<double> wrapping a lambda f(r) -- to hand real-space fields to the basis's
 // high-level integral methods (Overlap/Repulsion/Integral).
@@ -1435,7 +1443,7 @@ TEST_F(PlaneWaveDFT, HartreeFromFourierMatchesPointwise)
     qchem::ChargeDensity::IrrepCD<dcmplx> cd(D, &pw, irr);   // IS-A ScalarFunction rho(r)=phi^H D phi
 
     chmat_t VA=pw.Repulsion(cd);                             // real-space: sample + ForwardDFT
-    chmat_t VB=pw.Repulsion(RhoTilde(pw, D));       // G-space: direct from D
+    chmat_t VB=HartreeFromRhoTilde(pw, RhoTilde(pw, D));     // G-space: direct from D
 
     double maxd=0;                                           // the matrices agree elementwise => so does any derived E_H
     for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) maxd=std::max(maxd, std::abs(VA(i,j)-VB(i,j)));
