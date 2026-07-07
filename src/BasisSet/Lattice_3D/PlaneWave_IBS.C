@@ -63,11 +63,9 @@ public:
     virtual const G_ERI3& Repulsion3C(const BasisSet::cFIT_CD_ABS& c) const override;
     //! \brief D-free overlap 3-centre tensor (delta support, empty kernel).  Mirrors \c Orbital_DFT_IBS::Overlap3C.
     virtual const G_ERI3& Overlap3C(const BasisSet::cFIT_SF_ABS& c) const override;
-    //! \brief Assemble \f$\langle i|V|j\rangle=V(G_i-G_j)\f$ from potential coefficients keyed by \f$\Delta m\f$
-    //! (\a V already carries its kernel -- a plain lookup, no \f$4\pi/G^2\f$).
-    virtual chmat_t AssemblePotential(const ΔG_Map& V) const override;
     //! \brief \f$V_H(\Delta m)=4\pi\tilde\rho/|G|^2\f$ as a \c ΔG_Map: the diagonal Coulomb kernel applied to a
-    //! density's \f$\tilde\rho\f$ (for a density with no \f$D\f$ to contract -- the SAD seed).
+    //! density's \f$\tilde\rho\f$ (for a density with no \f$D\f$ to contract -- the SAD seed).  Needs the
+    //! reciprocal metric \f$B\f$ (\c GetGCartesian), so it lives on the basis.
     virtual ΔG_Map CoulombKernel(const ΔG_Map& rho) const override;
     //! \brief Structure-factor assembly of a per-species radial form factor (the SAD seed density face).
     virtual ΔG_Map MakeFourierDensity(const Structure* atoms,
@@ -108,6 +106,11 @@ public:
     virtual std::ostream& Write(std::ostream&) const override;
 
 private:
+    //! The diagonal Coulomb (Poisson) kernel \f$4\pi/|B\,\Delta m|^2\f$ (\f$\Delta m=0\to 0\f$, the dropped G=0
+    //! background) -- the ONE place \f$4\pi/G^2\f$ is computed, shared by \c Repulsion / \c Repulsion3C /
+    //! \c CoulombKernel.  Needs the reciprocal metric (\c GetGCartesian).
+    double CoulombKernelAt(const ivec3_t& dm) const;
+
     //! Lazily-built caches of the density-free \f$\{G\}\f$ 3-centre tensors (intrinsic to \f$\{G\}\f$, so valid
     //! for the basis's lifetime regardless of the density) -- the plane-wave analogue of the \c ERI3 cache.
     //! Both share the same delta support; \c itsRepulsion3C additionally carries the diagonal Coulomb kernel.

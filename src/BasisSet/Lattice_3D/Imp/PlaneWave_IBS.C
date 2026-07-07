@@ -92,16 +92,23 @@ chmat_t PlaneWave_IBS::Repulsion(const ScalarFunction<double>& rho) const
     return Repulsion(ForwardDFTDiffSet(Gs(),frac,field));
 }
 
+// The diagonal Coulomb (Poisson) kernel 4pi/|B.dm|^2 -- the ONE place 4pi/G^2 is computed (dm=0 -> 0, the
+// dropped G=0 neutralising background).  Shared by Repulsion / Repulsion3C / CoulombKernel.
+double PlaneWave_IBS::CoulombKernelAt(const ivec3_t& dm) const
+{
+    if (dm.x==0 && dm.y==0 && dm.z==0) return 0.0;
+    rvec3_t G=GetGCartesian(dm);
+    return FourPi/(G*G);
+}
+
 // Hartree directly from the density's G-space coefficients rho-tilde (the FFT-free Poisson solve):
 //   V_H(dm) = 4 pi rho-tilde(dm)/|G|^2,   E_H = (Omega/2) Sum_{G!=0} 4 pi |rho-tilde|^2/|G|^2,  dm=0 dropped.
 chmat_t PlaneWave_IBS::Repulsion(const ΔG_Map& rg) const
 {
     return MakePotential([this,&rg](const ivec3_t& dm)->dcmplx
     {
-        if (dm.x==0 && dm.y==0 && dm.z==0) return dcmplx(0.0);
-        rvec3_t G=GetGCartesian(dm);
         auto it=rg.find(dm);
-        return FourPi*(it==rg.end()?dcmplx(0.0):it->second)/(G*G);
+        return CoulombKernelAt(dm)*(it==rg.end()?dcmplx(0.0):it->second);
     });
 }
 
@@ -140,11 +147,7 @@ const G_ERI3& PlaneWave_IBS::Repulsion3C(const BasisSet::cFIT_CD_ABS&) const
         rvec_t& K=itsRepulsion3C.kernel;
         K.resize(itsRepulsion3C.columns.size());
         for (size_t c=0;c<itsRepulsion3C.columns.size();c++)
-        {
-            const ivec3_t& dm=itsRepulsion3C.columns[c].dm;
-            if (dm.x==0 && dm.y==0 && dm.z==0) K[c]=0.0;                 // drop G=0
-            else { rvec3_t G=GetGCartesian(dm); K[c]=FourPi/(G*G); }     // diagonal Poisson kernel
-        }
+            K[c]=CoulombKernelAt(itsRepulsion3C.columns[c].dm);         // diagonal Poisson kernel (dm=0 -> 0)
         itsRepulsion3C.volume=Volume();
         itsRepBuilt=true;
     }
@@ -166,26 +169,14 @@ const G_ERI3& PlaneWave_IBS::Overlap3C(const BasisSet::cFIT_SF_ABS&) const
     return itsOverlap3C;
 }
 
-// Assemble <i|V|j> = V(G_i-G_j) from potential coefficients keyed by dm (V already carries any kernel, so this
-// is a plain lookup -- the sibling of Repulsion(ΔG_Map), which ADDITIONALLY applies the 4pi/G^2 Coulomb kernel).
-chmat_t PlaneWave_IBS::AssemblePotential(const ΔG_Map& V) const
-{
-    return MakePotential([&V](const ivec3_t& dm)->dcmplx
-        { auto it=V.find(dm); return it==V.end()?dcmplx(0.0):it->second; });
-}
-
 // V_H(dm) = 4pi rho-tilde(dm)/|G|^2 as a ΔG_Map (dm=0 dropped): the diagonal Coulomb kernel applied to a
 // density's rho-tilde.  For a density that carries no D to contract against Repulsion3C (the SAD seed), which
-// produces its V_H this way.  Same float expression as Repulsion(ΔG_Map) so the seed path stays bit-identical.
+// produces its V_H this way.
 ΔG_Map PlaneWave_IBS::CoulombKernel(const ΔG_Map& rg) const
 {
     ΔG_Map V;
     for (const auto& [dm,rt] : rg)
-    {
-        if (dm.x==0 && dm.y==0 && dm.z==0) continue;                    // drop G=0
-        rvec3_t G=GetGCartesian(dm);
-        V[dm]=FourPi*rt/(G*G);
-    }
+        if (double k=CoulombKernelAt(dm); k!=0.0) V[dm]=k*rt;          // skip dm=0 (k==0)
     return V;
 }
 
