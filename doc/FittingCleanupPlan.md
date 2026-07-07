@@ -280,3 +280,67 @@ numeric moves.
 
 All numerics-affecting steps (H, I, K) use a **grid-convergence acceptance test** (NOT ΔE_total — see the
 fit-quality note in the harmonization findings).
+
+---
+
+## Code-review findings (review of the A–K work, 2026-07-06)
+
+Two-session multi-agent review of `d34abd02..HEAD`. **No active correctness bug** in the shipped
+LDA/Γ path — the bit-identity discipline held; the removed-behavior and cross-file finders came back
+empty. What follows is latent fragility, per-iteration waste, and cleanup. Each is tagged with the item
+that should absorb it (not all are C — that was the reviewer's first, wrong, instinct).
+
+**Done already:**
+- ~~#4 — `FittedEpsXc::GetMatrix` re-ran the eps_xc `DoFit` on every energy query (2× per SCF iteration).~~
+  Fixed `3bc17cb8`: guard the fit behind an `itsFitVersion` serial (mirrors `FittedVxc`'s `newCD`); the
+  per-irrep `Overlap` still runs every call. 175 green, bit-identical.
+
+**→ Fold into C (the `dynamic_cast` survey):**
+- ~~**#1 `OrthoScalarFitter::Overlap`** — `dynamic_cast<G_FieldEvaluator*>(bs)` on the caller-supplied orbital
+  basis, `assert`-only → release null-deref UB for a future non-PW complex orbital basis.~~ Done `1e1e9d83`:
+  reference-cast `dynamic_cast<G_FieldEvaluator&>(*bs)` → throws `std::bad_cast` (the `Symmetry::Atom` pry-out
+  convention). The systematic sweep of the rest of the codebase's casts is still C.
+- **#7 two owners of the fit-grid cross-cast** — `PW_XC` caches its own `itsFitGrid` (a `G_FieldEvaluator`
+  cross-cast) for `GetEnergy`, in parallel with the fitter that already holds the same engine. **Update
+  (after #6, `1e1e9d83`):** the *correctness* hazard is GONE — `E_xc` and `v_xc` now both read the one shared
+  `itsRhoGrid`, so they can't be integrated/fit on different grids. What REMAINS is the structural duality:
+  `PW_XC::itsFitGrid` and the fitter's `itsFitBasis` are two cross-casts of the same `fb`. Push the energy
+  quadrature *behind the fitter* so there is one owner of the grid. **✅ DONE:** new narrow
+  `Fitting::GriddedScalarFitter` face (the PW scalar fitter's refinement) exposes `Grid()` → the
+  `G_FieldEvaluator` it already holds; `Factory(cFIT_SF_ABS)` returns it (PW_XC is its only consumer). `PW_XC`
+  dropped `itsFitGrid` and now borrows the ONE grid via `itsScalarFitter->Grid()` (RhoOnGrid / Integral /
+  GridPoints) — no second cross-cast of `fb`. Pure structural refactor, bit-identical (173 + 36 PW/DFT).
+- **Refuted-residual (compile-time-over-runtime)** — `ProjectedDensity_AO::GetRepulsion3C`'s default throws.
+  **Correction:** the reviewer's "pure-virtual / `=delete`" fix does NOT apply — this is an *override-exactly-
+  one-of-two* contract (real densities override `GetRepulsion3C` + use the default Coulomb `GetUnconstrainedFit`;
+  the seed overrides `GetUnconstrainedFit` and never provides a Coulomb RHS). Neither method can be pure without
+  forcing an unwanted override on the other camp, and a virtual can't be `=delete`d — so the throwing default is
+  the CORRECT tool (C++ can't express "override one of two" at compile time). No action required. IF the
+  compile-time-over-runtime tenet is still wanted: make `GetUnconstrainedFit` pure + a protected `CoulombFit(fbs)`
+  helper (real densities override with a one-line `return CoulombFit(fbs);`), costing ~3 boilerplate overrides.
+  C-survey tier.
+
+**→ Fold into K (guards for the future k≠0 / densification path):**
+- ~~**#2 `PWVxcField::operator()(points)`** ignores its `points` argument, validated only by `size()==size()` —
+  a future diagnostic sampling a different same-cardinality point set pairs values to the wrong points.~~ Done
+  `1e1e9d83`: the field is now explicitly GRID-BOUND — pointwise `op(r)` throws (nothing samples it pointwise),
+  and the bulk op asserts point-set IDENTITY (not just size) against the cached `GridPoints()`.
+- ~~**#3 unasserted alias-free invariant in `GridCoeff`** — wraps `Δm` mod N with no `|Δm|<N/2` check.~~ Done
+  `1e1e9d83`: `assert(2|Δm|<N per axis, "densify the fit grid / raise relCutoff")` — the future k≠0 XC block
+  now fails loudly instead of silently aliasing.
+
+**→ New perf item (PW-DFT hot path, no correctness impact):**
+- ~~**#5 PW grid geometry recomputed every call** — `GridPoints()` (N-point mesh + 3×3 inversion) and
+  `AutoGrid()` (O(nG) scan, hit O(n²) times in assembly).~~ Done `1e1e9d83`: `AutoGrid`/`FFTGrid`/`GridPoints`
+  cached lazily on `PW_Evaluator` (depend only on `itsG`); `GridPoints()` returns `const&` (no per-DoFit copy).
+- ~~**#6 `PW_XC::GetEnergy` recomputes `RhoOnGrid`** (a 2nd inverse FFT of the same `ρ̃`); `PWVxcField` copies
+  the `ΔG_Map` by value.~~ Done `1e1e9d83`: newCD-guarded `RefreshRhoGrid` shares ONE inverse FFT across
+  `CalcMatrix`/`GetEnergy`; the field holds the precomputed grid by `const&` and just maps the functional over it.
+
+**→ Cleanup tier (do whenever you touch the file — same tier as G/J):**
+- **#8** `ExFunctional::GetVxcs` batch API is DEAD (0 callers). **Refined:** the "three hand-rolled loops" are
+  really pointwise `op(r)` evals (`SlaterExchange`/`VWN`/`Libxc` — can't batch); only ONE genuine batch site
+  (`PWVxcField`). Recommend DELETE the dead API (YAGNI — reintroduce a batch API when a 2nd caller / vectorized
+  path exists). Lib-side, non-critical.
+- ~~#9 `ProjectedScalar<T>` vestigial → collapse to standalone `ProjectedScalar_R`.~~ Done `daa19555`.
+- ~~#10 stale `ProjectedScalar_G` / `Make*Fitter` comments (`FunctionFitter.C`, `PWTerms.C:14`).~~ Done `daa19555`.

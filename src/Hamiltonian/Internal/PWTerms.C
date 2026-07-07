@@ -12,7 +12,6 @@ module;
 export module qchem.Hamiltonian.Internal.PWTerms;
 import qchem.Hamiltonian.Internal.Term;        // cStatic_HT / cDynamic_HT + their _Imp cache bases
 import qchem.BasisSet.Band_FT_IBS;           // the reciprocal-space capability: Hartree/XC + external PP assembly
-import qchem.BasisSet.G_FieldEvaluator;      // the fit basis's FFT grid engine (the XC quadrature grid source)
 import qchem.BasisSet.Fit_IBS;               // cFIT_CD_ABS (the density-fit basis PW_Hartree is built with)
 import qchem.Fitting.FunctionFitter;         // FunctionFitter_Density<dcmplx> (the fitter PW_Hartree holds, built once)
 import qchem.Pseudopotential.Integrals_Pseudo;    // external-PP operator-assembly mixin + the local/separable models the term owns
@@ -126,10 +125,10 @@ private:
     void RefreshRhoGrid(const cChargeDensity* cd) const;
 
     xc_t itsXc;
-    std::unique_ptr<Fitting::FunctionFitter_Scalar<dcmplx>> itsScalarFitter;   //!< ortho scalar fitter (built once)
-    //! The FIT basis's grid engine (from the fit basis the fitter holds): the XC quadrature grid comes from the
-    //! FIT basis, NOT the orbital basis (so relCutoff / GridCutoffFactor control it).
-    const BasisSet::G_FieldEvaluator* itsFitGrid=nullptr;
+    //! The ortho scalar fitter (built once).  It OWNS the FFT quadrature grid (from the fit basis); the XC
+    //! quadrature comes from the FIT basis, not the orbital basis (so relCutoff / GridCutoffFactor control it).
+    //! The term borrows that ONE grid via itsScalarFitter->Grid() -- no second cross-cast of the fit basis (#7).
+    std::unique_ptr<Fitting::GriddedScalarFitter> itsScalarFitter;
     mutable rvec_t itsRhoGrid;   //!< rho(r) on the fit grid for the current density (CalcMatrix builds; GetEnergy reuses)
 };
 

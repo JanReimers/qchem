@@ -197,15 +197,13 @@ private:
 } // anonymous
 
 // Built once (in Ham_PW_DFT::BuildTerms) with its Vxc fit basis -- the overlap-metric sibling of PW_Hartree.
-// The fit basis's grid engine (itsFitGrid) is the XC QUADRATURE GRID: it comes from the FIT basis, not the
-// orbital basis, so relCutoff / the functional's GridCutoffFactor now actually control the Vxc/E_xc grid.
+// The XC QUADRATURE GRID comes from the FIT basis (not the orbital), so relCutoff / the functional's
+// GridCutoffFactor control the Vxc/E_xc grid.  The fitter OWNS that grid; this term borrows it via
+// itsScalarFitter->Grid() -- one owner, no second cross-cast of the fit basis (#7).
 PW_XC::PW_XC(const xc_t& xc, fbs_t fb)
     : itsXc(xc)
-    , itsScalarFitter(Fitting::Factory(fb))   // the ortho (G-space) scalar fitter, through the factory
-    , itsFitGrid(dynamic_cast<const BasisSet::G_FieldEvaluator*>(fb.get()))   // the fit basis's FFT grid engine
-{
-    assert(itsFitGrid && "PW_XC: the Vxc fit basis must provide the G_FieldEvaluator grid engine");
-}
+    , itsScalarFitter(Fitting::Factory(fb))   // the ortho (G-space) scalar fitter -- owns the FFT quadrature grid
+{}
 PW_XC::~PW_XC() = default;   // itsScalarFitter's abstract type is complete here
 
 // rho(r) on the fit grid for cd -- one inverse FFT, recomputed only on a new density serial (newCD), so
@@ -215,7 +213,7 @@ void PW_XC::RefreshRhoGrid(const cChargeDensity* cd) const
     if (!newCD(cd)) return;
     auto fd=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(cd);
     assert(fd && "PW_XC requires a FourierDensity (periodic) charge density");
-    itsRhoGrid=itsFitGrid->RhoOnGrid(fd->GetFourierDensity());   // on the FIT grid (matches the Vxc quadrature)
+    itsRhoGrid=itsScalarFitter->Grid().RhoOnGrid(fd->GetFourierDensity());   // the FIT grid, borrowed from the fitter
 }
 
 // XC through the pre-built ortho scalar fitter, mirroring the molecular FittedVxc: the fitter batch-samples
@@ -224,7 +222,7 @@ void PW_XC::RefreshRhoGrid(const cChargeDensity* cd) const
 chmat_t PW_XC::CalcMatrix(const cobs_t* bs, const Spin&, const cChargeDensity* cd) const
 {
     RefreshRhoGrid(cd);
-    itsScalarFitter->DoFit(PWVxcField(itsXc.get(), itsRhoGrid, itsFitGrid));
+    itsScalarFitter->DoFit(PWVxcField(itsXc.get(), itsRhoGrid, &itsScalarFitter->Grid()));
     return itsScalarFitter->Overlap(bs);                                        // <i|v_xc|j> (no kernel)
 }
 
@@ -233,7 +231,7 @@ void PW_XC::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
     RefreshRhoGrid(cd);   // reuses CalcMatrix's transform this iteration (same density serial)
     rvec_t exc(itsRhoGrid.size());
     for (size_t q=0;q<itsRhoGrid.size();q++) {double ro=itsRhoGrid[q]; exc[q]=itsXc->GetEpsXc(ro)*ro;}
-    te.Exc += itsFitGrid->Integral(exc);     // E_xc = integral eps_xc(rho) rho on the fit grid
+    te.Exc += itsScalarFitter->Grid().Integral(exc);   // E_xc = integral eps_xc(rho) rho, on the fitter's grid
 }
 
 std::ostream& PW_XC::Write(std::ostream& os) const

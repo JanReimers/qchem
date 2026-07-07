@@ -30,6 +30,7 @@ export import qchem.ScalarFunction;   // ScalarFunction<double> (operator(), Gra
 export import qchem.Math.GMap;       // the pre-computed G-space coefficients a Fourier (PW) fit receives
 import qchem.Fitting.Types;           // robs_t<T>
 import qchem.BasisSet.Fit_IBS;        // rFIT_SF_ABS / rFIT_CD_ABS (the two narrow fit-basis faces)
+import qchem.BasisSet.G_FieldEvaluator; // the FFT quadrature grid engine the PW scalar fitter owns + exposes
 import qchem.Blaze;                   // hmat_t<T>
 
 export namespace qchem::Fitting
@@ -124,6 +125,20 @@ public:
     virtual std::ostream& Write    (std::ostream&) const                   =0;  //!< describe the fit
 };
 
+//! \brief The plane-wave (orthonormal {G}) scalar fitter's richer face: it OWNS the FFT QUADRATURE GRID (a
+//! \c G_FieldEvaluator, borrowed from its fit basis) and EXPOSES it, so a plane-wave XC term runs its
+//! \f$E_{xc}\f$ quadrature THROUGH the fitter -- ONE reference path to the grid, instead of the term
+//! independently cross-casting the same fit basis (the "two owners of the grid" smell).  An AO/molecular
+//! scalar fitter has no such grid, so this refinement is plane-wave-only (hence \c dcmplx).
+class GriddedScalarFitter : public virtual FunctionFitter_Scalar<dcmplx>
+{
+public:
+    //! The fitter's own FFT quadrature grid engine -- the grid the \f$v_{xc}\f$ fit AND the
+    //! \f$E_{xc}=\int\epsilon_{xc}\rho\f$ quadrature share (rho-on-grid, field integral, grid points).  The
+    //! term BORROWS it (the fitter owns it).
+    virtual const BasisSet::G_FieldEvaluator& Grid() const=0;
+};
+
 //! \brief Abstract density fitter -- the MINIMAL CORE a Hartree term needs: fit a density, then contract it
 //! against an orbital basis as a Coulomb (Vee) matrix Sum_a c_a <Oi|f_a/r12|Oj>.  Orthonormality-neutral (no
 //! metric bookkeeping), so an orthonormal (plane-wave) fitter implements this + the evaluatable field and
@@ -168,8 +183,9 @@ Factory(std::shared_ptr<const BasisSet::rFIT_SF_ABS>&);
 //! Create a SCALAR fitter on an ORTHONORMAL (plane-wave, G-space) fit basis.  The projection IS the fit (no
 //! metric solve): DoFit batch-samples the field v_xc(r) on the fit basis's OWN FFT grid and forward-transforms
 //! it, then Overlap looks the coefficients up at the orbital basis's reciprocal-index differences.  The XC
-//! sibling of the ortho density overload.
-std::unique_ptr<FunctionFitter_Scalar<dcmplx>>
+//! sibling of the ortho density overload.  Returns the \c GriddedScalarFitter refinement -- it owns the FFT
+//! quadrature grid and exposes it, so the XC term runs its \f$E_{xc}\f$ quadrature through the fitter.
+std::unique_ptr<GriddedScalarFitter>
 Factory(std::shared_ptr<const BasisSet::cFIT_SF_ABS>&);
 
 //! Create a DENSITY (charge-constrained Coulomb-metric) fitter on the given non-ortho fit basis.  Returns the

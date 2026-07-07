@@ -46,11 +46,12 @@ Factory(std::shared_ptr<const BasisSet::rFIT_SF_ABS>& bs)
     return std::make_unique<FunctionFitterImp<double>>(nonOrtho);
 }
 
-std::unique_ptr<FunctionFitter_Scalar<dcmplx>>
+std::unique_ptr<GriddedScalarFitter>
 Factory(std::shared_ptr<const BasisSet::cFIT_SF_ABS>& bs)
 {
-    // An orthonormal (plane-wave) {G} scalar fit basis: the projection IS the fit, so the minimal core
-    // scalar fitter (no metric solve).  It holds the fit basis but delegates the assembly to the orbital basis.
+    // An orthonormal (plane-wave) {G} scalar fit basis: the projection IS the fit, so no metric solve.  Returns
+    // the GriddedScalarFitter face -- it owns the FFT quadrature grid (from bs) and exposes it, so the XC term
+    // borrows ONE grid instead of cross-casting bs a second time.
     assert(bs->isOrtho() && "Fitting::Factory(cFIT_SF_ABS): a plane-wave potential-fit basis must be orthonormal");
     return std::make_unique<OrthoScalarFitter>(bs);
 }

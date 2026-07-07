@@ -81,11 +81,15 @@ private:
 //! relCutoff / the functional's GridCutoffFactor now actually control the XC quadrature.  Created through
 //! Factory(cFIT_SF_ABS).
 class OrthoScalarFitter
-    : public virtual FunctionFitter_Scalar<dcmplx>
+    : public virtual GriddedScalarFitter
 {
 public:
     typedef std::shared_ptr<const BasisSet::cFIT_SF_ABS> fbs_t;
     explicit OrthoScalarFitter(const fbs_t& fbs) : itsFitBasis(fbs) {}
+
+    //! GriddedScalarFitter: the fitter's own FFT quadrature grid engine (reached from the neutral fit face we
+    //! hold).  The XC term borrows this ONE grid rather than cross-casting the fit basis a second time (#7).
+    virtual const BasisSet::G_FieldEvaluator& Grid() const override {return FitGrid();}
 
     //! The "fit": batch-sample v_xc(r) on the fit basis's own FFT grid, then forward-transform.  Orthonormal
     //! exactness => the projection IS the fit (no metric solve); the field's FFT fast path is its own business.
