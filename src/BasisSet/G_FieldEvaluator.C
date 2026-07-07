@@ -14,6 +14,7 @@ export module qchem.BasisSet.G_FieldEvaluator;
 import qchem.BasisSet.Internal.GMap;   // ΔG_Map (the G-space coefficient map to evaluate)
 import qchem.Types;       // rvec3_t, rvec_t, cvec_t, rvec3vec_t, ivec3_t, dcmplx, chmat_t
 import qchem.Blaze;       // chmat_t = hmat_t<dcmplx> (the assembled operator matrix)
+import qchem.Structure;   // Structure, Atom (MakeFourierDensity's structure-factor sum)
 
 export namespace qchem::BasisSet
 {
@@ -55,6 +56,15 @@ public:
     virtual chmat_t    MakePotential(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const=0;
     //! \f$\int f\,d^3r\f$ on the FFT grid (weight \f$\Omega/N_{pts}\f$) -- the XC energy quadrature on the fit grid.
     virtual double     Integral(const rvec_t& f) const=0;
+
+    //! \brief Analytic structure-factor DENSITY over THIS engine's own \f$\{G\}\f$:
+    //! \f$\tilde\rho(G)=\frac1\Omega\sum_{\text{atoms}} f(Z,|G|^2)\,e^{-iG\cdot R}\f$, with \a f the per-species
+    //! radial form factor (an atomic density's 1-D Fourier transform).  This is the ANALYTIC assembly (no 3-D
+    //! grid, so no aliasing of a peaked density) that builds a SAD seed's \f$\tilde\rho\f$; the seed reaches it
+    //! through its OWN density-fit basis (which is a \c G_FieldEvaluator), never the orbital basis.  Keeps
+    //! \f$G=0\f$ (the total charge).  The density analogue of the pseudopotential's MakeLocalPotential.
+    virtual ΔG_Map MakeFourierDensity(const Structure* atoms,
+                          const std::function<double(int Z, double g2)>& formFactor) const=0;
 };
 
 } //namespace

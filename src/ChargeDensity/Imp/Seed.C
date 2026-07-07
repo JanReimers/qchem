@@ -17,7 +17,9 @@ import qchem.ChargeDensity.Types;            // tobs_t<T>
 import qchem.ChargeDensity.NumericCD;// NumericCD (the molecular SAD seed, double only)
 import qchem.ChargeDensity.FourierSeedCD;    // FourierSeedCD (the plane-wave SAD seed, dcmplx only)
 import qchem.ChargeDensity.AtomicDensity;    // GetAtomicDensity, RadialDensity, RecentredAtomicDensity
-import qchem.BasisSet.Band_FT_IBS;           // Band_FT_IBS (the G-space block for the PW seed)
+import qchem.BasisSet.Band_FT_IBS;           // Band_FT_IBS (the PW block: CreateCDFitBasisSet for the seed)
+import qchem.BasisSet.Fit_IBS;               // cFIT_CD_ABS (the density-fit basis the PW seed builds through)
+import qchem.Mesh;                            // qcMesh::MeshParams (CreateCDFitBasisSet arg)
 import qchem.Structure;                       // Structure, Atom (atom Z + positions)
 import qchem.Blaze;                           // blazem::zeroH, hmat_t
 import qchem.Types;                           // dcmplx
@@ -108,7 +110,8 @@ template <class T> tChargeDensity<T>* MakeSeedDensity(SeedStrategy s, const Basi
             assert(st && "SAD plane-wave seed needs a Structure");
             const auto* ftbs = dynamic_cast<const BasisSet::Band_FT_IBS*>((*bs)[0]);
             assert(ftbs && "SAD plane-wave seed needs a Band_FT_IBS (plane-wave) basis");
-            return new FourierSeedCD(ftbs, st);
+            std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(ftbs->CreateCDFitBasisSet(st, qcMesh::MeshParams{}));
+            return new FourierSeedCD(fb, st);
         }
     }
     case SeedStrategy::IonicSAD:
@@ -123,6 +126,7 @@ template <class T> tChargeDensity<T>* MakeSeedDensity(SeedStrategy s, const Basi
             assert(st && "IonicSAD plane-wave seed needs a Structure");
             const auto* ftbs = dynamic_cast<const BasisSet::Band_FT_IBS*>((*bs)[0]);
             assert(ftbs && "IonicSAD plane-wave seed needs a Band_FT_IBS (plane-wave) basis");
+            std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(ftbs->CreateCDFitBasisSet(st, qcMesh::MeshParams{}));
 
             std::vector<std::pair<int,int>> atoms;                      // {Z, N_val} per atom
             std::map<size_t,int> nvalByZ;
@@ -137,7 +141,7 @@ template <class T> tChargeDensity<T>* MakeSeedDensity(SeedStrategy s, const Basi
             std::map<size_t,double> scaleByZ;
             for (size_t i=0;i<atoms.size();i++)                         // species Z -> (N_val - q)/N_val
                 scaleByZ[atoms[i].first] = double(atoms[i].second - q[i]) / double(atoms[i].second);
-            return new FourierSeedCD(ftbs, st, "LDA", scaleByZ);
+            return new FourierSeedCD(fb, st, "LDA", scaleByZ);
         }
         else
         {

@@ -1,11 +1,12 @@
 // File: ChargeDensity/FourierSeedCD.C  Plane-wave (G-space) superposition-of-atomic-densities seed.
 //
-// The reciprocal-space twin of NumericCD: the SAD seed for the plane-wave (dcmplx) path.  Its native
-// representation is rho-tilde(G) = Sum_atoms rho_atom(|G|) e^{-iG.R} -- a per-species radial form factor
-// (the atomic VALENCE density's Fourier transform) assembled with structure factors, exactly the assembly
-// the local pseudopotential already uses.  It is a tChargeDensity<dcmplx> (NOT a tDM_CD: a sum of atomic
-// densities has no density matrix); the PW DFT terms (PW_Hartree, PW_XC) consume it through the
-// FourierDensity face (GetFourierDensity), so no matrix is ever needed.
+// The reciprocal-space twin of NumericCD: the SAD seed for the plane-wave (dcmplx) path.  rho-tilde(G) =
+// Sum_atoms F(Z,|G|) e^{-iG.R} -- the ANALYTIC structure-factor assembly of the per-species radial form
+// factor F (an atomic VALENCE density's 1-D Fourier transform).  It builds this through its OWN density-fit
+// basis (a cFIT_CD_ABS, which is a G_FieldEvaluator) -- NOT the orbital basis: the seed depends only on the
+// fit basis it is handed.  (Grid-sampling rho(r)+FFT would ALIAS the peaked atomic density; the analytic form
+// factor does not.)  It is a tChargeDensity<dcmplx> (NOT a tDM_CD: a sum of atomic densities has no density
+// matrix); the PW DFT terms (PW_Hartree, PW_XC) consume it through the FourierDensity face.
 module;
 #include <map>
 #include <memory>
@@ -16,8 +17,7 @@ export module qchem.ChargeDensity.FourierSeedCD;
 export import qchem.ChargeDensity;                 // tChargeDensity<dcmplx>
 export import qchem.ChargeDensity.FourierDensity;  // FourierDensity, ΔG_Map
 import qchem.ChargeDensity.AtomicDensity;          // RadialDensity, RecentredAtomicDensity, GetAtomicDensity
-import qchem.BasisSet.Band_FT_IBS;                  // Band_FT_IBS (the G-space structure-factor assembler)
-import qchem.BasisSet.Fit_IBS;                      // cFIT_CD_ABS (GetRepulsion3C's fit-basis arg)
+import qchem.BasisSet.Fit_IBS;                      // cFIT_CD_ABS (the density-fit basis it builds rho-tilde through)
 import qchem.Structure;                             // Structure, Atom
 import qchem.ReciprocalLattice;                     // ReciprocalLattice (the seed's own Poisson metric B)
 import qchem.ScalarFunction;                        // ScalarFunction<double>
@@ -30,13 +30,14 @@ class FourierSeedCD
     , public virtual FourierDensity
 {
 public:
-    //! Build the seed for plane-wave block \a basis and structure \a st: read each element's pseudo-valence
-    //! radial density (\a functional, from atomic_valence_densities.json) and prepare the form-factor sum.
-    //! \a ionicScaleByZ is the per-species IonicSAD multiplier (empty => neutral SAD, all 1.0): species \c Z
-    //! gets its valence density scaled by \c (N_val - q_Z)/N_val so the seed carries the formal charge \c q_Z
-    //! (Na+ -> 0, F- -> 8/7); the total still integrates to the cell's electron count (sum of charges = 0).
-    FourierSeedCD(const BasisSet::Band_FT_IBS* basis, const Structure* st, const std::string& functional="LDA",
-                  const std::map<size_t,double>& ionicScaleByZ = {});
+    //! Build the seed for density-fit basis \a fitBasis (from the orbital basis's CreateCDFitBasisSet) and
+    //! structure \a st: read each element's pseudo-valence radial density (\a functional, from
+    //! atomic_valence_densities.json) and prepare the form-factor sum.  \a ionicScaleByZ is the per-species
+    //! IonicSAD multiplier (empty => neutral SAD, all 1.0): species \c Z gets its valence density scaled by
+    //! \c (N_val - q_Z)/N_val so the seed carries the formal charge \c q_Z (Na+ -> 0, F- -> 8/7); the total
+    //! still integrates to the cell's electron count (sum of charges = 0).
+    FourierSeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Structure* st,
+                  const std::string& functional="LDA", const std::map<size_t,double>& ionicScaleByZ = {});
 
     // FourierDensity -- the native G-space representation the PW Hartree/XC terms consume.  The seed carries
     // no D, so its rho-tilde IS the structure-factor density (fit basis ignored); V_H applies the diagonal
@@ -56,7 +57,7 @@ public:
 
 private:
     ΔG_Map StructureFactorDensity() const;        //!< the seed's rho-tilde = per-species structure-factor sum
-    const BasisSet::Band_FT_IBS* itsBasis;        //!< the plane-wave block (structure-factor assembler); not owned
+    std::shared_ptr<const BasisSet::cFIT_CD_ABS> itsFitBasis; //!< density-fit basis (its grid engine builds rho-tilde); owned
     const Structure*             itsStructure;    //!< atom Z + positions; not owned
     ReciprocalLattice            itsRecip;        //!< the cell's reciprocal lattice (B): the seed's Poisson metric
     std::map<size_t,std::shared_ptr<const RadialDensity>> itsRadByZ; //!< per-element (Z) valence radial density

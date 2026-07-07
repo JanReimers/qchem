@@ -63,9 +63,8 @@ public:
     virtual const G_ERI3& Repulsion3C(const BasisSet::cFIT_CD_ABS& c) const override;
     //! \brief D-free overlap 3-centre tensor (delta support, empty kernel).  Mirrors \c Orbital_DFT_IBS::Overlap3C.
     virtual const G_ERI3& Overlap3C(const BasisSet::cFIT_SF_ABS& c) const override;
-    //! \brief Structure-factor assembly of a per-species radial form factor (the SAD seed density face).
-    virtual ΔG_Map MakeFourierDensity(const Structure* atoms,
-                          const std::function<double(int Z, double g2)>& formFactor) const override;
+    // (MakeFourierDensity -- the SAD seed's structure-factor density -- is inherited from the PW_Evaluator grid
+    //  engine (G_FieldEvaluator), so the seed reaches it through its own fit basis, not this orbital basis.)
 
     // --- Real-space DFT-integration oracles (test-only): the same questions a future Band_DFT_IBS<T>
     // implementer (e.g. GPW: Gaussian orbitals, PW/FFT density) would answer, kept here as independent

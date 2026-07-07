@@ -11,7 +11,8 @@ module;
 #include <utility>
 
 module qchem.ChargeDensity.FourierSeedCD;
-import qchem.ReciprocalLattice;   // ReciprocalLattice + UnitCell::MakeReciprocalCell (the seed's own Poisson metric)
+import qchem.ReciprocalLattice;        // ReciprocalLattice + UnitCell::MakeReciprocalCell (the seed's own Poisson metric)
+import qchem.BasisSet.G_FieldEvaluator; // the fit basis's grid engine (its analytic MakeFourierDensity)
 
 namespace qchem::ChargeDensity
 {
@@ -28,12 +29,12 @@ ReciprocalLattice ReciprocalOf(const Structure* st)
 }
 } //anon
 
-FourierSeedCD::FourierSeedCD(const BasisSet::Band_FT_IBS* basis, const Structure* st, const std::string& functional,
-                             const std::map<size_t,double>& ionicScaleByZ)
-    : itsBasis(basis), itsStructure(st), itsRecip(ReciprocalOf(st)), itsCharge(0.0)
+FourierSeedCD::FourierSeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Structure* st,
+                             const std::string& functional, const std::map<size_t,double>& ionicScaleByZ)
+    : itsFitBasis(fitBasis), itsStructure(st), itsRecip(ReciprocalOf(st)), itsCharge(0.0)
     , itsVersion(NextDensityVersion())   // shared global clock (no cross-kind collisions)
 {
-    assert(basis);
+    assert(fitBasis);
     assert(st);
     for (size_t i=0;i<st->GetNumAtoms();i++)
     {
@@ -53,9 +54,9 @@ FourierSeedCD::FourierSeedCD(const BasisSet::Band_FT_IBS* basis, const Structure
     assert(itsCharge>0);
 }
 
-// rho-tilde(dm) = (1/Omega) Sum_atoms rho_atom(|B.dm|) e^{-i(B.dm).R}: the basis does the structure-factor
-// assembly (it owns the reciprocal lattice + difference set); we supply the per-species form factor (the
-// valence density's radial Fourier transform).  Memoize the FT per (Z,g2) -- many dm share |G|.
+// rho-tilde(G) = (1/Omega) Sum_atoms F(Z,|B.G|) e^{-i(B.G).R}: the seed's OWN density-fit basis (its grid
+// engine) does the analytic structure-factor assembly over its {G}; we supply the per-species form factor
+// (the valence density's 1-D radial Fourier transform).  Memoize the FT per (Z,g2) -- many G share |G|.
 ΔG_Map FourierSeedCD::StructureFactorDensity() const
 {
     auto memo = std::make_shared<std::map<std::pair<int,double>,double>>();
@@ -71,7 +72,9 @@ FourierSeedCD::FourierSeedCD(const BasisSet::Band_FT_IBS* basis, const Structure
         (*memo)[key]=ff;
         return s*ff;
     };
-    return itsBasis->MakeFourierDensity(itsStructure, formFactor);
+    auto* ge=dynamic_cast<const BasisSet::G_FieldEvaluator*>(itsFitBasis.get());
+    assert(ge && "FourierSeedCD's density-fit basis must be a G_FieldEvaluator (plane-wave grid engine)");
+    return ge->MakeFourierDensity(itsStructure, formFactor);
 }
 
 // The seed's metric-free rho-tilde: no D to contract, so it IS the structure-factor density (the Vxc fit

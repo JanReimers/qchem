@@ -24,6 +24,7 @@ export import qchem.BasisSet.Internal.GMap;           // ΔG_Map: the G-space co
 export import qchem.BasisSet.G_FieldEvaluator;  // the abstract grid-engine seam PW_Evaluator implements
 import qchem.Types;                      // ivec3_t, rvec3_t, rvec_t, rvec3vec_t, cvec_t, cvec3vec_t, chmat_t, dcmplx
 import qchem.Blaze;                      // hmat_t<dcmplx> (chmat_t)
+import qchem.Structure;                  // Structure, Atom (MakeFourierDensity's structure-factor sum)
 
 export namespace qchem::BasisSet::Lattice_3D
 {
@@ -93,6 +94,9 @@ public:
     ΔG_Map   FieldCoeffs(const cvec_t& Vt) const override;
     //! \f$\int f\,d^3r\f$ on the FFT grid: uniform quadrature, weight \f$\Omega/N_{pts}\f$ (the XC energy quadrature).
     double   Integral   (const rvec_t& f) const override;
+    //! Analytic structure-factor density over THIS engine's own \f$\{G\}\f$ (the SAD seed's \f$\tilde\rho\f$).
+    ΔG_Map   MakeFourierDensity(const Structure* atoms,
+                          const std::function<double(int Z, double g2)>& formFactor) const override;
 
     //! Cache-key fragment identifying this grid: \c "|k=..|Ecut=..|nG=..".
     std::string IDFragment() const;

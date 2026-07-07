@@ -49,12 +49,9 @@ public:
     //! \c Orbital_DFT_IBS::Overlap3C (overlap metric); \a c is the Vxc fit basis.
     virtual const G_ERI3& Overlap3C(const cFIT_SF_ABS& c) const=0;
 
-    //! \brief \f$\tilde\rho(\Delta m)=\frac1\Omega\sum_{\text{atoms}} f(Z,|B\Delta m|^2)\,e^{-iG\cdot R}\f$ over
-    //! the difference set -- the structure-factor assembly of a per-species radial form factor \a formFactor
-    //! (e.g. an atomic valence density for a SAD seed).  The density analogue of the pseudopotential's
-    //! MakeLocalPotential, but it KEEPS \f$\Delta m=0\f$ (the total charge), and returns a density not a matrix.
-    virtual ΔG_Map MakeFourierDensity(const Structure* atoms,
-                          const std::function<double(int Z, double g2)>& formFactor) const=0;
+    // NB: the SAD seed's structure-factor density (MakeFourierDensity) is NOT here -- it is a grid-engine
+    // operation (G_FieldEvaluator::MakeFourierDensity), which the seed reaches through its OWN fit basis, so
+    // the seed never depends on the orbital basis.
 
     // NB: the Hartree matrix is NOT built here.  A density contracts D against Repulsion3C to a V_H (kernel
     // baked), and the term assembles <i|V_H|j> via the G_FieldEvaluator::MakePotential primitive -- so there is

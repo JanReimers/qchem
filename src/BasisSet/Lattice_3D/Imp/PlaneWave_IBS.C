@@ -157,29 +157,8 @@ const G_ERI3& PlaneWave_IBS::Overlap3C(const BasisSet::cFIT_SF_ABS&) const
 }
 
 
-// Structure-factor assembly of a per-species radial form factor (the SAD seed density face): for each
-// difference vector dm in the basis, rho(dm) = (1/Omega) Sum_atoms formFactor(Z,|B.dm|^2) e^{-i(B.dm).R}.
-// Mirrors MakeLocalPotential, but it is a DENSITY: dm=0 is KEPT (= total charge / Omega), not dropped.
-ΔG_Map PlaneWave_IBS::MakeFourierDensity(const Structure* atoms,
-                          const std::function<double(int,double)>& formFactor) const
-{
-    const UnitCell& B=Recip().GetCell();
-    ΔG_Map rho;
-    size_t n=GetNumFunctions();
-    const std::vector<ivec3_t>& G=Gs();
-    for (size_t i=0;i<n;i++)
-        for (size_t j=0;j<n;j++)
-        {
-            ivec3_t dm=G[i]-G[j];
-            if (rho.find(dm)!=rho.end()) continue;     // one value per difference vector
-            rvec3_t dG=B.ToCartesian(rvec3_t(dm));
-            double  g2=dG*dG;
-            dcmplx  acc(0.0);                           // (form factor) x (structure factor)
-            for (Atom* a : *atoms) acc += formFactor(a->itsZ,g2)*std::exp(dcmplx(0.0,-(dG*a->itsR)));
-            rho[dm]=acc/Volume();
-        }
-    return rho;
-}
+// MakeFourierDensity moved to the shared grid engine (PW_Evaluator, Imp/Evaluator.C) so the SAD seed reaches
+// it through its OWN density-fit basis (a G_FieldEvaluator), not the orbital basis.
 
 // Scalar integral integral f d3r over the cell: uniform-grid quadrature (weight Omega/Npts).
 double PlaneWave_IBS::Integral(const ScalarFunction<double>& f) const

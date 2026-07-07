@@ -148,6 +148,26 @@ double PW_Evaluator::Integral(const rvec_t& f) const
     return blazem::sum(f)*Volume()/double(f.size());
 }
 
+// Analytic structure-factor density over THIS engine's own {G}: rho-tilde(G) = (1/Omega) Sum_atoms
+// formFactor(Z,|B.G|^2) e^{-i(B.G).R}.  formFactor is the atomic density's 1-D radial Fourier transform, so
+// this is ANALYTIC per G -- no 3-D grid, no aliasing of the peaked density (unlike sample+FFT).  A DENSITY:
+// G=0 is KEPT (= total charge / Omega).  The SAD seed calls this on its OWN fit basis (never the orbital one).
+ΔG_Map PW_Evaluator::MakeFourierDensity(const Structure* atoms,
+                          const std::function<double(int,double)>& formFactor) const
+{
+    const UnitCell& B=itsRecip.GetCell();
+    ΔG_Map rho;
+    for (const ivec3_t& dm : itsG)                     // this basis's own {G} (the density's Fourier support)
+    {
+        rvec3_t dG=B.ToCartesian(rvec3_t(dm));
+        double  g2=dG*dG;
+        dcmplx  acc(0.0);                               // (form factor) x (structure factor)
+        for (Atom* a : *atoms) acc += formFactor(a->itsZ,g2)*std::exp(dcmplx(0.0,-(dG*a->itsR)));
+        rho[dm]=acc/Volume();
+    }
+    return rho;
+}
+
 // G_FieldEvaluator: inverse-transform the Hermitian coefficients c(dm) to the real field
 // f(r) = Re Sum_dm c(dm) e^{i(B.dm).r}, using our OWN grid engine's B (GetGCartesian).  A point evaluation
 // (loops the sparse map), NOT an FFT -- the GUI / fit-residual diagnostic path.
