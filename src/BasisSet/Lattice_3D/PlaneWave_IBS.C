@@ -58,9 +58,6 @@ public:
                   const ivec3_t& kIndex, double Ecut);
 
     // --- Band_FT_IBS capability: density-driven KS assembly in reciprocal space (orbital-only). ---
-    //! \brief The density-free metric-free \f$\{G\}\f$ 3-centre gather (empty kernel).  The density contracts
-    //! \f$D\f$ against it (\c ContractG_ERI3) to form \f$\tilde\rho\f$ (feeds the XC \f$\rho(r)\f$ path).
-    virtual const G_ERI3& GetG_ERI3() const override;
     //! \brief D-free Coulomb 3-centre tensor (delta support + diagonal kernel \f$4\pi/|G_c|^2\f$).  A density
     //! contracts \f$D\f$ against it to get \f$V_H\f$ directly.  Mirrors \c Orbital_DFT_IBS::Repulsion3C.
     virtual const G_ERI3& Repulsion3C(const BasisSet::cFIT_CD_ABS& c) const override;
@@ -113,9 +110,7 @@ public:
 private:
     //! Lazily-built caches of the density-free \f$\{G\}\f$ 3-centre tensors (intrinsic to \f$\{G\}\f$, so valid
     //! for the basis's lifetime regardless of the density) -- the plane-wave analogue of the \c ERI3 cache.
-    //! The three share the same delta support (see the RAM note in doc); \c itsRepulsion3C additionally carries
-    //! the Coulomb kernel.
-    mutable G_ERI3 itsG_ERI3;      mutable bool itsGatherBuilt=false;   //!< metric-free (rho-tilde)
+    //! Both share the same delta support; \c itsRepulsion3C additionally carries the diagonal Coulomb kernel.
     mutable G_ERI3 itsRepulsion3C; mutable bool itsRepBuilt=false;      //!< Coulomb (4pi/G^2 kernel)
     mutable G_ERI3 itsOverlap3C;   mutable bool itsOvlBuilt=false;      //!< overlap (empty kernel)
 };

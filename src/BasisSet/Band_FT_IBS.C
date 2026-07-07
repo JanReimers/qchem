@@ -41,11 +41,6 @@ public:
     //! future denser-\f$\{G\}\f$ upgrade).  Caller owns the result.
     virtual cFIT_SF_ABS* CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const=0;
 
-    //! \brief The DENSITY-FREE metric-free three-centre gather \f$\langle G_i G_j|\Delta m\rangle=\tfrac1\Omega
-    //! \delta_{\Delta m,G_i-G_j}\f$ (EMPTY kernel).  The DENSITY contracts \f$D\f$ against it (\c ContractG_ERI3)
-    //! to form \f$\tilde\rho\f$ -- so \f$D\f$ never crosses into the basis.  Feeds the XC \f$\rho(r)\f$ path.
-    virtual const G_ERI3& GetG_ERI3() const=0;
-
     //! \brief D-free COULOMB three-centre tensor: the delta support with the diagonal Poisson kernel
     //! \f$4\pi/|G_c|^2\f$ filled.  A density contracts \f$D\f$ against it (\c ContractG_ERI3) to get \f$V_H\f$
     //! directly.  Mirrors \c Orbital_DFT_IBS::Repulsion3C (Coulomb metric); \a c is the CD fit basis.

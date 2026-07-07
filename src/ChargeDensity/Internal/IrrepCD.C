@@ -56,9 +56,9 @@ public:
     virtual double operator()(const rvec3_t&) const;
     virtual rvec3_t  Gradient  (const rvec3_t&) const; // No UT coverage
 
-    //! Reciprocal-space coefficients rho-tilde(Delta-m) of THIS block (D contracted against the basis's D-free {G} gather).
-    //! The periodic density's native representation; a finite density has none (real path NA-asserts).
-    virtual ΔG_Map GetFourierDensity() const;
+    //! Metric-free rho-tilde(Delta-m) of THIS block: D contracted against the basis's D-free OVERLAP tensor
+    //! Overlap3C(c) (empty kernel).  The periodic density's native representation; finite path NA-asserts.
+    virtual ΔG_Map GetFourierDensity(const BasisSet::cFIT_SF_ABS& c) const;
     //! V_H(Delta-m) of THIS block: D contracted against the basis's D-free Coulomb tensor Repulsion3C(c) (kernel baked).
     virtual ΔG_Map GetRepulsion3C(const BasisSet::cFIT_CD_ABS& c) const;
 

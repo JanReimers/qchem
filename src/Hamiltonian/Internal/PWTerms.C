@@ -106,6 +106,7 @@ private:
     void RefreshRhoGrid(const cChargeDensity* cd) const;
 
     xc_t itsXc;
+    fbs_t itsVxcFitBasis;   //!< the Vxc (overlap-metric) fit basis, handed to the density's GetFourierDensity
     //! The ortho scalar fitter (built once).  It OWNS the FFT quadrature grid (from the fit basis); the XC
     //! quadrature comes from the FIT basis, not the orbital basis (so relCutoff / GridCutoffFactor control it).
     //! The term borrows that ONE grid via itsScalarFitter->Grid() -- no second cross-cast of the fit basis (#7).

@@ -169,7 +169,7 @@ template <class T> rvec3_t tComposite_CD<T>::Gradient  (const rvec3_t& r) const
 }
 
 // rho-tilde(Delta-m) = Sum_blocks rho-tilde_k (each block already BZ-weighted) = the BZ average Sum_k w_k rho_k.
-template <class T> ΔG_Map tComposite_CD<T>::GetFourierDensity() const
+template <class T> ΔG_Map tComposite_CD<T>::GetFourierDensity(const BasisSet::cFIT_SF_ABS& c) const
 {
     if constexpr (std::is_same_v<T,dcmplx>)
     {
@@ -178,7 +178,7 @@ template <class T> ΔG_Map tComposite_CD<T>::GetFourierDensity() const
         {
             auto* fc=dynamic_cast<const FourierDensity*>(blk.get());
             assert(fc && "composite block is not a FourierDensity (plane-wave path)");
-            for (const auto& kv : fc->GetFourierDensity()) rg[kv.first]+=kv.second;
+            for (const auto& kv : fc->GetFourierDensity(c)) rg[kv.first]+=kv.second;
         }
         return rg;
     }

@@ -42,7 +42,7 @@ FourierSeedCD::FourierSeedCD(const BasisSet::Band_FT_IBS* basis, const Structure
 // rho-tilde(dm) = (1/Omega) Sum_atoms rho_atom(|B.dm|) e^{-i(B.dm).R}: the basis does the structure-factor
 // assembly (it owns the reciprocal lattice + difference set); we supply the per-species form factor (the
 // valence density's radial Fourier transform).  Memoize the FT per (Z,g2) -- many dm share |G|.
-ΔG_Map FourierSeedCD::GetFourierDensity() const
+ΔG_Map FourierSeedCD::StructureFactorDensity() const
 {
     auto memo = std::make_shared<std::map<std::pair<int,double>,double>>();
     auto formFactor = [this,memo](int Z, double g2)->double
@@ -60,11 +60,18 @@ FourierSeedCD::FourierSeedCD(const BasisSet::Band_FT_IBS* basis, const Structure
     return itsBasis->MakeFourierDensity(itsStructure, formFactor);
 }
 
-// The seed's Coulomb projection V_H = 4pi rho-tilde/|G|^2: no D to contract, so apply the diagonal kernel to
-// the structure-factor rho-tilde.  Same float expression as the old fitter->Repulsion path -> bit-identical.
+// The seed's metric-free rho-tilde: no D to contract, so it IS the structure-factor density (the Vxc fit
+// basis argument is ignored -- the seed's support is the orbital difference set, like every rho-tilde).
+ΔG_Map FourierSeedCD::GetFourierDensity(const BasisSet::cFIT_SF_ABS&) const
+{
+    return StructureFactorDensity();
+}
+
+// The seed's Coulomb projection V_H = 4pi rho-tilde/|G|^2: apply the diagonal kernel to the structure-factor
+// rho-tilde.  Same float expression as the old fitter->Repulsion path -> bit-identical.
 ΔG_Map FourierSeedCD::GetRepulsion3C(const BasisSet::cFIT_CD_ABS&) const
 {
-    return itsBasis->CoulombKernel(GetFourierDensity());
+    return itsBasis->CoulombKernel(StructureFactorDensity());
 }
 
 double FourierSeedCD::operator()(const rvec3_t& r) const

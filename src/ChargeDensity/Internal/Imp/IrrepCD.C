@@ -217,17 +217,16 @@ template <class T> rvec3_t IrrepCD<T>::Gradient(const rvec3_t& r) const
 // rho-tilde from the density matrix, via the basis's G-space capability (plane-wave / dcmplx only).
 // itsDensityMatrix already carries the BZ weight w_k (TOrbitals::GetChargeDensity scales it), so the
 // composite's sum over blocks is the BZ average Sum_k w_k rho_k.
-template <class T> ΔG_Map IrrepCD<T>::GetFourierDensity() const
+template <class T> ΔG_Map IrrepCD<T>::GetFourierDensity(const BasisSet::cFIT_SF_ABS& c) const
 {
     if constexpr (std::is_same_v<T,dcmplx>)
     {
-        // Contract D against the basis's DENSITY-FREE {G} 3-centre gather HERE -- the DENSITY owns D, exactly
-        // as the finite path contracts D against the basis's ERI3 in GetRepulsion3C above.  D never crosses
-        // into the basis: the basis exposes only the D-free gather (GetG_ERI3), and this is where
-        // rho-tilde(dm) = (1/Omega) Sum_{G_i-G_j=dm} D_ij is formed.
+        // Contract D against the basis's D-free OVERLAP tensor (empty kernel) HERE -- the DENSITY owns D, so
+        // this is where rho-tilde(dm) = (1/Omega) Sum_{G_i-G_j=dm} D_ij is formed.  The overlap-metric sibling
+        // of GetRepulsion3C above; D never crosses into the basis.
         auto* fb=dynamic_cast<const BasisSet::Band_FT_IBS*>(itsBasisSet);
         assert(fb && "GetFourierDensity requires a Band_FT_IBS (plane-wave) basis");
-        return ContractG_ERI3(fb->GetG_ERI3(), itsDensityMatrix);
+        return ContractG_ERI3(fb->Overlap3C(c), itsDensityMatrix);
     }
     else
     {

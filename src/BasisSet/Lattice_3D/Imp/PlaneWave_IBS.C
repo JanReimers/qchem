@@ -127,23 +127,8 @@ void BuildG_ERI3Columns(const std::vector<ivec3_t>& G, std::vector<G_ERI3::Colum
 }
 } //anon
 
-// The density-free {G} 3-centre gather (metric-free / overlap, EMPTY kernel): the density contracts D against
-// it (ContractG_ERI3) to form rho-tilde(dm) = (1/Omega) Sum_{G_i-G_j=dm} D_ij.  This is the reciprocal
-// analogue of the intrinsic density; it feeds the XC path (rho(r) via inverse FFT).  Built ONCE, cached.
-const G_ERI3& PlaneWave_IBS::GetG_ERI3() const
-{
-    if (!itsGatherBuilt)
-    {
-        BuildG_ERI3Columns(Gs(), itsG_ERI3.columns);
-        itsG_ERI3.kernel.clear();                   // EMPTY => metric-free
-        itsG_ERI3.volume=Volume();
-        itsGatherBuilt=true;
-    }
-    return itsG_ERI3;
-}
-
-// Coulomb 3-centre <G_i G_j|G_c> = (4pi/|G_c|^2) delta(G_c,G_i-G_j)/Omega: the SAME delta support as
-// GetG_ERI3 with the diagonal Poisson kernel 4pi/|G_c|^2 filled (dm=0 -> 0, the dropped G=0 background).  A
+// Coulomb 3-centre <G_i G_j|G_c> = (4pi/|G_c|^2) delta(G_c,G_i-G_j)/Omega: the delta support with the
+// diagonal Poisson kernel 4pi/|G_c|^2 filled (dm=0 -> 0, the dropped G=0 background).  A
 // density contracts D against this (ContractG_ERI3) to get the Hartree potential V_H directly.  \a c is the
 // CD fit basis (declared to cover the difference set via CreateCDFitBasisSet; the delta support is orbital-
 // intrinsic today).  Mirrors Orbital_DFT_IBS::Repulsion3C -- the D-free Coulomb tensor.

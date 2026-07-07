@@ -37,11 +37,11 @@ public:
     FourierSeedCD(const BasisSet::Band_FT_IBS* basis, const Structure* st, const std::string& functional="LDA",
                   const std::map<size_t,double>& ionicScaleByZ = {});
 
-    // FourierDensity -- the native G-space representation the PW Hartree/XC terms consume.
-    virtual ΔG_Map GetFourierDensity() const;
-    // V_H = CoulombKernel(rho-tilde): the seed carries no D to contract, so it applies the diagonal kernel to
-    // its structure-factor rho-tilde (bit-identical to the old Repulsion(rho-tilde) path).
-    virtual ΔG_Map GetRepulsion3C(const BasisSet::cFIT_CD_ABS& c) const;
+    // FourierDensity -- the native G-space representation the PW Hartree/XC terms consume.  The seed carries
+    // no D, so its rho-tilde IS the structure-factor density (fit basis ignored); V_H applies the diagonal
+    // kernel to it (bit-identical to the old Repulsion(rho-tilde) path).
+    virtual ΔG_Map GetFourierDensity(const BasisSet::cFIT_SF_ABS& c) const;
+    virtual ΔG_Map GetRepulsion3C   (const BasisSet::cFIT_CD_ABS& c) const;
 
     // ScalarFunction<double> -- real-space rho(r) = Sum_atoms rho_atom(|r-R|) (not used by the PW Fock build,
     // which goes through GetFourierDensity, but provided so the type is whole).
@@ -54,6 +54,7 @@ public:
     virtual void   ReScale(double factor);
 
 private:
+    ΔG_Map StructureFactorDensity() const;        //!< the seed's rho-tilde = per-species structure-factor sum
     const BasisSet::Band_FT_IBS* itsBasis;        //!< the plane-wave block (G-space assembler); not owned
     const Structure*             itsStructure;    //!< atom Z + positions; not owned
     std::map<size_t,std::shared_ptr<const RadialDensity>> itsRadByZ; //!< per-element (Z) valence radial density

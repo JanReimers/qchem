@@ -90,6 +90,14 @@ qchem::Hamiltonian::PW_XC* NewPWXC(const PlaneWave_IBS& pw, const qchem::Hamilto
     return new qchem::Hamiltonian::PW_XC(xc,
         qchem::Hamiltonian::PW_XC::fbs_t(pw.CreateVxcFitBasisSet(nullptr, qcMesh::MeshParams{})));
 }
+// rho-tilde from a density matrix D via the basis's D-free Overlap3C tensor (the production path now that
+// GetG_ERI3 is retired): Overlap3C keys on a Vxc fit basis (its grid is ignored -- the delta support is
+// orbital-intrinsic).  Mirrors IrrepCD::GetFourierDensity(cFIT_SF_ABS).
+ΔG_Map RhoTilde(const PlaneWave_IBS& pw, const chmat_t& D)
+{
+    std::unique_ptr<const qchem::BasisSet::cFIT_SF_ABS> vxcfb(pw.CreateVxcFitBasisSet(nullptr, qcMesh::MeshParams{}));
+    return ContractG_ERI3(pw.Overlap3C(*vxcfb), D);
+}
 
 // A ScalarFunction<double> wrapping a lambda f(r) -- to hand real-space fields to the basis's
 // high-level integral methods (Overlap/Repulsion/Integral).
@@ -1031,7 +1039,7 @@ TEST_F(PlaneWaveDFT, PWDynamicTermsMatchBasis)
     std::unique_ptr<qchem::Hamiltonian::PW_XC> xc(NewPWXC(F.pw, dirac));
     qchem::Hamiltonian::cDynamic_HT* xt=xc.get();
     const chmat_t& Mx = xt->GetMatrix(&F.pw, Spin::None, &cd);
-    rvec_t rho=F.pw.RhoOnGrid(ContractG_ERI3(F.pw.GetG_ERI3(), D));
+    rvec_t rho=F.pw.RhoOnGrid(RhoTilde(F.pw, D));
     rvec_t vxc(rho.size());
     for (size_t q=0;q<rho.size();q++) vxc[q]=dirac->GetVxc(rho[q]);
     chmat_t refx = OverlapOnGrid(F.pw, vxc);
@@ -1078,7 +1086,7 @@ TEST_F(PlaneWaveDFT, ItemK_RelCutoffDensifiesAndConvergesVxc)
     EXPECT_GT(n16, n4);
 
     // (2) relCutoff=1 reproduces the orbital-grid FFT route exactly (the fix is inert at Gamma).
-    rvec_t rho=F.pw.RhoOnGrid(ContractG_ERI3(F.pw.GetG_ERI3(), D));
+    rvec_t rho=F.pw.RhoOnGrid(RhoTilde(F.pw, D));
     rvec_t vxc(rho.size());
     for (size_t q=0;q<rho.size();q++) vxc[q]=dirac->GetVxc(rho[q]);
     chmat_t refx=OverlapOnGrid(F.pw, vxc);
@@ -1102,7 +1110,7 @@ TEST_F(PlaneWaveDFT, OrthoFitterRealSpaceField)
     size_t n=F.pw.GetNumFunctions();
     hmat_t<dcmplx> D=blazem::zeroH<dcmplx>(n);
     D(0,0)=1.0; D(0,1)=1.0; D(1,1)=1.0;                   // Hermitian, non-uniform -> a non-trivial rho~(dm)
-    ΔG_Map rhoTilde=ContractG_ERI3(F.pw.GetG_ERI3(), D);
+    ΔG_Map rhoTilde=RhoTilde(F.pw, D);
 
     // The Factory-built ortho density fitter (the production path); the core IS-A ScalarFunction<double> now.
     auto fb=std::shared_ptr<const qchem::BasisSet::cFIT_CD_ABS>(F.pw.CreateCDFitBasisSet(nullptr, qcMesh::MeshParams{}));
@@ -1427,7 +1435,7 @@ TEST_F(PlaneWaveDFT, HartreeFromFourierMatchesPointwise)
     qchem::ChargeDensity::IrrepCD<dcmplx> cd(D, &pw, irr);   // IS-A ScalarFunction rho(r)=phi^H D phi
 
     chmat_t VA=pw.Repulsion(cd);                             // real-space: sample + ForwardDFT
-    chmat_t VB=pw.Repulsion(ContractG_ERI3(pw.GetG_ERI3(), D));       // G-space: direct from D
+    chmat_t VB=pw.Repulsion(RhoTilde(pw, D));       // G-space: direct from D
 
     double maxd=0;                                           // the matrices agree elementwise => so does any derived E_H
     for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) maxd=std::max(maxd, std::abs(VA(i,j)-VB(i,j)));

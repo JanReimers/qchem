@@ -175,6 +175,7 @@ private:
 // itsScalarFitter->Grid() -- one owner, no second cross-cast of the fit basis (#7).
 PW_XC::PW_XC(const xc_t& xc, fbs_t fb)
     : itsXc(xc)
+    , itsVxcFitBasis(fb)                       // hand it to the density's GetFourierDensity (its Overlap3C key)
     , itsScalarFitter(Fitting::Factory(fb))   // the ortho (G-space) scalar fitter -- owns the FFT quadrature grid
 {}
 PW_XC::~PW_XC() = default;   // itsScalarFitter's abstract type is complete here
@@ -186,7 +187,7 @@ void PW_XC::RefreshRhoGrid(const cChargeDensity* cd) const
     if (!newCD(cd)) return;
     auto fd=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(cd);
     assert(fd && "PW_XC requires a FourierDensity (periodic) charge density");
-    itsRhoGrid=itsScalarFitter->Grid().RhoOnGrid(fd->GetFourierDensity());   // the FIT grid, borrowed from the fitter
+    itsRhoGrid=itsScalarFitter->Grid().RhoOnGrid(fd->GetFourierDensity(*itsVxcFitBasis));   // rho-tilde via Overlap3C, onto the FIT grid
 }
 
 // XC through the pre-built ortho scalar fitter, mirroring the molecular FittedVxc: the fitter batch-samples
