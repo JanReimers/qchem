@@ -13,7 +13,6 @@ target_sources(qcMesh PRIVATE
 # Module interface units (export the BMI .gcm files other modules import).
 target_sources(qcMesh PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Mesh.C
-    Fields.C
     GaussLegendre.C
     RadialMesh.C
     AngularMesh.C

@@ -31,21 +31,12 @@ using std::endl;
 
 namespace
 {
-class BFView : public qcMesh::BasisField<double>
-{
-    const VectorFunction<double>& its;
-public:
-    explicit BFView(const VectorFunction<double>& v) : its(v) {}
-    size_t     size()                       const override {return its.GetVectorSize();}
-    rvec_t     operator()(const rvec3_t& r) const override {return its(r);}
-    rvec3vec_t Gradient  (const rvec3_t& r) const override {return its.Gradient(r);}
-};
-struct OneOverR  : qcMesh::ScalarField<double>
+struct OneOverR  : ScalarFunction<double>
 {
     double  operator()(const rvec3_t& r) const override {double m=norm(r); return m==0.0?0.0:1.0/m;}
     rvec3_t Gradient  (const rvec3_t&)   const override {return rvec3_t(0,0,0);}
 };
-struct OneOverR2 : qcMesh::ScalarField<double>
+struct OneOverR2 : ScalarFunction<double>
 {
     double  operator()(const rvec3_t& r) const override {double m=norm(r); return m==0.0?0.0:1.0/(m*m);}
     rvec3_t Gradient  (const rvec3_t&)   const override {return rvec3_t(0,0,0);}
@@ -311,7 +302,7 @@ TEST_F(BSplineTests, Overlap)
             for (auto j:iv_t(i+K+1,S.rows())) 
                 EXPECT_EQ(S(i,j),0.0);
             
-        rsmat_t Snum = qcMesh::Overlap(itsMesh,BFView(*ibs));
+        rsmat_t Snum = qcMesh::Overlap(itsMesh,*ibs);
         EXPECT_NEAR(blazem::max(blazem::abs(S-Snum)),0.0,3e-6);
 
         // cout << "S=" << S << endl;
@@ -357,7 +348,7 @@ TEST_F(BSplineTests, Nuclear)
         for (auto i:iv_t(0,Ven.rows()-K-1)) //Check banded
             for (auto j:iv_t(i+K+1,Ven.rows())) EXPECT_EQ(Ven(i,j),0.0);
         
-        rsmat_t Vennum = -cl->GetNuclearCharge()*qcMesh::WeightedOverlap(itsMesh,BFView(*ibs),OneOverR());
+        rsmat_t Vennum = -cl->GetNuclearCharge()*qcMesh::WeightedOverlap(itsMesh,*ibs,OneOverR());
         EXPECT_NEAR(blazem::max(blazem::abs(Ven-Vennum)),0.0,1e-7);
 
         // cout << "Ven=" << Ven << endl;
@@ -378,8 +369,8 @@ TEST_F(BSplineTests, Kinetic)
             for (auto j:iv_t(i+K+1,T.rows())) EXPECT_EQ(T(i,j),0.0);
         
         int l=qchem::Symmetry::Atom::Getl(ibs->GetSymmetry());
-        rsmat_t Tnum = qcMesh::KineticGrad2(itsMesh,BFView(*ibs));
-        rsmat_t Cen  = qcMesh::WeightedOverlap(itsMesh,BFView(*ibs),OneOverR2());
+        rsmat_t Tnum = qcMesh::KineticGrad2(itsMesh,*ibs);
+        rsmat_t Cen  = qcMesh::WeightedOverlap(itsMesh,*ibs,OneOverR2());
         Tnum+=l*(l+1)*Cen;
         EXPECT_NEAR(blazem::max(blazem::abs(T-Tnum)),0.0,3e-5);
         

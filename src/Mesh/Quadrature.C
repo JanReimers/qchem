@@ -12,7 +12,8 @@ module;
 #include <type_traits>
 export module qchem.Mesh.Quadrature;
 export import qchem.Mesh;
-export import qchem.Mesh.Fields;
+export import qchem.ScalarFunction;   // qcMath field interfaces (ScalarField/BasisField retired in favour of these)
+export import qchem.VectorFunction;
 export import qchem.Mesh.Radial;   // RadialMesh (the 1-D radial quadrature)
 import qchem.Blaze;
 
@@ -50,7 +51,7 @@ template <class T> hmat_t<T> Hermitianize(const mat_t<T>& M)
 }
 
 //! integral f d^3r = sum_i w_i f(r_i)
-export template <class T> T Integrate(const Mesh& m, const ScalarField<T>& f)
+export template <class T> T Integrate(const Mesh& m, const ScalarFunction<T>& f)
 {
     const rvec3vec_t& R=m.Points();
     const rvec_t&     W=m.Weights();
@@ -60,9 +61,9 @@ export template <class T> T Integrate(const Mesh& m, const ScalarField<T>& f)
 }
 
 //! <a_i | a_j>  (Hermitian)
-export template <class T> hmat_t<T> Overlap(const Mesh& m, const BasisField<T>& a)
+export template <class T> hmat_t<T> Overlap(const Mesh& m, const VectorFunction<T>& a)
 {
-    size_t n=a.size();
+    size_t n=a.GetVectorSize();
     mat_t<T> M(n,n,T(0));
     const rvec3vec_t& R=m.Points();
     const rvec_t&     W=m.Weights();
@@ -77,9 +78,9 @@ export template <class T> hmat_t<T> Overlap(const Mesh& m, const BasisField<T>& 
 }
 
 //! <a_i | b_j>  (rectangular, no symmetry)
-export template <class T> mat_t<T> Overlap(const Mesh& m, const BasisField<T>& a, const BasisField<T>& b)
+export template <class T> mat_t<T> Overlap(const Mesh& m, const VectorFunction<T>& a, const VectorFunction<T>& b)
 {
-    size_t na=a.size(), nb=b.size();
+    size_t na=a.GetVectorSize(), nb=b.GetVectorSize();
     mat_t<T> M(na,nb,T(0));
     const rvec3vec_t& R=m.Points();
     const rvec_t&     W=m.Weights();
@@ -95,9 +96,9 @@ export template <class T> mat_t<T> Overlap(const Mesh& m, const BasisField<T>& a
 
 //! integral f a_i d^3r  -- projection of a scalar field f onto each basis function (the
 //! least-squares fit RHS: <f_a | f>).  Returns a vector, not a matrix.
-export template <class T> vec_t<T> Overlap(const Mesh& m, const BasisField<T>& a, const ScalarField<double>& f)
+export template <class T> vec_t<T> Overlap(const Mesh& m, const VectorFunction<T>& a, const ScalarFunction<double>& f)
 {
-    size_t n=a.size();
+    size_t n=a.GetVectorSize();
     vec_t<T> p(n, T(0));
     const rvec3vec_t& R=m.Points();
     const rvec_t&     W=m.Weights();
@@ -111,9 +112,9 @@ export template <class T> vec_t<T> Overlap(const Mesh& m, const BasisField<T>& a
 }
 
 //! <a_i | V | a_j>  -- subsumes Inv_r1 (V=1/r), Inv_r2 (V=1/r^2) and the DFT potential (V=vxc).
-export template <class T> hmat_t<T> WeightedOverlap(const Mesh& m, const BasisField<T>& a, const ScalarField<double>& V)
+export template <class T> hmat_t<T> WeightedOverlap(const Mesh& m, const VectorFunction<T>& a, const ScalarFunction<double>& V)
 {
-    size_t n=a.size();
+    size_t n=a.GetVectorSize();
     mat_t<T> M(n,n,T(0));
     const rvec3vec_t& R=m.Points();
     const rvec_t&     W=m.Weights();
@@ -129,9 +130,9 @@ export template <class T> hmat_t<T> WeightedOverlap(const Mesh& m, const BasisFi
 }
 
 //! <grad a_i | grad a_j>  -- the kinetic <p^2> block (Hermitian).
-export template <class T> hmat_t<T> KineticGrad2(const Mesh& m, const BasisField<T>& a)
+export template <class T> hmat_t<T> KineticGrad2(const Mesh& m, const VectorFunction<T>& a)
 {
-    size_t n=a.size();
+    size_t n=a.GetVectorSize();
     mat_t<T> M(n,n,T(0));
     const rvec3vec_t& R=m.Points();
     const rvec_t&     W=m.Weights();
@@ -146,9 +147,9 @@ export template <class T> hmat_t<T> KineticGrad2(const Mesh& m, const BasisField
 }
 
 //! 1/sqrt(<a_i|a_i>) -- per-function normalisation constants.
-export template <class T> rvec_t Normalize(const Mesh& m, const BasisField<T>& a)
+export template <class T> rvec_t Normalize(const Mesh& m, const VectorFunction<T>& a)
 {
-    size_t n=a.size();
+    size_t n=a.GetVectorSize();
     rvec_t s(n,0.0);
     const rvec3vec_t& R=m.Points();
     const rvec_t&     W=m.Weights();

@@ -27,22 +27,12 @@ using Real_OIBS=BasisSet::Real_OIBS;
 
 namespace
 {
-// Adapters to drive qcMesh's free-function quadrature from the old VectorFunction basis evaluators.
-class BFView : public qcMesh::BasisField<double>
-{
-    const VectorFunction<double>& its;
-public:
-    explicit BFView(const VectorFunction<double>& v) : its(v) {}
-    size_t     size()                       const override {return its.GetVectorSize();}
-    rvec_t     operator()(const rvec3_t& r) const override {return its(r);}
-    rvec3vec_t Gradient  (const rvec3_t& r) const override {return its.Gradient(r);}
-};
-struct OneOverR  : qcMesh::ScalarField<double>
+struct OneOverR  : ScalarFunction<double>
 {
     double  operator()(const rvec3_t& r) const override {double m=norm(r); return m==0.0?0.0:1.0/m;}
     rvec3_t Gradient  (const rvec3_t&)   const override {return rvec3_t(0,0,0);}
 };
-struct OneOverR2 : qcMesh::ScalarField<double>
+struct OneOverR2 : ScalarFunction<double>
 {
     double  operator()(const rvec3_t& r) const override {double m=norm(r); return m==0.0?0.0:1.0/(m*m);}
     rvec3_t Gradient  (const rvec3_t&)   const override {return rvec3_t(0,0,0);}
@@ -93,7 +83,7 @@ TEST_F(GaussianRadialIntegralTests, Overlap)
 
         for (auto d:blazem::diagonal(S)) EXPECT_NEAR(d,1.0,1e-15);
         //cout << S << endl;
-        rsmat_t Snum = qcMesh::Overlap(itsMesh,BFView(*oi));
+        rsmat_t Snum = qcMesh::Overlap(itsMesh,*oi);
         EXPECT_NEAR(blazem::max(blazem::abs(S-Snum)),0.0,1e-8);
        
     }
@@ -105,7 +95,7 @@ TEST_F(GaussianRadialIntegralTests, Nuclear)
     {
         rsmat_t Hn=oi->Nuclear(cl);
         //cout << S << endl;
-        rsmat_t Hnnum = -1*qcMesh::WeightedOverlap(itsMesh,BFView(*oi),OneOverR());
+        rsmat_t Hnnum = -1*qcMesh::WeightedOverlap(itsMesh,*oi,OneOverR());
         EXPECT_NEAR(blazem::max(blazem::abs(Hn-Hnnum)),0.0,1e-8);
 
     }
@@ -120,8 +110,8 @@ TEST_F(GaussianRadialIntegralTests, Kinetic)
         //cout << S << endl;
         int l=qchem::Symmetry::Atom::Getl(oi->GetSymmetry());;
         // ...which equals Grad2 (radial) + centrifugal l(l+1)<r^-2>, confirming the no-1/2 convention.
-        rsmat_t Knum = qcMesh::KineticGrad2(itsMesh,BFView(*oi))
-                     + l*(l+1)*qcMesh::WeightedOverlap(itsMesh,BFView(*oi),OneOverR2());
+        rsmat_t Knum = qcMesh::KineticGrad2(itsMesh,*oi)
+                     + l*(l+1)*qcMesh::WeightedOverlap(itsMesh,*oi,OneOverR2());
         EXPECT_NEAR(blazem::max(blazem::abs(K-Knum)),0.0,1e-12);
         
     }

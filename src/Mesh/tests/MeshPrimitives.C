@@ -2,21 +2,21 @@
 #include "gtest/gtest.h"
 #include <cmath>
 import qchem.Mesh.Product;       // Mesh, ProductMesh, MakeRadial/MakeAngular, MeshParams, enums
-import qchem.Mesh.Quadrature;    // free functions + ScalarField/BasisField
+import qchem.Mesh.Quadrature;    // free functions (over qcMath Scalar/VectorFunction)
 import qchem.Mesh.GaussLegendre;
 import qchem.Blaze;
 import qchem.Math;                // Pi, Pi32, FourPi
 using namespace qchem;
 
-using namespace qchem::qcMesh;          // Mesh, ScalarField/BasisField, MakeRadial/MakeAngular, quadrature, ...
+using namespace qchem::qcMesh;          // Mesh, MakeRadial/MakeAngular, quadrature, ...
 
 //================================================================================================
 //  Test fields: a single normalised-ish s-function phi(r) = exp(-2|r|), and some scalar potentials.
 //================================================================================================
-class ExpBasis : public BasisField<double>
+class ExpBasis : public VectorFunction<double>
 {
 public:
-    size_t size() const override {return 1;}
+    size_t GetVectorSize() const override {return 1;}
     rvec_t operator()(const rvec3_t& r) const override {return {std::exp(-2*norm(r))};}
     rvec3vec_t Gradient(const rvec3_t& r) const override
     {
@@ -26,21 +26,21 @@ public:
     }
 };
 
-class ExpScalar : public ScalarField<double>     // exp(-2r)
+class ExpScalar : public ScalarFunction<double>     // exp(-2r)
 {
 public:
     double   operator()(const rvec3_t& r) const override {return std::exp(-2*norm(r));}
     rvec3_t  Gradient  (const rvec3_t&  ) const override {return rvec3_t(0,0,0);}
 };
 
-class GaussScalar : public ScalarField<double>   // exp(-r^2)
+class GaussScalar : public ScalarFunction<double>   // exp(-r^2)
 {
 public:
     double   operator()(const rvec3_t& r) const override {double m=norm(r); return std::exp(-m*m);}
     rvec3_t  Gradient  (const rvec3_t&  ) const override {return rvec3_t(0,0,0);}
 };
 
-class OneOverR : public ScalarField<double>      // 1/r, finite (0) at the origin
+class OneOverR : public ScalarFunction<double>      // 1/r, finite (0) at the origin
 {
 public:
     double   operator()(const rvec3_t& r) const override {double m=norm(r); return m==0.0 ? 0.0 : 1.0/m;}

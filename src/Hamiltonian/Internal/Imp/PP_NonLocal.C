@@ -11,8 +11,8 @@ module;
 
 module qchem.Hamiltonian.Internal.Terms;
 import qchem.Energy;
-import qchem.Mesh.Quadrature;           // qcMesh::Overlap(mesh, BasisField, ScalarField) -> projection vector
-import qchem.VectorFunction;            // the orbital basis IS-A VectorFunction
+import qchem.Mesh.Quadrature;           // qcMesh::Overlap(mesh, VectorFunction, ScalarFunction) -> projection vector
+import qchem.VectorFunction;            // the orbital basis IS-A VectorFunction (passed direct)
 import qchem.Blaze;                     // rmat_t, rvec_t, trans, outer product
 import qchem.Math;                      // norm, Pi, sqrt
 
@@ -20,17 +20,6 @@ namespace qchem::Hamiltonian
 {
 
 namespace {
-
-// Adapt the orbital basis (a VectorFunction: r -> [chi_i(r)]) to the mesh-quadrature BasisField.
-class BFView : public qcMesh::BasisField<double>
-{
-    const VectorFunction<double>& its;
-public:
-    explicit BFView(const VectorFunction<double>& v) : its(v) {}
-    size_t     size()                       const override {return its.GetVectorSize();}
-    rvec_t     operator()(const rvec3_t& r) const override {return its(r);}
-    rvec3vec_t Gradient  (const rvec3_t& r) const override {return its.Gradient(r);}
-};
 
 // Real (tesseral) spherical harmonic Y_lm(rhat), UNIT-NORMALISED on the sphere (integral |Y|^2 dOmega = 1),
 // evaluated from the UNIT vector n=(x,y,z).  Only Sum_m |Y_lm><Y_lm| (the degree-l projector) enters the KB
@@ -81,7 +70,7 @@ double RealYlm(int l, int m, double x, double y, double z)
 // One KB projector channel as a scalar field: beta_p(|r-R|) * Y_lm((r-R)^).  At r=R the angular factor is
 // singular but beta_p(0)=0 for l>=1 (the r^l prefactor) and finite for l=0, so the product is well-defined;
 // guard the unit-vector division.
-class BetaYlmField : public qcMesh::ScalarField<double>
+class BetaYlmField : public ScalarFunction<double>
 {
     rvec3_t R; const Pseudopotential::SeparablePotential_R& v; int Z; size_t p; int l, m;
 public:
@@ -108,8 +97,7 @@ PP_NonLocal::PP_NonLocal(const st_t& st, sep_t sep, const qcMesh::MeshParams& mp
 rsmat_t PP_NonLocal::CalculateMatrix(const robs_t* bs, const Spin&) const
 {
     qcMesh::Mesh mesh = theStructure->CreateIntegrationMesh(itsMeshParams);   // the geometry's own mesh
-    BFView bf(*bs);
-    size_t n=bf.size();
+    size_t n=bs->GetVectorSize();
     rmat_t V(n,n,0.0);
     for (size_t a=0; a<theStructure->GetNumAtoms(); a++)
     {
@@ -121,7 +109,7 @@ rsmat_t PP_NonLocal::CalculateMatrix(const robs_t* bs, const Spin&) const
             double D=itsSep->Coefficient    (Z,p);
             for (int m=-l; m<=l; m++)
             {
-                rvec_t b=qcMesh::Overlap(mesh, bf, BetaYlmField(at->itsR,*itsSep,Z,p,l,m));
+                rvec_t b=qcMesh::Overlap(mesh, *bs, BetaYlmField(at->itsR,*itsSep,Z,p,l,m));
                 for (size_t i=0;i<n;i++)         // rank-1 update D|b><b| (real symmetric, bit-exact)
                     for (size_t j=0;j<n;j++) V(i,j)+=D*b[i]*b[j];
             }

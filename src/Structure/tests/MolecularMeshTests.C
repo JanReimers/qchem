@@ -7,7 +7,7 @@
 
 import qchem.Structure;                 // Molecule, Atom, Structure
 import qchem.UnitCell;                   // UnitCell (uniform periodic mesh)
-import qchem.Mesh.Quadrature;          // qcMesh::Integrate, ScalarField
+import qchem.Mesh.Quadrature;          // qcMesh::Integrate (over qcMath ScalarFunction)
 import qchem.Math;                      // Pi32, Pi
 using namespace qchem;
 
@@ -17,7 +17,7 @@ using namespace qchem;
 namespace
 {
 // Gaussian exp(-|r-c|^2); integral over R^3 = pi^{3/2}.
-class GaussAt : public qcMesh::ScalarField<double>
+class GaussAt : public ScalarFunction<double>
 {
     rvec3_t itsC;
 public:
@@ -27,7 +27,7 @@ public:
 };
 
 // Sum of two unit Gaussians centred at a and b; integral = 2 pi^{3/2}.
-class TwoGauss : public qcMesh::ScalarField<double>
+class TwoGauss : public ScalarFunction<double>
 {
     rvec3_t itsA, itsB;
 public:
@@ -102,7 +102,7 @@ namespace
 {
 // f == 1 everywhere: its cell integral is exactly the cell volume Omega (validates the equal weights
 // sum to Omega for ANY n).
-class One : public qcMesh::ScalarField<double>
+class One : public ScalarFunction<double>
 {
 public:
     double  operator()(const rvec3_t&) const override {return 1.0;}
@@ -113,7 +113,7 @@ public:
 // (cos^2 = 1/2 + 1/2 cos(4 pi x/a), and the cos term averages to zero over the cell).  The midpoint rule
 // integrates it exactly for n >= 3 points per axis -- a strong check that the fractional-midpoint mapping
 // and weights are right.
-class CosSqX : public qcMesh::ScalarField<double>
+class CosSqX : public ScalarFunction<double>
 {
     double itsA;
 public:

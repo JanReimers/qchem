@@ -11,8 +11,8 @@ module;
 
 module qchem.Hamiltonian.Internal.Terms;
 import qchem.Energy;
-import qchem.Mesh.Quadrature;           // qcMesh::Mesh, WeightedOverlap, ScalarField, BasisField
-import qchem.VectorFunction;            // the orbital basis IS-A VectorFunction (the integrand source)
+import qchem.Mesh.Quadrature;           // qcMesh::Mesh, WeightedOverlap (over qcMath Scalar/VectorFunction)
+import qchem.VectorFunction;            // the orbital basis IS-A VectorFunction (the integrand source, passed direct)
 import qchem.Math;                      // norm(Vector3D)
 
 namespace qchem::Hamiltonian
@@ -20,19 +20,8 @@ namespace qchem::Hamiltonian
 
 namespace {
 
-// Adapt the orbital basis (a VectorFunction: r -> [chi_i(r)]) to the mesh-quadrature BasisField.
-class BFView : public qcMesh::BasisField<double>
-{
-    const VectorFunction<double>& its;
-public:
-    explicit BFView(const VectorFunction<double>& v) : its(v) {}
-    size_t     size()                       const override {return its.GetVectorSize();}
-    rvec_t     operator()(const rvec3_t& r) const override {return its(r);}
-    rvec3vec_t Gradient  (const rvec3_t& r) const override {return its.Gradient(r);}
-};
-
 // The real-space local pseudopotential as a scalar field: V_loc(r) = Sum_atoms V_loc(Z_a, |r - R_a|).
-class VlocField : public qcMesh::ScalarField<double>
+class VlocField : public ScalarFunction<double>
 {
     const Structure& cl;
     const Pseudopotential::LocalPotential_R& v;
@@ -59,7 +48,7 @@ PP_Local::PP_Local(const st_t& st, vloc_t vloc, const qcMesh::MeshParams& mp)
 rsmat_t PP_Local::CalculateMatrix(const robs_t* bs, const Spin&) const
 {
     qcMesh::Mesh mesh = theStructure->CreateIntegrationMesh(itsMeshParams);   // the geometry's own mesh
-    return qcMesh::WeightedOverlap(mesh, BFView(*bs), VlocField(*theStructure, *itsVloc));
+    return qcMesh::WeightedOverlap(mesh, *bs, VlocField(*theStructure, *itsVloc));
 }
 
 void PP_Local::GetEnergy(EnergyBreakdown& te, const rDM_CD* cd) const

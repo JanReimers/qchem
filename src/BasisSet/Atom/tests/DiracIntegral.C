@@ -20,16 +20,7 @@ using namespace qchem;
 
 namespace
 {
-class BFView : public qcMesh::BasisField<double>
-{
-    const VectorFunction<double>& its;
-public:
-    explicit BFView(const VectorFunction<double>& v) : its(v) {}
-    size_t     size()                       const override {return its.GetVectorSize();}
-    rvec_t     operator()(const rvec3_t& r) const override {return its(r);}
-    rvec3vec_t Gradient  (const rvec3_t& r) const override {return its.Gradient(r);}
-};
-struct OneOverR  : qcMesh::ScalarField<double>
+struct OneOverR  : ScalarFunction<double>
 {
     double  operator()(const rvec3_t& r) const override {double m=norm(r); return m==0.0?0.0:1.0/m;}
     rvec3_t Gradient  (const rvec3_t&)   const override {return rvec3_t(0,0,0);}
@@ -131,8 +122,8 @@ TEST_F(DiracIntegralTests, SlaterOverlap)
             for (size_t i=0;i<d.size()/2;i++) EXPECT_NEAR(d[i],1.0,1e-15);
         }
         // cout << std::fixed << std::setprecision(3) << std::setw(6) << S << S1 << endl;
-        rsmat_t SLnum = qcMesh::Overlap(itsMesh,BFView(*GetLarge(oi)));
-        rsmat_t SSnum = qcMesh::Overlap(itsMesh,BFView(*GetSmall(oi)));
+        rsmat_t SLnum = qcMesh::Overlap(itsMesh,*GetLarge(oi));
+        rsmat_t SSnum = qcMesh::Overlap(itsMesh,*GetSmall(oi));
         rsmat_t Snum=merge_diag(SLnum,SSnum);
         // cout << Snum << S << endl;
 
@@ -151,8 +142,8 @@ TEST_F(DiracIntegralTests, GaussianOverlap)
             for (size_t i=0;i<d.size()/2;i++) EXPECT_NEAR(d[i],1.0,1e-15);
         }
         // cout << std::fixed << std::setprecision(3) << std::setw(6) << S << S1 << endl;
-        rsmat_t SLnum = qcMesh::Overlap(itsMesh,BFView(*GetLarge(oi)));
-        rsmat_t SSnum = qcMesh::Overlap(itsMesh,BFView(*GetSmall(oi)));
+        rsmat_t SLnum = qcMesh::Overlap(itsMesh,*GetLarge(oi));
+        rsmat_t SSnum = qcMesh::Overlap(itsMesh,*GetSmall(oi));
 //        cout << SLnum << SSnum << endl;
         rsmat_t Snum=merge_diag(SLnum,SSnum);
         // cout << Max(fabs(S-Snum)) << endl;
@@ -168,8 +159,8 @@ TEST_F(DiracIntegralTests, SlaterNuclear)
     for (auto oi:sbs->Iterate<Real_OIBS >())
     {
         rsmat_t Ven=oi->Nuclear(cl);
-        rsmat_t VenLnum = -Z*qcMesh::WeightedOverlap(itsMesh,BFView(*GetLarge(oi)),OneOverR());
-        rsmat_t VenSnum = -Z*qcMesh::WeightedOverlap(itsMesh,BFView(*GetSmall(oi)),OneOverR());
+        rsmat_t VenLnum = -Z*qcMesh::WeightedOverlap(itsMesh,*GetLarge(oi),OneOverR());
+        rsmat_t VenSnum = -Z*qcMesh::WeightedOverlap(itsMesh,*GetSmall(oi),OneOverR());
         rsmat_t Vennum=merge_diag(VenLnum,VenSnum);
         //cout << "Ven=" << Ven << endl << "Ven num=" << Vennum << endl;
         //Because of the singularity at the origin, the error is larger than the other integrals.
@@ -185,8 +176,8 @@ TEST_F(DiracIntegralTests, GaussianNuclear)
     for (auto oi:gbs->Iterate<Real_OIBS >())
     {
         rsmat_t Ven=oi->Nuclear(cl);
-        rsmat_t VenLnum = -Z*qcMesh::WeightedOverlap(itsMesh,BFView(*GetLarge(oi)),OneOverR());
-        rsmat_t VenSnum = -Z*qcMesh::WeightedOverlap(itsMesh,BFView(*GetSmall(oi)),OneOverR());
+        rsmat_t VenLnum = -Z*qcMesh::WeightedOverlap(itsMesh,*GetLarge(oi),OneOverR());
+        rsmat_t VenSnum = -Z*qcMesh::WeightedOverlap(itsMesh,*GetSmall(oi),OneOverR());
         rsmat_t Vennum=merge_diag(VenLnum,VenSnum);
         //cout << "Ven=" << Ven << endl << "Ven num=" << Vennum << endl;
         // cout << "Ven=" << Ven << endl << "Ven1=" << Ven1 << endl;
