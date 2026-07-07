@@ -19,6 +19,7 @@ import qchem.ChargeDensity.AtomicDensity;          // RadialDensity, RecentredAt
 import qchem.BasisSet.Band_FT_IBS;                  // Band_FT_IBS (the G-space structure-factor assembler)
 import qchem.BasisSet.Fit_IBS;                      // cFIT_CD_ABS (GetRepulsion3C's fit-basis arg)
 import qchem.Structure;                             // Structure, Atom
+import qchem.ReciprocalLattice;                     // ReciprocalLattice (the seed's own Poisson metric B)
 import qchem.ScalarFunction;                        // ScalarFunction<double>
 
 export namespace qchem::ChargeDensity
@@ -57,6 +58,7 @@ private:
     ΔG_Map StructureFactorDensity() const;        //!< the seed's rho-tilde = per-species structure-factor sum
     const BasisSet::Band_FT_IBS* itsBasis;        //!< the plane-wave block (structure-factor assembler); not owned
     const Structure*             itsStructure;    //!< atom Z + positions; not owned
+    ReciprocalLattice            itsRecip;        //!< the cell's reciprocal lattice (B): the seed's Poisson metric
     std::map<size_t,std::shared_ptr<const RadialDensity>> itsRadByZ; //!< per-element (Z) valence radial density
     std::map<size_t,double>                            itsScaleByZ; //!< per-element IonicSAD multiplier (def 1.0)
     std::vector<RecentredAtomicDensity>                itsRecentred; //!< per-atom rho_atom(|r-R|) for op(r)

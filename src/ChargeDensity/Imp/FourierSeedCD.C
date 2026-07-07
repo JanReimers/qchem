@@ -16,9 +16,21 @@ import qchem.ReciprocalLattice;   // ReciprocalLattice + UnitCell::MakeReciproca
 namespace qchem::ChargeDensity
 {
 
+namespace
+{
+// The seed is periodic (a plane-wave density), so its Structure IS a UnitCell -- derive the reciprocal
+// lattice ONCE at construction (the Poisson metric B), rather than casting on every GetRepulsion3C.
+ReciprocalLattice ReciprocalOf(const Structure* st)
+{
+    const UnitCell* cell=dynamic_cast<const UnitCell*>(st);
+    assert(cell && "FourierSeedCD is periodic: its Structure must be a UnitCell");
+    return ReciprocalLattice(cell->MakeReciprocalCell());
+}
+} //anon
+
 FourierSeedCD::FourierSeedCD(const BasisSet::Band_FT_IBS* basis, const Structure* st, const std::string& functional,
                              const std::map<size_t,double>& ionicScaleByZ)
-    : itsBasis(basis), itsStructure(st), itsCharge(0.0)
+    : itsBasis(basis), itsStructure(st), itsRecip(ReciprocalOf(st)), itsCharge(0.0)
     , itsVersion(NextDensityVersion())   // shared global clock (no cross-kind collisions)
 {
     assert(basis);
@@ -69,18 +81,14 @@ FourierSeedCD::FourierSeedCD(const BasisSet::Band_FT_IBS* basis, const Structure
     return StructureFactorDensity();
 }
 
-// The seed's Coulomb projection V_H = 4pi rho-tilde/|G|^2: apply the diagonal Poisson kernel to the
-// structure-factor rho-tilde.  The kernel is reciprocal-LATTICE physics (it needs only B, not the basis's
-// {G} set), and the seed already holds the periodic Structure -- so it builds the reciprocal lattice itself,
-// no basis round-trip.  (Bit-identical to the old basis CoulombKernel: same B, same 4pi/(G*G).)
+// The seed's Coulomb projection V_H = 4pi rho-tilde/|G|^2: apply the diagonal Poisson kernel (reciprocal-
+// LATTICE physics -- needs only B, not the basis's {G} set) to the structure-factor rho-tilde.  The seed
+// owns its reciprocal lattice (itsRecip, built at construction), so there is NO basis round-trip.
 ΔG_Map FourierSeedCD::GetRepulsion3C(const BasisSet::cFIT_CD_ABS&) const
 {
-    const UnitCell* cell=dynamic_cast<const UnitCell*>(itsStructure);
-    assert(cell && "FourierSeedCD is periodic: its Structure must be a UnitCell");
-    ReciprocalLattice recip(cell->MakeReciprocalCell());
     ΔG_Map VH;
     for (const auto& [dm,rt] : StructureFactorDensity())
-        if (double k=recip.CoulombKernel(dm); k!=0.0) VH[dm]=k*rt;   // skip dm=0 (k==0)
+        if (double k=itsRecip.CoulombKernel(dm); k!=0.0) VH[dm]=k*rt;   // skip dm=0 (k==0)
     return VH;
 }
 
