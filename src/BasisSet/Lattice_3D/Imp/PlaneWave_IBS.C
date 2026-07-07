@@ -105,18 +105,24 @@ chmat_t PlaneWave_IBS::Repulsion(const ΔG_Map& rg) const
     });
 }
 
-// rho-tilde(dm) = (1/Omega) Sum_{i,j: G_i-G_j=dm} D_ij.  D is Hermitian, so rho-tilde(-dm)=conj(rho-tilde(dm))
-// falls out automatically (the (j,i) pair contributes conj(D_ij) at -dm).  One O(n^2) pass, no grid.
-ΔG_Map PlaneWave_IBS::MakeFourierDensity(const chmat_t& D) const
+// The density-free {G} 3-centre gather: for each difference dm=G_i-G_j, the (i,j) pairs that hit it, in
+// row-major order, plus Omega.  Built ONCE (intrinsic to {G}) and cached -- the ERI3-cache analogue.  The
+// density then forms rho-tilde(dm) = (1/Omega) Sum_{G_i-G_j=dm} D_ij by ContractFourierGather (D is
+// Hermitian, so rho-tilde(-dm)=conj(rho-tilde(dm)) falls out: the (j,i) pair contributes conj(D_ij) at -dm).
+const FourierGather& PlaneWave_IBS::GetFourierGather() const
 {
-    ΔG_Map rg;
-    size_t n=GetNumFunctions();
-    const std::vector<ivec3_t>& G=Gs();
-    for (size_t i=0;i<n;i++)
-        for (size_t j=0;j<n;j++)
-            rg[G[i]-G[j]] += D(i,j);
-    for (auto& kv : rg) kv.second /= Volume();
-    return rg;
+    if (!itsGatherBuilt)
+    {
+        size_t n=GetNumFunctions();
+        const std::vector<ivec3_t>& G=Gs();
+        itsFourierGather.support.clear();
+        for (size_t i=0;i<n;i++)
+            for (size_t j=0;j<n;j++)
+                itsFourierGather.support[G[i]-G[j]].push_back({int(i),int(j)});  // row-major: preserves fold order
+        itsFourierGather.volume=Volume();
+        itsGatherBuilt=true;
+    }
+    return itsFourierGather;
 }
 
 // Structure-factor assembly of a per-species radial form factor (the SAD seed density face): for each

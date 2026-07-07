@@ -58,9 +58,9 @@ public:
                   const ivec3_t& kIndex, double Ecut);
 
     // --- Band_FT_IBS capability: density-driven KS assembly in reciprocal space (orbital-only). ---
-    //! \brief Density Fourier coefficients \f$\tilde\rho(\Delta m)=\frac1\Omega\sum_{G_i-G_j=\Delta m}D_{ij}\f$
-    //! for a density matrix \a D in THIS plane-wave block.
-    virtual ΔG_Map MakeFourierDensity(const chmat_t& D) const override;
+    //! \brief The density-free \f$\{G\}\f$ three-centre gather (built once from \f$\{G\}\f$, cached).  The
+    //! charge density contracts its \f$D\f$ against it (\c ContractFourierGather) to form \f$\tilde\rho\f$.
+    virtual const FourierGather& GetFourierGather() const override;
     //! \brief Structure-factor assembly of a per-species radial form factor (the SAD seed density face).
     virtual ΔG_Map MakeFourierDensity(const Structure* atoms,
                           const std::function<double(int Z, double g2)>& formFactor) const override;
@@ -98,6 +98,12 @@ public:
     virtual std::string BasisSetID() const override; // geometry-aware cache key (Name + k, Ecut, nG)
 
     virtual std::ostream& Write(std::ostream&) const override;
+
+private:
+    //! Lazily-built cache of the density-free \f$\{G\}\f$ 3-centre gather (intrinsic to \f$\{G\}\f$, so valid
+    //! for the basis's lifetime regardless of the density) -- the plane-wave analogue of the \c ERI3 cache.
+    mutable FourierGather itsFourierGather;
+    mutable bool          itsGatherBuilt=false;
 };
 
 } //namespace

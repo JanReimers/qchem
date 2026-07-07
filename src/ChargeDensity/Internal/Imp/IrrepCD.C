@@ -221,9 +221,13 @@ template <class T> ΔG_Map IrrepCD<T>::GetFourierDensity() const
 {
     if constexpr (std::is_same_v<T,dcmplx>)
     {
+        // Contract D against the basis's DENSITY-FREE {G} 3-centre gather HERE -- the DENSITY owns D, exactly
+        // as the finite path contracts D against the basis's ERI3 in GetRepulsion3C above.  D never crosses
+        // into the basis: the basis exposes only the D-free gather (GetFourierGather), and this is where
+        // rho-tilde(dm) = (1/Omega) Sum_{G_i-G_j=dm} D_ij is formed.
         auto* fb=dynamic_cast<const BasisSet::Band_FT_IBS*>(itsBasisSet);
         assert(fb && "GetFourierDensity requires a Band_FT_IBS (plane-wave) basis");
-        return fb->MakeFourierDensity(itsDensityMatrix);
+        return ContractFourierGather(fb->GetFourierGather(), itsDensityMatrix);
     }
     else
     {

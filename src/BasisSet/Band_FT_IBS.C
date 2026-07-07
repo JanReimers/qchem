@@ -3,7 +3,8 @@
 // The dual of Band_DFT_IBS: instead of integrating real-space ScalarFunctions on a mesh, this is the
 // RECIPROCAL-SPACE lineage -- a plane-wave basis and a plane-wave density share G-space coefficients (a
 // ΔG_Map, rho-tilde).  The questions here are the DENSITY-driven assembly: the density-fit-basis factory,
-// D -> rho-tilde (one O(n^2) projection), and the FFT-free Hartree matrix from rho-tilde.  (The FFT XC grid
+// the D-free {G} 3-centre gather (the density contracts D against it, off-basis), and the FFT-free Hartree
+// matrix from rho-tilde.  (The FFT XC grid
 // engine lives on the BasisSet::G_FieldEvaluator seam; the EXTERNAL pseudopotential assembly is a separate
 // capability, Pseudopotential::Integrals_Pseudo in qcPseudopotential, so qcBasisSet names no pseudopotential type.)
 // A term reaches this the sanctioned way: holding the abstract orbital basis and dynamic_cast-ing UP.
@@ -40,9 +41,13 @@ public:
     //! future denser-\f$\{G\}\f$ upgrade).  Caller owns the result.
     virtual cFIT_SF_ABS* CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const=0;
 
-    //! \brief \f$\tilde\rho(\Delta m)=\frac1\Omega\sum_{G_i-G_j=\Delta m}D_{ij}\f$ for a density matrix
-    //! \a D in THIS plane-wave block (one \f$O(n^2)\f$ accumulation over the difference set).
-    virtual ΔG_Map MakeFourierDensity(const hmat_t<dcmplx>& D) const=0;
+    //! \brief The DENSITY-FREE three-centre "integrals" \f$\langle G_i G_j|\Delta m\rangle=\tfrac1\Omega
+    //! \delta_{\Delta m,G_i-G_j}\f$ of THIS block (the reciprocal analogue of the molecular \c Repulsion3C
+    //! \c ERI3 tensor).  Deliberately NO density argument: the basis owns only the \f$\{G\}\f$ structure, and
+    //! the DENSITY does the \f$D\f$-contraction (\c ContractFourierGather) to form \f$\tilde\rho\f$ -- so the
+    //! density matrix never crosses into the basis (mirrors the molecular \c Orbital_DFT_IBS, which exposes
+    //! the D-free \c ERI3 and lets the charge density contract \f$D\f$).  Cached (intrinsic to \f$\{G\}\f$).
+    virtual const FourierGather& GetFourierGather() const=0;
 
     //! \brief \f$\tilde\rho(\Delta m)=\frac1\Omega\sum_{\text{atoms}} f(Z,|B\Delta m|^2)\,e^{-iG\cdot R}\f$ over
     //! the difference set -- the structure-factor assembly of a per-species radial form factor \a formFactor

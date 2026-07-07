@@ -73,7 +73,7 @@ public:
 };
 
 //! \brief The plane-wave counterpart of ProjectedDensity_AO.  On the orthonormal {G} basis the projection
-//! is already DIAGONAL -- rho-tilde(Dm) = (1/Omega) Sum_{m_i-m_j=Dm} D_ij (= MakeFourierDensity), a map keyed
+//! is already DIAGONAL -- rho-tilde(Dm) = (1/Omega) Sum_{m_i-m_j=Dm} D_ij (= ContractFourierGather), a map keyed
 //! by Dm (efficiency, rule #2: the delta collapses Sum_ij D_ij<ij|c> to a gather over Dm-shells).  So here
 //! the projection IS the fit (no metric solve): this simply WRAPS the density's G-space coefficients, keeping
 //! the ΔG_Map container OFF the neutral ProjectedDensity<dcmplx> face (the ortho fitter cross-casts to it

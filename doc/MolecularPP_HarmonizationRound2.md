@@ -179,11 +179,19 @@ before building on top. Candidate smells to check (verify against current code �
 - `dynamic_cast`-reached capabilities that could be a clean abstract face (the CLAUDE.md cast policy).
 - Anything assuming Γ-only or a single k where the lattice generalization needs the full k-set.
 - Ownership/mesh/grid duplication now that the fitter owns its own grid.
-- **The `MakeFourierDensity(D)` density-matrix leak (headline SRP item for this review).**
+- **✅ DONE — the `MakeFourierDensity(D)` density-matrix leak (was the headline SRP item for this review).**
+  Fixed exactly as the molecular precedent: `Band_FT_IBS::MakeFourierDensity(const hmat_t<dcmplx>& D)` is gone;
+  the basis now exposes only the **D-free** `GetFourierGather() → const FourierGather&` (a new `qcMath` type —
+  the delta-sparse `{G}` 3-centre "integrals" `⟨G_i G_j|Δm⟩ = δ(Δm,G_i−G_j)/Ω`, one bucket per fit function
+  `Δm`, lazily cached, the `ERI3` analogue), and `IrrepCD<dcmplx>::GetFourierDensity()` does the `D`-contraction
+  via the templated `ContractFourierGather(gather, D)` (mirrors the finite `GetRepulsion3C`). `D` never crosses
+  into `qcBasisSet` on either the real-space or reciprocal-space path now. Bit-identical (176/176 UTMain green,
+  Silicon SCF anchors + the `Repulsion(MakeFourierDensity(D))` round-trip tests unchanged). *Original analysis,
+  kept for the record:*
   `BasisSet::Band_FT_IBS::MakeFourierDensity(const hmat_t<dcmplx>& D)` — and its concrete override
-  `PlaneWave_IBS::MakeFourierDensity(const chmat_t& D)` — takes the **density matrix** `D` (a `ChargeDensity`
-  concept) straight into the `BasisSet` interface; `IrrepCD<dcmplx>::GetFourierDensity()` reaches the basis by
-  `dynamic_cast<Band_FT_IBS*>` and hands it `itsDensityMatrix`. That is the plane-wave violation of exactly the
+  `PlaneWave_IBS::MakeFourierDensity(const chmat_t& D)` — took the **density matrix** `D` (a `ChargeDensity`
+  concept) straight into the `BasisSet` interface; `IrrepCD<dcmplx>::GetFourierDensity()` reached the basis by
+  `dynamic_cast<Band_FT_IBS*>` and handed it `itsDensityMatrix`. That was the plane-wave violation of exactly the
   two separations the **molecular** side already achieves, in **both** directions:
   1. **`D` must not leak into the basis.** The molecular DFT-assembly face `Band_DFT_IBS` takes *only* real-space
      `ScalarFunction`s — "the density IS one" — with deliberately **NO getters**; the density matrix never

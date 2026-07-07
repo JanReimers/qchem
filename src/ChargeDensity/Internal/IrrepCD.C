@@ -56,7 +56,7 @@ public:
     virtual double operator()(const rvec3_t&) const;
     virtual rvec3_t  Gradient  (const rvec3_t&) const; // No UT coverage
 
-    //! Reciprocal-space coefficients rho-tilde(Delta-m) of THIS block (= basis->MakeFourierDensity(D)).
+    //! Reciprocal-space coefficients rho-tilde(Delta-m) of THIS block (D contracted against the basis's D-free {G} gather).
     //! The periodic density's native representation; a finite density has none (real path NA-asserts).
     virtual ΔG_Map GetFourierDensity() const;
 
