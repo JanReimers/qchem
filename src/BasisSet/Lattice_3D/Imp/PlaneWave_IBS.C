@@ -105,35 +105,103 @@ chmat_t PlaneWave_IBS::Repulsion(const ΔG_Map& rg) const
     });
 }
 
-// The density-free {G} 3-centre gather: for each difference dm=G_i-G_j, the (i,j) pairs that hit it, in
-// row-major order, plus Omega.  Built ONCE (intrinsic to {G}) and cached -- the ERI3-cache analogue.  The
-// density then forms rho-tilde(dm) = (1/Omega) Sum_{G_i-G_j=dm} D_ij by ContractG_ERI3 (D is
-// Hermitian, so rho-tilde(-dm)=conj(rho-tilde(dm)) falls out: the (j,i) pair contributes conj(D_ij) at -dm).
+namespace
+{
+// Build the delta support: one column per difference dm=G_i-G_j, listing the (i,j) pairs that hit it, in
+// row-major order (i outer, j inner) so a per-column left-fold reproduces the old accumulation exactly.
+void BuildG_ERI3Columns(const std::vector<ivec3_t>& G, std::vector<G_ERI3::Column>& cols)
+{
+    size_t n=G.size();
+    cols.clear();
+    std::map<ivec3_t,int,IVec3Less> colOf;          // dm -> column index (build-time lookup only)
+    for (size_t i=0;i<n;i++)
+        for (size_t j=0;j<n;j++)
+        {
+            ivec3_t dm=G[i]-G[j];
+            auto it=colOf.find(dm);
+            int c;
+            if (it==colOf.end()) { c=int(cols.size()); colOf[dm]=c; cols.push_back({dm,{}}); }
+            else                   c=it->second;
+            cols[c].pairs.push_back({int(i),int(j)});
+        }
+}
+} //anon
+
+// The density-free {G} 3-centre gather (metric-free / overlap, EMPTY kernel): the density contracts D against
+// it (ContractG_ERI3) to form rho-tilde(dm) = (1/Omega) Sum_{G_i-G_j=dm} D_ij.  This is the reciprocal
+// analogue of the intrinsic density; it feeds the XC path (rho(r) via inverse FFT).  Built ONCE, cached.
 const G_ERI3& PlaneWave_IBS::GetG_ERI3() const
 {
     if (!itsGatherBuilt)
     {
-        size_t n=GetNumFunctions();
-        const std::vector<ivec3_t>& G=Gs();
-        auto& cols=itsG_ERI3.columns;
-        cols.clear();
-        std::map<ivec3_t,int,IVec3Less> colOf;      // dm -> column index (build-time lookup only)
-        for (size_t i=0;i<n;i++)
-            for (size_t j=0;j<n;j++)                 // row-major: preserves the per-column fold order
-            {
-                ivec3_t dm=G[i]-G[j];
-                auto it=colOf.find(dm);
-                int c;
-                if (it==colOf.end()) { c=int(cols.size()); colOf[dm]=c; cols.push_back({dm,{}}); }
-                else                   c=it->second;
-                cols[c].pairs.push_back({int(i),int(j)});
-            }
-        itsG_ERI3.kernel.clear();                    // empty => metric-free (overlap); the Coulomb kernel is
-                                                     // filled by Repulsion3C (Stage 2), not this gather.
+        BuildG_ERI3Columns(Gs(), itsG_ERI3.columns);
+        itsG_ERI3.kernel.clear();                   // EMPTY => metric-free
         itsG_ERI3.volume=Volume();
         itsGatherBuilt=true;
     }
     return itsG_ERI3;
+}
+
+// Coulomb 3-centre <G_i G_j|G_c> = (4pi/|G_c|^2) delta(G_c,G_i-G_j)/Omega: the SAME delta support as
+// GetG_ERI3 with the diagonal Poisson kernel 4pi/|G_c|^2 filled (dm=0 -> 0, the dropped G=0 background).  A
+// density contracts D against this (ContractG_ERI3) to get the Hartree potential V_H directly.  \a c is the
+// CD fit basis (declared to cover the difference set via CreateCDFitBasisSet; the delta support is orbital-
+// intrinsic today).  Mirrors Orbital_DFT_IBS::Repulsion3C -- the D-free Coulomb tensor.
+const G_ERI3& PlaneWave_IBS::Repulsion3C(const BasisSet::cFIT_CD_ABS&) const
+{
+    if (!itsRepBuilt)
+    {
+        BuildG_ERI3Columns(Gs(), itsRepulsion3C.columns);
+        rvec_t& K=itsRepulsion3C.kernel;
+        K.resize(itsRepulsion3C.columns.size());
+        for (size_t c=0;c<itsRepulsion3C.columns.size();c++)
+        {
+            const ivec3_t& dm=itsRepulsion3C.columns[c].dm;
+            if (dm.x==0 && dm.y==0 && dm.z==0) K[c]=0.0;                 // drop G=0
+            else { rvec3_t G=GetGCartesian(dm); K[c]=FourPi/(G*G); }     // diagonal Poisson kernel
+        }
+        itsRepulsion3C.volume=Volume();
+        itsRepBuilt=true;
+    }
+    return itsRepulsion3C;
+}
+
+// Overlap 3-centre <G_i G_j|G_c> = delta(G_c,G_i-G_j)/Omega: the delta support, NO kernel (overlap metric).
+// Mirrors Orbital_DFT_IBS::Overlap3C -- the D-free overlap tensor.  (The XC term's <i|v_xc|j> scatter is the
+// same delta contracted with the fitted v_xc coefficients; wired onto this in a follow-up.)
+const G_ERI3& PlaneWave_IBS::Overlap3C(const BasisSet::cFIT_SF_ABS&) const
+{
+    if (!itsOvlBuilt)
+    {
+        BuildG_ERI3Columns(Gs(), itsOverlap3C.columns);
+        itsOverlap3C.kernel.clear();                // EMPTY => overlap metric
+        itsOverlap3C.volume=Volume();
+        itsOvlBuilt=true;
+    }
+    return itsOverlap3C;
+}
+
+// Assemble <i|V|j> = V(G_i-G_j) from potential coefficients keyed by dm (V already carries any kernel, so this
+// is a plain lookup -- the sibling of Repulsion(ΔG_Map), which ADDITIONALLY applies the 4pi/G^2 Coulomb kernel).
+chmat_t PlaneWave_IBS::AssemblePotential(const ΔG_Map& V) const
+{
+    return MakePotential([&V](const ivec3_t& dm)->dcmplx
+        { auto it=V.find(dm); return it==V.end()?dcmplx(0.0):it->second; });
+}
+
+// V_H(dm) = 4pi rho-tilde(dm)/|G|^2 as a ΔG_Map (dm=0 dropped): the diagonal Coulomb kernel applied to a
+// density's rho-tilde.  For a density that carries no D to contract against Repulsion3C (the SAD seed), which
+// produces its V_H this way.  Same float expression as Repulsion(ΔG_Map) so the seed path stays bit-identical.
+ΔG_Map PlaneWave_IBS::CoulombKernel(const ΔG_Map& rg) const
+{
+    ΔG_Map V;
+    for (const auto& [dm,rt] : rg)
+    {
+        if (dm.x==0 && dm.y==0 && dm.z==0) continue;                    // drop G=0
+        rvec3_t G=GetGCartesian(dm);
+        V[dm]=FourPi*rt/(G*G);
+    }
+    return V;
 }
 
 // Structure-factor assembly of a per-species radial form factor (the SAD seed density face): for each
@@ -233,13 +301,17 @@ chmat_t PlaneWave_IBS::MakeSeparablePotential(const Structure* cl, const Pseudop
     return V;
 }
 
-// The Band_FT_IBS factory seam: hand back a distinct auxiliary density-fit basis.  The density is
+// The Band_FT_IBS factory seam: hand back a distinct auxiliary DENSITY-fit basis.  The density is
 // cell-periodic, so ITS symmetry is Gamma (k=0), NOT this orbital block's k -- build a k=0 grid engine and
-// label it with a k=0 Bloch irrep.  The fit basis is Ecut-based; the only knob read from mp is relCutoff
-// (the CP2K REL_CUTOFF density-cutoff multiplier).  relCutoff=1 reproduces the orbital {G} bit-identically.
+// label it with a k=0 Bloch irrep.  The electron density rho = psi*psi is EXACTLY band-limited to the
+// difference set {G_i-G_j}: |G_i-G_j| <= 2 max|G|, i.e. 1/2|dG|^2 < 4 Ecut.  So the CD fit basis must cover
+// 4x the orbital cutoff to represent rho -- honestly denser than the orbital {G} (never orbital==fit).  A
+// GGA that wants a still-denser density grid raises it via mp.relCutoff (CP2K REL_CUTOFF); the 4x floor is
+// the exact difference-set cover.  (The rho-tilde support is orbital-intrinsic today, so this is inert for the
+// matrix -- the fitter holds it for the future denser-grid resampling -- but it makes the fit basis correct.)
 BasisSet::cFIT_CD_ABS* PlaneWave_IBS::CreateCDFitBasisSet(const Structure*, const qcMesh::MeshParams& mp) const
 {
-    PW_Evaluator gamma(Recip(), rvec3_t(0.0,0.0,0.0), Ecut()*mp.relCutoff);
+    PW_Evaluator gamma(Recip(), rvec3_t(0.0,0.0,0.0), Ecut()*std::max(4.0, mp.relCutoff));
     return new PlaneWaveFit_IBS(gamma, Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
 }
 

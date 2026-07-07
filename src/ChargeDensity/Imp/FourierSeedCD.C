@@ -60,6 +60,13 @@ FourierSeedCD::FourierSeedCD(const BasisSet::Band_FT_IBS* basis, const Structure
     return itsBasis->MakeFourierDensity(itsStructure, formFactor);
 }
 
+// The seed's Coulomb projection V_H = 4pi rho-tilde/|G|^2: no D to contract, so apply the diagonal kernel to
+// the structure-factor rho-tilde.  Same float expression as the old fitter->Repulsion path -> bit-identical.
+ΔG_Map FourierSeedCD::GetRepulsion3C(const BasisSet::cFIT_CD_ABS&) const
+{
+    return itsBasis->CoulombKernel(GetFourierDensity());
+}
+
 double FourierSeedCD::operator()(const rvec3_t& r) const
 {
     double rho=0;   // itsRecentred is parallel to the structure's atoms -> per-atom IonicSAD scale by Z

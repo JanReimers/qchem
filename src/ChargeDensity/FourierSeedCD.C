@@ -16,7 +16,8 @@ export module qchem.ChargeDensity.FourierSeedCD;
 export import qchem.ChargeDensity;                 // tChargeDensity<dcmplx>
 export import qchem.ChargeDensity.FourierDensity;  // FourierDensity, ΔG_Map
 import qchem.ChargeDensity.AtomicDensity;          // RadialDensity, RecentredAtomicDensity, GetAtomicDensity
-import qchem.BasisSet.Band_FT_IBS;                  // Band_FT_IBS (the G-space assembler)
+import qchem.BasisSet.Band_FT_IBS;                  // Band_FT_IBS (the G-space assembler + CoulombKernel)
+import qchem.BasisSet.Fit_IBS;                      // cFIT_CD_ABS (GetRepulsion3C's fit-basis arg)
 import qchem.Structure;                             // Structure, Atom
 import qchem.ScalarFunction;                        // ScalarFunction<double>
 
@@ -38,6 +39,9 @@ public:
 
     // FourierDensity -- the native G-space representation the PW Hartree/XC terms consume.
     virtual ΔG_Map GetFourierDensity() const;
+    // V_H = CoulombKernel(rho-tilde): the seed carries no D to contract, so it applies the diagonal kernel to
+    // its structure-factor rho-tilde (bit-identical to the old Repulsion(rho-tilde) path).
+    virtual ΔG_Map GetRepulsion3C(const BasisSet::cFIT_CD_ABS& c) const;
 
     // ScalarFunction<double> -- real-space rho(r) = Sum_atoms rho_atom(|r-R|) (not used by the PW Fock build,
     // which goes through GetFourierDensity, but provided so the type is whole).

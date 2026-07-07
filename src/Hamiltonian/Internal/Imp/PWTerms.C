@@ -87,23 +87,23 @@ std::ostream& PW_Kinetic::Write(std::ostream& os) const
 // Ion-ion (Ewald) is now the shared IonIon<dcmplx> term (qchem.Hamiltonian.Internal.IonIon).
 
 //----------------------------------------------------------------------------------- Hartree
-// Built once (in Ham_PW_DFT::BuildTerms) from the basis's density-fit basis -- exactly as FittedVee is
-// built with its CD fit basis -- so the fitter is created ONCE, not per SCF cycle.
+// Holds its CD fit basis (from Ham_PW_DFT::BuildTerms via the orbital basis's factory, never assuming
+// orbital==fit) and hands it to the density's GetRepulsion3C each SCF cycle -- mirrors FittedVee holding its
+// CD fit basis and calling IrrepCD::GetRepulsion3C(fbs).
 PW_Hartree::PW_Hartree(fbs_t fb)
-    : itsFitter(Fitting::Factory(fb))   // the ortho (G-space) density fitter, through the factory
+    : itsFitBasis(fb)
 {}
-PW_Hartree::~PW_Hartree() = default;   // itsFitter's abstract type is complete here
 
 chmat_t PW_Hartree::CalcMatrix(const cobs_t* bs, const Spin&, const cChargeDensity* cd) const
 {
     newCD(cd);   // dirty the Irrep cache if cd is new (the cross-iteration freshness mechanism)
     auto fd=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(cd);
     assert(fd && "PW_Hartree requires a FourierDensity (periodic) charge density");
-    // Reuse the pre-built ortho fitter (mirrors FittedVee): on the orthonormal {G} basis the projection IS
-    // the fit, so DoFit just RECEIVES the density's rho-tilde (= Sum_k w_k rho_k), and Repulsion delegates
-    // the FFT-free G-space Poisson solve to the basis (Band_FT_IBS).
-    itsFitter->DoFit(Fitting::ProjectedDensity_G(fd->GetFourierDensity()));
-    return itsFitter->Repulsion(bs);
+    auto pw=dynamic_cast<const BasisSet::Band_FT_IBS*>(bs);
+    assert(pw && "PW_Hartree requires a Band_FT_IBS (plane-wave) orbital basis");
+    // The density contracts D against the basis's D-free Coulomb tensor Repulsion3C (kernel baked) to give
+    // V_H(dm); the term assembles <i|V_H|j> = V_H(G_i-G_j).  D never crosses into the basis.
+    return pw->AssemblePotential(fd->GetRepulsion3C(*itsFitBasis));
 }
 
 void PW_Hartree::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const

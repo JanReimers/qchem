@@ -174,9 +174,9 @@ template <class T> ΔG_Map tComposite_CD<T>::GetFourierDensity() const
     if constexpr (std::is_same_v<T,dcmplx>)
     {
         ΔG_Map rg;
-        for (const auto& c : itsCDs)
+        for (const auto& blk : itsCDs)
         {
-            auto* fc=dynamic_cast<const FourierDensity*>(c.get());
+            auto* fc=dynamic_cast<const FourierDensity*>(blk.get());
             assert(fc && "composite block is not a FourierDensity (plane-wave path)");
             for (const auto& kv : fc->GetFourierDensity()) rg[kv.first]+=kv.second;
         }
@@ -185,6 +185,28 @@ template <class T> ΔG_Map tComposite_CD<T>::GetFourierDensity() const
     else
     {
         assert(false && "a finite (non-periodic) density has no reciprocal-lattice Fourier series");
+        return ΔG_Map{};
+    }
+}
+
+// V_H = Sum_blocks V_H_k (V_H is linear in rho-tilde, so summing the per-block Coulomb projections == the
+// projection of the summed density).  Each block bakes the kernel via its own Repulsion3C(c).
+template <class T> ΔG_Map tComposite_CD<T>::GetRepulsion3C(const BasisSet::cFIT_CD_ABS& c) const
+{
+    if constexpr (std::is_same_v<T,dcmplx>)
+    {
+        ΔG_Map rg;
+        for (const auto& blk : itsCDs)
+        {
+            auto* fc=dynamic_cast<const FourierDensity*>(blk.get());
+            assert(fc && "composite block is not a FourierDensity (plane-wave path)");
+            for (const auto& kv : fc->GetRepulsion3C(c)) rg[kv.first]+=kv.second;
+        }
+        return rg;
+    }
+    else
+    {
+        assert(false && "a finite (non-periodic) density has no reciprocal Coulomb projection");
         return ΔG_Map{};
     }
 }

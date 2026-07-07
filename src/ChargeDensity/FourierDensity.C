@@ -12,6 +12,7 @@ module;
 #include <type_traits>
 export module qchem.ChargeDensity.FourierDensity;
 export import qchem.BasisSet.Internal.GMap;
+import qchem.BasisSet.Fit_IBS;   // cFIT_CD_ABS (the CD fit basis GetRepulsion3C keys by)
 import qchem.Types;   // dcmplx
 
 export namespace qchem::ChargeDensity
@@ -21,9 +22,15 @@ class FourierDensity
 {
 public:
     virtual ~FourierDensity() {}
-    //! \brief The density's reciprocal-space coefficients \f$\tilde\rho(\Delta m)\f$ (BZ-weighted; the
-    //! composite sums \f$\sum_k w_k\tilde\rho_k\f$ over the k-mesh).  Keyed by reciprocal-index difference.
+    //! \brief The density's METRIC-FREE reciprocal-space coefficients \f$\tilde\rho(\Delta m)\f$ (BZ-weighted;
+    //! the composite sums \f$\sum_k w_k\tilde\rho_k\f$).  Feeds the XC \f$\rho(r)\f$ path (inverse FFT).
     virtual ΔG_Map GetFourierDensity() const=0;
+
+    //! \brief The density's COULOMB projection \f$V_H(\Delta m)=4\pi\tilde\rho/|G|^2\f$ for CD fit basis \a c
+    //! -- the reciprocal analogue of the molecular \c IrrepCD::GetRepulsion3C.  A matrix-carrying density
+    //! contracts \f$D\f$ against \c Band_FT_IBS::Repulsion3C (kernel baked); a matrix-free seed applies
+    //! \c CoulombKernel to its \f$\tilde\rho\f$.  The Hartree term assembles \f$\langle i|V_H|j\rangle\f$ from it.
+    virtual ΔG_Map GetRepulsion3C(const BasisSet::cFIT_CD_ABS& c) const=0;
 };
 
 //! Empty (non-polymorphic) stand-in for a FINITE density, which has no reciprocal-space representation.

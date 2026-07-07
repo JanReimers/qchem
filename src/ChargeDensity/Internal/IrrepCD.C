@@ -59,6 +59,8 @@ public:
     //! Reciprocal-space coefficients rho-tilde(Delta-m) of THIS block (D contracted against the basis's D-free {G} gather).
     //! The periodic density's native representation; a finite density has none (real path NA-asserts).
     virtual ΔG_Map GetFourierDensity() const;
+    //! V_H(Delta-m) of THIS block: D contracted against the basis's D-free Coulomb tensor Repulsion3C(c) (kernel baked).
+    virtual ΔG_Map GetRepulsion3C(const BasisSet::cFIT_CD_ABS& c) const;
 
     virtual std::ostream&       Write(std::ostream&) const;
 

@@ -58,9 +58,20 @@ public:
                   const ivec3_t& kIndex, double Ecut);
 
     // --- Band_FT_IBS capability: density-driven KS assembly in reciprocal space (orbital-only). ---
-    //! \brief The density-free \f$\{G\}\f$ three-centre gather (built once from \f$\{G\}\f$, cached).  The
-    //! charge density contracts its \f$D\f$ against it (\c ContractG_ERI3) to form \f$\tilde\rho\f$.
+    //! \brief The density-free metric-free \f$\{G\}\f$ 3-centre gather (empty kernel).  The density contracts
+    //! \f$D\f$ against it (\c ContractG_ERI3) to form \f$\tilde\rho\f$ (feeds the XC \f$\rho(r)\f$ path).
     virtual const G_ERI3& GetG_ERI3() const override;
+    //! \brief D-free Coulomb 3-centre tensor (delta support + diagonal kernel \f$4\pi/|G_c|^2\f$).  A density
+    //! contracts \f$D\f$ against it to get \f$V_H\f$ directly.  Mirrors \c Orbital_DFT_IBS::Repulsion3C.
+    virtual const G_ERI3& Repulsion3C(const BasisSet::cFIT_CD_ABS& c) const override;
+    //! \brief D-free overlap 3-centre tensor (delta support, empty kernel).  Mirrors \c Orbital_DFT_IBS::Overlap3C.
+    virtual const G_ERI3& Overlap3C(const BasisSet::cFIT_SF_ABS& c) const override;
+    //! \brief Assemble \f$\langle i|V|j\rangle=V(G_i-G_j)\f$ from potential coefficients keyed by \f$\Delta m\f$
+    //! (\a V already carries its kernel -- a plain lookup, no \f$4\pi/G^2\f$).
+    virtual chmat_t AssemblePotential(const ΔG_Map& V) const override;
+    //! \brief \f$V_H(\Delta m)=4\pi\tilde\rho/|G|^2\f$ as a \c ΔG_Map: the diagonal Coulomb kernel applied to a
+    //! density's \f$\tilde\rho\f$ (for a density with no \f$D\f$ to contract -- the SAD seed).
+    virtual ΔG_Map CoulombKernel(const ΔG_Map& rho) const override;
     //! \brief Structure-factor assembly of a per-species radial form factor (the SAD seed density face).
     virtual ΔG_Map MakeFourierDensity(const Structure* atoms,
                           const std::function<double(int Z, double g2)>& formFactor) const override;
@@ -100,10 +111,13 @@ public:
     virtual std::ostream& Write(std::ostream&) const override;
 
 private:
-    //! Lazily-built cache of the density-free \f$\{G\}\f$ 3-centre gather (intrinsic to \f$\{G\}\f$, so valid
+    //! Lazily-built caches of the density-free \f$\{G\}\f$ 3-centre tensors (intrinsic to \f$\{G\}\f$, so valid
     //! for the basis's lifetime regardless of the density) -- the plane-wave analogue of the \c ERI3 cache.
-    mutable G_ERI3 itsG_ERI3;
-    mutable bool          itsGatherBuilt=false;
+    //! The three share the same delta support (see the RAM note in doc); \c itsRepulsion3C additionally carries
+    //! the Coulomb kernel.
+    mutable G_ERI3 itsG_ERI3;      mutable bool itsGatherBuilt=false;   //!< metric-free (rho-tilde)
+    mutable G_ERI3 itsRepulsion3C; mutable bool itsRepBuilt=false;      //!< Coulomb (4pi/G^2 kernel)
+    mutable G_ERI3 itsOverlap3C;   mutable bool itsOvlBuilt=false;      //!< overlap (empty kernel)
 };
 
 } //namespace

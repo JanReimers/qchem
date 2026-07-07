@@ -236,6 +236,23 @@ template <class T> ΔG_Map IrrepCD<T>::GetFourierDensity() const
     }
 }
 
+// V_H(dm) = 4pi rho-tilde(dm)/|G|^2: contract D against the basis's D-free COULOMB tensor (Repulsion3C(c), the
+// diagonal kernel baked in) -- the reciprocal mirror of the finite GetRepulsion3C(fbs) above.  D stays here.
+template <class T> ΔG_Map IrrepCD<T>::GetRepulsion3C(const BasisSet::cFIT_CD_ABS& c) const
+{
+    if constexpr (std::is_same_v<T,dcmplx>)
+    {
+        auto* fb=dynamic_cast<const BasisSet::Band_FT_IBS*>(itsBasisSet);
+        assert(fb && "GetRepulsion3C requires a Band_FT_IBS (plane-wave) basis");
+        return ContractG_ERI3(fb->Repulsion3C(c), itsDensityMatrix);
+    }
+    else
+    {
+        assert(false && "a finite (non-periodic) density has no reciprocal Coulomb projection");
+        return ΔG_Map{};
+    }
+}
+
 
 //-----------------------------------------------------------------------
 //

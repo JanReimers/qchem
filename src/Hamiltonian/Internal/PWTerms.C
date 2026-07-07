@@ -61,8 +61,9 @@ private:
 // The ion-ion (Ewald) ENERGY term is now the T-templated IonIon<T>
 // (qchem.Hamiltonian.Internal.IonIon); the plane-wave Hamiltonian builds IonIon<dcmplx>.
 
-//! Hartree (classical Coulomb) term for a plane-wave basis (density-dependent).  Asks the basis for the
-//! Hartree matrix of the current density; the Poisson solve is the basis's business (G-space for PW).
+//! Hartree (classical Coulomb) term for a plane-wave basis (density-dependent).  Mirrors the molecular
+//! FittedVee: it holds its own CD fit basis and asks the density for its Coulomb projection V_H (the density
+//! contracts D against the basis's D-free Repulsion3C tensor); the term then assembles <i|V_H|j>.
 class PW_Hartree
     : public virtual cDynamic_HT
     , private        cDynamic_HT_Imp
@@ -70,15 +71,14 @@ class PW_Hartree
 public:
     typedef std::shared_ptr<const BasisSet::cFIT_CD_ABS> fbs_t;
     //! Built with the density-fit basis obtained from the orbital basis's factory -- exactly as FittedVee
-    //! takes its CD fit basis (BuildTerms creates it ONCE, never assuming orbital==fit).  The fitter is
-    //! built here and reused every SCF cycle (DoFit the new density, then ask for the Hartree matrix).
+    //! takes its CD fit basis (BuildTerms creates it ONCE, never assuming orbital==fit).  The term holds the
+    //! fit basis and hands it to the density's GetRepulsion3C every SCF cycle.
     PW_Hartree(fbs_t chargeDensityFitBasisSet);
-    ~PW_Hartree();
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
     virtual std::ostream& Write(std::ostream&) const;
 private:
     virtual chmat_t CalcMatrix(const cobs_t*, const Spin&, const cChargeDensity*) const;
-    std::unique_ptr<Fitting::FunctionFitter_Density<dcmplx>> itsFitter;   //!< ortho density fitter (built once)
+    fbs_t itsFitBasis;   //!< the CD (Coulomb-metric) fit basis, handed to the density's GetRepulsion3C
 };
 
 //! Exchange-correlation term for a plane-wave basis, carrying ONE LDA functional (so a full LDA uses a
