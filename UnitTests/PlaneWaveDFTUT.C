@@ -47,7 +47,7 @@ import qchem.Hamiltonian.Internal.PWTerms;          // PW_Pseudo (dcmplx Hamilto
 import qchem.Hamiltonian;                           // cStatic_HT / cDynamic_HT aliases (public term interfaces)
 import qchem.Hamiltonian.Internal.Hamiltonian;      // cHamiltonianImp (the dcmplx Hamiltonian = sum of terms)
 import qchem.Hamiltonian.Internal.Hamiltonians;     // Ham_PW_DFT (the assembled plane-wave LDA KS Hamiltonian)
-import qchem.Hamiltonian.Internal.Terms;            // Vnn (ion-ion term: pair sum / Ewald via isFinite)
+import qchem.Hamiltonian.Internal.IonIon;           // IonIon<double> (ion-ion term: pair sum / Ewald via isFinite)
 import qchem.Pseudopotential.GTH_Potentials;    // GetGTH (CP2K GTH/HGH database reader)
 import qchem.Energy;                                // EnergyBreakdown
 import qchem.ChargeDensity.Imp.IrrepCD;             // IrrepCD<dcmplx> (concrete complex density)
@@ -835,7 +835,7 @@ TEST_F(PlaneWaveDFT, ScfSiliconDiamondConverges)
     EXPECT_LT(Etot, 0.0);   // ion-ion Madelung + G=0 alignment make the total energy negative
 }
 
-// The generalized Vnn Hamiltonian term: for a periodic Structure (isFinite()==false) it routes the
+// The generalized IonIon Hamiltonian term: for a periodic Structure (isFinite()==false) it routes the
 // ion-ion energy through the Ewald lattice sum (charges = the cell atoms' itsZ = the ion/valence charge),
 // rather than the conditionally-convergent direct pair sum used for finite molecules.
 TEST_F(PlaneWaveDFT, VnnPeriodicUsesEwald)
@@ -848,7 +848,7 @@ TEST_F(PlaneWaveDFT, VnnPeriodicUsesEwald)
     std::shared_ptr<const Structure> st=cell;
     EXPECT_FALSE(st->isFinite());
 
-    qchem::Hamiltonian::Vnn vnn(st);
+    qchem::Hamiltonian::IonIon<double> vnn(st);
     EnergyBreakdown eb;
     vnn.GetEnergy(eb, nullptr);                        // periodic branch ignores the density
     double ref=EwaldEnergy(*cell, rvec_t{4.0,4.0});

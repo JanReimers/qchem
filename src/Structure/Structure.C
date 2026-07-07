@@ -34,7 +34,7 @@ public:
     virtual double GetNetCharge     () const;
 
     //! \brief True for a bounded (molecular/atomic) structure, false for a periodically-repeated one
-    //! (a UnitCell/lattice).  The ion-ion (Vnn) Hamiltonian term uses this to choose a direct pair sum
+    //! (a UnitCell/lattice).  The ion-ion (IonIon) Hamiltonian term uses this to choose a direct pair sum
     //! for a finite structure vs an Ewald lattice sum for a periodic one.
     virtual bool   isFinite         () const {return true;}
 

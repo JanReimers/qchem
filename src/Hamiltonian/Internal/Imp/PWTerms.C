@@ -14,8 +14,6 @@ import qchem.BasisSet.G_FieldEvaluator;    // the fit basis's FFT grid engine (R
 import qchem.Pseudopotential.Integrals_Pseudo;   // cast bs ACROSS to the external-PP operator-assembly mixin (PW_Pseudo)
 import qchem.Fitting.FunctionFitter;        // Fitting::Factory (both PW fitters) + ProjectedDensity_G / ProjectedScalar_R
 import qchem.Structure;                       // Structure::isFinite()/SumFormFactors() -- the G=0 alignment (term-side)
-import qchem.Ewald;                           // NuclearRepulsion (Ewald lattice sum for the crystal)
-import qchem.Blaze;                            // blazem::zeroH (PW_IonIon's zero matrix)
 
 namespace qchem::Hamiltonian
 {
@@ -86,32 +84,7 @@ std::ostream& PW_Kinetic::Write(std::ostream& os) const
     return os << "    PW kinetic energy 1/2<p^2>." << std::endl;
 }
 
-//----------------------------------------------------------------------------------- Ion-Ion (Ewald)
-PW_IonIon::PW_IonIon(const st_t& st, std::function<double(int)> zionOf)
-    : cStatic_HT_Imp()
-    , theStructure(st)
-    , itsZionOf(std::move(zionOf))
-{
-    assert(st->GetNumAtoms()>0);
-    assert(itsZionOf && "PW_IonIon: a Z->Zion charge map is required");
-}
-
-// Constant energy term: no Hamiltonian-matrix contribution (the ion-ion energy is independent of the
-// electronic state), so the matrix is zero.
-chmat_t PW_IonIon::CalculateMatrix(const cobs_t* bs, const Spin&) const
-{
-    return blazem::zeroH<dcmplx>(bs->GetNumFunctions());
-}
-
-void PW_IonIon::GetEnergy(EnergyBreakdown& te, const cDM_CD*) const
-{
-    te.Enn=NuclearRepulsion(*theStructure, itsZionOf);   // Ewald with the PP's ion charges (Zion), not itsZ
-}
-
-std::ostream& PW_IonIon::Write(std::ostream& os) const
-{
-    return os << "    PW ion-ion (Ewald) over " << theStructure->GetNumAtoms() << " ions per cell." << std::endl;
-}
+// Ion-ion (Ewald) is now the shared IonIon<dcmplx> term (qchem.Hamiltonian.Internal.IonIon).
 
 //----------------------------------------------------------------------------------- Hartree
 // Built once (in Ham_PW_DFT::BuildTerms) from the basis's density-fit basis -- exactly as FittedVee is

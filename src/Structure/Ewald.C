@@ -100,7 +100,7 @@ export double EwaldEnergy(const UnitCell& cell, const rvec_t& q, double eta=0.0)
 //! \brief Ion-ion (nuclear-nuclear) electrostatic energy of a structure: the direct Coulomb pair sum
 //! \f$\tfrac12\sum_{a\ne b}Z_aZ_b/|r_a-r_b|\f$ for a finite (molecular) structure, or the Ewald lattice
 //! sum for a periodic one (a UnitCell), chosen by Structure::isFinite().  Charges are the atoms' itsZ
-//! (= the ion/valence charge for a pseudopotential crystal).  The single high-level question the Vnn /
+//! (= the ion/valence charge for a pseudopotential crystal).  The single high-level question the IonIon /
 //! ion-ion Hamiltonian terms ask, shared by the finite and periodic paths.
 // Ion-ion energy with the ION charge of each atom given by a callback \a zionOf (its true Z -> its core
 // charge): the all-electron default is identity (itsZ), a pseudopotential maps Z -> its valence Zion.  This
@@ -126,7 +126,7 @@ export double NuclearRepulsion(const Structure& st, const std::function<double(i
     return vnn;
 }
 
-// The all-electron default: the ion charge IS the true nuclear charge itsZ (atoms/molecules; Vnn).
+// The all-electron default: the ion charge IS the true nuclear charge itsZ (atoms/molecules; IonIon).
 export double NuclearRepulsion(const Structure& st)
 {
     return NuclearRepulsion(st, [](int Z){return double(Z);});

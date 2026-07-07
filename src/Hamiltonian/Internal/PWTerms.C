@@ -6,7 +6,6 @@
 // level question -- "the external matrix", "the Hartree matrix for this density".  The basis owns the
 // integration; the term owns no G-vectors or mesh.  Energies delegate to the density's DM_Contract.
 module;
-#include <functional>
 #include <iosfwd>
 #include <memory>
 export module qchem.Hamiltonian.Internal.PWTerms;
@@ -59,26 +58,8 @@ private:
     virtual chmat_t CalculateMatrix(const cobs_t*, const Spin&) const;
 };
 
-//! Ion-ion (nuclear-nuclear) ENERGY term for a periodic crystal: the Ewald lattice sum of the ion cores
-//! (charges = the cell atoms' itsZ = Zion).  The dcmplx sibling of Vnn -- it adds NO matrix contribution
-//! (a constant), only the Enn energy, delegating to Ewald::NuclearRepulsion (which picks Ewald vs the
-//! direct pair sum via Structure::isFinite()).
-class PW_IonIon
-    : public virtual cStatic_HT
-    , private        cStatic_HT_Imp
-{
-public:
-    typedef std::shared_ptr<const Structure> st_t;
-    //! \a zionOf maps an atom's true species Z to its ION CORE charge (the PP's valence; identity for the
-    //! all-electron baseline).  This is how the atom's itsZ stays the TRUE species while Ewald gets Zion.
-    PW_IonIon(const st_t& st, std::function<double(int)> zionOf);
-    virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
-    virtual std::ostream& Write(std::ostream&) const;
-private:
-    virtual chmat_t CalculateMatrix(const cobs_t*, const Spin&) const;
-    st_t theStructure;
-    std::function<double(int)> itsZionOf;
-};
+// The ion-ion (Ewald) ENERGY term is now the T-templated IonIon<T>
+// (qchem.Hamiltonian.Internal.IonIon); the plane-wave Hamiltonian builds IonIon<dcmplx>.
 
 //! Hartree (classical Coulomb) term for a plane-wave basis (density-dependent).  Asks the basis for the
 //! Hartree matrix of the current density; the Poisson solve is the basis's business (G-space for PW).

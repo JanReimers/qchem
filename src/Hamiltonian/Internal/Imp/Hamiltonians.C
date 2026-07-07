@@ -7,6 +7,8 @@ module;
 module qchem.Hamiltonian.Internal.Hamiltonians;
 import qchem.Hamiltonian.Internal.Terms;
 import qchem.Hamiltonian.Internal.PWTerms;        // PW_Kinetic/External/Hartree/XC (the plane-wave KS terms)
+import qchem.Hamiltonian.Internal.IonIon;         // IonIon<T>: ion-ion energy (double molecular / dcmplx PW)
+import qchem.Types;                               // dcmplx (for IonIon<dcmplx>)
 import qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.Hamiltonian.Internal.SlaterExchange;
 import qchem.Hamiltonian.Internal.VWN_Correlation;
@@ -92,14 +94,14 @@ Ham_DFTcorr_P::Ham_DFTcorr_P(const st_t& st, const qcMesh::MeshParams& mp, const
 // PSEUDOPOTENTIAL LSDA: like Ham_DFTcorr_U/_P but with the bare nuclear attraction (Ven) replaced by the
 // mesh-quadratured local pseudopotential V_loc(r) + the KB-separable non-local projectors, PLUS the ion-ion
 // repulsion of the Zion cores (a direct pair sum; ZERO for a lone atom, so the atom energy is unchanged).
-// Kinetic + PP_Local [+ PP_NonLocal] + Hartree + Dirac exchange + VWN5 + Vnn(Zion).  \a polarized selects the
+// Kinetic + PP_Local [+ PP_NonLocal] + Hartree + Dirac exchange + VWN5 + IonIon(Zion).  \a polarized selects the
 // spin-native XC (FittedVxcPol + FittedVcorrPol, open shell) vs the zeta=0 unpolarized collapse.
 Ham_PP::Ham_PP(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPotential> vloc,
                std::shared_ptr<const Pseudopotential::SeparablePotential_R> sep,
                const qcMesh::MeshParams& mp, const rbs_t* bs, bool polarized)
 {
     Add(new Kinetic);
-    Add(new Vnn(st, vloc->ZionFn()));                // ion-ion of the Zion cores (0 for one atom; Zion, not itsZ)
+    Add(new IonIon<double>(st, vloc->ZionFn()));     // ion-ion of the Zion cores (0 for one atom; Zion, not itsZ)
     Add(new PP_Local(st, vloc, mp));                 // pseudized replacement for Ven (combined model -> _R view)
     if (sep) Add(new PP_NonLocal(st, std::move(sep), mp));   // KB separable projectors (null => local-only)
 
@@ -136,7 +138,7 @@ Ham_PP::Ham_PP(const st_t& st, const std::string& element, int q, const qcMesh::
 
 // Build the per-Z router models for a multi-species pseudopotential from GTH lookups (mirrors the PW
 // Ham_PW_DFT::BuildFromGTH): one MultiSpecies_Local + one MultiSpecies_Separable keyed by atomic number, so
-// PP_Local/PP_NonLocal/Vnn -- which already index on the atoms' itsZ -- give each atom its own PP.
+// PP_Local/PP_NonLocal/IonIon -- which already index on the atoms' itsZ -- give each atom its own PP.
 namespace {
 std::shared_ptr<const Pseudopotential::LocalPotential>
 BuildMultiSpeciesLocal(const std::vector<std::pair<std::string,int>>& species)
@@ -189,7 +191,7 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
     Add(new PW_Hartree(CFitBasis));
     Add(new PW_XC(exch, VFitBasis));
     Add(new PW_XC(corr, VFitBasis));
-    Add(new PW_IonIon(st, loc->ZionFn()));                       // ion-ion Ewald: Zion from the PP, not itsZ
+    Add(new IonIon<dcmplx>(st, loc->ZionFn()));                  // ion-ion Ewald: Zion from the PP, not itsZ
 }
 
 // Explicit-models ctor: the caller owns the models (itsOwnedLocal/Sep stay null).

@@ -213,7 +213,7 @@ TEST_F(StructureTests, EwaldCsClMadelung)
     EXPECT_NEAR(EwaldEnergy(cscl,q,0.9), eCell, 1e-8);
 }
 
-// isFinite() distinguishes a bounded molecular structure from a periodic cell -- the predicate the Vnn
+// isFinite() distinguishes a bounded molecular structure from a periodic cell -- the predicate the IonIon
 // Hamiltonian term uses to choose a direct pair sum vs an Ewald lattice sum.
 TEST_F(StructureTests, isFinite)
 {

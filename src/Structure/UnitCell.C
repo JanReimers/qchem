@@ -27,7 +27,7 @@ public:
     using Molecule::Insert;
     using Molecule::GetNumAtoms;
 
-    bool isFinite() const override {return false;}   //!< A periodic cell is NOT finite (Vnn -> Ewald).
+    bool isFinite() const override {return false;}   //!< A periodic cell is NOT finite (IonIon -> Ewald).
 
     //! Form-factor sum PER CELL VOLUME: \f$\frac1\Omega\sum_a f(Z_a)\f$ -- the periodic G=0 background density
     //! (the finite-structure sum, normalised by \f$\Omega\f$).  Lets the PP G=0 alignment read the geometry
