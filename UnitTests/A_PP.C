@@ -82,8 +82,9 @@ TEST(OSi_PP_U, MultiSpeciesRouting)
 // Oxygen pseudo-atom, 6 valence electrons (GTH-LDA q6), via the ATOM path: Slater basis, High accuracy,
 // PseudoAtom_EC (which handles the open-shell 2p^4 valence config).  The purpose-built pseudo-atom path,
 // like Si_PP_U -- fast (~70 ms) and well-conditioned, and it CONVERGES (unlike the molecular Gaussian facade
-// with Molecule_EC + hand-converted GTH bases, which hits a near-singular-overlap LASolver throw).  Confirms
-// the O GTH pseudopotential is sound; the molecular-hetero convergence is a separable basis/LASolver issue.
+// with a hand-converted, near-singular GTH Gaussian basis, whose rank-deficient overlap throws in the Cholesky
+// orthonormalization).  Confirms the O GTH pseudopotential is sound; the molecular-hetero convergence is a
+// separable BASIS-CONDITIONING issue (use a well-conditioned basis -- Slater/High), not a solver bug.
 TEST(O_PP_U, SlaterHigh)
 {
     AtomCalculation calc(8, 8-6, {.type = AtomType::Slater, .accuracy = High, .pseudopotential = true},
@@ -93,4 +94,26 @@ TEST(O_PP_U, SlaterHigh)
     EXPECT_NEAR(calc.Energy(),      -13.967058370, 1e-6);   // pinned regression anchor (Slater/High)
     EXPECT_NEAR(calc.TotalCharge(),   6.0,         1e-9);   // valence electron count
     EXPECT_TRUE(calc.IsConverged());                        // the atom path converges cleanly
+}
+
+// SPIN-POLARIZED pseudo-atom: Si (GTH-LDA q4, valence 3s^2 3p^2 -> open-shell) through the ATOM path with
+// {.pol = Pol::Polarized}.  This is the ONE test that exercises the polarized Ham_PP branch (FittedVxcPol +
+// FittedVcorrPol); the default unpolarized run is the zeta=0 collapse.  Two checks: it CONVERGES cleanly
+// (Slater/High, well-conditioned) and is VARIATIONAL vs the unpolarized run (E_pol <= E_unpol -- the open
+// shell gains from spin polarization).  Confirms the polarized PP path is sound, not merely compiled.
+TEST(Si_PP_U, Polarized)
+{
+    const int Z=14, val=4;
+    const AtomCalcOptions opt{.type = AtomType::Slater, .accuracy = High, .pol = Pol::Polarized, .pseudopotential = true};
+    const SCFParams       par{.NMaxIter = 150, .MinΔρ = 1e-7, .MinΔFD = 1e-7, .MinVirial = 1e10, .MinFD = 1e-7,
+                              .StartingRelaxRo = 0.5, .MergeTol = 1e-7};
+    AtomCalculation cPol(Z, Z-val, opt, par);
+
+    AtomCalcOptions optU = opt; optU.pol = Pol::UnPolarized;
+    AtomCalculation cUnpol(Z, Z-val, optU, par);
+
+    EXPECT_TRUE(cPol.IsConverged());                        // polarized PP SCF converges
+    EXPECT_NEAR(cPol.TotalCharge(), 4.0, 1e-9);             // valence electron count
+    EXPECT_NEAR(cPol.Energy(), -3.359597907, 1e-6);        // pinned regression anchor (Slater/High, polarized)
+    EXPECT_LE (cPol.Energy(), cUnpol.Energy() + 1e-9);     // spin polarization lowers (or ties) the open-shell E
 }

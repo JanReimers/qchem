@@ -111,11 +111,12 @@ to any density/potential *fit* the assembler performs.)
   forcing the "atom charge = Z−Zion" encoding (real atoms carry charge 0). The facade absorbs it via
   `MakeValenceStructure`, but a cleaner design passes the count/EC explicitly rather than deriving it from
   structure net-charges.
-- **Basis provenance — real GTH bases now in.** All-electron `.bsd` files (e.g. `dzvp`) carry core shells that
-  are inconsistent with a PP. Real CP2K `SZV-GTH`/`DZVP-GTH` (Si+O) were downloaded + converted to Gaussian94
-  (`szvgth.bsd`, `dzvpgth.bsd`). Residual: my *segmented* split of CP2K's general contraction puts a diffuse
-  function on the same exponent as a contracted primitive → near-linear-dependence; a cleaner conversion (or a
-  well-conditioned basis) is the last bit (ties to §5.1).
+- **Basis provenance.** All-electron `.bsd` files (e.g. `dzvp`) carry core shells inconsistent with a PP, so a
+  molecular PP run needs a valence-only Gaussian basis. Real CP2K `SZV-GTH`/`DZVP-GTH` were briefly downloaded
+  + hand-converted, but my *segmented* split of CP2K's general contraction put a diffuse function on a
+  contracted primitive's exponent → near-linear-dependence (the §5.1 conditioning red herring), so those files
+  were **removed**. The `sipp` ad-hoc valence set (Si+O) remains for the `A_PP` regression tests; a
+  cleanly-converted GTH valence basis is the real future need.
 
 ## 5. Multi-species molecular PP (DONE) + the convergence follow-up it exposed
 
@@ -127,31 +128,29 @@ the atoms' `itsZ`, so each atom gets its own local + KB potential and its own `Z
 Validated by `A_PP.OSi_PP_U.MultiSpeciesRouting`: **`Enn = Zion_O·Zion_Si/R = 6·4/R` exactly** (a mis-route
 would give 16/R or 36/R) — a convergence-independent proof of per-species routing.
 
-### 5.1 Convergence hardening — infrastructure DONE; the atoms converge; the blocker is accelerator/LA
+### 5.1 Convergence hardening — infrastructure DONE; the atoms converge; the "blocker" was basis conditioning
 
-Chasing hetero-molecule energies drove a convergence-hardening pass. Three pieces landed as **correct,
+Chasing hetero-molecule energies drove a convergence-hardening pass. Two pieces landed as **correct,
 committed infrastructure**:
 1. **Spin-native PP Hamiltonian** — `Ham_PP_U` → **`Ham_PP`**, now `Pol`-parameterized: polarized uses
    `FittedVxcPol` + `FittedVcorrPol` (open-shell/magnetism), unpolarized is the ζ=0 collapse (bit-identical
    default). Tenet `[[feedback_spin_polarized_primary]]` applied to PP — forcing O into a closed-shell singlet
    was the wrong, hard state. `Factory(Pol, …)` + both facades thread `pol`.
 2. **Accelerator selection on the facade** — `AcceleratorOptions.type` = `"DIIS"|"GDM"|"Ladder"`.
-3. **Real GTH bases** — CP2K `SZV-GTH`/`DZVP-GTH` (see §4 "Basis provenance").
 
 **The PP is sound — the O pseudo-atom converges cleanly.** Via the purpose-built ATOM path (`AtomCalculation`,
 Slater basis, High accuracy, `PseudoAtom_EC` handling the open-shell 2p⁴), O converges in ~70 ms to
 E = −13.9670584, charge = 6, `IsConverged()==true` (`A_PP.O_PP_U.SlaterHigh`). Both pseudo-atoms (Si, O)
-validated. **Lesson: use `AtomCalculation` (Slater/High) for a single atom** — not the molecular Gaussian
-facade with `Molecule_EC` closed-shell.
+validated. **Lesson: use `AtomCalculation` (Slater/High) for a single atom.**
 
-The molecular-facade throw is an isolated MOLECULAR issue in the **accelerator/LA layer** (not PP): `Molecule`
-PP with the hand-converted GTH bases throws *"Invalid setup of symmetric matrix"*. gdb:
-`SCFAcceleratorDIIS::UseFD` → `LASolverCholesky::Transform` → `make_hermitian`
-(`src/LASolver/Internal/Imp/LASolverLapack.C:23`) wraps a Cholesky-transformed matrix containing **NaN/Inf**
-(near-singular overlap) in a Blaze `SymmetricMatrix`. Two contributing fixes, both separable from PP: a
-properly-conditioned molecular basis (cleaner DZVP conversion), and a robust orthonormalization
-(canonical / level-shifted) in the accelerator/LASolver. Not blocking (the atoms converge). (Do NOT cite the
-old "N5" repro — N5 is a test-only tiny pool, invalid for SCF; see `[[feedback_scf_accuracy_levels]]`.)
+**There is NO LASolver bug — the molecular-facade throw was a basis-conditioning red herring.** The
+*"Invalid setup of symmetric matrix"* a `Molecule` PP hit with the *hand-converted* CP2K GTH Gaussians was
+near-singular overlap — the same failure class as the N3/N5 test-only pools: my *segmented* split of CP2K's
+general contraction put a diffuse function on a contracted primitive's exponent, so the overlap was
+rank-deficient and the Cholesky orthonormalization produced NaN. The fix is **a well-conditioned basis**, not
+LASolver work — use Slater with `Accuracy=High` (fast even for light atoms; `[[feedback_scf_accuracy_levels]]`).
+The two throwaway GTH `.bsd` files (`szvgth`/`dzvpgth`) have been **removed**: they were unused and one was the
+broken conversion. (Do NOT cite the old "N5" repro — a test-only tiny pool, invalid for SCF.)
 
 ## 6. What has landed
 
