@@ -19,23 +19,9 @@ template <class T> const ERI3<T>& Orbital_DFT_IBS<T>::Repulsion3C(const rFIT_CD_
         [this,&c]{ return MakeRepulsion3C(c); });
 } 
 
-template <class T> vec_t<T> Orbital_DFT_IBS<T>::Overlap3C(const smat_t<T>& Dcd, const rFIT_SF_ABS* c) const
-{
-    vec_t<T> ret(c->GetNumFunctions());
-    auto& S=this->Overlap3C(*c);
-    for(auto i:iv_t(0,S.size()))
-        ret[i]=blazem::sum(Dcd%S[i]);
-    return ret;
-}
-
-template <class T> vec_t<T> Orbital_DFT_IBS<T>::Repulsion3C(const smat_t<T>& Dcd, const rFIT_CD_ABS* c) const
-{
-    vec_t<T> ret(c->GetNumFunctions());
-    auto& R=this->Repulsion3C(*c);
-    for(auto i:iv_t(0,R.size()))
-        ret[i]=blazem::sum(Dcd%R[i]);
-    return ret;
-}
+// The density-matrix contraction <rho|c> = Sum_ab D_ab <ab|c> that used to live here (as the convenience
+// overloads Overlap3C(D,c)/Repulsion3C(D,c)) now lives in the charge density (IrrepCD::GetRepulsion3C),
+// which owns D -- the basis exposes only the D-free integral tensors Overlap3C(c)/Repulsion3C(c) above.
 
 template class Orbital_DFT_IBS<double>;
 }

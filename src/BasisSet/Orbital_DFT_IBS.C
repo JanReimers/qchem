@@ -21,8 +21,9 @@ public:
 
     virtual FIT_CD_ABS<T>* CreateCDFitBasisSet (const Structure*, const qcMesh::MeshParams&) const=0;
     virtual FIT_SF_ABS<T>* CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams&) const=0;
-    virtual vec_t<T> Overlap3C  (const smat_t<T>& Dcd, const rFIT_SF_ABS* c) const;
-    virtual vec_t<T> Repulsion3C(const smat_t<T>& Dcd, const rFIT_CD_ABS* c) const;
+    // NB: there is deliberately NO Repulsion3C(D,c)/Overlap3C(D,c) here -- the density-matrix contraction
+    // <rho|c> = Sum_ab D_ab <ab|c> is a DENSITY operation (it lives in the charge density, which owns D),
+    // NOT a basis one.  The basis exposes only the D-free integral tensors above; D never enters qcBasisSet.
 protected:
     virtual ERI3<T> MakeOverlap3C  (const rFIT_SF_ABS& c) const=0;
     virtual ERI3<T> MakeRepulsion3C(const rFIT_CD_ABS& c) const=0;

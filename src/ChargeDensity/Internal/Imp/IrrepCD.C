@@ -118,7 +118,16 @@ template <class T> rvec_t IrrepCD<T>::GetRepulsion3C(const BasisSet::rFIT_CD_ABS
         if (IsZero()) return rvec_t(fbs->GetNumFunctions(),0.0);
         auto dftbs=dynamic_cast<const todftbs_t<T>*>(itsBasisSet);
         assert(dftbs);
-        return dftbs->Repulsion3C(itsDensityMatrix,fbs);
+        // Contract the density matrix against the basis's CACHED, D-free 3-centre integral tensor <ab|c>
+        // HERE -- the DENSITY owns D, so the D-contraction is a density operation, not a basis one.  The
+        // basis exposes only the integrals (Repulsion3C(c) -> ERI3, built once, keyed by BasisSetID); D never
+        // crosses into qcBasisSet.  This is the real-space model for fixing MakeFourierDensity(D): the {G}
+        // 3-centre integral is the delta <ij|Dm>, and rho-tilde = Sum_ij D_ij <ij|Dm> is the SAME contraction.
+        const auto& R=dftbs->Repulsion3C(*fbs);           // <ab|c> (ERI3 = one smat per fit function c)
+        rvec_t ret(fbs->GetNumFunctions());
+        for (size_t i=0;i<R.size();++i)
+            ret[i]=blazem::sum(itsDensityMatrix % R[i]);  // <rho|c_i> = Sum_ab D_ab <ab|c_i>
+        return ret;
     }
     else
         return rvec_t();   // inert: a periodic density carries no AO projection

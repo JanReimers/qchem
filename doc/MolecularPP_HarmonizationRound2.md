@@ -196,12 +196,15 @@ before building on top. Candidate smells to check (verify against current code �
      **rho-tilde `ΔG_Map`** — `Fitting::ProjectedDensity_G` already wraps it as the neutral fitter argument and
      `Band_FT_IBS::Repulsion(const ΔG_Map&)` already consumes it cleanly. So it is **only the `D → rho-tilde`
      PRODUCTION** that is misplaced (a basis method that swallows `D`).
-  - **The precise fix — mirror molecular's `MakeRepulsion3C` / `Repulsion3C(D,c)` split (option (2) for `{G}`).**
-    Molecular's fit projection `⟨ρ|c⟩ = Σ_ab D_ab⟨ab|c⟩` does NOT let `D` touch the φ-owning code: the concrete
-    basis implements only the **abstract, D-free** `MakeRepulsion3C(c) → ERI3<T>` (the cached 3-centre integral
-    TENSOR `⟨ab|c⟩`, keyed by `BasisSetID`, built once); the `D`-contraction is a **generic** base-class helper
-    `Repulsion3C(smat_t D, c) { auto& R=Repulsion3C(*c); ret[i]=blazem::sum(D % R[i]); }`
-    ([Imp/Orbital_DFT_IBS.C:31](../src/BasisSet/Imp/Orbital_DFT_IBS.C)). The plane-wave 3-centre integral is just
+  - **The precise fix — mirror molecular's D-free `MakeRepulsion3C` + density-side contraction (option (2) for `{G}`).**
+    Molecular's fit projection `⟨ρ|c⟩ = Σ_ab D_ab⟨ab|c⟩` keeps `D` **entirely out of `qcBasisSet`**: the basis
+    implements only the **abstract, D-free** `MakeRepulsion3C(c) → ERI3<T>` (the cached 3-centre integral TENSOR
+    `⟨ab|c⟩`, keyed by `BasisSetID`, built once) and exposes it via `Repulsion3C(c) → const ERI3&`; the
+    `D`-contraction lives on the **charge density**, which owns `D`
+    ([IrrepCD::GetRepulsion3C](../src/ChargeDensity/Internal/Imp/IrrepCD.C): `for i: ret[i]=blazem::sum(D % R[i])`).
+    (This was cleaned up as the setup for this item — the old `Orbital_DFT_IBS::Repulsion3C(D,c)`/`Overlap3C(D,c)`
+    convenience overloads, which had let `D` cross into the basis, were deleted; 176/176 bit-identical.) The
+    plane-wave 3-centre integral is just
     the delta `⟨ij|c⟩ = (1/√Ω)·δ(G_c, Gᵢ−Gⱼ)`, so `Σ_ij D_ij⟨ij|Δm⟩ = (1/Ω)Σ_{Gᵢ−Gⱼ=Δm}D_ij` — *is* today's
     `MakeFourierDensity(D)`. It only needs the **same two-way split**: (a) a D-free abstract primitive the concrete
     PW/fit basis implements = the `{G}`-difference gather structure (the delta's support; mirror of
