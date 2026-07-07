@@ -107,22 +107,33 @@ chmat_t PlaneWave_IBS::Repulsion(const ΔG_Map& rg) const
 
 // The density-free {G} 3-centre gather: for each difference dm=G_i-G_j, the (i,j) pairs that hit it, in
 // row-major order, plus Omega.  Built ONCE (intrinsic to {G}) and cached -- the ERI3-cache analogue.  The
-// density then forms rho-tilde(dm) = (1/Omega) Sum_{G_i-G_j=dm} D_ij by ContractFourierGather (D is
+// density then forms rho-tilde(dm) = (1/Omega) Sum_{G_i-G_j=dm} D_ij by ContractG_ERI3 (D is
 // Hermitian, so rho-tilde(-dm)=conj(rho-tilde(dm)) falls out: the (j,i) pair contributes conj(D_ij) at -dm).
-const FourierGather& PlaneWave_IBS::GetFourierGather() const
+const G_ERI3& PlaneWave_IBS::GetG_ERI3() const
 {
     if (!itsGatherBuilt)
     {
         size_t n=GetNumFunctions();
         const std::vector<ivec3_t>& G=Gs();
-        itsFourierGather.support.clear();
+        auto& cols=itsG_ERI3.columns;
+        cols.clear();
+        std::map<ivec3_t,int,IVec3Less> colOf;      // dm -> column index (build-time lookup only)
         for (size_t i=0;i<n;i++)
-            for (size_t j=0;j<n;j++)
-                itsFourierGather.support[G[i]-G[j]].push_back({int(i),int(j)});  // row-major: preserves fold order
-        itsFourierGather.volume=Volume();
+            for (size_t j=0;j<n;j++)                 // row-major: preserves the per-column fold order
+            {
+                ivec3_t dm=G[i]-G[j];
+                auto it=colOf.find(dm);
+                int c;
+                if (it==colOf.end()) { c=int(cols.size()); colOf[dm]=c; cols.push_back({dm,{}}); }
+                else                   c=it->second;
+                cols[c].pairs.push_back({int(i),int(j)});
+            }
+        itsG_ERI3.kernel.clear();                    // empty => metric-free (overlap); the Coulomb kernel is
+                                                     // filled by Repulsion3C (Stage 2), not this gather.
+        itsG_ERI3.volume=Volume();
         itsGatherBuilt=true;
     }
-    return itsFourierGather;
+    return itsG_ERI3;
 }
 
 // Structure-factor assembly of a per-species radial form factor (the SAD seed density face): for each

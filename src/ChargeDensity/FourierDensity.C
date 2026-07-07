@@ -11,7 +11,7 @@
 module;
 #include <type_traits>
 export module qchem.ChargeDensity.FourierDensity;
-export import qchem.Math.GMap;
+export import qchem.BasisSet.Internal.GMap;
 import qchem.Types;   // dcmplx
 
 export namespace qchem::ChargeDensity

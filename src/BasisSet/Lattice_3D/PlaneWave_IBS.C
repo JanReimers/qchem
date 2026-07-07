@@ -59,8 +59,8 @@ public:
 
     // --- Band_FT_IBS capability: density-driven KS assembly in reciprocal space (orbital-only). ---
     //! \brief The density-free \f$\{G\}\f$ three-centre gather (built once from \f$\{G\}\f$, cached).  The
-    //! charge density contracts its \f$D\f$ against it (\c ContractFourierGather) to form \f$\tilde\rho\f$.
-    virtual const FourierGather& GetFourierGather() const override;
+    //! charge density contracts its \f$D\f$ against it (\c ContractG_ERI3) to form \f$\tilde\rho\f$.
+    virtual const G_ERI3& GetG_ERI3() const override;
     //! \brief Structure-factor assembly of a per-species radial form factor (the SAD seed density face).
     virtual ΔG_Map MakeFourierDensity(const Structure* atoms,
                           const std::function<double(int Z, double g2)>& formFactor) const override;
@@ -102,7 +102,7 @@ public:
 private:
     //! Lazily-built cache of the density-free \f$\{G\}\f$ 3-centre gather (intrinsic to \f$\{G\}\f$, so valid
     //! for the basis's lifetime regardless of the density) -- the plane-wave analogue of the \c ERI3 cache.
-    mutable FourierGather itsFourierGather;
+    mutable G_ERI3 itsG_ERI3;
     mutable bool          itsGatherBuilt=false;
 };
 

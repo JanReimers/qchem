@@ -27,7 +27,7 @@ module;
 #include <memory>
 export module qchem.Fitting.FunctionFitter;
 export import qchem.ScalarFunction;   // ScalarFunction<double> (operator(), Gradient) + Types
-export import qchem.Math.GMap;       // the pre-computed G-space coefficients a Fourier (PW) fit receives
+export import qchem.BasisSet.Internal.GMap;       // the pre-computed G-space coefficients a Fourier (PW) fit receives
 import qchem.Fitting.Types;           // robs_t<T>
 import qchem.BasisSet.Fit_IBS;        // rFIT_SF_ABS / rFIT_CD_ABS (the two narrow fit-basis faces)
 import qchem.BasisSet.G_FieldEvaluator; // the FFT quadrature grid engine the PW scalar fitter owns + exposes
@@ -73,7 +73,7 @@ public:
 };
 
 //! \brief The plane-wave counterpart of ProjectedDensity_AO.  On the orthonormal {G} basis the projection
-//! is already DIAGONAL -- rho-tilde(Dm) = (1/Omega) Sum_{m_i-m_j=Dm} D_ij (= ContractFourierGather), a map keyed
+//! is already DIAGONAL -- rho-tilde(Dm) = (1/Omega) Sum_{m_i-m_j=Dm} D_ij (= ContractG_ERI3), a map keyed
 //! by Dm (efficiency, rule #2: the delta collapses Sum_ij D_ij<ij|c> to a gather over Dm-shells).  So here
 //! the projection IS the fit (no metric solve): this simply WRAPS the density's G-space coefficients, keeping
 //! the ΔG_Map container OFF the neutral ProjectedDensity<dcmplx> face (the ortho fitter cross-casts to it

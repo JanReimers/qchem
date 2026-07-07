@@ -11,7 +11,7 @@
 module;
 #include <functional>
 export module qchem.BasisSet.G_FieldEvaluator;
-import qchem.Math.GMap;   // ΔG_Map (the G-space coefficient map to evaluate)
+import qchem.BasisSet.Internal.GMap;   // ΔG_Map (the G-space coefficient map to evaluate)
 import qchem.Types;       // rvec3_t, rvec_t, cvec_t, rvec3vec_t, ivec3_t, dcmplx, chmat_t
 import qchem.Blaze;       // chmat_t = hmat_t<dcmplx> (the assembled operator matrix)
 

@@ -12,7 +12,7 @@ module;
 #include <functional>
 export module qchem.BasisSet.Band_FT_IBS;
 export import qchem.BasisSet.Orbital_1E_IBS;
-export import qchem.Math.GMap;
+export import qchem.BasisSet.Internal.GMap;
 import qchem.Types;       // hmat_t<dcmplx>
 import qchem.BasisSet.Fit_IBS;   // cFIT_CD_ABS (the auxiliary density-fit basis this basis creates) + qcMesh::MeshParams
 
@@ -44,10 +44,10 @@ public:
     //! \brief The DENSITY-FREE three-centre "integrals" \f$\langle G_i G_j|\Delta m\rangle=\tfrac1\Omega
     //! \delta_{\Delta m,G_i-G_j}\f$ of THIS block (the reciprocal analogue of the molecular \c Repulsion3C
     //! \c ERI3 tensor).  Deliberately NO density argument: the basis owns only the \f$\{G\}\f$ structure, and
-    //! the DENSITY does the \f$D\f$-contraction (\c ContractFourierGather) to form \f$\tilde\rho\f$ -- so the
+    //! the DENSITY does the \f$D\f$-contraction (\c ContractG_ERI3) to form \f$\tilde\rho\f$ -- so the
     //! density matrix never crosses into the basis (mirrors the molecular \c Orbital_DFT_IBS, which exposes
     //! the D-free \c ERI3 and lets the charge density contract \f$D\f$).  Cached (intrinsic to \f$\{G\}\f$).
-    virtual const FourierGather& GetFourierGather() const=0;
+    virtual const G_ERI3& GetG_ERI3() const=0;
 
     //! \brief \f$\tilde\rho(\Delta m)=\frac1\Omega\sum_{\text{atoms}} f(Z,|B\Delta m|^2)\,e^{-iG\cdot R}\f$ over
     //! the difference set -- the structure-factor assembly of a per-species radial form factor \a formFactor

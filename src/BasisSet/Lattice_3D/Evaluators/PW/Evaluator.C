@@ -20,7 +20,7 @@ module;
 #include <vector>
 export module qchem.BasisSet.Lattice_3D.Evaluators.PW;
 export import qchem.ReciprocalLattice;   // ReciprocalLattice / UnitCell (the B cell; source of G, |k+G|)
-export import qchem.Math.GMap;           // ΔG_Map: the G-space coefficient map RhoOnGrid/ForwardFFT speak
+export import qchem.BasisSet.Internal.GMap;           // ΔG_Map: the G-space coefficient map RhoOnGrid/ForwardFFT speak
 export import qchem.BasisSet.G_FieldEvaluator;  // the abstract grid-engine seam PW_Evaluator implements
 import qchem.Types;                      // ivec3_t, rvec3_t, rvec_t, rvec3vec_t, cvec_t, cvec3vec_t, chmat_t, dcmplx
 import qchem.Blaze;                      // hmat_t<dcmplx> (chmat_t)
