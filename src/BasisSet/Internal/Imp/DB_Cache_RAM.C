@@ -314,6 +314,22 @@ template <class T> const ERI3<T>& IntegralsCache_RAM<T>::Get(I3C i3c,const DBCac
     return it->second;
 }
 
+// Reciprocal-space (plane-wave) 3-centre tensor: keyed on the same (op, orbital-ID, fit-ID) axis as ERI3, but
+// stored in its own map (values are G_ERI3, not ERI3<T>).  The delta support is orbital-{G} intrinsic, so the
+// fit-basis half of the key just records which fitter declared coverage.  No CacheDim cross-check: G_ERI3 is
+// not a leading-dimension 2-centre matrix (like the ERI3 variant, it self-describes via its columns).
+template <class T> const G_ERI3& IntegralsCache_RAM<T>::Get(I3C i3c,const DBCacheClient* a,const DBCacheClient* b,std::function<G_ERI3()> make)
+{
+    IBS_ID_t ida=a->BasisSetID(), idb=b->BasisSetID();
+    key3_t key(i3c,ida,idb);
+    if (auto i=itsG_ERI3s.find(key); i!=itsG_ERI3s.end()) return i->second;
+    if (itsMakeLog) itsLogger << "I3C(G) " << std::format("{:<12}",i3c) << " compute a=" << ida << " b=" << idb << std::endl;
+    auto v=make();
+    const auto [it,ok]=itsG_ERI3s.insert({key,std::move(v)});
+    assert(ok);
+    return it->second;
+}
+
 template <class T> const ERI4& IntegralsCache_RAM<T>::Get(I4C i4c,const DBCacheClient* a,const DBCacheClient* b,std::function<ERI4()> make)
 {
     IBS_ID_t ida=a->BasisSetID(), idb=b->BasisSetID();
@@ -410,7 +426,10 @@ template <class T> void IntegralsCache_RAM<T>::Clear(I2x op)
 template <class T> void IntegralsCache_RAM<T>::Clear(I3C op)
 {
     if constexpr (kCacheTestHooks)
-        std::erase_if(itsERI3s, [&](const auto& kv){ return std::get<0>(kv.first)==op; });
+    {
+        std::erase_if(itsERI3s,   [&](const auto& kv){ return std::get<0>(kv.first)==op; });
+        std::erase_if(itsG_ERI3s, [&](const auto& kv){ return std::get<0>(kv.first)==op; });
+    }
 }
 template <class T> void IntegralsCache_RAM<T>::Clear(I4C op)
 {

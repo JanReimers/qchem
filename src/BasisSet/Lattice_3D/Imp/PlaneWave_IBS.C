@@ -125,35 +125,28 @@ void BuildG_ERI3Columns(const std::vector<ivec3_t>& G, std::vector<G_ERI3::Colum
 // diagonal Poisson kernel 4pi/|G_c|^2 filled (dm=0 -> 0, the dropped G=0 background).  A
 // density contracts D against this (ContractG_ERI3) to get the Hartree potential V_H directly.  \a c is the
 // CD fit basis (declared to cover the difference set via CreateCDFitBasisSet; the delta support is orbital-
-// intrinsic today).  Mirrors Orbital_DFT_IBS::Repulsion3C -- the D-free Coulomb tensor.
-const G_ERI3& PlaneWave_IBS::Repulsion3C(const BasisSet::cFIT_CD_ABS&) const
+// intrinsic today).  One-time build behind the inherited cached Band_FT_IBS::Repulsion3C.
+G_ERI3 PlaneWave_IBS::MakeRepulsion3C(const BasisSet::cFIT_CD_ABS&) const
 {
-    if (!itsRepBuilt)
-    {
-        BuildG_ERI3Columns(Gs(), itsRepulsion3C.columns);
-        rvec_t& K=itsRepulsion3C.kernel;
-        K.resize(itsRepulsion3C.columns.size());
-        for (size_t c=0;c<itsRepulsion3C.columns.size();c++)
-            K[c]=Recip().CoulombKernel(itsRepulsion3C.columns[c].dm);   // diagonal Poisson kernel (dm=0 -> 0)
-        itsRepulsion3C.volume=Volume();
-        itsRepBuilt=true;
-    }
-    return itsRepulsion3C;
+    G_ERI3 g;
+    BuildG_ERI3Columns(Gs(), g.columns);
+    g.kernel.resize(g.columns.size());
+    for (size_t c=0;c<g.columns.size();c++)
+        g.kernel[c]=Recip().CoulombKernel(g.columns[c].dm);   // diagonal Poisson kernel (dm=0 -> 0)
+    g.volume=Volume();
+    return g;
 }
 
 // Overlap 3-centre <G_i G_j|G_c> = delta(G_c,G_i-G_j)/Omega: the delta support, NO kernel (overlap metric).
-// Mirrors Orbital_DFT_IBS::Overlap3C -- the D-free overlap tensor.  (The XC term's <i|v_xc|j> scatter is the
-// same delta contracted with the fitted v_xc coefficients; wired onto this in a follow-up.)
-const G_ERI3& PlaneWave_IBS::Overlap3C(const BasisSet::cFIT_SF_ABS&) const
+// One-time build behind the inherited cached Band_FT_IBS::Overlap3C.  (The XC term's <i|v_xc|j> scatter is
+// the same delta contracted with the fitted v_xc coefficients.)
+G_ERI3 PlaneWave_IBS::MakeOverlap3C(const BasisSet::cFIT_SF_ABS&) const
 {
-    if (!itsOvlBuilt)
-    {
-        BuildG_ERI3Columns(Gs(), itsOverlap3C.columns);
-        itsOverlap3C.kernel.clear();                // EMPTY => overlap metric
-        itsOverlap3C.volume=Volume();
-        itsOvlBuilt=true;
-    }
-    return itsOverlap3C;
+    G_ERI3 g;
+    BuildG_ERI3Columns(Gs(), g.columns);
+    g.kernel.clear();                // EMPTY => overlap metric
+    g.volume=Volume();
+    return g;
 }
 
 

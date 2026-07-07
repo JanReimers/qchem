@@ -6,6 +6,7 @@ module;
 export module qchem.BasisSet.Internal.DB_Cache;
 import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.Internal.ERI3;
+import qchem.BasisSet.Internal.GMap;          // G_ERI3 (the reciprocal-space 3-centre tensor, plane-wave path)
 import qchem.BasisSet.Internal.IntegralEnums;
 import qchem.BasisSet.Internal.Cache4;
 import qchem.BasisSet.Internal.Cache2;
@@ -78,6 +79,11 @@ public:
     virtual const hmat_t<T>& Get(I2n,const DBCacheClient*,const Structure_ID_t&,      std::function<hmat_t<T>()> make)=0; // Nuclear
     virtual const  mat_t<T>& Get(I2x,const DBCacheClient*,const DBCacheClient*,     std::function< mat_t<T>()> make)=0; // cross IBS
     virtual const ERI3  <T>& Get(I3C,const DBCacheClient*,const DBCacheClient*,     std::function<ERI3  <T>()> make)=0; // 3 centre
+    // Reciprocal-space (plane-wave) 3-centre tensor <G_i G_j|G_c>: the G-space analogue of the ERI3 gather.
+    // T-independent data (complex delta support + real kernel), but keyed/stored per cache instance like the
+    // ERI3 variant; realized only on the dcmplx cache (the plane-wave path).  Overload resolves off the make
+    // functor's return type (G_ERI3 vs ERI3<T>), so the two I3C Get()s never collide.
+    virtual const G_ERI3&    Get(I3C,const DBCacheClient*,const DBCacheClient*,     std::function<G_ERI3   ()> make)=0; // 3 centre (G-space)
     virtual const ERI4&      Get(I4C,const DBCacheClient*,const DBCacheClient*,     std::function<ERI4     ()> make)=0; // 4 centre
     // Numerically integrated variants, keyed also by a mesh ID.
     virtual const rvec_t&    Get(I1C,const DBCacheClient*,const Mesh_ID_t&,                      std::function<rvec_t()> make)=0; // Norm

@@ -58,13 +58,10 @@ public:
                   const ivec3_t& kIndex, double Ecut);
 
     // --- Band_FT_IBS capability: density-driven KS assembly in reciprocal space (orbital-only). ---
-    //! \brief D-free Coulomb 3-centre tensor (delta support + diagonal kernel \f$4\pi/|G_c|^2\f$).  A density
-    //! contracts \f$D\f$ against it to get \f$V_H\f$ directly.  Mirrors \c Orbital_DFT_IBS::Repulsion3C.
-    virtual const G_ERI3& Repulsion3C(const BasisSet::cFIT_CD_ABS& c) const override;
-    //! \brief D-free overlap 3-centre tensor (delta support, empty kernel).  Mirrors \c Orbital_DFT_IBS::Overlap3C.
-    virtual const G_ERI3& Overlap3C(const BasisSet::cFIT_SF_ABS& c) const override;
-    // (MakeFourierDensity -- the SAD seed's structure-factor density -- is inherited from the PW_Evaluator grid
-    //  engine (G_FieldEvaluator), so the seed reaches it through its own fit basis, not this orbital basis.)
+    // The public cached accessors Repulsion3C(c)/Overlap3C(c) are inherited from Band_FT_IBS (they route
+    // through theCache<dcmplx>()); this basis supplies only the one-time BUILDS below.  (MakeFourierDensity --
+    // the SAD seed's structure-factor density -- is inherited from the PW_Evaluator grid engine
+    // (G_FieldEvaluator), so the seed reaches it through its own fit basis, not this orbital basis.)
 
     // --- Real-space DFT-integration oracles (test-only): the same questions a future Band_DFT_IBS<T>
     // implementer (e.g. GPW: Gaussian orbitals, PW/FFT density) would answer, kept here as independent
@@ -97,12 +94,13 @@ public:
 
     virtual std::ostream& Write(std::ostream&) const override;
 
-private:
-    //! Lazily-built caches of the density-free \f$\{G\}\f$ 3-centre tensors (intrinsic to \f$\{G\}\f$, so valid
-    //! for the basis's lifetime regardless of the density) -- the plane-wave analogue of the \c ERI3 cache.
-    //! Both share the same delta support; \c itsRepulsion3C additionally carries the diagonal Coulomb kernel.
-    mutable G_ERI3 itsRepulsion3C; mutable bool itsRepBuilt=false;      //!< Coulomb (4pi/G^2 kernel)
-    mutable G_ERI3 itsOverlap3C;   mutable bool itsOvlBuilt=false;      //!< overlap (empty kernel)
+protected:
+    //! \brief One-time build of the density-free \f$\{G\}\f$ Coulomb 3-centre tensor (delta support +
+    //! diagonal \f$4\pi/|G_c|^2\f$ kernel).  Called once by the inherited cached \c Repulsion3C.
+    virtual G_ERI3 MakeRepulsion3C(const BasisSet::cFIT_CD_ABS& c) const override;
+    //! \brief One-time build of the density-free \f$\{G\}\f$ overlap 3-centre tensor (delta support, empty
+    //! kernel).  Called once by the inherited cached \c Overlap3C.
+    virtual G_ERI3 MakeOverlap3C(const BasisSet::cFIT_SF_ABS& c) const override;
 };
 
 } //namespace

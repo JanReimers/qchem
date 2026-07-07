@@ -43,11 +43,12 @@ public:
 
     //! \brief D-free COULOMB three-centre tensor: the delta support with the diagonal Poisson kernel
     //! \f$4\pi/|G_c|^2\f$ filled.  A density contracts \f$D\f$ against it (\c ContractG_ERI3) to get \f$V_H\f$
-    //! directly.  Mirrors \c Orbital_DFT_IBS::Repulsion3C (Coulomb metric); \a c is the CD fit basis.
-    virtual const G_ERI3& Repulsion3C(const cFIT_CD_ABS& c) const=0;
+    //! directly.  Mirrors \c Orbital_DFT_IBS::Repulsion3C (Coulomb metric); \a c is the CD fit basis.  Cached
+    //! (the process-wide integrals cache, keyed by BasisSetID); the one-time build is \c MakeRepulsion3C.
+    const G_ERI3& Repulsion3C(const cFIT_CD_ABS& c) const;
     //! \brief D-free OVERLAP three-centre tensor (delta support, EMPTY kernel).  Mirrors
-    //! \c Orbital_DFT_IBS::Overlap3C (overlap metric); \a c is the Vxc fit basis.
-    virtual const G_ERI3& Overlap3C(const cFIT_SF_ABS& c) const=0;
+    //! \c Orbital_DFT_IBS::Overlap3C (overlap metric); \a c is the Vxc fit basis.  Cached; build is \c MakeOverlap3C.
+    const G_ERI3& Overlap3C(const cFIT_SF_ABS& c) const;
 
     // NB: the SAD seed's structure-factor density (MakeFourierDensity) is NOT here -- it is a grid-engine
     // operation (G_FieldEvaluator::MakeFourierDensity), which the seed reaches through its OWN fit basis, so
@@ -61,6 +62,15 @@ public:
     // <i|V|j>=Vtilde(m_i-m_j) assembly -- is NOT here.  It is the plane-wave grid engine, exposed by the
     // BasisSet::G_FieldEvaluator seam (implemented by PW_Evaluator, so both the orbital and the auxiliary fit
     // basis carry it); the Vxc term quadratures on its FIT basis's grid through that seam, not on this one.
+
+protected:
+    //! \brief One-time build of the Coulomb tensor (the concrete plane-wave basis's own \f$\{G\}\f$ delta
+    //! support + \f$4\pi/|G_c|^2\f$ kernel).  Called once per (basis, fit-basis) key by the cached
+    //! \c Repulsion3C above -- the plane-wave analogue of \c Orbital_DFT_IBS::MakeRepulsion3C.
+    virtual G_ERI3 MakeRepulsion3C(const cFIT_CD_ABS& c) const=0;
+    //! \brief One-time build of the overlap tensor (delta support, empty kernel).  Called once by the cached
+    //! \c Overlap3C -- the plane-wave analogue of \c Orbital_DFT_IBS::MakeOverlap3C.
+    virtual G_ERI3 MakeOverlap3C(const cFIT_SF_ABS& c) const=0;
 };
 
 } //namespace

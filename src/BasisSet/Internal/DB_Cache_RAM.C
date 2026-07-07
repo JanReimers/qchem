@@ -13,6 +13,7 @@ export module qchem.BasisSet.Internal.DB_Cache_RAM;
 export import qchem.BasisSet.Internal.DB_Cache;
 import qchem.BasisSet.Internal.ERI4;
 import qchem.BasisSet.Internal.ERI3;
+import qchem.BasisSet.Internal.GMap;          // G_ERI3 (reciprocal-space 3-centre tensor)
 import qchem.BasisSet.Internal.IntegralEnums;
 import qchem.BasisSet.Internal.Cache4;
 import qchem.BasisSet.Internal.Cache2;
@@ -35,6 +36,7 @@ public:
     virtual const hmat_t<T>& Get(I2n,const DBCacheClient*,const Structure_ID_t&,      std::function<hmat_t<T>()>);
     virtual const  mat_t<T>& Get(I2x,const DBCacheClient*,const DBCacheClient*,     std::function< mat_t<T>()>);
     virtual const ERI3  <T>& Get(I3C,const DBCacheClient*,const DBCacheClient*,     std::function<ERI3  <T>()>);
+    virtual const G_ERI3&    Get(I3C,const DBCacheClient*,const DBCacheClient*,     std::function<G_ERI3   ()>);
     virtual const ERI4     & Get(I4C,const DBCacheClient*,const DBCacheClient*,     std::function<ERI4     ()>);
     virtual const rvec_t&    Get(I1C,const DBCacheClient*,const Mesh_ID_t&,                      std::function<rvec_t()>);
     virtual const rmat_t&    Get(I2x,const DBCacheClient*,const DBCacheClient*,const Mesh_ID_t&, std::function<rmat_t()>);
@@ -79,6 +81,7 @@ private:
     using mapn_t=std::map<keyn_t ,hmat_t<T>>;
     using mapx_t=std::map<keyx_t , mat_t<T>>;
     using map3_t=std::map<key3_t ,  ERI3<T>>;
+    using map3g_t=std::map<key3_t , G_ERI3>;   // reciprocal-space 3-centre tensors (same key axis as ERI3)
     using map4_t=std::map<IBS_ID_t,std::map<IBS_ID_t,ERI4>>;
 
     using map1m_t =std::map<key1m_t  ,rvec_t>;
@@ -108,6 +111,7 @@ private:
     mapn_t itsNMats; //Symmetric 2 center matrices for nuclear attraction integrals.
     mapx_t itsMats;  //Non-symmetric cross integrals between 2 IBSs.
     map3_t itsERI3s; //3 center, 2 IBS ERI integrals for DFT.
+    map3g_t itsG_ERI3s; //3 center reciprocal-space (plane-wave) tensors <G_i G_j|G_c>.
     map4_t Jac,Kab;  //4 center, 2 IBS ERI integrals for HF.
 
     map1m_t  itsmVecs; //Numerically integrated

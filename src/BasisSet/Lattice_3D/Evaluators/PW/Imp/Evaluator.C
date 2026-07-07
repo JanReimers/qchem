@@ -265,9 +265,18 @@ cvec3vec_t PW_Evaluator::EvalGradient(const rvec3_t& r) const
 
 std::string PW_Evaluator::IDFragment() const
 {
+    // The cache key must satisfy the DBCacheClient contract: equal physics <=> equal string.  k/Ecut/nG
+    // alone are NOT enough -- every G-space matrix (kinetic 1/2|k+G|^2, the Coulomb kernel 4pi/|G|^2, the
+    // 1/Omega normalisation) depends on the reciprocal CELL METRIC B, and two differently-shaped cells can
+    // share an nG.  So append B's three Cartesian columns (B.e_i = ToCartesian of the unit fractional axes),
+    // which pin |G|^2 and Omega exactly.  (Without this the process-wide cache could hand a same-nG neighbour
+    // the wrong kernel -- the per-instance member cache this replaces could never collide.)
+    const UnitCell& B=itsRecip.GetCell();
+    auto v=[](const rvec3_t& c){ return std::to_string(c.x)+","+std::to_string(c.y)+","+std::to_string(c.z); };
     return std::string("|k=")+std::to_string(itsk.x)+","+std::to_string(itsk.y)+","+std::to_string(itsk.z)
                  +"|Ecut="+std::to_string(itsEcut)
-                 +"|nG="+std::to_string(itsG.size());
+                 +"|nG="+std::to_string(itsG.size())
+                 +"|B="+v(B.ToCartesian(rvec3_t(1,0,0)))+";"+v(B.ToCartesian(rvec3_t(0,1,0)))+";"+v(B.ToCartesian(rvec3_t(0,0,1)));
 }
 
 } //namespace
