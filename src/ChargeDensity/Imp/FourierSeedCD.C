@@ -2,6 +2,7 @@
 module;
 #include <cassert>
 #include <cmath>
+#include <complex>   // std::operator*(double, complex) -- the seed's k*rho-tilde
 #include <map>
 #include <memory>
 #include <string>
@@ -10,6 +11,7 @@ module;
 #include <utility>
 
 module qchem.ChargeDensity.FourierSeedCD;
+import qchem.ReciprocalLattice;   // ReciprocalLattice + UnitCell::MakeReciprocalCell (the seed's own Poisson metric)
 
 namespace qchem::ChargeDensity
 {
@@ -67,11 +69,19 @@ FourierSeedCD::FourierSeedCD(const BasisSet::Band_FT_IBS* basis, const Structure
     return StructureFactorDensity();
 }
 
-// The seed's Coulomb projection V_H = 4pi rho-tilde/|G|^2: apply the diagonal kernel to the structure-factor
-// rho-tilde.  Same float expression as the old fitter->Repulsion path -> bit-identical.
+// The seed's Coulomb projection V_H = 4pi rho-tilde/|G|^2: apply the diagonal Poisson kernel to the
+// structure-factor rho-tilde.  The kernel is reciprocal-LATTICE physics (it needs only B, not the basis's
+// {G} set), and the seed already holds the periodic Structure -- so it builds the reciprocal lattice itself,
+// no basis round-trip.  (Bit-identical to the old basis CoulombKernel: same B, same 4pi/(G*G).)
 ΔG_Map FourierSeedCD::GetRepulsion3C(const BasisSet::cFIT_CD_ABS&) const
 {
-    return itsBasis->CoulombKernel(StructureFactorDensity());
+    const UnitCell* cell=dynamic_cast<const UnitCell*>(itsStructure);
+    assert(cell && "FourierSeedCD is periodic: its Structure must be a UnitCell");
+    ReciprocalLattice recip(cell->MakeReciprocalCell());
+    ΔG_Map VH;
+    for (const auto& [dm,rt] : StructureFactorDensity())
+        if (double k=recip.CoulombKernel(dm); k!=0.0) VH[dm]=k*rt;   // skip dm=0 (k==0)
+    return VH;
 }
 
 double FourierSeedCD::operator()(const rvec3_t& r) const

@@ -16,7 +16,7 @@ export module qchem.ChargeDensity.FourierSeedCD;
 export import qchem.ChargeDensity;                 // tChargeDensity<dcmplx>
 export import qchem.ChargeDensity.FourierDensity;  // FourierDensity, ΔG_Map
 import qchem.ChargeDensity.AtomicDensity;          // RadialDensity, RecentredAtomicDensity, GetAtomicDensity
-import qchem.BasisSet.Band_FT_IBS;                  // Band_FT_IBS (the G-space assembler + CoulombKernel)
+import qchem.BasisSet.Band_FT_IBS;                  // Band_FT_IBS (the G-space structure-factor assembler)
 import qchem.BasisSet.Fit_IBS;                      // cFIT_CD_ABS (GetRepulsion3C's fit-basis arg)
 import qchem.Structure;                             // Structure, Atom
 import qchem.ScalarFunction;                        // ScalarFunction<double>
@@ -55,7 +55,7 @@ public:
 
 private:
     ΔG_Map StructureFactorDensity() const;        //!< the seed's rho-tilde = per-species structure-factor sum
-    const BasisSet::Band_FT_IBS* itsBasis;        //!< the plane-wave block (G-space assembler); not owned
+    const BasisSet::Band_FT_IBS* itsBasis;        //!< the plane-wave block (structure-factor assembler); not owned
     const Structure*             itsStructure;    //!< atom Z + positions; not owned
     std::map<size_t,std::shared_ptr<const RadialDensity>> itsRadByZ; //!< per-element (Z) valence radial density
     std::map<size_t,double>                            itsScaleByZ; //!< per-element IonicSAD multiplier (def 1.0)

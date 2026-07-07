@@ -48,10 +48,6 @@ public:
     //! \brief D-free OVERLAP three-centre tensor (delta support, EMPTY kernel).  Mirrors
     //! \c Orbital_DFT_IBS::Overlap3C (overlap metric); \a c is the Vxc fit basis.
     virtual const G_ERI3& Overlap3C(const cFIT_SF_ABS& c) const=0;
-    //! \brief \f$V_H=4\pi\tilde\rho/|G|^2\f$: the diagonal Coulomb kernel applied to a \f$\tilde\rho\f$ (for a
-    //! density that carries no \f$D\f$ to contract -- the SAD seed).  A matrix is assembled from the result by
-    //! the term via the \c G_FieldEvaluator::MakePotential primitive (no separate assemble method here).
-    virtual ΔG_Map CoulombKernel(const ΔG_Map& rho) const=0;
 
     //! \brief \f$\tilde\rho(\Delta m)=\frac1\Omega\sum_{\text{atoms}} f(Z,|B\Delta m|^2)\,e^{-iG\cdot R}\f$ over
     //! the difference set -- the structure-factor assembly of a per-species radial form factor \a formFactor
