@@ -3,7 +3,6 @@ module;
 #include <cassert>
 module qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.ChargeDensity;
-import qchem.Blaze;
 
 namespace qchem::Hamiltonian
 {
@@ -19,15 +18,5 @@ void ExFunctional::InsertChargeDensity(const rChargeDensity* cd)
     assert(cd);
     itsChargeDensity=cd;
 }
-
-rvec_t ExFunctional::GetVxcs(const rvec_t& ros) const
-{
-    rvec_t ret(ros.size());
-    auto i(ret.begin());
-    auto b(ros.begin());
-    for (; i!=ret.end()&&b!=ros.end(); i++,b++) *i=GetVxc(*b);
-    return ret;
-}
-
 
 } //namespace

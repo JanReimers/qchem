@@ -338,9 +338,8 @@ that should absorb it (not all are C — that was the reviewer's first, wrong, i
   `CalcMatrix`/`GetEnergy`; the field holds the precomputed grid by `const&` and just maps the functional over it.
 
 **→ Cleanup tier (do whenever you touch the file — same tier as G/J):**
-- **#8** `ExFunctional::GetVxcs` batch API is DEAD (0 callers). **Refined:** the "three hand-rolled loops" are
-  really pointwise `op(r)` evals (`SlaterExchange`/`VWN`/`Libxc` — can't batch); only ONE genuine batch site
-  (`PWVxcField`). Recommend DELETE the dead API (YAGNI — reintroduce a batch API when a 2nd caller / vectorized
-  path exists). Lib-side, non-critical.
+- ~~**#8** `ExFunctional::GetVxcs` batch API is DEAD (0 callers).~~ Done: DELETED (YAGNI — reintroduce a batch
+  API when a 2nd caller / vectorized path exists; the one genuine batch site, `PWVxcField`, samples the field's
+  own `op(rvec3vec_t)`, not this). Dropped the now-unused `qchem.Blaze` import from the impl. Bit-identical.
 - ~~#9 `ProjectedScalar<T>` vestigial → collapse to standalone `ProjectedScalar_R`.~~ Done `daa19555`.
 - ~~#10 stale `ProjectedScalar_G` / `Make*Fitter` comments (`FunctionFitter.C`, `PWTerms.C:14`).~~ Done `daa19555`.
