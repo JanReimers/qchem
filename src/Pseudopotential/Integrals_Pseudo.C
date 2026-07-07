@@ -4,11 +4,13 @@
 // blocks in a basis.  A capability MIXIN (cf. Integrals_Overlap/Kinetic/Nuclear) -- NOT itself a basis
 // set: a basis inherits it to gain pseudopotential support.  This is the basis-side half of the
 // pseudo-wall: the TERM (Hamiltonian-side) owns the pseudopotential MODEL and hands it here; the basis
-// owns the assembly (for plane waves: the structure factor e^{-iG.tau}, the 1/Omega, the G=0 handling).
-// It lives with the models in qcPseudopotential so qcBasisSet names no pseudopotential type; the plane-
-// wave basis realizes Integrals_Pseudo<dcmplx>, and a future molecular ECP would realize the <double>
-// instantiation.  A term reaches it the sanctioned way: holding the abstract orbital basis and
-// dynamic_cast-ing ACROSS to this capability (both abstract).
+// owns the assembly (for plane waves: the structure factor e^{-iG.tau}, the 1/Omega, dropping the G=0 term
+// from the matrix).  It lives with the models in qcPseudopotential so qcBasisSet names no pseudopotential
+// type.  Realized ONLY by the plane-wave basis (<dcmplx>): the molecular local + KB pseudopotential does
+// NOT use this capability -- it assembles TERM-side (PP_Local/PP_NonLocal quadrature the geometry's own mesh
+// from Structure::CreateIntegrationMesh), so there is no <double> realization (a future semilocal ECP would
+// be a DIFFERENT integral type, not this KB-separable one).  A term reaches the PW capability the sanctioned
+// way: holding the abstract orbital basis and dynamic_cast-ing ACROSS to this capability (both abstract).
 module;
 export module qchem.Pseudopotential.Integrals_Pseudo;
 export import qchem.Pseudopotential.LocalPotential;

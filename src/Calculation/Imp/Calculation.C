@@ -142,9 +142,11 @@ bool Calculation::Converge(const SCFParams& params)
     nlohmann::json jsacc = {{"NProj", itsAcc.nProj}, {"EMax", emax},
                             {"EMin", itsAcc.eMin}, {"SVTol", itsAcc.svTol}};
     using AType = qchem::SCFAccelerators::Type;
-    const AType atype = itsAcc.type=="GDM"    ? AType::GDM
+    const AType atype = itsAcc.type=="DIIS"   ? AType::DIIS
+                      : itsAcc.type=="GDM"    ? AType::GDM
                       : itsAcc.type=="Ladder" ? AType::Ladder
-                      :                         AType::DIIS;
+                      : throw std::runtime_error("qchem::Calculation: unknown accelerator type \"" +
+                                                 itsAcc.type + "\" (expected DIIS | GDM | Ladder)");
     auto* accel = qchem::SCFAccelerators::Factory(atype, jsacc);
 
     delete itsScf;                                     // releases the previous Hamiltonian + accelerator

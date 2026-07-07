@@ -80,19 +80,14 @@ The **molecular** path honours this: `FittedVee`/`FittedVxc`/`Ham_PP` call `bs->
 get back a *distinct* `FIT_*_ABS`, and build the fitter on it — the orbital basis is the FACTORY of its fit
 basis (a real, separately-tuned auxiliary basis).
 
-The **PW** path VIOLATES this and must NOT be copied:
-- `tBasisSet<dcmplx>::CreateCDFitBasisSet` / `CreateVxcFitBasisSet` are `assert(false)` stubs
-  (`src/BasisSet/Imp/BasisSet.C`).
-- `PW_Hartree`/`PW_XC` (`src/Hamiltonian/Internal/Imp/PWTerms.C`) instead **default-construct** a
-  `FourierFunctionFitter` and hand it the *orbital* basis directly — hardcoding "fit basis ≡ orbital basis"
-  and bypassing the generating process.
-
-**The clean target (§7 item 2):** PW *implements* `CreateCDFitBasisSet`/`CreateVxcFitBasisSet` (the DFT/
-`Band_FT_IBS` side, with the composite delegating as the `<double>` path already does). PW is free to *return*
-itself, or a more efficient tuned-{G} fit basis — but the caller always goes THROUGH the factory. `PW_Hartree`/
-`PW_XC` then obtain their fitter exactly as `FittedVee`/`FittedVxc` do:
-`MakeXxxFitter(bs->CreateXxxFitBasisSet(...))`. The `assert(false)` stubs die; the process is uniform even when
-PW's answer is trivial.
+The **PW** path *originally* violated this — now **✅ FIXED** (see §6.5 Hartree + §6.6 XC for the full account):
+- *Was:* `tBasisSet<dcmplx>::Create{CD,Vxc}FitBasisSet` were `assert(false)` stubs and `PW_Hartree`/`PW_XC`
+  default-constructed a `FourierFunctionFitter` on the *orbital* basis (fit ≡ orbital).
+- *Now:* PW *implements* the factory — `Band_FT_IBS::Create{CD,Vxc}FitBasisSet` returns a distinct Γ (k=0)
+  `PlaneWaveFit_IBS` (a concrete `cFIT_{CD,SF}_ABS`), the composite `tBasisSet<dcmplx>` **delegates** to it (the
+  `assert(false)` stubs are deleted, mirroring the `<double>` → `Orbital_DFT_IBS` delegation), and `PW_Hartree`/
+  `PW_XC` obtain their fitter through the factory exactly as `FittedVee`/`FittedVxc` do. `FourierFunctionFitter`
+  is **retired/deleted**. Bit-identical.
 
 This constraint governs the whole harmonization: whenever a fit/auxiliary structure is needed, obtain it from
 the orbital basis via its factory method — never assume the orbital basis IS the fit/aux basis. (For the raw
@@ -101,14 +96,13 @@ to any density/potential *fit* the assembler performs.)
 
 ## 4. Smaller divergences found
 
-- **`PseudoG0Energy` — ELIMINATED this session.** The PP-specific G=0 alignment `(N/Ω)·Σₐ α` moved off the
-  `Integrals_Pseudo` basis interface into the `PW_Pseudo` term (which reads Ω from `UnitCell::GetCellVolume()`
-  and α from the model it already owns). `Integrals_Pseudo<T>` is now two clean universal matrix methods.
-  **G=0 is unifiable, not a principled asymmetry:** a finite molecule drops *nothing* at G=0 (the real-space
-  mesh integrates the full `V_loc(r)`, including its `−Zion/r` tail), so the alignment is *physically* zero.
-  A unified PP term would carry `Ealign = 0` for a finite structure and `(N/Ω)Σα` for a periodic one — exactly
-  what `PW_Pseudo` already does via its `dynamic_cast<UnitCell>` guard. So the molecular value is a correct
-  hardcoded `0.0` (like `Vnn`'s identity `zionOf` default), giving a uniform interface.
+- **`PseudoG0Energy` — ELIMINATED.** The PP-specific G=0 alignment `(N/Ω)·Σₐ α` moved off the `Integrals_Pseudo`
+  basis interface into the `PW_Pseudo` term; `Integrals_Pseudo<T>` is now two clean universal matrix methods.
+  The term branches on **`!isFinite()`** and gets the sum from the neutral **`Structure::SumFormFactors`** (which
+  folds in `1/Ω` for a `UnitCell`) — no `dynamic_cast`, no `Structure::CellVolume()` LSP violation (§6.2 has the
+  final form). **G=0 is unifiable, not a principled asymmetry:** a finite molecule drops *nothing* at G=0 (the
+  real-space mesh integrates the full `V_loc(r)`, `−Zion/r` tail included), so the alignment is *physically* zero
+  — a correct hardcoded `0.0` (like `Vnn`'s identity `zionOf` default), giving a uniform interface.
 - **`PW_IonIon` vs molecular `Vnn` — a T-template candidate.** Both are energy-only ion-ion terms delegating
   to `NuclearRepulsion(st, zionOf)`; they differ only in scalar type (`chmat_t` vs `rsmat_t`). This session
   unified the **Zion callback** onto `Vnn` (one term serves all-electron via an identity default and PP via a

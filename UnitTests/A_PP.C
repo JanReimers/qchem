@@ -1,9 +1,11 @@
-// File A_PP.C  Pseudopotential atom regression test (facade-driven).
+// File A_PP.C  Pseudopotential regression tests (facade-driven): pseudo-ATOMS (AtomCalculation) + molecular
+// PP (qchem::Calculation).
 //
 // A pseudo-atom is the all-electron-basis atom with (a) the nuclear attraction replaced by the GTH local +
 // KB-separable nonlocal pseudopotential, (b) only the Zion valence electrons (PseudoAtom_EC).  Migrated off
 // QchemTester onto qchem::AtomCalculation via {.pseudopotential=true}: valence electrons = Z - charge, the
-// element is looked up from Z.  "Did the physics move" anchor (no oracle / Converged() guard -- the virial
+// element is looked up from Z.  The molecular tests (Si2_PP_U, OSi_PP_U) ride qchem::Calculation
+// {.pseudopotential=true}.  "Did the physics move" anchors (no oracle / Converged() guard -- the virial
 // criterion does not apply to a PP and the absolute value is basis/fitting-limited).
 #include "gtest/gtest.h"
 import qchem.AtomCalculation;        // AtomCalculation, AtomType, BasisSetAccuracy
