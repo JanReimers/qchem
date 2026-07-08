@@ -16,12 +16,14 @@
 module;
 #include <concepts>
 #include <functional>
+#include <memory>
 #include <string>
 #include <vector>
 export module qchem.BasisSet.Lattice_3D.Evaluators.PW;
 export import qchem.ReciprocalLattice;   // ReciprocalLattice / UnitCell (the B cell; source of G, |k+G|)
 export import qchem.BasisSet.Internal.GMap;           // ΔG_Map: the G-space coefficient map RhoOnGrid/ForwardFFT speak
 export import qchem.BasisSet.G_FieldEvaluator;  // the abstract grid-engine seam PW_Evaluator implements
+import qchem.BasisSet.Lattice_3D.Evaluators.PeriodicGridEvaluator; // the shared FFT/Poisson grid engine (held, delegated to)
 import qchem.Types;                      // ivec3_t, rvec3_t, rvec_t, rvec3vec_t, cvec_t, cvec3vec_t, chmat_t, dcmplx
 import qchem.Blaze;                      // hmat_t<dcmplx> (chmat_t)
 import qchem.Structure;                  // Structure, Atom (MakeFourierDensity's structure-factor sum)
@@ -87,36 +89,29 @@ public:
     //! empty kernel (overlap metric).
     G_ERI3 Overlap3CTensor() const;
 
-    // --- G_FieldEvaluator: evaluate a coefficient map as a real field (via this evaluator's B) ---
-    double  EvalField        (const ΔG_Map& c, const rvec3_t& r) const override;
-    rvec3_t EvalFieldGradient(const ΔG_Map& c, const rvec3_t& r) const override;
+    // --- G_FieldEvaluator: evaluate a coefficient map as a real field (delegated to the shared grid engine) ---
+    double  EvalField        (const ΔG_Map& c, const rvec3_t& r) const override {return itsGrid->EvalField(c,r);}
+    rvec3_t EvalFieldGradient(const ΔG_Map& c, const rvec3_t& r) const override {return itsGrid->EvalFieldGradient(c,r);}
 
-    // --- FFT/quadrature grid geometry (used by the IBS G-space/XC methods) ---
-    std::vector<rvec3_t> UniformGrid(const ivec3_t& n) const; //!< fractional \f$(i/n)\f$ grid (weight \f$\Omega/\prod n\f$)
-    ivec3_t AutoGrid() const;   //!< divisions resolving the difference set without aliasing
+    // --- FFT/quadrature grid geometry.  AutoGrid/FFTGrid size N from THIS block's {G} (so they stay here);
+    //     UniformGrid is pure grid geometry -> the shared engine. ---
+    std::vector<rvec3_t> UniformGrid(const ivec3_t& n) const {return itsGrid->UniformGrid(n);}
+    ivec3_t AutoGrid() const;   //!< divisions resolving the difference set without aliasing (from itsG)
     ivec3_t FFTGrid()  const;   //!< AutoGrid padded to powers of two (radix-2 FFT)
 
     // --- the FFT quadrature engine (shared by the ORBITAL basis's DFT route AND an auxiliary fit basis, so
     //     a fit basis quadratures v_xc on ITS OWN, possibly denser, grid instead of borrowing the orbital's).
     //     These are CONCRETE (not the abstract Band_FT_IBS virtuals); the orbital IBS's overrides forward here. ---
-    //! Cartesian points of the \c FFTGrid (raster order): \f$r=A\,(i/N)\f$.  This is the quadrature mesh a
-    //! scalar fitter samples a field on; its ordering matches \c RhoOnGrid / \c ForwardFFT.
-    const rvec3vec_t& GridPoints() const override;
-    //! \f$\rho(r)\f$ on the FFT grid = inverse-FFT of a G-space map keyed by the reciprocal-index difference
-    //! \f$\Delta m\f$ (the coefficients are physical, already \f$/\Omega\f$, so no \f$1/N\f$).
-    rvec_t   RhoOnGrid  (const ΔG_Map& rhoTilde) const override;
-    //! Forward-FFT a real-space grid field to the FULL, normalised (\f$/N_{pts}\f$) G-space grid \f$\tilde V\f$
-    //! (raster order, size \f$N_{pts}\f$).  Looked up by \c GridCoeff at ANY reciprocal-index difference the
-    //! FFT grid resolves -- so the coefficient producer (a Gamma fit basis) and the consumer (a k-block orbital
-    //! basis assembling \f$\langle G_i|V|G_j\rangle=\tilde V(m_i-m_j)\f$) need NOT share a difference set.
-    cvec_t   ForwardFFT (const rvec_t& V) const override;
-    //! Look up \f$\tilde V(\Delta m)\f$ in a \c ForwardFFT grid \a Vt (this evaluator's \c FFTGrid), wrapping
-    //! \f$\Delta m\f$ into the grid.  Alias-free while \f$|\Delta m|<N/2\f$ (guaranteed for \f$relCutoff\ge1\f$).
-    dcmplx   GridCoeff  (const cvec_t& Vt, const ivec3_t& dm) const override;
+    // The pure {r}<->{G} FFT quadrature is delegated to the held, k-independent grid engine (it needs only
+    // (B,Omega,N), which this block hands it at construction).  FieldCoeffs / MakeFourierDensity below iterate
+    // THIS block's own {G} set, so they stay here and reach the engine only for the per-G lookups.
+    const rvec3vec_t& GridPoints() const override               {return itsGrid->GridPoints();}
+    rvec_t   RhoOnGrid  (const ΔG_Map& rhoTilde) const override {return itsGrid->RhoOnGrid(rhoTilde);}
+    cvec_t   ForwardFFT (const rvec_t& V) const override        {return itsGrid->ForwardFFT(V);}
+    dcmplx   GridCoeff  (const cvec_t& Vt, const ivec3_t& dm) const override {return itsGrid->GridCoeff(Vt,dm);}
+    double   Integral   (const rvec_t& f) const override        {return itsGrid->Integral(f);}
     //! Gather \f$c(G)=\tilde V(G)\f$ over this evaluator's \f$\{G\}\f$ (the fitted field for op(r) plotting).
     ΔG_Map   FieldCoeffs(const cvec_t& Vt) const override;
-    //! \f$\int f\,d^3r\f$ on the FFT grid: uniform quadrature, weight \f$\Omega/N_{pts}\f$ (the XC energy quadrature).
-    double   Integral   (const rvec_t& f) const override;
     //! Analytic structure-factor density over THIS engine's own \f$\{G\}\f$ (the SAD seed's \f$\tilde\rho\f$).
     ΔG_Map   MakeFourierDensity(const Structure* atoms,
                           const std::function<double(int Z, double g2)>& formFactor) const override;
@@ -130,12 +125,14 @@ private:
     double               itsEcut;   //!< energy cutoff (Hartree)
     double               itsVolume; //!< direct cell volume \f$V\f$ (for the \f$1/\sqrt V\f$ norm)
     std::vector<ivec3_t> itsG;      //!< surviving reciprocal index triples \f$m\f$ (\f$G=B\,m\f$)
-    // Grid geometry depends ONLY on itsG (invariant across the SCF run); cache it lazily so AutoGrid()'s
-    // O(nG) scan (called O(n^2) times in matrix assembly) and GridPoints()'s N-point mesh + cell inversion
-    // run once, not per call.  Sentinels: {0,0,0} / empty == not yet computed.
+    // AutoGrid()/FFTGrid() derive the FFT resolution N from itsG (an O(nG) scan called O(n^2) times in matrix
+    // assembly), so cache them lazily.  Sentinels: {0,0,0} == not yet computed.
     mutable ivec3_t      itsAutoGrid = ivec3_t(0,0,0);
     mutable ivec3_t      itsFFTGrid  = ivec3_t(0,0,0);
-    mutable rvec3vec_t   itsGridPoints;
+    // The shared, k-independent FFT/Poisson grid engine (B, Omega, N).  Built in the ctor from this block's
+    // own FFTGrid(); the grid virtuals above forward to it.  shared_ptr so a container can hand ONE engine to
+    // every Brillouin-zone k-block (the grid is k-independent) instead of each block rebuilding it.
+    std::shared_ptr<const PeriodicGridEvaluator> itsGrid;
 };
 
 //! \brief The plane-wave 1E evaluator concept the EPW_Orbital1E_IBS mixin templates against (mirrors the

@@ -5,6 +5,7 @@ module;
 #include <complex>
 #include <functional>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -12,7 +13,7 @@ module qchem.BasisSet.Lattice_3D.Evaluators.PW;
 import qchem.Math;               // Pi, sqrt, cos, sin, Cube
 import qchem.BasisSet.Lattice_3D.Internal.GVectors;   // BuildGs
 import qchem.FFT;                // NextPow2 (the XC grid geometry)
-import qchem.Blaze;              // blazem::zeroH / blazem::sum
+import qchem.Blaze;              // blazem::zeroH
 import qchem.Vector3D;           // dot product (operator*) + vector arithmetic
 
 namespace qchem::BasisSet::Lattice_3D
@@ -26,24 +27,14 @@ PW_Evaluator::PW_Evaluator(const ReciprocalLattice& recip, const rvec3_t& k, dou
     , itsVolume(Cube(2*Pi)/recip.GetCell().GetCellVolume())
 {
     itsG = Internal::BuildGs(itsRecip, itsk, Ecut);   // { G : 1/2|k+G|^2 < Ecut }
+    // Build the shared FFT/Poisson grid engine from THIS block's grid resolution (FFTGrid() reads itsG).  A
+    // container will later hand ONE engine to every k-block instead; today each block self-owns its own.
+    itsGrid = std::make_shared<const PeriodicGridEvaluator>(itsRecip, itsVolume, FFTGrid());
 }
 
 rvec3_t PW_Evaluator::GetGCartesian(const ivec3_t& m) const
 {
     return itsRecip.GetCell().ToCartesian(rvec3_t(m)); // B m
-}
-
-// Uniform N1xN2xN3 grid of FRACTIONAL coordinates r=(i1/N1,i2/N2,i3/N3) -- the XC real-space grid
-// (uniform weight Omega/prod(N); dG.r = 2 pi dm.r_frac makes the rho(G)<->rho(r) transform a plain DFT).
-std::vector<rvec3_t> PW_Evaluator::UniformGrid(const ivec3_t& n) const
-{
-    std::vector<rvec3_t> g;
-    g.reserve(static_cast<size_t>(n.x)*n.y*n.z);
-    for (int i1=0;i1<n.x;i1++)
-        for (int i2=0;i2<n.y;i2++)
-            for (int i3=0;i3<n.z;i3++)
-                g.push_back(rvec3_t(i1/double(n.x), i2/double(n.y), i3/double(n.z)));
-    return g;
 }
 
 // Grid divisions resolving the difference set without aliasing: N > 2*(2*maxComp).  Cached (depends on itsG).
@@ -75,78 +66,13 @@ ivec3_t PW_Evaluator::FFTGrid() const
     return itsFFTGrid;
 }
 
-// Cartesian points of the FFT grid, raster order matching RhoOnGrid/ForwardFFT: r = A (i/N), A = direct cell.
-// Cached: the N-point mesh + the 3x3 cell inversion are built once, not per DoFit.
-const rvec3vec_t& PW_Evaluator::GridPoints() const
-{
-    if (itsGridPoints.size()==0)
-    {
-        std::vector<rvec3_t> frac=UniformGrid(FFTGrid());
-        UnitCell A=itsRecip.GetCell().MakeReciprocalCell();   // reciprocal of B == the direct cell
-        itsGridPoints.resize(frac.size());
-        for (size_t q=0;q<frac.size();q++) itsGridPoints[q]=A.ToCartesian(frac[q]);
-    }
-    return itsGridPoints;
-}
-
-// rho(r) on the FFT grid = inverse FFT of rho-tilde: rho(r_j) = Sum_dm rho-tilde(dm) e^{+i2pi dm.j/N}.
-// rho-tilde is the physical coefficient (already /Omega), so the inverse FFT takes NO 1/N normalization.
-rvec_t PW_Evaluator::RhoOnGrid(const ΔG_Map& rho) const
-{
-    ivec3_t N=FFTGrid();
-    size_t Npts=size_t(N.x)*N.y*N.z;
-    cvec_t g(Npts, dcmplx(0.0));
-    for (const auto& kv : rho)
-    {
-        int i0=((kv.first.x%N.x)+N.x)%N.x, i1=((kv.first.y%N.y)+N.y)%N.y, i2=((kv.first.z%N.z)+N.z)%N.z;
-        g[(size_t(i0)*N.y+i1)*N.z+i2]=kv.second;
-    }
-    cvec_t rr=qchem::FFT::FFT3D(g, N, +1);
-    rvec_t out(Npts);
-    for (size_t i=0;i<Npts;i++) out[i]=std::real(dcmplx(rr[i]));
-    return out;
-}
-
-// Forward-FFT a real-space grid field to the FULL normalised G-space grid Vtilde = FFT[V]/Npts (raster order).
-// Unlike a difference-filtered map, this keeps EVERY resolved frequency, so any consumer's difference set hits.
-cvec_t PW_Evaluator::ForwardFFT(const rvec_t& V) const
-{
-    ivec3_t N=FFTGrid();
-    size_t Npts=size_t(N.x)*N.y*N.z;
-    assert(V.size()==Npts);
-    cvec_t g(Npts, dcmplx(0.0));
-    for (size_t i=0;i<Npts;i++) g[i]=dcmplx(V[i]);
-    cvec_t Vt=qchem::FFT::FFT3D(g, N, -1);
-    for (size_t i=0;i<Npts;i++) Vt[i]/=double(Npts);
-    return Vt;
-}
-
-// Vtilde(dm) from a ForwardFFT grid: wrap dm into [0,N) per axis (negative freq -> N-|.|) and index raster.
-dcmplx PW_Evaluator::GridCoeff(const cvec_t& Vt, const ivec3_t& dm) const
-{
-    ivec3_t N=FFTGrid();
-    // Alias-free ONLY while |dm| < N/2 per axis: outside that band the wrap folds a high frequency onto dm
-    // and silently returns the wrong coefficient.  Holds by construction for relCutoff>=1 (denser fit grid
-    // is protective); the real future exposure is a k!=0 XC block whose orbital difference set exceeds the
-    // Gamma fit grid -- this assert makes that path fail loudly instead of aliasing.
-    assert(2*(dm.x<0?-dm.x:dm.x)<N.x && 2*(dm.y<0?-dm.y:dm.y)<N.y && 2*(dm.z<0?-dm.z:dm.z)<N.z
-           && "GridCoeff: |dm| outside the alias-free band -- densify the fit grid (raise relCutoff)");
-    int i0=((dm.x%N.x)+N.x)%N.x, i1=((dm.y%N.y)+N.y)%N.y, i2=((dm.z%N.z)+N.z)%N.z;
-    return Vt[(size_t(i0)*N.y+i1)*N.z+i2];
-}
-
 // The fitted field's coefficients over THIS basis's own {G} (a GridCoeff gather) -- for op(r) evaluation.
+// Iterates this block's {G} (per-k), so it stays on PW_Evaluator; the per-G lookup goes to the grid engine.
 ΔG_Map PW_Evaluator::FieldCoeffs(const cvec_t& Vt) const
 {
     ΔG_Map m;
-    for (const ivec3_t& G : itsG) m[G]=GridCoeff(Vt, G);
+    for (const ivec3_t& G : itsG) m[G]=itsGrid->GridCoeff(Vt, G);
     return m;
-}
-
-// integral f d3r on the FFT grid: uniform quadrature, weight Omega/Npts.
-double PW_Evaluator::Integral(const rvec_t& f) const
-{
-    return blazem::sum(f)*Volume()/double(f.size());
 }
 
 // Analytic structure-factor density over THIS engine's own {G}: rho-tilde(G) = (1/Omega) Sum_atoms
@@ -237,35 +163,6 @@ G_ERI3 PW_Evaluator::Overlap3CTensor() const
     BuildG_ERI3Columns(itsG, g.columns);
     g.kernel.clear();                // EMPTY => overlap metric
     g.volume=Volume();
-    return g;
-}
-
-// G_FieldEvaluator: inverse-transform the Hermitian coefficients c(dm) to the real field
-// f(r) = Re Sum_dm c(dm) e^{i(B.dm).r}, using our OWN grid engine's B (GetGCartesian).  A point evaluation
-// (loops the sparse map), NOT an FFT -- the GUI / fit-residual diagnostic path.
-double PW_Evaluator::EvalField(const ΔG_Map& c, const rvec3_t& r) const
-{
-    dcmplx s(0.0);
-    for (const auto& kv : c)
-    {
-        rvec3_t G = GetGCartesian(kv.first);
-        double  ph = G*r;
-        s += kv.second * dcmplx(cos(ph), sin(ph));
-    }
-    return s.real();
-}
-
-// grad f(r) = Sum_dm (B.dm) (-Im[c(dm) e^{i(B.dm).r}]) -- the gradient of the real inverse transform.
-rvec3_t PW_Evaluator::EvalFieldGradient(const ΔG_Map& c, const rvec3_t& r) const
-{
-    rvec3_t g(0.0,0.0,0.0);
-    for (const auto& kv : c)
-    {
-        rvec3_t G = GetGCartesian(kv.first);
-        double  ph = G*r;
-        dcmplx  ce = kv.second * dcmplx(cos(ph), sin(ph));
-        g += (-ce.imag()) * G;
-    }
     return g;
 }
 
