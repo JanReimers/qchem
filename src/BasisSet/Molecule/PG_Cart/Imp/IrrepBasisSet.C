@@ -234,6 +234,12 @@ rFIT_SF_ABS* Orbital_IBS::CreateVxcFitBasisSet(const Structure* cl, const qcMesh
 // Orbital_1E_IBS::GetAoShells: this orbital IBS IS-A PGData, so it hands its own Cartesian data to the extractor.
 std::vector<Symmetry::Molecule::AoShell> Orbital_IBS::GetAoShells() const {return ExtractAoShells(*this);}
 
+// Molecule::LatticeSum1E: the orbital IBS IS-A NR_Evaluator, which owns the radials/pols/ns and the shifted
+// two-centre kernels; forward the lattice sums straight to it (the GPW periodic-1E seam).
+rsmat_t Orbital_IBS::MakeOverlap(const std::vector<rvec3_t>& Rs) const {return NR_Evaluator::MakeOverlap(Rs);}
+rsmat_t Orbital_IBS::MakeKinetic(const std::vector<rvec3_t>& Rs) const {return NR_Evaluator::MakeKinetic(Rs);}
+rsmat_t Orbital_IBS::MakeNuclear(const std::vector<rvec3_t>& Rs, const Structure* cl) const {return NR_Evaluator::MakeNuclear(Rs,cl);}
+
 //----------------------------------------------------------------
 //
 //  Fit PG basis set.

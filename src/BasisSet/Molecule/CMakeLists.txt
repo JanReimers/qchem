@@ -6,6 +6,7 @@ Readers/Imp/Gaussian94.C
 PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES Factory.C
 SymmetryAdaptedBasisSet.C
 IrrepBasisSet.C
+LatticeSum1E.C
 BasisFiles.C
 Reader.C
 Readers/Gaussian94.C

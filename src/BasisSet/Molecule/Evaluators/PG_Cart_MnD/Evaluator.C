@@ -16,6 +16,7 @@ module;
 #include <cassert>
 #include <string>
 #include <ostream>
+#include <vector>
 export module qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD;
 import qchem.BasisSet.Molecule.Evaluators;                             // Evaluator + concepts
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.PGData;      // PGData
@@ -23,6 +24,7 @@ import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;  // GaussianRF
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;// Polarization
 import qchem.Structure;
 import qchem.Types;
+import qchem.Blaze;                                                // rsmat_t (the lattice-sum matrices)
 
 export namespace qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD
 {
@@ -52,6 +54,31 @@ public:
     {
         return radials[i]->Nuclear(*radials[j], pols[i], pols[j], cl) * ns[i]*ns[j];
     }
+
+    // --- Periodic (lattice-summed) 1E matrices at Gamma -- the GPW seam --------------------------------
+    // Sum_R <chi_i | O | chi_j(.-R)>, real at Gamma.  Rs are Cartesian lattice translations (MUST include
+    // {0}); chi_j(.-R) is radials[j] placed at its centre + R via GaussianRF::AtCenter.  The R=0 term is the
+    // finite kernel above, so Rs={0} reproduces Overlap/Grad2/Nuclear exactly -- the SAME analytic M&D
+    // kernels, only the second centre shifted per image.  Symmetric for an inversion-symmetric Rs, so fill
+    // the upper triangle and let rsmat_t mirror.  These realise Molecule::LatticeSum1E (on the host IBS).
+    template <class Kernel> rsmat_t LatticeSum(const std::vector<rvec3_t>& Rs, Kernel K) const
+    {
+        rsmat_t S(size());
+        for (auto i:indices()) for (auto j:indices(i))
+        {
+            double s=0.0;
+            for (const rvec3_t& R:Rs)
+                s += K(i, j, radials[j]->AtCenter(radials[j]->GetCenter()+R));
+            S(i,j)=s*ns[i]*ns[j];
+        }
+        return S;
+    }
+    rsmat_t MakeOverlap(const std::vector<rvec3_t>& Rs) const
+    {   return LatticeSum(Rs,[this](size_t i,size_t j,const GaussianRF& cj){return radials[i]->Overlap2C(cj,pols[i],pols[j]);}); }
+    rsmat_t MakeKinetic(const std::vector<rvec3_t>& Rs) const
+    {   return LatticeSum(Rs,[this](size_t i,size_t j,const GaussianRF& cj){return radials[i]->Grad2   (cj,pols[i],pols[j]);}); }
+    rsmat_t MakeNuclear(const std::vector<rvec3_t>& Rs, const Structure* cl) const
+    {   return LatticeSum(Rs,[this,cl](size_t i,size_t j,const GaussianRF& cj){return radials[i]->Nuclear(cj,pols[i],pols[j],cl);}); }
 
     // --- 3-centre (DFT) and 4-centre (HF) kernels ---------------------------------------------------
     // General multi-evaluator elements: each (evaluator, index) pair names one basis component, so the

@@ -1,0 +1,146 @@
+// File GPW_UT.C  GPW increment 1: periodic Gaussian 1-electron integrals at Gamma.
+//
+// GPW puts GAUSSIAN orbitals on a lattice.  Its one-electron matrices are lattice sums of the ordinary
+// (finite) two-centre integrals,  M_ij = Sum_R <chi_i | O | chi_j(.-R)>, computed by the molecular Gaussian
+// basis (Molecule::LatticeSum1E) and delegated to by GPW_Evaluator; GPW_IBS is the thin Orbital_1E_IBS on top.
+//
+// The validation mirrors L_PP: the SAME Si valence Gaussian basis gives the SAME overlap / kinetic (<p^2>) /
+// nuclear matrices whether the atom is a finite Molecule or centred in a large periodic UnitCell.  Two teeth:
+//   (1) home cell only (R={0}): GPW reproduces the finite matrices EXACTLY (same analytic M&D kernels) -- this
+//       proves the wiring + the molecular-capability reuse;
+//   (2) with the periodic images summed in: GPW matches the finite matrices to the (tiny) image tail, and the
+//       tail SHRINKS as the cell grows -- the large-cell limit, proving the lattice sum runs and converges.
+// (A physically rigorous periodic nuclear attraction (Ewald) and general-k Bloch phases are later increments.)
+#include "gtest/gtest.h"
+#include <memory>
+#include <cmath>
+#include <complex>
+
+import qchem.Structure;                         // Molecule, Atom
+import qchem.UnitCell;                          // UnitCell
+import qchem.BasisSet;                          // Real_BS
+import qchem.BasisSet.Orbital_1E_IBS;           // Real_OIBS / Complex_OIBS + cached Overlap()/Kinetic()/Nuclear()
+import qchem.BasisSet.Molecule.Factory;         // Molecule::Factory, BasisSetData/Engine/Angular
+import qchem.BasisSet.Lattice_3D.GPW_IBS;       // GPW_IBS (the basis under test)
+import qchem.Blaze;                             // hmat_t element access / rows()
+import qchem.Types;
+
+using namespace qchem;
+using BasisSet::Real_BS;
+using BasisSet::Real_OIBS;
+using BasisSet::Complex_OIBS;
+using BasisSet::Lattice_3D::GPW_IBS;
+using qchem::BasisSet::Molecule::BasisSetData;
+
+namespace
+{
+// The valence Si Gaussian basis (SIPP, Cartesian) on ANY structure -- the L_PP builder.  The Engine argument
+// is the integral-engine switch point (see Molecule::LatticeSum1E): Engine::MnD here (its AtCenter + analytic
+// 2C kernels make the periodic sum exact/trivial); Engine::LibCint would be the faster path once PG_LibCint
+// realises LatticeSum1E -- GPW itself is unchanged either way.
+std::unique_ptr<Real_BS> MakeBasis(const Structure& st)
+{
+    return std::unique_ptr<Real_BS>(
+        BasisSet::Molecule::Factory(BasisSetData::SIPP, &st,
+                                    BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
+}
+
+// The single orbital block of a raw (no-SALC) single-atom basis (real or complex flavour).
+template <class OIBS> const OIBS* OrbitalBlock(const Real_BS& bs)
+{
+    const OIBS* only=nullptr; int count=0;
+    for (auto ibs : bs.Iterate<OIBS>()) { only=ibs; count++; }
+    EXPECT_EQ(count,1) << "expected one orbital block for the raw single-atom basis";
+    return only;
+}
+
+// Relative Frobenius distance  ||Re(A) - B||_F / ||B||_F  (A complex GPW matrix, B the real finite matrix).
+template <class CM, class RM> double RelDiff(const CM& A, const RM& B)
+{
+    const size_t n=B.rows();
+    double num=0.0, den=0.0;
+    for (size_t i=0;i<n;i++)
+        for (size_t j=0;j<n;j++)
+        {
+            double d=std::real(A(i,j))-B(i,j);
+            num+=d*d; den+=B(i,j)*B(i,j);
+        }
+    return std::sqrt(num/den);
+}
+
+// Largest |Im| over a complex matrix (must be ~0 at Gamma).
+template <class CM> double MaxImag(const CM& A)
+{
+    const size_t n=A.rows();
+    double m=0.0;
+    for (size_t i=0;i<n;i++)
+        for (size_t j=0;j<n;j++) m=std::max(m, std::fabs(std::imag(A(i,j))));
+    return m;
+}
+
+// The finite-Si reference matrices (atom at the origin): overlap, <p^2>, nuclear.  Translation-invariant, so
+// they equal the GPW home-cell (R=0) matrices for the same atom centred anywhere in the cell.
+struct FiniteRef
+{
+    std::shared_ptr<Molecule>   mol;
+    std::unique_ptr<Real_BS>    bs;
+    const Real_OIBS*            orb;
+    FiniteRef()
+        : mol(std::make_shared<Molecule>())
+    {
+        mol->Insert(new Atom(14,{0,0,0}));
+        bs = MakeBasis(*mol);
+        orb= OrbitalBlock<Real_OIBS>(*bs);
+    }
+};
+} //anon
+
+// Tooth (1): home cell only -- GPW reproduces the finite matrices EXACTLY (R=0 IS the finite integral).
+TEST(GPW, HomeCellMatchesFiniteExactly)
+{
+    FiniteRef fin;
+
+    const double a=20.0;
+    UnitCell cell(a);
+    cell.AddAtom(14,{0.5,0.5,0.5});
+    std::shared_ptr<const Real_BS> molCell = MakeBasis(cell);
+
+    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*Rcut=*/0.0);  // home cell only
+    const Complex_OIBS& g = gpw;
+
+    ASSERT_EQ(g.GetNumFunctions(), fin.orb->GetNumFunctions());
+    EXPECT_LT(MaxImag(g.Overlap()),        1e-14);
+    EXPECT_LT(MaxImag(g.Kinetic()),        1e-14);
+    EXPECT_LT(MaxImag(g.Nuclear(&cell)),   1e-13);
+    EXPECT_LT(RelDiff(g.Overlap(),      fin.orb->Overlap()),        1e-12);
+    EXPECT_LT(RelDiff(g.Kinetic(),      fin.orb->Kinetic()),        1e-12);
+    EXPECT_LT(RelDiff(g.Nuclear(&cell), fin.orb->Nuclear(fin.mol.get())), 1e-12);
+}
+
+// Tooth (2): sum the periodic images in.  GPW matches the finite matrices to the image tail, and the tail
+// shrinks as the cell grows (the large-cell limit).  Overlap / kinetic are compact, so the tail is tiny.
+TEST(GPW, LatticeSumConvergesToFiniteAsCellGrows)
+{
+    FiniteRef fin;
+
+    auto overlapResidual = [&](double a)->double
+    {
+        UnitCell cell(a);
+        cell.AddAtom(14,{0.5,0.5,0.5});
+        std::shared_ptr<const Real_BS> molCell = MakeBasis(cell);
+        GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*Rcut=*/1.5*a); // include nearest images
+        const Complex_OIBS& g = gpw;
+        EXPECT_LT(MaxImag(g.Overlap()), 1e-13);          // still real at Gamma
+        return RelDiff(g.Overlap(), fin.orb->Overlap());
+    };
+
+    // Clean exponential large-cell convergence (measured: ~two orders of magnitude per +4 a.u.):
+    //   a=14 -> 1.5e-2,  a=22 -> 7.9e-6,  a=30 -> 5.9e-11.
+    const double r14 = overlapResidual(14.0);
+    const double r22 = overlapResidual(22.0);
+    const double r30 = overlapResidual(30.0);
+
+    EXPECT_GT(r14, r22);          // the image tail shrinks monotonically as the cell grows
+    EXPECT_GT(r22, r30);
+    EXPECT_LT(r30, 1e-9);         // and vanishes in the large-cell limit (GPW -> the finite molecule)
+}

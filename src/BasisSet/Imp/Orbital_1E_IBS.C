@@ -25,5 +25,9 @@ template <class T> const hmat_t<T>& Integrals_Nuclear<T>::Nuclear(const Structur
 
 template class Integrals_Kinetic<double>;
 template class Integrals_Nuclear<double>;
+// The complex flavours: the periodic (dcmplx) 1E bases -- plane waves and now GPW -- use these cached
+// accessors too (mirrors Integrals_Overlap<dcmplx> in Imp/IrrepBasisSet.C).
+template class Integrals_Kinetic<dcmplx>;
+template class Integrals_Nuclear<dcmplx>;
 
-} //namespace 
+} //namespace

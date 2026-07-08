@@ -3,6 +3,7 @@
 add_library(qcLattice_BS)
 target_sources(qcLattice_BS PRIVATE
     Imp/PlaneWave_IBS.C
+    Imp/GPW_IBS.C
     Imp/APW_IBS.C
     Imp/LAPW_IBS.C
     Imp/BasisSet.C
@@ -13,6 +14,7 @@ target_sources(qcLattice_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILE
     IrrepBasisSet.C
     PlaneWave_IBS.C
     PlaneWaveFit_IBS.C
+    GPW_IBS.C
     APW_IBS.C
     LAPW_IBS.C
     BandStructure.C
@@ -26,7 +28,10 @@ target_include_directories(qcLattice_BS PRIVATE
 set_property(TARGET qcLattice_BS PROPERTY CXX_STANDARD 20)
 target_compile_options(qcLattice_BS PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(qcLattice_BS PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
-target_link_libraries(qcLattice_BS PUBLIC qcBasisSet qcStructure qcSymmetry qcLASolver qcPseudopotential)
+# qcMolecule_BS: GPW's periodic Gaussian 1E integrals delegate to the molecular Gaussian basis's
+# Molecule::LatticeSum1E capability.  New edge (qcLattice_BS -> qcMolecule_BS); no cycle (qcMolecule_BS
+# never references Lattice).
+target_link_libraries(qcLattice_BS PUBLIC qcBasisSet qcStructure qcSymmetry qcLASolver qcPseudopotential qcMolecule_BS)
 
 add_subdirectory(Evaluators)
 add_subdirectory(tests)

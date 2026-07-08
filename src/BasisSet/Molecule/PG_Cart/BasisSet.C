@@ -10,6 +10,7 @@ import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
 import qchem.BasisSet.Molecule.Reader;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD;  // NR_Evaluator: the IBS IS-A evaluator (base subobject)
 import qchem.BasisSet.Molecule.IBS;                     // Molecule::Orbital_{1E,DFT,HF}_IBS<E> templated mixins
+import qchem.BasisSet.Molecule.LatticeSum1E;            // Molecule::LatticeSum1E (the GPW periodic-1E seam)
 
 import qchem.BasisSet.Internal.BasisSetImp;
 import qchem.BasisSet.Internal.ERI4;
@@ -63,6 +64,7 @@ class Orbital_IBS
     : public Molecule::EOrbital_1E_IBS<Evaluators::PG_Cart_MnD::NR_Evaluator>
     , public Molecule::Orbital_HF_IBS <Evaluators::PG_Cart_MnD::NR_Evaluator>
     , public Molecule::Orbital_DFT_IBS<Evaluators::PG_Cart_MnD::NR_Evaluator>
+    , public virtual Molecule::LatticeSum1E   // the GPW periodic-1E seam (Gamma lattice sums)
     , public IrrepBasisSet
 {
 public:
@@ -75,6 +77,13 @@ public:
 
     //! This basis's AO shells in Cartesian-monomial form (delegates to ExtractAoShells on its own PGData).
     virtual std::vector<Symmetry::Molecule::AoShell> GetAoShells() const override;   // Molecule::Orbital_1E_IBS
+
+    // Molecule::LatticeSum1E -- forward to the NR_Evaluator base subobject's lattice-sum kernels (it owns the
+    // radials/pols/ns).  The R=0 term reproduces this basis's own Overlap/Kinetic/Nuclear exactly.  (The Rs
+    // overload is distinct from the mixin's finite MakeOverlap()/MakeKinetic()/MakeNuclear(cl).)
+    virtual rsmat_t MakeOverlap(const std::vector<rvec3_t>& Rs) const override;
+    virtual rsmat_t MakeKinetic(const std::vector<rvec3_t>& Rs) const override;
+    virtual rsmat_t MakeNuclear(const std::vector<rvec3_t>& Rs, const Structure* cl) const override;
 };
 // Use E prefix to avoid name clash with the interface class Fit_IBS
 class EFit_IBS

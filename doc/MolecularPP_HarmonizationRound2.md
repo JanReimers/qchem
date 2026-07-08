@@ -445,6 +445,38 @@ cleared and the north-star (real periodic Gaussian solids → battery voltages) 
    genuinely-new work (periodic Gaussian two-centre integrals; the collocate/integrate pair; extracting
    `MakePotential` per §2.4) is best done while the reciprocal-space/evaluator architecture is fresh, not after a
    context-switch into group theory.
+
+   > ## ✅ GPW Increment 1 DONE — periodic Gaussian **1E** integrals at Γ
+   > The first genuinely-new numerics landed: the periodic Gaussian **two-centre** integrals (overlap /
+   > kinetic `⟨p²⟩` / nuclear), as the real-space Bloch lattice sums `M_ij = Σ_R ⟨χ_i|Ô|χ_j(·−R)⟩` at Γ.
+   > Structure (exactly the §2.5 "GPW = a new evaluator, not a new IBS" story):
+   > - **`GPW_Evaluator`** (`src/BasisSet/Lattice_3D/Evaluators/GPW/`) satisfies the **existing**
+   >   `isPW_1E_Evaluator`; **`GPW_IBS`** (`src/BasisSet/Lattice_3D/GPW_IBS.C`) is the same
+   >   `EPW_Orbital1E_IBS<E>` mixin instantiated with it — nearly empty (ctors + identity), as intended.
+   > - **Scalar-type fork settled: `dcmplx`** (reuse the PW evaluator stack; Γ = k=0, values real, stored
+   >   complex). Forced by the concept (`chmat_t`/`cvec_t` returns) and the lowest-churn path. General-k Bloch
+   >   phases stay for a later increment.
+   > - **The lattice sum is NOT re-derived.** GPW delegates it to the molecular Gaussian basis via a new
+   >   high-level capability **`Molecule::LatticeSum1E`** (`src/BasisSet/Molecule/LatticeSum1E.C`): "sum these
+   >   two-centre integrals over these lattice translations." Realised by `PG_Cart::Orbital_IBS` forwarding to
+   >   `PG_Cart_MnD::NR_Evaluator`, which lattice-sums the existing analytic M&D kernels via
+   >   `GaussianRF::AtCenter` (place a radial at each image). GPW reaches it by an **abstract→abstract
+   >   cross-cast** of the orbital block — the Gaussian internals (radials/exponents) never cross into
+   >   `qcLattice_BS`, honouring the "ask high-level operations, not data getters" policy. One new library
+   >   edge `qcLattice_BS → qcMolecule_BS` (no cycle: `qcMolecule_BS` never references Lattice).
+   > - Latent gap fixed: the **complex** `Integrals_Kinetic<dcmplx>`/`Integrals_Nuclear<dcmplx>` cached
+   >   accessors were never instantiated (only `<double>` + `Integrals_Overlap<dcmplx>`); added.
+   > - **Validation** (`UnitTests/GPW_UT.C`, L_PP-style): same Si SIPP valence basis, finite Molecule vs a
+   >   large `UnitCell` at Γ. (1) home cell (`R={0}`) reproduces the finite overlap/kinetic/nuclear matrices
+   >   **exactly** (RelDiff < 1e-12, imag ≈ 0) — proves the wiring/reuse; (2) with images summed, textbook
+   >   large-cell convergence (a=14→1.5e-2, a=22→7.9e-6, a=30→5.9e-11). 179/179 UTMain green.
+   >
+   > **NOT yet (next GPW increments):** the DFT tier `isPW_DFT_Evaluator` (Hartree/XC by **collocation** —
+   > carries the ρ̃-production fork: fill a weighted `G_ERI3`/`ERI3<dcmplx>` tensor vs. whole-density
+   > collocation); a rigorous periodic **nuclear** attraction (Ewald, vs. this large-cell single-image limit);
+   > general **k** (complex Bloch phases → `LatticeSum1E` grows a `chmat_t` overload); `Ham_GPW_DFT` + Factory
+   > routing + facade. The §2.5 shared-base (`PeriodicGridEvaluator` under both PW and GPW density grids) is
+   > only needed once GPW gets its density grid (the DFT tier).
 5. **Space groups (§2.1) → BZ reduction (§2.2a) → SALC-PW (§2.2b) — AFTER a working GPW.** These are an
    **independent optimization/blocking layer that bolts onto a working SCF without rework** (BZ folding plugs into
    the k-loop; SALC blocks the matrix). BZ reduction is the single highest-value solid speedup and you *will* need

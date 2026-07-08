@@ -3,8 +3,10 @@
 target_sources(qcLattice_BS PRIVATE
     Imp/PeriodicGridEvaluator.C
     PW/Imp/Evaluator.C
+    GPW/Imp/Evaluator.C
 )
 target_sources(qcLattice_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     PeriodicGridEvaluator.C
     PW/Evaluator.C
+    GPW/Evaluator.C
 )
