@@ -72,15 +72,17 @@ static int PPZion(int Z) {return Pseudopotential::GetGTH(thePeriodicTable().GetS
 // Re-express a structure as its VALENCE ions for a pseudopotential run: each atom keeps its true species Z
 // (so the PP lookup and the true geometry are intact) but carries net charge Z-Zion(its own element), so
 // GetNumElectrons() reports the total Zion valence count the EC + FittedVee charge constraint consume.
+// Clone-and-mutate (not rebuild-as-Molecule) so the concrete geometry is preserved: a PP run on a periodic
+// UnitCell stays a UnitCell (Ewald ion-ion, uniform mesh) -- the GPW-relevant case.
 static std::shared_ptr<Structure> MakeValenceStructure(const Structure& st)
 {
-    auto mol = std::make_shared<Molecule>();
-    for (size_t a=0; a<st.GetNumAtoms(); a++)
+    auto valence = st.Clone();
+    for (size_t a=0; a<valence->GetNumAtoms(); a++)
     {
-        const int Z = st[a]->itsZ;
-        mol->Insert(new Atom(Z, double(Z - PPZion(Z)), st[a]->itsR));   // per-element charge = Z - Zion
+        Atom* atom = (*valence)[a];
+        atom->itsCharge = double(atom->itsZ - PPZion(atom->itsZ));   // net charge = Z - Zion
     }
-    return mol;
+    return valence;
 }
 
 // The distinct pseudopotential species (element, valence) present in \a st -- the per-Z router the
@@ -98,7 +100,8 @@ static std::vector<std::pair<std::string,int>> PPSpecies(const Structure& st)
 }
 
 Calculation::Calculation(const Structure& st, const CalcOptions& opts, const AcceleratorOptions& acc)
-    : itsStructure(std::make_shared<Molecule>(st))   // deep copy: the facade owns its own structure
+    : itsStructure(st.Clone())   // polymorphic deep copy: the facade owns its own structure AND keeps its
+                                 // concrete geometry (a UnitCell stays periodic, not sliced to a Molecule)
     , itsOpts(opts)
     , itsAcc(acc)
 {

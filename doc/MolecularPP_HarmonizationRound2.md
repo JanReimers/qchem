@@ -115,10 +115,14 @@ them** (see §2).
   1. **Periodic Gaussians.** Overlap / kinetic / Hartree of Gaussians on a lattice need Bloch sums
      (`Σ_R e^{ik·R} χ(r−R)`) and lattice-summed two-centre integrals (minimum-image or Ewald-style long-range).
      This is the substantive new numerics.
-  2. **The facade must preserve the concrete geometry.** `qchem::Calculation`'s ctor does
-     `itsStructure = std::make_shared<Molecule>(st)` — it **deep-copies any structure to a `Molecule`, stripping
-     periodicity**. A lattice calculation must keep the `UnitCell` (and its `CreateIntegrationMesh` → uniform grid,
-     and `Vnn`→Ewald). This is a small but load-bearing facade change and a **prerequisite for GPW**.
+  2. **The facade must preserve the concrete geometry.** ✅ **DONE (GPW Implementation 1).** `qchem::Calculation`'s
+     ctor USED to do `itsStructure = std::make_shared<Molecule>(st)` — deep-copying any structure to a `Molecule`,
+     stripping periodicity. It now clones through a new polymorphic `Structure::Clone()` (pure virtual, implemented
+     by `Atom`/`Molecule`/`UnitCell` via their copy ctors), so a lattice calculation keeps its `UnitCell` (and its
+     `CreateIntegrationMesh` → uniform grid, and `IonIon`→Ewald). `MakeValenceStructure` (PP valence) was likewise
+     switched from rebuild-as-`Molecule` to clone-and-mutate-charges, so a PP run on a lattice is preserved too.
+     Guarded by `L_PP.FacadePreservesUnitCell`. This was the small, load-bearing **prerequisite for GPW**; the
+     substantive new numerics of point 1 (periodic Gaussians) remain.
 - **Target:** a real-space-basis SCF on a `UnitCell` reusing `PP_Local`/`PP_NonLocal`/`IonIon` unchanged.
 - **Effort:** large (this is the GPW body). **Risk:** medium-high (new periodic-integral numerics); de-risk with
   the term-level `L_PP` bit-identity already in hand and the empty-lattice / cosine-V / bare-Coulomb PW anchors.
@@ -135,7 +139,7 @@ bolts onto a working GPW SCF without rework; it does not gate GPW (which runs at
 ```
         (2.3) PlaneWave_IBS "bad habits" review      ✅ DONE (GPW-prep session)
                  ▼
-        (§1.D.2) facade preserves UnitCell           ← small; the first step of GPW
+        (§1.D.2) facade preserves UnitCell           ✅ DONE (Structure::Clone; GPW Implementation 1)
                  ▼
         (2.4) GPW at Γ / small EXPLICIT k-mesh        ← DO NEXT; resolves divergences (A)+(D);
                  │                                       needs NO space-group machinery
@@ -386,7 +390,14 @@ cleared and the north-star (real periodic Gaussian solids → battery voltages) 
 1. **Cheap harmonizations** — (C) `IonIon<T>` **DONE**. (B) stays in `PW_Pseudo` (a PP-term concern → (D)). ✅
 2. **`PlaneWave_IBS` bad-habits review (§2.3)** — **DONE this session.** `PlaneWave_IBS` is lean and on the
    evaluator pattern; `G_FieldEvaluator` is the shared, near-ready grid engine. ✅
-3. **Facade-preserves-`UnitCell` (§1.D.2)** — small, load-bearing; the first concrete step of GPW.
+3. **Facade-preserves-`UnitCell` (§1.D.2)** — **DONE ("GPW Implementation 1").** Added polymorphic
+   `Structure::Clone()` (pure virtual; `Atom`/`Molecule`/`UnitCell` implement it via their copy ctors);
+   `qchem::Calculation`'s ctor now clones through it instead of `make_shared<Molecule>(st)`, so a periodic
+   `UnitCell` keeps its periodicity (Ewald ion-ion, uniform mesh) instead of being sliced to a finite
+   `Molecule`. `MakeValenceStructure` (the PP valence path) likewise clone-and-mutates rather than
+   rebuilding a `Molecule`, so a **PP** run on a lattice is preserved too. Guard: `L_PP.FacadePreservesUnitCell`
+   (facade-owned structure stays `isFinite()==false`, carries the right charge, and its ion-ion term routes
+   through the Ewald sum). 175/175 UTMain green; PP anchors (`Si2_PP_U` etc.) bit-identical. ✅
 4. **GPW (§2.4) — DO THIS NEXT, ahead of space groups.** It collapses divergences (A)+(D) and is the real target.
    Start at **Γ-point (or a small *explicit*, unreduced k-mesh)** — that needs **no** space-group machinery. The
    genuinely-new work (periodic Gaussian two-centre integrals; the collocate/integrate pair; extracting

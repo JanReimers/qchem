@@ -16,6 +16,7 @@
 #include <memory>
 #include <cmath>
 
+import qchem.Calculation;                       // qchem::Calculation, CalcOptions (the production facade)
 import qchem.Structure;                         // Molecule, Atom
 import qchem.UnitCell;                          // UnitCell (uniform lattice mesh)
 import qchem.BasisSet;                          // Real_BS
@@ -33,8 +34,8 @@ import qchem.Types;
 using namespace qchem;
 using Real_OIBS = qchem::BasisSet::Real_OIBS;
 using qchem::BasisSet::Molecule::BasisSetData;
-using qchem::BasisSet::Molecule::Engine;
-using qchem::BasisSet::Molecule::Angular;
+// NB: Engine/Angular are NOT `using`-imported here -- qchem::Calculation also exports enums of those names
+// (the facade's engine/angular knobs), so name the basis-factory ones fully-qualified in MakeBasis below.
 
 namespace
 {
@@ -45,7 +46,8 @@ using Ptr = std::shared_ptr<const Structure>;
 std::unique_ptr<BasisSet::Real_BS> MakeBasis(const Structure& st)
 {
     return std::unique_ptr<BasisSet::Real_BS>(
-        BasisSet::Molecule::Factory(BasisSetData::SIPP, &st, Engine::MnD, Angular::Cartesian));
+        BasisSet::Molecule::Factory(BasisSetData::SIPP, &st,
+                                    BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
 }
 
 // Relative Frobenius distance between two same-shaped matrices, ||A-B||_F / ||B||_F.
@@ -130,4 +132,37 @@ TEST(L_PP, NonLocalMatrixLatticeMatchesFinite)
 
     ASSERT_EQ(Mcell.rows(), Mfin.rows());
     EXPECT_LT(RelDiff(Mcell, Mfin), 1.0e-2);
+}
+
+// GPW step 1 (doc/MolecularPP_HarmonizationRound2.md section 1.D.2): the qchem::Calculation FACADE must
+// PRESERVE the concrete geometry.  Before Structure::Clone the ctor did make_shared<Molecule>(st), which
+// deep-copied ANY structure to a finite Molecule -- silently stripping periodicity.  Here the SAME atom is
+// run through the facade both as a finite Molecule and centred in a periodic UnitCell: the lattice run's
+// facade-owned structure must still be periodic (isFinite()==false) and its ion-ion term must be the Ewald
+// lattice sum (a Molecule-slice would give the single-atom pair-sum 0).  Those are the teeth -- a
+// sliced-to-Molecule facade fails both.
+//
+// This guards the FACADE routing, so it deliberately uses the cheap grid-free HF path (not the uniform-mesh
+// PP-DFT SCF): the same Clone() seam serves the PP path, and the two L_PP matrix tests above already prove
+// the PP terms are bit-identical on a UnitCell's uniform mesh.  A correct periodic-DFT total energy (the G=0
+// Hartree background) is GPW step 4, not this step.
+TEST(L_PP, FacadePreservesUnitCell)
+{
+    // Finite reference through the facade: He at the origin (Enn = 0 for one atom -- no ion-ion pair).
+    Molecule he; he.Insert(new Atom(2, 0.0, {0,0,0}));
+    Calculation cFin(he, {.basis = "dzvp"});
+    EXPECT_TRUE(cFin.GetStructure().isFinite());          // a Molecule stays finite
+    EXPECT_NEAR(cFin.EnergyTerms().Enn, 0.0, 1e-12);      // single finite atom -> no ion-ion
+
+    // Lattice run: the same He centred in a cubic cell.  The facade must keep the UnitCell periodic.
+    const double a = 10.0;
+    UnitCell cell(a);
+    cell.AddAtom(2, {0.5,0.5,0.5});
+    Calculation cCell(cell, {.basis = "dzvp"});
+
+    EXPECT_FALSE(cCell.GetStructure().isFinite());                    // periodic, not sliced to a Molecule
+    EXPECT_NEAR(cCell.GetStructure().GetNumElectrons(), 2.0, 1e-12);  // He, charge preserved by Clone
+
+    // The ion-ion term routed through the periodic Ewald sum (a sliced single-atom Molecule would give 0).
+    EXPECT_GT(std::fabs(cCell.EnergyTerms().Enn), 1e-3);
 }

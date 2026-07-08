@@ -27,6 +27,12 @@ export class Structure
 public:
     virtual ~Structure() {};
 
+    //! \brief Polymorphic deep copy that PRESERVES the concrete geometry (Atom / Molecule / UnitCell).  The
+    //! production facade (qchem::Calculation) clones the caller's structure through this, so a periodic
+    //! UnitCell keeps its periodicity -- its Ewald ion-ion and uniform integration mesh -- instead of being
+    //! sliced down to a finite Molecule.  Load-bearing for GPW (a real-space basis on a lattice).
+    virtual std::shared_ptr<Structure> Clone() const=0;
+
     virtual std::string ID          () const;
     virtual size_t GetNumAtoms      () const=0;
     virtual int    GetNuclearCharge () const;
@@ -80,6 +86,7 @@ public:
     //  Copy/move/assign are all defaulted: an Atom is now a plain value type
     //  (no self-reference, no UniqueID), so it is freely relocatable.
 
+    virtual std::shared_ptr<Structure> Clone() const override {return std::make_shared<Atom>(*this);}
     virtual size_t GetNumAtoms      () const override {return 1;}
 
     //! A single atom's integration mesh: the atom-centred radial x angular grid (no Becke partitioning).
@@ -108,6 +115,7 @@ public:
     //  copy-and-swap reuses the copy ctor and is self-assignment safe.
     Molecule& operator=(Molecule m) {itsAtoms.swap(m.itsAtoms); return *this;}
     virtual ~Molecule();
+    virtual std::shared_ptr<Structure> Clone() const override {return std::make_shared<Molecule>(*this);}
     virtual void   Insert     (Atom* a);
     virtual size_t GetNumAtoms() const override;
 

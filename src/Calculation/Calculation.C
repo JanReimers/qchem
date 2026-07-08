@@ -106,8 +106,9 @@ public:
     using orbitals_t = qchem::Orbitals::Orbitals;
     using Observer   = qchem::SCFIterator::SCFIterator::Observer; //!< void(const SCFProgress&)
 
-    //! Build the whole graph and converge.  \a st is DEEP-COPIED -- the facade owns its own
-    //! structure, so the caller's Molecule/Atom is left untouched and may be freed immediately.
+    //! Build the whole graph and converge.  \a st is DEEP-COPIED via Structure::Clone (which PRESERVES the
+    //! concrete geometry -- a periodic UnitCell stays periodic, not sliced to a Molecule), so the caller's
+    //! Molecule/Atom/UnitCell is left untouched and may be freed immediately.
     explicit Calculation(const Structure&          st,
                          const CalcOptions&         opts = {},
                          const AcceleratorOptions&  acc  = {});

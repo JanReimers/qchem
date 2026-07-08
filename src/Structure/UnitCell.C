@@ -3,6 +3,7 @@ module;
 #include <iosfwd>
 #include <vector>
 #include <functional>
+#include <memory>
 export module qchem.UnitCell;
 export import qchem.Types;
 import qchem.Structure;
@@ -26,6 +27,11 @@ public:
 
     using Molecule::Insert;
     using Molecule::GetNumAtoms;
+
+    //! Polymorphic deep copy preserving periodicity (cell matrix + atom basis) -- so the facade keeps a
+    //! UnitCell as a UnitCell.  (A FCCUnitCell clones to a plain UnitCell; it carries no state or behaviour
+    //! beyond the cell geometry its base already holds, so the copy is geometrically identical.)
+    std::shared_ptr<Structure> Clone() const override {return std::make_shared<UnitCell>(*this);}
 
     bool isFinite() const override {return false;}   //!< A periodic cell is NOT finite (IonIon -> Ewald).
 
