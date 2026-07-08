@@ -33,6 +33,9 @@
 #include "gtest/gtest.h"
 
 import qchem.BasisSet.Lattice_3D.PlaneWave_IBS;
+import qchem.BasisSet.Lattice_3D.Evaluators.PW;   // PW_Grid_Evaluator -- a UNIT TEST may reach the internal
+                                                  // evaluator directly to exercise the FFT/Poisson grid oracles
+                                                  // (the orbital PlaneWave_IBS is grid-free; the grid lives here).
 import qchem.BasisSet.Lattice_3D.BasisSet;   // Factory(Type::PW, lat, Ecut, loc, nl) -> Complex_BS*
 import qchem.ScalarFunction;                 // ScalarFunction<double> -- arg of the moved-here field oracles
 import qchem.Mesh;                           // qcMesh::MeshParams (PW_Hartree's fit-basis factory arg; ignored)
@@ -71,6 +74,7 @@ import qchem.BasisSet.Internal.BasisSetImp;         // BasisSetImp<dcmplx> (sing
 using namespace qchem;
 
 using BasisSet::Lattice_3D::PlaneWave_IBS;
+using BasisSet::Lattice_3D::PW_Grid_Evaluator;   // internal grid evaluator (unit test may reach it directly)
 using Pseudopotential::HGH_LocalPotential;
 using Pseudopotential::HGH_SeparablePotential;
 using Pseudopotential::GetGTH;
@@ -156,11 +160,19 @@ inline ΔG_Map ForwardDFTDiffSet(const std::vector<ivec3_t>& G, const std::vecto
     return vt;
 }
 
+// The FFT/Poisson grid matching an orbital block: same (B,k,Ecut) -> same {G} -> same grid.  The orbital
+// PlaneWave_IBS is grid-free now (the grid is a density/fit concern), so these direct-grid oracles build the
+// density-grid evaluator themselves -- exactly the "test the evaluators directly" path.
+inline qchem::BasisSet::Lattice_3D::PW_Grid_Evaluator GridOf(const PlaneWave_IBS& pw)
+{
+    return qchem::BasisSet::Lattice_3D::PW_Grid_Evaluator(pw.Recip(), pw.kFrac(), pw.Ecut());
+}
+
 // <i|f|j> weighted overlap for a real-space scalar field f: sample f on the (Cartesian) grid, forward-DFT to
 // f-tilde(dm), assemble.  (The XC term's f(r)=v_xc(rho(r)) cross-check.)
 inline chmat_t OverlapField(const PlaneWave_IBS& pw, const ScalarFunction<double>& f)
 {
-    std::vector<rvec3_t> frac=pw.UniformGrid(pw.AutoGrid());
+    std::vector<rvec3_t> frac=GridOf(pw).UniformGrid(pw.AutoGrid());
     UnitCell A=pw.Recip().GetCell().MakeReciprocalCell();        // direct cell (reciprocal of the reciprocal)
     std::vector<double> field(frac.size());
     for (size_t q=0;q<frac.size();q++) field[q]=f(A.ToCartesian(frac[q]));
@@ -173,7 +185,7 @@ inline chmat_t OverlapField(const PlaneWave_IBS& pw, const ScalarFunction<double
 // the G-space Poisson solve V_H(dm)=4pi rho-tilde(dm)/|G|^2 assembled as <i|V_H|j>=V_H(G_i-G_j) (dm=0 dropped).
 inline chmat_t RepulsionField(const PlaneWave_IBS& pw, const ScalarFunction<double>& rho)
 {
-    std::vector<rvec3_t> frac=pw.UniformGrid(pw.AutoGrid());
+    std::vector<rvec3_t> frac=GridOf(pw).UniformGrid(pw.AutoGrid());
     UnitCell A=pw.Recip().GetCell().MakeReciprocalCell();
     std::vector<double> field(frac.size());
     for (size_t q=0;q<frac.size();q++) field[q]=rho(A.ToCartesian(frac[q]));
@@ -188,7 +200,7 @@ inline chmat_t RepulsionField(const PlaneWave_IBS& pw, const ScalarFunction<doub
 // integral f d3r over the cell: uniform-grid quadrature (weight Omega/Npts).
 inline double IntegralField(const PlaneWave_IBS& pw, const ScalarFunction<double>& f)
 {
-    std::vector<rvec3_t> frac=pw.UniformGrid(pw.AutoGrid());
+    std::vector<rvec3_t> frac=GridOf(pw).UniformGrid(pw.AutoGrid());
     UnitCell A=pw.Recip().GetCell().MakeReciprocalCell();
     double s=0.0;
     for (const rvec3_t& p : frac) s += f(A.ToCartesian(p));
@@ -201,8 +213,9 @@ inline double IntegralField(const PlaneWave_IBS& pw, const ScalarFunction<double
 // reciprocal-index difference up in the grid.  (The orbital is both faces, so the PlaneWave_IBS supplies both.)
 inline chmat_t OverlapOnGrid(const PlaneWave_IBS& pw, const rvec_t& V)
 {
-    cvec_t Vt=pw.ForwardFFT(V);
-    return pw.MakePotential([&](const ivec3_t& dm)->dcmplx {return pw.GridCoeff(Vt, dm);});
+    PW_Grid_Evaluator grid=GridOf(pw);
+    cvec_t Vt=grid.ForwardFFT(V);
+    return pw.MakePotential([&](const ivec3_t& dm)->dcmplx {return grid.GridCoeff(Vt, dm);});
 }
 
 // Order ivec3_t lexicographically so it can key the rho~ map.
@@ -814,7 +827,8 @@ TEST_F(PlaneWaveDFT, ItemK_Explore_ScfDensity)
 
     ΔG_Map rho;                                              // the self-consistent density as a ΔG_Map
     for (const auto& kv : R.rho) rho[kv.first]=kv.second;
-    FieldFnR vtrue([&](const rvec3_t& r){return vxcOf(pw.EvalField(rho, r));});   // exact v_xc(r) of the SCF density
+    PW_Grid_Evaluator grid=GridOf(pw);                       // the density grid matching this block's {G}
+    FieldFnR vtrue([&](const rvec3_t& r){return vxcOf(grid.EvalField(rho, r));});   // exact v_xc(r) of the SCF density
 
     std::vector<rvec3_t> ref;                                // fit-grid-INDEPENDENT reference points (8^3)
     for (int i=0;i<8;i++) for (int j=0;j<8;j++) for (int k=0;k<8;k++)
@@ -1116,7 +1130,7 @@ TEST_F(PlaneWaveDFT, PWDynamicTermsMatchBasis)
     std::unique_ptr<qchem::Hamiltonian::PW_XC> xc(NewPWXC(F.pw, dirac));
     qchem::Hamiltonian::cDynamic_HT* xt=xc.get();
     const chmat_t& Mx = xt->GetMatrix(&F.pw, Spin::None, &cd);
-    rvec_t rho=F.pw.RhoOnGrid(RhoTilde(F.pw, D));
+    rvec_t rho=GridOf(F.pw).RhoOnGrid(RhoTilde(F.pw, D));
     rvec_t vxc(rho.size());
     for (size_t q=0;q<rho.size();q++) vxc[q]=dirac->GetVxc(rho[q]);
     chmat_t refx = OverlapOnGrid(F.pw, vxc);
@@ -1163,7 +1177,7 @@ TEST_F(PlaneWaveDFT, ItemK_RelCutoffDensifiesAndConvergesVxc)
     EXPECT_GT(n16, n4);
 
     // (2) relCutoff=1 reproduces the orbital-grid FFT route exactly (the fix is inert at Gamma).
-    rvec_t rho=F.pw.RhoOnGrid(RhoTilde(F.pw, D));
+    rvec_t rho=GridOf(F.pw).RhoOnGrid(RhoTilde(F.pw, D));
     rvec_t vxc(rho.size());
     for (size_t q=0;q<rho.size();q++) vxc[q]=dirac->GetVxc(rho[q]);
     chmat_t refx=OverlapOnGrid(F.pw, vxc);
@@ -1206,7 +1220,7 @@ TEST_F(PlaneWaveDFT, OrthoFitterRealSpaceField)
         EXPECT_NEAR(rhoFit(r), direct(r), 1e-11);
 
     // Cross-check against the independent FFT route: RhoOnGrid[0] = rho(r=0) = Σ rho~(dm).
-    rvec_t grid=F.pw.RhoOnGrid(rhoTilde);
+    rvec_t grid=GridOf(F.pw).RhoOnGrid(rhoTilde);
     EXPECT_NEAR(rhoFit(rvec3_t(0.0,0.0,0.0)), grid[0], 1e-11);
 
     // Gradient: finite-difference the field at a generic point.

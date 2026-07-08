@@ -27,9 +27,6 @@ PW_Evaluator::PW_Evaluator(const ReciprocalLattice& recip, const rvec3_t& k, dou
     , itsVolume(Cube(2*Pi)/recip.GetCell().GetCellVolume())
 {
     itsG = Internal::BuildGs(itsRecip, itsk, Ecut);   // { G : 1/2|k+G|^2 < Ecut }
-    // Build the shared FFT/Poisson grid engine from THIS block's grid resolution (FFTGrid() reads itsG).  A
-    // container will later hand ONE engine to every k-block instead; today each block self-owns its own.
-    itsGrid = std::make_shared<const PeriodicGridEvaluator>(itsRecip, itsVolume, FFTGrid());
 }
 
 rvec3_t PW_Evaluator::GetGCartesian(const ivec3_t& m) const
@@ -66,25 +63,27 @@ ivec3_t PW_Evaluator::FFTGrid() const
     return itsFFTGrid;
 }
 
-// The fitted field's coefficients over THIS basis's own {G} (a GridCoeff gather) -- for op(r) evaluation.
-// Iterates this block's {G} (per-k), so it stays on PW_Evaluator; the per-G lookup goes to the grid engine.
-ΔG_Map PW_Evaluator::FieldCoeffs(const cvec_t& Vt) const
+// The fitted field's coefficients over this basis's own {G} (a GridCoeff gather) -- for op(r) evaluation.
+// A DENSITY/FIT operation (iterates {G} + the FFT grid), so it lives on PW_Grid_Evaluator, reaching {G} via
+// the base accessor Gs() and the per-G lookup via the held grid engine.
+ΔG_Map PW_Grid_Evaluator::FieldCoeffs(const cvec_t& Vt) const
 {
     ΔG_Map m;
-    for (const ivec3_t& G : itsG) m[G]=itsGrid->GridCoeff(Vt, G);
+    for (const ivec3_t& G : Gs()) m[G]=itsGrid->GridCoeff(Vt, G);
     return m;
 }
 
-// Analytic structure-factor density over THIS engine's own {G}: rho-tilde(G) = (1/Omega) Sum_atoms
+// Analytic structure-factor density over this engine's own {G}: rho-tilde(G) = (1/Omega) Sum_atoms
 // formFactor(Z,|B.G|^2) e^{-i(B.G).R}.  formFactor is the atomic density's 1-D radial Fourier transform, so
 // this is ANALYTIC per G -- no 3-D grid, no aliasing of the peaked density (unlike sample+FFT).  A DENSITY:
 // G=0 is KEPT (= total charge / Omega).  The SAD seed calls this on its OWN fit basis (never the orbital one).
-ΔG_Map PW_Evaluator::MakeFourierDensity(const Structure* atoms,
+// Grid-free ({G}+B+Omega from the base) but a density-side operation, so it lives on PW_Grid_Evaluator.
+ΔG_Map PW_Grid_Evaluator::MakeFourierDensity(const Structure* atoms,
                           const std::function<double(int,double)>& formFactor) const
 {
-    const UnitCell& B=itsRecip.GetCell();
+    const UnitCell& B=Recip().GetCell();
     ΔG_Map rho;
-    for (const ivec3_t& dm : itsG)                     // this basis's own {G} (the density's Fourier support)
+    for (const ivec3_t& dm : Gs())                     // this basis's own {G} (the density's Fourier support)
     {
         rvec3_t dG=B.ToCartesian(rvec3_t(dm));
         double  g2=dG*dG;

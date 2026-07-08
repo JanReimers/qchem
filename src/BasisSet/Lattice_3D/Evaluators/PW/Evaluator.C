@@ -31,12 +31,14 @@ import qchem.Structure;                  // Structure, Atom (MakeFourierDensity'
 export namespace qchem::BasisSet::Lattice_3D
 {
 
-//! \brief The grid engine of a plane-wave block: holds \f$(B,k,E_{cut},\{G\})\f$ and answers the
-//! grid-geometry questions a plane-wave IBS (orbital OR auxiliary fit) needs.  A concrete IBS derives this
-//! as a base subobject and the EPW_* mixins forward the interface virtuals to it (\c dynamic_cast, the
-//! molecular \c Cast() pattern), so the polymorphic dtor below is required (cross-cast RTTI).
+//! \brief The ORBITAL evaluator of a plane-wave block: holds \f$(B,k,E_{cut},\{G\})\f$ and answers the per-k,
+//! orbital questions -- evaluate a wave at \a r, the overlap/kinetic/nuclear/potential matrices, the D-free
+//! 3-centre tensors.  It is GRID-FREE by design: the FFT/Poisson density grid (a stored \c PeriodicGridEvaluator)
+//! lives on \c PW_Grid_Evaluator below, carried only by the auxiliary density/fit basis -- so an orbital block
+//! never drags the grid it does not use (and GPW's Gaussian orbital evaluator, a grid-free sibling, reuses that
+//! same grid for its density).  A concrete IBS derives this as a base subobject and the EPW_* mixins forward the
+//! interface virtuals to it (\c dynamic_cast, the atom \c Cast() pattern), so the polymorphic dtor is required.
 class PW_Evaluator
-    : public virtual BasisSet::G_FieldEvaluator   // the grid-engine seam (EvalField + FFT quadrature) both PW bases carry
 {
 public:
     //! Build the cutoff set \f$\{G:\tfrac12|k+G|^2<E_{cut}\}\f$ from the reciprocal lattice, the fractional
@@ -89,34 +91,12 @@ public:
     //! empty kernel (overlap metric).
     G_ERI3 Overlap3CTensor() const;
 
-    // --- G_FieldEvaluator: evaluate a coefficient map as a real field (delegated to the shared grid engine) ---
-    double  EvalField        (const ΔG_Map& c, const rvec3_t& r) const override {return itsGrid->EvalField(c,r);}
-    rvec3_t EvalFieldGradient(const ΔG_Map& c, const rvec3_t& r) const override {return itsGrid->EvalFieldGradient(c,r);}
-
-    // --- FFT/quadrature grid geometry.  AutoGrid/FFTGrid size N from THIS block's {G} (so they stay here);
-    //     UniformGrid is pure grid geometry -> the shared engine. ---
-    std::vector<rvec3_t> UniformGrid(const ivec3_t& n) const {return itsGrid->UniformGrid(n);}
+    // --- FFT grid RESOLUTION N (derived from THIS block's {G}); the grid ITSELF (the FFT quadrature) is on
+    //     PW_Grid_Evaluator, which sizes its PeriodicGridEvaluator from FFTGrid() below. ---
     ivec3_t AutoGrid() const;   //!< divisions resolving the difference set without aliasing (from itsG)
     ivec3_t FFTGrid()  const;   //!< AutoGrid padded to powers of two (radix-2 FFT)
 
-    // --- the FFT quadrature engine (shared by the ORBITAL basis's DFT route AND an auxiliary fit basis, so
-    //     a fit basis quadratures v_xc on ITS OWN, possibly denser, grid instead of borrowing the orbital's).
-    //     These are CONCRETE (not the abstract Band_FT_IBS virtuals); the orbital IBS's overrides forward here. ---
-    // The pure {r}<->{G} FFT quadrature is delegated to the held, k-independent grid engine (it needs only
-    // (B,Omega,N), which this block hands it at construction).  FieldCoeffs / MakeFourierDensity below iterate
-    // THIS block's own {G} set, so they stay here and reach the engine only for the per-G lookups.
-    const rvec3vec_t& GridPoints() const override               {return itsGrid->GridPoints();}
-    rvec_t   RhoOnGrid  (const ΔG_Map& rhoTilde) const override {return itsGrid->RhoOnGrid(rhoTilde);}
-    cvec_t   ForwardFFT (const rvec_t& V) const override        {return itsGrid->ForwardFFT(V);}
-    dcmplx   GridCoeff  (const cvec_t& Vt, const ivec3_t& dm) const override {return itsGrid->GridCoeff(Vt,dm);}
-    double   Integral   (const rvec_t& f) const override        {return itsGrid->Integral(f);}
-    //! Gather \f$c(G)=\tilde V(G)\f$ over this evaluator's \f$\{G\}\f$ (the fitted field for op(r) plotting).
-    ΔG_Map   FieldCoeffs(const cvec_t& Vt) const override;
-    //! Analytic structure-factor density over THIS engine's own \f$\{G\}\f$ (the SAD seed's \f$\tilde\rho\f$).
-    ΔG_Map   MakeFourierDensity(const Structure* atoms,
-                          const std::function<double(int Z, double g2)>& formFactor) const override;
-
-    //! Cache-key fragment identifying this grid: \c "|k=..|Ecut=..|nG=..".
+    //! Cache-key fragment identifying this block: \c "|k=..|Ecut=..|nG=..".
     std::string IDFragment() const;
 
 private:
@@ -129,10 +109,42 @@ private:
     // assembly), so cache them lazily.  Sentinels: {0,0,0} == not yet computed.
     mutable ivec3_t      itsAutoGrid = ivec3_t(0,0,0);
     mutable ivec3_t      itsFFTGrid  = ivec3_t(0,0,0);
-    // The shared, k-independent FFT/Poisson grid engine (B, Omega, N).  Built in the ctor from this block's
-    // own FFTGrid(); the grid virtuals above forward to it.  shared_ptr so a container can hand ONE engine to
-    // every Brillouin-zone k-block (the grid is k-independent) instead of each block rebuilding it.
-    std::shared_ptr<const PeriodicGridEvaluator> itsGrid;
+};
+
+//! \brief The DENSITY/FIT evaluator: a \c PW_Evaluator PLUS the FFT/Poisson grid (a held, k-independent
+//! \c PeriodicGridEvaluator) and the \c G_FieldEvaluator face.  The auxiliary density/potential fit basis
+//! (\c PlaneWaveFit_IBS) carries THIS; the orbital basis carries the grid-free \c PW_Evaluator.  (GPW's
+//! density grid is a \c PW_Grid_Evaluator too -- the density lives on a plane-wave grid whatever the orbitals
+//! are -- so this is shared across the plane-wave and GPW density paths.)  The grid virtuals delegate to the
+//! held engine; \c FieldCoeffs / \c MakeFourierDensity iterate this block's own \f$\{G\}\f$ (from the base).
+class PW_Grid_Evaluator
+    : public PW_Evaluator
+    , public virtual BasisSet::G_FieldEvaluator
+{
+public:
+    PW_Grid_Evaluator(const ReciprocalLattice& recip, const rvec3_t& k, double Ecut)
+        : PW_Evaluator(recip, k, Ecut)
+        , itsGrid(std::make_shared<const PeriodicGridEvaluator>(recip, Volume(), FFTGrid())) {}
+
+    //! Fractional \f$(i/n)\f$ FFT grid (exposed for the direct-grid unit-test oracles).
+    std::vector<rvec3_t> UniformGrid(const ivec3_t& n) const {return itsGrid->UniformGrid(n);}
+
+    // G_FieldEvaluator: the pure {r}<->{G} FFT quadrature, delegated to the held k-independent grid engine.
+    const rvec3vec_t& GridPoints() const override               {return itsGrid->GridPoints();}
+    rvec_t   RhoOnGrid  (const ΔG_Map& rhoTilde) const override {return itsGrid->RhoOnGrid(rhoTilde);}
+    cvec_t   ForwardFFT (const rvec_t& V) const override        {return itsGrid->ForwardFFT(V);}
+    dcmplx   GridCoeff  (const cvec_t& Vt, const ivec3_t& dm) const override {return itsGrid->GridCoeff(Vt,dm);}
+    double   Integral   (const rvec_t& f) const override        {return itsGrid->Integral(f);}
+    double   EvalField        (const ΔG_Map& c, const rvec3_t& r) const override {return itsGrid->EvalField(c,r);}
+    rvec3_t  EvalFieldGradient(const ΔG_Map& c, const rvec3_t& r) const override {return itsGrid->EvalFieldGradient(c,r);}
+    //! Gather \f$c(G)=\tilde V(G)\f$ over this evaluator's \f$\{G\}\f$ (the fitted field for op(r) plotting).
+    ΔG_Map   FieldCoeffs(const cvec_t& Vt) const override;
+    //! Analytic structure-factor density over this evaluator's \f$\{G\}\f$ (the SAD seed's \f$\tilde\rho\f$; grid-free).
+    ΔG_Map   MakeFourierDensity(const Structure* atoms,
+                          const std::function<double(int Z, double g2)>& formFactor) const override;
+
+private:
+    std::shared_ptr<const PeriodicGridEvaluator> itsGrid; //!< FFT/Poisson grid (B, Omega, N); shareable across k
 };
 
 //! \brief The plane-wave 1E evaluator concept the EPW_Orbital1E_IBS mixin templates against (mirrors the

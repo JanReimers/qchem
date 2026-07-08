@@ -32,15 +32,16 @@ export namespace qchem::BasisSet::Lattice_3D
 class PlaneWaveFit_IBS
     : public virtual BasisSet::cFIT_CD_ABS            // FIT_CD_ABS<dcmplx> : IrrepBasisSet<dcmplx> (density-fit face)
     , public virtual BasisSet::cFIT_SF_ABS            // FIT_SF_ABS<dcmplx> : IrrepBasisSet<dcmplx> (potential-fit face)
-    , public         EPW_Irrep_IBS<PW_Evaluator>      // op()/Gradient/GetNumFunctions from the evaluator
+    , public         EPW_Irrep_IBS<PW_Grid_Evaluator> // op()/Gradient/GetNumFunctions from the evaluator
     , public         BasisSet::IrrepBasisSetImp<dcmplx> // GetSymmetry/GetSymt/GetIrrep
-    , public         PW_Evaluator                     // the grid engine (Cast() target), copied from the orbital basis
+    , public         PW_Grid_Evaluator                // the DENSITY/FIT evaluator (grid + G_FieldEvaluator); Cast() target
 {
 public:
-    //! Build over a copy of the orbital basis's grid engine, carrying the same Bloch irrep \a sym.
-    PlaneWaveFit_IBS(const PW_Evaluator& e, const sym_t& sym)
+    //! Build over a density/fit grid evaluator (the FFT/Poisson grid the XC + SAD paths quadrature on),
+    //! carrying the Bloch irrep \a sym.
+    PlaneWaveFit_IBS(const PW_Grid_Evaluator& e, const sym_t& sym)
         : BasisSet::IrrepBasisSetImp<dcmplx>(sym)
-        , PW_Evaluator(e)
+        , PW_Grid_Evaluator(e)
     {}
 
     //! A plane-wave {G} fit basis IS orthonormal (metric = I, the projection IS the fit) -- the single override
