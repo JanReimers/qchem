@@ -323,6 +323,37 @@ density-grid basis reuses them **in both interface and implementation** (they ar
   GPW just fills `Overlap3C`/`Repulsion3C` by collocation instead of an exact delta (as the `G_ERI3` doc-comment
   already anticipates).
 
+**Folded in from the earlier GPW spec (`doc/GaussianPlaneWavePlan.md`, the strategic-altitude companion).** Points
+worth carrying here (the rest of that doc is subsumed by §2.4/§2.5 above):
+- **Molecular PPs are GPW's enabler, and GAPW is out of scope (first pass).** Plain GPW is clean *only when the
+  density is smooth* enough to collocate on a modest grid. All-electron Gaussian cores are too sharp → they would
+  need **GAPW** (PAW-like augmentation, hard). Pseudopotentials give a smooth valence density → **plain GPW, no
+  augmentation**. So the molecular-PP work (Round 1) is precisely what unblocks GPW; GAPW is explicitly deferred
+  (revisit only if all-electron GPW is ever wanted). This also frames the validation basis: use a well-conditioned
+  GTH valence basis, never all-electron.
+- **THE first structural decision — `double` vs `dcmplx` (this now conflicts between the two docs; settle it up
+  front).** The old GPW spec argued GPW is **all-`double`** with the FFT a *term-private* Poisson technique
+  (a `GPW_Hartree` term that collocates real ρ → FFT → Poisson → adjoint; `FourierMap` never surfaces). The
+  evaluator-network path this doc built points the **other** way: GPW reuses the **`dcmplx` PW machinery** —
+  `GPW_Evaluator : PW_Evaluator` (dcmplx), density on `PW_Grid_Evaluator` (dcmplx), the templated
+  `SCFIterator<dcmplx>`. At **Γ / real orbitals**, `double` is genuinely enough and cleaner (a `<double>`
+  `GPW_Hartree`); at **general k**, Bloch orbitals are complex and force `dcmplx` — the same stack pure PW already
+  templates. So the fork is real: *a `<double>` Γ-only GPW that later grows a `dcmplx` Bloch path*, **vs** *reuse
+  the `dcmplx` PW evaluator/grid from the start (Γ = the k=0 special case)*. The evaluator split (`PW_Evaluator` /
+  `PW_Grid_Evaluator`, both dcmplx) leans toward the latter; decide before writing `GPW_Evaluator`. (This is the
+  same "one grid vs two" beat §2.5 flags, plus the scalar type.)
+- **GPW is a Coulomb/Hartree STRATEGY, orthogonal to the orbital basis** — a third one beside exact-4-centre
+  (`Vee`) and density-fitting (`FittedVee`): collocate ρ → FFT → Poisson → integrate back, same `⟨χ|V_H|χ⟩` out,
+  different internals. It does **not** restructure the SCF. The Hamiltonian factory picks it by structure type:
+  molecules/small keep density-fitting (compact aux, no grid overhead); **solids / large supercells → GPW**
+  (O(N log N) periodic-FFT Coulomb — the battery north-star's natural choice). Mirror `FittedVee` as the precedent.
+- **Collocation refinement (multi-grid) is deferred to a v2.** Mapping sharp vs smooth Gaussian products to
+  finer/coarser grids is CP2K's efficiency trick; the first pass uses a single density grid.
+- **Validation gate (Γ):** a Γ-point solid (or a molecule in a box) GPW total energy matches a **density-fit DFT**
+  energy on the *same* system **to grid-cutoff tolerance**, and is **variational-stable in the grid cutoff**
+  (converges as cutoff ↑). The controlled approximation is the grid cutoff, not the physics. (Complements the
+  `L_PP`-style bit-identity + the empty-lattice/cosine-V/bare-Coulomb PW anchors.)
+
 ### 2.5 The Evaluator pattern — and a shared PW/GPW base (orient a new session here)
 
 **How a concrete basis is built in this codebase, and how GPW slots in with almost no new IBS code.**
@@ -456,3 +487,9 @@ off sooner; but for building the *capability* correctly, GPW-first is the lower-
   divergence work, the fit-basis factory seam, the grid-cutoff analysis).
 - `doc/diagrams/pp_molecular_vs_pw.svg` — the map embedded above.
 - `doc/FittingCleanupPlan.md` — the fitting-campaign record that delivered Round 1 Item 2 (PW fit-through-factory).
+- `doc/GaussianPlaneWavePlan.md` — the earlier strategic-altitude GPW spec (2026-06-28). Its durable points are
+  folded into §2.4 above (the PP-smoothness/GAPW enabler, the Coulomb-strategy-by-structure-type lens, collocation
+  forward/adjoint + multi-grid deferral, the Γ validation gate). **Caveat:** its §4/§5 "GPW is all-`double`, FFT
+  hidden term-private" framing PREDATES the evaluator-network reuse this doc built (dcmplx `PW_Grid_Evaluator`
+  density grid) — treat the `double`-vs-`dcmplx` choice as OPEN, per §2.4's "first structural decision," not as
+  the old doc settles it.
