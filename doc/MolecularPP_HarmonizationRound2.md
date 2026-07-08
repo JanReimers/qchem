@@ -308,6 +308,72 @@ density-grid basis reuses them **in both interface and implementation** (they ar
   GPW just fills `Overlap3C`/`Repulsion3C` by collocation instead of an exact delta (as the `G_ERI3` doc-comment
   already anticipates).
 
+### 2.5 The Evaluator pattern — and a shared PW/GPW base (orient a new session here)
+
+**How a concrete basis is built in this codebase, and how GPW slots in with almost no new IBS code.**
+
+A concrete IBS is assembled from **three cooperating pieces** — the atom side pioneered this; the PW side now
+follows it (this session):
+
+1. **The concept** — the compile-time contract an evaluator must satisfy (`std::derived_from` + a `requires`
+   block naming the exact member functions and return types). Atom: `is1E_Evaluator`, `isDFT_Evaluator`,
+   `isHF_Evaluator`. PW: `isPW_1E_Evaluator`, `isPW_DFT_Evaluator`.
+2. **The evaluator** — a plain class that **holds the basis data** and **answers the low-level questions**
+   (evaluate at `r`; the overlap / kinetic / nuclear matrices; the 3-centre DFT tensors). Atom:
+   `Slater::NR_Evaluator`, `Gaussian::NR_Evaluator`, `BSpline::NR_Evaluator`. PW: `PW_Evaluator`.
+3. **The IBS mixin** — templated on the evaluator `E` (constrained by the concept), it implements the abstract
+   **interface** virtuals by forwarding to the evaluator, reaching it with `dynamic_cast<const E&>(*this)`
+   (`Cast()` — a sibling cross-cast; the final IBS IS-A `E`). Atom: `Orbital_1E_IBS<E>`, `Orbital_DFT_IBS<E>`,
+   `Orbital_HF_IBS<E>`. PW: `EPW_Irrep_IBS<E>`, `EPW_Orbital1E_IBS<E>`, `EPW_Orbital_DFT_IBS<E>`.
+
+**The payoff:** the mixins are written *once* and serve *every* evaluator that satisfies the concept. One set of
+atom `Orbital_*_IBS<E>` mixins handles Slater, Gaussian, AND BSpline. On the PW side, the concrete `PlaneWave_IBS`
+is now just `EPW_Orbital1E_IBS<PW_Evaluator>` + `EPW_Orbital_DFT_IBS<PW_Evaluator>` + identity + the PP capability +
+the fit-basis factories — the assembly logic lives in the mixins and the evaluator, not on the concrete class.
+
+**So GPW = a new *evaluator*, not a new IBS.** Write a `GPW_Evaluator` satisfying `isPW_1E_Evaluator` +
+`isPW_DFT_Evaluator` (Gaussian orbitals: `Eval` = Gaussians; `OverlapMatrix`/`KineticMatrix` = periodic Gaussian
+two-centre integrals; `NuclearMatrix`; the `G_ERI3` tensors by collocation), and `GPW_IBS` becomes the same mixins
+instantiated with it — "`GPW_IBS` hardly does anything," which is the whole aim.
+
+#### The shared PW/GPW evaluator base — the Slater/Gaussian precedent
+
+On the atom side, `Slater::Radial` and `Gaussian::Radial` **both derive from `ExponentialEvaluator`**
+(`qchem.BasisSet.Atom.Evaluators.Internal.ExponentialEvaluator`), which owns the shared **data** — the exponents
+`es`, the norms `ns`, the `ExponentGrouper`, the unique-exponent indices, the even-tempered flag — and the shared
+**code** — `RadialID`, `size`, `Norm`, `Register`, the `Cache4` grouping. Each concrete radial adds ONLY its
+functional form (`slater()` = `rˡe^{−ζr}` vs `gaussian()` = `rˡe^{−ζr²}`) and its analytic integral kernels. *Two
+exponent bases, one base class — "share as much code and data as possible."* This is the model to copy.
+
+PW and GPW share an even larger substrate: **both are periodic bases at a k-point on a reciprocal lattice B, and
+both need the density/potential FFT-Poisson grid engine.** So the natural factoring is a common base — call it
+`PeriodicGridEvaluator` — owning:
+- the shared **data**: the reciprocal cell `B`, the k-point, the cell volume `Ω`, the real-space FFT-grid geometry;
+- the shared **code**: the *concrete* `G_FieldEvaluator` implementation — `GridPoints` / `ForwardFFT` / `RhoOnGrid`
+  / `GridCoeff` / `FieldCoeffs` / `Integral` / `EvalField` / `MakeFourierDensity` (the 8-of-9 methods §2.4 flagged
+  GPW-ready — the actual FFT/Poisson code, not just the interface).
+
+Each concrete evaluator then adds only its **orbital-specific** part, exactly mirroring Slater/Gaussian:
+
+| aspect | shared `PeriodicGridEvaluator` | `PW_Evaluator` adds | `GPW_Evaluator` adds |
+|---|---|---|---|
+| orbitals | — | the `{G}` cutoff set; `Eval` = plane waves | Gaussian exponents/contraction/centres; `Eval` = Gaussians |
+| overlap / kinetic | — | `I` / `\|k+G\|²` (analytic) | periodic Gaussian two-centre (Bloch / lattice sums) |
+| potential→matrix bridge | — | `MakePotential` = Fourier lookup `Ṽ(Δm)` | grid **integrate** (collocation's adjoint) |
+| `G_ERI3` tensors | — | exact delta support | collocation onto the density grid |
+
+**This is the same move as the §2.4 "extract `MakePotential`" cleanup:** the orbital-specific bridge belongs on the
+concrete evaluators, and the pure grid engine is the shared base — so the shared-base idea and the `MakePotential`
+extraction are *one* refactor. Today `PW_Evaluator` already `: public virtual G_FieldEvaluator` and supplies the
+concrete engine; the refactor lifts that engine into `PeriodicGridEvaluator` so `GPW_Evaluator` inherits the real
+FFT code, not merely the abstract seam.
+
+**One design call to settle when GPW starts:** PW's grid is the ORBITAL `{G}` at `Ecut`; GPW's Poisson grid is the
+(finer) DENSITY grid. The shared base is the grid **machinery** parameterized by `(B, cutoff/N)` — each evaluator
+instantiates it with its own cutoff (just as `ExponentialEvaluator` is parameterized by each basis's own
+exponents). Whether the orbital and density grids are one base subobject or two (a GPW evaluator likely carries a
+density grid engine distinct from any orbital `{G}`) is the first structural decision of the GPW session.
+
 ---
 
 ## 3. Recommended sequencing — **REVISED (GPW-prep session): GPW *before* space groups**
