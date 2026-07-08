@@ -22,6 +22,7 @@ import qchem.BasisSet.Lattice_3D.PlaneWaveFit_IBS; // the auxiliary PW fit basis
 import qchem.BasisSet.Internal.IrrepBasisSetImp;  // IrrepBasisSetImp<dcmplx>: GetSymmetry/GetSymt/GetIrrep
 export import qchem.BasisSet.Band_FT_IBS;          // Band_FT_IBS (the DFT capability; Create*FitBasisSet)
 export import qchem.BasisSet.Fit_IBS;              // cFIT_CD_ABS / cFIT_SF_ABS + qcMesh::MeshParams
+export import qchem.Pseudopotential.Integrals_Pseudo; // Integrals_Pseudo<dcmplx> (external-PP capability) + the models
 export import qchem.BasisSet;                      // Real_BS (the molecular Gaussian basis handed to the ctor)
 export import qchem.UnitCell;                      // UnitCell (the direct lattice handed to the ctor)
 import qchem.Symmetry;                            // sym_t (the Bloch irrep)
@@ -37,6 +38,7 @@ class GPW_IBS
     : public EPW_Orbital1E_IBS<GPW_Evaluator>       // op()/Gradient/GetNumFunctions/MakeOverlap/MakeKinetic/MakeNuclear
     , public EPW_Orbital_DFT_IBS<GPW_Evaluator>     // DFT tier (IS-A Band_FT_IBS): MakeOverlap/MakeRepulsion3C/MakeOverlap3C
     , public BasisSet::IrrepBasisSetImp<dcmplx>     // supplies GetSymmetry/GetSymt/GetIrrep + itsSymmetry
+    , public Pseudopotential::Integrals_Pseudo<dcmplx> // external-PP assembly (real-space); PW_Pseudo casts ACROSS to this
     , public GPW_Evaluator                          // the shared Gaussian evaluator (Cast() target for the mixins)
 {
 public:
@@ -64,6 +66,13 @@ public:
     //! GPW density lives on a plane-wave grid whatever the orbitals are (never orbital==fit).
     virtual BasisSet::cFIT_CD_ABS* CreateCDFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const override;
     virtual BasisSet::cFIT_SF_ABS* CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const override;
+
+    //! \brief The external-PP capability (Integrals_Pseudo<dcmplx>): assemble \f$\langle i|V_{loc}|j\rangle\f$ /
+    //! \f$\langle i|V_{NL}|j\rangle\f$ in REAL SPACE (cross-cast the model to its \c *_R face, delegate to the
+    //! evaluator's mesh quadrature).  This is what lets the plane-wave \c PW_Pseudo term (and thus the whole
+    //! \c Ham_PW_DFT) drive a GPW basis unchanged -- GPW answers the same abstract cross-cast a PW basis does.
+    virtual hmat_t<dcmplx> MakeLocalPotential   (const Structure* cl, const Pseudopotential::LocalPotential&     loc) const override;
+    virtual hmat_t<dcmplx> MakeSeparablePotential(const Structure* cl, const Pseudopotential::SeparablePotential& nl ) const override;
 
     virtual std::string Name      () const override {return "GPW";}
     virtual std::string BasisSetID() const override; // geometry-aware cache key (Name + molecular ID + k + nR)

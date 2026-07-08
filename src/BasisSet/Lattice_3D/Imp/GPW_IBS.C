@@ -1,5 +1,6 @@
 // File: BasisSet/Lattice_3D/Imp/GPW_IBS.C  GPW_IBS implementation (ctors + identity).
 module;
+#include <cassert>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -32,6 +33,21 @@ BasisSet::cFIT_CD_ABS* GPW_IBS::CreateCDFitBasisSet(const Structure*, const qcMe
 BasisSet::cFIT_SF_ABS* GPW_IBS::CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams&) const
 {
     return new PlaneWaveFit_IBS(GPW_Evaluator::DensityGrid(), Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
+}
+
+// The external-PP capability: cross-cast the (abstract) pseudopotential model to its real-space face and let
+// the evaluator quadrature it against the Gaussians.  LocalPotential IS-A LocalPotential_R (diamond), so the
+// reference cast always succeeds; the separable model carries the _R face too (HGH + MultiSpecies routers).
+hmat_t<dcmplx> GPW_IBS::MakeLocalPotential(const Structure* cl, const Pseudopotential::LocalPotential& loc) const
+{
+    return GPW_Evaluator::MakeLocalPP(cl, dynamic_cast<const Pseudopotential::LocalPotential_R&>(loc));
+}
+
+hmat_t<dcmplx> GPW_IBS::MakeSeparablePotential(const Structure* cl, const Pseudopotential::SeparablePotential& nl) const
+{
+    auto* sepR=dynamic_cast<const Pseudopotential::SeparablePotential_R*>(&nl);
+    assert(sepR && "GPW MakeSeparablePotential: the KB model must provide the real-space projector face (SeparablePotential_R)");
+    return GPW_Evaluator::MakeSeparablePP(cl, *sepR);
 }
 
 std::string GPW_IBS::BasisSetID() const

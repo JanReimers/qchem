@@ -26,6 +26,9 @@ module;
 export module qchem.BasisSet.Lattice_3D.Evaluators.GPW;
 import qchem.BasisSet.Lattice_3D.Evaluators.PW;   // isPW_1E/DFT_Evaluator + PW_Grid_Evaluator (GPW's density grid)
 import qchem.BasisSet.Molecule.LatticeSum1E;       // Molecule::LatticeSum1E (the periodic-1E capability we call)
+import qchem.Pseudopotential.LocalPotential;       // LocalPotential_R  (the real-space local PP field V_loc(r))
+import qchem.Pseudopotential.SeparablePotential;   // SeparablePotential_R (the KB projector radials beta_p(r))
+import qchem.Mesh;                                 // qcMesh::MeshParams (the PP-quadrature integration mesh)
 import qchem.BasisSet;                             // Real_BS (the molecular Gaussian basis we own)
 import qchem.BasisSet.Orbital_1E_IBS;              // Real_OIBS (its orbital block: op()/Gradient/size)
 export import qchem.BasisSet.Internal.GMap;        // G_ERI3 (the DFT 3-centre tensor, now with GPW weights)
@@ -82,6 +85,19 @@ public:
     //! Fourier lookup.  Satisfies \c isPW_DFT_Evaluator; forwarded by \c EPW_Orbital_DFT_IBS to \c MakeOverlap.
     chmat_t OverlapMatrix(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const;
 
+    // --- Real-space external (pseudo)potential assembly: the GPW external term.  Unlike the plane-wave
+    //     basis (G-space form factors, which Gaussians cannot supply) GPW quadratures the pseudopotential in
+    //     REAL SPACE against its Gaussians on the cell's uniform integration mesh -- the SAME machinery the
+    //     molecular PP_Local/PP_NonLocal terms use (qcMesh::WeightedOverlap / Overlap), so a Gaussian-in-a-box
+    //     GPW run reproduces the finite molecular PP matrices.  At \f$\Gamma\f$ the matrices are real (widened
+    //     to complex).  These realise Integrals_Pseudo<dcmplx> on GPW_IBS -> the whole Ham_PW_DFT drives GPW.
+    //! \brief Local PP matrix \f$\langle\chi_i|V_{loc}|\chi_j\rangle=\sum_g w_g\chi_i(r_g)\chi_j(r_g)V_{loc}(r_g)\f$
+    //! with \f$V_{loc}(r)=\sum_a v_{loc}(Z_a,|r-R_a|)\f$ over the atoms of \a cl (mesh from \c densityEcut).
+    chmat_t MakeLocalPP    (const Structure* cl, const Pseudopotential::LocalPotential_R& vloc) const;
+    //! \brief KB separable nonlocal matrix \f$\sum_{a,p,m}D_p|b\rangle\langle b|\f$ with the projection vector
+    //! \f$b_i=\langle\chi_i|\beta_p(|r-R_a|)Y_{lm}\rangle\f$ (mesh quadrature).  Real symmetric at \f$\Gamma\f$.
+    chmat_t MakeSeparablePP(const Structure* cl, const Pseudopotential::SeparablePotential_R& sep) const;
+
     //! The density/collocation grid engine (the fit basis is built over it, so \f$\tilde\rho\f$'s \f$\{G\}\f$ matches).
     const PW_Grid_Evaluator& DensityGrid() const {return *itsGrid;}
 
@@ -101,6 +117,7 @@ private:
     // (BasisSet::Band_FT_IBS::Repulsion3C/Overlap3C via theCache<dcmplx>(), keyed by BasisSetID -- see IDFragment).
     rmat_t  PhiOnGrid()   const;   //!< \f$\chi_i(r_g)\f$ on the density grid (Npts x n; Gamma-real) -- computed on demand
     G_ERI3  BuildWeights() const;  //!< the collocation weight tensor (columns=grid {G}, weights, NO kernel)
+    qcMesh::MeshParams PPMeshParams() const;  //!< the PP-quadrature integration mesh params (uniform, eCut=densityEcut)
 };
 
 static_assert(isPW_1E_Evaluator <GPW_Evaluator>, "GPW_Evaluator must satisfy isPW_1E_Evaluator");

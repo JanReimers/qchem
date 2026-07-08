@@ -46,6 +46,34 @@ it satisfies the existing plane-wave concepts and reuses the `EPW_*` mixins.
   constant field integrates back to `V0·S` with the **identical** residual (forward-collocation == adjoint
   consistency).
 
+**Increment 3 — the full periodic SCF total energy (FIRST LIGHT: GPW SCF runs on real materials).**
+- The one missing tier was the external pseudopotential (plane-wave `PW_Pseudo` needs G-space form factors,
+  which Gaussians cannot supply). Closed by making **`GPW_IBS` realise `Integrals_Pseudo<dcmplx>` via
+  REAL-SPACE mesh quadrature** — so `PW_Pseudo` and the **entire `Ham_PW_DFT` drive a GPW basis verbatim**
+  (kinetic + external-PP + Hartree + Dirac X + VWN5 + ion-ion Ewald), through the real framework
+  `cSCFIterator`. Zero new Hamiltonian code.
+  - `GPW_Evaluator::MakeLocalPP` = `qcMesh::WeightedOverlap(mesh, χ, V_loc)` **minus the ΔG=0 cell-average
+    `<V_loc>·S`** (the PW convention drops G=0 → alignment+background; the raw −Zion/r cell-mean is
+    ill-defined). `MakeSeparablePP` = the `PP_NonLocal` recipe (KB projector vectors `<χ|β_p Y_lm>` via
+    `qcMesh::Overlap`, rank-1 `D|b><b|`). Mesh = `cell.CreateIntegrationMesh({.eCut=densityEcut})` (§2's Nyquist
+    path). Uses `qcPseudopotential` (models) + `qcMesh` (quadrature) — both below `qcLattice_BS`, no cycle.
+  - New: `GPW_BasisSet` / `GPWFactory` (a `BasisSet<dcmplx>` wrapping one Γ `GPW_IBS`), beside `PW_BasisSet`.
+  - Validated (`UnitTests/GPW_SCF_UT.C`): **crystalline Si (Γ, FCC primitive cell, 8 valence e⁻) converges in
+    17 iters (complex DIIS), charge = 8.000, Etot = −11.937** (densityEcut=12, Rcut=0). Closed-shell Si₂
+    (σ_g²σ_u²π_u⁴) → clean gap. Also a Si pseudo-atom-in-box energy anchor (−4.238; see below).
+  - **Known limits (deferred, documented in the test):**
+    (a) **Basis conditioning**: folding lattice images (`Rcut>0`) makes the diffuse SIPP Gaussians linearly
+    dependent → non-positive-definite overlap (Cholesky fails). `Rcut=0` (primitive cell, no inter-cell
+    overlap → "molecule in a periodic box") keeps `S` PD. A true bulk crystal needs canonical
+    orthogonalisation (drop small `S` eigenvalues) or a less-diffuse basis.
+    (b) **Degenerate open shells at Γ**: an isolated atom has no point group at Γ, so a half-filled shell
+    (Si 3p²) is degenerate — the ENERGY converges but the density rotates freely in the degenerate subspace
+    (`|Δρ|` never → tol). Not a bug (integer occupation of a degenerate shell). Fix = a **`dcmplx` GDM/Ladder**
+    energy-minimiser (today `SCFAcceleratorGDM`/`Ladder` are `<double>`-only; only DIIS/Null are `dcmplx`), or
+    fractional occupation/smearing, or point-group symmetry. The crystal sidesteps it with its gap.
+    (c) The real-space PP uses the home-cell orbitals (`*itsOrb`), not the Bloch sum, and the structure's own
+    cell atoms (no periodic image potential) — exact at Γ / large box, a rigorous-periodic-PP increment later.
+
 **Naming (`5f609d2f`) — remember these:**
 - `Overlap(f)` = ANY one-electron `⟨i|f|j⟩` (f may be a potential or not); `Repulsion` = the two-electron
   `1/r12` integral. So the reciprocal-space field→KS-matrix bridge is `Band_FT_IBS::MakeOverlap(f)` /
@@ -92,7 +120,12 @@ grid engine, `{r}` internal.
 
 ---
 
-## 3. Next increment — the full periodic SCF total energy
+## 3. The full periodic SCF total energy  — FIRST LIGHT DONE (see §1 Increment 3)
+
+**Status:** the SCF runs end-to-end and converges on real materials (Si Γ, 17 iters, charge 8). The pieces
+below record the original plan; what shipped and what's deferred is summarised in §1 Increment 3. The route
+taken (reuse `Ham_PW_DFT` verbatim via `Integrals_Pseudo<dcmplx>`) differs from the "`Ham_GPW_DFT`" framing
+in item 3 below — the plane-wave KS terms are basis-agnostic, so no new Hamiltonian was needed.
 
 Build it on §2 (route the KS quadrature through `qcMesh::WeightedOverlap` on `CreateIntegrationMesh`), since
 the SCF needs that real-space quadrature anyway. Remaining pieces:
@@ -133,7 +166,33 @@ PW machinery already exist and are green in `PlaneWaveDFTUT`.)
 ---
 
 ## 4. Deferred cleanups (do once the SCF works — "the working code is the definitive declaration")
-- **Route quadrature through `qcMesh` (§2)** — do it WITH the SCF increment (it needs the quadrature).
+- **Absolute energy is NOT yet a physical oracle — the G=0 / long-range split (highest priority follow-up).**
+  The Increment-3 Si total (−11.937) is a *converged, reproducible* SCF fixed point (a valid did-E-move
+  anchor) but it is **not** a physical bulk-Si energy, and the gap to the plane-wave −7.2273 is **not** a
+  cutoff effect. Two causes, both in the electronic energy (`Enn=−8.400` and `Ealign=−0.295` are IDENTICAL to
+  the PW path — structure-only): **(i)** `Rcut=0` makes it an "Si₂-in-a-box", not bulk Si — the home-cell
+  electrons cannot screen across cells, yet they are paired with the FULL periodic ion Ewald (`Enn=−8.4`), so
+  the electrons over-bind → too negative. **(ii)** `MakeLocalPP`'s first-light G=0 handling subtracts the
+  *numerical cell-average* `<V_loc>·S`, which includes the `−Zion/r` Coulomb tail (cell-size-dependent),
+  whereas the rigorous convention (which the analytic `FormFactorG0`-based `Ealign` assumes) drops only the
+  regularised finite part and folds the `−Zion·erf(r/rloc)/r` long-range tail into the **Hartree** via a
+  Gaussian compensation charge (the CP2K erf/erfc split). Until (ii) is done the absolute total carries an
+  unverified offset. **Fix:** split `V_loc = V_loc^SR + V_loc^LR`; quadrature `V_loc^SR` directly (localized,
+  no G=0), add `V_loc^LR = −Zion·erf(r/rloc)/r` as a Gaussian nuclear charge into the Poisson/Hartree solve;
+  then the physical total is well-defined and should match converged PW once `Rcut>0` bulk works. This is THE
+  next correctness step, above the cosmetic cleanups below.
+- **DRY the pseudopotential field adapters into `qcPseudopotential`.** `RealYlm` / `BetaYlmField` / `VlocField`
+  are byte-identical in `src/Hamiltonian/Internal/Imp/PP_{Local,NonLocal}.C` (the molecular terms) and
+  replicated in `src/BasisSet/Lattice_3D/Evaluators/GPW/Imp/Evaluator.C` (the GPW real-space PP). Hoist them
+  into a new public module in `qcPseudopotential` (below both libs — no cycle) so both consume one copy. Pure
+  refactor, zero numerical change; verify `L_PP` + `A_PP` + `GPW_SCF` unchanged. (A background task is queued.)
+- **Rigorous periodic external potential** (limitation (c) in §1 Increment 3). Today `MakeLocalPP`/`MakeSeparablePP`
+  quadrature the HOME-CELL orbitals (`*itsOrb`, not the Bloch sum `Σ_R χ(·−R)`) against a potential built only
+  from the cell's OWN atoms (no periodic-image PP) — exact at Γ / large box, an approximation for a dense
+  crystal. Sum the PP over lattice images (image-atom potentials + the Bloch orbital sum), analogous to how
+  Ewald handles the ion-ion and how the PW path assembles it in G-space.
+- **Route quadrature through `qcMesh` (§2)** — the PP quadrature already does (`WeightedOverlap`/`Overlap` on
+  `CreateIntegrationMesh`); the Hartree/XC collocation still uses the hand-rolled `PhiOnGrid`+`Integral` grid.
 - **Whole-density collocation** — the dense `W` tensor is `O(nGfit·nAO²)` storage + `O(nAO²)` FFTs. The
   efficient GPW collocates `ρ = op(r)` **once** (one FFT), which needs `D` → density-side. CP2K's local-patch
   (multi-grid) collocation is a further v2.

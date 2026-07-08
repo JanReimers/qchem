@@ -11,6 +11,10 @@ module;
 module qchem.BasisSet.Lattice_3D.Evaluators.GPW;
 import qchem.Blaze;       // rvec_t, rmat_t, rsmat_t, blazem::zeroH<dcmplx>
 import qchem.Vector3D;    // vec3_t + rvec3_t / rvec3vec_t arithmetic (r - R, componentwise add)
+import qchem.Mesh.Quadrature; // qcMesh::WeightedOverlap / Overlap (the real-space PP quadrature primitives)
+import qchem.ScalarFunction;  // ScalarFunction<double> (the V_loc / beta*Ylm fields handed to the quadrature)
+import qchem.Math;            // norm, Pi, sqrt (the real spherical harmonics for the KB projectors)
+import qchem.Structure;       // Structure / Atom (the PP centres + Z, and CreateIntegrationMesh)
 
 namespace qchem::BasisSet::Lattice_3D
 {
@@ -28,6 +32,83 @@ chmat_t Complexify(const rsmat_t& S)
             C(i,j)=dcmplx(S(i,j),0.0);
     return C;
 }
+
+// --- Real-space pseudopotential fields, replicated from the molecular PP_Local/PP_NonLocal terms (which live
+//     Hamiltonian-side and so are out of reach from qcLattice_BS).  They are pure functions of the qcPseudo-
+//     potential models + geometry, so the clean long-term home is qcPseudopotential (below both libraries);
+//     the DRY-move is a deferred cleanup (see doc/GPWPlan.md).  Kept bit-identical to the term versions so a
+//     Gaussian-in-a-box GPW PP matrix equals the finite molecular PP matrix. --------------------------------
+
+// V_loc(r) = Sum_a v_loc(Z_a,|r-R_a|): the local pseudopotential as a scalar field for WeightedOverlap.
+class VlocField : public ScalarFunction<double>
+{
+    const Structure& cl; const Pseudopotential::LocalPotential_R& v;
+public:
+    VlocField(const Structure& c, const Pseudopotential::LocalPotential_R& vl) : cl(c), v(vl) {}
+    double operator()(const rvec3_t& r) const override
+    {
+        double s=0.0;
+        for (size_t i=0;i<cl.GetNumAtoms();i++) { const Atom* a=cl[i]; s+=v.Vloc(a->itsZ, norm(r-a->itsR)); }
+        return s;
+    }
+    rvec3_t Gradient(const rvec3_t&) const override {return rvec3_t(0,0,0);}
+};
+
+// Real (tesseral) spherical harmonic Y_lm(rhat), unit-normalised on the sphere; the standard Cartesian forms
+// (any orthonormal degree-l set is equivalent since only Sum_m |Y_lm><Y_lm| enters the KB projector).
+double RealYlm(int l, int m, double x, double y, double z)
+{
+    using std::sqrt;
+    const double pi=Pi;
+    switch (l)
+    {
+    case 0: return 0.5/sqrt(pi);
+    case 1:
+        switch (m) { case -1: return sqrt(0.75/pi)*y; case 0: return sqrt(0.75/pi)*z; case 1: return sqrt(0.75/pi)*x; }
+        break;
+    case 2:
+        switch (m)
+        {
+        case -2: return sqrt(15.0/(4*pi))*x*y;
+        case -1: return sqrt(15.0/(4*pi))*y*z;
+        case  0: return sqrt( 5.0/(16*pi))*(3*z*z-1.0);
+        case  1: return sqrt(15.0/(4*pi))*x*z;
+        case  2: return sqrt(15.0/(16*pi))*(x*x-y*y);
+        }
+        break;
+    case 3:
+        switch (m)
+        {
+        case -3: return sqrt( 35.0/(32*pi))*y*(3*x*x-y*y);
+        case -2: return sqrt(105.0/(4 *pi))*x*y*z;
+        case -1: return sqrt( 21.0/(32*pi))*y*(5*z*z-1.0);
+        case  0: return sqrt(  7.0/(16*pi))*z*(5*z*z-3.0);
+        case  1: return sqrt( 21.0/(32*pi))*x*(5*z*z-1.0);
+        case  2: return sqrt(105.0/(16*pi))*z*(x*x-y*y);
+        case  3: return sqrt( 35.0/(32*pi))*x*(x*x-3*y*y);
+        }
+        break;
+    }
+    assert(false && "RealYlm: unsupported (l,m)");
+    return 0.0;
+}
+
+// One KB channel as a scalar field: beta_p(|r-R|) * Y_lm((r-R)^).  beta_p(0)=0 for l>=1 so the r=R angular
+// singularity is harmless; guard the unit-vector division.
+class BetaYlmField : public ScalarFunction<double>
+{
+    rvec3_t R; const Pseudopotential::SeparablePotential_R& v; int Z; size_t p; int l, m;
+public:
+    BetaYlmField(const rvec3_t& R_, const Pseudopotential::SeparablePotential_R& v_, int Z_, size_t p_, int l_, int m_)
+        : R(R_), v(v_), Z(Z_), p(p_), l(l_), m(m_) {}
+    double operator()(const rvec3_t& r) const override
+    {
+        rvec3_t d=r-R; double rr=norm(d);
+        if (rr<1e-12) return l==0 ? v.BetaR(Z,p,0.0)*RealYlm(0,0,0,0,0) : 0.0;
+        return v.BetaR(Z,p,rr) * RealYlm(l,m, d.x/rr, d.y/rr, d.z/rr);
+    }
+    rvec3_t Gradient(const rvec3_t&) const override {return rvec3_t(0,0,0);}
+};
 } //anon
 
 GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const UnitCell& cell,
@@ -183,6 +264,62 @@ cvec3vec_t GPW_Evaluator::EvalGradient(const rvec3_t& r) const
 chmat_t GPW_Evaluator::OverlapMatrix()                 const {return Complexify(itsLat->MakeOverlap(itsR));}
 chmat_t GPW_Evaluator::KineticMatrix()                 const {return Complexify(itsLat->MakeKinetic(itsR));}
 chmat_t GPW_Evaluator::NuclearMatrix(const Structure* cl) const {return Complexify(itsLat->MakeNuclear(itsR,cl));}
+
+// The PP-quadrature integration mesh: a uniform lattice mesh whose Nyquist resolution follows the density
+// cutoff (CreateIntegrationMesh's "GPW / Nyquist path").  The DFT tier (density grid) must be on: PP assembly
+// only ever runs inside an SCF, which needs the density collocation grid anyway.
+qcMesh::MeshParams GPW_Evaluator::PPMeshParams() const
+{
+    assert(itsGrid && "GPW_Evaluator: the external PP requires the DFT density grid (construct with densityEcut>0)");
+    qcMesh::MeshParams mp;
+    mp.eCut=itsGrid->Ecut();
+    return mp;
+}
+
+// Local PP: <chi_i|V_loc|chi_j> by mesh quadrature of the molecular Gaussians against V_loc(r) -- the SAME
+// qcMesh::WeightedOverlap the molecular PP_Local term uses.  BUT the periodic convention (matching PW_Pseudo)
+// DROPS the ill-defined dG=0 component of V_loc -- its cell average (the -Zion/r Coulomb tail makes the raw
+// G=0 divergent/cell-size-dependent; it is cancelled by the Hartree G=0 + the ion-ion background, with the
+// finite remainder carried by the alignment term).  So subtract <V_loc>*S, where <V_loc>=(1/Omega)integral
+// V_loc and S is the overlap on the SAME mesh -- exactly removing the constant (dG=0) part of the field.
+// Uses the home-cell molecular basis (*itsOrb) -- exact at Gamma / large box; the Bloch-summed periodic-image
+// PP is a later increment (see doc/GPWPlan.md, the "rigorous periodic external potential" caveat).
+chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const Pseudopotential::LocalPotential_R& vloc) const
+{
+    qcMesh::Mesh mesh=cl->CreateIntegrationMesh(PPMeshParams());
+    VlocField V(*cl, vloc);
+    rsmat_t VW = qcMesh::WeightedOverlap(mesh, *itsOrb, V);   // <i|V_loc|j>
+    double  mean = qcMesh::Integrate(mesh, V) / itsGrid->Volume();   // (1/Omega) integral V_loc = the dG=0 average
+    rsmat_t S  = qcMesh::Overlap(mesh, *itsOrb);             // <i|j> on the SAME mesh (so the subtraction is exact)
+    VW -= mean*S;                                             // drop the dG=0 component (PW convention; alignment separate)
+    return Complexify(VW);
+}
+
+// KB separable nonlocal PP: accumulate the rank-1 D|b><b| over atoms/projectors/m, with b_i = <chi_i|beta_p Y_lm>
+// (mesh quadrature) -- the molecular PP_NonLocal recipe, widened to complex at Gamma.
+chmat_t GPW_Evaluator::MakeSeparablePP(const Structure* cl, const Pseudopotential::SeparablePotential_R& sep) const
+{
+    qcMesh::Mesh mesh=cl->CreateIntegrationMesh(PPMeshParams());
+    size_t n=itsN;
+    rmat_t V(n,n,0.0);
+    for (size_t a=0; a<cl->GetNumAtoms(); a++)
+    {
+        const Atom* at=(*cl)[a];
+        int Z=at->itsZ;
+        for (size_t p=0; p<sep.NumProjectors(Z); p++)
+        {
+            int    l=sep.AngularMomentum(Z,p);
+            double D=sep.Coefficient    (Z,p);
+            for (int m=-l; m<=l; m++)
+            {
+                rvec_t b=qcMesh::Overlap(mesh, *itsOrb, BetaYlmField(at->itsR,sep,Z,p,l,m));
+                for (size_t i=0;i<n;i++)
+                    for (size_t j=0;j<n;j++) V(i,j)+=D*b[i]*b[j];
+            }
+        }
+    }
+    return Complexify(rsmat_t(V));
+}
 
 // Cache key: the molecular basis's geometry-aware ID pins the radials + centres (so the cell geometry is in
 // here via the atom positions); k + the translation count distinguish the periodic block.

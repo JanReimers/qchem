@@ -2,8 +2,10 @@
 module;
 #include <cassert>
 #include <cmath>     // lround (fractional k-point -> integer BZ-grid index)
+#include <memory>    // std::shared_ptr / std::move (the GPW basis owns the molecular Gaussian basis)
 module qchem.BasisSet.Lattice_3D.BasisSet;
 import qchem.BasisSet.Internal.BasisSetImp;   // BasisSetImp<dcmplx> (the generic list-of-IBS container)
+import qchem.BasisSet.Lattice_3D.GPW_IBS;     // GPW_IBS (the periodic-Gaussian block GPW_BasisSet owns)
 import qchem.Symmetry.Factory;                // BlochFactory (the Bloch irrep per k)
 import qchem.Types;
 
@@ -31,6 +33,20 @@ Complex_BS* Factory(Type type, const ::qchem::Lattice_3D& lat, double Ecut)
 {
     assert(type==Type::PW);
     return new PW_BasisSet(lat, Ecut);
+}
+
+// GPW: one Gamma block of periodic Gaussians built from the molecular basis over the cell's atoms.  N=(1,1,1)
+// -> k=0.  Rcut folds in lattice images (crystals need them; a molecule-in-a-large-box uses the home cell).
+GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
+                           double densityEcut, double Rcut)
+{
+    Insert(new GPW_IBS(lat.GetUnitCell(), lat.GetLimits(), ivec3_t(0,0,0), std::move(mol), densityEcut, Rcut));
+}
+
+Complex_BS* GPWFactory(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
+                       double densityEcut, double Rcut)
+{
+    return new GPW_BasisSet(lat, std::move(mol), densityEcut, Rcut);
 }
 
 } //namespace
