@@ -59,8 +59,11 @@ it satisfies the existing plane-wave concepts and reuses the `EPW_*` mixins.
     path). Uses `qcPseudopotential` (models) + `qcMesh` (quadrature) — both below `qcLattice_BS`, no cycle.
   - New: `GPW_BasisSet` / `GPWFactory` (a `BasisSet<dcmplx>` wrapping one Γ `GPW_IBS`), beside `PW_BasisSet`.
   - Validated (`UnitTests/GPW_SCF_UT.C`): **crystalline Si (Γ, FCC primitive cell, 8 valence e⁻) converges in
-    17 iters (complex DIIS), charge = 8.000, Etot = −11.937** (densityEcut=12, Rcut=0). Closed-shell Si₂
-    (σ_g²σ_u²π_u⁴) → clean gap. Also a Si pseudo-atom-in-box energy anchor (−4.238; see below).
+    ~21 iters (complex DIIS), charge = 8.000, Etot = −8.248** (densityEcut=12, Rcut=0; physical — close to the
+    plane-wave bulk −7.2273, the residual being the Rcut=0 over-binding). Closed-shell Si₂ (σ_g²σ_u²π_u⁴) → clean
+    gap. And the **tight cross-check**: a Si pseudo-atom-in-box total (−3.736) reproduces the finite SIPP
+    molecular DFT (−3.759) to grid tolerance (§3.4 gate). [Energies below assume the G=0/long-range LOCAL PP fix
+    — see §4 first bullet; the local PP is assembled in G-space from the form factor, like the PW path.]
   - **Known limits (deferred, documented in the test):**
     (a) **Basis conditioning**: folding lattice images (`Rcut>0`) makes the diffuse SIPP Gaussians linearly
     dependent → non-positive-definite overlap (Cholesky fails). `Rcut=0` (primitive cell, no inter-cell
@@ -166,21 +169,20 @@ PW machinery already exist and are green in `PlaneWaveDFTUT`.)
 ---
 
 ## 4. Deferred cleanups (do once the SCF works — "the working code is the definitive declaration")
-- **Absolute energy is NOT yet a physical oracle — the G=0 / long-range split (highest priority follow-up).**
-  The Increment-3 Si total (−11.937) is a *converged, reproducible* SCF fixed point (a valid did-E-move
-  anchor) but it is **not** a physical bulk-Si energy, and the gap to the plane-wave −7.2273 is **not** a
-  cutoff effect. Two causes, both in the electronic energy (`Enn=−8.400` and `Ealign=−0.295` are IDENTICAL to
-  the PW path — structure-only): **(i)** `Rcut=0` makes it an "Si₂-in-a-box", not bulk Si — the home-cell
-  electrons cannot screen across cells, yet they are paired with the FULL periodic ion Ewald (`Enn=−8.4`), so
-  the electrons over-bind → too negative. **(ii)** `MakeLocalPP`'s first-light G=0 handling subtracts the
-  *numerical cell-average* `<V_loc>·S`, which includes the `−Zion/r` Coulomb tail (cell-size-dependent),
-  whereas the rigorous convention (which the analytic `FormFactorG0`-based `Ealign` assumes) drops only the
-  regularised finite part and folds the `−Zion·erf(r/rloc)/r` long-range tail into the **Hartree** via a
-  Gaussian compensation charge (the CP2K erf/erfc split). Until (ii) is done the absolute total carries an
-  unverified offset. **Fix:** split `V_loc = V_loc^SR + V_loc^LR`; quadrature `V_loc^SR` directly (localized,
-  no G=0), add `V_loc^LR = −Zion·erf(r/rloc)/r` as a Gaussian nuclear charge into the Poisson/Hartree solve;
-  then the physical total is well-defined and should match converged PW once `Rcut>0` bulk works. This is THE
-  next correctness step, above the cosmetic cleanups below.
+- **G=0 / long-range LOCAL PP — DONE (energy expression now physical + box-independent).** The first-light
+  `MakeLocalPP` subtracted the *numerical cell-average* `<V_loc>·S`, whose `−Zion/r` Coulomb-tail mean is
+  cell-size-dependent → the total had a spurious 1/L tail (atom-in-box: −4.238/−4.157/−4.078 at a=11/15/20)
+  and the Si crystal came out at −11.937. **Fix (done):** the local PP is now assembled in **G-space from the
+  analytic form factor**, IDENTICALLY to `PW_Evaluator::LocalPotentialMatrix` — `Ṽ(ΔG)=(1/Ω)Σ_a
+  v_loc(Z_a,|ΔG|²)e^{−iΔG·τ_a}`, ΔG=0 dropped, assembled through GPW's `OverlapMatrix` (the collocation
+  adjoint reconstructs `V_loc(r)` on the density grid, band-limited to `densityEcut`). GPW is a `Band_FT_IBS`,
+  so it reuses the PW G=0/`FormFactorG0`-alignment convention verbatim; the KB nonlocal stays real-space
+  (localized, no Coulomb tail). **Result:** atom-in-box total is now box-INDEPENDENT (−3.736/−3.738/−3.742 at
+  a=11/15/20) and **matches the finite SIPP molecular DFT (−3.759) to ~0.02 Ha grid tolerance** — the §3.4
+  tight gate. The Si crystal is now **−8.248** (electronic +0.448, the PW-convention sign), close to the
+  plane-wave bulk −7.2273; the residual ~1 Ha is the `Rcut=0` over-binding, fixed by bulk (task A). Removed
+  the `<V_loc>·S` hack + the `VlocField` adapter. *(Deferred refinement: for a sharp core at low `densityEcut`,
+  split SR real-space / LR G-space; not needed for correctness, only grid-accuracy.)*
 - **DRY the pseudopotential field adapters into `qcPseudopotential`.** `RealYlm` / `BetaYlmField` / `VlocField`
   are byte-identical in `src/Hamiltonian/Internal/Imp/PP_{Local,NonLocal}.C` (the molecular terms) and
   replicated in `src/BasisSet/Lattice_3D/Evaluators/GPW/Imp/Evaluator.C` (the GPW real-space PP). Hoist them

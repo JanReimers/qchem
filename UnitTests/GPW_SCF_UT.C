@@ -22,6 +22,7 @@
 #include "gtest/gtest.h"
 #include <memory>
 #include <cmath>
+#include <cstdio>
 
 import qchem.Structure;                          // Molecule, Atom
 import qchem.UnitCell;                           // UnitCell, FCCUnitCell
@@ -96,8 +97,10 @@ GpwResult RunGPW(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, doub
 // (1) THE REAL-MATERIAL SCF: crystalline silicon (diamond) primitive cell at Gamma, driven end-to-end by
 // the framework cSCFIterator through the plane-wave Kohn-Sham Hamiltonian on a GAUSSIAN (GPW) basis.  8
 // valence electrons (2 x Zion 4) fill a closed shell (sigma_g^2 sigma_u^2 pi_u^4), so it converges cleanly.
-// A did-E-move regression anchor (pin the converged value; the periodic conventions match the plane-wave
-// path, but the Gaussian basis + Rcut=0 differ, so it is not a plane-wave oracle -- see doc/GPWPlan.md sec 5).
+// With the G-space local PP (box-independent, PW G=0/alignment convention) the total is now PHYSICAL:
+// Etot=-8.248 -- close to the plane-wave bulk-Si -7.2273 (Ecut=4) / converged ~-7.9.  The residual ~1 Ha is
+// the Rcut=0 over-binding (home-cell electrons, no inter-cell screening, feel the full periodic ion Ewald);
+// true bulk (Rcut>0) awaits the overlap-conditioning fix.  A did-E-move regression anchor (pin the value).
 TEST(GPW_SCF, SiliconGammaConverges)
 {
     const double a=10.26;                          // Si conventional cubic lattice constant (a.u.)
@@ -113,20 +116,27 @@ TEST(GPW_SCF, SiliconGammaConverges)
 
     EXPECT_TRUE(R.converged);                       // clean closed-shell convergence (~17 iters, complex DIIS)
     EXPECT_NEAR(R.charge, 8.0, 1e-6);              // 8 valence electrons
-    EXPECT_NEAR(R.E.GetTotalEnergy(), -11.9370, 5e-3);   // regression anchor (densityEcut=12, Gamma, Rcut=0)
+    EXPECT_NEAR(R.E.GetTotalEnergy(), -8.2476, 5e-3);    // regression anchor (densityEcut=12, Gamma, Rcut=0)
 }
 
-// (2) The isolated Si pseudo-atom in a box, run through the SAME GPW SCF machinery.  The finite Slater/High
-// pseudo-atom is the near-complete-basis LDA reference (BasisSetAccuracy::High; memory feedback_scf_accuracy_levels).
+// (2) THE TIGHT CROSS-CHECK: the isolated Si pseudo-atom in a box vs the finite molecular DFT on the SAME
+// SIPP basis + GTH-LDA PP.  With the G-space local PP the GPW total is box-independent and reproduces the
+// finite SIPP energy (-3.74 vs -3.759) to grid tolerance -- the doc/GPWPlan sec 3.4 correctness gate.
 // NOTE: at Gamma the atom has NO point group, so its half-filled 3p shell is degenerate -- the ENERGY converges
-// (-4.238, grid-stable) but the density rotates freely within that degenerate shell, so |Delta rho| never
+// (-3.736, grid-stable) but the density rotates freely within that degenerate shell, so |Delta rho| never
 // reaches the tolerance (not a bug: integer occupation of a degenerate open shell).  A dcmplx GDM/Ladder
 // energy-minimiser would converge it (today GDM/Ladder are <double>-only); the crystal above sidesteps it with
 // a gap.  So this pins the CONVERGED ENERGY + charge as a did-E-move anchor, without a Converged() guard.
-TEST(GPW_SCF, SiPseudoAtomInBoxEnergyAnchor)
+TEST(GPW_SCF, SiPseudoAtomInBoxMatchesFinite)
 {
-    AtomCalculation cFin(14, 14-4, {.type=AtomType::Slater, .accuracy=BasisSetAccuracy::High, .pseudopotential=true});
-    std::cout << "[Si finite Slater/High PP-DFT] Efin="<<cFin.Energy()<<" charge="<<cFin.TotalCharge()<<std::endl;
+    // Basis-MATCHED reference: the SAME SIPP Gaussian basis + GTH-LDA PP as a finite molecule (density-fit
+    // Hartree, Becke XC).  This is the tight cross-check: GPW-in-box == finite molecular DFT (doc/GPWPlan sec 3.4).
+    Molecule si; si.Insert(new Atom(14, 0.0, {0,0,0}));
+    Calculation cSipp(si, {.basis = "sipp", .pseudopotential = true});
+    const double Esipp=cSipp.Energy();
+    // Physical oracle (near-complete Slater/High, for context -- a different basis, not the GPW-correctness gate).
+    AtomCalculation cHi(14, 14-4, {.type=AtomType::Slater, .accuracy=BasisSetAccuracy::High, .pseudopotential=true});
+    std::cout << "[Si finite] sipp="<<Esipp<<"  Slater/High="<<cHi.Energy()<<std::endl;
 
     const double a=11.0;
     UnitCell cell(a);
@@ -136,5 +146,25 @@ TEST(GPW_SCF, SiPseudoAtomInBoxEnergyAnchor)
                        /*verbose*/false, /*nmax*/40);
 
     EXPECT_NEAR(R.charge, 4.0, 1e-6);                        // 4 valence electrons (Zion=4), charge conserved
-    EXPECT_NEAR(R.E.GetTotalEnergy(), -4.2380, 1e-2);        // energy-converged anchor (density degenerate, see above)
+    // GPW-in-box (G-space local PP -> box-independent) reproduces the finite SIPP DFT energy to grid tolerance.
+    // (Energy-converged; density is degenerate at Gamma -- see the note above -- so no Converged() guard.)
+    EXPECT_NEAR(R.E.GetTotalEnergy(), Esipp, 5e-2) << "GPW-in-box total vs finite SIPP molecular DFT";
+}
+
+// DIAGNOSTIC (disabled): does the atom-in-box TOTAL converge to the finite pseudo-atom energy as the box
+// grows?  If yes -> the energy expression (G=0/alignment) is right and the crystal gap is purely Rcut=0-not-
+// bulk.  If it retains a ~1/L tail / plateaus away from Efin -> the long-range G=0 bookkeeping is broken (the
+// erf/erfc split is needed).  Run with --gtest_also_run_disabled_tests --gtest_filter=*BoxSizeSweep*.
+TEST(GPW_SCF, DISABLED_SiAtomBoxSizeSweep)
+{
+    AtomCalculation cFin(14, 14-4, {.type=AtomType::Slater, .accuracy=BasisSetAccuracy::High, .pseudopotential=true});
+    std::cout << "[finite target] Efin="<<cFin.Energy()<<std::endl;
+    for (double a : {11.0, 15.0, 20.0})
+    {
+        UnitCell cell(a);
+        cell.AddAtom(14, {0.5,0.5,0.5});
+        Lattice_3D lat(cell, ivec3_t(1,1,1));
+        char lbl[64]; std::snprintf(lbl, sizeof lbl, "a=%.0f", a);
+        RunGPW(lat, MakeBasis(cell), /*densityEcut*/10.0, /*Rcut*/0.0, /*Nelec*/4, "Si", lbl, /*verbose*/false, /*nmax*/40);
+    }
 }

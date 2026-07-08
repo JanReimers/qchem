@@ -91,9 +91,16 @@ public:
     //     molecular PP_Local/PP_NonLocal terms use (qcMesh::WeightedOverlap / Overlap), so a Gaussian-in-a-box
     //     GPW run reproduces the finite molecular PP matrices.  At \f$\Gamma\f$ the matrices are real (widened
     //     to complex).  These realise Integrals_Pseudo<dcmplx> on GPW_IBS -> the whole Ham_PW_DFT drives GPW.
-    //! \brief Local PP matrix \f$\langle\chi_i|V_{loc}|\chi_j\rangle=\sum_g w_g\chi_i(r_g)\chi_j(r_g)V_{loc}(r_g)\f$
-    //! with \f$V_{loc}(r)=\sum_a v_{loc}(Z_a,|r-R_a|)\f$ over the atoms of \a cl (mesh from \c densityEcut).
-    chmat_t MakeLocalPP    (const Structure* cl, const Pseudopotential::LocalPotential_R& vloc) const;
+    //! \brief Local PP matrix, assembled in G-SPACE from the analytic form factor -- IDENTICALLY to the
+    //! plane-wave path (\c PW_Evaluator::LocalPotentialMatrix), so GPW inherits the PW G=0 / alignment
+    //! convention exactly.  \f$\langle\chi_i|V_{loc}|\chi_j\rangle=\langle\chi_i|\tilde V|\chi_j\rangle\f$ with
+    //! \f$\tilde V(\Delta G)=\tfrac1\Omega\sum_a v_{loc}(Z_a,|\Delta G|^2)e^{-i\Delta G\cdot\tau_a}\f$,
+    //! \f$\Delta G=0\f$ DROPPED (the ill-defined \f$-Z_{ion}/r\f$ cell-mean; carried by \c FormFactorG0
+    //! alignment + Ewald background).  Assembled via \c OverlapMatrix (the collocation adjoint reconstructs
+    //! \f$V_{loc}(r)\f$ on the density grid, band-limited to \c densityEcut, then quadratures it) -- so it is
+    //! box-INDEPENDENT (unlike a real-space quadrature of the raw \f$V_{loc}\f$, whose Coulomb-tail cell-mean
+    //! drifts with box size).  The KB nonlocal stays real-space (localized, no G=0 issue): see \c MakeSeparablePP.
+    chmat_t MakeLocalPP    (const Structure* cl, const Pseudopotential::LocalPotential& loc) const;
     //! \brief KB separable nonlocal matrix \f$\sum_{a,p,m}D_p|b\rangle\langle b|\f$ with the projection vector
     //! \f$b_i=\langle\chi_i|\beta_p(|r-R_a|)Y_{lm}\rangle\f$ (mesh quadrature).  Real symmetric at \f$\Gamma\f$.
     chmat_t MakeSeparablePP(const Structure* cl, const Pseudopotential::SeparablePotential_R& sep) const;

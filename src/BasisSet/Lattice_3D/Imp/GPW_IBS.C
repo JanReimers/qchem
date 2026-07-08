@@ -35,12 +35,11 @@ BasisSet::cFIT_SF_ABS* GPW_IBS::CreateVxcFitBasisSet(const Structure*, const qcM
     return new PlaneWaveFit_IBS(GPW_Evaluator::DensityGrid(), Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
 }
 
-// The external-PP capability: cross-cast the (abstract) pseudopotential model to its real-space face and let
-// the evaluator quadrature it against the Gaussians.  LocalPotential IS-A LocalPotential_R (diamond), so the
-// reference cast always succeeds; the separable model carries the _R face too (HGH + MultiSpecies routers).
+// The external-PP capability.  Local: G-space form-factor assembly (the model's FormFactor is used directly,
+// no cross-cast -- mirrors the PW path).  Separable: the KB projectors need the real-space face, cross-cast.
 hmat_t<dcmplx> GPW_IBS::MakeLocalPotential(const Structure* cl, const Pseudopotential::LocalPotential& loc) const
 {
-    return GPW_Evaluator::MakeLocalPP(cl, dynamic_cast<const Pseudopotential::LocalPotential_R&>(loc));
+    return GPW_Evaluator::MakeLocalPP(cl, loc);
 }
 
 hmat_t<dcmplx> GPW_IBS::MakeSeparablePotential(const Structure* cl, const Pseudopotential::SeparablePotential& nl) const

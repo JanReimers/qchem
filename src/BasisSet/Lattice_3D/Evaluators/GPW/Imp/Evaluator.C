@@ -39,21 +39,6 @@ chmat_t Complexify(const rsmat_t& S)
 //     the DRY-move is a deferred cleanup (see doc/GPWPlan.md).  Kept bit-identical to the term versions so a
 //     Gaussian-in-a-box GPW PP matrix equals the finite molecular PP matrix. --------------------------------
 
-// V_loc(r) = Sum_a v_loc(Z_a,|r-R_a|): the local pseudopotential as a scalar field for WeightedOverlap.
-class VlocField : public ScalarFunction<double>
-{
-    const Structure& cl; const Pseudopotential::LocalPotential_R& v;
-public:
-    VlocField(const Structure& c, const Pseudopotential::LocalPotential_R& vl) : cl(c), v(vl) {}
-    double operator()(const rvec3_t& r) const override
-    {
-        double s=0.0;
-        for (size_t i=0;i<cl.GetNumAtoms();i++) { const Atom* a=cl[i]; s+=v.Vloc(a->itsZ, norm(r-a->itsR)); }
-        return s;
-    }
-    rvec3_t Gradient(const rvec3_t&) const override {return rvec3_t(0,0,0);}
-};
-
 // Real (tesseral) spherical harmonic Y_lm(rhat), unit-normalised on the sphere; the standard Cartesian forms
 // (any orthonormal degree-l set is equivalent since only Sum_m |Y_lm><Y_lm| enters the KB projector).
 double RealYlm(int l, int m, double x, double y, double z)
@@ -276,23 +261,25 @@ qcMesh::MeshParams GPW_Evaluator::PPMeshParams() const
     return mp;
 }
 
-// Local PP: <chi_i|V_loc|chi_j> by mesh quadrature of the molecular Gaussians against V_loc(r) -- the SAME
-// qcMesh::WeightedOverlap the molecular PP_Local term uses.  BUT the periodic convention (matching PW_Pseudo)
-// DROPS the ill-defined dG=0 component of V_loc -- its cell average (the -Zion/r Coulomb tail makes the raw
-// G=0 divergent/cell-size-dependent; it is cancelled by the Hartree G=0 + the ion-ion background, with the
-// finite remainder carried by the alignment term).  So subtract <V_loc>*S, where <V_loc>=(1/Omega)integral
-// V_loc and S is the overlap on the SAME mesh -- exactly removing the constant (dG=0) part of the field.
-// Uses the home-cell molecular basis (*itsOrb) -- exact at Gamma / large box; the Bloch-summed periodic-image
-// PP is a later increment (see doc/GPWPlan.md, the "rigorous periodic external potential" caveat).
-chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const Pseudopotential::LocalPotential_R& vloc) const
+// Local PP: assembled in G-SPACE from the analytic form factor, IDENTICALLY to PW_Evaluator::LocalPotential-
+// Matrix -- Vtilde(dG) = (1/Omega) Sum_a v_loc(Z_a,|dG|^2) e^{-i dG.tau_a}, dG=0 DROPPED, then <chi|Vtilde|chi>
+// via OverlapMatrix (the collocation adjoint reconstructs V_loc(r) on the density grid and quadratures it).
+// This inherits the PW G=0 / FormFactorG0-alignment convention EXACTLY, so the energy is box-independent (a
+// real-space quadrature of the raw -Zion/r-tailed V_loc has a cell-size-dependent mean -> box drift).  The KB
+// nonlocal (localized, no Coulomb tail, no G=0 issue) stays real-space (MakeSeparablePP).
+chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const Pseudopotential::LocalPotential& loc) const
 {
-    qcMesh::Mesh mesh=cl->CreateIntegrationMesh(PPMeshParams());
-    VlocField V(*cl, vloc);
-    rsmat_t VW = qcMesh::WeightedOverlap(mesh, *itsOrb, V);   // <i|V_loc|j>
-    double  mean = qcMesh::Integrate(mesh, V) / itsGrid->Volume();   // (1/Omega) integral V_loc = the dG=0 average
-    rsmat_t S  = qcMesh::Overlap(mesh, *itsOrb);             // <i|j> on the SAME mesh (so the subtraction is exact)
-    VW -= mean*S;                                             // drop the dG=0 component (PW convention; alignment separate)
-    return Complexify(VW);
+    assert(itsGrid && "GPW_Evaluator: the local PP needs the density grid (construct with densityEcut>0)");
+    const UnitCell& B=itsGrid->Recip().GetCell();
+    return OverlapMatrix([&](const ivec3_t& dm)->dcmplx
+    {
+        if (dm.x==0 && dm.y==0 && dm.z==0) return dcmplx(0.0);        // drop dG=0 (alignment carries it)
+        rvec3_t dG=B.ToCartesian(rvec3_t(dm));
+        double  g2=dG*dG;
+        dcmplx  acc(0.0);                                            // form factor x structure factor
+        for (Atom* a : *cl) acc += loc.FormFactor(a->itsZ,g2)*std::exp(dcmplx(0.0,-(dG*a->itsR)));
+        return acc/itsGrid->Volume();
+    });
 }
 
 // KB separable nonlocal PP: accumulate the rank-1 D|b><b| over atoms/projectors/m, with b_i = <chi_i|beta_p Y_lm>
