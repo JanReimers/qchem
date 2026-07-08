@@ -50,28 +50,33 @@ public:
     //! \c Orbital_DFT_IBS::Overlap3C (overlap metric); \a c is the Vxc fit basis.  Cached; build is \c MakeOverlap3C.
     const G_ERI3& Overlap3C(const cFIT_SF_ABS& c) const;
 
-    //! \brief Assemble the ORBITAL KS-matrix block \f$\langle i|V|j\rangle=\tilde V(m_i-m_j)\f$ from a G-space
-    //! potential \a Vtilde (a reciprocal-index-difference lookup).  This is the potential->orbital-matrix
-    //! BRIDGE the Hartree (\f$V_H(\Delta m)\f$ from \c Repulsion3C) and XC (\f$\tilde v_{xc}(\Delta m)\f$ from
-    //! the fit grid) terms use.  It is ORBITAL-SPECIFIC: a plane-wave basis does the Fourier lookup shown; a
-    //! Gaussian (GPW) basis will instead grid-integrate \f$\int\phi_i V\phi_j\f$ (collocation's adjoint).  So
-    //! it lives on the orbital face, NOT on the shared \c G_FieldEvaluator grid engine (which a GPW density
-    //! grid reuses unchanged).  The pure-PW analogue of the molecular real-space \f$\langle i|V|j\rangle\f$ quadrature.
-    virtual chmat_t MakePotential(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const=0;
+    //! Un-hide the no-arg overlap-matrix build \f$\langle i|j\rangle\f$ (\c Integrals_Overlap::MakeOverlap) so it
+    //! stays in the same overload set as the field form below (which would otherwise hide it).
+    using Integrals_Overlap<dcmplx>::MakeOverlap;
+
+    //! \brief Assemble the ORBITAL one-electron matrix \f$\langle i|f|j\rangle\f$ for a G-space field \a f keyed
+    //! by the reciprocal-index difference (\f$\langle i|f|j\rangle=f(m_i-m_j)\f$ for plane waves).  The general
+    //! (potential-carrying) sibling of the no-arg \c MakeOverlap() \f$\langle i|j\rangle\f$ -- hence the name +
+    //! the \c Make prefix: it is NOT cached (\a f = \f$V_H\f$ / \f$v_{xc}\f$ changes every SCF iteration).  This
+    //! is the field->orbital-matrix BRIDGE the Hartree (\f$V_H(\Delta m)\f$ from \c Repulsion3C) and XC
+    //! (\f$\tilde v_{xc}(\Delta m)\f$ from the fit grid) terms use.  ORBITAL-SPECIFIC: a plane-wave basis does the
+    //! Fourier lookup shown; a Gaussian (GPW) basis grid-integrates \f$\int\phi_i f\phi_j\f$ (collocation's
+    //! adjoint).  So it lives on the orbital face, NOT the shared \c G_FieldEvaluator grid engine.
+    virtual chmat_t MakeOverlap(const std::function<dcmplx(const ivec3_t&)>& f) const=0;
 
     // NB: the SAD seed's structure-factor density (MakeFourierDensity) is NOT here -- it is a grid-engine
     // operation (G_FieldEvaluator::MakeFourierDensity), which the seed reaches through its OWN fit basis, so
     // the seed never depends on the orbital basis.
 
     // NB: the Hartree matrix is NOT built here as a rho-tilde->matrix method.  A density contracts D against
-    // Repulsion3C to a V_H (kernel baked), and the term assembles <i|V_H|j> via THIS face's MakePotential
+    // Repulsion3C to a V_H (kernel baked), and the term assembles <i|V_H|j> via THIS face's MakeOverlap(f)
     // bridge (above) -- so the old Repulsion(ΔG_Map) fitter path stays retired.
 
     // NB: the FFT XC route -- the real-space grid, the inverse/forward transforms, coefficient lookup -- is
     // NOT here.  It is the plane-wave GRID ENGINE, exposed by the BasisSet::G_FieldEvaluator seam (implemented
     // by PW_Evaluator, so both the orbital and the auxiliary fit basis carry it); the Vxc term quadratures on
     // its FIT basis's grid through that seam.  The final <i|v_xc|j> assembly then routes through THIS face's
-    // MakePotential bridge (the orbital-specific step), same as Hartree.
+    // MakeOverlap(f) bridge (the orbital-specific step), same as Hartree.
 
 protected:
     //! \brief One-time build of the Coulomb tensor (the concrete plane-wave basis's own \f$\{G\}\f$ delta

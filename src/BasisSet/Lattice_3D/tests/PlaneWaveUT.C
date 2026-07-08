@@ -145,7 +145,7 @@ TEST_F(PlaneWaveTests, EmptyLatticeOrthorhombicGamma)
 
 // --- Milestone 2.2: separable cosine potential (validates G-space potential assembly) -------------
 
-// MakePotential must produce exactly the sparse cosine structure: V0/2 between G and G +/- b_i, else 0.
+// MakeOverlap must produce exactly the sparse cosine structure: V0/2 between G and G +/- b_i, else 0.
 TEST_F(PlaneWaveTests, CosineMatrixStructure)
 {
     double a=5.0, V0=0.3;
@@ -155,7 +155,7 @@ TEST_F(PlaneWaveTests, CosineMatrixStructure)
     PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(0,0,0),8.0);
 
     auto Vtilde=CosineVtilde(V0);
-    chmat_t V=pw.MakePotential(Vtilde);
+    chmat_t V=pw.MakeOverlap(Vtilde);
     size_t n=pw.GetNumFunctions();
     ASSERT_EQ(V.rows(),n);
     for (size_t i=0;i<n;i++)
@@ -181,7 +181,7 @@ TEST_F(PlaneWaveTests, CosineTraceInvariant)
     Lattice_3D lat(cell,N);
     PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(1,0,0),8.0);
 
-    chmat_t V=pw.MakePotential(CosineVtilde(V0));
+    chmat_t V=pw.MakeOverlap(CosineVtilde(V0));
     std::vector<double> bands=SolveBands(pw,&V);
 
     chmat_t p2=pw.MakeKinetic();
@@ -200,7 +200,7 @@ TEST_F(PlaneWaveTests, CosineZeroRecoversEmptyLattice)
     Lattice_3D lat(cell,N);
     PlaneWave_IBS pw(lat.Reciprocal(),N,k,Ecut);
 
-    chmat_t V=pw.MakePotential(CosineVtilde(0.0));
+    chmat_t V=pw.MakeOverlap(CosineVtilde(0.0));
     std::vector<double> bands=SolveBands(pw,&V);
     std::vector<double> ref=FreeElectronReference(a,N,k,Ecut);
     ASSERT_EQ(bands.size(),ref.size());
@@ -217,7 +217,7 @@ TEST_F(PlaneWaveTests, CosineGroundStatePerturbation)
     Lattice_3D lat(cell,N);
     PlaneWave_IBS pw(lat.Reciprocal(),N,ivec3_t(0,0,0),8.0);
 
-    chmat_t V=pw.MakePotential(CosineVtilde(V0));
+    chmat_t V=pw.MakeOverlap(CosineVtilde(V0));
     std::vector<double> bands=SolveBands(pw,&V);
 
     double E0_pt2 = -3.0*V0*V0*a*a/(4*Pi*Pi);

@@ -106,7 +106,7 @@ TEST_F(BandStructureTests, DISABLED_CosineGapCalibration)
     for (double V0 : {0.0,0.05,0.1,0.2})
     {
         PlaneWave_IBS pw(recip,N,X,Ecut);
-        std::vector<double> b=ascending(SolveBands(pw, pw.MakePotential(CosineVtilde(V0))));
+        std::vector<double> b=ascending(SolveBands(pw, pw.MakeOverlap(CosineVtilde(V0))));
         printf("V0=%.2f  gap(X)=b1-b0=%.5f  (NFE: V0)\n",V0,b[1]-b[0]);
     }
 }
@@ -122,12 +122,12 @@ TEST_F(BandStructureTests, CosinePotentialOpensZoneBoundaryGap)
 
     // Empty lattice: the two lowest bands are degenerate at the zone boundary X.
     PlaneWave_IBS pw0(recip,N,X,Ecut);
-    std::vector<double> empty=ascending(SolveBands(pw0, pw0.MakePotential(CosineVtilde(0.0))));
+    std::vector<double> empty=ascending(SolveBands(pw0, pw0.MakeOverlap(CosineVtilde(0.0))));
     EXPECT_NEAR(empty[1]-empty[0], 0.0, 1e-9);
 
     // Cosine on: a gap of ~V0 opens between them.
     PlaneWave_IBS pw(recip,N,X,Ecut);
-    std::vector<double> bands=ascending(SolveBands(pw, pw.MakePotential(CosineVtilde(V0))));
+    std::vector<double> bands=ascending(SolveBands(pw, pw.MakeOverlap(CosineVtilde(V0))));
     double gap=bands[1]-bands[0];
     EXPECT_GT(gap, 0.5*V0);                 // a real gap opened
     EXPECT_NEAR(gap, V0, 0.1*V0);           // nearly-free-electron value 2|Vtilde(b)| = V0 (10% for O(V0^2))

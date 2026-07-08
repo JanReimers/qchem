@@ -200,8 +200,8 @@ TEST(GPW, CollocationOverlapMatchesAnalytic)
 }
 
 // Integrate-back: a CONSTANT potential V(r)=V0 (Vtilde nonzero only at G=0) must give <chi_i|V0|chi_j> = V0 S_ij
-// (grid-quadrature).  This validates PotentialMatrix (the RhoOnGrid inverse-FFT + the grid quadrature adjoint).
-TEST(GPW, PotentialMatrixConstantEqualsV0Overlap)
+// (grid-quadrature).  This validates OverlapMatrix (the RhoOnGrid inverse-FFT + the grid quadrature adjoint).
+TEST(GPW, OverlapWithConstantFieldEqualsV0Overlap)
 {
     const double a=10.0;
     UnitCell cell(a);
@@ -212,7 +212,7 @@ TEST(GPW, PotentialMatrixConstantEqualsV0Overlap)
     const GPW_Evaluator& ev = gpw;
     const Complex_OIBS&   g  = gpw;
     const double V0 = 0.7;
-    const chmat_t M = ev.PotentialMatrix([V0](const ivec3_t& dm)->dcmplx
+    const chmat_t M = ev.OverlapMatrix([V0](const ivec3_t& dm)->dcmplx
         { return (dm.x==0 && dm.y==0 && dm.z==0) ? dcmplx(V0) : dcmplx(0.0); });
 
     const auto& S = g.Overlap();

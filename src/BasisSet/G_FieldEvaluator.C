@@ -28,7 +28,7 @@ export namespace qchem::BasisSet
 //! it already holds) -- never a cast into a concrete \c PW_Evaluator.  This is now a PURE density/potential grid
 //! engine: the \f$\langle G_i|V|G_j\rangle=\tilde V(m_i-m_j)\f$ potential->orbital-matrix assembly (the ONE
 //! method that assumed the ORBITALS are plane waves) has moved OFF here onto the orbital face
-//! (\c Band_FT_IBS::MakePotential), so a Gaussian-orbital (GPW) density grid can reuse this engine wholesale.
+//! (\c Band_FT_IBS::MakeOverlap), so a Gaussian-orbital (GPW) density grid can reuse this engine wholesale.
 //! Implemented by \c PW_Evaluator, so both the orbital and the auxiliary fit basis carry it.
 class G_FieldEvaluator
 {

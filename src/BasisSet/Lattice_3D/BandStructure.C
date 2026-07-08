@@ -22,7 +22,7 @@ export namespace qchem::BasisSet::Lattice_3D
 //! H = 1/2 Kinetic + Vext and the overlap O, then solve the generalized eigenproblem H c = e O c.
 //! Returns the band energies (LASolver order, ascending).  Works for any Orbital_1E_IBS<dcmplx> -- the
 //! k lives inside \a ibs.  Vext is whatever external potential the caller chose (a nuclear structure
-//! factor, a model cosine via MakePotential, a pseudopotential, ...).
+//! factor, a model cosine via MakeOverlap, a pseudopotential, ...).
 inline rvec_t SolveBands(const BasisSet::Orbital_1E_IBS<dcmplx>& ibs, const chmat_t& Vext)
 {
     chmat_t O=ibs.MakeOverlap();

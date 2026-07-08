@@ -35,11 +35,17 @@ export namespace qchem::BasisSet::Lattice_3D
 //! \f$\Gamma\f$.  Built from a molecular Gaussian basis (over the cell's atoms) + the cell.
 class GPW_IBS
     : public EPW_Orbital1E_IBS<GPW_Evaluator>       // op()/Gradient/GetNumFunctions/MakeOverlap/MakeKinetic/MakeNuclear
-    , public EPW_Orbital_DFT_IBS<GPW_Evaluator>     // DFT tier (IS-A Band_FT_IBS): MakePotential/MakeRepulsion3C/MakeOverlap3C
+    , public EPW_Orbital_DFT_IBS<GPW_Evaluator>     // DFT tier (IS-A Band_FT_IBS): MakeOverlap/MakeRepulsion3C/MakeOverlap3C
     , public BasisSet::IrrepBasisSetImp<dcmplx>     // supplies GetSymmetry/GetSymt/GetIrrep + itsSymmetry
     , public GPW_Evaluator                          // the shared Gaussian evaluator (Cast() target for the mixins)
 {
 public:
+    //! \c MakeOverlap is in BOTH the 1E mixin (no-arg \f$\langle i|j\rangle\f$) and the DFT mixin (the field
+    //! bridge \f$\langle i|f|j\rangle\f$); merge them into one overload set so a concrete-class call is not an
+    //! ambiguous multi-base lookup.
+    using EPW_Orbital1E_IBS<GPW_Evaluator>::MakeOverlap;
+    using EPW_Orbital_DFT_IBS<GPW_Evaluator>::MakeOverlap;
+
     //! \brief Primary constructor: the Bloch symmetry IS the k-label (\f$k=\f$ Symmetry::Lattice_3D::Getk).
     //! \param cell  the direct lattice (its atoms carry the Gaussian centres; source of the translation set).
     //! \param irrep the Bloch irrep (a BlochQN); this increment requires \f$k=\Gamma\f$.

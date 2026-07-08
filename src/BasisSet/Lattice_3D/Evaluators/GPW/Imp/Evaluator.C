@@ -71,7 +71,7 @@ GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const
 
 // chi_i(r_g) on the density grid (Bloch-summed Gaussians; real at Gamma).  Computed on demand -- NOT cached in
 // a member: the framework caches the DERIVED tensor (Repulsion3C/Overlap3C via Band_FT_IBS's DB_Cache), so this
-// runs a small, bounded number of times (once per one-time tensor build; and per PotentialMatrix call, whose
+// runs a small, bounded number of times (once per one-time tensor build; and per OverlapMatrix call, whose
 // per-iteration quadrature dominates it anyway).  Keeping the evaluator stateless keeps the caching in one place.
 rmat_t GPW_Evaluator::PhiOnGrid() const
 {
@@ -136,7 +136,7 @@ G_ERI3 GPW_Evaluator::Overlap3CTensor() const {return BuildWeights();}
 // The potential->KS-matrix bridge (collocation's adjoint): inverse-FFT Vtilde over the density grid to V(r),
 // then <chi_i|V|chi_j> = integral chi_i V chi_j by grid quadrature.  Vtilde is sampled over the grid's own {G}
 // (which matches the fit basis GPW created, so a Hartree/XC Vtilde covers exactly these).
-chmat_t GPW_Evaluator::PotentialMatrix(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const
+chmat_t GPW_Evaluator::OverlapMatrix(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const
 {
     rmat_t Phi=PhiOnGrid();
     ΔG_Map vmap;

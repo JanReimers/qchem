@@ -102,10 +102,10 @@ chmat_t PW_Hartree::CalcMatrix(const cobs_t* bs, const Spin&, const cChargeDensi
     auto bft=dynamic_cast<const BasisSet::Band_FT_IBS*>(bs);
     assert(bft && "PW_Hartree requires a Band_FT_IBS (reciprocal-space DFT) orbital basis");
     // The density contracts D against the basis's D-free Coulomb tensor Repulsion3C (kernel baked) to give
-    // V_H(dm); the term assembles <i|V_H|j> = V_H(G_i-G_j) via the orbital basis's MakePotential bridge.  D
+    // V_H(dm); the term assembles <i|V_H|j> = V_H(G_i-G_j) via the orbital basis's MakeOverlap bridge.  D
     // never crosses into the basis.
     ΔG_Map VH=fd->GetRepulsion3C(*itsFitBasis);
-    return bft->MakePotential([&VH](const ivec3_t& dm)->dcmplx
+    return bft->MakeOverlap([&VH](const ivec3_t& dm)->dcmplx
         { auto it=VH.find(dm); return it==VH.end()?dcmplx(0.0):it->second; });
 }
 

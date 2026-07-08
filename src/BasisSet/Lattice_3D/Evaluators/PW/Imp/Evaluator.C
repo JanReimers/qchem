@@ -102,7 +102,7 @@ chmat_t PW_Evaluator::LocalPotentialMatrix(const Structure* cl,
                           const std::function<double(int,double)>& formFactor) const
 {
     const UnitCell& B=itsRecip.GetCell();
-    return PotentialMatrix([&](const ivec3_t& dm)->dcmplx
+    return OverlapMatrix([&](const ivec3_t& dm)->dcmplx
     {
         if (dm.x==0 && dm.y==0 && dm.z==0) return dcmplx(0.0);   // drop dG=0
         rvec3_t dG=B.ToCartesian(rvec3_t(dm));                    // dG = B.dm (Cartesian)
@@ -190,7 +190,7 @@ chmat_t PW_Evaluator::KineticMatrix() const
 }
 
 // <G|V|G'> = Vtilde(m(G) - m(G')).  Fill the upper triangle; HermitianMatrix mirrors the conjugate.
-chmat_t PW_Evaluator::PotentialMatrix(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const
+chmat_t PW_Evaluator::OverlapMatrix(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const
 {
     size_t n=size();
     chmat_t V=blazem::zeroH<dcmplx>(n);

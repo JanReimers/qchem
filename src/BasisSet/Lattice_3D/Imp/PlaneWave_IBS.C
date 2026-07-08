@@ -1,10 +1,10 @@
 // File: BasisSet/Lattice_3D/Imp/PlaneWave_IBS.C  Plane-wave irrep basis set implementation.
 //
-// Grid-geometry methods (op(r), overlap/kinetic, the {G} set, MakePotential, the FFT grid) live in the
+// Grid-geometry methods (op(r), overlap/kinetic, the {G} set, MakeOverlap, the FFT grid) live in the
 // shared PW_Evaluator (this basis IS-A one, reached through the EPW_* mixins).  What remains here is the
 // orbital-only, atom/model-driven assembly: the density-driven G-space Hartree/XC route and the external
 // pseudopotential.  Those read the shared grid data through the evaluator accessors (Gs(), Volume(),
-// Recip(), kFrac(), GetGCartesian, MakePotential, the FFT-grid helpers).
+// Recip(), kFrac(), GetGCartesian, MakeOverlap, the FFT-grid helpers).
 module;
 #include <algorithm>
 #include <cassert>
@@ -42,7 +42,7 @@ PlaneWave_IBS::PlaneWave_IBS(const ReciprocalLattice& recip, const ivec3_t& N,
 
 // The real-space DFT-integration oracles -- Overlap(f)/Repulsion(rho)/Integral(f) over a ScalarFunction --
 // were test-only cross-checks; they moved to UnitTests/PlaneWaveDFTUT.C as free functions over the public
-// evaluator grid accessors (UniformGrid/AutoGrid/Gs/MakePotential/Volume/Recip).  MakeRepulsion3C/MakeOverlap3C
+// evaluator grid accessors (UniformGrid/AutoGrid/Gs/MakeOverlap/Volume/Recip).  MakeRepulsion3C/MakeOverlap3C
 // (the D-free {G} 3-centre builds) and MakeFourierDensity moved to the shared grid engine (PW_Evaluator).
 
 // MakeNuclear (bare-Coulomb 1E block) moved to the evaluator (PW_Evaluator::NuclearMatrix), inherited via

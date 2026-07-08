@@ -20,7 +20,7 @@ export import qchem.Fitting.FunctionFitter;  // FunctionFitter_Density/_Scalar<d
 import qchem.Fitting.Types;                   // robs_t<dcmplx>
 import qchem.BasisSet.Fit_IBS;                // cFIT_CD_ABS / cFIT_SF_ABS (the held fit bases)
 import qchem.BasisSet.G_FieldEvaluator;       // the DIP seam: inverse-transform itsMap to real space (op(r))
-import qchem.BasisSet.Band_FT_IBS;            // the orbital assembly bridge (MakePotential) for the XC matrix
+import qchem.BasisSet.Band_FT_IBS;            // the orbital assembly bridge (MakeOverlap) for the XC matrix
 import qchem.Blaze;                           // hmat_t<dcmplx>
 
 export namespace qchem::Fitting
@@ -44,7 +44,7 @@ public:
     }
 
     //! Coulomb (Hartree) matrix: OBSOLETE.  The plane-wave Hartree matrix is now built from the density's
-    //! Repulsion3C tensor (D contracted to V_H, kernel baked) and assembled by PW_Hartree via MakePotential --
+    //! Repulsion3C tensor (D contracted to V_H, kernel baked) and assembled by PW_Hartree via MakeOverlap --
     //! the density fitter is no longer on that path (it survives only for its evaluatable rho_fit(r) field).
     //! Nothing calls this; kept to satisfy the FunctionFitter_Density interface, throwing if ever reached.
     virtual hmat_t<dcmplx> Repulsion(const robs_t<dcmplx>*) const override
@@ -105,7 +105,7 @@ public:
 
     //! XC matrix <i|v_xc|j> = V-tilde(m_i-m_j): the ORBITAL basis assembles over ITS {G}, looking each
     //! reciprocal-index difference up in OUR fit-grid coefficients -- so the fit grid may be denser than (or
-    //! offset from) the orbital's.  The orbital's assembly is its Band_FT_IBS::MakePotential bridge (the
+    //! offset from) the orbital's.  The orbital's assembly is its Band_FT_IBS::MakeOverlap bridge (the
     //! orbital-specific step); the fit grid's GridCoeff lookup is the shared G_FieldEvaluator grid engine.
     virtual hmat_t<dcmplx> Overlap(const robs_t<dcmplx>* bs) const override
     {
@@ -115,7 +115,7 @@ public:
         // its isOrtho() contract guarantees.)  Ties to the item-C dynamic_cast survey.
         const BasisSet::Band_FT_IBS&      orb=dynamic_cast<const BasisSet::Band_FT_IBS&>(*bs);   // the assembly bridge
         const BasisSet::G_FieldEvaluator& fit=FitGrid();                                         // the fit grid engine
-        return orb.MakePotential([&](const ivec3_t& dm)->dcmplx {return fit.GridCoeff(itsVt, dm);});
+        return orb.MakeOverlap([&](const ivec3_t& dm)->dcmplx {return fit.GridCoeff(itsVt, dm);});
     }
 
     virtual void ReScale(double factor) override
