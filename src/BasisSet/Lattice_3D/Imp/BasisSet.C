@@ -10,30 +10,22 @@ import qchem.Types;
 namespace qchem::BasisSet::Lattice_3D
 {
 
-namespace
+// ONE plane-wave block per Brillouin-zone k-point: the basis ctor is the single place that enumerates k, so
+// the framework's per-irrep loop (each k IS a Bloch irrep) becomes the BZ sum Sum_k w_k.  The KMesh carries
+// the points + weights (uniform 1/Nk for an unreduced grid; symmetry-reduced points/weights will plug in
+// here later).  N=(1,1,1) -> a single Gamma block.
+PW_BasisSet::PW_BasisSet(const ::qchem::Lattice_3D& lat, double Ecut)
 {
-//! A tBasisSet<dcmplx> holding the plane-wave Bloch block(s); owns the IBS list (deleted with the basis).
-class PW_BasisSet : public ::qchem::BasisSet::BasisSetImp<dcmplx>
-{
-public:
-    PW_BasisSet(const ::qchem::Lattice_3D& lat, double Ecut)
+    ReciprocalLattice recip=lat.Reciprocal();
+    const ivec3_t N=lat.GetLimits();
+    for (const auto& kp : lat.MakeKMesh())
     {
-        // ONE plane-wave block per Brillouin-zone k-point: the basis ctor is the single place that
-        // enumerates k, so the framework's per-irrep loop (each k IS a Bloch irrep) becomes the BZ sum
-        // Sum_k w_k.  The KMesh carries the points + weights (uniform 1/Nk for an unreduced grid;
-        // symmetry-reduced points/weights will plug in here later).  N=(1,1,1) -> a single Gamma block.
-        ReciprocalLattice recip=lat.Reciprocal();
-        const ivec3_t N=lat.GetLimits();
-        for (const auto& kp : lat.MakeKMesh())
-        {
-            ivec3_t ik(std::lround(kp.k.x*N.x), std::lround(kp.k.y*N.y), std::lround(kp.k.z*N.z));
-            auto* pw=new PlaneWave_IBS(recip, Symmetry::BlochFactory(N, ik, kp.weight), Ecut);
-            Insert(pw);                                 // BasisSetImp takes ownership (no PP: the Vpseudo
-                                                        // Hamiltonian term owns the pseudopotential model)
-        }
+        ivec3_t ik(std::lround(kp.k.x*N.x), std::lround(kp.k.y*N.y), std::lround(kp.k.z*N.z));
+        auto* pw=new PlaneWave_IBS(recip, Symmetry::BlochFactory(N, ik, kp.weight), Ecut);
+        Insert(pw);                                 // BasisSetImp takes ownership (no PP: the Vpseudo
+                                                    // Hamiltonian term owns the pseudopotential model)
     }
-};
-} //anon
+}
 
 Complex_BS* Factory(Type type, const ::qchem::Lattice_3D& lat, double Ecut)
 {

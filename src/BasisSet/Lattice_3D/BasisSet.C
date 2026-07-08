@@ -10,6 +10,8 @@ export module qchem.BasisSet.Lattice_3D.BasisSet;
 export import qchem.BasisSet;                          // Complex_BS (= tBasisSet<dcmplx>)
 export import qchem.Lattice_3D;                        // Lattice_3D (the crystal structure + BZ grid)
 export import qchem.BasisSet.Lattice_3D.PlaneWave_IBS; // PlaneWave_IBS + LocalPotential/SeparablePotential
+import qchem.BasisSet.Internal.BasisSetImp;            // BasisSetImp<dcmplx> (the PW_BasisSet base; NOT re-exported)
+import qchem.Types;                                    // dcmplx
 
 export namespace qchem::BasisSet::Lattice_3D
 {
@@ -24,5 +26,23 @@ enum class Type { PW };
 //! \note Single-k for now: the returned basis holds ONE Bloch block at \f$\Gamma\f$.  Phase 2
 //!   generalises this to the full BZ k-list (intended to be the only k-loop in the framework).
 Complex_BS* Factory(Type type, const ::qchem::Lattice_3D& lat, double Ecut);
+
+} //namespace
+
+// NOT exported: the concrete container is an implementation detail (callers use Factory's abstract
+// Complex_BS).  Named here rather than anonymous in Imp/ so it is a first-class type -- the home for the
+// shared density-grid PeriodicGridEvaluator, and where GPW_BasisSet will sit beside it.  Ctor in Imp/BasisSet.C.
+namespace qchem::BasisSet::Lattice_3D
+{
+
+//! A tBasisSet<dcmplx> holding the plane-wave Bloch block(s); owns the IBS list (deleted with the basis).
+class PW_BasisSet : public BasisSet::BasisSetImp<dcmplx>
+{
+public:
+    //! Build one PlaneWave_IBS per Brillouin-zone k-point of \a lat at cutoff \a Ecut (a single Gamma block
+    //! for an N=(1,1,1) mesh).  The basis ctor is the sole place that enumerates k -- the framework's
+    //! per-irrep loop then IS the BZ sum \f$\sum_k w_k\f$.
+    PW_BasisSet(const ::qchem::Lattice_3D& lat, double Ecut);
+};
 
 } //namespace
