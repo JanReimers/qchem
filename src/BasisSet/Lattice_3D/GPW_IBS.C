@@ -17,11 +17,15 @@ module;
 
 export module qchem.BasisSet.Lattice_3D.GPW_IBS;
 import qchem.BasisSet.Lattice_3D.Evaluators.GPW;  // GPW_Evaluator (base subobject) -- NOT re-exported (internal)
-import qchem.BasisSet.Lattice_3D.IBS;             // EPW_Orbital1E_IBS<E> (the evaluator-templated mixin)
+import qchem.BasisSet.Lattice_3D.IBS;             // EPW_Orbital1E_IBS<E> + EPW_Orbital_DFT_IBS<E> (mixins)
+import qchem.BasisSet.Lattice_3D.PlaneWaveFit_IBS; // the auxiliary PW fit basis the DFT factory returns
 import qchem.BasisSet.Internal.IrrepBasisSetImp;  // IrrepBasisSetImp<dcmplx>: GetSymmetry/GetSymt/GetIrrep
+export import qchem.BasisSet.Band_FT_IBS;          // Band_FT_IBS (the DFT capability; Create*FitBasisSet)
+export import qchem.BasisSet.Fit_IBS;              // cFIT_CD_ABS / cFIT_SF_ABS + qcMesh::MeshParams
 export import qchem.BasisSet;                      // Real_BS (the molecular Gaussian basis handed to the ctor)
 export import qchem.UnitCell;                      // UnitCell (the direct lattice handed to the ctor)
 import qchem.Symmetry;                            // sym_t (the Bloch irrep)
+import qchem.Structure;                           // Structure (Create*FitBasisSet arg)
 import qchem.Types;
 
 export namespace qchem::BasisSet::Lattice_3D
@@ -31,21 +35,29 @@ export namespace qchem::BasisSet::Lattice_3D
 //! \f$\Gamma\f$.  Built from a molecular Gaussian basis (over the cell's atoms) + the cell.
 class GPW_IBS
     : public EPW_Orbital1E_IBS<GPW_Evaluator>       // op()/Gradient/GetNumFunctions/MakeOverlap/MakeKinetic/MakeNuclear
+    , public EPW_Orbital_DFT_IBS<GPW_Evaluator>     // DFT tier (IS-A Band_FT_IBS): MakePotential/MakeRepulsion3C/MakeOverlap3C
     , public BasisSet::IrrepBasisSetImp<dcmplx>     // supplies GetSymmetry/GetSymt/GetIrrep + itsSymmetry
-    , public GPW_Evaluator                          // the shared Gaussian evaluator (Cast() target for the mixin)
+    , public GPW_Evaluator                          // the shared Gaussian evaluator (Cast() target for the mixins)
 {
 public:
     //! \brief Primary constructor: the Bloch symmetry IS the k-label (\f$k=\f$ Symmetry::Lattice_3D::Getk).
     //! \param cell  the direct lattice (its atoms carry the Gaussian centres; source of the translation set).
     //! \param irrep the Bloch irrep (a BlochQN); this increment requires \f$k=\Gamma\f$.
     //! \param mol   the molecular Gaussian orbital basis built over \a cell's atoms (kept alive by the evaluator).
+    //! \param densityEcut  the DFT-tier density/collocation grid cutoff (Hartree); \f$\le 0\f$ = 1E-only (no DFT).
     //! \param Rcut  lattice-translation sphere radius (a.u.); \f$\le 0\f$ = home cell only (the finite limit).
     GPW_IBS(const UnitCell& cell, const sym_t& irrep,
-            std::shared_ptr<const BasisSet::Real_BS> mol, double Rcut = 0.0);
+            std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut = 0.0, double Rcut = 0.0);
 
     //! \brief Convenience constructor in BZ-grid indices: builds the Bloch irrep \c BlochFactory(N,kIndex).
     GPW_IBS(const UnitCell& cell, const ivec3_t& N, const ivec3_t& kIndex,
-            std::shared_ptr<const BasisSet::Real_BS> mol, double Rcut = 0.0);
+            std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut = 0.0, double Rcut = 0.0);
+
+    //! \brief The DFT factory seam (Band_FT_IBS): the auxiliary density/potential fit basis is a plane-wave grid
+    //! over GPW's OWN density grid -- so the collocated \f$\tilde\rho\f$'s \f$\{G\}\f$ matches the fitter's.  A
+    //! GPW density lives on a plane-wave grid whatever the orbitals are (never orbital==fit).
+    virtual BasisSet::cFIT_CD_ABS* CreateCDFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const override;
+    virtual BasisSet::cFIT_SF_ABS* CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const override;
 
     virtual std::string Name      () const override {return "GPW";}
     virtual std::string BasisSetID() const override; // geometry-aware cache key (Name + molecular ID + k + nR)

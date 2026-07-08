@@ -19,17 +19,19 @@
 // collocation) and a rigorous periodic nuclear attraction (Ewald) are later increments.
 module;
 #include <cstddef>
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
 export module qchem.BasisSet.Lattice_3D.Evaluators.GPW;
-import qchem.BasisSet.Lattice_3D.Evaluators.PW;   // isPW_1E_Evaluator (the concept this evaluator satisfies)
+import qchem.BasisSet.Lattice_3D.Evaluators.PW;   // isPW_1E/DFT_Evaluator + PW_Grid_Evaluator (GPW's density grid)
 import qchem.BasisSet.Molecule.LatticeSum1E;       // Molecule::LatticeSum1E (the periodic-1E capability we call)
 import qchem.BasisSet;                             // Real_BS (the molecular Gaussian basis we own)
 import qchem.BasisSet.Orbital_1E_IBS;              // Real_OIBS (its orbital block: op()/Gradient/size)
+export import qchem.BasisSet.Internal.GMap;        // G_ERI3 (the DFT 3-centre tensor, now with GPW weights)
 import qchem.UnitCell;                             // UnitCell (the direct lattice; CellsInSphere/ToCartesian)
 import qchem.Structure;                            // Structure (the nuclear-attraction centres)
-import qchem.Types;                                // rvec3_t, cvec_t, cvec3vec_t, chmat_t
+import qchem.Types;                                // rvec3_t, cvec_t, cvec3vec_t, chmat_t, rmat_t
 
 export namespace qchem::BasisSet::Lattice_3D
 {
@@ -43,12 +45,15 @@ class GPW_Evaluator
 public:
     //! \param mol   the molecular Gaussian orbital basis built over \a cell's atoms (kept alive here); its one
     //!              orbital block must realise \c Molecule::LatticeSum1E (a PG Gaussian basis does).
-    //! \param cell  the direct lattice (source of the real-space translation set \f$\{R\}\f$).
+    //! \param cell  the direct lattice (source of the real-space translation set \f$\{R\}\f$ + the reciprocal cell).
+    //! \param densityEcut  plane-wave cutoff (Hartree) for the DENSITY/collocation grid: the FFT grid \f$\{r\}\f$
+    //!              and the fit set \f$\{G\}\f$ GPW collocates its density onto (the DFT tier; must resolve the
+    //!              Gaussian-product density -- CP2K's density cutoff).  \f$\le 0\f$ disables the DFT tier.
     //! \param kFrac fractional crystal momentum (this increment: \f$\Gamma\f$, asserted \f$\approx 0\f$).
     //! \param Rcut  radius (a.u.) of the lattice-translation sphere; \f$\le 0\f$ means the home cell only
     //!              (\f$R=0\f$: reproduces the finite molecule exactly).  A generous \a Rcut folds in images.
     GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const UnitCell& cell,
-                  const rvec3_t& kFrac = rvec3_t(0,0,0), double Rcut = 0.0);
+                  double densityEcut = 0.0, const rvec3_t& kFrac = rvec3_t(0,0,0), double Rcut = 0.0);
     virtual ~GPW_Evaluator() = default;   // polymorphic: reached by the EPW_* mixin's Cast() cross-cast
 
     // --- isPW_1E_Evaluator surface (exact signatures the concept demands) ---
@@ -58,6 +63,21 @@ public:
     chmat_t    OverlapMatrix()                 const;   //!< \f$\sum_R\langle i|j(\cdot-R)\rangle\f$
     chmat_t    KineticMatrix()                 const;   //!< \f$\sum_R\langle i|-\nabla^2|j(\cdot-R)\rangle\f$ (no 1/2)
     chmat_t    NuclearMatrix(const Structure* cl) const;//!< \f$\sum_R\langle i|\sum_c -Z_c/|r-R_c||j(\cdot-R)\rangle\f$
+
+    // --- isPW_DFT_Evaluator surface: the DFT tier by COLLOCATION on the density grid (the genuinely-new GPW
+    //     primitive).  All three route through the held PW_Grid_Evaluator (its {r}/{G}/FFT/Poisson). ---
+    //! \brief Coulomb 3-centre tensor: \f$W_c(i,j)=\tfrac1\Omega\int\chi_i\chi_j e^{-iG_c\cdot r}\f$ (collocated
+    //! Gaussian-product FT) with the diagonal Poisson kernel \f$4\pi/|G_c|^2\f$.  Density contracts \f$D\f$ against it.
+    G_ERI3  Repulsion3CTensor() const;
+    //! \brief Overlap 3-centre tensor: the same collocated \f$W_c(i,j)\f$, empty kernel (the density's \f$\tilde\rho\f$).
+    G_ERI3  Overlap3CTensor() const;
+    //! \brief The potential->KS-matrix bridge (collocation's adjoint): \f$\langle\chi_i|V|\chi_j\rangle=\int\chi_i
+    //! V\chi_j\f$ with \f$V(r)\f$ the inverse-FFT of \a Vtilde over the density grid -- grid-integrate, not the PW
+    //! Fourier lookup.  Satisfies \c isPW_DFT_Evaluator; forwarded by \c EPW_Orbital_DFT_IBS to \c MakePotential.
+    chmat_t PotentialMatrix(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const;
+
+    //! The density/collocation grid engine (the fit basis is built over it, so \f$\tilde\rho\f$'s \f$\{G\}\f$ matches).
+    const PW_Grid_Evaluator& DensityGrid() const {return *itsGrid;}
 
     //! Cache-key fragment: the molecular basis's geometry-aware ID + \f$k\f$ + the translation count.
     std::string IDFragment() const;
@@ -69,8 +89,14 @@ private:
     std::vector<rvec3_t>                itsR;             //!< Cartesian lattice translations (always incl. origin)
     rvec3_t                             itsk;             //!< fractional crystal momentum (Gamma this increment)
     size_t                              itsN   = 0;       //!< number of Gaussian orbitals
+    std::shared_ptr<const PW_Grid_Evaluator> itsGrid;     //!< the density/collocation grid (null if DFT tier off)
+    mutable rmat_t                      itsPhi;           //!< cached \f$\chi_i(r_g)\f$ on the grid (Npts x n; Gamma-real)
+    mutable G_ERI3                      itsW;             //!< cached collocation tensor (built once); columns=grid {G}
+    mutable bool                        itsWBuilt=false;
+    void BuildCollocation() const;                        //!< fill itsPhi + itsW (lazy, once)
 };
 
-static_assert(isPW_1E_Evaluator<GPW_Evaluator>, "GPW_Evaluator must satisfy isPW_1E_Evaluator");
+static_assert(isPW_1E_Evaluator <GPW_Evaluator>, "GPW_Evaluator must satisfy isPW_1E_Evaluator");
+static_assert(isPW_DFT_Evaluator<GPW_Evaluator>, "GPW_Evaluator must satisfy isPW_DFT_Evaluator");
 
 } //namespace

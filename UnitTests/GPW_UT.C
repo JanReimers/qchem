@@ -1,16 +1,19 @@
-// File GPW_UT.C  GPW increment 1: periodic Gaussian 1-electron integrals at Gamma.
+// File GPW_UT.C  GPW at Gamma: periodic Gaussian 1-electron integrals + the DFT-tier collocation primitive.
 //
 // GPW puts GAUSSIAN orbitals on a lattice.  Its one-electron matrices are lattice sums of the ordinary
 // (finite) two-centre integrals,  M_ij = Sum_R <chi_i | O | chi_j(.-R)>, computed by the molecular Gaussian
 // basis (Molecule::LatticeSum1E) and delegated to by GPW_Evaluator; GPW_IBS is the thin Orbital_1E_IBS on top.
 //
-// The validation mirrors L_PP: the SAME Si valence Gaussian basis gives the SAME overlap / kinetic (<p^2>) /
+// 1E validation mirrors L_PP: the SAME Si valence Gaussian basis gives the SAME overlap / kinetic (<p^2>) /
 // nuclear matrices whether the atom is a finite Molecule or centred in a large periodic UnitCell.  Two teeth:
-//   (1) home cell only (R={0}): GPW reproduces the finite matrices EXACTLY (same analytic M&D kernels) -- this
-//       proves the wiring + the molecular-capability reuse;
-//   (2) with the periodic images summed in: GPW matches the finite matrices to the (tiny) image tail, and the
-//       tail SHRINKS as the cell grows -- the large-cell limit, proving the lattice sum runs and converges.
-// (A physically rigorous periodic nuclear attraction (Ewald) and general-k Bloch phases are later increments.)
+//   (1) home cell only (R={0}): GPW reproduces the finite matrices EXACTLY (same analytic M&D kernels);
+//   (2) with the periodic images summed in: GPW matches to the (tiny) image tail, shrinking as the cell grows.
+//
+// DFT tier: GPW's genuinely-new primitive is COLLOCATION (rho=sum D chi chi on a grid -> FFT -> Poisson;
+// integrate a grid potential back against the Gaussians).  Two grid-convergent checks isolate collocate +
+// integrate-back against the analytic overlap, without a full SCF: the G=0 collocation weight is the grid-
+// quadrature overlap, and a constant potential integrates back to V0*<i|j>.  (A physically rigorous periodic
+// nuclear attraction (Ewald), general-k Bloch phases, and the full periodic SCF energy are later increments.)
 #include "gtest/gtest.h"
 #include <memory>
 #include <cmath>
@@ -22,6 +25,8 @@ import qchem.BasisSet;                          // Real_BS
 import qchem.BasisSet.Orbital_1E_IBS;           // Real_OIBS / Complex_OIBS + cached Overlap()/Kinetic()/Nuclear()
 import qchem.BasisSet.Molecule.Factory;         // Molecule::Factory, BasisSetData/Engine/Angular
 import qchem.BasisSet.Lattice_3D.GPW_IBS;       // GPW_IBS (the basis under test)
+import qchem.BasisSet.Lattice_3D.Evaluators.GPW; // GPW_Evaluator (tests may cheat-import internals) -- DFT tier
+import qchem.BasisSet.Internal.GMap;            // G_ERI3 / ΔG_Map (the collocation tensor + rho-tilde)
 import qchem.Blaze;                             // hmat_t element access / rows()
 import qchem.Types;
 
@@ -30,6 +35,7 @@ using BasisSet::Real_BS;
 using BasisSet::Real_OIBS;
 using BasisSet::Complex_OIBS;
 using BasisSet::Lattice_3D::GPW_IBS;
+using BasisSet::Lattice_3D::GPW_Evaluator;
 using qchem::BasisSet::Molecule::BasisSetData;
 
 namespace
@@ -105,7 +111,7 @@ TEST(GPW, HomeCellMatchesFiniteExactly)
     cell.AddAtom(14,{0.5,0.5,0.5});
     std::shared_ptr<const Real_BS> molCell = MakeBasis(cell);
 
-    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*Rcut=*/0.0);  // home cell only
+    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/0.0, /*Rcut=*/0.0); // home cell only
     const Complex_OIBS& g = gpw;
 
     ASSERT_EQ(g.GetNumFunctions(), fin.orb->GetNumFunctions());
@@ -128,7 +134,7 @@ TEST(GPW, LatticeSumConvergesToFiniteAsCellGrows)
         UnitCell cell(a);
         cell.AddAtom(14,{0.5,0.5,0.5});
         std::shared_ptr<const Real_BS> molCell = MakeBasis(cell);
-        GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*Rcut=*/1.5*a); // include nearest images
+        GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/0.0, /*Rcut=*/1.5*a); // images
         const Complex_OIBS& g = gpw;
         EXPECT_LT(MaxImag(g.Overlap()), 1e-13);          // still real at Gamma
         return RelDiff(g.Overlap(), fin.orb->Overlap());
@@ -143,4 +149,81 @@ TEST(GPW, LatticeSumConvergesToFiniteAsCellGrows)
     EXPECT_GT(r14, r22);          // the image tail shrinks monotonically as the cell grows
     EXPECT_GT(r22, r30);
     EXPECT_LT(r30, 1e-9);         // and vanishes in the large-cell limit (GPW -> the finite molecule)
+}
+
+// === DFT tier: the collocation primitive =============================================================
+// GPW's genuinely-new machinery is COLLOCATION: build rho(r)=sum D chi chi on a real grid, FFT to rho-tilde,
+// Poisson for Hartree, integrate a grid potential back against the Gaussians for the KS matrix.  Two clean
+// grid-convergent checks isolate the collocate + integrate-back primitives against the analytic overlap,
+// without needing a full SCF / pseudopotential / G=0 background.
+namespace
+{
+// The G=0 column of a collocation tensor (the fit function G_c = 0).
+int G0Column(const G_ERI3& t)
+{
+    for (size_t c=0;c<t.columns.size();c++)
+    {
+        const ivec3_t& dm=t.columns[c].dm;
+        if (dm.x==0 && dm.y==0 && dm.z==0) return int(c);
+    }
+    return -1;
+}
+} //anon
+
+// Collocate: the G=0 collocation weight is the grid-quadrature overlap, W_0(i,j)*Omega = integral chi_i chi_j,
+// which must converge to the analytic 1E overlap as the density grid resolves the Gaussian products.
+TEST(GPW, CollocationOverlapMatchesAnalytic)
+{
+    const double a=10.0;
+    UnitCell cell(a);
+    cell.AddAtom(14,{0.5,0.5,0.5});
+    std::shared_ptr<const Real_BS> molCell = MakeBasis(cell);
+    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/30.0);
+
+    const GPW_Evaluator& ev = gpw;
+    const Complex_OIBS&   g  = gpw;
+    G_ERI3 ov = ev.Overlap3CTensor();
+    int c0 = G0Column(ov);
+    ASSERT_GE(c0, 0);
+
+    const auto& S = g.Overlap();     // analytic 1E overlap (chmat, real at Gamma)
+    const size_t n = S.rows();
+    double num=0.0, den=0.0;
+    for (size_t i=0;i<n;i++)
+        for (size_t j=0;j<n;j++)
+        {
+            double w = std::real(ov.weights[c0](i,j)) * ov.volume;   // grid-quadrature overlap
+            double s = std::real(S(i,j));
+            double d=w-s; num+=d*d; den+=s*s;
+        }
+    EXPECT_LT(std::sqrt(num/den), 6e-2);   // collocated == analytic to grid-quadrature accuracy (~4% at Ecut=30)
+}
+
+// Integrate-back: a CONSTANT potential V(r)=V0 (Vtilde nonzero only at G=0) must give <chi_i|V0|chi_j> = V0 S_ij
+// (grid-quadrature).  This validates PotentialMatrix (the RhoOnGrid inverse-FFT + the grid quadrature adjoint).
+TEST(GPW, PotentialMatrixConstantEqualsV0Overlap)
+{
+    const double a=10.0;
+    UnitCell cell(a);
+    cell.AddAtom(14,{0.5,0.5,0.5});
+    std::shared_ptr<const Real_BS> molCell = MakeBasis(cell);
+    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/30.0);
+
+    const GPW_Evaluator& ev = gpw;
+    const Complex_OIBS&   g  = gpw;
+    const double V0 = 0.7;
+    const chmat_t M = ev.PotentialMatrix([V0](const ivec3_t& dm)->dcmplx
+        { return (dm.x==0 && dm.y==0 && dm.z==0) ? dcmplx(V0) : dcmplx(0.0); });
+
+    const auto& S = g.Overlap();
+    const size_t n = S.rows();
+    double num=0.0, den=0.0;
+    for (size_t i=0;i<n;i++)
+        for (size_t j=0;j<n;j++)
+        {
+            double m = std::real(M(i,j));
+            double s = V0*std::real(S(i,j));
+            double d=m-s; num+=d*d; den+=s*s;
+        }
+    EXPECT_LT(std::sqrt(num/den), 6e-2);   // <i|V0|j> == V0<i|j> to grid accuracy (== the collocation residual)
 }
