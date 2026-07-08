@@ -17,7 +17,7 @@ module;
 #include <string>
 export module qchem.BasisSet.Lattice_3D.PlaneWaveFit_IBS;
 export import qchem.BasisSet.Fit_IBS;                    // cFIT_CD_ABS (the density-fit face)
-export import qchem.BasisSet.Lattice_3D.Evaluators.PW;   // PW_Evaluator (the shared grid engine + G_FieldEvaluator seam)
+import qchem.BasisSet.Lattice_3D.Evaluators.PW;         // PW_Evaluator base -- INTERNAL to qcLattice_BS (not re-exported)
 import qchem.BasisSet.Lattice_3D.IBS;                    // EPW_Irrep_IBS<E> (the shared evaluation tier)
 import qchem.BasisSet.Internal.IrrepBasisSetImp;         // GetSymmetry/GetSymt/GetIrrep + itsSymmetry
 import qchem.Symmetry;                                   // sym_t (the Bloch irrep, shared with the orbital basis)

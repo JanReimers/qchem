@@ -18,7 +18,9 @@ module;
 
 export module qchem.BasisSet.Lattice_3D.PlaneWave_IBS;
 export import qchem.BasisSet.Band_FT_IBS;       // the abstract G-space DFT capability (+ ΔG_Map)
-export import qchem.BasisSet.Lattice_3D.Evaluators.PW;   // PW_Evaluator (the shared grid engine / base subobject)
+import qchem.BasisSet.Lattice_3D.Evaluators.PW; // PW_Evaluator (base subobject) -- NOT re-exported: the evaluator
+                                                // is INTERNAL to qcLattice_BS.  Clients use the abstract faces
+                                                // (Band_FT_IBS / G_FieldEvaluator), never the concrete evaluator.
 import qchem.BasisSet.Lattice_3D.IBS;           // EPW_Orbital1E_IBS<E> (the evaluator-templated mixins)
 import qchem.BasisSet.Fit_IBS;                  // cFIT_CD_ABS (the auxiliary fit basis it creates) + qcMesh::MeshParams
 import qchem.BasisSet.Internal.IrrepBasisSetImp;   // IrrepBasisSetImp<T>: GetSymmetry/GetSymt/GetIrrep
