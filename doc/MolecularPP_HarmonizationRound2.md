@@ -1,5 +1,11 @@
 # Molecular ↔ Plane-Wave Pseudopotential Harmonization — Round 2 (the road to GPW)
 
+> **GPW has outgrown this doc — see `doc/GPWPlan.md` for the current GPW state, the mesh-quadrature seam, the
+> next-increment (full periodic SCF) plan + first-system recommendation (Si → NaF → CsI), and the durable
+> pins.** This doc remains the record of the molecular↔PW *harmonization* (Round 1/2) and the deferred
+> *symmetry* track (§2.1–2.2). The GPW increments discussed in §2.4/§2.5 are DONE (1E + DFT-tier collocation);
+> `GPWPlan.md` is authoritative for GPW from here.
+
 **Status:** planning doc for the *next* session. Self-contained. Author-owned (like
 `doc/MolecularPP_HarmonizationFindings.md`, "Round 1"); **not** the user's
 `doc/MolecularPseudopotentialPlan.md`. Round 1 got molecular pseudopotentials working and harmonized the
