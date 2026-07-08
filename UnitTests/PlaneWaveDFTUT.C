@@ -34,6 +34,7 @@
 
 import qchem.BasisSet.Lattice_3D.PlaneWave_IBS;
 import qchem.BasisSet.Lattice_3D.BasisSet;   // Factory(Type::PW, lat, Ecut, loc, nl) -> Complex_BS*
+import qchem.ScalarFunction;                 // ScalarFunction<double> -- arg of the moved-here field oracles
 import qchem.Mesh;                           // qcMesh::MeshParams (PW_Hartree's fit-basis factory arg; ignored)
 import qchem.Lattice_3D;     // UnitCell, Lattice_3D, ReciprocalLattice
 import qchem.Ewald;          // EwaldEnergy (ion-ion Madelung term -> physical total energy)
@@ -126,6 +127,73 @@ struct FieldFnR : public ScalarFunction<double>, public qchem::Fitting::Projecte
     virtual rvec3_t Gradient  (const rvec3_t&  ) const override {return rvec3_t(0,0,0);}
     virtual const ScalarFunction<double>* GetScalarFunction() const override {return this;}
 };
+
+// --- Real-space DFT-integration oracles.  These lived on PlaneWave_IBS but were test-only cross-checks of
+// the FFT/Poisson machinery (no library code called them), so they moved HERE as free functions over the
+// basis's PUBLIC evaluator grid accessors (UniformGrid/AutoGrid/Gs/MakePotential/Volume/Recip) -- no
+// friendship needed, they never touched private data.
+
+// Forward-transform a real field sampled on the fractional grid to its Fourier components over the difference
+// set {m_i-m_j} (the only components the matrix <G_i|V|G_j> needs).
+inline ΔG_Map ForwardDFTDiffSet(const std::vector<ivec3_t>& G, const std::vector<rvec3_t>& frac,
+                                const std::vector<double>& field)
+{
+    ΔG_Map vt;
+    size_t n=G.size(), Npts=frac.size();
+    for (size_t i=0;i<n;i++)
+        for (size_t j=0;j<n;j++)
+        {
+            ivec3_t dm=G[i]-G[j];
+            if (vt.find(dm)!=vt.end()) continue;
+            dcmplx s(0.0);
+            for (size_t q=0;q<Npts;q++)
+            {
+                double ph=-2*Pi*(dm.x*frac[q].x + dm.y*frac[q].y + dm.z*frac[q].z);
+                s += field[q]*dcmplx(cos(ph),sin(ph));
+            }
+            vt[dm]=s/double(Npts);
+        }
+    return vt;
+}
+
+// <i|f|j> weighted overlap for a real-space scalar field f: sample f on the (Cartesian) grid, forward-DFT to
+// f-tilde(dm), assemble.  (The XC term's f(r)=v_xc(rho(r)) cross-check.)
+inline chmat_t OverlapField(const PlaneWave_IBS& pw, const ScalarFunction<double>& f)
+{
+    std::vector<rvec3_t> frac=pw.UniformGrid(pw.AutoGrid());
+    UnitCell A=pw.Recip().GetCell().MakeReciprocalCell();        // direct cell (reciprocal of the reciprocal)
+    std::vector<double> field(frac.size());
+    for (size_t q=0;q<frac.size();q++) field[q]=f(A.ToCartesian(frac[q]));
+    auto vt=ForwardDFTDiffSet(pw.Gs(),frac,field);
+    return pw.MakePotential([&vt](const ivec3_t& dm)->dcmplx
+        { auto it=vt.find(dm); return it==vt.end()?dcmplx(0.0):it->second; });
+}
+
+// Coulomb repulsion matrix for a real-space density rho: sample on the grid, forward-DFT to rho-tilde, then
+// the G-space Poisson solve V_H(dm)=4pi rho-tilde(dm)/|G|^2 assembled as <i|V_H|j>=V_H(G_i-G_j) (dm=0 dropped).
+inline chmat_t RepulsionField(const PlaneWave_IBS& pw, const ScalarFunction<double>& rho)
+{
+    std::vector<rvec3_t> frac=pw.UniformGrid(pw.AutoGrid());
+    UnitCell A=pw.Recip().GetCell().MakeReciprocalCell();
+    std::vector<double> field(frac.size());
+    for (size_t q=0;q<frac.size();q++) field[q]=rho(A.ToCartesian(frac[q]));
+    ΔG_Map rg=ForwardDFTDiffSet(pw.Gs(),frac,field);
+    return pw.MakePotential([&pw,&rg](const ivec3_t& dm)->dcmplx
+    {
+        auto it=rg.find(dm);
+        return pw.Recip().CoulombKernel(dm)*(it==rg.end()?dcmplx(0.0):it->second);
+    });
+}
+
+// integral f d3r over the cell: uniform-grid quadrature (weight Omega/Npts).
+inline double IntegralField(const PlaneWave_IBS& pw, const ScalarFunction<double>& f)
+{
+    std::vector<rvec3_t> frac=pw.UniformGrid(pw.AutoGrid());
+    UnitCell A=pw.Recip().GetCell().MakeReciprocalCell();
+    double s=0.0;
+    for (const rvec3_t& p : frac) s += f(A.ToCartesian(p));
+    return s*pw.Volume()/double(frac.size());
+}
 
 // Real-space grid values V -> matrix <i|V|j> = Vtilde(m_i-m_j), via the G_FieldEvaluator grid engine.  Was
 // PlaneWave_IBS::Overlap(rvec_t), now production-dead (the Vxc term assembles through the fit basis's seam);
@@ -929,11 +997,11 @@ TEST_F(PlaneWaveDFT, BasisIntegralScalar)
 {
     PWFixture F;
     FieldFn cst([](const rvec3_t&){return 2.5;});
-    EXPECT_NEAR(F.pw.Integral(cst), 2.5*F.Omega, 1e-9*F.Omega);
+    EXPECT_NEAR(IntegralField(F.pw, cst), 2.5*F.Omega, 1e-9*F.Omega);
 
     rvec3_t G0=F.B().ToCartesian(rvec3_t(1,0,0));
     FieldFn cosfn([&](const rvec3_t& r){return std::cos(G0*r);});
-    EXPECT_NEAR(F.pw.Integral(cosfn), 0.0, 1e-9*F.Omega);
+    EXPECT_NEAR(IntegralField(F.pw, cosfn), 0.0, 1e-9*F.Omega);
 }
 
 // Repulsion on a single-cosine density rho = rho0 + 2A cos(G0.r) reproduces the Poisson result
@@ -947,7 +1015,7 @@ TEST_F(PlaneWaveDFT, BasisRepulsionMatchesPoisson)
     double  g02=G0*G0;
     FieldFn rho([&](const rvec3_t& r){return rho0 + 2*A*std::cos(G0*r);});
 
-    chmat_t VH=F.pw.Repulsion(rho);   // Hartree matrix; the E_H-vs-Poisson check is HartreeSingleCosineMatchesPoisson
+    chmat_t VH=RepulsionField(F.pw, rho);   // Hartree matrix; the E_H-vs-Poisson check is HartreeSingleCosineMatchesPoisson
 
     size_t n=F.pw.GetNumFunctions(); bool found=false;
     for (size_t i=0;i<n && !found;i++)
@@ -967,7 +1035,7 @@ TEST_F(PlaneWaveDFT, BasisIntegralPotentialConstAndCosine)
     size_t n=F.pw.GetNumFunctions();
 
     FieldFn cst([](const rvec3_t&){return 0.7;});
-    chmat_t Vc=F.pw.Overlap(cst);
+    chmat_t Vc=OverlapField(F.pw, cst);
     for (size_t i=0;i<n;i++)
     {
         EXPECT_NEAR(std::real(dcmplx(Vc(i,i))), 0.7, 1e-9);
@@ -976,7 +1044,7 @@ TEST_F(PlaneWaveDFT, BasisIntegralPotentialConstAndCosine)
 
     rvec3_t G0=F.B().ToCartesian(rvec3_t(1,0,0));
     FieldFn cosfn([&](const rvec3_t& r){return std::cos(G0*r);});
-    chmat_t Vk=F.pw.Overlap(cosfn);
+    chmat_t Vk=OverlapField(F.pw, cosfn);
     bool found=false;
     for (size_t i=0;i<n && !found;i++)
         for (size_t j=0;j<n && !found;j++)
@@ -1036,7 +1104,7 @@ TEST_F(PlaneWaveDFT, PWDynamicTermsMatchBasis)
     std::unique_ptr<qchem::Hamiltonian::PW_Hartree> h(NewPWHartree(F.pw));
     qchem::Hamiltonian::cDynamic_HT* ht=h.get();
     const chmat_t& Mh = ht->GetMatrix(&F.pw, Spin::None, &cd);
-    chmat_t refh = F.pw.Repulsion(cd);
+    chmat_t refh = RepulsionField(F.pw, cd);
     for (size_t i=0;i<n;i++)
         for (size_t j=i;j<n;j++)
             EXPECT_NEAR(std::abs(dcmplx(Mh(i,j))-dcmplx(refh(i,j))), 0.0, 1e-10);
@@ -1442,7 +1510,7 @@ TEST_F(PlaneWaveDFT, HartreeFromFourierMatchesPointwise)
     D(1,2)=dcmplx(0.04,-0.06);
     qchem::ChargeDensity::IrrepCD<dcmplx> cd(D, &pw, irr);   // IS-A ScalarFunction rho(r)=phi^H D phi
 
-    chmat_t VA=pw.Repulsion(cd);                             // real-space: sample + ForwardDFT
+    chmat_t VA=RepulsionField(pw, cd);                             // real-space: sample + ForwardDFT
     chmat_t VB=HartreeFromRhoTilde(pw, RhoTilde(pw, D));     // G-space: direct from D
 
     double maxd=0;                                           // the matrices agree elementwise => so does any derived E_H
@@ -1538,7 +1606,7 @@ TEST_F(PlaneWaveDFT, DynamicTermCacheFreshAcrossDensity)
     ht->GetMatrix(&F.pw, Spin::None, &cd1);                       // populates the cache for cd1
     const chmat_t& M2 = ht->GetMatrix(&F.pw, Spin::None, &cd2);   // BUG: returns cd1's stale matrix
 
-    chmat_t ref2=F.pw.Repulsion(cd2);                            // the correct V_H for cd2
+    chmat_t ref2=RepulsionField(F.pw, cd2);                            // the correct V_H for cd2
     double  diff=0.0;
     for (size_t i=0;i<n;i++)
         for (size_t j=i;j<n;j++)

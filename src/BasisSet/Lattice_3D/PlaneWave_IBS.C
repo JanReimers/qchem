@@ -18,7 +18,6 @@ module;
 
 export module qchem.BasisSet.Lattice_3D.PlaneWave_IBS;
 export import qchem.BasisSet.Band_FT_IBS;       // the abstract G-space DFT capability (+ ΔG_Map)
-export import qchem.ScalarFunction;             // ScalarFunction<double> -- the real-space oracle methods' arg
 export import qchem.BasisSet.Lattice_3D.Evaluators.PW;   // PW_Evaluator (the shared grid engine / base subobject)
 import qchem.BasisSet.Lattice_3D.IBS;           // EPW_Orbital1E_IBS<E> (the evaluator-templated mixins)
 import qchem.BasisSet.Fit_IBS;                  // cFIT_CD_ABS (the auxiliary fit basis it creates) + qcMesh::MeshParams
@@ -63,15 +62,10 @@ public:
     // Repulsion3CTensor()/Overlap3CTensor(), and MakeFourierDensity (the SAD seed's rho-tilde) from the
     // PW_Evaluator grid engine (G_FieldEvaluator).  This basis adds nothing here.
 
-    // --- Real-space DFT-integration oracles (test-only): the same questions a future Band_DFT_IBS<T>
-    // implementer (e.g. GPW: Gaussian orbitals, PW/FFT density) would answer, kept here as independent
-    // analytic cross-checks of the shared FFT/Poisson machinery.  Production quadratures on the FIT basis's
-    // grid via the G_FieldEvaluator seam; no Hamiltonian term calls these.  (The grid PRIMITIVES -- RhoOnGrid,
-    // the forward transform, the <i|V|j> assembly, Integral -- now live on G_FieldEvaluator/PW_Evaluator, which
-    // this basis carries; the tests reach them there.) ---
-    chmat_t Overlap  (const ScalarFunction<double>& f) const;            //!< <i|f|j> (uncached; test oracle)
-    chmat_t Repulsion(const ScalarFunction<double>& rho) const;          //!< <i|V_Coul[rho]|j> (test oracle)
-    double  Integral (const ScalarFunction<double>& f) const;           //!< integral f d3r (test oracle)
+    // (The real-space DFT-integration oracles -- <i|f|j>, <i|V_Coul[rho]|j>, integral f -- were test-only
+    //  analytic cross-checks of the FFT/Poisson machinery; no Hamiltonian term called them.  They now live in
+    //  the plane-wave unit test (UnitTests/PlaneWaveDFTUT.C) as free functions over the public evaluator grid
+    //  accessors -- they never belonged in the library.)
 
     // --- External pseudopotential assembly (owns the atom/model data). ---
     // (MakeNuclear -- the bare-Coulomb 1E block -- is now on the evaluator (NuclearMatrix), inherited via

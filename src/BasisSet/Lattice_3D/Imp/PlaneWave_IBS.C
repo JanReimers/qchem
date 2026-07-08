@@ -40,78 +40,10 @@ PlaneWave_IBS::PlaneWave_IBS(const ReciprocalLattice& recip, const ivec3_t& N,
     : PlaneWave_IBS(recip, Symmetry::BlochFactory(N,kIndex), Ecut)
 {}
 
-namespace
-{
-//! Forward-transform a real field sampled on the fractional grid to its Fourier components
-//! \f$\tilde V(\Delta m)=\frac1{N}\sum_r V(r)e^{-i2\pi\Delta m\cdot r}\f$ over the difference set
-//! \f$\{m_i-m_j\}\f$ (the only components the matrix \f$\langle G_i|V|G_j\rangle\f$ needs).
-ΔG_Map
-ForwardDFTDiffSet(const std::vector<ivec3_t>& G, const std::vector<rvec3_t>& frac,
-                  const std::vector<double>& field)
-{
-    ΔG_Map vt;
-    size_t n=G.size(), Npts=frac.size();
-    for (size_t i=0;i<n;i++)
-        for (size_t j=0;j<n;j++)
-        {
-            ivec3_t dm=G[i]-G[j];
-            if (vt.find(dm)!=vt.end()) continue;
-            dcmplx s(0.0);
-            for (size_t q=0;q<Npts;q++)
-            {
-                double ph=-2*Pi*(dm.x*frac[q].x + dm.y*frac[q].y + dm.z*frac[q].z);
-                s += field[q]*dcmplx(cos(ph),sin(ph));
-            }
-            vt[dm]=s/double(Npts);
-        }
-    return vt;
-}
-} //anon
-
-// <i|f|j> weighted overlap for a real-space scalar field f: sample f on the (Cartesian) grid, forward-DFT
-// to f-tilde(dm), assemble.  The XC term passes f(r)=v_xc(rho(r)); the integration is OUR business.
-chmat_t PlaneWave_IBS::Overlap(const ScalarFunction<double>& f) const
-{
-    std::vector<rvec3_t> frac=UniformGrid(AutoGrid());
-    UnitCell A=Recip().GetCell().MakeReciprocalCell();          // direct cell (reciprocal of the reciprocal)
-    std::vector<double> field(frac.size());
-    for (size_t q=0;q<frac.size();q++) field[q]=f(A.ToCartesian(frac[q]));
-    auto vt=ForwardDFTDiffSet(Gs(),frac,field);
-    return MakePotential([&vt](const ivec3_t& dm)->dcmplx
-        { auto it=vt.find(dm); return it==vt.end()?dcmplx(0.0):it->second; });
-}
-
-// Coulomb repulsion matrix for a real-space density rho (TEST ORACLE): sample on the grid, forward-DFT to
-// rho-tilde, then the G-space Poisson solve V_H(dm)=4pi rho-tilde(dm)/|G|^2 assembled as <i|V_H|j>=V_H(G_i-G_j)
-// (dm=0 dropped).  The diagonal kernel is the reciprocal lattice's (Recip().CoulombKernel); MakePotential does
-// the assembly.  (Production builds the Hartree matrix from the density's Repulsion3C tensor, not this route.)
-chmat_t PlaneWave_IBS::Repulsion(const ScalarFunction<double>& rho) const
-{
-    std::vector<rvec3_t> frac=UniformGrid(AutoGrid());
-    UnitCell A=Recip().GetCell().MakeReciprocalCell();
-    std::vector<double> field(frac.size());
-    for (size_t q=0;q<frac.size();q++) field[q]=rho(A.ToCartesian(frac[q]));
-    ΔG_Map rg=ForwardDFTDiffSet(Gs(),frac,field);
-    return MakePotential([this,&rg](const ivec3_t& dm)->dcmplx
-    {
-        auto it=rg.find(dm);
-        return Recip().CoulombKernel(dm)*(it==rg.end()?dcmplx(0.0):it->second);
-    });
-}
-
-// MakeRepulsion3C/MakeOverlap3C (the D-free {G} 3-centre tensor builds) moved to the shared grid engine
-// (PW_Evaluator::Repulsion3CTensor/Overlap3CTensor); EPW_Orbital_DFT_IBS forwards the Band_FT_IBS virtuals to
-// them.  MakeFourierDensity likewise moved (PW_Evaluator), so the SAD seed reaches it through its OWN fit basis.
-
-// Scalar integral integral f d3r over the cell: uniform-grid quadrature (weight Omega/Npts).
-double PlaneWave_IBS::Integral(const ScalarFunction<double>& f) const
-{
-    std::vector<rvec3_t> frac=UniformGrid(AutoGrid());
-    UnitCell A=Recip().GetCell().MakeReciprocalCell();
-    double s=0.0;
-    for (const rvec3_t& p : frac) s += f(A.ToCartesian(p));
-    return s*Volume()/double(frac.size());
-}
+// The real-space DFT-integration oracles -- Overlap(f)/Repulsion(rho)/Integral(f) over a ScalarFunction --
+// were test-only cross-checks; they moved to UnitTests/PlaneWaveDFTUT.C as free functions over the public
+// evaluator grid accessors (UniformGrid/AutoGrid/Gs/MakePotential/Volume/Recip).  MakeRepulsion3C/MakeOverlap3C
+// (the D-free {G} 3-centre builds) and MakeFourierDensity moved to the shared grid engine (PW_Evaluator).
 
 // MakeNuclear (bare-Coulomb 1E block) moved to the evaluator (PW_Evaluator::NuclearMatrix), inherited via
 // EPW_Orbital1E_IBS.
