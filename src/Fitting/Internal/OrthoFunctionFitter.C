@@ -20,6 +20,7 @@ export import qchem.Fitting.FunctionFitter;  // FunctionFitter_Density/_Scalar<d
 import qchem.Fitting.Types;                   // robs_t<dcmplx>
 import qchem.BasisSet.Fit_IBS;                // cFIT_CD_ABS / cFIT_SF_ABS (the held fit bases)
 import qchem.BasisSet.G_FieldEvaluator;       // the DIP seam: inverse-transform itsMap to real space (op(r))
+import qchem.BasisSet.Band_FT_IBS;            // the orbital assembly bridge (MakePotential) for the XC matrix
 import qchem.Blaze;                           // hmat_t<dcmplx>
 
 export namespace qchem::Fitting
@@ -104,15 +105,16 @@ public:
 
     //! XC matrix <i|v_xc|j> = V-tilde(m_i-m_j): the ORBITAL basis assembles over ITS {G}, looking each
     //! reciprocal-index difference up in OUR fit-grid coefficients -- so the fit grid may be denser than (or
-    //! offset from) the orbital's.  Both bases carry the G_FieldEvaluator grid engine.
+    //! offset from) the orbital's.  The orbital's assembly is its Band_FT_IBS::MakePotential bridge (the
+    //! orbital-specific step); the fit grid's GridCoeff lookup is the shared G_FieldEvaluator grid engine.
     virtual hmat_t<dcmplx> Overlap(const robs_t<dcmplx>* bs) const override
     {
         // The orbital basis is CALLER-supplied and carries no compile-time guarantee of being plane-wave, so
         // this is a genuine "is it?" cross-cast: a reference-cast THROWS std::bad_cast (not release-mode UB)
         // for any future non-PW complex orbital basis.  (Contrast the fitter's own itsFitBasis casts, which
         // its isOrtho() contract guarantees.)  Ties to the item-C dynamic_cast survey.
-        const BasisSet::G_FieldEvaluator& orb=dynamic_cast<const BasisSet::G_FieldEvaluator&>(*bs);
-        const BasisSet::G_FieldEvaluator& fit=FitGrid();
+        const BasisSet::Band_FT_IBS&      orb=dynamic_cast<const BasisSet::Band_FT_IBS&>(*bs);   // the assembly bridge
+        const BasisSet::G_FieldEvaluator& fit=FitGrid();                                         // the fit grid engine
         return orb.MakePotential([&](const ivec3_t& dm)->dcmplx {return fit.GridCoeff(itsVt, dm);});
     }
 

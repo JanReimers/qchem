@@ -12,8 +12,7 @@ module;
 #include <functional>
 export module qchem.BasisSet.G_FieldEvaluator;
 import qchem.BasisSet.Internal.GMap;   // ΔG_Map (the G-space coefficient map to evaluate)
-import qchem.Types;       // rvec3_t, rvec_t, cvec_t, rvec3vec_t, ivec3_t, dcmplx, chmat_t
-import qchem.Blaze;       // chmat_t = hmat_t<dcmplx> (the assembled operator matrix)
+import qchem.Types;       // rvec3_t, rvec_t, cvec_t, rvec3vec_t, ivec3_t, dcmplx
 import qchem.Structure;   // Structure, Atom (MakeFourierDensity's structure-factor sum)
 
 export namespace qchem::BasisSet
@@ -24,11 +23,13 @@ export namespace qchem::BasisSet
 //! quadrature it CANNOT do itself (it must not know \f$B\f$), and the concrete plane-wave basis -- which owns
 //! the grid engine -- answers.  Two responsibilities, both needing \f$B\f$:
 //!  - **evaluate** a Hermitian coefficient map \f$c(\Delta m)\f$ as a real field \f$f(r)=\mathrm{Re}\sum c\,e^{iG\cdot r}\f$ (GUI / fit-residual);
-//!  - **quadrature** a field on the FFT grid: sample points, inverse/forward transforms, coefficient lookup,
-//!    and the \f$\langle G_i|V|G_j\rangle=\tilde V(m_i-m_j)\f$ assembly.
-//! An orthonormal scalar fitter reaches these by an "I want more" cross-cast of the fit face it already holds
-//! (for the quadrature: its OWN fit basis; for the assembly: the orbital basis) -- never a cast into a concrete
-//! \c PW_Evaluator.  Implemented by \c PW_Evaluator, so both the orbital and the auxiliary fit basis carry it.
+//!  - **quadrature** a field on the FFT grid: sample points, inverse/forward transforms, coefficient lookup.
+//! An orthonormal scalar fitter reaches these by an "I want more" cross-cast of its OWN fit basis (the fit face
+//! it already holds) -- never a cast into a concrete \c PW_Evaluator.  This is now a PURE density/potential grid
+//! engine: the \f$\langle G_i|V|G_j\rangle=\tilde V(m_i-m_j)\f$ potential->orbital-matrix assembly (the ONE
+//! method that assumed the ORBITALS are plane waves) has moved OFF here onto the orbital face
+//! (\c Band_FT_IBS::MakePotential), so a Gaussian-orbital (GPW) density grid can reuse this engine wholesale.
+//! Implemented by \c PW_Evaluator, so both the orbital and the auxiliary fit basis carry it.
 class G_FieldEvaluator
 {
 public:
@@ -52,8 +53,6 @@ public:
     //! The evaluatable fitted-field coefficients \f$c(G)=\tilde V(G)\f$ over THIS basis's own \f$\{G\}\f$ (a
     //! \c GridCoeff gather).  \c EvalField plots \f$\sum_G c(G)e^{iG\cdot r}\f$ -- the scalar fitter's op(r).
     virtual ΔG_Map     FieldCoeffs(const cvec_t& Vt) const=0;
-    //! Assemble \f$\langle G_i|V|G_j\rangle=\tilde V(m_i-m_j)\f$ over THIS basis's \f$\{G\}\f$ (the orbital, for XC).
-    virtual chmat_t    MakePotential(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const=0;
     //! \f$\int f\,d^3r\f$ on the FFT grid (weight \f$\Omega/N_{pts}\f$) -- the XC energy quadrature on the fit grid.
     virtual double     Integral(const rvec_t& f) const=0;
 

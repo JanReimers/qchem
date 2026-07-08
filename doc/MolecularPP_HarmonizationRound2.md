@@ -302,11 +302,22 @@ density-grid basis reuses them **in both interface and implementation** (they ar
   potential→orbital-matrix **bridge**, and it is the plane-wave analogue of exactly what GPW's "integrate" step
   does. Everything `MakePotential` feeds is already orbital-side (`NuclearMatrix`, `LocalPotentialMatrix`, the XC
   `⟨i|v_xc|j⟩` assembly, the moved test oracles).
-- **Clean move GPW motivates (not a redesign — a one-method extraction):** pull `MakePotential` off
-  `G_FieldEvaluator` onto the plane-wave **orbital** evaluator, leaving `G_FieldEvaluator` a pure, 100%-shared
-  density/potential grid engine. Then each orbital evaluator supplies its own potential→matrix bridge — PW: the
-  Fourier lookup; GPW: grid-integrate (collocation's adjoint). This is the same split the §2.3 evaluator work
-  already established (grid engine shared; orbital-specific assembly on the evaluator). **Collocation** (Gaussian
+- **✅ DONE (GPW Implementation 2) — Clean move GPW motivates (not a redesign — a one-method extraction):** pulled
+  `MakePotential` off `G_FieldEvaluator` onto the plane-wave **orbital** face, leaving `G_FieldEvaluator` a pure,
+  100%-shared density/potential grid engine (a GPW density grid now reuses it wholesale, no PW-orbital assumption
+  inherited). Concretely: (a) removed `MakePotential` from `G_FieldEvaluator` (which loses its last `chmat_t`
+  return, so its `qchem.Blaze` import went too); (b) added the abstract `Band_FT_IBS::MakePotential` (the
+  reciprocal-space DFT-assembly orbital face) — the potential→KS-matrix **bridge**; (c) the evaluator keeps the
+  concrete impl but **renamed** `PW_Evaluator::MakePotential → PotentialMatrix` (mirroring its `OverlapMatrix`/
+  `NuclearMatrix` siblings — an EVALUATOR method distinct from the interface virtual it feeds, exactly the atom-side
+  `OverlapMatrix`→`MakeOverlap` precedent, so the concrete `PlaneWave_IBS` inherits no name clash between the
+  `Band_FT_IBS` virtual and the evaluator member); (d) `isPW_DFT_Evaluator` now demands `PotentialMatrix`, and the
+  `EPW_Orbital_DFT_IBS<E>` mixin implements `MakePotential` by forwarding to `Cast().PotentialMatrix`; (e) the two
+  external call sites (`PW_Hartree`, the XC `OrthoScalarFitter::Overlap`) now cross-cast the orbital basis to
+  `Band_FT_IBS` for the assembly (the fit basis stays a `G_FieldEvaluator` for the grid `GridCoeff`/`ForwardFFT`).
+  Each orbital evaluator supplies its own potential→matrix bridge — PW: the Fourier lookup; GPW: grid-integrate
+  (collocation's adjoint). Same split the §2.3 evaluator work established (grid engine shared; orbital-specific
+  assembly on the evaluator). 175/175 UTMain green, PW anchors bit-identical; `allTests` builds. **Collocation** (Gaussian
   or Gaussian-product → grid) is the single genuinely-new primitive — pure PW never needs it (ρ=ψ*ψ is exact in
   G-space) — and it lives on the GPW orbital evaluator, not the shared engine. The `G_ERI3` interface survives;
   GPW just fills `Overlap3C`/`Repulsion3C` by collocation instead of an exact delta (as the `G_ERI3` doc-comment

@@ -70,8 +70,13 @@ public:
                                  const std::function<double(int Z, double g2)>& formFactor) const;
 
     //! \brief Assemble \f$\langle G|V|G'\rangle=\tilde V(m(G)-m(G'))\f$ from a caller-supplied G-space
-    //! potential keyed by the reciprocal-index difference.  The reusable G-space assembly primitive.
-    chmat_t MakePotential(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const override;
+    //! potential keyed by the reciprocal-index difference.  The plane-wave potential->orbital-matrix bridge
+    //! (a Fourier lookup): satisfies \c isPW_DFT_Evaluator and is forwarded by \c EPW_Orbital_DFT_IBS to the
+    //! abstract \c Band_FT_IBS::MakePotential.  Named like its siblings \c OverlapMatrix / \c KineticMatrix /
+    //! \c NuclearMatrix (an EVALUATOR method, distinct from the interface virtual it feeds -- as on the atom
+    //! side -- so the concrete IBS inherits no name clash).  Also used internally by \c NuclearMatrix /
+    //! \c LocalPotentialMatrix.
+    chmat_t PotentialMatrix(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const;
 
     // --- DFT 3-centre tensors (density-driven, orbital tier): the D-free reciprocal-space gathers over THIS
     //     engine's own {G}.  Drive the Band_FT_IBS MakeRepulsion3C/MakeOverlap3C (cached one level up). ---
@@ -150,10 +155,12 @@ template <class E> concept isPW_1E_Evaluator = requires (const E e, const rvec3_
 //! \brief The plane-wave DFT evaluator concept the EPW_Orbital_DFT_IBS mixin templates against (mirrors the
 //! atom \c isDFT_Evaluator): the D-free reciprocal-space 3-centre tensors on top of the 1E tier.  GPW
 //! supplies its own model (Gaussian orbitals, PW density) and reuses the mixin unchanged.
-template <class E> concept isPW_DFT_Evaluator = isPW_1E_Evaluator<E> && requires (const E e)
+template <class E> concept isPW_DFT_Evaluator = isPW_1E_Evaluator<E> &&
+    requires (const E e, const std::function<dcmplx(const ivec3_t&)>& vt)
 {
     {e.Repulsion3CTensor()} -> std::same_as<G_ERI3>;
     {e.Overlap3CTensor()  } -> std::same_as<G_ERI3>;
+    {e.PotentialMatrix(vt)} -> std::same_as<chmat_t>;   // the potential->orbital-matrix bridge (Fourier lookup)
 };
 
 } //namespace

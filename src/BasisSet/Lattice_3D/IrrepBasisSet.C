@@ -10,6 +10,7 @@
 // evaluator base subobject of the final IBS (the IBS IS-A E -- a sibling base, so cross-cast RTTI, which
 // is why PW_Evaluator has a polymorphic dtor).
 module;
+#include <functional>
 export module qchem.BasisSet.Lattice_3D.IBS;
 import qchem.BasisSet.IrrepBasisSet;                  // IrrepBasisSet<dcmplx> (op()(r), GetNumFunctions)
 import qchem.BasisSet.Orbital_1E_IBS;                 // Orbital_1E_IBS<dcmplx> (MakeOverlap/MakeKinetic/MakeNuclear)
@@ -58,6 +59,11 @@ template <class E> requires isPW_DFT_Evaluator<E>
 class EPW_Orbital_DFT_IBS
     : public virtual Band_FT_IBS
 {
+public:
+    //! The orbital-specific potential->KS-matrix bridge (Band_FT_IBS face): plane waves do the evaluator's
+    //! Fourier lookup <i|V|j>=Vtilde(m_i-m_j).  GPW's Gaussian evaluator will instead grid-integrate here.
+    virtual chmat_t MakePotential(const std::function<dcmplx(const ivec3_t&)>& Vt) const override
+        {return Cast().PotentialMatrix(Vt);}
 protected:
     virtual G_ERI3 MakeRepulsion3C(const cFIT_CD_ABS&) const override {return Cast().Repulsion3CTensor();}
     virtual G_ERI3 MakeOverlap3C  (const cFIT_SF_ABS&) const override {return Cast().Overlap3CTensor();}

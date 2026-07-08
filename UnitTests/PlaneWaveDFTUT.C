@@ -195,13 +195,14 @@ inline double IntegralField(const PlaneWave_IBS& pw, const ScalarFunction<double
     return s*pw.Volume()/double(frac.size());
 }
 
-// Real-space grid values V -> matrix <i|V|j> = Vtilde(m_i-m_j), via the G_FieldEvaluator grid engine.  Was
-// PlaneWave_IBS::Overlap(rvec_t), now production-dead (the Vxc term assembles through the fit basis's seam);
-// kept here as a test oracle: one ForwardFFT, then look each reciprocal-index difference up in the grid.
-inline chmat_t OverlapOnGrid(const qchem::BasisSet::G_FieldEvaluator& ge, const rvec_t& V)
+// Real-space grid values V -> matrix <i|V|j> = Vtilde(m_i-m_j).  Was PlaneWave_IBS::Overlap(rvec_t), now
+// production-dead (the Vxc term assembles through the fit basis's seam); kept here as a test oracle: one
+// ForwardFFT (the G_FieldEvaluator grid engine), then the orbital's MakePotential bridge looks each
+// reciprocal-index difference up in the grid.  (The orbital is both faces, so the PlaneWave_IBS supplies both.)
+inline chmat_t OverlapOnGrid(const PlaneWave_IBS& pw, const rvec_t& V)
 {
-    cvec_t Vt=ge.ForwardFFT(V);
-    return ge.MakePotential([&](const ivec3_t& dm)->dcmplx {return ge.GridCoeff(Vt, dm);});
+    cvec_t Vt=pw.ForwardFFT(V);
+    return pw.MakePotential([&](const ivec3_t& dm)->dcmplx {return pw.GridCoeff(Vt, dm);});
 }
 
 // Order ivec3_t lexicographically so it can key the rho~ map.
