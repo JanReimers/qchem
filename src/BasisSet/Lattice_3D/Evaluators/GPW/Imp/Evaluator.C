@@ -69,84 +69,86 @@ GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const
                     ReciprocalLattice(cell.MakeReciprocalCell()), rvec3_t(0,0,0), densityEcut);
 }
 
-// Collocate the orbitals on the density grid and build the D-free 3-centre weight tensor W_c(i,j) =
-// (1/Omega) integral chi_i chi_j e^{-iG_c.r} = GridCoeff(ForwardFFT(chi_i chi_j on grid), G_c) -- one FFT per
-// orbital pair.  Cached (built once): the SAME W serves Repulsion3C (+Coulomb kernel), Overlap3C (no kernel),
-// and, via the grid, PotentialMatrix.  Gamma: chi is real, so W's inputs are real (W itself is complex).
-void GPW_Evaluator::BuildCollocation() const
+// chi_i(r_g) on the density grid (Bloch-summed Gaussians; real at Gamma).  Computed on demand -- NOT cached in
+// a member: the framework caches the DERIVED tensor (Repulsion3C/Overlap3C via Band_FT_IBS's DB_Cache), so this
+// runs a small, bounded number of times (once per one-time tensor build; and per PotentialMatrix call, whose
+// per-iteration quadrature dominates it anyway).  Keeping the evaluator stateless keeps the caching in one place.
+rmat_t GPW_Evaluator::PhiOnGrid() const
 {
     assert(itsGrid && "GPW_Evaluator: DFT tier requires a density grid (construct with densityEcut>0)");
-    if (itsWBuilt) return;
     const rvec3vec_t& pts=itsGrid->GridPoints();
     size_t Npts=pts.size(), n=itsN;
-
-    // chi_i(r_g) on the grid (Bloch-summed Gaussians; real at Gamma).
-    itsPhi.resize(Npts,n);
+    rmat_t Phi(Npts,n);
     for (size_t g=0; g<Npts; g++)
     {
         cvec_t v=Eval(pts[g]);
-        for (size_t i=0;i<n;i++) itsPhi(g,i)=std::real(v[i]);
+        for (size_t i=0;i<n;i++) Phi(g,i)=std::real(v[i]);
     }
+    return Phi;
+}
 
-    // One column per fit function G_c (the grid's {G}); weights[c](i,j) = the collocated product FT.
+// The D-free 3-centre weight tensor W_c(i,j) = (1/Omega) integral chi_i chi_j e^{-iG_c.r} =
+// GridCoeff(ForwardFFT(chi_i chi_j on grid), G_c) -- one FFT per orbital pair, one column per grid {G}.  NO
+// kernel (the overlap-metric weight); Repulsion3CTensor adds the Poisson kernel.  The framework caches the
+// tensors this feeds, so this is a plain stateless build.
+G_ERI3 GPW_Evaluator::BuildWeights() const
+{
+    rmat_t Phi=PhiOnGrid();
+    size_t Npts=Phi.rows(), n=itsN;
     const std::vector<ivec3_t>& Gs=itsGrid->Gs();
-    itsW=G_ERI3{};
-    itsW.volume=itsGrid->Volume();
-    itsW.columns.resize(Gs.size());
-    itsW.weights.assign(Gs.size(), mat_t<dcmplx>(n,n,dcmplx(0.0)));
-    for (size_t c=0;c<Gs.size();c++) itsW.columns[c].dm=Gs[c];
+    G_ERI3 g;
+    g.volume=itsGrid->Volume();
+    g.columns.resize(Gs.size());
+    g.weights.assign(Gs.size(), mat_t<dcmplx>(n,n,dcmplx(0.0)));
+    for (size_t c=0;c<Gs.size();c++) g.columns[c].dm=Gs[c];
 
     rvec_t prod(Npts);
     for (size_t i=0;i<n;i++)
         for (size_t j=i;j<n;j++)
         {
-            for (size_t g=0; g<Npts; g++) prod[g]=itsPhi(g,i)*itsPhi(g,j);   // chi_i chi_j on the grid (real)
+            for (size_t p=0; p<Npts; p++) prod[p]=Phi(p,i)*Phi(p,j);   // chi_i chi_j on the grid (real at Gamma)
             cvec_t P=itsGrid->ForwardFFT(prod);
             for (size_t c=0;c<Gs.size();c++)
             {
-                dcmplx w=itsGrid->GridCoeff(P, Gs[c]);   // (1/Omega) integral chi_i chi_j e^{-iG_c.r}
-                itsW.weights[c](i,j)=w;
-                itsW.weights[c](j,i)=w;                  // symmetric in (i,j)
+                dcmplx w=itsGrid->GridCoeff(P, Gs[c]);   // (1/Omega) integral chi_i chi_j e^{-iG_c.r} (ONE r)
+                g.weights[c](i,j)=w;
+                g.weights[c](j,i)=w;                     // symmetric in (i,j)
             }
         }
-    itsWBuilt=true;
+    return g;
 }
 
-// Coulomb 3-centre tensor: the collocation weights + the diagonal Poisson kernel 4pi/|G_c|^2 (G_c=0 -> 0).
+// Coulomb 3-centre tensor: the single-r collocation weights + the diagonal Poisson kernel 4pi/|G_c|^2 (the r_2
+// / 1-over-r_12 factor; G_c=0 -> 0).  The framework's Repulsion3C(c) caches this build.
 G_ERI3 GPW_Evaluator::Repulsion3CTensor() const
 {
-    BuildCollocation();
-    G_ERI3 g=itsW;
+    G_ERI3 g=BuildWeights();
     const ReciprocalLattice& recip=itsGrid->Recip();
     g.kernel.resize(g.columns.size());
     for (size_t c=0;c<g.columns.size();c++) g.kernel[c]=recip.CoulombKernel(g.columns[c].dm);
     return g;
 }
 
-// Overlap 3-centre tensor: the same collocation weights, empty kernel (the density's rho-tilde, no Poisson).
-G_ERI3 GPW_Evaluator::Overlap3CTensor() const
-{
-    BuildCollocation();
-    return itsW;   // kernel empty
-}
+// Overlap 3-centre tensor: the same single-r weights, empty kernel (the density's rho-tilde, no Poisson).  The
+// framework's Overlap3C(c) caches this build.
+G_ERI3 GPW_Evaluator::Overlap3CTensor() const {return BuildWeights();}
 
 // The potential->KS-matrix bridge (collocation's adjoint): inverse-FFT Vtilde over the density grid to V(r),
 // then <chi_i|V|chi_j> = integral chi_i V chi_j by grid quadrature.  Vtilde is sampled over the grid's own {G}
 // (which matches the fit basis GPW created, so a Hartree/XC Vtilde covers exactly these).
 chmat_t GPW_Evaluator::PotentialMatrix(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const
 {
-    BuildCollocation();
+    rmat_t Phi=PhiOnGrid();
     ΔG_Map vmap;
     for (const ivec3_t& dm : itsGrid->Gs()) vmap[dm]=Vtilde(dm);
     rvec_t V=itsGrid->RhoOnGrid(vmap);          // V(r) on the grid (real)
-    const rvec3vec_t& pts=itsGrid->GridPoints();
-    size_t Npts=pts.size(), n=itsN;
+    size_t Npts=Phi.rows(), n=itsN;
     rvec_t f(Npts);
     chmat_t M=blazem::zeroH<dcmplx>(n);
     for (size_t i=0;i<n;i++)
         for (size_t j=i;j<n;j++)
         {
-            for (size_t g=0; g<Npts; g++) f[g]=itsPhi(g,i)*V[g]*itsPhi(g,j);
+            for (size_t p=0; p<Npts; p++) f[p]=Phi(p,i)*V[p]*Phi(p,j);
             M(i,j)=dcmplx(itsGrid->Integral(f), 0.0);   // real at Gamma
         }
     return M;
@@ -186,9 +188,12 @@ chmat_t GPW_Evaluator::NuclearMatrix(const Structure* cl) const {return Complexi
 // here via the atom positions); k + the translation count distinguish the periodic block.
 std::string GPW_Evaluator::IDFragment() const
 {
+    // Include the density-grid cutoff: the collocation tensor (Repulsion3C/Overlap3C) is built on that grid, so
+    // the framework cache (keyed by BasisSetID) must distinguish GPW bases that differ only in densityEcut.
     return "|mol="+itsOrb->BasisSetID()
          +"|k="+std::to_string(itsk.x)+","+std::to_string(itsk.y)+","+std::to_string(itsk.z)
-         +"|nR="+std::to_string(itsR.size());
+         +"|nR="+std::to_string(itsR.size())
+         +"|dEcut="+(itsGrid?std::to_string(itsGrid->Ecut()):std::string("0"));
 }
 
 } //namespace

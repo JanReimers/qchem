@@ -66,10 +66,16 @@ public:
 
     // --- isPW_DFT_Evaluator surface: the DFT tier by COLLOCATION on the density grid (the genuinely-new GPW
     //     primitive).  All three route through the held PW_Grid_Evaluator (its {r}/{G}/FFT/Poisson). ---
-    //! \brief Coulomb 3-centre tensor: \f$W_c(i,j)=\tfrac1\Omega\int\chi_i\chi_j e^{-iG_c\cdot r}\f$ (collocated
-    //! Gaussian-product FT) with the diagonal Poisson kernel \f$4\pi/|G_c|^2\f$.  Density contracts \f$D\f$ against it.
+    //! \brief Coulomb 3-centre tensor.  The per-column WEIGHT is the OVERLAP-metric (single-\f$r\f$) Fourier
+    //! coefficient of the orbital product, \f$W_c(i,j)=\tfrac1\Omega\int\chi_i(r)\chi_j(r)\,e^{-iG_c\cdot r}\,d^3r\f$
+    //! (\c ONE integration variable -- it is the collocated product FT, i.e. the density-side of the two-electron
+    //! integral).  The SECOND electron coordinate and the \f$1/r_{12}\f$ live in the per-column diagonal Poisson
+    //! kernel \f$4\pi/|G_c|^2\f$ (the \f$r_2\f$ integral \f$\int e^{iG_c\cdot r_2}/r_{12}\f$ in reciprocal space).
+    //! So the full two-electron Coulomb is \c weight\f$\times\f$\c kernel, factorised through G-space -- never a
+    //! 2-\f$r\f$ integral.  Density contracts \f$D\f$ against this via \c ContractG_ERI3.
     G_ERI3  Repulsion3CTensor() const;
-    //! \brief Overlap 3-centre tensor: the same collocated \f$W_c(i,j)\f$, empty kernel (the density's \f$\tilde\rho\f$).
+    //! \brief Overlap 3-centre tensor: the same single-\f$r\f$ weight \f$W_c(i,j)\f$, EMPTY kernel -- the density's
+    //! Fourier coefficient \f$\tilde\rho(G_c)=\sum_{ij}D_{ij}W_c(i,j)\f$ (no Poisson).
     G_ERI3  Overlap3CTensor() const;
     //! \brief The potential->KS-matrix bridge (collocation's adjoint): \f$\langle\chi_i|V|\chi_j\rangle=\int\chi_i
     //! V\chi_j\f$ with \f$V(r)\f$ the inverse-FFT of \a Vtilde over the density grid -- grid-integrate, not the PW
@@ -79,7 +85,8 @@ public:
     //! The density/collocation grid engine (the fit basis is built over it, so \f$\tilde\rho\f$'s \f$\{G\}\f$ matches).
     const PW_Grid_Evaluator& DensityGrid() const {return *itsGrid;}
 
-    //! Cache-key fragment: the molecular basis's geometry-aware ID + \f$k\f$ + the translation count.
+    //! Cache-key fragment: the molecular basis's ID + \f$k\f$ + translation count + the density-grid cutoff
+    //! (the collocation tensor depends on the grid, so the framework cache key must pin it).
     std::string IDFragment() const;
 
 private:
@@ -90,10 +97,10 @@ private:
     rvec3_t                             itsk;             //!< fractional crystal momentum (Gamma this increment)
     size_t                              itsN   = 0;       //!< number of Gaussian orbitals
     std::shared_ptr<const PW_Grid_Evaluator> itsGrid;     //!< the density/collocation grid (null if DFT tier off)
-    mutable rmat_t                      itsPhi;           //!< cached \f$\chi_i(r_g)\f$ on the grid (Npts x n; Gamma-real)
-    mutable G_ERI3                      itsW;             //!< cached collocation tensor (built once); columns=grid {G}
-    mutable bool                        itsWBuilt=false;
-    void BuildCollocation() const;                        //!< fill itsPhi + itsW (lazy, once)
+    // NO hand-rolled tensor cache: the collocation tensor is a stateless build; the FRAMEWORK caches it
+    // (BasisSet::Band_FT_IBS::Repulsion3C/Overlap3C via theCache<dcmplx>(), keyed by BasisSetID -- see IDFragment).
+    rmat_t  PhiOnGrid()   const;   //!< \f$\chi_i(r_g)\f$ on the density grid (Npts x n; Gamma-real) -- computed on demand
+    G_ERI3  BuildWeights() const;  //!< the collocation weight tensor (columns=grid {G}, weights, NO kernel)
 };
 
 static_assert(isPW_1E_Evaluator <GPW_Evaluator>, "GPW_Evaluator must satisfy isPW_1E_Evaluator");
