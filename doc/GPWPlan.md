@@ -95,9 +95,35 @@ concepts and reuses the `EPW_*` mixins + the whole `Ham_PW_DFT` KS stack.
 In priority order. **(1) is the blocker for correct bulk energies** — and it now has a HARD gate: the CP2K
 reference **−7.115 Ha** (2, DONE — CP2K built + FCC-Si Γ reference obtained). (3)/(4) (full-BZ, IBZ) wait on (1).
 
-## 1. THE BULK BLOCKER — take the collocation off the FFT raster (the atom-on-node fix)
-The root cause (see DONE) is that the density collocation AND the KS-matrix integrate-back quadrature on the
-FFT raster `A·(i/N)`, where lattice-point atoms sit on grid nodes. **Fix = route BOTH off the raster:**
+## 1. THE BULK BLOCKER — the corner atom breaks translation invariance in TWO independent PP terms
+A term-by-term translation-invariance probe (corner atom frac 0 vs interior frac 0.13, N=64) split the bug
+cleanly (Δ = |corner − interior| trace):
+
+| term | Rcut=0 Δ | Rcut=1.5a Δ | fixed by images? |
+|---|---|---|---|
+| Kinetic (analytic, control) | 0.000 | 0.000 | — (invariant) |
+| **Vloc** (FFT-grid collocation) | 21.78 | 1.14 | YES — Bloch images restore it at Rcut>0 |
+| **Vnl** (KB nonlocal, qcMesh mesh) | 16.06 | 16.04 | **NO — the bigger fish, image-invariant** |
+
+So there are **two independent bugs, two independent fixes** (the FFT-grid work does NOT touch Vnl):
+
+### 1a. Vnl (KB separable PP) — quadrature the BLOCH orbital, not the raw home orbital  ← the 16 Ha, do FIRST
+`MakeSeparablePP` builds `b_i^k=⟨χ_i^k|β_a Y_lm⟩` by quadraturing the **raw home orbital `*itsOrb`** on the
+single-cell `CreateIntegrationMesh` while periodic-summing the *projector* images. A corner orbital straddles
+the cell boundary, so its wrapped tail is lost → `b_i` ≈ half (corner trace 21 vs interior 37) → `V=ΣD b b†`
+off by ~2–4×. Summing projector images can't fix an *orbital*-side loss. **Fix:** replace `*itsOrb` with the
+**Bloch orbital `VectorFunction`** (`Eval`/`EvalGradient` = `Σ_R e^{ik·R}χ(r−R)`) in the `qcMesh::Overlap`
+call — at each mesh point near the corner `Eval` already includes the wrapped image, so the full orbital is
+captured (same "use the Bloch sum" move `PhiOnGrid` already makes for the local PP). Keep the projector's
+periodic sum (recovers the projector's own boundary tail); it's ONE home projector per atom with the Bloch
+orbital — do NOT also phase-sum projectors in a way that ×N_cells (the orbital carries k).
+**Per-term gate:** CP2K prints `Nonlocal Pseudopotential Energy = +0.9406 Ha` (`~/Code/cp2k-runs/si-gpw`) —
+our Vnl contribution should hit +0.9406 after the fix, independent of the total.
+
+### 1b. Vloc / Hartree / XC — take the FFT collocation off the raster
+The density collocation AND the KS-matrix integrate-back quadrature on the FFT raster `A·(i/N)`, where
+lattice-point atoms sit on grid nodes. (Vloc's Δ is already down to 1.14 at Rcut>0 via the Bloch images +
+the voxel-centre shift, but it's the same root cause as the density source.) **Fix = route BOTH off the raster:**
 - **Option A (offset FFT-grid origin):** sample at `A·((i+½)/N)` (a half-cell shift; a phase `e^{iG·½cell}`
   in G-space that cancels in the forward→Poisson→inverse round-trip). One change to `PeriodicGridEvaluator`
   fixes both the density collocation and the integrate-back. Watch the phase bookkeeping (forward FFT,
