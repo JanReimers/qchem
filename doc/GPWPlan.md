@@ -205,6 +205,63 @@ multi-k path and for any linearly-dependent-but-PSD basis.
 
 ---
 
+## 3c. Bulk roadmap — general-k → FULL BZ → IBZ (DECIDED; the next session starts here)
+
+**Decision (2026-07-08): Option 3 — decouple correctness from efficiency. Prove bulk GPW on the FULL
+(unreduced) BZ first, THEN add symmetry/IBZ as an independently-validated speed layer.** The IBZ is an
+*efficiency* optimisation, not a correctness requirement: the full BZ gives the exact bulk energy, and the
+plane-wave path ALREADY does full-BZ multi-k (`PlaneWaveDFTUT` 2×2×2 Si). So we can prove out multi-k GPW with
+ZERO new symmetry code, then fold in the IBZ against a working reference. Rationale = the one-new-thing-at-a-
+time discipline that made this session converge: never validate new-GPW-bulk against a new hand-rolled IBZ
+(can't tell which is wrong).
+
+**Step 1 — general-k GPW (the shared prerequisite for ANY multi-k, reduced or not).** Extend GPW from Γ to
+general k: the `e^{ik·R}` Bloch phase enters (a) the `Molecule::LatticeSum1E` matrices — `MakeOverlap/
+MakeKinetic/MakeNuclear(Rs)` become `Σ_R e^{ik·R}⟨…⟩`, returning `chmat_t` (its own doc already says "the
+general-k Bloch case (complex phases → chmat_t) … this contract is expected to grow"); and (b) the collocation
+`GPW_Evaluator::Eval` = `Σ_R e^{ik·R} χ(r−R)`. Today `GPW_Evaluator` asserts `k≈0`; lift that.
+
+**Step 2 — full BZ mesh, validate vs PW.** `GPW_BasisSet` builds one `GPW_IBS` per BZ k-point (mirror
+`PW_BasisSet` + `lat.MakeKMesh()`); the framework's per-irrep loop IS the BZ sum `Σ_k w_k` (uniform 1/Nk). Gate:
+GPW bulk total energy ≈ the PW bulk total (same cell/PP/mesh) as the Gaussian basis + cutoffs converge. This
+isolates and proves general-k GPW correctness. No symmetry.
+
+**Step 3 — symmorphic space groups + auto-IBZ (the deferred qcSymmetry track), gated by "reduced == full".**
+Only the POINT-GROUP part matters for k-reduction (fractional translations `τ` don't change which k's are
+equivalent — so symmorphic-level machinery suffices; `τ` phases matter later only for real-space density
+symmetrisation / crystal SALCs). Cubic Si (O_h, centrosymmetric) → IBZ = 1/48 of the BZ, NO extra time-reversal
+factor (inversion `k→−k` is already one of the 48 ops; the "×½ time-reversal" only applies to NON-
+centrosymmetric groups). Validate bit-level: reduced-mesh-with-weights == full-mesh (against Step 2).
+
+### THE COLLOCATION COST (why Γ+Rcut=3a was slow, and why multi-k is NOT gated by it)
+Two ops sum over lattice images with very different cost:
+- **Lattice-sum INTEGRALS** (overlap/kinetic/nuclear): `≈ images × n² × (one analytic 2-centre integral)`.
+  ~450×169 at Rcut=3a → **cheap** (millions of Gaussian integrals < 1 min).
+- **COLLOCATION** (`PhiOnGrid`: evaluate each Bloch orbital `Σ_R χ(r_g−R)` at every density-grid point):
+  `≈ gridPoints × images × orbitals` = ~27k × 450 × n → **~12M evals per pass**, redone per SCF iter. THE cost.
+  The extra `×gridPoints (~27000)` factor is the whole difference.
+
+**The fix (applies to Γ AND every k): DECOUPLE the two image sets.** The overlap needs Rcut≈3a only because the
+*pair*-overlap lattice sum converges to PSD slowly for the diffuse SIPP basis (k-independent). The collocation
+needs only the *single*-Gaussian reach to the home cell (~nearest images, Rcut≈a, ~10–30 cells) — the density
+is dominated by on-site+nearest terms. Today `GPW_Evaluator::itsR` is ONE image set used by both; give the
+collocation its own small Rcut → **~15× faster** collocation, overlap still converged/PSD, still consistent
+(both just need to reach the complete-sum limit). Deeper levers, in order: (1) cache `PhiOnGrid` per k (it is
+recomputed every iteration in `OverlapMatrix(f)`); (2) **local-patch collocation** (CP2K-style — collocate each
+Gaussian onto only nearby grid points → `O(Gaussians × patch)` not `O(grid × images × orbitals)`; the real
+GPW-scaling win, the deferred "whole-density collocation v2" in §4); (3) a less-diffuse, better-conditioned
+valence basis shrinks the overlap-convergence Rcut itself. Collocation is embarrassingly parallel over grid
+points and k-points.
+
+**Two self-consistent schemes — do NOT mix (learned this session):** (A) complete-Bloch = analytic single-sum
+matrices (what GPW has; correct as Rcut→∞); (B) truncated-Bloch = collocation double-sum Gram overlap (always
+PSD). Scheme-B overlap + scheme-A analytic kinetic → charge=8 but `Ekin=−300` (garbage). Stay in scheme A
+(analytic everything) at converged Rcut; the overlap is PSD there (≥3a for Si/SIPP). Groundwork already landed:
+the framework `Ortho` choice (Cholesky|Eigen|SVD+tol, committed `6d6511ac`) — useful for redundant PSD bases,
+but it CANNOT rescue an indefinite overlap, so it is not the bulk fix; a converged-Rcut analytic overlap is.
+
+---
+
 ## 4. Deferred cleanups (do once the SCF works — "the working code is the definitive declaration")
 - **G=0 / long-range LOCAL PP — DONE (energy expression now physical + box-independent).** The first-light
   `MakeLocalPP` subtracted the *numerical cell-average* `<V_loc>·S`, whose `−Zion/r` Coulomb-tail mean is
