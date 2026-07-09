@@ -5,336 +5,187 @@ the electron density collocated on a real-space grid, FFT→G-space Poisson for 
 integrated back against the Gaussians to form the KS matrix (CP2K / Lippert–Hutter). It is the north-star
 that makes ab-initio solids → battery voltage curves possible.
 
-This doc supersedes the GPW sections of `doc/MolecularPP_HarmonizationRound2.md` (now misnamed — that doc's
-job was harmonizing the molecular ↔ plane-wave pseudopotential paths; GPW outgrew it). The durable
-leftovers from it are folded in below (§5).
+This doc supersedes the GPW sections of `doc/MolecularPP_HarmonizationRound2.md`.
+
+**The doc is split into two major sections: [DONE](#done) (committed, anchors green) and
+[TODO](#todo--next) (what's left, in priority order).** Then the durable invariants + pointers.
 
 ---
 
-## 1. Where we are (committed on `main`, all green)
+# DONE
 
-Two increments done, 181/181 UTMain green, `allTests` builds. GPW is a **new evaluator, not a new IBS** —
-it satisfies the existing plane-wave concepts and reuses the `EPW_*` mixins.
+Everything here is committed on `main`; the GPW test suite (`GPW_UT`, `GPW_SCF_UT`) is green and the Γ
+energy anchors hold. GPW is a **new evaluator, not a new IBS** — it satisfies the existing plane-wave
+concepts and reuses the `EPW_*` mixins + the whole `Ham_PW_DFT` KS stack.
 
-**Increment 1 — periodic Gaussian 1-electron integrals at Γ** (`ab2c6a76`)
+## Increment 1 — periodic Gaussian 1E integrals at Γ (`ab2c6a76`)
 - `GPW_Evaluator` (`src/BasisSet/Lattice_3D/Evaluators/GPW/`) satisfies `isPW_1E_Evaluator`; `GPW_IBS`
-  (`src/BasisSet/Lattice_3D/GPW_IBS.C`) = `EPW_Orbital1E_IBS<GPW_Evaluator>` + identity. Scalar type is
-  **`dcmplx`** (reuse the PW stack; Γ = k=0, real values stored complex).
-- The overlap/kinetic(`⟨p²⟩`)/nuclear matrices are real-space Bloch lattice sums `M_ij=Σ_R⟨χ_i|Ô|χ_j(·−R)⟩`.
-  These are **delegated** to the molecular Gaussian basis via a new engine-neutral capability
-  **`Molecule::LatticeSum1E`** (`src/BasisSet/Molecule/LatticeSum1E.C`): `MakeOverlap/MakeKinetic/
-  MakeNuclear(Rs[,cl])`, realised by `PG_Cart::Orbital_IBS` forwarding to `PG_Cart_MnD::NR_Evaluator`,
-  which lattice-sums the existing analytic McMurchie–Davidson kernels via `GaussianRF::AtCenter`. GPW reaches
-  it by an **abstract→abstract cross-cast** — no Gaussian internals cross into qcLattice_BS.
-  - New library edge `qcLattice_BS → qcMolecule_BS` (no cycle).
-  - Engine seam: `LatticeSum1E` is integral-engine-neutral. MnD implements it today; **libCint (`PG_LibCint`)
-    is the faster follow-up** — implement the face there, flip the `Molecule::Factory` `Engine::` arg, GPW
-    unchanged.
-- Validated (`UnitTests/GPW_UT.C`): home cell `R={0}` reproduces the finite matrices exactly (`<1e-12`);
-  images give textbook large-cell convergence (a=14→1.5e-2, 22→7.9e-6, 30→5.9e-11).
+  (`src/BasisSet/Lattice_3D/GPW_IBS.C`) = `EPW_Orbital1E_IBS<GPW_Evaluator>` + identity. Scalar = **`dcmplx`**.
+- Overlap/kinetic(`⟨p²⟩`)/nuclear are real-space Bloch lattice sums, **delegated** to the molecular Gaussian
+  basis via the engine-neutral capability **`Molecule::LatticeSum1E`** (`src/BasisSet/Molecule/LatticeSum1E.C`),
+  realised by `PG_Cart::Orbital_IBS` → `PG_Cart_MnD::NR_Evaluator` (analytic McMurchie–Davidson kernels +
+  `GaussianRF::AtCenter`). GPW reaches it by an abstract→abstract cross-cast (no Gaussian internals cross into
+  qcLattice_BS). New library edge `qcLattice_BS → qcMolecule_BS` (no cycle). libCint is the faster follow-up.
+- Validated (`UnitTests/GPW_UT.C`): home cell `R={0}` reproduces the finite matrices `<1e-12`; images give
+  textbook large-cell convergence.
 
-**Increment 2 — DFT-tier collocation (Hartree/XC machinery)** (`cc123b3b`, cleaned `63fbf70c`)
-- GPW satisfies `isPW_DFT_Evaluator` and reuses the **entire** PW-DFT stack (`PW_Hartree`, `PW_XC`,
-  `IrrepCD`) by filling the `Repulsion3C`/`Overlap3C` 3-centre tensors with dense collocation weights.
-- `G_ERI3` (`src/BasisSet/Internal/GMap.C`) gained `std::vector<mat_t<dcmplx>> weights` (empty = PW delta;
-  filled = GPW); `ContractG_ERI3` branches.
-- `GPW_Evaluator` holds a density grid (`PW_Grid_Evaluator` at `densityEcut`, Γ). It collocates
-  `W_c(i,j)=(1/Ω)∫χ_iχ_j e^{-iG_c·r}=GridCoeff(ForwardFFT(χ_iχ_j),G_c)`, and `OverlapMatrix(f)` grid-
-  integrates the adjoint `⟨χ_i|V|χ_j⟩`. Tensor caching is delegated to the framework (`Band_FT_IBS::
-  Repulsion3C/Overlap3C` via `theCache<dcmplx>()`); `densityEcut` is in the cache key (`IDFragment`).
-- Validated: G=0 collocation weight `W_0·Ω` == analytic overlap to grid accuracy (4.2% @ Ecut=30, Si), and a
-  constant field integrates back to `V0·S` with the **identical** residual (forward-collocation == adjoint
-  consistency).
+## Increment 2 — DFT-tier collocation (Hartree/XC machinery) (`cc123b3b`, `63fbf70c`)
+- GPW satisfies `isPW_DFT_Evaluator` and reuses the **entire** PW-DFT stack (`PW_Hartree`/`PW_XC`/`IrrepCD`)
+  by filling the `Repulsion3C`/`Overlap3C` tensors with dense collocation weights `W_c(i,j)=(1/Ω)∫χ_iχ_j
+  e^{-iG_c·r}`. `G_ERI3` gained `weights`; `ContractG_ERI3` branches. Tensor caching delegated to the framework.
+- **Coulomb factorisation:** `W_c(i,j)` is a SINGLE-`r` integral (density side); the second electron + `1/r12`
+  are the diagonal Poisson kernel `4π/|G_c|²`. Full Coulomb = weight × kernel, factorised through G-space.
 
-**Increment 3 — the full periodic SCF total energy (FIRST LIGHT: GPW SCF runs on real materials).**
-- The one missing tier was the external pseudopotential (plane-wave `PW_Pseudo` needs G-space form factors,
-  which Gaussians cannot supply). Closed by making **`GPW_IBS` realise `Integrals_Pseudo<dcmplx>` via
-  REAL-SPACE mesh quadrature** — so `PW_Pseudo` and the **entire `Ham_PW_DFT` drive a GPW basis verbatim**
-  (kinetic + external-PP + Hartree + Dirac X + VWN5 + ion-ion Ewald), through the real framework
-  `cSCFIterator`. Zero new Hamiltonian code.
-  - `GPW_Evaluator::MakeLocalPP` = `qcMesh::WeightedOverlap(mesh, χ, V_loc)` **minus the ΔG=0 cell-average
-    `<V_loc>·S`** (the PW convention drops G=0 → alignment+background; the raw −Zion/r cell-mean is
-    ill-defined). `MakeSeparablePP` = the `PP_NonLocal` recipe (KB projector vectors `<χ|β_p Y_lm>` via
-    `qcMesh::Overlap`, rank-1 `D|b><b|`). Mesh = `cell.CreateIntegrationMesh({.eCut=densityEcut})` (§2's Nyquist
-    path). Uses `qcPseudopotential` (models) + `qcMesh` (quadrature) — both below `qcLattice_BS`, no cycle.
-  - New: `GPW_BasisSet` / `GPWFactory` (a `BasisSet<dcmplx>` wrapping one Γ `GPW_IBS`), beside `PW_BasisSet`.
-  - Validated (`UnitTests/GPW_SCF_UT.C`): **crystalline Si (Γ, FCC primitive cell, 8 valence e⁻) converges in
-    ~21 iters (complex DIIS), charge = 8.000, Etot = −8.248** (densityEcut=12, Rcut=0; physical — close to the
-    plane-wave bulk −7.2273, the residual being the Rcut=0 over-binding). Closed-shell Si₂ (σ_g²σ_u²π_u⁴) → clean
-    gap. And the **tight cross-check**: a Si pseudo-atom-in-box total (−3.736) reproduces the finite SIPP
-    molecular DFT (−3.759) to grid tolerance (§3.4 gate). [Energies below assume the G=0/long-range LOCAL PP fix
-    — see §4 first bullet; the local PP is assembled in G-space from the form factor, like the PW path.]
-  - **Known limits (deferred, documented in the test):**
-    (a) **Basis conditioning**: folding lattice images (`Rcut>0`) makes the diffuse SIPP Gaussians linearly
-    dependent → non-positive-definite overlap (Cholesky fails). `Rcut=0` (primitive cell, no inter-cell
-    overlap → "molecule in a periodic box") keeps `S` PD. A true bulk crystal needs canonical
-    orthogonalisation (drop small `S` eigenvalues) or a less-diffuse basis.
-    (b) **Degenerate open shells at Γ**: an isolated atom has no point group at Γ, so a half-filled shell
-    (Si 3p²) is degenerate — the ENERGY converges but the density rotates freely in the degenerate subspace
-    (`|Δρ|` never → tol). Not a bug (integer occupation of a degenerate shell). Fix = a **`dcmplx` GDM/Ladder**
-    energy-minimiser (today `SCFAcceleratorGDM`/`Ladder` are `<double>`-only; only DIIS/Null are `dcmplx`), or
-    fractional occupation/smearing, or point-group symmetry. The crystal sidesteps it with its gap.
-    (c) The real-space PP uses the home-cell orbitals (`*itsOrb`), not the Bloch sum, and the structure's own
-    cell atoms (no periodic image potential) — exact at Γ / large box, a rigorous-periodic-PP increment later.
+## Increment 3 — first-light periodic SCF (`dcef8528`, `db314e6a`)
+- Closed the last tier (external PP) by making **`GPW_IBS` realise `Integrals_Pseudo<dcmplx>`**, so `PW_Pseudo`
+  and the **entire `Ham_PW_DFT` drive a GPW basis verbatim** through the real `cSCFIterator`. Zero new
+  Hamiltonian code. `MakeLocalPP` = G-space form factor (ΔG=0 dropped, box-independent, PW alignment);
+  `MakeSeparablePP` = KB projector via `qcMesh::Overlap` on `CreateIntegrationMesh`.
+- **Validated (`UnitTests/GPW_SCF_UT.C`):** crystalline Si (Γ, FCC primitive, 8 val e⁻) converges, charge 8,
+  **Etot = −8.24758**; Si pseudo-atom-in-box reproduces the finite SIPP molecular DFT to grid tolerance.
 
-**Naming (`5f609d2f`) — remember these:**
-- `Overlap(f)` = ANY one-electron `⟨i|f|j⟩` (f may be a potential or not); `Repulsion` = the two-electron
-  `1/r12` integral. So the reciprocal-space field→KS-matrix bridge is `Band_FT_IBS::MakeOverlap(f)` /
-  evaluator `OverlapMatrix(f)` — **not** the old `MakePotential`/`PotentialMatrix`. `Make` = uncached (f
-  changes every SCF iteration). It coexists with the no-arg `MakeOverlap()`/`OverlapMatrix()` (`⟨i|j⟩`) via
-  `using` declarations (needed in any IBS combining the 1E + DFT mixins).
-- **The Coulomb factorisation (an important GPW feature):** `W_c(i,j)` is a SINGLE-`r` integral (the density
-  side). The second electron coordinate and `1/r12` are the diagonal Poisson kernel `4π/|G_c|²` (the `r_2`
-  integral in reciprocal space). Full two-electron Coulomb = weight × kernel, factorised through G-space —
-  never a 2-`r` integral.
+## Implementation 4 — general-k GPW (Step 1) + multi-k BZ plumbing (`b2a29249`)
+- **General-k:** the `e^{ik·R}` Bloch phase runs through the stack. `Molecule::LatticeSum1E` now takes an
+  adjacent `(Rs, phases)` pair (`cvec_t`) and returns `chmat_t` (Hermitian). `GPW_Evaluator` does complex
+  Bloch `Eval`/collocation (`BuildWeights` **conjugates the i-slot** per `ρ=ΣD_ij χ_i*χ_j`, full n²), a
+  complex Hermitian KS bridge, complex Bloch KB projector. New complex-input `PeriodicGridEvaluator::
+  ForwardFFT(cvec_t)`. Phase = `exp(2πi k_frac·n)` (integer cell index — convention-safe). **{R} and
+  {e^{ik·R}} are kept bundled/adjacent** (a future `qcMesh cMesh = Mesh<dcmplx>`).
+- **Γ bit-identity held** (phase=1, conj no-op): the gapped Si-Γ crystal is unchanged.
+- **Validated:** 4 matrix-level Bloch invariants in `GPW_UT` (k-invariance at Rcut=0; phase-is-live +
+  Hermiticity at k≠0; Bloch translation law `χ^k(r+R0)=e^{ik·R0}χ^k(r)`; `S(−k)=conj(S(k))`).
+- **Multi-k plumbing:** `GPW_BasisSet` iterates `lat.MakeKMesh()`, one `GPW_IBS` per k **with the BZ weight**
+  (`BlochFactory(N,ik,kp.weight)` — a missing weight had given charge = Nk×Nelec). Gate
+  `GPW_SCF.SiliconMultiKPlumbing` (2×1×1 Rcut=0 == Γ, charge 8, Etot −8.24758). A `collRcut` decouples the
+  collocation reach from the overlap Rcut (feasibility for the diffuse basis).
+
+## Basis conditioning: SIPP_SR + N3/N5 removal (`b2a29249`, `10ad6e29`)
+- The diffuse SIPP test basis (Si s=0.09/p=0.06, RMS ~5 a.u.) goes near-linearly-dependent when Bloch-summed
+  in a solid: **min eig(S(k)) = 4.3e-6 (SIPP) vs 0.0164 (SIPP_SR)** (drop the 2 most diffuse). `sipp_sr.bsd`'s
+  overlap is PSD + converged at **Rcut=1.5a** (vs SIPP's 3a, still near-singular); with it the dispersive SCF
+  is numerically STABLE (no divergence). **Lesson (durable): an ill-conditioned overlap is a BASIS problem,
+  not a solver/code bug.** Consequently **N3/N5 were removed** from `BasisSetAccuracy` (now {Low,Medium,High});
+  the UTAtom_BS tests that used them migrated behaviour-preservingly to inline-JSON `N3Basis/N5Basis` helpers.
+
+## Bulk over-binding ROOT-CAUSED (`a4c94ec5`) — the atom-on-FFT-raster-node bug
+- With a well-conditioned basis the dispersive-bulk SCF converges but to Etot ≈ −15 (≈ 2× PW −7.76). Ruled
+  out in turn: **charge = 8** (not a double-count); the **density collocation is consistent** with the
+  analytic overlap once images restore the corner atom's leaked density; **kinetic + separable-PP matrices
+  unchanged** with images.
+- **Cause:** `GPW_Evaluator::OverlapMatrix(V)` (local-PP + Hartree + XC integrate-back) quadratures on the
+  **FFT raster `A·(i/N)`**, where a lattice-point atom (the FCC corner atom at 0) sits EXACTLY on a grid node
+  → its sharp density peak is over-weighted against the deep PP well (Vloc trace −29→−52 with images; Een
+  −1.06→−16.6). **Decisive:** shift all atoms by ⅛ cell → Etot −15.2→−8.4 (must be invariant). The
+  **separable PP is immune** (it already uses the offset qcMesh MIDPOINT mesh `A·((i+½)/n)`); **raising
+  densityEcut does NOT help** (r=0 is a node at every N).
+- Landed: DISABLED diagnostics in `GPW_SCF_UT` (`SR_TranslationInvariance`, `PPMatrixTraceProbe`,
+  `CollocationVsAnalyticOverlapWithImages`, `SR_CornerAtomVsDensityEcut`) + the cause documented in
+  `OverlapMatrix`. (A partial fix — midpoint mesh for `OverlapMatrix` only — was explored + reverted:
+  incomplete, and it moved the committed anchor.)
+
+## Naming (`5f609d2f`) — remember these
+- `Overlap(f)` = ANY 1-electron `⟨i|f|j⟩` (f may be a potential); `Repulsion` = the 2-electron `1/r12`.
+  So the reciprocal-space field→KS-matrix bridge is `Band_FT_IBS::MakeOverlap(f)` / evaluator
+  `OverlapMatrix(f)` — **not** `MakePotential`/`PotentialMatrix`. `Make` = uncached.
 
 ---
 
-## 2. THE mesh insight — the next increment builds on this (do not use the stopgap)
+# TODO / NEXT
 
-Increment 2's collocation quadrature (`GPW_Evaluator::BuildWeights`/`OverlapMatrix(f)`, hand-rolled
-`PhiOnGrid` + `Integral` on the FFT grid) is a **stopgap**. The intended, clean design routes GPW's
-real-space quadrature through the **existing `qcMesh` machinery**, which already has exactly the right
-abstraction:
+In priority order. **(1) is the blocker for correct bulk energies**; everything downstream (full-BZ
+validation, IBZ, CP2K cross-check) waits on it.
 
-- `src/Mesh/Quadrature.C` exports `WeightedOverlap(const Mesh& m, const VectorFunction<T>& χ, const
-  ScalarFunction<double>& V) -> hmat_t<T>` = `⟨χ_i|V|χ_j⟩`, plus `Overlap(m,χ)` (`⟨i|j⟩`), `KineticGrad2`,
-  `Integrate`. These take the basis + field **directly** (no `GridPoints()` leak; the mesh owns points+weights).
-- `Structure::CreateIntegrationMesh(mp)` is THE seam. `UnitCell::CreateIntegrationMesh`
-  (`src/Structure/Imp/UnitCell.C`) returns a uniform `qcMesh::Mesh`: `mp.eCut>0` → `n=ceil(2·maxEdge·
-  √(2 eCut)/π)` — its own comment calls this **"the GPW / Nyquist path"** and notes *"plane-wave DFT
-  integrates in G-space so it never asks for this"* — **GPW is the intended caller.** Weights `Ω/n³`, points
-  at fractional midpoints `A·((i+½)/n)` (a proper quadrature mesh, offset ½-cell from the FFT raster `A·(i/n)`
-  — so it is NOT literally the FFT grid).
+## 1. THE BULK BLOCKER — take the collocation off the FFT raster (the atom-on-node fix)
+The root cause (see DONE) is that the density collocation AND the KS-matrix integrate-back quadrature on the
+FFT raster `A·(i/N)`, where lattice-point atoms sit on grid nodes. **Fix = route BOTH off the raster:**
+- **Option A (offset FFT-grid origin):** sample at `A·((i+½)/N)` (a half-cell shift; a phase `e^{iG·½cell}`
+  in G-space that cancels in the forward→Poisson→inverse round-trip). One change to `PeriodicGridEvaluator`
+  fixes both the density collocation and the integrate-back. Watch the phase bookkeeping (forward FFT,
+  `GridCoeff`, `RhoOnGrid` must all agree).
+- **Option B (qcMesh midpoint mesh, GPWPlan's original §2 plan):** KS-matrix quadrature (`⟨χ|V|χ⟩`, `∫ρ`,
+  `∫ε_xc ρ`) → `qcMesh::WeightedOverlap`/`Integrate` on `cell.CreateIntegrationMesh({.eCut=densityEcut})`,
+  with the G-space `V_H`/`v_xc` presented as a `ScalarFunction` (via `EvalField`) and the Bloch orbital as a
+  `VectorFunction` (via `Eval`/`EvalGradient`). The FFT grid then does ONLY the Poisson solve. The separable
+  PP already works this way; a Bloch-orbital `VectorFunction` adapter + a `GSpaceField` `ScalarFunction`
+  adapter is the whole change to `OverlapMatrix(f)`. **But the DENSITY source (`BuildWeights`/`PhiOnGrid`)
+  still needs the FFT → Option A or an offset density grid is needed there too.** (A partial B — midpoint
+  mesh for `OverlapMatrix` only — was tried and reverted: it left the density on the raster, so Etot only
+  went −15.2→−14.2.)
+- **AND raise densityEcut ~10×.** We've been running `densityEcut` = 8–12 Ha; CP2K's density grid is ~150 Ha.
+  The sharp SIPP/SIPP_SR 2.0-exponent Gaussian's density (exponent ~4) is badly under-resolved at 12.
+- **Gate:** `GPW_SCF.SR_TranslationInvariance` |diff| → 0 (currently 5.8 Ha), and Γ SR bulk → the off-corner
+  value (~−8.4, near PW). This also validates the whole `qcMesh` migration (GPWPlan's long-standing §2).
 
-**Target design (decouple "FFT for Poisson" from "mesh for the KS matrix"):**
-- KS-matrix quadrature (`⟨χ_i|V|χ_j⟩`, `∫ρ`, `∫ε_xc ρ`) → `qcMesh::WeightedOverlap`/`Integrate` on
-  `cell.CreateIntegrationMesh({.eCut = densityEcut})`, with the G-space potential `V_H`/`v_xc` presented as a
-  `ScalarFunction` (evaluated via `G_FieldEvaluator::EvalField`) — exactly the molecular `FittedVxc` path.
-- The FFT grid (`PeriodicGridEvaluator`) does **only** the Poisson solve `ρ→ρ̃→V_H(G)`.
+## 2. Full-BZ multi-k validation vs PW (Step 2 of the bulk roadmap)
+Once (1) makes single-k bulk correct: sample the full (unreduced) BZ and check the bulk total ≈ the PW bulk
+total (`PlaneWaveDFTUT.FrameworkSilicon2x2x2ThroughSCFIterator`, same cell/PP/mesh) as the Gaussian basis +
+cutoffs converge. The multi-k **plumbing already works** (DONE — `SiliconMultiKPlumbing` at Rcut=0 == Γ); this
+step just needs (1) so the dispersive (Rcut>0) energy is right. Use a well-conditioned basis (SIPP_SR) at a
+converged `Rcut` (SR overlap is PSD at Rcut≥1.5a) + adequate densityEcut. This proves general-k GPW
+correctness with ZERO new symmetry code.
 
-This encapsulates `{r}` (the grid-encapsulation principle: expose operations, keep the raw point list
-inside; `GridPoints()` raw exposure is the soft spot), and **unifies GPW's real-space assembly with the
-molecular DFT/PP path** — `L_PP` already runs `WeightedOverlap`-style terms bit-consistently on a `UnitCell`
-uniform mesh. It reframes GPW cleanly: **kinetic / nuclear / XC are real-space mesh quadrature (reuse the
-molecular machinery); only Hartree needs the FFT (for Poisson).** The `GridPoints()` consumers that feed the
-FFT (the XC fitter's batch-sample, GPW's `PhiOnGrid`) legitimately keep a "sample on grid" op — but on the
-grid engine, `{r}` internal.
+## 3. Symmorphic space groups + auto-IBZ (Step 3, deferred qcSymmetry track)
+Only the POINT-GROUP part matters for k-reduction. Cubic Si (O_h, centrosymmetric) → IBZ = 1/48 of the BZ,
+no time-reversal factor. Validate bit-level: reduced-mesh-with-weights == full-mesh (against Step 2). The IBZ
+is an *efficiency* layer, not a correctness requirement — hence it comes AFTER a working full-BZ reference.
 
----
+## 4. CP2K cross-check (independent oracle)
+`−7.7613` is our own Ecut=4 PW number, NOT a literature absolute (the literature reports gaps, skips total
+energies). Build CP2K and run FCC Si with the same GTH PP in both PW and GPW modes for an independent bulk
+total to validate our PW AND our GPW. Heavyweight build; do it once (1) gives a plausible GPW bulk.
 
-## 3. The full periodic SCF total energy  — FIRST LIGHT DONE (see §1 Increment 3)
-
-**Status:** the SCF runs end-to-end and converges on real materials (Si Γ, 17 iters, charge 8). The pieces
-below record the original plan; what shipped and what's deferred is summarised in §1 Increment 3. The route
-taken (reuse `Ham_PW_DFT` verbatim via `Integrals_Pseudo<dcmplx>`) differs from the "`Ham_GPW_DFT`" framing
-in item 3 below — the plane-wave KS terms are basis-agnostic, so no new Hamiltonian was needed.
-
-Build it on §2 (route the KS quadrature through `qcMesh::WeightedOverlap` on `CreateIntegrationMesh`), since
-the SCF needs that real-space quadrature anyway. Remaining pieces:
-1. A `dcmplx` **external** term for the GPW orbitals. Kinetic reuses `PW_Kinetic` (calls `MakeKinetic`).
-   For the external potential: either an all-electron nuclear term, or (recommended, GPW's whole point) the
-   **molecular pseudopotential** on the lattice (`PP_Local`/`PP_NonLocal` already run on a `UnitCell` uniform
-   mesh — `L_PP` proves it — but they are `<double>`; need the `dcmplx`/Bloch path, or the G-space `PW_Pseudo`
-   if the orbital basis can supply the form factors, which Gaussians cannot → use the real-space PP terms).
-2. The **G=0 neutralising background / alignment** (periodic only; `PW_Pseudo` already carries the pattern).
-3. **Seeding** (SAD / uniform) + the `cSCFIterator<dcmplx>` drive + `Ham_GPW_DFT` (or reuse `Ham_PW_DFT`
-   term-assembly with the GPW basis; the terms are basis-agnostic via the abstract faces).
-4. **Validation gate:** Γ molecule-in-a-box GPW total energy == density-fit DFT on the same system to
-   grid-cutoff tolerance, and variational-stable as the cutoff rises. Mirror `L_PP`: converge to the finite
-   molecular DFT energy as the box grows.
-
-**Open structural decision (settle first):** `double` vs `dcmplx`. The old spec argued GPW is all-`double`
-with the FFT a term-private Poisson technique (a `<double>` `GPW_Hartree`); the built evaluator network reuses
-the `dcmplx` PW stack (Γ = k=0). At Γ/real orbitals `double` is enough and cleaner; general-k Bloch orbitals
-force `dcmplx`. Increment 2 committed to `dcmplx` (reuse); revisit if a `<double>` Γ path proves worth it.
-
-### First SCF validation system — recommendation: **Si**, then NaF, then CsI
-- **Si (do first).** Single-species, covalent, 8 valence e⁻ (2 × Zion=4), `l≤1` GTH-LDA projectors. Uses the
-  **SIPP** valence Gaussian basis already exercised by `L_PP` and the GPW tests — well-conditioned, moderate
-  cutoff. Covalent → no Madelung/charge-transfer convergence trouble. There is a trusted reference: the same
-  SIPP basis + GTH PP as a finite molecule via the molecular density-fit DFT path (large-box limit), and the
-  existing PW-DFT Si anchors (`PlaneWaveDFTUT`: Si-Γ, Si 2×2×2). This is the cleanest first light.
-- **NaF (follow-up).** Multi-species (Na Zion=1 + F Zion=7) and ionic. Exercises the multi-species PP routing
-  and ionic-SCF convergence (needed a raised DIIS `EMax` in the PW path — ionic charge-transfer). F's tight 2p
-  (`r_loc=0.219`) is the hard atom → higher `densityEcut`.
-- **CsI (follow-up).** The **d-projector** (`l=2`) validation (both species carry `l=2` KB channels — Si/NaF
-  are `l≤1`). Heavy, soft → a LOWER cutoff than NaF. Use Cs-q1 (the semicore q9 has an `l=3`/f projector the
-  analytic HGH `Qli` table omits).
-
-Rationale: get first light on the simplest, most-anchored covalent single-species case; add multi-species +
-ionic (NaF) and d-projectors (CsI) as separate, targeted follow-ups. (All three GTH PPs + the multi-species
-PW machinery already exist and are green in `PlaneWaveDFTUT`.)
+## 5. Deferred cleanups (do once bulk works — "the working code is the definitive declaration")
+- **Rigorous periodic external PP:** `MakeLocalPP`/`MakeSeparablePP` quadrature the HOME-CELL orbitals against
+  the cell's OWN atoms (no periodic-image PP) — exact at Γ / large box, an approximation for a dense crystal.
+  Sum the PP over lattice images (analogous to Ewald / the PW G-space assembly).
+- **DRY the PP field adapters into `qcPseudopotential`:** `RealYlm`/`BetaYlmField` are byte-identical in
+  `PP_{Local,NonLocal}.C` (molecular terms) and replicated in the GPW evaluator. Hoist into a public module in
+  `qcPseudopotential` (below both libs). Pure refactor; verify `L_PP` + `A_PP` + `GPW_SCF` unchanged.
+- **`cMesh` = `Mesh<dcmplx>` (user-directed):** the `(Rs, phases)` pair (a `{R}` + `{e^{ik·R}}` weighted point
+  set) and the density/quadrature grids should collapse to a `template<class W=double> class Mesh` — the
+  integration algorithm is identical for real/complex weights, only the weight TYPE differs (confirmed vs
+  `src/Mesh/Quadrature.C`). Then a `FourierMesh_R` ({R}) and `FourierMesh_k` ({k} + real BZ weights, unifies
+  with today's `KMesh`). A cross-cutting refactor (Quadrature.C + bit-identity across ~29 consumers);
+  currently marked with `// future: one cMesh` comments.
+- **Whole-density collocation (efficiency):** the dense `W` tensor is `O(nGfit·nAO²)` storage + `O(nAO²)` FFTs.
+  The efficient GPW collocates `ρ = op(r)` ONCE (one FFT), which needs `D` → density-side. CP2K's local-patch
+  (multi-grid) collocation is the further v2.
+- **Common `PW_Evaluator`/`GPW_Evaluator` base:** the shared FFT engine (`PeriodicGridEvaluator`) is already
+  factored; a base earns its keep once general-k k-space logic is shared.
 
 ---
 
-## 3b. Bulk crystals — the path is MULTI-K + IRREDUCIBLE BZ, not Γ + large Rcut (investigated 2026-07-08)
-
-The `Rcut=0` primitive-cell result (§1 Increment 3, Si −8.248) is a "molecule in a periodic box" — no inter-cell
-hopping. Turning on lattice images (`Rcut>0`) to get a real crystal surfaced a chain of findings; the durable
-conclusion is that **Γ + large Rcut is the wrong bulk path**:
-
-- **A single Γ point is not the bulk.** Even with a huge real-space `Rcut`, Γ samples ONE point of the
-  Brillouin zone; the bulk total energy is a BZ integral `∫_BZ Σ_n f_{nk}…`. The plane-wave path already does
-  this (multi-k 2×2×2 Si). Real bulk GPW needs **general-k Bloch phases** `e^{ik·R}` in the lattice sums +
-  collocation, then a **k-mesh reduced to the irreducible BZ wedge**. That is the next solids increment.
-- **The analytic single-sum Bloch overlap is INDEFINITE until Rcut is large.** `S_ij=Σ_R⟨χ_i|χ_j(·−R)⟩`
-  truncated at a finite sphere is NOT the Gram matrix of the truncated Bloch functions, so it can have negative
-  eigenvalues (min eig −0.59 at Rcut≈a for Si/SIPP) — which makes the generalised eigenproblem ill-posed and
-  the charge come out as `Tr(D S)` with ±1 signatures → **"exactly half" (charge 4 not 8)**. It converges to
-  PSD only as the sphere grows: min eig −0.12(1.5a) → −0.0016(2a) → **+5.9e−5 (3a, converged)**. Overlap
-  integrals are cheap, so a large Rcut is affordable for the 1E matrices — but the **collocation** re-sums all
-  images (~450 cells at Rcut=3a) at every grid point, which is the real cost.
-- **Two self-consistent schemes; do NOT mix them.** (A) *complete* Bloch functions → analytic single-sum
-  matrices (what GPW has), correct as Rcut→∞. (B) *truncated* Bloch functions → the collocation/double-sum
-  Gram matrix for the overlap (always PSD). Using scheme-B overlap (`W_0·Ω=∫_cell(Σχ_i)(Σχ_j)`, the G=0
-  collocation weight) with scheme-A analytic kinetic gave charge=8 but `Ekin=−300` — garbage. If you want the
-  PSD collocation overlap, kinetic/nuclear/PP must ALL move to the collocation form. Scheme A at converged
-  large Rcut is simpler and is what real periodic-Gaussian codes do.
-- `CellsInSphere` is a correct Cartesian sphere (`‖A·n‖≤Rcut` via the metric tensor; oblique FCC handled).
-- **Symmetry is the lever** (deferred track): the irreducible BZ reduces the k-mesh (reciprocal); the crystal
-  point group reduces the ~450-cell real-space image sphere to an irreducible set × multiplicities. Both cut
-  the multi-k bulk cost dramatically. See qcSymmetry "Space-group support" / the BZ-reduction TODO items.
-
-**Groundwork that DID land (safe, committed, reusable):** the framework now threads an `Ortho` choice
-(`Cholesky` default | `Eigen` | `SVD` + truncation tolerance) from `cSCFIterator` → `WaveFunction::Factory` →
-the WFs → `MakeIrrepWFs`'s `LASolver::Factory` (181 non-A tests green; all three modes give identical results
-on a well-conditioned basis). Canonical orthogonalisation handles *redundant* (near-singular PSD) bases — it
-CANNOT rescue an *indefinite* overlap, so it is not the bulk fix, but it is useful infrastructure for the
-multi-k path and for any linearly-dependent-but-PSD basis.
-
----
-
-## 3c. Bulk roadmap — general-k → FULL BZ → IBZ (DECIDED; the next session starts here)
-
-**Decision (2026-07-08): Option 3 — decouple correctness from efficiency. Prove bulk GPW on the FULL
-(unreduced) BZ first, THEN add symmetry/IBZ as an independently-validated speed layer.** The IBZ is an
-*efficiency* optimisation, not a correctness requirement: the full BZ gives the exact bulk energy, and the
-plane-wave path ALREADY does full-BZ multi-k (`PlaneWaveDFTUT` 2×2×2 Si). So we can prove out multi-k GPW with
-ZERO new symmetry code, then fold in the IBZ against a working reference. Rationale = the one-new-thing-at-a-
-time discipline that made this session converge: never validate new-GPW-bulk against a new hand-rolled IBZ
-(can't tell which is wrong).
-
-**Step 1 — general-k GPW (the shared prerequisite for ANY multi-k, reduced or not).** Extend GPW from Γ to
-general k: the `e^{ik·R}` Bloch phase enters (a) the `Molecule::LatticeSum1E` matrices — `MakeOverlap/
-MakeKinetic/MakeNuclear(Rs)` become `Σ_R e^{ik·R}⟨…⟩`, returning `chmat_t` (its own doc already says "the
-general-k Bloch case (complex phases → chmat_t) … this contract is expected to grow"); and (b) the collocation
-`GPW_Evaluator::Eval` = `Σ_R e^{ik·R} χ(r−R)`. Today `GPW_Evaluator` asserts `k≈0`; lift that.
-
-**Step 2 — full BZ mesh, validate vs PW.** `GPW_BasisSet` builds one `GPW_IBS` per BZ k-point (mirror
-`PW_BasisSet` + `lat.MakeKMesh()`); the framework's per-irrep loop IS the BZ sum `Σ_k w_k` (uniform 1/Nk). Gate:
-GPW bulk total energy ≈ the PW bulk total (same cell/PP/mesh) as the Gaussian basis + cutoffs converge. This
-isolates and proves general-k GPW correctness. No symmetry.
-
-**Step 3 — symmorphic space groups + auto-IBZ (the deferred qcSymmetry track), gated by "reduced == full".**
-Only the POINT-GROUP part matters for k-reduction (fractional translations `τ` don't change which k's are
-equivalent — so symmorphic-level machinery suffices; `τ` phases matter later only for real-space density
-symmetrisation / crystal SALCs). Cubic Si (O_h, centrosymmetric) → IBZ = 1/48 of the BZ, NO extra time-reversal
-factor (inversion `k→−k` is already one of the 48 ops; the "×½ time-reversal" only applies to NON-
-centrosymmetric groups). Validate bit-level: reduced-mesh-with-weights == full-mesh (against Step 2).
-
-### THE COLLOCATION COST (why Γ+Rcut=3a was slow, and why multi-k is NOT gated by it)
-Two ops sum over lattice images with very different cost:
-- **Lattice-sum INTEGRALS** (overlap/kinetic/nuclear): `≈ images × n² × (one analytic 2-centre integral)`.
-  ~450×169 at Rcut=3a → **cheap** (millions of Gaussian integrals < 1 min).
-- **COLLOCATION** (`PhiOnGrid`: evaluate each Bloch orbital `Σ_R χ(r_g−R)` at every density-grid point):
-  `≈ gridPoints × images × orbitals` = ~27k × 450 × n → **~12M evals per pass**, redone per SCF iter. THE cost.
-  The extra `×gridPoints (~27000)` factor is the whole difference.
-
-**The fix (applies to Γ AND every k): DECOUPLE the two image sets.** The overlap needs Rcut≈3a only because the
-*pair*-overlap lattice sum converges to PSD slowly for the diffuse SIPP basis (k-independent). The collocation
-needs only the *single*-Gaussian reach to the home cell (~nearest images, Rcut≈a, ~10–30 cells) — the density
-is dominated by on-site+nearest terms. Today `GPW_Evaluator::itsR` is ONE image set used by both; give the
-collocation its own small Rcut → **~15× faster** collocation, overlap still converged/PSD, still consistent
-(both just need to reach the complete-sum limit). Deeper levers, in order: (1) cache `PhiOnGrid` per k (it is
-recomputed every iteration in `OverlapMatrix(f)`); (2) **local-patch collocation** (CP2K-style — collocate each
-Gaussian onto only nearby grid points → `O(Gaussians × patch)` not `O(grid × images × orbitals)`; the real
-GPW-scaling win, the deferred "whole-density collocation v2" in §4); (3) a less-diffuse, better-conditioned
-valence basis shrinks the overlap-convergence Rcut itself. Collocation is embarrassingly parallel over grid
-points and k-points.
-
-**Two self-consistent schemes — do NOT mix (learned this session):** (A) complete-Bloch = analytic single-sum
-matrices (what GPW has; correct as Rcut→∞); (B) truncated-Bloch = collocation double-sum Gram overlap (always
-PSD). Scheme-B overlap + scheme-A analytic kinetic → charge=8 but `Ekin=−300` (garbage). Stay in scheme A
-(analytic everything) at converged Rcut; the overlap is PSD there (≥3a for Si/SIPP). Groundwork already landed:
-the framework `Ortho` choice (Cholesky|Eigen|SVD+tol, committed `6d6511ac`) — useful for redundant PSD bases,
-but it CANNOT rescue an indefinite overlap, so it is not the bulk fix; a converged-Rcut analytic overlap is.
-
----
-
-## 4. Deferred cleanups (do once the SCF works — "the working code is the definitive declaration")
-- **G=0 / long-range LOCAL PP — DONE (energy expression now physical + box-independent).** The first-light
-  `MakeLocalPP` subtracted the *numerical cell-average* `<V_loc>·S`, whose `−Zion/r` Coulomb-tail mean is
-  cell-size-dependent → the total had a spurious 1/L tail (atom-in-box: −4.238/−4.157/−4.078 at a=11/15/20)
-  and the Si crystal came out at −11.937. **Fix (done):** the local PP is now assembled in **G-space from the
-  analytic form factor**, IDENTICALLY to `PW_Evaluator::LocalPotentialMatrix` — `Ṽ(ΔG)=(1/Ω)Σ_a
-  v_loc(Z_a,|ΔG|²)e^{−iΔG·τ_a}`, ΔG=0 dropped, assembled through GPW's `OverlapMatrix` (the collocation
-  adjoint reconstructs `V_loc(r)` on the density grid, band-limited to `densityEcut`). GPW is a `Band_FT_IBS`,
-  so it reuses the PW G=0/`FormFactorG0`-alignment convention verbatim; the KB nonlocal stays real-space
-  (localized, no Coulomb tail). **Result:** atom-in-box total is now box-INDEPENDENT (−3.736/−3.738/−3.742 at
-  a=11/15/20) and **matches the finite SIPP molecular DFT (−3.759) to ~0.02 Ha grid tolerance** — the §3.4
-  tight gate. The Si crystal is now **−8.248** (electronic +0.448, the PW-convention sign), close to the
-  plane-wave bulk −7.2273; the residual ~1 Ha is the `Rcut=0` over-binding, fixed by bulk (task A). Removed
-  the `<V_loc>·S` hack + the `VlocField` adapter. *(Deferred refinement: for a sharp core at low `densityEcut`,
-  split SR real-space / LR G-space; not needed for correctness, only grid-accuracy.)*
-- **DRY the pseudopotential field adapters into `qcPseudopotential`.** `RealYlm` / `BetaYlmField` / `VlocField`
-  are byte-identical in `src/Hamiltonian/Internal/Imp/PP_{Local,NonLocal}.C` (the molecular terms) and
-  replicated in `src/BasisSet/Lattice_3D/Evaluators/GPW/Imp/Evaluator.C` (the GPW real-space PP). Hoist them
-  into a new public module in `qcPseudopotential` (below both libs — no cycle) so both consume one copy. Pure
-  refactor, zero numerical change; verify `L_PP` + `A_PP` + `GPW_SCF` unchanged. (A background task is queued.)
-- **Rigorous periodic external potential** (limitation (c) in §1 Increment 3). Today `MakeLocalPP`/`MakeSeparablePP`
-  quadrature the HOME-CELL orbitals (`*itsOrb`, not the Bloch sum `Σ_R χ(·−R)`) against a potential built only
-  from the cell's OWN atoms (no periodic-image PP) — exact at Γ / large box, an approximation for a dense
-  crystal. Sum the PP over lattice images (image-atom potentials + the Bloch orbital sum), analogous to how
-  Ewald handles the ion-ion and how the PW path assembles it in G-space.
-- **Route quadrature through `qcMesh` (§2)** — the PP quadrature already does (`WeightedOverlap`/`Overlap` on
-  `CreateIntegrationMesh`); the Hartree/XC collocation still uses the hand-rolled `PhiOnGrid`+`Integral` grid.
-- **Whole-density collocation** — the dense `W` tensor is `O(nGfit·nAO²)` storage + `O(nAO²)` FFTs. The
-  efficient GPW collocates `ρ = op(r)` **once** (one FFT), which needs `D` → density-side. CP2K's local-patch
-  (multi-grid) collocation is a further v2.
-- **Design-pure framing** (debated, parked in favour of the working reuse): GPW Hartree/XC as a **distinct
-  Coulomb-strategy term** (`GPW_Hartree`/`GPW_XC`, peer of `Vee`/`FittedVee`, grid term-private — the Factory
-  picks it by structure type) rather than reuse-via-`G_ERI3`. Related: a `ProjectedDensity_R` fitter variant
-  (also parked).
-- **Common `PW_Evaluator`/`GPW_Evaluator` base** — DEFERRED to general-k. The shared FFT engine
-  (`PeriodicGridEvaluator`) is already factored (both hold it); the residual orbital-evaluator overlap is just
-  the k-point. It earns a base only when general-k adds real shared k-space logic (`e^{ik·R}`, `|k+G|`).
-
----
-
-## 5. Durable pins / invariants (carry into all GPW work)
-- **PP-smoothness is GPW's enabler; GAPW is out of scope (first pass).** Plain GPW is clean only when the
-  density is smooth enough to collocate on a modest grid — pseudopotentials give that. All-electron cores are
-  too sharp (would need PAW-like augmentation = GAPW, deferred). Validate with a well-conditioned GTH valence
-  basis, never all-electron.
+# Durable pins / invariants (carry into all GPW work)
+- **PP-smoothness is GPW's enabler; GAPW is out of scope (first pass).** All-electron cores are too sharp;
+  validate with a well-conditioned GTH valence basis, never all-electron.
+- **Use well-conditioned bases for SCF.** Ill-conditioning is a BASIS problem, not a solver/code bug (SIPP
+  diffuse → SIPP_SR; N3/N5 removed). "LASolver" symptoms are basis conditioning. `N3/N5` no longer exist.
 - **GPW is a Coulomb/Hartree STRATEGY orthogonal to the orbital basis** — a third one beside exact-4-centre
-  (`Vee`) and density-fitting (`FittedVee`). Same `⟨χ|V_H|χ⟩` out, different internals; it does not restructure
-  the SCF. Mirror `FittedVee` (Factory picks by structure type: molecules → density-fit; solids/supercells →
-  GPW's O(N log N) FFT Coulomb).
+  (`Vee`) and density-fitting (`FittedVee`). Same `⟨χ|V_H|χ⟩` out, different internals.
 - **Never assume `orbital == fit`.** Any fit/aux basis comes from the orbital basis via `Create{CD,Vxc}
-  FitBasisSet(...)` — the factory is the seam even when the answer is trivial.
+  FitBasisSet(...)` — the factory is the seam even when trivial.
 - **Fit quality is measured by grid-convergence of ρ, NEVER by ΔE_total** (the fit is non-variational).
-- **Spin-polarized is the native formulation**; unpolarized is the ζ=0 collapse. New GPW/periodic terms are
-  spin-native (`FittedVxcPol`/`FittedVcorrPol`), unpolarized as the efficiency corner.
-- **Use well-conditioned bases for SCF** (Slater/High for atoms; a cleanly-converted GTH valence basis for
-  PP). "LASolver" symptoms are basis conditioning, not a solver gap. `N3`/`N5` are test-only pools.
+- **Spin-polarized is the native formulation**; unpolarized is the ζ=0 collapse. New periodic terms
+  spin-native (`FittedVxcPol`/`FittedVcorrPol`).
 - **Regression style:** periodic/GPW energies are "did-E-move" anchors (pin the converged value, no
   `Converged()` guard). Where a real-space-on-lattice quantity must equal its finite counterpart, assert
   bit-consistency (`L_PP`-style) rather than an absolute oracle.
+- **Two self-consistent schemes — do NOT mix:** (A) complete-Bloch analytic single-sum matrices (what GPW
+  has, correct as Rcut→∞); (B) truncated-Bloch collocation Gram matrices (always PSD). Scheme-B overlap +
+  scheme-A analytic kinetic gave `Ekin=−300`. Stay in scheme A at a converged Rcut (overlap PSD there).
 
 ### Symmetry comes AFTER a working GPW (independent optimisation layer, does not gate GPW)
-GPW runs at Γ / a small explicit k-mesh with no space-group machinery. Once GPW works, the symmetry track
-(from the Round-2 doc) bolts on without rework: symmorphic space groups in `qcSymmetry` → BZ reduction
-(irreducible wedge, the highest-value solid speedup, `reduced+weighted == full`) → SALC with plane waves
-(star-of-G blocking). None of these gate GPW.
+Symmorphic space groups → BZ reduction (irreducible wedge) → SALC with plane waves. None of these gate GPW.
 
 ---
 
-## 6. Pointers
-- Superseded companion: `doc/MolecularPP_HarmonizationRound2.md` (§2.4/§2.5 GPW discussion; §2.1–2.2 the
-  deferred symmetry track). Round-1 record: `doc/MolecularPP_HarmonizationFindings.md`.
-- Commits (this GPW work, on `main`): `09cf4170` facade-preserves-UnitCell, `17fd8f0c` MakePotential→orbital
-  face (pre-GPW), evaluator-network refactor (`4eb26bff`/`b45532f7`/`85765dfb`/`65128554`), then
-  **`ab2c6a76`** (1E), **`cc123b3b`** (DFT collocation), **`63fbf70c`** (cache/doc), **`5f609d2f`** (rename).
-- Tests: `UnitTests/GPW_UT.C` (GPW), `UnitTests/L_PP.C` (finite==lattice PP), `UnitTests/PlaneWaveDFTUT.C`
-  (PW-DFT anchors incl. Si/NaF/CsI). Build/test: `cd build/Release && ninja UTMain && ./UnitTests/UTMain`.
+# Pointers
+- Superseded companion: `doc/MolecularPP_HarmonizationRound2.md`; Round-1 record:
+  `doc/MolecularPP_HarmonizationFindings.md`.
+- Commits (GPW, on `main`): `ab2c6a76` (1E), `cc123b3b`/`63fbf70c` (DFT collocation), `dcef8528`/`db314e6a`
+  (first-light SCF + G-space local PP), `5f609d2f` (rename), `6d6511ac` (Ortho choice), `fc430e94` (this
+  doc's bulk roadmap), **`b2a29249`** (Impl 4 general-k + multi-k), **`10ad6e29`** (N3/N5 removal),
+  **`02027faf`** (charge probe), **`a4c94ec5`** (bulk over-binding root-cause + diagnostics).
+- Tests: `UnitTests/GPW_UT.C` (1E + Bloch invariants), `UnitTests/GPW_SCF_UT.C` (SCF + the DISABLED bulk
+  diagnostics), `UnitTests/L_PP.C` (finite==lattice PP), `UnitTests/PlaneWaveDFTUT.C` (PW-DFT anchors incl.
+  Si/NaF/CsI + the 2×2×2 multi-k reference). Build/test: `cd build/Release && ninja UTMain && ./UnitTests/UTMain`.
