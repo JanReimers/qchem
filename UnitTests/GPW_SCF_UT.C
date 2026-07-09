@@ -22,6 +22,7 @@
 #include "gtest/gtest.h"
 #include <memory>
 #include <cmath>
+#include <complex>
 #include <cstdio>
 #include <stdexcept>
 #include <algorithm>
@@ -45,6 +46,10 @@ import qchem.Energy;                             // EnergyBreakdown
 import qchem.Symmetry.Irrep;                     // Irrep
 import qchem.Symmetry.Spin;                      // Spin
 import qchem.LASolver;                           // qchem::Ortho (Cholesky | Eigen | SVD -- basis orthogonalisation)
+import qchem.BasisSet.Lattice_3D.GPW_IBS;         // GPW_IBS (build a concrete block for the collocation diagnostic)
+import qchem.BasisSet.Lattice_3D.Evaluators.GPW;  // GPW_Evaluator (Overlap3CTensor -- the collocation tensor)
+import qchem.BasisSet.Internal.GMap;              // G_ERI3 (the collocation weight tensor)
+import qchem.Pseudopotential.GTH_Potentials;      // GetGTH, GTH_PP (the PP model, for the matrix-trace probe)
 import qchem.Calculation;                        // qchem::Calculation, CalcOptions (finite reference)
 import qchem.AtomCalculation;                    // AtomCalculation, AtomType, BasisSetAccuracy (Slater/High pseudo-atom ref)
 import qchem.Types;
@@ -243,6 +248,105 @@ TEST(GPW_SCF, DISABLED_SiliconBulk2x2x2SR)
     Lattice_3D lat(cell, ivec3_t(2,2,2));
     RunGPW(lat, MakeBasisSR(cell), /*densityEcut*/8.0, /*Rcut*/1.5*a, /*Nelec*/8, "Si", "2x2x2 SR rc=cc=1.5a",
            /*verbose*/true, /*nmax*/60, qchem::Cholesky, 0.0, /*collRcut*/0.0);
+}
+
+// DIAGNOSTIC (disabled): is the COLLOCATED density consistent with the analytic Bloch overlap once images are
+// on?  The G=0 collocation weight W_0(i,j)*Omega must equal the analytic overlap S(i,j) = Sum_R <chi_i|chi_j(R)>
+// (both are integral chi_i^k* chi_j^k).  Tested at Rcut=0 by GPW.CollocationOverlapMatchesAnalytic but NOT with
+// images -- if it diverges at Rcut>0 the density is inconsistent with the orbitals => every energy term balloons.
+TEST(GPW_SCF, DISABLED_CollocationVsAnalyticOverlapWithImages)
+{
+    using BasisSet::Lattice_3D::GPW_IBS;
+    using BasisSet::Lattice_3D::GPW_Evaluator;
+    const double a=10.26;
+    FCCUnitCell cell(a);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    for (double dE : {8.0, 12.0, 20.0, 30.0, 50.0})
+    for (double rc : {0.0, 1.5*a})
+    {
+        GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), MakeBasisSR(cell), dE, rc, /*collRcut*/0.0);
+        const GPW_Evaluator& ev = gpw;
+        const BasisSet::Complex_OIBS& g = gpw;
+        chmat_t S = g.Overlap();                 // analytic Bloch overlap
+        G_ERI3 ov = ev.Overlap3CTensor();        // collocation weights
+        int c0=-1; for (size_t c=0;c<ov.columns.size();c++)
+            if (ov.columns[c].dm.x==0&&ov.columns[c].dm.y==0&&ov.columns[c].dm.z==0) c0=int(c);
+        size_t n=S.rows(); double num=0,den=0, trW=0, trS=0;
+        for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++)
+        {
+            double w=std::real(dcmplx(ov.weights[c0](i,j)))*ov.volume, s=std::real(dcmplx(S(i,j)));
+            double d=w-s; num+=d*d; den+=s*s;
+        }
+        for (size_t i=0;i<n;i++){ trW+=std::real(dcmplx(ov.weights[c0](i,i)))*ov.volume; trS+=std::real(dcmplx(S(i,i))); }
+        std::printf("dEcut=%4.0f Rcut=%.2f  ||W0*Om - S||/||S|| = %.4f   trace(W0*Om)=%.4f trace(S)=%.4f\n",
+                    dE, rc/a, std::sqrt(num/den), trW, trS);
+    }
+}
+
+// DIAGNOSTIC (disabled): which 1E/PP MATRIX balloons at Rcut>0?  Print trace + Frobenius norm of the kinetic,
+// local-PP and separable-PP matrices at Rcut=0 vs 1.5a (no SCF).  A term whose matrix grows unphysically with
+// images is the double-count.
+TEST(GPW_SCF, DISABLED_PPMatrixTraceProbe)
+{
+    using BasisSet::Lattice_3D::GPW_IBS;
+    auto frob=[](const chmat_t& M){ double s=0; for (size_t i=0;i<M.rows();i++) for (size_t j=0;j<M.rows();j++) s+=std::norm(dcmplx(M(i,j))); return std::sqrt(s); };
+    auto tr  =[](const chmat_t& M){ double s=0; for (size_t i=0;i<M.rows();i++) s+=std::real(dcmplx(M(i,i))); return s; };
+    const double a=10.26;
+    FCCUnitCell cell(a);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+    auto st=lat.GetStructure();
+    Pseudopotential::GTH_PP pp=Pseudopotential::GetGTH("Si","LDA",4);
+    for (double rc : {0.0, 1.5*a})
+    {
+        GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), MakeBasisSR(cell), /*densityEcut*/12.0, rc, 0.0);
+        const BasisSet::Complex_OIBS& g = gpw;
+        chmat_t Kin =g.Kinetic();
+        chmat_t Vloc=gpw.MakeLocalPotential   (st.get(), pp.local);
+        chmat_t Vnl =gpw.MakeSeparablePotential(st.get(), pp.nonlocal);
+        std::printf("Rcut=%.2f  Kin[tr=%.3f fro=%.3f]  Vloc[tr=%.3f fro=%.3f]  Vnl[tr=%.3f fro=%.3f]\n",
+                    rc/a, tr(Kin),frob(Kin), tr(Vloc),frob(Vloc), tr(Vnl),frob(Vnl));
+    }
+}
+
+// DIAGNOSTIC (disabled): TRANSLATION INVARIANCE.  Shifting ALL atoms by a constant must not change the total
+// energy.  If it does at Rcut>0, the collocation/grid handling of atom position (esp. the corner atom at the
+// origin, whose orbital straddles the cell boundary) is the bug.
+TEST(GPW_SCF, DISABLED_SR_TranslationInvariance)
+{
+    const double a=10.26;
+    auto run=[&](double shift, const char* lbl)->double
+    {
+        FCCUnitCell cell(a);
+        cell.AddAtom(14, {0.0+shift, 0.0+shift, 0.0+shift});
+        cell.AddAtom(14, {0.25+shift,0.25+shift,0.25+shift});
+        Lattice_3D lat(cell, ivec3_t(1,1,1));
+        GpwResult R=RunGPW(lat, MakeBasisSR(cell), 12.0, /*Rcut*/1.5*a, 8, "Si", lbl, false, 20);
+        return R.E.GetTotalEnergy();
+    };
+    double e0=run(0.0,  "shift=0.00");
+    double e1=run(0.125,"shift=0.125");   // move the origin atom off the cell corner
+    std::printf("SR Gamma Rcut=1.5a: Etot(shift=0)=%.5f  Etot(shift=0.125)=%.5f  |diff|=%.5f\n",
+                e0, e1, std::fabs(e0-e1));
+}
+
+// DIAGNOSTIC (disabled): is the corner-atom translation-invariance violation a grid-RESOLUTION effect?  Run the
+// corner atom (shift=0) at rising densityEcut -- if Etot -> the off-corner value (~-8.4) the sharp Gaussian
+// density was under-resolved (fix = higher densityEcut / smoother basis); if it stays ~-15 it is a real bug.
+TEST(GPW_SCF, DISABLED_SR_CornerAtomVsDensityEcut)
+{
+    const double a=10.26;
+    for (double dE : {12.0, 20.0, 30.0, 45.0})
+    {
+        FCCUnitCell cell(a);
+        cell.AddAtom(14, {0,0,0});
+        cell.AddAtom(14, {0.25,0.25,0.25});
+        Lattice_3D lat(cell, ivec3_t(1,1,1));
+        char lbl[48]; std::snprintf(lbl,sizeof lbl,"corner dE=%.0f",dE);
+        RunGPW(lat, MakeBasisSR(cell), dE, /*Rcut*/1.5*a, 8, "Si", lbl, false, 20);
+    }
 }
 
 // FAST DIAGNOSTIC (disabled): single-k (Gamma) minimal repro of the Rcut>0 over-binding -- compare charge +

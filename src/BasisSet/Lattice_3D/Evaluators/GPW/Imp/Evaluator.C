@@ -218,6 +218,14 @@ chmat_t GPW_Evaluator::OverlapMatrix(const std::function<dcmplx(const ivec3_t&)>
     size_t Npts=Phi.rows(), n=itsN;
     const double w=itsGrid->Volume()/double(Npts);   // uniform quadrature weight (== Integral's Omega/Npts)
     // <chi_i^k | V | chi_j^k> = integral conj(chi_i^k) V chi_j^k: Hermitian (V real), fill upper triangle.
+    // NOTE (2026-07-09): this integrates on the FFT RASTER {A(i/N)}, where a lattice-point atom (e.g. the FCC
+    // corner atom at 0) sits EXACTLY on a grid node -> its sharp density peak is over-weighted against the deep
+    // PP well, so the local-PP/Hartree/XC energy is spuriously over-bound AND translation-non-invariant (shift
+    // all atoms by 1/8 cell: Etot -15.2 -> -8.4).  The separable PP is immune (it uses the OFFSET qcMesh
+    // midpoint mesh).  The FIX (deferred: it also needs the DENSITY collocation off the raster + an adequate
+    // densityEcut, ~10x today's) is GPWPlan sec 2: route the collocation through the qcMesh midpoint mesh /
+    // offset the FFT grid origin.  See the DISABLED diagnostics in GPW_SCF_UT (TranslationInvariance,
+    // PPMatrixTraceProbe, CollocationVsAnalyticOverlapWithImages, CornerAtomVsDensityEcut).
     chmat_t M=blazem::zeroH<dcmplx>(n);
     for (size_t i=0;i<n;i++)
         for (size_t j=i;j<n;j++)
