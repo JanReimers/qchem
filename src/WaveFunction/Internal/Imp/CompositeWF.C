@@ -28,9 +28,12 @@ using SCFAccelerators::tSCFIrrepAccelerator;
 constexpr bool EnableMOM=false;
 
 
-template <class T> tCompositeWF<T>::tCompositeWF(const tbs_t<T>* bs,const ElectronConfiguration* ec,tSCFAccelerator<T>* acc )
+template <class T> tCompositeWF<T>::tCompositeWF(const tbs_t<T>* bs,const ElectronConfiguration* ec,tSCFAccelerator<T>* acc,
+                                                 qchem::Ortho basisOrtho, double basisOrthoTol )
     : itsBS(bs)
     , itsEC(ec)
+    , itsBasisOrtho(basisOrtho)
+    , itsBasisOrthoTol(basisOrthoTol)
     , itsAufbau(ec->UsesAufbau())
     , itsAccelerator(acc)
 {
@@ -46,7 +49,7 @@ template <class T> void tCompositeWF<T>::MakeIrrepWFs(Spin s)
 
     for (auto b:itsBS->template Iterate<tobs_t<T>>())
     {
-        LASolver<T>* lasb=LASolver<T>::Factory(qchem::Cholesky);
+        LASolver<T>* lasb=LASolver<T>::Factory(itsBasisOrtho, itsBasisOrthoTol);
         lasb->SetBasisOverlap(b->Overlap());
         // std::cout << "Minimum singular value for basis set overlap= " << blaze::min(lasb->Get_BS_Diagonal()) << std::endl;
         Irrep qns(b->GetIrrep(s));

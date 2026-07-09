@@ -15,8 +15,9 @@ namespace qchem::WaveFunction
 
 using namespace tabulate;
 
-template <class T> tUnPolarizedWF<T>::tUnPolarizedWF(const tbs_t<T>* bs,const ElectronConfiguration* ec,tSCFAccelerator<T>* acc)
-    : tCompositeWF<T>(bs,ec,acc)
+template <class T> tUnPolarizedWF<T>::tUnPolarizedWF(const tbs_t<T>* bs,const ElectronConfiguration* ec,tSCFAccelerator<T>* acc,
+                                                     qchem::Ortho basisOrtho, double basisOrthoTol)
+    : tCompositeWF<T>(bs,ec,acc,basisOrtho,basisOrthoTol)
 {
     this->MakeIrrepWFs(Spin::None);
 };

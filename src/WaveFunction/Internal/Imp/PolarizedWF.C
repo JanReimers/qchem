@@ -21,8 +21,9 @@ using std::cout;
 using std::endl;
 
 
-template <class T> tPolarizedWF<T>::tPolarizedWF(const tbs_t<T>* bs,const ElectronConfiguration* ec,tSCFAccelerator<T>* acc)
-    : tCompositeWF<T>(bs,ec,acc)
+template <class T> tPolarizedWF<T>::tPolarizedWF(const tbs_t<T>* bs,const ElectronConfiguration* ec,tSCFAccelerator<T>* acc,
+                                                 qchem::Ortho basisOrtho, double basisOrthoTol)
+    : tCompositeWF<T>(bs,ec,acc,basisOrtho,basisOrthoTol)
 {
     this->MakeIrrepWFs(Spin::Up);
     this->MakeIrrepWFs(Spin::Down);

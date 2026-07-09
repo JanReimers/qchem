@@ -9,6 +9,7 @@ export import qchem.WaveFunction;
 import qchem.WaveFunction.SCF;
 export import qchem.SCFParams;
 export import qchem.ChargeDensity.Seed;   // SeedStrategy / MakeSeedDensity
+import qchem.LASolver;   // qchem::Ortho (the basis-overlap orthogonalisation knob, forwarded to the WF)
 
 export using qchem::EnergyBreakdown;
 using qchem::ChargeDensity::tDM_CD;
@@ -42,9 +43,14 @@ public:
     // The seed density is chosen by strategy (see ChargeDensity::SeedStrategy): Default resolves to
     // each path's present-day behaviour -- molecular -> CoreGuess, plane-wave -> Uniform.  \a st (the
     // structure) is needed only by the SAD seeds (atom Z + positions); null is fine otherwise.
+    // \a basisOrtho / \a basisOrthoTol select how the orbital-overlap S is orthogonalised: Cholesky
+    // (default; needs S positive-definite) or Eigen/SVD with a cutoff that drops near-null eigen/singular
+    // values -- canonical orthogonalisation for a linearly-dependent basis (e.g. GPW's diffuse Gaussians
+    // on a dense lattice, whose Bloch overlap goes singular).  \a basisOrthoTol<=0 keeps all.
     tSCFIterator(const tbs_t<T>*, const ElectronConfiguration*, ham_t*,acc_t*,
                  ChargeDensity::SeedStrategy seed=ChargeDensity::SeedStrategy::Default,
-                 const Structure* st=nullptr);
+                 const Structure* st=nullptr,
+                 qchem::Ortho basisOrtho=qchem::Cholesky, double basisOrthoTol=0.0);
     virtual ~tSCFIterator();
     virtual bool Iterate(const SCFParams& ipar);
     // Direct energy minimization (GDM owns the loop): geodesic line search, no density mixing.

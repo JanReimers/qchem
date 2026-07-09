@@ -8,6 +8,7 @@ export import qchem.WaveFunction.SCF;
 import qchem.SCFAccelerator;
 import qchem.WaveFunction.Internal.IrrepWF;
 import qchem.WaveFunction.Types;
+import qchem.LASolver;   // qchem::Ortho (the basis-overlap orthogonalisation: Cholesky | Eigen | SVD + tol)
 
 export namespace qchem::WaveFunction
 {
@@ -27,7 +28,12 @@ public:
     typedef typename tWaveFunction<T>::iqns_t iqns_t;
     using tWaveFunction<T>::GetChargeDensity;   // keep the no-arg (whole-density) overload visible past GetChargeDensity(Spin)
 
-    tCompositeWF(const tbs_t<T>*,const ElectronConfiguration*,tSCFAccelerator<T>*);
+    //! \a basisOrtho selects how the (per-irrep) orbital-overlap S is orthogonalised for the generalised
+    //! eigenproblem: \c Cholesky (default; requires S positive-definite) or \c Eigen / \c SVD with a
+    //! \a basisOrthoTol cutoff that DROPS near-null eigen/singular values -- canonical orthogonalisation for a
+    //! linearly-dependent basis (e.g. diffuse Gaussians on a dense lattice).  \a basisOrthoTol\f$\le0\f$ = keep all.
+    tCompositeWF(const tbs_t<T>*,const ElectronConfiguration*,tSCFAccelerator<T>*,
+                 qchem::Ortho basisOrtho=qchem::Cholesky, double basisOrthoTol=0.0);
     ~tCompositeWF();
 
     virtual void            DoSCFIteration  (tHamiltonian<T>&,const tChargeDensity<T>*   )      ;
@@ -54,6 +60,8 @@ private:
 
     const tbs_t<T>*              itsBS;
     const ElectronConfiguration* itsEC;
+    qchem::Ortho                 itsBasisOrtho;    //S-orthogonalisation mode for the generalised eigenproblem
+    double                       itsBasisOrthoTol; //near-null eigen/singular-value cutoff (Eigen/SVD; 0 = keep all)
     bool                         itsAufbau;   //molecular aufbau across irreps (vs fixed per-irrep EC)
     bool                         itsMOMActive=false; //once the accelerator engages, pick occupation by MOM (overlap) not eigenvalue
     tSCFAccelerator<T>*          itsAccelerator;

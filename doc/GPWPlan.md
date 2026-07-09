@@ -168,6 +168,43 @@ PW machinery already exist and are green in `PlaneWaveDFTUT`.)
 
 ---
 
+## 3b. Bulk crystals — the path is MULTI-K + IRREDUCIBLE BZ, not Γ + large Rcut (investigated 2026-07-08)
+
+The `Rcut=0` primitive-cell result (§1 Increment 3, Si −8.248) is a "molecule in a periodic box" — no inter-cell
+hopping. Turning on lattice images (`Rcut>0`) to get a real crystal surfaced a chain of findings; the durable
+conclusion is that **Γ + large Rcut is the wrong bulk path**:
+
+- **A single Γ point is not the bulk.** Even with a huge real-space `Rcut`, Γ samples ONE point of the
+  Brillouin zone; the bulk total energy is a BZ integral `∫_BZ Σ_n f_{nk}…`. The plane-wave path already does
+  this (multi-k 2×2×2 Si). Real bulk GPW needs **general-k Bloch phases** `e^{ik·R}` in the lattice sums +
+  collocation, then a **k-mesh reduced to the irreducible BZ wedge**. That is the next solids increment.
+- **The analytic single-sum Bloch overlap is INDEFINITE until Rcut is large.** `S_ij=Σ_R⟨χ_i|χ_j(·−R)⟩`
+  truncated at a finite sphere is NOT the Gram matrix of the truncated Bloch functions, so it can have negative
+  eigenvalues (min eig −0.59 at Rcut≈a for Si/SIPP) — which makes the generalised eigenproblem ill-posed and
+  the charge come out as `Tr(D S)` with ±1 signatures → **"exactly half" (charge 4 not 8)**. It converges to
+  PSD only as the sphere grows: min eig −0.12(1.5a) → −0.0016(2a) → **+5.9e−5 (3a, converged)**. Overlap
+  integrals are cheap, so a large Rcut is affordable for the 1E matrices — but the **collocation** re-sums all
+  images (~450 cells at Rcut=3a) at every grid point, which is the real cost.
+- **Two self-consistent schemes; do NOT mix them.** (A) *complete* Bloch functions → analytic single-sum
+  matrices (what GPW has), correct as Rcut→∞. (B) *truncated* Bloch functions → the collocation/double-sum
+  Gram matrix for the overlap (always PSD). Using scheme-B overlap (`W_0·Ω=∫_cell(Σχ_i)(Σχ_j)`, the G=0
+  collocation weight) with scheme-A analytic kinetic gave charge=8 but `Ekin=−300` — garbage. If you want the
+  PSD collocation overlap, kinetic/nuclear/PP must ALL move to the collocation form. Scheme A at converged
+  large Rcut is simpler and is what real periodic-Gaussian codes do.
+- `CellsInSphere` is a correct Cartesian sphere (`‖A·n‖≤Rcut` via the metric tensor; oblique FCC handled).
+- **Symmetry is the lever** (deferred track): the irreducible BZ reduces the k-mesh (reciprocal); the crystal
+  point group reduces the ~450-cell real-space image sphere to an irreducible set × multiplicities. Both cut
+  the multi-k bulk cost dramatically. See qcSymmetry "Space-group support" / the BZ-reduction TODO items.
+
+**Groundwork that DID land (safe, committed, reusable):** the framework now threads an `Ortho` choice
+(`Cholesky` default | `Eigen` | `SVD` + truncation tolerance) from `cSCFIterator` → `WaveFunction::Factory` →
+the WFs → `MakeIrrepWFs`'s `LASolver::Factory` (181 non-A tests green; all three modes give identical results
+on a well-conditioned basis). Canonical orthogonalisation handles *redundant* (near-singular PSD) bases — it
+CANNOT rescue an *indefinite* overlap, so it is not the bulk fix, but it is useful infrastructure for the
+multi-k path and for any linearly-dependent-but-PSD basis.
+
+---
+
 ## 4. Deferred cleanups (do once the SCF works — "the working code is the definitive declaration")
 - **G=0 / long-range LOCAL PP — DONE (energy expression now physical + box-independent).** The first-light
   `MakeLocalPP` subtracted the *numerical cell-average* `<V_loc>·S`, whose `−Zion/r` Coulomb-tail mean is

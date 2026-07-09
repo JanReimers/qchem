@@ -6,6 +6,7 @@ export import qchem.WaveFunction.SCF;
 import qchem.WaveFunction.Internal.CompositeWF;
 import qchem.WaveFunction.Types;
 import qchem.SCFAccelerator;
+import qchem.LASolver;   // qchem::Ortho (forwarded to tCompositeWF)
 
 export namespace qchem::WaveFunction
 {
@@ -20,7 +21,8 @@ template <class T> class tUnPolarizedWF
 public:
     typedef typename tWaveFunction<T>::sf_t sf_t;
 
-    tUnPolarizedWF(const tbs_t<T>*,const ElectronConfiguration*,tSCFAccelerator<T>* acc);
+    tUnPolarizedWF(const tbs_t<T>*,const ElectronConfiguration*,tSCFAccelerator<T>* acc,
+                   qchem::Ortho basisOrtho=qchem::Cholesky, double basisOrthoTol=0.0);
     using tCompositeWF<T>::GetChargeDensity;
     using tCompositeWF<T>::GetEnergyLevels;
 

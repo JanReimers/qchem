@@ -23,11 +23,15 @@
 #include <memory>
 #include <cmath>
 #include <cstdio>
+#include <stdexcept>
+#include <algorithm>
 
 import qchem.Structure;                          // Molecule, Atom
 import qchem.UnitCell;                           // UnitCell, FCCUnitCell
 import qchem.Lattice_3D;                         // Lattice_3D
 import qchem.BasisSet;                           // Complex_BS, Real_BS
+import qchem.BasisSet.Orbital_1E_IBS;            // Complex_OIBS (the overlap-spectrum diagnostic)
+import qchem.Blaze;                              // blazem::eigen, blaze::min/max (overlap spectrum)
 import qchem.BasisSet.Lattice_3D.BasisSet;       // GPWFactory (the GPW basis container)
 import qchem.BasisSet.Molecule.Factory;          // Molecule::Factory, BasisSetData/Engine/Angular
 import qchem.Hamiltonian.Internal.Hamiltonians;  // Ham_PW_DFT (the plane-wave LDA KS Hamiltonian -- drives GPW too)
@@ -40,6 +44,7 @@ import qchem.WaveFunction;                       // cWaveFunction (the converged
 import qchem.Energy;                             // EnergyBreakdown
 import qchem.Symmetry.Irrep;                     // Irrep
 import qchem.Symmetry.Spin;                      // Spin
+import qchem.LASolver;                           // qchem::Ortho (Cholesky | Eigen | SVD -- basis orthogonalisation)
 import qchem.Calculation;                        // qchem::Calculation, CalcOptions (finite reference)
 import qchem.AtomCalculation;                    // AtomCalculation, AtomType, BasisSetAccuracy (Slater/High pseudo-atom ref)
 import qchem.Types;
@@ -64,7 +69,8 @@ struct GpwResult { bool converged; double charge; qchem::EnergyBreakdown E; size
 // One GPW Gamma-point SCF: build the GPW basis over the lattice, hand it the plane-wave LDA Hamiltonian
 // (Ham_PW_DFT reaches GPW's real-space Integrals_Pseudo), seed uniform, run the complex-DIIS cSCFIterator.
 GpwResult RunGPW(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, double densityEcut, double Rcut,
-                 int Nelec, const char* element, const char* label, bool verbose=false, int nmax=120)
+                 int Nelec, const char* element, const char* label, bool verbose=false, int nmax=120,
+                 qchem::Ortho ortho=qchem::Cholesky, double orthoTol=0.0)
 {
     namespace L3=BasisSet::Lattice_3D;
     std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, std::move(mol), densityEcut, Rcut));
@@ -75,8 +81,11 @@ GpwResult RunGPW(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, doub
         lat.GetStructure(), bs.get(), element, "LDA", 4);
     using qchem::SCFAccelerators::DIISParams;
     auto* acc=new qchem::SCFAccelerators::cSCFAcceleratorDIIS(DIISParams{8, 8.0, 1e-10, 1e-9});
+    // \a ortho / \a orthoTol: Cholesky (default) needs S positive-definite; for a lattice basis with images
+    // (Rcut>0) the diffuse Gaussians go linearly dependent -> Eigen/SVD with a small-eigenvalue cutoff.
     qchem::SCFIterator::cSCFIterator scf(bs.get(), &ec, ham, acc,
-                                         qchem::ChargeDensity::SeedStrategy::Uniform, lat.GetStructure().get());
+                                         qchem::ChargeDensity::SeedStrategy::Uniform, lat.GetStructure().get(),
+                                         ortho, orthoTol);
     SCFParams par;
     par.NMaxIter=nmax; par.MinΔρ=1e-6; par.MinΔFD=1e30; par.MinVirial=1e30; par.MinFD=1e30;
     par.StartingRelaxRo=0.3; par.MergeTol=1e-4; par.Verbose=verbose;
@@ -117,6 +126,41 @@ TEST(GPW_SCF, SiliconGammaConverges)
     EXPECT_TRUE(R.converged);                       // clean closed-shell convergence (~17 iters, complex DIIS)
     EXPECT_NEAR(R.charge, 8.0, 1e-6);              // 8 valence electrons
     EXPECT_NEAR(R.E.GetTotalEnergy(), -8.2476, 5e-3);    // regression anchor (densityEcut=12, Gamma, Rcut=0)
+}
+
+// (1b) BULK Si: fold in the lattice images (Rcut>0) so the Gaussians hop between cells (true crystal, not
+// Si2-in-a-box).  The diffuse SIPP Gaussians then go linearly dependent -> the Bloch overlap S is singular
+// and the default Cholesky fails; canonical orthogonalisation (Eigen with a near-null eigenvalue cutoff)
+// drops the redundant directions and the SCF runs.  The inter-cell screening relaxes the Rcut=0 over-binding
+// toward the plane-wave bulk -7.2273.  (DISABLED while the tolerance/energy are tuned; see the sweep below.)
+TEST(GPW_SCF, DISABLED_SiliconBulkOrtho)
+{
+    const double a=10.26;
+    FCCUnitCell cell(a);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+
+    // The analytic single-sum Bloch overlap is INDEFINITE at small Rcut (a truncated single sum is not the
+    // Gram matrix of the truncated Bloch functions) and only turns positive-definite once the image sphere is
+    // large enough to converge it: min eig(S) = -0.12(1.5a) -> -0.0016(2a) -> +5.9e-5(3a) -> +5.9e-5(>=3a,
+    // converged).  Overlap integrals are cheap so a large Rcut is affordable for the 1E matrices -- BUT the
+    // density COLLOCATION re-sums all images (~450 cells at Rcut=3a) at every grid point, which is the cost.
+    //
+    // CONCLUSION (why this is not the bulk path): a single Gamma point -- even with a huge Rcut -- is one point
+    // of the Brillouin zone, not the bulk (the bulk total energy is a BZ integral).  Real bulk needs MULTI-K
+    // sampling (general-k Bloch phases e^{ik.R} in the GPW lattice sums + collocation), reduced to the
+    // IRREDUCIBLE BZ wedge for efficiency.  That -- not Gamma + large Rcut -- is the next increment for solids.
+    namespace L3=BasisSet::Lattice_3D;
+    for (double rc : {1.5, 2.0, 3.0, 4.0})
+    {
+        std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, MakeBasis(cell), /*densityEcut*/0.0, rc*a));
+        chmat_t S;
+        for (auto b : bs->Iterate<qchem::BasisSet::Complex_OIBS>()) S = b->Overlap();
+        rvec_t w; mat_t<dcmplx> U; blazem::eigen(S, w, U);
+        double lo=w[0]; for (size_t i=0;i<w.size();i++) lo=std::min(lo,w[i]);
+        std::cout << "Rcut=" << rc << "a  min(eig S_analytic)=" << lo << (lo<0?"  (indefinite)":"  (PSD)") << std::endl;
+    }
 }
 
 // (2) THE TIGHT CROSS-CHECK: the isolated Si pseudo-atom in a box vs the finite molecular DFT on the SAME

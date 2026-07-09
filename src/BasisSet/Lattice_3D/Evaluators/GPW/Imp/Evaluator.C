@@ -244,8 +244,10 @@ cvec3vec_t GPW_Evaluator::EvalGradient(const rvec3_t& r) const
     return v;
 }
 
-// The periodic 1E matrices: delegate the lattice sum to the molecular basis (it owns the Gaussian kernels),
-// then widen to complex.  KineticMatrix is <p^2> (no 1/2 -- matches PW_Evaluator; the Hamiltonian applies it).
+// The periodic 1E matrices: analytic single lattice sums (LatticeSum1E) over the SAME image set the density
+// collocation uses -- the COMPLETE-Bloch scheme, self-consistent as Rcut grows.  The overlap becomes positive-
+// definite once the image sphere is large enough (a truncated single sum can be indefinite; overlap integrals
+// are cheap, so a generous Rcut is the fix).  KineticMatrix is <p^2> (no 1/2 -- the Hamiltonian applies it).
 chmat_t GPW_Evaluator::OverlapMatrix()                 const {return Complexify(itsLat->MakeOverlap(itsR));}
 chmat_t GPW_Evaluator::KineticMatrix()                 const {return Complexify(itsLat->MakeKinetic(itsR));}
 chmat_t GPW_Evaluator::NuclearMatrix(const Structure* cl) const {return Complexify(itsLat->MakeNuclear(itsR,cl));}
