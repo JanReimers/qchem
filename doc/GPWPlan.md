@@ -92,8 +92,8 @@ concepts and reuses the `EPW_*` mixins + the whole `Ham_PW_DFT` KS stack.
 
 # TODO / NEXT
 
-In priority order. **(1) is the blocker for correct bulk energies.** **(2) CP2K runs EARLY / in parallel** —
-its energy breakdown is a diagnostic that narrows (1), not just a final gate. (3)/(4) (full-BZ, IBZ) wait on (1).
+In priority order. **(1) is the blocker for correct bulk energies** — and it now has a HARD gate: the CP2K
+reference **−7.115 Ha** (2, DONE — CP2K built + FCC-Si Γ reference obtained). (3)/(4) (full-BZ, IBZ) wait on (1).
 
 ## 1. THE BULK BLOCKER — take the collocation off the FFT raster (the atom-on-node fix)
 The root cause (see DONE) is that the density collocation AND the KS-matrix integrate-back quadrature on the
@@ -111,24 +111,32 @@ FFT raster `A·(i/N)`, where lattice-point atoms sit on grid nodes. **Fix = rout
   still needs the FFT → Option A or an offset density grid is needed there too.** (A partial B — midpoint
   mesh for `OverlapMatrix` only — was tried and reverted: it left the density on the raster, so Etot only
   went −15.2→−14.2.)
-- **AND raise densityEcut ~10×.** We've been running `densityEcut` = 8–12 Ha; CP2K's density grid is ~150 Ha.
-  The sharp SIPP/SIPP_SR 2.0-exponent Gaussian's density (exponent ~4) is badly under-resolved at 12.
-- **Gate:** `GPW_SCF.SR_TranslationInvariance` |diff| → 0 (currently 5.8 Ha), and Γ SR bulk → the off-corner
-  value (~−8.4, near PW). This also validates the whole `qcMesh` migration (GPWPlan's long-standing §2).
+- **AND raise densityEcut modestly.** We've been running `densityEcut` = 8–12 Ha. CP2K's total is CONVERGED
+  by **~40 Ha** (80 Ry) for this basis (see TODO 2 sweep) — so the raster artifact, not resolution, was the
+  killer; `densityEcut` ≈ 30–40 Ha with a correct (off-raster) collocation is plenty.
+- **Gate (now a HARD number from CP2K):** `GPW_SCF.SR_TranslationInvariance` |diff| → 0 (was 5.8 Ha), and
+  Γ SR bulk → **−7.115 Ha, charge 8** (the CP2K reference, TODO 2 — NOT our PW −7.2273, a different basis).
+  The old committed Rcut=0 anchor −8.2476 is ~1.1 Ha OVER-bound (the corner atom is on a node at Rcut=0 too),
+  so the fix moves it UP toward −7.115. This also validates the whole `qcMesh`/off-raster migration (§2).
 
-## 2. CP2K cross-check — do EARLY (the energy breakdown narrows the search)
-CP2K's Quickstep **is** the reference GPW implementation (Lippert–Hutter), so it is the natural oracle — and
-its per-term energy breakdown usually points straight at the culprit (as this session's hand-rolled breakdown
-did: Een ×15.7 → the local PP → the raster). Run it in **parallel with (1)**, not only as final validation.
-`−7.7613` is our own Ecut=4 PW number, not a literature absolute.
-- **Location:** clone/build at `~/Code/cp2k` (sibling to qchem6, like `libcint`/`googletest-main` — outside the
-  git tree). Heavyweight build (MPI/OpenMP + BLAS/LAPACK/ScaLAPACK + libint + libxc + FFTW); not done yet.
-- **PP already aligned:** our `src/Pseudopotential/Data/gth_potentials.json` IS the CP2K GTH-PADE database (its
-  `"LDA"` set = GTH-PADE); Si GTH-PADE-q4 matches ours — no conversion.
-- **Basis: same DATA, different FILE format.** `sipp_sr.bsd` is Gaussian94/`.bsd`; CP2K uses its own `BASIS_SET`
-  format (element, name, nset, per-set `n lmin lmax nexp nshell…`, then exponent + contraction coeffs). SIPP_SR
-  is uncontracted (coeff 1.0) so the transcription is mechanical — a tiny `.bsd`→CP2K converter (or hand-
-  transcribe the 3 s + 3 p Si exponents).
+## 2. CP2K cross-check — BUILT + first reference obtained (the oracle)
+CP2K's Quickstep **is** the reference GPW implementation (Lippert–Hutter); its per-term breakdown points
+straight at a bug (as this session's hand-rolled breakdown did: Een ×15.7 → local PP → the raster).
+- **DONE — CP2K 2026.1 built** (serial ssmp, gcc 15.2) at `~/Code/cp2k` (sibling to qchem6, outside the git
+  tree). Toolchain: OpenBLAS+FFTW+libxc+libxsmm+DBCSR, no MPI/libint. Build: `tools/toolchain/build_cp2k.sh`
+  (CMake, NOT the old arch-file `make`). Run needs `source install/setup` +
+  `LD_LIBRARY_PATH=install/lib`.
+- **DONE — FCC-Si Γ reference (SIPP_SR, GTH-PADE-q4, LDA_X+VWN5):** **Etot = −7.11506 Ha, charge 8**,
+  converged by `CUTOFF` 80 Ry (≈40 Ha). Breakdown: Core-H (kin+PP) +5.565, Hartree +10.380, XC −2.544;
+  PP total −7.548 (local −8.489, nonlocal +0.941); core self-energy −20.516. (CP2K's GPW electrostatic split
+  differs from ours — compare the TOTAL + the cleaner sub-terms kin/XC/nonlocal-PP.) **This is TODO 1's gate.**
+  Input files: **`UnitTests/CP2K/`** (`si_fcc_gpw.inp` + `SIPP-SR-BASIS` + README) — a growing library of
+  reference decks.
+- **PP already aligned:** our `src/Pseudopotential/Data/gth_potentials.json` IS the CP2K GTH-PADE database
+  (Si GTH-PADE-q4 params match ours exactly — verified). **Basis: same exponents, transcribed to CP2K
+  `BASIS_SET` format** (uncontracted → one set per primitive; see `UnitTests/CP2K/SIPP-SR-BASIS`).
+- **NEXT with CP2K:** multi-k (uncomment `&KPOINTS MONKHORST-PACK`) as the full-BZ reference (TODO 3); NaF/CsI
+  decks; term-by-term breakdown once our fixed GPW runs the same geometry.
 
 ### Parameters to line up (qchem ↔ CP2K) — keep this table current
 | quantity | qchem (ours) | CP2K keyword | note / pitfall |
