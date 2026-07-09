@@ -81,6 +81,18 @@ cvec_t PeriodicGridEvaluator::ForwardFFT(const rvec_t& V) const
     return Vt;
 }
 
+// Complex-input forward FFT (general-k): identical convention, the field is already complex so no real->complex
+// pack.  FFT3D takes its argument by value, so pass a copy.
+cvec_t PeriodicGridEvaluator::ForwardFFT(const cvec_t& V) const
+{
+    ivec3_t N=itsN;
+    size_t Npts=size_t(N.x)*N.y*N.z;
+    assert(V.size()==Npts);
+    cvec_t Vt=qchem::FFT::FFT3D(V, N, -1);
+    for (size_t i=0;i<Npts;i++) Vt[i]/=double(Npts);
+    return Vt;
+}
+
 // Vtilde(dm) from a ForwardFFT grid: wrap dm into [0,N) per axis (negative freq -> N-|.|) and index raster.
 dcmplx PeriodicGridEvaluator::GridCoeff(const cvec_t& Vt, const ivec3_t& dm) const
 {

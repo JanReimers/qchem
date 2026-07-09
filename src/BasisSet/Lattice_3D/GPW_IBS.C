@@ -54,12 +54,16 @@ public:
     //! \param mol   the molecular Gaussian orbital basis built over \a cell's atoms (kept alive by the evaluator).
     //! \param densityEcut  the DFT-tier density/collocation grid cutoff (Hartree); \f$\le 0\f$ = 1E-only (no DFT).
     //! \param Rcut  lattice-translation sphere radius (a.u.); \f$\le 0\f$ = home cell only (the finite limit).
+    //! \param collRcut  the COLLOCATION image reach (\f$\le0\f$ reuses \a Rcut's set); decouple it (small) from
+    //!                   \a Rcut (large, for a PSD overlap) to make multi-k bulk affordable -- see \c GPW_Evaluator.
     GPW_IBS(const UnitCell& cell, const sym_t& irrep,
-            std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut = 0.0, double Rcut = 0.0);
+            std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut = 0.0, double Rcut = 0.0,
+            double collRcut = 0.0);
 
     //! \brief Convenience constructor in BZ-grid indices: builds the Bloch irrep \c BlochFactory(N,kIndex).
     GPW_IBS(const UnitCell& cell, const ivec3_t& N, const ivec3_t& kIndex,
-            std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut = 0.0, double Rcut = 0.0);
+            std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut = 0.0, double Rcut = 0.0,
+            double collRcut = 0.0);
 
     //! \brief The DFT factory seam (Band_FT_IBS): the auxiliary density/potential fit basis is a plane-wave grid
     //! over GPW's OWN density grid -- so the collocated \f$\tilde\rho\f$'s \f$\{G\}\f$ matches the fitter's.  A

@@ -79,11 +79,11 @@ public:
     virtual std::vector<Symmetry::Molecule::AoShell> GetAoShells() const override;   // Molecule::Orbital_1E_IBS
 
     // Molecule::LatticeSum1E -- forward to the NR_Evaluator base subobject's lattice-sum kernels (it owns the
-    // radials/pols/ns).  The R=0 term reproduces this basis's own Overlap/Kinetic/Nuclear exactly.  (The Rs
-    // overload is distinct from the mixin's finite MakeOverlap()/MakeKinetic()/MakeNuclear(cl).)
-    virtual rsmat_t MakeOverlap(const std::vector<rvec3_t>& Rs) const override;
-    virtual rsmat_t MakeKinetic(const std::vector<rvec3_t>& Rs) const override;
-    virtual rsmat_t MakeNuclear(const std::vector<rvec3_t>& Rs, const Structure* cl) const override;
+    // radials/pols/ns).  The R=0/phase-1 term reproduces this basis's own Overlap/Kinetic/Nuclear exactly.
+    // (The (Rs,phases) overload is distinct from the mixin's finite MakeOverlap()/MakeKinetic()/MakeNuclear(cl).)
+    virtual chmat_t MakeOverlap(const std::vector<rvec3_t>& Rs, const cvec_t& phases) const override;
+    virtual chmat_t MakeKinetic(const std::vector<rvec3_t>& Rs, const cvec_t& phases) const override;
+    virtual chmat_t MakeNuclear(const std::vector<rvec3_t>& Rs, const cvec_t& phases, const Structure* cl) const override;
 };
 // Use E prefix to avoid name clash with the interface class Fit_IBS
 class EFit_IBS

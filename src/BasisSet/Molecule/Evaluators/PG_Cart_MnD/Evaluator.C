@@ -14,6 +14,7 @@
 // the same shared PGData -- which is why PGData is kept separate, not absorbed here.
 module;
 #include <cassert>
+#include <complex>   // std::real (Hermitian-diagonal projection of the Bloch lattice sum)
 #include <string>
 #include <ostream>
 #include <vector>
@@ -55,30 +56,36 @@ public:
         return radials[i]->Nuclear(*radials[j], pols[i], pols[j], cl) * ns[i]*ns[j];
     }
 
-    // --- Periodic (lattice-summed) 1E matrices at Gamma -- the GPW seam --------------------------------
-    // Sum_R <chi_i | O | chi_j(.-R)>, real at Gamma.  Rs are Cartesian lattice translations (MUST include
-    // {0}); chi_j(.-R) is radials[j] placed at its centre + R via GaussianRF::AtCenter.  The R=0 term is the
-    // finite kernel above, so Rs={0} reproduces Overlap/Grad2/Nuclear exactly -- the SAME analytic M&D
-    // kernels, only the second centre shifted per image.  Symmetric for an inversion-symmetric Rs, so fill
-    // the upper triangle and let rsmat_t mirror.  These realise Molecule::LatticeSum1E (on the host IBS).
-    template <class Kernel> rsmat_t LatticeSum(const std::vector<rvec3_t>& Rs, Kernel K) const
+    // --- Periodic (lattice-summed) 1E matrices at general k -- the GPW seam ------------------------------
+    // Sum_R e^{ik.R} <chi_i | O | chi_j(.-R)>, Hermitian (real at Gamma where every phase is 1).  Rs are the
+    // Cartesian lattice translations (MUST include {0}) and phases[r]=e^{ik.Rs[r]} the matching per-image
+    // Bloch weight (origin phase 1); chi_j(.-R) is radials[j] placed at its centre + R via GaussianRF::
+    // AtCenter.  The R=0 term is the finite kernel above, so Rs={0}/phase 1 reproduces Overlap/Grad2/Nuclear
+    // exactly -- the SAME analytic M&D kernels, only the second centre shifted per image.  For an inversion-
+    // symmetric Rs the sum is Hermitian, so we fill the upper triangle (the (i,j) Bloch element) and let
+    // chmat_t mirror the lower as its conjugate; the diagonal is real by that same symmetry.  These realise
+    // Molecule::LatticeSum1E (on the host IBS).  (Rs,phases) is a {R}+{e^{ik.R}} weighted point set -- FUTURE:
+    // one const cMesh& (Mesh<dcmplx>) once qcMesh grows complex weights (see LatticeSum1E.C header).
+    template <class Kernel> chmat_t LatticeSum(const std::vector<rvec3_t>& Rs, const cvec_t& phases, Kernel K) const
     {
-        rsmat_t S(size());
+        assert(phases.size()==Rs.size());
+        chmat_t S(size());
         for (auto i:indices()) for (auto j:indices(i))
         {
-            double s=0.0;
-            for (const rvec3_t& R:Rs)
-                s += K(i, j, radials[j]->AtCenter(radials[j]->GetCenter()+R));
-            S(i,j)=s*ns[i]*ns[j];
+            dcmplx s(0.0);
+            for (size_t r=0; r<Rs.size(); r++)
+                s += phases[r] * K(i, j, radials[j]->AtCenter(radials[j]->GetCenter()+Rs[r]));
+            s *= ns[i]*ns[j];
+            S(i,j) = (i==j) ? dcmplx(std::real(s),0.0) : s;   // Hermitian diagonal real; (j,i) auto-set to conj
         }
         return S;
     }
-    rsmat_t MakeOverlap(const std::vector<rvec3_t>& Rs) const
-    {   return LatticeSum(Rs,[this](size_t i,size_t j,const GaussianRF& cj){return radials[i]->Overlap2C(cj,pols[i],pols[j]);}); }
-    rsmat_t MakeKinetic(const std::vector<rvec3_t>& Rs) const
-    {   return LatticeSum(Rs,[this](size_t i,size_t j,const GaussianRF& cj){return radials[i]->Grad2   (cj,pols[i],pols[j]);}); }
-    rsmat_t MakeNuclear(const std::vector<rvec3_t>& Rs, const Structure* cl) const
-    {   return LatticeSum(Rs,[this,cl](size_t i,size_t j,const GaussianRF& cj){return radials[i]->Nuclear(cj,pols[i],pols[j],cl);}); }
+    chmat_t MakeOverlap(const std::vector<rvec3_t>& Rs, const cvec_t& phases) const
+    {   return LatticeSum(Rs,phases,[this](size_t i,size_t j,const GaussianRF& cj){return radials[i]->Overlap2C(cj,pols[i],pols[j]);}); }
+    chmat_t MakeKinetic(const std::vector<rvec3_t>& Rs, const cvec_t& phases) const
+    {   return LatticeSum(Rs,phases,[this](size_t i,size_t j,const GaussianRF& cj){return radials[i]->Grad2   (cj,pols[i],pols[j]);}); }
+    chmat_t MakeNuclear(const std::vector<rvec3_t>& Rs, const cvec_t& phases, const Structure* cl) const
+    {   return LatticeSum(Rs,phases,[this,cl](size_t i,size_t j,const GaussianRF& cj){return radials[i]->Nuclear(cj,pols[i],pols[j],cl);}); }
 
     // --- 3-centre (DFT) and 4-centre (HF) kernels ---------------------------------------------------
     // General multi-evaluator elements: each (evaluator, index) pair names one basis component, so the

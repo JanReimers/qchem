@@ -236,9 +236,9 @@ std::vector<Symmetry::Molecule::AoShell> Orbital_IBS::GetAoShells() const {retur
 
 // Molecule::LatticeSum1E: the orbital IBS IS-A NR_Evaluator, which owns the radials/pols/ns and the shifted
 // two-centre kernels; forward the lattice sums straight to it (the GPW periodic-1E seam).
-rsmat_t Orbital_IBS::MakeOverlap(const std::vector<rvec3_t>& Rs) const {return NR_Evaluator::MakeOverlap(Rs);}
-rsmat_t Orbital_IBS::MakeKinetic(const std::vector<rvec3_t>& Rs) const {return NR_Evaluator::MakeKinetic(Rs);}
-rsmat_t Orbital_IBS::MakeNuclear(const std::vector<rvec3_t>& Rs, const Structure* cl) const {return NR_Evaluator::MakeNuclear(Rs,cl);}
+chmat_t Orbital_IBS::MakeOverlap(const std::vector<rvec3_t>& Rs, const cvec_t& phases) const {return NR_Evaluator::MakeOverlap(Rs,phases);}
+chmat_t Orbital_IBS::MakeKinetic(const std::vector<rvec3_t>& Rs, const cvec_t& phases) const {return NR_Evaluator::MakeKinetic(Rs,phases);}
+chmat_t Orbital_IBS::MakeNuclear(const std::vector<rvec3_t>& Rs, const cvec_t& phases, const Structure* cl) const {return NR_Evaluator::MakeNuclear(Rs,phases,cl);}
 
 //----------------------------------------------------------------
 //

@@ -48,6 +48,10 @@ public:
     rvec_t   RhoOnGrid  (const ΔG_Map& rhoTilde) const;
     //! Forward-FFT a real-space grid field to the FULL, normalised (\f$/N_{pts}\f$) G-space grid (raster order).
     cvec_t   ForwardFFT (const rvec_t& V) const;
+    //! \brief Forward-FFT a COMPLEX real-space grid field (general-k: the Bloch orbital product
+    //! \f$\overline{\chi_i^k}\chi_j^k\f$ is complex) to the full normalised G-space grid.  Same convention as the
+    //! real overload; that one is this composed with a real\f$\to\f$complex pack.
+    cvec_t   ForwardFFT (const cvec_t& V) const;
     //! Look up \f$\tilde V(\Delta m)\f$ in a \c ForwardFFT grid, wrapping \f$\Delta m\f$ into \f$N\f$ (alias-free for \f$|\Delta m|<N/2\f$).
     dcmplx   GridCoeff  (const cvec_t& Vt, const ivec3_t& dm) const;
     //! \f$\int f\,d^3r\f$ on the FFT grid: uniform quadrature, weight \f$\Omega/N_{pts}\f$.

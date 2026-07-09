@@ -52,17 +52,26 @@ public:
     //! \param densityEcut  plane-wave cutoff (Hartree) for the DENSITY/collocation grid: the FFT grid \f$\{r\}\f$
     //!              and the fit set \f$\{G\}\f$ GPW collocates its density onto (the DFT tier; must resolve the
     //!              Gaussian-product density -- CP2K's density cutoff).  \f$\le 0\f$ disables the DFT tier.
-    //! \param kFrac fractional crystal momentum (this increment: \f$\Gamma\f$, asserted \f$\approx 0\f$).
-    //! \param Rcut  radius (a.u.) of the lattice-translation sphere; \f$\le 0\f$ means the home cell only
-    //!              (\f$R=0\f$: reproduces the finite molecule exactly).  A generous \a Rcut folds in images.
+    //! \param kFrac fractional crystal momentum (fractional reciprocal coords; \f$\Gamma=0\f$).
+    //! \param Rcut  radius (a.u.) of the OVERLAP/1E lattice-translation sphere; \f$\le 0\f$ means the home cell
+    //!              only (\f$R=0\f$: reproduces the finite molecule exactly).  The analytic 2-centre lattice
+    //!              sums (overlap/kinetic/nuclear) need a generous \a Rcut to converge to a positive-definite
+    //!              overlap (the truncated single sum is indefinite at small \a Rcut).
+    //! \param collRcut  radius (a.u.) of the COLLOCATION sphere -- the reach of the Bloch orbital sum
+    //!              \f$\sum_R e^{ik\cdot R}\chi(r-R)\f$ the density grid samples.  The density is local
+    //!              (on-site + nearest images), so this is MUCH smaller than \a Rcut -- decoupling the two
+    //!              image sets is what makes multi-k bulk affordable (the collocation re-sums images at every
+    //!              grid point, per SCF iteration -- the dominant cost).  \f$\le 0\f$ reuses \a Rcut's set
+    //!              (backward-compatible: \f$\Gamma\f$/finite runs collocate on the same home-cell set).
     GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const UnitCell& cell,
-                  double densityEcut = 0.0, const rvec3_t& kFrac = rvec3_t(0,0,0), double Rcut = 0.0);
+                  double densityEcut = 0.0, const rvec3_t& kFrac = rvec3_t(0,0,0), double Rcut = 0.0,
+                  double collRcut = 0.0);
     virtual ~GPW_Evaluator() = default;   // polymorphic: reached by the EPW_* mixin's Cast() cross-cast
 
     // --- isPW_1E_Evaluator surface (exact signatures the concept demands) ---
     size_t     size()                          const {return itsN;}
-    cvec_t     Eval(const rvec3_t& r)          const;   //!< \f$\sum_R \chi_i(r-R)\f$ per function (Gamma: real)
-    cvec3vec_t EvalGradient(const rvec3_t& r)  const;   //!< \f$\sum_R \nabla\chi_i(r-R)\f$
+    cvec_t     Eval(const rvec3_t& r)          const;   //!< \f$\sum_R e^{ik\cdot R}\chi_i(r-R)\f$ (real at \f$\Gamma\f$)
+    cvec3vec_t EvalGradient(const rvec3_t& r)  const;   //!< \f$\sum_R e^{ik\cdot R}\nabla\chi_i(r-R)\f$
     chmat_t    OverlapMatrix()                 const;   //!< \f$\sum_R\langle i|j(\cdot-R)\rangle\f$
     chmat_t    KineticMatrix()                 const;   //!< \f$\sum_R\langle i|-\nabla^2|j(\cdot-R)\rangle\f$ (no 1/2)
     chmat_t    NuclearMatrix(const Structure* cl) const;//!< \f$\sum_R\langle i|\sum_c -Z_c/|r-R_c||j(\cdot-R)\rangle\f$
@@ -116,13 +125,20 @@ private:
     std::shared_ptr<const BasisSet::Real_BS> itsMol;   //!< owns the molecular Gaussian basis (lifetime)
     const BasisSet::Real_OIBS*          itsOrb = nullptr; //!< its single orbital block (op()/Gradient/size)
     const Molecule::LatticeSum1E*       itsLat = nullptr; //!< the same block's periodic-1E capability (cross-cast)
-    std::vector<rvec3_t>                itsR;             //!< Cartesian lattice translations (always incl. origin)
-    rvec3_t                             itsk;             //!< fractional crystal momentum (Gamma this increment)
+    // The lattice translations {R} and their Bloch phases {e^{ik.R}} are a weighted point set, built + kept
+    // together (future: ONE qcMesh cMesh = Mesh<dcmplx>).  Both always include the origin (phase 1) first.
+    // TWO decoupled sets: the OVERLAP/1E set (large Rcut -> PSD overlap) and the COLLOCATION set (small
+    // collRcut -> the local density's orbital reach; == the overlap set when collRcut<=0).
+    std::vector<rvec3_t>                itsR;             //!< overlap/1E translations (incl. origin)
+    cvec_t                              itsPhase;         //!< matching Bloch phases e^{ik.R} (origin = 1)
+    std::vector<rvec3_t>                itsRc;            //!< collocation translations (orbital reach; incl. origin)
+    cvec_t                              itsPhaseC;        //!< matching collocation Bloch phases (origin = 1)
+    rvec3_t                             itsk;             //!< fractional crystal momentum k
     size_t                              itsN   = 0;       //!< number of Gaussian orbitals
     std::shared_ptr<const PW_Grid_Evaluator> itsGrid;     //!< the density/collocation grid (null if DFT tier off)
     // NO hand-rolled tensor cache: the collocation tensor is a stateless build; the FRAMEWORK caches it
     // (BasisSet::Band_FT_IBS::Repulsion3C/Overlap3C via theCache<dcmplx>(), keyed by BasisSetID -- see IDFragment).
-    rmat_t  PhiOnGrid()   const;   //!< \f$\chi_i(r_g)\f$ on the density grid (Npts x n; Gamma-real) -- computed on demand
+    mat_t<dcmplx> PhiOnGrid() const;   //!< \f$\chi_i^k(r_g)\f$ on the density grid (Npts x n; real at \f$\Gamma\f$) -- on demand
     G_ERI3  BuildWeights() const;  //!< the collocation weight tensor (columns=grid {G}, weights, NO kernel)
     qcMesh::MeshParams PPMeshParams() const;  //!< the PP-quadrature integration mesh params (uniform, eCut=densityEcut)
 };

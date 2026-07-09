@@ -35,18 +35,30 @@ Complex_BS* Factory(Type type, const ::qchem::Lattice_3D& lat, double Ecut)
     return new PW_BasisSet(lat, Ecut);
 }
 
-// GPW: one Gamma block of periodic Gaussians built from the molecular basis over the cell's atoms.  N=(1,1,1)
-// -> k=0.  Rcut folds in lattice images (crystals need them; a molecule-in-a-large-box uses the home cell).
+// GPW: one Bloch block of periodic Gaussians per Brillouin-zone k-point, built from the molecular basis over
+// the cell's atoms -- the exact mirror of PW_BasisSet above (the ctor is the sole place that enumerates k, so
+// the framework's per-irrep loop becomes the BZ sum Sum_k w_k).  N=(1,1,1) -> a single Gamma block.  The
+// molecular basis is shared (shared_ptr) across the k-blocks.  Rcut folds in lattice images: crystals need
+// them for k-dispersion (Rcut=0 makes every k-block identical -- "molecule in a box"); a large-box molecule
+// uses the home cell.
 GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
-                           double densityEcut, double Rcut)
+                           double densityEcut, double Rcut, double collRcut)
 {
-    Insert(new GPW_IBS(lat.GetUnitCell(), lat.GetLimits(), ivec3_t(0,0,0), std::move(mol), densityEcut, Rcut));
+    const ivec3_t N=lat.GetLimits();
+    for (const auto& kp : lat.MakeKMesh())
+    {
+        ivec3_t ik(std::lround(kp.k.x*N.x), std::lround(kp.k.y*N.y), std::lround(kp.k.z*N.z));
+        // Build the Bloch irrep WITH its BZ weight kp.weight (exactly as PW_BasisSet above) and use the primary
+        // sym_t ctor -- the weight carries the Sum_k w_k so the BZ-summed charge/energy are per-cell, not xNk.
+        Insert(new GPW_IBS(lat.GetUnitCell(), Symmetry::BlochFactory(N, ik, kp.weight),
+                           mol, densityEcut, Rcut, collRcut));                 // mol shared across k-blocks
+    }
 }
 
 Complex_BS* GPWFactory(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
-                       double densityEcut, double Rcut)
+                       double densityEcut, double Rcut, double collRcut)
 {
-    return new GPW_BasisSet(lat, std::move(mol), densityEcut, Rcut);
+    return new GPW_BasisSet(lat, std::move(mol), densityEcut, Rcut, collRcut);
 }
 
 } //namespace

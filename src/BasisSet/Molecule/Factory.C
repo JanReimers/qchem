@@ -28,8 +28,10 @@ export namespace qchem::BasisSet::Molecule
     // Axis 1 -- the canned, optimized, externally generated (mostly-radial) basis-set DATA FILE.  The
     // "...Data" suffix disambiguates from the BasisSet OBJECT in code.  Add one = one enum value + one
     // file-map entry in Imp/Factory.C.
-    // (SIPP = ad-hoc Si/O valence set used only by the pseudopotential regression tests in A_PP.)
-    enum class BasisSetData { DZVP, DZVP2, TZVP, ORB, ORB1, SIPP };
+    // (SIPP = ad-hoc Si/O valence set used only by the pseudopotential regression tests in A_PP.
+    //  SIPP_SR = the same, most-diffuse primitives dropped, so the periodic Bloch overlap stays
+    //  well-conditioned in a solid -- for GPW bulk crystals; see BasisSetData/sipp_sr.bsd.)
+    enum class BasisSetData { DZVP, DZVP2, TZVP, ORB, ORB1, SIPP, SIPP_SR };
 
     // Axis 2 -- the integral engine (orthogonal to the data set and the angular representation).
     enum class Engine { MnD, LibCint };

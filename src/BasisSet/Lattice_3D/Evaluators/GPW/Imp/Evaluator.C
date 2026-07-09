@@ -21,16 +21,27 @@ namespace qchem::BasisSet::Lattice_3D
 
 namespace
 {
-// Widen a real symmetric lattice-sum matrix to the complex Hermitian type the concept/mixin speak.  At the
-// Gamma point the lattice sums are real, so the imaginary part is exactly zero (asserted by the tests).
-chmat_t Complexify(const rsmat_t& S)
+// Build a lattice-translation set {R} (Cartesian, origin first) and its matching Bloch phases {e^{ik.R}} for
+// a cutoff radius -- the {R}+{phase} weighted point set (future: one qcMesh cMesh).  phase = exp(2 pi i k.n)
+// with n the integer cell index (convention-safe).  Rcut<=0 -> the home cell only (origin, phase 1).
+void BuildImages(const UnitCell& cell, double Rcut, const rvec3_t& kFrac,
+                 std::vector<rvec3_t>& R, cvec_t& phase)
 {
-    size_t n=S.rows();
-    chmat_t C=blazem::zeroH<dcmplx>(n);
-    for (size_t i=0;i<n;i++)
-        for (size_t j=i;j<n;j++)
-            C(i,j)=dcmplx(S(i,j),0.0);
-    return C;
+    blazem::VecBuilder<dcmplx> ph;
+    if (Rcut>0.0)
+        for (const auto& n : cell.CellsInSphere(Rcut))
+        {
+            R.push_back(cell.ToCartesian(rvec3_t(double(n.x),double(n.y),double(n.z))));
+            double kn=kFrac.x*n.x + kFrac.y*n.y + kFrac.z*n.z;         // k_frac . n
+            ph.Append(std::exp(dcmplx(0.0, 2.0*Pi*kn)));              // e^{ik.R} = e^{2 pi i k_frac . n}
+        }
+    else
+    {
+        R.push_back(rvec3_t(0,0,0));
+        ph.Append(dcmplx(1.0,0.0));
+    }
+    phase=ph.take();
+    assert(!R.empty() && R.size()==phase.size());
 }
 
 // --- Real-space pseudopotential fields, replicated from the molecular PP_Local/PP_NonLocal terms (which live
@@ -97,13 +108,10 @@ public:
 } //anon
 
 GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const UnitCell& cell,
-                             double densityEcut, const rvec3_t& kFrac, double Rcut)
+                             double densityEcut, const rvec3_t& kFrac, double Rcut, double collRcut)
     : itsMol(std::move(mol))
     , itsk(kFrac)
 {
-    assert(std::fabs(itsk.x)+std::fabs(itsk.y)+std::fabs(itsk.z) < 1e-12
-           && "GPW_Evaluator: only the Gamma point (k=0) is supported this increment");
-
     // The single orbital block of the (raw, no-SALC) molecular Gaussian basis.
     const BasisSet::Real_OIBS* only=nullptr;
     for (auto ibs : itsMol->Iterate<BasisSet::Real_OIBS>()) { assert(!only); only=ibs; }
@@ -117,15 +125,15 @@ GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const
     if (!itsLat) throw std::runtime_error(
         "GPW_Evaluator: the orbital basis is not a molecular Gaussian basis (no Molecule::LatticeSum1E)");
 
-    // The real-space translation set {R} (Cartesian).  Rcut<=0 keeps only the home cell (R=0 == the finite
-    // molecule); a positive Rcut adds the images inside the sphere.  CellsInSphere yields an inversion-
-    // symmetric set, so the lattice-sum matrices come out symmetric.
-    if (Rcut>0.0)
-        for (const auto& n : cell.CellsInSphere(Rcut))
-            itsR.push_back(cell.ToCartesian(rvec3_t(double(n.x),double(n.y),double(n.z))));
-    else
-        itsR.push_back(rvec3_t(0,0,0));
-    assert(!itsR.empty());
+    // Two decoupled {R}+{e^{ik.R}} weighted point sets: the OVERLAP/1E set (Rcut -- must be large enough that
+    // the analytic single-sum overlap is positive-definite) and the COLLOCATION set (collRcut -- the local
+    // density's orbital reach, much smaller; the collocation re-sums images at every grid point every SCF
+    // iteration, so shrinking it is the key multi-k speed-up).  CellsInSphere is inversion-symmetric, so the
+    // lattice-sum matrices come out Hermitian (real at Gamma, where every phase is 1).  collRcut<=0 reuses the
+    // overlap set (backward-compatible: Gamma/finite runs collocate on the same set).
+    BuildImages(cell, Rcut, itsk, itsR, itsPhase);
+    if (collRcut>0.0) BuildImages(cell, collRcut, itsk, itsRc, itsPhaseC);
+    else { itsRc=itsR; itsPhaseC=itsPhase; }
 
     // The DFT tier's density/collocation grid: a plane-wave grid at Gamma (the density is cell-periodic
     // whatever the orbital k) and the caller's density cutoff.  The fit basis GPW_IBS creates is built over
@@ -139,16 +147,16 @@ GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const
 // a member: the framework caches the DERIVED tensor (Repulsion3C/Overlap3C via Band_FT_IBS's DB_Cache), so this
 // runs a small, bounded number of times (once per one-time tensor build; and per OverlapMatrix call, whose
 // per-iteration quadrature dominates it anyway).  Keeping the evaluator stateless keeps the caching in one place.
-rmat_t GPW_Evaluator::PhiOnGrid() const
+mat_t<dcmplx> GPW_Evaluator::PhiOnGrid() const
 {
     assert(itsGrid && "GPW_Evaluator: DFT tier requires a density grid (construct with densityEcut>0)");
     const rvec3vec_t& pts=itsGrid->GridPoints();
     size_t Npts=pts.size(), n=itsN;
-    rmat_t Phi(Npts,n);
+    mat_t<dcmplx> Phi(Npts,n);
     for (size_t g=0; g<Npts; g++)
     {
-        cvec_t v=Eval(pts[g]);
-        for (size_t i=0;i<n;i++) Phi(g,i)=std::real(v[i]);
+        cvec_t v=Eval(pts[g]);      // chi_i^k(r_g) = Sum_R e^{ik.R} chi_i(r_g - R) (real at Gamma)
+        for (size_t i=0;i<n;i++) Phi(g,i)=v[i];
     }
     return Phi;
 }
@@ -159,7 +167,7 @@ rmat_t GPW_Evaluator::PhiOnGrid() const
 // tensors this feeds, so this is a plain stateless build.
 G_ERI3 GPW_Evaluator::BuildWeights() const
 {
-    rmat_t Phi=PhiOnGrid();
+    mat_t<dcmplx> Phi=PhiOnGrid();
     size_t Npts=Phi.rows(), n=itsN;
     const std::vector<ivec3_t>& Gs=itsGrid->Gs();
     G_ERI3 g;
@@ -168,18 +176,17 @@ G_ERI3 GPW_Evaluator::BuildWeights() const
     g.weights.assign(Gs.size(), mat_t<dcmplx>(n,n,dcmplx(0.0)));
     for (size_t c=0;c<Gs.size();c++) g.columns[c].dm=Gs[c];
 
-    rvec_t prod(Npts);
+    // W_c(i,j) = (1/Omega) integral conj(chi_i^k) chi_j^k e^{-iG_c.r}: the density-convention weight (the i slot
+    // is CONJUGATED, since rho = Sum_ij D_ij conj(chi_i) chi_j and ContractG_ERI3 forms Sum_ij W_c(i,j) D_ij).
+    // NOT (i,j)-symmetric at general k, so loop the full n^2 (at Gamma both real -> collapses to the old form).
+    cvec_t prod(Npts);
     for (size_t i=0;i<n;i++)
-        for (size_t j=i;j<n;j++)
+        for (size_t j=0;j<n;j++)
         {
-            for (size_t p=0; p<Npts; p++) prod[p]=Phi(p,i)*Phi(p,j);   // chi_i chi_j on the grid (real at Gamma)
-            cvec_t P=itsGrid->ForwardFFT(prod);
+            for (size_t p=0; p<Npts; p++) prod[p]=std::conj(Phi(p,i))*Phi(p,j);
+            cvec_t P=itsGrid->ForwardFFT(prod);          // complex-input FFT
             for (size_t c=0;c<Gs.size();c++)
-            {
-                dcmplx w=itsGrid->GridCoeff(P, Gs[c]);   // (1/Omega) integral chi_i chi_j e^{-iG_c.r} (ONE r)
-                g.weights[c](i,j)=w;
-                g.weights[c](j,i)=w;                     // symmetric in (i,j)
-            }
+                g.weights[c](i,j)=itsGrid->GridCoeff(P, Gs[c]);
         }
     return g;
 }
@@ -204,43 +211,48 @@ G_ERI3 GPW_Evaluator::Overlap3CTensor() const {return BuildWeights();}
 // (which matches the fit basis GPW created, so a Hartree/XC Vtilde covers exactly these).
 chmat_t GPW_Evaluator::OverlapMatrix(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const
 {
-    rmat_t Phi=PhiOnGrid();
+    mat_t<dcmplx> Phi=PhiOnGrid();
     ΔG_Map vmap;
     for (const ivec3_t& dm : itsGrid->Gs()) vmap[dm]=Vtilde(dm);
-    rvec_t V=itsGrid->RhoOnGrid(vmap);          // V(r) on the grid (real)
+    rvec_t V=itsGrid->RhoOnGrid(vmap);          // V(r) on the grid (real: Hartree/XC/local-PP are real fields)
     size_t Npts=Phi.rows(), n=itsN;
-    rvec_t f(Npts);
+    const double w=itsGrid->Volume()/double(Npts);   // uniform quadrature weight (== Integral's Omega/Npts)
+    // <chi_i^k | V | chi_j^k> = integral conj(chi_i^k) V chi_j^k: Hermitian (V real), fill upper triangle.
     chmat_t M=blazem::zeroH<dcmplx>(n);
     for (size_t i=0;i<n;i++)
         for (size_t j=i;j<n;j++)
         {
-            for (size_t p=0; p<Npts; p++) f[p]=Phi(p,i)*V[p]*Phi(p,j);
-            M(i,j)=dcmplx(itsGrid->Integral(f), 0.0);   // real at Gamma
+            dcmplx s(0.0);
+            for (size_t p=0; p<Npts; p++) s += std::conj(Phi(p,i))*V[p]*Phi(p,j);
+            s *= w;
+            M(i,j) = (i==j) ? dcmplx(std::real(s),0.0) : s;   // Hermitian diagonal real; (j,i) auto-conj
         }
     return M;
 }
 
-// Bloch sum of the Gaussian orbitals, chi^k_i(r) = Sum_R e^{ik.R} chi_i(r-R).  At Gamma every phase is 1, so
-// this is the real sum of the molecular basis evaluated at the image-shifted points (widened to complex).
+// Bloch sum of the Gaussian orbitals, chi^k_i(r) = Sum_R e^{ik.R} chi_i(r-R), over the COLLOCATION set (the
+// orbital reach; == the overlap set unless collRcut decoupled it).  At Gamma every phase is 1, so the
+// imaginary part is exactly zero (the sum reduces to the real molecular sum).
 cvec_t GPW_Evaluator::Eval(const rvec3_t& r) const
 {
-    rvec_t acc=(*itsOrb)(r-itsR[0]);
-    for (size_t k=1;k<itsR.size();k++) acc += (*itsOrb)(r-itsR[k]);
-    cvec_t v(itsN);
-    for (size_t i=0;i<itsN;i++) v[i]=dcmplx(acc[i],0.0);
+    cvec_t v(itsN, dcmplx(0.0));
+    for (size_t k=0;k<itsRc.size();k++)
+    {
+        rvec_t chi=(*itsOrb)(r-itsRc[k]);
+        for (size_t i=0;i<itsN;i++) v[i]+=itsPhaseC[k]*chi[i];
+    }
     return v;
 }
 
 cvec3vec_t GPW_Evaluator::EvalGradient(const rvec3_t& r) const
 {
-    rvec3vec_t acc=itsOrb->Gradient(r-itsR[0]);
-    for (size_t k=1;k<itsR.size();k++)
+    cvec3vec_t v(itsN, vec3_t<dcmplx>(dcmplx(0.0),dcmplx(0.0),dcmplx(0.0)));
+    for (size_t k=0;k<itsRc.size();k++)
     {
-        rvec3vec_t g=itsOrb->Gradient(r-itsR[k]);
-        for (size_t i=0;i<itsN;i++) acc[i]=acc[i]+g[i];
+        rvec3vec_t g=itsOrb->Gradient(r-itsRc[k]);
+        for (size_t i=0;i<itsN;i++)
+            v[i]=v[i]+vec3_t<dcmplx>(itsPhaseC[k]*g[i].x, itsPhaseC[k]*g[i].y, itsPhaseC[k]*g[i].z);
     }
-    cvec3vec_t v(itsN);
-    for (size_t i=0;i<itsN;i++) v[i]=vec3_t<dcmplx>(dcmplx(acc[i].x,0.0),dcmplx(acc[i].y,0.0),dcmplx(acc[i].z,0.0));
     return v;
 }
 
@@ -248,9 +260,9 @@ cvec3vec_t GPW_Evaluator::EvalGradient(const rvec3_t& r) const
 // collocation uses -- the COMPLETE-Bloch scheme, self-consistent as Rcut grows.  The overlap becomes positive-
 // definite once the image sphere is large enough (a truncated single sum can be indefinite; overlap integrals
 // are cheap, so a generous Rcut is the fix).  KineticMatrix is <p^2> (no 1/2 -- the Hamiltonian applies it).
-chmat_t GPW_Evaluator::OverlapMatrix()                 const {return Complexify(itsLat->MakeOverlap(itsR));}
-chmat_t GPW_Evaluator::KineticMatrix()                 const {return Complexify(itsLat->MakeKinetic(itsR));}
-chmat_t GPW_Evaluator::NuclearMatrix(const Structure* cl) const {return Complexify(itsLat->MakeNuclear(itsR,cl));}
+chmat_t GPW_Evaluator::OverlapMatrix()                 const {return itsLat->MakeOverlap(itsR,itsPhase);}
+chmat_t GPW_Evaluator::KineticMatrix()                 const {return itsLat->MakeKinetic(itsR,itsPhase);}
+chmat_t GPW_Evaluator::NuclearMatrix(const Structure* cl) const {return itsLat->MakeNuclear(itsR,itsPhase,cl);}
 
 // The PP-quadrature integration mesh: a uniform lattice mesh whose Nyquist resolution follows the density
 // cutoff (CreateIntegrationMesh's "GPW / Nyquist path").  The DFT tier (density grid) must be on: PP assembly
@@ -284,13 +296,16 @@ chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const Pseudopotential::L
     });
 }
 
-// KB separable nonlocal PP: accumulate the rank-1 D|b><b| over atoms/projectors/m, with b_i = <chi_i|beta_p Y_lm>
-// (mesh quadrature) -- the molecular PP_NonLocal recipe, widened to complex at Gamma.
+// KB separable nonlocal PP: accumulate the rank-1 Hermitian D|b><b| over atoms/projectors/m, with the BLOCH
+// projection vector b_i^k = <chi_i^k | beta_p Y_lm> = Sum_R e^{ik.R} <chi_i | beta at (R_a - R)> (mesh
+// quadrature of the home orbital against the image-shifted projector -- reuses the REAL qcMesh::Overlap per
+// image, weighted by the phase).  At Gamma with Rcut=0 (itsR={0}, phase 1) this is exactly the finite molecular
+// PP_NonLocal recipe <chi_i | beta at R_a>.  V_ij = Sum D b_i conj(b_j) is Hermitian by construction.
 chmat_t GPW_Evaluator::MakeSeparablePP(const Structure* cl, const Pseudopotential::SeparablePotential_R& sep) const
 {
     qcMesh::Mesh mesh=cl->CreateIntegrationMesh(PPMeshParams());
     size_t n=itsN;
-    rmat_t V(n,n,0.0);
+    mat_t<dcmplx> V(n,n,dcmplx(0.0));
     for (size_t a=0; a<cl->GetNumAtoms(); a++)
     {
         const Atom* at=(*cl)[a];
@@ -301,13 +316,24 @@ chmat_t GPW_Evaluator::MakeSeparablePP(const Structure* cl, const Pseudopotentia
             double D=sep.Coefficient    (Z,p);
             for (int m=-l; m<=l; m++)
             {
-                rvec_t b=qcMesh::Overlap(mesh, *itsOrb, BetaYlmField(at->itsR,sep,Z,p,l,m));
+                cvec_t b(n, dcmplx(0.0));
+                for (size_t r=0; r<itsRc.size(); r++)   // orbital reach: the collocation image set
+                {
+                    rvec_t br=qcMesh::Overlap(mesh, *itsOrb, BetaYlmField(at->itsR-itsRc[r],sep,Z,p,l,m));
+                    for (size_t i=0;i<n;i++) b[i]+=itsPhaseC[r]*br[i];
+                }
                 for (size_t i=0;i<n;i++)
-                    for (size_t j=0;j<n;j++) V(i,j)+=D*b[i]*b[j];
+                    for (size_t j=0;j<n;j++) V(i,j)+=D*b[i]*std::conj(b[j]);
             }
         }
     }
-    return Complexify(rsmat_t(V));
+    chmat_t H=blazem::zeroH<dcmplx>(n);            // project to Hermitian (upper triangle; diagonal real)
+    for (size_t i=0;i<n;i++)
+    {
+        H(i,i)=dcmplx(std::real(V(i,i)),0.0);
+        for (size_t j=i+1;j<n;j++) H(i,j)=V(i,j);
+    }
+    return H;
 }
 
 // Cache key: the molecular basis's geometry-aware ID pins the radials + centres (so the cell geometry is in
@@ -318,7 +344,7 @@ std::string GPW_Evaluator::IDFragment() const
     // the framework cache (keyed by BasisSetID) must distinguish GPW bases that differ only in densityEcut.
     return "|mol="+itsOrb->BasisSetID()
          +"|k="+std::to_string(itsk.x)+","+std::to_string(itsk.y)+","+std::to_string(itsk.z)
-         +"|nR="+std::to_string(itsR.size())
+         +"|nR="+std::to_string(itsR.size())+"|nRc="+std::to_string(itsRc.size())   // both image sets
          +"|dEcut="+(itsGrid?std::to_string(itsGrid->Ecut()):std::string("0"));
 }
 

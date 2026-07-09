@@ -28,6 +28,8 @@ import qchem.BasisSet.Lattice_3D.GPW_IBS;       // GPW_IBS (the basis under test
 import qchem.BasisSet.Lattice_3D.Evaluators.GPW; // GPW_Evaluator (tests may cheat-import internals) -- DFT tier
 import qchem.BasisSet.Internal.GMap;            // G_ERI3 / ΔG_Map (the collocation tensor + rho-tilde)
 import qchem.Blaze;                             // hmat_t element access / rows()
+import qchem.Math;                              // Pi (the Bloch-phase e^{2 pi i k.n})
+import qchem.Vector3D;                          // rvec3_t arithmetic (r + R0)
 import qchem.Types;
 
 using namespace qchem;
@@ -226,4 +228,102 @@ TEST(GPW, OverlapWithConstantFieldEqualsV0Overlap)
             double d=m-s; num+=d*d; den+=s*s;
         }
     EXPECT_LT(std::sqrt(num/den), 6e-2);   // <i|V0|j> == V0<i|j> to grid accuracy (== the collocation residual)
+}
+
+// === General-k (Step 1): the Bloch phase e^{ik.R} enters the lattice sums ============================
+// These isolate the general-k machinery at the matrix level (no SCF): the phase is inert at the home cell,
+// LIVE once images are summed, obeys the Bloch translation law, and conjugates under k -> -k.  (The full
+// general-k DFT/PP path is exercised by the multi-k bulk SCF in GPW_SCF_UT.)
+
+// (a) Home cell only (Rcut=0): the phase multiplies only the origin (=1), so the matrices are k-INDEPENDENT
+// and real -- identical to the finite molecule at ANY k (the Gamma-reduction invariant, lifted to k!=0).
+TEST(GPW, GeneralK_HomeCellIsKInvariantAndReal)
+{
+    FiniteRef fin;
+    const double a=20.0;
+    UnitCell cell(a);
+    cell.AddAtom(14,{0.5,0.5,0.5});
+    std::shared_ptr<const Real_BS> molCell = MakeBasis(cell);
+
+    GPW_IBS gpw(cell, ivec3_t(4,4,4), ivec3_t(1,0,0), molCell, /*densityEcut=*/0.0, /*Rcut=*/0.0); // k=(1/4,0,0)
+    const Complex_OIBS& g = gpw;
+    EXPECT_LT(MaxImag(g.Overlap()), 1e-14);                        // phase inert at R=0 -> real
+    EXPECT_LT(MaxImag(g.Kinetic()), 1e-14);
+    EXPECT_LT(RelDiff(g.Overlap(), fin.orb->Overlap()), 1e-12);    // == finite (k-independent at Rcut=0)
+    EXPECT_LT(RelDiff(g.Kinetic(), fin.orb->Kinetic()), 1e-12);
+}
+
+// (b) With images summed in (Rcut>0), the phase is LIVE at k!=0: the Bloch matrices acquire a genuine
+// imaginary part (they are real only at Gamma or with no images).  Diagonals stay real & positive.
+TEST(GPW, GeneralK_PhaseIsLiveWithImages)
+{
+    const double a=8.0;                          // small cell so the image overlaps are non-negligible
+    UnitCell cell(a);
+    cell.AddAtom(14,{0.5,0.5,0.5});
+    std::shared_ptr<const Real_BS> molCell = MakeBasis(cell);
+
+    GPW_IBS gpw(cell, ivec3_t(4,4,4), ivec3_t(1,0,0), molCell, /*densityEcut=*/0.0, /*Rcut=*/1.5*a);
+    const Complex_OIBS& g = gpw;
+    const auto& S = g.Overlap();
+    EXPECT_GT(MaxImag(S),           1e-4) << "k!=0 with images must give a genuinely complex overlap";
+    EXPECT_GT(MaxImag(g.Kinetic()), 1e-4);
+    for (size_t i=0;i<S.rows();i++)
+    {
+        EXPECT_LT(std::fabs(std::imag(S(i,i))), 1e-13);   // Hermitian diagonal real
+        EXPECT_GT(std::real(S(i,i)),            0.0);     // overlap diagonal positive
+    }
+}
+
+// (c) Bloch translation law: chi^k(r + R0) = e^{ik.R0} chi^k(r) for a lattice vector R0 (exact in the
+// infinite sum; the truncation error decays with Rcut, so a generous sphere makes it tight).
+TEST(GPW, GeneralK_BlochTranslationCondition)
+{
+    const double a=8.0;
+    UnitCell cell(a);
+    cell.AddAtom(14,{0.5,0.5,0.5});
+    std::shared_ptr<const Real_BS> molCell = MakeBasis(cell);
+
+    const ivec3_t N(4,4,4), ik(1,0,0);
+    GPW_IBS gpw(cell, N, ik, molCell, /*densityEcut=*/0.0, /*Rcut=*/2.5*a);
+    const GPW_Evaluator& ev = gpw;
+
+    const rvec3_t r  = cell.ToCartesian(rvec3_t(0.5,0.5,0.5));               // cell centre
+    const ivec3_t n0(1,0,0);
+    const rvec3_t R0 = cell.ToCartesian(rvec3_t(double(n0.x),double(n0.y),double(n0.z)));
+    const double  kR0 = 2.0*Pi*(double(ik.x)/N.x*n0.x + double(ik.y)/N.y*n0.y + double(ik.z)/N.z*n0.z);
+    const dcmplx  phase = std::exp(dcmplx(0.0,kR0));
+
+    cvec_t f0 = ev.Eval(r);
+    cvec_t f1 = ev.Eval(r+R0);
+    double num=0.0, den=0.0;
+    for (size_t i=0;i<f0.size();i++)
+    {
+        dcmplx d = f1[i] - phase*f0[i];
+        num += std::norm(d); den += std::norm(f0[i]);
+    }
+    EXPECT_LT(std::sqrt(num/den), 1e-6) << "Bloch translation law chi^k(r+R0)=e^{ik.R0}chi^k(r)";
+}
+
+// (d) Time reversal at the matrix level: S(-k) = conj(S(k)) elementwise -- the phases conjugate under
+// k -> -k while the underlying real 2-centre integrals are k-independent.  Exact (same image set, no tol).
+TEST(GPW, GeneralK_ConjugateUnderKtoMinusK)
+{
+    const double a=8.0;
+    UnitCell cell(a);
+    cell.AddAtom(14,{0.5,0.5,0.5});
+    std::shared_ptr<const Real_BS> molCell = MakeBasis(cell);
+
+    const ivec3_t N(4,4,4);
+    GPW_IBS gk (cell, N, ivec3_t(1,0,0), molCell, 0.0, 1.5*a);   //  k = (1/4,0,0)
+    GPW_IBS gmk(cell, N, ivec3_t(3,0,0), molCell, 0.0, 1.5*a);   // -k = (3/4,0,0) == -(1/4,0,0) mod 1
+    const Complex_OIBS& Sk  = gk;
+    const Complex_OIBS& Smk = gmk;
+    const auto& A = Sk.Overlap();
+    const auto& B = Smk.Overlap();
+    const size_t n=A.rows();
+    double m=0.0;
+    for (size_t i=0;i<n;i++)
+        for (size_t j=0;j<n;j++)
+            m=std::max(m, std::abs(B(i,j)-std::conj(A(i,j))));
+    EXPECT_LT(m, 1e-12) << "S(-k) must equal conj(S(k))";
 }

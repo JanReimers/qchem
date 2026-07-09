@@ -33,8 +33,10 @@ Complex_BS* Factory(Type type, const ::qchem::Lattice_3D& lat, double Ecut);
 //! Returns an abstract tBasisSet<dcmplx> (caller owns).  Unlike the PW \c Factory this needs a Gaussian
 //! orbital basis (GPW = Gaussian orbitals); the pseudopotential still lives on the Hamiltonian term, which
 //! reaches GPW's real-space \c Integrals_Pseudo<dcmplx> assembly -- so the same \c Ham_PW_DFT drives it.
+//! \param collRcut  the collocation image reach (\f$\le0\f$ reuses \a Rcut); decouple it (small) from \a Rcut
+//!                   (large, for a positive-definite Bloch overlap) so multi-k bulk is affordable.
 Complex_BS* GPWFactory(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
-                       double densityEcut, double Rcut=0.0);
+                       double densityEcut, double Rcut=0.0, double collRcut=0.0);
 
 } //namespace
 
@@ -60,7 +62,7 @@ class GPW_BasisSet : public BasisSet::BasisSetImp<dcmplx>
 {
 public:
     GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
-                 double densityEcut, double Rcut);
+                 double densityEcut, double Rcut, double collRcut);
 };
 
 } //namespace

@@ -63,6 +63,13 @@ std::shared_ptr<const Real_BS> MakeBasis(const Structure& st)
         BasisSet::Molecule::Factory(BasisSetData::SIPP, &st,
                                     BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
 }
+// The SHORT-RANGE variant (most diffuse valence primitives dropped) -- well-conditioned Bloch overlap in a solid.
+std::shared_ptr<const Real_BS> MakeBasisSR(const Structure& st)
+{
+    return std::shared_ptr<const Real_BS>(
+        BasisSet::Molecule::Factory(BasisSetData::SIPP_SR, &st,
+                                    BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
+}
 
 struct GpwResult { bool converged; double charge; qchem::EnergyBreakdown E; size_t iters; };
 
@@ -70,12 +77,12 @@ struct GpwResult { bool converged; double charge; qchem::EnergyBreakdown E; size
 // (Ham_PW_DFT reaches GPW's real-space Integrals_Pseudo), seed uniform, run the complex-DIIS cSCFIterator.
 GpwResult RunGPW(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, double densityEcut, double Rcut,
                  int Nelec, const char* element, const char* label, bool verbose=false, int nmax=120,
-                 qchem::Ortho ortho=qchem::Cholesky, double orthoTol=0.0)
+                 qchem::Ortho ortho=qchem::Cholesky, double orthoTol=0.0, double collRcut=0.0)
 {
     namespace L3=BasisSet::Lattice_3D;
-    std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, std::move(mol), densityEcut, Rcut));
-    Irrep      irr=bs->GetIrreps(Spin::None)[0];
-    Crystal_EC ec(irr, Nelec);
+    std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, std::move(mol), densityEcut, Rcut, collRcut));
+    auto       irreps=bs->GetIrreps(Spin::None);   // one Bloch irrep per BZ k-block (weights carry the Sum_k)
+    Crystal_EC ec(irreps, Nelec);                  // multi-k ready; a single Gamma block is the length-1 case
     // Ham_PW_DFT drives GPW verbatim (kinetic + external-PP + Hartree + Dirac X + VWN5 + ion-ion Ewald).
     qchem::Hamiltonian::cHamiltonian* ham=new qchem::Hamiltonian::Ham_PW_DFT(
         lat.GetStructure(), bs.get(), element, "LDA", 4);
@@ -110,6 +117,134 @@ GpwResult RunGPW(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, doub
 // Etot=-8.248 -- close to the plane-wave bulk-Si -7.2273 (Ecut=4) / converged ~-7.9.  The residual ~1 Ha is
 // the Rcut=0 over-binding (home-cell electrons, no inter-cell screening, feel the full periodic ion Ewald);
 // true bulk (Rcut>0) awaits the overlap-conditioning fix.  A did-E-move regression anchor (pin the value).
+// (1c) MULTI-K PLUMBING: a 2x1x1 Monkhorst-Pack mesh (2 k-points) at Rcut=0.  With no inter-cell images every
+// k-block is IDENTICAL to Gamma (the phase multiplies only the origin), so the whole multi-k machinery -- one
+// GPW_IBS per BZ k-point (GPW_BasisSet iterating MakeKMesh WITH BZ weights, mirroring PW_BasisSet), the multi-
+// block GetIrreps, Crystal_EC's BZ-weighted (Sum_k w_k) occupation, the framework's per-irrep k-loop, and the
+// BZ-summed charge/energy -- must reproduce the single-Gamma total EXACTLY (well-conditioned, no dispersion).
+// This is the tight, robust gate for Step 2's plumbing (it caught a missing BZ weight -> charge x Nk); the
+// dispersive bulk (Rcut>0) is the DISABLED conditioning study below.  A 2-point mesh exercises the same multi-
+// block plumbing as 2x2x2 at ~1/4 the cost (the Rcut=0 blocks are redundant copies of Gamma).
+TEST(GPW_SCF, SiliconMultiKPlumbing)
+{
+    const double a=10.26;
+    FCCUnitCell cell(a);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(2,1,1));   // 2 k-points, but Rcut=0 -> both identical to Gamma
+
+    GpwResult R=RunGPW(lat, MakeBasis(cell), /*densityEcut*/12.0, /*Rcut*/0.0, /*Nelec*/8, "Si", "Si 2x1x1 Rcut=0");
+
+    EXPECT_TRUE(R.converged);
+    EXPECT_NEAR(R.charge, 8.0, 1e-6);                          // 8 valence e- (BZ-weighted Sum_k, not x Nk)
+    EXPECT_NEAR(R.E.GetTotalEnergy(), -8.2476, 5e-3);         // == the Gamma total (SiliconGammaConverges)
+}
+
+// (1d) BULK DISPERSION (Rcut>0) -- DISABLED: blocked by SIPP basis conditioning, not by the general-k code.
+// Turning on inter-cell images to get real k-dispersion needs the analytic Bloch overlap to be positive-
+// definite, which for the diffuse SIPP valence basis happens only at Rcut>=3a (min eig(S(k))=-0.0016 @2a ->
+// +4.3e-6 @3a, measured across the 2x2x2 mesh).  But +4.3e-6 is NEAR-SINGULAR and does NOT improve with more
+// images (+4.3e-6 @4a too) -- an INTRINSIC near-linear-dependence of the SIPP Gaussians folded periodically,
+// not a truncation artifact.  Cholesky then amplifies noise by ~1/4e-6 and the SCF diverges (Etot blows up);
+// SVD/Eigen truncation drops the near-null directions but a DIFFERENT count per k-block -> non-uniform per-k
+// dimensions, which the framework's cross-k assembly cannot yet handle ("Matrix sizes do not match").
+//
+// This is the documented basis-conditioning wall (doc/GPWPlan.md sec 3b/sec 5), the deferred blocker for
+// self-consistent bulk GPW.  The general-k MACHINERY itself is correct and validated at the matrix level by
+// the Bloch invariants in GPW_UT (Hermiticity, the Bloch translation law, k->-k conjugation) and by the
+// multi-k plumbing gate above.  The DECOUPLED image sets (overlap Rcut vs collocation collRcut) that make a
+// dispersive run affordable are in place and exercised here; what remains for a converged bulk energy is the
+// conditioning fix -- a less-diffuse/duals-cleaned valence basis, OR framework support for per-k orbital
+// dimensions (canonical orthogonalisation dropping the near-null directions independently per k-block).
+TEST(GPW_SCF, DISABLED_SiliconBulk2x2x2Dispersive)
+{
+    const double a=10.26;
+    FCCUnitCell cell(a);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(2,2,2));
+    // overlap Rcut=3a (PSD but near-singular); collocation collRcut=1.5a (the local density reach -- the
+    // decouple keeps the per-iteration collocation ~15x cheaper).  Diverges at present (see the header note).
+    RunGPW(lat, MakeBasis(cell), /*densityEcut*/8.0, /*Rcut*/3.0*a, /*Nelec*/8, "Si", "2x2x2 rc=3a cc=1.5a",
+           /*verbose*/true, /*nmax*/60, qchem::SVD, 1e-5, /*collRcut*/1.5*a);
+}
+
+// DIAGNOSTIC (disabled): the near-singular Bloch overlap is a BASIS problem (SIPP's diffuse 0.09s/0.06p
+// primitives, RMS radius ~5 a.u., go near-linearly-dependent when Bloch-summed), NOT a GPW-code problem.
+// Compare min eig(S(k)) over the 2x2x2 mesh at Rcut=3a for SIPP vs the short-range SIPP_SR (diffuse dropped).
+TEST(GPW_SCF, DISABLED_Bulk2x2x2ConditioningBasisCompare)
+{
+    const double a=10.26;
+    FCCUnitCell cell(a);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(2,2,2));
+    namespace L3=BasisSet::Lattice_3D;
+    auto worstMinEig=[&](std::shared_ptr<const Real_BS> mol)->double
+    {
+        std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, std::move(mol), 0.0, 3.0*a));
+        double worst=1e30;
+        for (auto b : bs->Iterate<qchem::BasisSet::Complex_OIBS>())
+        {
+            chmat_t S=b->Overlap();
+            rvec_t w; mat_t<dcmplx> U; blazem::eigen(S, w, U);
+            for (size_t i=0;i<w.size();i++) worst=std::min(worst,w[i]);
+        }
+        return worst;
+    };
+    std::cout << "min eig(S(k)) @Rcut=3a  SIPP="<<worstMinEig(MakeBasis(cell))
+              << "  SIPP_SR="<<worstMinEig(MakeBasisSR(cell)) << std::endl;
+}
+
+// Find the SMALLEST Rcut at which SIPP_SR's Bloch overlap is PSD -- so overlap AND collocation can use ONE
+// consistent (and cheap) image reach (the decouple with collRcut != Rcut breaks the density normalisation:
+// collocated charge = Tr(D S_collRcut) != Tr(D S_Rcut) = Nelec).
+TEST(GPW_SCF, DISABLED_SR_OverlapSpectrumSweep)
+{
+    const double a=10.26;
+    FCCUnitCell cell(a);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(2,2,2));
+    namespace L3=BasisSet::Lattice_3D;
+    for (double rc : {1.0, 1.5, 2.0, 3.0})
+    {
+        std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, MakeBasisSR(cell), 0.0, rc*a));
+        double worst=1e30;
+        for (auto b : bs->Iterate<qchem::BasisSet::Complex_OIBS>())
+        {
+            chmat_t S=b->Overlap(); rvec_t w; mat_t<dcmplx> U; blazem::eigen(S, w, U);
+            for (size_t i=0;i<w.size();i++) worst=std::min(worst,w[i]);
+        }
+        std::cout << "SIPP_SR Rcut="<<rc<<"a  worst min(eig S(k))="<<worst<<(worst<0?" (INDEF)":" (PSD)")<<std::endl;
+    }
+}
+
+// The well-conditioned dispersive bulk run: SIPP_SR (min eig(S(k))~0.016 -> plain Cholesky) at Rcut=1.5a,
+// where the SR overlap is PSD AND converged (so overlap + collocation share ONE consistent reach, collRcut=0;
+// the density then integrates to the right charge Tr(D S)=Nelec).  FINDINGS (2026-07-09):
+//  - The SCF is now STABLE and CONVERGES (no divergence) -- the conditioning blocker is GONE with a proper
+//    basis.  Etot settles at ~-15.15 (decoupled Rcut=3a/collRcut=1.5a gives the SAME ~-15.15, so it is NOT a
+//    decouple/normalisation artifact -- the two configs agree).
+//  - BUT ~-15.15 is ~2x the plane-wave bulk -7.7613 and MORE negative than the Rcut=0 GPW -8.25 -- a real
+//    OVER-BINDING (a smaller basis would raise, not lower, the energy), pointing to a bug in the Rcut>0
+//    EXTERNAL-PP / nuclear assembly: MakeLocalPP/MakeSeparablePP still use the cell's OWN atoms with no
+//    periodic-IMAGE potential (GPWPlan sec 1 Increment 3 limit (c) / sec 4 "rigorous periodic external
+//    potential").  At Rcut=0 the home-cell approximation is exact; with inter-cell hopping on it is not.
+//  - NEXT: sum the PP over lattice images (image-atom potentials), then validate the bulk total against an
+//    INDEPENDENT GPW code (CP2K, same GTH PP) -- our own PW -7.7613 is an Ecut=4 internal number, not an
+//    absolute literature value.  (Runs slow: ~25 s/iter for 8 k-points; bump the timeout when re-enabling.)
+TEST(GPW_SCF, DISABLED_SiliconBulk2x2x2SR)
+{
+    const double a=10.26;
+    FCCUnitCell cell(a);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(2,2,2));
+    RunGPW(lat, MakeBasisSR(cell), /*densityEcut*/8.0, /*Rcut*/1.5*a, /*Nelec*/8, "Si", "2x2x2 SR rc=cc=1.5a",
+           /*verbose*/true, /*nmax*/60, qchem::Cholesky, 0.0, /*collRcut*/0.0);
+}
+
 TEST(GPW_SCF, SiliconGammaConverges)
 {
     const double a=10.26;                          // Si conventional cubic lattice constant (a.u.)

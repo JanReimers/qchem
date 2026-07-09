@@ -133,6 +133,9 @@ public:
     const rvec3vec_t& GridPoints() const override               {return itsGrid->GridPoints();}
     rvec_t   RhoOnGrid  (const ΔG_Map& rhoTilde) const override {return itsGrid->RhoOnGrid(rhoTilde);}
     cvec_t   ForwardFFT (const rvec_t& V) const override        {return itsGrid->ForwardFFT(V);}
+    //! Complex-input forward FFT (general-k Bloch products); non-virtual sibling of the \c G_FieldEvaluator
+    //! real overload above -- GPW's density collocation calls it directly on the concrete grid evaluator.
+    cvec_t   ForwardFFT (const cvec_t& V) const                 {return itsGrid->ForwardFFT(V);}
     dcmplx   GridCoeff  (const cvec_t& Vt, const ivec3_t& dm) const override {return itsGrid->GridCoeff(Vt,dm);}
     double   Integral   (const rvec_t& f) const override        {return itsGrid->Integral(f);}
     double   EvalField        (const ΔG_Map& c, const rvec3_t& r) const override {return itsGrid->EvalField(c,r);}
