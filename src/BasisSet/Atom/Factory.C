@@ -20,8 +20,11 @@ export namespace qchem::BasisSet::Atom
     //         Giving up core cusp but not exponent density
     // Low:    High with every other expoenent removed.  Giving up density but not core cusp.
     //
-    enum class BasisSetAccuracy {N3,N5,Low,Medium,High};
-    std::string BasisSetAccuracyStrs[]={"N3     ","N5     ","Low    ", "Medium ","High   "};
+    // (The old N3/N5 tiny fixed even-tempered pools (3/5 exponents, ltrim=0) were REMOVED: they are ill-
+    //  conditioned and invalid for SCF, and were repeatedly mistaken for solver/code bugs.  Low is the
+    //  smallest SCF-grade pool -- use it for the "small deterministic basis" unit tests that used N3/N5.)
+    enum class BasisSetAccuracy {Low,Medium,High};
+    std::string BasisSetAccuracyStrs[]={"Low    ", "Medium ","High   "};
     Real_BS* Factory(BasisSetAccuracy, Type,size_t Z);
     //! As above, but the irreps come from an explicit \a ec instead of Atom_EC(Z): \a Z still sets the
     //! exponent pool (the element), while \a ec sets WHICH angular irreps the basis carries.  Needed when

@@ -48,6 +48,25 @@ using namespace qchem::BasisSet::Atom;
 using namespace Evaluators;
 using enum BasisSetAccuracy;
 
+// The tiny fixed test bases that BasisSetAccuracy::N3/N5 used to build (N3 = 3 even-tempered exponents
+// {0.5,1,2} / BSpline N=3; N5 = 5 exponents {0.25..4} / BSpline N=5).  N3/N5 were REMOVED from the production
+// BasisSetAccuracy pool (ill-conditioned, invalid for SCF), but these low-level construction/ID/cache tests
+// legitimately want a small deterministic basis, so build it here from the equivalent JSON (test-local).
+static Real_BS* N3Basis(Type t, size_t Z)
+{
+    nlohmann::json js = (t==Type::BSpline6||t==Type::BSpliner6)
+        ? nlohmann::json{{"type",t},{"rmin",0.5},{"rmax",2},{"N",3}}
+        : nlohmann::json{{"type",t},{"ltrim",0},{"exponents",{0.5,1,2.0}}};
+    return Factory(js, Z);
+}
+static Real_BS* N5Basis(Type t, size_t Z)
+{
+    nlohmann::json js = (t==Type::BSpline6||t==Type::BSpliner6)
+        ? nlohmann::json{{"type",t},{"rmin",0.25},{"rmax",4},{"N",5}}
+        : nlohmann::json{{"type",t},{"ltrim",0},{"exponents",{0.25,0.5,1,2.0,4.0}}};
+    return Factory(js, Z);
+}
+
 //----------------------------------------------------------------------------------------
 //
 //  Testing common to all atom basis set evaluators
@@ -178,7 +197,7 @@ public:
         Atom_EC ec(86); //Radon has f orbtials with no magnetic splitting.
         for (auto ir:ec.GetIrreps())
             Insert(new Slater::NR_Evaluator(es,ir)); 
-        bs=Factory(N3,Type::Slater,86);
+        bs=N3Basis(Type::Slater,86);
         cout << es << endl << *bs << endl;
     }
     
@@ -316,7 +335,7 @@ public:
         Atom_EC ec(86); //Radon has f orbtials with no magnetic splitting.
         for (auto ir:ec.GetIrreps())
             Insert(new Gaussian::NR_Evaluator(es,ir)); 
-        bs=Factory(N3,Type::Gaussian,86);
+        bs=N3Basis(Type::Gaussian,86);
     }
     static double R0(double a, double b, int la, int lb);
 };
@@ -433,7 +452,7 @@ public:
         for (size_t l=0;l<=3;l++)
             Insert(new BSpline::Evaluator<6>(5,0.01,20.0,Symmetry::YFactory(l)));
 
-        bs=Factory(N5,Type::BSpline6,86);
+        bs=N5Basis(Type::BSpline6,86);
     }
    
 };

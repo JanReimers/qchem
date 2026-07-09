@@ -231,10 +231,6 @@ static nlohmann::json AccJson(BasisSetAccuracy acc, Type type, size_t Z)
         {
             switch (acc)
             {
-                case N3:
-                    js={{"type",type},{"ltrim",0},{"exponents",{0.5,1,2.0}}};break;
-                case N5:
-                    js={{"type",type},{"ltrim",0},{"exponents",{0.25,0.5,1,2.0,4.0}}};break;
                 case Low:
                 case Medium:
                 case High:
@@ -247,16 +243,11 @@ static nlohmann::json AccJson(BasisSetAccuracy acc, Type type, size_t Z)
         {
             switch (acc)
             {
-                case N3:
-                    js={{"type",type},{"ltrim",0},{"exponents",{0.5,1,2.0}}};break;
-                case N5:
-                    js={{"type",type},{"ltrim",0},{"exponents",{0.25,0.5,1,2.0,4.0}}};break;
                 case Low:
                 case Medium:
                 case High:
                     js={{"type",type},{"ltrim",1},{"exponents",GaussianExponents(acc,Z)}};break;
             }
-            break;
             break;
         }
         case Type::BSpline6:
@@ -264,10 +255,6 @@ static nlohmann::json AccJson(BasisSetAccuracy acc, Type type, size_t Z)
         {
             switch (acc)
             {
-                case N3:
-                    js={{"type",type},{"rmin",0.5},{"rmax",2},{"N",3}};break;
-                case N5:
-                    js={{"type",type},{"rmin",0.25},{"rmax",4},{"N",5}};break;
                 case Low:
                     js={{"type",type},{"rmin",0.03 },{"rmax",20},{"N",15}};break;
                 case Medium:

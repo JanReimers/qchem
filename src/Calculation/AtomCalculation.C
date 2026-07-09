@@ -40,7 +40,7 @@ export namespace qchem
 using Hamiltonian::Model;                 // {E1, HF, DE1, DHF, Xalpha, LDA}
 using Hamiltonian::Pol;                   // {UnPolarized, Polarized}
 using AtomType = BasisSet::Atom::Type;    // {Slater, Gaussian, BSpline6, BSpliner6, Gaussian_RKB, Slater_RKB}
-using BasisSet::Atom::BasisSetAccuracy;   // {N3, N5, Low, Medium, High}
+using BasisSet::Atom::BasisSetAccuracy;   // {Low, Medium, High}
 
 //! How to set up a single-atom calculation.  Designated-initializer friendly:
 //!     AtomCalculation calc(18, 0, {.type=AtomType::Slater, .accuracy=BasisSetAccuracy::Medium});

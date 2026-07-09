@@ -234,8 +234,8 @@ int main(int argc, char** argv)
     using BT=AtomType;
     std::map<string,BT> bases={{"Slater",BT::Slater},{"Gaussian",BT::Gaussian},{"BSpline6",BT::BSpline6},
                                {"BSpliner6",BT::BSpliner6},{"Slater_RKB",BT::Slater_RKB},{"Gaussian_RKB",BT::Gaussian_RKB}};
-    // Only the SCF-grade pools: N3/N5 are tiny fixed-count sets (3/5 functions) for low-level unit tests,
-    // not meant to run the full SCF gauntlet.
+    // Only the SCF-grade pools (Low/Medium/High).  (The tiny fixed N3/N5 pools were removed -- ill-
+    // conditioned, invalid for SCF.)
     std::map<string,BasisSetAccuracy> accs={{"Low",BasisSetAccuracy::Low},{"Medium",BasisSetAccuracy::Medium},
                                {"High",BasisSetAccuracy::High}};
     // DFT models (LDA/Xalpha) and PP bypass the Model enum (they build the Hamiltonian directly, not Factory(Model,...)).

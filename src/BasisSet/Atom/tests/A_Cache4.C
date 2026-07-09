@@ -28,6 +28,17 @@ using namespace qchem::BasisSet::Atom::Evaluators;
 using enum BasisSetAccuracy;
 using GCache4=BasisSet::Atom::Evaluators::Gaussian::Gaussian_Cache4;
 
+// The tiny fixed test basis the removed BasisSetAccuracy::N3 used to build (3 even-tempered exponents {0.5,1,2}
+// / BSpline N=3).  N3/N5 were removed from the production pool (ill-conditioned); this cache test wants a small
+// deterministic basis, so build the equivalent JSON directly (test-local).
+static BasisSet::Real_BS* N3Basis(Type t, size_t Z)
+{
+    nlohmann::json js = (t==Type::BSpline6||t==Type::BSpliner6)
+        ? nlohmann::json{{"type",t},{"rmin",0.5},{"rmax",2},{"N",3}}
+        : nlohmann::json{{"type",t},{"ltrim",0},{"exponents",{0.5,1,2.0}}};
+    return Factory(js, Z);
+}
+
 class Cache4Tests : public ::testing::Test
 {
 public:
@@ -56,8 +67,8 @@ public:
     {
         delete bs1;
         delete bs2;
-        bs1=BasisSet::Atom::Factory(N3,type1,Z);
-        bs2=BasisSet::Atom::Factory(N3,type2,Z);
+        bs1=N3Basis(type1,Z);
+        bs2=N3Basis(type2,Z);
     }
     void InitBSpline6(size_t Z) {Init(Z,Type::BSpline6,Type::BSpline6);}
     void InitGaussian(size_t Z) {Init(Z,Type::Gaussian,Type::Gaussian);}
