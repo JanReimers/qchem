@@ -245,6 +245,22 @@ TEST(GPW_SCF, DISABLED_SiliconBulk2x2x2SR)
            /*verbose*/true, /*nmax*/60, qchem::Cholesky, 0.0, /*collRcut*/0.0);
 }
 
+// FAST DIAGNOSTIC (disabled): single-k (Gamma) minimal repro of the Rcut>0 over-binding -- compare charge +
+// Etot for SR at Rcut=0 (home cell) vs Rcut=1.5a (images on).  If images DOUBLE the charge -> an occupation/
+// normalisation double-count; if charge stays 8 but Etot ~doubles -> an energy-term (external-PP image) bug.
+TEST(GPW_SCF, DISABLED_SR_GammaRcutChargeProbe)
+{
+    const double a=10.26;
+    FCCUnitCell cell(a);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(1,1,1));                 // Gamma only -- single k, fast
+    GpwResult R0=RunGPW(lat, MakeBasisSR(cell), 8.0, /*Rcut*/0.0,   8, "Si", "SR Gamma Rcut=0",  false, 30);
+    GpwResult R1=RunGPW(lat, MakeBasisSR(cell), 8.0, /*Rcut*/1.5*a, 8, "Si", "SR Gamma Rcut=1.5a",false, 30);
+    std::cout << "SR Gamma: charge Rcut0="<<R0.charge<<" Rcut1.5a="<<R1.charge
+              << " | Etot Rcut0="<<R0.E.GetTotalEnergy()<<" Rcut1.5a="<<R1.E.GetTotalEnergy() << std::endl;
+}
+
 TEST(GPW_SCF, SiliconGammaConverges)
 {
     const double a=10.26;                          // Si conventional cubic lattice constant (a.u.)
