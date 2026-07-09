@@ -114,6 +114,18 @@ FFT raster `A·(i/N)`, where lattice-point atoms sit on grid nodes. **Fix = rout
 - **AND raise densityEcut modestly.** We've been running `densityEcut` = 8–12 Ha. CP2K's total is CONVERGED
   by **~40 Ha** (80 Ry) for this basis (see TODO 2 sweep) — so the raster artifact, not resolution, was the
   killer; `densityEcut` ≈ 30–40 Ha with a correct (off-raster) collocation is plenty.
+- **GRID-SIZING GOTCHA (verified 2026-07-09) — `NextPow2` quantizes N into PLATEAUS, so a `densityEcut` sweep
+  within a plateau is the SAME grid.** `FFTGrid N = NextPow2(4·max|m|+1)` where `max|m|` is the largest
+  reciprocal index in `{½|G|²<densityEcut}`. For the FCC-Si cell, `N` vs `densityEcut(Ha)`:
+  `8/12/20 → N=32 (h=0.227 Bohr)`, `30/40/50/80 → N=64 (h=0.113)`, `150 → N=128 (h=0.057)`. This EXACTLY
+  explains the frozen `Tr(Vloc)` across `densityEcut` (you were inside one plateau; the sweep changed only at
+  the 20→30 = 32→64 boundary). **To move N you must cross a boundary: test `densityEcut ∈ {12, 30, 150}`, not
+  {8,12,20}.** But note N=64 (h=0.113) is already FINER than CP2K's converged grid — so resolution is NOT the
+  remaining ~1 Ha; the collocation/raster artifact is (i.e. the voxel-centre shift alone did not close it: it
+  moved the Rcut=0 anchor only −8.2476→−8.1319). If `Tr(Vloc)` is STILL flat across the {12,30,150} boundaries,
+  the density collocation (`PhiOnGrid`/`BuildWeights`) isn't seeing the shift — check it uses the shifted
+  `UniformGrid`, not a separate raster. (`NextPow2` also makes `densityEcut` a coarse knob; a mixed-radix FFT
+  would give a finer handle — orthogonal to the bug.)
 - **Gate (now a HARD number from CP2K):** `GPW_SCF.SR_TranslationInvariance` |diff| → 0 (was 5.8 Ha), and
   Γ SR bulk → **−7.115 Ha, charge 8** (the CP2K reference, TODO 2 — NOT our PW −7.2273, a different basis).
   The old committed Rcut=0 anchor −8.2476 is ~1.1 Ha OVER-bound (the corner atom is on a node at Rcut=0 too),
