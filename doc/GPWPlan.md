@@ -92,8 +92,8 @@ concepts and reuses the `EPW_*` mixins + the whole `Ham_PW_DFT` KS stack.
 
 # TODO / NEXT
 
-In priority order. **(1) is the blocker for correct bulk energies**; everything downstream (full-BZ
-validation, IBZ, CP2K cross-check) waits on it.
+In priority order. **(1) is the blocker for correct bulk energies.** **(2) CP2K runs EARLY / in parallel** —
+its energy breakdown is a diagnostic that narrows (1), not just a final gate. (3)/(4) (full-BZ, IBZ) wait on (1).
 
 ## 1. THE BULK BLOCKER — take the collocation off the FFT raster (the atom-on-node fix)
 The root cause (see DONE) is that the density collocation AND the KS-matrix integrate-back quadrature on the
@@ -116,7 +116,40 @@ FFT raster `A·(i/N)`, where lattice-point atoms sit on grid nodes. **Fix = rout
 - **Gate:** `GPW_SCF.SR_TranslationInvariance` |diff| → 0 (currently 5.8 Ha), and Γ SR bulk → the off-corner
   value (~−8.4, near PW). This also validates the whole `qcMesh` migration (GPWPlan's long-standing §2).
 
-## 2. Full-BZ multi-k validation vs PW (Step 2 of the bulk roadmap)
+## 2. CP2K cross-check — do EARLY (the energy breakdown narrows the search)
+CP2K's Quickstep **is** the reference GPW implementation (Lippert–Hutter), so it is the natural oracle — and
+its per-term energy breakdown usually points straight at the culprit (as this session's hand-rolled breakdown
+did: Een ×15.7 → the local PP → the raster). Run it in **parallel with (1)**, not only as final validation.
+`−7.7613` is our own Ecut=4 PW number, not a literature absolute.
+- **Location:** clone/build at `~/Code/cp2k` (sibling to qchem6, like `libcint`/`googletest-main` — outside the
+  git tree). Heavyweight build (MPI/OpenMP + BLAS/LAPACK/ScaLAPACK + libint + libxc + FFTW); not done yet.
+- **PP already aligned:** our `src/Pseudopotential/Data/gth_potentials.json` IS the CP2K GTH-PADE database (its
+  `"LDA"` set = GTH-PADE); Si GTH-PADE-q4 matches ours — no conversion.
+- **Basis: same DATA, different FILE format.** `sipp_sr.bsd` is Gaussian94/`.bsd`; CP2K uses its own `BASIS_SET`
+  format (element, name, nset, per-set `n lmin lmax nexp nshell…`, then exponent + contraction coeffs). SIPP_SR
+  is uncontracted (coeff 1.0) so the transcription is mechanical — a tiny `.bsd`→CP2K converter (or hand-
+  transcribe the 3 s + 3 p Si exponents).
+
+### Parameters to line up (qchem ↔ CP2K) — keep this table current
+| quantity | qchem (ours) | CP2K keyword | note / pitfall |
+|---|---|---|---|
+| method | GPW | `&DFT &QS METHOD GPW` | (CP2K default is GPW) |
+| cell | FCC primitive, a=10.26 a.u. | `&CELL` (A/B/C vectors, `BOHR`) | match lattice vectors exactly; `PERIODIC XYZ` |
+| atoms | Si (0,0,0),(¼,¼,¼) frac | `&COORD SCALED` | match fractional coords (the corner atom at 0 is the bug trigger — compare it deliberately) |
+| pseudopotential | GTH-LDA q4 (Zion=4) | `POTENTIAL GTH-PADE-q4` | same params (ours from CP2K) |
+| orbital basis | SIPP_SR (3s3p, uncontracted) | `BASIS_SET` (our exponents, CP2K format) | convert file; keep it uncontracted |
+| exchange | Slater/Dirac Xα=2/3 | LIBXC `LDA_X` | equivalent |
+| correlation | **VWN5** | LIBXC `LDA_C_VWN` (=VWN5) | **NOT `PADE`** (that's PZ correlation) — must force VWN5 |
+| density cutoff | `densityEcut` (Ha) | `&MGRID CUTOFF` (**Ry**) | **1 Ha = 2 Ry**; ours 8–12 Ha = 16–24 Ry is ~10× too low (CP2K default 300–600 Ry) — see TODO 1 |
+| multigrid | single grid | `&MGRID NGRIDS`, `REL_CUTOFF` (Ry) | start `NGRIDS 1` to match; align `REL_CUTOFF` later |
+| k-points | `MakeKMesh` (MP, Γ-centred) | `&KPOINTS SCHEME MONKHORST-PACK` | match mesh + Γ-centring; single-point = `GAMMA` |
+| Poisson | G-space periodic | `&POISSON PERIODIC` | |
+| spin | closed shell (Si₂, 8 e⁻) | `LSD` off | |
+| occupation | integer, no smearing | `&SCF SMEAR OFF` | insulator |
+| lattice-sum reach | `Rcut`/`collRcut` (our truncation) | `EPS_PGF_ORB` / neighbour lists (auto) | not a direct CP2K knob — converge ours to CP2K |
+| **energy breakdown** | Ekin, Een, Eee, Exc, Enn, Ealign | CP2K: Overlap, Core (kinetic+PP), Hartree, XC, Core-self/Ewald | **term SPLITS differ** — match the TOTAL first, then map sub-terms (kinetic, XC are the cleanest to compare) |
+
+## 3. Full-BZ multi-k validation vs PW (Step 2 of the bulk roadmap)
 Once (1) makes single-k bulk correct: sample the full (unreduced) BZ and check the bulk total ≈ the PW bulk
 total (`PlaneWaveDFTUT.FrameworkSilicon2x2x2ThroughSCFIterator`, same cell/PP/mesh) as the Gaussian basis +
 cutoffs converge. The multi-k **plumbing already works** (DONE — `SiliconMultiKPlumbing` at Rcut=0 == Γ); this
@@ -124,15 +157,10 @@ step just needs (1) so the dispersive (Rcut>0) energy is right. Use a well-condi
 converged `Rcut` (SR overlap is PSD at Rcut≥1.5a) + adequate densityEcut. This proves general-k GPW
 correctness with ZERO new symmetry code.
 
-## 3. Symmorphic space groups + auto-IBZ (Step 3, deferred qcSymmetry track)
+## 4. Symmorphic space groups + auto-IBZ (Step 3 of the bulk roadmap, deferred qcSymmetry track)
 Only the POINT-GROUP part matters for k-reduction. Cubic Si (O_h, centrosymmetric) → IBZ = 1/48 of the BZ,
 no time-reversal factor. Validate bit-level: reduced-mesh-with-weights == full-mesh (against Step 2). The IBZ
 is an *efficiency* layer, not a correctness requirement — hence it comes AFTER a working full-BZ reference.
-
-## 4. CP2K cross-check (independent oracle)
-`−7.7613` is our own Ecut=4 PW number, NOT a literature absolute (the literature reports gaps, skips total
-energies). Build CP2K and run FCC Si with the same GTH PP in both PW and GPW modes for an independent bulk
-total to validate our PW AND our GPW. Heavyweight build; do it once (1) gives a plausible GPW bulk.
 
 ## 5. Deferred cleanups (do once bulk works — "the working code is the definitive declaration")
 - **Rigorous periodic external PP:** `MakeLocalPP`/`MakeSeparablePP` quadrature the HOME-CELL orbitals against
