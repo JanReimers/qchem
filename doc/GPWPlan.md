@@ -83,6 +83,20 @@ concepts and reuses the `EPW_*` mixins + the whole `Ham_PW_DFT` KS stack.
   `OverlapMatrix`. (A partial fix — midpoint mesh for `OverlapMatrix` only — was explored + reverted:
   incomplete, and it moved the committed anchor.)
 
+## Bulk over-binding FIXED — GPW bulk matches CP2K to 1e-5 (was TODO 1)
+The root cause was **one thing wearing two costumes: an incompletely-wrapped Bloch orbital.**
+- **The real bug (KB nonlocal, the 16 Ha term):** `MakeSeparablePP` used the **raw home orbital `*itsOrb`** as
+  the projector bra on the single-cell mesh. A boundary-straddling corner atom lost its wrapped tail → `b_i`
+  ≈ half (corner trace 21 vs interior 37) → the nonlocal PP was translation-variant by ~16 Ha. **Fix: use the
+  Bloch-summed orbital (`Eval`, precomputed on the mesh) as the bra.**
+- **The FFT-raster `Vloc`/Hartree/XC term was a RED HERRING:** once the orbital is fully wrapped (`Rcut ≥ 2a`)
+  its translation-variance also vanishes (the on-node over-weighting self-corrects when the full periodic
+  density is present). So **the voxel-grid-shift (old TODO 1b, Option A) was reverted entirely** — simpler.
+  Both terms go to Δ = 0.0000 at `Rcut ≥ 2a`.
+- **Validation vs CP2K (Γ, SIPP_SR, Rcut=2a):** Etot **−7.11505** (CP2K −7.11506), charge 8, Exc −2.544
+  (CP2K −2.544). Nonlocal-PP term hits CP2K's +0.9406. **Committed anchors safe:** at `Rcut=0`, `Eval` = the
+  raw orbital, so `SiliconGammaConverges` (−8.24758) and the atom-in-box are unchanged.
+
 ## Naming (`5f609d2f`) — remember these
 - `Overlap(f)` = ANY 1-electron `⟨i|f|j⟩` (f may be a potential); `Repulsion` = the 2-electron `1/r12`.
   So the reciprocal-space field→KS-matrix bridge is `Band_FT_IBS::MakeOverlap(f)` / evaluator
@@ -92,72 +106,20 @@ concepts and reuses the `EPW_*` mixins + the whole `Ham_PW_DFT` KS stack.
 
 # TODO / NEXT
 
-In priority order. **(1) is the blocker for correct bulk energies** — and it now has a HARD gate: the CP2K
-reference **−7.115 Ha** (2, DONE — CP2K built + FCC-Si Γ reference obtained). (3)/(4) (full-BZ, IBZ) wait on (1).
+The bulk-energy blocker is **DONE** (GPW bulk matches CP2K to 1e-5 — see "Bulk over-binding FIXED" in DONE).
+What remains, roughly in order: (1) full-BZ multi-k GPW (the next real feature); (2) grow the CP2K reference
+library; (3) IBZ; (4) deferred cleanups.
 
-## 1. THE BULK BLOCKER — the corner atom breaks translation invariance in TWO independent PP terms
-A term-by-term translation-invariance probe (corner atom frac 0 vs interior frac 0.13, N=64) split the bug
-cleanly (Δ = |corner − interior| trace):
+## 1. Full-BZ multi-k GPW (the next feature)
+General-k GPW + the multi-k `GPW_BasisSet` plumbing are DONE (Impl 4); the single-k dispersive total is now
+correct (bulk fix). Remaining: run the actual BZ dispersion — one `GPW_IBS` per k over `lat.MakeKMesh()`
+(already wired), converge `Rcut ≥ 2a` (needed for the full orbital wrap that the bulk fix relies on), and
+gate the BZ-summed total against a CP2K Monkhorst-Pack run (TODO 2). NB CP2K validation only needs a k-mesh
+once qchem has multi-k GPW dispersion — a single-k CP2K Γ reference (DONE) already validated the fix.
 
-| term | Rcut=0 Δ | Rcut=1.5a Δ | fixed by images? |
-|---|---|---|---|
-| Kinetic (analytic, control) | 0.000 | 0.000 | — (invariant) |
-| **Vloc** (FFT-grid collocation) | 21.78 | 1.14 | YES — Bloch images restore it at Rcut>0 |
-| **Vnl** (KB nonlocal, qcMesh mesh) | 16.06 | 16.04 | **NO — the bigger fish, image-invariant** |
-
-So there are **two independent bugs, two independent fixes** (the FFT-grid work does NOT touch Vnl):
-
-### 1a. Vnl (KB separable PP) — quadrature the BLOCH orbital, not the raw home orbital  ← the 16 Ha, do FIRST
-`MakeSeparablePP` builds `b_i^k=⟨χ_i^k|β_a Y_lm⟩` by quadraturing the **raw home orbital `*itsOrb`** on the
-single-cell `CreateIntegrationMesh` while periodic-summing the *projector* images. A corner orbital straddles
-the cell boundary, so its wrapped tail is lost → `b_i` ≈ half (corner trace 21 vs interior 37) → `V=ΣD b b†`
-off by ~2–4×. Summing projector images can't fix an *orbital*-side loss. **Fix:** replace `*itsOrb` with the
-**Bloch orbital `VectorFunction`** (`Eval`/`EvalGradient` = `Σ_R e^{ik·R}χ(r−R)`) in the `qcMesh::Overlap`
-call — at each mesh point near the corner `Eval` already includes the wrapped image, so the full orbital is
-captured (same "use the Bloch sum" move `PhiOnGrid` already makes for the local PP). Keep the projector's
-periodic sum (recovers the projector's own boundary tail); it's ONE home projector per atom with the Bloch
-orbital — do NOT also phase-sum projectors in a way that ×N_cells (the orbital carries k).
-**Per-term gate:** CP2K prints `Nonlocal Pseudopotential Energy = +0.9406 Ha` (`~/Code/cp2k-runs/si-gpw`) —
-our Vnl contribution should hit +0.9406 after the fix, independent of the total.
-
-### 1b. Vloc / Hartree / XC — take the FFT collocation off the raster
-The density collocation AND the KS-matrix integrate-back quadrature on the FFT raster `A·(i/N)`, where
-lattice-point atoms sit on grid nodes. (Vloc's Δ is already down to 1.14 at Rcut>0 via the Bloch images +
-the voxel-centre shift, but it's the same root cause as the density source.) **Fix = route BOTH off the raster:**
-- **Option A (offset FFT-grid origin):** sample at `A·((i+½)/N)` (a half-cell shift; a phase `e^{iG·½cell}`
-  in G-space that cancels in the forward→Poisson→inverse round-trip). One change to `PeriodicGridEvaluator`
-  fixes both the density collocation and the integrate-back. Watch the phase bookkeeping (forward FFT,
-  `GridCoeff`, `RhoOnGrid` must all agree).
-- **Option B (qcMesh midpoint mesh, GPWPlan's original §2 plan):** KS-matrix quadrature (`⟨χ|V|χ⟩`, `∫ρ`,
-  `∫ε_xc ρ`) → `qcMesh::WeightedOverlap`/`Integrate` on `cell.CreateIntegrationMesh({.eCut=densityEcut})`,
-  with the G-space `V_H`/`v_xc` presented as a `ScalarFunction` (via `EvalField`) and the Bloch orbital as a
-  `VectorFunction` (via `Eval`/`EvalGradient`). The FFT grid then does ONLY the Poisson solve. The separable
-  PP already works this way; a Bloch-orbital `VectorFunction` adapter + a `GSpaceField` `ScalarFunction`
-  adapter is the whole change to `OverlapMatrix(f)`. **But the DENSITY source (`BuildWeights`/`PhiOnGrid`)
-  still needs the FFT → Option A or an offset density grid is needed there too.** (A partial B — midpoint
-  mesh for `OverlapMatrix` only — was tried and reverted: it left the density on the raster, so Etot only
-  went −15.2→−14.2.)
-- **AND raise densityEcut modestly.** We've been running `densityEcut` = 8–12 Ha. CP2K's total is CONVERGED
-  by **~40 Ha** (80 Ry) for this basis (see TODO 2 sweep) — so the raster artifact, not resolution, was the
-  killer; `densityEcut` ≈ 30–40 Ha with a correct (off-raster) collocation is plenty.
-- **GRID-SIZING GOTCHA (verified 2026-07-09) — `NextPow2` quantizes N into PLATEAUS, so a `densityEcut` sweep
-  within a plateau is the SAME grid.** `FFTGrid N = NextPow2(4·max|m|+1)` where `max|m|` is the largest
-  reciprocal index in `{½|G|²<densityEcut}`. For the FCC-Si cell, `N` vs `densityEcut(Ha)`:
-  `8/12/20 → N=32 (h=0.227 Bohr)`, `30/40/50/80 → N=64 (h=0.113)`, `150 → N=128 (h=0.057)`. This EXACTLY
-  explains the frozen `Tr(Vloc)` across `densityEcut` (you were inside one plateau; the sweep changed only at
-  the 20→30 = 32→64 boundary). **To move N you must cross a boundary: test `densityEcut ∈ {12, 30, 150}`, not
-  {8,12,20}.** But note N=64 (h=0.113) is already FINER than CP2K's converged grid — so resolution is NOT the
-  remaining ~1 Ha; the collocation/raster artifact is (i.e. the voxel-centre shift alone did not close it: it
-  moved the Rcut=0 anchor only −8.2476→−8.1319). If `Tr(Vloc)` is STILL flat across the {12,30,150} boundaries,
-  the density collocation (`PhiOnGrid`/`BuildWeights`) isn't seeing the shift — check it uses the shifted
-  `UniformGrid`, not a separate raster. (`NextPow2` also makes `densityEcut` a coarse knob; a mixed-radix FFT
-  would give a finer handle — orthogonal to the bug.)
-- **Gate (now a HARD number from CP2K):** `GPW_SCF.SR_TranslationInvariance` |diff| → 0 (was 5.8 Ha), and
-  Γ SR bulk → **−7.115 Ha, charge 8** (the CP2K reference, TODO 2 — NOT our PW −7.2273, a different basis).
-  The old committed Rcut=0 anchor −8.2476 is ~1.1 Ha OVER-bound (the corner atom is on a node at Rcut=0 too),
-  so the fix moves it UP toward −7.115. This also validates the whole `qcMesh`/off-raster migration (§2).
-
-## 2. CP2K cross-check — BUILT + first reference obtained (the oracle)
+## 2. CP2K reference library (the oracle) — BUILT; growing it
+CP2K's Quickstep **is** the reference GPW implementation (Lippert–Hutter); its per-term breakdown points
+straight at a bug (as this session's did).
 CP2K's Quickstep **is** the reference GPW implementation (Lippert–Hutter); its per-term breakdown points
 straight at a bug (as this session's hand-rolled breakdown did: Een ×15.7 → local PP → the raster).
 - **DONE — CP2K 2026.1 built** (serial ssmp, gcc 15.2) at `~/Code/cp2k` (sibling to qchem6, outside the git
@@ -195,20 +157,12 @@ straight at a bug (as this session's hand-rolled breakdown did: Een ×15.7 → l
 | lattice-sum reach | `Rcut`/`collRcut` (our truncation) | `EPS_PGF_ORB` / neighbour lists (auto) | not a direct CP2K knob — converge ours to CP2K |
 | **energy breakdown** | Ekin, Een, Eee, Exc, Enn, Ealign | CP2K: Overlap, Core (kinetic+PP), Hartree, XC, Core-self/Ewald | **term SPLITS differ** — match the TOTAL first, then map sub-terms (kinetic, XC are the cleanest to compare) |
 
-## 3. Full-BZ multi-k validation vs PW (Step 2 of the bulk roadmap)
-Once (1) makes single-k bulk correct: sample the full (unreduced) BZ and check the bulk total ≈ the PW bulk
-total (`PlaneWaveDFTUT.FrameworkSilicon2x2x2ThroughSCFIterator`, same cell/PP/mesh) as the Gaussian basis +
-cutoffs converge. The multi-k **plumbing already works** (DONE — `SiliconMultiKPlumbing` at Rcut=0 == Γ); this
-step just needs (1) so the dispersive (Rcut>0) energy is right. Use a well-conditioned basis (SIPP_SR) at a
-converged `Rcut` (SR overlap is PSD at Rcut≥1.5a) + adequate densityEcut. This proves general-k GPW
-correctness with ZERO new symmetry code.
-
-## 4. Symmorphic space groups + auto-IBZ (Step 3 of the bulk roadmap, deferred qcSymmetry track)
+## 3. Symmorphic space groups + auto-IBZ (deferred qcSymmetry track)
 Only the POINT-GROUP part matters for k-reduction. Cubic Si (O_h, centrosymmetric) → IBZ = 1/48 of the BZ,
 no time-reversal factor. Validate bit-level: reduced-mesh-with-weights == full-mesh (against Step 2). The IBZ
 is an *efficiency* layer, not a correctness requirement — hence it comes AFTER a working full-BZ reference.
 
-## 5. Deferred cleanups (do once bulk works — "the working code is the definitive declaration")
+## 4. Deferred cleanups (do once bulk works — "the working code is the definitive declaration")
 - **Rigorous periodic external PP:** `MakeLocalPP`/`MakeSeparablePP` quadrature the HOME-CELL orbitals against
   the cell's OWN atoms (no periodic-image PP) — exact at Γ / large box, an approximation for a dense crystal.
   Sum the PP over lattice images (analogous to Ewald / the PW G-space assembly).
