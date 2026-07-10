@@ -158,7 +158,7 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
 ## qcSymmetry
 
 Space group 1: 
-- Fresh Workspace in ~/Code/qchem7
+- Fresh Workspace in ~/Code/qchem7  please create a branch for this work.
 - **Space-group support** — extend qcSymmetry from molecular point groups + Bloch k-labels to crystal space
   groups. Three sub-tasks: (1) **detect** the ops from cell+basis (spglib-style); (2) **represent** `{R|τ}`
   and apply them (to k in reciprocal space; to positions/density in real space); (3) **BZ machinery** — star
@@ -169,12 +169,13 @@ Space group 1:
   - **Tier B** — full space group with fractional translations τ → non-symmorphic `e^{−iG·τ}` phases,
     density/Hamiltonian symmetrization, crystal SALCs (solid analogue of the molecular SALC work).
   - Reuses the molecular point-group core: a space group ≈ point group ⋉ lattice translations.
-- Folder src/Symmetry/Lattice_3D  .  See src/Symmetry/MOlecule for related point code ... for any useful naming conventions.
+- Folder src/Symmetry/Lattice_3D  .  See src/Symmetry/Molecule for related point group code ... for any useful naming conventions.
 - Intended usage:
   1. Starting from src/Structure/UnitCell.C deduce space group (SG).
   2. Use SG to deduce Irreducible BZ -> reduced {k} {symmetry weights} for BZ integrations
   3. SALC support for each k block
   4. GUI for user entry of crystal structures:  use enters space group symbol and GUI present Wykoff positions (does this require non symmorphic support?)
+- We are deveoping PW and GPW PP calcalations on FCC Si with Monkhorst-Pack k sampling.  So the first would be IBZ {k} {symmetry weights} for that system. I don't know how IBS {k} interacts with Monkhorst-Pack.
 
   
 ## Code Review
@@ -193,10 +194,4 @@ Session 5:
 Next steps:  Space group symmetry (reduce k count), Monkhorst-Pack, Some mesh refactoring, extending qchem GPW to multi-species, other?
 
 
-Session 4:
-I think it would be useful to generate more CP2K results for comparison (maybe all 2x2x2?)
-Si PW
-NaF PW,GPW
-CsI PW,GPW
-
-Maybe dump a table (Ecut, densityEcut, Rcut, E breakdown, run time, inp file name) of results for all 6 cases into doc/CP2Kresults.md
+We have space groups started on a branch.  The SG dude is ready to wire MakeIBZMesh into the GPW k-loop and assert reduced-mesh energy == full-mesh energy for FCC Si. 
