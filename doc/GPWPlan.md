@@ -83,7 +83,7 @@ concepts and reuses the `EPW_*` mixins + the whole `Ham_PW_DFT` KS stack.
   `OverlapMatrix`. (A partial fix — midpoint mesh for `OverlapMatrix` only — was explored + reverted:
   incomplete, and it moved the committed anchor.)
 
-## Bulk over-binding FIXED — GPW bulk matches CP2K to 1e-5 (was TODO 1)
+## Bulk over-binding FIXED — GPW bulk matches CP2K to 1e-5 (was TODO 1) (`95e8f4a8`)
 The root cause was **one thing wearing two costumes: an incompletely-wrapped Bloch orbital.**
 - **The real bug (KB nonlocal, the 16 Ha term):** `MakeSeparablePP` used the **raw home orbital `*itsOrb`** as
   the projector bra on the single-cell mesh. A boundary-straddling corner atom lost its wrapped tail → `b_i`
@@ -92,10 +92,29 @@ The root cause was **one thing wearing two costumes: an incompletely-wrapped Blo
 - **The FFT-raster `Vloc`/Hartree/XC term was a RED HERRING:** once the orbital is fully wrapped (`Rcut ≥ 2a`)
   its translation-variance also vanishes (the on-node over-weighting self-corrects when the full periodic
   density is present). So **the voxel-grid-shift (old TODO 1b, Option A) was reverted entirely** — simpler.
-  Both terms go to Δ = 0.0000 at `Rcut ≥ 2a`.
+  Both terms go to Δ = 0.0000 at `Rcut ≥ 2a` (`GPW_SCF.DISABLED_TermTranslationInvariance`).
 - **Validation vs CP2K (Γ, SIPP_SR, Rcut=2a):** Etot **−7.11505** (CP2K −7.11506), charge 8, Exc −2.544
   (CP2K −2.544). Nonlocal-PP term hits CP2K's +0.9406. **Committed anchors safe:** at `Rcut=0`, `Eval` = the
   raw orbital, so `SiliconGammaConverges` (−8.24758) and the atom-in-box are unchanged.
+- **Perf:** cached `PhiOnGrid` (geometry-fixed; was recomputed every SCF iteration) → the CP2K gate dropped
+  ~25× (1100 s → ~45 s at N=32/`densityEcut=20`). A GEMM quadrature was tried and reverted (not faster at
+  n=13). Gate `GPW_SCF.DISABLED_SR_GammaRcut2a_CP2KReference` (N=32, −7.11467, ~0.4 mHa grid gap, tol 2e-3).
+- **Test cleanup:** removed 11 obsolete over-binding-investigation diagnostics (`GPW_SCF_UT` 541→268 lines).
+
+## Multi-k GPW dispersion VALIDATED vs CP2K (`5fe61aeb`)
+Dispersive multi-k GPW runs (unblocked by the KB fix): Γ-centred 2×2×2 MP, SIPP_SR, Rcut=2a → charge 8, real
+dispersion (Γ −7.11467 → 2×1×1 −7.451 → 2×2×2 −7.7778). **Grid-for-grid at the SAME Γ-centred mesh: our
+−7.7778 vs CP2K −7.77846 (~0.7 mHa, the N=32 grid gap).** So the general-k GPW *physics* is validated. The
+90 mHa vs CP2K's *default* −7.86744 is purely the **k-mesh CONVENTION** (Γ-centred vs the classic shifted MP,
+k at ±¼ — confirmed from CP2K's own k-point list). Decks: `si_fcc_gpw_222.inp` (shifted) + `si_fcc_gpw_222_
+gamma.inp` (Γ-centred). Test `GPW_SCF.DISABLED_SR_2x2x2GammaCentred_vs_CP2K`.
+
+## Shifted Monkhorst-Pack support (`1980d6ef`) — and it EXPOSED the next bug
+Threaded an optional fractional MP `shift` so `k=(ik+shift)/N` through `BlochQN`/`BlochFactory` →
+`Lattice_3D::MakeKMesh` → `GPW_BasisSet`/`GPWFactory` → `RunGPW` (shift=0 = Γ-centred, backward-compatible;
+shift=½ = CP2K's `k=±¼`). `GPW_BasisSet` recovers the integer index as `lround(k·N − shift)` (plain
+`lround(k·N)` is wrong for shift=½). 186/186 green; Γ-centred anchors unchanged. **But running the shifted
+mesh exposed a complex-Bloch-phase bug — now the top TODO (see TODO 1 below).**
 
 ## Naming (`5f609d2f`) — remember these
 - `Overlap(f)` = ANY 1-electron `⟨i|f|j⟩` (f may be a potential); `Repulsion` = the 2-electron `1/r12`.
@@ -106,22 +125,41 @@ The root cause was **one thing wearing two costumes: an incompletely-wrapped Blo
 
 # TODO / NEXT
 
-The bulk-energy blocker is **DONE** (GPW bulk matches CP2K to 1e-5 — see "Bulk over-binding FIXED" in DONE).
-What remains, roughly in order: (1) full-BZ multi-k GPW (the next real feature); (2) grow the CP2K reference
-library; (3) IBZ; (4) deferred cleanups.
+Bulk energy (Γ) and Γ-centred multi-k dispersion are **DONE and CP2K-validated** (see DONE). The single
+remaining blocker for real BZ sampling (any mesh with k off the Γ/half-integer points, i.e. CP2K's default
+shifted MP) is a **complex-density-matrix bug** — TODO 1. Then: (2) CP2K library; (3) IBZ; (4) cleanups.
 
-## 1. Full-BZ multi-k GPW (the next feature)
-General-k GPW + the multi-k `GPW_BasisSet` plumbing are DONE (Impl 4); the single-k dispersive total is now
-correct (bulk fix). Remaining: run the actual BZ dispersion — one `GPW_IBS` per k over `lat.MakeKMesh()`
-(already wired), converge `Rcut ≥ 2a` (needed for the full orbital wrap that the bulk fix relies on), and
-gate the BZ-summed total against a CP2K Monkhorst-Pack run (TODO 2). NB CP2K validation only needs a k-mesh
-once qchem has multi-k GPW dispersion — a single-k CP2K Γ reference (DONE) already validated the fix.
+## 1. THE COMPLEX-D SCF BUG — a genuinely-complex density matrix diverges (the blocker for real BZ sampling)
+**Symptom.** With shifted-MP support landed (`1980d6ef`), the shifted 2×2×2 (k at ±¼ = CP2K's default) should
+hit CP2K **−7.86744**. Instead it OVER-BINDS and does not converge. A **single k=(¼,¼,¼) block** reproduces
+it in isolation: Een −1.14 → **−15.15**, Etot **−14.7**, hits `nmax=60` without converging (Γ converges in
+~22). Kinetic also rises (4.36 → 8.58) — partly physical (k≠0), but the −14 Ha Een over-bind is the bug.
+
+**Root cause is NOT the GPW evaluator — it is the complex-D SCF path.** Carefully ruled out (all in the
+DISABLED diagnostic `GPW_SCF.DISABLED_SR_2x2x2ShiftedMP_vs_CP2K`, no SCF, fast):
+- **NOT conditioning:** `min eig S(k=¼) = 0.020` (PSD) at Rcut=2a AND 3a.
+- **NOT the density collocation:** `‖W₀·Ω − S(k)‖/‖S‖ = 4e-6` at k=0, ½ AND ¼ — the collocated density is
+  consistent with the analytic Bloch overlap even at complex k.
+- **The GPW term matrices are Hermitian by construction** (`chmat_t` stores the upper triangle).
+- **THE TELL:** at Γ and half-integer k the Bloch phase `e^{ik·R} = ±1` is **REAL**, so the density matrix D
+  is **real** — which is why every GPW validation so far passed. **k=¼ is the FIRST time D is genuinely
+  COMPLEX.** So the bug lives in the framework's complex-D handling, not in qcLattice_BS.
+
+**Where to look next session** (framework, `qcHamiltonian`/`qcSCF`/`qcChargeDensity`, NOT the GPW evaluator):
+- The **complex density-matrix build** from complex eigenvectors (`cDM_CD` / the charge-density assembly) — is
+  `ρ = Σ_occ c c†` conjugating correctly? A missing conjugate would over-bind Een.
+- **Complex DIIS** (`cSCFAcceleratorDIIS`) and the **occupation** (`Crystal_EC`) — do they assume real D?
+  Cross-ref the known limitation **"GDM/Ladder are `<double>`-only"** ([[project_hamiltonian_dynamic_cache_bug]]
+  / the degenerate-Γ note) — the *complex* energy path is the suspect.
+- **Reproduce cheaply:** a single k=(¼,¼,¼) block is enough (`RunGPW(lat_1x1x1, …, kShift={¼,¼,¼})`), ~45 s,
+  no need for the 8-block mesh. Compare its per-term energies to the Γ block; Een is the one that blows up.
+- **Gate when fixed:** flip `DISABLED_SR_2x2x2ShiftedMP_vs_CP2K` to assert **−7.86744** (CP2K default MP);
+  then the Γ-centred and shifted 2×2×2 both match CP2K grid-for-grid and multi-k GPW is fully done.
 
 ## 2. CP2K reference library (the oracle) — BUILT; growing it
 CP2K's Quickstep **is** the reference GPW implementation (Lippert–Hutter); its per-term breakdown points
-straight at a bug (as this session's did).
-CP2K's Quickstep **is** the reference GPW implementation (Lippert–Hutter); its per-term breakdown points
 straight at a bug (as this session's hand-rolled breakdown did: Een ×15.7 → local PP → the raster).
+I can run CP2K directly: `~/Code/cp2k/build/bin/cp2k.ssmp`, decks in `~/Code/cp2k-runs/`.
 - **DONE — CP2K 2026.1 built** (serial ssmp, gcc 15.2) at `~/Code/cp2k` (sibling to qchem6, outside the git
   tree). Toolchain: OpenBLAS+FFTW+libxc+libxsmm+DBCSR, no MPI/libint. Build: `tools/toolchain/build_cp2k.sh`
   (CMake, NOT the old arch-file `make`). Run needs `source install/setup` +
@@ -139,8 +177,9 @@ straight at a bug (as this session's hand-rolled breakdown did: Een ×15.7 → l
   q1 Gaussian basis (only q9 semicore) — CP2K aborts on the valence mismatch; iodine has no GTH basis at all.
   Fix = hand-roll SIPP-style low-q bases for Na/F/Cs/I (shared with the future multi-species GPW path). See
   `doc/CP2Kresults.md`.
-- **NEXT with CP2K:** those low-q bases → NaF/CsI; the `si_fcc_gpw_222.inp` Monkhorst-Pack deck is the full-BZ
-  reference for TODO 1 (multi-k GPW).
+- **Si 2×2×2 cross-checks DONE:** `si_fcc_gpw_222.inp` (shifted MP, **−7.86744**) + `si_fcc_gpw_222_gamma.inp`
+  (Γ-centred, **−7.77846**, matches our GPW −7.7778). The shifted one is TODO 1's gate (blocked by complex-D).
+- **NEXT with CP2K:** hand-roll the low-q bases → NaF/CsI decks (shared with the future multi-species GPW).
 
 ### Parameters to line up (qchem ↔ CP2K) — keep this table current
 | quantity | qchem (ours) | CP2K keyword | note / pitfall |
@@ -154,7 +193,7 @@ straight at a bug (as this session's hand-rolled breakdown did: Een ×15.7 → l
 | correlation | **VWN5** | LIBXC `LDA_C_VWN` (=VWN5) | **NOT `PADE`** (that's PZ correlation) — must force VWN5 |
 | density cutoff | `densityEcut` (Ha) | `&MGRID CUTOFF` (**Ry**) | **1 Ha = 2 Ry**; ours 8–12 Ha = 16–24 Ry is ~10× too low (CP2K default 300–600 Ry) — see TODO 1 |
 | multigrid | single grid | `&MGRID NGRIDS`, `REL_CUTOFF` (Ry) | start `NGRIDS 1` to match; align `REL_CUTOFF` later |
-| k-points | `MakeKMesh` (MP, Γ-centred) | `&KPOINTS SCHEME MONKHORST-PACK` | match mesh + Γ-centring; single-point = `GAMMA` |
+| k-points | `MakeKMesh(shift)` (MP; shift=0 Γ-centred, shift=½ classic MP) | `&KPOINTS SCHEME MONKHORST-PACK` | CP2K's MP is SHIFTED (k=±¼ for even N) — use `kShift=½` to match; its Γ-centred list needs `SCHEME GENERAL` (see `si_fcc_gpw_222_gamma.inp`). CP2K prints its k-list (`grep BRILLOUIN`). Shifted mesh currently blocked by TODO 1 (complex-D). |
 | Poisson | G-space periodic | `&POISSON PERIODIC` | |
 | spin | closed shell (Si₂, 8 e⁻) | `LSD` off | |
 | occupation | integer, no smearing | `&SCF SMEAR OFF` | insulator |
@@ -217,7 +256,12 @@ Symmorphic space groups → BZ reduction (irreducible wedge) → SALC with plane
 - Commits (GPW, on `main`): `ab2c6a76` (1E), `cc123b3b`/`63fbf70c` (DFT collocation), `dcef8528`/`db314e6a`
   (first-light SCF + G-space local PP), `5f609d2f` (rename), `6d6511ac` (Ortho choice), `fc430e94` (this
   doc's bulk roadmap), **`b2a29249`** (Impl 4 general-k + multi-k), **`10ad6e29`** (N3/N5 removal),
-  **`02027faf`** (charge probe), **`a4c94ec5`** (bulk over-binding root-cause + diagnostics).
-- Tests: `UnitTests/GPW_UT.C` (1E + Bloch invariants), `UnitTests/GPW_SCF_UT.C` (SCF + the DISABLED bulk
-  diagnostics), `UnitTests/L_PP.C` (finite==lattice PP), `UnitTests/PlaneWaveDFTUT.C` (PW-DFT anchors incl.
-  Si/NaF/CsI + the 2×2×2 multi-k reference). Build/test: `cd build/Release && ninja UTMain && ./UnitTests/UTMain`.
+  **`02027faf`** (charge probe), **`a4c94ec5`** (bulk over-binding root-cause + diagnostics),
+  **`95e8f4a8`** (BULK FIX: KB Bloch-orbital bra + PhiOnGrid cache + test cleanup),
+  **`335df0da`** (CP2K grid-matched table), **`5fe61aeb`** (multi-k validated vs CP2K same-mesh),
+  **`1980d6ef`** (shifted-MP support + the complex-D bug diagnostic).
+- Tests: `UnitTests/GPW_UT.C` (1E + Bloch invariants), `UnitTests/GPW_SCF_UT.C` (SCF anchors + gates:
+  `DISABLED_TermTranslationInvariance`, `DISABLED_SR_GammaRcut2a_CP2KReference`,
+  `DISABLED_SR_2x2x2GammaCentred_vs_CP2K`, `DISABLED_SR_2x2x2ShiftedMP_vs_CP2K` [the TODO-1 complex-D probe]),
+  `UnitTests/L_PP.C` (finite==lattice PP), `UnitTests/PlaneWaveDFTUT.C` (PW-DFT anchors). CP2K decks +
+  results: `UnitTests/CP2K/`, `doc/CP2Kresults.md`. Build/test: `cd build/Release && ninja UTMain && ./UnitTests/UTMain`.
