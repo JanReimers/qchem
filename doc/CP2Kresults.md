@@ -27,6 +27,21 @@ from ours (it uses a compensating-core-charge scheme) — compare the **total** 
 - **Si Γ, SIPP_SR — the tight BASIS-MATCHED gate:** our GPW **−7.11505** vs CP2K **−7.11506** (1e-5), Exc
   −2.544 = −2.544, nonlocal-PP → +0.9406. This validated the bulk fix (see `doc/GPWPlan.md`, "Bulk
   over-binding FIXED").
+- **Grid convergence, matched cutoff** (`CUTOFF` Ry = 2× our `densityEcut` Ha; our FFT `N` is `NextPow2`, so
+  it jumps 32→64):
+
+  | our grid | nominal | qchem GPW | CP2K (same cutoff) | vs CP2K-converged |
+  |---|---|---|---|---|
+  | N=32 (dE=20 Ha) | 40 Ry | −7.11467 | −7.115107 | +0.39 mHa |
+  | N=64 (dE=30 Ha) | 60 Ry | −7.11505 | (flat, ≈−7.11506) | +0.01 mHa |
+  | — | ≥80 Ry | — | **−7.11506** | reference |
+
+  Our point-collocation total converges to CP2K-converged **from above**: N=64 matches to ~1e-5. At the matched
+  40 Ry, N=32 sits ~0.4 mHa above CP2K's own 40 Ry (−7.115107) — CP2K itself only moves 5e-5 from 40→80 Ry, so
+  that 0.4 mHa is OUR grid, not CP2K convergence: `NextPow2` point-collocation is a touch coarser than CP2K's
+  analytic Gaussian-to-grid mapping at equal cutoff, closed by N=64. The fast gate
+  (`GPW_SCF.DISABLED_SR_GammaRcut2a_CP2KReference`, N=32, ~45 s) pins −7.11467 with a 2e-3 tolerance that
+  absorbs this; the tight match is N=64 (~5× slower).
 - **Si 2×2×2:** qchem GPW has no multi-k yet; our PW 2×2×2 is −7.7613 (Ecut=4, under-converged plane waves) —
   a loose check vs CP2K's converged −7.86744 (different basis). A future multi-k GPW at `Rcut ≥ 2a` + SIPP_SR
   should approach −7.86744.
