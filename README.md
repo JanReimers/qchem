@@ -79,7 +79,6 @@ src/
   Orbitals/ WaveFunction/ SCFIterator/ SCFAccelerator/   the SCF loop
   Fitting/ LASolver/ Factory/
 UnitTests/       GoogleTest suite (build target: UTMain)
-gtkapp/          GTK front-end for atoms
 doc/             reference data (HF, DFT, DHF energies)
 ```
 

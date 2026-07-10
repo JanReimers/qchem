@@ -11,6 +11,45 @@ source .venv/bin/activate
 export QCHEM_BUILD=~/Code/qchem-viz/build/PIC
 python app_desktop.py 
 
+
+# new PC
+That all checks out — SFF (4 DIMM slots / 128 GB, standard desktop DIMMs) with a populated M.2 NVMe. It's a genuinely good, Linux-friendly pick for this workload. Two practical things to plan for, both minor:
+
+1. Confirm the CPU is the i7, not the i5. The 7090 shipped as either an i7‑11700 (8C/16T) or an i5‑11500 (6C/12T). For your compile loop you want the 8-core i7 — it's the difference between -j16 and -j12 and noticeably better sustained throughput. Both are fine, but check the exact model in the listing/title before buying; don't assume.
+
+2. 512 GB is under your 1 TB target — and this workload eats disk. C++20 module BMIs are ~50–80 MB each, times many modules, times multiple build dirs (you already run build/Release, and you'll want Debug too, plus git worktrees). A couple of build trees + BMIs can easily be 30–60 GB, and 512 GB gets tight fast. Two easy fixes:
+
+Best: swap the 512 GB NVMe for a 1–2 TB NVMe (one screw; keep builds on NVMe — the fast BMI read/write is exactly what benefits). Do this at install time since you're wiping anyway.
+Or: the SFF has a 2.5″ SATA bay — drop in a 1 TB SATA SSD for /home or build output, keep the 512 GB NVMe as the boot/root drive.
+3. RAM, as covered: it'll arrive with 16 GB; add 2 × 32 GB DDR4‑3200 UDIMM for 64 GB (two slots filled, two free for later 128 GB).
+
+So the buy-day plan: wipe Windows (BIOS: Secure Boot off, storage → AHCI, then erase disk, install Ubuntu/Fedora), swap in a 1 TB+ NVMe, add 2×32 GB. After that it's a clean, expandable, well-supported Linux compile box — and you sidestep every Windows-11 headache by wiping rather than dual-booting.
+
+Net: between this and the Ryzen 7 5700G build, you're choosing Dell reliability + 4-slot/128 GB headroom + known-good Linux support (7090 SFF) vs possibly-no-Windows + slightly better multithread value (5700G). Either is a sound choice — if the 7090 here has the i7, I'd lean toward it.
+
+It is refurbished .. which I actually like, almost always get refurbished.  It is 20-30% cheaper than other two new AMD boxes.  I will need to also buy a memory stick for booting linux 26.04 any advice on that?
+
+Good call on refurb — business-grade OptiPlex machines are built to outlast their warranty, and a refurb 7090 at 20–30% under new AMD boxes is exactly where these shine. The corporate-lease refurb market is the sweet spot for a Linux workhorse.
+
+The USB stick — nothing fancy needed:
+
+Size: 16 GB or 32 GB. The Ubuntu 26.04 ISO is ~6 GB, so 8 GB technically works but leaves no margin — 32 GB is a couple dollars more and you'll actually keep this as a rescue/live-USB afterward.
+Speed: get USB 3.x (blue connector), not USB 2.0 — faster to write and a much faster installer. Cheap either way.
+Brand: stick to SanDisk (Ultra Flair / Ultra), Samsung (BAR Plus), or Kingston (DataTraveler). On amazon.com.mx specifically, avoid no-name sticks — fake-capacity counterfeits are common; the named brands are safe.
+It's a throwaway tool that gets fully wiped when you write the ISO, so don't overspend — a SanDisk Ultra 32 GB USB 3.0 or Samsung BAR Plus 32 GB is ideal.
+Writing the ISO (all easy):
+
+Download Ubuntu 26.04 LTS Desktop from ubuntu.com and verify its SHA256 against the published checksum before writing — a corrupt download is the #1 cause of a mystery-failing install.
+Flash it:
+From Windows (if you have a Windows machine handy): Rufus — select the ISO, pick the stick, go. If it asks ISO vs DD mode, either works (Ubuntu's is a hybrid ISO); DD mode is the safe default.
+From Linux/Mac: balenaEtcher, or dd if=ubuntu-26.04.iso of=/dev/sdX bs=4M status=progress (double-check the device name!).
+Boot the OptiPlex from it: tap F12 at the Dell splash for the one-time boot menu, pick the USB.
+Two refurb/install notes:
+
+Before installing, in BIOS (F2 at the Dell splash): Secure Boot off (or leave on — Ubuntu handles it), and set SATA operation → AHCI (Dell often ships as RAID/RST, which hides the NVMe from the installer — this is the common gotcha). Then erase the whole disk and install.
+26.04 is a fresh LTS; the 26.04.1 point release (~August 2026) rolls up early installer/hardware fixes. On an 11th-gen OptiPlex — mature, boringly-well-supported hardware — 26.04.0 will be fine, but if you install in a few weeks, 26.04.1 is the slightly smoother choice. Either way, run updates right after install.
+That's the whole kit: the refurb 7090 SFF (i7 if you can), a 1 TB+ NVMe to swap in, 2×32 GB DDR4-3200, and a 32 GB USB 3 stick. Clean, expandable, and zero Windows-11 drama since you're wiping.
+
 #Fitting upgrades explaines:
 Looked at the code — these are three parked refinements from a prior fitting refactor, not bugs or blockers. Here's what each means in plain terms, and my honest read on timing.
 

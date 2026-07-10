@@ -9,8 +9,10 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
 - **DIIS singular B** (Shepard & Minkoff 2007 eq 23 — linear least squares for a
   better condition number; consider SVD-truncating B); 
 - **EDIIS**
+- Upgrade GDM for complex.
 ### Parallel execution
 - Options: OpenMP" std::threads other?.   
+- Wait for new PC with 8 cores/16 threads.
 - How?
   - Top down: loops over 
     1. irreps in `AccumulateDirect`/`AccumulateExchange`
@@ -24,6 +26,7 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
 
 ### DFT, Fitted Vxc Vcorr
 - Support GGA/BPL
+  - Will need adjust MeshParams::relCutoff=1 
 - Needs: The XC energy is E_xc = ∫ ε_xc(ρ) ρ. Today exchange uses the virial shortcut E_x = ¾⟨ρ|v_x⟩ (exact for LDA exchange), and correlation goes through a dedicated FittedEpsXc fit. The vision is to route the whole thing uniformly through the fitter — but that needs the fitter to accept a grid-evaluated ε_xc as its fit input, which it doesn't cleanly do yet. This one has real future value — the ¾ virial shortcut breaks for GGA, so it becomes necessary when you add gradient functionals.
 
 
@@ -49,7 +52,7 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
 - **Basis/Hamiltonian/Structure mismatch → domain exceptions:** BSpline+DFT/DHF (no evaluator), SG(atom-only)
   for a Molecule, LibCint+DFT (no 3-centre). These currently throw `bad_cast`; catch + re-throw a
   `BasisSetSupport` exception carrying basis type + required/missing support (RKB/DFT). Clients: `DiracKinetic`,
-  `FittedVee`. (Ties to the CLAUDE.md `dynamic_cast` survey.)  I am purposly leaving aspect un-implemented ths is a static test of the mix architecture.
+  `FittedVee`. (Ties to the CLAUDE.md `dynamic_cast` survey.)  I am purposly leaving some aspect un-implemented this is a static test of the mix architecture.
 
 ## OOD principles & north-star
 
@@ -83,8 +86,8 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
   2. For molecule tests use linCint integral engines ... way faster than home grown MnD code.
   3. Buy a new PC with 12-16 cores, 64GB ram, 2T SSD drive.  Use the new rig for live development run SI server on the old rig ... until it goes up in a puff of smoke :)
 - Review the Types.C files in the libraries other than qcCommon.
-- Is there anything we can do about the large (50-80MB) BMI file sizes?
-
+- doc/ModuleToolchainPlan.md
+- why qcUmbrella?  it is just confusing for users.  
 ## GUI apps, planning
 
 ## Solids / plane waves
@@ -93,7 +96,7 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
   `Orbital_1E_IBS`): solve the nonlinear secular eq by iterating — guess E₀, build H(E₀),O(E₀); solve the
   generalized problem → ε_n(E₀); set E₀←E₁ until fixed point. Like an SCF except we find E* (not a density)
   and S(E) also changes each iteration.
-  Need to see wat real SCF looks like on APW with DFT. 
+  Need to see what real SCF looks like on APW with DFT. 
 - **Mid-level plan:** (1) go far along lineage A & B; (2) lineage A: `template<isM_1E_Evaluator E> class
   EPlaneWave_IBS<E>`, migrate the hardcoded PW IBSs one at a time (most data → evaluators); (3) graft onto
   lineage B; (4) e-e repulsion (needs the DFT upgrade first). Also: GPW/GAPW after FLAPW — we have Gaussian
@@ -115,7 +118,6 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
 ## qcFitting
 
 **Small follow-ups from this session's cleanups**
-- `FIT_CD_ABS<T>` / `FIT_SF_ABS<T>` templating — left non-templated; the `<dcmplx>` vision is still open.
 - XC energy `∫ε_xc·ρ` through the fitter — still on the direct grid route (needs a grid-based fit input).
   Do this prior to GGA
 
@@ -123,6 +125,7 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
 - **Dirac/RKB:** 1s orbital not properly normalized; track kinetic factors (0.5, c, 2c).
 - **Dirac/RKB:** `Orbital_DHF_IBS.C::merge_xxx`: use `blazem::submatrix`.
 - **Atom evaluators:** Gaussian integrals via recursion `Fact[n]/pow(2,n)` (consider `constexpr`); 
+-   
 - `op()(rvec3_t)` is the universal evaluation interface (full angular dependence, real Ylm — the future GUI
   needs honest truth). Atom DFT integration should exploit spherical symmetry analytically (1-D radial × 4π),
   NOT fake a 3-D grid down one axis. Make integration a polymorphic quadrature strategy chosen by the basis's
@@ -141,12 +144,8 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
 
 ## qcLattice_3D
 **Pinned design reviews**
-- Scalars leaking through abstract interfaces: `ExternalG0Energy` (PW-specific, no molecular-ECP analogue)
-  and the `double& Eh` out-param on `Repulsion(const FourierMap&, double&)`.
-- `BasisSet<dcmplx>::Create{CD,Vxc}FitBasisSet` NA-stubs (`src/BasisSet/Imp/BasisSet.C`) — the "dirty code
-  smell" to revisit ("PW reuses its own basis for fitting" ≠ "those fakes are fine").
 - BZ-symmetry reduction — multi-k computes all k-points explicitly; fold to the irreducible wedge (+weights) using the crystal point group when k-counts grow. (Perf, not correctness.) see **Space-group support** in qcSymmetry
-- DIIS appears numerical unstable: PlaneWaveDFT.FrameworkNaFThroughSCFIterator @ UnitTests/PlaneWaveDFTUT.C:1147
+- DIIS appears numerically unstable: PlaneWaveDFT.FrameworkNaFThroughSCFIterator @ UnitTests/PlaneWaveDFTUT.C:1147
 #2497317│ │ Warning: tSCFIrrepAcceleratorDIIS::Project() fabs(Sum(itsCs)-1.0)<>e-13 .
 #2497317│ │ Warning: tSCFIrrepAcceleratorDIIS::Project() fabs(Sum(itsCs)-1.0)<>e-13 .
 #2497317│ │ Warning: tSCFIrrepAcceleratorDIIS::Project() fabs(Sum(itsCs)-1.0)<>e-13 .
@@ -158,6 +157,8 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
 
 ## qcSymmetry
 
+Space group 1: 
+- Fresh Workspace in ~/Code/qchem7
 - **Space-group support** — extend qcSymmetry from molecular point groups + Bloch k-labels to crystal space
   groups. Three sub-tasks: (1) **detect** the ops from cell+basis (spglib-style); (2) **represent** `{R|τ}`
   and apply them (to k in reciprocal space; to positions/density in real space); (3) **BZ machinery** — star
@@ -168,6 +169,34 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
   - **Tier B** — full space group with fractional translations τ → non-symmorphic `e^{−iG·τ}` phases,
     density/Hamiltonian symmetrization, crystal SALCs (solid analogue of the molecular SALC work).
   - Reuses the molecular point-group core: a space group ≈ point group ⋉ lattice translations.
+- Folder src/Symmetry/Lattice_3D  .  See src/Symmetry/MOlecule for related point code ... for any useful naming conventions.
+- Intended usage:
+  1. Starting from src/Structure/UnitCell.C deduce space group (SG).
+  2. Use SG to deduce Irreducible BZ -> reduced {k} {symmetry weights} for BZ integrations
+  3. SALC support for each k block
+  4. GUI for user entry of crystal structures:  use enters space group symbol and GUI present Wykoff positions (does this require non symmorphic support?)
 
   
 ## Code Review
+
+
+Three Mesh upgrade:
+1) FourierMesh_R = {R}, {e^ikR phases} in src/BasisSet/Molecule/LatticeSum1E.C
+2) FourierMesh_k = {k}, {symmetry weights for the Irrep BZ} for BZ sums/integrals.
+3) doc/GPWPlan.md: 2. THE mesh insight — the next increment builds on this (do not use the stopgap)
+4) "precompute the Bloch orbital on the mesh once (Eval re-sums images per point, so calling it inside qcMesh::Overlap per projector-image would be O(|images|²) — too slow for SCF)"  What was the fix ... can we add another Integral routing to Mesh that implelents the fix?
+
+Other:
+4) Complexify GDM accelerator.
+
+Session 5:
+Next steps:  Space group symmetry (reduce k count), Monkhorst-Pack, Some mesh refactoring, extending qchem GPW to multi-species, other?
+
+
+Session 4:
+I think it would be useful to generate more CP2K results for comparison (maybe all 2x2x2?)
+Si PW
+NaF PW,GPW
+CsI PW,GPW
+
+Maybe dump a table (Ecut, densityEcut, Rcut, E breakdown, run time, inp file name) of results for all 6 cases into doc/CP2Kresults.md
