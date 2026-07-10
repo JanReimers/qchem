@@ -30,24 +30,24 @@ using clk = std::chrono::steady_clock;
 static double ms(clk::time_point a, clk::time_point b)
 { return std::chrono::duration<double,std::milli>(b-a).count(); }
 
-static Molecule* MakeWaters(int n)   // n waters along z, ~6 Bohr apart (geometry in Bohr)
+static qchem::Molecule* MakeWaters(int n)   // n waters along z, ~6 Bohr apart (geometry in Bohr)
 {
-    Molecule* m = new Molecule();
+    qchem::Molecule* m = new qchem::Molecule();
     for (int i=0;i<n;i++)
     {
         double z = 6.0*i;
-        m->Insert(new Atom(8, 0, rvec3_t(0,  0.0,   0.0   + z)));
-        m->Insert(new Atom(1, 0, rvec3_t(0,  1.431, 1.107 + z)));
-        m->Insert(new Atom(1, 0, rvec3_t(0, -1.431, 1.107 + z)));
+        m->Insert(new qchem::Atom(8, 0, rvec3_t(0,  0.0,   0.0   + z)));
+        m->Insert(new qchem::Atom(1, 0, rvec3_t(0,  1.431, 1.107 + z)));
+        m->Insert(new qchem::Atom(1, 0, rvec3_t(0, -1.431, 1.107 + z)));
     }
     return m;
 }
 
 template <class IBS>
-static double TimeIntegrals(const char* tag, IBS& ibs, const Structure* cl)
+static double TimeIntegrals(const char* tag, IBS& ibs, const qchem::Structure* cl)
 {
-    const BasisSet::Orbital_1E_IBS<double>& e1 = ibs;
-    const BasisSet::Orbital_HF_IBS<double>& hf = ibs;
+    const qchem::BasisSet::Orbital_1E_IBS<double>& e1 = ibs;
+    const qchem::BasisSet::Orbital_HF_IBS<double>& hf = ibs;
     auto t0=clk::now();
     volatile double sink=0;
     sink += e1.Overlap()(0,0);   auto t1=clk::now();
@@ -68,21 +68,21 @@ int main(int argc, char** argv)
     std::string basis  = argc>3 ? argv[3] : "dzvp";
     std::string file   = basis + ".bsd";
 
-    Molecule* mol = MakeWaters(nwater);
+    qchem::Molecule* mol = MakeWaters(nwater);
     printf("MnDBench: %d water(s), basis=%s\n", nwater, basis.c_str());
 
     double tm=0, tl=0;
     if (engine=="mnd" || engine=="both")
     {
         Gaussian94Reader reader(BasisFile(file));
-        BasisSet::Molecule::PG_Cart::Orbital_IBS ibs(&reader, mol);
+        qchem::BasisSet::Molecule::PG_Cart::Orbital_IBS ibs(&reader, mol);
         printf("  N = %zu functions\n", ibs.GetNumFunctions());
         tm = TimeIntegrals("MnD", ibs, mol);
     }
     if (engine=="libcint" || engine=="both")
     {
         Gaussian94Reader reader(BasisFile(file));
-        BasisSet::Molecule::PG_LibCint::Orbital_IBS ibs(&reader, mol, false);
+        qchem::BasisSet::Molecule::PG_LibCint::Orbital_IBS ibs(&reader, mol, false);
         printf("  N = %zu functions\n", ibs.GetNumFunctions());
         tl = TimeIntegrals("libcint", ibs, mol);
     }
