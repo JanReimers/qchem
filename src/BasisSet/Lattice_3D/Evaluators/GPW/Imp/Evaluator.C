@@ -143,22 +143,24 @@ GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const
                     ReciprocalLattice(cell.MakeReciprocalCell()), rvec3_t(0,0,0), densityEcut);
 }
 
-// chi_i(r_g) on the density grid (Bloch-summed Gaussians; real at Gamma).  Computed on demand -- NOT cached in
-// a member: the framework caches the DERIVED tensor (Repulsion3C/Overlap3C via Band_FT_IBS's DB_Cache), so this
-// runs a small, bounded number of times (once per one-time tensor build; and per OverlapMatrix call, whose
-// per-iteration quadrature dominates it anyway).  Keeping the evaluator stateless keeps the caching in one place.
-mat_t<dcmplx> GPW_Evaluator::PhiOnGrid() const
+// chi_i(r_g) on the density grid (Bloch-summed Gaussians; real at Gamma).  CACHED in itsPhiOnGrid: it is a
+// pure function of geometry (grid points + orbitals + image set), so it is identical across SCF iterations,
+// and both BuildWeights (one-time tensor) and the PER-ITERATION integrate-back OverlapMatrix reuse it.  The
+// Bloch sum is O(Npts x |image set|) and DENSITY-INDEPENDENT -- recomputing it every OverlapMatrix call was the
+// dominant cost at a large overlap Rcut (many images), so it is built once here.
+const mat_t<dcmplx>& GPW_Evaluator::PhiOnGrid() const
 {
     assert(itsGrid && "GPW_Evaluator: DFT tier requires a density grid (construct with densityEcut>0)");
+    if (itsPhiOnGrid.rows()!=0) return itsPhiOnGrid;   // built once, reused
     const rvec3vec_t& pts=itsGrid->GridPoints();
     size_t Npts=pts.size(), n=itsN;
-    mat_t<dcmplx> Phi(Npts,n);
+    itsPhiOnGrid.resize(Npts,n);
     for (size_t g=0; g<Npts; g++)
     {
         cvec_t v=Eval(pts[g]);      // chi_i^k(r_g) = Sum_R e^{ik.R} chi_i(r_g - R) (real at Gamma)
-        for (size_t i=0;i<n;i++) Phi(g,i)=v[i];
+        for (size_t i=0;i<n;i++) itsPhiOnGrid(g,i)=v[i];
     }
-    return Phi;
+    return itsPhiOnGrid;
 }
 
 // The D-free 3-centre weight tensor W_c(i,j) = (1/Omega) integral chi_i chi_j e^{-iG_c.r} =
@@ -167,7 +169,7 @@ mat_t<dcmplx> GPW_Evaluator::PhiOnGrid() const
 // tensors this feeds, so this is a plain stateless build.
 G_ERI3 GPW_Evaluator::BuildWeights() const
 {
-    mat_t<dcmplx> Phi=PhiOnGrid();
+    const mat_t<dcmplx>& Phi=PhiOnGrid();
     size_t Npts=Phi.rows(), n=itsN;
     const std::vector<ivec3_t>& Gs=itsGrid->Gs();
     G_ERI3 g;
@@ -211,21 +213,17 @@ G_ERI3 GPW_Evaluator::Overlap3CTensor() const {return BuildWeights();}
 // (which matches the fit basis GPW created, so a Hartree/XC Vtilde covers exactly these).
 chmat_t GPW_Evaluator::OverlapMatrix(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const
 {
-    mat_t<dcmplx> Phi=PhiOnGrid();
+    const mat_t<dcmplx>& Phi=PhiOnGrid();
     ΔG_Map vmap;
     for (const ivec3_t& dm : itsGrid->Gs()) vmap[dm]=Vtilde(dm);
     rvec_t V=itsGrid->RhoOnGrid(vmap);          // V(r) on the grid (real: Hartree/XC/local-PP are real fields)
     size_t Npts=Phi.rows(), n=itsN;
     const double w=itsGrid->Volume()/double(Npts);   // uniform quadrature weight (== Integral's Omega/Npts)
-    // <chi_i^k | V | chi_j^k> = integral conj(chi_i^k) V chi_j^k: Hermitian (V real), fill upper triangle.
-    // NOTE (2026-07-09): this integrates on the FFT RASTER {A(i/N)}, where a lattice-point atom (e.g. the FCC
-    // corner atom at 0) sits EXACTLY on a grid node -> its sharp density peak is over-weighted against the deep
-    // PP well, so the local-PP/Hartree/XC energy is spuriously over-bound AND translation-non-invariant (shift
-    // all atoms by 1/8 cell: Etot -15.2 -> -8.4).  The separable PP is immune (it uses the OFFSET qcMesh
-    // midpoint mesh).  The FIX (deferred: it also needs the DENSITY collocation off the raster + an adequate
-    // densityEcut, ~10x today's) is GPWPlan sec 2: route the collocation through the qcMesh midpoint mesh /
-    // offset the FFT grid origin.  See the DISABLED diagnostics in GPW_SCF_UT (TranslationInvariance,
-    // PPMatrixTraceProbe, CollocationVsAnalyticOverlapWithImages, CornerAtomVsDensityEcut).
+    // <chi_i^k|V|chi_j^k> = w Sum_p conj(Phi(p,i)) V[p] Phi(p,j): Hermitian (V real), fill the upper triangle
+    // (diagonal real).  Translation invariance of this term is carried by the Bloch orbital in PhiOnGrid (fully
+    // wrapped at Rcut>=2a; see doc/GPWPlan.md TODO 1 and DISABLED_TermTranslationInvariance).  (A Phi^H diag(V) Phi
+    // GEMM was tried and was NOT faster for this small n -- blaze's product plus the per-call Npts*n temporary
+    // lost to the plain loop; PhiOnGrid caching is what removed the real per-iteration cost.)
     chmat_t M=blazem::zeroH<dcmplx>(n);
     for (size_t i=0;i<n;i++)
         for (size_t j=i;j<n;j++)
@@ -305,14 +303,33 @@ chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const Pseudopotential::L
 }
 
 // KB separable nonlocal PP: accumulate the rank-1 Hermitian D|b><b| over atoms/projectors/m, with the BLOCH
-// projection vector b_i^k = <chi_i^k | beta_p Y_lm> = Sum_R e^{ik.R} <chi_i | beta at (R_a - R)> (mesh
-// quadrature of the home orbital against the image-shifted projector -- reuses the REAL qcMesh::Overlap per
-// image, weighted by the phase).  At Gamma with Rcut=0 (itsR={0}, phase 1) this is exactly the finite molecular
-// PP_NonLocal recipe <chi_i | beta at R_a>.  V_ij = Sum D b_i conj(b_j) is Hermitian by construction.
+// projection vector b_i^k = <chi_i^k | beta_p Y_lm> = Sum_R e^{ik.R} integral chi_i^k(r)* beta(r-(R_a-R)) d3r,
+// mesh-quadratured over the home cell.
+//
+// THE BRA IS THE PERIODIC (BLOCH-SUMMED) ORBITAL chi_i^k = Eval, NOT the raw home orbital *itsOrb (fixed
+// 2026-07-09, doc/GPWPlan.md TODO 1a).  A lattice-site atom (the FCC corner atom at 0) has its Gaussian split
+// by the cell boundary; the RAW orbital on the single-cell integration mesh keeps only the in-cell fraction,
+// so <chi_i|beta> lost the wrapped tail and the KB energy was translation-variant by ~16 Ha (images did NOT
+// cure it -- summing the PROJECTOR images cannot restore the ORBITAL's missing tail).  The Bloch orbital
+// brings the wrapped tail back onto the cell mesh via chi_i's neighbouring-cell image, so integral_cell
+// chi_i^k* beta_a^k = the correct all-space projection (consistent with the analytic all-space overlap S).
+// Needs the orbital reach (Rcut/collRcut>0) large enough to wrap; at Rcut=0 Eval==raw orbital (no wrap) so the
+// committed Gamma/atom-in-box anchors, all Rcut=0, are UNCHANGED.  Per-term gate: CP2K Nonlocal PP = +0.9406 Ha.
+//
+// chi_i^k is precomputed on the mesh ONCE (Eval re-sums the image set per point, so evaluating it inside the
+// per-projector-image loop would be O(images^2)); the projection then reuses it.  V_ij = Sum D b_i conj(b_j)
+// is Hermitian by construction.
 chmat_t GPW_Evaluator::MakeSeparablePP(const Structure* cl, const Pseudopotential::SeparablePotential_R& sep) const
 {
     qcMesh::Mesh mesh=cl->CreateIntegrationMesh(PPMeshParams());
-    size_t n=itsN;
+    const rvec3vec_t& R=mesh.Points();
+    const rvec_t&     W=mesh.Weights();
+    size_t n=itsN, npts=mesh.size();
+
+    // The periodic (Bloch-summed) orbital chi_i^k on every mesh point -- the fix (see the note above).
+    mat_t<dcmplx> Phi(npts,n);
+    for (size_t k=0;k<npts;k++) { cvec_t v=Eval(R[k]); for (size_t i=0;i<n;i++) Phi(k,i)=v[i]; }
+
     mat_t<dcmplx> V(n,n,dcmplx(0.0));
     for (size_t a=0; a<cl->GetNumAtoms(); a++)
     {
@@ -324,11 +341,16 @@ chmat_t GPW_Evaluator::MakeSeparablePP(const Structure* cl, const Pseudopotentia
             double D=sep.Coefficient    (Z,p);
             for (int m=-l; m<=l; m++)
             {
-                cvec_t b(n, dcmplx(0.0));
+                cvec_t b(n, dcmplx(0.0));            // b_i = Sum_R phase(R) integral chi_i^k* beta(.-(R_a-R))
                 for (size_t r=0; r<itsRc.size(); r++)   // orbital reach: the collocation image set
                 {
-                    rvec_t br=qcMesh::Overlap(mesh, *itsOrb, BetaYlmField(at->itsR-itsRc[r],sep,Z,p,l,m));
-                    for (size_t i=0;i<n;i++) b[i]+=itsPhaseC[r]*br[i];
+                    BetaYlmField beta(at->itsR-itsRc[r],sep,Z,p,l,m);
+                    dcmplx ph=itsPhaseC[r];
+                    for (size_t k=0;k<npts;k++)
+                    {
+                        double bw=beta(R[k])*W[k];
+                        for (size_t i=0;i<n;i++) b[i]+=ph*std::conj(Phi(k,i))*bw;
+                    }
                 }
                 for (size_t i=0;i<n;i++)
                     for (size_t j=0;j<n;j++) V(i,j)+=D*b[i]*std::conj(b[j]);

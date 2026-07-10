@@ -138,7 +138,12 @@ private:
     std::shared_ptr<const PW_Grid_Evaluator> itsGrid;     //!< the density/collocation grid (null if DFT tier off)
     // NO hand-rolled tensor cache: the collocation tensor is a stateless build; the FRAMEWORK caches it
     // (BasisSet::Band_FT_IBS::Repulsion3C/Overlap3C via theCache<dcmplx>(), keyed by BasisSetID -- see IDFragment).
-    mat_t<dcmplx> PhiOnGrid() const;   //!< \f$\chi_i^k(r_g)\f$ on the density grid (Npts x n; real at \f$\Gamma\f$) -- on demand
+    mutable mat_t<dcmplx> itsPhiOnGrid;  //!< cached \f$\chi_i^k(r_g)\f$ (geometry-fixed; built once, reused every SCF iteration)
+    //! \f$\chi_i^k(r_g)\f$ on the density grid (Npts x n; real at \f$\Gamma\f$).  CACHED: it is a pure function
+    //! of geometry (grid + orbitals + image set), identical across SCF iterations, and the per-iteration
+    //! integrate-back \c OverlapMatrix reuses it -- recomputing the Bloch sum at every grid point per iteration
+    //! was the dominant cost at a large image \c Rcut (the density-independent \f$O(N_{pts}\cdot|R|)\f$ sum).
+    const mat_t<dcmplx>& PhiOnGrid() const;
     G_ERI3  BuildWeights() const;  //!< the collocation weight tensor (columns=grid {G}, weights, NO kernel)
     qcMesh::MeshParams PPMeshParams() const;  //!< the PP-quadrature integration mesh params (uniform, eCut=densityEcut)
 };
