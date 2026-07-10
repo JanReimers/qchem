@@ -9,10 +9,14 @@ VWN5), GTH-PADE PP (== our GTH-LDA), FCC/rocksalt/CsCl cells matching the `GPW_S
 
 ## Results
 
+Decks use **`CUTOFF 80` Ry** — the minimal CONVERGED cutoff (the total is flat from 80 Ry: −7.115058 at
+80/150/300/600 Ry; 40 Ry gives −7.115107, still ~5e-5 under). 80 Ry is ~4–7× faster than 300 for the same
+number, so it's the right choice for a reference oracle.
+
 | system | k-mesh | basis (CP2K) | CUTOFF (Ry) | **Etot (Ha)** | Core-H | Hartree | XC | PP loc | PP nonloc | time | inp |
 |---|---|---|---|---|---|---|---|---|---|---|---|
-| Si (FCC) | Γ | SIPP_SR | 300 | **−7.11506** | +5.565 | +10.380 | −2.544 | −8.489 | +0.941 | 13 s | `si_fcc_gpw.inp` |
-| Si (FCC) | 2×2×2 | SIPP_SR | 300 | **−7.86744** | +4.384 | +10.671 | −2.407 | −8.489 | +0.941 | 33 s | `si_fcc_gpw_222.inp` |
+| Si (FCC) | Γ | SIPP_SR | 80 | **−7.11506** | +5.565 | +10.380 | −2.544 | −8.489 | +0.941 | 3.5 s | `si_fcc_gpw.inp` |
+| Si (FCC) | 2×2×2 | SIPP_SR | 80 | **−7.86744** | +4.384 | +10.671 | −2.407 | −8.489 | +0.941 | 4.8 s | `si_fcc_gpw_222.inp` |
 
 Charge = 8 for both; both SCF-converged. (Self-energy of the core charge −20.516 and the PP local/nonlocal
 totals are k-independent; Core-H/Hartree/XC carry the k-dispersion.) CP2K's GPW electrostatic split differs

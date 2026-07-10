@@ -18,7 +18,7 @@
       EPS_DEFAULT 1.0E-12
     &END QS
     &MGRID
-      CUTOFF 300
+      CUTOFF 80
       REL_CUTOFF 60
       NGRIDS 4
     &END MGRID

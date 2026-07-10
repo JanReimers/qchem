@@ -18,7 +18,7 @@
       EPS_DEFAULT 1.0E-12
     &END QS
     &MGRID
-      CUTOFF 300          # Ry  (converged reference; for grid-match use 2*densityEcut)
+      CUTOFF 80           # Ry -- minimal CONVERGED cutoff (flat 80..600 Ry = -7.115058; 40 Ry = -7.115107, under).
       REL_CUTOFF 60
       NGRIDS 4
     &END MGRID
