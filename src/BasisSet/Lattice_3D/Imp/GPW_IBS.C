@@ -8,6 +8,8 @@ module;
 module qchem.BasisSet.Lattice_3D.GPW_IBS;
 import qchem.Symmetry.Factory;              // BlochFactory (the convenience ctor + the k=0 fit-basis irrep)
 import qchem.Symmetry.Lattice_3D.BlochQN;   // Symmetry::Lattice_3D::Getk (pry k out of the abstract Bloch irrep)
+import qchem.BasisSet.Internal.DB_Cache;    // theCache<dcmplx>() -- process-wide cache for the static PP matrices
+                                            // (qcLattice_BS is BasisSet-family, so it may peek at qcBasisSet Internal)
 
 namespace qchem::BasisSet::Lattice_3D
 {
@@ -37,16 +39,22 @@ BasisSet::cFIT_SF_ABS* GPW_IBS::CreateVxcFitBasisSet(const Structure*, const qcM
 
 // The external-PP capability.  Local: G-space form-factor assembly (the model's FormFactor is used directly,
 // no cross-cast -- mirrors the PW path).  Separable: the KB projectors need the real-space face, cross-cast.
+// Both PP matrices are STATIC across an SCF but rebuilt PER k-BLOCK, so they go through the process-wide cache
+// (theCache, keyed by BasisSetID + Structure::ID -- exactly the Nuclear() pattern): a multi-k / IBZ-vs-full-mesh
+// run then reuses a k-block's PP across GPW_IBS instances instead of re-quadraturing it.  The build is the
+// cache-miss `make` lambda; the outer Make* name is the Integrals_Pseudo override the term calls.
 hmat_t<dcmplx> GPW_IBS::MakeLocalPotential(const Structure* cl, const Pseudopotential::LocalPotential& loc) const
 {
-    return GPW_Evaluator::MakeLocalPP(cl, loc);
+    return theCache<dcmplx>().Get(IntegralsCache_Base::I2n::LocalPP, this, cl->ID(),
+        [this,cl,&loc]{ return GPW_Evaluator::MakeLocalPP(cl, loc); });
 }
 
 hmat_t<dcmplx> GPW_IBS::MakeSeparablePotential(const Structure* cl, const Pseudopotential::SeparablePotential& nl) const
 {
     auto* sepR=dynamic_cast<const Pseudopotential::SeparablePotential_R*>(&nl);
     assert(sepR && "GPW MakeSeparablePotential: the KB model must provide the real-space projector face (SeparablePotential_R)");
-    return GPW_Evaluator::MakeSeparablePP(cl, *sepR);
+    return theCache<dcmplx>().Get(IntegralsCache_Base::I2n::SeparablePP, this, cl->ID(),
+        [this,cl,sepR]{ return GPW_Evaluator::MakeSeparablePP(cl, *sepR); });
 }
 
 std::string GPW_IBS::BasisSetID() const

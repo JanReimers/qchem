@@ -43,7 +43,12 @@ public:
     enum class I1C  {Charge, Normalization};
     // I2C::Kinetic = cache key for the <p^2>=<-nabla^2> building block (no 1/2; see Orbital_1E_IBS.C).
     enum class I2C  {Overlap, Repulsion,Kinetic,Nuclear,RestMass, InvOverlap, InvRepulsion};
-    enum class I2n  {Nuclear};
+    // I2n = structure-dependent, matrix-valued 1-electron operators (keyed by BasisSetID + Structure::ID).
+    // LocalPP/SeparablePP = the periodic external pseudopotential matrices (GPW real-space assembly): static
+    // across an SCF but rebuilt per k-point, so process-wide caching lets multi-k / IBZ-vs-full-mesh runs reuse
+    // a k-block's PP across instances.  (The abstract Integrals_Pseudo lives in qcPseudopotential, below
+    // qcBasisSet, so the cached accessor sits on the BasisSet-family realiser -- GPW_IBS -- not here.)
+    enum class I2n  {Nuclear, LocalPP, SeparablePP};
     // I2x::Kinetic = cache key for the RKB (relativistic) L/S cross kinetic; see Orbital_DHF_IBS.C.
     enum class I2x  {Kinetic, Repulsion,Overlap};
     enum class I3C  {Overlap, Repulsion}; // <ab|c> and <ar|1/r12|c>

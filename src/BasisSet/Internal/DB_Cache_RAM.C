@@ -70,7 +70,7 @@ private:
     using key1_t=std::tuple<I1C,IBS_ID_t>; //Integral key for one IBS, 1 centers.
     using key2_t=std::tuple<I2C,IBS_ID_t>; //Integral key for one IBS, 2 centers.
     using keyx_t=std::tuple<I2x,IBS_ID_t,IBS_ID_t>; //Integral key for cross IBS integrals.
-    using keyn_t=std::tuple<IBS_ID_t,Structure_ID_t>; //Integral key for nuclear integrals.
+    using keyn_t=std::tuple<I2n,IBS_ID_t,Structure_ID_t>; //Key for structure-dependent 1E mats (Nuclear + PP).
     using key3_t=std::tuple<I3C,IBS_ID_t,IBS_ID_t>; //Integral key for 3 center ERI integrals between 2 IBSs.
 
     using key1m_t=std::tuple<I1C,IBS_ID_t,Mesh_ID_t>; //Integral key for one IBS and a mesh, 1 centers.
