@@ -145,6 +145,27 @@ TEST(GPW_SCF, SiliconMultiKPlumbing)
     EXPECT_NEAR(R.E.GetTotalEnergy(), -8.2476, 5e-3);         // == the Gamma total (SiliconGammaConverges)
 }
 
+// DISPERSIVE MULTI-K BULK (disabled: 8 k-blocks, ~4 min) -- the first REAL bulk GPW, unblocked by the KB
+// Bloch-orbital fix (Rcut>0 now correct).  Gamma-centred 2x2x2 MP, SIPP_SR, Rcut=2a: charge stays 8 and the
+// total drops with k-sampling (Gamma -7.11467 -> 2x1x1 -7.451 -> 2x2x2 -7.778 -- real dispersion).
+// CROSS-CHECK vs CP2K AT THE SAME GAMMA-CENTRED MESH: -7.7778 vs CP2K -7.77846 (~0.7 mHa, the N=32 grid gap;
+// deck UnitTests/CP2K/si_gpw_222_gamma.inp / cp2k-runs).  The 90 mHa vs CP2K's DEFAULT -7.86744 is purely the
+// k-convention: our multi-k path is Gamma-CENTRED only (GPW_BasisSet lrounds kp.k*N -> integer ik/N), while
+// CP2K's MONKHORST-PACK is the classic SHIFTED grid (k at +/-1/4).  Matching the shifted grid needs the
+// fractional k threaded through BlochFactory (a follow-up); the general-k PHYSICS is validated here.
+TEST(GPW_SCF, DISABLED_SR_2x2x2GammaCentred_vs_CP2K)
+{
+    const double a=10.26;
+    FCCUnitCell cell(a);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(2,2,2));
+    GpwResult R=RunGPW(lat, MakeBasisSR(cell), /*densityEcut*/20.0, /*Rcut*/2.0*a, /*Nelec*/8, "Si",
+                       "Si 2x2x2 Gamma-centred Rcut=2a", /*verbose*/false, /*nmax*/60, qchem::Cholesky, 0.0, 0.0);
+    EXPECT_NEAR(R.charge, 8.0, 1e-6);
+    EXPECT_NEAR(R.E.GetTotalEnergy(), -7.77846, 3e-3) << "GPW 2x2x2 Gamma-centred vs CP2K same-mesh -7.77846";
+}
+
 // DIAGNOSTIC: TERM-BY-TERM translation invariance of the 1E/PP matrix TRACES (no SCF -> fast) -- the tool
 // that localized the Rcut>0 over-binding.  A rigid translation of the whole crystal (both atoms + their basis)
 // must leave every trace invariant; the residual is that term's grid/mesh artifact.  Compare a CORNER atom

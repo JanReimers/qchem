@@ -42,9 +42,20 @@ from ours (it uses a compensating-core-charge scheme) — compare the **total** 
   analytic Gaussian-to-grid mapping at equal cutoff, closed by N=64. The fast gate
   (`GPW_SCF.DISABLED_SR_GammaRcut2a_CP2KReference`, N=32, ~45 s) pins −7.11467 with a 2e-3 tolerance that
   absorbs this; the tight match is N=64 (~5× slower).
-- **Si 2×2×2:** qchem GPW has no multi-k yet; our PW 2×2×2 is −7.7613 (Ecut=4, under-converged plane waves) —
-  a loose check vs CP2K's converged −7.86744 (different basis). A future multi-k GPW at `Rcut ≥ 2a` + SIPP_SR
-  should approach −7.86744.
+- **Si 2×2×2 — multi-k GPW VALIDATED (2026-07-10).** Dispersive multi-k GPW now runs (KB Bloch-orbital fix +
+  `Rcut = 2a`, SIPP_SR): charge 8, the total drops with k-sampling (Γ −7.11467 → 2×1×1 −7.451 → 2×2×2
+  −7.7778 — real dispersion). **Grid-for-grid at the SAME Γ-centred mesh: our −7.7778 vs CP2K −7.77846
+  (~0.7 mHa, the N=32 grid gap).** The 90 mHa vs CP2K's DEFAULT −7.86744 is purely the **k-mesh convention**:
+  our GPW path is Γ-CENTRED only (`GPW_BasisSet` lrounds `k·N` → integer `ik/N`), while CP2K's
+  `MONKHORST-PACK 2 2 2` is the classic SHIFTED grid (k at ±¼, confirmed from its k-point list). Matching the
+  shifted grid needs the fractional k threaded through `BlochFactory` (a follow-up); the general-k PHYSICS is
+  validated here. Decks: `si_fcc_gpw_222.inp` (shifted, −7.86744) + `si_fcc_gpw_222_gamma.inp` (Γ-centred,
+  −7.77846). Test: `GPW_SCF.DISABLED_SR_2x2x2GammaCentred_vs_CP2K`.
+
+  | mesh | convention | qchem GPW | CP2K (80 Ry) |
+  |---|---|---|---|
+  | 2×2×2 | Γ-centred (0, ½) | −7.7778 | −7.77846 |
+  | 2×2×2 | shifted (±¼, CP2K default) | *(needs shifted-k support)* | −7.86744 |
 
 ## Blocked: NaF, CsI (basis / PP-q mismatch)
 Both were requested but **cannot be run with CP2K's shipped data** because our qchem PPs use LOW valence q

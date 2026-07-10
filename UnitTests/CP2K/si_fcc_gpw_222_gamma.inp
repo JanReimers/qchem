@@ -1,0 +1,73 @@
+# FCC-Si GPW, 2x2x2 GAMMA-CENTRED k-mesh (k at 0, 1/2) -- to compare grid-for-grid with qchem GPW, whose
+# multi-k path is Gamma-centred only (GPW_BasisSet lrounds k*N -> integer ik/N).  CP2K's default
+# MONKHORST-PACK 2 2 2 is the SHIFTED grid (k at +/-1/4) -> -7.86744; this Gamma-centred variant should match
+# qchem's -7.7778.  Everything else identical to si_gpw_222.inp.
+&GLOBAL
+  PROJECT si_gpw_222_gamma
+  RUN_TYPE ENERGY
+  PRINT_LEVEL MEDIUM
+&END GLOBAL
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME ./SIPP-SR-BASIS
+    POTENTIAL_FILE_NAME /home/janr/Code/cp2k/data/GTH_POTENTIALS
+    &QS
+      METHOD GPW
+      EPS_DEFAULT 1.0E-12
+    &END QS
+    &MGRID
+      CUTOFF 80
+      REL_CUTOFF 60
+      NGRIDS 4
+    &END MGRID
+    &XC
+      &XC_FUNCTIONAL
+        &LDA_X
+        &END LDA_X
+        &LDA_C_VWN
+        &END LDA_C_VWN
+      &END XC_FUNCTIONAL
+    &END XC
+    &POISSON
+      PERIODIC XYZ
+    &END POISSON
+    &SCF
+      SCF_GUESS ATOMIC
+      EPS_SCF 1.0E-7
+      MAX_SCF 60
+      ADDED_MOS 4
+      &SMEAR OFF
+      &END SMEAR
+    &END SCF
+    &KPOINTS
+      SCHEME GENERAL
+      UNITS B_VECTOR
+      KPOINT  0.0 0.0 0.0  1.0
+      KPOINT  0.5 0.0 0.0  1.0
+      KPOINT  0.0 0.5 0.0  1.0
+      KPOINT  0.0 0.0 0.5  1.0
+      KPOINT  0.5 0.5 0.0  1.0
+      KPOINT  0.5 0.0 0.5  1.0
+      KPOINT  0.0 0.5 0.5  1.0
+      KPOINT  0.5 0.5 0.5  1.0
+    &END KPOINTS
+  &END DFT
+  &SUBSYS
+    &CELL
+      A [bohr] 0.0  5.13 5.13
+      B [bohr] 5.13 0.0  5.13
+      C [bohr] 5.13 5.13 0.0
+      PERIODIC XYZ
+    &END CELL
+    &COORD
+      SCALED
+      Si 0.00 0.00 0.00
+      Si 0.25 0.25 0.25
+    &END COORD
+    &KIND Si
+      BASIS_SET SIPP-SR
+      POTENTIAL GTH-PADE-q4
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL
