@@ -1,0 +1,65 @@
+# FCC-Si GPW cross-check vs qchem6 (GPW_SCF.SiliconGammaConverges / bulk).
+# Matches: FCC primitive cell a=10.26 bohr, 2 Si at (0,0,0)+(1/4,1/4,1/4), GTH-PADE-q4 (== our GTH-LDA q4),
+# LDA = Slater/Dirac exchange (LDA_X) + VWN5 correlation (LDA_C_VWN), Gamma point.
+# CUTOFF is in Ry; our densityEcut is in Ha (1 Ha = 2 Ry).  Start converged-high, then set CUTOFF = 2*densityEcut
+# to compare grid-for-grid.  The corner atom at (0,0,0) is the qchem raster-bug trigger -- keep it to test.
+&GLOBAL
+  PROJECT si_gpw
+  RUN_TYPE ENERGY
+  PRINT_LEVEL MEDIUM
+&END GLOBAL
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME ./SIPP-SR-BASIS
+    POTENTIAL_FILE_NAME /home/janr/Code/cp2k/data/GTH_POTENTIALS
+    &QS
+      METHOD GPW
+      EPS_DEFAULT 1.0E-12
+    &END QS
+    &MGRID
+      CUTOFF 300
+      REL_CUTOFF 60
+      NGRIDS 4
+    &END MGRID
+    &XC
+      &XC_FUNCTIONAL
+        &LDA_X
+        &END LDA_X
+        &LDA_C_VWN
+        &END LDA_C_VWN
+      &END XC_FUNCTIONAL
+    &END XC
+    &POISSON
+      PERIODIC XYZ
+    &END POISSON
+    &SCF
+      SCF_GUESS ATOMIC
+      EPS_SCF 1.0E-7
+      MAX_SCF 60
+      ADDED_MOS 4
+      &SMEAR OFF
+      &END SMEAR
+    &END SCF
+    &KPOINTS
+      SCHEME MONKHORST-PACK 2 2 2
+    &END KPOINTS
+  &END DFT
+  &SUBSYS
+    &CELL
+      A [bohr] 0.0  5.13 5.13
+      B [bohr] 5.13 0.0  5.13
+      C [bohr] 5.13 5.13 0.0
+      PERIODIC XYZ
+    &END CELL
+    &COORD
+      SCALED
+      Si 0.00 0.00 0.00
+      Si 0.25 0.25 0.25
+    &END COORD
+    &KIND Si
+      BASIS_SET SIPP-SR
+      POTENTIAL GTH-PADE-q4
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

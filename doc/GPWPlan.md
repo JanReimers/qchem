@@ -130,13 +130,17 @@ straight at a bug (as this session's hand-rolled breakdown did: Een ×15.7 → l
   converged by `CUTOFF` 80 Ry (≈40 Ha). Breakdown: Core-H (kin+PP) +5.565, Hartree +10.380, XC −2.544;
   PP total −7.548 (local −8.489, nonlocal +0.941); core self-energy −20.516. (CP2K's GPW electrostatic split
   differs from ours — compare the TOTAL + the cleaner sub-terms kin/XC/nonlocal-PP.) **This is TODO 1's gate.**
-  Input files: **`UnitTests/CP2K/`** (`si_fcc_gpw.inp` + `SIPP-SR-BASIS` + README) — a growing library of
-  reference decks.
+  Also Si **2×2×2 = −7.86744 Ha** (`si_fcc_gpw_222.inp`). Results table: **`doc/CP2Kresults.md`**; decks:
+  **`UnitTests/CP2K/`**.
 - **PP already aligned:** our `src/Pseudopotential/Data/gth_potentials.json` IS the CP2K GTH-PADE database
   (Si GTH-PADE-q4 params match ours exactly — verified). **Basis: same exponents, transcribed to CP2K
   `BASIS_SET` format** (uncontracted → one set per primitive; see `UnitTests/CP2K/SIPP-SR-BASIS`).
-- **NEXT with CP2K:** multi-k (uncomment `&KPOINTS MONKHORST-PACK`) as the full-BZ reference (TODO 3); NaF/CsI
-  decks; term-by-term breakdown once our fixed GPW runs the same geometry.
+- **NaF/CsI BLOCKED (basis/PP-q mismatch):** our qchem PPs are low-q (Na q1, Cs q1) and CP2K ships no matching
+  q1 Gaussian basis (only q9 semicore) — CP2K aborts on the valence mismatch; iodine has no GTH basis at all.
+  Fix = hand-roll SIPP-style low-q bases for Na/F/Cs/I (shared with the future multi-species GPW path). See
+  `doc/CP2Kresults.md`.
+- **NEXT with CP2K:** those low-q bases → NaF/CsI; the `si_fcc_gpw_222.inp` Monkhorst-Pack deck is the full-BZ
+  reference for TODO 1 (multi-k GPW).
 
 ### Parameters to line up (qchem ↔ CP2K) — keep this table current
 | quantity | qchem (ours) | CP2K keyword | note / pitfall |

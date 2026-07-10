@@ -6,13 +6,17 @@ implementation (Lippert–Hutter), so its total energy + per-term breakdown vali
 our own GPW (see `doc/GPWPlan.md`). These are checked in as reference data, not run
 by the C++ test suite.
 
+Collected results (energies, breakdowns, runtimes) are tabulated in **`doc/CP2Kresults.md`**.
+
 ## Files
 - `si_fcc_gpw.inp` — FCC-Si at Γ, GPW/LDA, matching our `GPW_SCF` setup: primitive cell
   a=10.26 bohr, 2 Si at `(0,0,0)+(¼,¼,¼)`, `GTH-PADE-q4` (== our GTH-LDA q4),
   `LDA_X + LDA_C_VWN` (Slater/Dirac exchange + VWN5). Corner atom kept at `(0,0,0)`
   deliberately (the raster-bug trigger).
+- `si_fcc_gpw_222.inp` — same, with a `&KPOINTS MONKHORST-PACK 2 2 2` mesh (multi-k reference).
 - `SIPP-SR-BASIS` — our SIPP_SR Si valence basis (`BasisSetData/sipp_sr.bsd`,
   3s3p uncontracted) transcribed into CP2K `BASIS_SET` format.
+- (NaF/CsI: blocked on q-mismatched bases — CP2K ships no q1 Na/Cs basis, no I basis. See `doc/CP2Kresults.md`.)
 
 ## Reference result (CP2K 2026.1, serial ssmp)
 FCC-Si Γ, SIPP_SR, GTH-PADE-q4, LDA_X+VWN5:
