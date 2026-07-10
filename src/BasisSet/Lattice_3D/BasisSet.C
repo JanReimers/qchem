@@ -35,8 +35,10 @@ Complex_BS* Factory(Type type, const ::qchem::Lattice_3D& lat, double Ecut);
 //! reaches GPW's real-space \c Integrals_Pseudo<dcmplx> assembly -- so the same \c Ham_PW_DFT drives it.
 //! \param collRcut  the collocation image reach (\f$\le0\f$ reuses \a Rcut); decouple it (small) from \a Rcut
 //!                   (large, for a positive-definite Bloch overlap) so multi-k bulk is affordable.
+//! \param kShift  fractional Monkhorst-Pack offset of the k-mesh (\f$0\f$ = Γ-centred; \f$½\f$ = the classic MP
+//!                offset, i.e. CP2K's default for even grids -- \f$k=\pm¼\f$ at \f$N=2\f$).
 Complex_BS* GPWFactory(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
-                       double densityEcut, double Rcut=0.0, double collRcut=0.0);
+                       double densityEcut, double Rcut=0.0, double collRcut=0.0, rvec3_t kShift={0,0,0});
 
 } //namespace
 
@@ -62,7 +64,7 @@ class GPW_BasisSet : public BasisSet::BasisSetImp<dcmplx>
 {
 public:
     GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
-                 double densityEcut, double Rcut, double collRcut);
+                 double densityEcut, double Rcut, double collRcut, rvec3_t kShift={0,0,0});
 };
 
 } //namespace

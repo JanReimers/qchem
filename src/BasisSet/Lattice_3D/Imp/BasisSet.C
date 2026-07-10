@@ -42,23 +42,25 @@ Complex_BS* Factory(Type type, const ::qchem::Lattice_3D& lat, double Ecut)
 // them for k-dispersion (Rcut=0 makes every k-block identical -- "molecule in a box"); a large-box molecule
 // uses the home cell.
 GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
-                           double densityEcut, double Rcut, double collRcut)
+                           double densityEcut, double Rcut, double collRcut, rvec3_t kShift)
 {
     const ivec3_t N=lat.GetLimits();
-    for (const auto& kp : lat.MakeKMesh())
+    for (const auto& kp : lat.MakeKMesh(kShift))
     {
-        ivec3_t ik(std::lround(kp.k.x*N.x), std::lround(kp.k.y*N.y), std::lround(kp.k.z*N.z));
+        // Recover the INTEGER grid index (undo the shift first, then round) -- lround(kp.k*N) alone is broken
+        // for shift=½ (rounds i+½ to the wrong integer).  ik + kShift reconstruct the exact k in BlochFactory.
+        ivec3_t ik(std::lround(kp.k.x*N.x-kShift.x), std::lround(kp.k.y*N.y-kShift.y), std::lround(kp.k.z*N.z-kShift.z));
         // Build the Bloch irrep WITH its BZ weight kp.weight (exactly as PW_BasisSet above) and use the primary
         // sym_t ctor -- the weight carries the Sum_k w_k so the BZ-summed charge/energy are per-cell, not xNk.
-        Insert(new GPW_IBS(lat.GetUnitCell(), Symmetry::BlochFactory(N, ik, kp.weight),
+        Insert(new GPW_IBS(lat.GetUnitCell(), Symmetry::BlochFactory(N, ik, kp.weight, kShift),
                            mol, densityEcut, Rcut, collRcut));                 // mol shared across k-blocks
     }
 }
 
 Complex_BS* GPWFactory(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
-                       double densityEcut, double Rcut, double collRcut)
+                       double densityEcut, double Rcut, double collRcut, rvec3_t kShift)
 {
-    return new GPW_BasisSet(lat, std::move(mol), densityEcut, Rcut, collRcut);
+    return new GPW_BasisSet(lat, std::move(mol), densityEcut, Rcut, collRcut, kShift);
 }
 
 } //namespace

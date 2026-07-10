@@ -6,10 +6,11 @@ module qchem.Symmetry.Lattice_3D.BlochQN;
 
 namespace qchem::Symmetry::Lattice_3D {
 
-BlochQN::BlochQN(ivec3_t _N, ivec3_t _ik, double _weight)
+BlochQN::BlochQN(ivec3_t _N, ivec3_t _ik, double _weight, rvec3_t _shift)
     : N(_N)
     , ik(_ik)
-    , k(ik.x/static_cast<double>(N.x),ik.y/static_cast<double>(N.y),ik.z/static_cast<double>(N.z))
+    , k((ik.x+_shift.x)/static_cast<double>(N.x),(ik.y+_shift.y)/static_cast<double>(N.y),
+        (ik.z+_shift.z)/static_cast<double>(N.z))    // k=(ik+shift)/N: shift=0 Γ-centred, shift=½ classic MP
     , weight(_weight)
 {
     //assert(N!=0uz);

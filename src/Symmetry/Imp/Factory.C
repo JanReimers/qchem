@@ -27,9 +27,9 @@ sym_t     ΩFactory(int κ,const rvec_t& mjs)
     else
         return sym_t(new Ωκmj(κ,mjs));
 }
-sym_t BlochFactory(ivec3_t N, ivec3_t k, double weight)
+sym_t BlochFactory(ivec3_t N, ivec3_t k, double weight, rvec3_t shift)
 {
-    return sym_t(new Lattice_3D::BlochQN(N,k,weight));
+    return sym_t(new Lattice_3D::BlochQN(N,k,weight,shift));
 }
 sym_t  UnitFactory()
 {

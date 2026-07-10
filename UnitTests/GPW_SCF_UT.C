@@ -45,6 +45,7 @@ import qchem.WaveFunction;                       // cWaveFunction (the converged
 import qchem.Energy;                             // EnergyBreakdown
 import qchem.Symmetry.Irrep;                     // Irrep
 import qchem.Symmetry.Spin;                      // Spin
+import qchem.Symmetry.Factory;                   // BlochFactory (build a k-block with a fractional MP shift)
 import qchem.LASolver;                           // qchem::Ortho (Cholesky | Eigen | SVD -- basis orthogonalisation)
 import qchem.BasisSet.Lattice_3D.GPW_IBS;         // GPW_IBS (build a concrete block for the collocation diagnostic)
 import qchem.BasisSet.Lattice_3D.Evaluators.GPW;  // GPW_Evaluator (Overlap3CTensor -- the collocation tensor)
@@ -82,10 +83,11 @@ struct GpwResult { bool converged; double charge; qchem::EnergyBreakdown E; size
 // (Ham_PW_DFT reaches GPW's real-space Integrals_Pseudo), seed uniform, run the complex-DIIS cSCFIterator.
 GpwResult RunGPW(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, double densityEcut, double Rcut,
                  int Nelec, const char* element, const char* label, bool verbose=false, int nmax=120,
-                 qchem::Ortho ortho=qchem::Cholesky, double orthoTol=0.0, double collRcut=0.0)
+                 qchem::Ortho ortho=qchem::Cholesky, double orthoTol=0.0, double collRcut=0.0,
+                 rvec3_t kShift={0,0,0})
 {
     namespace L3=BasisSet::Lattice_3D;
-    std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, std::move(mol), densityEcut, Rcut, collRcut));
+    std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, std::move(mol), densityEcut, Rcut, collRcut, kShift));
     auto       irreps=bs->GetIrreps(Spin::None);   // one Bloch irrep per BZ k-block (weights carry the Sum_k)
     Crystal_EC ec(irreps, Nelec);                  // multi-k ready; a single Gamma block is the length-1 case
     // Ham_PW_DFT drives GPW verbatim (kinetic + external-PP + Hartree + Dirac X + VWN5 + ion-ion Ewald).
@@ -149,10 +151,9 @@ TEST(GPW_SCF, SiliconMultiKPlumbing)
 // Bloch-orbital fix (Rcut>0 now correct).  Gamma-centred 2x2x2 MP, SIPP_SR, Rcut=2a: charge stays 8 and the
 // total drops with k-sampling (Gamma -7.11467 -> 2x1x1 -7.451 -> 2x2x2 -7.778 -- real dispersion).
 // CROSS-CHECK vs CP2K AT THE SAME GAMMA-CENTRED MESH: -7.7778 vs CP2K -7.77846 (~0.7 mHa, the N=32 grid gap;
-// deck UnitTests/CP2K/si_gpw_222_gamma.inp / cp2k-runs).  The 90 mHa vs CP2K's DEFAULT -7.86744 is purely the
-// k-convention: our multi-k path is Gamma-CENTRED only (GPW_BasisSet lrounds kp.k*N -> integer ik/N), while
-// CP2K's MONKHORST-PACK is the classic SHIFTED grid (k at +/-1/4).  Matching the shifted grid needs the
-// fractional k threaded through BlochFactory (a follow-up); the general-k PHYSICS is validated here.
+// deck UnitTests/CP2K/si_fcc_gpw_222_gamma.inp).  The 90 mHa vs CP2K's DEFAULT -7.86744 is the k-CONVENTION:
+// Gamma-centred here (kShift=0) vs CP2K's classic SHIFTED MONKHORST-PACK (k at +/-1/4).  The shifted grid is
+// the sibling test below (kShift=1/2).  The general-k PHYSICS is validated at both.
 TEST(GPW_SCF, DISABLED_SR_2x2x2GammaCentred_vs_CP2K)
 {
     const double a=10.26;
@@ -164,6 +165,63 @@ TEST(GPW_SCF, DISABLED_SR_2x2x2GammaCentred_vs_CP2K)
                        "Si 2x2x2 Gamma-centred Rcut=2a", /*verbose*/false, /*nmax*/60, qchem::Cholesky, 0.0, 0.0);
     EXPECT_NEAR(R.charge, 8.0, 1e-6);
     EXPECT_NEAR(R.E.GetTotalEnergy(), -7.77846, 3e-3) << "GPW 2x2x2 Gamma-centred vs CP2K same-mesh -7.77846";
+}
+
+// SHIFTED Monkhorst-Pack (kShift=½ → k at ±¼ = CP2K's DEFAULT MONKHORST-PACK 2 2 2) -- the apples-to-apples
+// match to CP2K's shipped 2x2x2 reference -7.86744 (deck si_fcc_gpw_222.inp).  The fractional-k PLUMBING works
+// (kShift threaded through BlochQN/BlochFactory/GPW_BasisSet; overlap S(k) PSD, charge 8), BUT the SCF at these
+// k OVER-BINDS (single k=¼ block: Een -1.14 → -15.15, Etot -14.7) and does not converge.
+//
+// LOCALIZED (2026-07-10) -- this is a genuinely-COMPLEX-Bloch-phase bug, NOT the shifted-MP plumbing:
+//   * NOT conditioning: min eig S(k=¼) = 0.020 (PSD) at Rcut=2a AND 3a.
+//   * NOT the density collocation: ‖W₀·Ω − S(k)‖/‖S‖ = 4e-6 at k=0, ½ AND ¼ -- the collocated density is
+//     consistent with the analytic overlap even at complex k.
+//   * The GPW term matrices are Hermitian by construction (chmat_t).
+// KEY: at Γ and half-integer k the phase e^{ik·R}=±1 is REAL → the density matrix D is REAL; k=¼ is the FIRST
+// time D is genuinely COMPLEX.  So the suspect is the complex-D SCF path (density-matrix build / complex DIIS /
+// Crystal_EC occupation), consistent with the known "GDM/Ladder are <double>-only" limitation -- likely
+// framework-level, not the GPW evaluator.  This diagnostic (overlap PSD + collocation-consistent, no SCF) pins
+// that; the over-binding number above is from the single-k SCF.  NEXT: debug the complex-D SCF path, then this
+// test can assert -7.86744.  (disabled.)
+TEST(GPW_SCF, DISABLED_SR_2x2x2ShiftedMP_vs_CP2K)
+{
+    const double a=10.26;
+    FCCUnitCell cell(a);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(2,2,2));
+    for (double rc : {2.0*a, 3.0*a})   // overlap PSD at the shifted k? (rules out conditioning)
+    {
+        namespace L3=BasisSet::Lattice_3D;
+        std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, MakeBasisSR(cell), 0.0, rc, 0.0, rvec3_t(0.5,0.5,0.5)));
+        double worst=1e30;
+        for (auto b : bs->Iterate<qchem::BasisSet::Complex_OIBS>())
+        {
+            chmat_t S=b->Overlap(); rvec_t w; mat_t<dcmplx> U; blazem::eigen(S, w, U);
+            for (size_t i=0;i<w.size();i++) worst=std::min(worst,w[i]);
+        }
+        std::printf("shifted MP k=¼  Rcut=%.1fa  worst min(eig S(k))=%.5e %s\n", rc/a, worst, worst<0?"(INDEF)":"(PSD)");
+        EXPECT_GT(worst, 0.0) << "S(k) must be PSD at the shifted k (Rcut="<<rc/a<<"a)";
+    }
+    // Collocation vs analytic overlap: W₀·Ω must equal S(k) at every k (rules out the density collocation).
+    using BasisSet::Lattice_3D::GPW_IBS;
+    using BasisSet::Lattice_3D::GPW_Evaluator;
+    auto probe=[&](rvec3_t sh, const char* lbl)->double
+    {
+        GPW_IBS gpw(cell, Symmetry::BlochFactory(ivec3_t(1,1,1),ivec3_t(0,0,0),1.0,sh), MakeBasisSR(cell), 12.0, 2.0*a);
+        const GPW_Evaluator& ev=gpw; const BasisSet::Complex_OIBS& g=gpw;
+        chmat_t S=g.Overlap(); G_ERI3 ov=ev.Overlap3CTensor();
+        int c0=-1; for (size_t c=0;c<ov.columns.size();c++) if (ov.columns[c].dm.x==0&&ov.columns[c].dm.y==0&&ov.columns[c].dm.z==0) c0=int(c);
+        size_t n=S.rows(); double num=0,den=0;
+        for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++)
+        { dcmplx w=ov.weights[c0](i,j)*ov.volume, s=S(i,j); num+=std::norm(w-s); den+=std::norm(s); }
+        double rel=std::sqrt(num/den);
+        std::printf("%s  ||W0*Om - S(k)||/||S|| = %.4e\n", lbl, rel);
+        return rel;
+    };
+    EXPECT_LT(probe(rvec3_t(0,0,0),       "k=0    (real phase) "), 1e-3);
+    EXPECT_LT(probe(rvec3_t(0.5,0.5,0.5), "k=1/2  (real phase) "), 1e-3);
+    EXPECT_LT(probe(rvec3_t(0.25,0.25,0.25),"k=1/4 (complex)    "), 1e-3);   // density consistent even at complex k
 }
 
 // DIAGNOSTIC: TERM-BY-TERM translation invariance of the 1E/PP matrix TRACES (no SCF -> fast) -- the tool

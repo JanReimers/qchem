@@ -71,8 +71,9 @@ public:
     //! The dual reciprocal lattice (\f$B = 2\pi A^{-\top}\f$).  Apply the energy /
     //! \f$|G|\f$ cutoff later via ReciprocalLattice::GetGVectors().
     ReciprocalLattice Reciprocal() const;
-    //! Monkhorst–Pack Brillouin-zone sampling using itsLimits as the divisions.
-    KMesh       MakeKMesh() const {return KMesh(itsLimits);}
+    //! Monkhorst–Pack Brillouin-zone sampling using itsLimits as the divisions.  \a shift is the fractional
+    //! grid-step offset (\f$0\f$ = Γ-centred; \f$½\f$ = the classic MP offset, i.e. CP2K's default for even grids).
+    KMesh       MakeKMesh(const rvec3_t& shift={0,0,0}) const {return KMesh(itsLimits,shift);}
     ivec3_t     GetLimits() const {return itsLimits;}
 
     size_t    GetNumSites     () const;

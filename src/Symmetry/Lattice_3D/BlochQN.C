@@ -13,7 +13,10 @@ namespace qchem::Symmetry::Lattice_3D {
 export class BlochQN : public virtual qchem::Symmetry::Symmetry
 {
 public:
-    BlochQN(ivec3_t _N, ivec3_t _ik, double _weight=1.0);
+    //! \a _N = BZ-grid divisions, \a _ik = integer grid index (0..N, used for the sequence index / identity),
+    //! \a _shift = the fractional Monkhorst-Pack offset in grid steps so \f$k=(ik+shift)/N\f$: \a shift=0 is the
+    //! Γ-centred grid; \a shift=½ is the classic MP offset (\f$k=\pm¼\f$ for \f$N=2\f$, i.e. CP2K's default).
+    BlochQN(ivec3_t _N, ivec3_t _ik, double _weight=1.0, rvec3_t _shift={0,0,0});
     virtual size_t SequenceIndex() const;
     virtual size_t GetDegeneracy() const {return 1;} // +/-k?
     virtual size_t GetPrincipleOffset() const  {return 1;}
