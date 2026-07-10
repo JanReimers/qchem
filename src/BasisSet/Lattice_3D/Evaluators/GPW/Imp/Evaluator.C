@@ -178,14 +178,20 @@ G_ERI3 GPW_Evaluator::BuildWeights() const
     g.weights.assign(Gs.size(), mat_t<dcmplx>(n,n,dcmplx(0.0)));
     for (size_t c=0;c<Gs.size();c++) g.columns[c].dm=Gs[c];
 
-    // W_c(i,j) = (1/Omega) integral conj(chi_i^k) chi_j^k e^{-iG_c.r}: the density-convention weight (the i slot
-    // is CONJUGATED, since rho = Sum_ij D_ij conj(chi_i) chi_j and ContractG_ERI3 forms Sum_ij W_c(i,j) D_ij).
-    // NOT (i,j)-symmetric at general k, so loop the full n^2 (at Gamma both real -> collapses to the old form).
+    // W_c(i,j) = (1/Omega) integral chi_i^k conj(chi_j^k) e^{-iG_c.r}: the density-convention weight.  The KET
+    // (j) slot is CONJUGATED, matching the PHYSICAL density rho = Sum_ij D_ij chi_i conj(chi_j) (= Sum_occ
+    // |psi|^2 with psi=Sum c_i chi_i, D_ij=Sum_occ c_i conj(c_j)) -- the SAME convention as IrrepCD::operator()
+    // (trans(phi) D conj(phi)) and the plane-wave delta path (rho-tilde(G)=Sum_{G_i-G_j=G} D_ij).  ContractG_ERI3
+    // forms Sum_ij W_c(i,j) D_ij, so this yields the physical rho-tilde.  Conjugating the BRA (i) slot instead
+    // gives Sum_ij D_ij conj(chi_i) chi_j = the TRANSPOSE-density D^T -- a DIFFERENT real field at genuinely
+    // complex k (it over-binds Hartree/XC; the k=1/4 complex-k fix, doc/GPWPlan.md).  At Gamma / half-
+    // integer k the orbitals are real so conj is a no-op and this is byte-identical to the old form.
+    // NOT (i,j)-symmetric at general k, so loop the full n^2.
     cvec_t prod(Npts);
     for (size_t i=0;i<n;i++)
         for (size_t j=0;j<n;j++)
         {
-            for (size_t p=0; p<Npts; p++) prod[p]=std::conj(Phi(p,i))*Phi(p,j);
+            for (size_t p=0; p<Npts; p++) prod[p]=Phi(p,i)*std::conj(Phi(p,j));
             cvec_t P=itsGrid->ForwardFFT(prod);          // complex-input FFT
             for (size_t c=0;c<Gs.size();c++)
                 g.weights[c](i,j)=itsGrid->GridCoeff(P, Gs[c]);
@@ -341,11 +347,17 @@ chmat_t GPW_Evaluator::MakeSeparablePP(const Structure* cl, const Pseudopotentia
             double D=sep.Coefficient    (Z,p);
             for (int m=-l; m<=l; m++)
             {
-                cvec_t b(n, dcmplx(0.0));            // b_i = Sum_R phase(R) integral chi_i^k* beta(.-(R_a-R))
+                cvec_t b(n, dcmplx(0.0));            // b_i = Sum_R e^{-ik.R} integral_cell chi_i^k* beta(.-(R_a-R))
                 for (size_t r=0; r<itsRc.size(); r++)   // orbital reach: the collocation image set
                 {
                     BetaYlmField beta(at->itsR-itsRc[r],sep,Z,p,l,m);
-                    dcmplx ph=itsPhaseC[r];
+                    // The projector-image phase is CONJUGATED (e^{-ik.R}), NOT e^{+ik.R}.  b_i = <chi_i^k|beta_home>
+                    // = integral_allspace chi_i^k* beta(.-tau_a); tiling all-space into home cells (int_all f =
+                    // Sum_R int_home f(.+R)) and applying the Bloch law chi_i^k(r+R)=e^{ik.R}chi_i^k(r) puts
+                    // e^{-ik.R} on conj(chi_i^k) against the R-shifted projector beta(.-(tau_a-R)).  At Gamma /
+                    // half-integer k every phase is +-1 (self-conjugate) so this was inert -- the FIRST genuinely
+                    // complex k (e.g. k=1/4) is where +ik.R halved the KB trace (Vnl 42->22) and over-bound.
+                    dcmplx ph=std::conj(itsPhaseC[r]);
                     for (size_t k=0;k<npts;k++)
                     {
                         double bw=beta(R[k])*W[k];

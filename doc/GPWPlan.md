@@ -114,7 +114,34 @@ Threaded an optional fractional MP `shift` so `k=(ik+shift)/N` through `BlochQN`
 `Lattice_3D::MakeKMesh` → `GPW_BasisSet`/`GPWFactory` → `RunGPW` (shift=0 = Γ-centred, backward-compatible;
 shift=½ = CP2K's `k=±¼`). `GPW_BasisSet` recovers the integer index as `lround(k·N − shift)` (plain
 `lround(k·N)` is wrong for shift=½). 186/186 green; Γ-centred anchors unchanged. **But running the shifted
-mesh exposed a complex-Bloch-phase bug — now the top TODO (see TODO 1 below).**
+mesh exposed two complex-Bloch-phase bugs — now FIXED, see next.**
+
+## Complex-k GPW FIXED — CP2K default shifted 2×2×2 matches −7.86744 (was TODO 1) (2026-07-10, uncommitted)
+The shifted mesh (k at ±¼) is the **first genuinely-COMPLEX Bloch phase** (`e^{ik·R} ≠ ±1`), so D and every
+k-block matrix are genuinely complex. It over-bound (single k=¼ block: Een → −18.9, Etot → −15.2, no
+convergence). The plan's own localization was **WRONG** — it blamed the shared framework complex-D path
+(`cSCFAcceleratorDIIS`/`Crystal_EC`/`cDM_CD`) and cleared "the density collocation" and "the GPW evaluator".
+In fact **BOTH bugs were in the GPW evaluator** (`src/BasisSet/Lattice_3D/Evaluators/GPW/Imp/Evaluator.C`);
+the framework complex-D path was correct all along (it had just NEVER been run at complex k — PW-DFT's multi-k
+tests are all Γ-centred too, so this was its first genuine exercise).
+- **Bug 1 — collocation density convention (`BuildWeights`).** The weight conjugated the **bra (i)** slot
+  (`conj(Φ_i)·Φ_j`), making ρ̃ the TRANSPOSE-density `Σ D_ij χ_i* χ_j` — a *different real field* at complex k.
+  The physical density is `Σ D_ij χ_i χ_j*` (= `IrrepCD::operator()` `trans(φ)·D·conj(φ)`, = the PW delta
+  path, = `Σ_occ|ψ|²`). Fix: conjugate the **ket (j)** slot. The plan's `‖W₀·Ω − S(k)‖ = 4e-6` "rules out
+  collocation" diagnostic was a red herring — it checks the overlap *integral*, not the *D-contraction slot*.
+- **Bug 2 — KB projector image phase (`MakeSeparablePP`), the dominant over-binder.** The projector-image sum
+  used `e^{+ik·R}`; the correct Bloch projection `b_i = ⟨χ_i^k|β_home⟩` tiles all-space (`∫_all f = Σ_R
+  ∫_cell f(·+R)`) and the Bloch law `χ^k(r+R)=e^{ik·R}χ^k(r)` puts a **conjugated** `e^{−ik·R}` on the
+  R-shifted projector. At complex k this **halved the nonlocal-PP trace** (`TrVnl` 42→22 at k=¼) → a spurious
+  deep core level (−3.79) → over-bind. Fix: `ph = conj(itsPhaseC[r])`.
+- **Bonus — `IrrepCD::GetTotalCharge`** used `sum(D % S)` (= `Tr(D Sᵀ)`), the exact anti-pattern its sibling
+  `DM_Contract` documents; corrected to `sum(D % trans(S))` = `Tr(D S)`. No-op at real k.
+- **All three are inert at Γ / half-integer k** (phase ±1 self-conjugate, real orbitals) → every committed
+  anchor byte-identical (Si Γ −8.24758, atom-in-box −3.73567, Γ-centred 2×2×2 unchanged). **Validation:** the
+  single k=¼ block now converges (17 iters, Etot −7.565, physical); **the full shifted 2×2×2 converges (21
+  iters, charge 8) to Etot −7.86673 vs CP2K −7.86744** (0.71 mHa = the N=32 grid gap). Gate
+  `GPW_SCF.DISABLED_SR_2x2x2ShiftedMP_vs_CP2K` now asserts −7.86744 (disabled: ~5 min SCF). **Multi-k GPW over
+  the full BZ (any k) is now DONE and CP2K-validated at both Γ-centred and shifted meshes.**
 
 ## Naming (`5f609d2f`) — remember these
 - `Overlap(f)` = ANY 1-electron `⟨i|f|j⟩` (f may be a potential); `Repulsion` = the 2-electron `1/r12`.
@@ -125,38 +152,11 @@ mesh exposed a complex-Bloch-phase bug — now the top TODO (see TODO 1 below).*
 
 # TODO / NEXT
 
-Bulk energy (Γ) and Γ-centred multi-k dispersion are **DONE and CP2K-validated** (see DONE). The single
-remaining blocker for real BZ sampling (any mesh with k off the Γ/half-integer points, i.e. CP2K's default
-shifted MP) is a **complex-density-matrix bug** — TODO 1. Then: (2) CP2K library; (3) IBZ; (4) cleanups.
+Bulk energy (Γ), Γ-centred multi-k dispersion, AND the CP2K-default shifted-MP mesh (complex k) are all
+**DONE and CP2K-validated** (see DONE — the complex-k fix landed 2026-07-10). Full-BZ GPW works at any k.
+Remaining: (1) CP2K library; (2) IBZ; (3) cleanups.
 
-## 1. THE COMPLEX-D SCF BUG — a genuinely-complex density matrix diverges (the blocker for real BZ sampling)
-**Symptom.** With shifted-MP support landed (`1980d6ef`), the shifted 2×2×2 (k at ±¼ = CP2K's default) should
-hit CP2K **−7.86744**. Instead it OVER-BINDS and does not converge. A **single k=(¼,¼,¼) block** reproduces
-it in isolation: Een −1.14 → **−15.15**, Etot **−14.7**, hits `nmax=60` without converging (Γ converges in
-~22). Kinetic also rises (4.36 → 8.58) — partly physical (k≠0), but the −14 Ha Een over-bind is the bug.
-
-**Root cause is NOT the GPW evaluator — it is the complex-D SCF path.** Carefully ruled out (all in the
-DISABLED diagnostic `GPW_SCF.DISABLED_SR_2x2x2ShiftedMP_vs_CP2K`, no SCF, fast):
-- **NOT conditioning:** `min eig S(k=¼) = 0.020` (PSD) at Rcut=2a AND 3a.
-- **NOT the density collocation:** `‖W₀·Ω − S(k)‖/‖S‖ = 4e-6` at k=0, ½ AND ¼ — the collocated density is
-  consistent with the analytic Bloch overlap even at complex k.
-- **The GPW term matrices are Hermitian by construction** (`chmat_t` stores the upper triangle).
-- **THE TELL:** at Γ and half-integer k the Bloch phase `e^{ik·R} = ±1` is **REAL**, so the density matrix D
-  is **real** — which is why every GPW validation so far passed. **k=¼ is the FIRST time D is genuinely
-  COMPLEX.** So the bug lives in the framework's complex-D handling, not in qcLattice_BS.
-
-**Where to look next session** (framework, `qcHamiltonian`/`qcSCF`/`qcChargeDensity`, NOT the GPW evaluator):
-- The **complex density-matrix build** from complex eigenvectors (`cDM_CD` / the charge-density assembly) — is
-  `ρ = Σ_occ c c†` conjugating correctly? A missing conjugate would over-bind Een.
-- **Complex DIIS** (`cSCFAcceleratorDIIS`) and the **occupation** (`Crystal_EC`) — do they assume real D?
-  Cross-ref the known limitation **"GDM/Ladder are `<double>`-only"** ([[project_hamiltonian_dynamic_cache_bug]]
-  / the degenerate-Γ note) — the *complex* energy path is the suspect.
-- **Reproduce cheaply:** a single k=(¼,¼,¼) block is enough (`RunGPW(lat_1x1x1, …, kShift={¼,¼,¼})`), ~45 s,
-  no need for the 8-block mesh. Compare its per-term energies to the Γ block; Een is the one that blows up.
-- **Gate when fixed:** flip `DISABLED_SR_2x2x2ShiftedMP_vs_CP2K` to assert **−7.86744** (CP2K default MP);
-  then the Γ-centred and shifted 2×2×2 both match CP2K grid-for-grid and multi-k GPW is fully done.
-
-## 2. CP2K reference library (the oracle) — BUILT; growing it
+## 1. CP2K reference library (the oracle) — BUILT; growing it
 CP2K's Quickstep **is** the reference GPW implementation (Lippert–Hutter); its per-term breakdown points
 straight at a bug (as this session's hand-rolled breakdown did: Een ×15.7 → local PP → the raster).
 I can run CP2K directly: `~/Code/cp2k/build/bin/cp2k.ssmp`, decks in `~/Code/cp2k-runs/`.
@@ -200,12 +200,12 @@ I can run CP2K directly: `~/Code/cp2k/build/bin/cp2k.ssmp`, decks in `~/Code/cp2
 | lattice-sum reach | `Rcut`/`collRcut` (our truncation) | `EPS_PGF_ORB` / neighbour lists (auto) | not a direct CP2K knob — converge ours to CP2K |
 | **energy breakdown** | Ekin, Een, Eee, Exc, Enn, Ealign | CP2K: Overlap, Core (kinetic+PP), Hartree, XC, Core-self/Ewald | **term SPLITS differ** — match the TOTAL first, then map sub-terms (kinetic, XC are the cleanest to compare) |
 
-## 3. Symmorphic space groups + auto-IBZ (deferred qcSymmetry track)
+## 2. Symmorphic space groups + auto-IBZ (deferred qcSymmetry track)
 Only the POINT-GROUP part matters for k-reduction. Cubic Si (O_h, centrosymmetric) → IBZ = 1/48 of the BZ,
 no time-reversal factor. Validate bit-level: reduced-mesh-with-weights == full-mesh (against Step 2). The IBZ
 is an *efficiency* layer, not a correctness requirement — hence it comes AFTER a working full-BZ reference.
 
-## 4. Deferred cleanups (do once bulk works — "the working code is the definitive declaration")
+## 3. Deferred cleanups (do once bulk works — "the working code is the definitive declaration")
 - **Rigorous periodic external PP:** `MakeLocalPP`/`MakeSeparablePP` quadrature the HOME-CELL orbitals against
   the cell's OWN atoms (no periodic-image PP) — exact at Γ / large box, an approximation for a dense crystal.
   Sum the PP over lattice images (analogous to Ewald / the PW G-space assembly).

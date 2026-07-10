@@ -164,7 +164,11 @@ template <class T> double IrrepCD<T>::DM_ContractBlocks(const std::map<std::stri
 
 template <class T> double IrrepCD<T>::GetTotalCharge() const
 {
-    return std::real(blazem::sum(itsDensityMatrix%itsBasisSet->Overlap())); //% is the blaze op for the Shur (direct) product.
+    // N = integral rho = Sum_ij D_ij S_ji = Tr(D S) = sum(D % trans(S)) (% is the blaze Schur/direct product).
+    // The trans matters for a genuinely COMPLEX Hermitian D,S (the complex-k Bloch case): sum(D % S) would be
+    // Tr(D S^T) -- a different (still-real) value.  Same transpose fix as DM_Contract above; a no-op for real
+    // symmetric S (trans(S)==S, byte-identical at Gamma / half-integer k).
+    return std::real(blazem::sum(itsDensityMatrix%blazem::trans(itsBasisSet->Overlap())));
 }
 
 
