@@ -8,6 +8,7 @@ module;
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <algorithm>
 module qchem.BasisSet.Lattice_3D.Evaluators.GPW;
 import qchem.Blaze;       // rvec_t, rmat_t, rsmat_t, blazem::zeroH<dcmplx>
 import qchem.Vector3D;    // vec3_t + rvec3_t / rvec3vec_t arithmetic (r - R, componentwise add)
@@ -105,6 +106,20 @@ public:
     }
     rvec3_t Gradient(const rvec3_t&) const override {return rvec3_t(0,0,0);}
 };
+
+// The radius beyond which the KB projector beta_p(r) is negligible (< 1e-10 of its peak).  beta_p is a GTH
+// polynomial x Gaussian, compactly supported in practice; used to SCREEN the (image, mesh-point) projection
+// loop in MakeSeparablePP.  Cheap (~1000 BetaR evals, once per projector).  1e-10 is far below any GPW anchor
+// tolerance, so screening is numerically exact.
+double BetaSupportRadius(const Pseudopotential::SeparablePotential_R& sep, int Z, size_t p)
+{
+    const double h=0.02, rmax=25.0, tol=1e-10;
+    double peak=0.0;
+    for (double r=0.0; r<=rmax; r+=h) peak=std::max(peak, std::fabs(sep.BetaR(Z,p,r)));
+    double rsup=0.0;
+    for (double r=0.0; r<=rmax; r+=h) if (std::fabs(sep.BetaR(Z,p,r))>tol*peak) rsup=r;
+    return rsup+2.0*h;   // a small margin past the last significant radius
+}
 } //anon
 
 GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const UnitCell& cell,
@@ -332,9 +347,19 @@ chmat_t GPW_Evaluator::MakeSeparablePP(const Structure* cl, const Pseudopotentia
     const rvec_t&     W=mesh.Weights();
     size_t n=itsN, npts=mesh.size();
 
-    // The periodic (Bloch-summed) orbital chi_i^k on every mesh point -- the fix (see the note above).
-    mat_t<dcmplx> Phi(npts,n);
-    for (size_t k=0;k<npts;k++) { cvec_t v=Eval(R[k]); for (size_t i=0;i<n;i++) Phi(k,i)=v[i]; }
+    // The KB projector beta_p is COMPACTLY supported (localized at each atom), so at a large image reach most
+    // images place the projector centre far outside the cell (contributing exp(-large)~0), and even a near
+    // image touches the cell only within its support radius r_beta.  SCREEN both: (a) skip an image whose
+    // projector centre cannot reach the mesh (bounding sphere), (b) skip a mesh point beyond r_beta.  The Bloch
+    // orbital chi_i^k on the mesh (Eval, the dominant cost) is then needed ONLY at the surviving points, so it
+    // is computed LAZILY.  Screening is at 1e-10 of the projector peak -> numerically exact (anchors unmoved),
+    // and cuts this build ~5x (the 133-image Rcut=2a sum collapses to the ~dozen images that touch the cell).
+    rvec3_t ctr(0,0,0); for (size_t k=0;k<npts;k++) ctr=ctr+R[k]; ctr=ctr/double(npts);
+    double  rad=0.0;    for (size_t k=0;k<npts;k++) rad=std::max(rad, norm(R[k]-ctr));
+
+    mat_t<dcmplx> Phi(npts,n,dcmplx(0.0));   // chi_i^k on the mesh; filled lazily at screened-in points only
+    std::vector<char> havePhi(npts,0);
+    auto PhiAt=[&](size_t k){ if (!havePhi[k]) { cvec_t v=Eval(R[k]); for (size_t i=0;i<n;i++) Phi(k,i)=v[i]; havePhi[k]=1; } };
 
     mat_t<dcmplx> V(n,n,dcmplx(0.0));
     for (size_t a=0; a<cl->GetNumAtoms(); a++)
@@ -345,12 +370,15 @@ chmat_t GPW_Evaluator::MakeSeparablePP(const Structure* cl, const Pseudopotentia
         {
             int    l=sep.AngularMomentum(Z,p);
             double D=sep.Coefficient    (Z,p);
+            const double rBeta=BetaSupportRadius(sep,Z,p);   // projector support radius (screening cutoff)
             for (int m=-l; m<=l; m++)
             {
                 cvec_t b(n, dcmplx(0.0));            // b_i = Sum_R e^{-ik.R} integral_cell chi_i^k* beta(.-(R_a-R))
                 for (size_t r=0; r<itsRc.size(); r++)   // orbital reach: the collocation image set
                 {
-                    BetaYlmField beta(at->itsR-itsRc[r],sep,Z,p,l,m);
+                    rvec3_t c=at->itsR-itsRc[r];                 // this image's projector centre
+                    if (norm(c-ctr) > rad+rBeta) continue;       // (a) image too far to touch the mesh
+                    BetaYlmField beta(c,sep,Z,p,l,m);
                     // The projector-image phase is CONJUGATED (e^{-ik.R}), NOT e^{+ik.R}.  b_i = <chi_i^k|beta_home>
                     // = integral_allspace chi_i^k* beta(.-tau_a); tiling all-space into home cells (int_all f =
                     // Sum_R int_home f(.+R)) and applying the Bloch law chi_i^k(r+R)=e^{ik.R}chi_i^k(r) puts
@@ -360,7 +388,9 @@ chmat_t GPW_Evaluator::MakeSeparablePP(const Structure* cl, const Pseudopotentia
                     dcmplx ph=std::conj(itsPhaseC[r]);
                     for (size_t k=0;k<npts;k++)
                     {
+                        if (norm(R[k]-c) > rBeta) continue;      // (b) mesh point beyond the projector support
                         double bw=beta(R[k])*W[k];
+                        PhiAt(k);
                         for (size_t i=0;i<n;i++) b[i]+=ph*std::conj(Phi(k,i))*bw;
                     }
                 }
