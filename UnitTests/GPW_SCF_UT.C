@@ -333,10 +333,15 @@ TEST(GPW_SCF, SiPseudoAtomInBoxMatchesFinite)
 // conserve the 8 valence e- (1 Na + 7 F)?  F's tight 40-a.u. exponent wants a fine density grid (densityEcut
 // high -- F is the hard atom), so the total is grid-underconverged at a modest cutoff; charge + convergence
 // are the anchors here (a did-E-move total once the cutoff is dialled in).
-// FIRST LIGHT (densityEcut=40, Rcut=0): converges 22 iters, charge=8, Etot=-25.086 (Ekin 20.32, Een -36.43,
-// Eee 10.24, Exc -4.80, Enn -14.00 [= the ionic Madelung, matches PW], Ealign -0.41).  Not yet comparable to
-// PW -20.3293 (grid-underconverged + Gaussian-incomplete + Rcut=0 over-binding).  DISABLED: ~140 s (F's fine
-// grid + dense collocation).  TODO: converge densityEcut, add Rcut images, then a did-E-move anchor + CP2K.
+// PROGRESSION (all charge=8, Gamma, densityEcut=40):
+//   Rcut=0, full basis  -> Etot=-25.086 (first light; Rcut=0 over-binds, no inter-cell screening)
+//   Rcut=2a, SR basis   -> Etot=-23.556 (this test; the over-binding partly removed by the periodic images)
+//   PW Gamma reference  -> -20.3293
+// The SR basis is REQUIRED at Rcut=2a: the full basis' truncated Bloch overlap is INDEFINITE there
+// (DISABLED_NaFOverlapConditioningSweep), SR is PSD (min eig +7.5e-4, reported at startup).  The residual
+// -23.56 vs -20.33 is grid (densityEcut=40 is coarse for F's 40-a.u. exponent) + SR basis incompleteness +
+// the SCF hit the 60-iter cap (not fully gate-converged).  DISABLED: ~4 min (Rcut=2a images).  Robust anchor
+// = charge conservation; TODO to close the gap: converge densityEcut, more iters, then CP2K.
 TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
 {
     using namespace qchem::Hamiltonian;
@@ -347,10 +352,10 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     Lattice_3D lat(cell, ivec3_t(1,1,1));
 
     auto mol = std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(
-        BasisSetData::VALENCE_LOWQ, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
+        BasisSetData::VALENCE_LOWQ_SR, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
 
     namespace L3=BasisSet::Lattice_3D;
-    std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, mol, /*densityEcut*/40.0, /*Rcut*/0.0, /*collRcut*/0.0, {0,0,0}));
+    std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, mol, /*densityEcut*/40.0, /*Rcut*/2.0*a, /*collRcut*/0.0, {0,0,0}));
     auto       irreps=bs->GetIrreps(Spin::None);
     Crystal_EC ec(irreps, 8);
     cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), bs.get(), {{"Na",1},{"F",7}}, "LDA");
