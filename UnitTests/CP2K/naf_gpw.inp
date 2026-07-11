@@ -1,0 +1,71 @@
+# NaF (rocksalt) GPW cross-check vs qchem6 GPW_SCF.DISABLED_NaFRocksaltGamma.
+# Matches: FCC primitive cell a=8.73 bohr, Na (0,0,0) + F (1/2,1/2,1/2) scaled, GTH-PADE-q1 (Na) / q7 (F)
+# (== our GTH-LDA), LDA = Slater/Dirac exchange (LDA_X) + VWN5 correlation (LDA_C_VWN), Gamma point.
+# CP2K is inherently periodic (complete-Bloch, magnitude-screened neighbour lists) -> no Rcut truncation, so
+# this is the value our GPW should approach at large Rcut with the SAME valence_lowq basis.  CUTOFF in Ry.
+&GLOBAL
+  PROJECT naf_gpw
+  RUN_TYPE ENERGY
+  PRINT_LEVEL MEDIUM
+&END GLOBAL
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME ./VALENCE-LOWQ-BASIS
+    POTENTIAL_FILE_NAME /home/janr/Code/cp2k/data/GTH_POTENTIALS
+    &QS
+      METHOD GPW
+      EPS_DEFAULT 1.0E-12
+    &END QS
+    &MGRID
+      CUTOFF 400          # Ry -- F's tight 40 a.u. exponent wants a fine grid; converge upward if E moves
+      REL_CUTOFF 60
+      NGRIDS 4
+    &END MGRID
+    &XC
+      &XC_FUNCTIONAL
+        &LDA_X
+        &END LDA_X
+        &LDA_C_VWN
+        &END LDA_C_VWN
+      &END XC_FUNCTIONAL
+    &END XC
+    &POISSON
+      PERIODIC XYZ
+    &END POISSON
+    &SCF
+      SCF_GUESS ATOMIC
+      EPS_SCF 1.0E-7
+      MAX_SCF 30
+      &OT                              # robust minimiser -- P_Mix/Diag diverged on this diffuse basis
+        MINIMIZER DIIS
+        PRECONDITIONER FULL_SINGLE_INVERSE
+      &END OT
+      &OUTER_SCF
+        EPS_SCF 1.0E-7
+        MAX_SCF 20
+      &END OUTER_SCF
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      A [bohr] 0.000 4.365 4.365
+      B [bohr] 4.365 0.000 4.365
+      C [bohr] 4.365 4.365 0.000
+      PERIODIC XYZ
+    &END CELL
+    &COORD
+      SCALED
+      Na 0.00 0.00 0.00
+      F  0.50 0.50 0.50
+    &END COORD
+    &KIND Na
+      BASIS_SET VALENCE-LOWQ-SR
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+    &KIND F
+      BASIS_SET VALENCE-LOWQ-SR
+      POTENTIAL GTH-PADE-q7
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

@@ -228,7 +228,26 @@ alignment are already per-atom (Zion per species); `MultiSpecies_Local/Separable
 ctor `{{"Na",1},{"F",7}}` on the generated `valence_lowq` basis, Na 5s2p + F 8s6p): 22 iters, **charge=8
 conserved**, Etot=−25.086 (Enn=−14.00 = ionic Madelung, matches PW). Grid-underconverged (`densityEcut=40`,
 Rcut=0) so not yet comparable to PW −20.3293. Gate `GPW_SCF.DISABLED_NaFRocksaltGamma` (~140 s: F's tight
-40-a.u. exponent forces a fine density grid). NEXT: converge `densityEcut`, add Rcut images, then CP2K.
+40-a.u. exponent forces a fine density grid). Rcut=2a + SR basis (PSD overlap) → Etot=−23.556 (removes ~1.5 Ha
+of the Rcut=0 over-binding).
+
+**NaF cross-validation findings (2026-07-11):**
+- **GDM vs DIIS = non-variational confirmed.** Our GPW-SR/Rcut=2a gives DIFFERENT iter-capped totals under
+  DIIS (−23.556, Ekin 12.1) vs GDM (−23.936, Ekin 29.3). A variational energy would give the SAME minimum
+  under both minimisers; different answers ⇒ the fitted GPW Etot is non-variational (fit noise), so the
+  limiter is the ENERGY FUNCTIONAL, not the solver. GDM (our OT analog, now dcmplx via `89f210f0`) does NOT
+  rescue it — matches the plan's prior note.
+- **CP2K (`UnitTests/CP2K/naf_gpw.inp` + `VALENCE-LOWQ-BASIS`, GTH-PADE-q1/q7, LDA_X+LDA_C_VWN, Γ, CUTOFF 400):**
+  the FULL diffuse basis DIVERGES the SCF under both P_Mix/Diag AND OT (energies → +200..+400 Ha); the SR basis
+  also diverges under OT, but **transiently passes −23.64** — right next to our GPW-SR −23.556. So both codes
+  agree the answer FOR THIS GAUSSIAN BASIS is ≈ −23.6, and the ~3.3 Ha gap to PW's complete-basis −20.3293 is
+  **Gaussian-basis incompleteness** (the "GPW vs PW = basis quality" leg). Neither converges cleanly because
+  the low-q Na basis is pathological in ionic NaF: **Na is Na⁺ (≈ zero valence density), so its basis
+  functions are nearly unoccupied → redundant → SCF instability.** A cleaner reference needs a rethink of the
+  ionic-cation basis (fewer/tighter Na functions) and/or CP2K SCF tuning (lower CUTOFF, mixing, smearing).
+- NEXT (user-directed): (1) **magnitude-screen the overlap** `(i,j,R)` by `|⟨χ_i|χ_j^R⟩|>eps` (CP2K's trick —
+  PSD + fast, drops the SR/Rcut crutch); (2) reduce the fit noise that makes Etot non-variational; (3) an
+  ionic-appropriate Na basis for a clean CP2K reference.
 
 **Gates / deliverables.** `doc/CP2Kresults.md` rows Si/NaF/CsI × {PW, GPW, CP2K} (Etot + runtime); `GPW_SCF`
 NaF/CsI converge (charge, Etot) == CP2K same-basis; the GPW−PW gap documented (basis quality). **Pitfalls:**
