@@ -13,7 +13,11 @@ export struct SCFParams
 {
     size_t NMaxIter        = 20;     //Max allowed number of iterations
     double MinΔρ           = 1e-4;   //Minimum delta in charge density for convergence.
-    double MinΔFD          = 1e-7;   //Minimum delta energy convergence.
+    double MinΔFD          = 1e-7;   //Minimum delta in [F,D] (|[F,D]-[F,D]_old|) for convergence.
+    double MinΔE           = 1e30;   //Minimum RELATIVE total-energy change |ΔE/E| for convergence (default
+                                     //  off).  The physical gate for a NON-variational SCF (density-fit /
+                                     //  GPW collocation) whose [F,D]/Δρ limit-cycle above the fit floor while
+                                     //  the total energy is settled -- see doc/GPWPlan.md.
     double MinVirial       = 1e-13;  //Minimum error Virial ratio -V/K.  (1e-13 => effectively off; the
                                      //  textbook -V/K=2 virial is not gated for molecules.)
     double MinFD           = 1e-5;   //Minimum error from SCF accelerator.  i.e. [F,D] (orbital gradient).

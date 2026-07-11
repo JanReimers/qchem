@@ -226,6 +226,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
         // cout << "fabs(eb.GetVirial()+2) < ipar.MinVirial  " << (fabs(eb.GetVirial()+2) < ipar.MinVirial) << endl;
         itsConverged=  ChargeDensityChange < ipar.MinΔρ
                  && fabs(dFD)              < ipar.MinΔFD
+                 && fabs(dE)               < ipar.MinΔE      // relative total-energy change (default off)
                  && FD                     < ipar.MinFD
                  && fabs(eb.GetVirial()+idealVirial) < ipar.MinVirial
                   ;
