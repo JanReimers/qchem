@@ -28,12 +28,21 @@ GPW_IBS::GPW_IBS(const UnitCell& cell, const ivec3_t& N, const ivec3_t& kIndex,
 
 // The DFT fit-basis factory: a plane-wave fit basis over GPW's OWN density grid (k=0 Gamma; the density is
 // cell-periodic).  Both CD and Vxc share the one density grid this increment (relCutoff refinement deferred).
-BasisSet::cFIT_CD_ABS* GPW_IBS::CreateCDFitBasisSet(const Structure*, const qcMesh::MeshParams&) const
+//
+// GPW uses an ABSOLUTE densityEcut grid (a Gaussian basis has no single plane-wave orbital bandwidth to scale),
+// so mp.relCutoff -- the CP2K REL_CUTOFF the Hamiltonian derives from the functional's GridCutoffFactor(), the
+// GGA fit-grid densifier -- is NOT yet wired here (unlike PlaneWave_IBS, which builds its Vxc grid at
+// Ecut*relCutoff).  For LDA relCutoff==1 so this is exact; GUARD it loudly so a future GGA-on-GPW attempt fails
+// at this seam instead of silently quadraturing v_xc/grad(rho) on the LDA-grade grid.  Wiring it = build a
+// separate, denser Vxc grid at densityEcut*relCutoff (mirroring the PW Vxc line).  See doc/GPWPlan.md.
+BasisSet::cFIT_CD_ABS* GPW_IBS::CreateCDFitBasisSet(const Structure*, const qcMesh::MeshParams& mp) const
 {
+    assert(mp.relCutoff<=1.0 && "GPW: relCutoff>1 (GGA fit-grid refinement) not wired; densityEcut is absolute");
     return new PlaneWaveFit_IBS(GPW_Evaluator::DensityGrid(), Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
 }
-BasisSet::cFIT_SF_ABS* GPW_IBS::CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams&) const
+BasisSet::cFIT_SF_ABS* GPW_IBS::CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams& mp) const
 {
+    assert(mp.relCutoff<=1.0 && "GPW: relCutoff>1 (GGA fit-grid refinement) not wired; densityEcut is absolute");
     return new PlaneWaveFit_IBS(GPW_Evaluator::DensityGrid(), Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
 }
 
