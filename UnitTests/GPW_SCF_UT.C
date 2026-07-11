@@ -325,3 +325,47 @@ TEST(GPW_SCF, SiPseudoAtomInBoxMatchesFinite)
     // (Energy-converged; density is degenerate at Gamma -- see the note above -- so no Converged() guard.)
     EXPECT_NEAR(R.E.GetTotalEnergy(), Esipp, 5e-2) << "GPW-in-box total vs finite SIPP molecular DFT";
 }
+
+// (4) MULTI-SPECIES GPW: ionic NaF (rocksalt = FCC + 2-atom basis) at Gamma, driven by the multi-species
+// Ham_PW_DFT ctor ({{"Na",1},{"F",7}}) on the GENERATED valence_lowq Gaussian basis (Na 5s2p + F 8s6p).  The
+// plane-wave sibling (PlaneWaveDFT.FrameworkNaFThroughSCFIterator, Ecut=6) lands -20.3293; GPW here is the
+// SAME PP + functional on a Gaussian basis.  FIRST-LIGHT machinery check: does multi-species GPW converge and
+// conserve the 8 valence e- (1 Na + 7 F)?  F's tight 40-a.u. exponent wants a fine density grid (densityEcut
+// high -- F is the hard atom), so the total is grid-underconverged at a modest cutoff; charge + convergence
+// are the anchors here (a did-E-move total once the cutoff is dialled in).
+// FIRST LIGHT (densityEcut=40, Rcut=0): converges 22 iters, charge=8, Etot=-25.086 (Ekin 20.32, Een -36.43,
+// Eee 10.24, Exc -4.80, Enn -14.00 [= the ionic Madelung, matches PW], Ealign -0.41).  Not yet comparable to
+// PW -20.3293 (grid-underconverged + Gaussian-incomplete + Rcut=0 over-binding).  DISABLED: ~140 s (F's fine
+// grid + dense collocation).  TODO: converge densityEcut, add Rcut images, then a did-E-move anchor + CP2K.
+TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
+{
+    using namespace qchem::Hamiltonian;
+    const double a=8.73;
+    FCCUnitCell cell(a);
+    cell.AddAtom(11, {0,0,0});          // Na (Zion=1)
+    cell.AddAtom(9,  {0.5,0.5,0.5});    // F  (Zion=7)
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+
+    auto mol = std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(
+        BasisSetData::VALENCE_LOWQ, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
+
+    namespace L3=BasisSet::Lattice_3D;
+    std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, mol, /*densityEcut*/40.0, /*Rcut*/0.0, /*collRcut*/0.0, {0,0,0}));
+    auto       irreps=bs->GetIrreps(Spin::None);
+    Crystal_EC ec(irreps, 8);
+    cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), bs.get(), {{"Na",1},{"F",7}}, "LDA");
+    auto* acc=new qchem::SCFAccelerators::cSCFAcceleratorDIIS(qchem::SCFAccelerators::DIISParams{8, 8.0, 1e-10, 1e-9});
+    qchem::SCFIterator::cSCFIterator scf(bs.get(), &ec, ham, acc,
+                                         qchem::ChargeDensity::SeedStrategy::Uniform, lat.GetStructure().get(),
+                                         qchem::Cholesky, 0.0);
+    SCFParams par; par.NMaxIter=60; par.MinΔρ=1e-3; par.MinΔE=1e-6; par.MinΔFD=1e30; par.MinVirial=1e30;
+    par.MinFD=1e30; par.StartingRelaxRo=0.3; par.MergeTol=1e-4; par.Verbose=false;
+    scf.Iterate(par);
+
+    auto* cd=scf.GetWaveFunction()->GetChargeDensity(); double charge=cd->GetTotalCharge(); delete cd;
+    auto E=scf.GetEnergy();
+    std::cout << "[NaF GPW Gamma] iters="<<scf.GetIterationCount()<<" charge="<<charge<<" Etot="<<E.GetTotalEnergy()
+              << " (Ekin="<<E.Kinetic<<" Een="<<E.Een<<" Eee="<<E.Eee<<" Exc="<<E.Exc
+              << " Enn="<<E.Enn<<" Ealign="<<E.Ealign<<")" << std::endl;
+    EXPECT_NEAR(charge, 8.0, 1e-6);     // 1 (Na) + 7 (F) valence electrons, conserved
+}
