@@ -154,9 +154,66 @@ tests are all Γ-centred too, so this was its first genuine exercise).
 
 Bulk energy (Γ), Γ-centred multi-k dispersion, AND the CP2K-default shifted-MP mesh (complex k) are all
 **DONE and CP2K-validated** (see DONE — the complex-k fix landed 2026-07-10). Full-BZ GPW works at any k.
-Remaining: (1) CP2K library; (2) IBZ; (3) cleanups.
+Remaining: (1) low-q multi-species bases → Si/NaF/CsI cross-validation (the active NEXT work); (2) the CP2K
+reference library (the oracle for §1); (3) IBZ; (4) cleanups.
 
-## 1. CP2K reference library (the oracle) — BUILT; growing it
+## 1. Low-q multi-species bases → Si/NaF/CsI cross-validation (PW + GPW + CP2K) — THE NEXT WORK
+Hand-roll SIPP-style **low-q valence Gaussian bases** for Na/F/Cs/I so GPW (and CP2K) can run NaF + CsI, then
+triangulate our two codes against CP2K on Si/NaF/CsI. Unblocks **multi-species GPW** (the battery-oxide path,
+[[project_battery_voltage_goal]]) and yields the CP2K runtimes. The CP2K reference library (§2) is the oracle.
+
+**Why blocked today.** Our GTH PPs are low-q — verified in `gth_potentials.json` LDA: **Na q1, F q7, Cs q1,
+I q7** (Na/Cs also ship q9 semicore; F/I only q7). CP2K ships only q9 semicore Gaussian bases for Na/Cs and
+**no GTH basis for iodine**, so it aborts on the valence mismatch. The fix is a matched low-q Gaussian valence
+basis — which **GPW needs anyway** (GPW = Gaussian orbitals), so the work is shared.
+
+**Include PW? YES — it is the basis-INDEPENDENT anchor, nearly free.** Our plane-wave code needs NO Gaussian
+basis (orbitals ARE plane waves; only PP + Ecut) and already has NaF −20.3293 (Ecut=6) / CsI −11.3868 (Ecut=4)
+[`606a54ff`]. Converging its Ecut gives the complete-basis limit. Three-way triangulation:
+- **GPW vs CP2K** (SAME Gaussian basis + PP + functional) → IMPLEMENTATION correctness (the tight gate).
+- **GPW vs PW** (Gaussian basis vs complete) → BASIS quality (the gap = Gaussian incompleteness; GPW ≥ PW in
+  energy, i.e. less bound, as an incomplete basis under-binds).
+- **PW vs CP2K** (both → complete-basis as CP2K's basis grows + cutoffs converge) → cross-code sanity.
+PW is the leg that separates "is our GPW code correct" from "is the Gaussian basis good enough."
+
+**Basis recipe (mirror `sipp.bsd`/`sipp_sr.bsd`).** Uncontracted even-tempered valence (one primitive per .bsd
+shell, `nprim=1 coeff=1`), + a `_SR` variant dropping the most-diffuse primitive(s) for Bloch conditioning
+(the SIPP→SIPP_SR lesson: ill-conditioning is a BASIS problem, [[feedback_scf_accuracy_levels]]). Valence
+shells (from the PP q):
+
+| el | q (Zion) | valence | shells | notes |
+|----|----|----|----|----|
+| Na | 1 | 3s¹ | s (+p polar) | 1 val e⁻ (alkali) |
+| F  | 7 | 2s²2p⁵ | s+p | tight 2p → hard atom, higher cutoff |
+| Cs | 1 | 6s¹ | s (+p) | heavy, diffuse 6s |
+| I  | 7 | 5s²5p⁵ | s+p | **no GTH Gaussian basis anywhere** — first one; soft, big r_loc |
+
+Seed α_max from the GTH `r_loc`, α_min from the valence ⟨r⟩, ratio ~2.5–3 (SIPP s = 2.0/0.7/0.25). New files:
+`BasisSetData/{na,f,cs,i}_lowq{,_sr}.bsd` + `BasisSetData` enum entries + the loader map (mirror sipp/sipp_sr).
+
+**Validation loop (per element → per compound).**
+1. Build the `.bsd` (+ SR variant).
+2. Finite pseudo-ATOM cross-check (the `SiPseudoAtomInBoxMatchesFinite` pattern): `Calculation(atom,
+   {.basis=…, .pseudopotential=true})` converges, and GPW-in-box == that finite molecular DFT. Converge the
+   basis by adding/tightening functions — NOT against Slater/High (different basis, a loose oracle: SIPP Si
+   −3.759 vs Slater/High −3.337).
+3. Transcribe the `.bsd` → CP2K `BASIS_SET` format (`El NAME`, nset, per-set `n lmin lmax nexp nshell` +
+   exponent/coeff — the `UnitTests/CP2K/SIPP-SR-BASIS` pattern) + a CP2K deck (mirror `si_fcc_gpw*.inp`,
+   `POTENTIAL GTH-PADE-q{1,7}`).
+4. **Compounds:** NaF (rocksalt FCC), CsI (CsCl simple-cubic). Run **PW, GPW, CP2K**. Record Etot + runtime in
+   `doc/CP2Kresults.md`; add did-E-move anchors: GPW → `GPW_SCF`, PW → `PlaneWaveDFTUT`.
+
+**Multi-species GPW plumbing (small — the bases are the real work).** `Ham_PW_DFT` already has the multi-
+species ctor (`{{"Na",1},{"F",7}}`, PW path `606a54ff`) and it drives GPW verbatim, so GPW multi-species =
+thread the species→q map through `RunGPW`/`GPWFactory` in place of the single `element`/`q=4`. Ewald + the G=0
+alignment are already per-atom (Zion per species); `MultiSpecies_Local/SeparablePotential` routers exist.
+
+**Gates / deliverables.** `doc/CP2Kresults.md` rows Si/NaF/CsI × {PW, GPW, CP2K} (Etot + runtime); `GPW_SCF`
+NaF/CsI converge (charge, Etot) == CP2K same-basis; the GPW−PW gap documented (basis quality). **Pitfalls:**
+iodine is the first GTH Gaussian basis for the element (validate its pseudo-atom carefully); F's tight 2p is
+the hardest (needs the highest cutoff, per the PW NaF vs CsI experience — F set the cutoff, not the heavy I).
+
+## 2. CP2K reference library (the oracle for §1) — BUILT; growing it
 CP2K's Quickstep **is** the reference GPW implementation (Lippert–Hutter); its per-term breakdown points
 straight at a bug (as this session's hand-rolled breakdown did: Een ×15.7 → local PP → the raster).
 I can run CP2K directly: `~/Code/cp2k/build/bin/cp2k.ssmp`, decks in `~/Code/cp2k-runs/`.
@@ -167,19 +224,15 @@ I can run CP2K directly: `~/Code/cp2k/build/bin/cp2k.ssmp`, decks in `~/Code/cp2
 - **DONE — FCC-Si Γ reference (SIPP_SR, GTH-PADE-q4, LDA_X+VWN5):** **Etot = −7.11506 Ha, charge 8**,
   converged by `CUTOFF` 80 Ry (≈40 Ha). Breakdown: Core-H (kin+PP) +5.565, Hartree +10.380, XC −2.544;
   PP total −7.548 (local −8.489, nonlocal +0.941); core self-energy −20.516. (CP2K's GPW electrostatic split
-  differs from ours — compare the TOTAL + the cleaner sub-terms kin/XC/nonlocal-PP.) **This is TODO 1's gate.**
+  differs from ours — compare the TOTAL + the cleaner sub-terms kin/XC/nonlocal-PP.) **Γ gate — MET** (−7.11506).
   Also Si **2×2×2 = −7.86744 Ha** (`si_fcc_gpw_222.inp`). Results table: **`doc/CP2Kresults.md`**; decks:
   **`UnitTests/CP2K/`**.
 - **PP already aligned:** our `src/Pseudopotential/Data/gth_potentials.json` IS the CP2K GTH-PADE database
   (Si GTH-PADE-q4 params match ours exactly — verified). **Basis: same exponents, transcribed to CP2K
   `BASIS_SET` format** (uncontracted → one set per primitive; see `UnitTests/CP2K/SIPP-SR-BASIS`).
-- **NaF/CsI BLOCKED (basis/PP-q mismatch):** our qchem PPs are low-q (Na q1, Cs q1) and CP2K ships no matching
-  q1 Gaussian basis (only q9 semicore) — CP2K aborts on the valence mismatch; iodine has no GTH basis at all.
-  Fix = hand-roll SIPP-style low-q bases for Na/F/Cs/I (shared with the future multi-species GPW path). See
-  `doc/CP2Kresults.md`.
-- **Si 2×2×2 cross-checks DONE:** `si_fcc_gpw_222.inp` (shifted MP, **−7.86744**) + `si_fcc_gpw_222_gamma.inp`
-  (Γ-centred, **−7.77846**, matches our GPW −7.7778). The shifted one is TODO 1's gate (blocked by complex-D).
-- **NEXT with CP2K:** hand-roll the low-q bases → NaF/CsI decks (shared with the future multi-species GPW).
+- **NaF/CsI:** the hand-rolled low-q bases + decks are now **§1's plan** (was "blocked"; the plan resolves it).
+- **Si 2×2×2 cross-checks DONE + validated:** `si_fcc_gpw_222.inp` (shifted MP, **−7.86744** == our GPW after
+  the complex-k fix) + `si_fcc_gpw_222_gamma.inp` (Γ-centred, **−7.77846**, matches our GPW −7.7778).
 
 ### Parameters to line up (qchem ↔ CP2K) — keep this table current
 | quantity | qchem (ours) | CP2K keyword | note / pitfall |
@@ -200,12 +253,12 @@ I can run CP2K directly: `~/Code/cp2k/build/bin/cp2k.ssmp`, decks in `~/Code/cp2
 | lattice-sum reach | `Rcut`/`collRcut` (our truncation) | `EPS_PGF_ORB` / neighbour lists (auto) | not a direct CP2K knob — converge ours to CP2K |
 | **energy breakdown** | Ekin, Een, Eee, Exc, Enn, Ealign | CP2K: Overlap, Core (kinetic+PP), Hartree, XC, Core-self/Ewald | **term SPLITS differ** — match the TOTAL first, then map sub-terms (kinetic, XC are the cleanest to compare) |
 
-## 2. Symmorphic space groups + auto-IBZ (deferred qcSymmetry track)
+## 3. Symmorphic space groups + auto-IBZ (deferred qcSymmetry track)
 Only the POINT-GROUP part matters for k-reduction. Cubic Si (O_h, centrosymmetric) → IBZ = 1/48 of the BZ,
 no time-reversal factor. Validate bit-level: reduced-mesh-with-weights == full-mesh (against Step 2). The IBZ
 is an *efficiency* layer, not a correctness requirement — hence it comes AFTER a working full-BZ reference.
 
-## 3. Deferred cleanups (do once bulk works — "the working code is the definitive declaration")
+## 4. Deferred cleanups (do once bulk works — "the working code is the definitive declaration")
 - **Rigorous periodic external PP:** `MakeLocalPP`/`MakeSeparablePP` quadrature the HOME-CELL orbitals against
   the cell's OWN atoms (no periodic-image PP) — exact at Γ / large box, an approximation for a dense crystal.
   Sum the PP over lattice images (analogous to Ewald / the PW G-space assembly).
@@ -218,6 +271,18 @@ is an *efficiency* layer, not a correctness requirement — hence it comes AFTER
   `src/Mesh/Quadrature.C`). Then a `FourierMesh_R` ({R}) and `FourierMesh_k` ({k} + real BZ weights, unifies
   with today's `KMesh`). A cross-cutting refactor (Quadrature.C + bit-identity across ~29 consumers);
   currently marked with `// future: one cMesh` comments.
+- **GGA Vxc fit grid (`relCutoff`) — CORRECTNESS for GGA, guarded now (`44bebe88`):** GPW uses ONE absolute
+  `densityEcut` grid for both ρ (Hartree) and v_xc, and `GPW_IBS::CreateCD/VxcFitBasisSet` IGNORE `mp.relCutoff`
+  (the CP2K REL_CUTOFF the Hamiltonian derives from the functional's `GridCutoffFactor()`; `PlaneWave_IBS` DOES
+  honor it, building its Vxc grid at `Ecut*relCutoff`). LDA relCutoff==1 so it's exact — but a GGA's ∇ρ wants a
+  DENSER v_xc grid. Fix = build a separate Vxc grid at `densityEcut*relCutoff`, mirroring the PW Vxc line. A
+  guard `assert(relCutoff<=1)` now fires loudly on a GGA-on-GPW attempt instead of silently using the LDA grid.
+- **Multi-grids (efficiency — the plane-wave analog of per-shell exponent scaling; user TODO, even for LDA):**
+  the single uniform `densityEcut` grid is dictated by the TIGHTEST orbital primitive, so a diffuse+tight basis
+  over-resolves the diffuse part everywhere. CP2K maps each primitive to a grid matched to its exponent (gated
+  by REL_CUTOFF). Generate a `{densityEcut}` list by interrogating the orbital-basis exponents; collocate each
+  primitive on its own grid. This is the "×2/×2/3 exponent scaling done in plane waves" (§ the molecular
+  `A1_coul`/`A1_exch` fit bases): density = 4×/absolute cutoff, v_xc = functional-dependent (relCutoff).
 - **Whole-density collocation (efficiency):** the dense `W` tensor is `O(nGfit·nAO²)` storage + `O(nAO²)` FFTs.
   The efficient GPW collocates `ρ = op(r)` ONCE (one FFT), which needs `D` → density-side. CP2K's local-patch
   (multi-grid) collocation is the further v2.
