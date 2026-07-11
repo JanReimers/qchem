@@ -25,21 +25,21 @@ import qchem.AtomCalculation;   // AtomCalculation, AtomCalcOptions, AtomType (t
 
 export namespace qchem
 {
-    //! A valence Gaussian basis to GENERATE for one element under its GTH pseudopotential.  Validation and
-    //! emission are decoupled: the atomic pseudo-atom SCF runs an even-tempered \c validateWindow (applied to
-    //! every occupied valence l) to confirm the exponent RANGE is right for the physically-relevant CHARGE
-    //! STATE (\c electrons: F- 8, neutral F 7, Na 1); the \c shells actually written can be per-l tuned within
-    //! that range.  KEEP EXPONENTS DISJOINT ACROSS l -- the molecular Gaussian94 reader merges same-exponent
-    //! shells (a flagged bug in PG_Cart::IrrepBasisSet), so shared s/p exponents silently drop functions on load.
+    //! A valence Gaussian basis to GENERATE for one element under its GTH pseudopotential.  The \c shells are
+    //! per-l exponent lists (l, exponents): the atomic pseudo-atom SCF is run in EXACTLY these shells to
+    //! validate them (single source of truth -- validate what you emit), then they are emitted verbatim.  The
+    //! atomic solver occupies only the l's the CHARGE STATE fills (\c electrons: F- 8, neutral F 7, Na 1), so
+    //! higher-l polarization shells ride along un-validated (as intended).  KEEP EXPONENTS DISJOINT ACROSS l:
+    //! the molecular Gaussian94 reader merges same-exponent shells (a flagged bug in PG_Cart::IrrepBasisSet),
+    //! so shared s/p exponents silently drop functions on load.
     struct ValenceBasisRecipe
     {
         std::string  element;               //!< element symbol, e.g. "F", "Na"
         int          Zion        = 0;       //!< GTH valence charge (0 => the GTH database default)
         int          electrons   = 0;       //!< valence electrons to occupy when validating (0 => Zion, neutral)
         std::string  functional  = "LDA";   //!< GTH parameter set (the GPW/PP stack is LDA today)
-        std::vector<double> validateWindow; //!< even-tempered window the atom calc runs (all occupied valence l)
-        //! The per-l shells actually EMITTED: (l, exponents), one uncontracted primitive each.  Exponents must
-        //! be DISJOINT across shells (see the class note).  Higher-l polarization shells go here too.
+        //! The per-l shells: (l, exponents), one uncontracted primitive each.  Validated AND emitted verbatim.
+        //! Exponents DISJOINT across shells (see the class note).  Higher-l polarization shells go here too.
         std::vector<std::pair<int,std::vector<double>>> shells;
         std::string  name;                  //!< reserved for future per-recipe naming (file title set at assembly)
     };

@@ -44,12 +44,13 @@ GeneratedBasis GenerateValenceBasis(const ValenceBasisRecipe& r)
     const int nel  = r.electrons > 0 ? r.electrons : Zion;      // neutral pseudo-atom by default
     const int charge = Z - nel;                                 // AtomCalculation: electrons = Z - charge
 
-    // --- validate: run the spherical pseudo-atom SCF in the validation window (LDA XC, GTH q=Zion) ---
+    // --- validate: run the spherical pseudo-atom SCF in EXACTLY these per-l shells (LDA XC, GTH q=Zion).
+    //     The atomic EC occupies only the l's the charge state fills; extra (polarization) l's ride along. ---
     AtomCalcOptions o;
     o.type            = AtomType::Gaussian;
     o.pseudopotential = true;
     o.valence         = Zion;
-    o.exponents       = r.validateWindow;   // "bring your own exponents" (ltrim=0 -> every occupied l gets it)
+    o.exponentsByL    = r.shells;           // per-l independent lists: validate exactly what is emitted
     AtomCalculation atom(Z, charge, o);
 
     // --- emit: the per-l shells as a Gaussian94 ELEMENT BLOCK (` EL 0 <shells> ****`) ---

@@ -1,6 +1,7 @@
 // File::BasisSet/Atom/Factory.C  Factory function for atom basis sets.
-module; 
+module;
 #include <cassert>
+#include <map>
 #include <nlohmann/json.hpp>
 #include <blaze/math/dense/DenseIterator.h> //In order for std::sort to work.
 
@@ -58,7 +59,17 @@ Real_BS* Factory(const nlohmann::json& js,const ElectronConfiguration& aec)
     }
     case Type::Gaussian:
     {
-        if (js.contains("exponents"))
+        if (js.contains("shells"))   // INDEPENDENT per-l exponent lists: [{"l":0,"exponents":[...]},...]
+        {
+            std::map<int,rvec_t> esByL;
+            for (const auto& sh : js["shells"])
+            {
+                auto v=sh["exponents"].template get<std::vector<double>>();
+                esByL[sh["l"].template get<int>()]=rvec_t(v.size(),&v[0]);
+            }
+            bs=new BasisSet_HF<Gaussian::NR_Evaluator>(esByL,aec);
+        }
+        else if (js.contains("exponents"))
         {
             auto es1=js["exponents"].template get<std::vector<double>>();
             size_t ltrim=js["ltrim"].template get<size_t>();

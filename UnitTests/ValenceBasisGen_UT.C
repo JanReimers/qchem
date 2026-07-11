@@ -28,7 +28,6 @@ TEST(ValenceBasisGen, Fluorine_q7)
     r.element        = "F";
     r.Zion           = 7;
     r.electrons      = 8;                                   // F-
-    r.validateWindow = EvenTemperedWindow(8, 0.12, 40.0);
     r.shells         = { {0, EvenTemperedWindow(8, 0.12, 40.0)},
                          {1, EvenTemperedWindow(6, 0.14, 12.0)} };
     GeneratedBasis g = GenerateValenceBasis(r);
@@ -44,7 +43,6 @@ TEST(ValenceBasisGen, Sodium_q1)
     r.element        = "Na";
     r.Zion           = 1;
     r.electrons      = 1;
-    r.validateWindow = EvenTemperedWindow(5, 0.03, 2.0);   // diffuse: the 3s is extended
     r.shells         = { {0, EvenTemperedWindow(5, 0.03, 2.0)},
                          {1, EvenTemperedWindow(2, 0.05, 0.3)} };   // p polarization
     GeneratedBasis g = GenerateValenceBasis(r);
@@ -60,11 +58,9 @@ TEST(ValenceBasisGen, AssembleValenceLowqFile)
 {
     ValenceBasisRecipe f;
     f.element="F"; f.Zion=7; f.electrons=8;
-    f.validateWindow=EvenTemperedWindow(8, 0.12, 40.0);
     f.shells={ {0, EvenTemperedWindow(8, 0.12, 40.0)}, {1, EvenTemperedWindow(6, 0.14, 12.0)} };
     ValenceBasisRecipe na;
     na.element="Na"; na.Zion=1; na.electrons=1;
-    na.validateWindow=EvenTemperedWindow(5, 0.03, 2.0);
     na.shells={ {0, EvenTemperedWindow(5, 0.03, 2.0)}, {1, EvenTemperedWindow(2, 0.05, 0.3)} };
 
     std::vector<std::string> blocks = { GenerateValenceBasis(f).block, GenerateValenceBasis(na).block };

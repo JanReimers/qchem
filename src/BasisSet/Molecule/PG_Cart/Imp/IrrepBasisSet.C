@@ -77,6 +77,14 @@ IrrepBasisSet::IrrepBasisSet(Reader* bsr, const Structure* cl)
                     bool UseNewRF=Max(newLs) > Max(Ls[i]);
                     for (auto l:newLs)
                         if (std::find(Ls[i].begin(),Ls[i].end(),l)!=Ls[i].end()) Ls[i].push_back(l); //Add elements not in common.
+                        // KNOWN BUG (flagged, NOT fixed -- needs a careful pass): this condition is INVERTED (should be
+                        // `==`).  A genuinely-new L is never added, so a same-exponent multi-L shell (s+p sharing one
+                        // even-tempered window, or a shared-exponent density-fit shell) silently drops its higher L.
+                        // Naively flipping it to `==` is correct for the ORBITAL basis (F loads 8s+8p=32 not 8) but
+                        // it changes the DENSITY-FIT bases and DEGRADES Si2 pseudo-atom size-consistency 0.0026->0.024
+                        // Ha (the isolated-atom and molecular fits shift by DIFFERENT amounts) -> the merged-shell fit
+                        // path is non-additive and must be understood before flipping.  The valence generator
+                        // sidesteps this by emitting DISJOINT per-l exponent windows (qchem.ValenceBasisGen).
                     if (UseNewRF) radials[i]=std::move(rf);  // replace lower-Lmax dup: old freed, new owned (no erase/insert/delete)
                     // else: rf is the lower-Lmax duplicate -> freed automatically at scope exit
                     break;                                   // a radial appears at most once in radials (deduped)

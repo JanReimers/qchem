@@ -59,6 +59,10 @@ struct AtomCalcOptions
     //! every irrep gets the full list).  So the SAME exponents that are validated here can be emitted verbatim.
     std::vector<double> exponents;
     size_t              ltrim = 0;
+    //! INDEPENDENT per-l exponent lists (l, exponents) -- highest precedence.  Each occupied angular irrep is
+    //! built from its OWN list verbatim (no auto-trim), so s and p can carry different windows.  The right
+    //! path for pseudopotential valence bases (the ExponentScaler N-4l trim assumes absent core exponents).
+    std::vector<std::pair<int,std::vector<double>>> exponentsByL;
 
     Model  model  = Model::HF;          //!< HF (default) | E1 | DE1/DHF (Dirac) | Xalpha | LDA
     Pol    pol    = Pol::UnPolarized;

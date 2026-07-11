@@ -1,6 +1,8 @@
 // File: BasisSet/Atom/BSpline/NR/BSpline_BS_Evaluator.C BSpline Basis Set for atoms.
 module;
 #include <iostream>
+#include <map>
+#include <cassert>
 export module qchem.BasisSet.Atom.BasisSet;
 export import qchem.BasisSet;
 export import qchem.BasisSet.Orbital_HF_IBS;
@@ -8,6 +10,7 @@ export import qchem.ElectronConfiguration;
 
 import qchem.BasisSet.Fit_IBS;
 import qchem.BasisSet.Atom.Evaluators;
+import qchem.Symmetry.Atom.Spherical;   // Symmetry::Atom::Getl (per-l exponent-list ctor)
 import qchem.BasisSet.Atom.IBS;
 import qchem.BasisSet.Internal.BasisSetImp;
 import qchem.BasisSet.Internal.Orbital_DHF_IBS;
@@ -80,8 +83,20 @@ public:
     BasisSet_HF(const rvec_t& es, const ElectronConfiguration& ec, size_t ltrim=0)
     {
         for (auto ir:ec.GetIrreps())
-            Insert(new EOrbital_HF_IBS(es,ir,ltrim));  
-     
+            Insert(new EOrbital_HF_IBS(es,ir,ltrim));
+
+    }
+    // INDEPENDENT per-l exponent lists: each occupied irrep gets its OWN list \c esByL[l], verbatim (no
+    // ExponentScaler auto-trim -- the trim is wrong for pseudopotential valence work, where the tight core
+    // exponents it assumes are absent).  The caller must supply exponents for every occupied l.
+    BasisSet_HF(const std::map<int,rvec_t>& esByL, const ElectronConfiguration& ec)
+    {
+        for (auto ir:ec.GetIrreps())
+        {
+            auto it=esByL.find(Symmetry::Atom::Getl(ir));
+            assert(it!=esByL.end());   // exponents required for every occupied angular momentum
+            Insert(new EOrbital_HF_IBS(it->second,ir,0));   // ltrim=0: this l's full list
+        }
     }
 };
 
