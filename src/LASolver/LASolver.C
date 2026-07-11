@@ -8,6 +8,13 @@ import qchem.Blaze;
 export namespace qchem
 {
     enum Ortho {Cholesky, Eigen, SVD};
+
+    //! Process-wide diagnostic toggle (default OFF).  When true, every LASolver::SetBasisOverlap emits a
+    //! one-line report of the basis overlap S -- min eigenvalue, min singular value, max eigenvalue, condition
+    //! number -- BEFORE the SCF iterations start, so a near-singular (small min eig) or indefinite (negative
+    //! min eig) overlap is visible without guessing/debugging.  A reference so callers flip it in place:
+    //! `qchem::ReportOverlapConditioning() = true;`.  Works for real and complex S, any ortho method.
+    bool& ReportOverlapConditioning();
 }
 
 //#################################################################################

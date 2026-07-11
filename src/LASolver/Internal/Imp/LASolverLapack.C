@@ -3,10 +3,26 @@ module;
 #include <cassert>
 #include <iostream>
 #include <type_traits>
+#include <cmath>
+#include <algorithm>
 module qchem.LASolver.Internal.Lapack;
 import qchem.Blaze;
 
 namespace qchem {
+
+// One-line conditioning report of the basis overlap S (min/max eigenvalue, min singular value = min|eig| for
+// Hermitian S, condition number), emitted at SetBasisOverlap when the process-wide toggle is on -- so a
+// near-singular (small min eig) or indefinite (negative min eig -> Cholesky then fails) overlap is visible.
+template <class T> static void report_conditioning(const hmat_t<T>& S)
+{
+    if (!ReportOverlapConditioning()) return;
+    rvec_t d; mat_t<T> U;
+    blazem::eigen(S, d, U);                          // ascending eigenvalues of the Hermitian overlap
+    double mn = d[0], mx = d[d.size()-1], msv = std::fabs(d[0]);
+    for (double v : d) msv = std::min(msv, std::fabs(v));
+    std::cout << "[overlap S] n=" << S.rows() << "  min eig=" << mn << "  min sv=" << msv
+              << "  max eig=" << mx << "  cond=" << (msv > 0 ? mx/msv : 0.0) << std::endl;
+}
 
 //-----------------------------------------------------------------------------
 //  Internal helpers — not exported.  Template on V/Vd types so Blaze can use
@@ -59,6 +75,7 @@ transform_impl(const hmat_t<T>& M, const Vd_t& Vd, const V_t& V)
 
 template <class T> void LASolverEigen<T>::SetBasisOverlap(const hmat_t<T>& S)
 {
+    report_conditioning<T>(S);
     rvec_t d; mat_t<T> U;
     blazem::eigen(S, d, U);
     Truncate(U, d, itsTruncationTolerance);
@@ -126,6 +143,7 @@ template <class T> void LASolverEigen<T>::Truncate(mat_t<T>& U, rvec_t& w, doubl
 
 template <class T> void LASolverSVD<T>::SetBasisOverlap(const hmat_t<T>& S)
 {
+    report_conditioning<T>(S);
     rvec_t s; mat_t<T> U, Vt;
     blazem::svd(S, U, s, Vt);
     Truncate(U, s, Vt, itsTruncationTolerance);
@@ -197,6 +215,7 @@ template <class T> void LASolverSVD<T>::Truncate(mat_t<T>& U, rvec_t& s, mat_t<T
 
 template <class T> void LASolverCholesky<T>::SetBasisOverlap(const hmat_t<T>& S)
 {
+    report_conditioning<T>(S);   // reported BEFORE potrf -- an indefinite S (min eig<0) is why Cholesky then fails
     mat_t<T> Sm(S);
     blazem::potrf(Sm, 'U');
     // Cholesky diagonal is always real; extract accordingly.

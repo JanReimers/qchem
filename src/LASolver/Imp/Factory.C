@@ -9,6 +9,8 @@ using qchem::LASolverEigen;
 using qchem::LASolverSVD;
 using qchem::LASolverCholesky;
 
+bool& qchem::ReportOverlapConditioning() { static bool on = false; return on; }
+
 template <class T> LASolver<T>* LASolver<T>::
     Factory(qchem::Ortho ortho, double TruncationTolerance)
 {
