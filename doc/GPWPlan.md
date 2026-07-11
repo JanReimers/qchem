@@ -313,6 +313,50 @@ is an *efficiency* layer, not a correctness requirement — hence it comes AFTER
 
 ---
 
+# OPEN INVESTIGATION (2026-07-11): why is the truncated Bloch overlap S indefinite? (for the next session)
+User's intuition (from the earlier Si session): S(k) should be PSD for **any** Rcut, and in Si an
+indefinite-overlap symptom was traced to a BUG — a separable-KB projector on a **corner atom** (τ=0) whose
+image/tail "outside the unit cell" was dropped; after fixing it, S was PSD at any Rcut. Asked to look for the
+same bug in the NaF path. **Findings so far (uncommitted, my analysis — cross-check against that old session):**
+
+- **New diagnostic makes this cheap:** `qchem::ReportOverlapConditioning()` (LASolver, opt-in) prints min
+  eig / min sv / cond of S at `SetBasisOverlap`; `GPW_SCF.DISABLED_NaFOverlapConditioningSweep` builds ONLY
+  the analytic Bloch overlap (no SCF) across Rcut in ~0.2 s. NaF full basis: min eig **−0.42** at Rcut=a,
+  −0.60 at 1.5a, −0.11 at 2a; SR basis: −0.035 / −0.046 / **+7.5e-4 (PSD)** at 2a.
+- **Image enumeration is CLEAN — no obvious corner-atom drop bug in the OVERLAP.** `BuildImages` uses
+  `UnitCell::CellsInSphere(Rcut)` = a symmetric (`n`&`−n`), COMPLETE origin-centred sphere on `|R|≤Rcut`, with
+  NO cell-membership filtering. S is Hermitian (real eigenvalues at Γ). So the overlap does not drop
+  images-outside-the-cell the way the Si KB projector did.
+- **The KB corner-atom bug WAS real but is a DIFFERENT term, already fixed (`95e8f4a8`):** `MakeSeparablePP`
+  used the raw home orbital as the projector bra, losing the corner atom's wrapped tail (16 Ha
+  translation-variance). Fixed by using the Bloch-summed orbital. That fix does NOT touch the overlap's PSD-ness.
+- **The real reason S is indefinite = the analytic SINGLE lattice sum is a Dirichlet-windowed autocorrelation.**
+  GPW builds `S_ij(k)=Σ_{|R|≤Rcut} e^{ik·R}⟨χ_i⁰|χ_j^R⟩` (bra home, ket imaged). The FULL sum (Rcut→∞) is the
+  Gram matrix of Bloch orbitals ⇒ PSD; a SHARP `|R|≤Rcut` cutoff is the rectangular-window (Dirichlet) partial
+  sum of that autocorrelation ⇒ **can go negative** (Gibbs), and does so once the dropped tail exceeds the
+  basis' smallest eigenvalue — hence worse for the diffuse (ill-conditioned) full basis, cured by SR + Rcut=2a.
+  This matches the code's own note ("a truncated single sum can be indefinite; a generous Rcut is the fix") and
+  the Si record (PSD only at Rcut≥3a). So for the single-sum scheme, "PSD at any Rcut" does NOT hold in general.
+- **Corner-atom RESONANCE that's worth a second look:** the image sphere is centred on the LATTICE ORIGIN and
+  the SAME set is used for every atom pair, but the physical decay of `⟨χ_i⁰|χ_j^R⟩` is centred on the pair
+  SEPARATION `τ_j−τ_i+R`. For the DIAGONAL blocks (τ_i=τ_j) the cutoff is atom-centred (symmetric); for
+  OFF-DIAGONAL blocks of an offset atom (F at ¼¼¼ vs Na at the corner 0) the origin-centred `|R|` cutoff
+  truncates the pair tail asymmetrically → plausibly worsens the indefiniteness for multi-atom cells. A
+  **pair-separation-centred** cutoff (include images where the pair overlap is actually significant, per pair)
+  would be the more symmetric truncation and is the closest thing to a "corner atom handled specially" fix.
+- **The rigorous "PSD for ANY Rcut" route = the Fejér/Gram scheme (plan's "scheme B", done consistently).**
+  Build S as the Gram of the TRUNCATED Bloch orbitals `⟨φ_i^k|φ_j^k⟩`, `φ_i^k=Σ_{R∈Rs}e^{ik·R}χ_i^R` — a
+  double lattice sum whose image terms carry Fejér (triangular) weights `c(ΔR)=|Rs∩(Rs+ΔR)|` ⇒ PSD by
+  construction, any Rcut. The plan rejected this ONLY because a scheme-B overlap was mixed with a scheme-A
+  single-sum kinetic (Ekin=−300); doing ALL 1E matrices (S, ⟨p²⟩, V) in the SAME tapered Gram scheme is
+  self-consistent and PSD, at the cost of a tapered (approaches-exact-as-Rcut→∞) metric and O(images²) work.
+- **Recommendation:** short term, SR + Rcut=2a (done, works). If "PSD at any Rcut" is wanted, evaluate the
+  consistent Fejér/Gram 1E scheme (or the pair-centred cutoff as a cheaper partial fix). Cross-check the
+  corner-atom claim against the old Si session — if that fix was in `CellsInSphere`/the overlap (not the KB
+  projector), I may have missed it; the fast sweep test makes any hypothesis a 0.2 s check.
+
+---
+
 # Durable pins / invariants (carry into all GPW work)
 - **PP-smoothness is GPW's enabler; GAPW is out of scope (first pass).** All-electron cores are too sharp;
   validate with a well-conditioned GTH valence basis, never all-electron.
