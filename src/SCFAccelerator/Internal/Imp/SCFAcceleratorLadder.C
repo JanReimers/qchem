@@ -1,4 +1,4 @@
-// File: SCFAcceleratorLadder.C  Implementation of the chained SCF accelerator.
+// File: SCFAcceleratorLadder.C  Implementation of the chained SCF accelerator (templated on T).
 module;
 #include <iostream>
 #include <memory>
@@ -13,27 +13,27 @@ using std::endl;
 
 // Both ladders own their rungs through unique_ptr, so no explicit destructors are needed.
 
-void SCFIrrepAcceleratorLadder::UseFD(const smat_t<double>& F, const smat_t<double>& DPrime)
+template <class T> void tSCFIrrepAcceleratorLadder<T>::UseFD(const hmat_t<T>& F, const hmat_t<T>& DPrime)
 {
     // Feed every rung so whichever becomes active next already has the current F.
     for (auto& r:itsRungs) r->UseFD(F,DPrime);
 }
-LASolver<double>::UUd_t SCFIrrepAcceleratorLadder::NextOrbitals()
+template <class T> typename LASolver<T>::UUd_t tSCFIrrepAcceleratorLadder<T>::NextOrbitals()
 {
     return Active()->NextOrbitals();
 }
 
 //----------------------------------------------------------------------------------------
-SCFIrrepAccelerator* SCFAcceleratorLadder::Create(const LASolver<double>* las,const Irrep& qns,int occ)
+template <class T> tSCFIrrepAccelerator<T>* tSCFAcceleratorLadder<T>::Create(const LASolver<T>* las,const Irrep& qns,int occ)
 {
-    std::vector<std::unique_ptr<SCFIrrepAccelerator>> rungs;
+    std::vector<std::unique_ptr<tSCFIrrepAccelerator<T>>> rungs;
     for (auto& r:itsRungs) rungs.emplace_back(r->Create(las,qns,occ));
-    return new SCFIrrepAcceleratorLadder(std::move(rungs), &itsActive);
+    return new tSCFIrrepAcceleratorLadder<T>(std::move(rungs), &itsActive);
 }
 
-void SCFAcceleratorLadder::SetEnergy(double E) { itsPrevE=itsLastE; itsLastE=E; }
+template <class T> void tSCFAcceleratorLadder<T>::SetEnergy(double E) { itsPrevE=itsLastE; itsLastE=E; }
 
-bool SCFAcceleratorLadder::CalculateProjections()
+template <class T> bool tSCFAcceleratorLadder<T>::CalculateProjections()
 {
     bool ok = Active()->CalculateProjections();
 
@@ -66,10 +66,15 @@ bool SCFAcceleratorLadder::CalculateProjections()
 }
 
 // The ladder runs the direct-min loop exactly when its active rung is a direct minimizer.
-bool SCFAcceleratorLadder::WantsLineSearch() const { return Active()->WantsLineSearch(); }
+template <class T> bool tSCFAcceleratorLadder<T>::WantsLineSearch() const { return Active()->WantsLineSearch(); }
 
-double SCFAcceleratorLadder::GetError() const { return Active()->GetError(); }
-void   SCFAcceleratorLadder::ShowLabels(std::ostream& os)      const { Active()->ShowLabels(os); }
-void   SCFAcceleratorLadder::ShowConvergence(std::ostream& os) const { Active()->ShowConvergence(os); }
+template <class T> double tSCFAcceleratorLadder<T>::GetError() const { return Active()->GetError(); }
+template <class T> void   tSCFAcceleratorLadder<T>::ShowLabels(std::ostream& os)      const { Active()->ShowLabels(os); }
+template <class T> void   tSCFAcceleratorLadder<T>::ShowConvergence(std::ostream& os) const { Active()->ShowConvergence(os); }
+
+template class tSCFIrrepAcceleratorLadder<double>;
+template class tSCFIrrepAcceleratorLadder<dcmplx>;
+template class tSCFAcceleratorLadder<double>;
+template class tSCFAcceleratorLadder<dcmplx>;
 
 } //namespace

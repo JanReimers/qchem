@@ -6,6 +6,10 @@
 // diagonalizes on its first step).  Hand-off is hot because the NextOrbitals() interface
 // makes every rung an interchangeable orbital producer.
 //
+// TEMPLATED on T (double | dcmplx): the ladder is pure delegation, so it templates trivially;
+// the complex instantiation chains cSCFAcceleratorDIIS -> cSCFAcceleratorGDM for a plane-wave /
+// GPW SCF (DIIS heavy-lifts, GDM polishes the tail once DIIS limit-cycles).
+//
 //==========================================================================================
 // WHEN TO HAND OFF -- design notes (atoms; revisit for molecules/solids/post-HF)
 //==========================================================================================
@@ -55,30 +59,30 @@ export namespace qchem::SCFAccelerators
 {
 
 // Per-irrep: one rung accelerator per ladder rung; delegates to the active one.
-class SCFIrrepAcceleratorLadder : public virtual SCFIrrepAccelerator
+template <class T> class tSCFIrrepAcceleratorLadder : public virtual tSCFIrrepAccelerator<T>
 {
 public:
-    SCFIrrepAcceleratorLadder(std::vector<std::unique_ptr<SCFIrrepAccelerator>> rungs, const size_t* active)
+    tSCFIrrepAcceleratorLadder(std::vector<std::unique_ptr<tSCFIrrepAccelerator<T>>> rungs, const size_t* active)
         : itsRungs(std::move(rungs)), itsActiveIdx(active) {}
-    virtual void UseFD(const smat_t<double>& F, const smat_t<double>& DPrime);
-    virtual LASolver<double>::UUd_t NextOrbitals();
+    virtual void UseFD(const hmat_t<T>& F, const hmat_t<T>& DPrime);
+    virtual typename LASolver<T>::UUd_t NextOrbitals();
     // Delegate the direct-min line-search hooks to the active rung (so a GDM rung's geodesic
     // step is reachable once the ladder hands off to it).
     virtual bool ComputeStep() { return Active()->ComputeStep(); }
-    virtual LASolver<double>::UUd_t OrbitalsAt(double t, bool commit) { return Active()->OrbitalsAt(t,commit); }
+    virtual typename LASolver<T>::UUd_t OrbitalsAt(double t, bool commit) { return Active()->OrbitalsAt(t,commit); }
 private:
     // itsActiveIdx is a non-owning pointer to the top-level ladder's index member, so every
     // per-irrep ladder follows the parent's hand-offs without its own copy.  Active() reads
     // that shared index and returns the live rung, bounds-checked.
-    SCFIrrepAccelerator* Active() const
+    tSCFIrrepAccelerator<T>* Active() const
         { assert(itsActiveIdx && *itsActiveIdx<itsRungs.size()); return itsRungs[*itsActiveIdx].get(); }
 
-    std::vector<std::unique_ptr<SCFIrrepAccelerator>> itsRungs;
-    const size_t*                                     itsActiveIdx; //shared with the top-level ladder
+    std::vector<std::unique_ptr<tSCFIrrepAccelerator<T>>> itsRungs;
+    const size_t*                                         itsActiveIdx; //shared with the top-level ladder
 };
 
 // Top-level: chain {DIIS, GDM, ...}.  Switch when the active rung is Exhausted() and stalled.
-class SCFAcceleratorLadder : public virtual SCFAccelerator
+template <class T> class tSCFAcceleratorLadder : public virtual tSCFAccelerator<T>
 {
 public:
     // Two distinct hand-off triggers (see the design notes above):
@@ -89,11 +93,11 @@ public:
     //             convergence): hand off to the next rung to POLISH the tail.  This is the
     //             slot for a direct minimizer (GDM owns the loop), which is fast and robust
     //             near the minimum but useless far from it.  switchat<=0 disables this.
-    SCFAcceleratorLadder(std::vector<std::unique_ptr<SCFAccelerator>> rungs,
-                         double ethresh=1e-8, int stall=5, double floor=1e-8, double switchat=0.0)
+    tSCFAcceleratorLadder(std::vector<std::unique_ptr<tSCFAccelerator<T>>> rungs,
+                          double ethresh=1e-8, int stall=5, double floor=1e-8, double switchat=0.0)
         : itsRungs(std::move(rungs)), itsEThresh(ethresh), itsStall(stall),
           itsFloor(floor), itsSwitchAt(switchat) {}
-    virtual SCFIrrepAccelerator* Create(const LASolver<double>*,const Irrep&, int occ);
+    virtual tSCFIrrepAccelerator<T>* Create(const LASolver<T>*,const Irrep&, int occ);
     virtual bool   CalculateProjections();
     virtual void   ShowLabels     (std::ostream&) const;
     virtual void   ShowConvergence(std::ostream&) const;
@@ -101,10 +105,10 @@ public:
     virtual void   SetEnergy(double E);
     virtual bool   WantsLineSearch() const; //true once the active rung is a direct minimizer
 private:
-    SCFAccelerator* Active() const //the live rung, bounds-checked
+    tSCFAccelerator<T>* Active() const //the live rung, bounds-checked
         { assert(itsActive<itsRungs.size()); return itsRungs[itsActive].get(); }
 
-    std::vector<std::unique_ptr<SCFAccelerator>> itsRungs;
+    std::vector<std::unique_ptr<tSCFAccelerator<T>>> itsRungs;
     double                       itsEThresh; //hand off only while |dE/E| exceeds this
     int                          itsStall;
     double                       itsFloor;
@@ -114,5 +118,8 @@ private:
     int                          itsNoImprove=0;   //consecutive steps without beating itsBestErr
     double                       itsLastE=0.0, itsPrevE=0.0; //last two reported total energies
 };
+
+using SCFIrrepAcceleratorLadder  = tSCFIrrepAcceleratorLadder<double>;  using cSCFIrrepAcceleratorLadder = tSCFIrrepAcceleratorLadder<dcmplx>;
+using SCFAcceleratorLadder       = tSCFAcceleratorLadder<double>;       using cSCFAcceleratorLadder      = tSCFAcceleratorLadder<dcmplx>;
 
 } //namespace
