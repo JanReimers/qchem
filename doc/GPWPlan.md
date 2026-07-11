@@ -350,10 +350,24 @@ same bug in the NaF path. **Findings so far (uncommitted, my analysis — cross-
   construction, any Rcut. The plan rejected this ONLY because a scheme-B overlap was mixed with a scheme-A
   single-sum kinetic (Ekin=−300); doing ALL 1E matrices (S, ⟨p²⟩, V) in the SAME tapered Gram scheme is
   self-consistent and PSD, at the cost of a tapered (approaches-exact-as-Rcut→∞) metric and O(images²) work.
-- **Recommendation:** short term, SR + Rcut=2a (done, works). If "PSD at any Rcut" is wanted, evaluate the
-  consistent Fejér/Gram 1E scheme (or the pair-centred cutoff as a cheaper partial fix). Cross-check the
-  corner-atom claim against the old Si session — if that fix was in `CellsInSphere`/the overlap (not the KB
-  projector), I may have missed it; the fast sweep test makes any hypothesis a 0.2 s check.
+- **RESOLUTION (user insight): CP2K is fast AND PSD with "no truncation" because it screens by MAGNITUDE, not
+  geometry.** CP2K's neighbour lists (`EPS_PGF_ORB`/`EPS_DEFAULT`) include an image pair `(i,j,R)` only if the
+  Gaussian product `⟨χ_i⁰|χ_j^R⟩` is non-negligible — a PER-PAIR, PER-FUNCTION adaptive reach: a diffuse
+  Gaussian reaches far (until its tail < eps), a tight one reaches ~nothing. This is (a) FAST (sparse — cost
+  scales with real overlaps, not `Rcut³`), and (b) PSD at any Rcut (drops only sub-threshold terms, so the
+  error stays below `λ_min(S)` → S ≈ the exact complete-Bloch PSD overlap; a *significant* tail is never
+  dropped). **Our `|R|≤Rcut` sphere is wrong on BOTH axes:** it drags tight functions out to 2a for nothing
+  (slow) AND chops diffuse tails while still significant (indefinite). SR helped because it's a crude manual
+  version of magnitude screening (removes the diffuse tails by hand).
+- **THE FIX (do this next): replace the fixed geometric `Rcut` with per-(i,j,R) magnitude screening** — include
+  an image term only if `|⟨χ_i⁰|χ_j^R⟩| > eps` (or size each Gaussian's reach from its exponent + eps, the
+  CP2K `EPS_PGF_ORB` way). Then diffuse functions get their needed reach (PSD, any effective Rcut) and tight
+  functions cost nothing (fast) — CP2K's trick, and it removes the SR crutch. `BuildImages`
+  (`GPW/Imp/Evaluator.C`) currently uses `UnitCell::CellsInSphere(Rcut)`; the screen belongs in
+  `Molecule::LatticeSum1E` (which knows the actual pair integrals) or as a per-shell reach handed to it.
+- **Short term (done, works):** SR + Rcut=2a. The Fejér/Gram scheme is an alternative but magnitude screening
+  is what CP2K proves out. Cross-check the corner-atom claim against the old Si session if useful; the 0.2 s
+  sweep makes any hypothesis a trivial check.
 
 ---
 
