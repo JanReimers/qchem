@@ -1,0 +1,46 @@
+Low-q GTH-pseudopotential valence basis, SHORT-RANGE -- valence_lowq with the most diffuse primitive dropped
+from each shell (F s 0.12 + p 0.14; Na s 0.03), so the Bloch-summed overlap stays positive-definite in a
+solid at a modest Rcut (the SIPP->SIPP_SR lesson: ill-conditioning is a BASIS problem).  For GPW crystals.
+
+!
+BASIS="Low-q GTH-pseudopotential valence basis SR (generated, diffuse-trimmed)"
+ F   0
+ S   1  1.00
+            0.27516456        1.00000000
+ S   1  1.00
+            0.63096278        1.00000000
+ S   1  1.00
+            1.44682163        1.00000000
+ S   1  1.00
+            3.31761697        1.00000000
+ S   1  1.00
+            7.60742173        1.00000000
+ S   1  1.00
+           17.44410700        1.00000000
+ S   1  1.00
+           40.00000000        1.00000000
+ P   1  1.00
+            0.34098767        1.00000000
+ P   1  1.00
+            0.83051852        1.00000000
+ P   1  1.00
+            2.02283268        1.00000000
+ P   1  1.00
+            4.92686434        1.00000000
+ P   1  1.00
+           12.00000000        1.00000000
+ ****
+ NA   0
+ S   1  1.00
+            0.08572321        1.00000000
+ S   1  1.00
+            0.24494897        1.00000000
+ S   1  1.00
+            0.69992710        1.00000000
+ S   1  1.00
+            2.00000000        1.00000000
+ P   1  1.00
+            0.05000000        1.00000000
+ P   1  1.00
+            0.30000000        1.00000000
+ ****

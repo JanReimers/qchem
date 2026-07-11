@@ -371,3 +371,36 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
               << " Enn="<<E.Enn<<" Ealign="<<E.Ealign<<")" << std::endl;
     EXPECT_NEAR(charge, 8.0, 1e-6);     // 1 (Na) + 7 (F) valence electrons, conserved
 }
+
+// (4b) FAST overlap-conditioning sweep for NaF: build ONLY the analytic Bloch overlap S(Gamma) (via GPW_IBS,
+// densityEcut=0 -> no collocation, no SCF) for the full vs SR valence basis across Rcut, and report min/max
+// eig(S).  The truncated Bloch overlap goes INDEFINITE (min eig<0) at small Rcut (full basis: min eig=-0.42
+// at Rcut=a -> Cholesky fails); dropping the most diffuse primitives (SR) should push the PSD threshold to a
+// smaller, cheaper Rcut.  Seconds per point (analytic 1E sum), so we find a working Rcut before paying for a
+// full SCF.  Uses the qchem::ReportOverlapConditioning machinery's metric directly.
+TEST(GPW_SCF, DISABLED_NaFOverlapConditioningSweep)
+{
+    namespace L3=BasisSet::Lattice_3D;
+    const double a=8.73;
+    FCCUnitCell cell(a);
+    cell.AddAtom(11, {0,0,0});          // Na
+    cell.AddAtom(9,  {0.5,0.5,0.5});    // F
+
+    auto probe=[&](BasisSetData bd, const char* name)
+    {
+        auto mol = std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(
+            bd, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
+        for (double rc : {0.0, a, 1.5*a, 2.0*a})
+        {
+            L3::GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/0.0, /*Rcut*/rc);
+            const BasisSet::Complex_OIBS& g = gpw;
+            auto S = g.Overlap();
+            rvec_t d; mat_t<dcmplx> U; blazem::eigen(S, d, U);   // ascending eigenvalues of Hermitian S
+            std::cout << "[cond " << name << "] n=" << S.rows() << " Rcut=" << rc/a << "a"
+                      << "  min eig=" << d[0] << "  max eig=" << d[d.size()-1]
+                      << (d[0] > 0 ? "  (PSD)" : "  (INDEFINITE)") << std::endl;
+        }
+    };
+    probe(BasisSetData::VALENCE_LOWQ,    "full");
+    probe(BasisSetData::VALENCE_LOWQ_SR, "SR  ");
+}
