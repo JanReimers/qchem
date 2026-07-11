@@ -116,7 +116,7 @@ shift=½ = CP2K's `k=±¼`). `GPW_BasisSet` recovers the integer index as `lroun
 `lround(k·N)` is wrong for shift=½). 186/186 green; Γ-centred anchors unchanged. **But running the shifted
 mesh exposed two complex-Bloch-phase bugs — now FIXED, see next.**
 
-## Complex-k GPW FIXED — CP2K default shifted 2×2×2 matches −7.86744 (was TODO 1) (2026-07-10, uncommitted)
+## Complex-k GPW FIXED — CP2K default shifted 2×2×2 matches −7.86744 (was TODO 1) (`745d03ff`)
 The shifted mesh (k at ±¼) is the **first genuinely-COMPLEX Bloch phase** (`e^{ik·R} ≠ ±1`), so D and every
 k-block matrix are genuinely complex. It over-bound (single k=¼ block: Een → −18.9, Etot → −15.2, no
 convergence). The plan's own localization was **WRONG** — it blamed the shared framework complex-D path
@@ -158,6 +158,23 @@ Remaining: (1) low-q multi-species bases → Si/NaF/CsI cross-validation (the ac
 reference library (the oracle for §1); (3) IBZ; (4) cleanups.
 
 ## 1. Low-q multi-species bases → Si/NaF/CsI cross-validation (PW + GPW + CP2K) — THE NEXT WORK
+
+**PROGRESS (2026-07-11): a valence-basis GENERATOR, not hand-rolled files.** `qchem.ValenceBasisGen`
+(`src/Calculation/ValenceBasisGen.C`) generates a low-q valence Gaussian basis straight from an **atomic
+pseudo-atom SCF**: `GenerateValenceBasis(recipe)` runs the spherical solver (correct l-occupation, no molecular
+open-shell degeneracy) in a candidate even-tempered window to VALIDATE it, then emits the per-l shells as a
+Gaussian94 element block; `AssembleBasisFile` combines blocks into one file. Enabled by `AtomCalcOptions.exponents`
+(the "bring your own exponents" atom path). Output so far: **`BasisSetData/valence_lowq.bsd`** (organised by TYPE,
+all elements in one file, per the BasisSetData convention) with **F** (F⁻ window, 8s+6p, E=−21.10) and **Na**
+(neutral 3s¹, 5s+2p, E=−0.144). Wired as `BasisSetData::VALENCE_LOWQ` / `"valence_lowq"`. Tests: `UnitTests/
+ValenceBasisGen_UT.C` (energies + round-trip load). KEY LESSONS: (a) canned bases are F⁻-optimised → don't copy;
+the atom calc is the generator/validator. (b) Validate against the physically-relevant CHARGE STATE (F⁻ for NaF).
+(c) Oracle GS-energy matching is the WRONG objective (user) — N≈8 windows, move on; refine later from a NaF-GPW
+**orbital-coefficient heat-map**. (d) Keep per-l exponents DISJOINT: the molecular Gaussian94 reader has a
+flagged inverted-condition bug (`PG_Cart/Imp/IrrepBasisSet.C`) that drops a shared-exponent p shell; fixing it
+shifts every density-fit DFT anchor 10–70 mHa → its own re-pin task. NEXT: Cs/I blocks; then multi-species GPW
+NaF/CsI (thread the species→q map through `RunGPW`/`GPWFactory`; `Ham_PW_DFT` multi-species ctor already exists).
+
 Hand-roll SIPP-style **low-q valence Gaussian bases** for Na/F/Cs/I so GPW (and CP2K) can run NaF + CsI, then
 triangulate our two codes against CP2K on Si/NaF/CsI. Unblocks **multi-species GPW** (the battery-oxide path,
 [[project_battery_voltage_goal]]) and yields the CP2K runtimes. The CP2K reference library (§2) is the oracle.
@@ -324,7 +341,8 @@ Symmorphic space groups → BZ reduction (irreducible wedge) → SALC with plane
   **`02027faf`** (charge probe), **`a4c94ec5`** (bulk over-binding root-cause + diagnostics),
   **`95e8f4a8`** (BULK FIX: KB Bloch-orbital bra + PhiOnGrid cache + test cleanup),
   **`335df0da`** (CP2K grid-matched table), **`5fe61aeb`** (multi-k validated vs CP2K same-mesh),
-  **`1980d6ef`** (shifted-MP support + the complex-D bug diagnostic).
+  **`1980d6ef`** (shifted-MP support + the complex-D bug diagnostic),
+  **`745d03ff`** (complex-k fix: ket-conj density weight + conj KB projector phase + charge trace; shifted 2×2×2 == CP2K −7.86744).
 - Tests: `UnitTests/GPW_UT.C` (1E + Bloch invariants), `UnitTests/GPW_SCF_UT.C` (SCF anchors + gates:
   `DISABLED_TermTranslationInvariance`, `DISABLED_SR_GammaRcut2a_CP2KReference`,
   `DISABLED_SR_2x2x2GammaCentred_vs_CP2K`, `DISABLED_SR_2x2x2ShiftedMP_vs_CP2K` [the TODO-1 complex-D probe]),

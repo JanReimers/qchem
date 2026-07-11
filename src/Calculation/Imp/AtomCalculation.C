@@ -36,6 +36,10 @@ static BasisSet::Real_BS* BuildBasis(const AtomCalcOptions& opts, int Z, const E
     // Explicit pool: build from the EC (which fixes the angular irreps), NOT the nuclear Z -- the
     // Factory(json,Z) overload treats Z as an electron count, so for an ion that would over-populate the
     // angular irreps (e.g. a 1-electron hydrogenic ion would gain p/d shells).
+    // Explicit exponent list ("bring your own exponents") -- highest precedence, the generator's path.
+    if (!opts.exponents.empty())
+        return BasisSet::Atom::Factory(nlohmann::json{{"type", opts.type},
+                                                      {"exponents", opts.exponents}, {"ltrim", opts.ltrim}}, ec);
     if (opts.N > 0)
         return BasisSet::Atom::Factory(nlohmann::json{{"type", opts.type}, {"N", opts.N},
                                                       {"emin", opts.emin}, {"emax", opts.emax}}, ec);

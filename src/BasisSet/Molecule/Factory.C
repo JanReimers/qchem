@@ -31,7 +31,11 @@ export namespace qchem::BasisSet::Molecule
     // (SIPP = ad-hoc Si/O valence set used only by the pseudopotential regression tests in A_PP.
     //  SIPP_SR = the same, most-diffuse primitives dropped, so the periodic Bloch overlap stays
     //  well-conditioned in a solid -- for GPW bulk crystals; see BasisSetData/sipp_sr.bsd.)
-    enum class BasisSetData { DZVP, DZVP2, TZVP, ORB, ORB1, SIPP, SIPP_SR };
+    //  VALENCE_LOWQ = the low-q GTH-pseudopotential valence basis GENERATED from atomic pseudo-atom SCFs
+    //  (qchem.ValenceBasisGen); organised by TYPE (one file, all elements) for GPW multi-species work
+    //  (NaF/CsI, doc/GPWPlan.md sec 1).  Grows one element block at a time; Low/Medium/High + SZ/DZ/TZ
+    //  variants will be sibling files.
+    enum class BasisSetData { DZVP, DZVP2, TZVP, ORB, ORB1, SIPP, SIPP_SR, VALENCE_LOWQ };
 
     // Axis 2 -- the integral engine (orthogonal to the data set and the angular representation).
     enum class Engine { MnD, LibCint };

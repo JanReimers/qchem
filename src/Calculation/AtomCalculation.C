@@ -53,6 +53,12 @@ struct AtomCalcOptions
     int    N    = 0;
     double emin = 0.0;
     double emax = 0.0;
+    //! Explicit exponent LIST -- the "bring your own exponents" path (used by the valence-basis generator).
+    //! When non-empty it overrides N/emin/emax and the accuracy preset: every occupied angular irrep is built
+    //! from these exponents, trimmed per-l by \c ltrim ((3-l)*ltrim smallest + l*ltrim largest dropped; 0 =
+    //! every irrep gets the full list).  So the SAME exponents that are validated here can be emitted verbatim.
+    std::vector<double> exponents;
+    size_t              ltrim = 0;
 
     Model  model  = Model::HF;          //!< HF (default) | E1 | DE1/DHF (Dirac) | Xalpha | LDA
     Pol    pol    = Pol::UnPolarized;
