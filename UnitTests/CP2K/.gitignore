@@ -1,0 +1,8 @@
+# CP2K run artifacts -- regenerated on every run.  The INPUTS (*.inp, the BASIS files, README.md) are tracked.
+*.out
+*.wfn
+*.wfn.bak-*
+*.ener
+*-RESTART.*
+*.restart
+*.restart.bak-*
