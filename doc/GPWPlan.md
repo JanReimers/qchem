@@ -157,6 +157,69 @@ Bulk energy (Γ), Γ-centred multi-k dispersion, AND the CP2K-default shifted-MP
 Remaining: (1) low-q multi-species bases → Si/NaF/CsI cross-validation (the active NEXT work); (2) the CP2K
 reference library (the oracle for §1); (3) IBZ; (4) cleanups.
 
+## 0. NEXT SESSION — NaF convergence campaign (PRIMED 2026-07-11)
+A long diagnostic session got GPW NaF to first light (charge 8) but neither our GPW nor CP2K CONVERGES
+cleanly on the low-q valence_lowq basis. The picture below is the reprioritised, corrected understanding to
+start from (several of this session's early claims were wrong and are struck through — see the corrections).
+
+**Reprioritised diagnosis (what's actually going on):**
+- **Overlap conditioning ≈ RED HERRING.** min eig(S)=7.5e-4 (SR/Rcut=2a) orthogonalises trivially: min eig =
+  min sv for Hermitian PSD; the √ shows up only on the orthogonaliser `V=S^-1/2` (`cond(V)=√cond(S)`, amplifies
+  ≤ 1/√min_eig ≈ 36×). You'd need min eig ~1e-16 to matter. Confirm with the residual `‖V·S·Vᵀ − I‖`. A
+  slightly-more-SR basis is cheap insurance, not the fix. (Earlier "near-singular metric → instability" and
+  "unoccupied → redundant → instability" were BOTH wrong — user corrections.)
+- **Our density "fit" basis IS PLANE WAVES** (`GPW_IBS.C:41` `PlaneWaveFit_IBS`), the SAME family as CP2K
+  (whose "no fit" is really a hidden PW/grid fit). So we are NOT in a different regime from CP2K — the Hartree
+  (W-tensor `FT[χ_iχ_j]` × `4π/G²`) is exact given the grid; XC is grid quadrature. **Any residual
+  non-variationality is PROCEDURAL** (the `FittedVee`/`FittedVxc` projection/consistency), not the basis. And
+  the DIIS≠GDM "proof" of non-variationality was WEAK (both runs hit the 60-iter cap → not two minima, two
+  unfinished trajectories). **⇒ whole-density collocation (ditch the `Fitted*` wrappers, collocate ρ directly
+  on the grid) should reproduce CP2K under the hood.** This is the deep fix.
+- **SCF instability = ionic charge-transfer oscillation, NOT conditioning.** NaF wants Na⁺F⁻ but the test
+  seeds `SeedStrategy::Uniform` (line 365) — the SCF must move a whole electron Na→F from a flat start →
+  oscillation that mixing-factor throttling can't damp (user saw: reduced DIIS EMax, throttled relax, no
+  success). The relax auto-tune KEYS OFF [F,D] (`SCFIterator.C:207-216`), an unreliable signal here, so it
+  misfires. `IonicSAD` is NOT a ready fix: documented "Phase 3, not implemented" and the dcmplx/GPW path falls
+  back to Uniform (`Seed.C:29-31`); even in PW it's WORSE for NaF (crude too-compact ionic ρ → high-G noise,
+  `PlaneWaveDFTUT.C:1473`). Real fixes: a properly-DIFFUSE ionic seed (real F⁻ is diffuse), Kerker/preconditioned
+  mixing (damps charge sloshing — linear mixing amplifies it), electronic smearing, or the variational-energy +
+  direct-min path once collocation lands.
+
+**Get CP2K converging (the oracle — `UnitTests/CP2K/naf_gpw.inp`, currently diverges to +400 Ha under OT):**
+1. **Isolate the variable:** single Na q1 atom-in-box, then F, then NaF. Atoms converge but NaF doesn't ⇒ the
+   ionic charge transfer, not the basis/PP.
+2. **Kill the overshoot:** `MINIMIZER CG` (OT-CG doesn't extrapolate → no +400).
+3. **Robust preconditioner:** `PRECONDITIONER FULL_ALL`.
+4. **Fix the guess** (the ATOMIC guess is far from Na⁺F⁻; CP2K printed `electrons 11→9→rescale 8`): traditional
+   diagonalisation + Broyden mixing + a little electronic smearing at LOW CUTOFF → `SCF_GUESS RESTART` into OT.
+5. **Converge CUTOFF upward** (100→200→400 Ry) to separate grid effects from SCF stability.
+
+**Fit-quality metrics (for ρ and Vxc) — and what CP2K reports:**
+- **ρ (Hartree side):** the rigorous metric is the **Coulomb-metric residual** `‖ρ−ρ̃‖_C = √(∬ Δρ(r)Δρ(r′)/|r−r′|)`
+  (the RI-V norm; Hartree-energy error is 2nd-order in it → near-variational). On a grid = the Fourier tail
+  beyond G_max. **Practical scalar: `∫ρ_grid − N`** (grid charge conservation). **Never ΔE_total** (non-var).
+- **Vxc:** nonlinear → its quality is grid resolution where ρ is sharp (tight F); watch **Exc vs CUTOFF and vs
+  REL_CUTOFF** (the denser-Vxc-grid knob for ∇ρ).
+- **CP2K reports it directly:** `Electronic density on regular grids: -7.9963  0.0037` — integrated grid ρ and
+  its **error (0.0037 e⁻ lost to truncation)**; the `Re-scaling ... Number of electrons: 8` step corrects it and
+  the rescale magnitude IS that error. Plus the multigrid (4 levels + `REL_CUTOFF 30`) = per-exponent grid
+  mapping. **ADD the same `∫ρ_grid − N` readout to our GPW** (cheap; ρ is already on the grid) — turns "is our
+  grid good enough" into CP2K's controlled number.
+
+**Iteration-output refactor (user-requested — diagnostic infrastructure):** the per-iteration columns in
+`SCFIterator.C:148` are hardcoded (`Etotal  ε+V/K  Δ[F,D]  Δρ  …`). Atoms / Molecules / Solids (and HF vs DFT)
+want DIFFERENT ideal columns. **Refactor the header + `DisplayEnergies` through VIRTUAL DISPATCH on
+`tSCFIterator<T>`** so derived (per-system) classes choose the columns and their order. For solid/GPW-DFT the
+useful columns are **`‖ρ−ρ̃‖_C`, `∫ρ_grid − N`, `ΔE`** — and DROP **Δ[F,D]** (non-variational, useless here) and
+the **virial `2+V/T`** (meaningless under a PP / periodic). While there, fix the relax auto-tune keying off [F,D].
+
+**Ordered experiment plan for next session:** (a) a properly-diffuse ionic seed OR Kerker mixing OR smearing to
+kill the NaF charge-transfer oscillation (biggest immediate win); (b) get CP2K converging (isolate → CG →
+warm-start) for the real reference; (c) **whole-density collocation** (the deep fix: match CP2K, remove the
+procedural fit noise, make the energy variational so GDM/OT can win); (d) the iteration-output virtual-dispatch
+refactor + the `∫ρ_grid−N` readout (diagnostics); (e) slightly-more-SR basis as conditioning insurance;
+(f) magnitude-screen the overlap (correctness+speed, drops the arbitrary Rcut).
+
 ## 1. Low-q multi-species bases → Si/NaF/CsI cross-validation (PW + GPW + CP2K) — THE NEXT WORK
 
 **PROGRESS (2026-07-11): a valence-basis GENERATOR, not hand-rolled files.** `qchem.ValenceBasisGen`
