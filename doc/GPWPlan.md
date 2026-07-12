@@ -242,9 +242,16 @@ of the Rcut=0 over-binding).
   also diverges under OT, but **transiently passes −23.64** — right next to our GPW-SR −23.556. So both codes
   agree the answer FOR THIS GAUSSIAN BASIS is ≈ −23.6, and the ~3.3 Ha gap to PW's complete-basis −20.3293 is
   **Gaussian-basis incompleteness** (the "GPW vs PW = basis quality" leg). Neither converges cleanly because
-  the low-q Na basis is pathological in ionic NaF: **Na is Na⁺ (≈ zero valence density), so its basis
-  functions are nearly unoccupied → redundant → SCF instability.** A cleaner reference needs a rethink of the
-  ionic-cation basis (fewer/tighter Na functions) and/or CP2K SCF tuning (lower CUTOFF, mixing, smearing).
+  the cause is a **near-singular overlap METRIC, not occupation** (an earlier note wrongly said "unoccupied Na
+  functions → redundant → instability"; unoccupied functions just get small well-defined coefficients — user
+  correction). Our sweep measured it: SR/Rcut=2a has **min eig(S)=7.5e-4, cond≈8000** — barely PSD. Every SCF
+  step (OT geodesic, DIIS Fock inversion) goes through S^-1/S^-1/2, so a near-singular S makes the steps
+  ill-conditioned: CP2K's OT gradient stays ~23 and the energy overshoots to **+400 Ha** (the minimiser
+  overshooting through a broken metric, NOT variational collapse); our sharp-Rcut GPW instead makes the
+  truncated S *indefinite*. Same tiny-min-eig root, two symptoms. So **magnitude-screening (fixes the
+  TRUNCATION) is necessary but NOT sufficient**: if the complete-Bloch S is itself near-singular from
+  over-diffuse functions, the minimiser is still ill-conditioned. Deeper fix = a **better-conditioned (less
+  over-complete) basis** for ionic NaF; plus, for our GPW, the separate fit-noise floor.
 - NEXT (user-directed): (1) **magnitude-screen the overlap** `(i,j,R)` by `|⟨χ_i|χ_j^R⟩|>eps` (CP2K's trick —
   PSD + fast, drops the SR/Rcut crutch); (2) reduce the fit noise that makes Etot non-variational; (3) an
   ionic-appropriate Na basis for a clean CP2K reference.
