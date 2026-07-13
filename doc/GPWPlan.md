@@ -332,10 +332,55 @@ loosened** to tolerate OpenBLAS-vs-netlib roundoff (deterministic once pinned): 
 + `DE1_P1.{Gaussian,Slater}_Phir` machine-eps → 1e-12; `Si2_PP_U.LargeSeparation` E1 (isolated-atom SCF shifts
 4.1e-6 between BLAS impls) → 1e-5 (E2 unaffected, kept 1e-6). **193/193 UTMain green.**
 
-**NEXT (still §0): the FFT** is now the #1 remaining hotspot (~18% + its allocation churn). Options: precompute
-twiddles + kill the per-line `cvec_t` allocs in `FFT3D`; avoid the power-of-2 padding (mixed-radix); or link
-FFTW. Then multi-grids (§4) for F's tight primitive. Re-profile after the FFT fix. Original profiling guidance
-(perf/callgrind entry points, candidate hotspots) retained below for reference.
+### NEXT — the runtime roadmap (2026-07-13 design discussion; supersedes "FFT is next")
+The `zgemm` attacked the CONSTANT of the dense contraction (~1.7×). It cannot change the `O(n²·Npts_full)`
+SCALING, which is the real 20–40× gap to CP2K (CP2K does NaF/GPW in ~1 min; we are ~30–40 min, ~20 after the
+zgemm). CP2K is fast because it NEVER touches the full grid densely — it exploits Gaussian LOCALITY on two
+independent axes, both "screen by magnitude", both needing the same primitive **per-shell reach from exponent+ε**:
+
+| axis | the loop | our crutch | the fix |
+|---|---|---|---|
+| **lattice images** | `S_ij(k)=Σ_{\|R\|≤Rcut} e^{ik·R}⟨χ_i⁰\|χ_j^R⟩`; `PhiOnGrid`'s Bloch sum | fixed `Rcut=2a` sphere | per-pair `\|⟨χ_i\|χ_j^R⟩\|>ε` (CP2K `EPS_PGF_ORB`) |
+| **grid points** | `M_ij=Σ_p conj(Φ_pi)V_p Φ_pj` over full `Npts` | dense 64³ everywhere | local patches + multi-grid |
+
+**Order (user-endorsed):**
+1. **Magnitude-screen the lattice sum → DROP the `Rcut=2a` (+ `_SR`) crutch.** The fixed geometric sphere is
+   wrong on BOTH counts: it drags tight functions out to 2a for nothing (slow) AND chops diffuse tails while
+   still significant → the INDEFINITE S (Gibbs). Magnitude screening keeps only `>ε` terms, so `‖S−S_exact‖<ε≪
+   λ_min` and `S_exact` (the full Bloch Gram) is PSD → **PSD at any effective reach, no arbitrary Rcut, no SR
+   basis.** This is a CORRECTNESS/robustness win (the thing to do first), it builds the reach-machinery axes 2–3
+   reuse, and it is DURABLE (the 1E/overlap `Molecule::LatticeSum1E` survives the collocation rewrite; screening
+   the current dense `PhiOnGrid` would be thrown away by it). Belongs in `Molecule::LatticeSum1E` /
+   `BuildImages` (today `UnitCell::CellsInSphere(Rcut)`). *Clear-eyed: this mostly speeds the ONE-TIME setup
+   (`PhiOnGrid` ~14%, 133-image sums) + fixes conditioning; Rcut does NOT appear in the per-iteration `O(n²·Npts)`
+   contraction, so it is not the CP2K-gap closer by itself.* See the OPEN INVESTIGATION section for the full
+   diagnosis.
+2. **Locality / patch collocation** — the per-iteration big lever. `PhiOnGrid` is a dense `Npts×n` matrix that
+   evaluates even F's sharp α=40 orbital on all 262k points (mostly ~0). Store `Φ` as per-orbital PATCHES
+   (points where `|Φ|>ε`), so the contraction sums only over patch OVERLAPS (spatially-close pairs):
+   `O(n²·Npts) → O(n_pairs·patch)`. This is the §4 "whole-density collocation" rewrite — collocate
+   `ρ=Σ_ij D_ij χ_iχ_j` directly on the grid as local patches (one FFT for Hartree) and integrate `V` back on
+   the same patches, REPLACING the dense `PhiOnGrid` + global W-tensor (`W_c(i,j)`, `n²×N_Gbasis`, inherently
+   dense — designed for plane waves). Its own correctness campaign: bit-consistency vs the current dense path
+   at a converged grid (`L_PP`-style invariants). Possible ~5–10× alone (single grid), and the scaffold multi-grid sits on.
+3. **Multi-grids** (§4) — per-exponent coarsening ON TOP of patches: map each product `χ_iχ_j` (exponent
+   `α_i+α_j`) to a grid level by its exponent (CP2K `REL_CUTOFF`), so only tight×tight pairs touch the fine
+   64³ and everything diffuse lives on coarse grids. This is what "bangs down `Npts=NextPow2(4m+1)` for most
+   i,j" — the single uniform `densityEcut=160` (dictated by F's α=40) over-resolves the diffuse Na/F functions
+   everywhere.
+4. **FFT — SECONDARY, and partly dissolves under the rework** (multi-grid FFTs are on smaller grids; the
+   power-of-2 padding waste shrinks). Do NOT optimize the hand-rolled `FFT3D` in isolation next — the
+   rearchitecting reshapes it. (~18% today + ~10% allocation churn from per-line `cvec_t` allocs.)
+
+**Dimensions recap (NaF, why the grid dominates):** `M_ij=w Σ_p conj(Φ_pi)V_p Φ_pj`. `i,j∈[0,n)`, **n=32**
+(Gaussian AOs, `itsOrb->GetNumFunctions()`). `p∈[0,Npts)`, **Npts=64³=262,144**: `densityEcut=4·α_max=160 Ha`
+→ `BuildGs {G:½|G|²<160}` (the fit basis N_Gbasis, ~the Ecut sphere) → `m=`max Miller index → `AutoGrid=4m+1`
+→ `FFTGrid=NextPow2(4m+1)=64/axis`. `N_Gbasis` (the G-sphere) is NOT in the contraction — it only builds `V[p]`
+(RhoOnGrid) and the W-tensor; the contraction runs over the full real-space cube `Npts`. Cost `O(n²·Npts)≈2.7e8`
+complex MACs/call, and `Φ` (`Npts×n≈134 MB`) was re-read `n²/2≈512×` by the old scalar loop (memory-bound) —
+the zgemm blocks it to ~one pass, but only the patch/multi-grid work removes the `Npts_full` factor itself.
+
+Original profiling guidance (perf/callgrind entry points, candidate hotspots) retained below for reference.
 
 ### (historical) profiling guidance — kept for the next hotspot
 **Discipline (user-directed): measure before optimizing.** Start by PROFILING, then pick the fix.
