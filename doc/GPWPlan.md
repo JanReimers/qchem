@@ -148,16 +148,8 @@ tests are all Γ-centred too, so this was its first genuine exercise).
   So the reciprocal-space field→KS-matrix bridge is `Band_FT_IBS::MakeOverlap(f)` / evaluator
   `OverlapMatrix(f)` — **not** `MakePotential`/`PotentialMatrix`. `Make` = uncached.
 
----
-
-# TODO / NEXT
-
-Bulk energy (Γ), Γ-centred multi-k dispersion, AND the CP2K-default shifted-MP mesh (complex k) are all
-**DONE and CP2K-validated** (see DONE — the complex-k fix landed 2026-07-10). Full-BZ GPW works at any k.
-Remaining: (1) low-q multi-species bases → Si/NaF/CsI cross-validation (the active NEXT work); (2) the CP2K
-reference library (the oracle for §1); (3) IBZ; (4) cleanups.
-
-## 0. NEXT SESSION — NaF convergence campaign (PRIMED 2026-07-11)
+## NaF convergence campaign — DONE 2026-07-12 (correctness resolved; runtime optimisation is now TODO §0)
+**OUTCOME:** every correctness axis closed — auto-floor `densityEcut` (`04e31a8e`), `∫ρ_grid`/fingerprint diagnostics (`3a87dba6`), diffuse ionic seed (`e1f986da`, PW iters 35→17), and Kerker ρ-mixing (`d66b7c8e`, Si-exact, NaF+DIIS converges). The code is correct in principle; the only remaining blocker is RUNTIME → TODO §0 (profile-first). The diagnosis/execution record follows.
 A long diagnostic session got GPW NaF to first light (charge 8) but neither our GPW nor CP2K CONVERGES
 cleanly on the low-q valence_lowq basis. The picture below is the reprioritised, corrected understanding to
 start from (several of this session's early claims were wrong and are struck through — see the corrections).
@@ -297,7 +289,19 @@ confound gets an orthogonal probe (everything else held fixed). Progress so far:
   and it converges NaF. **STOP heuristic mixing trials here** — the 34-min loop makes tuning nmax/G0/α/DIIS too
   expensive. **The next lever is RUNTIME — see the OPTIMIZATION SESSION section immediately below.**
 
-## 0.5 NEXT SESSION — RUNTIME OPTIMIZATION (PROFILE FIRST, do NOT assume the target)
+
+---
+
+# TODO / NEXT
+
+Bulk energy (Γ), multi-k dispersion, complex-k, AND the NaF convergence campaign (auto-floor / diagnostics /
+diffuse ionic seed / Kerker ρ-mixing — correctness all resolved) are **DONE** (see DONE). Full-BZ GPW works
+at any k and the ionic-crystal SCF converges. **The one blocker to further NaF/CsI work is now RUNTIME** (the
+NaF run is ~34 min ≫ CP2K). Remaining, in order: (0) **RUNTIME OPTIMIZATION — the active NEXT work, profile-first**;
+(1) low-q multi-species bases → Si/NaF/CsI cross-validation; (2) the CP2K reference library (the oracle for §1);
+(3) IBZ; (4) cleanups.
+
+## 0. NEXT SESSION — RUNTIME OPTIMIZATION (PROFILE FIRST, do NOT assume the target)
 The GPW NaF run is ~34–40 min (≫ CP2K). Correctness is settled (above); the blocker to further work is SPEED.
 **Discipline (user-directed): measure before optimizing — do NOT pre-commit to magnitude-screening.** It has
 been the plan's *assumed* culprit but was never profiled. Start the session by PROFILING, then pick the fix.
