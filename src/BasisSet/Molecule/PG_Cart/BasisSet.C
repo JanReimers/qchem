@@ -84,6 +84,7 @@ public:
     virtual chmat_t MakeOverlap(const std::vector<rvec3_t>& Rs, const cvec_t& phases) const override;
     virtual chmat_t MakeKinetic(const std::vector<rvec3_t>& Rs, const cvec_t& phases) const override;
     virtual chmat_t MakeNuclear(const std::vector<rvec3_t>& Rs, const cvec_t& phases, const Structure* cl) const override;
+    virtual double  MaxExponent() const override;   // finest exponent -> the GPW density-grid cutoff floor
 };
 // Use E prefix to avoid name clash with the interface class Fit_IBS
 class EFit_IBS

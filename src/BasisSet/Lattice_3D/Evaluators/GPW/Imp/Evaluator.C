@@ -4,6 +4,7 @@ module;
 #include <cmath>
 #include <complex>
 #include <functional>
+#include <iostream>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -123,7 +124,8 @@ double BetaSupportRadius(const Pseudopotential::SeparablePotential_R& sep, int Z
 } //anon
 
 GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const UnitCell& cell,
-                             double densityEcut, const rvec3_t& kFrac, double Rcut, double collRcut)
+                             double densityEcut, const rvec3_t& kFrac, double Rcut, double collRcut,
+                             double cutoffFactor)
     : itsMol(std::move(mol))
     , itsk(kFrac)
 {
@@ -150,12 +152,33 @@ GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const
     if (collRcut>0.0) BuildImages(cell, collRcut, itsk, itsRc, itsPhaseC);
     else { itsRc=itsR; itsPhaseC=itsPhase; }
 
-    // The DFT tier's density/collocation grid: a plane-wave grid at Gamma (the density is cell-periodic
-    // whatever the orbital k) and the caller's density cutoff.  The fit basis GPW_IBS creates is built over
-    // THIS grid, so rho-tilde's {G} matches the fitter's.  Off (null) when no DFT is needed (1E-only tests).
-    if (densityEcut>0.0)
+    // The DFT tier's density/collocation grid: GPW's ONLY grid cutoff (no orbital/wavefunction cutoff -- the
+    // Gaussians are analytic).  IMPORTANT: densityEcut is a DENSITY-scale quantity; the sharpest feature is the
+    // PRODUCT of the two tightest primitives (a Gaussian of exponent 2*alpha_max), so at a fixed tolerance it
+    // needs ~2x the cutoff that resolves a single orbital exp(-alpha_max r^2).  cutoffFactor (default 4) FOLDS
+    // that x2 into a tolerance calibrated on the DENSITY charge loss, not an orbital tail (F alpha_max=40:
+    // Ecut=40 loses >5 e-, =120 holds 7.997, CP2K converges ~200), so 4*alpha_max lands in the good regime.
+    //   densityEcut < 0 : AUTOMATIC (recommended) -- floor = cutoffFactor*alpha_max, from the basis (no user Ha).
+    //   densityEcut = 0 : DFT tier OFF (1E-only; no grid).
+    //   densityEcut > 0 : EXPLICIT -- honoured as given, but WARN on cerr if below the floor (the caller insisted
+    //                     on an under-resolved grid: charge leaks off-grid -- we don't hide it, but we don't
+    //                     silently override the explicit choice either).  For SIPP alpha_max=2 the floor is 8,
+    //                     below every committed Si anchor's densityEcut (>=10), so those are unchanged.
+    if (densityEcut!=0.0)
+    {
+        const double aMax  = itsLat->MaxExponent();
+        const double floor = cutoffFactor * aMax;          // cutoffFactor*alpha_max (DENSITY scale)
+        double ecut = densityEcut;
+        if (densityEcut < 0.0)                              // AUTOMATIC: pick the basis-derived floor
+            ecut = floor;
+        else if (densityEcut < floor)                      // EXPLICIT but under-resolved: warn, honour as given
+            std::cerr << "[GPW] WARNING: densityEcut=" << densityEcut << " < " << cutoffFactor
+                      << "*alpha_max=" << floor << " (basis alpha_max=" << aMax << "): the density grid "
+                      << "under-resolves the basis -- charge will leak off-grid (integral rho_grid < N). Prefer "
+                      << "densityEcut>=" << floor << ", or the automatic default (densityEcut<0)." << std::endl;
         itsGrid=std::make_shared<const PW_Grid_Evaluator>(
-                    ReciprocalLattice(cell.MakeReciprocalCell()), rvec3_t(0,0,0), densityEcut);
+                    ReciprocalLattice(cell.MakeReciprocalCell()), rvec3_t(0,0,0), ecut);
+    }
 }
 
 // chi_i(r_g) on the density grid (Bloch-summed Gaussians; real at Gamma).  CACHED in itsPhiOnGrid: it is a
@@ -165,7 +188,7 @@ GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const
 // dominant cost at a large overlap Rcut (many images), so it is built once here.
 const mat_t<dcmplx>& GPW_Evaluator::PhiOnGrid() const
 {
-    assert(itsGrid && "GPW_Evaluator: DFT tier requires a density grid (construct with densityEcut>0)");
+    assert(itsGrid && "GPW_Evaluator: DFT tier requires a density grid (densityEcut!=0: <0 auto, >0 explicit)");
     if (itsPhiOnGrid.rows()!=0) return itsPhiOnGrid;   // built once, reused
     const rvec3vec_t& pts=itsGrid->GridPoints();
     size_t Npts=pts.size(), n=itsN;
@@ -296,7 +319,7 @@ chmat_t GPW_Evaluator::NuclearMatrix(const Structure* cl) const {return itsLat->
 // only ever runs inside an SCF, which needs the density collocation grid anyway.
 qcMesh::MeshParams GPW_Evaluator::PPMeshParams() const
 {
-    assert(itsGrid && "GPW_Evaluator: the external PP requires the DFT density grid (construct with densityEcut>0)");
+    assert(itsGrid && "GPW_Evaluator: the external PP requires the DFT density grid (densityEcut!=0: <0 auto, >0 explicit)");
     qcMesh::MeshParams mp;
     mp.eCut=itsGrid->Ecut();
     return mp;
@@ -310,7 +333,7 @@ qcMesh::MeshParams GPW_Evaluator::PPMeshParams() const
 // nonlocal (localized, no Coulomb tail, no G=0 issue) stays real-space (MakeSeparablePP).
 chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const Pseudopotential::LocalPotential& loc) const
 {
-    assert(itsGrid && "GPW_Evaluator: the local PP needs the density grid (construct with densityEcut>0)");
+    assert(itsGrid && "GPW_Evaluator: the local PP needs the density grid (densityEcut!=0: <0 auto, >0 explicit)");
     const UnitCell& B=itsGrid->Recip().GetCell();
     return OverlapMatrix([&](const ivec3_t& dm)->dcmplx
     {

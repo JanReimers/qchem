@@ -15,15 +15,17 @@ namespace qchem::BasisSet::Lattice_3D
 {
 
 GPW_IBS::GPW_IBS(const UnitCell& cell, const sym_t& irrep,
-                 std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut, double Rcut, double collRcut)
+                 std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut, double Rcut, double collRcut,
+                 double cutoffFactor)
     : BasisSet::IrrepBasisSetImp<dcmplx>(irrep)
-    , GPW_Evaluator(std::move(mol), cell, densityEcut, Symmetry::Lattice_3D::Getk(irrep), Rcut, collRcut) // irrep IS k
+    , GPW_Evaluator(std::move(mol), cell, densityEcut, Symmetry::Lattice_3D::Getk(irrep), Rcut, collRcut, cutoffFactor) // irrep IS k
 {}
 
 // Convenience: build the Bloch irrep from BZ-grid indices and delegate to the primary constructor.
 GPW_IBS::GPW_IBS(const UnitCell& cell, const ivec3_t& N, const ivec3_t& kIndex,
-                 std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut, double Rcut, double collRcut)
-    : GPW_IBS(cell, Symmetry::BlochFactory(N,kIndex), std::move(mol), densityEcut, Rcut, collRcut)
+                 std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut, double Rcut, double collRcut,
+                 double cutoffFactor)
+    : GPW_IBS(cell, Symmetry::BlochFactory(N,kIndex), std::move(mol), densityEcut, Rcut, collRcut, cutoffFactor)
 {}
 
 // The DFT fit-basis factory: a plane-wave fit basis over GPW's OWN density grid (k=0 Gamma; the density is

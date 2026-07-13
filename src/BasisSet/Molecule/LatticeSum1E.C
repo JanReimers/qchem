@@ -70,6 +70,13 @@ public:
     virtual chmat_t MakeKinetic(const std::vector<rvec3_t>& Rs, const cvec_t& phases) const = 0;
     //! \f$\sum_R e^{ik\cdot R}\langle\chi_i|\sum_c -Z_c/|r-R_c|\,|\chi_j(\cdot-R)\rangle\f$ over the atoms of \a cl.
     virtual chmat_t MakeNuclear(const std::vector<rvec3_t>& Rs, const cvec_t& phases, const Structure* cl) const = 0;
+
+    //! The largest primitive Gaussian exponent \f$\alpha_{\max}\f$ in the basis -- a scalar RESOLUTION summary
+    //! (NOT primitive exposure; the radials stay encapsulated).  A GPW density grid must resolve the sharpest
+    //! density feature, the product of the two tightest primitives (a Gaussian of exponent \f$2\alpha_{\max}\f$),
+    //! so its minimum plane-wave cutoff is \f$\propto\alpha_{\max}\f$.  This lets the grid consumer floor its own
+    //! \c densityEcut from the basis instead of leaving that (basis-dependent) burden on the caller.
+    virtual double MaxExponent() const = 0;
 };
 
 } //namespace

@@ -87,6 +87,15 @@ public:
     chmat_t MakeNuclear(const std::vector<rvec3_t>& Rs, const cvec_t& phases, const Structure* cl) const
     {   return LatticeSum(Rs,phases,[this,cl](size_t i,size_t j,const GaussianRF& cj){return radials[i]->Nuclear(cj,pols[i],pols[j],cl);}); }
 
+    // Molecule::LatticeSum1E: the finest exponent over every component's radial primitives -- the density
+    // grid's resolution driver (see LatticeSum1E::MaxExponent).  Walks the owned radials; no primitive escapes.
+    double MaxExponent() const
+    {
+        double amax=0.0;
+        for (auto i:indices()) for (double e : radials[i]->GetExponents()) if (e>amax) amax=e;
+        return amax;
+    }
+
     // --- 3-centre (DFT) and 4-centre (HF) kernels ---------------------------------------------------
     // General multi-evaluator elements: each (evaluator, index) pair names one basis component, so the
     // same kernel serves both Coulomb/Exchange (the caller just maps its loop indices into the slots).

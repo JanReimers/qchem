@@ -42,7 +42,7 @@ Complex_BS* Factory(Type type, const ::qchem::Lattice_3D& lat, double Ecut)
 // them for k-dispersion (Rcut=0 makes every k-block identical -- "molecule in a box"); a large-box molecule
 // uses the home cell.
 GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
-                           double densityEcut, double Rcut, double collRcut, rvec3_t kShift)
+                           double densityEcut, double Rcut, double collRcut, rvec3_t kShift, double cutoffFactor)
 {
     const ivec3_t N=lat.GetLimits();
     for (const auto& kp : lat.MakeKMesh(kShift))
@@ -53,14 +53,14 @@ GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const
         // Build the Bloch irrep WITH its BZ weight kp.weight (exactly as PW_BasisSet above) and use the primary
         // sym_t ctor -- the weight carries the Sum_k w_k so the BZ-summed charge/energy are per-cell, not xNk.
         Insert(new GPW_IBS(lat.GetUnitCell(), Symmetry::BlochFactory(N, ik, kp.weight, kShift),
-                           mol, densityEcut, Rcut, collRcut));                 // mol shared across k-blocks
+                           mol, densityEcut, Rcut, collRcut, cutoffFactor));   // mol shared across k-blocks
     }
 }
 
 Complex_BS* GPWFactory(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
-                       double densityEcut, double Rcut, double collRcut, rvec3_t kShift)
+                       double densityEcut, double Rcut, double collRcut, rvec3_t kShift, double cutoffFactor)
 {
-    return new GPW_BasisSet(lat, std::move(mol), densityEcut, Rcut, collRcut, kShift);
+    return new GPW_BasisSet(lat, std::move(mol), densityEcut, Rcut, collRcut, kShift, cutoffFactor);
 }
 
 } //namespace

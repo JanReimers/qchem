@@ -49,9 +49,16 @@ public:
     //! \param mol   the molecular Gaussian orbital basis built over \a cell's atoms (kept alive here); its one
     //!              orbital block must realise \c Molecule::LatticeSum1E (a PG Gaussian basis does).
     //! \param cell  the direct lattice (source of the real-space translation set \f$\{R\}\f$ + the reciprocal cell).
-    //! \param densityEcut  plane-wave cutoff (Hartree) for the DENSITY/collocation grid: the FFT grid \f$\{r\}\f$
-    //!              and the fit set \f$\{G\}\f$ GPW collocates its density onto (the DFT tier; must resolve the
-    //!              Gaussian-product density -- CP2K's density cutoff).  \f$\le 0\f$ disables the DFT tier.
+    //! \param densityEcut  the DENSITY/collocation grid selector (Hartree) -- GPW's ONLY grid cutoff (there is
+    //!              no orbital/wavefunction cutoff; Gaussians are analytic).  THREE modes: \f$<0\f$ = AUTOMATIC
+    //!              (the recommended default): the grid is floored to \a cutoffFactor\f$\cdot\alpha_{\max}\f$ from
+    //!              the basis, so the caller need not know the Hartree value.  \f$=0\f$ = DFT tier OFF (1E-only).
+    //!              \f$>0\f$ = EXPLICIT Hartree cutoff, honoured as given but with a \c cerr warning if it is below
+    //!              \a cutoffFactor\f$\cdot\alpha_{\max}\f$ (under-resolves the density -> charge leaks off-grid).
+    //! \param cutoffFactor  \f$C\f$ in the density-grid floor \f$C\cdot\alpha_{\max}\f$ (default 4, the calibrated
+    //!              minimum; pass \f$C\ge4\f$ for a finer grid).  This is a DENSITY-scale constant: the density is
+    //!              the product of two orbitals (exponent \f$2\alpha_{\max}\f$), so \f$C\f$ already folds in the
+    //!              \f$\times2\f$ over a single-orbital cutoff.  See doc/GPWPlan.md \S0.
     //! \param kFrac fractional crystal momentum (fractional reciprocal coords; \f$\Gamma=0\f$).
     //! \param Rcut  radius (a.u.) of the OVERLAP/1E lattice-translation sphere; \f$\le 0\f$ means the home cell
     //!              only (\f$R=0\f$: reproduces the finite molecule exactly).  The analytic 2-centre lattice
@@ -65,7 +72,7 @@ public:
     //!              (backward-compatible: \f$\Gamma\f$/finite runs collocate on the same home-cell set).
     GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const UnitCell& cell,
                   double densityEcut = 0.0, const rvec3_t& kFrac = rvec3_t(0,0,0), double Rcut = 0.0,
-                  double collRcut = 0.0);
+                  double collRcut = 0.0, double cutoffFactor = 4.0);
     virtual ~GPW_Evaluator() = default;   // polymorphic: reached by the EPW_* mixin's Cast() cross-cast
 
     // --- isPW_1E_Evaluator surface (exact signatures the concept demands) ---

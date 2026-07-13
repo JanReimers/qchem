@@ -37,8 +37,12 @@ Complex_BS* Factory(Type type, const ::qchem::Lattice_3D& lat, double Ecut);
 //!                   (large, for a positive-definite Bloch overlap) so multi-k bulk is affordable.
 //! \param kShift  fractional Monkhorst-Pack offset of the k-mesh (\f$0\f$ = Γ-centred; \f$½\f$ = the classic MP
 //!                offset, i.e. CP2K's default for even grids -- \f$k=\pm¼\f$ at \f$N=2\f$).
+//! \param densityEcut  \f$<0\f$ = AUTOMATIC density grid \a cutoffFactor\f$\cdot\alpha_{\max}\f$ (recommended);
+//!        \f$=0\f$ = 1E-only; \f$>0\f$ = explicit Hartree cutoff (\c cerr warning if under-resolved).
+//! \param cutoffFactor  \f$C\ge4\f$ in the density-grid floor \f$C\cdot\alpha_{\max}\f$ (default 4).
 Complex_BS* GPWFactory(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
-                       double densityEcut, double Rcut=0.0, double collRcut=0.0, rvec3_t kShift={0,0,0});
+                       double densityEcut, double Rcut=0.0, double collRcut=0.0, rvec3_t kShift={0,0,0},
+                       double cutoffFactor=4.0);
 
 } //namespace
 
@@ -64,7 +68,7 @@ class GPW_BasisSet : public BasisSet::BasisSetImp<dcmplx>
 {
 public:
     GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
-                 double densityEcut, double Rcut, double collRcut, rvec3_t kShift={0,0,0});
+                 double densityEcut, double Rcut, double collRcut, rvec3_t kShift={0,0,0}, double cutoffFactor=4.0);
 };
 
 } //namespace
