@@ -21,6 +21,7 @@
 //       and lands a reproducible total energy (a "did-E-move" regression anchor, per doc/GPWPlan.md section 5).
 #include "gtest/gtest.h"
 #include <memory>
+#include <vector>
 #include <cmath>
 #include <complex>
 #include <cstdio>
@@ -36,6 +37,7 @@ import qchem.Blaze;                              // blazem::eigen, blaze::min/ma
 import qchem.BasisSet.Lattice_3D.BasisSet;       // GPWFactory (the GPW basis container)
 import qchem.BasisSet.Molecule.Factory;          // Molecule::Factory, BasisSetData/Engine/Angular
 import qchem.Hamiltonian.Internal.Hamiltonians;  // Ham_PW_DFT (the plane-wave LDA KS Hamiltonian -- drives GPW too)
+import qchem.Hamiltonian.Internal.PWTerms;        // ReportGridCharge() -- the integral-rho_grid vs Tr(DS) readout
 import qchem.SCFIterator;                        // cSCFIterator, SCFParams
 import qchem.SCFParams;                          // SCFParams
 import qchem.ElectronConfiguration.Crystal;      // Crystal_EC (single-k Bloch occupation)
@@ -79,12 +81,46 @@ std::shared_ptr<const Real_BS> MakeBasisSR(const Structure& st)
 
 struct GpwResult { bool converged; double charge; qchem::EnergyBreakdown E; size_t iters; };
 
+// PROBE (dynamics fingerprint, doc/GPWPlan §0): classify an SCF trajectory captured via the Observer hook.
+// Three pathologies have DISTINCT time-series signatures, so one line names which regime the run is in --
+// separating "the iteration can't find the min" (dynamics: sloshing/divergence) from "the min is a fit floor"
+// (functional).  Captured from qchem::SCFIterator::SCFProgress {iteration, energy, dE=|ΔE|, [F,D], Δρ}.
+struct FpRow { size_t it; double E, dEabs, fd, drho; };
+void Fingerprint(const std::vector<FpRow>& s, const char* label)
+{
+    if (s.empty()) { std::cout << "["<<label<<" fp] (no iterations)"<<std::endl; return; }
+    const size_t n=s.size(), w=std::min<size_t>(n,8);
+    double emin=1e300, emax=-1e300;
+    for (size_t k=n-w;k<n;++k){ emin=std::min(emin,s[k].E); emax=std::max(emax,s[k].E); }
+    size_t flips=0;                                   // sign changes of successive SIGNED ΔE over the window
+    for (size_t k=n-w+1;k+1<n;++k)
+    {
+        double d0=s[k].E-s[k-1].E, d1=s[k+1].E-s[k].E;
+        if (d0*d1<0.0) ++flips;
+    }
+    const double Ef=s.back().E, drhoF=s.back().drho, amp=emax-emin;
+    const double relAmp=amp/std::max(std::fabs(Ef),1e-30);   // energy swing RELATIVE to the total
+    // Verdict priority separates the three pathologies (+ the benign degenerate case) by their distinct
+    // signatures.  KEY distinction: a degenerate open shell has the ENERGY settled (small relAmp) while Δρ
+    // never falls (ρ rotates in the degenerate subspace) -- benign; charge-transfer SLOSHING swings BOTH.
+    const char* verdict =
+        (drhoF < 1e-5)                                   ? "CONVERGED" :
+        (drhoF > 1e-3 && relAmp < 5e-3)                  ? "DENSITY-DEGENERATE (E settled, ρ rotates -- benign)" :
+        (flips >= 3 && relAmp > 5e-3)                    ? "OSCILLATING (charge-transfer sloshing / mixing unstable)" :
+        (drhoF > 1e-5 && s.back().dEabs < 1e-5)          ? "FIT-FLOOR STALL (Δρ floored, ΔE tiny -- functional/grid)" :
+        (std::fabs(Ef) > 3.0*std::fabs(s.front().E))     ? "DIVERGING" : "UNSETTLED (hit iter cap mid-descent)";
+    std::cout << "["<<label<<" fp] iters="<<n<<" Efinal="<<Ef<<" lastΔρ="<<drhoF
+              << " oscFlips(last"<<w<<")="<<flips<<" Eamp(last"<<w<<")="<<amp<<" relAmp="<<relAmp
+              << "  => "<<verdict<<std::endl;
+}
+
 // One GPW Gamma-point SCF: build the GPW basis over the lattice, hand it the plane-wave LDA Hamiltonian
 // (Ham_PW_DFT reaches GPW's real-space Integrals_Pseudo), seed uniform, run the complex-DIIS cSCFIterator.
 GpwResult RunGPW(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, double densityEcut, double Rcut,
                  int Nelec, const char* element, const char* label, bool verbose=false, int nmax=120,
                  qchem::Ortho ortho=qchem::Cholesky, double orthoTol=0.0, double collRcut=0.0,
-                 rvec3_t kShift={0,0,0}, double minDrho=1e-6, double minDE=1e30)
+                 rvec3_t kShift={0,0,0}, double minDrho=1e-6, double minDE=1e30,
+                 qchem::ChargeDensity::SeedStrategy seed=qchem::ChargeDensity::SeedStrategy::Uniform)
 {
     namespace L3=BasisSet::Lattice_3D;
     std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, std::move(mol), densityEcut, Rcut, collRcut, kShift));
@@ -97,8 +133,11 @@ GpwResult RunGPW(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, doub
     // \a ortho / \a orthoTol: Cholesky (default) needs S positive-definite; for a lattice basis with images
     // (Rcut>0) the diffuse Gaussians go linearly dependent -> Eigen/SVD with a small-eigenvalue cutoff.
     qchem::SCFIterator::cSCFIterator scf(bs.get(), &ec, ham, acc,
-                                         qchem::ChargeDensity::SeedStrategy::Uniform, lat.GetStructure().get(),
+                                         seed, lat.GetStructure().get(),
                                          ortho, orthoTol);
+    std::vector<FpRow> series;   // capture the SCF trajectory for the dynamics fingerprint (Observer telemetry)
+    scf.SetObserver([&series](const qchem::SCFIterator::SCFProgress& p)
+                    { series.push_back({p.iteration, p.energy, p.dE, p.commutator, p.drho}); });
     SCFParams par;
     // \a minDrho / \a minDE: the SCF convergence gate (AND of the active criteria).  Default = the historical
     // Δρ<1e-6 only (energy/virial/[F,D] off) -- the committed Rcut=0 gapped anchors converge there.  A fitted
@@ -108,7 +147,10 @@ GpwResult RunGPW(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, doub
     // settles (~iter 15) instead of chasing fit noise to nmax.
     par.NMaxIter=nmax; par.MinΔρ=minDrho; par.MinΔE=minDE; par.MinΔFD=1e30; par.MinVirial=1e30; par.MinFD=1e30;
     par.StartingRelaxRo=0.3; par.MergeTol=1e-4; par.Verbose=verbose;
+    qchem::Hamiltonian::ReportGridCharge()=verbose;   // per-iteration integral-rho_grid vs Tr(DS) (grid-truncation charge loss)
     scf.Iterate(par);
+    qchem::Hamiltonian::ReportGridCharge()=false;      // process-wide flag -- reset so it does not leak to other tests
+    Fingerprint(series, label);                        // classify the trajectory: converged / oscillating / stalled / diverging
 
     auto* cd=scf.GetWaveFunction()->GetChargeDensity();
     double charge=cd->GetTotalCharge();
@@ -355,19 +397,33 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
         BasisSetData::VALENCE_LOWQ_SR, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
 
     namespace L3=BasisSet::Lattice_3D;
-    std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, mol, /*densityEcut*/40.0, /*Rcut*/2.0*a, /*collRcut*/0.0, {0,0,0}));
+    // densityEcut<0 => AUTOMATIC: the grid is floored to 4*alpha_max from the basis (F alpha_max=40 -> 160),
+    // so F's tight 40-a.u. exponent is resolved without the caller specifying the Hartree value.
+    std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, mol, /*densityEcut AUTO*/-1.0, /*Rcut*/2.0*a, /*collRcut*/0.0, {0,0,0}));
     auto       irreps=bs->GetIrreps(Spin::None);
     Crystal_EC ec(irreps, 8);
     cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), bs.get(), {{"Na",1},{"F",7}}, "LDA");
+    // FINDING (2026-07-12, experiment (a)): DIIS timing is NOT the cause of the NaF oscillation.  Delaying DIIS
+    // (EMax 8.0->0.5) did NOT help -- with the density sloshing, [F,D] never drops below 0.5 so DIIS never even
+    // activates, yet PURE relax mixing STILL limit-cycles (stable period-~6 cycle, integral rho_grid swinging
+    // 2.40<->8.00, ~5.6 e- amplitude; Tr(DS)=8 always -- the swing is the COLLOCATED grid density sharpening +
+    // aliasing).  => the instability is the density-mixing fixed point itself (charge-transfer sloshing), which
+    // linear/relax mixing cannot damp.  The confirmed fix is KERKER / high-G-damped mixing (doc/GPWPlan §0).
+    // EXPERIMENT (b'): KERKER + DIIS (the standard production combo).  Kerker (par.KerkerG0) damps the low-G
+    // charge-transfer update amplitude; DIIS (EMax=8) extrapolates the Fock history to break the residual
+    // period-2 A<->B flip pure Kerker settled into.  Kerker holds alpha=StartingRelaxRo fixed (no [F,D] auto-tune).
     auto* acc=new qchem::SCFAccelerators::cSCFAcceleratorDIIS(qchem::SCFAccelerators::DIISParams{8, 8.0, 1e-10, 1e-8});
     qchem::ReportOverlapConditioning()=true;   // report min eig(S)/min sv(S) at SetBasisOverlap (the ctor below)
     qchem::SCFIterator::cSCFIterator scf(bs.get(), &ec, ham, acc,
-                                         qchem::ChargeDensity::SeedStrategy::Uniform, lat.GetStructure().get(),
-                                         qchem::Cholesky, 0.0);
+                                         qchem::ChargeDensity::SeedStrategy::IonicSAD, lat.GetStructure().get(),
+                                         qchem::Cholesky, 0.0);   // diffuse F- / Na+ ionic seed (halved PW iters)
     qchem::ReportOverlapConditioning()=false;  // process-wide flag -- reset so it does not leak to other tests
     SCFParams par; par.NMaxIter=60; par.MinΔρ=1e-3; par.MinΔE=1e-6; par.MinΔFD=1e30; par.MinVirial=1e30;
     par.MinFD=1e30; par.StartingRelaxRo=0.3; par.MergeTol=1e-4; par.Verbose=true;
+    par.KerkerG0=1.0;   // Kerker screening wavevector (a.u.^-1): damp the low-G charge-transfer slosh
+    qchem::Hamiltonian::ReportGridCharge()=true;   // F's tight 40-a.u. exponent: watch integral rho_grid vs Tr(DS)
     scf.Iterate(par);
+    qchem::Hamiltonian::ReportGridCharge()=false;  // process-wide flag -- reset so it does not leak to other tests
 
     auto* cd=scf.GetWaveFunction()->GetChargeDensity(); double charge=cd->GetTotalCharge(); delete cd;
     auto E=scf.GetEnergy();
@@ -379,10 +435,19 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
 
 // (4b) FAST overlap-conditioning sweep for NaF: build ONLY the analytic Bloch overlap S(Gamma) (via GPW_IBS,
 // densityEcut=0 -> no collocation, no SCF) for the full vs SR valence basis across Rcut, and report min/max
-// eig(S).  The truncated Bloch overlap goes INDEFINITE (min eig<0) at small Rcut (full basis: min eig=-0.42
-// at Rcut=a -> Cholesky fails); dropping the most diffuse primitives (SR) should push the PSD threshold to a
-// smaller, cheaper Rcut.  Seconds per point (analytic 1E sum), so we find a working Rcut before paying for a
-// full SCF.  Uses the qchem::ReportOverlapConditioning machinery's metric directly.
+// eig(S) PLUS the ORTHOGONALISER RESIDUAL ‖VᴴSV − I‖ (V=S^-½ built by the SAME LASolver the SCF uses).  Seconds
+// per point (analytic 1E sum), so we settle the conditioning question before paying for a full SCF.
+//
+// PROBE 1 (disentangling, doc/GPWPlan §0): this SEPARATES the two pathologies that both read as "conditioning":
+//   (A) NEAR-SINGULAR but PSD (min eig>0, e.g. SR/Rcut=2a min eig 7.5e-4).  cond(S)~1/min_eig looks scary but
+//       cond(V)=√cond(S), so the orthogonaliser is essentially EXACT: ‖VᴴSV−I‖ ~ machine eps.  => conditioning
+//       here is a RED HERRING; whatever ails the SCF, it is NOT the metric.  (The plan's predicted result.)
+//   (B) INDEFINITE (min eig<0) at small Rcut from the SHARP |R|≤Rcut cutoff (full basis: -0.42 at Rcut=a).  No
+//       real S^-½ EXISTS -> Cholesky fails; this is a genuine problem, but a TRUNCATION one, fixed by
+//       MAGNITUDE-SCREENING the image pairs (CP2K's EPS_PGF_ORB), NOT by a better orthogonaliser.  Flagged, not
+//       measured (residual undefined).
+// So one cheap table closes axis A (conditioning-of-a-valid-metric = red herring) and names axis B (sharp-cutoff
+// truncation -> magnitude screening) as the real overlap work.
 TEST(GPW_SCF, DISABLED_NaFOverlapConditioningSweep)
 {
     namespace L3=BasisSet::Lattice_3D;
@@ -390,6 +455,19 @@ TEST(GPW_SCF, DISABLED_NaFOverlapConditioningSweep)
     FCCUnitCell cell(a);
     cell.AddAtom(11, {0,0,0});          // Na
     cell.AddAtom(9,  {0.5,0.5,0.5});    // F
+
+    // ‖VᴴSV − I‖_max for a given ortho method: Transform(S)=VᴴSV must be the identity iff V=S^-½ is exact.
+    auto residual=[](const hmat_t<dcmplx>& S, qchem::Ortho ortho)->double
+    {
+        std::unique_ptr<LASolver<dcmplx>> la(LASolver<dcmplx>::Factory(ortho));
+        la->SetBasisOverlap(S);
+        hmat_t<dcmplx> I=la->Transform(S);     // VᴴSV
+        double r=0.0;
+        for (size_t i=0;i<I.rows();++i)
+            for (size_t j=0;j<I.columns();++j)
+                r=std::max(r, std::abs(dcmplx(I(i,j)) - (i==j ? 1.0 : 0.0)));
+        return r;
+    };
 
     auto probe=[&](BasisSetData bd, const char* name)
     {
@@ -403,7 +481,14 @@ TEST(GPW_SCF, DISABLED_NaFOverlapConditioningSweep)
             rvec_t d; mat_t<dcmplx> U; blazem::eigen(S, d, U);   // ascending eigenvalues of Hermitian S
             std::cout << "[cond " << name << "] n=" << S.rows() << " Rcut=" << rc/a << "a"
                       << "  min eig=" << d[0] << "  max eig=" << d[d.size()-1]
-                      << (d[0] > 0 ? "  (PSD)" : "  (INDEFINITE)") << std::endl;
+                      << "  cond=" << std::fabs(d[d.size()-1]/d[0]);
+            if (d[0] > 0.0)   // PSD: V=S^-½ exists -> report the orthogonaliser residual (should be ~eps)
+                std::cout << "  (PSD) ‖VᴴSV-I‖: Chol=" << residual(S, qchem::Cholesky)
+                          << " Eigen=" << residual(S, qchem::Eigen)
+                          << "  => conditioning red herring";
+            else              // INDEFINITE: no real S^-½ -> sharp-cutoff truncation, needs magnitude screening
+                std::cout << "  (INDEFINITE) no S^-½ -> sharp-cutoff truncation; needs magnitude screening";
+            std::cout << std::endl;
         }
     };
     probe(BasisSetData::VALENCE_LOWQ,    "full");

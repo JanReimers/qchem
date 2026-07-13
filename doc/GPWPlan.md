@@ -162,6 +162,221 @@ A long diagnostic session got GPW NaF to first light (charge 8) but neither our 
 cleanly on the low-q valence_lowq basis. The picture below is the reprioritised, corrected understanding to
 start from (several of this session's early claims were wrong and are struck through — see the corrections).
 
+### DIAGNOSTICS LANDED 2026-07-12 (disentangling infrastructure — uncommitted)
+The strategy: stop reading the SCF endpoint as the instrument — the SCF does double duty (*find* ρ AND *score*
+ρ), which is what tangles conditioning / fit-noise / charge-transfer / grid. Split every question into
+"is the functional right?" (fixed-ρ, **zero-SCF**) vs "does the iteration find the min?" (dynamics). Then each
+confound gets an orthogonal probe (everything else held fixed). Progress so far:
+- **PROBE 1 — conditioning axis CLOSED (red herring, PROVEN).** `DISABLED_NaFOverlapConditioningSweep` now also
+  reports the orthogonaliser residual `‖VᴴSV − I‖` (V=S^-½ from the SAME LASolver the SCF uses). At the SR/Rcut=2a
+  operating point (min eig 7.5e-4, **cond 8252**) the residual is **2.5e-14** — machine ε. cond(V)=√cond(S)≈90, so
+  even Fock inversion amplifies to ~1e-12. **The metric is NOT what ails the NaF SCF.** And the probe cleanly
+  separates the TWO things that both read as "conditioning": (A) near-singular-but-PSD = red herring (above);
+  (B) INDEFINITE S at a sharp `Rcut` (full basis min eig −0.42→−0.60→**−0.11 even at 2a**, never PSD in-window) —
+  Gibbs ringing of the truncated Bloch autocorrelation, fixed by **magnitude screening, NOT a bigger Rcut** (Rcut=2a
+  does not rescue the full basis; only SR barely escapes). Confirms the OPEN INVESTIGATION section's conclusion.
+- **`∫ρ_grid − N` READOUT — DONE** (the §0 ask below, "ADD the same readout"). New opt-in toggle
+  `qchem::Hamiltonian::ReportGridCharge()` (mirrors `ReportOverlapConditioning`), printed by `PW_XC::RefreshRhoGrid`
+  each iteration: `[grid charge] integral rho_grid=… Tr(DS)=… lost=…` — the electrons lost to grid truncation
+  (== CP2K's "Electronic density on regular grids: <int> <error>"). Wired into `RunGPW` (gated on `verbose`) + the
+  NaF test. Si/Rcut=2a/dE=20 loses only −1.2e-5 e⁻ (soft PP, grid converged); **NaF is where it lights up** (F's
+  tight 40-a.u. exponent). All GPW+PW anchors byte-identical (toggle off by default).
+- **E[ρ] SEAM investigated → PROBE 2 (fitted-vs-collocation ΔE) is DEGENERATE in GPW; DON'T build it.** In GPW the
+  energy is ALREADY collocated: `PW_XC::GetEnergy` = `∫ε_xc(ρ)ρ` by direct grid quadrature; `PW_Hartree` = exact
+  W-tensor × 4π/G². So there is no molecular-style "fit energy" to diff. The non-variationality is an energy/gradient
+  **INCONSISTENCY**: the SCF minimises the *projected v_xc MATRIX* (`PW_XC::CalcMatrix` fits the *nonlinear*
+  v_xc(ρ) onto finite {G}), but the ENERGY uses direct full-grid quadrature — two discretisations of a non-band-limited
+  field, consistent only as the grid resolves (SAME ROOT as the deferred `relCutoff`/denser-v_xc-grid cleanup, §4).
+  ⇒ the sharp variationality instruments are the **E(λ) line-search** or an **FD potential-consistency check**
+  (`dE_xc/dρ` vs the assembled v_xc matrix), NOT fitted-vs-collocation. The "Fock-first" gotcha = the serial-keyed
+  freshness cache (`newCD`/`itsFitVersion`) handing back a stale ρ-grid to a colliding `Version()`; `MixIn`/`ReScale`
+  bump the serial so synthesized densities are safe.
+- **PROBE — NaF grid-charge diagnostic RAN, and it is DECISIVE. The NaF problem is GROSS GRID UNDER-RESOLUTION,
+  not conditioning or the fit.** At `densityEcut=40` the readout shows `Tr(DS)=8.000000` EVERY iteration (the
+  density MATRIX conserves charge perfectly) while `∫ρ_grid` **oscillates 2.4 → 7.2 → 4.8 → 3.2 → 2.7**, settling
+  ~**2.8 — the grid holds under 3 of 8 electrons (>5 e⁻ lost off-grid).** F's tight 40-a.u. exponent produces a
+  density (product exponent ~80) the `densityEcut=40 Ha` grid cannot represent, so Hartree+XC are built on a
+  density missing ~65% of its charge → garbage potential → the SCF oscillates. This CONFIRMS the plan's long-held
+  suspicion ("F is the hard atom, wants a fine grid; our 16–24 Ry is ~10× too low vs CP2K's 300–600 Ry") with a
+  HARD number. **The dominant NaF fix is densityEcut ≈ 200 Ha (CP2K's CUTOFF 400 Ry), or multi-grids (§4)** — NOT
+  a better seed/mixing/basis (those are second-order until the grid holds the charge). Seed-independence is now
+  LOW priority (both seeds hit the same grid wall).
+- **Observer trajectory FINGERPRINT — DONE + validated** (`Fingerprint()` in `GPW_SCF_UT.C`, fed by `SetObserver`).
+  Classifies a run in one line by its time-series signature: CONVERGED / DENSITY-DEGENERATE (E settled, ρ rotates —
+  benign, the Γ open-shell atom) / OSCILLATING (charge-transfer sloshing) / FIT-FLOOR STALL / DIVERGING. Self-checks:
+  Si Γ crystal → CONVERGED (relAmp 4e-8); Si atom-in-box → DENSITY-DEGENERATE (relAmp 3e-3) — correctly NOT flagged
+  as sloshing. `RunGPW` gained a `seed` param (Uniform default; CoreGuess is the other real GPW seed — SAD/IonicSAD
+  fall back to Uniform on dcmplx) so seed-independence is a one-liner when wanted.
+- **NaF densityEcut LADDER RAN (SR/Rcut=2a, 40 → 120) — GRID CONFIRMED as the dominant cause, and it disentangles
+  a SECOND axis.** Grid loss `|∫ρ_grid − 8|` fell **5.2 e⁻ (Ecut=40) → 0.24 e⁻ avg, with the well-resolved
+  iterations hitting 7.997 (loss 2.7e-3) (Ecut=120)** — a ~20× improvement, exactly the grid-resolution signature.
+  Two consequences: (1) Etot moved −23.556 → **−23.982** and the DIIS↔GDM gap shrank toward GDM's −23.936, so
+  **part of the earlier "non-variational" DIIS/GDM discrepancy was GRID-TRUNCATION NOISE, not functional
+  non-variationality** — the fit-noise floor was overstated. (2) At Ecut=120 the run STILL oscillates (∫ρ_grid
+  swings 5.2 ↔ 7.99 across iters, iter-capped at 60) — but now the grid is mostly resolved (good iters → 7.997),
+  so **the residual oscillation is exposed as GENUINE charge-transfer dynamics**, cleanly separated from the grid
+  noise that masked it at Ecut=40. So the axes have peeled apart: grid (dominant, ~fixed by cutoff) → then
+  charge-transfer mixing instability (the real remaining SCF problem, NOW the right target for seed/Kerker/smearing).
+- **AUTO CUTOFF IMPLEMENTED (2026-07-12): `densityEcut` is now BASIS-derived, not a user burden.** GPW has NO
+  orbital/wavefunction `Ecut` (Gaussians are analytic) — `densityEcut` is its ONLY grid cutoff, and it is a
+  DENSITY-scale quantity (the density is the product of two orbitals, exponent `2·α_max`, so its constant already
+  folds in the ×2 over a single-orbital cutoff — do NOT confuse it with an orbital `Ecut`). New
+  `Molecule::LatticeSum1E::MaxExponent()` (scalar α_max summary; realised by `PG_Cart` → `NR_Evaluator`, walks the
+  radials — no primitive escapes) drives a **three-mode `densityEcut`** in `GPW_Evaluator` (threaded through
+  `GPW_IBS`/`GPW_BasisSet`/`GPWFactory` with a new `cutoffFactor` param):
+    - **`< 0` = AUTOMATIC (recommended):** grid = `cutoffFactor·α_max` — the caller need not know the Hartree value.
+    - **`= 0` = DFT tier OFF** (1E-only; unchanged).
+    - **`> 0` = EXPLICIT:** honoured as given, but **`cerr` WARNING** if below `cutoffFactor·α_max` (respects the
+      expert's insisted-on value, does NOT silently clamp — consistent with "don't hide the problem").
+  `cutoffFactor` default 4, choose `C ≥ 4` for a finer grid (calibrated: F α_max=40 → floor 160, in the ladder's good
+  regime between 120 "good" and CP2K's 200 "converged"). **Inert on every committed anchor** — SIPP α_max=2 → floor 8,
+  below all Si `densityEcut` (≥10), so Si Γ −8.24758 / atom-in-box / GPW+PW 30 tests byte-identical (verified: no
+  warning, all green). NaF test switched to AUTOMATIC (`densityEcut=-1` → 160). Burden removed: the user never guesses
+  the Ha value. (A GGA `relCutoff>1` Vxc densification sits ABOVE this floor, still deferred.)
+- **CHARGE-TRANSFER OSCILLATION LOCALISED (2026-07-12, user-run GPW NaF at auto-160 + IonicSAD):** the diffuse
+  seed + auto-floor grid give a PERFECT iter-1 (`∫ρ_grid=7.9998`, loss 2e-4), then the SCF DYNAMICS sharpen the
+  density → it ALIASES off the 160-grid (`∫ρ_grid → 6.32`, 1.68 e⁻ lost) → slosh. **Root = DIIS activates TOO
+  EARLY:** `DIISParams.EMax=8.0` starts DIIS as soon as `[F,D]<8` (≈ immediately), extrapolating from a thin
+  history → over-concentrates the density. **GPW-SPECIFIC** (PW NaF is fine at EMax=8, 17 iters): PW is natively
+  band-limited and CANNOT alias; GPW's grid-collocated density can. So grid (auto-floor) + seed (diffuse) both
+  WORK — the residual is pure extrapolation dynamics. **EXPERIMENT (a) DONE — DIIS-early REFUTED.** `EMax=0.5`
+  (delay DIIS) did NOT help: with ρ sloshing, `[F,D]` never drops below 0.5 so DIIS never even activates, yet PURE
+  relax mixing STILL limit-cycles — a STABLE period-~6 cycle (`∫ρ_grid` 7.999→4.35→7.27→2.40→6.05→3.13→repeat,
+  amplitude 5.6 e⁻; `Tr(DS)=8` always, so the swing is entirely the COLLOCATED grid density sharpening+aliasing,
+  not the DM). **⇒ the instability is the density-mixing fixed point itself (charge-transfer sloshing); linear/
+  relax mixing cannot damp it — NOT a DIIS/seed/grid problem.** (Runtime 34.5 min — the speed item is real.)
+  **(b) KERKER / high-G-damped mixing is now the CONFIRMED fix** (damps exactly the short-wavelength sharpening
+  that aliases — the GPW-shaped cure), expectation: break the limit cycle. Strategy (user): defer known fixes
+  (magnitude-screening, Kerker) until the baseline is UNDERSTOOD, so each next fix has a clear expectation — met.
+  **KERKER FOUNDATION DONE (2026-07-12), iterator wiring NEXT.** New `ChargeDensity::FourierMixCD` — a G-space
+  density holding a raw `ρ̃(G)` map + reciprocal lattice, presenting the `FourierDensity` face (so
+  `DoSCFIteration(ham, mixedρ)` builds the next Fock from it — the SAME seam the SAD seed uses; verified
+  `DoSCFIteration` takes `const tChargeDensity*`, not a `tDM_CD`, so ρ-mixing needs NO Fock-build rework). Static
+  `KerkerMix(in, ρ̃_out, α, G0)` applies `ρ̃_in + α·G²/(G²+G0²)·(ρ̃_out−ρ̃_in)`. **Unit-validated
+  (`KerkerMix.*`, 3 tests, no SCF):** charge conserved EXACTLY (f_K(0)=0 → G=0 never mixed, so ∫ρ stays N even
+  when the output aliased to 2 e⁻ — directly kills the ∫ρ_grid-collapse symptom); low-G damped / high-G passed;
+  G0→0 = plain linear mixing. **ITERATOR WIRING DONE (2026-07-12):** `SCFParams.KerkerG0` (0=off, default) gates an
+  optional ρ-mixing branch in `tSCFIterator` (dcmplx-only via `if constexpr`): `KerkerSetup` builds the G-space
+  fit basis (`Band_FT_IBS::CreateVxcFitBasisSet`) + the initial `FourierMixCD` from the seed; the loop drives the
+  Fock from `FockDensity()` (the mixed ρ̃ when active, else the working D) and `KerkerUpdate` re-collocates ρ̃_out
+  and folds it in. **DEFAULT PATH BYTE-IDENTICAL** (KerkerG0=0 → `itsMixedRho` null → linear D-mixing everywhere;
+  verified: Si Γ −8.24758, molecular M_Calculation, PW Si all unchanged). The `DoSCFIteration(ham, const
+  tChargeDensity*)` seam (DIP) is what let a ρ̃-only density substitute for D with NO Fock-build rework.
+  **DEBUGGING (2026-07-12, on FAST Si — not the 34-min NaF):** first run was bit-identical to no-Kerker →
+  KerkerSetup was silently bailing (Release has no asserts): the iterator stored the raw `st` from
+  `Lattice_3D::GetStructure()` which returns a TEMPORARY (`make_shared`), so it DANGLED by `Iterate` time and the
+  UnitCell cast failed. FIXED: deep-copy the cell in the ctor (`itsKerkerCell`), and the setup now reports LOUDLY
+  (cerr) instead of a NDEBUG-silenced assert. Kerker now ACTIVATES. TWO issues remain, both found on Si in ~10 s:
+  (1) **convergence-metric bug (the real one):** the loop gates on `‖D_out−D_out_prev‖`, but with ρ-mixing `ρ̃_mix`
+  changes SLOWLY so `D_out` does too → it reports "converged" while `ρ̃_out≠ρ̃_mix` (NOT self-consistent) → Si stops
+  early at −8.24662 vs −8.24758. **FIX: gate ρ-mixing on the SCF RESIDUAL `‖ρ̃_out−ρ̃_in‖`, not the D_out change.**
+  (2) the real fixed-point bug: **Kerker FROZE G=0** (`f_K(0)=0`, its plane-wave charge-conservation feature). In
+  PW that's right (ρ̃(0)=N/Ω, fixed); in GPW ρ̃ is a fit-basis PROJECTION whose (0,0,0) is SHAPE-dependent (that's
+  why `Ω·ρ̃(0)=1.38≠8`), so freezing it stranded the XC's mean density at the seed value → wrong fixed point
+  −8.24662, residual floored. **FIX: mix G=0 fully (`f_K(0)=1`) — the SCF diagonalization conserves charge, so no
+  freeze needed.** Also added the ρ-residual convergence gate (`‖ρ̃_out−ρ̃_in‖`) and made `FourierMixCD` carry N
+  explicitly (the shape-dependent ρ̃(0) can't give it). **RESULT: Si-Kerker now converges to −8.24758 EXACTLY
+  (26 iters) = the D-mixing fixed point** — the fast correctness gate PASSES, machinery sound. KerkerMix unit
+  tests updated (G=0-mixes), default path byte-identical (Si −8.24758). **NaF RESULT (pure Kerker G0=1.0): PARTIAL
+  — machinery works, tuning not there yet.** It transformed the chaotic period-6 cycle into a clean PERIOD-2 flip
+  (`∫ρ_grid` 7.999992 ↔ 2.414158; the 8.0 state is beautifully resolved, loss 8e-6 — Kerker IS producing clean
+  densities) and moved the energy toward physical (−20.10 vs PW −20.33, up from the garbage −24.5). But it's a
+  STABLE period-2 cycle, not converged — UNDERDAMPED. Two tuning causes (NOT correctness — Si proved that):
+  (a) **G0=1.0 too weak** — NaF's charge-transfer mode is inter-atomic (Na–F ~4.4 a.u. → G~1.4), ABOVE G0, so
+  barely damped; needs G0~2–3. (b) **α ran away to 1.0** — the `if(FD<FDold) relax*=1.5` growth wasn't guarded
+  for Kerker (now FIXED: Kerker holds α=StartingRelaxRo). **NEXT (tuning, but 34-min/run): G0~2–3 + fixed
+  α~0.1–0.2; and/or re-enable DIIS (excels at breaking period-2 flips — Kerker damps amplitude, DIIS kills the
+  flip).** The period-2 flip + near-physical energy say we're close.
+- **KERKER + DIIS: CONVERGING — charge-transfer axis essentially CRACKED (2026-07-12).** The combo broke the
+  period-2 flip: the ρ-residual Δρ decreases MONOTONICALLY in the tail (iters 54–60: 1.5e-2 → 3.6e-3, clean
+  ~×0.8/iter), energy settled at −24.01 (near the basis-limited GPW value ~−23.6/−23.9 for VALENCE_LOWQ_SR — NOT
+  the complete-basis PW −20.33). Hit nmax=60 at Δρ=3.6e-3 (just above the 1e-3 gate — ~4 more iters would
+  converge); two mid-run DIIS crashes (iters 50–53) it recovered from. **CONCLUSION (user): the code is correct
+  IN PRINCIPLE — no bug making charge jump around; the oscillation was real SCF dynamics, now tamed.** Kerker is
+  built, unit-tested (`KerkerMix.*`), Si-validated to the EXACT fixed point (−8.24758), default-safe (191/191),
+  and it converges NaF. **STOP heuristic mixing trials here** — the 34-min loop makes tuning nmax/G0/α/DIIS too
+  expensive. **The next lever is RUNTIME — see the OPTIMIZATION SESSION section immediately below.**
+
+## 0.5 NEXT SESSION — RUNTIME OPTIMIZATION (PROFILE FIRST, do NOT assume the target)
+The GPW NaF run is ~34–40 min (≫ CP2K). Correctness is settled (above); the blocker to further work is SPEED.
+**Discipline (user-directed): measure before optimizing — do NOT pre-commit to magnitude-screening.** It has
+been the plan's *assumed* culprit but was never profiled. Start the session by PROFILING, then pick the fix.
+
+**Profile, don't guess (ready-to-run entry points):**
+1. **Profile our GPW NaF.**
+   - **perf (PREFERRED — low overhead, profile the REAL 34-min run).** Blocked today by `kernel.perf_event_paranoid=4`
+     (unusually high; ≥3 blocks unprivileged perf). Fix with sudo (persists via `/etc/sysctl.d/99-perf.conf`):
+     `sudo sysctl kernel.perf_event_paranoid=1`. The build already keeps frame pointers + `-g`
+     (`-O2 -g -fno-omit-frame-pointer`), so `--call-graph=fp` is enough (no heavy dwarf):
+     ```
+     perf record --call-graph=fp ./UnitTests/UTMain --gtest_also_run_disabled_tests \
+       --gtest_filter='GPW_SCF.DISABLED_NaFRocksaltGamma'
+     perf report -g 'graph,0.5,caller'
+     ```
+   - **callgrind (NO ROOT — the fallback that works today; EXACT counts, view in KCachegrind).** ~20–50× slower,
+     so use a SMALLER-but-same-code case; the function-level hotspot RANKING transfers. Si GPW (fast, but Ecut~12 /
+     Rcut=0 — under-weights NaF's fine-grid+image cost) for structure, or NaF at reduced `nmax` for the real terms:
+     ```
+     valgrind --tool=callgrind --callgrind-out-file=cg.out ./UnitTests/UTMain \
+       --gtest_filter='GPW_SCF.SiliconGammaConverges'     # then: kcachegrind cg.out
+     ```
+   - gprof/`-pg` REJECTED (user: unreliable under modern inlining/opt).
+2. **Profile/time CP2K** on the same NaF (`~/Code/cp2k/build/bin/cp2k.ssmp`, deck `UnitTests/CP2K/naf_gpw.inp`)
+   for a wall-clock TARGET + its term breakdown (points at where the time *should* go).
+3. (Optional, cheap insurance, SEPARATE from runtime) one `valgrind --tool=memcheck` pass to definitively close
+   "is there a memory bug?" — expected clean (Si-validated, charge-conserved). **ASan/memcheck ≠ profiler:** they
+   find memory bugs; `perf`/`callgrind` find runtime.
+
+**Candidate hotspots + their DIFFERENT fixes (the profile picks among these — they are NOT the same optimization):**
+- **[MY BET] The fine grid `densityEcut=160`** (auto-floored for F α_max=40): Npts ∝ Ecut^1.5, so ~11× the
+  Si-scale grid. EVERYTHING per iteration scales with Npts — density collocation `ρ=ΣD_ij χ_iχ_j`, FFTs,
+  integrate-back. **Fix = MULTI-GRIDS** (map F's tight primitive to its own fine grid, diffuse functions to coarse
+  ones — CP2K's per-exponent multigrid; §4). Likely the dominant lever, and NOT magnitude-screening.
+- **Image collocation (Rcut=2a)** — the `|R|≤Rcut` sphere re-summed at every grid point. **Fix = magnitude-
+  screening** (per-pair `|⟨χ_i|χ_j^R⟩|>ε`, CP2K's `EPS_PGF_ORB`) — sparse + drops the arbitrary Rcut + fixes the
+  indefinite-S (§OPEN INVESTIGATION). Real, but probably a one-time `PhiOnGrid`/overlap cost, not the per-iter one.
+- **`PhiOnGrid` one-time build** — O(Npts × nOrb × nImages); already cached across iterations, but the build at
+  Ecut=160 × Rcut=2a images could be large. Fix = magnitude-screen the images (above) + the multigrid (above).
+- **The W-tensor / integrate-back** — O(nGfit × nAO²) storage+FFTs. Fix = whole-density collocation (§4).
+**Deliverable:** a profile-backed ranking, then implement the top 1–2 fixes, re-time NaF vs CP2K. THEN return to
+the (now-cheap) mixing tuning (G0/α/DIIS/nmax) to get the converged NaF number for `doc/CP2Kresults.md`.
+- **SPEED: the GPW NaF run is VERY slow (≫ CP2K) — magnitude-screening is now a SPEED item, not just correctness.**
+  The `|R|≤Rcut` sphere drags EVERY function (incl. tight ones that overlap nothing at 2a) out to Rcut=2a, and the
+  collocation re-sums that whole image set at every grid point every SCF iteration. Per-pair `|⟨χ_i|χ_j^R⟩|>ε`
+  screening (CP2K's `EPS_PGF_ORB`) makes cost scale with REAL overlaps (sparse) AND drops the SR/Rcut crutch AND
+  fixes the indefinite-S correctness issue (§OPEN INVESTIGATION). **Back on the active list** (was deferred).
+- **NEXT (reprioritised, in order):** (a) [RUNNING] confirm DIIS-delay tames the slosh; (b) Kerker/high-G-damped
+  mixing (needed regardless); (c) magnitude-screen the overlap (SPEED + correctness + drops Rcut); (d) push the
+  ladder to Ecut≈160/200 (or multi-grids) for a converged NaF Etot vs CP2K/PW; (e) multi-grids
+  (§4) to make the high cutoff affordable (F's tight primitive → own fine grid, diffuse Na → coarse). Considered:
+  a CP2K-style grid-charge RESCALE `ρ_grid *= N/∫ρ_grid` (cheap monopole guard + the same number CP2K prints) —
+  but it is a COUNT fix, not a SHAPE fix (aliasing corrupts ρ̃(G≠0), which Hartree/XC see), so it does not replace
+  cutoff convergence. **DEFERRED (user, 2026-07-12): do NOT add it yet — it would MASK the very `∫ρ_grid` swing
+  (5.2 ↔ 7.99 at Ecut=120) we are using to TRACK the residual charge-transfer oscillation; pinning ∫ρ_grid=8 blinds
+  the instrument before the problem is solved.** Add only AFTER grid is converged AND the oscillation is fixed, and
+  even then CP2K-style with the rescale MAGNITUDE always printed (= the loss = the diagnostic; never silent). Note
+  the periodic G=0-dropped Hartree is charge-BLIND (unlike molecular 1/r RI, which is why molecular DFT constrains
+  ∫ρ̃=N and PW does not need a constrained fit).
+- **IONIC SEED — generator DONE (2026-07-12), wiring NEXT.** Root cause of the useless IonicSAD: it scaled the
+  NEUTRAL F valence density's AMPLITUDE ×8/7, keeping the COMPACT neutral shape (69 vs 58 iters vs Uniform,
+  `PlaneWaveDFTUT.C:1473`) — a real F⁻ is spatially DIFFUSE. **Design (user): an OFFLINE-generated LIBRARY of seed
+  densities (neutral + chemically-plausible ions), NEVER an atom SCF at lattice-run time** (a production run is a
+  lookup — robust for a newbie; the SCF "surprises" are confined to the offline generator). Unified with the
+  same atom-SCF machinery that makes the valence BASES: `qchem::ValenceBasisGen::GenerateSeedDensity(recipe)`
+  runs the charge-state pseudo-atom SCF (`recipe.electrons`: neutral F 7, F⁻ 8, Na⁺ 0) and samples ρ(r) on a log
+  mesh into a library entry (schema of `atomic_valence_densities.json`). **Validated (`ValenceBasisGen.
+  FluorineSeedDensityAnionIsDiffuse`): F⁻ ⟨r⟩=1.62 vs neutral F 1.18 (37% more diffuse), charge 8.00 vs 7.00** —
+  the anion diffuseness the seed needs, for free. **INCREMENT 2 DONE (2026-07-12) — and it WORKS:** (a) F⁻ entry
+  (Nelec=8) captured into `atomic_valence_densities.json` (neutral F/Na/Si preserved); (b)
+  `GetAtomicDensity(Z,functional,dbfile,Nval)` + `HasAtomicDensity` select a charge state by valence count
+  (Nval<0 = neutral, backward-compatible); (c) `SeedCD`/`IonicSAD` now pull the library's CHARGE-STATE density
+  (target `Nval-q`: F→F⁻ 8 e⁻ diffuse, Na→0 e⁻) with scale 1 — no more amplitude hack; falls back to
+  neutral×scale only if the library lacks the ion. **Validated in PW (`PlaneWaveDFT.FrameworkNaFThroughSCFIterator`):
+  IonicSAD HALVES the iterations — 17 vs Uniform 35** (was 69 vs 58 = WORSE with the compact seed), charge 8,
+  same converged −20.3293 (seed-independence). Guarded `EXPECT_LT(I.iters,U.iters)`. GPW NaF test switched to
+  IonicSAD (same machinery → same win; the slow auto-160 SCF not re-run this session). Full `-A_*` suite green
+  (shared molecular SAD path unaffected — neutral lookups still first-match). Ionic-seed axis: DONE.
+
 **Reprioritised diagnosis (what's actually going on):**
 - **Overlap conditioning ≈ RED HERRING.** min eig(S)=7.5e-4 (SR/Rcut=2a) orthogonalises trivially: min eig =
   min sv for Hermitian PSD; the √ shows up only on the orthogonaliser `V=S^-1/2` (`cond(V)=√cond(S)`, amplifies
@@ -203,7 +418,8 @@ start from (several of this session's early claims were wrong and are struck thr
 - **CP2K reports it directly:** `Electronic density on regular grids: -7.9963  0.0037` — integrated grid ρ and
   its **error (0.0037 e⁻ lost to truncation)**; the `Re-scaling ... Number of electrons: 8` step corrects it and
   the rescale magnitude IS that error. Plus the multigrid (4 levels + `REL_CUTOFF 30`) = per-exponent grid
-  mapping. **ADD the same `∫ρ_grid − N` readout to our GPW** (cheap; ρ is already on the grid) — turns "is our
+  mapping. **DONE 2026-07-12: `∫ρ_grid − N` readout added** — `qchem::Hamiltonian::ReportGridCharge()` (opt-in),
+  printed by `PW_XC::RefreshRhoGrid` per iteration (see the DIAGNOSTICS block at the top of §0). Turns "is our
   grid good enough" into CP2K's controlled number.
 
 **Iteration-output refactor (user-requested — diagnostic infrastructure):** the per-iteration columns in

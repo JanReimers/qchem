@@ -24,6 +24,11 @@ export struct SCFParams
     double StartingRelaxRo = 1.0;    //relaxation for mixing Ro.  Dynamically adjusted during iterations.
     double MergeTol        = 1e-4;   //Merge eigen levels (like Px,Py Pz) that are equal within +/- MergeTol
     bool   Verbose         = false;  //Display iteration details.
+    double KerkerG0        = 0.0;    //Kerker density-mixing screening wavevector G0 (a.u.^-1).  0 (default) =
+                                     //  OFF -> classic linear density-matrix mixing (atoms/molecules unchanged).
+                                     //  >0 -> preconditioned rho-mixing on the periodic (GPW/PW) path: damp the
+                                     //  low-G charge-transfer slosh by G^2/(G^2+G0^2) (breaks the ionic-crystal
+                                     //  limit cycle -- see doc/GPWPlan.md).  Typical G0 ~ 1.0.  dcmplx path only.
 };
 
 

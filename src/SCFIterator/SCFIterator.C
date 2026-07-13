@@ -10,6 +10,7 @@ import qchem.WaveFunction.SCF;
 export import qchem.SCFParams;
 export import qchem.ChargeDensity.Seed;   // SeedStrategy / MakeSeedDensity
 import qchem.LASolver;   // qchem::Ortho (the basis-overlap orthogonalisation knob, forwarded to the WF)
+import qchem.BasisSet.Fit_IBS;   // BasisSet::FIT_SF_ABS<T> (the G-space fit basis for Kerker rho-tilde extraction)
 
 export using qchem::EnergyBreakdown;
 using qchem::ChargeDensity::tDM_CD;
@@ -76,6 +77,14 @@ private:
     void Initialize(tChargeDensity<T>* seed, const tbs_t<T>* bs, const Structure* st);
     cd_t DirectMinStep(double Ecur, double mergeTol); //one direct-min step (returns new density)
     bool itsDirectMin=false;
+
+    //! KERKER rho-mixing (periodic/dcmplx path; no-op otherwise).  \c KerkerSetup builds the G-space fit basis +
+    //! the initial mixed density \c itsMixedRho from the seed; \c KerkerUpdate re-collocates the new density's
+    //! rho-tilde and folds it into \c itsMixedRho by the Kerker preconditioner.  Both are guarded to dcmplx.
+    void   KerkerSetup(double G0);
+    double KerkerUpdate(double relax);   //!< returns the SCF residual ‖ρ̃_out − ρ̃_in‖ (the ρ-mixing convergence gate)
+    //! The Fock-driving density this iteration: the Kerker-mixed rho-tilde when active, else the working D.
+    const tChargeDensity<T>* FockDensity() const {return itsMixedRho ? itsMixedRho.get() : (const tChargeDensity<T>*)itsCD.get();}
     void DisplayEnergies(int i, const EnergyBreakdown&,  double relax, double dE, double dCD, size_t idealVirial) const;
     void DisplayEigen   () const;
 
@@ -96,6 +105,16 @@ private:
     size_t          itsIterationCount;
     bool            itsConverged;
     Observer        itsObserver;   //!< optional live-progress sink (default empty)
+
+    // Kerker rho-mixing state (populated only on the dcmplx periodic path with KerkerG0>0; null/unused otherwise).
+    const tbs_t<T>*  itsBS = nullptr;         //!< orbital basis (for the G-space fit basis) -- from the ctor
+    //! A PERSISTENT copy of the periodic cell (reciprocal lattice + volume for Kerker).  The ctor's raw \c st
+    //! comes from a temporary (\c Lattice_3D::GetStructure returns a fresh \c make_shared), so it dangles by the
+    //! time \c Iterate runs -- we deep-copy it here (periodic path only) so KerkerSetup has a live cell.
+    std::shared_ptr<const Structure> itsKerkerCell;
+    double           itsKerkerG0 = 0.0;       //!< Kerker screening wavevector (0 => Kerker off)
+    std::shared_ptr<tChargeDensity<T>> itsMixedRho;   //!< the Kerker-mixed rho-tilde density that drives the Fock
+    std::shared_ptr<const BasisSet::FIT_SF_ABS<T>> itsKerkerFit;  //!< G-space fit basis for rho-tilde extraction
 };
 
 using SCFIterator  = tSCFIterator<double>;
