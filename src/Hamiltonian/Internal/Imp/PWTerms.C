@@ -2,6 +2,7 @@
 module;
 #include <cassert>
 #include <functional>
+#include <iomanip>
 #include <iostream>
 #include <memory>
 #include <stdexcept>
@@ -17,6 +18,8 @@ import qchem.Structure;                       // Structure::isFinite()/SumFormFa
 
 namespace qchem::Hamiltonian
 {
+
+bool& ReportGridCharge() { static bool on = false; return on; }
 
 PW_Pseudo::PW_Pseudo(const st_t& st, const Pseudopotential::LocalPotential* loc,
                          const Pseudopotential::SeparablePotential* nl)
@@ -191,6 +194,17 @@ void PW_XC::RefreshRhoGrid(const cChargeDensity* cd) const
     auto fd=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(cd);
     assert(fd && "PW_XC requires a FourierDensity (periodic) charge density");
     itsRhoGrid=itsScalarFitter->Grid().RhoOnGrid(fd->GetFourierDensity(*itsVxcFitBasis));   // rho-tilde via Overlap3C, onto the FIT grid
+    if (ReportGridCharge())
+    {
+        // Grid charge vs analytic charge: the electrons LOST to grid truncation (high-G aliasing of rho).
+        // == CP2K's "Electronic density on regular grids: <int rho> <error>" -- a controlled cutoff metric.
+        const double qGrid=itsScalarFitter->Grid().Integral(itsRhoGrid);   // integral rho_grid d3r
+        const double qDM  =cd->GetTotalCharge();                           // Tr(D S) (analytic, ~ N)
+        std::cout << "[grid charge] integral rho_grid=" << std::fixed << std::setprecision(6) << qGrid
+                  << "  Tr(DS)=" << qDM
+                  << "  lost=" << std::scientific << std::setprecision(3) << (qGrid-qDM)
+                  << std::defaultfloat << std::endl;
+    }
 }
 
 // XC through the pre-built ortho scalar fitter, mirroring the molecular FittedVxc: the fitter batch-samples

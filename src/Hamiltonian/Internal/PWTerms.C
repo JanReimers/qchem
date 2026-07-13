@@ -21,6 +21,14 @@ import qchem.Structure;
 export namespace qchem::Hamiltonian
 {
 
+//! Process-wide diagnostic toggle (default OFF), mirroring \c qchem::ReportOverlapConditioning.  When true,
+//! \c PW_XC::RefreshRhoGrid emits a one-line report each time it (re)collocates the density: the grid-integrated
+//! charge \f$\int\rho_{\text{grid}}\f$, the analytic charge \f$\mathrm{Tr}(DS)\f$, and their difference -- the
+//! CHARGE LOST TO GRID TRUNCATION (== CP2K's "Electronic density on regular grids: <int> <error>" readout).
+//! A cheap, controlled number for "is the density cutoff high enough" (see doc/GPWPlan.md \S0).  Flip in place:
+//! `qchem::Hamiltonian::ReportGridCharge() = true;`.
+bool& ReportGridCharge();
+
 //! External (pseudo)potential term for a plane-wave basis (static, density-independent).  THIS is the
 //! pseudo-wall: the TERM owns the pseudopotential MODEL (an abstract local form factor + optional KB
 //! nonlocal projector), and asks the basis to ASSEMBLE the matrix from it (MakeLocalPotential +
