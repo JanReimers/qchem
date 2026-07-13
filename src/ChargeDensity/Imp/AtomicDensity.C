@@ -71,17 +71,34 @@ double RadialDensity::FormFactor(double G) const
     return 4.0*Pi*sum;
 }
 
-RadialDensity GetAtomicDensity(int Z, const std::string& functional, const std::string& dbfile)
+// Match (Z, functional) and -- if Nval>=0 -- the charge state Nelec==Nval; return the entry (or end()).
+static const nlohmann::json* FindAtomicEntry(int Z, const std::string& functional,
+                                             const std::string& dbfile, int Nval)
 {
     for (const nlohmann::json& e : database(dbfile))
-        if (e.value("Z",-1)==Z && e.value("functional",std::string())==functional)
-        {
-            const nlohmann::json& g = e.at("grid");
-            return RadialDensity(g.at("rmin").get<double>(), g.at("rmax").get<double>(),
-                                 e.at("rho").get<std::vector<double>>());
-        }
+        if (e.value("Z",-1)==Z && e.value("functional",std::string())==functional
+            && (Nval<0 || e.value("Nelec",-1)==Nval))
+            return &e;
+    return nullptr;
+}
+
+RadialDensity GetAtomicDensity(int Z, const std::string& functional, const std::string& dbfile, int Nval)
+{
+    if (const nlohmann::json* e = FindAtomicEntry(Z, functional, dbfile, Nval))
+    {
+        const nlohmann::json& g = e->at("grid");
+        return RadialDensity(g.at("rmin").get<double>(), g.at("rmax").get<double>(),
+                             e->at("rho").get<std::vector<double>>());
+    }
     throw std::runtime_error("AtomicDensity: no entry for Z=" + std::to_string(Z)
-                             + " functional='" + functional + "' in " + dbfile);
+                             + " functional='" + functional + "'"
+                             + (Nval>=0 ? " Nelec=" + std::to_string(Nval) : std::string())
+                             + " in " + dbfile);
+}
+
+bool HasAtomicDensity(int Z, const std::string& functional, const std::string& dbfile, int Nval)
+{
+    return FindAtomicEntry(Z, functional, dbfile, Nval) != nullptr;
 }
 
 //-------------------------------------------------------------------------------- RecentredAtomicDensity

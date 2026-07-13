@@ -10,6 +10,7 @@
 #include <memory>
 #include <vector>
 #include <string>
+#include <utility>
 
 import qchem.ValenceBasisGen;
 import qchem.Structure;                  // Molecule, Atom
@@ -49,6 +50,30 @@ TEST(ValenceBasisGen, Sodium_q1)
     std::cout << "[gen Na] E=" << g.energy << " conv=" << g.converged << "\n" << g.block << std::endl;
     EXPECT_LT(g.energy, -0.13);       // bound Na 3s^1 (oracle ~ -0.1446)
     EXPECT_GT(g.energy, -0.16);
+}
+
+// SEED DENSITY generation (the offline library for IonicSAD): the SAME pseudo-atom SCF that makes the basis
+// also emits a spherical rho(r) for the seed-density library.  THE POINT: an anion (F-) valence density is
+// spatially DIFFUSE -- its <r> exceeds the neutral atom's -- which is exactly why a proper F- seed converges
+// where the old neutral-density-scaled-x8/7 IonicSAD (too compact) did not (PlaneWaveDFTUT / doc/GPWPlan §0).
+// This asserts that physics (charge conserved, F- more diffuse than neutral F) and PRINTS the F- library entry
+// so it can be captured into atomic_valence_densities.json.
+TEST(ValenceBasisGen, FluorineSeedDensityAnionIsDiffuse)
+{
+    auto window = []{ return std::vector<std::pair<int,std::vector<double>>>{
+        {0, EvenTemperedWindow(8, 0.12, 40.0)}, {1, EvenTemperedWindow(6, 0.14, 12.0)} }; };
+    ValenceBasisRecipe neutral; neutral.element="F"; neutral.Zion=7; neutral.electrons=7; neutral.shells=window();
+    ValenceBasisRecipe anion;   anion.element  ="F"; anion.Zion  =7; anion.electrons  =8; anion.shells  =window();
+
+    GeneratedSeedDensity n = GenerateSeedDensity(neutral);
+    GeneratedSeedDensity a = GenerateSeedDensity(anion);
+    std::cout << "[seed F ] neutral: charge="<<n.charge<<" <r>="<<n.meanR<<" conv="<<n.converged<<"\n"
+              << "[seed F-] anion:   charge="<<a.charge<<" <r>="<<a.meanR<<" conv="<<a.converged<<std::endl;
+    std::cout << "[F- seed entry] " << a.jsonEntry.substr(0, 180) << " ...rho[400]... }" << std::endl;
+
+    EXPECT_NEAR(n.charge, 7.0, 0.1);          // neutral F: 7 valence e-
+    EXPECT_NEAR(a.charge, 8.0, 0.1);          // F-: 8 valence e- (charge conserved by construction)
+    EXPECT_GT(a.meanR, n.meanR);              // THE POINT: the anion density is more diffuse than the neutral
 }
 
 // Assemble the full valence_lowq.bsd (organised by TYPE, all elements in one file, per the BasisSetData

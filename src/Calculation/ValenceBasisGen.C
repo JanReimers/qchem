@@ -54,6 +54,19 @@ export namespace qchem
     //! Validate the recipe (run the pseudo-atom SCF in exactly \c exponents) and emit its element block.
     GeneratedBasis GenerateValenceBasis(const ValenceBasisRecipe&);
 
+    //! A seed valence DENSITY generated from the SAME offline pseudo-atom SCF as the basis -- one tool, two
+    //! products.  The spherical \f$\rho(r)\f$ is sampled on a log radial mesh into a library entry (the schema of
+    //! \c atomic_valence_densities.json).  For an ION set \c recipe.electrons to the charge state's valence
+    //! count (neutral F 7, F- 8, Na+ 0) -- an anion density comes out DIFFUSE, which is exactly what a good
+    //! IonicSAD seed needs (a compact neutral-scaled density does not converge -- see doc/GPWPlan.md).  The atom
+    //! SCF (and its convergence surprises) is confined HERE, offline; a lattice run only LOOKS UP the result.
+    //! \c charge = 4π∫r²ρ dr (~ the charge state's electron count); \c meanR = ⟨r⟩ = 4π∫r·r²ρ dr / charge,
+    //! the mean radius -- the DIFFUSENESS metric (an anion's ⟨r⟩ exceeds the neutral atom's).  \c jsonEntry is
+    //! the library object to append to \c atomic_valence_densities.json.
+    struct GeneratedSeedDensity { double charge; double meanR; bool converged; std::string jsonEntry; };
+    GeneratedSeedDensity GenerateSeedDensity(const ValenceBasisRecipe&,
+                                             int Ngrid=400, double rmin=1e-4, double rmax=20.0);
+
     //! Wrap element \a blocks into a complete Gaussian94 .bsd file (the shared comment/`!`/`BASIS=` header,
     //! then every block).  \a name is the file's descriptive title + BASIS= tag.
     std::string AssembleBasisFile(const std::string& name, const std::vector<std::string>& blocks);

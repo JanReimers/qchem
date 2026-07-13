@@ -1470,11 +1470,12 @@ TEST_F(PlaneWaveDFT, FrameworkNaFThroughSCFIterator)
     // Negative: the ionic Madelung (Enn~-14) + G=0 alignment dominate.
     EXPECT_NEAR(I.E.GetTotalEnergy(), -20.3293, 5e-3) << "Enn="<<I.E.Enn<<" Ealign="<<I.E.Ealign;
     EXPECT_NEAR(I.E.GetTotalEnergy(), U.E.GetTotalEnergy(), 1e-3);   // seed-independence of the converged answer
-    // NOTE: IonicSAD does NOT (yet) beat Uniform on iterations for NaF (~69 vs ~58 at Ecut=6).  The crude
-    // ionic density -- the neutral F valence scaled x8/7 -- is too COMPACT (the real F- electron is diffuse),
-    // injecting high-G content much like the Si all-electron core peak did before the smooth pseudo-valence
-    // density landed.  The iteration win awaits a proper anion (F-) pseudo-valence density; the heuristic +
-    // charge-conserving seed wiring are correct and in place.  See doc/SCFSeedingPlan.md section 3.3.
+    // IonicSAD now HALVES the iterations vs Uniform (17 vs 35 at Ecut=6) -- the DIFFUSE F- pseudo-valence
+    // density does it.  History: the old seed scaled the NEUTRAL F valence x8/7 (too COMPACT -> high-G noise ->
+    // 69 vs 58, WORSE).  Fix (2026-07-12): SeedCD/IonicSAD now pull the library's CHARGE-STATE density (F-,
+    // Nelec=8, <r>=1.62 vs neutral 1.18) generated offline by qchem::ValenceBasisGen::GenerateSeedDensity, so
+    // the anion diffuseness is physical, not an amplitude hack.  A guard that the win holds:
+    EXPECT_LT(I.iters, U.iters) << "diffuse F- IonicSAD should converge in fewer iterations than Uniform";
 }
 
 // Heavy multi-species ionic crystal CsI (CsCl = simple cubic + 2-atom basis).  THE d-PROJECTOR TEST: both

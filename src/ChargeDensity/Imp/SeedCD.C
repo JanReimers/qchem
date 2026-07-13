@@ -30,26 +30,41 @@ ReciprocalLattice ReciprocalOf(const Structure* st)
 } //anon
 
 SeedCD::SeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Structure* st,
-                             const std::string& functional, const std::map<size_t,double>& ionicScaleByZ)
+                             const std::string& functional, const std::map<size_t,int>& ionicNvalByZ)
     : itsFitBasis(fitBasis), itsStructure(st), itsRecip(ReciprocalOf(st)), itsCharge(0.0)
     , itsVersion(NextDensityVersion())   // shared global clock (no cross-kind collisions)
 {
     assert(fitBasis);
     assert(st);
+    const std::string db = "atomic_valence_densities.json";
     for (size_t i=0;i<st->GetNumAtoms();i++)
     {
         const Atom* a = (*st)[i];
-        auto it = itsRadByZ.find(a->itsZ);
-        if (it==itsRadByZ.end())
+        const size_t Z = a->itsZ;
+        if (itsRadByZ.find(Z)==itsRadByZ.end())
         {
-            it = itsRadByZ.emplace(a->itsZ,
-                     std::make_shared<const RadialDensity>(
-                         GetAtomicDensity(a->itsZ, functional, "atomic_valence_densities.json"))).first;
-            auto si = ionicScaleByZ.find(a->itsZ);            // per-species IonicSAD scale (default 1.0)
-            itsScaleByZ[a->itsZ] = (si!=ionicScaleByZ.end()) ? si->second : 1.0;
+            // The NEUTRAL density fixes this species' neutral valence count; the IonicSAD target (Nval-q) is
+            // ionicNvalByZ (default: neutral, i.e. no charge transfer).
+            RadialDensity neutral = GetAtomicDensity((int)Z, functional, db);       // Nval<0 => neutral
+            const int neutralNval = (int)std::lround(neutral.Charge());
+            auto ti = ionicNvalByZ.find(Z);
+            const int target = (ti!=ionicNvalByZ.end()) ? ti->second : neutralNval;
+
+            std::shared_ptr<const RadialDensity> rad;
+            double scale;
+            if (target<=0)                                                          // stripped cation -> nothing
+                { rad=std::make_shared<const RadialDensity>(std::move(neutral)); scale=0.0; }
+            else if (HasAtomicDensity((int)Z, functional, db, target))              // library has the charge state
+                { rad=std::make_shared<const RadialDensity>(GetAtomicDensity((int)Z,functional,db,target)); scale=1.0; }
+            else                                                                    // fall back: amplitude-scale neutral
+                { scale=double(target)/double(neutralNval);
+                  rad=std::make_shared<const RadialDensity>(std::move(neutral)); }
+
+            itsRadByZ[Z]   = rad;
+            itsScaleByZ[Z] = scale;
         }
-        itsCharge += itsScaleByZ.at(a->itsZ) * it->second->Charge();   // (N_val - q_Z) for this atom
-        itsRecentred.emplace_back(it->second, a->itsR);       // for real-space op(r)
+        itsCharge += itsScaleByZ.at(Z) * itsRadByZ.at(Z)->Charge();   // this atom's (scaled) electron count
+        itsRecentred.emplace_back(itsRadByZ.at(Z), a->itsR);          // for real-space op(r)
     }
     assert(itsCharge>0);
 }

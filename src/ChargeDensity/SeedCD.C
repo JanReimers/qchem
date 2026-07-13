@@ -32,12 +32,14 @@ class SeedCD
 public:
     //! Build the seed for density-fit basis \a fitBasis (from the orbital basis's CreateCDFitBasisSet) and
     //! structure \a st: read each element's pseudo-valence radial density (\a functional, from
-    //! atomic_valence_densities.json) and prepare the form-factor sum.  \a ionicScaleByZ is the per-species
-    //! IonicSAD multiplier (empty => neutral SAD, all 1.0): species \c Z gets its valence density scaled by
-    //! \c (N_val - q_Z)/N_val so the seed carries the formal charge \c q_Z (Na+ -> 0, F- -> 8/7); the total
-    //! still integrates to the cell's electron count (sum of charges = 0).
+    //! atomic_valence_densities.json) and prepare the form-factor sum.  \a ionicNvalByZ is the per-species
+    //! IonicSAD TARGET valence-electron count (empty => neutral SAD): species \c Z should carry \c Nval-q_Z
+    //! electrons (Na+ -> 0, F- -> 8).  For each species we prefer the library's CHARGE-STATE density with that
+    //! \c Nelec (a DIFFUSE F- anion -- what makes the ionic seed actually converge), scale 1; if the library
+    //! lacks it we fall back to the neutral density amplitude-scaled by \c target/Nval (the old compact seed);
+    //! a target of 0 (a stripped cation) is the zero density.  The total integrates to the cell electron count.
     SeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Structure* st,
-                  const std::string& functional="LDA", const std::map<size_t,double>& ionicScaleByZ = {});
+                  const std::string& functional="LDA", const std::map<size_t,int>& ionicNvalByZ = {});
 
     // FourierDensity -- the native G-space representation the PW Hartree/XC terms consume.  The seed carries
     // no D, so its rho-tilde IS the structure-factor density (fit basis ignored); V_H applies the diagonal

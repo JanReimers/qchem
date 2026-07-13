@@ -12,6 +12,8 @@ module qchem.ValenceBasisGen;
 
 import qchem.PeriodicTable;                    // thePeriodicTable (symbol <-> Z)
 import qchem.Pseudopotential.GTH_Potentials;   // GetGTH (default Zion)
+import qchem.Types;                            // rvec3_t (radial sampling point)
+import qchem.Math;                             // Pi (the 4 pi in the charge integral)
 
 namespace qchem
 {
@@ -64,6 +66,51 @@ GeneratedBasis GenerateValenceBasis(const ValenceBasisRecipe& r)
     os << " ****\n";
 
     return { atom.Energy(), atom.IsConverged(), os.str() };
+}
+
+GeneratedSeedDensity GenerateSeedDensity(const ValenceBasisRecipe& r, int Ngrid, double rmin, double rmax)
+{
+    const int Z    = int(thePeriodicTable().GetZ(r.element));
+    const int Zion = r.Zion > 0 ? r.Zion : Pseudopotential::GetGTH(r.element, r.functional).zion;
+    const int nel  = r.electrons > 0 ? r.electrons : Zion;      // valence electrons of THIS charge state
+    const int charge = Z - nel;                                 // AtomCalculation: electrons = Z - charge
+
+    // The SAME pseudo-atom SCF the basis generator runs (identical shells/PP/functional) -- one validated SCF.
+    AtomCalcOptions o;
+    o.type            = AtomType::Gaussian;
+    o.pseudopotential = true;
+    o.valence         = Zion;
+    o.exponentsByL    = r.shells;
+    AtomCalculation atom(Z, charge, o);
+
+    // Sample the spherical valence rho(r) on a LOG mesh (schema of atomic_valence_densities.json), and
+    // integrate 4*pi*int r^2 rho dr (trapezoid) as the validation charge (~ nel).
+    const double beta = (Ngrid > 1) ? std::pow(rmax/rmin, 1.0/(Ngrid-1)) : 1.0;
+    std::vector<double> rs(Ngrid), rho(Ngrid);
+    double rr = rmin;
+    for (int i = 0; i < Ngrid; i++) { rs[i] = rr; rho[i] = atom.Density()(rvec3_t(rr,0,0)); rr *= beta; }
+    double q = 0.0, qr = 0.0;
+    for (int i = 0; i+1 < Ngrid; i++)
+    {
+        const double dr = rs[i+1]-rs[i];
+        q  += 0.5*dr*(rs[i]*rs[i]*rho[i]           + rs[i+1]*rs[i+1]*rho[i+1]);            // 4pi int r^2 rho
+        qr += 0.5*dr*(rs[i]*rs[i]*rho[i]*rs[i]     + rs[i+1]*rs[i+1]*rho[i+1]*rs[i+1]);    // 4pi int r^3 rho
+    }
+    q *= 4.0*Pi; qr *= 4.0*Pi;
+    const double meanR = q > 0.0 ? qr/q : 0.0;                                            // <r> (diffuseness)
+
+    // Emit the library entry (JSON object matching atomic_valence_densities.json).
+    std::string sym = r.element;
+    std::ostringstream os;
+    os << std::setprecision(12);
+    os << "{\"symbol\": \"" << sym << "\", \"Z\": " << Z << ", \"Nelec\": " << nel
+       << ", \"charge\": " << q << ", \"functional\": \"" << r.functional << "\", \"kind\": \"valence\", "
+       << "\"grid\": {\"kind\": \"log\", \"N\": " << Ngrid << ", \"rmin\": " << rmin << ", \"rmax\": " << rmax << "}, "
+       << "\"rho\": [";
+    for (int i = 0; i < Ngrid; i++) { if (i) os << ", "; os << rho[i]; }
+    os << "]}";
+
+    return { q, meanR, atom.IsConverged(), os.str() };
 }
 
 std::string AssembleBasisFile(const std::string& name, const std::vector<std::string>& blocks)

@@ -138,10 +138,10 @@ template <class T> tChargeDensity<T>* MakeSeedDensity(SeedStrategy s, const Basi
                 atoms.emplace_back(Z, nvalByZ[Z]);
             }
             std::vector<int> q = IonicFormalCharges(atoms);             // Na+1, F-1; conserves charge
-            std::map<size_t,double> scaleByZ;
-            for (size_t i=0;i<atoms.size();i++)                         // species Z -> (N_val - q)/N_val
-                scaleByZ[atoms[i].first] = double(atoms[i].second - q[i]) / double(atoms[i].second);
-            return new SeedCD(fb, st, "LDA", scaleByZ);
+            std::map<size_t,int> targetByZ;                            // species Z -> TARGET valence count N_val-q
+            for (size_t i=0;i<atoms.size();i++)                         // F: 7-(-1)=8 (F-), Na: 1-1=0 (Na+)
+                targetByZ[atoms[i].first] = atoms[i].second - q[i];
+            return new SeedCD(fb, st, "LDA", targetByZ);               // SeedCD prefers the DIFFUSE charge-state density
         }
         else
         {

@@ -39,9 +39,16 @@ private:
 
 //! Read element \a Z's radial density for \a functional from database \a dbfile (throws if absent).  The
 //! default holds all-electron densities (the molecular SAD source); pass "atomic_valence_densities.json"
-//! for the pseudo-valence densities (the plane-wave SAD source).
+//! for the pseudo-valence densities (the plane-wave SAD source).  \a Nval selects a CHARGE STATE by valence
+//! electron count (the entry's \c Nelec): \f$<0\f$ (default) = the first \a Z match (the neutral atom);
+//! \f$\ge0\f$ = the entry with \c Nelec==Nval (e.g. \c Nval=8 for F\f$^-\f$).  The seed-density library holds
+//! neutral + chemically-plausible ion entries (generated offline by \c qchem::ValenceBasisGen).
 RadialDensity GetAtomicDensity(int Z, const std::string& functional="LDA",
-                               const std::string& dbfile="atomic_densities.json");
+                               const std::string& dbfile="atomic_densities.json", int Nval=-1);
+//! Is there an entry for \a Z / \a functional (and \c Nelec==Nval if \a Nval>=0) in \a dbfile?  Lets a caller
+//! (IonicSAD) prefer a charge-state density when the library has it and fall back cleanly when it does not.
+bool          HasAtomicDensity(int Z, const std::string& functional="LDA",
+                               const std::string& dbfile="atomic_densities.json", int Nval=-1);
 
 //! A RadialDensity recentred at a nucleus \a R: a 3-D ScalarFunction rho(|r-R|) for the function-fitter.
 class RecentredAtomicDensity : public virtual ScalarFunction<double>
