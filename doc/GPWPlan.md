@@ -701,7 +701,49 @@ is an *efficiency* layer, not a correctness requirement — hence it comes AFTER
 
 ---
 
-# OPEN INVESTIGATION (2026-07-11): why is the truncated Bloch overlap S indefinite? (for the next session)
+# OPEN INVESTIGATION — LARGELY RESOLVED (2026-07-13)
+
+**Magnitude screening IMPLEMENTED + COMMITTED (`05e44fab`).** `NR_Evaluator::LatticeSum` now screens each
+`(i,j,R)` term by a per-component reach `r_i=√(−ln ε/α_min,i)` (ε=1e-10), shared identically across S/T/V_nuc
+(consistency is a CORRECTNESS requirement — S and H must sit on the same support for `HΨ=εSΨ`). Effect: the 1E
+lattice sums are SPARSE (**~4×**: 0.37 s vs 1.46 s to Rcut=4a), so a **generous Rcut is now free** — the "pinned
+at 2a for tuning" pain is gone. But screening only *removes* sub-ε terms; the caller must still ENUMERATE far
+enough (screening cannot add a term never enumerated).
+
+**KEY FINDING — the full-basis indefiniteness has TWO causes, and screening only fixes one.** Extending the
+sweep to 3a/4a (now cheap): full-basis min eig converges to 0 **from below** (−0.42→−0.11→−4e-4→−4.8e-8). The
+large-negative *truncation/Gibbs* part IS cured by enumerating far (screening makes it affordable), but the
+residual ~0⁻ is **intrinsic OVER-COMPLETENESS** of the diffuse Bloch-summed basis — a BASIS problem, not a
+cutoff one. SR is cleanly PSD (+7.5e-4→+9.6e-7, from above). So the plan's old "screening → PSD full basis" was
+HALF right (kills Gibbs, exposes over-completeness).
+
+**(1) tune basis (SR) vs (2) tune ortho (truncate eigen/SVD) — RESOLVED for GPW: (1)/SR stays, (2) is BLOCKED
+at the SCF stack.** The full basis's null directions cluster at ~1e-6 in a **clean ~1000× spectral gap** below
+the physical ~1e-3 spectrum, so canonical Eigen/SVD ortho with tol in the gap gives a clean transform
+(‖VᴴSV−I‖=6.6e-11 vs SR+Cholesky 4e-14 — bounded but ~1000× noisier, vindicating the user's atomic-HF
+truncation-noise caution). BUT the SCF validation (`DISABLED_NaFFullBasisEigenTol`) hit an **integration wall**:
+truncation reduces the working dim 37→33, and the periodic stack (`Crystal_EC`/`cDM_CD`/collocation) assumes
+the full `n` → `"Matrix sizes do not match"` before iter 1 (the molecular path handles rectangular V; the
+periodic path does not). So **dropping SR needs rank-reduction plumbed through the periodic stack** — a future
+increment. Until then SR (dimension-preserving, cleanly PD) is the GPW conditioning answer.
+
+**AGREED DESIGN (for when the rank-reduction stack work is done):**
+- **Auto-Rcut via `MaxReach(ε)`** (basis exposes one scalar, mirroring `MaxExponent`; the lattice enumerates
+  `CellsInSphere(MaxReach+cell-span)` — wall (B): exponents stay behind the molecular-basis wall, k-convention
+  stays lattice-side). Removes the Rcut parameter; ε (a tolerance) replaces it, exactly like CP2K's
+  `EPS_PGF_ORB` (CP2K sets NO user Rcut).
+- **Auto-tol via GAP DETECTION** in `LASolver` (separation of concerns — pure LA): sort eig ascending,
+  force-drop `d[i]≤0`, scan the LOW region (`d[i] < √ε·d_max`) for the largest consecutive ratio `ρ=d[i+1]/d[i]`;
+  if `ρ > R_threshold` (**default 30**, exposed at the Calculation facade — visible but rarely touched) it's a
+  CLEAN gap → cut there; else fall back to the ε-tol and WARN (ambiguous, noise-prone — the continuum case).
+  `orthoTol<0`=auto, `=0`=none, `>0`=explicit (mirrors `densityEcut`). **Auto-cut is allowed but NEVER silent** —
+  always `cerr` WARN with count + gap ratio + clean/ambiguous, so the user knows what the basis was truncated by.
+- **Vision:** collapse knobs to ~one physically-meaningful ε (drives auto-Rcut, and could drive grid + ortho
+  tol), CP2K-like. `densityEcut` already auto; `collRcut` is the later patch/collocation axis.
+
+---
+
+## (superseded) original 2026-07-11 diagnosis — why is the truncated Bloch overlap S indefinite?
 User's intuition (from the earlier Si session): S(k) should be PSD for **any** Rcut, and in Si an
 indefinite-overlap symptom was traced to a BUG — a separable-KB projector on a **corner atom** (τ=0) whose
 image/tail "outside the unit cell" was dropped; after fixing it, S was PSD at any Rcut. Asked to look for the
