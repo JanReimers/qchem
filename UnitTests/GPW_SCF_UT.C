@@ -433,6 +433,56 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     EXPECT_NEAR(charge, 8.0, 1e-6);     // 1 (Na) + 7 (F) valence electrons, conserved
 }
 
+// VALIDATION (2026-07-13): can we drop the SR-basis hand-tuning and use the FULL valence_lowq basis, relying on
+// (a) magnitude screening + a generous overlap Rcut=4a to CONVERGE S (removing the Gibbs/truncation artifacts, so
+// the residual negative eigenvalues shrink to ~0), then (b) canonical Eigen ortho with a tol=1e-6 that drops the
+// intrinsic ~1e-6 over-complete null cluster (which sits in a clean ~1000x spectral gap below the physical ~1e-3
+// directions -- see DISABLED_NaFOverlapConditioningSweep)?
+//
+// RESULT: NO, not yet -- this hits an INTEGRATION WALL, not a convergence problem.  The truncating ortho reduces
+// the working dimension 37 -> 33 (drops the 4 null directions), but the GPW/periodic SCF stack (Crystal_EC /
+// cDM_CD / the density collocation) assumes the FULL basis dimension n=37, so the rank-33 ortho subspace collides
+// with it: "C++ exception: Matrix sizes do not match", thrown after the ortho truncation, before iter 1.  (The
+// MOLECULAR SCF path handles rectangular V -- C=V*U' is 37x33, density full 37x37 -- but the PERIODIC path does
+// not.)  So at the OVERLAP level (2) is clean (‖VᴴSV-I‖=6.6e-11, gap x1000) but at the SCF level it is BLOCKED:
+// dropping SR needs rank-reduction plumbed through the periodic stack (density in the truncated subspace,
+// back-transform, band-count reconciliation) -- its own increment.  Until then SR (dimension-preserving, cleanly
+// PD, no truncation) stays the GPW conditioning answer.  Kept DISABLED as the marker for that future work.
+// Collocation stays at collRcut=2a (the un-screened orbital-grid axis is a separate, later increment).
+TEST(GPW_SCF, DISABLED_NaFFullBasisEigenTol)
+{
+    using namespace qchem::Hamiltonian;
+    const double a=8.73;
+    FCCUnitCell cell(a);
+    cell.AddAtom(11, {0,0,0});
+    cell.AddAtom(9,  {0.5,0.5,0.5});
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+    auto mol = std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(
+        BasisSetData::VALENCE_LOWQ, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
+    namespace L3=BasisSet::Lattice_3D;
+    std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, mol, /*densityEcut AUTO*/-1.0,
+                                                  /*Rcut (screened 1E)*/4.0*a, /*collRcut*/2.0*a, {0,0,0}));
+    auto       irreps=bs->GetIrreps(Spin::None);
+    Crystal_EC ec(irreps, 8);
+    cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), bs.get(), {{"Na",1},{"F",7}}, "LDA");
+    auto* acc=new qchem::SCFAccelerators::cSCFAcceleratorDIIS(qchem::SCFAccelerators::DIISParams{8, 8.0, 1e-10, 1e-8});
+    qchem::ReportOverlapConditioning()=true;
+    qchem::SCFIterator::cSCFIterator scf(bs.get(), &ec, ham, acc,
+                                         qchem::ChargeDensity::SeedStrategy::IonicSAD, lat.GetStructure().get(),
+                                         qchem::Eigen, 1e-6);   // (2): canonical ortho, drop the ~0 null cluster
+    qchem::ReportOverlapConditioning()=false;
+    SCFParams par; par.NMaxIter=60; par.MinΔρ=1e-3; par.MinΔE=1e-6; par.MinΔFD=1e30; par.MinVirial=1e30;
+    par.MinFD=1e30; par.StartingRelaxRo=0.3; par.MergeTol=1e-4; par.Verbose=true; par.KerkerG0=1.0;
+    qchem::Hamiltonian::ReportGridCharge()=true;
+    scf.Iterate(par);
+    qchem::Hamiltonian::ReportGridCharge()=false;
+    auto* cd=scf.GetWaveFunction()->GetChargeDensity(); double charge=cd->GetTotalCharge(); delete cd;
+    auto E=scf.GetEnergy();
+    std::cout << "[NaF GPW full/Eigen(1e-6)] iters="<<scf.GetIterationCount()<<" charge="<<charge
+              << " Etot="<<E.GetTotalEnergy() << std::endl;
+    EXPECT_NEAR(charge, 8.0, 1e-6);
+}
+
 // (4b) FAST overlap-conditioning sweep for NaF: build ONLY the analytic Bloch overlap S(Gamma) (via GPW_IBS,
 // densityEcut=0 -> no collocation, no SCF) for the full vs SR valence basis across Rcut, and report min/max
 // eig(S) PLUS the ORTHOGONALISER RESIDUAL ‖VᴴSV − I‖ (V=S^-½ built by the SAME LASolver the SCF uses).  Seconds
@@ -457,11 +507,11 @@ TEST(GPW_SCF, DISABLED_NaFOverlapConditioningSweep)
     cell.AddAtom(9,  {0.5,0.5,0.5});    // F
 
     // ‖VᴴSV − I‖_max for a given ortho method: Transform(S)=VᴴSV must be the identity iff V=S^-½ is exact.
-    auto residual=[](const hmat_t<dcmplx>& S, qchem::Ortho ortho)->double
+    auto residual=[](const hmat_t<dcmplx>& S, qchem::Ortho ortho, double tol=0.0)->double
     {
-        std::unique_ptr<LASolver<dcmplx>> la(LASolver<dcmplx>::Factory(ortho));
+        std::unique_ptr<LASolver<dcmplx>> la(LASolver<dcmplx>::Factory(ortho, tol));
         la->SetBasisOverlap(S);
-        hmat_t<dcmplx> I=la->Transform(S);     // VᴴSV
+        hmat_t<dcmplx> I=la->Transform(S);     // VᴴSV (identity on the RETAINED subspace after truncation)
         double r=0.0;
         for (size_t i=0;i<I.rows();++i)
             for (size_t j=0;j<I.columns();++j)
@@ -481,14 +531,14 @@ TEST(GPW_SCF, DISABLED_NaFOverlapConditioningSweep)
             auto S = g.Overlap();
             rvec_t d; mat_t<dcmplx> U; blazem::eigen(S, d, U);   // ascending eigenvalues of Hermitian S
             std::cout << "[cond " << name << "] n=" << S.rows() << " Rcut=" << rc/a << "a"
-                      << "  min eig=" << d[0] << "  max eig=" << d[d.size()-1]
-                      << "  cond=" << std::fabs(d[d.size()-1]/d[0]);
-            if (d[0] > 0.0)   // PSD: V=S^-½ exists -> report the orthogonaliser residual (should be ~eps)
-                std::cout << "  (PSD) ‖VᴴSV-I‖: Chol=" << residual(S, qchem::Cholesky)
-                          << " Eigen=" << residual(S, qchem::Eigen)
-                          << "  => conditioning red herring";
-            else              // INDEFINITE: no real S^-½ -> sharp-cutoff truncation, needs magnitude screening
-                std::cout << "  (INDEFINITE) no S^-½ -> sharp-cutoff truncation; needs magnitude screening";
+                      << "  eig[0..3]=" << d[0] << "," << d[1] << "," << d[2] << "," << d[3]
+                      << "  max=" << d[d.size()-1];
+            // Canonical ortho with a tol that drops the ~0 (over-complete / residual-negative) directions --
+            // the question (2): does truncating V's small/negative singular directions give a clean transform
+            // (‖VᴴSV-I‖~eps) WITHOUT hand-tuning the basis (SR)?  Cholesky needs strict PD (fails if min eig<=0).
+            std::cout << "  ‖VᴴSV-I‖: Eigen(1e-6)=" << residual(S, qchem::Eigen, 1e-6)
+                      << " SVD(1e-6)=" << residual(S, qchem::SVD, 1e-6);
+            if (d[0] > 0.0) std::cout << " Chol=" << residual(S, qchem::Cholesky);
             std::cout << std::endl;
         }
     };
