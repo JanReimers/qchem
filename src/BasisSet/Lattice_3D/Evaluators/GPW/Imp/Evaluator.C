@@ -293,6 +293,21 @@ chmat_t GPW_Evaluator::OverlapMatrix(const std::function<dcmplx(const ivec3_t&)>
     return M;
 }
 
+// The PATCHED integrate-back: build V(r) exactly as above (inverse-FFT of Vtilde over the density grid), then
+// delegate the <chi_i|V|chi_j> quadrature to the molecular side, which contracts each pair only on the overlap
+// of its two orbitals' Gaussian supports (the sub-eps grid points are dropped -> bit-consistent with the dense
+// GEMM above to the screening tolerance).  Uses the COLLOCATION image set (itsRc/itsPhaseC) -- the same Bloch
+// sum PhiOnGrid/Eval use -- so the two paths sample the identical chi_i^k(r_g).  Opt-in scaffold; see the header.
+chmat_t GPW_Evaluator::PatchedOverlapMatrix(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const
+{
+    ΔG_Map vmap;
+    for (const ivec3_t& dm : itsGrid->Gs()) vmap[dm]=Vtilde(dm);
+    rvec_t V=itsGrid->RhoOnGrid(vmap);                       // V(r) on the density grid (real)
+    const rvec3vec_t& pts=itsGrid->GridPoints();
+    const double w=itsGrid->Volume()/double(V.size());       // uniform quadrature weight Omega/Npts
+    return itsLat->MakePotentialMatrix(pts, itsRc, itsPhaseC, V, w);
+}
+
 // Bloch sum of the Gaussian orbitals, chi^k_i(r) = Sum_R e^{ik.R} chi_i(r-R), over the COLLOCATION set (the
 // orbital reach; == the overlap set unless collRcut decoupled it).  At Gamma every phase is 1, so the
 // imaginary part is exactly zero (the sum reduces to the real molecular sum).

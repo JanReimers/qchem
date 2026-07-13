@@ -124,6 +124,67 @@ public:
         return amax;
     }
 
+    // --- GPW collocation adjoint (integrate-back), PATCHED (Molecule::LatticeSum1E::MakePotentialMatrix) -----
+    // Per-orbital COMPRESSED COLUMNS of the Bloch orbital chi_i^k on the density grid: itsSupportIdx[i] lists
+    // the grid-point indices where |chi_i^k| exceeds kScreenEps of its peak, and itsSupportVal[i] the matching
+    // chi_i^k values (complex; real at Gamma).  A pair (i,j) then contracts M_ij = w Sum_p conj(chi_i^k) V
+    // chi_j^k over the INTERSECTION of the two index lists (both ascending -> a merge) -- the sub-eps grid points
+    // of EITHER orbital contribute < eps to the product and are dropped, so this is bit-consistent with the dense
+    // Phi^H (V.*Phi) contraction to the screening tolerance.  Geometry-fixed, so built once and reused across SCF
+    // iterations (V changes, the supports do not).  The Gaussian primitives stay encapsulated: only chi values +
+    // grid-point indices are stored.  (Single-grid scaffold for the multi-grid rewrite -- see LatticeSum1E.)
+    void EnsureSupports(const rvec3vec_t& gridPts, const std::vector<rvec3_t>& Rs, const cvec_t& phases) const
+    {
+        assert(phases.size()==Rs.size());
+        if (itsSupportsBuilt && itsSupportNpts==gridPts.size()) return;   // built once per grid
+        const size_t n=size(), Np=gridPts.size();
+        itsSupportIdx.assign(n,{}); itsSupportVal.assign(n,{});
+        cvec_t col(Np);
+        for (auto i:indices())
+        {
+            const GaussianRF& rf=*radials[i];
+            const rvec3_t ci=rf.GetCenter();
+            double peak=0.0;
+            for (size_t p=0;p<Np;p++)
+            {
+                dcmplx v(0.0);
+                for (size_t r=0;r<Rs.size();r++)   // chi_i^k(r_p) = Sum_R e^{ik.R} chi_i(r_p - R); the image shift
+                {                                  // R is equivalent to evaluating the home component at q=r_p-R
+                    const rvec3_t q=gridPts[p]-Rs[r];
+                    v += phases[r] * (ns[i]*pols[i](q-ci)*rf(q));
+                }
+                col[p]=v; peak=std::max(peak, std::abs(v));
+            }
+            const double thr=kScreenEps*peak;
+            for (size_t p=0;p<Np;p++) if (std::abs(col[p])>thr)
+                { itsSupportIdx[i].push_back(int(p)); itsSupportVal[i].push_back(col[p]); }
+        }
+        itsSupportNpts=Np; itsSupportsBuilt=true;
+    }
+    chmat_t MakePotentialMatrix(const rvec3vec_t& gridPts, const std::vector<rvec3_t>& Rs,
+                                const cvec_t& phases, const rvec_t& V, double w) const
+    {
+        EnsureSupports(gridPts, Rs, phases);
+        const size_t n=size();
+        chmat_t M(n);
+        for (auto i:indices()) for (auto j:indices(i))   // j>=i (Hermitian upper triangle)
+        {
+            const std::vector<int>& Ii=itsSupportIdx[i];    const std::vector<int>& Ij=itsSupportIdx[j];
+            const std::vector<dcmplx>& Vi=itsSupportVal[i]; const std::vector<dcmplx>& Vj=itsSupportVal[j];
+            dcmplx s(0.0);
+            size_t a=0,b=0;                               // merge two ascending index lists -> the support overlap
+            while (a<Ii.size() && b<Ij.size())
+            {
+                if      (Ii[a]<Ij[b]) ++a;
+                else if (Ii[a]>Ij[b]) ++b;
+                else { s += std::conj(Vi[a])*V[Ii[a]]*Vj[b]; ++a; ++b; }   // conj(chi_i^k) V chi_j^k (bra i conj)
+            }
+            s *= w;
+            M(i,j) = (i==j) ? dcmplx(std::real(s),0.0) : s;   // Hermitian diagonal real; (j,i) mirrored as conj
+        }
+        return M;
+    }
+
     // --- 3-centre (DFT) and 4-centre (HF) kernels ---------------------------------------------------
     // General multi-evaluator elements: each (evaluator, index) pair names one basis component, so the
     // same kernel serves both Coulomb/Exchange (the caller just maps its loop indices into the slots).
@@ -152,6 +213,14 @@ public:
                                            pols[iA], eB.pols[iB], eC.pols[iC], eD.pols[iD])
              * ns[iA] * eB.ns[iB] * eC.ns[iC] * eD.ns[iD];
     }
+
+private:
+    // Per-orbital compressed columns of chi_i^k on the GPW density grid (see MakePotentialMatrix); built once
+    // (geometry-fixed) by EnsureSupports, reused every SCF iteration.  Empty unless the GPW integrate-back runs.
+    mutable std::vector<std::vector<int>>    itsSupportIdx;//!< grid-point indices where |chi_i^k| > eps*peak
+    mutable std::vector<std::vector<dcmplx>> itsSupportVal;//!< the matching chi_i^k values (complex; real at Gamma)
+    mutable size_t                        itsSupportNpts=0;//!< grid size the supports were built for (cache guard)
+    mutable bool                          itsSupportsBuilt=false;
 };
 
 static_assert(is1E_Evaluator <NR_Evaluator>, "NR_Evaluator must satisfy is1E_Evaluator");

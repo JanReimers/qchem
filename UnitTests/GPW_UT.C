@@ -261,6 +261,114 @@ TEST(GPW, DISABLED_BenchOverlapMatrix)
     SUCCEED();
 }
 
+// PATCH-SPARSITY PROBE (DISABLED): measure-before-optimize for the GPW_Plan.md S0 patch-collocation rewrite.
+// The per-iteration hotspot is the integrate-back  M_ij = w Sum_p conj(Phi_pi) V_p Phi_pj  over the FULL grid
+// (n^2 x Npts, ~44% of the NaF profile).  The plan proposes replacing the dense contraction with LOCAL patches
+// (points where the orbital / orbital-product is non-negligible), turning O(n^2 Npts) into O(n_pairs x patch).
+// The achievable speedup depends entirely on how sparse Phi actually is -- diffuse Gaussians reach far, so a
+// per-ORBITAL patch may be large while the per-PAIR PRODUCT patch (bounded by the tighter product Gaussian,
+// exponent alpha_i+alpha_j) is compact.  This probe reconstructs Phi on the density grid (via the public Eval /
+// DensityGrid surface, no internals) at TRUE NaF scale and prints, for a few screening thresholds, the exact
+// contraction cost of each candidate strategy vs the dense baseline, so the granularity choice is data-driven:
+//   dense           : n^2 * Npts                              (what the zgemm does today)
+//   per-point scatter: Sum_p k_p^2, k_p=#{i:|Phi_pi|>eps}     (skip ~0 orbitals per point; loses vectorization)
+//   per-pair product : Sum_{i,j} #{p:|Phi_pi Phi_pj|>eps}     (CP2K-style: contract each pair on its own patch)
+TEST(GPW, DISABLED_PatchSparsityProbe)
+{
+    const double a=8.73;
+    FCCUnitCell cell(a);
+    cell.AddAtom(11,{0,0,0});          // Na
+    cell.AddAtom(9,{0.5,0.5,0.5});     // F  (tight 40-a.u. exponent -> densityEcut floor 160)
+    auto mol=std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(
+        BasisSetData::VALENCE_LOWQ_SR, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
+    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut AUTO*/-1.0, /*Rcut*/0.0);
+    const GPW_Evaluator& ev=gpw;
+
+    const rvec3vec_t& pts=ev.DensityGrid().GridPoints();
+    const size_t Npts=pts.size(), n=ev.size();
+    std::vector<double> Phi(Npts*n);                 // |Phi_pi| (magnitudes; real at Gamma) row-major [p][i]
+    double phiMax=0.0;
+    for (size_t p=0;p<Npts;p++)
+    {
+        cvec_t v=ev.Eval(pts[p]);
+        for (size_t i=0;i<n;i++) { double m=std::abs(v[i]); Phi[p*n+i]=m; phiMax=std::max(phiMax,m); }
+    }
+    const double dense=double(n)*double(n)*double(Npts);
+    std::cout << "[patch probe] n=" << n << " Npts=" << Npts << " max|Phi|=" << phiMax
+              << "  dense n^2*Npts=" << dense << " complex MACs/call\n";
+
+    for (double ratio : {1e-6, 1e-8, 1e-10})
+    {
+        const double epsOrb =ratio*phiMax;               // per-orbital screen
+        const double epsProd=ratio*phiMax*phiMax;        // per-product screen (max product = phiMax^2)
+        double scatter=0.0; size_t nz=0, unionPts=0;
+        double pairCost=0.0; size_t pairsNZ=0;
+        for (size_t p=0;p<Npts;p++)
+        {
+            const double* row=&Phi[p*n];
+            size_t kp=0; for (size_t i=0;i<n;i++) if (row[i]>epsOrb) kp++;
+            scatter += double(kp)*double(kp); nz += kp; if (kp) unionPts++;
+        }
+        // per-pair product patch sizes (O(n^2 Npts) one-off; fine for a disabled probe)
+        std::vector<size_t> pairPts(n*n,0);
+        for (size_t p=0;p<Npts;p++)
+        {
+            const double* row=&Phi[p*n];
+            for (size_t i=0;i<n;i++) { double vi=row[i]; if (vi<=0) continue;
+                for (size_t j=0;j<n;j++) if (vi*row[j]>epsProd) pairPts[i*n+j]++; }
+        }
+        for (size_t ij=0;ij<n*n;ij++) { pairCost+=double(pairPts[ij]); if (pairPts[ij]) pairsNZ++; }
+        std::cout << "  ratio=" << ratio
+                  << " | scatter Sum k_p^2=" << scatter << " (" << scatter/dense << "x dense),"
+                  << " nz=" << nz << " unionPts=" << unionPts << "/" << Npts
+                  << " | pair-product cost=" << pairCost << " (" << pairCost/dense << "x dense),"
+                  << " nz-pairs=" << pairsNZ << "/" << n*n << "\n";
+    }
+    SUCCEED();
+}
+
+// PATCHED INTEGRATE-BACK bit-consistency (GPW_Plan.md S0, Increment 1).  The molecular-side patched
+// collocation adjoint (LatticeSum1E::MakePotentialMatrix -- per-orbital Gaussian-support patches, contract
+// each pair on its support overlap) must reproduce the dense zgemm OverlapMatrix(Vtilde) to the screening
+// tolerance.  This is the SEAM gate for the multi-grid rewrite; the dense path stays the default (byte-
+// identical anchors) until the grid levels make the patched path win.  Exercised at Gamma (real orbitals)
+// AND at a genuinely-complex k with images (the conj(bra) slot + the Bloch image sum in EnsureSupports).
+TEST(GPW, PatchedIntegrateBackMatchesDense)
+{
+    auto relDiff=[](const chmat_t& A, const chmat_t& B)
+    {
+        double num=0.0, den=0.0;
+        for (size_t i=0;i<A.rows();i++) for (size_t j=0;j<A.rows();j++)
+        { dcmplx d=A(i,j)-B(i,j); num+=std::norm(d); den+=std::norm(A(i,j)); }
+        return std::sqrt(num/den);
+    };
+    auto field=[](const ivec3_t& dm)->dcmplx                     // smooth all-G field (Hartree/XC-like)
+        { double g2=double(dm.x*dm.x+dm.y*dm.y+dm.z*dm.z); return dcmplx(1.0/(1.0+g2),0.0); };
+
+    // (a) Gamma, home cell: real orbitals, single image.
+    {
+        const double a=12.0;
+        UnitCell cell(a);
+        cell.AddAtom(14,{0.5,0.5,0.5});
+        std::shared_ptr<const Real_BS> mol = MakeBasis(cell);           // SIPP Si
+        GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/12.0, /*Rcut*/0.0);
+        const GPW_Evaluator& ev=gpw;
+        EXPECT_LT(relDiff(ev.OverlapMatrix(field), ev.PatchedOverlapMatrix(field)), 1e-8) << "Gamma";
+    }
+    // (b) complex k=(1/4,0,0) with images: the Bloch sum is live (conj slot + image support build).
+    {
+        const double a=10.0;                                            // small cell -> non-negligible images
+        UnitCell cell(a);
+        cell.AddAtom(14,{0.5,0.5,0.5});
+        std::shared_ptr<const Real_BS> mol = MakeBasis(cell);
+        GPW_IBS gpw(cell, ivec3_t(4,4,4), ivec3_t(1,0,0), mol, /*densityEcut*/12.0, /*Rcut*/1.5*a);
+        const GPW_Evaluator& ev=gpw;
+        chmat_t Md=ev.OverlapMatrix(field);
+        EXPECT_GT(MaxImag(Md), 1e-6) << "k!=0 with images must give a complex integrate-back";
+        EXPECT_LT(relDiff(Md, ev.PatchedOverlapMatrix(field)), 1e-8) << "complex k";
+    }
+}
+
 // === General-k (Step 1): the Bloch phase e^{ik.R} enters the lattice sums ============================
 // These isolate the general-k machinery at the matrix level (no SCF): the phase is inert at the home cell,
 // LIVE once images are summed, obeys the Bloch translation law, and conjugates under k -> -k.  (The full

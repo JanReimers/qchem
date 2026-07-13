@@ -77,6 +77,22 @@ public:
     //! so its minimum plane-wave cutoff is \f$\propto\alpha_{\max}\f$.  This lets the grid consumer floor its own
     //! \c densityEcut from the basis instead of leaving that (basis-dependent) burden on the caller.
     virtual double MaxExponent() const = 0;
+
+    //! \brief The GPW COLLOCATION-ADJOINT (integrate-back), molecular-side and PATCHED -- the KS block
+    //! \f$M_{ij}=w\sum_{p\in\mathrm{supp}(i,j)}\overline{\chi_i^k(r_p)}\,V(r_p)\,\chi_j^k(r_p)\f$ over the GPW
+    //! density grid \a gridPts, restricted per orbital to the grid points where the Bloch orbital
+    //! \f$\chi_i^k=\sum_R e^{ik\cdot R}\chi_i(\cdot-R)\f$ is above the (internal) magnitude-screening tolerance
+    //! -- so a pair contracts only on the intersection of its two orbitals' supports (the tight/localized part).
+    //! \a Rs / \a phases are the Bloch image set (as in \c MakeOverlap); \a V the real-space potential sampled
+    //! on \a gridPts; \a w the uniform quadrature weight \f$\Omega/N_{pts}\f$.  Hermitian (real diagonal), real
+    //! at \f$\Gamma\f$.  The Gaussian primitives (centres, exponents) stay ENCAPSULATED -- the screening / support
+    //! determination is internal; only the grid + potential cross the seam.  Bit-consistent with the dense grid
+    //! contraction \f$w\,\Phi^H(V\!\odot\!\Phi)\f$ to the screening tolerance.  This is the SINGLE-GRID scaffold
+    //! for the multi-grid rewrite (doc/GPWPlan.md \S0): per-orbital patches on one grid are ~break-even with the
+    //! dense GEMM, but they carry directly to per-exponent grid levels where each pair's patch is small.
+    virtual chmat_t MakePotentialMatrix(const rvec3vec_t& gridPts,
+                                        const std::vector<rvec3_t>& Rs, const cvec_t& phases,
+                                        const rvec_t& V, double w) const = 0;
 };
 
 } //namespace

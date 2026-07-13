@@ -248,6 +248,9 @@ chmat_t Orbital_IBS::MakeOverlap(const std::vector<rvec3_t>& Rs, const cvec_t& p
 chmat_t Orbital_IBS::MakeKinetic(const std::vector<rvec3_t>& Rs, const cvec_t& phases) const {return NR_Evaluator::MakeKinetic(Rs,phases);}
 chmat_t Orbital_IBS::MakeNuclear(const std::vector<rvec3_t>& Rs, const cvec_t& phases, const Structure* cl) const {return NR_Evaluator::MakeNuclear(Rs,phases,cl);}
 double  Orbital_IBS::MaxExponent() const {return NR_Evaluator::MaxExponent();}
+chmat_t Orbital_IBS::MakePotentialMatrix(const rvec3vec_t& gridPts, const std::vector<rvec3_t>& Rs,
+                                         const cvec_t& phases, const rvec_t& V, double w) const
+{   return NR_Evaluator::MakePotentialMatrix(gridPts,Rs,phases,V,w); }
 
 //----------------------------------------------------------------
 //

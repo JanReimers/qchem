@@ -101,6 +101,14 @@ public:
     //! Fourier lookup.  Satisfies \c isPW_DFT_Evaluator; forwarded by \c EPW_Orbital_DFT_IBS to \c MakeOverlap.
     chmat_t OverlapMatrix(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const;
 
+    //! \brief The PATCHED integrate-back: same result as \c OverlapMatrix(Vtilde) but delegated to the
+    //! molecular-side \c Molecule::LatticeSum1E::MakePotentialMatrix -- per-orbital Gaussian-support patches
+    //! (the localized part), contracting each pair only on its support overlap.  The Gaussian primitives stay
+    //! encapsulated (only \f$V(r)\f$ + the grid cross the seam).  Single-grid scaffold for the multi-grid
+    //! rewrite (doc/GPWPlan.md \S0); OPT-IN (the default \c OverlapMatrix stays the byte-identical dense GEMM),
+    //! validated bit-consistent in \c GPW_UT.  Will become the default once the grid levels make it win.
+    chmat_t PatchedOverlapMatrix(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const;
+
     // --- Real-space external (pseudo)potential assembly: the GPW external term.  Unlike the plane-wave
     //     basis (G-space form factors, which Gaussians cannot supply) GPW quadratures the pseudopotential in
     //     REAL SPACE against its Gaussians on the cell's uniform integration mesh -- the SAME machinery the
