@@ -34,7 +34,9 @@ target_include_directories(UTMain PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/tabulate/include
     ${PROJECT_BINARY_DIR}/submodules/libxc
 )
-target_link_libraries(UTMain PUBLIC qcUmbrella qchem qcMath qcCommon xc)
+# openblas: for openblas_set_num_threads(1) in gtestmain.C (pin BLAS threads -> bit-reproducible results).
+# It is an OpenBLAS-specific symbol (not standard cblas), so libopenblas must be on the link line directly.
+target_link_libraries(UTMain PUBLIC qcUmbrella qchem qcMath qcCommon xc openblas)
 
 # scfrun: command-line SCF driver for accelerator tuning (no recompile).  Drives qchem::AtomCalculation
 # directly (no QchemTester); needs the TestUtils module for the RelativeHF/DHFError oracle helpers.
@@ -49,7 +51,7 @@ target_include_directories(scfrun PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/blaze
     ${PROJECT_SOURCE_DIR}/submodules/tabulate/include
 )
-target_link_libraries(scfrun PUBLIC qchem qcMath qcCommon)
+target_link_libraries(scfrun PUBLIC qchem qcMath qcCommon openblas)   # openblas_set_num_threads(1) in main()
 
 
 # add_executable(DiracHydrogen DiracHydrogen.C)

@@ -53,7 +53,11 @@ TEST(Si2_PP_U, LargeSeparation)
     const double E1 = c1.Energy();
     const double E2 = c2.Energy();
 
-    EXPECT_NEAR(E1, -3.759438815, 1e-6);      // pinned regression anchor: Si pseudo-atom (sipp basis)
+    // E1 anchor at 1e-5: the isolated-atom SCF converges to a point that differs ~4.1e-6 between BLAS
+    // implementations (OpenBLAS vs netlib -- eigensolver roundoff moving the fixed point; deterministic once
+    // OpenBLAS threads are pinned, see gtestmain.C).  1e-5 clears that with margin yet stays far below any real
+    // regression (mHa-scale).  E2 (the dimer SCF) is unaffected (moves ~6e-11), so it keeps the tight 1e-6.
+    EXPECT_NEAR(E1, -3.759438815, 1e-5);      // pinned regression anchor: Si pseudo-atom (sipp basis)
     EXPECT_NEAR(E2, -7.516293157, 1e-6);      // pinned regression anchor: Si2 at R=20 bohr
     EXPECT_NEAR(eb.Enn, 16.0/R,   1e-6);      // Zion=4 ion-ion (Z=14 -> 196/R would fail): the routing check
     EXPECT_NEAR(E2, 2.0*E1,       5e-3);      // multi-atom PP additivity: neutral fragments -> ~2x at large R

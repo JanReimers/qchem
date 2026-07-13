@@ -18,6 +18,8 @@
 #include <memory>
 #include <cmath>
 #include <complex>
+#include <chrono>
+#include <iostream>
 
 import qchem.Structure;                         // Molecule, Atom
 import qchem.UnitCell;                          // UnitCell
@@ -228,6 +230,35 @@ TEST(GPW, OverlapWithConstantFieldEqualsV0Overlap)
             double d=m-s; num+=d*d; den+=s*s;
         }
     EXPECT_LT(std::sqrt(num/den), 6e-2);   // <i|V0|j> == V0<i|j> to grid accuracy (== the collocation residual)
+}
+
+// PERF micro-benchmark (DISABLED): isolate OverlapMatrix -- the SCF integrate-back that is ~44% of the NaF
+// profile -- at TRUE NaF scale (FCC Na+F, VALENCE_LOWQ_SR n=32, densityEcut AUTO->160) but with a FAST setup:
+// Rcut=0 makes PhiOnGrid a single-image build (seconds), and OverlapMatrix's cost depends only on (n, Npts),
+// which Rcut does not change.  Times K back-to-back calls on a representative all-G field (Hartree/XC-like),
+// so a fixed setup is amortised -- an A/B lever for the OverlapMatrix contraction (scalar loop vs GEMM etc.).
+TEST(GPW, DISABLED_BenchOverlapMatrix)
+{
+    const double a=8.73;
+    FCCUnitCell cell(a);
+    cell.AddAtom(11,{0,0,0});          // Na
+    cell.AddAtom(9,{0.5,0.5,0.5});     // F  (tight 40-a.u. exponent -> densityEcut floor 160)
+    auto mol=std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(
+        BasisSetData::VALENCE_LOWQ_SR, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
+    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut AUTO*/-1.0, /*Rcut*/0.0);
+    const GPW_Evaluator& ev=gpw;
+    auto field=[](const ivec3_t& dm)->dcmplx                     // smooth, all-G (realistic Vtilde)
+        { double g2=double(dm.x*dm.x+dm.y*dm.y+dm.z*dm.z); return dcmplx(1.0/(1.0+g2),0.0); };
+    chmat_t warm=ev.OverlapMatrix(field);                         // warm the PhiOnGrid cache (excluded from timing)
+    const int K=20;
+    auto t0=std::chrono::steady_clock::now();
+    chmat_t M;
+    for (int q=0;q<K;q++) M=ev.OverlapMatrix(field);
+    auto t1=std::chrono::steady_clock::now();
+    double ms=std::chrono::duration<double,std::milli>(t1-t0).count();
+    std::cout << "[bench OverlapMatrix] n=" << warm.rows() << " calls=" << K
+              << " total=" << ms << " ms  per-call=" << ms/double(K) << " ms" << std::endl;
+    SUCCEED();
 }
 
 // === General-k (Step 1): the Bloch phase e^{ik.R} enters the lattice sums ============================

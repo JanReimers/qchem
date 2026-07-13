@@ -157,7 +157,7 @@ TEST_F(OrthogonalizeTests, BlazeHydrogen)
             auto [U,e]=las->Solve(Ham->GetMatrix(ibs,Spin::Down,0));
             cout << "s=" << las->Get_BS_Diagonal() << endl;
             cout << OrthStrs[ortho] << " " << ibs->GetSymmetry() << " " << e[0]+0.5 << " " << e[1]+0.125 << endl;
-            EXPECT_NEAR(e[0],-0.5  ,4e-14);
+            EXPECT_NEAR(e[0],-0.5  ,1e-12);   // ~machine-eps; 1e-12 tolerates BLAS-impl roundoff (OpenBLAS vs netlib)
             EXPECT_NEAR(e[1],-0.125,8e-13);
         }
     }

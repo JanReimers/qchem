@@ -10,6 +10,9 @@ module;
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <cblas.h>   // cblas_zgemm: the OverlapMatrix integrate-back contraction (NaF profile hotspot ~44%) --
+                     // OpenBLAS's SIMD/threaded complex GEMM.  blaze's own product is scalar in our TUs
+                     // (BLAZE_BLAS_MODE=0 -- Blaze_Import's define rides the Blaze cmake target we don't link).
 module qchem.BasisSet.Lattice_3D.Evaluators.GPW;
 import qchem.Blaze;       // rvec_t, rmat_t, rsmat_t, blazem::zeroH<dcmplx>
 import qchem.Vector3D;    // vec3_t + rvec3_t / rvec3vec_t arithmetic (r - R, componentwise add)
@@ -263,20 +266,29 @@ chmat_t GPW_Evaluator::OverlapMatrix(const std::function<dcmplx(const ivec3_t&)>
     rvec_t V=itsGrid->RhoOnGrid(vmap);          // V(r) on the grid (real: Hartree/XC/local-PP are real fields)
     size_t Npts=Phi.rows(), n=itsN;
     const double w=itsGrid->Volume()/double(Npts);   // uniform quadrature weight (== Integral's Omega/Npts)
-    // <chi_i^k|V|chi_j^k> = w Sum_p conj(Phi(p,i)) V[p] Phi(p,j): Hermitian (V real), fill the upper triangle
-    // (diagonal real).  Translation invariance of this term is carried by the Bloch orbital in PhiOnGrid (fully
-    // wrapped at Rcut>=2a; see doc/GPWPlan.md TODO 1 and DISABLED_TermTranslationInvariance).  (A Phi^H diag(V) Phi
-    // GEMM was tried and was NOT faster for this small n -- blaze's product plus the per-call Npts*n temporary
-    // lost to the plain loop; PhiOnGrid caching is what removed the real per-iteration cost.)
+    // <chi_i^k|V|chi_j^k> = w Sum_p conj(Phi(p,i)) V[p] Phi(p,j) = w (Phi^H (V .* Phi))(i,j).  Form (V .* Phi)
+    // once (one streaming pass over Phi), then Phi^H (V .* Phi) via OpenBLAS zgemm -- a genuinely SIMD/threaded
+    // complex GEMM.  This was THE per-iteration hotspot in the NaF profile (~44%): the plain triple loop re-read
+    // the ~130 MB Phi (Npts x n) n^2/2 times (memory-bound) AND ran scalar; the GEMM streams Phi ~once and
+    // vectorizes.  (blaze's own product gave NO speedup here -- BLAZE_BLAS_MODE=0 in our TUs, so it too is scalar
+    // complex; hence the direct cblas call.)  V is real -> M Hermitian; project to the upper triangle (real
+    // diagonal).  Translation invariance is carried by the Bloch orbital in PhiOnGrid (Rcut>=2a; see the plan).
+    mat_t<dcmplx> VPhi(Npts,n);
+    for (size_t j=0;j<n;j++)                          // column-major Phi: p (row) inner is stride-1
+        for (size_t p=0;p<Npts;p++) VPhi(p,j)=V[p]*Phi(p,j);
+    mat_t<dcmplx> C(n,n,dcmplx(0.0));                 // C = w Phi^H VPhi  (n x n)
+    const dcmplx alpha(w,0.0), beta(0.0,0.0);
+    cblas_zgemm(CblasColMajor, CblasConjTrans, CblasNoTrans,
+                (blasint)n, (blasint)n, (blasint)Npts,
+                &alpha, Phi.data(),  (blasint)Phi.spacing(),
+                        VPhi.data(), (blasint)VPhi.spacing(),
+                &beta,  C.data(),    (blasint)C.spacing());
     chmat_t M=blazem::zeroH<dcmplx>(n);
     for (size_t i=0;i<n;i++)
-        for (size_t j=i;j<n;j++)
-        {
-            dcmplx s(0.0);
-            for (size_t p=0; p<Npts; p++) s += std::conj(Phi(p,i))*V[p]*Phi(p,j);
-            s *= w;
-            M(i,j) = (i==j) ? dcmplx(std::real(s),0.0) : s;   // Hermitian diagonal real; (j,i) auto-conj
-        }
+    {
+        M(i,i)=dcmplx(std::real(C(i,i)),0.0);
+        for (size_t j=i+1;j<n;j++) M(i,j)=C(i,j);
+    }
     return M;
 }
 

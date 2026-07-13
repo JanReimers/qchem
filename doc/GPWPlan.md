@@ -301,10 +301,44 @@ NaF run is ~34 min ≫ CP2K). Remaining, in order: (0) **RUNTIME OPTIMIZATION �
 (1) low-q multi-species bases → Si/NaF/CsI cross-validation; (2) the CP2K reference library (the oracle for §1);
 (3) IBZ; (4) cleanups.
 
-## 0. NEXT SESSION — RUNTIME OPTIMIZATION (PROFILE FIRST, do NOT assume the target)
-The GPW NaF run is ~34–40 min (≫ CP2K). Correctness is settled (above); the blocker to further work is SPEED.
-**Discipline (user-directed): measure before optimizing — do NOT pre-commit to magnitude-screening.** It has
-been the plan's *assumed* culprit but was never profiled. Start the session by PROFILING, then pick the fix.
+## 0. RUNTIME OPTIMIZATION — PROFILED + FIRST FIX LANDED (2026-07-13, uncommitted)
+The GPW NaF run was ~34–40 min (≫ CP2K). **Profiled with `perf` (paranoid=1) on the REAL 60-iter NaF run
+(9.86M samples).** The plan's assumed culprit (magnitude-screening / the fine grid) was **WRONG**: the #1
+hotspot is the **per-iteration integrate-back `GPW_Evaluator::OverlapMatrix(Vtilde)` at 43.8%** — the dense
+`M_ij = w Σ_p conj(Φ_pi) V_p Φ_pj` contraction (Hartree + XC each SCF iteration). Next is the hand-rolled FFT
+(`FFT1D` 11.5% + `FFT3D` 6.7% ≈ 18% + ~10% kernel page-faults/memset from its per-line `cvec_t` allocs), then
+orbital eval (`GaussianRF`+`exp`+`IrrepBasisSet` ≈ 14%, mostly one-time `PhiOnGrid`). `BuildWeights` is only
+0.9% (one-time, framework-cached) — so the W-tensor is NOT the problem.
+
+**FIX 1 (landed): `OverlapMatrix` contraction → a single OpenBLAS `zgemm`.** `M = w·Φᴴ·(V.∗Φ)` — form `V.∗Φ`
+once, then `cblas_zgemm(ConjTrans)`. The plain triple loop re-read the ~130 MB `Φ` (Npts×n) n²/2 times
+(memory-bound) AND ran scalar; the GEMM streams `Φ` ~once and vectorizes. **Measured on the isolated
+`GPW.DISABLED_BenchOverlapMatrix` micro-bench (NaF scale n=32, Npts≈full, fast Rcut=0 setup — the A/B lever
+for this contraction): scalar 12.09 s/call → cblas 2.32 s/call (threaded) / 3.00 s/call (1-thread) = 5.2× /
+4.0×.** blaze's own `ctrans(Φ)*VΦ` gave ZERO speedup (12.35 s) — `BLAZE_BLAS_MODE=0` in our TUs (the
+`Blaze_Import` define rides the `Blaze` cmake target we don't link), so blaze's complex product is scalar;
+hence the direct `cblas_zgemm`. Si Γ anchor unchanged (−8.24758), all GPW tests green. **Projected full-NaF:
+~1.7× (43.8%→~2%).**
+
+**OpenBLAS adopted + threads PINNED to 1.** `libopenblas-dev` installed (was reference netlib); `find_package`
+now finds it, LAPACK/BLAS route through it. **Reproducibility gotcha: OpenBLAS auto-sizes its internal thread
+pool from machine load → load-dependent BLAS-reduction order → last-ULP drift run-to-run (an SCF total energy
+moved > 2e-5, machine-eps anchors flapped).** This is OpenBLAS's OWN internal parallelism, NOT a thread-safety
+bug in our code (we call BLAS single-threaded, on private buffers). Fixed by `openblas_set_num_threads(1)` at
+the top of `main()` in `UnitTests/gtestmain.C` + `scfrun.C` (explicit-in-code, not an env var, so it is visible;
+`UnitTests/CMakeLists.txt` links `openblas` directly since it is not a standard cblas symbol). Cost is tiny
+(small matrices → most of the 5.2× is SIMD, not threads → keep 4.0×). **4 over-tight regression anchors were
+loosened** to tolerate OpenBLAS-vs-netlib roundoff (deterministic once pinned): `OrthogonalizeTests.BlazeHydrogen`
++ `DE1_P1.{Gaussian,Slater}_Phir` machine-eps → 1e-12; `Si2_PP_U.LargeSeparation` E1 (isolated-atom SCF shifts
+4.1e-6 between BLAS impls) → 1e-5 (E2 unaffected, kept 1e-6). **193/193 UTMain green.**
+
+**NEXT (still §0): the FFT** is now the #1 remaining hotspot (~18% + its allocation churn). Options: precompute
+twiddles + kill the per-line `cvec_t` allocs in `FFT3D`; avoid the power-of-2 padding (mixed-radix); or link
+FFTW. Then multi-grids (§4) for F's tight primitive. Re-profile after the FFT fix. Original profiling guidance
+(perf/callgrind entry points, candidate hotspots) retained below for reference.
+
+### (historical) profiling guidance — kept for the next hotspot
+**Discipline (user-directed): measure before optimizing.** Start by PROFILING, then pick the fix.
 
 **Profile, don't guess (ready-to-run entry points):**
 1. **Profile our GPW NaF.**

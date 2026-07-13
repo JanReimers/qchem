@@ -199,7 +199,7 @@ TEST(DE1_P1,Gaussian_Phir)
     EXPECT_NEAR(n1,1,1e-2); //Calculated orbital is not well normalized
     EXPECT_NEAR(n_expected,1,1e-14); //Analytic orbital is well normalized.
     EXPECT_NEAR(idphi,0.0,1e-13); //Integrated delta.
-    EXPECT_NEAR(calc.TotalCharge(),1.0,1e-14);
+    EXPECT_NEAR(calc.TotalCharge(),1.0,1e-12);   // ~machine-eps; 1e-12 tolerates BLAS-impl roundoff (OpenBLAS vs netlib)
 }
 
 TEST(DE1_P1,Slater_Phir)
@@ -217,7 +217,7 @@ TEST(DE1_P1,Slater_Phir)
     EXPECT_NEAR(n1,1,1e-2);
     EXPECT_NEAR(n_expected,1,1e-14);
     EXPECT_NEAR(idphi,0.0,1e-12); //Integrated delta.
-    EXPECT_NEAR(calc.TotalCharge(),1.0,4e-13);
+    EXPECT_NEAR(calc.TotalCharge(),1.0,1e-12);   // ~machine-eps; 1e-12 tolerates BLAS-impl roundoff (OpenBLAS vs netlib)
 }
 
 //
