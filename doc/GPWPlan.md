@@ -287,75 +287,52 @@ confound gets an orthogonal probe (everything else held fixed). Progress so far:
   IN PRINCIPLE — no bug making charge jump around; the oscillation was real SCF dynamics, now tamed.** Kerker is
   built, unit-tested (`KerkerMix.*`), Si-validated to the EXACT fixed point (−8.24758), default-safe (191/191),
   and it converges NaF. **STOP heuristic mixing trials here** — the 34-min loop makes tuning nmax/G0/α/DIIS too
-  expensive. **The next lever is RUNTIME — see the OPTIMIZATION SESSION section immediately below.**
+  expensive. **The next lever is RUNTIME (round-1 DONE below).**
 
+## RUNTIME round 1 (zgemm) + conditioning (magnitude screening) — DONE (2026-07-13)
+**Profiled NaF with `perf`** (9.86M samples): the #1 hotspot is the per-iteration integrate-back
+`GPW_Evaluator::OverlapMatrix(Vtilde)` at **43.8%** (dense `M_ij=w Σ_p conj(Φ_pi)V_p Φ_pj`), NOT the grid/
+screening the plan had assumed. FFT ~18%, orbital-eval ~14% (mostly one-time `PhiOnGrid`), W-tensor 0.9%.
+- **`OverlapMatrix` → OpenBLAS `zgemm`** (`7708d2dc`): `M=w·Φᴴ·(V.∗Φ)` via `cblas_zgemm(ConjTrans)`. Isolated
+  bench (`GPW.DISABLED_BenchOverlapMatrix`, NaF scale): scalar 12.09 → **3.00 s/call @1-thread = 4.0×**. blaze's
+  own product is scalar (`BLAZE_BLAS_MODE=0` never reaches our TUs) → the direct cblas call. Full NaF **28:14**
+  (the untouched ~40% FFT/setup dilutes it → that's the §0 target). `VPhi` scratch reused (`506f6a11`, hygiene).
+- **OpenBLAS adopted + `openblas_set_num_threads(1)`** pinned in `gtestmain.C`/`scfrun.C` (`7708d2dc`): OpenBLAS
+  auto-sizes threads by load → non-reproducible last-ULP drift (an SCF E moved >2e-5) → pin for determinism
+  (keeps 4.0×, mostly SIMD). 4 over-tight anchors loosened for OpenBLAS-vs-netlib roundoff. **193/193 green.**
+- **Magnitude screening on the 1E lattice sums** (`05e44fab`): per-component reach `√(−ln ε/α_min)` (ε=1e-10) in
+  `NR_Evaluator::LatticeSum`, shared identically across S/T/V_nuc (consistency = correctness for `HΨ=εSΨ`).
+  **Sparse → ~4×** on the 1E sums (a generous Rcut is now free — the 2a-tuning pain is gone). Roadmap `ac272432`.
+- **Conditioning FINDINGS** (`c015b038`, `c96db327`): the full valence_lowq basis is intrinsically OVER-COMPLETE
+  when Bloch-summed (min eig→0⁻) — screening EXPOSES this but cannot fix it; its ~1e-6 null cluster sits in a
+  clean ~1000× spectral gap. Canonical Eigen/SVD ortho with tol in the gap is clean at the OVERLAP level
+  (‖VᴴSV−I‖=6.6e-11) but the SCF is **BLOCKED** by a periodic-stack rank mismatch (37→33 "Matrix sizes do not
+  match"). ⇒ **SR stays the GPW conditioning answer**; dropping it → TODO §1. Agreed auto-tol/auto-Rcut design
+  in the (resolved) OPEN INVESTIGATION section.
 
 ---
 
 # TODO / NEXT
 
-Bulk energy (Γ), multi-k dispersion, complex-k, AND the NaF convergence campaign (auto-floor / diagnostics /
-diffuse ionic seed / Kerker ρ-mixing — correctness all resolved) are **DONE** (see DONE). Full-BZ GPW works
-at any k and the ionic-crystal SCF converges. **The one blocker to further NaF/CsI work is now RUNTIME** (the
-NaF run is ~34 min ≫ CP2K). Remaining, in order: (0) **RUNTIME OPTIMIZATION — the active NEXT work, profile-first**;
-(1) low-q multi-species bases → Si/NaF/CsI cross-validation; (2) the CP2K reference library (the oracle for §1);
-(3) IBZ; (4) cleanups.
+Round-1 runtime (zgemm + OpenBLAS/threads) + magnitude screening + the conditioning investigation are **DONE**
+(see DONE). The two LEADING increments now: (0) **RUNTIME GAP-CLOSE** — the `O(n²·Npts)`→`O(n_pairs·patch)`
+rewrite that closes the 20–40× gap to CP2K; (1) **DROP SR** — rank-reduction through the periodic stack + the
+auto-tol gap-detector. Then (2) low-q multi-species bases → Si/NaF/CsI; (3) CP2K reference; (4) IBZ; (5) cleanups.
 
-## 0. RUNTIME OPTIMIZATION — PROFILED + FIRST FIX LANDED (2026-07-13, uncommitted)
-The GPW NaF run was ~34–40 min (≫ CP2K). **Profiled with `perf` (paranoid=1) on the REAL 60-iter NaF run
-(9.86M samples).** The plan's assumed culprit (magnitude-screening / the fine grid) was **WRONG**: the #1
-hotspot is the **per-iteration integrate-back `GPW_Evaluator::OverlapMatrix(Vtilde)` at 43.8%** — the dense
-`M_ij = w Σ_p conj(Φ_pi) V_p Φ_pj` contraction (Hartree + XC each SCF iteration). Next is the hand-rolled FFT
-(`FFT1D` 11.5% + `FFT3D` 6.7% ≈ 18% + ~10% kernel page-faults/memset from its per-line `cvec_t` allocs), then
-orbital eval (`GaussianRF`+`exp`+`IrrepBasisSet` ≈ 14%, mostly one-time `PhiOnGrid`). `BuildWeights` is only
-0.9% (one-time, framework-cached) — so the W-tensor is NOT the problem.
-
-**FIX 1 (landed): `OverlapMatrix` contraction → a single OpenBLAS `zgemm`.** `M = w·Φᴴ·(V.∗Φ)` — form `V.∗Φ`
-once, then `cblas_zgemm(ConjTrans)`. The plain triple loop re-read the ~130 MB `Φ` (Npts×n) n²/2 times
-(memory-bound) AND ran scalar; the GEMM streams `Φ` ~once and vectorizes. **Measured on the isolated
-`GPW.DISABLED_BenchOverlapMatrix` micro-bench (NaF scale n=32, Npts≈full, fast Rcut=0 setup — the A/B lever
-for this contraction): scalar 12.09 s/call → cblas 2.32 s/call (threaded) / 3.00 s/call (1-thread) = 5.2× /
-4.0×.** blaze's own `ctrans(Φ)*VΦ` gave ZERO speedup (12.35 s) — `BLAZE_BLAS_MODE=0` in our TUs (the
-`Blaze_Import` define rides the `Blaze` cmake target we don't link), so blaze's complex product is scalar;
-hence the direct `cblas_zgemm`. Si Γ anchor unchanged (−8.24758), all GPW tests green. **Projected full-NaF:
-~1.7× (43.8%→~2%).**
-
-**OpenBLAS adopted + threads PINNED to 1.** `libopenblas-dev` installed (was reference netlib); `find_package`
-now finds it, LAPACK/BLAS route through it. **Reproducibility gotcha: OpenBLAS auto-sizes its internal thread
-pool from machine load → load-dependent BLAS-reduction order → last-ULP drift run-to-run (an SCF total energy
-moved > 2e-5, machine-eps anchors flapped).** This is OpenBLAS's OWN internal parallelism, NOT a thread-safety
-bug in our code (we call BLAS single-threaded, on private buffers). Fixed by `openblas_set_num_threads(1)` at
-the top of `main()` in `UnitTests/gtestmain.C` + `scfrun.C` (explicit-in-code, not an env var, so it is visible;
-`UnitTests/CMakeLists.txt` links `openblas` directly since it is not a standard cblas symbol). Cost is tiny
-(small matrices → most of the 5.2× is SIMD, not threads → keep 4.0×). **4 over-tight regression anchors were
-loosened** to tolerate OpenBLAS-vs-netlib roundoff (deterministic once pinned): `OrthogonalizeTests.BlazeHydrogen`
-+ `DE1_P1.{Gaussian,Slater}_Phir` machine-eps → 1e-12; `Si2_PP_U.LargeSeparation` E1 (isolated-atom SCF shifts
-4.1e-6 between BLAS impls) → 1e-5 (E2 unaffected, kept 1e-6). **193/193 UTMain green.**
-
-### NEXT — the runtime roadmap (2026-07-13 design discussion; supersedes "FFT is next")
-The `zgemm` attacked the CONSTANT of the dense contraction (~1.7×). It cannot change the `O(n²·Npts_full)`
-SCALING, which is the real 20–40× gap to CP2K (CP2K does NaF/GPW in ~1 min; we are ~30–40 min, ~20 after the
-zgemm). CP2K is fast because it NEVER touches the full grid densely — it exploits Gaussian LOCALITY on two
-independent axes, both "screen by magnitude", both needing the same primitive **per-shell reach from exponent+ε**:
+## 0. RUNTIME GAP-CLOSE — patch collocation → multi-grid (the CP2K-minute path)
+Round-1 (zgemm + OpenBLAS/threads) + magnitude screening are DONE (see the DONE section). The `zgemm` attacked
+the CONSTANT of the dense contraction (4× on the hotspot) but NOT the `O(n²·Npts_full)` SCALING — the real
+20–40× gap to CP2K (~1 min NaF; we are ~28 min). CP2K is fast because it NEVER touches the full grid densely —
+it exploits Gaussian LOCALITY. The lattice-IMAGE axis is now handled by screening (DONE); the remaining lever is
+the GRID axis:
 
 | axis | the loop | our crutch | the fix |
 |---|---|---|---|
 | **lattice images** | `S_ij(k)=Σ_{\|R\|≤Rcut} e^{ik·R}⟨χ_i⁰\|χ_j^R⟩`; `PhiOnGrid`'s Bloch sum | fixed `Rcut=2a` sphere | per-pair `\|⟨χ_i\|χ_j^R⟩\|>ε` (CP2K `EPS_PGF_ORB`) |
 | **grid points** | `M_ij=Σ_p conj(Φ_pi)V_p Φ_pj` over full `Npts` | dense 64³ everywhere | local patches + multi-grid |
 
-**Order (user-endorsed):**
-1. **Magnitude-screen the lattice sum → DROP the `Rcut=2a` (+ `_SR`) crutch.** The fixed geometric sphere is
-   wrong on BOTH counts: it drags tight functions out to 2a for nothing (slow) AND chops diffuse tails while
-   still significant → the INDEFINITE S (Gibbs). Magnitude screening keeps only `>ε` terms, so `‖S−S_exact‖<ε≪
-   λ_min` and `S_exact` (the full Bloch Gram) is PSD → **PSD at any effective reach, no arbitrary Rcut, no SR
-   basis.** This is a CORRECTNESS/robustness win (the thing to do first), it builds the reach-machinery axes 2–3
-   reuse, and it is DURABLE (the 1E/overlap `Molecule::LatticeSum1E` survives the collocation rewrite; screening
-   the current dense `PhiOnGrid` would be thrown away by it). Belongs in `Molecule::LatticeSum1E` /
-   `BuildImages` (today `UnitCell::CellsInSphere(Rcut)`). *Clear-eyed: this mostly speeds the ONE-TIME setup
-   (`PhiOnGrid` ~14%, 133-image sums) + fixes conditioning; Rcut does NOT appear in the per-iteration `O(n²·Npts)`
-   contraction, so it is not the CP2K-gap closer by itself.* See the OPEN INVESTIGATION section for the full
-   diagnosis.
-2. **Locality / patch collocation** — the per-iteration big lever. `PhiOnGrid` is a dense `Npts×n` matrix that
+**Order:**
+1. **Locality / patch collocation** — the per-iteration big lever. `PhiOnGrid` is a dense `Npts×n` matrix that
    evaluates even F's sharp α=40 orbital on all 262k points (mostly ~0). Store `Φ` as per-orbital PATCHES
    (points where `|Φ|>ε`), so the contraction sums only over patch OVERLAPS (spatially-close pairs):
    `O(n²·Npts) → O(n_pairs·patch)`. This is the §4 "whole-density collocation" rewrite — collocate
@@ -363,12 +340,12 @@ independent axes, both "screen by magnitude", both needing the same primitive **
    the same patches, REPLACING the dense `PhiOnGrid` + global W-tensor (`W_c(i,j)`, `n²×N_Gbasis`, inherently
    dense — designed for plane waves). Its own correctness campaign: bit-consistency vs the current dense path
    at a converged grid (`L_PP`-style invariants). Possible ~5–10× alone (single grid), and the scaffold multi-grid sits on.
-3. **Multi-grids** (§4) — per-exponent coarsening ON TOP of patches: map each product `χ_iχ_j` (exponent
+2. **Multi-grids** — per-exponent coarsening ON TOP of patches: map each product `χ_iχ_j` (exponent
    `α_i+α_j`) to a grid level by its exponent (CP2K `REL_CUTOFF`), so only tight×tight pairs touch the fine
    64³ and everything diffuse lives on coarse grids. This is what "bangs down `Npts=NextPow2(4m+1)` for most
    i,j" — the single uniform `densityEcut=160` (dictated by F's α=40) over-resolves the diffuse Na/F functions
    everywhere.
-4. **FFT — SECONDARY, and partly dissolves under the rework** (multi-grid FFTs are on smaller grids; the
+3. **FFT — SECONDARY, and partly dissolves under the rework** (multi-grid FFTs are on smaller grids; the
    power-of-2 padding waste shrinks). Do NOT optimize the hand-rolled `FFT3D` in isolation next — the
    rearchitecting reshapes it. (~18% today + ~10% allocation churn from per-line `cvec_t` allocs.)
 
@@ -380,9 +357,30 @@ independent axes, both "screen by magnitude", both needing the same primitive **
 complex MACs/call, and `Φ` (`Npts×n≈134 MB`) was re-read `n²/2≈512×` by the old scalar loop (memory-bound) —
 the zgemm blocks it to ~one pass, but only the patch/multi-grid work removes the `Npts_full` factor itself.
 
-Original profiling guidance (perf/callgrind entry points, candidate hotspots) retained below for reference.
+## 1. DROP SR — rank-reduction through the periodic stack + auto-tol
+The `_SR` basis is a hand-tuned crutch (drop the most-diffuse primitive so the Bloch overlap is cleanly PD).
+We PROVED (2026-07-13, see DONE) that the FULL basis + screening + canonical Eigen/SVD ortho with tol in the
+~1000× spectral gap gives a clean overlap transform (‖VᴴSV−I‖=6.6e-11) — BUT the SCF is **BLOCKED**: truncation
+reduces the working dim (NaF 37→33) and the periodic stack (`Crystal_EC`/`cDM_CD`/collocation) assumes the full
+`n` → "Matrix sizes do not match" (`DISABLED_NaFFullBasisEigenTol`). The MOLECULAR path handles rectangular V;
+the PERIODIC path does not. So dropping SR = two pieces:
+- **(a) Rank-reduction through the periodic stack** — let a truncated ortho (`V` is `n×(n−k)`) flow through
+  `Crystal_EC` (band count `n−k`), `cDM_CD` (density still full `n×n` via `C=V·U'`), and the collocation;
+  mirror the molecular path's rectangular-V handling. This is the real work and gates (b).
+- **(b) The user-friendly automation** (agreed design, see the resolved OPEN INVESTIGATION section): **auto-Rcut**
+  via a basis `MaxReach(ε)` scalar (wall B — the lattice enumerates `CellsInSphere(MaxReach+span)`; exponents
+  stay behind the molecular-basis wall, k-convention stays lattice-side), removing the `Rcut` param for one ε
+  (CP2K `EPS_PGF_ORB`; CP2K sets no user Rcut). **Auto-tol** via `LASolver` GAP DETECTION (pure LA): force-drop
+  `d[i]≤0`, scan the low region for the largest consecutive ratio; if `> R_threshold` (default **30**, exposed
+  at the Calculation facade) it's a CLEAN gap → cut there, else fall back to the ε-tol + WARN. `orthoTol<0`=auto
+  / `=0`=none / `>0`=explicit (mirrors `densityEcut`). **Auto-cut allowed but NEVER silent** — always `cerr` WARN
+  (count + gap ratio + clean/ambiguous). Vision: collapse to ~one CP2K-like ε.
 
-### (historical) profiling guidance — kept for the next hotspot
+Until (a) lands, **SR stays** (dimension-preserving, cleanly PD, no truncation).
+
+---
+
+### (ARCHIVED, pre-2026-07-13 — superseded by §0/§1 + DONE) original profiling / experiment notes
 **Discipline (user-directed): measure before optimizing.** Start by PROFILING, then pick the fix.
 
 **Profile, don't guess (ready-to-run entry points):**
@@ -519,7 +517,7 @@ procedural fit noise, make the energy variational so GDM/OT can win); (d) the it
 refactor + the `∫ρ_grid−N` readout (diagnostics); (e) slightly-more-SR basis as conditioning insurance;
 (f) magnitude-screen the overlap (correctness+speed, drops the arbitrary Rcut).
 
-## 1. Low-q multi-species bases → Si/NaF/CsI cross-validation (PW + GPW + CP2K) — THE NEXT WORK
+## 2. Low-q multi-species bases → Si/NaF/CsI cross-validation (PW + GPW + CP2K)
 
 **PROGRESS (2026-07-11): a valence-basis GENERATOR, not hand-rolled files.** `qchem.ValenceBasisGen`
 (`src/Calculation/ValenceBasisGen.C`) generates a low-q valence Gaussian basis straight from an **atomic
@@ -623,7 +621,7 @@ NaF/CsI converge (charge, Etot) == CP2K same-basis; the GPW−PW gap documented 
 iodine is the first GTH Gaussian basis for the element (validate its pseudo-atom carefully); F's tight 2p is
 the hardest (needs the highest cutoff, per the PW NaF vs CsI experience — F set the cutoff, not the heavy I).
 
-## 2. CP2K reference library (the oracle for §1) — BUILT; growing it
+## 3. CP2K reference library (the oracle for §2) — BUILT; growing it
 CP2K's Quickstep **is** the reference GPW implementation (Lippert–Hutter); its per-term breakdown points
 straight at a bug (as this session's hand-rolled breakdown did: Een ×15.7 → local PP → the raster).
 I can run CP2K directly: `~/Code/cp2k/build/bin/cp2k.ssmp`, decks in `~/Code/cp2k-runs/`.
@@ -663,12 +661,12 @@ I can run CP2K directly: `~/Code/cp2k/build/bin/cp2k.ssmp`, decks in `~/Code/cp2
 | lattice-sum reach | `Rcut`/`collRcut` (our truncation) | `EPS_PGF_ORB` / neighbour lists (auto) | not a direct CP2K knob — converge ours to CP2K |
 | **energy breakdown** | Ekin, Een, Eee, Exc, Enn, Ealign | CP2K: Overlap, Core (kinetic+PP), Hartree, XC, Core-self/Ewald | **term SPLITS differ** — match the TOTAL first, then map sub-terms (kinetic, XC are the cleanest to compare) |
 
-## 3. Symmorphic space groups + auto-IBZ (deferred qcSymmetry track)
+## 4. Symmorphic space groups + auto-IBZ (deferred qcSymmetry track)
 Only the POINT-GROUP part matters for k-reduction. Cubic Si (O_h, centrosymmetric) → IBZ = 1/48 of the BZ,
 no time-reversal factor. Validate bit-level: reduced-mesh-with-weights == full-mesh (against Step 2). The IBZ
 is an *efficiency* layer, not a correctness requirement — hence it comes AFTER a working full-BZ reference.
 
-## 4. Deferred cleanups (do once bulk works — "the working code is the definitive declaration")
+## 5. Deferred cleanups (do once bulk works — "the working code is the definitive declaration")
 - **Rigorous periodic external PP:** `MakeLocalPP`/`MakeSeparablePP` quadrature the HOME-CELL orbitals against
   the cell's OWN atoms (no periodic-image PP) — exact at Γ / large box, an approximation for a dense crystal.
   Sum the PP over lattice images (analogous to Ewald / the PW G-space assembly).
