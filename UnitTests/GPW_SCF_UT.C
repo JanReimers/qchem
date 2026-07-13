@@ -473,8 +473,9 @@ TEST(GPW_SCF, DISABLED_NaFOverlapConditioningSweep)
     {
         auto mol = std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(
             bd, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
-        for (double rc : {0.0, a, 1.5*a, 2.0*a})
-        {
+        for (double rc : {0.0, a, 2.0*a, 3.0*a, 4.0*a})   // extended to 3a/4a: with magnitude screening a large
+        {                                                 // enumeration is cheap, and it captures the far diffuse
+                                                          // terms that make the FULL basis S positive-definite
             L3::GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/0.0, /*Rcut*/rc);
             const BasisSet::Complex_OIBS& g = gpw;
             auto S = g.Overlap();
