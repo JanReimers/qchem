@@ -273,10 +273,11 @@ chmat_t GPW_Evaluator::OverlapMatrix(const std::function<dcmplx(const ivec3_t&)>
     // vectorizes.  (blaze's own product gave NO speedup here -- BLAZE_BLAS_MODE=0 in our TUs, so it too is scalar
     // complex; hence the direct cblas call.)  V is real -> M Hermitian; project to the upper triangle (real
     // diagonal).  Translation invariance is carried by the Bloch orbital in PhiOnGrid (Rcut>=2a; see the plan).
-    mat_t<dcmplx> VPhi(Npts,n);
-    for (size_t j=0;j<n;j++)                          // column-major Phi: p (row) inner is stride-1
+    itsVPhiBuf.resize(Npts,n);                        // reused scratch: allocates only on the first call (dims are
+    mat_t<dcmplx>& VPhi=itsVPhiBuf;                   // geometry-fixed), no-op resize thereafter -- avoids ~130 MB
+    for (size_t j=0;j<n;j++)                          // alloc/free per call.  Column-major Phi: p (row) inner is stride-1.
         for (size_t p=0;p<Npts;p++) VPhi(p,j)=V[p]*Phi(p,j);
-    mat_t<dcmplx> C(n,n,dcmplx(0.0));                 // C = w Phi^H VPhi  (n x n)
+    mat_t<dcmplx> C(n,n,dcmplx(0.0));                 // C = w Phi^H VPhi  (n x n; tiny, leave as a local)
     const dcmplx alpha(w,0.0), beta(0.0,0.0);
     cblas_zgemm(CblasColMajor, CblasConjTrans, CblasNoTrans,
                 (blasint)n, (blasint)n, (blasint)Npts,

@@ -146,6 +146,10 @@ private:
     // NO hand-rolled tensor cache: the collocation tensor is a stateless build; the FRAMEWORK caches it
     // (BasisSet::Band_FT_IBS::Repulsion3C/Overlap3C via theCache<dcmplx>(), keyed by BasisSetID -- see IDFragment).
     mutable mat_t<dcmplx> itsPhiOnGrid;  //!< cached \f$\chi_i^k(r_g)\f$ (geometry-fixed; built once, reused every SCF iteration)
+    //! Reused SCRATCH buffer (NOT a cache -- its contents \f$V\odot\Phi\f$ change every SCF iteration).  Sized
+    //! once (Npts x n, ~130 MB for NaF); OverlapMatrix refills + reuses it so the zgemm operand is not
+    //! re-allocated on every call (~120 calls/run -> otherwise ~16 GB of alloc/free churn + page faults).
+    mutable mat_t<dcmplx> itsVPhiBuf;
     //! \f$\chi_i^k(r_g)\f$ on the density grid (Npts x n; real at \f$\Gamma\f$).  CACHED: it is a pure function
     //! of geometry (grid + orbitals + image set), identical across SCF iterations, and the per-iteration
     //! integrate-back \c OverlapMatrix reuses it -- recomputing the Bloch sum at every grid point per iteration
