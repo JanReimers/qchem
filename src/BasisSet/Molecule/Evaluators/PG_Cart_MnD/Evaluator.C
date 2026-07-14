@@ -253,7 +253,12 @@ public:
     // Reuses the PUBLIC Gaussian data (exponents/coeffs/center + pol + norm); the product exponent/center size
     // the box.  Contracted radials: the box is sized by the MOST-DIFFUSE primitive pair (slowest decay), the
     // value is the full contracted product; per-point screening drops the rest.
-    void AccumulateProduct(size_t i, size_t j, double coeff, const UnitCell& A, const ivec3_t& N, rvec_t& rho) const
+    // Iterate the pair (i,j) product's compact exp-tail box on the N-division grid of cell A, calling
+    // f(raster_index, chi_i(r)*chi_j(r)) at each screened-in, MODULO-WRAPPED grid point.  This is the shared
+    // geometry of BOTH collocation (scatter D into rho) and integrate-back (gather V into h) -- so the two are
+    // EXACT adjoints (same box, same chi evaluation, same wrap).  See CollocateDensity / IntegratePotential.
+    template <class F>
+    void ForPairBox(size_t i, size_t j, const UnitCell& A, const ivec3_t& N, F&& f) const
     {
         const rvec_t ei=radials[i]->GetExponents(), gi=radials[i]->GetCoeffs();
         const rvec_t ej=radials[j]->GetExponents(), gj=radials[j]->GetCoeffs();
@@ -276,20 +281,37 @@ public:
             const double ri2=di.x*di.x+di.y*di.y+di.z*di.z, rj2=dj.x*dj.x+dj.y*dj.y+dj.z*dj.z;
             double radI=0.0; for (size_t p=0;p<ei.size();p++) radI+=gi[p]*std::exp(-ei[p]*ri2);
             double radJ=0.0; for (size_t q=0;q<ej.size();q++) radJ+=gj[q]*std::exp(-ej[q]*rj2);
-            const double val=coeff*(ni*pols[i](di)*radI)*(nj*pols[j](dj)*radJ);
+            const double val=(ni*pols[i](di)*radI)*(nj*pols[j](dj)*radJ);
             if (std::fabs(val)<kScreenEps) continue;
             const long mx=((gx%N.x)+N.x)%N.x, my=((gy%N.y)+N.y)%N.y, mz=((gz%N.z)+N.z)%N.z;  // modulo wrap
-            rho[(size_t(mx)*N.y+my)*N.z+mz]+=val;
+            f((size_t(mx)*N.y+my)*N.z+mz, val);
         }
     }
     // Collocate rho(r) = Sum_ij D_ij chi_i(r) chi_j(r) onto the N-division density grid of cell A.  Density-matrix
-    // driven (not a summed-orbital sample), per pair (AccumulateProduct).  Real D (Gamma); Integral rho = Tr(D S).
+    // driven (not a summed-orbital sample), per pair.  Real D (Gamma); Integral rho = Tr(D S).
     rvec_t CollocateDensity(const rmat_t& D, const UnitCell& A, const ivec3_t& N) const
     {
         rvec_t rho(size_t(N.x)*N.y*N.z, 0.0);
         for (auto i:indices()) for (auto j:indices())
-            if (D(i,j)!=0.0) AccumulateProduct(i, j, D(i,j), A, N, rho);
+            if (D(i,j)!=0.0) { const double c=D(i,j); ForPairBox(i,j,A,N,[&](size_t idx,double v){rho[idx]+=c*v;}); }
         return rho;
+    }
+    // Integrate-back (the collocation ADJOINT): h_ij = integral chi_i V chi_j = w Sum_{box} chi_i chi_j V, per
+    // pair on the SAME compact box + wrap as collocation -> exact adjoint (variational; <collocate(D),V> =
+    // <D,integrate(V)>).  V is the real-space potential on the grid (raster r=A(idx/N)); w=Omega/Npts.  This is
+    // the CP2K integrate step: only V is sampled (weighted by the analytic Gaussians), never the raw product,
+    // and the pair's box is compact -> accurate on a grid that resolves the pair (multigrid, Increment D).
+    rmat_t IntegratePotential(const rvec_t& V, const UnitCell& A, const ivec3_t& N) const
+    {
+        const size_t n=size();
+        const double w=A.GetCellVolume()/double(V.size());
+        rmat_t h(n,n,0.0);
+        for (auto i:indices()) for (auto j:indices(i))       // j>=i; symmetric at Gamma (real chi, real V)
+        {
+            double s=0.0; ForPairBox(i,j,A,N,[&](size_t idx,double v){s+=v*V[idx];});
+            h(i,j)=w*s; h(j,i)=w*s;
+        }
+        return h;
     }
 
     // --- 3-centre (DFT) and 4-centre (HF) kernels ---------------------------------------------------

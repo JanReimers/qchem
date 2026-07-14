@@ -123,6 +123,15 @@ public:
     //! \f$D(R)=\sum_k w_k e^{ikR}\f$ upstream.  This REPLACES the sampled Bloch-orbital collocation + the
     //! \c Rcut/collRcut image sum (doc/GPWPlan.md \S0).
     virtual rvec_t CollocateDensity(const rmat_t& D, const UnitCell& A, const ivec3_t& N) const = 0;
+
+    //! \brief The collocation ADJOINT (integrate-back): the KS block \f$h_{ij}=\int\chi_i V\chi_j
+    //! =w\sum_{\text{box}}\chi_i\chi_j V\f$, per pair on the SAME compact exp-tail box + modulo-wrap as
+    //! \c CollocateDensity -- so it is the EXACT adjoint (variational: \f$\langle\text{collocate}(D),V\rangle=
+    //! \langle D,\text{integrate}(V)\rangle\f$).  \a V is the real-space potential on the \a N-division grid of
+    //! cell \a A (raster \f$r=A(idx/N)\f$); \f$w=\Omega/N_{pts}\f$.  Only \a V is sampled (weighted by the
+    //! analytic Gaussians), never the raw product -> accurate on a grid that resolves the pair (multigrid).
+    //! Symmetric at \f$\Gamma\f$ (real).  REPLACES the sampled \c OverlapMatrix(Vtilde) + \c Rcut image sum.
+    virtual rmat_t IntegratePotential(const rvec_t& V, const UnitCell& A, const ivec3_t& N) const = 0;
 };
 
 } //namespace

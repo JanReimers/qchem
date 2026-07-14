@@ -259,6 +259,8 @@ chmat_t Orbital_IBS::MakePotentialMatrixMG(const std::vector<rvec3vec_t>& gridPt
 {   return NR_Evaluator::MakePotentialMatrixMG(gridPts_L,ecut_L,Rs,phases,V_L,w_L); }
 rvec_t Orbital_IBS::CollocateDensity(const rmat_t& D, const UnitCell& A, const ivec3_t& N) const
 {   return NR_Evaluator::CollocateDensity(D,A,N); }
+rmat_t Orbital_IBS::IntegratePotential(const rvec_t& V, const UnitCell& A, const ivec3_t& N) const
+{   return NR_Evaluator::IntegratePotential(V,A,N); }
 
 //----------------------------------------------------------------
 //

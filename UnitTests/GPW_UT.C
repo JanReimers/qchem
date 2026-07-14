@@ -448,6 +448,47 @@ TEST(GPW, AnalyticCollocationConservesCharge)
     EXPECT_NEAR(cInterior, cCorner, 1e-6) << "collocated charge must be translation-invariant (wrap == interior)";
 }
 
+// ANALYTIC INTEGRATE-BACK (GPWPlan.md S0 Increment B): LatticeSum1E::IntegratePotential is the exact adjoint
+// of CollocateDensity (same box + wrap).  Two gates: (1) ADJOINT consistency <collocate(D),V> == <D,integrate(V)>
+// to machine precision (variational -- the KS matrix is the exact gradient of the grid energy); (2) it
+// reproduces the dense sampled integrate-back (DenseOverlapMatrix) to grid tolerance.
+TEST(GPW, AnalyticIntegrateBackAdjointAndDense)
+{
+    const double a=12.0;
+    UnitCell cell(a);
+    cell.AddAtom(14,{0.5,0.5,0.5});
+    std::shared_ptr<const Real_BS> mol = MakeBasis(cell);
+    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/12.0, /*Rcut*/0.0);
+    const GPW_Evaluator& ev=gpw;
+    const auto* lat=dynamic_cast<const BasisSet::Molecule::LatticeSum1E*>(OrbitalBlock<Real_OIBS>(*mol));
+    EXPECT_TRUE(lat);
+    const ivec3_t N=ev.DensityGrid().FFTGrid();
+    const size_t  n=ev.size();
+
+    auto field=[](const ivec3_t& dm)->dcmplx
+        { double g2=double(dm.x*dm.x+dm.y*dm.y+dm.z*dm.z); return dcmplx(1.0/(1.0+g2),0.0); };
+    ΔG_Map vmap; for (const ivec3_t& dm : ev.DensityGrid().Gs()) vmap[dm]=field(dm);
+    rvec_t V=ev.DensityGrid().RhoOnGrid(vmap);                 // V(r) on the grid
+    rmat_t h=lat->IntegratePotential(V, cell, N);
+
+    // (1) adjoint: <collocate(D),V> == Tr(D integrate(V)) to machine precision (same box + wrap on both sides)
+    rmat_t D(n,n,0.0); for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) D(i,j)=(i==j)?1.0:0.3;  // symmetric
+    rvec_t rho=lat->CollocateDensity(D, cell, N);
+    const double w=cell.GetCellVolume()/double(V.size());
+    double lhs=0.0; for (size_t g=0;g<V.size();g++) lhs+=rho[g]*V[g]*w;
+    double rhs=0.0; for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) rhs+=D(i,j)*h(i,j);
+    EXPECT_NEAR(lhs, rhs, 1e-8*std::fabs(rhs)) << "adjoint <collocate(D),V> == <D,integrate(V)>";
+
+    // (2) vs the dense sampled integrate-back, to grid tolerance
+    chmat_t hd=ev.DenseOverlapMatrix(field);
+    double num=0.0, den=0.0;
+    for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++)
+    { double d=h(i,j)-std::real(dcmplx(hd(i,j))); num+=d*d; den+=std::norm(dcmplx(hd(i,j))); }
+    std::cout << "[integrate-back] adjoint lhs=" << lhs << " rhs=" << rhs
+              << "  vs-dense relDiff=" << std::sqrt(num/den) << std::endl;
+    EXPECT_LT(std::sqrt(num/den), 5e-2) << "analytic integrate-back vs dense to grid tolerance";
+}
+
 // === General-k (Step 1): the Bloch phase e^{ik.R} enters the lattice sums ============================
 // These isolate the general-k machinery at the matrix level (no SCF): the phase is inert at the home cell,
 // LIVE once images are summed, obeys the Bloch translation law, and conjugates under k -> -k.  (The full

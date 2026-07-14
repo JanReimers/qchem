@@ -93,6 +93,7 @@ public:
                                           const std::vector<rvec3_t>& Rs, const cvec_t& phases,
                                           const std::vector<rvec_t>& V_L, const std::vector<double>& w_L) const override;
     virtual rvec_t  CollocateDensity(const rmat_t& D, const UnitCell& A, const ivec3_t& N) const override;  // CP2K analytic collocation
+    virtual rmat_t  IntegratePotential(const rvec_t& V, const UnitCell& A, const ivec3_t& N) const override; // its adjoint (integrate-back)
 };
 // Use E prefix to avoid name clash with the interface class Fit_IBS
 class EFit_IBS
