@@ -310,52 +310,108 @@ screening the plan had assumed. FFT ~18%, orbital-eval ~14% (mostly one-time `Ph
   match"). ⇒ **SR stays the GPW conditioning answer**; dropping it → TODO §1. Agreed auto-tol/auto-Rcut design
   in the (resolved) OPEN INVESTIGATION section.
 
+## RUNTIME round 2 — sampling patch/multi-grid (a DEAD END that redirected the whole approach) — 2026-07-13
+Chased the `O(n²·Npts)` scaling with SAMPLING-based collocation (keep `PhiOnGrid` = the Bloch orbital sampled
+on the grid; restrict the dense contraction to per-orbital/per-pair PATCHES; then per-exponent grid LEVELS).
+It works but hit a ceiling, and the failures are the reason we pivoted to CP2K's ANALYTIC method (next section).
+- **Measure-first (`GPW.DISABLED_PatchSparsityProbe`)**: on the 2-atom NaF per-point scatter is a dead end
+  (0.37× MACs but every grid point occupied, scalar → loses the zgemm's SIMD); per-pair patches are ~break-even
+  (0.25× MACs at exact ε, scalar ≈ the zgemm). Patch-PRUNING is asymptotic in atom count — the 2-atom cell has
+  nothing to prune, so the lever is the GRID axis (multi-grid), not the pair axis.
+- **Increment 1 (`c94269c8`)** — molecular-side patched integrate-back (`LatticeSum1E::MakePotentialMatrix`,
+  per-orbital compressed χ columns, contract each pair on the support overlap). Bit-consistent vs dense.
+- **Increment 2 (`d6079a68`,`8b69e4c8`,`cdb695c0`,`38b63d7b`)** — REL_CUTOFF-style multi-grid. KEY FINDING: an
+  integrate-back-only multigrid is a DEAD END (Si Γ −21.4 vs −8.25) — coarsening a diffuse pair against the
+  SHARP local PP is catastrophic. Split it: keep the STATIC local PP dense, route only the smooth DYNAMIC
+  Hartree+XC through the ladder → Si Γ −8.24851 (grid tol), **3.4× on the hotspot** (`maxLevels=2` cap).
+- **WHY IT'S A DEAD END**: (a) the sampling multigrid is only grid-TOLERANCE accurate (~10 mHa cost, argues
+  against making it the default vs the CP2K-validation reference); (b) it BREAKS at genuine bulk — NaF Rcut=2a
+  MG vs dense = **2.66 Ha** (the diffuse-pair coarse-grid sampling ALIASES with the image sum); (c) it still
+  needs a hand-tuned `Rcut`/`collRcut` sphere on the collocation → **Gibbs ringing** (a hard truncation of the
+  sampled Bloch sum, the root of the indefinite-overlap symptom). Sampling-then-quadrature cannot coarsen and
+  cannot escape the hard cutoff. ⇒ the whole sampling collocation is the wrong foundation.
+
+## THE CP2K METHOD (Quickstep / Lippert–Hutter) — the authoritative GPW recipe (deep-dived from `~/Code/cp2k`)
+Read the CP2K source (`src/grid/ref/grid_ref_{collocate,integrate}.c`, `qs_collocate_density.F`,
+`qs_integrate_potential_product.F`, `pw_env/gaussian_gridlevels.F`, `task_list_methods.F`, `aobasis/ao_util.F`).
+The recipe — every piece fixes a wall we hit:
+1. **ANALYTIC collocation, NOT sampling.** Each primitive PRODUCT is ONE Gaussian: `p=z_a+z_b`, centre
+   `R_p=(z_a R_a+z_b R_b)/p`, prefactor `exp(−z_a z_b/p·|R_ab|²)`, times a Cartesian polynomial (binomial
+   re-expansion about `R_p` — CP2K's `cab_to_cxyz`; **we already have all this in `Ω`/`H2` in `GaussianRF.C`**).
+   Evaluated analytically on grid points inside an exp-tail radius — never a sampled pre-summed orbital.
+2. **No Gibbs ringing by construction.** The box ends where the poly×Gaussian `< eps_rho_rspace` (a smooth
+   tail), so there is no truncation discontinuity. (This is the fix to the hard-`Rcut` ringing.)
+3. **Integrate-back = exact adjoint** (same kernel, gather flag flipped): gathers **Hermite moments of V** over
+   the same box. Only **V** is sampled (weighted by the analytic Gaussians), never the sharp orbital product —
+   which is WHY it stays accurate on a coarse grid where naive sampling aliases.
+4. **REL_CUTOFF multigrid, done right.** Each pair → the coarsest level with `cutoff ≥ p·rel_cutoff`
+   (`gaussian_gridlevel`); V is transferred to ALL levels up front via FFT (spectral → no ringing). Analytic +
+   matched grid → coarsening is accurate (unlike our sampling multigrid). This is the ~10–100× speed.
+5. **Periodicity + screening, no hard cutoff.** Density is collocated from the DENSITY MATRIX `P` over
+   NEIGHBOUR-LIST pairs `(i, j@cell R)` — a screened image sum (include only where `|⟨χ_i|χ_j^R⟩| > EPS_PGF_ORB`,
+   default 1e-5) — with each compact box MODULO-WRAPPED onto the grid. So: a **screened** image sum (no hard
+   Rcut → no ringing) PLUS the wrap (an atom at the cell edge tiles automatically). k-points: the grid density
+   is always real/cell-periodic; ALL k-dependence lives in `P(R)=Σ_k w_k e^{ikR}` — collocation is k-agnostic.
+
+## GPW REWRITE to the CP2K method — Increments A, B + cross-cell (DONE, kernels validated) — 2026-07-14
+The analytic collocate/integrate core, molecular-side (reusing `GaussianRF`/`Ω`; primitives stay encapsulated).
+- **A (`0d09a6d5`)** `Molecule::LatticeSum1E::CollocateDensity(D,cell,N)` — `ρ=Σ_ij D_ij χ_iχ_j` collocated
+  analytically per pair on compact exp-tail boxes, modulo-wrapped. New `UnitCell::ToFractional`. Gate
+  `GPW.AnalyticCollocationConservesCharge`: `∫ρ=Tr(D S)` to 2e-8; corner atom wraps IDENTICALLY (no ringing).
+- **B (`068b4e96`)** `IntegratePotential(V,cell,N)` — the exact adjoint (`ForPairBox` shared by scatter/gather).
+  `⟨collocate(D),V⟩=⟨D,integrate(V)⟩` to machine precision (variational).
+- **Cross-cell fix + `G_ERI3.apply` (`729b6355`)** — the periodic Γ density is a product of BLOCH orbitals
+  `χ_i^G χ_j^G = Σ_R'' χ_i^0 χ_j^R''`, so collocation loops the SCREENED cross-cell offsets (`ForImageOffsets`,
+  magnitude-screened on the product prefactor — NOT a hard Rcut), not just the home pair. (A single-grid SCF
+  gave −16.77 vs −8.25 precisely because these were missing.) Gate
+  `GPW.DISABLED_AnalyticCollocationCrystalChargeConservation`: Si crystal `∫ρ=Tr(D S^G)` to 2.4e-7.
+  **Density seam per the design review (Band_FT_IBS + IrrepCD UNCHANGED)**: `G_ERI3` gains an optional
+  matrix-free `apply: D→ρ̃` closure (a 3rd realization beside PW-delta and GPW-dense-weights); `ContractG_ERI3`
+  dispatches to it. `GPW_Evaluator::MakeCollocator` builds it (collocate→FFT, Coulomb kernel folded). Built but
+  NOT wired: single-grid analytic is impractically slow (SIPP's diffuse α=0.25 → full-grid boxes × the image
+  sum; Si Γ ~60 min), so C (wire it) and D (multigrid) are COUPLED and land together — see TODO §0.
+
 ---
 
 # TODO / NEXT
 
-Round-1 runtime (zgemm + OpenBLAS/threads) + magnitude screening + the conditioning investigation are **DONE**
-(see DONE). The two LEADING increments now: (0) **RUNTIME GAP-CLOSE** — the `O(n²·Npts)`→`O(n_pairs·patch)`
-rewrite that closes the 20–40× gap to CP2K; (1) **DROP SR** — rank-reduction through the periodic stack + the
-auto-tol gap-detector. Then (2) low-q multi-species bases → Si/NaF/CsI; (3) CP2K reference; (4) IBZ; (5) cleanups.
+Round-1 runtime + magnitude screening + the sampling patch/multi-grid dead-end + the CP2K deep dive are **DONE**
+(see DONE); the analytic collocate/integrate KERNELS (A, B, cross-cell) are DONE and validated. The LEADING
+increment now: (0) **RUNTIME GAP-CLOSE = finish the CP2K analytic rewrite (C+D)** — wire the analytic kernels
+into the SCF ON the REL_CUTOFF multigrid and delete the sampling machinery. Then (1) **DROP SR** (rank-reduction
++ auto-tol); (2) low-q multi-species bases → Si/NaF/CsI; (3) CP2K reference; (4) IBZ; (5) cleanups.
 
-## 0. RUNTIME GAP-CLOSE — patch collocation → multi-grid (the CP2K-minute path)
-Round-1 (zgemm + OpenBLAS/threads) + magnitude screening are DONE (see the DONE section). The `zgemm` attacked
-the CONSTANT of the dense contraction (4× on the hotspot) but NOT the `O(n²·Npts_full)` SCALING — the real
-20–40× gap to CP2K (~1 min NaF; we are ~28 min). CP2K is fast because it NEVER touches the full grid densely —
-it exploits Gaussian LOCALITY. The lattice-IMAGE axis is now handled by screening (DONE); the remaining lever is
-the GRID axis:
+## 0. RUNTIME GAP-CLOSE — finish the CP2K analytic rewrite (Increments C + D, COUPLED)
+The sampling collocation is a proven dead end (rings, can't coarsen, needs a hard Rcut — see DONE). The analytic
+collocate/integrate KERNELS are DONE + validated to machine precision (Increments A/B/cross-cell, DONE). What
+remains is to make them the SCF path — and they are only PRACTICAL with the multigrid (single-grid analytic is
+~60 min for Si Γ because SIPP's diffuse products have full-grid boxes), so **C and D land together.**
 
-| axis | the loop | our crutch | the fix |
-|---|---|---|---|
-| **lattice images** | `S_ij(k)=Σ_{\|R\|≤Rcut} e^{ik·R}⟨χ_i⁰\|χ_j^R⟩`; `PhiOnGrid`'s Bloch sum | fixed `Rcut=2a` sphere | per-pair `\|⟨χ_i\|χ_j^R⟩\|>ε` (CP2K `EPS_PGF_ORB`) |
-| **grid points** | `M_ij=Σ_p conj(Φ_pi)V_p Φ_pj` over full `Npts` | dense 64³ everywhere | local patches + multi-grid |
+**C — wire the analytic path in (density + integrate-back), delete the sampling machinery.** The seam is ready:
+- **Density**: `Repulsion3CTensor()`/`Overlap3CTensor()` → `g.apply = MakeCollocator(coulomb)` (already built,
+  reverted). `ContractG_ERI3` dispatches to `apply(D)` = collocate→FFT. **Band_FT_IBS + IrrepCD UNCHANGED.**
+- **Integrate-back**: `OverlapMatrix(Vtilde)` → `IntegratePotential(V,cell,N)` (widen real→Hermitian at Γ);
+  `MakeLocalPP` uses the same (the analytic integrate-back is accurate for the sharp PP — no coarsening error).
+- **DELETE**: `PhiOnGrid`, `BuildWeights`, `DenseOverlapMatrix`, `PatchedOverlapMatrix`, `MultiGridOverlapMatrix`,
+  the sampling MG level machinery, `Rcut`/`collRcut` for the collocation, `G_ERI3::weights`, and the superseded
+  sampling tests (`PatchedIntegrateBackMatchesDense`, `MultiGridIntegrateBackMechanics`, `SiliconGammaMultiGrid`,
+  `NaFMultiGrid*`, `BenchOverlapMatrix`, `PatchSparsityProbe`). Re-pin the anchors to the analytic values (they
+  MOVE ~grid tolerance from the sampling values — Si Γ was −8.24758 sampling).
 
-**Order:**
-1. **Locality / patch collocation** — the per-iteration big lever. `PhiOnGrid` is a dense `Npts×n` matrix that
-   evaluates even F's sharp α=40 orbital on all 262k points (mostly ~0). Store `Φ` as per-orbital PATCHES
-   (points where `|Φ|>ε`), so the contraction sums only over patch OVERLAPS (spatially-close pairs):
-   `O(n²·Npts) → O(n_pairs·patch)`. This is the §4 "whole-density collocation" rewrite — collocate
-   `ρ=Σ_ij D_ij χ_iχ_j` directly on the grid as local patches (one FFT for Hartree) and integrate `V` back on
-   the same patches, REPLACING the dense `PhiOnGrid` + global W-tensor (`W_c(i,j)`, `n²×N_Gbasis`, inherently
-   dense — designed for plane waves). Its own correctness campaign: bit-consistency vs the current dense path
-   at a converged grid (`L_PP`-style invariants). Possible ~5–10× alone (single grid), and the scaffold multi-grid sits on.
-2. **Multi-grids** — per-exponent coarsening ON TOP of patches: map each product `χ_iχ_j` (exponent
-   `α_i+α_j`) to a grid level by its exponent (CP2K `REL_CUTOFF`), so only tight×tight pairs touch the fine
-   64³ and everything diffuse lives on coarse grids. This is what "bangs down `Npts=NextPow2(4m+1)` for most
-   i,j" — the single uniform `densityEcut=160` (dictated by F's α=40) over-resolves the diffuse Na/F functions
-   everywhere.
-3. **FFT — SECONDARY, and partly dissolves under the rework** (multi-grid FFTs are on smaller grids; the
-   power-of-2 padding waste shrinks). Do NOT optimize the hand-rolled `FFT3D` in isolation next — the
-   rearchitecting reshapes it. (~18% today + ~10% allocation churn from per-line `cvec_t` allocs.)
+**D — REL_CUTOFF multigrid (what makes it fast AND keeps it accurate).** Assign each pair to the coarsest level
+with `cutoff ≥ (α_i+α_j)·rel_cutoff`; collocate/integrate each pair on ITS level; transfer V to all levels via
+FFT (spectral, no ringing); combine ρ̃ nested in G-space. Because the collocation is ANALYTIC (not sampled), a
+diffuse product on a coarse grid matched to its width is accurate — the sampling multigrid's fatal flaw is gone.
+This is CP2K's per-exponent multigrid; each pair's box becomes a ~constant small point count → the ~10–100× that
+closes the gap (NaF ~1 min).
 
-**Dimensions recap (NaF, why the grid dominates):** `M_ij=w Σ_p conj(Φ_pi)V_p Φ_pj`. `i,j∈[0,n)`, **n=32**
-(Gaussian AOs, `itsOrb->GetNumFunctions()`). `p∈[0,Npts)`, **Npts=64³=262,144**: `densityEcut=4·α_max=160 Ha`
-→ `BuildGs {G:½|G|²<160}` (the fit basis N_Gbasis, ~the Ecut sphere) → `m=`max Miller index → `AutoGrid=4m+1`
-→ `FFTGrid=NextPow2(4m+1)=64/axis`. `N_Gbasis` (the G-sphere) is NOT in the contraction — it only builds `V[p]`
-(RhoOnGrid) and the W-tensor; the contraction runs over the full real-space cube `Npts`. Cost `O(n²·Npts)≈2.7e8`
-complex MACs/call, and `Φ` (`Npts×n≈134 MB`) was re-read `n²/2≈512×` by the old scalar loop (memory-bound) —
-the zgemm blocks it to ~one pass, but only the patch/multi-grid work removes the `Npts_full` factor itself.
+**E — auto-Rcut + k in P(R).** Replace the last `Rcut` param with EPS_PGF_ORB screening (the neighbour-list reach
+is `√(−ln ε/α_min)`, already the collocation offset screen); general k via `P(R)=Σ_k w_k e^{ikR}` (collocation
+is k-agnostic — the grid density is real/cell-periodic). Then a single ε drives everything, CP2K-like.
+
+**Validation ladder**: re-pin Si Γ (analytic == sampling to grid tol) → the crystal charge/adjoint gates
+un-DISABLED (fast once multigrid) → NaF vs CP2K same-basis (the real target). Kernels + `MakeCollocator` +
+`G_ERI3::apply` + the cross-cell `ForImageOffsets` are all in place; C+D is the wiring + the level machinery.
 
 ## 1. DROP SR — rank-reduction through the periodic stack + auto-tol
 The `_SR` basis is a hand-tuned crutch (drop the most-diffuse primitive so the Bloch overlap is cleanly PD).
@@ -685,15 +741,10 @@ is an *efficiency* layer, not a correctness requirement — hence it comes AFTER
   honor it, building its Vxc grid at `Ecut*relCutoff`). LDA relCutoff==1 so it's exact — but a GGA's ∇ρ wants a
   DENSER v_xc grid. Fix = build a separate Vxc grid at `densityEcut*relCutoff`, mirroring the PW Vxc line. A
   guard `assert(relCutoff<=1)` now fires loudly on a GGA-on-GPW attempt instead of silently using the LDA grid.
-- **Multi-grids (efficiency — the plane-wave analog of per-shell exponent scaling; user TODO, even for LDA):**
-  the single uniform `densityEcut` grid is dictated by the TIGHTEST orbital primitive, so a diffuse+tight basis
-  over-resolves the diffuse part everywhere. CP2K maps each primitive to a grid matched to its exponent (gated
-  by REL_CUTOFF). Generate a `{densityEcut}` list by interrogating the orbital-basis exponents; collocate each
-  primitive on its own grid. This is the "×2/×2/3 exponent scaling done in plane waves" (§ the molecular
-  `A1_coul`/`A1_exch` fit bases): density = 4×/absolute cutoff, v_xc = functional-dependent (relCutoff).
-- **Whole-density collocation (efficiency):** the dense `W` tensor is `O(nGfit·nAO²)` storage + `O(nAO²)` FFTs.
-  The efficient GPW collocates `ρ = op(r)` ONCE (one FFT), which needs `D` → density-side. CP2K's local-patch
-  (multi-grid) collocation is the further v2.
+- **Multi-grids + whole-density collocation — PROMOTED to §0 (Increments C+D).** These two old "deferred
+  efficiency" items ARE the runtime gap-close now: the analytic collocate/integrate (whole-density `ρ=op(r)`,
+  density-matrix-driven) + REL_CUTOFF multigrid is the CP2K method, kernels DONE (see DONE), wiring = §0 C+D.
+  (Superseded here; kept as a pointer.)
 - **Common `PW_Evaluator`/`GPW_Evaluator` base:** the shared FFT engine (`PeriodicGridEvaluator`) is already
   factored; a base earns its keep once general-k k-space logic is shared.
 
@@ -834,7 +885,14 @@ Symmorphic space groups → BZ reduction (irreducible wedge) → SALC with plane
   **`335df0da`** (CP2K grid-matched table), **`5fe61aeb`** (multi-k validated vs CP2K same-mesh),
   **`1980d6ef`** (shifted-MP support + the complex-D bug diagnostic),
   **`745d03ff`** (complex-k fix: ket-conj density weight + conj KB projector phase + charge trace; shifted 2×2×2 == CP2K −7.86744).
-- Tests: `UnitTests/GPW_UT.C` (1E + Bloch invariants), `UnitTests/GPW_SCF_UT.C` (SCF anchors + gates:
+- Commits (RUNTIME round 2 — sampling, DEAD END): `c94269c8` (Inc1 patch), `d6079a68`/`8b69e4c8`/`cdb695c0`/
+  `38b63d7b` (Inc2 multigrid: dead-end finding, static/dynamic split, bench 3.4×, REL_CUTOFF cap).
+- Commits (CP2K ANALYTIC rewrite — the current direction): **`0d09a6d5`** (A: analytic collocation),
+  **`068b4e96`** (B: integrate-back adjoint), **`729b6355`** (cross-cell pair sum + `G_ERI3::apply` seam +
+  `MakeCollocator`; wiring reverted pending multigrid). NEXT = §0 C+D (wire + delete sampling + multigrid).
+- Tests: `UnitTests/GPW_UT.C` (1E + Bloch invariants; analytic gates `AnalyticCollocationConservesCharge`,
+  `DISABLED_AnalyticCollocationCrystalChargeConservation`, `DISABLED_AnalyticIntegrateBackAdjointAndDense`),
+  `UnitTests/GPW_SCF_UT.C` (SCF anchors + gates:
   `DISABLED_TermTranslationInvariance`, `DISABLED_SR_GammaRcut2a_CP2KReference`,
   `DISABLED_SR_2x2x2GammaCentred_vs_CP2K`, `DISABLED_SR_2x2x2ShiftedMP_vs_CP2K` [the TODO-1 complex-D probe]),
   `UnitTests/L_PP.C` (finite==lattice PP), `UnitTests/PlaneWaveDFTUT.C` (PW-DFT anchors). CP2K decks +
