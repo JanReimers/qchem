@@ -14,6 +14,7 @@ import qchem.BasisSet.Molecule.Readers.Gaussian94;
 import qchem.BasisSet.Molecule.BasisFiles;   // the auto fit-basis files (path owned by BasisFiles)
 import qchem.BasisSet;
 import qchem.Structure;
+import qchem.UnitCell;   // UnitCell (CollocateDensity grid<->cell map)
 import qchem.Symmetry.Unit;
 import qchem.BasisSet.Molecule.PG_Cart.Symmetry;   // ExtractAoShells(const PGData&) -- for GetAoShells()
 import qchem.stl_io;
@@ -256,6 +257,8 @@ chmat_t Orbital_IBS::MakePotentialMatrixMG(const std::vector<rvec3vec_t>& gridPt
                                            const std::vector<rvec3_t>& Rs, const cvec_t& phases,
                                            const std::vector<rvec_t>& V_L, const std::vector<double>& w_L) const
 {   return NR_Evaluator::MakePotentialMatrixMG(gridPts_L,ecut_L,Rs,phases,V_L,w_L); }
+rvec_t Orbital_IBS::CollocateDensity(const rmat_t& D, const UnitCell& A, const ivec3_t& N) const
+{   return NR_Evaluator::CollocateDensity(D,A,N); }
 
 //----------------------------------------------------------------
 //

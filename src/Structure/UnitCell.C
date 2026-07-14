@@ -57,6 +57,10 @@ public:
     //! Cartesian (a.u.) position of a point given in fractional cell coordinates: \f$ r = A f \f$.
     rvec3_t ToCartesian(const rvec3_t& f) const;
 
+    //! Fractional cell coordinates of a Cartesian point: \f$ f = A^{-1} r \f$ (the inverse of \c ToCartesian).
+    //! Used to place a real-space point on the FFT grid (its grid index is \f$N\,f\f$, modulo \f$N\f$).
+    rvec3_t ToFractional(const rvec3_t& r) const;
+
     double      GetCellVolume     (                  ) const; //!< \f$|\det A|\f$ (a.u.\f$^3\f$).
     double      GetMinimumCellEdge(                  ) const; //!< \f$\min_i |a_i|\f$ (a.u.).
     double      GetMaximumCellEdge(                  ) const; //!< \f$\max_i |a_i|\f$ (a.u.); the axis that binds an isotropic uniform-mesh division count.

@@ -28,6 +28,7 @@ import qchem.BasisSet.Orbital_1E_IBS;           // Real_OIBS / Complex_OIBS + ca
 import qchem.BasisSet.Molecule.Factory;         // Molecule::Factory, BasisSetData/Engine/Angular
 import qchem.BasisSet.Lattice_3D.GPW_IBS;       // GPW_IBS (the basis under test)
 import qchem.BasisSet.Lattice_3D.Evaluators.GPW; // GPW_Evaluator (tests may cheat-import internals) -- DFT tier
+import qchem.BasisSet.Molecule.LatticeSum1E;     // Molecule::LatticeSum1E::CollocateDensity (analytic collocation)
 import qchem.BasisSet.Internal.GMap;            // G_ERI3 / ΔG_Map (the collocation tensor + rho-tilde)
 import qchem.Blaze;                             // hmat_t element access / rows()
 import qchem.Math;                              // Pi (the Bloch-phase e^{2 pi i k.n})
@@ -408,6 +409,43 @@ TEST(GPW, MultiGridIntegrateBackMechanics)
         { double g2=double(dm.x*dm.x+dm.y*dm.y+dm.z*dm.z); return dcmplx(1.0/(1.0+g2),0.0); };
     std::cout << "[multi-grid] const-field relDiff=" << rdConst << "  peaked-field relDiff="
               << relDiff(ev.PatchedOverlapMatrix(pfield), ev.MultiGridOverlapMatrix(pfield)) << std::endl;
+}
+
+// ANALYTIC COLLOCATION charge conservation (GPWPlan.md S0 Increment A -- the CP2K rewrite).  The new
+// LatticeSum1E::CollocateDensity collocates rho = Sum_ij D_ij chi_i chi_j analytically per pair on compact
+// exp-tail boxes, modulo-wrapped onto the grid (NO image sum, NO Rcut).  The defining invariant: Integral of
+// the collocated rho over the cell equals Tr(D S) (the density integrates to the electron count) -- to grid
+// tolerance.  Tested with the atom in the INTERIOR (no wrap) AND at the CORNER {0,0,0} (the box wraps around
+// every face -> exercises the modulo-wrap-IS-the-image-sum mechanism; charge must be identical, translation-
+// invariant, with no ringing).
+TEST(GPW, AnalyticCollocationConservesCharge)
+{
+    auto probe=[](const rvec3_t& frac, const char* where)->double
+    {
+        const double a=12.0;
+        UnitCell cell(a);
+        cell.AddAtom(14, frac);                                     // Si
+        std::shared_ptr<const Real_BS> mol = MakeBasis(cell);       // SIPP Si
+        GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/12.0, /*Rcut*/0.0);
+        const GPW_Evaluator& ev=gpw;
+        const Complex_OIBS& g=gpw;
+        const auto* lat=dynamic_cast<const BasisSet::Molecule::LatticeSum1E*>(OrbitalBlock<Real_OIBS>(*mol));
+        EXPECT_TRUE(lat) << "orbital block must realise LatticeSum1E";
+        const ivec3_t N=ev.DensityGrid().FFTGrid();
+        const size_t  n=g.GetNumFunctions();
+        rmat_t D(n,n,0.0); for (size_t i=0;i<n;i++) D(i,i)=1.0;      // D = identity -> Integral rho = Tr(S)
+        rvec_t rho=lat->CollocateDensity(D, cell, N);
+        double integral=blazem::sum(rho)*cell.GetCellVolume()/double(rho.size());
+        const auto& S=g.Overlap();
+        double trDS=0.0; for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) trDS+=D(i,j)*std::real(dcmplx(S(i,j)));
+        std::cout << "[collocate " << where << "] Integral rho=" << integral << "  Tr(D S)=" << trDS
+                  << "  rel=" << std::fabs(integral-trDS)/std::fabs(trDS) << std::endl;
+        EXPECT_NEAR(integral, trDS, 5e-2*std::fabs(trDS)) << "collocated charge vs Tr(D S) (" << where << ")";
+        return integral;
+    };
+    double cInterior=probe({0.5,0.5,0.5}, "interior");
+    double cCorner  =probe({0.0,0.0,0.0}, "corner-wrapped");
+    EXPECT_NEAR(cInterior, cCorner, 1e-6) << "collocated charge must be translation-invariant (wrap == interior)";
 }
 
 // === General-k (Step 1): the Bloch phase e^{ik.R} enters the lattice sums ============================

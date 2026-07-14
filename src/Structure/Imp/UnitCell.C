@@ -78,6 +78,11 @@ rvec3_t UnitCell::ToCartesian(const rvec3_t& f) const
     return itsA*f; // r = A f
 }
 
+rvec3_t UnitCell::ToFractional(const rvec3_t& r) const
+{
+    return Invert(itsA)*r; // f = A^-1 r
+}
+
 void UnitCell::AddAtom(int Z, const rvec3_t& f)
 {
     Insert(new Atom(Z, ToCartesian(f))); // store in Cartesian a.u. (r = A f)

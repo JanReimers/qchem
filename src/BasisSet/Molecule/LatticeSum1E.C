@@ -38,7 +38,8 @@ module;
 #include <vector>
 export module qchem.BasisSet.Molecule.LatticeSum1E;
 import qchem.Structure;   // Structure (the nuclear-attraction centres)
-import qchem.Types;       // rvec3_t, cvec_t, chmat_t
+import qchem.UnitCell;    // UnitCell (the collocation grid<->cell map: CollocateDensity)
+import qchem.Types;       // rvec3_t, cvec_t, chmat_t, rmat_t, ivec3_t
 import qchem.Blaze;       // matrix machinery
 
 export namespace qchem::BasisSet::Molecule
@@ -112,6 +113,16 @@ public:
     virtual chmat_t MakePotentialMatrixMG(const std::vector<rvec3vec_t>& gridPts_L, const std::vector<double>& ecut_L,
                                           const std::vector<rvec3_t>& Rs, const cvec_t& phases,
                                           const std::vector<rvec_t>& V_L, const std::vector<double>& w_L) const = 0;
+
+    //! \brief ANALYTIC per-pair density collocation (CP2K GPW): \f$\rho(r)=\sum_{ij}D_{ij}\chi_i(r)\chi_j(r)\f$
+    //! collocated onto the \a N-division density grid of direct cell \a A (raster \f$r=A(idx/N)\f$), each pair
+    //! evaluated analytically on its compact exp-tail box and MODULO-WRAPPED onto the grid.  There is NO
+    //! lattice-image sum (the wrap IS the image sum) and NO hard cutoff (the box ends where the product
+    //! \f$<\varepsilon\f$, a smooth tail -> no Gibbs ringing).  Density-matrix driven (not a summed-orbital
+    //! sample), so \f$\int\rho = \mathrm{Tr}(DS)\f$.  Real \a D (\f$\Gamma\f$); the k-dependence lives in
+    //! \f$D(R)=\sum_k w_k e^{ikR}\f$ upstream.  This REPLACES the sampled Bloch-orbital collocation + the
+    //! \c Rcut/collRcut image sum (doc/GPWPlan.md \S0).
+    virtual rvec_t CollocateDensity(const rmat_t& D, const UnitCell& A, const ivec3_t& N) const = 0;
 };
 
 } //namespace

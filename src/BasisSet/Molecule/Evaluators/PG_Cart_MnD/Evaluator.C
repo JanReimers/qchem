@@ -26,6 +26,7 @@ import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.PGData;      // PGData
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;  // GaussianRF named kernels
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;// Polarization
 import qchem.Structure;
+import qchem.UnitCell;                                             // UnitCell (ToCartesian/ToFractional: grid<->cell for collocation)
 import qchem.Types;
 import qchem.Blaze;                                                // rsmat_t (the lattice-sum matrices)
 
@@ -238,6 +239,57 @@ public:
             M(i,j) = (i==j) ? dcmplx(std::real(s),0.0) : s;
         }
         return M;
+    }
+
+    // --- ANALYTIC per-pair density collocation (CP2K GPW, Increment A) --------------------------------------
+    // Accumulate  coeff * chi_i(r) chi_j(r)  onto the periodic density grid, evaluated ANALYTICALLY on the
+    // pair-product's compact exp-tail box and MODULO-WRAPPED onto the N-division grid of direct cell A (raster
+    // r = A*(idx/N), matching PeriodicGridEvaluator).  There is NO lattice-image sum and NO hard cutoff:
+    //  - periodicity is the modulo wrap -- an unwrapped box point r=A*(idx/N) outside the cell is evaluated at
+    //    its true near-atom distance (chi_i(r) with r-R_i) and accumulated to grid index modulo(idx,N); that IS
+    //    the periodic-image contribution (r == in-cell point + a lattice vector), so the wrap DOES the image sum;
+    //  - the box ends where the product Gaussian < kScreenEps (a smooth exp tail), so there is no truncation
+    //    discontinuity -> no Gibbs ringing (unlike a fixed geometric Rcut on a summed Bloch orbital).
+    // Reuses the PUBLIC Gaussian data (exponents/coeffs/center + pol + norm); the product exponent/center size
+    // the box.  Contracted radials: the box is sized by the MOST-DIFFUSE primitive pair (slowest decay), the
+    // value is the full contracted product; per-point screening drops the rest.
+    void AccumulateProduct(size_t i, size_t j, double coeff, const UnitCell& A, const ivec3_t& N, rvec_t& rho) const
+    {
+        const rvec_t ei=radials[i]->GetExponents(), gi=radials[i]->GetCoeffs();
+        const rvec_t ej=radials[j]->GetExponents(), gj=radials[j]->GetCoeffs();
+        const rvec3_t Ri=radials[i]->GetCenter(), Rj=radials[j]->GetCenter();
+        const double ni=ns[i], nj=ns[j];
+        double aMinI=ei[0]; for (double e:ei) aMinI=std::min(aMinI,e);
+        double aMinJ=ej[0]; for (double e:ej) aMinJ=std::min(aMinJ,e);
+        const double pMin=aMinI+aMinJ;                       // slowest-decaying product term -> the box size
+        const rvec3_t P=(aMinI*Ri+aMinJ*Rj)/pMin;            // its product centre (box centre)
+        const double reach=std::sqrt(-std::log(kScreenEps)/pMin)+1.0;   // exp-tail radius (+1 a.u. poly margin)
+        const rvec3_t fP=A.ToFractional(P);
+        const double hwFrac=reach/A.GetMinimumCellEdge();    // conservative fractional half-width (min edge)
+        const int hwx=int(std::ceil(hwFrac*N.x))+1, hwy=int(std::ceil(hwFrac*N.y))+1, hwz=int(std::ceil(hwFrac*N.z))+1;
+        const long cx=std::lround(fP.x*N.x), cy=std::lround(fP.y*N.y), cz=std::lround(fP.z*N.z);
+        for (int dx=-hwx; dx<=hwx; dx++) for (int dy=-hwy; dy<=hwy; dy++) for (int dz=-hwz; dz<=hwz; dz++)
+        {
+            const long gx=cx+dx, gy=cy+dy, gz=cz+dz;         // unwrapped grid index (may lie outside [0,N))
+            const rvec3_t r=A.ToCartesian(rvec3_t(double(gx)/N.x, double(gy)/N.y, double(gz)/N.z));  // physical point
+            const rvec3_t di=r-Ri, dj=r-Rj;
+            const double ri2=di.x*di.x+di.y*di.y+di.z*di.z, rj2=dj.x*dj.x+dj.y*dj.y+dj.z*dj.z;
+            double radI=0.0; for (size_t p=0;p<ei.size();p++) radI+=gi[p]*std::exp(-ei[p]*ri2);
+            double radJ=0.0; for (size_t q=0;q<ej.size();q++) radJ+=gj[q]*std::exp(-ej[q]*rj2);
+            const double val=coeff*(ni*pols[i](di)*radI)*(nj*pols[j](dj)*radJ);
+            if (std::fabs(val)<kScreenEps) continue;
+            const long mx=((gx%N.x)+N.x)%N.x, my=((gy%N.y)+N.y)%N.y, mz=((gz%N.z)+N.z)%N.z;  // modulo wrap
+            rho[(size_t(mx)*N.y+my)*N.z+mz]+=val;
+        }
+    }
+    // Collocate rho(r) = Sum_ij D_ij chi_i(r) chi_j(r) onto the N-division density grid of cell A.  Density-matrix
+    // driven (not a summed-orbital sample), per pair (AccumulateProduct).  Real D (Gamma); Integral rho = Tr(D S).
+    rvec_t CollocateDensity(const rmat_t& D, const UnitCell& A, const ivec3_t& N) const
+    {
+        rvec_t rho(size_t(N.x)*N.y*N.z, 0.0);
+        for (auto i:indices()) for (auto j:indices())
+            if (D(i,j)!=0.0) AccumulateProduct(i, j, D(i,j), A, N, rho);
+        return rho;
     }
 
     // --- 3-centre (DFT) and 4-centre (HF) kernels ---------------------------------------------------

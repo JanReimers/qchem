@@ -11,6 +11,7 @@ import qchem.BasisSet.Molecule.Reader;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD;  // NR_Evaluator: the IBS IS-A evaluator (base subobject)
 import qchem.BasisSet.Molecule.IBS;                     // Molecule::Orbital_{1E,DFT,HF}_IBS<E> templated mixins
 import qchem.BasisSet.Molecule.LatticeSum1E;            // Molecule::LatticeSum1E (the GPW periodic-1E seam)
+import qchem.UnitCell;                                 // UnitCell (CollocateDensity grid<->cell map)
 
 import qchem.BasisSet.Internal.BasisSetImp;
 import qchem.BasisSet.Internal.ERI4;
@@ -91,6 +92,7 @@ public:
     virtual chmat_t MakePotentialMatrixMG(const std::vector<rvec3vec_t>& gridPts_L, const std::vector<double>& ecut_L,
                                           const std::vector<rvec3_t>& Rs, const cvec_t& phases,
                                           const std::vector<rvec_t>& V_L, const std::vector<double>& w_L) const override;
+    virtual rvec_t  CollocateDensity(const rmat_t& D, const UnitCell& A, const ivec3_t& N) const override;  // CP2K analytic collocation
 };
 // Use E prefix to avoid name clash with the interface class Fit_IBS
 class EFit_IBS
