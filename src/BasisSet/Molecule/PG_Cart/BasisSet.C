@@ -87,6 +87,10 @@ public:
     virtual double  MaxExponent() const override;   // finest exponent -> the GPW density-grid cutoff floor
     virtual chmat_t MakePotentialMatrix(const rvec3vec_t& gridPts, const std::vector<rvec3_t>& Rs,
                                         const cvec_t& phases, const rvec_t& V, double w) const override; // GPW integrate-back (patched)
+    virtual double  MinExponent() const override;   // coarsest exponent -> the multi-grid coarsest level
+    virtual chmat_t MakePotentialMatrixMG(const std::vector<rvec3vec_t>& gridPts_L, const std::vector<double>& ecut_L,
+                                          const std::vector<rvec3_t>& Rs, const cvec_t& phases,
+                                          const std::vector<rvec_t>& V_L, const std::vector<double>& w_L) const override;
 };
 // Use E prefix to avoid name clash with the interface class Fit_IBS
 class EFit_IBS

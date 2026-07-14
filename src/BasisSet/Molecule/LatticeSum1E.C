@@ -93,6 +93,25 @@ public:
     virtual chmat_t MakePotentialMatrix(const rvec3vec_t& gridPts,
                                         const std::vector<rvec3_t>& Rs, const cvec_t& phases,
                                         const rvec_t& V, double w) const = 0;
+
+    //! The coarsest primitive Gaussian exponent \f$\alpha_{\min}\f$ -- the diffuse end (mirrors \c MaxExponent).
+    //! Sets the coarsest useful GPW density-grid LEVEL for the multi-grid integrate-back (\c MakePotentialMatrixMG):
+    //! the ladder runs from the fine grid (\f$\propto\alpha_{\max}\f$) down to \f$\propto\alpha_{\min}\f$.
+    virtual double MinExponent() const = 0;
+
+    //! \brief MULTI-GRID collocation adjoint (integrate-back): each orbital PAIR is contracted on the COARSEST
+    //! grid LEVEL that resolves its product exponent \f$\alpha_i+\alpha_j\f$, so diffuse pairs live on small
+    //! coarse grids instead of the fine grid dictated by the tightest primitive
+    //! (\f$O(n^2N_{pts}^{fine})\to O(\sum_L\mathrm{pairs}(L)\,N_{pts}(L))\f$ -- the GPW gap-closer, CP2K's
+    //! \c REL_CUTOFF multigrid).  Levels arrive FINEST-FIRST: \a gridPts_L[L] the level's grid points,
+    //! \a V_L[L] the potential restricted to that level, \a w_L[L]\f$=\Omega/N_{pts}(L)\f$ the quadrature weight,
+    //! \a ecut_L[L] the level cutoff (descending -- drives the internal pair\f$\to\f$level assignment from the
+    //! encapsulated exponents).  \a Rs / \a phases the Bloch image set.  APPROXIMATE vs the single fine grid --
+    //! a coarse-level pair carries that level's (adequate-by-construction) grid error; converges to the fine
+    //! result as the ladder refines.  With \f$K=1\f$ it reduces to \c MakePotentialMatrix on the fine grid.
+    virtual chmat_t MakePotentialMatrixMG(const std::vector<rvec3vec_t>& gridPts_L, const std::vector<double>& ecut_L,
+                                          const std::vector<rvec3_t>& Rs, const cvec_t& phases,
+                                          const std::vector<rvec_t>& V_L, const std::vector<double>& w_L) const = 0;
 };
 
 } //namespace

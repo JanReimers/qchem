@@ -308,6 +308,48 @@ chmat_t GPW_Evaluator::PatchedOverlapMatrix(const std::function<dcmplx(const ive
     return itsLat->MakePotentialMatrix(pts, itsRc, itsPhaseC, V, w);
 }
 
+// The multi-grid density-grid ladder: the fine grid (L=0, reused) plus coarser grids each a factor 4 lower in
+// Ecut, down to the level that still resolves the most-diffuse orbital product (exponent 2*alpha_min).  Built
+// once (geometry-fixed) and cached with each level's points / cutoff / quadrature weight.
+void GPW_Evaluator::EnsureLevels() const
+{
+    if (!itsLevels.empty()) return;
+    assert(itsGrid && "GPW_Evaluator: the multi-grid integrate-back requires the density grid (densityEcut!=0)");
+    const double efine=itsGrid->Ecut();
+    const double amax=itsLat->MaxExponent(), amin=itsLat->MinExponent();
+    const double ecoarse=efine*amin/amax;             // resolves the most-diffuse pair product (exponent 2*amin)
+    itsLevels.push_back(itsGrid);                     // L=0: the fine grid, reused
+    double e=efine;
+    while (e/4.0>=ecoarse && itsLevels.size()<8)      // factor-4 coarsening; cap the ladder depth
+    {
+        e/=4.0;
+        itsLevels.push_back(std::make_shared<const PW_Grid_Evaluator>(itsGrid->Recip(), rvec3_t(0,0,0), e));
+    }
+    for (const auto& g : itsLevels)
+    {
+        itsLevelPts.push_back(g->GridPoints());
+        itsLevelEcut.push_back(g->Ecut());
+        itsLevelW.push_back(g->Volume()/double(g->GridPoints().size()));
+    }
+}
+
+// The MULTI-GRID integrate-back: restrict Vtilde to each level's own {G} (the low-pass) -> V(r) on that level,
+// then let the molecular side contract each orbital pair on the coarsest level resolving its product.  The
+// per-(level,orbital) chi columns are cached molecular-side, so per-iteration only V_L is rebuilt here.
+chmat_t GPW_Evaluator::MultiGridOverlapMatrix(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const
+{
+    EnsureLevels();
+    const size_t K=itsLevels.size();
+    std::vector<rvec_t> V_L(K);
+    for (size_t L=0;L<K;L++)
+    {
+        ΔG_Map vmapL;
+        for (const ivec3_t& dm : itsLevels[L]->Gs()) vmapL[dm]=Vtilde(dm);   // restrict to level L's {G} (low-pass)
+        V_L[L]=itsLevels[L]->RhoOnGrid(vmapL);
+    }
+    return itsLat->MakePotentialMatrixMG(itsLevelPts, itsLevelEcut, itsRc, itsPhaseC, V_L, itsLevelW);
+}
+
 // Bloch sum of the Gaussian orbitals, chi^k_i(r) = Sum_R e^{ik.R} chi_i(r-R), over the COLLOCATION set (the
 // orbital reach; == the overlap set unless collRcut decoupled it).  At Gamma every phase is 1, so the
 // imaginary part is exactly zero (the sum reduces to the real molecular sum).

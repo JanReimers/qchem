@@ -251,6 +251,11 @@ double  Orbital_IBS::MaxExponent() const {return NR_Evaluator::MaxExponent();}
 chmat_t Orbital_IBS::MakePotentialMatrix(const rvec3vec_t& gridPts, const std::vector<rvec3_t>& Rs,
                                          const cvec_t& phases, const rvec_t& V, double w) const
 {   return NR_Evaluator::MakePotentialMatrix(gridPts,Rs,phases,V,w); }
+double  Orbital_IBS::MinExponent() const {return NR_Evaluator::MinExponent();}
+chmat_t Orbital_IBS::MakePotentialMatrixMG(const std::vector<rvec3vec_t>& gridPts_L, const std::vector<double>& ecut_L,
+                                           const std::vector<rvec3_t>& Rs, const cvec_t& phases,
+                                           const std::vector<rvec_t>& V_L, const std::vector<double>& w_L) const
+{   return NR_Evaluator::MakePotentialMatrixMG(gridPts_L,ecut_L,Rs,phases,V_L,w_L); }
 
 //----------------------------------------------------------------
 //

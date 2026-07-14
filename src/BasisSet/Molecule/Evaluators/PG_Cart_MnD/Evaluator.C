@@ -133,33 +133,54 @@ public:
     // Phi^H (V.*Phi) contraction to the screening tolerance.  Geometry-fixed, so built once and reused across SCF
     // iterations (V changes, the supports do not).  The Gaussian primitives stay encapsulated: only chi values +
     // grid-point indices are stored.  (Single-grid scaffold for the multi-grid rewrite -- see LatticeSum1E.)
+    // Build one orbital's COMPRESSED COLUMN on a grid: the grid-point indices where the Bloch orbital
+    // chi_i^k(r_p)=Sum_R e^{ik.R} chi_i(r_p-R) exceeds kScreenEps of its peak, plus the matching values.  The
+    // image shift R is applied as evaluating the home component at q=r_p-R (the Gaussian depends on |r-centre|).
+    void BuildColumn(const rvec3vec_t& gridPts, const std::vector<rvec3_t>& Rs, const cvec_t& phases,
+                     size_t i, std::vector<int>& idx, std::vector<dcmplx>& val) const
+    {
+        idx.clear(); val.clear();
+        const GaussianRF& rf=*radials[i];
+        const rvec3_t ci=rf.GetCenter();
+        const size_t Np=gridPts.size();
+        std::vector<dcmplx> col(Np);
+        double peak=0.0;
+        for (size_t p=0;p<Np;p++)
+        {
+            dcmplx v(0.0);
+            for (size_t r=0;r<Rs.size();r++)
+            {
+                const rvec3_t q=gridPts[p]-Rs[r];
+                v += phases[r] * (ns[i]*pols[i](q-ci)*rf(q));
+            }
+            col[p]=v; peak=std::max(peak, std::abs(v));
+        }
+        const double thr=kScreenEps*peak;
+        for (size_t p=0;p<Np;p++) if (std::abs(col[p])>thr) { idx.push_back(int(p)); val.push_back(col[p]); }
+    }
     void EnsureSupports(const rvec3vec_t& gridPts, const std::vector<rvec3_t>& Rs, const cvec_t& phases) const
     {
         assert(phases.size()==Rs.size());
         if (itsSupportsBuilt && itsSupportNpts==gridPts.size()) return;   // built once per grid
-        const size_t n=size(), Np=gridPts.size();
+        const size_t n=size();
         itsSupportIdx.assign(n,{}); itsSupportVal.assign(n,{});
-        cvec_t col(Np);
-        for (auto i:indices())
+        for (auto i:indices()) BuildColumn(gridPts, Rs, phases, i, itsSupportIdx[i], itsSupportVal[i]);
+        itsSupportNpts=gridPts.size(); itsSupportsBuilt=true;
+    }
+    // Contract one pair over the OVERLAP of its two compressed columns (both ascending -> a merge):
+    // s = Sum_p conj(chi_i^k) V[p] chi_j^k over p in supp(i) INTERSECT supp(j).  The sub-eps points of either
+    // orbital contribute < eps to the product and are dropped -> bit-consistent with the dense contraction.
+    static dcmplx ContractPair(const std::vector<int>& Ii, const std::vector<dcmplx>& Vi,
+                               const std::vector<int>& Ij, const std::vector<dcmplx>& Vj, const rvec_t& V)
+    {
+        dcmplx s(0.0); size_t a=0,b=0;
+        while (a<Ii.size() && b<Ij.size())
         {
-            const GaussianRF& rf=*radials[i];
-            const rvec3_t ci=rf.GetCenter();
-            double peak=0.0;
-            for (size_t p=0;p<Np;p++)
-            {
-                dcmplx v(0.0);
-                for (size_t r=0;r<Rs.size();r++)   // chi_i^k(r_p) = Sum_R e^{ik.R} chi_i(r_p - R); the image shift
-                {                                  // R is equivalent to evaluating the home component at q=r_p-R
-                    const rvec3_t q=gridPts[p]-Rs[r];
-                    v += phases[r] * (ns[i]*pols[i](q-ci)*rf(q));
-                }
-                col[p]=v; peak=std::max(peak, std::abs(v));
-            }
-            const double thr=kScreenEps*peak;
-            for (size_t p=0;p<Np;p++) if (std::abs(col[p])>thr)
-                { itsSupportIdx[i].push_back(int(p)); itsSupportVal[i].push_back(col[p]); }
+            if      (Ii[a]<Ij[b]) ++a;
+            else if (Ii[a]>Ij[b]) ++b;
+            else { s += std::conj(Vi[a])*V[Ii[a]]*Vj[b]; ++a; ++b; }   // conj(chi_i^k) V chi_j^k (bra i conj)
         }
-        itsSupportNpts=Np; itsSupportsBuilt=true;
+        return s;
     }
     chmat_t MakePotentialMatrix(const rvec3vec_t& gridPts, const std::vector<rvec3_t>& Rs,
                                 const cvec_t& phases, const rvec_t& V, double w) const
@@ -169,18 +190,52 @@ public:
         chmat_t M(n);
         for (auto i:indices()) for (auto j:indices(i))   // j>=i (Hermitian upper triangle)
         {
-            const std::vector<int>& Ii=itsSupportIdx[i];    const std::vector<int>& Ij=itsSupportIdx[j];
-            const std::vector<dcmplx>& Vi=itsSupportVal[i]; const std::vector<dcmplx>& Vj=itsSupportVal[j];
-            dcmplx s(0.0);
-            size_t a=0,b=0;                               // merge two ascending index lists -> the support overlap
-            while (a<Ii.size() && b<Ij.size())
-            {
-                if      (Ii[a]<Ij[b]) ++a;
-                else if (Ii[a]>Ij[b]) ++b;
-                else { s += std::conj(Vi[a])*V[Ii[a]]*Vj[b]; ++a; ++b; }   // conj(chi_i^k) V chi_j^k (bra i conj)
-            }
-            s *= w;
+            dcmplx s=w*ContractPair(itsSupportIdx[i],itsSupportVal[i], itsSupportIdx[j],itsSupportVal[j], V);
             M(i,j) = (i==j) ? dcmplx(std::real(s),0.0) : s;   // Hermitian diagonal real; (j,i) mirrored as conj
+        }
+        return M;
+    }
+
+    // Molecule::LatticeSum1E: the COARSEST primitive exponent -- the diffuse end of the basis, mirroring
+    // MaxExponent.  It sets the coarsest useful GPW density grid LEVEL (a product of two alpha_min primitives
+    // has exponent 2*alpha_min, resolved by a proportionally coarse cutoff), so the level ladder runs from the
+    // fine grid down to ~ this.  A scalar summary; no primitive escapes.
+    double MinExponent() const
+    {
+        double amin=radials[0]->GetExponents()[0];
+        for (auto i:indices()) for (double e : radials[i]->GetExponents()) if (e<amin) amin=e;
+        return amin;
+    }
+
+    // --- MULTI-GRID patched integrate-back (Molecule::LatticeSum1E::MakePotentialMatrixMG, GPWPlan.md S0 Inc 2) -
+    // Each orbital PAIR is contracted on the COARSEST grid LEVEL that still resolves its product exponent
+    // alpha_i+alpha_j, so diffuse pairs live on small coarse grids instead of the fine grid dictated by the
+    // TIGHTEST primitive: O(n^2 Npts_fine) -> O(sum_L pairs(L) Npts(L)).  The levels arrive finest-first --
+    // gridPts_L[L] the level's grid points, V_L[L] the potential restricted to that level (low-passed by the
+    // level's own {G}), w_L[L]=Omega/Npts(L) its quadrature weight, ecut_L[L] its cutoff (DESCENDING).  The
+    // pair->level assignment uses the internal exponents (primitives stay encapsulated).  APPROXIMATE vs the
+    // single fine grid (a coarse-level pair carries that level's adequate-by-construction grid error, CP2K's
+    // REL_CUTOFF multigrid); converges to the fine-grid result as the ladder refines.  Per-(level,orbital)
+    // compressed columns are built LAZILY (only where an orbital participates) and cached across SCF iterations.
+    chmat_t MakePotentialMatrixMG(const std::vector<rvec3vec_t>& gridPts_L, const std::vector<double>& ecut_L,
+                                  const std::vector<rvec3_t>& Rs, const cvec_t& phases,
+                                  const std::vector<rvec_t>& V_L, const std::vector<double>& w_L) const
+    {
+        const size_t n=size(), K=gridPts_L.size();
+        assert(K>0 && ecut_L.size()==K && V_L.size()==K && w_L.size()==K);
+        EnsureMGCache(K, gridPts_L[0].size());
+        const double amax=MaxExponent(), efine=ecut_L[0];
+        std::vector<double> amaxi(n);                          // per-orbital tightest primitive (product-resolution)
+        for (auto i:indices()) { double a=0.0; for (double e:radials[i]->GetExponents()) a=std::max(a,e); amaxi[i]=a; }
+        chmat_t M(n);
+        for (auto i:indices()) for (auto j:indices(i))
+        {
+            const double req=efine*(amaxi[i]+amaxi[j])/(2.0*amax);   // cutoff that resolves the pair product
+            size_t L=0; for (size_t l=0;l<K;l++) if (ecut_L[l]>=req) L=l;  // coarsest (largest l) still >= req
+            BuildMGColumn(L, i, gridPts_L[L], Rs, phases);
+            BuildMGColumn(L, j, gridPts_L[L], Rs, phases);
+            dcmplx s=w_L[L]*ContractPair(itsMGIdx[L*n+i],itsMGVal[L*n+i], itsMGIdx[L*n+j],itsMGVal[L*n+j], V_L[L]);
+            M(i,j) = (i==j) ? dcmplx(std::real(s),0.0) : s;
         }
         return M;
     }
@@ -215,12 +270,37 @@ public:
     }
 
 private:
+    // (Re)size the per-(level,orbital) MG cache to K levels x n orbitals, clearing the built flags when the
+    // level count or the fine-grid size changes (a new geometry).  Columns are then filled lazily by BuildMGColumn.
+    void EnsureMGCache(size_t K, size_t nptsFine) const
+    {
+        if (itsMGK==K && itsMGNptsFine==nptsFine && !itsMGBuilt.empty()) return;
+        const size_t nn=K*size();
+        itsMGIdx.assign(nn,{}); itsMGVal.assign(nn,{}); itsMGBuilt.assign(nn,0);
+        itsMGK=K; itsMGNptsFine=nptsFine;
+    }
+    // Build (once) the compressed column of orbital i on level L's grid; cached for reuse across SCF iterations.
+    void BuildMGColumn(size_t L, size_t i, const rvec3vec_t& gridPts,
+                       const std::vector<rvec3_t>& Rs, const cvec_t& phases) const
+    {
+        const size_t key=L*size()+i;
+        if (itsMGBuilt[key]) return;
+        BuildColumn(gridPts, Rs, phases, i, itsMGIdx[key], itsMGVal[key]);
+        itsMGBuilt[key]=1;
+    }
+
     // Per-orbital compressed columns of chi_i^k on the GPW density grid (see MakePotentialMatrix); built once
     // (geometry-fixed) by EnsureSupports, reused every SCF iteration.  Empty unless the GPW integrate-back runs.
     mutable std::vector<std::vector<int>>    itsSupportIdx;//!< grid-point indices where |chi_i^k| > eps*peak
     mutable std::vector<std::vector<dcmplx>> itsSupportVal;//!< the matching chi_i^k values (complex; real at Gamma)
     mutable size_t                        itsSupportNpts=0;//!< grid size the supports were built for (cache guard)
     mutable bool                          itsSupportsBuilt=false;
+    // MULTI-GRID cache: per (level L, orbital i) compressed column, indexed [L*n+i]; built lazily by BuildMGColumn.
+    mutable std::vector<std::vector<int>>    itsMGIdx;
+    mutable std::vector<std::vector<dcmplx>> itsMGVal;
+    mutable std::vector<char>                itsMGBuilt;   //!< per-(L,i) built flag
+    mutable size_t                           itsMGK=0;     //!< level count the cache is sized for
+    mutable size_t                           itsMGNptsFine=0; //!< fine-grid size (geometry-change guard)
 };
 
 static_assert(is1E_Evaluator <NR_Evaluator>, "NR_Evaluator must satisfy is1E_Evaluator");

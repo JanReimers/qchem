@@ -109,6 +109,15 @@ public:
     //! validated bit-consistent in \c GPW_UT.  Will become the default once the grid levels make it win.
     chmat_t PatchedOverlapMatrix(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const;
 
+    //! \brief The MULTI-GRID integrate-back (doc/GPWPlan.md \S0 Increment 2 -- the NaF gap-closer): builds a
+    //! ladder of density grids from the fine \c densityEcut down to \f$\propto\alpha_{\min}\f$ (each a factor 4
+    //! in \f$E_{cut}\f$), restricts \a Vtilde to each level, and delegates to
+    //! \c Molecule::LatticeSum1E::MakePotentialMatrixMG, which contracts each orbital pair on the COARSEST
+    //! level resolving its product exponent.  Diffuse pairs then live on small coarse grids instead of the fine
+    //! grid dictated by the tightest primitive.  APPROXIMATE vs the single fine grid (converges as the ladder
+    //! refines); OPT-IN.  Reduces to \c PatchedOverlapMatrix when the basis spans a single exponent decade.
+    chmat_t MultiGridOverlapMatrix(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const;
+
     // --- Real-space external (pseudo)potential assembly: the GPW external term.  Unlike the plane-wave
     //     basis (G-space form factors, which Gaussians cannot supply) GPW quadratures the pseudopotential in
     //     REAL SPACE against its Gaussians on the cell's uniform integration mesh -- the SAME machinery the
@@ -165,6 +174,16 @@ private:
     const mat_t<dcmplx>& PhiOnGrid() const;
     G_ERI3  BuildWeights() const;  //!< the collocation weight tensor (columns=grid {G}, weights, NO kernel)
     qcMesh::MeshParams PPMeshParams() const;  //!< the PP-quadrature integration mesh params (uniform, eCut=densityEcut)
+
+    // MULTI-GRID (Increment 2) level ladder: the fine density grid + coarser grids (a factor 4 in Ecut each)
+    // down to ~cutoffFactor*alpha_min, built once (geometry-fixed) by EnsureLevels and cached with their points /
+    // cutoffs / quadrature weights.  MultiGridOverlapMatrix restricts Vtilde to each level and delegates the
+    // per-pair contraction to the molecular side.  Empty unless the multi-grid path is used.
+    void EnsureLevels() const;
+    mutable std::vector<std::shared_ptr<const PW_Grid_Evaluator>> itsLevels;   //!< finest first; [0]==itsGrid
+    mutable std::vector<rvec3vec_t> itsLevelPts;   //!< each level's grid points (geometry-fixed)
+    mutable std::vector<double>     itsLevelEcut;  //!< each level's cutoff (descending)
+    mutable std::vector<double>     itsLevelW;     //!< each level's quadrature weight Omega/Npts(L)
 };
 
 static_assert(isPW_1E_Evaluator <GPW_Evaluator>, "GPW_Evaluator must satisfy isPW_1E_Evaluator");

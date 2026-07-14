@@ -369,6 +369,42 @@ TEST(GPW, PatchedIntegrateBackMatchesDense)
     }
 }
 
+// MULTI-GRID integrate-back MECHANICS (GPW_Plan.md S0 Increment 2).  MultiGridOverlapMatrix maps each orbital
+// pair to the coarsest grid level resolving its product (from the internal exponents), restricts V per level,
+// and contracts each pair on its assigned level.  STRUCTURAL invariant (grid points / weights / columns /
+// level assignment / V restriction all sound): for a CONSTANT potential the integrate-back is V0*<i|j> on ANY
+// grid, so multi-grid must equal the fine grid to the coarse-grid quadrature error of the orbital norms.
+// The FIELD-dependent coarsening error (dropping V's high-G coupling to diffuse pairs) is MEASURED but NOT
+// gated: it is large for a PEAKED V (e.g. 1/|G|^2, the local PP), which is why diffuse pairs that overlap a
+// sharp external potential cannot be coarsened independently of it -- doing Increment 2 right needs a
+// CONSISTENT whole-multigrid (density collocation AND integrate-back per level) + PP-aware assignment
+// (an integrate-back-only multigrid gave Si Gamma Etot -21.4 vs -8.25; see doc/GPWPlan.md).
+TEST(GPW, MultiGridIntegrateBackMechanics)
+{
+    auto relDiff=[](const chmat_t& A, const chmat_t& B)
+    {
+        double num=0.0, den=0.0;
+        for (size_t i=0;i<A.rows();i++) for (size_t j=0;j<A.rows();j++)
+        { dcmplx d=A(i,j)-B(i,j); num+=std::norm(d); den+=std::norm(A(i,j)); }
+        return std::sqrt(num/den);
+    };
+    const double a=12.0;
+    UnitCell cell(a);
+    cell.AddAtom(14,{0.5,0.5,0.5});
+    std::shared_ptr<const Real_BS> mol = MakeBasis(cell);           // SIPP Si
+    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/12.0, /*Rcut*/0.0);
+    const GPW_Evaluator& ev=gpw;
+
+    auto cfield=[](const ivec3_t& dm)->dcmplx { return (dm.x==0&&dm.y==0&&dm.z==0)?dcmplx(1.0):dcmplx(0.0); };
+    double rdConst=relDiff(ev.PatchedOverlapMatrix(cfield), ev.MultiGridOverlapMatrix(cfield));
+    EXPECT_LT(rdConst, 5e-3) << "multi-grid must match the fine grid for a constant potential (structural)";
+
+    auto pfield=[](const ivec3_t& dm)->dcmplx        // peaked field -> the coarsening error (informational)
+        { double g2=double(dm.x*dm.x+dm.y*dm.y+dm.z*dm.z); return dcmplx(1.0/(1.0+g2),0.0); };
+    std::cout << "[multi-grid] const-field relDiff=" << rdConst << "  peaked-field relDiff="
+              << relDiff(ev.PatchedOverlapMatrix(pfield), ev.MultiGridOverlapMatrix(pfield)) << std::endl;
+}
+
 // === General-k (Step 1): the Bloch phase e^{ik.R} enters the lattice sums ============================
 // These isolate the general-k machinery at the matrix level (no SCF): the phase is inert at the home cell,
 // LIVE once images are summed, obeys the Bloch translation law, and conjugates under k -> -k.  (The full
