@@ -20,6 +20,7 @@ import qchem.Mesh.Quadrature; // qcMesh::WeightedOverlap / Overlap (the real-spa
 import qchem.ScalarFunction;  // ScalarFunction<double> (the V_loc / beta*Ylm fields handed to the quadrature)
 import qchem.Math;            // norm, Pi, sqrt (the real spherical harmonics for the KB projectors)
 import qchem.Structure;       // Structure / Atom (the PP centres + Z, and CreateIntegrationMesh)
+import qchem.UnitCell;        // UnitCell (the direct cell for CollocateDensity / IntegratePotential grid<->cell)
 
 namespace qchem::BasisSet::Lattice_3D
 {
@@ -240,8 +241,43 @@ G_ERI3 GPW_Evaluator::BuildWeights() const
     return g;
 }
 
-// Coulomb 3-centre tensor: the single-r collocation weights + the diagonal Poisson kernel 4pi/|G_c|^2 (the r_2
-// / 1-over-r_12 factor; G_c=0 -> 0).  The framework's Repulsion3C(c) caches this build.
+// The matrix-free density->rho-tilde / ->V_H map (the G_ERI3::apply realization, CP2K analytic collocation).
+// Collocates rho = Sum_ij D_ij chi_i chi_j analytically on compact boxes (LatticeSum1E::CollocateDensity,
+// modulo-wrapped -- NO image sum, NO Rcut, NO ringing) then FFTs to G-space.  rho-tilde(G)=FFT[rho]/Npts (the
+// grid quadrature's 1/Omega and Omega/Npts cancel).  For Coulomb the diagonal Poisson kernel 4pi/|G|^2 is folded
+// in (V_H = 4pi rho-tilde/G^2; G=0 -> 0).  REPLACES the dense O(N_G n^2) W-tensor (BuildWeights) -- same map,
+// applied matrix-free.  Gamma: the block density is real (Re(D)).  The closure keeps the FFT grid + molecular
+// basis alive (captured shared_ptr) since it lives in the framework-cached G_ERI3.
+std::function<ΔG_Map(const chmat_t&)> GPW_Evaluator::MakeCollocator(bool coulomb) const
+{
+    const UnitCell A = itsGrid->Recip().GetCell().MakeReciprocalCell();   // direct cell (by value)
+    const ivec3_t  N = itsGrid->FFTGrid();
+    auto grid = itsGrid;                                    // shared_ptr -> the closure keeps the grid alive
+    auto mol  = itsMol;                                     // shared_ptr -> keep the molecular basis (lat) alive
+    const Molecule::LatticeSum1E* lat = itsLat;
+    std::vector<ivec3_t> Gs = itsGrid->Gs();
+    ReciprocalLattice recip = itsGrid->Recip();
+    return [A,N,grid,mol,lat,Gs,recip,coulomb](const chmat_t& D) -> ΔG_Map
+    {
+        const size_t n=D.rows();
+        rmat_t Dr(n,n);
+        for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) Dr(i,j)=std::real(dcmplx(D(i,j)));  // Gamma: real block D
+        rvec_t rho = lat->CollocateDensity(Dr, A, N);       // analytic, modulo-wrapped collocation
+        cvec_t rhoTilde = grid->ForwardFFT(rho);            // rho-tilde(G)
+        ΔG_Map out;
+        for (const ivec3_t& dm : Gs)
+        {
+            const dcmplx c = grid->GridCoeff(rhoTilde, dm);
+            out[dm] = coulomb ? recip.CoulombKernel(dm)*c : c;
+        }
+        return out;
+    };
+}
+// Coulomb 3-centre tensor: the single-r collocation weights + the diagonal Poisson kernel 4pi/|G_c|^2.
+// NOTE: still the SAMPLING (BuildWeights) path -- the analytic MakeCollocator closure is BUILT + validated
+// (GPW.AnalyticCollocationCrystalChargeConservation) but NOT wired in yet: single-grid analytic collocation is
+// impractically slow for a full SCF (diffuse SIPP products x the image sum), so it awaits the REL_CUTOFF
+// multigrid (Increment D) that makes it fast.  Then Repulsion/Overlap3CTensor switch to g.apply=MakeCollocator.
 G_ERI3 GPW_Evaluator::Repulsion3CTensor() const
 {
     G_ERI3 g=BuildWeights();
@@ -250,9 +286,7 @@ G_ERI3 GPW_Evaluator::Repulsion3CTensor() const
     for (size_t c=0;c<g.columns.size();c++) g.kernel[c]=recip.CoulombKernel(g.columns[c].dm);
     return g;
 }
-
-// Overlap 3-centre tensor: the same single-r weights, empty kernel (the density's rho-tilde, no Poisson).  The
-// framework's Overlap3C(c) caches this build.
+// Overlap 3-centre tensor: the same single-r weights, empty kernel.
 G_ERI3 GPW_Evaluator::Overlap3CTensor() const {return BuildWeights();}
 
 // The potential->KS-matrix bridge (collocation's adjoint): inverse-FFT Vtilde over the density grid to V(r),
@@ -263,6 +297,9 @@ G_ERI3 GPW_Evaluator::Overlap3CTensor() const {return BuildWeights();}
 // path (MakeLocalPP calls DenseOverlapMatrix directly) -- coarsening a diffuse pair against the sharp external
 // PP is catastrophic (Si Gamma -21.4), but the smooth V_H+V_xc coarsen cleanly (Si Gamma -8.2485 vs -8.24758,
 // grid tolerance).  Default OFF (dense) so committed anchors are byte-identical until the win is NaF-validated.
+// The potential->KS bridge (Band_FT_IBS::MakeOverlap / isPW_DFT_Evaluator).  STILL the sampling path (dispatch
+// dense/multigrid): the ANALYTIC integrate-back (LatticeSum1E::IntegratePotential) is built + validated but not
+// wired in -- it awaits the multigrid (Increment D), same as the density side (see Repulsion3CTensor).
 chmat_t GPW_Evaluator::OverlapMatrix(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const
 {
     if (itsUseMG) return MultiGridOverlapMatrix(Vtilde);
@@ -416,9 +453,8 @@ chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const Pseudopotential::L
 {
     assert(itsGrid && "GPW_Evaluator: the local PP needs the density grid (densityEcut!=0: <0 auto, >0 explicit)");
     const UnitCell& B=itsGrid->Recip().GetCell();
-    // DENSE fine integrate-back (NOT multi-grid): the local PP is a SHARP static field; coarsening a diffuse
-    // pair against it is catastrophic (see OverlapMatrix).  It is built once (geometry-fixed), so the fine cost
-    // is a one-time, not per-iteration, expense.
+    // DENSE (sampling) integrate-back of the G-space local-PP form factor (still the committed path; the analytic
+    // OverlapMatrix awaits the multigrid, Increment D).
     return DenseOverlapMatrix([&](const ivec3_t& dm)->dcmplx
     {
         if (dm.x==0 && dm.y==0 && dm.z==0) return dcmplx(0.0);        // drop dG=0 (alignment carries it)

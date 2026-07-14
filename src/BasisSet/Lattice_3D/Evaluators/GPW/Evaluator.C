@@ -184,6 +184,10 @@ private:
     //! was the dominant cost at a large image \c Rcut (the density-independent \f$O(N_{pts}\cdot|R|)\f$ sum).
     const mat_t<dcmplx>& PhiOnGrid() const;
     G_ERI3  BuildWeights() const;  //!< the collocation weight tensor (columns=grid {G}, weights, NO kernel)
+    //! The matrix-free density->rho-tilde (\a coulomb=false) or ->V_H (\a coulomb=true, \f$4\pi/G^2\f$ folded
+    //! in) map, as a closure that collocates \f$\rho=\sum D_{ij}\chi_i\chi_j\f$ analytically (\c LatticeSum1E::
+    //! CollocateDensity, modulo-wrapped) then FFTs -- the G_ERI3::apply realization (replaces \c BuildWeights).
+    std::function<ΔG_Map(const chmat_t&)> MakeCollocator(bool coulomb) const;
     qcMesh::MeshParams PPMeshParams() const;  //!< the PP-quadrature integration mesh params (uniform, eCut=densityEcut)
 
     // MULTI-GRID (Increment 2) level ladder: the fine density grid + coarser grids (a factor 4 in Ecut each)

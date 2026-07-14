@@ -7,6 +7,7 @@
 module;
 #include <cassert>
 #include <complex>   // std::operator*(double,complex) / operator/(complex,double) -- std header, not a Blaze dep
+#include <functional> // std::function (G_ERI3::apply -- the matrix-free realization)
 #include <map>
 #include <vector>
 #include <utility>
@@ -54,6 +55,13 @@ struct G_ERI3
     //! is ALREADY folded in (so \ref ContractG_ERI3 does NOT divide by \ref volume on this branch).  This is
     //! the "flexible struct" extension GPW needs -- a dense per-column rank-2 integral where PW has a delta.
     std::vector<mat_t<dcmplx>> weights;
+    //! \brief MATRIX-FREE realization (GPW analytic collocation): applies the density-to-\f$\tilde\rho\f$ (or
+    //! \f$\to V_H\f$, kernel folded in) map to \f$D\f$ WITHOUT materializing a per-column tensor -- the basis
+    //! sets it to a closure that collocates \f$\rho=\sum_{ij}D_{ij}\chi_i\chi_j\f$ on compact boxes then FFTs
+    //! (the dense \ref weights are \f$O(N_G n^2)\f$ storage, prohibitive at scale; this is the same map applied
+    //! matrix-free).  When set it takes priority in \ref ContractG_ERI3.  Type-erased so this leaf names no
+    //! GPW/grid type.  The G_ERI3 stays a static-data "spec of required transfers" with optional realizations.
+    std::function<ΔG_Map(const chmat_t& D)> apply;
 };
 
 //! \brief Contract a density matrix against the gather: \f$\tilde\rho(\Delta m)=\frac{k_c}\Omega\sum_{(i,j)\in
@@ -63,6 +71,9 @@ struct G_ERI3
 //! fold, same final division by \f$\Omega\f$).
 ΔG_Map ContractG_ERI3(const G_ERI3& g, const chmat_t& D)
 {
+    // Matrix-free realization (GPW analytic collocation): the closure applies the whole density->rho-tilde
+    // (or ->V_H, kernel folded in) map to D directly -- no per-column tensor.  Takes priority when set.
+    if (g.apply) return g.apply(D);
     ΔG_Map rg;
     if (!g.weights.empty())
     {

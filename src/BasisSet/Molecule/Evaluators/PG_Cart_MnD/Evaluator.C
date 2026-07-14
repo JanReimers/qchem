@@ -241,28 +241,48 @@ public:
         return M;
     }
 
-    // --- ANALYTIC per-pair density collocation (CP2K GPW, Increment A) --------------------------------------
-    // Accumulate  coeff * chi_i(r) chi_j(r)  onto the periodic density grid, evaluated ANALYTICALLY on the
-    // pair-product's compact exp-tail box and MODULO-WRAPPED onto the N-division grid of direct cell A (raster
-    // r = A*(idx/N), matching PeriodicGridEvaluator).  There is NO lattice-image sum and NO hard cutoff:
-    //  - periodicity is the modulo wrap -- an unwrapped box point r=A*(idx/N) outside the cell is evaluated at
-    //    its true near-atom distance (chi_i(r) with r-R_i) and accumulated to grid index modulo(idx,N); that IS
-    //    the periodic-image contribution (r == in-cell point + a lattice vector), so the wrap DOES the image sum;
-    //  - the box ends where the product Gaussian < kScreenEps (a smooth exp tail), so there is no truncation
-    //    discontinuity -> no Gibbs ringing (unlike a fixed geometric Rcut on a summed Bloch orbital).
+    // --- ANALYTIC density collocation + integrate-back (CP2K GPW) -------------------------------------------
+    // The periodic Gamma density is a product of BLOCH orbitals: rho = Sum_ij D_ij chi_i^G chi_j^G, and
+    // chi_i^G chi_j^G = Sum_R'' [ chi_i^0 . chi_j^R'' ] tiled -- so collocation loops the CROSS-CELL pairs
+    // (chi_i home, chi_j in cell R''), each collocated ANALYTICALLY on its compact exp-tail box and MODULO-
+    // WRAPPED onto the grid.  TWO mechanisms, both screened, NO hard cutoff:
+    //  - the cross-cell offset R (ForImageOffsets): MAGNITUDE-screened (include (i,j,R) only where chi_i and
+    //    chi_j^R still overlap, reach_i+reach_j from the diffuse ends) -- like the 1E lattice sums, NOT a fixed
+    //    Rcut, so no Gibbs ringing (screening drops only sub-eps pairs);
+    //  - the modulo wrap (ForPairBox): tiles each compact box onto the periodic grid (an atom near the boundary
+    //    wraps), and the box ends where the product Gaussian < kScreenEps (a smooth tail -> no ringing).
     // Reuses the PUBLIC Gaussian data (exponents/coeffs/center + pol + norm); the product exponent/center size
-    // the box.  Contracted radials: the box is sized by the MOST-DIFFUSE primitive pair (slowest decay), the
-    // value is the full contracted product; per-point screening drops the rest.
-    // Iterate the pair (i,j) product's compact exp-tail box on the N-division grid of cell A, calling
-    // f(raster_index, chi_i(r)*chi_j(r)) at each screened-in, MODULO-WRAPPED grid point.  This is the shared
-    // geometry of BOTH collocation (scatter D into rho) and integrate-back (gather V into h) -- so the two are
-    // EXACT adjoints (same box, same chi evaluation, same wrap).  See CollocateDensity / IntegratePotential.
+    // the box (contracted radials: sized by the most-diffuse primitive pair, value is the full product).
+
+    // Enumerate the screened cross-cell offsets R for the ordered pair (i,j): chi_i (home, at R_i) vs chi_j at
+    // R_j+R.  Included when the centres are within reach_i+reach_j (reach = sqrt(-ln eps / alpha_min)); this is
+    // the SAME magnitude screen the 1E lattice sums use (consistency = correctness for H psi = eps S psi).
     template <class F>
-    void ForPairBox(size_t i, size_t j, const UnitCell& A, const ivec3_t& N, F&& f) const
+    void ForImageOffsets(size_t i, size_t j, const UnitCell& A, F&& cb) const
+    {
+        const rvec3_t Ri=radials[i]->GetCenter(), Rj=radials[j]->GetCenter();
+        double aMinI=radials[i]->GetExponents()[0]; for (double e:radials[i]->GetExponents()) aMinI=std::min(aMinI,e);
+        double aMinJ=radials[j]->GetExponents()[0]; for (double e:radials[j]->GetExponents()) aMinJ=std::min(aMinJ,e);
+        // Screen on the product PREFACTOR exp(-aMinI aMinJ/(aMinI+aMinJ) |Delta|^2) < eps: the pair overlap
+        // decays with the centre separation |Delta|=|R_i-(R_j+Roff)|, so include Roff only within this radius.
+        const double rr=std::sqrt(-std::log(kScreenEps)*(1.0/aMinI+1.0/aMinJ));
+        const rvec3_t dij=Ri-Rj;
+        for (const auto& n : A.CellsInSphere(rr+A.GetMaximumCellEdge()))
+        {
+            const rvec3_t Roff=A.ToCartesian(rvec3_t(double(n.x),double(n.y),double(n.z)));
+            const rvec3_t d=dij-Roff;                                 // R_i - (R_j + Roff): the centre separation
+            if (d.x*d.x+d.y*d.y+d.z*d.z <= rr*rr) cb(Roff);
+        }
+    }
+    // Iterate the (i, j@Roff) product's compact exp-tail box on the N-division grid of cell A, calling
+    // f(raster_index, chi_i(r) chi_j(r-R_j-Roff)) at each screened-in, MODULO-WRAPPED grid point.  Shared by
+    // collocation (scatter) and integrate-back (gather) -> exact adjoints (same box, chi eval, wrap).
+    template <class F>
+    void ForPairBox(size_t i, size_t j, const rvec3_t& Roff, const UnitCell& A, const ivec3_t& N, F&& f) const
     {
         const rvec_t ei=radials[i]->GetExponents(), gi=radials[i]->GetCoeffs();
         const rvec_t ej=radials[j]->GetExponents(), gj=radials[j]->GetCoeffs();
-        const rvec3_t Ri=radials[i]->GetCenter(), Rj=radials[j]->GetCenter();
+        const rvec3_t Ri=radials[i]->GetCenter(), Rj=radials[j]->GetCenter()+Roff;   // chi_j imaged to cell Roff
         const double ni=ns[i], nj=ns[j];
         double aMinI=ei[0]; for (double e:ei) aMinI=std::min(aMinI,e);
         double aMinJ=ej[0]; for (double e:ej) aMinJ=std::min(aMinJ,e);
@@ -287,20 +307,23 @@ public:
             f((size_t(mx)*N.y+my)*N.z+mz, val);
         }
     }
-    // Collocate rho(r) = Sum_ij D_ij chi_i(r) chi_j(r) onto the N-division density grid of cell A.  Density-matrix
-    // driven (not a summed-orbital sample), per pair.  Real D (Gamma); Integral rho = Tr(D S).
+    // Collocate rho(r) = Sum_ij D_ij chi_i^G chi_j^G onto the N-division density grid of cell A: loop pairs, and
+    // for each the screened cross-cell offsets R (chi_i . chi_j^R), weight D_ij (Gamma).  Integral rho = Tr(D S).
     rvec_t CollocateDensity(const rmat_t& D, const UnitCell& A, const ivec3_t& N) const
     {
         rvec_t rho(size_t(N.x)*N.y*N.z, 0.0);
         for (auto i:indices()) for (auto j:indices())
-            if (D(i,j)!=0.0) { const double c=D(i,j); ForPairBox(i,j,A,N,[&](size_t idx,double v){rho[idx]+=c*v;}); }
+            if (D(i,j)!=0.0)
+            {
+                const double c=D(i,j);
+                ForImageOffsets(i,j,A,[&](const rvec3_t& Roff)
+                    { ForPairBox(i,j,Roff,A,N,[&](size_t idx,double v){rho[idx]+=c*v;}); });
+            }
         return rho;
     }
-    // Integrate-back (the collocation ADJOINT): h_ij = integral chi_i V chi_j = w Sum_{box} chi_i chi_j V, per
-    // pair on the SAME compact box + wrap as collocation -> exact adjoint (variational; <collocate(D),V> =
-    // <D,integrate(V)>).  V is the real-space potential on the grid (raster r=A(idx/N)); w=Omega/Npts.  This is
-    // the CP2K integrate step: only V is sampled (weighted by the analytic Gaussians), never the raw product,
-    // and the pair's box is compact -> accurate on a grid that resolves the pair (multigrid, Increment D).
+    // Integrate-back (the collocation ADJOINT): h_ij = Sum_R integral chi_i V chi_j^R = w Sum_R Sum_box chi_i
+    // chi_j^R V, over the SAME screened cross-cell offsets + compact boxes + wrap as collocation -> exact adjoint
+    // (variational).  Symmetric at Gamma (real).  Only V is sampled (weighted by the analytic Gaussians).
     rmat_t IntegratePotential(const rvec_t& V, const UnitCell& A, const ivec3_t& N) const
     {
         const size_t n=size();
@@ -308,7 +331,9 @@ public:
         rmat_t h(n,n,0.0);
         for (auto i:indices()) for (auto j:indices(i))       // j>=i; symmetric at Gamma (real chi, real V)
         {
-            double s=0.0; ForPairBox(i,j,A,N,[&](size_t idx,double v){s+=v*V[idx];});
+            double s=0.0;
+            ForImageOffsets(i,j,A,[&](const rvec3_t& Roff)
+                { ForPairBox(i,j,Roff,A,N,[&](size_t idx,double v){s+=v*V[idx];}); });
             h(i,j)=w*s; h(j,i)=w*s;
         }
         return h;
