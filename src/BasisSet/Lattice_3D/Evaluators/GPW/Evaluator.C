@@ -100,6 +100,10 @@ public:
     //! V\chi_j\f$ with \f$V(r)\f$ the inverse-FFT of \a Vtilde over the density grid -- grid-integrate, not the PW
     //! Fourier lookup.  Satisfies \c isPW_DFT_Evaluator; forwarded by \c EPW_Orbital_DFT_IBS to \c MakeOverlap.
     chmat_t OverlapMatrix(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const;
+    //! The dense (fine-grid) integrate-back \f$w\,\Phi^H(V\!\odot\!\Phi)\f$ via OpenBLAS zgemm -- the default
+    //! path, and the one the SHARP static local PP always uses (\c MakeLocalPP).  \c OverlapMatrix dispatches here
+    //! unless the multi-grid path is enabled (\c UseMultiGrid), which routes only the smooth dynamic V_H+V_xc.
+    chmat_t DenseOverlapMatrix(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const;
 
     //! \brief The PATCHED integrate-back: same result as \c OverlapMatrix(Vtilde) but delegated to the
     //! molecular-side \c Molecule::LatticeSum1E::MakePotentialMatrix -- per-orbital Gaussian-support patches
@@ -117,6 +121,10 @@ public:
     //! grid dictated by the tightest primitive.  APPROXIMATE vs the single fine grid (converges as the ladder
     //! refines); OPT-IN.  Reduces to \c PatchedOverlapMatrix when the basis spans a single exponent decade.
     chmat_t MultiGridOverlapMatrix(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const;
+
+    //! Enable the multi-grid path for the DYNAMIC (per-iteration) integrate-back (\c OverlapMatrix(Vtilde)).
+    //! The STATIC local PP stays dense (\c MakeLocalPP). Default OFF (dense) -- committed anchors byte-identical.
+    void UseMultiGrid(bool on=true) const {itsUseMG=on;}
 
     // --- Real-space external (pseudo)potential assembly: the GPW external term.  Unlike the plane-wave
     //     basis (G-space form factors, which Gaussians cannot supply) GPW quadratures the pseudopotential in
@@ -184,6 +192,7 @@ private:
     mutable std::vector<rvec3vec_t> itsLevelPts;   //!< each level's grid points (geometry-fixed)
     mutable std::vector<double>     itsLevelEcut;  //!< each level's cutoff (descending)
     mutable std::vector<double>     itsLevelW;     //!< each level's quadrature weight Omega/Npts(L)
+    mutable bool itsUseMG=false;     //!< opt-in: route the dynamic V_H+V_xc integrate-back via multi-grid (UseMultiGrid)
 };
 
 static_assert(isPW_1E_Evaluator <GPW_Evaluator>, "GPW_Evaluator must satisfy isPW_1E_Evaluator");

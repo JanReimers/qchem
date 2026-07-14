@@ -258,7 +258,17 @@ G_ERI3 GPW_Evaluator::Overlap3CTensor() const {return BuildWeights();}
 // The potential->KS-matrix bridge (collocation's adjoint): inverse-FFT Vtilde over the density grid to V(r),
 // then <chi_i|V|chi_j> = integral chi_i V chi_j by grid quadrature.  Vtilde is sampled over the grid's own {G}
 // (which matches the fit basis GPW created, so a Hartree/XC Vtilde covers exactly these).
+// The dynamic potential->KS bridge.  With the multi-grid path ON (itsUseMG), the DYNAMIC (per-iteration) smooth
+// Hartree+XC integrate-back routes through the level ladder; the sharp STATIC local PP stays on the dense fine
+// path (MakeLocalPP calls DenseOverlapMatrix directly) -- coarsening a diffuse pair against the sharp external
+// PP is catastrophic (Si Gamma -21.4), but the smooth V_H+V_xc coarsen cleanly (Si Gamma -8.2485 vs -8.24758,
+// grid tolerance).  Default OFF (dense) so committed anchors are byte-identical until the win is NaF-validated.
 chmat_t GPW_Evaluator::OverlapMatrix(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const
+{
+    if (itsUseMG) return MultiGridOverlapMatrix(Vtilde);
+    return DenseOverlapMatrix(Vtilde);
+}
+chmat_t GPW_Evaluator::DenseOverlapMatrix(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const
 {
     const mat_t<dcmplx>& Phi=PhiOnGrid();
     ΔG_Map vmap;
@@ -405,7 +415,10 @@ chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const Pseudopotential::L
 {
     assert(itsGrid && "GPW_Evaluator: the local PP needs the density grid (densityEcut!=0: <0 auto, >0 explicit)");
     const UnitCell& B=itsGrid->Recip().GetCell();
-    return OverlapMatrix([&](const ivec3_t& dm)->dcmplx
+    // DENSE fine integrate-back (NOT multi-grid): the local PP is a SHARP static field; coarsening a diffuse
+    // pair against it is catastrophic (see OverlapMatrix).  It is built once (geometry-fixed), so the fine cost
+    // is a one-time, not per-iteration, expense.
+    return DenseOverlapMatrix([&](const ivec3_t& dm)->dcmplx
     {
         if (dm.x==0 && dm.y==0 && dm.z==0) return dcmplx(0.0);        // drop dG=0 (alignment carries it)
         rvec3_t dG=B.ToCartesian(rvec3_t(dm));

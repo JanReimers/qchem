@@ -120,10 +120,12 @@ GpwResult RunGPW(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, doub
                  int Nelec, const char* element, const char* label, bool verbose=false, int nmax=120,
                  qchem::Ortho ortho=qchem::Cholesky, double orthoTol=0.0, double collRcut=0.0,
                  rvec3_t kShift={0,0,0}, double minDrho=1e-6, double minDE=1e30,
-                 qchem::ChargeDensity::SeedStrategy seed=qchem::ChargeDensity::SeedStrategy::Uniform)
+                 qchem::ChargeDensity::SeedStrategy seed=qchem::ChargeDensity::SeedStrategy::Uniform,
+                 bool useMG=false)
 {
     namespace L3=BasisSet::Lattice_3D;
     std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, std::move(mol), densityEcut, Rcut, collRcut, kShift));
+    if (useMG) for (auto ev : bs->Iterate<BasisSet::Lattice_3D::GPW_Evaluator>()) ev->UseMultiGrid(true);  // dynamic V_H+V_xc multi-grid
     auto       irreps=bs->GetIrreps(Spin::None);   // one Bloch irrep per BZ k-block (weights carry the Sum_k)
     Crystal_EC ec(irreps, Nelec);                  // multi-k ready; a single Gamma block is the length-1 case
     // Ham_PW_DFT drives GPW verbatim (kinetic + external-PP + Hartree + Dirac X + VWN5 + ion-ion Ewald).
@@ -334,6 +336,26 @@ TEST(GPW_SCF, SiliconGammaConverges)
     EXPECT_TRUE(R.converged);                       // clean closed-shell convergence (~17 iters, complex DIIS)
     EXPECT_NEAR(R.charge, 8.0, 1e-6);              // 8 valence electrons
     EXPECT_NEAR(R.E.GetTotalEnergy(), -8.2476, 5e-3);    // regression anchor (densityEcut=12, Gamma, Rcut=0)
+}
+
+// (1d) MULTI-GRID dynamic integrate-back (GPWPlan.md S0 Increment 2): the same Si Gamma SCF with the smooth
+// dynamic Hartree+XC integrate-back on the exponent-matched level ladder (the STATIC sharp local PP stays
+// dense).  Must reproduce the dense Gamma total to GRID tolerance -- the whole-multi-grid correctness gate
+// (an earlier integrate-back that ALSO coarsened the sharp local PP gave -21.4; keeping V_loc dense fixes it).
+TEST(GPW_SCF, SiliconGammaMultiGrid)
+{
+    const double a=10.26;
+    FCCUnitCell cell(a);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+    GpwResult R=RunGPW(lat, MakeBasis(cell), /*densityEcut*/12.0, /*Rcut*/0.0, /*Nelec*/8, "Si", "Si Gamma MG",
+                       /*verbose*/false, /*nmax*/120, qchem::Cholesky, /*orthoTol*/0.0, /*collRcut*/0.0,
+                       /*kShift*/{0,0,0}, /*minDrho*/1e-6, /*minDE*/1e30,
+                       qchem::ChargeDensity::SeedStrategy::Uniform, /*useMG*/true);
+    EXPECT_TRUE(R.converged);
+    EXPECT_NEAR(R.charge, 8.0, 1e-6);
+    EXPECT_NEAR(R.E.GetTotalEnergy(), -8.2476, 5e-3);    // == dense Gamma to grid tolerance (measured -8.2485)
 }
 
 // (2) THE TIGHT CROSS-CHECK: the isolated Si pseudo-atom in a box vs the finite molecular DFT on the SAME
