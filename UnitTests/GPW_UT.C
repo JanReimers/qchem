@@ -249,15 +249,20 @@ TEST(GPW, DISABLED_BenchOverlapMatrix)
     const GPW_Evaluator& ev=gpw;
     auto field=[](const ivec3_t& dm)->dcmplx                     // smooth, all-G (realistic Vtilde)
         { double g2=double(dm.x*dm.x+dm.y*dm.y+dm.z*dm.z); return dcmplx(1.0/(1.0+g2),0.0); };
-    chmat_t warm=ev.OverlapMatrix(field);                         // warm the PhiOnGrid cache (excluded from timing)
+    chmat_t warm=ev.DenseOverlapMatrix(field);                    // warm the PhiOnGrid cache (excluded from timing)
+    chmat_t warmMG=ev.MultiGridOverlapMatrix(field);              // warm the per-level column caches too
     const int K=20;
     auto t0=std::chrono::steady_clock::now();
     chmat_t M;
-    for (int q=0;q<K;q++) M=ev.OverlapMatrix(field);
+    for (int q=0;q<K;q++) M=ev.DenseOverlapMatrix(field);
     auto t1=std::chrono::steady_clock::now();
-    double ms=std::chrono::duration<double,std::milli>(t1-t0).count();
-    std::cout << "[bench OverlapMatrix] n=" << warm.rows() << " calls=" << K
-              << " total=" << ms << " ms  per-call=" << ms/double(K) << " ms" << std::endl;
+    for (int q=0;q<K;q++) M=ev.MultiGridOverlapMatrix(field);
+    auto t2=std::chrono::steady_clock::now();
+    double msDense=std::chrono::duration<double,std::milli>(t1-t0).count();
+    double msMG   =std::chrono::duration<double,std::milli>(t2-t1).count();
+    std::cout << "[bench integrate-back] n=" << warm.rows() << " calls=" << K
+              << "  dense=" << msDense/K << " ms/call   multi-grid=" << msMG/K << " ms/call   speedup="
+              << msDense/msMG << "x" << std::endl;
     SUCCEED();
 }
 
