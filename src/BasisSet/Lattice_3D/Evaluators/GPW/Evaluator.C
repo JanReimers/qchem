@@ -124,7 +124,10 @@ public:
 
     //! Enable the multi-grid path for the DYNAMIC (per-iteration) integrate-back (\c OverlapMatrix(Vtilde)).
     //! The STATIC local PP stays dense (\c MakeLocalPP). Default OFF (dense) -- committed anchors byte-identical.
-    void UseMultiGrid(bool on=true) const {itsUseMG=on;}
+    //! \a maxLevels caps the ladder DEPTH (a REL_CUTOFF-style safety): the coarsest grid is \f$E_{cut}/4^{maxLevels-1}\f$,
+    //! so a very diffuse pair cannot be mapped to an absurdly coarse grid where the smooth V's coupling is lost
+    //! (unbounded coarsening gave NaF a 0.45 Ha error; a small cap keeps grid tolerance AND most of the win).
+    void UseMultiGrid(bool on=true, int maxLevels=2) const {itsUseMG=on; itsMGMaxLevels=maxLevels;}
 
     // --- Real-space external (pseudo)potential assembly: the GPW external term.  Unlike the plane-wave
     //     basis (G-space form factors, which Gaussians cannot supply) GPW quadratures the pseudopotential in
@@ -193,6 +196,7 @@ private:
     mutable std::vector<double>     itsLevelEcut;  //!< each level's cutoff (descending)
     mutable std::vector<double>     itsLevelW;     //!< each level's quadrature weight Omega/Npts(L)
     mutable bool itsUseMG=false;     //!< opt-in: route the dynamic V_H+V_xc integrate-back via multi-grid (UseMultiGrid)
+    mutable int  itsMGMaxLevels=2;   //!< ladder-depth cap (REL_CUTOFF-style safety; coarsest grid = Ecut/4^(maxLevels-1))
 };
 
 static_assert(isPW_1E_Evaluator <GPW_Evaluator>, "GPW_Evaluator must satisfy isPW_1E_Evaluator");

@@ -455,6 +455,85 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     EXPECT_NEAR(charge, 8.0, 1e-6);     // 1 (Na) + 7 (F) valence electrons, conserved
 }
 
+// (4c) MULTI-GRID accuracy on the WIDE exponent range (GPWPlan.md S0 Increment 2): the SAME committed NaF SCF
+// (Rcut=2a, SR, Kerker+DIIS, IonicSAD, densityEcut AUTO=160) run BOTH ways -- dense integrate-back vs the
+// dynamic multi-grid.  F's alpha=40..0.06 spans ~8 grid levels (vs Si Gamma's 2), the real stress test for the
+// coarsening.  The multi-grid total must track the dense total to grid tolerance (the sharp local PP stays
+// dense both ways).  DISABLED: two ~30-min SCFs.  Prints both totals + the delta.
+TEST(GPW_SCF, DISABLED_NaFMultiGridVsDense)
+{
+    using namespace qchem::Hamiltonian;
+    const double a=8.73;
+    auto run=[&](bool useMG)->std::pair<double,double>
+    {
+        FCCUnitCell cell(a);
+        cell.AddAtom(11, {0,0,0});
+        cell.AddAtom(9,  {0.5,0.5,0.5});
+        Lattice_3D lat(cell, ivec3_t(1,1,1));
+        auto mol = std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(
+            BasisSetData::VALENCE_LOWQ_SR, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
+        namespace L3=BasisSet::Lattice_3D;
+        std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, mol, /*densityEcut AUTO*/-1.0, /*Rcut*/2.0*a, /*collRcut*/0.0, {0,0,0}));
+        if (useMG) for (auto ev : bs->Iterate<L3::GPW_Evaluator>()) ev->UseMultiGrid(true);   // dynamic V_H+V_xc multi-grid
+        auto       irreps=bs->GetIrreps(Spin::None);
+        Crystal_EC ec(irreps, 8);
+        cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), bs.get(), {{"Na",1},{"F",7}}, "LDA");
+        auto* acc=new qchem::SCFAccelerators::cSCFAcceleratorDIIS(qchem::SCFAccelerators::DIISParams{8, 8.0, 1e-10, 1e-8});
+        qchem::SCFIterator::cSCFIterator scf(bs.get(), &ec, ham, acc,
+                                             qchem::ChargeDensity::SeedStrategy::IonicSAD, lat.GetStructure().get(),
+                                             qchem::Cholesky, 0.0);
+        SCFParams par; par.NMaxIter=60; par.MinΔρ=1e-3; par.MinΔE=1e-6; par.MinΔFD=1e30; par.MinVirial=1e30;
+        par.MinFD=1e30; par.StartingRelaxRo=0.3; par.MergeTol=1e-4; par.KerkerG0=1.0;
+        scf.Iterate(par);
+        auto* cd=scf.GetWaveFunction()->GetChargeDensity(); double charge=cd->GetTotalCharge(); delete cd;
+        return {charge, scf.GetEnergy().GetTotalEnergy()};
+    };
+    auto [cD,eD]=run(false);
+    auto [cM,eM]=run(true);
+    std::cout << "[NaF MG vs dense] dense: charge="<<cD<<" Etot="<<eD
+              << "   multi-grid: charge="<<cM<<" Etot="<<eM << "   dEtot="<<(eM-eD) << std::endl;
+    EXPECT_NEAR(cM, cD, 1e-6);
+    EXPECT_NEAR(eM, eD, 5e-2) << "multi-grid NaF total must track the dense total to grid tolerance";
+}
+
+// (4d) FAST multi-grid CALIBRATION of the ladder-depth cap (GPWPlan.md S0 Increment 2): NaF at Rcut=0 (home
+// cell, full basis, no images -> fast + PSD) and densityEcut=40 -- the SAME wide-exponent coarsening structure
+// as the auto-160 target (F alpha=40..0.06 spans the same ~5 levels; ecut only scales the grid size), but ~8x
+// cheaper.  Sweeps the depth cap: dense vs MG(maxLevels=2,3) -> the accuracy/win tradeoff.  Unbounded coarsening
+// (the (4c) run) gave dEtot 0.45; the cap should recover grid tolerance.  DISABLED: three fast SCFs.
+TEST(GPW_SCF, DISABLED_NaFMultiGridCalib)
+{
+    using namespace qchem::Hamiltonian;
+    const double a=8.73;
+    auto run=[&](bool useMG, int maxL)->double
+    {
+        FCCUnitCell cell(a);
+        cell.AddAtom(11, {0,0,0});
+        cell.AddAtom(9,  {0.5,0.5,0.5});
+        Lattice_3D lat(cell, ivec3_t(1,1,1));
+        auto mol = std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(
+            BasisSetData::VALENCE_LOWQ, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
+        namespace L3=BasisSet::Lattice_3D;
+        std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, mol, /*densityEcut*/40.0, /*Rcut*/0.0, /*collRcut*/0.0, {0,0,0}));
+        if (useMG) for (auto ev : bs->Iterate<L3::GPW_Evaluator>()) ev->UseMultiGrid(true, maxL);
+        auto       irreps=bs->GetIrreps(Spin::None);
+        Crystal_EC ec(irreps, 8);
+        cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), bs.get(), {{"Na",1},{"F",7}}, "LDA");
+        auto* acc=new qchem::SCFAccelerators::cSCFAcceleratorDIIS(qchem::SCFAccelerators::DIISParams{8, 8.0, 1e-10, 1e-8});
+        qchem::SCFIterator::cSCFIterator scf(bs.get(), &ec, ham, acc,
+                                             qchem::ChargeDensity::SeedStrategy::Uniform, lat.GetStructure().get(),
+                                             qchem::Cholesky, 0.0);
+        SCFParams par; par.NMaxIter=40; par.MinΔρ=1e-3; par.MinΔE=1e-6; par.MinΔFD=1e30; par.MinVirial=1e30;
+        par.MinFD=1e30; par.StartingRelaxRo=0.3; par.MergeTol=1e-4;
+        scf.Iterate(par);
+        return scf.GetEnergy().GetTotalEnergy();
+    };
+    double eD=run(false,0), e2=run(true,2), e3=run(true,3);
+    std::cout << "[NaF calib dE=40 Rcut=0] dense="<<eD<<"  MG(2)="<<e2<<" (d="<<(e2-eD)<<")  MG(3)="<<e3
+              << " (d="<<(e3-eD)<<")" << std::endl;
+    SUCCEED();
+}
+
 // VALIDATION (2026-07-13): can we drop the SR-basis hand-tuning and use the FULL valence_lowq basis, relying on
 // (a) magnitude screening + a generous overlap Rcut=4a to CONVERGE S (removing the Gibbs/truncation artifacts, so
 // the residual negative eigenvalues shrink to ~0), then (b) canonical Eigen ortho with a tol=1e-6 that drops the

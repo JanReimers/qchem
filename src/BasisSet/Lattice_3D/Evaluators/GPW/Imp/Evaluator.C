@@ -330,7 +330,8 @@ void GPW_Evaluator::EnsureLevels() const
     const double ecoarse=efine*amin/amax;             // resolves the most-diffuse pair product (exponent 2*amin)
     itsLevels.push_back(itsGrid);                     // L=0: the fine grid, reused
     double e=efine;
-    while (e/4.0>=ecoarse && itsLevels.size()<8)      // factor-4 coarsening; cap the ladder depth
+    const size_t maxL=itsMGMaxLevels>0 ? size_t(itsMGMaxLevels) : 8;  // depth cap (REL_CUTOFF-style safety)
+    while (e/4.0>=ecoarse && itsLevels.size()<maxL)   // factor-4 coarsening; cap the ladder depth
     {
         e/=4.0;
         itsLevels.push_back(std::make_shared<const PW_Grid_Evaluator>(itsGrid->Recip(), rvec3_t(0,0,0), e));
