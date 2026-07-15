@@ -422,10 +422,33 @@ The analytic collocate/integrate path IS the SCF path; the whole sampling stack 
 # TODO / NEXT
 
 **C + D are DONE (2026-07-14, see DONE)** — the analytic multigrid path IS the SCF path, sampling machinery
-deleted, anchors re-pinned on the consistent SR/Rcut=2a scheme, Si Gamma == CP2K to 0.18 mHa.  The LEADING
-increments now: (0) **close out §0's tail** — E (auto-Rcut + genuinely-complex-k validation through the new
-kernels) + re-time/re-validate NaF on the analytic path; (1) **DROP SR** (rank-reduction + auto-tol);
-(2) low-q multi-species bases → Si/NaF/CsI; (3) CP2K reference; (4) IBZ; (5) cleanups.
+deleted, anchors re-pinned on the consistent SR/Rcut=2a scheme, Si Gamma == CP2K to 0.18 mHa.  AGREED ORDER (user,
+2026-07-14): **(0a) RUNTIME CLOSE-OUT first** — so every later increment iterates fast: NaF setup levers
+(the static-PP on-the-fly sweep timing; the stream-cache budget vs the 16 GB box, maybe float32 values;
+KB/`Eval` cost after the per-image screen); **the auto-Rcut enumeration cost** (GPW suite 6→14 min: the AUTO
+radius uses the GLOBAL alpha_min — per-COMPONENT reach / per-pair enumeration / sharing the Bloch-image work
+across k-blocks are the levers; NaF baseline on the analytic path: setup ~1 h, iterations ~minutes — the
+"before" number); + complex-k revalidation through the new kernels (the shifted-MP gate) — target NaF full
+SCF ~10 min; **(0b) then XC PROJECTION CONSISTENCY** (the GDM/OT blocker in the
+ledger above — develop on the 40 s Si anchor, validate GDM on the now-affordable NaF).  Then (1) **DROP SR**
+(rank-reduction + auto-tol); (2) low-q multi-species bases → Si/NaF/CsI; (3) CP2K reference; (4) IBZ;
+(5) cleanups.
+
+**RINGING/VARIATIONALITY LEDGER (user pin, 2026-07-14 — Gibbs ringing destroys variational energy,
+convergence, and GDM).**  Where each error source now stands:
+- Gibbs PROPER (hard SPATIAL truncation) — GONE: pair boxes end in smooth exp tails; cross-cell offsets +
+  1E sums magnitude-screened; auto-Rcut derives the enumeration from the basis, so S is PSD to eps << lambda_min.
+- SPECTRAL truncation (density-grid Ecut, per-level G-spheres) — PRESENT but EXPONENTIALLY controlled
+  (e^{-ecut/2p} via kRelSafety/relCutoffScale), NOT Gibbs-like, and — the key point for GDM — rendered
+  variationally SAFE by ADJOINT-EXACTNESS: the machine-precision seam gate Tr(D H)==<collocate(D),V> means
+  the KS matrix is the exact gradient of the DISCRETIZED energy, so the truncated problem is itself
+  variational.  Truncation alone does not break GDM; energy/gradient INCONSISTENCY does.
+- The ONE remaining inconsistency = XC: PW_XC fits the nonlinear v_xc onto the finite {G} for the MATRIX but
+  quadratures E_xc directly on the grid — two discretizations of a non-band-limited field (the documented
+  "fit floor": anchors settle in E while drho floors ~3e-4).  **This is the GDM/OT blocker, promoted: make
+  E_xc and the v_xc matrix consistent (same projection, or E_xc from the fitted v_xc representation; the
+  E(lambda) line-search + FD potential-consistency probes are the instruments).**  After that, GDM/OT should
+  behave on GPW.
 
 ## 0. RUNTIME GAP-CLOSE — finish the CP2K analytic rewrite (Increments C + D, COUPLED)
 **[DONE 2026-07-14 — see the "GPW ANALYTIC REWRITE COMPLETE" DONE entry.  What remains from this section is

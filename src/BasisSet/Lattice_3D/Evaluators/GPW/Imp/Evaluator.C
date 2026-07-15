@@ -144,13 +144,36 @@ GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const
     if (!itsLat) throw std::runtime_error(
         "GPW_Evaluator: the orbital basis is not a molecular Gaussian basis (no Molecule::LatticeSum1E)");
 
-    // Two decoupled {R}+{e^{ik.R}} weighted point sets: the OVERLAP/1E set (Rcut -- must be large enough that
-    // the analytic single-sum overlap is positive-definite) and the COLLOCATION set (collRcut -- the local
-    // density's orbital reach, much smaller; the collocation re-sums images at every grid point every SCF
-    // iteration, so shrinking it is the key multi-k speed-up).  CellsInSphere is inversion-symmetric, so the
-    // lattice-sum matrices come out Hermitian (real at Gamma, where every phase is 1).  collRcut<=0 reuses the
-    // overlap set (backward-compatible: Gamma/finite runs collocate on the same set).
-    BuildImages(cell, Rcut, itsk, itsR, itsPhase);
+    // The 1E/orbital image set {R}+{e^{ik.R}}.  THREE modes (mirroring densityEcut):
+    //   Rcut < 0  AUTO (recommended): the enumeration radius is DERIVED from the basis -- the magnitude screen
+    //             keeps a pair (i, j@R) only within reach_i+reach_j <= 2 sqrt(-ln eps/alpha_min), and the two
+    //             centres can sit up to a cell span apart, so 2*reach + 2*maxEdge enumerates EVERYTHING the
+    //             screen can keep.  Screening then prunes it sparse (cost ~ the surviving terms, not Rcut^3).
+    //             This removes the user-facing Rcut knob: the analytic collocation already enumerates its own
+    //             offsets (ForImageOffsets), and with AUTO the 1E sums / Eval / KB projector do too.
+    //   Rcut = 0  home cell only (the FINITE-molecule mode: reproduces the finite matrices exactly).
+    //   Rcut > 0  explicit enumeration radius (the legacy knob; screening still prunes inside it).
+    // CellsInSphere is inversion-symmetric, so the lattice-sum matrices come out Hermitian (real at Gamma).
+    // collRcut<=0 reuses the overlap set (backward-compatible: Gamma/finite runs collocate on the same set).
+    double rcutEff=Rcut;
+    if (Rcut<0.0)
+    {
+        const double reach=std::sqrt(-std::log(1e-10)/itsLat->MinExponent());  // == the kernels' kScreenEps reach
+        rcutEff=2.0*reach + 2.0*cell.GetMaximumCellEdge();
+    }
+    BuildImages(cell, rcutEff, itsk, itsR, itsPhase);
+    // Per-image screening data for Eval/EvalGradient: every orbital centre sits inside the cell, so the image
+    // R contributes at a point r only if |(r-R) - cellCentre| <= cellRadius + maxReach.  One norm per image
+    // (vs n orbital evaluations) -- without it the AUTO enumeration radius makes the Bloch sum O(|images|)
+    // dense at every KB mesh point (the 1E pair radius is ~2x what the single-orbital sum needs).
+    itsMaxReach=std::sqrt(-std::log(1e-10)/itsLat->MinExponent());
+    itsCellCtr =cell.ToCartesian(rvec3_t(0.5,0.5,0.5));
+    itsCellRad =0.0;
+    for (int cx=0;cx<=1;cx++) for (int cy=0;cy<=1;cy++) for (int cz=0;cz<=1;cz++)
+    {
+        rvec3_t corner=cell.ToCartesian(rvec3_t(double(cx),double(cy),double(cz)));
+        itsCellRad=std::max(itsCellRad, norm(corner-itsCellCtr));
+    }
     if (collRcut>0.0) BuildImages(cell, collRcut, itsk, itsRc, itsPhaseC);
     else { itsRc=itsR; itsPhaseC=itsPhase; }
 
@@ -317,9 +340,12 @@ void GPW_Evaluator::EnsureLevels() const
 // imaginary part is exactly zero (the sum reduces to the real molecular sum).
 cvec_t GPW_Evaluator::Eval(const rvec3_t& r) const
 {
+    const double rr=itsCellRad+itsMaxReach;
     cvec_t v(itsN, dcmplx(0.0));
     for (size_t k=0;k<itsRc.size();k++)
     {
+        const rvec3_t d=r-itsRc[k]-itsCellCtr;
+        if (d.x*d.x+d.y*d.y+d.z*d.z > rr*rr) continue;   // image cannot reach r (every centre is in the cell)
         rvec_t chi=(*itsOrb)(r-itsRc[k]);
         for (size_t i=0;i<itsN;i++) v[i]+=itsPhaseC[k]*chi[i];
     }
@@ -328,9 +354,12 @@ cvec_t GPW_Evaluator::Eval(const rvec3_t& r) const
 
 cvec3vec_t GPW_Evaluator::EvalGradient(const rvec3_t& r) const
 {
+    const double rr=itsCellRad+itsMaxReach;
     cvec3vec_t v(itsN, vec3_t<dcmplx>(dcmplx(0.0),dcmplx(0.0),dcmplx(0.0)));
     for (size_t k=0;k<itsRc.size();k++)
     {
+        const rvec3_t d=r-itsRc[k]-itsCellCtr;
+        if (d.x*d.x+d.y*d.y+d.z*d.z > rr*rr) continue;   // image cannot reach r
         rvec3vec_t g=itsOrb->Gradient(r-itsRc[k]);
         for (size_t i=0;i<itsN;i++)
             v[i]=v[i]+vec3_t<dcmplx>(itsPhaseC[k]*g[i].x, itsPhaseC[k]*g[i].y, itsPhaseC[k]*g[i].z);

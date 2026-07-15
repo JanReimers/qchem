@@ -186,8 +186,8 @@ TEST(GPW_SCF, SiliconMultiKPlumbing)
     cell.AddAtom(14, {0.25,0.25,0.25});
     Lattice_3D lat(cell, ivec3_t(2,1,1));   // 2 k-points: Gamma + the zone-boundary k=1/2 (real +-1 phases)
 
-    GpwResult R=RunGPW(lat, MakeBasisSR(cell), /*densityEcut*/20.0, /*Rcut*/2.0*a, /*Nelec*/8, "Si",
-                       "Si SR 2x1x1 Rcut=2a", /*verbose*/false, /*nmax*/60, qchem::Cholesky, 0.0, 0.0,
+    GpwResult R=RunGPW(lat, MakeBasisSR(cell), /*densityEcut*/20.0, /*Rcut AUTO*/-1.0, /*Nelec*/8, "Si",
+                       "Si SR 2x1x1", /*verbose*/false, /*nmax*/60, qchem::Cholesky, 0.0, 0.0,
                        /*kShift*/rvec3_t(0,0,0), /*minDrho*/1e-3, /*minDE*/1e-6);
 
     EXPECT_TRUE(R.converged);
@@ -310,8 +310,8 @@ TEST(GPW_SCF, SiliconGammaConverges)
     cell.AddAtom(14, {0.25,0.25,0.25});
     Lattice_3D lat(cell, ivec3_t(1,1,1));
 
-    GpwResult R=RunGPW(lat, MakeBasisSR(cell), /*densityEcut*/20.0, /*Rcut*/2.0*a, /*Nelec*/8, "Si",
-                       "Si SR Gamma Rcut=2a", /*verbose*/false, /*nmax*/60, qchem::Cholesky, 0.0, 0.0,
+    GpwResult R=RunGPW(lat, MakeBasisSR(cell), /*densityEcut*/20.0, /*Rcut AUTO*/-1.0, /*Nelec*/8, "Si",
+                       "Si SR Gamma", /*verbose*/false, /*nmax*/60, qchem::Cholesky, 0.0, 0.0,
                        /*kShift*/rvec3_t(0,0,0), /*minDrho*/1e-3, /*minDE*/1e-6);
 
     EXPECT_TRUE(R.converged);

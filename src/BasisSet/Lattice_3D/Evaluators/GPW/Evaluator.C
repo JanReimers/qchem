@@ -60,10 +60,11 @@ public:
     //!              the product of two orbitals (exponent \f$2\alpha_{\max}\f$), so \f$C\f$ already folds in the
     //!              \f$\times2\f$ over a single-orbital cutoff.  See doc/GPWPlan.md \S0.
     //! \param kFrac fractional crystal momentum (fractional reciprocal coords; \f$\Gamma=0\f$).
-    //! \param Rcut  radius (a.u.) of the OVERLAP/1E lattice-translation sphere; \f$\le 0\f$ means the home cell
-    //!              only (\f$R=0\f$: reproduces the finite molecule exactly).  The analytic 2-centre lattice
-    //!              sums (overlap/kinetic/nuclear) need a generous \a Rcut to converge to a positive-definite
-    //!              overlap (the truncated single sum is indefinite at small \a Rcut).
+    //! \param Rcut  the OVERLAP/1E lattice-translation sphere (a.u.).  THREE modes (mirroring \a densityEcut):
+    //!              \f$<0\f$ = AUTOMATIC (recommended) -- the radius is derived from the basis
+    //!              (\f$2\sqrt{-\ln\varepsilon/\alpha_{\min}}\f$ + the cell span), i.e. everything the
+    //!              magnitude screen can keep is enumerated and the screen prunes it sparse; \f$=0\f$ = home
+    //!              cell only (the FINITE-molecule mode); \f$>0\f$ = explicit radius (legacy).
     //! \param collRcut  radius (a.u.) of the COLLOCATION sphere -- the reach of the Bloch orbital sum
     //!              \f$\sum_R e^{ik\cdot R}\chi(r-R)\f$ the density grid samples.  The density is local
     //!              (on-site + nearest images), so this is MUCH smaller than \a Rcut -- decoupling the two
@@ -147,6 +148,9 @@ private:
     std::vector<rvec3_t>                itsRc;            //!< collocation translations (orbital reach; incl. origin)
     cvec_t                              itsPhaseC;        //!< matching collocation Bloch phases (origin = 1)
     rvec3_t                             itsk;             //!< fractional crystal momentum k
+    double  itsMaxReach=0.0;   //!< max orbital reach sqrt(-ln eps/alpha_min) (Eval per-image screen)
+    rvec3_t itsCellCtr;        //!< cell centre + bounding radius: an image R contributes at r only if
+    double  itsCellRad=0.0;    //!< |(r-R)-ctr| <= rad+maxReach (every orbital centre sits inside the cell)
     UnitCell                            itsCell;          //!< the DIRECT cell (stored, NOT reconstructed by a
                                                           //!< double-reciprocal round trip -- that reconstruction
                                                           //!< can re-orient a non-cubic (FCC) primitive cell and

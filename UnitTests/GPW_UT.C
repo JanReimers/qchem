@@ -188,7 +188,7 @@ TEST(GPW, CollocationOverlapMatchesAnalytic)
     // REFERENCE: the analytic collocation always sums the SCREENED cross-cell pair offsets, so the collocated
     // charge is Tr(D S^Bloch) -- the screened-complete Bloch overlap (generous Rcut enumeration; SIPP's diffuse
     // alpha=0.06 reaches several cells even in this box), NOT the home-only overlap.
-    GPW_IBS gpwRef(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/0.0, /*Rcut=*/4.0*a);
+    GPW_IBS gpwRef(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/0.0, /*Rcut AUTO*/-1.0);
 
     const GPW_Evaluator& ev = gpw;
     G_ERI3 ov = ev.Overlap3CTensor();
@@ -216,7 +216,7 @@ TEST(GPW, OverlapWithConstantFieldEqualsV0Overlap)
     GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/30.0);
     // REFERENCE: the analytic integrate-back sums the screened cross-cell offsets, so a constant field gives
     // V0 * S^Bloch (screened-complete Bloch overlap), not V0 * S_home -- see CollocationOverlapMatchesAnalytic.
-    GPW_IBS gpwRef(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/0.0, /*Rcut=*/4.0*a);
+    GPW_IBS gpwRef(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/0.0, /*Rcut AUTO*/-1.0);
 
     const GPW_Evaluator& ev = gpw;
     const double V0 = 0.7;
@@ -255,7 +255,7 @@ TEST(GPW, AnalyticCollocationConservesCharge)
         GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/12.0, /*Rcut*/0.0);
         // REFERENCE: Tr(D S^Bloch) -- the collocation always includes the screened cross-cell pair offsets
         // (SIPP's diffuse alpha=0.06 reaches neighbour cells even at a=12), so the home-only Tr(D S) is ~3% off.
-        GPW_IBS gpwRef(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/0.0, /*Rcut*/4.0*a);
+        GPW_IBS gpwRef(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/0.0, /*Rcut AUTO*/-1.0);
         const GPW_Evaluator& ev=gpw;
         const auto* lat=dynamic_cast<const BasisSet::Molecule::LatticeSum1E*>(OrbitalBlock<Real_OIBS>(*mol));
         EXPECT_TRUE(lat) << "orbital block must realise LatticeSum1E";
@@ -290,7 +290,7 @@ TEST(GPW, AnalyticCollocationCrystalChargeConservation)
     cell.AddAtom(14, {0,0,0});
     cell.AddAtom(14, {0.25,0.25,0.25});
     std::shared_ptr<const Real_BS> mol = MakeBasis(cell);              // SIPP Si (one orbital block over both atoms)
-    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/6.0, /*Rcut*/4.0*a);  // large Rcut -> S^G
+    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/6.0, /*Rcut AUTO*/-1.0);  // large Rcut -> S^G
     const GPW_Evaluator& ev=gpw;
     const Complex_OIBS& g=gpw;
     const size_t n=g.GetNumFunctions();
