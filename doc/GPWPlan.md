@@ -371,17 +371,66 @@ The analytic collocate/integrate core, molecular-side (reusing `GaussianRF`/`Ω`
   NOT wired: single-grid analytic is impractically slow (SIPP's diffuse α=0.25 → full-grid boxes × the image
   sum; Si Γ ~60 min), so C (wire it) and D (multigrid) are COUPLED and land together — see TODO §0.
 
+## GPW ANALYTIC REWRITE COMPLETE -- Increments C + D LANDED, sampling machinery DELETED (2026-07-14)
+The analytic collocate/integrate path IS the SCF path; the whole sampling stack is gone.  Si SR/Rcut=2a Gamma
+== CP2K to 0.18 mHa; the Gamma anchor runs in ~40 s (warm) / ~2 min (cold).  14/14 GPW+GPW_SCF green.
+- **Kernels multigrid + general-k** (`LatticeSum1E::CollocateDensity/IntegratePotential`): level-vector form
+  (finest-first `N_L`/`ecut_L`; K=1 = single grid; the old `MakePotentialMatrix{,MG}` sampling faces DELETED,
+  interface stays minimal per the Band_FT_IBS lesson).  Bloch phases enter via a `cellphase_t` CALLBACK
+  (`e^{ik.R_n}` of the integer cell offset -- the k-convention stays lattice-side; the kernels enumerate offsets
+  internally so a pre-built (Rs,phases) pair cannot work).  Phase conventions: density weight `Re[D_ij e^{-ik.R}]`
+  (ket-conj), integrate-back `e^{+ik.R}` -- the same +/- pairing as the KB-projector fix.  2x Hermitian fold
+  (loop j>=i, double off-diagonal weights -- the (j,i,-R) twin is exact).
+- **REL_CUTOFF assignment + level guards.**  Pair -> coarsest level with `ecut_l >= kRelSafety *
+  ecut_fine*(a_i+a_j)/(2 a_max)`; **kRelSafety=2 is LOAD-BEARING**: at 1x the charge-calibrated ratio leaves
+  ~e^{-2.5} spectral tails per pair at its own cutoff -- fine for charge (1e-5) but Si Gamma sat 5 mHa below
+  CP2K until doubled (CP2K's REL_CUTOFF default is ~3x stiffer than the auto floor).  `EnsureLevels` keeps a
+  level only if its SPACING resolves the sharpest assignable pair (`h^2 p_max <= 1`, Poisson e^{-2pi^2}) -- this
+  replaced a naive min-N floor after a degenerate Ecut=0.375 level came out as a 1x1x1 GRID whose sigma~2.4
+  pairs lost percent-level charge (the crystal-gate 28.37-vs-26.56 failure).
+- **Wiring (Band_FT_IBS + IrrepCD UNTOUCHED).**  `Repulsion3C/Overlap3CTensor` -> matrix-free
+  `G_ERI3::apply=MakeCollocator(coulomb)` (per-level collocate -> FFT -> rho-tilde combined NESTED in G-space,
+  Coulomb kernel folded); `OverlapMatrix(Vtilde)` -> per-level spectral restriction of V + analytic
+  `IntegratePotential`.  `G_ERI3::weights` (dense tensor) DELETED.
+- **Local PP stays FINE-level (every pair): the analytic sibling of the sampling-MG lesson.**  Routing V_loc
+  through the ladder gave Si Gamma -10.72 vs -7.115 WITH charge exact -- a coarse-level pair sees V only
+  through its level's {G}, and V_loc's mid-G content is a Ha-scale term.  V_H/V_xc (smooth) stay on the ladder.
+  Static, so the one fine sweep is not per-iteration.
+- **Two latent bugs fixed:** the seam's `Recip().GetCell().MakeReciprocalCell()` double-reciprocal
+  RE-ORIENTS a non-cubic (FCC) primitive cell (evaluator now STORES `itsCell`); the box's fractional bounding
+  used `reach/minEdge`, UNDER-COVERING a skewed cell by sqrt(3)/sqrt(2) (now exact per-axis `reach*||row(A^-1)||`
+  -- this WAS the committed crystal gate's 2.4e-7 residual).
+- **Perf: pair-box STREAM CACHE (the analytic PhiOnGrid successor).**  The per-(pair,offset) box streams
+  (wrapped idx + value) are pure geometry -- identical across SCF iterations AND k-blocks (phases apply at
+  contraction) -- so they are built once per ladder shape and replayed as gathers: Si Gamma SCF 51.5 min ->
+  2m15s cold (23x), bit-identical.  Plus: prefactor-SHRUNK per-offset reach (a far cross-cell image costs a
+  near-empty box), ellipsoid pre-screen before the exp/poly evals, incremental grid walk (hoists the
+  per-point ToCartesian, was 14% of the profile).  perf now works locally (paranoid=1).
+- **Anchors re-pinned on the CONSISTENT scheme (all in `GPW_SCF_UT.C`).**  The analytic collocation is ALWAYS
+  screened-complete Bloch, so `Rcut=0` 1E matrices would MIX SCHEMES (observed: `Tr(D S_home)=8` while
+  `int rho_grid = 16.55` -- the durable-pin violation).  The old fast Rcut=0 anchors are GONE:
+  `SiliconGammaConverges` = SR/Rcut=2a/dE=20 == **CP2K -7.11506 to 0.18 mHa (-7.114883, 18 iters)** [the old
+  DISABLED CP2K gate, now THE enabled anchor]; `SiliconMultiKPlumbing` = SR/2a 2x1x1 **-7.45137** (real
+  dispersion; the "k-blocks==Gamma at Rcut=0" trick is gone); `SiPseudoAtomInBoxMatchesFinite` box grown
+  a=11->16 (cross-cell prefactor 2.7e-2 -> 4.6e-4) == finite sipp to 0.023.  Kernel gates re-referenced to
+  **Tr(D S^Bloch)** (charge now conserves to 8e-8; the old "3%" was the WRONG home-only reference, latent since
+  the cross-cell commit) + a machine-precision multigrid seam-adjoint gate (Tr(D H) == <apply(D),V>).
+- **[grid charge] readout through the live SCF: lost = -1.4e-6 e** -- collocation charge-exact in production.
+
 ---
 
 # TODO / NEXT
 
-Round-1 runtime + magnitude screening + the sampling patch/multi-grid dead-end + the CP2K deep dive are **DONE**
-(see DONE); the analytic collocate/integrate KERNELS (A, B, cross-cell) are DONE and validated. The LEADING
-increment now: (0) **RUNTIME GAP-CLOSE = finish the CP2K analytic rewrite (C+D)** — wire the analytic kernels
-into the SCF ON the REL_CUTOFF multigrid and delete the sampling machinery. Then (1) **DROP SR** (rank-reduction
-+ auto-tol); (2) low-q multi-species bases → Si/NaF/CsI; (3) CP2K reference; (4) IBZ; (5) cleanups.
+**C + D are DONE (2026-07-14, see DONE)** — the analytic multigrid path IS the SCF path, sampling machinery
+deleted, anchors re-pinned on the consistent SR/Rcut=2a scheme, Si Gamma == CP2K to 0.18 mHa.  The LEADING
+increments now: (0) **close out §0's tail** — E (auto-Rcut + genuinely-complex-k validation through the new
+kernels) + re-time/re-validate NaF on the analytic path; (1) **DROP SR** (rank-reduction + auto-tol);
+(2) low-q multi-species bases → Si/NaF/CsI; (3) CP2K reference; (4) IBZ; (5) cleanups.
 
 ## 0. RUNTIME GAP-CLOSE — finish the CP2K analytic rewrite (Increments C + D, COUPLED)
+**[DONE 2026-07-14 — see the "GPW ANALYTIC REWRITE COMPLETE" DONE entry.  What remains from this section is
+only E (auto-Rcut + k in P(R) — the cellphase callback already carries any k; genuinely-complex k awaits the
+shifted-MP gate re-validation) and the NaF re-timing.  Kept below as the design record.]**
 The sampling collocation is a proven dead end (rings, can't coarsen, needs a hard Rcut — see DONE). The analytic
 collocate/integrate KERNELS are DONE + validated to machine precision (Increments A/B/cross-cell, DONE). What
 remains is to make them the SCF path — and they are only PRACTICAL with the multigrid (single-grid analytic is

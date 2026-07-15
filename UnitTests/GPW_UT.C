@@ -175,8 +175,9 @@ int G0Column(const G_ERI3& t)
 }
 } //anon
 
-// Collocate: the G=0 collocation weight is the grid-quadrature overlap, W_0(i,j)*Omega = integral chi_i chi_j,
-// which must converge to the analytic 1E overlap as the density grid resolves the Gaussian products.
+// Collocate (through the SCF seam): the G=0 component of the tensor's matrix-free `apply` map is the collocated
+// charge, apply(D)[0]*Omega = Integral rho = Tr(D S), which must match the analytic 1E overlap trace as the
+// density grid resolves the Gaussian products.  This exercises exactly what ContractG_ERI3 runs in the SCF.
 TEST(GPW, CollocationOverlapMatchesAnalytic)
 {
     const double a=10.0;
@@ -184,24 +185,24 @@ TEST(GPW, CollocationOverlapMatchesAnalytic)
     cell.AddAtom(14,{0.5,0.5,0.5});
     std::shared_ptr<const Real_BS> molCell = MakeBasis(cell);
     GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/30.0);
+    // REFERENCE: the analytic collocation always sums the SCREENED cross-cell pair offsets, so the collocated
+    // charge is Tr(D S^Bloch) -- the screened-complete Bloch overlap (generous Rcut enumeration; SIPP's diffuse
+    // alpha=0.06 reaches several cells even in this box), NOT the home-only overlap.
+    GPW_IBS gpwRef(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/0.0, /*Rcut=*/4.0*a);
 
     const GPW_Evaluator& ev = gpw;
-    const Complex_OIBS&   g  = gpw;
     G_ERI3 ov = ev.Overlap3CTensor();
-    int c0 = G0Column(ov);
-    ASSERT_GE(c0, 0);
+    ASSERT_GE(G0Column(ov), 0);
+    ASSERT_TRUE(bool(ov.apply)) << "the GPW tensor must carry the matrix-free analytic-collocation map";
 
-    const auto& S = g.Overlap();     // analytic 1E overlap (chmat, real at Gamma)
+    const auto& S = static_cast<const Complex_OIBS&>(gpwRef).Overlap();   // Bloch overlap S^Bloch (real at Gamma)
     const size_t n = S.rows();
-    double num=0.0, den=0.0;
-    for (size_t i=0;i<n;i++)
-        for (size_t j=0;j<n;j++)
-        {
-            double w = std::real(ov.weights[c0](i,j)) * ov.volume;   // grid-quadrature overlap
-            double s = std::real(S(i,j));
-            double d=w-s; num+=d*d; den+=s*s;
-        }
-    EXPECT_LT(std::sqrt(num/den), 6e-2);   // collocated == analytic to grid-quadrature accuracy (~4% at Ecut=30)
+    chmat_t D(n);                    // D = identity -> Integral rho = Tr(S^Bloch)
+    for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) D(i,j)=(i==j)?dcmplx(1.0):dcmplx(0.0);
+    ΔG_Map rho = ContractG_ERI3(ov, D);                      // the SCF's own contraction (dispatches to apply)
+    const double integral = std::real(rho[ivec3_t(0,0,0)]) * ov.volume;
+    double trS=0.0; for (size_t i=0;i<n;i++) trS += std::real(dcmplx(S(i,i)));
+    EXPECT_NEAR(integral, trS, 6e-2*std::fabs(trS));   // collocated charge == Bloch overlap trace to grid accuracy
 }
 
 // Integrate-back: a CONSTANT potential V(r)=V0 (Vtilde nonzero only at G=0) must give <chi_i|V0|chi_j> = V0 S_ij
@@ -213,14 +214,16 @@ TEST(GPW, OverlapWithConstantFieldEqualsV0Overlap)
     cell.AddAtom(14,{0.5,0.5,0.5});
     std::shared_ptr<const Real_BS> molCell = MakeBasis(cell);
     GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/30.0);
+    // REFERENCE: the analytic integrate-back sums the screened cross-cell offsets, so a constant field gives
+    // V0 * S^Bloch (screened-complete Bloch overlap), not V0 * S_home -- see CollocationOverlapMatchesAnalytic.
+    GPW_IBS gpwRef(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/0.0, /*Rcut=*/4.0*a);
 
     const GPW_Evaluator& ev = gpw;
-    const Complex_OIBS&   g  = gpw;
     const double V0 = 0.7;
     const chmat_t M = ev.OverlapMatrix([V0](const ivec3_t& dm)->dcmplx
         { return (dm.x==0 && dm.y==0 && dm.z==0) ? dcmplx(V0) : dcmplx(0.0); });
 
-    const auto& S = g.Overlap();
+    const auto& S = static_cast<const Complex_OIBS&>(gpwRef).Overlap();
     const size_t n = S.rows();
     double num=0.0, den=0.0;
     for (size_t i=0;i<n;i++)
@@ -233,191 +236,14 @@ TEST(GPW, OverlapWithConstantFieldEqualsV0Overlap)
     EXPECT_LT(std::sqrt(num/den), 6e-2);   // <i|V0|j> == V0<i|j> to grid accuracy (== the collocation residual)
 }
 
-// PERF micro-benchmark (DISABLED): isolate OverlapMatrix -- the SCF integrate-back that is ~44% of the NaF
-// profile -- at TRUE NaF scale (FCC Na+F, VALENCE_LOWQ_SR n=32, densityEcut AUTO->160) but with a FAST setup:
-// Rcut=0 makes PhiOnGrid a single-image build (seconds), and OverlapMatrix's cost depends only on (n, Npts),
-// which Rcut does not change.  Times K back-to-back calls on a representative all-G field (Hartree/XC-like),
-// so a fixed setup is amortised -- an A/B lever for the OverlapMatrix contraction (scalar loop vs GEMM etc.).
-TEST(GPW, DISABLED_BenchOverlapMatrix)
-{
-    const double a=8.73;
-    FCCUnitCell cell(a);
-    cell.AddAtom(11,{0,0,0});          // Na
-    cell.AddAtom(9,{0.5,0.5,0.5});     // F  (tight 40-a.u. exponent -> densityEcut floor 160)
-    auto mol=std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(
-        BasisSetData::VALENCE_LOWQ_SR, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
-    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut AUTO*/-1.0, /*Rcut*/0.0);
-    const GPW_Evaluator& ev=gpw;
-    auto field=[](const ivec3_t& dm)->dcmplx                     // smooth, all-G (realistic Vtilde)
-        { double g2=double(dm.x*dm.x+dm.y*dm.y+dm.z*dm.z); return dcmplx(1.0/(1.0+g2),0.0); };
-    chmat_t warm=ev.DenseOverlapMatrix(field);                    // warm the PhiOnGrid cache (excluded from timing)
-    chmat_t warmMG=ev.MultiGridOverlapMatrix(field);              // warm the per-level column caches too
-    const int K=20;
-    auto t0=std::chrono::steady_clock::now();
-    chmat_t M;
-    for (int q=0;q<K;q++) M=ev.DenseOverlapMatrix(field);
-    auto t1=std::chrono::steady_clock::now();
-    for (int q=0;q<K;q++) M=ev.MultiGridOverlapMatrix(field);
-    auto t2=std::chrono::steady_clock::now();
-    double msDense=std::chrono::duration<double,std::milli>(t1-t0).count();
-    double msMG   =std::chrono::duration<double,std::milli>(t2-t1).count();
-    std::cout << "[bench integrate-back] n=" << warm.rows() << " calls=" << K
-              << "  dense=" << msDense/K << " ms/call   multi-grid=" << msMG/K << " ms/call   speedup="
-              << msDense/msMG << "x" << std::endl;
-    SUCCEED();
-}
-
-// PATCH-SPARSITY PROBE (DISABLED): measure-before-optimize for the GPW_Plan.md S0 patch-collocation rewrite.
-// The per-iteration hotspot is the integrate-back  M_ij = w Sum_p conj(Phi_pi) V_p Phi_pj  over the FULL grid
-// (n^2 x Npts, ~44% of the NaF profile).  The plan proposes replacing the dense contraction with LOCAL patches
-// (points where the orbital / orbital-product is non-negligible), turning O(n^2 Npts) into O(n_pairs x patch).
-// The achievable speedup depends entirely on how sparse Phi actually is -- diffuse Gaussians reach far, so a
-// per-ORBITAL patch may be large while the per-PAIR PRODUCT patch (bounded by the tighter product Gaussian,
-// exponent alpha_i+alpha_j) is compact.  This probe reconstructs Phi on the density grid (via the public Eval /
-// DensityGrid surface, no internals) at TRUE NaF scale and prints, for a few screening thresholds, the exact
-// contraction cost of each candidate strategy vs the dense baseline, so the granularity choice is data-driven:
-//   dense           : n^2 * Npts                              (what the zgemm does today)
-//   per-point scatter: Sum_p k_p^2, k_p=#{i:|Phi_pi|>eps}     (skip ~0 orbitals per point; loses vectorization)
-//   per-pair product : Sum_{i,j} #{p:|Phi_pi Phi_pj|>eps}     (CP2K-style: contract each pair on its own patch)
-TEST(GPW, DISABLED_PatchSparsityProbe)
-{
-    const double a=8.73;
-    FCCUnitCell cell(a);
-    cell.AddAtom(11,{0,0,0});          // Na
-    cell.AddAtom(9,{0.5,0.5,0.5});     // F  (tight 40-a.u. exponent -> densityEcut floor 160)
-    auto mol=std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(
-        BasisSetData::VALENCE_LOWQ_SR, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
-    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut AUTO*/-1.0, /*Rcut*/0.0);
-    const GPW_Evaluator& ev=gpw;
-
-    const rvec3vec_t& pts=ev.DensityGrid().GridPoints();
-    const size_t Npts=pts.size(), n=ev.size();
-    std::vector<double> Phi(Npts*n);                 // |Phi_pi| (magnitudes; real at Gamma) row-major [p][i]
-    double phiMax=0.0;
-    for (size_t p=0;p<Npts;p++)
-    {
-        cvec_t v=ev.Eval(pts[p]);
-        for (size_t i=0;i<n;i++) { double m=std::abs(v[i]); Phi[p*n+i]=m; phiMax=std::max(phiMax,m); }
-    }
-    const double dense=double(n)*double(n)*double(Npts);
-    std::cout << "[patch probe] n=" << n << " Npts=" << Npts << " max|Phi|=" << phiMax
-              << "  dense n^2*Npts=" << dense << " complex MACs/call\n";
-
-    for (double ratio : {1e-6, 1e-8, 1e-10})
-    {
-        const double epsOrb =ratio*phiMax;               // per-orbital screen
-        const double epsProd=ratio*phiMax*phiMax;        // per-product screen (max product = phiMax^2)
-        double scatter=0.0; size_t nz=0, unionPts=0;
-        double pairCost=0.0; size_t pairsNZ=0;
-        for (size_t p=0;p<Npts;p++)
-        {
-            const double* row=&Phi[p*n];
-            size_t kp=0; for (size_t i=0;i<n;i++) if (row[i]>epsOrb) kp++;
-            scatter += double(kp)*double(kp); nz += kp; if (kp) unionPts++;
-        }
-        // per-pair product patch sizes (O(n^2 Npts) one-off; fine for a disabled probe)
-        std::vector<size_t> pairPts(n*n,0);
-        for (size_t p=0;p<Npts;p++)
-        {
-            const double* row=&Phi[p*n];
-            for (size_t i=0;i<n;i++) { double vi=row[i]; if (vi<=0) continue;
-                for (size_t j=0;j<n;j++) if (vi*row[j]>epsProd) pairPts[i*n+j]++; }
-        }
-        for (size_t ij=0;ij<n*n;ij++) { pairCost+=double(pairPts[ij]); if (pairPts[ij]) pairsNZ++; }
-        std::cout << "  ratio=" << ratio
-                  << " | scatter Sum k_p^2=" << scatter << " (" << scatter/dense << "x dense),"
-                  << " nz=" << nz << " unionPts=" << unionPts << "/" << Npts
-                  << " | pair-product cost=" << pairCost << " (" << pairCost/dense << "x dense),"
-                  << " nz-pairs=" << pairsNZ << "/" << n*n << "\n";
-    }
-    SUCCEED();
-}
-
-// PATCHED INTEGRATE-BACK bit-consistency (GPW_Plan.md S0, Increment 1).  The molecular-side patched
-// collocation adjoint (LatticeSum1E::MakePotentialMatrix -- per-orbital Gaussian-support patches, contract
-// each pair on its support overlap) must reproduce the dense zgemm OverlapMatrix(Vtilde) to the screening
-// tolerance.  This is the SEAM gate for the multi-grid rewrite; the dense path stays the default (byte-
-// identical anchors) until the grid levels make the patched path win.  Exercised at Gamma (real orbitals)
-// AND at a genuinely-complex k with images (the conj(bra) slot + the Bloch image sum in EnsureSupports).
-TEST(GPW, PatchedIntegrateBackMatchesDense)
-{
-    auto relDiff=[](const chmat_t& A, const chmat_t& B)
-    {
-        double num=0.0, den=0.0;
-        for (size_t i=0;i<A.rows();i++) for (size_t j=0;j<A.rows();j++)
-        { dcmplx d=A(i,j)-B(i,j); num+=std::norm(d); den+=std::norm(A(i,j)); }
-        return std::sqrt(num/den);
-    };
-    auto field=[](const ivec3_t& dm)->dcmplx                     // smooth all-G field (Hartree/XC-like)
-        { double g2=double(dm.x*dm.x+dm.y*dm.y+dm.z*dm.z); return dcmplx(1.0/(1.0+g2),0.0); };
-
-    // (a) Gamma, home cell: real orbitals, single image.
-    {
-        const double a=12.0;
-        UnitCell cell(a);
-        cell.AddAtom(14,{0.5,0.5,0.5});
-        std::shared_ptr<const Real_BS> mol = MakeBasis(cell);           // SIPP Si
-        GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/12.0, /*Rcut*/0.0);
-        const GPW_Evaluator& ev=gpw;
-        EXPECT_LT(relDiff(ev.OverlapMatrix(field), ev.PatchedOverlapMatrix(field)), 1e-8) << "Gamma";
-    }
-    // (b) complex k=(1/4,0,0) with images: the Bloch sum is live (conj slot + image support build).
-    {
-        const double a=10.0;                                            // small cell -> non-negligible images
-        UnitCell cell(a);
-        cell.AddAtom(14,{0.5,0.5,0.5});
-        std::shared_ptr<const Real_BS> mol = MakeBasis(cell);
-        GPW_IBS gpw(cell, ivec3_t(4,4,4), ivec3_t(1,0,0), mol, /*densityEcut*/12.0, /*Rcut*/1.5*a);
-        const GPW_Evaluator& ev=gpw;
-        chmat_t Md=ev.OverlapMatrix(field);
-        EXPECT_GT(MaxImag(Md), 1e-6) << "k!=0 with images must give a complex integrate-back";
-        EXPECT_LT(relDiff(Md, ev.PatchedOverlapMatrix(field)), 1e-8) << "complex k";
-    }
-}
-
-// MULTI-GRID integrate-back MECHANICS (GPW_Plan.md S0 Increment 2).  MultiGridOverlapMatrix maps each orbital
-// pair to the coarsest grid level resolving its product (from the internal exponents), restricts V per level,
-// and contracts each pair on its assigned level.  STRUCTURAL invariant (grid points / weights / columns /
-// level assignment / V restriction all sound): for a CONSTANT potential the integrate-back is V0*<i|j> on ANY
-// grid, so multi-grid must equal the fine grid to the coarse-grid quadrature error of the orbital norms.
-// The FIELD-dependent coarsening error (dropping V's high-G coupling to diffuse pairs) is MEASURED but NOT
-// gated: it is large for a PEAKED V (e.g. 1/|G|^2, the local PP), which is why diffuse pairs that overlap a
-// sharp external potential cannot be coarsened independently of it -- doing Increment 2 right needs a
-// CONSISTENT whole-multigrid (density collocation AND integrate-back per level) + PP-aware assignment
-// (an integrate-back-only multigrid gave Si Gamma Etot -21.4 vs -8.25; see doc/GPWPlan.md).
-TEST(GPW, MultiGridIntegrateBackMechanics)
-{
-    auto relDiff=[](const chmat_t& A, const chmat_t& B)
-    {
-        double num=0.0, den=0.0;
-        for (size_t i=0;i<A.rows();i++) for (size_t j=0;j<A.rows();j++)
-        { dcmplx d=A(i,j)-B(i,j); num+=std::norm(d); den+=std::norm(A(i,j)); }
-        return std::sqrt(num/den);
-    };
-    const double a=12.0;
-    UnitCell cell(a);
-    cell.AddAtom(14,{0.5,0.5,0.5});
-    std::shared_ptr<const Real_BS> mol = MakeBasis(cell);           // SIPP Si
-    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/12.0, /*Rcut*/0.0);
-    const GPW_Evaluator& ev=gpw;
-
-    auto cfield=[](const ivec3_t& dm)->dcmplx { return (dm.x==0&&dm.y==0&&dm.z==0)?dcmplx(1.0):dcmplx(0.0); };
-    double rdConst=relDiff(ev.PatchedOverlapMatrix(cfield), ev.MultiGridOverlapMatrix(cfield));
-    EXPECT_LT(rdConst, 5e-3) << "multi-grid must match the fine grid for a constant potential (structural)";
-
-    auto pfield=[](const ivec3_t& dm)->dcmplx        // peaked field -> the coarsening error (informational)
-        { double g2=double(dm.x*dm.x+dm.y*dm.y+dm.z*dm.z); return dcmplx(1.0/(1.0+g2),0.0); };
-    std::cout << "[multi-grid] const-field relDiff=" << rdConst << "  peaked-field relDiff="
-              << relDiff(ev.PatchedOverlapMatrix(pfield), ev.MultiGridOverlapMatrix(pfield)) << std::endl;
-}
-
-// ANALYTIC COLLOCATION charge conservation (GPWPlan.md S0 Increment A -- the CP2K rewrite).  The new
+// ANALYTIC COLLOCATION charge conservation (GPWPlan.md S0 Increment A -- the CP2K rewrite).
 // LatticeSum1E::CollocateDensity collocates rho = Sum_ij D_ij chi_i chi_j analytically per pair on compact
 // exp-tail boxes, modulo-wrapped onto the grid (NO image sum, NO Rcut).  The defining invariant: Integral of
 // the collocated rho over the cell equals Tr(D S) (the density integrates to the electron count) -- to grid
 // tolerance.  Tested with the atom in the INTERIOR (no wrap) AND at the CORNER {0,0,0} (the box wraps around
 // every face -> exercises the modulo-wrap-IS-the-image-sum mechanism; charge must be identical, translation-
-// invariant, with no ringing).
+// invariant, with no ringing).  Kernel-level, K=1 (single grid); the multi-grid ladder is exercised by the
+// seam-level gates below.
 TEST(GPW, AnalyticCollocationConservesCharge)
 {
     auto probe=[](const rvec3_t& frac, const char* where)->double
@@ -427,20 +253,23 @@ TEST(GPW, AnalyticCollocationConservesCharge)
         cell.AddAtom(14, frac);                                     // Si
         std::shared_ptr<const Real_BS> mol = MakeBasis(cell);       // SIPP Si
         GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/12.0, /*Rcut*/0.0);
+        // REFERENCE: Tr(D S^Bloch) -- the collocation always includes the screened cross-cell pair offsets
+        // (SIPP's diffuse alpha=0.06 reaches neighbour cells even at a=12), so the home-only Tr(D S) is ~3% off.
+        GPW_IBS gpwRef(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/0.0, /*Rcut*/4.0*a);
         const GPW_Evaluator& ev=gpw;
-        const Complex_OIBS& g=gpw;
         const auto* lat=dynamic_cast<const BasisSet::Molecule::LatticeSum1E*>(OrbitalBlock<Real_OIBS>(*mol));
         EXPECT_TRUE(lat) << "orbital block must realise LatticeSum1E";
         const ivec3_t N=ev.DensityGrid().FFTGrid();
-        const size_t  n=g.GetNumFunctions();
-        rmat_t D(n,n,0.0); for (size_t i=0;i<n;i++) D(i,i)=1.0;      // D = identity -> Integral rho = Tr(S)
-        rvec_t rho=lat->CollocateDensity(D, cell, N);
+        const size_t  n=ev.size();
+        chmat_t D(n); for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) D(i,j)=(i==j)?dcmplx(1.0):dcmplx(0.0);
+        auto gamma=[](const ivec3_t&)->dcmplx { return dcmplx(1.0); };           // Gamma: every offset phase 1
+        rvec_t rho=lat->CollocateDensity(D, gamma, cell, {N}, {ev.DensityGrid().Ecut()})[0];   // K=1
         double integral=blazem::sum(rho)*cell.GetCellVolume()/double(rho.size());
-        const auto& S=g.Overlap();
-        double trDS=0.0; for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) trDS+=D(i,j)*std::real(dcmplx(S(i,j)));
-        std::cout << "[collocate " << where << "] Integral rho=" << integral << "  Tr(D S)=" << trDS
+        const auto& S=static_cast<const Complex_OIBS&>(gpwRef).Overlap();        // Bloch overlap S^Bloch
+        double trDS=0.0; for (size_t i=0;i<n;i++) trDS+=std::real(dcmplx(S(i,i)));
+        std::cout << "[collocate " << where << "] Integral rho=" << integral << "  Tr(D S^Bloch)=" << trDS
                   << "  rel=" << std::fabs(integral-trDS)/std::fabs(trDS) << std::endl;
-        EXPECT_NEAR(integral, trDS, 5e-2*std::fabs(trDS)) << "collocated charge vs Tr(D S) (" << where << ")";
+        EXPECT_NEAR(integral, trDS, 5e-3*std::fabs(trDS)) << "collocated charge vs Tr(D S^Bloch) (" << where << ")";
         return integral;
     };
     double cInterior=probe({0.5,0.5,0.5}, "interior");
@@ -448,12 +277,13 @@ TEST(GPW, AnalyticCollocationConservesCharge)
     EXPECT_NEAR(cInterior, cCorner, 1e-6) << "collocated charge must be translation-invariant (wrap == interior)";
 }
 
-// ANALYTIC COLLOCATION on a CRYSTAL (cross-cell pairs).  The periodic Gamma density is a product of BLOCH
-// orbitals, chi_i^G chi_j^G = Sum_R'' chi_i^0 chi_j^R'' -- so collocation must sum the screened CROSS-CELL
-// offsets, not just the home pair (R''=0).  Invariant: Integral of the collocated rho == Tr(D S^G) with S^G
-// the Bloch overlap (its own screened image sum, via a generous Rcut).  A 2-atom Si crystal with real
-// inter-cell overlap (which the single-atom AnalyticCollocationConservesCharge test could not exercise).
-TEST(GPW, DISABLED_AnalyticCollocationCrystalChargeConservation)
+// ANALYTIC COLLOCATION on a CRYSTAL (cross-cell pairs), through the SCF SEAM (Overlap3CTensor's matrix-free
+// `apply` -> the REL_CUTOFF multi-grid ladder).  The periodic Gamma density is a product of BLOCH orbitals,
+// chi_i^G chi_j^G = Sum_R'' chi_i^0 chi_j^R'' -- so collocation must sum the screened CROSS-CELL offsets, not
+// just the home pair (R''=0).  Invariant: Omega x the G=0 component of apply(D) == Integral rho == Tr(D S^G)
+// with S^G the Bloch overlap (its own screened image sum, via a generous Rcut).  A 2-atom Si crystal with real
+// inter-cell overlap (which the single-atom gate above cannot exercise).
+TEST(GPW, AnalyticCollocationCrystalChargeConservation)
 {
     const double a=10.26;
     FCCUnitCell cell(a);
@@ -463,25 +293,28 @@ TEST(GPW, DISABLED_AnalyticCollocationCrystalChargeConservation)
     GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/6.0, /*Rcut*/4.0*a);  // large Rcut -> S^G
     const GPW_Evaluator& ev=gpw;
     const Complex_OIBS& g=gpw;
-    const auto* lat=dynamic_cast<const BasisSet::Molecule::LatticeSum1E*>(OrbitalBlock<Real_OIBS>(*mol));
-    EXPECT_TRUE(lat);
-    const ivec3_t N=ev.DensityGrid().FFTGrid();
-    const size_t  n=g.GetNumFunctions();
-    rmat_t D(n,n,0.0); for (size_t i=0;i<n;i++) D(i,i)=1.0;            // D = identity -> Integral rho = Tr(S^G)
-    rvec_t rho=lat->CollocateDensity(D, cell, N);
-    double integral=blazem::sum(rho)*cell.GetCellVolume()/double(rho.size());
-    const auto& S=g.Overlap();                                        // Bloch overlap (screened images) = S^G
-    double trDS=0.0; for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) trDS+=D(i,j)*std::real(dcmplx(S(i,j)));
+    const size_t n=g.GetNumFunctions();
+    chmat_t D(n); for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) D(i,j)=(i==j)?dcmplx(1.0):dcmplx(0.0);
+    G_ERI3 ov=ev.Overlap3CTensor();
+    ASSERT_TRUE(bool(ov.apply));
+    ΔG_Map rho=ContractG_ERI3(ov, D);                                  // the SCF's own contraction (multi-grid)
+    const double integral=std::real(rho[ivec3_t(0,0,0)])*ov.volume;
+    const auto& S=g.Overlap();                                         // Bloch overlap (screened images) = S^G
+    double trDS=0.0; for (size_t i=0;i<n;i++) trDS+=std::real(dcmplx(S(i,i)));
     std::cout << "[collocate crystal] Integral rho=" << integral << "  Tr(D S^G)=" << trDS
               << "  rel=" << std::fabs(integral-trDS)/std::fabs(trDS) << std::endl;
     EXPECT_NEAR(integral, trDS, 5e-2*std::fabs(trDS)) << "crystal collocated charge vs Tr(D S^G)";
 }
 
-// ANALYTIC INTEGRATE-BACK (GPWPlan.md S0 Increment B): LatticeSum1E::IntegratePotential is the exact adjoint
-// of CollocateDensity (same box + wrap).  Two gates: (1) ADJOINT consistency <collocate(D),V> == <D,integrate(V)>
-// to machine precision (variational -- the KS matrix is the exact gradient of the grid energy); (2) it
-// reproduces the dense sampled integrate-back (DenseOverlapMatrix) to grid tolerance.
-TEST(GPW, DISABLED_AnalyticIntegrateBackAdjointAndDense)
+// ANALYTIC INTEGRATE-BACK (GPWPlan.md S0 Increment B): IntegratePotential is the exact adjoint of
+// CollocateDensity (same screened offsets, boxes, wrap, level assignment).  Two gates:
+//   (1) KERNEL-level (K=1): <collocate(D),V> == Tr(D h) to machine precision (variational -- the KS matrix is
+//       the exact gradient of the grid energy);
+//   (2) SEAM-level, MULTI-GRID: Tr(D OverlapMatrix(Vtilde)) == Omega Sum_G apply(D)(G) Vtilde(G) -- the same
+//       identity through the level ladder: per level the grid quadrature is Parseval-exact against the
+//       spectrally-restricted V_l, and the nested G-space combine matches the per-pair level assignment, so
+//       the multigrid density and multigrid KS matrix are exact adjoints too.
+TEST(GPW, AnalyticIntegrateBackAdjoint)
 {
     const double a=12.0;
     UnitCell cell(a);
@@ -493,29 +326,35 @@ TEST(GPW, DISABLED_AnalyticIntegrateBackAdjointAndDense)
     EXPECT_TRUE(lat);
     const ivec3_t N=ev.DensityGrid().FFTGrid();
     const size_t  n=ev.size();
-
-    auto field=[](const ivec3_t& dm)->dcmplx
+    auto gamma=[](const ivec3_t&)->dcmplx { return dcmplx(1.0); };
+    auto field=[](const ivec3_t& dm)->dcmplx        // smooth all-G field (Hartree/XC-like), symmetric in G->-G
         { double g2=double(dm.x*dm.x+dm.y*dm.y+dm.z*dm.z); return dcmplx(1.0/(1.0+g2),0.0); };
+    chmat_t D(n);                                   // Hermitian test density
+    for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) D(i,j)=(i==j)?dcmplx(1.0):dcmplx(0.3);
+
+    // (1) kernel-level adjoint at K=1: <collocate(D),V> == Tr(D h) to machine precision
     ΔG_Map vmap; for (const ivec3_t& dm : ev.DensityGrid().Gs()) vmap[dm]=field(dm);
-    rvec_t V=ev.DensityGrid().RhoOnGrid(vmap);                 // V(r) on the grid
-    rmat_t h=lat->IntegratePotential(V, cell, N);
-
-    // (1) adjoint: <collocate(D),V> == Tr(D integrate(V)) to machine precision (same box + wrap on both sides)
-    rmat_t D(n,n,0.0); for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) D(i,j)=(i==j)?1.0:0.3;  // symmetric
-    rvec_t rho=lat->CollocateDensity(D, cell, N);
+    rvec_t V=ev.DensityGrid().RhoOnGrid(vmap);                 // V(r) on the fine grid
+    const double ecut=ev.DensityGrid().Ecut();
+    chmat_t h=lat->IntegratePotential({V}, gamma, cell, {N}, {ecut});
+    rvec_t rho=lat->CollocateDensity(D, gamma, cell, {N}, {ecut})[0];
     const double w=cell.GetCellVolume()/double(V.size());
-    double lhs=0.0; for (size_t g=0;g<V.size();g++) lhs+=rho[g]*V[g]*w;
-    double rhs=0.0; for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) rhs+=D(i,j)*h(i,j);
-    EXPECT_NEAR(lhs, rhs, 1e-8*std::fabs(rhs)) << "adjoint <collocate(D),V> == <D,integrate(V)>";
+    double lhs=0.0; for (size_t p=0;p<V.size();p++) lhs+=rho[p]*V[p]*w;
+    dcmplx rhs(0.0); for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) rhs+=dcmplx(D(i,j))*dcmplx(h(j,i));
+    EXPECT_NEAR(lhs, std::real(rhs), 1e-8*std::fabs(lhs)) << "adjoint <collocate(D),V> == Tr(D h)";
+    EXPECT_LT(std::fabs(std::imag(rhs)), 1e-10) << "Tr(D h) must be real (both Hermitian)";
 
-    // (2) vs the dense sampled integrate-back, to grid tolerance
-    chmat_t hd=ev.DenseOverlapMatrix(field);
-    double num=0.0, den=0.0;
-    for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++)
-    { double d=h(i,j)-std::real(dcmplx(hd(i,j))); num+=d*d; den+=std::norm(dcmplx(hd(i,j))); }
-    std::cout << "[integrate-back] adjoint lhs=" << lhs << " rhs=" << rhs
-              << "  vs-dense relDiff=" << std::sqrt(num/den) << std::endl;
-    EXPECT_LT(std::sqrt(num/den), 5e-2) << "analytic integrate-back vs dense to grid tolerance";
+    // (2) seam-level, MULTI-GRID: Tr(D OverlapMatrix(field)) == Omega Sum_G apply(D)(G) field(G)
+    chmat_t H=ev.OverlapMatrix(field);                         // the SCF KS bridge (multi-grid analytic)
+    dcmplx trDH(0.0); for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) trDH+=dcmplx(D(i,j))*dcmplx(H(j,i));
+    G_ERI3 ovt=ev.Overlap3CTensor();
+    ΔG_Map rhoT=ContractG_ERI3(ovt, D);                        // the SCF density map (multi-grid, nested)
+    dcmplx eG(0.0); for (const auto& [dm,c] : rhoT) eG+=c*field(dm);
+    eG*=ovt.volume;
+    std::cout << "[integrate-back] kernel adjoint lhs=" << lhs << " rhs=" << std::real(rhs)
+              << "   seam adjoint Tr(D H)=" << std::real(trDH) << " Omega Sum rho.V=" << std::real(eG) << std::endl;
+    EXPECT_NEAR(std::real(trDH), std::real(eG), 1e-8*std::fabs(std::real(trDH)))
+        << "multi-grid seam adjoint: Tr(D MakeOverlap(V)) == <apply(D),V>";
 }
 
 // === General-k (Step 1): the Bloch phase e^{ik.R} enters the lattice sums ============================

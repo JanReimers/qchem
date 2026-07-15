@@ -86,14 +86,14 @@ public:
     virtual chmat_t MakeKinetic(const std::vector<rvec3_t>& Rs, const cvec_t& phases) const override;
     virtual chmat_t MakeNuclear(const std::vector<rvec3_t>& Rs, const cvec_t& phases, const Structure* cl) const override;
     virtual double  MaxExponent() const override;   // finest exponent -> the GPW density-grid cutoff floor
-    virtual chmat_t MakePotentialMatrix(const rvec3vec_t& gridPts, const std::vector<rvec3_t>& Rs,
-                                        const cvec_t& phases, const rvec_t& V, double w) const override; // GPW integrate-back (patched)
     virtual double  MinExponent() const override;   // coarsest exponent -> the multi-grid coarsest level
-    virtual chmat_t MakePotentialMatrixMG(const std::vector<rvec3vec_t>& gridPts_L, const std::vector<double>& ecut_L,
-                                          const std::vector<rvec3_t>& Rs, const cvec_t& phases,
-                                          const std::vector<rvec_t>& V_L, const std::vector<double>& w_L) const override;
-    virtual rvec_t  CollocateDensity(const rmat_t& D, const UnitCell& A, const ivec3_t& N) const override;  // CP2K analytic collocation
-    virtual rmat_t  IntegratePotential(const rvec_t& V, const UnitCell& A, const ivec3_t& N) const override; // its adjoint (integrate-back)
+    // CP2K analytic multi-grid collocation + its exact adjoint (the GPW density/KS bridge).
+    virtual std::vector<rvec_t> CollocateDensity(const chmat_t& D, const cellphase_t& phase, const UnitCell& A,
+                                                 const std::vector<ivec3_t>& N_L,
+                                                 const std::vector<double>& ecut_L) const override;
+    virtual chmat_t IntegratePotential(const std::vector<rvec_t>& V_L, const cellphase_t& phase, const UnitCell& A,
+                                       const std::vector<ivec3_t>& N_L,
+                                       const std::vector<double>& ecut_L, double relCutoffScale) const override;
 };
 // Use E prefix to avoid name clash with the interface class Fit_IBS
 class EFit_IBS

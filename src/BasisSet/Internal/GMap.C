@@ -49,18 +49,12 @@ struct G_ERI3
     std::vector<Column> columns;   //!< one per fit function; \c pairs = the plane-wave delta support (empty for GPW)
     rvec_t              kernel;    //!< per-column \f$4\pi/|G_c|^2\f$ (Coulomb) or EMPTY (overlap, \f$\equiv 1\f$)
     double              volume=0.0;//!< cell volume \f$\Omega\f$ (the \f$1/\Omega\f$ normalisation)
-    //! \brief GPW ONLY: the dense collocation weights \f$W_c(i,j)=\tfrac1\Omega\int\chi_i\chi_j e^{-iG_c\cdot r}\f$
-    //! (the FT of the Gaussian orbital product), one \f$n\times n\f$ (complex, symmetric) matrix per column.
-    //! EMPTY for the plane-wave delta path (which uses \ref Column::pairs).  When present, the \f$1/\Omega\f$
-    //! is ALREADY folded in (so \ref ContractG_ERI3 does NOT divide by \ref volume on this branch).  This is
-    //! the "flexible struct" extension GPW needs -- a dense per-column rank-2 integral where PW has a delta.
-    std::vector<mat_t<dcmplx>> weights;
     //! \brief MATRIX-FREE realization (GPW analytic collocation): applies the density-to-\f$\tilde\rho\f$ (or
     //! \f$\to V_H\f$, kernel folded in) map to \f$D\f$ WITHOUT materializing a per-column tensor -- the basis
-    //! sets it to a closure that collocates \f$\rho=\sum_{ij}D_{ij}\chi_i\chi_j\f$ on compact boxes then FFTs
-    //! (the dense \ref weights are \f$O(N_G n^2)\f$ storage, prohibitive at scale; this is the same map applied
-    //! matrix-free).  When set it takes priority in \ref ContractG_ERI3.  Type-erased so this leaf names no
-    //! GPW/grid type.  The G_ERI3 stays a static-data "spec of required transfers" with optional realizations.
+    //! sets it to a closure that collocates \f$\rho=\sum_{ij}D_{ij}\chi_i\chi_j\f$ analytically on compact
+    //! boxes (multi-grid) then FFTs.  When set it takes priority in \ref ContractG_ERI3.  Type-erased so this
+    //! leaf names no GPW/grid type.  The G_ERI3 stays a static-data "spec of required transfers" with an
+    //! optional realization.
     std::function<ΔG_Map(const chmat_t& D)> apply;
 };
 
@@ -75,22 +69,6 @@ struct G_ERI3
     // (or ->V_H, kernel folded in) map to D directly -- no per-column tensor.  Takes priority when set.
     if (g.apply) return g.apply(D);
     ΔG_Map rg;
-    if (!g.weights.empty())
-    {
-        // GPW collocation path: rho-tilde(dm) = k_c Sum_ij W_c(i,j) D_ij, the dense per-column contraction of
-        // the Gaussian-product FTs W_c against D.  The 1/Omega is already in W (unlike the delta pairs below),
-        // so no /volume here.  W_c and D are both n x n (D Hermitian); a plain double sum.
-        assert(g.weights.size()==g.columns.size());
-        for (size_t c=0; c<g.columns.size(); ++c)
-        {
-            const mat_t<dcmplx>& W=g.weights[c];
-            size_t n=W.rows();
-            dcmplx s(0.0);
-            for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) s += W(i,j)*D(i,j);
-            rg[g.columns[c].dm] = g.kernel.size()==0 ? s : g.kernel[c]*s;
-        }
-        return rg;
-    }
     for (size_t c=0; c<g.columns.size(); ++c)   // plane-wave delta path: k_c/Omega Sum_{(i,j):dm} D_ij
     {
         dcmplx s(0.0);

@@ -35,6 +35,7 @@
 // grows a complex-weight Mesh (cMesh = Mesh<dcmplx>) the pair collapses to a single `const cMesh&` argument
 // (Rs -> m.Points(), phases -> m.Weights()).  Kept as an adjacent pair for now to make that swap mechanical.
 module;
+#include <functional>   // cellphase_t (the Bloch phase of an integer cell offset -- k stays lattice-side)
 #include <vector>
 export module qchem.BasisSet.Molecule.LatticeSum1E;
 import qchem.Structure;   // Structure (the nuclear-attraction centres)
@@ -79,59 +80,52 @@ public:
     //! \c densityEcut from the basis instead of leaving that (basis-dependent) burden on the caller.
     virtual double MaxExponent() const = 0;
 
-    //! \brief The GPW COLLOCATION-ADJOINT (integrate-back), molecular-side and PATCHED -- the KS block
-    //! \f$M_{ij}=w\sum_{p\in\mathrm{supp}(i,j)}\overline{\chi_i^k(r_p)}\,V(r_p)\,\chi_j^k(r_p)\f$ over the GPW
-    //! density grid \a gridPts, restricted per orbital to the grid points where the Bloch orbital
-    //! \f$\chi_i^k=\sum_R e^{ik\cdot R}\chi_i(\cdot-R)\f$ is above the (internal) magnitude-screening tolerance
-    //! -- so a pair contracts only on the intersection of its two orbitals' supports (the tight/localized part).
-    //! \a Rs / \a phases are the Bloch image set (as in \c MakeOverlap); \a V the real-space potential sampled
-    //! on \a gridPts; \a w the uniform quadrature weight \f$\Omega/N_{pts}\f$.  Hermitian (real diagonal), real
-    //! at \f$\Gamma\f$.  The Gaussian primitives (centres, exponents) stay ENCAPSULATED -- the screening / support
-    //! determination is internal; only the grid + potential cross the seam.  Bit-consistent with the dense grid
-    //! contraction \f$w\,\Phi^H(V\!\odot\!\Phi)\f$ to the screening tolerance.  This is the SINGLE-GRID scaffold
-    //! for the multi-grid rewrite (doc/GPWPlan.md \S0): per-orbital patches on one grid are ~break-even with the
-    //! dense GEMM, but they carry directly to per-exponent grid levels where each pair's patch is small.
-    virtual chmat_t MakePotentialMatrix(const rvec3vec_t& gridPts,
-                                        const std::vector<rvec3_t>& Rs, const cvec_t& phases,
-                                        const rvec_t& V, double w) const = 0;
-
     //! The coarsest primitive Gaussian exponent \f$\alpha_{\min}\f$ -- the diffuse end (mirrors \c MaxExponent).
-    //! Sets the coarsest useful GPW density-grid LEVEL for the multi-grid integrate-back (\c MakePotentialMatrixMG):
-    //! the ladder runs from the fine grid (\f$\propto\alpha_{\max}\f$) down to \f$\propto\alpha_{\min}\f$.
+    //! Sets the coarsest useful GPW density-grid LEVEL for the multi-grid collocation ladder: the levels run
+    //! from the fine grid (\f$\propto\alpha_{\max}\f$) down to \f$\propto\alpha_{\min}\f$.
     virtual double MinExponent() const = 0;
 
-    //! \brief MULTI-GRID collocation adjoint (integrate-back): each orbital PAIR is contracted on the COARSEST
-    //! grid LEVEL that resolves its product exponent \f$\alpha_i+\alpha_j\f$, so diffuse pairs live on small
-    //! coarse grids instead of the fine grid dictated by the tightest primitive
-    //! (\f$O(n^2N_{pts}^{fine})\to O(\sum_L\mathrm{pairs}(L)\,N_{pts}(L))\f$ -- the GPW gap-closer, CP2K's
-    //! \c REL_CUTOFF multigrid).  Levels arrive FINEST-FIRST: \a gridPts_L[L] the level's grid points,
-    //! \a V_L[L] the potential restricted to that level, \a w_L[L]\f$=\Omega/N_{pts}(L)\f$ the quadrature weight,
-    //! \a ecut_L[L] the level cutoff (descending -- drives the internal pair\f$\to\f$level assignment from the
-    //! encapsulated exponents).  \a Rs / \a phases the Bloch image set.  APPROXIMATE vs the single fine grid --
-    //! a coarse-level pair carries that level's (adequate-by-construction) grid error; converges to the fine
-    //! result as the ladder refines.  With \f$K=1\f$ it reduces to \c MakePotentialMatrix on the fine grid.
-    virtual chmat_t MakePotentialMatrixMG(const std::vector<rvec3vec_t>& gridPts_L, const std::vector<double>& ecut_L,
-                                          const std::vector<rvec3_t>& Rs, const cvec_t& phases,
-                                          const std::vector<rvec_t>& V_L, const std::vector<double>& w_L) const = 0;
+    //! \brief The Bloch phase of an INTEGER cell offset \f$n\f$: \f$e^{ik\cdot R_n}\f$.  The k-CONVENTION stays
+    //! entirely on the lattice/GPW side (the caller supplies this closure); the molecular side only ever asks
+    //! "what is the phase of offset \f$n\f$" for the cross-cell pair offsets it enumerates internally (it cannot
+    //! receive a pre-built \c (Rs,phases) pair because the offsets are magnitude-screened per pair, not a fixed
+    //! caller-visible set).  \f$\Gamma\f$ = the constant 1.
+    using cellphase_t = std::function<dcmplx(const ivec3_t& n)>;
 
-    //! \brief ANALYTIC per-pair density collocation (CP2K GPW): \f$\rho(r)=\sum_{ij}D_{ij}\chi_i(r)\chi_j(r)\f$
-    //! collocated onto the \a N-division density grid of direct cell \a A (raster \f$r=A(idx/N)\f$), each pair
-    //! evaluated analytically on its compact exp-tail box and MODULO-WRAPPED onto the grid.  There is NO
-    //! lattice-image sum (the wrap IS the image sum) and NO hard cutoff (the box ends where the product
-    //! \f$<\varepsilon\f$, a smooth tail -> no Gibbs ringing).  Density-matrix driven (not a summed-orbital
-    //! sample), so \f$\int\rho = \mathrm{Tr}(DS)\f$.  Real \a D (\f$\Gamma\f$); the k-dependence lives in
-    //! \f$D(R)=\sum_k w_k e^{ikR}\f$ upstream.  This REPLACES the sampled Bloch-orbital collocation + the
-    //! \c Rcut/collRcut image sum (doc/GPWPlan.md \S0).
-    virtual rvec_t CollocateDensity(const rmat_t& D, const UnitCell& A, const ivec3_t& N) const = 0;
+    //! \brief ANALYTIC per-pair density collocation on a MULTI-GRID ladder (CP2K GPW / Quickstep): the grid
+    //! density \f$\rho(r)=\sum_{ij}\sum_{R}\,\mathrm{Re}[D_{ij}e^{-ik\cdot R}]\,\chi_i(r)\chi_j(r-R)\f$ --
+    //! the cell-periodic density of the Bloch orbital products \f$\chi_i^k\overline{\chi_j^k}\f$ -- with each
+    //! (pair, cross-cell offset \f$R\f$) term evaluated ANALYTICALLY on its compact exp-tail box and
+    //! MODULO-WRAPPED onto the grid.  The offsets are magnitude-screened (no hard \c Rcut, no Gibbs ringing);
+    //! the wrap IS the image sum.  Density-matrix driven, so \f$\int\rho=\mathrm{Tr}(DS^k)\f$ (\f$S^k\f$ the
+    //! screened-complete Bloch overlap).  MULTI-GRID (CP2K \c REL_CUTOFF): levels arrive FINEST-FIRST --
+    //! \a N_L[L] the level's grid divisions of cell \a A (raster \f$r=A(idx/N)\f$), \a ecut_L[L] its cutoff
+    //! (descending); each pair is collocated on the COARSEST level that still resolves its product exponent
+    //! \f$\alpha_i+\alpha_j\f$ (the internal assignment -- primitives stay encapsulated), so diffuse pairs live
+    //! on small coarse grids: \f$O(n^2N_{pts}^{fine})\to O(\sum_L\mathrm{pairs}(L)N_{pts}(L))\f$.  Returns one
+    //! grid density per level (the caller FFTs each and combines \f$\tilde\rho\f$ nested in G-space).  Because
+    //! the collocation is analytic (never a sampled orbital), a diffuse pair on its matched coarse grid is
+    //! accurate -- the sampling multigrid's fatal aliasing is absent by construction.  \f$K=1\f$ = single grid.
+    virtual std::vector<rvec_t> CollocateDensity(const chmat_t& D, const cellphase_t& phase, const UnitCell& A,
+                                                 const std::vector<ivec3_t>& N_L,
+                                                 const std::vector<double>& ecut_L) const = 0;
 
-    //! \brief The collocation ADJOINT (integrate-back): the KS block \f$h_{ij}=\int\chi_i V\chi_j
-    //! =w\sum_{\text{box}}\chi_i\chi_j V\f$, per pair on the SAME compact exp-tail box + modulo-wrap as
-    //! \c CollocateDensity -- so it is the EXACT adjoint (variational: \f$\langle\text{collocate}(D),V\rangle=
-    //! \langle D,\text{integrate}(V)\rangle\f$).  \a V is the real-space potential on the \a N-division grid of
-    //! cell \a A (raster \f$r=A(idx/N)\f$); \f$w=\Omega/N_{pts}\f$.  Only \a V is sampled (weighted by the
-    //! analytic Gaussians), never the raw product -> accurate on a grid that resolves the pair (multigrid).
-    //! Symmetric at \f$\Gamma\f$ (real).  REPLACES the sampled \c OverlapMatrix(Vtilde) + \c Rcut image sum.
-    virtual rmat_t IntegratePotential(const rvec_t& V, const UnitCell& A, const ivec3_t& N) const = 0;
+    //! \brief The collocation ADJOINT (integrate-back): the KS block \f$h_{ij}=\langle\chi_i^k|V|\chi_j^k\rangle
+    //! =\sum_R e^{ik\cdot R}\,w_L\sum_{\text{box}}\chi_i(r)\chi_j(r-R)V(r)\f$, per (pair, offset) on the SAME
+    //! compact exp-tail box + modulo-wrap + level assignment as \c CollocateDensity -- so it is the EXACT
+    //! adjoint (variational: \f$\int\rho V=\mathrm{Tr}(Dh)\f$ to machine precision).  \a V_L[L] is the real-space
+    //! potential on level \f$L\f$'s grid (the caller restricts \f$\tilde V\f$ to each level's \f$\{G\}\f$ --
+    //! a SPECTRAL low-pass, no ringing); \f$w_L=\Omega/N_{pts}(L)\f$ is internal.  Only \f$V\f$ is sampled
+    //! (weighted by the analytic Gaussians), never the sharp orbital product -> accurate on the matched coarse
+    //! grid.  Hermitian; real at \f$\Gamma\f$.
+    //! \a relCutoffScale STIFFENS the pair->level requirement for SHARP fields (default 1 = the smooth-field
+    //! calibration).  The energy error of a (pair x field) product decays with the SUM of both spectra: for the
+    //! smooth \f$V_H/V_{xc}\f$ the field decays like the density, but the LOCAL PSEUDOPOTENTIAL is spectrally
+    //! BROAD, so its integrate-back must place each pair on a finer level (~6x) -- while the ultra-diffuse
+    //! pairs still fall to deep coarse levels (their own spectra kill the field's tail).
+    virtual chmat_t IntegratePotential(const std::vector<rvec_t>& V_L, const cellphase_t& phase, const UnitCell& A,
+                                       const std::vector<ivec3_t>& N_L,
+                                       const std::vector<double>& ecut_L, double relCutoffScale=1.0) const = 0;
 };
 
 } //namespace

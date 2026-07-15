@@ -120,12 +120,10 @@ GpwResult RunGPW(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, doub
                  int Nelec, const char* element, const char* label, bool verbose=false, int nmax=120,
                  qchem::Ortho ortho=qchem::Cholesky, double orthoTol=0.0, double collRcut=0.0,
                  rvec3_t kShift={0,0,0}, double minDrho=1e-6, double minDE=1e30,
-                 qchem::ChargeDensity::SeedStrategy seed=qchem::ChargeDensity::SeedStrategy::Uniform,
-                 bool useMG=false)
+                 qchem::ChargeDensity::SeedStrategy seed=qchem::ChargeDensity::SeedStrategy::Uniform)
 {
     namespace L3=BasisSet::Lattice_3D;
     std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, std::move(mol), densityEcut, Rcut, collRcut, kShift));
-    if (useMG) for (auto ev : bs->Iterate<BasisSet::Lattice_3D::GPW_Evaluator>()) ev->UseMultiGrid(true);  // dynamic V_H+V_xc multi-grid
     auto       irreps=bs->GetIrreps(Spin::None);   // one Bloch irrep per BZ k-block (weights carry the Sum_k)
     Crystal_EC ec(irreps, Nelec);                  // multi-k ready; a single Gamma block is the length-1 case
     // Ham_PW_DFT drives GPW verbatim (kinetic + external-PP + Hartree + Dirac X + VWN5 + ion-ion Ewald).
@@ -173,27 +171,28 @@ GpwResult RunGPW(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, doub
 // Etot=-8.248 -- close to the plane-wave bulk-Si -7.2273 (Ecut=4) / converged ~-7.9.  The residual ~1 Ha is
 // the Rcut=0 over-binding (home-cell electrons, no inter-cell screening, feel the full periodic ion Ewald);
 // true bulk (Rcut>0) awaits the overlap-conditioning fix.  A did-E-move regression anchor (pin the value).
-// (1c) MULTI-K PLUMBING: a 2x1x1 Monkhorst-Pack mesh (2 k-points) at Rcut=0.  With no inter-cell images every
-// k-block is IDENTICAL to Gamma (the phase multiplies only the origin), so the whole multi-k machinery -- one
-// GPW_IBS per BZ k-point (GPW_BasisSet iterating MakeKMesh WITH BZ weights, mirroring PW_BasisSet), the multi-
-// block GetIrreps, Crystal_EC's BZ-weighted (Sum_k w_k) occupation, the framework's per-irrep k-loop, and the
-// BZ-summed charge/energy -- must reproduce the single-Gamma total EXACTLY (well-conditioned, no dispersion).
-// This is the tight, robust gate for Step 2's plumbing (it caught a missing BZ weight -> charge x Nk); the
-// dispersive bulk (Rcut>0) is the DISABLED conditioning study below.  A 2-point mesh exercises the same multi-
-// block plumbing as 2x2x2 at ~1/4 the cost (the Rcut=0 blocks are redundant copies of Gamma).
+// (1c) MULTI-K PLUMBING: a 2x1x1 Monkhorst-Pack mesh (2 k-points), SR basis, Rcut=2a.  The ANALYTIC
+// collocation always sums the screened cross-cell pair offsets (with their Bloch phases), so there is no
+// "Rcut=0 makes every k-block a copy of Gamma" shortcut any more -- the 2-point mesh has REAL dispersion, and
+// this pins its BZ-weighted total.  What the gate protects is the multi-k machinery: one GPW_IBS per BZ
+// k-point (GPW_BasisSet iterating MakeKMesh WITH BZ weights), the multi-block GetIrreps, Crystal_EC's
+// BZ-weighted (Sum_k w_k) occupation, the per-irrep k-loop, and the BZ-summed charge/energy (it caught a
+// missing BZ weight -> charge x Nk).  Energy-gated at the fit floor like the Gamma anchor.
 TEST(GPW_SCF, SiliconMultiKPlumbing)
 {
     const double a=10.26;
     FCCUnitCell cell(a);
     cell.AddAtom(14, {0,0,0});
     cell.AddAtom(14, {0.25,0.25,0.25});
-    Lattice_3D lat(cell, ivec3_t(2,1,1));   // 2 k-points, but Rcut=0 -> both identical to Gamma
+    Lattice_3D lat(cell, ivec3_t(2,1,1));   // 2 k-points: Gamma + the zone-boundary k=1/2 (real +-1 phases)
 
-    GpwResult R=RunGPW(lat, MakeBasis(cell), /*densityEcut*/12.0, /*Rcut*/0.0, /*Nelec*/8, "Si", "Si 2x1x1 Rcut=0");
+    GpwResult R=RunGPW(lat, MakeBasisSR(cell), /*densityEcut*/20.0, /*Rcut*/2.0*a, /*Nelec*/8, "Si",
+                       "Si SR 2x1x1 Rcut=2a", /*verbose*/false, /*nmax*/60, qchem::Cholesky, 0.0, 0.0,
+                       /*kShift*/rvec3_t(0,0,0), /*minDrho*/1e-3, /*minDE*/1e-6);
 
     EXPECT_TRUE(R.converged);
     EXPECT_NEAR(R.charge, 8.0, 1e-6);                          // 8 valence e- (BZ-weighted Sum_k, not x Nk)
-    EXPECT_NEAR(R.E.GetTotalEnergy(), -8.2476, 5e-3);         // == the Gamma total (SiliconGammaConverges)
+    EXPECT_NEAR(R.E.GetTotalEnergy(), -7.45137, 5e-3);         // did-E-move anchor (2x1x1 dispersion, analytic path)
 }
 
 // DISPERSIVE MULTI-K BULK (disabled: 8 k-blocks, ~4 min) -- the first REAL bulk GPW, unblocked by the KB
@@ -296,30 +295,13 @@ TEST(GPW_SCF, DISABLED_TermTranslationInvariance)
     }
 }
 
-// THE CP2K ENERGY GATE (disabled: an image-heavy SR SCF, ~45 s).  SR basis, Gamma, at a FULLY-WRAPPED Rcut>=2a
-// (where every term is translation-invariant, per the probe above) reproduces the CP2K FCC-Si Gamma GPW
-// reference (SIPP_SR / GTH-PADE-q4 / LDA_X+VWN5).  densityEcut=20 (FFT N=32): Etot=-7.11467, charge 8,
-// Exc=-2.544 -- within 0.4 mHa of CP2K -7.11506 (the N=32 grid-convergence gap; densityEcut>=30 -> N=64 ->
-// -7.11505, an exact match, but ~5x slower).  doc/GPWPlan.md TODO 1's HARD gate -- the KB Bloch-orbital fix
-// (TODO 1a) closes it.  Cost was cut ~25x (1100->45 s) by caching PhiOnGrid + this smaller-but-adequate grid.
-TEST(GPW_SCF, DISABLED_SR_GammaRcut2a_CP2KReference)
-{
-    const double a=10.26;
-    FCCUnitCell cell(a);
-    cell.AddAtom(14, {0,0,0});
-    cell.AddAtom(14, {0.25,0.25,0.25});
-    Lattice_3D lat(cell, ivec3_t(1,1,1));
-    // Energy-based convergence (minDE=1e-6, minDrho relaxed to the ~2e-4 fit floor): the total settles at the
-    // fit floor by ~iter 15, so this stops there instead of chasing Δρ<1e-6 (unreachable, non-variational) to
-    // nmax=60.  Same converged energy, ~2.5x fewer iterations.
-    GpwResult R=RunGPW(lat, MakeBasisSR(cell), /*densityEcut*/20.0, /*Rcut*/2.0*a, /*Nelec*/8, "Si",
-                       "SR Gamma Rcut=2a dE=20 N=32", /*verbose*/true, /*nmax*/60, qchem::Cholesky, 0.0, 0.0,
-                       /*kShift*/rvec3_t(0,0,0), /*minDrho*/1e-3, /*minDE*/1e-6);
-    EXPECT_TRUE(R.converged) << "energy-based convergence should stop the SR Gamma run at the fit floor";
-    EXPECT_NEAR(R.charge, 8.0, 1e-6);
-    EXPECT_NEAR(R.E.GetTotalEnergy(), -7.11506, 2e-3) << "GPW Gamma SR Rcut=2a vs CP2K FCC-Si reference";
-}
-
+// (1) THE GAMMA ANCHOR == THE CP2K ENERGY GATE.  SR basis, Rcut=2a (every term translation-invariant and
+// screened-complete), densityEcut=20 (FFT N=32): reproduces the CP2K FCC-Si Gamma GPW reference (SIPP_SR /
+// GTH-PADE-q4 / LDA_X+VWN5) Etot=-7.11506 to the N=32 grid gap (~0.4 mHa; densityEcut>=30 -> -7.11505 exact).
+// NOTE (analytic path): the old fast Rcut=0 anchor (-8.2476) is GONE -- the analytic collocation is always
+// screened-complete Bloch, so home-only 1E matrices would MIX SCHEMES (Tr(D S_home)=8 while the grid density
+// integrates the Bloch trace -- the forbidden inconsistency; doc/GPWPlan.md durable pins).  SR keeps the Bloch
+// overlap cleanly PD at 2a.  Energy-gated at the density-fit floor (minDE=1e-6, minDrho relaxed to 1e-3).
 TEST(GPW_SCF, SiliconGammaConverges)
 {
     const double a=10.26;                          // Si conventional cubic lattice constant (a.u.)
@@ -328,34 +310,13 @@ TEST(GPW_SCF, SiliconGammaConverges)
     cell.AddAtom(14, {0.25,0.25,0.25});
     Lattice_3D lat(cell, ivec3_t(1,1,1));
 
-    // Home cell only (Rcut=0): the primitive-cell Si2 (8 valence e- -> closed shell) with periodic
-    // Hartree/XC/Ewald.  Folding images (Rcut>0) makes the diffuse Gaussians linearly dependent -> non-PD
-    // overlap (a conditioning limit, deferred); Rcut=0 keeps S positive-definite and converges cleanly.
-    GpwResult R=RunGPW(lat, MakeBasis(cell), /*densityEcut*/12.0, /*Rcut*/0.0, /*Nelec*/8, "Si", "Si Gamma");
+    GpwResult R=RunGPW(lat, MakeBasisSR(cell), /*densityEcut*/20.0, /*Rcut*/2.0*a, /*Nelec*/8, "Si",
+                       "Si SR Gamma Rcut=2a", /*verbose*/false, /*nmax*/60, qchem::Cholesky, 0.0, 0.0,
+                       /*kShift*/rvec3_t(0,0,0), /*minDrho*/1e-3, /*minDE*/1e-6);
 
-    EXPECT_TRUE(R.converged);                       // clean closed-shell convergence (~17 iters, complex DIIS)
-    EXPECT_NEAR(R.charge, 8.0, 1e-6);              // 8 valence electrons
-    EXPECT_NEAR(R.E.GetTotalEnergy(), -8.2476, 5e-3);    // regression anchor (densityEcut=12, Gamma, Rcut=0)
-}
-
-// (1d) MULTI-GRID dynamic integrate-back (GPWPlan.md S0 Increment 2): the same Si Gamma SCF with the smooth
-// dynamic Hartree+XC integrate-back on the exponent-matched level ladder (the STATIC sharp local PP stays
-// dense).  Must reproduce the dense Gamma total to GRID tolerance -- the whole-multi-grid correctness gate
-// (an earlier integrate-back that ALSO coarsened the sharp local PP gave -21.4; keeping V_loc dense fixes it).
-TEST(GPW_SCF, SiliconGammaMultiGrid)
-{
-    const double a=10.26;
-    FCCUnitCell cell(a);
-    cell.AddAtom(14, {0,0,0});
-    cell.AddAtom(14, {0.25,0.25,0.25});
-    Lattice_3D lat(cell, ivec3_t(1,1,1));
-    GpwResult R=RunGPW(lat, MakeBasis(cell), /*densityEcut*/12.0, /*Rcut*/0.0, /*Nelec*/8, "Si", "Si Gamma MG",
-                       /*verbose*/false, /*nmax*/120, qchem::Cholesky, /*orthoTol*/0.0, /*collRcut*/0.0,
-                       /*kShift*/{0,0,0}, /*minDrho*/1e-6, /*minDE*/1e30,
-                       qchem::ChargeDensity::SeedStrategy::Uniform, /*useMG*/true);
     EXPECT_TRUE(R.converged);
-    EXPECT_NEAR(R.charge, 8.0, 1e-6);
-    EXPECT_NEAR(R.E.GetTotalEnergy(), -8.2476, 5e-3);    // == dense Gamma to grid tolerance (measured -8.2485)
+    EXPECT_NEAR(R.charge, 8.0, 1e-6);              // 8 valence electrons
+    EXPECT_NEAR(R.E.GetTotalEnergy(), -7.11506, 2e-3);   // CP2K FCC-Si Gamma reference (grid-gap tolerance)
 }
 
 // (2) THE TIGHT CROSS-CHECK: the isolated Si pseudo-atom in a box vs the finite molecular DFT on the SAME
@@ -377,7 +338,10 @@ TEST(GPW_SCF, SiPseudoAtomInBoxMatchesFinite)
     AtomCalculation cHi(14, 14-4, {.type=AtomType::Slater, .accuracy=BasisSetAccuracy::High, .pseudopotential=true});
     std::cout << "[Si finite] sipp="<<Esipp<<"  Slater/High="<<cHi.Energy()<<std::endl;
 
-    const double a=11.0;
+    // Box a=16 (was 11): the analytic collocation always includes the screened cross-cell pair products, so
+    // the box must be large enough that they are negligible for the finite-molecule comparison (SIPP's most
+    // diffuse alpha=0.06 pair prefactor: e^{-0.03 a^2} = 2.7e-2 at a=11 -- visible; 4.6e-4 at a=16).
+    const double a=16.0;
     UnitCell cell(a);
     cell.AddAtom(14, {0.5,0.5,0.5});
     Lattice_3D lat(cell, ivec3_t(1,1,1));
@@ -453,85 +417,6 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
               << " (Ekin="<<E.Kinetic<<" Een="<<E.Een<<" Eee="<<E.Eee<<" Exc="<<E.Exc
               << " Enn="<<E.Enn<<" Ealign="<<E.Ealign<<")" << std::endl;
     EXPECT_NEAR(charge, 8.0, 1e-6);     // 1 (Na) + 7 (F) valence electrons, conserved
-}
-
-// (4c) MULTI-GRID accuracy on the WIDE exponent range (GPWPlan.md S0 Increment 2): the SAME committed NaF SCF
-// (Rcut=2a, SR, Kerker+DIIS, IonicSAD, densityEcut AUTO=160) run BOTH ways -- dense integrate-back vs the
-// dynamic multi-grid.  F's alpha=40..0.06 spans ~8 grid levels (vs Si Gamma's 2), the real stress test for the
-// coarsening.  The multi-grid total must track the dense total to grid tolerance (the sharp local PP stays
-// dense both ways).  DISABLED: two ~30-min SCFs.  Prints both totals + the delta.
-TEST(GPW_SCF, DISABLED_NaFMultiGridVsDense)
-{
-    using namespace qchem::Hamiltonian;
-    const double a=8.73;
-    auto run=[&](bool useMG)->std::pair<double,double>
-    {
-        FCCUnitCell cell(a);
-        cell.AddAtom(11, {0,0,0});
-        cell.AddAtom(9,  {0.5,0.5,0.5});
-        Lattice_3D lat(cell, ivec3_t(1,1,1));
-        auto mol = std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(
-            BasisSetData::VALENCE_LOWQ_SR, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
-        namespace L3=BasisSet::Lattice_3D;
-        std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, mol, /*densityEcut AUTO*/-1.0, /*Rcut*/2.0*a, /*collRcut*/0.0, {0,0,0}));
-        if (useMG) for (auto ev : bs->Iterate<L3::GPW_Evaluator>()) ev->UseMultiGrid(true);   // dynamic V_H+V_xc multi-grid
-        auto       irreps=bs->GetIrreps(Spin::None);
-        Crystal_EC ec(irreps, 8);
-        cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), bs.get(), {{"Na",1},{"F",7}}, "LDA");
-        auto* acc=new qchem::SCFAccelerators::cSCFAcceleratorDIIS(qchem::SCFAccelerators::DIISParams{8, 8.0, 1e-10, 1e-8});
-        qchem::SCFIterator::cSCFIterator scf(bs.get(), &ec, ham, acc,
-                                             qchem::ChargeDensity::SeedStrategy::IonicSAD, lat.GetStructure().get(),
-                                             qchem::Cholesky, 0.0);
-        SCFParams par; par.NMaxIter=60; par.MinΔρ=1e-3; par.MinΔE=1e-6; par.MinΔFD=1e30; par.MinVirial=1e30;
-        par.MinFD=1e30; par.StartingRelaxRo=0.3; par.MergeTol=1e-4; par.KerkerG0=1.0;
-        scf.Iterate(par);
-        auto* cd=scf.GetWaveFunction()->GetChargeDensity(); double charge=cd->GetTotalCharge(); delete cd;
-        return {charge, scf.GetEnergy().GetTotalEnergy()};
-    };
-    auto [cD,eD]=run(false);
-    auto [cM,eM]=run(true);
-    std::cout << "[NaF MG vs dense] dense: charge="<<cD<<" Etot="<<eD
-              << "   multi-grid: charge="<<cM<<" Etot="<<eM << "   dEtot="<<(eM-eD) << std::endl;
-    EXPECT_NEAR(cM, cD, 1e-6);
-    EXPECT_NEAR(eM, eD, 5e-2) << "multi-grid NaF total must track the dense total to grid tolerance";
-}
-
-// (4d) FAST multi-grid CALIBRATION of the ladder-depth cap (GPWPlan.md S0 Increment 2): NaF at Rcut=0 (home
-// cell, full basis, no images -> fast + PSD) and densityEcut=40 -- the SAME wide-exponent coarsening structure
-// as the auto-160 target (F alpha=40..0.06 spans the same ~5 levels; ecut only scales the grid size), but ~8x
-// cheaper.  Sweeps the depth cap: dense vs MG(maxLevels=2,3) -> the accuracy/win tradeoff.  Unbounded coarsening
-// (the (4c) run) gave dEtot 0.45; the cap should recover grid tolerance.  DISABLED: three fast SCFs.
-TEST(GPW_SCF, DISABLED_NaFMultiGridCalib)
-{
-    using namespace qchem::Hamiltonian;
-    const double a=8.73;
-    auto run=[&](bool useMG, int maxL)->double
-    {
-        FCCUnitCell cell(a);
-        cell.AddAtom(11, {0,0,0});
-        cell.AddAtom(9,  {0.5,0.5,0.5});
-        Lattice_3D lat(cell, ivec3_t(1,1,1));
-        auto mol = std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(
-            BasisSetData::VALENCE_LOWQ, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
-        namespace L3=BasisSet::Lattice_3D;
-        std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, mol, /*densityEcut*/40.0, /*Rcut*/0.0, /*collRcut*/0.0, {0,0,0}));
-        if (useMG) for (auto ev : bs->Iterate<L3::GPW_Evaluator>()) ev->UseMultiGrid(true, maxL);
-        auto       irreps=bs->GetIrreps(Spin::None);
-        Crystal_EC ec(irreps, 8);
-        cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), bs.get(), {{"Na",1},{"F",7}}, "LDA");
-        auto* acc=new qchem::SCFAccelerators::cSCFAcceleratorDIIS(qchem::SCFAccelerators::DIISParams{8, 8.0, 1e-10, 1e-8});
-        qchem::SCFIterator::cSCFIterator scf(bs.get(), &ec, ham, acc,
-                                             qchem::ChargeDensity::SeedStrategy::Uniform, lat.GetStructure().get(),
-                                             qchem::Cholesky, 0.0);
-        SCFParams par; par.NMaxIter=40; par.MinΔρ=1e-3; par.MinΔE=1e-6; par.MinΔFD=1e30; par.MinVirial=1e30;
-        par.MinFD=1e30; par.StartingRelaxRo=0.3; par.MergeTol=1e-4;
-        scf.Iterate(par);
-        return scf.GetEnergy().GetTotalEnergy();
-    };
-    double eD=run(false,0), e2=run(true,2), e3=run(true,3);
-    std::cout << "[NaF calib dE=40 Rcut=0] dense="<<eD<<"  MG(2)="<<e2<<" (d="<<(e2-eD)<<")  MG(3)="<<e3
-              << " (d="<<(e3-eD)<<")" << std::endl;
-    SUCCEED();
 }
 
 // VALIDATION (2026-07-13): can we drop the SR-basis hand-tuning and use the FULL valence_lowq basis, relying on

@@ -10,9 +10,6 @@ module;
 #include <string>
 #include <vector>
 #include <algorithm>
-#include <cblas.h>   // cblas_zgemm: the OverlapMatrix integrate-back contraction (NaF profile hotspot ~44%) --
-                     // OpenBLAS's SIMD/threaded complex GEMM.  blaze's own product is scalar in our TUs
-                     // (BLAZE_BLAS_MODE=0 -- Blaze_Import's define rides the Blaze cmake target we don't link).
 module qchem.BasisSet.Lattice_3D.Evaluators.GPW;
 import qchem.Blaze;       // rvec_t, rmat_t, rsmat_t, blazem::zeroH<dcmplx>
 import qchem.Vector3D;    // vec3_t + rvec3_t / rvec3vec_t arithmetic (r - R, componentwise add)
@@ -132,6 +129,7 @@ GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const
                              double cutoffFactor)
     : itsMol(std::move(mol))
     , itsk(kFrac)
+    , itsCell(cell)
 {
     // The single orbital block of the (raw, no-SALC) molecular Gaussian basis.
     const BasisSet::Real_OIBS* only=nullptr;
@@ -185,208 +183,85 @@ GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const
     }
 }
 
-// chi_i(r_g) on the density grid (Bloch-summed Gaussians; real at Gamma).  CACHED in itsPhiOnGrid: it is a
-// pure function of geometry (grid points + orbitals + image set), so it is identical across SCF iterations,
-// and both BuildWeights (one-time tensor) and the PER-ITERATION integrate-back OverlapMatrix reuse it.  The
-// Bloch sum is O(Npts x |image set|) and DENSITY-INDEPENDENT -- recomputing it every OverlapMatrix call was the
-// dominant cost at a large overlap Rcut (many images), so it is built once here.
-const mat_t<dcmplx>& GPW_Evaluator::PhiOnGrid() const
+// The Bloch phase closure the analytic kernels call back per screened cross-cell offset: e^{2 pi i k_frac.n}
+// (n the INTEGER cell index -- convention-safe, same convention as BuildImages).  Gamma: the constant 1.
+Molecule::LatticeSum1E::cellphase_t GPW_Evaluator::CellPhase() const
 {
-    assert(itsGrid && "GPW_Evaluator: DFT tier requires a density grid (densityEcut!=0: <0 auto, >0 explicit)");
-    if (itsPhiOnGrid.rows()!=0) return itsPhiOnGrid;   // built once, reused
-    const rvec3vec_t& pts=itsGrid->GridPoints();
-    size_t Npts=pts.size(), n=itsN;
-    itsPhiOnGrid.resize(Npts,n);
-    for (size_t g=0; g<Npts; g++)
+    const rvec3_t k=itsk;
+    return [k](const ivec3_t& n)->dcmplx
     {
-        cvec_t v=Eval(pts[g]);      // chi_i^k(r_g) = Sum_R e^{ik.R} chi_i(r_g - R) (real at Gamma)
-        for (size_t i=0;i<n;i++) itsPhiOnGrid(g,i)=v[i];
-    }
-    return itsPhiOnGrid;
+        double kn=k.x*n.x + k.y*n.y + k.z*n.z;
+        return std::exp(dcmplx(0.0, 2.0*Pi*kn));
+    };
 }
 
-// The D-free 3-centre weight tensor W_c(i,j) = (1/Omega) integral chi_i chi_j e^{-iG_c.r} =
-// GridCoeff(ForwardFFT(chi_i chi_j on grid), G_c) -- one FFT per orbital pair, one column per grid {G}.  NO
-// kernel (the overlap-metric weight); Repulsion3CTensor adds the Poisson kernel.  The framework caches the
-// tensors this feeds, so this is a plain stateless build.
-G_ERI3 GPW_Evaluator::BuildWeights() const
-{
-    const mat_t<dcmplx>& Phi=PhiOnGrid();
-    size_t Npts=Phi.rows(), n=itsN;
-    const std::vector<ivec3_t>& Gs=itsGrid->Gs();
-    G_ERI3 g;
-    g.volume=itsGrid->Volume();
-    g.columns.resize(Gs.size());
-    g.weights.assign(Gs.size(), mat_t<dcmplx>(n,n,dcmplx(0.0)));
-    for (size_t c=0;c<Gs.size();c++) g.columns[c].dm=Gs[c];
-
-    // W_c(i,j) = (1/Omega) integral chi_i^k conj(chi_j^k) e^{-iG_c.r}: the density-convention weight.  The KET
-    // (j) slot is CONJUGATED, matching the PHYSICAL density rho = Sum_ij D_ij chi_i conj(chi_j) (= Sum_occ
-    // |psi|^2 with psi=Sum c_i chi_i, D_ij=Sum_occ c_i conj(c_j)) -- the SAME convention as IrrepCD::operator()
-    // (trans(phi) D conj(phi)) and the plane-wave delta path (rho-tilde(G)=Sum_{G_i-G_j=G} D_ij).  ContractG_ERI3
-    // forms Sum_ij W_c(i,j) D_ij, so this yields the physical rho-tilde.  Conjugating the BRA (i) slot instead
-    // gives Sum_ij D_ij conj(chi_i) chi_j = the TRANSPOSE-density D^T -- a DIFFERENT real field at genuinely
-    // complex k (it over-binds Hartree/XC; the k=1/4 complex-k fix, doc/GPWPlan.md).  At Gamma / half-
-    // integer k the orbitals are real so conj is a no-op and this is byte-identical to the old form.
-    // NOT (i,j)-symmetric at general k, so loop the full n^2.
-    cvec_t prod(Npts);
-    for (size_t i=0;i<n;i++)
-        for (size_t j=0;j<n;j++)
-        {
-            for (size_t p=0; p<Npts; p++) prod[p]=Phi(p,i)*std::conj(Phi(p,j));
-            cvec_t P=itsGrid->ForwardFFT(prod);          // complex-input FFT
-            for (size_t c=0;c<Gs.size();c++)
-                g.weights[c](i,j)=itsGrid->GridCoeff(P, Gs[c]);
-        }
-    return g;
-}
-
-// The matrix-free density->rho-tilde / ->V_H map (the G_ERI3::apply realization, CP2K analytic collocation).
-// Collocates rho = Sum_ij D_ij chi_i chi_j analytically on compact boxes (LatticeSum1E::CollocateDensity,
-// modulo-wrapped -- NO image sum, NO Rcut, NO ringing) then FFTs to G-space.  rho-tilde(G)=FFT[rho]/Npts (the
-// grid quadrature's 1/Omega and Omega/Npts cancel).  For Coulomb the diagonal Poisson kernel 4pi/|G|^2 is folded
-// in (V_H = 4pi rho-tilde/G^2; G=0 -> 0).  REPLACES the dense O(N_G n^2) W-tensor (BuildWeights) -- same map,
-// applied matrix-free.  Gamma: the block density is real (Re(D)).  The closure keeps the FFT grid + molecular
-// basis alive (captured shared_ptr) since it lives in the framework-cached G_ERI3.
+// The matrix-free density->rho-tilde / ->V_H map (the G_ERI3::apply realization -- the CP2K analytic
+// collocation, doc/GPWPlan.md S0).  The density is collocated ANALYTICALLY per (pair, screened cross-cell
+// offset) on compact exp-tail boxes, modulo-wrapped, each pair on the coarsest REL_CUTOFF level resolving its
+// product exponent (LatticeSum1E::CollocateDensity); each level is FFT'd and rho-tilde is combined NESTED in
+// G-space (a coarse level contributes over its own {G} -- beyond it the pair's spectrum is below tolerance by
+// construction).  rho-tilde(G)=FFT[rho]/Npts (the grid quadrature's 1/Omega and Omega/Npts cancel).  For
+// Coulomb the diagonal Poisson kernel 4pi/|G|^2 is folded in (V_H = 4pi rho-tilde/G^2; G=0 -> 0).  The closure
+// keeps the level grids + molecular basis alive (captured shared_ptrs) since it lives in the framework-cached
+// G_ERI3.
 std::function<ΔG_Map(const chmat_t&)> GPW_Evaluator::MakeCollocator(bool coulomb) const
 {
-    const UnitCell A = itsGrid->Recip().GetCell().MakeReciprocalCell();   // direct cell (by value)
-    const ivec3_t  N = itsGrid->FFTGrid();
-    auto grid = itsGrid;                                    // shared_ptr -> the closure keeps the grid alive
-    auto mol  = itsMol;                                     // shared_ptr -> keep the molecular basis (lat) alive
+    EnsureLevels();
+    const UnitCell A = itsCell;                             // the direct cell (stored; see the member note)
+    auto levels = itsLevels;                                // shared_ptrs -> the closure keeps the grids alive
+    auto N_L    = itsLevelN;
+    auto ecut_L = itsLevelEcut;
+    auto mol    = itsMol;                                   // shared_ptr -> keep the molecular basis (lat) alive
     const Molecule::LatticeSum1E* lat = itsLat;
-    std::vector<ivec3_t> Gs = itsGrid->Gs();
+    auto phase  = CellPhase();
     ReciprocalLattice recip = itsGrid->Recip();
-    return [A,N,grid,mol,lat,Gs,recip,coulomb](const chmat_t& D) -> ΔG_Map
+    return [A,levels,N_L,ecut_L,mol,lat,phase,recip,coulomb](const chmat_t& D) -> ΔG_Map
     {
-        const size_t n=D.rows();
-        rmat_t Dr(n,n);
-        for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) Dr(i,j)=std::real(dcmplx(D(i,j)));  // Gamma: real block D
-        rvec_t rho = lat->CollocateDensity(Dr, A, N);       // analytic, modulo-wrapped collocation
-        cvec_t rhoTilde = grid->ForwardFFT(rho);            // rho-tilde(G)
+        std::vector<rvec_t> rho = lat->CollocateDensity(D, phase, A, N_L, ecut_L);
         ΔG_Map out;
-        for (const ivec3_t& dm : Gs)
+        for (size_t l=0; l<levels.size(); l++)
         {
-            const dcmplx c = grid->GridCoeff(rhoTilde, dm);
-            out[dm] = coulomb ? recip.CoulombKernel(dm)*c : c;
+            cvec_t rhoTilde = levels[l]->ForwardFFT(rho[l]);            // this level's rho-tilde(G)
+            for (const ivec3_t& dm : levels[l]->Gs())                   // nested combine over the level's own {G}
+                out[dm] += levels[l]->GridCoeff(rhoTilde, dm);
         }
+        if (coulomb)
+            for (auto& [dm,c] : out) c *= recip.CoulombKernel(dm);
         return out;
     };
 }
-// Coulomb 3-centre tensor: the single-r collocation weights + the diagonal Poisson kernel 4pi/|G_c|^2.
-// NOTE: still the SAMPLING (BuildWeights) path -- the analytic MakeCollocator closure is BUILT + validated
-// (GPW.AnalyticCollocationCrystalChargeConservation) but NOT wired in yet: single-grid analytic collocation is
-// impractically slow for a full SCF (diffuse SIPP products x the image sum), so it awaits the REL_CUTOFF
-// multigrid (Increment D) that makes it fast.  Then Repulsion/Overlap3CTensor switch to g.apply=MakeCollocator.
+// Coulomb 3-centre tensor: the matrix-free analytic collocation map with the Poisson kernel folded in.  The
+// columns still list the fit-basis {G} (the fine grid's); the per-column kernel is inside `apply` (which
+// short-circuits ContractG_ERI3), so `kernel` stays empty.
 G_ERI3 GPW_Evaluator::Repulsion3CTensor() const
 {
-    G_ERI3 g=BuildWeights();
-    const ReciprocalLattice& recip=itsGrid->Recip();
-    g.kernel.resize(g.columns.size());
-    for (size_t c=0;c<g.columns.size();c++) g.kernel[c]=recip.CoulombKernel(g.columns[c].dm);
+    G_ERI3 g;
+    g.volume=itsGrid->Volume();
+    for (const ivec3_t& dm : itsGrid->Gs()) g.columns.push_back({dm,{}});
+    g.apply=MakeCollocator(/*coulomb*/true);
     return g;
 }
-// Overlap 3-centre tensor: the same single-r weights, empty kernel.
-G_ERI3 GPW_Evaluator::Overlap3CTensor() const {return BuildWeights();}
+// Overlap 3-centre tensor: the same analytic map, no kernel (the density's own rho-tilde).
+G_ERI3 GPW_Evaluator::Overlap3CTensor() const
+{
+    G_ERI3 g;
+    g.volume=itsGrid->Volume();
+    for (const ivec3_t& dm : itsGrid->Gs()) g.columns.push_back({dm,{}});
+    g.apply=MakeCollocator(/*coulomb*/false);
+    return g;
+}
 
-// The potential->KS-matrix bridge (collocation's adjoint): inverse-FFT Vtilde over the density grid to V(r),
-// then <chi_i|V|chi_j> = integral chi_i V chi_j by grid quadrature.  Vtilde is sampled over the grid's own {G}
-// (which matches the fit basis GPW created, so a Hartree/XC Vtilde covers exactly these).
-// The dynamic potential->KS bridge.  With the multi-grid path ON (itsUseMG), the DYNAMIC (per-iteration) smooth
-// Hartree+XC integrate-back routes through the level ladder; the sharp STATIC local PP stays on the dense fine
-// path (MakeLocalPP calls DenseOverlapMatrix directly) -- coarsening a diffuse pair against the sharp external
-// PP is catastrophic (Si Gamma -21.4), but the smooth V_H+V_xc coarsen cleanly (Si Gamma -8.2485 vs -8.24758,
-// grid tolerance).  Default OFF (dense) so committed anchors are byte-identical until the win is NaF-validated.
-// The potential->KS bridge (Band_FT_IBS::MakeOverlap / isPW_DFT_Evaluator).  STILL the sampling path (dispatch
-// dense/multigrid): the ANALYTIC integrate-back (LatticeSum1E::IntegratePotential) is built + validated but not
-// wired in -- it awaits the multigrid (Increment D), same as the density side (see Repulsion3CTensor).
+// The potential->KS bridge (Band_FT_IBS::MakeOverlap / isPW_DFT_Evaluator) -- the ANALYTIC integrate-back,
+// the exact adjoint of MakeCollocator's density collocation.  Restrict Vtilde to each REL_CUTOFF level's own
+// {G} (a SPECTRAL low-pass -- no ringing), inverse-FFT to that level's grid, and let the molecular side gather
+// each orbital pair analytically on ITS level (LatticeSum1E::IntegratePotential -- same boxes, same wrap, same
+// level assignment as the density side, so <collocate(D),V> == <D,integrate(V)> to machine precision).  Only V
+// is ever sampled, so even the SHARP local PP integrates accurately against a coarse-level diffuse pair (the
+// pair's own bandwidth bounds what it senses of V) -- MakeLocalPP routes through here too.
 chmat_t GPW_Evaluator::OverlapMatrix(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const
 {
-    if (itsUseMG) return MultiGridOverlapMatrix(Vtilde);
-    return DenseOverlapMatrix(Vtilde);
-}
-chmat_t GPW_Evaluator::DenseOverlapMatrix(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const
-{
-    const mat_t<dcmplx>& Phi=PhiOnGrid();
-    ΔG_Map vmap;
-    for (const ivec3_t& dm : itsGrid->Gs()) vmap[dm]=Vtilde(dm);
-    rvec_t V=itsGrid->RhoOnGrid(vmap);          // V(r) on the grid (real: Hartree/XC/local-PP are real fields)
-    size_t Npts=Phi.rows(), n=itsN;
-    const double w=itsGrid->Volume()/double(Npts);   // uniform quadrature weight (== Integral's Omega/Npts)
-    // <chi_i^k|V|chi_j^k> = w Sum_p conj(Phi(p,i)) V[p] Phi(p,j) = w (Phi^H (V .* Phi))(i,j).  Form (V .* Phi)
-    // once (one streaming pass over Phi), then Phi^H (V .* Phi) via OpenBLAS zgemm -- a genuinely SIMD/threaded
-    // complex GEMM.  This was THE per-iteration hotspot in the NaF profile (~44%): the plain triple loop re-read
-    // the ~130 MB Phi (Npts x n) n^2/2 times (memory-bound) AND ran scalar; the GEMM streams Phi ~once and
-    // vectorizes.  (blaze's own product gave NO speedup here -- BLAZE_BLAS_MODE=0 in our TUs, so it too is scalar
-    // complex; hence the direct cblas call.)  V is real -> M Hermitian; project to the upper triangle (real
-    // diagonal).  Translation invariance is carried by the Bloch orbital in PhiOnGrid (Rcut>=2a; see the plan).
-    itsVPhiBuf.resize(Npts,n);                        // reused scratch: allocates only on the first call (dims are
-    mat_t<dcmplx>& VPhi=itsVPhiBuf;                   // geometry-fixed), no-op resize thereafter -- avoids ~130 MB
-    for (size_t j=0;j<n;j++)                          // alloc/free per call.  Column-major Phi: p (row) inner is stride-1.
-        for (size_t p=0;p<Npts;p++) VPhi(p,j)=V[p]*Phi(p,j);
-    mat_t<dcmplx> C(n,n,dcmplx(0.0));                 // C = w Phi^H VPhi  (n x n; tiny, leave as a local)
-    const dcmplx alpha(w,0.0), beta(0.0,0.0);
-    cblas_zgemm(CblasColMajor, CblasConjTrans, CblasNoTrans,
-                (blasint)n, (blasint)n, (blasint)Npts,
-                &alpha, Phi.data(),  (blasint)Phi.spacing(),
-                        VPhi.data(), (blasint)VPhi.spacing(),
-                &beta,  C.data(),    (blasint)C.spacing());
-    chmat_t M=blazem::zeroH<dcmplx>(n);
-    for (size_t i=0;i<n;i++)
-    {
-        M(i,i)=dcmplx(std::real(C(i,i)),0.0);
-        for (size_t j=i+1;j<n;j++) M(i,j)=C(i,j);
-    }
-    return M;
-}
-
-// The PATCHED integrate-back: build V(r) exactly as above (inverse-FFT of Vtilde over the density grid), then
-// delegate the <chi_i|V|chi_j> quadrature to the molecular side, which contracts each pair only on the overlap
-// of its two orbitals' Gaussian supports (the sub-eps grid points are dropped -> bit-consistent with the dense
-// GEMM above to the screening tolerance).  Uses the COLLOCATION image set (itsRc/itsPhaseC) -- the same Bloch
-// sum PhiOnGrid/Eval use -- so the two paths sample the identical chi_i^k(r_g).  Opt-in scaffold; see the header.
-chmat_t GPW_Evaluator::PatchedOverlapMatrix(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const
-{
-    ΔG_Map vmap;
-    for (const ivec3_t& dm : itsGrid->Gs()) vmap[dm]=Vtilde(dm);
-    rvec_t V=itsGrid->RhoOnGrid(vmap);                       // V(r) on the density grid (real)
-    const rvec3vec_t& pts=itsGrid->GridPoints();
-    const double w=itsGrid->Volume()/double(V.size());       // uniform quadrature weight Omega/Npts
-    return itsLat->MakePotentialMatrix(pts, itsRc, itsPhaseC, V, w);
-}
-
-// The multi-grid density-grid ladder: the fine grid (L=0, reused) plus coarser grids each a factor 4 lower in
-// Ecut, down to the level that still resolves the most-diffuse orbital product (exponent 2*alpha_min).  Built
-// once (geometry-fixed) and cached with each level's points / cutoff / quadrature weight.
-void GPW_Evaluator::EnsureLevels() const
-{
-    if (!itsLevels.empty()) return;
-    assert(itsGrid && "GPW_Evaluator: the multi-grid integrate-back requires the density grid (densityEcut!=0)");
-    const double efine=itsGrid->Ecut();
-    const double amax=itsLat->MaxExponent(), amin=itsLat->MinExponent();
-    const double ecoarse=efine*amin/amax;             // resolves the most-diffuse pair product (exponent 2*amin)
-    itsLevels.push_back(itsGrid);                     // L=0: the fine grid, reused
-    double e=efine;
-    const size_t maxL=itsMGMaxLevels>0 ? size_t(itsMGMaxLevels) : 8;  // depth cap (REL_CUTOFF-style safety)
-    while (e/4.0>=ecoarse && itsLevels.size()<maxL)   // factor-4 coarsening; cap the ladder depth
-    {
-        e/=4.0;
-        itsLevels.push_back(std::make_shared<const PW_Grid_Evaluator>(itsGrid->Recip(), rvec3_t(0,0,0), e));
-    }
-    for (const auto& g : itsLevels)
-    {
-        itsLevelPts.push_back(g->GridPoints());
-        itsLevelEcut.push_back(g->Ecut());
-        itsLevelW.push_back(g->Volume()/double(g->GridPoints().size()));
-    }
-}
-
-// The MULTI-GRID integrate-back: restrict Vtilde to each level's own {G} (the low-pass) -> V(r) on that level,
-// then let the molecular side contract each orbital pair on the coarsest level resolving its product.  The
-// per-(level,orbital) chi columns are cached molecular-side, so per-iteration only V_L is rebuilt here.
-chmat_t GPW_Evaluator::MultiGridOverlapMatrix(const std::function<dcmplx(const ivec3_t&)>& Vtilde) const
-{
     EnsureLevels();
+    const UnitCell& A=itsCell;                              // the direct cell (stored; see the member note)
     const size_t K=itsLevels.size();
     std::vector<rvec_t> V_L(K);
     for (size_t L=0;L<K;L++)
@@ -395,7 +270,46 @@ chmat_t GPW_Evaluator::MultiGridOverlapMatrix(const std::function<dcmplx(const i
         for (const ivec3_t& dm : itsLevels[L]->Gs()) vmapL[dm]=Vtilde(dm);   // restrict to level L's {G} (low-pass)
         V_L[L]=itsLevels[L]->RhoOnGrid(vmapL);
     }
-    return itsLat->MakePotentialMatrixMG(itsLevelPts, itsLevelEcut, itsRc, itsPhaseC, V_L, itsLevelW);
+    return itsLat->IntegratePotential(V_L, CellPhase(), A, itsLevelN, itsLevelEcut);
+}
+
+// The REL_CUTOFF multi-grid density-grid ladder: the fine grid (L=0, reused) plus coarser grids each a factor
+// 4 lower in Ecut, down to the level that still resolves the most-diffuse orbital product (exponent 2*alpha_min).
+// Built once (geometry-fixed).  Because the collocation/integrate-back are ANALYTIC (only V is ever sampled), a
+// diffuse pair on its matched coarse level is accurate -- the sampling multigrid's aliasing (and its depth cap)
+// are gone.
+void GPW_Evaluator::EnsureLevels() const
+{
+    if (!itsLevels.empty()) return;
+    assert(itsGrid && "GPW_Evaluator: the DFT tier requires the density grid (densityEcut!=0)");
+    const double efine=itsGrid->Ecut();
+    const double amax=itsLat->MaxExponent(), amin=itsLat->MinExponent();
+    const double ecoarse=efine*amin/amax;             // resolves the most-diffuse pair product (exponent 2*amin)
+    itsLevels.push_back(itsGrid);                     // L=0: the fine grid, reused
+    double e=efine;
+    while (e/4.0>=ecoarse)                            // factor-4 coarsening down to the diffuse floor
+    {
+        e/=4.0;
+        auto g=std::make_shared<const PW_Grid_Evaluator>(itsGrid->Recip(), rvec3_t(0,0,0), e);
+        // RESOLUTION GUARD: keep a level only if its grid SPACING still quadratures the SHARPEST pair product
+        // the REL_CUTOFF assignment can send it, p_max = 2 alpha_max ecut_l/ecut_fine: require h <= 1/sqrt(p_max)
+        // (trapezoid/Poisson error of exp(-p r^2) on spacing h is ~e^{-2(pi sigma/h)^2} <= e^{-2 pi^2} ~ 3e-9 at
+        // h = sigma).  This replaces a naive minimum-N floor on BOTH sides: it REJECTS a degenerate few-point
+        // grid (an FFT grid that saturates at N~1-2 no longer scales like sqrt(Ecut); a sigma~2 pair on h=7 lost
+        // percent-level charge -- the failed crystal gate), and it ADMITS the properly-coarse N~3-5 grids the
+        // ultra-diffuse pairs want (keeping them on a fine grid made their big-box cross-cell offset sums the
+        // per-iteration hotspot).  Pairs below the last level use the coarsest surviving one (finer than needed).
+        const ivec3_t Ng=g->FFTGrid();
+        const double  h=itsCell.GetMaximumCellEdge()/double(std::min(std::min(Ng.x,Ng.y),Ng.z));
+        const double  pmax=2.0*amax*e/efine;
+        if (h*h*pmax > 1.0) break;
+        itsLevels.push_back(g);
+    }
+    for (const auto& g : itsLevels)
+    {
+        itsLevelN.push_back(g->FFTGrid());
+        itsLevelEcut.push_back(g->Ecut());
+    }
 }
 
 // Bloch sum of the Gaussian orbitals, chi^k_i(r) = Sum_R e^{ik.R} chi_i(r-R), over the COLLOCATION set (the
@@ -453,9 +367,17 @@ chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const Pseudopotential::L
 {
     assert(itsGrid && "GPW_Evaluator: the local PP needs the density grid (densityEcut!=0: <0 auto, >0 explicit)");
     const UnitCell& B=itsGrid->Recip().GetCell();
-    // DENSE (sampling) integrate-back of the G-space local-PP form factor (still the committed path; the analytic
-    // OverlapMatrix awaits the multigrid, Increment D).
-    return DenseOverlapMatrix([&](const ivec3_t& dm)->dcmplx
+    // ANALYTIC integrate-back of the G-space local-PP form factor, on the ladder with a STIFFENED pair->level
+    // requirement (relCutoffScale=6).  The energy error of a (pair x field) product decays with the SUM of the
+    // two spectra: V_loc is spectrally BROAD (unlike the smooth V_H/V_xc), so each pair must sit ~6x finer than
+    // the smooth-field calibration -- at the smooth setting the mid pairs' e^{-2.5} tails against the deep well
+    // were a Ha-scale term (Si SR Gamma -10.72 vs CP2K -7.115 with charge exact).  Fine-only (every pair on the
+    // fine grid) is exact but UNTENABLE at a large fine grid (NaF's auto-160: an ultra-diffuse pair's box on
+    // N=64 x ~180 screened offsets stalls the setup for hours) -- and unnecessary: an ultra-diffuse pair's OWN
+    // spectrum kills the field tail, so it still belongs on a deep coarse level.  STATIC (framework-cached), so
+    // this sweep is not a per-iteration cost; for Si SR (ladder {20,5}) scale 6 puts every pair on the fine
+    // level == the validated fine-only numbers.
+    auto Vt=[&](const ivec3_t& dm)->dcmplx
     {
         if (dm.x==0 && dm.y==0 && dm.z==0) return dcmplx(0.0);        // drop dG=0 (alignment carries it)
         rvec3_t dG=B.ToCartesian(rvec3_t(dm));
@@ -463,7 +385,18 @@ chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const Pseudopotential::L
         dcmplx  acc(0.0);                                            // form factor x structure factor
         for (Atom* a : *cl) acc += loc.FormFactor(a->itsZ,g2)*std::exp(dcmplx(0.0,-(dG*a->itsR)));
         return acc/itsGrid->Volume();
-    });
+    };
+    EnsureLevels();
+    const size_t K=itsLevels.size();
+    std::vector<rvec_t> V_L(K);
+    for (size_t L=0;L<K;L++)
+    {
+        ΔG_Map vmapL;
+        for (const ivec3_t& dm : itsLevels[L]->Gs()) vmapL[dm]=Vt(dm);   // restrict to level L's {G}
+        V_L[L]=itsLevels[L]->RhoOnGrid(vmapL);
+    }
+    return itsLat->IntegratePotential(V_L, CellPhase(), itsCell, itsLevelN, itsLevelEcut,
+                                      /*relCutoffScale*/6.0);            // sharp-field level assignment
 }
 
 // KB separable nonlocal PP: accumulate the rank-1 Hermitian D|b><b| over atoms/projectors/m, with the BLOCH
