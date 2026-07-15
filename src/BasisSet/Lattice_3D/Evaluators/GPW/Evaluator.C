@@ -159,6 +159,13 @@ private:
     std::shared_ptr<const PW_Grid_Evaluator> itsGrid;     //!< the density/collocation grid (null if DFT tier off)
     // NO hand-rolled tensor cache: the collocation tensor is a stateless build; the FRAMEWORK caches it
     // (BasisSet::Band_FT_IBS::Repulsion3C/Overlap3C via theCache<dcmplx>(), keyed by BasisSetID -- see IDFragment).
+    //! \brief Last-density collocation memo, SHARED by the two \c MakeCollocator closures (Coulomb + overlap
+    //! tensors): each SCF iteration collocates the SAME \f$D\f$ twice -- once for \f$\rho\f$ on the grid
+    //! (XC/charge) and once for the Coulomb apply -- so the second call replays the level densities for free
+    //! (exact-equality keyed on \f$D\f$; the phase/cell/ladder are fixed per evaluator, i.e. per k-block).
+    //! The G-space post-processing (FFT + nested combine +/- Coulomb kernel) stays per-call.
+    struct CollocMemo { bool valid=false; chmat_t D; std::vector<rvec_t> rho; };
+    mutable std::shared_ptr<CollocMemo> itsCollocMemo;    //!< shared so both framework-cached closures see it
     //! The Bloch phase of an integer cell offset \f$n\f$: \f$e^{2\pi i\,k_{frac}\cdot n}\f$ -- the closure the
     //! analytic kernels call back for each screened cross-cell pair offset (the k-CONVENTION stays here,
     //! lattice-side; the molecular basis never sees \f$k\f$).

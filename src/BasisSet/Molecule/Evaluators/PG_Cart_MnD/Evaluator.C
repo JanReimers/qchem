@@ -17,6 +17,7 @@ module;
 #include <complex>   // std::real (Hermitian-diagonal projection of the Bloch lattice sum)
 #include <string>
 #include <ostream>
+#include <iostream>   // std::cerr (the one-line stream-cache coverage readout)
 #include <vector>
 #include <cmath>      // std::sqrt/std::log (the lattice-sum magnitude-screening reach radius)
 #include <algorithm>  // std::min (alpha_min per radial)
@@ -285,10 +286,12 @@ public:
         std::vector<PairStreams> pairs;                         // indexed [i*n+j], j>=i only
     };
     static constexpr size_t kMaxStreamCaches=4;                 // ladder + K=1 + unit-gate shapes; guards churn
-    //! Global stream-cache budget in POINTS (~12 B each; default ~1.2 GB).  A diffuse basis in a small cell
+    //! Global stream-cache budget in POINTS (~12 B each; 150M ~ 1.8 GB).  A diffuse basis in a small cell
     //! keeps hundreds of screened offsets per pair -- caching them ALL blew past physical RAM on NaF (27 GB
     //! virt on a 16 GB box).  Pairs beyond the budget fall back to on-the-fly evaluation (correct, slower).
-    static constexpr size_t kStreamBudgetPts=100'000'000;
+    //! Sized so the Si SR ladder caches COMPLETELY (demand 104.9M -- at 100M its 7 most-diffuse pairs, the
+    //! biggest boxes, re-evaluated every iteration x k-block; the [stream cache] readout shows the coverage).
+    static constexpr size_t kStreamBudgetPts=150'000'000;
     const StreamCache& EnsureStreams(const UnitCell& A, const std::vector<ivec3_t>& N_L,
                                      const std::vector<double>& ecut_L, double relCutoffScale) const
     {
@@ -310,11 +313,13 @@ public:
         for (size_t cc=0; cc<itsStreamCaches.size()-1; cc++)          // budget is GLOBAL across cache shapes
             for (const auto& ps : itsStreamCaches[cc].pairs)
                 for (const auto& st : ps.offsets) budget -= std::min(budget, st.idx.size());
+        size_t nPairs=0, nCached=0, ptsCached=0, ptsDropped=0;
         for (auto i:indices()) for (auto j:indices(i))
         {
             PairStreams& ps=c.pairs[i*n+j];
             ps.level=PairLevel(i,j,ecut_L,relCutoffScale);
-            if (budget==0) continue;                                  // over budget: leave uncached (on-the-fly)
+            nPairs++;
+            if (budget==0) { ptsDropped++; continue; }                // budget exhausted (count as dropped)
             const ivec3_t N=N_L[ps.level];
             size_t pts=0;
             ForImageOffsets(i,j,A,[&](const ivec3_t& nn, const rvec3_t& Roff)
@@ -325,10 +330,23 @@ public:
                 pts+=st.idx.size();
                 if (!st.idx.empty()) ps.offsets.push_back(std::move(st));
             });
-            if (pts>budget) { ps.offsets.clear(); ps.offsets.shrink_to_fit(); budget=0; continue; }   // too big: drop
+            // Over the remaining budget: drop THIS pair only and keep packing -- a later (smaller) pair may
+            // still fit.  (The old budget=0 lockout un-cached every subsequent pair after the first oversized
+            // one, turning most of the per-iteration collocate/integrate into on-the-fly re-evaluation -- the
+            // dominant cost in the 2026-07-15 multi-k profile.)
+            if (pts>budget) { ps.offsets.clear(); ps.offsets.shrink_to_fit(); ptsDropped+=pts; continue; }
             budget-=pts;
+            ptsCached+=pts;
+            nCached++;
             ps.cached=true;
         }
+        // One-line readout per cache build (static setup, not per-iteration): the budget headroom is THE lever
+        // for the analytic path's speed, so make coverage visible (dropped pairs re-evaluate every iteration).
+        std::cerr << "[stream cache] shape=(";
+        for (size_t l=0;l<N_L.size();l++) std::cerr << (l?",":"") << N_L[l].x;
+        std::cerr << ") scale=" << relCutoffScale << "  pairs cached " << nCached << "/" << nPairs
+                  << "  pts cached " << ptsCached << " dropped " << ptsDropped
+                  << " (budget " << kStreamBudgetPts << ")" << std::endl;
         return c;
     }
 
@@ -376,6 +394,43 @@ public:
         }
         return rho;
     }
+    // --- Phase-independent integrate-back memo ---------------------------------------------------------------
+    // h_ij(k) = w_l Sum_n e^{+ik.R_n} B_ij(n), with B_ij(n) = Sum_box chi_i chi_j^n V.  The expensive per-offset
+    // reductions B are k-INDEPENDENT (the Bloch phase enters only the final contraction), and the SAME field V
+    // is integrated repeatedly: the static local PP by EVERY k-block (once per SCF each), and the per-iteration
+    // KS fields once per k-block within an iteration.  So memoize {B_ij(n)} keyed on the EXACT (ladder shape,
+    // scale, V_L): the first caller pays the sweep, every other k-block only contracts phases (2026-07-15
+    // multi-k profile: the per-k MakeLocalPP sweep alone was ~10% of the anchor).  Like itsStreamCaches, the
+    // cell A is assumed fixed per basis instance (the centres ARE this basis's data) and is not in the key.
+    // Field equality is EXACT per-element (never blaze relaxed equal); contraction order == the direct
+    // evaluation's offset order, so a memo hit is BIT-IDENTICAL to recomputation.
+    struct PairB         { size_t level=0; std::vector<std::pair<ivec3_t,double>> nb; };  // (offset, B_ij(n))
+    struct IntegrateMemo
+    {
+        std::vector<ivec3_t> N_L; std::vector<double> ecut_L;   // the ladder shape (snapshot key)
+        double relCutoffScale=1.0;                              //   + the field-sharpness assignment scale
+        std::vector<rvec_t>  V_L;                               //   + the integrated field itself (exact)
+        std::vector<PairB>   B;                                 // indexed [i*n+j], j>=i only
+    };
+    static constexpr size_t kMaxIntegrateMemos=4;               // static PP + the iteration's KS fields
+    bool SameShape(const IntegrateMemo& m, const std::vector<ivec3_t>& N_L, const std::vector<double>& ecut_L,
+                   double relCutoffScale) const
+    {
+        if (m.relCutoffScale!=relCutoffScale || m.ecut_L!=ecut_L || m.N_L.size()!=N_L.size()) return false;
+        for (size_t l=0;l<N_L.size();l++)
+            if (m.N_L[l].x!=N_L[l].x || m.N_L[l].y!=N_L[l].y || m.N_L[l].z!=N_L[l].z) return false;
+        return true;
+    }
+    static bool SameField(const std::vector<rvec_t>& a, const std::vector<rvec_t>& b)
+    {
+        if (a.size()!=b.size()) return false;
+        for (size_t l=0;l<a.size();l++)
+        {
+            if (a[l].size()!=b[l].size()) return false;
+            for (size_t k=0, m=a[l].size(); k<m; k++) if (a[l][k]!=b[l][k]) return false;   // exact, not blaze equal
+        }
+        return true;
+    }
     // Integrate-back (the collocation ADJOINT): h_ij = <chi_i^k|V|chi_j^k> = Sum_R e^{+ik.R} w_l Sum_box
     // chi_i chi_j^R V, over the SAME screened offsets + compact boxes + wrap + level assignment as collocation
     // -> exact adjoint (Integral rho.V == Tr(D h) to machine precision, variational).  The offset phase here is
@@ -388,16 +443,40 @@ public:
     {
         const size_t K=N_L.size();
         assert(K>0 && ecut_L.size()==K && V_L.size()==K);
-        // relCutoffScale != 1 marks a STATIC sharp-field call (the local PP, built once per SCF): evaluate on
-        // the fly -- caching a single-shot sweep wastes the whole budget the per-iteration path needs.
-        const StreamCache* sc = (relCutoffScale==1.0) ? &EnsureStreams(A,N_L,ecut_L,relCutoffScale) : nullptr;
         const size_t nn=size();
         chmat_t h(size());
+        // Memo hit: the per-offset reductions are already computed for this exact field -- contract phases only.
+        for (const auto& m : itsIntegrateMemos)
+            if (SameShape(m,N_L,ecut_L,relCutoffScale) && SameField(m.V_L,V_L))
+            {
+                for (auto i:indices()) for (auto j:indices(i))
+                {
+                    const PairB& pb=m.B[i*nn+j];
+                    const double w=A.GetCellVolume()/double(V_L[pb.level].size());
+                    dcmplx s(0.0);
+                    for (const auto& [n,b] : pb.nb) s+=phase(n)*b;
+                    s*=w;
+                    h(i,j) = (i==j) ? dcmplx(std::real(s),0.0) : s;
+                }
+                return h;
+            }
+        // Miss: compute (streams replay where cached, on-the-fly otherwise), recording B for the next caller.
+        // relCutoffScale != 1 marks a STATIC sharp-field call (the local PP, built once per SCF): evaluate on
+        // the fly -- caching a single-shot sweep wastes the whole budget the per-iteration path needs.  (Its
+        // B reductions land in the memo, so the other k-blocks never repeat the sweep.)
+        const StreamCache* sc = (relCutoffScale==1.0) ? &EnsureStreams(A,N_L,ecut_L,relCutoffScale) : nullptr;
+        if (itsIntegrateMemos.size()>=kMaxIntegrateMemos) itsIntegrateMemos.erase(itsIntegrateMemos.begin());
+        itsIntegrateMemos.emplace_back();
+        IntegrateMemo& memo=itsIntegrateMemos.back();
+        memo.N_L=N_L; memo.ecut_L=ecut_L; memo.relCutoffScale=relCutoffScale; memo.V_L=V_L;
+        memo.B.resize(nn*nn);
         for (auto i:indices()) for (auto j:indices(i))       // j>=i (Hermitian upper triangle)
         {
             const size_t  l = sc ? sc->pairs[i*nn+j].level : PairLevel(i,j,ecut_L,relCutoffScale);
             const rvec_t& V=V_L[l];
             const double  w=A.GetCellVolume()/double(V.size());   // the level's quadrature weight Omega/Npts(l)
+            PairB& pb=memo.B[i*nn+j];
+            pb.level=l;
             dcmplx s(0.0);
             if (sc && sc->pairs[i*nn+j].cached)
                 for (const PairOffsetStream& st : sc->pairs[i*nn+j].offsets)
@@ -405,6 +484,7 @@ public:
                     double b=0.0;
                     const unsigned* ix=st.idx.data(); const double* v=st.val.data();
                     for (size_t k=0, m=st.idx.size(); k<m; k++) b+=v[k]*V[ix[k]];
+                    pb.nb.emplace_back(st.n,b);
                     s+=phase(st.n)*b;
                 }
             else                                                    // static sharp-field call or over-budget pair
@@ -412,6 +492,7 @@ public:
                 {
                     double b=0.0;
                     ForPairBox(i,j,Roff,A,N_L[l],[&](size_t idx,double v){b+=v*V[idx];});
+                    pb.nb.emplace_back(n,b);
                     s+=phase(n)*b;
                 });
             s*=w;
@@ -451,7 +532,8 @@ public:
 
 
 private:
-    mutable std::vector<StreamCache> itsStreamCaches;   //!< analytic pair-box streams, one per ladder shape
+    mutable std::vector<StreamCache>   itsStreamCaches;    //!< analytic pair-box streams, one per ladder shape
+    mutable std::vector<IntegrateMemo> itsIntegrateMemos;  //!< phase-independent B_ij(n) per exact field (LRU)
 };
 
 static_assert(is1E_Evaluator <NR_Evaluator>, "NR_Evaluator must satisfy is1E_Evaluator");

@@ -238,9 +238,26 @@ std::function<ΔG_Map(const chmat_t&)> GPW_Evaluator::MakeCollocator(bool coulom
     const Molecule::LatticeSum1E* lat = itsLat;
     auto phase  = CellPhase();
     ReciprocalLattice recip = itsGrid->Recip();
-    return [A,levels,N_L,ecut_L,mol,lat,phase,recip,coulomb](const chmat_t& D) -> ΔG_Map
+    if (!itsCollocMemo) itsCollocMemo=std::make_shared<CollocMemo>();
+    auto memo   = itsCollocMemo;                            // ONE memo across the Coulomb + overlap closures
+    return [A,levels,N_L,ecut_L,mol,lat,phase,recip,coulomb,memo](const chmat_t& D) -> ΔG_Map
     {
-        std::vector<rvec_t> rho = lat->CollocateDensity(D, phase, A, N_L, ecut_L);
+        // Same D as the last collocation (the sibling tensor's call this iteration): replay the level
+        // densities.  EXACT equality (bit-identical or recompute); phase/cell/ladder are fixed per evaluator.
+        auto sameD=[&]() -> bool
+        {
+            if (!memo->valid || memo->D.rows()!=D.rows()) return false;
+            for (size_t i=0;i<D.rows();i++)
+                for (size_t j=i;j<D.columns();j++) if (memo->D(i,j)!=D(i,j)) return false;
+            return true;
+        };
+        std::vector<rvec_t> rho;
+        if (sameD()) rho = memo->rho;
+        else
+        {
+            rho = lat->CollocateDensity(D, phase, A, N_L, ecut_L);
+            memo->D=D; memo->rho=rho; memo->valid=true;
+        }
         ΔG_Map out;
         for (size_t l=0; l<levels.size(); l++)
         {

@@ -227,16 +227,20 @@ TEST(GPW_SCF, DISABLED_SR_2x2x2GammaCentred_vs_CP2K)
 //      the correct Bloch projection b_i=<chi_i^k|beta_home> tiles all-space with a CONJUGATED image phase.
 //      At complex k this HALVED the nonlocal-PP trace (Vnl 42->22) -> a spurious deep core level -> over-bind.
 // Both are inert at Gamma / half-integer k (phase ±1 self-conjugate), so every committed anchor is unchanged;
-// they matter ONLY here.  Disabled: an image-heavy 8-k-block SR SCF (~4 min).  Grid-matched to CP2K's mesh.
-TEST(GPW_SCF, DISABLED_SR_2x2x2ShiftedMP_vs_CP2K)
+// they matter ONLY here.  Grid-matched to CP2K's mesh.
+// ENABLED 2026-07-15 (\S0a complex-k revalidation): the ANALYTIC collocate/integrate kernels reproduce the
+// CP2K shifted-MP reference -- Rcut=2a gave -7.86724 (0.20 mHa), and the run is affordable now (the stream
+// cache + the phase-independent integrate memo make the 8 k-blocks share the static sweeps: ~2.5 min).
+// Rcut switched to AUTO for scheme consistency with the enabled anchors (both sides parameter-free).
+TEST(GPW_SCF, SR_2x2x2ShiftedMP_vs_CP2K)
 {
     const double a=10.26;
     FCCUnitCell cell(a);
     cell.AddAtom(14, {0,0,0});
     cell.AddAtom(14, {0.25,0.25,0.25});
     Lattice_3D lat(cell, ivec3_t(2,2,2));
-    GpwResult R=RunGPW(lat, MakeBasisSR(cell), /*densityEcut*/20.0, /*Rcut*/2.0*a, /*Nelec*/8, "Si",
-                       "Si 2x2x2 shifted MP (k=±¼) Rcut=2a", /*verbose*/false, /*nmax*/60,
+    GpwResult R=RunGPW(lat, MakeBasisSR(cell), /*densityEcut*/20.0, /*Rcut AUTO*/-1.0, /*Nelec*/8, "Si",
+                       "Si 2x2x2 shifted MP (k=±¼)", /*verbose*/false, /*nmax*/60,
                        qchem::Cholesky, 0.0, 0.0, rvec3_t(0.5,0.5,0.5));
     EXPECT_NEAR(R.charge, 8.0, 1e-6);
     EXPECT_NEAR(R.E.GetTotalEnergy(), -7.86744, 3e-3) << "GPW 2x2x2 shifted MP (CP2K default) vs -7.86744";

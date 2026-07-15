@@ -127,16 +127,38 @@ The analytic collocate/integrate path IS the SCF path; the whole sampling stack 
 
 **C + D are DONE (2026-07-14, see DONE)** — the analytic multigrid path IS the SCF path, sampling machinery
 deleted, anchors re-pinned on the consistent SR/Rcut=2a scheme, Si Gamma == CP2K to 0.18 mHa.  AGREED ORDER (user,
-2026-07-14): **(0a) RUNTIME CLOSE-OUT first** — so every later increment iterates fast: NaF setup levers
-(the static-PP on-the-fly sweep timing; the stream-cache budget vs the 16 GB box, maybe float32 values;
-KB/`Eval` cost after the per-image screen); **the auto-Rcut enumeration cost** (GPW suite 6→14 min: the AUTO
-radius uses the GLOBAL alpha_min — per-COMPONENT reach / per-pair enumeration / sharing the Bloch-image work
-across k-blocks are the levers; NaF baseline on the analytic path: setup ~1 h, iterations ~minutes — the
-"before" number); + complex-k revalidation through the new kernels (the shifted-MP gate) — target NaF full
-SCF ~10 min; **(0b) then XC PROJECTION CONSISTENCY** (the GDM/OT blocker in the
-ledger above — develop on the 40 s Si anchor, validate GDM on the now-affordable NaF).  Then (1) **DROP SR**
+2026-07-14): **(0a) RUNTIME CLOSE-OUT first**, **(0b) then XC PROJECTION CONSISTENCY** (the GDM/OT blocker in the
+ledger above — develop on the now-31 s Si anchor, validate GDM on NaF).  Then (1) **DROP SR**
 (rank-reduction + auto-tol); (2) low-q multi-species bases → Si/NaF/CsI; (3) CP2K reference; (4) IBZ;
 (5) cleanups.
+
+**(0a) Si LEG DONE (2026-07-15) — Γ 157→31 s (5×), multi-k 475→89 s (5.3×), all anchors BIT-consistent;
+complex-k REVALIDATED (shifted-MP gate ENABLED).**  The profile OVERTURNED the commit-message attribution:
+the 6→14 min suite regression was NOT the AUTO enumeration radius (the analytic kernels enumerate offsets
+per-pair internally, Rcut-independent; every O(|Rs|) consumer loop is cheap norms).  ~85% of the multi-k
+anchor was the pair-box kernels re-evaluating analytically per iteration — the STREAM-CACHE BUDGET (added in
+the same commit) was the regression:
+- **EnsureStreams lockout bug**: after the FIRST over-budget pair, `budget=0` un-cached every later pair.
+  Fixed to skip-and-continue packing; + a one-line `[stream cache]` coverage readout per build (pairs
+  cached/total, pts cached/dropped) — the tuning instrument for NaF.
+- **Budget 100M→150M pts** (~1.8 GB): Si SR demand is 104.9M — at 100M its 7 most-DIFFUSE pairs (the biggest
+  boxes) re-evaluated every iteration × k-block ≈ the whole regression.  Si now caches 300/300.
+- **Same-D collocation memo** (`GPW_Evaluator::CollocMemo`, shared by the Coulomb + overlap tensor closures):
+  each iteration collocated the SAME D twice (RefreshRhoGrid + GetRepulsion3C, ~10% each in the profile);
+  the second call now replays the level densities.  EXACT-equality keyed on D → bit-identical.
+- **Phase-independent integrate-back memo** (`NR_Evaluator::IntegrateMemo`): h_ij(k)=w Σ_n e^{+ik·Rn} B_ij(n)
+  with B k-INDEPENDENT — memoized on the EXACT (ladder shape, scale, V_L), so the static local-PP sweep
+  (~10% PER k-block) is paid once per geometry and the per-iteration KS fields once per V instead of per k.
+  Contraction order == direct evaluation order → bit-identical on hit (field equality is exact per-element;
+  NEVER blaze relaxed equal).
+- **Complex-k through the analytic kernels: VALIDATED.**  `SR_2x2x2ShiftedMP_vs_CP2K` (8 k-blocks, genuinely
+  complex phases) ENABLED as a regression gate at AUTO Rcut: **−7.86724 vs CP2K −7.86744 (0.20 mHa)**, charge 8,
+  CONVERGED Δρ=4.5e-8, ~2.5 min (the memos make the 8 k-blocks share the static sweeps).  Γ-centred 2×2×2
+  stays disabled (redundant coverage).  196/196 UTMain green.
+**(0a) REMAINING = the NaF leg**: baseline the full NaF SCF on the analytic path (the "before": setup ~1 h,
+iterations ~minutes), then the setup levers — the `[stream cache]` readout will show NaF's coverage (uncapped
+demand was ~2G pts ≈ 27 GB, so the budget still binds there: float32 stream values and/or per-pair packing
+priority are the candidate levers), KB/`Eval` cost after the per-image screen — target NaF full SCF ~10 min.
 
 **RINGING/VARIATIONALITY LEDGER (user pin, 2026-07-14 — Gibbs ringing destroys variational energy,
 convergence, and GDM).**  Where each error source now stands:
@@ -352,8 +374,9 @@ Symmorphic space groups → BZ reduction (irreducible wedge) → SALC with plane
   conditioning, NaF diagnostics), dead-end records, and complete commit archaeology.
 - Tests: `UnitTests/GPW_UT.C` (1E + Bloch invariants; analytic collocation/adjoint gates),
   `UnitTests/GPW_SCF_UT.C` (enabled anchors: `SiliconGammaConverges` == CP2K −7.11506 ± 2 mHa,
-  `SiliconMultiKPlumbing` −7.45134, `SiPseudoAtomInBoxMatchesFinite`; DISABLED: NaF, 2×2×2 CP2K gates,
-  conditioning sweeps), `UnitTests/L_PP.C` (finite==lattice PP), `UnitTests/PlaneWaveDFTUT.C` (PW anchors).
+  `SiliconMultiKPlumbing` −7.45134, `SR_2x2x2ShiftedMP_vs_CP2K` == CP2K −7.86744 ± 3 mHa (the complex-k gate),
+  `SiPseudoAtomInBoxMatchesFinite`; DISABLED: NaF, the Γ-centred 2×2×2 gate (redundant), conditioning sweeps),
+  `UnitTests/L_PP.C` (finite==lattice PP), `UnitTests/PlaneWaveDFTUT.C` (PW anchors).
 - CP2K decks + results: `UnitTests/CP2K/`, `doc/CP2Kresults.md`; CP2K itself: `~/Code/cp2k/build/bin/cp2k.ssmp`.
 - Recent commits: **`8dba0625`** (C+D analytic rewrite, sampling deleted), **`9714f58d`** (auto-Rcut,
   budgeted stream cache, sharp-field PP ladder).  Older hashes: doc/GPWHistory.md.
