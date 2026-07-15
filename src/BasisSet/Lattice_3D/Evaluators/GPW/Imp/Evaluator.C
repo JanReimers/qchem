@@ -9,6 +9,7 @@ module;
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <map>
 #include <algorithm>
 module qchem.BasisSet.Lattice_3D.Evaluators.GPW;
 import qchem.Blaze;       // rvec_t, rmat_t, rsmat_t, blazem::zeroH<dcmplx>
@@ -16,6 +17,7 @@ import qchem.Vector3D;    // vec3_t + rvec3_t / rvec3vec_t arithmetic (r - R, co
 import qchem.Mesh.Quadrature; // qcMesh::WeightedOverlap / Overlap (the real-space PP quadrature primitives)
 import qchem.ScalarFunction;  // ScalarFunction<double> (the V_loc / beta*Ylm fields handed to the quadrature)
 import qchem.Math;            // norm, Pi, sqrt (the real spherical harmonics for the KB projectors)
+import qchem.Math.Angular;    // Monomial/CartTerm/SphericalShell (the analytic KB Cartesian expansion)
 import qchem.Structure;       // Structure / Atom (the PP centres + Z, and CreateIntegrationMesh)
 import qchem.UnitCell;        // UnitCell (the direct cell for CollocateDensity / IntegratePotential grid<->cell)
 
@@ -121,6 +123,54 @@ double BetaSupportRadius(const Pseudopotential::SeparablePotential_R& sep, int Z
     double rsup=0.0;
     for (double r=0.0; r<=rmax; r+=h) if (std::fabs(sep.BetaR(Z,p,r))>tol*peak) rsup=r;
     return rsup+2.0*h;   // a small margin past the last significant radius
+}
+
+// --- Cartesian-monomial expansion of r^l Y_lm (the analytic-KB polynomial) --------------------------------
+// The SOLID harmonic r^l Y_lm(rhat) is a homogeneous degree-l polynomial: Math::SphericalShell supplies the
+// RAW monomial shape; the absolute scale is fixed NUMERICALLY against this file's own RealYlm table (evaluate
+// both at a generic unit direction and take the ratio -- exact to machine precision since they are the same
+// polynomial, and asserted at a second direction).  Guarantees the analytic KB uses the SAME Y_lm convention
+// as the mesh path it replaces.
+std::vector<qchem::Math::CartTerm> YlmCartesian(int l, int m)
+{
+    std::vector<qchem::Math::CartTerm> terms=qchem::Math::SphericalShell(l)[size_t(l+m)];
+    auto poly=[&terms](double x, double y, double z)
+    {
+        double s=0.0;
+        for (const auto& t : terms)
+            s += t.c * std::pow(x,t.p.n) * std::pow(y,t.p.l) * std::pow(z,t.p.m);
+        return s;
+    };
+    auto fix=[&](double x, double y, double z)                     // RealYlm(unit)*r^l / raw(x,y,z)
+    {
+        double r=std::sqrt(x*x+y*y+z*z);
+        return RealYlm(l,m, x/r,y/r,z/r) * std::pow(r,l) / poly(x,y,z);
+    };
+    const double N=fix(0.3,0.5,0.7);                               // generic direction (no raw zeros, l<=3)
+    assert(std::fabs(fix(0.9,-0.2,0.4)-N)<1e-10*std::fabs(N)+1e-14 &&
+           "YlmCartesian: raw solid harmonic is not proportional to RealYlm (convention drift)");
+    for (auto& t : terms) t.c*=N;
+    return terms;
+}
+
+// Multiply a Cartesian polynomial by (x^2+y^2+z^2)^n (the r^{2n} factor of a higher radial projector),
+// combining duplicate monomials.
+std::vector<qchem::Math::CartTerm> MultiplyR2(std::vector<qchem::Math::CartTerm> terms, int n)
+{
+    using qchem::Math::Monomial;
+    for (int k=0;k<n;k++)
+    {
+        std::map<Monomial,double> acc;
+        for (const auto& t : terms)
+            for (int ax=0; ax<3; ax++)
+            {
+                Monomial p=t.p; p[ax]+=2;
+                acc[p]+=t.c;
+            }
+        terms.clear();
+        for (const auto& [p,c] : acc) terms.push_back({p,c});
+    }
+    return terms;
 }
 } //anon
 
@@ -464,6 +514,60 @@ chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const Pseudopotential::L
 // is Hermitian by construction.
 chmat_t GPW_Evaluator::MakeSeparablePP(const Structure* cl, const Pseudopotential::SeparablePotential_R& sep) const
 {
+    // ANALYTIC path (2026-07-15): a GTH/HGH projector is polynomial x Gaussian, so when the model exposes its
+    // closed Gaussian form (SeparablePotential_Gaussian) the Bloch projection is an ANALYTIC lattice-summed
+    // overlap -- b_i = Sum_R e^{-ik.R} <chi_i | beta Y_lm at tau_a - R> maps onto the molecular seam's
+    // Sum_r phases[r] <chi_i | g(.-Rs[r])> with Rs = -itsRc, phases = conj(itsPhaseC) (the SAME conjugated
+    // image phase as the mesh path; the all-space tiling derivation in the block comment below).  beta Y_lm =
+    // Sum_t c_t r^{2n_t} e^{-alpha_t r^2} x [r^l Y_lm] with r^l Y_lm a degree-l Cartesian polynomial
+    // (YlmCartesian, pinned to this file's RealYlm convention) -- one GaussianFunction per radial term.
+    // EXACT (no mesh, no quadrature error) and ~O(n x images) 2-centre integrals instead of the mesh sweep
+    // (NaF: the 358k-point Eval quadrature was >20 min of setup; this is milliseconds).  Models without the
+    // closed-Gaussian face keep the mesh quadrature below.
+    if (const auto* gsep=dynamic_cast<const Pseudopotential::SeparablePotential_Gaussian*>(&sep))
+    {
+        const size_t n=itsN;
+        std::vector<rvec3_t> Rs(itsRc.size());
+        cvec_t ph(itsRc.size());
+        for (size_t r=0;r<itsRc.size();r++) { Rs[r]=-1.0*itsRc[r]; ph[r]=std::conj(itsPhaseC[r]); }
+        mat_t<dcmplx> V(n,n,dcmplx(0.0));
+        for (size_t a=0; a<cl->GetNumAtoms(); a++)
+        {
+            const Atom* at=(*cl)[a];
+            int Z=at->itsZ;
+            for (size_t p=0; p<sep.NumProjectors(Z); p++)
+            {
+                int    l=sep.AngularMomentum(Z,p);
+                double D=sep.Coefficient    (Z,p);
+                auto   radial=gsep->BetaGaussian(Z,p);
+                for (int m=-l; m<=l; m++)
+                {
+                    auto ylm=YlmCartesian(l,m);
+                    cvec_t b(n, dcmplx(0.0));
+                    for (const auto& rt : radial)               // one seam call per radial term c r^{2n} e^{-ar^2}
+                    {
+                        Molecule::LatticeSum1E::GaussianFunction g;
+                        g.center=at->itsR;
+                        g.alpha =rt.alpha;
+                        g.terms =MultiplyR2(ylm, rt.n);
+                        for (auto& t : g.terms) t.c*=rt.c;
+                        cvec_t bt=itsLat->MakeOverlap(Rs, ph, g);
+                        for (size_t i=0;i<n;i++) b[i]+=bt[i];
+                    }
+                    for (size_t i=0;i<n;i++)
+                        for (size_t j=0;j<n;j++) V(i,j)+=D*b[i]*std::conj(b[j]);
+                }
+            }
+        }
+        chmat_t H=blazem::zeroH<dcmplx>(n);
+        for (size_t i=0;i<n;i++)
+        {
+            H(i,i)=dcmplx(std::real(V(i,i)),0.0);
+            for (size_t j=i+1;j<n;j++) H(i,j)=V(i,j);
+        }
+        return H;
+    }
+
     qcMesh::Mesh mesh=cl->CreateIntegrationMesh(PPMeshParams());
     const rvec3vec_t& R=mesh.Points();
     const rvec_t&     W=mesh.Weights();

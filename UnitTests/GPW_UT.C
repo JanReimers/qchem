@@ -27,6 +27,8 @@ import qchem.BasisSet;                          // Real_BS
 import qchem.BasisSet.Orbital_1E_IBS;           // Real_OIBS / Complex_OIBS + cached Overlap()/Kinetic()/Nuclear()
 import qchem.BasisSet.Molecule.Factory;         // Molecule::Factory, BasisSetData/Engine/Angular
 import qchem.BasisSet.Lattice_3D.GPW_IBS;       // GPW_IBS (the basis under test)
+import qchem.Pseudopotential.SeparablePotential; // HGH_SeparablePotential + the _R / _Gaussian faces (KB gate)
+import qchem.Pseudopotential.GTH_Potentials;     // GetGTH (the Si GTH-LDA-q4 projector data)
 import qchem.BasisSet.Lattice_3D.Evaluators.GPW; // GPW_Evaluator (tests may cheat-import internals) -- DFT tier
 import qchem.BasisSet.Molecule.LatticeSum1E;     // Molecule::LatticeSum1E::CollocateDensity (analytic collocation)
 import qchem.BasisSet.Internal.GMap;            // G_ERI3 / ΔG_Map (the collocation tensor + rho-tilde)
@@ -453,4 +455,63 @@ TEST(GPW, GeneralK_ConjugateUnderKtoMinusK)
         for (size_t j=0;j<n;j++)
             m=std::max(m, std::abs(B(i,j)-std::conj(A(i,j))));
     EXPECT_LT(m, 1e-12) << "S(-k) must equal conj(S(k))";
+}
+
+// ANALYTIC KB == MESH KB.  The GTH projector is polynomial x Gaussian, so when the model exposes its closed
+// Gaussian form (SeparablePotential_Gaussian) MakeSeparablePP assembles <chi_i^k|beta Y_lm> ANALYTICALLY via
+// the molecular <chi|g> lattice-sum seam -- no mesh, exact.  This gate pins the analytic path against the
+// legacy mesh quadrature it replaced: a wrapper hiding the Gaussian face forces the mesh path on the SAME
+// model, and the two matrices must agree to the MESH's own quadrature error (the analytic one is exact).
+namespace
+{
+class MeshOnlyKB : public Pseudopotential::SeparablePotential, public virtual Pseudopotential::SeparablePotential_R
+{
+    const Pseudopotential::HGH_SeparablePotential& h;
+public:
+    explicit MeshOnlyKB(const Pseudopotential::HGH_SeparablePotential& h_) : h(h_) {}
+    virtual size_t NumProjectors  (int Z)           const override {return h.NumProjectors(Z);}
+    virtual double Coefficient    (int Z, size_t p) const override {return h.Coefficient(Z,p);}
+    virtual int    AngularMomentum(int Z, size_t p) const override {return h.AngularMomentum(Z,p);}
+    virtual double Projector      (int Z, size_t p, double q) const override {return h.Projector(Z,p,q);}
+    virtual double BetaR          (int Z, size_t p, double r) const override {return h.BetaR(Z,p,r);}
+};
+} //anon
+TEST(GPW, AnalyticSeparablePPMatchesMesh)
+{
+    const double a=10.26;
+    FCCUnitCell cell(a);
+    cell.AddAtom(14, {0,0,0});                    // the corner atom = the wrap-sensitive case
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    // SR basis + AUTO Rcut (the production SCF configuration): the comparison needs a SCREENED-COMPLETE image
+    // set.  At an under-enumerated Rcut the two paths truncate DIFFERENTLY -- the mesh's Bloch orbital catches
+    // chi-image x beta-image separations up to 2 Rcut while the analytic single sum stops at Rcut (the "two
+    // self-consistent schemes" pin, doc/GPWPlan.md) -- measured 9.3e-2 for diffuse SIPP at Rcut=1.5a vs
+    // agreement at AUTO.  Complete enumeration is the production setting; the gate pins THAT.
+    std::shared_ptr<const Real_BS> mol(
+        BasisSet::Molecule::Factory(BasisSetData::SIPP_SR, &cell,
+                                    BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
+    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/20.0, /*Rcut AUTO*/-1.0);
+
+    const auto gth = Pseudopotential::GetGTH("Si","LDA",4);
+    MeshOnlyKB meshOnly(gth.nonlocal);
+    // Call the EVALUATOR directly: the IBS's MakeSeparablePotential is framework-cached by BasisSetID (which
+    // does not key the potential model), so a second call through the IBS would replay the first matrix.
+    const GPW_Evaluator& ev = gpw;
+    auto Va = ev.MakeSeparablePP(&cell, gth.nonlocal);   // closed-Gaussian face -> ANALYTIC
+    auto Vm = ev.MakeSeparablePP(&cell, meshOnly);       // face hidden -> legacy mesh quadrature
+
+    ASSERT_EQ(Va.rows(), Vm.rows());
+    double num=0.0, den=0.0, imax=0.0;
+    for (size_t i=0;i<Va.rows();i++)
+        for (size_t j=0;j<Va.columns();j++)
+        {
+            const dcmplx va=Va(i,j), vm=Vm(i,j);
+            num += std::norm(va-vm);
+            den += std::norm(vm);
+            imax = std::max(imax, std::fabs(va.imag()));
+        }
+    double rel=std::sqrt(num/den);
+    std::cout << "[analytic KB] ||Va-Vm||_F/||Vm||_F = " << rel << "  max|Im(Va)| = " << imax << std::endl;
+    EXPECT_LT(imax, 1e-12);                       // Gamma: analytic KB matrix is real
+    EXPECT_LT(rel,  1e-8) << "analytic KB must match the mesh quadrature to the mesh's own error (pinned 4.6e-11)";
 }

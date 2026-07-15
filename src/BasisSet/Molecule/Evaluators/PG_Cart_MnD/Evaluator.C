@@ -27,6 +27,7 @@ import qchem.BasisSet.Molecule.Evaluators;                             // Evalua
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.PGData;      // PGData
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;  // GaussianRF named kernels
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;// Polarization
+import qchem.BasisSet.Molecule.LatticeSum1E;                       // GaussianFunction (the <chi_i|g> seam type)
 import qchem.Structure;
 import qchem.UnitCell;                                             // UnitCell (ToCartesian/ToFractional: grid<->cell for collocation)
 import qchem.Types;
@@ -120,6 +121,43 @@ public:
     {   return LatticeSum(Rs,phases,[this](size_t i,size_t j,const GaussianRF& cj){return radials[i]->Grad2   (cj,pols[i],pols[j]);}); }
     chmat_t MakeNuclear(const std::vector<rvec3_t>& Rs, const cvec_t& phases, const Structure* cl) const
     {   return LatticeSum(Rs,phases,[this,cl](size_t i,size_t j,const GaussianRF& cj){return radials[i]->Nuclear(cj,pols[i],pols[j],cl);}); }
+
+    // Molecule::LatticeSum1E: the lattice-summed overlap of every basis function with ONE caller-supplied
+    // Cartesian-Gaussian function g -- b_i = Sum_R phases[R] <chi_i | g(.-Rs[R])>.  g stands in the chi_j
+    // slot of the 2-centre kernel: each monomial term is a Polarization on an uncontracted GaussianRF, so
+    // the sum reuses the analytic M&D Overlap2C verbatim.  Same magnitude screen as the pair sums (g's
+    // reach from its own exponent); chi_i carries ns[i], g is integrated RAW (its scale is in g.terms).
+    cvec_t MakeOverlap(const std::vector<rvec3_t>& Rs, const cvec_t& phases,
+                       const Molecule::LatticeSum1E::GaussianFunction& g) const
+    {
+        assert(phases.size()==Rs.size());
+        const double lne=-std::log(kScreenEps);
+        const double reachG=std::sqrt(lne/g.alpha);
+        int Lg=0;                                          // g's max polynomial degree (Hermite table sizing)
+        for (const auto& t : g.terms) Lg=std::max(Lg, t.p.n+t.p.l+t.p.m);
+        cvec_t b(size(), dcmplx(0.0));
+        for (auto i:indices())
+        {
+            double amin=radials[i]->GetExponents()[0];
+            for (double e:radials[i]->GetExponents()) amin=std::min(amin,e);
+            const double reach=std::sqrt(lne/amin)+reachG;
+            const rvec3_t ci=radials[i]->GetCenter();
+            dcmplx s(0.0);
+            for (size_t r=0; r<Rs.size(); r++)
+            {
+                const rvec3_t c=g.center+Rs[r];
+                const rvec3_t d=ci-c;
+                if (d.x*d.x+d.y*d.y+d.z*d.z > reach*reach) continue;   // product < eps -> skip
+                GaussianRF gr(g.alpha, c, Lg);
+                double sr=0.0;
+                for (const auto& t : g.terms)
+                    sr += t.c * radials[i]->Overlap2C(gr, pols[i], Polarization(t.p));
+                s += phases[r]*sr;
+            }
+            b[i]=ns[i]*s;
+        }
+        return b;
+    }
 
     // Molecule::LatticeSum1E: the finest exponent over every component's radial primitives -- the density
     // grid's resolution driver (see LatticeSum1E::MaxExponent).  Walks the owned radials; no primitive escapes.
@@ -277,7 +315,9 @@ public:
     // deleted PhiOnGrid cache, but per-pair-compact instead of dense.  One cache per distinct ladder shape
     // (the SCF ladder and the K=1 local-PP / unit-gate shape coexist); replay order == build order == the
     // uncached loop order, so results are BIT-IDENTICAL to the uncached path.
-    struct PairOffsetStream { ivec3_t n; std::vector<unsigned> idx; std::vector<double> val; };
+    //! TWO value tiers: fp64 (\c val) for pairs inside the primary budget, fp32 (\c val32) for the overflow
+    //! tier -- exactly one of the two is filled per stream.
+    struct PairOffsetStream { ivec3_t n; std::vector<unsigned> idx; std::vector<double> val; std::vector<float> val32; };
     struct PairStreams     { size_t level=0; bool cached=false; std::vector<PairOffsetStream> offsets; };
     struct StreamCache
     {
@@ -286,12 +326,17 @@ public:
         std::vector<PairStreams> pairs;                         // indexed [i*n+j], j>=i only
     };
     static constexpr size_t kMaxStreamCaches=4;                 // ladder + K=1 + unit-gate shapes; guards churn
-    //! Global stream-cache budget in POINTS (~12 B each; 150M ~ 1.8 GB).  A diffuse basis in a small cell
-    //! keeps hundreds of screened offsets per pair -- caching them ALL blew past physical RAM on NaF (27 GB
-    //! virt on a 16 GB box).  Pairs beyond the budget fall back to on-the-fly evaluation (correct, slower).
-    //! Sized so the Si SR ladder caches COMPLETELY (demand 104.9M -- at 100M its 7 most-diffuse pairs, the
-    //! biggest boxes, re-evaluated every iteration x k-block; the [stream cache] readout shows the coverage).
-    static constexpr size_t kStreamBudgetPts=150'000'000;
+    //! Global stream-cache budgets in POINTS, TWO TIERS.  A diffuse basis in a small cell keeps hundreds of
+    //! screened offsets per pair -- caching them ALL blew past physical RAM on NaF (uncapped: 27 GB virt on a
+    //! 16 GB box; measured demand 952M pts).  Tier 1 (fp64, 12 B/pt, ~1.8 GB): replay is BIT-IDENTICAL to
+    //! on-the-fly evaluation; sized so the Si SR ladder caches completely (demand 104.9M) -- every Si anchor
+    //! and machine-precision kernel gate lives entirely in this tier.  Tier 2 (fp32 values, 8 B/pt, ~5.6 GB):
+    //! the overflow pairs store float values instead of falling to on-the-fly -- replay noise is ~6e-8
+    //! RELATIVE per value (NaF anchors are 1e-3-scale; Tr(DS) charge is analytic, unaffected), and the
+    //! collocate/integrate ADJOINT stays machine-exact because both directions replay the SAME stream.
+    //! Pairs beyond BOTH budgets fall back to on-the-fly evaluation (correct, slower).
+    static constexpr size_t kStreamBudgetPts   =150'000'000;   // tier 1: fp64, bit-identical replay
+    static constexpr size_t kStreamBudgetPtsF32=700'000'000;   // tier 2: fp32 values (the NaF coverage lever)
     const StreamCache& EnsureStreams(const UnitCell& A, const std::vector<ivec3_t>& N_L,
                                      const std::vector<double>& ecut_L, double relCutoffScale) const
     {
@@ -309,17 +354,19 @@ public:
         c.N_L=N_L; c.ecut_L=ecut_L; c.relCutoffScale=relCutoffScale;
         const size_t n=size();
         c.pairs.resize(n*n);
-        size_t budget=kStreamBudgetPts;
-        for (size_t cc=0; cc<itsStreamCaches.size()-1; cc++)          // budget is GLOBAL across cache shapes
+        size_t budget64=kStreamBudgetPts, budget32=kStreamBudgetPtsF32;
+        for (size_t cc=0; cc<itsStreamCaches.size()-1; cc++)          // budgets are GLOBAL across cache shapes
             for (const auto& ps : itsStreamCaches[cc].pairs)
-                for (const auto& st : ps.offsets) budget -= std::min(budget, st.idx.size());
-        size_t nPairs=0, nCached=0, ptsCached=0, ptsDropped=0;
+                for (const auto& st : ps.offsets)
+                    if (!st.val.empty()) budget64 -= std::min(budget64, st.idx.size());
+                    else                 budget32 -= std::min(budget32, st.idx.size());
+        size_t nPairs=0, nCached64=0, nCached32=0, pts64=0, pts32=0, ptsDropped=0;
         for (auto i:indices()) for (auto j:indices(i))
         {
             PairStreams& ps=c.pairs[i*n+j];
             ps.level=PairLevel(i,j,ecut_L,relCutoffScale);
             nPairs++;
-            if (budget==0) { ptsDropped++; continue; }                // budget exhausted (count as dropped)
+            if (budget64==0 && budget32==0) { ptsDropped++; continue; }   // both tiers exhausted
             const ivec3_t N=N_L[ps.level];
             size_t pts=0;
             ForImageOffsets(i,j,A,[&](const ivec3_t& nn, const rvec3_t& Roff)
@@ -330,23 +377,35 @@ public:
                 pts+=st.idx.size();
                 if (!st.idx.empty()) ps.offsets.push_back(std::move(st));
             });
-            // Over the remaining budget: drop THIS pair only and keep packing -- a later (smaller) pair may
-            // still fit.  (The old budget=0 lockout un-cached every subsequent pair after the first oversized
-            // one, turning most of the per-iteration collocate/integrate into on-the-fly re-evaluation -- the
-            // dominant cost in the 2026-07-15 multi-k profile.)
-            if (pts>budget) { ps.offsets.clear(); ps.offsets.shrink_to_fit(); ptsDropped+=pts; continue; }
-            budget-=pts;
-            ptsCached+=pts;
-            nCached++;
-            ps.cached=true;
+            // Tier the pair: fp64 while the primary budget holds (bit-identical replay), fp32 for the
+            // overflow tier, drop only past BOTH.  Per-pair skip-and-continue, never a lockout -- a later
+            // (smaller) pair may still fit a tier.  (The old budget=0 lockout un-cached every subsequent
+            // pair after the first oversized one -- the dominant cost in the 2026-07-15 multi-k profile.)
+            if (pts<=budget64)
+            {
+                budget64-=pts; pts64+=pts; nCached64++;
+                ps.cached=true;
+            }
+            else if (pts<=budget32)
+            {
+                for (auto& st : ps.offsets)                       // demote values to fp32 (idx stays exact)
+                {
+                    st.val32.assign(st.val.begin(), st.val.end());
+                    st.val.clear(); st.val.shrink_to_fit();
+                }
+                budget32-=pts; pts32+=pts; nCached32++;
+                ps.cached=true;
+            }
+            else { ps.offsets.clear(); ps.offsets.shrink_to_fit(); ptsDropped+=pts; }
         }
         // One-line readout per cache build (static setup, not per-iteration): the budget headroom is THE lever
         // for the analytic path's speed, so make coverage visible (dropped pairs re-evaluate every iteration).
         std::cerr << "[stream cache] shape=(";
         for (size_t l=0;l<N_L.size();l++) std::cerr << (l?",":"") << N_L[l].x;
-        std::cerr << ") scale=" << relCutoffScale << "  pairs cached " << nCached << "/" << nPairs
-                  << "  pts cached " << ptsCached << " dropped " << ptsDropped
-                  << " (budget " << kStreamBudgetPts << ")" << std::endl;
+        std::cerr << ") scale=" << relCutoffScale << "  pairs " << nPairs
+                  << ": fp64 " << nCached64 << " (" << pts64 << " pts), fp32 " << nCached32
+                  << " (" << pts32 << " pts), dropped " << ptsDropped
+                  << " pts (budgets " << kStreamBudgetPts << "/" << kStreamBudgetPtsF32 << ")" << std::endl;
         return c;
     }
 
@@ -381,8 +440,17 @@ public:
                 {
                     const double c=fold*std::real(Dij*std::conj(phase(st.n)));  // Re[D_ij e^{-ik.R_n}] offset weight
                     if (c==0.0) continue;
-                    const unsigned* ix=st.idx.data(); const double* v=st.val.data();
-                    for (size_t k=0, m=st.idx.size(); k<m; k++) r[ix[k]]+=c*v[k];
+                    const unsigned* ix=st.idx.data();
+                    if (!st.val.empty())
+                    {
+                        const double* v=st.val.data();
+                        for (size_t k=0, m=st.idx.size(); k<m; k++) r[ix[k]]+=c*v[k];
+                    }
+                    else                                            // fp32 overflow tier (values demoted)
+                    {
+                        const float* v=st.val32.data();
+                        for (size_t k=0, m=st.idx.size(); k<m; k++) r[ix[k]]+=c*double(v[k]);
+                    }
                 }
             else                                                    // over the cache budget: evaluate on the fly
                 ForImageOffsets(i,j,A,[&](const ivec3_t& n, const rvec3_t& Roff)
@@ -482,8 +550,17 @@ public:
                 for (const PairOffsetStream& st : sc->pairs[i*nn+j].offsets)
                 {
                     double b=0.0;
-                    const unsigned* ix=st.idx.data(); const double* v=st.val.data();
-                    for (size_t k=0, m=st.idx.size(); k<m; k++) b+=v[k]*V[ix[k]];
+                    const unsigned* ix=st.idx.data();
+                    if (!st.val.empty())
+                    {
+                        const double* v=st.val.data();
+                        for (size_t k=0, m=st.idx.size(); k<m; k++) b+=v[k]*V[ix[k]];
+                    }
+                    else                                            // fp32 overflow tier (values demoted)
+                    {
+                        const float* v=st.val32.data();
+                        for (size_t k=0, m=st.idx.size(); k<m; k++) b+=double(v[k])*V[ix[k]];
+                    }
                     pb.nb.emplace_back(st.n,b);
                     s+=phase(st.n)*b;
                 }

@@ -38,10 +38,11 @@ module;
 #include <functional>   // cellphase_t (the Bloch phase of an integer cell offset -- k stays lattice-side)
 #include <vector>
 export module qchem.BasisSet.Molecule.LatticeSum1E;
-import qchem.Structure;   // Structure (the nuclear-attraction centres)
-import qchem.UnitCell;    // UnitCell (the collocation grid<->cell map: CollocateDensity)
-import qchem.Types;       // rvec3_t, cvec_t, chmat_t, rmat_t, ivec3_t
-import qchem.Blaze;       // matrix machinery
+import qchem.Structure;      // Structure (the nuclear-attraction centres)
+import qchem.UnitCell;       // UnitCell (the collocation grid<->cell map: CollocateDensity)
+import qchem.Types;          // rvec3_t, cvec_t, chmat_t, rmat_t, ivec3_t
+import qchem.Blaze;          // matrix machinery
+import qchem.Math.Angular;   // Math::CartTerm (the Cartesian-monomial expansion of a GaussianFunction)
 
 export namespace qchem::BasisSet::Molecule
 {
@@ -67,6 +68,26 @@ public:
 
     //! \f$S_{ij}=\sum_R e^{ik\cdot R}\langle\chi_i|\chi_j(\cdot-R)\rangle\f$ (normalised).
     virtual chmat_t MakeOverlap(const std::vector<rvec3_t>& Rs, const cvec_t& phases) const = 0;
+
+    //! \brief A primitive Cartesian-Gaussian scalar function,
+    //! \f$g(r)=\sum_t c_t\,(r-C)^{m_t}\,e^{-\alpha|r-C|^2}\f$ (one shared exponent, a finite Cartesian-
+    //! monomial polynomial \f$(r-C)^{m}=x^{m_x}y^{m_y}z^{m_z}\f$ about the centre \f$C\f$) -- the family of
+    //! scalar functions a Gaussian basis can integrate ANALYTICALLY.  Pure function-language: the caller may
+    //! think of \f$g\f$ as a projector, a moment, anything -- this face only sees a Gaussian.
+    struct GaussianFunction
+    {
+        rvec3_t center;                         //!< \f$C\f$
+        double  alpha;                          //!< the shared exponent \f$\alpha\f$
+        std::vector<Math::CartTerm> terms;      //!< \f$\{(m_t,c_t)\}\f$ -- the polynomial about \f$C\f$
+    };
+
+    //! \brief The lattice-summed overlap of every basis function with ONE Gaussian function \a g:
+    //! \f$b_i=\sum_R \mathrm{phases}[R]\,\langle\chi_i|\,g(\cdot-R)\,\rangle\f$ -- the vector (\f$n\f$)
+    //! analogue of the matrix \c MakeOverlap, with \a g standing in the \f$\chi_j\f$ slot.  Same
+    //! \c (Rs,phases) weighted point set, same magnitude screen (\f$g\f$'s reach from \f$\alpha\f$).
+    //! \f$\chi_i\f$ carries its usual normalisation; \a g is integrated RAW (its scale is in \c terms).
+    virtual cvec_t MakeOverlap(const std::vector<rvec3_t>& Rs, const cvec_t& phases,
+                               const GaussianFunction& g) const = 0;
     //! \f$\langle p^2\rangle_{ij}=\sum_R e^{ik\cdot R}\langle\chi_i|-\nabla^2|\chi_j(\cdot-R)\rangle\f$ (NO 1/2 --
     //! the Hamiltonian applies it, matching \c Integrals_Kinetic).
     virtual chmat_t MakeKinetic(const std::vector<rvec3_t>& Rs, const cvec_t& phases) const = 0;

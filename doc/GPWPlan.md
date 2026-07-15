@@ -155,10 +155,40 @@ the same commit) was the regression:
   complex phases) ENABLED as a regression gate at AUTO Rcut: **−7.86724 vs CP2K −7.86744 (0.20 mHa)**, charge 8,
   CONVERGED Δρ=4.5e-8, ~2.5 min (the memos make the 8 k-blocks share the static sweeps).  Γ-centred 2×2×2
   stays disabled (redundant coverage).  196/196 UTMain green.
-**(0a) REMAINING = the NaF leg**: baseline the full NaF SCF on the analytic path (the "before": setup ~1 h,
-iterations ~minutes), then the setup levers — the `[stream cache]` readout will show NaF's coverage (uncapped
-demand was ~2G pts ≈ 27 GB, so the budget still binds there: float32 stream values and/or per-pair packing
-priority are the candidate levers), KB/`Eval` cost after the per-image screen — target NaF full SCF ~10 min.
+**(0a) NaF leg (2026-07-15, same day): ANALYTIC KB + fp32 stream tier LANDED — the setup wall is dead;
+per-iteration collocation volume is now the whole NaF story.**
+- **ANALYTIC KB ASSEMBLY (the big one).**  The measured NaF setup wall was `MakeSeparablePP`'s mesh
+  quadrature — `Eval` (the truncated-Bloch orbital sum) over a 358k-point eCut=160 mesh ≈ billions of exp
+  calls: the mesh-path run burned **>33 min without finishing setup**.  CP2K never touches a grid here: GTH
+  projectors are polynomial×Gaussian, so ⟨χ|β Y_lm⟩ is analytic.  Now ours is too: qcPseudopotential grew the
+  OPTIONAL capability face `SeparablePotential_Gaussian::BetaGaussian` (the radial's CLOSED Gaussian form
+  Σ_t c_t r^{l+2n_t} e^{−α_t r²}; HGH/GaussianProjector/MultiSpecies implement it), and the molecular seam
+  grew `LatticeSum1E::MakeOverlap(Rs, phases, GaussianFunction)` — b_i = Σ_R phases[R]⟨χ_i|g(·−R)⟩ with
+  g = {centre, α, Cartesian-monomial terms}: PURE Gaussian language (user pin: the basis interface talks
+  integrals-over-functions; no Fourier/potential vocabulary).  GPW expands β·Y_lm → monomial Gaussians
+  (`YlmCartesian` pins `Math::SphericalShell` to the mesh path's own `RealYlm` convention numerically;
+  `MultiplyR2` folds the r^{2n} powers) and calls the seam per radial term.  Models without the face keep the
+  mesh path (contract intact).  **Gate `GPW.AnalyticSeparablePPMatchesMesh`: analytic == mesh to 4.6e-11**
+  (SR/AUTO complete enumeration; at an UNDER-enumerated Rcut the two paths truncate differently — the mesh's
+  Bloch orbital reaches χ-image×β-image separations up to 2·Rcut, the analytic single sum stops at Rcut — the
+  "two schemes" pin again; measured 9.3e-2 for diffuse SIPP at 1.5a, so the gate pins the COMPLETE setting).
+  All four SCF anchors byte-stable (the Si mesh KB was already converged; the win is runtime).
+- **fp32 STREAM TIER (the coverage lever).**  Stream budgets are now TWO-TIER: fp64 150M pts (bit-identical
+  replay; all Si shapes live here → every anchor/kernel gate unchanged) + fp32 700M pts (~5.6 GB; overflow
+  pairs store float values instead of falling to on-the-fly; ~6e-8 relative replay noise, invisible at NaF's
+  anchor scales; the collocate/integrate ADJOINT stays machine-exact — both directions replay the SAME
+  stream).  NaF coverage 16% → 89%.
+- **NaF end-to-end (charge 8.0000000000, Etot −24.0310 at the auto Ecut=160 grid, 60-iter cap): 2h15m,
+  peak RSS 8.2 GB.**  The remaining cost is PER-ITERATION collocate/integrate volume: 850M cached pts
+  replayed ~5 sweeps/iter + 314 small pairs (102M pts, first-fit packing victims) on-the-fly each sweep +
+  the one-time scale-6 static-PP fine sweep.  **Ranked next levers (the CP2K gap is ~1 min-class):**
+  (1) **D-aware radii/screening** (CP2K `grid_ref`: box radius from eps/|coef|, coefficient-aware,
+  per-iteration — shrinks or kills most pair-offsets; the structural O(10×); needs a design pass vs the
+  D-independent stream cache); (2) packing priority / small fp32-budget bump (cache the dropped 102M pts —
+  kills the on-the-fly premium); (3) OpenMP over pairs (embarrassingly parallel; the user's parallel-execution
+  TODO; CP2K ssmp is threaded); (4) §0b convergence (the 60-iter Kerker limit cycle is its own multiplier).
+  CP2K calibration on this box: Si Γ 3.6 s (ours 31 s), Si 2×2×2 shifted 32 s (ours 149 s); CP2K NaF has NO
+  number yet (its deck aborts on the Na q1-vs-q9 valence mismatch — the §2 low-q basis blocker).
 
 **RINGING/VARIATIONALITY LEDGER (user pin, 2026-07-14 — Gibbs ringing destroys variational energy,
 convergence, and GDM).**  Where each error source now stands:
@@ -372,7 +402,8 @@ Symmorphic space groups → BZ reduction (irreducible wedge) → SALC with plane
 # Pointers
 - **doc/GPWHistory.md** — the full archived DONE narratives, resolved investigations (indefinite-S,
   conditioning, NaF diagnostics), dead-end records, and complete commit archaeology.
-- Tests: `UnitTests/GPW_UT.C` (1E + Bloch invariants; analytic collocation/adjoint gates),
+- Tests: `UnitTests/GPW_UT.C` (1E + Bloch invariants; analytic collocation/adjoint gates;
+  `AnalyticSeparablePPMatchesMesh` == mesh KB to 4.6e-11),
   `UnitTests/GPW_SCF_UT.C` (enabled anchors: `SiliconGammaConverges` == CP2K −7.11506 ± 2 mHa,
   `SiliconMultiKPlumbing` −7.45134, `SR_2x2x2ShiftedMP_vs_CP2K` == CP2K −7.86744 ± 3 mHa (the complex-k gate),
   `SiPseudoAtomInBoxMatchesFinite`; DISABLED: NaF, the Γ-centred 2×2×2 gate (redundant), conditioning sweeps),

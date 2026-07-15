@@ -65,11 +65,30 @@ public:
     virtual double BetaR(int Z, size_t p, double r) const=0;
 };
 
+//! One term \f$c\,r^{2n}\,e^{-\alpha r^2}\f$ of a radial function's closed Gaussian expansion (the channel's
+//! \f$r^l\f$ is carried separately -- see \c SeparablePotential_Gaussian).
+struct RadialGaussian { double c; int n; double alpha; };
+
+//! \brief CAPABILITY face: the real-space radial projector in CLOSED GAUSSIAN form,
+//! \f$\beta_p(r)=\sum_t c_t\,r^{\,l+2n_t}\,e^{-\alpha_t r^2}\f$ with \f$l=\f$ \c AngularMomentum(Z,p) --
+//! i.e. \c BetaR expressed exactly (not fitted) as polynomial x Gaussian.  A consumer holding a Gaussian
+//! orbital basis can then form \f$\langle\chi_i|\beta_p Y_{lm}\rangle\f$ ANALYTICALLY (the projector times
+//! the degree-\f$l\f$ solid harmonic is a finite Cartesian-Gaussian expansion) instead of quadraturing
+//! \c BetaR on a mesh.  Optional: reached by abstract->abstract cross-cast from \c SeparablePotential_R;
+//! a model whose radial is not Gaussian simply does not implement it (the consumer keeps its mesh path).
+class SeparablePotential_Gaussian : public virtual SeparablePotential_Base
+{
+public:
+    //! The closed Gaussian expansion of \c BetaR(Z,p,r): \f$\beta_p(r)=\sum_t c_t r^{\,l+2n_t}e^{-\alpha_t r^2}\f$.
+    virtual std::vector<RadialGaussian> BetaGaussian(int Z, size_t p) const=0;
+};
+
 //! \brief A single Gaussian Kleinman-Bylander projector in channel \a l,
 //! \f$\tilde\beta(q)=e^{-\sigma^2 q^2/2}\f$ with coefficient \f$D\f$ -- a minimal analytic demonstrator
 //! of the separable nonlocal structure (each atom contributes a rank-1 \f$V_{NL}\f$ per channel).
 //! Defaults to l=0 (the s-channel), so existing callers are unaffected.
-class GaussianProjector : public SeparablePotential, public virtual SeparablePotential_R
+class GaussianProjector : public SeparablePotential, public virtual SeparablePotential_R,
+                          public virtual SeparablePotential_Gaussian
 {
 public:
     GaussianProjector(double sigma, double D, int l=0) : itsSigma(sigma), itsD(D), itsL(l) {}
@@ -82,6 +101,11 @@ public:
     virtual double BetaR(int, size_t, double r) const
     {
         return 2.0*std::sqrt(2.0)/(itsSigma*itsSigma*itsSigma) * std::exp(-0.5*r*r/(itsSigma*itsSigma));
+    }
+    //! The same radial in closed Gaussian form (one term, n=0; BetaR == c e^{-alpha r^2} by construction).
+    virtual std::vector<RadialGaussian> BetaGaussian(int, size_t) const
+    {
+        return { { 2.0*std::sqrt(2.0)/(itsSigma*itsSigma*itsSigma), 0, 0.5/(itsSigma*itsSigma) } };
     }
 private:
     double itsSigma; //!< Projector width (Bohr).
@@ -102,7 +126,8 @@ private:
 //! \sum_i v_{\alpha,i}\,\pi^{5/4} q^l\sqrt{r_l^{2l+3}}Q_i^l e^{-(qr_l)^2/2}\f$, so the generic
 //! (2l+1)P_l(cosγ) assembler in PlaneWave_IBS reproduces \f$\frac1\Omega(2l+1)P_l\sum_{ij}\tilde\beta_i
 //! h_{ij}\tilde\beta_j\f$ exactly.
-class HGH_SeparablePotential : public SeparablePotential, public virtual SeparablePotential_R
+class HGH_SeparablePotential : public SeparablePotential, public virtual SeparablePotential_R,
+                               public virtual SeparablePotential_Gaussian
 {
 public:
     //! Build by adding channels (AddChannel) from real GTH parameters; the GTH database reader
@@ -127,6 +152,21 @@ public:
         double s=0.0;
         for (size_t i=0;i<pr.v.size();i++) s += pr.v[i]*ProjR(r, pr.l, static_cast<int>(i), pr.rl);
         return s;
+    }
+    //! The same radial in CLOSED Gaussian form: ProjR is \f$\sqrt2\,r^{l+2i}e^{-r^2/2r_l^2}/(r_l^a\sqrt{\Gamma(a)})\f$,
+    //! so \f$\beta_p(r)=\sum_i c_i\,r^{\,l+2i}\,e^{-\alpha r^2}\f$ with \f$c_i=v_i\sqrt2/(r_l^{a_i}\sqrt{\Gamma(a_i)})\f$,
+    //! \f$\alpha=1/2r_l^2\f$ -- term-by-term identical to BetaR (exact, not a fit).
+    virtual std::vector<RadialGaussian> BetaGaussian(int, size_t p) const
+    {
+        const Proj& pr=itsProj[p];
+        std::vector<RadialGaussian> terms;
+        for (size_t i=0;i<pr.v.size();i++)
+        {
+            double a = pr.l + (4*i+3)/2.0;
+            terms.push_back({ pr.v[i]*std::sqrt(2.0)/(std::pow(pr.rl,a)*std::sqrt(std::tgamma(a))),
+                              static_cast<int>(i), 0.5/(pr.rl*pr.rl) });
+        }
+        return terms;
     }
 
     //! \brief Add an angular channel from its symmetric KB coefficient matrix \a h (the HGH h-matrix
@@ -225,7 +265,8 @@ private:
 //! router keyed by atomic number \a Z forwarding to the per-species projector model.  Every method takes
 //! \a Z, so the basis assembly (which loops atoms and calls NumProjectors(a->itsZ) etc.) is unchanged.
 //! Register every species (even a purely-local one, whose model simply reports 0 projectors).
-class MultiSpecies_SeparablePotential : public SeparablePotential, public virtual SeparablePotential_R
+class MultiSpecies_SeparablePotential : public SeparablePotential, public virtual SeparablePotential_R,
+                                        public virtual SeparablePotential_Gaussian
 {
 public:
     //! Register species \a Z's nonlocal projector model (atomic number, e.g. 53 for I).
@@ -241,6 +282,14 @@ public:
         const auto* rface=dynamic_cast<const SeparablePotential_R*>(&Get(Z));
         assert(rface && "MultiSpecies_SeparablePotential::BetaR: sub-model has no real-space view");
         return rface->BetaR(Z,p,r);
+    }
+    //! The closed-Gaussian view: forwarded the same way (every species model must supply it for the router
+    //! to; today HGH and the Gaussian demonstrator both do).
+    virtual std::vector<RadialGaussian> BetaGaussian(int Z, size_t p) const override
+    {
+        const auto* gface=dynamic_cast<const SeparablePotential_Gaussian*>(&Get(Z));
+        assert(gface && "MultiSpecies_SeparablePotential::BetaGaussian: sub-model has no closed-Gaussian view");
+        return gface->BetaGaussian(Z,p);
     }
 private:
     const SeparablePotential& Get(int Z) const

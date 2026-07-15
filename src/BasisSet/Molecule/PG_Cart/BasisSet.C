@@ -83,6 +83,8 @@ public:
     // radials/pols/ns).  The R=0/phase-1 term reproduces this basis's own Overlap/Kinetic/Nuclear exactly.
     // (The (Rs,phases) overload is distinct from the mixin's finite MakeOverlap()/MakeKinetic()/MakeNuclear(cl).)
     virtual chmat_t MakeOverlap(const std::vector<rvec3_t>& Rs, const cvec_t& phases) const override;
+    virtual cvec_t  MakeOverlap(const std::vector<rvec3_t>& Rs, const cvec_t& phases,
+                                const Molecule::LatticeSum1E::GaussianFunction& g) const override;
     virtual chmat_t MakeKinetic(const std::vector<rvec3_t>& Rs, const cvec_t& phases) const override;
     virtual chmat_t MakeNuclear(const std::vector<rvec3_t>& Rs, const cvec_t& phases, const Structure* cl) const override;
     virtual double  MaxExponent() const override;   // finest exponent -> the GPW density-grid cutoff floor
