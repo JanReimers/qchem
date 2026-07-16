@@ -244,8 +244,9 @@ against a same-basis CP2K oracle (**−27.93128**, `doc/CP2Kresults.md`).  The o
 PRODUCTION-grid SCF is captured by an unphysical attractor (E≈−39) that plain damped mixing cannot escape
 at any α.  **0b's XC-fork hypothesis was FALSIFIED by its own FD instrument (see 0b below): the discrete
 functional is already exactly consistent, so the attractor is a genuine basin of the under-resolved
-discretization.  The lead increment is now 0c** (quasi-Newton mixing + grid-continuation seeding — don't
-wander into the basin), followed by the runtime follow-ups (0d) and the standing queue (1)–(5).
+discretization.  The lead increment is now 0b′** — complete the REL_CUTOFF ladder UPWARD (the missing top
+rung; user decision: fix the grid, don't let the mixer hide it) — **then 0c** (quasi-Newton mixing +
+grid-continuation seeding), followed by the runtime follow-ups (0d) and the standing queue (1)–(5).
 
 ## 0b. XC CONSISTENCY — RESOLVED BY FALSIFICATION (2026-07-16)
 **The fork does NOT exist; the LDA discrete functional is ALREADY exactly consistent.**  The probe is the
@@ -279,8 +280,38 @@ the grid-sum energy w.r.t. the ball-limited ρ̃ the energy itself uses.  One di
 - **ρ-FLOOR: already effectively present for LDA** (both functionals zero at ρ≤0, verified consistent by
   probe 2).  An explicit ε-floor remains only as the **GGA prerequisite** (∇ρ/ρ powers diverge at tiny ρ)
   — fold it into the GGA increment together with the `relCutoff` Vxc-grid item (§5).
-- **0c (Pulay/Broyden behind `tDensityMixer`) is now the lead increment**, with grid-continuation seeding
-  as the accelerant; gate = NaF production grid vs the −27.93128 oracle.
+- ~~0c (Pulay/Broyden behind `tDensityMixer`) is now the lead increment~~ **superseded same day by 0b′
+  below (user decision: fix the grid first, don't let the mixer hide it); 0c follows on the healthy grid.**
+
+## 0b′. COMPLETE THE REL_CUTOFF LADDER UPWARD — the missing TOP RUNG (NEW LEAD increment; user-directed 2026-07-16)
+**The defect (exact, from the code):** `PairLevel` (`PG_Cart_MnD/Evaluator.C`, `kRelSafety=2`) demands
+`ecut_L ≥ req = 2·ecut_fine·(αᵢ+αⱼ)/(2α_max)` — for the TOP pairs (αᵢ+αⱼ > α_max) req EXCEEDS ecut_fine
+and no level can satisfy it; they are silently parked on the finest rung carrying an `e^{−ecut/2p}` BALL
+tail (NaF F–F p=80 on Ecut=160: e^{−1} ≈ 37% spectral amplitude discarded at the ball edge).  The rule the
+ladder enforces for every other pair is, by construction, unsatisfiable at the top.  NOT a spacing problem
+(h≈0.05 vs σ≈0.08: sampling error ~e^{−50}) — a BALL-truncation problem.
+**Measured (1-iter NaF probe, `NAF_ECUT=-1 NAF_NMAX=1`):** ladder {160,40,10,2.5}, N=(128,64,32,16),
+528 pairs; the IONIC SEED collocates to ∫ρ=8.005 (5.3e-3 loss, CP2K-class) but the FIRST diagonalized D
+loses **4.9 e** (∫ρ_grid=3.08 vs Tr(DS)=8) — the SCF map enters the aliased regime at ITERATION 1, so the
+−39 basin is not a mid-slosh hazard a better mixer could route around.
+**Fix — ONE rung ABOVE fine at `kRelSafety·ecut_fine` (2×): the ladder is COMPLETE by construction**
+(req_max = 2·ecut_fine ≤ top rung; every pair incl. α_max+α_max satisfies the rule).
+- N rule (`AutoGrid` = 4·m_max+1 → `NextPow2`): NaF top rung 320 Ha → N=256 (16.8M pts, sub-second FFT,
+  ~130 MB/field).  Cost is the GLOBAL FFT + field arrays only — the sharp pairs' exp-tail boxes are tiny
+  (reach ≈ 0.5 a.u. at p=80, ~10⁴ pts each), so stream volume barely moves.
+- Keep collocate/integrate SYMMETRIC per level (the top rung contributes over its own {G} in the nested
+  combine; `OverlapMatrix` restricts V to the same set) → the adjoint gate AND `XCPotentialConsistencyFD`
+  carry over unchanged.  Mind the fit-ball bookkeeping: ρ̃ gains G beyond the densityEcut ball (still well
+  inside the raster Nyquist) — Hartree-kernel/`RhoOnGrid` consumers must accept the extended map.
+- The static local-PP sweep (relCutoffScale=6) gets the same top-rung benefit for the sharp pairs.
+- **Si anchors WILL move** by their current e^{−2.5}-tail residue (mHa class; Si SR gains a 40-Ha rung
+  above its 20-Ha fine) — re-pin, did-E-move convention.  Gates: NaF iteration-1 grid charge holds ~8
+  through the first diagonalization; Si Γ vs CP2K −7.11506 should TIGHTEN (kRelSafety=2 is "on the lean
+  side" per its own comment); all machine gates unchanged.
+**Then 0c** (below) on the healthy grid; 0c design input: feed the `[grid charge]` readout
+(∫ρ_grid − Tr(DS)) into `MixSignals` as a TRUST-REGION signal (reject/shrink steps that blow the
+discretization budget) — cheap, uses existing instrumentation.  Gate for the 0b′+0c pair = the NaF test on
+the production grid vs the −27.93128 oracle.
 
 ## 0c. PULAY/BROYDEN ρ̃-MIXING behind the DIP mixer face (`tDensityMixer`) — user design, 2026-07-16
 Mixing is today hardwired inside `tSCFIterator::Iterate` (the `KerkerG0>0 ? KerkerUpdate(relax) :
@@ -375,6 +406,17 @@ shells (from the PP q):
 
 Seed α_max from the GTH `r_loc`, α_min from the valence ⟨r⟩, ratio ~2.5–3 (SIPP s = 2.0/0.7/0.25). New files:
 `BasisSetData/{na,f,cs,i}_lowq{,_sr}.bsd` + `BasisSetData` enum entries + the loader map (mirror sipp/sipp_sr).
+
+**NLCC vs semicore — decision point when the TM-oxide (Mn/Ni/Co, battery-track) bases are built.**  Our XC
+is valence-only (E_xc[ρ_val], v_xc[ρ_val]) — CORRECT for the GTH-PADE set we ship (`gth_potentials.json`
+has NO NLCC/core-charge entries; the core-valence XC linearization is absorbed at PP generation, and CP2K
+runs the same PPs the same way, so all oracles are apples-to-apples).  The GTH remedy where linearization
+fails (spin-polarized TM cores) is historically SEMICORE promotion (the Na q1→q9 pattern; sharp semicore
+density → much higher grid cutoff), the alternative is NLCC-GTH (Willand 2013 style; CP2K supports an NLCC
+section).  If NLCC is chosen: the core density is an analytic per-atom Gaussian → ONE more static
+collocation onto the same grid (like the local-PP sweep), then ε_xc/v_xc evaluated at ρ_val+ρ_core in BOTH
+the energy and the integrate-back field; ∂ρ_core/∂D=0 so H_xc stays the exact gradient and the
+`XCPotentialConsistencyFD` gate covers it unchanged.  Forces add the core-motion term (forces increment).
 
 **Validation loop (per element → per compound).**
 1. Build the `.bsd` (+ SR variant).
