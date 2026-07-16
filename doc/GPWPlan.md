@@ -374,15 +374,34 @@ time with the crutch measured to corrupt the map).  STATUS + measurements:**
   but leaves ε_null polluting the band structure — not the clean fix.  Verification instrument for the
   SR2 session: print the lowest band energies per iteration — the spurious level should dive across the
   Fermi edge one iteration before each spike.)
+**SR2 TRIM — DONE same session (`valence_lowq_sr2.bsd`, enum VALENCE_LOWQ_SR2): drop Na p 0.05 + s 0.0857
+(the SPECTRUM identified them: SR's three degenerate 1.03e-6 near-null modes = exactly the Na p 0.05
+triplet; F kept intact for the anion).  λ_min 1.03e-6 → 1.57e-3 (cond 2715, Cholesky residual 4e-14);
+NaF 200 iters 17 min → 3 min (the deleted diffuse shells owned the biggest boxes).  BUT THE SPIKES
+SURVIVED — the conditioning/near-null diagnosis is DISPROVED as the mechanism (measurement-driven, round 3):**
+- **α-INDEPENDENT**: 10/10/13 spikes at α=0.025/0.0125/0.00625 (period ~27; smooth descent to the SAME
+  ≈−27.73 fixed point each cycle, then a SMOOTH climb-away over ~5 iters before the +5e3-scale blowup —
+  a growing departure, not a discontinuous occupation swap).  Rules out the plain linear-mixing gain
+  story UNLESS the response multiplier is ~1e4 (α·|λ|≫1 even at α=0.006).
+- **DIIS (quasi-Newton in Fock space, `NAF_DIIS=1` knob) does NOT fix it** on the honest map — 51
+  excursions, no smooth descents, endpoint −27.1±2 with `En>EMax` flapping.  (Its ban was for the
+  corrupted map; on the honest map it fails DIFFERENTLY — fighting the same mode.)
+- **The surviving hypothesis: a GIANT RESPONSE MODE from a near-degenerate HOMO/LUMO at Γ** — a tiny gap
+  makes χ ~ 1/(ε_v−ε_c) huge: explains the α-independence at practical α, the smooth departure, CP2K's
+  OWN eternal density limit-cycle on this same system (RMS 0.03–0.12 forever), and DIIS's failure.
+  Γ-only NaF in this minimal ionic basis SHOULD be wide-gap — if the measured gap is tiny, that itself
+  is the finding (basis? PP? Γ-only folding?).
 **The remaining work, in order:**
-1. **SR2 basis trim — now MEASURED-NECESSARY** (target λ_min(S_complete) ≥ ~1e-3; drop Na s=0.0857,
-   likely F s=0.275/p=0.341): kills the near-null subspace at the basis, the fast unblock.  Re-run the
-   recipe → expect clean convergence to ≈−28.0 → re-pin.  Then re-test the production (auto) grid — the
-   −39 basin likely died with the mismatch.  §1 rank-reduction + auto-tol stays the PERMANENT backstop
-   (and the FULL-basis path).  Also worth probing: the ionic SEED's 1.09-e precision-floor loss at
-   λ_min=1e-6 (one iteration only; may vanish with SR2).
+1. **BAND-GAP INSTRUMENT (the next session's opener)**: print the orbital/band energies near the fixed
+   point (`Orbital::GetEigenEnergy` exists; run the recipe to NMAX≈35 and dump the spectrum, or add
+   ε_HOMO/ε_LUMO to the SCF verbose line).  The gap measurement selects the fix:
+   - gap ≈ 0 → Fermi SMEARING (fractional occupation) or MORE k-POINTS (Γ-only folding artifact) — the
+     physical answers; **MOM (already coded, inactive — `tIrrepWF::MOMScores`/`CaptureMOMReference`,
+     user pointer) enforces occupied-subspace continuity** through the crossing;
+   - gap finite but small → 0c Pulay/Broyden on ρ̃ (the response is stiff but the state is clean).
 2. **0c (Pulay/Broyden mixer face)** on the conditioned map; its `MixSignals` trust-region signal
-   (∫ρ_grid − Tr(DS)) stays — now purely a precision/conditioning health meter.
+   (∫ρ_grid − Tr(DS)) stays — now purely a precision/conditioning health meter.  Also probe: the ionic
+   SEED's 1.09-e precision-floor loss (may already be gone with SR2's conditioning).
 Side effect of the refactor: the "(Rs,phases)→one cMesh" future note is MOOT for these seams (no weighted
 point set crosses the interface — the stronger form of that cleanup); KMesh + quadrature meshes keep it.
 

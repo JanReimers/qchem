@@ -395,8 +395,11 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     cell.AddAtom(9,  {0.5,0.5,0.5});    // F  (Zion=7)
     Lattice_3D lat(cell, ivec3_t(1,1,1));
 
+    // SR2 (2026-07-16): the complete-enumeration-conditioned basis (lambda_min=1.57e-3; SR's three
+    // degenerate 1.03e-6 near-null modes were exactly the Na p 0.05 triplet -- the cation's superfluous
+    // diffuse shells; F kept intact for the anion).  See DISABLED_NaFOverlapConditioningSweep.
     auto mol = std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(
-        BasisSetData::VALENCE_LOWQ_SR, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
+        BasisSetData::VALENCE_LOWQ_SR2, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
 
     namespace L3=BasisSet::Lattice_3D;
     // densityEcut<0 => AUTOMATIC: the grid is floored to 4*alpha_max from the basis (F alpha_max=40 -> 160),
@@ -439,7 +442,14 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     //    finding (2026-07-12) stands: pure relax mixing limit-cycles too; Kerker damping is what contains the
     //    low-G charge-transfer slosh, and heavier damping (alpha=0.2, CP2K's value) settles E.
     //    Kerker holds alpha=StartingRelaxRo fixed (no [F,D] auto-tune).
-    auto* acc=new qchem::SCFAccelerators::tSCFAcceleratorNull<dcmplx>();
+    // NAF_DIIS=1: re-admit DIIS (quasi-Newton in Fock space).  Its mid-cycle extrapolations were banned
+    // for spiking -- but that was measured on the CORRUPTED (Rcut=2a scheme-mismatch) map; on the honest
+    // map the alpha-independent giant-response instability is exactly DIIS's job.  Env knob for the sweep.
+    auto envDIIS=[&]{ const char* d=std::getenv("NAF_DIIS"); return d && std::atof(d)!=0.0; };
+    qchem::SCFAccelerators::tSCFAccelerator<dcmplx>* acc = envDIIS()
+        ? static_cast<qchem::SCFAccelerators::tSCFAccelerator<dcmplx>*>(
+              new qchem::SCFAccelerators::cSCFAcceleratorDIIS(qchem::SCFAccelerators::DIISParams{8, 8.0, 1e-10, 1e-9}))
+        : new qchem::SCFAccelerators::tSCFAcceleratorNull<dcmplx>();
     qchem::ReportOverlapConditioning()=true;   // report min eig(S)/min sv(S) at SetBasisOverlap (the ctor below)
     qchem::SCFIterator::cSCFIterator scf(bs.get(), &ec, ham, acc,
                                          qchem::ChargeDensity::SeedStrategy::IonicSAD, lat.GetStructure().get(),
@@ -458,16 +468,18 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
               << " (Ekin="<<E.Kinetic<<" Een="<<E.Een<<" Eee="<<E.Eee<<" Exc="<<E.Exc
               << " Enn="<<E.Enn<<" Ealign="<<E.Ealign<<")" << std::endl;
     EXPECT_NEAR(charge, 8.0, 1e-6);     // 1 (Na) + 7 (F) valence electrons, conserved
-    // ENERGY PIN SUSPENDED (banish-Rcut, 2026-07-16).  The old anchor (-27.73 +- 0.05 at Ecut=40 /
-    // alpha=0.025 / 200 iters) was measured on the CORRUPTED map (Rcut=2a truncated S vs complete
-    // collocation -- the -2.25 e scheme mismatch) and is void.  On the HONEST (complete-enumeration) map:
-    //   - the scheme mismatch is DEAD (iteration-1 grid charge -4.9 e -> -2.4e-6 e; ~8.00 all the way);
-    //   - the recipe descends SMOOTHLY toward a genuine fixed point ~ -28.00 (passing -27.9999!), BUT
-    //   - the TRUE conditioning is exposed (lambda_min(S)=1.03e-6, cond=6e6) and a NEAR-NULL EIGEN-EVENT
-    //     blows the SCF up (+1e4 Ha, [F,D] 0.12->150) each time it nears convergence -- period ~29
-    //     (spikes at iters 45/74/103/131/160/185), charge CLEAN throughout (not slosh, not the map).
-    // A meaningful pin awaits the near-null fix: SR2 basis trim (lambda_min -> ~1e-3) or the section-1
-    // rank-reduction.  doc/GPWPlan.md 0b'.
+    // ENERGY PIN SUSPENDED (banish-Rcut + SR2, 2026-07-16).  The old anchor (-27.73 +- 0.05) was
+    // measured on the CORRUPTED map (Rcut=2a truncated S vs complete collocation) and is void.  On the
+    // HONEST map: the scheme mismatch is DEAD (iteration-1 grid charge -4.9 e -> -2.4e-6 e) and the
+    // recipe descends SMOOTHLY to a genuine fixed point (SR ~ -28.00, SR2 ~ -27.73), BUT departs and
+    // blows up (+5e3 Ha) each time it nears it -- period ~27.  MEASURED CLASSIFICATION (doc/GPWPlan 0b'):
+    //   - NOT conditioning: SR2 (lambda_min 1.6e-3, cond 2715) shows the SAME spikes as SR (1.03e-6);
+    //   - NOT plain linear-mixing gain: alpha-INDEPENDENT (10/10/13 spikes at 0.025/0.0125/0.00625);
+    //   - NOT fixed by DIIS (NAF_DIIS=1): 51 excursions, En>EMax flapping;
+    //   - the departure is a SMOOTH climb over ~5 iters (a growing mode, not an occupation swap).
+    // Surviving hypothesis: near-degenerate HOMO/LUMO at Gamma -> giant response chi ~ 1/gap (also
+    // explains CP2K's eternal density limit-cycle on this system).  NEXT: the band-gap instrument;
+    // then smearing / k-points / MOM (coded, inactive: tIrrepWF::MOMScores) / 0c-Pulay per the gap.
 }
 
 // VALIDATION (2026-07-13): can we drop the SR-basis hand-tuning and use the FULL valence_lowq basis, relying on
@@ -575,6 +587,7 @@ TEST(GPW_SCF, DISABLED_NaFOverlapConditioningSweep)
             std::cout << std::endl;
         }
     };
-    probe(BasisSetData::VALENCE_LOWQ,    "full");
-    probe(BasisSetData::VALENCE_LOWQ_SR, "SR  ");
+    probe(BasisSetData::VALENCE_LOWQ,     "full");
+    probe(BasisSetData::VALENCE_LOWQ_SR,  "SR  ");
+    probe(BasisSetData::VALENCE_LOWQ_SR2, "SR2 ");
 }

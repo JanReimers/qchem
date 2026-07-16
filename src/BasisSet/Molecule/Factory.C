@@ -35,7 +35,7 @@ export namespace qchem::BasisSet::Molecule
     //  (qchem.ValenceBasisGen); organised by TYPE (one file, all elements) for GPW multi-species work
     //  (NaF/CsI, doc/GPWPlan.md sec 1).  Grows one element block at a time; Low/Medium/High + SZ/DZ/TZ
     //  variants will be sibling files.
-    enum class BasisSetData { DZVP, DZVP2, TZVP, ORB, ORB1, SIPP, SIPP_SR, VALENCE_LOWQ, VALENCE_LOWQ_SR };
+    enum class BasisSetData { DZVP, DZVP2, TZVP, ORB, ORB1, SIPP, SIPP_SR, VALENCE_LOWQ, VALENCE_LOWQ_SR, VALENCE_LOWQ_SR2 };
 
     // Axis 2 -- the integral engine (orthogonal to the data set and the angular representation).
     enum class Engine { MnD, LibCint };

@@ -29,6 +29,7 @@ namespace qchem::BasisSet::Molecule
         {BasisSetData::SIPP_SR, "sipp_sr.bsd"},
         {BasisSetData::VALENCE_LOWQ, "valence_lowq.bsd"},
         {BasisSetData::VALENCE_LOWQ_SR, "valence_lowq_sr.bsd"},
+        {BasisSetData::VALENCE_LOWQ_SR2, "valence_lowq_sr2.bsd"},
     };
     static const std::map<std::string, BasisSetData> theBasisNames = // axis 1: json name -> enum
     {
@@ -36,6 +37,7 @@ namespace qchem::BasisSet::Molecule
         {"orb"  , BasisSetData::ORB  }, {"orb1" , BasisSetData::ORB1 }, {"sipp", BasisSetData::SIPP},
         {"sipp_sr", BasisSetData::SIPP_SR}, {"valence_lowq", BasisSetData::VALENCE_LOWQ},
         {"valence_lowq_sr", BasisSetData::VALENCE_LOWQ_SR},
+        {"valence_lowq_sr2", BasisSetData::VALENCE_LOWQ_SR2},
     };
     static const std::map<std::string, Engine>  theEngines  =        // axis 2: json name -> enum
     { {"mnd", Engine::MnD}, {"libcint", Engine::LibCint} };
