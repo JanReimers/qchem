@@ -48,7 +48,7 @@ class GPW_Evaluator
 public:
     //! \param mol   the molecular Gaussian orbital basis built over \a cell's atoms (kept alive here); its one
     //!              orbital block must realise \c Molecule::LatticeSum1E (a PG Gaussian basis does).
-    //! \param cell  the direct lattice (source of the real-space translation set \f$\{R\}\f$ + the reciprocal cell).
+    //! \param cell  the direct lattice (source of the cell geometry + the reciprocal cell).
     //! \param densityEcut  the DENSITY/collocation grid selector (Hartree) -- GPW's ONLY grid cutoff (there is
     //!              no orbital/wavefunction cutoff; Gaussians are analytic).  THREE modes: \f$<0\f$ = AUTOMATIC
     //!              (the recommended default): the grid is floored to \a cutoffFactor\f$\cdot\alpha_{\max}\f$ from
@@ -60,20 +60,15 @@ public:
     //!              the product of two orbitals (exponent \f$2\alpha_{\max}\f$), so \f$C\f$ already folds in the
     //!              \f$\times2\f$ over a single-orbital cutoff.  See doc/GPWPlan.md \S0.
     //! \param kFrac fractional crystal momentum (fractional reciprocal coords; \f$\Gamma=0\f$).
-    //! \param Rcut  the OVERLAP/1E lattice-translation sphere (a.u.).  THREE modes (mirroring \a densityEcut):
-    //!              \f$<0\f$ = AUTOMATIC (recommended) -- the radius is derived from the basis
-    //!              (\f$2\sqrt{-\ln\varepsilon/\alpha_{\min}}\f$ + the cell span), i.e. everything the
-    //!              magnitude screen can keep is enumerated and the screen prunes it sparse; \f$=0\f$ = home
-    //!              cell only (the FINITE-molecule mode); \f$>0\f$ = explicit radius (legacy).
-    //! \param collRcut  radius (a.u.) of the COLLOCATION sphere -- the reach of the Bloch orbital sum
-    //!              \f$\sum_R e^{ik\cdot R}\chi(r-R)\f$ the density grid samples.  The density is local
-    //!              (on-site + nearest images), so this is MUCH smaller than \a Rcut -- decoupling the two
-    //!              image sets is what makes multi-k bulk affordable (the collocation re-sums images at every
-    //!              grid point, per SCF iteration -- the dominant cost).  \f$\le 0\f$ reuses \a Rcut's set
-    //!              (backward-compatible: \f$\Gamma\f$/finite runs collocate on the same home-cell set).
+    //! \param homeCellOnly  the FINITE-molecule MODE: no lattice images anywhere (1E matrices == the finite
+    //!              molecule's; KB bra = the raw home orbital) -- the molecule-in-a-periodic-box configuration
+    //!              the finite==lattice gates compare against.  A MODE, not a radius: in the periodic mode
+    //!              (default) every lattice sum is an \f$\varepsilon\f$-CONVERGED SERIES enumerated internally
+    //!              per shell pair -- THERE IS NO CUT in the R direction, and no radius parameter exists
+    //!              (user pin, doc/GPWPlan.md).
     GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const UnitCell& cell,
-                  double densityEcut = 0.0, const rvec3_t& kFrac = rvec3_t(0,0,0), double Rcut = 0.0,
-                  double collRcut = 0.0, double cutoffFactor = 4.0);
+                  double densityEcut = 0.0, const rvec3_t& kFrac = rvec3_t(0,0,0),
+                  bool homeCellOnly = false, double cutoffFactor = 4.0);
     virtual ~GPW_Evaluator() = default;   // polymorphic: reached by the EPW_* mixin's Cast() cross-cast
 
     // --- isPW_1E_Evaluator surface (exact signatures the concept demands) ---
@@ -139,14 +134,13 @@ private:
     std::shared_ptr<const BasisSet::Real_BS> itsMol;   //!< owns the molecular Gaussian basis (lifetime)
     const BasisSet::Real_OIBS*          itsOrb = nullptr; //!< its single orbital block (op()/Gradient/size)
     const Molecule::LatticeSum1E*       itsLat = nullptr; //!< the same block's periodic-1E capability (cross-cast)
-    // The lattice translations {R} and their Bloch phases {e^{ik.R}} are a weighted point set, built + kept
-    // together (future: ONE qcMesh cMesh = Mesh<dcmplx>).  Both always include the origin (phase 1) first.
-    // TWO decoupled sets: the OVERLAP/1E set (large Rcut -> PSD overlap) and the COLLOCATION set (small
-    // collRcut -> the local density's orbital reach; == the overlap set when collRcut<=0).
-    std::vector<rvec3_t>                itsR;             //!< overlap/1E translations (incl. origin)
-    cvec_t                              itsPhase;         //!< matching Bloch phases e^{ik.R} (origin = 1)
-    std::vector<rvec3_t>                itsRc;            //!< collocation translations (orbital reach; incl. origin)
-    cvec_t                              itsPhaseC;        //!< matching collocation Bloch phases (origin = 1)
+    // INTERNAL Bloch-orbital image set for Eval/EvalGradient + the mesh-path KB quadrature (the ONLY places
+    // that still walk an explicit image list -- the 1E matrices and the analytic KB/collocation enumerate
+    // inside the molecular seam).  DERIVED from the eps-screen (single-orbital reach + cell span; home-only
+    // mode = the origin alone) -- an implementation detail of the series' convergence, never a parameter.
+    std::vector<rvec3_t>                itsRc;            //!< Eval/mesh-KB translations (incl. origin)
+    cvec_t                              itsPhaseC;        //!< matching Bloch phases e^{ik.R} (origin = 1)
+    bool                                itsHomeOnly=false; //!< the finite-molecule MODE (no images anywhere)
     rvec3_t                             itsk;             //!< fractional crystal momentum k
     double  itsMaxReach=0.0;   //!< max orbital reach sqrt(-ln eps/alpha_min) (Eval per-image screen)
     rvec3_t itsCellCtr;        //!< cell centre + bounding radius: an image R contributes at r only if

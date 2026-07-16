@@ -244,12 +244,14 @@ rFIT_SF_ABS* Orbital_IBS::CreateVxcFitBasisSet(const Structure* cl, const qcMesh
 std::vector<Symmetry::Molecule::AoShell> Orbital_IBS::GetAoShells() const {return ExtractAoShells(*this);}
 
 // Molecule::LatticeSum1E: the orbital IBS IS-A NR_Evaluator, which owns the radials/pols/ns and the shifted
-// two-centre kernels; forward the lattice sums straight to it (the GPW periodic-1E seam).
-chmat_t Orbital_IBS::MakeOverlap(const std::vector<rvec3_t>& Rs, const cvec_t& phases) const {return NR_Evaluator::MakeOverlap(Rs,phases);}
-cvec_t  Orbital_IBS::MakeOverlap(const std::vector<rvec3_t>& Rs, const cvec_t& phases,
-                                 const Molecule::LatticeSum1E::GaussianFunction& g) const {return NR_Evaluator::MakeOverlap(Rs,phases,g);}
-chmat_t Orbital_IBS::MakeKinetic(const std::vector<rvec3_t>& Rs, const cvec_t& phases) const {return NR_Evaluator::MakeKinetic(Rs,phases);}
-chmat_t Orbital_IBS::MakeNuclear(const std::vector<rvec3_t>& Rs, const cvec_t& phases, const Structure* cl) const {return NR_Evaluator::MakeNuclear(Rs,phases,cl);}
+// two-centre kernels; forward the lattice sums straight to it (the GPW periodic-1E seam; the offsets are
+// enumerated internally per shell pair -- there is no cut in R).
+chmat_t Orbital_IBS::MakeOverlap(const cellphase_t& phase, const UnitCell& A) const {return NR_Evaluator::MakeOverlap(phase,A);}
+cvec_t  Orbital_IBS::MakeOverlap(const cellphase_t& phase, const UnitCell& A,
+                                 const Molecule::LatticeSum1E::GaussianFunction& g) const {return NR_Evaluator::MakeOverlap(phase,A,g);}
+cvec_t  Orbital_IBS::MakeOverlap(const Molecule::LatticeSum1E::GaussianFunction& g) const {return NR_Evaluator::MakeOverlap(g);}
+chmat_t Orbital_IBS::MakeKinetic(const cellphase_t& phase, const UnitCell& A) const {return NR_Evaluator::MakeKinetic(phase,A);}
+chmat_t Orbital_IBS::MakeNuclear(const cellphase_t& phase, const UnitCell& A, const Structure* cl) const {return NR_Evaluator::MakeNuclear(phase,A,cl);}
 double  Orbital_IBS::MaxExponent() const {return NR_Evaluator::MaxExponent();}
 double  Orbital_IBS::MinExponent() const {return NR_Evaluator::MinExponent();}
 double  Orbital_IBS::RelCutoffSafety() const {return NR_Evaluator::RelCutoffSafety();}

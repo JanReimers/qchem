@@ -5,15 +5,18 @@
 // periodic cell, the Bloch orbital is the lattice sum  chi^k_i(r) = Sum_R e^{ik.R} chi_i(r-R), and its
 // one-electron matrices are the corresponding lattice sums of the ordinary (finite) two-centre integrals:
 //   S_ij = Sum_R e^{ik.R} <chi_i | chi_j(.-R)> ,  and likewise <p^2> and the nuclear attraction.
-// The R=0 term IS the finite integral, so with R={0} these reproduce the molecule's own Overlap/Kinetic/
-// Nuclear matrices exactly.
 //
-// This is the ONE high-level operation GPW needs from the molecular basis: it hands the basis a list of
-// real-space lattice translations (Cartesian, MUST include {0,0,0}) and gets back the summed matrices.  The
-// Gaussian machinery -- the primitives, the M&D kernels, GaussianRF::AtCenter that places a radial at each
-// image -- stays ENCAPSULATED on the molecular side (the caller never sees a radial or an exponent); GPW
-// stays purely lattice-side.  A concrete molecular Gaussian basis realises this face and GPW reaches it by an
-// abstract->abstract cross-cast of the orbital block.
+// THERE IS NO CUT -- in the R direction (user pin, doc/GPWPlan.md).  A lattice sum is a CONVERGENT SERIES,
+// summed to eps by the magnitude screen; it is never truncated at a radius.  The ENUMERATION therefore
+// lives HERE, per shell pair (the integrand's owner enumerates: which offsets matter is a function of the
+// Gaussian tails -- data only this side owns), exactly as CollocateDensity/IntegratePotential already do.
+// No radius, no translation list, no weighted point set crosses the interface: the caller hands the cell
+// geometry + a Bloch-phase ORACLE (cellphase_t -- "what is the weight of integer offset n") and gets the
+// summed matrices back.  The Gaussian machinery -- the primitives, the M&D kernels, GaussianRF::AtCenter
+// that places a radial at each image -- stays ENCAPSULATED on the molecular side (the caller never sees a
+// radial or an exponent); GPW stays purely lattice-side (it owns k and the phase convention e^{2 pi i k.n}).
+// A concrete molecular Gaussian basis realises this face and GPW reaches it by an abstract->abstract
+// cross-cast of the orbital block.
 //
 // ENGINE-NEUTRAL SEAM (the integral-engine switch point).  This face is deliberately engine-agnostic: it
 // names no integral engine, so it can be realised by ANY molecular Gaussian basis.  Today the McMurchie-
@@ -24,22 +27,20 @@
 // Molecule::Real_BS and cross-casts, throwing cleanly if unsupported), switching engines is then just the
 // Engine argument to Molecule::Factory where the basis is built -- NO change to GPW itself.
 //
-// GENERAL k (this increment): the phase e^{ik.R} enters as a per-image complex weight, so the sums are
-// Hermitian (chmat_t) -- at Gamma every phase is 1 and the result is real (imaginary part exactly zero).  The
-// caller supplies the (Rs, phases) pair (phases[r] is the coefficient for Rs[r]; the origin's phase is 1); the
-// k-convention (2 pi k_frac . n) stays entirely on the lattice/GPW side, so this face is geometry-only.  A
-// physically rigorous periodic nuclear attraction (Ewald, vs. this large-cell single-image limit) is a later
-// increment.
+// GENERAL k: the phase e^{ik.R} enters as a per-offset complex weight through the oracle, so the sums are
+// Hermitian (chmat_t) -- at Gamma every phase is 1 and the result is real (imaginary part exactly zero).
+// A physically rigorous periodic nuclear attraction (Ewald, vs. this large-cell single-image limit) is a
+// later increment.
 //
-// FUTURE: (Rs, phases) is a weighted point set -- {R} points + {e^{ik.R}} complex weights -- so once qcMesh
-// grows a complex-weight Mesh (cMesh = Mesh<dcmplx>) the pair collapses to a single `const cMesh&` argument
-// (Rs -> m.Points(), phases -> m.Weights()).  Kept as an adjacent pair for now to make that swap mechanical.
+// (The old "(Rs, phases) -> one cMesh" future note is MOOT for this seam -- no weighted point set crosses
+// the interface any more, the stronger form of that cleanup.  KMesh + the quadrature meshes still want the
+// Mesh<W> templating; see doc/GPWPlan.md section 5.)
 module;
 #include <functional>   // cellphase_t (the Bloch phase of an integer cell offset -- k stays lattice-side)
 #include <vector>
 export module qchem.BasisSet.Molecule.LatticeSum1E;
 import qchem.Structure;      // Structure (the nuclear-attraction centres)
-import qchem.UnitCell;       // UnitCell (the collocation grid<->cell map: CollocateDensity)
+import qchem.UnitCell;       // UnitCell (the cell geometry the internal enumeration walks)
 import qchem.Types;          // rvec3_t, cvec_t, chmat_t, rmat_t, ivec3_t
 import qchem.Blaze;          // matrix machinery
 import qchem.Math.Angular;   // Math::CartTerm (the Cartesian-monomial expansion of a GaussianFunction)
@@ -48,26 +49,30 @@ export namespace qchem::BasisSet::Molecule
 {
 
 //! \brief The periodic (lattice-summed) 1-electron capability of a molecular Gaussian basis: the general-k
-//! Bloch matrices \f$M_{ij}(k)=\sum_R e^{ik\cdot R}\langle\chi_i|\,\hat O\,|\chi_j(\cdot-R)\rangle\f$ over a
-//! caller-supplied set of Cartesian lattice translations \a Rs (which MUST contain the origin) and the
-//! matching per-image phases \a phases (\c phases[r] weights \c Rs[r]; the origin's phase is 1).  With
-//! \c Rs={0} (phase 1) each returns the finite molecule's own matrix; growing \a Rs folds in the periodic
-//! images.  Hermitian (\c chmat_t); real at \f$\Gamma\f$ (all phases 1 \f$\Rightarrow\f$ zero imaginary part).
+//! Bloch matrices \f$M_{ij}(k)=\sum_R e^{ik\cdot R}\langle\chi_i|\,\hat O\,|\chi_j(\cdot-R)\rangle\f$.
+//! The series is summed to \f$\varepsilon\f$ INTERNALLY, per shell pair (magnitude screening -- THERE IS NO
+//! CUT); the caller supplies only the cell \a A and the Bloch-phase oracle \a phase.  Hermitian
+//! (\c chmat_t); real at \f$\Gamma\f$ (all phases 1 \f$\Rightarrow\f$ zero imaginary part).
 //!
 //! \c Make prefix / not self-caching: like the other 1E builders, these are the single-shot producers behind
 //! the cached \c Integrals_{Overlap,Kinetic,Nuclear} accessors (\c Overlap()/\c Kinetic()/\c Nuclear() on the
 //! GPW orbital IBS cache them in \c DB_Cache keyed on \c BasisSetID, so a static-across-SCF matrix is built
-//! once and reused).  The \a Rs/\a phases arguments already mark these as the lattice (periodic) forms.
-//!
-//! \note \a Rs and \a phases are an adjacent (points, weights) pair -- see the FUTURE note in the file header:
-//! they collapse to one \c const \c cMesh& once qcMesh grows a complex-weight \c Mesh.
+//! once and reused).  The \a (phase,A) arguments mark these as the lattice (periodic) forms.
 class LatticeSum1E
 {
 public:
     virtual ~LatticeSum1E() = default;
 
-    //! \f$S_{ij}=\sum_R e^{ik\cdot R}\langle\chi_i|\chi_j(\cdot-R)\rangle\f$ (normalised).
-    virtual chmat_t MakeOverlap(const std::vector<rvec3_t>& Rs, const cvec_t& phases) const = 0;
+    //! \brief The Bloch phase of an INTEGER cell offset \f$n\f$: \f$e^{ik\cdot R_n}\f$.  The k-CONVENTION stays
+    //! entirely on the lattice/GPW side (the caller supplies this closure); the molecular side only ever asks
+    //! "what is the phase of offset \f$n\f$" for the offsets it enumerates internally (a pre-built
+    //! \c (Rs,phases) pair cannot work: the offsets are magnitude-screened per pair, never a fixed
+    //! caller-visible set).  \f$\Gamma\f$ = the constant 1.
+    using cellphase_t = std::function<dcmplx(const ivec3_t& n)>;
+
+    //! \f$S_{ij}=\sum_R e^{ik\cdot R}\langle\chi_i|\chi_j(\cdot-R)\rangle\f$ (normalised), summed to
+    //! \f$\varepsilon\f$ internally per shell pair.
+    virtual chmat_t MakeOverlap(const cellphase_t& phase, const UnitCell& A) const = 0;
 
     //! \brief A primitive Cartesian-Gaussian scalar function,
     //! \f$g(r)=\sum_t c_t\,(r-C)^{m_t}\,e^{-\alpha|r-C|^2}\f$ (one shared exponent, a finite Cartesian-
@@ -82,17 +87,20 @@ public:
     };
 
     //! \brief The lattice-summed overlap of every basis function with ONE Gaussian function \a g:
-    //! \f$b_i=\sum_R \mathrm{phases}[R]\,\langle\chi_i|\,g(\cdot-R)\,\rangle\f$ -- the vector (\f$n\f$)
-    //! analogue of the matrix \c MakeOverlap, with \a g standing in the \f$\chi_j\f$ slot.  Same
-    //! \c (Rs,phases) weighted point set, same magnitude screen (\f$g\f$'s reach from \f$\alpha\f$).
-    //! \f$\chi_i\f$ carries its usual normalisation; \a g is integrated RAW (its scale is in \c terms).
-    virtual cvec_t MakeOverlap(const std::vector<rvec3_t>& Rs, const cvec_t& phases,
+    //! \f$b_i=\sum_n \mathrm{phase}(n)\,\langle\chi_i|\,g(\cdot-C-R_n)\,\rangle\f$ -- the vector (\f$n\f$)
+    //! analogue of the matrix \c MakeOverlap, with \a g standing in the \f$\chi_j\f$ slot; the same internal
+    //! per-(\f$\chi_i\f$, \a g) magnitude-screened enumeration.  \f$\chi_i\f$ carries its usual
+    //! normalisation; \a g is integrated RAW (its scale is in \c terms).
+    virtual cvec_t MakeOverlap(const cellphase_t& phase, const UnitCell& A,
                                const GaussianFunction& g) const = 0;
+    //! \brief The FINITE (home-term-only) overlap \f$b_i=\langle\chi_i|g\rangle\f$ -- the molecule/box limit
+    //! (no lattice), used by the finite-mode KB assembly and any finite \f$\langle\chi|g\rangle\f$ consumer.
+    virtual cvec_t MakeOverlap(const GaussianFunction& g) const = 0;
     //! \f$\langle p^2\rangle_{ij}=\sum_R e^{ik\cdot R}\langle\chi_i|-\nabla^2|\chi_j(\cdot-R)\rangle\f$ (NO 1/2 --
     //! the Hamiltonian applies it, matching \c Integrals_Kinetic).
-    virtual chmat_t MakeKinetic(const std::vector<rvec3_t>& Rs, const cvec_t& phases) const = 0;
+    virtual chmat_t MakeKinetic(const cellphase_t& phase, const UnitCell& A) const = 0;
     //! \f$\sum_R e^{ik\cdot R}\langle\chi_i|\sum_c -Z_c/|r-R_c|\,|\chi_j(\cdot-R)\rangle\f$ over the atoms of \a cl.
-    virtual chmat_t MakeNuclear(const std::vector<rvec3_t>& Rs, const cvec_t& phases, const Structure* cl) const = 0;
+    virtual chmat_t MakeNuclear(const cellphase_t& phase, const UnitCell& A, const Structure* cl) const = 0;
 
     //! The largest primitive Gaussian exponent \f$\alpha_{\max}\f$ in the basis -- a scalar RESOLUTION summary
     //! (NOT primitive exposure; the radials stay encapsulated).  A GPW density grid must resolve the sharpest
@@ -114,13 +122,6 @@ public:
     //! exposed as a scalar summary (like \c MaxExponent) so the ladder BUILDER can append the completion rung
     //! without duplicating the constant; the assignment itself stays internal (doc/GPWPlan.md 0b').
     virtual double RelCutoffSafety() const = 0;
-
-    //! \brief The Bloch phase of an INTEGER cell offset \f$n\f$: \f$e^{ik\cdot R_n}\f$.  The k-CONVENTION stays
-    //! entirely on the lattice/GPW side (the caller supplies this closure); the molecular side only ever asks
-    //! "what is the phase of offset \f$n\f$" for the cross-cell pair offsets it enumerates internally (it cannot
-    //! receive a pre-built \c (Rs,phases) pair because the offsets are magnitude-screened per pair, not a fixed
-    //! caller-visible set).  \f$\Gamma\f$ = the constant 1.
-    using cellphase_t = std::function<dcmplx(const ivec3_t& n)>;
 
     //! \brief ANALYTIC per-pair density collocation on a MULTI-GRID ladder (CP2K GPW / Quickstep): the grid
     //! density \f$\rho(r)=\sum_{ij}\sum_{R}\,\mathrm{Re}[D_{ij}e^{-ik\cdot R}]\,\chi_i(r)\chi_j(r-R)\f$ --

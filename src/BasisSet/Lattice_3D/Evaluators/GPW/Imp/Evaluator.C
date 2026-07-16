@@ -175,9 +175,10 @@ std::vector<qchem::Math::CartTerm> MultiplyR2(std::vector<qchem::Math::CartTerm>
 } //anon
 
 GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const UnitCell& cell,
-                             double densityEcut, const rvec3_t& kFrac, double Rcut, double collRcut,
+                             double densityEcut, const rvec3_t& kFrac, bool homeCellOnly,
                              double cutoffFactor)
     : itsMol(std::move(mol))
+    , itsHomeOnly(homeCellOnly)
     , itsk(kFrac)
     , itsCell(cell)
     , itsCutoffFactor(cutoffFactor)
@@ -195,28 +196,13 @@ GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const
     if (!itsLat) throw std::runtime_error(
         "GPW_Evaluator: the orbital basis is not a molecular Gaussian basis (no Molecule::LatticeSum1E)");
 
-    // The 1E/orbital image set {R}+{e^{ik.R}}.  THREE modes (mirroring densityEcut):
-    //   Rcut < 0  AUTO (recommended): the enumeration radius is DERIVED from the basis -- the magnitude screen
-    //             keeps a pair (i, j@R) only within reach_i+reach_j <= 2 sqrt(-ln eps/alpha_min), and the two
-    //             centres can sit up to a cell span apart, so 2*reach + 2*maxEdge enumerates EVERYTHING the
-    //             screen can keep.  Screening then prunes it sparse (cost ~ the surviving terms, not Rcut^3).
-    //             This removes the user-facing Rcut knob: the analytic collocation already enumerates its own
-    //             offsets (ForImageOffsets), and with AUTO the 1E sums / Eval / KB projector do too.
-    //   Rcut = 0  home cell only (the FINITE-molecule mode: reproduces the finite matrices exactly).
-    //   Rcut > 0  explicit enumeration radius (the legacy knob; screening still prunes inside it).
-    // CellsInSphere is inversion-symmetric, so the lattice-sum matrices come out Hermitian (real at Gamma).
-    // collRcut<=0 reuses the overlap set (backward-compatible: Gamma/finite runs collocate on the same set).
-    double rcutEff=Rcut;
-    if (Rcut<0.0)
-    {
-        const double reach=std::sqrt(-std::log(1e-10)/itsLat->MinExponent());  // == the kernels' kScreenEps reach
-        rcutEff=2.0*reach + 2.0*cell.GetMaximumCellEdge();
-    }
-    BuildImages(cell, rcutEff, itsk, itsR, itsPhase);
-    // Per-image screening data for Eval/EvalGradient: every orbital centre sits inside the cell, so the image
-    // R contributes at a point r only if |(r-R) - cellCentre| <= cellRadius + maxReach.  One norm per image
-    // (vs n orbital evaluations) -- without it the AUTO enumeration radius makes the Bloch sum O(|images|)
-    // dense at every KB mesh point (the 1E pair radius is ~2x what the single-orbital sum needs).
+    // THERE IS NO CUT (user pin, doc/GPWPlan.md): every lattice sum is an eps-CONVERGED SERIES enumerated
+    // INSIDE the molecular seam per shell pair (1E matrices, analytic KB, collocation) -- no radius
+    // parameter exists.  The ONE remaining explicit image list is the INTERNAL Bloch-orbital set for
+    // Eval/EvalGradient + the mesh-path KB quadrature, DERIVED from the same eps-screen: a single orbital
+    // reaches sqrt(-ln eps/alpha_min) and its centre sits within a cell span of any evaluation point, so
+    // reach + span covers every image the screen keeps (screening then prunes it sparse per point).  The
+    // home-only MODE (the finite-molecule configuration) keeps just the origin.
     itsMaxReach=std::sqrt(-std::log(1e-10)/itsLat->MinExponent());
     itsCellCtr =cell.ToCartesian(rvec3_t(0.5,0.5,0.5));
     itsCellRad =0.0;
@@ -225,8 +211,7 @@ GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const
         rvec3_t corner=cell.ToCartesian(rvec3_t(double(cx),double(cy),double(cz)));
         itsCellRad=std::max(itsCellRad, norm(corner-itsCellCtr));
     }
-    if (collRcut>0.0) BuildImages(cell, collRcut, itsk, itsRc, itsPhaseC);
-    else { itsRc=itsR; itsPhaseC=itsPhase; }
+    BuildImages(cell, itsHomeOnly ? 0.0 : 2.0*itsMaxReach+2.0*cell.GetMaximumCellEdge(), itsk, itsRc, itsPhaseC);
 
     // The DFT tier's density/collocation grid: GPW's ONLY grid cutoff (no orbital/wavefunction cutoff -- the
     // Gaussians are analytic).  IMPORTANT: densityEcut is a DENSITY-scale quantity; the sharpest feature is the
@@ -456,13 +441,28 @@ cvec3vec_t GPW_Evaluator::EvalGradient(const rvec3_t& r) const
     return v;
 }
 
-// The periodic 1E matrices: analytic single lattice sums (LatticeSum1E) over the SAME image set the density
-// collocation uses -- the COMPLETE-Bloch scheme, self-consistent as Rcut grows.  The overlap becomes positive-
-// definite once the image sphere is large enough (a truncated single sum can be indefinite; overlap integrals
-// are cheap, so a generous Rcut is the fix).  KineticMatrix is <p^2> (no 1/2 -- the Hamiltonian applies it).
-chmat_t GPW_Evaluator::OverlapMatrix()                 const {return itsLat->MakeOverlap(itsR,itsPhase);}
-chmat_t GPW_Evaluator::KineticMatrix()                 const {return itsLat->MakeKinetic(itsR,itsPhase);}
-chmat_t GPW_Evaluator::NuclearMatrix(const Structure* cl) const {return itsLat->MakeNuclear(itsR,itsPhase,cl);}
+// The periodic 1E matrices: analytic lattice sums, eps-CONVERGED inside the molecular seam (per-shell-pair
+// internal enumeration -- the SAME screen the density collocation uses, so the two are ONE scheme by
+// construction: the screened-complete Bloch operator).  S is PSD to eps << lambda_min (the screen drops
+// only sub-eps terms of the exact PSD Gram).  KineticMatrix is <p^2> (no 1/2 -- the Hamiltonian applies
+// it).  The home-only MODE returns the finite molecule's own (cached) matrices, widened to complex --
+// the molecule-in-a-box configuration, by definition image-free.
+namespace
+{
+template <class M> chmat_t Widen(const M& m)   // real symmetric -> complex Hermitian (zero imaginary part)
+{
+    const size_t n=m.rows();
+    chmat_t c(n);
+    for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) c(i,j)=dcmplx(m(i,j),0.0);
+    return c;
+}
+} //anon
+chmat_t GPW_Evaluator::OverlapMatrix()                 const
+{   return itsHomeOnly ? Widen(itsOrb->Overlap())    : itsLat->MakeOverlap(CellPhase(),itsCell); }
+chmat_t GPW_Evaluator::KineticMatrix()                 const
+{   return itsHomeOnly ? Widen(itsOrb->Kinetic())    : itsLat->MakeKinetic(CellPhase(),itsCell); }
+chmat_t GPW_Evaluator::NuclearMatrix(const Structure* cl) const
+{   return itsHomeOnly ? Widen(itsOrb->Nuclear(cl))  : itsLat->MakeNuclear(CellPhase(),itsCell,cl); }
 
 // The PP-quadrature integration mesh: a uniform lattice mesh whose Nyquist resolution follows the density
 // cutoff (CreateIntegrationMesh's "GPW / Nyquist path").  The DFT tier (density grid) must be on: PP assembly
@@ -556,9 +556,12 @@ chmat_t GPW_Evaluator::MakeSeparablePP(const Structure* cl, const Pseudopotentia
     if (const auto* gsep=dynamic_cast<const Pseudopotential::SeparablePotential_Gaussian*>(&sep))
     {
         const size_t n=itsN;
-        std::vector<rvec3_t> Rs(itsRc.size());
-        cvec_t ph(itsRc.size());
-        for (size_t r=0;r<itsRc.size();r++) { Rs[r]=-1.0*itsRc[r]; ph[r]=std::conj(itsPhaseC[r]); }
+        // b_i = <chi_i^k | beta at tau> = Sum_n phase(n) <chi_i | g(.-tau-R_n)> -- the seam enumerates the
+        // series internally per (chi_i, g).  (The historical (-Rs, conj-phase) form was an artifact of the
+        // pre-built inversion-symmetric list: substituting m=-n gives conj(phase(-m))=phase(m), i.e. the
+        // PLAIN phase oracle with g imaged at +R_m.  Gate: AnalyticSeparablePPMatchesMesh == mesh.)
+        // Home-only mode: the single finite term <chi_i|g> (the raw home orbital -- the box configuration).
+        auto phase=CellPhase();
         mat_t<dcmplx> V(n,n,dcmplx(0.0));
         for (size_t a=0; a<cl->GetNumAtoms(); a++)
         {
@@ -580,7 +583,7 @@ chmat_t GPW_Evaluator::MakeSeparablePP(const Structure* cl, const Pseudopotentia
                         g.alpha =rt.alpha;
                         g.terms =MultiplyR2(ylm, rt.n);
                         for (auto& t : g.terms) t.c*=rt.c;
-                        cvec_t bt=itsLat->MakeOverlap(Rs, ph, g);
+                        cvec_t bt = itsHomeOnly ? itsLat->MakeOverlap(g) : itsLat->MakeOverlap(phase, itsCell, g);
                         for (size_t i=0;i<n;i++) b[i]+=bt[i];
                     }
                     for (size_t i=0;i<n;i++)
@@ -663,15 +666,17 @@ chmat_t GPW_Evaluator::MakeSeparablePP(const Structure* cl, const Pseudopotentia
     return H;
 }
 
-// Cache key: the molecular basis's geometry-aware ID pins the radials + centres (so the cell geometry is in
-// here via the atom positions); k + the translation count distinguish the periodic block.
+// Cache key: the molecular basis's geometry-aware ID pins the radials + centres (atom positions); the CELL
+// VECTORS enter via volume + max edge (the atom positions alone cannot distinguish two cells); k + the
+// home-only mode + the density-grid cutoff distinguish the periodic block.
 std::string GPW_Evaluator::IDFragment() const
 {
     // Include the density-grid cutoff: the collocation tensor (Repulsion3C/Overlap3C) is built on that grid, so
     // the framework cache (keyed by BasisSetID) must distinguish GPW bases that differ only in densityEcut.
     return "|mol="+itsOrb->BasisSetID()
          +"|k="+std::to_string(itsk.x)+","+std::to_string(itsk.y)+","+std::to_string(itsk.z)
-         +"|nR="+std::to_string(itsR.size())+"|nRc="+std::to_string(itsRc.size())   // both image sets
+         +"|cell="+std::to_string(itsCell.GetCellVolume())+","+std::to_string(itsCell.GetMaximumCellEdge())
+         +(itsHomeOnly?"|home":"")
          +"|dEcut="+(itsGrid?std::to_string(itsGrid->Ecut()):std::string("0"));
 }
 

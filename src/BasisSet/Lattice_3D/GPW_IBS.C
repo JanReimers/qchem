@@ -32,6 +32,14 @@ import qchem.Types;
 export namespace qchem::BasisSet::Lattice_3D
 {
 
+//! \brief The lattice-image MODE.  \c Periodic (the default): every lattice sum is an
+//! \f$\varepsilon\f$-CONVERGED SERIES enumerated internally per shell pair -- THERE IS NO CUT in the R
+//! direction and no radius parameter exists (user pin, doc/GPWPlan.md).  \c HomeCellOnly: the
+//! FINITE-molecule configuration (no images anywhere; 1E == the finite matrices, KB bra = the raw home
+//! orbital) -- what the finite==lattice box gates compare against.  An \c enum \c class so a stray numeric
+//! argument can never silently select a mode.
+enum class CellImages { Periodic, HomeCellOnly };
+
 //! \brief GPW basis for a single k-point: periodic Gaussians on a lattice.  This increment: the 1E tier at
 //! \f$\Gamma\f$.  Built from a molecular Gaussian basis (over the cell's atoms) + the cell.
 class GPW_IBS
@@ -49,25 +57,23 @@ public:
     using EPW_Orbital_DFT_IBS<GPW_Evaluator>::MakeOverlap;
 
     //! \brief Primary constructor: the Bloch symmetry IS the k-label (\f$k=\f$ Symmetry::Lattice_3D::Getk).
-    //! \param cell  the direct lattice (its atoms carry the Gaussian centres; source of the translation set).
+    //! \param cell  the direct lattice (its atoms carry the Gaussian centres; source of the cell geometry).
     //! \param irrep the Bloch irrep (a BlochQN); this increment requires \f$k=\Gamma\f$.
     //! \param mol   the molecular Gaussian orbital basis built over \a cell's atoms (kept alive by the evaluator).
     //! \param densityEcut  the DENSITY-grid selector (GPW's only cutoff): \f$<0\f$ = AUTOMATIC floor
     //!                   \a cutoffFactor\f$\cdot\alpha_{\max}\f$ (recommended -- no Hartree value needed);
     //!                   \f$=0\f$ = DFT tier OFF (1E-only); \f$>0\f$ = explicit Hartree cutoff (warned on \c cerr
     //!                   if below the floor).  See \c GPW_Evaluator.
-    //! \param Rcut  lattice-translation sphere radius (a.u.); \f$\le 0\f$ = home cell only (the finite limit).
-    //! \param collRcut  the COLLOCATION image reach (\f$\le0\f$ reuses \a Rcut's set); decouple it (small) from
-    //!                   \a Rcut (large, for a PSD overlap) to make multi-k bulk affordable -- see \c GPW_Evaluator.
+    //! \param images  the lattice-image MODE (see \c CellImages; default \c Periodic).
     //! \param cutoffFactor  \f$C\ge4\f$ in the density-grid floor \f$C\cdot\alpha_{\max}\f$ (default 4).
     GPW_IBS(const UnitCell& cell, const sym_t& irrep,
-            std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut = 0.0, double Rcut = 0.0,
-            double collRcut = 0.0, double cutoffFactor = 4.0);
+            std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut = 0.0,
+            CellImages images = CellImages::Periodic, double cutoffFactor = 4.0);
 
     //! \brief Convenience constructor in BZ-grid indices: builds the Bloch irrep \c BlochFactory(N,kIndex).
     GPW_IBS(const UnitCell& cell, const ivec3_t& N, const ivec3_t& kIndex,
-            std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut = 0.0, double Rcut = 0.0,
-            double collRcut = 0.0, double cutoffFactor = 4.0);
+            std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut = 0.0,
+            CellImages images = CellImages::Periodic, double cutoffFactor = 4.0);
 
     //! \brief The DFT factory seam (Band_FT_IBS): the auxiliary density/potential fit basis is a plane-wave grid
     //! over GPW's OWN density grid -- so the collocated \f$\tilde\rho\f$'s \f$\{G\}\f$ matches the fitter's.  A

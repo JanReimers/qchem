@@ -10,6 +10,7 @@ export module qchem.BasisSet.Lattice_3D.BasisSet;
 export import qchem.BasisSet;                          // Complex_BS (= tBasisSet<dcmplx>)
 export import qchem.Lattice_3D;                        // Lattice_3D (the crystal structure + BZ grid)
 export import qchem.BasisSet.Lattice_3D.PlaneWave_IBS; // PlaneWave_IBS + LocalPotential/SeparablePotential
+export import qchem.BasisSet.Lattice_3D.GPW_IBS;       // GPW_IBS + CellImages (the GPWFactory mode argument)
 import qchem.BasisSet.Internal.BasisSetImp;            // BasisSetImp<dcmplx> (the PW_BasisSet base; NOT re-exported)
 import qchem.Types;                                    // dcmplx
 
@@ -28,21 +29,21 @@ enum class Type { PW };
 Complex_BS* Factory(Type type, const ::qchem::Lattice_3D& lat, double Ecut);
 
 //! \brief Build a GPW basis (periodic Gaussians on the lattice) over \a lat from a molecular Gaussian basis
-//! \a mol built on the cell's atoms, at density-collocation cutoff \a densityEcut (\f$\Gamma\f$-only this
-//! increment).  \a Rcut folds in lattice images (\f$\le0\f$ = home cell only, the finite-molecule limit).
+//! \a mol built on the cell's atoms, at density-collocation cutoff \a densityEcut.
 //! Returns an abstract tBasisSet<dcmplx> (caller owns).  Unlike the PW \c Factory this needs a Gaussian
 //! orbital basis (GPW = Gaussian orbitals); the pseudopotential still lives on the Hamiltonian term, which
 //! reaches GPW's real-space \c Integrals_Pseudo<dcmplx> assembly -- so the same \c Ham_PW_DFT drives it.
-//! \param collRcut  the collocation image reach (\f$\le0\f$ reuses \a Rcut); decouple it (small) from \a Rcut
-//!                   (large, for a positive-definite Bloch overlap) so multi-k bulk is affordable.
+//! THERE IS NO CUT (doc/GPWPlan.md pin): every lattice sum is an eps-converged series enumerated inside the
+//! molecular seam -- no radius parameter exists on this surface.
 //! \param kShift  fractional Monkhorst-Pack offset of the k-mesh (\f$0\f$ = Γ-centred; \f$½\f$ = the classic MP
 //!                offset, i.e. CP2K's default for even grids -- \f$k=\pm¼\f$ at \f$N=2\f$).
 //! \param densityEcut  \f$<0\f$ = AUTOMATIC density grid \a cutoffFactor\f$\cdot\alpha_{\max}\f$ (recommended);
 //!        \f$=0\f$ = 1E-only; \f$>0\f$ = explicit Hartree cutoff (\c cerr warning if under-resolved).
+//! \param images  the lattice-image MODE (\c CellImages::Periodic default; \c HomeCellOnly = the box gates).
 //! \param cutoffFactor  \f$C\ge4\f$ in the density-grid floor \f$C\cdot\alpha_{\max}\f$ (default 4).
 Complex_BS* GPWFactory(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
-                       double densityEcut, double Rcut=0.0, double collRcut=0.0, rvec3_t kShift={0,0,0},
-                       double cutoffFactor=4.0);
+                       double densityEcut, rvec3_t kShift={0,0,0},
+                       CellImages images=CellImages::Periodic, double cutoffFactor=4.0);
 
 } //namespace
 
@@ -68,7 +69,8 @@ class GPW_BasisSet : public BasisSet::BasisSetImp<dcmplx>
 {
 public:
     GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
-                 double densityEcut, double Rcut, double collRcut, rvec3_t kShift={0,0,0}, double cutoffFactor=4.0);
+                 double densityEcut, rvec3_t kShift={0,0,0},
+                 CellImages images=CellImages::Periodic, double cutoffFactor=4.0);
 };
 
 } //namespace

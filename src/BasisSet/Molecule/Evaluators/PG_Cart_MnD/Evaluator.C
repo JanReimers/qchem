@@ -98,76 +98,87 @@ public:
     //! The Bloch phase of an integer cell offset (== Molecule::LatticeSum1E::cellphase_t -- the same
     //! std::function type; the k-CONVENTION stays with the lattice-side caller, Gamma = the constant 1).
     using cellphase_t = std::function<dcmplx(const ivec3_t& n)>;
-    template <class Kernel> chmat_t LatticeSum(const std::vector<rvec3_t>& Rs, const cvec_t& phases, Kernel K) const
+    // The series is summed to eps INTERNALLY per shell pair (ForImageOffsets -- the SAME exact-threshold
+    // magnitude screen the collocation kernels use): THERE IS NO CUT in the R direction (doc/GPWPlan.md
+    // pin).  The caller supplies only the phase oracle + the cell; no radius or translation list exists.
+    // Hermitian: fill the upper triangle (the (i,j) Bloch element); the (i,i) enumeration is inversion-
+    // symmetric so the diagonal is real (projected explicitly against roundoff).
+    template <class Kernel> chmat_t LatticeSum(const cellphase_t& phase, const UnitCell& A, Kernel K) const
     {
-        assert(phases.size()==Rs.size());
-        const double lne=-std::log(kScreenEps);
-        std::vector<double> reach(size());
-        for (auto i:indices())
-        {
-            double amin=radials[i]->GetExponents()[0];
-            for (double e:radials[i]->GetExponents()) amin=std::min(amin,e);
-            reach[i]=std::sqrt(lne/amin);
-        }
         chmat_t S(size());
         for (auto i:indices()) for (auto j:indices(i))
         {
+            const rvec3_t cj=radials[j]->GetCenter();
             dcmplx s(0.0);
-            const rvec3_t ci=radials[i]->GetCenter(); const rvec3_t cj=radials[j]->GetCenter();
-            const double  rr=(reach[i]+reach[j])*(reach[i]+reach[j]);   // screen on squared distance (no sqrt)
-            for (size_t r=0; r<Rs.size(); r++)
-            {
-                const rvec3_t d=ci-(cj+Rs[r]);
-                if (d.x*d.x+d.y*d.y+d.z*d.z > rr) continue;             // magnitude screen: product < eps -> skip
-                s += phases[r] * K(i, j, radials[j]->AtCenter(cj+Rs[r]));
-            }
+            ForImageOffsets(i,j,A,[&](const ivec3_t& n, const rvec3_t& Roff)
+                            { s += phase(n) * K(i, j, radials[j]->AtCenter(cj+Roff)); });
             s *= ns[i]*ns[j];
             S(i,j) = (i==j) ? dcmplx(std::real(s),0.0) : s;   // Hermitian diagonal real; (j,i) auto-set to conj
         }
         return S;
     }
-    chmat_t MakeOverlap(const std::vector<rvec3_t>& Rs, const cvec_t& phases) const
-    {   return LatticeSum(Rs,phases,[this](size_t i,size_t j,const GaussianRF& cj){return radials[i]->Overlap2C(cj,pols[i],pols[j]);}); }
-    chmat_t MakeKinetic(const std::vector<rvec3_t>& Rs, const cvec_t& phases) const
-    {   return LatticeSum(Rs,phases,[this](size_t i,size_t j,const GaussianRF& cj){return radials[i]->Grad2   (cj,pols[i],pols[j]);}); }
-    chmat_t MakeNuclear(const std::vector<rvec3_t>& Rs, const cvec_t& phases, const Structure* cl) const
-    {   return LatticeSum(Rs,phases,[this,cl](size_t i,size_t j,const GaussianRF& cj){return radials[i]->Nuclear(cj,pols[i],pols[j],cl);}); }
+    chmat_t MakeOverlap(const cellphase_t& phase, const UnitCell& A) const
+    {   return LatticeSum(phase,A,[this](size_t i,size_t j,const GaussianRF& cj){return radials[i]->Overlap2C(cj,pols[i],pols[j]);}); }
+    chmat_t MakeKinetic(const cellphase_t& phase, const UnitCell& A) const
+    {   return LatticeSum(phase,A,[this](size_t i,size_t j,const GaussianRF& cj){return radials[i]->Grad2   (cj,pols[i],pols[j]);}); }
+    chmat_t MakeNuclear(const cellphase_t& phase, const UnitCell& A, const Structure* cl) const
+    {   return LatticeSum(phase,A,[this,cl](size_t i,size_t j,const GaussianRF& cj){return radials[i]->Nuclear(cj,pols[i],pols[j],cl);}); }
 
     // Molecule::LatticeSum1E: the lattice-summed overlap of every basis function with ONE caller-supplied
-    // Cartesian-Gaussian function g -- b_i = Sum_R phases[R] <chi_i | g(.-Rs[R])>.  g stands in the chi_j
+    // Cartesian-Gaussian function g -- b_i = Sum_n phase(n) <chi_i | g(.-C-R_n)>.  g stands in the chi_j
     // slot of the 2-centre kernel: each monomial term is a Polarization on an uncontracted GaussianRF, so
-    // the sum reuses the analytic M&D Overlap2C verbatim.  Same magnitude screen as the pair sums (g's
-    // reach from its own exponent); chi_i carries ns[i], g is integrated RAW (its scale is in g.terms).
-    cvec_t MakeOverlap(const std::vector<rvec3_t>& Rs, const cvec_t& phases,
+    // the sum reuses the analytic M&D Overlap2C verbatim.  The offsets are enumerated INTERNALLY per
+    // (chi_i, g) at the exact pair threshold sqrt(-ln eps (1/alpha_min_i + 1/alpha_g)) -- the same
+    // eps-converged-series contract as the pair sums; chi_i carries ns[i], g is integrated RAW.
+    cvec_t MakeOverlap(const cellphase_t& phase, const UnitCell& A,
                        const Molecule::LatticeSum1E::GaussianFunction& g) const
     {
-        assert(phases.size()==Rs.size());
         const double lne=-std::log(kScreenEps);
-        const double reachG=std::sqrt(lne/g.alpha);
-        int Lg=0;                                          // g's max polynomial degree (Hermite table sizing)
-        for (const auto& t : g.terms) Lg=std::max(Lg, t.p.n+t.p.l+t.p.m);
+        const int Lg=GaussDegree(g);
         cvec_t b(size(), dcmplx(0.0));
         for (auto i:indices())
         {
             double amin=radials[i]->GetExponents()[0];
             for (double e:radials[i]->GetExponents()) amin=std::min(amin,e);
-            const double reach=std::sqrt(lne/amin)+reachG;
+            const double rr=std::sqrt(lne*(1.0/amin+1.0/g.alpha));   // exact pair threshold (== ForImageOffsets)
             const rvec3_t ci=radials[i]->GetCenter();
+            const rvec3_t dig=ci-g.center;
             dcmplx s(0.0);
-            for (size_t r=0; r<Rs.size(); r++)
+            for (const auto& n : A.CellsInSphere(rr+A.GetMaximumCellEdge()))
             {
-                const rvec3_t c=g.center+Rs[r];
-                const rvec3_t d=ci-c;
-                if (d.x*d.x+d.y*d.y+d.z*d.z > reach*reach) continue;   // product < eps -> skip
-                GaussianRF gr(g.alpha, c, Lg);
-                double sr=0.0;
-                for (const auto& t : g.terms)
-                    sr += t.c * radials[i]->Overlap2C(gr, pols[i], Polarization(t.p));
-                s += phases[r]*sr;
+                const rvec3_t Roff=A.ToCartesian(rvec3_t(double(n.x),double(n.y),double(n.z)));
+                const rvec3_t d=dig-Roff;
+                if (d.x*d.x+d.y*d.y+d.z*d.z > rr*rr) continue;       // product < eps -> series converged here
+                s += phase(n)*GaussOverlapTerm(i, g, g.center+Roff, Lg);
             }
             b[i]=ns[i]*s;
         }
         return b;
+    }
+    // The FINITE (home-term-only) <chi_i|g>: the molecule/box limit -- no lattice.
+    cvec_t MakeOverlap(const Molecule::LatticeSum1E::GaussianFunction& g) const
+    {
+        const int Lg=GaussDegree(g);
+        cvec_t b(size(), dcmplx(0.0));
+        for (auto i:indices()) b[i]=ns[i]*GaussOverlapTerm(i, g, g.center, Lg);
+        return b;
+    }
+    //! g's max polynomial degree (Hermite table sizing) and one raw \f$\langle\chi_i|g\,\text{at}\,c\rangle\f$
+    //! term -- shared by the periodic and finite \c MakeOverlap(g) forms.
+    static int GaussDegree(const Molecule::LatticeSum1E::GaussianFunction& g)
+    {
+        int Lg=0;
+        for (const auto& t : g.terms) Lg=std::max(Lg, t.p.n+t.p.l+t.p.m);
+        return Lg;
+    }
+    double GaussOverlapTerm(size_t i, const Molecule::LatticeSum1E::GaussianFunction& g,
+                            const rvec3_t& c, int Lg) const
+    {
+        GaussianRF gr(g.alpha, c, Lg);
+        double sr=0.0;
+        for (const auto& t : g.terms)
+            sr += t.c * radials[i]->Overlap2C(gr, pols[i], Polarization(t.p));
+        return sr;
     }
 
     // Molecule::LatticeSum1E: the finest exponent over every component's radial primitives -- the density

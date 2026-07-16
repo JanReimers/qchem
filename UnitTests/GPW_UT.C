@@ -122,7 +122,8 @@ TEST(GPW, HomeCellMatchesFiniteExactly)
     cell.AddAtom(14,{0.5,0.5,0.5});
     std::shared_ptr<const Real_BS> molCell = MakeBasis(cell);
 
-    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/0.0, /*Rcut=*/0.0); // home cell only
+    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/0.0,
+                BasisSet::Lattice_3D::CellImages::HomeCellOnly); // the finite-molecule mode
     const Complex_OIBS& g = gpw;
 
     ASSERT_EQ(g.GetNumFunctions(), fin.orb->GetNumFunctions());
@@ -145,7 +146,7 @@ TEST(GPW, LatticeSumConvergesToFiniteAsCellGrows)
         UnitCell cell(a);
         cell.AddAtom(14,{0.5,0.5,0.5});
         std::shared_ptr<const Real_BS> molCell = MakeBasis(cell);
-        GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/0.0, /*Rcut=*/1.5*a); // images
+        GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/0.0); // periodic (images internal)
         const Complex_OIBS& g = gpw;
         EXPECT_LT(MaxImag(g.Overlap()), 1e-13);          // still real at Gamma
         return RelDiff(g.Overlap(), fin.orb->Overlap());
@@ -194,7 +195,7 @@ TEST(GPW, CollocationOverlapMatchesAnalytic)
     // REFERENCE: the analytic collocation always sums the SCREENED cross-cell pair offsets, so the collocated
     // charge is Tr(D S^Bloch) -- the screened-complete Bloch overlap (generous Rcut enumeration; SIPP's diffuse
     // alpha=0.06 reaches several cells even in this box), NOT the home-only overlap.
-    GPW_IBS gpwRef(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/0.0, /*Rcut AUTO*/-1.0);
+    GPW_IBS gpwRef(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/0.0);
 
     const GPW_Evaluator& ev = gpw;
     G_ERI3 ov = ev.Overlap3CTensor();
@@ -226,7 +227,7 @@ TEST(GPW, SharpestPairChargeConservation)
     UnitCell cell(a);
     cell.AddAtom(14,{0.5,0.5,0.5});
     std::shared_ptr<const Real_BS> mol = MakeBasis(cell);
-    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut AUTO*/-1.0, /*Rcut*/0.0);
+    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut AUTO*/-1.0);
     const GPW_Evaluator& ev = gpw;
     const Complex_OIBS&  g  = gpw;
     const size_t n=g.GetNumFunctions();
@@ -277,10 +278,11 @@ TEST(GPW, DISABLED_IllConditionedChargeProbe)
     std::shared_ptr<const Real_BS> mol(BasisSet::Molecule::Factory(
         BasisSetData::VALENCE_LOWQ_SR, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
     const char* e=std::getenv("GPW_ILLCOND_ECUT");
-    const char* r=std::getenv("GPW_ILLCOND_RCUT");
     const double ecut=e?std::atof(e):40.0;
-    const double rcut=r?std::atof(r):2.0*a;      // 2a = the NaF SCF's (under-enumerated) setting; -1 = AUTO
-    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, ecut, rcut);
+    // NOTE (banish-Rcut): the historical Rcut=2a leg that MEASURED the -2.247 e scheme mismatch is now
+    // UNREPRESENTABLE -- enumeration lives inside the seam and no truncated configuration can be built.
+    // The probe now reports the complete-enumeration error only (precision floors under extreme loading).
+    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, ecut);
     const GPW_Evaluator& ev=gpw;
     const Complex_OIBS&  g =gpw;
     const size_t n=g.GetNumFunctions();
@@ -315,7 +317,7 @@ TEST(GPW, OverlapWithConstantFieldEqualsV0Overlap)
     GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/30.0);
     // REFERENCE: the analytic integrate-back sums the screened cross-cell offsets, so a constant field gives
     // V0 * S^Bloch (screened-complete Bloch overlap), not V0 * S_home -- see CollocationOverlapMatchesAnalytic.
-    GPW_IBS gpwRef(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/0.0, /*Rcut AUTO*/-1.0);
+    GPW_IBS gpwRef(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), molCell, /*densityEcut=*/0.0);
 
     const GPW_Evaluator& ev = gpw;
     const double V0 = 0.7;
@@ -351,10 +353,10 @@ TEST(GPW, AnalyticCollocationConservesCharge)
         UnitCell cell(a);
         cell.AddAtom(14, frac);                                     // Si
         std::shared_ptr<const Real_BS> mol = MakeBasis(cell);       // SIPP Si
-        GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/12.0, /*Rcut*/0.0);
+        GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/12.0);
         // REFERENCE: Tr(D S^Bloch) -- the collocation always includes the screened cross-cell pair offsets
         // (SIPP's diffuse alpha=0.06 reaches neighbour cells even at a=12), so the home-only Tr(D S) is ~3% off.
-        GPW_IBS gpwRef(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/0.0, /*Rcut AUTO*/-1.0);
+        GPW_IBS gpwRef(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/0.0);
         const GPW_Evaluator& ev=gpw;
         const auto* lat=dynamic_cast<const BasisSet::Molecule::LatticeSum1E*>(OrbitalBlock<Real_OIBS>(*mol));
         EXPECT_TRUE(lat) << "orbital block must realise LatticeSum1E";
@@ -389,7 +391,7 @@ TEST(GPW, AnalyticCollocationCrystalChargeConservation)
     cell.AddAtom(14, {0,0,0});
     cell.AddAtom(14, {0.25,0.25,0.25});
     std::shared_ptr<const Real_BS> mol = MakeBasis(cell);              // SIPP Si (one orbital block over both atoms)
-    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/6.0, /*Rcut AUTO*/-1.0);  // large Rcut -> S^G
+    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/6.0);   // periodic: S^G by construction
     const GPW_Evaluator& ev=gpw;
     const Complex_OIBS& g=gpw;
     const size_t n=g.GetNumFunctions();
@@ -419,7 +421,7 @@ TEST(GPW, AnalyticIntegrateBackAdjoint)
     UnitCell cell(a);
     cell.AddAtom(14,{0.5,0.5,0.5});
     std::shared_ptr<const Real_BS> mol = MakeBasis(cell);
-    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/12.0, /*Rcut*/0.0);
+    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/12.0);
     const GPW_Evaluator& ev=gpw;
     const auto* lat=dynamic_cast<const BasisSet::Molecule::LatticeSum1E*>(OrbitalBlock<Real_OIBS>(*mol));
     EXPECT_TRUE(lat);
@@ -476,7 +478,7 @@ TEST(GPW, XCPotentialConsistencyFD)
     cell.AddAtom(14,{0,0,0});
     cell.AddAtom(14,{0.25,0.25,0.25});
     std::shared_ptr<const Real_BS> mol=MakeBasis(cell);
-    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/6.0, /*Rcut AUTO*/-1.0);
+    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/6.0);
     const GPW_Evaluator& ev=gpw;
     const auto& grid=ev.DensityGrid();
     const size_t n=static_cast<const Complex_OIBS&>(gpw).GetNumFunctions();
@@ -599,7 +601,8 @@ TEST(GPW, GeneralK_HomeCellIsKInvariantAndReal)
     cell.AddAtom(14,{0.5,0.5,0.5});
     std::shared_ptr<const Real_BS> molCell = MakeBasis(cell);
 
-    GPW_IBS gpw(cell, ivec3_t(4,4,4), ivec3_t(1,0,0), molCell, /*densityEcut=*/0.0, /*Rcut=*/0.0); // k=(1/4,0,0)
+    GPW_IBS gpw(cell, ivec3_t(4,4,4), ivec3_t(1,0,0), molCell, /*densityEcut=*/0.0,
+                BasisSet::Lattice_3D::CellImages::HomeCellOnly); // k=(1/4,0,0), finite mode
     const Complex_OIBS& g = gpw;
     EXPECT_LT(MaxImag(g.Overlap()), 1e-14);                        // phase inert at R=0 -> real
     EXPECT_LT(MaxImag(g.Kinetic()), 1e-14);
@@ -616,7 +619,7 @@ TEST(GPW, GeneralK_PhaseIsLiveWithImages)
     cell.AddAtom(14,{0.5,0.5,0.5});
     std::shared_ptr<const Real_BS> molCell = MakeBasis(cell);
 
-    GPW_IBS gpw(cell, ivec3_t(4,4,4), ivec3_t(1,0,0), molCell, /*densityEcut=*/0.0, /*Rcut=*/1.5*a);
+    GPW_IBS gpw(cell, ivec3_t(4,4,4), ivec3_t(1,0,0), molCell, /*densityEcut=*/0.0);
     const Complex_OIBS& g = gpw;
     const auto& S = g.Overlap();
     EXPECT_GT(MaxImag(S),           1e-4) << "k!=0 with images must give a genuinely complex overlap";
@@ -638,7 +641,7 @@ TEST(GPW, GeneralK_BlochTranslationCondition)
     std::shared_ptr<const Real_BS> molCell = MakeBasis(cell);
 
     const ivec3_t N(4,4,4), ik(1,0,0);
-    GPW_IBS gpw(cell, N, ik, molCell, /*densityEcut=*/0.0, /*Rcut=*/2.5*a);
+    GPW_IBS gpw(cell, N, ik, molCell, /*densityEcut=*/0.0);
     const GPW_Evaluator& ev = gpw;
 
     const rvec3_t r  = cell.ToCartesian(rvec3_t(0.5,0.5,0.5));               // cell centre
@@ -668,8 +671,8 @@ TEST(GPW, GeneralK_ConjugateUnderKtoMinusK)
     std::shared_ptr<const Real_BS> molCell = MakeBasis(cell);
 
     const ivec3_t N(4,4,4);
-    GPW_IBS gk (cell, N, ivec3_t(1,0,0), molCell, 0.0, 1.5*a);   //  k = (1/4,0,0)
-    GPW_IBS gmk(cell, N, ivec3_t(3,0,0), molCell, 0.0, 1.5*a);   // -k = (3/4,0,0) == -(1/4,0,0) mod 1
+    GPW_IBS gk (cell, N, ivec3_t(1,0,0), molCell, 0.0);   //  k = (1/4,0,0)
+    GPW_IBS gmk(cell, N, ivec3_t(3,0,0), molCell, 0.0);   // -k = (3/4,0,0) == -(1/4,0,0) mod 1
     const Complex_OIBS& Sk  = gk;
     const Complex_OIBS& Smk = gmk;
     const auto& A = Sk.Overlap();
@@ -715,7 +718,7 @@ TEST(GPW, AnalyticSeparablePPMatchesMesh)
     std::shared_ptr<const Real_BS> mol(
         BasisSet::Molecule::Factory(BasisSetData::SIPP_SR, &cell,
                                     BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
-    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/20.0, /*Rcut AUTO*/-1.0);
+    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/20.0);
 
     const auto gth = Pseudopotential::GetGTH("Si","LDA",4);
     MeshOnlyKB meshOnly(gth.nonlocal);

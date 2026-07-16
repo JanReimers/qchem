@@ -80,13 +80,14 @@ public:
     virtual std::vector<Symmetry::Molecule::AoShell> GetAoShells() const override;   // Molecule::Orbital_1E_IBS
 
     // Molecule::LatticeSum1E -- forward to the NR_Evaluator base subobject's lattice-sum kernels (it owns the
-    // radials/pols/ns).  The R=0/phase-1 term reproduces this basis's own Overlap/Kinetic/Nuclear exactly.
-    // (The (Rs,phases) overload is distinct from the mixin's finite MakeOverlap()/MakeKinetic()/MakeNuclear(cl).)
-    virtual chmat_t MakeOverlap(const std::vector<rvec3_t>& Rs, const cvec_t& phases) const override;
-    virtual cvec_t  MakeOverlap(const std::vector<rvec3_t>& Rs, const cvec_t& phases,
+    // radials/pols/ns and ENUMERATES the offsets internally per shell pair: there is no cut in R).
+    // (The (phase,A) overloads are distinct from the mixin's finite MakeOverlap()/MakeKinetic()/MakeNuclear(cl).)
+    virtual chmat_t MakeOverlap(const cellphase_t& phase, const UnitCell& A) const override;
+    virtual cvec_t  MakeOverlap(const cellphase_t& phase, const UnitCell& A,
                                 const Molecule::LatticeSum1E::GaussianFunction& g) const override;
-    virtual chmat_t MakeKinetic(const std::vector<rvec3_t>& Rs, const cvec_t& phases) const override;
-    virtual chmat_t MakeNuclear(const std::vector<rvec3_t>& Rs, const cvec_t& phases, const Structure* cl) const override;
+    virtual cvec_t  MakeOverlap(const Molecule::LatticeSum1E::GaussianFunction& g) const override;
+    virtual chmat_t MakeKinetic(const cellphase_t& phase, const UnitCell& A) const override;
+    virtual chmat_t MakeNuclear(const cellphase_t& phase, const UnitCell& A, const Structure* cl) const override;
     virtual double  MaxExponent() const override;   // finest exponent -> the GPW density-grid cutoff floor
     virtual double  MinExponent() const override;   // coarsest exponent -> the multi-grid coarsest level
     virtual double  RelCutoffSafety() const override; // pair->level stiffness -> the ladder completion rung

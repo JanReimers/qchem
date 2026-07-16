@@ -118,22 +118,23 @@ void Fingerprint(const std::vector<FpRow>& s, const char* label)
 
 // One GPW Gamma-point SCF: build the GPW basis over the lattice, hand it the plane-wave LDA Hamiltonian
 // (Ham_PW_DFT reaches GPW's real-space Integrals_Pseudo), seed uniform, run the complex-DIIS cSCFIterator.
-GpwResult RunGPW(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, double densityEcut, double Rcut,
+GpwResult RunGPW(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, double densityEcut,
                  int Nelec, const char* element, const char* label, bool verbose=false, int nmax=120,
-                 qchem::Ortho ortho=qchem::Cholesky, double orthoTol=0.0, double collRcut=0.0,
+                 qchem::Ortho ortho=qchem::Cholesky, double orthoTol=0.0,
                  rvec3_t kShift={0,0,0}, double minDrho=1e-6, double minDE=1e30,
-                 qchem::ChargeDensity::SeedStrategy seed=qchem::ChargeDensity::SeedStrategy::Uniform)
+                 qchem::ChargeDensity::SeedStrategy seed=qchem::ChargeDensity::SeedStrategy::Uniform,
+                 BasisSet::Lattice_3D::CellImages images=BasisSet::Lattice_3D::CellImages::Periodic)
 {
     namespace L3=BasisSet::Lattice_3D;
-    std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, std::move(mol), densityEcut, Rcut, collRcut, kShift));
+    std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, std::move(mol), densityEcut, kShift, images));
     auto       irreps=bs->GetIrreps(Spin::None);   // one Bloch irrep per BZ k-block (weights carry the Sum_k)
     Crystal_EC ec(irreps, Nelec);                  // multi-k ready; a single Gamma block is the length-1 case
     // Ham_PW_DFT drives GPW verbatim (kinetic + external-PP + Hartree + Dirac X + VWN5 + ion-ion Ewald).
     qchem::Hamiltonian::cHamiltonian* ham=new qchem::Hamiltonian::Ham_PW_DFT(
         lat.GetStructure(), bs.get(), element, "LDA", 4);
     auto* acc=new qchem::SCFAccelerators::cSCFAcceleratorDIIS(qchem::SCFAccelerators::DIISParams{8, 8.0, 1e-10, 1e-9});
-    // \a ortho / \a orthoTol: Cholesky (default) needs S positive-definite; for a lattice basis with images
-    // (Rcut>0) the diffuse Gaussians go linearly dependent -> Eigen/SVD with a small-eigenvalue cutoff.
+    // \a ortho / \a orthoTol: Cholesky (default) needs S positive-definite; for a periodic lattice basis the
+    // diffuse Gaussians can go linearly dependent -> Eigen/SVD with a small-eigenvalue cutoff.
     qchem::SCFIterator::cSCFIterator scf(bs.get(), &ec, ham, acc,
                                          seed, lat.GetStructure().get(),
                                          ortho, orthoTol);
@@ -188,8 +189,8 @@ TEST(GPW_SCF, SiliconMultiKPlumbing)
     cell.AddAtom(14, {0.25,0.25,0.25});
     Lattice_3D lat(cell, ivec3_t(2,1,1));   // 2 k-points: Gamma + the zone-boundary k=1/2 (real +-1 phases)
 
-    GpwResult R=RunGPW(lat, MakeBasisSR(cell), /*densityEcut*/20.0, /*Rcut AUTO*/-1.0, /*Nelec*/8, "Si",
-                       "Si SR 2x1x1", /*verbose*/false, /*nmax*/60, qchem::Cholesky, 0.0, 0.0,
+    GpwResult R=RunGPW(lat, MakeBasisSR(cell), /*densityEcut*/20.0, /*Nelec*/8, "Si",
+                       "Si SR 2x1x1", /*verbose*/false, /*nmax*/60, qchem::Cholesky, 0.0,
                        /*kShift*/rvec3_t(0,0,0), /*minDrho*/1e-3, /*minDE*/1e-6);
 
     EXPECT_TRUE(R.converged);
@@ -211,8 +212,8 @@ TEST(GPW_SCF, DISABLED_SR_2x2x2GammaCentred_vs_CP2K)
     cell.AddAtom(14, {0,0,0});
     cell.AddAtom(14, {0.25,0.25,0.25});
     Lattice_3D lat(cell, ivec3_t(2,2,2));
-    GpwResult R=RunGPW(lat, MakeBasisSR(cell), /*densityEcut*/20.0, /*Rcut*/2.0*a, /*Nelec*/8, "Si",
-                       "Si 2x2x2 Gamma-centred Rcut=2a", /*verbose*/false, /*nmax*/60, qchem::Cholesky, 0.0, 0.0);
+    GpwResult R=RunGPW(lat, MakeBasisSR(cell), /*densityEcut*/20.0, /*Nelec*/8, "Si",
+                       "Si 2x2x2 Gamma-centred", /*verbose*/false, /*nmax*/60, qchem::Cholesky, 0.0);
     EXPECT_NEAR(R.charge, 8.0, 1e-6);
     EXPECT_NEAR(R.E.GetTotalEnergy(), -7.77846, 3e-3) << "GPW 2x2x2 Gamma-centred vs CP2K same-mesh -7.77846";
 }
@@ -241,9 +242,9 @@ TEST(GPW_SCF, SR_2x2x2ShiftedMP_vs_CP2K)
     cell.AddAtom(14, {0,0,0});
     cell.AddAtom(14, {0.25,0.25,0.25});
     Lattice_3D lat(cell, ivec3_t(2,2,2));
-    GpwResult R=RunGPW(lat, MakeBasisSR(cell), /*densityEcut*/20.0, /*Rcut AUTO*/-1.0, /*Nelec*/8, "Si",
+    GpwResult R=RunGPW(lat, MakeBasisSR(cell), /*densityEcut*/20.0, /*Nelec*/8, "Si",
                        "Si 2x2x2 shifted MP (k=±¼)", /*verbose*/false, /*nmax*/60,
-                       qchem::Cholesky, 0.0, 0.0, rvec3_t(0.5,0.5,0.5));
+                       qchem::Cholesky, 0.0, rvec3_t(0.5,0.5,0.5));
     EXPECT_NEAR(R.charge, 8.0, 1e-6);
     EXPECT_NEAR(R.E.GetTotalEnergy(), -7.86744, 3e-3) << "GPW 2x2x2 shifted MP (CP2K default) vs -7.86744";
 }
@@ -272,7 +273,7 @@ TEST(GPW_SCF, DISABLED_TermTranslationInvariance)
     using BasisSet::Lattice_3D::GPW_IBS;
     auto tr=[](const chmat_t& M){ double s=0; for (size_t i=0;i<M.rows();i++) s+=std::real(dcmplx(M(i,i))); return s; };
     const double a=10.26, dE=30.0;   // N=64 (finer than CP2K's converged grid)
-    auto traces=[&](double frac, double Rcut, double& kin, double& vloc, double& vnl)
+    auto traces=[&](double frac, double& kin, double& vloc, double& vnl)
     {
         FCCUnitCell cell(a);
         cell.AddAtom(14, {frac, frac, frac});
@@ -280,24 +281,20 @@ TEST(GPW_SCF, DISABLED_TermTranslationInvariance)
         Lattice_3D lat(cell, ivec3_t(1,1,1));
         auto st=lat.GetStructure();
         Pseudopotential::GTH_PP pp=Pseudopotential::GetGTH("Si","LDA",4);
-        GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), MakeBasisSR(cell), dE, Rcut, 0.0);
+        GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), MakeBasisSR(cell), dE);  // eps-complete enumeration
         const BasisSet::Complex_OIBS& g=gpw;
         kin =tr(g.Kinetic());
         vloc=tr(gpw.MakeLocalPotential   (st.get(), pp.local));
         vnl =tr(gpw.MakeSeparablePotential(st.get(), pp.nonlocal));
     };
-    for (double rc : {1.5*a, 2.0*a})
     {
         double kc,lc,nc, ks,ls,ns;
-        traces(0.00, rc, kc,lc,nc);
-        traces(0.13, rc, ks,ls,ns);
-        std::printf("Rcut=%.2fa  Kin[%10.5f/%10.5f d=%.2e]  Vloc[%10.5f/%10.5f d=%.2e]  Vnl[%10.5f/%10.5f d=%.2e]\n",
-                    rc/a, kc,ks,std::fabs(kc-ks), lc,ls,std::fabs(lc-ls), nc,ns,std::fabs(nc-ns));
-        if (rc>=2.0*a)   // fully wrapped: every term translation-invariant (image-truncation limited ~1e-4)
-        {
-            EXPECT_NEAR(lc, ls, 1e-3) << "Vloc translation invariance at Rcut="<<rc/a<<"a";
-            EXPECT_NEAR(nc, ns, 1e-3) << "Vnl translation invariance at Rcut="<<rc/a<<"a";
-        }
+        traces(0.00, kc,lc,nc);
+        traces(0.13, ks,ls,ns);
+        std::printf("Kin[%10.5f/%10.5f d=%.2e]  Vloc[%10.5f/%10.5f d=%.2e]  Vnl[%10.5f/%10.5f d=%.2e]\n",
+                    kc,ks,std::fabs(kc-ks), lc,ls,std::fabs(lc-ls), nc,ns,std::fabs(nc-ns));
+        EXPECT_NEAR(lc, ls, 1e-3) << "Vloc translation invariance (complete enumeration)";
+        EXPECT_NEAR(nc, ns, 1e-3) << "Vnl translation invariance (complete enumeration)";
     }
 }
 
@@ -316,8 +313,8 @@ TEST(GPW_SCF, SiliconGammaConverges)
     cell.AddAtom(14, {0.25,0.25,0.25});
     Lattice_3D lat(cell, ivec3_t(1,1,1));
 
-    GpwResult R=RunGPW(lat, MakeBasisSR(cell), /*densityEcut*/20.0, /*Rcut AUTO*/-1.0, /*Nelec*/8, "Si",
-                       "Si SR Gamma", /*verbose*/false, /*nmax*/60, qchem::Cholesky, 0.0, 0.0,
+    GpwResult R=RunGPW(lat, MakeBasisSR(cell), /*densityEcut*/20.0, /*Nelec*/8, "Si",
+                       "Si SR Gamma", /*verbose*/false, /*nmax*/60, qchem::Cholesky, 0.0,
                        /*kShift*/rvec3_t(0,0,0), /*minDrho*/1e-3, /*minDE*/1e-6);
 
     EXPECT_TRUE(R.converged);
@@ -351,8 +348,10 @@ TEST(GPW_SCF, SiPseudoAtomInBoxMatchesFinite)
     UnitCell cell(a);
     cell.AddAtom(14, {0.5,0.5,0.5});
     Lattice_3D lat(cell, ivec3_t(1,1,1));
-    GpwResult R=RunGPW(lat, MakeBasis(cell), /*densityEcut*/10.0, /*Rcut*/0.0, /*Nelec*/4, "Si", "Si atom-in-box",
-                       /*verbose*/false, /*nmax*/40);
+    GpwResult R=RunGPW(lat, MakeBasis(cell), /*densityEcut*/10.0, /*Nelec*/4, "Si", "Si atom-in-box",
+                       /*verbose*/false, /*nmax*/40, qchem::Cholesky, 0.0, rvec3_t(0,0,0), 1e-6, 1e30,
+                       qchem::ChargeDensity::SeedStrategy::Uniform,
+                       BasisSet::Lattice_3D::CellImages::HomeCellOnly);   // the finite-molecule mode
 
     EXPECT_NEAR(R.charge, 4.0, 1e-6);                        // 4 valence electrons (Zion=4), charge conserved
     // GPW-in-box (G-space local PP -> box-independent) reproduces the finite SIPP DFT energy to grid tolerance.
@@ -424,7 +423,9 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     const double tuneAlpha=envd("NAF_ALPHA", 0.025);
     const double tuneG0   =envd("NAF_KERKER_G0", 1.0);
     const size_t tuneNMax =size_t(envd("NAF_NMAX", 200));
-    std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, mol, tuneEcut, /*Rcut*/2.0*a, /*collRcut*/0.0, {0,0,0}));
+    std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, mol, tuneEcut));   // PERIODIC: eps-complete enumeration
+                                                                          // (the old Rcut=2a truncated S -- the
+                                                                          // measured -2.25 e scheme mismatch)
     auto       irreps=bs->GetIrreps(Spin::None);
     Crystal_EC ec(irreps, 8);
     cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), bs.get(), {{"Na",1},{"F",7}}, "LDA");
@@ -457,11 +458,16 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
               << " (Ekin="<<E.Kinetic<<" Een="<<E.Een<<" Eee="<<E.Eee<<" Exc="<<E.Exc
               << " Enn="<<E.Enn<<" Ealign="<<E.Ealign<<")" << std::endl;
     EXPECT_NEAR(charge, 8.0, 1e-6);     // 1 (Na) + 7 (F) valence electrons, conserved
-    // The CONVERGING-regime anchor (Ecut=40, alpha=0.025, 200 iters -> -27.7304 with a +-0.04 residual
-    // wobble; the CP2K 320-Ry oracle is -27.93128, doc/CP2Kresults.md -- the ~0.2 Ha gap is the leaky
-    // Ecut=40 grid).  Wide gate: a mixing regression lands in one of the bad attractors (~+65 / ~-39).
-    if (tuneEcut==40.0 && tuneAlpha==0.025 && tuneNMax==200)
-        EXPECT_NEAR(E.GetTotalEnergy(), -27.73, 5e-2) << "NaF converging-regime anchor (Kerker alpha=0.025)";
+    // ENERGY PIN SUSPENDED (banish-Rcut, 2026-07-16).  The old anchor (-27.73 +- 0.05 at Ecut=40 /
+    // alpha=0.025 / 200 iters) was measured on the CORRUPTED map (Rcut=2a truncated S vs complete
+    // collocation -- the -2.25 e scheme mismatch) and is void.  On the HONEST (complete-enumeration) map:
+    //   - the scheme mismatch is DEAD (iteration-1 grid charge -4.9 e -> -2.4e-6 e; ~8.00 all the way);
+    //   - the recipe descends SMOOTHLY toward a genuine fixed point ~ -28.00 (passing -27.9999!), BUT
+    //   - the TRUE conditioning is exposed (lambda_min(S)=1.03e-6, cond=6e6) and a NEAR-NULL EIGEN-EVENT
+    //     blows the SCF up (+1e4 Ha, [F,D] 0.12->150) each time it nears convergence -- period ~29
+    //     (spikes at iters 45/74/103/131/160/185), charge CLEAN throughout (not slosh, not the map).
+    // A meaningful pin awaits the near-null fix: SR2 basis trim (lambda_min -> ~1e-3) or the section-1
+    // rank-reduction.  doc/GPWPlan.md 0b'.
 }
 
 // VALIDATION (2026-07-13): can we drop the SR-basis hand-tuning and use the FULL valence_lowq basis, relying on
@@ -491,8 +497,7 @@ TEST(GPW_SCF, DISABLED_NaFFullBasisEigenTol)
     auto mol = std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(
         BasisSetData::VALENCE_LOWQ, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
     namespace L3=BasisSet::Lattice_3D;
-    std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, mol, /*densityEcut AUTO*/-1.0,
-                                                  /*Rcut (screened 1E)*/4.0*a, /*collRcut*/2.0*a, {0,0,0}));
+    std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, mol, /*densityEcut AUTO*/-1.0));
     auto       irreps=bs->GetIrreps(Spin::None);
     Crystal_EC ec(irreps, 8);
     cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), bs.get(), {{"Na",1},{"F",7}}, "LDA");
@@ -554,19 +559,16 @@ TEST(GPW_SCF, DISABLED_NaFOverlapConditioningSweep)
     {
         auto mol = std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(
             bd, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
-        for (double rc : {0.0, a, 2.0*a, 3.0*a, 4.0*a})   // extended to 3a/4a: with magnitude screening a large
-        {                                                 // enumeration is cheap, and it captures the far diffuse
-                                                          // terms that make the FULL basis S positive-definite
-            L3::GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/0.0, /*Rcut*/rc);
+        // BANISH-Rcut: the old Rcut sweep axis is unrepresentable (enumeration lives inside the seam);
+        // the one remaining question is the COMPLETE-enumeration conditioning of each basis.
+        {
+            L3::GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/0.0);
             const BasisSet::Complex_OIBS& g = gpw;
             auto S = g.Overlap();
             rvec_t d; mat_t<dcmplx> U; blazem::eigen(S, d, U);   // ascending eigenvalues of Hermitian S
-            std::cout << "[cond " << name << "] n=" << S.rows() << " Rcut=" << rc/a << "a"
+            std::cout << "[cond " << name << "] n=" << S.rows() << " (complete enumeration)"
                       << "  eig[0..3]=" << d[0] << "," << d[1] << "," << d[2] << "," << d[3]
                       << "  max=" << d[d.size()-1];
-            // Canonical ortho with a tol that drops the ~0 (over-complete / residual-negative) directions --
-            // the question (2): does truncating V's small/negative singular directions give a clean transform
-            // (‖VᴴSV-I‖~eps) WITHOUT hand-tuning the basis (SR)?  Cholesky needs strict PD (fails if min eig<=0).
             std::cout << "  ‖VᴴSV-I‖: Eigen(1e-6)=" << residual(S, qchem::Eigen, 1e-6)
                       << " SVD(1e-6)=" << residual(S, qchem::SVD, 1e-6);
             if (d[0] > 0.0) std::cout << " Chol=" << residual(S, qchem::Cholesky);

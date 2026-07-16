@@ -328,34 +328,63 @@ loading a mid-slosh SCF produces):
   near-singular: **λ_min ~ 1e-6** (|S⁻¹|~1e6).  The 2a truncation was double-dutying as a conditioning
   crutch (the SR .bsd header even says "PD at a MODEST Rcut").  The precision machinery is VINDICATED
   (fp32 + screens hold their calibrations even at million-scale loading).
-**→ THE LEAD INCREMENT: BANISH Rcut COMPLETELY (user directive, 2026-07-16 — attempt #4, this time with
-the crutch measured to corrupt the map).  Why the knob survived three banishments: it was quietly doing
-TWO jobs besides enumeration — (i) `Rcut=0` is a MODE (home-cell-only / molecule-in-a-box, what the
-finite==lattice gates need), not a radius; (ii) explicit `Rcut` was the CONDITIONING crutch (NaF 2a).  The
-deletion list, in dependency order:**
-1. **SR2 basis trim for COMPLETE-enumeration conditioning** (target λ_min(S_complete) ≥ ~1e-3 at AUTO;
-   drop Na s=0.0857, likely F s=0.275/p=0.341 — the SIPP→SR lesson applied to the RIGHT observable: the
-   .bsd header's "PD at a modest Rcut" was calibrating against the crutch).  Then NaF runs at AUTO with
-   Cholesky and the last legitimate explicit-Rcut user is gone.  Re-test the −39 basin on the uncorrupted
-   map (it may not survive).
-2. **Delete the CUT, not just the knob (user pin, 2026-07-16: "there is no cut").**  A lattice sum is a
-   CONVERGENT SERIES — you sum it to ε, you never cut it.  The `(Rs, phases)` arguments leave
-   `LatticeSum1E` entirely: the 1E/KB builders take `(cellphase_t, UnitCell)` exactly like
-   `CollocateDensity`/`IntegratePotential` (which already enumerate internally, per shell pair) and sum
-   their series until the magnitude screen says the remainder is < ε — a CONVERGENCE criterion; no
-   radius is named, computed, or stored in any interface, member, or doc.  (The analytic per-shell-pair
-   Gaussian reach is a legitimate fast-path INSIDE the molecular impl — an implementation detail of how
-   the series converges, never surfaced.)  GPW then holds NO image sets (`itsR/itsRc/itsPhase/itsPhaseC`,
-   `BuildImages`, `rcutEff` — all deleted); `Rcut`/`collRcut` leave `GPW_Evaluator`/`GPW_IBS`/`GPWFactory`;
-   the FINITE (home-cell-only) mode becomes an explicit test-internal flag, never a magic radius value.
-   Public surface: ε is the ONLY accuracy parameter on this axis (CP2K posture).  Side effect: the
-   "(Rs,phases)→one cMesh" future note becomes moot for these seams — no weighted point set crosses at
-   all, the stronger form of that cleanup.
-3. **§1 rank-reduction + auto-tol = the permanent backstop** (already queued, design pinned): a future
-   near-singular basis gets truncated ortho + WARN, never a shrunken image sum — what makes the deletion
-   stick instead of becoming attempt #5.
-0c (Pulay/Broyden mixer face) proceeds after step 1 on the consistent map; its `MixSignals` trust-region
-signal (∫ρ_grid − Tr(DS)) stays — it is exactly the mismatch/conditioning health meter.
+**→ BANISH-Rcut — THE REFACTOR LANDED SAME DAY (2026-07-16, in-tree; user directive, attempt #4 — this
+time with the crutch measured to corrupt the map).  STATUS + measurements:**
+- **The `(Rs, phases)` arguments are GONE from `LatticeSum1E`**: the 1E/KB builders take
+  `(cellphase_t, UnitCell)` and sum their series to ε internally per shell pair via `ForImageOffsets`
+  (the collocation kernels' own exact-threshold screen — 1E and collocation are now ONE scheme by
+  construction).  New finite `MakeOverlap(g)` overload for the home-mode KB.  The KB phase convention
+  SIMPLIFIED: with internal symmetric enumeration the historical `(−Rs, conj-phase)` artifact reduces to
+  the PLAIN phase oracle (m=−n substitution) — validated by `AnalyticSeparablePPMatchesMesh` AND the
+  complex-k shifted-MP anchor (−7.86724, bit-identical).
+- **`Rcut`/`collRcut` DELETED from `GPW_Evaluator`/`GPW_IBS`/`GPWFactory`** (`itsR/itsPhase/rcutEff` gone;
+  the only remaining image list is the INTERNAL ε-derived Eval/mesh-KB set).  The finite mode is now
+  `CellImages::HomeCellOnly` (an `enum class` so a stray numeric can never silently select a mode); its 1E
+  matrices are the finite molecule's own cached faces, widened — the home-cell gates run in MILLISECONDS.
+- **Anchors: Si Γ −7.11485 / 2×1×1 −7.45133 / shifted −7.86724 — IDENTICAL to pre-refactor**; multi-k
+  RUNTIME improved 123→84 s (the exact-threshold enumeration is leaner than the old conservative ball).
+  14/14 GPW kernel gates green (adjoint, FD-consistency, charge, KB==mesh).
+- **NaF AT COMPLETE ENUMERATION (the measurement this was for): the scheme mismatch is DEAD.**
+  Iteration-1 diagonalized-density grid charge: **−4.9 e → −2.4e-6 e**.  True conditioning measured:
+  λ_min(S)=1.03e-6, cond=6.0e6 — and **Cholesky survives** (the SCF runs).  The IONIC SEED still loses
+  1.09 e (seed construction on the near-singular basis hits the |D|-amplified precision floors — one
+  iteration only; the diagonalized densities are clean).  Setup share grew (~28 min to iteration 1 at
+  auto Ecut: bigger streams + the 5-level ladder) — the 0d OpenMP/setup item.
+**The Ecut=40 recipe measurement ON THE HONEST MAP (α=0.025/G0=1, 200 iters) — the verdict:**
+- **The map is healthy and has a genuine fixed point ≈ −28.00**: after the seed transient the SCF descends
+  SMOOTHLY and monotonically (−27.64→−27.9999 over ~29 iterations, repeatedly), grid charge −3e-3 clean
+  throughout (no slosh, no mismatch).  Note −28.00 vs the corrupted-map "anchor" −27.73 and the CP2K
+  320-Ry oracle −27.93128 — the old "0.2 Ha leaky-grid gap" attribution was itself a corrupted-map
+  artifact; the honest Ecut=40↔oracle comparison awaits actual convergence + the production grid.
+- **The ONE remaining disease is the NEAR-NULL OCCUPATION EVENT** — and (user challenge, answered) it is
+  NOT the linear algebra: cond=6e6 costs Cholesky ~7 of 16 digits, V=S^{−1/2} amplifies 10³ — all exact
+  enough.  The instability is the RAYLEIGH QUOTIENT of the near-null state: ε_null = vᴴFv/vᴴSv is a ratio
+  of two near-zeros, sensitive as δε ≤ ‖δF‖/λ_min.  The LEGITIMATE per-iteration Fock update during the
+  Kerker descent is ~1e-2 (Δρ≈2e-2) and projects strongly onto v (the null combination is built of the
+  same diffuse functions the mixed V_H/v_xc fields move), so the spurious band sweeps up to 1e-2/1e-6 =
+  1e4 Ha per iteration; when its trajectory carries it below the Fermi edge, AUFBAU OCCUPIES IT (a
+  1/√λ≈10³-amplitude vector enters D) → E=+1e4, [F,D] 0.12→150.  Signature: DETERMINISTIC period ~29
+  (six spikes, iters 45/74/103/131/160/185 — trajectory-driven, not noise), discontinuous [F,D] (an
+  occupation swap), charge CLEAN throughout.  This is the classic QC near-linear-dependence collapse —
+  molecular codes drop S-eigenvalues below 1e-6..1e-8 for exactly this reason; the criterion that matters
+  is ‖δF‖/λ vs the gap, not cond(S).  Previously MASKED by the 2a truncation (λ_min 7.5e-4).  The old
+  ±75 Ha limit cycles / the −39 attractor / the "+900 DIIS spikes" all belong to the corrupted map; the
+  NaF energy pin is SUSPENDED in the test until the near-null fix lands.  (Fix menu: the basis trim /
+  rank-reduction below; occupation control (level shift / MOM) would stabilize around the garbage band
+  but leaves ε_null polluting the band structure — not the clean fix.  Verification instrument for the
+  SR2 session: print the lowest band energies per iteration — the spurious level should dive across the
+  Fermi edge one iteration before each spike.)
+**The remaining work, in order:**
+1. **SR2 basis trim — now MEASURED-NECESSARY** (target λ_min(S_complete) ≥ ~1e-3; drop Na s=0.0857,
+   likely F s=0.275/p=0.341): kills the near-null subspace at the basis, the fast unblock.  Re-run the
+   recipe → expect clean convergence to ≈−28.0 → re-pin.  Then re-test the production (auto) grid — the
+   −39 basin likely died with the mismatch.  §1 rank-reduction + auto-tol stays the PERMANENT backstop
+   (and the FULL-basis path).  Also worth probing: the ionic SEED's 1.09-e precision-floor loss at
+   λ_min=1e-6 (one iteration only; may vanish with SR2).
+2. **0c (Pulay/Broyden mixer face)** on the conditioned map; its `MixSignals` trust-region signal
+   (∫ρ_grid − Tr(DS)) stays — now purely a precision/conditioning health meter.
+Side effect of the refactor: the "(Rs,phases)→one cMesh" future note is MOOT for these seams (no weighted
+point set crosses the interface — the stronger form of that cleanup); KMesh + quadrature meshes keep it.
 
 ## 0c. PULAY/BROYDEN ρ̃-MIXING behind the DIP mixer face (`tDensityMixer`) — user design, 2026-07-16
 Mixing is today hardwired inside `tSCFIterator::Iterate` (the `KerkerG0>0 ? KerkerUpdate(relax) :
