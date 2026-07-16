@@ -57,6 +57,10 @@ runtime close-out incl. the CP2K NaF oracle + convergence findings).
 - **§0a NaF convergence findings** (`35789164`): CP2K recipe machinery (no DIIS, E-gate, tuning knobs);
   α=0.025/G0=1 converges Ecut=40 (pinned anchor −27.73); the fine grid's unphysical attractor (E≈−39)
   captures ALL linear mixing → quasi-Newton mixing + XC consistency are the TODO leads.
+- **§0b XC-consistency: FALSIFIED by the FD probe** (2026-07-16): new gate `GPW.XCPotentialConsistencyFD`
+  proves H_xc == ∂E_xc/∂D to FD accuracy (h² scaling to 2e-10) in both the smooth and ρ<0-guard regimes —
+  the LDA discrete functional was already exactly consistent; the −39 attractor is a genuine basin of the
+  under-resolved discretization → 0c (mixing) promoted to lead.  Full record in TODO §0b below.
 
 ## Naming (`5f609d2f`) — remember these
 - `Overlap(f)` = ANY 1-electron `⟨i|f|j⟩` (f may be a potential); `Repulsion` = the 2-electron `1/r12`.
@@ -234,42 +238,49 @@ needs QUASI-NEWTON DENSITY MIXING (the one CP2K ingredient we lack).**
 
 # TODO / NEXT
 
-**Orientation (2026-07-16).**  §0 (A–D + the runtime close-out) is DONE — the analytic multigrid path IS
-the SCF path; Si == CP2K at Γ / 2×1×1 / shifted 2×2×2; NaF runs end-to-end in ~40 min against a same-basis
-CP2K oracle (**−27.93128**, `doc/CP2Kresults.md`).  The open problem: NaF's PRODUCTION-grid SCF is captured
-by an unphysical attractor (E≈−39) that plain damped mixing cannot escape at any α.  The two lead
-increments attack that — **0b first** (it deletes the bad basin itself), then **0c** (robust navigation) —
-followed by the runtime follow-ups (0d) and the standing queue (1)–(5).
+**Orientation (2026-07-16, updated same day).**  §0 (A–D + the runtime close-out) is DONE — the analytic
+multigrid path IS the SCF path; Si == CP2K at Γ / 2×1×1 / shifted 2×2×2; NaF runs end-to-end in ~40 min
+against a same-basis CP2K oracle (**−27.93128**, `doc/CP2Kresults.md`).  The open problem: NaF's
+PRODUCTION-grid SCF is captured by an unphysical attractor (E≈−39) that plain damped mixing cannot escape
+at any α.  **0b's XC-fork hypothesis was FALSIFIED by its own FD instrument (see 0b below): the discrete
+functional is already exactly consistent, so the attractor is a genuine basin of the under-resolved
+discretization.  The lead increment is now 0c** (quasi-Newton mixing + grid-continuation seeding — don't
+wander into the basin), followed by the runtime follow-ups (0d) and the standing queue (1)–(5).
 
-## 0b. XC CONSISTENCY + ρ-FLOOR — one discrete functional (deletes the bad basin; unblocks GDM/OT; the GGA prereq)
-**The ringing/variationality ledger (user pin, 2026-07-14), where each error source stands:**
-- Gibbs PROPER (hard SPATIAL truncation) — GONE: pair boxes end in smooth exp tails; cross-cell offsets +
-  1E sums magnitude-screened; auto-Rcut derives the enumeration from the basis, so S is PSD to eps << λ_min.
-- SPECTRAL truncation (density-grid Ecut, per-level G-spheres) — PRESENT but EXPONENTIALLY controlled
-  (e^{−ecut/2p} via kRelSafety/relCutoffScale), NOT Gibbs-like, and rendered variationally SAFE by
-  ADJOINT-EXACTNESS (the machine-precision seam gate Tr(D H)==⟨collocate(D),V⟩: the KS matrix is the exact
-  gradient of the DISCRETIZED energy).  Truncation alone does not break GDM; energy/gradient INCONSISTENCY does.
-- **The ONE remaining inconsistency = XC**, and it is now KNOWN to be load-bearing: the NaF fine-grid
-  garbage attractor (E≈−39, Exc≈−143) lives off the E_xc/H_xc representation FORK — the MATRIX carries
-  v_xc FITTED onto the finite {G} (band-limited), while the ENERGY takes the ¾-virial `E_x=¾⟨ρ|v_x⟩` +
-  `FittedEpsXc` correlation on the raw grid.  "E rewards density spikes; the band-limited H never resists"
-  → a self-consistent garbage cycle BELOW the physical state, which also means variational minimizers
-  (GDM/OT) would seek it out BY DESIGN.  (CP2K has no such state: one pointwise representation + floors;
-  its E settles from an atomic guess with a plain quasi-Newton mixer.)
+## 0b. XC CONSISTENCY — RESOLVED BY FALSIFICATION (2026-07-16)
+**The fork does NOT exist; the LDA discrete functional is ALREADY exactly consistent.**  The probe is the
+new gate `GPW.XCPotentialConsistencyFD`.
+**The instrument came first (as this section prescribed) and overturned the premise.**  The probe replicates
+the PW_XC chain verbatim at the evaluator seam (collocate → nested {G_L} combine → `RhoOnGrid`; pointwise
+v_xc → raster `ForwardFFT` → per-level restriction → analytic `IntegratePotential`) and compares the central
+FD `[E_xc(D+h dD)−E_xc(D−h dD)]/2h` against `Re Tr(H_xc dD)` on the FCC-Si crystal (cross-cell pairs + a
+real ladder), with a bilinear Hartree control:
+- **Positive-density regime: rel err 8.0e-8 (h=1e-3) → 2.0e-10 (h=1e-4) — exact h² scaling, i.e. pure FD
+  truncation converging onto the analytic answer.  H_xc IS ∂E_xc/∂D.**  Hartree control 3e-10.
+- **Indefinite-D regime (ρ_q<0 over part of the grid — the Kerker-mixed-field case): same h² scaling
+  (5e-6 → 3e-8).  The ρ≤0→0 guards are CONSISTENT between E and H** (both SlaterExchange AND
+  VWN_Correlation already guard `rho>0.0 ?` — the "only SlaterExchange has the guard" worry was stale).
+Why the old fork description was wrong: `PW_XC::GetEnergy` already takes ∫ε_xc·ρ on the fit grid (the
+¾-virial survives only as `ExFunctional::GetEpsXc`'s default, EXACT for Dirac; VWN overrides), and the
+"band-limited fit" of v_xc is the fine-grid projection onto the fit ball — which is EXACTLY the gradient of
+the grid-sum energy w.r.t. the ball-limited ρ̃ the energy itself uses.  One discrete functional, end to end;
+`FittedEpsXc` is molecular-path-only and was never on the periodic route.
 
-**The fix = the Hartree precedent** (the machinery already exists):
-1. Evaluate v_xc POINTWISE on the grid density — no {G} fit — and feed it through the per-level spectral
-   restriction + analytic `IntegratePotential` (adjoint-exact, exactly the V_H route).
-2. Take E_xc = Σ w·ε_xc·ρ on the SAME grid — retiring the ¾-virial and `FittedEpsXc` on the periodic path
-   (also the GGA prerequisite: the old "route E_xc through ∫ε_xc·ρ" TODO).
-3. **ρ-FLOOR (the CP2K guard)**: ρ<ε → ε_xc,v_xc treated as 0 before the XC evaluation.  The raw density
-   of a PSD D is pointwise ≥0, but the KERKER-MIXED auxiliary density is a FILTERED field and CAN go
-   pointwise negative — that mixed field feeds V_xc every iteration.  Audit the VWN path on pathological
-   input while there (only SlaterExchange has the ρ≤0→0 guard today).
-Result: ONE discrete functional; every SCF state a genuine stationary point (H_xc = ∂E_xc/∂D exactly);
-plausibly widens the Kerker α-window enough that existing mixing converges the production grid.
-Instruments: the E(λ) line-search + FD potential-consistency probes; develop on the 31 s Si anchor,
-validate on NaF vs the −27.93128 oracle.
+**Consequences (re-scope):**
+- The NaF fine-grid attractor (E≈−39, Exc≈−143) is a **GENUINE basin of the (under-resolved) discretized
+  functional**, not a consistency artifact: mid-slosh D loads the sharpest F-F pairs beyond the grid
+  calibration → collocated ρ aliases (∫ρ_grid swings 5.1↔7.7 vs Tr(DS)=8, spiky/locally-negative) → E_xc
+  is legitimately huge-negative WITHIN the discretization, and since H_xc is its exact gradient, the SCF
+  map is self-consistent there.  A variational minimizer (GDM/OT) would find it too — the escape is not
+  consistency but (a) never wandering into the basin (quasi-Newton mixing with small steps = what CP2K's
+  Broyden does on the same map; grid-continuation seeding = start in the physical basin) and/or (b)
+  removing the basin by resolving the sharp pairs (stiffer fine-grid calibration; CP2K leaks only 2e-4 e
+  at the same 160 Ha — understand its EPS_RHO/REL_CUTOFF stiffness if (a) is not enough).
+- **ρ-FLOOR: already effectively present for LDA** (both functionals zero at ρ≤0, verified consistent by
+  probe 2).  An explicit ε-floor remains only as the **GGA prerequisite** (∇ρ/ρ powers diverge at tiny ρ)
+  — fold it into the GGA increment together with the `relCutoff` Vxc-grid item (§5).
+- **0c (Pulay/Broyden behind `tDensityMixer`) is now the lead increment**, with grid-continuation seeding
+  as the accelerant; gate = NaF production grid vs the −27.93128 oracle.
 
 ## 0c. PULAY/BROYDEN ρ̃-MIXING behind the DIP mixer face (`tDensityMixer`) — user design, 2026-07-16
 Mixing is today hardwired inside `tSCFIterator::Iterate` (the `KerkerG0>0 ? KerkerUpdate(relax) :
@@ -497,7 +508,8 @@ Symmorphic space groups → BZ reduction (irreducible wedge) → SALC with plane
 - **doc/GPWHistory.md** — the full archived DONE narratives, resolved investigations (indefinite-S,
   conditioning, NaF diagnostics), dead-end records, and complete commit archaeology.
 - Tests: `UnitTests/GPW_UT.C` (1E + Bloch invariants; analytic collocation/adjoint gates;
-  `AnalyticSeparablePPMatchesMesh` == mesh KB to 4.6e-11),
+  `AnalyticSeparablePPMatchesMesh` == mesh KB to 4.6e-11; `XCPotentialConsistencyFD` — H_xc == ∂E_xc/∂D to
+  FD accuracy in both the smooth and the ρ<0-guard regimes, the 0b falsification gate),
   `UnitTests/GPW_SCF_UT.C` (enabled anchors: `SiliconGammaConverges` == CP2K −7.11506 ± 2 mHa,
   `SiliconMultiKPlumbing` −7.45134, `SR_2x2x2ShiftedMP_vs_CP2K` == CP2K −7.86744 ± 3 mHa (the complex-k gate),
   `SiPseudoAtomInBoxMatchesFinite`; DISABLED: NaF, the Γ-centred 2×2×2 gate (redundant), conditioning sweeps),

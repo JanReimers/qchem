@@ -32,6 +32,9 @@ import qchem.Pseudopotential.GTH_Potentials;     // GetGTH (the Si GTH-LDA-q4 pr
 import qchem.BasisSet.Lattice_3D.Evaluators.GPW; // GPW_Evaluator (tests may cheat-import internals) -- DFT tier
 import qchem.BasisSet.Molecule.LatticeSum1E;     // Molecule::LatticeSum1E::CollocateDensity (analytic collocation)
 import qchem.BasisSet.Internal.GMap;            // G_ERI3 / ΔG_Map (the collocation tensor + rho-tilde)
+import qchem.Hamiltonian.Internal.ExFunctional;   // ExFunctional (the v_xc/eps_xc face; XC-consistency probe)
+import qchem.Hamiltonian.Internal.SlaterExchange; // SlaterExchange (Dirac exchange -- the SCF's own X term)
+import qchem.Hamiltonian.Internal.VWN_Correlation;// VWN_Correlation (VWN5 -- the SCF's own C term)
 import qchem.Blaze;                             // hmat_t element access / rows()
 import qchem.Math;                              // Pi (the Bloch-phase e^{2 pi i k.n})
 import qchem.Vector3D;                          // rvec3_t arithmetic (r + R0)
@@ -357,6 +360,134 @@ TEST(GPW, AnalyticIntegrateBackAdjoint)
               << "   seam adjoint Tr(D H)=" << std::real(trDH) << " Omega Sum rho.V=" << std::real(eG) << std::endl;
     EXPECT_NEAR(std::real(trDH), std::real(eG), 1e-8*std::fabs(std::real(trDH)))
         << "multi-grid seam adjoint: Tr(D MakeOverlap(V)) == <apply(D),V>";
+}
+
+// XC POTENTIAL-CONSISTENCY PROBE (doc/GPWPlan.md 0b instrument).  Question under test: is the assembled
+// H_xc the EXACT D-derivative of the DISCRETE energy E_xc(D) = Sum_q w [eps_x+eps_c](rho_q) rho_q, where
+// rho_q is the ball-limited grid density of the SCF's own chain?  The probe replicates the PW_XC term's
+// route verbatim at the evaluator level (collocate -> nested {G_L} combine -> RhoOnGrid; v_xc pointwise ->
+// raster ForwardFFT -> per-level restriction -> analytic IntegratePotential) and compares the central
+// finite difference  [E_xc(D+h dD) - E_xc(D-h dD)]/2h  against  Re Tr(H_xc(D) dD).
+//   - The HARTREE control (bilinear, kernel baked) isolates harness error: it must agree to FD accuracy.
+//   - Probe 1: a PSD-like density (rho_q > 0 everywhere) -- the smooth-functional regime.
+//   - Probe 2: an INDEFINITE D (rho_q < 0 over part of the grid) -- the Kerker-mixed-field regime that
+//     exercises the functionals' rho<=0 guards (E integrand and v_xc must be a consistent kink).
+// If both probes agree to FD accuracy, the E_xc/H_xc representation fork hypothesized for the NaF fine-grid
+// attractor is FALSIFIED at this seam and the inconsistency must live elsewhere; if not, the disagreement
+// magnitude localizes it.  Two step sizes separate FD truncation error from a genuine fork.
+TEST(GPW, XCPotentialConsistencyFD)
+{
+    const double a=10.26;
+    FCCUnitCell cell(a);                                 // the production shape: cross-cell pairs + ladder
+    cell.AddAtom(14,{0,0,0});
+    cell.AddAtom(14,{0.25,0.25,0.25});
+    std::shared_ptr<const Real_BS> mol=MakeBasis(cell);
+    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/6.0, /*Rcut AUTO*/-1.0);
+    const GPW_Evaluator& ev=gpw;
+    const auto& grid=ev.DensityGrid();
+    const size_t n=static_cast<const Complex_OIBS&>(gpw).GetNumFunctions();
+
+    // The SCF's own functionals (Ham_PW_DFT::BuildTerms builds exactly these two PW_XC terms).
+    qchem::Hamiltonian::SlaterExchange  exch(2.0/3.0);
+    qchem::Hamiltonian::VWN_Correlation corr;
+    const qchem::Hamiltonian::ExFunctional* xcs[2]={&exch,&corr};
+
+    G_ERI3 ov =ev.Overlap3CTensor();                     // rho-tilde (no kernel) -- the PW_XC route
+    G_ERI3 cou=ev.Repulsion3CTensor();                   // V_H (Coulomb kernel baked) -- the control
+
+    auto rhoOf=[&](const chmat_t& D)->rvec_t { return grid.RhoOnGrid(ContractG_ERI3(ov,D)); };
+    auto Exc=[&](const rvec_t& rho)->double              // == PW_XC::GetEnergy (both terms)
+    {
+        rvec_t e(rho.size());
+        for (size_t q=0;q<rho.size();q++)
+        {
+            double s=0.0; for (auto xc : xcs) s+=xc->GetEpsXc(rho[q]);
+            e[q]=s*rho[q];
+        }
+        return grid.Integral(e);
+    };
+    auto Hxc=[&](const rvec_t& rho)->chmat_t             // == PW_XC::CalcMatrix (both terms summed)
+    {
+        rvec_t v(rho.size());
+        for (size_t q=0;q<rho.size();q++)
+        {
+            double s=0.0; for (auto xc : xcs) s+=xc->GetVxc(rho[q]);
+            v[q]=s;
+        }
+        cvec_t vt=grid.ForwardFFT(v);                    // full raster (the OrthoScalarFitter route)
+        return ev.OverlapMatrix([&](const ivec3_t& dm)->dcmplx { return grid.GridCoeff(vt,dm); });
+    };
+    auto EH=[&](const chmat_t& D)->double                // == PW_Hartree::GetEnergy: 1/2 Tr(D H_H(D))
+    {
+        ΔG_Map VH=ContractG_ERI3(cou,D);
+        chmat_t HH=ev.OverlapMatrix([&](const ivec3_t& dm)->dcmplx
+            { auto it=VH.find(dm); return it==VH.end()?dcmplx(0.0):it->second; });
+        dcmplx tr(0.0);
+        for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) tr+=dcmplx(D(i,j))*dcmplx(HH(j,i));
+        return 0.5*std::real(tr);
+    };
+    auto trace=[&](const chmat_t& H, const chmat_t& dD)->double   // Re Tr(H dD), both Hermitian
+    {
+        dcmplx tr(0.0);
+        for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) tr+=dcmplx(H(i,j))*dcmplx(dD(j,i));
+        return std::real(tr);
+    };
+    auto shifted=[&](const chmat_t& D, const chmat_t& dD, double h)->chmat_t
+    {
+        chmat_t Dh(D);
+        for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) Dh(i,j)=dcmplx(D(i,j))+h*dcmplx(dD(i,j));
+        return Dh;
+    };
+
+    // Deterministic Hermitian (real-symmetric at Gamma) perturbation direction, O(0.1) entries.
+    chmat_t dD(n);
+    for (size_t i=0;i<n;i++)
+        for (size_t j=i;j<n;j++) dD(i,j)=dcmplx(0.1*std::sin(1.0+double(i)+2.0*double(j)),0.0);
+
+    auto probe=[&](const chmat_t& D, const char* label)->double   // returns the XC rel error at h=1e-3
+    {
+        // Hartree control at h=1e-3 (bilinear: FD error only).
+        const double hc=1e-3;
+        double fdH=(EH(shifted(D,dD,+hc))-EH(shifted(D,dD,-hc)))/(2.0*hc);
+        ΔG_Map VH=ContractG_ERI3(cou,D);
+        rvec_t rho0=rhoOf(D);                            // ALSO leaves the colloc memo (screenD) at D
+        chmat_t HH=ev.OverlapMatrix([&](const ivec3_t& dm)->dcmplx
+            { auto it=VH.find(dm); return it==VH.end()?dcmplx(0.0):it->second; });
+        double anH=trace(HH,dD);
+        double relH=std::fabs(fdH-anH)/std::max(std::fabs(anH),1e-30);
+        // XC probe at two step sizes (separates FD truncation from a genuine E/H fork).
+        double relXc=0.0;
+        for (double h : {1e-3, 1e-4})
+        {
+            double fd=(Exc(rhoOf(shifted(D,dD,+h)))-Exc(rhoOf(shifted(D,dD,-h))))/(2.0*h);
+            rvec_t rho=rhoOf(D);                         // reset the memo/screenD to D before the H build
+            double an=trace(Hxc(rho),dD);
+            double rel=std::fabs(fd-an)/std::max(std::fabs(an),1e-30);
+            if (h==1e-3) relXc=rel;
+            std::cout << "[xc-consistency " << label << "] h=" << h << "  dE_fd=" << fd
+                      << "  Tr(Hxc dD)=" << an << "  rel=" << rel
+                      << "   (Hartree control rel=" << relH << ")" << std::endl;
+        }
+        double rmin=1e300, rmax=-1e300;
+        for (size_t q=0;q<rho0.size();q++) { rmin=std::min(rmin,rho0[q]); rmax=std::max(rmax,rho0[q]); }
+        std::cout << "[xc-consistency " << label << "] rho range on grid: [" << rmin << ", " << rmax << "]" << std::endl;
+        EXPECT_LT(relH, 1e-6) << "Hartree control (bilinear) must agree to FD accuracy (" << label << ")";
+        return relXc;
+    };
+
+    // Probe 1: PSD-like density -- rho_q > 0 (the converged-SCF regime).
+    chmat_t D1(n);
+    for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) D1(i,j)=(i==j)?dcmplx(1.0):dcmplx(0.3);
+    double rel1=probe(D1,"positive");
+    EXPECT_LT(rel1, 1e-5) << "H_xc must be the exact derivative of the discrete E_xc (smooth regime)";
+
+    // Probe 2: indefinite D -- rho_q < 0 over part of the grid (the mixed-density regime; guard consistency).
+    chmat_t D2(n);
+    for (size_t i=0;i<n;i++)
+        for (size_t j=i;j<n;j++) D2(i,j)=(i==j)?dcmplx((i%2)?-0.6:0.8):dcmplx(0.3);
+    double rel2=probe(D2,"indefinite");
+    std::cout << "[xc-consistency] indefinite-D rel error = " << rel2
+              << " (informational: FD across the rho=0 guard kink is not smooth)" << std::endl;
 }
 
 // === General-k (Step 1): the Bloch phase e^{ik.R} enters the lattice sums ============================
