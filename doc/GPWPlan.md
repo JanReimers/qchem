@@ -19,7 +19,8 @@ archaeology.**
 Everything here is committed on `main`; the GPW suites (`GPW_UT`, `GPW_SCF_UT`) are green.  GPW is a **new
 evaluator, not a new IBS** — it satisfies the plane-wave concepts and the whole `Ham_PW_DFT` KS stack drives
 it verbatim.  **Full per-increment narratives: `doc/GPWHistory.md`** — below is the compact timeline, then the
-still-load-bearing records (naming, the CP2K recipe, the current C+D state) in full.
+still-load-bearing records in full (naming, the CP2K recipe, the C+D analytic-rewrite state, and the §0a
+runtime close-out incl. the CP2K NaF oracle + convergence findings).
 
 ## Compact timeline (details in doc/GPWHistory.md)
 - **1E at Γ** (`ab2c6a76`): Bloch lattice sums delegated to the molecular basis via the engine-neutral
@@ -47,6 +48,15 @@ still-load-bearing records (naming, the CP2K recipe, the current C+D state) in f
   aliases at bulk (2.66 Ha), needs a hard Rcut → pivot to the analytic method.
 - **Analytic kernels A/B/cross-cell** (`0d09a6d5`,`068b4e96`,`729b6355`): per-pair exp-tail boxes +
   modulo-wrap, exact adjoint, screened cross-cell offsets, `G_ERI3::apply` matrix-free seam.
+- **§0a Si runtime leg** (`9ff982ba`): stream-cache lockout fix + coverage readout + same-D/phase-independent
+  memos; Γ 157→31 s, multi-k 475→89 s, bit-consistent; shifted-MP complex-k gate ENABLED == CP2K to 0.2 mHa.
+- **§0a NaF leg** (`b0f497c6`): ANALYTIC KB via the `⟨χ|g⟩` Gaussian seam (== mesh to 4.6e-11; the >33-min
+  mesh setup wall dead) + fp32 stream tier; NaF end-to-end 2h15m.
+- **§0a D-aware radii + CP2K NaF oracle** (`4c71450c`): eps/|coef| kill+shrink with shared-active-set
+  integrate (adjoint stays exact); NaF 40m41s; CP2K same-basis oracle **−27.93128** (own q-tag-free basis).
+- **§0a NaF convergence findings** (`35789164`): CP2K recipe machinery (no DIIS, E-gate, tuning knobs);
+  α=0.025/G0=1 converges Ecut=40 (pinned anchor −27.73); the fine grid's unphysical attractor (E≈−39)
+  captures ALL linear mixing → quasi-Newton mixing + XC consistency are the TODO leads.
 
 ## Naming (`5f609d2f`) — remember these
 - `Overlap(f)` = ANY 1-electron `⟨i|f|j⟩` (f may be a potential); `Repulsion` = the 2-electron `1/r12`.
@@ -121,16 +131,7 @@ The analytic collocate/integrate path IS the SCF path; the whole sampling stack 
   the cross-cell commit) + a machine-precision multigrid seam-adjoint gate (Tr(D H) == <apply(D),V>).
 - **[grid charge] readout through the live SCF: lost = -1.4e-6 e** -- collocation charge-exact in production.
 
----
-
-# TODO / NEXT
-
-**C + D are DONE (2026-07-14, see DONE)** — the analytic multigrid path IS the SCF path, sampling machinery
-deleted, anchors re-pinned on the consistent SR/Rcut=2a scheme, Si Gamma == CP2K to 0.18 mHa.  AGREED ORDER (user,
-2026-07-14): **(0a) RUNTIME CLOSE-OUT first**, **(0b) then XC PROJECTION CONSISTENCY** (the GDM/OT blocker in the
-ledger above — develop on the now-31 s Si anchor, validate GDM on NaF).  Then (1) **DROP SR**
-(rank-reduction + auto-tol); (2) low-q multi-species bases → Si/NaF/CsI; (3) CP2K reference; (4) IBZ;
-(5) cleanups.
+## §0a RUNTIME CLOSE-OUT — COMPLETE (2026-07-15/16).  The full records:
 
 **(0a) Si LEG DONE (2026-07-15) — Γ 157→31 s (5×), multi-k 475→89 s (5.3×), all anchors BIT-consistent;
 complex-k REVALIDATED (shifted-MP gate ENABLED).**  The profile OVERTURNED the commit-message attribution:
@@ -228,49 +229,76 @@ needs QUASI-NEWTON DENSITY MIXING (the one CP2K ingredient we lack).**
   (quasi-Newton, 8-step history, α=0.2).
 - **Test now pins the CONVERGING regime** (Ecut=40/α=0.025/200 iters → −27.73 ± 5e-2; both bad attractors
   land ~+65 / ~−39, far outside): a true mixing-regression anchor until the production grid converges.
-- **NEXT INCREMENT (promoted): complex PULAY/BROYDEN ρ̃-mixing, behind a DIP MIXER FACE (user design,
-  2026-07-16).**  Mixing is today hardwired inside `tSCFIterator::Iterate` (the `KerkerG0>0 ?
-  KerkerUpdate(relax) : MixIn(1−relax)` branch + the inlined adaptive-α heuristics).  Extract
-  `tDensityMixer<T>` (qcChargeDensity — it speaks ChargeDensity and needs FourierMixCD, no new lib edges):
-  `double Mix(cd_t& cdInOut, const cd_t& cdFresh, const MixSignals&)` + `Reset()`; the SCF iterator only
-  sees the face, the CONCRETE is constructed at the Calculation facade / test level and passed down the
-  ctor beside the accelerator pointer (the existing `tSCFAccelerator<T>*` precedent — SOLID DIP).
-  Concretes: `NullMixer` (pass-through — what a GDM/OT-driven SCF wants: a minimizer must not fight a
-  mixer), `LinearMixer(α₀)` (today's D-mixing + the adaptive-α policy moved in verbatim — molecular SCF
-  bit-preserved), `KerkerMixer(α,G0)` (today's KerkerUpdate + its periodic-basis validation moved into
-  construction), `PulayMixer(α,G0,m)` (NEW: last-m (ρ̃_in, residual) history, small residual-norm LS,
-  Kerker-preconditioned update — the VASP/QE/CP2K scheme; Broyden = sibling behind the same face).
-  Null/Linear are T-generic; Kerker/Pulay dcmplx/periodic-only.  `SCFParams.KerkerG0/StartingRelaxRo`
-  remain as facade DEFAULTS for constructing the mixer (no call-site break); the iterator stops reading
-  them.  Likely accelerant on top: grid-continuation seeding (converge Ecut=40 → seed the fine grid).
-  Convergence pays twice (fewer iterations AND stronger D-aware kills on a settled density).
-  After that: OpenMP over pairs; the setup share (stream build + static-PP sweep) = next profile target.
-  **(0b) XC CONSISTENCY + ρ-FLOOR — likely AHEAD of Pulay in payoff (2026-07-16 analysis):** the fine-grid
-  garbage attractor lives off the E_xc/H_xc representation fork (matrix = v_xc FITTED onto {G}; energy =
-  ¾-virial + FittedEpsXc on the raw grid → "E rewards spikes, the band-limited H never resists").  Fix =
-  the Hartree precedent: evaluate v_xc pointwise on the (FLOORED: ρ<ε→0, the CP2K guard — the Kerker-mixed
-  auxiliary density is a filtered field and CAN go pointwise negative) grid density, feed it through the
-  per-level spectral restriction + analytic IntegratePotential (adjoint-exact, same as V_H), and take
-  E_xc = Σw·ε_xc·ρ on the SAME grid — retiring the ¾-virial + FittedEpsXc on the periodic path.  One
-  discrete functional → every SCF state a genuine stationary point; H_xc = ∂E_xc/∂D exactly.  Also the
-  GGA prerequisite (the old "route E_xc through ∫ε_xc·ρ" TODO) and may widen the Kerker α-window enough
-  that existing mixing converges the production grid.
 
-**RINGING/VARIATIONALITY LEDGER (user pin, 2026-07-14 — Gibbs ringing destroys variational energy,
-convergence, and GDM).**  Where each error source now stands:
+---
+
+# TODO / NEXT
+
+**Orientation (2026-07-16).**  §0 (A–D + the runtime close-out) is DONE — the analytic multigrid path IS
+the SCF path; Si == CP2K at Γ / 2×1×1 / shifted 2×2×2; NaF runs end-to-end in ~40 min against a same-basis
+CP2K oracle (**−27.93128**, `doc/CP2Kresults.md`).  The open problem: NaF's PRODUCTION-grid SCF is captured
+by an unphysical attractor (E≈−39) that plain damped mixing cannot escape at any α.  The two lead
+increments attack that — **0b first** (it deletes the bad basin itself), then **0c** (robust navigation) —
+followed by the runtime follow-ups (0d) and the standing queue (1)–(5).
+
+## 0b. XC CONSISTENCY + ρ-FLOOR — one discrete functional (deletes the bad basin; unblocks GDM/OT; the GGA prereq)
+**The ringing/variationality ledger (user pin, 2026-07-14), where each error source stands:**
 - Gibbs PROPER (hard SPATIAL truncation) — GONE: pair boxes end in smooth exp tails; cross-cell offsets +
-  1E sums magnitude-screened; auto-Rcut derives the enumeration from the basis, so S is PSD to eps << lambda_min.
+  1E sums magnitude-screened; auto-Rcut derives the enumeration from the basis, so S is PSD to eps << λ_min.
 - SPECTRAL truncation (density-grid Ecut, per-level G-spheres) — PRESENT but EXPONENTIALLY controlled
-  (e^{-ecut/2p} via kRelSafety/relCutoffScale), NOT Gibbs-like, and — the key point for GDM — rendered
-  variationally SAFE by ADJOINT-EXACTNESS: the machine-precision seam gate Tr(D H)==<collocate(D),V> means
-  the KS matrix is the exact gradient of the DISCRETIZED energy, so the truncated problem is itself
-  variational.  Truncation alone does not break GDM; energy/gradient INCONSISTENCY does.
-- The ONE remaining inconsistency = XC: PW_XC fits the nonlinear v_xc onto the finite {G} for the MATRIX but
-  quadratures E_xc directly on the grid — two discretizations of a non-band-limited field (the documented
-  "fit floor": anchors settle in E while drho floors ~3e-4).  **This is the GDM/OT blocker, promoted: make
-  E_xc and the v_xc matrix consistent (same projection, or E_xc from the fitted v_xc representation; the
-  E(lambda) line-search + FD potential-consistency probes are the instruments).**  After that, GDM/OT should
-  behave on GPW.
+  (e^{−ecut/2p} via kRelSafety/relCutoffScale), NOT Gibbs-like, and rendered variationally SAFE by
+  ADJOINT-EXACTNESS (the machine-precision seam gate Tr(D H)==⟨collocate(D),V⟩: the KS matrix is the exact
+  gradient of the DISCRETIZED energy).  Truncation alone does not break GDM; energy/gradient INCONSISTENCY does.
+- **The ONE remaining inconsistency = XC**, and it is now KNOWN to be load-bearing: the NaF fine-grid
+  garbage attractor (E≈−39, Exc≈−143) lives off the E_xc/H_xc representation FORK — the MATRIX carries
+  v_xc FITTED onto the finite {G} (band-limited), while the ENERGY takes the ¾-virial `E_x=¾⟨ρ|v_x⟩` +
+  `FittedEpsXc` correlation on the raw grid.  "E rewards density spikes; the band-limited H never resists"
+  → a self-consistent garbage cycle BELOW the physical state, which also means variational minimizers
+  (GDM/OT) would seek it out BY DESIGN.  (CP2K has no such state: one pointwise representation + floors;
+  its E settles from an atomic guess with a plain quasi-Newton mixer.)
+
+**The fix = the Hartree precedent** (the machinery already exists):
+1. Evaluate v_xc POINTWISE on the grid density — no {G} fit — and feed it through the per-level spectral
+   restriction + analytic `IntegratePotential` (adjoint-exact, exactly the V_H route).
+2. Take E_xc = Σ w·ε_xc·ρ on the SAME grid — retiring the ¾-virial and `FittedEpsXc` on the periodic path
+   (also the GGA prerequisite: the old "route E_xc through ∫ε_xc·ρ" TODO).
+3. **ρ-FLOOR (the CP2K guard)**: ρ<ε → ε_xc,v_xc treated as 0 before the XC evaluation.  The raw density
+   of a PSD D is pointwise ≥0, but the KERKER-MIXED auxiliary density is a FILTERED field and CAN go
+   pointwise negative — that mixed field feeds V_xc every iteration.  Audit the VWN path on pathological
+   input while there (only SlaterExchange has the ρ≤0→0 guard today).
+Result: ONE discrete functional; every SCF state a genuine stationary point (H_xc = ∂E_xc/∂D exactly);
+plausibly widens the Kerker α-window enough that existing mixing converges the production grid.
+Instruments: the E(λ) line-search + FD potential-consistency probes; develop on the 31 s Si anchor,
+validate on NaF vs the −27.93128 oracle.
+
+## 0c. PULAY/BROYDEN ρ̃-MIXING behind the DIP mixer face (`tDensityMixer`) — user design, 2026-07-16
+Mixing is today hardwired inside `tSCFIterator::Iterate` (the `KerkerG0>0 ? KerkerUpdate(relax) :
+MixIn(1−relax)` branch + the inlined adaptive-α heuristics).  Extract the face and inject the concrete
+from the top (SOLID DIP — the existing `tSCFAccelerator<T>*` ctor-injection precedent):
+- **Face** `tDensityMixer<T>` (qcChargeDensity — it speaks ChargeDensity and needs FourierMixCD; no new
+  lib edges): `double Mix(cd_t& cdInOut, const cd_t& cdFresh, const MixSignals&)` + `Reset()`;
+  `MixSignals={E,[F,D]}` so adaptive policies live INSIDE concretes.
+- **Concretes**: `NullMixer` (pass-through — what a GDM/OT-driven SCF wants: a minimizer must not fight a
+  mixer); `LinearMixer(α₀)` (today's D-mixing + the adaptive-α policy moved in VERBATIM — molecular SCF
+  bit-preserved); `KerkerMixer(α,G0)` (today's KerkerUpdate + its periodic-basis validation moved into
+  construction); `PulayMixer(α,G0,m)` (NEW: last-m (ρ̃_in, residual) history, small residual-norm LS,
+  Kerker-preconditioned update — the VASP/QE/CP2K scheme; Broyden = a sibling behind the same face).
+  Null/Linear T-generic; Kerker/Pulay dcmplx/periodic-only.
+- **Plumbing**: `cSCFIterator` ctor gains the mixer pointer beside the accelerator; the Calculation facade
+  constructs the concrete (options beside AcceleratorOptions); `SCFParams.KerkerG0/StartingRelaxRo` remain
+  as facade DEFAULTS (no call-site break) and the iterator stops reading them.
+- **Accelerant on top**: grid-continuation seeding (converge Ecut=40 → seed the fine grid — start in the
+  right basin).  Gate: the NaF test on the production grid vs the −27.93128 oracle.
+Convergence pays twice: fewer iterations AND stronger D-aware kills on a settled density.
+
+## 0d. Runtime follow-ups (after 0b/0c)
+- **OpenMP over pairs** (the parallel-execution TODO): collocate/integrate are embarrassingly parallel
+  (per-thread ρ accumulators); CP2K's ssmp is threaded on top of everything above.  ~4× on this box.
+- **Setup share** (stream-cache build + the scale-6 static-PP sweep) = the next profile target once
+  per-iteration cost is mixing-limited.
+
+Then the standing queue: **(1) DROP SR** (rank-reduction + auto-tol, below); **(2) low-q multi-species
+bases → Si/NaF/CsI**; **(3) CP2K reference library**; **(4) IBZ**; **(5) cleanups**.
 
 ## 1. DROP SR — rank-reduction through the periodic stack + auto-tol
 The `_SR` basis is a hand-tuned crutch (drop the most-diffuse primitive so the Bloch overlap is cleanly PD).
@@ -476,5 +504,7 @@ Symmorphic space groups → BZ reduction (irreducible wedge) → SALC with plane
   `UnitTests/L_PP.C` (finite==lattice PP), `UnitTests/PlaneWaveDFTUT.C` (PW anchors).
 - CP2K decks + results: `UnitTests/CP2K/`, `doc/CP2Kresults.md`; CP2K itself: `~/Code/cp2k/build/bin/cp2k.ssmp`.
 - Recent commits: **`8dba0625`** (C+D analytic rewrite, sampling deleted), **`9714f58d`** (auto-Rcut,
-  budgeted stream cache, sharp-field PP ladder).  Older hashes: doc/GPWHistory.md.
+  budgeted stream cache, sharp-field PP ladder), **`9ff982ba`** (§0a Si leg: lockout fix + memos, complex-k
+  gate enabled), **`b0f497c6`** (analytic KB + fp32 tier), **`4c71450c`** (D-aware radii + CP2K NaF oracle),
+  **`35789164`** (NaF convergence: recipe machinery + fine-grid attractor findings).  Older: doc/GPWHistory.md.
 - Build/test: `cd build/Release && ninja UTMain && ./UnitTests/UTMain`.
