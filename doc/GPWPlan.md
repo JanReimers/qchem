@@ -228,14 +228,33 @@ needs QUASI-NEWTON DENSITY MIXING (the one CP2K ingredient we lack).**
   (quasi-Newton, 8-step history, α=0.2).
 - **Test now pins the CONVERGING regime** (Ecut=40/α=0.025/200 iters → −27.73 ± 5e-2; both bad attractors
   land ~+65 / ~−39, far outside): a true mixing-regression anchor until the production grid converges.
-- **NEXT INCREMENT (promoted): complex PULAY/BROYDEN ρ̃-mixing** on the FourierMixCD infrastructure — keep
-  the last m (ρ̃_in, residual R=ρ̃_out−ρ̃_in) pairs, minimize ‖ΣcᵢRᵢ‖ (small LS), mix with the
-  Kerker-preconditioned update: the standard production plane-wave scheme (VASP/QE/CP2K).  Likely
-  accelerant on top: grid-continuation seeding (converge Ecut=40 → seed the fine grid — start in the right
-  basin).  Convergence pays twice (fewer iterations AND stronger D-aware kills on a settled density).
+- **NEXT INCREMENT (promoted): complex PULAY/BROYDEN ρ̃-mixing, behind a DIP MIXER FACE (user design,
+  2026-07-16).**  Mixing is today hardwired inside `tSCFIterator::Iterate` (the `KerkerG0>0 ?
+  KerkerUpdate(relax) : MixIn(1−relax)` branch + the inlined adaptive-α heuristics).  Extract
+  `tDensityMixer<T>` (qcChargeDensity — it speaks ChargeDensity and needs FourierMixCD, no new lib edges):
+  `double Mix(cd_t& cdInOut, const cd_t& cdFresh, const MixSignals&)` + `Reset()`; the SCF iterator only
+  sees the face, the CONCRETE is constructed at the Calculation facade / test level and passed down the
+  ctor beside the accelerator pointer (the existing `tSCFAccelerator<T>*` precedent — SOLID DIP).
+  Concretes: `NullMixer` (pass-through — what a GDM/OT-driven SCF wants: a minimizer must not fight a
+  mixer), `LinearMixer(α₀)` (today's D-mixing + the adaptive-α policy moved in verbatim — molecular SCF
+  bit-preserved), `KerkerMixer(α,G0)` (today's KerkerUpdate + its periodic-basis validation moved into
+  construction), `PulayMixer(α,G0,m)` (NEW: last-m (ρ̃_in, residual) history, small residual-norm LS,
+  Kerker-preconditioned update — the VASP/QE/CP2K scheme; Broyden = sibling behind the same face).
+  Null/Linear are T-generic; Kerker/Pulay dcmplx/periodic-only.  `SCFParams.KerkerG0/StartingRelaxRo`
+  remain as facade DEFAULTS for constructing the mixer (no call-site break); the iterator stops reading
+  them.  Likely accelerant on top: grid-continuation seeding (converge Ecut=40 → seed the fine grid).
+  Convergence pays twice (fewer iterations AND stronger D-aware kills on a settled density).
   After that: OpenMP over pairs; the setup share (stream build + static-PP sweep) = next profile target.
-  Then (0b) XC projection consistency — NOTE the fine-grid garbage attractor is XC-feedback-driven, so (0b)
-  and a CP2K-style ρ-floor/spike guard in the XC grid path may also shrink the bad basin itself.
+  **(0b) XC CONSISTENCY + ρ-FLOOR — likely AHEAD of Pulay in payoff (2026-07-16 analysis):** the fine-grid
+  garbage attractor lives off the E_xc/H_xc representation fork (matrix = v_xc FITTED onto {G}; energy =
+  ¾-virial + FittedEpsXc on the raw grid → "E rewards spikes, the band-limited H never resists").  Fix =
+  the Hartree precedent: evaluate v_xc pointwise on the (FLOORED: ρ<ε→0, the CP2K guard — the Kerker-mixed
+  auxiliary density is a filtered field and CAN go pointwise negative) grid density, feed it through the
+  per-level spectral restriction + analytic IntegratePotential (adjoint-exact, same as V_H), and take
+  E_xc = Σw·ε_xc·ρ on the SAME grid — retiring the ¾-virial + FittedEpsXc on the periodic path.  One
+  discrete functional → every SCF state a genuine stationary point; H_xc = ∂E_xc/∂D exactly.  Also the
+  GGA prerequisite (the old "route E_xc through ∫ε_xc·ρ" TODO) and may widen the Kerker α-window enough
+  that existing mixing converges the production grid.
 
 **RINGING/VARIATIONALITY LEDGER (user pin, 2026-07-14 — Gibbs ringing destroys variational energy,
 convergence, and GDM).**  Where each error source now stands:
