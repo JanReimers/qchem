@@ -23,6 +23,7 @@
 #include <memory>
 #include <vector>
 #include <cmath>
+#include <cstdlib>   // std::getenv/std::atof (the NaF mixing-tuning env knobs)
 #include <complex>
 #include <cstdio>
 #include <stdexcept>
@@ -43,6 +44,7 @@ import qchem.SCFParams;                          // SCFParams
 import qchem.ElectronConfiguration.Crystal;      // Crystal_EC (single-k Bloch occupation)
 import qchem.ChargeDensity.Seed;                 // SeedStrategy
 import qchem.SCFAccelerator.Internal.SCFAcceleratorDIIS; // cSCFAcceleratorDIIS (complex DIIS)
+import qchem.SCFAccelerator.Internal.SCFIrrepAcceleratorNull; // tSCFAcceleratorNull<dcmplx> (NaF: pure damped Kerker)
 import qchem.WaveFunction;                       // cWaveFunction (the converged state)
 import qchem.Energy;                             // EnergyBreakdown
 import qchem.Symmetry.Irrep;                     // Irrep
@@ -381,8 +383,10 @@ TEST(GPW_SCF, SiPseudoAtomInBoxMatchesFinite)
 // exact charge-transfer cycle we see: the disease is the system+basis, NOT either implementation (CP2K's
 // OT run never settled E at all, swinging -25.7..+253).  OUR Kerker(G0=1)+DIIS at relax 0.3 does NOT
 // settle E in 60 iters (iteration 60 lands essentially randomly: -24.03 and +887.55 across runs; charge
-// stays 8.0000000000 exactly throughout).  => the NaF blocker is MIXING: adopt CP2K's working recipe
-// (heavier damping alpha~0.2, no early DIIS, more iterations) and gate this test on the -27.931 oracle.
+// stays 8.0000000000 exactly throughout) -- the DIIS mid-cycle Fock extrapolations ARE the +900 spikes
+// (they land exactly on the Nproj=8 iterations).  The recipe + tuning outcome (2026-07-16) is documented
+// at the mixing knobs inside the test body: converging at Ecut=40, production grid blocked on
+// quasi-Newton (Pulay/Broyden) density mixing.
 TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
 {
     using namespace qchem::Hamiltonian;
@@ -398,28 +402,51 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     namespace L3=BasisSet::Lattice_3D;
     // densityEcut<0 => AUTOMATIC: the grid is floored to 4*alpha_max from the basis (F alpha_max=40 -> 160),
     // so F's tight 40-a.u. exponent is resolved without the caller specifying the Hartree value.
-    std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, mol, /*densityEcut AUTO*/-1.0, /*Rcut*/2.0*a, /*collRcut*/0.0, {0,0,0}));
+    // Mixing TUNING knobs (env overrides; defaults = the committed recipe).  The charge-transfer limit cycle
+    // is a mixing-stability problem, so alpha/G0 sweeps are how this test gets tuned -- e.g.
+    //   NAF_ALPHA=0.1 NAF_KERKER_G0=2 NAF_ECUT=40 NAF_NMAX=100 ./UTMain --gtest_filter=*NaFRocksalt* ...
+    auto envd=[](const char* n, double d){ const char* s=std::getenv(n); return s ? std::atof(s) : d; };
+    // TUNED (2026-07-15/16, Ecut=40 alpha scan): alpha=0.2/0.1 limit-cycle (+-75 Ha, period ~48, passing
+    // THROUGH the fixed point); alpha=0.05 contained (+-1 Ha) but not decaying; **alpha=0.025 converges**
+    // (Ecut=40 -> ~-27.75, residual +-0.04 wobble).  G0: 1.0 good; 2.5 WORSE (over-damping low-G
+    // destabilizes), 0.5 worse.
+    //
+    // THE PRODUCTION (AUTO Ecut=160) GRID IS BLOCKED ON QUASI-NEWTON DENSITY MIXING: the fine grid grows a
+    // second, UNPHYSICAL attractor (E ~ -39, Exc ~ -143, integral rho_grid swinging 5.1<->7.7 vs Tr(DS)=8 --
+    // the mid-slosh D loads the sharpest F pairs beyond the grid calibration, the XC of that spiky/negative
+    // rho feeds back) which captures plain damped Kerker at EVERY alpha tried (0.2 down to 0.01: the
+    // trajectory passes -26 and slides in).  CP2K's SAME map converges under BROYDEN (quasi-Newton, 8-step
+    // history) -- the ingredient our complex path lacks.  => next increment: complex Pulay/Broyden
+    // rho-tilde mixing on the FourierMixCD infrastructure; until then this test pins the CONVERGING
+    // Ecut=40 regime (a real mixing-regression anchor: either bad attractor lands ~+65 or ~-39, far
+    // outside the gate).  NAF_ECUT=-1 runs the production grid for Pulay development.
+    const double tuneEcut =envd("NAF_ECUT", 40.0);           // <0 AUTO (=160 for F); 40 = the convergent regime
+    const double tuneAlpha=envd("NAF_ALPHA", 0.025);
+    const double tuneG0   =envd("NAF_KERKER_G0", 1.0);
+    const size_t tuneNMax =size_t(envd("NAF_NMAX", 200));
+    std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, mol, tuneEcut, /*Rcut*/2.0*a, /*collRcut*/0.0, {0,0,0}));
     auto       irreps=bs->GetIrreps(Spin::None);
     Crystal_EC ec(irreps, 8);
     cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), bs.get(), {{"Na",1},{"F",7}}, "LDA");
-    // FINDING (2026-07-12, experiment (a)): DIIS timing is NOT the cause of the NaF oscillation.  Delaying DIIS
-    // (EMax 8.0->0.5) did NOT help -- with the density sloshing, [F,D] never drops below 0.5 so DIIS never even
-    // activates, yet PURE relax mixing STILL limit-cycles (stable period-~6 cycle, integral rho_grid swinging
-    // 2.40<->8.00, ~5.6 e- amplitude; Tr(DS)=8 always -- the swing is the COLLOCATED grid density sharpening +
-    // aliasing).  => the instability is the density-mixing fixed point itself (charge-transfer sloshing), which
-    // linear/relax mixing cannot damp.  The confirmed fix is KERKER / high-G-damped mixing (doc/GPWPlan §0).
-    // EXPERIMENT (b'): KERKER + DIIS (the standard production combo).  Kerker (par.KerkerG0) damps the low-G
-    // charge-transfer update amplitude; DIIS (EMax=8) extrapolates the Fock history to break the residual
-    // period-2 A<->B flip pure Kerker settled into.  Kerker holds alpha=StartingRelaxRo fixed (no [F,D] auto-tune).
-    auto* acc=new qchem::SCFAccelerators::cSCFAcceleratorDIIS(qchem::SCFAccelerators::DIISParams{8, 8.0, 1e-10, 1e-8});
+    // THE CP2K RECIPE (2026-07-15, doc/CP2Kresults.md): pure DAMPED KERKER MIXING, NO DIIS, exit on E-FLAT.
+    //  - CP2K's damped-Broyden/diagonalization run settles E to 1e-6 by ~130 iterations at alpha=0.2 while its
+    //    DENSITY limit-cycles forever (RMS 0.03-0.12) -- so the density is NOT a convergence criterion here
+    //    (MinΔρ=1e30) and the physical exit is the relative-energy gate MinΔE (the SCFParams field added for
+    //    exactly this non-variational settled-E case).
+    //  - NO DIIS: our +431/+910 Ha energy spikes landed EXACTLY on the iterations where DIIS re-engaged
+    //    (Nproj=8 in the 2026-07-15 traces) -- mid-cycle Fock extrapolation is the spike generator.  Earlier
+    //    finding (2026-07-12) stands: pure relax mixing limit-cycles too; Kerker damping is what contains the
+    //    low-G charge-transfer slosh, and heavier damping (alpha=0.2, CP2K's value) settles E.
+    //    Kerker holds alpha=StartingRelaxRo fixed (no [F,D] auto-tune).
+    auto* acc=new qchem::SCFAccelerators::tSCFAcceleratorNull<dcmplx>();
     qchem::ReportOverlapConditioning()=true;   // report min eig(S)/min sv(S) at SetBasisOverlap (the ctor below)
     qchem::SCFIterator::cSCFIterator scf(bs.get(), &ec, ham, acc,
                                          qchem::ChargeDensity::SeedStrategy::IonicSAD, lat.GetStructure().get(),
                                          qchem::Cholesky, 0.0);   // diffuse F- / Na+ ionic seed (halved PW iters)
     qchem::ReportOverlapConditioning()=false;  // process-wide flag -- reset so it does not leak to other tests
-    SCFParams par; par.NMaxIter=60; par.MinΔρ=1e-3; par.MinΔE=1e-6; par.MinΔFD=1e30; par.MinVirial=1e30;
-    par.MinFD=1e30; par.StartingRelaxRo=0.3; par.MergeTol=1e-4; par.Verbose=true;
-    par.KerkerG0=1.0;   // Kerker screening wavevector (a.u.^-1): damp the low-G charge-transfer slosh
+    SCFParams par; par.NMaxIter=tuneNMax; par.MinΔρ=1e30; par.MinΔE=1e-8; par.MinΔFD=1e30; par.MinVirial=1e30;
+    par.MinFD=1e30; par.StartingRelaxRo=tuneAlpha; par.MergeTol=1e-4; par.Verbose=true;
+    par.KerkerG0=tuneG0;   // Kerker screening wavevector (a.u.^-1): damp the low-G charge-transfer slosh
     qchem::Hamiltonian::ReportGridCharge()=true;   // F's tight 40-a.u. exponent: watch integral rho_grid vs Tr(DS)
     scf.Iterate(par);
     qchem::Hamiltonian::ReportGridCharge()=false;  // process-wide flag -- reset so it does not leak to other tests
@@ -430,6 +457,11 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
               << " (Ekin="<<E.Kinetic<<" Een="<<E.Een<<" Eee="<<E.Eee<<" Exc="<<E.Exc
               << " Enn="<<E.Enn<<" Ealign="<<E.Ealign<<")" << std::endl;
     EXPECT_NEAR(charge, 8.0, 1e-6);     // 1 (Na) + 7 (F) valence electrons, conserved
+    // The CONVERGING-regime anchor (Ecut=40, alpha=0.025, 200 iters -> -27.7304 with a +-0.04 residual
+    // wobble; the CP2K 320-Ry oracle is -27.93128, doc/CP2Kresults.md -- the ~0.2 Ha gap is the leaky
+    // Ecut=40 grid).  Wide gate: a mixing regression lands in one of the bad attractors (~+65 / ~-39).
+    if (tuneEcut==40.0 && tuneAlpha==0.025 && tuneNMax==200)
+        EXPECT_NEAR(E.GetTotalEnergy(), -27.73, 5e-2) << "NaF converging-regime anchor (Kerker alpha=0.025)";
 }
 
 // VALIDATION (2026-07-13): can we drop the SR-basis hand-tuning and use the FULL valence_lowq basis, relying on

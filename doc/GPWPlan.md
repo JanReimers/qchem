@@ -209,11 +209,33 @@ per-iteration collocation volume is now the whole NaF story.**
   2.0e-4 e at 320 Ry (our readout's class).  **OUR Kerker(G0=1)+DIIS at relax 0.3 does NOT settle E in 60
   iterations — iteration 60 lands essentially randomly (−24.03, +887.55 across two runs; charge exactly 8
   throughout).**
-- **(0a) REMAINING → the NaF CONVERGENCE increment (promoted): adopt the CP2K-proven recipe** (heavier
-  damping α≈0.2, no early DIIS, iterate until E flat; then gate the NaF test on the −27.931 oracle).
-  Convergence pays twice: fewer iterations AND stronger D-aware kills on a settled density.  After that:
-  OpenMP over pairs (the parallel-execution TODO; CP2K ssmp is threaded), and the setup share (stream build +
-  static-PP sweep) becomes the next profile target.  Then (0b) XC projection consistency.
+**(0a) NaF CONVERGENCE increment (2026-07-16): the linear-mixing axis is EXHAUSTED — the production grid
+needs QUASI-NEWTON DENSITY MIXING (the one CP2K ingredient we lack).**
+- **Recipe machinery landed** (`DISABLED_NaFRocksaltGamma`): `tSCFAcceleratorNull<dcmplx>` (NO DIIS — the
+  mid-cycle Fock extrapolations ARE the +900 Ha spikes: they land exactly on the Nproj=8 iterations),
+  fixed-α Kerker, exit on the relative-E gate `MinΔE` with `MinΔρ=1e30` (CP2K's density never converges
+  either — E-flat is the physical criterion), env tuning knobs `NAF_{ECUT,ALPHA,KERKER_G0,NMAX}`.
+- **α scan at Ecut=40** (cheap grid): α=0.2/0.1 → ±75 Ha period-~48 limit cycles that pass THROUGH the fixed
+  point; α=0.05 → contained ±1 Ha, not decaying; **α=0.025 → converges** (~−27.75, ±0.04 residual wobble;
+  −27.7304 at the pinned 200-iteration endpoint).  G0=1.0 is the sweet spot — BOTH 2.5 and 0.5 destabilize
+  (the Kerker screen must match the charge-transfer mode, not smother or under-damp).  The Ecut=40 answer
+  sits 0.2 Ha above the 320-Ry oracle — the leaky-grid gap (Ecut=40 loses >5 e⁻ of F's collocated density).
+- **The FINE (auto=160) grid grows a second, UNPHYSICAL attractor** at E≈−39 (Exc≈−143, ∫ρ_grid swinging
+  5.1↔7.7 vs Tr(DS)=8): the mid-slosh D loads the sharpest F pairs beyond the grid calibration; the XC of
+  that spiky/locally-negative ρ feeds back; the state is self-consistent garbage.  It captures plain damped
+  Kerker at EVERY α (0.2 → 0.01 all dive in, sliding past −26 on the way).  Damping sets the rate, not the
+  destination — a wrong basin needs a different METHOD.  CP2K converges the SAME map with BROYDEN
+  (quasi-Newton, 8-step history, α=0.2).
+- **Test now pins the CONVERGING regime** (Ecut=40/α=0.025/200 iters → −27.73 ± 5e-2; both bad attractors
+  land ~+65 / ~−39, far outside): a true mixing-regression anchor until the production grid converges.
+- **NEXT INCREMENT (promoted): complex PULAY/BROYDEN ρ̃-mixing** on the FourierMixCD infrastructure — keep
+  the last m (ρ̃_in, residual R=ρ̃_out−ρ̃_in) pairs, minimize ‖ΣcᵢRᵢ‖ (small LS), mix with the
+  Kerker-preconditioned update: the standard production plane-wave scheme (VASP/QE/CP2K).  Likely
+  accelerant on top: grid-continuation seeding (converge Ecut=40 → seed the fine grid — start in the right
+  basin).  Convergence pays twice (fewer iterations AND stronger D-aware kills on a settled density).
+  After that: OpenMP over pairs; the setup share (stream build + static-PP sweep) = next profile target.
+  Then (0b) XC projection consistency — NOTE the fine-grid garbage attractor is XC-feedback-driven, so (0b)
+  and a CP2K-style ρ-floor/spike guard in the XC grid path may also shrink the bad basin itself.
 
 **RINGING/VARIATIONALITY LEDGER (user pin, 2026-07-14 — Gibbs ringing destroys variational energy,
 convergence, and GDM).**  Where each error source now stands:
