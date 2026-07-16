@@ -360,7 +360,13 @@ chmat_t GPW_Evaluator::OverlapMatrix(const std::function<dcmplx(const ivec3_t&)>
         for (const ivec3_t& dm : itsLevels[L]->Gs()) vmapL[dm]=Vtilde(dm);   // restrict to level L's {G} (low-pass)
         V_L[L]=itsLevels[L]->RhoOnGrid(vmapL);
     }
-    return itsLat->IntegratePotential(V_L, CellPhase(), A, itsLevelN, itsLevelEcut);
+    // D-AWARE integrate-back: the KS fields integrated here derive from the density last collocated by this
+    // evaluator (the CollocMemo holds the iteration's D), so pass it as the seam's density screen -- both
+    // directions then keep the IDENTICAL active set (adjoint exact on the shared truncated operator) and the
+    // sweep skips every term the density cannot resolve.  Before the first collocation (or for a field
+    // unrelated to a density, e.g. the unit-field gates) the memo is empty -> complete sweep.
+    const chmat_t* screenD = (itsCollocMemo && itsCollocMemo->valid) ? &itsCollocMemo->D : nullptr;
+    return itsLat->IntegratePotential(V_L, CellPhase(), A, itsLevelN, itsLevelEcut, 1.0, screenD);
 }
 
 // The REL_CUTOFF multi-grid density-grid ladder: the fine grid (L=0, reused) plus coarser grids each a factor

@@ -178,17 +178,42 @@ per-iteration collocation volume is now the whole NaF story.**
   pairs store float values instead of falling to on-the-fly; ~6e-8 relative replay noise, invisible at NaF's
   anchor scales; the collocate/integrate ADJOINT stays machine-exact — both directions replay the SAME
   stream).  NaF coverage 16% → 89%.
-- **NaF end-to-end (charge 8.0000000000, Etot −24.0310 at the auto Ecut=160 grid, 60-iter cap): 2h15m,
-  peak RSS 8.2 GB.**  The remaining cost is PER-ITERATION collocate/integrate volume: 850M cached pts
+- **NaF end-to-end (charge 8.0000000000, 60-iter cap): 2h15m, peak RSS 8.2 GB** on the analytic-KB +
+  fp32-tier build.  The remaining cost was PER-ITERATION collocate/integrate volume: 850M cached pts
   replayed ~5 sweeps/iter + 314 small pairs (102M pts, first-fit packing victims) on-the-fly each sweep +
-  the one-time scale-6 static-PP fine sweep.  **Ranked next levers (the CP2K gap is ~1 min-class):**
-  (1) **D-aware radii/screening** (CP2K `grid_ref`: box radius from eps/|coef|, coefficient-aware,
-  per-iteration — shrinks or kills most pair-offsets; the structural O(10×); needs a design pass vs the
-  D-independent stream cache); (2) packing priority / small fp32-budget bump (cache the dropped 102M pts —
-  kills the on-the-fly premium); (3) OpenMP over pairs (embarrassingly parallel; the user's parallel-execution
-  TODO; CP2K ssmp is threaded); (4) §0b convergence (the 60-iter Kerker limit cycle is its own multiplier).
-  CP2K calibration on this box: Si Γ 3.6 s (ours 31 s), Si 2×2×2 shifted 32 s (ours 149 s); CP2K NaF has NO
-  number yet (its deck aborts on the Na q1-vs-q9 valence mismatch — the §2 low-q basis blocker).
+  the one-time scale-6 static-PP fine sweep.  CP2K calibration on this box: Si Γ 3.6 s (ours 31 s),
+  Si 2×2×2 shifted 32 s (ours 149 s).
+
+**(0a) D-AWARE RADII + FULL PACKING + THE CP2K NaF ORACLE (2026-07-15, later the same day; 198/198 green).**
+- **D-aware density-magnitude screening (CP2K's eps/|coef| radii), `kDensityEps=1e-10`.**  What lands on the
+  grid is c·χχ (c = fold·Re[D e^{−ik·R}]), so the tolerance a box must honour is eps/|c|:  (a) each cached
+  stream stores its max|value| and replay SKIPS a (pair, offset) whole when |c|·maxv < eps (one compare);
+  (b) on-the-fly boxes get the CONTINUOUS shrink — eps/|c| threaded into `ForPairBox` (clamped so |c|>1
+  never grows past the geometry screen);  (c) `IntegratePotential` gains an OPTIONAL `screenD` (the seam
+  already speaks `chmat_t` densities): the SAME |c|·maxv criterion keeps the IDENTICAL active set in both
+  directions, so the collocate/integrate ADJOINT stays machine-exact on the shared truncated operator (the
+  variationality ledger's property).  GPW passes its `CollocMemo` D (the iteration's own density); screened
+  calls bypass the V-keyed B-memo (cheap by construction); the static PP keeps memo + full sweep.  A pure
+  magnitude screen (smooth tails, no Gibbs).  Machine gates UNCHANGED (charge 8.5e-8/2.1e-7, adjoint exact,
+  analytic-KB 4.6e-11); Si anchors within pins (Γ/shifted identical to print; multi-k −7.45133 vs −7.45134,
+  trajectory 14→17 iters — kills drop 1e-10-level terms, not bit-identical by design).
+- **fp32 budget 700M→850M**: NaF now caches 528/528 pairs (0 dropped; 76 fp64 + 452 fp32), peak RSS 9.0 GB.
+- **NaF re-time: 2h15m → 40m41s (3.3×).**  Setup (stream build + static-PP sweep) is now a large fixed
+  share; the D-aware kills are WEAK while the density sloshes (large |D| everywhere) and strengthen as it
+  settles — so the next multiplier is convergence itself.
+- **CP2K NaF ORACLE (doc/CP2Kresults.md): Etot = −27.93128 Ha** on OUR transcribed low-q SR basis
+  (`naf_gpw_sr_diag.inp`: q-tag-free own basis fixes the q1-vs-q9 abort; damped Broyden α=0.2 +
+  diagonalization).  CP2K's ENERGY settles to 1e-6 by ~130 iterations while its DENSITY limit-cycles forever
+  (RMS 0.03–0.12) — the SAME charge-transfer cycle we see (its OT run never settled E at all, −25.7↔+253):
+  the disease is the system+basis (overlap cond ≈ 8e3), not either implementation.  CP2K's grid also leaks
+  2.0e-4 e at 320 Ry (our readout's class).  **OUR Kerker(G0=1)+DIIS at relax 0.3 does NOT settle E in 60
+  iterations — iteration 60 lands essentially randomly (−24.03, +887.55 across two runs; charge exactly 8
+  throughout).**
+- **(0a) REMAINING → the NaF CONVERGENCE increment (promoted): adopt the CP2K-proven recipe** (heavier
+  damping α≈0.2, no early DIIS, iterate until E flat; then gate the NaF test on the −27.931 oracle).
+  Convergence pays twice: fewer iterations AND stronger D-aware kills on a settled density.  After that:
+  OpenMP over pairs (the parallel-execution TODO; CP2K ssmp is threaded), and the setup share (stream build +
+  static-PP sweep) becomes the next profile target.  Then (0b) XC projection consistency.
 
 **RINGING/VARIATIONALITY LEDGER (user pin, 2026-07-14 — Gibbs ringing destroys variational energy,
 convergence, and GDM).**  Where each error source now stands:

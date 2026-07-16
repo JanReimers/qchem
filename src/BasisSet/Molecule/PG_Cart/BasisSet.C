@@ -95,7 +95,8 @@ public:
                                                  const std::vector<double>& ecut_L) const override;
     virtual chmat_t IntegratePotential(const std::vector<rvec_t>& V_L, const cellphase_t& phase, const UnitCell& A,
                                        const std::vector<ivec3_t>& N_L,
-                                       const std::vector<double>& ecut_L, double relCutoffScale) const override;
+                                       const std::vector<double>& ecut_L, double relCutoffScale,
+                                       const chmat_t* screenD) const override;
 };
 // Use E prefix to avoid name clash with the interface class Fit_IBS
 class EFit_IBS

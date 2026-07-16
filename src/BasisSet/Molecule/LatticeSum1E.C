@@ -144,9 +144,15 @@ public:
     //! smooth \f$V_H/V_{xc}\f$ the field decays like the density, but the LOCAL PSEUDOPOTENTIAL is spectrally
     //! BROAD, so its integrate-back must place each pair on a finer level (~6x) -- while the ultra-diffuse
     //! pairs still fall to deep coarse levels (their own spectra kill the field's tail).
+    //! \a screenD: OPTIONAL density-magnitude screen -- when the caller supplies the density matrix whose
+    //! field \a V_L is being integrated, each (pair, image) term is kept exactly when \c CollocateDensity of
+    //! that density keeps it, so the collocate/integrate ADJOINT is exact on the shared truncated operator
+    //! and the sweep only touches terms the density resolves (the CP2K eps/|coef| radii).  Density language
+    //! only: this face already speaks \c chmat_t densities (\c CollocateDensity).
     virtual chmat_t IntegratePotential(const std::vector<rvec_t>& V_L, const cellphase_t& phase, const UnitCell& A,
                                        const std::vector<ivec3_t>& N_L,
-                                       const std::vector<double>& ecut_L, double relCutoffScale=1.0) const = 0;
+                                       const std::vector<double>& ecut_L, double relCutoffScale=1.0,
+                                       const chmat_t* screenD=nullptr) const = 0;
 };
 
 } //namespace

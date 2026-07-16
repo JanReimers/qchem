@@ -17,6 +17,18 @@ number, so it's the right choice for a reference oracle.
 |---|---|---|---|---|---|---|---|---|---|---|---|
 | Si (FCC) | Γ | SIPP_SR | 80 | **−7.11506** | +5.565 | +10.380 | −2.544 | −8.489 | +0.941 | 3.5 s | `si_fcc_gpw.inp` |
 | Si (FCC) | 2×2×2 | SIPP_SR | 80 | **−7.86744** | +4.384 | +10.671 | −2.407 | −8.489 | +0.941 | 4.8 s | `si_fcc_gpw_222.inp` |
+| NaF (rocksalt) | Γ | VALENCE-LOWQ-SR | 320 | **−27.93128**¹ | +7.247 | +32.135 | −3.740 | — | — | 9m32s | `naf_gpw_sr_diag.inp` |
+
+¹ **NaF (2026-07-15, q1/q7 on OUR transcribed low-q SR basis): the ENERGY is settled, the DENSITY is not.**
+Broyden(α=0.2, Kerker β=1.5) + traditional diagonalization: Etot flat at −27.9312754 to ~1e-6 from iteration
+~130 on, but the density RMS gradient LIMIT-CYCLES at 0.03–0.12 forever (never reaches EPS_SCF 1e-6;
+`IGNORE_CONVERGENCE_FAILURE` used for the clean exit).  **The SAME charge-transfer limit cycle our GPW shows**
+— it is the system+basis (overlap cond ≈ 8e3), not either implementation.  OT is WORSE: the earlier OT run
+(`naf_gpw_sr.out`) bounced between −25.7 and +253 and never settled E at all.  CP2K core-self −63.573
+(its compensating-core split; compare TOTALS).  Grid charge: CP2K loses 2.0e-4 e at 320 Ry (our readout
+loses ~1e-3-e-scale on the same system — same class).  **Our GPW must converge to −27.9313 to pass;
+our 60-iter capped runs still swing (last E −24.03 is NOT settled) — mixing work needed (CP2K's working
+recipe: plain damped Broyden, α=0.2, no DIIS-from-start).**
 
 Charge = 8 for both; both SCF-converged. (Self-energy of the core charge −20.516 and the PP local/nonlocal
 totals are k-independent; Core-H/Hartree/XC carry the k-dispersion.) CP2K's GPW electrostatic split differs
@@ -57,8 +69,12 @@ from ours (it uses a compensating-core-charge scheme) — compare the **total** 
   | 2×2×2 | Γ-centred (0, ½) | −7.7778 | −7.77846 |
   | 2×2×2 | shifted (±¼, CP2K default) | *(needs shifted-k support)* | −7.86744 |
 
-## Blocked: NaF, CsI (basis / PP-q mismatch)
-Both were requested but **cannot be run with CP2K's shipped data** because our qchem PPs use LOW valence q
+## NaF: UNBLOCKED (2026-07-15) — own-basis transcription; CsI still blocked
+NaF now runs (row above): the fix was route (1) below — `VALENCE-LOWQ-BASIS` (our
+`valence_lowq{,_sr}.bsd` transcribed) + `BASIS_SET_FILE_NAME`, which carries no q tag so the
+q1/q7 kinds pair cleanly.  The historical blocker, kept for CsI (iodine still has no basis anywhere):
+
+Both were requested but **could not be run with CP2K's shipped data** because our qchem PPs use LOW valence q
 that CP2K doesn't ship matching bases for:
 - **Na q1, Cs q1:** CP2K ships only the semicore basis (`Na/Cs DZVP-MOLOPT-SR-GTH`, optimised for q9) — CP2K
   aborts: *"Basis-set and pseudo-potential were optimized for different valence electron numbers."* No q1

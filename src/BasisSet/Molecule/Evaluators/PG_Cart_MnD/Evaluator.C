@@ -84,6 +84,17 @@ public:
     // exact for GPW tolerances).  NOTE: the enumerated Rs must still REACH far enough (screening only removes, it
     // cannot add a far term the caller never enumerated) -- so pass a generous Rcut and let the screen prune it.
     static constexpr double kScreenEps=1e-10;
+    //! D-AWARE density-magnitude screen (CP2K's eps/|coef| radii, doc/GPWPlan.md 0a).  What lands on the grid
+    //! is weight*chi_i*chi_j (weight ~ the density-matrix element), and the accuracy target is ABSOLUTE on the
+    //! density -- so the tolerance a pair's box must honour is kDensityEps/|weight|, not kScreenEps: a
+    //! small-|D| pair keeps a SMALLER box (radius shrinks with sqrt(ln), work with its cube), and a
+    //! (pair, offset) whose |weight|*max|value| is below kDensityEps is skipped whole.  Dropping only
+    //! sub-eps DENSITY contributions with smooth exponential tails: a magnitude screen, no Gibbs (the
+    //! ringing ledger's class).  Clamped so a |weight|>1 never grows a box beyond the geometry screen
+    //! (replay is capped by what was built).  The same criterion drives the integrate-back when the caller
+    //! supplies its density (the SHARED ACTIVE SET: both directions skip identical terms, so the
+    //! collocate/integrate adjoint stays machine-exact on the kept operator).
+    static constexpr double kDensityEps=1e-10;
     //! The Bloch phase of an integer cell offset (== Molecule::LatticeSum1E::cellphase_t -- the same
     //! std::function type; the k-CONVENTION stays with the lattice-side caller, Gamma = the constant 1).
     using cellphase_t = std::function<dcmplx(const ivec3_t& n)>;
@@ -251,8 +262,12 @@ public:
     //      under-covered an FCC cell by sqrt(3)/sqrt(2), a ~1e-7 clipped charge tail);
     //  (3) an ELLIPSOID pre-screen per point on the slowest-decaying exponent, skipping the exp/poly evals on
     //      the box corners (the exp calls are the kernel's unit of cost; margin e^12 >> any poly growth here).
+    //! \a epsEff: the value tolerance this box must honour (default = the geometry screen).  The D-aware
+    //! on-the-fly path passes max(kScreenEps, kDensityEps/|weight|) -- a small-weight pair keeps a smaller
+    //! box (or none: the prefactor early-out below is the whole-term kill).
     template <class F>
-    void ForPairBox(size_t i, size_t j, const rvec3_t& Roff, const UnitCell& A, const ivec3_t& N, F&& f) const
+    void ForPairBox(size_t i, size_t j, const rvec3_t& Roff, const UnitCell& A, const ivec3_t& N, F&& f,
+                    double epsEff=kScreenEps) const
     {
         const rvec_t ei=radials[i]->GetExponents(), gi=radials[i]->GetCoeffs();
         const rvec_t ej=radials[j]->GetExponents(), gj=radials[j]->GetCoeffs();
@@ -262,7 +277,7 @@ public:
         double aMinJ=ej[0]; for (double e:ej) aMinJ=std::min(aMinJ,e);
         const double pMin=aMinI+aMinJ;                       // slowest-decaying product term -> the box size
         const rvec3_t P=(aMinI*Ri+aMinJ*Rj)/pMin;            // its product centre (box centre)
-        const double lnE=-std::log(kScreenEps);
+        const double lnE=-std::log(epsEff);
         const rvec3_t dij=Ri-Rj;
         const double pfExp=(aMinI*aMinJ/pMin)*(dij.x*dij.x+dij.y*dij.y+dij.z*dij.z); // prefactor exponent (screen 1)
         if (pfExp>=lnE) return;                              // the whole box is below eps
@@ -298,7 +313,7 @@ public:
                     double radI=0.0; for (size_t p=0;p<ei.size();p++) radI+=gi[p]*std::exp(-ei[p]*ri2);
                     double radJ=0.0; for (size_t q=0;q<ej.size();q++) radJ+=gj[q]*std::exp(-ej[q]*rj2);
                     const double val=(ni*pols[i](di)*radI)*(nj*pols[j](dj)*radJ);
-                    if (std::fabs(val)<kScreenEps) continue;
+                    if (std::fabs(val)<epsEff) continue;
                     const long gx=cx+dx, gy=cy+dy, gz=cz+dz;     // unwrapped grid index (may lie outside [0,N))
                     const long mx=((gx%N.x)+N.x)%N.x, my=((gy%N.y)+N.y)%N.y, mz=((gz%N.z)+N.z)%N.z;  // wrap
                     f((size_t(mx)*N.y+my)*N.z+mz, val);
@@ -316,8 +331,10 @@ public:
     // (the SCF ladder and the K=1 local-PP / unit-gate shape coexist); replay order == build order == the
     // uncached loop order, so results are BIT-IDENTICAL to the uncached path.
     //! TWO value tiers: fp64 (\c val) for pairs inside the primary budget, fp32 (\c val32) for the overflow
-    //! tier -- exactly one of the two is filled per stream.
-    struct PairOffsetStream { ivec3_t n; std::vector<unsigned> idx; std::vector<double> val; std::vector<float> val32; };
+    //! tier -- exactly one of the two is filled per stream.  \c maxv (the stream's largest |value|) powers the
+    //! D-AWARE replay kill: an offset whose |weight|*maxv is below the density tolerance contributes nothing
+    //! resolvable and is skipped whole.
+    struct PairOffsetStream { ivec3_t n; std::vector<unsigned> idx; std::vector<double> val; std::vector<float> val32; double maxv=0.0; };
     struct PairStreams     { size_t level=0; bool cached=false; std::vector<PairOffsetStream> offsets; };
     struct StreamCache
     {
@@ -336,7 +353,9 @@ public:
     //! collocate/integrate ADJOINT stays machine-exact because both directions replay the SAME stream.
     //! Pairs beyond BOTH budgets fall back to on-the-fly evaluation (correct, slower).
     static constexpr size_t kStreamBudgetPts   =150'000'000;   // tier 1: fp64, bit-identical replay
-    static constexpr size_t kStreamBudgetPtsF32=700'000'000;   // tier 2: fp32 values (the NaF coverage lever)
+    //! Tier 2 sized so NaF's MEASURED demand (952M total: 150M fp64 + 802M fp32) caches COMPLETELY -- at
+    //! 700M its last 314 (small) pairs re-evaluated on the fly every sweep.  Peak stream RAM ~ 8.6 GB.
+    static constexpr size_t kStreamBudgetPtsF32=850'000'000;   // tier 2: fp32 values (the NaF coverage lever)
     const StreamCache& EnsureStreams(const UnitCell& A, const std::vector<ivec3_t>& N_L,
                                      const std::vector<double>& ecut_L, double relCutoffScale) const
     {
@@ -373,7 +392,8 @@ public:
             {
                 PairOffsetStream st; st.n=nn;
                 ForPairBox(i,j,Roff,A,N,[&](size_t idx,double v)
-                           { st.idx.push_back(unsigned(idx)); st.val.push_back(v); });
+                           { st.idx.push_back(unsigned(idx)); st.val.push_back(v);
+                             st.maxv=std::max(st.maxv,std::fabs(v)); });
                 pts+=st.idx.size();
                 if (!st.idx.empty()) ps.offsets.push_back(std::move(st));
             });
@@ -439,7 +459,7 @@ public:
                 for (const PairOffsetStream& st : ps.offsets)
                 {
                     const double c=fold*std::real(Dij*std::conj(phase(st.n)));  // Re[D_ij e^{-ik.R_n}] offset weight
-                    if (c==0.0) continue;
+                    if (std::fabs(c)*st.maxv < kDensityEps) continue;   // D-aware kill: sub-eps density term
                     const unsigned* ix=st.idx.data();
                     if (!st.val.empty())
                     {
@@ -457,7 +477,10 @@ public:
                 {
                     const double c=fold*std::real(Dij*std::conj(phase(n)));
                     if (c==0.0) return;
-                    ForPairBox(i,j,Roff,A,N_L[ps.level],[&](size_t idx,double v){r[idx]+=c*v;});
+                    // D-aware continuous shrink: this box only needs accuracy kDensityEps/|c| (clamped -- a
+                    // |c|>1 never grows past the geometry screen); the prefactor early-out inside is the kill.
+                    ForPairBox(i,j,Roff,A,N_L[ps.level],[&](size_t idx,double v){r[idx]+=c*v;},
+                               std::max(kScreenEps, kDensityEps/std::fabs(c)));
                 });
         }
         return rho;
@@ -505,50 +528,69 @@ public:
     // the DIRECT e^{+ik.R} (the Bloch law on the ket image; conjugate of the density side's weight -- the same
     // +/- pairing as the KB projector's conj(phase), doc/GPWPlan.md complex-k fix).  Hermitian; real at Gamma.
     // Only V is sampled (weighted by the analytic Gaussians), never the sharp orbital product.
+    //! \a screenD: OPTIONAL density-magnitude screen (the D-AWARE ACTIVE SET).  When supplied, each
+    //! (pair, offset) is kept exactly when the DENSITY-side collocation of \a screenD keeps it
+    //! (|weight|*max|value| >= kDensityEps, the identical criterion) -- so within an SCF iteration the
+    //! collocate/integrate ADJOINT is machine-exact on the shared truncated operator, and the sweep only
+    //! touches terms the density can resolve.  Screened calls bypass the memo (they are cheap by
+    //! construction, and the active set changes with D while the memo is keyed on V alone).
     chmat_t IntegratePotential(const std::vector<rvec_t>& V_L, const cellphase_t& phase, const UnitCell& A,
                                const std::vector<ivec3_t>& N_L, const std::vector<double>& ecut_L,
-                               double relCutoffScale=1.0) const
+                               double relCutoffScale=1.0, const chmat_t* screenD=nullptr) const
     {
         const size_t K=N_L.size();
         assert(K>0 && ecut_L.size()==K && V_L.size()==K);
         const size_t nn=size();
         chmat_t h(size());
+        const bool memoize = (screenD==nullptr);
         // Memo hit: the per-offset reductions are already computed for this exact field -- contract phases only.
-        for (const auto& m : itsIntegrateMemos)
-            if (SameShape(m,N_L,ecut_L,relCutoffScale) && SameField(m.V_L,V_L))
-            {
-                for (auto i:indices()) for (auto j:indices(i))
+        if (memoize)
+            for (const auto& m : itsIntegrateMemos)
+                if (SameShape(m,N_L,ecut_L,relCutoffScale) && SameField(m.V_L,V_L))
                 {
-                    const PairB& pb=m.B[i*nn+j];
-                    const double w=A.GetCellVolume()/double(V_L[pb.level].size());
-                    dcmplx s(0.0);
-                    for (const auto& [n,b] : pb.nb) s+=phase(n)*b;
-                    s*=w;
-                    h(i,j) = (i==j) ? dcmplx(std::real(s),0.0) : s;
+                    for (auto i:indices()) for (auto j:indices(i))
+                    {
+                        const PairB& pb=m.B[i*nn+j];
+                        const double w=A.GetCellVolume()/double(V_L[pb.level].size());
+                        dcmplx s(0.0);
+                        for (const auto& [n,b] : pb.nb) s+=phase(n)*b;
+                        s*=w;
+                        h(i,j) = (i==j) ? dcmplx(std::real(s),0.0) : s;
+                    }
+                    return h;
                 }
-                return h;
-            }
         // Miss: compute (streams replay where cached, on-the-fly otherwise), recording B for the next caller.
         // relCutoffScale != 1 marks a STATIC sharp-field call (the local PP, built once per SCF): evaluate on
         // the fly -- caching a single-shot sweep wastes the whole budget the per-iteration path needs.  (Its
         // B reductions land in the memo, so the other k-blocks never repeat the sweep.)
         const StreamCache* sc = (relCutoffScale==1.0) ? &EnsureStreams(A,N_L,ecut_L,relCutoffScale) : nullptr;
-        if (itsIntegrateMemos.size()>=kMaxIntegrateMemos) itsIntegrateMemos.erase(itsIntegrateMemos.begin());
-        itsIntegrateMemos.emplace_back();
-        IntegrateMemo& memo=itsIntegrateMemos.back();
-        memo.N_L=N_L; memo.ecut_L=ecut_L; memo.relCutoffScale=relCutoffScale; memo.V_L=V_L;
-        memo.B.resize(nn*nn);
+        IntegrateMemo* memo=nullptr;
+        if (memoize)
+        {
+            if (itsIntegrateMemos.size()>=kMaxIntegrateMemos) itsIntegrateMemos.erase(itsIntegrateMemos.begin());
+            itsIntegrateMemos.emplace_back();
+            memo=&itsIntegrateMemos.back();
+            memo->N_L=N_L; memo->ecut_L=ecut_L; memo->relCutoffScale=relCutoffScale; memo->V_L=V_L;
+            memo->B.resize(nn*nn);
+        }
         for (auto i:indices()) for (auto j:indices(i))       // j>=i (Hermitian upper triangle)
         {
             const size_t  l = sc ? sc->pairs[i*nn+j].level : PairLevel(i,j,ecut_L,relCutoffScale);
             const rvec_t& V=V_L[l];
             const double  w=A.GetCellVolume()/double(V.size());   // the level's quadrature weight Omega/Npts(l)
-            PairB& pb=memo.B[i*nn+j];
+            PairB  dummy;
+            PairB& pb = memo ? memo->B[i*nn+j] : dummy;
             pb.level=l;
+            // The D-aware offset weight: the SAME |c| the density collocation of screenD would apply --
+            // fold*Re[D_ij e^{-ik.R_n}] -- so both directions keep the identical active set.
+            const double fold=(i==j)?1.0:2.0;
+            const dcmplx Dij = screenD ? dcmplx((*screenD)(i,j)) : dcmplx(0.0);
             dcmplx s(0.0);
             if (sc && sc->pairs[i*nn+j].cached)
                 for (const PairOffsetStream& st : sc->pairs[i*nn+j].offsets)
                 {
+                    if (screenD &&
+                        std::fabs(fold*std::real(Dij*std::conj(phase(st.n))))*st.maxv < kDensityEps) continue;
                     double b=0.0;
                     const unsigned* ix=st.idx.data();
                     if (!st.val.empty())
@@ -567,8 +609,15 @@ public:
             else                                                    // static sharp-field call or over-budget pair
                 ForImageOffsets(i,j,A,[&](const ivec3_t& n, const rvec3_t& Roff)
                 {
+                    double epsEff=kScreenEps;
+                    if (screenD)
+                    {
+                        const double c=std::fabs(fold*std::real(Dij*std::conj(phase(n))));
+                        if (c==0.0) return;
+                        epsEff=std::max(kScreenEps, kDensityEps/c);
+                    }
                     double b=0.0;
-                    ForPairBox(i,j,Roff,A,N_L[l],[&](size_t idx,double v){b+=v*V[idx];});
+                    ForPairBox(i,j,Roff,A,N_L[l],[&](size_t idx,double v){b+=v*V[idx];}, epsEff);
                     pb.nb.emplace_back(n,b);
                     s+=phase(n)*b;
                 });
