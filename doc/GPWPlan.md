@@ -243,10 +243,12 @@ multigrid path IS the SCF path; Si == CP2K at Γ / 2×1×1 / shifted 2×2×2; Na
 against a same-basis CP2K oracle (**−27.93128**, `doc/CP2Kresults.md`).  The open problem: NaF's
 PRODUCTION-grid SCF is captured by an unphysical attractor (E≈−39) that plain damped mixing cannot escape
 at any α.  **0b's XC-fork hypothesis was FALSIFIED by its own FD instrument (see 0b below): the discrete
-functional is already exactly consistent, so the attractor is a genuine basin of the under-resolved
-discretization.  The lead increment is now 0b′** — complete the REL_CUTOFF ladder UPWARD (the missing top
-rung; user decision: fix the grid, don't let the mixer hide it) — **then 0c** (quasi-Newton mixing +
-grid-continuation seeding), followed by the runtime follow-ups (0d) and the standing queue (1)–(5).
+functional is already exactly consistent.  0b′ (same day) then root-caused the NaF grid-charge
+catastrophe: an ENUMERATION-SCHEME MISMATCH (Rcut=2a-truncated S vs the screened-complete collocation),
+NOT grids or precision — see 0b′ below.  The lead increment is now BANISH-Rcut** (user directive: SR2 trim
+for complete-enumeration conditioning → NaF at AUTO → delete Rcut/collRcut from the public factory; §1
+rank-reduction is the permanent backstop) — **then 0c** (quasi-Newton mixing on the then-consistent map),
+followed by the runtime follow-ups (0d) and the standing queue (1)–(5).
 
 ## 0b. XC CONSISTENCY — RESOLVED BY FALSIFICATION (2026-07-16)
 **The fork does NOT exist; the LDA discrete functional is ALREADY exactly consistent.**  The probe is the
@@ -283,35 +285,77 @@ the grid-sum energy w.r.t. the ball-limited ρ̃ the energy itself uses.  One di
 - ~~0c (Pulay/Broyden behind `tDensityMixer`) is now the lead increment~~ **superseded same day by 0b′
   below (user decision: fix the grid first, don't let the mixer hide it); 0c follows on the healthy grid.**
 
-## 0b′. COMPLETE THE REL_CUTOFF LADDER UPWARD — the missing TOP RUNG (NEW LEAD increment; user-directed 2026-07-16)
-**The defect (exact, from the code):** `PairLevel` (`PG_Cart_MnD/Evaluator.C`, `kRelSafety=2`) demands
-`ecut_L ≥ req = 2·ecut_fine·(αᵢ+αⱼ)/(2α_max)` — for the TOP pairs (αᵢ+αⱼ > α_max) req EXCEEDS ecut_fine
-and no level can satisfy it; they are silently parked on the finest rung carrying an `e^{−ecut/2p}` BALL
-tail (NaF F–F p=80 on Ecut=160: e^{−1} ≈ 37% spectral amplitude discarded at the ball edge).  The rule the
-ladder enforces for every other pair is, by construction, unsatisfiable at the top.  NOT a spacing problem
-(h≈0.05 vs σ≈0.08: sampling error ~e^{−50}) — a BALL-truncation problem.
-**Measured (1-iter NaF probe, `NAF_ECUT=-1 NAF_NMAX=1`):** ladder {160,40,10,2.5}, N=(128,64,32,16),
-528 pairs; the IONIC SEED collocates to ∫ρ=8.005 (5.3e-3 loss, CP2K-class) but the FIRST diagonalized D
-loses **4.9 e** (∫ρ_grid=3.08 vs Tr(DS)=8) — the SCF map enters the aliased regime at ITERATION 1, so the
-−39 basin is not a mid-slosh hazard a better mixer could route around.
-**Fix — ONE rung ABOVE fine at `kRelSafety·ecut_fine` (2×): the ladder is COMPLETE by construction**
-(req_max = 2·ecut_fine ≤ top rung; every pair incl. α_max+α_max satisfies the rule).
-- N rule (`AutoGrid` = 4·m_max+1 → `NextPow2`): NaF top rung 320 Ha → N=256 (16.8M pts, sub-second FFT,
-  ~130 MB/field).  Cost is the GLOBAL FFT + field arrays only — the sharp pairs' exp-tail boxes are tiny
-  (reach ≈ 0.5 a.u. at p=80, ~10⁴ pts each), so stream volume barely moves.
-- Keep collocate/integrate SYMMETRIC per level (the top rung contributes over its own {G} in the nested
-  combine; `OverlapMatrix` restricts V to the same set) → the adjoint gate AND `XCPotentialConsistencyFD`
-  carry over unchanged.  Mind the fit-ball bookkeeping: ρ̃ gains G beyond the densityEcut ball (still well
-  inside the raster Nyquist) — Hartree-kernel/`RhoOnGrid` consumers must accept the extended map.
-- The static local-PP sweep (relCutoffScale=6) gets the same top-rung benefit for the sharp pairs.
-- **Si anchors WILL move** by their current e^{−2.5}-tail residue (mHa class; Si SR gains a 40-Ha rung
-  above its 20-Ha fine) — re-pin, did-E-move convention.  Gates: NaF iteration-1 grid charge holds ~8
-  through the first diagonalization; Si Γ vs CP2K −7.11506 should TIGHTEN (kRelSafety=2 is "on the lean
-  side" per its own comment); all machine gates unchanged.
-**Then 0c** (below) on the healthy grid; 0c design input: feed the `[grid charge]` readout
-(∫ρ_grid − Tr(DS)) into `MixSignals` as a TRUST-REGION signal (reject/shrink steps that blow the
-discretization budget) — cheap, uses existing instrumentation.  Gate for the 0b′+0c pair = the NaF test on
-the production grid vs the −27.93128 oracle.
+## 0b′. THE TOP RUNG + THE REAL NaF ROOT CAUSE — investigation CLOSED 2026-07-16 (same day); records below
+**Two separate things came out of this increment: the ladder-completion rung (LANDED, small-but-real energy
+fix, decision pending on scope) and the ACTUAL root cause of the NaF grid-charge catastrophe (an
+ENUMERATION-SCHEME MISMATCH — not grids, not precision).  The instruments: `GPW.SharpestPairChargeConservation`
++ `GPW.DISABLED_IllConditionedChargeProbe`.**
+
+**(1) The top rung — LANDED (code in tree), measured, scope decision pending.**
+`PairLevel`'s requirement `req = kRelSafety·ecut_fine·(αᵢ+αⱼ)/(2α_max)` is unsatisfiable for pairs with
+αᵢ+αⱼ > α_max; one rung at `RelCutoffSafety()·ecut_fine` (appended LAST — `ecut_L[0]` STAYS the resolution
+reference, selection made order-free; new seam accessor `LatticeSum1E::RelCutoffSafety`) completes the
+ladder by construction.  The local-PP path (relCutoffScale=6) keeps the BASE sub-ladder (`itsNBaseLevels`)
+— its stiffened rule would flood the doubled grid with mid pairs.  Machine gates (adjoint, FD-consistency,
+charge) all carry over.  MEASURED: the rung is an ENERGY-tail fix ONLY —
+- CHARGE is rung-INVARIANT (~1e-9 with or without): the G=0 coefficient survives ball truncation by
+  construction, and pow2-padded rasters keep box sampling at ~e^{−50}.  (The gate documents this.)
+- Si anchors (explicit Ecut=20 = 2.5× their auto floor): moves SUB-mHa (Γ −7.11485→−7.11482, shifted
+  −7.86724→−7.86713 — all within existing gates, no re-pin forced), cost 1.6–4× (the global N³ work:
+  Γ 29→48 s, shifted 167→430 s, atom-in-box 25→107 s).
+- DECIDED (user, 2026-07-16): **GATED on the energy calibration** — the rung is added only when the
+  reference grid sits below `RelCutoffSafety()·cutoffFactor·α_max` (every AUTO run gets it; the Si anchors'
+  explicit Ecut=20 ≥ 16 skip it and return to baseline speed).  ALSO NOTED: the auto-floor
+  `cutoffFactor=4` calibration ("Ecut=40 loses >5 e⁻ of F") is SAMPLING-ERA data (2026-07-12, pre-analytic-
+  rewrite) — the analytic path conserves charge at ANY Ecut, so the production Ecut may be recalibratable
+  DOWN by an ENERGY criterion (a large runtime lever that also shrinks the rung's cost).
+
+**(2) NaF iteration-1 grid-charge loss ROOT-CAUSED = ENUMERATION-SCHEME MISMATCH (the "two schemes" pin,
+violated by the NaF config itself).**  The probe (D=S⁻¹: PSD, Tr(DS)=n EXACT, entries ~1/λ_min — the
+loading a mid-slosh SCF produces):
+| error source | measured | per-unit-\|D\| |
+|---|---|---|
+| **Rcut=2a-truncated S vs screened-complete collocation** | **−2.247 e at \|D\|=450, GRID-INDEPENDENT** (identical Ecut=40 vs auto=160, across fp32 tiering) | 5e-3 |
+| kScreenEps screening tails | −0.36 e at \|D\|=1.05e6 | 3.4e-7 |
+| fp32 stream tier | ~7e-3 e at \|D\|=1.05e6 | 7e-9 |
+- The collocation enumerates its cross-cell offsets INTERNALLY to the complete magnitude screen
+  (VALENCE_LOWQ_SR α_min=0.0857 → pair reach ≈33 au), while the NaF SCF builds S over `Rcut=2a`=17.5 au —
+  S/charge/diagonalization live in the TRUNCATED scheme, ρ̃/Hartree/XC in the COMPLETE one.  Mid-slosh D
+  loads the near-null (diffuse) directions where truncated-S is most wrong → the e-scale ∫ρ−Tr(DS) swings
+  (iter-1: 4.9 e), a corrupted SCF map, and (plausibly) the −39 basin.  NOT fixable by mixing (0c) or by
+  grids (rung) — the map itself is inconsistent.
+- At AUTO Rcut the mismatch vanishes (err/|D| ÷15000) BUT the complete-enumeration S is genuinely
+  near-singular: **λ_min ~ 1e-6** (|S⁻¹|~1e6).  The 2a truncation was double-dutying as a conditioning
+  crutch (the SR .bsd header even says "PD at a MODEST Rcut").  The precision machinery is VINDICATED
+  (fp32 + screens hold their calibrations even at million-scale loading).
+**→ THE LEAD INCREMENT: BANISH Rcut COMPLETELY (user directive, 2026-07-16 — attempt #4, this time with
+the crutch measured to corrupt the map).  Why the knob survived three banishments: it was quietly doing
+TWO jobs besides enumeration — (i) `Rcut=0` is a MODE (home-cell-only / molecule-in-a-box, what the
+finite==lattice gates need), not a radius; (ii) explicit `Rcut` was the CONDITIONING crutch (NaF 2a).  The
+deletion list, in dependency order:**
+1. **SR2 basis trim for COMPLETE-enumeration conditioning** (target λ_min(S_complete) ≥ ~1e-3 at AUTO;
+   drop Na s=0.0857, likely F s=0.275/p=0.341 — the SIPP→SR lesson applied to the RIGHT observable: the
+   .bsd header's "PD at a modest Rcut" was calibrating against the crutch).  Then NaF runs at AUTO with
+   Cholesky and the last legitimate explicit-Rcut user is gone.  Re-test the −39 basin on the uncorrupted
+   map (it may not survive).
+2. **Delete the CUT, not just the knob (user pin, 2026-07-16: "there is no cut").**  A lattice sum is a
+   CONVERGENT SERIES — you sum it to ε, you never cut it.  The `(Rs, phases)` arguments leave
+   `LatticeSum1E` entirely: the 1E/KB builders take `(cellphase_t, UnitCell)` exactly like
+   `CollocateDensity`/`IntegratePotential` (which already enumerate internally, per shell pair) and sum
+   their series until the magnitude screen says the remainder is < ε — a CONVERGENCE criterion; no
+   radius is named, computed, or stored in any interface, member, or doc.  (The analytic per-shell-pair
+   Gaussian reach is a legitimate fast-path INSIDE the molecular impl — an implementation detail of how
+   the series converges, never surfaced.)  GPW then holds NO image sets (`itsR/itsRc/itsPhase/itsPhaseC`,
+   `BuildImages`, `rcutEff` — all deleted); `Rcut`/`collRcut` leave `GPW_Evaluator`/`GPW_IBS`/`GPWFactory`;
+   the FINITE (home-cell-only) mode becomes an explicit test-internal flag, never a magic radius value.
+   Public surface: ε is the ONLY accuracy parameter on this axis (CP2K posture).  Side effect: the
+   "(Rs,phases)→one cMesh" future note becomes moot for these seams — no weighted point set crosses at
+   all, the stronger form of that cleanup.
+3. **§1 rank-reduction + auto-tol = the permanent backstop** (already queued, design pinned): a future
+   near-singular basis gets truncated ortho + WARN, never a shrunken image sum — what makes the deletion
+   stick instead of becoming attempt #5.
+0c (Pulay/Broyden mixer face) proceeds after step 1 on the consistent map; its `MixSignals` trust-region
+signal (∫ρ_grid − Tr(DS)) stays — it is exactly the mismatch/conditioning health meter.
 
 ## 0c. PULAY/BROYDEN ρ̃-MIXING behind the DIP mixer face (`tDensityMixer`) — user design, 2026-07-16
 Mixing is today hardwired inside `tSCFIterator::Iterate` (the `KerkerG0>0 ? KerkerUpdate(relax) :
@@ -523,6 +567,15 @@ is an *efficiency* layer, not a correctness requirement — hence it comes AFTER
 ---
 
 # Durable pins / invariants (carry into all GPW work)
+- **THERE IS NO CUT — IN THE R DIRECTION (user pin, 2026-07-16).**  Real-space lattice sums are
+  ε-CONVERGED SERIES for a FIXED operator: magnitude screening is the ONLY truncation mechanism; a radius
+  must never appear as a parameter, member, or concept in any interface — not user-facing, not internal.
+  A truncation radius yields a DIFFERENT operator, not "the operator to ε" (measured: the Rcut=2a NaF
+  metric lost 2.25 e per mid-slosh loading), AND must never be a conditioning crutch (that job belongs to
+  the basis or to rank-reduction).  The G DIRECTION is different in kind: the Ecut ball is a PROJECTION
+  onto a finite auxiliary subspace — variational (adjoint-exact), exponentially controlled, systematically
+  improvable — i.e. a legitimate resolution dial, not a cut.  End state: ONE knob per direction —
+  ε in R (convergence tolerance), Ecut in G (projection resolution).
 - **PP-smoothness is GPW's enabler; GAPW is out of scope (first pass).** All-electron cores are too sharp;
   validate with a well-conditioned GTH valence basis, never all-electron.
 - **Use well-conditioned bases for SCF.** Ill-conditioning is a BASIS problem, not a solver/code bug (SIPP

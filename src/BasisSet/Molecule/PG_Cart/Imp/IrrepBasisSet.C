@@ -252,6 +252,7 @@ chmat_t Orbital_IBS::MakeKinetic(const std::vector<rvec3_t>& Rs, const cvec_t& p
 chmat_t Orbital_IBS::MakeNuclear(const std::vector<rvec3_t>& Rs, const cvec_t& phases, const Structure* cl) const {return NR_Evaluator::MakeNuclear(Rs,phases,cl);}
 double  Orbital_IBS::MaxExponent() const {return NR_Evaluator::MaxExponent();}
 double  Orbital_IBS::MinExponent() const {return NR_Evaluator::MinExponent();}
+double  Orbital_IBS::RelCutoffSafety() const {return NR_Evaluator::RelCutoffSafety();}
 std::vector<rvec_t> Orbital_IBS::CollocateDensity(const chmat_t& D, const cellphase_t& phase, const UnitCell& A,
                                                   const std::vector<ivec3_t>& N_L,
                                                   const std::vector<double>& ecut_L) const

@@ -19,6 +19,7 @@
 #include <cmath>
 #include <complex>
 #include <chrono>
+#include <cstdlib>   // getenv/atof (the ill-conditioned charge probe's Ecut knob)
 #include <iostream>
 
 import qchem.Structure;                         // Molecule, Atom
@@ -208,6 +209,99 @@ TEST(GPW, CollocationOverlapMatchesAnalytic)
     const double integral = std::real(rho[ivec3_t(0,0,0)]) * ov.volume;
     double trS=0.0; for (size_t i=0;i<n;i++) trS += std::real(dcmplx(S(i,i)));
     EXPECT_NEAR(integral, trS, 6e-2*std::fabs(trS));   // collocated charge == Bloch overlap trace to grid accuracy
+}
+
+// SHARPEST-PAIR charge conservation (doc/GPWPlan.md 0b').  MEASURED FINDING this test PINS: the collocated
+// CHARGE of even the sharpest pair (the alpha_max+alpha_max product, whose pair->level requirement exceeds
+// the reference grid) is exact to ~1e-9 WITH OR WITHOUT the top completion rung -- the G=0 coefficient
+// survives the per-level BALL truncation by construction (only G>ball content is discarded), and the
+// pow2-padded rasters keep the box SAMPLING error at ~e^{-50}.  So ball truncation is an ENERGY-tail
+// effect (e^{-ecut/2p} coupling to V_H/v_xc), NEVER a charge leak -- and any e-scale grid-charge loss in
+// an SCF must come from elsewhere (see DISABLED_IllConditionedChargeProbe: enumeration-scheme mismatch).
+// The gate loads exactly that pair (unit D on the sharpest function, found via the kinetic diagonal
+// <p^2> ~ alpha -- no exponent crosses the interface) and pins its collocated charge tight.
+TEST(GPW, SharpestPairChargeConservation)
+{
+    const double a=10.0;
+    UnitCell cell(a);
+    cell.AddAtom(14,{0.5,0.5,0.5});
+    std::shared_ptr<const Real_BS> mol = MakeBasis(cell);
+    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut AUTO*/-1.0, /*Rcut*/0.0);
+    const GPW_Evaluator& ev = gpw;
+    const Complex_OIBS&  g  = gpw;
+    const size_t n=g.GetNumFunctions();
+
+    const auto& T=g.Kinetic();                 // <p^2>_ii ~ alpha_i: the max diagonal marks the sharpest function
+    size_t is=0;
+    for (size_t i=1;i<n;i++) if (std::real(dcmplx(T(i,i)))>std::real(dcmplx(T(is,is)))) is=i;
+
+    chmat_t D(n);
+    for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) D(i,j)=dcmplx(0.0);
+    D(is,is)=dcmplx(1.0);                      // unit load on the sharpest product -- the top rung's customer
+
+    G_ERI3 ov=ev.Overlap3CTensor();
+    ASSERT_TRUE(bool(ov.apply));
+    ΔG_Map rho=ContractG_ERI3(ov, D);
+    const double integral=std::real(rho[ivec3_t(0,0,0)])*ov.volume;
+    const auto& S=g.Overlap();
+    const double ref=std::real(dcmplx(S(is,is)));   // = 1 (normalized; the tight function's images are ~e^{-alpha a^2})
+    std::cout << "[sharpest pair] i*=" << is << "  <p^2>_ii=" << std::real(dcmplx(T(is,is)))
+              << "  Integral rho=" << integral << "  S_ii=" << ref
+              << "  rel=" << std::fabs(integral-ref)/ref << std::endl;
+    EXPECT_NEAR(integral, ref, 1e-4*ref) << "sharpest-pair collocated charge (the 0b' top-rung gate)";
+}
+
+// ILL-CONDITIONED-LOAD charge probe (doc/GPWPlan.md 0b' investigation) -- THE instrument that root-caused
+// the NaF iteration-1 grid-charge loss.  D = S^-1 is the clean probe: PSD, entries ~1/lambda_min (the
+// loading a mid-slosh SCF on a near-singular basis produces), and Tr(D S) = n EXACTLY, so
+// [Integral rho - n] measures the |D|-amplified collocation error directly.  MEASURED (2026-07-16):
+//   - Rcut=2a (the NaF SCF's setting): err = -2.247 e at max|D|=450 -- GRID-INDEPENDENT (identical at
+//     Ecut=40 and auto=160, across different fp32 tiering) => an ANALYTIC mismatch, not noise: the
+//     collocation enumerates its cross-cell offsets INTERNALLY to the complete magnitude screen (pair
+//     reach ~33 au for VALENCE_LOWQ_SR), while S is built over the caller's Rcut=2a=17.5 au images --
+//     the "two self-consistent schemes" pin violated by the config.  Mid-slosh D loads exactly the
+//     near-null (diffuse) directions where the truncated S is most wrong -> the e-scale charge swings.
+//   - Rcut=AUTO (complete): err/|D| drops ~15000x; the complete-enumeration S is however genuinely
+//     near-singular (lambda_min ~ 1e-6, |S^-1| ~ 1e6 -- the 2a truncation was doubling as a conditioning
+//     crutch).  Residual at |D|~1e6: -0.361 pure-fp64 vs -0.355 with fp32 streams => the fp32 tier
+//     contributes ~7e-3 and the kScreenEps screening tails ~0.36 EVEN at million-scale loading -- the
+//     precision machinery is vindicated; per-term floors hold.
+// Knobs: GPW_ILLCOND_ECUT (-1 = production auto), GPW_ILLCOND_RCUT (-1 = AUTO; default 2a = the SCF's).
+// DISABLED: minutes-long stream builds; run explicitly when investigating conditioning/enumeration.
+TEST(GPW, DISABLED_IllConditionedChargeProbe)
+{
+    const double a=8.73;                                     // the NaF rocksalt cell (GPW_SCF_UT's)
+    FCCUnitCell cell(a);
+    cell.AddAtom(11,{0,0,0});
+    cell.AddAtom(9, {0.5,0.5,0.5});
+    std::shared_ptr<const Real_BS> mol(BasisSet::Molecule::Factory(
+        BasisSetData::VALENCE_LOWQ_SR, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
+    const char* e=std::getenv("GPW_ILLCOND_ECUT");
+    const char* r=std::getenv("GPW_ILLCOND_RCUT");
+    const double ecut=e?std::atof(e):40.0;
+    const double rcut=r?std::atof(r):2.0*a;      // 2a = the NaF SCF's (under-enumerated) setting; -1 = AUTO
+    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, ecut, rcut);
+    const GPW_Evaluator& ev=gpw;
+    const Complex_OIBS&  g =gpw;
+    const size_t n=g.GetNumFunctions();
+
+    // D = S^-1 (real at Gamma): PSD with ~1/lambda_min entries; Tr(D S) = n exactly.
+    const auto& S=g.Overlap();
+    rmat_t Sr(n,n);
+    for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) Sr(i,j)=std::real(dcmplx(S(i,j)));
+    rmat_t Si=blazem::inv(Sr);
+    double dmax=0.0;
+    chmat_t D(n);
+    for (size_t i=0;i<n;i++)
+        for (size_t j=i;j<n;j++) { D(i,j)=dcmplx(0.5*(Si(i,j)+Si(j,i)),0.0); dmax=std::max(dmax,std::fabs(Si(i,j))); }
+
+    G_ERI3 ov=ev.Overlap3CTensor();
+    ASSERT_TRUE(bool(ov.apply));
+    ΔG_Map rho=ContractG_ERI3(ov, D);
+    const double integral=std::real(rho[ivec3_t(0,0,0)])*ov.volume;
+    std::cout << "[illcond probe] Ecut=" << ecut << "  n=" << n << "  max|D|=" << dmax
+              << "  Integral rho=" << integral << "  Tr(D S)=" << double(n)
+              << "  err=" << integral-double(n) << std::endl;
 }
 
 // Integrate-back: a CONSTANT potential V(r)=V0 (Vtilde nonzero only at G=0) must give <chi_i|V0|chi_j> = V0 S_ij

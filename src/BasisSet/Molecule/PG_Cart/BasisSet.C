@@ -89,6 +89,7 @@ public:
     virtual chmat_t MakeNuclear(const std::vector<rvec3_t>& Rs, const cvec_t& phases, const Structure* cl) const override;
     virtual double  MaxExponent() const override;   // finest exponent -> the GPW density-grid cutoff floor
     virtual double  MinExponent() const override;   // coarsest exponent -> the multi-grid coarsest level
+    virtual double  RelCutoffSafety() const override; // pair->level stiffness -> the ladder completion rung
     // CP2K analytic multi-grid collocation + its exact adjoint (the GPW density/KS bridge).
     virtual std::vector<rvec_t> CollocateDensity(const chmat_t& D, const cellphase_t& phase, const UnitCell& A,
                                                  const std::vector<ivec3_t>& N_L,

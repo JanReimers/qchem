@@ -242,11 +242,20 @@ public:
     // (30 Ry) corresponds to a ~3x stiffer ratio than the auto floor, so 2 is still on the lean side.
     // For an uncontracted basis this IS the per-primitive-product assignment.
     static constexpr double kRelSafety=2.0;
+    double RelCutoffSafety() const {return kRelSafety;}   // exposed via LatticeSum1E (the ladder-completion rung)
     size_t PairLevel(size_t i, size_t j, const std::vector<double>& ecut_L, double relCutoffScale) const
     {
+        // ecut_L[0] is the RESOLUTION REFERENCE (the charge-calibrated density grid) -- req is measured
+        // against ITS relative resolution, so appending a finer completion rung (doc/GPWPlan 0b') must not
+        // stiffen every pair's requirement.  Selection is order-free: the COARSEST level satisfying req,
+        // else the FINEST present (the completion rung when the ladder is complete; the reference grid when
+        // it is not, e.g. the local-PP sub-ladder at relCutoffScale=6).
         const double req=relCutoffScale*kRelSafety*ecut_L[0]*(MaxExponent(i)+MaxExponent(j))/(2.0*MaxExponent());
         size_t L=0;
-        for (size_t l=0; l<ecut_L.size(); l++) if (ecut_L[l]>=req) L=l;   // ecut_L descending (finest first)
+        for (size_t l=1; l<ecut_L.size(); l++) if (ecut_L[l]>ecut_L[L]) L=l;          // fallback: finest present
+        bool sat=false;
+        for (size_t l=0; l<ecut_L.size(); l++)
+            if (ecut_L[l]>=req && (!sat || ecut_L[l]<ecut_L[L])) { L=l; sat=true; }   // coarsest satisfying
         return L;
     }
     // Iterate the (i, j@Roff) product's compact exp-tail box on the N-division grid of cell A, calling

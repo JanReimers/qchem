@@ -106,6 +106,15 @@ public:
     //! from the fine grid (\f$\propto\alpha_{\max}\f$) down to \f$\propto\alpha_{\min}\f$.
     virtual double MinExponent() const = 0;
 
+    //! \brief The STIFFNESS of the internal pair\f$\to\f$level assignment (the CP2K \c REL_CUTOFF safety): a
+    //! pair \f$(i,j)\f$ demands a level with \f$e_{cut}\ge\f$ \c RelCutoffSafety()
+    //! \f$\cdot\,e_{cut}^{ref}\,(\alpha_i+\alpha_j)/(2\alpha_{\max})\f$, so the stiffest possible requirement
+    //! (the \f$\alpha_{\max}+\alpha_{\max}\f$ pair) is \c RelCutoffSafety() \f$\cdot\,e_{cut}^{ref}\f$.  A
+    //! ladder is COMPLETE (every pair's requirement satisfiable) iff it contains a level at that cutoff --
+    //! exposed as a scalar summary (like \c MaxExponent) so the ladder BUILDER can append the completion rung
+    //! without duplicating the constant; the assignment itself stays internal (doc/GPWPlan.md 0b').
+    virtual double RelCutoffSafety() const = 0;
+
     //! \brief The Bloch phase of an INTEGER cell offset \f$n\f$: \f$e^{ik\cdot R_n}\f$.  The k-CONVENTION stays
     //! entirely on the lattice/GPW side (the caller supplies this closure); the molecular side only ever asks
     //! "what is the phase of offset \f$n\f$" for the cross-cell pair offsets it enumerates internally (it cannot
@@ -119,9 +128,12 @@ public:
     //! (pair, cross-cell offset \f$R\f$) term evaluated ANALYTICALLY on its compact exp-tail box and
     //! MODULO-WRAPPED onto the grid.  The offsets are magnitude-screened (no hard \c Rcut, no Gibbs ringing);
     //! the wrap IS the image sum.  Density-matrix driven, so \f$\int\rho=\mathrm{Tr}(DS^k)\f$ (\f$S^k\f$ the
-    //! screened-complete Bloch overlap).  MULTI-GRID (CP2K \c REL_CUTOFF): levels arrive FINEST-FIRST --
-    //! \a N_L[L] the level's grid divisions of cell \a A (raster \f$r=A(idx/N)\f$), \a ecut_L[L] its cutoff
-    //! (descending); each pair is collocated on the COARSEST level that still resolves its product exponent
+    //! screened-complete Bloch overlap).  MULTI-GRID (CP2K \c REL_CUTOFF): \a ecut_L[0] is the RESOLUTION
+    //! REFERENCE (the charge-calibrated density grid); the remaining levels are conventionally coarser in
+    //! descending order, and the ladder MAY append one FINER completion rung at
+    //! \c RelCutoffSafety()\f$\cdot\f$\a ecut_L[0] (level selection is order-free; doc/GPWPlan.md 0b') --
+    //! \a N_L[L] the level's grid divisions of cell \a A (raster \f$r=A(idx/N)\f$), \a ecut_L[L] its cutoff;
+    //! each pair is collocated on the COARSEST level that still resolves its product exponent
     //! \f$\alpha_i+\alpha_j\f$ (the internal assignment -- primitives stay encapsulated), so diffuse pairs live
     //! on small coarse grids: \f$O(n^2N_{pts}^{fine})\to O(\sum_L\mathrm{pairs}(L)N_{pts}(L))\f$.  Returns one
     //! grid density per level (the caller FFTs each and combines \f$\tilde\rho\f$ nested in G-space).  Because

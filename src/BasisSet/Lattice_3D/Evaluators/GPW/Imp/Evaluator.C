@@ -180,6 +180,7 @@ GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const
     : itsMol(std::move(mol))
     , itsk(kFrac)
     , itsCell(cell)
+    , itsCutoffFactor(cutoffFactor)
 {
     // The single orbital block of the (raw, no-SALC) molecular Gaussian basis.
     const BasisSet::Real_OIBS* only=nullptr;
@@ -401,6 +402,21 @@ void GPW_Evaluator::EnsureLevels() const
         if (h*h*pmax > 1.0) break;
         itsLevels.push_back(g);
     }
+    itsNBaseLevels=itsLevels.size();
+    // TOP COMPLETION RUNG (doc/GPWPlan.md 0b').  The pair->level rule demands ecut >= RelCutoffSafety()
+    // * efine * (a_i+a_j)/(2 a_max), whose maximum (the a_max+a_max pair) is RelCutoffSafety()*efine --
+    // ABOVE the reference grid, so without this rung the sharpest pairs sit on the reference carrying an
+    // e^{-ecut/2p} energy-tail (an ENERGY effect ONLY: collocated CHARGE is ball-truncation-immune, gated
+    // by GPW.SharpestPairChargeConservation).  One rung at exactly that cutoff makes every smooth-path
+    // assignment satisfiable.  Appended LAST so ecut_L[0] stays the resolution reference (the requirement
+    // must not stiffen with the ladder).  GATED on the ENERGY CALIBRATION: when the reference grid already
+    // sits at/above RelCutoffSafety() x the auto floor (cutoffFactor*alpha_max) -- e.g. the Si anchors'
+    // explicit Ecut=20 vs 2*4*2=16 -- the sharpest pair's tails are already inside the calibrated budget
+    // and the rung would buy sub-mHa for 1.6-4x runtime (measured 2026-07-16); a reference AT the auto
+    // floor (every AUTO run) gets the rung.
+    if (efine < itsLat->RelCutoffSafety()*itsCutoffFactor*amax)
+        itsLevels.push_back(std::make_shared<const PW_Grid_Evaluator>(
+                                itsGrid->Recip(), rvec3_t(0,0,0), itsLat->RelCutoffSafety()*efine));
     for (const auto& g : itsLevels)
     {
         itsLevelN.push_back(g->FFTGrid());
@@ -489,7 +505,14 @@ chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const Pseudopotential::L
         return acc/itsGrid->Volume();
     };
     EnsureLevels();
-    const size_t K=itsLevels.size();
+    // BASE sub-ladder only (no top completion rung): at relCutoffScale=6 the stiffened requirement would
+    // send every pair with a_i+a_j > a_max/6 to the doubled grid, where the mid pairs' exp-tail boxes are
+    // enormous (multi-M pts each) -- the static sweep would explode.  The sub-ladder reproduces the
+    // validated fine-capped behaviour bit-for-bit; the sharp pairs' top-rung upgrade for this SHARP field
+    // is a separate (deferred) calibration.  ecut_L[0] is still the reference, so assignments are unchanged.
+    const size_t K=itsNBaseLevels;
+    std::vector<ivec3_t> N_B (itsLevelN.begin(),    itsLevelN.begin()+K);
+    std::vector<double>  e_B (itsLevelEcut.begin(), itsLevelEcut.begin()+K);
     std::vector<rvec_t> V_L(K);
     for (size_t L=0;L<K;L++)
     {
@@ -497,7 +520,7 @@ chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const Pseudopotential::L
         for (const ivec3_t& dm : itsLevels[L]->Gs()) vmapL[dm]=Vt(dm);   // restrict to level L's {G}
         V_L[L]=itsLevels[L]->RhoOnGrid(vmapL);
     }
-    return itsLat->IntegratePotential(V_L, CellPhase(), itsCell, itsLevelN, itsLevelEcut,
+    return itsLat->IntegratePotential(V_L, CellPhase(), itsCell, N_B, e_B,
                                       /*relCutoffScale*/6.0);            // sharp-field level assignment
 }
 

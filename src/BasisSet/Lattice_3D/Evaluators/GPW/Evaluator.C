@@ -156,6 +156,8 @@ private:
                                                           //!< can re-orient a non-cubic (FCC) primitive cell and
                                                           //!< silently shift every collocation box)
     size_t                              itsN   = 0;       //!< number of Gaussian orbitals
+    double  itsCutoffFactor=4.0;   //!< the density-grid floor constant C (ctor param) -- the ENERGY calibration
+                                   //!< C*RelCutoffSafety()*alpha_max gates the top completion rung (EnsureLevels)
     std::shared_ptr<const PW_Grid_Evaluator> itsGrid;     //!< the density/collocation grid (null if DFT tier off)
     // NO hand-rolled tensor cache: the collocation tensor is a stateless build; the FRAMEWORK caches it
     // (BasisSet::Band_FT_IBS::Repulsion3C/Overlap3C via theCache<dcmplx>(), keyed by BasisSetID -- see IDFragment).
@@ -178,13 +180,19 @@ private:
     qcMesh::MeshParams PPMeshParams() const;  //!< the PP-quadrature integration mesh params (uniform, eCut=densityEcut)
 
     // The REL_CUTOFF multi-grid level ladder: the fine density grid + coarser grids (a factor 4 in Ecut each)
-    // down to the level resolving the most-diffuse pair product (~Ecut*alpha_min/alpha_max), built once
-    // (geometry-fixed) by EnsureLevels.  Both the density collocation (MakeCollocator) and the integrate-back
-    // (OverlapMatrix) run per-pair on these levels -- the pair->level assignment lives molecular-side.
+    // down to the level resolving the most-diffuse pair product (~Ecut*alpha_min/alpha_max), PLUS the TOP
+    // COMPLETION RUNG at RelCutoffSafety()*Ecut appended LAST (doc/GPWPlan.md 0b': the sharpest pairs'
+    // requirement exceeds the reference grid by construction; the rung makes every smooth-path assignment
+    // satisfiable).  ecut_L[0] stays the RESOLUTION REFERENCE (the density grid) -- level selection on the
+    // molecular side is order-free.  Built once (geometry-fixed) by EnsureLevels.  The density collocation
+    // (MakeCollocator) and the integrate-back (OverlapMatrix) run per-pair on the FULL ladder; the SHARP-field
+    // local PP (MakeLocalPP, relCutoffScale=6) uses the BASE sub-ladder only (itsNBaseLevels) -- its stiffened
+    // requirement would flood the top rung with mid pairs whose boxes are huge on the doubled grid.
     void EnsureLevels() const;
-    mutable std::vector<std::shared_ptr<const PW_Grid_Evaluator>> itsLevels;   //!< finest first; [0]==itsGrid
+    mutable std::vector<std::shared_ptr<const PW_Grid_Evaluator>> itsLevels;   //!< [0]==itsGrid (reference); coarser; top rung LAST
     mutable std::vector<ivec3_t>    itsLevelN;     //!< each level's FFT grid divisions
-    mutable std::vector<double>     itsLevelEcut;  //!< each level's cutoff (descending)
+    mutable std::vector<double>     itsLevelEcut;  //!< each level's cutoff (reference first)
+    mutable size_t                  itsNBaseLevels=0; //!< levels before the top rung (the local-PP sub-ladder)
 };
 
 static_assert(isPW_1E_Evaluator <GPW_Evaluator>, "GPW_Evaluator must satisfy isPW_1E_Evaluator");
