@@ -57,10 +57,22 @@ runtime close-out incl. the CP2K NaF oracle + convergence findings).
 - **§0a NaF convergence findings** (`35789164`): CP2K recipe machinery (no DIIS, E-gate, tuning knobs);
   α=0.025/G0=1 converges Ecut=40 (pinned anchor −27.73); the fine grid's unphysical attractor (E≈−39)
   captures ALL linear mixing → quasi-Newton mixing + XC consistency are the TODO leads.
-- **§0b XC-consistency: FALSIFIED by the FD probe** (2026-07-16): new gate `GPW.XCPotentialConsistencyFD`
+- **§0b XC-consistency: FALSIFIED by the FD probe** (`f82db70e`): new gate `GPW.XCPotentialConsistencyFD`
   proves H_xc == ∂E_xc/∂D to FD accuracy (h² scaling to 2e-10) in both the smooth and ρ<0-guard regimes —
-  the LDA discrete functional was already exactly consistent; the −39 attractor is a genuine basin of the
-  under-resolved discretization → 0c (mixing) promoted to lead.  Full record in TODO §0b below.
+  the LDA discrete functional was already exactly consistent.  Full record below.
+- **§0b′ gated ladder-completion rung + NaF ROOT CAUSE** (`a218c69c`): the top rung (energy-calibration-
+  gated; `RelCutoffSafety` seam accessor; order-free `PairLevel`) + the D=S⁻¹ probe pins the NaF 4.9-e
+  grid-charge loss on the Rcut=2a ENUMERATION-SCHEME MISMATCH (grid-independent −2.25 e; fp32 + screens
+  vindicated at 7e-9/3.4e-7 per unit |D|).
+- **BANISH-Rcut** (`bf3d70ad`): "there is no cut in R" — `(Rs,phases)` deleted from the seams, series
+  ε-converged per shell pair inside `LatticeSum1E` (`ForImageOffsets`), KB convention simplified to the
+  plain phase oracle, `Rcut`/`collRcut` gone from the GPW surface (finite mode = `CellImages` enum).
+  Anchors identical, multi-k 123→84 s; NaF scheme mismatch DEAD (iter-1 charge −4.9 e → −2.4e-6 e);
+  true conditioning exposed (λ_min=1.03e-6).
+- **SR2 basis + instability CLASSIFIED** (`3f77c96e`): `valence_lowq_sr2.bsd` (the spectrum fingered the
+  Na p 0.05 triplet; λ_min→1.57e-3, NaF 6× faster) — but the departure spikes SURVIVE: α-independent,
+  DIIS-resistant, smooth growing mode from a clean fixed point ≈−27.73 → hypothesis = near-degenerate
+  HOMO/LUMO at Γ (giant response).  The OPEN problem; full records below.
 
 ## Naming (`5f609d2f`) — remember these
 - `Overlap(f)` = ANY 1-electron `⟨i|f|j⟩` (f may be a potential); `Repulsion` = the 2-electron `1/r12`.
@@ -216,6 +228,10 @@ per-iteration collocation volume is now the whole NaF story.**
   throughout).**
 **(0a) NaF CONVERGENCE increment (2026-07-16): the linear-mixing axis is EXHAUSTED — the production grid
 needs QUASI-NEWTON DENSITY MIXING (the one CP2K ingredient we lack).**
+> ⚠ SUPERSEDED by §0b′ (same day): this whole sub-block was measured on the CORRUPTED map (Rcut=2a
+> scheme mismatch).  The −39 attractor, the −27.73 pin, and the "quasi-Newton is the missing ingredient"
+> conclusion are ALL corrupted-map artifacts — see §0b′ for the honest map (mismatch deleted; the real
+> blocker is the Γ giant-response instability, TODO §0b″).  Kept for the archaeology only.
 - **Recipe machinery landed** (`DISABLED_NaFRocksaltGamma`): `tSCFAcceleratorNull<dcmplx>` (NO DIIS — the
   mid-cycle Fock extrapolations ARE the +900 Ha spikes: they land exactly on the Nproj=8 iterations),
   fixed-α Kerker, exit on the relative-E gate `MinΔE` with `MinΔρ=1e30` (CP2K's density never converges
@@ -236,21 +252,7 @@ needs QUASI-NEWTON DENSITY MIXING (the one CP2K ingredient we lack).**
 
 ---
 
-# TODO / NEXT
-
-**Orientation (2026-07-16, updated same day).**  §0 (A–D + the runtime close-out) is DONE — the analytic
-multigrid path IS the SCF path; Si == CP2K at Γ / 2×1×1 / shifted 2×2×2; NaF runs end-to-end in ~40 min
-against a same-basis CP2K oracle (**−27.93128**, `doc/CP2Kresults.md`).  The open problem: NaF's
-PRODUCTION-grid SCF is captured by an unphysical attractor (E≈−39) that plain damped mixing cannot escape
-at any α.  **0b's XC-fork hypothesis was FALSIFIED by its own FD instrument (see 0b below): the discrete
-functional is already exactly consistent.  0b′ (same day) then root-caused the NaF grid-charge
-catastrophe: an ENUMERATION-SCHEME MISMATCH (Rcut=2a-truncated S vs the screened-complete collocation),
-NOT grids or precision — see 0b′ below.  The lead increment is now BANISH-Rcut** (user directive: SR2 trim
-for complete-enumeration conditioning → NaF at AUTO → delete Rcut/collRcut from the public factory; §1
-rank-reduction is the permanent backstop) — **then 0c** (quasi-Newton mixing on the then-consistent map),
-followed by the runtime follow-ups (0d) and the standing queue (1)–(5).
-
-## 0b. XC CONSISTENCY — RESOLVED BY FALSIFICATION (2026-07-16)
+## §0b XC CONSISTENCY — RESOLVED BY FALSIFICATION (2026-07-16).  The full record:
 **The fork does NOT exist; the LDA discrete functional is ALREADY exactly consistent.**  The probe is the
 new gate `GPW.XCPotentialConsistencyFD`.
 **The instrument came first (as this section prescribed) and overturned the premise.**  The probe replicates
@@ -282,10 +284,8 @@ the grid-sum energy w.r.t. the ball-limited ρ̃ the energy itself uses.  One di
 - **ρ-FLOOR: already effectively present for LDA** (both functionals zero at ρ≤0, verified consistent by
   probe 2).  An explicit ε-floor remains only as the **GGA prerequisite** (∇ρ/ρ powers diverge at tiny ρ)
   — fold it into the GGA increment together with the `relCutoff` Vxc-grid item (§5).
-- ~~0c (Pulay/Broyden behind `tDensityMixer`) is now the lead increment~~ **superseded same day by 0b′
-  below (user decision: fix the grid first, don't let the mixer hide it); 0c follows on the healthy grid.**
 
-## 0b′. THE TOP RUNG + THE REAL NaF ROOT CAUSE — investigation CLOSED 2026-07-16 (same day); records below
+## §0b′ TOP RUNG + NaF ROOT CAUSE + BANISH-Rcut + SR2 (2026-07-16, one session).  The full records:
 **Two separate things came out of this increment: the ladder-completion rung (LANDED, small-but-real energy
 fix, decision pending on scope) and the ACTUAL root cause of the NaF grid-charge catastrophe (an
 ENUMERATION-SCHEME MISMATCH — not grids, not precision).  The instruments: `GPW.SharpestPairChargeConservation`
@@ -391,6 +391,30 @@ SURVIVED — the conditioning/near-null diagnosis is DISPROVED as the mechanism 
   OWN eternal density limit-cycle on this same system (RMS 0.03–0.12 forever), and DIIS's failure.
   Γ-only NaF in this minimal ionic basis SHOULD be wide-gap — if the measured gap is tiny, that itself
   is the finding (basis? PP? Γ-only folding?).
+Side effect of the refactor: the "(Rs,phases)→one cMesh" future note is MOOT for these seams (no weighted
+point set crosses the interface — the stronger form of that cleanup); KMesh + quadrature meshes keep it.
+
+---
+
+# TODO / NEXT
+
+**Orientation (2026-07-16, end of session).**  §0 through BANISH-Rcut + SR2 is DONE (full records in the
+DONE section above): the XC fork was FALSIFIED by its own FD instrument; the NaF grid-charge catastrophe
+was root-caused to the Rcut=2a ENUMERATION-SCHEME MISMATCH and the mismatch deleted BY CONSTRUCTION (no
+radius exists anywhere — "there is no cut"); the SR2 basis conditions the complete-enumeration overlap
+(λ_min=1.6e-3, NaF 6× faster); and the honest map demonstrably has a clean fixed point (Ecut=40:
+≈−27.73 SR2 / ≈−28.00 SR) that the SCF repeatedly FINDS.  **The one open §0 problem is the Γ-instability
+below — its classification is done, the fix selection awaits one measurement (the band gap).**  Then 0c
+(the mixer face), the runtime follow-ups (0d), and the standing queue (1)–(5).
+
+## 0b″. NaF Γ-INSTABILITY — the open problem (classification DONE; fix selection pending the gap measurement)
+**The classified facts (records in DONE §0b′): the honest, conditioned map descends smoothly to its fixed
+point and departs via a GROWING mode — α-INDEPENDENT (10/10/13 spikes at α=0.025/0.0125/0.00625, period
+~27, smooth climb-away over ~5 iters), NOT conditioning (SR2 λ_min=1.6e-3 shows the same spikes as SR
+1.03e-6), NOT DIIS-fixable (`NAF_DIIS=1`: 51 excursions, `En>EMax` flapping).  Surviving hypothesis: a
+NEAR-DEGENERATE HOMO/LUMO at Γ → giant response χ ~ 1/(ε_v−ε_c) — which also explains CP2K's eternal
+density limit-cycle (RMS 0.03–0.12 forever) on this same system.  Γ-only NaF in this minimal ionic basis
+SHOULD be wide-gap — if the measured gap is tiny, that itself is the finding (basis? PP? Γ-only folding?).**
 **The remaining work, in order:**
 1. **BAND-GAP INSTRUMENT (the next session's opener)**: print the orbital/band energies near the fixed
    point (`Orbital::GetEigenEnergy` exists; run the recipe to NMAX≈35 and dump the spectrum, or add
@@ -402,8 +426,6 @@ SURVIVED — the conditioning/near-null diagnosis is DISPROVED as the mechanism 
 2. **0c (Pulay/Broyden mixer face)** on the conditioned map; its `MixSignals` trust-region signal
    (∫ρ_grid − Tr(DS)) stays — now purely a precision/conditioning health meter.  Also probe: the ionic
    SEED's 1.09-e precision-floor loss (may already be gone with SR2's conditioning).
-Side effect of the refactor: the "(Rs,phases)→one cMesh" future note is MOOT for these seams (no weighted
-point set crosses the interface — the stronger form of that cleanup); KMesh + quadrature meshes keep it.
 
 ## 0c. PULAY/BROYDEN ρ̃-MIXING behind the DIP mixer face (`tDensityMixer`) — user design, 2026-07-16
 Mixing is today hardwired inside `tSCFIterator::Iterate` (the `KerkerG0>0 ? KerkerUpdate(relax) :
