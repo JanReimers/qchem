@@ -48,6 +48,7 @@ public:
     // follow orbital character instead of eigenvalue.  Empty if no reference captured yet.
     rvec_t              MOMScores       () const;
     void                CaptureMOMReference()      ; //snapshot the occupied orbitals as the next reference
+    void                SetMOM          (bool useMOM, int startIter) {itsUseMOM=useMOM; itsMOMStartIter=startIter;}
 
     void                DisplayEigen    () const;
     const Irrep&    GetIrrep        () const {return itsIrrep;}   // this WF's irrep (the proper map key)
@@ -66,6 +67,8 @@ public:
     hmat_t<T>                itsF;
     mat_t<T>                 itsRefOccCPrime; // MOM reference: occupied C' columns (nbasis x nocc); empty=none
     int                      itsFillCount=0;  // # of FillOrbitals calls (≈ SCF iteration) -- IMOM capture delay
+    bool                     itsUseMOM=false; // Maximum Overlap Method for this run (from SCFParams::UseMOM)
+    int                      itsMOMStartIter=10; // delayed-IMOM reference-capture iteration (SCFParams::MOMStartIter)
 };
 
 using IrrepWF  = tIrrepWF<double>;

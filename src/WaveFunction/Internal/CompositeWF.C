@@ -44,6 +44,7 @@ public:
     virtual       Orbitals* GetOrbitals     (const Irrep&)      ;
     virtual EnergyLevels    GetEnergyLevels () const {return itsELevels;}
     virtual void            FillOrbitals    (double mergeTol);
+    virtual void            SetMOM          (bool useMOM, int startIter);
     virtual iqns_t          GetQNs          () const;
 
     virtual tDM_CD<T>*      GetChargeDensity(Spin) const;
@@ -63,7 +64,8 @@ private:
     qchem::Ortho                 itsBasisOrtho;    //S-orthogonalisation mode for the generalised eigenproblem
     double                       itsBasisOrthoTol; //near-null eigen/singular-value cutoff (Eigen/SVD; 0 = keep all)
     bool                         itsAufbau;   //molecular aufbau across irreps (vs fixed per-irrep EC)
-    bool                         itsMOMActive=false; //once the accelerator engages, pick occupation by MOM (overlap) not eigenvalue
+    bool                         itsUseMOM=false;    //Maximum Overlap Method for this run (from SCFParams::UseMOM)
+    bool                         itsMOMActive=false; //cross-irrep MOM armed (parked molecular path; set after 1st fill)
     tSCFAccelerator<T>*          itsAccelerator;
     EnergyLevels                 itsELevels;
     std::map<Spin,EnergyLevels>  itsSpin_ELevels;

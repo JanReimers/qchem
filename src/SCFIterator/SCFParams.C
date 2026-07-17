@@ -29,6 +29,15 @@ export struct SCFParams
                                      //  >0 -> preconditioned rho-mixing on the periodic (GPW/PW) path: damp the
                                      //  low-G charge-transfer slosh by G^2/(G^2+G0^2) (breaks the ionic-crystal
                                      //  limit cycle -- see doc/GPWPlan.md).  Typical G0 ~ 1.0.  dcmplx path only.
+    bool   UseMOM          = false;  //Maximum Overlap Method: occupy the orbitals with the largest overlap onto a
+                                     //  FIXED reference occupied subspace instead of the lowest eigenvalues.  OFF
+                                     //  (default) -> plain aufbau (atoms/molecules unchanged).  ON -> occupied-
+                                     //  subspace continuity, the fix for a diving diffuse virtual being aufbau-
+                                     //  captured (the NaF Γ occupation-swap instability -- see doc/GPWPlan §0b″).
+    int    MOMStartIter    = 10;     //Delayed-IMOM reference-capture iteration (only used when UseMOM).  Run plain
+                                     //  aufbau for this many fills so the SCF descends to the physical fixed point,
+                                     //  THEN capture the occupied subspace ONCE and hold it fixed (the seed is
+                                     //  mid-transient, so capturing at iteration 0 anchors garbage).
 };
 
 

@@ -44,6 +44,10 @@ public:
     virtual void       MoveOrbitals    (double t, bool commit, double mergeTol) =0;
     virtual void       FillOrbitals    (double mergeTol)                        =0; //WF knows the electronic structure
     virtual Orbitals*  GetOrbitals     (const Irrep&)                           =0; //mutable access for the loop
+    //! Configure the Maximum Overlap Method for this SCF run (from SCFParams).  \a startIter is the
+    //! delayed-IMOM reference-capture iteration.  Called once by the SCFIterator at the start of Iterate;
+    //! a no-op default keeps \a useMOM=false the norm.  See doc/GPWPlan §0b″.
+    virtual void       SetMOM          (bool useMOM, int startIter)             =0;
 };
 
 export using SCFWaveFunction  = tSCFWaveFunction<double>;

@@ -213,6 +213,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
     assert(itsWaveFunction);
     assert(itsHamiltonian);
     assert(itsCD);
+    itsWaveFunction->SetMOM(ipar.UseMOM, ipar.MOMStartIter);   // occupation strategy for this run (SCFParams)
     size_t idealVirial=itsHamiltonian->IsRelativistic() ? 1 : 2;
     if (ipar.Verbose)
     {

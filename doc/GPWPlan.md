@@ -80,11 +80,13 @@ runtime close-out incl. the CP2K NaF oracle + convergence findings).
   occupied manifold (gap → 1e-4) → aufbau occupies it → +5–7e3 Ha spike (period ~27).  Records in §0b″.
 - **NaF Γ-instability CURED (occupation-swap disease) — MOM wired up** (2026-07-17): the crystal's within-irrep
   fill (`TakeElectrons` = energy order) never touched the parked cross-irrep MOM, so MOM was wired into the
-  irrep fill: `TOrbitals::TakeElectrons(ne, priority)` + `EnableMOM()`/`MOMStartIter()` runtime toggles +
+  irrep fill: `TOrbitals::TakeElectrons(ne, priority)` + `SCFParams::UseMOM`/`MOMStartIter` (threaded via a new
+  `tSCFWaveFunction::SetMOM`) +
   **delayed IMOM** (aufbau for ~10 fills, then capture {F 2s, F 2p} ONCE and hold — running MOM drifts,
   iter-0 IMOM anchors the raw seed → both catastrophic).  NaF Ecut=40 now CONVERGES −27.76 (Δρ 6e-4, 196
   iters, partial-occ 0, diving virtual banished to −45 Ha unoccupied); vs CP2K oracle −27.93 the 0.17 Ha is
-  the grid.  One residual iter-19 MIXING spike remains → 0c Pulay.  198/198 green (`EnableMOM` defaults off).
+  the grid.  One residual iter-19 MIXING spike remains → 0c Pulay.  198/198 green (`SCFParams::UseMOM` off by
+  default).
 
 ## Naming (`5f609d2f`) — remember these
 - `Overlap(f)` = ANY 1-electron `⟨i|f|j⟩` (f may be a potential); `Repulsion` = the 2-electron `1/r12`.
@@ -455,7 +457,7 @@ REFINED, not simply confirmed — the mechanism is now directly visualized (Ecut
     they are two phases of ONE event, not alternatives.  → **MOM (pin the {F 2s, F 2p} occupied subspace)
     is the direct fix**, and should be clean because it is an isolated single-state swap.
 
-**2. MOM FIX — WIRED UP + VALIDATED (2026-07-17, commit pending; `qchem::WaveFunction::EnableMOM`).**
+**2. MOM FIX — WIRED UP + VALIDATED (2026-07-17; `SCFParams::UseMOM`/`MOMStartIter`).**
 - **NOT Fermi smearing / not the "gap≈0" branch** — the fixed-point gap is large, so there is no static
   degeneracy to smear; smearing would leave a residual fractional-occupation error at a wide-gap insulator.
 - **The measured mechanism is a clean, isolated, single-state OCCUPATION SWAP (F 2p 6 e → 4 e)** — exactly
@@ -463,7 +465,8 @@ REFINED, not simply confirmed — the mechanism is now directly visualized (Ecut
   the molecular cross-irrep aufbau (`tCompositeWF::FillOrbitalsAufbau`), which the crystal never runs (a
   crystal k-block is a fixed-EC single irrep filled by `TakeElectrons` = pure energy order).  So MOM was
   wired into the **within-irrep** fill: new `TOrbitals::TakeElectrons(ne, priority)` (occupy highest-overlap
-  first), driven from `tIrrepWF::FillOrbitals`; the runtime toggle `EnableMOM()` (+ activation on a captured
+  first), driven from `tIrrepWF::FillOrbitals`; the per-run knobs `SCFParams::UseMOM`/`MOMStartIter` threaded
+  through `tSCFWaveFunction::SetMOM` (+ activation on a captured
   reference, NOT on the accelerator engaging — NaF's Null accelerator never engages).
 - **The reference-capture POLICY is the whole game (two wrong variants measured + rejected):**
   RUNNING MOM (re-capture every iteration) DRIFTS — a spike corrupts the reference, MOM then locks a

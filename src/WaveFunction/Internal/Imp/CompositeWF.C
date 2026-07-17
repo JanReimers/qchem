@@ -21,15 +21,13 @@ using std::cerr;
 using std::endl;
 using SCFAccelerators::tSCFIrrepAccelerator;
 
-// MOM (Maximum Overlap Method) occupation tracking.  For the closed-shell molecular cases the
-// empty-irrep DIIS discriminator already gives clean convergence with no occupation flip, so MOM is
-// OFF by default (the process-wide flag below).  It is turned on for the periodic NaF Γ map, where a
+// MOM (Maximum Overlap Method) occupation tracking is configured per-run from SCFParams (UseMOM/
+// MOMStartIter), pushed in by the SCFIterator via SetMOM (which forwards to every irrep WF).  For the
+// closed-shell molecular cases the empty-irrep DIIS discriminator already gives clean convergence with no
+// occupation flip, so MOM is OFF by default; it is turned on for the periodic NaF Γ map, where a
 // giant-response diffuse virtual periodically dives below the Fermi edge and plain aufbau captures it
-// (an occupation swap → energy spike, doc/GPWPlan §0b″).  When on, MOM activates as soon as a
-// reference occupied subspace exists (iteration 0's seed diagonalization) -- NOT gated on the
-// accelerator engaging, so it works with NaF's Null accelerator.  The runtime toggle
-// qchem::WaveFunction::EnableMOM() is declared+defined in the qchem.WaveFunction interface (imported here
-// via qchem.WaveFunction.SCF); this TU only reads it.
+// (an occupation swap → energy spike, doc/GPWPlan §0b″).  The ACTIVE, tested path is the crystal's
+// WITHIN-irrep MOM in tIrrepWF::FillOrbitals; this file's cross-irrep aufbau MOM is the parked molecular one.
 
 
 template <class T> tCompositeWF<T>::tCompositeWF(const tbs_t<T>* bs,const ElectronConfiguration* ec,tSCFAccelerator<T>* acc,
@@ -161,6 +159,14 @@ template <class T> typename tCompositeWF<T>::iqns_t tCompositeWF<T>::GetQNs() co
 
 
 
+// Configure MOM for this run (from SCFParams, via the SCFIterator).  Store our own copy (used by the
+// molecular cross-irrep aufbau) and forward to every irrep WF (the crystal's within-irrep MOM lives there).
+template <class T> void tCompositeWF<T>::SetMOM(bool useMOM, int startIter)
+{
+    itsUseMOM = useMOM;
+    for (auto& w : itsIWFs) w->SetMOM(useMOM, startIter);
+}
+
 template <class T> void tCompositeWF<T>::FillOrbitals(double mergeTol)
 {
     itsELevels.clear();
@@ -237,7 +243,7 @@ template <class T> void tCompositeWF<T>::FillOrbitalsAufbau(double mergeTol)
     // has NOT been re-validated against the new delayed reference capture (tIrrepWF captures at MOMStartIter,
     // so useMOM would score against empty references for the first few fills).  The ACTIVE, tested path is
     // the crystal's WITHIN-irrep MOM in tIrrepWF::FillOrbitals.  Kept here for the molecular hard cases.
-    if (EnableMOM()) itsMOMActive=true;
+    if (itsUseMOM) itsMOMActive=true;
 }
 
 template class tCompositeWF<double>;

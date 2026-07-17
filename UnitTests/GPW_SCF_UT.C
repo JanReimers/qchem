@@ -458,22 +458,21 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     SCFParams par; par.NMaxIter=tuneNMax; par.MinΔρ=1e30; par.MinΔE=1e-8; par.MinΔFD=1e30; par.MinVirial=1e30;
     par.MinFD=1e30; par.StartingRelaxRo=tuneAlpha; par.MergeTol=1e-4; par.Verbose=true;
     par.KerkerG0=tuneG0;   // Kerker screening wavevector (a.u.^-1): damp the low-G charge-transfer slosh
+    // MOM FIX (doc/GPWPlan 0b'' -- the diagnosed cure): occupy by MAX OVERLAP onto a FIXED reference {F 2s,
+    // F 2p} subspace so aufbau cannot capture the diving diffuse virtual (the measured occupation swap
+    // F 2p 6->4 e).  Delayed IMOM: plain aufbau for MOMStartIter fills (descend to the physical fixed
+    // point), then capture the reference ONCE and hold it.  NAF_MOM=0 A/Bs it off; NAF_MOM_START tunes.
+    auto envMOM=[&]{ const char* d=std::getenv("NAF_MOM"); return !d || std::atof(d)!=0.0; };  // default ON
+    par.UseMOM=envMOM();
+    par.MOMStartIter=(int)envd("NAF_MOM_START", 10);
     qchem::Hamiltonian::ReportGridCharge()=true;   // F's tight 40-a.u. exponent: watch integral rho_grid vs Tr(DS)
     qchem::SCFIterator::ReportBandGap()=true;       // BAND-GAP INSTRUMENT (doc/GPWPlan 0b''): watch eps_HOMO/eps_LUMO/gap
                                                     // per iteration -- the near-degenerate-frontier (giant-response)
                                                     // hypothesis predicts the gap collapsing near the fixed point,
                                                     // with the spurious level diving across the Fermi edge before each spike.
-    // MOM FIX (doc/GPWPlan 0b'' -- the diagnosed cure): pin the physical {F 2s, F 2p} occupied subspace so
-    // aufbau cannot capture the diving diffuse virtual (the measured occupation swap F 2p 6->4 e).  Activates
-    // from iteration 0's seed reference (NaF uses the Null accelerator, which never "engages").  NAF_MOM=0 to
-    // A/B the instability with MOM off.
-    auto envMOM=[&]{ const char* d=std::getenv("NAF_MOM"); return !d || std::atof(d)!=0.0; };  // default ON
-    qchem::WaveFunction::EnableMOM()=envMOM();
-    qchem::WaveFunction::MOMStartIter()=(int)envd("NAF_MOM_START", 10);  // IMOM reference-capture delay
     scf.Iterate(par);
     qchem::Hamiltonian::ReportGridCharge()=false;  // process-wide flag -- reset so it does not leak to other tests
-    qchem::SCFIterator::ReportBandGap()=false;     // idem
-    qchem::WaveFunction::EnableMOM()=false;        // idem -- MUST reset (molecular tests rely on plain aufbau)
+    qchem::SCFIterator::ReportBandGap()=false;     // idem (MOM is per-run via SCFParams -- nothing to reset)
 
     auto* cd=scf.GetWaveFunction()->GetChargeDensity(); double charge=cd->GetTotalCharge(); delete cd;
     auto E=scf.GetEnergy();
@@ -518,8 +517,8 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     //     aufbau swap; they are two phases of ONE event.  MOM (pin the {F 2s, F 2p} occupied subspace) is
     //     therefore the direct fix; it should be clean since it is an isolated single-state swap.
     //
-    // MOM FIX WIRED UP + VALIDATED (2026-07-17, WaveFunction::EnableMOM; default ON here).  DELAYED IMOM
-    // (qchem::WaveFunction::MOMStartIter=10): run plain aufbau for ~10 fills so the SCF descends to the
+    // MOM FIX WIRED UP + VALIDATED (2026-07-17, SCFParams::UseMOM; default ON here).  DELAYED IMOM
+    // (SCFParams::MOMStartIter=10): run plain aufbau for ~10 fills so the SCF descends to the
     // physical fixed point, then CAPTURE the {F 2s, F 2p} occupied subspace ONCE and hold it FIXED.  Two
     // wrong variants were measured + rejected first: RUNNING MOM (re-capture every iter) DRIFTS (a spike
     // corrupts the reference -> locks a +0.74 Ha level occupied while a -50 Ha level is empty -> wrong

@@ -9,8 +9,6 @@ module qchem.WaveFunction.Internal.IrrepWF;
 import qchem.SCFAccelerator;
 import qchem.Orbitals.Factory;
 import qchem.Blaze;
-import qchem.WaveFunction;   // qchem::WaveFunction::EnableMOM() -- the within-irrep MOM toggle (acyclic: the
-                            // public face does not depend on this Internal impl)
 
 namespace qchem::WaveFunction
 {
@@ -89,9 +87,9 @@ template <class T> const EnergyLevels& tIrrepWF<T>::FillOrbitals(double ne)
     // virtual cannot be aufbau-captured (the NaF Γ occupation swap).  The crystal fills each k-block via
     // THIS path (fixed per-irrep EC), so this is where its MOM lives (the molecular cross-irrep aufbau is
     // in tCompositeWF::FillOrbitalsAufbau).  Reference is (re)captured at the end for the next iteration.
-    // Delayed IMOM (see qchem::WaveFunction::MOMStartIter): use MOM only AFTER a reference has been locked
-    // (past the settling delay); before that, plain aufbau so the SCF descends to the physical fixed point.
-    const bool useMOM = qchem::WaveFunction::EnableMOM() && itsRefOccCPrime.columns()>0;
+    // Delayed IMOM (see SCFParams::UseMOM/MOMStartIter, pushed in via SetMOM): use MOM only AFTER a reference
+    // has been locked (past the settling delay); before that, plain aufbau so the SCF descends to the fixed point.
+    const bool useMOM = itsUseMOM && itsRefOccCPrime.columns()>0;
     if (useMOM) std::tie(ne,itsDPrime)=itsOrbitals->TakeElectrons(ne, MOMScores());
     else        std::tie(ne,itsDPrime)=itsOrbitals->TakeElectrons(ne);   // occupy lowest-first, build density
     assert(ne==0.0); //enough orbitals to take all electrons; if not the basis set is too small.
@@ -107,8 +105,7 @@ template <class T> const EnergyLevels& tIrrepWF<T>::FillOrbitals(double ne)
     // (re-capturing every iteration) DRIFTS and a spike corrupts the reference.  A fixed, physical
     // reference keeps the diving diffuse virtual (low overlap with {F 2s, F 2p}) OUT of the occupied set.
     ++itsFillCount;
-    if (qchem::WaveFunction::EnableMOM() && itsRefOccCPrime.columns()==0
-        && itsFillCount>=qchem::WaveFunction::MOMStartIter())
+    if (itsUseMOM && itsRefOccCPrime.columns()==0 && itsFillCount>=itsMOMStartIter)
         CaptureMOMReference();
     return itsELevels;
 }
