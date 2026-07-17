@@ -188,7 +188,8 @@ Three Mesh upgrade:
 4) "precompute the Bloch orbital on the mesh once (Eval re-sums images per point, so calling it inside qcMesh::Overlap per projector-image would be O(|images|²) — too slow for SCF)"  What was the fix ... can we add another Integral routing to Mesh that implelents the fix?
 
 Other:
-4) Complexify GDM accelerator.
+
+it doesn't damp the sloshing one. You need mode-selective (Kerker/preconditioned) mixing
 
 Session 5:
 Next steps:  Space group symmetry (reduce k count), Monkhorst-Pack, Some mesh refactoring, extending qchem GPW to multi-species, other?

@@ -12,6 +12,9 @@ export QCHEM_BUILD=~/Code/qchem-viz/build/PIC
 python app_desktop.py 
 
 
+# Th Band_FT_IBS saga
+for  Band_FT_IBS we spent many days refactoring this interface.  It started with a huge mess of member functions FourierTHis , FourierThat,  GridTHis, GridThat .... and after many rounds of refactoring we proved that all you needed (after acknowledging Fourier rho is actually a (trivial) fit) was Repulsion3C(fit basis set) and Overlap3C(fit basis set).   Since then one more function was added Overlap(f).  Anyway I want to be careful not to go back the huge unnecessary interface (riddled with names about implementation details) we had before.
+
 # new PC
 That all checks out — SFF (4 DIMM slots / 128 GB, standard desktop DIMMs) with a populated M.2 NVMe. It's a genuinely good, Linux-friendly pick for this workload. Two practical things to plan for, both minor:
 
