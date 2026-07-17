@@ -77,9 +77,14 @@ runtime close-out incl. the CP2K NaF oracle + convergence findings).
   appends ε_HOMO/ε_LUMO/gap to the verbose SCF line.  Verdict: the fixed-point gap is HEALTHY (~0.35 Ha,
   wide-gap insulator) so the static-degeneracy hypothesis is FALSE; the real mechanism is a giant-response
   DIFFUSE VIRTUAL whose ε_LUMO dives 0.2–0.5 Ha during the charge-transfer slosh, transiently crossing the
-  occupied manifold (gap → 1e-4) → aufbau occupies it → +5–7e3 Ha spike (period ~27).  Fix SELECTED: 0c
-  Pulay/Broyden (damp the slosh — the lead, matches CP2K's Broyden) + MOM (occupied-subspace continuity),
-  NOT Fermi smearing.  Records in TODO §0b″.
+  occupied manifold (gap → 1e-4) → aufbau occupies it → +5–7e3 Ha spike (period ~27).  Records in §0b″.
+- **NaF Γ-instability CURED (occupation-swap disease) — MOM wired up** (2026-07-17): the crystal's within-irrep
+  fill (`TakeElectrons` = energy order) never touched the parked cross-irrep MOM, so MOM was wired into the
+  irrep fill: `TOrbitals::TakeElectrons(ne, priority)` + `EnableMOM()`/`MOMStartIter()` runtime toggles +
+  **delayed IMOM** (aufbau for ~10 fills, then capture {F 2s, F 2p} ONCE and hold — running MOM drifts,
+  iter-0 IMOM anchors the raw seed → both catastrophic).  NaF Ecut=40 now CONVERGES −27.76 (Δρ 6e-4, 196
+  iters, partial-occ 0, diving virtual banished to −45 Ha unoccupied); vs CP2K oracle −27.93 the 0.17 Ha is
+  the grid.  One residual iter-19 MIXING spike remains → 0c Pulay.  198/198 green (`EnableMOM` defaults off).
 
 ## Naming (`5f609d2f`) — remember these
 - `Overlap(f)` = ANY 1-electron `⟨i|f|j⟩` (f may be a potential); `Repulsion` = the 2-electron `1/r12`.
@@ -410,13 +415,12 @@ DONE section above): the XC fork was FALSIFIED by its own FD instrument; the NaF
 was root-caused to the Rcut=2a ENUMERATION-SCHEME MISMATCH and the mismatch deleted BY CONSTRUCTION (no
 radius exists anywhere — "there is no cut"); the SR2 basis conditions the complete-enumeration overlap
 (λ_min=1.6e-3, NaF 6× faster); and the honest map demonstrably has a clean fixed point (Ecut=40:
-≈−27.73 SR2 / ≈−28.00 SR) that the SCF repeatedly FINDS.  **The one open §0 problem is the Γ-instability
-below — its MECHANISM is now MEASURED (2026-07-17 band-gap instrument): NOT a static small gap (fixed-point
-gap ~0.35 Ha, wide-gap insulator) but a giant-response diffuse virtual whose ε_LUMO transiently dives and
-crosses the occupied manifold → aufbau spike.  Fix selected → 0c Pulay/Broyden (the lead) + MOM.**  Then 0c
-(the mixer face), the runtime follow-ups (0d), and the standing queue (1)–(5).
+≈−27.73 SR2 / ≈−28.00 SR) that the SCF repeatedly FINDS.  **The Γ-instability (§0b″) is now MEASURED
+(band-gap instrument) AND CURED for the occupation-swap disease (delayed-IMOM MOM): NaF Ecut=40 now
+CONVERGES to −27.76 (Δρ 6e-4).  The one residual excursion is a density-MIXING transient → 0c Pulay is the
+next lever.**  Then 0c (the mixer face), the runtime follow-ups (0d), and the standing queue (1)–(5).
 
-## 0b″. NaF Γ-INSTABILITY — the open problem (MECHANISM NOW MEASURED; fix selected → 0c/MOM)
+## 0b″. NaF Γ-INSTABILITY — mechanism MEASURED, occupation-swap disease CURED by MOM (2026-07-17)
 **The classified facts (records in DONE §0b′): the honest, conditioned map descends smoothly to its fixed
 point and departs via a GROWING mode — α-INDEPENDENT (10/10/13 spikes at α=0.025/0.0125/0.00625, period
 ~27, smooth climb-away over ~5 iters), NOT conditioning (SR2 λ_min=1.6e-3 shows the same spikes as SR
@@ -451,25 +455,36 @@ REFINED, not simply confirmed — the mechanism is now directly visualized (Ecut
     they are two phases of ONE event, not alternatives.  → **MOM (pin the {F 2s, F 2p} occupied subspace)
     is the direct fix**, and should be clean because it is an isolated single-state swap.
 
-**2. FIX SELECTED by the measurement (the whole point of the instrument):**
+**2. MOM FIX — WIRED UP + VALIDATED (2026-07-17, commit pending; `qchem::WaveFunction::EnableMOM`).**
 - **NOT Fermi smearing / not the "gap≈0" branch** — the fixed-point gap is large, so there is no static
   degeneracy to smear; smearing would leave a residual fractional-occupation error at a wide-gap insulator.
-- **MOM is now the LEAD fix** (promoted by the frontier finding): the confirmed mechanism is a clean,
-  isolated, single-state OCCUPATION SWAP (F 2p 6 e → 4 e), which is exactly what MOM prevents — pin the
-  {F 2s, F 2p} occupied subspace so aufbau never captures the diving diffuse virtual (already coded,
-  inactive: `tIrrepWF::MOMScores`/`CaptureMOMReference`; seed the reference from the ionic seed's occupied
-  set).  Cheapest to activate and directly targets the measured event — try it FIRST.
-- **0c Pulay/Broyden ρ̃-mixing is the CAUSE-side cure** (and the general infrastructure needed anyway) —
-  damp the charge-transfer slosh that drives the dive, so the virtual never reaches the Fermi edge.  The
-  state is CLEAN (healthy fixed-point gap), the regime where quasi-Newton mixing converges; matches CP2K
-  converging THIS map with Broyden.  Do after MOM (or together — MOM stops the swap, Broyden stops the
-  slosh; they are complementary, not redundant).
-- Open sub-question surfaced by the finding: WHICH diffuse virtual has the giant response?  It may be an
-  over-complete diffuse Gaussian still in SR2 → ties to **§1 (DROP SR / rank-reduction)**; if MOM+0c
-  converge cleanly this can stay a curiosity.
-3. **0c (Pulay/Broyden mixer face)** on the conditioned map; its `MixSignals` trust-region signal
-   (∫ρ_grid − Tr(DS)) stays — now purely a precision/conditioning health meter.  Also probe: the ionic
-   SEED's 1.09-e precision-floor loss (may already be gone with SR2's conditioning).
+- **The measured mechanism is a clean, isolated, single-state OCCUPATION SWAP (F 2p 6 e → 4 e)** — exactly
+  what MOM prevents.  The parked MOM machinery (`tIrrepWF::MOMScores`/`CaptureMOMReference`) lived ONLY in
+  the molecular cross-irrep aufbau (`tCompositeWF::FillOrbitalsAufbau`), which the crystal never runs (a
+  crystal k-block is a fixed-EC single irrep filled by `TakeElectrons` = pure energy order).  So MOM was
+  wired into the **within-irrep** fill: new `TOrbitals::TakeElectrons(ne, priority)` (occupy highest-overlap
+  first), driven from `tIrrepWF::FillOrbitals`; the runtime toggle `EnableMOM()` (+ activation on a captured
+  reference, NOT on the accelerator engaging — NaF's Null accelerator never engages).
+- **The reference-capture POLICY is the whole game (two wrong variants measured + rejected):**
+  RUNNING MOM (re-capture every iteration) DRIFTS — a spike corrupts the reference, MOM then locks a
+  +0.74 Ha level occupied while a −50 Ha level stays empty → wrong −24.4.  IMOM-from-iter-0 anchors the RAW
+  SEED (mid-transient, shapes still shifting) → catastrophe (+5 Ha occupied, −112 Ha empty).  **DELAYED
+  IMOM WINS** (`MOMStartIter`, default 10): plain aufbau for ~10 fills to descend to the physical fixed
+  point, THEN capture {F 2s, F 2p} ONCE and hold it fixed.
+- **RESULT: NaF Ecut=40 now CONVERGES.**  Occupation swaps VANISH (partial-occ count 0), the diving virtual
+  is banished (−45 Ha, UNOCCUPIED), and the SCF descends SMOOTHLY+MONOTONICALLY to **−27.76** (Δρ 6e-4 at
+  150 iters; gap 0.50 Ha) — the physical fixed point the spiking run only ever visited transiently.  vs the
+  CP2K oracle −27.93128 at 320 Ry, the ~0.17 Ha is the Ecut=40 grid.
+- **ONE residual excursion survives (iter ~19) — but partial-occ 0, so it is NOT an occupation swap: a
+  density-MIXING transient (the charge-transfer slosh).  → 0c Pulay/Broyden is the next lever** (damp the
+  slosh; also accelerate the slow linear-Kerker tail; matches CP2K's Broyden on this map).  MOM and 0c are
+  complementary: MOM stops the swap, Broyden stops the slosh.
+- Open sub-question (de-prioritised): WHICH diffuse virtual dives?  A single Na-3s-like state, not an
+  over-complete cluster — ties loosely to §1 but MOM makes it a spectator, so §1 stays a curiosity here.
+3. **0c (Pulay/Broyden mixer face)** on the conditioned map, now the LEAD remaining item (kills the residual
+   iter-19 mixing spike + accelerates the tail); its `MixSignals` trust-region signal (∫ρ_grid − Tr(DS))
+   stays — now purely a precision/conditioning health meter.  Also probe: the ionic SEED's 1.09-e
+   precision-floor loss (may already be gone with SR2's conditioning).
 
 ## 0c. PULAY/BROYDEN ρ̃-MIXING behind the DIP mixer face (`tDensityMixer`) — user design, 2026-07-16
 Mixing is today hardwired inside `tSCFIterator::Iterate` (the `KerkerG0>0 ? KerkerUpdate(relax) :

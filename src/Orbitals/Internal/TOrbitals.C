@@ -27,6 +27,7 @@ public:
 
 
     virtual ds_t      TakeElectrons      (double ne      )      ;
+    virtual ds_t      TakeElectrons      (double ne, const rvec_t& priority);
     virtual size_t    GetNumOrbitals     (               ) const;
     virtual size_t    GetNumOccOrbitals  (               ) const;
     virtual double    GetEigenValueChange(const Orbitals&) const;
@@ -46,6 +47,7 @@ public:
 
 private:
     TOrbitalsImp(const TOrbitalsImp&);
+    ds_t BuildDensity(double ne);   //!< build D/D' from the occupied orbitals (shared by both TakeElectrons)
 
     const tobs_t<T>*  itsBasisSet;
     std::vector<std::unique_ptr<Orbital>> itsOrbitals;

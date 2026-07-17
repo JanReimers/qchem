@@ -3,6 +3,9 @@ module;
 #include <cassert>
 #include <iostream>
 #include <memory>
+#include <vector>
+#include <numeric>
+#include <algorithm>
 module qchem.Orbitals.Internal.OrbitalsImp;
 import qchem.Orbitals.Internal.OrbitalImp;
 import qchem.ChargeDensity.Factory;
@@ -95,9 +98,30 @@ template <class T> typename TOrbitalsImp<T>::ds_t TOrbitalsImp<T>::TakeElectrons
         ne=o->TakeElectrons(ne);
         if (ne<=0.0) break;
     }
-    //
-    //  Now the orbitals are accupied we can build the density matrix.
-    //
+    return BuildDensity(ne);
+}
+
+// MOM: occupy the highest-\a priority (max overlap onto the reference) orbitals first, rather than the
+// lowest energy -- the within-irrep occupied-subspace continuity that stops a diving diffuse virtual from
+// being aufbau-captured (doc/GPWPlan §0b″).  Stable order: ties keep the stored (energy) order.
+template <class T> typename TOrbitalsImp<T>::ds_t TOrbitalsImp<T>::TakeElectrons(double ne, const rvec_t& priority)
+{
+    assert(priority.size()==itsOrbitals.size());
+    std::vector<size_t> order(itsOrbitals.size());
+    std::iota(order.begin(),order.end(),0);
+    std::stable_sort(order.begin(),order.end(),[&](size_t a,size_t b){return priority[a]>priority[b];});
+    for (size_t idx:order)
+    {
+        ne=itsOrbitals[idx]->TakeElectrons(ne);
+        if (ne<=0.0) break;
+    }
+    return BuildDensity(ne);
+}
+
+// Build D (and the orthonormal-basis D') from the currently-occupied orbitals; shared by both
+// TakeElectrons paths (energy-order and MOM-order).  \a ne = leftover electrons, forwarded to the caller.
+template <class T> typename TOrbitalsImp<T>::ds_t TOrbitalsImp<T>::BuildDensity(double ne)
+{
     itsD=blazem::zeroH<T>(itsD.rows());
     hmat_t<T> DPrime(blazem::zeroH<T>(itsD.rows()));
     for (auto o:Iterate<TOrbital<T>>()) o->AddDensityMatrix(itsD,DPrime);   // was hardcoded TOrbital<double>

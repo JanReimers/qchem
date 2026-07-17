@@ -65,6 +65,7 @@ public:
     hmat_t<T>                itsDPrime; // DPrime=C'*Cd',  U*D*Ud, D=C*Cd (outer product)
     hmat_t<T>                itsF;
     mat_t<T>                 itsRefOccCPrime; // MOM reference: occupied C' columns (nbasis x nocc); empty=none
+    int                      itsFillCount=0;  // # of FillOrbitals calls (≈ SCF iteration) -- IMOM capture delay
 };
 
 using IrrepWF  = tIrrepWF<double>;

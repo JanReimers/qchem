@@ -9,6 +9,8 @@ module qchem.WaveFunction.Internal.IrrepWF;
 import qchem.SCFAccelerator;
 import qchem.Orbitals.Factory;
 import qchem.Blaze;
+import qchem.WaveFunction;   // qchem::WaveFunction::EnableMOM() -- the within-irrep MOM toggle (acyclic: the
+                            // public face does not depend on this Internal impl)
 
 namespace qchem::WaveFunction
 {
@@ -82,7 +84,16 @@ template <class T> const EnergyLevels& tIrrepWF<T>::FillOrbitals(double ne)
     // Empty first: the aufbau occupation can shift between iterations, and TakeElectrons only
     // overwrites the orbitals it fills (leaving stale occupation on the rest).
     for (auto o:itsOrbitals->Iterate()) o->Empty();
-    std::tie(ne,itsDPrime)=itsOrbitals->TakeElectrons(ne); // occupy lowest-first, build density
+    // WITHIN-IRREP MOM (doc/GPWPlan §0b″): when enabled and a reference occupied subspace exists (from a
+    // previous iteration), occupy by MAX OVERLAP onto it instead of lowest-energy -- so a diving diffuse
+    // virtual cannot be aufbau-captured (the NaF Γ occupation swap).  The crystal fills each k-block via
+    // THIS path (fixed per-irrep EC), so this is where its MOM lives (the molecular cross-irrep aufbau is
+    // in tCompositeWF::FillOrbitalsAufbau).  Reference is (re)captured at the end for the next iteration.
+    // Delayed IMOM (see qchem::WaveFunction::MOMStartIter): use MOM only AFTER a reference has been locked
+    // (past the settling delay); before that, plain aufbau so the SCF descends to the physical fixed point.
+    const bool useMOM = qchem::WaveFunction::EnableMOM() && itsRefOccCPrime.columns()>0;
+    if (useMOM) std::tie(ne,itsDPrime)=itsOrbitals->TakeElectrons(ne, MOMScores());
+    else        std::tie(ne,itsDPrime)=itsOrbitals->TakeElectrons(ne);   // occupy lowest-first, build density
     assert(ne==0.0); //enough orbitals to take all electrons; if not the basis set is too small.
 
     // List of energy levels.  Degenerate levels should get merged.
@@ -90,6 +101,15 @@ template <class T> const EnergyLevels& tIrrepWF<T>::FillOrbitals(double ne)
     for (auto o:itsOrbitals->Iterate())
         itsELevels.insert(qchem::Orbitals::EnergyLevel(o));
 
+    // IMOM (Initial MOM): capture the reference ONCE, after the settling delay, from the (now physical)
+    // occupied subspace, then hold it FIXED for the rest of the run.  Capturing too early (the raw seed,
+    // mid-transient) locks onto garbage (measured: +5 Ha states occupied, −112 Ha empty); running MOM
+    // (re-capturing every iteration) DRIFTS and a spike corrupts the reference.  A fixed, physical
+    // reference keeps the diving diffuse virtual (low overlap with {F 2s, F 2p}) OUT of the occupied set.
+    ++itsFillCount;
+    if (qchem::WaveFunction::EnableMOM() && itsRefOccCPrime.columns()==0
+        && itsFillCount>=qchem::WaveFunction::MOMStartIter())
+        CaptureMOMReference();
     return itsELevels;
 }
 

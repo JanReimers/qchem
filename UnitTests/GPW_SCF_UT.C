@@ -463,9 +463,17 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
                                                     // per iteration -- the near-degenerate-frontier (giant-response)
                                                     // hypothesis predicts the gap collapsing near the fixed point,
                                                     // with the spurious level diving across the Fermi edge before each spike.
+    // MOM FIX (doc/GPWPlan 0b'' -- the diagnosed cure): pin the physical {F 2s, F 2p} occupied subspace so
+    // aufbau cannot capture the diving diffuse virtual (the measured occupation swap F 2p 6->4 e).  Activates
+    // from iteration 0's seed reference (NaF uses the Null accelerator, which never "engages").  NAF_MOM=0 to
+    // A/B the instability with MOM off.
+    auto envMOM=[&]{ const char* d=std::getenv("NAF_MOM"); return !d || std::atof(d)!=0.0; };  // default ON
+    qchem::WaveFunction::EnableMOM()=envMOM();
+    qchem::WaveFunction::MOMStartIter()=(int)envd("NAF_MOM_START", 10);  // IMOM reference-capture delay
     scf.Iterate(par);
     qchem::Hamiltonian::ReportGridCharge()=false;  // process-wide flag -- reset so it does not leak to other tests
     qchem::SCFIterator::ReportBandGap()=false;     // idem
+    qchem::WaveFunction::EnableMOM()=false;        // idem -- MUST reset (molecular tests rely on plain aufbau)
 
     auto* cd=scf.GetWaveFunction()->GetChargeDensity(); double charge=cd->GetTotalCharge(); delete cd;
     auto E=scf.GetEnergy();
@@ -509,6 +517,23 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     //     of the F 2p manifold (iters 14 and 41).  The smooth dive (the "growing mode") TERMINATES in the
     //     aufbau swap; they are two phases of ONE event.  MOM (pin the {F 2s, F 2p} occupied subspace) is
     //     therefore the direct fix; it should be clean since it is an isolated single-state swap.
+    //
+    // MOM FIX WIRED UP + VALIDATED (2026-07-17, WaveFunction::EnableMOM; default ON here).  DELAYED IMOM
+    // (qchem::WaveFunction::MOMStartIter=10): run plain aufbau for ~10 fills so the SCF descends to the
+    // physical fixed point, then CAPTURE the {F 2s, F 2p} occupied subspace ONCE and hold it FIXED.  Two
+    // wrong variants were measured + rejected first: RUNNING MOM (re-capture every iter) DRIFTS (a spike
+    // corrupts the reference -> locks a +0.74 Ha level occupied while a -50 Ha level is empty -> wrong
+    // -24.4); IMOM-from-iter-0 anchors the raw seed (mid-transient) -> catastrophe (+5 Ha occupied,
+    // -112 Ha empty).  Delayed IMOM WORKS: the occupation swaps VANISH (partial-occ count 0), the diving
+    // virtual is banished (-45 Ha, UNOCCUPIED), and the SCF converges SMOOTHLY+MONOTONICALLY to the
+    // physical fixed point -27.76 (Ecut=40, dRho 6e-4 at 150 iters; gap 0.50 Ha).  vs CP2K oracle
+    // -27.93128 at 320 Ry -- the ~0.17 Ha is the Ecut=40 grid (the production grid + 0c mixing are the
+    // remaining levers).  ONE residual spike survives (iter 19) but it is NOT an occupation swap
+    // (partial-occ 0) -- a density-MIXING excursion (the charge-transfer slosh) => the 0c Pulay/Broyden
+    // item, not MOM's job.  NAF_MOM=0 A/Bs it off (restores the eternal spikes); NAF_MOM_START tunes.
+    EXPECT_NEAR(E.GetTotalEnergy(), -27.76, 0.1);   // MOM now CONVERGES the map: a real did-E-move anchor
+                                                    // (loose: slow linear-Kerker tail + the iter-19 mixing
+                                                    // transient; 0c Pulay will tighten it)
 }
 
 // VALIDATION (2026-07-13): can we drop the SR-basis hand-tuning and use the FULL valence_lowq basis, relying on
