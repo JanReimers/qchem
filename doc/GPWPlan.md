@@ -73,6 +73,13 @@ runtime close-out incl. the CP2K NaF oracle + convergence findings).
   Na p 0.05 triplet; λ_min→1.57e-3, NaF 6× faster) — but the departure spikes SURVIVE: α-independent,
   DIIS-resistant, smooth growing mode from a clean fixed point ≈−27.73 → hypothesis = near-degenerate
   HOMO/LUMO at Γ (giant response).  The OPEN problem; full records below.
+- **NaF Γ-instability MECHANISM MEASURED — band-gap instrument** (2026-07-17): new `ReportBandGap` flag
+  appends ε_HOMO/ε_LUMO/gap to the verbose SCF line.  Verdict: the fixed-point gap is HEALTHY (~0.35 Ha,
+  wide-gap insulator) so the static-degeneracy hypothesis is FALSE; the real mechanism is a giant-response
+  DIFFUSE VIRTUAL whose ε_LUMO dives 0.2–0.5 Ha during the charge-transfer slosh, transiently crossing the
+  occupied manifold (gap → 1e-4) → aufbau occupies it → +5–7e3 Ha spike (period ~27).  Fix SELECTED: 0c
+  Pulay/Broyden (damp the slosh — the lead, matches CP2K's Broyden) + MOM (occupied-subspace continuity),
+  NOT Fermi smearing.  Records in TODO §0b″.
 
 ## Naming (`5f609d2f`) — remember these
 - `Overlap(f)` = ANY 1-electron `⟨i|f|j⟩` (f may be a potential); `Repulsion` = the 2-electron `1/r12`.
@@ -404,26 +411,63 @@ was root-caused to the Rcut=2a ENUMERATION-SCHEME MISMATCH and the mismatch dele
 radius exists anywhere — "there is no cut"); the SR2 basis conditions the complete-enumeration overlap
 (λ_min=1.6e-3, NaF 6× faster); and the honest map demonstrably has a clean fixed point (Ecut=40:
 ≈−27.73 SR2 / ≈−28.00 SR) that the SCF repeatedly FINDS.  **The one open §0 problem is the Γ-instability
-below — its classification is done, the fix selection awaits one measurement (the band gap).**  Then 0c
+below — its MECHANISM is now MEASURED (2026-07-17 band-gap instrument): NOT a static small gap (fixed-point
+gap ~0.35 Ha, wide-gap insulator) but a giant-response diffuse virtual whose ε_LUMO transiently dives and
+crosses the occupied manifold → aufbau spike.  Fix selected → 0c Pulay/Broyden (the lead) + MOM.**  Then 0c
 (the mixer face), the runtime follow-ups (0d), and the standing queue (1)–(5).
 
-## 0b″. NaF Γ-INSTABILITY — the open problem (classification DONE; fix selection pending the gap measurement)
+## 0b″. NaF Γ-INSTABILITY — the open problem (MECHANISM NOW MEASURED; fix selected → 0c/MOM)
 **The classified facts (records in DONE §0b′): the honest, conditioned map descends smoothly to its fixed
 point and departs via a GROWING mode — α-INDEPENDENT (10/10/13 spikes at α=0.025/0.0125/0.00625, period
 ~27, smooth climb-away over ~5 iters), NOT conditioning (SR2 λ_min=1.6e-3 shows the same spikes as SR
-1.03e-6), NOT DIIS-fixable (`NAF_DIIS=1`: 51 excursions, `En>EMax` flapping).  Surviving hypothesis: a
-NEAR-DEGENERATE HOMO/LUMO at Γ → giant response χ ~ 1/(ε_v−ε_c) — which also explains CP2K's eternal
-density limit-cycle (RMS 0.03–0.12 forever) on this same system.  Γ-only NaF in this minimal ionic basis
-SHOULD be wide-gap — if the measured gap is tiny, that itself is the finding (basis? PP? Γ-only folding?).**
-**The remaining work, in order:**
-1. **BAND-GAP INSTRUMENT (the next session's opener)**: print the orbital/band energies near the fixed
-   point (`Orbital::GetEigenEnergy` exists; run the recipe to NMAX≈35 and dump the spectrum, or add
-   ε_HOMO/ε_LUMO to the SCF verbose line).  The gap measurement selects the fix:
-   - gap ≈ 0 → Fermi SMEARING (fractional occupation) or MORE k-POINTS (Γ-only folding artifact) — the
-     physical answers; **MOM (already coded, inactive — `tIrrepWF::MOMScores`/`CaptureMOMReference`,
-     user pointer) enforces occupied-subspace continuity** through the crossing;
-   - gap finite but small → 0c Pulay/Broyden on ρ̃ (the response is stiff but the state is clean).
-2. **0c (Pulay/Broyden mixer face)** on the conditioned map; its `MixSignals` trust-region signal
+1.03e-6), NOT DIIS-fixable (`NAF_DIIS=1`: 51 excursions, `En>EMax` flapping).**
+
+**1. BAND-GAP INSTRUMENT — DONE (2026-07-17, `ReportBandGap` flag on the verbose SCF line; extracts
+ε_HOMO/ε_LUMO/gap from `wf->GetEnergyLevels()`, flags a partially-occupied frontier).  The hypothesis is
+REFINED, not simply confirmed — the mechanism is now directly visualized (Ecut=40/α=0.025, `GPW_SCF_UT`):**
+- **The FIXED-POINT gap is HEALTHY: ε_LUMO−ε_HOMO ≈ 0.33–0.37 Ha (~9–10 eV).**  NaF/Γ in this ionic basis
+  IS a wide-gap insulator at convergence (the plateaus iters 30–37, 55–66 sit at gap ≈ 0.35).  So the
+  *static* near-degenerate-HOMO/LUMO version of the hypothesis is **FALSE**.
+- **Each spike is preceded ONE iteration earlier by ε_LUMO DIVING 0.2–0.5 Ha** — a diffuse virtual with a
+  GIANT RESPONSE to the low-G charge-transfer slosh.  The gap collapses (iter 12 → 2.8e-2, ε_LUMO crashing
+  +0.167 → −0.077; iter 68 → 1.2e-4 with ε_H/ε_L DEGENERATE) as the virtual crosses the occupied manifold;
+  then AUFBAU fractionally occupies it (`[partial-occ HOMO]` fires exactly on the spike iters 14, 41) → a
+  ~1/√λ diffuse vector enters D → E=+5e3…+7e3 Ha, [F,D] 0.09 → 130.  Deterministic period ~27 (spikes
+  14/41/68 in one run) — matches the classified fingerprint exactly.
+- **→ mechanism = a giant-response DIFFUSE VIRTUAL causing a periodic aufbau LEVEL-CROSSING, NOT a small
+  static gap.**  (The "χ ~ 1/(ε_v−ε_c)" framing was close but the small denominator is TRANSIENT — created
+  by the slosh, not intrinsic; the transition density onto the diffuse virtual is what makes the response
+  giant.)  Also explains CP2K's eternal density limit-cycle (RMS 0.03–0.12) on this same system.
+- **FRONTIER-WINDOW refinement (2-occ/4-virt window per iteration) — two sharper facts:**
+  - **it is ONE ISOLATED hyper-responsive virtual, not a wide-band cluster.**  At the dive (iter 11→12)
+    the LUMO crashes +0.167 → −0.077 (0.24 Ha in ONE step) while its virtual NEIGHBOURS (+0.42, +0.79)
+    barely move, and at the plateau the LUMO sits ~0.25 Ha clear of the next virtual.  So the giant
+    response is a *single* diffuse (Na-3s-like) conduction state that overlaps the charge-transfer region
+    — NOT an over-complete diffuse-band cluster.  This argues **3b (physical-but-responsive), not 3a
+    (basis ghost)** — and de-prioritises the §1 rank-reduction angle for this instability.
+  - **the spike IS an OCCUPATION SWAP — this CORRECTS the §0b′ "growing mode, not a swap" note.**  At each
+    spike the F 2p level drops from (6.0) to (4.0) electrons: the diving virtual captures 2 e out of the
+    F 2p manifold (iters 14, 41).  The smooth dive (the "growing mode") TERMINATES in the aufbau swap —
+    they are two phases of ONE event, not alternatives.  → **MOM (pin the {F 2s, F 2p} occupied subspace)
+    is the direct fix**, and should be clean because it is an isolated single-state swap.
+
+**2. FIX SELECTED by the measurement (the whole point of the instrument):**
+- **NOT Fermi smearing / not the "gap≈0" branch** — the fixed-point gap is large, so there is no static
+  degeneracy to smear; smearing would leave a residual fractional-occupation error at a wide-gap insulator.
+- **MOM is now the LEAD fix** (promoted by the frontier finding): the confirmed mechanism is a clean,
+  isolated, single-state OCCUPATION SWAP (F 2p 6 e → 4 e), which is exactly what MOM prevents — pin the
+  {F 2s, F 2p} occupied subspace so aufbau never captures the diving diffuse virtual (already coded,
+  inactive: `tIrrepWF::MOMScores`/`CaptureMOMReference`; seed the reference from the ionic seed's occupied
+  set).  Cheapest to activate and directly targets the measured event — try it FIRST.
+- **0c Pulay/Broyden ρ̃-mixing is the CAUSE-side cure** (and the general infrastructure needed anyway) —
+  damp the charge-transfer slosh that drives the dive, so the virtual never reaches the Fermi edge.  The
+  state is CLEAN (healthy fixed-point gap), the regime where quasi-Newton mixing converges; matches CP2K
+  converging THIS map with Broyden.  Do after MOM (or together — MOM stops the swap, Broyden stops the
+  slosh; they are complementary, not redundant).
+- Open sub-question surfaced by the finding: WHICH diffuse virtual has the giant response?  It may be an
+  over-complete diffuse Gaussian still in SR2 → ties to **§1 (DROP SR / rank-reduction)**; if MOM+0c
+  converge cleanly this can stay a curiosity.
+3. **0c (Pulay/Broyden mixer face)** on the conditioned map; its `MixSignals` trust-region signal
    (∫ρ_grid − Tr(DS)) stays — now purely a precision/conditioning health meter.  Also probe: the ionic
    SEED's 1.09-e precision-floor loss (may already be gone with SR2's conditioning).
 

@@ -459,8 +459,13 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     par.MinFD=1e30; par.StartingRelaxRo=tuneAlpha; par.MergeTol=1e-4; par.Verbose=true;
     par.KerkerG0=tuneG0;   // Kerker screening wavevector (a.u.^-1): damp the low-G charge-transfer slosh
     qchem::Hamiltonian::ReportGridCharge()=true;   // F's tight 40-a.u. exponent: watch integral rho_grid vs Tr(DS)
+    qchem::SCFIterator::ReportBandGap()=true;       // BAND-GAP INSTRUMENT (doc/GPWPlan 0b''): watch eps_HOMO/eps_LUMO/gap
+                                                    // per iteration -- the near-degenerate-frontier (giant-response)
+                                                    // hypothesis predicts the gap collapsing near the fixed point,
+                                                    // with the spurious level diving across the Fermi edge before each spike.
     scf.Iterate(par);
     qchem::Hamiltonian::ReportGridCharge()=false;  // process-wide flag -- reset so it does not leak to other tests
+    qchem::SCFIterator::ReportBandGap()=false;     // idem
 
     auto* cd=scf.GetWaveFunction()->GetChargeDensity(); double charge=cd->GetTotalCharge(); delete cd;
     auto E=scf.GetEnergy();
@@ -477,9 +482,33 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     //   - NOT plain linear-mixing gain: alpha-INDEPENDENT (10/10/13 spikes at 0.025/0.0125/0.00625);
     //   - NOT fixed by DIIS (NAF_DIIS=1): 51 excursions, En>EMax flapping;
     //   - the departure is a SMOOTH climb over ~5 iters (a growing mode, not an occupation swap).
-    // Surviving hypothesis: near-degenerate HOMO/LUMO at Gamma -> giant response chi ~ 1/gap (also
-    // explains CP2K's eternal density limit-cycle on this system).  NEXT: the band-gap instrument;
-    // then smearing / k-points / MOM (coded, inactive: tIrrepWF::MOMScores) / 0c-Pulay per the gap.
+    // BAND-GAP INSTRUMENT VERDICT (2026-07-17, ReportBandGap; Ecut=40/alpha=0.025).  The static
+    // near-degeneracy version of the hypothesis is FALSE and REFINED to a TRANSIENT giant-response mode:
+    //   - the FIXED-POINT gap is HEALTHY, eps_LUMO-eps_HOMO ~ 0.33-0.37 Ha (~9-10 eV): NaF/Gamma in
+    //     this ionic basis IS a wide-gap insulator at convergence (iters 30-37, 55-66 plateau at gap~0.35);
+    //   - each spike is preceded ONE iteration earlier by eps_LUMO DIVING ~0.2-0.5 Ha (a diffuse virtual
+    //     with a giant response to the low-G charge-transfer slosh): gap collapses (iter 12 -> 2.8e-2 with
+    //     eps_LUMO crashing +0.167 -> -0.077; iter 68 -> 1.2e-4, eps_H/eps_L DEGENERATE) as the virtual
+    //     crosses the occupied manifold, then AUFBAU fractionally occupies it ([partial-occ HOMO] fires
+    //     exactly on the spike iters 14, 41) -> a ~1/sqrt(lambda) diffuse vector enters D -> E=+5e3..+7e3,
+    //     [F,D] 0.09 -> 130.  Deterministic period ~27 (spikes 14/41/68 in one run).
+    // => the mechanism is a giant-response DIFFUSE VIRTUAL causing a periodic aufbau LEVEL-CROSSING, not a
+    //    small static gap.  Fix selection (doc/GPWPlan 0b''): NOT Fermi smearing (the fixed-point gap is
+    //    large) -- the direct guard is MOM (occupied-subspace continuity through the crossing; coded,
+    //    inactive: tIrrepWF::MOMScores/CaptureMOMReference), and the CAUSE-side cure is 0c Pulay/Broyden
+    //    rho-mixing to damp the slosh that drives the dive (matches CP2K converging THIS map with Broyden).
+    //
+    // FRONTIER-WINDOW REFINEMENT (same instrument, 2-occ/4-virt window per iteration).  Two sharper facts:
+    //   - it is ONE ISOLATED hyper-responsive virtual, NOT a wide-band cluster: at the dive (iter 11->12)
+    //     the LUMO crashes +0.167 -> -0.077 (0.24 Ha in ONE step) while its virtual NEIGHBOURS (+0.42,
+    //     +0.79) barely move, and the LUMO sits ~0.25 Ha clear of the next virtual at the plateau -- so
+    //     the giant response is a single diffuse (Na-3s-like) conduction state overlapping the charge-
+    //     transfer region, NOT an over-complete diffuse-band cluster (argues 3b physical, not 3a ghost);
+    //   - the spike IS an OCCUPATION SWAP (this CORRECTS the 0b' "growing mode, not a swap" note): at each
+    //     spike the F 2p level drops from (6.0) to (4.0) electrons -- the diving virtual captures 2 e out
+    //     of the F 2p manifold (iters 14 and 41).  The smooth dive (the "growing mode") TERMINATES in the
+    //     aufbau swap; they are two phases of ONE event.  MOM (pin the {F 2s, F 2p} occupied subspace) is
+    //     therefore the direct fix; it should be clean since it is an isolated single-state swap.
 }
 
 // VALIDATION (2026-07-13): can we drop the SR-basis hand-tuning and use the FULL valence_lowq basis, relying on

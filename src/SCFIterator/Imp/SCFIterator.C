@@ -6,6 +6,9 @@ module;
 #include <cassert>
 #include <vector>
 #include <string>
+#include <sstream>
+#include <algorithm>
+#include <utility>
 #include <cctype>
 #include <memory>
 #include <type_traits>
@@ -41,6 +44,64 @@ using std::ios;
 
 namespace qchem::SCFIterator
 {
+
+// The band-gap instrument (doc/GPWPlan §0b″).  Default OFF; the NaF Γ test flips it around Iterate.
+bool& ReportBandGap() { static bool on = false; return on; }
+
+// Frontier spectrum of the current orbitals.  The energy levels are energy-ordered (multimap key), so
+// ε_HOMO is the highest-energy level still carrying occupation and ε_LUMO the first empty level above it.
+// \c metallic flags a partially-occupied frontier level (occ not near a full shell) -- a genuine
+// (near-)degenerate crossing where "the gap" is ill-defined; that is itself the finding for NaF at Γ.
+struct GapInfo { double eHomo=0, eLumo=0, gap=0; bool haveHomo=false, haveLumo=false, metallic=false; };
+
+template <class T> static GapInfo HomoLumo(const qchem::WaveFunction::tWaveFunction<T>* wf)
+{
+    const double occTol=1e-6;
+    GapInfo g;
+    auto els=wf->GetEnergyLevels();
+    // First pass: ε_HOMO = last (highest) level with occ>occTol; note any partial occupation on it.
+    for (auto it=els.begin(); it!=els.end(); ++it)
+    {
+        const auto& lvl=it->second;
+        if (lvl.occ>occTol) { g.eHomo=lvl.e; g.haveHomo=true;
+                              g.metallic = lvl.occ < (double)lvl.degen - occTol; }   // shell not full => crossing
+    }
+    // Second pass: ε_LUMO = first empty level strictly above ε_HOMO (fall through to the very first empty
+    // level if there is no occupation at all, e.g. a bare seed).
+    for (auto it=els.begin(); it!=els.end(); ++it)
+    {
+        const auto& lvl=it->second;
+        if (lvl.occ<=occTol && (!g.haveHomo || lvl.e>g.eHomo))
+            { g.eLumo=lvl.e; g.haveLumo=true; break; }
+    }
+    if (g.haveHomo && g.haveLumo) g.gap=g.eLumo-g.eHomo;
+    return g;
+}
+
+// Frontier-window spectrum: the \a nOcc highest occupied and \a nVirt lowest virtual levels around the
+// Fermi edge, "ε(occ)" each, with a "|" marking the gap.  Discriminates the NaF Γ mechanism (doc/GPWPlan
+// §0b″): a CLUSTER of near-degenerate low virtuals is the wide-diffuse-band signature (a diffuse Gaussian
+// has large inter-cell overlap → a wide band whose Γ minimum sits low and responds giantly to the slosh),
+// whereas an ISOLATED LUMO well above the pack is a clean conduction state.  Watching the window per
+// iteration shows the diving virtual pull DOWN out of (or through) the pack one step before each spike.
+template <class T> static std::string FrontierWindow(const qchem::WaveFunction::tWaveFunction<T>* wf,
+                                                      int nOcc, int nVirt)
+{
+    const double occTol=1e-6;
+    std::vector<std::pair<double,double>> occ, virt;   // {energy, occupation}, energy-ordered
+    auto els=wf->GetEnergyLevels();
+    for (auto it=els.begin(); it!=els.end(); ++it)
+        (it->second.occ>occTol ? occ : virt).push_back({it->second.e, it->second.occ});
+    std::ostringstream os;
+    os.setf(std::ios::fixed,std::ios::floatfield);
+    int oFrom=std::max(0,(int)occ.size()-nOcc);
+    for (int i=oFrom; i<(int)occ.size(); ++i)
+        os << setw(9) << setprecision(4) << occ[i].first << "(" << setprecision(1) << occ[i].second << ") ";
+    os << "| ";
+    for (int i=0; i<std::min(nVirt,(int)virt.size()); ++i)
+        os << setw(9) << setprecision(4) << virt[i].first << "(" << setprecision(1) << virt[i].second << ") ";
+    return os.str();
+}
 
 // Compact textbook electron configuration of the current orbitals, e.g. (1a₁)²(2a₁)²(1b₂)²...:
 // every occupied level (energy-ordered) as (n + Mulliken-label)^occupation, the label lowercased
@@ -388,6 +449,18 @@ template <class T> void tSCFIterator<T>::DisplayEnergies(int i, const EnergyBrea
     itsAccelerator->ShowConvergence(cout);
     cout << setw(4) << std::fixed << setw(4) << setprecision(2) << relax << "  ";
     // cout << ConfigString(itsWaveFunction);
+    if (ReportBandGap())
+    {
+        GapInfo g=HomoLumo(itsWaveFunction);
+        cout << " εH=";
+        if (g.haveHomo) cout << std::fixed << setw(10) << setprecision(5) << g.eHomo; else cout << "     ----";
+        cout << " εL=";
+        if (g.haveLumo) cout << std::fixed << setw(10) << setprecision(5) << g.eLumo; else cout << "     ----";
+        cout << " gap=";
+        if (g.haveHomo && g.haveLumo) cout << std::scientific << setw(9) << setprecision(2) << g.gap; else cout << "     ----";
+        if (g.metallic) cout << " [partial-occ HOMO]";
+        cout << endl << "        frontier ε(occ): " << FrontierWindow(itsWaveFunction, 2, 4);
+    }
     cout << endl;
 }
 

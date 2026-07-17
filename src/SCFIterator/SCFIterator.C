@@ -19,6 +19,15 @@ using qchem::ChargeDensity::tChargeDensity;
 export namespace qchem::SCFIterator
 {
 
+//! Process-wide diagnostic toggle (default OFF), mirroring \c qchem::ReportOverlapConditioning and
+//! \c qchem::Hamiltonian::ReportGridCharge.  When true, the verbose per-iteration SCF line appends the
+//! frontier spectrum -- ε_HOMO, ε_LUMO and the gap ε_LUMO−ε_HOMO (Ha) -- from the current orbital energy
+//! levels.  The band-gap instrument for the NaF Γ-instability (doc/GPWPlan §0b″): a near-degenerate
+//! HOMO/LUMO (gap → 0) is the giant-response hypothesis; watching the gap per iteration lets the spurious
+//! level be seen diving across the Fermi edge one step before each energy spike.  Flip it around
+//! \c Iterate and reset it (it is a static, so it leaks between tests otherwise).
+bool& ReportBandGap();
+
 //! Per-iteration progress, handed to an Observer each SCF step so a client (a GUI,
 //! a logger) can watch convergence live without owning the loop.  All real-valued
 //! (energies/residuals are real for both the rX and cX paths).
