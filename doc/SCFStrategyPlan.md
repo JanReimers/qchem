@@ -183,10 +183,16 @@ no occupation-swap pathology). Caveats: occupied-only, no eigenspectrum without 
        (`SetEnergy`/`GetError`/`ShowConvergence`/`WantsLineSearch`) into their own interface separate from the
        orbital-face on `tSCFAccelerator`.  The polymorphic dispatch (the valuable part) is done; the interface
        tidy can follow when it earns its keep.
-2. **Shared extrapolator + density Pulay.** Extract the DIIS math out of `cSCFAcceleratorDIIS` into a
-   paper-faithful `DIIS_Extrapolator`; make `cSCFAcceleratorDIIS` a thin adapter; add `PulayMixer` (density-DIIS
-   with Kerker preconditioner) as a `tDensityMixer` concrete. **Gate: NaF Ecut=40 kills the residual iter-19
-   mixing spike + accelerates the tail vs the −27.93 oracle.**
+2. **Shared extrapolator + density Pulay. DONE** (`c41f06f9`).  New module `qchem.Math.DIIS` (in qcMath, below
+   both consumers): the paper-faithful bordered-solve `Bordered`/`MinSV`/`Coefficients` (Pulay 1980 Eq (6),
+   role-neutral names).  New `PulayMixer` (`tDensityMixer<dcmplx>`) keeps a (ρ̃_in, ρ̃_out) history, solves the
+   DIIS system over the residuals for c, forms ρ̃_in*/ρ̃_out* = Σcᵢ·(…), and applies `FourierMixCD::KerkerMix` to
+   THAT pair (Kerker-preconditioned Pulay).  **PRIMING (`SCFParams::PulayStart`) is load-bearing**: prime with
+   plain Kerker until the residual is in the linear-response regime, THEN engage Pulay (immediate Pulay
+   oscillates — the density-side ladder hand-off).  **RESULT: NaF Ecut=40 (MOM + Pulay depth=6/start=35)
+   converges in 63 iters vs ~196 for Kerker (~3×), same −27.7559464102; 198/198 green (PulayDepth defaults 0).**
+   - *Deferred:* migrate `cSCFAcceleratorDIIS` to call `qchem.Math.DIIS` too (bit-identical Fock-DIIS refactor;
+     completes the "one engine serves both streams" unification).  It keeps its own inline `SolveC`/`BuildB` for now.
 3. **Broyden.** `Broyden_Extrapolator` (Johnson) sibling; density-face `BroydenMixer` adapter. Compare on NaF.
 4. **Occupation seam formalisation + Fermi smearing** (§5): μ-solver + free-energy gate; keep MOM/aufbau as
    siblings. Later — needed for metals and the OT+smearing path.
