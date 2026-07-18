@@ -16,6 +16,8 @@
 #include <nlohmann/json.hpp>
 
 import qchem.AtomCalculation;             // AtomCalculation, AtomCalcOptions, AtomType, BasisSetAccuracy, Model, Pol
+import qchem.Calculation;                 // Calculation, CalcOptions, AcceleratorOptions (the MOLECULAR facade)
+import qchem.Structure;                    // Molecule, Atom (build a molecular geometry)
 import qchem.Hamiltonian.Factory;         // XCFunctional (the exchange-functional selector)
 import qchem.PeriodicTable;               // thePeriodicTable(): symbol / per-Z Slater alpha
 import qchem.SCFIterator;                 // SCFParams
@@ -122,6 +124,21 @@ static void DumpRadialDensity(const ScalarFunction<double>& cd, int Z, int Nelec
          << ", charge=" << std::setprecision(6) << charge << " vs Nelec=" << Nelec << ")" << endl;
 }
 
+// A few built-in molecules at experimental geometry (bohr).  Enough to flex the SCF framework on real
+// molecular cases (open-shell O2, closed-shell N2/CO/H2/H2O) with the same CLI + knobs as the atomic path.
+static Molecule MakeMolecule(const string& name)
+{
+    Molecule m;
+    auto at=[&](int Z,double x,double y,double z){ m.Insert(new Atom(Z,0,rvec3_t(x,y,z))); };
+    if      (name=="H2")  { at(1,0,0, 0.7005); at(1,0,0,-0.7005); }                 // 0.741 Å
+    else if (name=="N2")  { at(7,0,0, 1.037 ); at(7,0,0,-1.037 ); }                 // 1.098 Å
+    else if (name=="O2")  { at(8,0,0, 1.141 ); at(8,0,0,-1.141 ); }                 // 1.208 Å (triplet: --mult 3)
+    else if (name=="CO")  { at(6,0,0, 0.0   ); at(8,0,0, 2.132 ); }                 // 1.128 Å
+    else if (name=="H2O") { at(8,0,0,0); at(1,0, 1.431,1.107); at(1,0,-1.431,1.107); }
+    else { cout<<"unknown --mol \""<<name<<"\" (have: H2 N2 O2 CO H2O)"<<endl; }
+    return m;
+}
+
 int main(int argc, char** argv)
 {
     // Pin OpenBLAS to one thread so SCF energies are bit-reproducible run-to-run (OpenBLAS's load-dependent
@@ -132,6 +149,7 @@ int main(int argc, char** argv)
     // ---- defaults ----
     int    Z=2, q=0, maxiter=50;
     string model="HF", pol="U", basis="", acc="Low", accel="DIIS";
+    string molname=""; int mult=0;                        // --mol <name> => MOLECULAR path (facade); --mult 2S+1
     nlohmann::json accj;   // accelerator config (forwarded to AtomCalculation)
     // SCF convergence criteria (-1 => Z-scaled default); raise precision with --minfd/--virial.
     double minro=-1, minde=1e-5, virial=5e-1, minfd=-1, relax=0.5, mergetol=1e-4;
@@ -151,6 +169,8 @@ int main(int argc, char** argv)
         "  \"--flag value\" or \"--flag=value\".\n"
         "\n"
         " System / method:\n"
+        "  --mol <name>       MOLECULE instead of an atom: H2 | N2 | O2 | CO | H2O (facade path)\n"
+        "  --mult <int>       spin multiplicity 2S+1 (molecules; e.g. O2 triplet => --mult 3)\n"
         "  --Z <int>          atomic number                          (default 2)\n"
         "  --q <int>          net charge (electrons = Z - q)          (default 0)\n"
         "  --model <name>     HF | DHF | E1 | DE1 | LDA | Xalpha | PP  (default HF)\n"
@@ -211,6 +231,8 @@ int main(int argc, char** argv)
         };
         if      (a=="-h"||a=="--help") { usage(cout); return 0; }
         else if (a=="--Z")       Z=std::stoi(need(i));
+        else if (a=="--mol")     molname=need(i);
+        else if (a=="--mult")    mult=std::stoi(need(i));
         else if (a=="--q")       q=std::stoi(need(i));
         else if (a=="--model")   model=need(i);
         else if (a=="--pol")     pol=need(i);
@@ -247,7 +269,7 @@ int main(int argc, char** argv)
     bool dirac = (model=="DHF" || model=="DE1");
     bool dft   = (model=="LDA" || model=="DFT" || model=="Xalpha");
     bool ppmodel = (model=="PP"); // local-pseudopotential pseudo-atom (Ham_PP); --valence = valence e- count
-    if (basis.empty()) basis = dirac ? "Slater_RKB" : "Slater";
+    if (basis.empty() && molname.empty()) basis = dirac ? "Slater_RKB" : "Slater";  // atomic default (molecules: dzvp, below)
     accj["type"]=accel;
 
     // ---- string -> enum maps ----
@@ -260,6 +282,38 @@ int main(int argc, char** argv)
     // conditioned, invalid for SCF.)
     std::map<string,BasisSetAccuracy> accs={{"Low",BasisSetAccuracy::Low},{"Medium",BasisSetAccuracy::Medium},
                                {"High",BasisSetAccuracy::High}};
+
+    // SCFParams (built by NAMED fields -- a positional aggregate silently misaligns when a field is inserted,
+    // which had frozen StartingRelaxRo to 1e-7 and MergeTol to 1.0: glacial convergence + m-merged open shells).
+    auto makePar=[&](double mro,double mfd){
+        qchem::SCFParams p;
+        p.NMaxIter=(size_t)maxiter; p.MinΔρ=mro; p.MinΔE=minde; p.MinVirial=virial; p.MinFD=mfd;
+        p.StartingRelaxRo=relax; p.MergeTol=mergetol; p.Verbose=true;
+        p.UseMOM=useMOM; p.MOMStartIter=momStart; p.KerkerG0=kerkerG0; p.PulayDepth=pulayDepth; p.PulayStart=pulayStart;
+        return p;
+    };
+
+    // ---- MOLECULAR path (the facade -- same knobs, per-iteration trace, iters/energy report) ----
+    if (!molname.empty())
+    {
+        const string mbasis = basis.empty() ? "dzvp" : basis;   // molecular basis is a string (dzvp/sto-3g/...)
+        CalcOptions copts; copts.basis=mbasis; copts.multiplicity=mult;
+        if (dft) { copts.model=(model=="Xalpha")?Model::Xalpha:Model::LDA; if(model=="Xalpha") copts.xalpha=alpha>0?alpha:0.7; }
+        else if (models.count(model)) copts.model=models[model];
+        else { cout<<"molecular --model must be HF|LDA|Xalpha"<<endl; return 1; }
+        AcceleratorOptions aopts; aopts.type=accel;
+        if (accj.contains("EMax"))  aopts.eMax =(double)accj["EMax"];
+        if (accj.contains("NProj")) aopts.nProj=(int)accj["NProj"];
+        cout << "scfrun: mol="<<molname<<" model="<<model<<" mult="<<mult<<" basis="<<mbasis<<" accel="<<accel<<endl;
+        Molecule mol = MakeMolecule(molname);
+        Calculation mcalc(mol, copts, aopts);
+        mcalc.Converge(makePar(minro<0?1e-4:minro, minfd<0?1e-5:minfd));
+        cout << "RESULT  E="<<std::setprecision(10)<<mcalc.Energy()
+             << "  iters="<<mcalc.IterationCount()
+             << "  converged="<<(mcalc.IsConverged()?"yes":"no") << endl;
+        return 0;
+    }
+
     // DFT models (LDA/Xalpha) and PP bypass the Model enum (they build the Hamiltonian directly, not Factory(Model,...)).
     if ((!dft && !ppmodel && !models.count(model))||!bases.count(basis)||!accs.count(acc)){cout<<"bad model/basis/acc"<<endl;return 1;}
     if (ppmodel && valence<=0){cout<<"--model PP requires --valence <n> (valence electron count)"<<endl;return 1;}
@@ -289,24 +343,7 @@ int main(int argc, char** argv)
     if (minfd<0) minfd=Z*2e-5;
     // electrons = Z - q normally; for a pseudo-ion, electrons = Zion - q  (charge so that Z-charge = that count).
     const int charge = ppmodel ? Z-(valence-q) : q;
-    // Build SCFParams by NAMED fields (a positional aggregate silently misaligns whenever a field is
-    // inserted -- which had frozen StartingRelaxRo to 1e-7 and MergeTol to 1.0, giving glacial convergence
-    // and a spherically-averaged (m-merged) open-shell energy).
-    qchem::SCFParams par;
-    par.NMaxIter        = (size_t)maxiter;
-    par.MinΔρ           = minro;
-    par.MinΔE           = minde;
-    par.MinVirial       = virial;
-    par.MinFD           = minfd;
-    par.StartingRelaxRo = relax;
-    par.MergeTol        = mergetol;
-    par.Verbose         = true;
-    par.UseMOM          = useMOM;
-    par.MOMStartIter    = momStart;
-    par.KerkerG0        = kerkerG0;
-    par.PulayDepth      = pulayDepth;
-    par.PulayStart      = pulayStart;
-    AtomCalculation calc(Z, charge, opts, par);
+    AtomCalculation calc(Z, charge, opts, makePar(minro, minfd));
 
     // ---- report ----
     double E=calc.Energy();
