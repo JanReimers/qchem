@@ -163,12 +163,15 @@ no occupation-swap pathology). Caveats: occupied-only, no eigenspectrum without 
 
 ## 8. Increment plan (refactor-first, bit-identical oracle)
 
-1. **Extract the seams, behaviour-preserving.** Introduce `tDensityMixer<T>` (qcChargeDensity) with
-   `LinearMixer` (the base — absorbs the adaptive-α state + heuristics; α=1 = passthrough, so **no separate
-   NullMixer**) and `KerkerMixer` (absorbs `KerkerSetup`/`Update`/`itsMixedRho`; a preconditioner decorator
-   over the linear step); split the loop-face signals off `tSCFAccelerator` into their own interface
-   (orbital-face stays). The iterator's mixing branch collapses to `mixer->Mix(...)` / `mixer->FockDensity()`.
-   **Oracle: every existing test byte-for-byte identical** (molecular + GPW).
+1. **Extract the seams, behaviour-preserving.**
+   - **1a — density-face: DONE** (`f4f48431`).  New module `qchem.ChargeDensity.DensityMixer` (qcChargeDensity,
+     no new lib edges) with `tDensityMixer<T>` + `LinearMixer` (adaptive-α; α=1 = passthrough, **no NullMixer**)
+     + `KerkerMixer` (ex-`KerkerSetup`/`Update`) + `MakeDensityMixer<T>`.  The iterator builds it from SCFParams
+     at the top of `Iterate` (like the MOM plumbing) and its fixed-point branch collapses to
+     `Mix`/`FockDensity`; the iterator keeps the density LIFECYCLE (SetWorkingCD/lineage), the mixer owns the
+     policy+state.  **BIT-IDENTICAL: 198/198 (-A_*) + the NaF Kerker trace byte-for-byte.**
+   - **1b — loop-face: TODO.**  Split the loop-face signals (`WantsLineSearch`/`SetEnergy`/`GetError`/
+     `ShowConvergence`) off `tSCFAccelerator` into their own interface (orbital-face stays).  Oracle: bit-identical.
 2. **Shared extrapolator + density Pulay.** Extract the DIIS math out of `cSCFAcceleratorDIIS` into a
    paper-faithful `DIIS_Extrapolator`; make `cSCFAcceleratorDIIS` a thin adapter; add `PulayMixer` (density-DIIS
    with Kerker preconditioner) as a `tDensityMixer` concrete. **Gate: NaF Ecut=40 kills the residual iter-19
