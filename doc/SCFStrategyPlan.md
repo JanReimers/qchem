@@ -36,11 +36,11 @@ dataless-abstract-base / harmless-diamond idiom (`CLAUDE.md`).
 
 | algorithm | Orbital | Occupation | Density | Loop |
 |---|---|---|---|---|
-| plain SCF | null (diagonalise F) | aufbau | null (passthrough) | fixed-point |
+| plain SCF | null (diagonalise F) | aufbau | linear α=1 (passthrough) | fixed-point |
 | linear mix | null | aufbau | linear + adaptive-α | fixed-point |
 | Kerker | null | aufbau | Kerker precond + linear | fixed-point |
 | Pulay / Broyden | null | aufbau | Kerker-precond + **extrapolator(ρ)** | fixed-point |
-| DIIS | **extrapolator(F)** | aufbau | null (or light damp) | fixed-point + [F,D] |
+| DIIS | **extrapolator(F)** | aufbau | linear (α=1, or damp) | fixed-point + [F,D] |
 | GDM / OT | geodesic / tangent min | aufbau (fixed) | — (bypassed) | **direct-min** |
 | MOM | (any) | **max-overlap** | (any) | (any) |
 | smearing | (any) | **Fermi/MP fractional** | (any) | (any) — free-energy gate |
@@ -56,6 +56,13 @@ The nulls are the point: every client depends only on the one narrow seam it use
   sibling of the orbital `Ladder`.
 - **preconditioner decorator** — Kerker is a *preconditioner* (`G²/(G²+G0²)` on the residual), not a peer of
   Pulay: "Kerker-preconditioned Broyden" = Kerker **wrapping** the history method. A decorator, not a hand-off.
+- **the density-face has no `Null` concrete** — passthrough is just `LinearMixer(α=1)`
+  (`ρ_next = ρ_in + 1·(ρ_out−ρ_in) = ρ_out`), and `SCFParams::StartingRelaxRo` already defaults to 1.0, so
+  "no mixing" and "the molecular default" are the *same object*. The whole column then factors as
+  **{preconditioner: identity | Kerker} × {step: linear α | extrapolated}**, with Null = (identity, linear
+  α=1) as the trivial corner, Kerker = (Kerker, linear α), Pulay/Broyden = (·, extrapolated). (The Null
+  *idiom* still holds for the orbital / occupation / loop seams — only the density seam collapses this way,
+  because its identity element is itself a real mixing operation.)
 
 **Across seams → two couplings, and only two:**
 - **loop-face gates density-face (asymmetric).** GDM/OT assert direct-min → the density stage does not exist
@@ -128,7 +135,8 @@ concrete + μ-solver + free-energy gate; do not special-case it into the fill.
 
 ## 6. Injection model
 
-One **slot per role** on the iterator, each defaulting to a shared **Null**:
+One **slot per role** on the iterator, each defaulting to a shared **Null** (except the density slot, whose
+"do nothing" is `LinearMixer(α=1)` — §3, no separate Null concrete):
 - a **spanning** algorithm (GDM/OT) is ONE object dropped into several slots — it IS-A orbital-face and
   loop-face; that is a "bundle";
 - **composition** is different objects in different slots — DIIS in orbital + Kerker in density (the current
@@ -156,10 +164,11 @@ no occupation-swap pathology). Caveats: occupied-only, no eigenspectrum without 
 ## 8. Increment plan (refactor-first, bit-identical oracle)
 
 1. **Extract the seams, behaviour-preserving.** Introduce `tDensityMixer<T>` (qcChargeDensity) with
-   `NullMixer`/`LinearMixer` (absorb the adaptive-α state + heuristics)/`KerkerMixer` (absorb
-   `KerkerSetup`/`Update`/`itsMixedRho`); split the loop-face signals off `tSCFAccelerator` into their own
-   interface (orbital-face stays). The iterator's mixing branch collapses to `mixer->Mix(...)` /
-   `mixer->FockDensity()`. **Oracle: every existing test byte-for-byte identical** (molecular + GPW).
+   `LinearMixer` (the base — absorbs the adaptive-α state + heuristics; α=1 = passthrough, so **no separate
+   NullMixer**) and `KerkerMixer` (absorbs `KerkerSetup`/`Update`/`itsMixedRho`; a preconditioner decorator
+   over the linear step); split the loop-face signals off `tSCFAccelerator` into their own interface
+   (orbital-face stays). The iterator's mixing branch collapses to `mixer->Mix(...)` / `mixer->FockDensity()`.
+   **Oracle: every existing test byte-for-byte identical** (molecular + GPW).
 2. **Shared extrapolator + density Pulay.** Extract the DIIS math out of `cSCFAcceleratorDIIS` into a
    paper-faithful `DIIS_Extrapolator`; make `cSCFAcceleratorDIIS` a thin adapter; add `PulayMixer` (density-DIIS
    with Kerker preconditioner) as a `tDensityMixer` concrete. **Gate: NaF Ecut=40 kills the residual iter-19
@@ -189,4 +198,7 @@ no occupation-swap pathology). Caveats: occupied-only, no eigenspectrum without 
 - **loop-face overrides density-face**; the density-face never depends on the orbital-face (one-way coupling).
 - **paper-verbatim names inside concretes**, role-neutral names at seams; never merge two papers into one class.
 - **occupation is a first-class seam**; smearing = fractional concrete + μ-solver + free-energy gate.
+- **no `NullMixer`** — the density-face "do nothing" is `LinearMixer(α=1)` (passthrough); the column factors
+  as {preconditioner} × {linear | extrapolated step}. `StartingRelaxRo` defaults to 1.0, so no-mixing and the
+  molecular default are one object.
 - **bit-identity is the extraction oracle** (increment 1); periodic energies stay did-E-move anchors.
