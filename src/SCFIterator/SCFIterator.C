@@ -12,6 +12,7 @@ export import qchem.ChargeDensity.Seed;   // SeedStrategy / MakeSeedDensity
 import qchem.LASolver;   // qchem::Ortho (the basis-overlap orthogonalisation knob, forwarded to the WF)
 import qchem.BasisSet.Fit_IBS;   // BasisSet::FIT_SF_ABS<T> (the G-space fit basis for Kerker rho-tilde extraction)
 export import qchem.ChargeDensity.DensityMixer;   // tDensityMixer<T> (the density-face of SCF convergence)
+import qchem.SCFIterator.LoopDriver;   // tLoopDriver<T> + Fixed/DirectMin concretes (the loop-face seam)
 
 export using qchem::EnergyBreakdown;
 using qchem::ChargeDensity::tDM_CD;
@@ -64,8 +65,6 @@ public:
                  qchem::Ortho basisOrtho=qchem::Cholesky, double basisOrthoTol=0.0);
     virtual ~tSCFIterator();
     virtual bool Iterate(const SCFParams& ipar);
-    // Direct energy minimization (GDM owns the loop): geodesic line search, no density mixing.
-    void SetDirectMin(bool b) {itsDirectMin=b;}
 
     // Watch convergence live: the observer (if set) fires once per SCF iteration with
     // the current SCFProgress.  Read-only telemetry -- the observer must not drive the loop.
@@ -85,8 +84,7 @@ private:
     //! \a bs / \a st are forwarded for the HF/DHF bootstrap (build a DFT sibling when the seed has no matrix
     //! but the Hamiltonian needs one -- see project_numericcd_refactor); null is fine for the core guess.
     void Initialize(tChargeDensity<T>* seed, const tbs_t<T>* bs, const Structure* st);
-    cd_t DirectMinStep(double Ecur, double mergeTol); //one direct-min step (returns new density)
-    bool itsDirectMin=false;
+    cd_t DirectMinStep(double Ecur, double mergeTol); //one direct-min step (returns new density; used by DirectMinDriver)
 
     void DisplayEnergies(int i, const EnergyBreakdown&,  double relax, double dE, double dCD, size_t idealVirial) const;
     void DisplayEigen   () const;
@@ -117,6 +115,10 @@ private:
     //! time \c Iterate runs -- we deep-copy it here (periodic path only) so the Kerker mixer has a live cell.
     std::shared_ptr<const Structure> itsKerkerCell;
     std::unique_ptr<qchem::ChargeDensity::tDensityMixer<T>> itsMixer;  //!< the density-face concrete for this run
+    // The two loop-face concretes (stateless).  Iterate selects one per macro-iteration by the accelerator's
+    // WantsLineSearch() and dispatches Step() -- virtual dispatch in place of the old mode `if`.
+    FixedPointDriver<T> itsFixedDriver;
+    DirectMinDriver<T>  itsDirectDriver;
 };
 
 using SCFIterator  = tSCFIterator<double>;

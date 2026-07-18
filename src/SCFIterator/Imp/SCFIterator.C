@@ -246,29 +246,17 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
         itsIterationCount   <= ipar.NMaxIter && !itsConverged;
         itsIterationCount++)
     {
-        // The accelerator decides the loop mode: a direct minimizer (GDM, or a ladder that has
-        // handed off to one near convergence) runs the geodesic line search; everything else
-        // runs the classic diagonalize+mix fixed-point step.  Queried every iteration so a
-        // ladder tail hand-off flips the loop the moment it switches rungs.
-        itsDirectMin = itsAccelerator->WantsLineSearch();
-        if (itsDirectMin)
-        {
-            // GDM owns the loop: a geodesic line search drives the energy down directly, with
-            // NO density mixing (the line search guarantees descent).
-            itsOldCD=itsCD;
-            SetWorkingCD(DirectMinStep(Eold,ipar.MergeTol));
-            ChargeDensityChange = itsCD->GetChangeFrom(*itsOldCD)/itsCD->GetTotalCharge();
-        }
-        else
-        {
-            // Fock from the mixer's Fock-driving density (Kerker ρ̃ when active, else the working D).
-            itsWaveFunction->DoSCFIteration(*itsHamiltonian,itsMixer->FockDensity(itsCD)); //eigen orbitals
-            itsWaveFunction->FillOrbitals(ipar.MergeTol);
-
-            itsOldCD=itsCD;
-            SetWorkingCD(cd_t(itsWaveFunction->GetChargeDensity())); //Get new charge density.
-            ChargeDensityChange = itsMixer->Mix(itsCD, itsOldCD);    //density-face: fold rho_out into rho_in
-        }
+        // LOOP-FACE (doc/SCFStrategyPlan.md): the accelerator's mode selects the driver -- direct-min
+        // (GDM/OT: geodesic line search, no mixing) or fixed-point (diagonalize + density-mix).  Queried
+        // every iteration so a ladder tail hand-off flips the loop the moment it switches rungs.  The step
+        // BODY is virtual (was a mode `if`); the density LIFECYCLE stays here behind the context callbacks.
+        LoopContext<T> lc{ itsHamiltonian, itsWaveFunction, itsMixer.get(), &itsCD, &itsOldCD, ipar.MergeTol, Eold,
+                           [this](cd_t x){ itsOldCD=itsCD; SetWorkingCD(std::move(x)); },
+                           [this](double e,double tol){ return DirectMinStep(e,tol); } };
+        const tLoopDriver<T>& driver = itsAccelerator->WantsLineSearch()
+                                     ? static_cast<const tLoopDriver<T>&>(itsDirectDriver)
+                                     : static_cast<const tLoopDriver<T>&>(itsFixedDriver);
+        ChargeDensityChange = driver.Step(lc);
         // cout << "Total charge=" << itsCD->GetTotalCharge() << endl;
 
         eb=itsHamiltonian->GetTotalEnergy(itsCD.get());

@@ -112,7 +112,7 @@ bool AtomCalculation::Converge(const SCFParams& params)
     using qchem::ChargeDensity::SeedStrategy;
     const auto seed = (itsOpts.seed != SeedStrategy::Default) ? itsOpts.seed : SeedStrategy::CoreGuess;
     itsScf = new SCFIter(itsBasis, itsEC, ham, accel, seed, itsStructure.get());
-    if (directmin) itsScf->SetDirectMin(true);
+    // (directmin => AType::GDM above, whose WantsLineSearch() drives the direct-min loop -- no SetDirectMin needed.)
     if (itsObserver) itsScf->SetObserver(itsObserver);
 
     bool ok = itsScf->Iterate(params);
