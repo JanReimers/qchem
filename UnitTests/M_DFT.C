@@ -117,6 +117,18 @@ TEST(M_DFT, OxygenTripletLDA)
     EXPECT_NEAR(calc.Energy(), -149.2562876393, 1e-4);   // converged spin-native LDA triplet (regression anchor)
 }
 
+// REGRESSION for the O2-HF-triplet SEGV: the polarized level display (tPolarizedWF::DisplayEigen) crashed on
+// an open-shell level present in only ONE spin channel (find() is UB-in-Release on a miss).  Fixed via
+// EnergyLevels::FindOrNull + labelling from the always-valid combined el.qns.  This runs it with Verbose ON
+// (the crash path) and pins the converged HF triplet energy.  "Did E move" + no-crash.
+TEST(M_DFT, OxygenTripletHF_VerboseDisplay)
+{
+    Calculation calc(MakeO2(), {.basis = "dzvp", .model = Model::HF, .multiplicity = 3});
+    calc.Converge({.NMaxIter = 80, .MinΔρ = 1e-6, .MinΔFD = 1e-8, .MinVirial = 1e2, .MinFD = 1e-6,
+                   .StartingRelaxRo = 0.5, .MergeTol = 1e-4, .Verbose = true});   // Verbose => DisplayEigen (the crash path)
+    EXPECT_NEAR(calc.Energy(), -149.6295470276, 1e-4);   // converged HF triplet O2
+}
+
 // Physics check that the spin channel is doing real work: the triplet ground state must lie BELOW the
 // closed-shell singlet (Hund's rule).  A flat/zero gap would mean the open-shell occupation silently
 // collapsed to closed shell -- the failure mode B3/B4 exist to prevent.

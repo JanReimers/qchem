@@ -42,6 +42,12 @@ public:
     void merge(const EnergyLevels& els);
     void merge(const EnergyLevels& els, double tol);
     const EnergyLevel& find(const Orbital_QNs&) const;
+    //! Safe lookup: the level for these QNs, or nullptr if absent (find() asserts/UB-in-Release on a miss).
+    const EnergyLevel* FindOrNull(const Orbital_QNs& oqns) const
+    {
+        auto i=itsQNLevels.find(oqns);
+        return i==itsQNLevels.end() ? nullptr : &i->second;
+    }
 
     const_iterator begin() const {return itsELevels.begin();}
     const_iterator end  () const {return itsELevels.end  ();}
