@@ -80,10 +80,9 @@ public:
     virtual bool   Exhausted() const {return itsStuckCount>=3;}
 
 private:
-    // The B matrix / coefficient solve is REAL for both paths (the DIIS coefficients are real numbers).
-    static double GetMinSV(const rsmat_t& B);
-    static rvec_t SolveC  (const rsmat_t& B);
-
+    // The B-matrix bordering / conditioning / coefficient solve live in the SHARED, paper-faithful engine
+    // qchem.Math.DIIS (which the density-face PulayMixer also uses -- doc/SCFStrategyPlan.md §4).  The B
+    // matrix + coefficients c are REAL for both rX/cX paths.
     struct md_t{rsmat_t B;double sv;};
 
     md_t    BuildB() const;
