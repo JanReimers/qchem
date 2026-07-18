@@ -170,8 +170,19 @@ no occupation-swap pathology). Caveats: occupied-only, no eigenspectrum without 
      at the top of `Iterate` (like the MOM plumbing) and its fixed-point branch collapses to
      `Mix`/`FockDensity`; the iterator keeps the density LIFECYCLE (SetWorkingCD/lineage), the mixer owns the
      policy+state.  **BIT-IDENTICAL: 198/198 (-A_*) + the NaF Kerker trace byte-for-byte.**
-   - **1b — loop-face: TODO.**  Split the loop-face signals (`WantsLineSearch`/`SetEnergy`/`GetError`/
-     `ShowConvergence`) off `tSCFAccelerator` into their own interface (orbital-face stays).  Oracle: bit-identical.
+   - **1b — loop-face driver: DONE** (`388b33d3`).  New module `qchem.SCFIterator.LoopDriver`:
+     `tLoopDriver<T>::Step(LoopContext<T>)` + `FixedPointDriver` / `DirectMinDriver`.  The `if
+     (WantsLineSearch())` mode conditional → the iterator selects a driver by the accelerator's mode and
+     calls `Step()` (virtual dispatch; the density lifecycle stays behind two `LoopContext` callbacks).
+     Dead `SetDirectMin`/`itsDirectMin` removed.  **KEY DAG CONSTRAINT:** the driver lives at the iterator
+     level, NOT on the accelerator — the accelerator sits below the wf/mixer/Hamiltonian (imports only
+     `Symmetry.Irrep` + `LASolver`), so full Tell-Don't-Ask (accelerator performs the step) would invert the
+     DAG; it reports the MODE, the iterator selects.  BIT-IDENTICAL: 200/200 (full) + direct-min verified via
+     `scfrun --accel directmin` (stable −14.55693664) + inspection.
+     - *Not done (deferred, lower value):* the ISP split of the loop-face SIGNALS
+       (`SetEnergy`/`GetError`/`ShowConvergence`/`WantsLineSearch`) into their own interface separate from the
+       orbital-face on `tSCFAccelerator`.  The polymorphic dispatch (the valuable part) is done; the interface
+       tidy can follow when it earns its keep.
 2. **Shared extrapolator + density Pulay.** Extract the DIIS math out of `cSCFAcceleratorDIIS` into a
    paper-faithful `DIIS_Extrapolator`; make `cSCFAcceleratorDIIS` a thin adapter; add `PulayMixer` (density-DIIS
    with Kerker preconditioner) as a `tDensityMixer` concrete. **Gate: NaF Ecut=40 kills the residual iter-19
