@@ -191,8 +191,10 @@ no occupation-swap pathology). Caveats: occupied-only, no eigenspectrum without 
    plain Kerker until the residual is in the linear-response regime, THEN engage Pulay (immediate Pulay
    oscillates — the density-side ladder hand-off).  **RESULT: NaF Ecut=40 (MOM + Pulay depth=6/start=35)
    converges in 63 iters vs ~196 for Kerker (~3×), same −27.7559464102; 198/198 green (PulayDepth defaults 0).**
-   - *Deferred:* migrate `cSCFAcceleratorDIIS` to call `qchem.Math.DIIS` too (bit-identical Fock-DIIS refactor;
-     completes the "one engine serves both streams" unification).  It keeps its own inline `SolveC`/`BuildB` for now.
+   - **Fock-DIIS migrated too** (`a60a04de`): `cSCFAcceleratorDIIS` now calls `qchem.Math.DIIS` (Bordered/MinSV/
+     Coefficients); its inline `GetMinSV`/`SolveC` deleted.  **ONE engine serves both streams** — Fock
+     (`Re tr(EᵢᴴEⱼ)` metric) and density (G-space metric); only the residual stream + inner product differ, as
+     the design promised.  Bit-identical: 200/200 (full) green (DIIS is the default molecular accelerator).
 3. **Broyden.** `Broyden_Extrapolator` (Johnson) sibling; density-face `BroydenMixer` adapter. Compare on NaF.
 4. **Occupation seam formalisation + Fermi smearing** (§5): μ-solver + free-energy gate; keep MOM/aufbau as
    siblings. Later — needed for metals and the OT+smearing path.
