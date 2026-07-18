@@ -490,6 +490,11 @@ REFINED, not simply confirmed — the mechanism is now directly visualized (Ecut
    precision-floor loss (may already be gone with SR2's conditioning).
 
 ## 0c. PULAY/BROYDEN ρ̃-MIXING behind the DIP mixer face (`tDensityMixer`) — user design, 2026-07-16
+> **SUPERSEDED/EXPANDED by `doc/SCFStrategyPlan.md` (2026-07-18)** — the mixer is one seam of a four-role
+> ISP model (orbital / occupation / density / loop) with a single shared extrapolator (DIIS≡Pulay, one
+> paper-faithful engine on either the F or ρ residual stream) and an occupation seam that extends to Fermi
+> smearing.  Read that doc for the design + increment plan; the sketch below is retained for context.
+
 Mixing is today hardwired inside `tSCFIterator::Iterate` (the `KerkerG0>0 ? KerkerUpdate(relax) :
 MixIn(1−relax)` branch + the inlined adaptive-α heuristics).  Extract the face and inject the concrete
 from the top (SOLID DIP — the existing `tSCFAccelerator<T>*` ctor-injection precedent):
