@@ -23,6 +23,7 @@ target_sources(qcChargeDensity PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES F
     NumericCD.C
     SeedCD.C
     FourierMixCD.C
+    DensityMixer.C
     Types.C
     Internal/IrrepCD.C
     Internal/FittedCDImp.C

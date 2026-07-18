@@ -234,11 +234,13 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
     double  E=0, Eold=0, dE=1e10;
     double FD=0,FDold=1e10,dFD=1e10;
     // double Eoldold=0;
-    double relax=ipar.StartingRelaxRo;
-    double relMax=1.0;
     EnergyBreakdown eb;
     itsConverged=false;
-    if (ipar.KerkerG0>0.0) KerkerSetup(ipar.KerkerG0);   // periodic rho-mixing (else linear D-mixing, unchanged)
+    // Density-face mixer for this run (the density-mixing policy + state; doc/SCFStrategyPlan.md):
+    // Kerker ρ̃-mixing when KerkerG0>0 AND the basis/cell/seed are periodic, else linear D-mixing.
+    // α=StartingRelaxRo (1.0 default = passthrough -- there is no NullMixer).
+    itsMixer = qchem::ChargeDensity::MakeDensityMixer<T>(ipar.StartingRelaxRo, ipar.KerkerG0, itsBS,
+                                                         itsKerkerCell.get(), itsCD.get());
 
     for (itsIterationCount=1;
         itsIterationCount   <= ipar.NMaxIter && !itsConverged;
@@ -259,20 +261,13 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
         }
         else
         {
-            // Fock from the Kerker-mixed rho-tilde when active (FockDensity()), else from the working D.
-            itsWaveFunction->DoSCFIteration(*itsHamiltonian,FockDensity()); //eigen orbitals from the Hamiltonian
+            // Fock from the mixer's Fock-driving density (Kerker ρ̃ when active, else the working D).
+            itsWaveFunction->DoSCFIteration(*itsHamiltonian,itsMixer->FockDensity(itsCD)); //eigen orbitals
             itsWaveFunction->FillOrbitals(ipar.MergeTol);
 
             itsOldCD=itsCD;
             SetWorkingCD(cd_t(itsWaveFunction->GetChargeDensity())); //Get new charge density.
-            if (itsMixedRho)
-                ChargeDensityChange = KerkerUpdate(relax);              //rho-mixing: gate on ‖ρ̃_out−ρ̃_in‖, fold in
-            else
-            {
-                ChargeDensityChange = itsCD->GetChangeFrom(*itsOldCD)/itsCD->GetTotalCharge(); //relative MaxAbs change
-                if (ChargeDensityChange<1e-5) relMax=0.5;
-                itsCD->MixIn(*itsOldCD,1.0-relax);                       //relaxation (linear D-mixing).
-            }
+            ChargeDensityChange = itsMixer->Mix(itsCD, itsOldCD);    //density-face: fold rho_out into rho_in
         }
         // cout << "Total charge=" << itsCD->GetTotalCharge() << endl;
 
@@ -282,20 +277,17 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
         itsAccelerator->SetEnergy(E); //the ladder gates its hand-off on the energy change
         FD=itsAccelerator->GetError(); //i.e. [F,D]
         dFD=(FD-FDold);
-        if (ipar.Verbose) DisplayEnergies(itsIterationCount,eb,relax,dFD,ChargeDensityChange,idealVirial);
+        if (ipar.Verbose) DisplayEnergies(itsIterationCount,eb,itsMixer->GetRelax(),dFD,ChargeDensityChange,idealVirial);
         if (itsObserver) itsObserver({itsIterationCount, E, fabs(E-Eold), FD, ChargeDensityChange});
-        if (!itsMixedRho && FD>FDold && fabs(dFD)>1e-9)   // [F,D]-keyed re-damping is a linear-D-mixing tweak; Kerker skips it
+        // Adaptive [F,D]-keyed policy (LinearMixer only; Kerker/direct-min take the no-op defaults).  The
+        // re-damp re-fetches the fresh density + recomputes the energy -- the density LIFECYCLE stays here.
+        if (itsMixer->WantsReDamp({E,FD,FDold}))
         {
             SetWorkingCD(cd_t(itsWaveFunction->GetChargeDensity())); //Get new charge density.
-            ChargeDensityChange = itsCD->GetChangeFrom(*itsOldCD); //Get MaxAbs of change.
-            itsCD->MixIn(*itsOldCD,1.0-relax/4.0);
+            ChargeDensityChange = itsMixer->ReDampMix(itsCD, itsOldCD);
             eb=itsHamiltonian->GetTotalEnergy(itsCD.get());
-            relax*=0.8;
         }
-        // if (E<Eold && Eold>Eoldold) relax*=0.5;
-        if (!itsMixedRho && FD<FDold ) relax*=1.5;   // [F,D]-keyed relax growth is a D-mixing tweak; Kerker holds α fixed
-        // if (E>Eold && Eold>Eoldold) relax*=1.5;
-        if (relax>relMax) relax=relMax;
+        itsMixer->UpdateRelax({E,FD,FDold});
 
         // Eoldold=Eold;
         Eold=E;
@@ -372,64 +364,8 @@ template <class T> void tSCFIterator<T>::DisplayEigen() const
     itsWaveFunction->DisplayEigen();
 }
 
-// KERKER rho-mixing setup (dcmplx periodic path only).  Build the G-space fit basis from the orbital basis's
-// first block, the reciprocal lattice + cell volume from the periodic Structure, and the INITIAL mixed density
-// = the seed density's rho-tilde.  A no-op (leaves itsMixedRho null) for the real/molecular path or when the
-// basis/structure are not periodic -- so linear D-mixing (the default) is used unchanged.
-template <class T> void tSCFIterator<T>::KerkerSetup(double G0)
-{
-    if constexpr (std::is_same_v<T,dcmplx>)
-    {
-        namespace CD = qchem::ChargeDensity;
-        auto* ftb = itsBS ? dynamic_cast<const BasisSet::Band_FT_IBS*>((*itsBS)[0]) : nullptr;
-        auto* cell= dynamic_cast<const UnitCell*>(itsKerkerCell.get());
-        auto* fd  = dynamic_cast<const CD::FourierDensity*>(itsCD.get());
-        if (!ftb || !cell || !fd)   // not a periodic G-space SCF -> report LOUDLY (Release has no asserts) + bail
-        {
-            std::cerr << "[Kerker] DISABLED: KerkerG0>0 needs a periodic Band_FT_IBS basis + UnitCell + "
-                      << "FourierDensity (got ftb=" << (void*)ftb << " cell=" << (void*)cell
-                      << " fd=" << (void*)fd << ") -- falling back to linear D-mixing." << std::endl;
-            return;
-        }
-        itsKerkerG0 = G0;
-        itsKerkerFit.reset(ftb->CreateVxcFitBasisSet(cell, qcMesh::MeshParams{}));  // matches the Ham's grid
-        ReciprocalLattice recip(cell->MakeReciprocalCell());
-        auto rho0 = fd->GetFourierDensity(*itsKerkerFit);
-        itsMixedRho = std::make_shared<CD::FourierMixCD>(rho0, recip, itsCD->GetTotalCharge());
-        std::cerr << "[Kerker] ENABLED: G0=" << G0 << ", rho-mixing on " << itsMixedRho->GetTotalCharge()
-                  << " electrons (" << rho0.size() << " G-vectors)." << std::endl;
-    }
-}
-
-// One Kerker update: re-collocate the freshly diagonalized density's rho-tilde and fold it into the mixed
-// density by the preconditioner rho_mix = rho_in + relax*G^2/(G^2+G0^2)*(rho_out - rho_in) (charge-conserving:
-// G=0 is never mixed).  The result drives the NEXT Fock via FockDensity().
-template <class T> double tSCFIterator<T>::KerkerUpdate(double relax)
-{
-    if constexpr (std::is_same_v<T,dcmplx>)
-    {
-        namespace CD = qchem::ChargeDensity;
-        auto* fd    = dynamic_cast<const CD::FourierDensity*>(itsCD.get());
-        auto* mixed = dynamic_cast<const CD::FourierMixCD*>(itsMixedRho.get());
-        assert(fd && mixed);
-        const ΔG_Map  rho_out = fd->GetFourierDensity(*itsKerkerFit);
-        const ΔG_Map& rho_in  = mixed->RhoTilde();
-        // SCF residual ‖ρ̃_out − ρ̃_in‖_∞: how far the fed density is from self-consistency (0 at the fixed point).
-        // This is the RIGHT convergence gate for ρ-mixing -- NOT the D_out change, which shrinks with the damped
-        // Kerker step even when ρ is not yet self-consistent (would converge early to a wrong energy).
-        double resid = 0.0;
-        for (const auto& [dm, ro] : rho_out)
-        {
-            auto it = rho_in.find(dm);
-            resid = std::max(resid, std::abs(dcmplx(ro) - (it!=rho_in.end() ? dcmplx(it->second) : dcmplx(0.0))));
-        }
-        for (const auto& [dm, ri] : rho_in)
-            if (rho_out.find(dm)==rho_out.end()) resid = std::max(resid, std::abs(dcmplx(ri)));
-        itsMixedRho.reset(CD::FourierMixCD::KerkerMix(*mixed, rho_out, relax, itsKerkerG0));
-        return resid;
-    }
-    return 0.0;
-}
+// (KerkerSetup/KerkerUpdate/FockDensity moved into qchem.ChargeDensity.DensityMixer -- the density-face
+//  seam.  The iterator now builds a tDensityMixer at the top of Iterate and delegates via Mix/FockDensity.)
 
 template <class T> EnergyBreakdown tSCFIterator<T>::GetEnergy() const
 {
