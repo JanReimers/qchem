@@ -34,6 +34,14 @@ export struct SCFParams
                                      //  (default) -> plain aufbau (atoms/molecules unchanged).  ON -> occupied-
                                      //  subspace continuity, the fix for a diving diffuse virtual being aufbau-
                                      //  captured (the NaF Γ occupation-swap instability -- see doc/GPWPlan §0b″).
+    int    PulayDepth      = 0;      //Density-face Pulay (density-DIIS) history depth on the periodic ρ̃ path.  0
+                                     //  (default) = plain Kerker/linear mixing.  >0 = Kerker-preconditioned Pulay
+                                     //  mixing keeping this many (ρ̃_in, ρ̃_out) pairs (VASP/QE/CP2K scheme; the
+                                     //  quasi-Newton cure for the charge-transfer slosh -- see doc/SCFStrategyPlan.md).
+    int    PulayStart      = 0;      //Prime with plain Kerker for this many iterations before engaging Pulay (only
+                                     //  used when PulayDepth>0).  History-based mixing is UNSTABLE far from the fixed
+                                     //  point (residuals not yet in the linear-response regime), so descend first,
+                                     //  then accelerate -- the density-side of the ladder hand-off.  0 = immediate.
     int    MOMStartIter    = 10;     //Delayed-IMOM reference-capture iteration (only used when UseMOM).  Run plain
                                      //  aufbau for this many fills so the SCF descends to the physical fixed point,
                                      //  THEN capture the occupied subspace ONCE and hold it fixed (the seed is

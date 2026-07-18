@@ -239,8 +239,8 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
     // Density-face mixer for this run (the density-mixing policy + state; doc/SCFStrategyPlan.md):
     // Kerker ρ̃-mixing when KerkerG0>0 AND the basis/cell/seed are periodic, else linear D-mixing.
     // α=StartingRelaxRo (1.0 default = passthrough -- there is no NullMixer).
-    itsMixer = qchem::ChargeDensity::MakeDensityMixer<T>(ipar.StartingRelaxRo, ipar.KerkerG0, itsBS,
-                                                         itsKerkerCell.get(), itsCD.get());
+    itsMixer = qchem::ChargeDensity::MakeDensityMixer<T>(ipar.StartingRelaxRo, ipar.KerkerG0, ipar.PulayDepth,
+                                                         ipar.PulayStart, itsBS, itsKerkerCell.get(), itsCD.get());
 
     for (itsIterationCount=1;
         itsIterationCount   <= ipar.NMaxIter && !itsConverged;

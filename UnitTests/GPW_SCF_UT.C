@@ -465,6 +465,12 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     auto envMOM=[&]{ const char* d=std::getenv("NAF_MOM"); return !d || std::atof(d)!=0.0; };  // default ON
     par.UseMOM=envMOM();
     par.MOMStartIter=(int)envd("NAF_MOM_START", 10);
+    // PULAY (density-DIIS) is ON by default here: Kerker-preconditioned Pulay ρ̃-mixing converges NaF in ~63
+    // iters vs ~196 for plain Kerker (~3x), to the SAME fixed point.  Prime with Kerker to iter 35 (past the
+    // iter-19 mixing transient + well descended) so the DIIS history starts in the linear-response regime;
+    // history-based mixing is unstable far out.  NAF_PULAY=0 restores plain Kerker.
+    par.PulayDepth=(int)envd("NAF_PULAY", 6);
+    par.PulayStart=(int)envd("NAF_PULAY_START", 35);
     qchem::Hamiltonian::ReportGridCharge()=true;   // F's tight 40-a.u. exponent: watch integral rho_grid vs Tr(DS)
     qchem::SCFIterator::ReportBandGap()=true;       // BAND-GAP INSTRUMENT (doc/GPWPlan 0b''): watch eps_HOMO/eps_LUMO/gap
                                                     // per iteration -- the near-degenerate-frontier (giant-response)
