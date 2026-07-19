@@ -526,6 +526,24 @@ pathological −39 map it destabilises).  MOM+Pulay are necessary but NOT SUFFIC
 ρ → start in the physical basin, never wander into −39); and/or (b) stiffen the fine-grid calibration to
 REMOVE the basin (CP2K leaks only 2e-4 e at 160 Ha — understand its EPS_RHO/REL_CUTOFF stiffness).
 
+**AGREED PLAN for the next session (user, 2026-07-19) — keep the −39 basin as a TEST FIXTURE; both fixes are
+TOGGLEABLE options so the default (ionic seed + current grid) still exposes it, and each fix is verified with
+the OTHER turned OFF:**
+- **Step 0 — OpenMP over the collocate/integrate pairs** (`LatticeSum1E`, per-thread ρ accumulators + reduce),
+  **serial-by-default (gated on thread count / OMP_NUM_THREADS)** so the Si bit-anchors stay byte-identical and
+  only the slow NaF runs opt into threads.  Pin OMP_NUM_THREADS=1 in the test harness (mirrors the openblas
+  pin).  Purpose: ~4× so the 15-min fine-grid iteration for steps 1&2 is bearable.  (Assessment started: the
+  hot loops are in `LatticeSum1E::CollocateDensity`/`IntegratePotential` + the stream replay; build has NO
+  OpenMP flag yet — add `-fopenmp` + `find_package(OpenMP)`.)
+- **Step 1 — grid-continuation seeding (AVOID the basin), FIRST**: the SR2 orbital basis is IDENTICAL at both
+  Ecut (only the density collocation grid differs), so a converged Ecut=40 density matrix D transfers DIRECTLY
+  as the fine-grid seed (no re-projection).  Wire a converged-D seed into the periodic SCF (a SeedStrategy /
+  explicit-density seed).  Gate: fine grid reaches ≈ −27.93 oracle.  Verify basin-avoidance by leaving the
+  grid as-is (basin present).
+- **Step 2 — remove the basin (STIFFEN the grid), SECOND**: understand why the fine grid aliases the sharp F
+  pairs into negative ρ (CP2K's EPS_RHO/REL_CUTOFF stiffness).  Verify by turning grid-continuation OFF (ionic
+  seed, which falls into −39 today) → the stiffer grid must now converge physical from the ionic seed.
+
 ## 0d. Runtime follow-ups (after 0b/0c)
 - **OpenMP over pairs** (the parallel-execution TODO): collocate/integrate are embarrassingly parallel
   (per-thread ρ accumulators); CP2K's ssmp is threaded on top of everything above.  ~4× on this box.
