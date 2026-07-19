@@ -571,12 +571,40 @@ the OTHER turned OFF:**
     ultra-diffuse pairs with enormous boxes** (`MakeLocalPP`'s own comment: "an ultra-diffuse pair's box on N=64
     × ~180 offsets stalls the setup for hours") — a **load imbalance** the biggest pair runs alone on one thread,
     so *per-pair* OpenMP cannot help (99 % CPU throughout).
-  - **→ the real fine-grid lever is an ALGORITHMIC `MakeLocalPP` fix, not threading.**  Two leads: (a) the code
-    comment itself says an ultra-diffuse pair's OWN spectrum kills the sharp-field tail, so it "still belongs on
-    a deep coarse level" — a smarter sharp-field level assignment would keep the giant boxes off the fine grid
-    (the current `relCutoffScale=6` forces them there); (b) failing that, **intra-pair** parallelism (OpenMP over
-    the offsets/box of the few giant pairs) rather than over pairs.  Step 0's per-iteration ~1.7× stands (committed);
-    the setup is a separate, algorithmic problem.
+  - **→ the real fine-grid lever is an ALGORITHMIC `MakeLocalPP` fix, not threading.**  Step 0's per-iteration
+    ~1.7× stands (committed); the setup is a separate, algorithmic problem.
+
+### 0e-PP. `MakeLocalPP` SETUP WALL — the CP2K local-PP split (analysis 2026-07-19; NEXT implementation)
+**Root cause (measured per-pair):** the `relCutoffScale=6` sweep is **1.6e9 grid points / 290 s**, spread over
+406 pairs (NOT a few giant ones — no load imbalance), because scale=6 drags the DIFFUSE pairs (e.g. F s
+α=0.275, reach ~9 au × ~180 cell images) onto field-resolution grids.  The energy `∫χ²V_loc` is dominated by
+the DEEP WELL near the nucleus (erf/r ~ `Zion/r_loc`, width `r_loc`), so resolving it needs `ecut~1/r_loc²`
+for **every** contributing pair — and the diffuse pairs DO contribute (measured below).
+- **DEAD END 1 — threading:** memory-bandwidth-bound, 290 s → 290 s on 4 threads (per-pair OR intra-pair
+  can't help a bandwidth wall).
+- **DEAD END 2 — reduced-exponent level rule** (`p_eff = p/(1+2p·r_loc²)`, parameter-free from r_loc+basis):
+  FALSIFIED.  Si Γ **over-binds to −7.216** (vs −7.11485) — the diffuse pairs genuinely couple to the well, so
+  coarsening them aliases.  And it doesn't even help cost: `p_eff≈p` for diffuse pairs, so the giant-box pairs
+  aren't coarsened at all.  (Also measured: a FIXED long-range `scale` can't serve both elements — Si soft
+  r_loc=0.44 ok at scale 3, F hard r_loc=0.2 gives NaF −23.6 at scale 3.)  **Conclusion: per-product grid
+  integration of V_loc cannot be both correct and cheap by ANY level rule — the well must be sampled per pair.**
+- **→ THE FIX = the CP2K split** (the analogue of Ewald's erf/erfc; `r_loc` is our α, fixed by the PP):
+  - **LONG-RANGE `−Zion·erf(r/√2 r_loc)/r`** = a Gaussian core charge → fold into the **G-space Poisson**
+    (`PW_Hartree`, one electrostatics term).  The deep well is sampled **once per atom** (the core-charge
+    collocation), not per orbital pair → no giant boxes; energy `E_een_long = Σ_G ρ̃_elec(G)·V_long(G)`, exact
+    and adjoint-consistent with the matrix (stays variational, `E=Tr(D·H)`).  CP2K: `rho_core` passed to
+    `pw_poisson_solve` (`qs_ks_methods.F`); split in `qs_core_hamiltonian.F:54`.
+  - **SHORT-RANGE `poly×Gaussian`** = compact, CONVERGENT lattice sum (no Ewald) → **analytic** via the
+    `LatticeSum1E::MakeOverlap(GaussianFunction)` seam the analytic KB already uses.  No grid, no `scale`.
+  - **Deletes the user knob** (the grad-student-first-day goal): the grid is derived from `r_loc` (PP) +
+    basis exponents; the fine cutoff is already auto (`4·α_max`).  CP2K still exposes `CUTOFF`+`REL_CUTOFF` as
+    user convergence knobs (the rite-of-passage) — this design is MORE automated.
+  - **Implementation increments (each gated on Si Γ == −7.11506, then NaF == −27.756, then re-time):**
+    (1) `PW_Hartree` owns the `LocalPotential` + structure; total field `V_H[ρ_elec]+V_long(G)`; energies
+    `E_hartree=½Tr(D·V_H)` + `E_een_long=Tr(D·V_long)`; the G=0 alignment (`FormFactorG0`) moves with it.
+    (2) short-range → analytic Gaussian seam; drop the `MakeLocalPP` grid sweep entirely.  (3) re-time NaF.
+    Interface: expose the GTH split on `LocalPotential` (`FormFactorLong/Short`, a core-charge/`r_loc`
+    accessor).  Decided (user 2026-07-19): fold into `PW_Hartree` — "cleaner physics, one Poisson solve."
 - **Step 1 — grid-continuation seeding (AVOID the basin), FIRST**: the SR2 orbital basis is IDENTICAL at both
   Ecut (only the density collocation grid differs), so a converged Ecut=40 density matrix D transfers DIRECTLY
   as the fine-grid seed (no re-projection).  Wire a converged-D seed into the periodic SCF (a SeedStrategy /
