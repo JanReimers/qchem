@@ -22,6 +22,12 @@ module;
 #include <cmath>      // std::sqrt/std::log (the lattice-sum magnitude-screening reach radius)
 #include <algorithm>  // std::min (alpha_min per radial)
 #include <functional> // cellphase_t (the caller-supplied Bloch phase of a cross-cell offset)
+#include <utility>    // std::pair (the flattened (i,j) pair list for the OpenMP loop)
+#include <cstdlib>    // std::getenv/std::atoi (the GPW_OMP_THREADS opt-in knob)
+// GPW pair-loop parallelism (opt-in via GPW_OMP_THREADS).  Gated on QCHEM_OPENMP -- our OWN macro (defined
+// by CMake when the OpenMP flags are applied) rather than _OPENMP, because this LLVM toolchain ships no
+// libomp and the libgomp fallback (-fopenmp=libgomp) honours the pragmas but does NOT define _OPENMP.  The
+// private-buffer + critical-reduce pattern below needs no <omp.h> (no omp_*() calls), only the pragmas.
 export module qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD;
 import qchem.BasisSet.Molecule.Evaluators;                             // Evaluator + concepts
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.PGData;      // PGData
@@ -199,6 +205,22 @@ public:
         double amin=radials[0]->GetExponents()[0];
         for (auto i:indices()) for (double e : radials[i]->GetExponents()) if (e<amin) amin=e;
         return amin;
+    }
+
+    // GPW collocate/integrate pair-loop threading.  SERIAL BY DEFAULT so the Si bit-anchors stay
+    // byte-identical (the threaded path reduces cross-pair sums in a load-dependent order -> a few-ULP
+    // drift, the same reason OpenBLAS is pinned to one thread in the harness).  Opt in for the slow NaF
+    // production-grid runs with the env knob GPW_OMP_THREADS>1 (read once).  A per-run env knob rather than
+    // OMP_NUM_THREADS because the Si anchors and a threaded NaF sweep share one UTMain binary and cannot be
+    // separated by a global harness pin -- exactly the NAF_*/GPW_ILLCOND_ECUT env-knob idiom already in use.
+    static int PairThreads()
+    {
+#ifdef QCHEM_OPENMP
+        static const int n=[]{ const char* s=std::getenv("GPW_OMP_THREADS"); int v=s?std::atoi(s):1; return v<1?1:v; }();
+        return n;
+#else
+        return 1;
+#endif
     }
 
     // --- ANALYTIC density collocation + integrate-back (CP2K GPW) -------------------------------------------
@@ -468,13 +490,16 @@ public:
         // double the off-diagonal weight (a 2x saving over the full n^2 loop, exact).
         const StreamCache& sc=EnsureStreams(A,N_L,ecut_L,1.0);   // density: the smooth-field calibration
         const size_t nn=size();
-        for (auto i:indices()) for (auto j:indices(i))
+        // Per-pair scatter into a caller-supplied set of level densities (`dst`): the SAME `rho` when serial,
+        // a private per-thread accumulator when threaded -- so the arithmetic PER PAIR is bit-identical either
+        // way; only the cross-pair reduction order changes (see PairThreads).
+        auto scatter=[&](size_t i, size_t j, std::vector<rvec_t>& dst)
         {
             const dcmplx Dij(D(i,j));
-            if (Dij==dcmplx(0.0)) continue;
+            if (Dij==dcmplx(0.0)) return;
             const double fold=(i==j)?1.0:2.0;
             const PairStreams& ps=sc.pairs[i*nn+j];
-            rvec_t& r=rho[ps.level];
+            rvec_t& r=dst[ps.level];
             if (ps.cached)
                 for (const PairOffsetStream& st : ps.offsets)
                 {
@@ -502,7 +527,32 @@ public:
                     ForPairBox(i,j,Roff,A,N_L[ps.level],[&](size_t idx,double v){r[idx]+=c*v;},
                                std::max(kScreenEps, kDensityEps/std::fabs(c)));
                 });
+        };
+#ifdef QCHEM_OPENMP
+        if (const int nthreads=PairThreads(); nthreads>1)
+        {
+            // OpenMP over the pairs.  Each thread owns a PRIVATE level-density accumulator `mine` (declared
+            // inside the parallel region -> genuinely thread-local, so no omp_get_thread_num / <omp.h>
+            // needed), scatters its share of the pairs into it, then folds it into the shared rho under a
+            // critical section (the "per-thread accumulators + reduce").  The reduction reorders the
+            // cross-pair grid sums, so a threaded run drifts a few ULPs from serial -- accepted; the Si
+            // bit-anchors always run serial (GPW_OMP_THREADS unset -> nthreads==1 -> the branch below).
+            std::vector<std::pair<size_t,size_t>> prs;
+            for (auto i:indices()) for (auto j:indices(i)) prs.push_back({i,j});
+            #pragma omp parallel num_threads(nthreads)
+            {
+                std::vector<rvec_t> mine(K);
+                for (size_t l=0;l<K;l++) mine[l]=rvec_t(rho[l].size(),0.0);
+                #pragma omp for schedule(dynamic) nowait
+                for (size_t p=0;p<prs.size();p++) scatter(prs[p].first,prs[p].second,mine);
+                #pragma omp critical
+                for (size_t l=0;l<K;l++)
+                    for (size_t g=0, m=rho[l].size(); g<m; g++) rho[l][g]+=mine[l][g];
+            }
+            return rho;
         }
+#endif
+        for (auto i:indices()) for (auto j:indices(i)) scatter(i,j,rho);   // serial (byte-identical default)
         return rho;
     }
     // --- Phase-independent integrate-back memo ---------------------------------------------------------------
@@ -593,7 +643,10 @@ public:
             memo->N_L=N_L; memo->ecut_L=ecut_L; memo->relCutoffScale=relCutoffScale; memo->V_L=V_L;
             memo->B.resize(nn*nn);
         }
-        for (auto i:indices()) for (auto j:indices(i))       // j>=i (Hermitian upper triangle)
+        // Per-pair integrate-back.  Each pair writes ONLY its own h(i,j) and its own (pre-sized, disjoint)
+        // memo->B[i*nn+j] slot -- so this is embarrassingly parallel with NO reduction (unlike collocation,
+        // whose pairs scatter into a shared grid).
+        auto integratePair=[&](size_t i, size_t j)           // j>=i (Hermitian upper triangle)
         {
             const size_t  l = sc ? sc->pairs[i*nn+j].level : PairLevel(i,j,ecut_L,relCutoffScale);
             const rvec_t& V=V_L[l];
@@ -643,7 +696,18 @@ public:
                 });
             s*=w;
             h(i,j) = (i==j) ? dcmplx(std::real(s),0.0) : s;   // Hermitian diagonal real; (j,i) auto-set to conj
+        };
+#ifdef QCHEM_OPENMP
+        if (const int nthreads=PairThreads(); nthreads>1)
+        {
+            std::vector<std::pair<size_t,size_t>> prs;
+            for (auto i:indices()) for (auto j:indices(i)) prs.push_back({i,j});
+            #pragma omp parallel for schedule(dynamic) num_threads(nthreads)
+            for (size_t p=0;p<prs.size();p++) integratePair(prs[p].first,prs[p].second);
+            return h;
         }
+#endif
+        for (auto i:indices()) for (auto j:indices(i)) integratePair(i,j);   // serial (byte-identical default)
         return h;
     }
 

@@ -545,12 +545,26 @@ REMOVE the basin (CP2K leaks only 2e-4 e at 160 Ha — understand its EPS_RHO/RE
 **AGREED PLAN for the next session (user, 2026-07-19) — keep the −39 basin as a TEST FIXTURE; both fixes are
 TOGGLEABLE options so the default (ionic seed + current grid) still exposes it, and each fix is verified with
 the OTHER turned OFF:**
-- **Step 0 — OpenMP over the collocate/integrate pairs** (`LatticeSum1E`, per-thread ρ accumulators + reduce),
-  **serial-by-default (gated on thread count / OMP_NUM_THREADS)** so the Si bit-anchors stay byte-identical and
-  only the slow NaF runs opt into threads.  Pin OMP_NUM_THREADS=1 in the test harness (mirrors the openblas
-  pin).  Purpose: ~4× so the 15-min fine-grid iteration for steps 1&2 is bearable.  (Assessment started: the
-  hot loops are in `LatticeSum1E::CollocateDensity`/`IntegratePotential` + the stream replay; build has NO
-  OpenMP flag yet — add `-fopenmp` + `find_package(OpenMP)`.)
+- **Step 0 — OpenMP over the collocate/integrate pairs — DONE (2026-07-19), but the fine-grid win is smaller
+  than hoped; the real lever is now the SETUP (0d).**  `PG_Cart_MnD::NR_Evaluator::CollocateDensity`
+  (per-thread private ρ accumulators + a `critical` reduce) and `IntegratePotential` (write-independent per
+  pair — no reduction) are OpenMP-parallel over the flattened `(i,j)` pair list.  **Opt-in at runtime via the
+  env knob `GPW_OMP_THREADS` (>1; default 1 = serial), NOT `OMP_NUM_THREADS`** — because the Si anchors and a
+  threaded NaF run share one UTMain binary and cannot be separated by a global harness pin (the same reason as
+  the NAF_*/GPW_ILLCOND_ECUT knobs), so no harness pin was needed (serial by default keeps the anchors
+  byte-identical; 201/201 UTMain green).  Toolchain: this LLVM install ships no libomp → `-fopenmp=libgomp`
+  (which honours the pragmas but does NOT define `_OPENMP`, so the code gates on our own **`QCHEM_OPENMP`**
+  macro); no `<omp.h>` (private-buffer + critical pattern).  See [[project_openmp_runtime]].
+  - **MEASURED (NaF fine grid, auto Ecut=160, 4 threads):** per-iteration collocate/integrate **~10.4 → ~6.1
+    s/iter ≈ 1.7×** — the per-iteration cost is memory-BANDWIDTH-bound (scatter/gather replay over the ~950M-pt
+    cached streams), so 4 cores only buy ~1.7×.  Threading confirmed engaged (4 workers running simultaneously
+    at Ecut=40 via /proc); charge/energy correct under threads.
+  - **THE AMDAHL WALL = the ~5-min SERIAL stream-build SETUP (`EnsureStreams`), which step 0 did NOT touch.**
+    That setup is the exp/poly-heavy analytic evaluation — COMPUTE-bound, so it is exactly where 4 cores WOULD
+    scale well (unlike the memory-bound per-iteration replay).  So the highest-value next runtime item is
+    **parallelising `EnsureStreams` (0d "setup share")** — design: parallel per-pair box eval + the budget
+    tiering under a `critical` (memory-safe: nthreads pair-temps live at once; serial path stays byte-identical;
+    threaded tiering order becomes non-deterministic, fine for the did-E-move anchor).
 - **Step 1 — grid-continuation seeding (AVOID the basin), FIRST**: the SR2 orbital basis is IDENTICAL at both
   Ecut (only the density collocation grid differs), so a converged Ecut=40 density matrix D transfers DIRECTLY
   as the fine-grid seed (no re-projection).  Wire a converged-D seed into the periodic SCF (a SeedStrategy /
@@ -561,10 +575,15 @@ the OTHER turned OFF:**
   seed, which falls into −39 today) → the stiffer grid must now converge physical from the ionic seed.
 
 ## 0d. Runtime follow-ups (after 0b/0c)
-- **OpenMP over pairs** (the parallel-execution TODO): collocate/integrate are embarrassingly parallel
-  (per-thread ρ accumulators); CP2K's ssmp is threaded on top of everything above.  ~4× on this box.
-- **Setup share** (stream-cache build + the scale-6 static-PP sweep) = the next profile target once
-  per-iteration cost is mixing-limited.
+- **OpenMP over the per-iteration collocate/integrate pairs — DONE (step 0 above).**  Memory-bound → ~1.7×.
+- **Setup share = NOW THE PRIMARY RUNTIME LEVER (promoted by the step-0 measurement).**  The ~5-min serial
+  `EnsureStreams` stream-build (+ the scale-6 static-PP sweep) dominates the fine-grid run and is COMPUTE-bound
+  (exp/poly), so OpenMP over its per-pair box evaluation should scale far better than the memory-bound
+  per-iteration replay did.  Design sketch (memory-safe, serial-path byte-identical): `#pragma omp parallel
+  for` over the pairs doing the expensive `ForImageOffsets`/`ForPairBox` eval into a thread-local stream, then
+  the first-fit budget tiering (fp64/fp32/drop) under a `#pragma omp critical` — only nthreads pair-temps live
+  at once (bounded RAM), and the threaded tiering order becomes non-deterministic (fine for the did-E-move
+  anchor; nthreads==1 stays exactly today's order).  CP2K's ssmp is threaded on top of everything above.
 
 Then the standing queue: **(1) DROP SR** (rank-reduction + auto-tol, below); **(2) low-q multi-species
 bases → Si/NaF/CsI**; **(3) CP2K reference library**; **(4) IBZ**; **(5) cleanups**.

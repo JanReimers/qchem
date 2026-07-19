@@ -3,6 +3,14 @@ cmake_minimum_required(VERSION 3.31.6)
 # set(CMAKE_CXX_MODULE_STD cxx_std_23)
 project(qchem VERSION 0.1.0 LANGUAGES CXX)
 
+# OpenMP: used ONLY for the GPW collocate/integrate pair-loop parallelism in qcMolecule_BS
+# (PG_Cart_MnD::NR_Evaluator).  Opt-in at runtime (GPW_OMP_THREADS>1) and serial by default, so it never
+# changes the bit-anchors; scoped PRIVATE to qcMolecule_BS (see its CMakeLists).  This LLVM toolchain ships
+# no libomp, so FindOpenMP fails -> we fall back to the installed GNU runtime (libgomp) which clang drives
+# via -fopenmp=libgomp.  That flag honours the pragmas + links libgomp but does NOT define _OPENMP, so the
+# code gates on our own QCHEM_OPENMP macro (set alongside the flag) instead.
+find_package(OpenMP QUIET)
+
 set(BasisDataPath "BASISSET_DATA_PATH=\"${PROJECT_SOURCE_DIR}/BasisSetData\"" CACHE INTERNAL "BasisSet data path compile definition")
 set(CommonDataPath "COMMON_DATA_PATH=\"${PROJECT_SOURCE_DIR}/src/Common/Data\"" CACHE INTERNAL "Common data path compile definition")
 set(LatticeDataPath "LATTICE_DATA_PATH=\"${PROJECT_SOURCE_DIR}/src/BasisSet/Lattice_3D/Data\"" CACHE INTERNAL "Lattice_3D (GTH pseudopotential) data path compile definition")
