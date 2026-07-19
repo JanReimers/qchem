@@ -87,6 +87,19 @@ runtime close-out incl. the CP2K NaF oracle + convergence findings).
   iters, partial-occ 0, diving virtual banished to −45 Ha unoccupied); vs CP2K oracle −27.93 the 0.17 Ha is
   the grid.  One residual iter-19 MIXING spike remains → 0c Pulay.  198/198 green (`SCFParams::UseMOM` off by
   default).
+- **§0c SCF-STRATEGY REFACTOR + PULAY DONE** (2026-07-18, full design `doc/SCFStrategyPlan.md`): the SCF
+  convergence machinery is now a role-seam framework — density-mixer seam (`tDensityMixer`: Linear/Kerker;
+  bit-identical extraction `f4f48431`), loop-driver virtual dispatch replacing the `WantsLineSearch` mode `if`
+  (`388b33d3`), and ONE shared paper-faithful `qchem.Math.DIIS` engine serving BOTH Fock-DIIS and density-Pulay
+  (`c41f06f9`+`a60a04de`).  **`PulayMixer`** (Kerker-preconditioned density-DIIS, priming via `PulayStart`)
+  accelerates NaF Ecut=40 **196→63 iters** to the SAME −27.756.  Flexed via `scfrun` (which grew a molecular
+  `--mol` mode + a fixed SCFParams misalignment): Boron 16 / Sc 21 / O2 triplet 13–15 iters; O2-HF-triplet
+  display SEGV fixed (`78b8f66a`).
+- **DIRECT FINE-GRID NaF FALLS INTO THE −39 BASIN** (2026-07-19, `30d0eb87`; MOM+Pulay, auto Ecut=160, 15m45s):
+  "converges" (Δρ 2.9e-5) to E=+54.3 garbage — the Kerker descent goes STRAIGHT into −39, Pulay thrashes on it.
+  So the production-grid failure is a DENSITY/GRID-basin problem, NOT occupation/mixing: MOM+Pulay necessary
+  but NOT sufficient.  Next-session plan (grid-continuation seeding + basin removal + OpenMP, basin kept as a
+  test fixture) recorded in the TODO §0e below.
 
 ## Naming (`5f609d2f`) — remember these
 - `Overlap(f)` = ANY 1-electron `⟨i|f|j⟩` (f may be a potential); `Repulsion` = the 2-electron `1/r12`.
@@ -412,17 +425,16 @@ point set crosses the interface — the stronger form of that cleanup); KMesh + 
 
 # TODO / NEXT
 
-**Orientation (2026-07-16, end of session).**  §0 through BANISH-Rcut + SR2 is DONE (full records in the
-DONE section above): the XC fork was FALSIFIED by its own FD instrument; the NaF grid-charge catastrophe
-was root-caused to the Rcut=2a ENUMERATION-SCHEME MISMATCH and the mismatch deleted BY CONSTRUCTION (no
-radius exists anywhere — "there is no cut"); the SR2 basis conditions the complete-enumeration overlap
-(λ_min=1.6e-3, NaF 6× faster); and the honest map demonstrably has a clean fixed point (Ecut=40:
-≈−27.73 SR2 / ≈−28.00 SR) that the SCF repeatedly FINDS.  **The Γ-instability (§0b″) is now MEASURED
-(band-gap instrument) AND CURED for the occupation-swap disease (delayed-IMOM MOM): NaF Ecut=40 now
-CONVERGES to −27.76 (Δρ 6e-4).  The one residual excursion is a density-MIXING transient → 0c Pulay is the
-next lever.**  Then 0c (the mixer face), the runtime follow-ups (0d), and the standing queue (1)–(5).
+**Orientation (2026-07-19, end of session).**  §0 through SR2 + §0b″ (band-gap instrument + MOM cure) + §0c
+(the SCF-strategy refactor: mixer seam, loop-driver, ONE shared DIIS engine, and Kerker-preconditioned Pulay)
+are all **DONE** — summaries in the DONE timeline above; §0c design in `doc/SCFStrategyPlan.md`.  NaF Ecut=40
+converges (MOM+Pulay, 63 iters, −27.756).  **The ONE remaining NaF problem is the PRODUCTION GRID (§0e
+below): the direct auto-Ecut=160 run falls into the −39 density/grid basin — MOM+Pulay are necessary but not
+sufficient, so grid-continuation seeding + basin removal (+ OpenMP to make iteration bearable) is the
+next-session critical path.**  Then the runtime follow-ups (0d) and the standing queue (1)–(5).
+(§0b″ and §0c full records are retained below as detailed DONE records; their headers are marked ✓.)
 
-## 0b″. NaF Γ-INSTABILITY — mechanism MEASURED, occupation-swap disease CURED by MOM (2026-07-17)
+## 0b″. ✓ DONE — NaF Γ-INSTABILITY: mechanism MEASURED + occupation-swap disease CURED by MOM (2026-07-17; DONE-timeline summary above; detailed record retained here)
 **The classified facts (records in DONE §0b′): the honest, conditioned map descends smoothly to its fixed
 point and departs via a GROWING mode — α-INDEPENDENT (10/10/13 spikes at α=0.025/0.0125/0.00625, period
 ~27, smooth climb-away over ~5 iters), NOT conditioning (SR2 λ_min=1.6e-3 shows the same spikes as SR
@@ -489,7 +501,7 @@ REFINED, not simply confirmed — the mechanism is now directly visualized (Ecut
    stays — now purely a precision/conditioning health meter.  Also probe: the ionic SEED's 1.09-e
    precision-floor loss (may already be gone with SR2's conditioning).
 
-## 0c. PULAY/BROYDEN ρ̃-MIXING behind the DIP mixer face (`tDensityMixer`) — user design, 2026-07-16
+## 0c. ✓ DONE — PULAY/BROYDEN ρ̃-MIXING (the mixer face + shared DIIS engine landed; design in doc/SCFStrategyPlan.md, DONE-timeline summary above; original design spec retained here)
 > **SUPERSEDED/EXPANDED by `doc/SCFStrategyPlan.md` (2026-07-18)** — the mixer is one seam of a four-role
 > ISP model (orbital / occupation / density / loop) with a single shared extrapolator (DIIS≡Pulay, one
 > paper-faithful engine on either the F or ρ residual stream) and an occupation seam that extends to Fermi
@@ -513,6 +525,10 @@ from the top (SOLID DIP — the existing `tSCFAccelerator<T>*` ctor-injection pr
 - **Accelerant on top**: grid-continuation seeding (converge Ecut=40 → seed the fine grid — start in the
   right basin).  Gate: the NaF test on the production grid vs the −27.93128 oracle.
 Convergence pays twice: fewer iterations AND stronger D-aware kills on a settled density.
+
+---
+
+## 0e. NaF PRODUCTION GRID — the one remaining NaF problem (NEXT, critical path)
 
 **DIRECT FINE-GRID RUN MEASURED — 2026-07-19 (MOM + Pulay depth6/start35, auto Ecut=160, 45527 G, 15m45s,
 NMAX=100): FAILS to the unphysical basin; grid-continuation seeding is now the CRITICAL PATH, not just an
