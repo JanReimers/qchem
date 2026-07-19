@@ -556,15 +556,27 @@ the OTHER turned OFF:**
   (which honours the pragmas but does NOT define `_OPENMP`, so the code gates on our own **`QCHEM_OPENMP`**
   macro); no `<omp.h>` (private-buffer + critical pattern).  See [[project_openmp_runtime]].
   - **MEASURED (NaF fine grid, auto Ecut=160, 4 threads):** per-iteration collocate/integrate **~10.4 → ~6.1
-    s/iter ≈ 1.7×** — the per-iteration cost is memory-BANDWIDTH-bound (scatter/gather replay over the ~950M-pt
-    cached streams), so 4 cores only buy ~1.7×.  Threading confirmed engaged (4 workers running simultaneously
-    at Ecut=40 via /proc); charge/energy correct under threads.
-  - **THE AMDAHL WALL = the ~5-min SERIAL stream-build SETUP (`EnsureStreams`), which step 0 did NOT touch.**
-    That setup is the exp/poly-heavy analytic evaluation — COMPUTE-bound, so it is exactly where 4 cores WOULD
-    scale well (unlike the memory-bound per-iteration replay).  So the highest-value next runtime item is
-    **parallelising `EnsureStreams` (0d "setup share")** — design: parallel per-pair box eval + the budget
-    tiering under a `critical` (memory-safe: nthreads pair-temps live at once; serial path stays byte-identical;
-    threaded tiering order becomes non-deterministic, fine for the did-E-move anchor).
+    s/iter ≈ 1.7×** — the per-iteration cost is memory-BANDWIDTH-bound (scatter/gather replay over the cached
+    streams), so 4 cores only buy ~1.7×.  Threading confirmed engaged (4 workers running simultaneously at
+    Ecut=40 via /proc); charge/energy correct under threads.
+  - **THE FINE-GRID WALL IS THE SETUP — AND IT IS `MakeLocalPP`, NOT `EnsureStreams`, AND IT DOES NOT
+    PARALLELISE (profiled 2026-07-19, SR2 basis; a per-phase `std::chrono` breakdown + a threaded A/B).**  The
+    `cSCFIterator` ctor is **~320 s** of the fine-grid run; inside it: overlap-S is instant, the `EnsureStreams`
+    stream build is only **~25 s** (129.5M pts for SR2 — the old "~950M / 5-min" figure was a pre-SR2 basis),
+    and the remaining **~290 s is `MakeLocalPP`** (the `relCutoffScale=6` static local-PP sweep in the
+    iteration-0 Fock, `GPW/Imp/Evaluator.C:484`).  A 0d attempt to OpenMP `EnsureStreams` (parallel per-pair box
+    eval + `critical` budget tiering) was implemented, verified byte-identical serial — and then **REVERTED
+    because it gave ZERO speedup** (25 s → 25 s at 4 threads).  Same for `MakeLocalPP` through step 0's
+    `IntegratePotential` path (ctor 329 s → 318 s = noise).  ROOT CAUSE: both are dominated by a **few
+    ultra-diffuse pairs with enormous boxes** (`MakeLocalPP`'s own comment: "an ultra-diffuse pair's box on N=64
+    × ~180 offsets stalls the setup for hours") — a **load imbalance** the biggest pair runs alone on one thread,
+    so *per-pair* OpenMP cannot help (99 % CPU throughout).
+  - **→ the real fine-grid lever is an ALGORITHMIC `MakeLocalPP` fix, not threading.**  Two leads: (a) the code
+    comment itself says an ultra-diffuse pair's OWN spectrum kills the sharp-field tail, so it "still belongs on
+    a deep coarse level" — a smarter sharp-field level assignment would keep the giant boxes off the fine grid
+    (the current `relCutoffScale=6` forces them there); (b) failing that, **intra-pair** parallelism (OpenMP over
+    the offsets/box of the few giant pairs) rather than over pairs.  Step 0's per-iteration ~1.7× stands (committed);
+    the setup is a separate, algorithmic problem.
 - **Step 1 — grid-continuation seeding (AVOID the basin), FIRST**: the SR2 orbital basis is IDENTICAL at both
   Ecut (only the density collocation grid differs), so a converged Ecut=40 density matrix D transfers DIRECTLY
   as the fine-grid seed (no re-projection).  Wire a converged-D seed into the periodic SCF (a SeedStrategy /
@@ -576,14 +588,13 @@ the OTHER turned OFF:**
 
 ## 0d. Runtime follow-ups (after 0b/0c)
 - **OpenMP over the per-iteration collocate/integrate pairs — DONE (step 0 above).**  Memory-bound → ~1.7×.
-- **Setup share = NOW THE PRIMARY RUNTIME LEVER (promoted by the step-0 measurement).**  The ~5-min serial
-  `EnsureStreams` stream-build (+ the scale-6 static-PP sweep) dominates the fine-grid run and is COMPUTE-bound
-  (exp/poly), so OpenMP over its per-pair box evaluation should scale far better than the memory-bound
-  per-iteration replay did.  Design sketch (memory-safe, serial-path byte-identical): `#pragma omp parallel
-  for` over the pairs doing the expensive `ForImageOffsets`/`ForPairBox` eval into a thread-local stream, then
-  the first-fit budget tiering (fp64/fp32/drop) under a `#pragma omp critical` — only nthreads pair-temps live
-  at once (bounded RAM), and the threaded tiering order becomes non-deterministic (fine for the did-E-move
-  anchor; nthreads==1 stays exactly today's order).  CP2K's ssmp is threaded on top of everything above.
+- **`MakeLocalPP` is the fine-grid SETUP wall (~290 s of a ~320 s ctor) and needs an ALGORITHMIC fix, not
+  threading** (profiled 2026-07-19; full record in §0e step 0).  The `relCutoffScale=6` static local-PP sweep
+  forces a few ultra-diffuse pairs onto huge fine-grid boxes → a load imbalance that per-pair OpenMP cannot
+  touch (measured: no speedup).  Fix leads: (a) smarter sharp-field level assignment so an ultra-diffuse pair
+  (whose own spectrum kills the field tail) stays on a deep coarse level — the sweep's own comment argues this;
+  (b) intra-pair (over-offset) parallelism for the few giant pairs.  A per-pair-OpenMP `EnsureStreams` build
+  (only ~25 s, and also load-imbalanced) was tried and reverted — no benefit.  CP2K's ssmp is threaded on top.
 
 Then the standing queue: **(1) DROP SR** (rank-reduction + auto-tol, below); **(2) low-q multi-species
 bases → Si/NaF/CsI**; **(3) CP2K reference library**; **(4) IBZ**; **(5) cleanups**.
