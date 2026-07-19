@@ -423,18 +423,7 @@ point set crosses the interface — the stronger form of that cleanup); KMesh + 
 
 ---
 
-# TODO / NEXT
-
-**Orientation (2026-07-19, end of session).**  §0 through SR2 + §0b″ (band-gap instrument + MOM cure) + §0c
-(the SCF-strategy refactor: mixer seam, loop-driver, ONE shared DIIS engine, and Kerker-preconditioned Pulay)
-are all **DONE** — summaries in the DONE timeline above; §0c design in `doc/SCFStrategyPlan.md`.  NaF Ecut=40
-converges (MOM+Pulay, 63 iters, −27.756).  **The ONE remaining NaF problem is the PRODUCTION GRID (§0e
-below): the direct auto-Ecut=160 run falls into the −39 density/grid basin — MOM+Pulay are necessary but not
-sufficient, so grid-continuation seeding + basin removal (+ OpenMP to make iteration bearable) is the
-next-session critical path.**  Then the runtime follow-ups (0d) and the standing queue (1)–(5).
-(§0b″ and §0c full records are retained below as detailed DONE records; their headers are marked ✓.)
-
-## 0b″. ✓ DONE — NaF Γ-INSTABILITY: mechanism MEASURED + occupation-swap disease CURED by MOM (2026-07-17; DONE-timeline summary above; detailed record retained here)
+## §0b″ NaF Γ-INSTABILITY — mechanism MEASURED + occupation-swap disease CURED by MOM (2026-07-17).  The full record:
 **The classified facts (records in DONE §0b′): the honest, conditioned map descends smoothly to its fixed
 point and departs via a GROWING mode — α-INDEPENDENT (10/10/13 spikes at α=0.025/0.0125/0.00625, period
 ~27, smooth climb-away over ~5 iters), NOT conditioning (SR2 λ_min=1.6e-3 shows the same spikes as SR
@@ -501,7 +490,7 @@ REFINED, not simply confirmed — the mechanism is now directly visualized (Ecut
    stays — now purely a precision/conditioning health meter.  Also probe: the ionic SEED's 1.09-e
    precision-floor loss (may already be gone with SR2's conditioning).
 
-## 0c. ✓ DONE — PULAY/BROYDEN ρ̃-MIXING (the mixer face + shared DIIS engine landed; design in doc/SCFStrategyPlan.md, DONE-timeline summary above; original design spec retained here)
+## §0c PULAY/BROYDEN ρ̃-MIXING — the mixer face + shared DIIS engine landed (2026-07-18; design in doc/SCFStrategyPlan.md).  The full record:
 > **SUPERSEDED/EXPANDED by `doc/SCFStrategyPlan.md` (2026-07-18)** — the mixer is one seam of a four-role
 > ISP model (orbital / occupation / density / loop) with a single shared extrapolator (DIIS≡Pulay, one
 > paper-faithful engine on either the F or ρ residual stream) and an occupation seam that extends to Fermi
@@ -527,6 +516,17 @@ from the top (SOLID DIP — the existing `tSCFAccelerator<T>*` ctor-injection pr
 Convergence pays twice: fewer iterations AND stronger D-aware kills on a settled density.
 
 ---
+
+# TODO / NEXT
+
+**Orientation (2026-07-19, end of session).**  Everything through §0c is **DONE** — §0 through SR2, §0b″
+(band-gap instrument + MOM cure) and §0c (the SCF-strategy refactor: mixer seam, loop-driver, ONE shared DIIS
+engine, and Kerker-preconditioned Pulay) now sit as full records in the [DONE](#done) section above; §0c
+design in `doc/SCFStrategyPlan.md`.  NaF Ecut=40 converges (MOM+Pulay, 63 iters, −27.756).  **The ONE
+remaining NaF problem is the PRODUCTION GRID (§0e below): the direct auto-Ecut=160 run falls into the −39
+density/grid basin — MOM+Pulay are necessary but not sufficient, so grid-continuation seeding + basin removal
+(+ OpenMP to make iteration bearable) is the next-session critical path.**  Then the runtime follow-ups (0d)
+and the standing queue (1)–(5).
 
 ## 0e. NaF PRODUCTION GRID — the one remaining NaF problem (NEXT, critical path)
 
