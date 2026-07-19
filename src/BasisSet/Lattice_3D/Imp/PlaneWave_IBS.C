@@ -56,6 +56,20 @@ chmat_t PlaneWave_IBS::MakeLocalPotential(const Structure* cl, const Pseudopoten
     return LocalPotentialMatrix(cl, [&loc](int Z, double g2){ return loc.FormFactor(Z,g2); });
 }
 
+// The CP2K local-PP split (doc/GPWPlan.md 0e-PP): the SAME structure-factor assembly restricted to the
+// model's long/short form factor.  A plane-wave basis assembles both analytically in G-space (no grid), so
+// this is a trivial callback swap -- the split's efficiency payoff is GPW-side (it dodges the sharp-field
+// local-PP grid sweep for the long, deep-well part), but keeping the interface uniform across both bases
+// lets PW_Hartree/PW_Pseudo drive either without a basis-type branch.
+chmat_t PlaneWave_IBS::MakeLocalPotentialLong(const Structure* cl, const Pseudopotential::LocalPotential& loc) const
+{
+    return LocalPotentialMatrix(cl, [&loc](int Z, double g2){ return loc.FormFactorLong(Z,g2); });
+}
+chmat_t PlaneWave_IBS::MakeLocalPotentialShort(const Structure* cl, const Pseudopotential::LocalPotential& loc) const
+{
+    return LocalPotentialMatrix(cl, [&loc](int Z, double g2){ return loc.FormFactorShort(Z,g2); });
+}
+
 // V_NL(G,G') = (1/Omega) Sum_a e^{-i(G-G').tau_a} Sum_p (2l_p+1) P_{l_p}(cos gamma) betã_p(|k+G|) D_p
 //              betã_p(|k+G'|),  gamma = angle(k+G, k+G').
 // Per atom & projector & m this is rank-1: |beta> D <beta|.  Hermitian; real for atoms at the origin.

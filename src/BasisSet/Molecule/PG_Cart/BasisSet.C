@@ -2,6 +2,7 @@
 module;
 #include <vector>
 #include <memory>
+#include <functional>
 export module qchem.BasisSet.Molecule.PG_Cart;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Internal.Block;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;
@@ -88,6 +89,10 @@ public:
     virtual cvec_t  MakeOverlap(const Molecule::LatticeSum1E::GaussianFunction& g) const override;
     virtual chmat_t MakeKinetic(const cellphase_t& phase, const UnitCell& A) const override;
     virtual chmat_t MakeNuclear(const cellphase_t& phase, const UnitCell& A, const Structure* cl) const override;
+    virtual chmat_t MakeLocalGaussian(const cellphase_t& phase, const UnitCell& A, const Structure* cl,
+                                      const std::function<Molecule::LatticeSum1E::GaussianFunction(int)>& opForZ) const override;
+    virtual chmat_t MakeLocalGaussian(const Structure* cl,
+                                      const std::function<Molecule::LatticeSum1E::GaussianFunction(int)>& opForZ) const override;
     virtual double  MaxExponent() const override;   // finest exponent -> the GPW density-grid cutoff floor
     virtual double  MinExponent() const override;   // coarsest exponent -> the multi-grid coarsest level
     virtual double  RelCutoffSafety() const override; // pair->level stiffness -> the ladder completion rung

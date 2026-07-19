@@ -61,6 +61,27 @@ hmat_t<dcmplx> GPW_IBS::MakeLocalPotential(const Structure* cl, const Pseudopote
         [this,cl,&loc]{ return GPW_Evaluator::MakeLocalPP(cl, loc); });
 }
 
+// The CP2K local-PP split (doc/GPWPlan.md 0e-PP): the LONG (softened-Coulomb) matrix rides the smooth
+// density-grid integrate-back (MakeLocalPPLong -- no sharp-field sweep); the SHORT (compact poly-Gaussian)
+// matrix rides the sharp-field local-PP sweep (MakeLocalPP restricted to FormFactorShort).  Distinct cache
+// keys keep them from colliding with each other or the full LocalPP.
+hmat_t<dcmplx> GPW_IBS::MakeLocalPotentialLong(const Structure* cl, const Pseudopotential::LocalPotential& loc) const
+{
+    return theCache<dcmplx>().Get(IntegralsCache_Base::I2n::LocalPPLong, this, cl->ID(),
+        [this,cl,&loc]{ return GPW_Evaluator::MakeLocalPPLong(cl, loc); });
+}
+
+hmat_t<dcmplx> GPW_IBS::MakeLocalPotentialShort(const Structure* cl, const Pseudopotential::LocalPotential& loc) const
+{
+    // NOTE (increment 2, doc/GPWPlan.md 0e-PP): the ANALYTIC short assembly (GPW_Evaluator::MakeLocalPPShort)
+    // is built and finite-validated, but NOT yet wired into production -- it is exact, whereas the grid short
+    // carries a ~0.5 Ha band-limiting error that CANCELS the grid long's (V_loc is smooth, so V_short(G) ~
+    // -V_long(G) beyond the grid cutoff).  So analytic-short + grid-long misses the grid-calibrated gate;
+    // both pieces must go analytic together.  Keep the grid short until the analytic long lands.
+    return theCache<dcmplx>().Get(IntegralsCache_Base::I2n::LocalPPShort, this, cl->ID(),
+        [this,cl,&loc]{ return GPW_Evaluator::MakeLocalPP(cl, loc, GPW_Evaluator::LocalPart::Short); });
+}
+
 hmat_t<dcmplx> GPW_IBS::MakeSeparablePotential(const Structure* cl, const Pseudopotential::SeparablePotential& nl) const
 {
     auto* sepR=dynamic_cast<const Pseudopotential::SeparablePotential_R*>(&nl);

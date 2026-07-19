@@ -86,6 +86,11 @@ public:
     //! evaluator's mesh quadrature).  This is what lets the plane-wave \c PW_Pseudo term (and thus the whole
     //! \c Ham_PW_DFT) drive a GPW basis unchanged -- GPW answers the same abstract cross-cast a PW basis does.
     virtual hmat_t<dcmplx> MakeLocalPotential   (const Structure* cl, const Pseudopotential::LocalPotential&     loc) const override;
+    //! \brief The long/short split of \c MakeLocalPotential (doc/GPWPlan.md 0e-PP): the LONG (softened-Coulomb)
+    //! part is assembled analytically on the smooth density-grid integrate-back (\c GPW_Evaluator::MakeLocalPPLong,
+    //! folded into \c PW_Hartree); the SHORT (compact poly-Gaussian) part rides the sharp-field local-PP sweep.
+    virtual hmat_t<dcmplx> MakeLocalPotentialLong (const Structure* cl, const Pseudopotential::LocalPotential& loc) const override;
+    virtual hmat_t<dcmplx> MakeLocalPotentialShort(const Structure* cl, const Pseudopotential::LocalPotential& loc) const override;
     virtual hmat_t<dcmplx> MakeSeparablePotential(const Structure* cl, const Pseudopotential::SeparablePotential& nl ) const override;
 
     virtual std::string Name      () const override {return "GPW";}

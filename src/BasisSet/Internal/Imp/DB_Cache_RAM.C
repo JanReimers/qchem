@@ -70,6 +70,8 @@ namespace std
             switch (c) { // Reuse switch-case logic, but integrate with format
                 case I2n::Nuclear:      name = "Nuclear"     ; break;
                 case I2n::LocalPP:      name = "LocalPP"     ; break;
+                case I2n::LocalPPLong:  name = "LocalPPLong" ; break;
+                case I2n::LocalPPShort: name = "LocalPPShort"; break;
                 case I2n::SeparablePP:  name = "SeparablePP" ; break;
             }
             return formatter<string_view>::format(name, ctx);  

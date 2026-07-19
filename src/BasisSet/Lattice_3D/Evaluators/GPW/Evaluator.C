@@ -118,7 +118,26 @@ public:
     //! \f$V_{loc}(r)\f$ on the density grid, band-limited to \c densityEcut, then quadratures it) -- so it is
     //! box-INDEPENDENT (unlike a real-space quadrature of the raw \f$V_{loc}\f$, whose Coulomb-tail cell-mean
     //! drifts with box size).  The KB nonlocal stays real-space (localized, no G=0 issue): see \c MakeSeparablePP.
-    chmat_t MakeLocalPP    (const Structure* cl, const Pseudopotential::LocalPotential& loc) const;
+    //! Which piece of the local PP a \c MakeLocalPP sweep assembles (the CP2K split, doc/GPWPlan.md 0e-PP):
+    //! the FULL \f$V_{loc}\f$, its LONG (softened-Coulomb / deep-well) part, or its SHORT (compact
+    //! poly-Gaussian) remainder.  All three route through the SAME sharp-field sweep, so \c Short+\c Long ==
+    //! \c Full matrix-for-matrix (the sweep is linear in the form factor) -- the split relocates the LONG
+    //! part's ENERGY into the Hartree term without changing the assembled matrices.  (The eventual cost win --
+    //! the LONG part via the cheap smooth Poisson, no per-pair sweep -- is the analytic-seam follow-up; the
+    //! naive smooth integrate-back ALIASES the deep well onto the coarse-level diffuse pairs, which is exactly
+    //! what \c relCutoffScale=6 guards against.)
+    enum class LocalPart { Full, Long, Short };
+    chmat_t MakeLocalPP    (const Structure* cl, const Pseudopotential::LocalPotential& loc,
+                            LocalPart part=LocalPart::Full) const;
+    //! \brief The LONG-range (softened-Coulomb) local-PP matrix \f$\langle i|V_{long}|j\rangle\f$, folded into
+    //! the Hartree Poisson by \c PW_Hartree (doc/GPWPlan.md 0e-PP).  Convenience for \c MakeLocalPP(Long).
+    chmat_t MakeLocalPPLong(const Structure* cl, const Pseudopotential::LocalPotential& loc) const;
+    //! \brief The SHORT-range (compact poly \f$\times\f$ Gaussian) local-PP matrix \f$\langle i|V_{short}|j\rangle\f$.
+    //! ANALYTIC when the model exposes its short part in closed Gaussian form (\c LocalPotential_Gaussian): a
+    //! lattice-summed 3-centre \c Overlap3C (\c LatticeSum1E::MakeLocalGaussian), NO grid sweep -- the
+    //! increment-2 cost win (doc/GPWPlan.md 0e-PP).  Falls back to the grid sweep (\c MakeLocalPP(Short)) for a
+    //! model without the closed-Gaussian face.
+    chmat_t MakeLocalPPShort(const Structure* cl, const Pseudopotential::LocalPotential& loc) const;
     //! \brief KB separable nonlocal matrix \f$\sum_{a,p,m}D_p|b\rangle\langle b|\f$ with the projection vector
     //! \f$b_i=\langle\chi_i|\beta_p(|r-R_a|)Y_{lm}\rangle\f$ (mesh quadrature).  Real symmetric at \f$\Gamma\f$.
     chmat_t MakeSeparablePP(const Structure* cl, const Pseudopotential::SeparablePotential_R& sep) const;

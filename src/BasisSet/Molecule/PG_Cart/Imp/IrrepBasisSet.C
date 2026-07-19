@@ -7,6 +7,7 @@ module;
 #include <string>
 #include <memory>
 #include <vector>
+#include <functional>
 
 module qchem.BasisSet.Molecule.PG_Cart;
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;
@@ -252,6 +253,12 @@ cvec_t  Orbital_IBS::MakeOverlap(const cellphase_t& phase, const UnitCell& A,
 cvec_t  Orbital_IBS::MakeOverlap(const Molecule::LatticeSum1E::GaussianFunction& g) const {return NR_Evaluator::MakeOverlap(g);}
 chmat_t Orbital_IBS::MakeKinetic(const cellphase_t& phase, const UnitCell& A) const {return NR_Evaluator::MakeKinetic(phase,A);}
 chmat_t Orbital_IBS::MakeNuclear(const cellphase_t& phase, const UnitCell& A, const Structure* cl) const {return NR_Evaluator::MakeNuclear(phase,A,cl);}
+chmat_t Orbital_IBS::MakeLocalGaussian(const cellphase_t& phase, const UnitCell& A, const Structure* cl,
+                                       const std::function<Molecule::LatticeSum1E::GaussianFunction(int)>& opForZ) const
+{   return NR_Evaluator::MakeLocalGaussian(phase,A,cl,opForZ); }
+chmat_t Orbital_IBS::MakeLocalGaussian(const Structure* cl,
+                                       const std::function<Molecule::LatticeSum1E::GaussianFunction(int)>& opForZ) const
+{   return NR_Evaluator::MakeLocalGaussian(cl,opForZ); }
 double  Orbital_IBS::MaxExponent() const {return NR_Evaluator::MaxExponent();}
 double  Orbital_IBS::MinExponent() const {return NR_Evaluator::MinExponent();}
 double  Orbital_IBS::RelCutoffSafety() const {return NR_Evaluator::RelCutoffSafety();}

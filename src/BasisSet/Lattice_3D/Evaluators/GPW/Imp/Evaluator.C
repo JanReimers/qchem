@@ -11,6 +11,7 @@ module;
 #include <vector>
 #include <map>
 #include <algorithm>
+#include <cstdlib>   // std::getenv (the PWSHORT_DBG analytic-vs-grid diagnostic)
 module qchem.BasisSet.Lattice_3D.Evaluators.GPW;
 import qchem.Blaze;       // rvec_t, rmat_t, rsmat_t, blazem::zeroH<dcmplx>
 import qchem.Vector3D;    // vec3_t + rvec3_t / rvec3vec_t arithmetic (r - R, componentwise add)
@@ -481,7 +482,7 @@ qcMesh::MeshParams GPW_Evaluator::PPMeshParams() const
 // This inherits the PW G=0 / FormFactorG0-alignment convention EXACTLY, so the energy is box-independent (a
 // real-space quadrature of the raw -Zion/r-tailed V_loc has a cell-size-dependent mean -> box drift).  The KB
 // nonlocal (localized, no Coulomb tail, no G=0 issue) stays real-space (MakeSeparablePP).
-chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const Pseudopotential::LocalPotential& loc) const
+chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const Pseudopotential::LocalPotential& loc, LocalPart part) const
 {
     assert(itsGrid && "GPW_Evaluator: the local PP needs the density grid (densityEcut!=0: <0 auto, >0 explicit)");
     const UnitCell& B=itsGrid->Recip().GetCell();
@@ -501,7 +502,13 @@ chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const Pseudopotential::L
         rvec3_t dG=B.ToCartesian(rvec3_t(dm));
         double  g2=dG*dG;
         dcmplx  acc(0.0);                                            // form factor x structure factor
-        for (Atom* a : *cl) acc += loc.FormFactor(a->itsZ,g2)*std::exp(dcmplx(0.0,-(dG*a->itsR)));
+        for (Atom* a : *cl)                                          // full V_loc, or its long / short piece
+        {
+            double f = part==LocalPart::Long  ? loc.FormFactorLong (a->itsZ,g2)
+                     : part==LocalPart::Short ? loc.FormFactorShort(a->itsZ,g2)
+                     :                          loc.FormFactor     (a->itsZ,g2);
+            acc += f*std::exp(dcmplx(0.0,-(dG*a->itsR)));
+        }
         return acc/itsGrid->Volume();
     };
     EnsureLevels();
@@ -522,6 +529,46 @@ chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const Pseudopotential::L
     }
     return itsLat->IntegratePotential(V_L, CellPhase(), itsCell, N_B, e_B,
                                       /*relCutoffScale*/6.0);            // sharp-field level assignment
+}
+
+// The LONG-range (softened-Coulomb) local-PP matrix, the CP2K split's Hartree-folded piece (doc/GPWPlan.md
+// 0e-PP).  INCREMENT 1 assembles it through the SAME sharp-field sweep as the full V_loc (LocalPart::Long), so
+// V_short + V_long == V_full matrix-for-matrix -- the split RELOCATES the long part's ENERGY into the Hartree
+// term (E_een_long, no 1/2) without perturbing the assembled matrices (the -7.11506 Si gate is exact).  The
+// deep well is the erf-softened Coulomb, spectrally broad, so the naive smooth integrate-back ALIASES it onto
+// the coarse-level diffuse pairs (measured: Si Gamma -259 vs -7.115) -- the cheap smooth Poisson fold that
+// dodges the per-pair sweep is the analytic-seam follow-up (increment 2), NOT this correctness step.
+chmat_t GPW_Evaluator::MakeLocalPPLong(const Structure* cl, const Pseudopotential::LocalPotential& loc) const
+{
+    return MakeLocalPP(cl, loc, LocalPart::Long);
+}
+
+// The SHORT-range local-PP matrix, ANALYTIC via the closed Gaussian form (increment 2, doc/GPWPlan.md 0e-PP):
+// V_short(r) = Sum_t c_t r^{2n_t} e^{-alpha r^2} at each atom, so <chi_i|V_short|chi_j> is a lattice-summed
+// 3-centre Overlap3C (LatticeSum1E::MakeLocalGaussian) -- NO grid sweep (the compact core needs no
+// relCutoffScale stiffening / giant boxes).  Falls back to the grid sweep for a model whose short part is not
+// exposed in closed Gaussian form.  The per-species operator g_Z = Sum_t c_t r^{2n_t} e^{-alpha r^2} is a
+// Cartesian-Gaussian function: r^{2n} = MultiplyR2(1,n) (the l=0 s-harmonic is the constant), all sharing the
+// one exponent alpha = 1/(2 rloc^2); each atom places g_Z at its centre (the OPERATOR slot of Overlap3C).
+chmat_t GPW_Evaluator::MakeLocalPPShort(const Structure* cl, const Pseudopotential::LocalPotential& loc) const
+{
+    const auto* gauss=dynamic_cast<const Pseudopotential::LocalPotential_Gaussian*>(&loc);
+    if (!gauss) return MakeLocalPP(cl, loc, LocalPart::Short);   // grid fallback (non-Gaussian short part)
+    auto opForZ=[gauss](int Z)->Molecule::LatticeSum1E::GaussianFunction
+    {
+        Molecule::LatticeSum1E::GaussianFunction g;
+        const auto terms=gauss->ShortRangeGaussian(Z);
+        g.alpha = terms.empty() ? 1.0 : terms[0].alpha;
+        for (const auto& rt : terms)
+        {
+            assert(rt.alpha==g.alpha && "GPW short PP: a species' Gaussian terms must share one exponent (1/2 rloc^2)");
+            auto mono=MultiplyR2({ qchem::Math::CartTerm{ qchem::Math::Monomial{0,0,0}, 1.0 } }, rt.n);
+            for (auto& t : mono) { t.c*=rt.c; g.terms.push_back(t); }
+        }
+        return g;
+    };
+    return itsHomeOnly ? itsLat->MakeLocalGaussian(cl, opForZ)
+                       : itsLat->MakeLocalGaussian(CellPhase(), itsCell, cl, opForZ);
 }
 
 // KB separable nonlocal PP: accumulate the rank-1 Hermitian D|b><b| over atoms/projectors/m, with the BLOCH

@@ -187,8 +187,8 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
     PW_Hartree::fbs_t CFitBasis(bs->CreateCDFitBasisSet (st.get(), mp));
     PW_XC::fbs_t      VFitBasis(bs->CreateVxcFitBasisSet(st.get(), mp));
     Add(new PW_Kinetic);
-    Add(new PW_Pseudo(st, loc, nl));                           // electron-ion (incl. G=0 alignment)
-    Add(new PW_Hartree(CFitBasis));
+    Add(new PW_Pseudo(st, loc, nl));                           // electron-ion SHORT-range (+ short G=0 alignment)
+    Add(new PW_Hartree(CFitBasis, st, loc));                   // Hartree V_H + long-range core-charge V_long (0e-PP)
     Add(new PW_XC(exch, VFitBasis));
     Add(new PW_XC(corr, VFitBasis));
     Add(new IonIon<dcmplx>(st, loc->ZionFn()));                  // ion-ion Ewald: Zion from the PP, not itsZ

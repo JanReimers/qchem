@@ -102,6 +102,23 @@ public:
     //! \f$\sum_R e^{ik\cdot R}\langle\chi_i|\sum_c -Z_c/|r-R_c|\,|\chi_j(\cdot-R)\rangle\f$ over the atoms of \a cl.
     virtual chmat_t MakeNuclear(const cellphase_t& phase, const UnitCell& A, const Structure* cl) const = 0;
 
+    //! \brief The lattice-summed matrix of a per-atom LOCAL Gaussian(-polynomial) operator placed at every atom
+    //! of \a cl: \f$\langle\chi_i^k|\sum_a g_a|\chi_j^k\rangle=\sum_R e^{ik\cdot R}\sum_a\langle\chi_i|g_a|
+    //! \chi_j(\cdot-R)\rangle\f$, the analytic 3-centre (\c Overlap3C) MATRIX sibling of the 2-centre
+    //! \c MakeOverlap(g) VECTOR -- \a g stands in an operator slot BETWEEN the two orbitals (a multiplicative
+    //! local potential), not the \f$\chi_j\f$ slot.  \a opForZ supplies the operator's \f$\{\alpha,\text{terms}\}\f$
+    //! for a nuclear species \a Z (the impl centres it at each atom).  For a COMPACT operator (Gaussian tail,
+    //! e.g. the short-range local pseudopotential) an image-atom operator is negligible (\f$e^{-|cell|^2/2r^2}\f$),
+    //! so only home-cell atoms are placed -- like \c MakeNuclear, but here that is exact by construction.  The
+    //! \f$\chi_i,\chi_j\f$ enumeration reuses the pair magnitude screen (an operator far from a screened-in pair
+    //! contributes \f$\approx0\f$ via \c Overlap3C).  Hermitian; real at \f$\Gamma\f$.
+    virtual chmat_t MakeLocalGaussian(const cellphase_t& phase, const UnitCell& A, const Structure* cl,
+                                      const std::function<GaussianFunction(int Z)>& opForZ) const = 0;
+    //! \brief The FINITE (home-term-only) \f$\langle\chi_i|\sum_a g_a|\chi_j\rangle\f$ -- the molecule/box limit
+    //! (no lattice), the sibling of the finite \c MakeOverlap(g) used by the home-only GPW mode.
+    virtual chmat_t MakeLocalGaussian(const Structure* cl,
+                                      const std::function<GaussianFunction(int Z)>& opForZ) const = 0;
+
     //! The largest primitive Gaussian exponent \f$\alpha_{\max}\f$ in the basis -- a scalar RESOLUTION summary
     //! (NOT primitive exposure; the radials stay encapsulated).  A GPW density grid must resolve the sharpest
     //! density feature, the product of the two tightest primitives (a Gaussian of exponent \f$2\alpha_{\max}\f$),

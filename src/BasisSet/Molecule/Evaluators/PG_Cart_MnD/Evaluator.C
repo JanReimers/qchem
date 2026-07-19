@@ -23,6 +23,7 @@ module;
 #include <algorithm>  // std::min (alpha_min per radial)
 #include <functional> // cellphase_t (the caller-supplied Bloch phase of a cross-cell offset)
 #include <utility>    // std::pair (the flattened (i,j) pair list for the OpenMP loop)
+#include <memory>     // std::shared_ptr (the per-atom operator GaussianRF, shared across its polynomial terms)
 #include <cstdlib>    // std::getenv/std::atoi (the GPW_OMP_THREADS opt-in knob)
 // GPW pair-loop parallelism (opt-in via GPW_OMP_THREADS).  Gated on QCHEM_OPENMP -- our OWN macro (defined
 // by CMake when the OpenMP flags are applied) rather than _OPENMP, because this LLVM toolchain ships no
@@ -129,6 +130,39 @@ public:
     {   return LatticeSum(phase,A,[this](size_t i,size_t j,const GaussianRF& cj){return radials[i]->Grad2   (cj,pols[i],pols[j]);}); }
     chmat_t MakeNuclear(const cellphase_t& phase, const UnitCell& A, const Structure* cl) const
     {   return LatticeSum(phase,A,[this,cl](size_t i,size_t j,const GaussianRF& cj){return radials[i]->Nuclear(cj,pols[i],pols[j],cl);}); }
+
+    // Molecule::LatticeSum1E: the analytic 3-centre (Overlap3C) MATRIX of a per-atom LOCAL Gaussian operator --
+    // <chi_i^k | Sum_a g_a | chi_j^k>, the local pseudopotential's short-range assembly (doc/GPWPlan.md 0e-PP).
+    // Each atom's operator g_a = opForZ(Z_a) sits in the OPERATOR (C) slot of Overlap3C, between chi_i and the
+    // lattice-imaged chi_j; a compact operator's image atoms are negligible so only home-cell atoms are placed.
+    // The LatticeSum's chi_i-chi_j magnitude screen suffices: a screened-in pair whose product is disjoint from
+    // g_a gives Overlap3C ~ 0 (the integrand needs all three overlapping), and a screened-OUT pair (chi_i,chi_j
+    // disjoint) has product ~ 0 everywhere, so no significant 3-centre term is dropped.
+    chmat_t MakeLocalGaussian(const cellphase_t& phase, const UnitCell& A, const Structure* cl,
+                              const std::function<Molecule::LatticeSum1E::GaussianFunction(int)>& opForZ) const
+    {
+        const std::vector<OpTerm> ops=BuildOpTerms(cl,opForZ,&A);   // periodic: operator over its screened images
+        return LatticeSum(phase,A,[this,&ops](size_t i,size_t j,const GaussianRF& cj)
+        {
+            double s=0.0;
+            for (const auto& ot : ops) s += ot.c * ot.gr->Overlap3C(*radials[i], cj, pols[i], pols[j], ot.pol);
+            return s;
+        });
+    }
+    // The FINITE (home-term-only) <chi_i | Sum_a g_a | chi_j>: the molecule/box limit (no lattice), real symmetric.
+    chmat_t MakeLocalGaussian(const Structure* cl,
+                              const std::function<Molecule::LatticeSum1E::GaussianFunction(int)>& opForZ) const
+    {
+        const std::vector<OpTerm> ops=BuildOpTerms(cl,opForZ,nullptr);   // finite: home atoms only
+        chmat_t S(size());
+        for (auto i:indices()) for (auto j:indices(i))
+        {
+            double s=0.0;
+            for (const auto& ot : ops) s += ot.c * ot.gr->Overlap3C(*radials[i], *radials[j], pols[i], pols[j], ot.pol);
+            S(i,j)=dcmplx(s*ns[i]*ns[j], 0.0);   // finite: real symmetric (upper triangle; chmat_t mirrors)
+        }
+        return S;
+    }
 
     // Molecule::LatticeSum1E: the lattice-summed overlap of every basis function with ONE caller-supplied
     // Cartesian-Gaussian function g -- b_i = Sum_n phase(n) <chi_i | g(.-C-R_n)>.  g stands in the chi_j
@@ -742,6 +776,48 @@ public:
 
 
 private:
+    // One monomial term of a per-atom local Gaussian operator: the atom's GaussianRF (SHARED across its
+    // polynomial terms -- built once per atom image), the term's Cartesian-monomial Polarization, and its coeff.
+    struct OpTerm { std::shared_ptr<GaussianRF> gr; Polarization pol; double c; };
+    // Flatten the structure's per-atom operators (opForZ(Z_a) at R_a) into (gr, pol, c) terms for the 3-centre
+    // Overlap3C loop.  For a PERIODIC cell (\a A non-null) the local potential is the FIXED periodic field, so
+    // each atom is placed at every IMAGE within (operator reach + max orbital reach) of the home atom: an
+    // operator co-located with an imaged chi_j atom that lands near a home orbital contributes, so home-cell
+    // atoms alone under-count (measured: Si Gamma -7.67 vs -7.11).  The operator is compact (Gaussian tail), so
+    // the image shell is finite; a far one still lands in the list but Overlap3C screens it to ~0.  \a A null =
+    // the FINITE (molecule/box) limit: home atoms only.  One GaussianRF per atom image, shared by its terms.
+    std::vector<OpTerm> BuildOpTerms(const Structure* cl,
+                                     const std::function<Molecule::LatticeSum1E::GaussianFunction(int)>& opForZ,
+                                     const UnitCell* A) const
+    {
+        double maxOrbReach=0.0;                              // the product of two orbitals can spread this far
+        for (auto i:indices())
+        {
+            double amin=radials[i]->GetExponents()[0];
+            for (double e:radials[i]->GetExponents()) amin=std::min(amin,e);
+            maxOrbReach=std::max(maxOrbReach, std::sqrt(-std::log(kScreenEps)/amin));
+        }
+        std::vector<OpTerm> ops;
+        for (Atom* a : *cl)
+        {
+            Molecule::LatticeSum1E::GaussianFunction g=opForZ(a->itsZ);
+            const int Lg=GaussDegree(g);
+            auto place=[&](const rvec3_t& center)
+            {
+                auto gr=std::make_shared<GaussianRF>(g.alpha, center, Lg);
+                for (const auto& t : g.terms) ops.push_back({gr, Polarization(t.p), t.c});
+            };
+            if (!A) { place(a->itsR); continue; }           // finite: home atom only
+            const double rEnum=std::sqrt(-std::log(kScreenEps)/g.alpha)+maxOrbReach;   // operator reach + orbital reach
+            for (const auto& n : A->CellsInSphere(rEnum + A->GetMaximumCellEdge()))
+            {
+                const rvec3_t Roff=A->ToCartesian(rvec3_t(double(n.x),double(n.y),double(n.z)));
+                if (Roff.x*Roff.x+Roff.y*Roff.y+Roff.z*Roff.z <= rEnum*rEnum) place(a->itsR+Roff);
+            }
+        }
+        return ops;
+    }
+
     mutable std::vector<StreamCache>   itsStreamCaches;    //!< analytic pair-box streams, one per ladder shape
     mutable std::vector<IntegrateMemo> itsIntegrateMemos;  //!< phase-independent B_ij(n) per exact field (LRU)
 };

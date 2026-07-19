@@ -82,6 +82,9 @@ public:
     //! \brief Assemble any local external potential \f$\langle G|V|G'\rangle=\frac1\Omega\sum_a
     //! v(Z_a,|\Delta G|^2)e^{-i\Delta G\cdot\tau_a}\f$, \f$\Delta G\ne 0\f$ (\f$\Delta G=0\f$ dropped).
     virtual chmat_t MakeLocalPotential(const Structure* cl, const Pseudopotential::LocalPotential& loc) const override;
+    //! \brief The long/short pieces of \c MakeLocalPotential (the CP2K local-PP split, doc/GPWPlan.md 0e-PP).
+    virtual chmat_t MakeLocalPotentialLong (const Structure* cl, const Pseudopotential::LocalPotential& loc) const override;
+    virtual chmat_t MakeLocalPotentialShort(const Structure* cl, const Pseudopotential::LocalPotential& loc) const override;
     //! \brief Assemble the separable (Kleinman-Bylander) nonlocal potential (rank-1 per atom, projector, m).
     virtual chmat_t MakeSeparablePotential(const Structure* cl, const Pseudopotential::SeparablePotential& v) const override;
 

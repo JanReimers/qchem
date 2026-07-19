@@ -87,8 +87,11 @@ namespace
 // FittedVee/FittedVxc.  These low-level term tests build one straight from the plane-wave basis at hand.
 qchem::Hamiltonian::PW_Hartree* NewPWHartree(const PlaneWave_IBS& pw)
 {
+    // Pure Hartree (no PP): null structure + null local model => no core-charge V_long fold, just V_H[rho]
+    // (the CP2K local-PP split's Hartree half; doc/GPWPlan.md 0e-PP).  These low-level tests exercise V_H alone.
     return new qchem::Hamiltonian::PW_Hartree(
-        qchem::Hamiltonian::PW_Hartree::fbs_t(pw.CreateCDFitBasisSet(nullptr, qcMesh::MeshParams{})));
+        qchem::Hamiltonian::PW_Hartree::fbs_t(pw.CreateCDFitBasisSet(nullptr, qcMesh::MeshParams{})),
+        qchem::Hamiltonian::PW_Hartree::st_t{}, nullptr);
 }
 qchem::Hamiltonian::PW_XC* NewPWXC(const PlaneWave_IBS& pw, const qchem::Hamiltonian::PW_XC::xc_t& xc)
 {
@@ -1090,16 +1093,43 @@ TEST_F(PlaneWaveDFT, PWPseudoTermMatchesBasis)
     const HGH_LocalPotential&     loc=siPP.local;
     const HGH_SeparablePotential& nl =siPP.nonlocal;
 
-    // The TERM owns the model now and asks the basis to assemble it (the pseudo-wall).
+    // The TERM owns the model now and asks the basis to assemble it (the pseudo-wall).  Post local-PP split
+    // (doc/GPWPlan.md 0e-PP) the external term assembles the SHORT-range local + KB nonlocal; the LONG-range
+    // (softened-Coulomb) part is folded into the Hartree term, so the reference here is Short + separable.
     qchem::Hamiltonian::PW_Pseudo   ext(si, &loc, &nl);
     qchem::Hamiltonian::cStatic_HT*   term=&ext;        // the public term interface (as the Hamiltonian holds it)
     const chmat_t& M  = term->GetMatrix(&pw, Spin::None);
-    chmat_t        ref= pw.MakeLocalPotential(si.get(),loc) + pw.MakeSeparablePotential(si.get(),nl);
+    chmat_t        ref= pw.MakeLocalPotentialShort(si.get(),loc) + pw.MakeSeparablePotential(si.get(),nl);
 
     size_t n=pw.GetNumFunctions();
     for (size_t i=0;i<n;i++)
         for (size_t j=i;j<n;j++)
             EXPECT_NEAR(std::abs(dcmplx(M(i,j))-dcmplx(ref(i,j))), 0.0, 1e-12);
+}
+
+// The CP2K local-PP split invariant (doc/GPWPlan.md 0e-PP): the LONG (softened-Coulomb) + SHORT (poly-Gaussian)
+// local-PP matrices sum EXACTLY to the full V_loc matrix -- the split only RELOCATES energy (into the Hartree
+// term), it never changes the assembled electron-ion potential.  Pinned on the analytic plane-wave path (a
+// pure form-factor callback swap), where the identity is machine-exact.
+TEST_F(PlaneWaveDFT, LocalPPLongPlusShortEqualsFull)
+{
+    const double a=10.26, h=0.5*a;
+    Matrix3D<double> Amat(0.0,h,h,  h,0.0,h,  h,h,0.0);
+    UnitCell      cell(Amat);
+    Lattice_3D    lat(cell, ivec3_t(1,1,1));
+    PlaneWave_IBS pw(lat.Reciprocal(), ivec3_t(1,1,1), ivec3_t(0,0,0), 4.0);
+
+    auto si=std::make_shared<Molecule>();
+    si->Insert(new Atom(14, rvec3_t(0,0,0)));
+    si->Insert(new Atom(14, rvec3_t(0.25*a,0.25*a,0.25*a)));
+    const HGH_LocalPotential& loc=GetGTH("Si","LDA",4).local;
+
+    chmat_t full =pw.MakeLocalPotential     (si.get(),loc);
+    chmat_t split=pw.MakeLocalPotentialLong (si.get(),loc) + pw.MakeLocalPotentialShort(si.get(),loc);
+    size_t n=pw.GetNumFunctions();
+    for (size_t i=0;i<n;i++)
+        for (size_t j=i;j<n;j++)
+            EXPECT_NEAR(std::abs(dcmplx(full(i,j))-dcmplx(split(i,j))), 0.0, 1e-12);
 }
 
 // The PW_Hartree and PW_XC dynamic terms route a complex density (IrrepCD<dcmplx>) through the framework
@@ -1257,8 +1287,10 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaMatchesPrototype)
     // owns the pseudopotential model (the pseudo-wall) and assembles it through the basis.
     cHamiltonianImp ham;
     ham.Add(new PW_Kinetic);
-    ham.Add(new PW_Pseudo(si, &loc, &nl));
-    ham.Add(NewPWHartree(pw));
+    ham.Add(new PW_Pseudo(si, &loc, &nl));                              // electron-ion SHORT-range + KB nonlocal
+    // Hartree term carries the structure + local model so it folds in the LONG-range core-charge V_long (the
+    // CP2K local-PP split, doc/GPWPlan.md 0e-PP) -- otherwise the manual Hamiltonian would drop V_long entirely.
+    ham.Add(new PW_Hartree(PW_Hartree::fbs_t(pw.CreateCDFitBasisSet(nullptr, qcMesh::MeshParams{})), si, &loc));
     ham.Add(NewPWXC(pw, std::make_shared<SlaterExchange> (2.0/3.0)));   // Dirac exchange
     ham.Add(NewPWXC(pw, std::make_shared<VWN_Correlation>()));          // VWN5 correlation
 
