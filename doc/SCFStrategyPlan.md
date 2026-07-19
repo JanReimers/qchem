@@ -161,6 +161,25 @@ signature is the sign the cut is right. Strategically it is the O(N)/large-cell 
 no occupation-swap pathology). Caveats: occupied-only, no eigenspectrum without a separate diagonalisation
 (matters for the band-gap instrument), metals need OT+smearing (§5).
 
+**How an OT implementation drops into the built framework (no seam changes).**  OT is NOT a new role — it is a
+new **orbital-face concrete**, a sibling of `SCFAcceleratorGDM` under `tSCFAccelerator`/`tSCFIrrepAccelerator`.
+The exact-constraint tangent parametrisation + preconditioner + conjugate-gradient direction all live inside
+the per-irrep accelerator's existing direct-min hooks — `ComputeStep()` (build the CG/tangent search direction
+for the current Fock, no move) and `OrbitalsAt(t, commit)` (the point on the tangent curve `C(X)` at step `t`)
+— with `WantsLineSearch()==true`.  Nothing above it changes: the **loop-face** already routes any
+`WantsLineSearch()` accelerator through `DirectMinDriver` (increment 1b) which drives it via the iterator's
+`DirectMinStep` line search; the **density-face** is bypassed for free (the direct-min driver never calls the
+mixer); the **occupation-face** stays aufbau (occupied-only, integer).  So OT reuses the whole loop-driver +
+lifecycle machinery, and — like GDM — it slots straight into the `Ladder` hand-off (Null→DIIS→OT).  Two further
+fits worth noting: (a) OT's inner acceleration is itself a DIIS/CG in the **tangent space**, so it can reuse
+the shared `qchem.Math.DIIS` engine on a THIRD residual stream (the tangent-space gradient) — one engine now
+serving Fock, density, *and* tangent, with only the stream's inner product differing; (b) the metals case
+(**OT+smearing**) is exactly the one coupling the role model flagged — the **occupation-face** gains a
+Fermi-smearing concrete (fractional `f_i`, a μ-solver) and the **loop-face** gates on the free energy
+`Ω=E−TS` (§5) — a coupled orbital+occupation direct minimisation, but still just those two seams cooperating,
+no new plumbing.  The only genuinely new work is the OT numerics inside the accelerator concrete; the
+framework already carries everything around it.
+
 ## 8. Increment plan (refactor-first, bit-identical oracle)
 
 1. **Extract the seams, behaviour-preserving.**
