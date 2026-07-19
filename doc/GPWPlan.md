@@ -514,6 +514,18 @@ from the top (SOLID DIP — the existing `tSCFAccelerator<T>*` ctor-injection pr
   right basin).  Gate: the NaF test on the production grid vs the −27.93128 oracle.
 Convergence pays twice: fewer iterations AND stronger D-aware kills on a settled density.
 
+**DIRECT FINE-GRID RUN MEASURED — 2026-07-19 (MOM + Pulay depth6/start35, auto Ecut=160, 45527 G, 15m45s,
+NMAX=100): FAILS to the unphysical basin; grid-continuation seeding is now the CRITICAL PATH, not just an
+accelerant.**  The run "converges" (Δρ=2.9e-5, 90 iters) but to E=+54.3 (εH=92/εL=139, Eee=+152/Exc=−137 =
+the aliased/negative-ρ garbage breakdown).  The trajectory is the smoking gun: the **Kerker priming descent
+goes STRAIGHT into the −39 basin** (iters 20→34: −24→−39.85, smooth), then **Pulay engaging on that garbage
+state thrashes** (+45/+102/…) to +54.  Verdict: the fine-grid failure is a DENSITY/GRID-basin problem, NOT
+occupation (MOM keeps occ sane) and NOT mixing (Pulay only accelerates — it can't escape a basin, and on the
+pathological −39 map it destabilises).  MOM+Pulay are necessary but NOT SUFFICIENT for the production grid.
+→ NEXT: implement grid-continuation seeding (converge Ecut=40 physical −27.76 → seed the fine grid with THAT
+ρ → start in the physical basin, never wander into −39); and/or (b) stiffen the fine-grid calibration to
+REMOVE the basin (CP2K leaks only 2e-4 e at 160 Ha — understand its EPS_RHO/REL_CUTOFF stiffness).
+
 ## 0d. Runtime follow-ups (after 0b/0c)
 - **OpenMP over pairs** (the parallel-execution TODO): collocate/integrate are embarrassingly parallel
   (per-thread ρ accumulators); CP2K's ssmp is threaded on top of everything above.  ~4× on this box.
