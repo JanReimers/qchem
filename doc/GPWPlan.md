@@ -660,6 +660,21 @@ for **every** contributing pair — and the diffuse pairs DO contribute (measure
     neutralizing-background treatment (NOT a real-space lattice sum).  Files: `LocalPotential.C`
     (`LocalPotential_Gaussian`), `LatticeSum1E.C`+`PG_Cart` (`MakeLocalGaussian`), `PG_Cart_MnD/Evaluator.C`
     (`Overlap3C` kernel), `GPW/Imp/Evaluator.C` (`MakeLocalPPShort`, dormant).
+  - **Q1 GRID PATH LANDED 2026-07-19 — the 295s setup wall is the `relCutoffScale`, and it was over-set.** User's
+    re-orient (use the SAME multigrid for V_local as the overlap/density collocation) is right: the density
+    screen (finding 1 above) is what made the smooth ladder look broken, so `relCutoffScale=6` was an
+    over-correction.  MEASURED on the NaF fine grid (Ecut=160, `MakeLocalPP` per sweep): **scale 6 = 291s(short)
+    + 287s(long) = 578s; scale 2 = 64+64 = 128s → 4.5×**.  (The increment-1 split assembles short+long as TWO
+    sweeps, so it DOUBLED the setup vs the memory's original single 290s full-V_loc sweep — un-splitting the
+    matrix for the grid path recovers another 2× → ~9× total; deferred.)  **Default `relCutoffScale` 6→3**
+    (`GPW_Evaluator::MakeLocalPP`; `GPW_LOCALPP_SCALE`/`GPW_LOCALPP_FULL` env knobs retained): a SAFE middle —
+    all GPW gates green (Si Γ −7.11506 now 31s vs ~120s; atom-in-box; multi-k; 2×2×2 shifted −7.86744; NaF
+    Ecut=40 −27.7535).  The 2/4 verification (that the FINE-grid energy is scale-converged) waits on the
+    fake-−39 basin fix — the fine-grid SCF diverges regardless of V_local (the Ecut=40 scale-sweep is
+    basin-fragile: 3✓ 4✗ 6✓, an SCF-dynamics artifact, while the V_local MATRIX is monotone in absolute
+    resolution).  The analytic V_local (Inc-2, dormant) is a SEPARATE accuracy upgrade (exact, but re-gates to
+    converged CP2K), NOT the 295s fix.  NEXT (user TODO): remove the fake −39 basin (grid-continuation seeding),
+    THEN verify V_local scale-convergence with the 2/4 knobs.
 - **Step 1 — grid-continuation seeding (AVOID the basin), FIRST**: the SR2 orbital basis is IDENTICAL at both
   Ecut (only the density collocation grid differs), so a converged Ecut=40 density matrix D transfers DIRECTLY
   as the fine-grid seed (no re-projection).  Wire a converged-D seed into the periodic SCF (a SeedStrategy /

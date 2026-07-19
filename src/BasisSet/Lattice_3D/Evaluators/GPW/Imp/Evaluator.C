@@ -11,7 +11,8 @@ module;
 #include <vector>
 #include <map>
 #include <algorithm>
-#include <cstdlib>   // std::getenv (the PWSHORT_DBG analytic-vs-grid diagnostic)
+#include <chrono>    // std::chrono (Q1: timing the MakeLocalPP integrate-back at different relCutoffScale)
+#include <cstdlib>   // std::getenv/std::atof (Q1 GPW_LOCALPP_SCALE / GPW_LOCALPP_FULL grid knobs)
 module qchem.BasisSet.Lattice_3D.Evaluators.GPW;
 import qchem.Blaze;       // rvec_t, rmat_t, rsmat_t, blazem::zeroH<dcmplx>
 import qchem.Vector3D;    // vec3_t + rvec3_t / rvec3vec_t arithmetic (r - R, componentwise add)
@@ -517,7 +518,16 @@ chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const Pseudopotential::L
     // enormous (multi-M pts each) -- the static sweep would explode.  The sub-ladder reproduces the
     // validated fine-capped behaviour bit-for-bit; the sharp pairs' top-rung upgrade for this SHARP field
     // is a separate (deferred) calibration.  ecut_L[0] is still the reference, so assignments are unchanged.
-    const size_t K=itsNBaseLevels;
+    // relCutoffScale STIFFENS the pair->level assignment for the spectrally-broad local PP.  Was 6, but that was
+    // over-set partly by the density-screen bug (the −280; doc/GPWPlan.md 0e-PP).  Q1 measured on the NaF fine
+    // grid (Ecut=160): 6→2 cuts MakeLocalPP 578s→128s (4.5x, diffuse pairs on coarser levels = smaller boxes).
+    // 3 is the SAFE middle -- it converges NaF Ecut=40 to −27.7535 (== the gate) and is finer than needed for
+    // soft PPs (Si).  The 2/4 verification (that the fine-grid energy is scale-converged) waits on the fake-−39
+    // basin fix.  GPW_LOCALPP_SCALE overrides it (for that verification); GPW_LOCALPP_FULL uses the full ladder.
+    double relScale=3.0;
+    if (const char* s=std::getenv("GPW_LOCALPP_SCALE")) relScale=std::atof(s);
+    const bool fullLadder=(std::getenv("GPW_LOCALPP_FULL")!=nullptr);
+    const size_t K = fullLadder ? itsLevels.size() : itsNBaseLevels;
     std::vector<ivec3_t> N_B (itsLevelN.begin(),    itsLevelN.begin()+K);
     std::vector<double>  e_B (itsLevelEcut.begin(), itsLevelEcut.begin()+K);
     std::vector<rvec_t> V_L(K);
@@ -527,8 +537,16 @@ chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const Pseudopotential::L
         for (const ivec3_t& dm : itsLevels[L]->Gs()) vmapL[dm]=Vt(dm);   // restrict to level L's {G}
         V_L[L]=itsLevels[L]->RhoOnGrid(vmapL);
     }
-    return itsLat->IntegratePotential(V_L, CellPhase(), itsCell, N_B, e_B,
-                                      /*relCutoffScale*/6.0);            // sharp-field level assignment
+    const bool timeIt=(std::getenv("GPW_LOCALPP_SCALE") || std::getenv("GPW_LOCALPP_FULL"));
+    auto t0=std::chrono::steady_clock::now();
+    chmat_t h=itsLat->IntegratePotential(V_L, CellPhase(), itsCell, N_B, e_B, relScale);
+    if (timeIt)
+    {
+        double ms=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-t0).count();
+        std::cerr<<"[MakeLocalPP part="<<int(part)<<" scale="<<relScale<<" full="<<fullLadder<<" K="<<K
+                 <<"] IntegratePotential "<<ms<<" ms"<<std::endl;
+    }
+    return h;
 }
 
 // The LONG-range (softened-Coulomb) local-PP matrix, the CP2K split's Hartree-folded piece (doc/GPWPlan.md
