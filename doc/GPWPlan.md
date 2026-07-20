@@ -110,6 +110,27 @@ runtime close-out incl. the CP2K NaF oracle + convergence findings).
   578 s→128 s @scale 2), all gates green (Si Γ now 31 s); env knobs `GPW_LOCALPP_SCALE`/`GPW_LOCALPP_FULL` for the
   later 2/4 verify.  The ANALYTIC V_local (short BUILT+finite-validated but dormant; long = the Ewald crux) is a
   SEPARATE accuracy upgrade → **TODO §0e-PP** (re-gates to converged CP2K −27.93).
+- **§0e step 1 (grid-continuation) + step 2 (XC-collapse ROOT-CAUSED & FIXED)** (2026-07-20, branch
+  `gpw-0e-pp-local-split`; commits `75e1d4c8`,`758b92a8`,`c816cb39`,`10a91a1e`,`1e13df74`,`4e84284c`,`b65e4185`,
+  `a7769f81`; Si Γ −7.11485 bit-identical, adjoint machine-exact, 28 PW anchors green).
+  **Step 1 — grid-continuation seeding**: explicit-density seed ctor (`tSCFIterator`, enum ctor delegates) +
+  `AdoptMOMReference` (transfer the converged coarse WF's occupied subspace as the fine MOM reference — the
+  density seed ALONE gave a wrong −23.3).  Avoids (not removes) the −39 basin.
+  **Step 2 — the fine-grid Exc collapse (NaF pinned −24.4 vs oracle −27.93) ROOT-CAUSED**: F's tight density
+  (product α≈80) UNDER-RESOLVED on the fit grid → the collocated ρ aliases into huge negative lobes (`negCharge
+  −9.3 e`, `neg-frac 0.50` even at the converged fixed point; Si clean at 0.08 %) → the XC `ρ>0` guard's
+  grid-sensitive interaction collapses Exc.  **FIXED** by (a) the **fit-grid thread-through** (`MakeRepulsion3C`/
+  `MakeOverlap3C` build the tensor over the REQUESTED fit basis's grid, not the block's own), (b) the
+  **`Overlap3C` ADJOINT** (`G_ERI3::applyAdjoint` + `ContractAdjointG_ERI3`: the KS matrix `⟨i|v|j⟩=Σ_k
+  v-tilde(G_k)⟨i|e^{iG_k}|j⟩` is the BACKWARD contraction of the same tensor, carrying the fit grid — killing the
+  grid-less `MakeOverlap(field)` that silently used the coarse grid), and (c) **density-fit densification** =
+  making `cutoffFactor` big enough to resolve the product (**4→8**; measured F: `negCharge −9.3→−0.03 e`, clean
+  SCF −26.198).  **ONE-GRID cleanup**: `itsGrid`→`itsFFT_R_G_Grids`, `GPW_CDFIT_SCALE`+second grid deleted,
+  `CreateCD/VxcFitBasisSet` self-documenting (`{G}_ρ`=`DensityGrid()`, `{G}_vxc`=relCutoff·`{G}_ρ`).  Bugs fixed
+  en route: `CollocMemo` grid-collision segfault (`c816cb39`), `RhoOnGrid` out-of-band aliasing guard (`10a91a1e`).
+  **HONEST PICTURE**: the old −27.75 was an ALIASING COINCIDENCE; the resolved answer is −26.198, the gap to the
+  oracle now the still-coarse **local-PP** base grid, NOT the density.  REMAINING → **TODO §0e step 2** (the
+  grid-matched CP2K validation + the grid/exponent diagnostics; the local-PP resolution).
 
 ## Naming (`5f609d2f`) — remember these
 - `Overlap(f)` = ANY 1-electron `⟨i|f|j⟩` (f may be a potential); `Repulsion` = the 2-electron `1/r12`.
@@ -638,82 +659,11 @@ for **every** contributing pair — and the diffuse pairs DO contribute (measure
     over the Ecut=40 grid −27.756).  **DO AFTER the −39 basin fix** — the fine-grid SCF diverges regardless of
     V_local, so the energy can't be verified until it converges; then also use `GPW_LOCALPP_SCALE=2/4` to verify
     grid scale-convergence.
-- **Step 1 — grid-continuation seeding (AVOID the basin) — DONE 2026-07-20 (branch `gpw-0e-pp-local-split`,
-  uncommitted): the SCF-DYNAMICS half of the production-grid problem is SOLVED; the residual is now cleanly a
-  fine-grid XC-accuracy problem (step 2).**  Two pieces landed, both minimal DIP extensions:
-  (a) **explicit-density seed** — a new `tSCFIterator` ctor takes a pre-built `tChargeDensity<T>*` seed
-  (owned/consumed in Init) instead of a `SeedStrategy` enum; the existing enum ctor now DELEGATES to it (all
-  paths bit-identical, 31 molecular + Si Γ/multi-k gates green).  The SR2 orbital basis is identical at both
-  Ecut so the coarse converged density transfers with no re-projection; for the iteration-0 Fock the coarse
-  rho-tilde (a sparse G-map keyed by ORBITAL-pair offsets, grid-independent) band-limits onto the fine grid
-  via `RhoOnGrid`/`MakeOverlap` (missing high-G → 0) — a smooth physical seed.
-  (b) **MOM-reference transfer** — `AdoptMOMReference` on `tIrrepWF`/`tCompositeWF`/`tSCFWaveFunction`/
-  `tSCFIterator`: copy the CONVERGED coarse WF's occupied C' subspace as the fine run's FIXED MOM reference
-  (valid because the analytic Bloch overlap, hence the orthonormal metric, is grid-independent), held from
-  iteration 1.  **REQUIRED**: the density seed ALONE converges to a WRONG −23.3 (MOM captured from the
-  contaminated iter-1 fill) or +124 (late MOM) — because on the fine grid the giant-response diffuse virtual
-  sits at the F-2p frontier even at the physical density (iter-1 `[partial-occ HOMO]`).  With the coarse
-  subspace transferred, the fine SCF descends SMOOTHLY+MONOTONICALLY to a stable fixed point, charge conserved
-  to 1e-8 (∫ρ_grid=8.0000000000 — the −39/+54 basin is AVOIDED, not removed: it still exists on the fine-grid
-  map, we just never enter it), MOM keeping the diffuse virtual (which DIVES to
-  −2.15 Ha on the fine grid) UNOCCUPIED.  Gate `GPW_SCF.DISABLED_NaFGridContinuation` (two-stage: coarse
-  Ecut=40 −27.7535 → seed fine auto-Ecut=160); A/B knobs `GC_SEED`/`GC_SEED_MOM`.
-  **THE RESIDUAL (→ step 2): the fine fixed point is −24.393, ~3.5 Ha ABOVE the oracle −27.93 (and above the
-  coarse −27.754).  Term-by-term (SAME density, coarse vs fine) the gap is almost all Exc (−12.19 → −5.09,
-  +7.1 Ha)**: the fine grid builds a SHALLOWER KS potential (F 2p −0.29 → +0.08, more diffuse) so ∫ε_xc·ρ ~
-  ρ^{4/3} over the sharp F region collapses — a fine-grid XC/potential-accuracy problem, NOT dynamics.  Charge
-  is conserved, so it is NOT charge-aliasing; the density is physically occupied, just XC-under-resolved.
-- **Step 2 — remove the residual (STIFFEN the grid / analytic V_local), NEXT**: the isolated blocker is the
-  fine-grid Exc collapse above (−7.1 Ha) and the shallow potential / spurious −2.15 Ha diffuse virtual.
-  Leads: (a) the §0e-PP **analytic V_local** accuracy upgrade (the plan's expected route to converged CP2K
-  −27.93); (b) why the fine grid builds a shallower potential than the coarse for the SAME density — CP2K's
-  EPS_RHO/REL_CUTOFF stiffness, the `relCutoffScale`=3 Q1 default, and `GPW_LOCALPP_SCALE=2/4` scale-
-  convergence; (c) whether ρ dips locally-negative near sharp F (the XC guard zeroing ε_xc there would eat
-  the ρ^{4/3} weight even with ∫ρ conserved).  Verify a fix with grid-continuation OFF (ionic seed) →
-  the stiffer grid must converge physical from the ionic seed.  **The SCF harness (step 1) is now in place to
-  measure step 2 cleanly** (stable fixed point, no basin/spike confounds).
-  **MEASURED 2026-07-20 (`ReportGridCharge` XC-grid diagnostic — rho min/max/neg-frac/negCharge/Exc-lost):**
-  - **The mechanism is lead (c) — a badly ALIASED collocated density — and it is GRID-RESOLUTION-limited (lead
-    b).**  NaF's CONVERGED PHYSICAL density (Ecut=40, −27.7535) has `neg-frac=0.50`, `negCharge=−9.3 e`,
-    `rho_min=−10` — where Si (soft PP, matches CP2K 0.18 mHa) is CLEAN: `neg-frac=0.08 %`, `negCharge=−6e-5`.
-    So it is an F-specific pathology: F's tight α=40 (density product α≈80) is under-resolved → the band-limited
-    ρ rings hugely → the XC `ρ>0` guard (`GetEpsXc(ρ≤0)=0`) drops ε_xc·ρ where ρ<0, and that guarded integral
-    is grid-sensitive → Exc collapses `−12.19` (Ecut=40) → `−5.09` (Ecut=160) → NaF pins −24.4.
-  - **Higher Ecut cleans it 12×**: the SAME compact physical density seeded onto Ecut=160 has `negCharge=−0.77 e`
-    (vs −9.3 at 40).  So the ringing is genuinely grid-resolution-limited — stiffen the grid for F.
-  - **In-band, not out-of-band**: a `RhoOnGrid` truncation (drop G beyond Nyquist instead of the modulo FOLD
-    that ALIASES it) is a no-op at Ecut=40 (Exc bit-identical) — the −9 e is in-band Gibbs ringing of the sharp
-    F density, not top-rung aliasing.  (The truncation landed anyway as a correctness guard: `10a91a1e`.)
-  - **THE PARADOX still open**: the fine density is CLEANER yet the earlier fine-160 SCF converged WORSE (−24.4
-    vs coarse −27.75).  Unmeasured under the current fixes: the fine SCF, even seeded, shows catastrophic MIXING
-    transients (`rho_min=−213`, `negCharge=−178 e`) and relaxes toward a diffuse state — so step 2 is NOT purely
-    "stiffen the grid"; the fine SCF also drifts off the compact physical state.  NEXT: a full converged fine-160
-    run under the fixes (the real converged E + density), then the cutoffFactor-for-F stiffening + the drift.
-  - **Bugs found + fixed en route**: (1) `c816cb39` — the fit-grid thread-through made the grid-continuation
-    seed the FIRST caller to collocate one block's D on two grids, tripping a `CollocMemo` grid-collision
-    (keyed on D only) → segfault; now keyed on the ladder too.  (2) `10a91a1e` — the RhoOnGrid out-of-band
-    aliasing guard + the XC-grid diagnostic + `GC_FINE_ECUT`/`GPW_GRIDCHARGE` probes.
-  - **FIX LANDED + PARADOX RESOLVED (2026-07-20, `4e84284c`+`1e13df74`).**  The lever is the DENSITY-FIT GRID,
-    not `densityEcut` (user): `densityEcut=cutoffFactor·α_max` resolves the ORBITAL exponent, but the density is
-    the orbital PRODUCT (~2·α_max) and needs a finer grid — built in `CreateCD/VxcFitBasisSet` (`GPW_CDFIT_SCALE`
-    knob, default 1 = bit-identical).  Effective only because the fit grid is now honoured BOTH ways: the KS
-    matrix is `ContractAdjointG_ERI3(Overlap3C(fit))` — the BACKWARD contraction of the same tensor the density
-    uses forward (`⟨i|v_xc|j⟩=Σ_k v-tilde(G_k)⟨i|e^{iG_k}|j⟩`), replacing the grid-less `MakeOverlap(field)` that
-    silently integrated back on the block's coarse grid.  `G_ERI3` gained a matrix-free `applyAdjoint`
-    (PW=Fourier lookup, GPW=integrate-back on the fit grid).  **MEASURED (NaF Ecut=40, scale=8 → fit grid 320):
-    density RESOLVED (`negCharge −9.3→−0.03 e`, `neg-frac 0.50→0.13`, F 2p BOUND `ε=−0.265`), and the SCF
-    converges CLEANLY to Etot=−26.198 (45 iters, Δρ 1e-6)** — vs the half-wired version's garbage −13.2.
-  - **THE HONEST PICTURE**: the old coarse −27.7535 was an ALIASING COINCIDENCE — a wildly-oscillating density
-    (`negCharge −9.3 e`) whose spuriously-inflated Ekin/Eee + over-negative Exc (−12.19) happened to sum near
-    CP2K.  The RESOLVED answer is −26.198 (Exc −4.857, the honest value).  So resolving the density moves the
-    coarse total AWAY from the −27.93 oracle — because the gap is now the still-COARSE base grid (Ecut=40) under
-    the LOCAL PP (Een), NOT the density.  The method is now HONEST + systematically improvable (the aliased path
-    was fragile → the −24.4 fine-grid collapse).
-  - **ONE-GRID CLEANUP DONE (`b65e4185`+`a7769f81`)**: `itsGrid`→`itsFFT_R_G_Grids` (the density {r}↔{G} FFT grid);
-    `GPW_CDFIT_SCALE` + the forked second grid DELETED; `CreateCD/VxcFitBasisSet` self-documenting (CD `{G}_ρ` =
-    `DensityGrid()`, Vxc `{G}_vxc` = relCutoff·`{G}_ρ` = `{G}_ρ` for LDA); `cutoffFactor` 4→8 (resolve a Gaussian of
-    exponent p to XC accuracy needs `Ecut≈4p`, product p=2·α_max ⇒ C=8).  Bit-identical on the explicit-`densityEcut`
-    anchors; the change is the AUTO grid for hard atoms.
+- **Steps 1 (grid-continuation seeding) + 2 (XC-collapse ROOT-CAUSED & FIXED): DONE 2026-07-20 — moved to the
+  [DONE](#done) timeline** (full record there: the fit-grid thread-through, the `Overlap3C` adjoint, the
+  density-fit densification → one-grid `cutoffFactor` 4→8, the `itsFFT_R_G_Grids` rename, the two bug fixes, and
+  the HONEST PICTURE — the old −27.75 was an aliasing coincidence, the resolved answer −26.198, the residual gap
+  now the coarse LOCAL-PP base grid).  What remains is the validation + local-PP work below.
 
   **★ NEXT SESSION — QUEUED (user, 2026-07-20). The definitive numerics check + the instruments for it:**
   1. **GRID-MATCHED CP2K VALIDATION** — does GPW's NaF GS energy == CP2K −27.93128 when EVERY density-side grid is
