@@ -167,6 +167,15 @@ template <class T> void tCompositeWF<T>::SetMOM(bool useMOM, int startIter)
     for (auto& w : itsIWFs) w->SetMOM(useMOM, startIter);
 }
 
+// Grid-continuation (doc/GPWPlan §0e): per irrep, hand this WF's irrep block the CONVERGED source WF's
+// occupied orbitals for the SAME irrep as its fixed MOM reference.  from.GetOrbitals(irr) is the source's
+// physical occupied subspace; the orthonormal metric matches (grid-independent Bloch overlap), so the C'
+// transfer verbatim.  Call after construction (Init) and before Iterate; effective with SCFParams::UseMOM.
+template <class T> void tCompositeWF<T>::AdoptMOMReference(const tWaveFunction<T>& from)
+{
+    for (auto& w : itsIWFs) w->AdoptMOMReference(*from.GetOrbitals(w->GetIrrep()));
+}
+
 template <class T> void tCompositeWF<T>::FillOrbitals(double mergeTol)
 {
     itsELevels.clear();

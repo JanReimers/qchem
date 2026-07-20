@@ -48,6 +48,10 @@ public:
     // follow orbital character instead of eigenvalue.  Empty if no reference captured yet.
     rvec_t              MOMScores       () const;
     void                CaptureMOMReference()      ; //snapshot the occupied orbitals as the next reference
+    //! Adopt \a from's occupied orbital subspace as this WF's fixed MOM reference (grid-continuation, doc/GPWPlan
+    //! §0e): \a from is a CONVERGED WF's orbitals for the SAME irrep on an equivalent orthonormal metric (the
+    //! analytic Bloch overlap is grid-independent), so its physical occupied C' columns transfer verbatim.
+    void                AdoptMOMReference(const Orbitals& from)      ;
     void                SetMOM          (bool useMOM, int startIter) {itsUseMOM=useMOM; itsMOMStartIter=startIter;}
 
     void                DisplayEigen    () const;

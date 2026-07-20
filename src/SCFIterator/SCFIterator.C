@@ -63,6 +63,18 @@ public:
                  ChargeDensity::SeedStrategy seed=ChargeDensity::SeedStrategy::Default,
                  const Structure* st=nullptr,
                  qchem::Ortho basisOrtho=qchem::Cholesky, double basisOrthoTol=0.0);
+    //! Grid-continuation / explicit-seed ctor (doc/GPWPlan §0e): seed the SCF from a PRE-BUILT density
+    //! \a seedDensity (TAKES OWNERSHIP -- consumed building the iteration-0 Fock, then freed) instead of
+    //! resolving a SeedStrategy enum.  The intended use is grid continuation: a density converged on a
+    //! CHEAP coarse collocation grid seeds an expensive fine-grid run on the SAME orbital basis, so the
+    //! fine SCF starts in the physical basin rather than wandering into the −39 density/grid basin.  The
+    //! orbital one-body matrices are grid-independent (only the collocation grid differs), so the coarse
+    //! density matrix transfers directly, with no re-projection.  \a seedDensity's own basis block must
+    //! outlive this ctor (it is read once here, in Init).
+    tSCFIterator(const tbs_t<T>*, const ElectronConfiguration*, ham_t*,acc_t*,
+                 tChargeDensity<T>* seedDensity,
+                 const Structure* st=nullptr,
+                 qchem::Ortho basisOrtho=qchem::Cholesky, double basisOrthoTol=0.0);
     virtual ~tSCFIterator();
     virtual bool Iterate(const SCFParams& ipar);
 
@@ -74,6 +86,13 @@ public:
     // SCFIterator drives the mutable SCFWaveFunction, but only ever hands clients the const
     // read view (they can query the converged state, never drive someone else's SCF loop).
     const wf_t* GetWaveFunction() const {return itsWaveFunction;}
+    //! Grid-continuation MOM (doc/GPWPlan §0e): adopt \a from's converged occupied subspace as this run's FIXED
+    //! MOM reference.  Call AFTER construction and BEFORE Iterate; takes effect with SCFParams::UseMOM (the
+    //! reference is then held from iteration 1, never re-captured).  \a from must be a converged WF on the SAME
+    //! orbital basis -- e.g. a coarse-density-grid solution seeding an expensive fine-grid run of the same
+    //! system.  Seeding the DENSITY alone is not enough: on the fine grid a giant-response diffuse virtual sits
+    //! at the frontier even at the physical density, so the occupied-subspace reference must transfer too.
+    void AdoptMOMReference(const wf_t& from) {itsWaveFunction->AdoptMOMReference(from);}
     EnergyBreakdown     GetEnergy() const;
     size_t              GetIterationCount() const {return itsIterationCount;}
     bool                Converged() const {return itsConverged;}

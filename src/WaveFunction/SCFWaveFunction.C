@@ -48,6 +48,13 @@ public:
     //! delayed-IMOM reference-capture iteration.  Called once by the SCFIterator at the start of Iterate;
     //! a no-op default keeps \a useMOM=false the norm.  See doc/GPWPlan §0b″.
     virtual void       SetMOM          (bool useMOM, int startIter)             =0;
+    //! Grid-continuation MOM (doc/GPWPlan §0e): adopt \a from's occupied orbital subspace (per irrep) as this
+    //! WF's FIXED MOM reference.  \a from is a CONVERGED wavefunction on the SAME orbital basis -- the analytic
+    //! Bloch overlap (hence the orthonormal metric the C' live in) is grid-independent, so its physical
+    //! occupied C' transfers verbatim.  With SCFParams::UseMOM this keeps a giant-response diffuse virtual OUT
+    //! of the occupied set from iteration 1, so a fine-grid run SEEDED from a coarse-grid solution converges to
+    //! the physical state instead of an occupation-contaminated one (the coarse density alone is not enough).
+    virtual void       AdoptMOMReference(const tWaveFunction<T>& from)          =0;
 };
 
 export using SCFWaveFunction  = tSCFWaveFunction<double>;

@@ -45,6 +45,7 @@ public:
     virtual EnergyLevels    GetEnergyLevels () const {return itsELevels;}
     virtual void            FillOrbitals    (double mergeTol);
     virtual void            SetMOM          (bool useMOM, int startIter);
+    virtual void            AdoptMOMReference(const tWaveFunction<T>& from);
     virtual iqns_t          GetQNs          () const;
 
     virtual tDM_CD<T>*      GetChargeDensity(Spin) const;

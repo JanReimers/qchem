@@ -638,14 +638,40 @@ for **every** contributing pair — and the diffuse pairs DO contribute (measure
     over the Ecut=40 grid −27.756).  **DO AFTER the −39 basin fix** — the fine-grid SCF diverges regardless of
     V_local, so the energy can't be verified until it converges; then also use `GPW_LOCALPP_SCALE=2/4` to verify
     grid scale-convergence.
-- **Step 1 — grid-continuation seeding (AVOID the basin), FIRST**: the SR2 orbital basis is IDENTICAL at both
-  Ecut (only the density collocation grid differs), so a converged Ecut=40 density matrix D transfers DIRECTLY
-  as the fine-grid seed (no re-projection).  Wire a converged-D seed into the periodic SCF (a SeedStrategy /
-  explicit-density seed).  Gate: fine grid reaches ≈ −27.93 oracle.  Verify basin-avoidance by leaving the
-  grid as-is (basin present).
-- **Step 2 — remove the basin (STIFFEN the grid), SECOND**: understand why the fine grid aliases the sharp F
-  pairs into negative ρ (CP2K's EPS_RHO/REL_CUTOFF stiffness).  Verify by turning grid-continuation OFF (ionic
-  seed, which falls into −39 today) → the stiffer grid must now converge physical from the ionic seed.
+- **Step 1 — grid-continuation seeding (AVOID the basin) — DONE 2026-07-20 (branch `gpw-0e-pp-local-split`,
+  uncommitted): the SCF-DYNAMICS half of the production-grid problem is SOLVED; the residual is now cleanly a
+  fine-grid XC-accuracy problem (step 2).**  Two pieces landed, both minimal DIP extensions:
+  (a) **explicit-density seed** — a new `tSCFIterator` ctor takes a pre-built `tChargeDensity<T>*` seed
+  (owned/consumed in Init) instead of a `SeedStrategy` enum; the existing enum ctor now DELEGATES to it (all
+  paths bit-identical, 31 molecular + Si Γ/multi-k gates green).  The SR2 orbital basis is identical at both
+  Ecut so the coarse converged density transfers with no re-projection; for the iteration-0 Fock the coarse
+  rho-tilde (a sparse G-map keyed by ORBITAL-pair offsets, grid-independent) band-limits onto the fine grid
+  via `RhoOnGrid`/`MakeOverlap` (missing high-G → 0) — a smooth physical seed.
+  (b) **MOM-reference transfer** — `AdoptMOMReference` on `tIrrepWF`/`tCompositeWF`/`tSCFWaveFunction`/
+  `tSCFIterator`: copy the CONVERGED coarse WF's occupied C' subspace as the fine run's FIXED MOM reference
+  (valid because the analytic Bloch overlap, hence the orthonormal metric, is grid-independent), held from
+  iteration 1.  **REQUIRED**: the density seed ALONE converges to a WRONG −23.3 (MOM captured from the
+  contaminated iter-1 fill) or +124 (late MOM) — because on the fine grid the giant-response diffuse virtual
+  sits at the F-2p frontier even at the physical density (iter-1 `[partial-occ HOMO]`).  With the coarse
+  subspace transferred, the fine SCF descends SMOOTHLY+MONOTONICALLY to a stable fixed point, charge conserved
+  to 1e-8 (∫ρ_grid=8.0000000000 — the −39/+54 basin is AVOIDED, not removed: it still exists on the fine-grid
+  map, we just never enter it), MOM keeping the diffuse virtual (which DIVES to
+  −2.15 Ha on the fine grid) UNOCCUPIED.  Gate `GPW_SCF.DISABLED_NaFGridContinuation` (two-stage: coarse
+  Ecut=40 −27.7535 → seed fine auto-Ecut=160); A/B knobs `GC_SEED`/`GC_SEED_MOM`.
+  **THE RESIDUAL (→ step 2): the fine fixed point is −24.393, ~3.5 Ha ABOVE the oracle −27.93 (and above the
+  coarse −27.754).  Term-by-term (SAME density, coarse vs fine) the gap is almost all Exc (−12.19 → −5.09,
+  +7.1 Ha)**: the fine grid builds a SHALLOWER KS potential (F 2p −0.29 → +0.08, more diffuse) so ∫ε_xc·ρ ~
+  ρ^{4/3} over the sharp F region collapses — a fine-grid XC/potential-accuracy problem, NOT dynamics.  Charge
+  is conserved, so it is NOT charge-aliasing; the density is physically occupied, just XC-under-resolved.
+- **Step 2 — remove the residual (STIFFEN the grid / analytic V_local), NEXT**: the isolated blocker is the
+  fine-grid Exc collapse above (−7.1 Ha) and the shallow potential / spurious −2.15 Ha diffuse virtual.
+  Leads: (a) the §0e-PP **analytic V_local** accuracy upgrade (the plan's expected route to converged CP2K
+  −27.93); (b) why the fine grid builds a shallower potential than the coarse for the SAME density — CP2K's
+  EPS_RHO/REL_CUTOFF stiffness, the `relCutoffScale`=3 Q1 default, and `GPW_LOCALPP_SCALE=2/4` scale-
+  convergence; (c) whether ρ dips locally-negative near sharp F (the XC guard zeroing ε_xc there would eat
+  the ρ^{4/3} weight even with ∫ρ conserved).  Verify a fix with grid-continuation OFF (ionic seed) →
+  the stiffer grid must converge physical from the ionic seed.  **The SCF harness (step 1) is now in place to
+  measure step 2 cleanly** (stable fixed point, no basin/spike confounds).
 
 ## 0d. Runtime follow-ups (after 0b/0c)
 - **OpenMP over the per-iteration collocate/integrate pairs — DONE (step 0 above).**  Memory-bound → ~1.7×.

@@ -133,8 +133,16 @@ template <class T> rvec_t tIrrepWF<T>::MOMScores() const
 template <class T> void tIrrepWF<T>::CaptureMOMReference()
 {
     assert(itsOrbitals);
+    AdoptMOMReference(*itsOrbitals);
+}
+
+// Grid-continuation (doc/GPWPlan §0e): take a FOREIGN (converged) WF's occupied C' columns as the fixed
+// reference.  Same extraction as CaptureMOMReference, but reading \a from instead of our own orbitals -- valid
+// because the analytic Bloch overlap (hence the orthonormal metric the C' live in) is grid-independent.
+template <class T> void tIrrepWF<T>::AdoptMOMReference(const Orbitals& from)
+{
     std::vector<vec_t<T>> cols;
-    for (auto o:itsOrbitals->template Iterate<qchem::Orbitals::TOrbital<T>>())
+    for (auto o:from.template Iterate<qchem::Orbitals::TOrbital<T>>())
         if (o->IsOccupied()) cols.push_back(o->GetCoeffPrime());
     if (cols.empty()) { itsRefOccCPrime.clear(); return; }
     itsRefOccCPrime.resize(cols.front().size(),cols.size());

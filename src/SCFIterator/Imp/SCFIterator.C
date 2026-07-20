@@ -130,7 +130,16 @@ template <class T> static std::string ConfigString(const qchem::WaveFunction::tW
 }
 
 
+// The SeedStrategy ctor resolves the strategy into a concrete (heap, owned) density -- nullptr for
+// CoreGuess -- then DELEGATES to the explicit-seed ctor below.  \a st (the structure) is consumed only by
+// the SAD seeds; bs/st are also forwarded (by the target ctor) for the HF/DHF bootstrap.
 template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const ElectronConfiguration* ec,ham_t* H,acc_t* acc,ChargeDensity::SeedStrategy seed,const Structure* st,qchem::Ortho basisOrtho,double basisOrthoTol)
+    : tSCFIterator(bs,ec,H,acc, ChargeDensity::MakeSeedDensity<T>(seed,bs,st,ec), st, basisOrtho, basisOrthoTol)
+{}
+
+// The explicit-seed ctor (grid-continuation): \a seedDensity is a pre-built density (owned; consumed in
+// Init) instead of a strategy enum.  Shared construction body -- the SeedStrategy ctor delegates here.
+template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const ElectronConfiguration* ec,ham_t* H,acc_t* acc,tChargeDensity<T>* seedDensity,const Structure* st,qchem::Ortho basisOrtho,double basisOrthoTol)
     : itsHamiltonian (H )
     , itsAccelerator (acc)
     , itsWaveFunction(qchem::WaveFunction::Factory(itsHamiltonian,bs,ec,itsAccelerator,basisOrtho,basisOrthoTol) )
@@ -146,9 +155,7 @@ template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const Elect
     // so it dangles by Iterate time) -- only for the dcmplx periodic path, so molecular runs pay nothing.
     if constexpr (std::is_same_v<T,dcmplx>)
         if (auto* cell = dynamic_cast<const UnitCell*>(st)) itsKerkerCell = std::make_shared<const UnitCell>(*cell);
-    // Resolve the seed strategy into a concrete (heap, owned) density -- nullptr for CoreGuess.  \a st
-    // (the structure) is consumed only by the SAD seeds; bs/st are also forwarded for the HF/DHF bootstrap.
-    Initialize(ChargeDensity::MakeSeedDensity<T>(seed,bs,st,ec), bs, st);
+    Initialize(seedDensity, bs, st);   // Init owns the seed transiently (see Initialize)
 }
 
 
