@@ -152,6 +152,7 @@ G_ERI3 PW_Evaluator::Repulsion3CTensor() const
     for (size_t c=0;c<g.columns.size();c++)
         g.kernel[c]=itsRecip.CoulombKernel(g.columns[c].dm);   // diagonal Poisson kernel (dm=0 -> 0)
     g.volume=Volume();
+    g.applyAdjoint=AdjointLookup();   // <i|f|j> = f(G_i-G_j) (overlap metric; the kernel is forward-only)
     return g;
 }
 
@@ -162,7 +163,21 @@ G_ERI3 PW_Evaluator::Overlap3CTensor() const
     BuildG_ERI3Columns(itsG, g.columns);
     g.kernel.clear();                // EMPTY => overlap metric
     g.volume=Volume();
+    g.applyAdjoint=AdjointLookup();
     return g;
+}
+
+// The G_ERI3 BACKWARD realization for plane waves: <i|f|j> = f(m_i-m_j) (== OverlapMatrix), the Fourier lookup.
+// Self-contained (captures the orbital {G} by value), so the closure outlives the evaluator in the tensor cache.
+std::function<chmat_t(const std::function<dcmplx(const ivec3_t&)>&)> PW_Evaluator::AdjointLookup() const
+{
+    return [G=itsG](const std::function<dcmplx(const ivec3_t&)>& f) -> chmat_t
+    {
+        const size_t n=G.size();
+        chmat_t V=blazem::zeroH<dcmplx>(n);
+        for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) V(i,j)=f(G[i]-G[j]);
+        return V;
+    };
 }
 
 // Plane waves are orthonormal over the cell: <G|G'> = delta_{GG'}.

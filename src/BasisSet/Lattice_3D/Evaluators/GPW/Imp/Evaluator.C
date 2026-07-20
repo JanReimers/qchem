@@ -322,7 +322,8 @@ G_ERI3 GPW_Evaluator::Repulsion3CTensor(std::shared_ptr<const PW_Grid_Evaluator>
     G_ERI3 g;
     g.volume=grid->Volume();
     for (const ivec3_t& dm : grid->Gs()) g.columns.push_back({dm,{}});
-    g.apply=MakeCollocator(/*coulomb*/true, grid);
+    g.apply       =MakeCollocator(/*coulomb*/true, grid);   // forward: D -> V_H (Coulomb baked)
+    g.applyAdjoint=MakeIntegrator(grid);                    // backward: field -> <i|f|j> (overlap; kernel fwd-only)
     return g;
 }
 // Overlap 3-centre tensor: the same analytic map, no kernel (the density's own rho-tilde).
@@ -331,8 +332,43 @@ G_ERI3 GPW_Evaluator::Overlap3CTensor(std::shared_ptr<const PW_Grid_Evaluator> g
     G_ERI3 g;
     g.volume=grid->Volume();
     for (const ivec3_t& dm : grid->Gs()) g.columns.push_back({dm,{}});
-    g.apply=MakeCollocator(/*coulomb*/false, grid);
+    g.apply       =MakeCollocator(/*coulomb*/false, grid);  // forward: D -> rho-tilde
+    g.applyAdjoint=MakeIntegrator(grid);                    // backward: v_xc-tilde -> <i|v_xc|j>
     return g;
+}
+
+// The G_ERI3 BACKWARD realization (the adjoint of MakeCollocator): a SELF-CONTAINED integrate-back closure over
+// the fit \a grid's REL_CUTOFF ladder -- <i|f|j> = analytic per-pair gather of the field f (LatticeSum1E::
+// IntegratePotential), the exact adjoint of the collocation on the SAME grid.  So Overlap3C/Repulsion3C(fit)
+// carry BOTH directions on the fit grid; the KS matrix is built by ContractAdjointG_ERI3 (doc/GPWPlan §0e step2).
+// (OverlapMatrix below is the block's-own-itsGrid sibling that MakeLocalPP + the legacy MakeOverlap still use.)
+std::function<chmat_t(const std::function<dcmplx(const ivec3_t&)>&)>
+GPW_Evaluator::MakeIntegrator(std::shared_ptr<const PW_Grid_Evaluator> grid) const
+{
+    std::vector<std::shared_ptr<const PW_Grid_Evaluator>> levels;
+    std::vector<ivec3_t> N_L;
+    std::vector<double>  ecut_L;
+    size_t nBase=0;
+    BuildLevels(grid, levels, N_L, ecut_L, nBase);          // the fit grid's ladder
+    const UnitCell A = itsCell;
+    auto mol   = itsMol;                                    // keep the molecular basis (lat) alive in the closure
+    const Molecule::LatticeSum1E* lat = itsLat;
+    auto phase = CellPhase();
+    if (!itsCollocMemo) itsCollocMemo=std::make_shared<CollocMemo>();
+    auto memo  = itsCollocMemo;                             // shared D-aware screen (adjoint of the collocation)
+    return [A,levels,N_L,ecut_L,mol,lat,phase,memo](const std::function<dcmplx(const ivec3_t&)>& Vtilde) -> chmat_t
+    {
+        const size_t K=levels.size();
+        std::vector<rvec_t> V_L(K);
+        for (size_t L=0;L<K;L++)
+        {
+            ΔG_Map vmapL;
+            for (const ivec3_t& dm : levels[L]->Gs()) vmapL[dm]=Vtilde(dm);   // restrict to level L's {G}
+            V_L[L]=levels[L]->RhoOnGrid(vmapL);
+        }
+        const chmat_t* screenD = (memo && memo->valid) ? &memo->D : nullptr;
+        return lat->IntegratePotential(V_L, phase, A, N_L, ecut_L, 1.0, screenD);
+    };
 }
 G_ERI3 GPW_Evaluator::Repulsion3CTensor() const {return Repulsion3CTensor(itsGrid);}
 G_ERI3 GPW_Evaluator::Overlap3CTensor  () const {return Overlap3CTensor  (itsGrid);}

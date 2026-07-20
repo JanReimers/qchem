@@ -56,6 +56,14 @@ struct G_ERI3
     //! leaf names no GPW/grid type.  The G_ERI3 stays a static-data "spec of required transfers" with an
     //! optional realization.
     std::function<ΔG_Map(const chmat_t& D)> apply;
+    //! MATRIX-FREE BACKWARD -- the ADJOINT of \ref apply: assemble the KS matrix \f$\langle i|f|j\rangle=\sum_k
+    //! f(G_k)\,W_k(i,j)\f$ from a fitted G-space field \a f (\f$v_{xc}\f$ or \f$V_H\f$).  For a plane-wave basis
+    //! this is the Fourier lookup \f$f(m_i-m_j)\f$; for GPW the analytic integrate-back on the fit grid's
+    //! REL_CUTOFF ladder.  Always the OVERLAP-metric adjoint (no \ref kernel -- a Coulomb field already carries
+    //! \f$4\pi/G^2\f$ from the forward apply).  Because it is produced by \c Overlap3C/Repulsion3C(fitBasis), it
+    //! carries the fit grid -- so the KS matrix is 100% consistent with the density that fit basis collocated.
+    //! Empty until a basis sets it (forward-only contexts leave it empty -- G_ERI3 is WIP, review pending).
+    std::function<chmat_t(const std::function<dcmplx(const ivec3_t&)>& f)> applyAdjoint;
 };
 
 //! \brief Contract a density matrix against the gather: \f$\tilde\rho(\Delta m)=\frac{k_c}\Omega\sum_{(i,j)\in
@@ -76,6 +84,17 @@ struct G_ERI3
         rg[g.columns[c].dm] = g.kernel.size()==0 ? s/g.volume : g.kernel[c]*s/g.volume;
     }
     return rg;
+}
+
+//! The BACKWARD contraction \f$\langle i|f|j\rangle=\sum_k f(G_k)W_k(i,j)\f$ -- the ADJOINT of \ref
+//! ContractG_ERI3, building a KS matrix from a fitted G-space field \a f.  Delegates to the matrix-free \ref
+//! G_ERI3::applyAdjoint the basis set (PW Fourier lookup / GPW integrate-back on the FIT grid the tensor was
+//! built over) -- so \c ⟨i|v_xc|j⟩ = ContractAdjointG_ERI3(orb.Overlap3C(vxc_fit), v_xc_tilde), replacing the
+//! grid-less \c MakeOverlap(field) bridge (doc/GPWPlan §0e step 2).
+chmat_t ContractAdjointG_ERI3(const G_ERI3& g, const std::function<dcmplx(const ivec3_t&)>& f)
+{
+    assert(g.applyAdjoint && "ContractAdjointG_ERI3: the basis must realise G_ERI3::applyAdjoint (field->matrix)");
+    return g.applyAdjoint(f);
 }
 
 } // namespace qchem

@@ -131,12 +131,13 @@ chmat_t PW_Hartree::CalcMatrix(const cobs_t* bs, const Spin&, const cChargeDensi
     auto bft=dynamic_cast<const BasisSet::Band_FT_IBS*>(bs);
     assert(bft && "PW_Hartree requires a Band_FT_IBS (reciprocal-space DFT) orbital basis");
     // The density contracts D against the basis's D-free Coulomb tensor Repulsion3C (kernel baked) to give
-    // V_H(dm); the term assembles <i|V_H|j> = V_H(G_i-G_j) via the orbital basis's MakeOverlap bridge.  D
-    // never crosses into the basis.  Then ADD the fixed long-range core-charge field V_long (the CP2K
-    // local-PP split): the total electrostatic field is V_H[rho_elec] + V_long -- one Poisson-solved matrix.
+    // V_H(dm) [FORWARD]; the KS matrix <i|V_H|j> = Σ_k V_H(G_k) <i|e^{iG_k}|j> is the BACKWARD contraction of the
+    // SAME Repulsion3C tensor over the CD fit basis (its applyAdjoint -- the overlap integrate-back on the fit
+    // grid; the Coulomb kernel is forward-only, already in V_H).  So forward AND backward run on the one fit grid
+    // (doc/GPWPlan §0e step 2).  Then ADD the fixed long-range core-charge V_long -- one Poisson-solved matrix.
     ΔG_Map VH=fd->GetRepulsion3C(*itsFitBasis);
-    chmat_t H=bft->MakeOverlap([&VH](const ivec3_t& dm)->dcmplx
-        { auto it=VH.find(dm); return it==VH.end()?dcmplx(0.0):it->second; });
+    chmat_t H=ContractAdjointG_ERI3(bft->Repulsion3C(*itsFitBasis),
+        [&VH](const ivec3_t& dm)->dcmplx { auto it=VH.find(dm); return it==VH.end()?dcmplx(0.0):it->second; });
     H+=LongBlock(bs);
     return H;
 }

@@ -204,6 +204,10 @@ private:
     //! The collocator over an EXPLICIT fit grid: the ladder derives from \a grid (the tensor's requested
     //! \f$\{G\}\f$), NOT the block's own \c itsGrid -- the closure captures its own ladder built from \a grid.
     std::function<ΔG_Map(const chmat_t&)> MakeCollocator(bool coulomb, std::shared_ptr<const PW_Grid_Evaluator> grid) const;
+    //! The BACKWARD adjoint of \c MakeCollocator: a self-contained field->matrix integrate-back over \a grid's
+    //! ladder -- the \c G_ERI3::applyAdjoint the Overlap3C/Repulsion3C(grid) tensors carry (doc/GPWPlan §0e step2).
+    std::function<chmat_t(const std::function<dcmplx(const ivec3_t&)>&)>
+        MakeIntegrator(std::shared_ptr<const PW_Grid_Evaluator> grid) const;
     qcMesh::MeshParams PPMeshParams() const;  //!< the PP-quadrature integration mesh params (uniform, eCut=densityEcut)
 
     // The REL_CUTOFF multi-grid level ladder: the fine density grid + coarser grids (a factor 4 in Ecut each)
