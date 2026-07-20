@@ -672,6 +672,27 @@ for **every** contributing pair — and the diffuse pairs DO contribute (measure
   the ρ^{4/3} weight even with ∫ρ conserved).  Verify a fix with grid-continuation OFF (ionic seed) →
   the stiffer grid must converge physical from the ionic seed.  **The SCF harness (step 1) is now in place to
   measure step 2 cleanly** (stable fixed point, no basin/spike confounds).
+  **MEASURED 2026-07-20 (`ReportGridCharge` XC-grid diagnostic — rho min/max/neg-frac/negCharge/Exc-lost):**
+  - **The mechanism is lead (c) — a badly ALIASED collocated density — and it is GRID-RESOLUTION-limited (lead
+    b).**  NaF's CONVERGED PHYSICAL density (Ecut=40, −27.7535) has `neg-frac=0.50`, `negCharge=−9.3 e`,
+    `rho_min=−10` — where Si (soft PP, matches CP2K 0.18 mHa) is CLEAN: `neg-frac=0.08 %`, `negCharge=−6e-5`.
+    So it is an F-specific pathology: F's tight α=40 (density product α≈80) is under-resolved → the band-limited
+    ρ rings hugely → the XC `ρ>0` guard (`GetEpsXc(ρ≤0)=0`) drops ε_xc·ρ where ρ<0, and that guarded integral
+    is grid-sensitive → Exc collapses `−12.19` (Ecut=40) → `−5.09` (Ecut=160) → NaF pins −24.4.
+  - **Higher Ecut cleans it 12×**: the SAME compact physical density seeded onto Ecut=160 has `negCharge=−0.77 e`
+    (vs −9.3 at 40).  So the ringing is genuinely grid-resolution-limited — stiffen the grid for F.
+  - **In-band, not out-of-band**: a `RhoOnGrid` truncation (drop G beyond Nyquist instead of the modulo FOLD
+    that ALIASES it) is a no-op at Ecut=40 (Exc bit-identical) — the −9 e is in-band Gibbs ringing of the sharp
+    F density, not top-rung aliasing.  (The truncation landed anyway as a correctness guard: `10a91a1e`.)
+  - **THE PARADOX still open**: the fine density is CLEANER yet the earlier fine-160 SCF converged WORSE (−24.4
+    vs coarse −27.75).  Unmeasured under the current fixes: the fine SCF, even seeded, shows catastrophic MIXING
+    transients (`rho_min=−213`, `negCharge=−178 e`) and relaxes toward a diffuse state — so step 2 is NOT purely
+    "stiffen the grid"; the fine SCF also drifts off the compact physical state.  NEXT: a full converged fine-160
+    run under the fixes (the real converged E + density), then the cutoffFactor-for-F stiffening + the drift.
+  - **Bugs found + fixed en route**: (1) `c816cb39` — the fit-grid thread-through made the grid-continuation
+    seed the FIRST caller to collocate one block's D on two grids, tripping a `CollocMemo` grid-collision
+    (keyed on D only) → segfault; now keyed on the ladder too.  (2) `10a91a1e` — the RhoOnGrid out-of-band
+    aliasing guard + the XC-grid diagnostic + `GC_FINE_ECUT`/`GPW_GRIDCHARGE` probes.
 
 ## 0d. Runtime follow-ups (after 0b/0c)
 - **OpenMP over the per-iteration collocate/integrate pairs — DONE (step 0 above).**  Memory-bound → ~1.7×.
