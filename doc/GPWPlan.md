@@ -708,9 +708,32 @@ for **every** contributing pair — and the diffuse pairs DO contribute (measure
     CP2K.  The RESOLVED answer is −26.198 (Exc −4.857, the honest value).  So resolving the density moves the
     coarse total AWAY from the −27.93 oracle — because the gap is now the still-COARSE base grid (Ecut=40) under
     the LOCAL PP (Een), NOT the density.  The method is now HONEST + systematically improvable (the aliased path
-    was fragile → the −24.4 fine-grid collapse).  **NEXT: the FINE base grid (Ecut=160, resolves the local PP) +
-    densified fit → should reach ~−27.93; then make the densification an automatic POLICY (α_max-derived, the OOD
-    cleanup) instead of the `GPW_CDFIT_SCALE` knob; and the local-PP grid resolution.**
+    was fragile → the −24.4 fine-grid collapse).
+  - **ONE-GRID CLEANUP DONE (`b65e4185`+`a7769f81`)**: `itsGrid`→`itsFFT_R_G_Grids` (the density {r}↔{G} FFT grid);
+    `GPW_CDFIT_SCALE` + the forked second grid DELETED; `CreateCD/VxcFitBasisSet` self-documenting (CD `{G}_ρ` =
+    `DensityGrid()`, Vxc `{G}_vxc` = relCutoff·`{G}_ρ` = `{G}_ρ` for LDA); `cutoffFactor` 4→8 (resolve a Gaussian of
+    exponent p to XC accuracy needs `Ecut≈4p`, product p=2·α_max ⇒ C=8).  Bit-identical on the explicit-`densityEcut`
+    anchors; the change is the AUTO grid for hard atoms.
+
+  **★ NEXT SESSION — QUEUED (user, 2026-07-20). The definitive numerics check + the instruments for it:**
+  1. **GRID-MATCHED CP2K VALIDATION** — does GPW's NaF GS energy == CP2K −27.93128 when EVERY density-side grid is
+     made IDENTICAL to CP2K's?  Match all four: (a) the **FFT grid** `itsFFT_R_G_Grids` = CP2K `CUTOFF` (N, Ecut);
+     (b) the **ρ fit grid** `{G}_ρ` (CD fit) = CP2K density grid; (c) the **v_xc fit grid** `{G}_vxc` (Vxc fit) =
+     CP2K XC grid; (d) the **V_local integration grid** = CP2K's local-PP grid (its `REL_CUTOFF` multigrid
+     assignment).  PURPOSE: remove grid resolution as a variable — if the energies then AGREE, GPW's numerics ==
+     CP2K (validated end-to-end); if they DON'T, it pins the remaining difference as the collocation METHOD (our
+     Fourier round-trip aliases where CP2K's REAL-SPACE collocation stays graceful — the measured 2× : our
+     8·α_max ≈ CP2K's 4·α_max).  Read CP2K's grids from its log (`&MGRID`: `NGRIDS`/`CUTOFF`/`REL_CUTOFF` + the
+     per-level N it prints); force GPW to those exact N/Ecut (explicit `densityEcut`, a matched `relCutoff`, and a
+     local-PP-grid override).
+  2. **GRID DIAGNOSTIC PRINT (cout, at the START of every run)** — one essential line PER stored grid:
+     `N=45 |Gmin|=0.01 |Gmax|=160` (FFT divisions N, min/max |G|).  Print ALL of them (FFT/ρ-fit/vxc-fit/local-PP)
+     so we can SEE what GPW uses and line it up against CP2K.  (Essentials only, not the full {G} list.)
+  3. **ORBITAL-BASIS EXPONENTS (cout, run start)** — print α_min and α_max of the orbital basis, so the
+     α_max→grid policy (`cutoffFactor·α_max`) is visible and checkable.
+  (Items 2–3 are the instruments for item 1.  Also still open from before: the FINE auto grid at `8·α_max` puts the
+  LOCAL PP on the fine grid too — should close the Een gap toward −27.93; and the CP2K-vs-us real-space-collocation
+  2× as a future efficiency lever.)
 
 ## 0d. Runtime follow-ups (after 0b/0c)
 - **OpenMP over the per-iteration collocate/integrate pairs — DONE (step 0 above).**  Memory-bound → ~1.7×.
