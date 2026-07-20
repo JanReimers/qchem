@@ -245,6 +245,28 @@ void PW_XC::RefreshRhoGrid(const cChargeDensity* cd) const
                   << "  Tr(DS)=" << qDM
                   << "  lost=" << std::scientific << std::setprecision(3) << (qGrid-qDM)
                   << std::defaultfloat << std::endl;
+        // XC-collapse diagnostic (doc/GPWPlan §0e step 2): the collocated rho's min/max/negative content, and
+        // the XC the rho>0 guard ZEROES.  If rho rings locally-negative near the sharp F peaks, GetEpsXc(rho<=0)
+        // = 0 silently drops that eps_xc*rho -- the +7 Ha Exc collapse (fine -5.09 vs coarse -12.19).  Separates
+        // lead (c) [Gibbs ringing + guard: rho_min very negative, big negCharge] from lead (b) [genuinely lower
+        // peaks: rho_max small, rho_min ~ 0].
+        double rmin=1e300, rmax=-1e300; size_t nneg=0;
+        rvec_t negOnly(itsRhoGrid.size()), excLost(itsRhoGrid.size());
+        for (size_t q=0;q<itsRhoGrid.size();q++)
+        {
+            const double r=itsRhoGrid[q];
+            rmin=std::min(rmin,r); rmax=std::max(rmax,r);
+            negOnly[q] = r<0.0 ? r : 0.0;                                  // negative-charge density
+            // eps_xc*rho the guard drops at rho<0, estimated on |rho| (the magnitude the ringing would carry)
+            excLost[q] = r<0.0 ? itsXc->GetEpsXc(-r)*(-r) : 0.0;
+            if (r<0.0) ++nneg;
+        }
+        const double negCharge=itsScalarFitter->Grid().Integral(negOnly);
+        const double excLostI =itsScalarFitter->Grid().Integral(excLost);
+        std::cout << "[xc grid] rho_min=" << std::scientific << std::setprecision(3) << rmin
+                  << " rho_max=" << rmax << " neg-frac=" << double(nneg)/double(itsRhoGrid.size())
+                  << " negCharge=" << negCharge << " Exc_lost@rho<0~=" << excLostI
+                  << std::defaultfloat << std::endl;
     }
 }
 

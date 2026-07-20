@@ -150,7 +150,7 @@ GpwResult RunGPW(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, doub
     // settles (~iter 15) instead of chasing fit noise to nmax.
     par.NMaxIter=nmax; par.MinΔρ=minDrho; par.MinΔE=minDE; par.MinΔFD=1e30; par.MinVirial=1e30; par.MinFD=1e30;
     par.StartingRelaxRo=0.3; par.MergeTol=1e-4; par.Verbose=verbose;
-    qchem::Hamiltonian::ReportGridCharge()=verbose;   // per-iteration integral-rho_grid vs Tr(DS) (grid-truncation charge loss)
+    qchem::Hamiltonian::ReportGridCharge()=verbose || std::getenv("GPW_GRIDCHARGE");   // per-iteration rho_grid vs Tr(DS) + rho stats (step-2 probe)
     scf.Iterate(par);
     qchem::Hamiltonian::ReportGridCharge()=false;      // process-wide flag -- reset so it does not leak to other tests
     Fingerprint(series, label);                        // classify the trajectory: converged / oscillating / stalled / diverging
@@ -601,7 +601,9 @@ TEST(GPW_SCF, DISABLED_NaFGridContinuation)
     qchem::SCFIterator::cSCFIterator scfC(bsC.get(), &ecC, hamC, accC,
                                           qchem::ChargeDensity::SeedStrategy::IonicSAD, st.get(),
                                           qchem::Cholesky, 0.0);
+    qchem::Hamiltonian::ReportGridCharge()=true;   // step-2 probe: coarse-grid rho stats to compare vs fine
     scfC.Iterate(makePar((size_t)envd("GC_COARSE_NMAX",200), 10, 35));
+    qchem::Hamiltonian::ReportGridCharge()=false;
     auto Ecoarse=scfC.GetEnergy();
     std::cout << "[NaF grid-cont COARSE] Ecut=40 iters="<<scfC.GetIterationCount()
               << " Etot="<<Ecoarse.GetTotalEnergy() << std::endl;
@@ -612,7 +614,7 @@ TEST(GPW_SCF, DISABLED_NaFGridContinuation)
     auto* seedCD = scfC.GetWaveFunction()->GetChargeDensity();
 
     // ---- STAGE 2: seed the PRODUCTION fine grid (auto Ecut=160) with the converged coarse density. ----
-    std::unique_ptr<Complex_BS> bsF(L3::GPWFactory(lat, mol, /*densityEcut AUTO=160*/-1.0));
+    std::unique_ptr<Complex_BS> bsF(L3::GPWFactory(lat, mol, /*densityEcut*/envd("GC_FINE_ECUT",-1.0)));  // <0 AUTO=160
     Crystal_EC ecF(bsF->GetIrreps(Spin::None), 8);
     cHamiltonian* hamF=new Ham_PW_DFT(st, bsF.get(), {{"Na",1},{"F",7}}, "LDA");
     auto* accF=new qchem::SCFAccelerators::tSCFAcceleratorNull<dcmplx>();
