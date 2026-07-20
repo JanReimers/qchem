@@ -97,6 +97,16 @@ public:
     virtual std::string BasisSetID() const override; // geometry-aware cache key (Name + molecular ID + k + nR)
 
     virtual std::ostream& Write(std::ostream&) const override;
+
+protected:
+    //! \brief The DFT 3-centre tables (Band_FT_IBS) built over the REQUESTED fit basis's OWN grid -- NOT the
+    //! block's \c DensityGrid.  \a c is the fit basis \c CreateCD/VxcFitBasisSet produced (it IS-A
+    //! PW_Grid_Evaluator carrying the density-fit \f${G}\f$/grid policy), so we hand its grid to the evaluator:
+    //! the table returned is the one REQUESTED, honouring the factory's grid choice rather than silently
+    //! overriding it with the block's own (doc/GPWPlan §0e).  Overrides the shared \c EPW_Orbital_DFT_IBS mixin
+    //! (which dropped \a c); the block's own no-arg tensors remain the convenience/test path.
+    virtual G_ERI3 MakeRepulsion3C(const cFIT_CD_ABS& c) const override;
+    virtual G_ERI3 MakeOverlap3C  (const cFIT_SF_ABS& c) const override;
 };
 
 } //namespace

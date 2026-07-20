@@ -265,17 +265,19 @@ Molecule::LatticeSum1E::cellphase_t GPW_Evaluator::CellPhase() const
 // Coulomb the diagonal Poisson kernel 4pi/|G|^2 is folded in (V_H = 4pi rho-tilde/G^2; G=0 -> 0).  The closure
 // keeps the level grids + molecular basis alive (captured shared_ptrs) since it lives in the framework-cached
 // G_ERI3.
-std::function<ΔG_Map(const chmat_t&)> GPW_Evaluator::MakeCollocator(bool coulomb) const
+std::function<ΔG_Map(const chmat_t&)> GPW_Evaluator::MakeCollocator(bool coulomb, std::shared_ptr<const PW_Grid_Evaluator> grid) const
 {
-    EnsureLevels();
+    // The ladder derives from the REQUESTED fit grid (not the block's own itsGrid); the closure captures it.
+    std::vector<std::shared_ptr<const PW_Grid_Evaluator>> levels;
+    std::vector<ivec3_t> N_L;
+    std::vector<double>  ecut_L;
+    size_t nBase=0;
+    BuildLevels(grid, levels, N_L, ecut_L, nBase);
     const UnitCell A = itsCell;                             // the direct cell (stored; see the member note)
-    auto levels = itsLevels;                                // shared_ptrs -> the closure keeps the grids alive
-    auto N_L    = itsLevelN;
-    auto ecut_L = itsLevelEcut;
     auto mol    = itsMol;                                   // shared_ptr -> keep the molecular basis (lat) alive
     const Molecule::LatticeSum1E* lat = itsLat;
     auto phase  = CellPhase();
-    ReciprocalLattice recip = itsGrid->Recip();
+    ReciprocalLattice recip = grid->Recip();
     if (!itsCollocMemo) itsCollocMemo=std::make_shared<CollocMemo>();
     auto memo   = itsCollocMemo;                            // ONE memo across the Coulomb + overlap closures
     return [A,levels,N_L,ecut_L,mol,lat,phase,recip,coulomb,memo](const chmat_t& D) -> ΔG_Map
@@ -311,23 +313,27 @@ std::function<ΔG_Map(const chmat_t&)> GPW_Evaluator::MakeCollocator(bool coulom
 // Coulomb 3-centre tensor: the matrix-free analytic collocation map with the Poisson kernel folded in.  The
 // columns still list the fit-basis {G} (the fine grid's); the per-column kernel is inside `apply` (which
 // short-circuits ContractG_ERI3), so `kernel` stays empty.
-G_ERI3 GPW_Evaluator::Repulsion3CTensor() const
+// Over the REQUESTED fit grid: columns are grid's {G}, the collocation ladder derives from grid.  The no-arg
+// overloads below are the block's-own-grid convenience (Repulsion3CTensor(itsGrid)).
+G_ERI3 GPW_Evaluator::Repulsion3CTensor(std::shared_ptr<const PW_Grid_Evaluator> grid) const
 {
     G_ERI3 g;
-    g.volume=itsGrid->Volume();
-    for (const ivec3_t& dm : itsGrid->Gs()) g.columns.push_back({dm,{}});
-    g.apply=MakeCollocator(/*coulomb*/true);
+    g.volume=grid->Volume();
+    for (const ivec3_t& dm : grid->Gs()) g.columns.push_back({dm,{}});
+    g.apply=MakeCollocator(/*coulomb*/true, grid);
     return g;
 }
 // Overlap 3-centre tensor: the same analytic map, no kernel (the density's own rho-tilde).
-G_ERI3 GPW_Evaluator::Overlap3CTensor() const
+G_ERI3 GPW_Evaluator::Overlap3CTensor(std::shared_ptr<const PW_Grid_Evaluator> grid) const
 {
     G_ERI3 g;
-    g.volume=itsGrid->Volume();
-    for (const ivec3_t& dm : itsGrid->Gs()) g.columns.push_back({dm,{}});
-    g.apply=MakeCollocator(/*coulomb*/false);
+    g.volume=grid->Volume();
+    for (const ivec3_t& dm : grid->Gs()) g.columns.push_back({dm,{}});
+    g.apply=MakeCollocator(/*coulomb*/false, grid);
     return g;
 }
+G_ERI3 GPW_Evaluator::Repulsion3CTensor() const {return Repulsion3CTensor(itsGrid);}
+G_ERI3 GPW_Evaluator::Overlap3CTensor  () const {return Overlap3CTensor  (itsGrid);}
 
 // The potential->KS bridge (Band_FT_IBS::MakeOverlap / isPW_DFT_Evaluator) -- the ANALYTIC integrate-back,
 // the exact adjoint of MakeCollocator's density collocation.  Restrict Vtilde to each REL_CUTOFF level's own
@@ -362,19 +368,33 @@ chmat_t GPW_Evaluator::OverlapMatrix(const std::function<dcmplx(const ivec3_t&)>
 // Built once (geometry-fixed).  Because the collocation/integrate-back are ANALYTIC (only V is ever sampled), a
 // diffuse pair on its matched coarse level is accurate -- the sampling multigrid's aliasing (and its depth cap)
 // are gone.
+// The block's OWN ladder (from itsGrid), cached for OverlapMatrix (the integrate-back) + MakeLocalPP.  The
+// collocator instead builds its ladder from the REQUESTED fit grid (MakeCollocator -> BuildLevels(grid)).
 void GPW_Evaluator::EnsureLevels() const
 {
     if (!itsLevels.empty()) return;
     assert(itsGrid && "GPW_Evaluator: the DFT tier requires the density grid (densityEcut!=0)");
-    const double efine=itsGrid->Ecut();
+    BuildLevels(itsGrid, itsLevels, itsLevelN, itsLevelEcut, itsNBaseLevels);
+}
+
+// The grid-parameterized ladder core: level [0]==\a grid (the fine grid), coarser levels a factor 4 down to the
+// most-diffuse pair floor, plus the top completion rung -- built from \a grid, NOT the block's itsGrid, so the
+// collocator honours the requested fit grid.  (Orbital-exponent + cell state -- MaxExponent/MinExponent/itsCell/
+// itsCutoffFactor/RelCutoffSafety -- stays the block's; only the GRID is parameterized.)
+void GPW_Evaluator::BuildLevels(std::shared_ptr<const PW_Grid_Evaluator> grid,
+                                std::vector<std::shared_ptr<const PW_Grid_Evaluator>>& levels,
+                                std::vector<ivec3_t>& levelN, std::vector<double>& levelEcut, size_t& nBaseLevels) const
+{
+    assert(grid && "GPW_Evaluator::BuildLevels requires a density grid (densityEcut!=0)");
+    const double efine=grid->Ecut();
     const double amax=itsLat->MaxExponent(), amin=itsLat->MinExponent();
     const double ecoarse=efine*amin/amax;             // resolves the most-diffuse pair product (exponent 2*amin)
-    itsLevels.push_back(itsGrid);                     // L=0: the fine grid, reused
+    levels.push_back(grid);                           // L=0: the fine grid, reused
     double e=efine;
     while (e/4.0>=ecoarse)                            // factor-4 coarsening down to the diffuse floor
     {
         e/=4.0;
-        auto g=std::make_shared<const PW_Grid_Evaluator>(itsGrid->Recip(), rvec3_t(0,0,0), e);
+        auto g=std::make_shared<const PW_Grid_Evaluator>(grid->Recip(), rvec3_t(0,0,0), e);
         // RESOLUTION GUARD: keep a level only if its grid SPACING still quadratures the SHARPEST pair product
         // the REL_CUTOFF assignment can send it, p_max = 2 alpha_max ecut_l/ecut_fine: require h <= 1/sqrt(p_max)
         // (trapezoid/Poisson error of exp(-p r^2) on spacing h is ~e^{-2(pi sigma/h)^2} <= e^{-2 pi^2} ~ 3e-9 at
@@ -387,9 +407,9 @@ void GPW_Evaluator::EnsureLevels() const
         const double  h=itsCell.GetMaximumCellEdge()/double(std::min(std::min(Ng.x,Ng.y),Ng.z));
         const double  pmax=2.0*amax*e/efine;
         if (h*h*pmax > 1.0) break;
-        itsLevels.push_back(g);
+        levels.push_back(g);
     }
-    itsNBaseLevels=itsLevels.size();
+    nBaseLevels=levels.size();
     // TOP COMPLETION RUNG (doc/GPWPlan.md 0b').  The pair->level rule demands ecut >= RelCutoffSafety()
     // * efine * (a_i+a_j)/(2 a_max), whose maximum (the a_max+a_max pair) is RelCutoffSafety()*efine --
     // ABOVE the reference grid, so without this rung the sharpest pairs sit on the reference carrying an
@@ -402,12 +422,12 @@ void GPW_Evaluator::EnsureLevels() const
     // and the rung would buy sub-mHa for 1.6-4x runtime (measured 2026-07-16); a reference AT the auto
     // floor (every AUTO run) gets the rung.
     if (efine < itsLat->RelCutoffSafety()*itsCutoffFactor*amax)
-        itsLevels.push_back(std::make_shared<const PW_Grid_Evaluator>(
-                                itsGrid->Recip(), rvec3_t(0,0,0), itsLat->RelCutoffSafety()*efine));
-    for (const auto& g : itsLevels)
+        levels.push_back(std::make_shared<const PW_Grid_Evaluator>(
+                                grid->Recip(), rvec3_t(0,0,0), itsLat->RelCutoffSafety()*efine));
+    for (const auto& g : levels)
     {
-        itsLevelN.push_back(g->FFTGrid());
-        itsLevelEcut.push_back(g->Ecut());
+        levelN.push_back(g->FFTGrid());
+        levelEcut.push_back(g->Ecut());
     }
 }
 

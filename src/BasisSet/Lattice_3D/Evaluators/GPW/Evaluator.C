@@ -92,6 +92,14 @@ public:
     //! \brief Overlap 3-centre tensor: the same single-\f$r\f$ weight \f$W_c(i,j)\f$, EMPTY kernel -- the density's
     //! Fourier coefficient \f$\tilde\rho(G_c)=\sum_{ij}D_{ij}W_c(i,j)\f$ (no Poisson).
     G_ERI3  Overlap3CTensor() const;
+    //! \brief The SAME two tables over an EXPLICIT fit grid \a grid (rather than the block's own \c DensityGrid).
+    //! The tensor columns are \a grid's \f$\{G\}\f$ and the collocation multi-grid ladder derives from \a grid --
+    //! so the fit-basis GRID/\f$\{G\}\f$ policy (set by \c CreateCD/VxcFitBasisSet) is HONOURED, not silently
+    //! overridden by the block's own grid.  These are the seam \c GPW_IBS::MakeRepulsion3C/MakeOverlap3C call
+    //! with the requested fit basis's grid; the no-arg overloads above are \c Repulsion3CTensor(itsGrid)
+    //! convenience (tests + the block's own fit basis).  (doc/GPWPlan §0e -- "return the requested table".)
+    G_ERI3  Repulsion3CTensor(std::shared_ptr<const PW_Grid_Evaluator> grid) const;
+    G_ERI3  Overlap3CTensor  (std::shared_ptr<const PW_Grid_Evaluator> grid) const;
     //! \brief The potential->KS-matrix bridge (collocation's EXACT adjoint): \f$\langle\chi_i^k|V|\chi_j^k\rangle\f$
     //! by the ANALYTIC per-pair integrate-back (\c Molecule::LatticeSum1E::IntegratePotential) on the REL_CUTOFF
     //! multi-grid ladder -- \a Vtilde is restricted to each level's own \f$\{G\}\f$ (a SPECTRAL low-pass, no
@@ -189,7 +197,9 @@ private:
     //! \f$4\pi/G^2\f$ folded in) map, as a closure: ANALYTIC per-pair collocation on the multi-grid ladder
     //! (\c LatticeSum1E::CollocateDensity), one FFT per level, \f$\tilde\rho\f$ combined NESTED in G-space --
     //! the \c G_ERI3::apply realization.
-    std::function<ΔG_Map(const chmat_t&)> MakeCollocator(bool coulomb) const;
+    //! The collocator over an EXPLICIT fit grid: the ladder derives from \a grid (the tensor's requested
+    //! \f$\{G\}\f$), NOT the block's own \c itsGrid -- the closure captures its own ladder built from \a grid.
+    std::function<ΔG_Map(const chmat_t&)> MakeCollocator(bool coulomb, std::shared_ptr<const PW_Grid_Evaluator> grid) const;
     qcMesh::MeshParams PPMeshParams() const;  //!< the PP-quadrature integration mesh params (uniform, eCut=densityEcut)
 
     // The REL_CUTOFF multi-grid level ladder: the fine density grid + coarser grids (a factor 4 in Ecut each)
@@ -201,7 +211,13 @@ private:
     // (MakeCollocator) and the integrate-back (OverlapMatrix) run per-pair on the FULL ladder; the SHARP-field
     // local PP (MakeLocalPP, relCutoffScale=6) uses the BASE sub-ladder only (itsNBaseLevels) -- its stiffened
     // requirement would flood the top rung with mid pairs whose boxes are huge on the doubled grid.
-    void EnsureLevels() const;
+    void EnsureLevels() const;   //!< builds/caches the block's OWN ladder (itsGrid) for OverlapMatrix + MakeLocalPP
+    //! Build the REL_CUTOFF ladder from an ARBITRARY fine grid \a grid (level [0]==\a grid) into the output
+    //! vectors -- the grid-parameterized core of \c EnsureLevels, so the collocator can build a ladder from the
+    //! REQUESTED fit grid while the block's own paths keep the cached \c itsLevels.
+    void BuildLevels(std::shared_ptr<const PW_Grid_Evaluator> grid,
+                     std::vector<std::shared_ptr<const PW_Grid_Evaluator>>& levels,
+                     std::vector<ivec3_t>& levelN, std::vector<double>& levelEcut, size_t& nBaseLevels) const;
     mutable std::vector<std::shared_ptr<const PW_Grid_Evaluator>> itsLevels;   //!< [0]==itsGrid (reference); coarser; top rung LAST
     mutable std::vector<ivec3_t>    itsLevelN;     //!< each level's FFT grid divisions
     mutable std::vector<double>     itsLevelEcut;  //!< each level's cutoff (reference first)

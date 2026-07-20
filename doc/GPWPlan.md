@@ -860,6 +860,19 @@ is an *efficiency* layer, not a correctness requirement — hence it comes AFTER
   honor it, building its Vxc grid at `Ecut*relCutoff`). LDA relCutoff==1 so it's exact — but a GGA's ∇ρ wants a
   DENSER v_xc grid. Fix = build a separate Vxc grid at `densityEcut*relCutoff`, mirroring the PW Vxc line. A
   guard `assert(relCutoff<=1)` now fires loudly on a GGA-on-GPW attempt instead of silently using the LDA grid.
+  **PREREQUISITE NOW IN PLACE (2026-07-20): the fit-grid seam is honest.**  Previously `GPW`'s
+  `MakeRepulsion3C(c)`/`MakeOverlap3C(c)` (the shared `EPW_Orbital_DFT_IBS` mixin) DROPPED the fit basis `c`
+  and rebuilt the tensor from the block's own `itsGrid` — so a denser `CreateVxcFitBasisSet` grid would have
+  been SILENTLY IGNORED (the policy factory and the tensor builder were two disconnected sources of truth for
+  the density-fit `{G}`, reconciled only by both hard-coding `DensityGrid()`).  Now `GPW_IBS` overrides those
+  two seams to build the tensor over the REQUESTED fit basis's grid (`c` IS-A `PW_Grid_Evaluator`;
+  `GPW_Evaluator::Repulsion3CTensor(grid)`/`Overlap3CTensor(grid)` + a grid-parameterized `BuildLevels` ladder).
+  Bit-identical while the factory wraps `DensityGrid()` (Si Γ −7.11485 / multi-k −7.45133 / adjoint
+  machine-exact / all GPW gates green), and the block's own `OverlapMatrix`/`MakeLocalPP` (KS-assembly, not a
+  requested table) keep `itsGrid`.  So densifying `CreateVxcFitBasisSet` will now ACTUALLY take effect for the
+  collocated ρ̃ — the GGA increment can diverge the CD/Vxc grids without the tensor silently overriding it.
+  (PW's own `relCutoff` Vxc path — `PlaneWaveDFT.ItemK_RelCutoffDensifiesAndConvergesVxc` — was left untouched,
+  deliberately not lumped into the GPW-scoped fix; audit it separately if the shared mixin is ever unified.)
 - **Multi-grids + whole-density collocation — DONE** (the C+D analytic rewrite, see the DONE entry).
 - **Common `PW_Evaluator`/`GPW_Evaluator` base:** the shared FFT engine (`PeriodicGridEvaluator`) is already
   factored; a base earns its keep once general-k k-space logic is shared.

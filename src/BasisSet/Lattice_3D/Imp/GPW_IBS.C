@@ -10,6 +10,7 @@ import qchem.Symmetry.Factory;              // BlochFactory (the convenience cto
 import qchem.Symmetry.Lattice_3D.BlochQN;   // Symmetry::Lattice_3D::Getk (pry k out of the abstract Bloch irrep)
 import qchem.BasisSet.Internal.DB_Cache;    // theCache<dcmplx>() -- process-wide cache for the static PP matrices
                                             // (qcLattice_BS is BasisSet-family, so it may peek at qcBasisSet Internal)
+import qchem.BasisSet.Lattice_3D.Evaluators.PW;  // PW_Grid_Evaluator (the fit basis IS-A one; cross-cast target)
 
 namespace qchem::BasisSet::Lattice_3D
 {
@@ -88,6 +89,23 @@ hmat_t<dcmplx> GPW_IBS::MakeSeparablePotential(const Structure* cl, const Pseudo
     assert(sepR && "GPW MakeSeparablePotential: the KB model must provide the real-space projector face (SeparablePotential_R)");
     return theCache<dcmplx>().Get(IntegralsCache_Base::I2n::SeparablePP, this, cl->ID(),
         [this,cl,sepR]{ return GPW_Evaluator::MakeSeparablePP(cl, *sepR); });
+}
+
+// The DFT 3-centre tables over the REQUESTED fit basis's grid (doc/GPWPlan §0e).  The fit basis \a c that the
+// Hartree/XC term hands us is the one CreateCD/VxcFitBasisSet produced -- a PlaneWaveFit_IBS, which IS-A
+// PW_Grid_Evaluator carrying the density-fit {G}/grid policy.  Cross-cast to that grid and build the tensor on
+// it, so we RETURN THE REQUESTED TABLE rather than overriding the caller's fit-grid choice with the block's own
+// (the shared EPW_Orbital_DFT_IBS mixin dropped \a c).  Bit-identical while the factory wraps DensityGrid();
+// the seam is what lets the fit grid diverge (the deferred GGA Vxc densification) without touching these.
+G_ERI3 GPW_IBS::MakeRepulsion3C(const cFIT_CD_ABS& c) const
+{
+    const auto& grid = dynamic_cast<const PW_Grid_Evaluator&>(c);   // throws bad_cast on a non-grid fit basis (loud)
+    return GPW_Evaluator::Repulsion3CTensor(std::make_shared<const PW_Grid_Evaluator>(grid));
+}
+G_ERI3 GPW_IBS::MakeOverlap3C(const cFIT_SF_ABS& c) const
+{
+    const auto& grid = dynamic_cast<const PW_Grid_Evaluator&>(c);
+    return GPW_Evaluator::Overlap3CTensor(std::make_shared<const PW_Grid_Evaluator>(grid));
 }
 
 std::string GPW_IBS::BasisSetID() const
