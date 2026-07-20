@@ -55,10 +55,14 @@ public:
     //!              the basis, so the caller need not know the Hartree value.  \f$=0\f$ = DFT tier OFF (1E-only).
     //!              \f$>0\f$ = EXPLICIT Hartree cutoff, honoured as given but with a \c cerr warning if it is below
     //!              \a cutoffFactor\f$\cdot\alpha_{\max}\f$ (under-resolves the density -> charge leaks off-grid).
-    //! \param cutoffFactor  \f$C\f$ in the density-grid floor \f$C\cdot\alpha_{\max}\f$ (default 4, the calibrated
-    //!              minimum; pass \f$C\ge4\f$ for a finer grid).  This is a DENSITY-scale constant: the density is
-    //!              the product of two orbitals (exponent \f$2\alpha_{\max}\f$), so \f$C\f$ already folds in the
-    //!              \f$\times2\f$ over a single-orbital cutoff.  See doc/GPWPlan.md \S0.
+    //! \param cutoffFactor  \f$C\f$ in the density-grid cutoff \f$E_{cut}=C\cdot\alpha_{\max}\f$ (default 8).  A
+    //!              DENSITY-scale constant: the density is the PRODUCT of two orbitals (exponent
+    //!              \f$2\alpha_{\max}\f$), and resolving a Gaussian of exponent \f$p\f$ to XC accuracy needs
+    //!              \f$E_{cut}\approx4p\f$, so \f$C=4\times2=8\f$.  MEASURED (F \f$\alpha_{\max}=40\f$, doc/GPWPlan
+    //!              §0e step 2): \f$4\alpha_{\max}\f$ still aliases the collocated \f$\rho\f$ (negCharge −0.77 e →
+    //!              XC collapse), \f$8\alpha_{\max}\f$ is clean (−0.03 e).  (Charge \f$\int\rho=N\f$ holds already
+    //!              at \f$\sim3\alpha_{\max}\f$ — a weaker bar than XC.)  CP2K reaches clean at \f$\sim4\alpha_{\max}\f$
+    //!              via REAL-SPACE collocation vs our Fourier round-trip — a future \f$\times2\f$ efficiency lever.
     //! \param kFrac fractional crystal momentum (fractional reciprocal coords; \f$\Gamma=0\f$).
     //! \param homeCellOnly  the FINITE-molecule MODE: no lattice images anywhere (1E matrices == the finite
     //!              molecule's; KB bra = the raw home orbital) -- the molecule-in-a-periodic-box configuration
@@ -68,7 +72,7 @@ public:
     //!              (user pin, doc/GPWPlan.md).
     GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const UnitCell& cell,
                   double densityEcut = 0.0, const rvec3_t& kFrac = rvec3_t(0,0,0),
-                  bool homeCellOnly = false, double cutoffFactor = 4.0);
+                  bool homeCellOnly = false, double cutoffFactor = 8.0);
     virtual ~GPW_Evaluator() = default;   // polymorphic: reached by the EPW_* mixin's Cast() cross-cast
 
     // --- isPW_1E_Evaluator surface (exact signatures the concept demands) ---
