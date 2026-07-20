@@ -1,6 +1,7 @@
 // File: BasisSet/Lattice_3D/Imp/GPW_IBS.C  GPW_IBS implementation (ctors + identity).
 module;
 #include <cassert>
+#include <cstdlib>   // std::getenv/std::atof (GPW_CDFIT_SCALE density-fit densification)
 #include <iostream>
 #include <memory>
 #include <string>
@@ -30,24 +31,42 @@ GPW_IBS::GPW_IBS(const UnitCell& cell, const ivec3_t& N, const ivec3_t& kIndex,
     : GPW_IBS(cell, Symmetry::BlochFactory(N,kIndex), std::move(mol), densityEcut, images, cutoffFactor)
 {}
 
-// The DFT fit-basis factory: a plane-wave fit basis over GPW's OWN density grid (k=0 Gamma; the density is
-// cell-periodic).  Both CD and Vxc share the one density grid this increment (relCutoff refinement deferred).
+// The DFT fit-basis factory: a plane-wave fit basis over GPW's density grid (k=0 Gamma; the density is
+// cell-periodic).  Both CD and Vxc share one grid this increment.
 //
-// GPW uses an ABSOLUTE densityEcut grid (a Gaussian basis has no single plane-wave orbital bandwidth to scale),
-// so mp.relCutoff -- the CP2K REL_CUTOFF the Hamiltonian derives from the functional's GridCutoffFactor(), the
-// GGA fit-grid densifier -- is NOT yet wired here (unlike PlaneWave_IBS, which builds its Vxc grid at
-// Ecut*relCutoff).  For LDA relCutoff==1 so this is exact; GUARD it loudly so a future GGA-on-GPW attempt fails
-// at this seam instead of silently quadraturing v_xc/grad(rho) on the LDA-grade grid.  Wiring it = build a
-// separate, denser Vxc grid at densityEcut*relCutoff (mirroring the PW Vxc line).  See doc/GPWPlan.md.
+// DENSITY-FIT DENSIFICATION (doc/GPWPlan §0e step 2).  `DensityGrid()` (densityEcut = cutoffFactor*alpha_max)
+// is scaled to resolve the ORBITAL exponent alpha_max -- but the density is the orbital PRODUCT (exponent
+// ~2*alpha_max), which needs a FINER grid.  For a hard atom (F, alpha_max=40) the product is badly aliased on
+// DensityGrid() (measured neg-frac 0.5, negCharge -9 e), collapsing the XC integral.  The fix is a denser fit
+// grid HERE -- NOT a bigger densityEcut (which would coarsely inflate the orbital-scale grid, the local-PP
+// sweep and the Hartree assembly too).  This is effective only because the fit-grid thread-through (758b92a8)
+// makes MakeRepulsion3C/MakeOverlap3C build the tensor over the grid the fit basis carries.  GPW_CDFIT_SCALE
+// (default 1 = DensityGrid(), bit-identical) sweeps the factor while we calibrate what a given alpha_max needs.
+// (This subsumes the deferred GGA relCutoff densification: same seam, a different reason -- density resolution
+// rather than the gradient -- so the mp.relCutoff<=1 GGA guard stays until v_xc's grad path also lands.)
+//
+// TODO (OOD cleanup, deferred): the {G}-grid POLICY (Gmax = cutoffFactor*alpha_max, and the density-product
+// densification) should be STATED here, in CreateCDFitBasisSet, not read from GPW_Evaluator::DensityGrid() --
+// the evaluator's job is low-level (integrals/IDs/op(r)), not deciding the charge-density fit grid.  The
+// evaluator should expose alpha_max + the reciprocal lattice as data, and this function should build the grid
+// from an explicit, readable policy ("4*alpha_max", "2x for the product", ...).
+namespace
+{
+PW_Grid_Evaluator FitGrid(const PW_Grid_Evaluator& g0)
+{
+    double scale=1.0; if (const char* s=std::getenv("GPW_CDFIT_SCALE")) scale=std::atof(s);
+    return scale>1.0 ? PW_Grid_Evaluator(g0.Recip(), rvec3_t(0,0,0), g0.Ecut()*scale) : g0;
+}
+} //anon
 BasisSet::cFIT_CD_ABS* GPW_IBS::CreateCDFitBasisSet(const Structure*, const qcMesh::MeshParams& mp) const
 {
     assert(mp.relCutoff<=1.0 && "GPW: relCutoff>1 (GGA fit-grid refinement) not wired; densityEcut is absolute");
-    return new PlaneWaveFit_IBS(GPW_Evaluator::DensityGrid(), Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
+    return new PlaneWaveFit_IBS(FitGrid(GPW_Evaluator::DensityGrid()), Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
 }
 BasisSet::cFIT_SF_ABS* GPW_IBS::CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams& mp) const
 {
     assert(mp.relCutoff<=1.0 && "GPW: relCutoff>1 (GGA fit-grid refinement) not wired; densityEcut is absolute");
-    return new PlaneWaveFit_IBS(GPW_Evaluator::DensityGrid(), Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
+    return new PlaneWaveFit_IBS(FitGrid(GPW_Evaluator::DensityGrid()), Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
 }
 
 // The external-PP capability.  Local: G-space form-factor assembly (the model's FormFactor is used directly,
