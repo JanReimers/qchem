@@ -287,6 +287,8 @@ std::function<ΔG_Map(const chmat_t&)> GPW_Evaluator::MakeCollocator(bool coulom
         auto sameD=[&]() -> bool
         {
             if (!memo->valid || memo->D.rows()!=D.rows()) return false;
+            if (memo->ecut!=ecut_L) return false;   // SAME D but a DIFFERENT ladder -> the cached rho is the
+                                                    // wrong grid (cross-block seed): recompute, never replay it
             for (size_t i=0;i<D.rows();i++)
                 for (size_t j=i;j<D.columns();j++) if (memo->D(i,j)!=D(i,j)) return false;
             return true;
@@ -296,7 +298,7 @@ std::function<ΔG_Map(const chmat_t&)> GPW_Evaluator::MakeCollocator(bool coulom
         else
         {
             rho = lat->CollocateDensity(D, phase, A, N_L, ecut_L);
-            memo->D=D; memo->rho=rho; memo->valid=true;
+            memo->D=D; memo->rho=rho; memo->ecut=ecut_L; memo->valid=true;
         }
         ΔG_Map out;
         for (size_t l=0; l<levels.size(); l++)

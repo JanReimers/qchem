@@ -187,7 +187,11 @@ private:
     //! (XC/charge) and once for the Coulomb apply -- so the second call replays the level densities for free
     //! (exact-equality keyed on \f$D\f$; the phase/cell/ladder are fixed per evaluator, i.e. per k-block).
     //! The G-space post-processing (FFT + nested combine +/- Coulomb kernel) stays per-call.
-    struct CollocMemo { bool valid=false; chmat_t D; std::vector<rvec_t> rho; };
+    //! \c ecut pins the LADDER the cached \c rho was collocated on: the memo dedups the two same-grid closures
+    //! (Coulomb + overlap) collocating the same \f$D\f$ per iteration, but the SAME \f$D\f$ can be collocated on
+    //! a DIFFERENT grid (a coarse block asked for a fine fit grid -- the grid-continuation seed), where replaying
+    //! the wrong-ladder \c rho is a dimension mismatch (segfault).  So \c sameD requires \c ecut to match too.
+    struct CollocMemo { bool valid=false; chmat_t D; std::vector<rvec_t> rho; std::vector<double> ecut; };
     mutable std::shared_ptr<CollocMemo> itsCollocMemo;    //!< shared so both framework-cached closures see it
     //! The Bloch phase of an integer cell offset \f$n\f$: \f$e^{2\pi i\,k_{frac}\cdot n}\f$ -- the closure the
     //! analytic kernels call back for each screened cross-cell pair offset (the k-CONVENTION stays here,
