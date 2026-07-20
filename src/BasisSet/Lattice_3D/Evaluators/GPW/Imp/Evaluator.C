@@ -239,7 +239,7 @@ GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const
                       << "*alpha_max=" << floor << " (basis alpha_max=" << aMax << "): the density grid "
                       << "under-resolves the basis -- charge will leak off-grid (integral rho_grid < N). Prefer "
                       << "densityEcut>=" << floor << ", or the automatic default (densityEcut<0)." << std::endl;
-        itsGrid=std::make_shared<const PW_Grid_Evaluator>(
+        itsFFT_R_G_Grids=std::make_shared<const PW_Grid_Evaluator>(
                     ReciprocalLattice(cell.MakeReciprocalCell()), rvec3_t(0,0,0), ecut);
     }
 }
@@ -267,7 +267,7 @@ Molecule::LatticeSum1E::cellphase_t GPW_Evaluator::CellPhase() const
 // G_ERI3.
 std::function<ΔG_Map(const chmat_t&)> GPW_Evaluator::MakeCollocator(bool coulomb, std::shared_ptr<const PW_Grid_Evaluator> grid) const
 {
-    // The ladder derives from the REQUESTED fit grid (not the block's own itsGrid); the closure captures it.
+    // The ladder derives from the REQUESTED fit grid (not the block's own itsFFT_R_G_Grids); the closure captures it.
     std::vector<std::shared_ptr<const PW_Grid_Evaluator>> levels;
     std::vector<ivec3_t> N_L;
     std::vector<double>  ecut_L;
@@ -316,7 +316,7 @@ std::function<ΔG_Map(const chmat_t&)> GPW_Evaluator::MakeCollocator(bool coulom
 // columns still list the fit-basis {G} (the fine grid's); the per-column kernel is inside `apply` (which
 // short-circuits ContractG_ERI3), so `kernel` stays empty.
 // Over the REQUESTED fit grid: columns are grid's {G}, the collocation ladder derives from grid.  The no-arg
-// overloads below are the block's-own-grid convenience (Repulsion3CTensor(itsGrid)).
+// overloads below are the block's-own-grid convenience (Repulsion3CTensor(itsFFT_R_G_Grids)).
 G_ERI3 GPW_Evaluator::Repulsion3CTensor(std::shared_ptr<const PW_Grid_Evaluator> grid) const
 {
     G_ERI3 g;
@@ -341,7 +341,7 @@ G_ERI3 GPW_Evaluator::Overlap3CTensor(std::shared_ptr<const PW_Grid_Evaluator> g
 // the fit \a grid's REL_CUTOFF ladder -- <i|f|j> = analytic per-pair gather of the field f (LatticeSum1E::
 // IntegratePotential), the exact adjoint of the collocation on the SAME grid.  So Overlap3C/Repulsion3C(fit)
 // carry BOTH directions on the fit grid; the KS matrix is built by ContractAdjointG_ERI3 (doc/GPWPlan §0e step2).
-// (OverlapMatrix below is the block's-own-itsGrid sibling that MakeLocalPP + the legacy MakeOverlap still use.)
+// (OverlapMatrix below is the block's-own-itsFFT_R_G_Grids sibling that MakeLocalPP + the legacy MakeOverlap still use.)
 std::function<chmat_t(const std::function<dcmplx(const ivec3_t&)>&)>
 GPW_Evaluator::MakeIntegrator(std::shared_ptr<const PW_Grid_Evaluator> grid) const
 {
@@ -370,8 +370,8 @@ GPW_Evaluator::MakeIntegrator(std::shared_ptr<const PW_Grid_Evaluator> grid) con
         return lat->IntegratePotential(V_L, phase, A, N_L, ecut_L, 1.0, screenD);
     };
 }
-G_ERI3 GPW_Evaluator::Repulsion3CTensor() const {return Repulsion3CTensor(itsGrid);}
-G_ERI3 GPW_Evaluator::Overlap3CTensor  () const {return Overlap3CTensor  (itsGrid);}
+G_ERI3 GPW_Evaluator::Repulsion3CTensor() const {return Repulsion3CTensor(itsFFT_R_G_Grids);}
+G_ERI3 GPW_Evaluator::Overlap3CTensor  () const {return Overlap3CTensor  (itsFFT_R_G_Grids);}
 
 // The potential->KS bridge (Band_FT_IBS::MakeOverlap / isPW_DFT_Evaluator) -- the ANALYTIC integrate-back,
 // the exact adjoint of MakeCollocator's density collocation.  Restrict Vtilde to each REL_CUTOFF level's own
@@ -406,17 +406,17 @@ chmat_t GPW_Evaluator::OverlapMatrix(const std::function<dcmplx(const ivec3_t&)>
 // Built once (geometry-fixed).  Because the collocation/integrate-back are ANALYTIC (only V is ever sampled), a
 // diffuse pair on its matched coarse level is accurate -- the sampling multigrid's aliasing (and its depth cap)
 // are gone.
-// The block's OWN ladder (from itsGrid), cached for OverlapMatrix (the integrate-back) + MakeLocalPP.  The
+// The block's OWN ladder (from itsFFT_R_G_Grids), cached for OverlapMatrix (the integrate-back) + MakeLocalPP.  The
 // collocator instead builds its ladder from the REQUESTED fit grid (MakeCollocator -> BuildLevels(grid)).
 void GPW_Evaluator::EnsureLevels() const
 {
     if (!itsLevels.empty()) return;
-    assert(itsGrid && "GPW_Evaluator: the DFT tier requires the density grid (densityEcut!=0)");
-    BuildLevels(itsGrid, itsLevels, itsLevelN, itsLevelEcut, itsNBaseLevels);
+    assert(itsFFT_R_G_Grids && "GPW_Evaluator: the DFT tier requires the density grid (densityEcut!=0)");
+    BuildLevels(itsFFT_R_G_Grids, itsLevels, itsLevelN, itsLevelEcut, itsNBaseLevels);
 }
 
 // The grid-parameterized ladder core: level [0]==\a grid (the fine grid), coarser levels a factor 4 down to the
-// most-diffuse pair floor, plus the top completion rung -- built from \a grid, NOT the block's itsGrid, so the
+// most-diffuse pair floor, plus the top completion rung -- built from \a grid, NOT the block's itsFFT_R_G_Grids, so the
 // collocator honours the requested fit grid.  (Orbital-exponent + cell state -- MaxExponent/MinExponent/itsCell/
 // itsCutoffFactor/RelCutoffSafety -- stays the block's; only the GRID is parameterized.)
 void GPW_Evaluator::BuildLevels(std::shared_ptr<const PW_Grid_Evaluator> grid,
@@ -529,9 +529,9 @@ chmat_t GPW_Evaluator::NuclearMatrix(const Structure* cl) const
 // only ever runs inside an SCF, which needs the density collocation grid anyway.
 qcMesh::MeshParams GPW_Evaluator::PPMeshParams() const
 {
-    assert(itsGrid && "GPW_Evaluator: the external PP requires the DFT density grid (densityEcut!=0: <0 auto, >0 explicit)");
+    assert(itsFFT_R_G_Grids && "GPW_Evaluator: the external PP requires the DFT density grid (densityEcut!=0: <0 auto, >0 explicit)");
     qcMesh::MeshParams mp;
-    mp.eCut=itsGrid->Ecut();
+    mp.eCut=itsFFT_R_G_Grids->Ecut();
     return mp;
 }
 
@@ -543,8 +543,8 @@ qcMesh::MeshParams GPW_Evaluator::PPMeshParams() const
 // nonlocal (localized, no Coulomb tail, no G=0 issue) stays real-space (MakeSeparablePP).
 chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const Pseudopotential::LocalPotential& loc, LocalPart part) const
 {
-    assert(itsGrid && "GPW_Evaluator: the local PP needs the density grid (densityEcut!=0: <0 auto, >0 explicit)");
-    const UnitCell& B=itsGrid->Recip().GetCell();
+    assert(itsFFT_R_G_Grids && "GPW_Evaluator: the local PP needs the density grid (densityEcut!=0: <0 auto, >0 explicit)");
+    const UnitCell& B=itsFFT_R_G_Grids->Recip().GetCell();
     // ANALYTIC integrate-back of the G-space local-PP form factor, on the ladder with a STIFFENED pair->level
     // requirement (relCutoffScale=6).  The energy error of a (pair x field) product decays with the SUM of the
     // two spectra: V_loc is spectrally BROAD (unlike the smooth V_H/V_xc), so each pair must sit ~6x finer than
@@ -568,7 +568,7 @@ chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const Pseudopotential::L
                      :                          loc.FormFactor     (a->itsZ,g2);
             acc += f*std::exp(dcmplx(0.0,-(dG*a->itsR)));
         }
-        return acc/itsGrid->Volume();
+        return acc/itsFFT_R_G_Grids->Volume();
     };
     EnsureLevels();
     // BASE sub-ladder only (no top completion rung): at relCutoffScale=6 the stiffened requirement would
@@ -800,7 +800,7 @@ std::string GPW_Evaluator::IDFragment() const
          +"|k="+std::to_string(itsk.x)+","+std::to_string(itsk.y)+","+std::to_string(itsk.z)
          +"|cell="+std::to_string(itsCell.GetCellVolume())+","+std::to_string(itsCell.GetMaximumCellEdge())
          +(itsHomeOnly?"|home":"")
-         +"|dEcut="+(itsGrid?std::to_string(itsGrid->Ecut()):std::string("0"));
+         +"|dEcut="+(itsFFT_R_G_Grids?std::to_string(itsFFT_R_G_Grids->Ecut()):std::string("0"));
 }
 
 } //namespace

@@ -96,7 +96,7 @@ public:
     //! The tensor columns are \a grid's \f$\{G\}\f$ and the collocation multi-grid ladder derives from \a grid --
     //! so the fit-basis GRID/\f$\{G\}\f$ policy (set by \c CreateCD/VxcFitBasisSet) is HONOURED, not silently
     //! overridden by the block's own grid.  These are the seam \c GPW_IBS::MakeRepulsion3C/MakeOverlap3C call
-    //! with the requested fit basis's grid; the no-arg overloads above are \c Repulsion3CTensor(itsGrid)
+    //! with the requested fit basis's grid; the no-arg overloads above are \c Repulsion3CTensor(itsFFT_R_G_Grids)
     //! convenience (tests + the block's own fit basis).  (doc/GPWPlan §0e -- "return the requested table".)
     G_ERI3  Repulsion3CTensor(std::shared_ptr<const PW_Grid_Evaluator> grid) const;
     G_ERI3  Overlap3CTensor  (std::shared_ptr<const PW_Grid_Evaluator> grid) const;
@@ -151,7 +151,7 @@ public:
     chmat_t MakeSeparablePP(const Structure* cl, const Pseudopotential::SeparablePotential_R& sep) const;
 
     //! The density/collocation grid engine (the fit basis is built over it, so \f$\tilde\rho\f$'s \f$\{G\}\f$ matches).
-    const PW_Grid_Evaluator& DensityGrid() const {return *itsGrid;}
+    const PW_Grid_Evaluator& DensityGrid() const {return *itsFFT_R_G_Grids;}
 
     //! Cache-key fragment: the molecular basis's ID + \f$k\f$ + translation count + the density-grid cutoff
     //! (the collocation tensor depends on the grid, so the framework cache key must pin it).
@@ -179,7 +179,7 @@ private:
     size_t                              itsN   = 0;       //!< number of Gaussian orbitals
     double  itsCutoffFactor=4.0;   //!< the density-grid floor constant C (ctor param) -- the ENERGY calibration
                                    //!< C*RelCutoffSafety()*alpha_max gates the top completion rung (EnsureLevels)
-    std::shared_ptr<const PW_Grid_Evaluator> itsGrid;     //!< the density/collocation grid (null if DFT tier off)
+    std::shared_ptr<const PW_Grid_Evaluator> itsFFT_R_G_Grids;     //!< the density/collocation grid (null if DFT tier off)
     // NO hand-rolled tensor cache: the collocation tensor is a stateless build; the FRAMEWORK caches it
     // (BasisSet::Band_FT_IBS::Repulsion3C/Overlap3C via theCache<dcmplx>(), keyed by BasisSetID -- see IDFragment).
     //! \brief Last-density collocation memo, SHARED by the two \c MakeCollocator closures (Coulomb + overlap
@@ -202,7 +202,7 @@ private:
     //! (\c LatticeSum1E::CollocateDensity), one FFT per level, \f$\tilde\rho\f$ combined NESTED in G-space --
     //! the \c G_ERI3::apply realization.
     //! The collocator over an EXPLICIT fit grid: the ladder derives from \a grid (the tensor's requested
-    //! \f$\{G\}\f$), NOT the block's own \c itsGrid -- the closure captures its own ladder built from \a grid.
+    //! \f$\{G\}\f$), NOT the block's own \c itsFFT_R_G_Grids -- the closure captures its own ladder built from \a grid.
     std::function<ΔG_Map(const chmat_t&)> MakeCollocator(bool coulomb, std::shared_ptr<const PW_Grid_Evaluator> grid) const;
     //! The BACKWARD adjoint of \c MakeCollocator: a self-contained field->matrix integrate-back over \a grid's
     //! ladder -- the \c G_ERI3::applyAdjoint the Overlap3C/Repulsion3C(grid) tensors carry (doc/GPWPlan §0e step2).
@@ -219,14 +219,14 @@ private:
     // (MakeCollocator) and the integrate-back (OverlapMatrix) run per-pair on the FULL ladder; the SHARP-field
     // local PP (MakeLocalPP, relCutoffScale=6) uses the BASE sub-ladder only (itsNBaseLevels) -- its stiffened
     // requirement would flood the top rung with mid pairs whose boxes are huge on the doubled grid.
-    void EnsureLevels() const;   //!< builds/caches the block's OWN ladder (itsGrid) for OverlapMatrix + MakeLocalPP
+    void EnsureLevels() const;   //!< builds/caches the block's OWN ladder (itsFFT_R_G_Grids) for OverlapMatrix + MakeLocalPP
     //! Build the REL_CUTOFF ladder from an ARBITRARY fine grid \a grid (level [0]==\a grid) into the output
     //! vectors -- the grid-parameterized core of \c EnsureLevels, so the collocator can build a ladder from the
     //! REQUESTED fit grid while the block's own paths keep the cached \c itsLevels.
     void BuildLevels(std::shared_ptr<const PW_Grid_Evaluator> grid,
                      std::vector<std::shared_ptr<const PW_Grid_Evaluator>>& levels,
                      std::vector<ivec3_t>& levelN, std::vector<double>& levelEcut, size_t& nBaseLevels) const;
-    mutable std::vector<std::shared_ptr<const PW_Grid_Evaluator>> itsLevels;   //!< [0]==itsGrid (reference); coarser; top rung LAST
+    mutable std::vector<std::shared_ptr<const PW_Grid_Evaluator>> itsLevels;   //!< [0]==itsFFT_R_G_Grids (reference); coarser; top rung LAST
     mutable std::vector<ivec3_t>    itsLevelN;     //!< each level's FFT grid divisions
     mutable std::vector<double>     itsLevelEcut;  //!< each level's cutoff (reference first)
     mutable size_t                  itsNBaseLevels=0; //!< levels before the top rung (the local-PP sub-ladder)
