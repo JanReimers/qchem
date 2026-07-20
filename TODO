@@ -177,11 +177,42 @@ Space group 1:
   4. GUI for user entry of crystal structures:  use enters space group symbol and GUI present Wykoff positions (does this require non symmorphic support?)
 - We are deveoping PW and GPW PP calcalations on FCC Si with Monkhorst-Pack k sampling.  So the first would be IBZ {k} {symmetry weights} for that system. I don't know how IBS {k} interacts with Monkhorst-Pack.
 
+## 2 PC set up
+Old pc (this machine) = HP Compaq-Pro-6300-MT, hostname janr-HP-Compaq-Pro-6300-MT, 4 core cpu, HDD, 4K Z-edge monitor
+New (refurbished) pc Dell Optiplex 7090 SFF, 8 core/16 thread CPU, hostname janr2, 500G SSD, Low res Samsung Monitor
+Router: Huawie B310s 518
+
+If I plug the 4K monitor into the 7090 PC (using display port) it flashes horizontal bars, the shuts off (goes dark) of 3-10 seconds at a time.  If I connect 7090 PC->display port->Adapter->HDMI->4K monitor it works?!?
+
+Overall Goal: Do Claude development and computational physics calculations primarily on the new (much faster) machine.  Use the old for running confirmation tests or helping with builds.
+
+Minor things:
+1) Change hostname on the old machine janr-HP-Compaq-Pro-6300-MT to janr1
+2) Get the machines to recognize each other by hostname.  I am assuming the router gives them dynamic local IPs.
+3) Cross mount the drives so I can pass files back and forth.
+4) Set up remote desktop login in both directions.  Then I can hopefully get by with one monitor/keybard/mouse combo.
+5) Set it up so make -j20 spreads accross both machines. (SDD speed vs HDD speed may make this of marginal use)
+6) Organize unit tests so full confirmation runs and be distributed.  Or just set it up as a CI machine.
+
+The four extra cores may not be worth the effort in 5&6.  But I want to learn how that works as a feasibility study for adding more low cost refurbished machines in the future.  A long time ago I used to hear about beowolf linux clusters ... is that still a thing?
+
+What are your recommendations for how to proceed.  
+
+
+
+
+
   
 ## Code Review
 
+### SCF Accel/mixer refactor
 
-Three Mesh upgrade:
+MakeDensityMixer(-> Factory() in a namespace.
+MakeLocalPotential (full) is pinned by unit tests (PlaneWaveUT.C, GTH_UT.C) with BareCoulomb/GaussianSmearedNucleus, so I must keep it full and add separate Long/Short methods rather than change its semantics.
+Key finding: GPW's MakeRepulsion3C ignores the passed fit basis and returns the block's own tensor (Lattice_3D/IrrepBasisSet.C:68)
+
+
+### Three Mesh upgrade:
 1) FourierMesh_R = {R}, {e^ikR phases} in src/BasisSet/Molecule/LatticeSum1E.C
 2) FourierMesh_k = {k}, {symmetry weights for the Irrep BZ} for BZ sums/integrals.
 3) doc/GPWPlan.md: 2. THE mesh insight — the next increment builds on this (do not use the stopgap)
@@ -189,10 +220,8 @@ Three Mesh upgrade:
 
 Other:
 
-it doesn't damp the sloshing one. You need mode-selective (Kerker/preconditioned) mixing
 
 Session 5:
 Next steps:  Space group symmetry (reduce k count), Monkhorst-Pack, Some mesh refactoring, extending qchem GPW to multi-species, other?
 
 
-We have space groups started on a branch.  The SG dude is ready to wire MakeIBZMesh into the GPW k-loop and assert reduced-mesh energy == full-mesh energy for FCC Si. 
