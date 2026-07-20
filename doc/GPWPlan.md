@@ -100,6 +100,16 @@ runtime close-out incl. the CP2K NaF oracle + convergence findings).
   So the production-grid failure is a DENSITY/GRID-basin problem, NOT occupation/mixing: MOM+Pulay necessary
   but NOT sufficient.  Next-session plan (grid-continuation seeding + basin removal + OpenMP, basin kept as a
   test fixture) recorded in the TODO §0e below.
+- **§0e-PP CP2K local-PP split + Q1 grid speedup** (branch `gpw-0e-pp-local-split`: `94544683` split, `83d827b9`
+  Q1; 202/202 green).  Local PP split at the `LocalPotential` form-factor level — LONG (softened-Coulomb → folded
+  into `PW_Hartree`'s G-space Poisson) + SHORT (poly×Gaussian → external `PW_Pseudo`); `FormFactorLong` primary,
+  base provides `FormFactor=Long+Short` (Design A); a matrix-identical ENERGY-RELOCATION refactor (Si Γ −7.11506
+  + NaF −27.756 held).  **Q1 — the ~295 s NaF fine-grid `MakeLocalPP` setup wall is the `relCutoffScale`, over-set
+  to 6 by the DENSITY SCREEN** (the increment-1 `−280`/`−259` was `OverlapMatrix`'s `screenD` zeroing off-diagonals
+  of the FIXED `V_long`, NOT aliasing; unscreened, smooth==stiff to 4e-3 for soft Si).  Default 6→3 = ~2× (Ecut=160
+  578 s→128 s @scale 2), all gates green (Si Γ now 31 s); env knobs `GPW_LOCALPP_SCALE`/`GPW_LOCALPP_FULL` for the
+  later 2/4 verify.  The ANALYTIC V_local (short BUILT+finite-validated but dormant; long = the Ewald crux) is a
+  SEPARATE accuracy upgrade → **TODO §0e-PP** (re-gates to converged CP2K −27.93).
 
 ## Naming (`5f609d2f`) — remember these
 - `Overlap(f)` = ANY 1-electron `⟨i|f|j⟩` (f may be a potential); `Repulsion` = the 2-electron `1/r12`.
@@ -605,76 +615,29 @@ for **every** contributing pair — and the diffuse pairs DO contribute (measure
     (2) short-range → analytic Gaussian seam; drop the `MakeLocalPP` grid sweep entirely.  (3) re-time NaF.
     Interface: expose the GTH split on `LocalPotential` (`FormFactorLong/Short`, a core-charge/`r_loc`
     accessor).  Decided (user 2026-07-19): fold into `PW_Hartree` — "cleaner physics, one Poisson solve."
-  - **INCREMENT 1 DONE 2026-07-19 (Si Γ −7.11506 + NaF −27.756 both green; 202/202 UTMain).** The split is
-    now a `LocalPotential` form-factor property: `FormFactorLong` (softened Coulomb `−4πZ_ion e^{−G²r_loc²/2}/G²`)
-    + `FormFactorShort` (poly×Gaussian) + their `FormFactorG0Long/Short`, defaulting to (all-long, no-short) so
-    `BareCoulomb`/`GaussianSmearedNucleus` are unchanged; `HGH` overrides and `FormFactor≡Long+Short`.
-    `Integrals_Pseudo` gained `MakeLocalPotential{Long,Short}` (the full `MakeLocalPotential` stays, pinned by
-    the PW tests). `PW_Pseudo` → SHORT-only local (+ short G=0 alignment); `PW_Hartree(fb, st, loc)` folds the
-    cached per-basis `V_long` block into its Fock matrix and reports `E_hartree=½Tr(D·V_H)` (via
-    `total−eLong`) + `E_een,long=Tr(D·V_long)` (`DM_ContractBlocks`) + long G=0 alignment. Guard: new
-    `PlaneWaveDFT.LocalPPLongPlusShortEqualsFull` (Short+Long≡Full, machine-exact on the analytic PW path).
-    **KEY CORRECTION for Increment 2 — the "V_long rides the smooth density-grid integrate-back, no giant
-    boxes" mechanism sketched above is FALSE as a naive matrix assembly.** Assembling `<χ_i|V_long|χ_j>` via
-    `OverlapMatrix` (the smooth `relCutoffScale=1` ladder) ALIASES the erf deep well (spectrally broad,
-    needs `E_cut~1/r_loc²`) onto the coarse-level diffuse pairs → **Si Γ = −259 Ha** (`eLong=Tr(D·V_long)≈−280`
-    instead of ≈−3). The `relCutoffScale=6` sweep exists precisely to prevent this. So Increment 1 assembles
-    `V_long` through the SAME sharp-field sweep as full `V_loc` (`GPW_Evaluator::MakeLocalPP(LocalPart::Long)`),
-    making `short+long≡full` matrix-for-matrix — a pure ENERGY-RELOCATION refactor, NOT yet a cost win (the
-    `MakeLocalPP` sweep still runs for the long part). The genuine cost win (dodging the per-pair sweep for the
-    deep well) needs the ANALYTIC Gaussian seam — the erf/r core charge is a Gaussian-smeared nucleus, so
-    `<χ_i|erf(|r−R|/√2r_loc)/|r−R||χ_j>` is an analytic lattice-summed Coulomb integral (MakeNuclear-with-a-
-    smeared-charge), the sibling of the short part's `MakeOverlap(GaussianFunction)` seam. **BOTH pieces go
-    analytic in Increment 2** — that is where `MakeLocalPP`'s grid sweep is actually dropped and the NaF
-    fine-grid `MakeLocalPP` setup wall dies. (The `E_een_long = Σ_G ρ̃_elec(G)·V_long(G)` energy formula is
-    separately cheap/accurate on the fine density grid — the aliasing is a MATRIX-assembly problem only.)
-  - **INCREMENT 2 IN PROGRESS 2026-07-19 — analytic SHORT built + dormant; deep diagnosis of the assembly
-    options (suite stays green on the increment-1 grid path).** Landed the analytic-short infrastructure
-    (finite-validated, NOT wired into production): `LocalPotential_Gaussian` capability face (`ShortRangeGaussian`,
-    the closed poly-Gaussian expansion, mirroring `SeparablePotential_Gaussian::BetaGaussian`) + HGH/MultiSpecies
-    impls; `LatticeSum1E::MakeLocalGaussian` (periodic + finite) — the 3-centre `Overlap3C` MATRIX sibling of the
-    2-centre `MakeOverlap(g)` VECTOR, realised in `PG_Cart_MnD::NR_Evaluator` (the operator sits in the C slot
-    BETWEEN the two orbitals; operator summed over its screened images for the periodic field); GPW
-    `MakeLocalPPShort`.  KEY INSIGHT that simplified the plan: BOTH pieces are EXISTING `GaussianRF` kernels — short
-    = `Overlap3C(χ_i,χ_j,g_short)`, long = `−Z_ion·Repulsion3C(χ_i,χ_j,g_core)` (the erf-Coulomb IS a normalized
-    Gaussian charge, exponent `1/2r_loc²`) — **no new Boys function**.  **DIAGNOSIS (the four findings):**
-    (1) **the increment-1 `−280` was the DENSITY SCREEN, not aliasing** — `OverlapMatrix` passes `screenD` (the
-    collocated D) to skip pairs D can't resolve, valid for `V_H` (D's own field) but WRONG for the FIXED external
-    `V_long`: it zeroed off-diagonals where D is small (Si (0,1): sweep −2.589, screened 0).  UNSCREENED,
-    `OverlapMatrix(V_long)` matches the `relCutoffScale=6` sweep to **2e-3**.  So the "`relCutoffScale=6` prevents
-    aliasing" note above is WRONG — the stiffening was over-attributed; the screen was the bug.
-    (2) **for SOFT Si the unscreened SMOOTH (scale=1) integrate-back matches the stiff sweep for BOTH short and
-    long to ~4e-3** — so soft PPs need neither the stiffening nor the analytic path; unscreened smooth-om suffices
-    and keeps diffuse pairs on COARSE grids (no giant boxes).
-    (3) **for SHARP NaF-F at Ecut=40 the smooth-om FAILS** (LONG off 2.3, SHORT off 4.6): the sharp F genuinely
-    needs the stiff resolution at low Ecut, so smooth-om is NOT a universal wall-killer.  (Open: does it hold at
-    the AUTO fine grid Ecut=160, where even coarse levels are finer?  The wall is a FINE-grid setup problem; the
-    Ecut=40 GATE is fast on the sweep.)
-    (4) **the band-limiting cancellation is REAL** — `analytic-short(exact) + grid-long = −7.67` (0.55 off the
-    −7.115 gate) because grid-short and grid-long each carry ~0.5 Ha errors (unresolved SHARP ORBITAL PRODUCTS on
-    the on-site elements) that CANCEL in grid-full (V_loc smooth ⇒ V_short(G)≈−V_long(G) beyond the cutoff).  So
-    analytic-short CANNOT be mixed with grid-long; BOTH must be exact (analytic) together, and the exact total is
-    the CONVERGED energy — which for NaF is CP2K's −27.93, not the Ecut=40 grid −27.756 (a re-gate, and a WIN).
-    **NET:** the analytic SHORT is done (exact).  The remaining crux is the analytic LONG: `−Z_ion·Repulsion3C`
-    against a Gaussian core charge is conditionally convergent (erf→1/r Madelung tail) ⇒ needs a G-space/Ewald
-    neutralizing-background treatment (NOT a real-space lattice sum).  Files: `LocalPotential.C`
-    (`LocalPotential_Gaussian`), `LatticeSum1E.C`+`PG_Cart` (`MakeLocalGaussian`), `PG_Cart_MnD/Evaluator.C`
-    (`Overlap3C` kernel), `GPW/Imp/Evaluator.C` (`MakeLocalPPShort`, dormant).
-  - **Q1 GRID PATH LANDED 2026-07-19 — the 295s setup wall is the `relCutoffScale`, and it was over-set.** User's
-    re-orient (use the SAME multigrid for V_local as the overlap/density collocation) is right: the density
-    screen (finding 1 above) is what made the smooth ladder look broken, so `relCutoffScale=6` was an
-    over-correction.  MEASURED on the NaF fine grid (Ecut=160, `MakeLocalPP` per sweep): **scale 6 = 291s(short)
-    + 287s(long) = 578s; scale 2 = 64+64 = 128s → 4.5×**.  (The increment-1 split assembles short+long as TWO
-    sweeps, so it DOUBLED the setup vs the memory's original single 290s full-V_loc sweep — un-splitting the
-    matrix for the grid path recovers another 2× → ~9× total; deferred.)  **Default `relCutoffScale` 6→3**
-    (`GPW_Evaluator::MakeLocalPP`; `GPW_LOCALPP_SCALE`/`GPW_LOCALPP_FULL` env knobs retained): a SAFE middle —
-    all GPW gates green (Si Γ −7.11506 now 31s vs ~120s; atom-in-box; multi-k; 2×2×2 shifted −7.86744; NaF
-    Ecut=40 −27.7535).  The 2/4 verification (that the FINE-grid energy is scale-converged) waits on the
-    fake-−39 basin fix — the fine-grid SCF diverges regardless of V_local (the Ecut=40 scale-sweep is
-    basin-fragile: 3✓ 4✗ 6✓, an SCF-dynamics artifact, while the V_local MATRIX is monotone in absolute
-    resolution).  The analytic V_local (Inc-2, dormant) is a SEPARATE accuracy upgrade (exact, but re-gates to
-    converged CP2K), NOT the 295s fix.  NEXT (user TODO): remove the fake −39 basin (grid-continuation seeding),
-    THEN verify V_local scale-convergence with the 2/4 knobs.
+  - **STATUS 2026-07-19 — increment 1 (the split) + Q1 (the grid speedup) are DONE (branch
+    `gpw-0e-pp-local-split`; compact record in the [DONE](#done) timeline).**  The split is a `LocalPotential`
+    form-factor property (`FormFactorLong` primary + base-provided `FormFactor=Long+Short`); `PW_Pseudo` does the
+    SHORT local, `PW_Hartree(fb,st,loc)` folds the LONG `V_long` into its Fock matrix + owns its energy/alignment
+    — a matrix-identical ENERGY-RELOCATION refactor (Si Γ −7.11506 + NaF −27.756 held, 202/202).  **Q1 corrected
+    the plan:** the ~295 s wall is the `relCutoffScale`, NOT the per-pair sweep — it was over-set to 6 by the
+    DENSITY-SCREEN bug (the `−280`/`−259` was `OverlapMatrix`'s `screenD` zeroing off-diagonals of the FIXED
+    `V_long`, NOT aliasing; unscreened, smooth==stiff to 4e-3 for soft Si).  Default `relCutoffScale` 6→3 → ~2×
+    (Ecut=160: 578 s → 128 s @scale 2), all gates green.  So implementation increment (2) above is RE-SCOPED:
+    **the grid knob (Q1) is the perf fix; the analytic seam is a separate ACCURACY upgrade** — it re-gates to
+    converged CP2K (band-limiting cancellation: grid short/long each ~0.5 Ha off, cancelling in the smooth full
+    V_loc, so analytic-short + grid-long misses the gate by 0.55 — BOTH must go analytic together).
+  - **REMAINING TODO — analytic V_local (accuracy upgrade). Branch `gpw-0e-pp-local-split`.**  Both pieces are
+    EXISTING `GaussianRF` kernels (no new Boys function): short = `Overlap3C(χ_i,χ_j,g_short)`, long =
+    `−Z_ion·Repulsion3C(χ_i,χ_j,g_core)` (the erf-Coulomb IS a normalized Gaussian core charge, exp `1/2r_loc²`).
+    SHORT is BUILT + finite-validated but DORMANT (`LocalPotential_Gaussian::ShortRangeGaussian`,
+    `LatticeSum1E::MakeLocalGaussian` = the 3-centre `Overlap3C` MATRIX sibling of the 2-centre `MakeOverlap(g)`
+    VECTOR, `GPW_Evaluator::MakeLocalPPShort`).  **LONG is the crux:** the `Repulsion3C` lattice sum is
+    conditionally convergent (erf→1/r Madelung tail) ⇒ needs a G-space/Ewald neutralizing background, NOT a
+    real-space sum.  Both go analytic TOGETHER; the exact total re-gates NaF to converged CP2K −27.93 (a WIN
+    over the Ecut=40 grid −27.756).  **DO AFTER the −39 basin fix** — the fine-grid SCF diverges regardless of
+    V_local, so the energy can't be verified until it converges; then also use `GPW_LOCALPP_SCALE=2/4` to verify
+    grid scale-convergence.
 - **Step 1 — grid-continuation seeding (AVOID the basin), FIRST**: the SR2 orbital basis is IDENTICAL at both
   Ecut (only the density collocation grid differs), so a converged Ecut=40 density matrix D transfers DIRECTLY
   as the fine-grid seed (no re-projection).  Wire a converged-D seed into the periodic SCF (a SeedStrategy /
