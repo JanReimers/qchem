@@ -693,6 +693,24 @@ for **every** contributing pair — and the diffuse pairs DO contribute (measure
     seed the FIRST caller to collocate one block's D on two grids, tripping a `CollocMemo` grid-collision
     (keyed on D only) → segfault; now keyed on the ladder too.  (2) `10a91a1e` — the RhoOnGrid out-of-band
     aliasing guard + the XC-grid diagnostic + `GC_FINE_ECUT`/`GPW_GRIDCHARGE` probes.
+  - **FIX LANDED + PARADOX RESOLVED (2026-07-20, `4e84284c`+`1e13df74`).**  The lever is the DENSITY-FIT GRID,
+    not `densityEcut` (user): `densityEcut=cutoffFactor·α_max` resolves the ORBITAL exponent, but the density is
+    the orbital PRODUCT (~2·α_max) and needs a finer grid — built in `CreateCD/VxcFitBasisSet` (`GPW_CDFIT_SCALE`
+    knob, default 1 = bit-identical).  Effective only because the fit grid is now honoured BOTH ways: the KS
+    matrix is `ContractAdjointG_ERI3(Overlap3C(fit))` — the BACKWARD contraction of the same tensor the density
+    uses forward (`⟨i|v_xc|j⟩=Σ_k v-tilde(G_k)⟨i|e^{iG_k}|j⟩`), replacing the grid-less `MakeOverlap(field)` that
+    silently integrated back on the block's coarse grid.  `G_ERI3` gained a matrix-free `applyAdjoint`
+    (PW=Fourier lookup, GPW=integrate-back on the fit grid).  **MEASURED (NaF Ecut=40, scale=8 → fit grid 320):
+    density RESOLVED (`negCharge −9.3→−0.03 e`, `neg-frac 0.50→0.13`, F 2p BOUND `ε=−0.265`), and the SCF
+    converges CLEANLY to Etot=−26.198 (45 iters, Δρ 1e-6)** — vs the half-wired version's garbage −13.2.
+  - **THE HONEST PICTURE**: the old coarse −27.7535 was an ALIASING COINCIDENCE — a wildly-oscillating density
+    (`negCharge −9.3 e`) whose spuriously-inflated Ekin/Eee + over-negative Exc (−12.19) happened to sum near
+    CP2K.  The RESOLVED answer is −26.198 (Exc −4.857, the honest value).  So resolving the density moves the
+    coarse total AWAY from the −27.93 oracle — because the gap is now the still-COARSE base grid (Ecut=40) under
+    the LOCAL PP (Een), NOT the density.  The method is now HONEST + systematically improvable (the aliased path
+    was fragile → the −24.4 fine-grid collapse).  **NEXT: the FINE base grid (Ecut=160, resolves the local PP) +
+    densified fit → should reach ~−27.93; then make the densification an automatic POLICY (α_max-derived, the OOD
+    cleanup) instead of the `GPW_CDFIT_SCALE` knob; and the local-PP grid resolution.**
 
 ## 0d. Runtime follow-ups (after 0b/0c)
 - **OpenMP over the per-iteration collocate/integrate pairs — DONE (step 0 above).**  Memory-bound → ~1.7×.
