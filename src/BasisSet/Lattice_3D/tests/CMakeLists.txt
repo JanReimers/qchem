@@ -21,6 +21,7 @@ set_property(TARGET UTLattice_3D_BS PROPERTY CXX_STANDARD 20)
 target_include_directories(UTLattice_3D_BS PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/blaze
     ${PROJECT_SOURCE_DIR}/submodules/json/single_include
+    ${PROJECT_SOURCE_DIR}/submodules/googletest/googletest/include
 )
 
 target_link_libraries(UTLattice_3D_BS PRIVATE qcLattice_BS lapack gtest)

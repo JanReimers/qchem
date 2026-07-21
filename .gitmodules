@@ -4,7 +4,7 @@
 [submodule "tabulate"]
 	path = submodules/tabulate
 	url = https://github.com/p-ranav/tabulate
-[submodule "submodules/googletest"]
+[submodule "googletest"]
 	path = submodules/googletest
 	url = https://github.com/google/googletest
 [submodules "json"]

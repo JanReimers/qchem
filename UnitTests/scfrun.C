@@ -12,7 +12,7 @@
 #include <map>
 #include <memory>
 #include <algorithm>
-#include <cblas.h>   // openblas_set_num_threads (pin BLAS threads for reproducibility -- see main())
+#include <cblas.h>
 #include <nlohmann/json.hpp>
 
 import qchem.AtomCalculation;             // AtomCalculation, AtomCalcOptions, AtomType, BasisSetAccuracy, Model, Pol
@@ -141,11 +141,6 @@ static Molecule MakeMolecule(const string& name)
 
 int main(int argc, char** argv)
 {
-    // Pin OpenBLAS to one thread so SCF energies are bit-reproducible run-to-run (OpenBLAS's load-dependent
-    // internal thread count reorders BLAS reductions -> last-ULP drift; see UnitTests/gtestmain.C for the full
-    // rationale).  Explicit-in-code, not an env var, so it is visible to future readers.
-    openblas_set_num_threads(1);
-
     // ---- defaults ----
     int    Z=2, q=0, maxiter=50;
     string model="HF", pol="U", basis="", acc="Low", accel="DIIS";

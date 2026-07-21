@@ -3,6 +3,16 @@ cmake_minimum_required(VERSION 3.31.6)
 # set(CMAKE_CXX_MODULE_STD cxx_std_23)
 project(qchem VERSION 0.1.0 LANGUAGES CXX)
 
+if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    message(FATAL_ERROR
+        "This project requires the Clang C++ toolchain. "
+        "Use clang++/clang and flang, for example: "
+        "CXX=/opt/LLVM-21.1.6-Linux-X64/bin/clang++ "
+        "CC=/opt/LLVM-21.1.6-Linux-X64/bin/clang "
+        "FC=/opt/LLVM-21.1.6-Linux-X64/bin/flang cmake -S . -B build/Release -G Ninja"
+    )
+endif()
+
 # OpenMP: used ONLY for the GPW collocate/integrate pair-loop parallelism in qcMolecule_BS
 # (PG_Cart_MnD::NR_Evaluator).  Opt-in at runtime (GPW_OMP_THREADS>1) and serial by default, so it never
 # changes the bit-anchors; scoped PRIVATE to qcMolecule_BS (see its CMakeLists).  This LLVM toolchain ships
@@ -21,6 +31,9 @@ enable_language (Fortran)
 enable_testing()
 include(CTest)
 include(GoogleTest)
+set(BUILD_GMOCK OFF CACHE BOOL "Disable GoogleMock for this project" FORCE)
+add_subdirectory(./submodules/googletest)
+link_directories(${PROJECT_BINARY_DIR}/lib)
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/submodules/blaze/cmake )
 include(Blaze_Import)
 
@@ -58,7 +71,7 @@ endif()
 
 target_compile_options(qchem PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(qchem PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
-target_link_libraries(qchem qcWaveFunction qcSCFAccelerator qcOrbitals qcHamiltonian qcChargeDensity qcFitting qcFactory qcMolecule_BS qcAtom_BS qcLattice_BS qcBasisSet qcLASolver qcStructure qcMesh qcSymmetry lapack blas gtest )
+target_link_libraries(qchem qcWaveFunction qcSCFAccelerator qcOrbitals qcHamiltonian qcChargeDensity qcFitting qcFactory qcMolecule_BS qcAtom_BS qcLattice_BS qcBasisSet qcLASolver qcStructure qcMesh qcSymmetry lapack blas)
 add_subdirectory(src)
 add_subdirectory(./UnitTests)
 
