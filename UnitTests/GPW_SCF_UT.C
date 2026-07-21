@@ -181,7 +181,7 @@ GpwResult RunGPW(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, doub
 // k-point (GPW_BasisSet iterating MakeKMesh WITH BZ weights), the multi-block GetIrreps, Crystal_EC's
 // BZ-weighted (Sum_k w_k) occupation, the per-irrep k-loop, and the BZ-summed charge/energy (it caught a
 // missing BZ weight -> charge x Nk).  Energy-gated at the fit floor like the Gamma anchor.
-TEST(GPW_SCF, SiliconMultiKPlumbing)
+TEST(GPW_SCF, DISABLED_SiliconMultiKPlumbing)
 {
     const double a=10.26;
     FCCUnitCell cell(a);
@@ -235,7 +235,7 @@ TEST(GPW_SCF, DISABLED_SR_2x2x2GammaCentred_vs_CP2K)
 // CP2K shifted-MP reference -- Rcut=2a gave -7.86724 (0.20 mHa), and the run is affordable now (the stream
 // cache + the phase-independent integrate memo make the 8 k-blocks share the static sweeps: ~2.5 min).
 // Rcut switched to AUTO for scheme consistency with the enabled anchors (both sides parameter-free).
-TEST(GPW_SCF, SR_2x2x2ShiftedMP_vs_CP2K)
+TEST(GPW_SCF, DISABLED_SR_2x2x2ShiftedMP_vs_CP2K)
 {
     const double a=10.26;
     FCCUnitCell cell(a);

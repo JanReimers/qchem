@@ -142,7 +142,9 @@
     "**/build/Release/**/*.obj": true,
     "**/build/Release/**/*.cmake": true,
     "**/build/Release/CMakeFiles/**": true
-}
+    },
+    "testMate.cpp.test.executables": "build/Release/**/UT*",
+    "cmake.ctest.testExplorerIntegrationEnabled": false
     // "C_Cpp.default.intelliSenseMode": "linux-clang-x64"
     "C_Cpp.intelliSenseEngine": "disabled",
     // "clangd.path": "/path/to/clangd",
