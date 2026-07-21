@@ -12,6 +12,7 @@ set_property(TARGET UTStructure PROPERTY CXX_STANDARD 20)
 target_include_directories(UTStructure PRIVATE
     # ${PROJECT_SOURCE_DIR}/submodules/blaze
     ${PROJECT_SOURCE_DIR}/submodules/json/single_include
+    ${PROJECT_SOURCE_DIR}/submodules/googletest/googletest/include
     # ${PROJECT_SOURCE_DIR}/submodules/tabulate/include
 )
 

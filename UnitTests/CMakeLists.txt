@@ -32,11 +32,10 @@ target_include_directories(UTMain PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/json/single_include
     ${PROJECT_SOURCE_DIR}/submodules/blaze
     ${PROJECT_SOURCE_DIR}/submodules/tabulate/include
+    ${PROJECT_SOURCE_DIR}/submodules/googletest/googletest/include
     ${PROJECT_BINARY_DIR}/submodules/libxc
 )
-# openblas: for openblas_set_num_threads(1) in gtestmain.C (pin BLAS threads -> bit-reproducible results).
-# It is an OpenBLAS-specific symbol (not standard cblas), so libopenblas must be on the link line directly.
-target_link_libraries(UTMain PUBLIC qcUmbrella qchem qcMath qcCommon xc openblas)
+target_link_libraries(UTMain PRIVATE qcUmbrella qchem qcMath qcCommon xc blas gtest)
 
 # scfrun: command-line SCF driver for accelerator tuning (no recompile).  Drives qchem::AtomCalculation
 # directly (no QchemTester); needs the TestUtils module for the RelativeHF/DHFError oracle helpers.
@@ -51,7 +50,7 @@ target_include_directories(scfrun PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/blaze
     ${PROJECT_SOURCE_DIR}/submodules/tabulate/include
 )
-target_link_libraries(scfrun PUBLIC qchem qcMath qcCommon openblas)   # openblas_set_num_threads(1) in main()
+target_link_libraries(scfrun PUBLIC qchem qcMath qcCommon blas)
 
 
 # add_executable(DiracHydrogen DiracHydrogen.C)
@@ -63,4 +62,5 @@ target_link_libraries(scfrun PUBLIC qchem qcMath qcCommon openblas)   # openblas
 enable_testing()
 include(CTest)
 include(GoogleTest)
-# gtest_discover_tests(UTMain)
+add_test(NAME UTMain COMMAND $<TARGET_FILE:UTMain>)
+gtest_discover_tests(UTMain)

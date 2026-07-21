@@ -12,6 +12,7 @@ set_property(TARGET UTChargeDensity PROPERTY CXX_STANDARD 20)
 
 target_include_directories(UTChargeDensity PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/blaze
+    ${PROJECT_SOURCE_DIR}/submodules/googletest/googletest/include
 )
 
 # qcLattice_BS supplies the plane-wave block (SeedCD); qcChargeDensity the density types.

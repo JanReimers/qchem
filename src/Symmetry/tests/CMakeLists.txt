@@ -18,6 +18,7 @@ target_include_directories(UTSymmetry PRIVATE
     # ${PROJECT_SOURCE_DIR}/submodules/blaze
     # ${PROJECT_SOURCE_DIR}/submodules/json/single_include
     # ${PROJECT_SOURCE_DIR}/submodules/tabulate/include
+    ${PROJECT_SOURCE_DIR}/submodules/googletest/googletest/include
 )
 
 target_link_libraries(UTSymmetry PRIVATE qcSymmetry gtest)
