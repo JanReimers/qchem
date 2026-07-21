@@ -19,6 +19,33 @@ number, so it's the right choice for a reference oracle.
 | Si (FCC) | 2×2×2 | SIPP_SR | 80 | **−7.86744** | +4.384 | +10.671 | −2.407 | −8.489 | +0.941 | 4.8 s | `si_fcc_gpw_222.inp` |
 | NaF (rocksalt) | Γ | VALENCE-LOWQ-SR | 320 | **−27.93128**¹ | +7.247 | +32.135 | −3.740 | — | — | 9m32s | `naf_gpw_sr_diag.inp` |
 
+**Oracle re-validated on the new machine (2026-07-21, conda-forge CP2K 2026.1 — see `UnitTests/CP2K/README.md`
+for the new run recipe):** Si Γ **−7.11505788** and NaF **−27.9312751** reproduce the rows above exactly
+(NaF grid-charge leak 1.95e-4 e, same class as recorded).  **The NaF deck's actual multigrid (from the
+`PW_GRID|` log blocks — the numbers the qchem grid-matched validation must force):**
+
+| level | cutoff (Ha) | N (points/axis) | pair count (`gaussian_gridlevel`) |
+|---|---|---|---|
+| 1 | 160.0 | 36 | 3973 |
+| 2 | 53.33 | 24 | 3149 |
+| 3 | 17.78 | 12 | 3532 |
+| 4 | 5.926 | 8 | 2342 |
+
+(`REL_CUTOFF 60` Ry = 30 Ha: pair→level rule `needed = (αᵢ+αⱼ)·30` Ha, coarsest level ≥ needed, finest as
+fallback — `gaussian_gridlevels.F`; progression factor 3.  Si deck at CUTOFF 80 Ry: levels 40/13.3/4.4/1.5 Ha,
+N=24/12/8/4.)  Note CP2K's N=36 at 160 Ha vs our radix-2 FFT's N=128 at the same cutoff — same {G} ball,
+45× the raster points on our side (their N is mixed-radix 2²·3²).  CP2K grid-side match knobs in qchem:
+`GPW_MGRID_ECUTS` (explicit sub-level cutoffs) + `GPW_RELCUTOFF` (absolute Ha-per-exponent assignment rule).
+
+**GRID-MATCHED qchem run (2026-07-21; full record `doc/GPWPlan.md` §0e ★, log `~/Code/naf_gridmatched.log`):**
+GPW forced to CP2K's exact Ecut ladder + REL_CUTOFF rule (raster finer, 128³ vs 36³), MOM+Pulay, converged
+cleanly (22 iters, charge 8.0000000000): **Etot = −23.6739 vs CP2K −27.9313 — Δ = 4.26 Ha.  The energies do
+NOT agree at matched grids → the difference is the collocation METHOD** (our ball-projection of ρ before XC +
+grid-integrated V_loc), not grid resolution.  Clean cross-terms: Ekin ours 18.2570 vs CP2K 19.1408 (analytic
+term — the fixed-point DENSITIES differ); Exc −4.4837 vs −3.7398 (ours over-negative, the Gibbs-lobe
+signature).  CP2K detailed components (this rerun): Core-H +7.2466, Hartree +32.1349, XC −3.7398, core-charge
+self −63.5730, core-charge overlap +0.0000172.
+
 ¹ **NaF (2026-07-15, q1/q7 on OUR transcribed low-q SR basis): the ENERGY is settled, the DENSITY is not.**
 Broyden(α=0.2, Kerker β=1.5) + traditional diagonalization: Etot flat at −27.9312754 to ~1e-6 from iteration
 ~130 on, but the density RMS gradient LIMIT-CYCLES at 0.03–0.12 forever (never reaches EPS_SCF 1e-6;

@@ -20,6 +20,7 @@
 module;
 #include <cstddef>
 #include <functional>
+#include <iosfwd>    // std::ostream (ReportGrids -- the grid diagnostic print)
 #include <memory>
 #include <string>
 #include <vector>
@@ -156,6 +157,17 @@ public:
 
     //! The density/collocation grid engine (the fit basis is built over it, so \f$\tilde\rho\f$'s \f$\{G\}\f$ matches).
     const PW_Grid_Evaluator& DensityGrid() const {return *itsFFT_R_G_Grids;}
+
+    //! \brief GRID DIAGNOSTIC (doc/GPWPlan §0e): the orbital-basis exponent line (\f$\alpha_{\min}/\alpha_{\max}\f$,
+    //! \c cutoffFactor -- so the \f$C\cdot\alpha_{\max}\f$ grid policy is visible) followed by one line per STORED
+    //! grid -- the FFT \f$\{r\}\leftrightarrow\{G\}\f$ density grid and every REL_CUTOFF ladder level (base
+    //! sub-ladder = the local-PP integration grids; top completion rung flagged) -- each with FFT divisions
+    //! \f$N\f$, \c Ecut, \f$n_G\f$ and the spectral extent \f$|G|_{\min}/|G|_{\max}\f$.  Printed at the start of
+    //! every run (the basis-set ctor) so GPW's grids can be lined up against CP2K's \c &MGRID log output.
+    void ReportGrids(std::ostream& os) const;
+    //! One diagnostic line for any stored grid (the per-grid piece of \c ReportGrids; also used by the
+    //! \c CreateCD/VxcFitBasisSet factories to print the fit grid they actually wrap).
+    static std::ostream& ReportGrid(std::ostream& os, const std::string& tag, const PW_Grid_Evaluator& g);
 
     //! Cache-key fragment: the molecular basis's ID + \f$k\f$ + translation count + the density-grid cutoff
     //! (the collocation tensor depends on the grid, so the framework cache key must pin it).

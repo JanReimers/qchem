@@ -317,7 +317,14 @@ public:
         // stiffen every pair's requirement.  Selection is order-free: the COARSEST level satisfying req,
         // else the FINEST present (the completion rung when the ladder is complete; the reference grid when
         // it is not, e.g. the local-PP sub-ladder at relCutoffScale=6).
-        const double req=relCutoffScale*kRelSafety*ecut_L[0]*(MaxExponent(i)+MaxExponent(j))/(2.0*MaxExponent());
+        // GRID-MATCHING OVERRIDE (doc/GPWPlan §0e; verification instrument): GPW_RELCUTOFF=<Ha> switches to
+        // CP2K's ABSOLUTE gaussian_gridlevel rule, req = (alpha_i+alpha_j)*REL_CUTOFF (its REL_CUTOFF keyword
+        // is Ry -- halve it for this knob), ignoring the relative rule AND relCutoffScale.  The fallback
+        // (no level satisfies req) is the finest present == CP2K's gridlevel=1 default.
+        static const double kAbsRelCutoff = [](){ const char* s=std::getenv("GPW_RELCUTOFF"); return s ? std::atof(s) : 0.0; }();
+        const double req = kAbsRelCutoff>0.0
+            ? kAbsRelCutoff*(MaxExponent(i)+MaxExponent(j))
+            : relCutoffScale*kRelSafety*ecut_L[0]*(MaxExponent(i)+MaxExponent(j))/(2.0*MaxExponent());
         size_t L=0;
         for (size_t l=1; l<ecut_L.size(); l++) if (ecut_L[l]>ecut_L[L]) L=l;          // fallback: finest present
         bool sat=false;

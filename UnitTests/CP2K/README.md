@@ -27,15 +27,21 @@ FCC-Si Γ, SIPP_SR, GTH-PADE-q4, LDA_X+VWN5:
 - **This is the number our GPW+SIPP_SR should hit at Γ** once the collocation is off the
   FFT raster (`densityEcut` ≈ 30–40 Ha). NOT our PW −7.2273 (a different, plane-wave basis).
 
-## How to run (built at ~/Code/cp2k, serial)
+## How to run (conda-forge install, 2026-07-21 — the new-machine setup)
+The old source build (`~/Code/cp2k/build`, toolchain ssmp) was lost in the machine migration;
+CP2K **2026.1** is now the conda-forge package in the `cp2k` env of `~/miniforge3` (same version,
+oracle-identical: Si Γ −7.11505788, NaF −27.9312751 reproduce the recorded numbers).  The source
+tree (for reading the algorithms) is a shallow clone at `~/Code/cp2k` (v2026.1) — it also supplies
+`data/GTH_POTENTIALS`, which the decks point at.  Run dir: `~/Code/cp2k-runs/`.
 ```sh
-source ~/Code/cp2k/tools/toolchain/install/setup
-export LD_LIBRARY_PATH=~/Code/cp2k/install/lib:$LD_LIBRARY_PATH
-export OMP_NUM_THREADS=4
-cd UnitTests/CP2K   # BASIS_SET_FILE_NAME is relative (./SIPP-SR-BASIS)
-~/Code/cp2k/install/bin/cp2k.ssmp -i si_fcc_gpw.inp -o si_fcc_gpw.out
+cd ~/Code/cp2k-runs   # BASIS_SET_FILE_NAME is relative (./SIPP-SR-BASIS); copy decks+bases here
+LD_LIBRARY_PATH=~/miniforge3/envs/cp2k/lib OMP_NUM_THREADS=1 \
+  ~/miniforge3/envs/cp2k/bin/cp2k -i si_fcc_gpw.inp -o si_fcc_gpw.out
 grep "ENERGY| Total FORCE_EVAL" si_fcc_gpw.out
 ```
-Note: `si_fcc_gpw.inp` points `POTENTIAL_FILE_NAME` at CP2K's shipped
-`~/Code/cp2k/data/GTH_POTENTIALS` — adjust that path on another machine. Parameter-matching
-table (qchem ↔ CP2K) is in `doc/GPWPlan.md` (TODO 2).
+(The conda binary is an MPI build run single-rank; a cosmetic Fortran format error after
+`--version` output is harmless.  If `libdbcsr.so.2.9` is reported missing, `mamba install -n
+cp2k dbcsr=2.9`.)  Parameter-matching table (qchem ↔ CP2K) is in `doc/GPWPlan.md` (TODO 2).
+If a SOURCE build ever becomes advantageous (instrumenting CP2K internals): this machine has no
+gfortran, but the LLVM toolchain ships flang at `/opt/LLVM-21.1.6-Linux-X64/bin` (user note
+2026-07-21).

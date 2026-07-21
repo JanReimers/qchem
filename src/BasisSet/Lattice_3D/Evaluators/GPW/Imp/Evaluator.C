@@ -51,6 +51,15 @@ void BuildImages(const UnitCell& cell, double Rcut, const rvec3_t& kFrac,
     assert(!R.empty() && R.size()==phase.size());
 }
 
+// The local-PP pair->level stiffening factor (MakeLocalPP; reported by ReportGrids).  Default 3 (Q1
+// calibration, doc/GPWPlan.md 0e-PP); GPW_LOCALPP_SCALE overrides it for grid-scale-convergence checks.
+double LocalPPRelScale()
+{
+    double s=3.0;
+    if (const char* e=std::getenv("GPW_LOCALPP_SCALE")) s=std::atof(e);
+    return s;
+}
+
 // --- Real-space pseudopotential fields, replicated from the molecular PP_Local/PP_NonLocal terms (which live
 //     Hamiltonian-side and so are out of reach from qcLattice_BS).  They are pure functions of the qcPseudo-
 //     potential models + geometry, so the clean long-term home is qcPseudopotential (below both libraries);
@@ -424,6 +433,38 @@ void GPW_Evaluator::BuildLevels(std::shared_ptr<const PW_Grid_Evaluator> grid,
                                 std::vector<ivec3_t>& levelN, std::vector<double>& levelEcut, size_t& nBaseLevels) const
 {
     assert(grid && "GPW_Evaluator::BuildLevels requires a density grid (densityEcut!=0)");
+    // GRID-MATCHING OVERRIDE (doc/GPWPlan §0e "grid-matched CP2K validation"; verification instrument, not an
+    // interface): GPW_MGRID_ECUTS="53.33,17.78,5.926" (Ha, comma-separated, descending) replaces the factor-4
+    // sub-level progression AND the top completion rung with the EXPLICIT list -- level 0 stays \a grid (the
+    // reference), the listed cutoffs follow.  CP2K's ladder is CUTOFF/3^(i-1) (progression_factor default 3),
+    // which the factor-4 default cannot reproduce.  Pair->level assignment matching is the separate
+    // GPW_RELCUTOFF knob (molecular side).
+    if (const char* s=std::getenv("GPW_MGRID_ECUTS"))
+    {
+        levels.push_back(grid);
+        for (std::string list(s); !list.empty();)
+        {
+            const size_t c=list.find(',');
+            const double e=std::atof(list.substr(0,c).c_str());
+            list = c==std::string::npos ? std::string() : list.substr(c+1);
+            assert(e>0.0 && "GPW_MGRID_ECUTS: sub-level cutoffs must be positive");
+            // A listed cutoff at/above the reference is SKIPPED (warn): the knob is process-wide, so a
+            // coarser block in the same run (e.g. the grid-continuation SEED stage) keeps a valid ladder.
+            if (e>=grid->Ecut())
+            {
+                std::cerr<<"[GPW] GPW_MGRID_ECUTS: skipping sub-level "<<e<<" >= reference "<<grid->Ecut()<<std::endl;
+                continue;
+            }
+            levels.push_back(std::make_shared<const PW_Grid_Evaluator>(grid->Recip(), rvec3_t(0,0,0), e));
+        }
+        nBaseLevels=levels.size();          // no top rung: the explicit list IS the whole ladder
+        for (const auto& g : levels)
+        {
+            levelN.push_back(g->FFTGrid());
+            levelEcut.push_back(g->Ecut());
+        }
+        return;
+    }
     const double efine=grid->Ecut();
     const double amax=itsLat->MaxExponent(), amin=itsLat->MinExponent();
     const double ecoarse=efine*amin/amax;             // resolves the most-diffuse pair product (exponent 2*amin)
@@ -467,6 +508,49 @@ void GPW_Evaluator::BuildLevels(std::shared_ptr<const PW_Grid_Evaluator> grid,
         levelN.push_back(g->FFTGrid());
         levelEcut.push_back(g->Ecut());
     }
+}
+
+// GRID DIAGNOSTIC (doc/GPWPlan §0e): one line per stored grid, printed at run start so GPW's grids can be
+// lined up against CP2K's &MGRID log (NGRIDS/CUTOFF/REL_CUTOFF + per-level N).  |G|min is the smallest
+// NONZERO |G| (the cell scale 2*pi/a); |G|max the ball edge (sqrt(2*Ecut)).
+std::ostream& GPW_Evaluator::ReportGrid(std::ostream& os, const std::string& tag, const PW_Grid_Evaluator& g)
+{
+    double gmin=-1.0, gmax=0.0;
+    for (const ivec3_t& m : g.Gs())
+    {
+        if (m.x==0 && m.y==0 && m.z==0) continue;
+        const double gn=norm(g.GetGCartesian(m));
+        if (gmin<0.0 || gn<gmin) gmin=gn;
+        if (gn>gmax) gmax=gn;
+    }
+    const ivec3_t N=g.FFTGrid();
+    return os<<"[GPW grid] "<<tag<<": N=("<<N.x<<","<<N.y<<","<<N.z<<") Ecut="<<g.Ecut()
+             <<" Ha nG="<<g.size()<<" |G|min="<<gmin<<" |G|max="<<gmax<<"\n";
+}
+
+void GPW_Evaluator::ReportGrids(std::ostream& os) const
+{
+    os<<"[GPW basis] n="<<itsN<<" alpha_min="<<itsLat->MinExponent()<<" alpha_max="<<itsLat->MaxExponent()
+      <<" cutoffFactor="<<itsCutoffFactor
+      <<" (auto density floor Ecut="<<itsCutoffFactor*itsLat->MaxExponent()<<" Ha)"<<std::endl;
+    if (!itsFFT_R_G_Grids)
+    {
+        os<<"[GPW grid] DFT tier OFF (densityEcut=0): no grids"<<std::endl;
+        return;
+    }
+    ReportGrid(os, "FFT rho<->G (density/collocation)", *itsFFT_R_G_Grids);
+    EnsureLevels();
+    for (size_t L=0;L<itsLevels.size();L++)
+    {
+        std::string tag="ladder L="+std::to_string(L);
+        if (L==0)                  tag+=" (== FFT grid; resolution reference)";
+        else if (L>=itsNBaseLevels) tag+=" (top completion rung; local-PP uses base sub-ladder only)";
+        ReportGrid(os, tag, *itsLevels[L]);
+    }
+    os<<"[GPW grid] local-PP integration: base sub-ladder L=0.."<<itsNBaseLevels-1
+      <<" relCutoffScale="<<LocalPPRelScale()
+      <<(std::getenv("GPW_LOCALPP_FULL") ? " (GPW_LOCALPP_FULL: full ladder)" : "")<<std::endl;
+    os.flush();
 }
 
 // Bloch sum of the Gaussian orbitals, chi^k_i(r) = Sum_R e^{ik.R} chi_i(r-R), over the COLLOCATION set (the
@@ -582,8 +666,7 @@ chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const Pseudopotential::L
     // 3 is the SAFE middle -- it converges NaF Ecut=40 to −27.7535 (== the gate) and is finer than needed for
     // soft PPs (Si).  The 2/4 verification (that the fine-grid energy is scale-converged) waits on the fake-−39
     // basin fix.  GPW_LOCALPP_SCALE overrides it (for that verification); GPW_LOCALPP_FULL uses the full ladder.
-    double relScale=3.0;
-    if (const char* s=std::getenv("GPW_LOCALPP_SCALE")) relScale=std::atof(s);
+    const double relScale=LocalPPRelScale();
     const bool fullLadder=(std::getenv("GPW_LOCALPP_FULL")!=nullptr);
     const size_t K = fullLadder ? itsLevels.size() : itsNBaseLevels;
     std::vector<ivec3_t> N_B (itsLevelN.begin(),    itsLevelN.begin()+K);

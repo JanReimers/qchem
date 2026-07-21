@@ -666,7 +666,8 @@ for **every** contributing pair — and the diffuse pairs DO contribute (measure
   now the coarse LOCAL-PP base grid).  What remains is the validation + local-PP work below.
 
   **★ NEXT SESSION — QUEUED (user, 2026-07-20). The definitive numerics check + the instruments for it:**
-  1. **GRID-MATCHED CP2K VALIDATION** — does GPW's NaF GS energy == CP2K −27.93128 when EVERY density-side grid is
+  - User story inserted here:  We use real and reciprical space grids for FFT, integrals (some using Parsevals theorem), and to define CD (rho) and Vxc PW fit basis sets.  Sometimes the code uses the same grid (for example the FFT G grid is automatically used for the CD fit basis ... is this fully justified ... I don't know!).  In the last session we discovered that the whole fit basis set was completely ignored inside GPW_IBS::Repulsion3C(const CDFitBasis* c) !! THis should be fixed now.  In general the evlautor classes should not be making high level policy decisions like "what is the CD fit basis set?". There is also a grid for integrating over V_local part of the PP.  Why we use a grid at this ttype of integral is unkown to me.  Is this the same as the FFT grid?  SHould it be? (I think no becuse we need to take rloc into account)  Also every time I see the term Ecut ... I immediatly think "Ecut for *what*??"  Anyway as you I can see I am very confused and losing confidence in the GPW code, so I decided it is time to cross check with CP2K all grids and the energy break down.  After that I would like see a table of all grid usages, how grid range spacing is decided, and if it is a user knob or decided by a sensible algo.  If we can get all of this right then there should be no fake, unphysical E=-39 basin of attraction to avoid. In general NaF is an excellent test case becuse it has very diffuse Na basis functions and very sharp F basis functions ... we need handle both of those with distinct optimized grids.  It forced us to the grid manabngemt near perfect.  I am totally open to any suggestions on high level strategy (CP2K cross check or other).
+  1. **GRID-MATCHED CP2K VALIDATION** — does GPW's NaF GS energy == CP2K −27.93128 (we should also check the whole energy breakdown) when EVERY density-side grid is
      made IDENTICAL to CP2K's?  Match all four: (a) the **FFT grid** `itsFFT_R_G_Grids` = CP2K `CUTOFF` (N, Ecut);
      (b) the **ρ fit grid** `{G}_ρ` (CD fit) = CP2K density grid; (c) the **v_xc fit grid** `{G}_vxc` (Vxc fit) =
      CP2K XC grid; (d) the **V_local integration grid** = CP2K's local-PP grid (its `REL_CUTOFF` multigrid
@@ -684,6 +685,78 @@ for **every** contributing pair — and the diffuse pairs DO contribute (measure
   (Items 2–3 are the instruments for item 1.  Also still open from before: the FINE auto grid at `8·α_max` puts the
   LOCAL PP on the fine grid too — should close the Een gap toward −27.93; and the CP2K-vs-us real-space-collocation
   2× as a future efficiency lever.)
+
+  **★ RUN 2026-07-21 — items 1–3 DONE; the energies DO NOT AGREE → the gap is the collocation METHOD,
+  not grid settings.**  (The user-story questions above are answered in the new **`doc/GPWGrids.md`** —
+  the requested table of every grid, its sizing rule, and knob-vs-algorithm status.)
+  - **Instruments LANDED (items 2–3):** `GPW_Evaluator::ReportGrids` — run-start cout of the basis
+    exponents (α_min/α_max/cutoffFactor → the auto floor) + one line per STORED grid (FFT reference,
+    every ladder level incl. the top rung, `{G}_ρ`/`{G}_vxc` at their factories, the local-PP sub-ladder
+    + relScale), each with N/Ecut/n_G/|G|min/|G|max; called once per run from the `GPW_BasisSet` ctor.
+    Plus two grid-MATCHING knobs (env-gated verification instruments): `GPW_MGRID_ECUTS` (explicit
+    sub-level cutoff list — CP2K's progression-3 ladder is unreachable by our factor-4 default;
+    skips-with-warn entries ≥ the block's reference so a coarser same-process block keeps a valid ladder)
+    and `GPW_RELCUTOFF` (Ha: switches `PairLevel` to CP2K's ABSOLUTE `gaussian_gridlevel` rule
+    `req=(αᵢ+αⱼ)·REL_CUTOFF`, finest-as-fallback, ignoring the relative rule + relCutoffScale).
+  - **CP2K oracle RESTORED on the new machine** (the migration lost `~/Code/cp2k`): conda-forge
+    **CP2K 2026.1** in the `cp2k` env of `~/miniforge3` (recipe in `UnitTests/CP2K/README.md`); source
+    shallow-clone at `~/Code/cp2k` (v2026.1 — for reading algorithms + `data/GTH_POTENTIALS`); run dir
+    `~/Code/cp2k-runs/`.  Si Γ **−7.11505788** and NaF **−27.9312751** reproduce the recorded oracles
+    exactly (NaF grid leak 1.95e-4 e, same class).  **CP2K's ACTUAL NaF grids (from the `PW_GRID|` log):
+    160 Ha/36³, 53.3/24³, 17.8/12³, 5.926/8³; REL_CUTOFF 30 Ha; pair spread 3973/3149/3532/2342** —
+    table in `doc/CP2Kresults.md`.  CP2K's N=36 is MIXED-RADIX (2²·3², FFTW-class); our radix-2-only
+    FFT pads the SAME 160-Ha ball to **128³ = 45× the points** — a standing efficiency lever.
+  - **THE MEASUREMENT** (grid-continuation test, `GC_FINE_ECUT=160 GPW_MGRID_ECUTS=53.33,17.78,5.93
+    GPW_RELCUTOFF=30`, 4 threads; full log `~/Code/naf_gridmatched.log`): coarse seed (Ecut=40, stiff
+    rule) converges 49 iters to −24.099 — the CP2K-stiff assignment REMOVES the aliasing that flattered
+    the old −27.76 coarse number (honest-picture class).  Fine stage: same Ecut ladder + assignment as
+    CP2K, DENSER raster (128³ vs 36³), MOM+Pulay: converges CLEANLY, 22 iters, charge 8.0000000000 —
+    **Etot = −23.6739 vs CP2K −27.9313: Δ = 4.26 Ha.**  Breakdown (the splits differ — ours
+    Ekin/Een/Eee/Exc/Enn/Ealign vs CP2K's compensating-core scheme — so compare the clean common terms):
+    **Ekin ours 18.2570 vs CP2K 19.1408** (an ANALYTIC, grid-free term: 0.88 Ha means the converged
+    DENSITIES differ — the discrete functionals have different fixed points, not just different
+    bookkeeping); **Exc −4.4837 vs −3.7398** (ours over-negative: the Gibbs-lobe signature); the
+    electrostatic remainder carries the rest (~5.9 Ha, density-shift and V_loc-discretization mixed).
+  - **VERDICT + refined mechanism:** with Ecut/ladder/assignment matched, N finer on our side, basis+PP+
+    functional identical, and both SCFs stable/charge-exact, the 4.26 Ha is the DISCRETIZATION METHOD.
+    Sharpest identified difference: **we project the collocated ρ onto the {G}_ρ BALL before XC**
+    (`RhoOnGrid` over the n_G=16145 ball coefficients — a hard spherical truncation of the sharp F
+    products → Gibbs negative lobes → shallow XC), while **CP2K evaluates XC on the RAW collocated
+    raster values** — it never ball-limits ρ (its 36³ raster even RETAINS corner G-content beyond the
+    160-Ha sphere; its FFT/ball only transports the smooth Poisson/level-transfer fields).  Both rasters
+    alias; ours is additionally Gibbs-truncated — the measured 2× (our clean 8·α_max vs CP2K's 4·α_max)
+    is the price of that ball round-trip: a FITTING-SEAM design question, not raster resolution.  Second
+    contributor: grid-integrated V_loc vs CP2K's analytic-short + core-charge-long (§0e-PP, unchanged).
+    **NEXT LEADS (in order): (1) evaluate XC on the raw collocated ρ — skip the ball projection between
+    collocation and XC (the single most CP2K-aligning change; re-examine `CreateVxcFitBasisSet`'s role);
+    (2) analytic V_local (§0e-PP); (3) mixed-radix FFT (36³-class rasters) for the 45× raster cost.**
+    USER (2026-07-21): agrees with 1/2/3; lead 1 started — plan in §0f below.
+
+## 0f. LEAD 1 — XC on the RAW collocated ρ (STARTED 2026-07-21; user-approved)
+**Hypothesis to kill or confirm (from the grid-matched verdict):** our XC eats `RhoOnGrid(ball ρ̃)` — the
+BALL-projected density — and the hard spherical truncation of the sharp F products is the Gibbs/negative-lobe
+source that CP2K (XC on the raw collocated raster, never ball-limited) does not have.
+- **Increment 0 — the BALL-RESOLUTION PROBE (no refactor; existing knobs).**  Re-run the grid-matched NaF
+  with ONLY the reference ball enlarged: `GC_FINE_ECUT=480` (3× — the ball then covers the raster-box corner
+  content a 160-box keeps), same `GPW_MGRID_ECUTS=53.33,17.78,5.93` + `GPW_RELCUTOFF=30`, raster expected to
+  stay 128³ (pow2 padding absorbs the √3).  PREDICTION if the hypothesis is right: E moves decisively from
+  −23.67 toward −27.93 with the Exc term normalizing toward CP2K's −3.74 (the V_loc/Hartree band-limits ride
+  along — the term breakdown separates the XC share from the Een share).  If E barely moves, the ball story
+  is dead and the method difference is elsewhere (V_loc first suspect).
+- **Increment 1 — the raw-raster path (the real change; array-based, NOT ΔG_Map).**  Combine the per-level
+  collocated densities onto the fine raster by FULL-BOX zero-pad upsampling (per-level FFT → embed level-L
+  G-box into the fine G-box → accumulate → one inverse FFT): `ρ_raw` on the fine raster, no ball anywhere.
+  XC (E_xc grid sum AND pointwise v_xc) evaluates on `ρ_raw`.  Integrate-back: FFT(v_xc) full box →
+  per-level BOX truncation (the exact adjoint of zero-pad upsampling) → iFFT per level → the EXISTING
+  analytic `IntegratePotential` seam.  Adjoint-exact by construction ⇒ H_xc = ∂E_xc/∂D; re-gate with
+  `GPW.XCPotentialConsistencyFD`.  Hartree/Poisson STAYS on the ball (diagonal kernel, variational — the
+  legitimate projection; `doc/GPWGrids.md` row 2).  Design decision en route: where the real-space-density
+  seam lives (the ΔG_Map-speaking `G_ERI3`/`Band_FT_IBS` faces are ball-shaped; the raw path wants
+  rvec_t rasters — likely a new capability on the fit-basis/G_FieldEvaluator side, since "what ρ does XC
+  see" is the fit basis's policy question).
+- **Increment 2 — re-calibrate `cutoffFactor` DOWN.**  If the raw path holds XC clean at 4·α_max (the CP2K
+  operating point), retire the 8 → halve the auto grids (the 2× runtime lever measured in §0e step 2);
+  re-anchor Si/NaF.
 
 ## 0d. Runtime follow-ups (after 0b/0c)
 - **OpenMP over the per-iteration collocate/integrate pairs — DONE (step 0 above).**  Memory-bound → ~1.7×.
