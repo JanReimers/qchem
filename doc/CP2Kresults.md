@@ -48,6 +48,7 @@ ball/Gibbs hypothesis (0.15 mHa effect).  **Apples-to-apples row (SR2, `naf_gpw_
 | system | basis | qchem GPW (matched grids, aufbau) | CP2K | Δ |
 |---|---|---|---|---|
 | NaF Γ | VALENCE-LOWQ-SR2 | **−24.4316608** (22 iters, Δρ 2e-6) | **−24.4312134** (converged, 16 steps) | **0.45 mHa** |
+| NaF Γ (2026-07-22: analytic short + κ rule + 5-smooth rasters) | VALENCE-LOWQ-SR2 | **−24.4314027** (22 iters, fine raster 72³, whole 2-stage run **190 s**) | −24.4312134 (5.8 s) | **0.19 mHa** |
 
 Exc −4.95597 vs −4.95531 (0.7 mHa).  Note CP2K's SCF **fully converges** on SR2 (the eternal density
 limit-cycle was the near-singular SR basis, cond≈8e3 — both codes struggled on SR, both are clean on SR2).

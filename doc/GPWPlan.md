@@ -695,9 +695,18 @@ for **every** contributing pair — and the diffuse pairs DO contribute (measure
       saturation cost, the predicted e^{−7.6} class) and **0.19 mHa from CP2K's −24.4312134** (was
       0.45 — CLOSER, as expected: the arrangement now mirrors CP2K's own analytic-short +
       saturated-smooth-long).  Fine-stage wall ~73→~48 min (short sweep deleted, one fewer iter; even
-      with the stream budget mostly consumed by the 200-iter coarse seed).  **Steps (a)+(b) CLOSED;
-      next = the AutoGrid pow2→5-smooth flip (PocketFFT capability committed, `1837b21e`) + the
-      one-time anchor re-pin.**
+      with the stream budget mostly consumed by the 200-iter coarse seed).  **Steps (a)+(b) CLOSED.**
+    - **MIXED-RADIX FLIP LANDED SAME DAY (2026-07-22; capability `1837b21e` = PocketFFT submodule +
+      `qchem.FFT` dispatch [pow2→radix-2 verbatim, else PocketFFT c2c] + `Next5Smooth`; policy flip
+      `aaaf1ea0` = `FFTGrid()` pads AutoGrid to 5-smooth instead of pow2).**  MEASURED: 199/199 with
+      **ZERO anchor re-pins** (every energy raster-converged — the ball is the resolution object, N is
+      quadrature); suite 598→442 s, Si Γ SCF 92→48 s (32³→30³), atom-in-box 78→9.5 s (8×).
+      **NaF grid-matched verification config: 5669 s → 190 s (30×)** — fine raster 128³→72³, coarse
+      64³→36³, streams fully cached (0 dropped), **Etot −24.4314027 vs −24.4314023 (0.4 µHa)**, same
+      22 iters, charge exact.  vs CP2K's 5.8 s the gap is now ~33× (was ~900×); the remaining raster
+      factor is our alias-free DIFFERENCE-SET policy (4m+1 → 72³) vs CP2K's ball-only 36³ (~8× points)
+      — revisiting that means tolerating product aliasing on the raster (the CP2K trade), a separate
+      deliberate increment if ever; the rest is setup/streams machinery.
   - **REMAINING TODO — analytic V_local LONG (the Ewald/core-charge crux). Branch `gpw-0e-pp-local-split`.**  Both pieces are
     EXISTING `GaussianRF` kernels (no new Boys function): short = `Overlap3C(χ_i,χ_j,g_short)`, long =
     `−Z_ion·Repulsion3C(χ_i,χ_j,g_core)` (the erf-Coulomb IS a normalized Gaussian core charge, exp `1/2r_loc²`).
