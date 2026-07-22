@@ -678,6 +678,26 @@ for **every** contributing pair — and the diffuse pairs DO contribute (measure
       V_loc discretization no longer leans on long/short cancellation).  Atom-in-box (finite branch)
       green; (a)-only sweep 199/199.  NEXT: re-run the NaF SR2 oracle config (expect ≈−24.4317 within
       ~mHa) + re-time the setup (the short sweep is deleted; the long sweep remains, κ-ruled).
+    - **LADDER-SATURATION corollary (measured on the OOM-killed first rerun, 2026-07-22):** the κ bound
+      holds only up to the LADDER TOP — pairs with κ·p above the finest level saturate there, carrying
+      error ≈ (pair tail at top) × (FIELD tail at the top's ball).  The NaF COARSE seed stage (explicit
+      Ecut=40 ladder; F pairs demand κ·p up to 2400 Ha!) shifted −24.099→−23.749 once the analytic
+      short stopped cancelling the grid long's saturation error — an artifact of an absurdly cheap
+      ladder, harmless in a SEED.  At the FINE 160-Ha top the long's field tail is e^{−G²r_loc²/2} ≈
+      e^{−7.6} (F) — and CP2K's own V_long-on-grid saturates IDENTICALLY there (its sharp pairs also
+      fall back to grid 1), so production accuracy is unaffected (the rerun verifies).  Moral: κ
+      standalone-exactness is a statement about ladders that REACH κ·p OR fields that are r_loc-soft
+      at the top — the sharp SHORT piece satisfies neither on cheap ladders, which is exactly why it
+      had to go analytic.
+    - **NaF SR2 VERIFICATION — PASSED (2026-07-22, solo rerun; OOM lesson: ONE 9-GB run at a time on
+      this 14-GB box).**  Grid-matched aufbau fine stage with the analytic short: **−24.4314023**
+      (20 iters, clean aufbau frontier) — 0.26 mHa from the all-grid-V_loc −24.4316608 (the fine-ladder
+      saturation cost, the predicted e^{−7.6} class) and **0.19 mHa from CP2K's −24.4312134** (was
+      0.45 — CLOSER, as expected: the arrangement now mirrors CP2K's own analytic-short +
+      saturated-smooth-long).  Fine-stage wall ~73→~48 min (short sweep deleted, one fewer iter; even
+      with the stream budget mostly consumed by the 200-iter coarse seed).  **Steps (a)+(b) CLOSED;
+      next = the AutoGrid pow2→5-smooth flip (PocketFFT capability committed, `1837b21e`) + the
+      one-time anchor re-pin.**
   - **REMAINING TODO — analytic V_local LONG (the Ewald/core-charge crux). Branch `gpw-0e-pp-local-split`.**  Both pieces are
     EXISTING `GaussianRF` kernels (no new Boys function): short = `Overlap3C(χ_i,χ_j,g_short)`, long =
     `−Z_ion·Repulsion3C(χ_i,χ_j,g_core)` (the erf-Coulomb IS a normalized Gaussian core charge, exp `1/2r_loc²`).
