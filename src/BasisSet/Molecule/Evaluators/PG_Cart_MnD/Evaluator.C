@@ -446,6 +446,13 @@ public:
     //! Tier 2 sized so NaF's MEASURED demand (952M total: 150M fp64 + 802M fp32) caches COMPLETELY -- at
     //! 700M its last 314 (small) pairs re-evaluated on the fly every sweep.  Peak stream RAM ~ 8.6 GB.
     static constexpr size_t kStreamBudgetPtsF32=850'000'000;   // tier 2: fp32 values (the NaF coverage lever)
+    //! RUNTIME budget overrides (POINTS; 0/unset = the compile-time defaults above).  A MEMORY-SAFETY valve
+    //! for boxes where the defaults' ~8.6 GB peak cannot fit beside the rest of a run (measured 2026-07-22:
+    //! the FULL VALENCE_LOWQ_SR basis -- alpha_min=0.05, reach ~21.5 au, hundreds of offsets/pair -- drove
+    //! UTMain to 12.6 GB on a 14 GB box and the kernel OOM-killed the desktop).  Dropped pairs fall back to
+    //! on-the-fly evaluation: correct, slower -- never a physics knob.
+    static size_t BudgetPts()    { const char* e=std::getenv("GPW_STREAM_BUDGET_PTS");     return e?size_t(std::atoll(e)):kStreamBudgetPts; }
+    static size_t BudgetPtsF32() { const char* e=std::getenv("GPW_STREAM_BUDGET_PTS_F32"); return e?size_t(std::atoll(e)):kStreamBudgetPtsF32; }
     const StreamCache& EnsureStreams(const UnitCell& A, const std::vector<ivec3_t>& N_L,
                                      const std::vector<double>& ecut_L, double absRelCutoff) const
     {
@@ -463,7 +470,7 @@ public:
         c.N_L=N_L; c.ecut_L=ecut_L; c.absRelCutoff=absRelCutoff;
         const size_t n=size();
         c.pairs.resize(n*n);
-        size_t budget64=kStreamBudgetPts, budget32=kStreamBudgetPtsF32;
+        size_t budget64=BudgetPts(), budget32=BudgetPtsF32();
         for (size_t cc=0; cc<itsStreamCaches.size()-1; cc++)          // budgets are GLOBAL across cache shapes
             for (const auto& ps : itsStreamCaches[cc].pairs)
                 for (const auto& st : ps.offsets)
@@ -478,13 +485,31 @@ public:
             if (budget64==0 && budget32==0) { ptsDropped++; continue; }   // both tiers exhausted
             const ivec3_t N=N_L[ps.level];
             size_t pts=0;
+            // TRANSIENT BOUND (2026-07-22; the full-SR OOM): a diffuse pair in a small cell can demand
+            // GIGABYTES of streams (measured: Na s0.05 x s0.05, ~2.3k whole-raster offsets -- and the
+            // vector's geometric REALLOCATION transiently doubles it) only to be DROPPED at tiering.
+            // So ABORT the build the moment the pair's count exceeds the largest tier still open --
+            // an un-cacheable pair must never be materialised.  pts keeps counting (the readout).
+            const size_t cap = budget64>budget32 ? budget64 : budget32;
+            bool building=true;
             ForImageOffsets(i,j,A,[&](const ivec3_t& nn, const rvec3_t& Roff)
             {
+                if (!building)                                 // already over cap: count on-the-fly demand only
+                {
+                    ForPairBox(i,j,Roff,A,N,[&](size_t,double) { pts++; });
+                    return;
+                }
                 PairOffsetStream st; st.n=nn;
                 ForPairBox(i,j,Roff,A,N,[&](size_t idx,double v)
                            { st.idx.push_back(unsigned(idx)); st.val.push_back(v);
                              st.maxv=std::max(st.maxv,std::fabs(v)); });
                 pts+=st.idx.size();
+                if (pts>cap)                                   // un-cacheable: free everything built so far
+                {
+                    building=false;
+                    ps.offsets.clear(); ps.offsets.shrink_to_fit();
+                    return;
+                }
                 if (!st.idx.empty()) ps.offsets.push_back(std::move(st));
             });
             // Tier the pair: fp64 while the primary budget holds (bit-identical replay), fp32 for the

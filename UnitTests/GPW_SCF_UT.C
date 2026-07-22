@@ -578,8 +578,14 @@ TEST(GPW_SCF, DISABLED_NaFGridContinuation)
     cell.AddAtom(9,  {0.5,0.5,0.5});    // F  (Zion=7)
     Lattice_3D lat(cell, ivec3_t(1,1,1));
     auto st = lat.GetStructure();       // held for both stages (the ctors' non-owning structure view)
+    // GC_BASIS selects the orbital basis (default SR2 = the well-conditioned regression config; "SR" = the
+    // FULL short-range basis, lambda_min~1e-6 at complete enumeration -- the sec-1 rank-reduction campaign's
+    // probe target, oracle CP2K -27.93128 on VALENCE-LOWQ-SR).
+    const char* gcb=std::getenv("GC_BASIS");
+    const BasisSetData basis = (gcb && std::string(gcb)=="SR") ? BasisSetData::VALENCE_LOWQ_SR
+                                                               : BasisSetData::VALENCE_LOWQ_SR2;
     auto mol = std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(
-        BasisSetData::VALENCE_LOWQ_SR2, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
+        basis, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
 
     // The converged Ecut=40 recipe (DISABLED_NaFRocksaltGamma): pure damped Kerker (NO DIIS), exit on E-flat,
     // delayed-IMOM MOM + Kerker-preconditioned Pulay.  Tunable per stage (near the fixed point the fine stage
