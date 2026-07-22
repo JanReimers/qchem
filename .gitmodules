@@ -21,3 +21,6 @@
 [submodule "submodules/libcint"]
 	path = submodules/libcint
 	url = https://github.com/sunqm/libcint
+[submodule "submodules/pocketfft"]
+	path = submodules/pocketfft
+	url = https://github.com/mreineck/pocketfft.git
