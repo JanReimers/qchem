@@ -17,7 +17,7 @@
 	url = https://github.com/JanReimers/blaze
 [submodule "submodules/libxc"]
 	path = submodules/libxc
-	url = https://gitlab.com/libxc/libxc
+	url = https://github.com/JanReimers/libxc
 [submodule "submodules/libcint"]
 	path = submodules/libcint
 	url = https://github.com/sunqm/libcint
