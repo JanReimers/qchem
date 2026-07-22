@@ -132,6 +132,20 @@ runtime close-out incl. the CP2K NaF oracle + convergence findings).
   oracle now the still-coarse **local-PP** base grid, NOT the density.  REMAINING → **TODO §0e step 2** (the
   grid-matched CP2K validation + the grid/exponent diagnostics; the local-PP resolution).
 
+- **Grid instruments + grid-matched CP2K validation → GPW VALIDATED** (`aecbb410`,`a6560e3e`): run-start
+  grid diagnostic (`ReportGrids`) + match knobs (`GPW_MGRID_ECUTS`/`GPW_RELCUTOFF`); CP2K restored via
+  conda-forge; the 4.26 Ha "gap" decomposed = 0.76 MOM-pinned excited state + 3.50 REAL SR↔SR2 basis
+  physics (ball/Gibbs hypothesis falsified by the 480-Ha probe); **NaF SR2 == CP2K to 0.45→0.19 mHa**;
+  `doc/GPWGrids.md` = the grid inventory.  Full records: §0e★/§0f below.
+- **§0e-PP (a)+(b): absolute κ rule + ANALYTIC short V_loc in production** (`5d963b04`): req=κ·(αᵢ+αⱼ)
+  (CP2K `gaussian_gridlevel`; e^{−κ/2} pair tails, κ=30) replaces `relCutoffScale`; analytic 3-centre
+  short (the periodic G=0 double-count caught by the new gate); Si Γ grid-vs-analytic identical to 5
+  decimals.  Gate `GPW.LocalPPKappaSelfConverged`.
+- **MIXED-RADIX RASTERS** (`1837b21e`,`aaaf1ea0`): PocketFFT submodule behind `qchem.FFT` (pow2 →
+  radix-2 verbatim = bit-identical) + `FFTGrid()` pads to 5-SMOOTH N: 199/199 with ZERO re-pins,
+  **NaF verification 94 min → 190 s (30×) at 0.4 µHa** (fine raster 128³→72³); CP2K gap 900×→33×.
+  OpenMP pair-loops (`GPW_OMP_THREADS`) remain opt-in (~1.7×, bandwidth-bound).
+
 ## Naming (`5f609d2f`) — remember these
 - `Overlap(f)` = ANY 1-electron `⟨i|f|j⟩` (f may be a potential); `Repulsion` = the 2-electron `1/r12`.
   So the reciprocal-space field→KS-matrix bridge is `Band_FT_IBS::MakeOverlap(f)` / evaluator
@@ -548,18 +562,7 @@ Convergence pays twice: fewer iterations AND stronger D-aware kills on a settled
 
 ---
 
-# TODO / NEXT
-
-**Orientation (2026-07-19, end of session).**  Everything through §0c is **DONE** — §0 through SR2, §0b″
-(band-gap instrument + MOM cure) and §0c (the SCF-strategy refactor: mixer seam, loop-driver, ONE shared DIIS
-engine, and Kerker-preconditioned Pulay) now sit as full records in the [DONE](#done) section above; §0c
-design in `doc/SCFStrategyPlan.md`.  NaF Ecut=40 converges (MOM+Pulay, 63 iters, −27.756).  **The ONE
-remaining NaF problem is the PRODUCTION GRID (§0e below): the direct auto-Ecut=160 run falls into the −39
-density/grid basin — MOM+Pulay are necessary but not sufficient, so grid-continuation seeding + basin removal
-(+ OpenMP to make iteration bearable) is the next-session critical path.**  Then the runtime follow-ups (0d)
-and the standing queue (1)–(5).
-
-## 0e. NaF PRODUCTION GRID — the one remaining NaF problem (NEXT, critical path)
+## §0e NaF PRODUCTION GRID — RESOLVED (2026-07-19..22).  The full records:
 
 **DIRECT FINE-GRID RUN MEASURED — 2026-07-19 (MOM + Pulay depth6/start35, auto Ecut=160, 45527 G, 15m45s,
 NMAX=100): FAILS to the unphysical basin; grid-continuation seeding is now the CRITICAL PATH, not just an
@@ -605,7 +608,7 @@ the OTHER turned OFF:**
   - **→ the real fine-grid lever is an ALGORITHMIC `MakeLocalPP` fix, not threading.**  Step 0's per-iteration
     ~1.7× stands (committed); the setup is a separate, algorithmic problem.
 
-### 0e-PP. `MakeLocalPP` SETUP WALL — the CP2K local-PP split (analysis 2026-07-19; NEXT implementation)
+### §0e-PP `MakeLocalPP` SETUP WALL — the CP2K local-PP split (analysis 2026-07-19; steps (a)+(b) DONE 2026-07-22)
 **Root cause (measured per-pair):** the `relCutoffScale=6` sweep is **1.6e9 grid points / 290 s**, spread over
 406 pairs (NOT a few giant ones — no load imbalance), because scale=6 drags the DIFFUSE pairs (e.g. F s
 α=0.275, reach ~9 au × ~180 cell images) onto field-resolution grids.  The energy `∫χ²V_loc` is dominated by
@@ -707,17 +710,6 @@ for **every** contributing pair — and the diffuse pairs DO contribute (measure
       factor is our alias-free DIFFERENCE-SET policy (4m+1 → 72³) vs CP2K's ball-only 36³ (~8× points)
       — revisiting that means tolerating product aliasing on the raster (the CP2K trade), a separate
       deliberate increment if ever; the rest is setup/streams machinery.
-  - **REMAINING TODO — analytic V_local LONG (the Ewald/core-charge crux). Branch `gpw-0e-pp-local-split`.**  Both pieces are
-    EXISTING `GaussianRF` kernels (no new Boys function): short = `Overlap3C(χ_i,χ_j,g_short)`, long =
-    `−Z_ion·Repulsion3C(χ_i,χ_j,g_core)` (the erf-Coulomb IS a normalized Gaussian core charge, exp `1/2r_loc²`).
-    SHORT is BUILT + finite-validated but DORMANT (`LocalPotential_Gaussian::ShortRangeGaussian`,
-    `LatticeSum1E::MakeLocalGaussian` = the 3-centre `Overlap3C` MATRIX sibling of the 2-centre `MakeOverlap(g)`
-    VECTOR, `GPW_Evaluator::MakeLocalPPShort`).  **LONG is the crux:** the `Repulsion3C` lattice sum is
-    conditionally convergent (erf→1/r Madelung tail) ⇒ needs a G-space/Ewald neutralizing background, NOT a
-    real-space sum.  Both go analytic TOGETHER; the exact total re-gates NaF to converged CP2K −27.93 (a WIN
-    over the Ecut=40 grid −27.756).  **DO AFTER the −39 basin fix** — the fine-grid SCF diverges regardless of
-    V_local, so the energy can't be verified until it converges; then also use `GPW_LOCALPP_SCALE=2/4` to verify
-    grid scale-convergence.
 - **Steps 1 (grid-continuation seeding) + 2 (XC-collapse ROOT-CAUSED & FIXED): DONE 2026-07-20 — moved to the
   [DONE](#done) timeline** (full record there: the fit-grid thread-through, the `Overlap3C` adjoint, the
   density-fit densification → one-grid `cutoffFactor` 4→8, the `itsFFT_R_G_Grids` rename, the two bug fixes, and
@@ -791,7 +783,7 @@ for **every** contributing pair — and the diffuse pairs DO contribute (measure
     (2) analytic V_local (§0e-PP); (3) mixed-radix FFT (36³-class rasters) for the 45× raster cost.**
     USER (2026-07-21): agrees with 1/2/3; lead 1 started — plan in §0f below.
 
-## 0f. LEAD 1 — XC on the RAW collocated ρ (STARTED 2026-07-21; user-approved)
+## §0f LEAD 1 — XC on the RAW collocated ρ → FALSIFIED; the REAL gap decomposed (2026-07-21).  The full record:
 **Hypothesis to kill or confirm (from the grid-matched verdict):** our XC eats `RhoOnGrid(ball ρ̃)` — the
 BALL-projected density — and the hard spherical truncation of the sharp F products is the Gibbs/negative-lobe
 source that CP2K (XC on the raw collocated raster, never ball-limited) does not have.
@@ -872,15 +864,65 @@ source that CP2K (XC on the raw collocated raster, never ball-limited) does not 
   operating point), retire the 8 → halve the auto grids (the 2× runtime lever measured in §0e step 2);
   re-anchor Si/NaF.
 
-## 0d. Runtime follow-ups (after 0b/0c)
-- **OpenMP over the per-iteration collocate/integrate pairs — DONE (step 0 above).**  Memory-bound → ~1.7×.
-- **`MakeLocalPP` is the fine-grid SETUP wall (~290 s of a ~320 s ctor) and needs an ALGORITHMIC fix, not
-  threading** (profiled 2026-07-19; full record in §0e step 0).  The `relCutoffScale=6` static local-PP sweep
-  forces a few ultra-diffuse pairs onto huge fine-grid boxes → a load imbalance that per-pair OpenMP cannot
-  touch (measured: no speedup).  Fix leads: (a) smarter sharp-field level assignment so an ultra-diffuse pair
-  (whose own spectrum kills the field tail) stays on a deep coarse level — the sweep's own comment argues this;
-  (b) intra-pair (over-offset) parallelism for the few giant pairs.  A per-pair-OpenMP `EnsureStreams` build
-  (only ~25 s, and also load-imbalanced) was tried and reverted — no benefit.  CP2K's ssmp is threaded on top.
+
+# TODO / NEXT
+
+**Orientation (2026-07-22, end of session).**  EVERYTHING through §0f is **DONE** — the grid-matched
+CP2K validation resolved (GPW == CP2K to 0.19 mHa on the same SR2 basis; the "collocation method gap" was
+an excited state + a basis mismatch), the local PP is analytic-short + κ-ruled-long, and the mixed-radix
+(PocketFFT, 5-smooth) rasters landed with zero re-pins — NaF's verification config runs in **190 s** (was
+94 min).  Full records in [DONE](#done) §0e★/§0e-PP/§0f.  What remains at step 0 are the three items below;
+then the standing queue (1)–(5).
+
+## 0g. RASTER POLICY — the remaining ~8× raster factor vs CP2K (a designed choice, likely a knob)
+At the SAME Ecut ball our raster is 72³ where CP2K's is 36³ (~8× the points).  This is not waste by
+accident but a POLICY difference — and now that everything else is matched, it is the whole remaining
+grid-cost gap:
+- **Ours — ALIAS-FREE (difference-set) rasters:** `AutoGrid` = 4m+1 per axis (m = the ball's max index),
+  so the raster resolves the full DIFFERENCE set \f$\{G-G'\}\f$: the product of ANY two ball waves
+  (bandwidth 2m) is sampled exactly, the FFT of the collocated ρ gives EXACT ball coefficients, and the
+  raster is a true quadrature for every \f$\langle G|f|G'\rangle\f$ with f in the ball.  Discretization
+  error lives ONLY in the ball radius (Ecut) — N is never a physics dial.  This is why the 5-smooth flip
+  re-pinned nothing.
+- **CP2K — BALL-ONLY rasters:** N ≈ 2m+1-class (its 36 at the 160-Ha ball).  Products of two ball waves
+  ALIAS on that raster — the fold-back into the ball is ACCEPTED as discretization error, controlled by
+  converging CUTOFF (and softened by evaluating XC on the raw raster values).  The bet: the aliased
+  product tails are the same \f$e^{-E_{cut}/2p}\f$ tails the CUTOFF calibration already budgets for, so
+  paying 8× in points to capture them exactly at FIXED Ecut is wasteful — better to raise Ecut a little
+  on a cheap raster if needed.
+- **PROPOSED (user 2026-07-22: "sounds like a user knob"): a raster POLICY enum, not a numeric dial**
+  (the no-grad-student-knobs rule): `RasterPolicy { AliasFree /*default*/, BallOnly }` at the factory
+  surface, printed by `ReportGrids`.  AliasFree stays the default (correct-first; N provably not a
+  physics variable).  BallOnly is the measured-efficiency option — ANOTHER ~8× on every raster-scaled
+  cost (the NaF fine raster would drop to CP2K's own 36³-class, est. run ≪ 60 s).
+- **VALIDATION REQUIRED before BallOnly ships (the knobs trade against each other):** the
+  `cutoffFactor=8` auto-floor calibration was MEASURED on alias-free rasters — on a ball-only raster the
+  product tails fold back in, so the negCharge/XC-collapse probes must be re-run (CP2K operates clean at
+  C≈4 with ball-only rasters; whether that transfers to our Fourier-round-trip XC path is exactly the
+  measurement).  A/B: NaF at BallOnly vs AliasFree at the same Ecut — energy within ~mHa ⇒ CP2K's bet
+  confirmed for us and BallOnly can even become the default with the calibration recorded; if not, the
+  8× is the honest price of our XC path and this item closes as "policy justified".
+
+## 0h. SCF-strategy guards (banked from the validation; do with/after the §0c seams)
+- **MOM cross-grid guard:** `AdoptMOMReference` across a discretization change can pin an EXCITED state
+  (measured: 0.76 Ha on NaF — the transferred occupied subspace need not span the new grid's aufbau
+  ground space).  Guard: detect a PERSISTENT HOLE at convergence (an unoccupied ε below an occupied ε)
+  and release/re-capture MOM (or at minimum WARN loudly).
+- **`ReportBandGap` hole-masking fix:** the εH/εL summary line takes εL from the lowest virtual ABOVE
+  the HOMO index and printed gap=0.67 while a −0.36 Ha virtual sat BELOW occupied levels; take εL over
+  ALL unoccupied and flag non-aufbau.  (The `frontier ε(occ)` window was the honest instrument.)
+
+## 0i. Analytic V_local LONG — DEMOTED to robustness/perf (was the §0e-PP crux)
+With (a)+(b) landed, the SHORT is analytic in production and the grid LONG is standalone-exact to the
+ladder top (κ rule) — NaF sits 0.19 mHa from CP2K, so the analytic LONG is no longer an accuracy
+blocker.  Kept on the list for ROBUSTNESS (very hard PPs / deliberately cheap ladders, where ladder-top
+saturation shows — the §0e-PP saturation corollary) and to delete the LAST V_loc grid sweep entirely.
+The recorded crux, unchanged: the LONG's `−Z_ion·Repulsion3C(χᵢ,χⱼ,g_core)` lattice sum (the erf-Coulomb
+IS a normalized Gaussian core charge, exp `1/2r_loc²`) is conditionally convergent (erf→1/r Madelung
+tail) ⇒ needs the G-space/Ewald neutralizing background, NOT a real-space sum — i.e. CP2K's ρ_core-into-
+the-Poisson-solve arrangement, which for us means folding the core charge into `PW_Hartree`'s existing
+G-space solve rather than assembling a separate matrix.  Kernels all exist (`GaussianRF`, no new Boys
+function); verification gates: Si Γ −7.11506 + NaF SR2 −24.4312 (both codes' clean oracle pair).
 
 Then the standing queue: **(1) DROP SR** (rank-reduction + auto-tol, below); **(2) low-q multi-species
 bases → Si/NaF/CsI**; **(3) CP2K reference library**; **(4) IBZ**; **(5) cleanups**.
