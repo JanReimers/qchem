@@ -51,14 +51,18 @@ ivec3_t PW_Evaluator::AutoGrid() const
     return itsAutoGrid;
 }
 
-// AutoGrid divisions rounded up to powers of two -- radix-2 FFT for the XC route.  A larger grid still
-// resolves the difference set without aliasing, so it is at worst slightly more accurate.  Cached.
+// AutoGrid divisions rounded up to 5-SMOOTH numbers (2^a 3^b 5^c) -- the mixed-radix FFT menu
+// (qchem.FFT dispatches non-pow2 N to PocketFFT; doc/GPWPlan.md mixed-radix increment 2026-07-22).
+// A larger grid still resolves the difference set without aliasing, so padding is at worst slightly
+// more accurate; the FINER menu is the raster-volume lever (pow2 padding cost NaF 128^3 where the
+// 5-smooth menu admits 75^3-class rasters -- every N^3-scaled cost shrinks: boxes, streams, sweeps).
+// Flipping this policy moved every grid-derived anchor (the one-time re-pin, same increment).  Cached.
 ivec3_t PW_Evaluator::FFTGrid() const
 {
     if (itsFFTGrid.x==0)   // not yet computed
     {
         ivec3_t a=AutoGrid();
-        itsFFTGrid=ivec3_t(int(qchem::FFT::NextPow2(a.x)), int(qchem::FFT::NextPow2(a.y)), int(qchem::FFT::NextPow2(a.z)));
+        itsFFTGrid=ivec3_t(int(qchem::FFT::Next5Smooth(a.x)), int(qchem::FFT::Next5Smooth(a.y)), int(qchem::FFT::Next5Smooth(a.z)));
     }
     return itsFFTGrid;
 }
