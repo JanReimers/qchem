@@ -1,0 +1,80 @@
+# NaF rocksalt GPW/LDA reference on OUR low-q SR basis (VALENCE-LOWQ-BASIS transcription of
+# BasisSetData/valence_lowq_sr.bsd), GTH-PADE q1/q7, LDA_X+VWN5, Gamma -- the same-basis oracle for
+# GPW_SCF.NaFRocksaltGamma (doc/GPWPlan.md sec 2).  CUTOFF 320 Ry == our auto densityEcut=160 Ha.
+#
+# TRADITIONAL DIAGONALIZATION + BROYDEN/KERKER MIXING, not OT: the earlier OT run (naf_gpw_sr.out)
+# FAILED to converge -- 21 outer iterations bouncing between -25.7 and +253 Ha.  Same disease as our
+# side: the NaF charge-transfer slosh on a near-linearly-dependent Bloch basis (overlap cond ~8e3);
+# OT's preconditioner hates the ill-conditioned overlap.  Diagonalization + damped density mixing
+# (BETA is CP2K's Kerker-like damping) is the standard cure for ionic insulators.
+&GLOBAL
+  PROJECT naf_gpw_sr2_diag
+  RUN_TYPE ENERGY
+  PRINT_LEVEL MEDIUM
+&END GLOBAL
+&FORCE_EVAL
+  METHOD Quickstep
+  &DFT
+    BASIS_SET_FILE_NAME ./VALENCE-LOWQ-BASIS
+    POTENTIAL_FILE_NAME /home/janr/Code/cp2k/data/GTH_POTENTIALS
+    &QS
+      METHOD GPW
+      EPS_DEFAULT 1.0E-12
+    &END QS
+    &MGRID
+      CUTOFF 320
+      REL_CUTOFF 60
+      NGRIDS 4
+    &END MGRID
+    &XC
+      &XC_FUNCTIONAL
+        &LDA_X
+        &END LDA_X
+        &LDA_C_VWN
+        &END LDA_C_VWN
+      &END XC_FUNCTIONAL
+    &END XC
+    &POISSON
+      PERIODIC XYZ
+    &END POISSON
+    &SCF
+      SCF_GUESS ATOMIC
+      EPS_SCF 1.0E-6
+      MAX_SCF 200
+      IGNORE_CONVERGENCE_FAILURE
+      ADDED_MOS 8
+      &DIAGONALIZATION T
+        ALGORITHM STANDARD
+      &END DIAGONALIZATION
+      &MIXING T
+        METHOD BROYDEN_MIXING
+        ALPHA 0.2
+        BETA 1.5
+        NBUFFER 8
+      &END MIXING
+      &SMEAR OFF
+      &END SMEAR
+    &END SCF
+  &END DFT
+  &SUBSYS
+    &CELL
+      A [bohr] 0.0   4.365 4.365
+      B [bohr] 4.365 0.0   4.365
+      C [bohr] 4.365 4.365 0.0
+      PERIODIC XYZ
+    &END CELL
+    &COORD
+      SCALED
+      Na 0.0 0.0 0.0
+      F  0.5 0.5 0.5
+    &END COORD
+    &KIND Na
+      BASIS_SET VALENCE-LOWQ-SR2
+      POTENTIAL GTH-PADE-q1
+    &END KIND
+    &KIND F
+      BASIS_SET VALENCE-LOWQ-SR2
+      POTENTIAL GTH-PADE-q7
+    &END KIND
+  &END SUBSYS
+&END FORCE_EVAL

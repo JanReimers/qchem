@@ -43,12 +43,12 @@ BALL \(\{G : \tfrac12|G|^2 < E_{cut}\}\); the raster N is derived from a ball, n
   - For **Hartree** — yes.  The Poisson kernel is diagonal in G; projecting ρ̃ onto the ball is a
     variational truncation in the Coulomb metric, exponentially convergent, adjoint-exact.  This is the
     legitimate "Ecut is a resolution dial" case (the G-direction pin).
-  - For **XC** — now in question.  We evaluate v_xc on `RhoOnGrid(ball ρ̃)`, i.e. the BALL-TRUNCATED
-    density; the hard spherical cutoff of a sharp F product rings (Gibbs) into negative lobes.  CP2K
-    never ball-limits ρ before XC — it feeds the raw collocated raster values (its raster even keeps
-    corner-G content beyond its own cutoff sphere).  The grid-matched run (Δ=4.26 Ha at identical
-    Ecut/ladder/assignment; `doc/GPWPlan.md` §0e ★2026-07-21) points here as the leading mechanism.
-    → open design item: XC on the raw collocated ρ (skip the ball round-trip).
+  - For **XC** — ALSO yes, now MEASURED (the §0f increment-0 probe, 2026-07-21): tripling the ball
+    (160→480 Ha, nG 16145→83659, raster fixed 128³) moved the converged NaF energy by **0.15 mHa** —
+    the ball-truncated ρ is converged at the auto calibration, and the once-suspected Gibbs/ball
+    mechanism is FALSIFIED.  (The 4.26 Ha that motivated the suspicion decomposed into a MOM-pinned
+    excited state + a basis mismatch; GPW == CP2K to 0.45 mHa on the same basis — §0f.)  The
+    raw-raster-XC design item is DEAD; this row is a validated policy.
 
 **Row 3 — the Vxc fit basis `{G}_vxc`** (`GPW_IBS::CreateVxcFitBasisSet`).
 - **Policy:** `relCutoff · {G}_ρ` where `relCutoff` comes from the FUNCTIONAL
@@ -106,6 +106,13 @@ NaF work.
 - **"Ecut for what?"** — see §0: four meanings, one knob (`densityEcut`), everything else derived.
 - **"No fake −39 basin if grids are right?"** — supported by the evidence so far: the basin has only
   ever appeared on under-resolved-ρ configurations, and the CP2K-stiff assignment even removed the
-  aliasing flattery at Ecut=40.  But note CP2K converges the same system at HALF our clean cutoff
-  calibration — getting the XC path right (row 2) is what would let us run coarser grids safely, which
-  is also the efficiency story (45× raster points vs CP2K today).
+  aliasing flattery at Ecut=40.  The remaining CP2K-vs-us cost asymmetry is the RASTER (radix-2 pow2
+  padding: 128³ vs CP2K's mixed-radix 36³ at the same, validated answer) — an efficiency lever, not an
+  accuracy one (the §0f probes).
+- **POSTSCRIPT (2026-07-21, end of session): the grid system is VALIDATED.**  With the basis matched
+  (SR2) and aufbau occupations, GPW == CP2K 2026.1 to **0.45 mHa** on NaF at matched grids (and both
+  SCFs converge cleanly — the old misery was the near-singular SR basis).  Every suspicion raised in
+  the user story above was either confirmed-and-fixed earlier (the ignored fit basis), answered
+  benign (FFT==CD-fit, the V_loc ladder), or falsified by measurement (the ball/Gibbs story).  The
+  honest open items are basis completeness-vs-conditioning (GPWPlan §1) and the two SCF-strategy
+  lessons (MOM cross-grid guard; the εH/εL line masking a non-aufbau hole).

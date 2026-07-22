@@ -743,7 +743,62 @@ source that CP2K (XC on the raw collocated raster, never ball-limited) does not 
   −23.67 toward −27.93 with the Exc term normalizing toward CP2K's −3.74 (the V_loc/Hartree band-limits ride
   along — the term breakdown separates the XC share from the Een share).  If E barely moves, the ball story
   is dead and the method difference is elsewhere (V_loc first suspect).
-- **Increment 1 — the raw-raster path (the real change; array-based, NOT ΔG_Map).**  Combine the per-level
+- **Increment 0 RESULT (2026-07-21, same day): the BALL HYPOTHESIS IS FALSIFIED — and the REAL story
+  surfaced: the grid-matched runs converged to a MOM-PINNED EXCITED STATE.**
+  - The 480-Ha ball (nG 16145→83659, raster unchanged 128³, coarse seed bit-identical −24.0988) gives
+    **−23.67372 vs the 160-Ha ball's −23.67387 — 0.15 mHa, every term sub-mHa** (log
+    `scratchpad/naf_ballprobe480.log`).  Tripling the ball moves NOTHING: the collocated ρ, v_xc, V_H
+    and the fine-level V_loc are all ball-CONVERGED at Ecut=160 on this raster.  The Gibbs/ball-
+    truncation mechanism is DEAD; do NOT build the raw-raster path on this motivation (increment 1
+    below is SUSPENDED pending the aufbau probe).
+  - **The `frontier ε(occ)` instrument then exposed the actual disease: BOTH grid-matched endpoints are
+    NON-AUFBAU.**  Converged frontier: `−0.2767(4.0)  +0.2105(2.0) | −0.3631(0.0) ...` — an
+    UNOCCUPIED level at −0.363 Ha sits BELOW both occupied frontier levels; MOM (reference transferred
+    from the differently-discretized coarse stage via `AdoptMOMReference`) holds 2 e⁻ in a +0.21 Ha
+    level with a −0.36 Ha hole underneath = a pinned EXCITED state, plausibly the bulk of the 4.26 Ha.
+    The §0e★ "collocation METHOD" verdict is SUSPENDED until the aufbau ground state converges on the
+    matched grid.  (Corollary: the step-1 fine fixed points −24.393 / −24.099 / −23.674 — all
+    AdoptMOMReference runs — are suspect for the same reason.)
+  - **Probe 3 RESULT — pure-aufbau fine stage converges CLEANLY to −24.4317** (22 iters, Δρ 2e-6, gap
+    0.233 Ha, proper occupations F2s(2)+F2p(6), no spikes — the §0b″ swap disease did NOT return on the
+    seeded start).  The pinned excited state was 0.76 Ha; **3.50 Ha to the −27.93 oracle remained** —
+    which prompted the BASIS AUDIT: our runs use `VALENCE_LOWQ_SR2` (n=28) but the CP2K oracle deck ran
+    `VALENCE-LOWQ-SR` (Na keeps s 0.0857 + p 0.05) — the oracle predates the 0b′ SR2 trim.  **THE
+    APPLES-TO-APPLES RUN SETTLES IT (CP2K on a transcribed SR2, `naf_gpw_sr2_diag.inp`):**
+
+    | | qchem GPW (aufbau, matched grids) | CP2K 2026.1 (SR2) |
+    |---|---|---|
+    | **Etot** | **−24.4316608** | **−24.4312134** |
+    | Exc | −4.95597 | −4.95531 |
+    | SCF | 22 iters, Δρ 2e-6, clean | **converged in 16 steps** (no limit cycle!) |
+
+    **GPW == CP2K to 0.45 mHa (Exc to 0.7 mHa) — the implementation is VALIDATED end-to-end.**  The
+    §0e★ 4.26 Ha decomposes EXACTLY: **0.76 Ha = the MOM-pinned excited state** (an SCF-strategy bug,
+    below) **+ 3.50 Ha = the SR-vs-SR2 BASIS difference** (a comparison error: the oracle basis was
+    never re-matched after the SR2 trim).  The "collocation METHOD" verdict is RETRACTED — the ball
+    projection, the grid V_loc, and the raster convention are all inside 0.45 mHa at matched settings.
+  - **The 3.50 Ha is REAL VARIATIONAL PHYSICS, not a numerical artifact: BOTH codes agree on BOTH
+    bases** (SR ≈ −28.0 [our §0b′ honest-map fixed point ≈−28.00; CP2K −27.93 E-flat] vs SR2 ≈ −24.43
+    [both codes, sub-mHa]).  So the near-null (λ~1e-6) SR modes the SR2 trim dropped were NOT
+    physically null — Na's diffuse s 0.0857 + p 0.05 carry ~3.5 Ha of interstitial/F⁻ variational
+    freedom.  **SR2 is a well-conditioned but physically POOR truncation**; the conditioning-vs-
+    completeness tension lands squarely on the §1 rank-reduction track (run the FULL/SR basis, let the
+    ORTHO transform drop the null space — not the basis) or on re-optimized diffuse exponents at
+    λ_min~1e-3.  Also: CP2K's clean 16-step SR2 convergence == our clean 22-iter run confirms the
+    ill-conditioning story of the SCF misery on BOTH sides.
+  - **Two SCF-strategy lessons banked:** (a) `AdoptMOMReference` ACROSS a discretization change can pin
+    an EXCITED state (the transferred occupied subspace need not span the new grid's aufbau ground
+    space) — needs a guard: detect a persistent hole (unoccupied ε below an occupied ε at convergence)
+    and either release MOM or re-capture; (b) the `ReportBandGap` εH/εL summary line MASKED the hole
+    (it printed gap=0.67 from the lowest virtual ABOVE the HOMO index while a −0.36 Ha virtual sat
+    BELOW) — the `frontier ε(occ)` window is the honest instrument; teach the gap line to flag
+    non-aufbau (εL taken over ALL unoccupied, not just index-above).
+  - **LEADS RE-SCOPED:** raw-raster XC (increment 1) = DEAD (falsified twice over).  Analytic V_local
+    (§0e-PP) = demoted from accuracy-blocker to robustness/perf (its grid errors are inside 0.45 mHa
+    at these settings).  Mixed-radix FFT = stands, pure efficiency (128³ vs CP2K's 36³ = 45× raster
+    points for the same answer).  The NaF critical path is now **basis completeness under conditioning
+    (§1 rank-reduction)** + the MOM guard.
+- **Increment 1 — the raw-raster path (SUSPENDED by increment 0's falsification; kept for the record).**  Combine the per-level
   collocated densities onto the fine raster by FULL-BOX zero-pad upsampling (per-level FFT → embed level-L
   G-box into the fine G-box → accumulate → one inverse FFT): `ρ_raw` on the fine raster, no ball anywhere.
   XC (E_xc grid sum AND pointwise v_xc) evaluates on `ρ_raw`.  Integrate-back: FFT(v_xc) full box →
