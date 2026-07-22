@@ -135,10 +135,10 @@ public:
     //! the FULL \f$V_{loc}\f$, its LONG (softened-Coulomb / deep-well) part, or its SHORT (compact
     //! poly-Gaussian) remainder.  All three route through the SAME sharp-field sweep, so \c Short+\c Long ==
     //! \c Full matrix-for-matrix (the sweep is linear in the form factor) -- the split relocates the LONG
-    //! part's ENERGY into the Hartree term without changing the assembled matrices.  (The eventual cost win --
-    //! the LONG part via the cheap smooth Poisson, no per-pair sweep -- is the analytic-seam follow-up; the
-    //! naive smooth integrate-back ALIASES the deep well onto the coarse-level diffuse pairs, which is exactly
-    //! what \c relCutoffScale=6 guards against.)
+    //! part's ENERGY into the Hartree term without changing the assembled matrices.  The sweep runs on the
+    //! FULL ladder with the ABSOLUTE pair->level rule \f$e_{cut}\ge\kappa(\alpha_i+\alpha_j)\f$
+    //! (\f$\kappa=30\f$ Ha, \f$e^{-\kappa/2}\f$ pair tails -- CP2K's \c REL_CUTOFF), which makes each
+    //! piece STANDALONE-exact (no long/short cancellation partner needed; doc/GPWPlan.md 0e-PP step (a)).
     enum class LocalPart { Full, Long, Short };
     chmat_t MakeLocalPP    (const Structure* cl, const Pseudopotential::LocalPotential& loc,
                             LocalPart part=LocalPart::Full) const;
@@ -232,9 +232,8 @@ private:
     // requirement exceeds the reference grid by construction; the rung makes every smooth-path assignment
     // satisfiable).  ecut_L[0] stays the RESOLUTION REFERENCE (the density grid) -- level selection on the
     // molecular side is order-free.  Built once (geometry-fixed) by EnsureLevels.  The density collocation
-    // (MakeCollocator) and the integrate-back (OverlapMatrix) run per-pair on the FULL ladder; the SHARP-field
-    // local PP (MakeLocalPP, relCutoffScale=6) uses the BASE sub-ladder only (itsNBaseLevels) -- its stiffened
-    // requirement would flood the top rung with mid pairs whose boxes are huge on the doubled grid.
+    // (MakeCollocator), the integrate-back (OverlapMatrix) and the local-PP sweep (MakeLocalPP, absolute
+    // kappa rule) all run per-pair on the FULL ladder; itsNBaseLevels only labels the top rung (diagnostics).
     void EnsureLevels() const;   //!< builds/caches the block's OWN ladder (itsFFT_R_G_Grids) for OverlapMatrix + MakeLocalPP
     //! Build the REL_CUTOFF ladder from an ARBITRARY fine grid \a grid (level [0]==\a grid) into the output
     //! vectors -- the grid-parameterized core of \c EnsureLevels, so the collocator can build a ladder from the

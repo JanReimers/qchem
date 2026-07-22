@@ -86,13 +86,14 @@ hmat_t<dcmplx> GPW_IBS::MakeLocalPotentialLong(const Structure* cl, const Pseudo
 
 hmat_t<dcmplx> GPW_IBS::MakeLocalPotentialShort(const Structure* cl, const Pseudopotential::LocalPotential& loc) const
 {
-    // NOTE (increment 2, doc/GPWPlan.md 0e-PP): the ANALYTIC short assembly (GPW_Evaluator::MakeLocalPPShort)
-    // is built and finite-validated, but NOT yet wired into production -- it is exact, whereas the grid short
-    // carries a ~0.5 Ha band-limiting error that CANCELS the grid long's (V_loc is smooth, so V_short(G) ~
-    // -V_long(G) beyond the grid cutoff).  So analytic-short + grid-long misses the grid-calibrated gate;
-    // both pieces must go analytic together.  Keep the grid short until the analytic long lands.
+    // ANALYTIC short assembly (doc/GPWPlan.md 0e-PP step (b), 2026-07-22): exact 3-centre Gaussian lattice
+    // sums (LatticeSum1E::MakeLocalGaussian), no grid.  Safe to wire ONLY because step (a) first made the
+    // grid LONG standalone-exact (the absolute kappa rule, e^{-kappa/2} pair tails) -- the old grid short's
+    // ~0.5 Ha band-limit error used to CANCEL the grid long's, so exact-short + sloppy-long missed the gate.
+    // Cross-validated against the kappa-ruled grid short by GPW.LocalPPKappaSelfConverged; falls back to the
+    // grid sweep inside MakeLocalPPShort for a model without the closed-Gaussian face.
     return theCache<dcmplx>().Get(IntegralsCache_Base::I2n::LocalPPShort, this, cl->ID(),
-        [this,cl,&loc]{ return GPW_Evaluator::MakeLocalPP(cl, loc, GPW_Evaluator::LocalPart::Short); });
+        [this,cl,&loc]{ return GPW_Evaluator::MakeLocalPPShort(cl, loc); });
 }
 
 hmat_t<dcmplx> GPW_IBS::MakeSeparablePotential(const Structure* cl, const Pseudopotential::SeparablePotential& nl) const

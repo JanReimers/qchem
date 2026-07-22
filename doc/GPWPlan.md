@@ -648,7 +648,37 @@ for **every** contributing pair — and the diffuse pairs DO contribute (measure
     **the grid knob (Q1) is the perf fix; the analytic seam is a separate ACCURACY upgrade** — it re-gates to
     converged CP2K (band-limiting cancellation: grid short/long each ~0.5 Ha off, cancelling in the smooth full
     V_loc, so analytic-short + grid-long misses the gate by 0.55 — BOTH must go analytic together).
-  - **REMAINING TODO — analytic V_local (accuracy upgrade). Branch `gpw-0e-pp-local-split`.**  Both pieces are
+  - **STEPS (a)+(b) DONE (2026-07-22): the SHORT local PP is ANALYTIC in production; the grid sweeps are
+    STANDALONE-exact under the ABSOLUTE κ rule.**  User-approved sequence (before mixed-radix FFT, so no
+    sharp object remains on the raster to corrupt at smaller N):
+    - **(a) The absolute pair→level rule** replaces `relCutoffScale` at the seam
+      (`LatticeSum1E::IntegratePotential(..., absRelCutoff)`; `PairLevel`): req = κ·(αᵢ+αⱼ), coarsest
+      satisfying, finest fallback — CP2K `gaussian_gridlevel` semantics.  THE INSIGHT: the absolute rule
+      bounds EVERY pair's spectral tail by e^{−κ/2} UNIFORMLY, independent of the field's sharpness —
+      which is what "REL_CUTOFF" really is and why CP2K's numeric-but-smooth V_long is sub-mHa.  κ=30 Ha
+      (e^{−15}) default for the local-PP sweeps (`LocalPPRelCutoff`, env `GPW_LOCALPP_RELCUTOFF` for
+      verification); the density-side collocate/integrate keep the RELATIVE rule (adjoint-paired).
+      `MakeLocalPP` now runs the FULL ladder (top rung included); `relCutoffScale`/`GPW_LOCALPP_SCALE`/
+      `GPW_LOCALPP_FULL` deleted.  Gate `GPW.LocalPPKappaSelfConverged`: κ=30 vs κ=60 → Full 7.6e-9 /
+      Long 1.4e-9 / Short 1.6e-8 (the e^{−15} class on the nose).  KNOWN HOLE in that self-check: pairs
+      SATURATED at the ladder top are κ-invariant by construction, so self-convergence is blind to them —
+      harmless for the r_loc-soft LONG (sharp pairs meet a tiny field tail at the rung ball), visible for
+      the SHORT at cheap ladders (the gate's 3.6e-3 cross-val residual at Ecut=10 = exactly this class).
+    - **(b) `GPW_IBS::MakeLocalPotentialShort` → the ANALYTIC `MakeLocalPPShort`** (exact 3-centre
+      Gaussian lattice sums; grid fallback for non-Gaussian models).  Safe ONLY after (a): the old grid
+      short's ~0.5 Ha band-limit error CANCELLED the grid long's — exact-short + lenient-long missed the
+      gate by 0.55 (the recorded trap).  **WIRING BUG CAUGHT by the new cross-val: the periodic G=0
+      convention** — the grid sweep drops ΔG=0 (cell mean → Ealign via `FormFactorG0Short`) while the
+      analytic sum integrates it: 5.7% disagreement → subtract V̄·S for a periodic Structure (the same
+      `isFinite()` physics decision as `PW_Pseudo`) → 0.36% (the remaining = the grid REFERENCE's
+      saturation at the cheap test ladder, see (a)).
+    - **VERIFICATION:** Si Γ anchor −7.11526 IDENTICAL to 5 decimals between κ-ruled-grid-short and
+      analytic-short (μHa-level agreement at production settings); vs CP2K −7.11506 the anchor moved
+      −7.11482→−7.11526 (0.24 mHa below → 0.20 above — same distance class, the ±2 mHa gate holds, and
+      V_loc discretization no longer leans on long/short cancellation).  Atom-in-box (finite branch)
+      green; (a)-only sweep 199/199.  NEXT: re-run the NaF SR2 oracle config (expect ≈−24.4317 within
+      ~mHa) + re-time the setup (the short sweep is deleted; the long sweep remains, κ-ruled).
+  - **REMAINING TODO — analytic V_local LONG (the Ewald/core-charge crux). Branch `gpw-0e-pp-local-split`.**  Both pieces are
     EXISTING `GaussianRF` kernels (no new Boys function): short = `Overlap3C(χ_i,χ_j,g_short)`, long =
     `−Z_ion·Repulsion3C(χ_i,χ_j,g_core)` (the erf-Coulomb IS a normalized Gaussian core charge, exp `1/2r_loc²`).
     SHORT is BUILT + finite-validated but DORMANT (`LocalPotential_Gaussian::ShortRangeGaussian`,

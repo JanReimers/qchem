@@ -179,9 +179,17 @@ public:
     //! that density keeps it, so the collocate/integrate ADJOINT is exact on the shared truncated operator
     //! and the sweep only touches terms the density resolves (the CP2K eps/|coef| radii).  Density language
     //! only: this face already speaks \c chmat_t densities (\c CollocateDensity).
+    //! \a absRelCutoff selects the pair->level assignment rule: \c 0 (default) = the RELATIVE smooth-field
+    //! rule (\c RelCutoffSafety() \f$\cdot e_{cut}^{ref}(\alpha_i+\alpha_j)/2\alpha_{\max}\f$ -- MUST match
+    //! \c CollocateDensity's assignment so collocate/integrate stay exact adjoints); \f$>0\f$ = the ABSOLUTE
+    //! rule \f$e_{cut}\ge\f$ \a absRelCutoff \f$\cdot(\alpha_i+\alpha_j)\f$ (Ha per unit pair exponent --
+    //! CP2K's \c gaussian_gridlevel \c REL_CUTOFF, its keyword is Ry = 2x this).  The absolute rule bounds
+    //! every pair's spectral tail by \f$e^{-\kappa/2}\f$ INDEPENDENT of the field's sharpness, which is what
+    //! makes a STATIC sharp field (the local PP) integrable to fixed precision with no cancellation partner
+    //! (doc/GPWPlan.md 0e-PP): \f$\kappa=30\f$ Ha \f$\Rightarrow e^{-15}\f$.
     virtual chmat_t IntegratePotential(const std::vector<rvec_t>& V_L, const cellphase_t& phase, const UnitCell& A,
                                        const std::vector<ivec3_t>& N_L,
-                                       const std::vector<double>& ecut_L, double relCutoffScale=1.0,
+                                       const std::vector<double>& ecut_L, double absRelCutoff=0.0,
                                        const chmat_t* screenD=nullptr) const = 0;
 };
 
