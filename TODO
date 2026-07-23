@@ -209,7 +209,33 @@ What are your recommendations for how to proceed.
 
 MakeDensityMixer(-> Factory() in a namespace.
 MakeLocalPotential (full) is pinned by unit tests (PlaneWaveUT.C, GTH_UT.C) with BareCoulomb/GaussianSmearedNucleus, so I must keep it full and add separate Long/Short methods rather than change its semantics.
-Key finding: GPW's MakeRepulsion3C ignores the passed fit basis and returns the block's own tensor (Lattice_3D/IrrepBasisSet.C:68)
+
+### GPW and grids
+"Pair→level rule on both sides: req = (αᵢ+αⱼ)·30 Ha" where does 30 come from?: REL_CUTOFF =30 user paramater
+"finest as fallback" fallback meaning in case something does not wotk? if Ecut/REL_CUTOFF < 2* amax
+"Local-PP integrates on the full 4-level sub-ladder (no top rung with the explicit list)" 4 - "no top rung" =3 ?!
+"Basis: n=28, α ∈ [0.245, 40], so the auto floor would have been 320 Ha"  OK if this was PWs Ecut for the orbitals would be 80=2*40?  Then you square the orbitals for the charge density fit basis 2*80=160.  But there is still and extra factor of 2 coming from somewhere? I see below this "That's the measured "our 8·αmax vs CP2K's ~4·αmax" factor" so for some reason we need *2 for rho fitting.
+How is CP2K getting away with not following the radix 2 rule for FFT?  Do they pad with zeros? Is that an efficient options?
+
+"Ours round-trips through the raster,"  what is raser?  Is this related to forcing the rho fit through the Fitting framework?
+
+### Testing
+Looking for critical feedback on my proposed plan below before digging in and doing the work:
+
+This project has recently moved to this 8/16 core/thread machine.  Accordingly I would like to refactor the integration tests.  The project is structured as a DAG of libraries.  Each library has it own set of actual unit tests.  At the top level there is a misnamed folder UnitTests, which is full of *integration* tests.  By that I mean tests that do a full SCF calculation.  Since the SCFIterator library is the top of DAG any SCF test should to be at the top level.  In principle these can live under the SCITerator library as unit tests  but in my view they really are integration tests.  Right now everything under the misnamed UnitTests folder builds into one monolithic test executable that is also misnamed UTMain. In addition to just good housekeeping I am hoping we can break things up so confirmation tests (usually everything in IntegrationTests) can be spread over many CPUs.  Is there some clever mechanism to do this evenly (instead of the overly simplistic split in item 4 below)?
+
+I would like this session to do the following:
+1) checkout a fesh copy of the tree into ~/Code/qchem1.
+  FYI there is a one line cmake fix under libxc that should be patched into the new checkout.  Try diffing ~/Code/qchem6/submodules/libxc to see the change.
+2) create a branch test-refactoring.  consider merging in the gpw-0e-pp-local-split branch which has all the current work.
+3) renanme UnitTests to IntegrationTests
+4) Split up UTMain into something like ITAtomSCF ITMoleculeSCF IT_PW_SCF IT_GPW_SCF (this may be fruitless?)
+5) Look at EigenSolverUT.C, A_PP.C L_PP.C LDA_XC-UT.C M_Sym.C and question whether or not these can be moved down into
+   a tests folder under one of the libraries.
+
+There is ongoing GPW work in another session, so we need anticipate merge conflicts for files like GPW_UT.C and GPW_SCF_UT.C Maybe we don't need to change those files, just link them differently.
+
+
 
 
 ### Three Mesh upgrade:

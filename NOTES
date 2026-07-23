@@ -11,6 +11,8 @@ source .venv/bin/activate
 export QCHEM_BUILD=~/Code/qchem-viz/build/PIC
 python app_desktop.py 
 
+
+
 # parallelism
 
 - Concrete recommendation for your code
