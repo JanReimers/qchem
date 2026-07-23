@@ -550,6 +550,18 @@ public:
             // an un-cacheable pair must never be materialised.  pts keeps counting (the readout).
             const size_t cap = budget64>budget32 ? budget64 : budget32;
             bool building=true;
+            // BYTE-AWARE TRANSIENT (doc/GPWPlan 0.5(c)): a tier-2-bound pair used to BUILD wholly in fp64
+            // form (12 B/pt) and demote only at the end -- an 850M-pt fp32 budget admitted a ~10-GB build
+            // transient for ~6.8 GB of eventual storage.  So demote STREAMING: the moment the pair's count
+            // exceeds the open fp64 budget it can only ever land in tier 2 -- convert everything built so
+            // far and keep building demoted.  The transient is then bounded by the fp32 STORAGE plus one
+            // offset's fp64 box.  Values are identical either way (the same doubles narrowed).
+            auto demote=[](PairOffsetStream& so)
+            {
+                so.val32.assign(so.val.begin(), so.val.end());
+                so.val.clear(); so.val.shrink_to_fit();
+            };
+            bool fp32Form=false;                               // pair already demoted mid-build
             ForImageOffsets(i,j,A,[&](const ivec3_t& nn, const rvec3_t& Roff)
             {
                 if (!building)                                 // already over cap: count on-the-fly demand only
@@ -568,6 +580,12 @@ public:
                     ps.offsets.clear(); ps.offsets.shrink_to_fit();
                     return;
                 }
+                if (!fp32Form && pts>budget64)                 // tier 1 unreachable from here on: go fp32 form
+                {
+                    for (auto& so : ps.offsets) demote(so);
+                    fp32Form=true;
+                }
+                if (fp32Form) demote(st);
                 if (!st.idx.empty()) ps.offsets.push_back(std::move(st));
             });
             // Tier the pair: fp64 while the primary budget holds (bit-identical replay), fp32 for the
@@ -576,16 +594,13 @@ public:
             // pair after the first oversized one -- the dominant cost in the 2026-07-15 multi-k profile.)
             if (pts<=budget64)
             {
+                assert(!fp32Form);                             // never demoted below the fp64 budget
                 budget64-=pts; pts64+=pts; nCached64++;
                 ps.cached=true;
             }
             else if (pts<=budget32)
             {
-                for (auto& st : ps.offsets)                       // demote values to fp32 (idx stays exact)
-                {
-                    st.val32.assign(st.val.begin(), st.val.end());
-                    st.val.clear(); st.val.shrink_to_fit();
-                }
+                assert(fp32Form || pts==0);                    // streaming demotion already produced fp32 form
                 budget32-=pts; pts32+=pts; nCached32++;
                 ps.cached=true;
             }
