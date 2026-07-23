@@ -224,6 +224,19 @@ the full-SR diagnostic ran 8.45 h vs 88.6 s — its pathology is items (b)+(c) b
   per-pair, per-offset reductions once makes every additional k-block's 1E build a ~ms phase contraction
   (the `IntegrateMemo` pattern, already shared across k-blocks via the one molecular basis).  The
   multi-k enabler (Si 2×2×2: 8 builds → 1 build + 8 contractions).
+- **(f) BALL-PER-ROLE re-calibration (user question 2026-07-23): one ball currently serves three roles
+  with three different natural calibrations** — Hartree ρ ball ≈ 2–3·α_max (charge-converged, measured);
+  the ρ FED TO the XC nonlinearity ≈ 4–8·α_max (a POINTWISE non-negativity requirement, not spectral:
+  Gibbs lobes + the ρ>0 guard = the Exc collapse; the C=8 calibration's real content); the v_xc OUTPUT
+  ball ≈ ρ's/3 (LDA v_xc ~ ρ^{1/3}: the cube root of a Gaussian peak has exponent p/3 — SMOOTHER than ρ,
+  opposite to the GGA ∇ρ lore).  The governing ball sets the raster (∝ Ecut^{3/2}), so C 8→4 ≈ 2.8×
+  fewer raster points machine-wide.  EVIDENCE C=8 is over-conservative for production: the matched NaF
+  runs at Ecut=160 (C=4, CP2K's own operating point) agree with CP2K to 0.1–0.2 mHa; the 480-ball probe
+  bought 0.15 mHa.  MEASURE FIRST: re-run the negCharge/XC probes at C=3,4 on production NaF (post-
+  analytic-short landscape); if clean, lower the default C (zero architecture change — the divergent-ball
+  plumbing exists via CreateCD/VxcFitBasisSet since the thread-through fix); the ⅓-v_xc ball is a smaller
+  follow-on (G-space op counts).  CAUTION: the retired GPW_CDFIT_SCALE two-grid fork — any re-split must
+  buy real money over one-grid simplicity.
 - **(e) Cache2/3 byte-budget LRU** (§5, user-approved): also the robustness fix; runtime-relevant because
   it retires the per-pair `ClearGeometryCaches()` rebuild cost on healthy bases (currently unmeasurable,
   but the LRU makes the policy principled).
