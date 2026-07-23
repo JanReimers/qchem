@@ -453,6 +453,15 @@ no time-reversal factor. Validate bit-level: reduced-mesh-with-weights == full-m
 is an *efficiency* layer, not a correctness requirement — hence it comes AFTER a working full-BZ reference.
 
 ## 5. Deferred cleanups (do once bulk works — "the working code is the definitive declaration")
+- **ISP-split `PW_Grid_Evaluator` for the fit-basis ctor (user, 2026-07-23).**  `PlaneWaveFit_IBS` is
+  built from the whole `PW_Grid_Evaluator`, which fuses THREE things: the Ecut BALL (the fit set — the
+  part the user rightly wants passed explicitly), the raster/quadrature engine (NOT irrelevant: the fit
+  basis owns its integration machinery — RhoOnGrid/Integral/GridPoints drive the whole XC route, the
+  Fitting-campaign item-K design + the uniform-interface pin), and the ORBITAL tier
+  (Kinetic/Nuclear/Eval/LocalPotentialMatrix — genuinely irrelevant baggage for a fit basis).  Clean
+  shape: a `PW_Ball` data type (recip, k, Ecut, {G}) under `PW_Evaluator`, ctor `(ball, gridEngine)`
+  with the grid engine as the `G_FieldEvaluator` face alone — makes ball-vs-raster structural instead
+  of documentary (this week's confusion is the evidence it matters).
 - **Cache2/Cache3 BYTE-BUDGET LRU + per-cache RAM report (user-approved 2026-07-23; the intended
   REPLACEMENT for the clear-based band-aid).**  The MnD geometry caches (Ω/RNLM/H3) currently stay
   correct on lattice paths only because the drivers call `ClearGeometryCaches()` per pair and the 3C
