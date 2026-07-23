@@ -13,6 +13,7 @@
 // shared across the Brillouin-zone k-blocks of a calculation (the container hands each block a shared_ptr).
 module;
 #include <vector>
+#include <functional>   // the ApplySpectralFilter multiplier k(|G|^2)
 export module qchem.BasisSet.Lattice_3D.Evaluators.PeriodicGridEvaluator;
 export import qchem.ReciprocalLattice;        // ReciprocalLattice / UnitCell (the B cell; source of G)
 export import qchem.BasisSet.Internal.GMap;   // ΔG_Map (the G-space coefficient map EvalField/RhoOnGrid speak)
@@ -60,6 +61,9 @@ public:
     //! \c ForwardFFT these are exact inverses; the raw-collocation XC feed (doc/GPWPlan 0.5(f2)) uses the pair
     //! for its spectral zero-pad/truncation transfers between rasters.
     rvec_t   BackwardFFT(const cvec_t& c) const;
+    //! Isotropic spectral multiplier over the FULL box: \f$f\mapsto\mathcal F^{-1}[k(|G|^2)\mathcal F f]\f$
+    //! (a smooth \a k truncates nothing -- the raster Kerker preconditioner, doc/GPWPlan 0.5(f2)).
+    rvec_t   ApplySpectralFilter(const rvec_t& f, const std::function<double(double g2)>& k) const;
     //! \f$\int f\,d^3r\f$ on the FFT grid: uniform quadrature, weight \f$\Omega/N_{pts}\f$.
     double   Integral   (const rvec_t& f) const;
     //! \f$f(\vec r)=\mathrm{Re}\sum_{\Delta m} c(\Delta m)\,e^{i(B\Delta m)\cdot\vec r}\f$ (a sparse point eval, no FFT).

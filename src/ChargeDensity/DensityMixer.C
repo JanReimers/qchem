@@ -32,6 +32,7 @@ import qchem.Blaze;                                 // rsmat_t/rvec_t/ivec3_t + 
 import qchem.BasisSet;                             // tBasisSet<T>, operator[]
 import qchem.BasisSet.Band_FT_IBS;                 // Band_FT_IBS::CreateVxcFitBasisSet
 import qchem.BasisSet.Fit_IBS;                     // cFIT_SF_ABS (the FourierDensity face arg)
+import qchem.BasisSet.G_FieldEvaluator;            // ApplySpectralFilter (the raster Kerker step, 0.5(f2))
 import qchem.ReciprocalLattice;                    // ReciprocalLattice
 import qchem.UnitCell;                             // UnitCell (+ MakeReciprocalCell)
 import qchem.Structure;                            // Structure
@@ -109,6 +110,20 @@ private:
     double itsRelMax=1.0;
 };
 
+// --- The RASTER-SPACE Kerker step (the raw-XC shadow of FourierMixCD::KerkerMix; doc/GPWPlan 0.5(f2)) ---
+// rho_mix(r) = rho_in + alpha * F^-1[ G^2/(G^2+G0^2) F(rho_out - rho_in) ] over the FULL box.  The filter is
+// a SMOOTH multiplier (no truncation -> no Gibbs), k(0)=0 conserves charge -- identical algebra to the ball
+// mix but over every mode the raster represents, so the raw feed's out-of-ball content keeps mixing at k~1.
+inline rvec_t RasterKerker(const BasisSet::G_FieldEvaluator& ge, const rvec_t& in, const rvec_t& out,
+                           double alpha, double G0)
+{
+    const double G0sq=G0*G0;
+    rvec_t delta=out; delta-=in;
+    rvec_t mix=in;
+    mix+=alpha*ge.ApplySpectralFilter(delta, [G0sq](double g2){return g2/(g2+G0sq);});
+    return mix;
+}
+
 //! Kerker-preconditioned ρ̃(G)-mixing (periodic / dcmplx).  ρ_mix = ρ_in + α·G²/(G²+G0²)·(ρ_out−ρ_in);
 //! G=0 is never mixed (charge-conserving).  Holds the running mixed ρ̃ as a FourierMixCD; the next Fock is
 //! driven from it.  Built by MakeDensityMixer (which validates the periodic pieces).
@@ -116,8 +131,10 @@ class KerkerMixer : public tDensityMixer<dcmplx>
 {
 public:
     KerkerMixer(double relax, double G0, std::shared_ptr<const BasisSet::cFIT_SF_ABS> fit,
-                std::shared_ptr<FourierMixCD> rho0)
-        : itsRelax(relax), itsKerkerG0(G0), itsKerkerFit(std::move(fit)), itsMixedRho(std::move(rho0)) {}
+                std::shared_ptr<FourierMixCD> rho0, rvec_t raw0)
+        : itsRelax(relax), itsKerkerG0(G0), itsKerkerFit(std::move(fit)), itsMixedRho(std::move(rho0))
+        , itsRawIn(std::move(raw0))
+    { if (itsRawIn.size()) itsMixedRho->SetRawRho(itsRawIn); }
 
     double Mix(cd_t& working, const cd_t& /*old*/) override
     {
@@ -135,6 +152,18 @@ public:
         for (const auto& [dm, ri] : rho_in)
             if (rho_out.find(dm)==rho_out.end()) resid = std::max(resid, std::abs(dcmplx(ri)));
         itsMixedRho.reset(FourierMixCD::KerkerMix(*itsMixedRho, rho_out, itsRelax, itsKerkerG0));
+        // RAW-raster shadow (0.5(f2)): the same Kerker step on rho_raw(r), deposited so the XC feed stays raw
+        // through the DYNAMICS.  Late-activates the first time the working density answers raw (a SAD-seeded
+        // run's iteration 1); deactivates for the run if a raw answer stops coming or changes raster.
+        rvec_t rawOut = fd->GetRhoOnGrid(*itsKerkerFit);
+        auto*  ge     = dynamic_cast<const BasisSet::G_FieldEvaluator*>(itsKerkerFit.get());
+        if (rawOut.size() && ge)
+        {
+            if (itsRawIn.size()!=rawOut.size()) itsRawIn=rawOut;                       // bootstrap/late-activate
+            itsRawIn=RasterKerker(*ge, itsRawIn, rawOut, itsRelax, itsKerkerG0);
+            itsMixedRho->SetRawRho(itsRawIn);
+        }
+        else itsRawIn=rvec_t{};
         return resid;
     }
     const tChargeDensity<dcmplx>* FockDensity(const cd_t&) const override { return itsMixedRho.get(); }
@@ -143,6 +172,7 @@ private:
     double itsRelax, itsKerkerG0;
     std::shared_ptr<const BasisSet::cFIT_SF_ABS> itsKerkerFit;
     std::shared_ptr<FourierMixCD>                itsMixedRho;
+    rvec_t itsRawIn;   //!< the raster shadow of itsMixedRho (empty = raw pipeline off)
 };
 
 // --- ΔG_Map arithmetic for Pulay (keys = integer G-index, consistent across iterations) ---
@@ -185,10 +215,12 @@ class PulayMixer : public tDensityMixer<dcmplx>
 {
 public:
     PulayMixer(double relax, double G0, int depth, int start, std::shared_ptr<const BasisSet::cFIT_SF_ABS> fit,
-               ReciprocalLattice recip, ΔG_Map rho0, double charge)
+               ReciprocalLattice recip, ΔG_Map rho0, double charge, rvec_t raw0)
         : itsRelax(relax), itsKerkerG0(G0), itsDepth(depth), itsStart(start), itsKerkerFit(std::move(fit))
         , itsRecip(recip), itsCharge(charge)
-        , itsMixedRho(std::make_shared<FourierMixCD>(std::move(rho0), recip, charge)) {}
+        , itsMixedRho(std::make_shared<FourierMixCD>(std::move(rho0), recip, charge))
+        , itsRawIn(std::move(raw0))
+    { if (itsRawIn.size()) itsMixedRho->SetRawRho(itsRawIn); }
 
     double Mix(cd_t& working, const cd_t&) override
     {
@@ -198,21 +230,36 @@ public:
         ΔG_Map out = fd->GetFourierDensity(*itsKerkerFit);  // ρ̃_out: freshly collocated from the diagonalized D
         ΔG_Map res = MapSub(out,in);                        // residual = ρ̃_out − ρ̃_in
         double resid = MapMaxAbs(res);
+        // RAW-raster shadow inputs (0.5(f2)); late-activates like KerkerMixer, drops out if answers stop.
+        rvec_t rawOut = fd->GetRhoOnGrid(*itsKerkerFit);
+        auto*  ge     = dynamic_cast<const BasisSet::G_FieldEvaluator*>(itsKerkerFit.get());
+        const bool raw = rawOut.size() && ge;
+        if (raw && itsRawIn.size()!=rawOut.size()) itsRawIn=rawOut;                    // bootstrap/late-activate
+        if (!raw) { itsRawIn=rvec_t{}; itsRawIns.clear(); itsRawOuts.clear(); }
+        rvec_t rawIn = itsRawIn;                            // the shadow of `in` (captured before the update)
 
         // PRIME with plain Kerker until we are near the fixed point (history-based mixing is unstable far
         // out).  No history is accumulated during priming, so Pulay starts with clean, linear-regime residuals.
         if (++itsCount<=itsStart)
         {
             itsMixedRho.reset(FourierMixCD::KerkerMix(*itsMixedRho,out,itsRelax,itsKerkerG0));
+            if (raw)
+            {
+                itsRawIn=RasterKerker(*ge, rawIn, rawOut, itsRelax, itsKerkerG0);
+                itsMixedRho->SetRawRho(itsRawIn);
+            }
             return resid;
         }
 
         itsIns.push_back(in); itsOuts.push_back(out); itsResiduals.push_back(res);   // grow the history
+        if (raw) { itsRawIns.push_back(rawIn); itsRawOuts.push_back(rawOut); }
         while ((int)itsResiduals.size()>itsDepth)                                    // prune to `depth`
             { itsIns.pop_front(); itsOuts.pop_front(); itsResiduals.pop_front(); }
+        while (itsRawIns.size()>itsResiduals.size()) { itsRawIns.pop_front(); itsRawOuts.pop_front(); }
 
         const size_t n=itsResiduals.size();
         ΔG_Map inStar, outStar;
+        rvec_t rawInStar=rawIn, rawOutStar=rawOut;         // raw stars default to the plain pair
         if (n<2) { inStar=in; outStar=out; }               // not enough history yet → plain Kerker
         else
         {
@@ -222,9 +269,21 @@ public:
             rvec_t c=qchem::Math::DIIS::Coefficients(qchem::Math::DIIS::Bordered(B));
             inStar =MapCombine(itsIns ,c);                 // ρ̃_in*  = Σ cᵢ ρ̃_inᵢ
             outStar=MapCombine(itsOuts,c);                 // ρ̃_out* = Σ cᵢ ρ̃_outᵢ
+            // The raw shadow takes the SAME extrapolation coefficients -- but only once its history spans the
+            // whole window (a late-activated shadow falls back to the plain pair until the deques align).
+            if (raw && itsRawIns.size()==n)
+            {
+                rawInStar =c[0]*itsRawIns[0];  for (size_t i=1;i<n;++i) rawInStar +=c[i]*itsRawIns[i];
+                rawOutStar=c[0]*itsRawOuts[0]; for (size_t i=1;i<n;++i) rawOutStar+=c[i]*itsRawOuts[i];
+            }
         }
         FourierMixCD inStarCD(inStar,itsRecip,itsCharge);  // Kerker step on the DIIS-extrapolated pair
         itsMixedRho.reset(FourierMixCD::KerkerMix(inStarCD,outStar,itsRelax,itsKerkerG0));
+        if (raw)
+        {
+            itsRawIn=RasterKerker(*ge, rawInStar, rawOutStar, itsRelax, itsKerkerG0);
+            itsMixedRho->SetRawRho(itsRawIn);
+        }
         return resid;
     }
     const tChargeDensity<dcmplx>* FockDensity(const cd_t&) const override { return itsMixedRho.get(); }
@@ -236,6 +295,8 @@ private:
     double itsCharge;
     std::shared_ptr<FourierMixCD> itsMixedRho;
     std::deque<ΔG_Map> itsIns, itsOuts, itsResiduals;      // the Pulay history (aligned index-wise)
+    rvec_t itsRawIn;                                       //!< the raster shadow of itsMixedRho (empty = off)
+    std::deque<rvec_t> itsRawIns, itsRawOuts;              //!< its history (aligned with itsIns while active)
 };
 
 //! Build the density mixer for a run: Kerker when \a kerkerG0>0 AND the basis/cell/seed are periodic
@@ -261,17 +322,21 @@ template <class T> std::unique_ptr<tDensityMixer<T>> MakeDensityMixer(
             auto fit = std::shared_ptr<const BasisSet::cFIT_SF_ABS>(ftb->CreateVxcFitBasisSet(cell, qcMesh::MeshParams{}));
             ReciprocalLattice recip(cell->MakeReciprocalCell());
             auto rho0  = fd->GetFourierDensity(*fit);
+            rvec_t raw0= fd->GetRhoOnGrid(*fit);   // raw-raster shadow seed (0.5(f2)); empty = late-activate
             const double charge = seed->GetTotalCharge();
             if (pulayDepth>0)
             {
                 std::cerr << "[Pulay] ENABLED: depth=" << pulayDepth << " start=" << pulayStart << " G0=" << kerkerG0
-                          << ", rho-mixing on " << charge << " electrons (" << rho0.size() << " G-vectors)." << std::endl;
-                return std::make_unique<PulayMixer>(relax0, kerkerG0, pulayDepth, pulayStart, fit, recip, rho0, charge);
+                          << ", rho-mixing on " << charge << " electrons (" << rho0.size() << " G-vectors"
+                          << (raw0.size() ? ", raw-XC shadow ON" : "") << ")." << std::endl;
+                return std::make_unique<PulayMixer>(relax0, kerkerG0, pulayDepth, pulayStart, fit, recip, rho0,
+                                                    charge, std::move(raw0));
             }
             auto mixed = std::make_shared<FourierMixCD>(rho0, recip, charge);
             std::cerr << "[Kerker] ENABLED: G0=" << kerkerG0 << ", rho-mixing on " << charge
-                      << " electrons (" << rho0.size() << " G-vectors)." << std::endl;
-            return std::make_unique<KerkerMixer>(relax0, kerkerG0, fit, mixed);
+                      << " electrons (" << rho0.size() << " G-vectors"
+                      << (raw0.size() ? ", raw-XC shadow ON" : "") << ")." << std::endl;
+            return std::make_unique<KerkerMixer>(relax0, kerkerG0, fit, mixed, std::move(raw0));
         }
     }
     return std::make_unique<LinearMixer<T>>(relax0);

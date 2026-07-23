@@ -259,9 +259,26 @@ confirmation runs.
   path.  The C 8→2-3 prize is REAL but gated ENTIRELY on (f2) below (the DM-ρ raw XC feed); re-run
   this exact sweep as (f2)'s acceptance gate.  CAUTION: the retired GPW_CDFIT_SCALE two-grid fork —
   any re-split must buy real money over one-grid simplicity.
-  **THE ENABLING MECHANISM (f2, user insight 2026-07-23): feed XC the DM-ρ, which is pointwise
-  NON-NEGATIVE by construction (PSD D ⇒ φᵀDφ ≥ 0) — the C=8 cleanliness constraint dissolves
-  entirely.**  NOT via op(r) sampling (that is the deleted PhiOnGrid era, ~1e9 exp/iter) — the
+  **(f2) BUILT + ACCEPTED 2026-07-23 (three increments, commits 84592979 / f2-inc2 / f2-inc3).**
+  Mechanism as designed: (inc 1) `G_ERI3::applyRaw/applyRawAdjoint` — ρ_DM(r) on the integration raster
+  (finest level RAW, others spectrally transferred, `TransferBand` zero-pad/truncation transposes; FD
+  adjoint rel ~1e-8, gate `GPW.RawXCConsistencyFD`); (inc 2) `FourierDensity::GetRhoOnGrid`
+  (empty-means-fallback) + `PW_XC` raw-first with the E/H pair always from ONE discrete functional (PW
+  bit-identical); (inc 3) the SCF DYNAMICS — the ρ̃-mixing working density is raw-shadowed
+  (`ApplySpectralFilter` full-box smooth Kerker on the raster; `FourierMixCD` carries it; Kerker+Pulay
+  evolve it with the SAME algebra/coefficients; late-activation for SAD seeds; PW drops out empty) —
+  inc 2 alone left the dynamics ball-fed (measured: C=4 still collapsed with a clean FINAL eval).
+  **ACCEPTANCE (seeded pure-aufbau NaF SR2): the XC-COLLAPSE BASIN IS REMOVED — negCharge == 0.000 at
+  C=8, 4, AND 3 (ρ_min ≥ −1e-3 e/bohr³ worst case).**  C=8 → −24.4325 (22 iters; 1.3 mHa from CP2K);
+  **C=3 (Ecut=120) → −24.4310, 22 iters, 0.2 mHa from CP2K's −24.4312** — the C 8→3 grid unlock is REAL
+  on accuracy.  BONUS: the raw feed removed the ball-Gibbs noise from the XC residual and the COARSE
+  Ecut=40 stage now E-flat CONVERGES in 45 iters (ball era: 515).  CAVEAT → 0h: C=4 (Ecut=160)
+  converges NO-collapse but lands a NEAR-GAPLESS wrong state under pure aufbau (gap ~2e-3 Ha, frontier
+  occupation swaps, 95 mHa off) — an OCCUPATION-SEAM instability at that discretization, not XC; so the
+  DEFAULT cutoffFactor stays 8 until the 0h occupation guard (or Fermi smearing) lands — the C 8→3 flip
+  is then a one-line default + suite re-pin.  Historical design note (the original insight, kept for
+  the record): feed XC the DM-ρ, pointwise NON-NEGATIVE by construction (PSD D ⇒ φᵀDφ ≥ 0) — the C=8
+  cleanliness constraint dissolves.  NOT via op(r) sampling (that is the deleted PhiOnGrid era, ~1e9 exp/iter) — the
   collocation STREAMS already materialise exactly those χᵢχⱼ(r) samples: the RAW D-weighted level
   densities before the FFT/ball combine ARE ρ_DM(r) to screening-ε (worst negatives ~1e-10, not the
   ball's Gibbs −0.77 e).  So: keep the fine level RAW for the XC feed (skip the ball truncation there
@@ -520,8 +537,12 @@ is an *efficiency* layer, not a correctness requirement — hence it comes AFTER
     deservedly explicit at the seam.
   Makes ball-vs-raster structural instead of documentary (this week's confusion is the evidence), and
   dovetails with §0.5(f)'s per-role ball calibrations.  **SCHEDULING (user 2026-07-23): if the explicit
-  Vxc-fit ctor is easy while implementing §0.5(f), do them TOGETHER — this item then partially lands
-  early and only the CD/ρ-fit `PW_Ball`-alone ctor remains here.**
+  Vxc-fit ctor is easy while implementing §0.5(f), do them TOGETHER.  ASSESSED during (f2) 2026-07-23:
+  DEFERRED — the mechanical split is easy to WRITE but impossible to GATE today (no path distinguishes
+  the two arguments: LDA has ball == grid, GGA is guarded out), so it would ship as an unexercised
+  degenerate seam.  Land it with its FIRST REAL CONSUMER: the GGA relCutoff increment — which, note,
+  post-(f2) densifies the raw feed's INTEGRATION GRID (∇ρ resolution), not the ball; the two-argument
+  ctor is then load-bearing and testable.**
 - **Cache2/Cache3 BYTE-BUDGET LRU + per-cache RAM report (user-approved 2026-07-23; the intended
   REPLACEMENT for the clear-based band-aid).**  The MnD geometry caches (Ω/RNLM/H3) currently stay
   correct on lattice paths only because the drivers call `ClearGeometryCaches()` per pair and the 3C

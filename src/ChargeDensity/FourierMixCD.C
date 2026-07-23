@@ -53,6 +53,17 @@ public:
     // --- FourierDensity: the map IS the density (metric-free), like SeedCD ---
     virtual ΔG_Map GetFourierDensity(const BasisSet::cFIT_SF_ABS&) const override;  //!< the overlap projection = rho-tilde
     virtual ΔG_Map GetRepulsion3C   (const BasisSet::cFIT_CD_ABS&) const override;  //!< V_H = 4pi rho-tilde/|G|^2
+    //! The RAW-raster shadow of the mix (doc/GPWPlan 0.5(f2)): the MIXER maintains rho_raw(r) by the same
+    //! Kerker/Pulay algebra it applies to rho-tilde (the filter is a smooth spectral multiplier -- no Gibbs)
+    //! and deposits it here, so the XC feed stays raw THROUGH the SCF dynamics, not just at the seed and the
+    //! final evaluation.  Empty (the base default) when the raw pipeline is off (SAD-seeded, PW, disabled).
+    virtual rvec_t GetRhoOnGrid(const BasisSet::cFIT_SF_ABS&) const override
+    {
+        rvec_t r=itsRhoRaw;                       // empty when the raw pipeline is off
+        if (itsScale!=1.0) for (size_t q=0;q<r.size();q++) r[q]*=itsScale;
+        return r;
+    }
+    void SetRawRho(rvec_t raw) {itsRhoRaw=std::move(raw);}   //!< mixer-side deposit (empty = raw pipeline off)
 
     // --- tChargeDensity<dcmplx> ---
     virtual double  operator()(const rvec3_t&) const override;   //!< rho(r) via inverse FT (whole-type; not on the Fock path)
@@ -65,6 +76,7 @@ public:
 
 private:
     ΔG_Map            itsRho;      //!< rho-tilde(G) coefficients (keyed by the integer difference index dm)
+    rvec_t            itsRhoRaw;   //!< raw-raster shadow rho_raw(r) (0.5(f2)); empty = raw pipeline off
     ReciprocalLattice itsRecip;    //!< the cell's reciprocal lattice B: |G| for f_K, the Poisson kernel for V_H
     double            itsCharge;   //!< total charge N (passed in; conserved by the SCF diagonalization)
     double            itsScale=1.0;//!< uniform ReScale factor

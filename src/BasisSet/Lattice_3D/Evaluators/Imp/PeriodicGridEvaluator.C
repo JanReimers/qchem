@@ -6,11 +6,12 @@
 module;
 #include <cassert>
 #include <complex>
+#include <functional>   // the ApplySpectralFilter multiplier k(|G|^2)
 #include <vector>
 
 module qchem.BasisSet.Lattice_3D.Evaluators.PeriodicGridEvaluator;
 import qchem.Math;        // cos, sin (EvalField's point evaluation)
-import qchem.FFT;         // FFT3D (RhoOnGrid / ForwardFFT)
+import qchem.FFT;         // FFT3D (RhoOnGrid / ForwardFFT / BackwardFFT)
 import qchem.Blaze;       // blazem::sum (Integral)
 import qchem.Vector3D;    // dot product (operator*) + vector arithmetic
 
@@ -114,6 +115,25 @@ rvec_t PeriodicGridEvaluator::BackwardFFT(const cvec_t& c) const
     rvec_t out(Npts);
     for (size_t i=0;i<Npts;i++) out[i]=std::real(dcmplx(rr[i]));
     return out;
+}
+
+// f -> iFFT[ k(|G|^2) FFT(f) ] over the FULL box (every mode the raster represents; the strict alias-free
+// band convention is irrelevant here because nothing is transferred between rasters -- a mode and its k are
+// evaluated at the SIGNED frequency the FFT layout assigns it).
+rvec_t PeriodicGridEvaluator::ApplySpectralFilter(const rvec_t& f, const std::function<double(double g2)>& k) const
+{
+    ivec3_t N=itsN;
+    cvec_t ft=ForwardFFT(f);
+    size_t q=0;
+    for (int i0=0;i0<N.x;i0++)
+        for (int i1=0;i1<N.y;i1++)
+            for (int i2=0;i2<N.z;i2++,q++)
+            {
+                ivec3_t m(2*i0<N.x?i0:i0-N.x, 2*i1<N.y?i1:i1-N.y, 2*i2<N.z?i2:i2-N.z);
+                rvec3_t G=GetGCartesian(m);
+                ft[q]*=k(G.x*G.x+G.y*G.y+G.z*G.z);
+            }
+    return BackwardFFT(ft);
 }
 
 // Vtilde(dm) from a ForwardFFT grid: wrap dm into [0,N) per axis (negative freq -> N-|.|) and index raster.

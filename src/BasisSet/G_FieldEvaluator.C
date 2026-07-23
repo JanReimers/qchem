@@ -55,6 +55,12 @@ public:
     virtual ΔG_Map     FieldCoeffs(const cvec_t& Vt) const=0;
     //! \f$\int f\,d^3r\f$ on the FFT grid (weight \f$\Omega/N_{pts}\f$) -- the XC energy quadrature on the fit grid.
     virtual double     Integral(const rvec_t& f) const=0;
+    //! \brief Apply an ISOTROPIC spectral multiplier to a real grid field over the FULL FFT box:
+    //! \f$f\mapsto\mathcal F^{-1}[k(|G|^2)\,\mathcal F f]\f$.  A SMOOTH \a k truncates nothing, so no Gibbs
+    //! ringing is introduced -- the raster-space Kerker preconditioner \f$k=G^2/(G^2+G_0^2)\f$ of the raw-XC
+    //! mixing pipeline (doc/GPWPlan 0.5(f2)); \f$k(0)\f$ scales the mean (Kerker's \f$k(0)=0\f$ conserves charge).
+    virtual rvec_t     ApplySpectralFilter(const rvec_t& f,
+                                           const std::function<double(double g2)>& k) const=0;
 
     //! \brief Analytic structure-factor DENSITY over THIS engine's own \f$\{G\}\f$:
     //! \f$\tilde\rho(G)=\frac1\Omega\sum_{\text{atoms}} f(Z,|G|^2)\,e^{-iG\cdot R}\f$, with \a f the per-species
