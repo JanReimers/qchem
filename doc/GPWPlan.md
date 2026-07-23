@@ -1098,6 +1098,17 @@ no time-reversal factor. Validate bit-level: reduced-mesh-with-weights == full-m
 is an *efficiency* layer, not a correctness requirement — hence it comes AFTER a working full-BZ reference.
 
 ## 5. Deferred cleanups (do once bulk works — "the working code is the definitive declaration")
+- **Cache2/Cache3 BYTE-BUDGET LRU + per-cache RAM report (user-approved 2026-07-23; the intended
+  REPLACEMENT for the clear-based band-aid).**  The MnD geometry caches (Ω/RNLM/H3) currently stay
+  correct on lattice paths only because the drivers call `ClearGeometryCaches()` per pair and the 3C
+  kernel ships a duplicated `Overlap3CStream` — cache-then-clear is the WRONG shape (user).  The clean
+  design: give Cache2/Cache3 a BYTE budget with LRU eviction (`RAMsize()` plumbing exists), and let the
+  ALGORITHM (not the user) select the policy per scope — a lattice driver pushes a scoped tiny budget
+  (size-1 preserves the `const&`-returning contract AND the within-triple component reuse at O(1)
+  memory), molecular paths keep the generous default.  One mechanism with per-cache specificity
+  (Ω/RNLM/H3); the `ClearGeometryCaches()` calls and `Overlap3CStream` duplication then RETIRE.  Also:
+  extend the end-of-run `IntegralsCache RAM usage report` with per-cache byte sizes (growth visible in
+  every log instead of discovered by OOM).
 - **Rigorous periodic external PP:** `MakeLocalPP`/`MakeSeparablePP` quadrature the HOME-CELL orbitals against
   the cell's OWN atoms (no periodic-image PP) — exact at Γ / large box, an approximation for a dense crystal.
   Sum the PP over lattice images (analogous to Ewald / the PW G-space assembly).
