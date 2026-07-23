@@ -607,29 +607,31 @@ TEST(GPW_SCF, DISABLED_NaFGridContinuation)
         std::cerr<<"[rss] "<<tag<<": "<<(rspg*4096/1048576)<<" MB"<<std::endl;
     };
     // ---- STAGE 1: converge on the CHEAP coarse density grid (Ecut=40 -> the physical fixed point). ----
+    // Every coarse-stage object is a unique_ptr so the WHOLE stage can be torn down mid-test (below) the
+    // moment the fine stage has consumed it -- doc/GPWPlan.md 0.5(b).
     rss("pre-basis");
     std::unique_ptr<Complex_BS> bsC(L3::GPWFactory(lat, mol, /*densityEcut*/envd("GC_COARSE_ECUT",40.0)));
     rss("basis");
-    Crystal_EC ecC(bsC->GetIrreps(Spin::None), 8);
+    auto ecC=std::make_unique<Crystal_EC>(bsC->GetIrreps(Spin::None), 8);
     rss("EC");
     cHamiltonian* hamC=new Ham_PW_DFT(st, bsC.get(), {{"Na",1},{"F",7}}, "LDA");
     rss("Ham");
     auto* accC=new qchem::SCFAccelerators::tSCFAcceleratorNull<dcmplx>();   // no DIIS (the CP2K recipe)
-    qchem::SCFIterator::cSCFIterator scfC(bsC.get(), &ecC, hamC, accC,
+    auto scfC=std::make_unique<qchem::SCFIterator::cSCFIterator>(bsC.get(), ecC.get(), hamC, accC,
                                           qchem::ChargeDensity::SeedStrategy::IonicSAD, st.get(),
                                           qchem::Cholesky, 0.0);
     rss("SCFctor");
     qchem::Hamiltonian::ReportGridCharge()=true;   // step-2 probe: coarse-grid rho stats to compare vs fine
-    scfC.Iterate(makePar((size_t)envd("GC_COARSE_NMAX",200), 10, 35));
+    scfC->Iterate(makePar((size_t)envd("GC_COARSE_NMAX",200), 10, 35));
     qchem::Hamiltonian::ReportGridCharge()=false;
-    auto Ecoarse=scfC.GetEnergy();
-    std::cout << "[NaF grid-cont COARSE] Ecut=40 iters="<<scfC.GetIterationCount()
+    auto Ecoarse=scfC->GetEnergy();
+    std::cout << "[NaF grid-cont COARSE] Ecut=40 iters="<<scfC->GetIterationCount()
               << " Etot="<<Ecoarse.GetTotalEnergy() << std::endl;
     EXPECT_NEAR(Ecoarse.GetTotalEnergy(), -27.76, 0.15);   // the coarse physical fixed point (MOM+Pulay reach it)
 
-    // Grab the converged coarse density (OWNED; consumed by the fine ctor's Init).  bsC stays in scope below,
-    // so the density's coarse-block pointer stays valid for the one iteration-0 read.
-    auto* seedCD = scfC.GetWaveFunction()->GetChargeDensity();
+    // Grab the converged coarse density (OWNED; consumed by the fine ctor's Init).  bsC stays alive until
+    // after the fine ctor, so the density's coarse-block pointer stays valid for the one iteration-0 read.
+    auto* seedCD = scfC->GetWaveFunction()->GetChargeDensity();
 
     // ---- STAGE 2: seed the PRODUCTION fine grid (auto Ecut=160) with the converged coarse density. ----
     std::unique_ptr<Complex_BS> bsF(L3::GPWFactory(lat, mol, /*densityEcut*/envd("GC_FINE_ECUT",-1.0)));  // <0 AUTO=160
@@ -652,7 +654,7 @@ TEST(GPW_SCF, DISABLED_NaFGridContinuation)
         // the CONVERGED coarse WF's occupied {F 2s, F 2p} subspace as the fixed MOM reference (grid-independent
         // orthonormal metric), held from iteration 1.  GC_SEED_MOM=0 A/Bs this off (density seed only).
         if (envd("GC_SEED_MOM",1.0)!=0.0)
-            scfF->AdoptMOMReference(*scfC.GetWaveFunction());
+            scfF->AdoptMOMReference(*scfC->GetWaveFunction());
     }
     else
     {
@@ -661,6 +663,14 @@ TEST(GPW_SCF, DISABLED_NaFGridContinuation)
                                                         qchem::ChargeDensity::SeedStrategy::IonicSAD, st.get(),
                                                         qchem::Cholesky, 0.0));
     }
+    // The coarse stage is DONE (seed consumed by the fine ctor's Init, MOM reference copied out) -- tear it
+    // down IN ORDER (iterator -> EC -> basis) BEFORE the fine iterations (doc/GPWPlan.md 0.5(b)).  The
+    // coarse ~GPW_Evaluator hands its ladder's stream caches back to the global budget, and the fine shape
+    // (built STARVED during the handoff, while the coarse caches were still resident) rebuilds into the
+    // refunded budget at its next EnsureStreams (the self-heal).  Without this the fine stage runs at ~0%
+    // stream coverage, re-evaluating billions of points per iteration (the 8.45-h full-SR run).
+    scfC.reset(); ecC.reset(); bsC.reset();
+    rss("coarse stage freed");
     scfF->Iterate(makePar((size_t)envd("GC_FINE_NMAX",100),
                           (int)envd("GC_FINE_MOM_START",1), (int)envd("GC_FINE_PULAY_START",12)));
     qchem::Hamiltonian::ReportGridCharge()=false;

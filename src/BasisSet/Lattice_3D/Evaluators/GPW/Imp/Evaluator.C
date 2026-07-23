@@ -256,6 +256,14 @@ GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const
     }
 }
 
+// doc/GPWPlan.md 0.5(b): hand this block's ladder-shaped streams back to the global budget.  itsLevelN is
+// populated lazily (EnsureLevels) -- a block that never ran the DFT tier has nothing to release.  itsMol
+// (a member) outlives this body, so itsLat stays valid here.
+GPW_Evaluator::~GPW_Evaluator()
+{
+    if (itsLat && !itsLevelN.empty()) itsLat->ReleaseStreams(itsLevelN, itsLevelEcut);
+}
+
 // The Bloch phase closure the analytic kernels call back per screened cross-cell offset: e^{2 pi i k_frac.n}
 // (n the INTEGER cell index -- convention-safe, same convention as BuildImages).  Gamma: the constant 1.
 Molecule::LatticeSum1E::cellphase_t GPW_Evaluator::CellPhase() const

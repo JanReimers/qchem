@@ -271,6 +271,8 @@ chmat_t Orbital_IBS::IntegratePotential(const std::vector<rvec_t>& V_L, const ce
                                         const std::vector<double>& ecut_L, double relCutoffScale,
                                         const chmat_t* screenD) const
 {   return NR_Evaluator::IntegratePotential(V_L,phase,A,N_L,ecut_L,relCutoffScale,screenD); }
+void Orbital_IBS::ReleaseStreams(const std::vector<ivec3_t>& N_L, const std::vector<double>& ecut_L) const
+{   NR_Evaluator::ReleaseStreams(N_L,ecut_L); }
 
 //----------------------------------------------------------------
 //

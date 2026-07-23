@@ -191,6 +191,17 @@ public:
                                        const std::vector<ivec3_t>& N_L,
                                        const std::vector<double>& ecut_L, double absRelCutoff=0.0,
                                        const chmat_t* screenD=nullptr) const = 0;
+
+    //! \brief Release any cached collocation streams for ONE ladder shape (\a N_L, \a ecut_L), refunding
+    //! their points to the GLOBAL stream budget.  The streams are pure geometry replayed every iteration, so
+    //! an implementation may keep them resident across calls -- but this evaluator is SHARED (one molecular
+    //! basis serves every k-block and every collocation-grid client), so a client that is DONE with its ladder
+    //! must say so or its streams squat on the budget for the process lifetime.  Measured failure
+    //! (doc/GPWPlan.md 0.5(b)): a grid-continuation run's RESIDENT coarse-stage caches starved the fine
+    //! stage to ~0% coverage -- billions of points re-evaluated per iteration (the 8.45-h NaF full-SR run).
+    //! Called by \c GPW_Evaluator's dtor with its own ladder; releasing a shape another live client still
+    //! uses is CORRECT (it rebuilds on demand) -- this is a budget/perf lever, never a correctness one.
+    virtual void ReleaseStreams(const std::vector<ivec3_t>& N_L, const std::vector<double>& ecut_L) const = 0;
 };
 
 } //namespace

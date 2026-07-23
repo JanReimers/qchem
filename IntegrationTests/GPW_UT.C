@@ -378,6 +378,105 @@ TEST(GPW, AnalyticCollocationConservesCharge)
     EXPECT_NEAR(cInterior, cCorner, 1e-6) << "collocated charge must be translation-invariant (wrap == interior)";
 }
 
+namespace
+{
+// Scoped env override with restore (the stream-budget knobs are read per EnsureStreams call).
+struct EnvGuard
+{
+    std::string name, old; bool had;
+    EnvGuard(const char* n, const std::string& v) : name(n)
+    {   const char* o=std::getenv(n); had=(o!=nullptr); if (o) old=o; setenv(n, v.c_str(), 1); }
+    void Set(const std::string& v) { setenv(name.c_str(), v.c_str(), 1); }
+    ~EnvGuard() { if (had) setenv(name.c_str(), old.c_str(), 1); else unsetenv(name.c_str()); }
+};
+// The last "[stream cache]" build readout in a captured stderr blob.  built=false means EnsureStreams HIT an
+// existing cache (no build ran) -- itself an assertable outcome (rebuild stability).
+struct StreamReadout { bool built=false; size_t pts64=0, pts32=0, dropped=0; };
+StreamReadout ParseStreamReadout(const std::string& err)
+{
+    StreamReadout r;
+    size_t p=err.rfind("[stream cache]");
+    if (p==std::string::npos) return r;
+    r.built=true;
+    auto ptsInParens=[&](const std::string& tag)->size_t     // "fp64 N (P pts)" -> P
+    {
+        size_t b=err.find(tag, p);
+        if (b==std::string::npos) { ADD_FAILURE() << "readout tag missing: " << tag; return 0; }
+        return std::stoull(err.substr(err.find('(', b)+1));
+    };
+    r.pts64=ptsInParens("fp64 "); r.pts32=ptsInParens("fp32 ");
+    size_t d=err.find("dropped ", p);
+    if (d==std::string::npos) { ADD_FAILURE() << "readout tag missing: dropped"; return r; }
+    r.dropped=std::stoull(err.substr(d+8));
+    return r;
+}
+} //anon
+
+// STREAM-CACHE RESIDENCY (doc/GPWPlan.md 0.5(b)).  The pair-box streams live on the SHARED molecular
+// evaluator keyed by ladder shape, with a GLOBAL point budget -- so in a grid-continuation run the RESIDENT
+// coarse-stage caches starve the fine stage to ~0% coverage (measured: the 8.45-h NaF full-SR diagnostic,
+// billions of points re-evaluated per iteration).  The fix under test, both halves:
+//   (1) RELEASE: destroying a GPW block (bsC.reset() in the SCF test) hands its ladder's streams back to the
+//       budget (GPW_Evaluator dtor -> LatticeSum1E::ReleaseStreams);
+//   (2) SELF-HEAL: a cache built STARVED (the fine shape is built during the seed handoff, while the coarse
+//       stage still squats) rebuilds when the headroom grows -- and ONLY then (a complete cache never
+//       rebuilds: bit-stable replay; an unchanged starved cache never churns).
+TEST(GPW, StreamCacheReleaseUnstarvesLaterGrid)
+{
+    const double a=12.0;
+    UnitCell cell(a);
+    cell.AddAtom(14,{0.5,0.5,0.5});                            // Si, interior
+    std::shared_ptr<const Real_BS> mol = MakeBasis(cell);      // ONE molecular basis shared by both grids
+    const double ecutC=16.0, ecutF=32.0;                       // coarse/fine density grids (>= the 8*alpha_max floor)
+
+    // One OverlapMatrix(V) call drives IntegratePotential -> EnsureStreams for the block's ladder shape.
+    // A FRESH constant per call defeats the static-field IntegrateMemo (same shape + same field replays the
+    // memoised reductions and never consults the stream cache), so every trigger reaches EnsureStreams.
+    auto trigger=[call=0](const GPW_Evaluator& ev) mutable -> StreamReadout
+    {
+        const dcmplx v(double(++call));
+        testing::internal::CaptureStderr();
+        ev.OverlapMatrix([v](const ivec3_t&)->dcmplx { return v; });
+        return ParseStreamReadout(testing::internal::GetCapturedStderr());
+    };
+
+    // MEASURE the two shapes' demand under an ample single-tier budget (fp32 tier off: one number per shape).
+    EnvGuard b64("GPW_STREAM_BUDGET_PTS",     "2000000000");
+    EnvGuard b32("GPW_STREAM_BUDGET_PTS_F32", "0");
+    size_t ptsC=0, ptsF=0;
+    {
+        GPW_IBS c(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, ecutC);
+        auto r=trigger(c);
+        ASSERT_TRUE(r.built); ASSERT_EQ(r.dropped,0u); ptsC=r.pts64+r.pts32;
+    }   // dtor releases the coarse shape
+    {
+        GPW_IBS f(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, ecutF);
+        auto r=trigger(f);
+        ASSERT_TRUE(r.built) << "coarse dtor must have released its shape (fresh build expected)";
+        ASSERT_EQ(r.dropped,0u); ptsF=r.pts64+r.pts32;
+    }
+    ASSERT_GE(ptsC,2u);
+    ASSERT_GT(ptsF,ptsC) << "the finer grid must demand more stream points";
+
+    // THE GRID-CONTINUATION CONFIGURATION under a budget that fits EITHER shape but not BOTH:
+    b64.Set(std::to_string(ptsF + ptsC/2));
+    auto coarse=std::make_unique<GPW_IBS>(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, ecutC);
+    auto r=trigger(*coarse);
+    ASSERT_TRUE(r.built); EXPECT_EQ(r.dropped,0u);             // coarse fits alone
+    GPW_IBS fine(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, ecutF);
+    r=trigger(fine);
+    ASSERT_TRUE(r.built); EXPECT_GT(r.dropped,0u)              // STARVED by the resident coarse caches
+        << "expected the fine shape to be starved while the coarse caches squat on the budget";
+    r=trigger(fine);
+    EXPECT_FALSE(r.built) << "starved cache with UNCHANGED headroom must not churn/rebuild";
+    coarse.reset();                                            // the bsC.reset() fix: refund the coarse points
+    r=trigger(fine);
+    ASSERT_TRUE(r.built); EXPECT_EQ(r.dropped,0u)              // SELF-HEAL: rebuilt into the refunded budget
+        << "released coarse budget must reach the starved fine shape";
+    r=trigger(fine);
+    EXPECT_FALSE(r.built) << "complete cache must never rebuild (bit-stable replay)";
+}
+
 // ANALYTIC COLLOCATION on a CRYSTAL (cross-cell pairs), through the SCF SEAM (Overlap3CTensor's matrix-free
 // `apply` -> the REL_CUTOFF multi-grid ladder).  The periodic Gamma density is a product of BLOCH orbitals,
 // chi_i^G chi_j^G = Sum_R'' chi_i^0 chi_j^R'' -- so collocation must sum the screened CROSS-CELL offsets, not

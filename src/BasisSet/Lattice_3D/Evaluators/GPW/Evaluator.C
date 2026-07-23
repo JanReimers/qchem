@@ -74,7 +74,13 @@ public:
     GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const UnitCell& cell,
                   double densityEcut = 0.0, const rvec3_t& kFrac = rvec3_t(0,0,0),
                   bool homeCellOnly = false, double cutoffFactor = 8.0);
-    virtual ~GPW_Evaluator() = default;   // polymorphic: reached by the EPW_* mixin's Cast() cross-cast
+    //! Polymorphic (reached by the EPW_* mixin's Cast() cross-cast).  Releases this block's ladder-shaped
+    //! collocation streams on the SHARED molecular evaluator (\c LatticeSum1E::ReleaseStreams) -- the streams
+    //! are keyed by ladder shape, not by block, so without the release a finished stage's caches squat on the
+    //! global stream budget for the process lifetime and starve any later grid (doc/GPWPlan.md 0.5(b): the
+    //! grid-continuation fine stage at ~0% coverage).  Sibling k-blocks share the shape: the first dtor
+    //! releases it, the rest no-op; a same-shape client that is still live simply rebuilds on demand.
+    virtual ~GPW_Evaluator();
 
     // --- isPW_1E_Evaluator surface (exact signatures the concept demands) ---
     size_t     size()                          const {return itsN;}

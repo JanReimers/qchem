@@ -451,6 +451,17 @@ public:
         std::vector<ivec3_t> N_L; std::vector<double> ecut_L;   // the ladder shape (snapshot key)
         double absRelCutoff=0.0;                                //   + the assignment rule key (0=relative, >0=absolute Ha/exponent)
         std::vector<PairStreams> pairs;                         // indexed [i*n+j], j>=i only
+        size_t droppedPts=0;                                    // points that fell past BOTH tiers at build time
+        size_t availAtBuild64=0, availAtBuild32=0;              // the budget headroom this build was offered --
+                                                                //   an INCOMPLETE cache rebuilds when headroom grows
+                                                                //   (a resident shape was released; doc/GPWPlan 0.5(b))
+        bool SameShape(const std::vector<ivec3_t>& N, const std::vector<double>& e) const
+        {
+            if (ecut_L!=e || N_L.size()!=N.size()) return false;
+            for (size_t l=0;l<N.size();l++)
+                if (N_L[l].x!=N[l].x || N_L[l].y!=N[l].y || N_L[l].z!=N[l].z) return false;
+            return true;
+        }
     };
     static constexpr size_t kMaxStreamCaches=4;                 // ladder + K=1 + unit-gate shapes; guards churn
     //! Global stream-cache budgets in POINTS, TWO TIERS.  A diffuse basis in a small cell keeps hundreds of
@@ -473,16 +484,47 @@ public:
     //! on-the-fly evaluation: correct, slower -- never a physics knob.
     static size_t BudgetPts()    { const char* e=std::getenv("GPW_STREAM_BUDGET_PTS");     return e?size_t(std::atoll(e)):kStreamBudgetPts; }
     static size_t BudgetPtsF32() { const char* e=std::getenv("GPW_STREAM_BUDGET_PTS_F32"); return e?size_t(std::atoll(e)):kStreamBudgetPtsF32; }
+    //! The budget headroom a NEW build would be offered: the global tier budgets minus the points every
+    //! cache EXCEPT \a skip already holds (budgets are GLOBAL across cache shapes).
+    std::pair<size_t,size_t> StreamBudgetHeadroom(const StreamCache* skip) const
+    {
+        size_t a64=BudgetPts(), a32=BudgetPtsF32();
+        for (const auto& cc : itsStreamCaches)
+        {
+            if (&cc==skip) continue;
+            for (const auto& ps : cc.pairs)
+                for (const auto& st : ps.offsets)
+                    if (!st.val.empty()) a64 -= std::min(a64, st.idx.size());
+                    else                 a32 -= std::min(a32, st.idx.size());
+        }
+        return {a64,a32};
+    }
+    //! doc/GPWPlan.md 0.5(b): drop the caches for one ladder shape (any assignment rule), refunding the
+    //! global budget.  Realises Molecule::LatticeSum1E::ReleaseStreams (forwarded by the host IBS); called
+    //! by a dying grid client (GPW_Evaluator dtor) so a finished stage's streams stop squatting on the
+    //! budget.  An INCOMPLETE surviving cache picks the refund up via the self-heal rebuild in EnsureStreams.
+    void ReleaseStreams(const std::vector<ivec3_t>& N_L, const std::vector<double>& ecut_L) const
+    {
+        for (auto ci=itsStreamCaches.begin(); ci!=itsStreamCaches.end(); )
+            if (ci->SameShape(N_L,ecut_L)) ci=itsStreamCaches.erase(ci);
+            else ++ci;
+    }
     const StreamCache& EnsureStreams(const UnitCell& A, const std::vector<ivec3_t>& N_L,
                                      const std::vector<double>& ecut_L, double absRelCutoff) const
     {
-        for (const auto& c : itsStreamCaches)
+        for (auto ci=itsStreamCaches.begin(); ci!=itsStreamCaches.end(); ++ci)
         {
-            if (c.absRelCutoff!=absRelCutoff || c.ecut_L!=ecut_L || c.N_L.size()!=N_L.size()) continue;
-            bool same=true;
-            for (size_t l=0;l<N_L.size();l++)
-                if (c.N_L[l].x!=N_L[l].x || c.N_L[l].y!=N_L[l].y || c.N_L[l].z!=N_L[l].z) { same=false; break; }
-            if (same) return c;
+            const StreamCache& c=*ci;
+            if (c.absRelCutoff!=absRelCutoff || !c.SameShape(N_L,ecut_L)) continue;
+            if (c.droppedPts==0) return c;                        // complete: replay is bit-stable, never rebuilt
+            // SELF-HEAL (doc/GPWPlan 0.5(b)): this cache dropped pairs because OTHER resident caches held the
+            // budget when it was built (the grid-continuation seed builds the FINE shape while the coarse
+            // stage still squats).  If a release has since grown the headroom, rebuild -- the dropped pairs
+            // re-evaluate EVERY iteration, so one rebuild sweep is always the cheaper side of the trade.
+            auto [a64,a32]=StreamBudgetHeadroom(&c);
+            if (a64<=c.availAtBuild64 && a32<=c.availAtBuild32) return c;
+            itsStreamCaches.erase(ci);
+            break;                                                // fall through to a fresh build
         }
         if (itsStreamCaches.size()>=kMaxStreamCaches) itsStreamCaches.clear();   // unexpected shape churn
         itsStreamCaches.emplace_back();
@@ -490,12 +532,8 @@ public:
         c.N_L=N_L; c.ecut_L=ecut_L; c.absRelCutoff=absRelCutoff;
         const size_t n=size();
         c.pairs.resize(n*n);
-        size_t budget64=BudgetPts(), budget32=BudgetPtsF32();
-        for (size_t cc=0; cc<itsStreamCaches.size()-1; cc++)          // budgets are GLOBAL across cache shapes
-            for (const auto& ps : itsStreamCaches[cc].pairs)
-                for (const auto& st : ps.offsets)
-                    if (!st.val.empty()) budget64 -= std::min(budget64, st.idx.size());
-                    else                 budget32 -= std::min(budget32, st.idx.size());
+        auto [budget64,budget32]=StreamBudgetHeadroom(&c);        // (empty c contributes nothing)
+        c.availAtBuild64=budget64; c.availAtBuild32=budget32;
         size_t nPairs=0, nCached64=0, nCached32=0, pts64=0, pts32=0, ptsDropped=0;
         for (auto i:indices()) for (auto j:indices(i))
         {
@@ -553,14 +591,16 @@ public:
             }
             else { ps.offsets.clear(); ps.offsets.shrink_to_fit(); ptsDropped+=pts; }
         }
+        c.droppedPts=ptsDropped;
         // One-line readout per cache build (static setup, not per-iteration): the budget headroom is THE lever
         // for the analytic path's speed, so make coverage visible (dropped pairs re-evaluate every iteration).
+        // Budgets printed are the EFFECTIVE (env-overridable) values, not the compile-time constants.
         std::cerr << "[stream cache] shape=(";
         for (size_t l=0;l<N_L.size();l++) std::cerr << (l?",":"") << N_L[l].x;
         std::cerr << ") rule=" << (absRelCutoff>0.0 ? "abs " : "rel ") << absRelCutoff << "  pairs " << nPairs
                   << ": fp64 " << nCached64 << " (" << pts64 << " pts), fp32 " << nCached32
                   << " (" << pts32 << " pts), dropped " << ptsDropped
-                  << " pts (budgets " << kStreamBudgetPts << "/" << kStreamBudgetPtsF32 << ")" << std::endl;
+                  << " pts (budgets " << BudgetPts() << "/" << BudgetPtsF32() << ")" << std::endl;
         return c;
     }
 

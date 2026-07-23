@@ -213,16 +213,30 @@ the full-SR diagnostic ran 8.45 h vs 88.6 s — its pathology is items (b)+(c) b
 (dependency-aware leverage; letters are stable labels, kept for cross-references).  Prelude: the
 test-side `ctest -j16` upgrade (separate session) lands before (b) so every step below gets fast
 confirmation runs.
-- **(b) Free the coarse stage's stream caches after the seed handoff** (`bsC.reset()` class fix): the
-  global stream budgets are consumed by the RESIDENT coarse caches, so the fine stage of a
-  grid-continuation run gets ~0% coverage and re-evaluates billions of points per iteration (the 8.45-h
-  run's dominant cost).  FIRST: a small class fix with the largest single measured pathology behind it,
-  AND it sanitises the timing baseline every later A/B below is measured against.
+- **(b) DONE 2026-07-23 — free the coarse stage's stream caches after the seed handoff.**  The class fix
+  is TWO halves, both needed because the fine shape's cache is built DURING the handoff (the coarse block
+  collocates the seed on the fine fit grid) while the coarse caches still hold the budget:
+  (1) RELEASE — new seam capability `Molecule::LatticeSum1E::ReleaseStreams(N_L, ecut_L)` (PG_Cart
+  forwards to the MnD evaluator, which erases the shape's caches, refunding the GLOBAL budget), called by
+  `~GPW_Evaluator` with its own ladder shape — so `bsC.reset()` genuinely frees;  (2) SELF-HEAL — a
+  StreamCache records `droppedPts` + the budget headroom it was offered; an INCOMPLETE cache rebuilds
+  when headroom has GROWN (a resident shape was released), a complete cache NEVER rebuilds (bit-stable
+  replay preserved on every anchor path), an unchanged starved cache never churns.  Gate:
+  `GPW.StreamCacheReleaseUnstarvesLaterGrid` (two grids on one shared molecular basis under a tight env
+  budget: starve → release → self-heal → no-churn; note the static-field IntegrateMemo replays identical
+  fields WITHOUT consulting stream caches — the gate varies the field per call).  The grid-continuation
+  SCF test now tears the whole coarse stage down (iterator → EC → basis, all unique_ptr) right after the
+  seed/MOM handoff.  Suite 564/564.  VALIDATION NUANCE (full GC run 2026-07-23): on SR2 the fine demand
+  (65M pts) fits tier 2 even with coarse resident — the starvation needs the full-SR-scale demand (952M),
+  so the unit gate (tight budget) is the regression anchor, not the SR2 run.  That run also showed
+  `DISABLED_NaFGridContinuation`'s energy pins are STALE (coarse −27.76 = the RETRACTED aliasing-era
+  value; fine converges clean at −23.680 = the §0h MOM cross-grid pinning signature, 0.75 Ha above the
+  −24.431 truth) — re-pin with/after 0h, task chip filed.
 - **(c) Stream-budget follow-ups:** byte-aware per-pair transient bound (the current bound is in POINTS
-  but pairs build in fp64 form — a 400M-pt fp32 budget still admits a ~5-GB build transient); the
-  `[stream cache]` readout should print the EFFECTIVE (env-overridden) budgets, not the compile-time
-  constants.  Rides with (b); the byte-aware bound gets MORE relevant after (f), whose raw fine-level
-  XC feed changes what occupies the stream budget.
+  but pairs build in fp64 form — a 400M-pt fp32 budget still admits a ~5-GB build transient).  The
+  readout sub-item is DONE (rode with (b): `[stream cache]` prints the EFFECTIVE env-overridden budgets).
+  The byte-aware bound gets MORE relevant after (f), whose raw fine-level XC feed changes what occupies
+  the stream budget.
 - **(f) BALL-PER-ROLE re-calibration (user question 2026-07-23): one ball currently serves three roles
   with three different natural calibrations** — Hartree ρ ball ≈ 2–3·α_max (charge-converged, measured);
   the ρ FED TO the XC nonlinearity ≈ 4–8·α_max (a POINTWISE non-negativity requirement, not spectral:
