@@ -55,6 +55,13 @@ public:
     //! of the occupied set from iteration 1, so a fine-grid run SEEDED from a coarse-grid solution converges to
     //! the physical state instead of an occupation-contaminated one (the coarse density alone is not enough).
     virtual void       AdoptMOMReference(const tWaveFunction<T>& from)          =0;
+    //! \brief The 0h MOM guard's actuator (doc/GPWPlan 0h): DROP the captured/adopted MOM reference and
+    //! RE-ARM the delayed-IMOM capture (the next fills run plain aufbau for the settling window, then a
+    //! fresh reference is captured from the now-physical occupied set).  Called by the SCFIterator when it
+    //! detects a PERSISTENT HOLE (an unoccupied ε below an occupied ε over consecutive iterations) -- the
+    //! signature of a stale/wrong reference pinning an excited state (measured: +0.75 Ha on the NaF
+    //! grid-continuation transfer).  A reference is trusted, never verified, so this is the ONE escape hatch.
+    virtual void       ReleaseMOMReference()                                    =0;
 };
 
 export using SCFWaveFunction  = tSCFWaveFunction<double>;

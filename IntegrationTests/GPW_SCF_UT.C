@@ -568,11 +568,13 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
 // staying in) the physical basin.
 //
 // MOM ACROSS THE GRID CHANGE (doc/GPWPlan 0h): transferring the coarse WF's occupied subspace as a fixed
-// MOM reference (AdoptMOMReference) PINS AN EXCITED STATE across the discretization change -- measured
-// 2026-07-23: -23.680 vs the -24.43 aufbau ground state, +0.75 Ha.  So the DEFAULT fine recipe is PURE
-// AUFBAU (GC_SEED_MOM=0, GC_FINE_MOM_START=9999): with the seed holding it in the physical basin the plain
-// aufbau fill converges cleanly (22 iters, charge exact).  GC_SEED_MOM=1 GC_FINE_MOM_START=1 re-enables the
-// transfer path for the 0h MOM-guard work (release/re-capture should recover the ground state).
+// MOM reference (AdoptMOMReference) pinned AN EXCITED STATE across the discretization change (measured
+// 2026-07-23: -23.680, +0.75 Ha).  The 0h GUARD (persistent-hole detection -> release + re-capture) now
+// makes BOTH recipes land the ground state: pure aufbau (the default: GC_SEED_MOM=0, GC_FINE_MOM_START=
+// 9999; 22 iters) and the transfer path (GC_SEED_MOM=1 GC_FINE_MOM_START=1: VERIFIED 2026-07-23, guard
+// fires once on the coarse stage's own capture-at-10 reference, fine converges 16 iters to -24.43252 --
+// identical to the aufbau pin to 8 decimals).  The guard also exposed that the COARSE stage's endpoint had
+// itself been MOM-pinned +0.75 high in every earlier measurement (see the coarse-pin note below).
 //
 // GATE: the fine grid must reach the raw-XC aufbau ground state -24.4325 (1.3 mHa from CP2K's -24.4312,
 // itself an Ecut=160-class number), NOT the -40 basin.  DISABLED (two full NaF SCFs, ~5 min).  Env knobs
@@ -639,12 +641,14 @@ TEST(GPW_SCF, DISABLED_NaFGridContinuation)
     auto Ecoarse=scfC->GetEnergy();
     std::cout << "[NaF grid-cont COARSE] Ecut=40 iters="<<scfC->GetIterationCount()
               << " Etot="<<Ecoarse.GetTotalEnergy() << std::endl;
-    // The Ecut=40 fixed point on the RAW-XC landscape (0.5(f2)): -23.6799, E-flat CONVERGED in ~45 iters --
-    // the raw feed removed the ball path's Gibbs noise from the XC residual, which had stalled this stage
-    // (ball-era: still descending at the 200 cap, converged -23.693 only at 515 iters).  (The original
-    // -27.76 anchor was the RETRACTED aliasing-era value: the leaky coarse grid honestly UNDERBINDS the
-    // -24.43 fine answer by ~0.75 Ha instead of aliasing 4 Ha below it.)
-    EXPECT_NEAR(Ecoarse.GetTotalEnergy(), -23.6799, 0.01);   // seed-quality anchor (did-E-move)
+    // The Ecut=40 fixed point on the RAW-XC landscape WITH the 0h MOM guard: -24.4357, E-flat converged in
+    // ~43 iters -- only 3.2 mHa from the fine (Ecut=320) -24.4325: under raw XC the Ecut=40 grid is nearly
+    // converged.  PIN HISTORY (each anchor exposed by the next fix): -27.76 = the RETRACTED aliasing era;
+    // -23.69 (ball, 515 iters) and -23.68 (raw, 45 iters) = a MOM-PINNED EXCITED STATE the 0h guard caught
+    // (the capture-at-fill-10 reference grabbed a non-aufbau configuration; persistent ~3 mHa hole ->
+    // release -> aufbau recovery).  The "coarse underbinds by 0.74 Ha" story was that excited state's
+    // artifact, not grid error.
+    EXPECT_NEAR(Ecoarse.GetTotalEnergy(), -24.4357, 0.01);   // seed-quality anchor (did-E-move)
 
     // Grab the converged coarse density (OWNED; consumed by the fine ctor's Init).  bsC stays alive until
     // after the fine ctor, so the density's coarse-block pointer stays valid for the one iteration-0 read.

@@ -203,9 +203,11 @@ The recipe — every piece fixes a wall we hit:
 
 **Orientation (2026-07-23).**  GPW is VALIDATED against CP2K at sub-mHa on every honest comparison (Si,
 NaF-SR2 0.19 mHa, NaF-full-SR 0.10 mHa — after the CP2K SR "oracle" −27.93 was RETRACTED as its screening
-artifact; TRAPS #2).  NaF production (SR2, matched grids) runs in 190 s.  The queue: §0.5 runtime
-(execution order b→c→f→a→e→d — the DM-ρ XC feed lands BEFORE the raster-policy A/B), 0h SCF guards,
-0i analytic long, §1 diffuse-basis robustness (demoted to automation), then the standing items (2)–(5).
+artifact; TRAPS #2).  NaF production (SR2, matched grids) runs in 190 s.  The queue: §0.5 runtime —
+b, c, f1, f2 DONE 2026-07-23 (raw-XC feed: collapse basin removed, C=3 NaF 0.2 mHa vs CP2K) — then
+**0h SCF guards (pulled ahead: they gate the C 8→3 default flip)**, 0.5(a) raster policy as one combined
+{policy × C} calibration, (e), (d), 0i analytic long, §1 diffuse-basis robustness (demoted to
+automation), then the standing items (2)–(5).
 
 ## 0.5 RUNTIME IMPROVEMENTS (the consolidated performance queue)
 Current standing (all converged, same machine): Si Γ 48 s vs CP2K 3.5 s; NaF SR2 190 s vs 5.8 s (~33×);
@@ -342,16 +344,25 @@ grid-cost gap:
   8× is the honest price of our XC path and this item closes as "policy justified".
 
 
-## 0h. SCF-strategy guards (banked from the validation; do with/after the §0c seams)
-- **MOM cross-grid guard:** `AdoptMOMReference` across a discretization change can pin an EXCITED state
-  (measured: 0.76 Ha on NaF — the transferred occupied subspace need not span the new grid's aufbau
-  ground space; re-confirmed 2026-07-23: +0.754 Ha, −23.680 vs −24.434).  Guard: detect a PERSISTENT
-  HOLE at convergence (an unoccupied ε below an occupied ε) and release/re-capture MOM (or at minimum
-  WARN loudly).  Until the guard exists, `DISABLED_NaFGridContinuation` defaults to PURE AUFBAU on the
-  fine stage (the transfer path stays env-selectable: GC_SEED_MOM=1 GC_FINE_MOM_START=1 — the 0h repro).
-- **`ReportBandGap` hole-masking fix:** the εH/εL summary line takes εL from the lowest virtual ABOVE
-  the HOMO index and printed gap=0.67 while a −0.36 Ha virtual sat BELOW occupied levels; take εL over
-  ALL unoccupied and flag non-aufbau.  (The `frontier ε(occ)` window was the honest instrument.)
+## 0h. SCF-strategy guards — PULLED AHEAD of 0.5(a) (user-approved 2026-07-23): the C 8→3 default flip
+## (~2.8× raster, measured clean by the (f2) sweep) is gated on THESE guards, not on more grid work; and
+## (a)'s BallOnly A/B should run on a stable occupation footing.  Also in scope now: the C=4 near-gapless
+## aufbau instability from the (f2) sweep (occupation swaps at gap~2e-3 — the smearing/occupation seam's
+## first concrete customer).
+- **MOM cross-grid guard — DONE 2026-07-23.**  `HomoLumo` fixed (εL over ALL unoccupied + `hole` flag +
+  `[HOLE: non-aufbau]` marker — the old above-the-HOMO-index scan masked the diagnostic);
+  `tSCFWaveFunction::ReleaseMOMReference()` (drop the reference + re-arm the delayed-IMOM capture);
+  iterator guard: 3 consecutive hole iterations → WARN + release + convergence veto (≤2 releases/run);
+  NEVER SILENT: any run ENDING non-aufbau warns on cerr regardless of recipe.  VERIFIED on the 0h repro
+  (GC_SEED_MOM=1 GC_FINE_MOM_START=1): fine lands −24.43252 in 16 iters — identical to the aufbau pin to
+  8 decimals (was −23.680, +0.75 pinned).  **DISCOVERY: the guard caught the COARSE stage's own recipe
+  red-handed — its capture-at-fill-10 reference pinned a +0.75-class excited state in EVERY earlier
+  measurement (the −23.68/−23.69 "coarse fixed points"); the honest raw-XC Ecut=40 fixed point is
+  −24.4357, only 3.2 mHa from the Ecut=320 answer.  Under raw XC + the guard, the Ecut=40 (C=1!) grid is
+  NEARLY CONVERGED on NaF — which reframes the C-default question entirely: the calibration sweep for
+  the default C should now scan DOWN TO C~1-2, and grid continuation may be unnecessary for production
+  tolerances.**
+- **`ReportBandGap` hole-masking fix — DONE 2026-07-23** (folded into the guard work above).
 
 ## 0i. Analytic V_local LONG — DEMOTED to robustness/perf (was the §0e-PP crux)
 With (a)+(b) landed, the SHORT is analytic in production and the grid LONG is standalone-exact to the

@@ -49,14 +49,17 @@ namespace qchem::SCFIterator
 bool& ReportBandGap() { static bool on = false; return on; }
 
 // Frontier spectrum of the current orbitals.  The energy levels are energy-ordered (multimap key), so
-// ε_HOMO is the highest-energy level still carrying occupation and ε_LUMO the first empty level above it.
-// \c metallic flags a partially-occupied frontier level (occ not near a full shell) -- a genuine
-// (near-)degenerate crossing where "the gap" is ill-defined; that is itself the finding for NaF at Γ.
-struct GapInfo { double eHomo=0, eLumo=0, gap=0; bool haveHomo=false, haveLumo=false, metallic=false; };
+// ε_HOMO is the highest-energy level still carrying occupation and ε_LUMO the LOWEST empty level -- over
+// ALL unoccupied levels, NOT just those above ε_HOMO (doc/GPWPlan 0h: the old above-the-HOMO-index scan
+// printed gap=0.67 while a −0.36 Ha virtual sat BELOW the occupied set -- it MASKED the hole that is the
+// whole diagnostic).  A NON-AUFBAU configuration (ε_LUMO < ε_HOMO) is flagged as \c hole and the gap goes
+// honestly negative.  \c metallic flags a partially-occupied frontier level (occ not near a full shell) --
+// a genuine (near-)degenerate crossing where "the gap" is ill-defined; itself the finding for NaF at Γ.
+struct GapInfo { double eHomo=0, eLumo=0, gap=0; bool haveHomo=false, haveLumo=false, metallic=false, hole=false; };
 
 template <class T> static GapInfo HomoLumo(const qchem::WaveFunction::tWaveFunction<T>* wf)
 {
-    const double occTol=1e-6;
+    const double occTol=1e-6, holeTol=1e-6;
     GapInfo g;
     auto els=wf->GetEnergyLevels();
     // First pass: ε_HOMO = last (highest) level with occ>occTol; note any partial occupation on it.
@@ -66,15 +69,17 @@ template <class T> static GapInfo HomoLumo(const qchem::WaveFunction::tWaveFunct
         if (lvl.occ>occTol) { g.eHomo=lvl.e; g.haveHomo=true;
                               g.metallic = lvl.occ < (double)lvl.degen - occTol; }   // shell not full => crossing
     }
-    // Second pass: ε_LUMO = first empty level strictly above ε_HOMO (fall through to the very first empty
-    // level if there is no occupation at all, e.g. a bare seed).
+    // Second pass: ε_LUMO = the FIRST empty level in energy order, wherever it sits.
     for (auto it=els.begin(); it!=els.end(); ++it)
     {
         const auto& lvl=it->second;
-        if (lvl.occ<=occTol && (!g.haveHomo || lvl.e>g.eHomo))
-            { g.eLumo=lvl.e; g.haveLumo=true; break; }
+        if (lvl.occ<=occTol) { g.eLumo=lvl.e; g.haveLumo=true; break; }
     }
-    if (g.haveHomo && g.haveLumo) g.gap=g.eLumo-g.eHomo;
+    if (g.haveHomo && g.haveLumo)
+    {
+        g.gap =g.eLumo-g.eHomo;
+        g.hole=g.eLumo < g.eHomo-holeTol;   // an empty level below an occupied one: non-aufbau
+    }
     return g;
 }
 
@@ -249,6 +254,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
     itsMixer = qchem::ChargeDensity::MakeDensityMixer<T>(ipar.StartingRelaxRo, ipar.KerkerG0, ipar.PulayDepth,
                                                          ipar.PulayStart, itsBS, itsKerkerCell.get(), itsCD.get());
 
+    int holeRun=0, momReleases=0;   // 0h MOM-guard state (per run): consecutive hole iterations + releases
     for (itsIterationCount=1;
         itsIterationCount   <= ipar.NMaxIter && !itsConverged;
         itsIterationCount++)
@@ -297,8 +303,37 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
                  && FD                     < ipar.MinFD
                  && fabs(eb.GetVirial()+idealVirial) < ipar.MinVirial
                   ;
+        // 0h MOM GUARD (doc/GPWPlan 0h): a MOM reference is TRUSTED, never verified -- a stale/wrong one
+        // (the grid-continuation transfer; a reference captured mid-transient) pins an EXCITED state whose
+        // signature is a PERSISTENT HOLE: an unoccupied ε sitting below an occupied ε, iteration after
+        // iteration (measured: +0.754 Ha on NaF, the hole 0.36 Ha deep).  On 3 consecutive hole iterations,
+        // RELEASE the reference (drop + re-arm the delayed-IMOM capture: aufbau fills for the settling
+        // window, then a fresh reference from the now-physical occupied set) and VETO this iteration's
+        // convergence so the run gets to relax into the recovered state.  Capped at 2 releases per run --
+        // a hole that survives them is reported loudly below, never silently.
+        if (ipar.UseMOM)
+        {
+            GapInfo g=HomoLumo(itsWaveFunction);
+            holeRun = g.hole ? holeRun+1 : 0;
+            if (holeRun>=3 && momReleases<2)
+            {
+                std::cerr << "[MOM guard] PERSISTENT HOLE: unoccupied ε=" << g.eLumo << " sits "
+                          << (g.eHomo-g.eLumo) << " Ha below occupied ε=" << g.eHomo
+                          << " for 3 iterations -- the MOM reference pins a non-aufbau state. "
+                          << "Releasing the reference (aufbau + delayed re-capture)." << std::endl;
+                itsWaveFunction->ReleaseMOMReference();
+                ++momReleases; holeRun=0;
+                itsConverged=false;                          // the recovery needs further iterations
+            }
+        }
         // DisplayEigen();
     }
+    // NEVER SILENT: whatever the recipe, a run that ENDS non-aufbau is reported (the honest instrument --
+    // the old εH/εL line masked exactly this; doc/GPWPlan 0h).
+    if (GapInfo g=HomoLumo(itsWaveFunction); g.hole)
+        std::cerr << "[MOM guard] WARNING: run ended NON-AUFBAU (unoccupied ε=" << g.eLumo << " below occupied ε="
+                  << g.eHomo << ") -- excited-state energy; check the occupation recipe (MOM reference/smearing)."
+                  << std::endl;
 //             Etotal       2+V/K    Del(E)  Del(Ro) [F,D]   Nproj    SVMin   Bail      relax
 // │ │                      (1e+05)  (1e-02) (2e-05) (2e-06) 
     itsIterationCount--;
@@ -391,6 +426,7 @@ template <class T> void tSCFIterator<T>::DisplayEnergies(int i, const EnergyBrea
         cout << " gap=";
         if (g.haveHomo && g.haveLumo) cout << std::scientific << setw(9) << setprecision(2) << g.gap; else cout << "     ----";
         if (g.metallic) cout << " [partial-occ HOMO]";
+        if (g.hole)     cout << " [HOLE: non-aufbau]";
         cout << endl << "        frontier ε(occ): " << FrontierWindow(itsWaveFunction, 2, 4);
     }
     cout << endl;

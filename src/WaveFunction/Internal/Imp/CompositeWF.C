@@ -176,6 +176,12 @@ template <class T> void tCompositeWF<T>::AdoptMOMReference(const tWaveFunction<T
     for (auto& w : itsIWFs) w->AdoptMOMReference(*from.GetOrbitals(w->GetIrrep()));
 }
 
+// 0h MOM guard actuator: forward the release to every irrep WF (each drops its reference + re-arms capture).
+template <class T> void tCompositeWF<T>::ReleaseMOMReference()
+{
+    for (auto& w : itsIWFs) w->ReleaseMOMReference();
+}
+
 template <class T> void tCompositeWF<T>::FillOrbitals(double mergeTol)
 {
     itsELevels.clear();

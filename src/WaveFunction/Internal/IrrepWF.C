@@ -53,6 +53,9 @@ public:
     //! analytic Bloch overlap is grid-independent), so its physical occupied C' columns transfer verbatim.
     void                AdoptMOMReference(const Orbitals& from)      ;
     void                SetMOM          (bool useMOM, int startIter) {itsUseMOM=useMOM; itsMOMStartIter=startIter;}
+    //! 0h guard actuator: drop the reference + re-arm the delayed-IMOM capture (itsFillCount restarts, so a
+    //! fresh reference is captured itsMOMStartIter aufbau fills from now -- the calibrated settling window).
+    void                ReleaseMOMReference() {itsRefOccCPrime.clear(); itsFillCount=0;}
 
     void                DisplayEigen    () const;
     const Irrep&    GetIrrep        () const {return itsIrrep;}   // this WF's irrep (the proper map key)

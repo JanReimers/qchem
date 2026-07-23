@@ -46,6 +46,7 @@ public:
     virtual void            FillOrbitals    (double mergeTol);
     virtual void            SetMOM          (bool useMOM, int startIter);
     virtual void            AdoptMOMReference(const tWaveFunction<T>& from);
+    virtual void            ReleaseMOMReference();
     virtual iqns_t          GetQNs          () const;
 
     virtual tDM_CD<T>*      GetChargeDensity(Spin) const;
