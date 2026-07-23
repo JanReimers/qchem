@@ -44,10 +44,15 @@ make pathological cases self-correcting: the software behaves like an expert sys
 
 ### 2. PER-SYSTEM ITERATION OUTPUT (virtual DisplayColumns/DisplayColumnHeaders)
 Rides the same presentation cleanup as item 1 — do while the SCF surface is open.
-- Atoms/Molecules: {E, ΔE, Δρ, [F,D], virial, config}.
-- Solids/PP: DROP the virial (2+V/K assumes Coulombic homogeneity; GTH local + KB projectors break
+- Atoms/Molecules: {E, [F,D], Δ[F,D], Δρ, virial, ρ_mix, accel, config}.
+  ρ_mix fixed # of chars to identify itself (Lin,Ker,Pul) and a number
+  accel fixed # of chars to identify itself (Null,DIIS,GMD) and a number
+  config 1 char,  put * if the config changed (full configs are way too long)
+  open to suggestions on any of this
+- Solids/PP: {E, [F,D]?, ΔE, Δρ, ρ_lost, ρ_mix, accel, config, gap, ?? 
+  DROP the virial (2+V/K assumes Coulombic homogeneity; GTH local + KB projectors break
   it — the idealVirial fudge retires) and show the health instruments that already exist as ad-hoc
-  lines: gap (hole-flagged, from the fixed HomoLumo), grid-charge lost, relax.
+  lines: gap (hole-flagged, from the fixed HomoLumo)
 - Absorbs the `ReportBandGap()`/`ReportGridCharge()` process-wide flags into the per-system display.
 
 ### 3. CACHE2/3 BYTE-BUDGET LRU (GPWPlan §5 design, user-approved)
