@@ -228,17 +228,17 @@ GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const
     BuildImages(cell, itsHomeOnly ? 0.0 : 2.0*itsMaxReach+2.0*cell.GetMaximumCellEdge(), itsk, itsRc, itsPhaseC);
 
     // The DFT tier's density/collocation grid: GPW's ONLY grid cutoff (no orbital/wavefunction cutoff -- the
-    // Gaussians are analytic).  IMPORTANT: densityEcut is a DENSITY-scale quantity; the sharpest feature is the
-    // PRODUCT of the two tightest primitives (a Gaussian of exponent 2*alpha_max), so at a fixed tolerance it
-    // needs ~2x the cutoff that resolves a single orbital exp(-alpha_max r^2).  cutoffFactor (default 4) FOLDS
-    // that x2 into a tolerance calibrated on the DENSITY charge loss, not an orbital tail (F alpha_max=40:
-    // Ecut=40 loses >5 e-, =120 holds 7.997, CP2K converges ~200), so 4*alpha_max lands in the good regime.
+    // Gaussians are analytic).  IMPORTANT: densityEcut is a DENSITY-scale quantity: the sharpest feature is
+    // the PRODUCT of the two tightest primitives (a Gaussian of exponent 2*alpha_max), and cutoffFactor=2
+    // (the default) resolves the density AT its own exponent.  The pre-(f2) default of 8 was compensation
+    // for the ball-projected XC feed's Gibbs lobes (see the ctor doc + doc/GPWPlan 0.5(f)); with the raw
+    // collocated feed the measured NaF curve is a sub-2-mHa plateau from C~1.5 up.
     //   densityEcut < 0 : AUTOMATIC (recommended) -- floor = cutoffFactor*alpha_max, from the basis (no user Ha).
     //   densityEcut = 0 : DFT tier OFF (1E-only; no grid).
     //   densityEcut > 0 : EXPLICIT -- honoured as given, but WARN on cerr if below the floor (the caller insisted
     //                     on an under-resolved grid: charge leaks off-grid -- we don't hide it, but we don't
-    //                     silently override the explicit choice either).  For SIPP alpha_max=2 the floor is 8,
-    //                     below every committed Si anchor's densityEcut (>=10), so those are unchanged.
+    //                     silently override the explicit choice either).  For SIPP alpha_max=2 the floor is 4,
+    //                     below every committed Si anchor's densityEcut (>=6), so those are unchanged.
     if (densityEcut!=0.0)
     {
         const double aMax  = itsLat->MaxExponent();
@@ -602,11 +602,15 @@ void GPW_Evaluator::BuildLevels(std::shared_ptr<const PW_Grid_Evaluator> grid,
     // by GPW.SharpestPairChargeConservation).  One rung at exactly that cutoff makes every smooth-path
     // assignment satisfiable.  Appended LAST so ecut_L[0] stays the resolution reference (the requirement
     // must not stiffen with the ladder).  GATED on the ENERGY CALIBRATION: when the reference grid already
-    // sits at/above RelCutoffSafety() x the auto floor (cutoffFactor*alpha_max) -- e.g. the Si anchors'
-    // explicit Ecut=20 vs 2*4*2=16 -- the sharpest pair's tails are already inside the calibrated budget
-    // and the rung would buy sub-mHa for 1.6-4x runtime (measured 2026-07-16); a reference AT the auto
-    // floor (every AUTO run) gets the rung.
-    if (efine < itsLat->RelCutoffSafety()*itsCutoffFactor*amax)
+    // sits at/above RelCutoffSafety() x kRungGateC x alpha_max the sharpest pair's tails are already inside
+    // the calibrated budget and the rung would buy sub-mHa for 1.6-4x runtime (measured 2026-07-16 at the
+    // Si anchors).  kRungGateC is a FIXED calibration constant, deliberately DECOUPLED from cutoffFactor:
+    // the rung serves the pair->level rule (requirement max = RelCutoffSafety()*efine, no C in it) and the
+    // absolute-kappa local-PP sweep -- when the (f2) raw-XC feed dropped the density-floor default C 8->2,
+    // a gate borrowing C silently lost the rung at explicit Ecuts the kappa gate needs
+    // (GPW.LocalPPKappaSelfConverged: analytic-vs-grid short 0.087 without the Ecut=20 rung at Ecut=10).
+    static constexpr double kRungGateC=8.0;   // the C=8-era measured calibration, now standalone
+    if (efine < itsLat->RelCutoffSafety()*kRungGateC*amax)
         levels.push_back(std::make_shared<const PW_Grid_Evaluator>(
                                 grid->Recip(), rvec3_t(0,0,0), itsLat->RelCutoffSafety()*efine));
     for (const auto& g : levels)

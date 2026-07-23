@@ -280,7 +280,14 @@ confirmation runs.
   DEFAULT cutoffFactor stays 8 until the 0h occupation guard (or Fermi smearing) lands — the C 8→3 flip
   is then a one-line default + suite re-pin.  Historical design note (the original insight, kept for
   the record): feed XC the DM-ρ, pointwise NON-NEGATIVE by construction (PSD D ⇒ φᵀDφ ≥ 0) — the C=8
-  cleanliness constraint dissolves.  NOT via op(r) sampling (that is the deleted PhiOnGrid era, ~1e9 exp/iter) — the
+  cleanliness constraint dissolves.  **DEFAULT FLIPPED C 8→2 (2026-07-23, user-approved: C=2 resolves
+  the density at its own exponent 2α_max — the natural constant now that the guard-rail compensation is
+  gone).  En route the ladder's TOP-RUNG GATE was found borrowing cutoffFactor as its calibration
+  (flipping C silently dropped the rung at explicit Ecuts → GPW.LocalPPKappaSelfConverged failed at
+  0.087); the gate now has its own fixed constant kRungGateC=8 — DECOUPLED, all explicit-Ecut ladders
+  bit-identical.  NaFRocksaltGamma re-anchored −24.4357±0.01 and re-tuned to α=0.25 (user measurement:
+  converges 20 iters / 63 s — the ball-era α=0.025 was calibrated against limit cycles that no longer
+  exist).  Suite 565/565.**  NOT via op(r) sampling (that is the deleted PhiOnGrid era, ~1e9 exp/iter) — the
   collocation STREAMS already materialise exactly those χᵢχⱼ(r) samples: the RAW D-weighted level
   densities before the FFT/ball combine ARE ρ_DM(r) to screening-ε (worst negatives ~1e-10, not the
   ball's Gibbs −0.77 e).  So: keep the fine level RAW for the XC feed (skip the ball truncation there
@@ -534,6 +541,15 @@ no time-reversal factor. Validate bit-level: reduced-mesh-with-weights == full-m
 is an *efficiency* layer, not a correctness requirement — hence it comes AFTER a working full-BZ reference.
 
 ## 5. Deferred cleanups (do once bulk works — "the working code is the definitive declaration")
+- **ENV-KNOB GRADUATION (user 2026-07-23): the env parameters were measurement-campaign quarantine —
+  now that SCF/MOM/DIIS/ρ-mixing are understood, move the settled ones into typed params.**  Sort:
+  (1) SCF POLICY (α, KerkerG0, Pulay depth/start, MOM start — already `SCFParams` fields; delete the
+  `NAF_*`/`GC_*` env OVERRIDES and hard-code the tests' recipes, possibly as named `SCFParams` presets
+  or nested structs); (2) VERIFICATION INSTRUMENTS (`GPW_MGRID_ECUTS`, `GPW_RELCUTOFF`,
+  `GPW_ILLCOND_*` — CP2K-oracle matching only; keep env but mark as instruments, or fold into a test
+  helper); (3) OPS/MEMORY VALVES (`GPW_STREAM_BUDGET_PTS[_F32]`, `GPW_OMP_THREADS` — emergency valves;
+  env defensible, else a small runtime-config struct).  Do after the C=2 re-pin settles so the recipes
+  being frozen are the final ones.
 - **ISP-split the fit-basis ctors (user design, 2026-07-23 — final form).**  `PlaneWaveFit_IBS` is
   built from the whole `PW_Grid_Evaluator` (ball + raster + the orbital tier — the last is pure
   baggage).  The honest signatures differ PER ROLE:

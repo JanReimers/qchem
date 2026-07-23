@@ -43,7 +43,7 @@ Complex_BS* Factory(Type type, const ::qchem::Lattice_3D& lat, double Ecut);
 //! \param cutoffFactor  \f$C\ge4\f$ in the density-grid floor \f$C\cdot\alpha_{\max}\f$ (default 4).
 Complex_BS* GPWFactory(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
                        double densityEcut, rvec3_t kShift={0,0,0},
-                       CellImages images=CellImages::Periodic, double cutoffFactor=8.0);
+                       CellImages images=CellImages::Periodic, double cutoffFactor=2.0);
 
 } //namespace
 
@@ -70,7 +70,7 @@ class GPW_BasisSet : public BasisSet::BasisSetImp<dcmplx>
 public:
     GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
                  double densityEcut, rvec3_t kShift={0,0,0},
-                 CellImages images=CellImages::Periodic, double cutoffFactor=8.0);
+                 CellImages images=CellImages::Periodic, double cutoffFactor=2.0);
 };
 
 } //namespace

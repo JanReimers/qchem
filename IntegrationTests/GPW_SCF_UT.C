@@ -424,7 +424,7 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     // Ecut=40 regime (a real mixing-regression anchor: either bad attractor lands ~+65 or ~-39, far
     // outside the gate).  NAF_ECUT=-1 runs the production grid for Pulay development.
     const double tuneEcut =envd("NAF_ECUT", 40.0);           // <0 AUTO (=160 for F); 40 = the convergent regime
-    const double tuneAlpha=envd("NAF_ALPHA", 0.025);
+    const double tuneAlpha=envd("NAF_ALPHA", 0.25);
     const double tuneG0   =envd("NAF_KERKER_G0", 1.0);
     const size_t tuneNMax =size_t(envd("NAF_NMAX", 200));
     std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, mol, tuneEcut));   // PERIODIC: eps-complete enumeration
@@ -525,21 +525,20 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     //     therefore the direct fix; it should be clean since it is an isolated single-state swap.
     //
     // MOM FIX WIRED UP + VALIDATED (2026-07-17, SCFParams::UseMOM; default ON here).  DELAYED IMOM
-    // (SCFParams::MOMStartIter=10): run plain aufbau for ~10 fills so the SCF descends to the
-    // physical fixed point, then CAPTURE the {F 2s, F 2p} occupied subspace ONCE and hold it FIXED.  Two
-    // wrong variants were measured + rejected first: RUNNING MOM (re-capture every iter) DRIFTS (a spike
-    // corrupts the reference -> locks a +0.74 Ha level occupied while a -50 Ha level is empty -> wrong
-    // -24.4); IMOM-from-iter-0 anchors the raw seed (mid-transient) -> catastrophe (+5 Ha occupied,
-    // -112 Ha empty).  Delayed IMOM WORKS: the occupation swaps VANISH (partial-occ count 0), the diving
-    // virtual is banished (-45 Ha, UNOCCUPIED), and the SCF converges SMOOTHLY+MONOTONICALLY to the
-    // physical fixed point -27.76 (Ecut=40, dRho 6e-4 at 150 iters; gap 0.50 Ha).  vs CP2K oracle
-    // -27.93128 at 320 Ry -- the ~0.17 Ha is the Ecut=40 grid (the production grid + 0c mixing are the
-    // remaining levers).  ONE residual spike survives (iter 19) but it is NOT an occupation swap
-    // (partial-occ 0) -- a density-MIXING excursion (the charge-transfer slosh) => the 0c Pulay/Broyden
-    // item, not MOM's job.  NAF_MOM=0 A/Bs it off (restores the eternal spikes); NAF_MOM_START tunes.
-    EXPECT_NEAR(E.GetTotalEnergy(), -27.76, 0.1);   // MOM now CONVERGES the map: a real did-E-move anchor
-                                                    // (loose: slow linear-Kerker tail + the iter-19 mixing
-                                                    // transient; 0c Pulay will tighten it)
+    // (SCFParams::MOMStartIter=10): run plain aufbau for ~10 fills so the SCF descends toward the
+    // physical fixed point, then CAPTURE the occupied subspace ONCE and hold it.  Two wrong variants were
+    // measured + rejected first: RUNNING MOM (re-capture every iter) DRIFTS; IMOM-from-iter-0 anchors the
+    // raw seed (mid-transient) -> catastrophe.  Since 2026-07-23 the capture is additionally protected by
+    // the 0h GUARD (a capture that lands non-aufbau is detected via its persistent hole and released --
+    // measured HERE: the old capture pinned a +0.75 Ha excited state in every pre-guard run, which is what
+    // the -27.76 aliasing-era anchor and later the -23.68 "fixed point" actually were).
+    //
+    // ANCHOR (re-derived 2026-07-23 on the raw-XC + 0h landscape, doc/GPWPlan 0.5(f2)/0h): the honest
+    // Ecut=40 fixed point is -24.4357 -- only 3.2 mHa from the Ecut=320 answer -24.4325 and ~4.5 mHa from
+    // the CP2K SR2 truth -24.4312 (tight-eps; the historical -27.93128 "oracle" was RETRACTED as a
+    // screening artifact, TRAPS #2).  Under raw XC the Ecut=40 grid is nearly converged; the old
+    // "-27.76 vs -27.93 = 0.17 Ha grid gap" story was aliasing-era physics on both sides.
+    EXPECT_NEAR(E.GetTotalEnergy(), -24.4357, 0.01);   // did-E-move anchor (matches the GC coarse pin)
 }
 
 // (4b) NaF GRID-CONTINUATION SEEDING (doc/GPWPlan §0e, step 1) -- the PRODUCTION-GRID fix.

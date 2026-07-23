@@ -56,14 +56,17 @@ public:
     //!              the basis, so the caller need not know the Hartree value.  \f$=0\f$ = DFT tier OFF (1E-only).
     //!              \f$>0\f$ = EXPLICIT Hartree cutoff, honoured as given but with a \c cerr warning if it is below
     //!              \a cutoffFactor\f$\cdot\alpha_{\max}\f$ (under-resolves the density -> charge leaks off-grid).
-    //! \param cutoffFactor  \f$C\f$ in the density-grid cutoff \f$E_{cut}=C\cdot\alpha_{\max}\f$ (default 8).  A
-    //!              DENSITY-scale constant: the density is the PRODUCT of two orbitals (exponent
-    //!              \f$2\alpha_{\max}\f$), and resolving a Gaussian of exponent \f$p\f$ to XC accuracy needs
-    //!              \f$E_{cut}\approx4p\f$, so \f$C=4\times2=8\f$.  MEASURED (F \f$\alpha_{\max}=40\f$, doc/GPWPlan
-    //!              §0e step 2): \f$4\alpha_{\max}\f$ still aliases the collocated \f$\rho\f$ (negCharge −0.77 e →
-    //!              XC collapse), \f$8\alpha_{\max}\f$ is clean (−0.03 e).  (Charge \f$\int\rho=N\f$ holds already
-    //!              at \f$\sim3\alpha_{\max}\f$ — a weaker bar than XC.)  CP2K reaches clean at \f$\sim4\alpha_{\max}\f$
-    //!              via REAL-SPACE collocation vs our Fourier round-trip — a future \f$\times2\f$ efficiency lever.
+    //! \param cutoffFactor  \f$C\f$ in the density-grid cutoff \f$E_{cut}=C\cdot\alpha_{\max}\f$ (default 2).  A
+    //!              DENSITY-scale constant: the density is the PRODUCT of two orbitals, sharpest exponent
+    //!              \f$2\alpha_{\max}\f$ — \f$C=2\f$ resolves the density at its own exponent.  HISTORY
+    //!              (doc/GPWPlan 0.5(f)): the old default 8 was COMPENSATION for the ball-projected XC feed
+    //!              (its Gibbs lobes went negative on sharp products and the \f$\rho>0\f$ guard collapsed
+    //!              \f$E_{xc}\f$; only \f$8\alpha_{\max}\f$ ran clean).  The 0.5(f2) RAW collocated feed
+    //!              (\f$\rho_{DM}\ge 0\f$ by construction) removed that failure mode, and the measured NaF
+    //!              SR2 curve sits on a sub-2-mHa plateau from \f$C\approx 1.5\f$ up (Ecut=80/C=2: 1.2 mHa
+    //!              from the C=8 answer, 0.1 mHa from CP2K).  CP2K's own operating point is \f$\sim 4\f$ in
+    //!              these units via real-space collocation; our raw feed reaches lower because the finest
+    //!              ladder level is sampled analytically, never truncated.
     //! \param kFrac fractional crystal momentum (fractional reciprocal coords; \f$\Gamma=0\f$).
     //! \param homeCellOnly  the FINITE-molecule MODE: no lattice images anywhere (1E matrices == the finite
     //!              molecule's; KB bra = the raw home orbital) -- the molecule-in-a-periodic-box configuration
@@ -73,7 +76,7 @@ public:
     //!              (user pin, doc/GPWPlan.md).
     GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const UnitCell& cell,
                   double densityEcut = 0.0, const rvec3_t& kFrac = rvec3_t(0,0,0),
-                  bool homeCellOnly = false, double cutoffFactor = 8.0);
+                  bool homeCellOnly = false, double cutoffFactor = 2.0);
     //! Polymorphic (reached by the EPW_* mixin's Cast() cross-cast).  Releases this block's ladder-shaped
     //! collocation streams on the SHARED molecular evaluator (\c LatticeSum1E::ReleaseStreams) -- the streams
     //! are keyed by ladder shape, not by block, so without the release a finished stage's caches squat on the
@@ -204,7 +207,7 @@ private:
                                                           //!< can re-orient a non-cubic (FCC) primitive cell and
                                                           //!< silently shift every collocation box)
     size_t                              itsN   = 0;       //!< number of Gaussian orbitals
-    double  itsCutoffFactor=4.0;   //!< the density-grid floor constant C (ctor param) -- the ENERGY calibration
+    double  itsCutoffFactor=2.0;   //!< the density-grid floor constant C (ctor param) -- the ENERGY calibration
                                    //!< C*RelCutoffSafety()*alpha_max gates the top completion rung (EnsureLevels)
     std::shared_ptr<const PW_Grid_Evaluator> itsFFT_R_G_Grids;     //!< the density/collocation grid (null if DFT tier off)
     // NO hand-rolled tensor cache: the collocation tensor is a stateless build; the FRAMEWORK caches it
