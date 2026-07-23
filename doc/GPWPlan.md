@@ -236,7 +236,18 @@ the full-SR diagnostic ran 8.45 h vs 88.6 s — its pathology is items (b)+(c) b
   analytic-short landscape); if clean, lower the default C (zero architecture change — the divergent-ball
   plumbing exists via CreateCD/VxcFitBasisSet since the thread-through fix); the ⅓-v_xc ball is a smaller
   follow-on (G-space op counts).  CAUTION: the retired GPW_CDFIT_SCALE two-grid fork — any re-split must
-  buy real money over one-grid simplicity.
+  buy real money over one-grid simplicity.  **THE ENABLING MECHANISM (user insight 2026-07-23): feed XC
+  the DM-ρ, which is pointwise NON-NEGATIVE by construction (PSD D ⇒ φᵀDφ ≥ 0) — the C=8 cleanliness
+  constraint dissolves entirely.**  NOT via op(r) sampling (that is the deleted PhiOnGrid era, ~1e9
+  exp/iter) — the collocation STREAMS already materialise exactly those χᵢχⱼ(r) samples: the RAW
+  D-weighted level densities before the FFT/ball combine ARE ρ_DM(r) to screening-ε (worst negatives
+  ~1e-10, not the ball's Gibbs −0.77 e).  So: keep the fine level RAW for the XC feed (skip the ball
+  truncation there only), spectrally upsample the coarse levels (their content is genuinely
+  band-limited — benign), keep the BALL for Hartree/Poisson (variational, exact).  H_xc=∂E_xc/∂D via
+  the existing box-gather adjoint with box-truncation replacing ball-restriction per level (the
+  suspended §0f increment-1 design, RESURRECTED with the right motivation: not an accuracy fix — the
+  falsified role — but the C=8→2-3 unlock); re-gate `GPW.XCPotentialConsistencyFD` + negCharge probes.
+  This is CP2K's own arrangement (XC on raw collocated values).
 - **(e) Cache2/3 byte-budget LRU** (§5, user-approved): also the robustness fix; runtime-relevant because
   it retires the per-pair `ClearGeometryCaches()` rebuild cost on healthy bases (currently unmeasurable,
   but the LRU makes the policy principled).
