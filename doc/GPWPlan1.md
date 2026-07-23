@@ -14,8 +14,10 @@ spin-native is the formulation; correct > efficient > end-user > dev > readable.
   frontiers is item 4b below.
 - **C=2 default** (density resolved at its own product exponent); ladder top-rung gate decoupled
   (`kRungGateC=8`).
-- **RasterPolicy A/B measured**: BallOnly ≈ 1 mHa at/above the C=2 floor (CP2K's bet confirmed);
-  default flip PARKED on item 1 (the param structs), per user.
+- **RasterPolicy A/B measured + DEFAULT FLIPPED to BallOnly on the GPW surface** (user 2026-07-23:
+  ≈1 mHa at/above the C=2 floor, CP2K's bet confirmed; PW path keeps AliasFree pending its own A/B;
+  three exact-quadrature kernel gates pinned {.raster=AliasFree}; NaF production anchor −24.4304 =
+  0.8 mHa from CP2K).
 - **Runtime vs CP2K (single-thread us, threaded them)**: Si 45 s AliasFree / 7.2 s BallOnly vs 3.5 s;
   NaF 63 s at auto vs 5.8 s.  The structural gap is closed; BallOnly + OMP ≈ parity.
 - **Known pathology, one family left**: near-gapless occupation flapping at particular
@@ -96,6 +98,9 @@ Design pin (user): cache B(R), never M(k) — "keep k out of the key".
 
 ## Parked/background (unchanged from GPWPlan.md)
 0.5(e)'s runtime aspect folded into item 3.  0i analytic V_local LONG (robustness; fold the core
-charge into PW_Hartree's G-space solve).  §2 low-q multi-species Si/NaF/CsI cross-validation.
+charge into PW_Hartree's G-space solve) — NOTE (user question 2026-07-23): the ladder's L>0 levels +
+top rung currently serve TWO clients, the collocation completion (REL-rule) and the V_long κ-ruled
+grid sweep; after 0i the sweep client disappears and whether the completion rung still pays at
+BallOnly+C=2 becomes a measurable rung-gate question.  §2 low-q multi-species Si/NaF/CsI cross-validation.
 §3 CP2K reference library growth.  §5 remaining cleanups (Vxc-fit ISP ctor lands with GGA; cMesh
 unification; DRY PP adapters; periodic external PP).

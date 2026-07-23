@@ -56,8 +56,10 @@ struct GPWParams
     double       densityEcut = -1.0;    //!< <0 AUTO floor cutoffFactor*alpha_max (recommended); =0 1E-only; >0 explicit Ha
     // --- Advanced ---
     double       cutoffFactor= 2.0;     //!< C in the auto floor C*alpha_max (2 = the density's own product exponent)
-    RasterPolicy raster = RasterPolicy::AliasFree;  //!< FFT-raster policy (0.5(a): BallOnly ~8x fewer pts at ~1 mHa
-                                                    //!< at/above the C=2 floor; -43 mHa below it -- measured on NaF)
+    RasterPolicy raster = RasterPolicy::BallOnly;   //!< FFT-raster policy.  DEFAULT BallOnly (user 2026-07-23,
+                                                    //!< after the 0.5(a) A/B: ~1 mHa at/above the C=2 floor, ~8x
+                                                    //!< fewer raster points; AliasFree = the exact-quadrature
+                                                    //!< option -- kernel gates and sub-floor grids want it)
     CellImages   images = CellImages::Periodic;     //!< lattice-image MODE (HomeCellOnly = the finite-box gates)
     rvec3_t      kShift = rvec3_t(0,0,0);           //!< fractional MP offset of the k-mesh (0 = Gamma-centred)
 };

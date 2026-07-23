@@ -357,9 +357,15 @@ grid-cost gap:
   (0.9 mHa);  NaF Ecut=320 −24.4311 (**0.1 mHa from CP2K −24.4312**);  the only real price is the
   C=1-class regime (Ecut=40: −43 mHa aliasing) — BELOW the C=2 default floor.  So at/above the default
   floor BallOnly costs ~1 mHa and buys another ~8× raster points (NaF total vs this morning:
-  100³ → 25³-class ≈ 64× with the C flip).  DEFAULT-FLIP DECISION pending (user): flipping moves every
-  raster-derived anchor (one more re-pin wave, the 5-smooth-flip precedent); calibration recorded
-  either way.
+  100³ → 25³-class ≈ 64× with the C flip).  DEFAULT FLIPPED TO BallOnly on the GPW
+  surface (user 2026-07-23, after reproducing the A/B independently: auto Ecut=80 + BallOnly hits the
+  anchor, similar E, much faster; neg-frac cosmetics explained — negCharge/Exc_lost stay ~0).  The PW
+  path keeps AliasFree (its own A/B not run).  Three EXACT-QUADRATURE kernel gates pinned explicitly to
+  AliasFree (SharpestPairChargeConservation, XCPotentialConsistencyFD, RawXCConsistencyFD — they gate
+  machinery on deliberately sub-floor grids where BallOnly is out of spec by design; the raw-path FD
+  adjointness held at 4e-8 even there).  NaF anchors re-centred to the production default (auto 80 +
+  ball): −24.4304, 0.8 mHa from CP2K; the GC coarse seed stage pinned {.raster=AliasFree} (sub-floor
+  Ecut=40).
 
 
 ## 0h. SCF-strategy guards — PULLED AHEAD of 0.5(a) (user-approved 2026-07-23): the C 8→3 default flip

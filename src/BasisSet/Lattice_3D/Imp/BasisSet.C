@@ -74,7 +74,7 @@ Complex_BS* GPWFactory(const ::qchem::Lattice_3D& lat, std::shared_ptr<const Bas
                        double densityEcut, rvec3_t kShift, CellImages images, double cutoffFactor)
 {
     return new GPW_BasisSet(lat, std::move(mol),
-                            GPWParams{densityEcut, cutoffFactor, RasterPolicy::AliasFree, images, kShift});
+                            GPWParams{densityEcut, cutoffFactor, RasterPolicy::BallOnly, images, kShift});
 }
 
 } //namespace

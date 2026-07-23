@@ -78,7 +78,7 @@ public:
     GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const UnitCell& cell,
                   double densityEcut = 0.0, const rvec3_t& kFrac = rvec3_t(0,0,0),
                   bool homeCellOnly = false, double cutoffFactor = 2.0,
-                  RasterPolicy raster = RasterPolicy::AliasFree);
+                  RasterPolicy raster = RasterPolicy::BallOnly);
     //! Polymorphic (reached by the EPW_* mixin's Cast() cross-cast).  Releases this block's ladder-shaped
     //! collocation streams on the SHARED molecular evaluator (\c LatticeSum1E::ReleaseStreams) -- the streams
     //! are keyed by ladder shape, not by block, so without the release a finished stage's caches squat on the

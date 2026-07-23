@@ -427,7 +427,10 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     // everything else below is the hard-coded production recipe (doc/GPWPlan1.md item 1: recipes are
     // readable code, not env spaghetti).  Advanced grid knobs (cutoffFactor, RasterPolicy) take their
     // defaults -- override via designated initializers, e.g. {.densityEcut=40.0, .raster=RasterPolicy::BallOnly}.
-    const double densityEcut = envd("NAF_ECUT", 40.0);       // <0 AUTO = C*alpha_max = 80; 40 = this anchor's grid
+    const double densityEcut = envd("NAF_ECUT", -1.0);       // <0 AUTO = C*alpha_max = 80 (the production default;
+                                                             //   BallOnly raster).  Explicit 40 = SUB-FLOOR: warns,
+                                                             //   and BallOnly aliases there (-43 mHa) -- use
+                                                             //   {.raster=RasterPolicy::AliasFree} for that regime.
     std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, mol, L3::GPWParams{.densityEcut=densityEcut}));
     auto       irreps=bs->GetIrreps(Spin::None);
     Crystal_EC ec(irreps, 8);
@@ -528,12 +531,12 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     // measured HERE: the old capture pinned a +0.75 Ha excited state in every pre-guard run, which is what
     // the -27.76 aliasing-era anchor and later the -23.68 "fixed point" actually were).
     //
-    // ANCHOR (re-derived 2026-07-23 on the raw-XC + 0h landscape, doc/GPWPlan 0.5(f2)/0h): the honest
-    // Ecut=40 fixed point is -24.4357 -- only 3.2 mHa from the Ecut=320 answer -24.4325 and ~4.5 mHa from
-    // the CP2K SR2 truth -24.4312 (tight-eps; the historical -27.93128 "oracle" was RETRACTED as a
-    // screening artifact, TRAPS #2).  Under raw XC the Ecut=40 grid is nearly converged; the old
-    // "-27.76 vs -27.93 = 0.17 Ha grid gap" story was aliasing-era physics on both sides.
-    EXPECT_NEAR(E.GetTotalEnergy(), -24.4357, 0.01);   // did-E-move anchor (matches the GC coarse pin)
+    // ANCHOR (2026-07-23, the production default config: auto Ecut=80, BallOnly raster, raw XC, guards):
+    // -24.4304 -- 0.8 mHa from the CP2K SR2 truth -24.4312 (tight-eps; the historical -27.93128 "oracle"
+    // was RETRACTED as a screening artifact, TRAPS #2).  Reference points on this landscape: AliasFree@40
+    // -24.4357, AliasFree@320 -24.4325, BallOnly@320 -24.4311 -- the sub-2-mHa plateau of doc/GPWPlan
+    // 0.5(f1)/(a).  The old "-27.76 vs -27.93 = 0.17 Ha grid gap" story was aliasing-era physics.
+    EXPECT_NEAR(E.GetTotalEnergy(), -24.4304, 0.01);   // did-E-move anchor (the default-config fixed point)
 }
 
 // (4b) NaF GRID-CONTINUATION SEEDING (doc/GPWPlan §0e, step 1) -- the PRODUCTION-GRID fix.
@@ -618,7 +621,10 @@ TEST(GPW_SCF, DISABLED_NaFGridContinuation)
     // Every coarse-stage object is a unique_ptr so the WHOLE stage can be torn down mid-test (below) the
     // moment the fine stage has consumed it -- doc/GPWPlan.md 0.5(b).
     rss("pre-basis");
-    std::unique_ptr<Complex_BS> bsC(L3::GPWFactory(lat, mol, /*densityEcut*/envd("GC_COARSE_ECUT",40.0)));
+    // The coarse SEED stage runs Ecut=40 -- SUB-FLOOR (below C*alpha_max=80), where BallOnly aliases
+    // (-43 mHa); pin it to the exact-quadrature raster so the seed is the honest -24.4357 fixed point.
+    std::unique_ptr<Complex_BS> bsC(L3::GPWFactory(lat, mol,
+        L3::GPWParams{.densityEcut=envd("GC_COARSE_ECUT",40.0), .raster=L3::RasterPolicy::AliasFree}));
     rss("basis");
     auto ecC=std::make_unique<Crystal_EC>(bsC->GetIrreps(Spin::None), 8);
     rss("EC");
@@ -709,7 +715,9 @@ TEST(GPW_SCF, DISABLED_NaFGridContinuation)
     EXPECT_TRUE(useSeed==false || scfF->Converged()) << "seeded fine SCF converges (no basin/spike thrash)";
     EXPECT_GT(Efine.GetTotalEnergy(), -29.0);   // basin avoidance: NOT the ~-40 unphysical attractor
     EXPECT_LT(Efine.GetTotalEnergy(), -20.0);   //                  NOT the +54 Pulay-thrash garbage
-    EXPECT_NEAR(Efine.GetTotalEnergy(), -24.4325, 0.01);   // the raw-XC aufbau ground state (did-E-move anchor)
+    EXPECT_NEAR(Efine.GetTotalEnergy(), -24.4304, 0.01);   // the raw-XC aufbau ground state at the production
+                                                            //   default (auto Ecut=80, BallOnly); AliasFree@320
+                                                            //   reference: -24.4325
 }
 
 // VALIDATION (2026-07-13): can we drop the SR-basis hand-tuning and use the FULL valence_lowq basis, relying on

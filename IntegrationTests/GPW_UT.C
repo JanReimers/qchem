@@ -227,7 +227,8 @@ TEST(GPW, SharpestPairChargeConservation)
     UnitCell cell(a);
     cell.AddAtom(14,{0.5,0.5,0.5});
     std::shared_ptr<const Real_BS> mol = MakeBasis(cell);
-    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut AUTO*/-1.0);
+    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut AUTO*/-1.0, BasisSet::Lattice_3D::CellImages::Periodic, 2.0,
+                BasisSet::Lattice_3D::RasterPolicy::AliasFree);   // EXACT-QUADRATURE gate (production default = BallOnly)
     const GPW_Evaluator& ev = gpw;
     const Complex_OIBS&  g  = gpw;
     const size_t n=g.GetNumFunctions();
@@ -577,7 +578,8 @@ TEST(GPW, XCPotentialConsistencyFD)
     cell.AddAtom(14,{0,0,0});
     cell.AddAtom(14,{0.25,0.25,0.25});
     std::shared_ptr<const Real_BS> mol=MakeBasis(cell);
-    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/6.0);
+    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/6.0, BasisSet::Lattice_3D::CellImages::Periodic, 2.0,
+                BasisSet::Lattice_3D::RasterPolicy::AliasFree);   // EXACT-QUADRATURE gate (production default = BallOnly)
     const GPW_Evaluator& ev=gpw;
     const auto& grid=ev.DensityGrid();
     const size_t n=static_cast<const Complex_OIBS&>(gpw).GetNumFunctions();
@@ -699,7 +701,8 @@ TEST(GPW, RawXCConsistencyFD)
     cell.AddAtom(14,{0,0,0});
     cell.AddAtom(14,{0.25,0.25,0.25});
     std::shared_ptr<const Real_BS> mol=MakeBasis(cell);
-    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/6.0);
+    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/6.0, BasisSet::Lattice_3D::CellImages::Periodic, 2.0,
+                BasisSet::Lattice_3D::RasterPolicy::AliasFree);   // EXACT-QUADRATURE gate (production default = BallOnly)
     const GPW_Evaluator& ev=gpw;
     const auto& grid=ev.DensityGrid();
     const size_t n=static_cast<const Complex_OIBS&>(gpw).GetNumFunctions();

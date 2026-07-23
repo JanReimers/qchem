@@ -69,13 +69,13 @@ public:
     GPW_IBS(const UnitCell& cell, const sym_t& irrep,
             std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut = 0.0,
             CellImages images = CellImages::Periodic, double cutoffFactor = 2.0,
-            RasterPolicy raster = RasterPolicy::AliasFree);
+            RasterPolicy raster = RasterPolicy::BallOnly);
 
     //! \brief Convenience constructor in BZ-grid indices: builds the Bloch irrep \c BlochFactory(N,kIndex).
     GPW_IBS(const UnitCell& cell, const ivec3_t& N, const ivec3_t& kIndex,
             std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut = 0.0,
             CellImages images = CellImages::Periodic, double cutoffFactor = 2.0,
-            RasterPolicy raster = RasterPolicy::AliasFree);
+            RasterPolicy raster = RasterPolicy::BallOnly);
 
     //! \brief The DFT factory seam (Band_FT_IBS): the auxiliary density/potential fit basis is a plane-wave grid
     //! over GPW's OWN density grid -- so the collocated \f$\tilde\rho\f$'s \f$\{G\}\f$ matches the fitter's.  A
