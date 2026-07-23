@@ -5,8 +5,9 @@
       "Bash(./build/Debug/*)",
       "Bash(./build/Release/*)",
       "Bash(./scfrun *)",
-      "Bash(./UTMain *)",
-      "Bash(./UnitTests/UTMain *)"
+      "Bash(./ITMain *)",
+      "Bash(./IntegrationTests/ITMain *)",
+      "Bash(ctest *)"
     ]
   }
 }

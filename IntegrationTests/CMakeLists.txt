@@ -4,7 +4,7 @@ link_directories(
     $<$<CONFIG:Release>:  submodules/libxc/build>
 )
 
-add_executable(UTMain gtestmain.C
+add_executable(ITMain gtestmain.C
     EigenSolverUT.C
     LDA_XC_UT.C
     PlaneWaveDFTUT.C
@@ -17,17 +17,17 @@ add_executable(UTMain gtestmain.C
 # The QchemTester/TestAtom/TestDiracAtom/TestMolecule scaffold is RETIRED: every molecular test drives
 # qchem::Calculation and every atom/Dirac/PP test (and scfrun) drives qchem::AtomCalculation.  TestUtils
 # holds the shared free RelativeError / RelativeHF/DFT/DHFError helpers.
-target_sources(UTMain PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES TestUtils.C)
+target_sources(ITMain PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES TestUtils.C)
 
 #-Wno-unknown-pragmas
 # -Wno-cpp  Suppress warning messages emitted by #warning directives.
 
-target_compile_options(UTMain PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
-target_compile_definitions(UTMain PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
-target_compile_definitions(UTMain PRIVATE ${BasisDataPath})
-set_property(TARGET UTMain PROPERTY CXX_STANDARD 20)
+target_compile_options(ITMain PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
+target_compile_definitions(ITMain PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
+target_compile_definitions(ITMain PRIVATE ${BasisDataPath})
+set_property(TARGET ITMain PROPERTY CXX_STANDARD 20)
 
-target_include_directories(UTMain PRIVATE
+target_include_directories(ITMain PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/BSplinebasis/include
     ${PROJECT_SOURCE_DIR}/submodules/json/single_include
     ${PROJECT_SOURCE_DIR}/submodules/blaze
@@ -35,7 +35,7 @@ target_include_directories(UTMain PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/googletest/googletest/include
     ${PROJECT_BINARY_DIR}/submodules/libxc
 )
-target_link_libraries(UTMain PRIVATE qcUmbrella qchem qcMath qcCommon xc blas gtest)
+target_link_libraries(ITMain PRIVATE qcUmbrella qchem qcMath qcCommon xc blas gtest)
 
 # scfrun: command-line SCF driver for accelerator tuning (no recompile).  Drives qchem::AtomCalculation
 # directly (no QchemTester); needs the TestUtils module for the RelativeHF/DHFError oracle helpers.
@@ -59,8 +59,5 @@ target_link_libraries(scfrun PUBLIC qchem qcMath qcCommon blas)
 # set_property(TARGET DiracHydrogen PROPERTY CXX_STANDARD 20)
 
 # setup testing
-enable_testing()
-include(CTest)
 include(GoogleTest)
-add_test(NAME UTMain COMMAND $<TARGET_FILE:UTMain>)
-gtest_discover_tests(UTMain)
+gtest_discover_tests(ITMain)
