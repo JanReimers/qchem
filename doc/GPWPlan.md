@@ -229,9 +229,11 @@ confirmation runs.
   seed/MOM handoff.  Suite 564/564.  VALIDATION NUANCE (full GC run 2026-07-23): on SR2 the fine demand
   (65M pts) fits tier 2 even with coarse resident — the starvation needs the full-SR-scale demand (952M),
   so the unit gate (tight budget) is the regression anchor, not the SR2 run.  That run also showed
-  `DISABLED_NaFGridContinuation`'s energy pins are STALE (coarse −27.76 = the RETRACTED aliasing-era
-  value; fine converges clean at −23.680 = the §0h MOM cross-grid pinning signature, 0.75 Ha above the
-  −24.431 truth) — re-pin with/after 0h, task chip filed.
+  `DISABLED_NaFGridContinuation`'s energy pins were STALE — RE-PINNED same day on the clean landscape:
+  coarse Ecut=40 fixed point −23.6929 (E-flat converged, 515 iters; the old −27.76 anchor was the
+  retracted aliasing-era value — the leaky coarse grid honestly UNDERBINDS by 0.74 Ha now), fine aufbau
+  ground state −24.4337 ± 0.01 (22 iters, 2.5 mHa from CP2K's Ecut=160-class −24.4312); fine defaults
+  flipped to PURE AUFBAU (the MOM-transfer path = the 0h repro, env-gated).
 - **(c) DONE 2026-07-23 — stream-budget follow-ups.**  (1) Byte-aware build transient via STREAMING
   fp32 demotion: the moment a pair's count exceeds the open fp64 budget it can only land in tier 2, so
   the already-built offsets demote immediately and the rest build demoted — the transient is bounded by
@@ -246,11 +248,17 @@ confirmation runs.
   opposite to the GGA ∇ρ lore).  The governing ball sets the raster (∝ Ecut^{3/2}), so C 8→4 ≈ 2.8×
   fewer raster points machine-wide.  EVIDENCE C=8 is over-conservative for production: the matched NaF
   runs at Ecut=160 (C=4, CP2K's own operating point) agree with CP2K to 0.1–0.2 mHa; the 480-ball probe
-  bought 0.15 mHa.  MEASURE FIRST (f1, near-zero code, can run any time): re-run the negCharge/XC
-  probes at C=3,4 on production NaF (post-analytic-short landscape); if clean, lower the default C
-  (zero architecture change — the divergent-ball plumbing exists via CreateCD/VxcFitBasisSet since the
-  thread-through fix); the ⅓-v_xc ball is a smaller follow-on (G-space op counts).  CAUTION: the
-  retired GPW_CDFIT_SCALE two-grid fork — any re-split must buy real money over one-grid simplicity.
+  bought 0.15 mHa.  **(f1) MEASURED 2026-07-23 — VERDICT: lowering the default C is REJECTED on the
+  current XC path.**  Seeded pure-aufbau NaF SR2 (grid-continuation harness, GC_SEED_MOM=0), fine stage
+  C-sweep:  C=8 (Ecut=320) → −24.4337, 22 iters, negCharge −9.5e−3 (clean; 2.5 mHa from the CP2K SR2
+  −24.4312, itself an Ecut=160-class number);  C=4 (Ecut=160) → **XC-COLLAPSE from a SEEDED PHYSICAL
+  START** (−41.8 at cap, negCharge −91, Exc −109 — the basin is reachable even without the ionic-seed
+  descent);  C=3 (Ecut=120) → converges but DIRTY (−24.477 = 43 mHa overbound, negCharge −0.196).  So
+  the "C=8 over-conservative, CP2K runs at C≈4" evidence does NOT transfer to our Fourier-round-trip
+  XC feed — the earlier matched-160 agreement rode the forced FULL CP2K ladder + recipe, not the auto
+  path.  The C 8→2-3 prize is REAL but gated ENTIRELY on (f2) below (the DM-ρ raw XC feed); re-run
+  this exact sweep as (f2)'s acceptance gate.  CAUTION: the retired GPW_CDFIT_SCALE two-grid fork —
+  any re-split must buy real money over one-grid simplicity.
   **THE ENABLING MECHANISM (f2, user insight 2026-07-23): feed XC the DM-ρ, which is pointwise
   NON-NEGATIVE by construction (PSD D ⇒ φᵀDφ ≥ 0) — the C=8 cleanliness constraint dissolves
   entirely.**  NOT via op(r) sampling (that is the deleted PhiOnGrid era, ~1e9 exp/iter) — the
@@ -320,8 +328,10 @@ grid-cost gap:
 ## 0h. SCF-strategy guards (banked from the validation; do with/after the §0c seams)
 - **MOM cross-grid guard:** `AdoptMOMReference` across a discretization change can pin an EXCITED state
   (measured: 0.76 Ha on NaF — the transferred occupied subspace need not span the new grid's aufbau
-  ground space).  Guard: detect a PERSISTENT HOLE at convergence (an unoccupied ε below an occupied ε)
-  and release/re-capture MOM (or at minimum WARN loudly).
+  ground space; re-confirmed 2026-07-23: +0.754 Ha, −23.680 vs −24.434).  Guard: detect a PERSISTENT
+  HOLE at convergence (an unoccupied ε below an occupied ε) and release/re-capture MOM (or at minimum
+  WARN loudly).  Until the guard exists, `DISABLED_NaFGridContinuation` defaults to PURE AUFBAU on the
+  fine stage (the transfer path stays env-selectable: GC_SEED_MOM=1 GC_FINE_MOM_START=1 — the 0h repro).
 - **`ReportBandGap` hole-masking fix:** the εH/εL summary line takes εL from the lowest virtual ABOVE
   the HOMO index and printed gap=0.67 while a −0.36 Ha virtual sat BELOW occupied levels; take εL over
   ALL unoccupied and flag non-aufbau.  (The `frontier ε(occ)` window was the honest instrument.)

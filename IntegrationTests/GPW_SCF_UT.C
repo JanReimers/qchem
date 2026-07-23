@@ -543,30 +543,40 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
 }
 
 // (4b) NaF GRID-CONTINUATION SEEDING (doc/GPWPlan §0e, step 1) -- the PRODUCTION-GRID fix.
+// (Pins + story re-derived 2026-07-23 on the post-analytic-short/kappa/5-smooth landscape; the original
+// -27.76/-27.93 anchors were the RETRACTED aliasing-era values -- doc/GPWPlan.md TRAPS #2.  The clean NaF
+// SR2 truth is CP2K -24.4312 at tight eps, Ecut=160-class grids.)
 //
-// THE PROBLEM.  The direct auto-Ecut=160 NaF run FALLS INTO the -39 unphysical density/grid basin: from the
-// ionic seed, the Kerker priming descent goes STRAIGHT into -39 (mid-slosh D loads the sharpest F pairs
-// beyond the fine-grid calibration -> the collocated rho aliases spiky/locally-negative -> E_xc is
-// legitimately huge-negative WITHIN the discretization, a self-consistent garbage fixed point), and Pulay
-// engaging on that garbage state thrashes to +54.  MOM+Pulay are NECESSARY but NOT SUFFICIENT: the basin is a
-// property of the map, reachable by the descent -- not an occupation swap (MOM) nor a mixing wobble (Pulay).
+// THE PROBLEM.  The direct production-grid NaF run FALLS INTO the unphysical XC-collapse basin: from the
+// ionic seed, the Kerker priming descent goes straight into E~-40 (mid-slosh D loads the sharpest F pairs
+// beyond the grid calibration -> the collocated rho aliases spiky/locally-negative -> E_xc is legitimately
+// huge-negative WITHIN the discretization, a self-consistent garbage fixed point), and Pulay engaging on
+// that garbage state thrashes to +54.  MOM+Pulay are NECESSARY but NOT SUFFICIENT: the basin is a property
+// of the map, reachable by the descent -- not an occupation swap (MOM) nor a mixing wobble (Pulay).  The
+// basin is REAL on today's landscape: the 2026-07-23 C-sweep (doc/GPWPlan 0.5(f1)) hit it from a SEEDED
+// physical start at Ecut=160 (negCharge -91, Exc -109) -- only the C=8 ball (Ecut=320) is reliably clear.
 //
-// THE FIX (this test).  Never ENTER the basin (it still exists on the fine-grid map -- step 2 removes it):
-// converge the CHEAP coarse grid (Ecut=40 -> the physical fixed point -27.76, which MOM+Pulay reach smoothly),
-// then SEED the fine grid with that converged density so the fine SCF STARTS in the physical basin.  The
-// orbital (SR2 Gaussian) basis is IDENTICAL at both cutoffs -- only the density COLLOCATION grid differs -- so
-// the converged coarse density matrix transfers directly (no re-projection) via the explicit-seed cSCFIterator
-// ctor.  NOTE the seed's OWN iteration-0 Hartree/XC is COARSE-grid-resolved: the GPW Repulsion3C/Overlap3C
-// tensors ignore the passed fit basis and return the density's OWN block tensor (the known not-yet-threaded
-// fit-grid arg, Lattice_3D/IrrepBasisSet.C), so the coarse seed collocates on the coarse block's grid -- fine
-// for a SEED, since Init immediately re-diagonalizes on the FINE basis, giving a D0 that is the physical
-// density in the fine WF; every subsequent iteration then runs the fine grid, starting in (and staying in) the
-// physical basin instead of descending into -39.
+// THE FIX (this test).  Never ENTER the basin: converge the CHEAP coarse grid (Ecut=40), then SEED the fine
+// grid with that converged density so the fine SCF STARTS in the physical basin.  The orbital (SR2 Gaussian)
+// basis is IDENTICAL at both cutoffs -- only the density COLLOCATION grid differs -- so the converged coarse
+// density matrix transfers directly (no re-projection) via the explicit-seed cSCFIterator ctor, which
+// collocates the seed's iteration-0 Hartree/XC on the REQUESTED fine fit grid (the fit-grid seam is honest
+// since 2026-07-20 -- GPW_IBS builds the tensor over the requested fit basis's grid).  Init immediately
+// re-diagonalizes on the fine basis and every subsequent iteration runs the fine grid, starting in (and
+// staying in) the physical basin.
 //
-// GATE: the fine grid must reach ~ -27.93 (the CP2K same-basis oracle, doc/CP2Kresults.md), NOT -39.  DISABLED
-// (two full NaF SCFs, the fine one ~15 min).  Env knobs (GC_*) tune each stage without recompiling.  Verify
-// basin-avoidance is REAL by A/B: with GC_SEED=0 the fine stage falls back to the ionic seed and must dive to
-// the -39 basin (the direct-run failure this test fixes).
+// MOM ACROSS THE GRID CHANGE (doc/GPWPlan 0h): transferring the coarse WF's occupied subspace as a fixed
+// MOM reference (AdoptMOMReference) PINS AN EXCITED STATE across the discretization change -- measured
+// 2026-07-23: -23.680 vs the -24.434 aufbau ground state, +0.754 Ha.  So the DEFAULT fine recipe is PURE
+// AUFBAU (GC_SEED_MOM=0, GC_FINE_MOM_START=9999): with the seed holding it in the physical basin the plain
+// aufbau fill converges cleanly (22 iters, charge exact).  GC_SEED_MOM=1 GC_FINE_MOM_START=1 re-enables the
+// transfer path for the 0h MOM-guard work (release/re-capture should recover the ground state).
+//
+// GATE: the fine grid must reach the aufbau ground state -24.434 (2.5 mHa from CP2K's -24.4312, itself an
+// Ecut=160-class number -- grid-resolution difference, not a method gap), NOT the -40 basin.  DISABLED (two
+// full NaF SCFs, ~6 min).  Env knobs (GC_*) tune each stage without recompiling.  Verify basin-avoidance is
+// REAL by A/B: with GC_SEED=0 the fine stage falls back to the ionic seed and must dive into the basin (the
+// direct-run failure this test fixes; the energy gates then fail by design).
 TEST(GPW_SCF, DISABLED_NaFGridContinuation)
 {
     using namespace qchem::Hamiltonian;
@@ -627,14 +637,18 @@ TEST(GPW_SCF, DISABLED_NaFGridContinuation)
     auto Ecoarse=scfC->GetEnergy();
     std::cout << "[NaF grid-cont COARSE] Ecut=40 iters="<<scfC->GetIterationCount()
               << " Etot="<<Ecoarse.GetTotalEnergy() << std::endl;
-    EXPECT_NEAR(Ecoarse.GetTotalEnergy(), -27.76, 0.15);   // the coarse physical fixed point (MOM+Pulay reach it)
+    // The Ecut=40 fixed point on the clean (post analytic-short) landscape: -23.69289 converged (E-flat
+    // 1e-8, 515 iters); the default 200-iter endpoint lands within 1e-4 of it, so the pin covers both.
+    // (The old -27.76 anchor here was the RETRACTED aliasing-era value: the leaky coarse grid now honestly
+    // UNDERBINDS the -24.434 fine answer by 0.74 Ha instead of aliasing 4 Ha below it.)
+    EXPECT_NEAR(Ecoarse.GetTotalEnergy(), -23.693, 0.01);   // seed-quality anchor (did-E-move)
 
     // Grab the converged coarse density (OWNED; consumed by the fine ctor's Init).  bsC stays alive until
     // after the fine ctor, so the density's coarse-block pointer stays valid for the one iteration-0 read.
     auto* seedCD = scfC->GetWaveFunction()->GetChargeDensity();
 
-    // ---- STAGE 2: seed the PRODUCTION fine grid (auto Ecut=160) with the converged coarse density. ----
-    std::unique_ptr<Complex_BS> bsF(L3::GPWFactory(lat, mol, /*densityEcut*/envd("GC_FINE_ECUT",-1.0)));  // <0 AUTO=160
+    // ---- STAGE 2: seed the PRODUCTION fine grid (auto Ecut=8*alpha_max=320) with the converged coarse density. ----
+    std::unique_ptr<Complex_BS> bsF(L3::GPWFactory(lat, mol, /*densityEcut*/envd("GC_FINE_ECUT",-1.0)));  // <0 AUTO=320
     Crystal_EC ecF(bsF->GetIrreps(Spin::None), 8);
     cHamiltonian* hamF=new Ham_PW_DFT(st, bsF.get(), {{"Na",1},{"F",7}}, "LDA");
     auto* accF=new qchem::SCFAccelerators::tSCFAcceleratorNull<dcmplx>();
@@ -648,12 +662,12 @@ TEST(GPW_SCF, DISABLED_NaFGridContinuation)
     {
         scfF.reset(new qchem::SCFIterator::cSCFIterator(bsF.get(), &ecF, hamF, accF, seedCD, st.get(),
                                                         qchem::Cholesky, 0.0));   // explicit-seed ctor (consumes seedCD)
-        // Grid-continuation MOM: seeding the DENSITY alone is NOT enough -- on the fine grid the giant-response
-        // diffuse virtual sits at the F-2p frontier even at the physical density (measured: iter-1 [partial-occ
-        // HOMO], and capturing MOM from the contaminated iter-1 fill converges to a WRONG -23.3).  So transfer
-        // the CONVERGED coarse WF's occupied {F 2s, F 2p} subspace as the fixed MOM reference (grid-independent
-        // orthonormal metric), held from iteration 1.  GC_SEED_MOM=0 A/Bs this off (density seed only).
-        if (envd("GC_SEED_MOM",1.0)!=0.0)
+        // MOM transfer across the grid change is OFF by default: AdoptMOMReference across a discretization
+        // change PINS AN EXCITED STATE (doc/GPWPlan 0h; measured 2026-07-23: -23.680 vs the -24.434 aufbau
+        // ground state, +0.754 Ha).  With the density seed holding the run in the physical basin, the pure
+        // aufbau fill converges cleanly to the ground state.  GC_SEED_MOM=1 (with GC_FINE_MOM_START=1)
+        // re-enables the transfer path for the 0h MOM-guard work.
+        if (envd("GC_SEED_MOM",0.0)!=0.0)
             scfF->AdoptMOMReference(*scfC->GetWaveFunction());
     }
     else
@@ -672,7 +686,7 @@ TEST(GPW_SCF, DISABLED_NaFGridContinuation)
     scfC.reset(); ecC.reset(); bsC.reset();
     rss("coarse stage freed");
     scfF->Iterate(makePar((size_t)envd("GC_FINE_NMAX",100),
-                          (int)envd("GC_FINE_MOM_START",1), (int)envd("GC_FINE_PULAY_START",12)));
+                          (int)envd("GC_FINE_MOM_START",9999), (int)envd("GC_FINE_PULAY_START",12)));
     qchem::Hamiltonian::ReportGridCharge()=false;
     qchem::SCFIterator::ReportBandGap()=false;
 
@@ -683,29 +697,19 @@ TEST(GPW_SCF, DISABLED_NaFGridContinuation)
               << " (Ekin="<<Efine.Kinetic<<" Een="<<Efine.Een<<" Eee="<<Efine.Eee<<" Exc="<<Efine.Exc
               << " Enn="<<Efine.Enn<<" Ealign="<<Efine.Ealign<<")" << std::endl;
     EXPECT_NEAR(charge, 8.0, 1e-6);     // 1 (Na) + 7 (F) valence electrons, conserved
-    // WHAT STEP 1 ACHIEVES (measured 2026-07-20): grid-continuation seeding + the MOM-reference transfer
-    // makes the PRODUCTION fine grid converge CLEANLY -- the -39/+54 basin the direct ionic-seed run dives into
-    // is AVOIDED (not removed: it still exists on the fine-grid map; step 2 removes it -- we just never enter
-    // it, by starting in the physical basin).  The fine SCF descends SMOOTHLY+MONOTONICALLY (no spikes, no partial-occ), charge is
-    // conserved to 1e-8 (integral rho_grid=8.0000000000 throughout -- NO aliasing in the charge sense), and
-    // MOM holds the physical {F 2s, F 2p} subspace so the giant-response diffuse virtual (which on the fine
-    // grid DIVES to -2.15 Ha) stays UNOCCUPIED.  Density seed ALONE is NOT enough (converges to a wrong
-    // -23.3 from an occupation-contaminated iter-1 reference, or +124 with late MOM); the coarse WF's
-    // occupied subspace must transfer too (AdoptMOMReference) -- GC_SEED_MOM=0 A/Bs that off.
-    //
-    // WHAT REMAINS (the isolated step-2 blocker): the fine grid's PHYSICAL fixed point is -24.393, ~3.5 Ha
-    // ABOVE the CP2K same-basis oracle -27.93128 AND above our own coarse -27.754.  Term-by-term (SAME
-    // density, coarse vs fine): the gap is almost entirely Exc (-12.19 -> -5.09, +7.1 Ha) -- the fine grid
-    // builds a SHALLOWER KS potential (F 2p pushed -0.29 -> +0.08, more diffuse), so integral eps_xc*rho ~
-    // rho^{4/3} over the sharp F region collapses.  This is the plan's step 2 (STIFFEN the fine grid / the
-    // analytic-V_local §0e-PP accuracy upgrade), now cleanly SEPARATED from SCF dynamics: the run is a stable,
-    // charge-conserving, physically-occupied fixed point -- just XC-under-resolved.  A did-E-move anchor on
-    // that value (NOT the oracle) until step 2 lands; the load-bearing gate is BASIN AVOIDANCE (a clean bound
-    // state, decisively not the -39 / +54 garbage).
+    // WHAT THIS GATES (re-derived 2026-07-23, post analytic-short/kappa/5-smooth): grid-continuation
+    // seeding makes the PRODUCTION fine grid converge CLEANLY to the aufbau GROUND STATE -- the XC-collapse
+    // basin the direct ionic-seed run dives into is AVOIDED (not removed: the 0.5(f1) C-sweep reached it
+    // from a seeded start at Ecut=160; (f2)'s DM-rho XC feed is the removal path).  The fine SCF converges
+    // in ~22 iters, charge conserved to 1e-8 throughout, at -24.4337 -- 2.5 mHa from the CP2K SR2 truth
+    // -24.4312 (an Ecut=160-class number; the residual is grid resolution, not method).  The historical
+    // "-27.93 oracle / -3.5 Ha Exc step-2 gap" story recorded here previously was the RETRACTED
+    // aliasing-era landscape (doc/GPWPlan.md TRAPS #2).  The load-bearing gate is BASIN AVOIDANCE + a
+    // did-E-move pin on the ground state.
     EXPECT_TRUE(useSeed==false || scfF->Converged()) << "seeded fine SCF converges (no basin/spike thrash)";
-    EXPECT_GT(Efine.GetTotalEnergy(), -29.0);   // basin avoidance: NOT the -39 unphysical attractor
+    EXPECT_GT(Efine.GetTotalEnergy(), -29.0);   // basin avoidance: NOT the ~-40 unphysical attractor
     EXPECT_LT(Efine.GetTotalEnergy(), -20.0);   //                  NOT the +54 Pulay-thrash garbage
-    EXPECT_NEAR(Efine.GetTotalEnergy(), -24.393, 0.5);   // today's XC-limited fixed point (step 2 -> -27.93)
+    EXPECT_NEAR(Efine.GetTotalEnergy(), -24.4337, 0.01);   // the aufbau ground state (did-E-move anchor)
 }
 
 // VALIDATION (2026-07-13): can we drop the SR-basis hand-tuning and use the FULL valence_lowq basis, relying on
