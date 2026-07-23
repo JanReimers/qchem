@@ -217,6 +217,13 @@ GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const
     // reaches sqrt(-ln eps/alpha_min) and its centre sits within a cell span of any evaluation point, so
     // reach + span covers every image the screen keeps (screening then prunes it sparse per point).  The
     // home-only MODE (the finite-molecule configuration) keeps just the origin.
+    // VERIFICATION INSTRUMENT (doc/GPWPlan 0.5(a); the GPW_MGRID_ECUTS precedent): GPW_RASTER_POLICY=ball
+    // flips EVERY grid this block builds (density grid + ladder levels) to the BallOnly raster -- the A/B
+    // knob for the raster-policy calibration.  The shipped surface stays AliasFree until the A/B verdict
+    // promotes the enum onto the factory signatures (or closes the item as policy-justified).
+    if (const char* rp=std::getenv("GPW_RASTER_POLICY"))
+        itsRaster = std::string(rp)=="ball" ? RasterPolicy::BallOnly : RasterPolicy::AliasFree;
+
     itsMaxReach=std::sqrt(-std::log(1e-10)/itsLat->MinExponent());
     itsCellCtr =cell.ToCartesian(rvec3_t(0.5,0.5,0.5));
     itsCellRad =0.0;
@@ -252,7 +259,7 @@ GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const
                       << "under-resolves the basis -- charge will leak off-grid (integral rho_grid < N). Prefer "
                       << "densityEcut>=" << floor << ", or the automatic default (densityEcut<0)." << std::endl;
         itsFFT_R_G_Grids=std::make_shared<const PW_Grid_Evaluator>(
-                    ReciprocalLattice(cell.MakeReciprocalCell()), rvec3_t(0,0,0), ecut);
+                    ReciprocalLattice(cell.MakeReciprocalCell()), rvec3_t(0,0,0), ecut, itsRaster);
     }
 }
 
@@ -561,7 +568,7 @@ void GPW_Evaluator::BuildLevels(std::shared_ptr<const PW_Grid_Evaluator> grid,
                 std::cerr<<"[GPW] GPW_MGRID_ECUTS: skipping sub-level "<<e<<" >= reference "<<grid->Ecut()<<std::endl;
                 continue;
             }
-            levels.push_back(std::make_shared<const PW_Grid_Evaluator>(grid->Recip(), rvec3_t(0,0,0), e));
+            levels.push_back(std::make_shared<const PW_Grid_Evaluator>(grid->Recip(), rvec3_t(0,0,0), e, itsRaster));
         }
         nBaseLevels=levels.size();          // no top rung: the explicit list IS the whole ladder
         for (const auto& g : levels)
@@ -579,7 +586,7 @@ void GPW_Evaluator::BuildLevels(std::shared_ptr<const PW_Grid_Evaluator> grid,
     while (e/4.0>=ecoarse)                            // factor-4 coarsening down to the diffuse floor
     {
         e/=4.0;
-        auto g=std::make_shared<const PW_Grid_Evaluator>(grid->Recip(), rvec3_t(0,0,0), e);
+        auto g=std::make_shared<const PW_Grid_Evaluator>(grid->Recip(), rvec3_t(0,0,0), e, itsRaster);
         // RESOLUTION GUARD: keep a level only if its grid SPACING still quadratures the SHARPEST pair product
         // the REL_CUTOFF assignment can send it, p_max = 2 alpha_max ecut_l/ecut_fine: require h <= 1/sqrt(p_max)
         // (trapezoid/Poisson error of exp(-p r^2) on spacing h is ~e^{-2(pi sigma/h)^2} <= e^{-2 pi^2} ~ 3e-9 at
@@ -612,7 +619,7 @@ void GPW_Evaluator::BuildLevels(std::shared_ptr<const PW_Grid_Evaluator> grid,
     static constexpr double kRungGateC=8.0;   // the C=8-era measured calibration, now standalone
     if (efine < itsLat->RelCutoffSafety()*kRungGateC*amax)
         levels.push_back(std::make_shared<const PW_Grid_Evaluator>(
-                                grid->Recip(), rvec3_t(0,0,0), itsLat->RelCutoffSafety()*efine));
+                                grid->Recip(), rvec3_t(0,0,0), itsLat->RelCutoffSafety()*efine, itsRaster));
     for (const auto& g : levels)
     {
         levelN.push_back(g->FFTGrid());
@@ -642,6 +649,7 @@ void GPW_Evaluator::ReportGrids(std::ostream& os) const
 {
     os<<"[GPW basis] n="<<itsN<<" alpha_min="<<itsLat->MinExponent()<<" alpha_max="<<itsLat->MaxExponent()
       <<" cutoffFactor="<<itsCutoffFactor
+      <<" raster="<<(itsRaster==RasterPolicy::BallOnly?"BallOnly":"AliasFree")
       <<" (auto density floor Ecut="<<itsCutoffFactor*itsLat->MaxExponent()<<" Ha)"<<std::endl;
     if (!itsFFT_R_G_Grids)
     {

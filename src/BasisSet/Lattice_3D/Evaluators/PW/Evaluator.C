@@ -31,6 +31,17 @@ import qchem.Structure;                  // Structure, Atom (MakeFourierDensity'
 export namespace qchem::BasisSet::Lattice_3D
 {
 
+//! \brief The FFT-raster POLICY (doc/GPWPlan 0.5(a)) -- a policy enum, not a numeric dial:
+//! \c AliasFree (default): divisions \f$4m+1\f$ resolve the full DIFFERENCE set \f$\{G-G'\}\f$, so the
+//! product of ANY two ball waves is sampled exactly and the raster is a true quadrature for every
+//! \f$\langle G|f|G'\rangle\f$ -- discretization error lives ONLY in the ball radius (N is never a physics
+//! dial).  \c BallOnly (CP2K's bet): divisions \f$2m+1\f$ resolve the ball alone; products of two ball
+//! waves ALIAS, the fold-back accepted as discretization error controlled by Ecut -- \f$\sim 8\times\f$
+//! fewer raster points.  Under the 0.5(f2) RAW collocated XC feed the pointwise samples stay analytically
+//! exact on ANY raster, so BallOnly's aliasing touches only the quadrature/Poisson accuracy -- exactly
+//! CP2K's own arrangement; the A/B is the measurement.
+enum class RasterPolicy { AliasFree, BallOnly };
+
 //! \brief The ORBITAL evaluator of a plane-wave block: holds \f$(B,k,E_{cut},\{G\})\f$ and answers the per-k,
 //! orbital questions -- evaluate a wave at \a r, the overlap/kinetic/nuclear/potential matrices, the D-free
 //! 3-centre tensors.  It is GRID-FREE by design: the FFT/Poisson density grid (a stored \c PeriodicGridEvaluator)
@@ -42,8 +53,10 @@ class PW_Evaluator
 {
 public:
     //! Build the cutoff set \f$\{G:\tfrac12|k+G|^2<E_{cut}\}\f$ from the reciprocal lattice, the fractional
-    //! crystal momentum \a k, and the energy cutoff (Hartree).
-    PW_Evaluator(const ReciprocalLattice& recip, const rvec3_t& k, double Ecut);
+    //! crystal momentum \a k, and the energy cutoff (Hartree).  \a raster selects the FFT-raster policy
+    //! (\c AliasFree default; the enum doc above).
+    PW_Evaluator(const ReciprocalLattice& recip, const rvec3_t& k, double Ecut,
+                 RasterPolicy raster = RasterPolicy::AliasFree);
     virtual ~PW_Evaluator() = default;
 
     // --- grid data + accessors (the shared state; the IBS G-space methods read through these) ---
@@ -98,8 +111,9 @@ public:
 
     // --- FFT grid RESOLUTION N (derived from THIS block's {G}); the grid ITSELF (the FFT quadrature) is on
     //     PW_Grid_Evaluator, which sizes its PeriodicGridEvaluator from FFTGrid() below. ---
-    ivec3_t AutoGrid() const;   //!< divisions resolving the difference set without aliasing (from itsG)
-    ivec3_t FFTGrid()  const;   //!< AutoGrid padded to powers of two (radix-2 FFT)
+    ivec3_t AutoGrid() const;   //!< divisions per the RasterPolicy: 4m+1 (AliasFree) / 2m+1 (BallOnly)
+    ivec3_t FFTGrid()  const;   //!< AutoGrid padded to 5-smooth numbers (the mixed-radix FFT menu)
+    RasterPolicy Raster() const {return itsRaster;}   //!< the FFT-raster policy (printed by ReportGrids)
 
     //! Cache-key fragment identifying this block: \c "|k=..|Ecut=..|nG=..".
     std::string IDFragment() const;
@@ -109,6 +123,7 @@ private:
     rvec3_t              itsk;      //!< fractional crystal momentum \f$k\f$
     double               itsEcut;   //!< energy cutoff (Hartree)
     double               itsVolume; //!< direct cell volume \f$V\f$ (for the \f$1/\sqrt V\f$ norm)
+    RasterPolicy         itsRaster=RasterPolicy::AliasFree;   //!< the FFT-raster policy (0.5(a))
     std::vector<ivec3_t> itsG;      //!< surviving reciprocal index triples \f$m\f$ (\f$G=B\,m\f$)
     // AutoGrid()/FFTGrid() derive the FFT resolution N from itsG (an O(nG) scan called O(n^2) times in matrix
     // assembly), so cache them lazily.  Sentinels: {0,0,0} == not yet computed.
@@ -127,8 +142,9 @@ class PW_Grid_Evaluator
     , public virtual BasisSet::G_FieldEvaluator
 {
 public:
-    PW_Grid_Evaluator(const ReciprocalLattice& recip, const rvec3_t& k, double Ecut)
-        : PW_Evaluator(recip, k, Ecut)
+    PW_Grid_Evaluator(const ReciprocalLattice& recip, const rvec3_t& k, double Ecut,
+                      RasterPolicy raster = RasterPolicy::AliasFree)
+        : PW_Evaluator(recip, k, Ecut, raster)
         , itsGrid(std::make_shared<const PeriodicGridEvaluator>(recip, Volume(), FFTGrid())) {}
 
     //! Fractional \f$(i/n)\f$ FFT grid (exposed for the direct-grid unit-test oracles).

@@ -207,8 +207,9 @@ private:
                                                           //!< can re-orient a non-cubic (FCC) primitive cell and
                                                           //!< silently shift every collocation box)
     size_t                              itsN   = 0;       //!< number of Gaussian orbitals
-    double  itsCutoffFactor=2.0;   //!< the density-grid floor constant C (ctor param) -- the ENERGY calibration
-                                   //!< C*RelCutoffSafety()*alpha_max gates the top completion rung (EnsureLevels)
+    double  itsCutoffFactor=2.0;   //!< the density-grid floor constant C (ctor param; the density-resolution dial)
+    RasterPolicy itsRaster=RasterPolicy::AliasFree;   //!< 0.5(a) FFT-raster policy for EVERY grid this block
+                                                      //!< builds; A/B via the GPW_RASTER_POLICY instrument
     std::shared_ptr<const PW_Grid_Evaluator> itsFFT_R_G_Grids;     //!< the density/collocation grid (null if DFT tier off)
     // NO hand-rolled tensor cache: the collocation tensor is a stateless build; the FRAMEWORK caches it
     // (BasisSet::Band_FT_IBS::Repulsion3C/Overlap3C via theCache<dcmplx>(), keyed by BasisSetID -- see IDFragment).

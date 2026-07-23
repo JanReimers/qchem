@@ -19,12 +19,14 @@ import qchem.Vector3D;           // dot product (operator*) + vector arithmetic
 namespace qchem::BasisSet::Lattice_3D
 {
 
-PW_Evaluator::PW_Evaluator(const ReciprocalLattice& recip, const rvec3_t& k, double Ecut)
+PW_Evaluator::PW_Evaluator(const ReciprocalLattice& recip, const rvec3_t& k, double Ecut,
+                           RasterPolicy raster)
     : itsRecip(recip)
     , itsk(k)
     , itsEcut(Ecut)
     // |det B| = (2 pi)^3 / |det A|, so the direct cell volume V = (2 pi)^3 / V_recip.
     , itsVolume(Cube(2*Pi)/recip.GetCell().GetCellVolume())
+    , itsRaster(raster)
 {
     itsG = Internal::BuildGs(itsRecip, itsk, Ecut);   // { G : 1/2|k+G|^2 < Ecut }
 }
@@ -45,7 +47,9 @@ ivec3_t PW_Evaluator::AutoGrid() const
             int ax=g.x<0?-g.x:g.x, ay=g.y<0?-g.y:g.y, az=g.z<0?-g.z:g.z;
             m=std::max(m, std::max(ax, std::max(ay,az)));
         }
-        int nn=4*m+1;
+        // AliasFree: 4m+1 resolves the difference set {G-G'} exactly; BallOnly: 2m+1 resolves the ball
+        // alone, product fold-back accepted as Ecut-controlled discretization error (doc/GPWPlan 0.5(a)).
+        int nn = itsRaster==RasterPolicy::AliasFree ? 4*m+1 : 2*m+1;
         itsAutoGrid=ivec3_t(nn,nn,nn);
     }
     return itsAutoGrid;

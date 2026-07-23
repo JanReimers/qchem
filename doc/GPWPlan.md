@@ -342,13 +342,19 @@ grid-cost gap:
   surface, printed by `ReportGrids`.  AliasFree stays the default (correct-first; N provably not a
   physics variable).  BallOnly is the measured-efficiency option — ANOTHER ~8× on every raster-scaled
   cost (the NaF fine raster would drop to CP2K's own 36³-class, est. run ≪ 60 s).
-- **VALIDATION REQUIRED before BallOnly ships (the knobs trade against each other):** the
-  `cutoffFactor=8` auto-floor calibration was MEASURED on alias-free rasters — on a ball-only raster the
-  product tails fold back in, so the negCharge/XC-collapse probes must be re-run (CP2K operates clean at
-  C≈4 with ball-only rasters; whether that transfers to our Fourier-round-trip XC path is exactly the
-  measurement).  A/B: NaF at BallOnly vs AliasFree at the same Ecut — energy within ~mHa ⇒ CP2K's bet
-  confirmed for us and BallOnly can even become the default with the calibration recorded; if not, the
-  8× is the honest price of our XC path and this item closes as "policy justified".
+- **A/B MEASURED 2026-07-23 — CP2K'S BET CONFIRMED on the raw-XC landscape.**  Mechanism landed:
+  `RasterPolicy { AliasFree /*default*/, BallOnly }` on `PW_Evaluator`/`PW_Grid_Evaluator` (AutoGrid
+  4m+1 vs 2m+1, both 5-smooth), threaded through every GPW grid (density + ladder + top rung), printed
+  by `ReportGrids`; A/B instrument `GPW_RASTER_POLICY=ball` (factory-surface promotion rides the
+  default decision).  RESULTS (raw XC + C=2 + guards; negCharge == 0.000 EVERYWHERE — the raw feed's
+  pointwise samples are raster-independent, exactly the prediction; convergence behaviour unchanged):
+  Si Γ −7.11514 (0.13 mHa from AliasFree, CLOSER to CP2K −7.11506);  NaF auto/Ecut=80 −24.4304
+  (0.9 mHa);  NaF Ecut=320 −24.4311 (**0.1 mHa from CP2K −24.4312**);  the only real price is the
+  C=1-class regime (Ecut=40: −43 mHa aliasing) — BELOW the C=2 default floor.  So at/above the default
+  floor BallOnly costs ~1 mHa and buys another ~8× raster points (NaF total vs this morning:
+  100³ → 25³-class ≈ 64× with the C flip).  DEFAULT-FLIP DECISION pending (user): flipping moves every
+  raster-derived anchor (one more re-pin wave, the 5-smooth-flip precedent); calibration recorded
+  either way.
 
 
 ## 0h. SCF-strategy guards — PULLED AHEAD of 0.5(a) (user-approved 2026-07-23): the C 8→3 default flip
