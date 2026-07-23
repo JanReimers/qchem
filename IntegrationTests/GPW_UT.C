@@ -685,6 +685,102 @@ TEST(GPW, XCPotentialConsistencyFD)
               << " (informational: FD across the rho=0 guard kink is not smooth)" << std::endl;
 }
 
+// 0.5(f2) RAW-COLLOCATION XC FEED (doc/GPWPlan).  The raw pair on Overlap3CTensor: applyRaw = rho_DM(r) on
+// the integration raster (finest level RAW, others transferred spectrally -- NO ball restriction anywhere),
+// applyRawAdjoint = its exact transpose (band-truncate per level -> analytic gather).  Three teeth:
+//   (1) CHARGE: Integral(rho_raw) == Tr(D S^G) -- the spectral combine preserves the G=0 content exactly;
+//   (2) POSITIVITY: for PSD D, rho_DM = phi^T D phi >= 0 pointwise to screening precision -- THE property
+//       the ball-projected rho lacks (Gibbs lobes; the C=8 calibration driver) and the reason f2 exists;
+//   (3) ADJOINT: H = applyRawAdjoint(v_xc(rho_raw)) is the FD-exact derivative of the raw discrete E_xc.
+TEST(GPW, RawXCConsistencyFD)
+{
+    const double a=10.26;
+    FCCUnitCell cell(a);
+    cell.AddAtom(14,{0,0,0});
+    cell.AddAtom(14,{0.25,0.25,0.25});
+    std::shared_ptr<const Real_BS> mol=MakeBasis(cell);
+    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/6.0);
+    const GPW_Evaluator& ev=gpw;
+    const auto& grid=ev.DensityGrid();
+    const size_t n=static_cast<const Complex_OIBS&>(gpw).GetNumFunctions();
+
+    qchem::Hamiltonian::SlaterExchange  exch(2.0/3.0);
+    qchem::Hamiltonian::VWN_Correlation corr;
+    const qchem::Hamiltonian::ExFunctional* xcs[2]={&exch,&corr};
+
+    G_ERI3 ov=ev.Overlap3CTensor();
+    ASSERT_TRUE(bool(ov.applyRaw))        << "GPW must realise the raw-raster forward";
+    ASSERT_TRUE(bool(ov.applyRawAdjoint)) << "GPW must realise the raw-raster adjoint";
+
+    auto Exc=[&](const rvec_t& rho)->double
+    {
+        rvec_t e(rho.size());
+        for (size_t q=0;q<rho.size();q++)
+        {
+            double s=0.0; for (auto xc : xcs) s+=xc->GetEpsXc(rho[q]);
+            e[q]=s*rho[q];
+        }
+        return grid.Integral(e);
+    };
+    auto Hxc=[&](const rvec_t& rho)->chmat_t
+    {
+        rvec_t v(rho.size());
+        for (size_t q=0;q<rho.size();q++)
+        {
+            double s=0.0; for (auto xc : xcs) s+=xc->GetVxc(rho[q]);
+            v[q]=s;
+        }
+        return ov.applyRawAdjoint(v);
+    };
+    auto trace=[&](const chmat_t& H, const chmat_t& dD)->double
+    {
+        dcmplx tr(0.0);
+        for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) tr+=dcmplx(H(i,j))*dcmplx(dD(j,i));
+        return std::real(tr);
+    };
+    auto shifted=[&](const chmat_t& D, const chmat_t& dD, double h)->chmat_t
+    {
+        chmat_t Dh(D);
+        for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) Dh(i,j)=dcmplx(D(i,j))+h*dcmplx(dD(i,j));
+        return Dh;
+    };
+
+    // (1)+(2) on a PSD density (0.7 I + 0.3 J): charge and pointwise non-negativity of the raw feed.
+    chmat_t D1(n);
+    for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) D1(i,j)=(i==j)?dcmplx(1.0):dcmplx(0.3);
+    rvec_t rhoRaw=ov.applyRaw(D1);
+    const auto& S=static_cast<const Complex_OIBS&>(gpw).Overlap();
+    dcmplx trDSc(0.0);
+    for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++) trDSc+=dcmplx(D1(i,j))*dcmplx(S(j,i));
+    const double trDS=std::real(trDSc);
+    EXPECT_NEAR(grid.Integral(rhoRaw), trDS, 5e-3*std::fabs(trDS)) << "raw-feed charge == Tr(D S^G)";
+    double rmin=1e300, rmax=-1e300;
+    for (size_t q=0;q<rhoRaw.size();q++) { rmin=std::min(rmin,rhoRaw[q]); rmax=std::max(rmax,rhoRaw[q]); }
+    rvec_t rhoBall=grid.RhoOnGrid(ContractG_ERI3(ov,D1));
+    double bmin=1e300;
+    for (size_t q=0;q<rhoBall.size();q++) bmin=std::min(bmin,rhoBall[q]);
+    std::cout << "[raw-xc] rho_raw range [" << rmin << ", " << rmax << "]   (ball-path min " << bmin
+              << " -- the Gibbs lobes the raw feed removes)" << std::endl;
+    EXPECT_GT(rmin, -1e-6*rmax) << "PSD D must give pointwise-non-negative rho_DM (screening-eps only)";
+
+    // (3) FD consistency of the raw pair (mirrors XCPotentialConsistencyFD probe 1).
+    chmat_t dD(n);
+    for (size_t i=0;i<n;i++)
+        for (size_t j=i;j<n;j++) dD(i,j)=dcmplx(0.1*std::sin(1.0+double(i)+2.0*double(j)),0.0);
+    double rel1=0.0;
+    for (double h : {1e-3, 1e-4})
+    {
+        double fd=(Exc(ov.applyRaw(shifted(D1,dD,+h)))-Exc(ov.applyRaw(shifted(D1,dD,-h))))/(2.0*h);
+        rvec_t rho=ov.applyRaw(D1);                      // reset the colloc memo/screenD to D1 before H
+        double an=trace(Hxc(rho),dD);
+        double rel=std::fabs(fd-an)/std::max(std::fabs(an),1e-30);
+        if (h==1e-3) rel1=rel;
+        std::cout << "[raw-xc] h=" << h << "  dE_fd=" << fd << "  Tr(Hxc dD)=" << an
+                  << "  rel=" << rel << std::endl;
+    }
+    EXPECT_LT(rel1, 1e-5) << "raw H_xc must be the exact derivative of the raw discrete E_xc";
+}
+
 // === General-k (Step 1): the Bloch phase e^{ik.R} enters the lattice sums ============================
 // These isolate the general-k machinery at the matrix level (no SCF): the phase is inert at the home cell,
 // LIVE once images are summed, obeys the Bloch translation law, and conjugates under k -> -k.  (The full

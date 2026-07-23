@@ -103,6 +103,19 @@ cvec_t PeriodicGridEvaluator::ForwardFFT(const cvec_t& V) const
     return Vt;
 }
 
+// Inverse of ForwardFFT: dense physical coefficients (raster order) -> real field, no normalisation
+// (RhoOnGrid's FFT core without the sparse-map placement).
+rvec_t PeriodicGridEvaluator::BackwardFFT(const cvec_t& c) const
+{
+    ivec3_t N=itsN;
+    size_t Npts=size_t(N.x)*N.y*N.z;
+    assert(c.size()==Npts);
+    cvec_t rr=qchem::FFT::FFT3D(c, N, +1);
+    rvec_t out(Npts);
+    for (size_t i=0;i<Npts;i++) out[i]=std::real(dcmplx(rr[i]));
+    return out;
+}
+
 // Vtilde(dm) from a ForwardFFT grid: wrap dm into [0,N) per axis (negative freq -> N-|.|) and index raster.
 dcmplx PeriodicGridEvaluator::GridCoeff(const cvec_t& Vt, const ivec3_t& dm) const
 {

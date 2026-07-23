@@ -54,6 +54,12 @@ public:
     cvec_t   ForwardFFT (const cvec_t& V) const;
     //! Look up \f$\tilde V(\Delta m)\f$ in a \c ForwardFFT grid, wrapping \f$\Delta m\f$ into \f$N\f$ (alias-free for \f$|\Delta m|<N/2\f$).
     dcmplx   GridCoeff  (const cvec_t& Vt, const ivec3_t& dm) const;
+    //! \brief Inverse-FFT a FULL G-space coefficient grid (\c ForwardFFT layout, physical coefficients) back to
+    //! the real field -- \c RhoOnGrid's core on a dense \c cvec_t instead of a sparse \f$\Delta m\f$ map, NO
+    //! normalisation (the coefficients are already \f$/N_{pts}\f$-normalised physical amplitudes).  With
+    //! \c ForwardFFT these are exact inverses; the raw-collocation XC feed (doc/GPWPlan 0.5(f2)) uses the pair
+    //! for its spectral zero-pad/truncation transfers between rasters.
+    rvec_t   BackwardFFT(const cvec_t& c) const;
     //! \f$\int f\,d^3r\f$ on the FFT grid: uniform quadrature, weight \f$\Omega/N_{pts}\f$.
     double   Integral   (const rvec_t& f) const;
     //! \f$f(\vec r)=\mathrm{Re}\sum_{\Delta m} c(\Delta m)\,e^{i(B\Delta m)\cdot\vec r}\f$ (a sparse point eval, no FFT).

@@ -64,6 +64,19 @@ struct G_ERI3
     //! carries the fit grid -- so the KS matrix is 100% consistent with the density that fit basis collocated.
     //! Empty until a basis sets it (forward-only contexts leave it empty -- G_ERI3 is WIP, review pending).
     std::function<chmat_t(const std::function<dcmplx(const ivec3_t&)>& f)> applyAdjoint;
+    //! \brief RAW-RASTER forward (doc/GPWPlan 0.5(f2)): \f$\rho_{DM}(r)\f$ on the tensor's integration
+    //! raster -- the D-weighted collocated level densities combined SPECTRALLY (zero-pad, no ball
+    //! restriction anywhere), the finest level kept raw.  Because \f$D\f$ is PSD, \f$\rho_{DM}=\phi^T D\phi
+    //! \ge 0\f$ pointwise to screening precision -- unlike the ball-projected \ref apply whose Gibbs lobes go
+    //! negative on sharp products (the XC \f$\rho>0\f$-guard collapse; the C=8 grid-calibration driver).
+    //! Empty unless the producing basis has a real-space collocation engine (GPW sets it; plane waves have no
+    //! raw representation and leave it empty -- consumers fall back to \ref apply + RhoOnGrid).
+    std::function<rvec_t(const chmat_t& D)> applyRaw;
+    //! The EXACT adjoint of \ref applyRaw: a real-space field \f$v(r)\f$ on the SAME integration raster ->
+    //! the KS matrix \f$\langle i|v|j\rangle\f$ (per-level spectral box-TRUNCATION -- the transpose of the
+    //! zero-pad -- then the analytic per-pair gather), so \f$H_{xc}=\partial E_{xc}[\rho_{DM}]/\partial D\f$
+    //! holds to machine precision.  Set/empty together with \ref applyRaw.
+    std::function<chmat_t(const rvec_t& v)> applyRawAdjoint;
 };
 
 //! \brief Contract a density matrix against the gather: \f$\tilde\rho(\Delta m)=\frac{k_c}\Omega\sum_{(i,j)\in

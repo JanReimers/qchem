@@ -354,6 +354,8 @@ G_ERI3 GPW_Evaluator::Overlap3CTensor(std::shared_ptr<const PW_Grid_Evaluator> g
     for (const ivec3_t& dm : grid->Gs()) g.columns.push_back({dm,{}});
     g.apply       =MakeCollocator(/*coulomb*/false, grid);  // forward: D -> rho-tilde
     g.applyAdjoint=MakeIntegrator(grid);                    // backward: v_xc-tilde -> <i|v_xc|j>
+    g.applyRaw       =MakeRawCollocator(grid);              // 0.5(f2): D -> rho_DM(r) raw (XC feed)
+    g.applyRawAdjoint=MakeRawIntegrator(grid);              //          v(r) -> <i|v|j> (exact transpose)
     return g;
 }
 
@@ -390,6 +392,99 @@ GPW_Evaluator::MakeIntegrator(std::shared_ptr<const PW_Grid_Evaluator> grid) con
         return lat->IntegratePotential(V_L, phase, A, N_L, ecut_L, 0.0, screenD);   // 0 = the relative rule (adjoint-paired with collocation)
     };
 }
+// doc/GPWPlan 0.5(f2): spectral transfer between two FFT rasters, in ForwardFFT coefficient layout.
+// Copies every mode in the ALIAS-FREE band of BOTH boxes (2|m| < N per axis on each side -- the same strict
+// band RhoOnGrid/GridCoeff speak) and drops the rest: source->finer = exact zero-pad upsampling of the
+// trigonometric interpolant; source->coarser = band truncation.  The two directions are TRANSPOSES of each
+// other, which is what makes the raw-XC H_xc the exact derivative of the raw-XC energy.
+static void TransferBand(const cvec_t& src, const ivec3_t& Ns, cvec_t& dst, const ivec3_t& Nd)
+{
+    const int mx=(Ns.x-1)/2, my=(Ns.y-1)/2, mz=(Ns.z-1)/2;            // strict alias-free band of the source
+    const int dx=(Nd.x-1)/2, dy=(Nd.y-1)/2, dz=(Nd.z-1)/2;            //   and of the destination
+    auto w=[](int m, int N) { return size_t(((m%N)+N)%N); };
+    for (int ix=-std::min(mx,dx); ix<=std::min(mx,dx); ix++)
+        for (int iy=-std::min(my,dy); iy<=std::min(my,dy); iy++)
+            for (int iz=-std::min(mz,dz); iz<=std::min(mz,dz); iz++)
+                dst[(w(ix,Nd.x)*Nd.y+w(iy,Nd.y))*Nd.z+w(iz,Nd.z)] +=
+                src[(w(ix,Ns.x)*Ns.y+w(iy,Ns.y))*Ns.z+w(iz,Ns.z)];
+}
+
+// D -> rho_DM(r) on grid's raster: level 0 (== grid) RAW, every other level spectrally transferred in.
+std::function<rvec_t(const chmat_t&)> GPW_Evaluator::MakeRawCollocator(std::shared_ptr<const PW_Grid_Evaluator> grid) const
+{
+    std::vector<std::shared_ptr<const PW_Grid_Evaluator>> levels;
+    std::vector<ivec3_t> N_L;
+    std::vector<double>  ecut_L;
+    size_t nBase=0;
+    BuildLevels(grid, levels, N_L, ecut_L, nBase);
+    const UnitCell A = itsCell;
+    auto mol   = itsMol;
+    const Molecule::LatticeSum1E* lat = itsLat;
+    auto phase = CellPhase();
+    if (!itsCollocMemo) itsCollocMemo=std::make_shared<CollocMemo>();
+    auto memo  = itsCollocMemo;
+    return [A,levels,N_L,ecut_L,mol,lat,phase,memo](const chmat_t& D) -> rvec_t
+    {
+        auto sameD=[&]() -> bool                            // the MakeCollocator memo logic, verbatim
+        {
+            if (!memo->valid || memo->D.rows()!=D.rows()) return false;
+            if (memo->ecut!=ecut_L) return false;
+            for (size_t i=0;i<D.rows();i++)
+                for (size_t j=i;j<D.columns();j++) if (memo->D(i,j)!=D(i,j)) return false;
+            return true;
+        };
+        std::vector<rvec_t> rho;
+        if (sameD()) rho = memo->rho;
+        else
+        {
+            rho = lat->CollocateDensity(D, phase, A, N_L, ecut_L);
+            memo->D=D; memo->rho=rho; memo->ecut=ecut_L; memo->valid=true;
+        }
+        const ivec3_t NT=N_L[0];                            // the integration raster (level 0 == grid)
+        cvec_t acc(size_t(NT.x)*NT.y*NT.z, dcmplx(0.0));
+        for (size_t l=1; l<levels.size(); l++)              // coarse levels up, top rung band-dropped down
+            TransferBand(levels[l]->ForwardFFT(rho[l]), N_L[l], acc, NT);
+        rvec_t out=levels[0]->BackwardFFT(acc);
+        out+=rho[0];                                        // the finest level RAW: no FFT round trip at all
+        return out;
+    };
+}
+
+// The exact transpose: v(r) on grid's raster -> <i|v|j>.  V_0 = v identity (adjoint of the raw keep);
+// V_L = BackwardFFT_L(TransferBand(ForwardFFT_T(v))) -- the ForwardFFT 1/Npts against IntegratePotential's
+// internal Omega/Npts(L) weight leaves NO stray factors (derivation in the interface doc).
+std::function<chmat_t(const rvec_t&)> GPW_Evaluator::MakeRawIntegrator(std::shared_ptr<const PW_Grid_Evaluator> grid) const
+{
+    std::vector<std::shared_ptr<const PW_Grid_Evaluator>> levels;
+    std::vector<ivec3_t> N_L;
+    std::vector<double>  ecut_L;
+    size_t nBase=0;
+    BuildLevels(grid, levels, N_L, ecut_L, nBase);
+    const UnitCell A = itsCell;
+    auto mol   = itsMol;
+    const Molecule::LatticeSum1E* lat = itsLat;
+    auto phase = CellPhase();
+    if (!itsCollocMemo) itsCollocMemo=std::make_shared<CollocMemo>();
+    auto memo  = itsCollocMemo;
+    return [A,levels,N_L,ecut_L,mol,lat,phase,memo](const rvec_t& v) -> chmat_t
+    {
+        const size_t K=levels.size();
+        const ivec3_t NT=N_L[0];
+        assert(v.size()==size_t(NT.x)*NT.y*NT.z);
+        cvec_t vt=levels[0]->ForwardFFT(v);
+        std::vector<rvec_t> V_L(K);
+        V_L[0]=v;
+        for (size_t l=1; l<K; l++)
+        {
+            cvec_t ctL(size_t(N_L[l].x)*N_L[l].y*N_L[l].z, dcmplx(0.0));
+            TransferBand(vt, NT, ctL, N_L[l]);
+            V_L[l]=levels[l]->BackwardFFT(ctL);
+        }
+        const chmat_t* screenD = (memo && memo->valid) ? &memo->D : nullptr;
+        return lat->IntegratePotential(V_L, phase, A, N_L, ecut_L, 0.0, screenD);
+    };
+}
+
 G_ERI3 GPW_Evaluator::Repulsion3CTensor() const {return Repulsion3CTensor(itsFFT_R_G_Grids);}
 G_ERI3 GPW_Evaluator::Overlap3CTensor  () const {return Overlap3CTensor  (itsFFT_R_G_Grids);}
 

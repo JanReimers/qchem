@@ -235,6 +235,16 @@ private:
     //! ladder -- the \c G_ERI3::applyAdjoint the Overlap3C/Repulsion3C(grid) tensors carry (doc/GPWPlan §0e step2).
     std::function<chmat_t(const std::function<dcmplx(const ivec3_t&)>&)>
         MakeIntegrator(std::shared_ptr<const PW_Grid_Evaluator> grid) const;
+    //! \brief The RAW-RASTER pair (doc/GPWPlan 0.5(f2)) -- \c G_ERI3::applyRaw / \c applyRawAdjoint.
+    //! \c MakeRawCollocator: \f$D\to\rho_{DM}(r)\f$ on \a grid's raster -- the finest ladder level kept RAW
+    //! (its analytic samples are pointwise \f$\ge 0\f$ to screening-\f$\varepsilon\f$ for PSD \f$D\f$), every
+    //! other level transferred SPECTRALLY (zero-pad up / band-drop down, no ball restriction anywhere).
+    //! \c MakeRawIntegrator: the exact transpose -- \f$v(r)\f$ band-truncates to each level's box, inverse-FFTs,
+    //! and gathers through the SAME analytic \c IntegratePotential, so \f$H_{xc}=\partial E_{xc}/\partial D\f$
+    //! exactly (the FFT normalisations cancel against the \f$\Omega/N_{pts}\f$ quadrature weights -- no factors).
+    //! Both share \c CollocMemo with the ball closures (one collocation per (D, ladder) per iteration).
+    std::function<rvec_t(const chmat_t&)> MakeRawCollocator(std::shared_ptr<const PW_Grid_Evaluator> grid) const;
+    std::function<chmat_t(const rvec_t&)> MakeRawIntegrator(std::shared_ptr<const PW_Grid_Evaluator> grid) const;
     qcMesh::MeshParams PPMeshParams() const;  //!< the PP-quadrature integration mesh params (uniform, eCut=densityEcut)
 
     // The REL_CUTOFF multi-grid level ladder: the fine density grid + coarser grids (a factor 4 in Ecut each)
