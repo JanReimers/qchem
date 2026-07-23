@@ -53,3 +53,5 @@ target_compile_options(qcHamiltonian PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(qcHamiltonian PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
 
 
+
+add_subdirectory(tests)
