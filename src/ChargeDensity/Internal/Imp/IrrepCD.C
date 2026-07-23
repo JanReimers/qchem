@@ -239,6 +239,25 @@ template <class T> ΔG_Map IrrepCD<T>::GetFourierDensity(const BasisSet::cFIT_SF
     }
 }
 
+// Raw rho_DM(r) on c's raster (doc/GPWPlan 0.5(f2)): the basis's collocation-native forward, when it has
+// one (GPW's Overlap3C carries applyRaw; a plane-wave basis leaves it empty -> we answer empty and the
+// caller falls back to the ball route).  itsDensityMatrix carries the BZ weight, exactly as above.
+template <class T> rvec_t IrrepCD<T>::GetRhoOnGrid(const BasisSet::cFIT_SF_ABS& c) const
+{
+    if constexpr (std::is_same_v<T,dcmplx>)
+    {
+        auto* fb=dynamic_cast<const BasisSet::Band_FT_IBS*>(itsBasisSet);
+        assert(fb && "GetRhoOnGrid requires a Band_FT_IBS (plane-wave) basis");
+        const G_ERI3& g=fb->Overlap3C(c);
+        return g.applyRaw ? g.applyRaw(itsDensityMatrix) : rvec_t{};
+    }
+    else
+    {
+        assert(false && "a finite (non-periodic) density has no grid raster representation");
+        return rvec_t{};
+    }
+}
+
 // V_H(dm) = 4pi rho-tilde(dm)/|G|^2: contract D against the basis's D-free COULOMB tensor (Repulsion3C(c), the
 // diagonal kernel baked in) -- the reciprocal mirror of the finite GetRepulsion3C(fbs) above.  D stays here.
 template <class T> ΔG_Map IrrepCD<T>::GetRepulsion3C(const BasisSet::cFIT_CD_ABS& c) const

@@ -189,6 +189,32 @@ template <class T> ΔG_Map tComposite_CD<T>::GetFourierDensity(const BasisSet::c
     }
 }
 
+// Raw rho_DM = Sum_k w_k rho_k(r) on c's ONE raster (the weights ride in each block's D).  ALL-OR-NOTHING:
+// if any block lacks the raw path (returns empty) the whole composite answers empty, so the caller's E/H
+// pair never mixes raw and ball blocks (doc/GPWPlan 0.5(f2)).
+template <class T> rvec_t tComposite_CD<T>::GetRhoOnGrid(const BasisSet::cFIT_SF_ABS& c) const
+{
+    if constexpr (std::is_same_v<T,dcmplx>)
+    {
+        rvec_t sum;
+        for (const auto& blk : itsCDs)
+        {
+            auto* fc=dynamic_cast<const FourierDensity*>(blk.get());
+            assert(fc && "composite block is not a FourierDensity (plane-wave path)");
+            rvec_t r=fc->GetRhoOnGrid(c);
+            if (r.size()==0) return rvec_t{};
+            if (sum.size()==0) sum=std::move(r);
+            else               sum+=r;
+        }
+        return sum;
+    }
+    else
+    {
+        assert(false && "a finite (non-periodic) density has no grid raster representation");
+        return rvec_t{};
+    }
+}
+
 // V_H = Sum_blocks V_H_k (V_H is linear in rho-tilde, so summing the per-block Coulomb projections == the
 // projection of the summed density).  Each block bakes the kernel via its own Repulsion3C(c).
 template <class T> ΔG_Map tComposite_CD<T>::GetRepulsion3C(const BasisSet::cFIT_CD_ABS& c) const

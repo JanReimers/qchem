@@ -59,6 +59,7 @@ public:
     //! Metric-free rho-tilde(Delta-m) of THIS block: D contracted against the basis's D-free OVERLAP tensor
     //! Overlap3C(c) (empty kernel).  The periodic density's native representation; finite path NA-asserts.
     virtual ΔG_Map GetFourierDensity(const BasisSet::cFIT_SF_ABS& c) const;
+    virtual rvec_t GetRhoOnGrid(const BasisSet::cFIT_SF_ABS& c) const;   // raw rho_DM (0.5(f2)); empty if no raw path
     //! V_H(Delta-m) of THIS block: D contracted against the basis's D-free Coulomb tensor Repulsion3C(c) (kernel baked).
     virtual ΔG_Map GetRepulsion3C(const BasisSet::cFIT_CD_ABS& c) const;
 

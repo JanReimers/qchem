@@ -235,7 +235,14 @@ void PW_XC::RefreshRhoGrid(const cChargeDensity* cd) const
     if (!newCD(cd)) return;
     auto fd=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(cd);
     assert(fd && "PW_XC requires a FourierDensity (periodic) charge density");
-    itsRhoGrid=itsScalarFitter->Grid().RhoOnGrid(fd->GetFourierDensity(*itsVxcFitBasis));   // rho-tilde via Overlap3C, onto the FIT grid
+    // RAW-FIRST (doc/GPWPlan 0.5(f2)): a collocation-backed density answers with rho_DM(r) directly --
+    // pointwise >= 0 for an aufbau D, so the rho>0 guard never bites and the grid calibration can relax
+    // (the C=8 driver was the BALL path's Gibbs lobes).  A plane-wave density (or a matrix-free seed)
+    // answers EMPTY and we take the ball round trip below -- bit-identical to the pre-f2 path.
+    itsRhoGrid=fd->GetRhoOnGrid(*itsVxcFitBasis);
+    itsRhoIsRaw=(itsRhoGrid.size()!=0);
+    if (!itsRhoIsRaw)
+        itsRhoGrid=itsScalarFitter->Grid().RhoOnGrid(fd->GetFourierDensity(*itsVxcFitBasis));   // rho-tilde via Overlap3C, onto the FIT grid
     if (ReportGridCharge())
     {
         // Grid charge vs analytic charge: the electrons LOST to grid truncation (high-G aliasing of rho).
@@ -277,6 +284,18 @@ void PW_XC::RefreshRhoGrid(const cChargeDensity* cd) const
 chmat_t PW_XC::CalcMatrix(const cobs_t* bs, const Spin&, const cChargeDensity* cd) const
 {
     RefreshRhoGrid(cd);
+    if (itsRhoIsRaw)
+    {
+        // RAW route (0.5(f2)): H_xc through the raw adjoint of the SAME tensor whose applyRaw produced
+        // itsRhoGrid -- box-truncation per level + the analytic gather -- so H_xc == dE_xc/dD of the raw
+        // discrete functional to machine precision (gate: GPW.RawXCConsistencyFD).  No ball fit anywhere.
+        const auto& orb=dynamic_cast<const BasisSet::Band_FT_IBS&>(*bs);   // genuine "is it?" cross-cast (throws)
+        const G_ERI3& g=orb.Overlap3C(*itsVxcFitBasis);
+        assert(g.applyRawAdjoint && "raw rho without a raw adjoint: Overlap3C must carry both");
+        rvec_t v(itsRhoGrid.size());
+        for (size_t q=0;q<itsRhoGrid.size();q++) v[q]=itsXc->GetVxc(itsRhoGrid[q]);
+        return g.applyRawAdjoint(v);
+    }
     itsScalarFitter->DoFit(PWVxcField(itsXc.get(), itsRhoGrid, &itsScalarFitter->Grid()));
     return itsScalarFitter->Overlap(bs);                                        // <i|v_xc|j> (no kernel)
 }

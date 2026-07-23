@@ -138,6 +138,11 @@ private:
     //! The term borrows that ONE grid via itsScalarFitter->Grid() -- no second cross-cast of the fit basis (#7).
     std::unique_ptr<Fitting::GriddedScalarFitter> itsScalarFitter;
     mutable rvec_t itsRhoGrid;   //!< rho(r) on the fit grid for the current density (CalcMatrix builds; GetEnergy reuses)
+    //! \brief Whether \c itsRhoGrid is the RAW collocated \f$\rho_{DM}\f$ (doc/GPWPlan 0.5(f2)) rather than
+    //! the ball-projected round trip.  Set per refresh from the density's \c GetRhoOnGrid answer; when true,
+    //! \c CalcMatrix assembles \f$H_{xc}\f$ through the raw adjoint so the E/H pair derives from the ONE raw
+    //! discrete functional (and the \f$\rho>0\f$ guard becomes inert -- \f$\rho_{DM}\ge 0\f$ for aufbau D).
+    mutable bool itsRhoIsRaw=false;
 };
 
 } //namespace

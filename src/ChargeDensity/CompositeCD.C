@@ -56,6 +56,7 @@ public:
     //! Sum the contained blocks' G-space coefficients: \f$\tilde\rho(\Delta m)=\sum_k w_k\tilde\rho_k\f$
     //! (each block already carries its BZ weight).  Plane-wave (dcmplx) path; NA-asserts for double.
     virtual ΔG_Map GetFourierDensity(const BasisSet::cFIT_SF_ABS& c) const;
+    virtual rvec_t GetRhoOnGrid(const BasisSet::cFIT_SF_ABS& c) const;   // raw rho_DM (0.5(f2)); empty if any block lacks it
     //! Sum the contained blocks' Coulomb projections \f$V_H=\sum_k w_k V_{H,k}\f$ (\f$V_H\f$ is linear in
     //! \f$\tilde\rho\f$).  Plane-wave (dcmplx) path; NA-asserts for double.
     virtual ΔG_Map GetRepulsion3C(const BasisSet::cFIT_CD_ABS& c) const;
