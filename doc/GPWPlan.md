@@ -201,6 +201,11 @@ The recipe — every piece fixes a wall we hit:
 
 # TODO / NEXT
 
+**⇒ The FORWARD QUEUE now lives in `doc/GPWPlan1.md` (2026-07-23): param-struct graduation →
+per-system display → Cache2/3 LRU → diffuse robustness + Fermi smearing → B_ij(R) with IBZ.  This
+file remains the RECORD of the 2026-07 campaign (0.5(b)/(c)/(f), 0h, C=2, raster A/B) + the durable
+pins; deep archive in `doc/GPWHistory.md`.**
+
 **Orientation (2026-07-23).**  GPW is VALIDATED against CP2K at sub-mHa on every honest comparison (Si,
 NaF-SR2 0.19 mHa, NaF-full-SR 0.10 mHa — after the CP2K SR "oracle" −27.93 was RETRACTED as its screening
 artifact; TRAPS #2).  NaF production (SR2, matched grids) runs in 190 s.  The queue: §0.5 runtime —
