@@ -232,11 +232,12 @@ confirmation runs.
   `DISABLED_NaFGridContinuation`'s energy pins are STALE (coarse −27.76 = the RETRACTED aliasing-era
   value; fine converges clean at −23.680 = the §0h MOM cross-grid pinning signature, 0.75 Ha above the
   −24.431 truth) — re-pin with/after 0h, task chip filed.
-- **(c) Stream-budget follow-ups:** byte-aware per-pair transient bound (the current bound is in POINTS
-  but pairs build in fp64 form — a 400M-pt fp32 budget still admits a ~5-GB build transient).  The
-  readout sub-item is DONE (rode with (b): `[stream cache]` prints the EFFECTIVE env-overridden budgets).
-  The byte-aware bound gets MORE relevant after (f), whose raw fine-level XC feed changes what occupies
-  the stream budget.
+- **(c) DONE 2026-07-23 — stream-budget follow-ups.**  (1) Byte-aware build transient via STREAMING
+  fp32 demotion: the moment a pair's count exceeds the open fp64 budget it can only land in tier 2, so
+  the already-built offsets demote immediately and the rest build demoted — the transient is bounded by
+  the fp32 STORAGE (+ one offset's fp64 box) instead of 12 B/pt over the whole pair (~10 GB at the 850M
+  default; the full-SR OOM class).  Same doubles narrowed → replay bit-identical, tiering unchanged.
+  (2) `[stream cache]` readout prints the EFFECTIVE (env-overridden) budgets (rode with (b)).
 - **(f) BALL-PER-ROLE re-calibration (user question 2026-07-23): one ball currently serves three roles
   with three different natural calibrations** — Hartree ρ ball ≈ 2–3·α_max (charge-converged, measured);
   the ρ FED TO the XC nonlinearity ≈ 4–8·α_max (a POINTWISE non-negativity requirement, not spectral:
