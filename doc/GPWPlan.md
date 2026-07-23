@@ -203,27 +203,26 @@ The recipe — every piece fixes a wall we hit:
 
 **Orientation (2026-07-23).**  GPW is VALIDATED against CP2K at sub-mHa on every honest comparison (Si,
 NaF-SR2 0.19 mHa, NaF-full-SR 0.10 mHa — after the CP2K SR "oracle" −27.93 was RETRACTED as its screening
-artifact; TRAPS #2).  NaF production (SR2, matched grids) runs in 190 s.  The queue: §0.5 runtime (the
-raster policy is the big lever), 0h SCF guards, 0i analytic long, §1 diffuse-basis robustness (demoted to
-automation), then the standing items (2)–(5).
+artifact; TRAPS #2).  NaF production (SR2, matched grids) runs in 190 s.  The queue: §0.5 runtime
+(execution order b→c→f→a→e→d — the DM-ρ XC feed lands BEFORE the raster-policy A/B), 0h SCF guards,
+0i analytic long, §1 diffuse-basis robustness (demoted to automation), then the standing items (2)–(5).
 
 ## 0.5 RUNTIME IMPROVEMENTS (the consolidated performance queue)
 Current standing (all converged, same machine): Si Γ 48 s vs CP2K 3.5 s; NaF SR2 190 s vs 5.8 s (~33×);
-the full-SR diagnostic ran 8.45 h vs 88.6 s — its pathology is items (b)+(c) below.  In leverage order:
-- **(a) The raster POLICY — the ~8× lever.**  Full design in §0.5(a) just below.
+the full-SR diagnostic ran 8.45 h vs 88.6 s — its pathology is items (b)+(c) below.  In EXECUTION order
+(dependency-aware leverage; letters are stable labels, kept for cross-references).  Prelude: the
+test-side `ctest -j16` upgrade (separate session) lands before (b) so every step below gets fast
+confirmation runs.
 - **(b) Free the coarse stage's stream caches after the seed handoff** (`bsC.reset()` class fix): the
   global stream budgets are consumed by the RESIDENT coarse caches, so the fine stage of a
   grid-continuation run gets ~0% coverage and re-evaluates billions of points per iteration (the 8.45-h
-  run's dominant cost).
+  run's dominant cost).  FIRST: a small class fix with the largest single measured pathology behind it,
+  AND it sanitises the timing baseline every later A/B below is measured against.
 - **(c) Stream-budget follow-ups:** byte-aware per-pair transient bound (the current bound is in POINTS
   but pairs build in fp64 form — a 400M-pt fp32 budget still admits a ~5-GB build transient); the
   `[stream cache]` readout should print the EFFECTIVE (env-overridden) budgets, not the compile-time
-  constants.
-- **(d) B_ij(R) k-independent 1E memo** (user design: cache B(R), never M(k) — "keep k out of the key"):
-  `LatticeSum` currently folds `phase(n)` into the accumulation, burying the k-independence; storing the
-  per-pair, per-offset reductions once makes every additional k-block's 1E build a ~ms phase contraction
-  (the `IntegrateMemo` pattern, already shared across k-blocks via the one molecular basis).  The
-  multi-k enabler (Si 2×2×2: 8 builds → 1 build + 8 contractions).
+  constants.  Rides with (b); the byte-aware bound gets MORE relevant after (f), whose raw fine-level
+  XC feed changes what occupies the stream budget.
 - **(f) BALL-PER-ROLE re-calibration (user question 2026-07-23): one ball currently serves three roles
   with three different natural calibrations** — Hartree ρ ball ≈ 2–3·α_max (charge-converged, measured);
   the ρ FED TO the XC nonlinearity ≈ 4–8·α_max (a POINTWISE non-negativity requirement, not spectral:
@@ -232,25 +231,43 @@ the full-SR diagnostic ran 8.45 h vs 88.6 s — its pathology is items (b)+(c) b
   opposite to the GGA ∇ρ lore).  The governing ball sets the raster (∝ Ecut^{3/2}), so C 8→4 ≈ 2.8×
   fewer raster points machine-wide.  EVIDENCE C=8 is over-conservative for production: the matched NaF
   runs at Ecut=160 (C=4, CP2K's own operating point) agree with CP2K to 0.1–0.2 mHa; the 480-ball probe
-  bought 0.15 mHa.  MEASURE FIRST: re-run the negCharge/XC probes at C=3,4 on production NaF (post-
-  analytic-short landscape); if clean, lower the default C (zero architecture change — the divergent-ball
-  plumbing exists via CreateCD/VxcFitBasisSet since the thread-through fix); the ⅓-v_xc ball is a smaller
-  follow-on (G-space op counts).  CAUTION: the retired GPW_CDFIT_SCALE two-grid fork — any re-split must
-  buy real money over one-grid simplicity.  **THE ENABLING MECHANISM (user insight 2026-07-23): feed XC
-  the DM-ρ, which is pointwise NON-NEGATIVE by construction (PSD D ⇒ φᵀDφ ≥ 0) — the C=8 cleanliness
-  constraint dissolves entirely.**  NOT via op(r) sampling (that is the deleted PhiOnGrid era, ~1e9
-  exp/iter) — the collocation STREAMS already materialise exactly those χᵢχⱼ(r) samples: the RAW
-  D-weighted level densities before the FFT/ball combine ARE ρ_DM(r) to screening-ε (worst negatives
-  ~1e-10, not the ball's Gibbs −0.77 e).  So: keep the fine level RAW for the XC feed (skip the ball
-  truncation there only), spectrally upsample the coarse levels (their content is genuinely
-  band-limited — benign), keep the BALL for Hartree/Poisson (variational, exact).  H_xc=∂E_xc/∂D via
-  the existing box-gather adjoint with box-truncation replacing ball-restriction per level (the
-  suspended §0f increment-1 design, RESURRECTED with the right motivation: not an accuracy fix — the
-  falsified role — but the C=8→2-3 unlock); re-gate `GPW.XCPotentialConsistencyFD` + negCharge probes.
-  This is CP2K's own arrangement (XC on raw collocated values).
+  bought 0.15 mHa.  MEASURE FIRST (f1, near-zero code, can run any time): re-run the negCharge/XC
+  probes at C=3,4 on production NaF (post-analytic-short landscape); if clean, lower the default C
+  (zero architecture change — the divergent-ball plumbing exists via CreateCD/VxcFitBasisSet since the
+  thread-through fix); the ⅓-v_xc ball is a smaller follow-on (G-space op counts).  CAUTION: the
+  retired GPW_CDFIT_SCALE two-grid fork — any re-split must buy real money over one-grid simplicity.
+  **THE ENABLING MECHANISM (f2, user insight 2026-07-23): feed XC the DM-ρ, which is pointwise
+  NON-NEGATIVE by construction (PSD D ⇒ φᵀDφ ≥ 0) — the C=8 cleanliness constraint dissolves
+  entirely.**  NOT via op(r) sampling (that is the deleted PhiOnGrid era, ~1e9 exp/iter) — the
+  collocation STREAMS already materialise exactly those χᵢχⱼ(r) samples: the RAW D-weighted level
+  densities before the FFT/ball combine ARE ρ_DM(r) to screening-ε (worst negatives ~1e-10, not the
+  ball's Gibbs −0.77 e).  So: keep the fine level RAW for the XC feed (skip the ball truncation there
+  only), spectrally upsample the coarse levels (their content is genuinely band-limited — benign),
+  keep the BALL for Hartree/Poisson (variational, exact).  H_xc=∂E_xc/∂D via the existing box-gather
+  adjoint with box-truncation replacing ball-restriction per level (the suspended §0f increment-1
+  design, RESURRECTED with the right motivation: not an accuracy fix — the falsified role — but the
+  C=8→2-3 unlock); re-gate `GPW.XCPotentialConsistencyFD` + negCharge probes.  This is CP2K's own
+  arrangement (XC on raw collocated values).  BEFORE (a) because the raw-collocation XC feed is the
+  same softening CP2K relies on to run clean on ball-only rasters — validating BallOnly against the
+  current Fourier-round-trip XC path would measure a configuration (f2) deletes.  **DO TOGETHER with
+  §5's fit-basis ctor ISP split (user 2026-07-23): the Vxc-fit `({G}_vxc, integration grid)`
+  two-argument ctor is the natural vehicle for the per-role balls — if making that ctor explicit is
+  easy while in here, pull it forward from §5 rather than riding the CreateCD/VxcFitBasisSet plumbing
+  and re-touching the same seam later.**
+- **(a) The raster POLICY — the ~8× lever.**  Full design in §0.5(a) just below.  AFTER (f): run ONE
+  combined calibration matrix {RasterPolicy × cutoffFactor C} through the negCharge/XC probes — the
+  two levers multiply (~8× × ~2.8× raster points) but share the single Gibbs-into-XC failure mode that
+  (f2) dissolves, so the validation campaign is shared instead of run twice.
 - **(e) Cache2/3 byte-budget LRU** (§5, user-approved): also the robustness fix; runtime-relevant because
   it retires the per-pair `ClearGeometryCaches()` rebuild cost on healthy bases (currently unmeasurable,
   but the LRU makes the policy principled).
+- **(d) B_ij(R) k-independent 1E memo** (user design: cache B(R), never M(k) — "keep k out of the key"):
+  `LatticeSum` currently folds `phase(n)` into the accumulation, burying the k-independence; storing the
+  per-pair, per-offset reductions once makes every additional k-block's 1E build a ~ms phase contraction
+  (the `IntegrateMemo` pattern, already shared across k-blocks via the one molecular basis).  The
+  multi-k enabler (Si 2×2×2: 8 builds → 1 build + 8 contractions).  LAST here: orthogonal to the
+  raster items (1E build, not raster-scaled) and only pays on multi-k runs — schedule with/into §4
+  (IBZ); on the current Γ-dominated benchmarks its near-term leverage is small.
 - (OpenMP pair loops remain opt-in `GPW_OMP_THREADS`, ~1.7× — bandwidth-bound; CP2K threads on top of
   everything, so parity ultimately needs the structural items above first.)
 
@@ -477,7 +494,9 @@ is an *efficiency* layer, not a correctness requirement — hence it comes AFTER
     integration grid is an independent degree of freedom (and the natural GGA densification hook),
     deservedly explicit at the seam.
   Makes ball-vs-raster structural instead of documentary (this week's confusion is the evidence), and
-  dovetails with §0.5(f)'s per-role ball calibrations.
+  dovetails with §0.5(f)'s per-role ball calibrations.  **SCHEDULING (user 2026-07-23): if the explicit
+  Vxc-fit ctor is easy while implementing §0.5(f), do them TOGETHER — this item then partially lands
+  early and only the CD/ρ-fit `PW_Ball`-alone ctor remains here.**
 - **Cache2/Cache3 BYTE-BUDGET LRU + per-cache RAM report (user-approved 2026-07-23; the intended
   REPLACEMENT for the clear-based band-aid).**  The MnD geometry caches (Ω/RNLM/H3) currently stay
   correct on lattice paths only because the drivers call `ClearGeometryCaches()` per pair and the 3C
