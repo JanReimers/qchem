@@ -10,7 +10,10 @@ Brief notes about module/library conventions, naming, and includes.
 
 - Build & test: `cd build/Release && ninja ITMain`, then `ctest -j16` from `build/Release` — every
     gtest case (integration + library unit tests) runs as its own ctest test, load-balanced across
-    cores with longest-first scheduling after the first run.
+    cores with longest-first scheduling after the first run.  (ctest is for Claude/CI batch sweeps;
+    the user drives tests through the C++ TestMate tree in VSCode, which discovers the same exes
+    directly — keep `testMate.cpp.test.executables` in .vscode/settings.json matching any new
+    test-exe names.)
 - For a quick focused run, invoking the exe directly still works: `./IntegrationTests/ITMain`
     (filter `-A_*` for fast runs; a full `ctest -j16` pass is the regression anchor).
 - Calling ninja directly is fine. (I earlier suggested cmake only because ninja rebuilds were flaky —

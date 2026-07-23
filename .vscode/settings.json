@@ -143,8 +143,10 @@
     "**/build/Release/**/*.cmake": true,
     "**/build/Release/CMakeFiles/**": true
     },
-    "testMate.cpp.test.executables": "build/Release/**/UT*",
-    "cmake.ctest.testExplorerIntegrationEnabled": false
+    "testMate.cpp.test.executables": "build/Release/**/{UT*,ITMain}",
+    "testMate.cpp.test.parallelExecutionLimit": 16,
+    "testMate.cpp.test.parallelExecutionOfExecutableLimit": 16,
+    "cmake.ctest.testExplorerIntegrationEnabled": false,
     // "C_Cpp.default.intelliSenseMode": "linux-clang-x64"
     "C_Cpp.intelliSenseEngine": "disabled",
     // "clangd.path": "/path/to/clangd",
