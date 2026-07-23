@@ -26,6 +26,7 @@
 #include <cstdlib>   // std::getenv/std::atof (the NaF mixing-tuning env knobs)
 #include <complex>
 #include <cstdio>
+#include <fstream>   // /proc/self/statm (the RSS breadcrumb bisect)
 #include <stdexcept>
 #include <algorithm>
 
@@ -599,14 +600,25 @@ TEST(GPW_SCF, DISABLED_NaFGridContinuation)
         return par;
     };
 
+    // RSS breadcrumb (the full-SR allocation-bomb bisect, 2026-07-22): prints resident MB per ctor phase.
+    auto rss=[](const char* tag)
+    {
+        std::ifstream f("/proc/self/statm"); size_t vmpg=0, rspg=0; f>>vmpg>>rspg;
+        std::cerr<<"[rss] "<<tag<<": "<<(rspg*4096/1048576)<<" MB"<<std::endl;
+    };
     // ---- STAGE 1: converge on the CHEAP coarse density grid (Ecut=40 -> the physical fixed point). ----
+    rss("pre-basis");
     std::unique_ptr<Complex_BS> bsC(L3::GPWFactory(lat, mol, /*densityEcut*/envd("GC_COARSE_ECUT",40.0)));
+    rss("basis");
     Crystal_EC ecC(bsC->GetIrreps(Spin::None), 8);
+    rss("EC");
     cHamiltonian* hamC=new Ham_PW_DFT(st, bsC.get(), {{"Na",1},{"F",7}}, "LDA");
+    rss("Ham");
     auto* accC=new qchem::SCFAccelerators::tSCFAcceleratorNull<dcmplx>();   // no DIIS (the CP2K recipe)
     qchem::SCFIterator::cSCFIterator scfC(bsC.get(), &ecC, hamC, accC,
                                           qchem::ChargeDensity::SeedStrategy::IonicSAD, st.get(),
                                           qchem::Cholesky, 0.0);
+    rss("SCFctor");
     qchem::Hamiltonian::ReportGridCharge()=true;   // step-2 probe: coarse-grid rho stats to compare vs fine
     scfC.Iterate(makePar((size_t)envd("GC_COARSE_NMAX",200), 10, 35));
     qchem::Hamiltonian::ReportGridCharge()=false;

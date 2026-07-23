@@ -41,21 +41,36 @@ N=24/12/8/4.)  Note CP2K's N=36 at 160 Ha vs our radix-2 FFT's N=128 at the same
 et al.): FINAL VERDICT = GPW VALIDATED — sub-mHa agreement on the same basis.**  The first matched run gave
 −23.6739 vs the −27.9313 oracle (Δ=4.26 Ha), initially mis-attributed to the collocation method; two probes
 decomposed it exactly: **0.76 Ha = a MOM-pinned EXCITED state** (the `AdoptMOMReference` coarse→fine transfer;
-pure-aufbau rerun → −24.4317, clean) **+ 3.50 Ha = a BASIS MISMATCH** (qchem ran `VALENCE_LOWQ_SR2`; the
-oracle deck ran `VALENCE-LOWQ-SR` — it predates the SR2 trim).  A 480-Ha-ball probe also falsified the
+pure-aufbau rerun → −24.4317, clean) **+ 3.50 Ha initially attributed to the SR-vs-SR2 BASIS difference —
+re-attributed 2026-07-23 to CP2K's SCREENING ARTIFACT (the retraction below): the oracle deck's basis WAS
+mismatched (SR vs our SR2), but the SR number itself was corrupt.**  A 480-Ha-ball probe also falsified the
 ball/Gibbs hypothesis (0.15 mHa effect).  **Apples-to-apples row (SR2, `naf_gpw_sr2_diag.inp`):**
 
 | system | basis | qchem GPW (matched grids, aufbau) | CP2K | Δ |
 |---|---|---|---|---|
 | NaF Γ | VALENCE-LOWQ-SR2 | **−24.4316608** (22 iters, Δρ 2e-6) | **−24.4312134** (converged, 16 steps) | **0.45 mHa** |
 | NaF Γ (2026-07-22: analytic short + κ rule + 5-smooth rasters) | VALENCE-LOWQ-SR2 | **−24.4314027** (22 iters, fine raster 72³, whole 2-stage run **190 s**) | −24.4312134 (5.8 s) | **0.19 mHa** |
+| NaF Γ (2026-07-23: the FULL SR basis, §1 probe) | VALENCE-LOWQ-SR | **−24.4323976** (20 iters, converged, charge 8.0000000000) | **−24.4322935** (`naf_gpw_sr_tight.inp`: EPS_DEFAULT 1e-14 + EPS_PGF_ORB 1e-12 — **converged, 27 steps**) | **0.10 mHa** |
 
-Exc −4.95597 vs −4.95531 (0.7 mHa).  Note CP2K's SCF **fully converges** on SR2 (the eternal density
-limit-cycle was the near-singular SR basis, cond≈8e3 — both codes struggled on SR, both are clean on SR2).
-The SR↔SR2 3.5 Ha is REAL variational physics (both codes agree on both bases): Na's diffuse s 0.0857 +
-p 0.05 are not physically null despite λ_min~1e-6 — see GPWPlan §1 (rank-reduction) for the
-conditioning-vs-completeness resolution.  CP2K detailed components of the SR rerun: Core-H +7.2466, Hartree
-+32.1349, XC −3.7398, core-charge self −63.5730, core-charge overlap +0.0000172.
+**THE −27.93128 SR "ORACLE" IS RETRACTED — a 3.50 Ha SCREENING-TRUNCATION ARTIFACT (2026-07-23).**
+Our resolved-grid full-SR run converged cleanly to −24.4324 (1.0 mHa below SR2 — consistent with the
+variational bound and with Na⁺'s ENTIRE valence energy being 0.144 Ha; 4 diffuse cation functions cannot
+buy 3.5 Ha).  The decisive experiment: rerunning CP2K-SR with honest screening (EPS_PGF_ORB 1e-5 → 1e-12)
+moves its energy −27.93128 → **−24.43229** AND replaces the "eternal density limit cycle" with clean
+27-step convergence.  Mechanism: CP2K's neighbour-list screening TRUNCATES the overlap metric (cond 8e3
+vs the true 6e6) — the same truncated-metric inconsistency qchem measured corrupting SCF maps at e-scale
+(GPWPlan §0b′) and then banished ("THERE IS NO CUT"); on a λ~1e-6 basis the ~1e-5 screening residuals are
+amplified ~1/λ into Ha-scale energy corruption and an artificial convergence pathology.  LESSON for all
+future CP2K oracle runs on ill-conditioned bases: tighten EPS_DEFAULT/EPS_PGF_ORB and require REAL
+(density) convergence — an E-flat limit cycle is not an oracle.
+
+Exc −4.95597 vs −4.95531 (0.7 mHa).  [SUPERSEDED 2026-07-23: an earlier version of this note claimed the
+SR↔SR2 3.5 Ha was "real variational physics — both codes agree on both bases"; the full-SR probe + the
+tight-screening experiment above DISPROVED it — the true SR↔SR2 difference is **1.0 mHa** and the 3.5 Ha
+was CP2K's screening artifact.  The old "both codes agree at ≈−28" datum was our own aliasing-era Ecut=40
+numbers coincidentally near CP2K's corrupted value — both artifacts amplified through the same near-null
+modes, both now dead.]  CP2K detailed components of the (retracted) default-screening SR rerun: Core-H
++7.2466, Hartree +32.1349, XC −3.7398, core-charge self −63.5730, core-charge overlap +0.0000172.
 
 ¹ **NaF (2026-07-15, q1/q7 on OUR transcribed low-q SR basis): the ENERGY is settled, the DENSITY is not.**
 Broyden(α=0.2, Kerker β=1.5) + traditional diagonalization: Etot flat at −27.9312754 to ~1e-6 from iteration

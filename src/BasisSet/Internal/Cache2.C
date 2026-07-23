@@ -85,6 +85,12 @@ public:
     virtual size_t            RAMsize() const;  //Optional override
     virtual const Cacheable2* Create(size_t i1,size_t i2) const; //default: unused by the facade form
 
+    //! Drop every stored entry (stats stay cumulative).  For GEOMETRY-KEYED caches whose keys are
+    //! per-instance IDs: a lattice sum mints fresh image clones per (pair, offset), so the cache grows
+    //! without bound unless the driver clears at scope boundaries (doc/GPWPlan.md, the full-SR OOM).
+    //! Purely a cost decision -- entries are always rebuildable.  const because storage is mutable.
+    void Clear() const {cache.clear(); i1_cache=nullptr;}
+
     // Hit/miss stats (high reuse = the cache is shared, e.g. Omega across SALC irreps).  Report takes
     // the cache's name (its RadialType key, which the cache itself does not store).
     size_t Lookups() const {return itsLookups;}

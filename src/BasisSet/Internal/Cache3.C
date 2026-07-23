@@ -64,6 +64,9 @@ public:
     virtual size_t            RAMsize() const;
     virtual const Cacheable3* Create(size_t i1,size_t i2,size_t i3) const; //default: unused by facade
 
+    //! Drop every stored entry (stats stay cumulative) -- see Cache2::Clear (the lattice-scope bound).
+    void Clear() const {cache.clear(); i1_cache=nullptr; i2_cache=nullptr;}
+
     // Hit/miss stats (see Cache2).  Report takes the cache's name (its RadialType key).
     size_t Lookups() const {return itsLookups;}
     size_t Inserts() const {return itsInserts;}

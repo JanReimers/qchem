@@ -928,6 +928,21 @@ Then the standing queue: **(1) DROP SR** (rank-reduction + auto-tol, below); **(
 bases → Si/NaF/CsI**; **(3) CP2K reference library**; **(4) IBZ**; **(5) cleanups**.
 
 ## 1. DROP SR — rank-reduction through the periodic stack + auto-tol
+**§1 STEP-1 PROBE — RESOLVED WITH A RETRACTION (2026-07-23; the memory-fix campaign en route is its own
+record in the timeline).**  The FULL SR basis (32 fn, λ_min~1e-6) runs CLEANLY through the current stack
+on resolved grids — grid-continuation seed + aufbau, coarse −23.8692 (49 iters), fine **−24.4324** (20
+iters, charge 8.0000000000) — just **1.0 mHa below SR2** (variational bound ✓; the diffuse Na modes carry
+~1 mHa, exactly their near-null spectral diagnosis; Na⁺'s whole valence energy is 0.144 Ha).  **The CP2K
+SR "oracle" −27.93128 is RETRACTED: a 3.50 Ha SCREENING-TRUNCATION artifact** — rerunning CP2K-SR with
+EPS_PGF_ORB 1e-5→1e-12 (+EPS_DEFAULT 1e-14, `naf_gpw_sr_tight.inp`) moves it to **−24.43229 (0.10 mHa
+from ours) and converges the density in 27 steps** (the "eternal limit cycle" was the same artifact).
+CP2K's neighbour-list screening IS the truncated-metric conditioning crutch the THERE-IS-NO-CUT pin
+banished — ~1e-5 metric residuals amplified ~1/λ on the near-null basis.  The user pin is VINDICATED
+against the reference implementation itself.  CONSEQUENCES: (a) Cholesky + the seeded aufbau recipe
+handle λ~1e-6 WITHOUT rank-reduction — §1(a) DEMOTES from critical-path to robustness/automation (the
+§0b′ Rayleigh-instability threat did not bite on the resolved-grid seeded config; keep the MOM guard 0h);
+(b) SR2 is a GOOD basis (1 mHa from full SR at a third of the runtime); (c) every future CP2K oracle on
+an ill-conditioned basis runs TIGHT-EPS with real density convergence required.
 The `_SR` basis is a hand-tuned crutch (drop the most-diffuse primitive so the Bloch overlap is cleanly PD).
 We PROVED (2026-07-13; record: doc/GPWHistory.md) that the FULL basis + screening + canonical Eigen/SVD ortho with tol in the
 ~1000× spectral gap gives a clean overlap transform (‖VᴴSV−I‖=6.6e-11) — BUT the SCF is **BLOCKED**: truncation
