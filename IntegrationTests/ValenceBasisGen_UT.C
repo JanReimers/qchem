@@ -1,4 +1,4 @@
-// File: UnitTests/ValenceBasisGen_UT.C
+// File: IntegrationTests/ValenceBasisGen_UT.C
 //
 // The valence-basis generator (doc/GPWPlan.md sec 1): point it at an element + its GTH pseudopotential and
 // get back a well-conditioned, GPW-usable valence Gaussian .bsd, validated by an atomic pseudo-atom SCF.
