@@ -43,8 +43,9 @@ Complex_BS* Factory(Type type, const ::qchem::Lattice_3D& lat, double Ecut)
 // summed inside the molecular seam (no radius exists); homeCellOnly is the finite "molecule in a box" MODE
 // (image-free by definition -- every k-block identical), used by the finite==lattice gates.
 GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
-                           double densityEcut, rvec3_t kShift, CellImages images, double cutoffFactor)
+                           const GPWParams& p)
 {
+    const rvec3_t kShift=p.kShift;
     const ivec3_t N=lat.GetLimits();
     const GPW_IBS* first=nullptr;
     for (const auto& kp : lat.MakeKMesh(kShift))
@@ -55,7 +56,7 @@ GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const
         // Build the Bloch irrep WITH its BZ weight kp.weight (exactly as PW_BasisSet above) and use the primary
         // sym_t ctor -- the weight carries the Sum_k w_k so the BZ-summed charge/energy are per-cell, not xNk.
         auto* b=new GPW_IBS(lat.GetUnitCell(), Symmetry::BlochFactory(N, ik, kp.weight, kShift),
-                            mol, densityEcut, images, cutoffFactor);   // mol shared across k-blocks
+                            mol, p.densityEcut, p.images, p.cutoffFactor, p.raster);   // mol shared across k-blocks
         if (!first) first=b;
         Insert(b);
     }
@@ -65,9 +66,15 @@ GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const
 }
 
 Complex_BS* GPWFactory(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
+                       const GPWParams& p)
+{
+    return new GPW_BasisSet(lat, std::move(mol), p);
+}
+Complex_BS* GPWFactory(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
                        double densityEcut, rvec3_t kShift, CellImages images, double cutoffFactor)
 {
-    return new GPW_BasisSet(lat, std::move(mol), densityEcut, kShift, images, cutoffFactor);
+    return new GPW_BasisSet(lat, std::move(mol),
+                            GPWParams{densityEcut, cutoffFactor, RasterPolicy::AliasFree, images, kShift});
 }
 
 } //namespace

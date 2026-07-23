@@ -315,11 +315,12 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
         {
             GapInfo g=HomoLumo(itsWaveFunction);
             holeRun = g.hole ? holeRun+1 : 0;
-            if (holeRun>=3 && momReleases<2)
+            if (holeRun>=ipar.Guard.HolePersistence && momReleases<ipar.Guard.MaxReleases)
             {
                 std::cerr << "[MOM guard] PERSISTENT HOLE: unoccupied ε=" << g.eLumo << " sits "
                           << (g.eHomo-g.eLumo) << " Ha below occupied ε=" << g.eHomo
-                          << " for 3 iterations -- the MOM reference pins a non-aufbau state. "
+                          << " for " << ipar.Guard.HolePersistence
+                          << " iterations -- the MOM reference pins a non-aufbau state. "
                           << "Releasing the reference (aufbau + delayed re-capture)." << std::endl;
                 itsWaveFunction->ReleaseMOMReference();
                 ++momReleases; holeRun=0;

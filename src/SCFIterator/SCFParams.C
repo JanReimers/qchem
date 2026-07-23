@@ -46,6 +46,17 @@ export struct SCFParams
                                      //  aufbau for this many fills so the SCF descends to the physical fixed point,
                                      //  THEN capture the occupied subspace ONCE and hold it fixed (the seed is
                                      //  mid-transient, so capturing at iteration 0 anchors garbage).
+
+    //! ADVANCED (doc/GPWPlan1.md item 1): the 0h occupation-guard tunings.  Sensible defaults that only
+    //! rarely need touching -- the guard exists precisely so users do NOT hand-tune around a pinned
+    //! excited state (the expert-system direction: detect, self-correct, and never be silent).
+    struct MOMGuardParams
+    {
+        int HolePersistence = 3;     //Consecutive non-aufbau (hole) iterations before the MOM reference is
+                                     //  released (drop + re-arm the delayed-IMOM capture).
+        int MaxReleases     = 2;     //Releases per run; a hole surviving them is WARNED loudly at run end.
+    };
+    MOMGuardParams Guard;            //Advanced: the MOM guard (only consulted when UseMOM).
 };
 
 

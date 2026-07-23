@@ -190,12 +190,13 @@ std::vector<qchem::Math::CartTerm> MultiplyR2(std::vector<qchem::Math::CartTerm>
 
 GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const UnitCell& cell,
                              double densityEcut, const rvec3_t& kFrac, bool homeCellOnly,
-                             double cutoffFactor)
+                             double cutoffFactor, RasterPolicy raster)
     : itsMol(std::move(mol))
     , itsHomeOnly(homeCellOnly)
     , itsk(kFrac)
     , itsCell(cell)
     , itsCutoffFactor(cutoffFactor)
+    , itsRaster(raster)
 {
     // The single orbital block of the (raw, no-SALC) molecular Gaussian basis.
     const BasisSet::Real_OIBS* only=nullptr;

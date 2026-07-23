@@ -423,13 +423,12 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     // rho-tilde mixing on the FourierMixCD infrastructure; until then this test pins the CONVERGING
     // Ecut=40 regime (a real mixing-regression anchor: either bad attractor lands ~+65 or ~-39, far
     // outside the gate).  NAF_ECUT=-1 runs the production grid for Pulay development.
-    const double tuneEcut =envd("NAF_ECUT", 40.0);           // <0 AUTO (=160 for F); 40 = the convergent regime
-    const double tuneAlpha=envd("NAF_ALPHA", 0.25);
-    const double tuneG0   =envd("NAF_KERKER_G0", 1.0);
-    const size_t tuneNMax =size_t(envd("NAF_NMAX", 200));
-    std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, mol, tuneEcut));   // PERIODIC: eps-complete enumeration
-                                                                          // (the old Rcut=2a truncated S -- the
-                                                                          // measured -2.25 e scheme mismatch)
+    // GRID (the one STANDARD knob).  NAF_ECUT stays as a VERIFICATION INSTRUMENT (sweep campaigns);
+    // everything else below is the hard-coded production recipe (doc/GPWPlan1.md item 1: recipes are
+    // readable code, not env spaghetti).  Advanced grid knobs (cutoffFactor, RasterPolicy) take their
+    // defaults -- override via designated initializers, e.g. {.densityEcut=40.0, .raster=RasterPolicy::BallOnly}.
+    const double densityEcut = envd("NAF_ECUT", 40.0);       // <0 AUTO = C*alpha_max = 80; 40 = this anchor's grid
+    std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, mol, L3::GPWParams{.densityEcut=densityEcut}));
     auto       irreps=bs->GetIrreps(Spin::None);
     Crystal_EC ec(irreps, 8);
     cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), bs.get(), {{"Na",1},{"F",7}}, "LDA");
@@ -443,35 +442,31 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     //    finding (2026-07-12) stands: pure relax mixing limit-cycles too; Kerker damping is what contains the
     //    low-G charge-transfer slosh, and heavier damping (alpha=0.2, CP2K's value) settles E.
     //    Kerker holds alpha=StartingRelaxRo fixed (no [F,D] auto-tune).
-    // NAF_DIIS=1: re-admit DIIS (quasi-Newton in Fock space).  Its mid-cycle extrapolations were banned
-    // for spiking -- but that was measured on the CORRUPTED (Rcut=2a scheme-mismatch) map; on the honest
-    // map the alpha-independent giant-response instability is exactly DIIS's job.  Env knob for the sweep.
-    auto envDIIS=[&]{ const char* d=std::getenv("NAF_DIIS"); return d && std::atof(d)!=0.0; };
-    qchem::SCFAccelerators::tSCFAccelerator<dcmplx>* acc = envDIIS()
-        ? static_cast<qchem::SCFAccelerators::tSCFAccelerator<dcmplx>*>(
-              new qchem::SCFAccelerators::cSCFAcceleratorDIIS(qchem::SCFAccelerators::DIISParams{8, 8.0, 1e-10, 1e-9}))
-        : new qchem::SCFAccelerators::tSCFAcceleratorNull<dcmplx>();
+    // NO Fock-space DIIS on this path (history: its mid-cycle extrapolations spiked on the ball-era map;
+    // the density-face Pulay below is the working accelerator).
+    auto* acc = new qchem::SCFAccelerators::tSCFAcceleratorNull<dcmplx>();
     qchem::ReportOverlapConditioning()=true;   // report min eig(S)/min sv(S) at SetBasisOverlap (the ctor below)
     qchem::SCFIterator::cSCFIterator scf(bs.get(), &ec, ham, acc,
                                          qchem::ChargeDensity::SeedStrategy::IonicSAD, lat.GetStructure().get(),
                                          qchem::Cholesky, 0.0);   // diffuse F- / Na+ ionic seed (halved PW iters)
     qchem::ReportOverlapConditioning()=false;  // process-wide flag -- reset so it does not leak to other tests
-    SCFParams par; par.NMaxIter=tuneNMax; par.MinΔρ=1e30; par.MinΔE=1e-8; par.MinΔFD=1e30; par.MinVirial=1e30;
-    par.MinFD=1e30; par.StartingRelaxRo=tuneAlpha; par.MergeTol=1e-4; par.Verbose=true;
-    par.KerkerG0=tuneG0;   // Kerker screening wavevector (a.u.^-1): damp the low-G charge-transfer slosh
-    // MOM FIX (doc/GPWPlan 0b'' -- the diagnosed cure): occupy by MAX OVERLAP onto a FIXED reference {F 2s,
-    // F 2p} subspace so aufbau cannot capture the diving diffuse virtual (the measured occupation swap
-    // F 2p 6->4 e).  Delayed IMOM: plain aufbau for MOMStartIter fills (descend to the physical fixed
-    // point), then capture the reference ONCE and hold it.  NAF_MOM=0 A/Bs it off; NAF_MOM_START tunes.
-    auto envMOM=[&]{ const char* d=std::getenv("NAF_MOM"); return !d || std::atof(d)!=0.0; };  // default ON
-    par.UseMOM=envMOM();
-    par.MOMStartIter=(int)envd("NAF_MOM_START", 10);
-    // PULAY (density-DIIS) is ON by default here: Kerker-preconditioned Pulay ρ̃-mixing converges NaF in ~63
-    // iters vs ~196 for plain Kerker (~3x), to the SAME fixed point.  Prime with Kerker to iter 35 (past the
-    // iter-19 mixing transient + well descended) so the DIIS history starts in the linear-response regime;
-    // history-based mixing is unstable far out.  NAF_PULAY=0 restores plain Kerker.
-    par.PulayDepth=(int)envd("NAF_PULAY", 6);
-    par.PulayStart=(int)envd("NAF_PULAY_START", 35);
+    // THE PRODUCTION RECIPE, plainly (Standard fields; the Advanced Guard struct keeps its defaults --
+    // the 0h guard self-corrects a bad MOM capture, so nothing here needs hand-tuning):
+    SCFParams par;
+    par.NMaxIter       = 200;
+    par.MinΔE          = 1e-8;   // E-flat exit: THE gate for this non-variational settled-E case...
+    par.MinΔρ          = 1e30;   //   ...the density is NOT a criterion here (CP2K's limit-cycles likewise)
+    par.MinΔFD         = 1e30;
+    par.MinVirial      = 1e30;
+    par.MinFD          = 1e30;
+    par.Verbose        = true;
+    par.StartingRelaxRo= 0.25;   // Kerker mixing fraction (raw-XC landscape; the ball-era 0.025 was
+                                 //   calibrated against limit cycles that no longer exist -- user, 2026-07-23)
+    par.KerkerG0       = 1.0;    // Kerker screening wavevector (a.u.^-1): damp the low-G charge-transfer slosh
+    par.UseMOM         = true;   // occupied-subspace continuity; the 0h guard releases a bad capture
+    par.MOMStartIter   = 10;     // delayed IMOM: descend by plain aufbau first, then capture ONCE
+    par.PulayDepth     = 6;      // Kerker-preconditioned density-Pulay (the quasi-Newton tail accelerator)
+    par.PulayStart     = 35;     // prime with plain Kerker until residuals are linear-regime
     qchem::Hamiltonian::ReportGridCharge()=true;   // F's tight 40-a.u. exponent: watch integral rho_grid vs Tr(DS)
     qchem::SCFIterator::ReportBandGap()=true;       // BAND-GAP INSTRUMENT (doc/GPWPlan 0b''): watch eps_HOMO/eps_LUMO/gap
                                                     // per iteration -- the near-degenerate-frontier (giant-response)

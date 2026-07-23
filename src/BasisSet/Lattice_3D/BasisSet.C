@@ -11,6 +11,7 @@ export import qchem.BasisSet;                          // Complex_BS (= tBasisSe
 export import qchem.Lattice_3D;                        // Lattice_3D (the crystal structure + BZ grid)
 export import qchem.BasisSet.Lattice_3D.PlaneWave_IBS; // PlaneWave_IBS + LocalPotential/SeparablePotential
 export import qchem.BasisSet.Lattice_3D.GPW_IBS;       // GPW_IBS + CellImages (the GPWFactory mode argument)
+export import qchem.BasisSet.Lattice_3D.Evaluators.PW; // RasterPolicy (a PUBLIC factory knob since 0.5(a))
 import qchem.BasisSet.Internal.BasisSetImp;            // BasisSetImp<dcmplx> (the PW_BasisSet base; NOT re-exported)
 import qchem.Types;                                    // dcmplx
 
@@ -45,6 +46,25 @@ Complex_BS* GPWFactory(const ::qchem::Lattice_3D& lat, std::shared_ptr<const Bas
                        double densityEcut, rvec3_t kShift={0,0,0},
                        CellImages images=CellImages::Periodic, double cutoffFactor=2.0);
 
+//! \brief The GPW factory knobs as ONE readable struct (doc/GPWPlan1.md item 1) -- designated
+//! initializers make test recipes self-documenting: GPWFactory(lat, mol, {.densityEcut=40.0}).
+//! STANDARD (the one users touch): \c densityEcut.  ADVANCED (sensible defaults, rarely changed):
+//! everything else -- the expert-system goal is that the guards make hand-tuning unnecessary.
+struct GPWParams
+{
+    // --- Standard ---
+    double       densityEcut = -1.0;    //!< <0 AUTO floor cutoffFactor*alpha_max (recommended); =0 1E-only; >0 explicit Ha
+    // --- Advanced ---
+    double       cutoffFactor= 2.0;     //!< C in the auto floor C*alpha_max (2 = the density's own product exponent)
+    RasterPolicy raster = RasterPolicy::AliasFree;  //!< FFT-raster policy (0.5(a): BallOnly ~8x fewer pts at ~1 mHa
+                                                    //!< at/above the C=2 floor; -43 mHa below it -- measured on NaF)
+    CellImages   images = CellImages::Periodic;     //!< lattice-image MODE (HomeCellOnly = the finite-box gates)
+    rvec3_t      kShift = rvec3_t(0,0,0);           //!< fractional MP offset of the k-mesh (0 = Gamma-centred)
+};
+//! The struct-parameter factory (preferred surface; the positional overload above forwards here).
+Complex_BS* GPWFactory(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
+                       const GPWParams& p = {});
+
 } //namespace
 
 // NOT exported: the concrete containers are an implementation detail (callers use Factory/GPWFactory's
@@ -69,8 +89,7 @@ class GPW_BasisSet : public BasisSet::BasisSetImp<dcmplx>
 {
 public:
     GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
-                 double densityEcut, rvec3_t kShift={0,0,0},
-                 CellImages images=CellImages::Periodic, double cutoffFactor=2.0);
+                 const GPWParams& p);
 };
 
 } //namespace

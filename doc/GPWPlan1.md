@@ -69,6 +69,10 @@ NOT major surgery, by construction:
 - The entropy NEVER touches H: at fixed T all operators are unchanged (f enters only D).  The Mermin
   term is a SCALAR from the occupations: S = −k Σ w[f ln f + (1−f)ln(1−f)]; EnergyBreakdown reports
   E, −TS, A = E−TS (+ optionally the ½(E+A) T→0 extrapolation); the iterator's E-flat gate reads A.
+- **Design (user 2026-07-23): −TS is just ANOTHER TERM** — a Hamiltonian-object term contributing to
+  `EnergyBreakdown` — so `SCFIterator::Iterate` keeps gating on "Etotal" (which quietly IS the free
+  energy A when smearing is on), and the virtual DisplayColumns/DisplayColumnHeaders (item 2) label
+  it honestly per system.  No iterator surgery at all.
 - Increment 1: per-block μ (covers Γ-only — the three-sighting NaF Ecut=160 repro).  Increment 2:
   GLOBAL μ across k-blocks (structural: today each block fills to a fixed per-block nₑ) — timed with
   the IBZ track, like item 5.
@@ -77,6 +81,13 @@ NOT major surgery, by construction:
   (iii) A decreases monotonically where E need not.
 - With 4b landed, the 0h warning's advice ("check the occupation recipe") gains an actionable
   default: the expert-system loop closes for this pathology family.
+
+### 4c. LIBCINT LATTICE ENGINE (added 2026-07-23, user): `BasisSet::Molecule::Engine::LibCint` is
+much faster than the MnD kernels — teach `PG_LibCint` to realise `Molecule::LatticeSum1E` so the
+periodic/GPW path can select it (GPW itself is unchanged either way — the engine is a molecular-side
+switch; the GPW_UT header already anticipates exactly this).  Slot after 4a/4b or opportunistically —
+it is orthogonal to both; the collocation STREAMS stay MnD (they are ours), so the win lands on the
+1E/analytic-KB/3C build side.
 
 ### 5. B_ij(R) k-INDEPENDENT 1E MEMO (GPWPlan 0.5(d))
 Deliberately LAST: its payoff only materializes on multi-k runs — time it with the IBZ/space-group

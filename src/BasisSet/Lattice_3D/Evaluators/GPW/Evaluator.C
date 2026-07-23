@@ -25,7 +25,8 @@ module;
 #include <string>
 #include <vector>
 export module qchem.BasisSet.Lattice_3D.Evaluators.GPW;
-import qchem.BasisSet.Lattice_3D.Evaluators.PW;   // isPW_1E/DFT_Evaluator + PW_Grid_Evaluator (GPW's density grid)
+export import qchem.BasisSet.Lattice_3D.Evaluators.PW; // isPW_1E/DFT_Evaluator + PW_Grid_Evaluator + RasterPolicy
+                                                       // (re-exported since 0.5(a): RasterPolicy is a public knob)
 import qchem.BasisSet.Molecule.LatticeSum1E;       // Molecule::LatticeSum1E (the periodic-1E capability we call)
 import qchem.Pseudopotential.LocalPotential;       // LocalPotential_R  (the real-space local PP field V_loc(r))
 import qchem.Pseudopotential.SeparablePotential;   // SeparablePotential_R (the KB projector radials beta_p(r))
@@ -76,7 +77,8 @@ public:
     //!              (user pin, doc/GPWPlan.md).
     GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const UnitCell& cell,
                   double densityEcut = 0.0, const rvec3_t& kFrac = rvec3_t(0,0,0),
-                  bool homeCellOnly = false, double cutoffFactor = 2.0);
+                  bool homeCellOnly = false, double cutoffFactor = 2.0,
+                  RasterPolicy raster = RasterPolicy::AliasFree);
     //! Polymorphic (reached by the EPW_* mixin's Cast() cross-cast).  Releases this block's ladder-shaped
     //! collocation streams on the SHARED molecular evaluator (\c LatticeSum1E::ReleaseStreams) -- the streams
     //! are keyed by ladder shape, not by block, so without the release a finished stage's caches squat on the
