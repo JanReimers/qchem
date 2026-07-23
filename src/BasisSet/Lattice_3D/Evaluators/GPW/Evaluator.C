@@ -155,7 +155,12 @@ public:
     //! \f$b_i=\langle\chi_i|\beta_p(|r-R_a|)Y_{lm}\rangle\f$ (mesh quadrature).  Real symmetric at \f$\Gamma\f$.
     chmat_t MakeSeparablePP(const Structure* cl, const Pseudopotential::SeparablePotential_R& sep) const;
 
-    //! The density/collocation grid engine (the fit basis is built over it, so \f$\tilde\rho\f$'s \f$\{G\}\f$ matches).
+    //! \brief The density/collocation grid engine — ONE object carrying TWO layers (don't let the member
+    //! name mislead): it IS-A \c PW_Evaluator = the Ecut BALL \f$\{G:\tfrac12|G|^2<E_{cut}\}\f$ (its
+    //! \c size()/\c Gs(), i.e. the FIT-BASIS dimension \f$n_G\f$), and it HOLDS the FFT raster \f$N\f$
+    //! (5-smooth-padded, alias-free) as that ball's \f$\{r\}\leftrightarrow\{G\}\f$ QUADRATURE engine.
+    //! \c CreateCDFitBasisSet wraps this, so \f$\{G\}_\rho\f$ == the BALL; the raster is scaffolding
+    //! (N is never a physics dial — the 5-smooth flip re-pinned nothing).
     const PW_Grid_Evaluator& DensityGrid() const {return *itsFFT_R_G_Grids;}
 
     //! \brief GRID DIAGNOSTIC (doc/GPWPlan §0e): the orbital-basis exponent line (\f$\alpha_{\min}/\alpha_{\max}\f$,
