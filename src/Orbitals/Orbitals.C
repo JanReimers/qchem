@@ -112,6 +112,10 @@ public:
 
     virtual void  UpdateOrbitals(const mat_t<T>& U, const mat_t<T>& UPrime, const rvec_t& e)=0;
     virtual ds_t TakeElectrons (double ne)=0;
+    //! MOM occupation: fill the highest-\a priority orbitals first (one score per orbital, stored order)
+    //! instead of lowest-energy -- occupied-subspace continuity for a within-irrep level crossing
+    //! (doc/GPWPlan §0b″).  Ties keep the stored (energy) order.  \a priority.size()==GetNumOrbitals().
+    virtual ds_t TakeElectrons (double ne, const rvec_t& priority)=0;
     virtual tDM_CD<T>* GetChargeDensity() const=0;   // the T-typed density (moved off the Orbitals base)
 
 };

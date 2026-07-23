@@ -743,3 +743,61 @@ TEST(GPW, AnalyticSeparablePPMatchesMesh)
     EXPECT_LT(imax, 1e-12);                       // Gamma: analytic KB matrix is real
     EXPECT_LT(rel,  1e-8) << "analytic KB must match the mesh quadrature to the mesh's own error (pinned 4.6e-11)";
 }
+
+// The local-PP sweep's ABSOLUTE pair->level rule is STANDALONE-exact (doc/GPWPlan.md 0e-PP step (a)):
+// req = kappa*(alpha_i+alpha_j) bounds every pair's spectral tail by e^{-kappa/2} independent of the
+// field's sharpness, so doubling kappa (e^{-15} -> e^{-30}) must leave <i|V|j> unchanged to tolerance --
+// for the FULL V_loc AND for the split long / short pieces SEPARATELY (each piece must stand alone with
+// no cancellation partner, the property step (b)'s analytic short requires).  Also pins the split
+// linearity Long + Short == Full (the sweep is linear in the form factor).
+TEST(GPW, LocalPPKappaSelfConverged)
+{
+    const double a=10.26;
+    FCCUnitCell cell(a);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    std::shared_ptr<const Real_BS> mol(
+        BasisSet::Molecule::Factory(BasisSetData::SIPP_SR, &cell,
+                                    BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
+    // densityEcut=10 keeps the sweeps cheap: the absolute rule's tail bound e^{-kappa/2} references NO grid
+    // (that is its point), so kappa-independence is testable at any ladder.  (First measured at Ecut=20:
+    // Full 7.6e-9 / Long 1.4e-9 / Short 1.6e-8 between kappa=30 and 60 -- the e^{-15} class on the nose.)
+    GPW_IBS gpw(cell, ivec3_t(1,1,1), ivec3_t(0,0,0), mol, /*densityEcut*/10.0);
+    const auto gth = Pseudopotential::GetGTH("Si","LDA",4);
+    const GPW_Evaluator& ev = gpw;   // evaluator directly: bypass the framework cache (not model-keyed)
+
+    auto relDiff=[](const chmat_t& A, const chmat_t& B)
+    {
+        double num=0.0, den=0.0;
+        for (size_t i=0;i<A.rows();i++)
+            for (size_t j=0;j<A.columns();j++) { num+=std::norm(A(i,j)-B(i,j)); den+=std::norm(B(i,j)); }
+        return std::sqrt(num/den);
+    };
+    using LP=GPW_Evaluator::LocalPart;
+    const chmat_t Vf=ev.MakeLocalPP(&cell, gth.local, LP::Full);           // kappa=30 (the default)
+    const chmat_t Vl=ev.MakeLocalPP(&cell, gth.local, LP::Long);
+    const chmat_t Vs=ev.MakeLocalPP(&cell, gth.local, LP::Short);
+    setenv("GPW_LOCALPP_RELCUTOFF","60",1);                                // e^{-30}: the converged reference
+    const chmat_t Vl60=ev.MakeLocalPP(&cell, gth.local, LP::Long);
+    const chmat_t Vs60=ev.MakeLocalPP(&cell, gth.local, LP::Short);
+    unsetenv("GPW_LOCALPP_RELCUTOFF");
+    const double relL=relDiff(Vl,Vl60), relS=relDiff(Vs,Vs60);
+    std::cout << "[localPP kappa] long ||V30-V60||/||V60|| = "<<relL<<"  short = "<<relS<<std::endl;
+    EXPECT_LT(relL, 1e-5) << "LONG: kappa=30 not converged (tail bound violated)";
+    EXPECT_LT(relS, 1e-5) << "SHORT: kappa=30 not converged (tail bound violated)";
+    chmat_t Vls=Vl; Vls+=Vs;                                               // Full's convergence follows by linearity
+    EXPECT_LT(relDiff(Vls,Vf), 1e-12) << "split linearity: Long + Short == Full (same sweep, same levels)";
+
+    // Step (b) cross-validation: the ANALYTIC short (exact 3-centre Gaussian lattice sums, the production
+    // path since 2026-07-22; periodic G=0 mean subtracted -- the 5.7% double-count bug this gate caught) vs
+    // the kappa-ruled GRID short on the PERIODIC crystal.  NOTE the tolerance: the GRID side is the
+    // approximate one here -- its SHARPEST pairs saturate at this cheap ladder's top (Ecut=10 -> rung 20;
+    // kappa*p unreachable), an error the kappa SELF-convergence above cannot see (both kappas hit the same
+    // top).  Measured 3.6e-3 at Ecut=10 (the saturation tail e^{-ecut_top/2p} * V-tilde(ball edge) class);
+    // the tolerance 1e-2 pins CONVENTION-class bugs (G=0, phases, normalisation), and the Si/NaF SCF anchors
+    // carry the mHa-precision verification of the analytic path.
+    const chmat_t Va=ev.MakeLocalPPShort(&cell, gth.local);                // closed-Gaussian face -> ANALYTIC
+    const double relA=relDiff(Va,Vs);
+    std::cout << "[localPP short] ||analytic-grid||/||grid|| = "<<relA<<std::endl;
+    EXPECT_LT(relA, 1e-2) << "analytic short vs kappa-ruled grid short: convention-class disagreement";
+}

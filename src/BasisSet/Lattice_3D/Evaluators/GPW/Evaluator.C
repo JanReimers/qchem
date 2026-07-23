@@ -20,6 +20,7 @@
 module;
 #include <cstddef>
 #include <functional>
+#include <iosfwd>    // std::ostream (ReportGrids -- the grid diagnostic print)
 #include <memory>
 #include <string>
 #include <vector>
@@ -55,10 +56,14 @@ public:
     //!              the basis, so the caller need not know the Hartree value.  \f$=0\f$ = DFT tier OFF (1E-only).
     //!              \f$>0\f$ = EXPLICIT Hartree cutoff, honoured as given but with a \c cerr warning if it is below
     //!              \a cutoffFactor\f$\cdot\alpha_{\max}\f$ (under-resolves the density -> charge leaks off-grid).
-    //! \param cutoffFactor  \f$C\f$ in the density-grid floor \f$C\cdot\alpha_{\max}\f$ (default 4, the calibrated
-    //!              minimum; pass \f$C\ge4\f$ for a finer grid).  This is a DENSITY-scale constant: the density is
-    //!              the product of two orbitals (exponent \f$2\alpha_{\max}\f$), so \f$C\f$ already folds in the
-    //!              \f$\times2\f$ over a single-orbital cutoff.  See doc/GPWPlan.md \S0.
+    //! \param cutoffFactor  \f$C\f$ in the density-grid cutoff \f$E_{cut}=C\cdot\alpha_{\max}\f$ (default 8).  A
+    //!              DENSITY-scale constant: the density is the PRODUCT of two orbitals (exponent
+    //!              \f$2\alpha_{\max}\f$), and resolving a Gaussian of exponent \f$p\f$ to XC accuracy needs
+    //!              \f$E_{cut}\approx4p\f$, so \f$C=4\times2=8\f$.  MEASURED (F \f$\alpha_{\max}=40\f$, doc/GPWPlan
+    //!              §0e step 2): \f$4\alpha_{\max}\f$ still aliases the collocated \f$\rho\f$ (negCharge −0.77 e →
+    //!              XC collapse), \f$8\alpha_{\max}\f$ is clean (−0.03 e).  (Charge \f$\int\rho=N\f$ holds already
+    //!              at \f$\sim3\alpha_{\max}\f$ — a weaker bar than XC.)  CP2K reaches clean at \f$\sim4\alpha_{\max}\f$
+    //!              via REAL-SPACE collocation vs our Fourier round-trip — a future \f$\times2\f$ efficiency lever.
     //! \param kFrac fractional crystal momentum (fractional reciprocal coords; \f$\Gamma=0\f$).
     //! \param homeCellOnly  the FINITE-molecule MODE: no lattice images anywhere (1E matrices == the finite
     //!              molecule's; KB bra = the raw home orbital) -- the molecule-in-a-periodic-box configuration
@@ -68,7 +73,7 @@ public:
     //!              (user pin, doc/GPWPlan.md).
     GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const UnitCell& cell,
                   double densityEcut = 0.0, const rvec3_t& kFrac = rvec3_t(0,0,0),
-                  bool homeCellOnly = false, double cutoffFactor = 4.0);
+                  bool homeCellOnly = false, double cutoffFactor = 8.0);
     virtual ~GPW_Evaluator() = default;   // polymorphic: reached by the EPW_* mixin's Cast() cross-cast
 
     // --- isPW_1E_Evaluator surface (exact signatures the concept demands) ---
@@ -92,6 +97,14 @@ public:
     //! \brief Overlap 3-centre tensor: the same single-\f$r\f$ weight \f$W_c(i,j)\f$, EMPTY kernel -- the density's
     //! Fourier coefficient \f$\tilde\rho(G_c)=\sum_{ij}D_{ij}W_c(i,j)\f$ (no Poisson).
     G_ERI3  Overlap3CTensor() const;
+    //! \brief The SAME two tables over an EXPLICIT fit grid \a grid (rather than the block's own \c DensityGrid).
+    //! The tensor columns are \a grid's \f$\{G\}\f$ and the collocation multi-grid ladder derives from \a grid --
+    //! so the fit-basis GRID/\f$\{G\}\f$ policy (set by \c CreateCD/VxcFitBasisSet) is HONOURED, not silently
+    //! overridden by the block's own grid.  These are the seam \c GPW_IBS::MakeRepulsion3C/MakeOverlap3C call
+    //! with the requested fit basis's grid; the no-arg overloads above are \c Repulsion3CTensor(itsFFT_R_G_Grids)
+    //! convenience (tests + the block's own fit basis).  (doc/GPWPlan §0e -- "return the requested table".)
+    G_ERI3  Repulsion3CTensor(std::shared_ptr<const PW_Grid_Evaluator> grid) const;
+    G_ERI3  Overlap3CTensor  (std::shared_ptr<const PW_Grid_Evaluator> grid) const;
     //! \brief The potential->KS-matrix bridge (collocation's EXACT adjoint): \f$\langle\chi_i^k|V|\chi_j^k\rangle\f$
     //! by the ANALYTIC per-pair integrate-back (\c Molecule::LatticeSum1E::IntegratePotential) on the REL_CUTOFF
     //! multi-grid ladder -- \a Vtilde is restricted to each level's own \f$\{G\}\f$ (a SPECTRAL low-pass, no
@@ -118,13 +131,48 @@ public:
     //! \f$V_{loc}(r)\f$ on the density grid, band-limited to \c densityEcut, then quadratures it) -- so it is
     //! box-INDEPENDENT (unlike a real-space quadrature of the raw \f$V_{loc}\f$, whose Coulomb-tail cell-mean
     //! drifts with box size).  The KB nonlocal stays real-space (localized, no G=0 issue): see \c MakeSeparablePP.
-    chmat_t MakeLocalPP    (const Structure* cl, const Pseudopotential::LocalPotential& loc) const;
+    //! Which piece of the local PP a \c MakeLocalPP sweep assembles (the CP2K split, doc/GPWPlan.md 0e-PP):
+    //! the FULL \f$V_{loc}\f$, its LONG (softened-Coulomb / deep-well) part, or its SHORT (compact
+    //! poly-Gaussian) remainder.  All three route through the SAME sharp-field sweep, so \c Short+\c Long ==
+    //! \c Full matrix-for-matrix (the sweep is linear in the form factor) -- the split relocates the LONG
+    //! part's ENERGY into the Hartree term without changing the assembled matrices.  The sweep runs on the
+    //! FULL ladder with the ABSOLUTE pair->level rule \f$e_{cut}\ge\kappa(\alpha_i+\alpha_j)\f$
+    //! (\f$\kappa=30\f$ Ha, \f$e^{-\kappa/2}\f$ pair tails -- CP2K's \c REL_CUTOFF), which makes each
+    //! piece STANDALONE-exact (no long/short cancellation partner needed; doc/GPWPlan.md 0e-PP step (a)).
+    enum class LocalPart { Full, Long, Short };
+    chmat_t MakeLocalPP    (const Structure* cl, const Pseudopotential::LocalPotential& loc,
+                            LocalPart part=LocalPart::Full) const;
+    //! \brief The LONG-range (softened-Coulomb) local-PP matrix \f$\langle i|V_{long}|j\rangle\f$, folded into
+    //! the Hartree Poisson by \c PW_Hartree (doc/GPWPlan.md 0e-PP).  Convenience for \c MakeLocalPP(Long).
+    chmat_t MakeLocalPPLong(const Structure* cl, const Pseudopotential::LocalPotential& loc) const;
+    //! \brief The SHORT-range (compact poly \f$\times\f$ Gaussian) local-PP matrix \f$\langle i|V_{short}|j\rangle\f$.
+    //! ANALYTIC when the model exposes its short part in closed Gaussian form (\c LocalPotential_Gaussian): a
+    //! lattice-summed 3-centre \c Overlap3C (\c LatticeSum1E::MakeLocalGaussian), NO grid sweep -- the
+    //! increment-2 cost win (doc/GPWPlan.md 0e-PP).  Falls back to the grid sweep (\c MakeLocalPP(Short)) for a
+    //! model without the closed-Gaussian face.
+    chmat_t MakeLocalPPShort(const Structure* cl, const Pseudopotential::LocalPotential& loc) const;
     //! \brief KB separable nonlocal matrix \f$\sum_{a,p,m}D_p|b\rangle\langle b|\f$ with the projection vector
     //! \f$b_i=\langle\chi_i|\beta_p(|r-R_a|)Y_{lm}\rangle\f$ (mesh quadrature).  Real symmetric at \f$\Gamma\f$.
     chmat_t MakeSeparablePP(const Structure* cl, const Pseudopotential::SeparablePotential_R& sep) const;
 
-    //! The density/collocation grid engine (the fit basis is built over it, so \f$\tilde\rho\f$'s \f$\{G\}\f$ matches).
-    const PW_Grid_Evaluator& DensityGrid() const {return *itsGrid;}
+    //! \brief The density/collocation grid engine — ONE object carrying TWO layers (don't let the member
+    //! name mislead): it IS-A \c PW_Evaluator = the Ecut BALL \f$\{G:\tfrac12|G|^2<E_{cut}\}\f$ (its
+    //! \c size()/\c Gs(), i.e. the FIT-BASIS dimension \f$n_G\f$), and it HOLDS the FFT raster \f$N\f$
+    //! (5-smooth-padded, alias-free) as that ball's \f$\{r\}\leftrightarrow\{G\}\f$ QUADRATURE engine.
+    //! \c CreateCDFitBasisSet wraps this, so \f$\{G\}_\rho\f$ == the BALL; the raster is scaffolding
+    //! (N is never a physics dial — the 5-smooth flip re-pinned nothing).
+    const PW_Grid_Evaluator& DensityGrid() const {return *itsFFT_R_G_Grids;}
+
+    //! \brief GRID DIAGNOSTIC (doc/GPWPlan §0e): the orbital-basis exponent line (\f$\alpha_{\min}/\alpha_{\max}\f$,
+    //! \c cutoffFactor -- so the \f$C\cdot\alpha_{\max}\f$ grid policy is visible) followed by one line per STORED
+    //! grid -- the FFT \f$\{r\}\leftrightarrow\{G\}\f$ density grid and every REL_CUTOFF ladder level (base
+    //! sub-ladder = the local-PP integration grids; top completion rung flagged) -- each with FFT divisions
+    //! \f$N\f$, \c Ecut, \f$n_G\f$ and the spectral extent \f$|G|_{\min}/|G|_{\max}\f$.  Printed at the start of
+    //! every run (the basis-set ctor) so GPW's grids can be lined up against CP2K's \c &MGRID log output.
+    void ReportGrids(std::ostream& os) const;
+    //! One diagnostic line for any stored grid (the per-grid piece of \c ReportGrids; also used by the
+    //! \c CreateCD/VxcFitBasisSet factories to print the fit grid they actually wrap).
+    static std::ostream& ReportGrid(std::ostream& os, const std::string& tag, const PW_Grid_Evaluator& g);
 
     //! Cache-key fragment: the molecular basis's ID + \f$k\f$ + translation count + the density-grid cutoff
     //! (the collocation tensor depends on the grid, so the framework cache key must pin it).
@@ -152,7 +200,7 @@ private:
     size_t                              itsN   = 0;       //!< number of Gaussian orbitals
     double  itsCutoffFactor=4.0;   //!< the density-grid floor constant C (ctor param) -- the ENERGY calibration
                                    //!< C*RelCutoffSafety()*alpha_max gates the top completion rung (EnsureLevels)
-    std::shared_ptr<const PW_Grid_Evaluator> itsGrid;     //!< the density/collocation grid (null if DFT tier off)
+    std::shared_ptr<const PW_Grid_Evaluator> itsFFT_R_G_Grids;     //!< the density/collocation grid (null if DFT tier off)
     // NO hand-rolled tensor cache: the collocation tensor is a stateless build; the FRAMEWORK caches it
     // (BasisSet::Band_FT_IBS::Repulsion3C/Overlap3C via theCache<dcmplx>(), keyed by BasisSetID -- see IDFragment).
     //! \brief Last-density collocation memo, SHARED by the two \c MakeCollocator closures (Coulomb + overlap
@@ -160,7 +208,11 @@ private:
     //! (XC/charge) and once for the Coulomb apply -- so the second call replays the level densities for free
     //! (exact-equality keyed on \f$D\f$; the phase/cell/ladder are fixed per evaluator, i.e. per k-block).
     //! The G-space post-processing (FFT + nested combine +/- Coulomb kernel) stays per-call.
-    struct CollocMemo { bool valid=false; chmat_t D; std::vector<rvec_t> rho; };
+    //! \c ecut pins the LADDER the cached \c rho was collocated on: the memo dedups the two same-grid closures
+    //! (Coulomb + overlap) collocating the same \f$D\f$ per iteration, but the SAME \f$D\f$ can be collocated on
+    //! a DIFFERENT grid (a coarse block asked for a fine fit grid -- the grid-continuation seed), where replaying
+    //! the wrong-ladder \c rho is a dimension mismatch (segfault).  So \c sameD requires \c ecut to match too.
+    struct CollocMemo { bool valid=false; chmat_t D; std::vector<rvec_t> rho; std::vector<double> ecut; };
     mutable std::shared_ptr<CollocMemo> itsCollocMemo;    //!< shared so both framework-cached closures see it
     //! The Bloch phase of an integer cell offset \f$n\f$: \f$e^{2\pi i\,k_{frac}\cdot n}\f$ -- the closure the
     //! analytic kernels call back for each screened cross-cell pair offset (the k-CONVENTION stays here,
@@ -170,7 +222,13 @@ private:
     //! \f$4\pi/G^2\f$ folded in) map, as a closure: ANALYTIC per-pair collocation on the multi-grid ladder
     //! (\c LatticeSum1E::CollocateDensity), one FFT per level, \f$\tilde\rho\f$ combined NESTED in G-space --
     //! the \c G_ERI3::apply realization.
-    std::function<ΔG_Map(const chmat_t&)> MakeCollocator(bool coulomb) const;
+    //! The collocator over an EXPLICIT fit grid: the ladder derives from \a grid (the tensor's requested
+    //! \f$\{G\}\f$), NOT the block's own \c itsFFT_R_G_Grids -- the closure captures its own ladder built from \a grid.
+    std::function<ΔG_Map(const chmat_t&)> MakeCollocator(bool coulomb, std::shared_ptr<const PW_Grid_Evaluator> grid) const;
+    //! The BACKWARD adjoint of \c MakeCollocator: a self-contained field->matrix integrate-back over \a grid's
+    //! ladder -- the \c G_ERI3::applyAdjoint the Overlap3C/Repulsion3C(grid) tensors carry (doc/GPWPlan §0e step2).
+    std::function<chmat_t(const std::function<dcmplx(const ivec3_t&)>&)>
+        MakeIntegrator(std::shared_ptr<const PW_Grid_Evaluator> grid) const;
     qcMesh::MeshParams PPMeshParams() const;  //!< the PP-quadrature integration mesh params (uniform, eCut=densityEcut)
 
     // The REL_CUTOFF multi-grid level ladder: the fine density grid + coarser grids (a factor 4 in Ecut each)
@@ -179,11 +237,16 @@ private:
     // requirement exceeds the reference grid by construction; the rung makes every smooth-path assignment
     // satisfiable).  ecut_L[0] stays the RESOLUTION REFERENCE (the density grid) -- level selection on the
     // molecular side is order-free.  Built once (geometry-fixed) by EnsureLevels.  The density collocation
-    // (MakeCollocator) and the integrate-back (OverlapMatrix) run per-pair on the FULL ladder; the SHARP-field
-    // local PP (MakeLocalPP, relCutoffScale=6) uses the BASE sub-ladder only (itsNBaseLevels) -- its stiffened
-    // requirement would flood the top rung with mid pairs whose boxes are huge on the doubled grid.
-    void EnsureLevels() const;
-    mutable std::vector<std::shared_ptr<const PW_Grid_Evaluator>> itsLevels;   //!< [0]==itsGrid (reference); coarser; top rung LAST
+    // (MakeCollocator), the integrate-back (OverlapMatrix) and the local-PP sweep (MakeLocalPP, absolute
+    // kappa rule) all run per-pair on the FULL ladder; itsNBaseLevels only labels the top rung (diagnostics).
+    void EnsureLevels() const;   //!< builds/caches the block's OWN ladder (itsFFT_R_G_Grids) for OverlapMatrix + MakeLocalPP
+    //! Build the REL_CUTOFF ladder from an ARBITRARY fine grid \a grid (level [0]==\a grid) into the output
+    //! vectors -- the grid-parameterized core of \c EnsureLevels, so the collocator can build a ladder from the
+    //! REQUESTED fit grid while the block's own paths keep the cached \c itsLevels.
+    void BuildLevels(std::shared_ptr<const PW_Grid_Evaluator> grid,
+                     std::vector<std::shared_ptr<const PW_Grid_Evaluator>>& levels,
+                     std::vector<ivec3_t>& levelN, std::vector<double>& levelEcut, size_t& nBaseLevels) const;
+    mutable std::vector<std::shared_ptr<const PW_Grid_Evaluator>> itsLevels;   //!< [0]==itsFFT_R_G_Grids (reference); coarser; top rung LAST
     mutable std::vector<ivec3_t>    itsLevelN;     //!< each level's FFT grid divisions
     mutable std::vector<double>     itsLevelEcut;  //!< each level's cutoff (reference first)
     mutable size_t                  itsNBaseLevels=0; //!< levels before the top rung (the local-PP sub-ladder)

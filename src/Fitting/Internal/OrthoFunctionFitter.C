@@ -115,7 +115,11 @@ public:
         // its isOrtho() contract guarantees.)  Ties to the item-C dynamic_cast survey.
         const BasisSet::Band_FT_IBS&      orb=dynamic_cast<const BasisSet::Band_FT_IBS&>(*bs);   // the assembly bridge
         const BasisSet::G_FieldEvaluator& fit=FitGrid();                                         // the fit grid engine
-        return orb.MakeOverlap([&](const ivec3_t& dm)->dcmplx {return fit.GridCoeff(itsVt, dm);});
+        // <i|v_xc|j> = Σ_k v_xc-tilde(G_k) <i|e^{iG_k}|j> -- the BACKWARD contraction of the OVERLAP 3-centre
+        // tensor over OUR fit basis (which carries the fit {G}/grid), so the KS matrix is integrated back on the
+        // SAME grid the density was collocated on (doc/GPWPlan §0e step 2).  No grid-less MakeOverlap(field).
+        return ContractAdjointG_ERI3(orb.Overlap3C(*itsFitBasis),
+                                     [&](const ivec3_t& dm)->dcmplx {return fit.GridCoeff(itsVt, dm);});
     }
 
     virtual void ReScale(double factor) override

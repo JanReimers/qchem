@@ -8,6 +8,7 @@ module qchem.SCFAccelerator.Internal.SCFAcceleratorDIIS;
 import qchem.SCFAccelerator.Internal.SCFIrrepAcceleratorNull;
 import qchem.Blaze;
 import qchem.Math;
+import qchem.Math.DIIS;   // the shared Pulay bordered-solve (Bordered/MinSV/Coefficients) -- serves Fock-DIIS too
 
 namespace qchem::SCFAccelerators
 {
@@ -112,34 +113,15 @@ template <class T> size_t tSCFAcceleratorDIIS<T>::GetNProj() const
     return N;
 }
 
-template <class T> double tSCFAcceleratorDIIS<T>::GetMinSV(const rsmat_t& B)
-{
-    rvec_t s;
-    rmat_t  U,Vt;
-    blazem::svd(B,U,s,Vt);
-    return s[s.size()-1];
-}
-
-template <class T> rvec_t tSCFAcceleratorDIIS<T>::SolveC(const rsmat_t& B)
-{
-    size_t N=B.rows();
-    rvec_t v(N,0.0);
-    v[N-1]=1.0;
-    rvec_t C=blazem::solve(B,v);
-    return blazem::subvector(C,0,N-1);
-}
 template <class T> typename tSCFAcceleratorDIIS<T>::md_t tSCFAcceleratorDIIS<T>::BuildB() const
 {
     size_t  N=GetNProj();
-    rsmat_t B=blazem::zero<double>(N+1);
+    rsmat_t Braw=blazem::zero<double>(N);           // raw error-overlap Bᵢⱼ = Σ_irreps ⟨Eᵢ,Eⱼ⟩ (upper-tri)
     for (size_t  i=0;i<N;i++)
-    {
-        B(i,N)=1.0; //B is symmetric so no need to set B(N,i)=1.0
         for (size_t  j=i;j<N;j++)
-            for (auto k:itsIrreps) B(i,j)+=k->GetError(i,j);
-    }
-    // B(N,N)=0.0;  should already be true
-    return {B,GetMinSV(B)};
+            for (auto k:itsIrreps) Braw(i,j)+=k->GetError(i,j);
+    rsmat_t B=qchem::Math::DIIS::Bordered(Braw);    // the (N+1) bordered Pulay system
+    return {B,qchem::Math::DIIS::MinSV(B)};
 }
 template <class T> rsmat_t tSCFAcceleratorDIIS<T>::BuildPrunedB(double svmin)
 {
@@ -213,7 +195,7 @@ template <class T> bool tSCFAcceleratorDIIS<T>::CalculateProjections()
         return false;
     }
 
-    itsCs=tSCFAcceleratorDIIS<T>::SolveC(B); //Irreps have a reference to this in order to do the projections.
+    itsCs=qchem::Math::DIIS::Coefficients(B); //Irreps have a reference to this in order to do the projections.
     itsStuckCount=0;
     return true;
 }

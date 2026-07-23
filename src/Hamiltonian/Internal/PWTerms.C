@@ -7,7 +7,9 @@
 // integration; the term owns no G-vectors or mesh.  Energies delegate to the density's DM_Contract.
 module;
 #include <iosfwd>
+#include <map>
 #include <memory>
+#include <string>
 export module qchem.Hamiltonian.Internal.PWTerms;
 import qchem.Hamiltonian.Internal.Term;        // cStatic_HT / cDynamic_HT + their _Imp cache bases
 import qchem.BasisSet.Band_FT_IBS;           // the reciprocal-space capability: Hartree/XC + external PP assembly
@@ -69,24 +71,40 @@ private:
 // The ion-ion (Ewald) ENERGY term is now the T-templated IonIon<T>
 // (qchem.Hamiltonian.Internal.IonIon); the plane-wave Hamiltonian builds IonIon<dcmplx>.
 
-//! Hartree (classical Coulomb) term for a plane-wave basis (density-dependent).  Mirrors the molecular
-//! FittedVee: it holds its own CD fit basis and asks the density for its Coulomb projection V_H (the density
-//! contracts D against the basis's D-free Repulsion3C tensor); the term then assembles <i|V_H|j>.
+//! Periodic ELECTROSTATICS term for a plane-wave basis (density-dependent).  The classical Coulomb Hartree
+//! \f$V_H[\rho_{elec}]\f$ PLUS the LONG-range (softened-Coulomb / Gaussian core-charge) part of the local
+//! pseudopotential \f$V_{long}\f$ -- the CP2K local-PP split (doc/GPWPlan.md 0e-PP): the deep-well erf
+//! potential is folded into the ONE G-space Poisson solve (a Gaussian core charge, sampled once per atom via
+//! the smooth density-grid integrate-back) instead of the per-orbital-pair sharp-field local-PP sweep.  So
+//! the Fock matrix is \f$\langle i|V_H+V_{long}|j\rangle\f$; the energy splits into \f$E_{Hartree}=\tfrac12
+//! \mathrm{Tr}(D V_H)\f$ (electron-electron) and \f$E_{een,long}=\mathrm{Tr}(D V_{long})\f$ (electron-ion,
+//! no \f$\tfrac12\f$), and the LONG G=0 alignment lives here.  The SHORT (compact poly-Gaussian) remainder
+//! stays in the external \c PW_Pseudo term.  Mirrors the molecular FittedVee for the \f$V_H\f$ half.
 class PW_Hartree
     : public virtual cDynamic_HT
     , private        cDynamic_HT_Imp
 {
 public:
     typedef std::shared_ptr<const BasisSet::cFIT_CD_ABS> fbs_t;
-    //! Built with the density-fit basis obtained from the orbital basis's factory -- exactly as FittedVee
-    //! takes its CD fit basis (BuildTerms creates it ONCE, never assuming orbital==fit).  The term holds the
-    //! fit basis and hands it to the density's GetRepulsion3C every SCF cycle.
-    PW_Hartree(fbs_t chargeDensityFitBasisSet);
+    typedef std::shared_ptr<const Structure> st_t;
+    //! Built with the density-fit basis (from the orbital basis's factory, as FittedVee) PLUS the structure
+    //! and the local pseudopotential model \a loc (non-owning) it needs for \f$V_{long}\f$.  \a loc may be
+    //! null (a pure all-electron / no-PP run): then no core-charge fold, pure Hartree.
+    PW_Hartree(fbs_t chargeDensityFitBasisSet, st_t st, const Pseudopotential::LocalPotential* loc);
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
     virtual std::ostream& Write(std::ostream&) const;
 private:
     virtual chmat_t CalcMatrix(const cobs_t*, const Spin&, const cChargeDensity*) const;
+    //! The fixed (density-independent) \f$\langle i|V_{long}|j\rangle\f$ block for orbital basis \a bs, built
+    //! once and cached by BasisSetID (empty / zero when \c itsLocal is null).
+    const chmat_t& LongBlock(const cobs_t* bs) const;
+
     fbs_t itsFitBasis;   //!< the CD (Coulomb-metric) fit basis, handed to the density's GetRepulsion3C
+    st_t  theStructure;  //!< the geometry (positions/Z + Omega) for the core-charge structure factor
+    const Pseudopotential::LocalPotential* itsLocal;   //!< local PP model (non-owning; null = pure Hartree)
+    //! Per-irrep-basis \f$V_{long}\f$ blocks, keyed by BasisSetID: fixed across the SCF, so built lazily in
+    //! CalcMatrix and reused (and contracted for \f$E_{een,long}\f$ via \c DM_ContractBlocks).
+    mutable std::map<std::string, chmat_t> itsLongBlocks;
 };
 
 //! Exchange-correlation term for a plane-wave basis, carrying ONE LDA functional (so a full LDA uses a

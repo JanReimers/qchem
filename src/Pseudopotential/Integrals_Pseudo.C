@@ -32,7 +32,21 @@ public:
     //! \brief Local external-potential matrix \f$\langle i|V_{loc}|j\rangle\f$ for \a structure, from the
     //! local model \a loc: \f$\frac1\Omega\sum_a v_{loc}(Z_a,|\Delta G|^2)\,e^{-i\Delta G\cdot\tau_a}\f$,
     //! \f$\Delta G\ne0\f$ (the \f$\Delta G=0\f$ term is the dropped neutralising-background shift).  Hermitian.
+    //! UNIT-TEST-ONLY since the CP2K local-PP split (doc/GPWPlan.md 0e-PP): the production KS assembly builds the
+    //! two pieces separately (\c MakeLocalPotentialLong -> the Hartree term, \c MakeLocalPotentialShort -> the
+    //! external term); nothing in \c src/ calls the full matrix -- only the tests, as an oracle (== Long + Short).
     virtual hmat_t<T> MakeLocalPotential(const Structure*, const LocalPotential& loc) const=0;
+
+    // --- The CP2K local-PP split (doc/GPWPlan.md 0e-PP): \f$V_{loc}=V_{long}+V_{short}\f$.  Same
+    //     \f$\frac1\Omega\sum_a f(Z_a)e^{-i\Delta G\cdot\tau_a}\f$ assembly as \c MakeLocalPotential, restricted
+    //     to the model's \c FormFactorLong / \c FormFactorShort.  The LONG (softened-Coulomb / Gaussian
+    //     core-charge) matrix is folded into the Hartree Poisson (\c PW_Hartree owns the model+structure and
+    //     rides its smooth density-grid integrate-back -- no giant local-PP boxes); the SHORT (compact
+    //     poly-Gaussian) matrix is the external term's remainder.  \c MakeLocalPotential == Long + Short. ---
+    //! \brief LONG-range part of the local PP, \f$\langle i|V_{long}|j\rangle\f$ (folded into the Hartree term).
+    virtual hmat_t<T> MakeLocalPotentialLong (const Structure*, const LocalPotential& loc) const=0;
+    //! \brief SHORT-range remainder of the local PP, \f$\langle i|V_{short}|j\rangle\f$ (the external term).
+    virtual hmat_t<T> MakeLocalPotentialShort(const Structure*, const LocalPotential& loc) const=0;
 
     //! \brief Separable (Kleinman-Bylander) nonlocal matrix \f$\langle i|V_{NL}|j\rangle\f$ for \a structure
     //! from the projector model \a nl: \f$\frac1\Omega\sum_a e^{-i\Delta G\cdot\tau_a}\sum_p\tilde\beta_p(|k+G|)

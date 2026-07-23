@@ -68,12 +68,12 @@ public:
     //! \param cutoffFactor  \f$C\ge4\f$ in the density-grid floor \f$C\cdot\alpha_{\max}\f$ (default 4).
     GPW_IBS(const UnitCell& cell, const sym_t& irrep,
             std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut = 0.0,
-            CellImages images = CellImages::Periodic, double cutoffFactor = 4.0);
+            CellImages images = CellImages::Periodic, double cutoffFactor = 8.0);
 
     //! \brief Convenience constructor in BZ-grid indices: builds the Bloch irrep \c BlochFactory(N,kIndex).
     GPW_IBS(const UnitCell& cell, const ivec3_t& N, const ivec3_t& kIndex,
             std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut = 0.0,
-            CellImages images = CellImages::Periodic, double cutoffFactor = 4.0);
+            CellImages images = CellImages::Periodic, double cutoffFactor = 8.0);
 
     //! \brief The DFT factory seam (Band_FT_IBS): the auxiliary density/potential fit basis is a plane-wave grid
     //! over GPW's OWN density grid -- so the collocated \f$\tilde\rho\f$'s \f$\{G\}\f$ matches the fitter's.  A
@@ -86,12 +86,27 @@ public:
     //! evaluator's mesh quadrature).  This is what lets the plane-wave \c PW_Pseudo term (and thus the whole
     //! \c Ham_PW_DFT) drive a GPW basis unchanged -- GPW answers the same abstract cross-cast a PW basis does.
     virtual hmat_t<dcmplx> MakeLocalPotential   (const Structure* cl, const Pseudopotential::LocalPotential&     loc) const override;
+    //! \brief The long/short split of \c MakeLocalPotential (doc/GPWPlan.md 0e-PP): the LONG (softened-Coulomb)
+    //! part is assembled analytically on the smooth density-grid integrate-back (\c GPW_Evaluator::MakeLocalPPLong,
+    //! folded into \c PW_Hartree); the SHORT (compact poly-Gaussian) part rides the sharp-field local-PP sweep.
+    virtual hmat_t<dcmplx> MakeLocalPotentialLong (const Structure* cl, const Pseudopotential::LocalPotential& loc) const override;
+    virtual hmat_t<dcmplx> MakeLocalPotentialShort(const Structure* cl, const Pseudopotential::LocalPotential& loc) const override;
     virtual hmat_t<dcmplx> MakeSeparablePotential(const Structure* cl, const Pseudopotential::SeparablePotential& nl ) const override;
 
     virtual std::string Name      () const override {return "GPW";}
     virtual std::string BasisSetID() const override; // geometry-aware cache key (Name + molecular ID + k + nR)
 
     virtual std::ostream& Write(std::ostream&) const override;
+
+protected:
+    //! \brief The DFT 3-centre tables (Band_FT_IBS) built over the REQUESTED fit basis's OWN grid -- NOT the
+    //! block's \c DensityGrid.  \a c is the fit basis \c CreateCD/VxcFitBasisSet produced (it IS-A
+    //! PW_Grid_Evaluator carrying the density-fit \f${G}\f$/grid policy), so we hand its grid to the evaluator:
+    //! the table returned is the one REQUESTED, honouring the factory's grid choice rather than silently
+    //! overriding it with the block's own (doc/GPWPlan §0e).  Overrides the shared \c EPW_Orbital_DFT_IBS mixin
+    //! (which dropped \a c); the block's own no-arg tensors remain the convenience/test path.
+    virtual G_ERI3 MakeRepulsion3C(const cFIT_CD_ABS& c) const override;
+    virtual G_ERI3 MakeOverlap3C  (const cFIT_SF_ABS& c) const override;
 };
 
 } //namespace

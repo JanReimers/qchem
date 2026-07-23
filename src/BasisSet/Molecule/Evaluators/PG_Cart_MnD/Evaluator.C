@@ -17,11 +17,19 @@ module;
 #include <complex>   // std::real (Hermitian-diagonal projection of the Bloch lattice sum)
 #include <string>
 #include <ostream>
+#include <fstream>   // /proc/self/statm (GPW_RSS_TRACE diagnostics)
 #include <iostream>   // std::cerr (the one-line stream-cache coverage readout)
 #include <vector>
 #include <cmath>      // std::sqrt/std::log (the lattice-sum magnitude-screening reach radius)
 #include <algorithm>  // std::min (alpha_min per radial)
 #include <functional> // cellphase_t (the caller-supplied Bloch phase of a cross-cell offset)
+#include <utility>    // std::pair (the flattened (i,j) pair list for the OpenMP loop)
+#include <memory>     // std::shared_ptr (the per-atom operator GaussianRF, shared across its polynomial terms)
+#include <cstdlib>    // std::getenv/std::atoi (the GPW_OMP_THREADS opt-in knob)
+// GPW pair-loop parallelism (opt-in via GPW_OMP_THREADS).  Gated on QCHEM_OPENMP -- our OWN macro (defined
+// by CMake when the OpenMP flags are applied) rather than _OPENMP, because this LLVM toolchain ships no
+// libomp and the libgomp fallback (-fopenmp=libgomp) honours the pragmas but does NOT define _OPENMP.  The
+// private-buffer + critical-reduce pattern below needs no <omp.h> (no omp_*() calls), only the pragmas.
 export module qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD;
 import qchem.BasisSet.Molecule.Evaluators;                             // Evaluator + concepts
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.PGData;      // PGData
@@ -106,14 +114,29 @@ public:
     template <class Kernel> chmat_t LatticeSum(const cellphase_t& phase, const UnitCell& A, Kernel K) const
     {
         chmat_t S(size());
-        for (auto i:indices()) for (auto j:indices(i))
+        const bool trace=(std::getenv("GPW_RSS_TRACE")!=nullptr);
+        for (auto i:indices())
         {
-            const rvec3_t cj=radials[j]->GetCenter();
-            dcmplx s(0.0);
-            ForImageOffsets(i,j,A,[&](const ivec3_t& n, const rvec3_t& Roff)
-                            { s += phase(n) * K(i, j, radials[j]->AtCenter(cj+Roff)); });
-            s *= ns[i]*ns[j];
-            S(i,j) = (i==j) ? dcmplx(std::real(s),0.0) : s;   // Hermitian diagonal real; (j,i) auto-set to conj
+            for (auto j:indices(i))
+            {
+                const rvec3_t cj=radials[j]->GetCenter();
+                dcmplx s(0.0);
+                ForImageOffsets(i,j,A,[&](const ivec3_t& n, const rvec3_t& Roff)
+                                { s += phase(n) * K(i, j, radials[j]->AtCenter(cj+Roff)); });
+                s *= ns[i]*ns[j];
+                S(i,j) = (i==j) ? dcmplx(std::real(s),0.0) : s;   // Hermitian diagonal real; (j,i) auto-set to conj
+                // PAIR-SCOPE geometry-cache bound (the full-SR OOM, doc/GPWPlan.md): the MnD
+                // Omega/RNLM/H3 caches key on per-instance IDs, and AtCenter mints fresh clones per
+                // (pair, offset) -- a diffuse basis' ~2k images/pair grows them to GBs inside ONE
+                // matrix build (row scope measured NOT tight enough at SR).  Clearing per pair costs
+                // only the shell-mate component reuse (<=(2l+1)^2 rebuilds on a seconds-scale build).
+                ClearGeometryCaches();
+            }
+            if (trace)
+            {
+                std::ifstream f("/proc/self/statm"); size_t vm=0, rs=0; f>>vm>>rs;
+                std::cerr<<"[rss row] i="<<i<<" rss="<<(rs*4096/1048576)<<" MB"<<std::endl;
+            }
         }
         return S;
     }
@@ -123,6 +146,42 @@ public:
     {   return LatticeSum(phase,A,[this](size_t i,size_t j,const GaussianRF& cj){return radials[i]->Grad2   (cj,pols[i],pols[j]);}); }
     chmat_t MakeNuclear(const cellphase_t& phase, const UnitCell& A, const Structure* cl) const
     {   return LatticeSum(phase,A,[this,cl](size_t i,size_t j,const GaussianRF& cj){return radials[i]->Nuclear(cj,pols[i],pols[j],cl);}); }
+
+    // Molecule::LatticeSum1E: the analytic 3-centre (Overlap3C) MATRIX of a per-atom LOCAL Gaussian operator --
+    // <chi_i^k | Sum_a g_a | chi_j^k>, the local pseudopotential's short-range assembly (doc/GPWPlan.md 0e-PP).
+    // Each atom's operator g_a = opForZ(Z_a) sits in the OPERATOR (C) slot of Overlap3C, between chi_i and the
+    // lattice-imaged chi_j; a compact operator's image atoms are negligible so only home-cell atoms are placed.
+    // The LatticeSum's chi_i-chi_j magnitude screen suffices: a screened-in pair whose product is disjoint from
+    // g_a gives Overlap3C ~ 0 (the integrand needs all three overlapping), and a screened-OUT pair (chi_i,chi_j
+    // disjoint) has product ~ 0 everywhere, so no significant 3-centre term is dropped.
+    chmat_t MakeLocalGaussian(const cellphase_t& phase, const UnitCell& A, const Structure* cl,
+                              const std::function<Molecule::LatticeSum1E::GaussianFunction(int)>& opForZ) const
+    {
+        const std::vector<OpTerm> ops=BuildOpTerms(cl,opForZ,&A);   // periodic: operator over its screened images
+        // STREAMING 3-centre kernel: a lattice-series (pair, image, op) triple is consumed exactly once,
+        // and its Hermite3 blocks are 100s-of-KB-scale for high-degree op polynomials -- caching them
+        // (even pair-scoped) reached GBs per diffuse pair (the full-SR OOM, doc/GPWPlan.md).
+        return LatticeSum(phase,A,[this,&ops](size_t i,size_t j,const GaussianRF& cj)
+        {
+            double s=0.0;
+            for (const auto& ot : ops) s += ot.c * ot.gr->Overlap3CStream(*radials[i], cj, pols[i], pols[j], ot.pol);
+            return s;
+        });
+    }
+    // The FINITE (home-term-only) <chi_i | Sum_a g_a | chi_j>: the molecule/box limit (no lattice), real symmetric.
+    chmat_t MakeLocalGaussian(const Structure* cl,
+                              const std::function<Molecule::LatticeSum1E::GaussianFunction(int)>& opForZ) const
+    {
+        const std::vector<OpTerm> ops=BuildOpTerms(cl,opForZ,nullptr);   // finite: home atoms only
+        chmat_t S(size());
+        for (auto i:indices()) for (auto j:indices(i))
+        {
+            double s=0.0;
+            for (const auto& ot : ops) s += ot.c * ot.gr->Overlap3C(*radials[i], *radials[j], pols[i], pols[j], ot.pol);
+            S(i,j)=dcmplx(s*ns[i]*ns[j], 0.0);   // finite: real symmetric (upper triangle; chmat_t mirrors)
+        }
+        return S;
+    }
 
     // Molecule::LatticeSum1E: the lattice-summed overlap of every basis function with ONE caller-supplied
     // Cartesian-Gaussian function g -- b_i = Sum_n phase(n) <chi_i | g(.-C-R_n)>.  g stands in the chi_j
@@ -152,6 +211,7 @@ public:
                 s += phase(n)*GaussOverlapTerm(i, g, g.center+Roff, Lg);
             }
             b[i]=ns[i]*s;
+            ClearGeometryCaches();   // row-scope bound (see LatticeSum): g's image clones mint fresh cache IDs
         }
         return b;
     }
@@ -199,6 +259,22 @@ public:
         double amin=radials[0]->GetExponents()[0];
         for (auto i:indices()) for (double e : radials[i]->GetExponents()) if (e<amin) amin=e;
         return amin;
+    }
+
+    // GPW collocate/integrate pair-loop threading.  SERIAL BY DEFAULT so the Si bit-anchors stay
+    // byte-identical (the threaded path reduces cross-pair sums in a load-dependent order -> a few-ULP
+    // drift, the same reason OpenBLAS is pinned to one thread in the harness).  Opt in for the slow NaF
+    // production-grid runs with the env knob GPW_OMP_THREADS>1 (read once).  A per-run env knob rather than
+    // OMP_NUM_THREADS because the Si anchors and a threaded NaF sweep share one UTMain binary and cannot be
+    // separated by a global harness pin -- exactly the NAF_*/GPW_ILLCOND_ECUT env-knob idiom already in use.
+    static int PairThreads()
+    {
+#ifdef QCHEM_OPENMP
+        static const int n=[]{ const char* s=std::getenv("GPW_OMP_THREADS"); int v=s?std::atoi(s):1; return v<1?1:v; }();
+        return n;
+#else
+        return 1;
+#endif
     }
 
     // --- ANALYTIC density collocation + integrate-back (CP2K GPW) -------------------------------------------
@@ -254,14 +330,28 @@ public:
     // For an uncontracted basis this IS the per-primitive-product assignment.
     static constexpr double kRelSafety=2.0;
     double RelCutoffSafety() const {return kRelSafety;}   // exposed via LatticeSum1E (the ladder-completion rung)
-    size_t PairLevel(size_t i, size_t j, const std::vector<double>& ecut_L, double relCutoffScale) const
+    //! \a absRelCutoff = 0: the RELATIVE smooth-field rule (below) -- the density-side calibration, shared by
+    //! collocation and the per-iteration integrate-back so the two stay exact adjoints.  \a absRelCutoff > 0:
+    //! the ABSOLUTE rule req = absRelCutoff*(alpha_i+alpha_j) (Ha per unit pair exponent -- CP2K's
+    //! gaussian_gridlevel REL_CUTOFF; its Ry keyword is 2x this).  The absolute rule bounds the pair's own
+    //! spectral tail at its level by e^{-absRelCutoff/2} UNIFORMLY (e^{-15} at 30 Ha), independent of the
+    //! FIELD's sharpness -- the property that makes the static local-PP sweep standalone-exact
+    //! (doc/GPWPlan.md 0e-PP; the old relCutoffScale multiplier of the relative rule is retired).
+    size_t PairLevel(size_t i, size_t j, const std::vector<double>& ecut_L, double absRelCutoff) const
     {
-        // ecut_L[0] is the RESOLUTION REFERENCE (the charge-calibrated density grid) -- req is measured
-        // against ITS relative resolution, so appending a finer completion rung (doc/GPWPlan 0b') must not
+        // ecut_L[0] is the RESOLUTION REFERENCE (the charge-calibrated density grid) -- the relative req is
+        // measured against ITS resolution, so appending a finer completion rung (doc/GPWPlan 0b') must not
         // stiffen every pair's requirement.  Selection is order-free: the COARSEST level satisfying req,
         // else the FINEST present (the completion rung when the ladder is complete; the reference grid when
-        // it is not, e.g. the local-PP sub-ladder at relCutoffScale=6).
-        const double req=relCutoffScale*kRelSafety*ecut_L[0]*(MaxExponent(i)+MaxExponent(j))/(2.0*MaxExponent());
+        // it is not).
+        // GRID-MATCHING OVERRIDE (doc/GPWPlan §0e; verification instrument): GPW_RELCUTOFF=<Ha> forces the
+        // ABSOLUTE rule at the given kappa for EVERY assignment (density side included) -- the CP2K-matching
+        // experiment knob.
+        static const double kEnvRelCutoff = [](){ const char* s=std::getenv("GPW_RELCUTOFF"); return s ? std::atof(s) : 0.0; }();
+        const double kappa = kEnvRelCutoff>0.0 ? kEnvRelCutoff : absRelCutoff;
+        const double req = kappa>0.0
+            ? kappa*(MaxExponent(i)+MaxExponent(j))
+            : kRelSafety*ecut_L[0]*(MaxExponent(i)+MaxExponent(j))/(2.0*MaxExponent());
         size_t L=0;
         for (size_t l=1; l<ecut_L.size(); l++) if (ecut_L[l]>ecut_L[L]) L=l;          // fallback: finest present
         bool sat=false;
@@ -359,7 +449,7 @@ public:
     struct StreamCache
     {
         std::vector<ivec3_t> N_L; std::vector<double> ecut_L;   // the ladder shape (snapshot key)
-        double relCutoffScale=1.0;                              //   + the field-sharpness assignment scale
+        double absRelCutoff=0.0;                                //   + the assignment rule key (0=relative, >0=absolute Ha/exponent)
         std::vector<PairStreams> pairs;                         // indexed [i*n+j], j>=i only
     };
     static constexpr size_t kMaxStreamCaches=4;                 // ladder + K=1 + unit-gate shapes; guards churn
@@ -376,12 +466,19 @@ public:
     //! Tier 2 sized so NaF's MEASURED demand (952M total: 150M fp64 + 802M fp32) caches COMPLETELY -- at
     //! 700M its last 314 (small) pairs re-evaluated on the fly every sweep.  Peak stream RAM ~ 8.6 GB.
     static constexpr size_t kStreamBudgetPtsF32=850'000'000;   // tier 2: fp32 values (the NaF coverage lever)
+    //! RUNTIME budget overrides (POINTS; 0/unset = the compile-time defaults above).  A MEMORY-SAFETY valve
+    //! for boxes where the defaults' ~8.6 GB peak cannot fit beside the rest of a run (measured 2026-07-22:
+    //! the FULL VALENCE_LOWQ_SR basis -- alpha_min=0.05, reach ~21.5 au, hundreds of offsets/pair -- drove
+    //! UTMain to 12.6 GB on a 14 GB box and the kernel OOM-killed the desktop).  Dropped pairs fall back to
+    //! on-the-fly evaluation: correct, slower -- never a physics knob.
+    static size_t BudgetPts()    { const char* e=std::getenv("GPW_STREAM_BUDGET_PTS");     return e?size_t(std::atoll(e)):kStreamBudgetPts; }
+    static size_t BudgetPtsF32() { const char* e=std::getenv("GPW_STREAM_BUDGET_PTS_F32"); return e?size_t(std::atoll(e)):kStreamBudgetPtsF32; }
     const StreamCache& EnsureStreams(const UnitCell& A, const std::vector<ivec3_t>& N_L,
-                                     const std::vector<double>& ecut_L, double relCutoffScale) const
+                                     const std::vector<double>& ecut_L, double absRelCutoff) const
     {
         for (const auto& c : itsStreamCaches)
         {
-            if (c.relCutoffScale!=relCutoffScale || c.ecut_L!=ecut_L || c.N_L.size()!=N_L.size()) continue;
+            if (c.absRelCutoff!=absRelCutoff || c.ecut_L!=ecut_L || c.N_L.size()!=N_L.size()) continue;
             bool same=true;
             for (size_t l=0;l<N_L.size();l++)
                 if (c.N_L[l].x!=N_L[l].x || c.N_L[l].y!=N_L[l].y || c.N_L[l].z!=N_L[l].z) { same=false; break; }
@@ -390,10 +487,10 @@ public:
         if (itsStreamCaches.size()>=kMaxStreamCaches) itsStreamCaches.clear();   // unexpected shape churn
         itsStreamCaches.emplace_back();
         StreamCache& c=itsStreamCaches.back();
-        c.N_L=N_L; c.ecut_L=ecut_L; c.relCutoffScale=relCutoffScale;
+        c.N_L=N_L; c.ecut_L=ecut_L; c.absRelCutoff=absRelCutoff;
         const size_t n=size();
         c.pairs.resize(n*n);
-        size_t budget64=kStreamBudgetPts, budget32=kStreamBudgetPtsF32;
+        size_t budget64=BudgetPts(), budget32=BudgetPtsF32();
         for (size_t cc=0; cc<itsStreamCaches.size()-1; cc++)          // budgets are GLOBAL across cache shapes
             for (const auto& ps : itsStreamCaches[cc].pairs)
                 for (const auto& st : ps.offsets)
@@ -403,18 +500,36 @@ public:
         for (auto i:indices()) for (auto j:indices(i))
         {
             PairStreams& ps=c.pairs[i*n+j];
-            ps.level=PairLevel(i,j,ecut_L,relCutoffScale);
+            ps.level=PairLevel(i,j,ecut_L,absRelCutoff);
             nPairs++;
             if (budget64==0 && budget32==0) { ptsDropped++; continue; }   // both tiers exhausted
             const ivec3_t N=N_L[ps.level];
             size_t pts=0;
+            // TRANSIENT BOUND (2026-07-22; the full-SR OOM): a diffuse pair in a small cell can demand
+            // GIGABYTES of streams (measured: Na s0.05 x s0.05, ~2.3k whole-raster offsets -- and the
+            // vector's geometric REALLOCATION transiently doubles it) only to be DROPPED at tiering.
+            // So ABORT the build the moment the pair's count exceeds the largest tier still open --
+            // an un-cacheable pair must never be materialised.  pts keeps counting (the readout).
+            const size_t cap = budget64>budget32 ? budget64 : budget32;
+            bool building=true;
             ForImageOffsets(i,j,A,[&](const ivec3_t& nn, const rvec3_t& Roff)
             {
+                if (!building)                                 // already over cap: count on-the-fly demand only
+                {
+                    ForPairBox(i,j,Roff,A,N,[&](size_t,double) { pts++; });
+                    return;
+                }
                 PairOffsetStream st; st.n=nn;
                 ForPairBox(i,j,Roff,A,N,[&](size_t idx,double v)
                            { st.idx.push_back(unsigned(idx)); st.val.push_back(v);
                              st.maxv=std::max(st.maxv,std::fabs(v)); });
                 pts+=st.idx.size();
+                if (pts>cap)                                   // un-cacheable: free everything built so far
+                {
+                    building=false;
+                    ps.offsets.clear(); ps.offsets.shrink_to_fit();
+                    return;
+                }
                 if (!st.idx.empty()) ps.offsets.push_back(std::move(st));
             });
             // Tier the pair: fp64 while the primary budget holds (bit-identical replay), fp32 for the
@@ -442,7 +557,7 @@ public:
         // for the analytic path's speed, so make coverage visible (dropped pairs re-evaluate every iteration).
         std::cerr << "[stream cache] shape=(";
         for (size_t l=0;l<N_L.size();l++) std::cerr << (l?",":"") << N_L[l].x;
-        std::cerr << ") scale=" << relCutoffScale << "  pairs " << nPairs
+        std::cerr << ") rule=" << (absRelCutoff>0.0 ? "abs " : "rel ") << absRelCutoff << "  pairs " << nPairs
                   << ": fp64 " << nCached64 << " (" << pts64 << " pts), fp32 " << nCached32
                   << " (" << pts32 << " pts), dropped " << ptsDropped
                   << " pts (budgets " << kStreamBudgetPts << "/" << kStreamBudgetPtsF32 << ")" << std::endl;
@@ -466,15 +581,18 @@ public:
         // Hermitian fold: the (j,i,-R) term contributes the SAME (idx, value, weight) as (i,j,R) -- the product
         // field is the lattice-translated twin and D_ji e^{-ik(-R)} = conj(D_ij e^{-ikR}) -- so loop j>=i and
         // double the off-diagonal weight (a 2x saving over the full n^2 loop, exact).
-        const StreamCache& sc=EnsureStreams(A,N_L,ecut_L,1.0);   // density: the smooth-field calibration
+        const StreamCache& sc=EnsureStreams(A,N_L,ecut_L,0.0);   // density: the relative smooth-field rule
         const size_t nn=size();
-        for (auto i:indices()) for (auto j:indices(i))
+        // Per-pair scatter into a caller-supplied set of level densities (`dst`): the SAME `rho` when serial,
+        // a private per-thread accumulator when threaded -- so the arithmetic PER PAIR is bit-identical either
+        // way; only the cross-pair reduction order changes (see PairThreads).
+        auto scatter=[&](size_t i, size_t j, std::vector<rvec_t>& dst)
         {
             const dcmplx Dij(D(i,j));
-            if (Dij==dcmplx(0.0)) continue;
+            if (Dij==dcmplx(0.0)) return;
             const double fold=(i==j)?1.0:2.0;
             const PairStreams& ps=sc.pairs[i*nn+j];
-            rvec_t& r=rho[ps.level];
+            rvec_t& r=dst[ps.level];
             if (ps.cached)
                 for (const PairOffsetStream& st : ps.offsets)
                 {
@@ -502,7 +620,32 @@ public:
                     ForPairBox(i,j,Roff,A,N_L[ps.level],[&](size_t idx,double v){r[idx]+=c*v;},
                                std::max(kScreenEps, kDensityEps/std::fabs(c)));
                 });
+        };
+#ifdef QCHEM_OPENMP
+        if (const int nthreads=PairThreads(); nthreads>1)
+        {
+            // OpenMP over the pairs.  Each thread owns a PRIVATE level-density accumulator `mine` (declared
+            // inside the parallel region -> genuinely thread-local, so no omp_get_thread_num / <omp.h>
+            // needed), scatters its share of the pairs into it, then folds it into the shared rho under a
+            // critical section (the "per-thread accumulators + reduce").  The reduction reorders the
+            // cross-pair grid sums, so a threaded run drifts a few ULPs from serial -- accepted; the Si
+            // bit-anchors always run serial (GPW_OMP_THREADS unset -> nthreads==1 -> the branch below).
+            std::vector<std::pair<size_t,size_t>> prs;
+            for (auto i:indices()) for (auto j:indices(i)) prs.push_back({i,j});
+            #pragma omp parallel num_threads(nthreads)
+            {
+                std::vector<rvec_t> mine(K);
+                for (size_t l=0;l<K;l++) mine[l]=rvec_t(rho[l].size(),0.0);
+                #pragma omp for schedule(dynamic) nowait
+                for (size_t p=0;p<prs.size();p++) scatter(prs[p].first,prs[p].second,mine);
+                #pragma omp critical
+                for (size_t l=0;l<K;l++)
+                    for (size_t g=0, m=rho[l].size(); g<m; g++) rho[l][g]+=mine[l][g];
+            }
+            return rho;
         }
+#endif
+        for (auto i:indices()) for (auto j:indices(i)) scatter(i,j,rho);   // serial (byte-identical default)
         return rho;
     }
     // --- Phase-independent integrate-back memo ---------------------------------------------------------------
@@ -519,15 +662,15 @@ public:
     struct IntegrateMemo
     {
         std::vector<ivec3_t> N_L; std::vector<double> ecut_L;   // the ladder shape (snapshot key)
-        double relCutoffScale=1.0;                              //   + the field-sharpness assignment scale
+        double absRelCutoff=0.0;                                //   + the assignment rule key (0=relative, >0=absolute Ha/exponent)
         std::vector<rvec_t>  V_L;                               //   + the integrated field itself (exact)
         std::vector<PairB>   B;                                 // indexed [i*n+j], j>=i only
     };
     static constexpr size_t kMaxIntegrateMemos=4;               // static PP + the iteration's KS fields
     bool SameShape(const IntegrateMemo& m, const std::vector<ivec3_t>& N_L, const std::vector<double>& ecut_L,
-                   double relCutoffScale) const
+                   double absRelCutoff) const
     {
-        if (m.relCutoffScale!=relCutoffScale || m.ecut_L!=ecut_L || m.N_L.size()!=N_L.size()) return false;
+        if (m.absRelCutoff!=absRelCutoff || m.ecut_L!=ecut_L || m.N_L.size()!=N_L.size()) return false;
         for (size_t l=0;l<N_L.size();l++)
             if (m.N_L[l].x!=N_L[l].x || m.N_L[l].y!=N_L[l].y || m.N_L[l].z!=N_L[l].z) return false;
         return true;
@@ -556,7 +699,7 @@ public:
     //! construction, and the active set changes with D while the memo is keyed on V alone).
     chmat_t IntegratePotential(const std::vector<rvec_t>& V_L, const cellphase_t& phase, const UnitCell& A,
                                const std::vector<ivec3_t>& N_L, const std::vector<double>& ecut_L,
-                               double relCutoffScale=1.0, const chmat_t* screenD=nullptr) const
+                               double absRelCutoff=0.0, const chmat_t* screenD=nullptr) const
     {
         const size_t K=N_L.size();
         assert(K>0 && ecut_L.size()==K && V_L.size()==K);
@@ -566,7 +709,7 @@ public:
         // Memo hit: the per-offset reductions are already computed for this exact field -- contract phases only.
         if (memoize)
             for (const auto& m : itsIntegrateMemos)
-                if (SameShape(m,N_L,ecut_L,relCutoffScale) && SameField(m.V_L,V_L))
+                if (SameShape(m,N_L,ecut_L,absRelCutoff) && SameField(m.V_L,V_L))
                 {
                     for (auto i:indices()) for (auto j:indices(i))
                     {
@@ -580,22 +723,25 @@ public:
                     return h;
                 }
         // Miss: compute (streams replay where cached, on-the-fly otherwise), recording B for the next caller.
-        // relCutoffScale != 1 marks a STATIC sharp-field call (the local PP, built once per SCF): evaluate on
+        // absRelCutoff > 0 marks a STATIC sharp-field call (the local PP, built once per SCF): evaluate on
         // the fly -- caching a single-shot sweep wastes the whole budget the per-iteration path needs.  (Its
         // B reductions land in the memo, so the other k-blocks never repeat the sweep.)
-        const StreamCache* sc = (relCutoffScale==1.0) ? &EnsureStreams(A,N_L,ecut_L,relCutoffScale) : nullptr;
+        const StreamCache* sc = (absRelCutoff==0.0) ? &EnsureStreams(A,N_L,ecut_L,absRelCutoff) : nullptr;
         IntegrateMemo* memo=nullptr;
         if (memoize)
         {
             if (itsIntegrateMemos.size()>=kMaxIntegrateMemos) itsIntegrateMemos.erase(itsIntegrateMemos.begin());
             itsIntegrateMemos.emplace_back();
             memo=&itsIntegrateMemos.back();
-            memo->N_L=N_L; memo->ecut_L=ecut_L; memo->relCutoffScale=relCutoffScale; memo->V_L=V_L;
+            memo->N_L=N_L; memo->ecut_L=ecut_L; memo->absRelCutoff=absRelCutoff; memo->V_L=V_L;
             memo->B.resize(nn*nn);
         }
-        for (auto i:indices()) for (auto j:indices(i))       // j>=i (Hermitian upper triangle)
+        // Per-pair integrate-back.  Each pair writes ONLY its own h(i,j) and its own (pre-sized, disjoint)
+        // memo->B[i*nn+j] slot -- so this is embarrassingly parallel with NO reduction (unlike collocation,
+        // whose pairs scatter into a shared grid).
+        auto integratePair=[&](size_t i, size_t j)           // j>=i (Hermitian upper triangle)
         {
-            const size_t  l = sc ? sc->pairs[i*nn+j].level : PairLevel(i,j,ecut_L,relCutoffScale);
+            const size_t  l = sc ? sc->pairs[i*nn+j].level : PairLevel(i,j,ecut_L,absRelCutoff);
             const rvec_t& V=V_L[l];
             const double  w=A.GetCellVolume()/double(V.size());   // the level's quadrature weight Omega/Npts(l)
             PairB  dummy;
@@ -643,7 +789,18 @@ public:
                 });
             s*=w;
             h(i,j) = (i==j) ? dcmplx(std::real(s),0.0) : s;   // Hermitian diagonal real; (j,i) auto-set to conj
+        };
+#ifdef QCHEM_OPENMP
+        if (const int nthreads=PairThreads(); nthreads>1)
+        {
+            std::vector<std::pair<size_t,size_t>> prs;
+            for (auto i:indices()) for (auto j:indices(i)) prs.push_back({i,j});
+            #pragma omp parallel for schedule(dynamic) num_threads(nthreads)
+            for (size_t p=0;p<prs.size();p++) integratePair(prs[p].first,prs[p].second);
+            return h;
         }
+#endif
+        for (auto i:indices()) for (auto j:indices(i)) integratePair(i,j);   // serial (byte-identical default)
         return h;
     }
 
@@ -678,6 +835,48 @@ public:
 
 
 private:
+    // One monomial term of a per-atom local Gaussian operator: the atom's GaussianRF (SHARED across its
+    // polynomial terms -- built once per atom image), the term's Cartesian-monomial Polarization, and its coeff.
+    struct OpTerm { std::shared_ptr<GaussianRF> gr; Polarization pol; double c; };
+    // Flatten the structure's per-atom operators (opForZ(Z_a) at R_a) into (gr, pol, c) terms for the 3-centre
+    // Overlap3C loop.  For a PERIODIC cell (\a A non-null) the local potential is the FIXED periodic field, so
+    // each atom is placed at every IMAGE within (operator reach + max orbital reach) of the home atom: an
+    // operator co-located with an imaged chi_j atom that lands near a home orbital contributes, so home-cell
+    // atoms alone under-count (measured: Si Gamma -7.67 vs -7.11).  The operator is compact (Gaussian tail), so
+    // the image shell is finite; a far one still lands in the list but Overlap3C screens it to ~0.  \a A null =
+    // the FINITE (molecule/box) limit: home atoms only.  One GaussianRF per atom image, shared by its terms.
+    std::vector<OpTerm> BuildOpTerms(const Structure* cl,
+                                     const std::function<Molecule::LatticeSum1E::GaussianFunction(int)>& opForZ,
+                                     const UnitCell* A) const
+    {
+        double maxOrbReach=0.0;                              // the product of two orbitals can spread this far
+        for (auto i:indices())
+        {
+            double amin=radials[i]->GetExponents()[0];
+            for (double e:radials[i]->GetExponents()) amin=std::min(amin,e);
+            maxOrbReach=std::max(maxOrbReach, std::sqrt(-std::log(kScreenEps)/amin));
+        }
+        std::vector<OpTerm> ops;
+        for (Atom* a : *cl)
+        {
+            Molecule::LatticeSum1E::GaussianFunction g=opForZ(a->itsZ);
+            const int Lg=GaussDegree(g);
+            auto place=[&](const rvec3_t& center)
+            {
+                auto gr=std::make_shared<GaussianRF>(g.alpha, center, Lg);
+                for (const auto& t : g.terms) ops.push_back({gr, Polarization(t.p), t.c});
+            };
+            if (!A) { place(a->itsR); continue; }           // finite: home atom only
+            const double rEnum=std::sqrt(-std::log(kScreenEps)/g.alpha)+maxOrbReach;   // operator reach + orbital reach
+            for (const auto& n : A->CellsInSphere(rEnum + A->GetMaximumCellEdge()))
+            {
+                const rvec3_t Roff=A->ToCartesian(rvec3_t(double(n.x),double(n.y),double(n.z)));
+                if (Roff.x*Roff.x+Roff.y*Roff.y+Roff.z*Roff.z <= rEnum*rEnum) place(a->itsR+Roff);
+            }
+        }
+        return ops;
+    }
+
     mutable std::vector<StreamCache>   itsStreamCaches;    //!< analytic pair-box streams, one per ladder shape
     mutable std::vector<IntegrateMemo> itsIntegrateMemos;  //!< phase-independent B_ij(n) per exact field (LRU)
 };

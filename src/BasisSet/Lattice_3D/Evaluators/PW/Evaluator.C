@@ -90,6 +90,11 @@ public:
     //! \brief Overlap tensor \f$\langle G_iG_j|G_c\rangle=\delta_{G_c,G_i-G_j}/\Omega\f$: the delta support,
     //! empty kernel (overlap metric).
     G_ERI3 Overlap3CTensor() const;
+private:
+    //! The tensors' G_ERI3::applyAdjoint (field->matrix backward): \f$\langle i|f|j\rangle=f(m_i-m_j)\f$, the
+    //! plane-wave Fourier lookup (== \c OverlapMatrix), self-contained so it survives in the tensor cache.
+    std::function<chmat_t(const std::function<dcmplx(const ivec3_t&)>&)> AdjointLookup() const;
+public:
 
     // --- FFT grid RESOLUTION N (derived from THIS block's {G}); the grid ITSELF (the FFT quadrature) is on
     //     PW_Grid_Evaluator, which sizes its PeriodicGridEvaluator from FFTGrid() below. ---

@@ -15,6 +15,7 @@ import qchem.BasisSet.G_FieldEvaluator;    // the fit basis's FFT grid engine (R
 import qchem.Pseudopotential.Integrals_Pseudo;   // cast bs ACROSS to the external-PP operator-assembly mixin (PW_Pseudo)
 import qchem.Fitting.FunctionFitter;        // Fitting::Factory (both PW fitters) + ProjectedDensity_G / ProjectedScalar_R
 import qchem.Structure;                       // Structure::isFinite()/SumFormFactors() -- the G=0 alignment (term-side)
+import qchem.Blaze;                            // blazem::zeroH<dcmplx> (the null-PP V_long block)
 
 namespace qchem::Hamiltonian
 {
@@ -40,7 +41,9 @@ chmat_t PW_Pseudo::CalculateMatrix(const cobs_t* bs, const Spin&) const
 {
     auto pw=dynamic_cast<const Pseudopotential::Integrals_Pseudo<dcmplx>*>(bs);
     assert(pw && "PW_Pseudo requires an Integrals_Pseudo<dcmplx> (e.g. plane-wave) basis");
-    chmat_t V=pw->MakeLocalPotential(&*theStructure, *itsLocal);
+    // SHORT-range local only: the LONG (softened-Coulomb) part folds into the Hartree Poisson via PW_Hartree
+    // (the CP2K local-PP split, doc/GPWPlan.md 0e-PP).  V_ext(short) = V_loc(short) + V_NL.
+    chmat_t V=pw->MakeLocalPotentialShort(&*theStructure, *itsLocal);
     if (itsSep) V += pw->MakeSeparablePotential(&*theStructure, *itsSep);
     return V;
 }
@@ -55,13 +58,14 @@ void PW_Pseudo::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
     // periodic (!isFinite(), Omega finite); a finite/molecular Structure has no G=0 background, so no
     // alignment term.  The term owns the model (alpha) and reads Omega straight off the geometry -- no basis
     // (the old basis-side PseudoG0Energy was a scalar PP formula leaking into the neutral basis interface).
-    te.Een=cd->DM_Contract(this);                                          // integral rho V_ext (G!=0)
+    te.Een=cd->DM_Contract(this);                                          // integral rho V_ext(short) (G!=0)
     // A finite/molecular structure has no G=0 neutralising background, so NO alignment (even though its atoms
     // DO have form factors -- the physics decision lives here, via isFinite(), not in the geometry).  For a
-    // periodic cell the structure folds in 1/Omega: SumFormFactors returns (1/Omega) Sum_a alpha_a.
+    // periodic cell the structure folds in 1/Omega: SumFormFactors returns (1/Omega) Sum_a alpha_a.  The SHORT
+    // part's alignment only -- the LONG part's G=0 shift moves to PW_Hartree with V_long (doc/GPWPlan.md 0e-PP).
     if (!theStructure->isFinite())                                         // periodic only (Omega finite)
         te.Ealign = cd->GetTotalCharge() *
-                    theStructure->SumFormFactors([this](int Z){return itsLocal->FormFactorG0(Z);});
+                    theStructure->SumFormFactors([this](int Z){return itsLocal->FormFactorG0Short(Z);});
 }
 
 std::ostream& PW_Pseudo::Write(std::ostream& os) const
@@ -93,9 +97,31 @@ std::ostream& PW_Kinetic::Write(std::ostream& os) const
 // Holds its CD fit basis (from Ham_PW_DFT::BuildTerms via the orbital basis's factory, never assuming
 // orbital==fit) and hands it to the density's GetRepulsion3C each SCF cycle -- mirrors FittedVee holding its
 // CD fit basis and calling IrrepCD::GetRepulsion3C(fbs).
-PW_Hartree::PW_Hartree(fbs_t fb)
+PW_Hartree::PW_Hartree(fbs_t fb, st_t st, const Pseudopotential::LocalPotential* loc)
     : itsFitBasis(fb)
+    , theStructure(st)
+    , itsLocal(loc)
 {}
+
+// The fixed <i|V_long|j> block for this orbital basis: the long-range (softened-Coulomb) local-PP matrix,
+// built ONCE per irrep basis (density-independent) and cached by BasisSetID.  Null model => zero (pure
+// Hartree, no core charge to fold).  Assembled through the SAME Integrals_Pseudo cross-cast PW_Pseudo uses.
+const chmat_t& PW_Hartree::LongBlock(const cobs_t* bs) const
+{
+    const std::string id=bs->BasisSetID();
+    auto it=itsLongBlocks.find(id);
+    if (it!=itsLongBlocks.end()) return it->second;
+    chmat_t VL;
+    if (itsLocal)
+    {
+        auto pp=dynamic_cast<const Pseudopotential::Integrals_Pseudo<dcmplx>*>(bs);
+        assert(pp && "PW_Hartree: the V_long fold needs an Integrals_Pseudo<dcmplx> orbital basis");
+        VL=pp->MakeLocalPotentialLong(&*theStructure, *itsLocal);
+    }
+    else
+        VL=blazem::zeroH<dcmplx>(bs->GetNumFunctions());
+    return itsLongBlocks.emplace(id, std::move(VL)).first->second;
+}
 
 chmat_t PW_Hartree::CalcMatrix(const cobs_t* bs, const Spin&, const cChargeDensity* cd) const
 {
@@ -105,22 +131,38 @@ chmat_t PW_Hartree::CalcMatrix(const cobs_t* bs, const Spin&, const cChargeDensi
     auto bft=dynamic_cast<const BasisSet::Band_FT_IBS*>(bs);
     assert(bft && "PW_Hartree requires a Band_FT_IBS (reciprocal-space DFT) orbital basis");
     // The density contracts D against the basis's D-free Coulomb tensor Repulsion3C (kernel baked) to give
-    // V_H(dm); the term assembles <i|V_H|j> = V_H(G_i-G_j) via the orbital basis's MakeOverlap bridge.  D
-    // never crosses into the basis.
+    // V_H(dm) [FORWARD]; the KS matrix <i|V_H|j> = Σ_k V_H(G_k) <i|e^{iG_k}|j> is the BACKWARD contraction of the
+    // SAME Repulsion3C tensor over the CD fit basis (its applyAdjoint -- the overlap integrate-back on the fit
+    // grid; the Coulomb kernel is forward-only, already in V_H).  So forward AND backward run on the one fit grid
+    // (doc/GPWPlan §0e step 2).  Then ADD the fixed long-range core-charge V_long -- one Poisson-solved matrix.
     ΔG_Map VH=fd->GetRepulsion3C(*itsFitBasis);
-    return bft->MakeOverlap([&VH](const ivec3_t& dm)->dcmplx
-        { auto it=VH.find(dm); return it==VH.end()?dcmplx(0.0):it->second; });
+    chmat_t H=ContractAdjointG_ERI3(bft->Repulsion3C(*itsFitBasis),
+        [&VH](const ivec3_t& dm)->dcmplx { auto it=VH.find(dm); return it==VH.end()?dcmplx(0.0):it->second; });
+    H+=LongBlock(bs);
+    return H;
 }
 
 void PW_Hartree::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 {
     newCD(cd);
-    te.Eee=0.5*cd->DM_Contract(this,cd);   // E_H = 1/2 integral rho V_H[rho]
+    // The Fock matrix carries V_H + V_long, so DM_Contract(this) = Tr(D(V_H+V_long)).  Split into the two
+    // physical energies (doc/GPWPlan.md 0e-PP): the electron-electron Hartree gets the 1/2 double-counting
+    // factor, the electron-ion long-range gets none.  V_long is the FIXED per-basis block (DM_ContractBlocks).
+    // (this->CalcMatrix has run for every irrep by now -- DM_Contract triggers GetMatrix -- so itsLongBlocks
+    // is fully populated.)
+    double total=cd->DM_Contract(this,cd);                 // Tr(D (V_H + V_long))
+    double eLong=cd->DM_ContractBlocks(itsLongBlocks);     // Tr(D V_long) = E_een,long
+    te.Eee += 0.5*(total-eLong);                           // E_H = 1/2 integral rho V_H[rho]
+    te.Een += eLong;                                       // electron-ion long-range (no 1/2)
+    // The dropped-G=0 alignment of the LONG part moves here with V_long (the SHORT part's stays in PW_Pseudo).
+    if (itsLocal && !theStructure->isFinite())             // periodic only (Omega finite)
+        te.Ealign += cd->GetTotalCharge() *
+                     theStructure->SumFormFactors([this](int Z){return itsLocal->FormFactorG0Long(Z);});
 }
 
 std::ostream& PW_Hartree::Write(std::ostream& os) const
 {
-    return os << "    PW Hartree potential ro(r_2)/r_12 (G-space)." << std::endl;
+    return os << "    PW electrostatics: Hartree V_H[rho] + long-range core-charge V_long (G-space)." << std::endl;
 }
 
 //----------------------------------------------------------------------------------- XC
@@ -203,6 +245,28 @@ void PW_XC::RefreshRhoGrid(const cChargeDensity* cd) const
         std::cout << "[grid charge] integral rho_grid=" << std::fixed << std::setprecision(6) << qGrid
                   << "  Tr(DS)=" << qDM
                   << "  lost=" << std::scientific << std::setprecision(3) << (qGrid-qDM)
+                  << std::defaultfloat << std::endl;
+        // XC-collapse diagnostic (doc/GPWPlan §0e step 2): the collocated rho's min/max/negative content, and
+        // the XC the rho>0 guard ZEROES.  If rho rings locally-negative near the sharp F peaks, GetEpsXc(rho<=0)
+        // = 0 silently drops that eps_xc*rho -- the +7 Ha Exc collapse (fine -5.09 vs coarse -12.19).  Separates
+        // lead (c) [Gibbs ringing + guard: rho_min very negative, big negCharge] from lead (b) [genuinely lower
+        // peaks: rho_max small, rho_min ~ 0].
+        double rmin=1e300, rmax=-1e300; size_t nneg=0;
+        rvec_t negOnly(itsRhoGrid.size()), excLost(itsRhoGrid.size());
+        for (size_t q=0;q<itsRhoGrid.size();q++)
+        {
+            const double r=itsRhoGrid[q];
+            rmin=std::min(rmin,r); rmax=std::max(rmax,r);
+            negOnly[q] = r<0.0 ? r : 0.0;                                  // negative-charge density
+            // eps_xc*rho the guard drops at rho<0, estimated on |rho| (the magnitude the ringing would carry)
+            excLost[q] = r<0.0 ? itsXc->GetEpsXc(-r)*(-r) : 0.0;
+            if (r<0.0) ++nneg;
+        }
+        const double negCharge=itsScalarFitter->Grid().Integral(negOnly);
+        const double excLostI =itsScalarFitter->Grid().Integral(excLost);
+        std::cout << "[xc grid] rho_min=" << std::scientific << std::setprecision(3) << rmin
+                  << " rho_max=" << rmax << " neg-frac=" << double(nneg)/double(itsRhoGrid.size())
+                  << " negCharge=" << negCharge << " Exc_lost@rho<0~=" << excLostI
                   << std::defaultfloat << std::endl;
     }
 }

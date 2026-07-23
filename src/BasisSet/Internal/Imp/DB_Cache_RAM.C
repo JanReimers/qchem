@@ -70,6 +70,8 @@ namespace std
             switch (c) { // Reuse switch-case logic, but integrate with format
                 case I2n::Nuclear:      name = "Nuclear"     ; break;
                 case I2n::LocalPP:      name = "LocalPP"     ; break;
+                case I2n::LocalPPLong:  name = "LocalPPLong" ; break;
+                case I2n::LocalPPShort: name = "LocalPPShort"; break;
                 case I2n::SeparablePP:  name = "SeparablePP" ; break;
             }
             return formatter<string_view>::format(name, ctx);  
@@ -390,8 +392,7 @@ template <class T> const rmat_t& IntegralsCache_RAM<T>::Get(I2x i2x,const DBCach
 }
 
 // --- Troubleshooting / DBCache-unit-test Clear() hooks (see the declarations in the interface partition).
-// kCacheTestHooks is the compile-time switch -- the constexpr-bool idiom (cf. EnableMOM in CompositeWF.C),
-// NO preprocessor.  Default true so the DBCache unit tests run in the normal Release UTMain; flip to false
+// kCacheTestHooks is the compile-time switch -- the constexpr-bool idiom, NO preprocessor.  Default true so the DBCache unit tests run in the normal Release UTMain; flip to false
 // to drop the bodies from a hardened production build (they are unreachable from production code anyway,
 // which only holds the abstract IntegralsCache<T> face).  Each erases the entries for one operator; the
 // enum value comparison is on std::get<0>(key) (the operator slot) for every keyed map.

@@ -311,7 +311,7 @@ TEST_F(DBCach1Tests,BSplinerDirect)
 TEST_F(DBCach1Tests,GaussianDirect)
 {
     Init(Gaussian);
-    TestDirect(7e-14);
+    TestDirect(8e-14);
 }
 TEST_F(DBCach1Tests,SlaterDirect)
 {

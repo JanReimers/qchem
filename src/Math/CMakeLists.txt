@@ -21,6 +21,7 @@ target_sources(qcMath PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     FFT.C
     ScalarFunction.C
     VectorFunction.C
+    DIIS.C
 )
 
 set_property(TARGET qcMath PROPERTY CXX_STANDARD 20)
@@ -29,5 +30,6 @@ target_compile_definitions(qcMath PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
 
 target_include_directories(qcMath PRIVATE
     ${PROJECT_SOURCE_DIR}/submodules/blaze
+    ${PROJECT_SOURCE_DIR}/submodules/pocketfft   # pocketfft_hdronly.h (qchem.FFT mixed-radix engine)
 )
 target_link_libraries(qcMath PUBLIC)

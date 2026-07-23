@@ -77,6 +77,13 @@ public:
                               const Polarization& pa, const Polarization& pb);
     static double Nuclear    (const PrimGaussian* a, const PrimGaussian* b,
                               const Polarization& pa, const Polarization& pb, const Structure* cl);
+    //! STREAMING 3-centre overlap: builds the Hermite3 block, consumes it, DISCARDS it -- never touches
+    //! the global cache.  For the LATTICE paths (image clones mint fresh cache keys per (pair, offset);
+    //! a series term is consumed exactly once, so caching degenerates into an unbounded leak -- the
+    //! full-SR 11-GB OOM, doc/GPWPlan.md).  Costs only the shell-mate component reuse (<=(2l+1)^2
+    //! rebuilds) on the one-time matrix build.
+    static double Overlap3CStream(const PrimGaussian* a, const PrimGaussian* b, const PrimGaussian* c,
+                                  const Polarization& pa, const Polarization& pb, const Polarization& pc);
     static double Overlap3C  (const PrimGaussian* a, const PrimGaussian* b, const PrimGaussian* c,
                               const Polarization& pa, const Polarization& pb, const Polarization& pc);
     static double Repulsion3C(const PrimGaussian* a, const PrimGaussian* b, const PrimGaussian* c,
@@ -134,6 +141,15 @@ const Hermite3& findH3  (const PrimGaussian* a, const PrimGaussian* b, const Pri
 export namespace qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD
 {
 
+//! \brief Drop every entry of the GEOMETRY-KEYED MnD caches (PG.Omega / PG.RNLM / PG.H3).  The caches
+//! key on per-instance primitive IDs, so a LATTICE sum -- which mints fresh image clones per (pair,
+//! offset) via \c AtCenter -- grows them without bound (measured: the full-SR NaF analytic short built
+//! ~2M Hermite3 tables, 11+ GB, in seconds -- the 2026-07-22 OOM).  Lattice drivers call this at row
+//! boundaries (one basis function's images done): in-row component reuse is preserved, growth is
+//! bounded by one row's images.  Purely a cost decision -- entries rebuild on demand; MOLECULAR paths
+//! never call it, keeping their ~99.9% hit rates.
+void ClearGeometryCaches();
+
 //
 //  THE radial function: a contracted Gaussian.  itsPrims.size()==1 (coeff 1.0) is an uncontracted
 //  primitive.  Contraction coefficients fold in each primitive's normalization (the overall
@@ -181,6 +197,8 @@ public:
     double Grad2      (rf_t& rb, po_t& pa, po_t& pb                ) const;   // <p^2> block, no 1/2
     double Nuclear    (rf_t& rb, po_t& pa, po_t& pb, const Structure* cl) const;
     double Overlap3C  (rf_t& ra, rf_t& rb, po_t& pa, po_t& pb, po_t& pc) const; // this is centre C
+    //! Streaming sibling of \c Overlap3C (build-use-discard Hermite blocks; the lattice paths' variant).
+    double Overlap3CStream(rf_t& ra, rf_t& rb, po_t& pa, po_t& pb, po_t& pc) const;
     double Repulsion3C(rf_t& ra, rf_t& rb, po_t& pa, po_t& pb, po_t& pc) const; // this is centre C
     double Repulsion4C(rf_t& ra, rf_t& rb, rf_t& rc, po_t& pa, po_t& pb, po_t& pc, po_t& pd) const; // this is D
 

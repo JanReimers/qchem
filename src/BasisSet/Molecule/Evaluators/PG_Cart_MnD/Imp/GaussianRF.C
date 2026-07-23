@@ -159,6 +159,15 @@ namespace
     }
 }
 
+// The lattice drivers' geometry-cache scope boundary (declared in the interface; doc above).
+void ClearGeometryCaches()
+{
+    OmegaCache()->Clear();
+    RNLMCache ()->Clear();
+    H3Cache   ()->Clear();
+}
+
+
 const Ω& findΩ(const GData& a,const GData& b)
 {
     const Cacheable2& cd = OmegaCache()->get(a.ID, b.ID,
@@ -385,6 +394,13 @@ double PrimGaussian::Overlap3C(const PrimGaussian* ga, const PrimGaussian* gb, c
 {
     const Hermite3& H3 = findH3(ga, gb, gc);
     return H3(pa,pb,pc);
+}
+// Streaming variant: the block lives for exactly this call (see the interface doc; the lattice paths).
+double PrimGaussian::Overlap3CStream(const PrimGaussian* ga, const PrimGaussian* gb, const PrimGaussian* gc,
+                                     const Polarization& pa, const Polarization& pb, const Polarization& pc)
+{
+    std::unique_ptr<Hermite3> H3(gc->GetH3(*ga,*gb));
+    return (*H3)(pa,pb,pc);
 }
 
 double PrimGaussian::Repulsion3C(const PrimGaussian* ga, const PrimGaussian* gb, const PrimGaussian* gc,
@@ -683,6 +699,17 @@ double GaussianRF::Overlap3C(rf_t& ra, rf_t& rb, po_t& pa, po_t& pb, po_t& pc) c
                 s += ra.itsCoeff[i]*rb.itsCoeff[j]*itsCoeff[k]
                      * PrimGaussian::Overlap3C(ra.itsPrims[i].get(), rb.itsPrims[j].get(), itsPrims[k].get(),
                                                pa, pb, pc);
+    return s;
+}
+double GaussianRF::Overlap3CStream(rf_t& ra, rf_t& rb, po_t& pa, po_t& pb, po_t& pc) const
+{
+    double s = 0.0;
+    for (size_t i=0;i<ra.itsPrims.size();++i)
+        for (size_t j=0;j<rb.itsPrims.size();++j)
+            for (size_t k=0;k<itsPrims.size();++k)
+                s += ra.itsCoeff[i]*rb.itsCoeff[j]*itsCoeff[k]
+                     * PrimGaussian::Overlap3CStream(ra.itsPrims[i].get(), rb.itsPrims[j].get(), itsPrims[k].get(),
+                                                     pa, pb, pc);
     return s;
 }
 double GaussianRF::Repulsion3C(rf_t& ra, rf_t& rb, po_t& pa, po_t& pb, po_t& pc) const

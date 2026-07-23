@@ -21,11 +21,13 @@ using std::cerr;
 using std::endl;
 using SCFAccelerators::tSCFIrrepAccelerator;
 
-// MOM (Maximum Overlap Method) occupation tracking is implemented but parked: for the current
-// closed-shell cases the empty-irrep DIIS discriminator already gives clean convergence with no
-// occupation flip, so MOM is not load-bearing (see doc/SCF_DIIS_SALC_notes.md).  The machinery is
-// kept compiled; this flag gates only its call sites.  Flip to true for excited-state / hard cases.
-constexpr bool EnableMOM=false;
+// MOM (Maximum Overlap Method) occupation tracking is configured per-run from SCFParams (UseMOM/
+// MOMStartIter), pushed in by the SCFIterator via SetMOM (which forwards to every irrep WF).  For the
+// closed-shell molecular cases the empty-irrep DIIS discriminator already gives clean convergence with no
+// occupation flip, so MOM is OFF by default; it is turned on for the periodic NaF Γ map, where a
+// giant-response diffuse virtual periodically dives below the Fermi edge and plain aufbau captures it
+// (an occupation swap → energy spike, doc/GPWPlan §0b″).  The ACTIVE, tested path is the crystal's
+// WITHIN-irrep MOM in tIrrepWF::FillOrbitals; this file's cross-irrep aufbau MOM is the parked molecular one.
 
 
 template <class T> tCompositeWF<T>::tCompositeWF(const tbs_t<T>* bs,const ElectronConfiguration* ec,tSCFAccelerator<T>* acc,
@@ -77,12 +79,11 @@ template <class T> void tCompositeWF<T>::DoSCFIteration(tHamiltonian<T>& ham,con
     // itsBS (the whole/composite basis) IS the cross-irrep view a dynamic term may exploit: Iterate<tobs_t>()
     // over it yields every irrep block (doc/ERI4Rework.md §5.4).  Static terms and most dynamic terms ignore it.
     for (auto& w:itsIWFs) w->CalculateH(ham,cd,itsBS); //Feed F,D' into all the irre eccelerators.
-    // Once the accelerator extrapolates, switch the molecular aufbau from eigenvalue order to MOM
-    // (overlap): re-running a plain aufbau on the (non-physical) extrapolated Fock can flip the
-    // occupation (e.g. a near-degenerate B2<->A1 swap in H2O), wrecking convergence.  MOM keeps the
-    // occupied orbitals that match the previous (settled) ones by shape.  Sticky for the rest of run.
-    [[maybe_unused]] const bool engaged = itsAccelerator->CalculateProjections();
-    if constexpr (EnableMOM) if (engaged) itsMOMActive=true;
+    // CalculateProjections() has the DIIS side effect (it accumulates the extrapolation history) so it
+    // must run every iteration regardless of MOM -- keep the call.  MOM activation is NO LONGER gated on
+    // the accelerator engaging (that was the parked molecular heuristic, and NaF's Null accelerator never
+    // engages); it is switched on in FillOrbitalsAufbau as soon as a reference occupied subspace exists.
+    itsAccelerator->CalculateProjections();
     for (auto& w:itsIWFs) w->DoSCFIteration();
 }
 
@@ -158,6 +159,23 @@ template <class T> typename tCompositeWF<T>::iqns_t tCompositeWF<T>::GetQNs() co
 
 
 
+// Configure MOM for this run (from SCFParams, via the SCFIterator).  Store our own copy (used by the
+// molecular cross-irrep aufbau) and forward to every irrep WF (the crystal's within-irrep MOM lives there).
+template <class T> void tCompositeWF<T>::SetMOM(bool useMOM, int startIter)
+{
+    itsUseMOM = useMOM;
+    for (auto& w : itsIWFs) w->SetMOM(useMOM, startIter);
+}
+
+// Grid-continuation (doc/GPWPlan §0e): per irrep, hand this WF's irrep block the CONVERGED source WF's
+// occupied orbitals for the SAME irrep as its fixed MOM reference.  from.GetOrbitals(irr) is the source's
+// physical occupied subspace; the orthonormal metric matches (grid-independent Bloch overlap), so the C'
+// transfer verbatim.  Call after construction (Init) and before Iterate; effective with SCFParams::UseMOM.
+template <class T> void tCompositeWF<T>::AdoptMOMReference(const tWaveFunction<T>& from)
+{
+    for (auto& w : itsIWFs) w->AdoptMOMReference(*from.GetOrbitals(w->GetIrrep()));
+}
+
 template <class T> void tCompositeWF<T>::FillOrbitals(double mergeTol)
 {
     itsELevels.clear();
@@ -183,13 +201,16 @@ template <class T> void tCompositeWF<T>::FillOrbitals(double mergeTol)
 template <class T> void tCompositeWF<T>::FillOrbitalsAufbau(double mergeTol)
 {
     struct Slot { double key; iwf_t* w; double cap; };
+    // Snapshot MOM state at ENTRY: activating it below (after the reference capture) must not leak into
+    // this same call's LATER spin channels (each channel's reference is only captured at its own end).
+    const bool useMOM = itsMOMActive;
     for (auto& [s, wfs] : itsSpinWFs)
     {
         if (wfs.empty()) continue;
         double Nc = (double)itsEC->GetN(wfs.front()->GetIrrep());   // total electrons in this spin channel
 
         std::map<Irrep,rvec_t> mom;                              // per-irrep MOM scores (empty if no ref), keyed by irrep
-        if constexpr (EnableMOM) if (itsMOMActive) for (auto w : wfs) mom[w->GetIrrep()]=w->MOMScores();
+        if (useMOM) for (auto w : wfs) mom[w->GetIrrep()]=w->MOMScores();
 
         std::vector<Slot> slots;                                  // every orbital across the channel
         for (auto w : wfs)
@@ -200,7 +221,7 @@ template <class T> void tCompositeWF<T>::FillOrbitalsAufbau(double mergeTol)
             {
                 // MOM: higher overlap = occupy first (unreferenced/empty irrep scores 0).
                 // Aufbau: lower eigenvalue = occupy first, so key on -energy for a common "bigger wins".
-                double key = itsMOMActive ? (idx<sc.size() ? sc[idx] : 0.0) : -o->GetEigenEnergy();
+                double key = useMOM ? (idx<sc.size() ? sc[idx] : 0.0) : -o->GetEigenEnergy();
                 slots.push_back({key, w, (double)o->GetDegeneracy()});
                 ++idx;
             }
@@ -225,8 +246,13 @@ template <class T> void tCompositeWF<T>::FillOrbitalsAufbau(double mergeTol)
             itsELevels.merge(els, mergeTol);
             itsSpin_ELevels[s].merge(els, mergeTol);
         }
-        if constexpr (EnableMOM) for (auto w : wfs) w->CaptureMOMReference(); // reference for next iteration's MOM
+        // (The per-irrep MOM reference is captured inside tIrrepWF::FillOrbitals above, so no capture here.)
     }
+    // Molecular CROSS-irrep MOM (this function) is the PARKED path: no molecular test enables MOM, and it
+    // has NOT been re-validated against the new delayed reference capture (tIrrepWF captures at MOMStartIter,
+    // so useMOM would score against empty references for the first few fills).  The ACTIVE, tested path is
+    // the crystal's WITHIN-irrep MOM in tIrrepWF::FillOrbitals.  Kept here for the molecular hard cases.
+    if (itsUseMOM) itsMOMActive=true;
 }
 
 template class tCompositeWF<double>;

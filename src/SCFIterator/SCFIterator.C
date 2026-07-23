@@ -11,6 +11,8 @@ export import qchem.SCFParams;
 export import qchem.ChargeDensity.Seed;   // SeedStrategy / MakeSeedDensity
 import qchem.LASolver;   // qchem::Ortho (the basis-overlap orthogonalisation knob, forwarded to the WF)
 import qchem.BasisSet.Fit_IBS;   // BasisSet::FIT_SF_ABS<T> (the G-space fit basis for Kerker rho-tilde extraction)
+export import qchem.ChargeDensity.DensityMixer;   // tDensityMixer<T> (the density-face of SCF convergence)
+import qchem.SCFIterator.LoopDriver;   // tLoopDriver<T> + Fixed/DirectMin concretes (the loop-face seam)
 
 export using qchem::EnergyBreakdown;
 using qchem::ChargeDensity::tDM_CD;
@@ -18,6 +20,15 @@ using qchem::ChargeDensity::tChargeDensity;
 
 export namespace qchem::SCFIterator
 {
+
+//! Process-wide diagnostic toggle (default OFF), mirroring \c qchem::ReportOverlapConditioning and
+//! \c qchem::Hamiltonian::ReportGridCharge.  When true, the verbose per-iteration SCF line appends the
+//! frontier spectrum -- ε_HOMO, ε_LUMO and the gap ε_LUMO−ε_HOMO (Ha) -- from the current orbital energy
+//! levels.  The band-gap instrument for the NaF Γ-instability (doc/GPWPlan §0b″): a near-degenerate
+//! HOMO/LUMO (gap → 0) is the giant-response hypothesis; watching the gap per iteration lets the spurious
+//! level be seen diving across the Fermi edge one step before each energy spike.  Flip it around
+//! \c Iterate and reset it (it is a static, so it leaks between tests otherwise).
+bool& ReportBandGap();
 
 //! Per-iteration progress, handed to an Observer each SCF step so a client (a GUI,
 //! a logger) can watch convergence live without owning the loop.  All real-valued
@@ -52,10 +63,20 @@ public:
                  ChargeDensity::SeedStrategy seed=ChargeDensity::SeedStrategy::Default,
                  const Structure* st=nullptr,
                  qchem::Ortho basisOrtho=qchem::Cholesky, double basisOrthoTol=0.0);
+    //! Grid-continuation / explicit-seed ctor (doc/GPWPlan §0e): seed the SCF from a PRE-BUILT density
+    //! \a seedDensity (TAKES OWNERSHIP -- consumed building the iteration-0 Fock, then freed) instead of
+    //! resolving a SeedStrategy enum.  The intended use is grid continuation: a density converged on a
+    //! CHEAP coarse collocation grid seeds an expensive fine-grid run on the SAME orbital basis, so the
+    //! fine SCF starts in the physical basin rather than wandering into the −39 density/grid basin.  The
+    //! orbital one-body matrices are grid-independent (only the collocation grid differs), so the coarse
+    //! density matrix transfers directly, with no re-projection.  \a seedDensity's own basis block must
+    //! outlive this ctor (it is read once here, in Init).
+    tSCFIterator(const tbs_t<T>*, const ElectronConfiguration*, ham_t*,acc_t*,
+                 tChargeDensity<T>* seedDensity,
+                 const Structure* st=nullptr,
+                 qchem::Ortho basisOrtho=qchem::Cholesky, double basisOrthoTol=0.0);
     virtual ~tSCFIterator();
     virtual bool Iterate(const SCFParams& ipar);
-    // Direct energy minimization (GDM owns the loop): geodesic line search, no density mixing.
-    void SetDirectMin(bool b) {itsDirectMin=b;}
 
     // Watch convergence live: the observer (if set) fires once per SCF iteration with
     // the current SCFProgress.  Read-only telemetry -- the observer must not drive the loop.
@@ -65,6 +86,13 @@ public:
     // SCFIterator drives the mutable SCFWaveFunction, but only ever hands clients the const
     // read view (they can query the converged state, never drive someone else's SCF loop).
     const wf_t* GetWaveFunction() const {return itsWaveFunction;}
+    //! Grid-continuation MOM (doc/GPWPlan §0e): adopt \a from's converged occupied subspace as this run's FIXED
+    //! MOM reference.  Call AFTER construction and BEFORE Iterate; takes effect with SCFParams::UseMOM (the
+    //! reference is then held from iteration 1, never re-captured).  \a from must be a converged WF on the SAME
+    //! orbital basis -- e.g. a coarse-density-grid solution seeding an expensive fine-grid run of the same
+    //! system.  Seeding the DENSITY alone is not enough: on the fine grid a giant-response diffuse virtual sits
+    //! at the frontier even at the physical density, so the occupied-subspace reference must transfer too.
+    void AdoptMOMReference(const wf_t& from) {itsWaveFunction->AdoptMOMReference(from);}
     EnergyBreakdown     GetEnergy() const;
     size_t              GetIterationCount() const {return itsIterationCount;}
     bool                Converged() const {return itsConverged;}
@@ -75,16 +103,8 @@ private:
     //! \a bs / \a st are forwarded for the HF/DHF bootstrap (build a DFT sibling when the seed has no matrix
     //! but the Hamiltonian needs one -- see project_numericcd_refactor); null is fine for the core guess.
     void Initialize(tChargeDensity<T>* seed, const tbs_t<T>* bs, const Structure* st);
-    cd_t DirectMinStep(double Ecur, double mergeTol); //one direct-min step (returns new density)
-    bool itsDirectMin=false;
+    cd_t DirectMinStep(double Ecur, double mergeTol); //one direct-min step (returns new density; used by DirectMinDriver)
 
-    //! KERKER rho-mixing (periodic/dcmplx path; no-op otherwise).  \c KerkerSetup builds the G-space fit basis +
-    //! the initial mixed density \c itsMixedRho from the seed; \c KerkerUpdate re-collocates the new density's
-    //! rho-tilde and folds it into \c itsMixedRho by the Kerker preconditioner.  Both are guarded to dcmplx.
-    void   KerkerSetup(double G0);
-    double KerkerUpdate(double relax);   //!< returns the SCF residual ‖ρ̃_out − ρ̃_in‖ (the ρ-mixing convergence gate)
-    //! The Fock-driving density this iteration: the Kerker-mixed rho-tilde when active, else the working D.
-    const tChargeDensity<T>* FockDensity() const {return itsMixedRho ? itsMixedRho.get() : (const tChargeDensity<T>*)itsCD.get();}
     void DisplayEnergies(int i, const EnergyBreakdown&,  double relax, double dE, double dCD, size_t idealVirial) const;
     void DisplayEigen   () const;
 
@@ -106,15 +126,18 @@ private:
     bool            itsConverged;
     Observer        itsObserver;   //!< optional live-progress sink (default empty)
 
-    // Kerker rho-mixing state (populated only on the dcmplx periodic path with KerkerG0>0; null/unused otherwise).
-    const tbs_t<T>*  itsBS = nullptr;         //!< orbital basis (for the G-space fit basis) -- from the ctor
+    // Density-face state.  The mixer (Linear / Kerker; see qchem.ChargeDensity.DensityMixer) is built per-run
+    // from SCFParams at the top of Iterate and owns the mixing policy + state (relax, the Kerker ρ̃, ...).
+    const tbs_t<T>*  itsBS = nullptr;         //!< orbital basis (for the Kerker G-space fit basis) -- from the ctor
     //! A PERSISTENT copy of the periodic cell (reciprocal lattice + volume for Kerker).  The ctor's raw \c st
     //! comes from a temporary (\c Lattice_3D::GetStructure returns a fresh \c make_shared), so it dangles by the
-    //! time \c Iterate runs -- we deep-copy it here (periodic path only) so KerkerSetup has a live cell.
+    //! time \c Iterate runs -- we deep-copy it here (periodic path only) so the Kerker mixer has a live cell.
     std::shared_ptr<const Structure> itsKerkerCell;
-    double           itsKerkerG0 = 0.0;       //!< Kerker screening wavevector (0 => Kerker off)
-    std::shared_ptr<tChargeDensity<T>> itsMixedRho;   //!< the Kerker-mixed rho-tilde density that drives the Fock
-    std::shared_ptr<const BasisSet::FIT_SF_ABS<T>> itsKerkerFit;  //!< G-space fit basis for rho-tilde extraction
+    std::unique_ptr<qchem::ChargeDensity::tDensityMixer<T>> itsMixer;  //!< the density-face concrete for this run
+    // The two loop-face concretes (stateless).  Iterate selects one per macro-iteration by the accelerator's
+    // WantsLineSearch() and dispatches Step() -- virtual dispatch in place of the old mode `if`.
+    FixedPointDriver<T> itsFixedDriver;
+    DirectMinDriver<T>  itsDirectDriver;
 };
 
 using SCFIterator  = tSCFIterator<double>;

@@ -58,7 +58,17 @@ rvec_t PeriodicGridEvaluator::RhoOnGrid(const ΔG_Map& rho) const
     cvec_t g(Npts, dcmplx(0.0));
     for (const auto& kv : rho)
     {
-        int i0=((kv.first.x%N.x)+N.x)%N.x, i1=((kv.first.y%N.y)+N.y)%N.y, i2=((kv.first.z%N.z)+N.z)%N.z;
+        const ivec3_t& m=kv.first;
+        // TRUNCATE, don't ALIAS: a G beyond THIS grid's Nyquist (|m| > N/2) is not representable here, and the
+        // modulo wrap below would FOLD it onto a low frequency (aliasing).  For an under-resolved sharp pair
+        // (F's tight α≈80 density product, or a coarser XC grid receiving the collocator's multigrid top-rung
+        // {G} that exceed its own Nyquist) that fold is a spurious CHECKERBOARD -> locally-negative ρ -> the XC
+        // ρ>0 guard's grid-sensitive Exc collapse (doc/GPWPlan §0e step 2: NaF neg-frac 0.5, negCharge −9 e).
+        // Dropping it is the graceful band-limit (CP2K-like); a grid-resolved density (Si: 0.08% negative) is
+        // unaffected, and the per-level integrate-back only ever passes its OWN {G} (all in-band -> no drop).
+        const int ax=m.x<0?-m.x:m.x, ay=m.y<0?-m.y:m.y, az=m.z<0?-m.z:m.z;
+        if (2*ax>N.x || 2*ay>N.y || 2*az>N.z) continue;
+        int i0=((m.x%N.x)+N.x)%N.x, i1=((m.y%N.y)+N.y)%N.y, i2=((m.z%N.z)+N.z)%N.z;
         g[(size_t(i0)*N.y+i1)*N.z+i2]=kv.second;
     }
     cvec_t rr=qchem::FFT::FFT3D(g, N, +1);

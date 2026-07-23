@@ -20,6 +20,17 @@ target_compile_definitions(qcMolecule_BS PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS
 target_compile_definitions(qcMolecule_BS PRIVATE ${BasisDataPath})
 
 target_link_libraries(qcMolecule_BS PUBLIC qcBasisSet qcElConfig qcStructure)
+# OpenMP for the GPW pair loops (PG_Cart_MnD evaluator).  Scoped to THIS lib's own TUs: -fopenmp on compile,
+# the runtime on link, and QCHEM_OPENMP defined so the (opt-in, serial-by-default) parallel code activates.
+# Prefer a detected OpenMP (libomp); else fall back to driving libgomp directly (this LLVM install lacks
+# libomp).  This shared lib carries the runtime as a NEEDED entry, so consumers link cleanly.
+if(OpenMP_CXX_FOUND)
+    target_link_libraries(qcMolecule_BS PRIVATE OpenMP::OpenMP_CXX)
+else()
+    target_compile_options(qcMolecule_BS PRIVATE -fopenmp=libgomp)
+    target_link_options   (qcMolecule_BS PRIVATE -fopenmp=libgomp)
+endif()
+target_compile_definitions(qcMolecule_BS PRIVATE QCHEM_OPENMP)
 add_subdirectory(PG_Cart)
 add_subdirectory(PG_Spherical)
 add_subdirectory(PG_LibCint)

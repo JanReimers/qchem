@@ -6,6 +6,9 @@ module;
 #include <cassert>
 #include <vector>
 #include <string>
+#include <sstream>
+#include <algorithm>
+#include <utility>
 #include <cctype>
 #include <memory>
 #include <type_traits>
@@ -42,6 +45,64 @@ using std::ios;
 namespace qchem::SCFIterator
 {
 
+// The band-gap instrument (doc/GPWPlan §0b″).  Default OFF; the NaF Γ test flips it around Iterate.
+bool& ReportBandGap() { static bool on = false; return on; }
+
+// Frontier spectrum of the current orbitals.  The energy levels are energy-ordered (multimap key), so
+// ε_HOMO is the highest-energy level still carrying occupation and ε_LUMO the first empty level above it.
+// \c metallic flags a partially-occupied frontier level (occ not near a full shell) -- a genuine
+// (near-)degenerate crossing where "the gap" is ill-defined; that is itself the finding for NaF at Γ.
+struct GapInfo { double eHomo=0, eLumo=0, gap=0; bool haveHomo=false, haveLumo=false, metallic=false; };
+
+template <class T> static GapInfo HomoLumo(const qchem::WaveFunction::tWaveFunction<T>* wf)
+{
+    const double occTol=1e-6;
+    GapInfo g;
+    auto els=wf->GetEnergyLevels();
+    // First pass: ε_HOMO = last (highest) level with occ>occTol; note any partial occupation on it.
+    for (auto it=els.begin(); it!=els.end(); ++it)
+    {
+        const auto& lvl=it->second;
+        if (lvl.occ>occTol) { g.eHomo=lvl.e; g.haveHomo=true;
+                              g.metallic = lvl.occ < (double)lvl.degen - occTol; }   // shell not full => crossing
+    }
+    // Second pass: ε_LUMO = first empty level strictly above ε_HOMO (fall through to the very first empty
+    // level if there is no occupation at all, e.g. a bare seed).
+    for (auto it=els.begin(); it!=els.end(); ++it)
+    {
+        const auto& lvl=it->second;
+        if (lvl.occ<=occTol && (!g.haveHomo || lvl.e>g.eHomo))
+            { g.eLumo=lvl.e; g.haveLumo=true; break; }
+    }
+    if (g.haveHomo && g.haveLumo) g.gap=g.eLumo-g.eHomo;
+    return g;
+}
+
+// Frontier-window spectrum: the \a nOcc highest occupied and \a nVirt lowest virtual levels around the
+// Fermi edge, "ε(occ)" each, with a "|" marking the gap.  Discriminates the NaF Γ mechanism (doc/GPWPlan
+// §0b″): a CLUSTER of near-degenerate low virtuals is the wide-diffuse-band signature (a diffuse Gaussian
+// has large inter-cell overlap → a wide band whose Γ minimum sits low and responds giantly to the slosh),
+// whereas an ISOLATED LUMO well above the pack is a clean conduction state.  Watching the window per
+// iteration shows the diving virtual pull DOWN out of (or through) the pack one step before each spike.
+template <class T> static std::string FrontierWindow(const qchem::WaveFunction::tWaveFunction<T>* wf,
+                                                      int nOcc, int nVirt)
+{
+    const double occTol=1e-6;
+    std::vector<std::pair<double,double>> occ, virt;   // {energy, occupation}, energy-ordered
+    auto els=wf->GetEnergyLevels();
+    for (auto it=els.begin(); it!=els.end(); ++it)
+        (it->second.occ>occTol ? occ : virt).push_back({it->second.e, it->second.occ});
+    std::ostringstream os;
+    os.setf(std::ios::fixed,std::ios::floatfield);
+    int oFrom=std::max(0,(int)occ.size()-nOcc);
+    for (int i=oFrom; i<(int)occ.size(); ++i)
+        os << setw(9) << setprecision(4) << occ[i].first << "(" << setprecision(1) << occ[i].second << ") ";
+    os << "| ";
+    for (int i=0; i<std::min(nVirt,(int)virt.size()); ++i)
+        os << setw(9) << setprecision(4) << virt[i].first << "(" << setprecision(1) << virt[i].second << ") ";
+    return os.str();
+}
+
 // Compact textbook electron configuration of the current orbitals, e.g. (1a₁)²(2a₁)²(1b₂)²...:
 // every occupied level (energy-ordered) as (n + Mulliken-label)^occupation, the label lowercased
 // with its digits subscripted and the occupation superscripted.  Lets the per-iteration trace
@@ -69,7 +130,16 @@ template <class T> static std::string ConfigString(const qchem::WaveFunction::tW
 }
 
 
+// The SeedStrategy ctor resolves the strategy into a concrete (heap, owned) density -- nullptr for
+// CoreGuess -- then DELEGATES to the explicit-seed ctor below.  \a st (the structure) is consumed only by
+// the SAD seeds; bs/st are also forwarded (by the target ctor) for the HF/DHF bootstrap.
 template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const ElectronConfiguration* ec,ham_t* H,acc_t* acc,ChargeDensity::SeedStrategy seed,const Structure* st,qchem::Ortho basisOrtho,double basisOrthoTol)
+    : tSCFIterator(bs,ec,H,acc, ChargeDensity::MakeSeedDensity<T>(seed,bs,st,ec), st, basisOrtho, basisOrthoTol)
+{}
+
+// The explicit-seed ctor (grid-continuation): \a seedDensity is a pre-built density (owned; consumed in
+// Init) instead of a strategy enum.  Shared construction body -- the SeedStrategy ctor delegates here.
+template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const ElectronConfiguration* ec,ham_t* H,acc_t* acc,tChargeDensity<T>* seedDensity,const Structure* st,qchem::Ortho basisOrtho,double basisOrthoTol)
     : itsHamiltonian (H )
     , itsAccelerator (acc)
     , itsWaveFunction(qchem::WaveFunction::Factory(itsHamiltonian,bs,ec,itsAccelerator,basisOrtho,basisOrthoTol) )
@@ -85,9 +155,7 @@ template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const Elect
     // so it dangles by Iterate time) -- only for the dcmplx periodic path, so molecular runs pay nothing.
     if constexpr (std::is_same_v<T,dcmplx>)
         if (auto* cell = dynamic_cast<const UnitCell*>(st)) itsKerkerCell = std::make_shared<const UnitCell>(*cell);
-    // Resolve the seed strategy into a concrete (heap, owned) density -- nullptr for CoreGuess.  \a st
-    // (the structure) is consumed only by the SAD seeds; bs/st are also forwarded for the HF/DHF bootstrap.
-    Initialize(ChargeDensity::MakeSeedDensity<T>(seed,bs,st,ec), bs, st);
+    Initialize(seedDensity, bs, st);   // Init owns the seed transiently (see Initialize)
 }
 
 
@@ -152,6 +220,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
     assert(itsWaveFunction);
     assert(itsHamiltonian);
     assert(itsCD);
+    itsWaveFunction->SetMOM(ipar.UseMOM, ipar.MOMStartIter);   // occupation strategy for this run (SCFParams)
     size_t idealVirial=itsHamiltonian->IsRelativistic() ? 1 : 2;
     if (ipar.Verbose)
     {
@@ -172,46 +241,29 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
     double  E=0, Eold=0, dE=1e10;
     double FD=0,FDold=1e10,dFD=1e10;
     // double Eoldold=0;
-    double relax=ipar.StartingRelaxRo;
-    double relMax=1.0;
     EnergyBreakdown eb;
     itsConverged=false;
-    if (ipar.KerkerG0>0.0) KerkerSetup(ipar.KerkerG0);   // periodic rho-mixing (else linear D-mixing, unchanged)
+    // Density-face mixer for this run (the density-mixing policy + state; doc/SCFStrategyPlan.md):
+    // Kerker ρ̃-mixing when KerkerG0>0 AND the basis/cell/seed are periodic, else linear D-mixing.
+    // α=StartingRelaxRo (1.0 default = passthrough -- there is no NullMixer).
+    itsMixer = qchem::ChargeDensity::MakeDensityMixer<T>(ipar.StartingRelaxRo, ipar.KerkerG0, ipar.PulayDepth,
+                                                         ipar.PulayStart, itsBS, itsKerkerCell.get(), itsCD.get());
 
     for (itsIterationCount=1;
         itsIterationCount   <= ipar.NMaxIter && !itsConverged;
         itsIterationCount++)
     {
-        // The accelerator decides the loop mode: a direct minimizer (GDM, or a ladder that has
-        // handed off to one near convergence) runs the geodesic line search; everything else
-        // runs the classic diagonalize+mix fixed-point step.  Queried every iteration so a
-        // ladder tail hand-off flips the loop the moment it switches rungs.
-        itsDirectMin = itsAccelerator->WantsLineSearch();
-        if (itsDirectMin)
-        {
-            // GDM owns the loop: a geodesic line search drives the energy down directly, with
-            // NO density mixing (the line search guarantees descent).
-            itsOldCD=itsCD;
-            SetWorkingCD(DirectMinStep(Eold,ipar.MergeTol));
-            ChargeDensityChange = itsCD->GetChangeFrom(*itsOldCD)/itsCD->GetTotalCharge();
-        }
-        else
-        {
-            // Fock from the Kerker-mixed rho-tilde when active (FockDensity()), else from the working D.
-            itsWaveFunction->DoSCFIteration(*itsHamiltonian,FockDensity()); //eigen orbitals from the Hamiltonian
-            itsWaveFunction->FillOrbitals(ipar.MergeTol);
-
-            itsOldCD=itsCD;
-            SetWorkingCD(cd_t(itsWaveFunction->GetChargeDensity())); //Get new charge density.
-            if (itsMixedRho)
-                ChargeDensityChange = KerkerUpdate(relax);              //rho-mixing: gate on ‖ρ̃_out−ρ̃_in‖, fold in
-            else
-            {
-                ChargeDensityChange = itsCD->GetChangeFrom(*itsOldCD)/itsCD->GetTotalCharge(); //relative MaxAbs change
-                if (ChargeDensityChange<1e-5) relMax=0.5;
-                itsCD->MixIn(*itsOldCD,1.0-relax);                       //relaxation (linear D-mixing).
-            }
-        }
+        // LOOP-FACE (doc/SCFStrategyPlan.md): the accelerator's mode selects the driver -- direct-min
+        // (GDM/OT: geodesic line search, no mixing) or fixed-point (diagonalize + density-mix).  Queried
+        // every iteration so a ladder tail hand-off flips the loop the moment it switches rungs.  The step
+        // BODY is virtual (was a mode `if`); the density LIFECYCLE stays here behind the context callbacks.
+        LoopContext<T> lc{ itsHamiltonian, itsWaveFunction, itsMixer.get(), &itsCD, &itsOldCD, ipar.MergeTol, Eold,
+                           [this](cd_t x){ itsOldCD=itsCD; SetWorkingCD(std::move(x)); },
+                           [this](double e,double tol){ return DirectMinStep(e,tol); } };
+        const tLoopDriver<T>& driver = itsAccelerator->WantsLineSearch()
+                                     ? static_cast<const tLoopDriver<T>&>(itsDirectDriver)
+                                     : static_cast<const tLoopDriver<T>&>(itsFixedDriver);
+        ChargeDensityChange = driver.Step(lc);
         // cout << "Total charge=" << itsCD->GetTotalCharge() << endl;
 
         eb=itsHamiltonian->GetTotalEnergy(itsCD.get());
@@ -220,20 +272,17 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
         itsAccelerator->SetEnergy(E); //the ladder gates its hand-off on the energy change
         FD=itsAccelerator->GetError(); //i.e. [F,D]
         dFD=(FD-FDold);
-        if (ipar.Verbose) DisplayEnergies(itsIterationCount,eb,relax,dFD,ChargeDensityChange,idealVirial);
+        if (ipar.Verbose) DisplayEnergies(itsIterationCount,eb,itsMixer->GetRelax(),dFD,ChargeDensityChange,idealVirial);
         if (itsObserver) itsObserver({itsIterationCount, E, fabs(E-Eold), FD, ChargeDensityChange});
-        if (!itsMixedRho && FD>FDold && fabs(dFD)>1e-9)   // [F,D]-keyed re-damping is a linear-D-mixing tweak; Kerker skips it
+        // Adaptive [F,D]-keyed policy (LinearMixer only; Kerker/direct-min take the no-op defaults).  The
+        // re-damp re-fetches the fresh density + recomputes the energy -- the density LIFECYCLE stays here.
+        if (itsMixer->WantsReDamp({E,FD,FDold}))
         {
             SetWorkingCD(cd_t(itsWaveFunction->GetChargeDensity())); //Get new charge density.
-            ChargeDensityChange = itsCD->GetChangeFrom(*itsOldCD); //Get MaxAbs of change.
-            itsCD->MixIn(*itsOldCD,1.0-relax/4.0);
+            ChargeDensityChange = itsMixer->ReDampMix(itsCD, itsOldCD);
             eb=itsHamiltonian->GetTotalEnergy(itsCD.get());
-            relax*=0.8;
         }
-        // if (E<Eold && Eold>Eoldold) relax*=0.5;
-        if (!itsMixedRho && FD<FDold ) relax*=1.5;   // [F,D]-keyed relax growth is a D-mixing tweak; Kerker holds α fixed
-        // if (E>Eold && Eold>Eoldold) relax*=1.5;
-        if (relax>relMax) relax=relMax;
+        itsMixer->UpdateRelax({E,FD,FDold});
 
         // Eoldold=Eold;
         Eold=E;
@@ -310,64 +359,8 @@ template <class T> void tSCFIterator<T>::DisplayEigen() const
     itsWaveFunction->DisplayEigen();
 }
 
-// KERKER rho-mixing setup (dcmplx periodic path only).  Build the G-space fit basis from the orbital basis's
-// first block, the reciprocal lattice + cell volume from the periodic Structure, and the INITIAL mixed density
-// = the seed density's rho-tilde.  A no-op (leaves itsMixedRho null) for the real/molecular path or when the
-// basis/structure are not periodic -- so linear D-mixing (the default) is used unchanged.
-template <class T> void tSCFIterator<T>::KerkerSetup(double G0)
-{
-    if constexpr (std::is_same_v<T,dcmplx>)
-    {
-        namespace CD = qchem::ChargeDensity;
-        auto* ftb = itsBS ? dynamic_cast<const BasisSet::Band_FT_IBS*>((*itsBS)[0]) : nullptr;
-        auto* cell= dynamic_cast<const UnitCell*>(itsKerkerCell.get());
-        auto* fd  = dynamic_cast<const CD::FourierDensity*>(itsCD.get());
-        if (!ftb || !cell || !fd)   // not a periodic G-space SCF -> report LOUDLY (Release has no asserts) + bail
-        {
-            std::cerr << "[Kerker] DISABLED: KerkerG0>0 needs a periodic Band_FT_IBS basis + UnitCell + "
-                      << "FourierDensity (got ftb=" << (void*)ftb << " cell=" << (void*)cell
-                      << " fd=" << (void*)fd << ") -- falling back to linear D-mixing." << std::endl;
-            return;
-        }
-        itsKerkerG0 = G0;
-        itsKerkerFit.reset(ftb->CreateVxcFitBasisSet(cell, qcMesh::MeshParams{}));  // matches the Ham's grid
-        ReciprocalLattice recip(cell->MakeReciprocalCell());
-        auto rho0 = fd->GetFourierDensity(*itsKerkerFit);
-        itsMixedRho = std::make_shared<CD::FourierMixCD>(rho0, recip, itsCD->GetTotalCharge());
-        std::cerr << "[Kerker] ENABLED: G0=" << G0 << ", rho-mixing on " << itsMixedRho->GetTotalCharge()
-                  << " electrons (" << rho0.size() << " G-vectors)." << std::endl;
-    }
-}
-
-// One Kerker update: re-collocate the freshly diagonalized density's rho-tilde and fold it into the mixed
-// density by the preconditioner rho_mix = rho_in + relax*G^2/(G^2+G0^2)*(rho_out - rho_in) (charge-conserving:
-// G=0 is never mixed).  The result drives the NEXT Fock via FockDensity().
-template <class T> double tSCFIterator<T>::KerkerUpdate(double relax)
-{
-    if constexpr (std::is_same_v<T,dcmplx>)
-    {
-        namespace CD = qchem::ChargeDensity;
-        auto* fd    = dynamic_cast<const CD::FourierDensity*>(itsCD.get());
-        auto* mixed = dynamic_cast<const CD::FourierMixCD*>(itsMixedRho.get());
-        assert(fd && mixed);
-        const ΔG_Map  rho_out = fd->GetFourierDensity(*itsKerkerFit);
-        const ΔG_Map& rho_in  = mixed->RhoTilde();
-        // SCF residual ‖ρ̃_out − ρ̃_in‖_∞: how far the fed density is from self-consistency (0 at the fixed point).
-        // This is the RIGHT convergence gate for ρ-mixing -- NOT the D_out change, which shrinks with the damped
-        // Kerker step even when ρ is not yet self-consistent (would converge early to a wrong energy).
-        double resid = 0.0;
-        for (const auto& [dm, ro] : rho_out)
-        {
-            auto it = rho_in.find(dm);
-            resid = std::max(resid, std::abs(dcmplx(ro) - (it!=rho_in.end() ? dcmplx(it->second) : dcmplx(0.0))));
-        }
-        for (const auto& [dm, ri] : rho_in)
-            if (rho_out.find(dm)==rho_out.end()) resid = std::max(resid, std::abs(dcmplx(ri)));
-        itsMixedRho.reset(CD::FourierMixCD::KerkerMix(*mixed, rho_out, relax, itsKerkerG0));
-        return resid;
-    }
-    return 0.0;
-}
+// (KerkerSetup/KerkerUpdate/FockDensity moved into qchem.ChargeDensity.DensityMixer -- the density-face
+//  seam.  The iterator now builds a tDensityMixer at the top of Iterate and delegates via Mix/FockDensity.)
 
 template <class T> EnergyBreakdown tSCFIterator<T>::GetEnergy() const
 {
@@ -388,6 +381,18 @@ template <class T> void tSCFIterator<T>::DisplayEnergies(int i, const EnergyBrea
     itsAccelerator->ShowConvergence(cout);
     cout << setw(4) << std::fixed << setw(4) << setprecision(2) << relax << "  ";
     // cout << ConfigString(itsWaveFunction);
+    if (ReportBandGap())
+    {
+        GapInfo g=HomoLumo(itsWaveFunction);
+        cout << " εH=";
+        if (g.haveHomo) cout << std::fixed << setw(10) << setprecision(5) << g.eHomo; else cout << "     ----";
+        cout << " εL=";
+        if (g.haveLumo) cout << std::fixed << setw(10) << setprecision(5) << g.eLumo; else cout << "     ----";
+        cout << " gap=";
+        if (g.haveHomo && g.haveLumo) cout << std::scientific << setw(9) << setprecision(2) << g.gap; else cout << "     ----";
+        if (g.metallic) cout << " [partial-occ HOMO]";
+        cout << endl << "        frontier ε(occ): " << FrontierWindow(itsWaveFunction, 2, 4);
+    }
     cout << endl;
 }
 

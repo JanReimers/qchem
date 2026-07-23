@@ -2,6 +2,7 @@
 module;
 #include <cassert>
 #include <cmath>     // lround (fractional k-point -> integer BZ-grid index)
+#include <iostream>  // std::cout (the run-start GPW grid diagnostic)
 #include <memory>    // std::shared_ptr / std::move (the GPW basis owns the molecular Gaussian basis)
 module qchem.BasisSet.Lattice_3D.BasisSet;
 import qchem.BasisSet.Internal.BasisSetImp;   // BasisSetImp<dcmplx> (the generic list-of-IBS container)
@@ -45,6 +46,7 @@ GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const
                            double densityEcut, rvec3_t kShift, CellImages images, double cutoffFactor)
 {
     const ivec3_t N=lat.GetLimits();
+    const GPW_IBS* first=nullptr;
     for (const auto& kp : lat.MakeKMesh(kShift))
     {
         // Recover the INTEGER grid index (undo the shift first, then round) -- lround(kp.k*N) alone is broken
@@ -52,9 +54,14 @@ GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const
         ivec3_t ik(std::lround(kp.k.x*N.x-kShift.x), std::lround(kp.k.y*N.y-kShift.y), std::lround(kp.k.z*N.z-kShift.z));
         // Build the Bloch irrep WITH its BZ weight kp.weight (exactly as PW_BasisSet above) and use the primary
         // sym_t ctor -- the weight carries the Sum_k w_k so the BZ-summed charge/energy are per-cell, not xNk.
-        Insert(new GPW_IBS(lat.GetUnitCell(), Symmetry::BlochFactory(N, ik, kp.weight, kShift),
-                           mol, densityEcut, images, cutoffFactor));   // mol shared across k-blocks
+        auto* b=new GPW_IBS(lat.GetUnitCell(), Symmetry::BlochFactory(N, ik, kp.weight, kShift),
+                            mol, densityEcut, images, cutoffFactor);   // mol shared across k-blocks
+        if (!first) first=b;
+        Insert(b);
     }
+    // GRID DIAGNOSTIC (doc/GPWPlan §0e): basis exponents + every stored grid, once per run.  The grids are
+    // k-independent (the density grid/ladder are built at k=0 in every block), so the first block speaks for all.
+    if (first) first->ReportGrids(std::cout);
 }
 
 Complex_BS* GPWFactory(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,

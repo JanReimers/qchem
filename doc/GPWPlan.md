@@ -57,10 +57,94 @@ runtime close-out incl. the CP2K NaF oracle + convergence findings).
 - **§0a NaF convergence findings** (`35789164`): CP2K recipe machinery (no DIIS, E-gate, tuning knobs);
   α=0.025/G0=1 converges Ecut=40 (pinned anchor −27.73); the fine grid's unphysical attractor (E≈−39)
   captures ALL linear mixing → quasi-Newton mixing + XC consistency are the TODO leads.
-- **§0b XC-consistency: FALSIFIED by the FD probe** (2026-07-16): new gate `GPW.XCPotentialConsistencyFD`
+- **§0b XC-consistency: FALSIFIED by the FD probe** (`f82db70e`): new gate `GPW.XCPotentialConsistencyFD`
   proves H_xc == ∂E_xc/∂D to FD accuracy (h² scaling to 2e-10) in both the smooth and ρ<0-guard regimes —
-  the LDA discrete functional was already exactly consistent; the −39 attractor is a genuine basin of the
-  under-resolved discretization → 0c (mixing) promoted to lead.  Full record in TODO §0b below.
+  the LDA discrete functional was already exactly consistent.  Full record below.
+- **§0b′ gated ladder-completion rung + NaF ROOT CAUSE** (`a218c69c`): the top rung (energy-calibration-
+  gated; `RelCutoffSafety` seam accessor; order-free `PairLevel`) + the D=S⁻¹ probe pins the NaF 4.9-e
+  grid-charge loss on the Rcut=2a ENUMERATION-SCHEME MISMATCH (grid-independent −2.25 e; fp32 + screens
+  vindicated at 7e-9/3.4e-7 per unit |D|).
+- **BANISH-Rcut** (`bf3d70ad`): "there is no cut in R" — `(Rs,phases)` deleted from the seams, series
+  ε-converged per shell pair inside `LatticeSum1E` (`ForImageOffsets`), KB convention simplified to the
+  plain phase oracle, `Rcut`/`collRcut` gone from the GPW surface (finite mode = `CellImages` enum).
+  Anchors identical, multi-k 123→84 s; NaF scheme mismatch DEAD (iter-1 charge −4.9 e → −2.4e-6 e);
+  true conditioning exposed (λ_min=1.03e-6).
+- **SR2 basis + instability CLASSIFIED** (`3f77c96e`): `valence_lowq_sr2.bsd` (the spectrum fingered the
+  Na p 0.05 triplet; λ_min→1.57e-3, NaF 6× faster) — but the departure spikes SURVIVE: α-independent,
+  DIIS-resistant, smooth growing mode from a clean fixed point ≈−27.73 → hypothesis = near-degenerate
+  HOMO/LUMO at Γ (giant response).  The OPEN problem; full records below.
+- **NaF Γ-instability MECHANISM MEASURED — band-gap instrument** (2026-07-17): new `ReportBandGap` flag
+  appends ε_HOMO/ε_LUMO/gap to the verbose SCF line.  Verdict: the fixed-point gap is HEALTHY (~0.35 Ha,
+  wide-gap insulator) so the static-degeneracy hypothesis is FALSE; the real mechanism is a giant-response
+  DIFFUSE VIRTUAL whose ε_LUMO dives 0.2–0.5 Ha during the charge-transfer slosh, transiently crossing the
+  occupied manifold (gap → 1e-4) → aufbau occupies it → +5–7e3 Ha spike (period ~27).  Records in §0b″.
+- **NaF Γ-instability CURED (occupation-swap disease) — MOM wired up** (2026-07-17): the crystal's within-irrep
+  fill (`TakeElectrons` = energy order) never touched the parked cross-irrep MOM, so MOM was wired into the
+  irrep fill: `TOrbitals::TakeElectrons(ne, priority)` + `SCFParams::UseMOM`/`MOMStartIter` (threaded via a new
+  `tSCFWaveFunction::SetMOM`) +
+  **delayed IMOM** (aufbau for ~10 fills, then capture {F 2s, F 2p} ONCE and hold — running MOM drifts,
+  iter-0 IMOM anchors the raw seed → both catastrophic).  NaF Ecut=40 now CONVERGES −27.76 (Δρ 6e-4, 196
+  iters, partial-occ 0, diving virtual banished to −45 Ha unoccupied); vs CP2K oracle −27.93 the 0.17 Ha is
+  the grid.  One residual iter-19 MIXING spike remains → 0c Pulay.  198/198 green (`SCFParams::UseMOM` off by
+  default).
+- **§0c SCF-STRATEGY REFACTOR + PULAY DONE** (2026-07-18, full design `doc/SCFStrategyPlan.md`): the SCF
+  convergence machinery is now a role-seam framework — density-mixer seam (`tDensityMixer`: Linear/Kerker;
+  bit-identical extraction `f4f48431`), loop-driver virtual dispatch replacing the `WantsLineSearch` mode `if`
+  (`388b33d3`), and ONE shared paper-faithful `qchem.Math.DIIS` engine serving BOTH Fock-DIIS and density-Pulay
+  (`c41f06f9`+`a60a04de`).  **`PulayMixer`** (Kerker-preconditioned density-DIIS, priming via `PulayStart`)
+  accelerates NaF Ecut=40 **196→63 iters** to the SAME −27.756.  Flexed via `scfrun` (which grew a molecular
+  `--mol` mode + a fixed SCFParams misalignment): Boron 16 / Sc 21 / O2 triplet 13–15 iters; O2-HF-triplet
+  display SEGV fixed (`78b8f66a`).
+- **DIRECT FINE-GRID NaF FALLS INTO THE −39 BASIN** (2026-07-19, `30d0eb87`; MOM+Pulay, auto Ecut=160, 15m45s):
+  "converges" (Δρ 2.9e-5) to E=+54.3 garbage — the Kerker descent goes STRAIGHT into −39, Pulay thrashes on it.
+  So the production-grid failure is a DENSITY/GRID-basin problem, NOT occupation/mixing: MOM+Pulay necessary
+  but NOT sufficient.  Next-session plan (grid-continuation seeding + basin removal + OpenMP, basin kept as a
+  test fixture) recorded in the TODO §0e below.
+- **§0e-PP CP2K local-PP split + Q1 grid speedup** (branch `gpw-0e-pp-local-split`: `94544683` split, `83d827b9`
+  Q1; 202/202 green).  Local PP split at the `LocalPotential` form-factor level — LONG (softened-Coulomb → folded
+  into `PW_Hartree`'s G-space Poisson) + SHORT (poly×Gaussian → external `PW_Pseudo`); `FormFactorLong` primary,
+  base provides `FormFactor=Long+Short` (Design A); a matrix-identical ENERGY-RELOCATION refactor (Si Γ −7.11506
+  + NaF −27.756 held).  **Q1 — the ~295 s NaF fine-grid `MakeLocalPP` setup wall is the `relCutoffScale`, over-set
+  to 6 by the DENSITY SCREEN** (the increment-1 `−280`/`−259` was `OverlapMatrix`'s `screenD` zeroing off-diagonals
+  of the FIXED `V_long`, NOT aliasing; unscreened, smooth==stiff to 4e-3 for soft Si).  Default 6→3 = ~2× (Ecut=160
+  578 s→128 s @scale 2), all gates green (Si Γ now 31 s); env knobs `GPW_LOCALPP_SCALE`/`GPW_LOCALPP_FULL` for the
+  later 2/4 verify.  The ANALYTIC V_local (short BUILT+finite-validated but dormant; long = the Ewald crux) is a
+  SEPARATE accuracy upgrade → **TODO §0e-PP** (re-gates to converged CP2K −27.93).
+- **§0e step 1 (grid-continuation) + step 2 (XC-collapse ROOT-CAUSED & FIXED)** (2026-07-20, branch
+  `gpw-0e-pp-local-split`; commits `75e1d4c8`,`758b92a8`,`c816cb39`,`10a91a1e`,`1e13df74`,`4e84284c`,`b65e4185`,
+  `a7769f81`; Si Γ −7.11485 bit-identical, adjoint machine-exact, 28 PW anchors green).
+  **Step 1 — grid-continuation seeding**: explicit-density seed ctor (`tSCFIterator`, enum ctor delegates) +
+  `AdoptMOMReference` (transfer the converged coarse WF's occupied subspace as the fine MOM reference — the
+  density seed ALONE gave a wrong −23.3).  Avoids (not removes) the −39 basin.
+  **Step 2 — the fine-grid Exc collapse (NaF pinned −24.4 vs oracle −27.93) ROOT-CAUSED**: F's tight density
+  (product α≈80) UNDER-RESOLVED on the fit grid → the collocated ρ aliases into huge negative lobes (`negCharge
+  −9.3 e`, `neg-frac 0.50` even at the converged fixed point; Si clean at 0.08 %) → the XC `ρ>0` guard's
+  grid-sensitive interaction collapses Exc.  **FIXED** by (a) the **fit-grid thread-through** (`MakeRepulsion3C`/
+  `MakeOverlap3C` build the tensor over the REQUESTED fit basis's grid, not the block's own), (b) the
+  **`Overlap3C` ADJOINT** (`G_ERI3::applyAdjoint` + `ContractAdjointG_ERI3`: the KS matrix `⟨i|v|j⟩=Σ_k
+  v-tilde(G_k)⟨i|e^{iG_k}|j⟩` is the BACKWARD contraction of the same tensor, carrying the fit grid — killing the
+  grid-less `MakeOverlap(field)` that silently used the coarse grid), and (c) **density-fit densification** =
+  making `cutoffFactor` big enough to resolve the product (**4→8**; measured F: `negCharge −9.3→−0.03 e`, clean
+  SCF −26.198).  **ONE-GRID cleanup**: `itsGrid`→`itsFFT_R_G_Grids`, `GPW_CDFIT_SCALE`+second grid deleted,
+  `CreateCD/VxcFitBasisSet` self-documenting (`{G}_ρ`=`DensityGrid()`, `{G}_vxc`=relCutoff·`{G}_ρ`).  Bugs fixed
+  en route: `CollocMemo` grid-collision segfault (`c816cb39`), `RhoOnGrid` out-of-band aliasing guard (`10a91a1e`).
+  **HONEST PICTURE**: the old −27.75 was an ALIASING COINCIDENCE; the resolved answer is −26.198, the gap to the
+  oracle now the still-coarse **local-PP** base grid, NOT the density.  REMAINING → **TODO §0e step 2** (the
+  grid-matched CP2K validation + the grid/exponent diagnostics; the local-PP resolution).
+
+- **Grid instruments + grid-matched CP2K validation → GPW VALIDATED** (`aecbb410`,`a6560e3e`): run-start
+  grid diagnostic (`ReportGrids`) + match knobs (`GPW_MGRID_ECUTS`/`GPW_RELCUTOFF`); CP2K restored via
+  conda-forge; the 4.26 Ha "gap" decomposed = 0.76 MOM-pinned excited state + 3.50 REAL SR↔SR2 basis
+  physics (ball/Gibbs hypothesis falsified by the 480-Ha probe); **NaF SR2 == CP2K to 0.45→0.19 mHa**;
+  `doc/GPWGrids.md` = the grid inventory.  Full records: §0e★/§0f below.
+- **§0e-PP (a)+(b): absolute κ rule + ANALYTIC short V_loc in production** (`5d963b04`): req=κ·(αᵢ+αⱼ)
+  (CP2K `gaussian_gridlevel`; e^{−κ/2} pair tails, κ=30) replaces `relCutoffScale`; analytic 3-centre
+  short (the periodic G=0 double-count caught by the new gate); Si Γ grid-vs-analytic identical to 5
+  decimals.  Gate `GPW.LocalPPKappaSelfConverged`.
+- **MIXED-RADIX RASTERS** (`1837b21e`,`aaaf1ea0`): PocketFFT submodule behind `qchem.FFT` (pow2 →
+  radix-2 verbatim = bit-identical) + `FFTGrid()` pads to 5-SMOOTH N: 199/199 with ZERO re-pins,
+  **NaF verification 94 min → 190 s (30×) at 0.4 µHa** (fine raster 128³→72³); CP2K gap 900×→33×.
+  OpenMP pair-loops (`GPW_OMP_THREADS`) remain opt-in (~1.7×, bandwidth-bound).
 
 ## Naming (`5f609d2f`) — remember these
 - `Overlap(f)` = ANY 1-electron `⟨i|f|j⟩` (f may be a potential); `Repulsion` = the 2-electron `1/r12`.
@@ -89,373 +173,180 @@ The recipe — every piece fixes a wall we hit:
    Rcut → no ringing) PLUS the wrap (an atom at the cell edge tiles automatically). k-points: the grid density
    is always real/cell-periodic; ALL k-dependence lives in `P(R)=Σ_k w_k e^{ikR}` — collocation is k-agnostic.
 
-## GPW ANALYTIC REWRITE COMPLETE -- Increments C + D LANDED, sampling machinery DELETED (2026-07-14)
-The analytic collocate/integrate path IS the SCF path; the whole sampling stack is gone.  Si SR/Rcut=2a Gamma
-== CP2K to 0.18 mHa; the Gamma anchor runs in ~40 s (warm) / ~2 min (cold).  14/14 GPW+GPW_SCF green.
-- **Kernels multigrid + general-k** (`LatticeSum1E::CollocateDensity/IntegratePotential`): level-vector form
-  (finest-first `N_L`/`ecut_L`; K=1 = single grid; the old `MakePotentialMatrix{,MG}` sampling faces DELETED,
-  interface stays minimal per the Band_FT_IBS lesson).  Bloch phases enter via a `cellphase_t` CALLBACK
-  (`e^{ik.R_n}` of the integer cell offset -- the k-convention stays lattice-side; the kernels enumerate offsets
-  internally so a pre-built (Rs,phases) pair cannot work).  Phase conventions: density weight `Re[D_ij e^{-ik.R}]`
-  (ket-conj), integrate-back `e^{+ik.R}` -- the same +/- pairing as the KB-projector fix.  2x Hermitian fold
-  (loop j>=i, double off-diagonal weights -- the (j,i,-R) twin is exact).
-- **REL_CUTOFF assignment + level guards.**  Pair -> coarsest level with `ecut_l >= kRelSafety *
-  ecut_fine*(a_i+a_j)/(2 a_max)`; **kRelSafety=2 is LOAD-BEARING**: at 1x the charge-calibrated ratio leaves
-  ~e^{-2.5} spectral tails per pair at its own cutoff -- fine for charge (1e-5) but Si Gamma sat 5 mHa below
-  CP2K until doubled (CP2K's REL_CUTOFF default is ~3x stiffer than the auto floor).  `EnsureLevels` keeps a
-  level only if its SPACING resolves the sharpest assignable pair (`h^2 p_max <= 1`, Poisson e^{-2pi^2}) -- this
-  replaced a naive min-N floor after a degenerate Ecut=0.375 level came out as a 1x1x1 GRID whose sigma~2.4
-  pairs lost percent-level charge (the crystal-gate 28.37-vs-26.56 failure).
-- **Wiring (Band_FT_IBS + IrrepCD UNTOUCHED).**  `Repulsion3C/Overlap3CTensor` -> matrix-free
-  `G_ERI3::apply=MakeCollocator(coulomb)` (per-level collocate -> FFT -> rho-tilde combined NESTED in G-space,
-  Coulomb kernel folded); `OverlapMatrix(Vtilde)` -> per-level spectral restriction of V + analytic
-  `IntegratePotential`.  `G_ERI3::weights` (dense tensor) DELETED.
-- **Local PP stays FINE-level (every pair): the analytic sibling of the sampling-MG lesson.**  Routing V_loc
-  through the ladder gave Si Gamma -10.72 vs -7.115 WITH charge exact -- a coarse-level pair sees V only
-  through its level's {G}, and V_loc's mid-G content is a Ha-scale term.  V_H/V_xc (smooth) stay on the ladder.
-  Static, so the one fine sweep is not per-iteration.
-- **Two latent bugs fixed:** the seam's `Recip().GetCell().MakeReciprocalCell()` double-reciprocal
-  RE-ORIENTS a non-cubic (FCC) primitive cell (evaluator now STORES `itsCell`); the box's fractional bounding
-  used `reach/minEdge`, UNDER-COVERING a skewed cell by sqrt(3)/sqrt(2) (now exact per-axis `reach*||row(A^-1)||`
-  -- this WAS the committed crystal gate's 2.4e-7 residual).
-- **Perf: pair-box STREAM CACHE (the analytic PhiOnGrid successor).**  The per-(pair,offset) box streams
-  (wrapped idx + value) are pure geometry -- identical across SCF iterations AND k-blocks (phases apply at
-  contraction) -- so they are built once per ladder shape and replayed as gathers: Si Gamma SCF 51.5 min ->
-  2m15s cold (23x), bit-identical.  Plus: prefactor-SHRUNK per-offset reach (a far cross-cell image costs a
-  near-empty box), ellipsoid pre-screen before the exp/poly evals, incremental grid walk (hoists the
-  per-point ToCartesian, was 14% of the profile).  perf now works locally (paranoid=1).
-- **Anchors re-pinned on the CONSISTENT scheme (all in `GPW_SCF_UT.C`).**  The analytic collocation is ALWAYS
-  screened-complete Bloch, so `Rcut=0` 1E matrices would MIX SCHEMES (observed: `Tr(D S_home)=8` while
-  `int rho_grid = 16.55` -- the durable-pin violation).  The old fast Rcut=0 anchors are GONE:
-  `SiliconGammaConverges` = SR/Rcut=2a/dE=20 == **CP2K -7.11506 to 0.18 mHa (-7.114883, 18 iters)** [the old
-  DISABLED CP2K gate, now THE enabled anchor]; `SiliconMultiKPlumbing` = SR/2a 2x1x1 **-7.45137** (real
-  dispersion; the "k-blocks==Gamma at Rcut=0" trick is gone); `SiPseudoAtomInBoxMatchesFinite` box grown
-  a=11->16 (cross-cell prefactor 2.7e-2 -> 4.6e-4) == finite sipp to 0.023.  Kernel gates re-referenced to
-  **Tr(D S^Bloch)** (charge now conserves to 8e-8; the old "3%" was the WRONG home-only reference, latent since
-  the cross-cell commit) + a machine-precision multigrid seam-adjoint gate (Tr(D H) == <apply(D),V>).
-- **[grid charge] readout through the live SCF: lost = -1.4e-6 e** -- collocation charge-exact in production.
-
-## §0a RUNTIME CLOSE-OUT — COMPLETE (2026-07-15/16).  The full records:
-
-**(0a) Si LEG DONE (2026-07-15) — Γ 157→31 s (5×), multi-k 475→89 s (5.3×), all anchors BIT-consistent;
-complex-k REVALIDATED (shifted-MP gate ENABLED).**  The profile OVERTURNED the commit-message attribution:
-the 6→14 min suite regression was NOT the AUTO enumeration radius (the analytic kernels enumerate offsets
-per-pair internally, Rcut-independent; every O(|Rs|) consumer loop is cheap norms).  ~85% of the multi-k
-anchor was the pair-box kernels re-evaluating analytically per iteration — the STREAM-CACHE BUDGET (added in
-the same commit) was the regression:
-- **EnsureStreams lockout bug**: after the FIRST over-budget pair, `budget=0` un-cached every later pair.
-  Fixed to skip-and-continue packing; + a one-line `[stream cache]` coverage readout per build (pairs
-  cached/total, pts cached/dropped) — the tuning instrument for NaF.
-- **Budget 100M→150M pts** (~1.8 GB): Si SR demand is 104.9M — at 100M its 7 most-DIFFUSE pairs (the biggest
-  boxes) re-evaluated every iteration × k-block ≈ the whole regression.  Si now caches 300/300.
-- **Same-D collocation memo** (`GPW_Evaluator::CollocMemo`, shared by the Coulomb + overlap tensor closures):
-  each iteration collocated the SAME D twice (RefreshRhoGrid + GetRepulsion3C, ~10% each in the profile);
-  the second call now replays the level densities.  EXACT-equality keyed on D → bit-identical.
-- **Phase-independent integrate-back memo** (`NR_Evaluator::IntegrateMemo`): h_ij(k)=w Σ_n e^{+ik·Rn} B_ij(n)
-  with B k-INDEPENDENT — memoized on the EXACT (ladder shape, scale, V_L), so the static local-PP sweep
-  (~10% PER k-block) is paid once per geometry and the per-iteration KS fields once per V instead of per k.
-  Contraction order == direct evaluation order → bit-identical on hit (field equality is exact per-element;
-  NEVER blaze relaxed equal).
-- **Complex-k through the analytic kernels: VALIDATED.**  `SR_2x2x2ShiftedMP_vs_CP2K` (8 k-blocks, genuinely
-  complex phases) ENABLED as a regression gate at AUTO Rcut: **−7.86724 vs CP2K −7.86744 (0.20 mHa)**, charge 8,
-  CONVERGED Δρ=4.5e-8, ~2.5 min (the memos make the 8 k-blocks share the static sweeps).  Γ-centred 2×2×2
-  stays disabled (redundant coverage).  196/196 UTMain green.
-**(0a) NaF leg (2026-07-15, same day): ANALYTIC KB + fp32 stream tier LANDED — the setup wall is dead;
-per-iteration collocation volume is now the whole NaF story.**
-- **ANALYTIC KB ASSEMBLY (the big one).**  The measured NaF setup wall was `MakeSeparablePP`'s mesh
-  quadrature — `Eval` (the truncated-Bloch orbital sum) over a 358k-point eCut=160 mesh ≈ billions of exp
-  calls: the mesh-path run burned **>33 min without finishing setup**.  CP2K never touches a grid here: GTH
-  projectors are polynomial×Gaussian, so ⟨χ|β Y_lm⟩ is analytic.  Now ours is too: qcPseudopotential grew the
-  OPTIONAL capability face `SeparablePotential_Gaussian::BetaGaussian` (the radial's CLOSED Gaussian form
-  Σ_t c_t r^{l+2n_t} e^{−α_t r²}; HGH/GaussianProjector/MultiSpecies implement it), and the molecular seam
-  grew `LatticeSum1E::MakeOverlap(Rs, phases, GaussianFunction)` — b_i = Σ_R phases[R]⟨χ_i|g(·−R)⟩ with
-  g = {centre, α, Cartesian-monomial terms}: PURE Gaussian language (user pin: the basis interface talks
-  integrals-over-functions; no Fourier/potential vocabulary).  GPW expands β·Y_lm → monomial Gaussians
-  (`YlmCartesian` pins `Math::SphericalShell` to the mesh path's own `RealYlm` convention numerically;
-  `MultiplyR2` folds the r^{2n} powers) and calls the seam per radial term.  Models without the face keep the
-  mesh path (contract intact).  **Gate `GPW.AnalyticSeparablePPMatchesMesh`: analytic == mesh to 4.6e-11**
-  (SR/AUTO complete enumeration; at an UNDER-enumerated Rcut the two paths truncate differently — the mesh's
-  Bloch orbital reaches χ-image×β-image separations up to 2·Rcut, the analytic single sum stops at Rcut — the
-  "two schemes" pin again; measured 9.3e-2 for diffuse SIPP at 1.5a, so the gate pins the COMPLETE setting).
-  All four SCF anchors byte-stable (the Si mesh KB was already converged; the win is runtime).
-- **fp32 STREAM TIER (the coverage lever).**  Stream budgets are now TWO-TIER: fp64 150M pts (bit-identical
-  replay; all Si shapes live here → every anchor/kernel gate unchanged) + fp32 700M pts (~5.6 GB; overflow
-  pairs store float values instead of falling to on-the-fly; ~6e-8 relative replay noise, invisible at NaF's
-  anchor scales; the collocate/integrate ADJOINT stays machine-exact — both directions replay the SAME
-  stream).  NaF coverage 16% → 89%.
-- **NaF end-to-end (charge 8.0000000000, 60-iter cap): 2h15m, peak RSS 8.2 GB** on the analytic-KB +
-  fp32-tier build.  The remaining cost was PER-ITERATION collocate/integrate volume: 850M cached pts
-  replayed ~5 sweeps/iter + 314 small pairs (102M pts, first-fit packing victims) on-the-fly each sweep +
-  the one-time scale-6 static-PP fine sweep.  CP2K calibration on this box: Si Γ 3.6 s (ours 31 s),
-  Si 2×2×2 shifted 32 s (ours 149 s).
-
-**(0a) D-AWARE RADII + FULL PACKING + THE CP2K NaF ORACLE (2026-07-15, later the same day; 198/198 green).**
-- **D-aware density-magnitude screening (CP2K's eps/|coef| radii), `kDensityEps=1e-10`.**  What lands on the
-  grid is c·χχ (c = fold·Re[D e^{−ik·R}]), so the tolerance a box must honour is eps/|c|:  (a) each cached
-  stream stores its max|value| and replay SKIPS a (pair, offset) whole when |c|·maxv < eps (one compare);
-  (b) on-the-fly boxes get the CONTINUOUS shrink — eps/|c| threaded into `ForPairBox` (clamped so |c|>1
-  never grows past the geometry screen);  (c) `IntegratePotential` gains an OPTIONAL `screenD` (the seam
-  already speaks `chmat_t` densities): the SAME |c|·maxv criterion keeps the IDENTICAL active set in both
-  directions, so the collocate/integrate ADJOINT stays machine-exact on the shared truncated operator (the
-  variationality ledger's property).  GPW passes its `CollocMemo` D (the iteration's own density); screened
-  calls bypass the V-keyed B-memo (cheap by construction); the static PP keeps memo + full sweep.  A pure
-  magnitude screen (smooth tails, no Gibbs).  Machine gates UNCHANGED (charge 8.5e-8/2.1e-7, adjoint exact,
-  analytic-KB 4.6e-11); Si anchors within pins (Γ/shifted identical to print; multi-k −7.45133 vs −7.45134,
-  trajectory 14→17 iters — kills drop 1e-10-level terms, not bit-identical by design).
-- **fp32 budget 700M→850M**: NaF now caches 528/528 pairs (0 dropped; 76 fp64 + 452 fp32), peak RSS 9.0 GB.
-- **NaF re-time: 2h15m → 40m41s (3.3×).**  Setup (stream build + static-PP sweep) is now a large fixed
-  share; the D-aware kills are WEAK while the density sloshes (large |D| everywhere) and strengthen as it
-  settles — so the next multiplier is convergence itself.
-- **CP2K NaF ORACLE (doc/CP2Kresults.md): Etot = −27.93128 Ha** on OUR transcribed low-q SR basis
-  (`naf_gpw_sr_diag.inp`: q-tag-free own basis fixes the q1-vs-q9 abort; damped Broyden α=0.2 +
-  diagonalization).  CP2K's ENERGY settles to 1e-6 by ~130 iterations while its DENSITY limit-cycles forever
-  (RMS 0.03–0.12) — the SAME charge-transfer cycle we see (its OT run never settled E at all, −25.7↔+253):
-  the disease is the system+basis (overlap cond ≈ 8e3), not either implementation.  CP2K's grid also leaks
-  2.0e-4 e at 320 Ry (our readout's class).  **OUR Kerker(G0=1)+DIIS at relax 0.3 does NOT settle E in 60
-  iterations — iteration 60 lands essentially randomly (−24.03, +887.55 across two runs; charge exactly 8
-  throughout).**
-**(0a) NaF CONVERGENCE increment (2026-07-16): the linear-mixing axis is EXHAUSTED — the production grid
-needs QUASI-NEWTON DENSITY MIXING (the one CP2K ingredient we lack).**
-- **Recipe machinery landed** (`DISABLED_NaFRocksaltGamma`): `tSCFAcceleratorNull<dcmplx>` (NO DIIS — the
-  mid-cycle Fock extrapolations ARE the +900 Ha spikes: they land exactly on the Nproj=8 iterations),
-  fixed-α Kerker, exit on the relative-E gate `MinΔE` with `MinΔρ=1e30` (CP2K's density never converges
-  either — E-flat is the physical criterion), env tuning knobs `NAF_{ECUT,ALPHA,KERKER_G0,NMAX}`.
-- **α scan at Ecut=40** (cheap grid): α=0.2/0.1 → ±75 Ha period-~48 limit cycles that pass THROUGH the fixed
-  point; α=0.05 → contained ±1 Ha, not decaying; **α=0.025 → converges** (~−27.75, ±0.04 residual wobble;
-  −27.7304 at the pinned 200-iteration endpoint).  G0=1.0 is the sweet spot — BOTH 2.5 and 0.5 destabilize
-  (the Kerker screen must match the charge-transfer mode, not smother or under-damp).  The Ecut=40 answer
-  sits 0.2 Ha above the 320-Ry oracle — the leaky-grid gap (Ecut=40 loses >5 e⁻ of F's collocated density).
-- **The FINE (auto=160) grid grows a second, UNPHYSICAL attractor** at E≈−39 (Exc≈−143, ∫ρ_grid swinging
-  5.1↔7.7 vs Tr(DS)=8): the mid-slosh D loads the sharpest F pairs beyond the grid calibration; the XC of
-  that spiky/locally-negative ρ feeds back; the state is self-consistent garbage.  It captures plain damped
-  Kerker at EVERY α (0.2 → 0.01 all dive in, sliding past −26 on the way).  Damping sets the rate, not the
-  destination — a wrong basin needs a different METHOD.  CP2K converges the SAME map with BROYDEN
-  (quasi-Newton, 8-step history, α=0.2).
-- **Test now pins the CONVERGING regime** (Ecut=40/α=0.025/200 iters → −27.73 ± 5e-2; both bad attractors
-  land ~+65 / ~−39, far outside): a true mixing-regression anchor until the production grid converges.
-
----
+## TRAPS — the distilled do-not-revisit list (full records: doc/GPWHistory.md)
+1. **Aliasing-flattered energies.**  Every pre-2026-07-20 NaF number in the −27.7..−28.0 band (Ecut=40
+   era) was an under-resolved-grid COINCIDENCE, not physics.  Resolved-grid truth: SR2 −24.4314 /
+   SR −24.4324.  Never trust an energy whose grid fails the negCharge/XC probes.
+2. **Oracles are not always oracles.**  The CP2K SR −27.93128 was a 3.50 Ha EPS_PGF_ORB screening
+   artifact (truncated overlap metric × 1/λ amplification on a λ~1e-6 basis) — complete with a FAKE
+   eternal density limit cycle.  Rule: CP2K oracle runs on ill-conditioned bases use tight EPS
+   (`naf_gpw_sr_tight.inp`) and require REAL density convergence; also DIFF THE BASIS before comparing.
+3. **MOM across a discretization change can pin an EXCITED state** (0.76 Ha on NaF; hole at −0.36 Ha
+   under occupied levels).  The εH/εL gap line MASKS it — read the `frontier ε(occ)` window (0h guards).
+4. **The long/short local-PP split pieces carry ~0.5 Ha grid errors that CANCEL in the sum** — never mix
+   an exact piece with a band-limited partner (measured trap).  The absolute κ rule (e^{−κ/2} uniform
+   pair tails) is what makes a piece standalone-exact — up to LADDER-TOP SATURATION (κ·p above the top:
+   harmless only where the field is r_loc-soft — fine for LONG at production tops, why SHORT is analytic).
+5. **Truncated metrics corrupt maps** (Rcut=2a lost 2.25 e; CP2K's screening = the same class).
+   THERE IS NO CUT.  Also: overlap-null ≠ physics-null — but for THESE bases the near-null diffuse
+   modes carry only ~1 mHa (SR↔SR2), so auto-dropping them is safe.
+6. **Geometry-keyed caches + lattice image clones = unbounded growth** (the 11-GB OOMs: content-keyed
+   MnD Ω/RNLM/H3 on ~2k images/pair; stream-cache pair builds materialised before tiering).  A lattice
+   SERIES is consumed once — stream it (§5 LRU design retires the interim clear-based band-aid).
+7. **Ops on this 14-GB box:** ONE heavy run at a time, always inside `systemd-run --user --scope
+   -p MemoryMax=10G` (systemd-oomd kills by CGROUP — an unscoped run makes the DESKTOP APP take the
+   blame); full-SR-class stream demand is 5.3B pts (`GPW_STREAM_BUDGET_PTS[_F32]` caps).
+8. **Sampling collocation (pre-analytic era) aliases at bulk; hard Rcut rings (Gibbs)** — the analytic
+   CP2K method (compact exp-tail boxes, screened image sums, modulo wrap) is the only scheme in the code.
 
 # TODO / NEXT
 
-**Orientation (2026-07-16, updated same day).**  §0 (A–D + the runtime close-out) is DONE — the analytic
-multigrid path IS the SCF path; Si == CP2K at Γ / 2×1×1 / shifted 2×2×2; NaF runs end-to-end in ~40 min
-against a same-basis CP2K oracle (**−27.93128**, `doc/CP2Kresults.md`).  The open problem: NaF's
-PRODUCTION-grid SCF is captured by an unphysical attractor (E≈−39) that plain damped mixing cannot escape
-at any α.  **0b's XC-fork hypothesis was FALSIFIED by its own FD instrument (see 0b below): the discrete
-functional is already exactly consistent.  0b′ (same day) then root-caused the NaF grid-charge
-catastrophe: an ENUMERATION-SCHEME MISMATCH (Rcut=2a-truncated S vs the screened-complete collocation),
-NOT grids or precision — see 0b′ below.  The lead increment is now BANISH-Rcut** (user directive: SR2 trim
-for complete-enumeration conditioning → NaF at AUTO → delete Rcut/collRcut from the public factory; §1
-rank-reduction is the permanent backstop) — **then 0c** (quasi-Newton mixing on the then-consistent map),
-followed by the runtime follow-ups (0d) and the standing queue (1)–(5).
+**Orientation (2026-07-23).**  GPW is VALIDATED against CP2K at sub-mHa on every honest comparison (Si,
+NaF-SR2 0.19 mHa, NaF-full-SR 0.10 mHa — after the CP2K SR "oracle" −27.93 was RETRACTED as its screening
+artifact; TRAPS #2).  NaF production (SR2, matched grids) runs in 190 s.  The queue: §0.5 runtime
+(execution order b→c→f→a→e→d — the DM-ρ XC feed lands BEFORE the raster-policy A/B), 0h SCF guards,
+0i analytic long, §1 diffuse-basis robustness (demoted to automation), then the standing items (2)–(5).
 
-## 0b. XC CONSISTENCY — RESOLVED BY FALSIFICATION (2026-07-16)
-**The fork does NOT exist; the LDA discrete functional is ALREADY exactly consistent.**  The probe is the
-new gate `GPW.XCPotentialConsistencyFD`.
-**The instrument came first (as this section prescribed) and overturned the premise.**  The probe replicates
-the PW_XC chain verbatim at the evaluator seam (collocate → nested {G_L} combine → `RhoOnGrid`; pointwise
-v_xc → raster `ForwardFFT` → per-level restriction → analytic `IntegratePotential`) and compares the central
-FD `[E_xc(D+h dD)−E_xc(D−h dD)]/2h` against `Re Tr(H_xc dD)` on the FCC-Si crystal (cross-cell pairs + a
-real ladder), with a bilinear Hartree control:
-- **Positive-density regime: rel err 8.0e-8 (h=1e-3) → 2.0e-10 (h=1e-4) — exact h² scaling, i.e. pure FD
-  truncation converging onto the analytic answer.  H_xc IS ∂E_xc/∂D.**  Hartree control 3e-10.
-- **Indefinite-D regime (ρ_q<0 over part of the grid — the Kerker-mixed-field case): same h² scaling
-  (5e-6 → 3e-8).  The ρ≤0→0 guards are CONSISTENT between E and H** (both SlaterExchange AND
-  VWN_Correlation already guard `rho>0.0 ?` — the "only SlaterExchange has the guard" worry was stale).
-Why the old fork description was wrong: `PW_XC::GetEnergy` already takes ∫ε_xc·ρ on the fit grid (the
-¾-virial survives only as `ExFunctional::GetEpsXc`'s default, EXACT for Dirac; VWN overrides), and the
-"band-limited fit" of v_xc is the fine-grid projection onto the fit ball — which is EXACTLY the gradient of
-the grid-sum energy w.r.t. the ball-limited ρ̃ the energy itself uses.  One discrete functional, end to end;
-`FittedEpsXc` is molecular-path-only and was never on the periodic route.
+## 0.5 RUNTIME IMPROVEMENTS (the consolidated performance queue)
+Current standing (all converged, same machine): Si Γ 48 s vs CP2K 3.5 s; NaF SR2 190 s vs 5.8 s (~33×);
+the full-SR diagnostic ran 8.45 h vs 88.6 s — its pathology is items (b)+(c) below.  In EXECUTION order
+(dependency-aware leverage; letters are stable labels, kept for cross-references).  Prelude: the
+test-side `ctest -j16` upgrade (separate session) lands before (b) so every step below gets fast
+confirmation runs.
+- **(b) Free the coarse stage's stream caches after the seed handoff** (`bsC.reset()` class fix): the
+  global stream budgets are consumed by the RESIDENT coarse caches, so the fine stage of a
+  grid-continuation run gets ~0% coverage and re-evaluates billions of points per iteration (the 8.45-h
+  run's dominant cost).  FIRST: a small class fix with the largest single measured pathology behind it,
+  AND it sanitises the timing baseline every later A/B below is measured against.
+- **(c) Stream-budget follow-ups:** byte-aware per-pair transient bound (the current bound is in POINTS
+  but pairs build in fp64 form — a 400M-pt fp32 budget still admits a ~5-GB build transient); the
+  `[stream cache]` readout should print the EFFECTIVE (env-overridden) budgets, not the compile-time
+  constants.  Rides with (b); the byte-aware bound gets MORE relevant after (f), whose raw fine-level
+  XC feed changes what occupies the stream budget.
+- **(f) BALL-PER-ROLE re-calibration (user question 2026-07-23): one ball currently serves three roles
+  with three different natural calibrations** — Hartree ρ ball ≈ 2–3·α_max (charge-converged, measured);
+  the ρ FED TO the XC nonlinearity ≈ 4–8·α_max (a POINTWISE non-negativity requirement, not spectral:
+  Gibbs lobes + the ρ>0 guard = the Exc collapse; the C=8 calibration's real content); the v_xc OUTPUT
+  ball ≈ ρ's/3 (LDA v_xc ~ ρ^{1/3}: the cube root of a Gaussian peak has exponent p/3 — SMOOTHER than ρ,
+  opposite to the GGA ∇ρ lore).  The governing ball sets the raster (∝ Ecut^{3/2}), so C 8→4 ≈ 2.8×
+  fewer raster points machine-wide.  EVIDENCE C=8 is over-conservative for production: the matched NaF
+  runs at Ecut=160 (C=4, CP2K's own operating point) agree with CP2K to 0.1–0.2 mHa; the 480-ball probe
+  bought 0.15 mHa.  MEASURE FIRST (f1, near-zero code, can run any time): re-run the negCharge/XC
+  probes at C=3,4 on production NaF (post-analytic-short landscape); if clean, lower the default C
+  (zero architecture change — the divergent-ball plumbing exists via CreateCD/VxcFitBasisSet since the
+  thread-through fix); the ⅓-v_xc ball is a smaller follow-on (G-space op counts).  CAUTION: the
+  retired GPW_CDFIT_SCALE two-grid fork — any re-split must buy real money over one-grid simplicity.
+  **THE ENABLING MECHANISM (f2, user insight 2026-07-23): feed XC the DM-ρ, which is pointwise
+  NON-NEGATIVE by construction (PSD D ⇒ φᵀDφ ≥ 0) — the C=8 cleanliness constraint dissolves
+  entirely.**  NOT via op(r) sampling (that is the deleted PhiOnGrid era, ~1e9 exp/iter) — the
+  collocation STREAMS already materialise exactly those χᵢχⱼ(r) samples: the RAW D-weighted level
+  densities before the FFT/ball combine ARE ρ_DM(r) to screening-ε (worst negatives ~1e-10, not the
+  ball's Gibbs −0.77 e).  So: keep the fine level RAW for the XC feed (skip the ball truncation there
+  only), spectrally upsample the coarse levels (their content is genuinely band-limited — benign),
+  keep the BALL for Hartree/Poisson (variational, exact).  H_xc=∂E_xc/∂D via the existing box-gather
+  adjoint with box-truncation replacing ball-restriction per level (the suspended §0f increment-1
+  design, RESURRECTED with the right motivation: not an accuracy fix — the falsified role — but the
+  C=8→2-3 unlock); re-gate `GPW.XCPotentialConsistencyFD` + negCharge probes.  This is CP2K's own
+  arrangement (XC on raw collocated values).  BEFORE (a) because the raw-collocation XC feed is the
+  same softening CP2K relies on to run clean on ball-only rasters — validating BallOnly against the
+  current Fourier-round-trip XC path would measure a configuration (f2) deletes.  **DO TOGETHER with
+  §5's fit-basis ctor ISP split (user 2026-07-23): the Vxc-fit `({G}_vxc, integration grid)`
+  two-argument ctor is the natural vehicle for the per-role balls — if making that ctor explicit is
+  easy while in here, pull it forward from §5 rather than riding the CreateCD/VxcFitBasisSet plumbing
+  and re-touching the same seam later.**
+- **(a) The raster POLICY — the ~8× lever.**  Full design in §0.5(a) just below.  AFTER (f): run ONE
+  combined calibration matrix {RasterPolicy × cutoffFactor C} through the negCharge/XC probes — the
+  two levers multiply (~8× × ~2.8× raster points) but share the single Gibbs-into-XC failure mode that
+  (f2) dissolves, so the validation campaign is shared instead of run twice.
+- **(e) Cache2/3 byte-budget LRU** (§5, user-approved): also the robustness fix; runtime-relevant because
+  it retires the per-pair `ClearGeometryCaches()` rebuild cost on healthy bases (currently unmeasurable,
+  but the LRU makes the policy principled).
+- **(d) B_ij(R) k-independent 1E memo** (user design: cache B(R), never M(k) — "keep k out of the key"):
+  `LatticeSum` currently folds `phase(n)` into the accumulation, burying the k-independence; storing the
+  per-pair, per-offset reductions once makes every additional k-block's 1E build a ~ms phase contraction
+  (the `IntegrateMemo` pattern, already shared across k-blocks via the one molecular basis).  The
+  multi-k enabler (Si 2×2×2: 8 builds → 1 build + 8 contractions).  LAST here: orthogonal to the
+  raster items (1E build, not raster-scaled) and only pays on multi-k runs — schedule with/into §4
+  (IBZ); on the current Γ-dominated benchmarks its near-term leverage is small.
+- (OpenMP pair loops remain opt-in `GPW_OMP_THREADS`, ~1.7× — bandwidth-bound; CP2K threads on top of
+  everything, so parity ultimately needs the structural items above first.)
 
-**Consequences (re-scope):**
-- The NaF fine-grid attractor (E≈−39, Exc≈−143) is a **GENUINE basin of the (under-resolved) discretized
-  functional**, not a consistency artifact: mid-slosh D loads the sharpest F-F pairs beyond the grid
-  calibration → collocated ρ aliases (∫ρ_grid swings 5.1↔7.7 vs Tr(DS)=8, spiky/locally-negative) → E_xc
-  is legitimately huge-negative WITHIN the discretization, and since H_xc is its exact gradient, the SCF
-  map is self-consistent there.  A variational minimizer (GDM/OT) would find it too — the escape is not
-  consistency but (a) never wandering into the basin (quasi-Newton mixing with small steps = what CP2K's
-  Broyden does on the same map; grid-continuation seeding = start in the physical basin) and/or (b)
-  removing the basin by resolving the sharp pairs (stiffer fine-grid calibration; CP2K leaks only 2e-4 e
-  at the same 160 Ha — understand its EPS_RHO/REL_CUTOFF stiffness if (a) is not enough).
-- **ρ-FLOOR: already effectively present for LDA** (both functionals zero at ρ≤0, verified consistent by
-  probe 2).  An explicit ε-floor remains only as the **GGA prerequisite** (∇ρ/ρ powers diverge at tiny ρ)
-  — fold it into the GGA increment together with the `relCutoff` Vxc-grid item (§5).
-- ~~0c (Pulay/Broyden behind `tDensityMixer`) is now the lead increment~~ **superseded same day by 0b′
-  below (user decision: fix the grid first, don't let the mixer hide it); 0c follows on the healthy grid.**
 
-## 0b′. THE TOP RUNG + THE REAL NaF ROOT CAUSE — investigation CLOSED 2026-07-16 (same day); records below
-**Two separate things came out of this increment: the ladder-completion rung (LANDED, small-but-real energy
-fix, decision pending on scope) and the ACTUAL root cause of the NaF grid-charge catastrophe (an
-ENUMERATION-SCHEME MISMATCH — not grids, not precision).  The instruments: `GPW.SharpestPairChargeConservation`
-+ `GPW.DISABLED_IllConditionedChargeProbe`.**
+### 0.5(a) RASTER POLICY — the remaining ~8× raster factor vs CP2K (a designed choice, likely a knob)
+At the SAME Ecut ball our raster is 72³ where CP2K's is 36³ (~8× the points).  This is not waste by
+accident but a POLICY difference — and now that everything else is matched, it is the whole remaining
+grid-cost gap:
+- **Ours — ALIAS-FREE (difference-set) rasters:** `AutoGrid` = 4m+1 per axis (m = the ball's max index),
+  so the raster resolves the full DIFFERENCE set \f$\{G-G'\}\f$: the product of ANY two ball waves
+  (bandwidth 2m) is sampled exactly, the FFT of the collocated ρ gives EXACT ball coefficients, and the
+  raster is a true quadrature for every \f$\langle G|f|G'\rangle\f$ with f in the ball.  Discretization
+  error lives ONLY in the ball radius (Ecut) — N is never a physics dial.  This is why the 5-smooth flip
+  re-pinned nothing.
+- **CP2K — BALL-ONLY rasters:** N ≈ 2m+1-class (its 36 at the 160-Ha ball).  Products of two ball waves
+  ALIAS on that raster — the fold-back into the ball is ACCEPTED as discretization error, controlled by
+  converging CUTOFF (and softened by evaluating XC on the raw raster values).  The bet: the aliased
+  product tails are the same \f$e^{-E_{cut}/2p}\f$ tails the CUTOFF calibration already budgets for, so
+  paying 8× in points to capture them exactly at FIXED Ecut is wasteful — better to raise Ecut a little
+  on a cheap raster if needed.
+- **PROPOSED (user 2026-07-22: "sounds like a user knob"): a raster POLICY enum, not a numeric dial**
+  (the no-grad-student-knobs rule): `RasterPolicy { AliasFree /*default*/, BallOnly }` at the factory
+  surface, printed by `ReportGrids`.  AliasFree stays the default (correct-first; N provably not a
+  physics variable).  BallOnly is the measured-efficiency option — ANOTHER ~8× on every raster-scaled
+  cost (the NaF fine raster would drop to CP2K's own 36³-class, est. run ≪ 60 s).
+- **VALIDATION REQUIRED before BallOnly ships (the knobs trade against each other):** the
+  `cutoffFactor=8` auto-floor calibration was MEASURED on alias-free rasters — on a ball-only raster the
+  product tails fold back in, so the negCharge/XC-collapse probes must be re-run (CP2K operates clean at
+  C≈4 with ball-only rasters; whether that transfers to our Fourier-round-trip XC path is exactly the
+  measurement).  A/B: NaF at BallOnly vs AliasFree at the same Ecut — energy within ~mHa ⇒ CP2K's bet
+  confirmed for us and BallOnly can even become the default with the calibration recorded; if not, the
+  8× is the honest price of our XC path and this item closes as "policy justified".
 
-**(1) The top rung — LANDED (code in tree), measured, scope decision pending.**
-`PairLevel`'s requirement `req = kRelSafety·ecut_fine·(αᵢ+αⱼ)/(2α_max)` is unsatisfiable for pairs with
-αᵢ+αⱼ > α_max; one rung at `RelCutoffSafety()·ecut_fine` (appended LAST — `ecut_L[0]` STAYS the resolution
-reference, selection made order-free; new seam accessor `LatticeSum1E::RelCutoffSafety`) completes the
-ladder by construction.  The local-PP path (relCutoffScale=6) keeps the BASE sub-ladder (`itsNBaseLevels`)
-— its stiffened rule would flood the doubled grid with mid pairs.  Machine gates (adjoint, FD-consistency,
-charge) all carry over.  MEASURED: the rung is an ENERGY-tail fix ONLY —
-- CHARGE is rung-INVARIANT (~1e-9 with or without): the G=0 coefficient survives ball truncation by
-  construction, and pow2-padded rasters keep box sampling at ~e^{−50}.  (The gate documents this.)
-- Si anchors (explicit Ecut=20 = 2.5× their auto floor): moves SUB-mHa (Γ −7.11485→−7.11482, shifted
-  −7.86724→−7.86713 — all within existing gates, no re-pin forced), cost 1.6–4× (the global N³ work:
-  Γ 29→48 s, shifted 167→430 s, atom-in-box 25→107 s).
-- DECIDED (user, 2026-07-16): **GATED on the energy calibration** — the rung is added only when the
-  reference grid sits below `RelCutoffSafety()·cutoffFactor·α_max` (every AUTO run gets it; the Si anchors'
-  explicit Ecut=20 ≥ 16 skip it and return to baseline speed).  ALSO NOTED: the auto-floor
-  `cutoffFactor=4` calibration ("Ecut=40 loses >5 e⁻ of F") is SAMPLING-ERA data (2026-07-12, pre-analytic-
-  rewrite) — the analytic path conserves charge at ANY Ecut, so the production Ecut may be recalibratable
-  DOWN by an ENERGY criterion (a large runtime lever that also shrinks the rung's cost).
 
-**(2) NaF iteration-1 grid-charge loss ROOT-CAUSED = ENUMERATION-SCHEME MISMATCH (the "two schemes" pin,
-violated by the NaF config itself).**  The probe (D=S⁻¹: PSD, Tr(DS)=n EXACT, entries ~1/λ_min — the
-loading a mid-slosh SCF produces):
-| error source | measured | per-unit-\|D\| |
-|---|---|---|
-| **Rcut=2a-truncated S vs screened-complete collocation** | **−2.247 e at \|D\|=450, GRID-INDEPENDENT** (identical Ecut=40 vs auto=160, across fp32 tiering) | 5e-3 |
-| kScreenEps screening tails | −0.36 e at \|D\|=1.05e6 | 3.4e-7 |
-| fp32 stream tier | ~7e-3 e at \|D\|=1.05e6 | 7e-9 |
-- The collocation enumerates its cross-cell offsets INTERNALLY to the complete magnitude screen
-  (VALENCE_LOWQ_SR α_min=0.0857 → pair reach ≈33 au), while the NaF SCF builds S over `Rcut=2a`=17.5 au —
-  S/charge/diagonalization live in the TRUNCATED scheme, ρ̃/Hartree/XC in the COMPLETE one.  Mid-slosh D
-  loads the near-null (diffuse) directions where truncated-S is most wrong → the e-scale ∫ρ−Tr(DS) swings
-  (iter-1: 4.9 e), a corrupted SCF map, and (plausibly) the −39 basin.  NOT fixable by mixing (0c) or by
-  grids (rung) — the map itself is inconsistent.
-- At AUTO Rcut the mismatch vanishes (err/|D| ÷15000) BUT the complete-enumeration S is genuinely
-  near-singular: **λ_min ~ 1e-6** (|S⁻¹|~1e6).  The 2a truncation was double-dutying as a conditioning
-  crutch (the SR .bsd header even says "PD at a MODEST Rcut").  The precision machinery is VINDICATED
-  (fp32 + screens hold their calibrations even at million-scale loading).
-**→ BANISH-Rcut — THE REFACTOR LANDED SAME DAY (2026-07-16, in-tree; user directive, attempt #4 — this
-time with the crutch measured to corrupt the map).  STATUS + measurements:**
-- **The `(Rs, phases)` arguments are GONE from `LatticeSum1E`**: the 1E/KB builders take
-  `(cellphase_t, UnitCell)` and sum their series to ε internally per shell pair via `ForImageOffsets`
-  (the collocation kernels' own exact-threshold screen — 1E and collocation are now ONE scheme by
-  construction).  New finite `MakeOverlap(g)` overload for the home-mode KB.  The KB phase convention
-  SIMPLIFIED: with internal symmetric enumeration the historical `(−Rs, conj-phase)` artifact reduces to
-  the PLAIN phase oracle (m=−n substitution) — validated by `AnalyticSeparablePPMatchesMesh` AND the
-  complex-k shifted-MP anchor (−7.86724, bit-identical).
-- **`Rcut`/`collRcut` DELETED from `GPW_Evaluator`/`GPW_IBS`/`GPWFactory`** (`itsR/itsPhase/rcutEff` gone;
-  the only remaining image list is the INTERNAL ε-derived Eval/mesh-KB set).  The finite mode is now
-  `CellImages::HomeCellOnly` (an `enum class` so a stray numeric can never silently select a mode); its 1E
-  matrices are the finite molecule's own cached faces, widened — the home-cell gates run in MILLISECONDS.
-- **Anchors: Si Γ −7.11485 / 2×1×1 −7.45133 / shifted −7.86724 — IDENTICAL to pre-refactor**; multi-k
-  RUNTIME improved 123→84 s (the exact-threshold enumeration is leaner than the old conservative ball).
-  14/14 GPW kernel gates green (adjoint, FD-consistency, charge, KB==mesh).
-- **NaF AT COMPLETE ENUMERATION (the measurement this was for): the scheme mismatch is DEAD.**
-  Iteration-1 diagonalized-density grid charge: **−4.9 e → −2.4e-6 e**.  True conditioning measured:
-  λ_min(S)=1.03e-6, cond=6.0e6 — and **Cholesky survives** (the SCF runs).  The IONIC SEED still loses
-  1.09 e (seed construction on the near-singular basis hits the |D|-amplified precision floors — one
-  iteration only; the diagonalized densities are clean).  Setup share grew (~28 min to iteration 1 at
-  auto Ecut: bigger streams + the 5-level ladder) — the 0d OpenMP/setup item.
-**The Ecut=40 recipe measurement ON THE HONEST MAP (α=0.025/G0=1, 200 iters) — the verdict:**
-- **The map is healthy and has a genuine fixed point ≈ −28.00**: after the seed transient the SCF descends
-  SMOOTHLY and monotonically (−27.64→−27.9999 over ~29 iterations, repeatedly), grid charge −3e-3 clean
-  throughout (no slosh, no mismatch).  Note −28.00 vs the corrupted-map "anchor" −27.73 and the CP2K
-  320-Ry oracle −27.93128 — the old "0.2 Ha leaky-grid gap" attribution was itself a corrupted-map
-  artifact; the honest Ecut=40↔oracle comparison awaits actual convergence + the production grid.
-- **The ONE remaining disease is the NEAR-NULL OCCUPATION EVENT** — and (user challenge, answered) it is
-  NOT the linear algebra: cond=6e6 costs Cholesky ~7 of 16 digits, V=S^{−1/2} amplifies 10³ — all exact
-  enough.  The instability is the RAYLEIGH QUOTIENT of the near-null state: ε_null = vᴴFv/vᴴSv is a ratio
-  of two near-zeros, sensitive as δε ≤ ‖δF‖/λ_min.  The LEGITIMATE per-iteration Fock update during the
-  Kerker descent is ~1e-2 (Δρ≈2e-2) and projects strongly onto v (the null combination is built of the
-  same diffuse functions the mixed V_H/v_xc fields move), so the spurious band sweeps up to 1e-2/1e-6 =
-  1e4 Ha per iteration; when its trajectory carries it below the Fermi edge, AUFBAU OCCUPIES IT (a
-  1/√λ≈10³-amplitude vector enters D) → E=+1e4, [F,D] 0.12→150.  Signature: DETERMINISTIC period ~29
-  (six spikes, iters 45/74/103/131/160/185 — trajectory-driven, not noise), discontinuous [F,D] (an
-  occupation swap), charge CLEAN throughout.  This is the classic QC near-linear-dependence collapse —
-  molecular codes drop S-eigenvalues below 1e-6..1e-8 for exactly this reason; the criterion that matters
-  is ‖δF‖/λ vs the gap, not cond(S).  Previously MASKED by the 2a truncation (λ_min 7.5e-4).  The old
-  ±75 Ha limit cycles / the −39 attractor / the "+900 DIIS spikes" all belong to the corrupted map; the
-  NaF energy pin is SUSPENDED in the test until the near-null fix lands.  (Fix menu: the basis trim /
-  rank-reduction below; occupation control (level shift / MOM) would stabilize around the garbage band
-  but leaves ε_null polluting the band structure — not the clean fix.  Verification instrument for the
-  SR2 session: print the lowest band energies per iteration — the spurious level should dive across the
-  Fermi edge one iteration before each spike.)
-**SR2 TRIM — DONE same session (`valence_lowq_sr2.bsd`, enum VALENCE_LOWQ_SR2): drop Na p 0.05 + s 0.0857
-(the SPECTRUM identified them: SR's three degenerate 1.03e-6 near-null modes = exactly the Na p 0.05
-triplet; F kept intact for the anion).  λ_min 1.03e-6 → 1.57e-3 (cond 2715, Cholesky residual 4e-14);
-NaF 200 iters 17 min → 3 min (the deleted diffuse shells owned the biggest boxes).  BUT THE SPIKES
-SURVIVED — the conditioning/near-null diagnosis is DISPROVED as the mechanism (measurement-driven, round 3):**
-- **α-INDEPENDENT**: 10/10/13 spikes at α=0.025/0.0125/0.00625 (period ~27; smooth descent to the SAME
-  ≈−27.73 fixed point each cycle, then a SMOOTH climb-away over ~5 iters before the +5e3-scale blowup —
-  a growing departure, not a discontinuous occupation swap).  Rules out the plain linear-mixing gain
-  story UNLESS the response multiplier is ~1e4 (α·|λ|≫1 even at α=0.006).
-- **DIIS (quasi-Newton in Fock space, `NAF_DIIS=1` knob) does NOT fix it** on the honest map — 51
-  excursions, no smooth descents, endpoint −27.1±2 with `En>EMax` flapping.  (Its ban was for the
-  corrupted map; on the honest map it fails DIFFERENTLY — fighting the same mode.)
-- **The surviving hypothesis: a GIANT RESPONSE MODE from a near-degenerate HOMO/LUMO at Γ** — a tiny gap
-  makes χ ~ 1/(ε_v−ε_c) huge: explains the α-independence at practical α, the smooth departure, CP2K's
-  OWN eternal density limit-cycle on this same system (RMS 0.03–0.12 forever), and DIIS's failure.
-  Γ-only NaF in this minimal ionic basis SHOULD be wide-gap — if the measured gap is tiny, that itself
-  is the finding (basis? PP? Γ-only folding?).
-**The remaining work, in order:**
-1. **BAND-GAP INSTRUMENT (the next session's opener)**: print the orbital/band energies near the fixed
-   point (`Orbital::GetEigenEnergy` exists; run the recipe to NMAX≈35 and dump the spectrum, or add
-   ε_HOMO/ε_LUMO to the SCF verbose line).  The gap measurement selects the fix:
-   - gap ≈ 0 → Fermi SMEARING (fractional occupation) or MORE k-POINTS (Γ-only folding artifact) — the
-     physical answers; **MOM (already coded, inactive — `tIrrepWF::MOMScores`/`CaptureMOMReference`,
-     user pointer) enforces occupied-subspace continuity** through the crossing;
-   - gap finite but small → 0c Pulay/Broyden on ρ̃ (the response is stiff but the state is clean).
-2. **0c (Pulay/Broyden mixer face)** on the conditioned map; its `MixSignals` trust-region signal
-   (∫ρ_grid − Tr(DS)) stays — now purely a precision/conditioning health meter.  Also probe: the ionic
-   SEED's 1.09-e precision-floor loss (may already be gone with SR2's conditioning).
-Side effect of the refactor: the "(Rs,phases)→one cMesh" future note is MOOT for these seams (no weighted
-point set crosses the interface — the stronger form of that cleanup); KMesh + quadrature meshes keep it.
+## 0h. SCF-strategy guards (banked from the validation; do with/after the §0c seams)
+- **MOM cross-grid guard:** `AdoptMOMReference` across a discretization change can pin an EXCITED state
+  (measured: 0.76 Ha on NaF — the transferred occupied subspace need not span the new grid's aufbau
+  ground space).  Guard: detect a PERSISTENT HOLE at convergence (an unoccupied ε below an occupied ε)
+  and release/re-capture MOM (or at minimum WARN loudly).
+- **`ReportBandGap` hole-masking fix:** the εH/εL summary line takes εL from the lowest virtual ABOVE
+  the HOMO index and printed gap=0.67 while a −0.36 Ha virtual sat BELOW occupied levels; take εL over
+  ALL unoccupied and flag non-aufbau.  (The `frontier ε(occ)` window was the honest instrument.)
 
-## 0c. PULAY/BROYDEN ρ̃-MIXING behind the DIP mixer face (`tDensityMixer`) — user design, 2026-07-16
-Mixing is today hardwired inside `tSCFIterator::Iterate` (the `KerkerG0>0 ? KerkerUpdate(relax) :
-MixIn(1−relax)` branch + the inlined adaptive-α heuristics).  Extract the face and inject the concrete
-from the top (SOLID DIP — the existing `tSCFAccelerator<T>*` ctor-injection precedent):
-- **Face** `tDensityMixer<T>` (qcChargeDensity — it speaks ChargeDensity and needs FourierMixCD; no new
-  lib edges): `double Mix(cd_t& cdInOut, const cd_t& cdFresh, const MixSignals&)` + `Reset()`;
-  `MixSignals={E,[F,D]}` so adaptive policies live INSIDE concretes.
-- **Concretes**: `NullMixer` (pass-through — what a GDM/OT-driven SCF wants: a minimizer must not fight a
-  mixer); `LinearMixer(α₀)` (today's D-mixing + the adaptive-α policy moved in VERBATIM — molecular SCF
-  bit-preserved); `KerkerMixer(α,G0)` (today's KerkerUpdate + its periodic-basis validation moved into
-  construction); `PulayMixer(α,G0,m)` (NEW: last-m (ρ̃_in, residual) history, small residual-norm LS,
-  Kerker-preconditioned update — the VASP/QE/CP2K scheme; Broyden = a sibling behind the same face).
-  Null/Linear T-generic; Kerker/Pulay dcmplx/periodic-only.
-- **Plumbing**: `cSCFIterator` ctor gains the mixer pointer beside the accelerator; the Calculation facade
-  constructs the concrete (options beside AcceleratorOptions); `SCFParams.KerkerG0/StartingRelaxRo` remain
-  as facade DEFAULTS (no call-site break) and the iterator stops reading them.
-- **Accelerant on top**: grid-continuation seeding (converge Ecut=40 → seed the fine grid — start in the
-  right basin).  Gate: the NaF test on the production grid vs the −27.93128 oracle.
-Convergence pays twice: fewer iterations AND stronger D-aware kills on a settled density.
-
-## 0d. Runtime follow-ups (after 0b/0c)
-- **OpenMP over pairs** (the parallel-execution TODO): collocate/integrate are embarrassingly parallel
-  (per-thread ρ accumulators); CP2K's ssmp is threaded on top of everything above.  ~4× on this box.
-- **Setup share** (stream-cache build + the scale-6 static-PP sweep) = the next profile target once
-  per-iteration cost is mixing-limited.
+## 0i. Analytic V_local LONG — DEMOTED to robustness/perf (was the §0e-PP crux)
+With (a)+(b) landed, the SHORT is analytic in production and the grid LONG is standalone-exact to the
+ladder top (κ rule) — NaF sits 0.19 mHa from CP2K, so the analytic LONG is no longer an accuracy
+blocker.  Kept on the list for ROBUSTNESS (very hard PPs / deliberately cheap ladders, where ladder-top
+saturation shows — the §0e-PP saturation corollary) and to delete the LAST V_loc grid sweep entirely.
+The recorded crux, unchanged: the LONG's `−Z_ion·Repulsion3C(χᵢ,χⱼ,g_core)` lattice sum (the erf-Coulomb
+IS a normalized Gaussian core charge, exp `1/2r_loc²`) is conditionally convergent (erf→1/r Madelung
+tail) ⇒ needs the G-space/Ewald neutralizing background, NOT a real-space sum — i.e. CP2K's ρ_core-into-
+the-Poisson-solve arrangement, which for us means folding the core charge into `PW_Hartree`'s existing
+G-space solve rather than assembling a separate matrix.  Kernels all exist (`GaussianRF`, no new Boys
+function); verification gates: Si Γ −7.11506 + NaF SR2 −24.4312 (both codes' clean oracle pair).
 
 Then the standing queue: **(1) DROP SR** (rank-reduction + auto-tol, below); **(2) low-q multi-species
 bases → Si/NaF/CsI**; **(3) CP2K reference library**; **(4) IBZ**; **(5) cleanups**.
 
-## 1. DROP SR — rank-reduction through the periodic stack + auto-tol
-The `_SR` basis is a hand-tuned crutch (drop the most-diffuse primitive so the Bloch overlap is cleanly PD).
-We PROVED (2026-07-13; record: doc/GPWHistory.md) that the FULL basis + screening + canonical Eigen/SVD ortho with tol in the
-~1000× spectral gap gives a clean overlap transform (‖VᴴSV−I‖=6.6e-11) — BUT the SCF is **BLOCKED**: truncation
-reduces the working dim (NaF 37→33) and the periodic stack (`Crystal_EC`/`cDM_CD`/collocation) assumes the full
-`n` → "Matrix sizes do not match" (`DISABLED_NaFFullBasisEigenTol`). The MOLECULAR path handles rectangular V;
-the PERIODIC path does not. So dropping SR = two pieces:
-- **(a) Rank-reduction through the periodic stack** — let a truncated ortho (`V` is `n×(n−k)`) flow through
-  `Crystal_EC` (band count `n−k`), `cDM_CD` (density still full `n×n` via `C=V·U'`), and the collocation;
-  mirror the molecular path's rectangular-V handling. This is the real work and gates (b).
-- **(b) The user-friendly automation** (agreed design; resolved-investigation record: doc/GPWHistory.md): **auto-Rcut**
-  [**DONE `9714f58d`** — Rcut<0 = AUTOMATIC, radius from the basis, 3-mode convention] via a basis reach scalar (wall B — the lattice enumerates `CellsInSphere(MaxReach+span)`; exponents
-  stay behind the molecular-basis wall, k-convention stays lattice-side), removing the `Rcut` param for one ε
-  (CP2K `EPS_PGF_ORB`; CP2K sets no user Rcut). **Auto-tol** via `LASolver` GAP DETECTION (pure LA): force-drop
-  `d[i]≤0`, scan the low region for the largest consecutive ratio; if `> R_threshold` (default **30**, exposed
-  at the Calculation facade) it's a CLEAN gap → cut there, else fall back to the ε-tol + WARN. `orthoTol<0`=auto
-  / `=0`=none / `>0`=explicit (mirrors `densityEcut`). **Auto-cut allowed but NEVER silent** — always `cerr` WARN
-  (count + gap ratio + clean/ambiguous). Vision: collapse to ~one CP2K-like ε.
+## 1. ROBUST HANDLING OF DIFFUSE BASIS FUNCTIONS (was "DROP SR"; demoted from critical path 2026-07-23)
+**Goal: a grad student can add diffuse functions AT WILL; the code detects near-null overlap modes,
+drops them in the ORTHO TRANSFORM (never the basis), WARNS loudly, and everything downstream just
+works.**  Now known SAFE (the dropped modes carry ~1 mHa — the SR↔SR2 measurement) and known NON-URGENT
+(λ~1e-6 runs stably via Cholesky + the seeded-aufbau recipe — the §1 probe).  Essential steps:
+1. **Rectangular V through the periodic stack** (the real work; unblocks `DISABLED_NaFFullBasisEigenTol`):
+   a truncated ortho (V is n×(n−k)) must flow through `Crystal_EC` (band count n−k), `cDM_CD` (density
+   stays full n×n via C=V·U′), and the collocation — mirror the molecular path's rectangular handling.
+2. **Auto-tol via LASolver GAP DETECTION** (pure LA): force-drop d[i]≤0; scan the low spectrum for the
+   largest consecutive ratio; ratio > R_threshold (default 30, exposed at the Calculation facade) = a
+   clean gap → cut there; else ε-tol fallback + WARN.  `orthoTol<0`=auto / `=0`=none / `>0`=explicit
+   (mirrors `densityEcut`).
+3. **NEVER SILENT**: every auto-drop reports count + gap ratio + clean/ambiguous on `cerr`; a λ_min /
+   condition-number line joins the run-start diagnostics (`ReportGrids` sibling) so conditioning is
+   visible BEFORE it bites.
+4. **Default-path SCF robustness** (with 0h): the seeded-aufbau/MOM-guard recipe that tames these bases
+   lives in test env knobs today — promote the working policy into the facade defaults.
+5. **Gates**: full-basis (VALENCE_LOWQ) NaF == the SR/SR2 answers ± the dropped-mode mHa; Si anchors
+   untouched; the never-silent WARN asserted in a test.
+Vision: collapse to ~one CP2K-like ε.  (Auto-Rcut half is DONE — enumeration is ε-complete in-seam.)
 
-Until (a) lands, **SR stays** (dimension-preserving, cleanly PD, no truncation).
-
----
 
 ## 2. Low-q multi-species bases → Si/NaF/CsI cross-validation (PW + GPW + CP2K)
 
@@ -590,6 +481,33 @@ no time-reversal factor. Validate bit-level: reduced-mesh-with-weights == full-m
 is an *efficiency* layer, not a correctness requirement — hence it comes AFTER a working full-BZ reference.
 
 ## 5. Deferred cleanups (do once bulk works — "the working code is the definitive declaration")
+- **ISP-split the fit-basis ctors (user design, 2026-07-23 — final form).**  `PlaneWaveFit_IBS` is
+  built from the whole `PW_Grid_Evaluator` (ball + raster + the orbital tier — the last is pure
+  baggage).  The honest signatures differ PER ROLE:
+  - **CD/ρ fit ← `{G}_ρ` (a `PW_Ball`: recip, k, Ecut, members) ALONE.**  The alias-free raster
+    computes the ball coefficients EXACTLY and is DERIVABLE from the ball (`FFTGrid()` already does) —
+    it is an implementation detail of the COLLOCATION ENGINE, not a property of the ρ fit basis.
+    (The raster round-trip IS the fast evaluation of the analytic projections — per-pair boxes + one
+    FFT vs ~1e10 closed-form Gaussian-FT evaluations at NaF scale — so it stays, but INSIDE.)
+  - **Vxc fit ← (`{G}_vxc`, integration grid) as TWO arguments.**  v_xc(ρ(r)) is NOT band-limited
+    (the nonlinearity), so its projection is a genuine QUADRATURE with a real accuracy choice — the
+    integration grid is an independent degree of freedom (and the natural GGA densification hook),
+    deservedly explicit at the seam.
+  Makes ball-vs-raster structural instead of documentary (this week's confusion is the evidence), and
+  dovetails with §0.5(f)'s per-role ball calibrations.  **SCHEDULING (user 2026-07-23): if the explicit
+  Vxc-fit ctor is easy while implementing §0.5(f), do them TOGETHER — this item then partially lands
+  early and only the CD/ρ-fit `PW_Ball`-alone ctor remains here.**
+- **Cache2/Cache3 BYTE-BUDGET LRU + per-cache RAM report (user-approved 2026-07-23; the intended
+  REPLACEMENT for the clear-based band-aid).**  The MnD geometry caches (Ω/RNLM/H3) currently stay
+  correct on lattice paths only because the drivers call `ClearGeometryCaches()` per pair and the 3C
+  kernel ships a duplicated `Overlap3CStream` — cache-then-clear is the WRONG shape (user).  The clean
+  design: give Cache2/Cache3 a BYTE budget with LRU eviction (`RAMsize()` plumbing exists), and let the
+  ALGORITHM (not the user) select the policy per scope — a lattice driver pushes a scoped tiny budget
+  (size-1 preserves the `const&`-returning contract AND the within-triple component reuse at O(1)
+  memory), molecular paths keep the generous default.  One mechanism with per-cache specificity
+  (Ω/RNLM/H3); the `ClearGeometryCaches()` calls and `Overlap3CStream` duplication then RETIRE.  Also:
+  extend the end-of-run `IntegralsCache RAM usage report` with per-cache byte sizes (growth visible in
+  every log instead of discovered by OOM).
 - **Rigorous periodic external PP:** `MakeLocalPP`/`MakeSeparablePP` quadrature the HOME-CELL orbitals against
   the cell's OWN atoms (no periodic-image PP) — exact at Γ / large box, an approximation for a dense crystal.
   Sum the PP over lattice images (analogous to Ewald / the PW G-space assembly).
@@ -608,6 +526,19 @@ is an *efficiency* layer, not a correctness requirement — hence it comes AFTER
   honor it, building its Vxc grid at `Ecut*relCutoff`). LDA relCutoff==1 so it's exact — but a GGA's ∇ρ wants a
   DENSER v_xc grid. Fix = build a separate Vxc grid at `densityEcut*relCutoff`, mirroring the PW Vxc line. A
   guard `assert(relCutoff<=1)` now fires loudly on a GGA-on-GPW attempt instead of silently using the LDA grid.
+  **PREREQUISITE NOW IN PLACE (2026-07-20): the fit-grid seam is honest.**  Previously `GPW`'s
+  `MakeRepulsion3C(c)`/`MakeOverlap3C(c)` (the shared `EPW_Orbital_DFT_IBS` mixin) DROPPED the fit basis `c`
+  and rebuilt the tensor from the block's own `itsGrid` — so a denser `CreateVxcFitBasisSet` grid would have
+  been SILENTLY IGNORED (the policy factory and the tensor builder were two disconnected sources of truth for
+  the density-fit `{G}`, reconciled only by both hard-coding `DensityGrid()`).  Now `GPW_IBS` overrides those
+  two seams to build the tensor over the REQUESTED fit basis's grid (`c` IS-A `PW_Grid_Evaluator`;
+  `GPW_Evaluator::Repulsion3CTensor(grid)`/`Overlap3CTensor(grid)` + a grid-parameterized `BuildLevels` ladder).
+  Bit-identical while the factory wraps `DensityGrid()` (Si Γ −7.11485 / multi-k −7.45133 / adjoint
+  machine-exact / all GPW gates green), and the block's own `OverlapMatrix`/`MakeLocalPP` (KS-assembly, not a
+  requested table) keep `itsGrid`.  So densifying `CreateVxcFitBasisSet` will now ACTUALLY take effect for the
+  collocated ρ̃ — the GGA increment can diverge the CD/Vxc grids without the tensor silently overriding it.
+  (PW's own `relCutoff` Vxc path — `PlaneWaveDFT.ItemK_RelCutoffDensifiesAndConvergesVxc` — was left untouched,
+  deliberately not lumped into the GPW-scoped fix; audit it separately if the shared mixin is ever unified.)
 - **Multi-grids + whole-density collocation — DONE** (the C+D analytic rewrite, see the DONE entry).
 - **Common `PW_Evaluator`/`GPW_Evaluator` base:** the shared FFT engine (`PeriodicGridEvaluator`) is already
   factored; a base earns its keep once general-k k-space logic is shared.
