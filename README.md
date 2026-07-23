@@ -78,7 +78,7 @@ src/
   ChargeDensity/ density matrices, direct/exchange accumulation
   Orbitals/ WaveFunction/ SCFIterator/ SCFAccelerator/   the SCF loop
   Fitting/ LASolver/ Factory/
-UnitTests/       GoogleTest suite (build target: UTMain)
+IntegrationTests/  GoogleTest SCF integration suite (build target: ITMain)
 doc/             reference data (HF, DFT, DHF energies)
 ```
 
@@ -92,9 +92,9 @@ submodules (blaze, libxc, wignerSymbols, json, googletest, tabulate, BSplinebasi
 git clone --recursive <repo-url> qchem
 cd qchem
 cmake -S . -B build/Debug -DCMAKE_BUILD_TYPE=Debug
-cmake --build build/Debug --target UTMain -j4
-# run the tests (from the UnitTests build dir, so the doc/ data resolves):
-( cd build/Debug/UnitTests && ./UTMain )
+cmake --build build/Debug --target ITMain -j16
+# run the tests: all discovered gtest cases, load-balanced across cores
+( cd build/Debug && ctest -j16 )
 ```
 
 ## Status

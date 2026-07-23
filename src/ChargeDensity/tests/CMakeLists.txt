@@ -4,6 +4,7 @@ add_executable(UTChargeDensity ../../Common/tests/gtestmain.C
    Version.C
    IonicCharges.C
    KerkerMix.C
+   AtomicDensity.C
 )
 
 target_compile_options(UTChargeDensity PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})

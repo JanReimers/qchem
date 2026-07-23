@@ -1,0 +1,47 @@
+
+link_directories(
+    $<$<CONFIG:Debug>:  submodules/libxc/build>
+    $<$<CONFIG:Release>:  submodules/libxc/build>
+)
+
+add_executable(ITMain gtestmain.C
+    EigenSolverUT.C
+    PlaneWaveDFTUT.C
+    A_HF_U.C A_HF_P.C A_HF_dfPin.C A_DHF.C A_DFT.C A_DFT_U.C A_PP.C L_PP.C GPW_UT.C GPW_SCF_UT.C M_HF_U.C M_DFT.C M_Sym.C
+    M_Calculation.C
+    ValenceBasisGen_UT.C
+    M_Umbrella.C
+    )
+# The QchemTester/TestAtom/TestDiracAtom/TestMolecule scaffold is RETIRED: every molecular test drives
+# qchem::Calculation and every atom/Dirac/PP test (and scfrun) drives qchem::AtomCalculation.  TestUtils
+# holds the shared free RelativeError / RelativeHF/DFT/DHFError helpers.
+target_sources(ITMain PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES TestUtils.C)
+
+#-Wno-unknown-pragmas
+# -Wno-cpp  Suppress warning messages emitted by #warning directives.
+
+target_compile_options(ITMain PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
+target_compile_definitions(ITMain PRIVATE ${CXX_COMMON_COMPILE_DEFINITIONS})
+target_compile_definitions(ITMain PRIVATE ${BasisDataPath})
+set_property(TARGET ITMain PROPERTY CXX_STANDARD 20)
+
+target_include_directories(ITMain PRIVATE
+    ${PROJECT_SOURCE_DIR}/submodules/BSplinebasis/include
+    ${PROJECT_SOURCE_DIR}/submodules/json/single_include
+    ${PROJECT_SOURCE_DIR}/submodules/blaze
+    ${PROJECT_SOURCE_DIR}/submodules/tabulate/include
+    ${PROJECT_SOURCE_DIR}/submodules/googletest/googletest/include
+    ${PROJECT_BINARY_DIR}/submodules/libxc
+)
+target_link_libraries(ITMain PRIVATE qcUmbrella qchem qcMath qcCommon xc blas gtest)
+
+
+
+# add_executable(DiracHydrogen DiracHydrogen.C)
+# target_include_directories(DiracHydrogen PRIVATE ${PROJECT_SOURCE_DIR}/submodules/blaze)
+# target_link_libraries(DiracHydrogen PUBLIC qchem lapack blas)
+# set_property(TARGET DiracHydrogen PROPERTY CXX_STANDARD 20)
+
+# setup testing
+include(GoogleTest)
+gtest_discover_tests(ITMain)

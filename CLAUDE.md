@@ -8,13 +8,21 @@ Brief notes about module/library conventions, naming, and includes.
 
 ## Build & test
 
-- Build & test: `cd build/Release && ninja UTMain`, then `./UnitTests/UTMain` (filter `-A_*` for
-    fast runs; a full run including the `A_*` tests is the regression anchor).
+- Build & test: `cd build/Release && ninja ITMain`, then `ctest -j16` from `build/Release` — every
+    gtest case (integration + library unit tests) runs as its own ctest test, load-balanced across
+    cores with longest-first scheduling after the first run.  (ctest is for Claude/CI batch sweeps;
+    the user drives tests through the C++ TestMate tree in VSCode, which discovers the same exes
+    directly — keep `testMate.cpp.test.executables` in .vscode/settings.json matching any new
+    test-exe names.)
+- For a quick focused run, invoking the exe directly still works: `./IntegrationTests/ITMain`
+    (filter `-A_*` for fast runs; a full `ctest -j16` pass is the regression anchor).
 - Calling ninja directly is fine. (I earlier suggested cmake only because ninja rebuilds were flaky —
     needing file-touches to trigger them. If ninja works well for you, use it.)
-- There are interation tests in the (now mis-named) Unitests folder.  The exe target is UTMain
-- But there are also lot of actual unit tests in most of project-module (library) folders, under tests in each one.
-- allTests is the CMake target to include them.  It if fine to just focuse on UTMain or one pertinent unit test while devloping, but please build and pass every thing before any big commits.
+- SCF integration tests (full SCF through the Calculation/AtomCalculation facades) live in
+    IntegrationTests/; the exe target is ITMain (renamed from UnitTests/UTMain 2026-07).
+- The actual unit tests live in most project-module (library) folders, under tests/ in each one.
+- allTests is the CMake target to build every test exe. It is fine to just focus on ITMain or one
+    pertinent unit test while developing, but please build and pass everything before any big commits.
 
 ## pybind/ — do not modify (GUI/binding-owned)
 The `pybind/` directory is the Python binding (nanobind C++ glue that compiles
