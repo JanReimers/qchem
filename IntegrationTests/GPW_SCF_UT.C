@@ -459,13 +459,17 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     // direct-min loop does not density-mix anyway.
     std::vector<std::unique_ptr<qchem::SCFAccelerators::tSCFAccelerator<dcmplx>>> rungs;
     rungs.push_back(std::make_unique<qchem::SCFAccelerators::cSCFAcceleratorDIIS>(
-                        qchem::SCFAccelerators::DIISParams{8, 1.0, 1e-10, 1e-9}));     // rung 0: DIIS (Nproj=8)
+                        qchem::SCFAccelerators::DIISParams{8, 0.1, 1e-10, 1e-9}));     // rung 0: DIIS (Nproj=8)
     rungs.push_back(std::make_unique<qchem::SCFAccelerators::cSCFAcceleratorGDM>(
                         qchem::SCFAccelerators::GDMParams{/*FDMax*/1.0}));              // rung 1: GDM geodesic (FDMax wide
                                                                                        //   so GDM actually ENGAGES, not
                                                                                        //   the FDMax-gated unmixed fallback)
+    // Solid: hand DIIS->GDM on the ENERGY change, not [F,D] -- on this ionic crystal [F,D] is contaminated by
+    // the charge-transfer slosh / giant-response virtual and may never settle, while |ΔE/E| does.  switchat is
+    // now a RELATIVE |ΔE/E| threshold (was a [F,D] one).  Converges ~12-15 iters; robust across α/G0 tuning.
     auto* acc = new qchem::SCFAccelerators::cSCFAcceleratorLadder(
-                        std::move(rungs), /*ethresh*/1e-8, /*stall*/5, /*floor*/1e-8, /*switchat*/2e-2);
+                    std::move(rungs), /*ethresh*/1e-8, /*stall*/5, /*floor*/1e-8, /*switchat*/1e-6,
+                    qchem::SCFAccelerators::ScheduleSignal::EnergyChange);
     qchem::ReportOverlapConditioning()=true;   // report min eig(S)/min sv(S) at SetBasisOverlap (the ctor below)
     qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc,
                                          qchem::ChargeDensity::SeedStrategy::IonicSAD, lat.GetStructure().get(),
@@ -475,15 +479,16 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     // the 0h guard self-corrects a bad MOM capture, so nothing here needs hand-tuning):
     SCFParams par;
     par.NMaxIter       = 200;
-    par.MinΔE          = 1e-8;   // E-flat exit: THE gate for this non-variational settled-E case...
-    par.MinΔρ          = 1e30;   //   ...the density is NOT a criterion here (CP2K's limit-cycles likewise)
+    par.MinΔE          = 1e-8;   // E-flat exit (the energy is the clean signal here -- see the ΔE hand-off above)
+    par.MinΔρ          = 1e-4;   // AND a density gate: a spurious small ΔE can trip the E-flat exit early, so
+                                 //   also require Δρ to settle (user 2026-07-24; ~12 iters at 2e-4, ~15 at 1e-4)
     par.MinΔFD         = 1e30;
     par.MinVirial      = 1e30;
     par.MinFD          = 1e30;
     par.Verbose        = true;
-    par.StartingRelaxRo= 0.25;   // Kerker mixing fraction (raw-XC landscape; the ball-era 0.025 was
+    par.StartingRelaxRo= 0.45;   // Kerker mixing fraction (raw-XC landscape; the ball-era 0.025 was
                                  //   calibrated against limit cycles that no longer exist -- user, 2026-07-23)
-    par.KerkerG0       = 1.0;    // Kerker screening wavevector (a.u.^-1): damp the low-G charge-transfer slosh
+    par.KerkerG0       = 0.5;    // Kerker screening wavevector (a.u.^-1): damp the low-G charge-transfer slosh
     par.UseMOM         = true;   // occupied-subspace continuity; the 0h guard releases a bad capture
     par.MOMStartIter   = 10;     // delayed IMOM: descend by plain aufbau first, then capture ONCE
     par.PulayDepth     = 0;      // density-Pulay OFF: the Fock-space Ladder (DIIS->GDM) is now the accelerator
