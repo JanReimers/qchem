@@ -461,9 +461,9 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     rungs.push_back(std::make_unique<qchem::SCFAccelerators::cSCFAcceleratorDIIS>(
                         qchem::SCFAccelerators::DIISParams{8, 1.0, 1e-10, 1e-9}));     // rung 0: DIIS (Nproj=8)
     rungs.push_back(std::make_unique<qchem::SCFAccelerators::cSCFAcceleratorGDM>(
-                        qchem::SCFAccelerators::GDMParams{/*EMax*/1.0}));              // rung 1: GDM geodesic (EMax wide
+                        qchem::SCFAccelerators::GDMParams{/*FDMax*/1.0}));              // rung 1: GDM geodesic (FDMax wide
                                                                                        //   so GDM actually ENGAGES, not
-                                                                                       //   the EMax-gated unmixed fallback)
+                                                                                       //   the FDMax-gated unmixed fallback)
     auto* acc = new qchem::SCFAccelerators::cSCFAcceleratorLadder(
                         std::move(rungs), /*ethresh*/1e-8, /*stall*/5, /*floor*/1e-8, /*switchat*/2e-2);
     qchem::ReportOverlapConditioning()=true;   // report min eig(S)/min sv(S) at SetBasisOverlap (the ctor below)

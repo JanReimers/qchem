@@ -171,9 +171,9 @@ template <class T> bool tSCFAcceleratorDIIS<T>::CalculateProjections()
     }
     itsEn=sqrt(itsEn);
     // cout << "itsEn=" << itsEn << endl;
-    if (itsEn>itsParams.EMax)
+    if (itsEn>itsParams.FDMax)
     {
-        bailoutReason="En>EMax     ";
+        bailoutReason="FD>FDMax    ";
         itsStuckCount=0;        //early (pre-DIIS) phase, not "out of steam"
         return false;
     }

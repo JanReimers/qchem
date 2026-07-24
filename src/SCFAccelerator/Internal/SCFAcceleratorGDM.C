@@ -29,7 +29,8 @@ export namespace qchem::SCFAccelerators
 
 struct GDMParams
 {
-    double EMax;          //Switch from a diagonalizing first step to GDM steps once [F,D] < EMax.
+    double FDMax;         //Engage the geodesic step once the residual [F,D] < FDMax (below that, run a
+                          //  diagonalizing step).  Named for what it gates on -- [F,D], NOT the energy.
     double Trust=0.1;     //Trust radius: cap the largest geodesic rotation angle (radians) per step.
 };
 
@@ -52,6 +53,10 @@ public:
 private:
     friend class tSCFAcceleratorGDM<T>;
     double GetError() const {return itsEn;}
+    //! Ready to take a geodesic step THIS iteration (mirrors ComputeStep's gate, minus the Fock build):
+    //! seeded, a well-posed occ/virt split, and the residual [F,D] already below FDMax.  itsFp is empty
+    //! before the first UseFD, so this is false (unsigned itsNocc < 0 rows) until seeded -- as intended.
+    bool Ready() const { return itsHaveC && itsNocc>0 && itsNocc<itsFp.rows() && itsEn<itsParams.FDMax; }
 
     GDMParams               itsParams;
     const LASolver<T>*      itsLASolver;
@@ -92,6 +97,7 @@ public:
     virtual double GetError() const;
     virtual const char* Tag() const {return "GDM";}
     virtual bool   WantsLineSearch() const {return true;} //GDM is run by the direct-min loop.
+    virtual bool   CanLineSearch() const; //true once every irrep is Ready() (seeded + [F,D]<FDMax)
 private:
     GDMParams itsParams;
     std::vector<tSCFIrrepAcceleratorGDM<T>*> itsIrreps;

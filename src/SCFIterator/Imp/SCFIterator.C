@@ -259,8 +259,10 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
         // density mixer entirely -- both the per-step Mix() (already: DirectMinDriver never calls it) AND the
         // post-step adaptive re-damp/UpdateRelax below (a LinearMixer's WantsReDamp would otherwise re-mix
         // AFTER a geodesic step, corrupting it).  One query drives the driver choice, the mixer bypass, and
-        // the honest ρ_mix="----" display.
-        const bool lineSearch = itsAccelerator->WantsLineSearch();
+        // the honest ρ_mix="----" display.  CanLineSearch() gates the ACTUALITY: a minimizer that WantsLineSearch
+        // but is not yet READY (still seeding, or [F,D] above its FDMax engage threshold) takes a MIXED
+        // fixed-point step this iteration instead of the unmixed diagonalize that runs away when ill-conditioned.
+        const bool lineSearch = itsAccelerator->WantsLineSearch() && itsAccelerator->CanLineSearch();
         const tLoopDriver<T>& driver = lineSearch
                                      ? static_cast<const tLoopDriver<T>&>(itsDirectDriver)
                                      : static_cast<const tLoopDriver<T>&>(itsFixedDriver);
@@ -382,9 +384,15 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
 {
     if (!itsWaveFunction->BuildFockAndComputeSteps(*itsHamiltonian,itsCD.get()))
     {
-        itsWaveFunction->DoSCFIteration(*itsHamiltonian,itsCD.get());
+        // Seed / bail: no geodesic this step (normally pre-empted by CanLineSearch() -> FixedPointDriver, but
+        // reachable if [F,D] jumps above FDMax between that check and the fresh Fock).  Do a MIXED step, not an
+        // unmixed diagonalize: drive the Fock from the mixed density and fold the result back, so a bailed
+        // geodesic degrades to a STABLE step.  α=1 (LinearMixer passthrough) => molecular direct-min unchanged.
+        itsWaveFunction->DoSCFIteration(*itsHamiltonian, itsMixer->FockDensity(itsCD));
         itsWaveFunction->FillOrbitals(mergeTol);
-        return cd_t(itsWaveFunction->GetChargeDensity());
+        cd_t fresh(itsWaveFunction->GetChargeDensity());
+        itsMixer->Mix(fresh, itsCD);                     // fold ρ_out into ρ_in (itsCD drove this Fock)
+        return fresh;
     }
     double t=1.0, Et=0, best=1e300; int k=0; bool found=false;
     for (;k<12;k++)

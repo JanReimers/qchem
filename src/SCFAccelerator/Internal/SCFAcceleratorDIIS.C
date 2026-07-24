@@ -15,8 +15,9 @@ export namespace qchem::SCFAccelerators
 struct DIISParams
 {
     size_t Nproj;  //Number of terms to keep for proections.
-    double EMax;   //DIIS starts when E<EMax
-    double EMin;   //DIIS stops when E<EMin
+    double FDMax;  //DIIS STARTS extrapolating once the residual [F,D] < FDMax.  (Named for the residual it
+                   //  gates on -- the DIIS error IS [F,D], NOT the energy; the old "EMax" name was a trap.)
+    double FDMin;  //DIIS STOPS once [F,D] < FDMin (converged; hand back to plain diagonalization).
     double SVTol;  //DIIS bails out when the minimum singular value of B matrix is < SVTol;
 };
 
@@ -78,7 +79,7 @@ public:
     virtual double GetError() const;
     virtual const char* Tag  () const {return "DIIS";}
     virtual int         Count() const {return (int)GetNProj();}   // projection depth = the accel column's number
-    // Out of steam: past EMax but unable to extrapolate (singular/tiny B) for several steps.
+    // Out of steam: past FDMax but unable to extrapolate (singular/tiny B) for several steps.
     virtual bool   Exhausted() const {return itsStuckCount>=3;}
 
 private:
@@ -100,7 +101,7 @@ private:
     double itsEn,itsLastSVMin;
     rvec_t itsCs;
     std::string bailoutReason;
-    int itsStuckCount=0; //consecutive past-EMax iterations with no successful extrapolation.
+    int itsStuckCount=0; //consecutive past-FDMax iterations with no successful extrapolation.
     bool itsSeeded=false; //true once any irrep has had a nonzero error (past the zero-density start)
 };
 

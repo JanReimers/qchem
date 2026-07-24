@@ -55,6 +55,11 @@ public:
     // Should the SCF iterator run its direct-minimization loop (geodesic line search, no
     // density mixing)?  True for a GDM-style minimizer; the ladder reports its active rung's.
     virtual bool WantsLineSearch() const {return false;}
+    // Is a geodesic step actually READY this iteration (seeded + residual under its engage threshold)?  The
+    // iterator runs the direct-min driver only when WantsLineSearch() AND CanLineSearch(); otherwise it does a
+    // MIXED fixed-point step -- so a not-yet-ready minimizer degrades to a stable mixed diagonalize, never an
+    // UNMIXED one (which runs away on ill-conditioned systems).  Default false: non-minimizers never line-search.
+    virtual bool CanLineSearch() const {return false;}
 };
 
 using SCFIrrepAccelerator  = tSCFIrrepAccelerator<double>;  using cSCFIrrepAccelerator = tSCFIrrepAccelerator<dcmplx>;

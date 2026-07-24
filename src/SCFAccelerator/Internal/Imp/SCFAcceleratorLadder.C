@@ -50,14 +50,20 @@ template <class T> bool tSCFAcceleratorLadder<T>::CalculateProjections()
     double relDE = (itsLastE!=0.0) ? std::fabs((itsLastE-itsPrevE)/itsLastE) : 1.0;
     bool stallSwitch = Active()->Exhausted()
                     && itsNoImprove>=itsStall && relDE>itsEThresh && err>itsFloor;
-    //near convergence: hand to the polisher (err>0 guards the initial state, before the active
-    //rung has produced orbitals and computed a real [F,D]).
-    bool tailSwitch  = itsSwitchAt>0.0 && err>0.0 && err<itsSwitchAt;
+    // TAIL hand-off: the SCHEDULE SIGNAL has dropped below switchat (near convergence).  Error ([F,D],
+    // molecular default) or EnergyChange (|ΔE/E|, solids -- see ScheduleSignal).  The validity guard skips
+    // the initial state: Error needs a real [F,D] (err>0, before any orbitals err==0); EnergyChange needs
+    // two energies (itsPrevE set), else relDE's sentinel 1.0 would look "not yet settled" anyway.
+    const bool energyGated = (itsSignal==ScheduleSignal::EnergyChange);
+    const double tailMetric = energyGated ? relDE : err;
+    const bool   tailValid  = energyGated ? (itsPrevE!=0.0) : (err>0.0);
+    bool tailSwitch  = itsSwitchAt>0.0 && tailValid && tailMetric<itsSwitchAt;
     if (itsActive+1<itsRungs.size() && (stallSwitch || tailSwitch))
     {
         cout << "  *** SCF accelerator ladder: rung " << itsActive
-             << (tailSwitch ? " near convergence (err=" : " exhausted (|dE/E|=")
-             << (tailSwitch ? err : relDE)
+             << (tailSwitch ? (energyGated ? " near convergence (|dE/E|=" : " near convergence (err=")
+                            : " exhausted (|dE/E|=")
+             << (tailSwitch ? tailMetric : relDE)
              << ") -> advancing to rung " << itsActive+1 << " ***" << endl;
         itsActive++;
         itsBestErr=1e300; itsNoImprove=0;
@@ -67,6 +73,7 @@ template <class T> bool tSCFAcceleratorLadder<T>::CalculateProjections()
 
 // The ladder runs the direct-min loop exactly when its active rung is a direct minimizer.
 template <class T> bool tSCFAcceleratorLadder<T>::WantsLineSearch() const { return Active()->WantsLineSearch(); }
+template <class T> bool tSCFAcceleratorLadder<T>::CanLineSearch()  const { return Active()->CanLineSearch(); }
 
 template <class T> double tSCFAcceleratorLadder<T>::GetError() const { return Active()->GetError(); }
 template <class T> void   tSCFAcceleratorLadder<T>::ShowLabels(std::ostream& os)      const { Active()->ShowLabels(os); }

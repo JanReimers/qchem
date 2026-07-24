@@ -81,6 +81,16 @@ private:
     const size_t*                                         itsActiveIdx; //shared with the top-level ladder
 };
 
+//! Which convergence signal drives the TAIL hand-off (see the design notes above + doc/SCFStrategyPlan.md).
+//! The scheduling signal is a LOOP-FACE policy, NOT a per-rung param -- the ladder already consumes both
+//! signals (SetEnergy + GetError), so the choice lives here, once, rather than smeared across the rungs.
+//!   Error       -- switch once the residual [F,D] < switchat.  Right for well-conditioned MOLECULES, where
+//!                  [F,D] (the true orbital gradient) drives cleanly to 0.
+//!   EnergyChange -- switch once |ΔE/E| < switchat.  Right for SOLIDS, where [F,D] is contaminated by
+//!                  charge-transfer slosh / diffuse-mode ill-conditioning / giant-response spikes and may
+//!                  never settle, while the total energy (a variational scalar) does.
+enum class ScheduleSignal { Error, EnergyChange };
+
 // Top-level: chain {DIIS, GDM, ...}.  Switch when the active rung is Exhausted() and stalled.
 template <class T> class tSCFAcceleratorLadder : public virtual tSCFAccelerator<T>
 {
@@ -89,14 +99,16 @@ public:
     //   STALL  -- the active rung is Exhausted() AND its error has not improved for `stall`
     //             steps AND the energy is still moving (|dE/E| > ethresh): a genuine
     //             non-convergence the next rung should rescue.  `floor` is a low backstop.
-    //   TAIL   -- the active rung has driven the error below `switchat` (i.e. we are near
+    //   TAIL   -- the active rung has driven the SCHEDULE SIGNAL below `switchat` (i.e. we are near
     //             convergence): hand off to the next rung to POLISH the tail.  This is the
     //             slot for a direct minimizer (GDM owns the loop), which is fast and robust
-    //             near the minimum but useless far from it.  switchat<=0 disables this.
+    //             near the minimum but useless far from it.  switchat<=0 disables this.  `signal`
+    //             selects [F,D] (Error, molecular default) vs |ΔE/E| (EnergyChange, solids).
     tSCFAcceleratorLadder(std::vector<std::unique_ptr<tSCFAccelerator<T>>> rungs,
-                          double ethresh=1e-8, int stall=5, double floor=1e-8, double switchat=0.0)
+                          double ethresh=1e-8, int stall=5, double floor=1e-8, double switchat=0.0,
+                          ScheduleSignal signal=ScheduleSignal::Error)
         : itsRungs(std::move(rungs)), itsEThresh(ethresh), itsStall(stall),
-          itsFloor(floor), itsSwitchAt(switchat) {}
+          itsFloor(floor), itsSwitchAt(switchat), itsSignal(signal) {}
     virtual tSCFIrrepAccelerator<T>* Create(const LASolver<T>*,const Irrep&, int occ);
     virtual bool   CalculateProjections();
     virtual void   ShowLabels     (std::ostream&) const;
@@ -106,6 +118,7 @@ public:
     virtual int         Count() const;
     virtual void   SetEnergy(double E);
     virtual bool   WantsLineSearch() const; //true once the active rung is a direct minimizer
+    virtual bool   CanLineSearch() const;   //delegates to the active rung's readiness
 private:
     tSCFAccelerator<T>* Active() const //the live rung, bounds-checked
         { assert(itsActive<itsRungs.size()); return itsRungs[itsActive].get(); }
@@ -114,7 +127,8 @@ private:
     double                       itsEThresh; //hand off only while |dE/E| exceeds this
     int                          itsStall;
     double                       itsFloor;
-    double                       itsSwitchAt; //tail hand-off: switch once error < this
+    double                       itsSwitchAt; //tail hand-off: switch once the schedule signal < this
+    ScheduleSignal               itsSignal;   //which signal the tail hand-off gates on ([F,D] vs |ΔE/E|)
     size_t                       itsActive=0;
     double                       itsBestErr=1e300; //best (smallest) error since this rung started
     int                          itsNoImprove=0;   //consecutive steps without beating itsBestErr

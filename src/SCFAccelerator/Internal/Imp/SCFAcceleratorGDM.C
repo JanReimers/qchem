@@ -97,7 +97,7 @@ template <class T> bool tSCFIrrepAcceleratorGDM<T>::ComputeStep()
 {
     itsActive=false;
     size_t n=itsFp.rows(), no=itsNocc;
-    if (!itsHaveC || no==0 || no>=n || itsEn>=itsParams.EMax) return false;
+    if (!itsHaveC || no==0 || no>=n || itsEn>=itsParams.FDMax) return false;
     itsActive=true;
     size_t nv=n-no;
 
@@ -219,6 +219,15 @@ template <class T> double tSCFAcceleratorGDM<T>::GetError() const
     double e=0.0;
     for (auto k:itsIrreps) e=std::max(e,k->GetError());
     return e;
+}
+
+// The direct-min driver runs only when EVERY irrep can take a geodesic step; if any is still seeding or
+// above FDMax, the iterator falls back to a stable MIXED fixed-point step instead.
+template <class T> bool tSCFAcceleratorGDM<T>::CanLineSearch() const
+{
+    if (itsIrreps.empty()) return false;
+    for (auto k:itsIrreps) if (!k->Ready()) return false;
+    return true;
 }
 
 template <class T> void tSCFAcceleratorGDM<T>::ShowLabels(std::ostream& os) const { os << "  |∇|  Nactive"; }
