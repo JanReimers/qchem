@@ -21,7 +21,7 @@ import qchem.Types;                                  // Vector3D / rvec3_t
 namespace qchem
 {
 
-using SCFIter = qchem::SCFIterator::SCFIterator;
+using SCFIter = qchem::SCFIterator::MolecularSCFIterator;   // item 2: the atom/molecule display subclass
 
 static bool IsDirac(Model m) {return m == Model::DE1 || m == Model::DHF;}
 

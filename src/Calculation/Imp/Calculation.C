@@ -25,7 +25,7 @@ namespace qchem
 {
 
 namespace PG = ::qchem::BasisSet::Molecule::PG_Cart;
-using SCFIter = qchem::SCFIterator::SCFIterator;
+using SCFIter = qchem::SCFIterator::MolecularSCFIterator;   // item 2: the atom/molecule display subclass
 
 // Build the molecular orbital basis, optionally SALC point-group-blocked.  When symmetry is off the
 // caller owns the raw basis directly; when on, the raw basis is handed to PG::SymmetryAdapt as a

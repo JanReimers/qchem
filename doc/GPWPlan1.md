@@ -54,6 +54,26 @@ Rides the same presentation cleanup as item 1 — do while the SCF surface is op
   it — the idealVirial fudge retires) and show the health instruments that already exist as ad-hoc
   lines: gap (hole-flagged, from the fixed HomoLumo)
 - Absorbs the `ReportBandGap()`/`ReportGridCharge()` process-wide flags into the per-system display.
+- **Increment 1 DONE**: the seam is `virtual DisplayColumnHeaders/DisplayColumns` on `tSCFIterator<T>`
+  with `MolecularSCFIterator`/`SolidSCFIterator` subclasses (user-chosen seam); base default = the
+  molecular layout, Solid overrides it.  Compact self-identifiers added: `tDensityMixer::Tag()`
+  (Lin/Ker/Pul, number = α) and `tSCFAccelerator::Tag()`+`Count()` (Null / DIIS:Nproj / **GDM** — the
+  real class name, plan's "GMD" was a typo).  `cfg` = 1 char, `*` on occupied-config change.  Solid gap
+  is a PERMANENT column (folds `ReportBandGap()`); the virial is dropped there.  The old `ShowLabels`/
+  `ShowConvergence` accel blob is deprecated (kept, unused) pending retirement.  Facades → Molecular,
+  GPW/PW tests → Solid.  Suite 565/565.
+- **Increment 1 follow-ups (same session)**: display-width-aware header alignment (UTF-8 Δ/ρ/ε labels
+  line up with the setw'd data); retired the ad-hoc `[Pulay] ENABLED`/`{G}_vxc` prints + made
+  `[grid charge]` env-opt-in (`GPW_GRIDCHARGE`) so verbose tables stay clean; a Null accelerator's
+  absent [F,D] shows `----`.  **Mixer-override fix**: direct-min (GDM/OT) now provably disables the
+  density mixer BOTH per-step and post-step (the `WantsReDamp`/`UpdateRelax` block was running under
+  direct-min — a latent LinearMixer corruption); `ρ_mix` shows `----` when a direct-min step owns the
+  loop.  `DISABLED_NaFRocksaltGamma` rewired to a `cSCFAcceleratorDIIS→cSCFAcceleratorGDM` Ladder (user
+  experiment): DIIS descends to −24.478 on the raw-XC map, GDM then limit-cycles — **empirical proof the
+  GPW collocation E[ρ] is non-variational** (a direct minimiser cannot descend it).  Future (user): OT
+  method → revisit whether mixers get an explicit off-switch / null-mixer swap for GDM/OT (OOD call).
+- **Increment 2 (deferred)**: `ρ_lost` (the `ReportGridCharge()` fold) — needs a grid-charge getter
+  lifted out of `PWTerms` up to the Hamiltonian so the Solid row can show ∫ρ_grid − Tr(DS) as a column.
 
 ### 3. CACHE2/3 BYTE-BUDGET LRU (GPWPlan §5 design, user-approved)
 Independent; land BEFORE item 4a because the diffuse-basis campaigns are exactly the workload that

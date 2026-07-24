@@ -90,6 +90,7 @@ public:
     virtual void   ShowLabels     (std::ostream&) const;
     virtual void   ShowConvergence(std::ostream&) const;
     virtual double GetError() const;
+    virtual const char* Tag() const {return "GDM";}
     virtual bool   WantsLineSearch() const {return true;} //GDM is run by the direct-min loop.
 private:
     GDMParams itsParams;

@@ -76,6 +76,8 @@ public:
     virtual void   ShowLabels     (std::ostream&) const;
     virtual void   ShowConvergence(std::ostream&) const;
     virtual double GetError() const;
+    virtual const char* Tag  () const {return "DIIS";}
+    virtual int         Count() const {return (int)GetNProj();}   // projection depth = the accel column's number
     // Out of steam: past EMax but unable to extrapolate (singular/tiny B) for several steps.
     virtual bool   Exhausted() const {return itsStuckCount>=3;}
 

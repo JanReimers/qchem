@@ -45,6 +45,8 @@ import qchem.SCFParams;                          // SCFParams
 import qchem.ElectronConfiguration.Crystal;      // Crystal_EC (single-k Bloch occupation)
 import qchem.ChargeDensity.Seed;                 // SeedStrategy
 import qchem.SCFAccelerator.Internal.SCFAcceleratorDIIS; // cSCFAcceleratorDIIS (complex DIIS)
+import qchem.SCFAccelerator.Internal.SCFAcceleratorGDM;  // cSCFAcceleratorGDM (complex geodesic direct-min)
+import qchem.SCFAccelerator.Internal.SCFAcceleratorLadder; // cSCFAcceleratorLadder (DIIS -> GDM chain)
 import qchem.SCFAccelerator.Internal.SCFIrrepAcceleratorNull; // tSCFAcceleratorNull<dcmplx> (NaF: pure damped Kerker)
 import qchem.WaveFunction;                       // cWaveFunction (the converged state)
 import qchem.Energy;                             // EnergyBreakdown
@@ -136,7 +138,7 @@ GpwResult RunGPW(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, doub
     auto* acc=new qchem::SCFAccelerators::cSCFAcceleratorDIIS(qchem::SCFAccelerators::DIISParams{8, 8.0, 1e-10, 1e-9});
     // \a ortho / \a orthoTol: Cholesky (default) needs S positive-definite; for a periodic lattice basis the
     // diffuse Gaussians can go linearly dependent -> Eigen/SVD with a small-eigenvalue cutoff.
-    qchem::SCFIterator::cSCFIterator scf(bs.get(), &ec, ham, acc,
+    qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc,
                                          seed, lat.GetStructure().get(),
                                          ortho, orthoTol);
     std::vector<FpRow> series;   // capture the SCF trajectory for the dynamics fingerprint (Observer telemetry)
@@ -151,7 +153,7 @@ GpwResult RunGPW(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, doub
     // settles (~iter 15) instead of chasing fit noise to nmax.
     par.NMaxIter=nmax; par.MinΔρ=minDrho; par.MinΔE=minDE; par.MinΔFD=1e30; par.MinVirial=1e30; par.MinFD=1e30;
     par.StartingRelaxRo=0.3; par.MergeTol=1e-4; par.Verbose=verbose;
-    qchem::Hamiltonian::ReportGridCharge()=verbose || std::getenv("GPW_GRIDCHARGE");   // per-iteration rho_grid vs Tr(DS) + rho stats (step-2 probe)
+    qchem::Hamiltonian::ReportGridCharge()=(bool)std::getenv("GPW_GRIDCHARGE");   // per-iteration rho_grid vs Tr(DS) + rho stats (step-2 probe)
     scf.Iterate(par);
     qchem::Hamiltonian::ReportGridCharge()=false;      // process-wide flag -- reset so it does not leak to other tests
     Fingerprint(series, label);                        // classify the trajectory: converged / oscillating / stalled / diverging
@@ -445,11 +447,25 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     //    finding (2026-07-12) stands: pure relax mixing limit-cycles too; Kerker damping is what contains the
     //    low-G charge-transfer slosh, and heavier damping (alpha=0.2, CP2K's value) settles E.
     //    Kerker holds alpha=StartingRelaxRo fixed (no [F,D] auto-tune).
-    // NO Fock-space DIIS on this path (history: its mid-cycle extrapolations spiked on the ball-era map;
-    // the density-face Pulay below is the working accelerator).
-    auto* acc = new qchem::SCFAccelerators::tSCFAcceleratorNull<dcmplx>();
+    // 2026-07-23 EXPERIMENT (user): drive this on the raw-XC map with the Fock-space LADDER
+    // cSCFAcceleratorDIIS -> cSCFAcceleratorGDM instead of the Null accelerator.  Two questions:
+    //   (a) does the per-iteration `accel` column show the DIIS->GDM hand-off live (doc/GPWPlan1.md item 2)?
+    //   (b) does GDM's geodesic line search actually converge here -- i.e. is the GPW collocation E[rho]
+    //       TRULY variational?  (Direct minimisation lowers E along a geodesic; if the fitted energy is not a
+    //       genuine functional of the orbitals, the line search cannot descend and GDM will thrash.)
+    // The historical Null + density-Pulay recipe was tuned against the BALL-era map's DIIS spikes
+    // (doc/GPWPlan.md); the raw-XC feed removed that basin, so we retry Fock-space acceleration.  Density-side
+    // Pulay is DISABLED below (PulayDepth=0) so the Ladder is the sole accelerator -- a clean GDM test; GDM's
+    // direct-min loop does not density-mix anyway.
+    std::vector<std::unique_ptr<qchem::SCFAccelerators::tSCFAccelerator<dcmplx>>> rungs;
+    rungs.push_back(std::make_unique<qchem::SCFAccelerators::cSCFAcceleratorDIIS>(
+                        qchem::SCFAccelerators::DIISParams{8, 8.0, 1e-10, 1e-9}));     // rung 0: DIIS (Nproj=8)
+    rungs.push_back(std::make_unique<qchem::SCFAccelerators::cSCFAcceleratorGDM>(
+                        qchem::SCFAccelerators::GDMParams{/*EMax*/1e-2}));             // rung 1: GDM geodesic
+    auto* acc = new qchem::SCFAccelerators::cSCFAcceleratorLadder(
+                        std::move(rungs), /*ethresh*/1e-8, /*stall*/5, /*floor*/1e-8, /*switchat*/1e-2);
     qchem::ReportOverlapConditioning()=true;   // report min eig(S)/min sv(S) at SetBasisOverlap (the ctor below)
-    qchem::SCFIterator::cSCFIterator scf(bs.get(), &ec, ham, acc,
+    qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc,
                                          qchem::ChargeDensity::SeedStrategy::IonicSAD, lat.GetStructure().get(),
                                          qchem::Cholesky, 0.0);   // diffuse F- / Na+ ionic seed (halved PW iters)
     qchem::ReportOverlapConditioning()=false;  // process-wide flag -- reset so it does not leak to other tests
@@ -468,9 +484,9 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     par.KerkerG0       = 1.0;    // Kerker screening wavevector (a.u.^-1): damp the low-G charge-transfer slosh
     par.UseMOM         = true;   // occupied-subspace continuity; the 0h guard releases a bad capture
     par.MOMStartIter   = 10;     // delayed IMOM: descend by plain aufbau first, then capture ONCE
-    par.PulayDepth     = 6;      // Kerker-preconditioned density-Pulay (the quasi-Newton tail accelerator)
-    par.PulayStart     = 35;     // prime with plain Kerker until residuals are linear-regime
-    qchem::Hamiltonian::ReportGridCharge()=true;   // F's tight 40-a.u. exponent: watch integral rho_grid vs Tr(DS)
+    par.PulayDepth     = 0;      // density-Pulay OFF: the Fock-space Ladder (DIIS->GDM) is now the accelerator
+    par.PulayStart     = 0;      //   (2026-07-23 experiment -- was depth=6/start=35 with the Null accelerator)
+    qchem::Hamiltonian::ReportGridCharge()=(bool)std::getenv("GPW_GRIDCHARGE");   // F's tight 40-a.u. exponent: watch integral rho_grid vs Tr(DS)
     qchem::SCFIterator::ReportBandGap()=true;       // BAND-GAP INSTRUMENT (doc/GPWPlan 0b''): watch eps_HOMO/eps_LUMO/gap
                                                     // per iteration -- the near-degenerate-frontier (giant-response)
                                                     // hypothesis predicts the gap collapsing near the fixed point,
@@ -631,11 +647,11 @@ TEST(GPW_SCF, DISABLED_NaFGridContinuation)
     cHamiltonian* hamC=new Ham_PW_DFT(st, bsC.get(), {{"Na",1},{"F",7}}, "LDA");
     rss("Ham");
     auto* accC=new qchem::SCFAccelerators::tSCFAcceleratorNull<dcmplx>();   // no DIIS (the CP2K recipe)
-    auto scfC=std::make_unique<qchem::SCFIterator::cSCFIterator>(bsC.get(), ecC.get(), hamC, accC,
+    auto scfC=std::make_unique<qchem::SCFIterator::SolidSCFIterator>(bsC.get(), ecC.get(), hamC, accC,
                                           qchem::ChargeDensity::SeedStrategy::IonicSAD, st.get(),
                                           qchem::Cholesky, 0.0);
     rss("SCFctor");
-    qchem::Hamiltonian::ReportGridCharge()=true;   // step-2 probe: coarse-grid rho stats to compare vs fine
+    qchem::Hamiltonian::ReportGridCharge()=(bool)std::getenv("GPW_GRIDCHARGE");   // step-2 probe: coarse-grid rho stats to compare vs fine
     scfC->Iterate(makePar((size_t)envd("GC_COARSE_NMAX",200), 10, 35));
     qchem::Hamiltonian::ReportGridCharge()=false;
     auto Ecoarse=scfC->GetEnergy();
@@ -659,7 +675,7 @@ TEST(GPW_SCF, DISABLED_NaFGridContinuation)
     Crystal_EC ecF(bsF->GetIrreps(Spin::None), 8);
     cHamiltonian* hamF=new Ham_PW_DFT(st, bsF.get(), {{"Na",1},{"F",7}}, "LDA");
     auto* accF=new qchem::SCFAccelerators::tSCFAcceleratorNull<dcmplx>();
-    qchem::Hamiltonian::ReportGridCharge()=true;
+    qchem::Hamiltonian::ReportGridCharge()=(bool)std::getenv("GPW_GRIDCHARGE");
     qchem::SCFIterator::ReportBandGap()=true;
     // GC_SEED=0 A/Bs the fix OFF (ionic seed) -> the fine stage must dive into the -39 basin (the failure this
     // test fixes); default ON = the converged-coarse-density explicit seed.
@@ -667,7 +683,7 @@ TEST(GPW_SCF, DISABLED_NaFGridContinuation)
     std::unique_ptr<qchem::SCFIterator::cSCFIterator> scfF;
     if (useSeed)
     {
-        scfF.reset(new qchem::SCFIterator::cSCFIterator(bsF.get(), &ecF, hamF, accF, seedCD, st.get(),
+        scfF.reset(new qchem::SCFIterator::SolidSCFIterator(bsF.get(), &ecF, hamF, accF, seedCD, st.get(),
                                                         qchem::Cholesky, 0.0));   // explicit-seed ctor (consumes seedCD)
         // MOM transfer across the grid change is OFF by default: AdoptMOMReference across a discretization
         // change PINS AN EXCITED STATE (doc/GPWPlan 0h; measured 2026-07-23: -23.680 vs the -24.434 aufbau
@@ -680,7 +696,7 @@ TEST(GPW_SCF, DISABLED_NaFGridContinuation)
     else
     {
         delete seedCD;   // A/B control: discard the coarse density, fall back to the ionic seed (dives to -39)
-        scfF.reset(new qchem::SCFIterator::cSCFIterator(bsF.get(), &ecF, hamF, accF,
+        scfF.reset(new qchem::SCFIterator::SolidSCFIterator(bsF.get(), &ecF, hamF, accF,
                                                         qchem::ChargeDensity::SeedStrategy::IonicSAD, st.get(),
                                                         qchem::Cholesky, 0.0));
     }
@@ -753,13 +769,13 @@ TEST(GPW_SCF, DISABLED_NaFFullBasisEigenTol)
     cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), bs.get(), {{"Na",1},{"F",7}}, "LDA");
     auto* acc=new qchem::SCFAccelerators::cSCFAcceleratorDIIS(qchem::SCFAccelerators::DIISParams{8, 8.0, 1e-10, 1e-8});
     qchem::ReportOverlapConditioning()=true;
-    qchem::SCFIterator::cSCFIterator scf(bs.get(), &ec, ham, acc,
+    qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc,
                                          qchem::ChargeDensity::SeedStrategy::IonicSAD, lat.GetStructure().get(),
                                          qchem::Eigen, 1e-6);   // (2): canonical ortho, drop the ~0 null cluster
     qchem::ReportOverlapConditioning()=false;
     SCFParams par; par.NMaxIter=60; par.MinΔρ=1e-3; par.MinΔE=1e-6; par.MinΔFD=1e30; par.MinVirial=1e30;
     par.MinFD=1e30; par.StartingRelaxRo=0.3; par.MergeTol=1e-4; par.Verbose=true; par.KerkerG0=1.0;
-    qchem::Hamiltonian::ReportGridCharge()=true;
+    qchem::Hamiltonian::ReportGridCharge()=(bool)std::getenv("GPW_GRIDCHARGE");
     scf.Iterate(par);
     qchem::Hamiltonian::ReportGridCharge()=false;
     auto* cd=scf.GetWaveFunction()->GetChargeDensity(); double charge=cd->GetTotalCharge(); delete cd;

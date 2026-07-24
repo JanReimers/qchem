@@ -227,20 +227,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
     assert(itsCD);
     itsWaveFunction->SetMOM(ipar.UseMOM, ipar.MOMStartIter);   // occupation strategy for this run (SCFParams)
     size_t idealVirial=itsHamiltonian->IsRelativistic() ? 1 : 2;
-    if (ipar.Verbose)
-    {
-        cout << endl << endl;
-        cout << " #           Etotal       " << idealVirial << "+V/K    Δ[F,D]    Δρ    ";
-        itsAccelerator->ShowLabels(cout);
-        cout << "   relax   Configuration" << endl;
-        cout << "                         ";
-        cout << "(" << setw(8) << std::scientific << setw(5) << setprecision(0) << ipar.MinVirial  << ")  ";
-        cout << "(" << setw(8) << std::scientific << setw(5) << setprecision(0) << ipar.MinΔFD  << ")  ";
-        cout << "(" << setw(8) << std::scientific << setw(5) << setprecision(0) << ipar.MinΔρ  << ") ";
-        cout << "(" << setw(8) << std::scientific << setw(5) << setprecision(0) << ipar.MinFD  << ") ";
-        cout << endl;
-        cout << "----------------------------------------------------------------------------------------------------" << endl;
-    }
+    if (ipar.Verbose) DisplayColumnHeaders(cout, ipar, idealVirial);   // per-system (item 2): base=molecular, Solid overrides
 
     double ChargeDensityChange=1;
     double  E=0, Eold=0, dE=1e10;
@@ -255,6 +242,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
                                                          ipar.PulayStart, itsBS, itsKerkerCell.get(), itsCD.get());
 
     int holeRun=0, momReleases=0;   // 0h MOM-guard state (per run): consecutive hole iterations + releases
+    std::string prevConfig;         // previous occupied configuration (the cfg '*' change flag; item 2)
     for (itsIterationCount=1;
         itsIterationCount   <= ipar.NMaxIter && !itsConverged;
         itsIterationCount++)
@@ -266,7 +254,13 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
         LoopContext<T> lc{ itsHamiltonian, itsWaveFunction, itsMixer.get(), &itsCD, &itsOldCD, ipar.MergeTol, Eold,
                            [this](cd_t x){ itsOldCD=itsCD; SetWorkingCD(std::move(x)); },
                            [this](double e,double tol){ return DirectMinStep(e,tol); } };
-        const tLoopDriver<T>& driver = itsAccelerator->WantsLineSearch()
+        // Direct-min (GDM/OT) OWNS the density update via its geodesic line search, so it must DISABLE the
+        // density mixer entirely -- both the per-step Mix() (already: DirectMinDriver never calls it) AND the
+        // post-step adaptive re-damp/UpdateRelax below (a LinearMixer's WantsReDamp would otherwise re-mix
+        // AFTER a geodesic step, corrupting it).  One query drives the driver choice, the mixer bypass, and
+        // the honest ρ_mix="----" display.
+        const bool lineSearch = itsAccelerator->WantsLineSearch();
+        const tLoopDriver<T>& driver = lineSearch
                                      ? static_cast<const tLoopDriver<T>&>(itsDirectDriver)
                                      : static_cast<const tLoopDriver<T>&>(itsFixedDriver);
         ChargeDensityChange = driver.Step(lc);
@@ -278,17 +272,32 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
         itsAccelerator->SetEnergy(E); //the ladder gates its hand-off on the energy change
         FD=itsAccelerator->GetError(); //i.e. [F,D]
         dFD=(FD-FDold);
-        if (ipar.Verbose) DisplayEnergies(itsIterationCount,eb,itsMixer->GetRelax(),dFD,ChargeDensityChange,idealVirial);
+        if (ipar.Verbose)
+        {
+            // Build the full per-iteration trace (all fields, all cheap) and let the per-system display
+            // virtual render its honest columns (item 2).  The cfg '*' flags an occupation change vs the
+            // previous iteration (blank on iteration 1 -- there is no prior config to differ from).
+            std::string config = ConfigString(itsWaveFunction);
+            const GapInfo g=HomoLumo(itsWaveFunction);   // frontier spectrum for the gap column
+            IterationTrace tr{ itsIterationCount, eb, itsMixer->GetRelax(),
+                               itsMixer->Tag(), itsAccelerator->Tag(), itsAccelerator->Count(),
+                               FD, dFD, ChargeDensityChange, dE, idealVirial,
+                               itsIterationCount>1 && config!=prevConfig, lineSearch,
+                               g.eHomo, g.eLumo, g.gap, g.haveHomo, g.haveLumo, g.metallic, g.hole };
+            DisplayColumns(cout, tr);
+            prevConfig=std::move(config);
+        }
         if (itsObserver) itsObserver({itsIterationCount, E, fabs(E-Eold), FD, ChargeDensityChange});
-        // Adaptive [F,D]-keyed policy (LinearMixer only; Kerker/direct-min take the no-op defaults).  The
+        // Adaptive [F,D]-keyed density-mixing policy (LinearMixer only; Kerker takes the no-op defaults).  The
         // re-damp re-fetches the fresh density + recomputes the energy -- the density LIFECYCLE stays here.
-        if (itsMixer->WantsReDamp({E,FD,FDold}))
+        // SKIPPED under direct-min: GDM/OT own the density update, so no post-step re-mix (see lineSearch above).
+        if (!lineSearch && itsMixer->WantsReDamp({E,FD,FDold}))
         {
             SetWorkingCD(cd_t(itsWaveFunction->GetChargeDensity())); //Get new charge density.
             ChargeDensityChange = itsMixer->ReDampMix(itsCD, itsOldCD);
             eb=itsHamiltonian->GetTotalEnergy(itsCD.get());
         }
-        itsMixer->UpdateRelax({E,FD,FDold});
+        if (!lineSearch) itsMixer->UpdateRelax({E,FD,FDold});
 
         // Eoldold=Eold;
         Eold=E;
@@ -405,37 +414,131 @@ template <class T> EnergyBreakdown tSCFIterator<T>::GetEnergy() const
 
 
 
-template <class T> void tSCFIterator<T>::DisplayEnergies(int i, const EnergyBreakdown& eb, double relax, double dE, double dCD, size_t idealVirial) const
+//====================================================================================================
+//  PER-SYSTEM ITERATION DISPLAY (doc/GPWPlan1.md item 2)
+//
+//  The base layout is MOLECULAR ({#, Etotal, [F,D], Δ[F,D], Δρ, 2+V/K, ρ_mix, accel, cfg} + the optional
+//  ReportBandGap() frontier block); SolidSCFIterator overrides both virtuals for the solid/PP layout.  The
+//  shared column WRITERS below (WriteRowPrefix / WriteMixAccelCfg / WriteGapColumn) are reused by both, so
+//  the two layouts differ only in the physics columns they insert (virial vs ΔE+gap).
+//====================================================================================================
+
+// --- Column-width constants: the header labels and the value rows share these, so they line up exactly
+//     regardless of the UTF-8 label glyphs (Δ, ρ, ε are multi-byte but one display column). --------------
+namespace { enum : int { W_ITER=3, W_E=20, W_FD=10, W_DELTA=10, W_RHO=9, W_VIR=10, W_MIX=8, W_ACC=7, W_CFG=3, W_GAP=9 }; }
+
+// Display width of a UTF-8 string (counts leading bytes only, so Δ/ρ/ε each count as one column).
+static size_t VisWidth(const std::string& s)
+{ size_t n=0; for (unsigned char c : s) if ((c&0xC0)!=0x80) ++n; return n; }
+// Right-/left-justify a label to a given DISPLAY width (setw counts bytes, which mis-pads UTF-8 labels).
+static std::string PadR(const std::string& s, int w){ int v=(int)VisWidth(s); return v>=w ? s : std::string(w-v,' ')+s; }
+static std::string PadL(const std::string& s, int w){ int v=(int)VisWidth(s); return v>=w ? s : s+std::string(w-v,' '); }
+
+// One convergence threshold as it appears in the header sub-line, e.g. "(1e-07)".
+static std::string Thresh(double t)
+{ std::ostringstream os; os << "(" << std::scientific << setprecision(0) << t << ")"; return os.str(); }
+
+// Header cells matching the row layouts (same widths + separators as WriteRowPrefix / WriteMixAccelCfg).
+static void WriteHeadPrefix(std::ostream& os)          // " #   Etotal   [F,D]"
+{ os << PadR("#",W_ITER) << " " << PadR("Etotal",W_E) << " " << PadR("[F,D]",W_FD) << " "; }
+static void WriteHeadMixAccelCfg(std::ostream& os)     // "ρ_mix  accel  cfg"
+{ os << " " << PadL("ρ_mix",W_MIX) << " " << PadL("accel",W_ACC) << " " << PadR("cfg",W_CFG); }
+// The threshold sub-line's leading pad (under #, Etotal), so each (thresh) sits under its column.
+static void WriteThreshLead(std::ostream& os)
+{ os << PadR("",W_ITER) << " " << PadR("",W_E) << " "; }
+
+// Row prefix shared by every system: # , Etotal (fixed, 12 dp), [F,D] (the accelerator's orbital gradient;
+// "----" for a Null accelerator, which has no [F,D] -- e.g. a pure density-mixing run).
+template <class T> void tSCFIterator<T>::WriteRowPrefix(std::ostream& os, const IterationTrace& tr) const
 {
-    cout.setf(ios::fixed,ios::floatfield);
-    cout << setw(3)  << i << " ";
-    cout << setw(2+6+12) << setprecision(12) << eb.GetTotalEnergy() << " ";
-    cout << setw(8) << std::scientific << setw(8) << setprecision(1) << eb.GetVirial()+idealVirial << " ";
-        
-    cout << setw(8) << std::scientific << setw(8) << setprecision(1) << dE  << " ";
-    cout << setw(8) << std::scientific << setw(7) << setprecision(1) << dCD << " ";
-    itsAccelerator->ShowConvergence(cout);
-    cout << setw(4) << std::fixed << setw(4) << setprecision(2) << relax << "  ";
-    // cout << ConfigString(itsWaveFunction);
+    os.setf(ios::fixed,ios::floatfield);
+    os << setw(W_ITER) << tr.iteration << " ";
+    os << setw(W_E) << setprecision(12) << tr.eb.GetTotalEnergy() << " ";
+    if (std::string(tr.accelTag)=="Null") os << PadR("----",W_FD) << " ";
+    else os << std::scientific << setw(W_FD) << setprecision(2) << tr.FD << " ";
+}
+
+// The three columns common to the END of every row: ρ_mix (Lin/Ker/Pul + α), accel (tag[:count]), cfg ('*'
+// when the occupied configuration changed).  Compact, fixed-width, self-identifying (item 2).
+template <class T> void tSCFIterator<T>::WriteMixAccelCfg(std::ostream& os, const IterationTrace& tr) const
+{
+    std::ostringstream mix;                                     // ρ_mix: "Lin 1.00" -- or "----" under direct-min
+    if (tr.lineSearch) mix << "----";                           //   (GDM/OT own the density update; NO mixing)
+    else               mix << tr.mixTag << " " << std::fixed << setprecision(2) << tr.relax;
+    std::ostringstream acc; acc << tr.accelTag; if (tr.accelCount>0) acc << ":" << tr.accelCount;    // "DIIS:3"
+    os << " " << PadL(mix.str(),W_MIX) << " " << PadL(acc.str(),W_ACC)
+       << " " << PadR(std::string(1, tr.configChanged ? '*' : ' '), W_CFG);
+}
+
+// The frontier gap column: ε_LUMO−ε_HOMO (honestly negative for a hole), with a compact flag -- 'h' a
+// non-aufbau HOLE, 'm' a partial-occupancy (near-degenerate/metallic) frontier -- else blank.
+template <class T> void tSCFIterator<T>::WriteGapColumn(std::ostream& os, const IterationTrace& tr) const
+{
+    os << " ";
+    if (tr.haveHomo && tr.haveLumo) os << std::scientific << setw(W_GAP) << setprecision(2) << tr.gap;
+    else                            os << PadR("----",W_GAP);
+    os << ' ' << (tr.hole ? 'h' : tr.metallic ? 'm' : ' ');
+}
+
+// --- Base default = the MOLECULAR layout (atoms/molecules; MolecularSCFIterator inherits it unchanged) ---
+template <class T>
+void tSCFIterator<T>::DisplayColumnHeaders(std::ostream& os, const SCFParams& ipar, size_t idealVirial) const
+{
+    os << endl << endl;
+    WriteHeadPrefix(os);
+    os << PadR("Δ[F,D]",W_DELTA) << " " << PadR("Δρ",W_RHO) << " "
+       << PadR(std::to_string(idealVirial)+"+V/K",W_VIR) << " ";
+    WriteHeadMixAccelCfg(os);
+    os << endl;
+    WriteThreshLead(os);
+    os << PadR(Thresh(ipar.MinFD),W_FD) << " " << PadR(Thresh(ipar.MinΔFD),W_DELTA) << " "
+       << PadR(Thresh(ipar.MinΔρ),W_RHO) << " " << PadR(Thresh(ipar.MinVirial),W_VIR) << endl;
+    os << std::string(100,'-') << endl;
+}
+
+template <class T> void tSCFIterator<T>::DisplayColumns(std::ostream& os, const IterationTrace& tr) const
+{
+    WriteRowPrefix(os, tr);
+    os << std::scientific << setw(W_DELTA) << setprecision(2) << tr.dFD  << " ";
+    os << std::scientific << setw(W_RHO)   << setprecision(2) << tr.dRho << " ";
+    os << std::scientific << setw(W_VIR)   << setprecision(2) << (tr.eb.GetVirial()+(double)tr.idealVirial) << " ";
+    WriteMixAccelCfg(os, tr);
+    // Optional frontier diagnostic (unchanged instrument; solids show it as a permanent column instead).
     if (ReportBandGap())
     {
-        GapInfo g=HomoLumo(itsWaveFunction);
-        cout << " εH=";
-        if (g.haveHomo) cout << std::fixed << setw(10) << setprecision(5) << g.eHomo; else cout << "     ----";
-        cout << " εL=";
-        if (g.haveLumo) cout << std::fixed << setw(10) << setprecision(5) << g.eLumo; else cout << "     ----";
-        cout << " gap=";
-        if (g.haveHomo && g.haveLumo) cout << std::scientific << setw(9) << setprecision(2) << g.gap; else cout << "     ----";
-        if (g.metallic) cout << " [partial-occ HOMO]";
-        if (g.hole)     cout << " [HOLE: non-aufbau]";
-        cout << endl << "        frontier ε(occ): " << FrontierWindow(itsWaveFunction, 2, 4);
+        WriteGapColumn(os, tr);
+        os << endl << "        frontier ε(occ): " << FrontierWindow(itsWaveFunction, 2, 4);
     }
-    cout << endl;
+    os << endl;
 }
 
 //-------------------------------------------------------------------------------------------------------------------------
 
 template class tSCFIterator<double>;
 template class tSCFIterator<dcmplx>;
+
+// --- The SOLID / PP layout: ΔE gates (non-variational collocation), NO virial, gap is a permanent column ---
+void SolidSCFIterator::DisplayColumnHeaders(std::ostream& os, const SCFParams& ipar, size_t /*idealVirial*/) const
+{
+    os << endl << endl;
+    WriteHeadPrefix(os);
+    os << PadR("ΔE",W_DELTA) << " " << PadR("Δρ",W_RHO) << " ";
+    WriteHeadMixAccelCfg(os);
+    os << " " << PadR("gap",W_GAP) << endl;
+    WriteThreshLead(os);
+    os << PadR(Thresh(ipar.MinFD),W_FD) << " " << PadR(Thresh(ipar.MinΔE),W_DELTA) << " "
+       << PadR(Thresh(ipar.MinΔρ),W_RHO) << endl;
+    os << std::string(100,'-') << endl;
+}
+
+void SolidSCFIterator::DisplayColumns(std::ostream& os, const IterationTrace& tr) const
+{
+    WriteRowPrefix(os, tr);
+    os << std::scientific << setw(10) << setprecision(2) << tr.dE   << " ";
+    os << std::scientific << setw(9)  << setprecision(2) << tr.dRho << " ";
+    WriteMixAccelCfg(os, tr);
+    WriteGapColumn(os, tr);   // solids always show the gap (folds the former ReportBandGap() instrument)
+    os << endl;
+}
 
 } //namespace

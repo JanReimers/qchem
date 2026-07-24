@@ -38,9 +38,15 @@ public:
     virtual ~tSCFAccelerator() {};
     virtual tSCFIrrepAccelerator<T>* Create(const LASolver<T>*,const Irrep&, int occ)=0;
     virtual bool CalculateProjections()=0;
-    virtual void ShowLabels     (std::ostream&) const=0;
-    virtual void ShowConvergence(std::ostream&) const=0;
+    virtual void ShowLabels     (std::ostream&) const=0;   // DEPRECATED (doc/GPWPlan1.md item 2): the free-form
+    virtual void ShowConvergence(std::ostream&) const=0;   //   label/value blob, superseded by the compact
+                                                           //   Tag()/Count() accel column; retire once it proves out.
     virtual double GetError() const=0;
+    //! Compact self-identifier for the per-iteration \c accel column (doc/GPWPlan1.md item 2): a short tag
+    //! ("Null", "DIIS", "GDM", ...) plus a \c Count() (DIIS projection depth; 0 when not meaningful).  The
+    //! ladder delegates both to its active rung.  Distinct from \c GetError() (the [F,D] the column also shows).
+    virtual const char* Tag  () const=0;
+    virtual int         Count() const {return 0;}
     // Has this accelerator run out of steam (ladder hand-off signal)?  Default: never.
     virtual bool Exhausted() const {return false;}
     // The SCF iterator reports the current total energy each macro-iteration.  The ladder

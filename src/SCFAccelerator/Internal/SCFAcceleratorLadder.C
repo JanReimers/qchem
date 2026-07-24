@@ -102,6 +102,8 @@ public:
     virtual void   ShowLabels     (std::ostream&) const;
     virtual void   ShowConvergence(std::ostream&) const;
     virtual double GetError() const;
+    virtual const char* Tag  () const;
+    virtual int         Count() const;
     virtual void   SetEnergy(double E);
     virtual bool   WantsLineSearch() const; //true once the active rung is a direct minimizer
 private:

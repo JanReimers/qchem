@@ -2,6 +2,7 @@
 module;
 #include <memory>
 #include <functional>
+#include <iosfwd>
 export module qchem.SCFIterator;
 import qchem.SCFIterator.Types;
 export import qchem.SCFAccelerator;
@@ -40,6 +41,31 @@ struct SCFProgress
     double dE;           //!< |E_n - E_{n-1}|
     double commutator;   //!< [F,D] (the accelerator/DIIS error)
     double drho;         //!< relative charge-density change
+};
+
+//! Everything one SCF step exposes to the per-system iteration display (doc/GPWPlan1.md item 2).  The base
+//! \c Iterate builds a fully-populated trace each iteration -- all fields, all cheap -- and hands it to the
+//! virtual \c DisplayColumns; each system's subclass renders only the columns it shows.  Real-valued
+//! throughout (energies/residuals are real for both the rX and cX paths).  This bundle keeps the iterator's
+//! members private: the display virtuals READ the trace, they do not reach back into the iterator.
+struct IterationTrace
+{
+    size_t iteration;
+    EnergyBreakdown eb;      //!< the full breakdown (Etotal, virial, per-term energies)
+    double relax;            //!< the mixer step size α (the ρ_mix column's number)
+    const char* mixTag;      //!< ρ_mix identity: "Lin"/"Ker"/"Pul"
+    const char* accelTag;    //!< accel identity: "Null"/"DIIS"/"GDM"
+    int    accelCount;       //!< accel number (DIIS projection depth; 0 when not meaningful)
+    double FD;               //!< [F,D] (the accelerator's orbital-gradient error)
+    double dFD;              //!< Δ[F,D] = [F,D] − [F,D]_old
+    double dRho;             //!< relative charge-density change ‖Δρ‖
+    double dE;               //!< relative total-energy change ΔE/|E|
+    size_t idealVirial;      //!< 2 (non-relativistic) or 1 (relativistic): the virial column shows GetVirial()+idealVirial
+    bool   configChanged;    //!< did the occupied configuration change since the previous iteration? (the cfg '*')
+    bool   lineSearch;       //!< this step ran the direct-min driver (GDM/OT): NO density mixing -> ρ_mix shows "----"
+    // Frontier spectrum -- the gap column (solids show it always; molecules only under ReportBandGap()):
+    double eHomo=0, eLumo=0, gap=0;
+    bool   haveHomo=false, haveLumo=false, metallic=false, hole=false;
 };
 
 // Templated on the matrix element type T (rX/cX); SCFIterator is the <double> alias (atoms/
@@ -96,6 +122,22 @@ public:
     EnergyBreakdown     GetEnergy() const;
     size_t              GetIterationCount() const {return itsIterationCount;}
     bool                Converged() const {return itsConverged;}
+
+protected:
+    // --- PER-SYSTEM iteration display (doc/GPWPlan1.md item 2) -------------------------------------------
+    //! The verbose per-iteration trace, virtual so each system type presents the honest column set.  The
+    //! base default is the MOLECULAR layout ({#, Etotal, [F,D], Δ[F,D], Δρ, 2+V/K, ρ_mix, accel, cfg}, plus
+    //! the optional ReportBandGap() gap block); \c SolidSCFIterator overrides both for the solid/PP layout
+    //! ({#, Etotal, [F,D], ΔE, Δρ, ρ_mix, accel, cfg, gap} -- no virial, gap always on).  \c Iterate calls
+    //! these; the subclass never touches iterator internals (it reads only the \c IterationTrace / SCFParams).
+    virtual void DisplayColumnHeaders(std::ostream&, const SCFParams&, size_t idealVirial) const;
+    virtual void DisplayColumns      (std::ostream&, const IterationTrace&) const;
+    // Shared column writers the molecular/solid layouts compose (kept here so both subclasses reuse them;
+    // the header-cell writers are file-local free functions in the .C, since they need no iterator state):
+    void WriteRowPrefix   (std::ostream&, const IterationTrace&) const; //!< row:    #, Etotal, [F,D]
+    void WriteMixAccelCfg (std::ostream&, const IterationTrace&) const; //!< row:    ρ_mix, accel, cfg
+    void WriteGapColumn   (std::ostream&, const IterationTrace&) const; //!< row:    the frontier gap (+flags)
+
 private:
     typedef std::shared_ptr<tDM_CD<T>> cd_t;   //!< std-managed WORKING density (matrix-backed); no manual delete
     //! Seed the SCF: build the iteration-0 Fock from \a seed (a DFT-face tChargeDensity -- may be a fit, e.g.
@@ -105,7 +147,6 @@ private:
     void Initialize(tChargeDensity<T>* seed, const tbs_t<T>* bs, const Structure* st);
     cd_t DirectMinStep(double Ecur, double mergeTol); //one direct-min step (returns new density; used by DirectMinDriver)
 
-    void DisplayEnergies(int i, const EnergyBreakdown&,  double relax, double dE, double dCD, size_t idealVirial) const;
     void DisplayEigen   () const;
 
     //Raw ptrs owned, see destructor; the charge densities are std-managed (cd_t).
@@ -142,6 +183,31 @@ private:
 
 using SCFIterator  = tSCFIterator<double>;
 using cSCFIterator = tSCFIterator<dcmplx>;
+
+//! The ATOM/MOLECULE SCF driver (doc/GPWPlan1.md item 2).  Its display is the base default -- the virial-
+//! bearing molecular column set -- so this subclass exists to NAME the molecular path (the Calculation /
+//! AtomCalculation facades build it) and to give any future molecule-only columns a home.  Inherits every
+//! base constructor unchanged.
+class MolecularSCFIterator : public tSCFIterator<double>
+{
+public:
+    using tSCFIterator<double>::tSCFIterator;
+};
+
+//! The SOLID / pseudopotential (GPW / plane-wave) SCF driver (doc/GPWPlan1.md item 2).  Overrides the trace
+//! to the solid column set: the total-energy change ΔE gates it (a non-variational collocation SCF limit-
+//! cycles [F,D]/Δρ above the fit floor while E settles), the virial is DROPPED (GTH local + KB projectors
+//! break the Coulombic-homogeneity assumption behind 2+V/K), and the frontier gap is a PERMANENT column
+//! (absorbing the former process-wide ReportBandGap() instrument -- the near-gapless flapping it watches is
+//! a solid pathology).  Inherits every base (single-k dcmplx) constructor unchanged.
+class SolidSCFIterator : public tSCFIterator<dcmplx>
+{
+public:
+    using tSCFIterator<dcmplx>::tSCFIterator;
+protected:
+    void DisplayColumnHeaders(std::ostream&, const SCFParams&, size_t idealVirial) const override;
+    void DisplayColumns      (std::ostream&, const IterationTrace&) const override;
+};
 
 } //namespace
 

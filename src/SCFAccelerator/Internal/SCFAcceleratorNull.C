@@ -34,6 +34,7 @@ public:
     virtual void   ShowLabels     (std::ostream&) const {}
     virtual void   ShowConvergence(std::ostream&) const {}
     virtual double GetError       ()              const {return 0.0;}
+    virtual const char* Tag       ()              const {return "Null";}
 };
 
 using SCFIrrepAcceleratorNull = tSCFIrrepAcceleratorNull<double>;

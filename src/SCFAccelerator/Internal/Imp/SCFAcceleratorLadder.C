@@ -71,6 +71,8 @@ template <class T> bool tSCFAcceleratorLadder<T>::WantsLineSearch() const { retu
 template <class T> double tSCFAcceleratorLadder<T>::GetError() const { return Active()->GetError(); }
 template <class T> void   tSCFAcceleratorLadder<T>::ShowLabels(std::ostream& os)      const { Active()->ShowLabels(os); }
 template <class T> void   tSCFAcceleratorLadder<T>::ShowConvergence(std::ostream& os) const { Active()->ShowConvergence(os); }
+template <class T> const char* tSCFAcceleratorLadder<T>::Tag()   const { return Active()->Tag(); }   // the live rung
+template <class T> int         tSCFAcceleratorLadder<T>::Count() const { return Active()->Count(); }
 
 template class tSCFIrrepAcceleratorLadder<double>;
 template class tSCFIrrepAcceleratorLadder<dcmplx>;

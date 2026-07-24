@@ -1381,7 +1381,7 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaThroughSCFIterator)
         // within Si's degenerate Gamma_25' manifold so it converges to a tight |Delta rho|.
         using qchem::SCFAccelerators::DIISParams;
         auto* acc=new qchem::SCFAccelerators::cSCFAcceleratorDIIS(DIISParams{8, 0.5, 1e-10, 1e-9});
-        qchem::SCFIterator::cSCFIterator scf(bs.get(), &ec, ham, acc, seed, lat.GetStructure().get());
+        qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc, seed, lat.GetStructure().get());
 
         SCFParams par;
         par.NMaxIter      =80;
@@ -1455,7 +1455,7 @@ FwResult RunFrameworkGamma(const Lattice_3D& lat, double Ecut, int Nelec,
     // oscillates on the strong Madelung field.  Engage DIIS from the start (EMax large).
     auto* acc=new qchem::SCFAccelerators::cSCFAcceleratorDIIS(DIISParams{10, 8.0, 1e-10, 1e-9});
     // \a seed defaults to Uniform rho(r)=N/V; IonicSAD pre-bakes the formal-charge transfer (Na+ + F-).
-    qchem::SCFIterator::cSCFIterator scf(bs.get(), &ec, ham, acc, seed, lat.GetStructure().get());
+    qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc, seed, lat.GetStructure().get());
     SCFParams par;
     par.NMaxIter=120; par.MinΔρ=1e-6; par.MinΔFD=1e30; par.MinVirial=1e30; par.MinFD=1e30;
     par.StartingRelaxRo=0.3; par.MergeTol=1e-4; par.Verbose=false;
@@ -1594,7 +1594,7 @@ TEST_F(PlaneWaveDFT, FrameworkSilicon2x2x2ThroughSCFIterator)
     // Uniform-density seed on the first block: D=(N/n0)I gives rho(r)=N/V (uniform), the total density
     // every block's first Hartree/XC needs (a single block suffices since rho is constant).  Built
     // centrally by MakeSeedDensity (Uniform); also the plane-wave Default.
-    qchem::SCFIterator::cSCFIterator scf(bs.get(), &ec, ham, acc,
+    qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc,
                                          qchem::ChargeDensity::SeedStrategy::Uniform);
 
     SCFParams par;

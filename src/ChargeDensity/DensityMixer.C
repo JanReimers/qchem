@@ -64,6 +64,9 @@ public:
     virtual const tChargeDensity<T>* FockDensity(const cd_t& working) const { return working.get(); }
     //! The current step size α (for the SCF trace only).
     virtual double GetRelax() const = 0;
+    //! A 3-char self-identifier for the per-iteration ρ_mix column (doc/GPWPlan1.md item 2): "Lin"
+    //! (linear D-mixing), "Ker" (Kerker ρ̃), "Pul" (density-DIIS/Pulay).  Default = the linear mixer.
+    virtual const char* Tag() const { return "Lin"; }
     //! Adaptive [F,D]-keyed policy (LinearMixer only; no-op elsewhere).  Post-energy re-damp on divergence.
     virtual bool   WantsReDamp(const MixSignals&) const { return false; }
     //! Re-mix \a working (already reseated to the fresh density by the iterator) more aggressively; ‖Δρ‖.
@@ -168,6 +171,7 @@ public:
     }
     const tChargeDensity<dcmplx>* FockDensity(const cd_t&) const override { return itsMixedRho.get(); }
     double GetRelax() const override { return itsRelax; }
+    const char* Tag() const override { return "Ker"; }
 private:
     double itsRelax, itsKerkerG0;
     std::shared_ptr<const BasisSet::cFIT_SF_ABS> itsKerkerFit;
@@ -288,6 +292,7 @@ public:
     }
     const tChargeDensity<dcmplx>* FockDensity(const cd_t&) const override { return itsMixedRho.get(); }
     double GetRelax() const override { return itsRelax; }
+    const char* Tag() const override { return "Pul"; }
 private:
     double itsRelax, itsKerkerG0; int itsDepth, itsStart, itsCount=0;
     std::shared_ptr<const BasisSet::cFIT_SF_ABS> itsKerkerFit;
@@ -325,13 +330,10 @@ template <class T> std::unique_ptr<tDensityMixer<T>> MakeDensityMixer(
             rvec_t raw0= fd->GetRhoOnGrid(*fit);   // raw-raster shadow seed (0.5(f2)); empty = late-activate
             const double charge = seed->GetTotalCharge();
             if (pulayDepth>0)
-            {
-                std::cerr << "[Pulay] ENABLED: depth=" << pulayDepth << " start=" << pulayStart << " G0=" << kerkerG0
-                          << ", rho-mixing on " << charge << " electrons (" << rho0.size() << " G-vectors"
-                          << (raw0.size() ? ", raw-XC shadow ON" : "") << ")." << std::endl;
+                // (The former "[Pulay] ENABLED: depth=.." banner is retired: the per-iteration ρ_mix column
+                //  now shows "Pul" every step -- doc/GPWPlan1.md item 2 -- so the one-time banner is redundant.)
                 return std::make_unique<PulayMixer>(relax0, kerkerG0, pulayDepth, pulayStart, fit, recip, rho0,
                                                     charge, std::move(raw0));
-            }
             auto mixed = std::make_shared<FourierMixCD>(rho0, recip, charge);
             std::cerr << "[Kerker] ENABLED: G0=" << kerkerG0 << ", rho-mixing on " << charge
                       << " electrons (" << rho0.size() << " G-vectors"
