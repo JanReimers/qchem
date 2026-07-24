@@ -583,23 +583,25 @@ void GPW_Evaluator::BuildLevels(std::shared_ptr<const PW_Grid_Evaluator> grid,
     const double amax=itsLat->MaxExponent(), amin=itsLat->MinExponent();
     const double ecoarse=efine*amin/amax;             // resolves the most-diffuse pair product (exponent 2*amin)
     levels.push_back(grid);                           // L=0: the fine grid, reused
+    // AUTOMATIC LADDER DEPTH (no user knob -- doc/GPWPlan §1 "diffuse at will").  Factor-4 steps from efine down
+    // to the diffuse floor ecoarse span the alpha_max/alpha_min ratio, so the count is ~log4(amax/amin) coarse
+    // levels -- the "e-folding" heuristic: Si's narrow exponent range self-selects ~1-2, ionic NaF's 1333x range
+    // self-selects several.  Each level's own Ecut resolves the diffuse band the REL_CUTOFF rule assigns it.
     double e=efine;
     while (e/4.0>=ecoarse)                            // factor-4 coarsening down to the diffuse floor
     {
         e/=4.0;
         auto g=std::make_shared<const PW_Grid_Evaluator>(grid->Recip(), rvec3_t(0,0,0), e, itsRaster);
-        // RESOLUTION GUARD: keep a level only if its grid SPACING still quadratures the SHARPEST pair product
-        // the REL_CUTOFF assignment can send it, p_max = 2 alpha_max ecut_l/ecut_fine: require h <= 1/sqrt(p_max)
-        // (trapezoid/Poisson error of exp(-p r^2) on spacing h is ~e^{-2(pi sigma/h)^2} <= e^{-2 pi^2} ~ 3e-9 at
-        // h = sigma).  This replaces a naive minimum-N floor on BOTH sides: it REJECTS a degenerate few-point
-        // grid (an FFT grid that saturates at N~1-2 no longer scales like sqrt(Ecut); a sigma~2 pair on h=7 lost
-        // percent-level charge -- the failed crystal gate), and it ADMITS the properly-coarse N~3-5 grids the
-        // ultra-diffuse pairs want (keeping them on a fine grid made their big-box cross-cell offset sums the
-        // per-iteration hotspot).  Pairs below the last level use the coarsest surviving one (finer than needed).
+        // DEGENERACY FLOOR (min grid points): the ONLY failure mode of a coarse level is a cell too small to
+        // hold a coarser grid -- an FFT grid saturating at N~1-2 no longer scales like sqrt(Ecut) and loses
+        // charge (a sigma~2 pair on h=7 lost percent-level charge -- the failed crystal gate).  Keep the
+        // properly-coarse N>=kMinLevelN grids the ultra-diffuse pairs want; stop below (those pairs then use the
+        // coarsest surviving level, finer than they need).  Replaces an amax-driven h^2*pmax check whose value
+        // ~= pi^2*amax/efine was ~LEVEL-INDEPENDENT, so it broke on the FIRST coarse level for every real basis
+        // -- collapsing the ladder to L0+rung (the "we used to have 4 levels" regression).
+        static constexpr int kMinLevelN=3;
         const ivec3_t Ng=g->FFTGrid();
-        const double  h=itsCell.GetMaximumCellEdge()/double(std::min(std::min(Ng.x,Ng.y),Ng.z));
-        const double  pmax=2.0*amax*e/efine;
-        if (h*h*pmax > 1.0) break;
+        if (std::min(std::min(Ng.x,Ng.y),Ng.z) < kMinLevelN) break;
         levels.push_back(g);
     }
     nBaseLevels=levels.size();
