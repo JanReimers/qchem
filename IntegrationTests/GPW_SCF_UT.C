@@ -743,22 +743,54 @@ TEST(GPW_SCF, DISABLED_NaFGridContinuation)
                                                             //   reference: -24.4325
 }
 
-// VALIDATION (2026-07-13): can we drop the SR-basis hand-tuning and use the FULL valence_lowq basis, relying on
-// (a) magnitude screening + a generous overlap Rcut=4a to CONVERGE S (removing the Gibbs/truncation artifacts, so
-// the residual negative eigenvalues shrink to ~0), then (b) canonical Eigen ortho with a tol=1e-6 that drops the
-// intrinsic ~1e-6 over-complete null cluster (which sits in a clean ~1000x spectral gap below the physical ~1e-3
-// directions -- see DISABLED_NaFOverlapConditioningSweep)?
+// GATE (GPWPlan1 §4a increment 1): rectangular V is now plumbed through the PERIODIC SCF stack.  The FULL
+// valence_lowq NaF basis (n=37) has one intrinsic near-null overlap mode (min eig=8.4e-8, a clean ~1000x gap
+// below the physical ~1e-3 directions); canonical Eigen(1e-6) drops it -> a rank-36 rectangular ortho V.
+// Previously this threw "Matrix sizes do not match" before iter 1 because the orthonormal density D' was
+// allocated full n=37; now D' is sized to m=n-k=36 (IrrepWF/TOrbitals) while the AO density D stays 37x37.
 //
-// RESULT: NO, not yet -- this hits an INTEGRATION WALL, not a convergence problem.  The truncating ortho reduces
-// the working dimension 37 -> 33 (drops the 4 null directions), but the GPW/periodic SCF stack (Crystal_EC /
-// cDM_CD / the density collocation) assumes the FULL basis dimension n=37, so the rank-33 ortho subspace collides
-// with it: "C++ exception: Matrix sizes do not match", thrown after the ortho truncation, before iter 1.  (The
-// MOLECULAR SCF path handles rectangular V -- C=V*U' is 37x33, density full 37x37 -- but the PERIODIC path does
-// not.)  So at the OVERLAP level (2) is clean (‖VᴴSV-I‖=6.6e-11, gap x1000) but at the SCF level it is BLOCKED:
-// dropping SR needs rank-reduction plumbed through the periodic stack (density in the truncated subspace,
-// back-transform, band-count reconciliation) -- its own increment.  Until then SR (dimension-preserving, cleanly
-// PD, no truncation) stays the GPW conditioning answer.  Kept DISABLED as the marker for that future work.
-// Collocation stays at collRcut=2a (the un-screened orbital-grid axis is a separate, later increment).
+// It asserts (a) the truncation actually happened (never-silent line captured) and (b) charge = Tr(DS) = 8
+// is conserved through the rectangular-V density build + DIIS + collocation (charge is grid-INDEPENDENT).
+// DISABLED for now: correct but SLOW -- the cost is the analytic LatticeSum1E (kinetic + local-PP) over the
+// FULL 37-function basis, whose DIFFUSE modes are long-range and reach many periodic images (measured: the
+// SolidSCFIterator ctor's initial H build dominates, minutes; the collocation is cheap).  Not a regression
+// (the suite is unaffected); it is the intrinsic periodic-diffuse lattice-sum cost.  The FAST committed
+// rank-reduction gate is a MINIMAL near-degenerate periodic system (few images); this stays as the
+// full-basis marker + the converged-energy check (with DISABLED_NaFFullBasisEigenTol below), run on demand.
+TEST(GPW_SCF, DISABLED_NaFFullBasisRankReduction)
+{
+    using namespace qchem::Hamiltonian;
+    const double a=8.73;
+    FCCUnitCell cell(a);
+    cell.AddAtom(11, {0,0,0});
+    cell.AddAtom(9,  {0.5,0.5,0.5});
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+    auto mol = std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(
+        BasisSetData::VALENCE_LOWQ, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
+    namespace L3=BasisSet::Lattice_3D;
+    std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, mol, /*densityEcut*/20.0));   // low: cheap grid, plumbing only
+    auto       irreps=bs->GetIrreps(Spin::None);
+    Crystal_EC ec(irreps, 8);
+    cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), bs.get(), {{"Na",1},{"F",7}}, "LDA");
+    auto* acc=new qchem::SCFAccelerators::cSCFAcceleratorDIIS(qchem::SCFAccelerators::DIISParams{8, 8.0, 1e-10, 1e-8});
+    testing::internal::CaptureStdout();
+    qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc,
+                                         qchem::ChargeDensity::SeedStrategy::IonicSAD, lat.GetStructure().get(),
+                                         qchem::Eigen, 1e-6);   // canonical ortho drops the ~8e-8 null mode -> rank 36
+    SCFParams par; par.NMaxIter=3; par.MinΔρ=1e-3; par.MinΔE=1e-6; par.MinΔFD=1e30; par.MinVirial=1e30;
+    par.MinFD=1e30; par.StartingRelaxRo=0.3; par.Verbose=false;
+    scf.Iterate(par);
+    std::string log=testing::internal::GetCapturedStdout();
+    auto* cd=scf.GetWaveFunction()->GetChargeDensity(); double charge=cd->GetTotalCharge(); delete cd;
+    // (a) the truncation must actually have fired (rank reduction really exercised, not a trivially-square pass).
+    EXPECT_NE(log.find("LASolverEigen truncating"), std::string::npos) << "expected the near-null mode to be dropped";
+    // (b) charge conserved through the rectangular-V density build (Tr(DS)=8, grid-independent).
+    EXPECT_NEAR(charge, 8.0, 1e-6);
+}
+
+// The HEAVY converged-energy run on the full valence_lowq basis + Eigen(1e-6): kept DISABLED (slow -- full
+// auto Ecut=80, 60 iters).  Since increment 1 the periodic stack handles the rank-36 rectangular V, so this
+// no longer throws; it is the manual full-basis-vs-SR/SR2 energy check (GPWPlan1 §4a gate 5), run on demand.
 TEST(GPW_SCF, DISABLED_NaFFullBasisEigenTol)
 {
     using namespace qchem::Hamiltonian;

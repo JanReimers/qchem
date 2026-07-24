@@ -27,8 +27,9 @@ TOrbitalsImp(const tobs_t<T>* bs, Spin ms)
     : itsBasisSet(bs)
     , itsQNs(bs->GetIrrep(ms))
     , itsD(blazem::zeroH<T>( bs->GetNumFunctions()))
+    , itsM(bs->GetNumFunctions())   // default m=n (no truncation); UpdateOrbitals corrects it from U'
 {
-    assert(itsBasisSet->GetNumFunctions()>0);  
+    assert(itsBasisSet->GetNumFunctions()>0);
 };
 
 template <class T> TOrbitalsImp<T>::~TOrbitalsImp()
@@ -74,6 +75,7 @@ template <class T> double TOrbitalsImp<T>::GetEigenValueChange(const Orbitals& o
 template <class T> void TOrbitalsImp<T>::UpdateOrbitals(const mat_t<T>& U, const mat_t<T>& UPrime, const rvec_t& e)
 {
     itsOrbitals.clear();
+    itsM = UPrime.rows();   // orthonormal-basis dim (n-k after truncation); sizes D' in BuildDensity
     size_t  n=e.size();
     //
     //  Strip out all the positron orbitals.
@@ -122,8 +124,8 @@ template <class T> typename TOrbitalsImp<T>::ds_t TOrbitalsImp<T>::TakeElectrons
 // TakeElectrons paths (energy-order and MOM-order).  \a ne = leftover electrons, forwarded to the caller.
 template <class T> typename TOrbitalsImp<T>::ds_t TOrbitalsImp<T>::BuildDensity(double ne)
 {
-    itsD=blazem::zeroH<T>(itsD.rows());
-    hmat_t<T> DPrime(blazem::zeroH<T>(itsD.rows()));
+    itsD=blazem::zeroH<T>(itsD.rows());                  // AO density: full n x n
+    hmat_t<T> DPrime(blazem::zeroH<T>(itsM));            // orthonormal density: m x m (m=n-k after truncation)
     for (auto o:Iterate<TOrbital<T>>()) o->AddDensityMatrix(itsD,DPrime);   // was hardcoded TOrbital<double>
     return std::make_tuple(ne,DPrime);
 }

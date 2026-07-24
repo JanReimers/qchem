@@ -53,6 +53,8 @@ private:
     std::vector<std::unique_ptr<Orbital>> itsOrbitals;
     Irrep         itsQNs;
     hmat_t<T>         itsD; // density matrix D=C*Cd (outer product); Hermitian (= symmetric for real T)
+    size_t            itsM; // orthonormal-basis dim (columns of the ortho transform V): n, or n-k after a
+                            // canonical-ortho truncation.  Sizes the orthonormal D' (D stays n x n).
 };
 
 } //namespace

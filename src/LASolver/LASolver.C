@@ -49,6 +49,12 @@ public:
 
     //! Factor S=U*Ud then invert U, V=U^-1  and store V and Vd.
     virtual void       SetBasisOverlap(const hmat_t<T>& S)=0;
+    //! The ORTHONORMAL-basis dimension m = columns of V.  m = n for Cholesky and for an untruncated
+    //! Eigen/SVD; m = n-k after a canonical-ortho truncation drops k near-null overlap modes.  Callers
+    //! that allocate the orthonormal-basis density D' (n rows in the AO basis, m in the ortho basis)
+    //! MUST size it to m, not n -- otherwise a rectangular V throws a size mismatch (the periodic
+    //! diffuse-basis path; doc/GPWPlan.md §1).  Valid only after SetBasisOverlap.
+    virtual size_t     GetOrthoDim() const=0;
     virtual rvec_t     Get_BS_Diagonal() const=0;
     virtual Ud_t       Solve(const hmat_t<T>& H) const=0;       //! H' = Vd*H*V, eigen-solve, back-transform.
     //! returns U,U',E  where U' has not been back transformed, U=V*Uprime.

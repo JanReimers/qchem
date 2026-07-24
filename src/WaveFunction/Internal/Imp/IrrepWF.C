@@ -22,7 +22,7 @@ template <class T> tIrrepWF<T>::tIrrepWF(const tobs_t<T>* bs, LASolver<T>* lasb,
     , itsOrbitals   (qchem::Orbitals::Factory(bs,qns.ms))
     , itsIrrep      (qns)
     , itsAccelerator(acc)
-    , itsDPrime     (blazem::zeroH<T>(bs->GetNumFunctions()))
+    , itsDPrime     (blazem::zeroH<T>(lasb->GetOrthoDim()))   // ORTHONORMAL D': m=n-k after truncation, not n
 {
     assert(itsOrbitals);
     assert(itsAccelerator);

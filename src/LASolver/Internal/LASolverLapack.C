@@ -15,6 +15,7 @@ public:
     LASolverEigen(double tol) : itsTruncationTolerance(tol) {}
 
     void       SetBasisOverlap(const hmat_t<T>& S)          override;
+    size_t     GetOrthoDim()                           const override { return itsV.columns(); }
     rvec_t     Get_BS_Diagonal()                       const override { return itsD; }
     Ud_t       Solve      (const hmat_t<T>& H)         const override;
     UUd_t      SolveOrtho (const hmat_t<T>& Hprime)   const override;
@@ -37,6 +38,7 @@ public:
     LASolverSVD(double tol) : itsTruncationTolerance(tol) {}
 
     void       SetBasisOverlap(const hmat_t<T>& S)          override;
+    size_t     GetOrthoDim()                           const override { return itsV.columns(); }
     rvec_t     Get_BS_Diagonal()                       const override { return itsD; }
     Ud_t       Solve      (const hmat_t<T>& H)         const override;
     UUd_t      SolveOrtho (const hmat_t<T>& Hprime)   const override;
@@ -61,6 +63,7 @@ public:
     LASolverCholesky() {}
 
     void       SetBasisOverlap(const hmat_t<T>& S)          override;
+    size_t     GetOrthoDim()                           const override { return itsV.columns(); }
     rvec_t     Get_BS_Diagonal()                       const override { return itsD; }
     Ud_t       Solve      (const hmat_t<T>& H)         const override;
     UUd_t      SolveOrtho (const hmat_t<T>& Hprime)   const override;
