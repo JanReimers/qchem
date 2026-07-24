@@ -412,12 +412,14 @@ public:
     //      under-covered an FCC cell by sqrt(3)/sqrt(2), a ~1e-7 clipped charge tail);
     //  (3) an ELLIPSOID pre-screen per point on the slowest-decaying exponent, skipping the exp/poly evals on
     //      the box corners (the exp calls are the kernel's unit of cost; margin e^12 >> any poly growth here).
-    //! \a epsEff: the value tolerance this box must honour (default = the geometry screen).  The D-aware
-    //! on-the-fly path passes max(kScreenEps, kDensityEps/|weight|) -- a small-weight pair keeps a smaller
-    //! box (or none: the prefactor early-out below is the whole-term kill).
+    //! \a epsEff: the value tolerance this COLLOCATION box must honour.  Default = kDensityEps (the
+    //! collocation accuracy), NOT kScreenEps (the analytic-integral reach) -- the two are decoupled so a
+    //! looser GPW_DENSITY_EPS shrinks the collocation boxes for speed WITHOUT loosening S/T/V_local (which
+    //! keeps the overlap PSD).  The D-aware path passes max(kDensityEps, kDensityEps/|weight|) -- a
+    //! small-weight pair keeps a smaller box (or none: the prefactor early-out below is the whole-term kill).
     template <class F>
     void ForPairBox(size_t i, size_t j, const rvec3_t& Roff, const UnitCell& A, const ivec3_t& N, F&& f,
-                    double epsEff=kScreenEps()) const
+                    double epsEff=kDensityEps()) const
     {
         const rvec_t ei=radials[i]->GetExponents(), gi=radials[i]->GetCoeffs();
         const rvec_t ej=radials[j]->GetExponents(), gj=radials[j]->GetCoeffs();
@@ -710,10 +712,10 @@ public:
                 {
                     const double c=fold*std::real(Dij*std::conj(phase(n)));
                     if (c==0.0) return;
-                    // D-aware continuous shrink: this box only needs accuracy kDensityEps/|c| (clamped -- a
-                    // |c|>1 never grows past the geometry screen); the prefactor early-out inside is the kill.
+                    // D-aware continuous shrink: this box only needs accuracy kDensityEps/|c| (clamped at the
+                    // kDensityEps collocation floor -- a |c|>1 never grows past it); the prefactor early-out kills.
                     ForPairBox(i,j,Roff,A,N_L[ps.level],[&](size_t idx,double v){r[idx]+=c*v;},
-                               std::max(kScreenEps(), kDensityEps()/std::fabs(c)));
+                               std::max(kDensityEps(), kDensityEps()/std::fabs(c)));
                 });
         };
 #ifdef QCHEM_OPENMP
@@ -870,12 +872,12 @@ public:
             else                                                    // static sharp-field call or over-budget pair
                 ForImageOffsets(i,j,A,[&](const ivec3_t& n, const rvec3_t& Roff)
                 {
-                    double epsEff=kScreenEps();
+                    double epsEff=kDensityEps();   // collocation floor (decoupled from the analytic kScreenEps)
                     if (screenD)
                     {
                         const double c=std::fabs(fold*std::real(Dij*std::conj(phase(n))));
                         if (c==0.0) return;
-                        epsEff=std::max(kScreenEps(), kDensityEps()/c);
+                        epsEff=std::max(kDensityEps(), kDensityEps()/c);
                     }
                     double b=0.0;
                     ForPairBox(i,j,Roff,A,N_L[l],[&](size_t idx,double v){b+=v*V[idx];}, epsEff);
