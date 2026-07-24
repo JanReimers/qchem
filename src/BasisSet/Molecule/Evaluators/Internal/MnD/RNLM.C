@@ -36,6 +36,9 @@ public:
         itsData.Clear();
     }
 
+    //! Heap bytes owned by the Hermite-Coulomb auxiliary store -- for the Cache2 RAM accounting.
+    size_t HeapBytes() const {return itsData.HeapBytes();}
+
 
 private:
     int          itsLMax;

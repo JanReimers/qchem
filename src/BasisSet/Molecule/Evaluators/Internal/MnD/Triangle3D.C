@@ -44,6 +44,9 @@ public:
 
     virtual std::ostream&  Write(std::ostream&) const;
 
+    //! Heap bytes owned by the backing store -- for the RNLM/Cache2 RAM accounting.
+    size_t HeapBytes() const {return itsData.size()*sizeof(double);}
+
 private:
     void    Check(int,int,int) const;
 

@@ -42,7 +42,9 @@ void Cache3::Report(std::ostream& os, const std::string& name) const
     os << "    " << std::left << std::setw(12) << name << std::right
        << " entries=" << std::setw(9) << itsInserts
        << " lookups=" << std::setw(10) << itsLookups
-       << " reuse="   << std::setw(6) << std::setprecision(4) << reuse << "%" << std::endl;
+       << " reuse="   << std::setw(6) << std::setprecision(4) << reuse << "%"
+       << " RAM="     << std::setw(9) << std::fixed << std::setprecision(3) << (RAMsize()/1048576.0) << " MB"
+       << std::endl;
 }
 
 const Cacheable3* Cache3::Create(size_t,size_t,size_t) const

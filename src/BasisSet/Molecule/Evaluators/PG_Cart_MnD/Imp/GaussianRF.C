@@ -110,7 +110,7 @@ namespace
         RNLM rnlm;
         RNLM_C2(int L, double alpha, const rvec3_t& R) : rnlm(L, alpha, R) {}
         bool   isSupported(const Cache2_Client*) const override {return false;}
-        size_t RAMsize() const override {return sizeof(RNLM_C2);}
+        size_t RAMsize() const override {return sizeof(RNLM_C2) + rnlm.HeapBytes();}
     };
     struct RNLMClient : Cache2_Client
     {
@@ -137,7 +137,9 @@ namespace
         std::unique_ptr<Hermite3> h3;
         explicit H3_C3(Hermite3* p) : h3(p) {}
         bool   isSupported(const Cache3_Client*) const override {return false;}
-        size_t RAMsize() const override {return sizeof(H3_C3);}
+        // Hermite3 is a fixed-layout by-value block (three Array4D + scalars, no heap) held off a
+        // unique_ptr, so its whole size is heap -- count it, not just the ~pointer-sized wrapper.
+        size_t RAMsize() const override {return sizeof(H3_C3) + sizeof(Hermite3);}
     };
     struct H3Client : Cache3_Client
     {
@@ -239,7 +241,12 @@ void Ω::MakeNMLs()
     if (theNMLs.size()==0) MakeNMLs();
 }
 
-size_t Ω::RAMsize() const {return sizeof(Ω);} // includes the by-value Hermite2 block
+// sizeof(Ω) + the Hermite2 block's heap vectors + the lazily-built 2-centre self-RNLM if present.
+size_t Ω::RAMsize() const
+{
+    return sizeof(Ω) + H2.HeapBytes()
+         + (itsSelfRNLM ? sizeof(RNLM) + itsSelfRNLM->HeapBytes() : 0);
+}
 
 //#######################################################################
 //

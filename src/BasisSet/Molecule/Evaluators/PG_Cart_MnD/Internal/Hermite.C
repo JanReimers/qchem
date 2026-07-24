@@ -54,6 +54,10 @@ public:
     ~Hermite2();
     double operator()(const Polarization& P,const Polarization& Pa,const Polarization& Pb) const;
 
+    //! Heap bytes owned by this block (the d/e/f coefficient vectors) -- for the Cache2 RAM accounting;
+    //! the fixed sizeof(Hermite2) is added by the owner (Ω).
+    size_t HeapBytes() const {return (d.size()+e.size()+f.size())*sizeof(double);}
+
     virtual std::ostream&  Write(std::ostream&) const;
     virtual Hermite2* Clone(        ) const;
 
