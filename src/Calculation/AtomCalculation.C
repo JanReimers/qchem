@@ -93,6 +93,13 @@ struct AtomCalcOptions
     //! the Z-scaled DIIS defaults, with "type" selecting DIIS/GDM/Ladder/directmin (mirrors the long-serving
     //! scfrun knobs).  The common path stays typed; this is only for the accelerator-sweep driver.
     nlohmann::json accelerator;
+
+    //! Orthogonalisation for the generalised eigenproblem H C = e S C.  Default \c Auto (eigen-analyse S ->
+    //! Cholesky if PD, else canonical Eigen with an auto gap-detection tolerance).  A DIRAC model forces
+    //! Cholesky regardless (relativistic overlaps are near-singular by construction and truncation breaks
+    //! kinetic balance).  Set \c Cholesky to keep a deliberately over-complete NON-relativistic basis
+    //! un-truncated (e.g. a wide even-tempered Slater basis whose redundant modes are intended).
+    qchem::Ortho ortho = qchem::Auto;
 };
 
 class AtomCalculation

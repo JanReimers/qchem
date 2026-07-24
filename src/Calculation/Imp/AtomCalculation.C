@@ -111,7 +111,12 @@ bool AtomCalculation::Converge(const SCFParams& params)
     // Default seed for atoms is the core guess (atoms never use the molecular SAD seed).
     using qchem::ChargeDensity::SeedStrategy;
     const auto seed = (itsOpts.seed != SeedStrategy::Default) ? itsOpts.seed : SeedStrategy::CoreGuess;
-    itsScf = new SCFIter(itsBasis, itsEC, ham, accel, seed, itsStructure.get());
+    // RELATIVISTIC (Dirac) bases are even-tempered / kinetic-balanced: their overlap is near-singular BY
+    // CONSTRUCTION, and canonical-ortho mode-dropping breaks kinetic balance -> variational collapse.  So a
+    // Dirac SCF ALWAYS uses PLAIN Cholesky (never truncate); a non-relativistic atom uses opts.ortho (Auto by
+    // default, but Cholesky when a caller deliberately wants an over-complete basis kept whole).
+    const qchem::Ortho ortho = IsDirac(itsOpts.model) ? qchem::Cholesky : itsOpts.ortho;
+    itsScf = new SCFIter(itsBasis, itsEC, ham, accel, seed, itsStructure.get(), ortho);
     // (directmin => AType::GDM above, whose WantsLineSearch() drives the direct-min loop -- no SetDirectMin needed.)
     if (itsObserver) itsScf->SetObserver(itsObserver);
 

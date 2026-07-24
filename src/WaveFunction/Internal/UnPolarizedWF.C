@@ -22,7 +22,7 @@ public:
     typedef typename tWaveFunction<T>::sf_t sf_t;
 
     tUnPolarizedWF(const tbs_t<T>*,const ElectronConfiguration*,tSCFAccelerator<T>* acc,
-                   qchem::Ortho basisOrtho=qchem::Cholesky, double basisOrthoTol=0.0);
+                   qchem::Ortho basisOrtho=qchem::Auto, double basisOrthoTol=0.0);
     using tCompositeWF<T>::GetChargeDensity;
     using tCompositeWF<T>::GetEnergyLevels;
 

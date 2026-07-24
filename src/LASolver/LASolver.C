@@ -7,7 +7,16 @@ import qchem.Blaze;
 
 export namespace qchem
 {
-    enum Ortho {Cholesky, Eigen, SVD};
+    //! Orthogonalisation method for the generalised eigenproblem H C = e S C.
+    //!  - \c Auto (the DEFAULT): eigen-analyse S; if it has a droppable near-null mode (a clean spectral
+    //!        gap, or modes below the absolute singularity floor) fall to canonical \c Eigen ortho with an
+    //!        AUTO gap-detection tolerance; otherwise use \c Cholesky.  The user chooses nothing.
+    //!  - \c Cholesky: PLAIN Cholesky, assumes S positive-definite, NEVER truncates.  Pick this deliberately
+    //!        when mode-dropping is invalid -- e.g. RELATIVISTIC (Dirac) bases, where the overlap null space
+    //!        is tied to kinetic balance and canonical truncation causes variational collapse.
+    //!  - \c Eigen / \c SVD: canonical ortho; a truncation tolerance <0 means AUTO (gap detection), =0 keeps
+    //!        all modes, >0 is an explicit absolute eigenvalue floor.
+    enum Ortho {Cholesky, Eigen, SVD, Auto};
 
     //! Process-wide diagnostic toggle (default OFF).  When true, every LASolver::SetBasisOverlap emits a
     //! one-line report of the basis overlap S -- min eigenvalue, min singular value, max eigenvalue, condition

@@ -33,7 +33,7 @@ public:
     //! \a basisOrthoTol cutoff that DROPS near-null eigen/singular values -- canonical orthogonalisation for a
     //! linearly-dependent basis (e.g. diffuse Gaussians on a dense lattice).  \a basisOrthoTol\f$\le0\f$ = keep all.
     tCompositeWF(const tbs_t<T>*,const ElectronConfiguration*,tSCFAccelerator<T>*,
-                 qchem::Ortho basisOrtho=qchem::Cholesky, double basisOrthoTol=0.0);
+                 qchem::Ortho basisOrtho=qchem::Auto, double basisOrthoTol=0.0);
     ~tCompositeWF();
 
     virtual void            DoSCFIteration  (tHamiltonian<T>&,const tChargeDensity<T>*   )      ;

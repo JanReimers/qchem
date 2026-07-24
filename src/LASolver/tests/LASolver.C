@@ -155,12 +155,80 @@ TEST_P(LASolverTest, SolveOrthoConsistentWithSolve)
 }
 
 INSTANTIATE_TEST_SUITE_P(AllMethods, LASolverTest,
-    ::testing::Values(qchem::Cholesky, qchem::Eigen, qchem::SVD),
+    ::testing::Values(qchem::Cholesky, qchem::Eigen, qchem::SVD, qchem::Auto),
     [](const ::testing::TestParamInfo<qchem::Ortho>& info) -> std::string {
         switch (info.param) {
             case qchem::Cholesky: return "Cholesky";
             case qchem::Eigen:   return "Eigen";
             case qchem::SVD:     return "SVD";
+            case qchem::Auto:    return "Auto";
         }
         return "Unknown";
     });
+
+// ---------------------------------------------------------------------------
+//  Auto gap-detection tolerance + Cholesky-on-singular override (doc/GPWPlan §1)
+// ---------------------------------------------------------------------------
+
+// [[1,1-e],[1-e,1]] has eigenvalues {e, 2-e}; with the 1 on the 3rd diagonal -> eigenvalues ~{1e-8, 1, 2}:
+// a PSD NEAR-NULL mode with a clean ~1e8x spectral gap above it.
+static rsmat_t make_nearnull3()
+{
+    rsmat_t S(3);
+    S(0,0)=1.0; S(0,1)=1.0-1e-8; S(1,1)=1.0; S(2,2)=1.0;
+    return S;
+}
+// [[1,1+e],[1+e,1]] has eigenvalues {-e, 2+e} -> eigenvalues ~{-1e-4, 1, 2}: genuinely INDEFINITE, so a
+// Cholesky factorisation cannot proceed.
+static rsmat_t make_indefinite3()
+{
+    rsmat_t S(3);
+    S(0,0)=1.0; S(0,1)=1.0+1e-4; S(1,1)=1.0; S(2,2)=1.0;
+    return S;
+}
+
+// Explicit Eigen with AUTO tolerance (Factory tol < 0): gap detection drops the near-null mode, no user tol.
+TEST(LASolverAuto, EigenAutoDropsCleanNearNull)
+{
+    std::unique_ptr<LASolver<double>> s(LASolver<double>::Factory(qchem::Eigen, -1.0));
+    s->SetBasisOverlap(make_nearnull3());
+    EXPECT_EQ(s->GetOrthoDim(), 2u);   // 3 -> 2: the ~1e-8 mode dropped at the clean gap
+}
+TEST(LASolverAuto, EigenAutoKeepsWellConditioned)
+{
+    std::unique_ptr<LASolver<double>> s(LASolver<double>::Factory(qchem::Eigen, -1.0));
+    s->SetBasisOverlap(make_S3());
+    EXPECT_EQ(s->GetOrthoDim(), 3u);
+}
+// AUTO (the default): a near-null overlap -> it picks canonical Eigen and drops the mode.
+TEST(LASolverAuto, AutoPicksEigenOnNearNull)
+{
+    std::unique_ptr<LASolver<double>> s(LASolver<double>::Factory(qchem::Auto));
+    s->SetBasisOverlap(make_nearnull3());   // clean gap -> Eigen(auto)
+    EXPECT_EQ(s->GetOrthoDim(), 2u);
+    rsmat_t Sp = s->Transform(make_nearnull3());
+    EXPECT_EQ(Sp.rows(), 2u);
+    for (size_t i=0;i<2;i++) for (size_t j=0;j<2;j++) EXPECT_NEAR(Sp(i,j), i==j?1.0:0.0, kTol);
+}
+// AUTO on an INDEFINITE overlap -> Eigen(auto) force-drops the negative mode (Cholesky would fail).
+TEST(LASolverAuto, AutoHandlesIndefinite)
+{
+    std::unique_ptr<LASolver<double>> s(LASolver<double>::Factory(qchem::Auto));
+    s->SetBasisOverlap(make_indefinite3());
+    EXPECT_EQ(s->GetOrthoDim(), 2u);
+}
+// AUTO on a WELL-conditioned overlap -> it picks Cholesky, full rank kept.
+TEST(LASolverAuto, AutoPicksCholeskyWellConditioned)
+{
+    std::unique_ptr<LASolver<double>> s(LASolver<double>::Factory(qchem::Auto));
+    s->SetBasisOverlap(make_S3());
+    EXPECT_EQ(s->GetOrthoDim(), 3u);
+}
+// EXPLICIT Cholesky is PLAIN -- it never truncates, even a near-null PSD overlap (the escape hatch for
+// relativistic bases where mode-dropping is invalid).  It factors it (ill-conditioned but full rank).
+TEST(LASolverAuto, CholeskyNeverTruncates)
+{
+    std::unique_ptr<LASolver<double>> s(LASolver<double>::Factory(qchem::Cholesky));
+    s->SetBasisOverlap(make_nearnull3());   // PSD, potrf succeeds
+    EXPECT_EQ(s->GetOrthoDim(), 3u);        // full rank -- NO truncation
+}

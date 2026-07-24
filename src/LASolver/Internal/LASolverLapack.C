@@ -1,5 +1,6 @@
 // File: LASolver/Internal/LASolverLapack.C  Concrete eigen/SVD/Cholesky LASolver implementations.
 module;
+#include <memory>
 export module qchem.LASolver.Internal.Lapack;
 export import qchem.LASolver;
 import qchem.Blaze;
@@ -52,6 +53,9 @@ private:
     rvec_t   itsD;
 };
 
+// PLAIN Cholesky: assumes S positive-definite, NEVER truncates (potrf then invert).  Pick it deliberately
+// where mode-dropping is invalid (relativistic/Dirac bases -- kinetic balance).  The Auto method (below)
+// falls to Eigen for a genuinely singular S; this class does not second-guess the caller.
 export template <class T> class LASolverCholesky : public virtual LASolver<T>
 {
     typedef LASolver<T> Base;
@@ -73,6 +77,27 @@ private:
     umat_t   itsV;    // U^{-1}, upper triangular
     lmat_t   itsVd;   // trans(U^{-1}), lower triangular
     rvec_t   itsD;
+};
+
+// AUTO (the default): eigen-analyse S; a droppable near-null mode -> canonical Eigen ortho (auto tol);
+// otherwise plain Cholesky.  Holds whichever it chose and delegates every operation to it.
+export template <class T> class LASolverAuto : public virtual LASolver<T>
+{
+    typedef LASolver<T> Base;
+    typedef typename Base::Ud_t  Ud_t;
+    typedef typename Base::UUd_t UUd_t;
+public:
+    LASolverAuto() {}
+
+    void       SetBasisOverlap(const hmat_t<T>& S)          override;
+    size_t     GetOrthoDim()                           const override { return itsImpl->GetOrthoDim(); }
+    rvec_t     Get_BS_Diagonal()                       const override { return itsImpl->Get_BS_Diagonal(); }
+    Ud_t       Solve      (const hmat_t<T>& H)         const override { return itsImpl->Solve(H); }
+    UUd_t      SolveOrtho (const hmat_t<T>& Hprime)   const override { return itsImpl->SolveOrtho(Hprime); }
+    hmat_t<T>  Transform  (const hmat_t<T>& M)         const override { return itsImpl->Transform(M); }
+    mat_t<T>   BackTransform(const mat_t<T>& Uprime)   const override { return itsImpl->BackTransform(Uprime); }
+private:
+    std::unique_ptr<LASolver<T>> itsImpl;   // Cholesky or Eigen, chosen in SetBasisOverlap
 };
 
 } // namespace qchem

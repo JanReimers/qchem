@@ -89,7 +89,7 @@ public:
     tSCFIterator(const tbs_t<T>*, const ElectronConfiguration*, ham_t*,acc_t*,
                  ChargeDensity::SeedStrategy seed=ChargeDensity::SeedStrategy::Default,
                  const Structure* st=nullptr,
-                 qchem::Ortho basisOrtho=qchem::Cholesky, double basisOrthoTol=0.0);
+                 qchem::Ortho basisOrtho=qchem::Auto, double basisOrthoTol=0.0);
     //! Grid-continuation / explicit-seed ctor (doc/GPWPlan §0e): seed the SCF from a PRE-BUILT density
     //! \a seedDensity (TAKES OWNERSHIP -- consumed building the iteration-0 Fock, then freed) instead of
     //! resolving a SeedStrategy enum.  The intended use is grid continuation: a density converged on a
@@ -101,7 +101,7 @@ public:
     tSCFIterator(const tbs_t<T>*, const ElectronConfiguration*, ham_t*,acc_t*,
                  tChargeDensity<T>* seedDensity,
                  const Structure* st=nullptr,
-                 qchem::Ortho basisOrtho=qchem::Cholesky, double basisOrthoTol=0.0);
+                 qchem::Ortho basisOrtho=qchem::Auto, double basisOrthoTol=0.0);
     virtual ~tSCFIterator();
     virtual bool Iterate(const SCFParams& ipar);
 

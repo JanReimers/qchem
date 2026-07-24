@@ -5,6 +5,7 @@ module;
 #include <type_traits>
 #include <cmath>
 #include <algorithm>
+#include <memory>
 module qchem.LASolver.Internal.Lapack;
 import qchem.Blaze;
 
@@ -22,6 +23,39 @@ template <class T> static void report_conditioning(const hmat_t<T>& S)
     for (double v : d) msv = std::min(msv, std::fabs(v));
     std::cout << "[overlap S] n=" << S.rows() << "  min eig=" << mn << "  min sv=" << msv
               << "  max eig=" << mx << "  cond=" << (msv > 0 ? mx/msv : 0.0) << std::endl;
+}
+
+// Gap-detection auto-tolerance (doc/GPWPlan §1 step 2).  Given the ASCENDING overlap eigenvalues w, decide
+// how many leading NEAR-NULL modes to drop -- without the user guessing a tolerance:
+//   (1) force-drop w<=0 (indefinite from roundoff -- Cholesky would fail, canonical ortho must not sqrt them);
+//   (2) in the LOW spectrum (below kLowFrac*max, where an over-complete null CLUSTER lives) find the largest
+//       consecutive ratio w[i+1]/w[i]; a ratio > kGapRatio is a CLEAN spectral gap -> cut there;
+//   (3) else (a smoothly over-complete basis: no clean gap, a geometric ramp) fall back to the ABSOLUTE
+//       singularity floor kEpsFloor -- drop every mode below it.  Absolute, NOT wmax-relative: an
+//       over-complete basis can have a huge wmax (measured 8.9e7), which would make a relative floor cut
+//       arbitrarily high; and a normal basis with a 1e-9 near-null needs the floor to actually reach it.
+// Returns {nDrop, gap ratio, clean?, the tolerance ACTUALLY APPLIED} (for a never-silent, self-explaining WARN).
+struct NullGap { size_t nDrop; double gapRatio; bool clean; double tol; };
+static NullGap detect_null_gap(const rvec_t& w)
+{
+    static constexpr double kGapRatio = 30.0;   //!< a >30x consecutive jump in the low spectrum = a clean gap
+    static constexpr double kLowFrac  = 1e-3;   //!< only hunt the null/physical gap below max*kLowFrac
+    static constexpr double kEpsFloor = 1e-8;   //!< ABSOLUTE singularity floor (no-clean-gap fallback)
+    const size_t n = w.size();
+    if (n==0) return {0, 1.0, true, 0.0};
+    const double wmax = w[n-1];
+    size_t k = 0;                                // (1) leading non-positive
+    while (k<n && w[k] <= 0.0) ++k;
+    size_t cut = k; double bestR = 1.0;          // (2) largest low-spectrum ratio
+    for (size_t i=k; i+1<n && w[i] < wmax*kLowFrac; ++i)
+    {
+        const double r = w[i+1]/w[i];
+        if (r > bestR) { bestR = r; cut = i+1; }
+    }
+    if (bestR > kGapRatio) return {cut, bestR, true, w[cut>0?cut-1:0]};     // clean gap: tol = last dropped eig
+    size_t m = k;                                                          // (3) ambiguous -> absolute floor
+    while (m<n && w[m] < kEpsFloor) ++m;
+    return {m, bestR, m==0, kEpsFloor};
 }
 
 //-----------------------------------------------------------------------------
@@ -118,23 +152,33 @@ template <class T> void LASolverEigen<T>::Rescale(mat_t<T>& V, const rvec_t& w)
 template <class T> void LASolverEigen<T>::Truncate(mat_t<T>& U, rvec_t& w, double tol)
 {
     assert(U.columns() == w.size());
+    const size_t n = w.size();
     size_t index = 0;
-    for (auto v : w)
-        if (v < tol) index++;
-        else         break;
-
-    size_t n = w.size();
-    assert(w[index] >= tol);
-    if (index > 0)
+    bool ambiguous = false; double gapRatio = 0.0, appliedTol = tol;
+    if (tol < 0.0)                                  // AUTO tolerance: gap detection (doc/GPWPlan §1 step 2)
     {
-        assert(w[index-1] < tol);
-        std::cout << "LASolverEigen truncating " << index << " eigen values."
-                  << " Min(w)=" << w[0] << " tol=" << tol << std::endl;
-        assert(U.rows() == U.columns());
-        size_t nr = U.rows();
-        U = blazem::submatrix(U, 0, index, nr, nr-index);
-        w = blazem::subvector(w, index, nr-index);
+        const NullGap g = detect_null_gap(w);
+        index = g.nDrop; gapRatio = g.gapRatio; ambiguous = (index>0 && !g.clean); appliedTol = g.tol;
     }
+    else                                            // EXPLICIT floor (tol=0 keeps everything -- PSD w>0)
+        for (auto v : w) { if (v < tol) index++; else break; }
+
+    if (index == 0) return;
+    // NEVER SILENT (doc/GPWPlan §1 step 3): every drop is reported on cerr with the evidence, INCLUDING the
+    // tolerance actually applied (a clean gap's boundary eig, or the absolute floor for a smooth over-complete
+    // ramp -- e.g. an even-tempered basis, whose overlap is a geometric ramp with no clean spectral gap).
+    std::cerr << "[ortho] dropped " << index << " near-null overlap mode(s) of " << n
+              << " (min eig=" << w[0] << ", first kept=" << (index<n ? w[index] : 0.0) << "; ";
+    if (tol < 0.0 && !ambiguous) std::cerr << "AUTO clean gap: ratio " << gapRatio << " at eig " << appliedTol;
+    else if (tol < 0.0)          std::cerr << "AUTO no clean gap (max ratio " << gapRatio
+                                           << ") -> dropped below floor " << appliedTol;
+    else                         std::cerr << "explicit tol " << tol;
+    std::cerr << ")" << std::endl;
+
+    assert(U.rows() == U.columns());
+    const size_t nr = U.rows();
+    U = blazem::submatrix(U, 0, index, nr, nr-index);
+    w = blazem::subvector(w, index, nr-index);
 }
 
 //=============================================================================
@@ -219,10 +263,8 @@ template <class T> void LASolverCholesky<T>::SetBasisOverlap(const hmat_t<T>& S)
     mat_t<T> Sm(S);
     blazem::potrf(Sm, 'U');
     // Cholesky diagonal is always real; extract accordingly.
-    if constexpr (std::is_floating_point_v<T>)
-        itsD = blazem::diagonal(Sm);
-    else
-        itsD = blazem::real(blazem::diagonal(Sm));
+    if constexpr (std::is_floating_point_v<T>) itsD = blazem::diagonal(Sm);
+    else                                       itsD = blazem::real(blazem::diagonal(Sm));
     blazem::trtri(Sm, 'U', 'N');
     // zero out lower triangle (trtri leaves it undefined)
     size_t N = Sm.rows();
@@ -258,14 +300,37 @@ LASolverCholesky<T>::BackTransform(const mat_t<T>& Uprime) const
 }
 
 //=============================================================================
+//  LASolverAuto -- eigen-analyse S, then pick Cholesky (well-conditioned) or Eigen(auto tol) (near-null).
+//=============================================================================
+
+template <class T> void LASolverAuto<T>::SetBasisOverlap(const hmat_t<T>& S)
+{
+    report_conditioning<T>(S);
+    rvec_t w; mat_t<T> U;
+    blazem::eigen(S, w, U);                        // ascending eigenvalues -- the "eigen analysis"
+    const NullGap g = detect_null_gap(w);          // 0 droppable modes <=> S is safe for Cholesky
+    if (g.nDrop == 0)
+        itsImpl = std::make_unique<LASolverCholesky<T>>();
+    else
+    {
+        std::cerr << "[ortho] Auto: overlap has " << g.nDrop << " near-null mode(s) (min eig=" << w[0]
+                  << ") -> canonical Eigen orthogonalisation instead of Cholesky." << std::endl;
+        itsImpl = std::make_unique<LASolverEigen<T>>(-1.0);   // <0 = AUTO gap-detection tol (re-WARNs the drop)
+    }
+    itsImpl->SetBasisOverlap(S);
+}
+
+//=============================================================================
 //  Explicit instantiations
 //=============================================================================
 
 template class LASolverEigen  <double>;
 template class LASolverSVD    <double>;
 template class LASolverCholesky<double>;
+template class LASolverAuto    <double>;
 template class LASolverEigen  <dcmplx>;
 template class LASolverSVD    <dcmplx>;
 template class LASolverCholesky<dcmplx>;
+template class LASolverAuto    <dcmplx>;
 
 } // namespace qchem

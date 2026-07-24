@@ -19,7 +19,7 @@ export namespace qchem::WaveFunction
             const tbs_t<T>* bs,
             const ElectronConfiguration* ec,
             SCFAccelerators::tSCFAccelerator<T>* acc,
-            qchem::Ortho basisOrtho=qchem::Cholesky, double basisOrthoTol=0.0
+            qchem::Ortho basisOrtho=qchem::Auto, double basisOrthoTol=0.0
         );
 }
 

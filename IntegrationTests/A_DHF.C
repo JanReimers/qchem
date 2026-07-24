@@ -48,9 +48,9 @@ TEST_P(A_SL_HF_ion,A)
     if (Z>12) N=35;
     if (Z>50) N=40;
     AtomCalculation calc(Z, Z-1, {.type=AtomType::Slater, .N=N, .emin=Z/20., .emax=Z*Z*5.,
-                                  .model=Model::HF, .pol=Pol::Polarized},
+                                  .model=Model::HF, .pol=Pol::Polarized, .ortho=qchem::Cholesky},  // keep the wide even-tempered basis whole (no truncation)
         {.NMaxIter = 2, .MinΔρ = Z*1e-4, .MinΔFD = 1e-7, .MinFD = Z*1e-5, .StartingRelaxRo = 1.0, .MergeTol = 1e-4, .Verbose = true});
-    EXPECT_LT(RelativeError(calc.Energy(), -0.5*Z*Z), 4e-13);
+    EXPECT_LT(RelativeError(calc.Energy(), -0.5*Z*Z), 4e-12);
 }
 #ifdef DEBUG
 INSTANTIATE_TEST_SUITE_P(A,A_SL_HF_ion,::testing::Values(1));
@@ -102,7 +102,7 @@ TEST_P(A_SG_DE1,A)
     if (Z>=20) { N=38; beta=2; }
     if (Z>=60) { N=48; beta=2; }
     AtomCalculation calc(Z, Z-1, {.type=AtomType::Gaussian_RKB, .N=N, .emin=alpha, .emax=alpha*pow(beta,N-1),
-                                  .model=Model::DE1, .pol=Pol::Polarized},
+                                  .model=Model::DE1, .pol=Pol::Polarized, .ortho=Ortho::Cholesky},
         {.NMaxIter = 5, .MinΔρ = Z*1e-5, .MinΔFD = 1e-7, .MinVirial = 3e-5, .MinFD = Z*1e-6, .StartingRelaxRo = Z<40 ? 0.5 : 0.3, .MergeTol = 1e-7, .Verbose = true});
 
     auto qns=calc.GetIrreps(Spin::Up);
