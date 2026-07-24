@@ -115,6 +115,12 @@ public:
     {
         chmat_t S(size());
         const bool trace=(std::getenv("GPW_RSS_TRACE")!=nullptr);
+        // GEOMETRY-CACHE BOUND (the full-SR OOM, doc/GPWPlan.md): the MnD Omega/RNLM/H3 caches key on
+        // per-instance IDs, and AtCenter mints fresh clones per (pair, offset) -- a diffuse basis' ~2k
+        // images/pair would grow them to GBs inside ONE matrix build.  The size-0 budget evicts each
+        // clone as the next is inserted (O(1) resident); safe here because the 1E/3C kernels hold at
+        // most one live borrow per cache.  Replaces the old per-pair ClearGeometryCaches().
+        const GeometryCacheBudget geoBudget;
         for (auto i:indices())
         {
             for (auto j:indices(i))
@@ -125,12 +131,6 @@ public:
                                 { s += phase(n) * K(i, j, radials[j]->AtCenter(cj+Roff)); });
                 s *= ns[i]*ns[j];
                 S(i,j) = (i==j) ? dcmplx(std::real(s),0.0) : s;   // Hermitian diagonal real; (j,i) auto-set to conj
-                // PAIR-SCOPE geometry-cache bound (the full-SR OOM, doc/GPWPlan.md): the MnD
-                // Omega/RNLM/H3 caches key on per-instance IDs, and AtCenter mints fresh clones per
-                // (pair, offset) -- a diffuse basis' ~2k images/pair grows them to GBs inside ONE
-                // matrix build (row scope measured NOT tight enough at SR).  Clearing per pair costs
-                // only the shell-mate component reuse (<=(2l+1)^2 rebuilds on a seconds-scale build).
-                ClearGeometryCaches();
             }
             if (trace)
             {
@@ -158,13 +158,13 @@ public:
                               const std::function<Molecule::LatticeSum1E::GaussianFunction(int)>& opForZ) const
     {
         const std::vector<OpTerm> ops=BuildOpTerms(cl,opForZ,&A);   // periodic: operator over its screened images
-        // STREAMING 3-centre kernel: a lattice-series (pair, image, op) triple is consumed exactly once,
-        // and its Hermite3 blocks are 100s-of-KB-scale for high-degree op polynomials -- caching them
-        // (even pair-scoped) reached GBs per diffuse pair (the full-SR OOM, doc/GPWPlan.md).
+        // 3-centre kernel under LatticeSum's size-0 GeometryCacheBudget: each (pair, image, op) triple's
+        // Hermite3 block (100s-of-KB for high-degree op polynomials) is built, used, then evicted as the
+        // next insert arrives -- O(1) resident, the streaming behaviour without a duplicated kernel.
         return LatticeSum(phase,A,[this,&ops](size_t i,size_t j,const GaussianRF& cj)
         {
             double s=0.0;
-            for (const auto& ot : ops) s += ot.c * ot.gr->Overlap3CStream(*radials[i], cj, pols[i], pols[j], ot.pol);
+            for (const auto& ot : ops) s += ot.c * ot.gr->Overlap3C(*radials[i], cj, pols[i], pols[j], ot.pol);
             return s;
         });
     }
@@ -195,6 +195,7 @@ public:
         const double lne=-std::log(kScreenEps);
         const int Lg=GaussDegree(g);
         cvec_t b(size(), dcmplx(0.0));
+        const GeometryCacheBudget geoBudget;   // size-0: g's image clones stay O(1) (see LatticeSum)
         for (auto i:indices())
         {
             double amin=radials[i]->GetExponents()[0];
@@ -211,7 +212,6 @@ public:
                 s += phase(n)*GaussOverlapTerm(i, g, g.center+Roff, Lg);
             }
             b[i]=ns[i]*s;
-            ClearGeometryCaches();   // row-scope bound (see LatticeSum): g's image clones mint fresh cache IDs
         }
         return b;
     }

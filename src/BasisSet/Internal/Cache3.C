@@ -52,9 +52,17 @@ public:
         {
             ++itsInserts;
             it = sub.emplace(i3, std::unique_ptr<const Cacheable3>(make())).first;
+            if (itsMaxRAM!=kUnbounded) EnforceBudget(i1,i2,i3);   // over budget -> keep only this entry
         }
         return *it->second;
     }
+
+    // Byte budget (default kUnbounded = no eviction).  See Cache2: the ALGORITHM sets it per scope; a
+    // lattice driver pushes size-0 (keep-newest) so H3 stays O(1) across image clones (retiring the
+    // streaming kernel).  const because storage/policy are mutable.
+    static constexpr size_t kUnbounded = ~size_t(0);
+    void   SetMaxRAM(size_t bytes) const {itsMaxRAM=bytes;}
+    size_t GetMaxRAM()             const {return itsMaxRAM;}
 
     // Descent form: loop_1/loop_2 descend, loop_3 returns/creates via Create.
     void                      loop_1(size_t i1) const;
@@ -72,6 +80,9 @@ public:
     size_t Inserts() const {return itsInserts;}
     void   Report(std::ostream&, const std::string& name) const;
 private:
+    //! Keep-newest eviction (see Cache2::EnforceBudget for the const&-contract invariant): over budget,
+    //! drop every entry except the just-inserted (keep1,keep2,keep3).  Never called at kUnbounded.
+    void EnforceBudget(size_t keep1, size_t keep2, size_t keep3) const;
 
     typedef std::map<size_t,std::unique_ptr<const Cacheable3>> cache_3;
     typedef std::map<size_t,cache_3> cache_2;
@@ -82,6 +93,7 @@ private:
     mutable cache_3* i2_cache;
     mutable size_t   i1,i2,i3; //Current indexes
     mutable size_t   itsLookups=0, itsInserts=0; //hit/miss stats
+    mutable size_t   itsMaxRAM=kUnbounded;        //byte budget (kUnbounded = no eviction)
 };
 
 } // namespace qchem

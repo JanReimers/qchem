@@ -73,9 +73,18 @@ public:
         {
             ++itsInserts;
             it = sub.emplace(i2, std::unique_ptr<const Cacheable2>(make())).first;
+            if (itsMaxRAM!=kUnbounded) EnforceBudget(i1,i2);   // over budget -> keep only this entry
         }
         return *it->second;
     }
+
+    // Byte budget (default kUnbounded = no eviction, the molecular hot path).  The ALGORITHM selects it
+    // per scope, not the user: a lattice driver pushes a size-0 budget (keep-newest) so the geometry
+    // caches stay O(1) across image clones; molecular paths keep the default.  See EnforceBudget for the
+    // const&-contract invariant.  const because storage/policy are mutable (a `const Cache2*` sets it).
+    static constexpr size_t kUnbounded = ~size_t(0);
+    void   SetMaxRAM(size_t bytes) const {itsMaxRAM=bytes;}
+    size_t GetMaxRAM()             const {return itsMaxRAM;}
 
     // Descent form (for hot loops): loop_1 descends to the i1 sub-map, loop_2 returns/creates via
     // Create.  Override Create in a subclass that knows how to build from indices alone.
@@ -97,6 +106,13 @@ public:
     size_t Inserts() const {return itsInserts;}
     void   Report(std::ostream&, const std::string& name) const;
 private:
+    //! Keep-newest eviction: when the resident bytes exceed itsMaxRAM, drop every entry EXCEPT the one
+    //! just inserted (keep1,keep2).  At the lattice size-0 budget this is size-1 LRU; at kUnbounded it is
+    //! never called.  Correctness invariant: an entry is freed here, so no caller may hold a live const&
+    //! to a NON-(keep1,keep2) entry across the insert that triggers this -- true on the lattice 1E/3C
+    //! paths (<=1 live borrow per cache) and moot on the molecular path (kUnbounded, never evicts).  A
+    //! multi-entry recency LRU is the future extension when a mid-range budget gets a real consumer.
+    void EnforceBudget(size_t keep1, size_t keep2) const;
 
     typedef std::map<size_t,std::unique_ptr<const Cacheable2>> cache_2;
     typedef std::map<size_t,cache_2> cache_t;
@@ -105,6 +121,7 @@ private:
     mutable cache_2* i1_cache;
     mutable size_t   i1,i2; //Current indexes
     mutable size_t   itsLookups=0, itsInserts=0; //hit/miss stats
+    mutable size_t   itsMaxRAM=kUnbounded;        //byte budget (kUnbounded = no eviction)
 };
 
 } // namespace qchem

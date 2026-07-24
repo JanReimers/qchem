@@ -49,6 +49,18 @@ void Cache2::Report(std::ostream& os, const std::string& name) const
        << std::endl;
 }
 
+void Cache2::EnforceBudget(size_t keep1, size_t keep2) const
+{
+    if (RAMsize() <= itsMaxRAM) return;
+    // keep-newest (size-1) policy: retain only the entry just inserted (keep1,keep2), drop the rest.
+    for (auto a=cache.begin(); a!=cache.end(); )
+    {
+        std::erase_if(a->second, [&](const auto& p){ return !(a->first==keep1 && p.first==keep2); });
+        if (a->second.empty()) a=cache.erase(a); else ++a;
+    }
+    i1_cache=nullptr;   // the descent-form cursor may now dangle
+}
+
 const Cacheable2* Cache2::Create(size_t,size_t) const
 {
     return nullptr; // facade (get) form does not use Create; override for the loop_2 descent form

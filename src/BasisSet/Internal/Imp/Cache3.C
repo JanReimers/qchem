@@ -47,6 +47,23 @@ void Cache3::Report(std::ostream& os, const std::string& name) const
        << std::endl;
 }
 
+void Cache3::EnforceBudget(size_t keep1, size_t keep2, size_t keep3) const
+{
+    if (RAMsize() <= itsMaxRAM) return;
+    // keep-newest (size-1) policy: retain only the entry just inserted (keep1,keep2,keep3).
+    for (auto a=cache.begin(); a!=cache.end(); )
+    {
+        for (auto b=a->second.begin(); b!=a->second.end(); )
+        {
+            const bool keepSub = (a->first==keep1 && b->first==keep2);
+            std::erase_if(b->second, [&](const auto& p){ return !(keepSub && p.first==keep3); });
+            if (b->second.empty()) b=a->second.erase(b); else ++b;
+        }
+        if (a->second.empty()) a=cache.erase(a); else ++a;
+    }
+    i1_cache=nullptr; i2_cache=nullptr;   // the descent-form cursors may now dangle
+}
+
 const Cacheable3* Cache3::Create(size_t,size_t,size_t) const
 {
     return nullptr; // facade (get) form does not use Create; override for the loop_3 descent form

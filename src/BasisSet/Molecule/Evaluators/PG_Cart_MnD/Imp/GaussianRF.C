@@ -161,12 +161,22 @@ namespace
     }
 }
 
-// The lattice drivers' geometry-cache scope boundary (declared in the interface; doc above).
-void ClearGeometryCaches()
+// The lattice drivers' geometry-cache scope guard (declared in the interface; doc above).  Push a byte
+// budget onto all three geometry caches; restore the prior budgets on scope exit.
+GeometryCacheBudget::GeometryCacheBudget(size_t maxBytesPerCache)
+    : itsPrevΩ   (OmegaCache()->GetMaxRAM())
+    , itsPrevRNLM(RNLMCache ()->GetMaxRAM())
+    , itsPrevH3  (H3Cache   ()->GetMaxRAM())
 {
-    OmegaCache()->Clear();
-    RNLMCache ()->Clear();
-    H3Cache   ()->Clear();
+    OmegaCache()->SetMaxRAM(maxBytesPerCache);
+    RNLMCache ()->SetMaxRAM(maxBytesPerCache);
+    H3Cache   ()->SetMaxRAM(maxBytesPerCache);
+}
+GeometryCacheBudget::~GeometryCacheBudget()
+{
+    OmegaCache()->SetMaxRAM(itsPrevΩ);
+    RNLMCache ()->SetMaxRAM(itsPrevRNLM);
+    H3Cache   ()->SetMaxRAM(itsPrevH3);
 }
 
 
@@ -402,14 +412,6 @@ double PrimGaussian::Overlap3C(const PrimGaussian* ga, const PrimGaussian* gb, c
     const Hermite3& H3 = findH3(ga, gb, gc);
     return H3(pa,pb,pc);
 }
-// Streaming variant: the block lives for exactly this call (see the interface doc; the lattice paths).
-double PrimGaussian::Overlap3CStream(const PrimGaussian* ga, const PrimGaussian* gb, const PrimGaussian* gc,
-                                     const Polarization& pa, const Polarization& pb, const Polarization& pc)
-{
-    std::unique_ptr<Hermite3> H3(gc->GetH3(*ga,*gb));
-    return (*H3)(pa,pb,pc);
-}
-
 double PrimGaussian::Repulsion3C(const PrimGaussian* ga, const PrimGaussian* gb, const PrimGaussian* gc,
                                  const Polarization& pa, const Polarization& pb, const Polarization& pc)
 {
@@ -708,17 +710,6 @@ double GaussianRF::Overlap3C(rf_t& ra, rf_t& rb, po_t& pa, po_t& pb, po_t& pc) c
                                                pa, pb, pc);
     return s;
 }
-double GaussianRF::Overlap3CStream(rf_t& ra, rf_t& rb, po_t& pa, po_t& pb, po_t& pc) const
-{
-    double s = 0.0;
-    for (size_t i=0;i<ra.itsPrims.size();++i)
-        for (size_t j=0;j<rb.itsPrims.size();++j)
-            for (size_t k=0;k<itsPrims.size();++k)
-                s += ra.itsCoeff[i]*rb.itsCoeff[j]*itsCoeff[k]
-                     * PrimGaussian::Overlap3CStream(ra.itsPrims[i].get(), rb.itsPrims[j].get(), itsPrims[k].get(),
-                                                     pa, pb, pc);
-    return s;
-}
 double GaussianRF::Repulsion3C(rf_t& ra, rf_t& rb, po_t& pa, po_t& pb, po_t& pc) const
 {
     double s = 0.0;
@@ -738,8 +729,9 @@ double GaussianRF::Repulsion4C(rf_t& ra, rf_t& rb, rf_t& rc, po_t& pa, po_t& pb,
                  nk=rc.itsPrims.size(), nl=itsPrims.size();
     // Hoist the Ω (charge-distribution) lookups out of the inner contraction: ab is constant across the
     // (k,l) loop and the cd table is reused across every (i,j), so findΩ runs ni*nj+nk*nl times instead of
-    // ni*nj*nk*nl (each is a cached red-black-tree lookup).  Cache entries are never evicted, so the Ω
-    // addresses stay valid for the duration of this call.
+    // ni*nj*nk*nl (each is a cached red-black-tree lookup).  This holds nk*nl live Ω borrows at once, so it
+    // REQUIRES the unbounded (molecular default) budget -- no GeometryCacheBudget is in scope on the 4C
+    // path, so the Ω cache never evicts and the borrowed addresses stay valid for this call.
     std::vector<const Ω*> cdΩ(nk*nl);
     for (size_t k=0;k<nk;++k)
         for (size_t l=0;l<nl;++l)
