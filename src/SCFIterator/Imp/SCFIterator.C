@@ -282,10 +282,12 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
             // previous iteration (blank on iteration 1 -- there is no prior config to differ from).
             std::string config = ConfigString(itsWaveFunction);
             const GapInfo g=HomoLumo(itsWaveFunction);   // frontier spectrum for the gap column
+            const double N=itsCD->GetTotalCharge();      // Tr(DS); normalise the grid-charge leak per electron
             IterationTrace tr{ itsIterationCount, eb, itsMixer->GetRelax(),
                                itsMixer->Tag(), itsAccelerator->Tag(), itsAccelerator->Count(),
                                FD, dFD, ChargeDensityChange, dE, idealVirial,
                                itsIterationCount>1 && config!=prevConfig, lineSearch,
+                               (N!=0.0 ? eb.GridChargeLost/N : 0.0),
                                g.eHomo, g.eLumo, g.gap, g.haveHomo, g.haveLumo, g.metallic, g.hole };
             DisplayColumns(cout, tr);
             prevConfig=std::move(config);
@@ -442,7 +444,7 @@ template <class T> EnergyBreakdown tSCFIterator<T>::GetEnergy() const
 
 // --- Column-width constants: the header labels and the value rows share these, so they line up exactly
 //     regardless of the UTF-8 label glyphs (Δ, ρ, ε are multi-byte but one display column). --------------
-namespace { enum : int { W_ITER=3, W_E=20, W_FD=10, W_DELTA=10, W_RHO=9, W_VIR=10, W_MIX=8, W_ACC=7, W_CFG=3, W_GAP=9 }; }
+namespace { enum : int { W_ITER=3, W_E=20, W_FD=10, W_DELTA=10, W_RHO=9, W_VIR=10, W_LOST=10, W_MIX=8, W_ACC=7, W_CFG=3, W_GAP=9 }; }
 
 // Display width of a UTF-8 string (counts leading bytes only, so Δ/ρ/ε each count as one column).
 static size_t VisWidth(const std::string& s)
@@ -539,7 +541,8 @@ void SolidSCFIterator::DisplayColumnHeaders(std::ostream& os, const SCFParams& i
 {
     os << endl << endl;
     WriteHeadPrefix(os);
-    os << PadR("ΔE/E",W_DELTA) << " " << PadR("Δρ",W_RHO) << " ";   // ΔE column is RELATIVE (dE/|E|)
+    os << PadR("ΔE/E",W_DELTA) << " " << PadR("Δρ",W_RHO) << " "     // ΔE column is RELATIVE (dE/|E|)
+       << PadR("ρ_lost/N",W_LOST) << " ";                            // grid-charge leak per electron (health)
     WriteHeadMixAccelCfg(os);
     os << " " << PadR("gap",W_GAP) << endl;
     WriteThreshLead(os);
@@ -551,8 +554,9 @@ void SolidSCFIterator::DisplayColumnHeaders(std::ostream& os, const SCFParams& i
 void SolidSCFIterator::DisplayColumns(std::ostream& os, const IterationTrace& tr) const
 {
     WriteRowPrefix(os, tr);
-    os << std::scientific << setw(10) << setprecision(2) << tr.dE   << " ";
-    os << std::scientific << setw(9)  << setprecision(2) << tr.dRho << " ";
+    os << std::scientific << setw(W_DELTA) << setprecision(2) << tr.dE   << " ";
+    os << std::scientific << setw(W_RHO)   << setprecision(2) << tr.dRho << " ";
+    os << std::scientific << setw(W_LOST)  << setprecision(2) << tr.gridLostRel << " ";  // ρ_lost/N
     WriteMixAccelCfg(os, tr);
     WriteGapColumn(os, tr);   // solids always show the gap (folds the former ReportBandGap() instrument)
     os << endl;

@@ -41,6 +41,11 @@ public:
     double ExcFit;
     double ExcFitFit;
     double RestMass;
+    //! GPW health DIAGNOSTIC (not an energy): signed grid-charge leak \f$\int\tilde\rho\,d^3r - \mathrm{Tr}(DS)\f$
+    //! -- the electrons lost to collocation-grid truncation (== CP2K's "Electronic density on regular grids"
+    //! error).  Set by the plane-wave XC term; 0 on the molecular path (no grid).  The per-iteration solid SCF
+    //! display normalises it by \f$N\f$ (ρ_lost/N) so it reads the same at N=8 or N=800.
+    double GridChargeLost;
 };
 
 } //namespace

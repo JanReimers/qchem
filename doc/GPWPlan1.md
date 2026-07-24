@@ -85,8 +85,11 @@ Rides the same presentation cleanup as item 1 — do while the SCF surface is op
   mix, or don't hand off until the geodesic reliably engages.  Since GDM converges this E, **OT (preconditioned
   direct-min) should too.**  Future (user): OT method → mixers get an explicit off-switch / null-mixer swap for
   GDM/OT (OOD call).
-- **Increment 2 (deferred)**: `ρ_lost` (the `ReportGridCharge()` fold) — needs a grid-charge getter
-  lifted out of `PWTerms` up to the Hamiltonian so the Solid row can show ∫ρ_grid − Tr(DS) as a column.
+- **Increment 2 DONE (2026-07-24)**: `ρ_lost/N` column on the Solid layout — the signed grid-charge leak
+  `(∫ρ̃ − Tr(DS))/N`, normalised per electron (user: N gets big for semi-valence / big supercells like
+  Li_{1-x}CoO2, so an absolute leak is meaningless).  Routed via a new `EnergyBreakdown::GridChargeLost`
+  field set by `PW_XC::GetEnergy` (rides the `eb` flow the display already consumes; 0 on the molecular
+  path).  The `GPW_GRIDCHARGE` env instrument stays for the deeper ρ min/max/negCharge stats.
 
 ### 3. CACHE2/3 BYTE-BUDGET LRU (GPWPlan §5 design, user-approved)
 Independent; land BEFORE item 4a because the diffuse-basis campaigns are exactly the workload that

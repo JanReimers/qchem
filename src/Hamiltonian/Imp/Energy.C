@@ -17,6 +17,7 @@ EnergyBreakdown::EnergyBreakdown()
     , ExcFit   (0)
     , ExcFitFit(0)
     , RestMass (0)
+    , GridChargeLost(0)
 {};
 
 double EnergyBreakdown::GetVirial() const
@@ -37,6 +38,7 @@ EnergyBreakdown& EnergyBreakdown::operator+=(const EnergyBreakdown& e1)
     ExcFit    += e1.ExcFit;
     ExcFitFit += e1.ExcFitFit;
     RestMass  += e1.RestMass;
+    GridChargeLost += e1.GridChargeLost;
     return *this;
 }
 

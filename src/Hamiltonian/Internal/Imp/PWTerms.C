@@ -319,6 +319,9 @@ void PW_XC::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
     rvec_t exc(itsRhoGrid.size());
     for (size_t q=0;q<itsRhoGrid.size();q++) {double ro=itsRhoGrid[q]; exc[q]=itsXc->GetEpsXc(ro)*ro;}
     te.Exc += itsScalarFitter->Grid().Integral(exc);   // E_xc = integral eps_xc(rho) rho, on the fitter's grid
+    // GPW health DIAGNOSTIC (item 2 increment 2): the signed grid-charge leak integral rho_grid - Tr(DS), the
+    // electrons lost to collocation-grid truncation.  Surfaced as the solid SCF display's ρ_lost/N column.
+    te.GridChargeLost = itsScalarFitter->Grid().Integral(itsRhoGrid) - cd->GetTotalCharge();
 }
 
 std::ostream& PW_XC::Write(std::ostream& os) const
