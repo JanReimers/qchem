@@ -91,7 +91,10 @@ public:
     // pair threshold sqrt(-ln eps.(1/ai+1/aj))), so no significant term is ever dropped.  eps=1e-10 (numerically
     // exact for GPW tolerances).  NOTE: the enumerated Rs must still REACH far enough (screening only removes, it
     // cannot add a far term the caller never enumerated) -- so pass a generous Rcut and let the screen prune it.
-    static constexpr double kScreenEps=1e-10;
+    // Magnitude screen (CP2K EPS_PGF_ORB analog).  Default 1e-10 (numerically exact for GPW).
+    // Env instrument GPW_SCREEN_EPS raises it to SHRINK the lattice-sum reach + collocation boxes
+    // for diffuse bases (demo/robustness runs -- drops only sub-eps terms; not for production digits).
+    static double kScreenEps() { static const double e=[]{const char* s=std::getenv("GPW_SCREEN_EPS"); return s?std::atof(s):1e-10;}(); return e; }
     //! D-AWARE density-magnitude screen (CP2K's eps/|coef| radii, doc/GPWPlan.md 0a).  What lands on the grid
     //! is weight*chi_i*chi_j (weight ~ the density-matrix element), and the accuracy target is ABSOLUTE on the
     //! density -- so the tolerance a pair's box must honour is kDensityEps/|weight|, not kScreenEps: a
@@ -102,7 +105,8 @@ public:
     //! (replay is capped by what was built).  The same criterion drives the integrate-back when the caller
     //! supplies its density (the SHARED ACTIVE SET: both directions skip identical terms, so the
     //! collocate/integrate adjoint stays machine-exact on the kept operator).
-    static constexpr double kDensityEps=1e-10;
+    //! D-aware density-magnitude screen (sizes the collocation boxes).  Env instrument GPW_DENSITY_EPS.
+    static double kDensityEps() { static const double e=[]{const char* s=std::getenv("GPW_DENSITY_EPS"); return s?std::atof(s):1e-10;}(); return e; }
     //! The Bloch phase of an integer cell offset (== Molecule::LatticeSum1E::cellphase_t -- the same
     //! std::function type; the k-CONVENTION stays with the lattice-side caller, Gamma = the constant 1).
     using cellphase_t = std::function<dcmplx(const ivec3_t& n)>;
@@ -158,13 +162,30 @@ public:
                               const std::function<Molecule::LatticeSum1E::GaussianFunction(int)>& opForZ) const
     {
         const std::vector<OpTerm> ops=BuildOpTerms(cl,opForZ,&A);   // periodic: operator over its screened images
-        // 3-centre kernel under LatticeSum's size-0 GeometryCacheBudget: each (pair, image, op) triple's
-        // Hermite3 block (100s-of-KB for high-degree op polynomials) is built, used, then evicted as the
-        // next insert arrives -- O(1) resident, the streaming behaviour without a duplicated kernel.
-        return LatticeSum(phase,A,[this,&ops](size_t i,size_t j,const GaussianRF& cj)
+        // 3-CENTRE MAGNITUDE SCREEN (the localized-PP anchor).  The chi_i-chi_j pair screen (ForImageOffsets)
+        // enumerates every image a DIFFUSE pair reaches -- but the local PP g is LOCALIZED at its atom, so a
+        // (chi_i, chi_j image) product disjoint from g contributes ~0.  Screen each op by the EXACT 3-Gaussian
+        // leading magnitude exp(-(ab|AB|^2 + ac|AC|^2 + bc|BC|^2)/(a+b+c)) (M&D's Eabc), using each radial's
+        // MOST DIFFUSE primitive (a=MinExponent -> largest reach -> conservative: drops only sub-eps terms), and
+        // SKIP the expensive Overlap3C when it is below eps.  This is the 3-centre analogue of the pair reach
+        // sqrt(-ln eps (1/a_i+1/a_j)): a diffuse orbital no longer forces a huge operator sum, because g anchors
+        // the product to its atom.  (3-centre kernel under LatticeSum's size-0 GeometryCacheBudget: each surviving
+        // triple's Hermite3 block is built, used, and evicted -- O(1) resident.)
+        const double lne=-std::log(kScreenEps());
+        return LatticeSum(phase,A,[this,&ops,lne](size_t i,size_t j,const GaussianRF& cj)
         {
+            const rvec3_t Ri=radials[i]->GetCenter(), Rj=cj.GetCenter();   // chi_i home, chi_j imaged
+            const double ai=MinExponent(i), aj=MinExponent(j);            // AtCenter preserves exponents
+            const rvec3_t AB=Ri-Rj; const double AB2=AB*AB;
             double s=0.0;
-            for (const auto& ot : ops) s += ot.c * ot.gr->Overlap3C(*radials[i], cj, pols[i], pols[j], ot.pol);
+            for (const auto& ot : ops)
+            {
+                const rvec3_t Rc=ot.gr->GetCenter();
+                const double c=ot.gr->GetExponents()[0];                  // op is uncontracted (single g.alpha)
+                const rvec3_t AC=Ri-Rc, BC=Rj-Rc;
+                if ((ai*aj*AB2 + ai*c*(AC*AC) + aj*c*(BC*BC))/(ai+aj+c) > lne) continue;  // prefactor < eps: skip
+                s += ot.c * ot.gr->Overlap3C(*radials[i], cj, pols[i], pols[j], ot.pol);
+            }
             return s;
         });
     }
@@ -173,11 +194,22 @@ public:
                               const std::function<Molecule::LatticeSum1E::GaussianFunction(int)>& opForZ) const
     {
         const std::vector<OpTerm> ops=BuildOpTerms(cl,opForZ,nullptr);   // finite: home atoms only
+        const double lne=-std::log(kScreenEps());   // SAME 3-centre screen as the periodic form (finite==lattice)
         chmat_t S(size());
         for (auto i:indices()) for (auto j:indices(i))
         {
+            const rvec3_t Ri=radials[i]->GetCenter(), Rj=radials[j]->GetCenter();
+            const double ai=MinExponent(i), aj=MinExponent(j);
+            const rvec3_t AB=Ri-Rj; const double AB2=AB*AB;
             double s=0.0;
-            for (const auto& ot : ops) s += ot.c * ot.gr->Overlap3C(*radials[i], *radials[j], pols[i], pols[j], ot.pol);
+            for (const auto& ot : ops)
+            {
+                const rvec3_t Rc=ot.gr->GetCenter();
+                const double c=ot.gr->GetExponents()[0];
+                const rvec3_t AC=Ri-Rc, BC=Rj-Rc;
+                if ((ai*aj*AB2 + ai*c*(AC*AC) + aj*c*(BC*BC))/(ai+aj+c) > lne) continue;  // prefactor < eps: skip
+                s += ot.c * ot.gr->Overlap3C(*radials[i], *radials[j], pols[i], pols[j], ot.pol);
+            }
             S(i,j)=dcmplx(s*ns[i]*ns[j], 0.0);   // finite: real symmetric (upper triangle; chmat_t mirrors)
         }
         return S;
@@ -192,7 +224,7 @@ public:
     cvec_t MakeOverlap(const cellphase_t& phase, const UnitCell& A,
                        const Molecule::LatticeSum1E::GaussianFunction& g) const
     {
-        const double lne=-std::log(kScreenEps);
+        const double lne=-std::log(kScreenEps());
         const int Lg=GaussDegree(g);
         cvec_t b(size(), dcmplx(0.0));
         const GeometryCacheBudget geoBudget;   // size-0: g's image clones stay O(1) (see LatticeSum)
@@ -303,7 +335,7 @@ public:
         double aMinJ=radials[j]->GetExponents()[0]; for (double e:radials[j]->GetExponents()) aMinJ=std::min(aMinJ,e);
         // Screen on the product PREFACTOR exp(-aMinI aMinJ/(aMinI+aMinJ) |Delta|^2) < eps: the pair overlap
         // decays with the centre separation |Delta|=|R_i-(R_j+Roff)|, so include Roff only within this radius.
-        const double rr=std::sqrt(-std::log(kScreenEps)*(1.0/aMinI+1.0/aMinJ));
+        const double rr=std::sqrt(-std::log(kScreenEps())*(1.0/aMinI+1.0/aMinJ));
         const rvec3_t dij=Ri-Rj;
         for (const auto& n : A.CellsInSphere(rr+A.GetMaximumCellEdge()))
         {
@@ -317,6 +349,14 @@ public:
     {
         double a=radials[i]->GetExponents()[0];
         for (double e:radials[i]->GetExponents()) a=std::max(a,e);
+        return a;
+    }
+    // The radial's MOST DIFFUSE primitive (smallest exponent = longest reach): the conservative exponent for a
+    // magnitude screen (screening on it drops only sub-eps terms).  Used by the 3-centre local-PP screen.
+    double MinExponent(size_t i) const
+    {
+        double a=radials[i]->GetExponents()[0];
+        for (double e:radials[i]->GetExponents()) a=std::min(a,e);
         return a;
     }
     // REL_CUTOFF pair->level assignment (CP2K gaussian_gridlevel): the COARSEST level (largest l) whose cutoff
@@ -377,7 +417,7 @@ public:
     //! box (or none: the prefactor early-out below is the whole-term kill).
     template <class F>
     void ForPairBox(size_t i, size_t j, const rvec3_t& Roff, const UnitCell& A, const ivec3_t& N, F&& f,
-                    double epsEff=kScreenEps) const
+                    double epsEff=kScreenEps()) const
     {
         const rvec_t ei=radials[i]->GetExponents(), gi=radials[i]->GetCoeffs();
         const rvec_t ej=radials[j]->GetExponents(), gj=radials[j]->GetCoeffs();
@@ -652,7 +692,7 @@ public:
                 for (const PairOffsetStream& st : ps.offsets)
                 {
                     const double c=fold*std::real(Dij*std::conj(phase(st.n)));  // Re[D_ij e^{-ik.R_n}] offset weight
-                    if (std::fabs(c)*st.maxv < kDensityEps) continue;   // D-aware kill: sub-eps density term
+                    if (std::fabs(c)*st.maxv < kDensityEps()) continue;   // D-aware kill: sub-eps density term
                     const unsigned* ix=st.idx.data();
                     if (!st.val.empty())
                     {
@@ -673,7 +713,7 @@ public:
                     // D-aware continuous shrink: this box only needs accuracy kDensityEps/|c| (clamped -- a
                     // |c|>1 never grows past the geometry screen); the prefactor early-out inside is the kill.
                     ForPairBox(i,j,Roff,A,N_L[ps.level],[&](size_t idx,double v){r[idx]+=c*v;},
-                               std::max(kScreenEps, kDensityEps/std::fabs(c)));
+                               std::max(kScreenEps(), kDensityEps()/std::fabs(c)));
                 });
         };
 #ifdef QCHEM_OPENMP
@@ -811,7 +851,7 @@ public:
                 for (const PairOffsetStream& st : sc->pairs[i*nn+j].offsets)
                 {
                     if (screenD &&
-                        std::fabs(fold*std::real(Dij*std::conj(phase(st.n))))*st.maxv < kDensityEps) continue;
+                        std::fabs(fold*std::real(Dij*std::conj(phase(st.n))))*st.maxv < kDensityEps()) continue;
                     double b=0.0;
                     const unsigned* ix=st.idx.data();
                     if (!st.val.empty())
@@ -830,12 +870,12 @@ public:
             else                                                    // static sharp-field call or over-budget pair
                 ForImageOffsets(i,j,A,[&](const ivec3_t& n, const rvec3_t& Roff)
                 {
-                    double epsEff=kScreenEps;
+                    double epsEff=kScreenEps();
                     if (screenD)
                     {
                         const double c=std::fabs(fold*std::real(Dij*std::conj(phase(n))));
                         if (c==0.0) return;
-                        epsEff=std::max(kScreenEps, kDensityEps/c);
+                        epsEff=std::max(kScreenEps(), kDensityEps()/c);
                     }
                     double b=0.0;
                     ForPairBox(i,j,Roff,A,N_L[l],[&](size_t idx,double v){b+=v*V[idx];}, epsEff);
@@ -909,7 +949,7 @@ private:
         {
             double amin=radials[i]->GetExponents()[0];
             for (double e:radials[i]->GetExponents()) amin=std::min(amin,e);
-            maxOrbReach=std::max(maxOrbReach, std::sqrt(-std::log(kScreenEps)/amin));
+            maxOrbReach=std::max(maxOrbReach, std::sqrt(-std::log(kScreenEps())/amin));
         }
         std::vector<OpTerm> ops;
         for (Atom* a : *cl)
@@ -922,7 +962,7 @@ private:
                 for (const auto& t : g.terms) ops.push_back({gr, Polarization(t.p), t.c});
             };
             if (!A) { place(a->itsR); continue; }           // finite: home atom only
-            const double rEnum=std::sqrt(-std::log(kScreenEps)/g.alpha)+maxOrbReach;   // operator reach + orbital reach
+            const double rEnum=std::sqrt(-std::log(kScreenEps())/g.alpha)+maxOrbReach;   // operator reach + orbital reach
             for (const auto& n : A->CellsInSphere(rEnum + A->GetMaximumCellEdge()))
             {
                 const rvec3_t Roff=A->ToCartesian(rvec3_t(double(n.x),double(n.y),double(n.z)));
