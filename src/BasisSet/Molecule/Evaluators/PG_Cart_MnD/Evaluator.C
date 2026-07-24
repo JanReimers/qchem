@@ -841,9 +841,13 @@ public:
             const size_t  l = sc ? sc->pairs[i*nn+j].level : PairLevel(i,j,ecut_L,absRelCutoff);
             const rvec_t& V=V_L[l];
             const double  w=A.GetCellVolume()/double(V.size());   // the level's quadrature weight Omega/Npts(l)
+            // pb.nb records the per-offset B(n) reductions FOR THE MEMO only (the phase-independent replay).  On
+            // the per-iteration density path (memo==null, V changes each SCF step so the memo can never hit) the
+            // recording is pure waste -- pb points at a throwaway `dummy`, and emplace_back'ing ~1M offsets into
+            // it per run just churns allocations.  Record only when there's a memo to serve.
             PairB  dummy;
             PairB& pb = memo ? memo->B[i*nn+j] : dummy;
-            pb.level=l;
+            if (memo) pb.level=l;
             // The D-aware offset weight: the SAME |c| the density collocation of screenD would apply --
             // fold*Re[D_ij e^{-ik.R_n}] -- so both directions keep the identical active set.
             const double fold=(i==j)?1.0:2.0;
@@ -866,7 +870,7 @@ public:
                         const float* v=st.val32.data();
                         for (size_t k=0, m=st.idx.size(); k<m; k++) b+=double(v[k])*V[ix[k]];
                     }
-                    pb.nb.emplace_back(st.n,b);
+                    if (memo) pb.nb.emplace_back(st.n,b);
                     s+=phase(st.n)*b;
                 }
             else                                                    // static sharp-field call or over-budget pair
@@ -881,7 +885,7 @@ public:
                     }
                     double b=0.0;
                     ForPairBox(i,j,Roff,A,N_L[l],[&](size_t idx,double v){b+=v*V[idx];}, epsEff);
-                    pb.nb.emplace_back(n,b);
+                    if (memo) pb.nb.emplace_back(n,b);
                     s+=phase(n)*b;
                 });
             s*=w;
