@@ -539,7 +539,7 @@ void SolidSCFIterator::DisplayColumnHeaders(std::ostream& os, const SCFParams& i
 {
     os << endl << endl;
     WriteHeadPrefix(os);
-    os << PadR("ΔE",W_DELTA) << " " << PadR("Δρ",W_RHO) << " ";
+    os << PadR("ΔE/E",W_DELTA) << " " << PadR("Δρ",W_RHO) << " ";   // ΔE column is RELATIVE (dE/|E|)
     WriteHeadMixAccelCfg(os);
     os << " " << PadR("gap",W_GAP) << endl;
     WriteThreshLead(os);
