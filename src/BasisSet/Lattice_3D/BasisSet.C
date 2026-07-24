@@ -62,6 +62,12 @@ struct GPWParams
                                                     //!< option -- kernel gates and sub-floor grids want it)
     CellImages   images = CellImages::Periodic;     //!< lattice-image MODE (HomeCellOnly = the finite-box gates)
     rvec3_t      kShift = rvec3_t(0,0,0);           //!< fractional MP offset of the k-mesh (0 = Gamma-centred)
+    double       ladderFactor = 4.0;                //!< REL_CUTOFF multigrid PROGRESSION factor (CP2K's, default 3;
+                                                    //!< ours 4): the per-step Ecut ratio of the coarse-level ladder.
+                                                    //!< The DEPTH is automatic (~log_f(alpha_max/alpha_min) levels,
+                                                    //!< cell-capped) -- this only tunes the GRADATION.  Smaller =
+                                                    //!< more, finer-spaced levels (rarely needed; the auto ladder
+                                                    //!< already routes each diffuse pair to a matched coarse grid).
 };
 //! The struct-parameter factory (preferred surface; the positional overload above forwards here).
 Complex_BS* GPWFactory(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,

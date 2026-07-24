@@ -56,7 +56,7 @@ GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const
         // Build the Bloch irrep WITH its BZ weight kp.weight (exactly as PW_BasisSet above) and use the primary
         // sym_t ctor -- the weight carries the Sum_k w_k so the BZ-summed charge/energy are per-cell, not xNk.
         auto* b=new GPW_IBS(lat.GetUnitCell(), Symmetry::BlochFactory(N, ik, kp.weight, kShift),
-                            mol, p.densityEcut, p.images, p.cutoffFactor, p.raster);   // mol shared across k-blocks
+                            mol, p.densityEcut, p.images, p.cutoffFactor, p.raster, p.ladderFactor);   // mol shared across k-blocks
         if (!first) first=b;
         Insert(b);
     }

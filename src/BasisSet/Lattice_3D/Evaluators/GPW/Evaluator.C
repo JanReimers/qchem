@@ -78,7 +78,7 @@ public:
     GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const UnitCell& cell,
                   double densityEcut = 0.0, const rvec3_t& kFrac = rvec3_t(0,0,0),
                   bool homeCellOnly = false, double cutoffFactor = 2.0,
-                  RasterPolicy raster = RasterPolicy::BallOnly);
+                  RasterPolicy raster = RasterPolicy::BallOnly, double ladderFactor = 4.0);
     //! Polymorphic (reached by the EPW_* mixin's Cast() cross-cast).  Releases this block's ladder-shaped
     //! collocation streams on the SHARED molecular evaluator (\c LatticeSum1E::ReleaseStreams) -- the streams
     //! are keyed by ladder shape, not by block, so without the release a finished stage's caches squat on the
@@ -210,6 +210,8 @@ private:
                                                           //!< silently shift every collocation box)
     size_t                              itsN   = 0;       //!< number of Gaussian orbitals
     double  itsCutoffFactor=2.0;   //!< the density-grid floor constant C (ctor param; the density-resolution dial)
+    double  itsLadderFactor=4.0;   //!< REL_CUTOFF multigrid progression factor (ctor param; per-step Ecut ratio of
+                                   //!< the coarse-level ladder -- BuildLevels; DEPTH stays automatic, this tunes gradation)
     RasterPolicy itsRaster=RasterPolicy::AliasFree;   //!< 0.5(a) FFT-raster policy for EVERY grid this block
                                                       //!< builds; A/B via the GPW_RASTER_POLICY instrument
     std::shared_ptr<const PW_Grid_Evaluator> itsFFT_R_G_Grids;     //!< the density/collocation grid (null if DFT tier off)

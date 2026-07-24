@@ -190,12 +190,13 @@ std::vector<qchem::Math::CartTerm> MultiplyR2(std::vector<qchem::Math::CartTerm>
 
 GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const UnitCell& cell,
                              double densityEcut, const rvec3_t& kFrac, bool homeCellOnly,
-                             double cutoffFactor, RasterPolicy raster)
+                             double cutoffFactor, RasterPolicy raster, double ladderFactor)
     : itsMol(std::move(mol))
     , itsHomeOnly(homeCellOnly)
     , itsk(kFrac)
     , itsCell(cell)
     , itsCutoffFactor(cutoffFactor)
+    , itsLadderFactor(ladderFactor)
     , itsRaster(raster)
 {
     // The single orbital block of the (raw, no-SALC) molecular Gaussian basis.
@@ -587,10 +588,11 @@ void GPW_Evaluator::BuildLevels(std::shared_ptr<const PW_Grid_Evaluator> grid,
     // to the diffuse floor ecoarse span the alpha_max/alpha_min ratio, so the count is ~log4(amax/amin) coarse
     // levels -- the "e-folding" heuristic: Si's narrow exponent range self-selects ~1-2, ionic NaF's 1333x range
     // self-selects several.  Each level's own Ecut resolves the diffuse band the REL_CUTOFF rule assigns it.
+    const double f=itsLadderFactor>1.0 ? itsLadderFactor : 4.0;   // progression factor (GPWParams.ladderFactor)
     double e=efine;
-    while (e/4.0>=ecoarse)                            // factor-4 coarsening down to the diffuse floor
+    while (e/f>=ecoarse)                              // factor-f coarsening down to the diffuse floor
     {
-        e/=4.0;
+        e/=f;
         auto g=std::make_shared<const PW_Grid_Evaluator>(grid->Recip(), rvec3_t(0,0,0), e, itsRaster);
         // DEGENERACY FLOOR (min grid points): the ONLY failure mode of a coarse level is a cell too small to
         // hold a coarser grid -- an FFT grid saturating at N~1-2 no longer scales like sqrt(Ecut) and loses
