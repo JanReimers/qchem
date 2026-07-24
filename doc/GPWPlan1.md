@@ -69,9 +69,22 @@ Rides the same presentation cleanup as item 1 — do while the SCF surface is op
   density mixer BOTH per-step and post-step (the `WantsReDamp`/`UpdateRelax` block was running under
   direct-min — a latent LinearMixer corruption); `ρ_mix` shows `----` when a direct-min step owns the
   loop.  `DISABLED_NaFRocksaltGamma` rewired to a `cSCFAcceleratorDIIS→cSCFAcceleratorGDM` Ladder (user
-  experiment): DIIS descends to −24.478 on the raw-XC map, GDM then limit-cycles — **empirical proof the
-  GPW collocation E[ρ] is non-variational** (a direct minimiser cannot descend it).  Future (user): OT
-  method → revisit whether mixers get an explicit off-switch / null-mixer swap for GDM/OT (OOD call).
+  experiment).
+- **GDM/variationality — RESOLVED (corrects an earlier wrong claim in this doc + commit 22094a02):** the GPW
+  collocation **E[ρ] IS variational and GDM converges it cleanly** (NaF/Γ raw-XC map → −24.4783 in 39 iters,
+  gap healthy, every geodesic step descends).  The first pass *looked* non-variational only because GDM's
+  `ComputeStep` is gated `if (itsEn>=EMax) return false` (GDM.C): with `EMax=1e-2` the geodesic never engaged
+  (the first step bounces [F,D] above 1e-2), so it degraded to `DirectMinStep`'s early return = **UNMIXED
+  diagonalization** (DirectMinDriver bypasses the mixer) — *that* runs away on ill-conditioned NaF, not the
+  physics.  Fix: `EMax 1e-2→1.0` so GDM actually engages.  Diagnosis via env instruments `GPW_XCROUTE` (V_xc
+  route: RAW `applyRawAdjoint`=exact-adjoint/variational vs BALL `DoFit`=fit-limited; production is RAW) and
+  `GPW_GDMTRACE` (line-search DESCENT vs FALLBACK).  Two real-but-innocent side findings: the BALL V_xc route
+  is non-variational (FD rel 1.93 BallOnly vs 6.6e-7 AliasFree) but it's just fit error and production uses
+  RAW; collocated ρ dips slightly negative (~−5e-3) even for PSD D — normal grid band-limiting, guard kink too
+  small to matter.  **DESIGN FOOTGUN (OT follow-up):** GDM's `ComputeStep`-false fallback is UNMIXED → make it
+  mix, or don't hand off until the geodesic reliably engages.  Since GDM converges this E, **OT (preconditioned
+  direct-min) should too.**  Future (user): OT method → mixers get an explicit off-switch / null-mixer swap for
+  GDM/OT (OOD call).
 - **Increment 2 (deferred)**: `ρ_lost` (the `ReportGridCharge()` fold) — needs a grid-charge getter
   lifted out of `PWTerms` up to the Hamiltonian so the Solid row can show ∫ρ_grid − Tr(DS) as a column.
 

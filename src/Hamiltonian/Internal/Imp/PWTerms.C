@@ -1,6 +1,7 @@
 // File: Hamiltonian/Internal/Imp/PWTerms.C  Plane-wave Kohn-Sham term implementations.
 module;
 #include <cassert>
+#include <cstdlib>
 #include <functional>
 #include <iomanip>
 #include <iostream>
@@ -243,6 +244,18 @@ void PW_XC::RefreshRhoGrid(const cChargeDensity* cd) const
     itsRhoIsRaw=(itsRhoGrid.size()!=0);
     if (!itsRhoIsRaw)
         itsRhoGrid=itsScalarFitter->Grid().RhoOnGrid(fd->GetFourierDensity(*itsVxcFitBasis));   // rho-tilde via Overlap3C, onto the FIT grid
+    // DIAGNOSTIC (env GPW_XCROUTE): which V_xc route fires this iteration -- RAW (applyRawAdjoint, FD-exact/
+    // variational; gate GPW.RawXCConsistencyFD) vs BALL (DoFit/Overlap, non-variational under BallOnly;
+    // gate GPW.XCPotentialConsistencyFD).  Answers whether GDM is fighting the ball non-variationality.
+    if (std::getenv("GPW_XCROUTE"))
+    {
+        double rmin=1e300, rmax=-1e300;
+        for (double r : itsRhoGrid) { rmin=std::min(rmin,r); rmax=std::max(rmax,r); }
+        std::cout << "[xc route] " << (itsRhoIsRaw ? "RAW (applyRawAdjoint, variational)"
+                                                   : "BALL (DoFit/Overlap, NON-variational under BallOnly)")
+                  << "  rho grid=[" << std::scientific << std::setprecision(2) << rmin << ", " << rmax << "]"
+                  << " npts=" << itsRhoGrid.size() << std::defaultfloat << std::endl;
+    }
     if (ReportGridCharge())
     {
         // Grid charge vs analytic charge: the electrons LOST to grid truncation (high-G aliasing of rho).

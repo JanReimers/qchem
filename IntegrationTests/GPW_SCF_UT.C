@@ -429,11 +429,11 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     // everything else below is the hard-coded production recipe (doc/GPWPlan1.md item 1: recipes are
     // readable code, not env spaghetti).  Advanced grid knobs (cutoffFactor, RasterPolicy) take their
     // defaults -- override via designated initializers, e.g. {.densityEcut=40.0, .raster=RasterPolicy::BallOnly}.
-    const double densityEcut = envd("NAF_ECUT", -1.0);       // <0 AUTO = C*alpha_max = 80 (the production default;
+    const double densityEcut = envd("NAF_ECUT", 80);       // <0 AUTO = C*alpha_max = 80 (the production default;
                                                              //   BallOnly raster).  Explicit 40 = SUB-FLOOR: warns,
                                                              //   and BallOnly aliases there (-43 mHa) -- use
                                                              //   {.raster=RasterPolicy::AliasFree} for that regime.
-    std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, mol, L3::GPWParams{.densityEcut=densityEcut}));
+    std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, mol, L3::GPWParams{.densityEcut=densityEcut, .raster=L3::RasterPolicy::BallOnly}));
     auto       irreps=bs->GetIrreps(Spin::None);
     Crystal_EC ec(irreps, 8);
     cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), bs.get(), {{"Na",1},{"F",7}}, "LDA");
@@ -459,11 +459,13 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     // direct-min loop does not density-mix anyway.
     std::vector<std::unique_ptr<qchem::SCFAccelerators::tSCFAccelerator<dcmplx>>> rungs;
     rungs.push_back(std::make_unique<qchem::SCFAccelerators::cSCFAcceleratorDIIS>(
-                        qchem::SCFAccelerators::DIISParams{8, 8.0, 1e-10, 1e-9}));     // rung 0: DIIS (Nproj=8)
+                        qchem::SCFAccelerators::DIISParams{8, 1.0, 1e-10, 1e-9}));     // rung 0: DIIS (Nproj=8)
     rungs.push_back(std::make_unique<qchem::SCFAccelerators::cSCFAcceleratorGDM>(
-                        qchem::SCFAccelerators::GDMParams{/*EMax*/1e-2}));             // rung 1: GDM geodesic
+                        qchem::SCFAccelerators::GDMParams{/*EMax*/1.0}));              // rung 1: GDM geodesic (EMax wide
+                                                                                       //   so GDM actually ENGAGES, not
+                                                                                       //   the EMax-gated unmixed fallback)
     auto* acc = new qchem::SCFAccelerators::cSCFAcceleratorLadder(
-                        std::move(rungs), /*ethresh*/1e-8, /*stall*/5, /*floor*/1e-8, /*switchat*/1e-2);
+                        std::move(rungs), /*ethresh*/1e-8, /*stall*/5, /*floor*/1e-8, /*switchat*/2e-2);
     qchem::ReportOverlapConditioning()=true;   // report min eig(S)/min sv(S) at SetBasisOverlap (the ctor below)
     qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc,
                                          qchem::ChargeDensity::SeedStrategy::IonicSAD, lat.GetStructure().get(),

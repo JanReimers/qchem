@@ -4,6 +4,7 @@ module;
 #include <iomanip>
 #include <complex>
 #include <cassert>
+#include <cstdlib>
 #include <vector>
 #include <string>
 #include <sstream>
@@ -385,15 +386,23 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
         itsWaveFunction->FillOrbitals(mergeTol);
         return cd_t(itsWaveFunction->GetChargeDensity());
     }
-    double t=1.0;
-    for (int k=0;k<12;k++)
+    double t=1.0, Et=0, best=1e300; int k=0; bool found=false;
+    for (;k<12;k++)
     {
         itsWaveFunction->MoveOrbitals(t,false,mergeTol);                 //trial
         cd_t cdt(itsWaveFunction->GetChargeDensity());                   //std-managed (no freed-address reuse)
-        double Et=itsHamiltonian->GetTotalEnergy(cdt.get()).GetTotalEnergy();
-        if (Et<Ecur) break;
+        Et=itsHamiltonian->GetTotalEnergy(cdt.get()).GetTotalEnergy();
+        best=std::min(best,Et);
+        if (Et<Ecur) { found=true; break; }
         t*=0.5;
     }
+    // DIAGNOSTIC (env GPW_GDMTRACE): did the geodesic line search find a DESCENT (some t lowers Ecur) or
+    // FALL THROUGH all 12 backtracks and commit a tiny non-descent step?  A variational E with a correct
+    // geodesic MUST descend for small enough t; persistent FALLBACK => the direction is not downhill for the
+    // evaluated E (residual F != dE/dD, or the E noise floor exceeds the descent signal at that step).
+    if (std::getenv("GPW_GDMTRACE"))
+        std::cout << "[gdm] " << (found ? "DESCENT " : "FALLBACK") << " t=" << std::scientific << setprecision(2)
+                  << t << " k=" << k << "  best(Et-Ecur)=" << (best-Ecur) << std::defaultfloat << std::endl;
     itsWaveFunction->MoveOrbitals(t,true,mergeTol);                      //commit at t
     return cd_t(itsWaveFunction->GetChargeDensity());
 }
