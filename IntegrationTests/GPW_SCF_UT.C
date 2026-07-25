@@ -417,9 +417,10 @@ TEST(GPW_SCF, SmearingConvergesDegenerateShell)
 
     EXPECT_TRUE(R.converged) << "Fermi smearing should converge Δρ where integer aufbau cannot (degenerate 3p)";
     EXPECT_NEAR(R.charge, 4.0, 1e-6);
-    // did-E-move anchor: the converged free energy A=E−TS at kT=1e-2 (internal E≈-3.741 ≈ the aufbau -3.733;
-    // the ~38 mHa gap to A is the 3p-shell entropy −TS at this kT, which lowers A below E and below Esipp).
-    EXPECT_NEAR(R.E.GetTotalEnergy(), -3.77933, 3e-3);
+    // did-E-move anchor: the converged free energy A=E−TS at kT=1e-2 (internal E≈-3.744; the ~38 mHa gap to A
+    // is the 3p-shell entropy −TS at this kT, which lowers A below E and below Esipp).  (Re-pinned when the
+    // field-sharpness density rule landed -- doc/GPWPlan1.md 4b: the sharper XC grid moved it -3.779 -> -3.783.)
+    EXPECT_NEAR(R.E.GetTotalEnergy(), -3.78260, 3e-3);
     EXPECT_LT(R.E.MinusTS, 0.0);                             // −TS<0 => A=GetTotalEnergy() sits below internal E (gate iii)
     EXPECT_NEAR(R.E.GetTotalEnergy()-R.E.MinusTS, Esipp, 3e-2) << "internal E=A−(−TS) vs finite SIPP molecular DFT";
 }
@@ -464,7 +465,7 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     // degenerate 1.03e-6 near-null modes were exactly the Na p 0.05 triplet -- the cation's superfluous
     // diffuse shells; F kept intact for the anion).  See DISABLED_NaFOverlapConditioningSweep.
     auto mol = std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(
-        BasisSetData::VALENCE_LOWQ_SR2, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
+        BasisSetData::VALENCE_LOWQ_SR, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
 
     namespace L3=BasisSet::Lattice_3D;
     // densityEcut<0 => AUTOMATIC: the grid is floored to 4*alpha_max from the basis (F alpha_max=40 -> 160),
@@ -491,7 +492,7 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     // everything else below is the hard-coded production recipe (doc/GPWPlan1.md item 1: recipes are
     // readable code, not env spaghetti).  Advanced grid knobs (cutoffFactor, RasterPolicy) take their
     // defaults -- override via designated initializers, e.g. {.densityEcut=40.0, .raster=RasterPolicy::BallOnly}.
-    const double densityEcut = envd("NAF_ECUT", 80);       // <0 AUTO = C*alpha_max = 80 (the production default;
+    const double densityEcut = envd("NAF_ECUT", 40);       // <0 AUTO = C*alpha_max = 80 (the production default;
                                                              //   BallOnly raster).  Explicit 40 = SUB-FLOOR: warns,
                                                              //   and BallOnly aliases there (-43 mHa) -- use
                                                              //   {.raster=RasterPolicy::AliasFree} for that regime.
@@ -525,7 +526,7 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     // direct-min loop does not density-mix anyway.
     std::vector<std::unique_ptr<qchem::SCFAccelerators::tSCFAccelerator<dcmplx>>> rungs;
     rungs.push_back(std::make_unique<qchem::SCFAccelerators::cSCFAcceleratorDIIS>(
-                        qchem::SCFAccelerators::DIISParams{8, 8.0, 1e-10, 1e-9}));     // rung 0: DIIS (Nproj=8)
+                        qchem::SCFAccelerators::DIISParams{8, 0.1, 1e-10, 1e-9}));     // rung 0: DIIS (Nproj=8)
     rungs.push_back(std::make_unique<qchem::SCFAccelerators::cSCFAcceleratorGDM>(
                         qchem::SCFAccelerators::GDMParams{/*FDMax*/1.0}));              // rung 1: GDM geodesic (FDMax wide
                                                                                        //   so GDM actually ENGAGES, not
@@ -544,12 +545,12 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     qchem::ReportOverlapConditioning()=true;   // report min eig(S)/min sv(S) at SetBasisOverlap (the ctor below)
     qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc,
                                          qchem::ChargeDensity::SeedStrategy::IonicSAD, lat.GetStructure().get(),
-                                         qchem::Cholesky, 0.0);   // diffuse F- / Na+ ionic seed (halved PW iters)
+                                         qchem::Auto, 0.0);   // diffuse F- / Na+ ionic seed (halved PW iters)
     qchem::ReportOverlapConditioning()=false;  // process-wide flag -- reset so it does not leak to other tests
     // THE PRODUCTION RECIPE, plainly (Standard fields; the Advanced Guard struct keeps its defaults --
     // the 0h guard self-corrects a bad MOM capture, so nothing here needs hand-tuning):
     SCFParams par;
-    par.NMaxIter       = 200;
+    par.NMaxIter       = (size_t)envd("NAF_NMAX", 200);
     par.MinΔE          = 1e-8;   // E-flat exit (the energy is the clean signal here -- see the ΔE hand-off above)
     par.MinΔρ          = 1e-4;   // AND a density gate: a spurious small ΔE can trip the E-flat exit early, so
                                  //   also require Δρ to settle (user 2026-07-24; ~12 iters at 2e-4, ~15 at 1e-4)

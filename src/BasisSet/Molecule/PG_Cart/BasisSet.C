@@ -103,7 +103,7 @@ public:
     virtual chmat_t IntegratePotential(const std::vector<rvec_t>& V_L, const cellphase_t& phase, const UnitCell& A,
                                        const std::vector<ivec3_t>& N_L,
                                        const std::vector<double>& ecut_L, double relCutoffScale,
-                                       const chmat_t* screenD) const override;
+                                       const chmat_t* screenD, double fieldSharpness=0.0) const override;
     virtual void ReleaseStreams(const std::vector<ivec3_t>& N_L,
                                 const std::vector<double>& ecut_L) const override;   // budget refund (0.5(b))
 };

@@ -104,6 +104,30 @@ rectangular V through the periodic stack (truncated ortho → per-k orbital dims
 cDM_CD / collocation), LASolver gap-detection auto-tol, NEVER SILENT drops, promote the working
 recipe into facade defaults.  Gates: full-basis NaF == SR/SR2 ± the dropped-mode mHa; Si anchors
 untouched.
+- **PRINCIPLED GRID REGISTRATION (2026-07-25, the pair→level FIELD-SHARPNESS rule).**  Root cause of the
+  post-`63f20bd1` NaF non-convergence (DISABLED_NaFRocksaltGamma) + its 0.1 Ha over-bind: the coarse ladder
+  (kMinLevelN=3 admits a 3³/Ecut=1.25 grid) + the DENSITY-side RELATIVE pair→level rule
+  `req=kRelSafety·ecut₀·(αᵢ+αⱼ)/(2·α_max)` routing DIFFUSE pairs onto that 3³ grid → 27 points can't
+  quadrature a diffuse-orbital density × ε_xc → spuriously over-attractive V_xc → a diffuse eigenvalue dives
+  across the occupied manifold (the "ghost"), charge leaks onto it (−24.53 not −24.43), and it flaps/spikes.
+  FIX: the integrand χᵢ·V·χⱼ is a Gaussian product, so the grid must resolve αᵢ+αⱼ **plus the FIELD's own
+  exponent**, not the pair alone.  `PairLevel` now uses `max(αᵢ+αⱼ, β_field)` (MAX: a diffuse pair × sharp
+  field is as sharp as the field; leaves tight/mid pairs untouched → no cost blow-up).  β_field DERIVED, not
+  tuned: local-PP (absolute rule) β=1/(2r_loc²) via `ShortRangeGaussian`, passed by MakeLocalPP; density
+  (relative rule) β=(2/3)·α_max (V_xc~ρ^{1/3} softens the tightest density 2α_max).  Cures NaF on DEFAULTS
+  (no smearing, no magic GPW_RELCUTOFF): −24.4311, 44 iters, no spike; ρ_lost/N drops ~4-5 orders (the same
+  cause seen in the charge instrument).  Suite 578/578; Si anchors untouched (soft PP → β small).  Committed
+  `00f3b27b`+this.  **The local-PP β_loc was a RED HERRING for NaF** (grid-insensitive there) but is kept —
+  correct + a latent robustness fix.  `GPW_FIELDSHARP` overrides the 2/3 (self-convergence check).
+  **OPEN — β_field pin + SR cost:** (i) pin (2/3) by ρ_lost/N SATURATION not wall-clock (user's grid-conv
+  criterion); the 2/3 default gives back most of `63f20bd1`'s 3.4× (routes diffuse density pairs to the fine
+  grid).  (ii) `VALENCE_LOWQ_SR` "just works" (converges w/ Auto-trim) but 370s + OOM-prone: cost decomposes
+  into TIME = diffuse real-space OFFSETS (α_min=0.05, reach 21.5 au, hundreds/pair; screening lever) and
+  MEMORY = grid fineness (β_field forces diffuse pairs fine → 8.6 GB streams).  Grid-registration & Auto-trim
+  are ORTHOGONAL IN PURPOSE (collocation accuracy vs orbital conditioning) but COMPOUND IN COST: trimming
+  drops near-null ORBITAL directions, NOT collocation DIMENSION (density still spans all n diffuse AOs).
+  §4a (rectangular V THROUGH collocation) is the bridge that makes them cooperate — collocate in the m-dim
+  truncated basis, dropping the redundant near-null diffuse modes (the ghost-prone, most-expensive boxes).
 **4b. FERMI SMEARING (the occupation seam's missing policy — added 2026-07-23, user-approved).**
 NOT major surgery, by construction:
 - The seam exists: `TOrbitals::TakeElectrons` / `tIrrepWF::FillOrbitals`.  New policy: occupations

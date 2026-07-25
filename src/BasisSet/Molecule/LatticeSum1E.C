@@ -187,10 +187,14 @@ public:
     //! every pair's spectral tail by \f$e^{-\kappa/2}\f$ INDEPENDENT of the field's sharpness, which is what
     //! makes a STATIC sharp field (the local PP) integrable to fixed precision with no cancellation partner
     //! (doc/GPWPlan.md 0e-PP): \f$\kappa=30\f$ Ha \f$\Rightarrow e^{-15}\f$.
+    //! \a fieldSharpness (\f$\beta\f$, Ha-exponent units) is the COLLOCATED field's own spectral sharpness,
+    //! added to the pair exponents in the absolute rule (\f$e_{cut}\ge\kappa(\alpha_i+\alpha_j+\beta)\f$).  For
+    //! the erf-softened Coulomb local-PP long tail \f$\beta=1/(2r_{loc}^2)\f$; it lifts a DIFFUSE pair against a
+    //! SHARP PP well off the coarse levels that cannot resolve the well (doc/GPWPlan1.md 4b).  0 for smooth fields.
     virtual chmat_t IntegratePotential(const std::vector<rvec_t>& V_L, const cellphase_t& phase, const UnitCell& A,
                                        const std::vector<ivec3_t>& N_L,
                                        const std::vector<double>& ecut_L, double absRelCutoff=0.0,
-                                       const chmat_t* screenD=nullptr) const = 0;
+                                       const chmat_t* screenD=nullptr, double fieldSharpness=0.0) const = 0;
 
     //! \brief Release any cached collocation streams for ONE ladder shape (\a N_L, \a ecut_L), refunding
     //! their points to the GLOBAL stream budget.  The streams are pure geometry replayed every iteration, so

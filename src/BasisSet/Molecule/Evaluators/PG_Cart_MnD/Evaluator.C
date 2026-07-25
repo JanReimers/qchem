@@ -377,7 +377,8 @@ public:
     //! spectral tail at its level by e^{-absRelCutoff/2} UNIFORMLY (e^{-15} at 30 Ha), independent of the
     //! FIELD's sharpness -- the property that makes the static local-PP sweep standalone-exact
     //! (doc/GPWPlan.md 0e-PP; the old relCutoffScale multiplier of the relative rule is retired).
-    size_t PairLevel(size_t i, size_t j, const std::vector<double>& ecut_L, double absRelCutoff) const
+    size_t PairLevel(size_t i, size_t j, const std::vector<double>& ecut_L, double absRelCutoff,
+                     double fieldSharpness=0.0) const
     {
         // ecut_L[0] is the RESOLUTION REFERENCE (the charge-calibrated density grid) -- the relative req is
         // measured against ITS resolution, so appending a finer completion rung (doc/GPWPlan 0b') must not
@@ -389,9 +390,26 @@ public:
         // experiment knob.
         static const double kEnvRelCutoff = [](){ const char* s=std::getenv("GPW_RELCUTOFF"); return s ? std::atof(s) : 0.0; }();
         const double kappa = kEnvRelCutoff>0.0 ? kEnvRelCutoff : absRelCutoff;
+        // FIELD SHARPNESS in BOTH rules (doc/GPWPlan1.md 4b): the integrand chi_i * V * chi_j is a product of
+        // Gaussians, so exponents ADD -- the grid must resolve alpha_i+alpha_j + beta, where beta is the FIELD's
+        // own effective exponent, NOT the pair alone.  Without it a DIFFUSE pair (alpha_i+alpha_j tiny) against a
+        // SHARP field lands on a coarse level that cannot resolve the field -> a spurious low diffuse eigenvalue.
+        //   * ABSOLUTE rule (local PP): beta = fieldSharpness = 1/(2 rloc^2), passed by MakeLocalPP.
+        //   * RELATIVE rule (density/Hartree/XC): the KS field's core sharpness follows the valence density,
+        //     whose tightest Gaussian product exponent is 2*alpha_max; the LDA XC potential V_xc ~ rho^{1/3}
+        //     softens that to ~ (2/3)*alpha_max.  So beta_field = kFieldSharp*MaxExponent() with kFieldSharp=2/3
+        //     -- DERIVED, not tuned: it floors every pair's requirement at the resolution the sharp XC core
+        //     needs, curing the NaF 3^3-grid diving-ghost the 63f20bd1 coarse ladder exposed.  (GPW_FIELDSHARP
+        //     overrides the 2/3 for the self-convergence check.)  0 reproduces the old pair-only relative rule.
+        // MAX not ADD: a diffuse pair * sharp field is as sharp as the FIELD alone (the sharp factor dominates
+        // the product envelope), so max() LIFTS the diffuse pairs that cannot resolve the field while leaving
+        // tight/mid pairs -- already fine enough for their own product -- untouched (no cost blow-up on a
+        // diffuse-heavy basis; doc/GPWPlan1.md 4b).  beta_field = kFieldSharp*alpha_max is the KS field's core
+        // exponent (V_xc ~ rho^{1/3}); kFieldSharp pinned by rho_lost/N grid-convergence, not wall-clock.
+        static const double kFieldSharp = [](){ const char* s=std::getenv("GPW_FIELDSHARP"); return s?std::atof(s):(2.0/3.0); }();
         const double req = kappa>0.0
-            ? kappa*(MaxExponent(i)+MaxExponent(j))
-            : kRelSafety*ecut_L[0]*(MaxExponent(i)+MaxExponent(j))/(2.0*MaxExponent());
+            ? kappa*std::max(MaxExponent(i)+MaxExponent(j), fieldSharpness)
+            : kRelSafety*ecut_L[0]*std::max(MaxExponent(i)+MaxExponent(j), kFieldSharp*MaxExponent())/(2.0*MaxExponent());
         size_t L=0;
         for (size_t l=1; l<ecut_L.size(); l++) if (ecut_L[l]>ecut_L[L]) L=l;          // fallback: finest present
         bool sat=false;
@@ -796,7 +814,8 @@ public:
     //! construction, and the active set changes with D while the memo is keyed on V alone).
     chmat_t IntegratePotential(const std::vector<rvec_t>& V_L, const cellphase_t& phase, const UnitCell& A,
                                const std::vector<ivec3_t>& N_L, const std::vector<double>& ecut_L,
-                               double absRelCutoff=0.0, const chmat_t* screenD=nullptr) const
+                               double absRelCutoff=0.0, const chmat_t* screenD=nullptr,
+                               double fieldSharpness=0.0) const   // beta_loc: the sharp field's own exponent (local-PP)
     {
         const size_t K=N_L.size();
         assert(K>0 && ecut_L.size()==K && V_L.size()==K);
@@ -838,7 +857,7 @@ public:
         // whose pairs scatter into a shared grid).
         auto integratePair=[&](size_t i, size_t j)           // j>=i (Hermitian upper triangle)
         {
-            const size_t  l = sc ? sc->pairs[i*nn+j].level : PairLevel(i,j,ecut_L,absRelCutoff);
+            const size_t  l = sc ? sc->pairs[i*nn+j].level : PairLevel(i,j,ecut_L,absRelCutoff,fieldSharpness);
             const rvec_t& V=V_L[l];
             const double  w=A.GetCellVolume()/double(V.size());   // the level's quadrature weight Omega/Npts(l)
             // pb.nb records the per-offset B(n) reductions FOR THE MEMO only (the phase-independent replay).  On

@@ -796,9 +796,23 @@ chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const Pseudopotential::L
         for (const ivec3_t& dm : itsLevels[L]->Gs()) vmapL[dm]=Vt(dm);   // restrict to level L's {G}
         V_L[L]=itsLevels[L]->RhoOnGrid(vmapL);
     }
+    // THE COLLOCATED FIELD's OWN SHARPNESS (doc/GPWPlan1.md 4b root-cause fix).  V_loc (long OR short) decays in
+    // G as e^{-G^2 rloc^2/2}, so its effective Gaussian exponent is beta = 1/(2 rloc^2) -- exactly the short-
+    // range Gaussian's alpha.  The integrand chi_i*V*chi_j is a product of Gaussians (exponents ADD), so the
+    // pair->level rule must resolve alpha_i+alpha_j+beta, NOT the pair alone: without beta a DIFFUSE pair against
+    // a SHARP PP well (small rloc, e.g. F) lands on a coarse level that cannot resolve the well -> a spurious
+    // low diffuse eigenvalue (the NaF diving-ghost).  beta = max over species = the SHARPEST (smallest rloc) PP,
+    // since V_loc sums over all atoms.  A soft PP (large rloc) or a non-Gaussian model -> beta=0 = old behaviour.
+    double beta=0.0;
+    if (const auto* gauss=dynamic_cast<const Pseudopotential::LocalPotential_Gaussian*>(&loc))
+        for (Atom* a : *cl)
+        {
+            const auto terms=gauss->ShortRangeGaussian(a->itsZ);
+            if (!terms.empty()) beta=std::max(beta, terms[0].alpha);   // alpha = 1/(2 rloc^2)
+        }
     const bool timeIt=(std::getenv("GPW_LOCALPP_RELCUTOFF")!=nullptr);
     auto t0=std::chrono::steady_clock::now();
-    chmat_t h=itsLat->IntegratePotential(V_L, CellPhase(), itsCell, itsLevelN, itsLevelEcut, kappa);
+    chmat_t h=itsLat->IntegratePotential(V_L, CellPhase(), itsCell, itsLevelN, itsLevelEcut, kappa, nullptr, beta);
     if (timeIt)
     {
         double ms=std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-t0).count();
