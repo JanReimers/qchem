@@ -495,7 +495,11 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
                                                              //   BallOnly raster).  Explicit 40 = SUB-FLOOR: warns,
                                                              //   and BallOnly aliases there (-43 mHa) -- use
                                                              //   {.raster=RasterPolicy::AliasFree} for that regime.
-    std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, mol, L3::GPWParams{.densityEcut=densityEcut, .raster=L3::RasterPolicy::BallOnly}));
+    // EXPERIMENT (NAF_LADDERF): the multigrid coarsening factor.  Large (e.g. 1e6) => NO coarse levels (pre-63f20bd1
+    // "L0+rung" ladder) -- probes whether the coarse-grid local-PP for diffuse pairs is what shifts the energy / dives
+    // the diffuse eigenvalue (doc/GPWPlan1.md 4b root-cause investigation).
+    std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, mol, L3::GPWParams{.densityEcut=densityEcut,
+                                   .raster=L3::RasterPolicy::BallOnly, .ladderFactor=envd("NAF_LADDERF",4.0)}));
     auto       irreps=bs->GetIrreps(Spin::None);
     Crystal_EC ec(irreps, 8);
     cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), bs.get(), {{"Na",1},{"F",7}}, "LDA");
@@ -529,7 +533,12 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     // Solid: hand DIIS->GDM on the ENERGY change, not [F,D] -- on this ionic crystal [F,D] is contaminated by
     // the charge-transfer slosh / giant-response virtual and may never settle, while |ΔE/E| does.  switchat is
     // now a RELATIVE |ΔE/E| threshold (was a [F,D] one).  Converges ~12-15 iters; robust across α/G0 tuning.
-    auto* acc = new qchem::SCFAccelerators::cSCFAcceleratorLadder(
+    // EXPERIMENT (NAF_NULL): swap the DIIS->GDM ladder for the pure Null accelerator (damped Kerker only, no
+    // Fock extrapolation) -- pairs cleanly with Fermi smearing when probing the occupation seam.
+    qchem::SCFAccelerators::tSCFAccelerator<dcmplx>* acc =
+        std::getenv("NAF_NULL")
+            ? (qchem::SCFAccelerators::tSCFAccelerator<dcmplx>*)new qchem::SCFAccelerators::tSCFAcceleratorNull<dcmplx>()
+            : (qchem::SCFAccelerators::tSCFAccelerator<dcmplx>*)new qchem::SCFAccelerators::cSCFAcceleratorLadder(
                     std::move(rungs), /*ethresh*/1e-8, /*stall*/5, /*floor*/1e-8, /*switchat*/1e-6,
                     qchem::SCFAccelerators::ScheduleSignal::EnergyChange);
     qchem::ReportOverlapConditioning()=true;   // report min eig(S)/min sv(S) at SetBasisOverlap (the ctor below)
@@ -548,11 +557,14 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     par.MinVirial      = 1e30;
     par.MinFD          = 1e30;
     par.Verbose        = true;
-    par.StartingRelaxRo= 0.45;   // Kerker mixing fraction (raw-XC landscape; the ball-era 0.025 was
+    par.StartingRelaxRo= envd("NAF_ALPHA", 0.45);   // Kerker mixing fraction (raw-XC landscape; the ball-era 0.025 was
                                  //   calibrated against limit cycles that no longer exist -- user, 2026-07-23)
     par.KerkerG0       = 1.0;    // Kerker screening wavevector (a.u.^-1): damp the low-G charge-transfer slosh
     par.UseMOM         = true;   // occupied-subspace continuity; the 0h guard releases a bad capture
     par.MOMStartIter   = 10;     // delayed IMOM: descend by plain aufbau first, then capture ONCE
+    par.SmearingkT     = envd("NAF_SMEAR", 0.0);      // EXPERIMENT (doc/GPWPlan1.md 4b): Fermi smearing + ...
+    par.MOMSmearPenalty= envd("NAF_PENALTY", 0.0);    //   ... the MOM-overlap mask Λ (MOM-masked Fermi: keep the
+                                 //   diffuse ghost out by character, smear the physical frontier by energy).
     par.PulayDepth     = 0;      // density-Pulay OFF: the Fock-space Ladder (DIIS->GDM) is now the accelerator
     par.PulayStart     = 0;      //   (2026-07-23 experiment -- was depth=6/start=35 with the Null accelerator)
     qchem::Hamiltonian::ReportGridCharge()=(bool)std::getenv("GPW_GRIDCHARGE");   // F's tight 40-a.u. exponent: watch integral rho_grid vs Tr(DS)

@@ -52,7 +52,13 @@ export struct SCFParams
                                      //  Σg_i f_i=nₑ; the Mermin −TS enters ONLY the free energy (EnergyBreakdown::MinusTS
                                      //  -> GetTotalEnergy becomes A=E−TS), never H.  The cure for near-gapless occupation
                                      //  flapping (NaF Ecut=160; doc/GPWPlan1.md 4b).  Typical kT ~ 1e-3..1e-2 Ha.
-                                     //  Takes precedence over UseMOM when both are set (different pathologies).
+                                     //  Composes with UseMOM via MOMSmearPenalty below (MOM-masked Fermi).
+    double MOMSmearPenalty = 0.0;    //Advanced (only when UseMOM AND SmearingkT>0): the MOM-overlap penalty Λ that
+                                     //  pushes LOW-overlap states (diffuse ghosts) up in EFFECTIVE energy
+                                     //  ε_i+Λ(1−s_i)² for the Fermi fill, so they stay empty by CHARACTER while
+                                     //  the physical frontier smears by TRUE energy.  0 (default) = smearing alone
+                                     //  (fills by energy; a diving diffuse ghost would be occupied).  Λ needs only
+                                     //  exceed the ghost's dive depth (Ha-scale); doc/GPWPlan1.md 4b.
 
     //! ADVANCED (doc/GPWPlan1.md item 1): the 0h occupation-guard tunings.  Sensible defaults that only
     //! rarely need touching -- the guard exists precisely so users do NOT hand-tune around a pinned

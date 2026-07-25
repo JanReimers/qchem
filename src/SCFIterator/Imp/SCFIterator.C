@@ -227,7 +227,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
     assert(itsHamiltonian);
     assert(itsCD);
     itsWaveFunction->SetMOM(ipar.UseMOM, ipar.MOMStartIter);   // occupation strategy for this run (SCFParams)
-    itsWaveFunction->SetSmearing(ipar.SmearingkT);             // Fermi-Dirac smearing (0=off); doc/GPWPlan1.md 4b
+    itsWaveFunction->SetSmearing(ipar.SmearingkT, ipar.MOMSmearPenalty);  // Fermi smearing (0=off) + MOM mask; doc/GPWPlan1.md 4b
     size_t idealVirial=itsHamiltonian->IsRelativistic() ? 1 : 2;
     if (ipar.Verbose) DisplayColumnHeaders(cout, ipar, idealVirial);   // per-system (item 2): base=molecular, Solid overrides
 

@@ -95,13 +95,27 @@ template <class T> const EnergyLevels& tIrrepWF<T>::FillOrbitals(double ne)
     // frontier here IS near-degenerate, so no integer configuration is stable; the fractional fill is.
     // (μ is per-block for now = Increment 1, which covers Γ-only; global-μ across k-blocks is Increment 2.)
     itsMinusTS=0.0;
+    const bool haveRef = itsUseMOM && itsRefOccCPrime.columns()>0;
     if (itsSmearingkT>0.0)
-        std::tie(itsMinusTS,itsDPrime)=itsOrbitals->TakeElectronsFermi(ne,itsSmearingkT);
+    {
+        // MOM-masked Fermi (doc/GPWPlan1.md 4b): once a reference exists AND a penalty is set, push low-overlap
+        // ghosts UP in effective energy (ε_i + Λ(1−s_i)²) so they stay empty BY CHARACTER, while the retained
+        // high-overlap physical states smear by their TRUE energy.  s_i∈[0,1] is the overlap onto the reference
+        // occupied subspace; (1−s)² is ~0 for physical (s≈0.9) and ~1 for a ghost (s≈0.1), so Λ needs only to
+        // exceed the ghost's dive depth.  Λ=0 (or no reference yet) => plain energy Fermi.
+        if (haveRef && itsMOMSmearPenalty>0.0)
+        {
+            rvec_t s=MOMScores(), eShift(s.size());
+            for (size_t i=0;i<s.size();++i){ double d=1.0-s[i]; eShift[i]=itsMOMSmearPenalty*d*d; }
+            std::tie(itsMinusTS,itsDPrime)=itsOrbitals->TakeElectronsFermi(ne,itsSmearingkT,eShift);
+        }
+        else
+            std::tie(itsMinusTS,itsDPrime)=itsOrbitals->TakeElectronsFermi(ne,itsSmearingkT);
+    }
     else
     {
-        const bool useMOM = itsUseMOM && itsRefOccCPrime.columns()>0;
-        if (useMOM) std::tie(ne,itsDPrime)=itsOrbitals->TakeElectrons(ne, MOMScores());
-        else        std::tie(ne,itsDPrime)=itsOrbitals->TakeElectrons(ne);   // occupy lowest-first, build density
+        if (haveRef) std::tie(ne,itsDPrime)=itsOrbitals->TakeElectrons(ne, MOMScores());
+        else         std::tie(ne,itsDPrime)=itsOrbitals->TakeElectrons(ne);   // occupy lowest-first, build density
         assert(ne==0.0); //enough orbitals to take all electrons; if not the basis set is too small.
     }
 
@@ -152,9 +166,12 @@ template <class T> void tIrrepWF<T>::CaptureMOMReference()
 // because the analytic Bloch overlap (hence the orthonormal metric the C' live in) is grid-independent.
 template <class T> void tIrrepWF<T>::AdoptMOMReference(const Orbitals& from)
 {
+    // "Occupied" for the reference = MAJORITY-filled (f>0.5), not merely nonzero: under Fermi smearing every
+    // orbital carries a tiny fractional occupation, so IsOccupied() (occ>0) would snapshot the whole space and
+    // make the MOM overlap meaningless.  For integer aufbau / grid-continuation (occ = g or 0) this is identical.
     std::vector<vec_t<T>> cols;
     for (auto o:from.template Iterate<qchem::Orbitals::TOrbital<T>>())
-        if (o->IsOccupied()) cols.push_back(o->GetCoeffPrime());
+        if (o->GetOccupation() > 0.5*o->GetDegeneracy()) cols.push_back(o->GetCoeffPrime());
     if (cols.empty()) { itsRefOccCPrime.clear(); return; }
     itsRefOccCPrime.resize(cols.front().size(),cols.size());
     for (size_t j=0;j<cols.size();++j) blazem::column(itsRefOccCPrime,j)=cols[j];

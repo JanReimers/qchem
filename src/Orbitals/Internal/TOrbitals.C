@@ -29,6 +29,7 @@ public:
     virtual ds_t      TakeElectrons      (double ne      )      ;
     virtual ds_t      TakeElectrons      (double ne, const rvec_t& priority);
     virtual ds_t      TakeElectronsFermi (double ne, double kT);
+    virtual ds_t      TakeElectronsFermi (double ne, double kT, const rvec_t& eShift);
     virtual size_t    GetNumOrbitals     (               ) const;
     virtual size_t    GetNumOccOrbitals  (               ) const;
     virtual double    GetEigenValueChange(const Orbitals&) const;

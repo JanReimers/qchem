@@ -128,31 +128,41 @@ template <class T> typename TOrbitalsImp<T>::ds_t TOrbitalsImp<T>::TakeElectrons
 // many kT (f saturates to 0/1 there).  The cure for near-gapless occupation flapping (NaF Ecut=160).
 template <class T> typename TOrbitalsImp<T>::ds_t TOrbitalsImp<T>::TakeElectronsFermi(double ne, double kT)
 {
+    return TakeElectronsFermi(ne, kT, rvec_t());   // no effective-energy shift == plain Fermi on the bare ε
+}
+
+template <class T> typename TOrbitalsImp<T>::ds_t
+TOrbitalsImp<T>::TakeElectronsFermi(double ne, double kT, const rvec_t& eShift)
+{
     assert(kT>0.0);
     assert(!itsOrbitals.empty());
-    // Fermi occupancy fraction f∈[0,1], overflow-guarded (x=(ε−μ)/kT beyond ±40 saturates).
-    auto ffrac=[kT](double e, double mu)->double
+    const size_t n=itsOrbitals.size();
+    assert(eShift.size()==0 || eShift.size()==n);
+    // Effective energies: bare ε_i + optional per-orbital shift (the MOM-overlap penalty that pushes low-
+    // overlap ghosts UP so they stay empty by character; empty eShift == all zero == plain Fermi).
+    rvec_t e(n), g(n);
+    for (size_t i=0;i<n;++i)
     {
-        double x=(e-mu)/kT;
+        e[i]=itsOrbitals[i]->GetEigenEnergy() + (eShift.size()? eShift[i] : 0.0);
+        g[i]=itsOrbitals[i]->GetDegeneracy();
+    }
+    // Fermi occupancy fraction f∈[0,1], overflow-guarded (x=(ε−μ)/kT beyond ±40 saturates).
+    auto ffrac=[kT](double ei, double mu)->double
+    {
+        double x=(ei-mu)/kT;
         if (x> 40.0) return 0.0;
         if (x<-40.0) return 1.0;
         return 1.0/(1.0+exp(x));
     };
     // Total capacity Σ g_i must cover ne (else the basis is too small -- same contract as aufbau's assert),
-    // and the orbital energy range brackets μ.
-    double cap=0.0;
-    double emin=itsOrbitals.front()->GetEigenEnergy(), emax=emin;
-    for (auto o:this->Iterate())
-    {
-        cap += o->GetDegeneracy();
-        emin = std::min(emin,o->GetEigenEnergy());
-        emax = std::max(emax,o->GetEigenEnergy());
-    }
+    // and the effective-energy range brackets μ.
+    double cap=0.0, emin=e[0], emax=e[0];
+    for (size_t i=0;i<n;++i){ cap+=g[i]; emin=std::min(emin,e[i]); emax=std::max(emax,e[i]); }
     assert(ne<=cap+1e-9 && "Fermi fill: too few orbitals for the electron count (basis too small)");
     auto count=[&](double mu)->double
     {
         double N=0.0;
-        for (auto o:this->Iterate()) N += o->GetDegeneracy()*ffrac(o->GetEigenEnergy(),mu);
+        for (size_t i=0;i<n;++i) N += g[i]*ffrac(e[i],mu);
         return N;
     };
     // Bisect μ.  N(lo)≈0≤ne and N(hi)≈cap≥ne by the padding + the capacity assert above.
@@ -165,12 +175,11 @@ template <class T> typename TOrbitalsImp<T>::ds_t TOrbitalsImp<T>::TakeElectrons
     const double mu=0.5*(lo+hi);
     // Set occupations occ_i=g_i f_i and accumulate −TS = kT Σ g[f ln f + (1−f) ln(1−f)] (x ln x → 0 at 0,1).
     double minusTS=0.0;
-    for (auto o:this->Iterate())
+    for (size_t i=0;i<n;++i)
     {
-        double g=o->GetDegeneracy();
-        double f=ffrac(o->GetEigenEnergy(),mu);
-        o->SetOccupation(g*f);
-        if (f>1e-15 && f<1.0-1e-15) minusTS += kT*g*(f*log(f)+(1.0-f)*log(1.0-f));
+        double f=ffrac(e[i],mu);
+        itsOrbitals[i]->SetOccupation(g[i]*f);
+        if (f>1e-15 && f<1.0-1e-15) minusTS += kT*g[i]*(f*log(f)+(1.0-f)*log(1.0-f));
     }
     hmat_t<T> DPrime=std::get<1>(BuildDensity(0.0));   // build D/D' from the fractional occupations
     return std::make_tuple(minusTS,std::move(DPrime)); // {−TS, D'} (μ solved => no leftover electrons)

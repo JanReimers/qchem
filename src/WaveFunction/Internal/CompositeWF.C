@@ -45,7 +45,7 @@ public:
     virtual EnergyLevels    GetEnergyLevels () const {return itsELevels;}
     virtual void            FillOrbitals    (double mergeTol);
     virtual void            SetMOM          (bool useMOM, int startIter);
-    virtual void            SetSmearing     (double kT);
+    virtual void            SetSmearing     (double kT, double momPenalty);
     virtual double          GetEntropyTerm  () const;
     virtual void            AdoptMOMReference(const tWaveFunction<T>& from);
     virtual void            ReleaseMOMReference();

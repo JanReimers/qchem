@@ -127,6 +127,12 @@ public:
     //! electrons -- μ is solved so there is no leftover).  The fractional occupations flow through the
     //! existing density build unchanged (AddDensityMatrix already scales |C⟩⟨C| by the occupation).
     virtual ds_t TakeElectronsFermi (double ne, double kT)=0;
+    //! MOM-masked Fermi (doc/GPWPlan1.md 4b, MOM+smearing composition): Fermi-fill on EFFECTIVE energies
+    //! ε_i + eShift_i instead of the bare ε_i.  \a eShift (one per orbital, stored order; size 0 == all-zero
+    //! == the plain overload above) carries a MOM-overlap penalty that pushes LOW-overlap states (diffuse
+    //! ghosts) UP so they stay empty by CHARACTER, while the retained high-overlap states smear by their
+    //! TRUE energy -- keeping the ghost out (like hard MOM) yet making occupation continuous at the frontier.
+    virtual ds_t TakeElectronsFermi (double ne, double kT, const rvec_t& eShift)=0;
     virtual tDM_CD<T>* GetChargeDensity() const=0;   // the T-typed density (moved off the Orbitals base)
 
 };
