@@ -249,3 +249,23 @@ TEST(LASolverAuto, CholeskyPivotedKeepsWellConditioned)
     s->SetBasisOverlap(make_S3());          // well-conditioned -> keep all 3
     EXPECT_EQ(s->GetOrthoDim(), 3u);
 }
+// The BASIS-NEUTRAL detector: gap-count -> which functions are redundant (original indices), no ortho.
+TEST(LASolverAuto, PivotedCholeskyDropsDetector)
+{
+    auto drops = qchem::PivotedCholeskyDrops<double>(make_nearnull3());
+    EXPECT_EQ(drops.size(), 1u);              // one redundant dimension (the ~1e-8 near-null pair)
+    EXPECT_LT(drops[0], 3u);                  // a valid original index
+    auto none = qchem::PivotedCholeskyDrops<double>(make_S3());
+    EXPECT_TRUE(none.empty());                // well-conditioned -> nothing to drop
+}
+// AUTO pivot tol (Factory tol<0): the gap-middle rule finds the ~1e-8/1 gap and drops the near-null mode,
+// and leaves a well-conditioned basis untouched -- no user tol.
+TEST(LASolverAuto, CholeskyPivotedAutoGapMiddle)
+{
+    std::unique_ptr<LASolver<double>> s(LASolver<double>::Factory(qchem::CholeskyPivoted, -1.0));
+    s->SetBasisOverlap(make_nearnull3());
+    EXPECT_EQ(s->GetOrthoDim(), 2u);        // gap-middle tol drops the ~1e-8 mode
+    std::unique_ptr<LASolver<double>> s2(LASolver<double>::Factory(qchem::CholeskyPivoted, -1.0));
+    s2->SetBasisOverlap(make_S3());
+    EXPECT_EQ(s2->GetOrthoDim(), 3u);       // no gap -> keep all
+}

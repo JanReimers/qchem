@@ -311,14 +311,22 @@ template <class T> void LASolverCholeskyPivoted<T>::SetBasisOverlap(const hmat_t
     mat_t<T> Sm(S);                                       // plain copy: pstrf requires a non-adaptor matrix
     std::vector<blazem::blas_int_t> piv(n);
     double tol = itsTruncationTolerance;
-    if (tol < 0.0)                                        // AUTO: relative singularity floor (the kEpsFloor scale)
+    if (tol < 0.0)                                        // AUTO: pivot floor at the MIDDLE of the eigenvalue gap
     {
-        rvec_t diag;                                     // Hermitian overlap: the diagonal is real (self-overlaps)
-        if constexpr (std::is_floating_point_v<T>) diag = blazem::diagonal(Sm);
-        else                                       diag = blazem::real(blazem::diagonal(Sm));
-        double maxdiag = 0.0;
-        for (double v : diag) maxdiag = std::max(maxdiag, std::abs(v));
-        tol = 1e-8 * maxdiag;
+        // Eigen-analyse S (cheap: one-time, small n×n) and put the pivot cut at the geometric MIDDLE of the
+        // near-null/physical spectral gap the detector finds (user 2026-07-25) -- so the tol adapts to the
+        // system's own spectrum instead of a fixed floor.  A pivot is a residual self-overlap ~ eigenvalue
+        // scale, so the gap-middle cleanly separates the redundant cluster from the physical modes.
+        rvec_t w; mat_t<T> Uw;
+        blazem::eigen(S, w, Uw);                         // ascending eigenvalues
+        const NullGap g = detect_null_gap(w);
+        if (g.nDrop == 0) tol = 0.0;                     // nothing near-null -> keep all (pstrf full rank)
+        else
+        {
+            const double lo = w[g.nDrop-1];              // last near-null eigenvalue (may be <=0 from roundoff)
+            const double hi = w[g.nDrop];                // first physical eigenvalue
+            tol = (lo > 0.0) ? std::sqrt(lo*hi) : hi*1e-3;   // geometric middle of the gap (or a decade below hi)
+        }
     }
     // Pivoted Cholesky: P^T S P = U^H U, greedy largest-residual pivoting; rank m = where the residual pivot
     // falls below tol.  piv[k] = the ORIGINAL AO index now at permuted position k (blaze pstrf returns 0-based).

@@ -1,6 +1,7 @@
 // File: LASolver/LASolver.C  Linear algebra for Lowden orthogonalization and eigen solutions.
 module;
 #include <tuple>
+#include <vector>
 export module qchem.LASolver;
 export import qchem.Types;
 import qchem.Blaze;
@@ -33,6 +34,14 @@ export namespace qchem
     //! min eig) overlap is visible without guessing/debugging.  A reference so callers flip it in place:
     //! `qchem::ReportOverlapConditioning() = true;`.  Works for real and complex S, any ortho method.
     bool& ReportOverlapConditioning();
+
+    //! \brief BASIS-NEUTRAL linear-dependence detector: which basis functions are redundant in overlap S.
+    //! Eigen-analyses S to find the near-null/physical spectral GAP -> the exact COUNT k of redundant
+    //! dimensions (the "block", defined by the overlap numbers alone -- not by shells/polarization); then a
+    //! rank-revealing pivoted Cholesky gives the ORDERING, and the k LEAST-independent functions are returned
+    //! (ascending original indices).  Empty when S is well-conditioned (no gap).  Pure LA -- no basis-type
+    //! knowledge; the vetting driver feeds these indices to IrrepBasisSet::Prune (doc/GPWPlan1.md §4a).
+    template <class T> std::vector<size_t> PivotedCholeskyDrops(const hmat_t<T>& S);
 }
 
 //#################################################################################

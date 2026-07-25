@@ -465,7 +465,7 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     // degenerate 1.03e-6 near-null modes were exactly the Na p 0.05 triplet -- the cation's superfluous
     // diffuse shells; F kept intact for the anion).  See DISABLED_NaFOverlapConditioningSweep.
     auto mol = std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(
-        BasisSetData::VALENCE_LOWQ_SR, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
+        BasisSetData::VALENCE_LOWQ_SR2, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
 
     namespace L3=BasisSet::Lattice_3D;
     // densityEcut<0 => AUTOMATIC: the grid is floored to 4*alpha_max from the basis (F alpha_max=40 -> 160),
@@ -546,7 +546,7 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     // EXPERIMENT (NAF_PIVOT=<tol>): rank-revealing pivoted Cholesky (doc/GPWPlan1.md §4a) -- SELECTS the
     // independent AOs and DROPS the redundant diffuse ones, so the collocation skips them (vs Auto's canonical
     // rotation, which keeps a dense V and collocates all n AOs).  0/unset = Auto (canonical Eigen truncation).
-    const double pivotTol = envd("NAF_PIVOT", 0.0);
+    const double pivotTol = envd("NAF_PIVOT", 1e-4);
     const qchem::Ortho orthoMode = pivotTol>0.0 ? qchem::CholeskyPivoted : qchem::Auto;
     qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc,
                                          qchem::ChargeDensity::SeedStrategy::IonicSAD, lat.GetStructure().get(),

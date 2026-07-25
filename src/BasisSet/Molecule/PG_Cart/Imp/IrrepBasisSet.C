@@ -165,13 +165,18 @@ IrrepBasisSet::IrrepBasisSet(const rvec_t& es, size_t L)
 }
 //----------------------------------------------------------------
 //
-//  This contructor is used by Clone(RVec); only.
+//  SUBSET / prune constructor: copy \a bs's symmetry state, but take a SUBSET of its shells (\a theBlocks).
+//  Deep-copies (Clone) the passed blocks so the new basis owns them, then re-flattens via PGData::Init -- so
+//  the new basis has fewer functions (a vetted basis; doc/GPWPlan1.md §4a).  The blocks are Cloned, not moved,
+//  so \a theBlocks may alias \a bs's own itsBlocks.
 //
 IrrepBasisSet::IrrepBasisSet(const IrrepBasisSet* bs, const bv_t& theBlocks)
     : IrrepBasisSetImp<double>(*bs)
 {
-    assert(false);
-    // No UT coverage
+    for (const auto& bl : theBlocks) itsBlocks.push_back(std::unique_ptr<Block>(bl->Clone()));
+    std::vector<const Block*> bls;
+    for (auto& bl : itsBlocks) bls.push_back(bl.get());
+    PGData::Init(bls);
 }
 
 IrrepBasisSet::~IrrepBasisSet() {};
