@@ -8,6 +8,7 @@ import qchem.LASolver.Internal.Lapack;
 using qchem::LASolverEigen;
 using qchem::LASolverSVD;
 using qchem::LASolverCholesky;
+using qchem::LASolverCholeskyPivoted;
 using qchem::LASolverAuto;
 
 bool& qchem::ReportOverlapConditioning() { static bool on = false; return on; }
@@ -28,6 +29,7 @@ template <class T> LASolver<T>* LASolver<T>::
         break;
     case qchem::Eigen:   ret = new LASolverEigen<T>(TruncationTolerance); break;
     case qchem::SVD:     ret = new LASolverSVD  <T>(TruncationTolerance); break;
+    case qchem::CholeskyPivoted: ret = new LASolverCholeskyPivoted<T>(TruncationTolerance); break;
     case qchem::Auto:
         if (TruncationTolerance != 0)
             std::cerr << "Warning: LASolverAuto ignores TruncationTolerance (" << TruncationTolerance

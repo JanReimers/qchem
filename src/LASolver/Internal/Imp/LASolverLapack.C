@@ -6,6 +6,7 @@ module;
 #include <cmath>
 #include <algorithm>
 #include <memory>
+#include <vector>
 module qchem.LASolver.Internal.Lapack;
 import qchem.Blaze;
 
@@ -300,6 +301,65 @@ LASolverCholesky<T>::BackTransform(const mat_t<T>& Uprime) const
 }
 
 //=============================================================================
+//  LASolverCholeskyPivoted -- rank-revealing pivoted Cholesky: SELECT m independent AOs, DROP the redundant k.
+//=============================================================================
+
+template <class T> void LASolverCholeskyPivoted<T>::SetBasisOverlap(const hmat_t<T>& S)
+{
+    report_conditioning<T>(S);
+    const size_t n = S.rows();
+    mat_t<T> Sm(S);                                       // plain copy: pstrf requires a non-adaptor matrix
+    std::vector<blazem::blas_int_t> piv(n);
+    double tol = itsTruncationTolerance;
+    if (tol < 0.0)                                        // AUTO: relative singularity floor (the kEpsFloor scale)
+    {
+        rvec_t diag;                                     // Hermitian overlap: the diagonal is real (self-overlaps)
+        if constexpr (std::is_floating_point_v<T>) diag = blazem::diagonal(Sm);
+        else                                       diag = blazem::real(blazem::diagonal(Sm));
+        double maxdiag = 0.0;
+        for (double v : diag) maxdiag = std::max(maxdiag, std::abs(v));
+        tol = 1e-8 * maxdiag;
+    }
+    // Pivoted Cholesky: P^T S P = U^H U, greedy largest-residual pivoting; rank m = where the residual pivot
+    // falls below tol.  piv[k] = the ORIGINAL AO index now at permuted position k (blaze pstrf returns 0-based).
+    const size_t m = (size_t)blazem::pstrf(Sm, 'U', piv.data(), tol);
+    assert(m>0 && m<=n);
+    // U_1 = leading m×m factor of the m kept (permuted) functions.  Orthonormalise: V_1 = U_1^{-1} (V_1^H S_11 V_1 = I).
+    mat_t<T> V1 = blazem::submatrix(Sm, 0, 0, m, m);
+    for (size_t i=0;i<m;++i) for (size_t j=i+1;j<m;++j) V1(j,i)=T(0);   // pstrf leaves the strict-lower undefined
+    if constexpr (std::is_floating_point_v<T>) itsD = blazem::diagonal(V1);   // the kept pivots' Cholesky diagonal
+    else                                       itsD = blazem::real(blazem::diagonal(V1));
+    blazem::trtri(V1, 'U', 'N');
+    for (size_t i=0;i<m;++i) for (size_t j=i+1;j<m;++j) V1(j,i)=T(0);   // trtri leaves the strict-lower undefined
+    // SCATTER V_1 into the SPARSE n×m V: kept AO row piv[k]-1 gets V_1 row k; DROPPED AO rows stay identically 0
+    // -> D=V·D'·V^H is exactly zero on the dropped functions, so the collocation's D-aware screen skips them.
+    mat_t<T> V(n, m, T(0));
+    for (size_t k=0;k<m;++k) blazem::row(V, piv[k]) = blazem::row(V1, k);
+    itsV  = std::move(V);
+    itsVd = blazem::ctrans(itsV);
+    // NEVER SILENT (doc/GPWPlan §1): the drops are NAMED raw AO functions now, not an abstract null-space vector.
+    if (m < n)
+    {
+        std::cerr << "[ortho] CholeskyPivoted: dropped " << (n-m) << " of " << n
+                  << " redundant AO function(s) (kept " << m << "); AO index";
+        for (size_t k=m;k<n;++k) std::cerr << " " << (size_t)piv[k];
+        std::cerr << " -- near-linearly-dependent, ~reproducible by the kept set." << std::endl;
+    }
+}
+
+template <class T> typename LASolver<T>::Ud_t
+LASolverCholeskyPivoted<T>::Solve(const hmat_t<T>& H) const { return solve_impl<T>(H, itsVd, itsV); }
+
+template <class T> typename LASolver<T>::UUd_t
+LASolverCholeskyPivoted<T>::SolveOrtho(const hmat_t<T>& Hprime) const { return solve_ortho_impl<T>(Hprime, itsV); }
+
+template <class T> hmat_t<T>
+LASolverCholeskyPivoted<T>::Transform(const hmat_t<T>& M) const { return transform_impl<T>(M, itsVd, itsV); }
+
+template <class T> mat_t<T>
+LASolverCholeskyPivoted<T>::BackTransform(const mat_t<T>& Uprime) const { return itsV * Uprime; }
+
+//=============================================================================
 //  LASolverAuto -- eigen-analyse S, then pick Cholesky (well-conditioned) or Eigen(auto tol) (near-null).
 //=============================================================================
 
@@ -327,10 +387,12 @@ template <class T> void LASolverAuto<T>::SetBasisOverlap(const hmat_t<T>& S)
 template class LASolverEigen  <double>;
 template class LASolverSVD    <double>;
 template class LASolverCholesky<double>;
+template class LASolverCholeskyPivoted<double>;
 template class LASolverAuto    <double>;
 template class LASolverEigen  <dcmplx>;
 template class LASolverSVD    <dcmplx>;
 template class LASolverCholesky<dcmplx>;
+template class LASolverCholeskyPivoted<dcmplx>;
 template class LASolverAuto    <dcmplx>;
 
 } // namespace qchem

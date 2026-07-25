@@ -155,13 +155,14 @@ TEST_P(LASolverTest, SolveOrthoConsistentWithSolve)
 }
 
 INSTANTIATE_TEST_SUITE_P(AllMethods, LASolverTest,
-    ::testing::Values(qchem::Cholesky, qchem::Eigen, qchem::SVD, qchem::Auto),
+    ::testing::Values(qchem::Cholesky, qchem::Eigen, qchem::SVD, qchem::Auto, qchem::CholeskyPivoted),
     [](const ::testing::TestParamInfo<qchem::Ortho>& info) -> std::string {
         switch (info.param) {
             case qchem::Cholesky: return "Cholesky";
             case qchem::Eigen:   return "Eigen";
             case qchem::SVD:     return "SVD";
             case qchem::Auto:    return "Auto";
+            case qchem::CholeskyPivoted: return "CholeskyPivoted";
         }
         return "Unknown";
     });
@@ -231,4 +232,20 @@ TEST(LASolverAuto, CholeskyNeverTruncates)
     std::unique_ptr<LASolver<double>> s(LASolver<double>::Factory(qchem::Cholesky));
     s->SetBasisOverlap(make_nearnull3());   // PSD, potrf succeeds
     EXPECT_EQ(s->GetOrthoDim(), 3u);        // full rank -- NO truncation
+}
+// PIVOTED Cholesky SELECTS m independent raw AO functions and DROPS the redundant one (rank-revealing).
+TEST(LASolverAuto, CholeskyPivotedDropsNearNull)
+{
+    std::unique_ptr<LASolver<double>> s(LASolver<double>::Factory(qchem::CholeskyPivoted, 1e-6));
+    s->SetBasisOverlap(make_nearnull3());   // the ~1e-8 near-null pair -> drop one function
+    EXPECT_EQ(s->GetOrthoDim(), 2u);        // 3 -> 2: one redundant AO dropped outright
+    rsmat_t Sp = s->Transform(make_nearnull3());   // V^H S V on the kept subspace == I_2
+    EXPECT_EQ(Sp.rows(), 2u);
+    for (size_t i=0;i<2;i++) for (size_t j=0;j<2;j++) EXPECT_NEAR(Sp(i,j), i==j?1.0:0.0, kTol);
+}
+TEST(LASolverAuto, CholeskyPivotedKeepsWellConditioned)
+{
+    std::unique_ptr<LASolver<double>> s(LASolver<double>::Factory(qchem::CholeskyPivoted, 1e-6));
+    s->SetBasisOverlap(make_S3());          // well-conditioned -> keep all 3
+    EXPECT_EQ(s->GetOrthoDim(), 3u);
 }

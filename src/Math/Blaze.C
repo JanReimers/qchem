@@ -90,6 +90,8 @@ export namespace qchem::blazem
     using blaze::conj;
     using blaze::real;
     using blaze::potrf;
+    using blaze::pstrf;   // PIVOTED Cholesky (rank-revealing): rank + permutation for truncating ortho
+    using blaze::blas_int_t;   // the LAPACK integer width (int32/int64) -- pstrf's pivot array element type
     using blaze::trtri;
     
 }

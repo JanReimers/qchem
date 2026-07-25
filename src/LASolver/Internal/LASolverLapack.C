@@ -79,6 +79,32 @@ private:
     rvec_t   itsD;
 };
 
+// PIVOTED Cholesky (rank-revealing, LAPACK pstrf): SELECTS the m most-independent raw AO functions and DROPS
+// the k redundant ones outright, so the transform V is SPARSE (zero rows on the dropped AOs).  Unlike Eigen/SVD
+// (which rotate -> dense V -> same collocation cost), dropping functions makes D=V·D'·Vᵀ exactly zero on the
+// dropped AOs, which the collocation's D-aware screen then skips -- the diffuse-basis cost win (doc/GPWPlan1.md
+// §4a).  V is a general rectangular n×m (pivoting + truncation break AO-order triangularity), like Eigen's.
+export template <class T> class LASolverCholeskyPivoted : public virtual LASolver<T>
+{
+    typedef LASolver<T> Base;
+    typedef typename Base::Ud_t  Ud_t;
+    typedef typename Base::UUd_t UUd_t;
+public:
+    LASolverCholeskyPivoted(double tol) : itsTruncationTolerance(tol) {}
+
+    void       SetBasisOverlap(const hmat_t<T>& S)          override;
+    size_t     GetOrthoDim()                           const override { return itsV.columns(); }
+    rvec_t     Get_BS_Diagonal()                       const override { return itsD; }
+    Ud_t       Solve      (const hmat_t<T>& H)         const override;
+    UUd_t      SolveOrtho (const hmat_t<T>& Hprime)   const override;
+    hmat_t<T>  Transform  (const hmat_t<T>& M)         const override;
+    mat_t<T>   BackTransform(const mat_t<T>& Uprime)   const override;
+private:
+    double   itsTruncationTolerance;
+    mat_t<T> itsV, itsVd;    // n×m selection+orthonormaliser (sparse: nonzero only on the m kept AO rows)
+    rvec_t   itsD;           // the kept pivots' Cholesky diagonal (diagnostic)
+};
+
 // AUTO (the default): eigen-analyse S; a droppable near-null mode -> canonical Eigen ortho (auto tol);
 // otherwise plain Cholesky.  Holds whichever it chose and delegates every operation to it.
 export template <class T> class LASolverAuto : public virtual LASolver<T>

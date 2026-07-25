@@ -543,9 +543,14 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
                     std::move(rungs), /*ethresh*/1e-8, /*stall*/5, /*floor*/1e-8, /*switchat*/1e-6,
                     qchem::SCFAccelerators::ScheduleSignal::EnergyChange);
     qchem::ReportOverlapConditioning()=true;   // report min eig(S)/min sv(S) at SetBasisOverlap (the ctor below)
+    // EXPERIMENT (NAF_PIVOT=<tol>): rank-revealing pivoted Cholesky (doc/GPWPlan1.md §4a) -- SELECTS the
+    // independent AOs and DROPS the redundant diffuse ones, so the collocation skips them (vs Auto's canonical
+    // rotation, which keeps a dense V and collocates all n AOs).  0/unset = Auto (canonical Eigen truncation).
+    const double pivotTol = envd("NAF_PIVOT", 0.0);
+    const qchem::Ortho orthoMode = pivotTol>0.0 ? qchem::CholeskyPivoted : qchem::Auto;
     qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc,
                                          qchem::ChargeDensity::SeedStrategy::IonicSAD, lat.GetStructure().get(),
-                                         qchem::Auto, 0.0);   // diffuse F- / Na+ ionic seed (halved PW iters)
+                                         orthoMode, pivotTol);   // diffuse F- / Na+ ionic seed (halved PW iters)
     qchem::ReportOverlapConditioning()=false;  // process-wide flag -- reset so it does not leak to other tests
     // THE PRODUCTION RECIPE, plainly (Standard fields; the Advanced Guard struct keeps its defaults --
     // the 0h guard self-corrects a bad MOM capture, so nothing here needs hand-tuning):

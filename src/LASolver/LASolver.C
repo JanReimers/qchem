@@ -16,7 +16,16 @@ export namespace qchem
     //!        is tied to kinetic balance and canonical truncation causes variational collapse.
     //!  - \c Eigen / \c SVD: canonical ortho; a truncation tolerance <0 means AUTO (gap detection), =0 keeps
     //!        all modes, >0 is an explicit absolute eigenvalue floor.
-    enum Ortho {Cholesky, Eigen, SVD, Auto};
+    //!  - \c CholeskyPivoted: rank-revealing PIVOTED Cholesky (LAPACK pstrf).  Unlike canonical Eigen/SVD,
+    //!        which ROTATE (drop a dense near-null COMBINATION, keeping content on all n AOs), this SELECTS:
+    //!        it keeps the m most-independent raw AO functions and DROPS the k redundant ones outright.  The
+    //!        transform V is then SPARSE (zero rows on the dropped AOs), so the density D=V·D'·Vᵀ is exactly
+    //!        zero on those functions -- and the collocation's D-aware screen skips them for free (the point:
+    //!        a rotation gives the SAME ρ hence the SAME collocation cost; only DROPPING functions cheapens it,
+    //!        the diffuse-basis "just works" path -- doc/GPWPlan1.md §4a).  Lossless exactly in the near-null
+    //!        regime (a dropped AO is ~reproducible by the kept ones); slightly lossier than Eigen for MARGINAL
+    //!        modes.  Tolerance: <0 = LAPACK default (n·eps·max diag), >0 = explicit absolute pivot floor.
+    enum Ortho {Cholesky, Eigen, SVD, Auto, CholeskyPivoted};
 
     //! Process-wide diagnostic toggle (default OFF).  When true, every LASolver::SetBasisOverlap emits a
     //! one-line report of the basis overlap S -- min eigenvalue, min singular value, max eigenvalue, condition
