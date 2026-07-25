@@ -227,6 +227,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
     assert(itsHamiltonian);
     assert(itsCD);
     itsWaveFunction->SetMOM(ipar.UseMOM, ipar.MOMStartIter);   // occupation strategy for this run (SCFParams)
+    itsWaveFunction->SetSmearing(ipar.SmearingkT);             // Fermi-Dirac smearing (0=off); doc/GPWPlan1.md 4b
     size_t idealVirial=itsHamiltonian->IsRelativistic() ? 1 : 2;
     if (ipar.Verbose) DisplayColumnHeaders(cout, ipar, idealVirial);   // per-system (item 2): base=molecular, Solid overrides
 
@@ -269,7 +270,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
         ChargeDensityChange = driver.Step(lc);
         // cout << "Total charge=" << itsCD->GetTotalCharge() << endl;
 
-        eb=itsHamiltonian->GetTotalEnergy(itsCD.get());
+        eb=TotalEnergy(itsCD.get());        // includes the Mermin −TS => E is the free energy A when smearing on
         E=eb.GetTotalEnergy();
         dE=(E-Eold)/fabs(E);
         itsAccelerator->SetEnergy(E); //the ladder gates its hand-off on the energy change
@@ -300,7 +301,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
         {
             SetWorkingCD(cd_t(itsWaveFunction->GetChargeDensity())); //Get new charge density.
             ChargeDensityChange = itsMixer->ReDampMix(itsCD, itsOldCD);
-            eb=itsHamiltonian->GetTotalEnergy(itsCD.get());
+            eb=TotalEnergy(itsCD.get());
         }
         if (!lineSearch) itsMixer->UpdateRelax({E,FD,FDold});
 
@@ -401,7 +402,9 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
     {
         itsWaveFunction->MoveOrbitals(t,false,mergeTol);                 //trial
         cd_t cdt(itsWaveFunction->GetChargeDensity());                   //std-managed (no freed-address reuse)
-        Et=itsHamiltonian->GetTotalEnergy(cdt.get()).GetTotalEnergy();
+        // Minimize the FREE energy A=E−TS under smearing (MoveOrbitals refilled, so GetEntropyTerm is current);
+        // GetEntropyTerm()=0 with no smearing => molecular direct-min unchanged.  doc/GPWPlan1.md 4b.
+        Et=itsHamiltonian->GetTotalEnergy(cdt.get()).GetTotalEnergy()+itsWaveFunction->GetEntropyTerm();
         best=std::min(best,Et);
         if (Et<Ecur) { found=true; break; }
         t*=0.5;
@@ -428,7 +431,16 @@ template <class T> void tSCFIterator<T>::DisplayEigen() const
 
 template <class T> EnergyBreakdown tSCFIterator<T>::GetEnergy() const
 {
-    return itsHamiltonian->GetTotalEnergy(itsCD.get());
+    return TotalEnergy(itsCD.get());
+}
+
+// The Hamiltonian's total energy for cd, plus the wavefunction's Mermin −TS stamped in (0 with no
+// smearing) so GetTotalEnergy() reads the free energy A=E−TS.  doc/GPWPlan1.md 4b.
+template <class T> EnergyBreakdown tSCFIterator<T>::TotalEnergy(const tDM_CD<T>* cd) const
+{
+    EnergyBreakdown eb=itsHamiltonian->GetTotalEnergy(cd);
+    eb.MinusTS = itsWaveFunction->GetEntropyTerm();
+    return eb;
 }
 
 

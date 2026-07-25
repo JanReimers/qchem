@@ -126,7 +126,8 @@ GpwResult RunGPW(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, doub
                  qchem::Ortho ortho=qchem::Cholesky, double orthoTol=0.0,
                  rvec3_t kShift={0,0,0}, double minDrho=1e-6, double minDE=1e30,
                  qchem::ChargeDensity::SeedStrategy seed=qchem::ChargeDensity::SeedStrategy::Uniform,
-                 BasisSet::Lattice_3D::CellImages images=BasisSet::Lattice_3D::CellImages::Periodic)
+                 BasisSet::Lattice_3D::CellImages images=BasisSet::Lattice_3D::CellImages::Periodic,
+                 double smearkT=0.0)   // Fermi-Dirac smearing kT (Hartree); 0=off (doc/GPWPlan1.md 4b)
 {
     namespace L3=BasisSet::Lattice_3D;
     std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, std::move(mol), densityEcut, kShift, images));
@@ -152,7 +153,7 @@ GpwResult RunGPW(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, doub
     // the physical gate there is ENERGY: pass minDE~1e-6 + a relaxed minDrho~1e-3 to stop once the total energy
     // settles (~iter 15) instead of chasing fit noise to nmax.
     par.NMaxIter=nmax; par.MinΔρ=minDrho; par.MinΔE=minDE; par.MinΔFD=1e30; par.MinVirial=1e30; par.MinFD=1e30;
-    par.StartingRelaxRo=0.3; par.MergeTol=1e-4; par.Verbose=verbose;
+    par.StartingRelaxRo=0.3; par.MergeTol=1e-4; par.Verbose=verbose; par.SmearingkT=smearkT;
     qchem::Hamiltonian::ReportGridCharge()=(bool)std::getenv("GPW_GRIDCHARGE");   // per-iteration rho_grid vs Tr(DS) + rho stats (step-2 probe)
     scf.Iterate(par);
     qchem::Hamiltonian::ReportGridCharge()=false;      // process-wide flag -- reset so it does not leak to other tests
@@ -362,6 +363,67 @@ TEST(GPW_SCF, SiPseudoAtomInBoxMatchesFinite)
     EXPECT_NEAR(R.E.GetTotalEnergy(), Esipp, 5e-2) << "GPW-in-box total vs finite SIPP molecular DFT";
 }
 
+// (4b-i) FERMI SMEARING IS INERT ON A GAP (doc/GPWPlan1.md 4b, gate i).  The same gapped Si/Gamma anchor as
+// SiliconGammaConverges, but with smearing kT=1e-3 Ha turned ON.  Si is a wide-gap insulator in this basis
+// (ε_LUMO−ε_HOMO ≫ kT), so every f_i is essentially 0 or 1: the fractional occupations collapse to the
+// aufbau integers, the Mermin −TS is negligible, and the total reproduces the CP2K reference −7.11506.  This
+// is the regression that smearing must not perturb a system that does not need it (the T→0 / kT≪gap limit).
+TEST(GPW_SCF, SmearingInertOnGap)
+{
+    const double a=10.26;
+    FCCUnitCell cell(a);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+
+    GpwResult R=RunGPW(lat, MakeBasisSR(cell), /*densityEcut*/20.0, /*Nelec*/8, "Si",
+                       "Si SR Gamma +smear", /*verbose*/false, /*nmax*/60, qchem::Cholesky, 0.0,
+                       /*kShift*/rvec3_t(0,0,0), /*minDrho*/1e-3, /*minDE*/1e-6,
+                       qchem::ChargeDensity::SeedStrategy::Uniform,
+                       BasisSet::Lattice_3D::CellImages::Periodic, /*smearkT*/1e-3);
+
+    EXPECT_TRUE(R.converged);
+    EXPECT_NEAR(R.charge, 8.0, 1e-6);
+    EXPECT_NEAR(R.E.GetTotalEnergy(), -7.11506, 2e-3);       // == the no-smear anchor: smearing is inert on a gap
+    EXPECT_NEAR(R.E.MinusTS, 0.0, 1e-4);                     // −TS negligible when kT ≪ gap (f_i ∈ {0,1})
+}
+
+// (4b-iii) FERMI SMEARING CONVERGES A DEGENERATE OPEN SHELL (doc/GPWPlan1.md 4b, gate iii + the cure).  The
+// Si pseudo-atom in a box has 4 valence electrons in a 3s²3p² configuration; at Gamma the atom has NO point
+// group, so its three 3p orbitals are EXACTLY degenerate and half-filled.  Integer aufbau must pick 2 of the
+// 6 p-states arbitrarily -> the density rotates freely within the degenerate shell and |Δρ| never converges
+// (the documented behaviour of SiPseudoAtomInBoxMatchesFinite, iters=40/Δρ=0.08/"DENSITY-DEGENERATE", which
+// pins only the energy).  Fermi smearing is the cure: μ lands in the degenerate manifold, each 3p orbital
+// takes the SAME fractional occupation, the density is symmetric and STATIONARY, and the SCF converges Δρ
+// (iters=24, Δρ=9e-7, "CONVERGED").  The Mermin −TS<0, so the total GetTotalEnergy() reported IS the free
+// energy A=E−TS, which sits below the internal energy E -- the finite-T thermodynamic ordering (gate iii).
+// kT MUST exceed the near-degenerate splitting to stabilise: kT=1e-2 converges, kT=1e-3 still slosh-rotates
+// (measured) -- the honest recipe is "smear wider than the frontier splitting you are curing".
+TEST(GPW_SCF, SmearingConvergesDegenerateShell)
+{
+    Molecule si; si.Insert(new Atom(14, 0.0, {0,0,0}));
+    Calculation cSipp(si, {.basis = "sipp", .pseudopotential = true});
+    const double Esipp=cSipp.Energy();   // finite SIPP molecular DFT (symmetric occupation): -3.759
+
+    const double a=16.0;
+    UnitCell cell(a);
+    cell.AddAtom(14, {0.5,0.5,0.5});
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+    GpwResult R=RunGPW(lat, MakeBasis(cell), /*densityEcut*/10.0, /*Nelec*/4, "Si", "Si atom-in-box +smear",
+                       /*verbose*/false, /*nmax*/60, qchem::Cholesky, 0.0, rvec3_t(0,0,0),
+                       /*minDrho*/1e-6, /*minDE*/1e30,
+                       qchem::ChargeDensity::SeedStrategy::Uniform,
+                       BasisSet::Lattice_3D::CellImages::HomeCellOnly, /*smearkT*/1e-2);
+
+    EXPECT_TRUE(R.converged) << "Fermi smearing should converge Δρ where integer aufbau cannot (degenerate 3p)";
+    EXPECT_NEAR(R.charge, 4.0, 1e-6);
+    // did-E-move anchor: the converged free energy A=E−TS at kT=1e-2 (internal E≈-3.741 ≈ the aufbau -3.733;
+    // the ~38 mHa gap to A is the 3p-shell entropy −TS at this kT, which lowers A below E and below Esipp).
+    EXPECT_NEAR(R.E.GetTotalEnergy(), -3.77933, 3e-3);
+    EXPECT_LT(R.E.MinusTS, 0.0);                             // −TS<0 => A=GetTotalEnergy() sits below internal E (gate iii)
+    EXPECT_NEAR(R.E.GetTotalEnergy()-R.E.MinusTS, Esipp, 3e-2) << "internal E=A−(−TS) vs finite SIPP molecular DFT";
+}
+
 // (4) MULTI-SPECIES GPW: ionic NaF (rocksalt = FCC + 2-atom basis) at Gamma, driven by the multi-species
 // Ham_PW_DFT ctor ({{"Na",1},{"F",7}}) on the GENERATED valence_lowq Gaussian basis (Na 5s2p + F 8s6p).  The
 // plane-wave sibling (PlaneWaveDFT.FrameworkNaFThroughSCFIterator, Ecut=6) lands -20.3293; GPW here is the
@@ -459,7 +521,7 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     // direct-min loop does not density-mix anyway.
     std::vector<std::unique_ptr<qchem::SCFAccelerators::tSCFAccelerator<dcmplx>>> rungs;
     rungs.push_back(std::make_unique<qchem::SCFAccelerators::cSCFAcceleratorDIIS>(
-                        qchem::SCFAccelerators::DIISParams{8, 0.1, 1e-10, 1e-9}));     // rung 0: DIIS (Nproj=8)
+                        qchem::SCFAccelerators::DIISParams{8, 8.0, 1e-10, 1e-9}));     // rung 0: DIIS (Nproj=8)
     rungs.push_back(std::make_unique<qchem::SCFAccelerators::cSCFAcceleratorGDM>(
                         qchem::SCFAccelerators::GDMParams{/*FDMax*/1.0}));              // rung 1: GDM geodesic (FDMax wide
                                                                                        //   so GDM actually ENGAGES, not
@@ -488,7 +550,7 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     par.Verbose        = true;
     par.StartingRelaxRo= 0.45;   // Kerker mixing fraction (raw-XC landscape; the ball-era 0.025 was
                                  //   calibrated against limit cycles that no longer exist -- user, 2026-07-23)
-    par.KerkerG0       = 0.5;    // Kerker screening wavevector (a.u.^-1): damp the low-G charge-transfer slosh
+    par.KerkerG0       = 1.0;    // Kerker screening wavevector (a.u.^-1): damp the low-G charge-transfer slosh
     par.UseMOM         = true;   // occupied-subspace continuity; the 0h guard releases a bad capture
     par.MOMStartIter   = 10;     // delayed IMOM: descend by plain aufbau first, then capture ONCE
     par.PulayDepth     = 0;      // density-Pulay OFF: the Fock-space Ladder (DIIS->GDM) is now the accelerator

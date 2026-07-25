@@ -18,6 +18,7 @@ EnergyBreakdown::EnergyBreakdown()
     , ExcFitFit(0)
     , RestMass (0)
     , GridChargeLost(0)
+    , MinusTS  (0)
 {};
 
 double EnergyBreakdown::GetVirial() const
@@ -39,6 +40,7 @@ EnergyBreakdown& EnergyBreakdown::operator+=(const EnergyBreakdown& e1)
     ExcFitFit += e1.ExcFitFit;
     RestMass  += e1.RestMass;
     GridChargeLost += e1.GridChargeLost;
+    MinusTS   += e1.MinusTS;
     return *this;
 }
 
@@ -61,6 +63,7 @@ void EnergyBreakdown::Display() const
     cout << "ExcFit    :" << ExcFit << endl;
     cout << "ExcFitFit :" << ExcFitFit << endl;
     cout << "RestMass  :" << RestMass << endl;
+    if (MinusTS!=0.0) cout << "-TS       :" << MinusTS << endl;
     cout << "------------------------" << endl << endl;
 }
 

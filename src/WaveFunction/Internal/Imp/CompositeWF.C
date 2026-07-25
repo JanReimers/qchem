@@ -167,6 +167,22 @@ template <class T> void tCompositeWF<T>::SetMOM(bool useMOM, int startIter)
     for (auto& w : itsIWFs) w->SetMOM(useMOM, startIter);
 }
 
+// Fermi smearing (doc/GPWPlan1.md 4b): push the same kT into every irrep block.  Each block then solves its
+// OWN μ (Increment 1 = per-block μ; global-μ across k-blocks is Increment 2).  A no-op at kT=0.
+template <class T> void tCompositeWF<T>::SetSmearing(double kT)
+{
+    for (auto& w : itsIWFs) w->SetSmearing(kT);
+}
+
+// The run's Mermin free-energy term −TS: the SUM over blocks (each spin channel / k-block contributes its
+// own −T S_block).  0 with no smearing.  Stamped into EnergyBreakdown by the SCFIterator.
+template <class T> double tCompositeWF<T>::GetEntropyTerm() const
+{
+    double minusTS=0.0;
+    for (auto& w : itsIWFs) minusTS += w->GetEntropyTerm();
+    return minusTS;
+}
+
 // Grid-continuation (doc/GPWPlan §0e): per irrep, hand this WF's irrep block the CONVERGED source WF's
 // occupied orbitals for the SAME irrep as its fixed MOM reference.  from.GetOrbitals(irr) is the source's
 // physical occupied subspace; the orthonormal metric matches (grid-independent Bloch overlap), so the C'

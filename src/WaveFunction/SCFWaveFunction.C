@@ -48,6 +48,16 @@ public:
     //! delayed-IMOM reference-capture iteration.  Called once by the SCFIterator at the start of Iterate;
     //! a no-op default keeps \a useMOM=false the norm.  See doc/GPWPlan §0b″.
     virtual void       SetMOM          (bool useMOM, int startIter)             =0;
+    //! Configure Fermi-Dirac smearing for this SCF run (from SCFParams::SmearingkT, Hartree).  0 = OFF
+    //! (integer aufbau -- atoms/molecules/gapped solids unchanged).  >0 => each block fills fractionally
+    //! with μ solved by bisection, and GetEntropyTerm() returns the run's Mermin −TS.  A no-op default
+    //! keeps kT=0 the norm.  Called once by the SCFIterator at the start of Iterate.  doc/GPWPlan1.md 4b.
+    virtual void       SetSmearing     (double kT)                              =0;
+    //! The Mermin free-energy term −TS (≤0) summed over all occupied blocks from the most recent fill; 0
+    //! unless smearing is on.  The SCFIterator stamps it into EnergyBreakdown::MinusTS so GetTotalEnergy()
+    //! becomes the free energy A=E−TS -- the quantity the finite-T SCF gates on and reports (the entropy
+    //! never touches H, so this WF-side scalar is its ONLY route into the energy).
+    virtual double     GetEntropyTerm  () const                                 =0;
     //! Grid-continuation MOM (doc/GPWPlan §0e): adopt \a from's occupied orbital subspace (per irrep) as this
     //! WF's FIXED MOM reference.  \a from is a CONVERGED wavefunction on the SAME orbital basis -- the analytic
     //! Bloch overlap (hence the orthonormal metric the C' live in) is grid-independent, so its physical

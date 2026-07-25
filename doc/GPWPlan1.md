@@ -121,9 +121,35 @@ NOT major surgery, by construction:
   the IBZ track, like item 5.
 - Gates: (i) gapped regression — Si at kT ≪ gap reproduces −7.11501 tightly (smearing inert where it
   should be); (ii) the cure — NaF Ecut=160 converges to −24.431-class instead of −24.078 flapping;
-  (iii) A decreases monotonically where E need not.
+  (iii) A decreases monotonically where E need not, (iv) we should add a unit test for a light metal (FCC Na?).
 - With 4b landed, the 0h warning's advice ("check the occupation recipe") gains an actionable
   default: the expert-system loop closes for this pathology family.
+- **INCREMENT 1 DONE (2026-07-24), per-block μ.**  Seam & flow as designed:
+  - `SCFParams::SmearingkT` (Hartree; 0=off, the default → integer aufbau, ZERO regression: 578/578).
+    Threaded iterator→WF via `tSCFWaveFunction::SetSmearing` (mirrors `SetMOM`), composite fans it to
+    every `tIrrepWF`; each block solves its OWN μ (that IS per-block).  Smearing takes precedence over MOM.
+  - Occupation math: `TOrbitals<T>::TakeElectronsFermi(ne,kT)` — μ by bisection on Σ g_i f_i=nₑ over the
+    orbital-energy window (monotone, ~50 iters), sets occ_i=g_i f_i via the new `Orbital::SetOccupation`,
+    reuses the existing `BuildDensity`/`AddDensityMatrix` (fractional f already flowed there — confirmed).
+    Returns the Mermin −TS=kT Σ g_i[f ln f+(1−f)ln(1−f)] ≤0 in the ds_t's first slot.
+  - **Free-energy plumbing — one small deviation from the "just a Hamiltonian term" sketch, FLAGGED:** a
+    Hamiltonian term only ever sees the charge density, never the occupations, so it CANNOT compute S.
+    Instead −TS is a WF-side scalar (`GetEntropyTerm()`, summed over blocks) that the iterator stamps into
+    the new `EnergyBreakdown::MinusTS` via a 4-line `TotalEnergy()` helper wrapping every
+    `Hamiltonian::GetTotalEnergy`.  `GetTotalEnergy()` folds MinusTS in, so E-flat gate / facade GetEnergy /
+    display all read A=E−TS automatically (the "no iterator surgery" spirit holds — it's one helper, not a
+    loop rewrite).  The direct-min line search also minimises A (adds GetEntropyTerm to the trial energy).
+  - Display: `-TS` line added to the final verbose breakdown when it is nonzero (the per-iteration Etotal
+    column already shows A honestly).  A dedicated `-TS`/A DisplayColumns column is deferred to item 2 polish.
+  - **Gates landed (ENABLED, cheap):** (i) `SmearingInertOnGap` — Si/Γ at kT=1e-3 == the −7.11506 anchor,
+    MinusTS≈0 (smearing inert on a gap).  (iii)+cure — `SmearingConvergesDegenerateShell`: the Si pseudo-
+    atom's degenerate half-filled 3p (the light-open-shell = gate (iv) customer) goes from aufbau
+    iters=40/Δρ=0.08/"DENSITY-DEGENERATE" to smeared iters=24/Δρ=9e-7/"CONVERGED"; A=−3.77933 < internal
+    E≈−3.741, MinusTS<0.  Honest recipe finding: kT must EXCEED the frontier splitting (kT=1e-2 converges,
+    kT=1e-3 still slosh-rotates).
+  - **DEFERRED:** gate (ii) the heavy NaF Ecut=160 flapping anchor (a DISABLED-class ~min run — needs its
+    own smeared-value calibration; the cure physics is already shown on the cheap Si degenerate shell).
+    Increment 2 = GLOBAL μ across k-blocks (structural; time with the IBZ track).
 
 ### 4c. LIBCINT LATTICE ENGINE (added 2026-07-23, user): `BasisSet::Molecule::Engine::LibCint` is
 much faster than the MnD kernels — teach `PG_LibCint` to realise `Molecule::LatticeSum1E` so the
@@ -131,6 +157,9 @@ periodic/GPW path can select it (GPW itself is unchanged either way — the engi
 switch; the GPW_UT header already anticipates exactly this).  Slot after 4a/4b or opportunistically —
 it is orthogonal to both; the collocation STREAMS stay MnD (they are ours), so the win lands on the
 1E/analytic-KB/3C build side.
+User OOD comments:  PG_LibCint and PG_MnD should be inheriting from an interface that supports LatticeSum1E.  
+THis should be an interface that the molecular SCF code never sees.  (SOLID: Interface Segregation Principle)
+But the Solid code only sees that interface and never sees MnD or LibCint (except when choosing and enum at the very top level).  (SOLID: Liskov Substitution Principle)
 
 ### 5. B_ij(R) k-INDEPENDENT 1E MEMO (GPWPlan 0.5(d))
 Deliberately LAST: its payoff only materializes on multi-k runs — time it with the IBZ/space-group

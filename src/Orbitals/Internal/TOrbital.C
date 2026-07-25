@@ -21,6 +21,7 @@ public:
     virtual double GetOccupation(       ) const;
     virtual void   Empty        (       )      ;
     virtual double TakeElectrons(double )      ;
+    virtual void   SetOccupation(double )      ;
     virtual double GetEigenEnergy () const;
     virtual Orbital_QNs GetQNs         () const;
     virtual std::string GetLabel       () const; //A text version of the QNs.

@@ -67,6 +67,13 @@ double OrbitalImp::TakeElectrons(double n)
     return n-itsOccupation;
 }
 
+void OrbitalImp::SetOccupation(double occ)
+{
+    assert(occ>=0);
+    assert(occ<=GetDegeneracy()+1e-12);   // the whole level, i.e. degeneracy*f with f in [0,1]
+    itsOccupation=occ;
+}
+
 
 std::ostream& OrbitalImp::Write(std::ostream& os) const
 {

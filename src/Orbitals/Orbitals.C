@@ -33,6 +33,9 @@ public:
     virtual double GetOccupation(       ) const=0;
     virtual void   Empty        (       )      =0;
     virtual double TakeElectrons(double )      =0;
+    //! Set this orbital's occupation directly (the whole level, i.e. degeneracy*f for a Fermi-smeared
+    //! state).  Aufbau uses TakeElectrons; Fermi smearing sets g*f_i explicitly (doc/GPWPlan1.md 4b).
+    virtual void   SetOccupation(double )      =0;
     virtual int    GetDegeneracy(       ) const=0;
     
     virtual double      GetEigenEnergy () const=0;
@@ -116,6 +119,14 @@ public:
     //! instead of lowest-energy -- occupied-subspace continuity for a within-irrep level crossing
     //! (doc/GPWPlan §0b″).  Ties keep the stored (energy) order.  \a priority.size()==GetNumOrbitals().
     virtual ds_t TakeElectrons (double ne, const rvec_t& priority)=0;
+    //! Fermi-Dirac occupation (doc/GPWPlan1.md 4b): solve the chemical potential μ by bisection so
+    //! \f$\sum_i g_i f_i(\varepsilon_i)=n_e\f$ with \f$f_i=1/(1+e^{(\varepsilon_i-\mu)/kT})\f$, set each
+    //! orbital's occupation to \f$g_i f_i\f$, and build D/D'.  \a kT>0 (Hartree).  Returns
+    //! {\a MinusTS, DPrime} where \a MinusTS \f$=kT\sum_i g_i[f_i\ln f_i+(1-f_i)\ln(1-f_i)]\le0\f$ is the
+    //! Mermin free-energy term \f$-TS\f$ (reuses the ds_t tuple; here the double is −TS, NOT leftover
+    //! electrons -- μ is solved so there is no leftover).  The fractional occupations flow through the
+    //! existing density build unchanged (AddDensityMatrix already scales |C⟩⟨C| by the occupation).
+    virtual ds_t TakeElectronsFermi (double ne, double kT)=0;
     virtual tDM_CD<T>* GetChargeDensity() const=0;   // the T-typed density (moved off the Orbitals base)
 
 };

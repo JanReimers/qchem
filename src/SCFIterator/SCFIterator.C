@@ -146,6 +146,11 @@ private:
     //! \a bs / \a st are forwarded for the HF/DHF bootstrap (build a DFT sibling when the seed has no matrix
     //! but the Hamiltonian needs one -- see project_numericcd_refactor); null is fine for the core guess.
     void Initialize(tChargeDensity<T>* seed, const tbs_t<T>* bs, const Structure* st);
+    //! The Hamiltonian's total energy for \a cd, with the wavefunction's Mermin −TS stamped into
+    //! EnergyBreakdown::MinusTS so GetTotalEnergy() reads the free energy A=E−TS under Fermi smearing
+    //! (0 with no smearing => plain E).  The entropy is a WF-side scalar (the Hamiltonian terms never
+    //! see occupations), so the iterator -- which owns both -- is the seam that joins them.  doc/GPWPlan1.md 4b.
+    EnergyBreakdown TotalEnergy(const tDM_CD<T>* cd) const;
     cd_t DirectMinStep(double Ecur, double mergeTol); //one direct-min step (returns new density; used by DirectMinDriver)
 
     void DisplayEigen   () const;

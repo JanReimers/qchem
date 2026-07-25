@@ -21,9 +21,14 @@ public:
     {
         return Kinetic+Een+Eee+Exc;
     }
+    //! Total energy.  With Fermi smearing (SCFParams::SmearingkT>0) this is the Mermin FREE ENERGY
+    //! \f$A=E-TS\f$ -- the quantity the finite-T SCF makes stationary -- because \c MinusTS (\f$-TS\le0\f$)
+    //! is folded in here; with no smearing \c MinusTS is 0 and this is the plain internal energy \f$E\f$.
+    //! Kept honest at ONE seam: the iterator's E-flat gate, the facade GetEnergy(), and the display all
+    //! read this, so they gate/report the free energy automatically once smearing is on (doc/GPWPlan1.md 4b).
     double GetTotalEnergy    () const
     {
-        return Kinetic + GetPotentialEnergy()+RestMass;
+        return Kinetic + GetPotentialEnergy()+RestMass+MinusTS;
     }
     double GetVirial         () const;
     void   Display           () const;
@@ -46,6 +51,13 @@ public:
     //! error).  Set by the plane-wave XC term; 0 on the molecular path (no grid).  The per-iteration solid SCF
     //! display normalises it by \f$N\f$ (ρ_lost/N) so it reads the same at N=8 or N=800.
     double GridChargeLost;
+    //! Mermin electronic-entropy free-energy term \f$-TS\f$ (\f$\le0\f$), the ONLY footprint of Fermi
+    //! smearing on the energy (the entropy NEVER touches \f$H\f$: at fixed \f$T\f$ every operator is
+    //! unchanged, \f$f\f$ enters only the density \f$D\f$).  \f$S=-k\sum_i g_i[f_i\ln f_i+(1-f_i)\ln(1-f_i)]\f$
+    //! from the occupations; this stores \f$-TS=kT\sum_i g_i[f_i\ln f_i+(1-f_i)\ln(1-f_i)]\f$.  Computed by
+    //! the wavefunction at fill time and stamped in by the SCFIterator (the Hamiltonian terms never see it).
+    //! 0 with no smearing.  Folded into GetTotalEnergy() so that becomes the free energy \f$A=E-TS\f$.
+    double MinusTS;
 };
 
 } //namespace

@@ -89,10 +89,21 @@ template <class T> const EnergyLevels& tIrrepWF<T>::FillOrbitals(double ne)
     // in tCompositeWF::FillOrbitalsAufbau).  Reference is (re)captured at the end for the next iteration.
     // Delayed IMOM (see SCFParams::UseMOM/MOMStartIter, pushed in via SetMOM): use MOM only AFTER a reference
     // has been locked (past the settling delay); before that, plain aufbau so the SCF descends to the fixed point.
-    const bool useMOM = itsUseMOM && itsRefOccCPrime.columns()>0;
-    if (useMOM) std::tie(ne,itsDPrime)=itsOrbitals->TakeElectrons(ne, MOMScores());
-    else        std::tie(ne,itsDPrime)=itsOrbitals->TakeElectrons(ne);   // occupy lowest-first, build density
-    assert(ne==0.0); //enough orbitals to take all electrons; if not the basis set is too small.
+    // FERMI SMEARING (doc/GPWPlan1.md 4b) takes precedence when on: solve μ per block by bisection on
+    // Σg_i f_i=ne, fill fractionally, and keep the Mermin −TS for the free-energy gate.  It cures the
+    // near-gapless occupation FLAPPING (NaF Ecut=160) that MOM (an occupied-subspace pin) cannot -- the
+    // frontier here IS near-degenerate, so no integer configuration is stable; the fractional fill is.
+    // (μ is per-block for now = Increment 1, which covers Γ-only; global-μ across k-blocks is Increment 2.)
+    itsMinusTS=0.0;
+    if (itsSmearingkT>0.0)
+        std::tie(itsMinusTS,itsDPrime)=itsOrbitals->TakeElectronsFermi(ne,itsSmearingkT);
+    else
+    {
+        const bool useMOM = itsUseMOM && itsRefOccCPrime.columns()>0;
+        if (useMOM) std::tie(ne,itsDPrime)=itsOrbitals->TakeElectrons(ne, MOMScores());
+        else        std::tie(ne,itsDPrime)=itsOrbitals->TakeElectrons(ne);   // occupy lowest-first, build density
+        assert(ne==0.0); //enough orbitals to take all electrons; if not the basis set is too small.
+    }
 
     // List of energy levels.  Degenerate levels should get merged.
     itsELevels.clear();
