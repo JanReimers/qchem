@@ -12,6 +12,79 @@ export QCHEM_BUILD=~/Code/qchem-viz/build/PIC
 python app_desktop.py 
 
 
+# Ball vs AliasFree
+1) BallOnly vs AliasFree — same ball, different quadrature grid
+The crucial thing: both keep the identical ball of G-vectors (the physics — the {G} the density and fit live in). What differs is only the real-space FFT grid used as the quadrature engine to compute matrix elements and collocate.
+
+Here's the mechanism. A matrix element ⟨G|f|G'⟩ involves a product of two ball waves, so it has Fourier content across the difference set {G−G'} — which spans up to twice the ball radius (2m, if the ball reaches component m). To sample that product exactly, the grid has to resolve up to 2m:
+
+AliasFree: divisions N = 4m+1. Resolves the full difference set → every ⟨G|f|G'⟩ is an exact quadrature. Discretization error then lives only in the ball radius (Ecut), never in N.
+BallOnly: divisions N = 2m+1. Resolves the ball alone. The products of two ball waves run up to 2m but the grid's Nyquist is only m, so the top half aliases (folds back) — accepted as Ecut-controlled error. ~8× fewer points (2× per dimension, cubed). This is CP2K's bet.
+Your intuition flipped: more grid points = higher Nyquist = less aliasing. The doubling isn't causing aliasing — it's what removes it. "AliasFree" names the outcome (no fold-back), achieved by the larger grid. BallOnly is the smaller grid that aliases. So 4m+1 (double) is the alias-free one, exactly as the name says.
+
+And the punchline that ties back to your GDM hunt (enum doc, last two lines): under the raw collocated XC feed, the pointwise ρ samples are analytically exact on any raster — so BallOnly's aliasing touches only quadrature/Poisson accuracy, not the density itself and (via the raw adjoint) not variationality. That's why production ships BallOnly and still converges cleanly.
+
+2) applyRaw / applyRawAdjoint — a matched exact-transpose pair
+These are the two closures on the G_ERI3 tensor (src/BasisSet/Internal/GMap.C:74–79):
+
+applyRaw(D) = forward: collocate the density matrix onto the real-space grid, ρ(r) = φᵀDφ = Σ_ij D_ij χ_i(r)χ_j(r), done analytically on compact Gaussian boxes across the multi-grid ladder (finest level kept raw, coarser levels zero-padded/combined spectrally — no ball restriction anywhere). "Raw" = the actual density, not projected onto any fit basis. Because D is PSD, ρ ≥ 0 pointwise (to screening precision) — unlike the ball-fit route, whose Gibbs lobes ring negative on sharp products.
+applyRawAdjoint(v) = backward, and the key word is exact adjoint (matrix transpose) of applyRaw: take a real-space field v(r) on the same grid → assemble ⟨i|v|j⟩ = Σ_r w_r v(r) χ_i(r)χ_j(r) (per-level box-truncation — literally the transpose of the zero-pad — then an analytic per-pair gather).
+Why that makes it variational: because applyRawAdjoint is the literal transpose of applyRaw, the discrete adjoint identity ⟨applyRaw(D), v⟩ = ⟨D, applyRawAdjoint(v)⟩ holds exactly. So with E_xc = Σ_r w_r ε_xc(ρ_r)ρ_r and ρ = applyRaw(D):
+
+∂
+E
+x
+c
+∂
+D
+=
+applyRaw
+T
+(
+w
+⋅
+v
+x
+c
+)
+=
+applyRawAdjoint
+(
+v
+x
+c
+(
+ρ
+)
+)
+=
+V
+x
+c
+∂D
+∂E 
+xc
+​
+ 
+​
+ =applyRaw 
+T
+ (w⋅v 
+xc
+​
+ )=applyRawAdjoint(v 
+xc
+​
+ (ρ))=V 
+xc
+​
+ 
+— to machine precision, on any grid, ball or box, coarse or fine. That's what GPW.RawXCConsistencyFD gates, and it's the whole reason V_xc = ∂E_xc/∂D even under BallOnly.
+
+Contrast the ball-fit route (apply/applyAdjoint): it projects ρ onto the ball fit basis and fits v_xc back onto it. The fit projection is not the transpose of the collocation, so the adjoint identity breaks — that's the rel 1.93 non-variationality, and why it would have mattered if production used it. It doesn't: once a collocation-backed density exists (iter 2+), itsRhoIsRaw is true and CalcMatrix takes applyRawAdjoint.
+
+So the one-line mental model: the ball vs box choice is about quadrature accuracy of the matrix elements; the raw-adjoint route is about the exactness of V=∂E/∂D — and because the raw pair is a true transpose, that exactness survives whatever quadrature grid you pick. 
+
 
 # parallelism
 
