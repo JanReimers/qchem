@@ -34,19 +34,25 @@ wrong number — so the project's "prefer compile-time" bias (which governs the 
 tool here.  The line we hold: **typed physics, schemaless display.**  Payoff: JSON output is literally
 `report.dump()`; adding a field is writing a key; the GUI contract is the json directly.
 
-**The generic text renderer** is what makes json-as-model tidy.  The whole report obeys two shape conventions,
-so ONE walker pretty-prints ANY report and never needs touching when a section is added:
+**The text renderer is NOT an extra cost of json — you write table-building code either way** (user,
+2026-07-26).  Structs wouldn't save it: C++ has no reflection, so with hard-coded types you hand-write a
+renderer PER section and add one for every new section.  json is runtime-introspectable, so ONE generic walker
+pretty-prints EVERY section and never needs touching when a section is added.  The same introspectability that
+"loses" compile-time key checking is exactly what buys the single generic renderer — a net win on the text
+side, not a trade.  The whole report obeys two shape conventions the walker keys off:
 - **array of uniform objects → a tabulate table** (object keys = column headers, elements = rows):
   `grids.ladder`, `basis.perIrrep`, `basis.removed`, `cache.reuse`.
 - **object of scalars → a two-column key/value table**: `scf.standard`, `meta`.
 - nesting → a subsection header, then recurse.
 
-**What structs gave for free, and how we recover it without them:**
-1. *Key typos* — each section's keys live in ONE thin writer helper (`AddLadderLevel(json&, level, N, ecut,
-   nG, role)`), typed params, not scattered stringly at every call site; plus a schema-check unit test that
-   asserts the produced report's keys/shape.  ~All the safety, none of the struct.
-2. *Units / precision* — a small **format-hints** table (field name → unit + precision) the generic renderer
-   consults; unknown fields get a `%g` default.  Units stay in the schema doc, never baked per value.
+**The ONE thing structs actually check that json doesn't — key/type typos** — plus the formatting every model
+needs regardless:
+1. *Key typos* (the genuine json-specific gap): each section's keys live in ONE thin writer helper
+   (`AddLadderLevel(json&, level, N, ecut, nG, role)`), typed params, not scattered stringly at every call
+   site; plus a schema-check unit test asserting the produced report's keys/shape.  ~All the safety, no struct.
+2. *Units / precision* (needed with structs too — a per-section renderer would hard-code it): a small
+   **format-hints** table (field name → unit + precision) the generic renderer consults; unknown fields get a
+   `%g` default.  Units stay in the schema doc, never baked per value.
 
 Both backends are already vendored: `submodules/tabulate` and `submodules/json` (nlohmann, already used in
 `src/Pseudopotential/Imp/GTH_Potentials.C`).
