@@ -130,6 +130,62 @@ LAST — payoff only on multi-k; time with the IBZ track.  Cache B(R), never M(k
 
 ---
 
+# Future consideration — Becke XC grid (the last term without a near-ideal grid)
+
+Framing (user, 2026-07-26): this is likely the **final step to give every Hamiltonian term a near-ideal grid
+across every basis set** — diffuse included.  Per-term today:
+
+| Term | Treatment | Ideal for diffuse? |
+|---|---|---|
+| Kinetic, Overlap | analytic (Gaussians) | ✅ no grid |
+| Local-PP short, KB nonlocal | analytic (3-centre / separable) | ✅ no grid |
+| Hartree | G-space Poisson `4πρ̃/G²` (FFT) | ✅ diffuse ρ is SMOOTH → cheap |
+| Local-PP long | G-space form factor + collocation (field-sharpness) | ~ near-ideal (field-sharpness handles it) |
+| **XC** | pointwise-nonlinear `V_xc~ρ^⅓`, SHARP at cores, uniform multigrid | ❌ diffuse → routed fine → **explodes** |
+
+**XC is the one term left.** It is pointwise-nonlinear and sharp at the cores, and on the uniform multigrid a
+diffuse pair × sharp field is a TWO-SCALE integrand the single-level-per-pair assignment can't split — so it is
+routed to the fine grid over the function's whole (e.g. 21.5 au) reach to capture a small near-core correction
+→ RAM/time explosion (see §4a).  Spatial adaptivity (fine near atoms, coarse elsewhere) has NO clean `{G}`-space
+picture — it is inherently a REAL-SPACE construct — so the fix leaves the uniform/`{G}` framework for the XC.
+
+**Design — Becke XC grid, NOT GAPW:**
+- KEEP the uniform FFT grid for **Hartree** (the G-space Poisson is the reason GPW is fast; a Becke grid can't
+  do it).  So this ADDS a second grid for the XC only; it does not replace anything.
+- ADD an atom-centered **Becke/Voronoi** grid for the XC quadrature: collocate ρ on the Becke points, evaluate
+  ε_xc pointwise, `⟨i|V_xc|j⟩ = Σ_g w_g χ_i χ_j V_xc(g)` — the STANDARD molecular-DFT quadrature.  Dense radial
+  near each nucleus (resolves the sharp V_xc), sparse far out (a diffuse tail costs almost nothing) → the
+  diffuse explosion simply does not happen (point count ~ atoms × radial × angular, NOT the diffuse reach).
+- This is the scale-decomposition (fine near atoms) pictured cleanly.  It is **lighter than GAPW** (which
+  augments BOTH Hartree and XC near cores + a compensation charge — deferred, out of first-pass scope): Becke
+  is XC-quadrature ONLY, Hartree stays G-space.
+
+**Beyond LDA — the functional-ladder win (user, 2026-07-26).**  The Becke grid also unlocks the ADVANCED
+functionals, and for the same reason.  A semi-local XC potential is a pointwise-nonlinear function of ρ AND its
+derivatives — ∇ρ (GGA), τ / ∇²ρ (meta-GGA) — and on a Gaussian basis ρ, ∇ρ, τ are ALL ANALYTIC at each grid
+point (from χ_i and its analytic derivatives).  On the UNIFORM grid, climbing the ladder demands FINER grids
+to resolve those higher-derivative, sharper-at-the-core fields (the codebase already flags it: GGA needs
+`MeshParams::relCutoff` bumped).  On a Becke grid the derivatives are exact per point and the mesh is already
+dense at the cores, so **LDA → GGA → meta-GGA costs the same** — no relCutoff escalation.  Correlation
+potentials (also semi-local) ride along identically.  For HYBRIDS: the EXACT-exchange fraction is the analytic
+ERI machinery (`Vee`/`FittedVee`), NOT a grid — but the semi-local DFT portion (the GGA exchange + correlation
+that is most of a PBE0/HSE) is exactly what Becke makes accurate + affordable.  So the Becke XC grid is the
+enabler for the whole planned functional upgrade (GGA/meta-GGA/hybrid), not only a diffuse-basis fix — it makes
+the grid near-ideal across all basis sets AND all functional rungs.
+
+**Why it's bounded, not a rewrite:** the molecular Becke grid code ALREADY exists; adapting it for a unit cell
+(periodic Voronoi partition + periodic BCs) lives in `qcStructure`.  Discussed and deferred weeks ago; the
+diffuse-function cost is the NEW, concrete argument for it (beyond the old all-electron/GAPW motivation).
+
+**Gate:** it lands with a cross-check — Becke XC `==` the uniform-multigrid XC (same E_xc, same V_xc matrix to
+grid tolerance) on a CONDITIONED basis (Si / NaF SR2) — before it becomes the default for diffuse bases.
+
+**Timing:** the interim (uniform multigrid + field-sharpness + vetting) keeps conditioned bases correct + fast;
+the Becke XC grid is the principled endgame that makes GENUINELY-diffuse bases affordable — so it is the
+natural thing to reach for when the metal/anion work (roadmap steps 3–4) makes diffuse bases central.
+
+---
+
 # Parked/background (unchanged from GPWPlan.md)
 0.5(e) runtime folded into item 3.  0i analytic V_local LONG (fold the core charge into PW_Hartree's G-space
 solve; after it, whether the completion rung still pays at BallOnly+C=2 is a measurable rung-gate question).
