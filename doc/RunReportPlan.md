@@ -36,10 +36,21 @@ tool here.  The line we hold: **typed physics, schemaless display.**  Payoff: JS
 
 **The text renderer is NOT an extra cost of json — you write table-building code either way** (user,
 2026-07-26).  Structs wouldn't save it: C++ has no reflection, so with hard-coded types you hand-write a
-renderer PER section and add one for every new section.  json is runtime-introspectable, so ONE generic walker
-pretty-prints EVERY section and never needs touching when a section is added.  The same introspectability that
-"loses" compile-time key checking is exactly what buys the single generic renderer — a net win on the text
-side, not a trade.  The whole report obeys two shape conventions the walker keys off:
+renderer PER section and add one for every new section.  json is runtime-introspectable, so a generic walker
+can render the sections that obey the shape conventions below — the same introspectability that "loses"
+compile-time key checking is what buys the generic path.
+
+**But temper the optimism (user, 2026-07-26): a generic json→pretty-table walker is NOT a universal magic
+printer.**  It handles the CLEAN shapes well; it does NOT auto-produce professional output for arbitrary json
+(non-uniform arrays, nested tables, wide-for-the-terminal tables, values wanting special formatting).  Two
+things make it work in practice, and neither is "the renderer is clever":
+- **Design the json layout WITH TABLES IN MIND** — deliberately make each section an array-of-uniform-objects
+  or a flat scalar map, so it FALLS INTO a shape the walker prints well.  The layout does the work.
+- **Per-section render OVERRIDE as an escape hatch** — a section that genuinely doesn't fit registers its own
+  small renderer.  So: generic by DEFAULT, override where needed — still far less code than hand-rendering
+  everything, without pretending the generic path covers every case.  "We shall see" as the sections land.
+
+The two shapes the default walker keys off:
 - **array of uniform objects → a tabulate table** (object keys = column headers, elements = rows):
   `grids.ladder`, `basis.perIrrep`, `basis.removed`, `cache.reuse`.
 - **object of scalars → a two-column key/value table**: `scf.standard`, `meta`.
