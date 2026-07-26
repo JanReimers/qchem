@@ -22,8 +22,9 @@ Separate the report's **data** from its **rendering** — and take the data mode
 `nlohmann::json` itself (user, 2026-07-26).  No section structs, no `to_json`/`from_json`, no boilerplate:
 
 ```
-RunReport  ==  an nlohmann::json object          (a LEAF module — depends only on json + Types)
-     |         written via thin per-section WRITER HELPERS (typed args; the key strings live in ONE place)
+report DATA  ==  an nlohmann::json               (the model; a LEAF module — depends only on json + Types)
+     |           held by the global sink CurrentRunReport() (see "Ownership" below)
+     |           written via thin per-section WRITER HELPERS (typed args; key strings live in ONE place)
      |
      +--> RenderText(const json&, ostream&)   -> tabulate  (terminal, today; ONE generic walker)
      +--> RenderJson(const json&)             -> report.dump()  (GUI, tomorrow; trivial)
@@ -96,7 +97,38 @@ Notes:
   pathological-case dials), so the display teaches the recipe.
 - Keep field NAMES stable once the GUI consumes them — additive changes only (new fields, never renames).
 
-## Architecture: a leaf, written by everyone via helpers
+## Ownership: a GLOBAL report sink (like Cache and logging), NOT a threaded object
+
+Dynamic-flow walkthrough (user, 2026-07-26) settled this.  The actors:
+
+| Actor | Class | Fills |
+|---|---|---|
+| 1 orchestrator | `Calculation` (prod) / `RunGPW` (test) -- builds the basis AND runs the SCF | owns lifetime, renders |
+| 2 basis+grids  | `GPWFactory` -> `GPW_Evaluator` (built BEFORE the iterator) | `grids`, `basis.meta` |
+| 3 eigen/cond   | `LASolver`, via `SCFIterator -> WaveFunction::Factory -> tCompositeWF -> MakeIrrepWFs -> SetBasisOverlap` | `basis.perIrrep`, `basis.removed` |
+| 4 caches       | `GPW_Evaluator` stream/integral caches, during SCF | `cache` |
+| 5 settings     | `SCFParams` (orchestrator holds it) | `scf` |
+
+Actor 3 is the tell: the `LASolver` sits FIVE layers below the orchestrator, and none of the intervening
+constructors (`WaveFunction::Factory`, `tCompositeWF`, `MakeIrrepWFs`) has any other reason to carry a
+`report&`.  PUSHING a report parameter through them is signature pollution; PULLING needs getters wired up the
+same five layers.  This is a cross-cutting concern, and the codebase already answers it TWICE the same way:
+the integral **Cache is a singleton**, and the **`Report*` toggles** (`ReportOverlapConditioning`,
+`ReportGridCharge`, `ReportBandGap`) are process-wide.  So:
+
+**`RunReport` is a GLOBAL sink** -- an accessor `RunReport& CurrentRunReport()` (exactly like the `bool&`
+toggles), plus `Reset()` / `Render(ostream)`.  Each subsystem writes at its CURRENT print site (a one-line
+`cout` -> `CurrentRunReport().AddX(...)` swap); NO new parameters anywhere.  The orchestrator `Reset()`s at run
+start (before `GPWFactory`, so grids are captured) and `Render()`s at the end.
+
+**The one gotcha -- nested runs.**  The HF/DHF SAD bootstrap builds an LDA sibling calculation inside the
+iterator (`project_numericcd_refactor`); a naive global lets the inner run clobber the outer report.  Guard
+with a **depth counter**: `Reset()` bumps depth; only depth-0 (the user-visible run) records + renders; nested
+runs are no-ops on the global.  (A stack if the sub-run's report is ever wanted -- it is not; it's noise.)
+Thread-safety is a non-issue: setup is single-threaded; OMP only parallelizes the pair loops, which never
+write the report.
+
+## Architecture: the leaf, written by everyone via helpers
 
 `qchem.RunReport` is a **leaf** — the `json` typedef alias, the per-section writer helpers, the two renderers,
 and the format-hints table; depends only on `qchem.Types` + tabulate/json.  EVERY subsystem depends on it,
