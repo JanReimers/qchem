@@ -26,8 +26,9 @@ report DATA  ==  an nlohmann::json               (the model; a LEAF module — d
      |           held by the global sink CurrentRunReport() (see "Ownership" below)
      |           written via thin per-section WRITER HELPERS (typed args; key strings live in ONE place)
      |
-     +--> RenderText(const json&, ostream&)   -> tabulate  (terminal, today; ONE generic walker)
-     +--> RenderJson(const json&)             -> report.dump()  (GUI, tomorrow; trivial)
+     +--> RenderConsole(const json&, ostream&)  -> terminal, today (tabulate WHERE it fits; else a
+     |                                              per-section console renderer -- see below)
+     +--> RenderJson(const json&)               -> report.dump()  (GUI, tomorrow; trivial)
 ```
 
 **Why json-as-model, not structs:** a report is DISPLAY, not physics.  A wrong key is a cosmetic bug, not a
@@ -35,23 +36,25 @@ wrong number — so the project's "prefer compile-time" bias (which governs the 
 tool here.  The line we hold: **typed physics, schemaless display.**  Payoff: JSON output is literally
 `report.dump()`; adding a field is writing a key; the GUI contract is the json directly.
 
-**The text renderer is NOT an extra cost of json — you write table-building code either way** (user,
+**The console renderer is NOT an extra cost of json — you write table-building code either way** (user,
 2026-07-26).  Structs wouldn't save it: C++ has no reflection, so with hard-coded types you hand-write a
 renderer PER section and add one for every new section.  json is runtime-introspectable, so a generic walker
 can render the sections that obey the shape conventions below — the same introspectability that "loses"
 compile-time key checking is what buys the generic path.
 
-**But temper the optimism (user, 2026-07-26): a generic json→pretty-table walker is NOT a universal magic
-printer.**  It handles the CLEAN shapes well; it does NOT auto-produce professional output for arbitrary json
-(non-uniform arrays, nested tables, wide-for-the-terminal tables, values wanting special formatting).  Two
-things make it work in practice, and neither is "the renderer is clever":
-- **Design the json layout WITH TABLES IN MIND** — deliberately make each section an array-of-uniform-objects
-  or a flat scalar map, so it FALLS INTO a shape the walker prints well.  The layout does the work.
-- **Per-section render OVERRIDE as an escape hatch** — a section that genuinely doesn't fit registers its own
-  small renderer.  So: generic by DEFAULT, override where needed — still far less code than hand-rendering
-  everything, without pretending the generic path covers every case.  "We shall see" as the sections land.
+**It is a CONSOLE renderer, not a table renderer (user, 2026-07-26).**  Tables are ONE tool it reaches for --
+some sections are naturally tabular (basis set, grids -- arrays of uniform rows), others are NOT (eigen
+analysis wants the spectrum/gap; the stream cache wants a summary + hierarchy).  So the console renderer uses
+tabulate WHERE a section fits the table shapes, and a per-section console renderer elsewhere.  And temper the
+optimism: even the generic table path is NOT a universal magic printer (non-uniform arrays, wide-for-terminal
+tables, values wanting special formatting).  Two things make it work, neither being "the renderer is clever":
+- **Design the json layout WITH TABLES IN MIND** — where a section CAN be tabular, deliberately make it an
+  array-of-uniform-objects or a flat scalar map, so it FALLS INTO a shape the generic path prints well.
+- **Per-section console-render OVERRIDE** — a section that isn't tabular (eigen, cache) registers its own
+  small console renderer.  Generic table path by DEFAULT, override where the data isn't a table — still far
+  less code than hand-rendering everything.  "We shall see" as the sections land.
 
-The two shapes the default walker keys off:
+The two shapes the default (table) path keys off:
 - **array of uniform objects → a tabulate table** (object keys = column headers, elements = rows):
   `grids.ladder`, `basis.perIrrep`, `basis.removed`, `cache.reuse`.
 - **object of scalars → a two-column key/value table**: `scf.standard`, `meta`.
@@ -71,11 +74,12 @@ Both backends are already vendored: `submodules/tabulate` and `submodules/json` 
 
 ## Section schema (the JSON contract — freeze this before the GUI depends on it)
 
-Ordered sections; every field is a scalar / string / list of scalars (JSON-native):
+Top-level keyed by run (`"<name>@<startTime>"`) so nested + sequential runs coexist; within each run,
+ordered sections; every field is a scalar / string / list of scalars (JSON-native):
 
 ```
-RunReport
-  meta        { title, timestamp?, structureName, nElectrons, spinPolarized }
+{ "<name>@<startTime>" : {          // one entry per SCF run (Begin/End push+pop this key)
+  meta        { title, name, startTime, structureName, nElectrons, spinPolarized }
   basis       { name, engine, angular, nFunctions,
                 perIrrep : [ { irrep, nFunctions, lambdaMin, lambdaMax, cond } ],
                 removed  : [ { index, L, alpha, atom, position } ] }   // from PivotedCholeskyDrops (9b546bc1)
@@ -88,6 +92,7 @@ RunReport
                             accelerator, ortho, smearingkT },
                 advanced: { pulayDepth, pulayStart, useMOM, momStartIter, momSmearPenalty,
                             guard:{holePersistence,maxReleases}, momSmearPenalty, … } }
+} }   // close the run object + the top-level map
 ```
 
 Notes:
@@ -121,12 +126,25 @@ toggles), plus `Reset()` / `Render(ostream)`.  Each subsystem writes at its CURR
 `cout` -> `CurrentRunReport().AddX(...)` swap); NO new parameters anywhere.  The orchestrator `Reset()`s at run
 start (before `GPWFactory`, so grids are captured) and `Render()`s at the end.
 
-**The one gotcha -- nested runs.**  The HF/DHF SAD bootstrap builds an LDA sibling calculation inside the
-iterator (`project_numericcd_refactor`); a naive global lets the inner run clobber the outer report.  Guard
-with a **depth counter**: `Reset()` bumps depth; only depth-0 (the user-visible run) records + renders; nested
-runs are no-ops on the global.  (A stack if the sub-run's report is ever wanted -- it is not; it's noise.)
+**Keyed by scfrun + a key STACK (user, 2026-07-26) -- this dissolves the nested-run gotcha.**  The json is
+TOP-LEVEL keyed by run: `{ "<name>@<startTime>": { meta, basis, grids, cache, scf }, ... }`.  The global sink
+holds a STACK of active run keys: `Begin(name)` pushes `"<name>@<startTime>"` and creates `json[key]={}`;
+`End()` pops.  Every `Emit<Section>` uses the TOP key implicitly, so emit sites stay parameter-free
+(`CurrentRunReport().EmitGrids(...)`) -- the key lives in the sink's state, consistent with "global, no
+threading".  The HF/DHF SAD bootstrap (`project_numericcd_refactor`) no longer CLOBBERS: its `Begin/End` push
++ pop its OWN key, so its report lands under a separate top-level key rather than overwriting the parent.  The
+JSON KEEPS every run (parent + nested + sequential) for the GUI/HDF5; a depth counter survives only to keep
+the CONSOLE quiet for nested runs (render when stack depth==1) -- full record in JSON, tidy terminal.
 Thread-safety is a non-issue: setup is single-threaded; OMP only parallelizes the pair loops, which never
 write the report.
+
+**INCREMENTAL rendering -- each section to the console AS IT COMPLETES, not batch-at-end (user, 2026-07-26).**
+`Emit<Section>` does two things: append to `json[key][section]` (the full record accumulates for GUI/HDF5) AND
+-- when stack depth==1 -- immediately `RenderConsole(json[key][section], cout)`.  Two reasons: (1) BAIL-OUT
+resilience -- a crash mid-setup still shows every section that completed; (2) SLOW-section responsiveness --
+basis/eigen appear at once instead of blocking on a slow grid build.  It costs nothing: the generic walker
+already renders ANY json subtree, so "render as it lands" is just calling it on the section subtree at emit
+time instead of on the whole report at the end.
 
 ## Architecture: the leaf, written by everyone via helpers
 
@@ -157,7 +175,7 @@ for now, ship the header.
 
 - `qchem.RunReport` — new leaf module.  Suggested home: `src/Common/RunReport.C` (+ `Imp/`), beside the other
   cross-cutting leaves (`Types`, `Streamable`).  Interface = the `json` alias, the per-section writer helpers,
-  `RenderText`/`RenderJson`, and the format-hints table.
+  `RenderConsole`/`RenderJson`, and the format-hints table.
 - tabulate is header-only; nlohmann is header-only.  Both already build in-tree — wire them into the
   `RunReport` target's includes only (keep them out of everything else).
 - The writer helpers live WITH the report leaf (not the subsystems): a subsystem passes its typed data to
@@ -166,7 +184,7 @@ for now, ship the header.
 
 ## Migration plan (incremental, one section per step, each independently shippable)
 
-0. **Skeleton**: `qchem.RunReport` module — the `json` alias, the ONE generic `RenderText` walker (array-of-
+0. **Skeleton**: `qchem.RunReport` module — the `json` alias, the ONE generic `RenderConsole` walker (array-of-
    objects → table, object-of-scalars → key/value, recurse; skip empty sections), `RenderJson`=`dump()`, and
    the format-hints table.  Unit test: hand-build a report json, render to text (golden-ish) and assert the
    schema (keys/shape) — the test IS the compile-time-check replacement.
