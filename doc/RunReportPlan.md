@@ -16,25 +16,40 @@ subsystems and printed in whatever order the code happens to reach it:
 None of it lines up in columns, the order is nondeterministic, and none of it is machine-readable.  The GUI
 app (nanobind + PySide6 + pyqtgraph + HDF5 — see `project_viz_gui_plan`) will need the SAME data as JSON.
 
-## The core principle: DATA MODEL, not print statements
+## The core principle: the report IS json; ONE generic renderer
 
-The single decision that makes this clean — and makes JSON *free* rather than a parallel code path — is to
-separate the report's **data** from its **rendering**:
+Separate the report's **data** from its **rendering** — and take the data model all the way to
+`nlohmann::json` itself (user, 2026-07-26).  No section structs, no `to_json`/`from_json`, no boilerplate:
 
 ```
-RunReport            (pure data; a LEAF module — depends on nothing but Types)
-   Section structs   (numbers + strings + vectors; NEVER pre-formatted lines)
-        |
-        +--> Render(report, ostream)  -> tabulate tables + section rules   (terminal, today)
-        +--> Render(report, json&)    -> nlohmann::json                     (GUI, tomorrow)
+RunReport  ==  an nlohmann::json object          (a LEAF module — depends only on json + Types)
+     |         written via thin per-section WRITER HELPERS (typed args; the key strings live in ONE place)
+     |
+     +--> RenderText(const json&, ostream&)   -> tabulate  (terminal, today; ONE generic walker)
+     +--> RenderJson(const json&)             -> report.dump()  (GUI, tomorrow; trivial)
 ```
 
-Because sections hold values, not strings, the terminal and the GUI render the *identical* model — they can
-never drift.  This is why we design for JSON now even though only the text renderer ships first: the schema is
-the contract, and getting it right up front is the whole point.
+**Why json-as-model, not structs:** a report is DISPLAY, not physics.  A wrong key is a cosmetic bug, not a
+wrong number — so the project's "prefer compile-time" bias (which governs the wavefunction types) is the wrong
+tool here.  The line we hold: **typed physics, schemaless display.**  Payoff: JSON output is literally
+`report.dump()`; adding a field is writing a key; the GUI contract is the json directly.
 
-Both renderers' backends are already vendored: `submodules/tabulate` and `submodules/json` (nlohmann, already
-used in `src/Pseudopotential/Imp/GTH_Potentials.C`).
+**The generic text renderer** is what makes json-as-model tidy.  The whole report obeys two shape conventions,
+so ONE walker pretty-prints ANY report and never needs touching when a section is added:
+- **array of uniform objects → a tabulate table** (object keys = column headers, elements = rows):
+  `grids.ladder`, `basis.perIrrep`, `basis.removed`, `cache.reuse`.
+- **object of scalars → a two-column key/value table**: `scf.standard`, `meta`.
+- nesting → a subsection header, then recurse.
+
+**What structs gave for free, and how we recover it without them:**
+1. *Key typos* — each section's keys live in ONE thin writer helper (`AddLadderLevel(json&, level, N, ecut,
+   nG, role)`), typed params, not scattered stringly at every call site; plus a schema-check unit test that
+   asserts the produced report's keys/shape.  ~All the safety, none of the struct.
+2. *Units / precision* — a small **format-hints** table (field name → unit + precision) the generic renderer
+   consults; unknown fields get a `%g` default.  Units stay in the schema doc, never baked per value.
+
+Both backends are already vendored: `submodules/tabulate` and `submodules/json` (nlohmann, already used in
+`src/Pseudopotential/Imp/GTH_Potentials.C`).
 
 ## Section schema (the JSON contract — freeze this before the GUI depends on it)
 
@@ -64,18 +79,22 @@ Notes:
   pathological-case dials), so the display teaches the recipe.
 - Keep field NAMES stable once the GUI consumes them — additive changes only (new fields, never renames).
 
-## Architecture: a leaf, filled by everyone
+## Architecture: a leaf, written by everyone via helpers
 
-`RunReport` is a **leaf** (data + the two renderers; depends only on `qchem.Types` + tabulate/json).  EVERY
-subsystem depends on it, never the reverse — so no cycles (the compiler enforces this; see CLAUDE.md).  Each
-subsystem fills ONLY its own section:
+`qchem.RunReport` is a **leaf** — the `json` typedef alias, the per-section writer helpers, the two renderers,
+and the format-hints table; depends only on `qchem.Types` + tabulate/json.  EVERY subsystem depends on it,
+never the reverse — so no cycles (the compiler enforces this; see CLAUDE.md).  Each subsystem calls ONLY its
+own section's writer helper (which owns that section's key names):
 
-| Section | Filled by | Replaces the ad-hoc print |
+| Section | Writer called by | Replaces the ad-hoc print |
 |---|---|---|
 | `basis`  | the basis + `qchem::PivotedCholeskyDrops` | `[overlap S]`, `[ortho] Auto…` |
 | `grids`  | `GPW_Evaluator` (ladder build) | `[GPW grid] ladder L=…` |
 | `cache`  | the evaluator stream/integral caches | `IntegralsCache RAM usage report` |
 | `scf`    | `SCFParams` + mixer/accel `Tag()` | (nothing today) |
+
+Keeping the writers WITH the report leaf (not the subsystems) means the key strings + shapes live in one
+module — the schema is greppable in one file, and the schema-check test sits right next to them.
 
 The `Calculation` / `tSCFIterator` assembles the report at run start and renders it ONCE — the "run header".
 It is distinct from the two displays that already exist or are planned:
@@ -88,17 +107,20 @@ for now, ship the header.
 ## Module / library placement
 
 - `qchem.RunReport` — new leaf module.  Suggested home: `src/Common/RunReport.C` (+ `Imp/`), beside the other
-  cross-cutting leaves (`Types`, `Streamable`).  Interface = the section structs + `Render` overloads.
+  cross-cutting leaves (`Types`, `Streamable`).  Interface = the `json` alias, the per-section writer helpers,
+  `RenderText`/`RenderJson`, and the format-hints table.
 - tabulate is header-only; nlohmann is header-only.  Both already build in-tree — wire them into the
   `RunReport` target's includes only (keep them out of everything else).
-- The section-FILL helpers live with their subsystem (e.g. `GridSection FillGrids(const GPW_Evaluator&)`),
-  so `RunReport` stays basis/grid-agnostic and each subsystem owns its own schema mapping.
+- The writer helpers live WITH the report leaf (not the subsystems): a subsystem passes its typed data to
+  `report::AddGridLevel(...)` etc., so all key names + shapes are greppable in one file next to the schema
+  test.  The subsystem still owns WHEN/WHAT to report; the leaf owns HOW it's keyed.
 
 ## Migration plan (incremental, one section per step, each independently shippable)
 
-0. **Skeleton**: `qchem.RunReport` module — the section structs + a text renderer (tabulate) that prints the
-   sections it has, skipping empty ones + a JSON renderer stub (`to_json` per section).  Unit test: build a
-   populated report, render to text (golden-ish) and to JSON (schema check).
+0. **Skeleton**: `qchem.RunReport` module — the `json` alias, the ONE generic `RenderText` walker (array-of-
+   objects → table, object-of-scalars → key/value, recurse; skip empty sections), `RenderJson`=`dump()`, and
+   the format-hints table.  Unit test: hand-build a report json, render to text (golden-ish) and assert the
+   schema (keys/shape) — the test IS the compile-time-check replacement.
 1. **`scf`** (easiest — pure `SCFParams`): fill + render.  Proves the pipeline end-to-end; adds the
    currently-missing "what recipe am I running" header.
 2. **`basis`**: fill from the basis + `PivotedCholeskyDrops`; retire `report_conditioning`'s ad-hoc line and
