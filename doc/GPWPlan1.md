@@ -1,200 +1,137 @@
-# GPWPlan1 — the post-raw-XC execution plan (2026-07-23)
+# GPWPlan1 — the post-raw-XC execution plan (2026-07-23; restructured 2026-07-26)
 
-The forward queue, superseding `doc/GPWPlan.md`'s TODO section (that file remains the authoritative
-RECORD of the 2026-07 campaign — §0.5(b)/(c)/(f1)/(f2), 0h, the C=2 flip, the raster-policy A/B — and
-`doc/GPWHistory.md` holds the deep archive).  Read GPWPlan.md's "Durable pins / invariants" section
-before working here: THERE IS NO CUT; no grad-student knobs (policy enums, not numeric dials);
+The forward queue, superseding `doc/GPWPlan.md`'s TODO section (that file remains the authoritative RECORD of
+the 2026-07 campaign, and `doc/GPWHistory.md` holds the deep archive).  **Read GPWPlan.md's "Durable pins /
+invariants" before working here:** THERE IS NO CUT; no grad-student knobs (policy enums, not numeric dials);
 spin-native is the formulation; correct > efficient > end-user > dev > readable.
 
-## Where the code stands (the platform this plan builds on)
-- **Raw-XC feed everywhere** (tensors, terms, mixer dynamics): the XC-collapse basin is REMOVED
-  (negCharge ≡ 0), ρ_DM ≥ 0 by construction for aufbau densities.
-- **Occupation guards** (0h): persistent-hole detection → MOM release/re-capture; NEVER-SILENT
-  non-aufbau warning at run end.  Detection is complete; the REMEDY for genuinely near-degenerate
-  frontiers is item 4b below.
-- **C=2 default** (density resolved at its own product exponent); ladder top-rung gate decoupled
-  (`kRungGateC=8`).
-- **RasterPolicy A/B measured + DEFAULT FLIPPED to BallOnly on the GPW surface** (user 2026-07-23:
-  ≈1 mHa at/above the C=2 floor, CP2K's bet confirmed; PW path keeps AliasFree pending its own A/B;
-  three exact-quadrature kernel gates pinned {.raster=AliasFree}; NaF production anchor −24.4304 =
-  0.8 mHa from CP2K).
-- **Runtime vs CP2K (single-thread us, threaded them)**: Si 45 s AliasFree / 7.2 s BallOnly vs 3.5 s;
-  NaF 63 s at auto vs 5.8 s.  The structural gap is closed; BallOnly + OMP ≈ parity.
-- **Known pathology, one family left**: near-gapless occupation flapping at particular
-  discretizations (NaF Ecut=160, three sightings; the guard WARNS but cannot fix).  Item 4b cures it.
+Layout: **DONE** (condensed highlights — full detail in the cited commit messages), then the **forward roadmap**
+(the agreed order of attack), then **pending** items from the original sequence, then **future considerations**.
 
-## The sequence (agreed 2026-07-23; dependencies annotated)
+---
 
-### 1. PARAM-STRUCT GRADUATION (unblocks the user's experiments + the BallOnly default decision)
-Move settled knobs out of env into typed structs; grade **Standard** vs **Advanced** (Advanced =
-sensible defaults, touched only for pathological cases — and the long-term goal is that the guards
-make pathological cases self-correcting: the software behaves like an expert system).
-- Structs over JSON (user decision): compiler-checked, IDE-discoverable, documented at the
-  declaration.  If config FILES are ever wanted, serialize the structs — the dependency runs one way.
-- Shape sketch: `SCFParams` keeps the Standard surface; nested per-seam structs for Advanced
-  (`MixerParams` α/G0/Pulay, `OccupationParams` policy enum {Aufbau, MOM(start), Fermi(kT)} + guard
-  tunings (hole-persistence K, release cap), `GridParams` densityEcut/cutoffFactor/RasterPolicy).
-- The `NAF_*`/`GC_*` env overrides DELETE (recipes hard-coded per test); verification instruments
-  (`GPW_MGRID_ECUTS`, `GPW_RELCUTOFF`, `GPW_RASTER_POLICY` until promoted, `GPW_ILLCOND_*`) stay env
-  but are documented as instruments; ops valves (`GPW_STREAM_BUDGET_*`, `GPW_OMP_THREADS`) stay env.
-- Present everything clean and human-readable in the Si and NaF integration tests (the tests ARE the
-  user documentation).
-- **Fold in: the BallOnly default decision** (RasterPolicy lands on the struct; flipping the default =
-  one field + the anchor re-pin wave, calibration already recorded in GPWPlan.md 0.5(a)).
+# DONE (highlights — detail lives in the commit messages)
 
-### 2. PER-SYSTEM ITERATION OUTPUT (virtual DisplayColumns/DisplayColumnHeaders)
-Rides the same presentation cleanup as item 1 — do while the SCF surface is open.
-- Atoms/Molecules: {E, [F,D], Δ[F,D], Δρ, virial, ρ_mix, accel, config}.
-  ρ_mix fixed # of chars to identify itself (Lin,Ker,Pul) and a number
-  accel fixed # of chars to identify itself (Null,DIIS,GMD) and a number
-  config 1 char,  put * if the config changed (full configs are way too long)
-  open to suggestions on any of this
-- Solids/PP: {E, [F,D]?, ΔE, Δρ, ρ_lost, ρ_mix, accel, config, gap, ?? 
-  DROP the virial (2+V/K assumes Coulombic homogeneity; GTH local + KB projectors break
-  it — the idealVirial fudge retires) and show the health instruments that already exist as ad-hoc
-  lines: gap (hole-flagged, from the fixed HomoLumo)
-- Absorbs the `ReportBandGap()`/`ReportGridCharge()` process-wide flags into the per-system display.
-- **Increment 1 DONE**: the seam is `virtual DisplayColumnHeaders/DisplayColumns` on `tSCFIterator<T>`
-  with `MolecularSCFIterator`/`SolidSCFIterator` subclasses (user-chosen seam); base default = the
-  molecular layout, Solid overrides it.  Compact self-identifiers added: `tDensityMixer::Tag()`
-  (Lin/Ker/Pul, number = α) and `tSCFAccelerator::Tag()`+`Count()` (Null / DIIS:Nproj / **GDM** — the
-  real class name, plan's "GMD" was a typo).  `cfg` = 1 char, `*` on occupied-config change.  Solid gap
-  is a PERMANENT column (folds `ReportBandGap()`); the virial is dropped there.  The old `ShowLabels`/
-  `ShowConvergence` accel blob is deprecated (kept, unused) pending retirement.  Facades → Molecular,
-  GPW/PW tests → Solid.  Suite 565/565.
-- **Increment 1 follow-ups (same session)**: display-width-aware header alignment (UTF-8 Δ/ρ/ε labels
-  line up with the setw'd data); retired the ad-hoc `[Pulay] ENABLED`/`{G}_vxc` prints + made
-  `[grid charge]` env-opt-in (`GPW_GRIDCHARGE`) so verbose tables stay clean; a Null accelerator's
-  absent [F,D] shows `----`.  **Mixer-override fix**: direct-min (GDM/OT) now provably disables the
-  density mixer BOTH per-step and post-step (the `WantsReDamp`/`UpdateRelax` block was running under
-  direct-min — a latent LinearMixer corruption); `ρ_mix` shows `----` when a direct-min step owns the
-  loop.  `DISABLED_NaFRocksaltGamma` rewired to a `cSCFAcceleratorDIIS→cSCFAcceleratorGDM` Ladder (user
-  experiment).
-- **GDM/variationality — RESOLVED (corrects an earlier wrong claim in this doc + commit 22094a02):** the GPW
-  collocation **E[ρ] IS variational and GDM converges it cleanly** (NaF/Γ raw-XC map → −24.4783 in 39 iters,
-  gap healthy, every geodesic step descends).  The first pass *looked* non-variational only because GDM's
-  `ComputeStep` is gated `if (itsEn>=EMax) return false` (GDM.C): with `EMax=1e-2` the geodesic never engaged
-  (the first step bounces [F,D] above 1e-2), so it degraded to `DirectMinStep`'s early return = **UNMIXED
-  diagonalization** (DirectMinDriver bypasses the mixer) — *that* runs away on ill-conditioned NaF, not the
-  physics.  Fix: `EMax 1e-2→1.0` so GDM actually engages.  Diagnosis via env instruments `GPW_XCROUTE` (V_xc
-  route: RAW `applyRawAdjoint`=exact-adjoint/variational vs BALL `DoFit`=fit-limited; production is RAW) and
-  `GPW_GDMTRACE` (line-search DESCENT vs FALLBACK).  Two real-but-innocent side findings: the BALL V_xc route
-  is non-variational (FD rel 1.93 BallOnly vs 6.6e-7 AliasFree) but it's just fit error and production uses
-  RAW; collocated ρ dips slightly negative (~−5e-3) even for PSD D — normal grid band-limiting, guard kink too
-  small to matter.  **DESIGN FOOTGUN (OT follow-up):** GDM's `ComputeStep`-false fallback is UNMIXED → make it
-  mix, or don't hand off until the geodesic reliably engages.  Since GDM converges this E, **OT (preconditioned
-  direct-min) should too.**  Future (user): OT method → mixers get an explicit off-switch / null-mixer swap for
-  GDM/OT (OOD call).
-- **Increment 2 DONE (2026-07-24)**: `ρ_lost/N` column on the Solid layout — the signed grid-charge leak
-  `(∫ρ̃ − Tr(DS))/N`, normalised per electron (user: N gets big for semi-valence / big supercells like
-  Li_{1-x}CoO2, so an absolute leak is meaningless).  Routed via a new `EnergyBreakdown::GridChargeLost`
-  field set by `PW_XC::GetEnergy` (rides the `eb` flow the display already consumes; 0 on the molecular
-  path).  The `GPW_GRIDCHARGE` env instrument stays for the deeper ρ min/max/negCharge stats.
+- **Platform**: raw-XC feed everywhere (XC-collapse basin removed, ρ_DM≥0 for aufbau); 0h occupation guards
+  (persistent-hole → MOM release, never-silent non-aufbau warning); C=2 default; RasterPolicy BallOnly default
+  on the GPW surface (≈1 mHa, CP2K's bet); BallOnly+OMP ≈ CP2K runtime parity.
+- **GDM/variationality RESOLVED**: the GPW collocation E[ρ] IS variational; GDM converges it (NaF/Γ → −24.478,
+  every geodesic step descends).  The "non-variational" scare was GDM's `ComputeStep` gated `if itsEn≥EMax`
+  degrading to an UNMIXED diagonalize; fix = `EMax 1e-2→1.0`.  (env instruments `GPW_XCROUTE`, `GPW_GDMTRACE`.)
+- **Item 2 — PER-SYSTEM ITERATION OUTPUT (both increments)**: `virtual DisplayColumnHeaders/DisplayColumns` on
+  `tSCFIterator<T>`, `Molecular`/`Solid` subclasses; compact `tDensityMixer::Tag()` (Lin/Ker/Pul) + accelerator
+  `Tag()`/`Count()` (Null/DIIS:N/GDM); `cfg` 1-char `*` on config change; Solid gap column (folds
+  `ReportBandGap()`), virial dropped there; `ρ_lost/N` column (signed grid-charge leak per electron, via
+  `EnergyBreakdown::GridChargeLost`).  Direct-min now provably disables the density mixer.
+- **4b FERMI SMEARING — Increment 1 (per-block μ), `efeb251e`**: `SCFParams::SmearingkT` (0=off, zero
+  regression).  `TOrbitals::TakeElectronsFermi(ne,kT)` — μ by bisection on Σgᵢfᵢ=nₑ, occ=gᵢfᵢ, Mermin
+  −TS≤0.  Free energy plumbed via `EnergyBreakdown::MinusTS` + the iterator's `TotalEnergy()` helper, so the
+  E-flat gate / facade / display all read A=E−TS.  (The "just a Hamiltonian term" sketch didn't fit — a term
+  never sees occupations — so −TS is a WF-side scalar `GetEntropyTerm()` the iterator stamps in.)  Gates:
+  `SmearingInertOnGap` (Si/Γ kT=1e-3 == −7.11506, MinusTS≈0), `SmearingConvergesDegenerateShell` (Si pseudo-
+  atom degenerate 3p: aufbau never converges Δρ → smeared CONVERGED).  **Finding: kT must EXCEED the frontier
+  splitting** (NaF: 1e-2 converges, 1e-3 slosh-rotates).
+- **MOM-masked Fermi (`00f3b27b`)**: compose character-selection (MOM) with energy-smearing (Fermi) — Fermi on
+  effective energies εᵢ+Λ(1−sᵢ)² so a diving diffuse ghost stays empty by CHARACTER while the frontier smears
+  by energy.  `SCFParams::MOMSmearPenalty`.
+- **Field-sharpness grid registration (`b3dad5be`) — the NaF ghost CURE** (retires the "near-gapless flapping"
+  pathology): `PairLevel` resolves `max(αᵢ+αⱼ, β_field)`, β_field = 1/(2r_loc²) for the local-PP + (2/3)·α_max
+  for the density/XC (V_xc~ρ^⅓).  Root cause was `63f20bd1`'s 3³ grid + the density relative rule routing
+  diffuse pairs onto 27 points → over-attractive V_xc → a diffuse eigenvalue dives.  Cures NaF on DEFAULTS
+  (−24.4311, 44 iters, no spike, no smearing); ρ_lost/N drops 4-5 orders; Si untouched.  `GPW_FIELDSHARP`
+  overrides the 2/3.
+- **Pivoted-Cholesky detector + vetting FOUNDATIONS (`6727b5af`, `9b546bc1`)** — the §4a DETECTOR: `Ortho::
+  CholeskyPivoted` (rank-revealing, sparse V — SELECTS independent AOs, drops redundant); `qchem::
+  PivotedCholeskyDrops(S)` (basis-neutral — eigen GAP gives the drop COUNT, pivoted Cholesky the ORDER);
+  the molecular subset ctor.  Detector done; the ACTUATOR (prune/report) is open — see pending §4a.
 
-### 3. CACHE2/3 BYTE-BUDGET LRU (GPWPlan §5 design, user-approved)
-Independent; land BEFORE item 4a because the diffuse-basis campaigns are exactly the workload that
-bloats the geometry caches on image clones (the reason `ClearGeometryCaches()` + `Overlap3CStream`
-exist).  Byte budget + LRU eviction, policy selected per scope BY THE ALGORITHM (lattice = scoped
-size-1 budget preserving the const& contract; molecular = generous default); per-cache RAM in the
-end-of-run report; the clear-based band-aids then RETIRE.
+---
 
-### 4. ROBUST PHYSICS DEFAULTS — the two remaining robustness fronts
-**4a. Diffuse-basis robustness (GPWPlan §1, "a grad student can add diffuse functions at will"):**
-rectangular V through the periodic stack (truncated ortho → per-k orbital dims through Crystal_EC /
-cDM_CD / collocation), LASolver gap-detection auto-tol, NEVER SILENT drops, promote the working
-recipe into facade defaults.  Gates: full-basis NaF == SR/SR2 ± the dropped-mode mHa; Si anchors
-untouched.
-- **PRINCIPLED GRID REGISTRATION (2026-07-25, the pair→level FIELD-SHARPNESS rule).**  Root cause of the
-  post-`63f20bd1` NaF non-convergence (DISABLED_NaFRocksaltGamma) + its 0.1 Ha over-bind: the coarse ladder
-  (kMinLevelN=3 admits a 3³/Ecut=1.25 grid) + the DENSITY-side RELATIVE pair→level rule
-  `req=kRelSafety·ecut₀·(αᵢ+αⱼ)/(2·α_max)` routing DIFFUSE pairs onto that 3³ grid → 27 points can't
-  quadrature a diffuse-orbital density × ε_xc → spuriously over-attractive V_xc → a diffuse eigenvalue dives
-  across the occupied manifold (the "ghost"), charge leaks onto it (−24.53 not −24.43), and it flaps/spikes.
-  FIX: the integrand χᵢ·V·χⱼ is a Gaussian product, so the grid must resolve αᵢ+αⱼ **plus the FIELD's own
-  exponent**, not the pair alone.  `PairLevel` now uses `max(αᵢ+αⱼ, β_field)` (MAX: a diffuse pair × sharp
-  field is as sharp as the field; leaves tight/mid pairs untouched → no cost blow-up).  β_field DERIVED, not
-  tuned: local-PP (absolute rule) β=1/(2r_loc²) via `ShortRangeGaussian`, passed by MakeLocalPP; density
-  (relative rule) β=(2/3)·α_max (V_xc~ρ^{1/3} softens the tightest density 2α_max).  Cures NaF on DEFAULTS
-  (no smearing, no magic GPW_RELCUTOFF): −24.4311, 44 iters, no spike; ρ_lost/N drops ~4-5 orders (the same
-  cause seen in the charge instrument).  Suite 578/578; Si anchors untouched (soft PP → β small).  Committed
-  `00f3b27b`+this.  **The local-PP β_loc was a RED HERRING for NaF** (grid-insensitive there) but is kept —
-  correct + a latent robustness fix.  `GPW_FIELDSHARP` overrides the 2/3 (self-convergence check).
-  **OPEN — β_field pin + SR cost:** (i) pin (2/3) by ρ_lost/N SATURATION not wall-clock (user's grid-conv
-  criterion); the 2/3 default gives back most of `63f20bd1`'s 3.4× (routes diffuse density pairs to the fine
-  grid).  (ii) `VALENCE_LOWQ_SR` "just works" (converges w/ Auto-trim) but 370s + OOM-prone: cost decomposes
-  into TIME = diffuse real-space OFFSETS (α_min=0.05, reach 21.5 au, hundreds/pair; screening lever) and
-  MEMORY = grid fineness (β_field forces diffuse pairs fine → 8.6 GB streams).  Grid-registration & Auto-trim
-  are ORTHOGONAL IN PURPOSE (collocation accuracy vs orbital conditioning) but COMPOUND IN COST: trimming
-  drops near-null ORBITAL directions, NOT collocation DIMENSION (density still spans all n diffuse AOs).
-  §4a (rectangular V THROUGH collocation) is the bridge that makes them cooperate — collocate in the m-dim
-  truncated basis, dropping the redundant near-null diffuse modes (the ghost-prone, most-expensive boxes).
-**4b. FERMI SMEARING (the occupation seam's missing policy — added 2026-07-23, user-approved).**
-NOT major surgery, by construction:
-- The seam exists: `TOrbitals::TakeElectrons` / `tIrrepWF::FillOrbitals`.  New policy: occupations
-  f_i = 1/(1+exp((ε_i−μ)/kT)), μ by bisection on Σf = nₑ.  Fractional f already flows through the
-  density build (degenerate levels use it today).
-- The entropy NEVER touches H: at fixed T all operators are unchanged (f enters only D).  The Mermin
-  term is a SCALAR from the occupations: S = −k Σ w[f ln f + (1−f)ln(1−f)]; EnergyBreakdown reports
-  E, −TS, A = E−TS (+ optionally the ½(E+A) T→0 extrapolation); the iterator's E-flat gate reads A.
-- **Design (user 2026-07-23): −TS is just ANOTHER TERM** — a Hamiltonian-object term contributing to
-  `EnergyBreakdown` — so `SCFIterator::Iterate` keeps gating on "Etotal" (which quietly IS the free
-  energy A when smearing is on), and the virtual DisplayColumns/DisplayColumnHeaders (item 2) label
-  it honestly per system.  No iterator surgery at all.
-- Increment 1: per-block μ (covers Γ-only — the three-sighting NaF Ecut=160 repro).  Increment 2:
-  GLOBAL μ across k-blocks (structural: today each block fills to a fixed per-block nₑ) — timed with
-  the IBZ track, like item 5.
-- Gates: (i) gapped regression — Si at kT ≪ gap reproduces −7.11501 tightly (smearing inert where it
-  should be); (ii) the cure — NaF Ecut=160 converges to −24.431-class instead of −24.078 flapping;
-  (iii) A decreases monotonically where E need not, (iv) we should add a unit test for a light metal (FCC Na?).
-- With 4b landed, the 0h warning's advice ("check the occupation recipe") gains an actionable
-  default: the expert-system loop closes for this pathology family.
-- **INCREMENT 1 DONE (2026-07-24), per-block μ.**  Seam & flow as designed:
-  - `SCFParams::SmearingkT` (Hartree; 0=off, the default → integer aufbau, ZERO regression: 578/578).
-    Threaded iterator→WF via `tSCFWaveFunction::SetSmearing` (mirrors `SetMOM`), composite fans it to
-    every `tIrrepWF`; each block solves its OWN μ (that IS per-block).  Smearing takes precedence over MOM.
-  - Occupation math: `TOrbitals<T>::TakeElectronsFermi(ne,kT)` — μ by bisection on Σ g_i f_i=nₑ over the
-    orbital-energy window (monotone, ~50 iters), sets occ_i=g_i f_i via the new `Orbital::SetOccupation`,
-    reuses the existing `BuildDensity`/`AddDensityMatrix` (fractional f already flowed there — confirmed).
-    Returns the Mermin −TS=kT Σ g_i[f ln f+(1−f)ln(1−f)] ≤0 in the ds_t's first slot.
-  - **Free-energy plumbing — one small deviation from the "just a Hamiltonian term" sketch, FLAGGED:** a
-    Hamiltonian term only ever sees the charge density, never the occupations, so it CANNOT compute S.
-    Instead −TS is a WF-side scalar (`GetEntropyTerm()`, summed over blocks) that the iterator stamps into
-    the new `EnergyBreakdown::MinusTS` via a 4-line `TotalEnergy()` helper wrapping every
-    `Hamiltonian::GetTotalEnergy`.  `GetTotalEnergy()` folds MinusTS in, so E-flat gate / facade GetEnergy /
-    display all read A=E−TS automatically (the "no iterator surgery" spirit holds — it's one helper, not a
-    loop rewrite).  The direct-min line search also minimises A (adds GetEntropyTerm to the trial energy).
-  - Display: `-TS` line added to the final verbose breakdown when it is nonzero (the per-iteration Etotal
-    column already shows A honestly).  A dedicated `-TS`/A DisplayColumns column is deferred to item 2 polish.
-  - **Gates landed (ENABLED, cheap):** (i) `SmearingInertOnGap` — Si/Γ at kT=1e-3 == the −7.11506 anchor,
-    MinusTS≈0 (smearing inert on a gap).  (iii)+cure — `SmearingConvergesDegenerateShell`: the Si pseudo-
-    atom's degenerate half-filled 3p (the light-open-shell = gate (iv) customer) goes from aufbau
-    iters=40/Δρ=0.08/"DENSITY-DEGENERATE" to smeared iters=24/Δρ=9e-7/"CONVERGED"; A=−3.77933 < internal
-    E≈−3.741, MinusTS<0.  Honest recipe finding: kT must EXCEED the frontier splitting (kT=1e-2 converges,
-    kT=1e-3 still slosh-rotates).
-  - **DEFERRED:** gate (ii) the heavy NaF Ecut=160 flapping anchor (a DISABLED-class ~min run — needs its
-    own smeared-value calibration; the cure physics is already shown on the cheap Si degenerate shell).
-    Increment 2 = GLOBAL μ across k-blocks (structural; time with the IBZ track).
+# Forward roadmap (agreed 2026-07-26 — toward an honest metal + Fermi-smearing test)
 
-### 4c. LIBCINT LATTICE ENGINE (added 2026-07-23, user): `BasisSet::Molecule::Engine::LibCint` is
-much faster than the MnD kernels — teach `PG_LibCint` to realise `Molecule::LatticeSum1E` so the
-periodic/GPW path can select it (GPW itself is unchanged either way — the engine is a molecular-side
-switch; the GPW_UT header already anticipates exactly this).  Slot after 4a/4b or opportunistically —
-it is orthogonal to both; the collocation STREAMS stay MnD (they are ours), so the win lands on the
-1E/analytic-KB/3C build side.
-User OOD comments:  PG_LibCint and PG_MnD should be inheriting from an interface that supports LatticeSum1E.  
-THis should be an interface that the molecular SCF code never sees.  (SOLID: Interface Segregation Principle)
-But the Solid code only sees that interface and never sees MnD or LibCint (except when choosing and enum at the very top level).  (SOLID: Liskov Substitution Principle)
+**0. REPORTING FEATURE** — build `doc/RunReportPlan.md`.  `qchem.Reporting`: the report IS json, a generic
+console renderer (layout INFERRED from json structure — table vs tree; NO per-section renderers), a global
+sink (`GlobalReport` keyed + key-free `CurrentRunReport`), incremental section-by-section rendering, detail
+level console-only.  Consolidates the scattered `[GPW grid]`/`[overlap S]`/cache-RAM/SCF-settings prints.
+
+**1. VALENCE-BASIS-GEN CLI + an Al basis** — extract `IntegrationTests/ValenceBasisGen_UT.C` into a standalone
+`CLIapps/valgen.C` (mirror `CLIapps/scfrun.C`; thin arg-parser over the existing `qchem.ValenceBasisGen`
+library — `GenerateValenceBasis`/`GenerateSeedDensity`/`AssembleBasisFile`).  Then generate a valence basis for
+a metal (Al).  **The CLI uses the Reporting framework (step 0) for its console output — the first dogfood.**
+
+**2. DEGENERATE-SHELL METAL TEST (works with Increment 1, per-block μ)** — FCC Al @ Γ (3s²3p¹: the degenerate
+3p triplet is partially filled, aufbau can't pick a p → won't converge without smearing), same physics as the
+passing Si-3p test.  Add **annealing** (a kT schedule, ramp T→0 in steps, re-seed each stage).  NOTE: Γ-only, a
+degenerate open shell — NOT yet a Fermi-surface metal (that's step 4).
+
+**3. INCREMENT 2 — GLOBAL μ ACROSS k-BLOCKS** (structural: today each Bloch block fills to a FIXED per-block
+nₑ; a metal needs ONE μ across the BZ with charge sloshing between k-points).  The enabler for a true metal.
+Time with the IBZ/space-group track (qchem7 `lattice-3d-spacegroup`), like item 5.
+
+**4. MULTI-K Na — the honest metal test** — FCC and/or BCC Na (1 valence e, half-filled conduction band): a
+real Fermi surface, one μ across the BZ, smearing + annealing.  Gate (iv), done properly.  (May want a more
+diffuse metallic Na basis from step 1 than the ionic-NaF-tuned `valence_lowq` Na.)
+
+---
+
+# Pending (from the 2026-07-23 sequence — not on the immediate roadmap)
+
+### 1. PARAM-STRUCT GRADUATION
+Move settled knobs out of env into typed structs; grade Standard vs Advanced (Advanced = sensible defaults,
+touched only for pathological cases; guards self-correct so users don't hand-tune).  `SCFParams` keeps the
+Standard surface; nested Advanced structs (`MixerParams`, `OccupationParams` policy enum {Aufbau, MOM, Fermi},
+`GridParams`).  DELETE the `NAF_*`/`GC_*` env recipes (hard-code per test); keep verification instruments +
+ops valves as documented env.  Fold in the BallOnly default.  (Partially superseded by the flat `SmearingkT`/
+`MOMSmearPenalty` fields already added — the graduation would nest them.)
+
+### 3. CACHE2/3 BYTE-BUDGET LRU (GPWPlan §5)
+Byte budget + LRU eviction, policy per scope BY THE ALGORITHM (lattice = scoped size-1; molecular = generous);
+per-cache RAM in the run report (→ the Reporting `cache` section).  Retires the clear-based band-aids.  Wanted
+before the diffuse-basis campaigns (they bloat the geometry caches).
+
+### 4a. DIFFUSE-BASIS ROBUSTNESS — the ACTUATOR (detector is DONE, above)
+Turn `PivotedCholeskyDrops` into action so `VALENCE_LOWQ_SR`/`_LOWQ` "just work".  Two open decisions
+(doc-analysed 2026-07-26):
+- **Auto-prune vs report-only.**  Auto-prune = a per-type `IrrepBasisSet::Prune(indices)` + `BasisSet::Prune`
+  swapping the pruned IBS into `itsBasisSets`; the vetting driver computes S, gets drops, prunes, reports the
+  new λ_min; RKB analyses the LARGE sector and prunes paired large+small.  Report-only = just LIST the
+  redundant functions (named by exponent/angular/atom) and ask the user to fix the basis (the 80/20, since the
+  user reruns either way).  **Report-only lands in the Reporting `basis.removed` section (step 0).**
+- **β_field pin + SR cost.**  Pin the density-rule β_field=(2/3)·α_max by ρ_lost/N SATURATION, not wall-clock
+  (the 2/3 default gives back most of `63f20bd1`'s 3.4× by routing diffuse density pairs fine).  SR cost
+  decomposes: TIME = diffuse real-space offsets (screening lever), MEMORY = grid fineness.  Grid-registration
+  and Auto-trim are orthogonal in PURPOSE but compound in COST (trimming drops orbital directions, not
+  collocation DIMENSION); pruning the basis (not just the orbitals) is what actually cheapens the streams.
+
+### 4c. LIBCINT LATTICE ENGINE
+Teach `PG_LibCint` to realise `Molecule::LatticeSum1E` so the GPW 1E/KB/3C build can select the faster engine
+(collocation streams stay MnD).  User OOD: `PG_LibCint`/`PG_MnD` inherit a `LatticeSum1E` interface the
+molecular SCF never sees (ISP); the Solid code sees only that interface, never MnD/LibCint except an enum at
+the very top (LSP).
 
 ### 5. B_ij(R) k-INDEPENDENT 1E MEMO (GPWPlan 0.5(d))
-Deliberately LAST: its payoff only materializes on multi-k runs — time it with the IBZ/space-group
-track's arrival (the qchem7 `lattice-3d-spacegroup` work), so it never carries untested-in-anger.
-Design pin (user): cache B(R), never M(k) — "keep k out of the key".
+LAST — payoff only on multi-k; time with the IBZ track.  Cache B(R), never M(k) — "keep k out of the key".
 
-## Parked/background (unchanged from GPWPlan.md)
-0.5(e)'s runtime aspect folded into item 3.  0i analytic V_local LONG (robustness; fold the core
-charge into PW_Hartree's G-space solve) — NOTE (user question 2026-07-23): the ladder's L>0 levels +
-top rung currently serve TWO clients, the collocation completion (REL-rule) and the V_long κ-ruled
-grid sweep; after 0i the sweep client disappears and whether the completion rung still pays at
-BallOnly+C=2 becomes a measurable rung-gate question.  §2 low-q multi-species Si/NaF/CsI cross-validation.
-§3 CP2K reference library growth.  §5 remaining cleanups (Vxc-fit ISP ctor lands with GGA; cMesh
-unification; DRY PP adapters; periodic external PP).
+---
+
+# Future considerations — Fermi smearing (captured 2026-07-26, so we don't lose them)
+
+- **Principled kT selection.**  Today kT is a hand-set knob (finding: it must EXCEED the frontier splitting —
+  NaF 1e-2 converges, 1e-3 sloshes).  Tie it instead to a physical quantity: the gap, the DOS at the Fermi
+  level, or a target electronic entropy — so the software picks a sensible kT (the expert-system direction).
+- **Smearing flavors beyond Fermi–Dirac.**  Gaussian / Methfessel–Paxton / cold smearing give a SMALLER
+  entropy correction and better T→0 behaviour than plain Fermi–Dirac.  Decide per battery-materials need
+  (Fermi–Dirac IS the true finite-T physics; MP/cold are numerically-nicer approximations for a T→0 answer).
+- **T→0 extrapolation.**  The SCF minimises the free energy A=E−TS; to recover the physical internal energy E
+  at zero broadening use the ½(E+A) extrapolation (or a MP-order-consistent one).  Report it alongside E, −TS, A.
+- **Annealing as a general capability.**  The kT-schedule (ramp T→0 in steps, re-seed each stage from the last
+  — the density-continuation machinery exists) is used in roadmap step 2, but it's a general convergence tool
+  for any hard/near-gapless landscape, worth exposing as such.
+
+---
+
+# Parked/background (unchanged from GPWPlan.md)
+0.5(e) runtime folded into item 3.  0i analytic V_local LONG (fold the core charge into PW_Hartree's G-space
+solve; after it, whether the completion rung still pays at BallOnly+C=2 is a measurable rung-gate question).
+§2 low-q multi-species Si/NaF/CsI cross-validation.  §3 CP2K reference library growth.  §5 cleanups (Vxc-fit
+ISP ctor with GGA; cMesh unification; DRY PP adapters; periodic external PP).
