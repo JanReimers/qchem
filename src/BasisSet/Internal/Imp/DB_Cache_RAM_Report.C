@@ -29,45 +29,6 @@ template <class T> size_t IntegralsCache_RAM<T>::Report(const map4_t& m4, const 
     return nt;
 }
 
-std::string percent(size_t n, size_t total)
-{
-    double p = total ? (100.0*n)/total : 0.0;   // guard 0/0 -> "0%" instead of "-nan%"
-    std::ostringstream os;
-    os << " " << std::setprecision(0) << std::fixed << std::setw(3) << p << "%";
-    return os.str();
-}
-
-std::string ram(size_t n, size_t tsize)
-{
-    size_t megas= n*tsize/1024/1024;
-    std::ostringstream os;
-    os << " " << std::setprecision(0) << std::fixed << std::setw(12) << megas << " (MB)";
-    return os.str();
-}
-
-template <class T>  void IntegralsCache_RAM<T>::ReportRAMUsage(std::ostream& os) const
-{
-    bool verbose=false;
-    os << "------------------- IntegralsCache RAM usage report -------------------------" << endl;
-    size_t J_ram=Report(Jac,"Direct   Jac",verbose); //# of Ts
-    size_t K_ram=Report(Kab,"Exchange Kab",verbose);
-
-    size_t cach4_ram=0;
-    for (auto& i:itsCache4s)
-       cach4_ram=i.second->RAMsize();
-    size_t total=J_ram+K_ram+cach4_ram;
-
-    os << "  Jac   data: "  << ram(J_ram,sizeof(T)) << percent(J_ram,total) << endl;
-    os << "  Kab   data: "  << ram(K_ram,sizeof(T)) << percent(K_ram,total) << endl;
-    os << "  Cach4 data: "  << ram(cach4_ram,sizeof(T)) << percent(cach4_ram,total) << endl;
-
-    // Per-cache hit/miss stats (charge distributions Omega, RNLM, atomic Slater Rk).  High reuse
-    // means the cache is being shared (e.g. Omega across SALC irreps over one raw basis).
-    if (!itsCache2s.empty() || !itsCache3s.empty() || !itsCache4s.empty()) os << "  cache reuse:" << endl;
-    for (auto& i:itsCache2s) i.second->Report(os, i.first);
-    for (auto& i:itsCache3s) i.second->Report(os, i.first);
-    for (auto& i:itsCache4s) i.second->Report(os, i.first);
-}
 
 // Snapshot the cache's current (cumulative) stats into the run report's `cache` section: the RAM tiers
 // (Jac/Kab/Cach4) and the per-cache hit/reuse rows.  Single-provider, so it builds the whole section json

@@ -93,9 +93,8 @@ private:
     mutable std::map<id_pair_t,time_t> ERI4_timestamps; //Get functions need to update this
     // std::map<std::chrono::sys_seconds,std::pair<IBS_ID_t,IBS_ID_t>> ERI4_Oldest;  //Sort by time stamp
 
-    void ReportRAMUsage(std::ostream&) const;
     void EmitReport() const override;   //!< snapshot RAM/reuse into the run report's `cache` section (step 4)
-    static size_t Report(const map4_t&, const std::string&, bool verbose); // in MB
+    static size_t Report(const map4_t&, const std::string&, bool verbose); // # of Ts in a 4-index map
     // GC evicts the oldest ERI4s; `protect` is the entry just inserted (never evicted).
     void RunGarbageCollector(const id_pair_t& protect);
     size_t Purge(map4_t& eri4s,const id_pair_t& old,const id_pair_t& protect);

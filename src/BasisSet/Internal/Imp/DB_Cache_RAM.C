@@ -125,10 +125,9 @@ template <class T> IntegralsCache_RAM<T>::IntegralsCache_RAM(bool makelog)
             itsLogger=std::ofstream("cache.log");
     };
 
-template <class T>  IntegralsCache_RAM<T>::~IntegralsCache_RAM()
-{
-    ReportRAMUsage(std::cout);
-}
+template <class T>  IntegralsCache_RAM<T>::~IntegralsCache_RAM() = default;
+// (The legacy exit-time "IntegralsCache RAM usage report" cout is retired: the run report's per-run `cache`
+//  section -- tiers + reuse, via EmitReport -- now carries the same stats.)
 template <class T> void IntegralsCache_RAM<T>::Register(Cache4_Client* eval)
 {
     RadialTypeID_t key=eval->RadialType(); //This is really a type
