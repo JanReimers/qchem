@@ -418,7 +418,7 @@ TEST(GPW_SCF, SiliconGammaConverges)
     Lattice_3D lat(cell, ivec3_t(1,1,1));
 
     GpwResult R=RunGPW(lat, MakeBasisSR(cell), /*densityEcut*/20.0, /*Nelec*/8, "Si",
-                       "Si SR Gamma", /*verbose*/true, /*nmax*/60, qchem::Cholesky, 0.0,
+                       "Si SR Gamma", /*verbose*/false, /*nmax*/60, qchem::Cholesky, 0.0,
                        /*kShift*/rvec3_t(0,0,0), /*minDrho*/1e-3, /*minDE*/1e-6);
 
     EXPECT_TRUE(R.converged);
@@ -613,179 +613,41 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     auto mol = std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(
         BasisSetData::VALENCE_LOWQ_SR2, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
 
-    namespace L3=BasisSet::Lattice_3D;
-    // densityEcut<0 => AUTOMATIC: the grid is floored to 4*alpha_max from the basis (F alpha_max=40 -> 160),
-    // so F's tight 40-a.u. exponent is resolved without the caller specifying the Hartree value.
-    // Mixing TUNING knobs (env overrides; defaults = the committed recipe).  The charge-transfer limit cycle
-    // is a mixing-stability problem, so alpha/G0 sweeps are how this test gets tuned -- e.g.
-    //   NAF_ALPHA=0.1 NAF_KERKER_G0=2 NAF_ECUT=40 NAF_NMAX=100 ./UTMain --gtest_filter=*NaFRocksalt* ...
+    // The production recipe as ONE GpwOptions literal (the full 2-week rationale is in the header above +
+    // doc/GPWPlan §0b″).  The NAF_* env knobs stay as sweep INSTRUMENTS; the defaults ARE the committed recipe.
     auto envd=[](const char* n, double d){ const char* s=std::getenv(n); return s ? std::atof(s) : d; };
-    // TUNED (2026-07-15/16, Ecut=40 alpha scan): alpha=0.2/0.1 limit-cycle (+-75 Ha, period ~48, passing
-    // THROUGH the fixed point); alpha=0.05 contained (+-1 Ha) but not decaying; **alpha=0.025 converges**
-    // (Ecut=40 -> ~-27.75, residual +-0.04 wobble).  G0: 1.0 good; 2.5 WORSE (over-damping low-G
-    // destabilizes), 0.5 worse.
-    //
-    // THE PRODUCTION (AUTO Ecut=160) GRID IS BLOCKED ON QUASI-NEWTON DENSITY MIXING: the fine grid grows a
-    // second, UNPHYSICAL attractor (E ~ -39, Exc ~ -143, integral rho_grid swinging 5.1<->7.7 vs Tr(DS)=8 --
-    // the mid-slosh D loads the sharpest F pairs beyond the grid calibration, the XC of that spiky/negative
-    // rho feeds back) which captures plain damped Kerker at EVERY alpha tried (0.2 down to 0.01: the
-    // trajectory passes -26 and slides in).  CP2K's SAME map converges under BROYDEN (quasi-Newton, 8-step
-    // history) -- the ingredient our complex path lacks.  => next increment: complex Pulay/Broyden
-    // rho-tilde mixing on the FourierMixCD infrastructure; until then this test pins the CONVERGING
-    // Ecut=40 regime (a real mixing-regression anchor: either bad attractor lands ~+65 or ~-39, far
-    // outside the gate).  NAF_ECUT=-1 runs the production grid for Pulay development.
-    // GRID (the one STANDARD knob).  NAF_ECUT stays as a VERIFICATION INSTRUMENT (sweep campaigns);
-    // everything else below is the hard-coded production recipe (doc/GPWPlan1.md item 1: recipes are
-    // readable code, not env spaghetti).  Advanced grid knobs (cutoffFactor, RasterPolicy) take their
-    // defaults -- override via designated initializers, e.g. {.densityEcut=40.0, .raster=RasterPolicy::BallOnly}.
-    const double densityEcut = envd("NAF_ECUT", 40);       // <0 AUTO = C*alpha_max = 80 (the production default;
-                                                             //   BallOnly raster).  Explicit 40 = SUB-FLOOR: warns,
-                                                             //   and BallOnly aliases there (-43 mHa) -- use
-                                                             //   {.raster=RasterPolicy::AliasFree} for that regime.
-    // EXPERIMENT (NAF_LADDERF): the multigrid coarsening factor.  Large (e.g. 1e6) => NO coarse levels (pre-63f20bd1
-    // "L0+rung" ladder) -- probes whether the coarse-grid local-PP for diffuse pairs is what shifts the energy / dives
-    // the diffuse eigenvalue (doc/GPWPlan1.md 4b root-cause investigation).
-    std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, mol, L3::GPWParams{.densityEcut=densityEcut,
-                                   .raster=L3::RasterPolicy::BallOnly, .ladderFactor=envd("NAF_LADDERF",4.0)}));
-    auto       irreps=bs->GetIrreps(Spin::None);
-    Crystal_EC ec(irreps, 8);
-    cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), bs.get(), {{"Na",1},{"F",7}}, "LDA");
-    // THE CP2K RECIPE (2026-07-15, doc/CP2Kresults.md): pure DAMPED KERKER MIXING, NO DIIS, exit on E-FLAT.
-    //  - CP2K's damped-Broyden/diagonalization run settles E to 1e-6 by ~130 iterations at alpha=0.2 while its
-    //    DENSITY limit-cycles forever (RMS 0.03-0.12) -- so the density is NOT a convergence criterion here
-    //    (MinΔρ=1e30) and the physical exit is the relative-energy gate MinΔE (the SCFParams field added for
-    //    exactly this non-variational settled-E case).
-    //  - NO DIIS: our +431/+910 Ha energy spikes landed EXACTLY on the iterations where DIIS re-engaged
-    //    (Nproj=8 in the 2026-07-15 traces) -- mid-cycle Fock extrapolation is the spike generator.  Earlier
-    //    finding (2026-07-12) stands: pure relax mixing limit-cycles too; Kerker damping is what contains the
-    //    low-G charge-transfer slosh, and heavier damping (alpha=0.2, CP2K's value) settles E.
-    //    Kerker holds alpha=StartingRelaxRo fixed (no [F,D] auto-tune).
-    // 2026-07-23 EXPERIMENT (user): drive this on the raw-XC map with the Fock-space LADDER
-    // cSCFAcceleratorDIIS -> cSCFAcceleratorGDM instead of the Null accelerator.  Two questions:
-    //   (a) does the per-iteration `accel` column show the DIIS->GDM hand-off live (doc/GPWPlan1.md item 2)?
-    //   (b) does GDM's geodesic line search actually converge here -- i.e. is the GPW collocation E[rho]
-    //       TRULY variational?  (Direct minimisation lowers E along a geodesic; if the fitted energy is not a
-    //       genuine functional of the orbitals, the line search cannot descend and GDM will thrash.)
-    // The historical Null + density-Pulay recipe was tuned against the BALL-era map's DIIS spikes
-    // (doc/GPWPlan.md); the raw-XC feed removed that basin, so we retry Fock-space acceleration.  Density-side
-    // Pulay is DISABLED below (PulayDepth=0) so the Ladder is the sole accelerator -- a clean GDM test; GDM's
-    // direct-min loop does not density-mix anyway.
-    std::vector<std::unique_ptr<qchem::SCFAccelerators::tSCFAccelerator<dcmplx>>> rungs;
-    rungs.push_back(std::make_unique<qchem::SCFAccelerators::cSCFAcceleratorDIIS>(
-                        qchem::SCFAccelerators::DIISParams{8, 0.1, 1e-10, 1e-9}));     // rung 0: DIIS (Nproj=8)
-    rungs.push_back(std::make_unique<qchem::SCFAccelerators::cSCFAcceleratorGDM>(
-                        qchem::SCFAccelerators::GDMParams{/*FDMax*/1.0}));              // rung 1: GDM geodesic (FDMax wide
-                                                                                       //   so GDM actually ENGAGES, not
-                                                                                       //   the FDMax-gated unmixed fallback)
-    // Solid: hand DIIS->GDM on the ENERGY change, not [F,D] -- on this ionic crystal [F,D] is contaminated by
-    // the charge-transfer slosh / giant-response virtual and may never settle, while |ΔE/E| does.  switchat is
-    // now a RELATIVE |ΔE/E| threshold (was a [F,D] one).  Converges ~12-15 iters; robust across α/G0 tuning.
-    // EXPERIMENT (NAF_NULL): swap the DIIS->GDM ladder for the pure Null accelerator (damped Kerker only, no
-    // Fock extrapolation) -- pairs cleanly with Fermi smearing when probing the occupation seam.
-    qchem::SCFAccelerators::tSCFAccelerator<dcmplx>* acc =
-        std::getenv("NAF_NULL")
-            ? (qchem::SCFAccelerators::tSCFAccelerator<dcmplx>*)new qchem::SCFAccelerators::tSCFAcceleratorNull<dcmplx>()
-            : (qchem::SCFAccelerators::tSCFAccelerator<dcmplx>*)new qchem::SCFAccelerators::cSCFAcceleratorLadder(
-                    std::move(rungs), /*ethresh*/1e-8, /*stall*/5, /*floor*/1e-8, /*switchat*/1e-6,
-                    qchem::SCFAccelerators::ScheduleSignal::EnergyChange);
-    qchem::ReportOverlapConditioning()=true;   // report min eig(S)/min sv(S) at SetBasisOverlap (the ctor below)
-    // EXPERIMENT (NAF_PIVOT=<tol>): rank-revealing pivoted Cholesky (doc/GPWPlan1.md §4a) -- SELECTS the
-    // independent AOs and DROPS the redundant diffuse ones, so the collocation skips them (vs Auto's canonical
-    // rotation, which keeps a dense V and collocates all n AOs).  0/unset = Auto (canonical Eigen truncation).
-    const double pivotTol = envd("NAF_PIVOT", 1e-4);
-    const qchem::Ortho orthoMode = pivotTol>0.0 ? qchem::CholeskyPivoted : qchem::Auto;
-    qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc,
-                                         qchem::ChargeDensity::SeedStrategy::IonicSAD, lat.GetStructure().get(),
-                                         orthoMode, pivotTol);   // diffuse F- / Na+ ionic seed (halved PW iters)
-    qchem::ReportOverlapConditioning()=false;  // process-wide flag -- reset so it does not leak to other tests
-    // THE PRODUCTION RECIPE, plainly (Standard fields; the Advanced Guard struct keeps its defaults --
-    // the 0h guard self-corrects a bad MOM capture, so nothing here needs hand-tuning):
-    SCFParams par;
-    par.NMaxIter       = (size_t)envd("NAF_NMAX", 200);
-    par.MinΔE          = 1e-8;   // E-flat exit (the energy is the clean signal here -- see the ΔE hand-off above)
-    par.MinΔρ          = 1e-4;   // AND a density gate: a spurious small ΔE can trip the E-flat exit early, so
-                                 //   also require Δρ to settle (user 2026-07-24; ~12 iters at 2e-4, ~15 at 1e-4)
-    par.MinΔFD         = 1e30;
-    par.MinVirial      = 1e30;
-    par.MinFD          = 1e30;
-    par.Verbose        = true;
-    par.StartingRelaxRo= envd("NAF_ALPHA", 0.45);   // Kerker mixing fraction (raw-XC landscape; the ball-era 0.025 was
-                                 //   calibrated against limit cycles that no longer exist -- user, 2026-07-23)
-    par.KerkerG0       = 1.0;    // Kerker screening wavevector (a.u.^-1): damp the low-G charge-transfer slosh
-    par.UseMOM         = true;   // occupied-subspace continuity; the 0h guard releases a bad capture
-    par.MOMStartIter   = 10;     // delayed IMOM: descend by plain aufbau first, then capture ONCE
-    par.SmearingkT     = envd("NAF_SMEAR", 0.0);      // EXPERIMENT (doc/GPWPlan1.md 4b): Fermi smearing + ...
-    par.MOMSmearPenalty= envd("NAF_PENALTY", 0.0);    //   ... the MOM-overlap mask Λ (MOM-masked Fermi: keep the
-                                 //   diffuse ghost out by character, smear the physical frontier by energy).
-    par.PulayDepth     = 0;      // density-Pulay OFF: the Fock-space Ladder (DIIS->GDM) is now the accelerator
-    par.PulayStart     = 0;      //   (2026-07-23 experiment -- was depth=6/start=35 with the Null accelerator)
-    qchem::Hamiltonian::ReportGridCharge()=(bool)std::getenv("GPW_GRIDCHARGE");   // F's tight 40-a.u. exponent: watch integral rho_grid vs Tr(DS)
-    qchem::SCFIterator::ReportBandGap()=true;       // BAND-GAP INSTRUMENT (doc/GPWPlan 0b''): watch eps_HOMO/eps_LUMO/gap
-                                                    // per iteration -- the near-degenerate-frontier (giant-response)
-                                                    // hypothesis predicts the gap collapsing near the fixed point,
-                                                    // with the spurious level diving across the Fermi edge before each spike.
-    scf.Iterate(par);
-    qchem::Hamiltonian::ReportGridCharge()=false;  // process-wide flag -- reset so it does not leak to other tests
-    qchem::SCFIterator::ReportBandGap()=false;     // idem (MOM is per-run via SCFParams -- nothing to reset)
+    GpwOptions o;
+    o.label        = "NaF GPW Gamma";
+    o.Nelec        = 8;                                   // 1 (Na) + 7 (F) valence electrons
+    o.species      = {{"Na",1},{"F",7}};
+    o.densityEcut  = envd("NAF_ECUT", -1.0);              // AUTO = C·αmax=80 (the anchor config); NAF_ECUT=40 = sub-floor sweep
+    o.ladderFactor = envd("NAF_LADDERF", 4.0);
+    o.accelerator  = std::getenv("NAF_NULL") ? "Null" : "Ladder";   // Fock DIIS→GDM on |ΔE/E| (ionic); NAF_NULL=damped Kerker
+    o.seed         = qchem::ChargeDensity::SeedStrategy::IonicSAD;   // diffuse F⁻/Na⁺ ionic seed (halves iters)
+    const double pivotTol = envd("NAF_PIVOT", 1e-4);                // rank-revealing pivoted Cholesky (doc/GPWPlan1.md §4a)
+    o.ortho        = pivotTol>0.0 ? qchem::CholeskyPivoted : qchem::Auto;
+    o.orthoTol     = pivotTol;
+    o.scf.NMaxIter = (size_t)envd("NAF_NMAX", 200);
+    o.scf.MinΔE=1e-8; o.scf.MinΔρ=1e-4;                   // E-flat exit AND a Δρ gate (non-variational settled-E map)
+    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
+    o.scf.StartingRelaxRo=envd("NAF_ALPHA",0.45); o.scf.KerkerG0=1.0;   // Kerker damps the low-G charge-transfer slosh
+    o.scf.UseMOM=true; o.scf.MOMStartIter=10;             // delayed-IMOM: descend, then pin the occupied subspace through the crossing
+    o.scf.SmearingkT=envd("NAF_SMEAR",0.0); o.scf.MOMSmearPenalty=envd("NAF_PENALTY",0.0);   // MOM-masked Fermi (experiment)
 
-    auto* cd=scf.GetWaveFunction()->GetChargeDensity(); double charge=cd->GetTotalCharge(); delete cd;
-    auto E=scf.GetEnergy();
-    std::cout << "[NaF GPW Gamma] iters="<<scf.GetIterationCount()<<" charge="<<charge<<" Etot="<<E.GetTotalEnergy()
-              << " (Ekin="<<E.Kinetic<<" Een="<<E.Een<<" Eee="<<E.Eee<<" Exc="<<E.Exc
-              << " Enn="<<E.Enn<<" Ealign="<<E.Ealign<<")" << std::endl;
-    EXPECT_NEAR(charge, 8.0, 1e-6);     // 1 (Na) + 7 (F) valence electrons, conserved
-    // ENERGY PIN SUSPENDED (banish-Rcut + SR2, 2026-07-16).  The old anchor (-27.73 +- 0.05) was
-    // measured on the CORRUPTED map (Rcut=2a truncated S vs complete collocation) and is void.  On the
-    // HONEST map: the scheme mismatch is DEAD (iteration-1 grid charge -4.9 e -> -2.4e-6 e) and the
-    // recipe descends SMOOTHLY to a genuine fixed point (SR ~ -28.00, SR2 ~ -27.73), BUT departs and
-    // blows up (+5e3 Ha) each time it nears it -- period ~27.  MEASURED CLASSIFICATION (doc/GPWPlan 0b'):
-    //   - NOT conditioning: SR2 (lambda_min 1.6e-3, cond 2715) shows the SAME spikes as SR (1.03e-6);
-    //   - NOT plain linear-mixing gain: alpha-INDEPENDENT (10/10/13 spikes at 0.025/0.0125/0.00625);
-    //   - NOT fixed by DIIS (NAF_DIIS=1): 51 excursions, En>EMax flapping;
-    //   - the departure is a SMOOTH climb over ~5 iters (a growing mode, not an occupation swap).
-    // BAND-GAP INSTRUMENT VERDICT (2026-07-17, ReportBandGap; Ecut=40/alpha=0.025).  The static
-    // near-degeneracy version of the hypothesis is FALSE and REFINED to a TRANSIENT giant-response mode:
-    //   - the FIXED-POINT gap is HEALTHY, eps_LUMO-eps_HOMO ~ 0.33-0.37 Ha (~9-10 eV): NaF/Gamma in
-    //     this ionic basis IS a wide-gap insulator at convergence (iters 30-37, 55-66 plateau at gap~0.35);
-    //   - each spike is preceded ONE iteration earlier by eps_LUMO DIVING ~0.2-0.5 Ha (a diffuse virtual
-    //     with a giant response to the low-G charge-transfer slosh): gap collapses (iter 12 -> 2.8e-2 with
-    //     eps_LUMO crashing +0.167 -> -0.077; iter 68 -> 1.2e-4, eps_H/eps_L DEGENERATE) as the virtual
-    //     crosses the occupied manifold, then AUFBAU fractionally occupies it ([partial-occ HOMO] fires
-    //     exactly on the spike iters 14, 41) -> a ~1/sqrt(lambda) diffuse vector enters D -> E=+5e3..+7e3,
-    //     [F,D] 0.09 -> 130.  Deterministic period ~27 (spikes 14/41/68 in one run).
-    // => the mechanism is a giant-response DIFFUSE VIRTUAL causing a periodic aufbau LEVEL-CROSSING, not a
-    //    small static gap.  Fix selection (doc/GPWPlan 0b''): NOT Fermi smearing (the fixed-point gap is
-    //    large) -- the direct guard is MOM (occupied-subspace continuity through the crossing; coded,
-    //    inactive: tIrrepWF::MOMScores/CaptureMOMReference), and the CAUSE-side cure is 0c Pulay/Broyden
-    //    rho-mixing to damp the slosh that drives the dive (matches CP2K converging THIS map with Broyden).
-    //
-    // FRONTIER-WINDOW REFINEMENT (same instrument, 2-occ/4-virt window per iteration).  Two sharper facts:
-    //   - it is ONE ISOLATED hyper-responsive virtual, NOT a wide-band cluster: at the dive (iter 11->12)
-    //     the LUMO crashes +0.167 -> -0.077 (0.24 Ha in ONE step) while its virtual NEIGHBOURS (+0.42,
-    //     +0.79) barely move, and the LUMO sits ~0.25 Ha clear of the next virtual at the plateau -- so
-    //     the giant response is a single diffuse (Na-3s-like) conduction state overlapping the charge-
-    //     transfer region, NOT an over-complete diffuse-band cluster (argues 3b physical, not 3a ghost);
-    //   - the spike IS an OCCUPATION SWAP (this CORRECTS the 0b' "growing mode, not a swap" note): at each
-    //     spike the F 2p level drops from (6.0) to (4.0) electrons -- the diving virtual captures 2 e out
-    //     of the F 2p manifold (iters 14 and 41).  The smooth dive (the "growing mode") TERMINATES in the
-    //     aufbau swap; they are two phases of ONE event.  MOM (pin the {F 2s, F 2p} occupied subspace) is
-    //     therefore the direct fix; it should be clean since it is an isolated single-state swap.
-    //
-    // MOM FIX WIRED UP + VALIDATED (2026-07-17, SCFParams::UseMOM; default ON here).  DELAYED IMOM
-    // (SCFParams::MOMStartIter=10): run plain aufbau for ~10 fills so the SCF descends toward the
-    // physical fixed point, then CAPTURE the occupied subspace ONCE and hold it.  Two wrong variants were
-    // measured + rejected first: RUNNING MOM (re-capture every iter) DRIFTS; IMOM-from-iter-0 anchors the
-    // raw seed (mid-transient) -> catastrophe.  Since 2026-07-23 the capture is additionally protected by
-    // the 0h GUARD (a capture that lands non-aufbau is detected via its persistent hole and released --
-    // measured HERE: the old capture pinned a +0.75 Ha excited state in every pre-guard run, which is what
-    // the -27.76 aliasing-era anchor and later the -23.68 "fixed point" actually were).
-    //
-    // ANCHOR (2026-07-23, the production default config: auto Ecut=80, BallOnly raster, raw XC, guards):
-    // -24.4304 -- 0.8 mHa from the CP2K SR2 truth -24.4312 (tight-eps; the historical -27.93128 "oracle"
-    // was RETRACTED as a screening artifact, TRAPS #2).  Reference points on this landscape: AliasFree@40
-    // -24.4357, AliasFree@320 -24.4325, BallOnly@320 -24.4311 -- the sub-2-mHa plateau of doc/GPWPlan
-    // 0.5(f1)/(a).  The old "-27.76 vs -27.93 = 0.17 Ha grid gap" story was aliasing-era physics.
-    EXPECT_NEAR(E.GetTotalEnergy(), -24.4304, 0.01);   // did-E-move anchor (the default-config fixed point)
+    qchem::SCFIterator::ReportBandGap()=true;             // per-iteration gap column: watch the diffuse virtual dive (header)
+    GpwResult R = RunGpw(lat, mol, o, /*verbose*/true);
+    qchem::SCFIterator::ReportBandGap()=false;
+
+    EXPECT_NEAR(R.charge, 8.0, 1e-6);   // 1 (Na) + 7 (F) valence electrons, conserved
+    // MECHANISM (the 2-week investigation, condensed; full trace in the header + doc/GPWPlan §0b′/§0b″).  The
+    // energy spikes are NOT conditioning / mixing-gain / DIIS: a single diffuse (Na-3s-like) conduction state
+    // has a GIANT response to the low-G charge-transfer slosh, dives across the Fermi edge (measured live by
+    // ReportBandGap) and aufbau swaps 2e out of the F 2p manifold -- a periodic level-crossing (period ~27) ->
+    // E=+5e3.  FIX = delayed-IMOM (pin the occupied subspace through the crossing; the 0h guard releases a bad
+    // capture) + Kerker damping; the fixed-point gap is large (~0.35 Ha) so NOT Fermi smearing.
+    // ANCHOR: -24.4304 (auto Ecut=80, BallOnly, raw XC, guards) -- 0.8 mHa from CP2K SR2 truth -24.4312; the
+    // historical -27.93 "oracle" was RETRACTED as a screening artifact (doc/GPWPlan TRAPS #2).
+    EXPECT_NEAR(R.E.GetTotalEnergy(), -24.4304, 0.01);   // did-E-move anchor (the default-config fixed point)
 }
 
 // (4b) NaF GRID-CONTINUATION SEEDING (doc/GPWPlan §0e, step 1) -- the PRODUCTION-GRID fix.
@@ -1033,11 +895,9 @@ TEST(GPW_SCF, DISABLED_NaFFullBasisEigenTol)
     Crystal_EC ec(irreps, 8);
     cHamiltonian* ham=new Ham_PW_DFT(lat.GetStructure(), bs.get(), {{"Na",1},{"F",7}}, "LDA");
     auto* acc=new qchem::SCFAccelerators::cSCFAcceleratorDIIS(qchem::SCFAccelerators::DIISParams{8, 8.0, 1e-10, 1e-8});
-    qchem::ReportOverlapConditioning()=true;
     qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc,
                                          qchem::ChargeDensity::SeedStrategy::IonicSAD, lat.GetStructure().get(),
                                          qchem::Eigen, 1e-6);   // (2): canonical ortho, drop the ~0 null cluster
-    qchem::ReportOverlapConditioning()=false;
     SCFParams par; par.NMaxIter=60; par.MinΔρ=1e-3; par.MinΔE=1e-6; par.MinΔFD=1e30; par.MinVirial=1e30;
     par.MinFD=1e30; par.StartingRelaxRo=0.3; par.MergeTol=1e-4; par.Verbose=true; par.KerkerG0=1.0;
     qchem::Hamiltonian::ReportGridCharge()=(bool)std::getenv("GPW_GRIDCHARGE");

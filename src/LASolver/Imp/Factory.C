@@ -15,8 +15,6 @@ using qchem::LASolverCholesky;
 using qchem::LASolverCholeskyPivoted;
 using qchem::LASolverAuto;
 
-bool& qchem::ReportOverlapConditioning() { static bool on = false; return on; }
-
 // BASIS-NEUTRAL linear-dependence detector (doc/GPWPlan1.md §4a).  The COUNT of redundant dimensions comes
 // from the overlap SPECTRUM (the gap), the WHICH from a pivoted-Cholesky ordering -- decoupled, so the whole
 // overlap-defined "block" is removed as a unit and no stray function is left behind by a tol heuristic.

@@ -22,8 +22,8 @@ using qchem::ChargeDensity::tChargeDensity;
 export namespace qchem::SCFIterator
 {
 
-//! Process-wide diagnostic toggle (default OFF), mirroring \c qchem::ReportOverlapConditioning and
-//! \c qchem::Hamiltonian::ReportGridCharge.  When true, the verbose per-iteration SCF line appends the
+//! Process-wide diagnostic toggle (default OFF), mirroring \c qchem::Hamiltonian::ReportGridCharge.  When
+//! true, the verbose per-iteration SCF line appends the
 //! frontier spectrum -- ε_HOMO, ε_LUMO and the gap ε_LUMO−ε_HOMO (Ha) -- from the current orbital energy
 //! levels.  The band-gap instrument for the NaF Γ-instability (doc/GPWPlan §0b″): a near-degenerate
 //! HOMO/LUMO (gap → 0) is the giant-response hypothesis; watching the gap per iteration lets the spurious

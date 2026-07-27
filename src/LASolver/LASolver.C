@@ -28,13 +28,6 @@ export namespace qchem
     //!        modes.  Tolerance: <0 = LAPACK default (n·eps·max diag), >0 = explicit absolute pivot floor.
     enum Ortho {Cholesky, Eigen, SVD, Auto, CholeskyPivoted};
 
-    //! Process-wide diagnostic toggle (default OFF).  When true, every LASolver::SetBasisOverlap emits a
-    //! one-line report of the basis overlap S -- min eigenvalue, min singular value, max eigenvalue, condition
-    //! number -- BEFORE the SCF iterations start, so a near-singular (small min eig) or indefinite (negative
-    //! min eig) overlap is visible without guessing/debugging.  A reference so callers flip it in place:
-    //! `qchem::ReportOverlapConditioning() = true;`.  Works for real and complex S, any ortho method.
-    bool& ReportOverlapConditioning();
-
     //! \brief BASIS-NEUTRAL linear-dependence detector: which basis functions are redundant in overlap S.
     //! Eigen-analyses S to find the near-null/physical spectral GAP -> the exact COUNT k of redundant
     //! dimensions (the "block", defined by the overlap numbers alone -- not by shells/polarization); then a
