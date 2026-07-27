@@ -5,6 +5,7 @@ module;
 #include <vector>
 #include <map>
 #include <algorithm>
+#include <sstream>
 #include "tabulate/table.hpp"
 module qchem.WaveFunction.Internal.CompositeWF;
 import qchem.WaveFunction.Types;
@@ -13,6 +14,7 @@ import qchem.CompositeCD;
 import qchem.ElectronConfiguration;
 import qchem.LASolver;
 import qchem.Orbitals;          // Orbital (eigen-energy, degeneracy) for the aufbau
+import qchem.Reporting;         // the run report -- this loop owns the basis.perIrrep / basis.removed rows
 
 namespace qchem::WaveFunction
 {
@@ -46,15 +48,37 @@ template <class T> tCompositeWF<T>::tCompositeWF(const tbs_t<T>* bs,const Electr
 
 };
 
+// Compact irrep label for the report (symmetry symbol + spin arrow), via the Streamable Write().
+static std::string IrrepLabel(const Irrep& q) { std::ostringstream os; q.Write(os); return os.str(); }
+
 template <class T> void tCompositeWF<T>::MakeIrrepWFs(Spin s)
 {
-
+    namespace rpt = qchem::report;
     for (auto b:itsBS->template Iterate<tobs_t<T>>())
     {
+        const hmat_t<T>& S = b->Overlap();
         LASolver<T>* lasb=LASolver<T>::Factory(itsBasisOrtho, itsBasisOrthoTol);
-        lasb->SetBasisOverlap(b->Overlap());
-        // std::cout << "Minimum singular value for basis set overlap= " << blaze::min(lasb->Get_BS_Diagonal()) << std::endl;
         Irrep qns(b->GetIrrep(s));
+
+        // This loop is the CONTEXT OWNER for the report's basis.perIrrep row: open the row (so the
+        // LASolver's conditioning write, five layers down in SetBasisOverlap, lands here without any
+        // irrep identity threaded to it), stamp the irrep + size, then solve.
+        {
+            rpt::Row row("perIrrep");
+            rpt::Set("irrep",      IrrepLabel(qns));
+            rpt::Set("nFunctions", (long)b->GetNumFunctions());
+            lasb->SetBasisOverlap(S);   // -> report::Set(lambdaMin/lambdaMax/cond) into THIS row
+        }
+        // basis.removed (report-only detector, doc/GPWPlan1.md §4a): the redundant AO functions this
+        // irrep's overlap carries.  Named by {irrep, index} for now -- exponent/atom naming awaits a
+        // per-function metadata accessor on the block (a §4a follow-up).  Empty on a healthy basis.
+        for (size_t idx : qchem::PivotedCholeskyDrops<T>(S))
+        {
+            rpt::Row r("removed");
+            rpt::Set("irrep", IrrepLabel(qns));
+            rpt::Set("index", (long)idx);
+        }
+
         tSCFIrrepAccelerator<T>* acc=itsAccelerator->Create(lasb,qns,itsEC->GetN(qns));
 
         uiwf_t wf(new iwf_t(b,lasb,qns,acc));

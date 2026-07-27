@@ -10,6 +10,7 @@
 import qchem.Calculation;
 import qchem.Structure;
 import qchem.Types;        // Vector3D
+import qchem.Reporting;    // report:: -- the run report the facade emits (scf section)
 using namespace qchem;
 
 using qchem::Calculation;
@@ -32,6 +33,66 @@ TEST(M_Calculation, WaterEnergy)
     const double E_ref = -76.022903;
     EXPECT_LT(std::fabs((E_ref - calc.Energy()) / E_ref), 1e-5);
     EXPECT_GT(calc.IterationCount(), 0u);
+}
+
+// The scf run-report SCHEMA CHECK (RunReportPlan step 1).  The provider (Calculation::Converge)
+// builds the `scf` section json directly; here we drive one Converge and assert the emitted shape --
+// this is the typo-catcher that replaces the compile-time key-safety we traded for "the report IS json".
+TEST(M_Calculation, ScfReportSchema)
+{
+    Molecule water = MakeWater();
+    Calculation calc(water, {.basis = "dzvp"});          // ctor's Converge emits scf into GlobalReport
+
+    // Find this run's scf section (the run key carries a timestamp, so scan for it).
+    const report::json* scf = nullptr;
+    const report::json& all = report::GlobalReport();
+    for (auto it = all.begin(); it != all.end(); ++it)
+        if (it.value().contains("scf")) scf = &it.value()["scf"];
+    ASSERT_NE(scf, nullptr) << "no run emitted an scf section";
+
+    ASSERT_TRUE(scf->contains("standard"));
+    ASSERT_TRUE(scf->contains("advanced"));
+    const report::json& std_ = (*scf)["standard"];
+    for (const char* k : { "nMaxIter", "minDrho", "minDFD", "minDE", "minFD",
+                           "mixer", "kerkerG0", "accelerator", "smearingkT" })
+        EXPECT_TRUE(std_.contains(k)) << "scf.standard missing key: " << k;
+    EXPECT_EQ(std_["accelerator"].get<std::string>(), "DIIS");   // facade default
+    EXPECT_EQ(std_["mixer"].get<std::string>(), "Lin");          // no Kerker/Pulay by default
+
+    const report::json& adv = (*scf)["advanced"];
+    for (const char* k : { "pulayDepth", "pulayStart", "useMOM", "momStartIter", "momSmearPenalty" })
+        EXPECT_TRUE(adv.contains(k)) << "scf.advanced missing key: " << k;
+    ASSERT_TRUE(adv.contains("guard"));
+    EXPECT_TRUE(adv["guard"].contains("holePersistence"));
+    EXPECT_TRUE(adv["guard"].contains("maxReleases"));
+}
+
+// The basis run-report SCHEMA CHECK (RunReportPlan step 2).  This is the cross-layer / cursor path:
+// the orchestrator stamps the scalars, while basis.perIrrep is filled by the LASolver's conditioning
+// write five layers down (MakeIrrepWFs owns the row).  Symmetry ON so C2v water yields several irreps
+// -> perIrrep is a genuine multi-row table, and each row must carry the LASolver-supplied conditioning.
+TEST(M_Calculation, BasisReportSchema)
+{
+    report::ClearGlobal();                                // isolate: only this test's run(s) remain
+    Calculation calc(MakeWater(), { .basis = "dzvp", .symmetry = true });
+
+    const report::json& all = report::GlobalReport();
+    const report::json* basis = nullptr;
+    for (auto it = all.begin(); it != all.end(); ++it)
+        if (it.value().contains("basis")) basis = &it.value()["basis"];
+    ASSERT_NE(basis, nullptr) << "no run emitted a basis section";
+
+    EXPECT_EQ((*basis)["name"].get<std::string>(), "dzvp");
+    EXPECT_EQ((*basis)["engine"].get<std::string>(), "mnd");
+    EXPECT_EQ((*basis)["angular"].get<std::string>(), "cartesian");
+    EXPECT_GT((*basis)["nFunctions"].get<int>(), 0);
+
+    ASSERT_TRUE(basis->contains("perIrrep"));
+    ASSERT_TRUE((*basis)["perIrrep"].is_array());
+    EXPECT_GE((*basis)["perIrrep"].size(), 2u) << "C2v water should split into several irreps";
+    for (const report::json& row : (*basis)["perIrrep"])
+        for (const char* k : { "irrep", "nFunctions", "lambdaMin", "lambdaMax", "cond" })
+            EXPECT_TRUE(row.contains(k)) << "perIrrep row missing key: " << k;   // cond came from the LASolver
 }
 
 // Parameter-free LDA molecular DFT through the facade (Dirac exchange + VWN5 correlation).  The facade

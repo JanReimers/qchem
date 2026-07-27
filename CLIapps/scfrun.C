@@ -21,6 +21,7 @@ import qchem.Structure;                    // Molecule, Atom (build a molecular 
 import qchem.Hamiltonian.Factory;         // XCFunctional (the exchange-functional selector)
 import qchem.PeriodicTable;               // thePeriodicTable(): symbol / per-Z Slater alpha
 import qchem.SCFIterator;                 // SCFParams
+import qchem.Reporting;                    // report::SetConsole -- render the run header to the terminal
 import qchem.Unittests.TestUtils;         // RelativeHFError / RelativeDHFError (Z-keyed oracle)
 import qchem.Symmetry.Irrep;              // Irrep
 import qchem.Symmetry.Spin;               // Spin
@@ -261,6 +262,10 @@ int main(int argc, char** argv)
         else if (a=="--valence") valence=std::stoi(need(i));
         else { cout<<"unknown option "<<argv[i]<<endl; usage(cout); return 1; }
     }
+    // Dogfood the reporting framework: render each run's report sections (today: the scf
+    // recipe header, emitted by the Calculation facade) to the terminal as they complete.
+    qchem::report::SetConsole(cout, qchem::report::Detail::Normal);
+
     bool dirac = (model=="DHF" || model=="DE1");
     bool dft   = (model=="LDA" || model=="DFT" || model=="Xalpha");
     bool ppmodel = (model=="PP"); // local-pseudopotential pseudo-atom (Ham_PP); --valence = valence e- count

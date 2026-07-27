@@ -1,7 +1,15 @@
 # RunReportPlan — a professional, JSON-ready reporting layer
 
-Status: PLAN (2026-07-26).  Consolidate the scattered setup diagnostics into one organized, machine-readable
-report — rendered as tidy terminal output today and JSON for the GUI tomorrow, from a single data model.
+Status: SKELETON + STEPS 1 (`scf`) & 2 (`basis`) DONE (2026-07-26); migration steps 3-4 pending.  Consolidate
+the scattered setup diagnostics into one organized, machine-readable report — rendered as tidy terminal output
+today and JSON for the GUI tomorrow, from a single data model.
+
+**Step 0 landed**: `qchem.Reporting` leaf module in `qcCommon` (`src/Common/Reporting.C` + `Imp/Reporting.C`) —
+`json = nlohmann::ordered_json` (ordered so sections keep emit order), global sink (`GlobalReport` keyed +
+key-free `CurrentRunReport`), `Begin`/`End` nesting with a depth counter, `SetConsole`/`EmitSection` (incremental
+depth-1-only console render), the ONE generic `RenderConsole` (layout inferred: key/value table | multi-column
+table | indented tree), `RenderJson=dump(2)`, and the `HintFor` format-hints table.  Schema-check + render tests
+in `src/Common/tests/Reporting.C` (9 green, part of `UTCommon`), plus a `DISABLED_VisualDump` for eyeballing.
 
 ## Motivation
 
@@ -58,6 +66,46 @@ that is neither table nor tree (e.g. a console sparkline/plot) — and the goal 
 `RenderConsole` is non-trivial (it may be a small class holding the generic table + generic tree walkers), but
 it stays GENERIC.  `RenderJson` is `report.dump()`.
 
+### Renderer vs SINK — where disk / rolling logs fit (2026-07-26)
+
+The "third renderer type for (rolling?) log files on disk" is best NOT modelled as a third renderer.  Two
+orthogonal axes:
+- **Renderer** = *json → representation*: `RenderConsole` (text, table/tree) and `RenderJson` (`dump()`).
+- **Sink** = *where the representation goes*: stdout, a file, a rolling file, an HDF5 group.
+
+A disk log is **(a renderer) × (a file sink)**, so `RenderConsole(json, ostream&)` already takes the sink as an
+`ostream&` — point it at an `ofstream` and you have a text sidecar; `RenderJson` gives the `report.json` sidecar
+for free.  Two disk stories, mapping onto different entities:
+1. **Per-run sidecar** (`report.json` / `report.txt`) — from `CurrentRunReport` at `End()`.  Essentially free.
+2. **Rolling cross-run log** — append-only, time-ordered, spanning runs, rotated by size/date.  Lives on
+   `GlobalReport`, not `CurrentRunReport`.  The *rotation* logic (open → size-check → rotate → retain) is a small
+   `RollingFileSink` that consumes whatever a renderer emits — it must NOT leak into `RenderConsole`.
+
+Incremental section-by-section rendering composes directly with a file sink (tee the same stream to disk; the
+crash-resilience argument gets stronger on disk).  So the seam is already right; **rotation policy is DEFERRED**
+until a concrete need — it drops in later as a `GlobalReport` sink, no renderer change.
+
+### SOLID target (DEFERRED — refactor after migration steps 1-4 land, when real usage is known)
+
+The skeleton is deliberately a flat namespace of free functions to get sections migrated and *see what lands*
+before committing to abstractions.  The target once the provider/client usage is concrete:
+- **ISP — two narrow facets over the one global sink.**  A *provider* facet (`CurrentRunReport()` + the typed
+  `EmitX(...)` writer helpers) is ALL a data provider sees — never Begin/End, GlobalReport, or renderers.  An
+  *orchestrator/client* facet (Begin/End lifecycle + render selection) is what `Calculation`/`RunGPW` see.
+  Same backing singleton, two segregated interfaces.
+- **DIP/LSP — an abstract `Renderer`.**  `class Renderer { virtual void Render(const json&, std::ostream&) = 0; };`
+  with concrete `ConsoleRenderer` / `JsonRenderer` (+ future `Html`/`Xml`/`Binary`/`Log`), selected by a factory
+  `std::unique_ptr<Renderer> MakeRenderer(RendererType{Console,Json,Html,Log,Xml,Binary,...})`.  Client code
+  depends on the abstraction, not the concretes.  `RenderConsole`/`RenderJson` become the method bodies.
+- **Renderer vs sink stays orthogonal here too.**  Console/Json/Html/Xml/Binary/`Log` are serialization FORMATS
+  (renderers: json→bytes); the `ostream&` is the SINK (stdout / file / rolling).  `Log` is a *line-oriented
+  renderer* (one timestamped line per section); rotation lives in the sink (`RollingFileSink`), not in `Log`.
+- **Why defer:** with only Console+Json real today, a hierarchy + factory would be speculative (YAGNI/`HTML`
+  et al. have no concrete requirements yet); the call sites are few and internal, so the lift is cheap later.
+
+`Begin(name)` auto-stamps `NowIso()` (production ergonomics); `Begin(name, startTime)` is the deterministic
+test/repro seam.
+
 ## Detail level (verbosity) — a CONSOLE-ONLY concern
 
 Like every logging framework, console output has a **detail level** (Terse / Normal / Verbose).  The rule:
@@ -71,15 +119,47 @@ structure; verbosity is a console filter.
 ## The safety we trade, and how we recover it
 
 The one thing structs check that json doesn't is **key/type typos**.  Recover it:
-1. Each section's keys live in ONE thin **writer helper** (`AddLadderLevel(json&, level, N, ecut, nG, role)`) —
-   typed params, not stringly-typed at every call site — plus a **schema-check unit test** asserting the
-   produced report's keys/shape.
+1. **A per-section schema-check test.**  The data provider builds the section json DIRECTLY (the report IS json —
+   no mediating C++ display struct; a struct is just a parallel field-list that duplicates the provider's own
+   state and drags domain vocabulary into the `qchem.Reporting` leaf).  The provider owns the key strings, right
+   where the section's semantics are understood; a **schema-check test** on the emitted json is the typo-catcher
+   that stands in for the compile-time check.  (DECISION 2026-07-26: an earlier draft routed each section through
+   a typed `EmitX(struct)` writer in the leaf — dropped.  The provider facet is just `{CurrentRunReport(),
+   EmitSection(name, json)}`, fully generic; this is the same compile-time→runtime compromise the codebase
+   already makes with cross-interface `dynamic_cast`.)
 2. **Units / precision** (needed regardless of the model): a small **format-hints** table (field name → unit +
-   precision) the renderer consults; unknown fields get a `%g` default.  Units stay in the schema doc, never
-   baked per value.
+   precision) the renderer consults; unknown fields get a `%g` default.  This is the ONE place domain field
+   NAMES appear on the render side, and it is display config, not data — units stay here + in the schema doc,
+   never baked per value.
 
 Both backends are already vendored: `submodules/tabulate` and `submodules/json` (nlohmann, already used in
 `src/Pseudopotential/Imp/GTH_Potentials.C`).
+
+## The section cursor — how a five-layers-down provider writes with NO threading (added 2026-07-26, step 2)
+
+`Begin`/`End` lets a deep provider write to "the current RUN" implicitly (it never sees a run key).  Step 2's
+`basis` section needs the same trick one level finer: the conditioning numbers are computed in the `LASolver`,
+five layers below the orchestrator (`SCFIterator → WaveFunction::Factory → tCompositeWF → MakeIrrepWFs →
+SetBasisOverlap`), and the `LASolver` does not know which irrep it is solving.  Rather than thread a `report&`
+or an irrep label down through every intervening constructor — signature pollution the global sink exists to
+avoid, and a problem that recurs at EVERY layer — the **sink holds a navigation cursor**:
+
+- The sink stores WHERE the next write lands (a **path** of object-key / array-index segments, NOT a raw
+  `json*` — `ordered_json` is vector-backed, so an insert can reallocate and dangle a pointer; we re-resolve
+  from the run root each write, depth ≤ 3).
+- An **ancestor** that knows the context opens it with an RAII handle: `report::Section basis("basis")` (a
+  top-level section, renders once on close), `report::Row row("perIrrep")` (append an array element, descend).
+- **Deep code writes context-free**: `report::Set("cond", x)` lands in the current run AND the current irrep
+  row, automatically.  `MakeIrrepWFs` opens the `Row`; `LASolver::report_conditioning` just `Set`s into it.
+- All ops are **inert when no run is open** (`Depth()==0`), so a kernel (`LASolver`) used outside a report —
+  every LASolver unit test, `BandStructure`, `A_Pool` — is completely unaffected.
+- RAII (not free Push/Pop) so an exception mid-assembly cannot leave the cursor dangling; the handles live ONLY
+  in the context-openers, so the deep provider still gets zero new parameters.  Nested runs (SAD bootstrap)
+  save/restore the outer cursor at `Begin`/`End`.
+
+This is the mechanism the "global sink" was always for; step 2 is where it earned its keep.  Cursor API:
+`Set(key, value)` + the `Section` / `Row` RAII handles (`src/Common/Reporting.C`).  Use the cursor for a section
+ASSEMBLED across layers (`basis`); use `EmitSection(name, json)` for one a single provider builds whole (`scf`).
 
 ## Vocabulary
 
@@ -176,9 +256,10 @@ Notes:
 | `cache` | the evaluator stream/integral caches | `IntegralsCache RAM usage report` |
 | `scf`   | `SCFParams` + mixer/accel `Tag()` | (nothing today) |
 
-The writer helpers live WITH the `qchem.Reporting` leaf (not the providers): a provider passes its typed data
-to `CurrentRunReport().EmitX(...)`; the provider owns WHEN/WHAT, the leaf owns HOW it's keyed.  All key names +
-shapes are then greppable in one module next to the schema-check test.
+The provider builds its section json directly and calls `CurrentRunReport()`/`EmitSection(name, json)`: the
+provider owns WHEN/WHAT **and the key strings** (co-located with the section's semantics), the leaf owns HOW it's
+filed + rendered.  Keys are greppable at the provider; the per-section schema-check test freezes the shape.
+(Superseded the earlier "typed `EmitX` writer helper in the leaf" idea — see "The safety we trade".)
 
 This "run header" is distinct from the two displays that already exist / are planned:
 1. **Run header** — this doc (basis, grids, cache, settings).  Rendered incrementally as setup proceeds.
@@ -197,15 +278,35 @@ Longer term all three are sections of one run *document* (the natural HDF5 / JSO
 
 ## Migration plan (incremental, one section per step, each independently shippable)
 
-0. **Skeleton**: `qchem.Reporting` module — the `json` alias, `GlobalReport`/`CurrentRunReport` with the
-   Begin/End key + depth machinery, the ONE generic `RenderConsole` (infer table/tree by depth+breadth, skip
-   empty sections), `RenderJson`=`dump()`, and the format-hints table.  Unit test: hand-build a report json,
-   render to console (golden-ish) and assert the schema (keys/shape) — the test IS the compile-time-check
-   replacement.
-1. **`scf`** (easiest — pure `SCFParams`): fill + render.  Proves the pipeline end-to-end; adds the
-   currently-missing "what recipe am I running" header.
-2. **`basis`**: fill from the basis + `PivotedCholeskyDrops`; retire `report_conditioning`'s line and the
-   `[ortho]` warning into `basis.perIrrep` + `basis.removed`.  **Delivers the fix-your-basis report.**
+0. **Skeleton** — ✅ DONE (2026-07-26).  `qchem.Reporting` module — the `json` alias (`ordered_json`),
+   `GlobalReport`/`CurrentRunReport` with the Begin/End key + depth machinery, `SetConsole`/`EmitSection`
+   (incremental depth-1 render), the ONE generic `RenderConsole` (infer table/tree by depth+breadth, skip empty
+   sections), `RenderJson`=`dump()`, and the format-hints table.  Unit test hand-builds a report json, renders to
+   console and asserts the schema (keys/shape) — the test IS the compile-time-check replacement.  NOTE:
+   `EmitSection` is the generic key-free emit; the typed `EmitX` writer helpers land WITH each section below.
+1. **`scf`** — ✅ DONE (2026-07-26).  The PROVIDER-FACET pattern in the flesh, and it is MINIMAL: the provider
+   (`Calculation::Converge`, via the `EmitScfSection` static) builds the `scf` section json DIRECTLY from
+   `SCFParams` + the accelerator tag (mixer DERIVED: Pulay>Kerker>linear) and calls `report::EmitSection("scf",
+   scf)` — no display struct, no typed leaf writer (that draft was dropped; see "The safety we trade").
+   `Converge` brackets the run (`Begin(structure.ID())` + an RAII `End()` guard so a throwing `Iterate` can't
+   leak the run-context stack).  The facade only RECORDS (into `GlobalReport`); `scfrun` opts into console
+   rendering via `report::SetConsole(cout)` — the first dogfood.  Schema-check test = `M_Calculation.
+   ScfReportSchema` (with the provider, asserts the emitted keys/shape); full `ctest -j16` green (599/599).
+   NOTES: (a) `ortho`/`accelerator` are additive; `ortho` fills when the `basis`/LASolver section lands.
+   (b) `minDE=1e30` sentinel renders as `1e+30` ("off") — a future display nicety could show "off".  (c) scfrun
+   shows the header twice (facade ctor auto-converges, then scfrun re-converges) — each `Converge` is correctly
+   its own run, not a bug.
+2. **`basis`** — ✅ DONE (2026-07-26).  The CURSOR path (see "The section cursor" above).  `MakeIrrepWFs` opens
+   a `report::Row("perIrrep")` per irrep block and stamps `irrep`/`nFunctions`; `LASolver::report_conditioning`
+   `Set`s `lambdaMin`/`lambdaMax`/`cond` into that row from five layers down (its `[overlap S]` console line
+   kept behind the existing default-OFF toggle, now feeding the report whenever a run is open).  `basis.removed`
+   comes from `PivotedCholeskyDrops` per block (empty on a healthy basis).  The orchestrator opens the
+   `Section("basis")` and stamps `name`/`engine`/`angular`/`nFunctions`.  Schema test `M_Calculation.
+   BasisReportSchema` (symmetry ON → multi-row `perIrrep` table); `ctest -j16` green (604/604, timing flat).
+   LIMITATION: `basis.removed` names by `{irrep, index}` only — the schema's `L`/`alpha`/`atom`/`position`
+   naming ("the fix-your-basis report") needs a per-function metadata accessor on the block that does not exist
+   yet; that enrichment is a §4a-actuator follow-up.  The `[ortho]` drop warnings still `cerr` (not yet retired;
+   `removed` now carries the same information structurally).
 3. **`grids`**: move the `[GPW grid]` ladder prints into `grids.ladder`.
 4. **`cache`**: move the `IntegralsCache RAM usage report` into `cache`.
 Each step deletes scattered `cout`s and adds one tidy block; behaviour is otherwise unchanged.

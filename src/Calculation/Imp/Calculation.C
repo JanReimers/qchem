@@ -20,6 +20,7 @@ import qchem.Pseudopotential.GTH_Potentials;         // GetGTH (Zion for the val
 import qchem.SCFAccelerator.Factory;                // SCFAccelerators::Type, Factory
 import qchem.WaveFunction;                           // WaveFunction (GetChargeDensity/GetOrbitals/GetQNs)
 import qchem.Orbitals;                               // Orbital, Orbitals
+import qchem.Reporting;                              // report:: run sink + the scf-section writer
 
 namespace qchem
 {
@@ -99,6 +100,39 @@ static std::vector<std::pair<std::string,int>> PPSpecies(const Structure& st)
     return species;
 }
 
+// Build the report's `scf` section json straight from the SCF knobs -- the report IS json, so this
+// provider owns the keys (no mediating struct).  standard = the settled recipe surface; advanced = the
+// pathological-case dials (doc/RunReportPlan.md schema).  mixer is DERIVED (Pulay > Kerker > linear);
+// accelerator is the chosen engine tag.  EmitSection records it (and renders it iff a console is set).
+static void EmitScfSection(const SCFParams& p, const std::string& accelerator)
+{
+    namespace rpt = qchem::report;
+    rpt::json standard;
+    standard["nMaxIter"]    = long(p.NMaxIter);
+    standard["minDrho"]     = p.MinΔρ;
+    standard["minDFD"]      = p.MinΔFD;
+    standard["minDE"]       = p.MinΔE;
+    standard["minFD"]       = p.MinFD;
+    standard["mixer"]       = p.PulayDepth > 0 ? "Pul" : (p.KerkerG0 > 0.0 ? "Ker" : "Lin");
+    standard["kerkerG0"]    = p.KerkerG0;
+    standard["accelerator"] = accelerator;
+    standard["smearingkT"]  = p.SmearingkT;   // ortho fills when the basis/LASolver section lands
+
+    rpt::json advanced;
+    advanced["pulayDepth"]      = p.PulayDepth;
+    advanced["pulayStart"]      = p.PulayStart;
+    advanced["useMOM"]          = p.UseMOM;
+    advanced["momStartIter"]    = p.MOMStartIter;
+    advanced["momSmearPenalty"] = p.MOMSmearPenalty;
+    advanced["guard"]["holePersistence"] = p.Guard.HolePersistence;
+    advanced["guard"]["maxReleases"]     = p.Guard.MaxReleases;
+
+    rpt::json scf;
+    scf["standard"] = standard;
+    scf["advanced"] = advanced;
+    rpt::EmitSection("scf", scf);
+}
+
 Calculation::Calculation(const Structure& st, const CalcOptions& opts, const AcceleratorOptions& acc)
     : itsStructure(st.Clone())   // polymorphic deep copy: the facade owns its own structure AND keeps its
                                  // concrete geometry (a UnitCell stays periodic, not sliced to a Molecule)
@@ -158,9 +192,29 @@ bool Calculation::Converge(const SCFParams& params)
     using qchem::ChargeDensity::SeedStrategy;
     const auto seed = (itsOpts.seed != SeedStrategy::Default) ? itsOpts.seed
                       : (dft ? SeedStrategy::SAD : SeedStrategy::Default);
-    itsScf = new SCFIter(itsBasis, itsEC, ham, accel, seed, itsStructure.get());
-    if (itsObserver) itsScf->SetObserver(itsObserver);
 
+    // Open a run report for the whole SCF (the RAII guard guarantees End() even if a step throws,
+    // so a failed run never leaks the sink's run-context / cursor stacks).  The report only RECORDS
+    // unless a client attached a console via report::SetConsole.
+    namespace rpt = qchem::report;
+    rpt::Begin(itsStructure->ID());
+    struct RunScope { ~RunScope() { rpt::End(); } } runScope;
+    EmitScfSection(params, itsAcc.type);               // the "what recipe am I running" header
+
+    // The `basis` section is ASSEMBLED across layers: the orchestrator stamps the scalars, then the WF
+    // build (inside `new SCFIter`) fills basis.perIrrep + basis.removed via the cursor five layers down
+    // (MakeIrrepWFs owns the rows, the LASolver writes the conditioning).  The Section renders it once,
+    // complete, when this scope closes.
+    {
+        rpt::Section basis("basis");
+        rpt::Set("name",       itsOpts.basis);
+        rpt::Set("engine",     itsOpts.engine  == Engine::LibCint  ? "libcint"   : "mnd");
+        rpt::Set("angular",    itsOpts.angular == Angular::Spherical ? "spherical" : "cartesian");
+        rpt::Set("nFunctions", (long)itsBasis->GetNumFunctions());
+        itsScf = new SCFIter(itsBasis, itsEC, ham, accel, seed, itsStructure.get());
+    }
+
+    if (itsObserver) itsScf->SetObserver(itsObserver);
     bool ok = itsScf->Iterate(params);
     RebuildSampling();
     return ok;

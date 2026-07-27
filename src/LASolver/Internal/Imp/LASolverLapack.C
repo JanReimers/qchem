@@ -9,21 +9,34 @@ module;
 #include <vector>
 module qchem.LASolver.Internal.Lapack;
 import qchem.Blaze;
+import qchem.Reporting;                              // the run report -- conditioning lands in basis.perIrrep
 
 namespace qchem {
 
-// One-line conditioning report of the basis overlap S (min/max eigenvalue, min singular value = min|eig| for
-// Hermitian S, condition number), emitted at SetBasisOverlap when the process-wide toggle is on -- so a
-// near-singular (small min eig) or indefinite (negative min eig -> Cholesky then fails) overlap is visible.
+// Conditioning of the basis overlap S (min/max eigenvalue, min singular value = min|eig| for Hermitian S,
+// condition number), emitted at SetBasisOverlap.  TWO sinks, each opt-in and independent: the legacy console
+// line (process-wide toggle, default OFF) AND -- this is the point of the swap -- the run report, whenever one
+// is open.  The report write is CONTEXT-FREE: an ancestor (MakeIrrepWFs) has opened the current basis.perIrrep
+// row, so `report::Set` lands in the right irrep with no irrep identity threaded down to this kernel.
 template <class T> static void report_conditioning(const hmat_t<T>& S)
 {
-    if (!ReportOverlapConditioning()) return;
+    const bool toConsole = ReportOverlapConditioning();
+    const bool toReport  = report::Depth() > 0;      // a run report is open
+    if (!toConsole && !toReport) return;             // neither sink wants it -> skip the eigen entirely
     rvec_t d; mat_t<T> U;
     blazem::eigen(S, d, U);                          // ascending eigenvalues of the Hermitian overlap
     double mn = d[0], mx = d[d.size()-1], msv = std::fabs(d[0]);
     for (double v : d) msv = std::min(msv, std::fabs(v));
-    std::cout << "[overlap S] n=" << S.rows() << "  min eig=" << mn << "  min sv=" << msv
-              << "  max eig=" << mx << "  cond=" << (msv > 0 ? mx/msv : 0.0) << std::endl;
+    const double cond = (msv > 0 ? mx/msv : 0.0);
+    if (toConsole)
+        std::cout << "[overlap S] n=" << S.rows() << "  min eig=" << mn << "  min sv=" << msv
+                  << "  max eig=" << mx << "  cond=" << cond << std::endl;
+    if (toReport)
+    {
+        report::Set("lambdaMin", mn);
+        report::Set("lambdaMax", mx);
+        report::Set("cond",      cond);
+    }
 }
 
 // Gap-detection auto-tolerance (doc/GPWPlan §1 step 2).  Given the ASCENDING overlap eigenvalues w, decide
