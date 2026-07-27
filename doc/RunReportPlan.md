@@ -2,9 +2,16 @@
 
 Status: SKELETON + ALL FOUR SECTIONS (`scf`, `basis`, `grids`, `cache`) DONE (2026-07-26) — the migration is
 COMPLETE.  Consolidate the scattered setup diagnostics into one organized, machine-readable report — rendered as
-tidy terminal output today and JSON for the GUI tomorrow, from a single data model.  Remaining/future work:
-the SOLID refactor (deferred, see "SOLID target"), `basis.removed` exponent/atom naming, the GPW stream-cache
-section, and disk/rolling-log sinks.
+tidy terminal output today and JSON for the GUI tomorrow, from a single data model.
+
+Post-migration polish (2026-07-26): unused cache tiers (0 RAM) and untouched reuse caches are dropped; the legacy
+dtor `percent(0,0)` `-nan%` guarded to `0%`; `FormatHint.fixed` gives clean fixed-point percentages/MB.  The GPW
+`[stream cache]` collocation-coverage line is folded into `grids.stream` via a new `report::EmitAt(section, key,
+value)` (write a late sub-block into an already-emitted section + render just that block; it builds after the
+grids table renders).  Remaining/future work: the SOLID refactor (deferred, see "SOLID target"),
+`basis.removed` exponent/atom naming, disk/rolling-log sinks, and a NON-reporting finding the report surfaced —
+the SCF setup builds grids BEFORE the overlap-conditioning eigen-analysis (a potential show-stopper), so a
+singular basis is detected only after the grid ladder is built; a fail-fast reorder is worth considering.
 
 **Step 0 landed**: `qchem.Reporting` leaf module in `qcCommon` (`src/Common/Reporting.C` + `Imp/Reporting.C`) —
 `json = nlohmann::ordered_json` (ordered so sections keep emit order), global sink (`GlobalReport` keyed +

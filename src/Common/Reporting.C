@@ -112,6 +112,11 @@ void EmitSection(const std::string& name, json section);
 //! the call site (the leaf carries no domain types).
 void Set(const std::string& key, json value);
 
+//! Write a sub-block `value` under `section[key]` and render JUST that sub-block to the console (heading
+//! "section ▸ key").  For a late addendum to an ALREADY-emitted section -- e.g. a grids.stream that
+//! builds after the grids table rendered.  A no-op when no run is open.  Cursor-independent (absolute path).
+void EmitAt(const std::string& section, const std::string& key, json value);
+
 //! RAII: open a TOP-LEVEL section `name` (cursor descends into it) and RENDER it to
 //! the console once, complete, when the scope closes (the incremental unit -- a crash
 //! mid-assembly still renders what completed).  Use for a section ASSEMBLED across

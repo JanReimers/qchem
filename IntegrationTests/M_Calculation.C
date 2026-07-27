@@ -111,7 +111,7 @@ TEST(M_Calculation, CacheReportSchema)
 
     ASSERT_TRUE(cache->contains("tiers"));
     ASSERT_TRUE((*cache)["tiers"].is_array());
-    EXPECT_GE((*cache)["tiers"].size(), 3u);            // Jac, Kab, Cach4
+    EXPECT_GE((*cache)["tiers"].size(), 2u);            // Jac, Kab (Cach4 unused by HF -> dropped, not shown)
     for (const report::json& t : (*cache)["tiers"])
         for (const char* k : { "name", "ramMB", "pct" })
             EXPECT_TRUE(t.contains(k)) << "tier row missing key: " << k;

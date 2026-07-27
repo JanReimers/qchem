@@ -40,6 +40,7 @@ import qchem.Structure;
 import qchem.UnitCell;                                             // UnitCell (ToCartesian/ToFractional: grid<->cell for collocation)
 import qchem.Types;
 import qchem.Blaze;                                                // rsmat_t (the lattice-sum matrices)
+import qchem.Reporting;                                            // fold the stream-cache coverage into grids.stream
 
 export namespace qchem::BasisSet::Molecule::Evaluators::PG_Cart_MnD
 {
@@ -667,15 +668,31 @@ public:
             else { ps.offsets.clear(); ps.offsets.shrink_to_fit(); ptsDropped+=pts; }
         }
         c.droppedPts=ptsDropped;
-        // One-line readout per cache build (static setup, not per-iteration): the budget headroom is THE lever
+        // Coverage readout per cache build (static setup, not per-iteration): the budget headroom is THE lever
         // for the analytic path's speed, so make coverage visible (dropped pairs re-evaluate every iteration).
-        // Budgets printed are the EFFECTIVE (env-overridable) values, not the compile-time constants.
-        std::cerr << "[stream cache] shape=(";
-        for (size_t l=0;l<N_L.size();l++) std::cerr << (l?",":"") << N_L[l].x;
-        std::cerr << ") rule=" << (absRelCutoff>0.0 ? "abs " : "rel ") << absRelCutoff << "  pairs " << nPairs
-                  << ": fp64 " << nCached64 << " (" << pts64 << " pts), fp32 " << nCached32
-                  << " (" << pts32 << " pts), dropped " << ptsDropped
-                  << " pts (budgets " << BudgetPts() << "/" << BudgetPtsF32() << ")" << std::endl;
+        // Fold it into the run report's grids.stream when a run is open (it is grid metadata -- the density-
+        // collocation coverage over the grid ladder); else keep the legacy one-line cerr (unbracketed builds).
+        if (qchem::report::Depth() > 0)
+        {
+            qchem::report::json s;
+            s["rule"]      = (absRelCutoff > 0.0 ? "abs" : "rel");
+            s["relCutoff"] = absRelCutoff;
+            s["pairs"]     = (long)nPairs;
+            s["fp64"]      = (long)nCached64;  s["pts64"] = (long)pts64;
+            s["fp32"]      = (long)nCached32;  s["pts32"] = (long)pts32;
+            s["dropped"]   = (long)ptsDropped;
+            s["budget64"]  = (long)BudgetPts(); s["budget32"] = (long)BudgetPtsF32();
+            qchem::report::EmitAt("grids", "stream", s);
+        }
+        else
+        {
+            std::cerr << "[stream cache] shape=(";
+            for (size_t l=0;l<N_L.size();l++) std::cerr << (l?",":"") << N_L[l].x;
+            std::cerr << ") rule=" << (absRelCutoff>0.0 ? "abs " : "rel ") << absRelCutoff << "  pairs " << nPairs
+                      << ": fp64 " << nCached64 << " (" << pts64 << " pts), fp32 " << nCached32
+                      << " (" << pts32 << " pts), dropped " << ptsDropped
+                      << " pts (budgets " << BudgetPts() << "/" << BudgetPtsF32() << ")" << std::endl;
+        }
         return c;
     }
 

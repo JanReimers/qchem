@@ -31,7 +31,7 @@ template <class T> size_t IntegralsCache_RAM<T>::Report(const map4_t& m4, const 
 
 std::string percent(size_t n, size_t total)
 {
-    double p= (100.0*n)/total;
+    double p = total ? (100.0*n)/total : 0.0;   // guard 0/0 -> "0%" instead of "-nan%"
     std::ostringstream os;
     os << " " << std::setprecision(0) << std::fixed << std::setw(3) << p << "%";
     return os.str();
@@ -85,15 +85,21 @@ template <class T> void IntegralsCache_RAM<T>::EmitReport() const
     auto pct = [&](size_t n) { return total ? 100.0 * n / total : 0.0; };
 
     rpt::json tiers = rpt::json::array();
-    tiers.push_back({ { "name", "Jac"   }, { "ramMB", J_ram   * sizeof(T) / mb }, { "pct", pct(J_ram) } });
-    tiers.push_back({ { "name", "Kab"   }, { "ramMB", K_ram   * sizeof(T) / mb }, { "pct", pct(K_ram) } });
-    tiers.push_back({ { "name", "Cach4" }, { "ramMB", cach4_ram          / mb }, { "pct", pct(cach4_ram) } });
+    auto addTier = [&](const char* name, double ramMB, size_t raw)   // skip a tier that holds nothing
+    {
+        if (raw == 0) return;
+        tiers.push_back({ { "name", name }, { "ramMB", ramMB }, { "pct", pct(raw) } });
+    };
+    addTier("Jac",   J_ram     * sizeof(T) / mb, J_ram);
+    addTier("Kab",   K_ram     * sizeof(T) / mb, K_ram);
+    addTier("Cach4", cach4_ram             / mb, cach4_ram);
 
     rpt::json reuse = rpt::json::array();
     auto addReuse = [&](const std::string& name, size_t inserts, size_t lookups, double ramMB)
     {
+        if (lookups == 0) return;   // an untouched cache: nothing to report
         reuse.push_back({ { "cache", name }, { "entries", (long)inserts }, { "lookups", (long)lookups },
-                          { "reusePct", lookups ? 100.0 * (1.0 - double(inserts) / double(lookups)) : 0.0 },
+                          { "reusePct", 100.0 * (1.0 - double(inserts) / double(lookups)) },
                           { "ramMB", ramMB } });
     };
     for (auto& i : itsCache2s) addReuse(i.first, i.second->Inserts(), i.second->Lookups(), i.second->RAMsize()/mb);
@@ -101,9 +107,9 @@ template <class T> void IntegralsCache_RAM<T>::EmitReport() const
     for (auto& i : itsCache4s) addReuse(i.first, i.second->Inserts(), i.second->Lookups(), i.second->RAMsize()/mb);
 
     rpt::json cache;
-    cache["tiers"] = tiers;
+    if (!tiers.empty()) cache["tiers"] = tiers;
     if (!reuse.empty()) cache["reuse"] = reuse;
-    rpt::EmitSection("cache", cache);
+    if (!cache.empty()) rpt::EmitSection("cache", cache);   // nothing cached -> no section
 }
 
 std::ostream& operator << (std::ostream& os, const std::pair<IntegralsCache_Base::IBS_ID_t,IntegralsCache_Base::IBS_ID_t>& ids)

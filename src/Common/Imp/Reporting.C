@@ -293,6 +293,17 @@ void Set(const std::string& key, json value)
     if (json* n = cursorNode()) (*n)[key] = std::move(value);
 }
 
+void EmitAt(const std::string& section, const std::string& key, json value)
+{
+    if (g_stack.empty()) return;                       // inert outside a run
+    g_stack.back().doc[section][key] = value;
+    if (g_console && Depth() == 1 && !value.empty())   // render just this sub-block, incrementally
+    {
+        *g_console << "\n" << section << " ▸ " << key << "\n";
+        RenderConsole(value, *g_console, g_detail);
+    }
+}
+
 Section::Section(const std::string& name) : itsName(name), itsDepth(g_cursor.size())
 {
     if (g_stack.empty()) return;                           // inert outside a run
