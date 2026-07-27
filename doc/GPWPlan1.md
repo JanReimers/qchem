@@ -45,10 +45,7 @@ Layout: **DONE** (condensed highlights — full detail in the cited commit messa
   PivotedCholeskyDrops(S)` (basis-neutral — eigen GAP gives the drop COUNT, pivoted Cholesky the ORDER);
   the molecular subset ctor.  Detector done; the ACTUATOR (prune/report) is open — see pending §4a.
 
----
-
-# Forward roadmap (agreed 2026-07-26 — toward an honest metal + Fermi-smearing test)
-
+New set of numbers.
 **0. REPORTING FEATURE** — build `doc/RunReportPlan.md`.  `qchem.Reporting`: the report IS json, a generic
 console renderer (layout INFERRED from json structure — table vs tree; NO per-section renderers), a global
 sink (`GlobalReport` keyed + key-free `CurrentRunReport`), incremental section-by-section rendering, detail
@@ -62,6 +59,11 @@ brackets the GPW run, which also gave GPW `basis.perIrrep` free); `cache` → pe
 integrals cache (`IntegralsCache::EmitReport`, cumulative, never cleared).  Rendered by `scfrun`/`RunGPW` verbose
 (`SetConsole`); `ctest -j16` green (606/606).  Remaining: SOLID refactor (deferred), `basis.removed` naming, GPW
 stream-cache section, disk/rolling-log SINK (deferred; see RunReportPlan "Renderer vs SINK").
+
+---
+
+# Forward roadmap (agreed 2026-07-26 — toward an honest metal + Fermi-smearing test)
+
 
 **1. VALENCE-BASIS-GEN CLI + an Al basis** — extract `IntegrationTests/ValenceBasisGen_UT.C` into a standalone
 `CLIapps/valgen.C` (mirror `CLIapps/scfrun.C`; thin arg-parser over the existing `qchem.ValenceBasisGen`
