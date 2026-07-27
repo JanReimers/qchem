@@ -216,6 +216,12 @@ bool Calculation::Converge(const SCFParams& params)
 
     if (itsObserver) itsScf->SetObserver(itsObserver);
     bool ok = itsScf->Iterate(params);
+
+    // Snapshot the integrals cache into the run's `cache` section (RunReportPlan step 4), inside the bracket.
+    // The cache is a process-wide singleton NEVER cleared between runs, so this is cumulative-to-this-point --
+    // exact for a one-run process, the running total in a multi-run one.
+    qchem::BasisSet::theCache<double>().EmitReport();
+
     RebuildSampling();
     return ok;
 }

@@ -95,6 +95,34 @@ TEST(M_Calculation, BasisReportSchema)
             EXPECT_TRUE(row.contains(k)) << "perIrrep row missing key: " << k;   // cond came from the LASolver
 }
 
+// The cache run-report SCHEMA CHECK (RunReportPlan step 4).  Converge snapshots the integrals cache into the
+// run's `cache` section AFTER Iterate (inside the run bracket).  The cache is a process-wide singleton never
+// cleared between runs, so the numbers are cumulative -- here we only assert the shape.
+TEST(M_Calculation, CacheReportSchema)
+{
+    report::ClearGlobal();                               // isolate the REPORT (the cache itself is never cleared)
+    Calculation calc(MakeWater(), { .basis = "dzvp" });  // HF over dzvp populates Jac/Kab + the Omega/Hermite caches
+
+    const report::json& all = report::GlobalReport();
+    const report::json* cache = nullptr;
+    for (auto it = all.begin(); it != all.end(); ++it)
+        if (it.value().contains("cache")) cache = &it.value()["cache"];
+    ASSERT_NE(cache, nullptr) << "no run emitted a cache section";
+
+    ASSERT_TRUE(cache->contains("tiers"));
+    ASSERT_TRUE((*cache)["tiers"].is_array());
+    EXPECT_GE((*cache)["tiers"].size(), 3u);            // Jac, Kab, Cach4
+    for (const report::json& t : (*cache)["tiers"])
+        for (const char* k : { "name", "ramMB", "pct" })
+            EXPECT_TRUE(t.contains(k)) << "tier row missing key: " << k;
+
+    ASSERT_TRUE(cache->contains("reuse"));              // HF/dzvp exercises the Omega + Hermite caches
+    ASSERT_TRUE((*cache)["reuse"].is_array());
+    ASSERT_GE((*cache)["reuse"].size(), 1u);
+    for (const char* k : { "cache", "entries", "lookups", "reusePct", "ramMB" })
+        EXPECT_TRUE((*cache)["reuse"][0].contains(k)) << "reuse row missing key: " << k;
+}
+
 // Parameter-free LDA molecular DFT through the facade (Dirac exchange + VWN5 correlation).  The facade
 // auto-selects the SAD seed and DIIS-from-start for DFT; CalcOptions.mesh defaults to molecular values.
 // "Did E move" regression sentinel, like the HF anchor (NOT a physical-accuracy claim).

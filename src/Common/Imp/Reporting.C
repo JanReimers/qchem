@@ -148,6 +148,7 @@ std::string fmtOne(const json& v, const FormatHint& h)
     if (v.is_number_float())
     {
         std::ostringstream ss;
+        if (h.fixed) ss << std::fixed;                     // decimal places (percentages, MB) vs sig-figs
         ss << std::setprecision(h.precision > 0 ? h.precision : 6) << v.get<double>();
         return ss.str();
     }
@@ -326,8 +327,8 @@ FormatHint HintFor(const std::string& field)
     static const std::vector<std::pair<std::string, FormatHint>> hints = {
         { "densityEcut",   { "Ha", 6 } }, { "ecut",       { "Ha", 6 } },
         { "cond",          { "",   3 } }, { "lambdaMin",  { "",   3 } },
-        { "lambdaMax",     { "",   3 } }, { "ramMB",      { "MB", 1 } },
-        { "reusePct",      { "%",  1 } }, { "pct",        { "%",  1 } },
+        { "lambdaMax",     { "",   3 } }, { "ramMB",      { "MB", 3, true } },
+        { "reusePct",      { "%",  1, true } }, { "pct",   { "%",  1, true } },
         { "alpha",         { "a.u.", 4 } }, { "kappa",    { "",   4 } },
         { "cutoffFactor",  { "",   3 } }, { "fieldSharpness", { "", 4 } },
         { "smearingkT",    { "Ha", 6 } }, { "minDE",      { "",   2 } },

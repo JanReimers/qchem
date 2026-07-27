@@ -108,6 +108,10 @@ public:
     virtual void Register(Cache3_Client* eval)=0;
     virtual const Cache3* GetCache3(const RadialTypeID_t& type) const=0;
 
+    // Snapshot the current (cumulative) RAM/reuse stats into the open run report's `cache` section
+    // (RunReportPlan step 4).  A no-op when no run is open.  The cache is NEVER cleared between runs, so a
+    // per-run snapshot is cumulative-to-that-point -- exact for a one-run process, the running total otherwise.
+    virtual void EmitReport() const=0;
 };
 
 // Construct-on-first-use accessor for the one process-wide integrals cache (replaces the old raw

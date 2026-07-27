@@ -161,7 +161,7 @@ std::string RenderJson(const json& node);
 // units live HERE (and in the schema doc), never baked into the data values.
 // Unknown fields fall back to a %g-ish default.
 //============================================================================
-struct FormatHint { std::string unit; int precision; };
+struct FormatHint { std::string unit; int precision; bool fixed = false; };  //!< fixed => decimal places, not sig-figs
 FormatHint HintFor(const std::string& field);
 
 } // export namespace qchem::report

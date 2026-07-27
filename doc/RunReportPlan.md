@@ -1,8 +1,10 @@
 # RunReportPlan — a professional, JSON-ready reporting layer
 
-Status: SKELETON + STEPS 1 (`scf`), 2 (`basis`) & 3 (`grids`) DONE (2026-07-26); migration step 4 (`cache`)
-pending.  Consolidate the scattered setup diagnostics into one organized, machine-readable report — rendered as
-tidy terminal output today and JSON for the GUI tomorrow, from a single data model.
+Status: SKELETON + ALL FOUR SECTIONS (`scf`, `basis`, `grids`, `cache`) DONE (2026-07-26) — the migration is
+COMPLETE.  Consolidate the scattered setup diagnostics into one organized, machine-readable report — rendered as
+tidy terminal output today and JSON for the GUI tomorrow, from a single data model.  Remaining/future work:
+the SOLID refactor (deferred, see "SOLID target"), `basis.removed` exponent/atom naming, the GPW stream-cache
+section, and disk/rolling-log sinks.
 
 **Step 0 landed**: `qchem.Reporting` leaf module in `qcCommon` (`src/Common/Reporting.C` + `Imp/Reporting.C`) —
 `json = nlohmann::ordered_json` (ordered so sections keep emit order), global sink (`GlobalReport` keyed +
@@ -317,7 +319,16 @@ Longer term all three are sections of one run *document* (the natural HDF5 / JSO
    BONUS: that Section means GPW ALSO gets `basis.perIrrep` — per-Bloch-block conditioning through the SAME
    cursor path as step 2 (the `LASolver` `dcmplx` write).  Schema test `GPW_SCF.GridsReportSchema`; `ctest -j16`
    green (605/605).
-4. **`cache`**: move the `IntegralsCache RAM usage report` into `cache`.
+4. **`cache`** — ✅ DONE (2026-07-26).  PER-RUN SNAPSHOT (user decision): the `IntegralsCache` is a process-wide
+   singleton whose `~dtor` `ReportRAMUsage(cout)` is CUMULATIVE across all runs, not per-run.  So a new
+   `IntegralsCache<T>::EmitReport()` (virtual, built in `IntegralsCache_RAM`) snapshots the current stats into
+   the open run's `cache` section (`tiers` [Jac/Kab/Cach4 ramMB+pct] + `reuse` [per Cache2/3/4:
+   entries/lookups/reusePct/ramMB]); `Calculation::Converge` calls it AFTER `Iterate`, inside the bracket.  The
+   cache is NEVER cleared between runs (user pin), so each snapshot is cumulative-to-that-point — exact for a
+   one-run process, the running total otherwise; the legacy dtor `cout` stays as the process-level summary.
+   Added `FormatHint.fixed` (decimal places vs sig-figs) so percentages/MB render `50.0`/`99.9`/`28.078`, not
+   `5e+01`.  Schema test `M_Calculation.CacheReportSchema`; `ctest -j16` green (606/606).  NOTE: this is the
+   MOLECULAR cache (`theCache<double>`); the GPW `[stream cache]` is a separate cache, a future section.
 Each step deletes scattered `cout`s and adds one tidy block; behaviour is otherwise unchanged.
 
 ## JSON-for-GUI decisions to lock now

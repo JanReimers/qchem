@@ -53,15 +53,15 @@ Layout: **DONE** (condensed highlights — full detail in the cited commit messa
 console renderer (layout INFERRED from json structure — table vs tree; NO per-section renderers), a global
 sink (`GlobalReport` keyed + key-free `CurrentRunReport`), incremental section-by-section rendering, detail
 level console-only.  Consolidates the scattered `[GPW grid]`/`[overlap S]`/cache-RAM/SCF-settings prints.
-**Skeleton + steps 1 (`scf`), 2 (`basis`) & 3 (`grids`) ✅ DONE (2026-07-26)** — module + generic renderer +
-sink; provider facet is `{CurrentRunReport, EmitSection(name, json)}` plus a **section CURSOR** (`Set` + RAII
-`Section`/`Row`) that lets a five-layers-down provider (the `LASolver` conditioning) write context-free — no
-`report&`/irrep threaded through the physics.  Step 1 → `Calculation::Converge`; step 2 → `basis.perIrrep`
-(conditioning) + `basis.removed` (`PivotedCholeskyDrops`) via the cursor; step 3 → `grids.ladder` from
-`GPW_Evaluator::EmitGridsReport`, with `RunGPW` now bracketing the GPW run (which also gave GPW its
-`basis.perIrrep` for free).  Rendered by `scfrun`/`RunGPW` verbose (`SetConsole`); `ctest -j16` green (605/605).
-Migration step 4 (`cache`) pending.  (Disk/rolling-log = a SINK, not a renderer — deferred; see RunReportPlan
-"Renderer vs SINK".)
+**✅ DONE (2026-07-26) — migration COMPLETE (all 4 sections)** — module + generic renderer + sink; provider
+facet is `{CurrentRunReport, EmitSection(name, json)}` plus a **section CURSOR** (`Set` + RAII `Section`/`Row`)
+that lets a five-layers-down provider (the `LASolver` conditioning) write context-free — no `report&`/irrep
+threaded through the physics.  `scf` → `Calculation::Converge`; `basis` → `perIrrep` (conditioning) + `removed`
+(`PivotedCholeskyDrops`) via the cursor; `grids` → `grids.ladder` from `GPW_Evaluator::EmitGridsReport` (`RunGPW`
+brackets the GPW run, which also gave GPW `basis.perIrrep` free); `cache` → per-run snapshot of the singleton
+integrals cache (`IntegralsCache::EmitReport`, cumulative, never cleared).  Rendered by `scfrun`/`RunGPW` verbose
+(`SetConsole`); `ctest -j16` green (606/606).  Remaining: SOLID refactor (deferred), `basis.removed` naming, GPW
+stream-cache section, disk/rolling-log SINK (deferred; see RunReportPlan "Renderer vs SINK").
 
 **1. VALENCE-BASIS-GEN CLI + an Al basis** — extract `IntegrationTests/ValenceBasisGen_UT.C` into a standalone
 `CLIapps/valgen.C` (mirror `CLIapps/scfrun.C`; thin arg-parser over the existing `qchem.ValenceBasisGen`

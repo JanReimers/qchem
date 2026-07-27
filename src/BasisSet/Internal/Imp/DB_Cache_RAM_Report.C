@@ -6,6 +6,7 @@ module;
 #include <map>
 #include <chrono>
 module qchem.BasisSet.Internal.DB_Cache_RAM;
+import qchem.Reporting;   // the run report -- EmitReport snapshots the `cache` section
 
 namespace qchem::BasisSet
 {
@@ -66,6 +67,43 @@ template <class T>  void IntegralsCache_RAM<T>::ReportRAMUsage(std::ostream& os)
     for (auto& i:itsCache2s) i.second->Report(os, i.first);
     for (auto& i:itsCache3s) i.second->Report(os, i.first);
     for (auto& i:itsCache4s) i.second->Report(os, i.first);
+}
+
+// Snapshot the cache's current (cumulative) stats into the run report's `cache` section: the RAM tiers
+// (Jac/Kab/Cach4) and the per-cache hit/reuse rows.  Single-provider, so it builds the whole section json
+// and EmitSection()s it -- no cursor.  A no-op when no run is open (the orchestrator brackets the run).
+template <class T> void IntegralsCache_RAM<T>::EmitReport() const
+{
+    namespace rpt = qchem::report;
+    if (rpt::Depth() == 0) return;
+
+    const double mb = 1024.0 * 1024.0;
+    const size_t J_ram = Report(Jac, "", false), K_ram = Report(Kab, "", false);   // # of Ts stored
+    size_t cach4_ram = 0;
+    for (auto& i : itsCache4s) cach4_ram = i.second->RAMsize();
+    const size_t total = J_ram + K_ram + cach4_ram;
+    auto pct = [&](size_t n) { return total ? 100.0 * n / total : 0.0; };
+
+    rpt::json tiers = rpt::json::array();
+    tiers.push_back({ { "name", "Jac"   }, { "ramMB", J_ram   * sizeof(T) / mb }, { "pct", pct(J_ram) } });
+    tiers.push_back({ { "name", "Kab"   }, { "ramMB", K_ram   * sizeof(T) / mb }, { "pct", pct(K_ram) } });
+    tiers.push_back({ { "name", "Cach4" }, { "ramMB", cach4_ram          / mb }, { "pct", pct(cach4_ram) } });
+
+    rpt::json reuse = rpt::json::array();
+    auto addReuse = [&](const std::string& name, size_t inserts, size_t lookups, double ramMB)
+    {
+        reuse.push_back({ { "cache", name }, { "entries", (long)inserts }, { "lookups", (long)lookups },
+                          { "reusePct", lookups ? 100.0 * (1.0 - double(inserts) / double(lookups)) : 0.0 },
+                          { "ramMB", ramMB } });
+    };
+    for (auto& i : itsCache2s) addReuse(i.first, i.second->Inserts(), i.second->Lookups(), i.second->RAMsize()/mb);
+    for (auto& i : itsCache3s) addReuse(i.first, i.second->Inserts(), i.second->Lookups(), i.second->RAMsize()/mb);
+    for (auto& i : itsCache4s) addReuse(i.first, i.second->Inserts(), i.second->Lookups(), i.second->RAMsize()/mb);
+
+    rpt::json cache;
+    cache["tiers"] = tiers;
+    if (!reuse.empty()) cache["reuse"] = reuse;
+    rpt::EmitSection("cache", cache);
 }
 
 std::ostream& operator << (std::ostream& os, const std::pair<IntegralsCache_Base::IBS_ID_t,IntegralsCache_Base::IBS_ID_t>& ids)

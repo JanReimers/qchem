@@ -94,6 +94,7 @@ private:
     // std::map<std::chrono::sys_seconds,std::pair<IBS_ID_t,IBS_ID_t>> ERI4_Oldest;  //Sort by time stamp
 
     void ReportRAMUsage(std::ostream&) const;
+    void EmitReport() const override;   //!< snapshot RAM/reuse into the run report's `cache` section (step 4)
     static size_t Report(const map4_t&, const std::string&, bool verbose); // in MB
     // GC evicts the oldest ERI4s; `protect` is the entry just inserted (never evicted).
     void RunGarbageCollector(const id_pair_t& protect);
