@@ -572,32 +572,19 @@ TEST(GPW_SCF, SmearingConvergesDegenerateShell)
 }
 
 // (4) MULTI-SPECIES GPW: ionic NaF (rocksalt = FCC + 2-atom basis) at Gamma, driven by the multi-species
-// Ham_PW_DFT ctor ({{"Na",1},{"F",7}}) on the GENERATED valence_lowq Gaussian basis (Na 5s2p + F 8s6p).  The
-// plane-wave sibling (PlaneWaveDFT.FrameworkNaFThroughSCFIterator, Ecut=6) lands -20.3293; GPW here is the
-// SAME PP + functional on a Gaussian basis.  FIRST-LIGHT machinery check: does multi-species GPW converge and
-// conserve the 8 valence e- (1 Na + 7 F)?  F's tight 40-a.u. exponent wants a fine density grid (densityEcut
-// high -- F is the hard atom), so the total is grid-underconverged at a modest cutoff; charge + convergence
-// are the anchors here (a did-E-move total once the cutoff is dialled in).
-// PROGRESSION (all charge=8, Gamma, densityEcut=40):
-//   Rcut=0, full basis  -> Etot=-25.086 (first light; Rcut=0 over-binds, no inter-cell screening)
-//   Rcut=2a, SR basis   -> Etot=-23.556 (this test; the over-binding partly removed by the periodic images)
-//   PW Gamma reference  -> -20.3293
-// The SR basis is REQUIRED at Rcut=2a: the full basis' truncated Bloch overlap is INDEFINITE there
-// (DISABLED_NaFOverlapConditioningSweep), SR is PSD (min eig +7.5e-4, reported at startup).  The residual
-// -23.56 vs -20.33 is grid (densityEcut=40 is coarse for F's 40-a.u. exponent) + SR basis incompleteness +
-// the SCF hit the 60-iter cap (not fully gate-converged).  DISABLED: long.  Robust anchor
-// = charge conservation; TODO to close the gap: converge densityEcut, more iters, then CP2K.
-//
-// 2026-07-15 (analytic path, auto Ecut=160): the SAME-BASIS CP2K oracle is **Etot = -27.93128**
-// (UnitTests/CP2K/naf_gpw_sr_diag.inp, doc/CP2Kresults.md) -- CP2K's ENERGY settles to 1e-6 by ~130
-// damped-Broyden/diagonalization iterations while its DENSITY limit-cycles forever (RMS 0.03-0.12), the
-// exact charge-transfer cycle we see: the disease is the system+basis, NOT either implementation (CP2K's
-// OT run never settled E at all, swinging -25.7..+253).  OUR Kerker(G0=1)+DIIS at relax 0.3 does NOT
-// settle E in 60 iters (iteration 60 lands essentially randomly: -24.03 and +887.55 across runs; charge
-// stays 8.0000000000 exactly throughout) -- the DIIS mid-cycle Fock extrapolations ARE the +900 spikes
-// (they land exactly on the Nproj=8 iterations).  The recipe + tuning outcome (2026-07-16) is documented
-// at the mixing knobs inside the test body: converging at Ecut=40, production grid blocked on
-// quasi-Newton (Pulay/Broyden) density mixing.
+// Ham_PW_DFT ctor ({{"Na",1},{"F",7}}).
+// Valance basis for Na generated from all electrton atom caluclations (BasisSetData/valence_lowq.bsd) 
+// looks like     s={0.03.0.086,0.245,0.7,2.0}, p={0.05, 0.3}
+// The diffuse exponents s={0.03.0.086} simply don't work in a lattice context.  The overlap is singular.  Auto trimming
+// the basis using eeigen instead choleslky decomposition also simply doe not work.  The only option is to tell the
+// user to drop thos diffuse basis function.  If use the BasisSetData::VALENCE_LOWQ_SR2 the calculation converges nicely
+// with some help from DIIR/GDM/Kerker-mixing.
+// Also work noting is the sharp F basis function with exponent 40Ha. THis motivated a ladder of grids to which basis 
+// function pairs are assigned bases on thier exponents.  
+// There is also a challange for the integration grids used for Vxc fitting.  It is anticipated that using a non-uniform unit Becke/Voronoi-polyhedra grid will allow
+// for rapid integration of diffuse basis function will make this run even more efficient. 
+// The ideal minimum densityEcut=2*40Ha=80Ha based on the F max exponent.  40 converges to a lower E_total but otherwise converged nicely.
+// Explicit densityEcut= 40 = SUB-FLOOR: warns, and BallOnly aliases there (-43 mHa)
 TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
 {
     using namespace qchem::Hamiltonian;
