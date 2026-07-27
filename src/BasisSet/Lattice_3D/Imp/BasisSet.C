@@ -7,6 +7,7 @@ module;
 module qchem.BasisSet.Lattice_3D.BasisSet;
 import qchem.BasisSet.Internal.BasisSetImp;   // BasisSetImp<dcmplx> (the generic list-of-IBS container)
 import qchem.BasisSet.Lattice_3D.GPW_IBS;     // GPW_IBS (the periodic-Gaussian block GPW_BasisSet owns)
+import qchem.Reporting;                        // route the grid diagnostic into the run report when one is open
 import qchem.Symmetry.Factory;                // BlochFactory (the Bloch irrep per k)
 import qchem.Types;
 
@@ -62,7 +63,13 @@ GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const
     }
     // GRID DIAGNOSTIC (doc/GPWPlan §0e): basis exponents + every stored grid, once per run.  The grids are
     // k-independent (the density grid/ladder are built at k=0 in every block), so the first block speaks for all.
-    if (first) first->ReportGrids(std::cout);
+    // Route into the run report's `grids` section when one is open (the orchestrator brackets the run); fall
+    // back to the legacy console diagnostic when unbracketed (basis-only unit tests, no report).
+    if (first)
+    {
+        if (report::Depth() > 0) first->EmitGridsReport();
+        else                     first->ReportGrids(std::cout);
+    }
 }
 
 Complex_BS* GPWFactory(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,

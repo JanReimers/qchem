@@ -22,6 +22,7 @@ import qchem.Math;            // norm, Pi, sqrt (the real spherical harmonics fo
 import qchem.Math.Angular;    // Monomial/CartTerm/SphericalShell (the analytic KB Cartesian expansion)
 import qchem.Structure;       // Structure / Atom (the PP centres + Z, and CreateIntegrationMesh)
 import qchem.UnitCell;        // UnitCell (the direct cell for CollocateDensity / IntegratePotential grid<->cell)
+import qchem.Reporting;       // the run report -- EmitGridsReport builds the `grids` section
 
 namespace qchem::BasisSet::Lattice_3D
 {
@@ -673,6 +674,38 @@ void GPW_Evaluator::ReportGrids(std::ostream& os) const
     os<<"[GPW grid] local-PP integration: FULL ladder L=0.."<<itsLevels.size()-1
       <<" absolute REL_CUTOFF kappa="<<LocalPPRelCutoff()<<" Ha (e^{-kappa/2} pair tails)"<<std::endl;
     os.flush();
+}
+
+void GPW_Evaluator::EmitGridsReport() const
+{
+    namespace rpt = qchem::report;
+    rpt::json g;
+    g["densityEcut"]  = itsCutoffFactor * itsLat->MaxExponent();   // the auto density-grid floor Ecut
+    g["cutoffFactor"] = itsCutoffFactor;
+    g["raster"]       = (itsRaster == RasterPolicy::BallOnly ? "BallOnly" : "AliasFree");
+    if (itsFFT_R_G_Grids)                                          // null == DFT tier off (no grids)
+    {
+        EnsureLevels();
+        rpt::json ladder = rpt::json::array();
+        for (size_t L = 0; L < itsLevels.size(); ++L)
+        {
+            const PW_Grid_Evaluator& lv = *itsLevels[L];
+            const ivec3_t N = lv.FFTGrid();
+            // role: L==0 is the density/collocation reference (== FFT grid); the top rung completes the
+            // ladder above the local-PP sub-ladder; everything between is a coarser multigrid level.
+            const char* role = (L == 0) ? "reference" : (L >= itsNBaseLevels ? "rung" : "coarse");
+            rpt::json row;
+            row["level"] = (long)L;
+            row["N"]     = { N.x, N.y, N.z };
+            row["ecut"]  = lv.Ecut();
+            row["nG"]    = (long)lv.size();
+            row["role"]  = role;
+            ladder.push_back(row);
+        }
+        g["ladder"]  = ladder;
+        g["localPP"] = { { "kappa", LocalPPRelCutoff() } };
+    }
+    rpt::EmitSection("grids", g);
 }
 
 // Bloch sum of the Gaussian orbitals, chi^k_i(r) = Sum_R e^{ik.R} chi_i(r-R), over the COLLOCATION set (the

@@ -1,8 +1,8 @@
 # RunReportPlan — a professional, JSON-ready reporting layer
 
-Status: SKELETON + STEPS 1 (`scf`) & 2 (`basis`) DONE (2026-07-26); migration steps 3-4 pending.  Consolidate
-the scattered setup diagnostics into one organized, machine-readable report — rendered as tidy terminal output
-today and JSON for the GUI tomorrow, from a single data model.
+Status: SKELETON + STEPS 1 (`scf`), 2 (`basis`) & 3 (`grids`) DONE (2026-07-26); migration step 4 (`cache`)
+pending.  Consolidate the scattered setup diagnostics into one organized, machine-readable report — rendered as
+tidy terminal output today and JSON for the GUI tomorrow, from a single data model.
 
 **Step 0 landed**: `qchem.Reporting` leaf module in `qcCommon` (`src/Common/Reporting.C` + `Imp/Reporting.C`) —
 `json = nlohmann::ordered_json` (ordered so sections keep emit order), global sink (`GlobalReport` keyed +
@@ -307,7 +307,16 @@ Longer term all three are sections of one run *document* (the natural HDF5 / JSO
    naming ("the fix-your-basis report") needs a per-function metadata accessor on the block that does not exist
    yet; that enrichment is a §4a-actuator follow-up.  The `[ortho]` drop warnings still `cerr` (not yet retired;
    `removed` now carries the same information structurally).
-3. **`grids`**: move the `[GPW grid]` ladder prints into `grids.ladder`.
+3. **`grids`** — ✅ DONE (2026-07-26).  `GPW_Evaluator::EmitGridsReport` builds the whole section
+   (`densityEcut`/`cutoffFactor`/`raster` + the `ladder` rows {`level`,`N`,`ecut`,`nG`,`role`=reference|coarse|
+   rung} + `localPP.kappa`) and `EmitSection`s it — single-provider, so NO cursor.  The basis-ctor call site
+   (`Lattice_3D/Imp/BasisSet.C`) routes to `EmitGridsReport` when a run is open, else the legacy
+   `ReportGrids(cout)` (unbracketed basis-only tests unchanged).  **This required bracketing the GPW run** —
+   GPW does not use the molecular `Calculation` facade, so `RunGPW` (the GPW orchestrator, per the ownership
+   table) now `Begin`/`End`s the run and opens `Section("basis")` around the `SolidSCFIterator` construction.
+   BONUS: that Section means GPW ALSO gets `basis.perIrrep` — per-Bloch-block conditioning through the SAME
+   cursor path as step 2 (the `LASolver` `dcmplx` write).  Schema test `GPW_SCF.GridsReportSchema`; `ctest -j16`
+   green (605/605).
 4. **`cache`**: move the `IntegralsCache RAM usage report` into `cache`.
 Each step deletes scattered `cout`s and adds one tidy block; behaviour is otherwise unchanged.
 

@@ -181,6 +181,10 @@ public:
     //! \f$N\f$, \c Ecut, \f$n_G\f$ and the spectral extent \f$|G|_{\min}/|G|_{\max}\f$.  Printed at the start of
     //! every run (the basis-set ctor) so GPW's grids can be lined up against CP2K's \c &MGRID log output.
     void ReportGrids(std::ostream& os) const;
+    //! The run-report twin of \c ReportGrids: emit the `grids` section (densityEcut/cutoffFactor/raster + the
+    //! ladder rows + localPP) into the current run report.  Single-provider, so it builds the whole section
+    //! json and EmitSection()s it.  Call only when a run is open (report::Depth()>0 -- the ctor call site guards).
+    void EmitGridsReport() const;
     //! One diagnostic line for any stored grid (the per-grid piece of \c ReportGrids; also used by the
     //! \c CreateCD/VxcFitBasisSet factories to print the fit grid they actually wrap).
     static std::ostream& ReportGrid(std::ostream& os, const std::string& tag, const PW_Grid_Evaluator& g);

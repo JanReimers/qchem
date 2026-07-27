@@ -51,6 +51,7 @@ import qchem.SCFAccelerator.Internal.SCFIrrepAcceleratorNull; // tSCFAccelerator
 import qchem.WaveFunction;                       // cWaveFunction (the converged state)
 import qchem.Energy;                             // EnergyBreakdown
 import qchem.Symmetry.Irrep;                     // Irrep
+import qchem.Reporting;                          // report:: -- bracket the GPW run so grids/basis sections land
 import qchem.Symmetry.Spin;                      // Spin
 import qchem.Symmetry.Factory;                   // BlochFactory (build a k-block with a fractional MP shift)
 import qchem.LASolver;                           // qchem::Ortho (Cholesky | Eigen | SVD -- basis orthogonalisation)
@@ -130,6 +131,14 @@ GpwResult RunGPW(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, doub
                  double smearkT=0.0)   // Fermi-Dirac smearing kT (Hartree); 0=off (doc/GPWPlan1.md 4b)
 {
     namespace L3=BasisSet::Lattice_3D;
+    namespace rpt=qchem::report;
+    // Bracket the whole GPW run (this test helper IS the GPW orchestrator, per doc/RunReportPlan.md).  The RAII
+    // guard guarantees End()/ClearConsole even if a step throws.  Records into GlobalReport; renders to the
+    // console only when \a verbose.  GPWFactory below emits the `grids` section during basis construction.
+    rpt::Begin(std::string(element)+" "+label);
+    struct ReportGuard { ~ReportGuard(){ rpt::ClearConsole(); rpt::End(); } } reportGuard;
+    if (verbose) rpt::SetConsole(std::cout, rpt::Detail::Normal);
+
     std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, std::move(mol), densityEcut, kShift, images));
     auto       irreps=bs->GetIrreps(Spin::None);   // one Bloch irrep per BZ k-block (weights carry the Sum_k)
     Crystal_EC ec(irreps, Nelec);                  // multi-k ready; a single Gamma block is the length-1 case
@@ -139,9 +148,17 @@ GpwResult RunGPW(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, doub
     auto* acc=new qchem::SCFAccelerators::cSCFAcceleratorDIIS(qchem::SCFAccelerators::DIISParams{8, 8.0, 1e-10, 1e-9});
     // \a ortho / \a orthoTol: Cholesky (default) needs S positive-definite; for a periodic lattice basis the
     // diffuse Gaussians can go linearly dependent -> Eigen/SVD with a small-eigenvalue cutoff.
-    qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc,
-                                         seed, lat.GetStructure().get(),
-                                         ortho, orthoTol);
+    // The `basis` section is opened around CONSTRUCTION only: MakeIrrepWFs fills basis.perIrrep (per-Bloch-block
+    // conditioning, via the cursor) inside the iterator ctor, so the Section must be live then.  Heap so the
+    // iterator outlives the Section (which renders on close); the unique_ptr owns it for the rest of the run.
+    std::unique_ptr<qchem::SCFIterator::SolidSCFIterator> scfp;
+    {
+        rpt::Section basis("basis");
+        rpt::Set("nFunctions", (long)bs->GetNumFunctions());
+        scfp = std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
+                   bs.get(), &ec, ham, acc, seed, lat.GetStructure().get(), ortho, orthoTol);
+    }
+    qchem::SCFIterator::SolidSCFIterator& scf = *scfp;
     std::vector<FpRow> series;   // capture the SCF trajectory for the dynamics fingerprint (Observer telemetry)
     scf.SetObserver([&series](const qchem::SCFIterator::SCFProgress& p)
                     { series.push_back({p.iteration, p.energy, p.dE, p.commutator, p.drho}); });
@@ -324,6 +341,52 @@ TEST(GPW_SCF, SiliconGammaConverges)
     EXPECT_TRUE(R.converged);
     EXPECT_NEAR(R.charge, 8.0, 1e-6);              // 8 valence electrons
     EXPECT_NEAR(R.E.GetTotalEnergy(), -7.11506, 2e-3);   // CP2K FCC-Si Gamma reference (grid-gap tolerance)
+}
+
+// The GPW run-report SCHEMA CHECK (RunReportPlan step 3).  RunGPW brackets the run: GPWFactory emits the
+// `grids` section during basis construction, and MakeIrrepWFs fills basis.perIrrep (per-Bloch-block
+// conditioning) via the cursor.  Only the SETUP matters here, so a couple of iterations is plenty.
+TEST(GPW_SCF, GridsReportSchema)
+{
+    const double a=10.26;
+    FCCUnitCell cell(a);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+
+    report::ClearGlobal();                          // isolate this test's run
+    RunGPW(lat, MakeBasisSR(cell), /*densityEcut*/20.0, /*Nelec*/8, "Si", "Si grids schema",
+           /*verbose*/false, /*nmax*/4, qchem::Cholesky, 0.0, rvec3_t(0,0,0), /*minDrho*/1e-3, /*minDE*/1e-6);
+
+    const report::json& all = report::GlobalReport();
+    const report::json* grids=nullptr; const report::json* basis=nullptr;
+    for (auto it=all.begin(); it!=all.end(); ++it)
+    {
+        if (it.value().contains("grids")) grids=&it.value()["grids"];
+        if (it.value().contains("basis")) basis=&it.value()["basis"];
+    }
+    ASSERT_NE(grids, nullptr) << "no run emitted a grids section";
+    EXPECT_GT((*grids)["densityEcut"].get<double>(), 0.0);
+    EXPECT_TRUE(grids->contains("cutoffFactor"));
+    EXPECT_TRUE(grids->contains("raster"));
+    ASSERT_TRUE(grids->contains("ladder"));
+    ASSERT_TRUE((*grids)["ladder"].is_array());
+    ASSERT_GE((*grids)["ladder"].size(), 1u);
+    const report::json& lvl0 = (*grids)["ladder"][0];
+    for (const char* k : { "level", "N", "ecut", "nG", "role" })
+        EXPECT_TRUE(lvl0.contains(k)) << "ladder row missing key: " << k;
+    EXPECT_EQ(lvl0["role"].get<std::string>(), "reference");   // L==0 is the density/collocation grid
+    ASSERT_TRUE(lvl0["N"].is_array());
+    EXPECT_EQ(lvl0["N"].size(), 3u);
+    ASSERT_TRUE(grids->contains("localPP"));
+    EXPECT_TRUE((*grids)["localPP"].contains("kappa"));
+
+    // The cursor path also gave GPW a basis section: per-Bloch-block conditioning in basis.perIrrep.
+    ASSERT_NE(basis, nullptr) << "no run emitted a basis section";
+    ASSERT_TRUE(basis->contains("perIrrep"));
+    ASSERT_TRUE((*basis)["perIrrep"].is_array());
+    ASSERT_GE((*basis)["perIrrep"].size(), 1u);
+    EXPECT_TRUE((*basis)["perIrrep"][0].contains("cond"));
 }
 
 // (2) THE TIGHT CROSS-CHECK: the isolated Si pseudo-atom in a box vs the finite molecular DFT on the SAME
