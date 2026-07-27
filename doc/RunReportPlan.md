@@ -9,9 +9,22 @@ dtor `percent(0,0)` `-nan%` guarded to `0%`; `FormatHint.fixed` gives clean fixe
 `[stream cache]` collocation-coverage line is folded into `grids.stream` via a new `report::EmitAt(section, key,
 value)` (write a late sub-block into an already-emitted section + render just that block; it builds after the
 grids table renders).  Remaining/future work: the SOLID refactor (deferred, see "SOLID target"),
-`basis.removed` exponent/atom naming, disk/rolling-log sinks, and a NON-reporting finding the report surfaced —
-the SCF setup builds grids BEFORE the overlap-conditioning eigen-analysis (a potential show-stopper), so a
-singular basis is detected only after the grid ladder is built; a fail-fast reorder is worth considering.
+`basis.removed` exponent/atom naming, and disk/rolling-log sinks.
+
+**Fail-fast reorder — PROTOTYPED, GPW-only (2026-07-26).**  The report surfaced that the SCF setup built the
+grid ladder (and Hamiltonian) BEFORE the overlap-conditioning eigen-analysis, so a singular basis was detected
+only after all that work.  Root cause: the basis-ctor grid *report* and `Ham_PW_DFT` construction both force
+`EnsureLevels` before the WF-factory's `SetBasisOverlap` runs the analysis — yet the Bloch overlap that feeds the
+analysis is ANALYTIC/grid-free (`GPW_Evaluator::OverlapMatrix()` = `itsLat->MakeOverlap`).  Fix (GPW path):
+`report::InSection("basis")` now gates basis emission (so the WF factory stays silent unless the orchestrator
+opened a basis context); `Lattice_3D::VetGpwConditioning(bs)` does a pre-flight eigen + `PivotedCholeskyDrops`
+per Bloch block, emits `basis.perIrrep`/`removed`, and returns the redundant-function count; `RunGPW` runs it
+under `Section("basis")` BEFORE `Ham_PW_DFT`, **aborts if rank-deficient**, then calls
+`Lattice_3D::EmitGpwGrids(bs)` (grid build moved out of the basis ctor).  Net: a singular basis fails before any
+grid work, and the report now shows `basis` → `grids` (the sensible order).  Validated: Si Γ converges
+identically (Etot −7.11506); `ctest -j16` green (606/606).  TODO: exercise the abort on a genuinely
+rank-deficient GPW basis (the diffuse `VALENCE_LOWQ` campaigns), and decide whether to generalize the pre-flight
+to the molecular `Calculation` path.
 
 **Step 0 landed**: `qchem.Reporting` leaf module in `qcCommon` (`src/Common/Reporting.C` + `Imp/Reporting.C`) —
 `json = nlohmann::ordered_json` (ordered so sections keep emit order), global sink (`GlobalReport` keyed +

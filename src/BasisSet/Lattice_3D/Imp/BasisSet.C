@@ -1,14 +1,19 @@
 // File: BasisSet/Lattice_3D/Imp/BasisSet.C  Plane-wave basis-set container + factory implementation.
 module;
 #include <cassert>
-#include <cmath>     // lround (fractional k-point -> integer BZ-grid index)
+#include <cmath>     // lround (fractional k-point -> integer BZ-grid index); std::fabs (conditioning)
 #include <iostream>  // std::cout (the run-start GPW grid diagnostic)
 #include <memory>    // std::shared_ptr / std::move (the GPW basis owns the molecular Gaussian basis)
+#include <sstream>   // irrep label for the pre-flight basis.perIrrep rows
+#include <algorithm> // std::min (min singular value)
 module qchem.BasisSet.Lattice_3D.BasisSet;
 import qchem.BasisSet.Internal.BasisSetImp;   // BasisSetImp<dcmplx> (the generic list-of-IBS container)
 import qchem.BasisSet.Lattice_3D.GPW_IBS;     // GPW_IBS (the periodic-Gaussian block GPW_BasisSet owns)
 import qchem.Reporting;                        // route the grid diagnostic into the run report when one is open
 import qchem.Symmetry.Factory;                // BlochFactory (the Bloch irrep per k)
+import qchem.Symmetry;                         // Spin, Irrep (the Bloch block identity for the pre-flight)
+import qchem.LASolver;                         // PivotedCholeskyDrops (the conditioning detector)
+import qchem.Blaze;                            // blazem::eigen (grid-free overlap conditioning)
 import qchem.Types;
 
 namespace qchem::BasisSet::Lattice_3D
@@ -61,15 +66,53 @@ GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const
         if (!first) first=b;
         Insert(b);
     }
-    // GRID DIAGNOSTIC (doc/GPWPlan §0e): basis exponents + every stored grid, once per run.  The grids are
-    // k-independent (the density grid/ladder are built at k=0 in every block), so the first block speaks for all.
-    // Route into the run report's `grids` section when one is open (the orchestrator brackets the run); fall
-    // back to the legacy console diagnostic when unbracketed (basis-only unit tests, no report).
-    if (first)
+    // GRID DIAGNOSTIC (doc/GPWPlan §0e): every stored grid, once per run.  When a run report is open the
+    // orchestrator now emits grids EXPLICITLY (EmitGpwGrids) AFTER its conditioning pre-flight, so a singular
+    // basis aborts before the grid ladder is ever built (fail-fast -- the report surfaced that building grids
+    // here forced EnsureLevels before the eigen-analysis could veto the basis).  So only the legacy unbracketed
+    // console path stays here; ReportGrids also forces the grid build, which is exactly what we must NOT do early.
+    if (first && report::Depth() == 0) first->ReportGrids(std::cout);
+}
+
+// Compact irrep label for the report (symmetry symbol + spin arrow), via the Streamable Write().
+static std::string GpwIrrepLabel(const Irrep& q) { std::ostringstream os; q.Write(os); return os.str(); }
+
+void EmitGpwGrids(const Complex_BS& bs)
+{
+    // The grids are k-independent, so the first GPW block speaks for all (and forces EnsureLevels HERE --
+    // after the pre-flight, so a vetoed basis never reaches this).
+    for (auto* b : const_cast<Complex_BS&>(bs).Iterate<GPW_IBS>()) { b->EmitGridsReport(); return; }
+}
+
+size_t VetGpwConditioning(const Complex_BS& bs)
+{
+    namespace rpt = qchem::report;
+    rpt::Set("nFunctions", (long)bs.GetNumFunctions());   // basis-level scalar (cursor at the open "basis" section)
+    size_t total = 0;
+    for (auto* b : const_cast<Complex_BS&>(bs).Iterate<GPW_IBS>())
     {
-        if (report::Depth() > 0) first->EmitGridsReport();
-        else                     first->ReportGrids(std::cout);
+        const hmat_t<dcmplx>& S = b->Overlap();           // ANALYTIC Bloch overlap -- no grids needed
+        const std::string label = GpwIrrepLabel(b->GetIrrep(Spin::None));
+        {
+            rpt::Row row("perIrrep");
+            rpt::Set("irrep",      label);
+            rpt::Set("nFunctions", (long)b->GetNumFunctions());
+            rvec_t d; mat_t<dcmplx> U; blazem::eigen(S, d, U);       // ascending eigenvalues of the Hermitian S
+            const double mn = d[0], mx = d[d.size()-1];
+            double msv = std::fabs(d[0]); for (double v : d) msv = std::min(msv, std::fabs(v));
+            rpt::Set("lambdaMin", mn);
+            rpt::Set("lambdaMax", mx);
+            rpt::Set("cond", msv > 0 ? mx/msv : 0.0);
+        }
+        for (size_t idx : qchem::PivotedCholeskyDrops<dcmplx>(S))    // redundant AOs (empty on a healthy basis)
+        {
+            rpt::Row r("removed");
+            rpt::Set("irrep", label);
+            rpt::Set("index", (long)idx);
+            ++total;
+        }
     }
+    return total;
 }
 
 Complex_BS* GPWFactory(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,

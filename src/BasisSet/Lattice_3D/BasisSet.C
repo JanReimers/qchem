@@ -73,6 +73,18 @@ struct GPWParams
 Complex_BS* GPWFactory(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
                        const GPWParams& p = {});
 
+//! Emit the GPW `grids` report section for \a bs (the grids are k-independent, so the first block speaks for
+//! all).  The orchestrator calls this AFTER the conditioning pre-flight, so a singular basis aborts before the
+//! grid ladder is ever built (fail-fast; doc/RunReportPlan.md).  No-op if a run is not open.
+void EmitGpwGrids(const Complex_BS& bs);
+
+//! Fail-fast conditioning PRE-FLIGHT (doc/RunReportPlan.md, doc/GPWPlan1.md §4a): for each Bloch block of \a bs,
+//! analyse its ANALYTIC, grid-free overlap and emit the report's basis.perIrrep (conditioning) + basis.removed
+//! (redundant AOs).  Returns the total redundant-function count (0 == well-conditioned).  Run it under an open
+//! Section("basis") BEFORE building the Hamiltonian/grids; a positive return is the cue to abort before any
+//! grid work -- instead of building the whole ladder and only then discovering the basis is singular.
+size_t VetGpwConditioning(const Complex_BS& bs);
+
 } //namespace
 
 // NOT exported: the concrete containers are an implementation detail (callers use Factory/GPWFactory's

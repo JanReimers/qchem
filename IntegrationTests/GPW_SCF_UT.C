@@ -140,6 +140,24 @@ GpwResult RunGPW(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, doub
     if (verbose) rpt::SetConsole(std::cout, rpt::Detail::Normal);
 
     std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, std::move(mol), densityEcut, kShift, images));
+
+    // FAIL-FAST CONDITIONING PRE-FLIGHT (the reorder the report surfaced): vet the basis overlap -- which is
+    // ANALYTIC and grid-free -- and emit basis.perIrrep/removed BEFORE the Hamiltonian or the grid ladder are
+    // built.  A rank-deficient basis aborts HERE, instead of building the whole grid ladder and only then
+    // discovering (in the WF-factory eigen-analysis) that the basis is singular.  This also puts the report's
+    // `basis` section before `grids`, reflecting the now-sensible program order.
+    {
+        rpt::Section basis("basis");
+        const size_t drops = L3::VetGpwConditioning(*bs);
+        if (drops > 0)
+        {
+            std::cout << "["<<label<<"] ABORT: basis rank-deficient ("<<drops
+                      << " redundant function(s); see basis.removed) -- skipped grids + SCF (fail-fast)."<<std::endl;
+            return {false, 0.0, qchem::EnergyBreakdown{}, 0};
+        }
+    }
+    L3::EmitGpwGrids(*bs);   // basis vetted OK -> now build + report the grid ladder
+
     auto       irreps=bs->GetIrreps(Spin::None);   // one Bloch irrep per BZ k-block (weights carry the Sum_k)
     Crystal_EC ec(irreps, Nelec);                  // multi-k ready; a single Gamma block is the length-1 case
     // Ham_PW_DFT drives GPW verbatim (kinetic + external-PP + Hartree + Dirac X + VWN5 + ion-ion Ewald).
@@ -147,18 +165,11 @@ GpwResult RunGPW(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, doub
         lat.GetStructure(), bs.get(), element, "LDA", 4);
     auto* acc=new qchem::SCFAccelerators::cSCFAcceleratorDIIS(qchem::SCFAccelerators::DIISParams{8, 8.0, 1e-10, 1e-9});
     // \a ortho / \a orthoTol: Cholesky (default) needs S positive-definite; for a periodic lattice basis the
-    // diffuse Gaussians can go linearly dependent -> Eigen/SVD with a small-eigenvalue cutoff.
-    // The `basis` section is opened around CONSTRUCTION only: MakeIrrepWFs fills basis.perIrrep (per-Bloch-block
-    // conditioning, via the cursor) inside the iterator ctor, so the Section must be live then.  Heap so the
-    // iterator outlives the Section (which renders on close); the unique_ptr owns it for the rest of the run.
-    std::unique_ptr<qchem::SCFIterator::SolidSCFIterator> scfp;
-    {
-        rpt::Section basis("basis");
-        rpt::Set("nFunctions", (long)bs->GetNumFunctions());
-        scfp = std::make_unique<qchem::SCFIterator::SolidSCFIterator>(
-                   bs.get(), &ec, ham, acc, seed, lat.GetStructure().get(), ortho, orthoTol);
-    }
-    qchem::SCFIterator::SolidSCFIterator& scf = *scfp;
+    // diffuse Gaussians can go linearly dependent -> Eigen/SVD with a small-eigenvalue cutoff.  The basis report
+    // was already emitted by the pre-flight above, so NO Section("basis") here -- MakeIrrepWFs stays silent
+    // (report::InSection("basis") is false) and does not double-emit; it just does the ortho.
+    qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc,
+                                         seed, lat.GetStructure().get(), ortho, orthoTol);
     std::vector<FpRow> series;   // capture the SCF trajectory for the dynamics fingerprint (Observer telemetry)
     scf.SetObserver([&series](const qchem::SCFIterator::SCFProgress& p)
                     { series.push_back({p.iteration, p.energy, p.dE, p.commutator, p.drho}); });
