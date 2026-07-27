@@ -84,6 +84,13 @@ std::string NowIso();
 //! Point incremental console rendering at a stream + set the detail level.
 void SetConsole(std::ostream& os, Detail = Detail::Normal);
 
+//! A live PROGRESS heartbeat: flush a one-line "step starting" message to the console IMMEDIATELY (not stored
+//! in the report json -- it is a pulse, not a record).  The structured sections render only when COMPLETE, so a
+//! slow step (grid build, basis construction) is silent meanwhile; Log lets a long run show what it is doing
+//! RIGHT NOW so the user can judge whether to let it run or kill + retune.  No-op when no console is attached.
+//! (First increment of the deferred "logger" sink; a rolling-file logger is the natural next home for these.)
+void Log(const std::string& message);
+
 //! Detach the console (Emit still records into the json, just renders nothing).
 void ClearConsole();
 

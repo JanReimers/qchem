@@ -129,6 +129,11 @@ std::string NowIso()
 void SetConsole(std::ostream& os, Detail d) { g_console = &os; g_detail = d; }
 void ClearConsole()                          { g_console = nullptr; }
 
+void Log(const std::string& message)
+{
+    if (g_console) *g_console << "· " << message << " …" << std::endl;   // endl => flush now (the heartbeat)
+}
+
 //============================================================================
 // Scalar formatting -- a json leaf + its field's FormatHint -> a display string.
 // Precision comes from the hint; the unit is appended for key/value leaves (table

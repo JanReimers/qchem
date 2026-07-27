@@ -87,6 +87,38 @@ std::shared_ptr<const Real_BS> MakeBasisSR(const Structure& st)
 
 struct GpwResult { bool converged; double charge; qchem::EnergyBreakdown E; size_t iters; };
 
+// Shared GPW run reporting.  ANY GPW driver -- RunGPW's fixed recipe OR a bespoke one (NaFRocksaltGamma's
+// multi-species PP + Ladder accelerator) -- gets automatic reporting by holding one of these: RAII brackets the
+// run (Begin/End + optional console), and the driver calls VetBasis (the fail-fast conditioning pre-flight,
+// BEFORE it builds the Hamiltonian/grids) then EmitGrids.  Keeps each driver's own Hamiltonian/accelerator/
+// params -- only the reporting + setup-order discipline is shared.
+struct GpwReport
+{
+    explicit GpwReport(const std::string& name, bool verbose)
+    {
+        qchem::report::Begin(name);
+        if (verbose) qchem::report::SetConsole(std::cout, qchem::report::Detail::Normal);
+    }
+    ~GpwReport() { qchem::report::ClearConsole(); qchem::report::End(); }
+    GpwReport(const GpwReport&) = delete;
+    GpwReport& operator=(const GpwReport&) = delete;
+
+    //! Fail-fast conditioning pre-flight: emit basis.perIrrep/removed, return the redundant-function count
+    //! (0 == OK).  Call BEFORE building the Hamiltonian/grids -- a positive return is the cue to abort.
+    size_t VetBasis(const Complex_BS& bs)
+    {
+        qchem::report::Log("vetting basis conditioning");
+        qchem::report::Section basis("basis");
+        return BasisSet::Lattice_3D::VetGpwConditioning(bs);
+    }
+    //! Emit the grids section (this is where the ladder is actually built) -- only after VetBasis passed.
+    void EmitGrids(const Complex_BS& bs)
+    {
+        qchem::report::Log("building grid ladder");
+        BasisSet::Lattice_3D::EmitGpwGrids(bs);
+    }
+};
+
 // PROBE (dynamics fingerprint, doc/GPWPlan §0): classify an SCF trajectory captured via the Observer hook.
 // Three pathologies have DISTINCT time-series signatures, so one line names which regime the run is in --
 // separating "the iteration can't find the min" (dynamics: sloshing/divergence) from "the min is a fit floor"
@@ -122,80 +154,120 @@ void Fingerprint(const std::vector<FpRow>& s, const char* label)
 
 // One GPW Gamma-point SCF: build the GPW basis over the lattice, hand it the plane-wave LDA Hamiltonian
 // (Ham_PW_DFT reaches GPW's real-space Integrals_Pseudo), seed uniform, run the complex-DIIS cSCFIterator.
+// GpwOptions: the control surface for a GPW run.  Every material (Si, NaF, CsI, LiCoO2, f-oxides, ...) is one
+// options literal -- multi-species PP, grid params (the efficiency lever for ionic systems), accelerator policy,
+// seed, ortho, and the SCFParams gates.
+struct GpwOptions
+{
+    std::string label = "gpw";
+    int         Nelec = 0;
+    std::vector<std::pair<std::string,int>> species;   // multi-species PP, e.g. {{"Na",1},{"F",7}}
+    // grids
+    double densityEcut  = -1.0;                        // <0 AUTO = cutoffFactor*alpha_max
+    double cutoffFactor = 2.0;
+    double ladderFactor = 4.0;
+    BasisSet::Lattice_3D::RasterPolicy raster = BasisSet::Lattice_3D::RasterPolicy::BallOnly;
+    BasisSet::Lattice_3D::CellImages   images = BasisSet::Lattice_3D::CellImages::Periodic;
+    rvec3_t kShift = rvec3_t(0,0,0);
+    // convergence machinery
+    std::string accelerator = "DIIS";                  // DIIS | GDM | Ladder | Null
+    qchem::ChargeDensity::SeedStrategy seed = qchem::ChargeDensity::SeedStrategy::Uniform;
+    qchem::Ortho ortho    = qchem::Cholesky;
+    double       orthoTol = 0.0;
+    SCFParams    scf;                                  // NMaxIter / MinΔρ / MinΔE / SmearingkT / ... (the gates)
+};
+
+// Build the complex SCF accelerator named by \a policy.  Ladder = the ionic-crystal DIIS->GDM hand-off on
+// |ΔE/E| (NaF's proven recipe); the rest are the plain single-engine choices.
+static qchem::SCFAccelerators::tSCFAccelerator<dcmplx>* MakeGpwAccelerator(const std::string& policy)
+{
+    using namespace qchem::SCFAccelerators;
+    if (policy=="Null") return new tSCFAcceleratorNull<dcmplx>();
+    if (policy=="DIIS") return new cSCFAcceleratorDIIS(DIISParams{8, 8.0, 1e-10, 1e-9});
+    if (policy=="GDM")  return new cSCFAcceleratorGDM(GDMParams{1.0});
+    if (policy=="Ladder")
+    {
+        std::vector<std::unique_ptr<tSCFAccelerator<dcmplx>>> rungs;
+        rungs.push_back(std::make_unique<cSCFAcceleratorDIIS>(DIISParams{8, 0.1, 1e-10, 1e-9}));
+        rungs.push_back(std::make_unique<cSCFAcceleratorGDM>(GDMParams{1.0}));
+        return new cSCFAcceleratorLadder(std::move(rungs), 1e-8, 5, 1e-8, 1e-6, ScheduleSignal::EnergyChange);
+    }
+    throw std::runtime_error("MakeGpwAccelerator: unknown policy \""+policy+"\" (DIIS|GDM|Ladder|Null)");
+}
+
+// The GENERAL GPW driver: basis -> fail-fast conditioning pre-flight -> grids -> multi-species Hamiltonian ->
+// accelerator -> SCF, with automatic reporting (GpwReport) + heartbeat logging throughout.  Any material is a
+// GpwOptions literal; the positional RunGPW below and the bespoke NaFRocksaltGamma are thin callers.
+static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, const GpwOptions& o,
+                        bool verbose=false)
+{
+    namespace L3=BasisSet::Lattice_3D;
+    const std::string sp = o.species.empty() ? std::string() : o.species.front().first;
+    GpwReport report(sp+" "+o.label, verbose);
+
+    qchem::report::Log("building GPW basis");
+    std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, mol, L3::GPWParams{
+        .densityEcut=o.densityEcut, .cutoffFactor=o.cutoffFactor, .raster=o.raster,
+        .images=o.images, .kShift=o.kShift, .ladderFactor=o.ladderFactor}));
+
+    // FAIL-FAST: vet the (analytic, grid-free) overlap + emit basis BEFORE grids/Hamiltonian; a rank-deficient
+    // basis aborts here instead of building the whole ladder first.  Also puts `basis` before `grids`.
+    if (report.VetBasis(*bs) > 0)
+    {
+        std::cout << "["<<o.label<<"] ABORT: basis rank-deficient (see basis.removed) -- skipped grids + SCF."<<std::endl;
+        return {false, 0.0, qchem::EnergyBreakdown{}, 0};
+    }
+    report.EmitGrids(*bs);
+
+    qchem::report::Log("building Hamiltonian");
+    auto       irreps=bs->GetIrreps(Spin::None);   // one Bloch irrep per BZ k-block (weights carry the Sum_k)
+    Crystal_EC ec(irreps, o.Nelec);
+    qchem::Hamiltonian::cHamiltonian* ham =
+        new qchem::Hamiltonian::Ham_PW_DFT(lat.GetStructure(), bs.get(), o.species, "LDA");
+    auto* acc = MakeGpwAccelerator(o.accelerator);
+
+    qchem::report::Log("SCF start");
+    // No Section("basis") here: the pre-flight already emitted basis, so MakeIrrepWFs stays silent
+    // (report::InSection("basis") false) and just does the ortho.
+    qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc,
+                                         o.seed, lat.GetStructure().get(), o.ortho, o.orthoTol);
+    std::vector<FpRow> series;
+    scf.SetObserver([&series](const qchem::SCFIterator::SCFProgress& p)
+                    { series.push_back({p.iteration, p.energy, p.dE, p.commutator, p.drho}); });
+    SCFParams par = o.scf; par.Verbose = verbose;   // one `verbose` drives both the report console + the SCF table
+    qchem::Hamiltonian::ReportGridCharge()=(bool)std::getenv("GPW_GRIDCHARGE");
+    scf.Iterate(par);
+    qchem::Hamiltonian::ReportGridCharge()=false;
+    Fingerprint(series, o.label.c_str());
+
+    auto* cd=scf.GetWaveFunction()->GetChargeDensity();
+    double charge=cd->GetTotalCharge();
+    delete cd;
+    qchem::EnergyBreakdown E=scf.GetEnergy();
+    std::cout << "["<<o.label<<"] iters="<<scf.GetIterationCount()<<" charge="<<charge
+              << " Eelec="<<E.GetElectronicEnergy() << " Etot="<<E.GetTotalEnergy()
+              << "  (Ekin="<<E.Kinetic<<" Een="<<E.Een<<" Eee="<<E.Eee<<" Exc="<<E.Exc
+              << " Enn="<<E.Enn<<" Ealign="<<E.Ealign<<")" << std::endl;
+    return {scf.Converged(), charge, E, scf.GetIterationCount()};
+}
+
+// Positional back-compat wrapper (the existing single-species Si callers): forwards to RunGpw(GpwOptions).
 GpwResult RunGPW(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, double densityEcut,
                  int Nelec, const char* element, const char* label, bool verbose=false, int nmax=120,
                  qchem::Ortho ortho=qchem::Cholesky, double orthoTol=0.0,
                  rvec3_t kShift={0,0,0}, double minDrho=1e-6, double minDE=1e30,
                  qchem::ChargeDensity::SeedStrategy seed=qchem::ChargeDensity::SeedStrategy::Uniform,
                  BasisSet::Lattice_3D::CellImages images=BasisSet::Lattice_3D::CellImages::Periodic,
-                 double smearkT=0.0)   // Fermi-Dirac smearing kT (Hartree); 0=off (doc/GPWPlan1.md 4b)
+                 double smearkT=0.0)
 {
-    namespace L3=BasisSet::Lattice_3D;
-    namespace rpt=qchem::report;
-    // Bracket the whole GPW run (this test helper IS the GPW orchestrator, per doc/RunReportPlan.md).  The RAII
-    // guard guarantees End()/ClearConsole even if a step throws.  Records into GlobalReport; renders to the
-    // console only when \a verbose.  GPWFactory below emits the `grids` section during basis construction.
-    rpt::Begin(std::string(element)+" "+label);
-    struct ReportGuard { ~ReportGuard(){ rpt::ClearConsole(); rpt::End(); } } reportGuard;
-    if (verbose) rpt::SetConsole(std::cout, rpt::Detail::Normal);
-
-    std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, std::move(mol), densityEcut, kShift, images));
-
-    // FAIL-FAST CONDITIONING PRE-FLIGHT (the reorder the report surfaced): vet the basis overlap -- which is
-    // ANALYTIC and grid-free -- and emit basis.perIrrep/removed BEFORE the Hamiltonian or the grid ladder are
-    // built.  A rank-deficient basis aborts HERE, instead of building the whole grid ladder and only then
-    // discovering (in the WF-factory eigen-analysis) that the basis is singular.  This also puts the report's
-    // `basis` section before `grids`, reflecting the now-sensible program order.
-    {
-        rpt::Section basis("basis");
-        const size_t drops = L3::VetGpwConditioning(*bs);
-        if (drops > 0)
-        {
-            std::cout << "["<<label<<"] ABORT: basis rank-deficient ("<<drops
-                      << " redundant function(s); see basis.removed) -- skipped grids + SCF (fail-fast)."<<std::endl;
-            return {false, 0.0, qchem::EnergyBreakdown{}, 0};
-        }
-    }
-    L3::EmitGpwGrids(*bs);   // basis vetted OK -> now build + report the grid ladder
-
-    auto       irreps=bs->GetIrreps(Spin::None);   // one Bloch irrep per BZ k-block (weights carry the Sum_k)
-    Crystal_EC ec(irreps, Nelec);                  // multi-k ready; a single Gamma block is the length-1 case
-    // Ham_PW_DFT drives GPW verbatim (kinetic + external-PP + Hartree + Dirac X + VWN5 + ion-ion Ewald).
-    qchem::Hamiltonian::cHamiltonian* ham=new qchem::Hamiltonian::Ham_PW_DFT(
-        lat.GetStructure(), bs.get(), element, "LDA", 4);
-    auto* acc=new qchem::SCFAccelerators::cSCFAcceleratorDIIS(qchem::SCFAccelerators::DIISParams{8, 8.0, 1e-10, 1e-9});
-    // \a ortho / \a orthoTol: Cholesky (default) needs S positive-definite; for a periodic lattice basis the
-    // diffuse Gaussians can go linearly dependent -> Eigen/SVD with a small-eigenvalue cutoff.  The basis report
-    // was already emitted by the pre-flight above, so NO Section("basis") here -- MakeIrrepWFs stays silent
-    // (report::InSection("basis") is false) and does not double-emit; it just does the ortho.
-    qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc,
-                                         seed, lat.GetStructure().get(), ortho, orthoTol);
-    std::vector<FpRow> series;   // capture the SCF trajectory for the dynamics fingerprint (Observer telemetry)
-    scf.SetObserver([&series](const qchem::SCFIterator::SCFProgress& p)
-                    { series.push_back({p.iteration, p.energy, p.dE, p.commutator, p.drho}); });
-    SCFParams par;
-    // \a minDrho / \a minDE: the SCF convergence gate (AND of the active criteria).  Default = the historical
-    // Δρ<1e-6 only (energy/virial/[F,D] off) -- the committed Rcut=0 gapped anchors converge there.  A fitted
-    // GPW SCF at a converged Rcut cannot drive Δρ below the density-fit floor (~2e-4, NON-variational -- see
-    // doc/GPWPlan.md; NOT a bug, and NOT fixable by a direct minimiser, which needs a variational energy), so
-    // the physical gate there is ENERGY: pass minDE~1e-6 + a relaxed minDrho~1e-3 to stop once the total energy
-    // settles (~iter 15) instead of chasing fit noise to nmax.
-    par.NMaxIter=nmax; par.MinΔρ=minDrho; par.MinΔE=minDE; par.MinΔFD=1e30; par.MinVirial=1e30; par.MinFD=1e30;
-    par.StartingRelaxRo=0.3; par.MergeTol=1e-4; par.Verbose=verbose; par.SmearingkT=smearkT;
-    qchem::Hamiltonian::ReportGridCharge()=(bool)std::getenv("GPW_GRIDCHARGE");   // per-iteration rho_grid vs Tr(DS) + rho stats (step-2 probe)
-    scf.Iterate(par);
-    qchem::Hamiltonian::ReportGridCharge()=false;      // process-wide flag -- reset so it does not leak to other tests
-    Fingerprint(series, label);                        // classify the trajectory: converged / oscillating / stalled / diverging
-
-    auto* cd=scf.GetWaveFunction()->GetChargeDensity();
-    double charge=cd->GetTotalCharge();
-    delete cd;
-    qchem::EnergyBreakdown E=scf.GetEnergy();
-    std::cout << "["<<label<<"] iters="<<scf.GetIterationCount()<<" charge="<<charge
-              << " Eelec="<<E.GetElectronicEnergy() << " Etot="<<E.GetTotalEnergy()
-              << "  (Ekin="<<E.Kinetic<<" Een="<<E.Een<<" Eee="<<E.Eee<<" Exc="<<E.Exc
-              << " Enn="<<E.Enn<<" Ealign="<<E.Ealign<<")" << std::endl;
-    return {scf.Converged(), charge, E, scf.GetIterationCount()};
+    GpwOptions o;
+    o.label=label; o.Nelec=Nelec; o.species={{std::string(element), 4}};   // the Si callers: Zion=4
+    o.densityEcut=densityEcut; o.images=images; o.kShift=kShift;
+    o.accelerator="DIIS"; o.seed=seed; o.ortho=ortho; o.orthoTol=orthoTol;
+    o.scf.NMaxIter=(size_t)nmax; o.scf.MinΔρ=minDrho; o.scf.MinΔE=minDE;
+    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
+    o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4; o.scf.Verbose=verbose; o.scf.SmearingkT=smearkT;
+    return RunGpw(lat, mol, o, verbose);
 }
 } //anon
 
@@ -346,7 +418,7 @@ TEST(GPW_SCF, SiliconGammaConverges)
     Lattice_3D lat(cell, ivec3_t(1,1,1));
 
     GpwResult R=RunGPW(lat, MakeBasisSR(cell), /*densityEcut*/20.0, /*Nelec*/8, "Si",
-                       "Si SR Gamma", /*verbose*/false, /*nmax*/60, qchem::Cholesky, 0.0,
+                       "Si SR Gamma", /*verbose*/true, /*nmax*/60, qchem::Cholesky, 0.0,
                        /*kShift*/rvec3_t(0,0,0), /*minDrho*/1e-3, /*minDE*/1e-6);
 
     EXPECT_TRUE(R.converged);

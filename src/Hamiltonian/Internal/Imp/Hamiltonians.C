@@ -215,6 +215,13 @@ Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, std::initializer_list<st
     BuildFromGTH(st, bs, std::vector<std::pair<std::string,int>>(species), functional);
 }
 
+// Multi-species, runtime vector form (LiCoO2 / f-oxides: distinct elements collected at run time).
+Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const std::vector<std::pair<std::string,int>>& species,
+                       const std::string& functional)
+{
+    BuildFromGTH(st, bs, species, functional);
+}
+
 // Look up each (element, valence) from the GTH database and build + OWN a per-Z router model (one
 // MultiSpecies_Local + one MultiSpecies_Separable, keyed by atomic number so the assembly's per-atom
 // FormFactor(a->itsZ,...) dispatches to the right species).  The owned models outlive the terms (members,

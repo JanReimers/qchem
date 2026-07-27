@@ -125,6 +125,10 @@ public:
     //! and a per-Z router model (MultiSpecies_*) is built + OWNED -- e.g. Ham_PW_DFT(st, bs, {{"Na",1},{"F",7}}).
     Ham_PW_DFT(const st_t& st, const cbs_t* bs, std::initializer_list<std::pair<std::string,int>> species,
                const std::string& functional="LDA");
+    //! Multi-species, RUNTIME species list (the vector form the initializer_list can't provide) -- e.g. a
+    //! LiCoO2 / f-oxide run assembled from the cell's distinct elements at run time.
+    Ham_PW_DFT(const st_t& st, const cbs_t* bs, const std::vector<std::pair<std::string,int>>& species,
+               const std::string& functional="LDA");
 private:
     void BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotential::LocalPotential* loc,
                     const Pseudopotential::SeparablePotential* nl);
