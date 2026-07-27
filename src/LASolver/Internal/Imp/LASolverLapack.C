@@ -21,7 +21,7 @@ namespace qchem {
 template <class T> static void report_conditioning(const hmat_t<T>& S)
 {
     const bool toConsole = ReportOverlapConditioning();
-    const bool toReport  = report::Depth() > 0;      // a run report is open
+    const bool toReport  = report::InSection("basis"); // an ancestor opened a basis.perIrrep row for us
     if (!toConsole && !toReport) return;             // neither sink wants it -> skip the eigen entirely
     rvec_t d; mat_t<T> U;
     blazem::eigen(S, d, U);                          // ascending eigenvalues of the Hermitian overlap

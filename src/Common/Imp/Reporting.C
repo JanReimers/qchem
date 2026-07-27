@@ -83,6 +83,12 @@ void ClearGlobal()
 
 int Depth() { return static_cast<int>(g_stack.size()); }
 
+bool InSection(const std::string& name)
+{
+    for (const auto& s : g_cursor) if (!s.isIndex && s.key == name) return true;
+    return false;
+}
+
 void Begin(const std::string& name) { Begin(name, NowIso()); }
 
 void Begin(const std::string& name, const std::string& startTime)

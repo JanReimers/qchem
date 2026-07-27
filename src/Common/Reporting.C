@@ -67,6 +67,12 @@ void End();
 //! only at depth 1; the json keeps every depth.
 int Depth();
 
+//! True if a section named `name` is currently open on the cursor (an ancestor opened
+//! a Section/Row path through it).  Lets a deep provider emit ONLY when the orchestrator
+//! has established the expected context -- e.g. conditioning writes into basis.perIrrep
+//! only when a "basis" section is open, so the same code stays silent when it is not.
+bool InSection(const std::string& name);
+
 //! An ISO-8601-ish "YYYY-MM-DDThh:mm:ss" stamp for Begin's startTime (production use).
 std::string NowIso();
 

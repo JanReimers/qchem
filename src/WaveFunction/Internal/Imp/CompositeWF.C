@@ -60,24 +60,30 @@ template <class T> void tCompositeWF<T>::MakeIrrepWFs(Spin s)
         LASolver<T>* lasb=LASolver<T>::Factory(itsBasisOrtho, itsBasisOrthoTol);
         Irrep qns(b->GetIrrep(s));
 
-        // This loop is the CONTEXT OWNER for the report's basis.perIrrep row: open the row (so the
-        // LASolver's conditioning write, five layers down in SetBasisOverlap, lands here without any
-        // irrep identity threaded to it), stamp the irrep + size, then solve.
+        // Emit the report's basis.perIrrep row ONLY when an ancestor opened a "basis" section (the
+        // orchestrator's choice).  The molecular Calculation opens it around this construction; a GPW
+        // orchestrator that vets conditioning in a PRE-FLIGHT (before this WF build) leaves it closed, so
+        // this stays silent and does not duplicate.  When open, the LASolver's conditioning write (five
+        // layers down in SetBasisOverlap) lands in THIS row with no irrep identity threaded to it.
+        const bool reporting = rpt::InSection("basis");
+        if (reporting)
         {
             rpt::Row row("perIrrep");
             rpt::Set("irrep",      IrrepLabel(qns));
             rpt::Set("nFunctions", (long)b->GetNumFunctions());
-            lasb->SetBasisOverlap(S);   // -> report::Set(lambdaMin/lambdaMax/cond) into THIS row
+            lasb->SetBasisOverlap(S);
         }
-        // basis.removed (report-only detector, doc/GPWPlan1.md §4a): the redundant AO functions this
-        // irrep's overlap carries.  Named by {irrep, index} for now -- exponent/atom naming awaits a
-        // per-function metadata accessor on the block (a §4a follow-up).  Empty on a healthy basis.
-        for (size_t idx : qchem::PivotedCholeskyDrops<T>(S))
-        {
-            rpt::Row r("removed");
-            rpt::Set("irrep", IrrepLabel(qns));
-            rpt::Set("index", (long)idx);
-        }
+        else
+            lasb->SetBasisOverlap(S);   // ortho only -- no basis context, no report
+        // basis.removed (report-only detector, doc/GPWPlan1.md §4a): the redundant AO functions this irrep
+        // carries.  {irrep, index} for now (exponent/atom naming awaits a per-function metadata accessor).
+        if (reporting)
+            for (size_t idx : qchem::PivotedCholeskyDrops<T>(S))
+            {
+                rpt::Row r("removed");
+                rpt::Set("irrep", IrrepLabel(qns));
+                rpt::Set("index", (long)idx);
+            }
 
         tSCFIrrepAccelerator<T>* acc=itsAccelerator->Create(lasb,qns,itsEC->GetN(qns));
 
