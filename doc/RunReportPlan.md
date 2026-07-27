@@ -1,37 +1,87 @@
 # RunReportPlan — a professional, JSON-ready reporting layer
 
-Status: SKELETON + ALL FOUR SECTIONS (`scf`, `basis`, `grids`, `cache`) DONE (2026-07-26) — the migration is
-COMPLETE.  Consolidate the scattered setup diagnostics into one organized, machine-readable report — rendered as
-tidy terminal output today and JSON for the GUI tomorrow, from a single data model.
+Status: **MIGRATION COMPLETE** (2026-07-26); `ctest -j16` green (606/606).  Consolidate the scattered setup
+diagnostics into one organized, machine-readable report — tidy terminal output today, JSON for the GUI tomorrow,
+from a single data model.  (The design rationale below is the reference/archive; the DONE + REMAINING sections
+here are the current state.)
 
-Post-migration polish (2026-07-26): unused cache tiers (0 RAM) and untouched reuse caches are dropped; the legacy
-dtor `percent(0,0)` `-nan%` guarded to `0%`; `FormatHint.fixed` gives clean fixed-point percentages/MB.  The GPW
-`[stream cache]` collocation-coverage line is folded into `grids.stream` via a new `report::EmitAt(section, key,
-value)` (write a late sub-block into an already-emitted section + render just that block; it builds after the
-grids table renders).  Remaining/future work: the SOLID refactor (deferred, see "SOLID target"),
-`basis.removed` exponent/atom naming, and disk/rolling-log sinks.
+## DONE — summary
 
-**Fail-fast reorder — PROTOTYPED, GPW-only (2026-07-26).**  The report surfaced that the SCF setup built the
-grid ladder (and Hamiltonian) BEFORE the overlap-conditioning eigen-analysis, so a singular basis was detected
-only after all that work.  Root cause: the basis-ctor grid *report* and `Ham_PW_DFT` construction both force
-`EnsureLevels` before the WF-factory's `SetBasisOverlap` runs the analysis — yet the Bloch overlap that feeds the
-analysis is ANALYTIC/grid-free (`GPW_Evaluator::OverlapMatrix()` = `itsLat->MakeOverlap`).  Fix (GPW path):
-`report::InSection("basis")` now gates basis emission (so the WF factory stays silent unless the orchestrator
-opened a basis context); `Lattice_3D::VetGpwConditioning(bs)` does a pre-flight eigen + `PivotedCholeskyDrops`
-per Bloch block, emits `basis.perIrrep`/`removed`, and returns the redundant-function count; `RunGPW` runs it
-under `Section("basis")` BEFORE `Ham_PW_DFT`, **aborts if rank-deficient**, then calls
-`Lattice_3D::EmitGpwGrids(bs)` (grid build moved out of the basis ctor).  Net: a singular basis fails before any
-grid work, and the report now shows `basis` → `grids` (the sensible order).  Validated: Si Γ converges
-identically (Etot −7.11506); `ctest -j16` green (606/606).  TODO: exercise the abort on a genuinely
-rank-deficient GPW basis (the diffuse `VALENCE_LOWQ` campaigns), and decide whether to generalize the pre-flight
-to the molecular `Calculation` path.
+**Infrastructure** — `qchem.Reporting`, leaf module in `qcCommon` (`src/Common/Reporting.C` + `Imp/`):
+- The report **IS json** (`ordered_json`, so sections keep emit order).  Global sink: `GlobalReport` (keyed
+  `"<name>@<startTime>"`) + key-free `CurrentRunReport`; `Begin`/`End` run nesting (depth counter; `NowIso()`
+  auto-stamp or injected timestamp); `ClearGlobal` test hook.
+- ONE generic `RenderConsole` — layout **inferred** from json shape (key/value table | multi-column table |
+  indented tree); `RenderJson=dump(2)`; **incremental** depth-1 rendering (each section shows as it completes).
+- The **section cursor** (`Set` + RAII `Section`/`Row`) — a five-layers-down provider writes CONTEXT-FREE, no
+  `report&`/irrep threaded through the physics.  `EmitSection` (whole section) + `EmitAt` (late sub-block).
+- `report::Log` — live per-step **heartbeat** (flush-now progress lines; first increment of the logger/sink axis).
+- `FormatHint` (unit + precision + fixed-point) consulted by the renderer.
 
-**Step 0 landed**: `qchem.Reporting` leaf module in `qcCommon` (`src/Common/Reporting.C` + `Imp/Reporting.C`) —
-`json = nlohmann::ordered_json` (ordered so sections keep emit order), global sink (`GlobalReport` keyed +
-key-free `CurrentRunReport`), `Begin`/`End` nesting with a depth counter, `SetConsole`/`EmitSection` (incremental
-depth-1-only console render), the ONE generic `RenderConsole` (layout inferred: key/value table | multi-column
-table | indented tree), `RenderJson=dump(2)`, and the `HintFor` format-hints table.  Schema-check + render tests
-in `src/Common/tests/Reporting.C` (9 green, part of `UTCommon`), plus a `DISABLED_VisualDump` for eyeballing.
+**Sections** — each retired a scattered `cout` and has a schema-check test:
+
+| Section | Provider | Retired print |
+|---|---|---|
+| `scf` | `Calculation::Converge` (`SCFParams` + accel tag) | (was un-reported) |
+| `basis` | `MakeIrrepWFs`/`LASolver` via the cursor + `PivotedCholeskyDrops` | `[overlap S]`, `[ortho]` |
+| `grids` (+ `grids.stream`) | `GPW_Evaluator::EmitGridsReport` + MnD stream-cache via `EmitAt` | `[GPW grid] ladder…`, `[stream cache]` |
+| `cache` | `IntegralsCache::EmitReport` (per-run snapshot) | `IntegralsCache RAM usage report` |
+
+**Beyond the migration**:
+- **Fail-fast reorder (GPW)** — the report EXPOSED that grids were built before the (grid-free) conditioning
+  eigen-analysis.  `RunGpw` now vets conditioning in a pre-flight (`Lattice_3D::VetGpwConditioning`, gated by
+  `report::InSection("basis")`) BEFORE the grid ladder / `Ham_PW_DFT` and **aborts if rank-deficient**; report
+  order is now `basis` → `grids`.  (Si Γ still −7.11506.)
+- **GPW harness** — `RunGpw(lat, mol, GpwOptions, verbose)`: the general driver (multi-species PP, accelerator
+  policy, grid control, seed, ortho, `SCFParams`), reporting + fail-fast baked in.  `NaFRocksaltGamma` condensed
+  ~190 → ~50 lines onto it (→ −24.4304); every future material (CsI, Na, LiCoO2, …) is one options literal.
+- **`ReportOverlapConditioning` toggle removed** — the report captures conditioning, so the `[overlap S]` console
+  toggle is retired; `report_conditioning` is now report-only.
+- Dogfooded live: `scfrun` (molecular), `RunGpw` verbose (GPW / NaF).
+
+## Remaining / future work (reviewed 2026-07-26)
+
+- **`meta` section** — NOT yet emitted (title, structureName, nElectrons, spinPolarized).  The orchestrator has
+  all of it; a one-line `EmitSection("meta", …)` in `Calculation::Converge` / `RunGpw`.  Cheap.
+- **Field metadata: 2–3 naming levels** — the raw code key is cryptic in the UI; see "Field metadata" below (NEW).
+- **Detail level (verbosity)** — the `Detail` enum exists but `RenderConsole` does not yet FILTER; the
+  section/field → min-level map is unbuilt.  Still wanted (Terse/Normal/Verbose console).
+- **SOLID refactor** — the abstract `Renderer` (DIP) + factory, and the ISP provider/orchestrator facet split.
+  Still deferred; the provider facet turned out minimal (`{CurrentRunReport, EmitSection, Set, Section, Row,
+  EmitAt}`), so the lift is cheap now that usage is concrete.  See "SOLID target".
+- **Disk / rolling-log sink** — the renderer-vs-sink seam is ready (`RenderConsole(json, ostream&)`) and
+  `report::Log` is the first heartbeat increment; the rotation policy (`RollingFileSink`) is still deferred.
+- **`basis.removed` exponent/atom naming** — currently `{irrep, index}`; the `L`/`alpha`/`atom`/`position` naming
+  ("fix-your-basis") needs a per-function metadata accessor on the block (a §4a-actuator follow-up).
+- **Fail-fast: real singular basis + molecular generalization** — the abort path is structural; exercise it on a
+  genuinely rank-deficient GPW basis (diffuse `VALENCE_LOWQ`), and decide whether to hoist the pre-flight into the
+  molecular `Calculation` path too.
+- **`schemaVersion`** — add a top-level version once the GUI consumes the json.
+- **FUTURE sections** — structure, symmetry group, irreps, Hamiltonian (also to the console).
+- **HDF5** — sidecar vs serialised into the run group; `RenderJson` makes either trivial.
+
+*(No longer open — done this cycle: the GPW `[stream cache]` section → `grids.stream`; the `[ortho]`/`[overlap S]`
+retirement via `ReportOverlapConditioning` removal; the legacy exit-time cache RAM dump.)*
+
+### Field metadata — code name / terse label / hover paragraph (NEW future improvement)
+
+Today a report field shows under its raw CODE key (`lambdaMin`, `nFunctions`) — cryptic in the console and worse
+in the GUI.  Generalize the `FormatHint`/`HintFor` table into a **field-metadata registry** with up to THREE
+naming levels per field:
+1. **Code key** — the json field name (`lambdaMin`).  STABLE: it is the schema contract the GUI/HDF5 bind to,
+   never renamed (additive-only).  Lives in the data json.
+2. **Terse label** — a short human name shown as the column header / key label in BOTH console and GUI
+   (`min overlap eig`, or `λ_min`).  Replaces the raw key at render time.
+3. **Description** — an OPTIONAL paragraph, shown only in the GUI on mouse-hover (tooltip) for fields that warrant
+   it (`"Smallest eigenvalue of the AO overlap matrix; near zero ⇒ near-linear-dependence — the diffuse-basis
+   failure mode."`).  Not every field needs one.
+
+`FormatHint` grows into `FieldMeta { label; unit; precision; fixed; description }`, and `HintFor(key)` returns it.
+The renderer uses `label` (falling back to `key`) for headers and `unit`/`precision` for values; the GUI
+(nanobind) exposes `description` as the hover text.  This stays entirely on the RENDER side — the data json keeps
+the stable CODE key, so no presentation metadata pollutes the data (consistent with the whole design).  Bonus: the
+registry becomes the single source of truth for the schema doc (names + units + meanings), so doc and code cannot
+drift.
 
 ## Motivation
 
@@ -251,7 +301,8 @@ layout (arrays-of-uniform-objects → tables; nested → trees):
                 removed  : [ { index, L, alpha, atom, position } ] }   // from PivotedCholeskyDrops (9b546bc1)
   grids       { densityEcut, cutoffFactor, raster,
                 ladder : [ { level, N:[nx,ny,nz], ecut, nG, role } ],  // role: reference | coarse | rung
-                localPP: { kappa, fieldSharpness } }
+                localPP: { kappa, fieldSharpness },
+                stream : { rule, pairs, fp64, pts64, fp32, pts32, dropped, budget64, budget32 } }  // MnD collocation coverage (was [stream cache])
   cache       { tiers : [ { name, ramMB, pct } ],
                 reuse : [ { cache, entries, lookups, reusePct, ramMB } ] }
   scf         { standard: { nMaxIter, minDrho, minDFD, minDE, minFD, mixer, kerkerG0,
