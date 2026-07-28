@@ -42,6 +42,10 @@ public:
           Orbitals*     GetOrbitals     ()      ;
     const EnergyLevels& FillOrbitals    (const ElectronConfiguration*);
     const EnergyLevels& FillOrbitals    (double ne); //occupy with a given electron count (aufbau)
+    //! Occupy at a GIVEN chemical potential μ (the global-μ metal fill, doc/GPWPlan1.md item 3): empties, sets
+    //! g_i·f_i on THIS block's orbitals at \a mu (plain energy Fermi -- the composite solved μ on bare ε across
+    //! the mesh), stores this block's D'/−TS/levels.  Requires smearing on.  No MOM (a metal fills by energy).
+    const EnergyLevels& FillOrbitalsAtMu(double mu);
 
     // Maximum Overlap Method (MOM): score each *current* orbital by how much it overlaps the
     // reference occupied subspace (previous iteration's occupied orbitals), so occupation can
@@ -60,8 +64,10 @@ public:
     //! momPenalty=0 => smearing alone (fills by energy; a diving diffuse ghost would be occupied).
     void                SetSmearing     (double kT, double momPenalty) {itsSmearingkT=kT; itsMOMSmearPenalty=momPenalty;}
     //! The Mermin free-energy term −TS (≤0) from this block's most recent fill; 0 unless smearing is on.
-    //! Summed across blocks by the composite WF and stamped into EnergyBreakdown by the SCFIterator.
-    double              GetEntropyTerm  () const {return itsMinusTS;}
+    //! BZ-WEIGHTED by this block's w_k (the SAME weight GetChargeDensity applies to D), so summing across
+    //! blocks in the composite gives the correct −TS = Σ_k w_k(−T S_k) alongside the BZ-weighted E.  At a
+    //! single k (w=1) this is the bare block −TS.  Stamped into EnergyBreakdown by the SCFIterator.
+    double              GetEntropyTerm  () const {return itsIrrep.sym->GetWeight()*itsMinusTS;}
     //! 0h guard actuator: drop the reference + re-arm the delayed-IMOM capture (itsFillCount restarts, so a
     //! fresh reference is captured itsMOMStartIter aufbau fills from now -- the calibrated settling window).
     void                ReleaseMOMReference() {itsRefOccCPrime.clear(); itsFillCount=0;}

@@ -137,24 +137,32 @@ OCCUPATION step goes global.  It reduces EXACTLY to today at Γ (one block, weig
 so the Al-Γ tests cannot regress.  Aligns with `doc/SCFStrategyPlan.md` §5 (occupation = first-class seam; the
 μ-solver "per k-block → global" is the named upgrade; §5 already pre-flags the GDM×smearing pitfall item 2 hit).
 
-**Increments:**
-1. **Split the Fermi primitive.**  Refactor `TakeElectronsFermi(ne,kT)` into a shared μ-solver + a
-   `SetFermiOccupationsAtMu(μ,kT) → (−TS_k, n_k, D')`.  Per-block solve stays (insulator / Γ); the metal path
-   calls the μ-solver ONCE at the composite level, then `SetAtMu` on each block.  (Pure refactor; Γ bit-stable.)
-2. **`Crystal_EC` global mode.**  Global-total-N ctor + `UsesGlobalFermi()`; carries the BZ weights (from
-   `Symmetry::GetWeight`, the plumbing `SiliconMultiKPlumbing` already exercises — weights sum to 1).
-3. **Composite global fill** `FillOrbitalsGlobalFermi`: gather `(ε_i,k, g_i, w_k)` across the channel, bisect
-   one μ on `Σ_k w_k Σ_i g_i f((ε_i,k−μ)/kT) = N_total`, set per-block occupations, accumulate
-   `−TS = Σ_k w_k(−T S_k)`.  Branch in `tCompositeWF::FillOrbitals` next to the `UsesAufbau()` branch.
-4. **Validate on Al 2×2×2** (full Γ-centred mesh): assert charge conserved (`Σ_k w_k n_k = Nval`) AND per-k
-   occupations DIFFER (the Fermi surface — the metal signature vs the per-block insulator fill); compare Etot
-   vs a denser mesh.  The honest Na metal is item 4.
+**Increments — ALL DONE 2026-07-28 (full-mesh scope; commits d9a416e0, e474cf67, + inc 3):**
+1. ✅ **Split the Fermi primitive.**  `TakeElectronsFermi(ne,kT)` = free `FermiLevel(e,g,target,kT)` μ-solver +
+   virtual `SetFermiOccupationsAtMu(μ,kT,eShift)`.  The solver is weight-agnostic (g = degeneracy OR
+   w_k·degeneracy), so ONE bisector serves per-block and cross-k.  Γ bit-identical (commit d9a416e0).
+2. ✅ **`Crystal_EC` global mode.**  `globalFermi` flag (defaulted off) + `UsesGlobalFermi()`; Nval is the
+   whole-mesh total.  Purely additive (commit e474cf67).
+3. ✅ **Composite global fill** `FillOrbitalsGlobalFermi`: gathers `(ε_i,k, w_k·g_i)` across the channel via the
+   SAME `GetQNs().sym->GetWeight()` the density uses, bisects one μ on `Σ_k w_k Σ_i g_i f = N_total`, then
+   `tIrrepWF::FillOrbitalsAtMu(μ)` on each block.  `−TS` BZ-weighted in `tIrrepWF::GetEntropyTerm` (w_k·(−TS_k)),
+   consistent with the BZ-weighted E.  Branch in `FillOrbitals` next to `UsesAufbau()`.
+4. ✅ **Validated on Al 2×2×2** — committed test `GPW_SCF.AlFCCMetalGlobalMu` (8-point Γ-centred mesh):
+   - **Γ invariant**: global μ ≡ per-block Fermi to 1e-12 at a single k (`DISABLED_AlGlobalMuExperiment`).
+   - **Charge conserved**: `Σ_k w_k n_k = 3.00000000` exactly (the weight-consistency guard holds).
+   - **Metal signature**: global μ CONVERGES to A=-2.1168 where per-block filling (AL_GLOBAL=0) forces 3 e⁻ at
+     every k and lands non-converged garbage A≈-0.46 → charge MUST redistribute between k-points.
+   - **Dispersion**: k-sampling binds (-1.92 Γ-only → -2.12 at 2×2×2).  Full ctest 611/611.
 
-**Multi-k risks to watch (limited experience):** (a) weight consistency — the global constraint MUST use the
-same `w_k` the density sum uses; verify `Σ w_k n_k` equals the BZ-weighted charge the CD reports.  (b) complex-k
-is fine — occupations/eigenvalues are real, so the global bisection is real arithmetic even for complex blocks.
-(c) spin-polarized metals share ONE μ across BOTH spin channels (deferred; first cut is spin=None, one channel).
-(d) kT must exceed the inter-k level spacing near E_F (same "smear wider than the splitting" finding as item 2).
+**Multi-k risks — resolved:** (a) weight consistency — the μ constraint reads `GetQNs().sym->GetWeight()`, the
+SAME accessor `TOrbitalsImp::GetChargeDensity` scales D by; charge conserves to 1e-8, confirming it.  (b)
+complex-k — occupations/eigenvalues real, so the global bisection is real arithmetic (2×2×2 has complex blocks
+and works).  (c) spin-polarized metals share ONE μ across BOTH spin channels — STILL DEFERRED (this is
+spin=None, one channel; a magnetic metal needs the μ-solve to span both `itsSpinWFs` channels).  (d) kT must
+exceed the inter-k level spacing near E_F (the item-2 "smear wider than the splitting" finding).
+
+**Remaining for item 3:** IBZ integration (weights from the symmetry-reduced mesh — the qchem7 track; the fill
+is weight-agnostic so only the weights change) and the spin-polarized global μ (both spin channels, one μ).
 
 **4. MULTI-K Na — the honest metal test** — FCC and/or BCC Na (1 valence e, half-filled conduction band): a
 real Fermi surface, one μ across the BZ, smearing + annealing.  Gate (iv), done properly.  (May want a more

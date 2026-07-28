@@ -93,7 +93,8 @@ template <class T> const EnergyLevels& tIrrepWF<T>::FillOrbitals(double ne)
     // Σg_i f_i=ne, fill fractionally, and keep the Mermin −TS for the free-energy gate.  It cures the
     // near-gapless occupation FLAPPING (NaF Ecut=160) that MOM (an occupied-subspace pin) cannot -- the
     // frontier here IS near-degenerate, so no integer configuration is stable; the fractional fill is.
-    // (μ is per-block for now = Increment 1, which covers Γ-only; global-μ across k-blocks is Increment 2.)
+    // (This solves THIS block's OWN μ -- the insulator / Γ path; a metal solves ONE μ across the mesh via
+    // tCompositeWF::FillOrbitalsGlobalFermi -> FillOrbitalsAtMu, doc/GPWPlan1.md item 3.)
     itsMinusTS=0.0;
     const bool haveRef = itsUseMOM && itsRefOccCPrime.columns()>0;
     if (itsSmearingkT>0.0)
@@ -132,6 +133,22 @@ template <class T> const EnergyLevels& tIrrepWF<T>::FillOrbitals(double ne)
     ++itsFillCount;
     if (itsUseMOM && itsRefOccCPrime.columns()==0 && itsFillCount>=itsMOMStartIter)
         CaptureMOMReference();
+    return itsELevels;
+}
+
+// Occupy at a GIVEN μ -- the per-block half of the global-μ metal fill (doc/GPWPlan1.md item 3).  The composite
+// solved ONE μ over the whole mesh (Σ_k w_k Σ_i g_i f_i = N_total) and calls this on each block so charge
+// sloshes between k-points.  Same empties/levels bookkeeping as FillOrbitals(ne), but SETS occupations at the
+// shared μ instead of solving this block's own.  Plain energy Fermi (no MOM eShift: the μ was solved on bare ε).
+template <class T> const EnergyLevels& tIrrepWF<T>::FillOrbitalsAtMu(double mu)
+{
+    assert(itsSmearingkT>0.0 && "FillOrbitalsAtMu is a smeared (metal) path -- SmearingkT must be > 0");
+    for (auto o:itsOrbitals->Iterate()) o->Empty();
+    std::tie(itsMinusTS,itsDPrime)=itsOrbitals->SetFermiOccupationsAtMu(mu,itsSmearingkT,rvec_t());
+    itsELevels.clear();
+    for (auto o:itsOrbitals->Iterate())
+        itsELevels.insert(qchem::Orbitals::EnergyLevel(o));
+    ++itsFillCount;
     return itsELevels;
 }
 

@@ -63,12 +63,15 @@ private:
     typedef tIrrepWF<T> iwf_t;
     typedef std::unique_ptr<iwf_t> uiwf_t;
     void FillOrbitalsAufbau(double mergeTol); //fill globally-lowest orbitals across all irreps
+    void FillOrbitalsGlobalFermi(double mergeTol); //metal: one μ across the Bloch mesh (doc/GPWPlan1.md item 3)
 
     const tbs_t<T>*              itsBS;
     const ElectronConfiguration* itsEC;
     qchem::Ortho                 itsBasisOrtho;    //S-orthogonalisation mode for the generalised eigenproblem
     double                       itsBasisOrthoTol; //near-null eigen/singular-value cutoff (Eigen/SVD; 0 = keep all)
     bool                         itsAufbau;   //molecular aufbau across irreps (vs fixed per-irrep EC)
+    bool                         itsGlobalFermi; //metal: k-blocks share one μ (from ec->UsesGlobalFermi())
+    double                       itsSmearingkT=0.0; //Fermi kT for this run (SetSmearing); the global fill needs it
     bool                         itsUseMOM=false;    //Maximum Overlap Method for this run (from SCFParams::UseMOM)
     bool                         itsMOMActive=false; //cross-irrep MOM armed (parked molecular path; set after 1st fill)
     tSCFAccelerator<T>*          itsAccelerator;

@@ -178,6 +178,7 @@ struct GpwOptions
     rvec3_t kShift = rvec3_t(0,0,0);
     // convergence machinery
     std::string accelerator = "DIIS";                  // DIIS | GDM | Ladder | Null
+    bool        globalFermi = false;                    // metal: one μ across the k-mesh (Crystal_EC global mode)
     qchem::ChargeDensity::SeedStrategy seed = qchem::ChargeDensity::SeedStrategy::Uniform;
     qchem::Ortho ortho    = qchem::Cholesky;
     double       orthoTol = 0.0;
@@ -228,7 +229,7 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
 
     qchem::report::Log("building Hamiltonian");
     auto       irreps=bs->GetIrreps(Spin::None);   // one Bloch irrep per BZ k-block (weights carry the Sum_k)
-    Crystal_EC ec(irreps, o.Nelec);
+    Crystal_EC ec(irreps, o.Nelec, o.globalFermi);
     qchem::Hamiltonian::cHamiltonian* ham =
         new qchem::Hamiltonian::Ham_PW_DFT(lat.GetStructure(), bs.get(), o.species, "LDA");
     auto* acc = MakeGpwAccelerator(o.accelerator);
@@ -288,7 +289,7 @@ static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Rea
 
     auto       st = lat.GetStructure();
     auto       irreps = bs->GetIrreps(Spin::None);
-    Crystal_EC ec(irreps, o.Nelec);
+    Crystal_EC ec(irreps, o.Nelec, o.globalFermi);
 
     GpwResult R{false, 0.0, qchem::EnergyBreakdown{}, 0};
     qchem::ChargeDensity::cDM_CD* seedCD = nullptr;   // carried between stages (the next stage's ctor consumes it)
@@ -713,6 +714,53 @@ TEST(GPW_SCF, AlFCCAnnealedMetal)
     // did-E-move anchors at the coldest stage (kT=0.005): the free energy A and the kT-independent internal E.
     EXPECT_NEAR(R.E.GetTotalEnergy(), -1.934665, 2e-3);                        // A = E − TS at kT=0.005
     EXPECT_NEAR(R.E.GetTotalEnergy()-R.E.MinusTS, -1.921148, 2e-3);            // internal E (T→0 physical value)
+}
+
+// (item 3) GLOBAL μ ACROSS k-BLOCKS -- the true metal fill.  FCC Al on a 2×2×2 Γ-centred Bloch mesh (8
+// k-blocks) with ONE chemical potential across the whole BZ (Crystal_EC global mode + the composite cross-k
+// Fermi fill): charge SLOSHES between k-points under a single μ instead of each k being pinned to a fixed
+// per-block count.  This is the structural step a metal needs -- the partially-filled 3p band disperses with
+// k, so no per-k integer (or per-k Fermi) occupation is right; the physical occupation is set by where each
+// k's bands sit relative to the ONE Fermi level.  WHAT THIS GATES: (a) charge is conserved as the BZ-weighted
+// Σ_k w_k n_k = 3 (the weight-consistency guard -- the μ constraint uses the SAME w_k the density applies);
+// (b) the single μ CONVERGES the mesh where per-block filling cannot (measured: AL_GLOBAL=0 at 2×2×2 forces 3
+// e⁻ at every k and lands non-converged garbage A≈-0.46, vs the global μ's converged -2.117 -- the charge
+// MUST redistribute between k-points); (c) k-sampling lowers the energy vs Γ-only (-1.92 → -2.12, real
+// dispersion).  Reduces EXACTLY to the per-block Fermi at a single k (verified: global≡per-block to 1e-12 at Γ).
+TEST(GPW_SCF, AlFCCMetalGlobalMu)
+{
+    FCCUnitCell cell(7.653);
+    cell.AddAtom(13, {0,0,0});                 // Al (Zion=3): 3s^2 3p^1
+    Lattice_3D lat(cell, ivec3_t(2,2,2));      // 8-point Γ-centred Bloch mesh (weights sum to 1)
+    GpwOptions o=AlOptions();
+    o.globalFermi=true;                        // ONE μ across the BZ (the metal)
+    o.scf.SmearingkT=0.01;
+    GpwResult R=RunGpw(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o, /*verbose*/false);
+
+    EXPECT_TRUE(R.converged) << "one μ across the BZ converges the dispersive metal (per-block filling cannot)";
+    EXPECT_NEAR(R.charge, 3.0, 1e-6);          // BZ-weighted Σ_k w_k n_k = 3 (weight-consistency guard)
+    EXPECT_LT(R.E.MinusTS, 0.0);               // −TS<0 => A=GetTotalEnergy() is the free energy (gate iii)
+    EXPECT_NEAR(R.E.GetTotalEnergy(), -2.11681, 3e-3);   // did-E-move anchor (2×2×2 global-μ free energy A)
+    EXPECT_LT(R.E.GetTotalEnergy(), -1.95);    // dispersion: well below the Γ-only -1.92 (k-sampling binds)
+}
+
+// ===== EXPERIMENTAL (scratch): global-μ across k-blocks (item 3 inc 3) =====
+// AL_KGRID=n (mesh nxnxn), AL_GLOBAL=0/1 (per-block vs global μ), AL_KT, AL_NMAX.
+TEST(GPW_SCF, DISABLED_AlGlobalMuExperiment)
+{
+    auto envd=[](const char* n,double d){const char*s=std::getenv(n);return s?std::atof(s):d;};
+    const int nk=(int)envd("AL_KGRID",1);
+    FCCUnitCell cell(7.653);
+    cell.AddAtom(13,{0,0,0});
+    Lattice_3D lat(cell, ivec3_t(nk,nk,nk));
+    GpwOptions o=AlOptions();
+    o.globalFermi = envd("AL_GLOBAL",1.0)!=0.0;
+    o.scf.SmearingkT = envd("AL_KT",0.01);
+    o.scf.NMaxIter = (size_t)envd("AL_NMAX",60);
+    GpwResult R=RunGpw(lat, MakeBasisLowQ(cell,BasisSetData::VALENCE_LOWQ_SR), o, /*verbose*/true);
+    std::cout<<"[Al global-μ] nk="<<nk<<" global="<<o.globalFermi<<" conv="<<R.converged
+             <<" charge="<<R.charge<<" A="<<R.E.GetTotalEnergy()
+             <<" -TS="<<R.E.MinusTS<<" E(internal)="<<(R.E.GetTotalEnergy()-R.E.MinusTS)<<std::endl;
 }
 
 // (4) MULTI-SPECIES GPW: ionic NaF (rocksalt = FCC + 2-atom basis) at Gamma, driven by the multi-species

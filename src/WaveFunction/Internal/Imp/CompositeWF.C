@@ -41,13 +41,14 @@ template <class T> tCompositeWF<T>::tCompositeWF(const tbs_t<T>* bs,const Electr
     , itsBasisOrtho(basisOrtho)
     , itsBasisOrthoTol(basisOrthoTol)
     , itsAufbau(ec->UsesAufbau())
+    , itsGlobalFermi(ec->UsesGlobalFermi())
     , itsAccelerator(acc)
 {
     assert(itsBS);
     assert(itsEC);
     assert(itsAccelerator);
     assert(itsBS->GetNumFunctions()>0);
-
+    assert(!(itsAufbau && itsGlobalFermi) && "aufbau and global-Fermi fills are mutually exclusive");
 };
 
 // Compact irrep label for the report (symmetry symbol + spin arrow), via the Streamable Write().
@@ -231,15 +232,19 @@ template <class T> void tCompositeWF<T>::SetMOM(bool useMOM, int startIter)
     for (auto& w : itsIWFs) w->SetMOM(useMOM, startIter);
 }
 
-// Fermi smearing (doc/GPWPlan1.md 4b): push the same kT (and MOM-mask penalty) into every irrep block.  Each
-// block then solves its OWN μ (Increment 1 = per-block μ; global-μ across k-blocks is Increment 2).  No-op at kT=0.
+// Fermi smearing (doc/GPWPlan1.md 4b): push the same kT (and MOM-mask penalty) into every irrep block, and keep
+// our own copy of kT (the global-μ metal fill solves ONE μ at the composite level, so it needs kT here too).
+// Per-block μ (insulator/Γ) is solved inside each block's FillOrbitals; global μ across the mesh in
+// FillOrbitalsGlobalFermi.  No-op at kT=0.
 template <class T> void tCompositeWF<T>::SetSmearing(double kT, double momPenalty)
 {
+    itsSmearingkT=kT;
     for (auto& w : itsIWFs) w->SetSmearing(kT, momPenalty);
 }
 
-// The run's Mermin free-energy term −TS: the SUM over blocks (each spin channel / k-block contributes its
-// own −T S_block).  0 with no smearing.  Stamped into EnergyBreakdown by the SCFIterator.
+// The run's Mermin free-energy term −TS: the SUM over blocks, each already BZ-weighted (tIrrepWF::GetEntropyTerm
+// applies w_k), so this is Σ_k w_k(−T S_k) -- consistent with the BZ-weighted E.  0 with no smearing.  Stamped
+// into EnergyBreakdown by the SCFIterator.
 template <class T> double tCompositeWF<T>::GetEntropyTerm() const
 {
     double minusTS=0.0;
@@ -266,6 +271,7 @@ template <class T> void tCompositeWF<T>::FillOrbitals(double mergeTol)
 {
     itsELevels.clear();
     itsSpin_ELevels.clear();
+    if (itsGlobalFermi) { FillOrbitalsGlobalFermi(mergeTol); return; }  // metal: one μ across the k-mesh
     if (itsAufbau) { FillOrbitalsAufbau(mergeTol); return; }
     for (auto& w:itsIWFs)                              // fixed per-irrep occupation (atoms etc.)
     {
@@ -339,6 +345,46 @@ template <class T> void tCompositeWF<T>::FillOrbitalsAufbau(double mergeTol)
     // so useMOM would score against empty references for the first few fills).  The ACTIVE, tested path is
     // the crystal's WITHIN-irrep MOM in tIrrepWF::FillOrbitals.  Kept here for the molecular hard cases.
     if (itsUseMOM) itsMOMActive=true;
+}
+
+// GLOBAL-μ METAL FILL (doc/GPWPlan1.md item 3): one chemical potential across the Bloch k-mesh, so charge
+// sloshes between k-points (a partially-filled band -- the metal case per-block fixed occupation cannot
+// represent).  Gather every orbital across the channel's k-blocks tagged with its BZ weight w_k, solve ONE μ
+// on Σ_k w_k Σ_i g_i f((ε_i,k−μ)/kT)=N_total (the whole-mesh total), then set every block at that μ.  The
+// weight rides in the level capacity g so the SAME unweighted qchem::Orbitals::FermiLevel bisector serves the
+// per-block (w=1) and cross-k cases.  Reduces EXACTLY to the per-block Fermi at a single k (one block, w=1).
+template <class T> void tCompositeWF<T>::FillOrbitalsGlobalFermi(double mergeTol)
+{
+    assert(itsSmearingkT>0.0 && "global-μ metal fill needs SmearingkT>0 (a partially-filled band has no integer fill)");
+    for (auto& [s, wfs] : itsSpinWFs)
+    {
+        if (wfs.empty()) continue;
+        const double Ntot=(double)itsEC->GetN(wfs.front()->GetIrrep());   // whole-mesh total for this spin channel
+
+        // Aggregate the channel's levels: effective (bare) energy ε and BZ-weighted capacity w_k·g_i.
+        size_t ntot=0;
+        for (auto w : wfs) ntot += w->GetOrbitals()->GetNumOrbitals();
+        rvec_t e(ntot), g(ntot);
+        size_t idx=0;
+        for (auto w : wfs)
+        {
+            const double wk=w->GetIrrep().sym->GetWeight();              // SAME weight GetChargeDensity applies to D
+            for (auto o : w->GetOrbitals()->Iterate())
+            {
+                e[idx]=o->GetEigenEnergy();
+                g[idx]=wk*(double)o->GetDegeneracy();
+                ++idx;
+            }
+        }
+        const double mu=qchem::Orbitals::FermiLevel(e,g,Ntot,itsSmearingkT);   // one μ across the whole mesh
+
+        for (auto w : wfs)                                               // set every block at the shared μ
+        {
+            EnergyLevels els=w->FillOrbitalsAtMu(mu);
+            itsELevels.merge(els,mergeTol);
+            itsSpin_ELevels[s].merge(els,mergeTol);
+        }
+    }
 }
 
 template class tCompositeWF<double>;
