@@ -1,9 +1,11 @@
 // File: CompositeWF.H  Wave function as a list of Irrep wave functions.
 module;
 #include <cassert>
+#include <cmath>
 #include <memory>
 #include <vector>
 #include <map>
+#include <string>
 #include <algorithm>
 #include <sstream>
 #include "tabulate/table.hpp"
@@ -75,6 +77,16 @@ template <class T> void tCompositeWF<T>::MakeIrrepWFs(Spin s)
         }
         else
             lasb->SetBasisOverlap(S);   // ortho only -- no basis context, no report
+        // basis.exponents (report-only, Verbose console): the basis SERIALIZES its own radial parameters into
+        // this row -- {irrep, values:[...]} -- so a consumer (CLIapps/valgen) can label the basis.usage rows by
+        // exponent instead of index.  The evaluator writes the values (a no-op for a non-exponent basis); the
+        // exponents stay encapsulated (json sink, never a getter).
+        if (reporting)
+        {
+            rpt::Row r("exponents");
+            rpt::Set("irrep", IrrepLabel(qns));
+            b->EmitRadialReport();
+        }
         // basis.removed (report-only detector, doc/GPWPlan1.md §4a): the redundant AO functions this irrep
         // carries.  {irrep, index} for now (exponent/atom naming awaits a per-function metadata accessor).
         if (reporting)
@@ -185,6 +197,28 @@ template <class T> typename tCompositeWF<T>::iqns_t tCompositeWF<T>::GetQNs() co
     iqns_t iqns;
     for (auto q:itsQNWFs) iqns.push_back(q.first);
     return iqns;
+}
+
+// Emit the run report's `basis.usage` section: per-function occupation-weighted Mulliken populations across
+// every irrep WF (both spins for a polarized run).  Rows are {irrep, index, pop} -- the WF reports only what
+// it knows (populations); a consumer (CLIapps/valgen) joins the exponent from basis.exponents and draws the
+// heat bar.  A LATE addendum to the already-rendered `basis` section (EmitAt, absolute path), gated to
+// Detail::Verbose on the console but ALWAYS recorded in the json.  Called by the SCFIterator post-convergence.
+template <class T> void tCompositeWF<T>::EmitBasisUsage() const
+{
+    namespace rpt = qchem::report;
+    if (rpt::Depth()==0) return;                           // no run open -> nothing to record or render
+
+    rpt::json rows=rpt::json::array();
+    for (const auto& w : itsIWFs)
+    {
+        const rvec_t P = w->GetBasisPopulations();
+        std::ostringstream os; w->GetIrrep().Write(os);   // "s"/"p"/... (+ spin arrow when polarized)
+        const std::string lbl=os.str();
+        for (std::size_t i=0;i<P.size();++i)
+            rows.push_back(rpt::json{{"irrep",lbl},{"index",(long)i},{"pop",P[i]}});
+    }
+    rpt::EmitAt("basis","usage",rows,rpt::Detail::Verbose);
 }
 
 

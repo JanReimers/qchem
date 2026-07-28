@@ -58,6 +58,7 @@ export
         PeriodicTableSaito();
         std::string GetSymbol(size_t Z) const {return get(Z).Symbol;}
         size_t      GetZ     (const std::string& symbol) const;        //!< reverse symbol -> Z lookup (0 if not found)
+        size_t      GetNumElements() const {return elements.size();}   //!< tabulated element count (max valid Z)
         double GetSlaterAlpha         (size_t Z) const;                //!< Schwarz X-alpha optimized exchange parameter (0.70 default)
         double GetElectronegativity   (size_t Z) const;                //!< Pauling electronegativity (0.0 = noble gas / un-tabulated)
         double GetEnergyHF            (size_t Z) const {return get(Z).Energy_HF;} //Saito, Shiro L. Hartree–Fock–Roothaan energies and expectation values for the neutral atoms He to Uuo: The B-spline expansion method, Atomic Data and Nuclear Data Tables, 95,6, 836--870

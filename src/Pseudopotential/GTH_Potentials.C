@@ -7,6 +7,7 @@
 // SeparablePotential.C for the analytic HGH forms these populate.
 module;
 #include <string>
+#include <vector>
 export module qchem.Pseudopotential.GTH_Potentials;
 export import qchem.Pseudopotential.LocalPotential;
 export import qchem.Pseudopotential.SeparablePotential;
@@ -29,5 +30,11 @@ struct GTH_PP
 //! Throws std::runtime_error if the (element, functional, q) is not tabulated.  The functional MUST
 //! match the SCF's XC functional (a pseudopotential is generated for a specific functional).
 GTH_PP GetGTH(const std::string& element, const std::string& functional="LDA", int q=0);
+
+//! The valence variants (q values) tabulated for \a element / \a functional, ASCENDING -- the smallest is the
+//! valence-only PP (largest core), larger ones are semicore.  Empty if the (element,functional) is absent.
+//! Lets a driver choose valence-vs-semicore by policy (the DATABASE default is often the semicore, not the
+//! valence, so a valence-first tool must select explicitly).  Throws nothing.
+std::vector<int> GetGTHValences(const std::string& element, const std::string& functional="LDA");
 
 } // namespace

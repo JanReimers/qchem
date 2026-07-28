@@ -50,6 +50,7 @@ public:
     virtual void            AdoptMOMReference(const tWaveFunction<T>& from);
     virtual void            ReleaseMOMReference();
     virtual iqns_t          GetQNs          () const;
+    virtual void            EmitBasisUsage  () const;
 
     virtual tDM_CD<T>*      GetChargeDensity(Spin) const;
     virtual EnergyLevels    GetEnergyLevels (Spin) const;

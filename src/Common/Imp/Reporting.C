@@ -225,12 +225,36 @@ void renderTable(const json& arr, std::ostream& os, int indent)
         t.add_row(cells);
     }
     t.row(0).format().font_style({ FontStyle::bold });
+    // Inter-row rules: if the LEADING column repeats down the table (a GROUPED table -- e.g. basis.usage,
+    // many s rows then many p rows) keep a rule only BETWEEN groups (leading value changes) and none within,
+    // so each group reads as one block.  If the leading column is all-distinct (e.g. perIrrep, one row per
+    // irrep) drop every inter-row rule for a compact list.  Row 1's top (the header rule) is always kept.
+    const std::string key0 = cols.empty() ? std::string() : cols.front();
+    auto lead = [&](std::size_t r) -> std::string {                        // leading-column value of arr row r
+        return arr[r].contains(key0) ? fmtScalar(key0, arr[r].at(key0), false) : std::string();
+    };
+    bool grouped = false;
+    for (std::size_t r = 1; r < arr.size(); ++r) if (lead(r) == lead(r - 1)) { grouped = true; break; }
+    for (std::size_t i = 2; i <= arr.size(); ++i)                          // tabulate row i == arr row i-1
+    {
+        const bool groupBoundary = grouped && lead(i - 1) != lead(i - 2);
+        if (!groupBoundary) t.row(i).format().hide_border_top();           // rule only at a group boundary
+    }
 
     std::istringstream in(t.str());
     for (std::string line; std::getline(in, line); ) os << pad(indent) << line << "\n";
 }
 
-void renderNode(const json& node, std::ostream& os, int indent)
+// The field/section -> min console-detail map the RenderConsole skeleton anticipated: a few blocks are
+// ALWAYS in the json but render only at higher verbosity (the raw basis-usage tuning data -- a consumer like
+// valgen renders a friendlier joined view at Normal).  Unknown keys => Terse (shown at every level).
+Detail keyMinDetail(const std::string& key)
+{
+    if (key == "exponents" || key == "usage") return Detail::Verbose;
+    return Detail::Terse;
+}
+
+void renderNode(const json& node, std::ostream& os, int indent, Detail d)
 {
     if (node.is_array())
     {
@@ -241,29 +265,32 @@ void renderNode(const json& node, std::ostream& os, int indent)
         if (objRows && node.size() >= 2) { renderTable(node, os, indent); return; }
         if (objRows)                                                     // single-row -> tree
         {
-            for (const auto& e : node) renderNode(e, os, indent);
+            for (const auto& e : node) renderNode(e, os, indent, d);
             return;
         }
         if (isScalar(node)) { os << pad(indent) << fmtScalar("", node, true) << "\n"; return; }
-        for (const auto& e : node) renderNode(e, os, indent);            // ragged array -> recurse
+        for (const auto& e : node) renderNode(e, os, indent, d);         // ragged array -> recurse
         return;
     }
 
     if (node.is_object())
     {
-        // Split scalar members (a key/value block) from container members (headed
-        // sub-nodes).  Insertion order is preserved (ordered_json).
+        // Split scalar members (a key/value block) from container members (headed sub-nodes), skipping any
+        // member gated above the current detail level.  Insertion order is preserved (ordered_json).
         std::vector<std::pair<std::string, const json*>> scalars;
         std::vector<std::pair<std::string, const json*>> containers;
         for (auto it = node.begin(); it != node.end(); ++it)
+        {
+            if ((int)keyMinDetail(it.key()) > (int)d) continue;          // Verbose-only block, below threshold
             (isScalar(it.value()) ? scalars : containers).emplace_back(it.key(), &it.value());
+        }
 
         if (!scalars.empty()) renderKeyValue(scalars, os, indent);
         for (const auto& [k, v] : containers)
         {
             if (v->empty()) continue;                                    // skip empty sections
             os << pad(indent) << k << ":\n";
-            renderNode(*v, os, indent + 1);
+            renderNode(*v, os, indent + 1, d);
         }
         return;
     }
@@ -273,11 +300,9 @@ void renderNode(const json& node, std::ostream& os, int indent)
 
 } // anonymous namespace
 
-void RenderConsole(const json& node, std::ostream& os, Detail /*d*/)
+void RenderConsole(const json& node, std::ostream& os, Detail d)
 {
-    // Detail-level filtering is a later step (a field/section -> min-level map on this
-    // side); the skeleton renders the whole subtree.
-    renderNode(node, os, 0);
+    renderNode(node, os, 0, d);                                          // d gates the field->min-level map
 }
 
 std::string RenderJson(const json& node) { return node.dump(2); }
@@ -304,11 +329,13 @@ void Set(const std::string& key, json value)
     if (json* n = cursorNode()) (*n)[key] = std::move(value);
 }
 
-void EmitAt(const std::string& section, const std::string& key, json value)
+void EmitAt(const std::string& section, const std::string& key, json value, Detail minLevel)
 {
     if (g_stack.empty()) return;                       // inert outside a run
-    g_stack.back().doc[section][key] = value;
-    if (g_console && Depth() == 1 && !value.empty())   // render just this sub-block, incrementally
+    g_stack.back().doc[section][key] = value;          // ALWAYS record (the json record is complete)
+    // Console gate: render only at depth 1, non-empty, AND when the configured detail meets this block's
+    // minimum (so a Verbose-only block like basis.usage stays in the json but prints only at Detail::Verbose).
+    if (g_console && Depth() == 1 && !value.empty() && (int)g_detail >= (int)minLevel)
     {
         *g_console << "\n" << section << " ▸ " << key << "\n";
         RenderConsole(value, *g_console, g_detail);

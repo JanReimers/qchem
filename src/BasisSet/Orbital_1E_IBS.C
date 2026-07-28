@@ -56,11 +56,11 @@ public:
 //
 template <class T> class Orbital_1E_IBS
     : public virtual IrrepBasisSet<T> //brings in symmetry and op()(r)
-    , public virtual Integrals_Overlap<T> 
-    , public virtual Integrals_Kinetic<T> 
-    , public virtual Integrals_Nuclear<T> 
+    , public virtual Integrals_Overlap<T>
+    , public virtual Integrals_Kinetic<T>
+    , public virtual Integrals_Nuclear<T>
 {
-public:    
+public:
 };
 
 typedef Orbital_1E_IBS<double>    Real_OIBS;

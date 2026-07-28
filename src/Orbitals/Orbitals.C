@@ -135,6 +135,14 @@ public:
     virtual ds_t TakeElectronsFermi (double ne, double kT, const rvec_t& eShift)=0;
     virtual tDM_CD<T>* GetChargeDensity() const=0;   // the T-typed density (moved off the Orbitals base)
 
+    //! Per-basis-function occupation-weighted Mulliken gross population \f$P_i=(DS)_{ii}\f$, given this irrep's
+    //! AO overlap \a S (supplied by the caller's IrrepBasisSet).  The density \f$D=\sum_{occ} n|C\rangle\langle
+    //! C|\f$ already folds in the occupations, so \f$\sum_i P_i=\mathrm{Tr}(DS)\f$ = the irrep's electron count.
+    //! A basis-USAGE diagnostic -- which primitives actually carry the density -- for tuning a valence window
+    //! (peak at a window boundary => extend it; ~0 there => shrink it).  Keeps \f$D\f$ hidden: the caller hands
+    //! in only its own \a S.  Real part taken (exact for a real basis; the physical gross population otherwise).
+    virtual rvec_t GetBasisPopulations(const hmat_t<T>& S) const=0;
+
 };
 
 } //namespace

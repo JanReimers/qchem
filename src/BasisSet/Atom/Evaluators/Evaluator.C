@@ -44,6 +44,11 @@ public:
     virtual std::ostream& Write    (std::ostream&) const=0;
     virtual std::string   RadialID () const=0; // For creating keys into cache database.
     virtual std::string   Name     () const=0;
+    //! SERIALIZE this shell's radial parameters into the OPEN run report's current cursor row (a basis-usage
+    //! diagnostic; see doc/GPWPlan1 §1 + CLIapps/valgen).  A report-only sink, NOT a value getter: exponents
+    //! stay encapsulated -- they are written to the json, never returned for computation.  Default no-op (a
+    //! basis with no exponent list, e.g. BSpline, simply adds nothing); ExponentialEvaluator writes its list.
+    virtual void          EmitRadialReport() const {}
     // Helper functions for range based loops.
     iv_t indices(             ) const {return iv_t(size_t(0),size());} 
     iv_t indices(size_t start ) const {return iv_t(start    ,size());} //Use this for 2nd index of symmetric matrices.

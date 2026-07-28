@@ -69,6 +69,21 @@ stream-cache section, disk/rolling-log SINK (deferred; see RunReportPlan "Render
 `CLIapps/valgen.C` (mirror `CLIapps/scfrun.C`; thin arg-parser over the existing `qchem.ValenceBasisGen`
 library — `GenerateValenceBasis`/`GenerateSeedDensity`/`AssembleBasisFile`).  Then generate a valence basis for
 a metal (Al).  **The CLI uses the Reporting framework (step 0) for its console output — the first dogfood.**
+DONE (2026-07-28): valgen shipped (`--q`/`--semicore`/`--electrons`/`--shell`/`--iterations`, valence-default PP
+selection, exponent+population basis-usage heat map, virial gate OFF for PPs).  Al q3 basis in `valence_lowq.bsd`.
+  - **F⁻ still does NOT converge** — and it is NOT the (now-disabled) virial gate.  The neutral-F/F⁻ valence SCF
+    limit-cycles: `[F,D]` oscillates 0.2↔4.5, energy swings −18.9↔−21.0, hits `NMaxIter=20`.  A genuine DIIS
+    instability on the diffuse anion (energy anchor ~−21 is still fine, so the emitted basis is OK).  Candidates
+    to try: more iters, MOM, Kerker/relax tweak, or Fermi smearing — revisit with step 2's smearing/annealing.
+  - **Open-shell atoms are ml-SPLIT (Hund), but atomic op(r) is RADIAL-ONLY** — Al 3p¹ reports irrep `p {-1}`
+    (pol U): `Atom_EC` puts the single unpaired p e⁻ in a definite mₗ=−1 (Hund, lowest mₗ first).  BUT the atomic
+    evaluator `Radial::operator()(rvec3_t)` = `gaussian(norm(r),l,es,ns)` uses ONLY |r| — no Ylm, direction
+    discarded — so op(r)/ρ(r) is the RADIAL profile regardless of mₗ.  ⇒ the emitted seed ρ(r) is SPHERICAL (not
+    direction-biased); the mₗ label only enters the angular ERI couplings (DirectAk/ExchangeAk) of the SCF energy.
+    So the seed is the spherical radial density of the mₗ=−1 SYMMETRY-BROKEN solution, not of the true fractional
+    (⅓-per-mₗ) ground state — usually fine for a seed, but the fractional/spherical version is what step 2's
+    smearing gives.  Deeper caveat (known weakness): the atomic op(r) is "fake" (no angular dependence), so it
+    cannot represent real-space angular structure — matters when seeding mixed-valence ions (e.g. LiMn₂O₄ Mn³·⁵⁺).
 
 **2. DEGENERATE-SHELL METAL TEST (works with Increment 1, per-block μ)** — FCC Al @ Γ (3s²3p¹: the degenerate
 3p triplet is partially filled, aufbau can't pick a p → won't converge without smearing), same physics as the
@@ -202,3 +217,38 @@ natural thing to reach for when the metal/anion work (roadmap steps 3–4) makes
 solve; after it, whether the completion rung still pays at BallOnly+C=2 is a measurable rung-gate question).
 §2 low-q multi-species Si/NaF/CsI cross-validation.  §3 CP2K reference library growth.  §5 cleanups (Vxc-fit
 ISP ctor with GGA; cMesh unification; DRY PP adapters; periodic external PP).
+
+---
+
+# valgen `--auto` : rule-based valence-window refinement (PLAN, not built — 2026-07-28)
+
+The diagnostics valgen now emits (basis-usage heat map + per-shell advice + `--floor` gap + per-irrep cond +
+pivoted-Cholesky `removed`) ARE a deterministic tuning algorithm — no ML needed.  `--auto` would close the loop:
+iterate the even-tempered knobs (emin/emax/N, equivalently β) until the energy sits near the PP floor AND the
+pop histogram is clean.  Captured so we don't lose the hand-tuning expertise built up in this session.
+
+**Objective (per l-shell; s and p decouple at the atom level):** minimise `gap_mHa = E_window − E_floor` subject
+to a CLEAN histogram (no alternating ±, diffuse end well-populated, cond below ~1e3).  Stop when `gap < tol`
+(≈2 mHa) and clean, or at a max-iteration cap.
+
+**Seed guess:** emin from the seed-density ⟨r⟩ (diffuse extent), emax from the PP `r_loc` (α_max ≈ 1/(2 r_loc²)),
+a default N≈5–6.  (Or accept a user seed window and only refine.)
+
+**Loop = the advice rules turned into ADJUSTMENTS (each step logs which rule fired):**
+- diffuse end is the peak (pop₀ ≈ pmax, at boundary)  → LOWER emin (×0.5)         [density spills past]
+- diffuse end barely populated (pop₀ ≪ pmax)          → RAISE emin (×2)           [wasted diffuse fn]
+- pops ALTERNATE ±, or cond > 1e3, or β < 2           → raise β: N−1 (or widen range) [overcomplete]
+- gap still large & sharp end still climbing          → extend emax (or N+1)       [incomplete inner region]
+- gap already small & a sharp low-pop shape tail      → trim emax/N                [leaner, costs a few mHa]
+
+**Guards:** clamp emin ≥ ~0.02 (the LDA-XC-on-a-diffuse-density NaN floor — see step-1 notes); on an SCF throw,
+RAISE emin and retry (the diffuse XC-NaN or a conditioning failure).  Cap iterations; never oscillate emin (damp).
+
+**Why deterministic, not an optimiser over a loss surface:** the floor is the stopping test; β/cond are the
+conditioning guards; each move is one of the 5 rules above — explainable, reproducible, cheap (one atom SCF +
+one pool-floor SCF per step).  Bisection-like on emin, integer nudges on N.
+
+**Honest caveat (the pin):** the atom is only a PROXY.  The real objective is grid-convergence of ρ / a bulk
+orbital-coefficient heat map IN THE SOLID (GPWPlan §1, NaF pin).  `--auto` produces a good STARTING window fast;
+the last word is a bulk vetting pass once the basis is in GPW.  So build `--auto` for ergonomics, but don't let
+its atomic `gap_mHa` become the objective function (that's the oracle-matching trap we already rejected).

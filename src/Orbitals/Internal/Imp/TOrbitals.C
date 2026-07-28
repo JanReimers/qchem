@@ -6,6 +6,7 @@ module;
 #include <vector>
 #include <numeric>
 #include <algorithm>
+#include <complex>
 module qchem.Orbitals.Internal.OrbitalsImp;
 import qchem.Orbitals.Internal.OrbitalImp;
 import qchem.ChargeDensity.Factory;
@@ -193,6 +194,23 @@ template <class T> typename TOrbitalsImp<T>::ds_t TOrbitalsImp<T>::BuildDensity(
     hmat_t<T> DPrime(blazem::zeroH<T>(itsM));            // orthonormal density: m x m (m=n-k after truncation)
     for (auto o:Iterate<TOrbital<T>>()) o->AddDensityMatrix(itsD,DPrime);   // was hardcoded TOrbital<double>
     return std::make_tuple(ne,DPrime);
+}
+
+// Occupation-weighted Mulliken gross population per AO function: P_i = (D S)_ii, with D the current AO density
+// (rebuilt each fill, so it already folds in the occupations) and S this irrep's AO overlap.  Sum_i P_i =
+// Tr(DS) = the irrep's electron count -- a basis-usage heat map (which primitives carry the density).
+template <class T> rvec_t TOrbitalsImp<T>::GetBasisPopulations(const hmat_t<T>& S) const
+{
+    const size_t n = itsD.rows();
+    assert(S.rows()==n && "GetBasisPopulations: overlap S must match the AO density D");
+    rvec_t P(n);
+    for (size_t i=0;i<n;i++)
+    {
+        T s=T(0);
+        for (size_t j=0;j<n;j++) s += itsD(i,j)*S(j,i);   // (D S)_ii; Re() is exact for a real basis
+        P[i]=std::real(s);
+    }
+    return P;
 }
 
 template <class T> tDM_CD<T>* TOrbitalsImp<T>::GetChargeDensity() const

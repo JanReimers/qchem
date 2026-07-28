@@ -61,6 +61,11 @@ public:
     //! Irrep basis sets are spin agnostic, so caller must specify the spin in order to a full set of QNs.
     virtual Irrep GetIrrep(const Spin& s) const=0;
     virtual size_t GetNumFunctions() const=0;
+    //! Serialize this irrep's radial parameters (e.g. Gaussian exponents) into the OPEN run report's current
+    //! cursor row -- a basis-usage diagnostic (doc/GPWPlan1 §1, CLIapps/valgen).  A report-only sink, NOT a
+    //! value getter (values are written to json, never returned).  Default no-op; an atomic exponential basis
+    //! forwards to its evaluator.  A no-op anyway when no run is open.
+    virtual void EmitRadialReport() const {}
     virtual size_t GetVectorSize() const override {return GetNumFunctions();}
     // The single bridge that supplies DBCacheClient::CacheDim() for EVERY concrete cache client (they
     // are all IrrepBasisSet<T>); the abstract integral mixins stay CacheDim()-pure.

@@ -17,6 +17,8 @@ import qchem.SCFAccelerator.Factory;                // SCFAccelerators::Type, Fa
 import qchem.WaveFunction;                           // WaveFunction (GetChargeDensity/GetOrbitals/GetQNs)
 import qchem.Orbitals;                               // Orbital, Orbitals
 import qchem.Types;                                  // Vector3D / rvec3_t
+import qchem.BasisSet.IrrepBasisSet;                 // theCache<T>() / EmitReport (the run's `cache` section)
+import qchem.Reporting;                              // report:: run sink + the scf-section writer
 
 namespace qchem
 {
@@ -24,6 +26,53 @@ namespace qchem
 using SCFIter = qchem::SCFIterator::MolecularSCFIterator;   // item 2: the atom/molecule display subclass
 
 static bool IsDirac(Model m) {return m == Model::DE1 || m == Model::DHF;}
+
+// Human-readable model tag for the run report's `scf` section (a PP run reports "PP" -- it bypasses the Model enum).
+static std::string ModelName(Model m)
+{
+    switch (m)
+    {
+        case Model::HF:     return "HF";     case Model::E1:  return "E1";
+        case Model::DHF:    return "DHF";    case Model::DE1: return "DE1";
+        case Model::Xalpha: return "Xalpha"; case Model::LDA: return "LDA";
+    }
+    return "?";
+}
+
+// Atomic-basis family tag for the report (mirrors the scfrun --basis names).
+static std::string AtomTypeName(AtomType t)
+{
+    switch (t)
+    {
+        case AtomType::Slater:       return "Slater";       case AtomType::Gaussian:     return "Gaussian";
+        case AtomType::BSpline6:     return "BSpline6";      case AtomType::BSpliner6:    return "BSpliner6";
+        case AtomType::Slater_RKB:   return "Slater_RKB";    case AtomType::Gaussian_RKB: return "Gaussian_RKB";
+    }
+    return "?";
+}
+
+// Build the run report's `scf` section (the atom-side analogue of Calculation.C's EmitScfSection): the
+// "what recipe am I running" header.  The report IS json, so this provider owns the keys; standard = the
+// settled recipe surface (doc/RunReportPlan.md schema).  A no-op console-wise unless a client attached one.
+static void EmitScfSection(const AtomCalcOptions& o, int ne, const std::string& accelerator,
+                           const SCFParams& p)
+{
+    namespace rpt = qchem::report;
+    rpt::json standard;
+    standard["model"]       = o.pseudopotential ? std::string("PP") : ModelName(o.model);
+    standard["pol"]         = (o.pol == Pol::Polarized) ? "P" : "U";
+    standard["nElectrons"]  = ne;
+    standard["nMaxIter"]    = long(p.NMaxIter);
+    standard["minDrho"]     = p.MinΔρ;
+    standard["minFD"]       = p.MinFD;
+    standard["minDE"]       = p.MinΔE;
+    standard["accelerator"] = accelerator;
+    if (o.pseudopotential) standard["valence"] = o.valence;
+
+    rpt::json scf;
+    scf["standard"] = standard;
+    rpt::EmitSection("scf", scf);
+}
 
 // PP Zion: the explicit valence (Zion) if given, else the electron count (a neutral pseudo-atom).
 static int PPZion(const AtomCalcOptions& opts, int Ne) {return opts.valence > 0 ? opts.valence : Ne;}
@@ -116,11 +165,32 @@ bool AtomCalculation::Converge(const SCFParams& params)
     // Dirac SCF ALWAYS uses PLAIN Cholesky (never truncate); a non-relativistic atom uses opts.ortho (Auto by
     // default, but Cholesky when a caller deliberately wants an over-complete basis kept whole).
     const qchem::Ortho ortho = IsDirac(itsOpts.model) ? qchem::Cholesky : itsOpts.ortho;
-    itsScf = new SCFIter(itsBasis, itsEC, ham, accel, seed, itsStructure.get(), ortho);
+
+    // Open a run report for the whole atomic SCF -- the atom-side mirror of qchem::Calculation (Reporting is
+    // new; this brings the atomic front door onto it, so scfrun/valgen and the A_* tests all record a run).
+    // The RAII guard guarantees End() even if a step throws, so a failed run never leaks the sink's context/
+    // cursor stacks.  Nothing renders unless a client attached a console (report::SetConsole); nested runs (a
+    // valence-basis generator brackets its own) stay console-quiet below depth 1.
+    namespace rpt = qchem::report;
+    rpt::Begin(itsStructure->ID());
+    struct RunScope { ~RunScope() { rpt::End(); } } runScope;
+    EmitScfSection(itsOpts, itsNe, ts, params);        // the "what recipe am I running" header
+
+    // The `basis` section is ASSEMBLED across layers: stamp the scalars here, then the WF build (inside
+    // `new SCFIter`) fills basis.perIrrep/removed via the cursor (the shared LASolver conditioning), and the
+    // Section renders it once, complete, when this scope closes.
+    {
+        rpt::Section basis("basis");
+        rpt::Set("type",       AtomTypeName(itsOpts.type));
+        rpt::Set("nFunctions", (long)itsBasis->GetNumFunctions());
+        itsScf = new SCFIter(itsBasis, itsEC, ham, accel, seed, itsStructure.get(), ortho);
+    }
     // (directmin => AType::GDM above, whose WantsLineSearch() drives the direct-min loop -- no SetDirectMin needed.)
     if (itsObserver) itsScf->SetObserver(itsObserver);
 
     bool ok = itsScf->Iterate(params);
+    // Snapshot the (cumulative, process-wide) integrals cache into the run's `cache` section, inside the bracket.
+    qchem::BasisSet::theCache<double>().EmitReport();
     RebuildSampling();
     return ok;
 }

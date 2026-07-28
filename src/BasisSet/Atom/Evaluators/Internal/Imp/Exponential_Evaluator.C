@@ -2,12 +2,25 @@
 module;
 #include <cassert>
 #include <iostream>
+#include <nlohmann/json.hpp>
 module qchem.BasisSet.Atom.Evaluators.Internal.ExponentialEvaluator;
 import qchem.Math;
 import qchem.Blaze;
+import qchem.Reporting;   // serialize the exponents into the run report (a report-only sink, never a getter)
 
 namespace qchem::BasisSet::Atom::Evaluators
 {
+
+// Write this shell's exponents into the CURRENT report cursor row as a "values" array.  The exponents are
+// SERIALIZED to json here, never returned for computation -- so they stay encapsulated (see the interface
+// note).  A no-op when no run is open (report::Set is inert then), so nothing pays outside a report.
+void ExponentialEvaluator::EmitRadialReport() const
+{
+    namespace rpt = qchem::report;
+    rpt::json values = rpt::json::array();
+    for (auto e : es) values.push_back(double(e));
+    rpt::Set("values", values);
+}
 
 void ExponentialEvaluator::Register(Grouper* _grouper)
 {

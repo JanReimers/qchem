@@ -52,7 +52,16 @@ export namespace qchem
     struct GeneratedBasis { double energy; bool converged; std::string block; };
 
     //! Validate the recipe (run the pseudo-atom SCF in exactly \c exponents) and emit its element block.
-    GeneratedBasis GenerateValenceBasis(const ValenceBasisRecipe&);
+    //! \a showIterations prints the SCF's per-iteration convergence trace (the driver's Verbose output).
+    GeneratedBasis GenerateValenceBasis(const ValenceBasisRecipe&, bool showIterations=false);
+
+    //! The variational FLOOR for a recipe's (element, PP, charge state): the SAME pseudo-atom run in a large
+    //! accuracy-pool Gaussian basis (\c BasisSetAccuracy::High) -- the ~complete-basis energy this PP can reach.
+    //! A recipe's window is judged by how close its energy sits to this floor (the gap is the incompleteness).
+    //! Returns NaN if the reference SCF fails (e.g. pool ill-conditioning for that element).  Only \c element,
+    //! \c Zion, \c electrons and \c functional of the recipe are used (the \c shells are ignored -- the pool
+    //! basis is used instead).
+    double GenerateFloorEnergy(const ValenceBasisRecipe&);
 
     //! A seed valence DENSITY generated from the SAME offline pseudo-atom SCF as the basis -- one tool, two
     //! products.  The spherical \f$\rho(r)\f$ is sampled on a log radial mesh into a library entry (the schema of

@@ -11,6 +11,7 @@ module;
 module qchem.ValenceBasisGen;
 
 import qchem.PeriodicTable;                    // thePeriodicTable (symbol <-> Z)
+import qchem.SCFIterator;                       // SCFParams (Verbose -> the per-iteration trace)
 import qchem.Pseudopotential.GTH_Potentials;   // GetGTH (default Zion)
 import qchem.Types;                            // rvec3_t (radial sampling point)
 import qchem.Math;                             // Pi (the 4 pi in the charge integral)
@@ -39,7 +40,7 @@ static void WriteShell(std::ostringstream& os, int l, const std::vector<double>&
     }
 }
 
-GeneratedBasis GenerateValenceBasis(const ValenceBasisRecipe& r)
+GeneratedBasis GenerateValenceBasis(const ValenceBasisRecipe& r, bool showIterations)
 {
     const int Z    = int(thePeriodicTable().GetZ(r.element));
     const int Zion = r.Zion > 0 ? r.Zion : Pseudopotential::GetGTH(r.element, r.functional).zion;
@@ -53,7 +54,12 @@ GeneratedBasis GenerateValenceBasis(const ValenceBasisRecipe& r)
     o.pseudopotential = true;
     o.valence         = Zion;
     o.exponentsByL    = r.shells;           // per-l independent lists: validate exactly what is emitted
-    AtomCalculation atom(Z, charge, o);
+    SCFParams p; p.Verbose = showIterations; // print the per-iteration convergence trace when asked
+    p.MinVirial = 1e30;                       // the virial theorem does NOT hold under a pseudopotential (the PP
+                                              //  replaces -Z/r), so |2+V/K| never -> 0: don't gate convergence on
+                                              //  it here (this is the valence-gen backend only, NOT the system
+                                              //  default -- the all-electron A_* path still uses the virial gate).
+    AtomCalculation atom(Z, charge, o, p);
 
     // --- emit: the per-l shells as a Gaussian94 ELEMENT BLOCK (` EL 0 <shells> ****`) ---
     // The reader compares the file symbol against the UPPER-cased element (FindAtom), so upper-case it
@@ -66,6 +72,25 @@ GeneratedBasis GenerateValenceBasis(const ValenceBasisRecipe& r)
     os << " ****\n";
 
     return { atom.Energy(), atom.IsConverged(), os.str() };
+}
+
+double GenerateFloorEnergy(const ValenceBasisRecipe& r)
+{
+    const int Z    = int(thePeriodicTable().GetZ(r.element));
+    const int Zion = r.Zion > 0 ? r.Zion : Pseudopotential::GetGTH(r.element, r.functional).zion;
+    const int nel  = r.electrons > 0 ? r.electrons : Zion;
+    const int charge = Z - nel;
+
+    // Same element/PP/charge, but a large accuracy-POOL Gaussian basis (no exponentsByL) -- the near-complete
+    // reference the recipe's window is measured against.
+    AtomCalcOptions o;
+    o.type            = AtomType::Gaussian;
+    o.pseudopotential = true;
+    o.valence         = Zion;
+    o.accuracy        = BasisSetAccuracy::High;
+    SCFParams p; p.MinVirial = 1e30;          // no virial gate under a PP (see GenerateValenceBasis)
+    try   { AtomCalculation atom(Z, charge, o, p); return atom.Energy(); }
+    catch (...) { return NAN; }               // pool conditioning can fail for some elements -> "floor unavailable"
 }
 
 GeneratedSeedDensity GenerateSeedDensity(const ValenceBasisRecipe& r, int Ngrid, double rmin, double rmax)
@@ -81,7 +106,8 @@ GeneratedSeedDensity GenerateSeedDensity(const ValenceBasisRecipe& r, int Ngrid,
     o.pseudopotential = true;
     o.valence         = Zion;
     o.exponentsByL    = r.shells;
-    AtomCalculation atom(Z, charge, o);
+    SCFParams p; p.MinVirial = 1e30;          // no virial gate under a PP (see GenerateValenceBasis)
+    AtomCalculation atom(Z, charge, o, p);
 
     // Sample the spherical valence rho(r) on a LOG mesh (schema of atomic_valence_densities.json), and
     // integrate 4*pi*int r^2 rho dr (trapezoid) as the validation charge (~ nel).

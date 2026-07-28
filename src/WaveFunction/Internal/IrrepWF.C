@@ -69,6 +69,9 @@ public:
     void                DisplayEigen    () const;
     const Irrep&    GetIrrep        () const {return itsIrrep;}   // this WF's irrep (the proper map key)
     rvec_t      Get_BS_Diagonal () const;
+    //! Occupation-weighted Mulliken gross population per basis function (the basis-usage heat map, doc/GPWPlan1
+    //! §1): delegate to the orbitals (which own D) with THIS irrep's AO overlap.  Sum = the irrep's electrons.
+    rvec_t      GetBasisPopulations() const {return itsOrbitals->GetBasisPopulations(itsBasisSet->Overlap());}
 
  private:
     tIrrepWF(const tIrrepWF&);

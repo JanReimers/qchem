@@ -38,6 +38,9 @@ public:
     virtual size_t es_index(size_t i     ) const {return es_indices[i];}
 
     virtual rvec_t Norm() const override { return ns; }
+    //! Serialize this shell's exponents into the open run report's current cursor row (basis.usage tuning,
+    //! doc/GPWPlan1 §1).  A report-only sink -- the exponents are written to json, never returned as a value.
+    virtual void   EmitRadialReport() const override;
 
 protected:
     friend ::Cache4Tests;

@@ -154,6 +154,34 @@ TEST(Reporting, ConsoleRendersOnlyAtDepth1)
     EXPECT_TRUE(GlobalReport()["inner@t2"].contains("b"));
 }
 
+// EmitAt's minLevel gates ONLY the console: a Verbose-only sub-block (e.g. basis.usage) is ALWAYS recorded
+// in the json but prints only when SetConsole's detail >= minLevel.  (The basis-usage heat map relies on this.)
+TEST(Reporting, EmitAtDetailGateConsoleOnly)
+{
+    json block = json::array({ { { "index", 0 }, { "pop", 1.25 } } });
+    // (1) Normal console: the block is recorded but NOT rendered.
+    {
+        std::ostringstream os;
+        SetConsole(os, Detail::Normal);
+        Begin("gateN", "t");
+        EmitAt("basis", "usage", block, Detail::Verbose);
+        EXPECT_TRUE(CurrentRunReport()["basis"].contains("usage"));   // recorded regardless
+        End();
+        ClearConsole();
+        EXPECT_EQ(os.str().find("usage"), std::string::npos);         // but silent at Normal
+    }
+    // (2) Verbose console: same block now renders.
+    {
+        std::ostringstream os;
+        SetConsole(os, Detail::Verbose);
+        Begin("gateV", "t");
+        EmitAt("basis", "usage", block, Detail::Verbose);
+        End();
+        ClearConsole();
+        EXPECT_NE(os.str().find("usage"), std::string::npos);
+    }
+}
+
 // -- a provider-built section round-trips through EmitSection ----------------
 // (The provider owns the keys -- here we stand in for one: build the section json,
 // emit it, and confirm the sink stored exactly what was built.  The REAL scf-schema

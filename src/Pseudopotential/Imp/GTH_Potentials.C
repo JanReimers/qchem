@@ -5,6 +5,7 @@ module;
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <algorithm>
 #include <nlohmann/json.hpp>
 
 module qchem.Pseudopotential.GTH_Potentials;
@@ -40,7 +41,13 @@ GTH_PP GetGTH(const std::string& element, const std::string& functional, int q)
 
     std::string key = (q > 0) ? std::to_string(q) : byq.at("default").get<std::string>();
     if (!byq.contains(key))
-        throw std::runtime_error("GTH: " + element + " " + functional + " has no q=" + key);
+    {
+        std::string avail;                                  // list the valence variants that DO exist
+        for (auto it = byq.begin(); it != byq.end(); ++it)
+            if (it.key() != "default") avail += (avail.empty() ? "" : ", ") + it.key();
+        throw std::runtime_error("GTH: " + element + " " + functional + " has no q=" + key
+                                 + " (available: " + avail + ")");
+    }
     const nlohmann::json& rec = byq[key];
 
     int zion = rec["z_ion"].get<int>();
@@ -54,6 +61,17 @@ GTH_PP GetGTH(const std::string& element, const std::string& functional, int q)
                             ch["h"].get<std::vector<std::vector<double>>>());
 
     return GTH_PP{zion, local, nonlocal};
+}
+
+std::vector<int> GetGTHValences(const std::string& element, const std::string& functional)
+{
+    const nlohmann::json& db = database();
+    if (!db.contains(element) || !db[element].contains(functional)) return {};
+    std::vector<int> qs;
+    for (auto it = db[element][functional].begin(); it != db[element][functional].end(); ++it)
+        if (it.key() != "default") qs.push_back(std::stoi(it.key()));
+    std::sort(qs.begin(), qs.end());                    // ascending: qs.front() = valence, back = deepest semicore
+    return qs;
 }
 
 } // namespace

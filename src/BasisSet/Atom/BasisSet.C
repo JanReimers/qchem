@@ -3,6 +3,8 @@ module;
 #include <iostream>
 #include <map>
 #include <cassert>
+#include <string>
+#include <stdexcept>
 export module qchem.BasisSet.Atom.BasisSet;
 export import qchem.BasisSet;
 export import qchem.BasisSet.Orbital_HF_IBS;
@@ -93,8 +95,17 @@ public:
     {
         for (auto ir:ec.GetIrreps())
         {
-            auto it=esByL.find(Symmetry::Atom::Getl(ir));
-            assert(it!=esByL.end());   // exponents required for every occupied angular momentum
+            const int l=Symmetry::Atom::Getl(ir);
+            auto it=esByL.find(l);
+            // Exponents are REQUIRED for every occupied angular momentum.  A missing l is a caller error
+            // (an incomplete recipe), not an internal invariant -- and it is reachable from untrusted CLI
+            // input (CLIapps/valgen), so THROW rather than only assert: an unguarded end() deref here builds
+            // an IBS from a garbage exponent list and aborts with std::bad_alloc far from the real cause.
+            assert(it!=esByL.end());
+            if (it==esByL.end())
+                throw std::runtime_error("Atom BasisSet_HF: the electron configuration occupies angular "
+                    "momentum l=" + std::to_string(l) + " but the basis recipe supplied no exponents for it. "
+                    "Add a shell for l=" + std::to_string(l) + ".");
             Insert(new EOrbital_HF_IBS(it->second,ir,0));   // ltrim=0: this l's full list
         }
     }

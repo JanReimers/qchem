@@ -61,6 +61,7 @@ public:
     virtual std::string RadialID () const {return Cast().RadialID();}
     virtual std::string AngularID() const {return Cast().AngularID();}
     virtual std::string Name     () const {return Cast().Name();}
+    virtual void EmitRadialReport() const override {Cast().EmitRadialReport();}   // evaluator serializes its exponents
 protected:
     auto& Cast() const {return dynamic_cast<const E&>(*this);}
 };
