@@ -1,5 +1,5 @@
 add_library(qcOrbitals) 
-target_sources(qcOrbitals PRIVATE Internal/Imp/Orbital.C  Internal/Imp/TOrbital.C  Internal/Imp/TOrbitals.C Imp/Factory.C Imp/EnergyLevel.C)
+target_sources(qcOrbitals PRIVATE Internal/Imp/Orbital.C  Internal/Imp/TOrbital.C  Internal/Imp/TOrbitals.C Imp/Factory.C Imp/EnergyLevel.C Imp/Orbitals.C)
 target_sources(qcOrbitals PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
     Orbitals.C 
     Factory.C

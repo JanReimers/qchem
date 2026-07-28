@@ -132,6 +132,9 @@ template <class T> typename TOrbitalsImp<T>::ds_t TOrbitalsImp<T>::TakeElectrons
     return TakeElectronsFermi(ne, kT, rvec_t());   // no effective-energy shift == plain Fermi on the bare ε
 }
 
+// TakeElectronsFermi = {solve THIS block's μ for its own nₑ} then {set the occupations at that μ}.  The split
+// exposes SetFermiOccupationsAtMu so the composite cross-k fill can instead solve ONE global μ over the whole
+// mesh and set every block at it (doc/GPWPlan1.md item 3).  Bit-identical to the old monolith at a single k.
 template <class T> typename TOrbitalsImp<T>::ds_t
 TOrbitalsImp<T>::TakeElectronsFermi(double ne, double kT, const rvec_t& eShift)
 {
@@ -147,43 +150,31 @@ TOrbitalsImp<T>::TakeElectronsFermi(double ne, double kT, const rvec_t& eShift)
         e[i]=itsOrbitals[i]->GetEigenEnergy() + (eShift.size()? eShift[i] : 0.0);
         g[i]=itsOrbitals[i]->GetDegeneracy();
     }
-    // Fermi occupancy fraction f∈[0,1], overflow-guarded (x=(ε−μ)/kT beyond ±40 saturates).
-    auto ffrac=[kT](double ei, double mu)->double
-    {
-        double x=(ei-mu)/kT;
-        if (x> 40.0) return 0.0;
-        if (x<-40.0) return 1.0;
-        return 1.0/(1.0+exp(x));
-    };
-    // Total capacity Σ g_i must cover ne (else the basis is too small -- same contract as aufbau's assert),
-    // and the effective-energy range brackets μ.
-    double cap=0.0, emin=e[0], emax=e[0];
-    for (size_t i=0;i<n;++i){ cap+=g[i]; emin=std::min(emin,e[i]); emax=std::max(emax,e[i]); }
-    assert(ne<=cap+1e-9 && "Fermi fill: too few orbitals for the electron count (basis too small)");
-    auto count=[&](double mu)->double
-    {
-        double N=0.0;
-        for (size_t i=0;i<n;++i) N += g[i]*ffrac(e[i],mu);
-        return N;
-    };
-    // Bisect μ.  N(lo)≈0≤ne and N(hi)≈cap≥ne by the padding + the capacity assert above.
-    double lo=emin-50.0*kT, hi=emax+50.0*kT;
-    for (int it=0; it<100 && (hi-lo)>1e-14*(1.0+fabs(hi)); ++it)
-    {
-        double mu=0.5*(lo+hi);
-        if (count(mu)<ne) lo=mu; else hi=mu;
-    }
-    const double mu=0.5*(lo+hi);
+    const double mu=FermiLevel(e,g,ne,kT);        // this block's own chemical potential (Σ g_i f_i = ne)
+    return SetFermiOccupationsAtMu(mu,kT,eShift);  // then fill at it
+}
+
+// Set g_i·f_i at a GIVEN μ (no solve), accumulate this block's −TS, and build D/D'.  The composite global-μ
+// fill calls this per block after solving one μ across the mesh (doc/GPWPlan1.md item 3).
+template <class T> typename TOrbitalsImp<T>::ds_t
+TOrbitalsImp<T>::SetFermiOccupationsAtMu(double mu, double kT, const rvec_t& eShift)
+{
+    assert(kT>0.0);
+    assert(!itsOrbitals.empty());
+    const size_t n=itsOrbitals.size();
+    assert(eShift.size()==0 || eShift.size()==n);
     // Set occupations occ_i=g_i f_i and accumulate −TS = kT Σ g[f ln f + (1−f) ln(1−f)] (x ln x → 0 at 0,1).
     double minusTS=0.0;
     for (size_t i=0;i<n;++i)
     {
-        double f=ffrac(e[i],mu);
-        itsOrbitals[i]->SetOccupation(g[i]*f);
-        if (f>1e-15 && f<1.0-1e-15) minusTS += kT*g[i]*(f*log(f)+(1.0-f)*log(1.0-f));
+        const double ei=itsOrbitals[i]->GetEigenEnergy() + (eShift.size()? eShift[i] : 0.0);
+        const double g =itsOrbitals[i]->GetDegeneracy();
+        const double f =FermiOccupancy(ei,mu,kT);
+        itsOrbitals[i]->SetOccupation(g*f);
+        if (f>1e-15 && f<1.0-1e-15) minusTS += kT*g*(f*log(f)+(1.0-f)*log(1.0-f));
     }
     hmat_t<T> DPrime=std::get<1>(BuildDensity(0.0));   // build D/D' from the fractional occupations
-    return std::make_tuple(minusTS,std::move(DPrime)); // {−TS, D'} (μ solved => no leftover electrons)
+    return std::make_tuple(minusTS,std::move(DPrime)); // {−TS, D'}
 }
 
 // Build D (and the orthonormal-basis D') from the currently-occupied orbitals; shared by both

@@ -102,6 +102,17 @@ protected:
 //  Templated depending or whether it is a real or
 //  complex valued orbital.
 //
+//! Fermi–Dirac occupancy fraction \f$f=1/(1+e^{(e-\mu)/kT})\f$, overflow-guarded (\f$|x|>40\f$ saturates to
+//! 0/1).  \a kT>0.  The ONE shared occupancy kernel for both the per-block μ-solve (\c TakeElectronsFermi) and
+//! the composite cross-k global-μ fill (doc/GPWPlan1.md items 3 / 4b) -- keep them bit-identical here.
+double FermiOccupancy(double e, double mu, double kT);
+//! Solve the chemical potential μ by bisection so \f$\sum_i g_i\,\mathrm{FermiOccupancy}(e_i,\mu,kT)=\text{target}\f$.
+//! The energies \a e are EFFECTIVE (bare ε plus any MOM eShift, already folded in by the caller); \a g are the
+//! per-level capacities -- the degeneracy for a single block, or BZ-weight×degeneracy for the composite
+//! cross-k fill, so ONE unweighted solver serves both (the global weight rides in \a g).  Requires
+//! \a e.size()==g.size()>0 and \f$\sum g\ge\text{target}\f$ (capacity).  Returns μ (doc/GPWPlan1.md item 3).
+double FermiLevel(const rvec_t& e, const rvec_t& g, double target, double kT);
+
 template <class T> class TOrbitals
     : public virtual Orbitals
     , public virtual VectorFunction<T>
@@ -133,6 +144,12 @@ public:
     //! ghosts) UP so they stay empty by CHARACTER, while the retained high-overlap states smear by their
     //! TRUE energy -- keeping the ghost out (like hard MOM) yet making occupation continuous at the frontier.
     virtual ds_t TakeElectronsFermi (double ne, double kT, const rvec_t& eShift)=0;
+    //! Set Fermi occupations at a GIVEN chemical potential μ (no per-block solve): occ_i = g_i·FermiOccupancy(
+    //! ε_i+eShift_i, μ, kT), accumulate this block's −TS, and build D/D'.  The composite cross-k global-μ fill
+    //! solves ONE μ across the mesh (via \c FermiLevel over the aggregate) then calls this on EACH block so the
+    //! charge sloshes between k-points under a single Fermi level (doc/GPWPlan1.md item 3).  \c TakeElectronsFermi
+    //! is exactly {solve μ for this block's ne} then this.  \a kT>0; \a eShift size 0 == all-zero (plain Fermi).
+    virtual ds_t SetFermiOccupationsAtMu (double mu, double kT, const rvec_t& eShift)=0;
     virtual tDM_CD<T>* GetChargeDensity() const=0;   // the T-typed density (moved off the Orbitals base)
 
     //! Per-basis-function occupation-weighted Mulliken gross population \f$P_i=(DS)_{ii}\f$, given this irrep's
