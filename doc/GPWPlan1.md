@@ -120,7 +120,41 @@ degenerate open shell — NOT yet a Fermi-surface metal (that's step 4).
 
 **3. INCREMENT 2 — GLOBAL μ ACROSS k-BLOCKS** (structural: today each Bloch block fills to a FIXED per-block
 nₑ; a metal needs ONE μ across the BZ with charge sloshing between k-points).  The enabler for a true metal.
-Time with the IBZ/space-group track (qchem7 `lattice-3d-spacegroup`), like item 5.
+
+**Approach agreed 2026-07-28 (two scoping decisions):**
+- **DECOUPLE from IBZ — full unreduced Γ-centred mesh FIRST** (weights = 1/N_k).  Global-μ physics needs no
+  symmetry reduction; building it on a full mesh now buys multi-k experience + a working metal fill sooner, and
+  IBZ rides in later (only the weights change).  (Was "time with the IBZ track"; deliberately un-timed.)
+- **EC surface = a MODE on `Crystal_EC`**, paralleling the existing `UsesAufbau()` branch — a "global total-N"
+  ctor + a virtual (e.g. `UsesGlobalFermi()`); NOT a new `Metal_EC` type, NOT (yet) an `OccupationPolicy` enum
+  (that's the item-1 graduation).
+
+**Design (where it lives — traced 2026-07-28):**  Today the composite WF's `FillOrbitals` loops k-blocks
+independently (`w->FillOrbitals(ec->GetN(irrep))`); under smearing each block runs its OWN μ-bisection
+(`TOrbitals::TakeElectronsFermi(ne_k,kT)`) to hold exactly `ne_k`.  Item 3 lifts that bisection from per-block
+to ONE μ across the mesh.  The coupling is SMALL: Fock build / diagonalization / DIIS stay per-block; only the
+OCCUPATION step goes global.  It reduces EXACTLY to today at Γ (one block, weight 1 → global μ ≡ per-block μ),
+so the Al-Γ tests cannot regress.  Aligns with `doc/SCFStrategyPlan.md` §5 (occupation = first-class seam; the
+μ-solver "per k-block → global" is the named upgrade; §5 already pre-flags the GDM×smearing pitfall item 2 hit).
+
+**Increments:**
+1. **Split the Fermi primitive.**  Refactor `TakeElectronsFermi(ne,kT)` into a shared μ-solver + a
+   `SetFermiOccupationsAtMu(μ,kT) → (−TS_k, n_k, D')`.  Per-block solve stays (insulator / Γ); the metal path
+   calls the μ-solver ONCE at the composite level, then `SetAtMu` on each block.  (Pure refactor; Γ bit-stable.)
+2. **`Crystal_EC` global mode.**  Global-total-N ctor + `UsesGlobalFermi()`; carries the BZ weights (from
+   `Symmetry::GetWeight`, the plumbing `SiliconMultiKPlumbing` already exercises — weights sum to 1).
+3. **Composite global fill** `FillOrbitalsGlobalFermi`: gather `(ε_i,k, g_i, w_k)` across the channel, bisect
+   one μ on `Σ_k w_k Σ_i g_i f((ε_i,k−μ)/kT) = N_total`, set per-block occupations, accumulate
+   `−TS = Σ_k w_k(−T S_k)`.  Branch in `tCompositeWF::FillOrbitals` next to the `UsesAufbau()` branch.
+4. **Validate on Al 2×2×2** (full Γ-centred mesh): assert charge conserved (`Σ_k w_k n_k = Nval`) AND per-k
+   occupations DIFFER (the Fermi surface — the metal signature vs the per-block insulator fill); compare Etot
+   vs a denser mesh.  The honest Na metal is item 4.
+
+**Multi-k risks to watch (limited experience):** (a) weight consistency — the global constraint MUST use the
+same `w_k` the density sum uses; verify `Σ w_k n_k` equals the BZ-weighted charge the CD reports.  (b) complex-k
+is fine — occupations/eigenvalues are real, so the global bisection is real arithmetic even for complex blocks.
+(c) spin-polarized metals share ONE μ across BOTH spin channels (deferred; first cut is spin=None, one channel).
+(d) kT must exceed the inter-k level spacing near E_F (same "smear wider than the splitting" finding as item 2).
 
 **4. MULTI-K Na — the honest metal test** — FCC and/or BCC Na (1 valence e, half-filled conduction band): a
 real Fermi surface, one μ across the BZ, smearing + annealing.  Gate (iv), done properly.  (May want a more
