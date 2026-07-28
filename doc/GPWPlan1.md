@@ -89,6 +89,7 @@ selection, exponent+population basis-usage heat map, virial gate OFF for PPs).  
 3p triplet is partially filled, aufbau can't pick a p → won't converge without smearing), same physics as the
 passing Si-3p test.  Add **annealing** (a kT schedule, ramp T→0 in steps, re-seed each stage).  NOTE: Γ-only, a
 degenerate open shell — NOT yet a Fermi-surface metal (that's step 4).
+- FYI Al basis set in BasisSetData/valence_lowq.bsd ... valgen CLI app all ready if you need to regenerate (problems with diffuse functions is a common scenario).
 
 **3. INCREMENT 2 — GLOBAL μ ACROSS k-BLOCKS** (structural: today each Bloch block fills to a FIXED per-block
 nₑ; a metal needs ONE μ across the BZ with charge sloshing between k-points).  The enabler for a true metal.
