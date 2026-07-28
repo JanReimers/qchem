@@ -84,6 +84,13 @@ std::shared_ptr<const Real_BS> MakeBasisSR(const Structure& st)
         BasisSet::Molecule::Factory(BasisSetData::SIPP_SR, &st,
                                     BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
 }
+// The low-q GTH valence basis (valgen-generated; carries Al/Na/F) -- the Al block drives the FCC-Al metal test.
+std::shared_ptr<const Real_BS> MakeBasisLowQ(const Structure& st, BasisSetData which=BasisSetData::VALENCE_LOWQ_SR)
+{
+    return std::shared_ptr<const Real_BS>(
+        BasisSet::Molecule::Factory(which, &st,
+                                    BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
+}
 
 struct GpwResult { bool converged; double charge; qchem::EnergyBreakdown E; size_t iters; };
 
@@ -249,6 +256,71 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
               << "  (Ekin="<<E.Kinetic<<" Een="<<E.Een<<" Eee="<<E.Eee<<" Exc="<<E.Exc
               << " Enn="<<E.Enn<<" Ealign="<<E.Ealign<<")" << std::endl;
     return {scf.Converged(), charge, E, scf.GetIterationCount()};
+}
+
+// ANNEALED GPW driver (doc/GPWPlan1.md item 2): run a DESCENDING Fermi-smearing kT schedule, re-seeding each
+// stage from the previous stage's converged density (density continuation).  A hot first stage smears the
+// degenerate open shell wide and converges it easily (μ lands in the manifold, every degenerate orbital takes
+// the same fractional occupation); each cooler stage then starts IN-BASIN, so it settles toward the T->0
+// answer without the integer-aufbau sloshing a cold cold-start would suffer.  The basis + grids + Hamiltonian
+// are IDENTICAL every stage (only kT changes), so the re-seed is a direct density-matrix transfer with no
+// re-projection -- and the density's basis block (bs) outlives every stage, so the carried seed stays valid
+// after its producing iterator is torn down.  Returns the FINAL (coldest) stage's result; internal energy is
+// GetTotalEnergy()-MinusTS (A=E-TS reported, so E=A-(-TS)).  A general convergence tool (GPWPlan1 "Annealing
+// as a general capability") -- exercised here on the FCC-Al degenerate 3p.
+static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, const GpwOptions& o,
+                                const std::vector<double>& kTSchedule, bool verbose=false)
+{
+    namespace L3=BasisSet::Lattice_3D;
+    const std::string sp = o.species.empty() ? std::string() : o.species.front().first;
+    GpwReport report(sp+" "+o.label+" (annealed)", verbose);
+
+    qchem::report::Log("building GPW basis");
+    std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, mol, L3::GPWParams{
+        .densityEcut=o.densityEcut, .cutoffFactor=o.cutoffFactor, .raster=o.raster,
+        .images=o.images, .kShift=o.kShift, .ladderFactor=o.ladderFactor}));
+    if (report.VetBasis(*bs) > 0)
+    {
+        std::cout << "["<<o.label<<"] ABORT: basis rank-deficient (see basis.removed) -- skipped grids + SCF."<<std::endl;
+        return {false, 0.0, qchem::EnergyBreakdown{}, 0};
+    }
+    report.EmitGrids(*bs);
+
+    auto       st = lat.GetStructure();
+    auto       irreps = bs->GetIrreps(Spin::None);
+    Crystal_EC ec(irreps, o.Nelec);
+
+    GpwResult R{false, 0.0, qchem::EnergyBreakdown{}, 0};
+    qchem::ChargeDensity::cDM_CD* seedCD = nullptr;   // carried between stages (the next stage's ctor consumes it)
+    for (size_t s=0; s<kTSchedule.size(); ++s)
+    {
+        const double kT=kTSchedule[s];
+        // Fresh Hamiltonian + accelerator per stage (the iterator OWNS + deletes them; a kT change must not
+        // carry stale DIIS history across the re-seed).
+        auto* ham = new qchem::Hamiltonian::Ham_PW_DFT(st, bs.get(), o.species, "LDA");
+        auto* acc = MakeGpwAccelerator(o.accelerator);
+        std::unique_ptr<qchem::SCFIterator::SolidSCFIterator> scf(
+            s==0 ? new qchem::SCFIterator::SolidSCFIterator(bs.get(), &ec, ham, acc, o.seed,  st.get(), o.ortho, o.orthoTol)
+                 : new qchem::SCFIterator::SolidSCFIterator(bs.get(), &ec, ham, acc, seedCD, st.get(), o.ortho, o.orthoTol));
+
+        SCFParams par=o.scf; par.Verbose=verbose; par.SmearingkT=kT;
+        std::vector<FpRow> series;
+        scf->SetObserver([&series](const qchem::SCFIterator::SCFProgress& p)
+                         { series.push_back({p.iteration,p.energy,p.dE,p.commutator,p.drho}); });
+        std::cout << "["<<o.label<<" anneal "<<s+1<<"/"<<kTSchedule.size()<<"] kT="<<kT<<std::endl;
+        scf->Iterate(par);
+        Fingerprint(series, (o.label+" kT="+std::to_string(kT)).c_str());
+
+        seedCD = scf->GetWaveFunction()->GetChargeDensity();   // consumed by the next stage's ctor (bs keeps it valid)
+        qchem::EnergyBreakdown E=scf->GetEnergy();
+        R = {scf->Converged(), seedCD->GetTotalCharge(), E, scf->GetIterationCount()};
+        std::cout << "["<<o.label<<" stage "<<s+1<<"] kT="<<kT<<" conv="<<R.converged<<" iters="<<R.iters
+                  << " A=E-TS="<<E.GetTotalEnergy()<<" -TS="<<E.MinusTS
+                  << " E(internal)="<<(E.GetTotalEnergy()-E.MinusTS)<<std::endl;
+        // scf drops here (deletes ham/acc/wf); seedCD survives -- its block is bs, which outlives the loop.
+    }
+    delete seedCD;   // the final stage's carried density (not consumed by any further ctor)
+    return R;
 }
 
 // Positional back-compat wrapper (the existing single-species Si callers): forwards to RunGpw(GpwOptions).
@@ -569,6 +641,78 @@ TEST(GPW_SCF, SmearingConvergesDegenerateShell)
     EXPECT_NEAR(R.E.GetTotalEnergy(), -3.78260, 3e-3);
     EXPECT_LT(R.E.MinusTS, 0.0);                             // −TS<0 => A=GetTotalEnergy() sits below internal E (gate iii)
     EXPECT_NEAR(R.E.GetTotalEnergy()-R.E.MinusTS, Esipp, 3e-2) << "internal E=A−(−TS) vs finite SIPP molecular DFT";
+}
+
+// ===== (item 2) DEGENERATE-SHELL METAL: FCC Al @ Gamma (3s^2 3p^1) =====
+// Al conventional FCC lattice constant 4.05 A = 7.653 au; ONE atom in the primitive cell, Zion=3.  At Gamma
+// the cubic (O_h) site symmetry keeps the three 3p-derived states EXACTLY degenerate (a T_1u triplet), and
+// they hold only ONE electron -- a partially-filled degenerate shell (the Si-3p pseudo-atom physics, now in a
+// REAL periodic lattice).  Basis: the diffuse-trimmed VALENCE_LOWQ_SR Al block (the full valence_lowq Al p
+// 0.05 makes the Bloch overlap rank-deficient AND explodes the collocation grid -- the SIPP->SIPP_SR / NaF SR
+// lesson; valgen can regenerate).  NOT yet a Fermi-surface metal (that needs a global mu across k-blocks,
+// GPWPlan1 items 3-4) -- this is the degenerate-open-shell + smearing/annealing gate.
+static GpwOptions AlOptions()
+{
+    GpwOptions o;
+    o.label="Al FCC Gamma"; o.Nelec=3; o.species={{"Al",3}};
+    o.densityEcut=-1.0; o.accelerator="DIIS";
+    o.seed=qchem::ChargeDensity::SeedStrategy::Uniform; o.ortho=qchem::Cholesky;
+    o.scf.NMaxIter=60; o.scf.MinΔρ=1e-5; o.scf.MinΔE=1e30;
+    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
+    o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4;
+    return o;
+}
+
+// (item 2a) THE MOTIVATION: integer aufbau CANNOT converge the degenerate 3p.  With smearing OFF, aufbau must
+// place the lone 3p electron in ONE of the three degenerate p orbitals -- an arbitrary, symmetry-broken pick.
+// The TOTAL ENERGY settles (|ΔE/E|~1e-13, the gap column ~0 => no frontier gap, the metallic signature) but
+// the DENSITY rotates freely within the degenerate manifold, so |Δρ| floors well above tolerance and never
+// converges.  This is the honest reason the smearing/annealing path below exists (mirrors the documented
+// SiPseudoAtomInBoxMatchesFinite degenerate-shell behaviour, now for a periodic lattice).
+TEST(GPW_SCF, AlFCCDegenerateShellAufbauStalls)
+{
+    FCCUnitCell cell(7.653);
+    cell.AddAtom(13, {0,0,0});           // Al (Zion=3): 3s^2 3p^1
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+    GpwOptions o=AlOptions(); o.scf.NMaxIter=40; o.scf.SmearingkT=0.0;   // aufbau (no smearing)
+    GpwResult R=RunGpw(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o, /*verbose*/true);
+
+    EXPECT_FALSE(R.converged) << "integer aufbau cannot converge Δρ of a partially-filled degenerate 3p shell";
+    EXPECT_NEAR(R.charge, 3.0, 1e-6);                       // charge is still conserved (3 valence e-)
+    EXPECT_NEAR(R.E.MinusTS, 0.0, 1e-12);                   // no smearing => no entropy term
+}
+
+// (item 2b) THE CURE + ANNEALING (doc/GPWPlan1.md item 2): a DESCENDING kT schedule (0.02 -> 0.01 -> 0.005 Ha),
+// re-seeding each stage from the previous converged density.  Fermi smearing puts μ in the degenerate manifold
+// so each 3p orbital takes the SAME fractional occupation -- the density is cubic-symmetric and STATIONARY, and
+// every stage converges Δρ where aufbau cannot.  Annealing makes the cold end cheap: the kT=0.005 cold-START
+// takes ~44 iters, but re-seeded from kT=0.01 it converges in ~17.  The Mermin −TS<0, so GetTotalEnergy() is
+// the free energy A=E−TS (below the internal E); the INTERNAL energy E=A−(−TS) is kT-INDEPENDENT to ~1e-7
+// across all three stages (−1.92115) -- the physical T→0 answer, and a strong self-consistency check on the
+// smearing thermodynamics (gate iii).
+TEST(GPW_SCF, AlFCCAnnealedMetal)
+{
+    FCCUnitCell cell(7.653);
+    cell.AddAtom(13, {0,0,0});           // Al (Zion=3): 3s^2 3p^1
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+    GpwOptions o=AlOptions();
+    // Accelerator = plain DIIS (NOT the DIIS->GDM Ladder).  MEASURED 2026-07-28: the Ladder's GDM tail rung is
+    // INCOMPATIBLE with Fermi smearing here.  GDM builds its geodesic DIRECTION from the fixed-occupation
+    // electronic gradient [F,D], but line-searches the FREE energy A=E−TS with the occupations Fermi-refilled
+    // per trial (SCFIterator DirectMinStep).  Under fractional occupation those disagree: A is stationary where
+    // the smeared gradient (not [F,D]) is zero, so at the DIIS fixed point [F,D]~4e-3≠0, and GDM's first step is
+    // a persistent FALLBACK (GPW_GDMTRACE: best(Et−Ecur)=+0.42, all 12 backtracks uphill) -> occupations flip
+    // (cfg `*`), the run never recovers.  This is NOT a grid / non-variationality fault (DIIS converges the SAME
+    // E[ρ] cleanly to −1.97521); GDM just needs the occupation-response term to tail-polish a smeared free
+    // energy.  So DIIS here; GDM+smearing is a captured follow-up (doc/GPWPlan1.md item 2).
+    GpwResult R=RunGpwAnnealed(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o, {0.02, 0.01, 0.005}, /*verbose*/false);
+
+    EXPECT_TRUE(R.converged) << "Fermi-smearing annealing converges Δρ where integer aufbau cannot (degenerate 3p)";
+    EXPECT_NEAR(R.charge, 3.0, 1e-6);
+    EXPECT_LT(R.E.MinusTS, 0.0);                            // −TS<0 => A=GetTotalEnergy() sits below internal E (gate iii)
+    // did-E-move anchors at the coldest stage (kT=0.005): the free energy A and the kT-independent internal E.
+    EXPECT_NEAR(R.E.GetTotalEnergy(), -1.934665, 2e-3);                        // A = E − TS at kT=0.005
+    EXPECT_NEAR(R.E.GetTotalEnergy()-R.E.MinusTS, -1.921148, 2e-3);            // internal E (T→0 physical value)
 }
 
 // (4) MULTI-SPECIES GPW: ionic NaF (rocksalt = FCC + 2-atom basis) at Gamma, driven by the multi-species

@@ -90,6 +90,33 @@ selection, exponent+population basis-usage heat map, virial gate OFF for PPs).  
 passing Si-3p test.  Add **annealing** (a kT schedule, ramp T→0 in steps, re-seed each stage).  NOTE: Γ-only, a
 degenerate open shell — NOT yet a Fermi-surface metal (that's step 4).
 - FYI Al basis set in BasisSetData/valence_lowq.bsd ... valgen CLI app all ready if you need to regenerate (problems with diffuse functions is a common scenario).
+- **DONE (2026-07-28).**  Two IntegrationTests/GPW_SCF_UT.C tests (physical a=4.05 Å=7.653 au, 1-atom FCC
+  primitive cell, Zion=3):
+  - `AlFCCDegenerateShellAufbauStalls` — the MOTIVATION: aufbau settles the energy (|ΔE/E|~1e-13, gap
+    column ~0 = metallic) but |Δρ| floors (~5e-4) and never converges (the degenerate-3p rotation).
+  - `AlFCCAnnealedMetal` — the CURE: a descending kT schedule {0.02, 0.01, 0.005} Ha via a new
+    `RunGpwAnnealed` driver (re-seeds each stage from the prior converged density; same basis/grids/Ham, only
+    kT changes → direct DM transfer, bs outlives the stages).  Every stage converges; the INTERNAL energy
+    E=A−(−TS) is kT-independent to ~1e-7 across all three (−1.92115) — the physical T→0 answer; free energy
+    A=E−TS at kT=0.005 is −1.93466, −TS<0 (gate iii).  Annealing cheapens the cold end: kT=0.005 cold-start
+    ~44 iters → re-seeded ~17.
+  - **Basis: Al block added to `valence_lowq_sr.bsd`** (dropped the diffuse s 0.04 + p 0.05).  The full
+    `valence_lowq` Al p 0.05 makes the primitive-cell Bloch overlap rank-deficient (VetBasis drops the p
+    triplet, ABORTs) AND explodes the collocation grid (reach ~21 au) — the SIPP→SIPP_SR / NaF-SR lesson.
+    SR Al @ a=7.653: λ_min=3e-3, cond=2e3, 17 functions.
+  - **Annealing is now a driver (`RunGpwAnnealed`), not yet a first-class library capability** — the
+    "Annealing as a general capability" future-consideration below still stands.
+  - **FINDING — GDM tail rung is INCOMPATIBLE with Fermi smearing (measured on this test, 2026-07-28).**
+    Ran the annealed Al on the DIIS→GDM `Ladder` (`ScheduleSignal::EnergyChange`).  DIIS descended cleanly to
+    the physical −1.97521 ([F,D]~4e-3), handed to GDM, and GDM's FIRST geodesic step was a persistent FALLBACK
+    (`GPW_GDMTRACE`: best(Et−Ecur)=+0.42, all 12 backtracks uphill) → occupations flipped (cfg `*`) and the run
+    never recovered.  ROOT CAUSE (not grids / not non-variationality — DIIS converges the same E[ρ]): GDM builds
+    its geodesic DIRECTION from the fixed-occupation electronic gradient `[F,D]`, but line-searches the FREE
+    energy A=E−TS with occupations Fermi-refilled per trial (`DirectMinStep`).  Under fractional occupation A is
+    stationary where the SMEARED gradient (not `[F,D]`) is zero, so `[F,D]≠0` at the DIIS fixed point and GDM's
+    direction is not downhill for A.  FIX (deferred, a real change): give GDM the occupation-response term so its
+    search direction is the free-energy gradient dA/d(rotation), not `[F,D]` — then GDM could tail-polish a
+    smeared solid.  Until then: DIIS (or Kerker/Pulay) for smeared runs; GDM only at fixed integer occupation.
 
 **3. INCREMENT 2 — GLOBAL μ ACROSS k-BLOCKS** (structural: today each Bloch block fills to a FIXED per-block
 nₑ; a metal needs ONE μ across the BZ with charge sloshing between k-points).  The enabler for a true metal.
@@ -153,7 +180,12 @@ LAST — payoff only on multi-k; time with the IBZ track.  Cache B(R), never M(k
   at zero broadening use the ½(E+A) extrapolation (or a MP-order-consistent one).  Report it alongside E, −TS, A.
 - **Annealing as a general capability.**  The kT-schedule (ramp T→0 in steps, re-seed each stage from the last
   — the density-continuation machinery exists) is used in roadmap step 2, but it's a general convergence tool
-  for any hard/near-gapless landscape, worth exposing as such.
+  for any hard/near-gapless landscape, worth exposing as such.  (Built as the `RunGpwAnnealed` test-driver in
+  item 2; promoting it to a library/facade capability is the open piece.)
+- **GDM needs a smearing-aware search direction.**  Measured in item 2: the GDM direct-minimiser DIVERGES under
+  Fermi smearing because its geodesic direction is the fixed-occupation `[F,D]`, not the free-energy gradient
+  dA/d(rotation) (which carries an occupation-response term).  To let GDM tail-polish a smeared solid, build the
+  step from the smeared gradient; until then, smeared runs use DIIS/Kerker/Pulay and GDM stays fixed-occupation.
 
 ---
 
