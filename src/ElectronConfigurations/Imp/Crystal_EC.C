@@ -6,12 +6,14 @@ module qchem.ElectronConfiguration.Crystal;
 
 namespace qchem {
 
-Crystal_EC::Crystal_EC(const Irrep& irr, int nval) : itsNval(nval)
+Crystal_EC::Crystal_EC(const Irrep& irr, int nval, bool globalFermi)
+    : itsNval(nval), itsGlobalFermi(globalFermi)
 {
     itsSyms.insert(irr.sym);
 }
 
-Crystal_EC::Crystal_EC(const std::vector<Irrep>& irreps, int nval) : itsNval(nval)
+Crystal_EC::Crystal_EC(const std::vector<Irrep>& irreps, int nval, bool globalFermi)
+    : itsNval(nval), itsGlobalFermi(globalFermi)
 {
     for (const auto& irr : irreps) itsSyms.insert(irr.sym);
 }
@@ -22,7 +24,9 @@ ElectronConfiguration::syms_t Crystal_EC::GetIrreps() const {return itsSyms;}
 
 void Crystal_EC::Display() const
 {
-    std::cout << "Crystal_EC: Nval=" << itsNval << " per k-block, " << itsSyms.size() << " k-block(s)" << std::endl;
+    std::cout << "Crystal_EC: Nval=" << itsNval
+              << (itsGlobalFermi ? " total (global-μ metal), " : " per k-block, ")
+              << itsSyms.size() << " k-block(s)" << std::endl;
 }
 
 } // namespace qchem
