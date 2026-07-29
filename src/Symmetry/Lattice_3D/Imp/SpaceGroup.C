@@ -188,4 +188,26 @@ std::vector<Matrix3D<double>> SpaceGroup::ReciprocalPointOps(bool includeTimeRev
     return U;
 }
 
+std::vector<Matrix3D<double>> SpaceGroup::DirectPointOps(bool includeTimeReversal,
+                                                        bool symmorphicOnly) const
+{
+    // The direct-space linear parts W straight from the {W|tau} ops -- NO invert/transpose (that is the
+    // reciprocal partner).  Time reversal is a RECIPROCAL concept and adds -W = a false real-space inversion,
+    // so it is OFF by default; a real-space raster star-average uses the crystal point group only.
+    std::vector<Matrix3D<double>> W;
+    auto add = [&](const Matrix3D<double>& w)
+    {
+        for (const auto& e : W) if (MatEqual(e, w, 1e-9)) return;   // dedup
+        W.push_back(w);
+    };
+    for (const auto& op : itsOps)
+    {
+        if (symmorphicOnly &&                                       // the same tau=0 W-only guard
+            (fabs(op.tau.x) > 1e-9 || fabs(op.tau.y) > 1e-9 || fabs(op.tau.z) > 1e-9)) continue;
+        add(op.W);
+        if (includeTimeReversal) add(-1.0 * op.W);                  // k->-k => -W in real space (false inversion)
+    }
+    return W;
+}
+
 } // namespace

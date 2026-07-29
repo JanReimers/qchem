@@ -80,6 +80,17 @@ public:
     std::vector<Matrix3D<double>> ReciprocalPointOps(bool includeTimeReversal=true,
                                                      bool symmorphicOnly=false) const;
 
+    //! \brief The DIRECT-space integer operations \f$W\f$ (real space acts by \f$r\to W r\f$) -- the reciprocal
+    //! partner of \c ReciprocalPointOps, returned straight from \c SpaceGroupOp::W (no invert/transpose).
+    //! \param includeTimeReversal  Also add \f$-W\f$ (the real-space partner of \f$k\to-k\f$).  OFF by DEFAULT:
+    //!        time reversal is a RECIPROCAL/Bloch concept; in real space \f$-W\f$ imposes a FALSE INVERSION on a
+    //!        (real) density, so a caller symmetrizing a real-space raster MUST leave it off -- only the crystal
+    //!        point group symmetrizes a real density (doc/GPWPlan1.md item 3).  (In G-space time reversal is
+    //!        instead fine, since \f$\tilde\rho(-G)=\tilde\rho(G)^*\f$ -- hence it defaults ON there.)
+    //! \param symmorphicOnly  the same \f$\tau=0\f$ W-only guard as \c ReciprocalPointOps.
+    std::vector<Matrix3D<double>> DirectPointOps(bool includeTimeReversal=false,
+                                                 bool symmorphicOnly=false) const;
+
     const Matrix3D<double>& CellMatrix() const {return itsA;}
 
 private:
