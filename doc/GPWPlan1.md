@@ -161,6 +161,19 @@ and works).  (c) spin-polarized metals share ONE μ across BOTH spin channels �
 spin=None, one channel; a magnetic metal needs the μ-solve to span both `itsSpinWFs` channels).  (d) kT must
 exceed the inter-k level spacing near E_F (the item-2 "smear wider than the splitting" finding).
 
+**Two follow-up findings (2026-07-28, from inspecting the AlFCCMetalGlobalMu run):**
+- **Eigen-table display was never tested on a metal — FIXED.**  `tUnPolarizedWF::DisplayEigen` broke the level
+  list at `e>0.0` (a MOLECULAR idiom: bound states sit below the vacuum level at 0).  In a solid the energy
+  zero is arbitrary (PP G=0/alignment) so the Fermi level can be POSITIVE — Al's μ=+0.28 — and the break hid
+  every occupied level above 0, showing only the one negative-energy Γ level.  Fix: break on OCCUPATION
+  (`occ<1e-6`), and show FRACTIONAL occupations (the metal now honestly displays 1.90/2, 0.10/2 at the Fermi
+  surface).  Atom/molecule output byte-identical (integer occ, bound levels).  Instrument `GPW_METALTRACE`
+  dumps μ + per-k n_k (the charge sloshing).
+- **Small `Eee` on the metal is PHYSICAL, not a bug.**  GPW's Hartree is the G≠0 Poisson solve `4πρ̃/G²`; the
+  G=0 self-energy is dropped into `Ealign` (the neutralising-background alignment).  So `Eee` measures only the
+  density's NON-uniformity — and a metallic (near-uniform) density has small `Eee` (Γ-only 0.020 → 2×2×2 0.006
+  as the density metallizes; a uniform gas → 0).
+
 **Remaining for item 3:** IBZ integration (weights from the symmetry-reduced mesh — the qchem7 track; the fill
 is weight-agnostic so only the weights change) and the spin-polarized global μ (both spin channels, one μ).
 

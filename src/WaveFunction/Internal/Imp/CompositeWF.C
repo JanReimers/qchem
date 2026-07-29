@@ -8,6 +8,8 @@ module;
 #include <string>
 #include <algorithm>
 #include <sstream>
+#include <iostream>
+#include <cstdlib>
 #include "tabulate/table.hpp"
 module qchem.WaveFunction.Internal.CompositeWF;
 import qchem.WaveFunction.Types;
@@ -378,12 +380,25 @@ template <class T> void tCompositeWF<T>::FillOrbitalsGlobalFermi(double mergeTol
         }
         const double mu=qchem::Orbitals::FermiLevel(e,g,Ntot,itsSmearingkT);   // one μ across the whole mesh
 
+        // Instrument GPW_METALTRACE (cf. GPW_GDMTRACE): dump μ and the per-k electron count n_k so the charge
+        // sloshing is visible (n_k varies; Σ_k w_k n_k = N_total).  Off by default; per-iteration when set.
+        const bool trace=(bool)std::getenv("GPW_METALTRACE");
+        if (trace) std::cout<<"[metal] μ="<<mu<<" kT="<<itsSmearingkT<<" Ntot="<<Ntot<<"  per-k n_k:\n";
+        double wsum=0.0;
         for (auto w : wfs)                                               // set every block at the shared μ
         {
             EnergyLevels els=w->FillOrbitalsAtMu(mu);
+            if (trace)
+            {
+                double nk=0.0; for (auto o:w->GetOrbitals()->Iterate()) nk+=o->GetOccupation();
+                const double wk=w->GetIrrep().sym->GetWeight();
+                wsum+=wk*nk;
+                std::cout<<"[metal]   k="<<w->GetIrrep()<<" w="<<wk<<" n_k="<<nk<<" (w·n="<<wk*nk<<")\n";
+            }
             itsELevels.merge(els,mergeTol);
             itsSpin_ELevels[s].merge(els,mergeTol);
         }
+        if (trace) std::cout<<"[metal] Σ w_k n_k = "<<wsum<<"\n";
     }
 }
 

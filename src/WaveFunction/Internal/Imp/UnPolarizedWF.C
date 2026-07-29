@@ -2,6 +2,7 @@
 module;
 #include <iomanip>
 #include <iostream>
+#include <cmath>
 #include "tabulate/table.hpp"
 
 module qchem.WaveFunction.Internal.UnPolarizedWF;
@@ -32,11 +33,20 @@ template <class T> void tUnPolarizedWF<T>::DisplayEigen() const
        
     for (auto [e,el]:this->GetEnergyLevels())
     {
-       
-        if (e>0.0 || el.occ==0) break;
+        // Stop past the frontier by OCCUPATION, not energy sign.  The old `e>0.0` cutoff is a MOLECULAR idiom
+        // (bound states sit below the vacuum level at 0); in a SOLID the energy zero is arbitrary (the PP
+        // G=0/alignment convention), so the Fermi level -- and every occupied level -- can be POSITIVE (a
+        // metal: this hid all but the one negative-energy Γ level).  Occupations are monotonic in energy under
+        // one μ, so the first negligibly-occupied level ends the occupied set for atoms and metals alike.
+        if (el.occ < 1e-6) break;
         std::ostringstream sym_string,occ_string;
         sym_string << el.qns.n << *el.qns.sym;
-        occ_string << std::fixed << std::setprecision(0) << el.occ << "/" << el.degen;
+        // Integer occ (atoms / gapped insulators) unchanged; fractional (Fermi-smeared metal) shown with
+        // decimals so a partially-filled band is honest instead of rounding to an integer.
+        if (std::abs(el.occ - std::round(el.occ)) < 1e-6)
+            occ_string << std::fixed << std::setprecision(0) << el.occ << "/" << el.degen;
+        else
+            occ_string << std::fixed << std::setprecision(2) << el.occ << "/" << el.degen;
         size_t l=el.qns.sym->GetPrincipleOffset();
 
         RowStream rs;
