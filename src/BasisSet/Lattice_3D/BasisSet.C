@@ -6,6 +6,7 @@
 // callers are forced through the polymorphic BasisSet interface, exactly as for molecular bases.
 module;
 #include <memory>
+#include <vector>
 export module qchem.BasisSet.Lattice_3D.BasisSet;
 export import qchem.BasisSet;                          // Complex_BS (= tBasisSet<dcmplx>)
 export import qchem.Lattice_3D;                        // Lattice_3D (the crystal structure + BZ grid)
@@ -116,6 +117,11 @@ class GPW_BasisSet : public BasisSet::BasisSetImp<dcmplx>
 public:
     GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
                  const GPWParams& p);
+    //! The τ=0 reciprocal point ops used to FOLD the mesh -- exposed so the composite density star-averages
+    //! itself (IBZ).  Empty unless reduceBZ (the fold and the density symmetrization are one package).
+    virtual std::vector<Matrix3D<double>> GetReciprocalPointOps() const override {return itsReciprocalOps;}
+private:
+    std::vector<Matrix3D<double>> itsReciprocalOps;   //!< {} unless reduceBZ (doc/GPWPlan1.md item 3)
 };
 
 } //namespace

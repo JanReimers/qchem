@@ -8,7 +8,6 @@ import qchem.SCFIterator.Types;
 export import qchem.SCFAccelerator;
 export import qchem.WaveFunction;
 import qchem.WaveFunction.SCF;
-import qchem.Matrix3D;   // Matrix3D -- the reciprocal point ops forwarded to the WF (IBZ density symmetrization)
 export import qchem.SCFParams;
 export import qchem.ChargeDensity.Seed;   // SeedStrategy / MakeSeedDensity
 import qchem.LASolver;   // qchem::Ortho (the basis-overlap orthogonalisation knob, forwarded to the WF)
@@ -121,10 +120,6 @@ public:
     //! system.  Seeding the DENSITY alone is not enough: on the fine grid a giant-response diffuse virtual sits
     //! at the frontier even at the physical density, so the occupied-subspace reference must transfer too.
     void AdoptMOMReference(const wf_t& from) {itsWaveFunction->AdoptMOMReference(from);}
-    //! IBZ density symmetrization (doc/GPWPlan1.md item 3): the reciprocal point group the assembled density
-    //! star-averages, so a reduced k-mesh is exact.  Empty = trivial {E} = no-op.  Call AFTER construction,
-    //! BEFORE Iterate (a per-run configuration forwarded to the WF, like AdoptMOMReference).
-    void SetSymmetryOps(std::vector<Matrix3D<double>> ops) {itsWaveFunction->SetSymmetryOps(std::move(ops));}
     EnergyBreakdown     GetEnergy() const;
     size_t              GetIterationCount() const {return itsIterationCount;}
     bool                Converged() const {return itsConverged;}

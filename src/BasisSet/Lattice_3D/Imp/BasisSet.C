@@ -59,7 +59,23 @@ Complex_BS* Factory(Type type, const ::qchem::Lattice_3D& lat, double Ecut)
 // W-only guard; doc/GPWPlan1.md item 3).  IBZ needs the density symmetrized over each star to be exact; the
 // caller is responsible for that (this only reduces which blocks are BUILT + carries the star weights).
 struct KBlock { ivec3_t ik; double weight; };
-static std::vector<KBlock> BuildKBlocks(const ::qchem::Lattice_3D& lat, const GPWParams& p)
+// The τ=0 reciprocal point ops of the crystal (the W-only guard), or {} when we are NOT folding (reduceBZ off)
+// -- the fold and the density star-average are one package, so a non-folded run carries no ops (trivial {E}).
+static std::vector<Matrix3D<double>> ReciprocalOps(const ::qchem::Lattice_3D& lat, const GPWParams& p)
+{
+    namespace SL = qchem::Symmetry::Lattice_3D;
+    if (!p.reduceBZ) return {};
+    const UnitCell&  cell = lat.GetUnitCell();
+    const Structure& st   = cell;   // iterate atoms via the PUBLIC Structure interface (GetAtom is protected)
+    std::vector<SL::AtomSite> basis;
+    for (Atom* a : st)
+        basis.push_back({a->itsZ, cell.ToFractional(a->itsR)});
+    return SL::SpaceGroup::Detect(cell.GetCellMatrix(), basis).ReciprocalPointOps(/*timeReversal*/true,
+                                                                                  /*symmorphicOnly*/true);
+}
+
+static std::vector<KBlock> BuildKBlocks(const ::qchem::Lattice_3D& lat, const GPWParams& p,
+                                        const std::vector<Matrix3D<double>>& ops)
 {
     namespace SL = qchem::Symmetry::Lattice_3D;
     const rvec3_t kShift=p.kShift;
@@ -72,32 +88,24 @@ static std::vector<KBlock> BuildKBlocks(const ::qchem::Lattice_3D& lat, const GP
                                       std::lround(kp.k.z*N.z-kShift.z)), kp.weight});
         return blocks;
     }
-    // IBZ: detect the crystal space group from the cell + fractional atom basis, take the τ=0 reciprocal ops
-    // (the guard), and fold the MP grid.  Every k-resolved BAND quantity obeys f(Uk)=f(k) so the star weight is
-    // exact for the eigenvalue/occupation sum; the DENSITY needs the star symmetrization (a separate step).
-    const UnitCell&  cell = lat.GetUnitCell();
-    const Structure& st   = cell;   // iterate atoms via the PUBLIC Structure interface (GetAtom is protected)
-    std::vector<SL::AtomSite> basis;
-    for (Atom* a : st)
-        basis.push_back({a->itsZ, cell.ToFractional(a->itsR)});
-    SL::SpaceGroup sg = SL::SpaceGroup::Detect(cell.GetCellMatrix(), basis);
-    auto ops = sg.ReciprocalPointOps(/*timeReversal*/true, /*symmorphicOnly*/true);   // the W-only guard
+    // IBZ: fold the MP grid under the (pre-computed) τ=0 reciprocal ops.  Every k-resolved BAND quantity obeys
+    // f(Uk)=f(k) so the star weight is exact for the eigenvalue/occupation sum; the DENSITY needs the star
+    // symmetrization (the composite ctor-injects the SAME ops, so a folded run is symmetrized automatically).
     SL::IBZMesh ibz = SL::ReduceToIBZ(N, kShift, ops);
     std::cout << "[IBZ] " << ibz.FullSize() << " k-points -> " << ibz.points.size()
-              << " irreducible (point group |ops|=" << ops.size()
-              << (sg.isSymmorphic() ? ", symmorphic" : ", NON-symmorphic: τ≠0 ops dropped -- under-folds")
-              << "); Σw=" << ibz.WeightSum() << std::endl;
+              << " irreducible (point group |ops|=" << ops.size() << "); Σw=" << ibz.WeightSum() << std::endl;
     for (const auto& q : ibz.points) blocks.push_back({q.index, q.weight});
     return blocks;
 }
 
 GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
                            const GPWParams& p)
+    : itsReciprocalOps(ReciprocalOps(lat, p))   // computed ONCE; exposed via GetReciprocalPointOps for the density
 {
     const rvec3_t kShift=p.kShift;
     const ivec3_t N=lat.GetLimits();
     const GPW_IBS* first=nullptr;
-    for (const auto& kb : BuildKBlocks(lat, p))
+    for (const auto& kb : BuildKBlocks(lat, p, itsReciprocalOps))
     {
         // Build the Bloch irrep WITH its BZ weight (star weight under IBZ) and the primary sym_t ctor -- the
         // weight carries the Sum_k w_k so the BZ-summed charge/energy are per-cell, not xNk.

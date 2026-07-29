@@ -54,7 +54,6 @@ import qchem.Symmetry.Irrep;                     // Irrep
 import qchem.Reporting;                          // report:: -- bracket the GPW run so grids/basis sections land
 import qchem.Symmetry.Spin;                      // Spin
 import qchem.Symmetry.Factory;                   // BlochFactory (build a k-block with a fractional MP shift)
-import qchem.Symmetry.Lattice_3D.SpaceGroup;     // SpaceGroup::Detect + AtomSite + ReciprocalPointOps (IBZ ops)
 import qchem.LASolver;                           // qchem::Ortho (Cholesky | Eigen | SVD -- basis orthogonalisation)
 import qchem.BasisSet.Lattice_3D.GPW_IBS;         // GPW_IBS (build a concrete block for the collocation diagnostic)
 import qchem.BasisSet.Lattice_3D.Evaluators.GPW;  // GPW_Evaluator (Overlap3CTensor -- the collocation tensor)
@@ -181,8 +180,7 @@ struct GpwOptions
     std::string accelerator = "DIIS";                  // DIIS | GDM | Ladder | Null
     bool        globalFermi = false;                    // metal: one μ across the k-mesh (Crystal_EC global mode)
     bool        reduceBZ    = false;                     // IBZ/k-star: fold the MP mesh to the irreducible wedge
-    bool        symmetrize  = false;                     // IBZ: star-average the density (auto-on with reduceBZ;
-                                                         //   set alone on a FULL mesh to check idempotency)
+                                                         //   (density star-average is auto-injected from the basis)
     qchem::ChargeDensity::SeedStrategy seed = qchem::ChargeDensity::SeedStrategy::Uniform;
     qchem::Ortho ortho    = qchem::Cholesky;
     double       orthoTol = 0.0;
@@ -243,20 +241,9 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
     // (report::InSection("basis") false) and just does the ortho.
     qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc,
                                          o.seed, lat.GetStructure().get(), o.ortho, o.orthoTol);
-    // IBZ density symmetrization (doc/GPWPlan1.md item 3): hand the SCF the crystal's reciprocal point group so
-    // the assembled density is star-averaged.  reduceBZ NEEDS it (a folded mesh is otherwise unsymmetric); on a
-    // FULL mesh it is an IDEMPOTENT no-op (the mesh already carries every star partner) -- the correctness gate.
-    // (The ops are recomputed here from the lattice; a follow-up exposes them from the basis to avoid the dup.)
-    if (o.symmetrize || o.reduceBZ)   // reduceBZ needs it; symmetrize alone is the full-mesh idempotency probe
-    {
-        namespace SL=qchem::Symmetry::Lattice_3D;
-        const auto& cell = lat.GetUnitCell();
-        auto st = lat.GetStructure();   // HOLD the shared_ptr: GetStructure() returns a fresh temporary, so
-        std::vector<SL::AtomSite> asites;   // `for (a : *lat.GetStructure())` would iterate a freed Structure.
-        for (Atom* a : *st) asites.push_back({a->itsZ, cell.ToFractional(a->itsR)});
-        SL::SpaceGroup sg = SL::SpaceGroup::Detect(cell.GetCellMatrix(), asites);
-        scf.SetSymmetryOps(sg.ReciprocalPointOps(/*timeReversal*/true, /*symmorphicOnly*/true));  // W-only guard
-    }
+    // IBZ density symmetrization is now automatic: the GPW basis exposes its reciprocal point ops (non-empty
+    // only when reduceBZ), and the composite density ctor-injects them straight from the basis -- no setter,
+    // no ops recomputed here (doc/GPWPlan1.md item 3).
     std::vector<FpRow> series;
     scf.SetObserver([&series](const qchem::SCFIterator::SCFProgress& p)
                     { series.push_back({p.iteration, p.energy, p.dE, p.commutator, p.drho}); });
@@ -774,7 +761,6 @@ TEST(GPW_SCF, DISABLED_AlGlobalMuExperiment)
     GpwOptions o=AlOptions();
     o.globalFermi = envd("AL_GLOBAL",1.0)!=0.0;
     o.reduceBZ = envd("AL_IBZ",0.0)!=0.0;
-    o.symmetrize = envd("AL_SYM",0.0)!=0.0;   // idempotency probe: full-mesh star-average must not move E
     if (envd("AL_RASTER",0.0)!=0.0) o.raster=BasisSet::Lattice_3D::RasterPolicy::AliasFree;   // G-space XC route
     o.scf.SmearingkT = envd("AL_KT",0.01);
     o.scf.NMaxIter = (size_t)envd("AL_NMAX",60);

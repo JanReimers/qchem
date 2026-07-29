@@ -9,6 +9,7 @@ export import qchem.BasisSet.Fit_IBS;
 export import qchem.Structure;
 export import qchem.Symmetry;
 export import qchem.ElectronConfiguration;
+export import qchem.Matrix3D;   // Matrix3D -- the crystal point-group ops a periodic basis exposes (IBZ symmetrization)
 
 import qchem.Iterators;
 export import qchem.Streamable;
@@ -33,6 +34,13 @@ public:
 
     virtual FIT_CD_ABS<T>* CreateCDFitBasisSet(const Structure* cl, const qcMesh::MeshParams&) const;
     virtual FIT_SF_ABS<T>* CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams&) const;
+
+    //! The crystal RECIPROCAL point group (τ=0 symmorphic ops) for IBZ density symmetrization.  Default {} =
+    //! trivial {E} = no-op -- molecules / Γ / unfolded bases.  A periodic GPW basis returns the ops WHEN it
+    //! folds the mesh (reduceBZ), so the composite density ctor-injects them and the reduced density is star-
+    //! averaged (doc/GPWPlan1.md item 3).  It is a basis property (the basis computes the space group), so the
+    //! density/WF read it here rather than being told via a setter.
+    virtual std::vector<Matrix3D<double>> GetReciprocalPointOps() const {return {};}
 
     // Iterate() with no type argument yields the base obs_t* directly (no cast);
     // Iterate<D>() dynamic_cast's each IBS to the requested derived type D.

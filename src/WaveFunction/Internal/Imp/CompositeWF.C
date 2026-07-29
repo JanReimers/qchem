@@ -164,7 +164,9 @@ template <class T> tDM_CD<T>* tCompositeWF<T>::GetChargeDensity(Spin s) const
     using qchem::ChargeDensity::tComposite_CD;
     auto i = itsSpinWFs.find(s);
     assert(i!=itsSpinWFs.end());
-    tComposite_CD<T>* cd = new tComposite_CD<T>(itsPointOps);   // IBZ point group ({} = trivial no-op)
+    // IBZ point group ctor-injected straight from the basis (empty {} for molecules / unfolded crystals = a
+    // trivial no-op).  The basis owns the crystal symmetry, so no setter is threaded through the SCF.
+    tComposite_CD<T>* cd = new tComposite_CD<T>(itsBS->GetReciprocalPointOps());
     for (auto& w:i->second) cd->Insert(w->GetChargeDensity());
     return cd;
 }
