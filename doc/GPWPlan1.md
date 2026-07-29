@@ -185,13 +185,16 @@ diffuse metallic Na basis from step 1 than the ionic-NaF-tuned `valence_lowq` Na
 electron/cell → half-filled band → μ cuts THROUGH it = a genuine Fermi surface.  Shifted Monkhorst-Pack 2×2×2
 (`kShift=½`, k at ±¼) + global μ + smearing.  MEASURED (the textbook smeared Fermi surface): μ mid-band
 (≈-0.014); the 2 k-points inside the surface fill (n_k=2.0, ε=-0.077), the 6 on it smear FRACTIONALLY
-(n_k=0.67, ε≈μ, f=1/(1+e^{0.7})=0.33/spin); `Σ_k w_k n_k = 1.0000` exactly; converged ~17 iters, A=-0.22472.
-**Annealing composes** (`NA_ANNEAL` in `DISABLED_NaFCCMetalExperiment`): kT {0.02→0.01→0.005}, re-seeded, the
-internal E converges toward T→0 (-0.2114→-0.2150→-0.2151 — note it is NOT kT-flat here, unlike Al's degenerate
-shell: a real Fermi surface genuinely depends on T, so annealing recovers the T→0 answer).  **CAVEATS / next:**
-(a) `VALENCE_LOWQ_SR` Na conditions only at an EXPANDED a=12 au (the diffuse 3s a metal wants makes the Bloch
-overlap singular at the real density — the diffuse-basis tension) → a proper metallic Na basis via valgen
-(step 1) for the real lattice constant; (b) mesh convergence (2×2×2 → denser) needs IBZ/k-star reduction to
+(n_k=0.67, ε≈μ, f=1/(1+e^{0.7})=0.33/spin); `Σ_k w_k n_k = 1.0000` exactly; converged ~26 iters, A=0.0455.
+**Basis = `VALENCE_LOWQ_SR2` at the REAL FCC-Na density (a=10 au, matched to Na's atomic volume)** — SR2 drops
+the diffuse Na s 0.0857 + p 0.05, so the Bloch overlap is well-conditioned at the CORRECT lattice constant
+(cond≈38).  (First cut used `SR` at a stretched a=12 au — stretching the cell was a workaround the user rightly
+flagged; SR2 at the real density is the honest fix, and 9× faster: 1.3 s.)  **Annealing composes**
+(`NA_ANNEAL` in `DISABLED_NaFCCMetalExperiment`): kT {0.02→0.01→0.005}, re-seeded; internal E converges toward
+T→0 — NOT kT-flat, unlike Al's degenerate shell (a real Fermi surface genuinely depends on T, so annealing
+recovers the T→0 answer).  **CAVEATS / next:** (a) SR2 is a MINIMAL 6-function Na basis (no diffuse 3s) — the
+gate validates the machinery + Fermi surface, not a cohesive E (A>0 here); a fuller metallic Na basis via
+valgen (step 1) is the accuracy follow-up; (b) mesh convergence (2×2×2 → denser) needs IBZ/k-star reduction to
 stay tractable; (c) BCC (Na's real structure) once a `BCCUnitCell` exists (only FCC today).  The machinery
 (shifted MP + global μ + smearing + annealing) is validated end-to-end.
 

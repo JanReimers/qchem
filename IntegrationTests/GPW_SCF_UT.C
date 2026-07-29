@@ -767,14 +767,16 @@ TEST(GPW_SCF, DISABLED_AlGlobalMuExperiment)
 // electron per cell, so the single conduction band is HALF-FILLED and μ cuts THROUGH it -- a genuine Fermi
 // surface (unlike Al's degenerate-3p at Γ).  SHIFTED Monkhorst-Pack 2×2×2 (kShift=½ => k at ±¼, CP2K's default
 // -- avoids the high-symmetry Γ, samples the Fermi surface evenly) + global μ + Fermi smearing.  MEASURED: μ
-// lands mid-band (~-0.014), the 2 k-points inside the Fermi surface fill (n_k=2.0, ε=-0.077) while the 6 on it
-// smear FRACTIONALLY (n_k=0.67, ε≈μ, f=1/(1+e^{0.7})=0.33/spin) -- the textbook smeared Fermi surface, charge
-// Σ_k w_k n_k = 1 exactly, converged in ~17 iters.  BASIS CAVEAT: VALENCE_LOWQ_SR Na conditions only at an
-// EXPANDED a=12 au (the diffuse 3s a metal wants makes the Bloch overlap singular at the real density -- the
-// diffuse-basis tension; a proper metallic Na basis (valgen, step 1) + IBZ/mesh-convergence is the follow-up).
+// lands mid-band, the 2 k-points inside the Fermi surface fill (n_k=2.0) while the 6 on it smear FRACTIONALLY
+// (n_k=0.67, ε≈μ, f=1/(1+e^{0.7})=0.33/spin) -- the textbook smeared Fermi surface, charge Σ_k w_k n_k = 1
+// exactly, converged in ~26 iters.  BASIS: VALENCE_LOWQ_SR2 Na at the REAL FCC-Na density (a=10 au, matched to
+// Na's atomic volume) -- SR2 drops the diffuse Na s 0.0857 + p 0.05, so the Bloch overlap is well-conditioned
+// at the correct lattice constant (cond~38; SR needs an unphysical a=12 to condition).  Remaining tension: SR2
+// is a MINIMAL 6-function basis (no diffuse 3s), so a fuller metallic Na basis (valgen, step 1) + IBZ/mesh-
+// convergence is the accuracy follow-up; this gate validates the machinery + Fermi surface, not a cohesive E.
 TEST(GPW_SCF, NaFCCMetalGlobalMu)
 {
-    FCCUnitCell cell(12.0);                     // EXPANDED (basis-conditioning-limited; see caveat above)
+    FCCUnitCell cell(10.0);                     // FCC Na at Na's atomic density (density-matched to real BCC Na)
     cell.AddAtom(11, {0,0,0});                  // Na (Zion=1): 3s^1 -- one electron => half-filled band
     Lattice_3D lat(cell, ivec3_t(2,2,2));
     GpwOptions o;
@@ -785,12 +787,12 @@ TEST(GPW_SCF, NaFCCMetalGlobalMu)
     o.scf.NMaxIter=60; o.scf.MinΔρ=1e-5; o.scf.MinΔE=1e30;
     o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
     o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4; o.scf.SmearingkT=0.01;
-    GpwResult R=RunGpw(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o, /*verbose*/false);
+    GpwResult R=RunGpw(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR2), o, /*verbose*/false);
 
     EXPECT_TRUE(R.converged) << "global μ + smearing converges the half-filled-band metal";
     EXPECT_NEAR(R.charge, 1.0, 1e-6);          // one valence electron, BZ-weighted Σ_k w_k n_k = 1
     EXPECT_LT(R.E.MinusTS, -1e-4);             // −TS<0 AND non-trivial: the Fermi surface IS fractionally filled
-    EXPECT_NEAR(R.E.GetTotalEnergy(), -0.224716, 3e-3);   // did-E-move anchor (free energy A at kT=0.01)
+    EXPECT_NEAR(R.E.GetTotalEnergy(), 0.045543, 3e-3);    // did-E-move anchor (free energy A at kT=0.01)
 }
 
 // ===== EXPERIMENTAL (scratch, item 4): FCC Na -- the honest half-filled-band metal =====
@@ -819,9 +821,11 @@ TEST(GPW_SCF, DISABLED_NaFCCMetalExperiment)
     o.scf.NMaxIter=(size_t)envd("NA_NMAX",60); o.scf.MinΔρ=1e-5; o.scf.MinΔE=1e30;
     o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
     o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4; o.scf.SmearingkT=envd("NA_KT",0.01);
+    const BasisSetData bas = envd("NA_SR2",0.0)!=0.0 ? BasisSetData::VALENCE_LOWQ_SR2
+                                                     : BasisSetData::VALENCE_LOWQ_SR;
     GpwResult R = envd("NA_ANNEAL",0.0)!=0.0
-        ? RunGpwAnnealed(lat, MakeBasisLowQ(cell,BasisSetData::VALENCE_LOWQ_SR), o, {0.02,0.01,0.005}, /*verbose*/true)
-        : RunGpw       (lat, MakeBasisLowQ(cell,BasisSetData::VALENCE_LOWQ_SR), o, /*verbose*/true);
+        ? RunGpwAnnealed(lat, MakeBasisLowQ(cell,bas), o, {0.02,0.01,0.005}, /*verbose*/true)
+        : RunGpw       (lat, MakeBasisLowQ(cell,bas), o, /*verbose*/true);
     std::cout<<"[Na metal] nk="<<nk<<" a="<<a<<" shift="<<shifted<<" global="<<o.globalFermi
              <<" conv="<<R.converged<<" charge="<<R.charge<<" A="<<R.E.GetTotalEnergy()
              <<" -TS="<<R.E.MinusTS<<" E(internal)="<<(R.E.GetTotalEnergy()-R.E.MinusTS)<<std::endl;
