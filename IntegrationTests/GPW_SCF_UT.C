@@ -763,6 +763,70 @@ TEST(GPW_SCF, DISABLED_AlGlobalMuExperiment)
              <<" -TS="<<R.E.MinusTS<<" E(internal)="<<(R.E.GetTotalEnergy()-R.E.MinusTS)<<std::endl;
 }
 
+// (item 4) THE HONEST METAL: FCC Na, a real half-filled-band Fermi surface.  Zion=1 (3s^1) => ONE valence
+// electron per cell, so the single conduction band is HALF-FILLED and μ cuts THROUGH it -- a genuine Fermi
+// surface (unlike Al's degenerate-3p at Γ).  SHIFTED Monkhorst-Pack 2×2×2 (kShift=½ => k at ±¼, CP2K's default
+// -- avoids the high-symmetry Γ, samples the Fermi surface evenly) + global μ + Fermi smearing.  MEASURED: μ
+// lands mid-band (~-0.014), the 2 k-points inside the Fermi surface fill (n_k=2.0, ε=-0.077) while the 6 on it
+// smear FRACTIONALLY (n_k=0.67, ε≈μ, f=1/(1+e^{0.7})=0.33/spin) -- the textbook smeared Fermi surface, charge
+// Σ_k w_k n_k = 1 exactly, converged in ~17 iters.  BASIS CAVEAT: VALENCE_LOWQ_SR Na conditions only at an
+// EXPANDED a=12 au (the diffuse 3s a metal wants makes the Bloch overlap singular at the real density -- the
+// diffuse-basis tension; a proper metallic Na basis (valgen, step 1) + IBZ/mesh-convergence is the follow-up).
+TEST(GPW_SCF, NaFCCMetalGlobalMu)
+{
+    FCCUnitCell cell(12.0);                     // EXPANDED (basis-conditioning-limited; see caveat above)
+    cell.AddAtom(11, {0,0,0});                  // Na (Zion=1): 3s^1 -- one electron => half-filled band
+    Lattice_3D lat(cell, ivec3_t(2,2,2));
+    GpwOptions o;
+    o.label="Na FCC metal"; o.Nelec=1; o.species={{"Na",1}};
+    o.densityEcut=-1.0; o.accelerator="DIIS"; o.globalFermi=true;   // ONE μ across the BZ
+    o.kShift=rvec3_t(0.5,0.5,0.5);             // shifted Monkhorst-Pack (k at ±¼)
+    o.seed=qchem::ChargeDensity::SeedStrategy::Uniform; o.ortho=qchem::Cholesky;
+    o.scf.NMaxIter=60; o.scf.MinΔρ=1e-5; o.scf.MinΔE=1e30;
+    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
+    o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4; o.scf.SmearingkT=0.01;
+    GpwResult R=RunGpw(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o, /*verbose*/false);
+
+    EXPECT_TRUE(R.converged) << "global μ + smearing converges the half-filled-band metal";
+    EXPECT_NEAR(R.charge, 1.0, 1e-6);          // one valence electron, BZ-weighted Σ_k w_k n_k = 1
+    EXPECT_LT(R.E.MinusTS, -1e-4);             // −TS<0 AND non-trivial: the Fermi surface IS fractionally filled
+    EXPECT_NEAR(R.E.GetTotalEnergy(), -0.224716, 3e-3);   // did-E-move anchor (free energy A at kT=0.01)
+}
+
+// ===== EXPERIMENTAL (scratch, item 4): FCC Na -- the honest half-filled-band metal =====
+// FCC Na, Zion=1 (3s^1): ONE valence electron per cell => the single conduction band is HALF-FILLED, so μ
+// cuts THROUGH the band = a real Fermi surface (unlike Al's degenerate-3p, this is the textbook metal).
+// SHIFTED Monkhorst-Pack (kShift=½ => k at ±¼, CP2K's default; avoids the high-symmetry Γ, samples the Fermi
+// surface more evenly) + global μ + smearing.  Knobs: NA_KGRID (nxnxn), NA_A (lattice au), NA_KT, NA_SHIFT
+// (0=Γ-centred,1=shifted MP), NA_GLOBAL, NA_NMAX.  Basis = VALENCE_LOWQ_SR Na (s from 0.086; the metal WANTS
+// the 0.03 diffuse s but it makes the Bloch overlap singular -- the diffuse-basis tension, step-1 territory).
+TEST(GPW_SCF, DISABLED_NaFCCMetalExperiment)
+{
+    auto envd=[](const char* n,double d){const char*s=std::getenv(n);return s?std::atof(s):d;};
+    const int nk=(int)envd("NA_KGRID",2);
+    const double a=envd("NA_A",10.0);              // FCC Na ~ 5.3 Å = 10 au (BCC-density-matched)
+    FCCUnitCell cell(a);
+    cell.AddAtom(11,{0,0,0});                       // Na (Zion=1): 3s^1
+    Lattice_3D lat(cell, ivec3_t(nk,nk,nk));
+
+    GpwOptions o;
+    o.label="Na FCC metal"; o.Nelec=1; o.species={{"Na",1}};
+    o.densityEcut=-1.0; o.accelerator="DIIS";
+    o.globalFermi = envd("NA_GLOBAL",1.0)!=0.0;
+    const bool shifted = envd("NA_SHIFT",1.0)!=0.0;
+    o.kShift = shifted ? rvec3_t(0.5,0.5,0.5) : rvec3_t(0,0,0);   // shifted MP vs Γ-centred
+    o.seed=qchem::ChargeDensity::SeedStrategy::Uniform; o.ortho=qchem::Cholesky;
+    o.scf.NMaxIter=(size_t)envd("NA_NMAX",60); o.scf.MinΔρ=1e-5; o.scf.MinΔE=1e30;
+    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
+    o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4; o.scf.SmearingkT=envd("NA_KT",0.01);
+    GpwResult R = envd("NA_ANNEAL",0.0)!=0.0
+        ? RunGpwAnnealed(lat, MakeBasisLowQ(cell,BasisSetData::VALENCE_LOWQ_SR), o, {0.02,0.01,0.005}, /*verbose*/true)
+        : RunGpw       (lat, MakeBasisLowQ(cell,BasisSetData::VALENCE_LOWQ_SR), o, /*verbose*/true);
+    std::cout<<"[Na metal] nk="<<nk<<" a="<<a<<" shift="<<shifted<<" global="<<o.globalFermi
+             <<" conv="<<R.converged<<" charge="<<R.charge<<" A="<<R.E.GetTotalEnergy()
+             <<" -TS="<<R.E.MinusTS<<" E(internal)="<<(R.E.GetTotalEnergy()-R.E.MinusTS)<<std::endl;
+}
+
 // (4) MULTI-SPECIES GPW: ionic NaF (rocksalt = FCC + 2-atom basis) at Gamma, driven by the multi-species
 // Ham_PW_DFT ctor ({{"Na",1},{"F",7}}).
 // Valance basis for Na generated from all electrton atom caluclations (BasisSetData/valence_lowq.bsd) 

@@ -181,6 +181,20 @@ is weight-agnostic so only the weights change) and the spin-polarized global μ 
 real Fermi surface, one μ across the BZ, smearing + annealing.  Gate (iv), done properly.  (May want a more
 diffuse metallic Na basis from step 1 than the ionic-NaF-tuned `valence_lowq` Na.)
 
+**FIRST LIGHT DONE 2026-07-28 — committed gate `GPW_SCF.NaFCCMetalGlobalMu`.**  FCC Na, Zion=1 (3s¹) → ONE
+electron/cell → half-filled band → μ cuts THROUGH it = a genuine Fermi surface.  Shifted Monkhorst-Pack 2×2×2
+(`kShift=½`, k at ±¼) + global μ + smearing.  MEASURED (the textbook smeared Fermi surface): μ mid-band
+(≈-0.014); the 2 k-points inside the surface fill (n_k=2.0, ε=-0.077), the 6 on it smear FRACTIONALLY
+(n_k=0.67, ε≈μ, f=1/(1+e^{0.7})=0.33/spin); `Σ_k w_k n_k = 1.0000` exactly; converged ~17 iters, A=-0.22472.
+**Annealing composes** (`NA_ANNEAL` in `DISABLED_NaFCCMetalExperiment`): kT {0.02→0.01→0.005}, re-seeded, the
+internal E converges toward T→0 (-0.2114→-0.2150→-0.2151 — note it is NOT kT-flat here, unlike Al's degenerate
+shell: a real Fermi surface genuinely depends on T, so annealing recovers the T→0 answer).  **CAVEATS / next:**
+(a) `VALENCE_LOWQ_SR` Na conditions only at an EXPANDED a=12 au (the diffuse 3s a metal wants makes the Bloch
+overlap singular at the real density — the diffuse-basis tension) → a proper metallic Na basis via valgen
+(step 1) for the real lattice constant; (b) mesh convergence (2×2×2 → denser) needs IBZ/k-star reduction to
+stay tractable; (c) BCC (Na's real structure) once a `BCCUnitCell` exists (only FCC today).  The machinery
+(shifted MP + global μ + smearing + annealing) is validated end-to-end.
+
 ---
 
 # Pending (from the 2026-07-23 sequence — not on the immediate roadmap)
