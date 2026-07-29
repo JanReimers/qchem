@@ -894,10 +894,10 @@ chmat_t GPW_Evaluator::MakeLocalPPShort(const Structure* cl, const Pseudopotenti
     chmat_t V = itsHomeOnly ? itsLat->MakeLocalGaussian(cl, opForZ)
                             : itsLat->MakeLocalGaussian(CellPhase(), itsCell, cl, opForZ);
     // PERIODIC G=0 CONVENTION (the 5.7% wiring bug, 2026-07-22): the grid sweep's form-factor closure DROPS
-    // dG=0 -- the cell mean of V_short is carried by the Ealign term (PW_Pseudo, FormFactorG0Short), not the
+    // dG=0 -- the cell mean of V_short is carried by the E_alphaZ term (PW_Pseudo, FormFactorG0Short), not the
     // matrix.  The analytic lattice sum computes the FULL integral including that mean, so subtract it
-    // (V-bar * S, with S this block's own Bloch overlap) or the mean would be DOUBLE-counted against Ealign.
-    // A genuinely finite Structure keeps the full integral (no neutralising background, no Ealign) -- the
+    // (V-bar * S, with S this block's own Bloch overlap) or the mean would be DOUBLE-counted against E_alphaZ.
+    // A genuinely finite Structure keeps the full integral (no neutralising background, no E_alphaZ) -- the
     // same isFinite() physics decision PW_Pseudo makes.
     if (!cl->isFinite())
     {

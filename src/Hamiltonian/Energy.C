@@ -11,12 +11,12 @@ public:
 
     double GetPotentialEnergy() const
     {
-        return Enn+Een+Eee+Exc+Ealign;
+        return Enn+Een+Eee+Exc+E_alphaZ;
     }
     //! Band-structure electronic energy: kinetic + electron-ion + electron-electron + xc, EXCLUDING the
-    //! lattice constant corrections -- the ion-ion Madelung (Enn) and the dropped-G=0 alignment (Ealign).
+    //! lattice constant corrections -- the ion-ion Madelung (Enn) and the dropped-G=0 alignment (E_alphaZ).
     //! For a plane-wave crystal this is exactly the prototype's "electronic" energy, a clean SCF
-    //! stationary-point cross-check; the physical total adds Enn + Ealign on top.
+    //! stationary-point cross-check; the physical total adds Enn + E_alphaZ on top.
     double GetElectronicEnergy() const
     {
         return Kinetic+Een+Eee+Exc;
@@ -37,7 +37,13 @@ public:
 
     double Kinetic;   //!< Kinetic ENERGY value \f$\langle T\rangle\f$ (NR: \f$\tfrac12\langle p^2\rangle\f$; Dirac: relativistic). The actual energy, not the <p^2> block.
     double Enn;
-    double Ealign;    //!< Dropped-G=0 electron-ion alignment \f$(N/\Omega)\sum_a\alpha_a\f$ (plane-wave crystals; 0 otherwise).
+    double E_alphaZ;    //!< The "αZ term" (a.k.a. the G=0 potential-alignment): the electrons' interaction with
+                        //!< the CELL-AVERAGE (G=0 Fourier component) of the smooth local pseudopotential plus the
+                        //!< neutralising background, \f$(N/\Omega)\sum_a\alpha_a\f$ with \f$\alpha_a=\int[V_{loc}^a+Z_a/r]\f$.
+                        //!< This is the FINITE remainder of the divergent electron/ion G=0 Coulomb terms once the
+                        //!< neutralising background is imposed (bare G=0 electron self-energy is +∞; the background
+                        //!< sets it to 0, and this αZ constant is what's left).  Periodic plane-wave/GPW crystals
+                        //!< only (0 for a finite/molecular structure -- no background).  Named for QE/CP2K's "alpha Z".
     double Een;
     double Eee;
     double EeeFit;

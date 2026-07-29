@@ -255,7 +255,7 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
     std::cout << "["<<o.label<<"] iters="<<scf.GetIterationCount()<<" charge="<<charge
               << " Eelec="<<E.GetElectronicEnergy() << " Etot="<<E.GetTotalEnergy()
               << "  (Ekin="<<E.Kinetic<<" Een="<<E.Een<<" Eee="<<E.Eee<<" Exc="<<E.Exc
-              << " Enn="<<E.Enn<<" Ealign="<<E.Ealign<<")" << std::endl;
+              << " Enn="<<E.Enn<<" E_alphaZ="<<E.E_alphaZ<<")" << std::endl;
     return {scf.Converged(), charge, E, scf.GetIterationCount()};
 }
 
@@ -992,7 +992,7 @@ TEST(GPW_SCF, DISABLED_NaFGridContinuation)
     std::cout << "[NaF grid-cont FINE] auto-Ecut iters="<<scfF->GetIterationCount()<<" charge="<<charge
               << " Etot="<<Efine.GetTotalEnergy()
               << " (Ekin="<<Efine.Kinetic<<" Een="<<Efine.Een<<" Eee="<<Efine.Eee<<" Exc="<<Efine.Exc
-              << " Enn="<<Efine.Enn<<" Ealign="<<Efine.Ealign<<")" << std::endl;
+              << " Enn="<<Efine.Enn<<" E_alphaZ="<<Efine.E_alphaZ<<")" << std::endl;
     EXPECT_NEAR(charge, 8.0, 1e-6);     // 1 (Na) + 7 (F) valence electrons, conserved
     // WHAT THIS GATES (re-derived 2026-07-23, post analytic-short/kappa/5-smooth + the 0.5(f2) raw-XC
     // feed): grid-continuation seeding makes the PRODUCTION fine grid converge CLEANLY to the aufbau

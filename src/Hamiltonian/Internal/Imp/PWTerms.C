@@ -52,7 +52,7 @@ chmat_t PW_Pseudo::CalculateMatrix(const cobs_t* bs, const Spin&) const
 void PW_Pseudo::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 {
     // Een stays the band expectation over the (G!=0) external matrix (== the prototype's electron-ion
-    // energy).  The dropped-G=0 alignment alpha is a separate constant in te.Ealign -- kept in the total
+    // energy).  The dropped-G=0 alignment alpha is a separate constant in te.E_alphaZ -- kept in the total
     // energy but NOT the matrix, and out of the band-structure cross-check.  It is E_alpha = (N/Omega)
     // Sum_a alpha_a with alpha_a = the model's finite G->0 limit (FormFactorG0 = integral[V_loc^a+Z/r]).
     // The alignment is a PERIODIC neutralising-background artifact: it exists only when the Structure is
@@ -65,7 +65,7 @@ void PW_Pseudo::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
     // periodic cell the structure folds in 1/Omega: SumFormFactors returns (1/Omega) Sum_a alpha_a.  The SHORT
     // part's alignment only -- the LONG part's G=0 shift moves to PW_Hartree with V_long (doc/GPWPlan.md 0e-PP).
     if (!theStructure->isFinite())                                         // periodic only (Omega finite)
-        te.Ealign = cd->GetTotalCharge() *
+        te.E_alphaZ = cd->GetTotalCharge() *
                     theStructure->SumFormFactors([this](int Z){return itsLocal->FormFactorG0Short(Z);});
 }
 
@@ -157,7 +157,7 @@ void PW_Hartree::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
     te.Een += eLong;                                       // electron-ion long-range (no 1/2)
     // The dropped-G=0 alignment of the LONG part moves here with V_long (the SHORT part's stays in PW_Pseudo).
     if (itsLocal && !theStructure->isFinite())             // periodic only (Omega finite)
-        te.Ealign += cd->GetTotalCharge() *
+        te.E_alphaZ += cd->GetTotalCharge() *
                      theStructure->SumFormFactors([this](int Z){return itsLocal->FormFactorG0Long(Z);});
 }
 
