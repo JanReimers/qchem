@@ -206,11 +206,18 @@ on a full mesh** (Al 2×2×2, symmetrize on == off to 12 digits) — so the ops,
   override it with the voxel permutation, taking the direct `W` ops at CONSTRUCTION (user: ctor-inject, where
   the grid is built) — NO ops argument on the method.
 
-**REMAINING (the concrete override — mechanical):** (1) thread the τ=0 DIRECT ops `W=(U⁻¹)ᵀ` (derive from the
-stored reciprocal `U`) `GPW_BasisSet` → `GPW_IBS` ctor (defaulted param) → `PlaneWaveFit_IBS` ctor (via
-`CreateVxcFitBasisSet`); (2) implement `PlaneWaveFit_IBS::SymmetrizeRaster` — grid dims `N=itsGrid->FFTGrid()`,
-raster layout `q=(ix·Ny+iy)·Nz+iz` (row-major, cubic `N`), `ρ_sym[q]=(1/|W|)Σ_W ρ[idx(W·(ix,iy,iz) mod N)]`.
-Then the reduceBZ==full-mesh EXACTNESS gate.  Experiment knobs: `AL_IBZ`/`AL_RASTER`.
+**DONE (2026-07-29) — reduceBZ is now EXACT.**  `PlaneWaveFit_IBS::SymmetrizeRaster` implemented (real-space
+voxel star-average `ρ_sym[q]=(1/|W|)Σ_W ρ[W·(ix,iy,iz) mod N]` over the τ=0 DIRECT ops `W=(U⁻¹)ᵀ`, cubic FFT
+grid `N=FFTGrid()`, row-major `q=(ix·Ny+iy)·Nz+iz`).  The `W` ops are ctor-injected `GPW_BasisSet → GPW_IBS →
+PlaneWaveFit_IBS` (defaulted params; {} unless reduceBZ = trivial no-op).  **GATE `GPW_SCF.AlFCCMetalIBZExact`:
+the 2×2×2 mesh folds 8→3 irreducible k-points and reproduces the full-mesh free energy to ~6e-8** (−2.1168119
+vs −2.1168118), charge 3, in 12.6 s vs the full mesh's 25 s — the IBZ payoff, exact.  Symmetrization split by
+what each term tolerates: Hartree on ρ̃ (G-space, `SymmetrizeGMap`, negativity moot), XC on the non-negative
+`ρ_DM` raster (real-space voxel sym), one-electron auto-projects.  ZERO changes to
+tDM_CD/FourierDensity/HamiltonianTerm; one new abstract method (`cFIT_SF_ABS::SymmetrizeRaster`) + basis
+accessor (`GetReciprocalPointOps`), all ctor-injected, no setters.  Experiment knobs: `AL_IBZ`/`AL_RASTER`.
+**Still open:** non-cubic folded cells (the voxel map needs cubic `N`); non-symmorphic τ phases (diamond Si,
+the other session); spin-polarized global μ.
 **Also remaining:** the spin-polarized global μ (both spin channels, one μ); non-symmorphic τ phases (the other
 session) for exact folding on diamond-type crystals.
 

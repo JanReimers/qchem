@@ -14,11 +14,13 @@ module;
 #include <iosfwd>
 #include <memory>
 #include <string>
+#include <vector>
 
 export module qchem.BasisSet.Lattice_3D.GPW_IBS;
 import qchem.BasisSet.Lattice_3D.Evaluators.GPW;  // GPW_Evaluator (base subobject) -- NOT re-exported (internal)
 import qchem.BasisSet.Lattice_3D.IBS;             // EPW_Orbital1E_IBS<E> + EPW_Orbital_DFT_IBS<E> (mixins)
 import qchem.BasisSet.Lattice_3D.PlaneWaveFit_IBS; // the auxiliary PW fit basis the DFT factory returns
+import qchem.Matrix3D;                             // Matrix3D -- the τ=0 direct ops threaded to the Vxc fit basis
 import qchem.BasisSet.Internal.IrrepBasisSetImp;  // IrrepBasisSetImp<dcmplx>: GetSymmetry/GetSymt/GetIrrep
 export import qchem.BasisSet.Band_FT_IBS;          // Band_FT_IBS (the DFT capability; Create*FitBasisSet)
 export import qchem.BasisSet.Fit_IBS;              // cFIT_CD_ABS / cFIT_SF_ABS + qcMesh::MeshParams
@@ -69,7 +71,8 @@ public:
     GPW_IBS(const UnitCell& cell, const sym_t& irrep,
             std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut = 0.0,
             CellImages images = CellImages::Periodic, double cutoffFactor = 2.0,
-            RasterPolicy raster = RasterPolicy::BallOnly, double ladderFactor = 4.0);
+            RasterPolicy raster = RasterPolicy::BallOnly, double ladderFactor = 4.0,
+            std::vector<Matrix3D<double>> directOps = {});   //!< τ=0 direct ops W for the IBZ Vxc-raster star-average
 
     //! \brief Convenience constructor in BZ-grid indices: builds the Bloch irrep \c BlochFactory(N,kIndex).
     GPW_IBS(const UnitCell& cell, const ivec3_t& N, const ivec3_t& kIndex,
@@ -109,6 +112,9 @@ protected:
     //! (which dropped \a c); the block's own no-arg tensors remain the convenience/test path.
     virtual G_ERI3 MakeRepulsion3C(const cFIT_CD_ABS& c) const override;
     virtual G_ERI3 MakeOverlap3C  (const cFIT_SF_ABS& c) const override;
+
+private:
+    std::vector<Matrix3D<double>> itsDirectOps;   //!< τ=0 direct ops W (ctor-injected; {} unless reduceBZ) -- IBZ raster
 };
 
 } //namespace

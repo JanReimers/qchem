@@ -749,6 +749,28 @@ TEST(GPW_SCF, AlFCCMetalGlobalMu)
     EXPECT_LT(R.E.GetTotalEnergy(), -1.95);    // dispersion: well below the Γ-only -1.92 (k-sampling binds)
 }
 
+// (item 3, IBZ/k-star) FOLDING IS EXACT.  The 8-point 2×2×2 Γ-mesh folds to 3 irreducible k-points under the
+// cubic point group, and the density is STAR-AVERAGED consistently: the G-space Hartree via the reciprocal ops
+// the basis exposes (GetReciprocalPointOps, ctor-injected into the composite density), and the real-space XC
+// raster via the DIRECT ops (cFIT_SF_ABS::SymmetrizeRaster, ctor-injected into the Vxc fit basis -- so XC stays
+// on the non-negative ρ_DM raster).  So the reduced run reproduces the full-mesh AlFCCMetalGlobalMu free energy
+// to grid/SCF tolerance (measured ~6e-8) with fewer k-points -- the IBZ payoff, done exactly (doc/GPWPlan1 item 3).
+TEST(GPW_SCF, AlFCCMetalIBZExact)
+{
+    FCCUnitCell cell(7.653);
+    cell.AddAtom(13, {0,0,0});
+    Lattice_3D lat(cell, ivec3_t(2,2,2));
+    GpwOptions o=AlOptions();
+    o.globalFermi=true; o.reduceBZ=true;       // fold to the irreducible wedge AND star-average the density
+    o.scf.SmearingkT=0.01;
+    GpwResult R=RunGpw(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o, /*verbose*/false);
+
+    EXPECT_TRUE(R.converged);
+    EXPECT_NEAR(R.charge, 3.0, 1e-6);
+    EXPECT_NEAR(R.E.GetTotalEnergy(), -2.116812, 1e-4)   // == the full 8-k-point mesh: IBZ symmetrization is EXACT
+        << "IBZ-reduced must reproduce the full-mesh free energy (AlFCCMetalGlobalMu -2.11681)";
+}
+
 // ===== EXPERIMENTAL (scratch): global-μ across k-blocks (item 3 inc 3) =====
 // AL_KGRID=n (mesh nxnxn), AL_GLOBAL=0/1 (per-block vs global μ), AL_KT, AL_NMAX.
 TEST(GPW_SCF, DISABLED_AlGlobalMuExperiment)

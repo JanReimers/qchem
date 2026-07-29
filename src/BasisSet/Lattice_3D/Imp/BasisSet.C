@@ -105,12 +105,17 @@ GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const
     const rvec3_t kShift=p.kShift;
     const ivec3_t N=lat.GetLimits();
     const GPW_IBS* first=nullptr;
+    // The DIRECT ops W=(U⁻¹)ᵀ for the Vxc-raster star-average (real space acts by W; reciprocal ρ̃ by U).  {}
+    // unless reduceBZ, so a full-mesh / molecular run carries no ops (trivial no-op).
+    std::vector<Matrix3D<double>> directOps;
+    for (const auto& U : itsReciprocalOps) directOps.push_back(Transpose(Invert(U)));
     for (const auto& kb : BuildKBlocks(lat, p, itsReciprocalOps))
     {
         // Build the Bloch irrep WITH its BZ weight (star weight under IBZ) and the primary sym_t ctor -- the
         // weight carries the Sum_k w_k so the BZ-summed charge/energy are per-cell, not xNk.
         auto* b=new GPW_IBS(lat.GetUnitCell(), Symmetry::BlochFactory(N, kb.ik, kb.weight, kShift),
-                            mol, p.densityEcut, p.images, p.cutoffFactor, p.raster, p.ladderFactor);   // mol shared across k-blocks
+                            mol, p.densityEcut, p.images, p.cutoffFactor, p.raster, p.ladderFactor,
+                            directOps);   // mol shared across k-blocks; directOps = the IBZ raster star ops
         if (!first) first=b;
         Insert(b);
     }

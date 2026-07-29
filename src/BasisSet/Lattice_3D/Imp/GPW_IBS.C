@@ -4,6 +4,7 @@ module;
 #include <iostream>
 #include <memory>
 #include <string>
+#include <vector>
 
 module qchem.BasisSet.Lattice_3D.GPW_IBS;
 import qchem.Symmetry.Factory;              // BlochFactory (the convenience ctor + the k=0 fit-basis irrep)
@@ -17,10 +18,12 @@ namespace qchem::BasisSet::Lattice_3D
 
 GPW_IBS::GPW_IBS(const UnitCell& cell, const sym_t& irrep,
                  std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut, CellImages images,
-                 double cutoffFactor, RasterPolicy raster, double ladderFactor)
+                 double cutoffFactor, RasterPolicy raster, double ladderFactor,
+                 std::vector<Matrix3D<double>> directOps)
     : BasisSet::IrrepBasisSetImp<dcmplx>(irrep)
     , GPW_Evaluator(std::move(mol), cell, densityEcut, Symmetry::Lattice_3D::Getk(irrep),
                     images==CellImages::HomeCellOnly, cutoffFactor, raster, ladderFactor) // irrep IS k
+    , itsDirectOps(std::move(directOps))
 {}
 
 // Convenience: build the Bloch irrep from BZ-grid indices and delegate to the primary constructor.
@@ -57,7 +60,9 @@ BasisSet::cFIT_SF_ABS* GPW_IBS::CreateVxcFitBasisSet(const Structure*, const qcM
 {
     // {G}_vxc = relCutoff * {G}_rho.  LDA relCutoff==1 => == DensityGrid(); a GGA's denser grid is not wired yet.
     assert(mp.relCutoff<=1.0 && "GPW: relCutoff>1 (GGA denser Vxc grid) not wired -- the LDA Vxc grid = the CD grid");
-    return new PlaneWaveFit_IBS(GPW_Evaluator::DensityGrid(), Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
+    // The Vxc fit basis carries the τ=0 direct ops so its raster STAR-AVERAGES itself under IBZ (empty = no-op).
+    return new PlaneWaveFit_IBS(GPW_Evaluator::DensityGrid(), Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)),
+                                itsDirectOps);
 }
 
 // The external-PP capability.  Local: G-space form-factor assembly (the model's FormFactor is used directly,
