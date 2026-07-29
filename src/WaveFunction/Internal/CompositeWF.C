@@ -9,6 +9,7 @@ import qchem.SCFAccelerator;
 import qchem.WaveFunction.Internal.IrrepWF;
 import qchem.WaveFunction.Types;
 import qchem.LASolver;   // qchem::Ortho (the basis-overlap orthogonalisation: Cholesky | Eigen | SVD + tol)
+import qchem.Matrix3D;   // Matrix3D -- the reciprocal point ops passed to each composite density (IBZ symmetrization)
 
 export namespace qchem::WaveFunction
 {
@@ -46,6 +47,7 @@ public:
     virtual void            FillOrbitals    (double mergeTol);
     virtual void            SetMOM          (bool useMOM, int startIter);
     virtual void            SetSmearing     (double kT, double momPenalty);
+    virtual void            SetSymmetryOps  (std::vector<Matrix3D<double>> ops) {itsPointOps=std::move(ops);}
     virtual double          GetEntropyTerm  () const;
     virtual void            AdoptMOMReference(const tWaveFunction<T>& from);
     virtual void            ReleaseMOMReference();
@@ -72,6 +74,7 @@ private:
     bool                         itsAufbau;   //molecular aufbau across irreps (vs fixed per-irrep EC)
     bool                         itsGlobalFermi; //metal: k-blocks share one μ (from ec->UsesGlobalFermi())
     double                       itsSmearingkT=0.0; //Fermi kT for this run (SetSmearing); the global fill needs it
+    std::vector<Matrix3D<double>> itsPointOps;      //IBZ reciprocal point group (SetSymmetryOps); {} = trivial no-op
     bool                         itsUseMOM=false;    //Maximum Overlap Method for this run (from SCFParams::UseMOM)
     bool                         itsMOMActive=false; //cross-irrep MOM armed (parked molecular path; set after 1st fill)
     tSCFAccelerator<T>*          itsAccelerator;

@@ -164,7 +164,7 @@ template <class T> tDM_CD<T>* tCompositeWF<T>::GetChargeDensity(Spin s) const
     using qchem::ChargeDensity::tComposite_CD;
     auto i = itsSpinWFs.find(s);
     assert(i!=itsSpinWFs.end());
-    tComposite_CD<T>* cd = new tComposite_CD<T>();
+    tComposite_CD<T>* cd = new tComposite_CD<T>(itsPointOps);   // IBZ point group ({} = trivial no-op)
     for (auto& w:i->second) cd->Insert(w->GetChargeDensity());
     return cd;
 }

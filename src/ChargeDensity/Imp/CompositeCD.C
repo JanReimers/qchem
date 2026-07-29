@@ -18,7 +18,8 @@ namespace qchem::ChargeDensity
 //
 //  Construction zone.
 //
-template <class T> tComposite_CD<T>::tComposite_CD()
+template <class T> tComposite_CD<T>::tComposite_CD(std::vector<Matrix3D<double>> pointOps)
+    : itsPointOps(std::move(pointOps))
 {};
 
 template <class T> void tComposite_CD<T>::Insert(tDM_CD<T>* cd)
@@ -180,7 +181,7 @@ template <class T> ΔG_Map tComposite_CD<T>::GetFourierDensity(const BasisSet::c
             assert(fc && "composite block is not a FourierDensity (plane-wave path)");
             for (const auto& kv : fc->GetFourierDensity(c)) rg[kv.first]+=kv.second;
         }
-        return rg;
+        return SymmetrizeGMap(rg, itsPointOps);   // IBZ star-average (no-op when {E}) -- doc/GPWPlan1.md item 3
     }
     else
     {
@@ -228,7 +229,8 @@ template <class T> ΔG_Map tComposite_CD<T>::GetRepulsion3C(const BasisSet::cFIT
             assert(fc && "composite block is not a FourierDensity (plane-wave path)");
             for (const auto& kv : fc->GetRepulsion3C(c)) rg[kv.first]+=kv.second;
         }
-        return rg;
+        // V_H is linear in ρ̃ and |UG|=|G|, so symmetrizing V_H(G) == V_H of the symmetrized density -- exact.
+        return SymmetrizeGMap(rg, itsPointOps);   // IBZ star-average (no-op when {E})
     }
     else
     {

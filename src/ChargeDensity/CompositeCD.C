@@ -27,7 +27,12 @@ template <class T> class tComposite_CD
     , public FourierDensityBase<T>   // FourierDensity on the periodic (dcmplx) path; empty on the finite path
 {
 public:
-    tComposite_CD();
+    //! \a pointOps = the reciprocal point group for IBZ density symmetrization (doc/GPWPlan1.md item 3).  The
+    //! G-space density accessors then return the STAR AVERAGE, which is what makes an IBZ-reduced density exact
+    //! (the star weights alone give only the correct band sum).  Default {} = trivial group {E} = exact no-op
+    //! -- molecules / Γ / unreduced crystals pass through untouched (the general form; "no symmetry" = trivial).
+    //! It is a ctor argument, not a setter: the symmetry is a fixed property of the density, set once at build.
+    explicit tComposite_CD(std::vector<Matrix3D<double>> pointOps = {});
     void Insert(tDM_CD<T>*);
 
     virtual void AccumulateDirectAll  (std::vector<hmat_t<T>>& Jall) const;
@@ -66,6 +71,7 @@ private:
 
     typedef std::vector<std::unique_ptr<tDM_CD<T>>> cdv_t;
     cdv_t itsCDs;
+    std::vector<Matrix3D<double>> itsPointOps;   //!< reciprocal point group for IBZ symmetrization ({E} when empty)
 };
 
 using rComposite_CD = tComposite_CD<double>;   using cComposite_CD = tComposite_CD<dcmplx>;

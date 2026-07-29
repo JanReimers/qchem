@@ -9,12 +9,14 @@
 // Virtual inheritance: CompositeWF and Un/PolarizedWF form a diamond on WaveFunction, so
 // SCFWaveFunction inherits it virtually to keep a single shared WaveFunction subobject.
 module;
+#include <vector>
 export module qchem.WaveFunction.SCF;
 export import qchem.WaveFunction;
 export import qchem.Hamiltonian;
 export import qchem.ChargeDensity;
 export import qchem.Orbitals;
 export import qchem.Symmetry.Irrep;
+import qchem.Matrix3D;   // Matrix3D -- the reciprocal point ops for IBZ density symmetrization
 
 namespace qchem::WaveFunction
 {
@@ -54,6 +56,11 @@ public:
     //! with MOM (doc/GPWPlan1.md 4b): low-overlap ghosts are pushed empty by character while the physical
     //! frontier smears by energy.  Called once by the SCFIterator at the start of Iterate.
     virtual void       SetSmearing     (double kT, double momPenalty)           =0;
+    //! Configure IBZ density symmetrization for this SCF run: the reciprocal point group whose star-average
+    //! the assembled (periodic) density carries, so an IBZ-reduced k-mesh yields the EXACT density (doc/
+    //! GPWPlan1.md item 3).  Empty (default) = trivial group {E} = exact no-op (molecules / Γ / unreduced
+    //! crystals).  A per-run configuration like SetSmearing/SetMOM -- the iterator sets it once before Iterate.
+    virtual void       SetSymmetryOps  (std::vector<Matrix3D<double>> ops)       =0;
     //! The Mermin free-energy term −TS (≤0) summed over all occupied blocks from the most recent fill; 0
     //! unless smearing is on.  The SCFIterator stamps it into EnergyBreakdown::MinusTS so GetTotalEnergy()
     //! becomes the free energy A=E−TS -- the quantity the finite-T SCF gates on and reports (the entropy

@@ -174,8 +174,24 @@ exceed the inter-k level spacing near E_F (the item-2 "smear wider than the spli
   density's NON-uniformity — and a metallic (near-uniform) density has small `Eee` (Γ-only 0.020 → 2×2×2 0.006
   as the density metallizes; a uniform gas → 0).
 
-**Remaining for item 3:** IBZ integration (weights from the symmetry-reduced mesh — the qchem7 track; the fill
-is weight-agnostic so only the weights change) and the spin-polarized global μ (both spin channels, one μ).
+**IBZ progress (2026-07-29):** steps 1–2 (`reduceBZ` fold → irreducible reps + star weights) + step 3a
+(`SymmetrizeGMap`, the G-space star-average) landed.  Step 3b wired the star-average into the density: it is a
+CTOR ARG of `tComposite_CD` (not a setter — the symmetry is a fixed property of the density), plumbed
+iterator→WF→CD (`SetSymmetryOps`, like `SetSmearing`); `{}` default = trivial no-op.  **VALIDATED: idempotent
+on a full mesh** (Al 2×2×2, symmetrize on == off to 12 digits) — so the ops, weights (star sizes 1+4+3=8,
+Σw=1), and plumbing are all correct.
+**BUT reduceBZ is NOT yet exact — root cause found (the real remaining work):** symmetrizing only the density
+ACCESSORS (`GetFourierDensity`/`GetRepulsion3C`) makes the POTENTIAL come from ρ_sym, but the ENERGY is
+`Tr(D·V)` and the OCCUPATIONS come from the RAW per-block density matrix `D`, which is NOT symmetrized.  So a
+reduced mesh runs a symmetrized potential against an unsymmetrized density → inconsistent → mis-reconstructs
+(measured: reduced+sym −2.1208 vs full −2.1168, and −TS halved; reduced WITHOUT sym is closer, −2.1163).  The
+fix is the standard PW/IBZ energy decomposition: compute the density-dependent terms (Hartree, XC) from the
+SYMMETRIZED ρ̃, and the one-electron term from the STAR-WEIGHTED eigenvalues (energies are symmetry-invariant,
+so that part is already exact) — i.e. stop routing the density-dependent energy through `Tr(D·V)` with raw `D`.
+The raw-raster `GetRhoOnGrid` (default BallOnly XC) also still needs voxel-symmetrization (confirmed NOT the
+main gap: AliasFree/G-space XC shows the same discrepancy).  Experiment knobs: `AL_IBZ`/`AL_SYM`/`AL_RASTER`.
+**Also remaining:** the spin-polarized global μ (both spin channels, one μ); non-symmorphic τ phases (the other
+session) for exact folding on diamond-type crystals.
 
 **4. MULTI-K Na — the honest metal test** — FCC and/or BCC Na (1 valence e, half-filled conduction band): a
 real Fermi surface, one μ across the BZ, smearing + annealing.  Gate (iv), done properly.  (May want a more
