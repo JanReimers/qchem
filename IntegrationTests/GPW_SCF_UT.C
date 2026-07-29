@@ -247,7 +247,7 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
     // the assembled density is star-averaged.  reduceBZ NEEDS it (a folded mesh is otherwise unsymmetric); on a
     // FULL mesh it is an IDEMPOTENT no-op (the mesh already carries every star partner) -- the correctness gate.
     // (The ops are recomputed here from the lattice; a follow-up exposes them from the basis to avoid the dup.)
-    if (o.symmetrize)   // NOTE: decoupled from reduceBZ for bisection (normally reduceBZ implies symmetrize)
+    if (o.symmetrize || o.reduceBZ)   // reduceBZ needs it; symmetrize alone is the full-mesh idempotency probe
     {
         namespace SL=qchem::Symmetry::Lattice_3D;
         const auto& cell = lat.GetUnitCell();

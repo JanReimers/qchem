@@ -8,6 +8,7 @@
 #include "gtest/gtest.h"
 #include <vector>
 #include <cstdlib>   // std::abs(int)
+#include <cmath>     // std::lround
 
 import qchem.BasisSet.Internal.GMap;              // ΔG_Map, SymmetrizeGMap, Matrix3D
 import qchem.Symmetry.Lattice_3D.SpaceGroup;      // SpaceGroup::Detect / ReciprocalPointOps (the cubic ops)
@@ -24,6 +25,54 @@ static std::vector<Matrix3D<double>> CubicOps()
     std::vector<AtomSite> basis = {{14, rvec3_t(0,0,0)}};
     SpaceGroup sg = SpaceGroup::Detect(Matrix3D<double>(), basis);   // identity cell = simple cubic a=1
     return sg.ReciprocalPointOps(/*timeReversal*/true, /*symmorphicOnly*/true);
+}
+
+// The reciprocal ops of a PRIMITIVE FCC monatomic crystal -- the actual case the GPW metal tests use.  The
+// primitive reciprocal lattice is BCC (non-orthogonal), so these ops are integer matrices that are NOT signed
+// axis permutations; the G-index symmetrization must still permute integer G-indices exactly.
+static std::vector<Matrix3D<double>> FCCPrimitiveOps()
+{
+    // FCC primitive cell: columns are ½a(0,1,1),(1,0,1),(1,1,0) with a=1.
+    Matrix3D<double> A(0.0,0.5,0.5, 0.5,0.0,0.5, 0.5,0.5,0.0);
+    std::vector<AtomSite> basis = {{13, rvec3_t(0,0,0)}};
+    SpaceGroup sg = SpaceGroup::Detect(A, basis);
+    return sg.ReciprocalPointOps(/*timeReversal*/true, /*symmorphicOnly*/true);
+}
+
+// Apply every op to G0, collect the DISTINCT integer images (its star) -- the reconstruction target.
+static std::vector<ivec3_t> StarOf(const ivec3_t& G0, const std::vector<Matrix3D<double>>& ops)
+{
+    std::vector<ivec3_t> star;
+    for (const auto& U : ops)
+    {
+        rvec3_t u = U * rvec3_t(double(G0.x),double(G0.y),double(G0.z));
+        ivec3_t m((int)std::lround(u.x),(int)std::lround(u.y),(int)std::lround(u.z));
+        bool seen=false; for (auto& s:star) if (s.x==m.x&&s.y==m.y&&s.z==m.z) {seen=true;break;}
+        if (!seen) star.push_back(m);
+    }
+    return star;
+}
+
+// THE RECONSTRUCTION IDENTITY (the IBZ correctness core): a single irreducible rep carrying its STAR-SIZE
+// weight symmetrizes to its full star at UNIT weight -- i.e. P({G0: |star|}) == {each star member: 1}.  This
+// is exactly how P(ρ_reduced) must reconstruct ρ_full: the star-weighted rep spreads back to unit-weighted
+// partners.  Tested on the real FCC primitive ops (the metal case), where U·m is a non-trivial integer map.
+TEST(SymmetrizeGMap, FCCReconstructsStarFromWeightedRep)
+{
+    auto ops = FCCPrimitiveOps();
+    ASSERT_EQ(ops.size(), 48u);                       // FCC point group is still O_h
+    const ivec3_t G0(1,0,0);
+    auto star = StarOf(G0, ops);
+    ΔG_Map rep = {{G0, dcmplx((double)star.size(), 0.0)}};   // the rep carries its star-size weight
+    ΔG_Map out = SymmetrizeGMap(rep, ops);
+
+    EXPECT_EQ(out.size(), star.size()) << "reconstruction must populate exactly the star";
+    for (const auto& m : star)
+    {
+        ASSERT_TRUE(out.count(m)) << "star member missing from reconstruction: "<<m.x<<","<<m.y<<","<<m.z;
+        EXPECT_NEAR(out.at(m).real(), 1.0, 1e-12) << "star member should reconstruct at UNIT weight";
+        EXPECT_NEAR(out.at(m).imag(), 0.0, 1e-12);
+    }
 }
 
 // The trivial group (empty ops = {E}) leaves the map untouched -- the "no symmetry is the trivial instance"

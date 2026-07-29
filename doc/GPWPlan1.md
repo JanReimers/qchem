@@ -180,16 +180,26 @@ CTOR ARG of `tComposite_CD` (not a setter — the symmetry is a fixed property o
 iterator→WF→CD (`SetSymmetryOps`, like `SetSmearing`); `{}` default = trivial no-op.  **VALIDATED: idempotent
 on a full mesh** (Al 2×2×2, symmetrize on == off to 12 digits) — so the ops, weights (star sizes 1+4+3=8,
 Σw=1), and plumbing are all correct.
-**BUT reduceBZ is NOT yet exact — root cause found (the real remaining work):** symmetrizing only the density
-ACCESSORS (`GetFourierDensity`/`GetRepulsion3C`) makes the POTENTIAL come from ρ_sym, but the ENERGY is
-`Tr(D·V)` and the OCCUPATIONS come from the RAW per-block density matrix `D`, which is NOT symmetrized.  So a
-reduced mesh runs a symmetrized potential against an unsymmetrized density → inconsistent → mis-reconstructs
-(measured: reduced+sym −2.1208 vs full −2.1168, and −TS halved; reduced WITHOUT sym is closer, −2.1163).  The
-fix is the standard PW/IBZ energy decomposition: compute the density-dependent terms (Hartree, XC) from the
-SYMMETRIZED ρ̃, and the one-electron term from the STAR-WEIGHTED eigenvalues (energies are symmetry-invariant,
-so that part is already exact) — i.e. stop routing the density-dependent energy through `Tr(D·V)` with raw `D`.
-The raw-raster `GetRhoOnGrid` (default BallOnly XC) also still needs voxel-symmetrization (confirmed NOT the
-main gap: AliasFree/G-space XC shows the same discrepancy).  Experiment knobs: `AL_IBZ`/`AL_SYM`/`AL_RASTER`.
+**reduceBZ is NOT yet exact — root cause NARROWED to the XC raster (2026-07-29, corrected):**
+- `SymmetrizeGMap` is PROVEN correct (unit test `SymmetrizeGMap.FCCReconstructsStarFromWeightedRep`: on the
+  real FCC PRIMITIVE ops, a star-size-weighted rep reconstructs its full star at unit weight).  So the G-space
+  symmetrizer + the ops + the basis are all correct.
+- The Hartree/electrostatics path (`GetRepulsion3C`, G-space) is correct AND auto-projects: `Tr(D_raw·V_sym)=
+  Tr(D_sym·V_sym)` because contracting against a SYMMETRIC potential picks out the symmetric part of the
+  density.  The one-electron terms (kinetic/external, linear, symmetric `h`) are auto-exact the same way.
+- **The whole remaining gap is XC**, which is NONLINEAR (`∫ε_xc(ρ)`, no auto-projection) AND reads the RAW
+  `ρ_DM` raster via `GetRhoOnGrid` — which is NOT symmetrized.  On a reduced mesh that raster is `Σ w_k ρ_rep`
+  (star-weighted reps, not star-averaged) → wrong `ε_xc` → diverges from iter 1 (~47 mHa).  (Earlier "AliasFree
+  disproves the raster" was WRONG: AliasFree just swaps to a finer RASTER, still `GetRhoOnGrid`, still
+  unsymmetrized — it never routes XC through the symmetrized G-space.)
+**FIX (agreed with the user):** symmetrize the raw `ρ_DM` raster IN REAL SPACE (voxel permutation, DIRECT ops
+`W`, `g→W·g mod N`).  Real-space averaging PRESERVES non-negativity (`ρ_sym(g)=avg of ρ_DM≥0`), so XC stays on
+`ρ_DM` and the old negative-ρ̃ → `ρ^{1/3}` NaN problem is NOT reintroduced (do NOT move XC onto ρ̃).  Grid-agnostic
+→ carries over to the future Becke-Voronoi XC grid.  **Interface note (user cares):** the raster's grid geometry
+is NOT on the fit-basis abstract interface today, so this needs EITHER a grid-geometry accessor OR a
+`SymmetrizeRaster(rvec_t&, directOps)` method on the fit basis (which owns its grid) — the one interface
+decision to make.  Also expose the direct `W` ops (alongside `ReciprocalPointOps`).  Experiment knobs:
+`AL_IBZ`/`AL_SYM`/`AL_RASTER`.
 **Also remaining:** the spin-polarized global μ (both spin channels, one μ); non-symmorphic τ phases (the other
 session) for exact folding on diamond-type crystals.
 
