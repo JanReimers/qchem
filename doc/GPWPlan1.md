@@ -60,170 +60,40 @@ integrals cache (`IntegralsCache::EmitReport`, cumulative, never cleared).  Rend
 (`SetConsole`); `ctest -j16` green (606/606).  Remaining: SOLID refactor (deferred), `basis.removed` naming, GPW
 stream-cache section, disk/rolling-log SINK (deferred; see RunReportPlan "Renderer vs SINK").
 
+**Forward-roadmap items 1–3 + IBZ — DONE (2026-07-28/29)** (detail in the commit messages):
+- **1. VALGEN CLI + Al basis** — `CLIapps/valgen.C` shipped; Al q3 basis in `valence_lowq.bsd`.  (F⁻/anion
+  DIIS limit-cycle + atomic-op(r) radial-only caveats recorded then; not on the metal path.)
+- **2. DEGENERATE-SHELL METAL (FCC Al @ Γ)** — gates `AlFCCDegenerateShellAufbauStalls` (aufbau floors Δρ on
+  the degenerate 3p) + `AlFCCMetalGlobalMu`/`AlFCCAnnealedMetal` (Fermi smearing + a kT-anneal driver
+  `RunGpwAnnealed` converge it).  FINDING: **GDM ⊥ Fermi smearing** — its geodesic uses the fixed-occupation
+  `[F,D]`, not the free-energy gradient, so it diverges under smearing (use DIIS/Kerker for smeared runs).
+- **3. GLOBAL μ ACROSS k-BLOCKS + IBZ/k-star — done, EXACT.**  `Crystal_EC` global-μ metal mode (one μ across
+  the BZ, `FillOrbitalsGlobalFermi`), and IBZ folding is EXACT (`AlFCCMetalIBZExact`: 8→3 k-points, matches the
+  full mesh to ~6e-8, half the wall-clock).  Density star-average split by tolerance: Hartree on ρ̃ (G-space
+  `SymmetrizeGMap`), XC on the non-negative ρ_DM raster (real-space `cFIT_SF_ABS::SymmetrizeRaster`),
+  one-electron auto-projects.  Ops single-sourced from the basis + ctor-injected (no setters); one new abstract
+  method + one basis accessor, nothing else touched.  Reciprocal↔direct + time-reversal knowledge lives in
+  `SpaceGroup` (`ReciprocalPointOps` TR-on / `DirectPointOps` TR-off).  NON-symmorphic crystals under-symmetrize
+  (guard drops the glide ops) — failing hand-off gate `DISABLED_SiDiamondIBZ_NeedsNonSymmorphic` for the
+  space-group session (the k-fold is already maximal via Td+TR; only the density τ-phase is missing).
+- **4. MULTI-K Na metal — FIRST LIGHT** (gate `NaFCCMetalGlobalMu`): the honest half-filled-band Fermi surface
+  (shifted MP + global μ + smearing, `VALENCE_LOWQ_SR2` at the real density).  Machinery validated; the
+  converged-mesh / cohesive-energy "done properly" pass is what remains (below).
+
 ---
 
 # Forward roadmap (agreed 2026-07-26 — toward an honest metal + Fermi-smearing test)
 
+*(Items 1–3 + IBZ/k-star are DONE — summarised in the DONE section above.  Remaining forward work:)*
 
-**1. VALENCE-BASIS-GEN CLI + an Al basis** — extract `IntegrationTests/ValenceBasisGen_UT.C` into a standalone
-`CLIapps/valgen.C` (mirror `CLIapps/scfrun.C`; thin arg-parser over the existing `qchem.ValenceBasisGen`
-library — `GenerateValenceBasis`/`GenerateSeedDensity`/`AssembleBasisFile`).  Then generate a valence basis for
-a metal (Al).  **The CLI uses the Reporting framework (step 0) for its console output — the first dogfood.**
-DONE (2026-07-28): valgen shipped (`--q`/`--semicore`/`--electrons`/`--shell`/`--iterations`, valence-default PP
-selection, exponent+population basis-usage heat map, virial gate OFF for PPs).  Al q3 basis in `valence_lowq.bsd`.
-  - **F⁻ still does NOT converge** — and it is NOT the (now-disabled) virial gate.  The neutral-F/F⁻ valence SCF
-    limit-cycles: `[F,D]` oscillates 0.2↔4.5, energy swings −18.9↔−21.0, hits `NMaxIter=20`.  A genuine DIIS
-    instability on the diffuse anion (energy anchor ~−21 is still fine, so the emitted basis is OK).  Candidates
-    to try: more iters, MOM, Kerker/relax tweak, or Fermi smearing — revisit with step 2's smearing/annealing.
-  - **Open-shell atoms are ml-SPLIT (Hund), but atomic op(r) is RADIAL-ONLY** — Al 3p¹ reports irrep `p {-1}`
-    (pol U): `Atom_EC` puts the single unpaired p e⁻ in a definite mₗ=−1 (Hund, lowest mₗ first).  BUT the atomic
-    evaluator `Radial::operator()(rvec3_t)` = `gaussian(norm(r),l,es,ns)` uses ONLY |r| — no Ylm, direction
-    discarded — so op(r)/ρ(r) is the RADIAL profile regardless of mₗ.  ⇒ the emitted seed ρ(r) is SPHERICAL (not
-    direction-biased); the mₗ label only enters the angular ERI couplings (DirectAk/ExchangeAk) of the SCF energy.
-    So the seed is the spherical radial density of the mₗ=−1 SYMMETRY-BROKEN solution, not of the true fractional
-    (⅓-per-mₗ) ground state — usually fine for a seed, but the fractional/spherical version is what step 2's
-    smearing gives.  Deeper caveat (known weakness): the atomic op(r) is "fake" (no angular dependence), so it
-    cannot represent real-space angular structure — matters when seeding mixed-valence ions (e.g. LiMn₂O₄ Mn³·⁵⁺).
+**4. MULTI-K Na — the honest metal test, DONE PROPERLY** — first light is in (`NaFCCMetalGlobalMu`, above);
+the remaining pass is the CONVERGED metal: a denser mesh (needs IBZ — now available), a metallic Na basis via
+valgen (the SR2 gate validates the machinery, not a cohesive energy), and a physical did-E-move / bulk anchor.
+Optional BCC once a `BCCUnitCell` exists (only FCC today).
 
-**2. DEGENERATE-SHELL METAL TEST (works with Increment 1, per-block μ)** — FCC Al @ Γ (3s²3p¹: the degenerate
-3p triplet is partially filled, aufbau can't pick a p → won't converge without smearing), same physics as the
-passing Si-3p test.  Add **annealing** (a kT schedule, ramp T→0 in steps, re-seed each stage).  NOTE: Γ-only, a
-degenerate open shell — NOT yet a Fermi-surface metal (that's step 4).
-- FYI Al basis set in BasisSetData/valence_lowq.bsd ... valgen CLI app all ready if you need to regenerate (problems with diffuse functions is a common scenario).
-- **DONE (2026-07-28).**  Two IntegrationTests/GPW_SCF_UT.C tests (physical a=4.05 Å=7.653 au, 1-atom FCC
-  primitive cell, Zion=3):
-  - `AlFCCDegenerateShellAufbauStalls` — the MOTIVATION: aufbau settles the energy (|ΔE/E|~1e-13, gap
-    column ~0 = metallic) but |Δρ| floors (~5e-4) and never converges (the degenerate-3p rotation).
-  - `AlFCCAnnealedMetal` — the CURE: a descending kT schedule {0.02, 0.01, 0.005} Ha via a new
-    `RunGpwAnnealed` driver (re-seeds each stage from the prior converged density; same basis/grids/Ham, only
-    kT changes → direct DM transfer, bs outlives the stages).  Every stage converges; the INTERNAL energy
-    E=A−(−TS) is kT-independent to ~1e-7 across all three (−1.92115) — the physical T→0 answer; free energy
-    A=E−TS at kT=0.005 is −1.93466, −TS<0 (gate iii).  Annealing cheapens the cold end: kT=0.005 cold-start
-    ~44 iters → re-seeded ~17.
-  - **Basis: Al block added to `valence_lowq_sr.bsd`** (dropped the diffuse s 0.04 + p 0.05).  The full
-    `valence_lowq` Al p 0.05 makes the primitive-cell Bloch overlap rank-deficient (VetBasis drops the p
-    triplet, ABORTs) AND explodes the collocation grid (reach ~21 au) — the SIPP→SIPP_SR / NaF-SR lesson.
-    SR Al @ a=7.653: λ_min=3e-3, cond=2e3, 17 functions.
-  - **Annealing is now a driver (`RunGpwAnnealed`), not yet a first-class library capability** — the
-    "Annealing as a general capability" future-consideration below still stands.
-  - **FINDING — GDM tail rung is INCOMPATIBLE with Fermi smearing (measured on this test, 2026-07-28).**
-    Ran the annealed Al on the DIIS→GDM `Ladder` (`ScheduleSignal::EnergyChange`).  DIIS descended cleanly to
-    the physical −1.97521 ([F,D]~4e-3), handed to GDM, and GDM's FIRST geodesic step was a persistent FALLBACK
-    (`GPW_GDMTRACE`: best(Et−Ecur)=+0.42, all 12 backtracks uphill) → occupations flipped (cfg `*`) and the run
-    never recovered.  ROOT CAUSE (not grids / not non-variationality — DIIS converges the same E[ρ]): GDM builds
-    its geodesic DIRECTION from the fixed-occupation electronic gradient `[F,D]`, but line-searches the FREE
-    energy A=E−TS with occupations Fermi-refilled per trial (`DirectMinStep`).  Under fractional occupation A is
-    stationary where the SMEARED gradient (not `[F,D]`) is zero, so `[F,D]≠0` at the DIIS fixed point and GDM's
-    direction is not downhill for A.  FIX (deferred, a real change): give GDM the occupation-response term so its
-    search direction is the free-energy gradient dA/d(rotation), not `[F,D]` — then GDM could tail-polish a
-    smeared solid.  Until then: DIIS (or Kerker/Pulay) for smeared runs; GDM only at fixed integer occupation.
-
-**3. INCREMENT 2 — GLOBAL μ ACROSS k-BLOCKS** (structural: today each Bloch block fills to a FIXED per-block
-nₑ; a metal needs ONE μ across the BZ with charge sloshing between k-points).  The enabler for a true metal.
-
-**Approach agreed 2026-07-28 (two scoping decisions):**
-- **DECOUPLE from IBZ — full unreduced Γ-centred mesh FIRST** (weights = 1/N_k).  Global-μ physics needs no
-  symmetry reduction; building it on a full mesh now buys multi-k experience + a working metal fill sooner, and
-  IBZ rides in later (only the weights change).  (Was "time with the IBZ track"; deliberately un-timed.)
-- **EC surface = a MODE on `Crystal_EC`**, paralleling the existing `UsesAufbau()` branch — a "global total-N"
-  ctor + a virtual (e.g. `UsesGlobalFermi()`); NOT a new `Metal_EC` type, NOT (yet) an `OccupationPolicy` enum
-  (that's the item-1 graduation).
-
-**Design (where it lives — traced 2026-07-28):**  Today the composite WF's `FillOrbitals` loops k-blocks
-independently (`w->FillOrbitals(ec->GetN(irrep))`); under smearing each block runs its OWN μ-bisection
-(`TOrbitals::TakeElectronsFermi(ne_k,kT)`) to hold exactly `ne_k`.  Item 3 lifts that bisection from per-block
-to ONE μ across the mesh.  The coupling is SMALL: Fock build / diagonalization / DIIS stay per-block; only the
-OCCUPATION step goes global.  It reduces EXACTLY to today at Γ (one block, weight 1 → global μ ≡ per-block μ),
-so the Al-Γ tests cannot regress.  Aligns with `doc/SCFStrategyPlan.md` §5 (occupation = first-class seam; the
-μ-solver "per k-block → global" is the named upgrade; §5 already pre-flags the GDM×smearing pitfall item 2 hit).
-
-**Increments — ALL DONE 2026-07-28 (full-mesh scope; commits d9a416e0, e474cf67, + inc 3):**
-1. ✅ **Split the Fermi primitive.**  `TakeElectronsFermi(ne,kT)` = free `FermiLevel(e,g,target,kT)` μ-solver +
-   virtual `SetFermiOccupationsAtMu(μ,kT,eShift)`.  The solver is weight-agnostic (g = degeneracy OR
-   w_k·degeneracy), so ONE bisector serves per-block and cross-k.  Γ bit-identical (commit d9a416e0).
-2. ✅ **`Crystal_EC` global mode.**  `globalFermi` flag (defaulted off) + `UsesGlobalFermi()`; Nval is the
-   whole-mesh total.  Purely additive (commit e474cf67).
-3. ✅ **Composite global fill** `FillOrbitalsGlobalFermi`: gathers `(ε_i,k, w_k·g_i)` across the channel via the
-   SAME `GetQNs().sym->GetWeight()` the density uses, bisects one μ on `Σ_k w_k Σ_i g_i f = N_total`, then
-   `tIrrepWF::FillOrbitalsAtMu(μ)` on each block.  `−TS` BZ-weighted in `tIrrepWF::GetEntropyTerm` (w_k·(−TS_k)),
-   consistent with the BZ-weighted E.  Branch in `FillOrbitals` next to `UsesAufbau()`.
-4. ✅ **Validated on Al 2×2×2** — committed test `GPW_SCF.AlFCCMetalGlobalMu` (8-point Γ-centred mesh):
-   - **Γ invariant**: global μ ≡ per-block Fermi to 1e-12 at a single k (`DISABLED_AlGlobalMuExperiment`).
-   - **Charge conserved**: `Σ_k w_k n_k = 3.00000000` exactly (the weight-consistency guard holds).
-   - **Metal signature**: global μ CONVERGES to A=-2.1168 where per-block filling (AL_GLOBAL=0) forces 3 e⁻ at
-     every k and lands non-converged garbage A≈-0.46 → charge MUST redistribute between k-points.
-   - **Dispersion**: k-sampling binds (-1.92 Γ-only → -2.12 at 2×2×2).  Full ctest 611/611.
-
-**Multi-k risks — resolved:** (a) weight consistency — the μ constraint reads `GetQNs().sym->GetWeight()`, the
-SAME accessor `TOrbitalsImp::GetChargeDensity` scales D by; charge conserves to 1e-8, confirming it.  (b)
-complex-k — occupations/eigenvalues real, so the global bisection is real arithmetic (2×2×2 has complex blocks
-and works).  (c) spin-polarized metals share ONE μ across BOTH spin channels — STILL DEFERRED (this is
-spin=None, one channel; a magnetic metal needs the μ-solve to span both `itsSpinWFs` channels).  (d) kT must
-exceed the inter-k level spacing near E_F (the item-2 "smear wider than the splitting" finding).
-
-**Two follow-up findings (2026-07-28, from inspecting the AlFCCMetalGlobalMu run):**
-- **Eigen-table display was never tested on a metal — FIXED.**  `tUnPolarizedWF::DisplayEigen` broke the level
-  list at `e>0.0` (a MOLECULAR idiom: bound states sit below the vacuum level at 0).  In a solid the energy
-  zero is arbitrary (PP G=0/alignment) so the Fermi level can be POSITIVE — Al's μ=+0.28 — and the break hid
-  every occupied level above 0, showing only the one negative-energy Γ level.  Fix: break on OCCUPATION
-  (`occ<1e-6`), and show FRACTIONAL occupations (the metal now honestly displays 1.90/2, 0.10/2 at the Fermi
-  surface).  Atom/molecule output byte-identical (integer occ, bound levels).  Instrument `GPW_METALTRACE`
-  dumps μ + per-k n_k (the charge sloshing).
-- **Small `Eee` on the metal is PHYSICAL, not a bug.**  GPW's Hartree is the G≠0 Poisson solve `4πρ̃/G²`; the
-  G=0 self-energy is dropped into `Ealign` (the neutralising-background alignment).  So `Eee` measures only the
-  density's NON-uniformity — and a metallic (near-uniform) density has small `Eee` (Γ-only 0.020 → 2×2×2 0.006
-  as the density metallizes; a uniform gas → 0).
-
-**IBZ progress (2026-07-29):** steps 1–2 (`reduceBZ` fold → irreducible reps + star weights) + step 3a
-(`SymmetrizeGMap`, the G-space star-average) landed.  Step 3b wired the star-average into the density: it is a
-CTOR ARG of `tComposite_CD` (not a setter — the symmetry is a fixed property of the density), plumbed
-iterator→WF→CD (`SetSymmetryOps`, like `SetSmearing`); `{}` default = trivial no-op.  **VALIDATED: idempotent
-on a full mesh** (Al 2×2×2, symmetrize on == off to 12 digits) — so the ops, weights (star sizes 1+4+3=8,
-Σw=1), and plumbing are all correct.
-**reduceBZ is NOT yet exact — root cause NARROWED to the XC raster (2026-07-29, corrected):**
-- `SymmetrizeGMap` is PROVEN correct (unit test `SymmetrizeGMap.FCCReconstructsStarFromWeightedRep`: on the
-  real FCC PRIMITIVE ops, a star-size-weighted rep reconstructs its full star at unit weight).  So the G-space
-  symmetrizer + the ops + the basis are all correct.
-- The Hartree/electrostatics path (`GetRepulsion3C`, G-space) is correct AND auto-projects: `Tr(D_raw·V_sym)=
-  Tr(D_sym·V_sym)` because contracting against a SYMMETRIC potential picks out the symmetric part of the
-  density.  The one-electron terms (kinetic/external, linear, symmetric `h`) are auto-exact the same way.
-- **The whole remaining gap is XC**, which is NONLINEAR (`∫ε_xc(ρ)`, no auto-projection) AND reads the RAW
-  `ρ_DM` raster via `GetRhoOnGrid` — which is NOT symmetrized.  On a reduced mesh that raster is `Σ w_k ρ_rep`
-  (star-weighted reps, not star-averaged) → wrong `ε_xc` → diverges from iter 1 (~47 mHa).  (Earlier "AliasFree
-  disproves the raster" was WRONG: AliasFree just swaps to a finer RASTER, still `GetRhoOnGrid`, still
-  unsymmetrized — it never routes XC through the symmetrized G-space.)
-**FIX (agreed with the user):** symmetrize the raw `ρ_DM` raster IN REAL SPACE (voxel permutation, DIRECT ops
-`W`, `g→W·g mod N`).  Real-space averaging PRESERVES non-negativity (`ρ_sym(g)=avg of ρ_DM≥0`), so XC stays on
-`ρ_DM` and the old negative-ρ̃ → `ρ^{1/3}` NaN problem is NOT reintroduced (do NOT move XC onto ρ̃).  Grid-agnostic
-→ carries over to the future Becke-Voronoi XC grid.
-
-**DONE — plumbing clean (2026-07-29):**
-- Ops single-sourced: the GPW basis stores the τ=0 reciprocal ops it computes for the fold and exposes them
-  (`tBasisSet::GetReciprocalPointOps`, default `{}`); the composite density ctor-injects them.  The
-  `SetSymmetryOps` setter + the `RunGpw` ops-recompute are DELETED.
-- Interface decision (user: fit basis owns its grid): `cFIT_SF_ABS::SymmetrizeRaster(rvec_t&) const` — ONE new
-  abstract method, default no-op; `tComposite_CD::GetRhoOnGrid` calls it.  The concrete periodic fit basis will
-  override it with the voxel permutation, taking the direct `W` ops at CONSTRUCTION (user: ctor-inject, where
-  the grid is built) — NO ops argument on the method.
-
-**DONE (2026-07-29) — reduceBZ is now EXACT.**  `PlaneWaveFit_IBS::SymmetrizeRaster` implemented (real-space
-voxel star-average `ρ_sym[q]=(1/|W|)Σ_W ρ[W·(ix,iy,iz) mod N]` over the τ=0 DIRECT ops `W=(U⁻¹)ᵀ`, cubic FFT
-grid `N=FFTGrid()`, row-major `q=(ix·Ny+iy)·Nz+iz`).  The `W` ops are ctor-injected `GPW_BasisSet → GPW_IBS →
-PlaneWaveFit_IBS` (defaulted params; {} unless reduceBZ = trivial no-op).  **GATE `GPW_SCF.AlFCCMetalIBZExact`:
-the 2×2×2 mesh folds 8→3 irreducible k-points and reproduces the full-mesh free energy to ~6e-8** (−2.1168119
-vs −2.1168118), charge 3, in 12.6 s vs the full mesh's 25 s — the IBZ payoff, exact.  Symmetrization split by
-what each term tolerates: Hartree on ρ̃ (G-space, `SymmetrizeGMap`, negativity moot), XC on the non-negative
-`ρ_DM` raster (real-space voxel sym), one-electron auto-projects.  ZERO changes to
-tDM_CD/FourierDensity/HamiltonianTerm; one new abstract method (`cFIT_SF_ABS::SymmetrizeRaster`) + basis
-accessor (`GetReciprocalPointOps`), all ctor-injected, no setters.  Experiment knobs: `AL_IBZ`/`AL_RASTER`.
-**Still open:** non-cubic folded cells (the voxel map needs cubic `N`); non-symmorphic τ phases (diamond Si,
-the other session); spin-polarized global μ.
-**Also remaining:** the spin-polarized global μ (both spin channels, one μ); non-symmorphic τ phases (the other
-session) for exact folding on diamond-type crystals.
-
-**4. MULTI-K Na — the honest metal test** — FCC and/or BCC Na (1 valence e, half-filled conduction band): a
-real Fermi surface, one μ across the BZ, smearing + annealing.  Gate (iv), done properly.  (May want a more
-diffuse metallic Na basis from step 1 than the ionic-NaF-tuned `valence_lowq` Na.)
+**5. NON-SYMMORPHIC IBZ support** — the τ-phase (glide/screw) density symmetrization for diamond-type crystals
+(the `DISABLED_SiDiamondIBZ_NeedsNonSymmorphic` hand-off gate) + the spin-polarized global μ (both spin
+channels, one μ).  Both fold cleanly into the now-clean IBZ + global-μ plumbing.
 
 **FIRST LIGHT DONE 2026-07-28 — committed gate `GPW_SCF.NaFCCMetalGlobalMu`.**  FCC Na, Zion=1 (3s¹) → ONE
 electron/cell → half-filled band → μ cuts THROUGH it = a genuine Fermi surface.  Shifted Monkhorst-Pack 2×2×2
