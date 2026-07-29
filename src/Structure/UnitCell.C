@@ -54,6 +54,10 @@ public:
 
     UnitCell MakeReciprocalCell() const;                  //!< Reciprocal cell, \f$B = 2\pi A^{-\top}\f$.
 
+    //! The cell matrix \f$A\f$ (columns are the lattice vectors \f$a_i\f$, a.u.).  Exposed for the space-group
+    //! detector (SpaceGroup::Detect wants \f$A\f$ + the fractional atom basis).
+    const Matrix3D<double>& GetCellMatrix() const {return itsA;}
+
     //! Cartesian (a.u.) position of a point given in fractional cell coordinates: \f$ r = A f \f$.
     rvec3_t ToCartesian(const rvec3_t& f) const;
 

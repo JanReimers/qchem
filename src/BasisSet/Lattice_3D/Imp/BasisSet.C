@@ -6,14 +6,20 @@ module;
 #include <memory>    // std::shared_ptr / std::move (the GPW basis owns the molecular Gaussian basis)
 #include <sstream>   // irrep label for the pre-flight basis.perIrrep rows
 #include <algorithm> // std::min (min singular value)
+#include <vector>    // std::vector (the k-block list + the space-group atom basis)
 module qchem.BasisSet.Lattice_3D.BasisSet;
 import qchem.BasisSet.Internal.BasisSetImp;   // BasisSetImp<dcmplx> (the generic list-of-IBS container)
 import qchem.BasisSet.Lattice_3D.GPW_IBS;     // GPW_IBS (the periodic-Gaussian block GPW_BasisSet owns)
 import qchem.Reporting;                        // route the grid diagnostic into the run report when one is open
 import qchem.Symmetry.Factory;                // BlochFactory (the Bloch irrep per k)
 import qchem.Symmetry;                         // Spin, Irrep (the Bloch block identity for the pre-flight)
+import qchem.Symmetry.Lattice_3D.SpaceGroup;   // SpaceGroup::Detect + AtomSite (crystal ops from the cell)
+import qchem.Symmetry.Lattice_3D.BZReduction;  // ReduceToIBZ / IBZMesh (fold the MP mesh to the irreducible wedge)
+import qchem.UnitCell;                          // UnitCell::GetCellMatrix / ToFractional (the space-group input)
+import qchem.Structure;                         // Atom (itsZ / itsR -- the fractional basis for SpaceGroup)
 import qchem.LASolver;                         // PivotedCholeskyDrops (the conditioning detector)
 import qchem.Blaze;                            // blazem::eigen (grid-free overlap conditioning)
+import qchem.Matrix3D;                          // Matrix3D (space-group cell matrix)
 import qchem.Types;
 
 namespace qchem::BasisSet::Lattice_3D
@@ -48,20 +54,54 @@ Complex_BS* Factory(Type type, const ::qchem::Lattice_3D& lat, double Ecut)
 // molecular basis is shared (shared_ptr) across the k-blocks.  Lattice images are eps-converged series
 // summed inside the molecular seam (no radius exists); homeCellOnly is the finite "molecule in a box" MODE
 // (image-free by definition -- every k-block identical), used by the finite==lattice gates.
+// The k-mesh as (integer grid index, BZ weight) pairs -- either the FULL Monkhorst-Pack grid or, when
+// p.reduceBZ, its irreducible wedge folded under the crystal point group (τ=0 symmorphic ops only -- the safe
+// W-only guard; doc/GPWPlan1.md item 3).  IBZ needs the density symmetrized over each star to be exact; the
+// caller is responsible for that (this only reduces which blocks are BUILT + carries the star weights).
+struct KBlock { ivec3_t ik; double weight; };
+static std::vector<KBlock> BuildKBlocks(const ::qchem::Lattice_3D& lat, const GPWParams& p)
+{
+    namespace SL = qchem::Symmetry::Lattice_3D;
+    const rvec3_t kShift=p.kShift;
+    const ivec3_t N=lat.GetLimits();
+    std::vector<KBlock> blocks;
+    if (!p.reduceBZ)
+    {
+        for (const auto& kp : lat.MakeKMesh(kShift))
+            blocks.push_back({ivec3_t(std::lround(kp.k.x*N.x-kShift.x), std::lround(kp.k.y*N.y-kShift.y),
+                                      std::lround(kp.k.z*N.z-kShift.z)), kp.weight});
+        return blocks;
+    }
+    // IBZ: detect the crystal space group from the cell + fractional atom basis, take the τ=0 reciprocal ops
+    // (the guard), and fold the MP grid.  Every k-resolved BAND quantity obeys f(Uk)=f(k) so the star weight is
+    // exact for the eigenvalue/occupation sum; the DENSITY needs the star symmetrization (a separate step).
+    const UnitCell&  cell = lat.GetUnitCell();
+    const Structure& st   = cell;   // iterate atoms via the PUBLIC Structure interface (GetAtom is protected)
+    std::vector<SL::AtomSite> basis;
+    for (Atom* a : st)
+        basis.push_back({a->itsZ, cell.ToFractional(a->itsR)});
+    SL::SpaceGroup sg = SL::SpaceGroup::Detect(cell.GetCellMatrix(), basis);
+    auto ops = sg.ReciprocalPointOps(/*timeReversal*/true, /*symmorphicOnly*/true);   // the W-only guard
+    SL::IBZMesh ibz = SL::ReduceToIBZ(N, kShift, ops);
+    std::cout << "[IBZ] " << ibz.FullSize() << " k-points -> " << ibz.points.size()
+              << " irreducible (point group |ops|=" << ops.size()
+              << (sg.isSymmorphic() ? ", symmorphic" : ", NON-symmorphic: τ≠0 ops dropped -- under-folds")
+              << "); Σw=" << ibz.WeightSum() << std::endl;
+    for (const auto& q : ibz.points) blocks.push_back({q.index, q.weight});
+    return blocks;
+}
+
 GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
                            const GPWParams& p)
 {
     const rvec3_t kShift=p.kShift;
     const ivec3_t N=lat.GetLimits();
     const GPW_IBS* first=nullptr;
-    for (const auto& kp : lat.MakeKMesh(kShift))
+    for (const auto& kb : BuildKBlocks(lat, p))
     {
-        // Recover the INTEGER grid index (undo the shift first, then round) -- lround(kp.k*N) alone is broken
-        // for shift=½ (rounds i+½ to the wrong integer).  ik + kShift reconstruct the exact k in BlochFactory.
-        ivec3_t ik(std::lround(kp.k.x*N.x-kShift.x), std::lround(kp.k.y*N.y-kShift.y), std::lround(kp.k.z*N.z-kShift.z));
-        // Build the Bloch irrep WITH its BZ weight kp.weight (exactly as PW_BasisSet above) and use the primary
-        // sym_t ctor -- the weight carries the Sum_k w_k so the BZ-summed charge/energy are per-cell, not xNk.
-        auto* b=new GPW_IBS(lat.GetUnitCell(), Symmetry::BlochFactory(N, ik, kp.weight, kShift),
+        // Build the Bloch irrep WITH its BZ weight (star weight under IBZ) and the primary sym_t ctor -- the
+        // weight carries the Sum_k w_k so the BZ-summed charge/energy are per-cell, not xNk.
+        auto* b=new GPW_IBS(lat.GetUnitCell(), Symmetry::BlochFactory(N, kb.ik, kb.weight, kShift),
                             mol, p.densityEcut, p.images, p.cutoffFactor, p.raster, p.ladderFactor);   // mol shared across k-blocks
         if (!first) first=b;
         Insert(b);

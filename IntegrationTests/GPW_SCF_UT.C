@@ -179,6 +179,7 @@ struct GpwOptions
     // convergence machinery
     std::string accelerator = "DIIS";                  // DIIS | GDM | Ladder | Null
     bool        globalFermi = false;                    // metal: one μ across the k-mesh (Crystal_EC global mode)
+    bool        reduceBZ    = false;                     // IBZ/k-star: fold the MP mesh to the irreducible wedge
     qchem::ChargeDensity::SeedStrategy seed = qchem::ChargeDensity::SeedStrategy::Uniform;
     qchem::Ortho ortho    = qchem::Cholesky;
     double       orthoTol = 0.0;
@@ -216,7 +217,7 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
     qchem::report::Log("building GPW basis");
     std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, mol, L3::GPWParams{
         .densityEcut=o.densityEcut, .cutoffFactor=o.cutoffFactor, .raster=o.raster,
-        .images=o.images, .kShift=o.kShift, .ladderFactor=o.ladderFactor}));
+        .images=o.images, .kShift=o.kShift, .ladderFactor=o.ladderFactor, .reduceBZ=o.reduceBZ}));
 
     // FAIL-FAST: vet the (analytic, grid-free) overlap + emit basis BEFORE grids/Hamiltonian; a rank-deficient
     // basis aborts here instead of building the whole ladder first.  Also puts `basis` before `grids`.
@@ -279,7 +280,7 @@ static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Rea
     qchem::report::Log("building GPW basis");
     std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, mol, L3::GPWParams{
         .densityEcut=o.densityEcut, .cutoffFactor=o.cutoffFactor, .raster=o.raster,
-        .images=o.images, .kShift=o.kShift, .ladderFactor=o.ladderFactor}));
+        .images=o.images, .kShift=o.kShift, .ladderFactor=o.ladderFactor, .reduceBZ=o.reduceBZ}));
     if (report.VetBasis(*bs) > 0)
     {
         std::cout << "["<<o.label<<"] ABORT: basis rank-deficient (see basis.removed) -- skipped grids + SCF."<<std::endl;
@@ -755,6 +756,7 @@ TEST(GPW_SCF, DISABLED_AlGlobalMuExperiment)
     Lattice_3D lat(cell, ivec3_t(nk,nk,nk));
     GpwOptions o=AlOptions();
     o.globalFermi = envd("AL_GLOBAL",1.0)!=0.0;
+    o.reduceBZ = envd("AL_IBZ",0.0)!=0.0;
     o.scf.SmearingkT = envd("AL_KT",0.01);
     o.scf.NMaxIter = (size_t)envd("AL_NMAX",60);
     GpwResult R=RunGpw(lat, MakeBasisLowQ(cell,BasisSetData::VALENCE_LOWQ_SR), o, /*verbose*/true);

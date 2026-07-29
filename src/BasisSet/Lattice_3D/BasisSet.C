@@ -68,6 +68,12 @@ struct GPWParams
                                                     //!< cell-capped) -- this only tunes the GRADATION.  Smaller =
                                                     //!< more, finer-spaced levels (rarely needed; the auto ladder
                                                     //!< already routes each diffuse pair to a matched coarse grid).
+    bool         reduceBZ = false;                  //!< IBZ/k-star: fold the MP mesh to its irreducible wedge under
+                                                    //!< the crystal point group (τ=0 symmorphic ops only -- the safe
+                                                    //!< guard; non-symmorphic crystals fold less but stay correct).
+                                                    //!< Only the linear parts are used, so the density MUST be
+                                                    //!< symmetrized over the star for this to be exact (doc/GPWPlan1
+                                                    //!< item 3 IBZ).  DEFAULT off (full mesh, no symmetrization).
 };
 //! The struct-parameter factory (preferred surface; the positional overload above forwards here).
 Complex_BS* GPWFactory(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,

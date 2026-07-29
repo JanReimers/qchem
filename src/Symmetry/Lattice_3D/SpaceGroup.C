@@ -72,7 +72,13 @@ public:
     //! coordinates): \f$U = (W^{-1})^\top\f$ for each point-group \a W.
     //! \param includeTimeReversal  Also fold in \f$k\to-k\f$ (adds \f$-U\f$ for each \a U;
     //!        a no-op when the group is centrosymmetric).
-    std::vector<Matrix3D<double>> ReciprocalPointOps(bool includeTimeReversal=true) const;
+    //! \param symmorphicOnly  Keep only the linear parts of the \f$\tau=0\f$ (symmorphic) operations.
+    //!        This is the SAFE guard for a W-only BZ reduction (density symmetrized without the
+    //!        \f$e^{-iG\cdot\tau}\f$ phase): for a symmorphic crystal it changes nothing (every \f$\tau=0\f$),
+    //!        while for a non-symmorphic one it drops the glide/screw ops -- folding is merely reduced, never
+    //!        wrong (doc/GPWPlan1.md item 3).
+    std::vector<Matrix3D<double>> ReciprocalPointOps(bool includeTimeReversal=true,
+                                                     bool symmorphicOnly=false) const;
 
     const Matrix3D<double>& CellMatrix() const {return itsA;}
 

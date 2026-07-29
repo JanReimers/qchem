@@ -165,7 +165,8 @@ std::vector<Matrix3D<double>> SpaceGroup::PointGroupOps() const
     return W;
 }
 
-std::vector<Matrix3D<double>> SpaceGroup::ReciprocalPointOps(bool includeTimeReversal) const
+std::vector<Matrix3D<double>> SpaceGroup::ReciprocalPointOps(bool includeTimeReversal,
+                                                            bool symmorphicOnly) const
 {
     // In the reciprocal fractional basis, direct-space op W acts on k as U = (W^{-1})^T.
     std::vector<Matrix3D<double>> U;
@@ -176,6 +177,10 @@ std::vector<Matrix3D<double>> SpaceGroup::ReciprocalPointOps(bool includeTimeRev
     };
     for (const auto& op : itsOps)
     {
+        // The W-only guard: skip non-symmorphic (tau != 0) ops -- their linear parts need the e^{-iG.tau}
+        // symmetrization phase to be correct, which the W-only path does not have (doc/GPWPlan1.md item 3).
+        if (symmorphicOnly &&
+            (fabs(op.tau.x) > 1e-9 || fabs(op.tau.y) > 1e-9 || fabs(op.tau.z) > 1e-9)) continue;
         Matrix3D<double> u = Transpose(Invert(op.W));
         add(u);
         if (includeTimeReversal) add(-1.0 * u);   // time reversal k -> -k
