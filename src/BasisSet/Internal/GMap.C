@@ -12,8 +12,10 @@ module;
 #include <vector>
 #include <utility>
 export module qchem.BasisSet.Internal.GMap;
-import qchem.Types;   // ivec3_t, dcmplx
-import qchem.Blaze;   // rvec_t, chmat_t + complex/double arithmetic (visible here; the qcMath leaf lacked it)
+import qchem.Types;    // ivec3_t, dcmplx
+import qchem.Blaze;    // rvec_t, chmat_t + complex/double arithmetic (visible here; the qcMath leaf lacked it)
+export import qchem.Matrix3D;  // Matrix3D (the reciprocal point ops for the G-space density symmetrization)
+import qchem.Math;     // std::lround (rotated integer G-index)
 
 export namespace qchem {
 
@@ -27,6 +29,28 @@ struct IVec3Less
 //! G-space components (density \f$\tilde\rho\f$ or potential \f$\tilde V\f$) keyed by the reciprocal-index
 //! difference \f$\Delta m\f$ (\f$\Delta G = B\,\Delta m\f$).
 using ΔG_Map = std::map<ivec3_t, dcmplx, IVec3Less>;
+
+//! Symmetrize a G-space field over a reciprocal point group (doc/GPWPlan1.md item 3, IBZ): replace
+//! \f$\tilde\rho(G)\f$ by the star average \f$\tfrac1{|ops|}\sum_U \tilde\rho(U^{-1}G)\f$.  Each \a U is an
+//! INTEGER reciprocal op (from \c SpaceGroup::ReciprocalPointOps), so it PERMUTES the integer G-indices
+//! (\f$m\to Um\f$, exact -- no cutoff leakage since \f$|Um|=|G|\f$).  This is what makes an IBZ-reduced density
+//! exact: the star weights alone give the right band sum, but the Hartree/XC density needs this average.  The
+//! TRIVIAL group (empty \a ops = \f${E}\f$) is a no-op -- molecules / Γ / unreduced crystals pass through
+//! untouched (the general formulation; "no symmetry" is just its trivial instance).
+inline ΔG_Map SymmetrizeGMap(const ΔG_Map& rg, const std::vector<Matrix3D<double>>& ops)
+{
+    if (ops.empty()) return rg;                       // {E}: exact no-op
+    ΔG_Map out;
+    const double w = 1.0/double(ops.size());
+    for (const auto& [m, val] : rg)
+        for (const auto& U : ops)                     // scatter: ρ(G)/|ops| lands on every U·G
+        {
+            rvec3_t um = U * rvec3_t(double(m.x), double(m.y), double(m.z));
+            ivec3_t Um((int)std::lround(um.x), (int)std::lround(um.y), (int)std::lround(um.z));
+            out[Um] += w*val;
+        }
+    return out;
+}
 
 //! \brief The reciprocal-space three-centre "integrals" \f$\langle G_i G_j|G_c\rangle\f$ -- the G-space
 //! analogue of the molecular \c ERI3 tensor \f$\langle ab|c\rangle\f$.
