@@ -61,6 +61,14 @@ public:
     //! axis: \c false selects the overlap metric-solve fitter and GUARANTEES the object IS-A \c FIT_SF_NonOrtho;
     //! \c true selects the orthonormal (plane-wave) scalar fitter.  Every fit basis must declare its metric.
     virtual bool isOrtho() const=0;
+
+    //! Star-average a real-space raster IN PLACE over the crystal point group (IBZ density symmetrization).
+    //! REAL-space (voxel g→W·g), so it PRESERVES ρ≥0 -- XC stays on the non-negative ρ_DM raster, never routed
+    //! onto ρ̃ (doc/GPWPlan1.md item 3).  Default NO-OP: molecules / unfolded crystals / any fit basis with no
+    //! folded grid.  The concrete PERIODIC fit basis -- which owns its grid AND the τ=0 direct ops ctor-injected
+    //! at build -- overrides this.  Called by \c tComposite_CD::GetRhoOnGrid so the density presents ONE
+    //! symmetric identity across all its faces (the field faces return ρ_sym; the fit basis owns the geometry).
+    virtual void SymmetrizeRaster(rvec_t&) const {}
 };
 using rFIT_SF_ABS = FIT_SF_ABS<double>;  //!< real (Gaussian/Slater/BSpline) potential-fit basis
 using cFIT_SF_ABS = FIT_SF_ABS<dcmplx>;  //!< complex (plane-wave, G-space) potential-fit basis

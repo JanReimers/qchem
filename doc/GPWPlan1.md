@@ -195,11 +195,22 @@ on a full mesh** (Al 2×2×2, symmetrize on == off to 12 digits) — so the ops,
 **FIX (agreed with the user):** symmetrize the raw `ρ_DM` raster IN REAL SPACE (voxel permutation, DIRECT ops
 `W`, `g→W·g mod N`).  Real-space averaging PRESERVES non-negativity (`ρ_sym(g)=avg of ρ_DM≥0`), so XC stays on
 `ρ_DM` and the old negative-ρ̃ → `ρ^{1/3}` NaN problem is NOT reintroduced (do NOT move XC onto ρ̃).  Grid-agnostic
-→ carries over to the future Becke-Voronoi XC grid.  **Interface note (user cares):** the raster's grid geometry
-is NOT on the fit-basis abstract interface today, so this needs EITHER a grid-geometry accessor OR a
-`SymmetrizeRaster(rvec_t&, directOps)` method on the fit basis (which owns its grid) — the one interface
-decision to make.  Also expose the direct `W` ops (alongside `ReciprocalPointOps`).  Experiment knobs:
-`AL_IBZ`/`AL_SYM`/`AL_RASTER`.
+→ carries over to the future Becke-Voronoi XC grid.
+
+**DONE — plumbing clean (2026-07-29):**
+- Ops single-sourced: the GPW basis stores the τ=0 reciprocal ops it computes for the fold and exposes them
+  (`tBasisSet::GetReciprocalPointOps`, default `{}`); the composite density ctor-injects them.  The
+  `SetSymmetryOps` setter + the `RunGpw` ops-recompute are DELETED.
+- Interface decision (user: fit basis owns its grid): `cFIT_SF_ABS::SymmetrizeRaster(rvec_t&) const` — ONE new
+  abstract method, default no-op; `tComposite_CD::GetRhoOnGrid` calls it.  The concrete periodic fit basis will
+  override it with the voxel permutation, taking the direct `W` ops at CONSTRUCTION (user: ctor-inject, where
+  the grid is built) — NO ops argument on the method.
+
+**REMAINING (the concrete override — mechanical):** (1) thread the τ=0 DIRECT ops `W=(U⁻¹)ᵀ` (derive from the
+stored reciprocal `U`) `GPW_BasisSet` → `GPW_IBS` ctor (defaulted param) → `PlaneWaveFit_IBS` ctor (via
+`CreateVxcFitBasisSet`); (2) implement `PlaneWaveFit_IBS::SymmetrizeRaster` — grid dims `N=itsGrid->FFTGrid()`,
+raster layout `q=(ix·Ny+iy)·Nz+iz` (row-major, cubic `N`), `ρ_sym[q]=(1/|W|)Σ_W ρ[idx(W·(ix,iy,iz) mod N)]`.
+Then the reduceBZ==full-mesh EXACTNESS gate.  Experiment knobs: `AL_IBZ`/`AL_RASTER`.
 **Also remaining:** the spin-polarized global μ (both spin channels, one μ); non-symmorphic τ phases (the other
 session) for exact folding on diamond-type crystals.
 
