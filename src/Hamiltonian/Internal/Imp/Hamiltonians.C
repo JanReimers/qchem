@@ -194,13 +194,14 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
     // this is the one selection site).  The Becke branch's mesh build adds its own [Becke grid] detail line.
     if (xcMesh.cellKind==qcMesh::UnitCellKind::Becke)
     {
-        // The Becke XC route (doc/GPWPlan1.md): the geometry's atom-centred periodic quadrature, built ONCE
-        // and SHARED by the pair.  No Vxc fit basis on this route -- rho is sampled analytically per point.
+        // The Becke XC route (doc/GPWPlan1.md): ONE quadrature engine (mesh + cached basis tables +
+        // pair-shared rho) built here and handed to both terms.  No Vxc fit basis on this route.
         std::cout<<"[XC quadrature] periodic BECKE atom-centred mesh (details on the [Becke grid] line)"<<std::endl;
         qchem::report::EmitAt("grids", "xcQuadrature", {{"kind","Becke"}});   // detail lands in grids.becke
-        auto mesh=std::make_shared<const qcMesh::Mesh>(st->CreateIntegrationMesh(xcMesh));
-        Add(new PW_XC_Becke(exch, mesh));
-        Add(new PW_XC_Becke(corr, mesh));
+        auto engine=std::make_shared<BeckeXC_Engine>(
+                        std::make_shared<const qcMesh::Mesh>(st->CreateIntegrationMesh(xcMesh)));
+        Add(new PW_XC_Becke(exch, engine));
+        Add(new PW_XC_Becke(corr, engine));
     }
     else
     {

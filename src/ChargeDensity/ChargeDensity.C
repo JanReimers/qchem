@@ -106,6 +106,17 @@ public:
     virtual double GetTotalCharge() const=0;       // <ro>
     virtual void   ReScale(double factor)     =0;  // Ro *= factor
 
+    //! \brief \f$\rho\f$ at MANY points -- the batched ScalarFunction.  Default: the pointwise loop
+    //! (correct for any density); a concrete density overrides when it can vectorize the batch
+    //! (FourierMixCD's factorized phase tables; the DM densities have the richer, table-driven
+    //! DM_RhoAtPoints).  The mesh-XC quadrature engine's entry for non-DM densities.
+    virtual rvec_t EvalBatch(const rvec3vec_t& r) const
+    {
+        rvec_t ro(r.size());
+        for (size_t g=0; g<r.size(); g++) ro[g]=(*this)(r[g]);
+        return ro;
+    }
+
     //! Monotonic logical-clock serial: distinct (or mutated) densities have distinct serials, so a cache
     //! can ask "is this a *different* density than the one I hold?".  TRANSIENT runtime identity (like a
     //! pointer) -- not part of the persisted value, never serialize it.  (Concrete densities stamp this
@@ -153,6 +164,22 @@ public:
     //! polarized/leaf densities implement it; the periodic path asserts out.
     virtual double DM_ContractBlocks(const std::map<std::string,hmat_t<T>>&) const
     { assert(false && "DM_ContractBlocks: only a finite (Gaussian) density matrix implements this"); return 0.0; }
+
+    //! \brief \f$\rho\f$ at MANY points from caller-supplied basis tables -- the FIELD dual of
+    //! DM_ContractBlocks.  \a Phi maps BasisSetID -> the (npoints x n) table \f$\Phi_{gi}=\chi_i(r_g)\f$
+    //! for that block; the return is \f$\rho(r_g)=\sum_b\mathrm{Re}\,[\Phi_b D_b\Phi_b^\dagger]_{gg}\f$.
+    //! The caller owns the (geometry-fixed, cacheable-for-the-whole-run) basis tables; the density keeps
+    //! \f$D\f$ private and contracts them as GEMMs -- the seam that makes a mesh XC quadrature (PW_XC_Becke)
+    //! O(GEMM) per SCF iteration instead of re-evaluating Bloch sums pointwise.  A block whose ID is absent
+    //! from \a Phi self-evaluates pointwise (correct, slower -- heals a caller's first pass before it has
+    //! met every block).  Default: the plain pointwise loop over this density's ScalarFunction face, so
+    //! EVERY density answers correctly; composite/leaf overrides accelerate.
+    virtual rvec_t DM_RhoAtPoints(const rvec3vec_t& r, const std::map<std::string,mat_t<T>>& /*Phi*/) const
+    {
+        rvec_t ro(r.size());
+        for (size_t g=0; g<r.size(); g++) ro[g]=(*this)(r[g]);
+        return ro;
+    }
 
     virtual void   MixIn        (const tDM_CD<T>&,double      )      =0;  //this = (1-c)*this + c*that.
     virtual double GetChangeFrom(const tDM_CD<T>&            ) const=0;  //Convergence check.

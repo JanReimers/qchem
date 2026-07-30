@@ -162,6 +162,36 @@ template <class T> double IrrepCD<T>::DM_ContractBlocks(const std::map<std::stri
     return std::real(ComplexE);
 }
 
+// This irrep's rho at the caller's points from its pre-evaluated basis table (the FIELD dual of
+// DM_ContractBlocks above): rho_g = Re[Phi D Phi^dag]_gg = Re sum_j (Phi D)_gj conj(Phi_gj) -- one
+// (npts x n)(n x n) GEMM + a cheap rowwise dot, matching operator()(r)'s trans(phi) D conj(phi) per row.
+// No table for this basis -> self-evaluate pointwise (correct; the caller's first pass may not have
+// built every block's table yet).
+template <class T> rvec_t IrrepCD<T>::DM_RhoAtPoints(const rvec3vec_t& r, const std::map<std::string,mat_t<T>>& Phi) const
+{
+    rvec_t ro(r.size(), 0.0);
+    if (IsZero()) return ro;
+    auto it=Phi.find(itsBasisSet->BasisSetID());
+    if (it==Phi.end())
+    {
+        for (size_t g=0; g<r.size(); g++) ro[g]=(*this)(r[g]);
+        return ro;
+    }
+    const mat_t<T>& P=it->second;
+    assert(P.rows()==r.size());
+    assert(P.columns()==itsDensityMatrix.rows());
+    mat_t<T> PD = P*itsDensityMatrix;
+    for (size_t g=0; g<r.size(); g++)
+    {
+        T acc{};
+        for (size_t j=0; j<PD.columns(); j++)
+            if constexpr (std::is_same_v<T,dcmplx>) acc+=PD(g,j)*std::conj(P(g,j));
+            else                                    acc+=PD(g,j)*P(g,j);
+        ro[g]=std::real(acc);
+    }
+    return ro;
+}
+
 template <class T> double IrrepCD<T>::GetTotalCharge() const
 {
     // N = integral rho = Sum_ij D_ij S_ji = Tr(D S) = sum(D % trans(S)) (% is the blaze Schur/direct product).

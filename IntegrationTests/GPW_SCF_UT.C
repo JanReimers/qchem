@@ -1387,8 +1387,9 @@ XCProbe BeckeXCProbe(const GpwHandles& h, const std::shared_ptr<const Structure>
 {
     auto exch=std::make_shared<Hamiltonian::SlaterExchange>(2.0/3.0);
     auto corr=std::make_shared<Hamiltonian::VWN_Correlation>();
-    auto mesh=std::make_shared<const qcMesh::Mesh>(st->CreateIntegrationMesh(mpB));   // built ONCE, shared by the pair
-    Hamiltonian::PW_XC_Becke x(exch,mesh), c(corr,mesh);
+    auto engine=std::make_shared<Hamiltonian::BeckeXC_Engine>(               // ONE engine, shared by the pair
+                    std::make_shared<const qcMesh::Mesh>(st->CreateIntegrationMesh(mpB)));
+    Hamiltonian::PW_XC_Becke x(exch,engine), c(corr,engine);
     EnergyBreakdown e; x.GetEnergy(e,h.cd.get()); c.GetEnergy(e,h.cd.get());
     return ProbeXC(label, h, x, c, e);
 }

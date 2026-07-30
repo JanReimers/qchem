@@ -154,30 +154,55 @@ private:
 //! function's diffuse reach).  Here \f$\rho(r)\f$ is evaluated ANALYTICALLY at each mesh point straight
 //! off the density's ScalarFunction face (no FFT, no collocation, no fit -- pointwise \f$\rho_{DM}\ge0\f$
 //! for aufbau D, so the \f$\rho>0\f$ guard is inert like the RAW route), \f$\epsilon_{xc}/v_{xc}\f$ are
-//! applied per point, and \f$\langle i|v_{xc}|j\rangle\f$ is the standard molecular-DFT quadrature
-//! (qcMesh::WeightedOverlap over the Bloch-summed orbital basis).  Hartree stays on the uniform G-space
-//! grid -- this term swaps ONLY the XC quadrature.  The term takes the mesh READY-MADE and SHARED (built
-//! once by the caller via Structure::CreateIntegrationMesh with UnitCellKind::Becke, then handed to BOTH
-//! the exchange and the correlation term -- exactly how the PW_XC pair shares one Vxc fit basis).
+//! applied per point, and \f$\langle i|v_{xc}|j\rangle = \Phi^\dagger\,\mathrm{diag}(w\,v_{xc})\,\Phi\f$
+//! over the engine's cached basis table.  Hartree stays on the uniform G-space grid -- this term swaps
+//! ONLY the XC quadrature.  The QUADRATURE ENGINE below is SHARED by the exchange and correlation term
+//! (exactly how the PW_XC pair shares one Vxc fit basis).
+
+//! \brief The shared quadrature engine of the Becke XC pair: the mesh, the per-Bloch-block cached basis
+//! tables \f$\Phi_{gi}=\chi_i(r_g)\f$ (GEOMETRY-FIXED -- built once per run per block, keyed by
+//! BasisSetID like PW_Hartree's \f$V_{long}\f$ blocks), and \f$\rho\f$ at the mesh points for the current
+//! density serial (built ONCE per SCF iteration for the whole pair, via cDM_CD::DM_RhoAtPoints -- the
+//! density GEMMs the tables against its private \f$D\f$).  This is what makes the route O(GEMM) per
+//! iteration: without it the pair re-evaluated the Bloch image sums pointwise FOUR times per iteration
+//! (2 terms x (rho sample + matrix quadrature)) -- measured 4.8 s/iteration on NaF, ~all of the Becke
+//! route's runtime premium.
+class BeckeXC_Engine
+{
+public:
+    typedef std::shared_ptr<const qcMesh::Mesh> mesh_t;
+    explicit BeckeXC_Engine(mesh_t);
+    const qcMesh::Mesh& Mesh() const {return *itsMesh;}
+    //! \f$\rho(r_g)\f$ for \a cd's current serial (cached across the pair; rebuilt on a new serial).
+    //! \a ensureBlock (when given) has its \f$\Phi\f$ table built FIRST, so the rho GEMM covers it even on
+    //! the very first call; blocks not yet tabled self-evaluate pointwise inside the density (first pass
+    //! only).  GetEnergy passes null (no basis at hand) and reuses the iteration's table.
+    const rvec_t& Rho(const cChargeDensity* cd, const cobs_t* ensureBlock=nullptr);
+    //! \f$\langle i|v|j\rangle=\sum_g \overline{\Phi_{gi}}\,w_g v_g\,\Phi_{gj}\f$ over the cached table.
+    chmat_t Matrix(const cobs_t* bs, const rvec_t& v);
+private:
+    const mat_t<dcmplx>& Phi(const cobs_t* bs);   //!< lazily built per block (geometry-fixed)
+    mesh_t itsMesh;
+    std::map<std::string,mat_t<dcmplx>> itsPhi;   //!< BasisSetID -> (npts x n) basis table
+    rvec_t itsRho;
+    size_t itsRhoVersion=size_t(-1);              //!< density logical-clock serial itsRho was built for
+};
+
 class PW_XC_Becke
     : public virtual cDynamic_HT
     , private        cDynamic_HT_Imp
 {
 public:
     typedef std::shared_ptr<ExFunctional> xc_t;
-    typedef std::shared_ptr<const qcMesh::Mesh> mesh_t;
-    PW_XC_Becke(const xc_t&, mesh_t);
+    typedef std::shared_ptr<BeckeXC_Engine> engine_t;
+    PW_XC_Becke(const xc_t&, engine_t);
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
     virtual std::ostream& Write(std::ostream&) const;
 private:
     virtual chmat_t CalcMatrix(const cobs_t*, const Spin&, const cChargeDensity*) const;
-    //! Ensure \c itsRho holds \f$\rho\f$ at the mesh points for \a cd, resampling only on a new density
-    //! serial -- CalcMatrix and GetEnergy share the table (whichever runs first this iteration pays).
-    void RefreshRho(const cChargeDensity*) const;
 
-    xc_t   itsXc;
-    mesh_t itsMesh;          //!< the shared atom-centred quadrature (geometry-fixed; one per XC pair)
-    mutable rvec_t itsRho;   //!< \f$\rho(r_g)\f$ at the mesh points for the current density serial
+    xc_t     itsXc;
+    engine_t itsEngine;   //!< the shared mesh + Phi tables + per-serial rho (one per XC pair)
 };
 
 } //namespace

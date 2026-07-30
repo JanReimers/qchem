@@ -243,12 +243,29 @@ LAST — payoff only on multi-k; time with the IBZ track.  Cache B(R), never M(k
   Exposed as `GpwOptions.xcMesh`; `DISABLED_NaFRocksaltGamma` carries the one-token switch
   (`o.xcMesh.cellKind = Uniform  // <-- ::Becke turns Becke ON`, recipe from `BeckeXCParams()`).
   SMOKE-VERIFIED in-SCF (NaF, 3 iters, L=11): route runs, charge conserved, ~15 s/iteration unoptimised.
-- **OPEN (next increments)**: making Becke the DEFAULT for (diffuse) bases — after the perf item;
-  per-SCF cost (share ρ across the pair via a provider, cache the Φ basis-values matrix per k → GEMM
-  route) — today ~15 s/iteration on NaF at GL-11, fine for experiments, not production;
+- **PERF ITEM DONE (2026-07-30) — the cached-Φ + shared-ρ engine.**  User measurement that triggered it:
+  NaF uniform 34 s vs Becke 95 s (1/4 the points, 3× the time!).  Root cause (timing fit + perf): setup
+  (~33-37 s, the one-time local-PP/grid build) is IDENTICAL between routes; the premium was **4.8
+  s/iteration** of per-iteration Becke XC — FOUR uncached image-summed Bloch basis sweeps over the mesh
+  (2 terms × (ρ-sample + WeightedOverlap)), while the uniform route amortises all Gaussian work in the
+  stream cache + one FFT.  The fix, three layers, measured ladder 4.8 → 1.7 → 0.58 → **0.37 s/iter**:
+  (1) `BeckeXC_Engine` shared by the pair — per-block basis tables Φ (geometry-fixed, built ONCE per
+  run, keyed `BasisSetID` like PW_Hartree's V_long) + pair-shared ρ per density serial + the matrix as
+  `Φ†diag(w·v)Φ` (one zgemm); (2) `tDM_CD::DM_RhoAtPoints(points, Φ-map)` — the FIELD dual of
+  `DM_ContractBlocks`: the density GEMMs the caller's tables against its private D (pointwise default on
+  the base face; leaf GEMM + absent-block self-heal; composite sums — BZ weights ride in D as usual);
+  (3) the Fock build on MIXED iterations sees `FourierMixCD` (NOT a DM!) → new
+  `tChargeDensity::EvalBatch(points)` with a factorised-phase batched inverse FT (per-axis
+  e^{i m (Bᵀr)_a} tables + a flattened map — no transcendental, no tree-chase in the inner loop).
+  NaF full run now ≈37 s vs uniform 34 s; energies bit-identical (−24.4315254580), Si gate numbers
+  unchanged to 4 digits.  SEMANTICS NOTE uncovered en route: on mixed iterations the Becke ρ feed is the
+  ρ̃-BALL field (FourierMixCD's map) — the raw-through-dynamics analogue (a Becke-mesh shadow in the
+  mixer) is a possible future refinement of the 0.5(f2) idea if ball-Gibbs ever bites at the mesh points.
+- **OPEN (next increments)**: making Becke the DEFAULT for (diffuse) bases — now runtime-viable;
   spin-native (`PW_XC` itself is unpol today); symmetry-adapting the mesh points (the icing — now with
   the measured design pin: site-group orbits must AVOID bond directions); per-element radial scaling
-  (one mhl_alpha serves all species today).
+  (one mhl_alpha serves all species today); Becke+IBZ real-space star-average of ρ at mesh points
+  (today the k-fold weights ride in D; the non-Γ star symmetrisation is untested on this route).
 
 Framing (user, 2026-07-26): this is likely the **final step to give every Hamiltonian term a near-ideal grid
 across every basis set** — diffuse included.  Per-term today:

@@ -1,6 +1,7 @@
 // File: Hamiltonian/Internal/Imp/PWTerms.C  Plane-wave Kohn-Sham term implementations.
 module;
 #include <cassert>
+#include <complex>
 #include <cstdlib>
 #include <functional>
 #include <iomanip>
@@ -17,7 +18,7 @@ import qchem.Pseudopotential.Integrals_Pseudo;   // cast bs ACROSS to the extern
 import qchem.Fitting.FunctionFitter;        // Fitting::Factory (both PW fitters) + ProjectedDensity_G / ProjectedScalar_R
 import qchem.Structure;                       // Structure::isFinite()/SumFormFactors() -- the G=0 alignment (term-side)
 import qchem.Blaze;                            // blazem::zeroH<dcmplx> (the null-PP V_long block)
-import qchem.Mesh.Quadrature;                 // qcMesh::WeightedOverlap (the PW_XC_Becke matrix quadrature)
+import qchem.Mesh.Quadrature;                 // qcMesh::Mesh (the PW_XC_Becke engine's quadrature mesh)
 
 namespace qchem::Hamiltonian
 {
@@ -341,44 +342,98 @@ std::ostream& PW_XC::Write(std::ostream& os) const
     return os << "    PW exchange-correlation potential v_xc(rho(r))." << std::endl;
 }
 
-// Built with the SHARED ready-made atom-centred mesh (the caller builds it once via
-// Structure::CreateIntegrationMesh with UnitCellKind::Becke and hands it to the whole XC pair; a
-// molecular Structure's Becke grid works identically -- the term is geometry-neutral).
-PW_XC_Becke::PW_XC_Becke(const xc_t& xc, mesh_t mesh)
-    : itsXc(xc)
-    , itsMesh(std::move(mesh))
+// ---- BeckeXC_Engine: the pair-shared mesh + Phi tables + per-serial rho ----------------------------------
+
+BeckeXC_Engine::BeckeXC_Engine(mesh_t mesh)
+    : itsMesh(std::move(mesh))
 {
     assert(itsMesh && itsMesh->size()>0);
 }
 
-// rho POINTWISE off the density's ScalarFunction face: the analytic rho_DM(r) (Bloch-summed basis x D),
-// pointwise >= 0 for an aufbau D.  One sample per mesh point per new density serial.
-void PW_XC_Becke::RefreshRho(const cChargeDensity* cd) const
+// The (npts x n) basis table for one Bloch block: chi_i at every mesh point -- the ONE image-summed
+// Bloch evaluation sweep this block ever pays (geometry-fixed, so it serves every SCF iteration).
+// Keyed by BasisSetID (the PW_Hartree V_long pattern; never a pointer).
+const mat_t<dcmplx>& BeckeXC_Engine::Phi(const cobs_t* bs)
 {
-    if (!newCD(cd)) return;
+    const std::string id=bs->BasisSetID();
+    auto it=itsPhi.find(id);
+    if (it!=itsPhi.end()) return it->second;
+
     const rvec3vec_t& R=itsMesh->Points();
-    itsRho.resize(itsMesh->size());
-    for (size_t g=0; g<itsMesh->size(); g++) itsRho[g]=(*cd)(R[g]);
+    mat_t<dcmplx> P(R.size(), bs->GetVectorSize());
+    for (size_t g=0; g<R.size(); g++)
+    {
+        cvec_t phi=(*bs)(R[g]);
+        for (size_t i=0; i<phi.size(); i++) P(g,i)=phi[i];
+    }
+    return itsPhi.emplace(id, std::move(P)).first->second;
 }
 
-// <i|v_xc|j> by direct quadrature over the Bloch-summed orbital basis (its VectorFunction<dcmplx> face):
-// the standard molecular-DFT XC matrix, on the atom-centred mesh.
+// rho at the mesh points, once per density serial for the WHOLE pair: the density GEMMs the cached
+// tables against its private D (DM_RhoAtPoints; blocks not yet tabled self-evaluate pointwise -- first
+// pass only).  A non-DM density (no DM face) falls back to the pointwise ScalarFunction sweep.
+const rvec_t& BeckeXC_Engine::Rho(const cChargeDensity* cd, const cobs_t* ensureBlock)
+{
+    assert(cd);
+    if (ensureBlock) Phi(ensureBlock);
+    if (cd->Version()==itsRhoVersion) return itsRho;
+    itsRhoVersion=cd->Version();
+    if (auto dm=dynamic_cast<const cDM_CD*>(cd))
+        itsRho=dm->DM_RhoAtPoints(itsMesh->Points(), itsPhi);
+    else
+        itsRho=cd->EvalBatch(itsMesh->Points());   // non-DM (mixed rho-tilde / seed) densities batch here
+    return itsRho;
+}
+
+// <i|v|j> = Phi^dag diag(w v) Phi over the cached table: scale the rows, one zgemm, hermitize.  (The
+// GEMM result is Hermitian up to roundoff; the explicit i<=j fill keeps chmat_t's invariant exactly.)
+chmat_t BeckeXC_Engine::Matrix(const cobs_t* bs, const rvec_t& v)
+{
+    const mat_t<dcmplx>& P=Phi(bs);
+    const rvec_t&        w=itsMesh->Weights();
+    assert(v.size()==P.rows());
+    mat_t<dcmplx> WP(P.rows(), P.columns());
+    for (size_t g=0; g<P.rows(); g++)
+    {
+        const double wv=w[g]*v[g];
+        for (size_t i=0; i<P.columns(); i++) WP(g,i)=wv*P(g,i);
+    }
+    mat_t<dcmplx> M = blazem::trans(blazem::conj(P))*WP;
+    chmat_t H(M.rows());
+    for (size_t i=0; i<M.rows(); i++)
+        for (size_t j=i; j<M.columns(); j++)
+            H(i,j)=0.5*(M(i,j)+std::conj(M(j,i)));
+    return H;
+}
+
+// ---- PW_XC_Becke ------------------------------------------------------------------------------------------
+
+// Built with the SHARED quadrature engine (the caller builds ONE engine per XC pair -- mesh + Phi tables
+// + per-serial rho -- and hands it to both the exchange and the correlation term).
+PW_XC_Becke::PW_XC_Becke(const xc_t& xc, engine_t engine)
+    : itsXc(xc)
+    , itsEngine(std::move(engine))
+{
+    assert(itsEngine);
+}
+
+// v_xc(rho_g) pointwise on the engine's shared rho, then the engine's Phi-table quadrature (one GEMM).
 chmat_t PW_XC_Becke::CalcMatrix(const cobs_t* bs, const Spin&, const cChargeDensity* cd) const
 {
-    RefreshRho(cd);
-    rvec_t v(itsRho.size());
-    for (size_t g=0; g<itsRho.size(); g++) v[g]=itsXc->GetVxc(itsRho[g]);
-    return qcMesh::WeightedOverlap(*itsMesh, *bs, v);
+    const rvec_t& rho=itsEngine->Rho(cd, bs);
+    rvec_t v(rho.size());
+    for (size_t g=0; g<rho.size(); g++) v[g]=itsXc->GetVxc(rho[g]);
+    return itsEngine->Matrix(bs, v);
 }
 
 void PW_XC_Becke::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 {
-    RefreshRho(cd);   // reuses CalcMatrix's table this iteration (same density serial)
-    const rvec_t& W=itsMesh->Weights();
+    const rvec_t& rho=itsEngine->Rho(cd);   // reuses the iteration's table (same density serial)
+    const rvec_t& W=itsEngine->Mesh().Weights();
     double exc=0, q=0;
-    for (size_t g=0; g<itsRho.size(); g++)
+    for (size_t g=0; g<rho.size(); g++)
     {
-        const double ro=itsRho[g];
+        const double ro=rho[g];
         exc+=W[g]*itsXc->GetEpsXc(ro)*ro;   // E_xc = integral eps_xc(rho) rho
         q  +=W[g]*ro;
     }
@@ -391,7 +446,7 @@ void PW_XC_Becke::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 std::ostream& PW_XC_Becke::Write(std::ostream& os) const
 {
     return os << "    Becke-mesh exchange-correlation potential v_xc(rho(r)) ("
-              << itsMesh->size() << " atom-centred points)." << std::endl;
+              << itsEngine->Mesh().size() << " atom-centred points)." << std::endl;
 }
 
 } //namespace

@@ -66,7 +66,12 @@ public:
     void SetRawRho(rvec_t raw) {itsRhoRaw=std::move(raw);}   //!< mixer-side deposit (empty = raw pipeline off)
 
     // --- tChargeDensity<dcmplx> ---
-    virtual double  operator()(const rvec3_t&) const override;   //!< rho(r) via inverse FT (whole-type; not on the Fock path)
+    virtual double  operator()(const rvec3_t&) const override;   //!< rho(r) via inverse FT (single point)
+    //! Batched \f$\rho(r_g)=\mathrm{Re}\sum_m c_m e^{iG_m\cdot r_g}\f$ with the phase FACTORIZED per axis
+    //! (\f$e^{iG\cdot r}=\prod_a e^{i m_a (B^\mathsf{T}r)_a}\f$, three 1-D tables per point) -- ~an order
+    //! of magnitude over the per-G std::exp of the pointwise loop.  This is the Fock-path rho feed of the
+    //! Becke XC quadrature on MIXED iterations (the mesh points are not a raster, so no FFT applies).
+    virtual rvec_t  EvalBatch(const rvec3vec_t&) const override;
     virtual rvec3_t Gradient  (const rvec3_t&) const override {return rvec3_t(0,0,0);}
     virtual double  GetTotalCharge() const override {return itsScale*itsCharge;}
     virtual size_t  Version()        const override {return itsVersion;}

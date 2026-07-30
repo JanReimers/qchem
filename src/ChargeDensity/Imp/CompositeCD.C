@@ -66,6 +66,15 @@ template <class T> double tComposite_CD<T>::DM_ContractBlocks(const std::map<std
     return ret;
 }
 
+// rho at the caller's points = the sum of the blocks' contributions (each block's D already carries its
+// BZ weight, so this is the k-average -- same convention as GetFourierDensity).
+template <class T> rvec_t tComposite_CD<T>::DM_RhoAtPoints(const rvec3vec_t& r, const std::map<std::string,mat_t<T>>& Phi) const
+{
+    rvec_t ro(r.size(), 0.0);
+    for (auto& c:itsCDs) ro+=c->DM_RhoAtPoints(r,Phi);
+    return ro;
+}
+
 template <class T> double tComposite_CD<T>::DM_Contract(const tStatic_CC<T>* v) const
 {
     double ret=0.0;
