@@ -17,6 +17,7 @@ import qchem.Pseudopotential.Integrals_Pseudo;   // cast bs ACROSS to the extern
 import qchem.Fitting.FunctionFitter;        // Fitting::Factory (both PW fitters) + ProjectedDensity_G / ProjectedScalar_R
 import qchem.Structure;                       // Structure::isFinite()/SumFormFactors() -- the G=0 alignment (term-side)
 import qchem.Blaze;                            // blazem::zeroH<dcmplx> (the null-PP V_long block)
+import qchem.Mesh.Quadrature;                 // qcMesh::WeightedOverlap (the PW_XC_Becke matrix quadrature)
 
 namespace qchem::Hamiltonian
 {
@@ -226,7 +227,18 @@ PW_XC::PW_XC(const xc_t& xc, fbs_t fb)
     : itsXc(xc)
     , itsVxcFitBasis(fb)                       // hand it to the density's GetFourierDensity (its Overlap3C key)
     , itsScalarFitter(Fitting::Factory(fb))   // the ortho (G-space) scalar fitter -- owns the FFT quadrature grid
-{}
+{
+    // Announce the quadrature grid ONCE per distinct fit basis (the exchange+correlation pair shares one):
+    // the uniform-route sibling of the [Becke grid] line, so the console/report always carries the XC
+    // grid's N + spacing.  (UnitCell::CreateIntegrationMesh cannot report this grid -- the XC raster is
+    // the FFT engine's own 5-smooth grid, never built through the Structure mesh factory.)
+    static const void* lastAnnounced=nullptr;
+    if (itsVxcFitBasis.get()!=lastAnnounced)
+    {
+        lastAnnounced=itsVxcFitBasis.get();
+        itsScalarFitter->Grid().EmitGridReport();
+    }
+}
 PW_XC::~PW_XC() = default;   // itsScalarFitter's abstract type is complete here
 
 // rho(r) on the fit grid for cd -- one inverse FFT, recomputed only on a new density serial (newCD), so
@@ -327,6 +339,59 @@ void PW_XC::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 std::ostream& PW_XC::Write(std::ostream& os) const
 {
     return os << "    PW exchange-correlation potential v_xc(rho(r))." << std::endl;
+}
+
+// Built with the SHARED ready-made atom-centred mesh (the caller builds it once via
+// Structure::CreateIntegrationMesh with UnitCellKind::Becke and hands it to the whole XC pair; a
+// molecular Structure's Becke grid works identically -- the term is geometry-neutral).
+PW_XC_Becke::PW_XC_Becke(const xc_t& xc, mesh_t mesh)
+    : itsXc(xc)
+    , itsMesh(std::move(mesh))
+{
+    assert(itsMesh && itsMesh->size()>0);
+}
+
+// rho POINTWISE off the density's ScalarFunction face: the analytic rho_DM(r) (Bloch-summed basis x D),
+// pointwise >= 0 for an aufbau D.  One sample per mesh point per new density serial.
+void PW_XC_Becke::RefreshRho(const cChargeDensity* cd) const
+{
+    if (!newCD(cd)) return;
+    const rvec3vec_t& R=itsMesh->Points();
+    itsRho.resize(itsMesh->size());
+    for (size_t g=0; g<itsMesh->size(); g++) itsRho[g]=(*cd)(R[g]);
+}
+
+// <i|v_xc|j> by direct quadrature over the Bloch-summed orbital basis (its VectorFunction<dcmplx> face):
+// the standard molecular-DFT XC matrix, on the atom-centred mesh.
+chmat_t PW_XC_Becke::CalcMatrix(const cobs_t* bs, const Spin&, const cChargeDensity* cd) const
+{
+    RefreshRho(cd);
+    rvec_t v(itsRho.size());
+    for (size_t g=0; g<itsRho.size(); g++) v[g]=itsXc->GetVxc(itsRho[g]);
+    return qcMesh::WeightedOverlap(*itsMesh, *bs, v);
+}
+
+void PW_XC_Becke::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
+{
+    RefreshRho(cd);   // reuses CalcMatrix's table this iteration (same density serial)
+    const rvec_t& W=itsMesh->Weights();
+    double exc=0, q=0;
+    for (size_t g=0; g<itsRho.size(); g++)
+    {
+        const double ro=itsRho[g];
+        exc+=W[g]*itsXc->GetEpsXc(ro)*ro;   // E_xc = integral eps_xc(rho) rho
+        q  +=W[g]*ro;
+    }
+    te.Exc += exc;
+    // The mesh-charge leak (the Becke grid's health metric, mirroring PW_XC's grid-charge-lost): the
+    // quadrature integral of rho vs the analytic Tr(DS).
+    te.GridChargeLost = q - cd->GetTotalCharge();
+}
+
+std::ostream& PW_XC_Becke::Write(std::ostream& os) const
+{
+    return os << "    Becke-mesh exchange-correlation potential v_xc(rho(r)) ("
+              << itsMesh->size() << " atom-centred points)." << std::endl;
 }
 
 } //namespace

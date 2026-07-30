@@ -19,6 +19,7 @@ import qchem.Pseudopotential.Integrals_Pseudo;    // external-PP operator-assemb
 import qchem.Hamiltonian.Internal.ExFunctional; // the LDA functional the XC term composes with the density
 import qchem.Hamiltonian.Types;                 // cobs_t
 import qchem.Structure;
+import qchem.Mesh;                              // qcMesh::Mesh/MeshParams (the PW_XC_Becke quadrature)
 
 export namespace qchem::Hamiltonian
 {
@@ -143,6 +144,40 @@ private:
     //! \c CalcMatrix assembles \f$H_{xc}\f$ through the raw adjoint so the E/H pair derives from the ONE raw
     //! discrete functional (and the \f$\rho>0\f$ guard becomes inert -- \f$\rho_{DM}\ge 0\f$ for aufbau D).
     mutable bool itsRhoIsRaw=false;
+};
+
+//! Exchange-correlation term on an ATOM-CENTRED real-space quadrature (doc/GPWPlan1.md "Becke XC grid") --
+//! the real-space sibling of PW_XC, carrying ONE LDA functional per instance (build a Dirac + a VWN term,
+//! exactly like PW_XC).  The XC field is pointwise-nonlinear and sharp at the cores -- the one term the
+//! uniform FFT raster serves poorly for diffuse bases (a diffuse pair x sharp field is a two-scale
+//! integrand; the atom-centred mesh is dense at the cores and its point count never scales with a
+//! function's diffuse reach).  Here \f$\rho(r)\f$ is evaluated ANALYTICALLY at each mesh point straight
+//! off the density's ScalarFunction face (no FFT, no collocation, no fit -- pointwise \f$\rho_{DM}\ge0\f$
+//! for aufbau D, so the \f$\rho>0\f$ guard is inert like the RAW route), \f$\epsilon_{xc}/v_{xc}\f$ are
+//! applied per point, and \f$\langle i|v_{xc}|j\rangle\f$ is the standard molecular-DFT quadrature
+//! (qcMesh::WeightedOverlap over the Bloch-summed orbital basis).  Hartree stays on the uniform G-space
+//! grid -- this term swaps ONLY the XC quadrature.  The term takes the mesh READY-MADE and SHARED (built
+//! once by the caller via Structure::CreateIntegrationMesh with UnitCellKind::Becke, then handed to BOTH
+//! the exchange and the correlation term -- exactly how the PW_XC pair shares one Vxc fit basis).
+class PW_XC_Becke
+    : public virtual cDynamic_HT
+    , private        cDynamic_HT_Imp
+{
+public:
+    typedef std::shared_ptr<ExFunctional> xc_t;
+    typedef std::shared_ptr<const qcMesh::Mesh> mesh_t;
+    PW_XC_Becke(const xc_t&, mesh_t);
+    virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
+    virtual std::ostream& Write(std::ostream&) const;
+private:
+    virtual chmat_t CalcMatrix(const cobs_t*, const Spin&, const cChargeDensity*) const;
+    //! Ensure \c itsRho holds \f$\rho\f$ at the mesh points for \a cd, resampling only on a new density
+    //! serial -- CalcMatrix and GetEnergy share the table (whichever runs first this iteration pays).
+    void RefreshRho(const cChargeDensity*) const;
+
+    xc_t   itsXc;
+    mesh_t itsMesh;          //!< the shared atom-centred quadrature (geometry-fixed; one per XC pair)
+    mutable rvec_t itsRho;   //!< \f$\rho(r_g)\f$ at the mesh points for the current density serial
 };
 
 } //namespace

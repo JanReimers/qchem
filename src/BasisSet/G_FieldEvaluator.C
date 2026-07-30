@@ -55,6 +55,9 @@ public:
     virtual ΔG_Map     FieldCoeffs(const cvec_t& Vt) const=0;
     //! \f$\int f\,d^3r\f$ on the FFT grid (weight \f$\Omega/N_{pts}\f$) -- the XC energy quadrature on the fit grid.
     virtual double     Integral(const rvec_t& f) const=0;
+    //! Announce this quadrature grid (console + the \c grids.xcQuadrature run-report entry: \f$N\f$, points,
+    //! \f$\Delta r\f$) -- called once by the XC term pair so a run always states the XC grid in use.
+    virtual void       EmitGridReport() const=0;
     //! \brief Apply an ISOTROPIC spectral multiplier to a real grid field over the FULL FFT box:
     //! \f$f\mapsto\mathcal F^{-1}[k(|G|^2)\,\mathcal F f]\f$.  A SMOOTH \a k truncates nothing, so no Gibbs
     //! ringing is introduced -- the raster-space Kerker preconditioner \f$k=G^2/(G^2+G_0^2)\f$ of the raw-XC

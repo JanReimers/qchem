@@ -39,7 +39,11 @@ import qchem.Blaze;                              // blazem::eigen, blaze::min/ma
 import qchem.BasisSet.Lattice_3D.BasisSet;       // GPWFactory (the GPW basis container)
 import qchem.BasisSet.Molecule.Factory;          // Molecule::Factory, BasisSetData/Engine/Angular
 import qchem.Hamiltonian.Internal.Hamiltonians;  // Ham_PW_DFT (the plane-wave LDA KS Hamiltonian -- drives GPW too)
-import qchem.Hamiltonian.Internal.PWTerms;        // ReportGridCharge() -- the integral-rho_grid vs Tr(DS) readout
+import qchem.Hamiltonian.Internal.PWTerms;        // ReportGridCharge(); PW_XC / PW_XC_Becke (the Becke XC gate)
+import qchem.Hamiltonian.Internal.ExFunctional;   // ExFunctional (the LDA functional face the XC terms hold)
+import qchem.Hamiltonian.Internal.SlaterExchange; // SlaterExchange (Dirac exchange, for the Becke XC gate)
+import qchem.Hamiltonian.Internal.VWN_Correlation;// VWN_Correlation (VWN5, for the Becke XC gate)
+import qchem.Mesh;                                // qcMesh::MeshParams / UnitCellKind (the Becke XC quadrature)
 import qchem.SCFIterator;                        // cSCFIterator, SCFParams
 import qchem.SCFParams;                          // SCFParams
 import qchem.ElectronConfiguration.Crystal;      // Crystal_EC (single-k Bloch occupation)
@@ -161,6 +165,38 @@ void Fingerprint(const std::vector<FpRow>& s, const char* label)
 
 // One GPW Gamma-point SCF: build the GPW basis over the lattice, hand it the plane-wave LDA Hamiltonian
 // (Ham_PW_DFT reaches GPW's real-space Integrals_Pseudo), seed uniform, run the complex-DIIS cSCFIterator.
+// The gate-calibrated Becke XC quadrature recipe (Si-gate: dExc=1.1e-4, dVxc=3.5e-4 vs Ecut=60; angular
+// ladder measured 2026-07-30: GL-11 is the sub-mHa sweet spot, GL-17/29 sit on the comparison floor).
+// Env INSTRUMENTS (sweep without rebuilding; they override only the DEFAULT call, so an explicit-args
+// caller like the NaF B80 refinement probe keeps its pinned resolution):
+//   GPW_BECKE_L      GaussLegendre angular order L (any int; ~(L+1)^2/2 dirs).  Default 29.
+//   GPW_BECKE_NR     radial point count.                                        Default 40.
+//   GPW_BECKE_ALPHA  MHL radial scale (smaller = nodes pulled toward the core). Default 2.0.
+//   GPW_BECKE_ANG    "lebedev" -> the octahedral-orbit Lebedev tables (AngularKind::Gauss); GPW_BECKE_L
+//                    then means the DIRECTION COUNT {6,8,12,24,30,50} (degrees 1/3/5/7/8/11).  Measured
+//                    (Si): better than same-degree GL on V_xc elements (the O_h-orbit cancellation) but
+//                    5-10x worse on rho-weighted integrals -- the (+-1,+-1,+-1)/sqrt3 orbit sits exactly
+//                    on the diamond bond axes.
+namespace
+{
+qcMesh::MeshParams BeckeXCParams(int nRadial=-1, double mhlAlpha=-1.0, int L=-1)
+{
+    auto envi=[](const char* n, int    d){ const char* s=std::getenv(n); return s ? std::atoi(s) : d; };
+    auto envd=[](const char* n, double d){ const char* s=std::getenv(n); return s ? std::atof(s) : d; };
+    if (nRadial <0)   nRadial =envi("GPW_BECKE_NR",    40);
+    if (mhlAlpha<0.0) mhlAlpha=envd("GPW_BECKE_ALPHA", 2.0);
+    if (L       <0)   L       =envi("GPW_BECKE_L",     29);
+    qcMesh::MeshParams mp;
+    mp.cellKind=qcMesh::UnitCellKind::Becke;
+    mp.radial =qcMesh::RadialKind::MHL;            mp.nRadial =nRadial; mp.mhl_m=2; mp.mhl_alpha=mhlAlpha;
+    const char* ang=std::getenv("GPW_BECKE_ANG");
+    mp.angular=(ang && std::string(ang)=="lebedev") ? qcMesh::AngularKind::Gauss
+                                                    : qcMesh::AngularKind::GaussLegendre;
+    mp.nAngular=L;
+    return mp;
+}
+} //anon
+
 // GpwOptions: the control surface for a GPW run.  Every material (Si, NaF, CsI, LiCoO2, f-oxides, ...) is one
 // options literal -- multi-species PP, grid params (the efficiency lever for ionic systems), accelerator policy,
 // seed, ortho, and the SCFParams gates.
@@ -176,6 +212,11 @@ struct GpwOptions
     BasisSet::Lattice_3D::RasterPolicy raster = BasisSet::Lattice_3D::RasterPolicy::BallOnly;
     BasisSet::Lattice_3D::CellImages   images = BasisSet::Lattice_3D::CellImages::Periodic;
     rvec3_t kShift = rvec3_t(0,0,0);
+    //! XC-quadrature policy, decided by \c xcMesh.cellKind: \c UnitCellKind::Uniform (default) = the
+    //! G-space fit-basis raster (PW_XC); \c UnitCellKind::Becke = the atom-centred periodic Becke mesh
+    //! (PW_XC_Becke; set the whole recipe with BeckeXCParams()).  The run announces the choice on the
+    //! [XC quadrature] console line either way.
+    qcMesh::MeshParams xcMesh{};
     // convergence machinery
     std::string accelerator = "DIIS";                  // DIIS | GDM | Ladder | Null
     bool        globalFermi = false;                    // metal: one μ across the k-mesh (Crystal_EC global mode)
@@ -205,11 +246,19 @@ static qchem::SCFAccelerators::tSCFAccelerator<dcmplx>* MakeGpwAccelerator(const
     throw std::runtime_error("MakeGpwAccelerator: unknown policy \""+policy+"\" (DIIS|GDM|Ladder|Null)");
 }
 
+// Optional keep-alive handles for post-SCF term-level probes (the Becke XC gate): the basis and the
+// converged density, which stays valid after the iterator tears down because its basis block is bs.
+struct GpwHandles
+{
+    std::unique_ptr<Complex_BS> bs;
+    std::unique_ptr<qchem::ChargeDensity::cDM_CD> cd;
+};
+
 // The GENERAL GPW driver: basis -> fail-fast conditioning pre-flight -> grids -> multi-species Hamiltonian ->
 // accelerator -> SCF, with automatic reporting (GpwReport) + heartbeat logging throughout.  Any material is a
 // GpwOptions literal; the positional RunGPW below and the bespoke NaFRocksaltGamma are thin callers.
 static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, const GpwOptions& o,
-                        bool verbose=false)
+                        bool verbose=false, GpwHandles* keep=nullptr)
 {
     namespace L3=BasisSet::Lattice_3D;
     const std::string sp = o.species.empty() ? std::string() : o.species.front().first;
@@ -233,7 +282,7 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
     auto       irreps=bs->GetIrreps(Spin::None);   // one Bloch irrep per BZ k-block (weights carry the Sum_k)
     Crystal_EC ec(irreps, o.Nelec, o.globalFermi);
     qchem::Hamiltonian::cHamiltonian* ham =
-        new qchem::Hamiltonian::Ham_PW_DFT(lat.GetStructure(), bs.get(), o.species, "LDA");
+        new qchem::Hamiltonian::Ham_PW_DFT(lat.GetStructure(), bs.get(), o.species, "LDA", o.xcMesh);
     auto* acc = MakeGpwAccelerator(o.accelerator);
 
     qchem::report::Log("SCF start");
@@ -255,13 +304,15 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
 
     auto* cd=scf.GetWaveFunction()->GetChargeDensity();
     double charge=cd->GetTotalCharge();
-    delete cd;
+    if (keep) keep->cd.reset(cd); else delete cd;
     qchem::EnergyBreakdown E=scf.GetEnergy();
     std::cout << "["<<o.label<<"] iters="<<scf.GetIterationCount()<<" charge="<<charge
               << " Eelec="<<E.GetElectronicEnergy() << " Etot="<<E.GetTotalEnergy()
               << "  (Ekin="<<E.Kinetic<<" Een="<<E.Een<<" Eee="<<E.Eee<<" Exc="<<E.Exc
               << " Enn="<<E.Enn<<" E_alphaZ="<<E.E_alphaZ<<")" << std::endl;
-    return {scf.Converged(), charge, E, scf.GetIterationCount()};
+    GpwResult R{scf.Converged(), charge, E, scf.GetIterationCount()};
+    if (keep) keep->bs=std::move(bs);   // the density's basis block -- must outlive keep->cd
+    return R;
 }
 
 // ANNEALED GPW driver (doc/GPWPlan1.md item 2): run a DESCENDING Fermi-smearing kT schedule, re-seeding each
@@ -938,6 +989,12 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     o.scf.StartingRelaxRo=envd("NAF_ALPHA",0.45); o.scf.KerkerG0=1.0;   // Kerker damps the low-G charge-transfer slosh
     o.scf.UseMOM=true; o.scf.MOMStartIter=10;             // delayed-IMOM: descend, then pin the occupied subspace through the crossing
     o.scf.SmearingkT=envd("NAF_SMEAR",0.0); o.scf.MOMSmearPenalty=envd("NAF_PENALTY",0.0);   // MOM-masked Fermi (experiment)
+    // XC quadrature: flip cellKind to try the atom-centred Becke XC route (doc/GPWPlan1.md; the recipe is
+    // gate-calibrated, resolution sweepable via GPW_BECKE_L/NR/ALPHA).  The run prints [XC quadrature]
+    // either way.  NOTE: Becke-in-SCF is unoptimised today (~min/iteration; the shared-rho + cached-Phi
+    // GEMM route is the open perf item) -- start with GPW_BECKE_L=11.
+    o.xcMesh          = BeckeXCParams(40,2,11);//int nRadial=-1, double mhlAlpha=-1.0, int L=-1
+    o.xcMesh.cellKind = qcMesh::UnitCellKind::Becke;    // <-- qcMesh::UnitCellKind::Becke turns Becke ON
 
     qchem::SCFIterator::ReportBandGap()=true;             // per-iteration gap column: watch the diffuse virtual dive (header)
     GpwResult R = RunGpw(lat, mol, o, /*verbose*/true);
@@ -1274,4 +1331,167 @@ TEST(GPW_SCF, DISABLED_NaFOverlapConditioningSweep)
     probe(BasisSetData::VALENCE_LOWQ,     "full");
     probe(BasisSetData::VALENCE_LOWQ_SR,  "SR  ");
     probe(BasisSetData::VALENCE_LOWQ_SR2, "SR2 ");
+}
+
+//================================================================================================
+//  THE BECKE XC GATE (doc/GPWPlan1.md "Becke XC grid").  The atom-centred periodic Becke XC
+//  quadrature must reproduce the uniform-multigrid XC on a CONDITIONED basis -- same E_xc and same
+//  V_xc matrix to grid tolerance -- before it can become the default for diffuse bases.  Converge
+//  Si/Gamma on the standard uniform route (the SiliconGammaConverges recipe), then evaluate BOTH
+//  XC term pairs (Dirac + VWN5) on the SAME converged density:
+//    uniform -- PW_XC on the Vxc fit basis's FFT grid (the raw-collocation route);
+//    Becke   -- PW_XC_Becke: rho(r) analytic at the atom-centred points, WeightedOverlap matrix.
+//  Angular rule: GaussLegendre (machine-exact algebraic degree at any L -- the audited Lebedev
+//  tables stop at L=11, and EulerMaclaren has no algebraic degree; see Mesh_Angular tests).
+//================================================================================================
+namespace
+{
+// One XC quadrature's answers on a converged density: E_xc, the quadrature's rho integral vs Tr(DS),
+// and the summed Dirac+VWN V_xc matrix per Bloch block.  Uniform and Becke probes share the shape, so
+// gates can diff ANY pair (uniform-vs-Becke, or Becke-vs-Becke for internal convergence).
+struct XCProbe
+{
+    std::string label;
+    double Exc=0, rhoLost=0;
+    std::vector<hmat_t<dcmplx>> M;
+};
+
+// Fill a probe from an exchange+correlation term pair (through the PUBLIC term faces).
+XCProbe ProbeXC(const std::string& label, const GpwHandles& h,
+                Hamiltonian::cDynamic_HT& x, Hamiltonian::cDynamic_HT& c,
+                const qchem::EnergyBreakdown& e)
+{
+    XCProbe p; p.label=label; p.Exc=e.Exc; p.rhoLost=e.GridChargeLost;
+    for (auto obs : h.bs->Iterate<BasisSet::Complex_OIBS>())
+    {
+        hmat_t<dcmplx> M=x.GetMatrix(obs,Spin::None,h.cd.get());
+        M+=c.GetMatrix(obs,Spin::None,h.cd.get());
+        p.M.push_back(std::move(M));
+    }
+    return p;
+}
+
+XCProbe UniformXCProbe(const GpwHandles& h, const std::shared_ptr<const Structure>& st)
+{
+    auto exch=std::make_shared<Hamiltonian::SlaterExchange>(2.0/3.0);
+    auto corr=std::make_shared<Hamiltonian::VWN_Correlation>();
+    qcMesh::MeshParams mp; mp.relCutoff=std::max(exch->GridCutoffFactor(), corr->GridCutoffFactor());
+    Hamiltonian::PW_XC::fbs_t vfb(h.bs->CreateVxcFitBasisSet(st.get(), mp));
+    Hamiltonian::PW_XC x(exch,vfb), c(corr,vfb);
+    EnergyBreakdown e; x.GetEnergy(e,h.cd.get()); c.GetEnergy(e,h.cd.get());
+    return ProbeXC("uniform", h, x, c, e);
+}
+
+XCProbe BeckeXCProbe(const GpwHandles& h, const std::shared_ptr<const Structure>& st,
+                     const std::string& label, const qcMesh::MeshParams& mpB)
+{
+    auto exch=std::make_shared<Hamiltonian::SlaterExchange>(2.0/3.0);
+    auto corr=std::make_shared<Hamiltonian::VWN_Correlation>();
+    auto mesh=std::make_shared<const qcMesh::Mesh>(st->CreateIntegrationMesh(mpB));   // built ONCE, shared by the pair
+    Hamiltonian::PW_XC_Becke x(exch,mesh), c(corr,mesh);
+    EnergyBreakdown e; x.GetEnergy(e,h.cd.get()); c.GetEnergy(e,h.cd.get());
+    return ProbeXC(label, h, x, c, e);
+}
+
+// Print + return the elementwise V_xc gap between two probes; EXPECTs applied by the caller.
+// (BeckeXCParams -- the calibrated Becke recipe these probes use -- lives up beside GpwOptions.)
+double DiffXC(const XCProbe& A, const XCProbe& B)
+{
+    std::printf("[Becke gate] Exc %s=%.6f %s=%.6f  dExc=%+.3e  (rho-lost %+.3e / %+.3e)\n",
+                A.label.c_str(), A.Exc, B.label.c_str(), B.Exc, B.Exc-A.Exc, A.rhoLost, B.rhoLost);
+    double dworst=0;
+    for (size_t blk=0; blk<A.M.size(); blk++)
+    {
+        const auto &MA=A.M[blk], &MB=B.M[blk];
+        double dmax=0, amax=0;
+        size_t im=0, jm=0;
+        const size_t n=MA.rows();
+        for (size_t i=0; i<n; i++)
+            for (size_t j=0; j<n; j++)
+            {
+                if (std::abs(MA(i,j)-MB(i,j))>dmax) {dmax=std::abs(MA(i,j)-MB(i,j)); im=i; jm=j;}
+                amax=std::max(amax, std::abs(MA(i,j)));
+            }
+        std::printf("[Becke gate] Vxc blk%zu n=%zu  max|%s|=%.3e  max|%s-%s|=%.3e at (%zu,%zu): %.6f vs %.6f\n",
+                    blk, n, A.label.c_str(), amax, A.label.c_str(), B.label.c_str(), dmax, im, jm,
+                    MA(im,jm).real(), MB(im,jm).real());
+        dworst=std::max(dworst,dmax);
+    }
+    return dworst;
+}
+} //anon
+
+TEST(GPW_SCF, BeckeXCMatchesUniformXC_SiGamma)
+{
+    const double a=10.26;
+    FCCUnitCell cell(a);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+
+    // Converge on the standard uniform route.  densityEcut=60 (not the SCF-sufficient 20): the gate
+    // compares MATRIX ELEMENTS, and the uniform raw-adjoint H_xc carries raster error at N=15^3 that the
+    // ~1e-4-converged Becke quadrature exposes (measured at Ecut=20: dExc=1.2e-4 but max|U-B|=1.2e-2 --
+    // the raster's error, not Becke's; at Ecut=60 max|U-B|=3.5e-4).
+    GpwOptions o;
+    o.label="Si Becke gate"; o.Nelec=8; o.species={{"Si",4}}; o.densityEcut=60.0;
+    o.scf.NMaxIter=60; o.scf.MinΔρ=1e-3; o.scf.MinΔE=1e-6;
+    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30; o.scf.StartingRelaxRo=0.3;
+    GpwHandles h;
+    GpwResult R=RunGpw(lat, MakeBasisSR(cell), o, /*verbose*/false, &h);
+    ASSERT_TRUE(R.converged);
+
+    XCProbe U=UniformXCProbe(h, lat.GetStructure());
+    XCProbe B=BeckeXCProbe(h, lat.GetStructure(), "B40", BeckeXCParams());
+    EXPECT_NEAR(B.Exc, U.Exc, 5e-4);                 // measured: dExc=1.1e-4
+    EXPECT_NEAR(B.rhoLost, 0.0, 5e-3);               // the Becke mesh integrates rho to Tr(DS)
+    EXPECT_LT(DiffXC(U,B), 1e-3);                    // measured: 3.5e-4
+}
+
+// The SHARP-FIELD leg of the gate (the plan names DISABLED_NaFRocksaltGamma as the stress case: the F-
+// anion makes sharp peaks in rho and V_xc, and its diffuse basis is what the Becke grid exists for).
+// DISABLED like the parent NaF anchor -- it is a long run (the full NaF convergence recipe at a
+// matrix-grade densityEcut=160 reference, plus two Becke term evaluations); run it by hand with
+// --gtest_also_run_disabled_tests when touching the XC quadrature.
+TEST(GPW_SCF, DISABLED_BeckeXCMatchesUniformXC_NaFSR2)
+{
+    const double a=8.73;
+    FCCUnitCell cell(a);
+    cell.AddAtom(11, {0,0,0});          // Na (Zion=1)
+    cell.AddAtom(9,  {0.5,0.5,0.5});    // F  (Zion=7)
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+    auto mol = std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(
+        BasisSetData::VALENCE_LOWQ_SR2, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
+
+    // The committed NaF production recipe (DISABLED_NaFRocksaltGamma) at PRODUCTION grids (auto Ecut=80,
+    // BallOnly): the SCF only supplies the density; the comparison itself carries the reference-grade work.
+    // MEASURED ATTRIBUTION (2026-07-30): vs the SAME Becke B40 matrix, the uniform reference gave
+    //   BallOnly  Ecut=160: max|U-B|=1.55e-1      (the production raster's sharp-F element error)
+    //   AliasFree Ecut=160: max|U-B|=1.89e-2      (8x better -- most of the gap was BallOnly's)
+    // with dExc tiny throughout (1.6e-4 / 1.3e-5) -- the discrepant elements carry no rho weight.  So on a
+    // sharp-F system the UNIFORM raster is not element-converged at practical Ecut, which is this grid's
+    // reason to exist; the gate here is Becke INTERNAL convergence (B40 vs a 2x-refined B80) plus the
+    // energy-level agreement with the uniform route.
+    GpwOptions o;
+    o.label="NaF Becke gate"; o.Nelec=8; o.species={{"Na",1},{"F",7}};
+    o.accelerator="Ladder";
+    o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;
+    o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
+    o.scf.NMaxIter=200; o.scf.MinΔE=1e-8; o.scf.MinΔρ=1e-4;
+    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
+    o.scf.StartingRelaxRo=0.45; o.scf.KerkerG0=1.0;
+    o.scf.UseMOM=true; o.scf.MOMStartIter=10;
+    GpwHandles h;
+    GpwResult R=RunGpw(lat, mol, o, /*verbose*/false, &h);
+    EXPECT_NEAR(R.charge, 8.0, 1e-6);
+    ASSERT_TRUE(R.converged);
+
+    auto st=lat.GetStructure();
+    XCProbe U  =UniformXCProbe(h, st);
+    XCProbe B40=BeckeXCProbe(h, st, "B40", BeckeXCParams());
+    XCProbe B80=BeckeXCProbe(h, st, "B80", BeckeXCParams(/*nRadial*/80, /*mhlAlpha*/1.0, /*L*/29));
+    EXPECT_NEAR(B40.Exc, U.Exc, 2e-3);               // energy-level agreement with the uniform route
+    EXPECT_NEAR(B40.rhoLost, 0.0, 5e-3);
+    DiffXC(U,B40);                                    // report-only: the uniform raster's element error
+    EXPECT_LT(DiffXC(B40,B80), 2e-3) << "Becke V_xc not internally converged on the sharp-F system";
 }

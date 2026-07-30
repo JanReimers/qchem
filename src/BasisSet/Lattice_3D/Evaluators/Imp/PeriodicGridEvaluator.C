@@ -7,6 +7,7 @@ module;
 #include <cassert>
 #include <complex>
 #include <functional>   // the ApplySpectralFilter multiplier k(|G|^2)
+#include <iostream>     // EmitGridReport's console line
 #include <vector>
 
 module qchem.BasisSet.Lattice_3D.Evaluators.PeriodicGridEvaluator;
@@ -14,6 +15,7 @@ import qchem.Math;        // cos, sin (EvalField's point evaluation)
 import qchem.FFT;         // FFT3D (RhoOnGrid / ForwardFFT / BackwardFFT)
 import qchem.Blaze;       // blazem::sum (Integral)
 import qchem.Vector3D;    // dot product (operator*) + vector arithmetic
+import qchem.Reporting;   // EmitGridReport's grids.xcQuadrature run-report entry (EmitAt)
 
 namespace qchem::BasisSet::Lattice_3D
 {
@@ -21,6 +23,14 @@ namespace qchem::BasisSet::Lattice_3D
 rvec3_t PeriodicGridEvaluator::GetGCartesian(const ivec3_t& m) const
 {
     return itsRecip.GetCell().ToCartesian(rvec3_t(m)); // B m
+}
+
+// Announce this grid on the console + run report.  ALL the reporting lives on UnitCell
+// (EmitUniformGridReport -- the user's one-owner design); this engine only recovers the direct cell from
+// its stored reciprocal one (A = 2 pi B^-T = the reciprocal of the reciprocal) and names the entry.
+void PeriodicGridEvaluator::EmitGridReport() const
+{
+    itsRecip.GetCell().MakeReciprocalCell().EmitUniformGridReport("xcQuadrature", itsN);
 }
 
 // Uniform N1xN2xN3 grid of FRACTIONAL coordinates r=(i1/N1,i2/N2,i3/N3) -- the XC real-space grid

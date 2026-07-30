@@ -183,6 +183,73 @@ LAST — payoff only on multi-k; time with the IBZ track.  Cache B(R), never M(k
 
 # Future consideration — Becke XC grid (the last term without a near-ideal grid)
 
+**STATUS 2026-07-30 — BUILT + GATED (uncommitted).**  The pieces, in landing order:
+- **Periodic Becke mesh**: `qcMesh::UnitCellKind {Uniform,Becke}` in `MeshParams` (folded into `ID()`);
+  `UnitCell::CreateIntegrationMesh` grows the Becke branch (`src/Structure/Imp/UnitCell.C`) — per-atom
+  radial×angular grids, Becke cell weights with the competitor set over ALL periodic images, gathered in
+  expanding Chebyshev cell shells until BOTH tails are provably < ε by the s(μ) collinear bounds (magnitude
+  screen, NO radius anywhere — the pin holds).  ε=1e-8 ON PURPOSE (bounds are worst-case-collinear;
+  quadrature error ~1e-4 dominates; 1e-10 measured several-fold costlier for zero gain).  Points wrapped to
+  the home cell; far radial tails get ~0 weight and are dropped — a diffuse function's reach costs nothing.
+  Acceptance: `LatticeMesh.Becke*` (UTStructure) — ∫1=Ω (−2.9e-4), lattice-Gaussian 1e-4, sharp α=100
+  core field 1e-4 where the same-point-count uniform grid misses by >1e-2.
+- **ANGULAR-RULE AUDIT** (`Mesh_Angular.*`, UTMesh): the 40-year-old hand-coded Lebedev tables are ALL
+  CORRECT to their claimed degrees (6/8/12/24/30/50 → L=1/3/5/7/8/11, ≤1e-6 = the 7-figure constants);
+  GaussLegendre is machine-exact at ANY L; EulerMaclaren has NO algebraic degree (degree-3 moments ~1e-3
+  at L=29 m=2).  ⇒ the Becke shell (angular-limited) uses **GaussLegendre L=29** (Lebedev stops at L=11).
+- **`PW_XC_Becke`** (`src/Hamiltonian/Internal/PWTerms.C`): the real-space sibling of PW_XC (one LDA
+  functional per instance, Dirac+VWN pair) — ρ(r) evaluated ANALYTICALLY per mesh point off the density's
+  ScalarFunction face (no FFT/collocation/fit; ρ_DM≥0 so the ρ>0 guard is inert), `⟨i|v_xc|j⟩` =
+  `qcMesh::WeightedOverlap` (new tabulated-V overload) over the Bloch-summed orbital basis.  The MESH is
+  built once by the caller and SHARED by the pair (as PW_XC shares its fit basis).  Hartree untouched.
+- **GATE — Si Γ (`GPW_SCF.BeckeXCMatchesUniformXC_SiGamma`, enabled): PASSES.**  Same converged density,
+  uniform (raw-adjoint, Ecut=60 reference) vs Becke (nr=40, GL-29): dE_xc=1.1e-4 Ha, ρ-lost=−8.9e-4,
+  max|ΔV_xc|=3.5e-4.  LESSON: at the SCF-sufficient Ecut=20 the max|ΔV_xc| read 1.2e-2 — the RASTER's
+  element error, not Becke's (dE_xc was already 1e-4).  The uniform reference must be matrix-grade.
+- **GATE — NaF SR2 sharp-F stress (`DISABLED_BeckeXCMatchesUniformXC_NaFSR2`)**: dE_xc tiny throughout
+  (1.6e-4 BallOnly / 1.3e-5 AliasFree; SCF at Ecut=160 hits the CP2K truth −24.4312 in 17-18 iters), but
+  element-wise the UNIFORM raster is NOT converged on sharp-F pairs at practical Ecut: max|ΔV_xc| vs the
+  same Becke matrix = 1.55e-1 (BallOnly/160) → 1.89e-2 (AliasFree/160, worst at a diagonal deep-F-core
+  element) — which is this grid's reason to exist.  The committed gate is therefore Becke INTERNAL
+  convergence (B40 vs 2×-refined B80) + energy-level agreement — **PASSES: max|B40−B80|=7.1e-5,
+  dE_xc(B40,B80)=1.5e-5** — the Becke matrix is converged below 1e-4 INCLUDING the sharp F core, while
+  the uniform raster's worst element wanders 0.16 with raster config (BallOnly@80 −1.077 / AliasFree@160
+  −0.897 vs Becke −0.9154±7e-5; V_xc~ρ^⅓ is not band-limited at the core, so even exact-quadrature
+  AliasFree cannot element-converge it).  Even E_xc drifts TOWARD Becke as the raster refines:
+  −4.95438 (BallOnly@80) → −4.95483 (AliasFree@160) → −4.95524±1.5e-5 (Becke).
+- **VISIBILITY + KNOBS (2026-07-30, user request)**: building a periodic Becke mesh now announces itself —
+  a `[Becke grid]` console line (the `[GPW grid]` family: natom, radial/angular recipe, kept/dropped
+  points) plus a `grids.becke` addendum in the run report (`report::EmitAt`; inert when no run is open).
+  NO line ⇒ the uniform XC route is in use (e.g. `DISABLED_NaFRocksaltGamma` — Becke is gate-only today).
+  Env instruments on the gate default (`BeckeXCParams`): `GPW_BECKE_L` (GaussLegendre order, any int),
+  `GPW_BECKE_NR` (radial points), `GPW_BECKE_ALPHA` (MHL scale), `GPW_BECKE_ANG=lebedev` (the
+  octahedral-orbit tables; `GPW_BECKE_L` then = direction count {6,8,12,24,30,50}) — explicit-args
+  callers (the NaF B80 refinement probe) keep their pinned resolution.
+- **ANGULAR-ORDER LADDER (Si gate, 2026-07-30 — the user's site-symmetry conjecture, measured).**  The
+  T_d site symmetry makes the field content sparse (L∈{0,3,4,6,...}; pair products add ≤2·l_max), so the
+  needed order is far below the partition-worst-case L=29: GL ladder dV_xc = 3.5e-4(floor)@L=17 ==
+  L=29 → 9.5e-4@**L=11 (72 dirs, 4000 pts, sub-mHa dE_xc — the measured sweet spot)** → 5.6e-3@L=7 →
+  1.4e-2@L=5.  Lebedev at the SAME degree: better on V_xc elements (Leb-24 3.1e-3 vs GL-7 5.6e-3 — the
+  O_h-orbit cancellation is real) but 5-10× WORSE on the ρ-weighted integrals (Leb-50 dE_xc −7.0e-3 vs
+  GL-11 7.8e-4): the (±1±1±1)/√3 orbit sits EXACTLY on the diamond bond axes — ρ's sharpest, most
+  T_d-asymmetric angular feature.  ⇒ default stays GL-17 (safe) / GL-11 (fast); the principled endgame is
+  a SITE-GROUP-ADAPTED grid whose orbits avoid special (bond) directions — upgrading the "symmetry-adapt
+  this grid" icing item with concrete design guidance.
+- **ROUTE SEAM WIRED (2026-07-30, user request)**: every `Ham_PW_DFT` ctor takes an optional
+  `qcMesh::MeshParams xcMesh` (ctor-injected policy, no setter) — default `UnitCellKind::Uniform` is
+  bit-identical to before; `::Becke` assembles the `PW_XC_Becke` pair on the geometry's periodic Becke
+  mesh (built once, shared; no Vxc fit basis on that route).  BuildTerms ANNOUNCES the choice either way
+  (`[XC quadrature] UNIFORM G-space raster` / `periodic BECKE atom-centred mesh` + `grids.xcQuadrature`).
+  Exposed as `GpwOptions.xcMesh`; `DISABLED_NaFRocksaltGamma` carries the one-token switch
+  (`o.xcMesh.cellKind = Uniform  // <-- ::Becke turns Becke ON`, recipe from `BeckeXCParams()`).
+  SMOKE-VERIFIED in-SCF (NaF, 3 iters, L=11): route runs, charge conserved, ~15 s/iteration unoptimised.
+- **OPEN (next increments)**: making Becke the DEFAULT for (diffuse) bases — after the perf item;
+  per-SCF cost (share ρ across the pair via a provider, cache the Φ basis-values matrix per k → GEMM
+  route) — today ~15 s/iteration on NaF at GL-11, fine for experiments, not production;
+  spin-native (`PW_XC` itself is unpol today); symmetry-adapting the mesh points (the icing — now with
+  the measured design pin: site-group orbits must AVOID bond directions); per-element radial scaling
+  (one mhl_alpha serves all species today).
+
 Framing (user, 2026-07-26): this is likely the **final step to give every Hamiltonian term a near-ideal grid
 across every basis set** — diffuse included.  Per-term today:
 

@@ -115,27 +115,32 @@ class Ham_PW_DFT : public virtual cHamiltonian, private cHamiltonianImp
 public:
     //! \a bs (the composite plane-wave basis) is the density-fit-basis source: BuildTerms builds the Hartree
     //! fit basis from it ONCE, mirroring the molecular Ham DFT ctors that take \c bs for FittedVee.
+    //! Every ctor takes an optional \a xcMesh: the XC-QUADRATURE policy (qcMesh::MeshParams).  The default
+    //! (\c UnitCellKind::Uniform) keeps the G-space PW_XC pair on the fit-basis FFT raster -- bit-identical
+    //! to before the parameter existed.  \c UnitCellKind::Becke builds the geometry's periodic Becke mesh
+    //! ONCE and assembles the PW_XC_Becke pair on it instead (Hartree is untouched either way).  See
+    //! doc/GPWPlan1.md "Becke XC grid".
     //! Explicit-models ctor: the caller owns the local + optional KB nonlocal models (non-owning here).
     Ham_PW_DFT(const st_t& st, const cbs_t* bs, const Pseudopotential::LocalPotential* loc,
-               const Pseudopotential::SeparablePotential* nl=nullptr);
+               const Pseudopotential::SeparablePotential* nl=nullptr, const qcMesh::MeshParams& xcMesh={});
     //! Single-species convenience ctor: look up + own the GTH PP for \a element.
     Ham_PW_DFT(const st_t& st, const cbs_t* bs, const std::string& element,
-               const std::string& functional="LDA", int valence=0);
+               const std::string& functional="LDA", int valence=0, const qcMesh::MeshParams& xcMesh={});
     //! Multi-species convenience ctor: name each (element, valence); the database is looked up per species
     //! and a per-Z router model (MultiSpecies_*) is built + OWNED -- e.g. Ham_PW_DFT(st, bs, {{"Na",1},{"F",7}}).
     Ham_PW_DFT(const st_t& st, const cbs_t* bs, std::initializer_list<std::pair<std::string,int>> species,
-               const std::string& functional="LDA");
+               const std::string& functional="LDA", const qcMesh::MeshParams& xcMesh={});
     //! Multi-species, RUNTIME species list (the vector form the initializer_list can't provide) -- e.g. a
     //! LiCoO2 / f-oxide run assembled from the cell's distinct elements at run time.
     Ham_PW_DFT(const st_t& st, const cbs_t* bs, const std::vector<std::pair<std::string,int>>& species,
-               const std::string& functional="LDA");
+               const std::string& functional="LDA", const qcMesh::MeshParams& xcMesh={});
 private:
     void BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotential::LocalPotential* loc,
-                    const Pseudopotential::SeparablePotential* nl);
+                    const Pseudopotential::SeparablePotential* nl, const qcMesh::MeshParams& xcMesh);
     //! Look up each (element, valence) from the GTH database, build + OWN the (per-Z router) local +
     //! separable models, and assemble the terms against them.  The single-species ctor is the 1-species case.
     void BuildFromGTH(const st_t& st, const cbs_t* bs, const std::vector<std::pair<std::string,int>>& species,
-                      const std::string& functional);
+                      const std::string& functional, const qcMesh::MeshParams& xcMesh);
     std::shared_ptr<const Pseudopotential::LocalPotential>     itsOwnedLocal;  //!< owned model (convenience ctors); null for explicit
     std::shared_ptr<const Pseudopotential::SeparablePotential> itsOwnedSep;
 };

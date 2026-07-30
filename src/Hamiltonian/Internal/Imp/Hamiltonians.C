@@ -1,5 +1,6 @@
 // File:: Hamiltonian/Internal/Imp/Hamiltonians.C  Create fully implemented Hamiltonians
 module;
+#include <iostream>
 #include <memory>
 #include <string>
 #include <utility>
@@ -17,6 +18,7 @@ import qchem.Structure;
 import qchem.Pseudopotential.GTH_Potentials;       // GetGTH + GTH_PP + HGH_*/MultiSpecies_* (re-exported)
 import qchem.PeriodicTable;                       // PeriodicTable::GetZ(symbol) -> atomic number (the composite key)
 import qchem.Math;                                // max (the denser of the exchange/correlation grid factors)
+import qchem.Reporting;                           // grids.xcQuadrature route announcement (EmitAt)
 
 namespace qchem::Hamiltonian
 {
@@ -171,7 +173,7 @@ Ham_PP::Ham_PP(const st_t& st, const std::vector<std::pair<std::string,int>>& sp
 // (like FittedVee); the XC route still integrates on the basis's grid (no fit basis).  The pseudopotential
 // is carried by the basis (the external term just supplies the structure factor).
 void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotential::LocalPotential* loc,
-                            const Pseudopotential::SeparablePotential* nl)
+                            const Pseudopotential::SeparablePotential* nl, const qcMesh::MeshParams& xcMesh)
 {
     // Build the functionals FIRST: their GridCutoffFactor() sets how dense the fit grid must be (the CP2K
     // REL_CUTOFF seam).  Exchange and correlation share ONE Vxc fit basis, so it takes the DENSER of the two;
@@ -181,45 +183,64 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
     qcMesh::MeshParams mp;
     mp.relCutoff=max(exch->GridCutoffFactor(), corr->GridCutoffFactor());
 
-    // The Hartree (CD) and XC (Vxc) fit bases are created ONCE here from the basis's factory (never assuming
-    // orbital==fit), exactly as the molecular DFT ctor builds FittedVee/FittedVxc's fit bases -- rho and v_xc
-    // are cell-periodic so both fit bases are Gamma (k=0).  A plane-wave fit basis reads only mp.relCutoff.
+    // The Hartree (CD) fit basis is created ONCE here from the basis's factory (never assuming orbital==fit),
+    // exactly as the molecular DFT ctor builds FittedVee's fit basis -- rho is cell-periodic so it is
+    // Gamma (k=0).  A plane-wave fit basis reads only mp.relCutoff.
     PW_Hartree::fbs_t CFitBasis(bs->CreateCDFitBasisSet (st.get(), mp));
-    PW_XC::fbs_t      VFitBasis(bs->CreateVxcFitBasisSet(st.get(), mp));
     Add(new PW_Kinetic);
     Add(new PW_Pseudo(st, loc, nl));                           // electron-ion SHORT-range (+ short G=0 alignment)
     Add(new PW_Hartree(CFitBasis, st, loc));                   // Hartree V_H + long-range core-charge V_long (0e-PP)
-    Add(new PW_XC(exch, VFitBasis));
-    Add(new PW_XC(corr, VFitBasis));
+    // The route ANNOUNCES itself (user pin: the console always says which XC quadrature is in play --
+    // this is the one selection site).  The Becke branch's mesh build adds its own [Becke grid] detail line.
+    if (xcMesh.cellKind==qcMesh::UnitCellKind::Becke)
+    {
+        // The Becke XC route (doc/GPWPlan1.md): the geometry's atom-centred periodic quadrature, built ONCE
+        // and SHARED by the pair.  No Vxc fit basis on this route -- rho is sampled analytically per point.
+        std::cout<<"[XC quadrature] periodic BECKE atom-centred mesh (details on the [Becke grid] line)"<<std::endl;
+        qchem::report::EmitAt("grids", "xcQuadrature", {{"kind","Becke"}});   // detail lands in grids.becke
+        auto mesh=std::make_shared<const qcMesh::Mesh>(st->CreateIntegrationMesh(xcMesh));
+        Add(new PW_XC_Becke(exch, mesh));
+        Add(new PW_XC_Becke(corr, mesh));
+    }
+    else
+    {
+        // The uniform G-space route: exchange + correlation share ONE Vxc (overlap-metric) fit basis.
+        // The grids.xcQuadrature detail (N, points, dr) is emitted by the grid owner itself -- the first
+        // PW_XC's fitter (EmitGridReport) -- so the numbers come from the actual raster, not from here.
+        std::cout<<"[XC quadrature] UNIFORM G-space raster (details on the [uniform grid] xcQuadrature line)"<<std::endl;
+        PW_XC::fbs_t VFitBasis(bs->CreateVxcFitBasisSet(st.get(), mp));
+        Add(new PW_XC(exch, VFitBasis));
+        Add(new PW_XC(corr, VFitBasis));
+    }
     Add(new IonIon<dcmplx>(st, loc->ZionFn()));                  // ion-ion Ewald: Zion from the PP, not itsZ
 }
 
 // Explicit-models ctor: the caller owns the models (itsOwnedLocal/Sep stay null).
 Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const Pseudopotential::LocalPotential* loc,
-                       const Pseudopotential::SeparablePotential* nl)
+                       const Pseudopotential::SeparablePotential* nl, const qcMesh::MeshParams& xcMesh)
 {
-    BuildTerms(st, bs, loc, nl);
+    BuildTerms(st, bs, loc, nl, xcMesh);
 }
 
 // Single-species convenience ctor: the 1-species case of the multi-species build.
 Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const std::string& element,
-                       const std::string& functional, int valence)
+                       const std::string& functional, int valence, const qcMesh::MeshParams& xcMesh)
 {
-    BuildFromGTH(st, bs, {{element, valence}}, functional);
+    BuildFromGTH(st, bs, {{element, valence}}, functional, xcMesh);
 }
 
 // Multi-species convenience ctor.
 Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, std::initializer_list<std::pair<std::string,int>> species,
-                       const std::string& functional)
+                       const std::string& functional, const qcMesh::MeshParams& xcMesh)
 {
-    BuildFromGTH(st, bs, std::vector<std::pair<std::string,int>>(species), functional);
+    BuildFromGTH(st, bs, std::vector<std::pair<std::string,int>>(species), functional, xcMesh);
 }
 
 // Multi-species, runtime vector form (LiCoO2 / f-oxides: distinct elements collected at run time).
 Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const std::vector<std::pair<std::string,int>>& species,
-                       const std::string& functional)
+                       const std::string& functional, const qcMesh::MeshParams& xcMesh)
 {
-    BuildFromGTH(st, bs, species, functional);
+    BuildFromGTH(st, bs, species, functional, xcMesh);
 }
 
 // Look up each (element, valence) from the GTH database and build + OWN a per-Z router model (one
@@ -227,7 +248,7 @@ Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const std::vector<std::p
 // FormFactor(a->itsZ,...) dispatches to the right species).  The owned models outlive the terms (members,
 // destroyed after the cHamiltonian base that holds them), so each term's &loc/&nl stays valid for the run.
 void Ham_PW_DFT::BuildFromGTH(const st_t& st, const cbs_t* bs, const std::vector<std::pair<std::string,int>>& species,
-                              const std::string& functional)
+                              const std::string& functional, const qcMesh::MeshParams& xcMesh)
 {
     auto loc=std::make_shared<Pseudopotential::MultiSpecies_LocalPotential>();
     auto sep=std::make_shared<Pseudopotential::MultiSpecies_SeparablePotential>();
@@ -240,7 +261,7 @@ void Ham_PW_DFT::BuildFromGTH(const st_t& st, const cbs_t* bs, const std::vector
     }
     itsOwnedLocal=loc;
     itsOwnedSep  =sep;
-    BuildTerms(st, bs, loc.get(), sep.get());
+    BuildTerms(st, bs, loc.get(), sep.get(), xcMesh);
 }
 
 Ham_HF_P::Ham_HF_P(const st_t& st)

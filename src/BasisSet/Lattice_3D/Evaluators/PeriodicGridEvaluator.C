@@ -71,6 +71,13 @@ public:
     //! \f$\nabla f(\vec r)=\sum_{\Delta m}(B\Delta m)\,(-\mathrm{Im}[c(\Delta m)e^{i(B\Delta m)\cdot\vec r}])\f$.
     rvec3_t  EvalFieldGradient(const ΔG_Map& c, const rvec3_t& r) const;
 
+    //! \brief Announce THIS quadrature grid: a console line (the \c [Becke grid] family) plus the
+    //! \c grids.xcQuadrature run-report entry -- \f$N\f$, total points, and the real-space spacing
+    //! \f$\Delta r_i=|a_i|/N_i\f$ (a.u.).  The XC term pair calls it once so a run always states the XC
+    //! grid in use; a high-level ask on the grid owner, no data exposed (report::EmitAt is inert when no
+    //! run is open).
+    void EmitGridReport() const;
+
 private:
     ReciprocalLattice  itsRecip;      //!< reciprocal cell \f$B\f$; source of \f$G=B\,m\f$ and the direct cell \f$A\f$
     double             itsVolume;     //!< direct cell volume \f$\Omega\f$
