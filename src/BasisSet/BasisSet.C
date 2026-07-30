@@ -10,6 +10,7 @@ export import qchem.Structure;
 export import qchem.Symmetry;
 export import qchem.ElectronConfiguration;
 export import qchem.Matrix3D;   // Matrix3D -- the crystal point-group ops a periodic basis exposes (IBZ symmetrization)
+export import qchem.Symmetry.Lattice_3D.SpaceGroup;   // ReciprocalOp {U|τ} -- the density-symmetrization ops (glide phase)
 
 import qchem.Iterators;
 export import qchem.Streamable;
@@ -35,12 +36,12 @@ public:
     virtual FIT_CD_ABS<T>* CreateCDFitBasisSet(const Structure* cl, const qcMesh::MeshParams&) const;
     virtual FIT_SF_ABS<T>* CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams&) const;
 
-    //! The crystal RECIPROCAL point group (τ=0 symmorphic ops) for IBZ density symmetrization.  Default {} =
+    //! The crystal RECIPROCAL point group as \f${U|\tau}\f$ ops for IBZ density symmetrization.  Default {} =
     //! trivial {E} = no-op -- molecules / Γ / unfolded bases.  A periodic GPW basis returns the ops WHEN it
     //! folds the mesh (reduceBZ), so the composite density ctor-injects them and the reduced density is star-
-    //! averaged (doc/GPWPlan1.md item 3).  It is a basis property (the basis computes the space group), so the
-    //! density/WF read it here rather than being told via a setter.
-    virtual std::vector<Matrix3D<double>> GetReciprocalPointOps() const {return {};}
+    //! averaged with the glide phase \f$e^{+2\pi i(Um)\cdot\tau}\f$ (doc/GPWPlan1.md items 3 + 5).  It is a basis
+    //! property (the basis computes the space group), so the density/WF read it here rather than via a setter.
+    virtual std::vector<Symmetry::Lattice_3D::ReciprocalOp> GetReciprocalPointOps() const {return {};}
 
     // Iterate() with no type argument yields the base obs_t* directly (no cast);
     // Iterate<D>() dynamic_cast's each IBS to the requested derived type D.

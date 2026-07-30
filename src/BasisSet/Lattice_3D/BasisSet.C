@@ -117,11 +117,13 @@ class GPW_BasisSet : public BasisSet::BasisSetImp<dcmplx>
 public:
     GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
                  const GPWParams& p);
-    //! The τ=0 reciprocal point ops used to FOLD the mesh -- exposed so the composite density star-averages
-    //! itself (IBZ).  Empty unless reduceBZ (the fold and the density symmetrization are one package).
-    virtual std::vector<Matrix3D<double>> GetReciprocalPointOps() const override {return itsReciprocalOps;}
+    //! The crystal reciprocal point group as \f${U|\tau}\f$ ops -- exposed so the composite density star-averages
+    //! ρ̃ with the glide phase (IBZ).  Empty unless reduceBZ (the fold and the density symmetrization are one
+    //! package).  (This is the FULL point group with fractional translations, distinct from the linear-only ops
+    //! the ctor uses to fold the mesh; doc/GPWPlan1.md items 3 + 5.)
+    virtual std::vector<Symmetry::Lattice_3D::ReciprocalOp> GetReciprocalPointOps() const override {return itsReciprocalOps;}
 private:
-    std::vector<Matrix3D<double>> itsReciprocalOps;   //!< {} unless reduceBZ (doc/GPWPlan1.md item 3)
+    std::vector<Symmetry::Lattice_3D::ReciprocalOp> itsReciprocalOps;   //!< {} unless reduceBZ (doc/GPWPlan1.md items 3+5)
 };
 
 } //namespace

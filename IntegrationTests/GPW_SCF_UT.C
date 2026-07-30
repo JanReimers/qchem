@@ -771,16 +771,14 @@ TEST(GPW_SCF, AlFCCMetalIBZExact)
         << "IBZ-reduced must reproduce the full-mesh free energy (AlFCCMetalGlobalMu -2.11681)";
 }
 
-// (item 3, IBZ) NON-SYMMORPHIC TARGET -- currently FAILS by design; the hand-off to the space-group session.
-// Diamond Si (FCC lattice + a 2-atom basis at (0,0,0),(¼,¼,¼)) is space group Fd-3m: NON-symmorphic (the two
-// sublattices are related by a glide, τ=(¼,¼,¼)≠0).  The IBZ fold + density star-average use the τ=0 W-ONLY
-// GUARD (SpaceGroup::ReciprocalPointOps/DirectPointOps symmorphicOnly=true), which is always CORRECT but drops
-// the glide ops -> it folds under the symmorphic subgroup (Td, no inversion) instead of the full point group
-// (Oh).  So the 2×2×2 mesh under-folds: it lands MORE irreducible k-points than the maximal Oh fold would (Oh
-// gives 3, the same as FCC Al on the SAME lattice).  ENABLED + made to pass by the space-group session when it
-// adds the non-symmorphic e^{-iG·τ} phase to the density symmetrization: the guard lifts, the full Oh point
-// group applies, and the fold reaches 3.  (Fast: basis build only -- no SCF; the k-block count IS the fold.)
-TEST(GPW_SCF, DISABLED_SiDiamondIBZ_NeedsNonSymmorphic)
+// (item 5, IBZ) NON-SYMMORPHIC -- diamond Si (FCC lattice + a 2-atom basis at (0,0,0),(¼,¼,¼)) is space group
+// Fd-3m: NON-symmorphic (the two sublattices are related by a glide, τ=(¼,¼,¼)≠0).  The k-FOLD reaches the full
+// Oh (3 irreducible k-points, same as FCC Al on this lattice): the τ=0 Td subgroup + time reversal (k→−k) already
+// supplies the inversion Td lacks.  The DENSITY star-average now carries the glide τ: the G-space Hartree via the
+// e^{+2πi(Um)·τ} phase (SymmetrizeGMap over SpaceGroup::ReciprocalOps) and the real-space XC raster via the exact
+// FFT fractional shift ρ(W·x+τ) (SymmetrizeRaster over SpaceGroup::DirectOps).  So the IBZ-reduced total now
+// reproduces the full-mesh Γ-centred 2×2×2 exactly (was −8.259, ~0.48 Ha off, under the old τ=0 W-only guard).
+TEST(GPW_SCF, SiDiamondIBZ_NonSymmorphic)
 {
     const double a=10.26;
     FCCUnitCell cell(a);
@@ -795,15 +793,11 @@ TEST(GPW_SCF, DISABLED_SiDiamondIBZ_NeedsNonSymmorphic)
     o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30; o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4;
     GpwResult R=RunGpw(lat, MakeBasisSR(cell), o, /*verbose*/false);
     // Target: the IBZ-reduced total reproduces the full-mesh Γ-centred 2×2×2 (DISABLED_SR_2x2x2GammaCentred,
-    // -7.77846).  The reciprocal k-FOLD is already maximal here (τ=0 Td subgroup + time-reversal → 3 irreducible;
-    // k→−k supplies the inversion Td lacks).  But the DENSITY star-average is NOT correct for a non-symmorphic
-    // crystal: the τ=0 W-only guard drops the glide ops {W|τ}, and reconstructing the star partners that need a
-    // glide requires the e^{-iG·τ} phase (G-space) / the sublattice translation (real-space raster) the guard
-    // does not carry.  So the reduced total is WRONG -- MEASURED -8.259 vs the full mesh -7.778 (~0.48 Ha).
-    // This is the hand-off: the space-group session's non-symmorphic support (τ phases) makes it exact.
+    // -7.77846) to grid/SCF tolerance -- the non-symmorphic glide τ-phase makes the reduced density exact
+    // (measured -7.77847, ~1e-5 vs the full mesh; the fold reaches 3 irreducible k-points under the full Oh).
     EXPECT_NEAR(R.E.GetTotalEnergy(), -7.77846, 2e-3)
-        << "diamond Si (non-symmorphic Fd-3m): IBZ density symmetrization needs τ-phase (glide) support to "
-           "match the full mesh -- currently under-symmetrized (measured -8.259)";
+        << "diamond Si (non-symmorphic Fd-3m): IBZ density symmetrization with the glide τ-phase must match the "
+           "full mesh -7.77846 (G-space e^{+2πi(Um)·τ} + real-space FFT τ-shift)";
 }
 
 // ===== EXPERIMENTAL (scratch): global-μ across k-blocks (item 3 inc 3) =====

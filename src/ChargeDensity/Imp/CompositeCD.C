@@ -18,7 +18,7 @@ namespace qchem::ChargeDensity
 //
 //  Construction zone.
 //
-template <class T> tComposite_CD<T>::tComposite_CD(std::vector<Matrix3D<double>> pointOps)
+template <class T> tComposite_CD<T>::tComposite_CD(std::vector<Symmetry::Lattice_3D::ReciprocalOp> pointOps)
     : itsPointOps(std::move(pointOps))
 {};
 

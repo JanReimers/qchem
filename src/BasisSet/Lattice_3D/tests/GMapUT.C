@@ -1,56 +1,81 @@
-// File: GMapUT.C  Unit tests for the G-space density symmetrizer (doc/GPWPlan1.md item 3, IBZ).
+// File: GMapUT.C  Unit tests for the G-space density symmetrizer (doc/GPWPlan1.md items 3 + 5, IBZ).
 //
-// SymmetrizeGMap replaces rho-tilde(G) by its star average over a reciprocal point group -- the step that
+// SymmetrizeGMap replaces rho-tilde(G) by its star average over the crystal point group -- the step that
 // makes an IBZ-reduced density EXACT (the star weights alone are exact only for the band sum).  These pin the
-// core operation: the trivial group is a no-op, charge (the G=0 / total) is conserved, and a cubic point
-// group spreads a single G onto its full star with equal weight.
+// core operation: the trivial group is a no-op, charge (the G=0 / total) is conserved, a cubic point group
+// spreads a single G onto its full star, and -- the NON-SYMMORPHIC case -- a diamond structure factor stays
+// invariant under the glide ops only when the e^{+2pi i m.tau} phase is carried (the whole point of item 5).
 
 #include "gtest/gtest.h"
 #include <vector>
 #include <cstdlib>   // std::abs(int)
-#include <cmath>     // std::lround
+#include <cmath>     // std::lround, std::acos
+#include <complex>   // std::polar
 
-import qchem.BasisSet.Internal.GMap;              // ΔG_Map, SymmetrizeGMap, Matrix3D
-import qchem.Symmetry.Lattice_3D.SpaceGroup;      // SpaceGroup::Detect / ReciprocalPointOps (the cubic ops)
+import qchem.BasisSet.Internal.GMap;              // ΔG_Map, SymmetrizeGMap, ReciprocalOp
+import qchem.Symmetry.Lattice_3D.SpaceGroup;      // SpaceGroup::Detect / ReciprocalOps (the crystal ops)
 import qchem.Types;
 
 using namespace qchem;
 using qchem::Symmetry::Lattice_3D::SpaceGroup;
 using qchem::Symmetry::Lattice_3D::AtomSite;
+using qchem::Symmetry::Lattice_3D::ReciprocalOp;
 
-// The reciprocal point ops of a simple-cubic monatomic crystal (O_h, 48 ops; centrosymmetric so time
-// reversal adds nothing).
-static std::vector<Matrix3D<double>> CubicOps()
+static const double PI = std::acos(-1.0);
+
+// The reciprocal {U|τ} ops of a simple-cubic monatomic crystal (O_h, 48 ops; τ=0 -- symmorphic).
+static std::vector<ReciprocalOp> CubicOps()
 {
     std::vector<AtomSite> basis = {{14, rvec3_t(0,0,0)}};
     SpaceGroup sg = SpaceGroup::Detect(Matrix3D<double>(), basis);   // identity cell = simple cubic a=1
-    return sg.ReciprocalPointOps(/*timeReversal*/true, /*symmorphicOnly*/true);
+    return sg.ReciprocalOps();
 }
 
 // The reciprocal ops of a PRIMITIVE FCC monatomic crystal -- the actual case the GPW metal tests use.  The
 // primitive reciprocal lattice is BCC (non-orthogonal), so these ops are integer matrices that are NOT signed
 // axis permutations; the G-index symmetrization must still permute integer G-indices exactly.
-static std::vector<Matrix3D<double>> FCCPrimitiveOps()
+static std::vector<ReciprocalOp> FCCPrimitiveOps()
 {
-    // FCC primitive cell: columns are ½a(0,1,1),(1,0,1),(1,1,0) with a=1.
-    Matrix3D<double> A(0.0,0.5,0.5, 0.5,0.0,0.5, 0.5,0.5,0.0);
+    Matrix3D<double> A(0.0,0.5,0.5, 0.5,0.0,0.5, 0.5,0.5,0.0);   // ½a(0,1,1),(1,0,1),(1,1,0), a=1
     std::vector<AtomSite> basis = {{13, rvec3_t(0,0,0)}};
-    SpaceGroup sg = SpaceGroup::Detect(A, basis);
-    return sg.ReciprocalPointOps(/*timeReversal*/true, /*symmorphicOnly*/true);
+    return SpaceGroup::Detect(A, basis).ReciprocalOps();
 }
 
-// Apply every op to G0, collect the DISTINCT integer images (its star) -- the reconstruction target.
-static std::vector<ivec3_t> StarOf(const ivec3_t& G0, const std::vector<Matrix3D<double>>& ops)
+// The reciprocal {U|τ} ops of DIAMOND (Fd-3m, NON-symmorphic): FCC lattice + 2-atom basis at (0,0,0),(¼,¼,¼).
+static std::vector<ReciprocalOp> DiamondOps()
+{
+    Matrix3D<double> A(0.0,0.5,0.5, 0.5,0.0,0.5, 0.5,0.5,0.0);
+    std::vector<AtomSite> basis = {{14, rvec3_t(0,0,0)}, {14, rvec3_t(0.25,0.25,0.25)}};
+    return SpaceGroup::Detect(A, basis).ReciprocalOps();
+}
+
+// Apply the scatter matrix U (=Wᵀ) of every op to G0, collect the DISTINCT integer images (its star).
+static std::vector<ivec3_t> StarOf(const ivec3_t& G0, const std::vector<ReciprocalOp>& ops)
 {
     std::vector<ivec3_t> star;
-    for (const auto& U : ops)
+    for (const auto& op : ops)
     {
-        rvec3_t u = U * rvec3_t(double(G0.x),double(G0.y),double(G0.z));
+        rvec3_t u = op.U * rvec3_t(double(G0.x),double(G0.y),double(G0.z));
         ivec3_t m((int)std::lround(u.x),(int)std::lround(u.y),(int)std::lround(u.z));
         bool seen=false; for (auto& s:star) if (s.x==m.x&&s.y==m.y&&s.z==m.z) {seen=true;break;}
         if (!seen) star.push_back(m);
     }
     return star;
+}
+
+// The closure of a seed set under the scatter matrices (a G-set closed under the ops -- exact for a projector).
+static std::vector<ivec3_t> Orbit(const std::vector<ivec3_t>& seeds, const std::vector<ReciprocalOp>& ops)
+{
+    std::vector<ivec3_t> orb = seeds;
+    auto has=[&](const ivec3_t& m){ for (auto& s:orb) if (s.x==m.x&&s.y==m.y&&s.z==m.z) return true; return false; };
+    for (size_t q=0; q<orb.size(); ++q)
+        for (const auto& op : ops)
+        {
+            rvec3_t u = op.U * rvec3_t(double(orb[q].x),double(orb[q].y),double(orb[q].z));
+            ivec3_t m((int)std::lround(u.x),(int)std::lround(u.y),(int)std::lround(u.z));
+            if (!has(m)) orb.push_back(m);
+        }
+    return orb;
 }
 
 // THE RECONSTRUCTION IDENTITY (the IBZ correctness core): a single irreducible rep carrying its STAR-SIZE
@@ -121,4 +146,49 @@ TEST(SymmetrizeGMap, ConservesTotalAndFixesGamma)
     EXPECT_NEAR(after.real(), before.real(), 1e-12);
     EXPECT_NEAR(after.imag(), before.imag(), 1e-12);
     EXPECT_NEAR(out.at(ivec3_t(0,0,0)).real(), 5.0, 1e-12);   // Γ is its own star -- unchanged
+}
+
+// NON-SYMMORPHIC (item 5): the diamond structure factor ρ̃(m)=Σ_atoms e^{-2πi m·R} = 1 + e^{-2πi m·τ0}
+// (τ0=(¼,¼,¼)) is EXACTLY Fd-3m invariant.  On a G-set closed under the ops, a CORRECT non-symmorphic
+// symmetrizer (carrying the e^{+2πi m·τ} glide phase) leaves it UNCHANGED; dropping the phase (the old W-only
+// guard) or getting its sign wrong corrupts it.  This pins the glide phase decisively without an SCF.
+TEST(SymmetrizeGMap, NonSymmorphicDiamondStructureFactorInvariant)
+{
+    auto ops = DiamondOps();
+    ASSERT_EQ(ops.size(), 48u);                        // full O_h point part of Fd-3m
+
+    const rvec3_t tau0(0.25,0.25,0.25);
+    auto sf=[&](const ivec3_t& m){ double p=-2.0*PI*(m.x*tau0.x+m.y*tau0.y+m.z*tau0.z);
+                                   return 1.0 + std::polar(1.0,p); };   // 1 + e^{-2πi m·τ0}
+
+    // A G-set closed under the ops (union of a couple of orbits) so the projector is exact on it.
+    auto S = Orbit({ivec3_t(0,0,0), ivec3_t(1,0,0), ivec3_t(1,1,1), ivec3_t(2,0,0)}, ops);
+    ASSERT_GT(S.size(), 10u);
+    ΔG_Map rg; for (const auto& m : S) rg[m] = sf(m);
+
+    ΔG_Map out = SymmetrizeGMap(rg, ops);
+    for (const auto& m : S)
+    {
+        ASSERT_TRUE(out.count(m));
+        EXPECT_NEAR(out.at(m).real(), rg.at(m).real(), 1e-10)
+            << "glide phase must leave the diamond structure factor invariant at "<<m.x<<","<<m.y<<","<<m.z;
+        EXPECT_NEAR(out.at(m).imag(), rg.at(m).imag(), 1e-10);
+    }
+}
+
+// CONTROL: without the τ phase (τ forced to 0, the old W-only guard) the SAME diamond structure factor is NOT
+// invariant -- proving the phase is doing real work (the test above is not vacuously passing).
+TEST(SymmetrizeGMap, NonSymmorphicWithoutPhaseCorruptsStructureFactor)
+{
+    auto ops = DiamondOps();
+    std::vector<ReciprocalOp> wOnly; for (auto op : ops) { op.tau = rvec3_t(0,0,0); wOnly.push_back(op); }
+
+    const rvec3_t tau0(0.25,0.25,0.25);
+    auto sf=[&](const ivec3_t& m){ double p=-2.0*PI*(m.x*tau0.x+m.y*tau0.y+m.z*tau0.z); return 1.0+std::polar(1.0,p); };
+    auto S = Orbit({ivec3_t(1,0,0), ivec3_t(1,1,1)}, ops);
+    ΔG_Map rg; for (const auto& m : S) rg[m] = sf(m);
+
+    ΔG_Map out = SymmetrizeGMap(rg, wOnly);
+    double maxdev=0.0; for (const auto& m : S) maxdev=std::max(maxdev, std::abs(out.at(m)-rg.at(m)));
+    EXPECT_GT(maxdev, 1e-3) << "W-only (τ=0) symmetrization MUST corrupt the non-symmorphic structure factor";
 }

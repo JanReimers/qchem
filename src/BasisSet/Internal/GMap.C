@@ -15,7 +15,8 @@ export module qchem.BasisSet.Internal.GMap;
 import qchem.Types;    // ivec3_t, dcmplx
 import qchem.Blaze;    // rvec_t, chmat_t + complex/double arithmetic (visible here; the qcMath leaf lacked it)
 export import qchem.Matrix3D;  // Matrix3D (the reciprocal point ops for the G-space density symmetrization)
-import qchem.Math;     // std::lround (rotated integer G-index)
+export import qchem.Symmetry.Lattice_3D.SpaceGroup;  // ReciprocalOp {U|tau} for the non-symmorphic glide phase
+import qchem.Math;     // std::lround (rotated integer G-index), Pi (the e^{2pi i (Um).tau} phase)
 
 export namespace qchem {
 
@@ -30,25 +31,33 @@ struct IVec3Less
 //! difference \f$\Delta m\f$ (\f$\Delta G = B\,\Delta m\f$).
 using ΔG_Map = std::map<ivec3_t, dcmplx, IVec3Less>;
 
-//! Symmetrize a G-space field over a reciprocal point group (doc/GPWPlan1.md item 3, IBZ): replace
-//! \f$\tilde\rho(G)\f$ by the star average \f$\tfrac1{|ops|}\sum_U \tilde\rho(U^{-1}G)\f$.  Each \a U is an
-//! INTEGER reciprocal op (from \c SpaceGroup::ReciprocalPointOps), so it PERMUTES the integer G-indices
-//! (\f$m\to Um\f$, exact -- no cutoff leakage since \f$|Um|=|G|\f$).  This is what makes an IBZ-reduced density
-//! exact: the star weights alone give the right band sum, but the Hartree/XC density needs this average.  The
-//! TRIVIAL group (empty \a ops = \f${E}\f$) is a no-op -- molecules / Γ / unreduced crystals pass through
-//! untouched (the general formulation; "no symmetry" is just its trivial instance).
-inline ΔG_Map SymmetrizeGMap(const ΔG_Map& rg, const std::vector<Matrix3D<double>>& ops)
+//! Symmetrize a G-space field over the crystal point group (doc/GPWPlan1.md items 3 + 5, IBZ): replace
+//! \f$\tilde\rho(G)\f$ by the star average, in SCATTER form with the non-symmorphic glide phase on the INPUT index
+//! \f[ \tilde\rho_\mathrm{sym}[U m]\mathrel{+}=\tfrac1{|ops|}\,e^{+2\pi i\,m\cdot\tau_{op}}\,\tilde\rho(m), \f]
+//! where each \a op carries the INTEGER G-index scatter matrix \f$U=W^\top\f$ (permutes the G-indices exactly,
+//! \f$|Um|=|m|\f$, no cutoff leakage) and its fractional translation \f$\tau\f$ (from \c SpaceGroup::ReciprocalOps).
+//! This reproduces the exact projector \f$\tilde\rho_\mathrm{sym}(G)=\tfrac1{|ops|}\sum_{op}e^{+2\pi i(W^{-\top}G)\cdot\tau}\tilde\rho(W^{-\top}G)\f$
+//! (the FFT convention here is \f$\tilde\rho(G)=\tfrac1\Omega\int\rho\,e^{-iG\cdot r}\f$, matching the structure
+//! factor \f$\sum e^{-iG\cdot R}\f$).  For a SYMMORPHIC crystal every \f$\tau=0\f$ so the phase is 1 and this is
+//! the plain permutation average (a single reduced rep spreads over its star); for a NON-symmorphic (glide/screw)
+//! crystal the phase is what makes the glide-related star partners reconstruct correctly.  This is what makes an
+//! IBZ-reduced density exact: the star weights alone give the right band sum, but the Hartree/XC density needs
+//! this average.  The TRIVIAL group (empty \a ops = \f${E}\f$) is a no-op -- molecules / Γ / unreduced crystals.
+inline ΔG_Map SymmetrizeGMap(const ΔG_Map& rg, const std::vector<Symmetry::Lattice_3D::ReciprocalOp>& ops)
 {
     if (ops.empty()) return rg;                       // {E}: exact no-op
     ΔG_Map out;
     const double w = 1.0/double(ops.size());
-    for (const auto& [m, val] : rg)
-        for (const auto& U : ops)                     // scatter: ρ(G)/|ops| lands on every U·G
+    for (const auto& [m, val] : rg)                   // scatter ρ̃(m) onto every U·m with the input-index phase
+    {
+        for (const auto& op : ops)
         {
-            rvec3_t um = U * rvec3_t(double(m.x), double(m.y), double(m.z));
+            rvec3_t um = op.U * rvec3_t(double(m.x), double(m.y), double(m.z));
             ivec3_t Um((int)std::lround(um.x), (int)std::lround(um.y), (int)std::lround(um.z));
-            out[Um] += w*val;
+            const double phase = 2.0*Pi*(m.x*op.tau.x + m.y*op.tau.y + m.z*op.tau.z);   // e^{+2πi m.τ} (input index)
+            out[Um] += w * std::polar(1.0, phase) * val;
         }
+    }
     return out;
 }
 

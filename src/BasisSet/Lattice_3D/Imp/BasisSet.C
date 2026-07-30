@@ -59,12 +59,23 @@ Complex_BS* Factory(Type type, const ::qchem::Lattice_3D& lat, double Ecut)
 // W-only guard; doc/GPWPlan1.md item 3).  IBZ needs the density symmetrized over each star to be exact; the
 // caller is responsible for that (this only reduces which blocks are BUILT + carries the star weights).
 struct KBlock { ivec3_t ik; double weight; };
-// The crystal's τ=0 point ops for the IBZ symmetrization, both faces from ONE space-group detection (or {} when
-// NOT folding -- fold + density star-average are one package, so a non-folded run carries no ops = trivial {E}).
-// RECIPROCAL U (with time reversal): folds the k-mesh AND star-averages ρ̃ (G-space; TR ok, ρ̃(-G)=ρ̃(G)*).
-// DIRECT W (NO time reversal): star-averages the real-space Vxc raster (TR would be a false inversion there).
-// The reciprocal↔direct + time-reversal distinction lives in SpaceGroup, not here.
-struct CrystalPointOps { std::vector<Matrix3D<double>> recip, direct; };
+// The crystal point ops from ONE space-group detection (or {} when NOT folding -- fold + density star-average are
+// one package, so a non-folded run carries no ops = trivial {E}).  THREE faces, two distinct roles:
+//  - recipFold: reciprocal LINEAR ops U (+time reversal, τ=0 W-only guard) -- folds the k-mesh.  TR supplies the
+//    inversion a non-symmorphic Td subgroup lacks, so the fold is already maximal (Oh) without the glide phase.
+//  - recipDensity {U|τ}: the FULL crystal point group with fractional translations -- star-averages ρ̃ in G-space
+//    with the glide phase e^{+2πi(Um)·τ} (SymmetrizeGMap).  NO time reversal: a real density has the crystal's
+//    own point symmetry, not an imposed inversion.
+//  - directDensity {W|τ}: the real-space partner (raster star-average, voxel shift N·τ).
+// For a SYMMORPHIC crystal every τ=0, so recipDensity/directDensity collapse to the old W-only ops (no phase, no
+// shift) and this is bit-compatible with the symmorphic IBZ path.  The reciprocal↔direct + time-reversal + glide
+// knowledge lives in SpaceGroup, not here (doc/GPWPlan1.md items 3 + 5).
+struct CrystalPointOps
+{
+    std::vector<Matrix3D<double>>                        recipFold;      //!< linear reciprocal ops (+TR) for the k-fold
+    std::vector<Symmetry::Lattice_3D::ReciprocalOp>      recipDensity;   //!< {U|τ} for the G-space density star-average (glide phase)
+    std::vector<Symmetry::Lattice_3D::DirectOp>          directDensity;  //!< {W|τ} for the real-space raster star-average (glide shift)
+};
 static CrystalPointOps DetectPointOps(const ::qchem::Lattice_3D& lat, const GPWParams& p)
 {
     namespace SL = qchem::Symmetry::Lattice_3D;
@@ -75,8 +86,9 @@ static CrystalPointOps DetectPointOps(const ::qchem::Lattice_3D& lat, const GPWP
     for (Atom* a : st)
         basis.push_back({a->itsZ, cell.ToFractional(a->itsR)});
     SL::SpaceGroup sg = SL::SpaceGroup::Detect(cell.GetCellMatrix(), basis);
-    return { sg.ReciprocalPointOps(/*timeReversal*/true,  /*symmorphicOnly*/true),
-             sg.DirectPointOps    (/*timeReversal*/false, /*symmorphicOnly*/true) };
+    return { sg.ReciprocalPointOps(/*timeReversal*/true, /*symmorphicOnly*/true),  // fold: linear + TR
+             sg.ReciprocalOps(),                                                   // density G-space: {U|τ}
+             sg.DirectOps() };                                                     // density raster: {W|τ}
 }
 
 static std::vector<KBlock> BuildKBlocks(const ::qchem::Lattice_3D& lat, const GPWParams& p,
@@ -109,15 +121,15 @@ GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const
     const rvec3_t kShift=p.kShift;
     const ivec3_t N=lat.GetLimits();
     const GPW_IBS* first=nullptr;
-    CrystalPointOps ops = DetectPointOps(lat, p);   // ONE detection: U (exposed for ρ̃) + W (passed for the raster)
-    itsReciprocalOps = ops.recip;                   // exposed via GetReciprocalPointOps for the composite density
-    for (const auto& kb : BuildKBlocks(lat, p, itsReciprocalOps))
+    CrystalPointOps ops = DetectPointOps(lat, p);   // ONE detection: fold ops + {U|τ} (ρ̃) + {W|τ} (raster)
+    itsReciprocalOps = ops.recipDensity;            // exposed via GetReciprocalPointOps for the composite G-space density
+    for (const auto& kb : BuildKBlocks(lat, p, ops.recipFold))   // the k-fold uses the linear reciprocal ops (+TR)
     {
         // Build the Bloch irrep WITH its BZ weight (star weight under IBZ) and the primary sym_t ctor -- the
         // weight carries the Sum_k w_k so the BZ-summed charge/energy are per-cell, not xNk.
         auto* b=new GPW_IBS(lat.GetUnitCell(), Symmetry::BlochFactory(N, kb.ik, kb.weight, kShift),
                             mol, p.densityEcut, p.images, p.cutoffFactor, p.raster, p.ladderFactor,
-                            ops.direct);   // mol shared across k-blocks; ops.direct = the IBZ raster star ops (W, no TR)
+                            ops.directDensity);   // mol shared across k-blocks; {W|τ} = the IBZ raster star ops
         if (!first) first=b;
         Insert(b);
     }

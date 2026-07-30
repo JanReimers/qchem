@@ -8,6 +8,7 @@ module;
 export module qchem.CompositeCD;
 export import qchem.ChargeDensity;
 export import qchem.ChargeDensity.FourierDensity;   // G-space rho-tilde (summed over k-blocks)
+export import qchem.Symmetry.Lattice_3D.SpaceGroup; // ReciprocalOp {U|τ} -- the IBZ density-symmetrization ops (glide phase)
 import qchem.ChargeDensity.Types;
 
 
@@ -32,7 +33,7 @@ public:
     //! (the star weights alone give only the correct band sum).  Default {} = trivial group {E} = exact no-op
     //! -- molecules / Γ / unreduced crystals pass through untouched (the general form; "no symmetry" = trivial).
     //! It is a ctor argument, not a setter: the symmetry is a fixed property of the density, set once at build.
-    explicit tComposite_CD(std::vector<Matrix3D<double>> pointOps = {});
+    explicit tComposite_CD(std::vector<Symmetry::Lattice_3D::ReciprocalOp> pointOps = {});
     void Insert(tDM_CD<T>*);
 
     virtual void AccumulateDirectAll  (std::vector<hmat_t<T>>& Jall) const;
@@ -71,7 +72,7 @@ private:
 
     typedef std::vector<std::unique_ptr<tDM_CD<T>>> cdv_t;
     cdv_t itsCDs;
-    std::vector<Matrix3D<double>> itsPointOps;   //!< reciprocal point group for IBZ symmetrization ({E} when empty)
+    std::vector<Symmetry::Lattice_3D::ReciprocalOp> itsPointOps;   //!< reciprocal {U|τ} point group for IBZ symmetrization ({E} when empty)
 };
 
 using rComposite_CD = tComposite_CD<double>;   using cComposite_CD = tComposite_CD<dcmplx>;

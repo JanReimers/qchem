@@ -9,6 +9,7 @@ module;
 module qchem.BasisSet.Lattice_3D.GPW_IBS;
 import qchem.Symmetry.Factory;              // BlochFactory (the convenience ctor + the k=0 fit-basis irrep)
 import qchem.Symmetry.Lattice_3D.BlochQN;   // Symmetry::Lattice_3D::Getk (pry k out of the abstract Bloch irrep)
+import qchem.Symmetry.Lattice_3D.SpaceGroup; // DirectOp {W|τ} (the ctor's IBZ raster ops param type)
 import qchem.BasisSet.Internal.DB_Cache;    // theCache<dcmplx>() -- process-wide cache for the static PP matrices
                                             // (qcLattice_BS is BasisSet-family, so it may peek at qcBasisSet Internal)
 import qchem.BasisSet.Lattice_3D.Evaluators.PW;  // PW_Grid_Evaluator (the fit basis IS-A one; cross-cast target)
@@ -19,7 +20,7 @@ namespace qchem::BasisSet::Lattice_3D
 GPW_IBS::GPW_IBS(const UnitCell& cell, const sym_t& irrep,
                  std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut, CellImages images,
                  double cutoffFactor, RasterPolicy raster, double ladderFactor,
-                 std::vector<Matrix3D<double>> directOps)
+                 std::vector<Symmetry::Lattice_3D::DirectOp> directOps)
     : BasisSet::IrrepBasisSetImp<dcmplx>(irrep)
     , GPW_Evaluator(std::move(mol), cell, densityEcut, Symmetry::Lattice_3D::Getk(irrep),
                     images==CellImages::HomeCellOnly, cutoffFactor, raster, ladderFactor) // irrep IS k

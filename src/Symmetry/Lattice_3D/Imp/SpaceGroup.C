@@ -210,4 +210,28 @@ std::vector<Matrix3D<double>> SpaceGroup::DirectPointOps(bool includeTimeReversa
     return W;
 }
 
+std::vector<ReciprocalOp> SpaceGroup::ReciprocalOps() const
+{
+    // The FULL point group as {U|tau} for the G-space SCATTER star-average out[U.m] += e^{+2pi i m.tau} rho(m).
+    // U is the G-index scatter matrix W^T (NOT W^{-T}): the scatter, with the INPUT-index phase e^{+2pi i m.tau},
+    // reproduces the exact projector out(G) = (1/h) sum_op e^{+2pi i (U_op G).tau} rho(U_op G) with U_op=W^{-T}
+    // (a hand-check on the diamond inversion glide {W=-I|tau=(1/4,1/4,1/4)} leaves the structure factor invariant).
+    // NO symmorphic guard (the phase carries the non-symmorphic ops) and NO time reversal (the density has the
+    // crystal's own point symmetry, not an imposed inversion).  itsOps is the distinct one-coset-per-W set already.
+    std::vector<ReciprocalOp> ops;
+    ops.reserve(itsOps.size());
+    for (const auto& op : itsOps) ops.push_back({Transpose(op.W), op.tau});
+    return ops;
+}
+
+std::vector<DirectOp> SpaceGroup::DirectOps() const
+{
+    // The direct partner of ReciprocalOps: the same full {W|tau} set, linear part W kept directly (the
+    // real-space raster gathers from voxel W.g + N.tau).
+    std::vector<DirectOp> ops;
+    ops.reserve(itsOps.size());
+    for (const auto& op : itsOps) ops.push_back({op.W, op.tau});
+    return ops;
+}
+
 } // namespace

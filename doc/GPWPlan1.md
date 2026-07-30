@@ -73,9 +73,11 @@ stream-cache section, disk/rolling-log SINK (deferred; see RunReportPlan "Render
   `SymmetrizeGMap`), XC on the non-negative ρ_DM raster (real-space `cFIT_SF_ABS::SymmetrizeRaster`),
   one-electron auto-projects.  Ops single-sourced from the basis + ctor-injected (no setters); one new abstract
   method + one basis accessor, nothing else touched.  Reciprocal↔direct + time-reversal knowledge lives in
-  `SpaceGroup` (`ReciprocalPointOps` TR-on / `DirectPointOps` TR-off).  NON-symmorphic crystals under-symmetrize
-  (guard drops the glide ops) — failing hand-off gate `DISABLED_SiDiamondIBZ_NeedsNonSymmorphic` for the
-  space-group session (the k-fold is already maximal via Td+TR; only the density τ-phase is missing).
+  `SpaceGroup` (`ReciprocalPointOps` TR-on / `DirectPointOps` TR-off).  NON-symmorphic (diamond Fd-3m) now EXACT
+  too (item 5 below, `SiDiamondIBZ_NonSymmorphic` -7.77847 vs full-mesh -7.77846): the glide τ enters the density
+  star-average via `SpaceGroup::ReciprocalOps/DirectOps` (full {W|τ} point group, no guard) — G-space Hartree
+  gets the e^{+2πi(Um)·τ} phase (`SymmetrizeGMap`), the real-space XC raster the exact FFT fractional shift
+  ρ(W·x+τ) (`SymmetrizeRaster`); the k-fold still uses the linear TR-on ops.
 - **4. MULTI-K Na metal — FIRST LIGHT** (gate `NaFCCMetalGlobalMu`): the honest half-filled-band Fermi surface
   (shifted MP + global μ + smearing, `VALENCE_LOWQ_SR2` at the real density).  Machinery validated; the
   converged-mesh / cohesive-energy "done properly" pass is what remains (below).
@@ -91,9 +93,13 @@ the remaining pass is the CONVERGED metal: a denser mesh (needs IBZ — now avai
 valgen (the SR2 gate validates the machinery, not a cohesive energy), and a physical did-E-move / bulk anchor.
 Optional BCC once a `BCCUnitCell` exists (only FCC today).
 
-**5. NON-SYMMORPHIC IBZ support** — the τ-phase (glide/screw) density symmetrization for diamond-type crystals
-(the `DISABLED_SiDiamondIBZ_NeedsNonSymmorphic` hand-off gate) + the spin-polarized global μ (both spin
-channels, one μ).  Both fold cleanly into the now-clean IBZ + global-μ plumbing.
+**5. NON-SYMMORPHIC IBZ support — DONE** (`SiDiamondIBZ_NonSymmorphic`, -7.77847 vs full mesh -7.77846).  The
+glide/screw τ-phase density symmetrization for diamond-type crystals: `SpaceGroup::ReciprocalOps()`/`DirectOps()`
+expose the FULL {W|τ} point group (no symmorphic guard, no TR); the G-space Hartree star-average carries the
+e^{+2πi(Um)·τ} phase (`SymmetrizeGMap`, scatter form U=Wᵀ) and the real-space XC raster the EXACT FFT fractional
+shift ρ(W·x+τ) (`SymmetrizeRaster`, one FFT round-trip per distinct τ — exact even on the τ-incommensurate n=15
+grid).  Unit-pinned by `GMapUT` (diamond structure-factor invariance + a W-only-corrupts control).  The k-fold
+is unchanged (linear TR-on ops).  REMAINING here: the spin-polarized global μ (both spin channels, one μ).
 
 **FIRST LIGHT DONE 2026-07-28 — committed gate `GPW_SCF.NaFCCMetalGlobalMu`.**  FCC Na, Zion=1 (3s¹) → ONE
 electron/cell → half-filled band → μ cuts THROUGH it = a genuine Fermi surface.  Shifted Monkhorst-Pack 2×2×2

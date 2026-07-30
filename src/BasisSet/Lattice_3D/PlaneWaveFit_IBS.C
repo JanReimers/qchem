@@ -17,14 +17,16 @@ module;
 #include <string>
 #include <vector>
 #include <cmath>
+#include <complex>
 export module qchem.BasisSet.Lattice_3D.PlaneWaveFit_IBS;
 export import qchem.BasisSet.Fit_IBS;                    // cFIT_CD_ABS (the density-fit face)
 import qchem.BasisSet.Lattice_3D.Evaluators.PW;         // PW_Evaluator base -- INTERNAL to qcLattice_BS (not re-exported)
 import qchem.BasisSet.Lattice_3D.IBS;                    // EPW_Irrep_IBS<E> (the shared evaluation tier)
 import qchem.BasisSet.Internal.IrrepBasisSetImp;         // GetSymmetry/GetSymt/GetIrrep + itsSymmetry
 import qchem.Symmetry;                                   // sym_t (the Bloch irrep, shared with the orbital basis)
+import qchem.Symmetry.Lattice_3D.SpaceGroup;             // DirectOp {W|τ} -- the direct ops (glide τ) for the raster star-average
 import qchem.Types;                                      // dcmplx
-import qchem.Matrix3D;                                   // Matrix3D -- the τ=0 DIRECT ops for real-space raster symmetrization
+import qchem.Matrix3D;                                   // Matrix3D
 
 export namespace qchem::BasisSet::Lattice_3D
 {
@@ -41,10 +43,11 @@ class PlaneWaveFit_IBS
 {
 public:
     //! Build over a density/fit grid evaluator (the FFT/Poisson grid the XC + SAD paths quadrature on),
-    //! carrying the Bloch irrep \a sym.  \a directOps = the τ=0 DIRECT point ops \f$W\f$ (empty {} = trivial =
-    //! no symmetrization) ctor-injected here, where the grid is built, for the IBZ real-space raster star-average.
+    //! carrying the Bloch irrep \a sym.  \a directOps = the crystal DIRECT point ops \f${W|\tau}\f$ (empty {} =
+    //! trivial = no symmetrization) ctor-injected here, where the grid is built, for the IBZ real-space raster
+    //! star-average -- \f$\tau\f$ carries the glide/screw sublattice shift for non-symmorphic crystals.
     PlaneWaveFit_IBS(const PW_Grid_Evaluator& e, const sym_t& sym,
-                     std::vector<Matrix3D<double>> directOps = {})
+                     std::vector<Symmetry::Lattice_3D::DirectOp> directOps = {})
         : BasisSet::IrrepBasisSetImp<dcmplx>(sym)
         , PW_Grid_Evaluator(e)
         , itsDirectOps(std::move(directOps))
@@ -54,9 +57,14 @@ public:
     //! satisfying the \c isOrtho contract for BOTH the density and potential fit faces.
     bool isOrtho() const override {return true;}
 
-    //! IBZ real-space raster star-average (doc/GPWPlan1.md item 3): ρ_sym[g]=(1/|W|)Σ_W ρ[W·g mod N] over the
-    //! τ=0 DIRECT ops.  Real-space average of a non-negative raster stays ≥0, so XC keeps its ρ_DM feed.  No-op
-    //! when unfolded ({} ops).  Needs the CUBIC FFT grid (axis-mixing W); a non-cubic folded cell is not wired.
+    //! IBZ real-space raster star-average (doc/GPWPlan1.md items 3 + 5): ρ_sym[x]=(1/|ops|)Σ_op ρ(W·x + τ) over
+    //! the crystal DIRECT ops \f${W|\tau}\f$.  The rotation \f$W\cdot x\f$ is an exact integer voxel permutation;
+    //! the glide translation \f$\tau\f$ is applied EXACTLY via the FFT shift theorem (\f$\rho(x+\tau)=\mathcal
+    //! F^{-1}[e^{+iG\cdot\tau}\hat\rho]\f$) -- one FFT round-trip per distinct \f$\tau\f$, so a diamond ¼ glide is
+    //! exact even on the \f$n=15\f$ grid (a grid NOT commensurate with τ; nearest-voxel/interpolation would
+    //! alias/blur the density and mistune the SCF).  τ=0 for a symmorphic crystal, so this collapses to the plain
+    //! permutation average.  Real-space average of a (near-)non-negative raster stays ≥0, so XC keeps its ρ_DM
+    //! feed.  No-op when unfolded ({} ops).  Needs the CUBIC FFT grid (axis-mixing W).
     void SymmetrizeRaster(rvec_t& rho) const override
     {
         if (itsDirectOps.empty()) return;                                  // trivial {E}: exact no-op
@@ -65,15 +73,44 @@ public:
         if (N.y!=n || N.z!=n || (size_t)n*n*n != rho.size()) return;        // guard: cubic grid == the raster
         auto at=[n](long ix,long iy,long iz)->size_t
                 { auto m=[n](long i){return size_t(((i%n)+n)%n);}; return (m(ix)*n+m(iy))*n+m(iz); };
+
+        // Exact fractional shift of the (periodic, band-limited) raster by +τ via the FFT phase.  n odd here
+        // (5-smooth AutoGrid) -> no Nyquist bin, so the signed-frequency phase e^{+2πi m·τ} is the exact
+        // fractional-delay filter (Hermitian -> the inverse transform is real).
+        const double twoPi = 8.0*std::atan(1.0);
+        auto shiftBy=[&](const rvec3_t& tau)->rvec_t
+        {
+            cvec_t F = this->ForwardFFT(rho);                              // physical, /Npts-normalised (raster order)
+            for (int ax=0; ax<n; ++ax) for (int ay=0; ay<n; ++ay) for (int az=0; az<n; ++az)
+            {
+                int mx=ax<=n/2?ax:ax-n, my=ay<=n/2?ay:ay-n, mz=az<=n/2?az:az-n;   // signed frequency (-n/2..n/2)
+                double ph = twoPi*(mx*tau.x + my*tau.y + mz*tau.z);
+                F[(size_t(ax)*n+ay)*n+az] *= std::polar(1.0, ph);          // e^{+iG·τ}
+            }
+            return this->BackwardFFT(F);
+        };
+
+        // Pre-shift the raster once per DISTINCT nonzero τ (diamond: a single ¼-glide τ shared by 24 ops).
+        std::vector<rvec3_t> taus; std::vector<rvec_t> shifted;
+        auto srcFor=[&](const rvec3_t& tau)->const rvec_t&
+        {
+            if (std::fabs(tau.x)<1e-9 && std::fabs(tau.y)<1e-9 && std::fabs(tau.z)<1e-9) return rho;
+            for (size_t i=0;i<taus.size();++i)
+                if (std::fabs(taus[i].x-tau.x)<1e-9 && std::fabs(taus[i].y-tau.y)<1e-9 && std::fabs(taus[i].z-tau.z)<1e-9)
+                    return shifted[i];
+            taus.push_back(tau); shifted.push_back(shiftBy(tau)); return shifted.back();
+        };
+
         rvec_t out(rho.size(), 0.0);
         const double w = 1.0/double(itsDirectOps.size());
         for (int ix=0; ix<n; ++ix) for (int iy=0; iy<n; ++iy) for (int iz=0; iz<n; ++iz)
         {
             double s=0.0;
-            for (const auto& W : itsDirectOps)
+            for (const auto& op : itsDirectOps)
             {
-                rvec3_t g = W * rvec3_t(double(ix),double(iy),double(iz));
-                s += rho[at(std::lround(g.x),std::lround(g.y),std::lround(g.z))];
+                const rvec_t& src = srcFor(op.tau);                        // ρ(·+τ), pre-shifted exactly
+                rvec3_t g = op.W * rvec3_t(double(ix),double(iy),double(iz));   // W·x (exact integer permutation)
+                s += src[at(std::lround(g.x),std::lround(g.y),std::lround(g.z))];
             }
             out[(size_t(ix)*n+iy)*n+iz] = w*s;
         }
@@ -89,7 +126,7 @@ public:
         {return os << Name() << " fit IBS: " << PW_Evaluator::size() << " plane waves";}
 
 private:
-    std::vector<Matrix3D<double>> itsDirectOps;   //!< τ=0 direct ops W for the IBZ raster star-average ({} = no-op)
+    std::vector<Symmetry::Lattice_3D::DirectOp> itsDirectOps;   //!< crystal direct ops {W|τ} for the IBZ raster star-average ({} = no-op)
 };
 
 } //namespace

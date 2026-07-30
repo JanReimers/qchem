@@ -37,6 +37,30 @@ struct SpaceGroupOp
     rvec3_t          tau;    //!< Fractional translation in \f$[0,1)^3\f$.
 };
 
+//! \brief A reciprocal-space symmetry operation carrying its fractional translation, for the
+//! NON-SYMMORPHIC density star-average in G-space (SCATTER form).  \a U is the integer G-index scatter
+//! matrix \f$W^\top\f$ (permutes the G-indices exactly, \f$|Um|=|m|\f$); \a tau is the op's fractional
+//! translation.  The star-average scatters each input coefficient with the glide phase on its INPUT index
+//! (doc/GPWPlan1.md item 5) \f[ \tilde\rho_\mathrm{sym}[U m]\mathrel{+}=\tfrac1{|ops|}\,e^{+2\pi i\,m\cdot\tau}\,\tilde\rho(m), \f]
+//! which reproduces the exact projector \f$\tilde\rho_\mathrm{sym}(G)=\tfrac1{|ops|}\sum_{op}e^{+2\pi i(W^{-\top}G)\cdot\tau}\tilde\rho(W^{-\top}G)\f$
+//! and reduces to the plain permutation average when every \f$\tau=0\f$ (symmorphic).
+struct ReciprocalOp
+{
+    Matrix3D<double> U;      //!< G-index scatter matrix \f$W^\top\f$ (exact G-index permutation).
+    rvec3_t          tau;    //!< Fractional translation of the operation.
+};
+
+//! \brief A direct-space symmetry operation carrying its fractional translation, for the
+//! NON-SYMMORPHIC density star-average on the real-space raster.  \a W is the integer linear part
+//! (real space acts by \f$r\to W r + \tau\f$); the raster gathers from voxel \f$W\cdot g + N\tau\f$
+//! (\f$N\tau\f$ = the sublattice shift in voxels), the real-space partner of the \f$e^{+2\pi i(Um)\cdot\tau}\f$
+//! G-space phase.
+struct DirectOp
+{
+    Matrix3D<double> W;      //!< Integer linear part in lattice coordinates.
+    rvec3_t          tau;    //!< Fractional translation of the operation.
+};
+
 //! \brief The detected space group of a crystal: its \f${W|\tau}\f$ operations, plus the
 //! derived crystal point group acting on \f$k\f$.
 //!
@@ -90,6 +114,18 @@ public:
     //! \param symmorphicOnly  the same \f$\tau=0\f$ W-only guard as \c ReciprocalPointOps.
     std::vector<Matrix3D<double>> DirectPointOps(bool includeTimeReversal=false,
                                                  bool symmorphicOnly=false) const;
+
+    //! \brief The FULL crystal point group as \f${U|\tau}\f$ reciprocal ops (NO symmorphic guard, NO time
+    //! reversal) for the non-symmorphic G-space density star-average.  Every \f${W|\tau}\f$ contributes its
+    //! reciprocal linear part paired with \f$\tau\f$; the glide phase \f$e^{+2\pi i(Um)\cdot\tau}\f$ makes the
+    //! average exact for diamond-type (Fd-3m) crystals, and it collapses to \c ReciprocalPointOps (no TR needed)
+    //! when the group is symmorphic.  Time reversal is deliberately absent: the density carries the crystal's
+    //! own point symmetry, not an imposed inversion (doc/GPWPlan1.md item 5).
+    std::vector<ReciprocalOp> ReciprocalOps() const;
+
+    //! \brief The FULL crystal point group as \f${W|\tau}\f$ direct ops for the non-symmorphic real-space raster
+    //! star-average.  The direct partner of \c ReciprocalOps (same op set, linear part \a W kept directly).
+    std::vector<DirectOp> DirectOps() const;
 
     const Matrix3D<double>& CellMatrix() const {return itsA;}
 

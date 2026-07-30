@@ -37,6 +37,27 @@ TEST(SpaceGroup, FCC_Si_diamond_is_Oh_nonsymmorphic)
     // Centrosymmetric -> time reversal adds nothing to the reciprocal-space ops.
     EXPECT_EQ(sg.ReciprocalPointOps(false).size(), 48u);
     EXPECT_EQ(sg.ReciprocalPointOps(true ).size(), 48u);
+
+    // The full {U|τ} / {W|τ} density-symmetrization ops: all 48, with 24 glide ops carrying τ=(¼,¼,¼)
+    // (the non-symmorphic half) and 24 symmorphic ops with τ=0.  U is the G-index scatter matrix Wᵀ.
+    auto rops = sg.ReciprocalOps();
+    auto dops = sg.DirectOps();
+    ASSERT_EQ(rops.size(), 48u);
+    ASSERT_EQ(dops.size(), 48u);
+    int nGlide=0, nSymm=0;
+    for (const auto& op : dops)
+    {
+        bool glide = fabs(op.tau.x)>1e-9 || fabs(op.tau.y)>1e-9 || fabs(op.tau.z)>1e-9;
+        if (glide) { ++nGlide;
+            EXPECT_NEAR(op.tau.x, 0.25, 1e-9); EXPECT_NEAR(op.tau.y, 0.25, 1e-9); EXPECT_NEAR(op.tau.z, 0.25, 1e-9); }
+        else ++nSymm;
+    }
+    EXPECT_EQ(nGlide, 24);
+    EXPECT_EQ(nSymm,  24);
+    // ReciprocalOp.U is the transpose of DirectOp.W (same op ordering), the exact G-index scatter map.
+    for (size_t i=0;i<rops.size();++i)
+        for (int a=1;a<=3;++a) for (int b=1;b<=3;++b)
+            EXPECT_NEAR(rops[i].U(a,b), dops[i].W(b,a), 1e-12);
 }
 
 TEST(SpaceGroup, SimpleCubic_monatomic_is_Oh_symmorphic)
