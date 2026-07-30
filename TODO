@@ -81,10 +81,18 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
   symbol conventions (basis fn, IBS, full BS, SALC, irrep labels — pick modern-literature-conventional).
   How to break it up?  Restrict class diagrams to the BasisSet level (not Atom/Molecule/Lattice internals); want (1) a client
   diagram (no Internal) and (2) a developer diagram (Internal). Host on GitHub, link from README.
-- **Tests** Debug Unit tests are getting up beyond 5 min again.  Release is OK at 2:15min.  With more lattice features going in we need to regularly run long tests.  Mitigations:
-  1. Set a local CI pipeline put Unit tests, integration tests and some longer running tests in there.  Shedule runs.  Trigger runs.  Can we have pause button ... in case live development want priority.
-  2. For molecule tests use linCint integral engines ... way faster than home grown MnD code.
-  3. Buy a new PC with 12-16 cores, 64GB ram, 2T SSD drive.  Use the new rig for live development run SI server on the old rig ... until it goes up in a puff of smoke :)
+- **Tests** 
+  - IntegrationTests/GPW_UT.C if these really unit (not integration SCF) tests they should move to src/BasisSet/Lattice_3D/tests or maybe src/Hamiltonian/tests if they need H terms.
+  - IntegrationTests/GPW_SCF_UT.C Review GPW tests 
+    - SCF axes {Si,NaF,Al,Na}x{Gamma,multi-K}x{BallOnly,AliasFree}x{T=0,KT!=0}x{sym_on,sym_off}x{Accel: Ladder (Null,DIIS,GDM)}x{rho_mis:Linear,Kerker,Puley}
+    - Now that code is maturing we probably don't to test every combo.  
+    - Use KT for metals, and not for insulators.
+    - DO multi-k and use symmetry for all 4 matrials.
+    - Use mostly BallOnly.  Is there a case that demonstrates a big advantage for AliasFree?
+    - We many tests with Kerker mixing, need 1 or 2 with Puley
+  - Review all other tests not on the SCF axes ... 
+    - Do we still need them?  
+    - Do they really need full SCF and can they be moved down tot he unit test level.
 - Review the Types.C files in the libraries other than qcCommon.
 - doc/ModuleToolchainPlan.md
 - why qcUmbrella?  it is just confusing for users.  
@@ -155,53 +163,9 @@ Notes, bugs, and plans for the qchem6 project. Markdown-enabled so headings fold
 ## qcPseudoPotential
 
 
-## qcSymmetry
+## qcSymmetry Non-symmorphic
 
-Space group 1: 
-- Fresh Workspace in ~/Code/qchem7  please create a branch for this work.
-- **Space-group support** — extend qcSymmetry from molecular point groups + Bloch k-labels to crystal space
-  groups. Three sub-tasks: (1) **detect** the ops from cell+basis (spglib-style); (2) **represent** `{R|τ}`
-  and apply them (to k in reciprocal space; to positions/density in real space); (3) **BZ machinery** — star
-  of k, irreducible wedge, integration weights.
-  - **Tier A** — point group acting on k (+ time-reversal `k→−k`). Enough for BZ reduction (consumes only the
-    point-group part; symmorphic-friendly). This is the provider for the qcLattice_3D *BZ-symmetry reduction*
-    item.
-  - **Tier B** — full space group with fractional translations τ → non-symmorphic `e^{−iG·τ}` phases,
-    density/Hamiltonian symmetrization, crystal SALCs (solid analogue of the molecular SALC work).
-  - Reuses the molecular point-group core: a space group ≈ point group ⋉ lattice translations.
-- Folder src/Symmetry/Lattice_3D  .  See src/Symmetry/Molecule for related point group code ... for any useful naming conventions.
-- Intended usage:
-  1. Starting from src/Structure/UnitCell.C deduce space group (SG).
-  2. Use SG to deduce Irreducible BZ -> reduced {k} {symmetry weights} for BZ integrations
-  3. SALC support for each k block
-  4. GUI for user entry of crystal structures:  use enters space group symbol and GUI present Wykoff positions (does this require non symmorphic support?)
-- We are deveoping PW and GPW PP calcalations on FCC Si with Monkhorst-Pack k sampling.  So the first would be IBZ {k} {symmetry weights} for that system. I don't know how IBS {k} interacts with Monkhorst-Pack.
-
-## 2 PC set up
-Old pc (this machine) = HP Compaq-Pro-6300-MT, hostname janr-HP-Compaq-Pro-6300-MT, 4 core cpu, HDD, 4K Z-edge monitor
-New (refurbished) pc Dell Optiplex 7090 SFF, 8 core/16 thread CPU, hostname janr2, 500G SSD, Low res Samsung Monitor
-Router: Huawie B310s 518
-
-If I plug the 4K monitor into the 7090 PC (using display port) it flashes horizontal bars, the shuts off (goes dark) of 3-10 seconds at a time.  If I connect 7090 PC->display port->Adapter->HDMI->4K monitor it works?!?
-
-Overall Goal: Do Claude development and computational physics calculations primarily on the new (much faster) machine.  Use the old for running confirmation tests or helping with builds.
-
-Minor things:
-1) Change hostname on the old machine janr-HP-Compaq-Pro-6300-MT to janr1
-2) Get the machines to recognize each other by hostname.  I am assuming the router gives them dynamic local IPs.
-3) Cross mount the drives so I can pass files back and forth.
-4) Set up remote desktop login in both directions.  Then I can hopefully get by with one monitor/keybard/mouse combo.
-5) Set it up so make -j20 spreads accross both machines. (SDD speed vs HDD speed may make this of marginal use)
-6) Organize unit tests so full confirmation runs and be distributed.  Or just set it up as a CI machine.
-
-The four extra cores may not be worth the effort in 5&6.  But I want to learn how that works as a feasibility study for adding more low cost refurbished machines in the future.  A long time ago I used to hear about beowolf linux clusters ... is that still a thing?
-
-What are your recommendations for how to proceed.  
-
-
-
-
-
+Key architectural insight: itsReciprocalOps currently serves both the k-fold (BuildKBlocks) and the G-space density symmetrization — but these want different op sets. The fold wants linear ops + time-reversal (unchanged, already reaches 3); the density wants the genuine {W|τ} point group with the phase and no false TR-inversion. I'll separate them.
   
 ## Code Review
 
@@ -211,13 +175,9 @@ MakeDensityMixer(-> Factory() in a namespace.
 MakeLocalPotential (full) is pinned by unit tests (PlaneWaveUT.C, GTH_UT.C) with BareCoulomb/GaussianSmearedNucleus, so I must keep it full and add separate Long/Short methods rather than change its semantics.
 
 ### GPW and grids
-"Pair→level rule on both sides: req = (αᵢ+αⱼ)·30 Ha" where does 30 come from?: REL_CUTOFF =30 user paramater
-"finest as fallback" fallback meaning in case something does not wotk? if Ecut/REL_CUTOFF < 2* amax
-"Local-PP integrates on the full 4-level sub-ladder (no top rung with the explicit list)" 4 - "no top rung" =3 ?!
-"Basis: n=28, α ∈ [0.245, 40], so the auto floor would have been 320 Ha"  OK if this was PWs Ecut for the orbitals would be 80=2*40?  Then you square the orbitals for the charge density fit basis 2*80=160.  But there is still and extra factor of 2 coming from somewhere? I see below this "That's the measured "our 8·αmax vs CP2K's ~4·αmax" factor" so for some reason we need *2 for rho fitting.
-How is CP2K getting away with not following the radix 2 rule for FFT?  Do they pad with zeros? Is that an efficient options?
 
-"Ours round-trips through the raster,"  what is raser?  Is this related to forcing the rho fit through the Fitting framework?
+
+The raster (GetRhoOnGrid) needs voxel-permutation (grid geometry) — a separate piece.
 
 ### Testing
 
@@ -231,11 +191,5 @@ that are near singular, decompose, truncate and look at residuals.  V*S*V_dagger
 2) FourierMesh_k = {k}, {symmetry weights for the Irrep BZ} for BZ sums/integrals.
 3) doc/GPWPlan.md: 2. THE mesh insight — the next increment builds on this (do not use the stopgap)
 4) "precompute the Bloch orbital on the mesh once (Eval re-sums images per point, so calling it inside qcMesh::Overlap per projector-image would be O(|images|²) — too slow for SCF)"  What was the fix ... can we add another Integral routing to Mesh that implelents the fix?
-
-Other:
-
-
-Session 5:
-Next steps:  Space group symmetry (reduce k count), Monkhorst-Pack, Some mesh refactoring, extending qchem GPW to multi-species, other?
 
 

@@ -60,7 +60,7 @@ integrals cache (`IntegralsCache::EmitReport`, cumulative, never cleared).  Rend
 (`SetConsole`); `ctest -j16` green (606/606).  Remaining: SOLID refactor (deferred), `basis.removed` naming, GPW
 stream-cache section, disk/rolling-log SINK (deferred; see RunReportPlan "Renderer vs SINK").
 
-**Forward-roadmap items 1–3 + IBZ — DONE (2026-07-28/29)** (detail in the commit messages):
+**items 1–3 + IBZ — DONE (2026-07-28/29)** (detail in the commit messages):
 - **1. VALGEN CLI + Al basis** — `CLIapps/valgen.C` shipped; Al q3 basis in `valence_lowq.bsd`.  (F⁻/anion
   DIIS limit-cycle + atomic-op(r) radial-only caveats recorded then; not on the metal path.)
 - **2. DEGENERATE-SHELL METAL (FCC Al @ Γ)** — gates `AlFCCDegenerateShellAufbauStalls` (aufbau floors Δρ on
@@ -84,7 +84,7 @@ stream-cache section, disk/rolling-log SINK (deferred; see RunReportPlan "Render
 
 ---
 
-# Forward roadmap (agreed 2026-07-26 — toward an honest metal + Fermi-smearing test)
+#roadmap (agreed 2026-07-26 — toward an honest metal + Fermi-smearing test)
 
 *(Items 1–3 + IBZ/k-star are DONE — summarised in the DONE section above.  Remaining forward work:)*
 
@@ -201,6 +201,8 @@ routed to the fine grid over the function's whole (e.g. 21.5 au) reach to captur
 picture — it is inherently a REAL-SPACE construct — so the fix leaves the uniform/`{G}` framework for the XC.
 
 **Design — Becke XC grid, NOT GAPW:**
+- Right UnitCell creates a uniform grid.  We will need a parameter in src/Mesh/Mesh.C something like:
+  enum class UnitCellKind  {Uniform,Becke}; and then add UnitCellKind to struct MeshParams.
 - KEEP the uniform FFT grid for **Hartree** (the G-space Poisson is the reason GPW is fast; a Becke grid can't
   do it).  So this ADDS a second grid for the XC only; it does not replace anything.
 - ADD an atom-centered **Becke/Voronoi** grid for the XC quadrature: collocate ρ on the Becke points, evaluate
@@ -210,6 +212,8 @@ picture — it is inherently a REAL-SPACE construct — so the fix leaves the un
 - This is the scale-decomposition (fine near atoms) pictured cleanly.  It is **lighter than GAPW** (which
   augments BOTH Hartree and XC near cores + a compensation charge — deferred, out of first-pass scope): Becke
   is XC-quadrature ONLY, Hartree stays G-space.
+- DISABLED_NaFRocksaltGamma might be a good test case, the F- ion tends to make sharp peaks in rho and Vxc.
+- We now have full space group support, so as icing on the cake we should symmetry adapt this grid.  The other uniform grid shoudl already be symmetry adapted.
 
 **Beyond LDA — the functional-ladder win (user, 2026-07-26).**  The Becke grid also unlocks the ADVANCED
 functionals, and for the same reason.  A semi-local XC potential is a pointwise-nonlinear function of ρ AND its
