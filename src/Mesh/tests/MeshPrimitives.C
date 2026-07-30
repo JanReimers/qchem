@@ -207,3 +207,80 @@ TEST(Mesh_Quadrature, RectangularOverlap)
     ASSERT_EQ(S.columns(),1u);
     EXPECT_NEAR(S(0,0),Pi/8.0,1e-10);
 }
+
+//================================================================================================
+//  7. Angular-rule DEGREE AUDIT.  Each rule claims an algebraic degree L (it must integrate every
+//  spherical polynomial of degree <= L exactly).  The hand-coded Lebedev-style tables ("Gauss")
+//  were historically only smoke-checked (sum W, z^2), so this audits EVERY even monomial
+//  x^{2a} y^{2b} z^{2c} with 2(a+b+c) <= L against the exact
+//      integral x^{2a} y^{2b} z^{2c} dOmega = 4 pi (2a-1)!!(2b-1)!!(2c-1)!!/(2(a+b+c)+1)!!
+//  and every odd monomial (degree <= L) against 0.  Direction constants in the 24/30 tables are
+//  only ~7-figure, so the pass tolerance is 1e-6 relative to 4 pi.
+//================================================================================================
+namespace
+{
+double DoubleFactorial(int n) {double f=1; for (int i=n; i>1; i-=2) f*=i; return f;}
+
+// Max |quadrature - exact| over ALL monomials of degree <= L, scaled by 1/(4 pi).
+double AngularMomentError(const AngularMesh& ang, int L)
+{
+    double worst=0;
+    for (int a=0; a<=L; a++)
+        for (int b=0; a+b<=L; b++)
+            for (int c=0; a+b+c<=L; c++)
+            {
+                double q=0;
+                for (size_t i=0; i<ang.size(); i++)
+                {
+                    const rvec3_t& d=ang.Dirs()[i];
+                    q+=ang.W()[i]*std::pow(d.x,a)*std::pow(d.y,b)*std::pow(d.z,c);
+                }
+                double exact=0;
+                if (a%2==0 && b%2==0 && c%2==0)
+                    exact=FourPi*DoubleFactorial(a-1)*DoubleFactorial(b-1)*DoubleFactorial(c-1)
+                         /DoubleFactorial(a+b+c+1);
+                worst=std::max(worst, std::fabs(q-exact)/FourPi);
+            }
+    return worst;
+}
+} //anon
+
+TEST(Mesh_Angular, LebedevTablesHaveClaimedDegree)
+{
+    // {numDir, claimed L} straight from the table comments in GaussAngularMesh.C.
+    const std::pair<int,int> rules[]={{1,0},{2,0},{6,1},{8,3},{12,5},{24,7},{30,8},{50,11}};
+    for (auto [n,L] : rules)
+    {
+        qcMesh::MeshParams mp; mp.angular=AngularKind::Gauss; mp.nAngular=n;
+        double err=AngularMomentError(MakeAngular(mp),L);
+        EXPECT_LT(err,1e-6) << "Lebedev table numDir=" << n << " claims degree " << L
+                            << " but max moment error is " << err;
+    }
+}
+
+TEST(Mesh_Angular, GaussLegendreHasClaimedDegree)
+{
+    for (int L : {5,11,17,23,29})
+    {
+        qcMesh::MeshParams mp; mp.angular=AngularKind::GaussLegendre; mp.nAngular=L;
+        double err=AngularMomentError(MakeAngular(mp),L);
+        EXPECT_LT(err,1e-12) << "GaussLegendre L=" << L << " max moment error " << err;
+    }
+}
+
+// Euler-Maclaren is trapezoidal in a transformed theta: it has NO algebraic degree, only slow
+// ALGEBRAIC convergence (measured: degree-3 moment error ~1e-3 at L=29, m=2 -- three orders worse
+// than GaussLegendre at the same L).  Audit it for what it is: the error must DROP with L, and the
+// best transform (m=2) must reach 1e-3 by L=29.  For high-accuracy angular work use GaussLegendre.
+TEST(Mesh_Angular, EulerMaclarenLowMomentsConverge)
+{
+    for (int m : {1,2,3})
+    {
+        qcMesh::MeshParams mp; mp.angular=AngularKind::EulerMaclaren; mp.em_m=m;
+        mp.nAngular=11; double e11=AngularMomentError(MakeAngular(mp),3);
+        mp.nAngular=29; double e29=AngularMomentError(MakeAngular(mp),3);
+        EXPECT_LT(e29,e11) << "EulerMaclaren m=" << m << " does not converge: "
+                           << e11 << " -> " << e29;
+        if (m==2) EXPECT_LT(e29,1e-3) << "EulerMaclaren m=2 L=29 degree-3 moment error " << e29;
+    }
+}

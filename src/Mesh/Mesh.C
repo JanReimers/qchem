@@ -48,6 +48,18 @@ private:
 enum class RadialKind  {MHL, Log, Linear};
 //! \brief Angular mesh family.  All schemes are normalised so \f$\sum_i w_i = 4\pi\f$.
 enum class AngularKind {Gauss, GaussLegendre, EulerMaclaren};
+//! \brief Which quadrature a periodic UnitCell builds: the uniform FFT-compatible midpoint grid
+//! (Hartree/PP -- resolution from \c eCut / \c nUniform), or the atom-centred periodic Becke
+//! fuzzy-Voronoi grid (dense radial near each nucleus, cheap diffuse tails -- the XC quadrature;
+//! uses the \c radial / \c nAngular / \c beckeOrder knobs).  See doc/GPWPlan1.md "Becke XC grid".
+enum class UnitCellKind {Uniform, Becke};
+
+//! \brief Becke's iterated smoothing polynomial mapped to the cell cutoff:
+//! \f$ s(\mu) = \tfrac12(1-f_k(\mu)),\; f(\mu)=\tfrac12(3\mu-\mu^3) \f$ applied \f$k+1\f$ times
+//! (A. D. Becke, J. Chem. Phys. 88, 2547 (1988)).  \f$ s:[-1,1]\to[1,0] \f$, with \f$s(\mp1)\f$
+//! pinned at 1/0 and the transition sharpened by each iteration.  Shared by the molecular
+//! (MakeMolecularMesh) and periodic (UnitCell) fuzzy-Voronoi partitions.
+double BeckeCutoff(double mu, int k);
 
 //! \brief Typed, fully-defaulted mesh parameters.  Set only the knobs you actually use
 //! (C++20 designated initializers); no field is required-but-unused.
@@ -62,6 +74,7 @@ struct MeshParams
     int         nUniform  = 20;  //!< Uniform periodic real-space grid: points per cell axis (lattice mesh only; \f$n^3\f$ total). Manual fallback when \c eCut<=0.
     double      eCut      = 0.0;  //!< Real-space integration-mesh energy cutoff (a.u.). If >0, the uniform lattice mesh DERIVES its \c nUniform from the Nyquist bound \f$n\gtrsim 2a\sqrt{2E_{cut}}/\pi\f$ (\f$a\f$=longest cell edge; the \f$\times2\f$ is the density bandwidth), and \c nUniform is ignored. 0=use the manual \c nUniform.
     double      relCutoff = 1.0;  //!< Fit-grid density multiplier (CP2K \c REL_CUTOFF): the fit basis scales its \f$E_{cut}\f$ by this. 1=wavefunction bandwidth (LDA); GGA wants >1. Set by the Hamiltonian from the functional's \c GridCutoffFactor().
+    UnitCellKind cellKind = UnitCellKind::Uniform;  //!< Lattice mesh only: which quadrature a UnitCell builds (uniform midpoint grid vs periodic Becke).
 
     //! \brief Compact, deterministic identity string for these parameters.  Two MeshParams give the
     //! same ID() iff they build the same quadrature, so it is the cache key for any mesh-quadrature
@@ -77,7 +90,7 @@ struct MeshParams
              + ",ang" + to_string(static_cast<int>(angular)) + ",na" + to_string(nAngular)
              + ",em"  + to_string(em_m)     + ",bo" + to_string(beckeOrder)
              + ",nu"  + to_string(nUniform) + ",ec" + to_string(eCut)
-             + ",rc" + to_string(relCutoff) + "}";
+             + ",rc" + to_string(relCutoff) + ",ck" + to_string(static_cast<int>(cellKind)) + "}";
     }
 };
 
@@ -103,6 +116,12 @@ void Mesh::Append(const rvec3_t& r, double w)
 void Mesh::ShiftOrigin(const rvec3_t& o)
 {
     for (size_t i=0; i<itsR.size(); i++) itsR[i]+=o;
+}
+
+double BeckeCutoff(double mu, int k)
+{
+    for (int i=k; i>=0; i--) mu=0.5*(3*mu - mu*mu*mu);
+    return 0.5*(1.0-mu);
 }
 
 } //namespace qchem::qcMesh

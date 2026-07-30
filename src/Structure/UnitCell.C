@@ -1,6 +1,7 @@
 // File: Structure/UnitCell.C  Unit cell for a lattice.
 module;
 #include <iosfwd>
+#include <string>
 #include <vector>
 #include <functional>
 #include <memory>
@@ -41,10 +42,14 @@ public:
     double SumFormFactors(const std::function<double(int Z)>& f) const override
     {return Structure::SumFormFactors(f)/GetCellVolume();}
 
-    //! A periodic cell's real-space integration mesh: a UNIFORM grid of \c mp.nUniform points per axis at
-    //! cell-fractional midpoints (weight \f$\Omega/n^3\f$ each) -- the working lattice mesh for real-space PP
-    //! quadrature.  (Plane-wave DFT integrates in G-space on the basis's own grid, so it never asks for this;
-    //! an adaptive unit-cell Becke grid is a future refinement.)
+    //! A periodic cell's real-space integration mesh; \c mp.cellKind selects the quadrature.
+    //! \c UnitCellKind::Uniform -- a UNIFORM grid of \c mp.nUniform points per axis at cell-fractional
+    //! midpoints (weight \f$\Omega/n^3\f$ each): the working lattice mesh for real-space PP quadrature.
+    //! (Plane-wave DFT integrates in G-space on the basis's own grid, so it never asks for this.)
+    //! \c UnitCellKind::Becke -- the atom-centred periodic Becke fuzzy-Voronoi quadrature (dense radial
+    //! near each nucleus, negligible-cost diffuse tails): the near-ideal grid for pointwise-nonlinear,
+    //! sharp-at-the-core fields (XC).  The image series is \f$\varepsilon\f$-converged by magnitude
+    //! screening; no radius parameter exists.  See doc/GPWPlan1.md "Becke XC grid".
     qcMesh::Mesh CreateIntegrationMesh(const qcMesh::MeshParams&) const override;
 
     //! \brief Add an atom of nuclear charge \a Z at FRACTIONAL cell coordinates \a f (\f$r=Af\f$).
@@ -74,6 +79,16 @@ public:
     //! Integer cell-index triples \f$n\f$ with \f$\lVert A n\rVert \le\f$ MaxDistance.  Pure
     //! cell geometry, so it serves both direct (R) and reciprocal (G) lattices.
     std::vector<vec3_t<int>> CellsInSphere(double MaxDistance) const;
+
+    //! \brief Announce a UNIFORM \f$N_1\times N_2\times N_3\f$ grid over THIS cell: one console line
+    //! (\c [uniform grid] <key>: N, points, \f$\Delta r_i=|a_i|/N_i\f$ a.u.) plus a \c grids.<key>
+    //! run-report entry with the same fields (+ \c kind=Uniform, and \c eCut when \a eCut >= 0).
+    //! THE single owner of uniform-cell-grid reporting: CreateIntegrationMesh's uniform branch AND the
+    //! FFT raster engines (whose grids never pass through the mesh factory -- they recover this cell via
+    //! MakeReciprocalCell) both delegate here, so every uniform grid announces in one format.  (The
+    //! Reporting dependency stays in the implementation -- json in this interface leaks nlohmann
+    //! reachability into every importer and collides with <ranges> in test TUs.)
+    void EmitUniformGridReport(const std::string& key, const vec3_t<int>& N, double eCut=-1.0) const;
 
     std::ostream&  Write(std::ostream&) const override;
 

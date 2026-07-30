@@ -19,14 +19,9 @@ namespace qchem {
 // mu is bounded in [-1,1] for ANY nonzero separation (reverse triangle inequality); the only singularity is
 // exactly coincident atoms (R_ij = 0), where we set mu = 0 (so s = 1/2 -> a coincident dimer integrates to
 // the single-atom result).  Serves both Atom (natom==1: just the shifted product grid) and Molecule.
-namespace {
-// Becke's smoothing polynomial applied k+1 times, then mapped to the cell cutoff s = 1/2(1-f).
-double BeckeCutoff(double mu, int k)
-{
-    for (int i=k; i>=0; i--) mu=0.5*(3*mu - mu*mu*mu);
-    return 0.5*(1.0-mu);
-}
-} //anon
+// The smoothing polynomial s(mu) is the shared qcMesh::BeckeCutoff (also used by the periodic
+// UnitCell Becke partition).
+using qcMesh::BeckeCutoff;
 
 qcMesh::Mesh MakeMolecularMesh(const Structure& atoms, const qcMesh::MeshParams& mp)
 {

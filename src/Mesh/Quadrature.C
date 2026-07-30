@@ -111,8 +111,9 @@ export template <class T> vec_t<T> Overlap(const Mesh& m, const VectorFunction<T
     return p;
 }
 
-//! <a_i | V | a_j>  -- subsumes Inv_r1 (V=1/r), Inv_r2 (V=1/r^2) and the DFT potential (V=vxc).
-export template <class T> hmat_t<T> WeightedOverlap(const Mesh& m, const VectorFunction<T>& a, const ScalarFunction<double>& V)
+//! <a_i | V | a_j>  with V TABULATED at the mesh points (V[k] pairs with Points()[k]) -- for callers
+//! that already hold the field's values (e.g. v_xc(rho_k) with rho sampled once per SCF iteration).
+export template <class T> hmat_t<T> WeightedOverlap(const Mesh& m, const VectorFunction<T>& a, const rvec_t& V)
 {
     size_t n=a.GetVectorSize();
     mat_t<T> M(n,n,T(0));
@@ -120,13 +121,21 @@ export template <class T> hmat_t<T> WeightedOverlap(const Mesh& m, const VectorF
     const rvec_t&     W=m.Weights();
     for (size_t k=0; k<m.size(); k++)
     {
-        double   v=V(R[k]);
         vec_t<T> p=a(R[k]);
         for (size_t i=0; i<n; i++)
             for (size_t j=0; j<n; j++)
-                M(i,j)+=Conj(p[i])*p[j]*v*W[k];
+                M(i,j)+=Conj(p[i])*p[j]*V[k]*W[k];
     }
     return Hermitianize(M);
+}
+
+//! <a_i | V | a_j>  -- subsumes Inv_r1 (V=1/r), Inv_r2 (V=1/r^2) and the DFT potential (V=vxc).
+export template <class T> hmat_t<T> WeightedOverlap(const Mesh& m, const VectorFunction<T>& a, const ScalarFunction<double>& V)
+{
+    rvec_t v(m.size());
+    const rvec3vec_t& R=m.Points();
+    for (size_t k=0; k<m.size(); k++) v[k]=V(R[k]);
+    return WeightedOverlap(m,a,v);
 }
 
 //! <grad a_i | grad a_j>  -- the kinetic <p^2> block (Hermitian).
