@@ -290,8 +290,12 @@ LAST — payoff only on multi-k; time with the IBZ track.  Cache B(R), never M(k
   nothing and GPW_SCREEN_EPS=1e-8 bought only 5%.  The honest diffuse-setup targets are therefore:
   OMP the local-PP sweep (per-pair parallel), and 0i analytic V_loc-long (eliminates the long-range
   part of that sweep).**
-- **OPEN (next increments)**: OMP the local-PP integrate-back + 0i analytic V_loc-long (the measured
-  diffuse-setup levers); coarse-end routing calibration (kMinLevelN / per-level resolution guard);
+- **OPEN (next increments)**: GPW pair-loop THREAD SAFETY (2026-07-31: real OpenMP finally works —
+  commit 2fd152c8, first threaded diffuse-NaF run 4:09→1:08 — but intermittently aborts with an
+  exception inside the parallel region; suspect the shared Cache2/3 geometry caches racing under the
+  pair workers, which had never actually run threaded before.  Serial unaffected); 0i analytic
+  V_loc-long (the other measured diffuse-setup lever); coarse-end routing calibration (kMinLevelN /
+  per-level resolution guard);
   making Becke the DEFAULT for (diffuse) bases; spin-native (`PW_XC` itself is unpol today);
   symmetry-adapting the mesh points (site-group orbits must AVOID bond directions); per-element radial
   scaling; Becke+IBZ real-space star-average of ρ at mesh points.
