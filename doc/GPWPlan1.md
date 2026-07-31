@@ -82,6 +82,52 @@ stream-cache section, disk/rolling-log SINK (deferred; see RunReportPlan "Render
   (shifted MP + global μ + smearing, `VALENCE_LOWQ_SR2` at the real density).  Machinery validated; the
   converged-mesh / cohesive-energy "done properly" pass is what remains (below).
 
+**BECKE XC GRID — BUILT + GATED + PERF-CLOSED (2026-07-30/31)** (commits e601cada, 2b08f98c, 70b32905,
+c800ec48, 87acb699, 719d6b6a, 33a94ce4, 2fd152c8; remaining increments in their own section below):
+- **Periodic Becke mesh** — `qcMesh::UnitCellKind{Uniform,Becke}` in `MeshParams`; `UnitCell::
+  CreateIntegrationMesh` Becke branch: per-atom radial×angular grids, competitor images gathered in
+  expanding Chebyshev shells until both tails are provably < ε by the s(μ) collinear bounds (magnitude
+  screen only, NO radius — the pin holds; ε=1e-8 by measurement); points wrapped home; far diffuse tails
+  drop free.  Acceptance `LatticeMesh.Becke*`.  **ANGULAR AUDIT**: the 40-year-old hand-coded Lebedev
+  tables are ALL CORRECT to their claimed degrees (permanent `Mesh_Angular.*` gates); GaussLegendre is
+  machine-exact at ANY L; EulerMaclaren has NO algebraic degree.
+- **`PW_XC_Becke` + `BeckeXC_Engine`** (pair-shared mesh + geometry-fixed Φ tables keyed `BasisSetID` +
+  per-serial ρ; `tDM_CD::DM_RhoAtPoints` = the FIELD dual of `DM_ContractBlocks` — the density GEMMs the
+  caller's tables against its private D; `tChargeDensity::EvalBatch` factorised-phase batched inverse FT
+  for the mixed/Kerker iterations where the Fock build sees the ρ̃ map, not a DM): per-iteration cost
+  4.8 → 0.37 s; NaF Becke ≈37 s vs uniform 34 s, energies bit-identical.  ROUTE SEAM: `Ham_PW_DFT`
+  optional `xcMesh` ctor param → `GpwOptions.xcMesh`, one-token `UnitCellKind` switch in
+  `DISABLED_NaFRocksaltGamma`; every run announces `[XC quadrature]` / `[Becke grid]` / `[uniform grid]`
+  + `grids.*` report entries.  Resolution knobs `GPW_BECKE_L/NR/ALPHA/ANG`.
+- **GATES**: Si Γ (enabled): dE_xc=1.1e-4 Ha, max|ΔV_xc|=3.5e-4 vs a MATRIX-GRADE Ecut=60 uniform
+  reference (lesson: SCF-grade Ecut reads as a false Becke error).  NaF SR2 sharp-F stress (DISABLED,
+  long): the Becke matrix is INTERNALLY converged < 1e-4 including the F core (B40-vs-B80 = 7.1e-5)
+  while the uniform raster's worst F-core element wanders 0.16 with raster config, and E_xc drifts
+  TOWARD Becke as the raster refines — the grid's reason to exist, measured.
+- **ANGULAR-ORDER LADDER (user's site-symmetry conjecture — confirmed)**: T_d-sparse content ⇒
+  converged at GL-11 (72 dirs, sub-mHa), breakdown ≤ degree 7.  Lebedev at the same degree is better on
+  V_xc ELEMENTS (the O_h-orbit cancellation is real) but 5-10× worse on ρ-weighted integrals — its
+  (±1±1±1)/√3 orbit sits exactly ON the diamond bond axes ⇒ site-adapted grids must AVOID special
+  directions.  Defaults: GL-17 safe / GL-11 fast.
+- **PIN — HartreeOnly routing FALSIFIED as a default**: dropping the ⅔·α_max field-sharpness floor when
+  the XC is off-raster destabilises the diffuse NaF at EVERY reduced β (β=0 → +904 Ha) — **the floor
+  protects the DENSITY's low-G integrity (under-resolved diffuse-pair FFT fold-back corrupts exactly the
+  charge-transfer mode), NOT only V_xc** (`b3dad5be`'s attribution was partially incidental).  Ships
+  default-inert: the `GPWParams::RasterFields` seam + `GPW_ROUTING`/`GPW_RELFIELDSHARP` calibration valves.
+- **DIAGNOSTICS**: `[lattice sums]` economy line (α_min/max, the ε's with env names, worst-pair reach →
+  `CellsInSphere` count — the numbers that jump with diffuse functions) + the `qchem.Reporting` TIMING
+  LEDGER (`Timed` RAII, EXCLUSIVE times — disjoint buckets sum to wall — sorted by cost at run end).
+  First measurement NAMED the diffuse-NaF 285 s: local-PP LONG grid sweep 180 s + stream build 65 s,
+  both driven by the 791-cell per-pair offset enumeration (explains the κ-null + the small screen-ε
+  wins); local-PP SHORT analytic = 0.37 s over the SAME enumeration (~500× per-term) ⇒ 0i's G-space
+  fold is the structural kill of the biggest bucket.
+- **OPENMP FOR REAL**: clang's `-fopenmp=libgomp` is LINK-COMPAT ONLY — no codegen; every "OpenMP" run
+  2026-07-19→07-31 was silently serial (the old load-imbalance / 0-speedup verdicts are VOID).  C++20
+  modules force OpenMP GLOBAL (the language mode is baked into each PCM; mixed imports refuse both ways)
+  ⇒ `CMAKE_CXX_FLAGS` + global define/link, with the apt-libomp bridge documented beside
+  `find_package(OpenMP)`.  First REAL threaded diffuse-NaF run: 4:09 → 1:08 — which exposed the
+  pair-loop thread-safety bug (open, below).
+
 ---
 
 #roadmap (agreed 2026-07-26 — toward an honest metal + Fermi-smearing test)
@@ -181,180 +227,43 @@ LAST — payoff only on multi-k; time with the IBZ track.  Cache B(R), never M(k
 
 ---
 
-# Future consideration — Becke XC grid (the last term without a near-ideal grid)
+# Becke XC grid — remaining increments (the build/gate/perf record is in DONE above)
 
-**STATUS 2026-07-30 — BUILT + GATED (uncommitted).**  The pieces, in landing order:
-- **Periodic Becke mesh**: `qcMesh::UnitCellKind {Uniform,Becke}` in `MeshParams` (folded into `ID()`);
-  `UnitCell::CreateIntegrationMesh` grows the Becke branch (`src/Structure/Imp/UnitCell.C`) — per-atom
-  radial×angular grids, Becke cell weights with the competitor set over ALL periodic images, gathered in
-  expanding Chebyshev cell shells until BOTH tails are provably < ε by the s(μ) collinear bounds (magnitude
-  screen, NO radius anywhere — the pin holds).  ε=1e-8 ON PURPOSE (bounds are worst-case-collinear;
-  quadrature error ~1e-4 dominates; 1e-10 measured several-fold costlier for zero gain).  Points wrapped to
-  the home cell; far radial tails get ~0 weight and are dropped — a diffuse function's reach costs nothing.
-  Acceptance: `LatticeMesh.Becke*` (UTStructure) — ∫1=Ω (−2.9e-4), lattice-Gaussian 1e-4, sharp α=100
-  core field 1e-4 where the same-point-count uniform grid misses by >1e-2.
-- **ANGULAR-RULE AUDIT** (`Mesh_Angular.*`, UTMesh): the 40-year-old hand-coded Lebedev tables are ALL
-  CORRECT to their claimed degrees (6/8/12/24/30/50 → L=1/3/5/7/8/11, ≤1e-6 = the 7-figure constants);
-  GaussLegendre is machine-exact at ANY L; EulerMaclaren has NO algebraic degree (degree-3 moments ~1e-3
-  at L=29 m=2).  ⇒ the Becke shell (angular-limited) uses **GaussLegendre L=29** (Lebedev stops at L=11).
-- **`PW_XC_Becke`** (`src/Hamiltonian/Internal/PWTerms.C`): the real-space sibling of PW_XC (one LDA
-  functional per instance, Dirac+VWN pair) — ρ(r) evaluated ANALYTICALLY per mesh point off the density's
-  ScalarFunction face (no FFT/collocation/fit; ρ_DM≥0 so the ρ>0 guard is inert), `⟨i|v_xc|j⟩` =
-  `qcMesh::WeightedOverlap` (new tabulated-V overload) over the Bloch-summed orbital basis.  The MESH is
-  built once by the caller and SHARED by the pair (as PW_XC shares its fit basis).  Hartree untouched.
-- **GATE — Si Γ (`GPW_SCF.BeckeXCMatchesUniformXC_SiGamma`, enabled): PASSES.**  Same converged density,
-  uniform (raw-adjoint, Ecut=60 reference) vs Becke (nr=40, GL-29): dE_xc=1.1e-4 Ha, ρ-lost=−8.9e-4,
-  max|ΔV_xc|=3.5e-4.  LESSON: at the SCF-sufficient Ecut=20 the max|ΔV_xc| read 1.2e-2 — the RASTER's
-  element error, not Becke's (dE_xc was already 1e-4).  The uniform reference must be matrix-grade.
-- **GATE — NaF SR2 sharp-F stress (`DISABLED_BeckeXCMatchesUniformXC_NaFSR2`)**: dE_xc tiny throughout
-  (1.6e-4 BallOnly / 1.3e-5 AliasFree; SCF at Ecut=160 hits the CP2K truth −24.4312 in 17-18 iters), but
-  element-wise the UNIFORM raster is NOT converged on sharp-F pairs at practical Ecut: max|ΔV_xc| vs the
-  same Becke matrix = 1.55e-1 (BallOnly/160) → 1.89e-2 (AliasFree/160, worst at a diagonal deep-F-core
-  element) — which is this grid's reason to exist.  The committed gate is therefore Becke INTERNAL
-  convergence (B40 vs 2×-refined B80) + energy-level agreement — **PASSES: max|B40−B80|=7.1e-5,
-  dE_xc(B40,B80)=1.5e-5** — the Becke matrix is converged below 1e-4 INCLUDING the sharp F core, while
-  the uniform raster's worst element wanders 0.16 with raster config (BallOnly@80 −1.077 / AliasFree@160
-  −0.897 vs Becke −0.9154±7e-5; V_xc~ρ^⅓ is not band-limited at the core, so even exact-quadrature
-  AliasFree cannot element-converge it).  Even E_xc drifts TOWARD Becke as the raster refines:
-  −4.95438 (BallOnly@80) → −4.95483 (AliasFree@160) → −4.95524±1.5e-5 (Becke).
-- **VISIBILITY + KNOBS (2026-07-30, user request)**: building a periodic Becke mesh now announces itself —
-  a `[Becke grid]` console line (the `[GPW grid]` family: natom, radial/angular recipe, kept/dropped
-  points) plus a `grids.becke` addendum in the run report (`report::EmitAt`; inert when no run is open).
-  NO line ⇒ the uniform XC route is in use (e.g. `DISABLED_NaFRocksaltGamma` — Becke is gate-only today).
-  Env instruments on the gate default (`BeckeXCParams`): `GPW_BECKE_L` (GaussLegendre order, any int),
-  `GPW_BECKE_NR` (radial points), `GPW_BECKE_ALPHA` (MHL scale), `GPW_BECKE_ANG=lebedev` (the
-  octahedral-orbit tables; `GPW_BECKE_L` then = direction count {6,8,12,24,30,50}) — explicit-args
-  callers (the NaF B80 refinement probe) keep their pinned resolution.
-- **ANGULAR-ORDER LADDER (Si gate, 2026-07-30 — the user's site-symmetry conjecture, measured).**  The
-  T_d site symmetry makes the field content sparse (L∈{0,3,4,6,...}; pair products add ≤2·l_max), so the
-  needed order is far below the partition-worst-case L=29: GL ladder dV_xc = 3.5e-4(floor)@L=17 ==
-  L=29 → 9.5e-4@**L=11 (72 dirs, 4000 pts, sub-mHa dE_xc — the measured sweet spot)** → 5.6e-3@L=7 →
-  1.4e-2@L=5.  Lebedev at the SAME degree: better on V_xc elements (Leb-24 3.1e-3 vs GL-7 5.6e-3 — the
-  O_h-orbit cancellation is real) but 5-10× WORSE on the ρ-weighted integrals (Leb-50 dE_xc −7.0e-3 vs
-  GL-11 7.8e-4): the (±1±1±1)/√3 orbit sits EXACTLY on the diamond bond axes — ρ's sharpest, most
-  T_d-asymmetric angular feature.  ⇒ default stays GL-17 (safe) / GL-11 (fast); the principled endgame is
-  a SITE-GROUP-ADAPTED grid whose orbits avoid special (bond) directions — upgrading the "symmetry-adapt
-  this grid" icing item with concrete design guidance.
-- **ROUTE SEAM WIRED (2026-07-30, user request)**: every `Ham_PW_DFT` ctor takes an optional
-  `qcMesh::MeshParams xcMesh` (ctor-injected policy, no setter) — default `UnitCellKind::Uniform` is
-  bit-identical to before; `::Becke` assembles the `PW_XC_Becke` pair on the geometry's periodic Becke
-  mesh (built once, shared; no Vxc fit basis on that route).  BuildTerms ANNOUNCES the choice either way
-  (`[XC quadrature] UNIFORM G-space raster` / `periodic BECKE atom-centred mesh` + `grids.xcQuadrature`).
-  Exposed as `GpwOptions.xcMesh`; `DISABLED_NaFRocksaltGamma` carries the one-token switch
-  (`o.xcMesh.cellKind = Uniform  // <-- ::Becke turns Becke ON`, recipe from `BeckeXCParams()`).
-  SMOKE-VERIFIED in-SCF (NaF, 3 iters, L=11): route runs, charge conserved, ~15 s/iteration unoptimised.
-- **PERF ITEM DONE (2026-07-30) — the cached-Φ + shared-ρ engine.**  User measurement that triggered it:
-  NaF uniform 34 s vs Becke 95 s (1/4 the points, 3× the time!).  Root cause (timing fit + perf): setup
-  (~33-37 s, the one-time local-PP/grid build) is IDENTICAL between routes; the premium was **4.8
-  s/iteration** of per-iteration Becke XC — FOUR uncached image-summed Bloch basis sweeps over the mesh
-  (2 terms × (ρ-sample + WeightedOverlap)), while the uniform route amortises all Gaussian work in the
-  stream cache + one FFT.  The fix, three layers, measured ladder 4.8 → 1.7 → 0.58 → **0.37 s/iter**:
-  (1) `BeckeXC_Engine` shared by the pair — per-block basis tables Φ (geometry-fixed, built ONCE per
-  run, keyed `BasisSetID` like PW_Hartree's V_long) + pair-shared ρ per density serial + the matrix as
-  `Φ†diag(w·v)Φ` (one zgemm); (2) `tDM_CD::DM_RhoAtPoints(points, Φ-map)` — the FIELD dual of
-  `DM_ContractBlocks`: the density GEMMs the caller's tables against its private D (pointwise default on
-  the base face; leaf GEMM + absent-block self-heal; composite sums — BZ weights ride in D as usual);
-  (3) the Fock build on MIXED iterations sees `FourierMixCD` (NOT a DM!) → new
-  `tChargeDensity::EvalBatch(points)` with a factorised-phase batched inverse FT (per-axis
-  e^{i m (Bᵀr)_a} tables + a flattened map — no transcendental, no tree-chase in the inner loop).
-  NaF full run now ≈37 s vs uniform 34 s; energies bit-identical (−24.4315254580), Si gate numbers
-  unchanged to 4 digits.  SEMANTICS NOTE uncovered en route: on mixed iterations the Becke ρ feed is the
-  ρ̃-BALL field (FourierMixCD's map) — the raw-through-dynamics analogue (a Becke-mesh shadow in the
-  mixer) is a possible future refinement of the 0.5(f2) idea if ball-Gibbs ever bites at the mesh points.
-- **HARTREE-ONLY ROUTING: BUILT, MEASURED, FALSIFIED as a default (2026-07-31).**  The hypothesis: with
-  XC off-raster, the field-sharpness floor β=⅔·α_max (the `b3dad5be` V_xc~ρ^⅓ rule) could drop to the
-  pair bandwidth, routing diffuse density pairs onto coarse ladder levels (the diffuse-basis SETUP-cost
-  fix — the user's hand-tuned diffuse NaF spends ~250 s of 285-309 s in the stream build).  MEASURED on
-  that very system (Becke XC, diffuse SR): β=0 DIVERGES (+904 Ha); β/α_max ∈ {1/12, 1/6, 1/3} all
-  slosh 20-31 Ha and run SLOWER (the wild density balloons the D-aware boxes); only ⅔ (=HartreeXC)
-  converges.  **PIN: the ⅔·α_max floor protects the DENSITY's low-G integrity — an under-resolved
-  diffuse-pair FFT folds high-G back into the kept ball, corrupting exactly the charge-transfer mode —
-  NOT only V_xc; the b3dad5be attribution was partially incidental.**  What ships: the full seam
-  (`GPWParams::RasterFields{HartreeXC,HartreeOnly}` → `GPW_IBS` → `GPW_Evaluator` → the
-  `relFieldSharp` argument threaded through `LatticeSum1E::CollocateDensity/IntegratePotential`, the
-  stream-cache + integrate-memo identities, and `PairLevel`'s relative rule) + TWO calibration valves:
-  `GPW_ROUTING=hartree` (RunGpw flips the policy) and `GPW_RELFIELDSHARP=<frac>` (the HartreeOnly β as
-  a fraction of α_max).  Default = HartreeXC everywhere, bit-identical.  The diffuse-SETUP relief must
-  come from the COARSE-END calibration instead (`kMinLevelN=3` "very coarse for a diffuse lobe" — the
-  standing suspect), plus `GPW_OMP_THREADS` on the stream build and eventually 0i analytic V_loc-long.
-- **DIAGNOSTICS SHIPPED (2026-07-31) — the "where did my 300 s go" report.**  (1) `[lattice sums]`
-  console line + `grids.latticeSums` (owner-reported by the molecular evaluator: α_min/max, the
-  GPW_SCREEN_EPS / GPW_DENSITY_EPS in effect, the worst-pair reach and its CellsInSphere count — the
-  numbers that JUMP with diffuse functions); kept-offset counts added to the `[stream cache]` readout.
-  (2) A TIMING LEDGER in `qchem.Reporting` (`Timed` RAII → `AddTime` buckets → `EmitTimings` at run
-  end, sorted by cost) instrumented at: basis build, vet, Hamiltonian ctor, seed+ortho, collocation
-  stream build, local-PP integrate-back, KB, analytic 1E, Becke mesh/Φ/ρ, and the SCF loop.  Buckets
-  NEST (the lazy builds land inside seed+ortho or iteration 1).  **MEASURED on the diffuse NaF (the
-  285 s mystery): local-PP integrate-back 189 s + stream build 69 s ≈ 90% of the run — both driven by
-  the per-pair 791-cell offset enumeration (α_min=0.09, reach 32 au), which is why κ sweeps did
-  nothing and GPW_SCREEN_EPS=1e-8 bought only 5%.  The honest diffuse-setup targets are therefore:
-  OMP the local-PP sweep (per-pair parallel), and 0i analytic V_loc-long (eliminates the long-range
-  part of that sweep).**
-- **OPEN (next increments)**: GPW pair-loop THREAD SAFETY (2026-07-31: real OpenMP finally works —
-  commit 2fd152c8, first threaded diffuse-NaF run 4:09→1:08 — but intermittently aborts with an
-  exception inside the parallel region; suspect the shared Cache2/3 geometry caches racing under the
-  pair workers, which had never actually run threaded before.  Serial unaffected); 0i analytic
-  V_loc-long (the other measured diffuse-setup lever); coarse-end routing calibration (kMinLevelN /
-  per-level resolution guard);
-  making Becke the DEFAULT for (diffuse) bases; spin-native (`PW_XC` itself is unpol today);
-  symmetry-adapting the mesh points (site-group orbits must AVOID bond directions); per-element radial
-  scaling; Becke+IBZ real-space star-average of ρ at mesh points.
+*(Original motivation, design, and gate spec served and condensed into DONE; full narrative in git history.
+The framing that stands: the Becke grid gives the XC — the one pointwise-nonlinear, sharp-at-core term —
+its near-ideal grid across every basis set, diffuse included, while Hartree stays on the G-space Poisson.)*
 
-Framing (user, 2026-07-26): this is likely the **final step to give every Hamiltonian term a near-ideal grid
-across every basis set** — diffuse included.  Per-term today:
+- **GPW pair-loop THREAD SAFETY** (2026-07-31: real OpenMP finally works — commit 2fd152c8, first
+  threaded diffuse-NaF run 4:09→1:08 — but intermittently aborts with an exception thrown inside the
+  parallel region; suspect the shared Cache2/3 geometry caches racing under the pair workers, which had
+  never actually run threaded before.  Serial — GPW_OMP_THREADS unset — unaffected.  Likely fix: serial
+  cache pre-warm before the parallel loop + a throw-audit of the pair path.)
+- **0i analytic V_loc-long** (the other measured diffuse-setup lever): fold the smooth Gaussian core
+  charge into PW_Hartree's G-space Poisson solve — NO real-space sum at all; deletes the 180 s dominant
+  ledger bucket.  (The measured short-part analytic-vs-grid ratio, 0.37 s vs 180 s over the same 791-cell
+  enumeration, is the empirical case.  CP2K's numeric-long is free for THEM only because it rides their
+  per-iteration total-KS-potential integrate-back, which our G-space assembly doesn't have.)
+- **Coarse-end routing calibration** (`kMinLevelN=3` "very coarse for a diffuse lobe" — the standing
+  suspect after the HartreeOnly falsification; valves `GPW_ROUTING`/`GPW_RELFIELDSHARP` are in place).
+- **Becke as the DEFAULT for (diffuse) bases** — runtime-viable since the engine; decide after the
+  thread-safety + 0i items settle the setup story.
+- **Spin-native** (`PW_XC`/`PW_XC_Becke` are unpol today; spin-native is the formulation pin).
+- **Site-group-adapted angular grid** — with the measured design pin: orbits must AVOID special (bond)
+  directions (the Lebedev cube-corner lesson); the exact required degree is deducible from the site group.
+- **Per-element radial scaling** (one mhl_alpha serves all species today; NaF's F core vs Na wants per-Z).
+- **Becke+IBZ**: the real-space star-average of ρ at mesh points is untested on this route (k-fold weights
+  ride in D; non-Γ star symmetrisation needs a check or a mesh-point star-average).
+- **Mixer Becke-mesh shadow** (the raw-through-dynamics analogue of 0.5(f2)) if ball-Gibbs ever bites at
+  the mesh points — on mixed iterations the Becke ρ feed is the ρ̃-BALL field (FourierMixCD's map).
 
-| Term | Treatment | Ideal for diffuse? |
-|---|---|---|
-| Kinetic, Overlap | analytic (Gaussians) | ✅ no grid |
-| Local-PP short, KB nonlocal | analytic (3-centre / separable) | ✅ no grid |
-| Hartree | G-space Poisson `4πρ̃/G²` (FFT) | ✅ diffuse ρ is SMOOTH → cheap |
-| Local-PP long | G-space form factor + collocation (field-sharpness) | ~ near-ideal (field-sharpness handles it) |
-| **XC** | pointwise-nonlinear `V_xc~ρ^⅓`, SHARP at cores, uniform multigrid | ❌ diffuse → routed fine → **explodes** |
-
-**XC is the one term left.** It is pointwise-nonlinear and sharp at the cores, and on the uniform multigrid a
-diffuse pair × sharp field is a TWO-SCALE integrand the single-level-per-pair assignment can't split — so it is
-routed to the fine grid over the function's whole (e.g. 21.5 au) reach to capture a small near-core correction
-→ RAM/time explosion (see §4a).  Spatial adaptivity (fine near atoms, coarse elsewhere) has NO clean `{G}`-space
-picture — it is inherently a REAL-SPACE construct — so the fix leaves the uniform/`{G}` framework for the XC.
-
-**Design — Becke XC grid, NOT GAPW:**
-- Right UnitCell creates a uniform grid.  We will need a parameter in src/Mesh/Mesh.C something like:
-  enum class UnitCellKind  {Uniform,Becke}; and then add UnitCellKind to struct MeshParams.
-- KEEP the uniform FFT grid for **Hartree** (the G-space Poisson is the reason GPW is fast; a Becke grid can't
-  do it).  So this ADDS a second grid for the XC only; it does not replace anything.
-- ADD an atom-centered **Becke/Voronoi** grid for the XC quadrature: collocate ρ on the Becke points, evaluate
-  ε_xc pointwise, `⟨i|V_xc|j⟩ = Σ_g w_g χ_i χ_j V_xc(g)` — the STANDARD molecular-DFT quadrature.  Dense radial
-  near each nucleus (resolves the sharp V_xc), sparse far out (a diffuse tail costs almost nothing) → the
-  diffuse explosion simply does not happen (point count ~ atoms × radial × angular, NOT the diffuse reach).
-- This is the scale-decomposition (fine near atoms) pictured cleanly.  It is **lighter than GAPW** (which
-  augments BOTH Hartree and XC near cores + a compensation charge — deferred, out of first-pass scope): Becke
-  is XC-quadrature ONLY, Hartree stays G-space.
-- DISABLED_NaFRocksaltGamma might be a good test case, the F- ion tends to make sharp peaks in rho and Vxc.
-- We now have full space group support, so as icing on the cake we should symmetry adapt this grid.  The other uniform grid shoudl already be symmetry adapted.
-
-**Beyond LDA — the functional-ladder win (user, 2026-07-26).**  The Becke grid also unlocks the ADVANCED
-functionals, and for the same reason.  A semi-local XC potential is a pointwise-nonlinear function of ρ AND its
-derivatives — ∇ρ (GGA), τ / ∇²ρ (meta-GGA) — and on a Gaussian basis ρ, ∇ρ, τ are ALL ANALYTIC at each grid
-point (from χ_i and its analytic derivatives).  On the UNIFORM grid, climbing the ladder demands FINER grids
-to resolve those higher-derivative, sharper-at-the-core fields (the codebase already flags it: GGA needs
-`MeshParams::relCutoff` bumped).  On a Becke grid the derivatives are exact per point and the mesh is already
-dense at the cores, so **LDA → GGA → meta-GGA costs the same** — no relCutoff escalation.  Correlation
-potentials (also semi-local) ride along identically.  For HYBRIDS: the EXACT-exchange fraction is the analytic
-ERI machinery (`Vee`/`FittedVee`), NOT a grid — but the semi-local DFT portion (the GGA exchange + correlation
-that is most of a PBE0/HSE) is exactly what Becke makes accurate + affordable.  So the Becke XC grid is the
-enabler for the whole planned functional upgrade (GGA/meta-GGA/hybrid), not only a diffuse-basis fix — it makes
-the grid near-ideal across all basis sets AND all functional rungs.
-
-**Why it's bounded, not a rewrite:** the molecular Becke grid code ALREADY exists; adapting it for a unit cell
-(periodic Voronoi partition + periodic BCs) lives in `qcStructure`.  Discussed and deferred weeks ago; the
-diffuse-function cost is the NEW, concrete argument for it (beyond the old all-electron/GAPW motivation).
-
-**Gate:** it lands with a cross-check — Becke XC `==` the uniform-multigrid XC (same E_xc, same V_xc matrix to
-grid tolerance) on a CONDITIONED basis (Si / NaF SR2) — before it becomes the default for diffuse bases.
-
-**Timing:** the interim (uniform multigrid + field-sharpness + vetting) keeps conditioned bases correct + fast;
-the Becke XC grid is the principled endgame that makes GENUINELY-diffuse bases affordable — so it is the
-natural thing to reach for when the metal/anion work (roadmap steps 3–4) makes diffuse bases central.
+**Beyond LDA — the functional-ladder win (user, 2026-07-26; the strategic payoff, still ahead).**  A
+semi-local XC potential is a pointwise-nonlinear function of ρ AND its derivatives — ∇ρ (GGA), τ/∇²ρ
+(meta-GGA) — and on a Gaussian basis those are ALL ANALYTIC at each mesh point.  On the uniform grid the
+ladder demands ever-finer grids (`relCutoff` escalation); on the Becke grid the derivatives are exact per
+point and the mesh is already dense at the cores, so **LDA → GGA → meta-GGA costs the same**.  Hybrids:
+exact exchange stays the analytic ERI machinery; the semi-local portion (most of a PBE0/HSE) is exactly
+what Becke makes affordable.  The Becke grid is the enabler for the whole functional upgrade, not only a
+diffuse-basis fix.
 
 ---
 
