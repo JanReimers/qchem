@@ -20,18 +20,20 @@ namespace qchem::BasisSet::Lattice_3D
 GPW_IBS::GPW_IBS(const UnitCell& cell, const sym_t& irrep,
                  std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut, CellImages images,
                  double cutoffFactor, RasterPolicy raster, double ladderFactor,
-                 std::vector<Symmetry::Lattice_3D::DirectOp> directOps)
+                 std::vector<Symmetry::Lattice_3D::DirectOp> directOps, RasterFields rasterFields)
     : BasisSet::IrrepBasisSetImp<dcmplx>(irrep)
     , GPW_Evaluator(std::move(mol), cell, densityEcut, Symmetry::Lattice_3D::Getk(irrep),
-                    images==CellImages::HomeCellOnly, cutoffFactor, raster, ladderFactor) // irrep IS k
+                    images==CellImages::HomeCellOnly, cutoffFactor, raster, ladderFactor,
+                    rasterFields) // irrep IS k
     , itsDirectOps(std::move(directOps))
 {}
 
 // Convenience: build the Bloch irrep from BZ-grid indices and delegate to the primary constructor.
 GPW_IBS::GPW_IBS(const UnitCell& cell, const ivec3_t& N, const ivec3_t& kIndex,
                  std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut, CellImages images,
-                 double cutoffFactor, RasterPolicy raster, double ladderFactor)
-    : GPW_IBS(cell, Symmetry::BlochFactory(N,kIndex), std::move(mol), densityEcut, images, cutoffFactor, raster, ladderFactor)
+                 double cutoffFactor, RasterPolicy raster, double ladderFactor, RasterFields rasterFields)
+    : GPW_IBS(cell, Symmetry::BlochFactory(N,kIndex), std::move(mol), densityEcut, images, cutoffFactor,
+              raster, ladderFactor, {}, rasterFields)
 {}
 
 // THE DFT FIT BASES -- the {G} sets the density (CD) and the XC potential (Vxc) are represented / quadratured on.

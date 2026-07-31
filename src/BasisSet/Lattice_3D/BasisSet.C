@@ -75,6 +75,10 @@ struct GPWParams
                                                     //!< Only the linear parts are used, so the density MUST be
                                                     //!< symmetrized over the star for this to be exact (doc/GPWPlan1
                                                     //!< item 3 IBZ).  DEFAULT off (full mesh, no symmetrization).
+    RasterFields rasterFields = RasterFields::HartreeXC;  //!< field-sharpness ROUTING: which terms the raster serves.
+                                                    //!< HartreeOnly (pair with the Becke XC route ONLY) drops the
+                                                    //!< 2/3*alpha_max XC floor so diffuse density pairs route to
+                                                    //!< coarse ladder levels -- the honest diffuse-basis speedup.
 };
 //! The struct-parameter factory (preferred surface; the positional overload above forwards here).
 Complex_BS* GPWFactory(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,

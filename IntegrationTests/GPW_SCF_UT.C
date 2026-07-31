@@ -265,9 +265,18 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
     GpwReport report(sp+" "+o.label, verbose);
 
     qchem::report::Log("building GPW basis");
+    // Field-sharpness routing: HartreeOnly (drop the 2/3*alpha_max floor when the XC is off-raster) was
+    // the plan, but MEASURED 2026-07-31 it destabilises NaF SR2 at EVERY reduced beta (0 -> +904 Ha;
+    // beta/alpha_max in {1/12..1/3} -> 20-31 Ha slosh; only the historical 2/3 converges): the floor
+    // protects the DENSITY's low-G integrity (diffuse-pair FFT fold-back), NOT just V_xc.  So Becke runs
+    // keep HartreeXC routing; GPW_ROUTING=hartree is the CALIBRATION valve (pair with GPW_RELFIELDSHARP)
+    // for the coarse-end routing campaign (kMinLevelN etc.), not a production setting.
+    const bool routeExperiment = std::getenv("GPW_ROUTING")
+                              && std::string(std::getenv("GPW_ROUTING"))=="hartree";
     std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, mol, L3::GPWParams{
         .densityEcut=o.densityEcut, .cutoffFactor=o.cutoffFactor, .raster=o.raster,
-        .images=o.images, .kShift=o.kShift, .ladderFactor=o.ladderFactor, .reduceBZ=o.reduceBZ}));
+        .images=o.images, .kShift=o.kShift, .ladderFactor=o.ladderFactor, .reduceBZ=o.reduceBZ,
+        .rasterFields=routeExperiment ? L3::RasterFields::HartreeOnly : L3::RasterFields::HartreeXC}));
 
     // FAIL-FAST: vet the (analytic, grid-free) overlap + emit basis BEFORE grids/Hamiltonian; a rank-deficient
     // basis aborts here instead of building the whole ladder first.  Also puts `basis` before `grids`.
@@ -333,9 +342,18 @@ static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Rea
     GpwReport report(sp+" "+o.label+" (annealed)", verbose);
 
     qchem::report::Log("building GPW basis");
+    // Field-sharpness routing: HartreeOnly (drop the 2/3*alpha_max floor when the XC is off-raster) was
+    // the plan, but MEASURED 2026-07-31 it destabilises NaF SR2 at EVERY reduced beta (0 -> +904 Ha;
+    // beta/alpha_max in {1/12..1/3} -> 20-31 Ha slosh; only the historical 2/3 converges): the floor
+    // protects the DENSITY's low-G integrity (diffuse-pair FFT fold-back), NOT just V_xc.  So Becke runs
+    // keep HartreeXC routing; GPW_ROUTING=hartree is the CALIBRATION valve (pair with GPW_RELFIELDSHARP)
+    // for the coarse-end routing campaign (kMinLevelN etc.), not a production setting.
+    const bool routeExperiment = std::getenv("GPW_ROUTING")
+                              && std::string(std::getenv("GPW_ROUTING"))=="hartree";
     std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, mol, L3::GPWParams{
         .densityEcut=o.densityEcut, .cutoffFactor=o.cutoffFactor, .raster=o.raster,
-        .images=o.images, .kShift=o.kShift, .ladderFactor=o.ladderFactor, .reduceBZ=o.reduceBZ}));
+        .images=o.images, .kShift=o.kShift, .ladderFactor=o.ladderFactor, .reduceBZ=o.reduceBZ,
+        .rasterFields=routeExperiment ? L3::RasterFields::HartreeOnly : L3::RasterFields::HartreeXC}));
     if (report.VetBasis(*bs) > 0)
     {
         std::cout << "["<<o.label<<"] ABORT: basis rank-deficient (see basis.removed) -- skipped grids + SCF."<<std::endl;
@@ -354,7 +372,7 @@ static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Rea
         const double kT=kTSchedule[s];
         // Fresh Hamiltonian + accelerator per stage (the iterator OWNS + deletes them; a kT change must not
         // carry stale DIIS history across the re-seed).
-        auto* ham = new qchem::Hamiltonian::Ham_PW_DFT(st, bs.get(), o.species, "LDA");
+        auto* ham = new qchem::Hamiltonian::Ham_PW_DFT(st, bs.get(), o.species, "LDA", o.xcMesh);
         auto* acc = MakeGpwAccelerator(o.accelerator);
         std::unique_ptr<qchem::SCFIterator::SolidSCFIterator> scf(
             s==0 ? new qchem::SCFIterator::SolidSCFIterator(bs.get(), &ec, ham, acc, o.seed,  st.get(), o.ortho, o.orthoTol)
@@ -967,7 +985,7 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     // degenerate 1.03e-6 near-null modes were exactly the Na p 0.05 triplet -- the cation's superfluous
     // diffuse shells; F kept intact for the anion).  See DISABLED_NaFOverlapConditioningSweep.
     auto mol = std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(
-        BasisSetData::VALENCE_LOWQ_SR2, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
+        BasisSetData::VALENCE_LOWQ_SR, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
 
     // The production recipe as ONE GpwOptions literal (the full 2-week rationale is in the header above +
     // doc/GPWPlan §0b″).  The NAF_* env knobs stay as sweep INSTRUMENTS; the defaults ARE the committed recipe.
@@ -978,7 +996,7 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     o.species      = {{"Na",1},{"F",7}};
     o.densityEcut  = envd("NAF_ECUT", -1.0);              // AUTO = C·αmax=80 (the anchor config); NAF_ECUT=40 = sub-floor sweep
     o.ladderFactor = envd("NAF_LADDERF", 4.0);
-    o.accelerator  = std::getenv("NAF_NULL") ? "Null" : "Ladder";   // Fock DIIS→GDM on |ΔE/E| (ionic); NAF_NULL=damped Kerker
+    o.accelerator  = std::getenv("NAF_NULL") ? "Null" : "DIIS";   // Fock DIIS→GDM on |ΔE/E| (ionic); NAF_NULL=damped Kerker
     o.seed         = qchem::ChargeDensity::SeedStrategy::IonicSAD;   // diffuse F⁻/Na⁺ ionic seed (halves iters)
     const double pivotTol = envd("NAF_PIVOT", 1e-4);                // rank-revealing pivoted Cholesky (doc/GPWPlan1.md §4a)
     o.ortho        = pivotTol>0.0 ? qchem::CholeskyPivoted : qchem::Auto;
@@ -993,7 +1011,7 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     // gate-calibrated, resolution sweepable via GPW_BECKE_L/NR/ALPHA).  The run prints [XC quadrature]
     // either way.  NOTE: Becke-in-SCF is unoptimised today (~min/iteration; the shared-rho + cached-Phi
     // GEMM route is the open perf item) -- start with GPW_BECKE_L=11.
-    o.xcMesh          = BeckeXCParams(40,2,11);//int nRadial=-1, double mhlAlpha=-1.0, int L=-1
+    o.xcMesh          = BeckeXCParams(20,2,9);//int nRadial=-1, double mhlAlpha=-1.0, int L=-1
     o.xcMesh.cellKind = qcMesh::UnitCellKind::Becke;    // <-- qcMesh::UnitCellKind::Becke turns Becke ON
 
     qchem::SCFIterator::ReportBandGap()=true;             // per-iteration gap column: watch the diffuse virtual dive (header)

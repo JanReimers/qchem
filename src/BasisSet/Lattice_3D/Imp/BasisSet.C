@@ -129,7 +129,8 @@ GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const
         // weight carries the Sum_k w_k so the BZ-summed charge/energy are per-cell, not xNk.
         auto* b=new GPW_IBS(lat.GetUnitCell(), Symmetry::BlochFactory(N, kb.ik, kb.weight, kShift),
                             mol, p.densityEcut, p.images, p.cutoffFactor, p.raster, p.ladderFactor,
-                            ops.directDensity);   // mol shared across k-blocks; {W|τ} = the IBZ raster star ops
+                            ops.directDensity,    // mol shared across k-blocks; {W|τ} = the IBZ raster star ops
+                            p.rasterFields);      // field-sharpness routing (HartreeOnly = the Becke-XC partner)
         if (!first) first=b;
         Insert(b);
     }

@@ -379,7 +379,7 @@ public:
     //! FIELD's sharpness -- the property that makes the static local-PP sweep standalone-exact
     //! (doc/GPWPlan.md 0e-PP; the old relCutoffScale multiplier of the relative rule is retired).
     size_t PairLevel(size_t i, size_t j, const std::vector<double>& ecut_L, double absRelCutoff,
-                     double fieldSharpness=0.0) const
+                     double fieldSharpness=0.0, double relFieldSharp=-1.0) const
     {
         // ecut_L[0] is the RESOLUTION REFERENCE (the charge-calibrated density grid) -- the relative req is
         // measured against ITS resolution, so appending a finer completion rung (doc/GPWPlan 0b') must not
@@ -407,10 +407,14 @@ public:
         // tight/mid pairs -- already fine enough for their own product -- untouched (no cost blow-up on a
         // diffuse-heavy basis; doc/GPWPlan1.md 4b).  beta_field = kFieldSharp*alpha_max is the KS field's core
         // exponent (V_xc ~ rho^{1/3}); kFieldSharp pinned by rho_lost/N grid-convergence, not wall-clock.
+        // relFieldSharp<0 (the default) = the historical beta = kFieldSharp*alpha_max; >=0 = the caller's
+        // EXPLICIT beta -- 0 is pair-only routing (RasterFields::HartreeOnly: the raster serves only the
+        // smoothing Poisson solve, so a diffuse pair's own bandwidth is the whole requirement).
         static const double kFieldSharp = [](){ const char* s=std::getenv("GPW_FIELDSHARP"); return s?std::atof(s):(2.0/3.0); }();
+        const double beta = relFieldSharp>=0.0 ? relFieldSharp : kFieldSharp*MaxExponent();
         const double req = kappa>0.0
             ? kappa*std::max(MaxExponent(i)+MaxExponent(j), fieldSharpness)
-            : kRelSafety*ecut_L[0]*std::max(MaxExponent(i)+MaxExponent(j), kFieldSharp*MaxExponent())/(2.0*MaxExponent());
+            : kRelSafety*ecut_L[0]*std::max(MaxExponent(i)+MaxExponent(j), beta)/(2.0*MaxExponent());
         size_t L=0;
         for (size_t l=1; l<ecut_L.size(); l++) if (ecut_L[l]>ecut_L[L]) L=l;          // fallback: finest present
         bool sat=false;
@@ -511,6 +515,7 @@ public:
     {
         std::vector<ivec3_t> N_L; std::vector<double> ecut_L;   // the ladder shape (snapshot key)
         double absRelCutoff=0.0;                                //   + the assignment rule key (0=relative, >0=absolute Ha/exponent)
+        double relFieldSharp=-1.0;                              //   + the relative rule's beta floor (part of the level-assignment identity)
         std::vector<PairStreams> pairs;                         // indexed [i*n+j], j>=i only
         size_t droppedPts=0;                                    // points that fell past BOTH tiers at build time
         size_t availAtBuild64=0, availAtBuild32=0;              // the budget headroom this build was offered --
@@ -571,12 +576,13 @@ public:
             else ++ci;
     }
     const StreamCache& EnsureStreams(const UnitCell& A, const std::vector<ivec3_t>& N_L,
-                                     const std::vector<double>& ecut_L, double absRelCutoff) const
+                                     const std::vector<double>& ecut_L, double absRelCutoff,
+                                     double relFieldSharp=-1.0) const
     {
         for (auto ci=itsStreamCaches.begin(); ci!=itsStreamCaches.end(); ++ci)
         {
             const StreamCache& c=*ci;
-            if (c.absRelCutoff!=absRelCutoff || !c.SameShape(N_L,ecut_L)) continue;
+            if (c.absRelCutoff!=absRelCutoff || c.relFieldSharp!=relFieldSharp || !c.SameShape(N_L,ecut_L)) continue;
             if (c.droppedPts==0) return c;                        // complete: replay is bit-stable, never rebuilt
             // SELF-HEAL (doc/GPWPlan 0.5(b)): this cache dropped pairs because OTHER resident caches held the
             // budget when it was built (the grid-continuation seed builds the FINE shape while the coarse
@@ -590,7 +596,7 @@ public:
         if (itsStreamCaches.size()>=kMaxStreamCaches) itsStreamCaches.clear();   // unexpected shape churn
         itsStreamCaches.emplace_back();
         StreamCache& c=itsStreamCaches.back();
-        c.N_L=N_L; c.ecut_L=ecut_L; c.absRelCutoff=absRelCutoff;
+        c.N_L=N_L; c.ecut_L=ecut_L; c.absRelCutoff=absRelCutoff; c.relFieldSharp=relFieldSharp;
         const size_t n=size();
         c.pairs.resize(n*n);
         auto [budget64,budget32]=StreamBudgetHeadroom(&c);        // (empty c contributes nothing)
@@ -599,7 +605,7 @@ public:
         for (auto i:indices()) for (auto j:indices(i))
         {
             PairStreams& ps=c.pairs[i*n+j];
-            ps.level=PairLevel(i,j,ecut_L,absRelCutoff);
+            ps.level=PairLevel(i,j,ecut_L,absRelCutoff,0.0,relFieldSharp);
             nPairs++;
             if (budget64==0 && budget32==0) { ptsDropped++; continue; }   // both tiers exhausted
             const ivec3_t N=N_L[ps.level];
@@ -704,7 +710,8 @@ public:
     // summing the full n^2 with the Re[] weight is exact (the (j,i,-R) partner term supplies the conjugate).
     // Each pair scatters on ITS level (PairLevel); Integral of the total = Tr(D S^k) to screening tolerance.
     std::vector<rvec_t> CollocateDensity(const chmat_t& D, const cellphase_t& phase, const UnitCell& A,
-                                         const std::vector<ivec3_t>& N_L, const std::vector<double>& ecut_L) const
+                                         const std::vector<ivec3_t>& N_L, const std::vector<double>& ecut_L,
+                                         double relFieldSharp=-1.0) const
     {
         const size_t K=N_L.size();
         assert(K>0 && ecut_L.size()==K);
@@ -713,7 +720,7 @@ public:
         // Hermitian fold: the (j,i,-R) term contributes the SAME (idx, value, weight) as (i,j,R) -- the product
         // field is the lattice-translated twin and D_ji e^{-ik(-R)} = conj(D_ij e^{-ikR}) -- so loop j>=i and
         // double the off-diagonal weight (a 2x saving over the full n^2 loop, exact).
-        const StreamCache& sc=EnsureStreams(A,N_L,ecut_L,0.0);   // density: the relative smooth-field rule
+        const StreamCache& sc=EnsureStreams(A,N_L,ecut_L,0.0,relFieldSharp);   // density: the relative smooth-field rule
         const size_t nn=size();
         // Per-pair scatter into a caller-supplied set of level densities (`dst`): the SAME `rho` when serial,
         // a private per-thread accumulator when threaded -- so the arithmetic PER PAIR is bit-identical either
@@ -795,14 +802,16 @@ public:
     {
         std::vector<ivec3_t> N_L; std::vector<double> ecut_L;   // the ladder shape (snapshot key)
         double absRelCutoff=0.0;                                //   + the assignment rule key (0=relative, >0=absolute Ha/exponent)
+        double relFieldSharp=-1.0;                              //   + the relative rule's beta floor (level-assignment identity)
         std::vector<rvec_t>  V_L;                               //   + the integrated field itself (exact)
         std::vector<PairB>   B;                                 // indexed [i*n+j], j>=i only
     };
     static constexpr size_t kMaxIntegrateMemos=4;               // static PP + the iteration's KS fields
     bool SameShape(const IntegrateMemo& m, const std::vector<ivec3_t>& N_L, const std::vector<double>& ecut_L,
-                   double absRelCutoff) const
+                   double absRelCutoff, double relFieldSharp) const
     {
-        if (m.absRelCutoff!=absRelCutoff || m.ecut_L!=ecut_L || m.N_L.size()!=N_L.size()) return false;
+        if (m.absRelCutoff!=absRelCutoff || m.relFieldSharp!=relFieldSharp
+         || m.ecut_L!=ecut_L || m.N_L.size()!=N_L.size()) return false;
         for (size_t l=0;l<N_L.size();l++)
             if (m.N_L[l].x!=N_L[l].x || m.N_L[l].y!=N_L[l].y || m.N_L[l].z!=N_L[l].z) return false;
         return true;
@@ -832,7 +841,8 @@ public:
     chmat_t IntegratePotential(const std::vector<rvec_t>& V_L, const cellphase_t& phase, const UnitCell& A,
                                const std::vector<ivec3_t>& N_L, const std::vector<double>& ecut_L,
                                double absRelCutoff=0.0, const chmat_t* screenD=nullptr,
-                               double fieldSharpness=0.0) const   // beta_loc: the sharp field's own exponent (local-PP)
+                               double fieldSharpness=0.0,         // beta_loc: the sharp field's own exponent (local-PP)
+                               double relFieldSharp=-1.0) const   // the relative rule's beta floor (must match collocation)
     {
         const size_t K=N_L.size();
         assert(K>0 && ecut_L.size()==K && V_L.size()==K);
@@ -842,7 +852,7 @@ public:
         // Memo hit: the per-offset reductions are already computed for this exact field -- contract phases only.
         if (memoize)
             for (const auto& m : itsIntegrateMemos)
-                if (SameShape(m,N_L,ecut_L,absRelCutoff) && SameField(m.V_L,V_L))
+                if (SameShape(m,N_L,ecut_L,absRelCutoff,relFieldSharp) && SameField(m.V_L,V_L))
                 {
                     for (auto i:indices()) for (auto j:indices(i))
                     {
@@ -859,14 +869,15 @@ public:
         // absRelCutoff > 0 marks a STATIC sharp-field call (the local PP, built once per SCF): evaluate on
         // the fly -- caching a single-shot sweep wastes the whole budget the per-iteration path needs.  (Its
         // B reductions land in the memo, so the other k-blocks never repeat the sweep.)
-        const StreamCache* sc = (absRelCutoff==0.0) ? &EnsureStreams(A,N_L,ecut_L,absRelCutoff) : nullptr;
+        const StreamCache* sc = (absRelCutoff==0.0) ? &EnsureStreams(A,N_L,ecut_L,absRelCutoff,relFieldSharp) : nullptr;
         IntegrateMemo* memo=nullptr;
         if (memoize)
         {
             if (itsIntegrateMemos.size()>=kMaxIntegrateMemos) itsIntegrateMemos.erase(itsIntegrateMemos.begin());
             itsIntegrateMemos.emplace_back();
             memo=&itsIntegrateMemos.back();
-            memo->N_L=N_L; memo->ecut_L=ecut_L; memo->absRelCutoff=absRelCutoff; memo->V_L=V_L;
+            memo->N_L=N_L; memo->ecut_L=ecut_L; memo->absRelCutoff=absRelCutoff;
+            memo->relFieldSharp=relFieldSharp; memo->V_L=V_L;
             memo->B.resize(nn*nn);
         }
         // Per-pair integrate-back.  Each pair writes ONLY its own h(i,j) and its own (pre-sized, disjoint)
@@ -874,7 +885,7 @@ public:
         // whose pairs scatter into a shared grid).
         auto integratePair=[&](size_t i, size_t j)           // j>=i (Hermitian upper triangle)
         {
-            const size_t  l = sc ? sc->pairs[i*nn+j].level : PairLevel(i,j,ecut_L,absRelCutoff,fieldSharpness);
+            const size_t  l = sc ? sc->pairs[i*nn+j].level : PairLevel(i,j,ecut_L,absRelCutoff,fieldSharpness,relFieldSharp);
             const rvec_t& V=V_L[l];
             const double  w=A.GetCellVolume()/double(V.size());   // the level's quadrature weight Omega/Npts(l)
             // pb.nb records the per-offset B(n) reductions FOR THE MEMO only (the phase-independent replay).  On

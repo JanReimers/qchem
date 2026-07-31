@@ -157,9 +157,15 @@ public:
     //! grid density per level (the caller FFTs each and combines \f$\tilde\rho\f$ nested in G-space).  Because
     //! the collocation is analytic (never a sampled orbital), a diffuse pair on its matched coarse grid is
     //! accurate -- the sampling multigrid's fatal aliasing is absent by construction.  \f$K=1\f$ = single grid.
+    //! \a relFieldSharp: the RELATIVE rule's field-sharpness floor \f$\beta\f$ (Ha-exponent units) -- the
+    //! collocated field's own core exponent the pair->level assignment must resolve.  <0 (default) = the
+    //! historical rule \f$\beta=\tfrac23\alpha_{\max}\f$ (\f$V_{xc}\sim\rho^{1/3}\f$; GPW_FIELDSHARP
+    //! overrides the 2/3); 0 = pair-only routing (the raster serves the SMOOTHING Hartree solve only --
+    //! RasterFields::HartreeOnly, the Becke-XC partner); >0 = an explicit floor.
     virtual std::vector<rvec_t> CollocateDensity(const chmat_t& D, const cellphase_t& phase, const UnitCell& A,
                                                  const std::vector<ivec3_t>& N_L,
-                                                 const std::vector<double>& ecut_L) const = 0;
+                                                 const std::vector<double>& ecut_L,
+                                                 double relFieldSharp=-1.0) const = 0;
 
     //! \brief The collocation ADJOINT (integrate-back): the KS block \f$h_{ij}=\langle\chi_i^k|V|\chi_j^k\rangle
     //! =\sum_R e^{ik\cdot R}\,w_L\sum_{\text{box}}\chi_i(r)\chi_j(r-R)V(r)\f$, per (pair, offset) on the SAME
@@ -191,10 +197,13 @@ public:
     //! added to the pair exponents in the absolute rule (\f$e_{cut}\ge\kappa(\alpha_i+\alpha_j+\beta)\f$).  For
     //! the erf-softened Coulomb local-PP long tail \f$\beta=1/(2r_{loc}^2)\f$; it lifts a DIFFUSE pair against a
     //! SHARP PP well off the coarse levels that cannot resolve the well (doc/GPWPlan1.md 4b).  0 for smooth fields.
+    //! \a relFieldSharp: the RELATIVE rule's \f$\beta\f$ floor, as on CollocateDensity (must MATCH the
+    //! collocation's value so collocate/integrate stay exact adjoints on the same level assignment).
     virtual chmat_t IntegratePotential(const std::vector<rvec_t>& V_L, const cellphase_t& phase, const UnitCell& A,
                                        const std::vector<ivec3_t>& N_L,
                                        const std::vector<double>& ecut_L, double absRelCutoff=0.0,
-                                       const chmat_t* screenD=nullptr, double fieldSharpness=0.0) const = 0;
+                                       const chmat_t* screenD=nullptr, double fieldSharpness=0.0,
+                                       double relFieldSharp=-1.0) const = 0;
 
     //! \brief Release any cached collocation streams for ONE ladder shape (\a N_L, \a ecut_L), refunding
     //! their points to the GLOBAL stream budget.  The streams are pure geometry replayed every iteration, so

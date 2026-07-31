@@ -261,11 +261,28 @@ LAST — payoff only on multi-k; time with the IBZ track.  Cache B(R), never M(k
   unchanged to 4 digits.  SEMANTICS NOTE uncovered en route: on mixed iterations the Becke ρ feed is the
   ρ̃-BALL field (FourierMixCD's map) — the raw-through-dynamics analogue (a Becke-mesh shadow in the
   mixer) is a possible future refinement of the 0.5(f2) idea if ball-Gibbs ever bites at the mesh points.
-- **OPEN (next increments)**: making Becke the DEFAULT for (diffuse) bases — now runtime-viable;
-  spin-native (`PW_XC` itself is unpol today); symmetry-adapting the mesh points (the icing — now with
-  the measured design pin: site-group orbits must AVOID bond directions); per-element radial scaling
-  (one mhl_alpha serves all species today); Becke+IBZ real-space star-average of ρ at mesh points
-  (today the k-fold weights ride in D; the non-Γ star symmetrisation is untested on this route).
+- **HARTREE-ONLY ROUTING: BUILT, MEASURED, FALSIFIED as a default (2026-07-31).**  The hypothesis: with
+  XC off-raster, the field-sharpness floor β=⅔·α_max (the `b3dad5be` V_xc~ρ^⅓ rule) could drop to the
+  pair bandwidth, routing diffuse density pairs onto coarse ladder levels (the diffuse-basis SETUP-cost
+  fix — the user's hand-tuned diffuse NaF spends ~250 s of 285-309 s in the stream build).  MEASURED on
+  that very system (Becke XC, diffuse SR): β=0 DIVERGES (+904 Ha); β/α_max ∈ {1/12, 1/6, 1/3} all
+  slosh 20-31 Ha and run SLOWER (the wild density balloons the D-aware boxes); only ⅔ (=HartreeXC)
+  converges.  **PIN: the ⅔·α_max floor protects the DENSITY's low-G integrity — an under-resolved
+  diffuse-pair FFT folds high-G back into the kept ball, corrupting exactly the charge-transfer mode —
+  NOT only V_xc; the b3dad5be attribution was partially incidental.**  What ships: the full seam
+  (`GPWParams::RasterFields{HartreeXC,HartreeOnly}` → `GPW_IBS` → `GPW_Evaluator` → the
+  `relFieldSharp` argument threaded through `LatticeSum1E::CollocateDensity/IntegratePotential`, the
+  stream-cache + integrate-memo identities, and `PairLevel`'s relative rule) + TWO calibration valves:
+  `GPW_ROUTING=hartree` (RunGpw flips the policy) and `GPW_RELFIELDSHARP=<frac>` (the HartreeOnly β as
+  a fraction of α_max).  Default = HartreeXC everywhere, bit-identical.  The diffuse-SETUP relief must
+  come from the COARSE-END calibration instead (`kMinLevelN=3` "very coarse for a diffuse lobe" — the
+  standing suspect), plus `GPW_OMP_THREADS` on the stream build and eventually 0i analytic V_loc-long.
+- **OPEN (next increments)**: lattice-sum reach/image-count diagnostics (per operator class: cells in
+  the sums + the ε in effect — the "grad student sees WHERE the diffuse cost went" report);
+  coarse-end routing calibration (kMinLevelN / per-level resolution guard) = the honest diffuse-setup
+  fix; making Becke the DEFAULT for (diffuse) bases; spin-native (`PW_XC` itself is unpol today);
+  symmetry-adapting the mesh points (site-group orbits must AVOID bond directions); per-element radial
+  scaling; Becke+IBZ real-space star-average of ρ at mesh points.
 
 Framing (user, 2026-07-26): this is likely the **final step to give every Hamiltonian term a near-ideal grid
 across every basis set** — diffuse included.  Per-term today:

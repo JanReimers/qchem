@@ -73,13 +73,15 @@ public:
             std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut = 0.0,
             CellImages images = CellImages::Periodic, double cutoffFactor = 2.0,
             RasterPolicy raster = RasterPolicy::BallOnly, double ladderFactor = 4.0,
-            std::vector<Symmetry::Lattice_3D::DirectOp> directOps = {});   //!< crystal direct ops {W|τ} for the IBZ Vxc-raster star-average
+            std::vector<Symmetry::Lattice_3D::DirectOp> directOps = {},   //!< crystal direct ops {W|τ} for the IBZ Vxc-raster star-average
+            RasterFields rasterFields = RasterFields::HartreeXC);         //!< field-sharpness routing (HartreeOnly = Becke-XC partner)
 
     //! \brief Convenience constructor in BZ-grid indices: builds the Bloch irrep \c BlochFactory(N,kIndex).
     GPW_IBS(const UnitCell& cell, const ivec3_t& N, const ivec3_t& kIndex,
             std::shared_ptr<const BasisSet::Real_BS> mol, double densityEcut = 0.0,
             CellImages images = CellImages::Periodic, double cutoffFactor = 2.0,
-            RasterPolicy raster = RasterPolicy::BallOnly, double ladderFactor = 4.0);
+            RasterPolicy raster = RasterPolicy::BallOnly, double ladderFactor = 4.0,
+            RasterFields rasterFields = RasterFields::HartreeXC);
 
     //! \brief The DFT factory seam (Band_FT_IBS): the auxiliary density/potential fit basis is a plane-wave grid
     //! over GPW's OWN density grid -- so the collocated \f$\tilde\rho\f$'s \f$\{G\}\f$ matches the fitter's.  A

@@ -42,6 +42,16 @@ export namespace qchem::BasisSet::Lattice_3D
 //! CP2K's own arrangement; the A/B is the measurement.
 enum class RasterPolicy { AliasFree, BallOnly };
 
+//! \brief WHICH terms the density raster serves -- the field-sharpness ROUTING policy (doc/GPWPlan1.md
+//! "Becke XC grid").  \c HartreeXC (default): the raster feeds both Hartree and the pointwise XC, so the
+//! grid-level routing floors every density pair at the XC field's core sharpness \f$\beta=\tfrac23
+//! \alpha_{\max}\f$ (\f$V_{xc}\sim\rho^{1/3}\f$ -- the diving-ghost cure).  \c HartreeOnly: the XC runs
+//! OFF-raster (the Becke atom-centred mesh), the raster serves only the G-space Poisson solve -- a
+//! SMOOTHING operator -- so diffuse density pairs route by their OWN bandwidth onto coarse ladder levels
+//! (small streams; the honest diffuse-basis setup speedup, no screening-tolerance games).  Selecting
+//! \c HartreeOnly with the uniform PW_XC would under-resolve \f$V_{xc}\f$ -- it is the Becke-route partner.
+enum class RasterFields { HartreeXC, HartreeOnly };
+
 //! \brief The ORBITAL evaluator of a plane-wave block: holds \f$(B,k,E_{cut},\{G\})\f$ and answers the per-k,
 //! orbital questions -- evaluate a wave at \a r, the overlap/kinetic/nuclear/potential matrices, the D-free
 //! 3-centre tensors.  It is GRID-FREE by design: the FFT/Poisson density grid (a stored \c PeriodicGridEvaluator)

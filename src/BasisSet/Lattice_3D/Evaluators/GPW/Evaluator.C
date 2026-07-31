@@ -75,10 +75,15 @@ public:
     //!              (default) every lattice sum is an \f$\varepsilon\f$-CONVERGED SERIES enumerated internally
     //!              per shell pair -- THERE IS NO CUT in the R direction, and no radius parameter exists
     //!              (user pin, doc/GPWPlan.md).
+    //! \param rasterFields  WHICH terms the density raster serves (the field-sharpness ROUTING policy):
+    //!              \c HartreeXC (default, bit-identical history) floors every density pair's grid level at
+    //!              the XC core sharpness \f$\tfrac23\alpha_{\max}\f$; \c HartreeOnly (the Becke-XC partner)
+    //!              routes pairs by their OWN bandwidth -- diffuse pairs land on coarse levels (small streams).
     GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const UnitCell& cell,
                   double densityEcut = 0.0, const rvec3_t& kFrac = rvec3_t(0,0,0),
                   bool homeCellOnly = false, double cutoffFactor = 2.0,
-                  RasterPolicy raster = RasterPolicy::BallOnly, double ladderFactor = 4.0);
+                  RasterPolicy raster = RasterPolicy::BallOnly, double ladderFactor = 4.0,
+                  RasterFields rasterFields = RasterFields::HartreeXC);
     //! Polymorphic (reached by the EPW_* mixin's Cast() cross-cast).  Releases this block's ladder-shaped
     //! collocation streams on the SHARED molecular evaluator (\c LatticeSum1E::ReleaseStreams) -- the streams
     //! are keyed by ladder shape, not by block, so without the release a finished stage's caches squat on the
@@ -216,6 +221,10 @@ private:
     double  itsCutoffFactor=2.0;   //!< the density-grid floor constant C (ctor param; the density-resolution dial)
     double  itsLadderFactor=4.0;   //!< REL_CUTOFF multigrid progression factor (ctor param; per-step Ecut ratio of
                                    //!< the coarse-level ladder -- BuildLevels; DEPTH stays automatic, this tunes gradation)
+    //! The RELATIVE rule's field-sharpness floor handed to every density-path CollocateDensity /
+    //! IntegratePotential / stream build: -1 = the historical \f$\tfrac23\alpha_{\max}\f$ rule
+    //! (HartreeXC); 0 = pair-only routing (HartreeOnly -- the Becke-XC partner).
+    double  itsRelFieldSharp=-1.0;
     RasterPolicy itsRaster=RasterPolicy::AliasFree;   //!< 0.5(a) FFT-raster policy for EVERY grid this block
                                                       //!< builds; A/B via the GPW_RASTER_POLICY instrument
     std::shared_ptr<const PW_Grid_Evaluator> itsFFT_R_G_Grids;     //!< the density/collocation grid (null if DFT tier off)

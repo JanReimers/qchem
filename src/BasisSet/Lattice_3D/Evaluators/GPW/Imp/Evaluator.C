@@ -191,7 +191,8 @@ std::vector<qchem::Math::CartTerm> MultiplyR2(std::vector<qchem::Math::CartTerm>
 
 GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const UnitCell& cell,
                              double densityEcut, const rvec3_t& kFrac, bool homeCellOnly,
-                             double cutoffFactor, RasterPolicy raster, double ladderFactor)
+                             double cutoffFactor, RasterPolicy raster, double ladderFactor,
+                             RasterFields rasterFields)
     : itsMol(std::move(mol))
     , itsHomeOnly(homeCellOnly)
     , itsk(kFrac)
@@ -227,6 +228,18 @@ GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const
     if (const char* rp=std::getenv("GPW_RASTER_POLICY"))
         itsRaster = std::string(rp)=="ball" ? RasterPolicy::BallOnly : RasterPolicy::AliasFree;
 
+    // HartreeOnly routing beta (needs itsLat's alpha_max, so set here, not in the init list).  MEASURED
+    // (NaF SR2 Becke, 2026-07-31): beta=0 (pure pair-bandwidth) DIVERGES (+904 Ha, low-G slosh) -- an
+    // under-resolved diffuse pair's FFT folds high-G back into the kept ball, corrupting rho-tilde's low-G
+    // (the charge-transfer mode), so the 2/3*alpha_max floor was protecting the DENSITY too, not only
+    // V_xc.  The HartreeOnly floor is therefore a FRACTION of alpha_max, sweepable via GPW_RELFIELDSHARP
+    // (the calibration instrument; pin by convergence + rho_lost/N, not wall-clock).
+    if (rasterFields==RasterFields::HartreeOnly)
+    {
+        const char* s=std::getenv("GPW_RELFIELDSHARP");
+        const double frac = s ? std::atof(s) : 1.0/3.0;
+        itsRelFieldSharp = frac*itsLat->MaxExponent();
+    }
     itsMaxReach=std::sqrt(-std::log(1e-10)/itsLat->MinExponent());
     itsCellCtr =cell.ToCartesian(rvec3_t(0.5,0.5,0.5));
     itsCellRad =0.0;
@@ -310,7 +323,7 @@ std::function<ΔG_Map(const chmat_t&)> GPW_Evaluator::MakeCollocator(bool coulom
     ReciprocalLattice recip = grid->Recip();
     if (!itsCollocMemo) itsCollocMemo=std::make_shared<CollocMemo>();
     auto memo   = itsCollocMemo;                            // ONE memo across the Coulomb + overlap closures
-    return [A,levels,N_L,ecut_L,mol,lat,phase,recip,coulomb,memo](const chmat_t& D) -> ΔG_Map
+    return [A,levels,N_L,ecut_L,mol,lat,phase,recip,coulomb,memo,relFS=itsRelFieldSharp](const chmat_t& D) -> ΔG_Map
     {
         // Same D as the last collocation (the sibling tensor's call this iteration): replay the level
         // densities.  EXACT equality (bit-identical or recompute); phase/cell/ladder are fixed per evaluator.
@@ -327,7 +340,7 @@ std::function<ΔG_Map(const chmat_t&)> GPW_Evaluator::MakeCollocator(bool coulom
         if (sameD()) rho = memo->rho;
         else
         {
-            rho = lat->CollocateDensity(D, phase, A, N_L, ecut_L);
+            rho = lat->CollocateDensity(D, phase, A, N_L, ecut_L, relFS);
             memo->D=D; memo->rho=rho; memo->ecut=ecut_L; memo->valid=true;
         }
         ΔG_Map out;
@@ -388,7 +401,7 @@ GPW_Evaluator::MakeIntegrator(std::shared_ptr<const PW_Grid_Evaluator> grid) con
     auto phase = CellPhase();
     if (!itsCollocMemo) itsCollocMemo=std::make_shared<CollocMemo>();
     auto memo  = itsCollocMemo;                             // shared D-aware screen (adjoint of the collocation)
-    return [A,levels,N_L,ecut_L,mol,lat,phase,memo](const std::function<dcmplx(const ivec3_t&)>& Vtilde) -> chmat_t
+    return [A,levels,N_L,ecut_L,mol,lat,phase,memo,relFS=itsRelFieldSharp](const std::function<dcmplx(const ivec3_t&)>& Vtilde) -> chmat_t
     {
         const size_t K=levels.size();
         std::vector<rvec_t> V_L(K);
@@ -399,7 +412,7 @@ GPW_Evaluator::MakeIntegrator(std::shared_ptr<const PW_Grid_Evaluator> grid) con
             V_L[L]=levels[L]->RhoOnGrid(vmapL);
         }
         const chmat_t* screenD = (memo && memo->valid) ? &memo->D : nullptr;
-        return lat->IntegratePotential(V_L, phase, A, N_L, ecut_L, 0.0, screenD);   // 0 = the relative rule (adjoint-paired with collocation)
+        return lat->IntegratePotential(V_L, phase, A, N_L, ecut_L, 0.0, screenD, 0.0, relFS);   // 0 = the relative rule (adjoint-paired with collocation)
     };
 }
 // doc/GPWPlan 0.5(f2): spectral transfer between two FFT rasters, in ForwardFFT coefficient layout.
@@ -433,7 +446,7 @@ std::function<rvec_t(const chmat_t&)> GPW_Evaluator::MakeRawCollocator(std::shar
     auto phase = CellPhase();
     if (!itsCollocMemo) itsCollocMemo=std::make_shared<CollocMemo>();
     auto memo  = itsCollocMemo;
-    return [A,levels,N_L,ecut_L,mol,lat,phase,memo](const chmat_t& D) -> rvec_t
+    return [A,levels,N_L,ecut_L,mol,lat,phase,memo,relFS=itsRelFieldSharp](const chmat_t& D) -> rvec_t
     {
         auto sameD=[&]() -> bool                            // the MakeCollocator memo logic, verbatim
         {
@@ -447,7 +460,7 @@ std::function<rvec_t(const chmat_t&)> GPW_Evaluator::MakeRawCollocator(std::shar
         if (sameD()) rho = memo->rho;
         else
         {
-            rho = lat->CollocateDensity(D, phase, A, N_L, ecut_L);
+            rho = lat->CollocateDensity(D, phase, A, N_L, ecut_L, relFS);
             memo->D=D; memo->rho=rho; memo->ecut=ecut_L; memo->valid=true;
         }
         const ivec3_t NT=N_L[0];                            // the integration raster (level 0 == grid)
@@ -476,7 +489,7 @@ std::function<chmat_t(const rvec_t&)> GPW_Evaluator::MakeRawIntegrator(std::shar
     auto phase = CellPhase();
     if (!itsCollocMemo) itsCollocMemo=std::make_shared<CollocMemo>();
     auto memo  = itsCollocMemo;
-    return [A,levels,N_L,ecut_L,mol,lat,phase,memo](const rvec_t& v) -> chmat_t
+    return [A,levels,N_L,ecut_L,mol,lat,phase,memo,relFS=itsRelFieldSharp](const rvec_t& v) -> chmat_t
     {
         const size_t K=levels.size();
         const ivec3_t NT=N_L[0];
@@ -491,7 +504,7 @@ std::function<chmat_t(const rvec_t&)> GPW_Evaluator::MakeRawIntegrator(std::shar
             V_L[l]=levels[l]->BackwardFFT(ctL);
         }
         const chmat_t* screenD = (memo && memo->valid) ? &memo->D : nullptr;
-        return lat->IntegratePotential(V_L, phase, A, N_L, ecut_L, 0.0, screenD);
+        return lat->IntegratePotential(V_L, phase, A, N_L, ecut_L, 0.0, screenD, 0.0, relFS);
     };
 }
 
@@ -523,7 +536,7 @@ chmat_t GPW_Evaluator::OverlapMatrix(const std::function<dcmplx(const ivec3_t&)>
     // sweep skips every term the density cannot resolve.  Before the first collocation (or for a field
     // unrelated to a density, e.g. the unit-field gates) the memo is empty -> complete sweep.
     const chmat_t* screenD = (itsCollocMemo && itsCollocMemo->valid) ? &itsCollocMemo->D : nullptr;
-    return itsLat->IntegratePotential(V_L, CellPhase(), A, itsLevelN, itsLevelEcut, 0.0, screenD);   // 0 = the relative rule (adjoint-paired with collocation)
+    return itsLat->IntegratePotential(V_L, CellPhase(), A, itsLevelN, itsLevelEcut, 0.0, screenD, 0.0, itsRelFieldSharp);   // 0 = the relative rule (adjoint-paired with collocation)
 }
 
 // The REL_CUTOFF multi-grid density-grid ladder: the fine grid (L=0, reused) plus coarser grids each a factor
@@ -656,6 +669,8 @@ void GPW_Evaluator::ReportGrids(std::ostream& os) const
     os<<"[GPW basis] n="<<itsN<<" alpha_min="<<itsLat->MinExponent()<<" alpha_max="<<itsLat->MaxExponent()
       <<" cutoffFactor="<<itsCutoffFactor
       <<" raster="<<(itsRaster==RasterPolicy::BallOnly?"BallOnly":"AliasFree")
+      <<" routing="<<(itsRelFieldSharp>=0.0?"HartreeOnly beta=":"HartreeXC beta=2/3*alpha_max=")
+      <<(itsRelFieldSharp>=0.0?itsRelFieldSharp:(2.0/3.0)*itsLat->MaxExponent())<<" Ha-exp"
       <<" (auto density floor Ecut="<<itsCutoffFactor*itsLat->MaxExponent()<<" Ha)"<<std::endl;
     if (!itsFFT_R_G_Grids)
     {
@@ -683,6 +698,8 @@ void GPW_Evaluator::EmitGridsReport() const
     g["densityEcut"]  = itsCutoffFactor * itsLat->MaxExponent();   // the auto density-grid floor Ecut
     g["cutoffFactor"] = itsCutoffFactor;
     g["raster"]       = (itsRaster == RasterPolicy::BallOnly ? "BallOnly" : "AliasFree");
+    g["routing"]      = (itsRelFieldSharp>=0.0 ? "HartreeOnly" : "HartreeXC");   // field-sharpness routing policy
+    g["routingBeta"]  = (itsRelFieldSharp>=0.0 ? itsRelFieldSharp : (2.0/3.0)*itsLat->MaxExponent());
     if (itsFFT_R_G_Grids)                                          // null == DFT tier off (no grids)
     {
         EnsureLevels();
