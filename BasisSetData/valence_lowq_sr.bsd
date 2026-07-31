@@ -34,7 +34,7 @@ BASIS="Low-q GTH-pseudopotential valence basis SR (generated, diffuse-trimmed)"
  ****
  NA   0
  S   1  1.00
-            0.08572321        1.00000000
+            0.15               1.00000000
  S   1  1.00
             0.24494897        1.00000000
  S   1  1.00
@@ -42,7 +42,7 @@ BASIS="Low-q GTH-pseudopotential valence basis SR (generated, diffuse-trimmed)"
  S   1  1.00
             2.00000000        1.00000000
  P   1  1.00
-            0.05000000        1.00000000
+            0.09000000        1.00000000
  P   1  1.00
             0.30000000        1.00000000
  ****
