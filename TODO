@@ -184,7 +184,24 @@ The raster (GetRhoOnGrid) needs voxel-permutation (grid geometry) — a separate
 src/LASolver/tests/LASolver.C  these are a rather light duty (3x3).  WOuld it make sense to build some larger 1-center gaussian overlap matricies
 that are near singular, decompose, truncate and look at residuals.  V*S*V_dagger-I ?
 
+Looking for a gap analysis of how well we are using lattice and/or point symmetry in the PW and GPW code.  In addition to k-star (should be already done) we have numerous grids: {G} and {r}.  And we also have a stream cache of basis pairs evaluated on various {r} meshes.  In principle they should all be symmetrized, and by that I mean {assuming every mesh has a list if weights w_i}
+1) group all {G} (or {r}) by |G| (|r|)
+2) For each |G| (|r|) group: Identify symmetry equivalent {G} (or  {r}) and collapse them into one G (r) and new_w_i= old_w_i * n_star
+Obviously integrals over Vxc,rho, etc should all be equal(within ~1e-14?, due to re-ordering) with symmetrized mesh just faster.
 
+Looking for critical feedback on: From an OOD/SOLID principles perspective I think all of symmetrizing work should be done inside the qcSymmetry library.  SOmething like: 
+'''c++
+Mesh SpaceGroup::Symmetrize(const Mesh& raw) const; //Returns compact Symmetrizeed mesh
+'''
+Once this is done, can we encapsulate the sym ops, or does the space group still need to expose its sym ops for other client code operations? 
+--- 
+
+Does "local-PP integrate-back" include both the long (numeric) and short(analytic) parts?
+Or is the short part V in "analytic 1E lattice sums (S,T,V)" ?
+
+Two questions on analytic long local-PP
+1) My understnading is that CP2K does numerical for long local-PP.  And i am wondering if they have a good reason for that  COmments?
+2) If we go analytic we still have to integrate of 600-700 unit cells.  Do we have confidence that is still faster?
 
 ### Three Mesh upgrade:
 1) FourierMesh_R = {R}, {e^ikR phases} in src/BasisSet/Molecule/LatticeSum1E.C
