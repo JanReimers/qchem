@@ -95,6 +95,33 @@ void Log(const std::string& message);
 void ClearConsole();
 
 //============================================================================
+// Timing ledger -- a process-global {label -> accumulated wall seconds} map, so ANY layer can charge
+// its cost to a named bucket with no plumbing (the same no-refs-threaded philosophy as the cursor).
+// The point is DISCOVERY: instrument every suspected setup/iteration site, emit once at run end sorted
+// by cost, and whatever dominates simply shows up (the "where did my 300 s go" report).
+//============================================================================
+
+//! Accumulate \a seconds of wall time under \a key (creates the bucket on first use).
+void AddTime(const std::string& key, double seconds);
+
+//! RAII stopwatch: charges the scope's wall time to \a key via AddTime on destruction.
+class Timed
+{
+public:
+    explicit Timed(std::string key);
+    ~Timed();
+    Timed(const Timed&)            = delete;
+    Timed& operator=(const Timed&) = delete;
+private:
+    std::string itsKey;
+    long long   itsT0;   //!< steady_clock ns at construction (opaque here; <chrono> stays in the impl)
+};
+
+//! Emit the ledger as top-level section \a name (labels sorted by cost, seconds) and CLEAR it.
+//! No-op when the ledger is empty.  Call once at run end (after the SCF), when the lazy builds are done.
+void EmitTimings(const std::string& name="timing");
+
+//============================================================================
 // Emit -- append a COMPLETED section to the current run AND (at depth 1, if a
 // console is set) render THAT section immediately.  Incremental by design:
 // (1) bail-out resilience -- a crash mid-setup still shows completed sections;

@@ -6,6 +6,7 @@
 //   table | indented tree -- no section ever names its own layout.
 module;
 #include <string>
+#include <map>
 #include <vector>
 #include <utility>
 #include <algorithm>
@@ -387,6 +388,39 @@ FormatHint HintFor(const std::string& field)
     };
     for (const auto& [k, h] : hints) if (k == field) return h;
     return FormatHint{ "", 6 };
+}
+
+//============================================================================
+// Timing ledger (see the interface doc).  Setup + the SCF loop are single-threaded (OMP parallelism
+// lives INSIDE timed regions and never calls AddTime), so a plain map suffices -- same reasoning as
+// the sink itself.  Insertion order is irrelevant; EmitTimings sorts by cost.
+//============================================================================
+namespace { std::map<std::string,double> g_times; }
+
+void AddTime(const std::string& key, double seconds) { g_times[key]+=seconds; }
+
+Timed::Timed(std::string key)
+    : itsKey(std::move(key))
+    , itsT0(std::chrono::duration_cast<std::chrono::nanoseconds>(
+                std::chrono::steady_clock::now().time_since_epoch()).count())
+{}
+
+Timed::~Timed()
+{
+    const long long t1=std::chrono::duration_cast<std::chrono::nanoseconds>(
+                std::chrono::steady_clock::now().time_since_epoch()).count();
+    AddTime(itsKey, double(t1-itsT0)*1e-9);
+}
+
+void EmitTimings(const std::string& name)
+{
+    if (g_times.empty()) return;
+    std::vector<std::pair<std::string,double>> rows(g_times.begin(), g_times.end());
+    std::sort(rows.begin(), rows.end(), [](const auto& a, const auto& b){return a.second>b.second;});
+    json j;
+    for (const auto& [k,s] : rows) j[k]=s;      // ordered_json keeps the sorted-by-cost order
+    g_times.clear();
+    EmitSection(name, std::move(j));
 }
 
 } // namespace qchem::report

@@ -19,6 +19,7 @@ import qchem.Fitting.FunctionFitter;        // Fitting::Factory (both PW fitters
 import qchem.Structure;                       // Structure::isFinite()/SumFormFactors() -- the G=0 alignment (term-side)
 import qchem.Blaze;                            // blazem::zeroH<dcmplx> (the null-PP V_long block)
 import qchem.Mesh.Quadrature;                 // qcMesh::Mesh (the PW_XC_Becke engine's quadrature mesh)
+import qchem.Reporting;                       // Timed (the setup/scf timing ledger)
 
 namespace qchem::Hamiltonian
 {
@@ -359,6 +360,7 @@ const mat_t<dcmplx>& BeckeXC_Engine::Phi(const cobs_t* bs)
     auto it=itsPhi.find(id);
     if (it!=itsPhi.end()) return it->second;
 
+    qchem::report::Timed timed("setup: becke Phi tables");
     const rvec3vec_t& R=itsMesh->Points();
     mat_t<dcmplx> P(R.size(), bs->GetVectorSize());
     for (size_t g=0; g<R.size(); g++)
@@ -378,6 +380,7 @@ const rvec_t& BeckeXC_Engine::Rho(const cChargeDensity* cd, const cobs_t* ensure
     if (ensureBlock) Phi(ensureBlock);
     if (cd->Version()==itsRhoVersion) return itsRho;
     itsRhoVersion=cd->Version();
+    qchem::report::Timed timed("scf: becke rho sampling (all iterations)");
     if (auto dm=dynamic_cast<const cDM_CD*>(cd))
         itsRho=dm->DM_RhoAtPoints(itsMesh->Points(), itsPhi);
     else

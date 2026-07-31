@@ -49,6 +49,7 @@ struct BeckeImage
 
 qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParams& mp)
 {
+    qchem::report::Timed timed("setup: becke mesh build");
     using qcMesh::BeckeCutoff;
     const int    k  =mp.beckeOrder;
     // Magnitude screen: the weights are eps-converged.  1e-8 (not tighter) on PURPOSE: the tail bounds are

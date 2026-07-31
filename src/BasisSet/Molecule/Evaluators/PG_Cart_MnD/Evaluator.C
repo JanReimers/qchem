@@ -108,6 +108,29 @@ public:
     //! collocate/integrate adjoint stays machine-exact on the kept operator).
     //! D-aware density-magnitude screen (sizes the collocation boxes).  Env instrument GPW_DENSITY_EPS.
     static double kDensityEps() { static const double e=[]{const char* s=std::getenv("GPW_DENSITY_EPS"); return s?std::atof(s):1e-10;}(); return e; }
+
+    //! The lattice-sum ECONOMY report (LatticeSum1E face; doc there).  Reach numbers use the SAME formulas
+    //! as the screens: a single orbital's tail reach is sqrt(-ln eps/alpha), a pair's conservative reach is
+    //! the sum -- worst pair = diffuse x diffuse = 2*sqrt(-ln eps/alpha_min).  The CellsInSphere count over
+    //! that reach is the per-pair image-enumeration size a grad student sees JUMP when diffuse functions
+    //! arrive; the screens then prune it per term (kept counts = the [stream cache] offsets readout).
+    void EmitLatticeSumReport(const UnitCell& A) const
+    {
+        const double aMin=MinExponent(), aMax=MaxExponent();
+        const double reachS =2.0*std::sqrt(-std::log(kScreenEps ())/aMin);   // analytic 1E/V_local enumeration
+        const double reachD =2.0*std::sqrt(-std::log(kDensityEps())/aMin);   // collocation offset enumeration
+        const long   cellsS =(long)A.CellsInSphere(reachS).size();
+        const long   cellsD =(long)A.CellsInSphere(reachD).size();
+        std::cout<<"[lattice sums] alpha_min="<<aMin<<" alpha_max="<<aMax
+                 <<"  analytic 1E/V_local: eps="<<kScreenEps()<<" (GPW_SCREEN_EPS) pair reach="<<reachS
+                 <<" au = "<<cellsS<<" cells;  collocation offsets: eps="<<kDensityEps()
+                 <<" (GPW_DENSITY_EPS) pair reach="<<reachD<<" au = "<<cellsD
+                 <<" cells (kept counts on the [stream cache] line)"<<std::endl;
+        qchem::report::EmitAt("grids", "latticeSums", {
+            {"alphaMin",aMin}, {"alphaMax",aMax},
+            {"screenEps",kScreenEps()},  {"pairReach1E",reachS},   {"cells1E",cellsS},
+            {"densityEps",kDensityEps()},{"pairReachColl",reachD}, {"cellsColl",cellsD}});
+    }
     //! The Bloch phase of an integer cell offset (== Molecule::LatticeSum1E::cellphase_t -- the same
     //! std::function type; the k-CONVENTION stays with the lattice-side caller, Gamma = the constant 1).
     using cellphase_t = std::function<dcmplx(const ivec3_t& n)>;
@@ -594,6 +617,7 @@ public:
             break;                                                // fall through to a fresh build
         }
         if (itsStreamCaches.size()>=kMaxStreamCaches) itsStreamCaches.clear();   // unexpected shape churn
+        qchem::report::Timed timer("setup: collocation stream build");           // THE diffuse-basis setup cost
         itsStreamCaches.emplace_back();
         StreamCache& c=itsStreamCaches.back();
         c.N_L=N_L; c.ecut_L=ecut_L; c.absRelCutoff=absRelCutoff; c.relFieldSharp=relFieldSharp;
@@ -601,7 +625,7 @@ public:
         c.pairs.resize(n*n);
         auto [budget64,budget32]=StreamBudgetHeadroom(&c);        // (empty c contributes nothing)
         c.availAtBuild64=budget64; c.availAtBuild32=budget32;
-        size_t nPairs=0, nCached64=0, nCached32=0, pts64=0, pts32=0, ptsDropped=0;
+        size_t nPairs=0, nCached64=0, nCached32=0, pts64=0, pts32=0, ptsDropped=0, nOffs=0;
         for (auto i:indices()) for (auto j:indices(i))
         {
             PairStreams& ps=c.pairs[i*n+j];
@@ -672,6 +696,7 @@ public:
                 ps.cached=true;
             }
             else { ps.offsets.clear(); ps.offsets.shrink_to_fit(); ptsDropped+=pts; }
+            nOffs+=ps.offsets.size();               // kept (pair, cross-cell offset) terms -- the lattice-sum size
         }
         c.droppedPts=ptsDropped;
         // Coverage readout per cache build (static setup, not per-iteration): the budget headroom is THE lever
@@ -686,6 +711,7 @@ public:
             s["pairs"]     = (long)nPairs;
             s["fp64"]      = (long)nCached64;  s["pts64"] = (long)pts64;
             s["fp32"]      = (long)nCached32;  s["pts32"] = (long)pts32;
+            s["offsets"]   = (long)nOffs;      // kept (pair, image-offset) terms across all pairs
             s["dropped"]   = (long)ptsDropped;
             s["budget64"]  = (long)BudgetPts(); s["budget32"] = (long)BudgetPtsF32();
             qchem::report::EmitAt("grids", "stream", s);
@@ -696,7 +722,7 @@ public:
             for (size_t l=0;l<N_L.size();l++) std::cerr << (l?",":"") << N_L[l].x;
             std::cerr << ") rule=" << (absRelCutoff>0.0 ? "abs " : "rel ") << absRelCutoff << "  pairs " << nPairs
                       << ": fp64 " << nCached64 << " (" << pts64 << " pts), fp32 " << nCached32
-                      << " (" << pts32 << " pts), dropped " << ptsDropped
+                      << " (" << pts32 << " pts), offsets " << nOffs << ", dropped " << ptsDropped
                       << " pts (budgets " << BudgetPts() << "/" << BudgetPtsF32() << ")" << std::endl;
         }
         return c;

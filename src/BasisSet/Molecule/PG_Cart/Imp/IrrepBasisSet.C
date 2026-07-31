@@ -278,6 +278,8 @@ chmat_t Orbital_IBS::IntegratePotential(const std::vector<rvec_t>& V_L, const ce
 {   return NR_Evaluator::IntegratePotential(V_L,phase,A,N_L,ecut_L,relCutoffScale,screenD,fieldSharpness,relFieldSharp); }
 void Orbital_IBS::ReleaseStreams(const std::vector<ivec3_t>& N_L, const std::vector<double>& ecut_L) const
 {   NR_Evaluator::ReleaseStreams(N_L,ecut_L); }
+void Orbital_IBS::EmitLatticeSumReport(const UnitCell& A) const
+{   NR_Evaluator::EmitLatticeSumReport(A); }
 
 //----------------------------------------------------------------
 //

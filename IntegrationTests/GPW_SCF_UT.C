@@ -273,14 +273,23 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
     // for the coarse-end routing campaign (kMinLevelN etc.), not a production setting.
     const bool routeExperiment = std::getenv("GPW_ROUTING")
                               && std::string(std::getenv("GPW_ROUTING"))=="hartree";
-    std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, mol, L3::GPWParams{
-        .densityEcut=o.densityEcut, .cutoffFactor=o.cutoffFactor, .raster=o.raster,
-        .images=o.images, .kShift=o.kShift, .ladderFactor=o.ladderFactor, .reduceBZ=o.reduceBZ,
-        .rasterFields=routeExperiment ? L3::RasterFields::HartreeOnly : L3::RasterFields::HartreeXC}));
+    std::unique_ptr<Complex_BS> bs;
+    {
+        qchem::report::Timed t("setup: GPW basis build");
+        bs.reset(L3::GPWFactory(lat, mol, L3::GPWParams{
+            .densityEcut=o.densityEcut, .cutoffFactor=o.cutoffFactor, .raster=o.raster,
+            .images=o.images, .kShift=o.kShift, .ladderFactor=o.ladderFactor, .reduceBZ=o.reduceBZ,
+            .rasterFields=routeExperiment ? L3::RasterFields::HartreeOnly : L3::RasterFields::HartreeXC}));
+    }
 
     // FAIL-FAST: vet the (analytic, grid-free) overlap + emit basis BEFORE grids/Hamiltonian; a rank-deficient
     // basis aborts here instead of building the whole ladder first.  Also puts `basis` before `grids`.
-    if (report.VetBasis(*bs) > 0)
+    int nRemoved;
+    {
+        qchem::report::Timed t("setup: vet basis (analytic S)");
+        nRemoved=report.VetBasis(*bs);
+    }
+    if (nRemoved > 0)
     {
         std::cout << "["<<o.label<<"] ABORT: basis rank-deficient (see basis.removed) -- skipped grids + SCF."<<std::endl;
         return {false, 0.0, qchem::EnergyBreakdown{}, 0};
@@ -290,15 +299,28 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
     qchem::report::Log("building Hamiltonian");
     auto       irreps=bs->GetIrreps(Spin::None);   // one Bloch irrep per BZ k-block (weights carry the Sum_k)
     Crystal_EC ec(irreps, o.Nelec, o.globalFermi);
-    qchem::Hamiltonian::cHamiltonian* ham =
-        new qchem::Hamiltonian::Ham_PW_DFT(lat.GetStructure(), bs.get(), o.species, "LDA", o.xcMesh);
+    qchem::Hamiltonian::cHamiltonian* ham=nullptr;
+    {
+        qchem::report::Timed t("setup: hamiltonian ctor (fit bases + becke mesh)");
+        ham=new qchem::Hamiltonian::Ham_PW_DFT(lat.GetStructure(), bs.get(), o.species, "LDA", o.xcMesh);
+    }
     auto* acc = MakeGpwAccelerator(o.accelerator);
 
     qchem::report::Log("SCF start");
     // No Section("basis") here: the pre-flight already emitted basis, so MakeIrrepWFs stays silent
     // (report::InSection("basis") false) and just does the ortho.
-    qchem::SCFIterator::SolidSCFIterator scf(bs.get(), &ec, ham, acc,
+    // TIMING NOTE: the lazy heavy builds (collocation streams, local-PP sweep, KB, analytic 1E) run inside
+    // the FIRST Fock build -- which is the SEED's (this ctor) or iteration 1's depending on the seed path --
+    // so "seed + ortho" / "scf: iterate" CONTAIN those buckets.  MEASURED (diffuse NaF, 2026-07-31): local-PP
+    // integrate-back 189 s + stream build 69 s of the 285 s total, both under seed+ortho; the per-pair
+    // 791-cell offset enumeration (see [lattice sums]) is the driver, which is why kappa sweeps do nothing.
+    std::unique_ptr<qchem::SCFIterator::SolidSCFIterator> scfp;
+    {
+        qchem::report::Timed t("setup: seed + ortho (iterator ctor)");
+        scfp=std::make_unique<qchem::SCFIterator::SolidSCFIterator>(bs.get(), &ec, ham, acc,
                                          o.seed, lat.GetStructure().get(), o.ortho, o.orthoTol);
+    }
+    auto& scf=*scfp;
     // IBZ density symmetrization is now automatic: the GPW basis exposes its reciprocal point ops (non-empty
     // only when reduceBZ), and the composite density ctor-injects them straight from the basis -- no setter,
     // no ops recomputed here (doc/GPWPlan1.md item 3).
@@ -307,7 +329,10 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
                     { series.push_back({p.iteration, p.energy, p.dE, p.commutator, p.drho}); });
     SCFParams par = o.scf; par.Verbose = verbose;   // one `verbose` drives both the report console + the SCF table
     qchem::Hamiltonian::ReportGridCharge()=(bool)std::getenv("GPW_GRIDCHARGE");
-    scf.Iterate(par);
+    {
+        qchem::report::Timed t("scf: iterate (contains the lazy first-iteration setup buckets)");
+        scf.Iterate(par);
+    }
     qchem::Hamiltonian::ReportGridCharge()=false;
     Fingerprint(series, o.label.c_str());
 
@@ -320,6 +345,7 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
               << "  (Ekin="<<E.Kinetic<<" Een="<<E.Een<<" Eee="<<E.Eee<<" Exc="<<E.Exc
               << " Enn="<<E.Enn<<" E_alphaZ="<<E.E_alphaZ<<")" << std::endl;
     GpwResult R{scf.Converged(), charge, E, scf.GetIterationCount()};
+    qchem::report::EmitTimings();       // the where-did-the-time-go ledger, sorted by cost (setup + scf)
     if (keep) keep->bs=std::move(bs);   // the density's basis block -- must outlive keep->cd
     return R;
 }

@@ -205,6 +205,14 @@ public:
                                        const chmat_t* screenD=nullptr, double fieldSharpness=0.0,
                                        double relFieldSharp=-1.0) const = 0;
 
+    //! \brief Announce this basis's lattice-sum ECONOMY (console + the run report's \c grids.latticeSums):
+    //! \f$\alpha_{\min/\max}\f$, the magnitude-screen \f$\varepsilon\f$ values in effect, and the
+    //! worst-pair (diffuse x diffuse) reach with its \c CellsInSphere count over \a A -- the numbers that
+    //! JUMP when diffuse functions are added, so a runtime blow-up comes with its own explanation
+    //! (doc/GPWPlan1.md).  The OWNER of the screens reports (no eps leaks through the face); default no-op
+    //! for bases with no lattice economy to describe.
+    virtual void EmitLatticeSumReport(const UnitCell& /*A*/) const {}
+
     //! \brief Release any cached collocation streams for ONE ladder shape (\a N_L, \a ecut_L), refunding
     //! their points to the GLOBAL stream budget.  The streams are pure geometry replayed every iteration, so
     //! an implementation may keep them resident across calls -- but this evaluator is SHARED (one molecular

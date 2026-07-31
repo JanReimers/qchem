@@ -723,6 +723,10 @@ void GPW_Evaluator::EmitGridsReport() const
         g["localPP"] = { { "kappa", LocalPPRelCutoff() } };
     }
     rpt::EmitSection("grids", g);
+    // The lattice-sum economy readout (grids.latticeSums + the [lattice sums] console line): the numbers
+    // that JUMP when diffuse functions are added -- the owner of the screens (the molecular evaluator)
+    // reports them, so the eps values never leak through the face.
+    itsLat->EmitLatticeSumReport(itsCell);
 }
 
 // Bloch sum of the Gaussian orbitals, chi^k_i(r) = Sum_R e^{ik.R} chi_i(r-R), over the COLLOCATION set (the
@@ -774,11 +778,14 @@ template <class M> chmat_t Widen(const M& m)   // real symmetric -> complex Herm
 }
 } //anon
 chmat_t GPW_Evaluator::OverlapMatrix()                 const
-{   return itsHomeOnly ? Widen(itsOrb->Overlap())    : itsLat->MakeOverlap(CellPhase(),itsCell); }
+{   qchem::report::Timed t("setup: analytic 1E lattice sums (S,T,V)");
+    return itsHomeOnly ? Widen(itsOrb->Overlap())    : itsLat->MakeOverlap(CellPhase(),itsCell); }
 chmat_t GPW_Evaluator::KineticMatrix()                 const
-{   return itsHomeOnly ? Widen(itsOrb->Kinetic())    : itsLat->MakeKinetic(CellPhase(),itsCell); }
+{   qchem::report::Timed t("setup: analytic 1E lattice sums (S,T,V)");
+    return itsHomeOnly ? Widen(itsOrb->Kinetic())    : itsLat->MakeKinetic(CellPhase(),itsCell); }
 chmat_t GPW_Evaluator::NuclearMatrix(const Structure* cl) const
-{   return itsHomeOnly ? Widen(itsOrb->Nuclear(cl))  : itsLat->MakeNuclear(CellPhase(),itsCell,cl); }
+{   qchem::report::Timed t("setup: analytic 1E lattice sums (S,T,V)");
+    return itsHomeOnly ? Widen(itsOrb->Nuclear(cl))  : itsLat->MakeNuclear(CellPhase(),itsCell,cl); }
 
 // The PP-quadrature integration mesh: a uniform lattice mesh whose Nyquist resolution follows the density
 // cutoff (CreateIntegrationMesh's "GPW / Nyquist path").  The DFT tier (density grid) must be on: PP assembly
@@ -799,6 +806,7 @@ qcMesh::MeshParams GPW_Evaluator::PPMeshParams() const
 // nonlocal (localized, no Coulomb tail, no G=0 issue) stays real-space (MakeSeparablePP).
 chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const Pseudopotential::LocalPotential& loc, LocalPart part) const
 {
+    qchem::report::Timed timed("setup: local-PP integrate-back");
     assert(itsFFT_R_G_Grids && "GPW_Evaluator: the local PP needs the density grid (densityEcut!=0: <0 auto, >0 explicit)");
     const UnitCell& B=itsFFT_R_G_Grids->Recip().GetCell();
     // ANALYTIC integrate-back of the G-space local-PP form factor, on the FULL ladder with the ABSOLUTE
@@ -945,6 +953,7 @@ chmat_t GPW_Evaluator::MakeLocalPPShort(const Structure* cl, const Pseudopotenti
 // is Hermitian by construction.
 chmat_t GPW_Evaluator::MakeSeparablePP(const Structure* cl, const Pseudopotential::SeparablePotential_R& sep) const
 {
+    qchem::report::Timed timed("setup: separable PP (KB)");
     // ANALYTIC path (2026-07-15): a GTH/HGH projector is polynomial x Gaussian, so when the model exposes its
     // closed Gaussian form (SeparablePotential_Gaussian) the Bloch projection is an ANALYTIC lattice-summed
     // overlap -- b_i = Sum_R e^{-ik.R} <chi_i | beta Y_lm at tau_a - R> maps onto the molecular seam's

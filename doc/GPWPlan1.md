@@ -277,10 +277,22 @@ LAST — payoff only on multi-k; time with the IBZ track.  Cache B(R), never M(k
   a fraction of α_max).  Default = HartreeXC everywhere, bit-identical.  The diffuse-SETUP relief must
   come from the COARSE-END calibration instead (`kMinLevelN=3` "very coarse for a diffuse lobe" — the
   standing suspect), plus `GPW_OMP_THREADS` on the stream build and eventually 0i analytic V_loc-long.
-- **OPEN (next increments)**: lattice-sum reach/image-count diagnostics (per operator class: cells in
-  the sums + the ε in effect — the "grad student sees WHERE the diffuse cost went" report);
-  coarse-end routing calibration (kMinLevelN / per-level resolution guard) = the honest diffuse-setup
-  fix; making Becke the DEFAULT for (diffuse) bases; spin-native (`PW_XC` itself is unpol today);
+- **DIAGNOSTICS SHIPPED (2026-07-31) — the "where did my 300 s go" report.**  (1) `[lattice sums]`
+  console line + `grids.latticeSums` (owner-reported by the molecular evaluator: α_min/max, the
+  GPW_SCREEN_EPS / GPW_DENSITY_EPS in effect, the worst-pair reach and its CellsInSphere count — the
+  numbers that JUMP with diffuse functions); kept-offset counts added to the `[stream cache]` readout.
+  (2) A TIMING LEDGER in `qchem.Reporting` (`Timed` RAII → `AddTime` buckets → `EmitTimings` at run
+  end, sorted by cost) instrumented at: basis build, vet, Hamiltonian ctor, seed+ortho, collocation
+  stream build, local-PP integrate-back, KB, analytic 1E, Becke mesh/Φ/ρ, and the SCF loop.  Buckets
+  NEST (the lazy builds land inside seed+ortho or iteration 1).  **MEASURED on the diffuse NaF (the
+  285 s mystery): local-PP integrate-back 189 s + stream build 69 s ≈ 90% of the run — both driven by
+  the per-pair 791-cell offset enumeration (α_min=0.09, reach 32 au), which is why κ sweeps did
+  nothing and GPW_SCREEN_EPS=1e-8 bought only 5%.  The honest diffuse-setup targets are therefore:
+  OMP the local-PP sweep (per-pair parallel), and 0i analytic V_loc-long (eliminates the long-range
+  part of that sweep).**
+- **OPEN (next increments)**: OMP the local-PP integrate-back + 0i analytic V_loc-long (the measured
+  diffuse-setup levers); coarse-end routing calibration (kMinLevelN / per-level resolution guard);
+  making Becke the DEFAULT for (diffuse) bases; spin-native (`PW_XC` itself is unpol today);
   symmetry-adapting the mesh points (site-group orbits must AVOID bond directions); per-element radial
   scaling; Becke+IBZ real-space star-average of ρ at mesh points.
 
