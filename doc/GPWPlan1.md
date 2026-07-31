@@ -126,7 +126,7 @@ c800ec48, 87acb699, 719d6b6a, 33a94ce4, 2fd152c8; remaining increments in their 
   modules force OpenMP GLOBAL (the language mode is baked into each PCM; mixed imports refuse both ways)
   ⇒ `CMAKE_CXX_FLAGS` + global define/link, with the apt-libomp bridge documented beside
   `find_package(OpenMP)`.  First REAL threaded diffuse-NaF run: 4:09 → 1:08 — which exposed the
-  pair-loop thread-safety bug (open, below).
+  pair-loop thread-safety bug (RESOLVED same day: Blaze SMP's global guard flag, not our code — below).
 
 ---
 
@@ -233,11 +233,27 @@ LAST — payoff only on multi-k; time with the IBZ track.  Cache B(R), never M(k
 The framing that stands: the Becke grid gives the XC — the one pointwise-nonlinear, sharp-at-core term —
 its near-ideal grid across every basis set, diffuse included, while Hartree stays on the G-space Poisson.)*
 
-- **GPW pair-loop THREAD SAFETY** (2026-07-31: real OpenMP finally works — commit 2fd152c8, first
-  threaded diffuse-NaF run 4:09→1:08 — but intermittently aborts with an exception thrown inside the
-  parallel region; suspect the shared Cache2/3 geometry caches racing under the pair workers, which had
-  never actually run threaded before.  Serial — GPW_OMP_THREADS unset — unaffected.  Likely fix: serial
-  cache pre-warm before the parallel loop + a throw-audit of the pair path.)
+- **GPW pair-loop THREAD SAFETY — ✅ RESOLVED (2026-07-31).**  The Cache2/3 suspicion was WRONG (the
+  threaded pair path never touches them — audited).  gdb caught the real thrower: **Blaze** —
+  `std::runtime_error("Nested parallel sections detected")`.  Mechanism: the global `-fopenmp` (2fd152c8)
+  defines `_OPENMP` in every TU, which silently flipped ON Blaze's shared-memory parallelization
+  (`BLAZE_USE_SHARED_MEMORY_PARALLELIZATION` defaults to 1); Blaze then wraps EVERY `smpAssign` — even
+  tiny below-threshold vector copies like ForPairBox's `rvec_t` exponent/coeff copies — in
+  `BLAZE_PARALLEL_SECTION`, whose guard flag is a **global non-atomic bool**; two pair workers race it,
+  the loser throws, and an exception escaping an OpenMP region is `std::terminate` ("terminate called
+  recursively").  FIX: (a) `BLAZE_USE_SHARED_MEMORY_PARALLELIZATION=0` global define (CMakeLists, beside
+  the OpenMP block) — restores the serial-Blaze semantics every committed anchor was calibrated on
+  (never-nested-OpenMP strategy); (b) throw CONTAINMENT in both pair loops (first worker exception
+  captured, rethrown serially after the region — any future worker throw surfaces as a normal exception,
+  never terminate).  VERIFIED: TSan+Archer (`build/TSan`, 4-thread NaF, setup+3 iters, exercising stream
+  replay + on-the-fly fallback + memo recording) = ZERO project races (only libomp-internal false
+  positives); a full threaded NaF run reproduces the serial trajectory to ~1e-10 through 45 iterations
+  (the accepted cross-pair ULP reduction drift only); no aborts.
+  **SURFACED while verifying (pre-existing, serial == threaded, NOT a threading artifact):**
+  `DISABLED_NaFRocksaltGamma` as committed (Becke XC hardcoded ON, line ~1041) fails the −24.4304 anchor
+  IDENTICALLY serial and threaded — an unoccupied ε dives to −50 Ha at iters 10–12 (guard releases, it
+  re-dives at ~45, run ends non-aufbau at −19.594).  That is a Becke-on-this-anchor config question for
+  the "Becke as default" decision below, not thread safety.
 - **0i analytic V_loc-long** (the other measured diffuse-setup lever): fold the smooth Gaussian core
   charge into PW_Hartree's G-space Poisson solve — NO real-space sum at all; deletes the 180 s dominant
   ledger bucket.  (The measured short-part analytic-vs-grid ratio, 0.37 s vs 180 s over the same 791-cell

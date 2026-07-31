@@ -24,6 +24,7 @@ module;
 #include <algorithm>  // std::min (alpha_min per radial)
 #include <functional> // cellphase_t (the caller-supplied Bloch phase of a cross-cell offset)
 #include <utility>    // std::pair (the flattened (i,j) pair list for the OpenMP loop)
+#include <exception>  // std::exception_ptr (throw containment across the OpenMP pair loops)
 #include <memory>     // std::shared_ptr (the per-atom operator GaussianRF, shared across its polynomial terms)
 #include <cstdlib>    // std::getenv/std::atoi (the GPW_OMP_THREADS opt-in knob)
 // GPW pair-loop parallelism (opt-in via GPW_OMP_THREADS).  Gated on QCHEM_OPENMP -- our OWN macro (defined
@@ -797,16 +798,30 @@ public:
             // bit-anchors always run serial (GPW_OMP_THREADS unset -> nthreads==1 -> the branch below).
             std::vector<std::pair<size_t,size_t>> prs;
             for (auto i:indices()) for (auto j:indices(i)) prs.push_back({i,j});
+            // THROW CONTAINMENT: an exception escaping an OpenMP construct is an instant std::terminate
+            // (the intermittent threaded-NaF abort: "terminate called recursively" -- several workers
+            // throwing at once).  Capture the FIRST worker exception, finish the region, rethrow it
+            // serially -- so a throw surfaces as the ordinary exception it is on the serial path.
+            std::exception_ptr firstEx;
             #pragma omp parallel num_threads(nthreads)
             {
                 std::vector<rvec_t> mine(K);
                 for (size_t l=0;l<K;l++) mine[l]=rvec_t(rho[l].size(),0.0);
                 #pragma omp for schedule(dynamic) nowait
-                for (size_t p=0;p<prs.size();p++) scatter(prs[p].first,prs[p].second,mine);
+                for (size_t p=0;p<prs.size();p++)
+                {
+                    try { scatter(prs[p].first,prs[p].second,mine); }
+                    catch (...)
+                    {
+                        #pragma omp critical (gpw_pair_throw)
+                        if (!firstEx) firstEx=std::current_exception();
+                    }
+                }
                 #pragma omp critical
                 for (size_t l=0;l<K;l++)
                     for (size_t g=0, m=rho[l].size(); g<m; g++) rho[l][g]+=mine[l][g];
             }
+            if (firstEx) std::rethrow_exception(firstEx);
             return rho;
         }
 #endif
@@ -969,8 +984,18 @@ public:
         {
             std::vector<std::pair<size_t,size_t>> prs;
             for (auto i:indices()) for (auto j:indices(i)) prs.push_back({i,j});
+            std::exception_ptr firstEx;   // throw containment -- see CollocateDensity
             #pragma omp parallel for schedule(dynamic) num_threads(nthreads)
-            for (size_t p=0;p<prs.size();p++) integratePair(prs[p].first,prs[p].second);
+            for (size_t p=0;p<prs.size();p++)
+            {
+                try { integratePair(prs[p].first,prs[p].second); }
+                catch (...)
+                {
+                    #pragma omp critical (gpw_pair_throw)
+                    if (!firstEx) firstEx=std::current_exception();
+                }
+            }
+            if (firstEx) std::rethrow_exception(firstEx);
             return h;
         }
 #endif

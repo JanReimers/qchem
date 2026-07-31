@@ -15,10 +15,9 @@ endif()
 
 # OpenMP: used ONLY for the GPW collocate/integrate pair-loop parallelism in qcMolecule_BS
 # (PG_Cart_MnD::NR_Evaluator).  Opt-in at runtime (GPW_OMP_THREADS>1) and serial by default, so it never
-# changes the bit-anchors; scoped PRIVATE to qcMolecule_BS (see its CMakeLists).  This LLVM toolchain ships
-# no libomp, so FindOpenMP fails -> we fall back to the installed GNU runtime (libgomp) which clang drives
-# via -fopenmp=libgomp.  That flag honours the pragmas + links libgomp but does NOT define _OPENMP, so the
-# code gates on our own QCHEM_OPENMP macro (set alongside the flag) instead.
+# changes the bit-anchors.  The code gates on our own QCHEM_OPENMP macro (set alongside the flag), a
+# holdover from the -fopenmp=libgomp era (link-compat only, no _OPENMP) that remains the project-owned
+# gate now that real -fopenmp defines _OPENMP everywhere.
 find_package(OpenMP QUIET)
 if(OpenMP_CXX_FOUND)
     # OpenMP must be TRULY GLOBAL under C++20 modules: the OpenMP language mode is part of a PCM's
@@ -35,6 +34,15 @@ if(OpenMP_CXX_FOUND)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
     add_compile_definitions(QCHEM_OPENMP)
     link_libraries(${OpenMP_omp_LIBRARY})
+    # Blaze SMP must stay OFF: real -fopenmp defines _OPENMP in every TU, which flips Blaze's
+    # shared-memory parallelization ON by default -- an unintended side effect of the global OpenMP
+    # mode.  Blaze then wraps EVERY smpAssign (even tiny, below-threshold ones) in BLAZE_PARALLEL_SECTION,
+    # whose guard flag is a GLOBAL non-atomic bool -- two of our GPW pair-loop workers doing any Blaze
+    # vector copy race on it and one throws std::runtime_error("Nested parallel sections detected"),
+    # which escapes the OpenMP region as std::terminate (the intermittent threaded-NaF abort,
+    # doc/GPWPlan1.md).  Serial Blaze is also what every committed anchor was calibrated against, and
+    # the parallelism strategy is ONE flat OpenMP region at the pair loop -- never nested regions.
+    add_compile_definitions(BLAZE_USE_SHARED_MEMORY_PARALLELIZATION=0)
 endif()
 
 set(BasisDataPath "BASISSET_DATA_PATH=\"${PROJECT_SOURCE_DIR}/BasisSetData\"" CACHE INTERNAL "BasisSet data path compile definition")
