@@ -20,22 +20,15 @@ target_compile_definitions(qcMolecule_BS PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS
 target_compile_definitions(qcMolecule_BS PRIVATE ${BasisDataPath})
 
 target_link_libraries(qcMolecule_BS PUBLIC qcBasisSet qcElConfig qcStructure)
-# OpenMP for the GPW pair loops (PG_Cart_MnD evaluator).  Scoped to THIS lib's own TUs, and QCHEM_OPENMP
-# is defined ONLY when a real OpenMP (libomp) is found -- so the code's parallel branch exists exactly
-# when the pragmas actually codegen.
-# MEASURED 2026-07-31: the old fallback `-fopenmp=libgomp` is GCC LINK-COMPATIBILITY ONLY in clang -- it
-# links libgomp but generates NO parallel code (zero GOMP_*/omp_outlined symbols in every object; 99% CPU
-# under GPW_OMP_THREADS=8; a hello-world OMP program compiled the same way runs serial).  So the fallback
-# ran SILENTLY SERIAL since it was added.  clang needs libomp for codegen:
-#     sudo apt install libomp-dev     (libomp.so + omp.h; the __kmpc ABI is version-stable)
-# then re-run cmake -- find_package(OpenMP) succeeds and the branch below activates.
-if(OpenMP_CXX_FOUND)
-    target_link_libraries(qcMolecule_BS PRIVATE OpenMP::OpenMP_CXX)
-    target_compile_definitions(qcMolecule_BS PRIVATE QCHEM_OPENMP)
-else()
+# OpenMP for the GPW pair loops (PG_Cart_MnD evaluator) is applied GLOBALLY at the top level -- C++20
+# modules require one OpenMP language mode across the whole import graph (a non-OpenMP PCM cannot be
+# imported by an -fopenmp TU), so the old per-target scoping here cannot build; see the top-level
+# CMakeLists OpenMP block for the full story (incl. the 2026-07-31 finding that clang's
+# -fopenmp=libgomp fallback generated NO parallel code and ran silently serial).
+if(NOT OpenMP_CXX_FOUND)
     message(WARNING "OpenMP (libomp) not found: GPW_OMP_THREADS will be SILENTLY SERIAL.  clang cannot "
                     "generate OpenMP code against libgomp.  Install libomp (sudo apt install libomp-dev) "
-                    "and re-run cmake.")
+                    "and point cmake at it (see the top-level CMakeLists OpenMP block).")
 endif()
 add_subdirectory(PG_Cart)
 add_subdirectory(PG_Spherical)

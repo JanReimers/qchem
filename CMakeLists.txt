@@ -20,6 +20,22 @@ endif()
 # via -fopenmp=libgomp.  That flag honours the pragmas + links libgomp but does NOT define _OPENMP, so the
 # code gates on our own QCHEM_OPENMP macro (set alongside the flag) instead.
 find_package(OpenMP QUIET)
+if(OpenMP_CXX_FOUND)
+    # OpenMP must be TRULY GLOBAL under C++20 modules: the OpenMP language mode is part of a PCM's
+    # configuration and clang refuses to MIX (importing a non-OpenMP PCM into an -fopenmp TU errors
+    # "OpenMP support differs in precompiled file", and vice versa) -- so per-target scoping cannot
+    # build, and per-target option VARS (CXX_COMMON_COMPILE_OPTIONS) are not applied uniformly enough.
+    # Hence: the flag goes into CMAKE_CXX_FLAGS (every C++ TU, Fortran/C untouched), the define into
+    # add_compile_definitions (directory-inherited everywhere), and the runtime into link_libraries
+    # (every target declared after this point).  QCHEM_OPENMP gates the (opt-in via GPW_OMP_THREADS,
+    # serial-by-default) parallel code.
+    # On a toolchain whose clang lacks omp.h (the /opt tarball), point find_package at apt's libomp-dev:
+    #   cmake -DOpenMP_CXX_FLAGS="-fopenmp -I/usr/lib/llvm-21/lib/clang/21/include" \
+    #         -DOpenMP_CXX_LIB_NAMES=omp -DOpenMP_omp_LIBRARY=/usr/lib/x86_64-linux-gnu/libomp.so .
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+    add_compile_definitions(QCHEM_OPENMP)
+    link_libraries(${OpenMP_omp_LIBRARY})
+endif()
 
 set(BasisDataPath "BASISSET_DATA_PATH=\"${PROJECT_SOURCE_DIR}/BasisSetData\"" CACHE INTERNAL "BasisSet data path compile definition")
 set(CommonDataPath "COMMON_DATA_PATH=\"${PROJECT_SOURCE_DIR}/src/Common/Data\"" CACHE INTERNAL "Common data path compile definition")
@@ -68,6 +84,9 @@ if(QCHEM_RELCHECKED)
 else()
     list(APPEND CXX_COMMON_COMPILE_DEFINITIONS $<$<CONFIG:Release>:-DNDEBUG>)
 endif()
+
+# (OpenMP handling lives next to find_package(OpenMP) near the top: C++20 modules force it into
+#  CMAKE_CXX_FLAGS / add_compile_definitions / link_libraries -- truly global, not per-target vars.)
 
 target_compile_options(qchem PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
 target_compile_definitions(qchem PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS})
