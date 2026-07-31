@@ -395,7 +395,14 @@ FormatHint HintFor(const std::string& field)
 // lives INSIDE timed regions and never calls AddTime), so a plain map suffices -- same reasoning as
 // the sink itself.  Insertion order is irrelevant; EmitTimings sorts by cost.
 //============================================================================
-namespace { std::map<std::string,double> g_times; }
+namespace
+{
+std::map<std::string,double> g_times;
+// Nesting stack for EXCLUSIVE times: each open Timed accumulates its children's ELAPSED here, and
+// charges only (elapsed - children) to its own bucket -- so buckets are disjoint (see the interface doc).
+// Setup + the SCF loop are single-threaded (OMP lives INSIDE timed regions), so a plain stack suffices.
+std::vector<double> g_tchildren;
+}
 
 void AddTime(const std::string& key, double seconds) { g_times[key]+=seconds; }
 
@@ -403,13 +410,18 @@ Timed::Timed(std::string key)
     : itsKey(std::move(key))
     , itsT0(std::chrono::duration_cast<std::chrono::nanoseconds>(
                 std::chrono::steady_clock::now().time_since_epoch()).count())
-{}
+{
+    g_tchildren.push_back(0.0);
+}
 
 Timed::~Timed()
 {
     const long long t1=std::chrono::duration_cast<std::chrono::nanoseconds>(
                 std::chrono::steady_clock::now().time_since_epoch()).count();
-    AddTime(itsKey, double(t1-itsT0)*1e-9);
+    const double elapsed=double(t1-itsT0)*1e-9;
+    AddTime(itsKey, elapsed-g_tchildren.back());          // exclusive: my elapsed minus my children's
+    g_tchildren.pop_back();
+    if (!g_tchildren.empty()) g_tchildren.back()+=elapsed; // I am my parent's child, whole
 }
 
 void EmitTimings(const std::string& name)

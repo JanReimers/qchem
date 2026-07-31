@@ -104,7 +104,11 @@ void ClearConsole();
 //! Accumulate \a seconds of wall time under \a key (creates the bucket on first use).
 void AddTime(const std::string& key, double seconds);
 
-//! RAII stopwatch: charges the scope's wall time to \a key via AddTime on destruction.
+//! RAII stopwatch: charges the scope's EXCLUSIVE wall time -- elapsed MINUS any enclosed Timed scopes --
+//! to \a key on destruction (a thread-less stack tracks nesting).  So the emitted buckets are DISJOINT
+//! and sum to the instrumented wall time: an enclosing phase ("seed + ortho") whose cost is really its
+//! lazy children ("local-PP", "streams") shows only its own residue, and the sorted-by-cost table needs
+//! no indentation to read truthfully.
 class Timed
 {
 public:

@@ -806,7 +806,10 @@ qcMesh::MeshParams GPW_Evaluator::PPMeshParams() const
 // nonlocal (localized, no Coulomb tail, no G=0 issue) stays real-space (MakeSeparablePP).
 chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const Pseudopotential::LocalPotential& loc, LocalPart part) const
 {
-    qchem::report::Timed timed("setup: local-PP integrate-back");
+    // In production this sweep runs for the LONG part only (PW_Hartree's V_long block; the short part is
+    // analytic, MakeLocalPPShort below) -- the bucket name says so.  The full/short grid forms only run
+    // for non-Gaussian PP models or the finite==lattice gates.
+    qchem::report::Timed timed("setup: local-PP LONG integrate-back (grid sweep)");
     assert(itsFFT_R_G_Grids && "GPW_Evaluator: the local PP needs the density grid (densityEcut!=0: <0 auto, >0 explicit)");
     const UnitCell& B=itsFFT_R_G_Grids->Recip().GetCell();
     // ANALYTIC integrate-back of the G-space local-PP form factor, on the FULL ladder with the ABSOLUTE
@@ -903,6 +906,7 @@ chmat_t GPW_Evaluator::MakeLocalPPShort(const Structure* cl, const Pseudopotenti
 {
     const auto* gauss=dynamic_cast<const Pseudopotential::LocalPotential_Gaussian*>(&loc);
     if (!gauss) return MakeLocalPP(cl, loc, LocalPart::Short);   // grid fallback (non-Gaussian short part)
+    qchem::report::Timed timed("setup: local-PP SHORT (analytic lattice sum)");
     auto opForZ=[gauss](int Z)->Molecule::LatticeSum1E::GaussianFunction
     {
         Molecule::LatticeSum1E::GaussianFunction g;
