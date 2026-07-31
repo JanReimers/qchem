@@ -20,17 +20,23 @@ target_compile_definitions(qcMolecule_BS PUBLIC ${CXX_COMMON_COMPILE_DEFINITIONS
 target_compile_definitions(qcMolecule_BS PRIVATE ${BasisDataPath})
 
 target_link_libraries(qcMolecule_BS PUBLIC qcBasisSet qcElConfig qcStructure)
-# OpenMP for the GPW pair loops (PG_Cart_MnD evaluator).  Scoped to THIS lib's own TUs: -fopenmp on compile,
-# the runtime on link, and QCHEM_OPENMP defined so the (opt-in, serial-by-default) parallel code activates.
-# Prefer a detected OpenMP (libomp); else fall back to driving libgomp directly (this LLVM install lacks
-# libomp).  This shared lib carries the runtime as a NEEDED entry, so consumers link cleanly.
+# OpenMP for the GPW pair loops (PG_Cart_MnD evaluator).  Scoped to THIS lib's own TUs, and QCHEM_OPENMP
+# is defined ONLY when a real OpenMP (libomp) is found -- so the code's parallel branch exists exactly
+# when the pragmas actually codegen.
+# MEASURED 2026-07-31: the old fallback `-fopenmp=libgomp` is GCC LINK-COMPATIBILITY ONLY in clang -- it
+# links libgomp but generates NO parallel code (zero GOMP_*/omp_outlined symbols in every object; 99% CPU
+# under GPW_OMP_THREADS=8; a hello-world OMP program compiled the same way runs serial).  So the fallback
+# ran SILENTLY SERIAL since it was added.  clang needs libomp for codegen:
+#     sudo apt install libomp-dev     (libomp.so + omp.h; the __kmpc ABI is version-stable)
+# then re-run cmake -- find_package(OpenMP) succeeds and the branch below activates.
 if(OpenMP_CXX_FOUND)
     target_link_libraries(qcMolecule_BS PRIVATE OpenMP::OpenMP_CXX)
+    target_compile_definitions(qcMolecule_BS PRIVATE QCHEM_OPENMP)
 else()
-    target_compile_options(qcMolecule_BS PRIVATE -fopenmp=libgomp)
-    target_link_options   (qcMolecule_BS PRIVATE -fopenmp=libgomp)
+    message(WARNING "OpenMP (libomp) not found: GPW_OMP_THREADS will be SILENTLY SERIAL.  clang cannot "
+                    "generate OpenMP code against libgomp.  Install libomp (sudo apt install libomp-dev) "
+                    "and re-run cmake.")
 endif()
-target_compile_definitions(qcMolecule_BS PRIVATE QCHEM_OPENMP)
 add_subdirectory(PG_Cart)
 add_subdirectory(PG_Spherical)
 add_subdirectory(PG_LibCint)
