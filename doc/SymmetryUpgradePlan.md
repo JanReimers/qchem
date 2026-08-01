@@ -7,6 +7,14 @@ Companion to `doc/SpaceGroupPlan.md` (the detector + Tier A/B roadmap),
 consolidates), `doc/SpinNativeDFTPlan.md` (spin-native XC), and
 `doc/SymmetryRefactorPlan.md`.
 
+**STATUS (2026-08-01):** §7 **steps 1+2 BUILT** — `qchem.Symmetry.Lattice_3D.Fold`
+(`FoldPoints`/`FoldGrid`/`FoldGVectors`, per-member op edges, `SymOp {W|τ,σ}` with the
+tier-4a `SpinAction` enum), the `SpaceGroup::FoldKMesh/FoldGVectors/FoldPoints` member
+wrappers, and `ReduceToIBZ` re-expressed on `FoldGrid` (bit-identical, gated by
+`Fold.KMeshFoldBitIdenticalToReduceToIBZ`).  Unit tests: `src/Symmetry/tests/L_Fold.C`;
+full suite 635/635.  **Next = §7 step 3** (imposed-group policy object + order-parameter
+diagnostic).
+
 This doc answers three things the user asked:
 1. A **gap analysis** — where are we already using symmetry, where are we leaving it on
    the table.
@@ -291,6 +299,17 @@ channels). So:
       spin-native triplet-O₂ gate (the spin sibling of `SiPseudoAtomInBoxMatchesFinite`).
   Only 4a is a prerequisite for the reduction machinery (§7 steps 2–6); 4b is a
   prerequisite only for the magnetic materials (§7 step 7) and can proceed in parallel.
+- **NON-COLLINEAR (user addition, 2026-08-01): collinear is itself a collapse.**  The
+  two-channel {ρ↑,ρ↓} formulation and the binary σ ∈ {none, flip} are the FIXED-AXIS
+  (collinear) restriction of the general objects: a spin-space-group op carries a spin
+  ROTATION (R_s ∈ SO(3) acting on the magnetization 3-vector m(r), equivalently SU(2) on
+  the 2×2 spinor density ρ_αβ; time reversal = m→−m + conjugation), and spirals / canted
+  AFM / general LiMn₂O₄ orderings need it.  Tier 4a's job therefore includes NOT baking
+  "two scalar channels" into any signature deeper than the collinear tier — the spin
+  action rides on the op (where `SpinAction` sits today, documented as the collinear
+  collapse) and the field type is the swappable argument.  The REPRESENTATION choice
+  (complex 2×2 spinor density vs (ρ, m) scalar+3-vector fields) is an OPEN question (§9)
+  — it does not block the spatial reduction machinery.
 
 ---
 
@@ -432,3 +451,10 @@ tiers (review fix — one number would make correct code "fail"):
   parameter; pick one that is cheap per iteration and interpretable in the run report.
 - **Spin op algebra** — the anti-unitary time-reversal part (`ρ̃(−G)=ρ̃(G)*` + spin flip)
   needs care in the G-space phase bookkeeping; settle it in the §4 interface, not later.
+- **Non-collinear representation** — 2×2 spinor density (complex coefficients coupling
+  up/down) vs (ρ, m) scalar + magnetization 3-vector.  They are equivalent
+  (ρ_αβ = ½(ρ δ_αβ + m·σ_αβ)); the choice is about which is natural for XC (most
+  non-collinear functionals are collinear functionals applied along the LOCAL m̂(r) axis →
+  favors (ρ,|m|)) vs for the ops/densities (SU(2) rotations and k-space bookkeeping →
+  favors the spinor).  Decide when 4b's successor (non-collinear pipeline) is scoped; the
+  collinear two-channel tier is a strict subset of either.

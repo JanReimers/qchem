@@ -13,6 +13,7 @@ module;
 export module qchem.Symmetry.Lattice_3D.SpaceGroup;
 export import qchem.Types;       // rvec3_t, ivec3_t, vec3_t
 export import qchem.Matrix3D;    // Matrix3D, Vector3D, Determinant, Invert, operators
+export import qchem.Symmetry.Lattice_3D.Fold;   // Fold, SymOp (the shared orbit-fold primitive)
 
 export namespace qchem::Symmetry::Lattice_3D
 {
@@ -126,6 +127,26 @@ public:
     //! \brief The FULL crystal point group as \f${W|\tau}\f$ direct ops for the non-symmorphic real-space raster
     //! star-average.  The direct partner of \c ReciprocalOps (same op set, linear part \a W kept directly).
     std::vector<DirectOp> DirectOps() const;
+
+    // ------ Orbit folds (doc/SymmetryUpgradePlan.md §2a) -- the ENCAPSULATED fold surface:
+    // the caller passes NO ops, the group forwards its own op set to the shared Fold
+    // primitive.  (The §3 imposed-subgroup POLICY, when it lands, plugs in here -- one
+    // place decides which ops every reduction folds under.)
+
+    //! \brief Fold a Monkhorst-Pack k-grid under the reciprocal ops WITH time reversal (the
+    //! k-star).  Raw index = KMesh linear order (ix outer, iz inner).
+    Fold FoldKMesh(const ivec3_t& N, const rvec3_t& shift) const;
+
+    //! \brief Fold an explicit G-index list under the full \f$\{U|\tau\}\f$ reciprocal set
+    //! (exact integer path, NO time reversal -- the density star-average op set).  Edge op
+    //! \a i maps rep \f$m \to U_i m\f$; the member's glide phase for a scatter is
+    //! \f$e^{+2\pi i\,m\cdot\tau_i}\f$ (the \c SymmetrizeGMap convention).
+    Fold FoldGVectors(const std::vector<ivec3_t>& m) const;
+
+    //! \brief Fold direct-space FRACTIONAL points under the full \f$\{W|\tau\}\f$ set
+    //! (tolerance path, NO time reversal -- a real density carries the crystal's own point
+    //! symmetry only).  \f$\tau\f$ acts: \f$r \to W r + \tau\f$ (non-symmorphic sites fold).
+    Fold FoldPoints(const std::vector<rvec3_t>& pts, double tol = 1e-6) const;
 
     const Matrix3D<double>& CellMatrix() const {return itsA;}
 

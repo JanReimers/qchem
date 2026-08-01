@@ -234,4 +234,32 @@ std::vector<DirectOp> SpaceGroup::DirectOps() const
     return ops;
 }
 
+//---------------------------------------------------------------------------------------
+//  Orbit-fold member wrappers: forward the group's own op set to the free Fold core
+//  (doc/SymmetryUpgradePlan.md §2a).  Explicit namespace qualification: the member names
+//  hide the free functions.
+//
+Fold SpaceGroup::FoldKMesh(const ivec3_t& N, const rvec3_t& shift) const
+{
+    std::vector<SymOp> ops;
+    for (const auto& U : ReciprocalPointOps(true)) ops.push_back({U, rvec3_t(0,0,0)});
+    return FoldGrid(N, shift, ops);
+}
+
+Fold SpaceGroup::FoldGVectors(const std::vector<ivec3_t>& m) const
+{
+    std::vector<SymOp> ops;
+    ops.reserve(itsOps.size());
+    for (const auto& op : ReciprocalOps()) ops.push_back({op.U, op.tau});
+    return Lattice_3D::FoldGVectors(m, ops);
+}
+
+Fold SpaceGroup::FoldPoints(const std::vector<rvec3_t>& pts, double tol) const
+{
+    std::vector<SymOp> ops;
+    ops.reserve(itsOps.size());
+    for (const auto& op : itsOps) ops.push_back({op.W, op.tau});
+    return Lattice_3D::FoldPoints(pts, ops, tol);
+}
+
 } // namespace

@@ -8,6 +8,7 @@ add_executable(UTSymmetry ../../Common/tests/gtestmain.C
    M_CharacterTable.C
    M_SALC.C
    L_SpaceGroup.C
+   L_Fold.C
 )
 
 target_compile_options(UTSymmetry PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})
