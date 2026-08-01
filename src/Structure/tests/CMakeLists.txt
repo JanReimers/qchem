@@ -3,6 +3,7 @@
 add_executable(UTStructure ../../Common/tests/gtestmain.C
     StructureTests.C
     MolecularMeshTests.C
+    SymmetrizeMeshUT.C
 )
 
 target_compile_options(UTStructure PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})

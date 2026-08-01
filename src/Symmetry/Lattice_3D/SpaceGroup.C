@@ -176,12 +176,19 @@ public:
     std::vector<SpaceGroupOp> SiteStabilizer(const rvec3_t& f, double tol = 1e-6) const;
 
     const Matrix3D<double>& CellMatrix() const {return itsA;}
+    //! The reciprocal cell matrix \f$B = 2\pi A^{-\top}\f$ (columns \f$b_i\f$; \f$G = B\,m\f$).
+    Matrix3D<double> ReciprocalMatrix() const;
+    //! Cartesian \f$\to\f$ fractional: \f$f = A^{-1} r\f$ (the frame the \f${W|\tau}\f$ ops act in).
+    rvec3_t ToFractional(const rvec3_t& r) const {return itsAinv*r;}
+    //! Fractional \f$\to\f$ Cartesian: \f$r = A f\f$.
+    rvec3_t ToCartesian (const rvec3_t& f) const {return itsA*f;}
 
 private:
     SpaceGroup(const Matrix3D<double>& A, std::vector<SpaceGroupOp> ops)
-        : itsA(A), itsOps(std::move(ops)) {}
+        : itsA(A), itsAinv(Invert(A)), itsOps(std::move(ops)) {}
 
     Matrix3D<double>          itsA;    //!< Cell matrix (columns = lattice vectors).
+    Matrix3D<double>          itsAinv; //!< \f$A^{-1}\f$ (the fractional-frame converter).
     std::vector<SpaceGroupOp> itsOps;  //!< The \f${W|\tau}\f$ operations.
 };
 

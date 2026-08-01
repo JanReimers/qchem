@@ -9,6 +9,7 @@ export import qchem.Structure;
 export import qchem.UnitCell;
 export import qchem.ReciprocalLattice;
 export import qchem.KMesh;
+export import qchem.Symmetry.Lattice_3D.SpaceGroup;   // the crystal OWNS its space group (2026-08-01, plan §6a)
 
 namespace qchem {
 
@@ -76,6 +77,14 @@ public:
     KMesh       MakeKMesh(const rvec3_t& shift={0,0,0}) const {return KMesh(itsLimits,shift);}
     ivec3_t     GetLimits() const {return itsLimits;}
 
+    //! \brief The crystal's SPACE GROUP -- detected from the cell matrix + fractional atom basis on
+    //! first call and cached (geometry is immutable, so the cache is shared across copies).  The
+    //! UnitCell \f$\to\f$ {A, fractional sites} adapter lives HERE, common to EVERY lattice basis
+    //! flavour (PW/GPW/APW/LAPW) instead of private to one factory (doc/SymmetryUpgradePlan.md §6a:
+    //! qcStructure is where Mesh and Symmetry meet).  What a run IMPOSES from this group remains the
+    //! §3 run-level policy, owned by the driver -- the lattice only answers what the symmetry IS.
+    const Symmetry::Lattice_3D::SpaceGroup& GetSpaceGroup(double tol=1e-4) const;
+
     size_t    GetNumSites     () const;
     size_t    GetNumBasisSites() const;
     size_t    GetNumUnitCells () const;
@@ -104,6 +113,8 @@ private:
     UnitCell       itsUnitCell;  //Unit cell dimensions, no atoms.
     Vector3D<int>  itsLimits;    //Number of unit cell in each direction.
     double         itsTolerence; //Positions closer than this are considered the same.
+    //! Lazily-detected space group (shared_ptr: copies of an immutable lattice share the cache).
+    mutable std::shared_ptr<const Symmetry::Lattice_3D::SpaceGroup> itsSpaceGroup;
 };
 
 

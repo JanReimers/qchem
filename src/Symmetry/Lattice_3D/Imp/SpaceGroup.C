@@ -234,6 +234,11 @@ std::vector<DirectOp> SpaceGroup::DirectOps() const
     return ops;
 }
 
+Matrix3D<double> SpaceGroup::ReciprocalMatrix() const
+{
+    return (2.0*Pi)*Transpose(itsAinv);   // B = 2π A^{-T}
+}
+
 std::vector<SpaceGroupOp> SpaceGroup::SiteStabilizer(const rvec3_t& f, double tol) const
 {
     std::vector<SpaceGroupOp> stab;

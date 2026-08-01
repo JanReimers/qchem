@@ -85,12 +85,9 @@ struct CrystalPointOps
 static CrystalPointOps DetectPointOps(const ::qchem::Lattice_3D& lat, const GPWParams& p)
 {
     namespace SL = qchem::Symmetry::Lattice_3D;
-    const UnitCell&  cell = lat.GetUnitCell();
-    const Structure& st   = cell;   // iterate atoms via the PUBLIC Structure interface (GetAtom is protected)
-    std::vector<SL::AtomSite> basis;
-    for (Atom* a : st)
-        basis.push_back({a->itsZ, cell.ToFractional(a->itsR)});
-    SL::SpaceGroup sg = SL::SpaceGroup::Detect(cell.GetCellMatrix(), basis);
+    // Detection + the UnitCell -> {A, sites} adapter now live ON the lattice (Lattice_3D::GetSpaceGroup,
+    // 2026-08-01) -- common to every lattice basis flavour; this factory only resolves the §3 POLICY.
+    const SL::SpaceGroup& sg = lat.GetSpaceGroup();
 
     CrystalPointOps ops;
     ops.policy.impose = p.reduceBZ ? SL::SymmetryPolicy::Impose::FullGroup

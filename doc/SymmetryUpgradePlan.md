@@ -55,7 +55,12 @@ coarse mesh, carve-out stays) and **W2** (production: per-atom-orbit site-adapte
 grids via `SpaceGroup::SiteStabilizer` [LANDED, diamond T_d=24 gated] — invariance at
 today's point count, then the ≈|site-group| fold on ρ GEMM + functional evals; H assembly
 full-mesh until the T3-shared rep transform; retires the carve-out; = the AngularMathPlan
-revival).  **Next code = W1.**
+revival).  **OWNERSHIP LANDED (§6a last bullet): qcStructure→qcSymmetry edge;
+`Lattice_3D::GetSpaceGroup()` (detection + adapter, lattice-common); `qchem.SymmetrizeMesh`
+re-homed to src/Structure/Lattice_3D; SpaceGroup gained ReciprocalMatrix/To{Fractional,
+Cartesian}.  Next code = W1 as the `BeckeFit_IBS` refactor (§6a): fit basis owns
+mesh+fold+SymmetrizeRaster, engine machinery becomes its internals, ρ flows through the
+uniform route's own GetRhoOnGrid path.**
 The SCF-level broken-seed negative control lands with the §8 harness (needs a
 symmetry-breaking SeedStrategy).  NOTE (§4/§9): non-collinear added —
 `SpinAction{None,Flip}` is documented as the collinear collapse of the general spin
@@ -467,6 +472,27 @@ satisfies the precondition *generically* and a production increment that satisfi
   the honest statement of T2's lever.  W2 also subsumes the GL-29 vs GL-17 default question
   and is the candidate cure for the Becke × degenerate-open-shell oscillation (§6 T2).
   This is the AngularMathPlan revival and needs its own grid-design increment.
+
+- **OWNERSHIP RESOLVED (user + review, 2026-08-01) — the four-way Ham/Structure/Mesh/SpaceGroup
+  standoff dissolves on two decisions:**
+  1. **qcStructure is where Mesh and Symmetry meet without depending on each other.**  New
+     library edge qcStructure→qcSymmetry; `Lattice_3D` OWNS its lazily-detected `SpaceGroup`
+     (`GetSpaceGroup()` — the UnitCell→{A, sites} adapter moved out of the GPW factory,
+     common to every lattice basis flavour PW/GPW/APW/LAPW), and the Mesh-typed fold helpers
+     live in `qchem.SymmetrizeMesh` (src/Structure/Lattice_3D/).  qcMesh and qcSymmetry both
+     stay pure leaves; `SpaceGroup` gained `ReciprocalMatrix`/`ToFractional`/`ToCartesian`
+     so downstream calls need no separate cell plumbing.  WHAT a run imposes stays the §3
+     run-level policy (today: `GPWParams.reduceBZ`, resolved once in the factory).
+  2. **The Becke-route tension was a design flaw, not a plumbing problem (user diagnosis):**
+     `PW_XC_Becke`/`BeckeXC_Engine` conflate the term with a raw mesh, where every other
+     fitted term holds a FIT BASIS that owns its integration mesh.  W1 therefore lands as a
+     `BeckeFit_IBS` (cFIT_SF_ABS sibling of `PlaneWaveFit_IBS`): it owns the (invariant)
+     Becke mesh + the fold, overrides the EXISTING `SymmetrizeRaster` virtual with the
+     orbit-mean (`SymmetrizeValues`), absorbs the engine's Φ-table/GEMM machinery as
+     internals, and gets its ops ctor-injected by the orbital basis exactly like
+     `PlaneWaveFit_IBS` does.  ρ then flows through the SAME
+     `FourierDensity::GetRhoOnGrid(fit)` + composite `SymmetrizeRaster` path as the uniform
+     route — the Ham never sees a mesh, ops, a UnitCell, or a cast.
 
 ---
 

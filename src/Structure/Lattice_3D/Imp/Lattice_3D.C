@@ -47,6 +47,22 @@ std::shared_ptr<const Structure> Lattice_3D::GetStructure() const
     return std::make_shared<UnitCell>(itsUnitCell); // deep-copies the atom basis (Cartesian a.u.)
 }
 
+const Symmetry::Lattice_3D::SpaceGroup& Lattice_3D::GetSpaceGroup(double tol) const
+{
+    namespace SL = Symmetry::Lattice_3D;
+    if (!itsSpaceGroup)
+    {
+        // The UnitCell -> {A, fractional sites} adapter (formerly private to the GPW factory).
+        const Structure& st = itsUnitCell;   // iterate atoms via the PUBLIC Structure interface
+        std::vector<SL::AtomSite> sites;
+        for (Atom* a : st)
+            sites.push_back({a->itsZ, itsUnitCell.ToFractional(a->itsR)});
+        itsSpaceGroup = std::make_shared<const SL::SpaceGroup>(
+                            SL::SpaceGroup::Detect(itsUnitCell.GetCellMatrix(), sites, tol));
+    }
+    return *itsSpaceGroup;
+}
+
 
 //----------------------------------------------------------
 //

@@ -1,9 +1,11 @@
-// File: BasisSet/Lattice_3D/Internal/SymmetrizeMesh.C  Symmetry folding of quadrature meshes (T2 groundwork).
+// File: Structure/Lattice_3D/SymmetrizeMesh.C  Symmetry folding of quadrature meshes (T2 groundwork).
 //
 // doc/SymmetryUpgradePlan.md §2a: qcSymmetry owns the FOLD (a pure partition over primitive vectors);
-// the Mesh-typed convenience lives CLIENT-side.  It sits HERE -- not in qcMesh -- so qcMesh stays a
-// pure quadrature leaf uncoupled from qcSymmetry (user decision, 2026-08-01); qcLattice_BS is where
-// Mesh, the space group and the T2 consumers (the Becke XC fit machinery) already meet.
+// the Mesh-typed convenience lives CLIENT-side.  It sits HERE, in qcStructure, where Mesh and Symmetry
+// MEET WITHOUT DEPENDING ON EACH OTHER (user decision 2026-08-01): qcMesh stays a pure quadrature leaf,
+// qcSymmetry stays the pure group-theory leaf, and qcStructure -- which links both, builds the periodic
+// Becke mesh (UnitCell), and owns the crystal's detected SpaceGroup (Lattice_3D) -- is where quadrature
+// meets group action.  (The G-space sibling SymmetrizeGMap lives with the G-currency in qcBasisSet.)
 //
 // The {r}-quadrature toolkit for the T2 site-adapted Becke grid, BEFORE any XC wiring:
 //   - FoldMesh       : the partition itself (consumers needing per-member data, e.g. SymmetrizeValues);
@@ -25,13 +27,13 @@
 module;
 #include <unordered_map>
 #include <vector>
-export module qchem.BasisSet.Lattice_3D.Internal.SymmetrizeMesh;
+export module qchem.SymmetrizeMesh;
 export import qchem.Mesh;                            // qcMesh::Mesh
 export import qchem.Symmetry.Lattice_3D.Fold;        // Fold, SymOp, FoldPointsPeriodic, SymmetrizeValues
 export import qchem.Symmetry.Lattice_3D.SpaceGroup;  // SpaceGroup (the ops-encapsulated overloads)
 import qchem.Math;                                   // floor, fabs
 
-export namespace qchem::BasisSet::Lattice_3D::Internal
+export namespace qchem
 {
 
 namespace SL = qchem::Symmetry::Lattice_3D;
@@ -71,7 +73,7 @@ inline qcMesh::Mesh     MakeInvariant  (const qcMesh::Mesh& m, const SL::SpaceGr
 //-----------------------------------------------------------------------------------------------
 //  Implementation (module-private helpers + the inline definitions).
 //
-namespace qchem::BasisSet::Lattice_3D::Internal
+namespace qchem
 {
 
 static double Wrap01(double x) {double r = x - floor(x); return r < 1.0 ? r : 0.0;}

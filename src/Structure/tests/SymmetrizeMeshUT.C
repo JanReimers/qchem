@@ -7,12 +7,11 @@
 #include <vector>
 #include <cmath>
 
-import qchem.BasisSet.Lattice_3D.Internal.SymmetrizeMesh;   // FoldMesh/Symmetrize/UnmatchedCounts/MakeInvariant
+import qchem.SymmetrizeMesh;   // FoldMesh/Symmetrize/UnmatchedCounts/MakeInvariant
 import qchem.Types;
 
 using namespace qchem;
 using qchem::qcMesh::Mesh;
-using namespace qchem::BasisSet::Lattice_3D::Internal;
 namespace SL = qchem::Symmetry::Lattice_3D;
 
 // Simple-cubic monatomic crystal: O_h (48 symmorphic ops), identity cell -> fractional == Cartesian.
