@@ -74,10 +74,41 @@ struct Fold
 //! \brief Fold arbitrary points under \f$r \to W r + \tau\f$, matching images against the
 //! point list within Euclidean tolerance \a tol (the {r}/Becke path).  An op whose image is
 //! not in the set is skipped for that point -- folding is merely reduced, never wrong.  No
-//! periodic wrap is applied: a torus-periodic point set is the caller's concern (the uniform
-//! raster case is exact and belongs to a grid fold).
+//! periodic wrap is applied: a torus-periodic point set takes \c FoldPointsPeriodic.
 Fold FoldPoints(const std::vector<rvec3_t>& pts,
                 const std::vector<SymOp>& ops, double tol);
+
+//! \brief The TORUS variant of \c FoldPoints for cell-periodic point sets (the periodic Becke
+//! mesh, T2): points are FRACTIONAL coordinates, images \f$W f + \tau\f$ are matched modulo the
+//! lattice (each component reduced into \f$[0,1)\f$, distance = the torus metric).  Input points
+//! need not be pre-wrapped.
+Fold FoldPointsPeriodic(const std::vector<rvec3_t>& pts,
+                        const std::vector<SymOp>& ops, double tol);
+
+//! \brief The INVARIANCE checker (§6 T2 precondition): per op, how many points' images
+//! \f$W f + \tau\f$ (torus metric) fail to land back on the point set.  All zeros == the set is
+//! invariant under every op -- the precondition for pointwise star-averaging (\c SymmetrizeValues
+//! as a projector) and for weight folding to hit full multiplicity.
+std::vector<int> CountUnmappedPeriodic(const std::vector<rvec3_t>& pts,
+                                       const std::vector<SymOp>& ops, double tol);
+
+//! \brief Pointwise STAR-AVERAGE of per-point values over a fold's orbits: replace every
+//! member's value by its orbit mean -- the real-space {r} sibling of the G-space density
+//! star-average.  This equals the exact group projector \f$(Pf)(r)=\tfrac1{|G|}\sum_g f(g\,r)\f$
+//! ONLY when \a ops form a full group AND the point set is invariant under it (then each
+//! point's image multiset covers its orbit uniformly, \f$|G|/|\mathrm{star}|\f$ copies each);
+//! on a partial op set it is merely a smoothing, so consumers must fold under a genuine
+//! (sub)group -- the §3 policy's job.
+template <class V> inline void SymmetrizeValues(const Fold& f, V& vals)
+{
+    for (size_t r = 0; r < f.Reps(); ++r)
+    {
+        double s = 0.0;
+        for (auto [m, o] : f.members[r]) s += vals[m];
+        s /= double(f.members[r].size());
+        for (auto [m, o] : f.members[r]) vals[m] = s;
+    }
+}
 
 //! \brief Fold the periodic grid \f$\{(i+\mathrm{shift})/N\}\f$ under \f$i' = W(i+s) - s
 //! \pmod N\f$ -- the EXACT integer path for {k} and {G} grids (raw index = KMesh linear

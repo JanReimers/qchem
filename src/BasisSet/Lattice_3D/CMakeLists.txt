@@ -11,6 +11,7 @@ target_sources(qcLattice_BS PRIVATE
 target_sources(qcLattice_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     Internal/GVectors.C
     Internal/KPlusG.C
+    Internal/SymmetrizeMesh.C
     IrrepBasisSet.C
     PlaneWave_IBS.C
     PlaneWaveFit_IBS.C

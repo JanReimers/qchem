@@ -13,6 +13,7 @@ add_executable(UTLattice_3D_BS ../../Atom/tests/gtestmain.C
     LAPW_UT.C
     GTH_UT.C
     GMapUT.C
+    SymmetrizeMeshUT.C
 )
 
 target_compile_options(UTLattice_3D_BS PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})

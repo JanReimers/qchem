@@ -3,10 +3,11 @@ module;
 #include <vector>
 #include <utility>
 #include <map>
+#include <unordered_map>
 #include <array>
 #include <algorithm>
 module qchem.Symmetry.Lattice_3D.Fold;
-import qchem.Math;   // fabs, lround
+import qchem.Math;   // fabs, lround, floor, sqrt
 
 namespace qchem::Symmetry::Lattice_3D
 {
@@ -162,6 +163,97 @@ Fold FoldPoints(const std::vector<rvec3_t>& pts, const std::vector<SymOp>& ops, 
     };
     auto apply = [&](int o, int i) -> int {return lookup(ops[o].W * pts[i] + ops[o].tau);};
     return FoldByAction(n, int(ops.size()), apply);
+}
+
+//---------------------------------------------------------------------------------------
+//  Torus path (periodic {r}/Becke meshes): fractional coordinates matched modulo the lattice,
+//  via a uniform bucket index (real meshes are 1e4-1e5 points x 48 ops -- lookups must be
+//  sublinear; buckets wrap, so the boundary needs no special casing).
+//
+static double Wrap01(double x) {double r = x - floor(x); return r < 1.0 ? r : 0.0;}
+
+static double TorusDelta(double a, double b)   // distance of two wrapped coords on the unit circle
+{
+    double d = fabs(a - b);
+    return d <= 0.5 ? d : 1.0 - d;
+}
+
+class TorusIndex
+{
+public:
+    TorusIndex(const std::vector<rvec3_t>& wrapped, double tol)
+        : itsPts(wrapped), itsTol(tol)
+    {
+        // Bucket edge must exceed tol so a query only needs the 3x3x3 neighbourhood.
+        itsNb = 64;
+        while (itsNb > 1 && 1.0/itsNb <= 2.0*tol) itsNb /= 2;
+        for (int i = 0; i < int(itsPts.size()); ++i)
+            itsBuckets[Key(itsPts[i])].push_back(i);
+    }
+
+    //! Index of the mesh point within tol of \a f (torus metric), or -1.
+    int Find(const rvec3_t& f) const
+    {
+        int bx = Bucket(f.x), by = Bucket(f.y), bz = Bucket(f.z);
+        for (int dx = -1; dx <= 1; ++dx)
+        for (int dy = -1; dy <= 1; ++dy)
+        for (int dz = -1; dz <= 1; ++dz)
+        {
+            auto it = itsBuckets.find(Key((bx+dx+itsNb)%itsNb, (by+dy+itsNb)%itsNb, (bz+dz+itsNb)%itsNb));
+            if (it == itsBuckets.end()) continue;
+            for (int i : it->second)
+            {
+                const rvec3_t& p = itsPts[i];
+                double ex = TorusDelta(p.x, f.x), ey = TorusDelta(p.y, f.y), ez = TorusDelta(p.z, f.z);
+                if (ex*ex + ey*ey + ez*ez <= itsTol*itsTol) return i;
+            }
+        }
+        return -1;
+    }
+
+private:
+    int       Bucket(double x) const {return int(Wrap01(x)*itsNb) % itsNb;}
+    long long Key(int bx, int by, int bz) const {return (static_cast<long long>(bx)*itsNb + by)*itsNb + bz;}
+    long long Key(const rvec3_t& p) const {return Key(Bucket(p.x), Bucket(p.y), Bucket(p.z));}
+
+    const std::vector<rvec3_t>& itsPts;
+    double itsTol;
+    int    itsNb;
+    std::unordered_map<long long, std::vector<int>> itsBuckets;
+};
+
+Fold FoldPointsPeriodic(const std::vector<rvec3_t>& pts, const std::vector<SymOp>& ops, double tol)
+{
+    const int n = int(pts.size());
+    std::vector<rvec3_t> wrapped;
+    wrapped.reserve(n);
+    for (const auto& p : pts) wrapped.push_back(rvec3_t(Wrap01(p.x), Wrap01(p.y), Wrap01(p.z)));
+    TorusIndex index(wrapped, tol);
+
+    auto apply = [&](int o, int i) -> int
+    {
+        rvec3_t img = ops[o].W * wrapped[i] + ops[o].tau;
+        return index.Find(rvec3_t(Wrap01(img.x), Wrap01(img.y), Wrap01(img.z)));
+    };
+    return FoldByAction(n, int(ops.size()), apply);
+}
+
+std::vector<int> CountUnmappedPeriodic(const std::vector<rvec3_t>& pts,
+                                       const std::vector<SymOp>& ops, double tol)
+{
+    std::vector<rvec3_t> wrapped;
+    wrapped.reserve(pts.size());
+    for (const auto& p : pts) wrapped.push_back(rvec3_t(Wrap01(p.x), Wrap01(p.y), Wrap01(p.z)));
+    TorusIndex index(wrapped, tol);
+
+    std::vector<int> bad(ops.size(), 0);
+    for (size_t o = 0; o < ops.size(); ++o)
+        for (const auto& f : wrapped)
+        {
+            rvec3_t img = ops[o].W * f + ops[o].tau;
+            if (index.Find(rvec3_t(Wrap01(img.x), Wrap01(img.y), Wrap01(img.z))) < 0) ++bad[o];
+        }
+    return bad;
 }
 
 } // namespace
