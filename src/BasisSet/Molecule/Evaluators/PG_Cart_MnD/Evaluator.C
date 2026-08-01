@@ -446,6 +446,33 @@ public:
             if (ecut_L[l]>=req && (!sat || ecut_L[l]<ecut_L[L])) { L=l; sat=true; }   // coarsest satisfying
         return L;
     }
+    //! STATIC-EXTERNAL-FIELD pair->level assignment (LatticeSum1E face; the physics doc there).  The
+    //! requirement is the HARMONIC rule 2 lnEps p beta/(p+beta) -- the exact ball that bounds the
+    //! truncation SUMMAND e^{-G^2(1/4p+1/4beta)} of a pair p against a static field beta by eps -- floored
+    //! by the pair's OWN quadrature requirement (the relative rule, no field floor: the field term already
+    //! covers sharp fields, and a static field needs no density-side low-G floor).  Selection = coarsest
+    //! satisfying, else finest present (same convention as PairLevel).
+    std::vector<size_t> StaticFieldPairLevels(const std::vector<double>& ecut_L,
+                                              double beta, double lnEps) const
+    {
+        assert(beta>0.0 && lnEps>0.0);
+        const size_t n=size();
+        size_t Lf=0;                                                       // finest present (the fallback)
+        for (size_t l=1; l<ecut_L.size(); l++) if (ecut_L[l]>ecut_L[Lf]) Lf=l;
+        std::vector<size_t> lv(n*n, Lf);
+        for (auto i:indices()) for (auto j:indices(i))
+        {
+            const double p=MaxExponent(i)+MaxExponent(j);
+            const double req=std::max(kRelSafety*ecut_L[0]*p/(2.0*MaxExponent()),   // the pair's own quadrature
+                                      2.0*lnEps*p*beta/(p+beta));                   // static-field truncation
+            size_t L=Lf;
+            bool sat=false;
+            for (size_t l=0; l<ecut_L.size(); l++)
+                if (ecut_L[l]>=req && (!sat || ecut_L[l]<ecut_L[L])) { L=l; sat=true; }
+            lv[i*n+j]=L;
+        }
+        return lv;
+    }
     // Iterate the (i, j@Roff) product's compact exp-tail box on the N-division grid of cell A, calling
     // f(raster_index, chi_i(r) chi_j(r-R_j-Roff)) at each screened-in, MODULO-WRAPPED grid point.  Shared by
     // collocation (scatter) and integrate-back (gather) -> exact adjoints (same box, chi eval, wrap).
@@ -883,10 +910,12 @@ public:
                                const std::vector<ivec3_t>& N_L, const std::vector<double>& ecut_L,
                                double absRelCutoff=0.0, const chmat_t* screenD=nullptr,
                                double fieldSharpness=0.0,         // beta_loc: the sharp field's own exponent (local-PP)
-                               double relFieldSharp=-1.0) const   // the relative rule's beta floor (must match collocation)
+                               double relFieldSharp=-1.0,         // the relative rule's beta floor (must match collocation)
+                               const std::vector<size_t>* pairLevels=nullptr) const  // explicit assignment (static fields)
     {
         const size_t K=N_L.size();
         assert(K>0 && ecut_L.size()==K && V_L.size()==K);
+        assert(!pairLevels || pairLevels->size()==size()*size());
         const size_t nn=size();
         chmat_t h(size());
         const bool memoize = (screenD==nullptr);
@@ -909,8 +938,12 @@ public:
         // Miss: compute (streams replay where cached, on-the-fly otherwise), recording B for the next caller.
         // absRelCutoff > 0 marks a STATIC sharp-field call (the local PP, built once per SCF): evaluate on
         // the fly -- caching a single-shot sweep wastes the whole budget the per-iteration path needs.  (Its
-        // B reductions land in the memo, so the other k-blocks never repeat the sweep.)
-        const StreamCache* sc = (absRelCutoff==0.0) ? &EnsureStreams(A,N_L,ecut_L,absRelCutoff,relFieldSharp) : nullptr;
+        // B reductions land in the memo, so the other k-blocks never repeat the sweep.)  An EXPLICIT
+        // pairLevels assignment likewise bypasses the streams (they were built at the internal rule's
+        // levels); its memo key is honest because the caller's ladder (the custom top level) already
+        // distinguishes it from every internal-rule shape.
+        const StreamCache* sc = (absRelCutoff==0.0 && !pairLevels)
+                              ? &EnsureStreams(A,N_L,ecut_L,absRelCutoff,relFieldSharp) : nullptr;
         IntegrateMemo* memo=nullptr;
         if (memoize)
         {
@@ -926,7 +959,9 @@ public:
         // whose pairs scatter into a shared grid).
         auto integratePair=[&](size_t i, size_t j)           // j>=i (Hermitian upper triangle)
         {
-            const size_t  l = sc ? sc->pairs[i*nn+j].level : PairLevel(i,j,ecut_L,absRelCutoff,fieldSharpness,relFieldSharp);
+            const size_t  l = pairLevels ? (*pairLevels)[i*nn+j]
+                            : sc         ? sc->pairs[i*nn+j].level
+                            :              PairLevel(i,j,ecut_L,absRelCutoff,fieldSharpness,relFieldSharp);
             const rvec_t& V=V_L[l];
             const double  w=A.GetCellVolume()/double(V.size());   // the level's quadrature weight Omega/Npts(l)
             // pb.nb records the per-offset B(n) reductions FOR THE MEMO only (the phase-independent replay).  On

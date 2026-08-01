@@ -199,11 +199,32 @@ public:
     //! SHARP PP well off the coarse levels that cannot resolve the well (doc/GPWPlan1.md 4b).  0 for smooth fields.
     //! \a relFieldSharp: the RELATIVE rule's \f$\beta\f$ floor, as on CollocateDensity (must MATCH the
     //! collocation's value so collocate/integrate stay exact adjoints on the same level assignment).
+    //! \a pairLevels: OPTIONAL explicit per-pair level assignment (row-major \f$[i\cdot n+j]\f$, \f$j\ge i\f$
+    //! filled), overriding the internal rule -- the STATIC-EXTERNAL-FIELD caller computes it via
+    //! \c StaticFieldPairLevels (which needs the field's \f$\beta\f$ this face otherwise never sees).  With an
+    //! explicit assignment the stream cache is bypassed (its streams were built at the internal rule's levels);
+    //! the phase-independent memo still applies.
     virtual chmat_t IntegratePotential(const std::vector<rvec_t>& V_L, const cellphase_t& phase, const UnitCell& A,
                                        const std::vector<ivec3_t>& N_L,
                                        const std::vector<double>& ecut_L, double absRelCutoff=0.0,
                                        const chmat_t* screenD=nullptr, double fieldSharpness=0.0,
-                                       double relFieldSharp=-1.0) const = 0;
+                                       double relFieldSharp=-1.0,
+                                       const std::vector<size_t>* pairLevels=nullptr) const = 0;
+
+    //! \brief Per-pair level assignment for integrating a STATIC EXTERNAL G-space field of effective Gaussian
+    //! exponent \a beta (its spectrum decays as \f$e^{-G^2/4\beta}\f$; the erf-Coulomb local-PP long tail has
+    //! \f$\beta=1/(2r_{loc}^2)\f$).  Unlike the per-iteration KS fields -- whose per-level band-limit is EXACT
+    //! by adjoint-consistency with the density collocation -- a static field's level restriction is a plain
+    //! truncation error, so the level must resolve the TRUNCATION SUMMAND \f$e^{-G^2(1/4p+1/4\beta)}\f$
+    //! (\f$p=\alpha_i+\alpha_j\f$): \f$e_{cut}\ge 2\ln(1/\varepsilon)\,p\beta/(p+\beta)\f$ -- the HARMONIC
+    //! combination, which SATURATES at \f$2\ln(1/\varepsilon)\beta\f$ for sharp pairs (the field's own
+    //! bandwidth is the ceiling) and lets a diffuse pair fall to deep coarse levels (its own spectrum kills the
+    //! field's tail -- the reason the \f$\kappa\f$-rule's \f$\max(p,\beta)\f$ mis-routes THEM fine, the 180 s
+    //! diffuse-NaF sweep).  The pair's own quadrature requirement (the relative rule, no field floor) is kept
+    //! as a lower bound.  Row-major \f$[i\cdot n+j]\f$, \f$j\ge i\f$ filled; feed to \c IntegratePotential's
+    //! \a pairLevels.  (doc/GPWPlan1.md 0i increment 3 -- the custom V_loc G-ball.)
+    virtual std::vector<size_t> StaticFieldPairLevels(const std::vector<double>& ecut_L,
+                                                      double beta, double lnEps) const = 0;
 
     //! \brief Announce this basis's lattice-sum ECONOMY (console + the run report's \c grids.latticeSums):
     //! \f$\alpha_{\min/\max}\f$, the magnitude-screen \f$\varepsilon\f$ values in effect, and the

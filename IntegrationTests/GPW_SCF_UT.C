@@ -234,7 +234,7 @@ static qchem::SCFAccelerators::tSCFAccelerator<dcmplx>* MakeGpwAccelerator(const
 {
     using namespace qchem::SCFAccelerators;
     if (policy=="Null") return new tSCFAcceleratorNull<dcmplx>();
-    if (policy=="DIIS") return new cSCFAcceleratorDIIS(DIISParams{8, 8.0, 1e-10, 1e-9});
+    if (policy=="DIIS") return new cSCFAcceleratorDIIS(DIISParams{8, 0.1, 1e-10, 1e-9});
     if (policy=="GDM")  return new cSCFAcceleratorGDM(GDMParams{1.0});
     if (policy=="Ladder")
     {
@@ -862,8 +862,11 @@ TEST(GPW_SCF, AlFCCMetalIBZExact)
 
     EXPECT_TRUE(R.converged);
     EXPECT_NEAR(R.charge, 3.0, 1e-6);
-    EXPECT_NEAR(R.E.GetTotalEnergy(), -2.116812, 1e-4)   // == the full 8-k-point mesh: IBZ symmetrization is EXACT
-        << "IBZ-reduced must reproduce the full-mesh free energy (AlFCCMetalGlobalMu -2.11681)";
+    // Re-anchored 2026-08-01: the 0i custom V_loc G-ball (harmonic routing + custom top level) moved the
+    // long-PP block by 1.6e-4 on Al's coarse grids -- full mesh AND reduced shift TOGETHER (folding stays
+    // exact; the full-mesh AlFCCMetalGlobalMu prints -2.11697 same run).  Old kappa-sweep anchor: -2.116812.
+    EXPECT_NEAR(R.E.GetTotalEnergy(), -2.1169707, 1e-4)  // == the full 8-k-point mesh: IBZ symmetrization is EXACT
+        << "IBZ-reduced must reproduce the full-mesh free energy (AlFCCMetalGlobalMu -2.11697)";
 }
 
 // (item 5, IBZ) NON-SYMMORPHIC -- diamond Si (FCC lattice + a 2-atom basis at (0,0,0),(¼,¼,¼)) is space group
@@ -1022,7 +1025,7 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     o.species      = {{"Na",1},{"F",7}};
     o.densityEcut  = envd("NAF_ECUT", -1.0);              // AUTO = C·αmax=80 (the anchor config); NAF_ECUT=40 = sub-floor sweep
     o.ladderFactor = envd("NAF_LADDERF", 4.0);
-    o.accelerator  = std::getenv("NAF_NULL") ? "Null" : "DIIS";   // Fock DIIS→GDM on |ΔE/E| (ionic); NAF_NULL=damped Kerker
+    o.accelerator  = std::getenv("NAF_NULL") ? "Null" : "Ladder";   // Fock DIIS→GDM on |ΔE/E| (ionic); NAF_NULL=damped Kerker
     o.seed         = qchem::ChargeDensity::SeedStrategy::IonicSAD;   // diffuse F⁻/Na⁺ ionic seed (halves iters)
     const double pivotTol = envd("NAF_PIVOT", 1e-4);                // rank-revealing pivoted Cholesky (doc/GPWPlan1.md §4a)
     o.ortho        = pivotTol>0.0 ? qchem::CholeskyPivoted : qchem::Auto;
@@ -1030,7 +1033,7 @@ TEST(GPW_SCF, DISABLED_NaFRocksaltGamma)
     o.scf.NMaxIter = (size_t)envd("NAF_NMAX", 200);
     o.scf.MinΔE=1e-8; o.scf.MinΔρ=1e-4;                   // E-flat exit AND a Δρ gate (non-variational settled-E map)
     o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
-    o.scf.StartingRelaxRo=envd("NAF_ALPHA",0.45); o.scf.KerkerG0=1.0;   // Kerker damps the low-G charge-transfer slosh
+    o.scf.StartingRelaxRo=envd("NAF_ALPHA",0.25); o.scf.KerkerG0=1.0;   // Kerker damps the low-G charge-transfer slosh
     o.scf.UseMOM=true; o.scf.MOMStartIter=10;             // delayed-IMOM: descend, then pin the occupied subspace through the crossing
     o.scf.SmearingkT=envd("NAF_SMEAR",0.0); o.scf.MOMSmearPenalty=envd("NAF_PENALTY",0.0);   // MOM-masked Fermi (experiment)
     // XC quadrature: flip cellKind to try the atom-centred Becke XC route (doc/GPWPlan1.md; the recipe is

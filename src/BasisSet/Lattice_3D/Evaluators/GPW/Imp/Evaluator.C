@@ -884,15 +884,83 @@ chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const Pseudopotential::L
 }
 
 // The LONG-range (softened-Coulomb) local-PP matrix, the CP2K split's Hartree-folded piece (doc/GPWPlan.md
-// 0e-PP).  INCREMENT 1 assembles it through the SAME sharp-field sweep as the full V_loc (LocalPart::Long), so
-// V_short + V_long == V_full matrix-for-matrix -- the split RELOCATES the long part's ENERGY into the Hartree
-// term (E_een_long, no 1/2) without perturbing the assembled matrices (the -7.11506 Si gate is exact).  The
-// deep well is the erf-softened Coulomb, spectrally broad, so the naive smooth integrate-back ALIASES it onto
-// the coarse-level diffuse pairs (measured: Si Gamma -259 vs -7.115) -- the cheap smooth Poisson fold that
-// dodges the per-pair sweep is the analytic-seam follow-up (increment 2), NOT this correctness step.
+// 0e-PP / 0i increment 3 -- the CUSTOM V_loc G-BALL, 2026-08-01).  V_long is a STATIC EXTERNAL field of
+// effective Gaussian exponent beta = 1/(2 rloc^2): unlike the per-iteration KS fields -- whose per-level
+// band-limit is EXACT by adjoint-consistency with the density collocation -- its level restriction is a
+// plain truncation error, so it is ENTITLED TO ITS OWN G-BALL sized by the integrand's spectra (the user's
+// additive principle vlocEcut ~ 2 alpha_max + beta, sharpened to the exact HARMONIC truncation bound
+// 2 ln(1/eps) p beta/(p+beta) per pair -- StaticFieldPairLevels, doc there).  The assembly: the block's own
+// ladder plus ONE custom top level at the sharpest pair's requirement, each pair routed by the harmonic
+// rule.  This is BOTH the accuracy fix and the speed fix over the retired kappa sweep:
+//  - the smooth-fold experiment (0i increment 2, 2026-07-31) put mid pairs on the Ecut-80 ball where the
+//    field tail e^{-g2 rloc^2/2} ~ e^{-3.8} cost 4.6 mHa on the diffuse NaF; the harmonic rule routes them
+//    to the custom top ball (e^{-2 ln(1/eps)} class);
+//  - the kappa sweep's max(p,beta) requirement mis-routed the DIFFUSE pairs onto the completion rung
+//    (req = kappa*beta ~ 315 Ha even for p~0.2) -- huge boxes x ~791 offsets = the 180 s dominant
+//    diffuse-NaF setup bucket; under the harmonic rule their own spectrum kills the field tail and they
+//    fall to deep coarse levels (tiny work), so the on-the-fly sweep costs seconds.
+// TWO invariants: screenD stays NULL -- a STATIC (density-independent) block must not freeze one
+// iteration's D-aware active set -- and screenD==null makes the phase-independent B_ij memo apply, so
+// multi-k pays the assembly once.  eps defaults 1e-5 (the kappa-sweep-parity class: its rung-160 tails
+// were e^{-8.5}, measured sub-mHa vs CP2K); GPW_VLOC_EPS overrides for the self-convergence check.
+// GPW_LONG_SWEEP=1 = the kappa-sweep path (A/B verification instrument); non-Gaussian local models (no
+// closed beta) also fall back to it.
 chmat_t GPW_Evaluator::MakeLocalPPLong(const Structure* cl, const Pseudopotential::LocalPotential& loc) const
 {
-    return MakeLocalPP(cl, loc, LocalPart::Long);
+    // beta = the long part's effective exponent = the SHARPEST species' 1/(2 rloc^2) (V_long sums over atoms)
+    double beta=0.0;
+    if (const auto* gauss=dynamic_cast<const Pseudopotential::LocalPotential_Gaussian*>(&loc))
+        for (Atom* a : *cl)
+        {
+            const auto terms=gauss->ShortRangeGaussian(a->itsZ);
+            if (!terms.empty()) beta=std::max(beta, terms[0].alpha);   // alpha = 1/(2 rloc^2)
+        }
+    static const bool oldSweep=(std::getenv("GPW_LONG_SWEEP")!=nullptr);
+    if (oldSweep || beta<=0.0) return MakeLocalPP(cl, loc, LocalPart::Long);
+    qchem::report::Timed timed("setup: local-PP LONG (custom G-ball)");
+    assert(itsFFT_R_G_Grids && "GPW_Evaluator: the local PP needs the density grid (densityEcut!=0)");
+    EnsureLevels();
+    static const double eps=[]{const char* s=std::getenv("GPW_VLOC_EPS"); return s?std::atof(s):1e-5;}();
+    const double lnE=-std::log(eps);
+    // The custom ladder: the block's levels + ONE top level at the sharpest pair's harmonic requirement
+    // (2 alpha_max against beta) -- appended LAST so ecut_L[0] stays the resolution reference.  Skipped when
+    // an existing level (the completion rung) already satisfies it.  The requirement SATURATES at
+    // 2 lnE beta for a hard basis (the field's own bandwidth is the ceiling), so the ball never runs away.
+    const double p2=2.0*itsLat->MaxExponent();
+    const double ecutTop=2.0*lnE*p2*beta/(p2+beta);
+    std::vector<ivec3_t> N_L=itsLevelN;
+    std::vector<double>  ecut_L=itsLevelEcut;
+    std::vector<std::shared_ptr<const PW_Grid_Evaluator>> levels=itsLevels;
+    double emax=0.0;
+    for (double e : ecut_L) emax=std::max(emax,e);
+    if (ecutTop>emax)
+    {
+        auto g=std::make_shared<const PW_Grid_Evaluator>(itsFFT_R_G_Grids->Recip(), rvec3_t(0,0,0), ecutTop, itsRaster);
+        levels.push_back(g); N_L.push_back(g->FFTGrid()); ecut_L.push_back(g->Ecut());
+    }
+    const std::vector<size_t> lv=itsLat->StaticFieldPairLevels(ecut_L, beta, lnE);
+    // Vtilde(dm) = (1/Omega) Sum_a f_long(Z_a,|dG|^2) e^{-i dG.tau_a}, dG=0 DROPPED (the E_alphaZ
+    // alignment carries the mean -- the same convention as MakeLocalPP's form-factor closure).
+    const UnitCell& B=itsFFT_R_G_Grids->Recip().GetCell();
+    auto Vt=[&](const ivec3_t& dm)->dcmplx
+    {
+        if (dm.x==0 && dm.y==0 && dm.z==0) return dcmplx(0.0);
+        rvec3_t dG=B.ToCartesian(rvec3_t(dm));
+        double  g2=dG*dG;
+        dcmplx  acc(0.0);                                            // form factor x structure factor
+        for (Atom* a : *cl) acc += loc.FormFactorLong(a->itsZ,g2)*std::exp(dcmplx(0.0,-(dG*a->itsR)));
+        return acc/itsFFT_R_G_Grids->Volume();
+    };
+    const size_t K=levels.size();
+    std::vector<rvec_t> V_L(K);
+    for (size_t L=0;L<K;L++)
+    {
+        ΔG_Map vmapL;
+        for (const ivec3_t& dm : levels[L]->Gs()) vmapL[dm]=Vt(dm);   // restrict to level L's {G} (low-pass)
+        V_L[L]=levels[L]->RhoOnGrid(vmapL);
+    }
+    return itsLat->IntegratePotential(V_L, CellPhase(), itsCell, N_L, ecut_L,
+                                      0.0, nullptr, 0.0, itsRelFieldSharp, &lv);   // explicit harmonic routing; NO D screen
 }
 
 // The SHORT-range local-PP matrix, ANALYTIC via the closed Gaussian form (increment 2, doc/GPWPlan.md 0e-PP):

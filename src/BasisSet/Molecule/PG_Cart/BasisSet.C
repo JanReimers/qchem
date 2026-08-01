@@ -105,7 +105,10 @@ public:
                                        const std::vector<ivec3_t>& N_L,
                                        const std::vector<double>& ecut_L, double relCutoffScale,
                                        const chmat_t* screenD, double fieldSharpness=0.0,
-                                       double relFieldSharp=-1.0) const override;
+                                       double relFieldSharp=-1.0,
+                                       const std::vector<size_t>* pairLevels=nullptr) const override;
+    virtual std::vector<size_t> StaticFieldPairLevels(const std::vector<double>& ecut_L,
+                                                      double beta, double lnEps) const override;
     virtual void ReleaseStreams(const std::vector<ivec3_t>& N_L,
                                 const std::vector<double>& ecut_L) const override;   // budget refund (0.5(b))
     virtual void EmitLatticeSumReport(const UnitCell& A) const override;             // lattice-sum economy readout

@@ -254,11 +254,27 @@ its near-ideal grid across every basis set, diffuse included, while Hartree stay
   IDENTICALLY serial and threaded — an unoccupied ε dives to −50 Ha at iters 10–12 (guard releases, it
   re-dives at ~45, run ends non-aufbau at −19.594).  That is a Becke-on-this-anchor config question for
   the "Becke as default" decision below, not thread safety.
-- **0i analytic V_loc-long** (the other measured diffuse-setup lever): fold the smooth Gaussian core
-  charge into PW_Hartree's G-space Poisson solve — NO real-space sum at all; deletes the 180 s dominant
-  ledger bucket.  (The measured short-part analytic-vs-grid ratio, 0.37 s vs 180 s over the same 791-cell
-  enumeration, is the empirical case.  CP2K's numeric-long is free for THEM only because it rides their
-  per-iteration total-KS-potential integrate-back, which our G-space assembly doesn't have.)
+- **0i analytic V_loc-long — ✅ DONE 2026-08-01 (increment 3, the CUSTOM V_loc G-BALL — user's design).**
+  V_long is a STATIC EXTERNAL field (effective exponent β=1/(2r_loc²)) so it is *entitled to its own
+  G-ball* sized by the integrand's spectra: the user's additive principle vlocEcut ~ 2αmax+β, sharpened
+  to the exact HARMONIC truncation bound req(p) = 2ln(1/ε)·pβ/(p+β) per pair (`LatticeSum1E::
+  StaticFieldPairLevels`; saturates at 2ln(1/ε)β for sharp pairs, lets diffuse pairs fall coarse).
+  `MakeLocalPPLong` = the block's ladder + ONE custom top level at the sharpest pair's requirement
+  (NaF: 214 Ha vs the 160 rung), pairs routed by the harmonic rule via `IntegratePotential`'s new
+  explicit `pairLevels`; screenD=NULL (a static block must never freeze one iteration's D-aware active
+  set) ⇒ the phase-independent multi-k memo applies.  ε default 1e-5 (`GPW_VLOC_EPS` override);
+  `GPW_LONG_SWEEP=1` = the retired κ sweep (A/B instrument; also the non-Gaussian-model fallback).
+  **MEASURED:** Si Γ −7.11507 both ways (μHa agreement); diffuse NaF custom-ball −24.4317304 vs sweep
+  −24.4317249 = **5.5 μHa** (the smooth-fold experiment was 4.6 mHa off); ε=1e-7 self-convergence
+  −24.4317194 (all three within ~11 μHa); setup bucket **180 s serial / 34 s threaded → 1.7 s** (~20×
+  threaded, ~100× serial; Si's sweep cost also halved the test).  WHY it is both fixes at once: the
+  per-level G-restriction is EXACT for per-iteration KS fields (adjoint-consistent with the density
+  collocation) but a plain truncation error for an external static field — the mid pairs on the 80-ball
+  carried e^{−3.8} field tails (the fold's 4.6 mHa) while the κ rule's max(p,β) mis-routed the DIFFUSE
+  pairs onto the completion rung (req=κβ≈315 Ha even at p~0.2: huge boxes × ~791 offsets = the 180 s).
+  The σ-split alternative (fold erfC_σ + absolutely-convergent [erfC_rloc−erfC_σ] remainder lattice sum)
+  was designed but NOT needed — kept in git history should an ultra-hard-PP-on-soft-basis case ever make
+  the β-linear ball growth bite.
 - **Coarse-end routing calibration** (`kMinLevelN=3` "very coarse for a diffuse lobe" — the standing
   suspect after the HartreeOnly falsification; valves `GPW_ROUTING`/`GPW_RELFIELDSHARP` are in place).
 - **Becke as the DEFAULT for (diffuse) bases** — runtime-viable since the engine; decide after the
