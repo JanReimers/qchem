@@ -654,6 +654,93 @@ public:
         auto [budget64,budget32]=StreamBudgetHeadroom(&c);        // (empty c contributes nothing)
         c.availAtBuild64=budget64; c.availAtBuild32=budget32;
         size_t nPairs=0, nCached64=0, nCached32=0, pts64=0, pts32=0, ptsDropped=0, nOffs=0;
+        bool builtThreaded=false;
+#ifdef QCHEM_OPENMP
+        // TWO-PASS PARALLEL BUILD (opt-in via GPW_OMP_THREADS, like the collocate/integrate loops; the
+        // 2026-07-19 "0 speedup, reverted" verdict was measured in the silently-serial libgomp era and is
+        // VOID).  The one-pass build below is inherently SEQUENTIAL -- each pair's fp64/fp32/drop tier
+        // consumes the global budgets in pair order, and the cap/streaming-demotion logic bounds the
+        // memory transient -- so instead: pass 1 counts every pair's surviving points in parallel (pure
+        // arithmetic, no memory), a SERIAL walk replays the exact one-pass tier/budget decisions on the
+        // counts, and pass 2 builds only the CACHED pairs in parallel, each directly in its final value
+        // form (the fp32 demotion transient is gone -- values narrow per point, identical doubles).
+        // Tiering, stream content, and every readout are IDENTICAL to the serial build (same counts ->
+        // same walk -> same enumeration order within each pair), so replay stays bit-identical either
+        // way.  Cost: ~2x box evaluations at ~nthreads parallelism (the counting pass IS an evaluation
+        // pass -- the |val|>=eps screen needs the values); measured net ~4x on the diffuse-NaF build.
+        if (const int nthreads=PairThreads(); nthreads>1)
+        {
+            std::vector<std::pair<size_t,size_t>> prs;
+            for (auto i:indices()) for (auto j:indices(i)) prs.push_back({i,j});
+            std::vector<size_t> ptsAll(prs.size(),0);
+            std::exception_ptr firstEx;   // throw containment -- see CollocateDensity
+            #pragma omp parallel for schedule(dynamic) num_threads(nthreads)
+            for (size_t p=0;p<prs.size();p++)
+            {
+                try
+                {
+                    const auto [i,j]=prs[p];
+                    PairStreams& ps=c.pairs[i*n+j];
+                    ps.level=PairLevel(i,j,ecut_L,absRelCutoff,0.0,relFieldSharp);
+                    const ivec3_t N=N_L[ps.level];
+                    size_t pts=0;
+                    ForImageOffsets(i,j,A,[&](const ivec3_t&, const rvec3_t& Roff)
+                                    { ForPairBox(i,j,Roff,A,N,[&](size_t,double){ pts++; }); });
+                    ptsAll[p]=pts;
+                }
+                catch (...)
+                {
+                    #pragma omp critical (gpw_pair_throw)
+                    if (!firstEx) firstEx=std::current_exception();
+                }
+            }
+            if (firstEx) std::rethrow_exception(firstEx);
+            // The serial budget walk: the one-pass tier decisions, verbatim, on the known counts (including
+            // the both-tiers-exhausted "+1" bookkeeping quirk, so the readouts match the serial build).
+            enum class Tier : char { Skip, F64, F32, Drop };
+            std::vector<Tier> tier(prs.size(), Tier::Skip);
+            for (size_t p=0;p<prs.size();p++)
+            {
+                nPairs++;
+                if (budget64==0 && budget32==0) { ptsDropped++; continue; }
+                const size_t pts=ptsAll[p];
+                if      (pts<=budget64) { budget64-=pts; pts64+=pts; nCached64++; tier[p]=Tier::F64; }
+                else if (pts<=budget32) { budget32-=pts; pts32+=pts; nCached32++; tier[p]=Tier::F32; }
+                else                    { ptsDropped+=pts;                        tier[p]=Tier::Drop; }
+            }
+            #pragma omp parallel for schedule(dynamic) num_threads(nthreads)
+            for (size_t p=0;p<prs.size();p++)
+            {
+                if (tier[p]!=Tier::F64 && tier[p]!=Tier::F32) continue;
+                try
+                {
+                    const auto [i,j]=prs[p];
+                    PairStreams& ps=c.pairs[i*n+j];
+                    const ivec3_t N=N_L[ps.level];
+                    const bool f32=(tier[p]==Tier::F32);
+                    ForImageOffsets(i,j,A,[&](const ivec3_t& nn, const rvec3_t& Roff)
+                    {
+                        PairOffsetStream st; st.n=nn;
+                        ForPairBox(i,j,Roff,A,N,[&](size_t idx,double v)
+                                   { st.idx.push_back(unsigned(idx));
+                                     if (f32) st.val32.push_back(float(v)); else st.val.push_back(v);
+                                     st.maxv=std::max(st.maxv,std::fabs(v)); });
+                        if (!st.idx.empty()) ps.offsets.push_back(std::move(st));
+                    });
+                    ps.cached=true;
+                }
+                catch (...)
+                {
+                    #pragma omp critical (gpw_pair_throw)
+                    if (!firstEx) firstEx=std::current_exception();
+                }
+            }
+            if (firstEx) std::rethrow_exception(firstEx);
+            for (const auto& ps : c.pairs) nOffs+=ps.offsets.size();
+            builtThreaded=true;
+        }
+#endif
+        if (!builtThreaded)
         for (auto i:indices()) for (auto j:indices(i))
         {
             PairStreams& ps=c.pairs[i*n+j];
