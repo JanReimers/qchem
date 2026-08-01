@@ -206,6 +206,10 @@ public:
     void SetSymmetryOps(std::vector<Symmetry::Lattice_3D::DirectOp> ops) {itsSymOps=std::move(ops);}
     const std::vector<Symmetry::Lattice_3D::DirectOp>& SymmetryOps() const {return itsSymOps;}
 
+    //! The direct cell (geometry accessor -- the fit-basis factories need the cell matrix the
+    //! crystal ops act in).
+    const UnitCell& Cell() const {return itsCell;}
+
 private:
     //! The reciprocal \f$\{U|\tau\}\f$ face of \c itsSymOps (\f$U=W^\top\f$, the G-index scatter map) --
     //! what \c EvaluateSymmetricGMap folds under (empty = the plain sweep).

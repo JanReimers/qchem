@@ -170,10 +170,20 @@ private:
 class BeckeXC_Engine
 {
 public:
-    typedef std::shared_ptr<const qcMesh::Mesh> mesh_t;
-    explicit BeckeXC_Engine(mesh_t);
-    const qcMesh::Mesh& Mesh() const {return *itsMesh;}
-    //! \f$\rho(r_g)\f$ for \a cd's current serial (cached across the pair; rebuilt on a new serial).
+    //! The engine no longer owns a raw mesh (doc/SymmetryUpgradePlan.md §6a, user diagnosis): it holds
+    //! the QUADRATURE FIT BASIS the orbital basis created (\c CreateVxcFitBasisSet with a Becke
+    //! MeshParams -- the grid-policy home), which owns the mesh, the symmetry fold, and the
+    //! \c SymmetrizeRaster hook.  The engine remains the Ham-side cache (\f$\Phi\f$ tables + the
+    //! pair-shared per-serial \f$\rho\f$) because \f$\rho\f$ takes a ChargeDensity -- a layer the
+    //! basis library cannot name.
+    typedef std::shared_ptr<const BasisSet::cFIT_SF_ABS> fbs_t;
+    explicit BeckeXC_Engine(fbs_t);
+    const qcMesh::Mesh& Mesh() const {return itsQuad->IntegrationMesh();}
+    //! \f$\rho(r_g)\f$ for \a cd's current serial (cached across the pair; rebuilt on a new serial),
+    //! STAR-AVERAGED by the fit basis's \c SymmetrizeRaster (exact orbit-mean projector on an imposed
+    //! run's invariant mesh; no-op on a free run -- §6a W1.  The E/H pair needs nothing else: on
+    //! orbit-symmetric weights the projector is self-adjoint and \f$v(\rho_\mathrm{sym})\f$ is already
+    //! symmetric, so \c Matrix below is the exact derivative untouched).
     //! \a ensureBlock (when given) has its \f$\Phi\f$ table built FIRST, so the rho GEMM covers it even on
     //! the very first call; blocks not yet tabled self-evaluate pointwise inside the density (first pass
     //! only).  GetEnergy passes null (no basis at hand) and reuses the iteration's table.
@@ -182,7 +192,8 @@ public:
     chmat_t Matrix(const cobs_t* bs, const rvec_t& v);
 private:
     const mat_t<dcmplx>& Phi(const cobs_t* bs);   //!< lazily built per block (geometry-fixed)
-    mesh_t itsMesh;
+    fbs_t itsFit;                                  //!< the mesh-owning quadrature fit basis (SymmetrizeRaster)
+    const BasisSet::cFIT_SF_Quadrature* itsQuad;   //!< its quadrature face (the mesh accessor)
     std::map<std::string,mat_t<dcmplx>> itsPhi;   //!< BasisSetID -> (npts x n) basis table
     rvec_t itsRho;
     size_t itsRhoVersion=size_t(-1);              //!< density logical-clock serial itsRho was built for

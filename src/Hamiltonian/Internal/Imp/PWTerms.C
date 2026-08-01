@@ -345,10 +345,15 @@ std::ostream& PW_XC::Write(std::ostream& os) const
 
 // ---- BeckeXC_Engine: the pair-shared mesh + Phi tables + per-serial rho ----------------------------------
 
-BeckeXC_Engine::BeckeXC_Engine(mesh_t mesh)
-    : itsMesh(std::move(mesh))
+BeckeXC_Engine::BeckeXC_Engine(fbs_t fit)
+    : itsFit(std::move(fit))
+    , itsQuad(dynamic_cast<const BasisSet::cFIT_SF_Quadrature*>(itsFit.get()))
 {
-    assert(itsMesh && itsMesh->size()>0);
+    // Abstract->abstract capability cast: the Becke route requires a MESH-QUADRATURE fit basis
+    // (CreateVxcFitBasisSet with a Becke MeshParams returns one); a fit basis without the face is a
+    // wiring error, not a fallback.
+    assert(itsQuad && "BeckeXC_Engine: the Vxc fit basis must implement cFIT_SF_Quadrature (Becke route)");
+    assert(itsQuad->IntegrationMesh().size()>0);
 }
 
 // The (npts x n) basis table for one Bloch block: chi_i at every mesh point -- the ONE image-summed
@@ -361,7 +366,7 @@ const mat_t<dcmplx>& BeckeXC_Engine::Phi(const cobs_t* bs)
     if (it!=itsPhi.end()) return it->second;
 
     qchem::report::Timed timed("setup: becke Phi tables");
-    const rvec3vec_t& R=itsMesh->Points();
+    const rvec3vec_t& R=itsQuad->IntegrationMesh().Points();
     mat_t<dcmplx> P(R.size(), bs->GetVectorSize());
     for (size_t g=0; g<R.size(); g++)
     {
@@ -381,10 +386,12 @@ const rvec_t& BeckeXC_Engine::Rho(const cChargeDensity* cd, const cobs_t* ensure
     if (cd->Version()==itsRhoVersion) return itsRho;
     itsRhoVersion=cd->Version();
     qchem::report::Timed timed("scf: becke rho sampling (all iterations)");
+    const rvec3vec_t& R=itsQuad->IntegrationMesh().Points();
     if (auto dm=dynamic_cast<const cDM_CD*>(cd))
-        itsRho=dm->DM_RhoAtPoints(itsMesh->Points(), itsPhi);
+        itsRho=dm->DM_RhoAtPoints(R, itsPhi);
     else
-        itsRho=cd->EvalBatch(itsMesh->Points());   // non-DM (mixed rho-tilde / seed) densities batch here
+        itsRho=cd->EvalBatch(R);                   // non-DM (mixed rho-tilde / seed) densities batch here
+    itsFit->SymmetrizeRaster(itsRho);              // §6a W1: the mesh owner's star-average (no-op when free)
     return itsRho;
 }
 
@@ -393,7 +400,7 @@ const rvec_t& BeckeXC_Engine::Rho(const cChargeDensity* cd, const cobs_t* ensure
 chmat_t BeckeXC_Engine::Matrix(const cobs_t* bs, const rvec_t& v)
 {
     const mat_t<dcmplx>& P=Phi(bs);
-    const rvec_t&        w=itsMesh->Weights();
+    const rvec_t&        w=itsQuad->IntegrationMesh().Weights();
     assert(v.size()==P.rows());
     mat_t<dcmplx> WP(P.rows(), P.columns());
     for (size_t g=0; g<P.rows(); g++)

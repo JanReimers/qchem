@@ -244,8 +244,11 @@ qcMesh::MeshParams ResolveXCMesh(const qcMesh::MeshParams& mp, bool reduceBZ)
     if (mp.cellKind!=qcMesh::UnitCellKind::Auto) return mp;
     if (reduceBZ)
     {
-        std::cout<<"[XC quadrature] AUTO -> uniform raster: BZ-reduced run (the Becke-route density "
-                   "star-average is unverified -- doc/GPWPlan1.md \"Becke+IBZ\")"<<std::endl;
+        // The Becke-route star-average is now VERIFIED (BeckeXC_IBZ_SiDiamond, plan §6a W1) but the
+        // W1 invariant mesh pays a group-average growth (measured ~6x on Si/GL-9), so Auto still
+        // prefers the uniform raster under reduceBZ; W2's site-adapted grids (no growth) retire this.
+        std::cout<<"[XC quadrature] AUTO -> uniform raster: BZ-reduced run (Becke+IBZ verified but W1 "
+                   "mesh growth ~6x -- explicit Becke opts in; W2 retires this fallback)"<<std::endl;
         qcMesh::MeshParams r=mp;
         r.cellKind=qcMesh::UnitCellKind::Uniform;
         return r;
@@ -977,6 +980,42 @@ TEST(GPW_SCF, SiDiamondIBZ_NonSymmorphic)
 
 // ===== EXPERIMENTAL (scratch): global-μ across k-blocks (item 3 inc 3) =====
 // AL_KGRID=n (mesh nxnxn), AL_GLOBAL=0/1 (per-block vs global μ), AL_KT, AL_NMAX.
+// THE W1 GATE (doc/SymmetryUpgradePlan.md §6a): Becke XC under IBZ.  BeckeFit_IBS group-averages its
+// mesh INVARIANT and star-averages rho every iteration (the SymmetrizeRaster hook, exact orbit-mean
+// projector); on the converged SYMMETRIC density the invariant mesh integrates identically to the
+// single-orientation mesh (Q_inv(f)==Q(f) for a symmetric f), so the IBZ run must reproduce the
+// full-mesh Becke run to the IBZ class -- the Becke sibling of SiDiamondIBZ_NonSymmorphic, with the
+// non-symmorphic glide tau exercised through the torus fold + MakeInvariant.  COARSE explicit Becke
+// recipe on BOTH arms: the gate compares like against like, so grid quality cancels (and the
+// imposed arm's group-average mesh growth stays affordable).
+TEST(GPW_SCF, BeckeXC_IBZ_SiDiamond)
+{
+    const double a=10.26;
+    FCCUnitCell cell(a);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(2,2,2));
+    GpwOptions o;
+    o.Nelec=8; o.species={{"Si",4}};
+    o.densityEcut=20.0; o.accelerator="DIIS";
+    o.xcMesh=BeckeXCParams(15, 2.0, 9);          // explicit coarse Becke (nR=15, GL-9), same on both arms
+    o.seed=qchem::ChargeDensity::SeedStrategy::Uniform; o.ortho=qchem::Cholesky;
+    o.scf.NMaxIter=60; o.scf.MinΔρ=1e-3; o.scf.MinΔE=1e-6;
+    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30; o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4;
+
+    o.label="Si diamond Becke FULL"; o.reduceBZ=false;
+    GpwResult F=RunGpw(lat, MakeBasisSR(cell), o, /*verbose*/false);
+    ASSERT_TRUE(F.converged);
+
+    o.label="Si diamond Becke IBZ"; o.reduceBZ=true;
+    GpwResult R=RunGpw(lat, MakeBasisSR(cell), o, /*verbose*/false);
+    ASSERT_TRUE(R.converged);
+
+    EXPECT_NEAR(R.E.GetTotalEnergy(), F.E.GetTotalEnergy(), 2e-3)
+        << "Becke+IBZ must reproduce Becke+full-mesh (the W1 star-average makes the reduced density exact "
+           "on the invariant Becke mesh; doc/SymmetryUpgradePlan.md 6a)";
+}
+
 TEST(GPW_SCF, DISABLED_AlGlobalMuExperiment)
 {
     auto envd=[](const char* n,double d){const char*s=std::getenv(n);return s?std::atof(s):d;};
@@ -1511,8 +1550,10 @@ XCProbe BeckeXCProbe(const GpwHandles& h, const std::shared_ptr<const Structure>
 {
     auto exch=std::make_shared<Hamiltonian::SlaterExchange>(2.0/3.0);
     auto corr=std::make_shared<Hamiltonian::VWN_Correlation>();
-    auto engine=std::make_shared<Hamiltonian::BeckeXC_Engine>(               // ONE engine, shared by the pair
-                    std::make_shared<const qcMesh::Mesh>(st->CreateIntegrationMesh(mpB)));
+    // The engine consumes the mesh-owning quadrature fit basis from the SAME Create seam as production
+    // (plan §6a: the grid-policy home) -- ONE engine, shared by the pair.
+    Hamiltonian::BeckeXC_Engine::fbs_t fit(h.bs->CreateVxcFitBasisSet(st.get(), mpB));
+    auto engine=std::make_shared<Hamiltonian::BeckeXC_Engine>(fit);
     Hamiltonian::PW_XC_Becke x(exch,engine), c(corr,engine);
     EnergyBreakdown e; x.GetEnergy(e,h.cd.get()); c.GetEnergy(e,h.cd.get());
     return ProbeXC(label, h, x, c, e);

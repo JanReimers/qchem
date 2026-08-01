@@ -58,9 +58,23 @@ full-mesh until the T3-shared rep transform; retires the carve-out; = the Angula
 revival).  **OWNERSHIP LANDED (§6a last bullet): qcStructure→qcSymmetry edge;
 `Lattice_3D::GetSpaceGroup()` (detection + adapter, lattice-common); `qchem.SymmetrizeMesh`
 re-homed to src/Structure/Lattice_3D; SpaceGroup gained ReciprocalMatrix/To{Fractional,
-Cartesian}.  Next code = W1 as the `BeckeFit_IBS` refactor (§6a): fit basis owns
-mesh+fold+SymmetrizeRaster, engine machinery becomes its internals, ρ flows through the
-uniform route's own GetRhoOnGrid path.**
+Cartesian}.**
+**W1 BUILT + GATED (the `BeckeFit_IBS` refactor):** `cFIT_SF_Quadrature` face in qcBasisSet
+(a fit basis whose Vxc representation is direct mesh quadrature; `IntegrationMesh()` +
+the inherited `SymmetrizeRaster` hook); `BeckeFit_IBS` in qcLattice_BS owns the Becke mesh,
+group-averages it INVARIANT under the §3-imposed ops (`MakeInvariant` + `FoldMesh` in its
+ctor) and overrides `SymmetrizeRaster` with the exact orbit-mean; the fit-basis TYPE
+decision lives in `GPW_IBS::CreateVxcFitBasisSet` keyed on `mp.cellKind` (user pin: the
+grid-policy home); `BeckeXC_Engine` no longer owns a mesh — it holds the fit basis
+(abstract, one capability cast) and keeps only the Ham-side Φ/ρ caches (ρ takes a
+ChargeDensity, a layer the basis cannot name — the one §6a amendment).  GATES:
+`BeckeXC_IBZ_SiDiamond` — Becke+IBZ == Becke+full to **7e-5 Ha** (non-symmorphic, coarse
+GL-9 recipe both arms; invariant mesh 1034→6120 pts = ~6× growth, 135 orbits); the free
+arm's `[symmetry]` line measures max defect 6e-3 / 40 ops broken — the fixed-orientation
+coarse-grid rotating-error channel, removed by the imposed arm's projector, exactly as
+predicted.  Γ free-run equivalence unchanged (`BeckeXCMatchesUniformXC_SiGamma`).  The
+Auto→uniform reduceBZ carve-out STAYS (W1 growth ~6×; explicit Becke opts in) until W2's
+site-adapted no-growth grids.  Full suite 645/645.
 The SCF-level broken-seed negative control lands with the §8 harness (needs a
 symmetry-breaking SeedStrategy).  NOTE (§4/§9): non-collinear added —
 `SpinAction{None,Flip}` is documented as the collinear collapse of the general spin
