@@ -62,6 +62,26 @@ struct DirectOp
     rvec3_t          tau;    //!< Fractional translation of the operation.
 };
 
+//! \brief RUN-LEVEL symmetry-imposition policy (doc/SymmetryUpgradePlan.md §3).  Every symmetry
+//! reduction -- the k-fold, the {G}/{r} folds, the stream reduction, the density star-average --
+//! IMPOSES the group it folds under: exact iff the density actually HAS that group, silently wrong
+//! (too-high-symmetry, too-high-energy) when the ground state wants to break it.  So imposition is
+//! an OPT-IN speed contract the caller asserts, never a silent default: out of the box \c None
+//! (a free run imposes nothing and the order-parameter diagnostic reports the symmetry the SCF
+//! actually found).  ONE policy value feeds every reduction surface of a run; subgroup selection
+//! (the SSB-search / ordering-enumeration workflows) extends the enum, not the plumbing.
+//!
+//! What the caller asserts to (§3): on an imposed run the density defect \f$\|\rho-P_G\rho\|\f$ is
+//! \f$\approx 0\f$ BY CONSTRUCTION (every iterate is projected), so the diagnostic cannot audit it
+//! -- the RELEASE-CHECK (re-converge under a released group with a symmetry-broken seed) is the
+//! audit that certifies no spontaneous symmetry breaking was suppressed.
+struct SymmetryPolicy
+{
+    enum class Impose { None, FullGroup };   //!< Subgroup arrives with the SSB/ordering workflows.
+    Impose impose = Impose::None;            //!< Default: impose NOTHING (impose-on-assert).
+    bool Imposes() const {return impose != Impose::None;}
+};
+
 //! \brief The detected space group of a crystal: its \f${W|\tau}\f$ operations, plus the
 //! derived crystal point group acting on \f$k\f$.
 //!

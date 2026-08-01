@@ -176,6 +176,50 @@ TEST(SymmetrizeGMap, NonSymmorphicDiamondStructureFactorInvariant)
     }
 }
 
+//---------------------------------------------------------------------------------------------
+//  SymmetryDefects: the §3 order-parameter diagnostic (doc/SymmetryUpgradePlan.md).  A symmetric
+//  density scores ~0 on every op; a broken one fires on exactly the ops it breaks -- and after
+//  SymmetrizeGMap it scores ~0 again (the imposed-run blindness the plan warns about, demonstrated).
+//
+// A NON-SYMMORPHIC symmetric density (the diamond structure factor, glide phases live) scores ~0 on
+// all 48 ops -- this also pins the defect's phase convention against SymmetrizeGMap's.
+TEST(SymmetryDefects, SymmetricDensityScoresZeroIncludingGlides)
+{
+    auto ops = DiamondOps();
+    const rvec3_t tau0(0.25,0.25,0.25);
+    auto sf=[&](const ivec3_t& m){ double p=-2.0*PI*(m.x*tau0.x+m.y*tau0.y+m.z*tau0.z); return 1.0+std::polar(1.0,p); };
+    auto S = Orbit({ivec3_t(0,0,0), ivec3_t(1,0,0), ivec3_t(1,1,1), ivec3_t(2,0,0)}, ops);
+    ΔG_Map rg; for (const auto& m : S) rg[m] = sf(m);
+
+    for (double d : SymmetryDefects(rg, ops)) EXPECT_LT(d, 1e-12);
+}
+
+// NEGATIVE CONTROL (the step-3 gate): a deliberately symmetry-broken density makes the diagnostic
+// FIRE -- on the broken ops only (E and the (1,0,0)-stabilizer stay clean: WHICH ops broke is the
+// readout).  And after the star-average projector runs, the same diagnostic is BLIND (defect ~0 by
+// construction) -- the §3 reason an imposed run needs the release-check audit, not this diagnostic.
+TEST(SymmetryDefects, BrokenDensityFiresAndProjectorBlindsIt)
+{
+    auto ops = CubicOps();
+    ΔG_Map rg;
+    for (const auto& m : StarOf(ivec3_t(1,0,0), ops)) rg[m] = dcmplx(1.0, 0.0);   // symmetric star
+    rg[ivec3_t(1,0,0)] += 0.3;                                                    // deliberate symmetry break
+
+    std::vector<double> d = SymmetryDefects(rg, ops);
+    double mx=0; int fired=0, clean=0;
+    for (size_t o=0; o<ops.size(); ++o)
+    {
+        mx = std::max(mx, d[o]);
+        if (d[o] > 1e-2) ++fired; else { EXPECT_LT(d[o], 1e-12); ++clean; }
+    }
+    EXPECT_GT(mx, 0.1);        // the diagnostic FIRES
+    EXPECT_EQ(clean, 8);       // the (1,0,0) stabilizer (|O_h|/|star| = 48/6) + E: exactly the unbroken ops
+    EXPECT_EQ(fired, 40);      // every op that actually moves the broken component reports it
+
+    // The imposed-run blindness: the projector restores symmetry, so the SAME diagnostic now reads ~0.
+    for (double x : SymmetryDefects(SymmetrizeGMap(rg, ops), ops)) EXPECT_LT(x, 1e-12);
+}
+
 // CONTROL: without the τ phase (τ forced to 0, the old W-only guard) the SAME diamond structure factor is NOT
 // invariant -- proving the phase is doing real work (the test above is not vacuously passing).
 TEST(SymmetrizeGMap, NonSymmorphicWithoutPhaseCorruptsStructureFactor)

@@ -75,6 +75,11 @@ struct GPWParams
                                                     //!< Only the linear parts are used, so the density MUST be
                                                     //!< symmetrized over the star for this to be exact (doc/GPWPlan1
                                                     //!< item 3 IBZ).  DEFAULT off (full mesh, no symmetrization).
+                                                    //!< This IS the §3 SymmetryPolicy assert-switch
+                                                    //!< (doc/SymmetryUpgradePlan.md): true = the caller ASSERTS
+                                                    //!< imposition of the full detected group (release-check audits
+                                                    //!< SSB); false = a FREE run (nothing imposed; the detected group
+                                                    //!< still feeds the order-parameter diagnostic).
     RasterFields rasterFields = RasterFields::HartreeXC;  //!< field-sharpness ROUTING: which terms the raster serves.
                                                     //!< HartreeOnly (pair with the Becke XC route ONLY) drops the
                                                     //!< 2/3*alpha_max XC floor so diffuse density pairs route to
@@ -126,8 +131,12 @@ public:
     //! package).  (This is the FULL point group with fractional translations, distinct from the linear-only ops
     //! the ctor uses to fold the mesh; doc/GPWPlan1.md items 3 + 5.)
     virtual std::vector<Symmetry::Lattice_3D::ReciprocalOp> GetReciprocalPointOps() const override {return itsReciprocalOps;}
+    //! The full DETECTED \f${U|\tau}\f$ set -- populated imposed or not (detection always runs; it is the
+    //! §3 order-parameter diagnostic's reference group, doc/SymmetryUpgradePlan.md).
+    virtual std::vector<Symmetry::Lattice_3D::ReciprocalOp> GetDetectedReciprocalOps() const override {return itsDetectedOps;}
 private:
     std::vector<Symmetry::Lattice_3D::ReciprocalOp> itsReciprocalOps;   //!< {} unless reduceBZ (doc/GPWPlan1.md items 3+5)
+    std::vector<Symmetry::Lattice_3D::ReciprocalOp> itsDetectedOps;     //!< the full detected group, always (§3 diagnostic)
 };
 
 } //namespace

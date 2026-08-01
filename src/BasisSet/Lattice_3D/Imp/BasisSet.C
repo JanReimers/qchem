@@ -72,33 +72,48 @@ struct KBlock { ivec3_t ik; double weight; };
 // knowledge lives in SpaceGroup, not here (doc/GPWPlan1.md items 3 + 5).
 struct CrystalPointOps
 {
-    std::vector<Matrix3D<double>>                        recipFold;      //!< linear reciprocal ops (+TR) for the k-fold
-    std::vector<Symmetry::Lattice_3D::ReciprocalOp>      recipDensity;   //!< {U|τ} for the G-space density star-average (glide phase)
-    std::vector<Symmetry::Lattice_3D::DirectOp>          directDensity;  //!< {W|τ} for the real-space raster star-average (glide shift)
+    Symmetry::Lattice_3D::SymmetryPolicy                 policy;         //!< the ONE run-level imposition decision (§3)
+    std::vector<Matrix3D<double>>                        recipFold;      //!< linear reciprocal ops (+TR) for the k-fold ({} unless imposed)
+    std::vector<Symmetry::Lattice_3D::ReciprocalOp>      recipDensity;   //!< {U|τ} for the G-space density star-average ({} unless imposed)
+    std::vector<Symmetry::Lattice_3D::DirectOp>          directDensity;  //!< {W|τ} for the real-space raster star-average ({} unless imposed)
+    std::vector<Symmetry::Lattice_3D::ReciprocalOp>      recipDetected;  //!< the FULL detected {U|τ} set, ALWAYS (§3 diagnostic reference)
 };
+//! ONE place resolves the run's symmetry policy (doc/SymmetryUpgradePlan.md §3): detection ALWAYS runs
+//! (cheap, and a free run needs the full group as the order-parameter diagnostic's reference), but the
+//! IMPOSED faces (k-fold + density star-average -- one package) fill only when the caller asserted
+//! imposition (p.reduceBZ).  Downstream consumers read the policy from here, never p.reduceBZ again.
 static CrystalPointOps DetectPointOps(const ::qchem::Lattice_3D& lat, const GPWParams& p)
 {
     namespace SL = qchem::Symmetry::Lattice_3D;
-    if (!p.reduceBZ) return {};
     const UnitCell&  cell = lat.GetUnitCell();
     const Structure& st   = cell;   // iterate atoms via the PUBLIC Structure interface (GetAtom is protected)
     std::vector<SL::AtomSite> basis;
     for (Atom* a : st)
         basis.push_back({a->itsZ, cell.ToFractional(a->itsR)});
     SL::SpaceGroup sg = SL::SpaceGroup::Detect(cell.GetCellMatrix(), basis);
-    return { sg.ReciprocalPointOps(/*timeReversal*/true, /*symmorphicOnly*/true),  // fold: linear + TR
-             sg.ReciprocalOps(),                                                   // density G-space: {U|τ}
-             sg.DirectOps() };                                                     // density raster: {W|τ}
+
+    CrystalPointOps ops;
+    ops.policy.impose = p.reduceBZ ? SL::SymmetryPolicy::Impose::FullGroup
+                                   : SL::SymmetryPolicy::Impose::None;
+    ops.recipDetected = sg.ReciprocalOps();                                        // full {U|τ}: the diagnostic reference
+    if (ops.policy.Imposes())
+    {
+        ops.recipFold     = sg.ReciprocalPointOps(/*timeReversal*/true, /*symmorphicOnly*/true);  // fold: linear + TR
+        ops.recipDensity  = sg.ReciprocalOps();                                    // density G-space: {U|τ}
+        ops.directDensity = sg.DirectOps();                                        // density raster: {W|τ}
+    }
+    return ops;
 }
 
 static std::vector<KBlock> BuildKBlocks(const ::qchem::Lattice_3D& lat, const GPWParams& p,
-                                        const std::vector<Matrix3D<double>>& ops)
+                                        const CrystalPointOps& cops)
 {
     namespace SL = qchem::Symmetry::Lattice_3D;
+    const std::vector<Matrix3D<double>>& ops = cops.recipFold;
     const rvec3_t kShift=p.kShift;
     const ivec3_t N=lat.GetLimits();
     std::vector<KBlock> blocks;
-    if (!p.reduceBZ)
+    if (!cops.policy.Imposes())
     {
         for (const auto& kp : lat.MakeKMesh(kShift))
             blocks.push_back({ivec3_t(std::lround(kp.k.x*N.x-kShift.x), std::lround(kp.k.y*N.y-kShift.y),
@@ -121,9 +136,10 @@ GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const
     const rvec3_t kShift=p.kShift;
     const ivec3_t N=lat.GetLimits();
     const GPW_IBS* first=nullptr;
-    CrystalPointOps ops = DetectPointOps(lat, p);   // ONE detection: fold ops + {U|τ} (ρ̃) + {W|τ} (raster)
+    CrystalPointOps ops = DetectPointOps(lat, p);   // ONE detection + the §3 policy: fold ops + {U|τ} (ρ̃) + {W|τ} (raster)
     itsReciprocalOps = ops.recipDensity;            // exposed via GetReciprocalPointOps for the composite G-space density
-    for (const auto& kb : BuildKBlocks(lat, p, ops.recipFold))   // the k-fold uses the linear reciprocal ops (+TR)
+    itsDetectedOps   = ops.recipDetected;           // the FULL detected group, imposed or not (§3 diagnostic reference)
+    for (const auto& kb : BuildKBlocks(lat, p, ops))             // the k-fold uses the linear reciprocal ops (+TR)
     {
         // Build the Bloch irrep WITH its BZ weight (star weight under IBZ) and the primary sym_t ctor -- the
         // weight carries the Sum_k w_k so the BZ-summed charge/energy are per-cell, not xNk.

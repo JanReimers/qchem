@@ -43,6 +43,13 @@ public:
     //! property (the basis computes the space group), so the density/WF read it here rather than via a setter.
     virtual std::vector<Symmetry::Lattice_3D::ReciprocalOp> GetReciprocalPointOps() const {return {};}
 
+    //! The FULL DETECTED crystal reciprocal point group \f${U|\tau}\f$ -- populated on every periodic run,
+    //! IMPOSED or not (unlike \c GetReciprocalPointOps, which is the ops-to-impose set and stays empty on a
+    //! free run).  This is what the §3 order-parameter diagnostic (doc/SymmetryUpgradePlan.md) measures the
+    //! converged density against: a free run reports the symmetry it actually found, per op
+    //! (\c SymmetryDefects).  Default {} = no lattice / nothing detected.
+    virtual std::vector<Symmetry::Lattice_3D::ReciprocalOp> GetDetectedReciprocalOps() const {return {};}
+
     // Iterate() with no type argument yields the base obs_t* directly (no cast);
     // Iterate<D>() dynamic_cast's each IBS to the requested derived type D.
     // Built on the two primitives below, so storage stays private to the

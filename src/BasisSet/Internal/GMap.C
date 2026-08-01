@@ -61,6 +61,45 @@ inline ΔG_Map SymmetrizeGMap(const ΔG_Map& rg, const std::vector<Symmetry::Lat
     return out;
 }
 
+//! \brief Per-op ORDER-PARAMETER diagnostic for FREE (un-imposed) runs (doc/SymmetryUpgradePlan.md §3):
+//! how well the G-space density carries each candidate op.  Invariance under \f$\{U|\tau\}\f$ means
+//! \f$\tilde\rho(Um)=e^{+2\pi i\,m\cdot\tau}\tilde\rho(m)\f$ (the \c SymmetrizeGMap projector fixes
+//! \f$\tilde\rho\f$ exactly when every per-op defect vanishes), so per op
+//! \f[ d_{op} = \sqrt{\sum_{m\ne0}\big|\tilde\rho[Um]-e^{+2\pi i\,m\cdot\tau}\tilde\rho[m]\big|^2
+//!             \Big/ \sum_{m\ne0}|\tilde\rho[m]|^2}, \f]
+//! with missing map entries read as 0 and \f$m=0\f$ excluded (\f$\tilde\rho(0)=N_e/\Omega\f$ is invariant
+//! under every op and would only dilute the relative defect).  A converged symmetric density scores
+//! ~SCF-tolerance on every op; a symmetry-lowered (SSB) density scores O(order parameter) on exactly the
+//! broken ops -- WHICH ops broke is the readout.  CANNOT audit an IMPOSED run: the star-average projects
+//! every iterate, so the defect vanishes by construction precisely where imposition might hide a broken
+//! ground state -- the §3 release-check is that audit.
+inline std::vector<double> SymmetryDefects(const ΔG_Map& rg,
+                                           const std::vector<Symmetry::Lattice_3D::ReciprocalOp>& ops)
+{
+    double norm2 = 0.0;
+    for (const auto& [m, val] : rg)
+        if (m.x || m.y || m.z) norm2 += std::norm(val);
+
+    std::vector<double> defects;
+    defects.reserve(ops.size());
+    for (const auto& op : ops)
+    {
+        double d2 = 0.0;
+        for (const auto& [m, val] : rg)
+        {
+            if (!(m.x || m.y || m.z)) continue;
+            rvec3_t um = op.U * rvec3_t(double(m.x), double(m.y), double(m.z));
+            ivec3_t Um((int)std::lround(um.x), (int)std::lround(um.y), (int)std::lround(um.z));
+            auto it = rg.find(Um);
+            dcmplx rot = (it == rg.end()) ? dcmplx(0.0) : it->second;
+            const double phase = 2.0*Pi*(m.x*op.tau.x + m.y*op.tau.y + m.z*op.tau.z);
+            d2 += std::norm(rot - std::polar(1.0, phase)*val);
+        }
+        defects.push_back(norm2 > 0.0 ? sqrt(d2/norm2) : 0.0);
+    }
+    return defects;
+}
+
 //! \brief The reciprocal-space three-centre "integrals" \f$\langle G_i G_j|G_c\rangle\f$ -- the G-space
 //! analogue of the molecular \c ERI3 tensor \f$\langle ab|c\rangle\f$.
 //!

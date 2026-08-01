@@ -11,9 +11,22 @@ consolidates), `doc/SpinNativeDFTPlan.md` (spin-native XC), and
 (`FoldPoints`/`FoldGrid`/`FoldGVectors`, per-member op edges, `SymOp {W|τ,σ}` with the
 tier-4a `SpinAction` enum), the `SpaceGroup::FoldKMesh/FoldGVectors/FoldPoints` member
 wrappers, and `ReduceToIBZ` re-expressed on `FoldGrid` (bit-identical, gated by
-`Fold.KMeshFoldBitIdenticalToReduceToIBZ`).  Unit tests: `src/Symmetry/tests/L_Fold.C`;
-full suite 635/635.  **Next = §7 step 3** (imposed-group policy object + order-parameter
-diagnostic).
+`Fold.KMeshFoldBitIdenticalToReduceToIBZ`).  Unit tests: `src/Symmetry/tests/L_Fold.C`.
+§7 **step 3 BUILT** — `SymmetryPolicy` (impose-on-assert; `GPWParams.reduceBZ` documented
+as the assert-switch, resolved ONCE in `DetectPointOps` which now always detects and feeds
+policy + all op faces from one place), `SymmetryDefects` per-op order-parameter diagnostic
+(GMap, G-space so commensurability-free), and the never-silent `[symmetry]` run line
+(free run: max defect + which-ops-broke; imposed run: the release-audit assertion).
+Gates: Al symmorphic + Si non-symmorphic IBZ still exact; unit negative control fires on a
+broken ρ̃ (stabilizer ops stay clean = the which-op readout) AND demonstrates the
+projector-blindness (post-`SymmetrizeGMap` defect ≡ 0 — §3's imposed-run caveat, measured).
+MEASURED calibration: a converged (Δρ≈2.5e-6) free Si Γ run shows max defect ~1e-5 — the
+through-SCF defect tier tracks the CONVERGENCE tolerance (per §8), so the run-line BROKEN
+alarm sits at 1e-3.  Full suite 637/637.  **Next = §7 step 4 (T1 {G} fold)**; the SCF-level
+broken-seed negative control lands with the §8 harness (needs a symmetry-breaking
+SeedStrategy).  NOTE (§4/§9): non-collinear added — `SpinAction{None,Flip}` is documented
+as the collinear collapse of the general spin rotation (SO(3)/SU(2)); representation choice
+(2×2 spinor vs (ρ,m)) is an open §9 question.
 
 This doc answers three things the user asked:
 1. A **gap analysis** — where are we already using symmetry, where are we leaving it on

@@ -61,7 +61,8 @@ import qchem.Symmetry.Factory;                   // BlochFactory (build a k-bloc
 import qchem.LASolver;                           // qchem::Ortho (Cholesky | Eigen | SVD -- basis orthogonalisation)
 import qchem.BasisSet.Lattice_3D.GPW_IBS;         // GPW_IBS (build a concrete block for the collocation diagnostic)
 import qchem.BasisSet.Lattice_3D.Evaluators.GPW;  // GPW_Evaluator (Overlap3CTensor -- the collocation tensor)
-import qchem.BasisSet.Internal.GMap;              // G_ERI3 (the collocation weight tensor)
+import qchem.BasisSet.Internal.GMap;              // G_ERI3 (the collocation weight tensor); SymmetryDefects (§3 diagnostic)
+import qchem.ChargeDensity.FourierDensity;        // FourierDensity (ρ̃ for the §3 order-parameter diagnostic)
 import qchem.Pseudopotential.GTH_Potentials;      // GetGTH, GTH_PP (the PP model, for the matrix-trace probe)
 import qchem.Calculation;                        // qchem::Calculation, CalcOptions (finite reference)
 import qchem.AtomCalculation;                    // AtomCalculation, AtomType, BasisSetAccuracy (Slater/High pseudo-atom ref)
@@ -279,6 +280,40 @@ struct GpwHandles
     std::unique_ptr<qchem::ChargeDensity::cDM_CD> cd;
 };
 
+// [symmetry] The §3 order-parameter line (doc/SymmetryUpgradePlan.md): a run ALWAYS tells the user the
+// symmetry it actually found.  FREE run: measure the converged density's per-op defect against the FULL
+// detected crystal point group (SymmetryDefects on ρ̃ -- G-space, exact index permutation, so no
+// raster-commensurability caveat) and report the max + which-ops-broke count.  IMPOSED (reduceBZ) run:
+// the defect is ≈0 BY CONSTRUCTION (every iterate is star-averaged), so print the assertion + the
+// release-audit reminder instead -- imposition is never silent.
+// THRESHOLD (measured): the through-SCF defect inherits the run's CONVERGENCE tolerance, not the plan-§8
+// 1e-13 fold tier -- a converged (Δρ~2.5e-6) free Si Γ run measures max defect ~1e-5.  So the BROKEN alarm
+// sits at 1e-3: comfortably above convergence noise, far below any genuine order parameter (O(0.01..1)).
+// Below it the line reports the number without judging (the release-check quantifies real SSB anyway).
+static void ReportSymmetryFound(const Complex_BS& bs, const qchem::ChargeDensity::cDM_CD& cd,
+                                const Structure* st, bool imposed)
+{
+    auto ops = bs.GetDetectedReciprocalOps();
+    if (ops.size() <= 1) return;   // trivial (or undetected) group: nothing to report
+    if (imposed)
+    {
+        std::cout << "[symmetry] IMPOSED: full crystal point group ("<<ops.size()<<" ops) star-averages every "
+                     "iterate -- defect==0 by construction; the release-check is the SSB audit "
+                     "(doc/SymmetryUpgradePlan.md - 3)."<<std::endl;
+        return;
+    }
+    auto* fd = dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(&cd);
+    if (!fd) return;
+    Hamiltonian::PW_XC::fbs_t fit(bs.CreateVxcFitBasisSet(st, qcMesh::MeshParams{}));
+    std::vector<double> d = SymmetryDefects(fd->GetFourierDensity(*fit), ops);
+    double mx = 0; int broken = 0;
+    for (double x : d) { mx = std::max(mx, x); if (x > 1e-3) ++broken; }
+    std::cout << "[symmetry] FREE run: density defect vs the detected crystal point group ("<<ops.size()
+              << " ops): max="<<mx
+              << (broken ? "  ** "+std::to_string(broken)+" op(s) BROKEN -- symmetry lowered (order parameter)"
+                         : "  (no lowering resolved above SCF tolerance)") << std::endl;
+}
+
 // The GENERAL GPW driver: basis -> fail-fast conditioning pre-flight -> grids -> multi-species Hamiltonian ->
 // accelerator -> SCF, with automatic reporting (GpwReport) + heartbeat logging throughout.  Any material is a
 // GpwOptions literal; the positional RunGPW below and the bespoke NaFRocksaltGamma are thin callers.
@@ -364,6 +399,7 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
 
     auto* cd=scf.GetWaveFunction()->GetChargeDensity();
     double charge=cd->GetTotalCharge();
+    ReportSymmetryFound(*bs, *cd, lat.GetStructure().get(), o.reduceBZ);   // §3: the run reports the symmetry it found
     if (keep) keep->cd.reset(cd); else delete cd;
     qchem::EnergyBreakdown E=scf.GetEnergy();
     std::cout << "["<<o.label<<"] iters="<<scf.GetIterationCount()<<" charge="<<charge
@@ -447,6 +483,7 @@ static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Rea
                   << " E(internal)="<<(E.GetTotalEnergy()-E.MinusTS)<<std::endl;
         // scf drops here (deletes ham/acc/wf); seedCD survives -- its block is bs, which outlives the loop.
     }
+    if (seedCD) ReportSymmetryFound(*bs, *seedCD, st.get(), o.reduceBZ);   // §3: report on the coldest stage's density
     delete seedCD;   // the final stage's carried density (not consumed by any further ctor)
     return R;
 }
