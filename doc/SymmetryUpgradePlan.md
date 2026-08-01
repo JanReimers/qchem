@@ -43,17 +43,18 @@ one representative per star and fold `w_i → w_i · n_star`. Status of each sur
 |---|---|---|---|---|
 | **k-mesh {k}** | ✅ full IBZ fold + star-avg | — | done | — |
 | **density ρ̃(G) / ρ(r)** | ✅ star-averaged (G phase + raster shift) | — | done | commensurate raster (met by FFT-shift) |
-| **{G} sum** (structure factor, `⟨G\|V\|G'⟩`, Hartree G-loop) | ❌ full {G} summed | fold by \|G\|-shell × point group | ≈ \|point group\| on the G-loops | integrand totally symmetric |
-| **{r} quadrature** (uniform + Becke XC mesh) | ❌ full mesh integrated | fold by star; **Becke angular** = the site-group-adapted grid item | ≈ site-group order per atom | ρ symmetric on the mesh + raster commensurability |
-| **GPW stream cache** (`(pair, offset R)` → raster pts) | ⚠️ only Hermitian `j≥i` ×2 | site-symmetry of `(pair, R)`; ~513M(64b)+ pts | **5–20×** (up to ×48 in O_h) — the headline | commensurate raster on **every ladder level** |
+| **{G} sum** (structure factor, `⟨G\|V\|G'⟩`, Hartree G-loop) | ❌ full {G} summed | fold by \|G\|-shell × point group | ≈ \|point group\| on the G-loops (small absolute cost — T1 is the *prototype*, not a payoff) | integrand totally symmetric |
+| **{r} quadrature** (uniform + Becke XC mesh) | ❌ full mesh integrated | **Becke mesh** folds by site-group order; the UNIFORM raster is FFT-bound (the full raster must exist for the transform + the stream gathers index it), so folding buys only the pointwise functional eval there — minor | ≈ site-group order per atom (Becke); small (uniform) | ρ symmetric on the mesh + raster commensurability |
+| **GPW stream cache** (`(pair, offset R)` → raster pts) | ⚠️ only Hermitian `j≥i` ×2 | site-symmetry of `(pair, R)`; ~513M(64b)+ pts | **5–20×** (up to ×48 in O_h) — the headline.  NB the cache is built ONCE and REPLAYED per iteration, so route (a) is a MEMORY+BUILD lever only; only route (b) also cuts per-iteration work (§6) | commensurate raster on **every ladder level** |
 | **H block-diagonalization (crystal SALCs)** | ❌ dense H per k | irrep blocks per k | matrix-size³ per block | Tier B (SALC), separate track |
 | **spin / magnetic group** | ❌ unpol only (`PW_XC*`) | Shubnikov ops (spatial ⋉ spin-flip) | AFM/ordering cells | spin-native XC interface first |
 
 **Reading of the gap:** the k-side is done; the *quadrature and collocation* side is
-almost entirely unexploited. The stream cache is where the compute actually is (the
-`(pair,R)` lists are the ~513M cached points, rebuilt identically every SCF iteration), so
-it is the highest-value target — but it is also the one with the hardest precondition
-(pointwise index permutation needs a τ-commensurate raster on every ladder level, §5).
+almost entirely unexploited. The stream cache is where the memory and the per-iteration
+bandwidth actually are (the `(pair,R)` lists are the ~513M cached points — built ONCE per
+ladder shape, then REPLAYED as the scatter/gather of every SCF iteration), so it is the
+highest-value target — but it is also the one with the hardest precondition (pointwise
+index permutation needs a τ-commensurate raster on every ladder level, §5).
 
 The user's proposed algorithm — *group by |G| (|r|), collapse symmetry-equivalents,
 `w → w·n_star`* — is exactly right, with two refinements:
@@ -80,14 +81,30 @@ The user's proposed algorithm — *group by |G| (|r|), collapse symmetry-equival
 
 The folding is group theory and belongs in qcSymmetry, but the fold's *product* is a
 **partition**, not a rebuilt container — so the primitive stays low-level and pure, and the
-Mesh-typed convenience is a **client-side helper**. Two decisions, resolved with the user:
+Mesh-typed convenience is a **client-side helper**. Two decisions, resolved with the user
+(the container decision REVISED in the 2026-08-01 review):
 
-- **`Mesh` becomes the shared representation for {G} balls and {r} grids** (today {G} is a
-  bare `vector<ivec3_t>` and the raster is a bare `rvec_t`). They are all *weighted point
-  sets* — exactly what `qcMesh::Mesh` is (SoA `Points()`+`Weights()`, a POD value type). So
-  {k}/{G}/{r}/rasters unify onto one type, and the currently-separate `KMesh`/`IBZMesh`/
-  raster shapes collapse.
-- **The fold primitive still speaks primitive vectors and returns a partition** — kept in
+- **Unify on the FOLD, not on a universal container** *(replaces the earlier "everything
+  becomes a Mesh" direction).*  Each point set keeps its NATIVE container — {G} stays
+  `vector<ivec3_t>` (the hot-loop currency of the evaluators; Mesh-ifying it would put
+  double storage + `lround` into hot G-loops for a type-clarity nicety the integer fold
+  path already delivers), the {r}/Becke quadrature stays `qcMesh::Mesh`, the k-mesh keeps
+  the existing IBZ machinery.  What is SHARED across {k}/{G}/{r}/streams is the fold
+  *algorithm* and its `Fold` partition.
+- **Phases are EDGE data of the fold, not point data — so no ivec3_t Mesh and no phase
+  channel is needed anywhere.**  The glide phase `e^{+2πi(Um)·τ}` depends on WHICH op maps
+  rep→member: it lives on the `(member, opIndex)` edge `Fold::members` already carries.
+  Consumers use it two ways: (i) *expansion* (the `SymmetrizeGMap` scatter) computes it on
+  the fly from the op; (ii) *reduced sums* collapse it — for an integrand with a known
+  transformation law, `Σ_members phase` folds into ONE complex star-weight `W_rep` per
+  representative (symmorphic: the plain integer `n_star`), and the natural home for
+  `(m, W_rep)` is the EXISTING G-space currency (`ΔG_Map` / an `(ivec3_t,dcmplx)` pair
+  list) — not Mesh.  `qcMesh::Mesh` keeps its single invariant — real points, real
+  quadrature weights, `Integral(f)=Σw·f` — and its fold is Mesh→Mesh (representatives,
+  `w·n_star`), which is exactly the `Symmetrize(Mesh)` wrapper.  (A `Mesh<dcmplx>`/cMesh
+  stays parked for the `LatticeSum` `(R, e^{ik·R})` use case, where a complex multiplier
+  genuinely IS the weight semantics; the symmetry fold does not force it.)
+- **The fold primitive speaks primitive vectors and returns a partition** — kept in
   qcSymmetry, no `qcMesh` edge. A **client-side helper** `Mesh Symmetrize(const Mesh&)`
   composes `FoldPoints` + Mesh-rebuild where Mesh already lives (qcMesh/qcBasisSet). This
   keeps qcSymmetry the pure group-theory leaf (mirrors `DetectPointOps` sitting *above* it)
@@ -106,12 +123,17 @@ struct Fold {                    // pure combinatorics; no typed container, no w
     std::vector<std::vector<std::pair<int,int>>> members;
 };
 
+// The OP TYPE is the full {W|τ} (review fix: bare Matrix3D cannot fold a NON-SYMMORPHIC raster --
+// τ ACTS on {r} points, r -> W·r + τ; for {G}/{k} folds τ enters only as the edge PHASE).  The spin
+// action σ (§4) is the third member when the Shubnikov axis lands.
+struct SymOp { Matrix3D<double> W; rvec3_t tau; /* later: SpinAction sigma; */ };
+
 // (1) The free CORE — takes an EXPLICIT op set. Kept because tests fold under hand-made ops,
 //     and the imposed-SUBGROUP policy (§3) folds under an arbitrary op SUBSET, not "all ops".
 Fold FoldPoints(const std::vector<rvec3_t>& pts,
-                const std::vector<Matrix3D<double>>& ops, double tol);   // tolerance path ({r})
+                const std::vector<SymOp>& ops, double tol);              // tolerance path ({r})
 Fold FoldGrid  (ivec3_t N, rvec3_t shift,
-                const std::vector<Matrix3D<double>>& ops);               // EXACT integer path ({G},{k})
+                const std::vector<SymOp>& ops);                          // EXACT integer path ({G},{k})
 
 // (2) SpaceGroup MEMBER wrappers — the ergonomic, ENCAPSULATED surface: the caller passes NO ops,
 //     the SpaceGroup forwards its own IMPOSED op set (the natural home for the §3 policy).
@@ -149,29 +171,30 @@ already used for k and density.
    tolerance path), NOT to the coordinate storage type:
    - **Exact doubles suffice — no `Mesh<T>` template.** G-indices are small integers (|m| ≤
      a few hundred) and the ops are integer matrices, so `U·m` is bit-exact in `double`
-     (nowhere near 2⁵³) and `lround` on an exact-integer double is exact. Templating `Mesh`
-     on the point type is a large blast radius (widely-used value type) for a type-clarity
-     nicety exact-integer doubles already deliver; if the index type is ever wanted visible,
-     a thin `IntPointView` over the double storage beats templating the class.
-   - **Store the integer INDICES `m` in the {G} Mesh**, not the Cartesian `G = B·m` (derive
-     that only where the kernel `4π/|G|²` needs it). Storing Cartesian would be the trap —
-     `R_cart·G` is genuinely real and forces the tolerance path onto an exact problem.
+     (nowhere near 2⁵³) and `lround` on an exact-integer double is exact.  (With the §2a
+     containers-stay-native resolution, {G} never enters Mesh at all — the exact path lives
+     in `FoldGrid`/`FoldGVectors` over `ivec3_t` directly, which also removes the old
+     "store indices, not Cartesian" trap by construction.)
 2. **The primitive returns the partition, `Symmetrize(Mesh)→Mesh` is the wrapper.**
    Consumers need *which op* maps rep→member — for the glide phase (G), the ±monomial sign
    (streams), the diagnostic (`D`). So `Fold` carries `members`-with-`opIndex`;
    `Symmetrize(Mesh)` is the thin wrapper that applies the fold and drops the op-index,
    correct only for a pure quadrature fold (the XC {r} mesh). G-space and streams take the `Fold`.
-3. **Mesh weight semantics generalize** (user): the `Weights()` array — originally quadrature
-   weights — doubles as **phase factors or phase × quadrature-weight**. That is the natural
-   vehicle for the fold's reweighting (star multiplicity) *and* the glide phase in one place.
-   Caveat: the glide phase is **complex**, but `qcMesh::Mesh` weights are real (`rvec_t`); a
-   complex-weight Mesh (or a paired real-qweight + complex-phase) is needed for the G-space
-   case — a clean fit with the project's real/complex-parity bias (everything available Pol
-   *and* real/complex, not a bolted-on special case).
-4. **A stream is more than a Mesh.** Mesh-ifying the offset geometry (`R→W·R`) is right, but
-   the stream reduction still carries the `(pair, monomial-sign)` layer, which is not mesh
-   data — so "streams become a Mesh" covers their geometric part only; the pair/monomial rep
-   theory stays with the basis (fed the op).
+3. **Phases never enter `Weights()`** *(review resolution, replacing the earlier
+   "weights double as phase factors" idea)*: a weight that is sometimes quadrature,
+   sometimes phase, is a runtime-semantics trap (`Integral(f)` over phase-weights is
+   silently wrong — against the compile-time-over-runtime pin).  Phases are fold EDGE data
+   (§2a): expanded on the fly from the op, or collapsed into the consumer's complex
+   star-weights `(m, W_rep)` in the existing G-space containers.  Mesh weights stay real
+   quadrature weights, full stop.
+4. **A stream is more than a Mesh — and the pair action is a TRIPLE.** The offset geometry
+   folds as `R→W·R`, but the stream reduction also carries (i) the **atom permutation** —
+   "the ops fix the atom assignment" holds only for 1-atom-per-species cells like NaF;
+   diamond Si's two equivalent atoms swap under half the group, and LiMn₂O₄ has many-atom
+   orbits, so basis functions permute across atoms — and (ii) the **monomial ±sign** layer.
+   The general pair action is (atom-permutation × monomial-sign × offset-map); the
+   pair/monomial rep theory stays with the basis (fed the op), designed for the triple from
+   the start.
 
 ### 2c. Encapsulating the ops (deferred — but "give me all your ops" is the lazy interface)
 
@@ -201,27 +224,36 @@ concern. Every reduction in §1 (mesh, stream, k, density-average) **imposes** t
 folds under — exact iff the density has that group. So:
 
 - **The reduction group is a RUN-LEVEL POLICY**, "the group to impose" — a subgroup of the
-  geometric space group, **not** hard-wired to the lattice's full group. Default = full
-  detected space group; user/driver may set a subgroup or the trivial group. One policy
-  object feeds IBZ, {G}/{r} folds, stream reduction, and the density star-average alike.
-- **Order-parameter diagnostic — never silent.** While imposing `H`, monitor `D`'s symmetry
-  under the **full** group `G`: measure the residual `‖D − P_G D‖` (or per-op invariance
-  defect) after convergence. If the density is less symmetric than `G`, the run **reports**
-  the lowering (which ops broke, the order parameter), never hides it behind a reduced mesh.
-  A run always tells the user the symmetry it actually found.
-- **Staged converge-then-release.** Converge under full `G` (fast, symmetric), then release
-  to a subgroup / trivial group with a symmetry-broken **seed** (`SeedStrategy`) and
-  re-converge; if the energy drops, SSB is real and reported. The density-continuation
-  machinery for this exists.
+  geometric space group, **not** hard-wired to the lattice's full group.  **Default
+  RESOLVED (review): impose-on-assert.**  Reduction under the full detected group is an
+  *opt-in speed contract* the caller asserts (or it comes bundled with the mandatory
+  release-audit below); the out-of-the-box default for an unknown system imposes nothing.
+  One policy object feeds IBZ, {G}/{r} folds, stream reduction, and the density
+  star-average alike.
+- **Order-parameter diagnostic — for FREE runs.** On an un-imposed (or subgroup-imposed)
+  run, monitor `D`'s symmetry under the **full** group `G`: the residual `‖D − P_G D‖`
+  (or per-op defect) reports any lowering the SCF found — which ops broke, the order
+  parameter.  A run always tells the user the symmetry it actually found.
+  **CRITICAL LIMIT (review): this diagnostic CANNOT audit an imposed run** — the reduction
+  projects every iterate, so `‖D − P_G D‖ ≈ 0` *by construction*, precisely on the runs
+  where imposition might be hiding a broken ground state.  First-order signals cannot save
+  it either: the symmetric solution is a genuine stationary point (`[F,D]=0` there even
+  when unstable) — SSB instability is SECOND-order (a negative orbital-Hessian eigenvalue).
+- **The release-check is the AUDIT for imposed runs** *(promoted from optional workflow to
+  the backstop)*: converge under imposed `G` (fast, symmetric), then release to a
+  subgroup/trivial group with a symmetry-broken **seed** (`SeedStrategy`) and re-converge;
+  an energy drop ⇒ SSB is real ⇒ reported.  The density-continuation machinery exists.
+  §8's negative control exercises exactly this loop.  (An orbital-Hessian / MO-stability
+  lowest-eigenvalue check is the future cheap alternative to the full release.)
 - **The two ordering workflows need exactly this** (`[[battery north-star]]`): (i) an
   SSB-search run imposes a subgroup (or trivial) in an ordering-commensurate supercell with
   a broken seed + `+U` (LDA/GGA delocalization error otherwise suppresses disproportionation);
   (ii) the cluster-expansion / MC route imposes each candidate ordering's stabilizer
   subgroup and compares energies — same code, enumerated groups.
-- **The trap to design against:** imposing `G` for speed on a system that *wants* to break
-  it yields the wrong (too-high-symmetry, too-high-energy) answer *silently*. Therefore the
-  safe default for an *unknown* system is to impose `G` only when asserted, or to run the
-  release-check; the diagnostic is the backstop that makes any imposition honest.
+- **The trap this design closes:** imposing `G` for speed on a system that *wants* to break
+  it yields the wrong (too-high-symmetry, too-high-energy) answer *silently*.  Hence:
+  impose-on-assert as the default, the release-audit bundled with any imposition, and the
+  diagnostic on free runs — imposition is never silent by construction.
 
 `SpaceGroup`'s SRP surface thus owns: **group/subgroup computation + selection**, geometric
 orbit generation (points, `(pair,offset)`), raster-commensurability checks (§5), and
@@ -244,15 +276,21 @@ channels). So:
   optional spin action `σ ∈ {none, flip}`. A pure-spatial op has `σ=none`; a Shubnikov op
   pairs a spatial op with `flip` (and the anti-unitary `ρ̃(−G)=ρ̃(G)*` conjugation on the
   G-side).
-- **No new physics required to fix the shape** — `PW_XC`/`PW_XC_Becke` stay unpol for now;
-  the molecular VWN5 correlation is already spin-native (`SpinNativeDFTPlan` B1). This is
-  purely: settle the two-channel signature + the op spin-action enum so the review doesn't
-  encapsulate around the unpol special case.
-- **Interface-shape tests (no new physics):**
-  - **(a) Na pseudo-atom in a box, doublet** — the existing Na q1 PP, S=½, moment 1: the
-    minimal end-to-end two-channel GPW run (two channels through collocation + XC).
-  - **(b) O₂ in a box, triplet** — O q6 GTH, cross-anchored against the molecular facade's
-    spin-native triplet-O₂ gate (the spin sibling of `SiPseudoAtomInBoxMatchesFinite`).
+- **TWO TIERS (review fix — the gates below are NOT "no new physics"):**
+  - **Tier 4a — the interface SHAPE (cheap, blocks nothing):** settle the two-channel
+    signatures + the op spin-action enum on paper/in headers so the review doesn't
+    encapsulate around the unpol special case.  `PW_XC`/`PW_XC_Becke` stay unpol; the
+    molecular VWN5 is already spin-native (`SpinNativeDFTPlan` B1).  Gated by compilation +
+    unit-level fold tests only — a doublet CANNOT run against today's unpol solid stack.
+  - **Tier 4b — the polarized SOLID pipeline (real work, `SpinNativeDFTPlan` scope):**
+    spin-resolved `D` through `Crystal_EC`, two-channel filling, spin-native XC evaluation
+    through collocation/Becke.  THIS is what the runnable gates test:
+    - **(a) Na pseudo-atom in a box, doublet** — the existing Na q1 PP, S=½, moment 1: the
+      minimal end-to-end two-channel GPW run.
+    - **(b) O₂ in a box, triplet** — O q6 GTH, cross-anchored against the molecular facade's
+      spin-native triplet-O₂ gate (the spin sibling of `SiPseudoAtomInBoxMatchesFinite`).
+  Only 4a is a prerequisite for the reduction machinery (§7 steps 2–6); 4b is a
+  prerequisite only for the magnetic materials (§7 step 7) and can proceed in parallel.
 
 ---
 
@@ -289,13 +327,20 @@ it folds cleanly. Apply in the structure-factor loop and the Hartree G-sum: eval
 representatives, weight by `n_star`. Cheapest to prototype (small, self-contained, no raster
 commensurability issue since G-indices permute exactly).
 
-**(T2) {r} quadrature mesh.** Fold the uniform/Becke mesh points under the site/point group;
-the **Becke angular grid** folds by site-group order and merges with the *site-group-adapted
-angular grid* item (orbits must avoid special/bond directions — the Lebedev cube-corner
-lesson; the site group fixes both how many and which directions, subsuming the GL-29 vs
-GL-17 default question). Requires ρ symmetric on the mesh + raster commensurability (§5).
-Also the candidate cure for the **Becke × degenerate-open-shell oscillation** (a
-site-symmetric quadrature removes the rotating-error channel).
+**(T2) {r} quadrature mesh — in practice the BECKE mesh** (review fix: the uniform raster
+is FFT-bound — the full raster must exist for the forward transform and the stream gathers
+index it, so folding buys only the minor pointwise functional eval there).  The **Becke
+angular grid** folds by site-group order and merges with the *site-group-adapted angular
+grid* item (orbits must avoid special/bond directions — the Lebedev cube-corner lesson; the
+site group fixes both how many and which directions, subsuming the GL-29 vs GL-17 default
+question).  Requires ρ symmetric on the mesh + raster commensurability (§5).  **The
+site-adapted (group-INVARIANT) mesh is also the PRECONDITION for pointwise Becke
+star-averaging** — ops must map mesh points to mesh points, which today's GL grids don't —
+i.e., T2 is what UNLOCKS the Becke+IBZ verification and retires the `reduceBZ`
+uniform-raster carve-out.  Also the candidate cure for the **Becke ×
+degenerate-open-shell oscillation** (a site-symmetric quadrature removes the
+rotating-error channel — though note §3: a MINIMAL site-adapted grid presumes symmetric ρ;
+deliberately symmetry-broken runs need the generic orientation-robust fallback grid).
 
 **(T3) GPW stream cache — the headline 5–20×.** Fold `(pair, offset R)` under site symmetry:
 `(pair, R) → (pair′, W·R)` + a raster-index permutation; for a 1-atom-per-species primitive
@@ -317,8 +362,10 @@ no shell mixing) — the basis's job, fed ops.
 Ordered so each step is gated by a cheap, already-shaped test, and no interface is drawn
 against a special case it will outgrow:
 
-1. **Spin-native interface shape** (§4) — signatures + op spin-action enum; gates (a) Na
-   doublet, (b) O₂ triplet. *No new physics; prevents a redo.*
+1. **Spin-native interface SHAPE** (§4 tier 4a) — signatures + op spin-action enum only;
+   gated by compilation + unit-level fold tests.  *Prevents a redo; blocks nothing.*
+   (§4 tier 4b — the polarized solid pipeline with gates (a) Na doublet / (b) O₂ triplet —
+   is `SpinNativeDFTPlan` work that runs IN PARALLEL and is a prerequisite only for step 7.)
 2. **`Fold` primitive in qcSymmetry** (§2b) — generalize `ReduceToIBZ` → `FoldPoints`/
    `FoldGrid` with per-member op index; re-express the k-fold on it (bit-identical). Unit
    tests only.
@@ -346,21 +393,38 @@ physics payoff.
 
 ## 8. Correctness harness (the invariant for every reduction)
 
-For each of T1/T2/T3, two tests mirroring the existing IBZ pattern:
-- **reduced == full** to ~1e-13 (reordering) for a density that *has* the imposed group, on
-  a **commensurate** grid (the tolerance is only as tight as the density's actual symmetry,
-  which is why the commensurate grid matters — §5).
-- **negative control**: on a symmetry-broken density, reduced ≠ full *and* the
-  order-parameter diagnostic fires — proving the reduction genuinely imposes symmetry and
-  never does so silently.
+For each of T1/T2/T3, two tests mirroring the existing IBZ pattern, with TWO tolerance
+tiers (review fix — one number would make correct code "fail"):
+- **reduced == full**, tiered:
+  - **~1e-13 (reordering class)** for SINGLE-SHOT folds on a fixed symmetric input — T1's
+    G-sum bookkeeping, a one-shot T3 collocate/integrate pair on a frozen symmetric D;
+  - **grid/SCF class (~1e-7; the measured IBZ precedent is ~6e-8)** for anything taken
+    THROUGH SCF — the converged density's symmetry defect is bounded by the convergence
+    tolerance, and the through-SCF comparison inherits it (still needs the commensurate
+    grid, §5).
+- **negative control**: on a symmetry-broken density, reduced ≠ full, *and* the §3 audit
+  fires — the FREE-run diagnostic reports the lowering, and the imposed-run RELEASE-CHECK
+  recovers the broken (lower) solution — proving the reduction genuinely imposes symmetry
+  and never does so silently.
 
 ---
 
 ## 9. Open questions / risks
 
 - **Route (a) vs (b) for streams** — (b) is cheaper per iteration but imposes symmetry;
-  (a) is exact-without-imposing but has a cache-hostile gather. Likely: (b) as the default
-  under the policy, (a) as the audited fallback and the diagnostic's ground truth.
+  (a) is exact-without-imposing but is a MEMORY+BUILD lever only (the cache is replayed,
+  not rebuilt, per iteration — and (a)'s permuted gather likely makes the replay slower).
+  Likely: (b) under the asserted-imposition policy, (a) as the no-impose fallback and the
+  release-audit's ground truth.
+- **The variational adjoint pin under route (b)** — today `∫ρV == Tr(Dh)` is machine-exact
+  because collocate and integrate share the identical operator.  Route (b) inserts the
+  star-average `P` on the density side and the representation transform on the h side; the
+  pairing stays exact only if the h-side map is exactly `Pᵀ` composed with the SAME shared
+  streams (`P` is self-adjoint in the grid inner product, so this is achievable — but it
+  must be PROVED in the design, not discovered in a failing virial).  The D-aware
+  active-set screen is part of the same proof: the representative's kill-weight must
+  aggregate the whole orbit's `|Re[D_ij e^{-ik·R}]|` consistently on BOTH directions, or
+  the shared-active-set invariant silently breaks.
 - **Commensurability cost** — rounding every ladder level to 5-smooth multiples of
   lcm(τ-denominators) is modest for τ=¼ (÷4) but grows for screw axes (τ=c/6); measure
   before committing the stream fold on low-symmetry-denominator cells.

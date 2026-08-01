@@ -306,9 +306,26 @@ both settled, the "Becke as default" decision below is now UNBLOCKED.)*
   quadrature).  Recorded here so Becke's open-shell/atom-in-box claim waits on it.
 - **Spin-native** (`PW_XC`/`PW_XC_Becke` are unpol today; spin-native is the formulation pin).  At
   minimum settle the spin-native INTERFACE shape before the symmetry review: magnetic (Shubnikov) group
-  support must not be designed around the unpol special case.
+  support must not be designed around the unpol special case.  **TEST-MATERIAL LADDER (user, 2026-08-01
+  — the interface needs a magnetic material to test against):** (a) **Na pseudo-atom in a box, doublet**
+  (S=½, the EXISTING Na q1 PP — the minimal end-to-end spin-native GPW run: two channels through
+  collocation + XC, moment=1); (b) **O₂ in a box, triplet** (O q6 GTH) — CROSS-ANCHORED against the
+  molecular facade's spin-native triplet-O₂ gate, the spin sibling of `SiPseudoAtomInBoxMatchesFinite`;
+  (c) **MnO rocksalt AFM-II** (2-f.u. cell, moments along [111]) — the first REAL d-electron magnet:
+  exercises the magnetic-group/imposed-subgroup policy (AFM breaks the full group), wants +U for honesty,
+  and is the direct rehearsal for LiMn2O4 charge/spin ordering; (d) LiMn2O4 itself.  (a)+(b) need no new
+  physics beyond spin-native XC — they are the interface-shape tests; (c) is where the symmetry-review
+  machinery (Shubnikov ops, imposed group, order-parameter diagnostic) gets its first real workout.
 - **Site-group-adapted angular grid** — with the measured design pin: orbits must AVOID special (bond)
   directions (the Lebedev cube-corner lesson); the exact required degree is deducible from the site group.
+  **SCOPE WIDENED (user, 2026-08-01): this is another SYMMETRY-REVIEW item, and it SUBSUMES the GL-29 vs
+  GL-17 default question** — the site point group should determine BOTH how many and WHICH angular
+  directions each atom needs (a group-invariant orbit set of the required degree), rather than a global
+  hand-set L.  Lebedev's octahedral-orbit grids can beat GL per point at O_h-compatible sites (the
+  measured V_xc-element win) PROVIDED the orbits avoid the site's special directions; GL stays the
+  generic-site fallback.  Also the candidate cure for the Becke × degenerate-open-shell oscillation
+  above (an orientation-robust / site-symmetric quadrature removes the rotating-error channel).  Until
+  then GL-29 stays the default (anchors verified against it); GL-17 is the interim suite-time lever.
 - **Per-element radial scaling** (one mhl_alpha serves all species today; NaF's F core vs Na wants per-Z).
 - **Becke+IBZ**: the real-space star-average of ρ at mesh points is untested on this route (k-fold weights
   ride in D; non-Γ star symmetrisation needs a check or a mesh-point star-average).
