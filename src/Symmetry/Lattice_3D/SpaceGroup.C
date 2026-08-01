@@ -168,6 +168,13 @@ public:
     //! symmetry only).  \f$\tau\f$ acts: \f$r \to W r + \tau\f$ (non-symmorphic sites fold).
     Fold FoldPoints(const std::vector<rvec3_t>& pts, double tol = 1e-6) const;
 
+    //! \brief The SITE GROUP (stabilizer) of fractional position \a f: the \f$\{W|\tau\}\f$ ops
+    //! with \f$W f + \tau \equiv f \pmod 1\f$.  Always a subgroup; order divides \c Order(), and
+    //! \f$|\mathrm{orbit}(f)| = \mathrm{Order}()/|\mathrm{stabilizer}|\f$.  This is the group that
+    //! fixes an atom's Becke ANGULAR grid (doc/SymmetryUpgradePlan.md §6 T2: the site group decides
+    //! how many and which directions); a generic position returns just the identity.
+    std::vector<SpaceGroupOp> SiteStabilizer(const rvec3_t& f, double tol = 1e-6) const;
+
     const Matrix3D<double>& CellMatrix() const {return itsA;}
 
 private:

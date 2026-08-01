@@ -234,6 +234,14 @@ std::vector<DirectOp> SpaceGroup::DirectOps() const
     return ops;
 }
 
+std::vector<SpaceGroupOp> SpaceGroup::SiteStabilizer(const rvec3_t& f, double tol) const
+{
+    std::vector<SpaceGroupOp> stab;
+    for (const auto& op : itsOps)
+        if (SameSiteModLattice(op.W*f + op.tau, f, tol)) stab.push_back(op);
+    return stab;
+}
+
 //---------------------------------------------------------------------------------------
 //  Orbit-fold member wrappers: forward the group's own op set to the free Fold core
 //  (doc/SymmetryUpgradePlan.md §2a).  Explicit namespace qualification: the member names

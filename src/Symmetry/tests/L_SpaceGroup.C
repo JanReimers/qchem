@@ -80,6 +80,28 @@ TEST(SpaceGroup, LowSymmetry_generic_cell_has_only_inversion)
 }
 
 //---------------------------------------------------------------------------------------
+//  Site stabilizers (the T2 site-group <-> angular-grid connection, SymmetryUpgradePlan §6).
+//
+TEST(SpaceGroup, SiteStabilizersPartitionTheGroup)
+{
+    // Diamond: both atom sites have the T_d site group (24 ops; orbit 2 = 48/24); a generic
+    // position has only E; |orbit| * |stabilizer| == |group| throughout.
+    std::vector<AtomSite> basis = {
+        {14, rvec3_t(0.0,  0.0,  0.0 )},
+        {14, rvec3_t(0.25, 0.25, 0.25)},
+    };
+    SpaceGroup sg = SpaceGroup::Detect(FCC(), basis);
+    EXPECT_EQ(sg.SiteStabilizer(rvec3_t(0.0 ,0.0 ,0.0 )).size(), 24u);
+    EXPECT_EQ(sg.SiteStabilizer(rvec3_t(0.25,0.25,0.25)).size(), 24u);
+    EXPECT_EQ(sg.SiteStabilizer(rvec3_t(0.13,0.29,0.41)).size(), 1u);   // generic: E only
+
+    // Monatomic simple cubic: the atom site carries the FULL O_h (orbit 1 = 48/48).
+    std::vector<AtomSite> sc = {{14, rvec3_t(0,0,0)}};
+    SpaceGroup cubic = SpaceGroup::Detect(Matrix3D<double>(), sc);
+    EXPECT_EQ(cubic.SiteStabilizer(rvec3_t(0,0,0)).size(), 48u);
+}
+
+//---------------------------------------------------------------------------------------
 //  IBZ reduction.
 //
 TEST(BZReduction, SimpleCubic_2x2x2_gamma_folds_to_four)
