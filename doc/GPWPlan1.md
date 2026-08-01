@@ -126,7 +126,32 @@ c800ec48, 87acb699, 719d6b6a, 33a94ce4, 2fd152c8; remaining increments in their 
   modules force OpenMP GLOBAL (the language mode is baked into each PCM; mixed imports refuse both ways)
   ⇒ `CMAKE_CXX_FLAGS` + global define/link, with the apt-libomp bridge documented beside
   `find_package(OpenMP)`.  First REAL threaded diffuse-NaF run: 4:09 → 1:08 — which exposed the
-  pair-loop thread-safety bug (RESOLVED same day: Blaze SMP's global guard flag, not our code — below).
+  pair-loop thread-safety bug (resolved same day; next bullet).
+- **THREAD SAFETY + PARALLEL STREAM BUILD (2026-07-31→08-01, commits 1a98a56e, e9bb964e)**: the
+  intermittent threaded abort was BLAZE, not our code — global `-fopenmp` defines `_OPENMP` → Blaze SMP
+  auto-activates → every `smpAssign` (even tiny vector copies) opens `BLAZE_PARALLEL_SECTION`, whose
+  guard is a GLOBAL non-atomic bool → two pair workers race → throw → terminate.  **PIN: any project
+  compiling Blaze under global -fopenmp needs `BLAZE_USE_SHARED_MEMORY_PARALLELIZATION=0`.**  Plus throw
+  CONTAINMENT in both pair loops (worker exception rethrown serially, never terminate); TSan+Archer
+  certificate (`build/TSan`) = zero project races; threaded ≡ serial trajectory to ~1e-10 over 45 iters.
+  The stream build is now a parallel TWO-PASS build (parallel count → serial budget walk on the counts →
+  parallel build directly in final tier form): 64.9 → 20.1 s, readouts + replay BIT-IDENTICAL to serial,
+  fp32 demotion transient eliminated.  Diffuse-NaF time-to-first-iteration ≈ 25 s threaded (was ~250 s
+  serial-everything).
+- **0i V_loc-long CUSTOM G-BALL — DONE (2026-08-01, commit 6e9b03b4; the user's design)**: a STATIC
+  EXTERNAL field is entitled to its own cutoff — vlocEcut ~ 2αmax+β sharpened to the exact harmonic
+  per-pair rule req(p)=2ln(1/ε)·pβ/(p+β) (`StaticFieldPairLevels` + explicit `pairLevels` on
+  `IntegratePotential`), one custom top level (NaF 214 Ha vs the 160 rung).  NaF custom-ball vs κ-sweep
+  = **5.5 μHa**; setup bucket **180 s serial / 34 s threaded → 1.7 s**.  `GPW_LONG_SWEEP=1` = A/B
+  instrument + non-Gaussian-model fallback; `GPW_VLOC_EPS` = self-convergence instrument.
+  `AlFCCMetalIBZExact` re-anchored −2.116812 → −2.1169707 (full-mesh and IBZ shift TOGETHER; folding
+  stays exact).  The load-bearing insight (measured via the retracted smooth-fold experiment, 4.6 mHa):
+  per-level band-limits are exact for per-iteration KS fields (adjoint-consistent with collocation) but
+  a plain truncation error for external static fields.  The σ-split alternative is parked in git history.
+- **Na METAL FIRST LIGHT (2026-07-28, gate `NaFCCMetalGlobalMu`)**: shifted-MP 2×2×2 + global μ +
+  smearing on FCC Na (`VALENCE_LOWQ_SR2` at the real a=10 density, cond≈38) = the textbook smeared Fermi
+  surface (μ mid-band, fractional n_k=0.67 on-surface, Σ_k w_k n_k = 1.0000 exact, 1.3 s); annealing
+  composes (kT-dependence is real for a true Fermi surface; T→0 recovered).  Caveats live in roadmap 4.
 
 ---
 
@@ -139,30 +164,10 @@ the remaining pass is the CONVERGED metal: a denser mesh (needs IBZ — now avai
 valgen (the SR2 gate validates the machinery, not a cohesive energy), and a physical did-E-move / bulk anchor.
 Optional BCC once a `BCCUnitCell` exists (only FCC today).
 
-**5. NON-SYMMORPHIC IBZ support — DONE** (`SiDiamondIBZ_NonSymmorphic`, -7.77847 vs full mesh -7.77846).  The
-glide/screw τ-phase density symmetrization for diamond-type crystals: `SpaceGroup::ReciprocalOps()`/`DirectOps()`
-expose the FULL {W|τ} point group (no symmorphic guard, no TR); the G-space Hartree star-average carries the
-e^{+2πi(Um)·τ} phase (`SymmetrizeGMap`, scatter form U=Wᵀ) and the real-space XC raster the EXACT FFT fractional
-shift ρ(W·x+τ) (`SymmetrizeRaster`, one FFT round-trip per distinct τ — exact even on the τ-incommensurate n=15
-grid).  Unit-pinned by `GMapUT` (diamond structure-factor invariance + a W-only-corrupts control).  The k-fold
-is unchanged (linear TR-on ops).  REMAINING here: the spin-polarized global μ (both spin channels, one μ).
-
-**FIRST LIGHT DONE 2026-07-28 — committed gate `GPW_SCF.NaFCCMetalGlobalMu`.**  FCC Na, Zion=1 (3s¹) → ONE
-electron/cell → half-filled band → μ cuts THROUGH it = a genuine Fermi surface.  Shifted Monkhorst-Pack 2×2×2
-(`kShift=½`, k at ±¼) + global μ + smearing.  MEASURED (the textbook smeared Fermi surface): μ mid-band
-(≈-0.014); the 2 k-points inside the surface fill (n_k=2.0, ε=-0.077), the 6 on it smear FRACTIONALLY
-(n_k=0.67, ε≈μ, f=1/(1+e^{0.7})=0.33/spin); `Σ_k w_k n_k = 1.0000` exactly; converged ~26 iters, A=0.0455.
-**Basis = `VALENCE_LOWQ_SR2` at the REAL FCC-Na density (a=10 au, matched to Na's atomic volume)** — SR2 drops
-the diffuse Na s 0.0857 + p 0.05, so the Bloch overlap is well-conditioned at the CORRECT lattice constant
-(cond≈38).  (First cut used `SR` at a stretched a=12 au — stretching the cell was a workaround the user rightly
-flagged; SR2 at the real density is the honest fix, and 9× faster: 1.3 s.)  **Annealing composes**
-(`NA_ANNEAL` in `DISABLED_NaFCCMetalExperiment`): kT {0.02→0.01→0.005}, re-seeded; internal E converges toward
-T→0 — NOT kT-flat, unlike Al's degenerate shell (a real Fermi surface genuinely depends on T, so annealing
-recovers the T→0 answer).  **CAVEATS / next:** (a) SR2 is a MINIMAL 6-function Na basis (no diffuse 3s) — the
-gate validates the machinery + Fermi surface, not a cohesive E (A>0 here); a fuller metallic Na basis via
-valgen (step 1) is the accuracy follow-up; (b) mesh convergence (2×2×2 → denser) needs IBZ/k-star reduction to
-stay tractable; (c) BCC (Na's real structure) once a `BCCUnitCell` exists (only FCC today).  The machinery
-(shifted MP + global μ + smearing + annealing) is validated end-to-end.
+**5. NON-SYMMORPHIC IBZ support — DONE** (moved to DONE-adjacent summary in the items 1–3+IBZ block above;
+gates `SiDiamondIBZ_NonSymmorphic` −7.77847 vs full mesh −7.77846 + `GMapUT` structure-factor pins; the τ-phase
+machinery = `SymmetrizeGMap` G-space phase + `SymmetrizeRaster` exact FFT fractional shift).
+**REMAINING here: the spin-polarized global μ (both spin channels, one μ).**
 
 ---
 
@@ -233,53 +238,75 @@ LAST — payoff only on multi-k; time with the IBZ track.  Cache B(R), never M(k
 The framing that stands: the Becke grid gives the XC — the one pointwise-nonlinear, sharp-at-core term —
 its near-ideal grid across every basis set, diffuse included, while Hartree stays on the G-space Poisson.)*
 
-- **GPW pair-loop THREAD SAFETY — ✅ RESOLVED (2026-07-31).**  The Cache2/3 suspicion was WRONG (the
-  threaded pair path never touches them — audited).  gdb caught the real thrower: **Blaze** —
-  `std::runtime_error("Nested parallel sections detected")`.  Mechanism: the global `-fopenmp` (2fd152c8)
-  defines `_OPENMP` in every TU, which silently flipped ON Blaze's shared-memory parallelization
-  (`BLAZE_USE_SHARED_MEMORY_PARALLELIZATION` defaults to 1); Blaze then wraps EVERY `smpAssign` — even
-  tiny below-threshold vector copies like ForPairBox's `rvec_t` exponent/coeff copies — in
-  `BLAZE_PARALLEL_SECTION`, whose guard flag is a **global non-atomic bool**; two pair workers race it,
-  the loser throws, and an exception escaping an OpenMP region is `std::terminate` ("terminate called
-  recursively").  FIX: (a) `BLAZE_USE_SHARED_MEMORY_PARALLELIZATION=0` global define (CMakeLists, beside
-  the OpenMP block) — restores the serial-Blaze semantics every committed anchor was calibrated on
-  (never-nested-OpenMP strategy); (b) throw CONTAINMENT in both pair loops (first worker exception
-  captured, rethrown serially after the region — any future worker throw surfaces as a normal exception,
-  never terminate).  VERIFIED: TSan+Archer (`build/TSan`, 4-thread NaF, setup+3 iters, exercising stream
-  replay + on-the-fly fallback + memo recording) = ZERO project races (only libomp-internal false
-  positives); a full threaded NaF run reproduces the serial trajectory to ~1e-10 through 45 iterations
-  (the accepted cross-pair ULP reduction drift only); no aborts.
-  **SURFACED while verifying (pre-existing, serial == threaded, NOT a threading artifact):**
-  `DISABLED_NaFRocksaltGamma` as committed (Becke XC hardcoded ON, line ~1041) fails the −24.4304 anchor
-  IDENTICALLY serial and threaded — an unoccupied ε dives to −50 Ha at iters 10–12 (guard releases, it
-  re-dives at ~45, run ends non-aufbau at −19.594).  That is a Becke-on-this-anchor config question for
-  the "Becke as default" decision below, not thread safety.
-- **0i analytic V_loc-long — ✅ DONE 2026-08-01 (increment 3, the CUSTOM V_loc G-BALL — user's design).**
-  V_long is a STATIC EXTERNAL field (effective exponent β=1/(2r_loc²)) so it is *entitled to its own
-  G-ball* sized by the integrand's spectra: the user's additive principle vlocEcut ~ 2αmax+β, sharpened
-  to the exact HARMONIC truncation bound req(p) = 2ln(1/ε)·pβ/(p+β) per pair (`LatticeSum1E::
-  StaticFieldPairLevels`; saturates at 2ln(1/ε)β for sharp pairs, lets diffuse pairs fall coarse).
-  `MakeLocalPPLong` = the block's ladder + ONE custom top level at the sharpest pair's requirement
-  (NaF: 214 Ha vs the 160 rung), pairs routed by the harmonic rule via `IntegratePotential`'s new
-  explicit `pairLevels`; screenD=NULL (a static block must never freeze one iteration's D-aware active
-  set) ⇒ the phase-independent multi-k memo applies.  ε default 1e-5 (`GPW_VLOC_EPS` override);
-  `GPW_LONG_SWEEP=1` = the retired κ sweep (A/B instrument; also the non-Gaussian-model fallback).
-  **MEASURED:** Si Γ −7.11507 both ways (μHa agreement); diffuse NaF custom-ball −24.4317304 vs sweep
-  −24.4317249 = **5.5 μHa** (the smooth-fold experiment was 4.6 mHa off); ε=1e-7 self-convergence
-  −24.4317194 (all three within ~11 μHa); setup bucket **180 s serial / 34 s threaded → 1.7 s** (~20×
-  threaded, ~100× serial; Si's sweep cost also halved the test).  WHY it is both fixes at once: the
-  per-level G-restriction is EXACT for per-iteration KS fields (adjoint-consistent with the density
-  collocation) but a plain truncation error for an external static field — the mid pairs on the 80-ball
-  carried e^{−3.8} field tails (the fold's 4.6 mHa) while the κ rule's max(p,β) mis-routed the DIFFUSE
-  pairs onto the completion rung (req=κβ≈315 Ha even at p~0.2: huge boxes × ~791 offsets = the 180 s).
-  The σ-split alternative (fold erfC_σ + absolutely-convergent [erfC_rloc−erfC_σ] remainder lattice sum)
-  was designed but NOT needed — kept in git history should an ultra-hard-PP-on-soft-basis case ever make
-  the β-linear ball growth bite.
+*(The 2026-07-31→08-01 thread-safety + parallel-stream-build + 0i custom-G-ball wave is condensed into
+DONE above.  The Becke-ON anchor failure surfaced during it — a −50 Ha ghost dive, identical serial and
+threaded — was RESOLVED by the user's recipe retune (relax 0.45→0.25, delayed DIIS): the test now
+converges and passes the −24.4304 anchor (measured −24.4317, 2026-08-01).  With thread-safety and 0i
+both settled, the "Becke as default" decision below is now UNBLOCKED.)*
+
+- **SPACE-GROUP STREAM/COLLOCATION REDUCTION (PLAN, 2026-08-01 — feeds the symmetry code review; the
+  SpaceGroup SRP encapsulation is the home for all of it).**  Today the streams use ONLY the Hermitian
+  j≥i fold (×2); the space-group redundancy is untouched.  Where it lives (for a 1-atom-per-species
+  primitive cell the ops FIX the atom assignment, so NOT mainly in pairs): (1) **cross-cell offsets** —
+  a (pair, R) stream maps under a site-symmetry op to (pair′, W·R) + a raster-index permutation; the
+  diffuse pairs' ~100s-of-offsets lists (most of the ~513M cached points) collapse by the pair's
+  site-symmetry order (up to 48 in O_h) — the 5–20× lever; (2) **polarization components** — Cartesian
+  monomials under cubic ops are signed axis permutations: pair→±pair one-to-one, no shell mixing.
+  TWO ROUTES: (a) orbit-expansion replay (store irreducible streams, replay members through per-op
+  raster permutations — exact, no physics constraint, cache-hostile gather); (b) collocate IRREDUCIBLE
+  representatives with orbit weights + star-average ρ once per iteration (the IBZ `SymmetrizeGMap`/
+  `SymmetrizeRaster` machinery EXISTS), mirror on the integrate-back (representatives + representation
+  transform of h) — also cuts the PER-ITERATION scatter/gather by the same factor.  Route (b)'s string:
+  it is exact only for D symmetric under the group — it IMPOSES the symmetry.
+  **THE IMPOSED-GROUP POLICY (the spontaneous-symmetry-breaking question — LiMn2O4 charge/spin
+  ordering):** the group used for ANY reduction (IBZ, star-average, streams) must be a RUN-LEVEL POLICY
+  — "the group to impose", a subgroup of the geometric space group — NOT hard-wired to the lattice's
+  full group.  Both ordering workflows need exactly this machinery: (1) SSB-search runs impose a
+  subgroup (or trivial group) in an ordering-commensurate supercell, with a symmetry-broken SEED
+  (SeedStrategy) and +U (delocalization error suppresses disproportionation at LDA/GGA); (2) the
+  cluster-expansion/MC route ([[battery north-star]]) imposes each CANDIDATE ordering's stabilizer
+  subgroup and compares energies — same code, enumerated groups.  Spin orderings want the MAGNETIC
+  (Shubnikov) group axis: ops composed with spin flip / time reversal.  Supporting pieces: converge-
+  symmetric-then-RELEASE staged workflow (density-continuation machinery exists); an ORDER-PARAMETER
+  DIAGNOSTIC (monitor D's symmetry under the FULL group while imposing the subgroup — a run REPORTS the
+  ordering it found, never silent).  SpaceGroup's SRP surface then owns: group/subgroup computation +
+  selection, (pair, offset) orbit generation, monomial representation signs, raster-commensurability
+  checks (below), star-averaging.
+  **RASTER COMMENSURABILITY (pointwise ops only):** a POINTWISE index permutation exists iff every op
+  maps the integer torus to itself: axes mixed by W need EQUAL N, and each translation component needs
+  N_i·τ_i ∈ ℤ — diamond's τ=(¼,¼,¼) ⇒ 4 | N per axis ON EVERY LADDER LEVEL.  The 5-smooth FFT padding
+  does NOT guarantee this (45, 27, 15, 3... are 5-smooth; NaF's measured ladder had N=45 and N=3
+  levels), so enabling stream-level symmetry requires the raster menu to round up to 5-smooth MULTIPLES
+  of lcm(τ denominators) (45→48 etc. — modest).  Diamond Si already FORCES this path in the suite
+  (`SiDiamondIBZ_NonSymmorphic`: AutoGrid yields odd N, 5-smooth padding keeps them odd — 4∤N is the
+  generic case); a trigonal/hexagonal screw material (quartz P3₁21, τ=c/3; P6₁-family, τ=c/6) is the
+  extension gate for non-power-of-2 denominators once the feature lands.  The EXISTING IBZ
+  symmetrization is exempt: its FFT fractional shift e^{iG·τ} is exact for the band-limited interpolant
+  at ANY τ — the constraint is specifically for sparse compact streams, which cannot take an FFT shift
+  without densifying.  **k≠Γ:** the offset lists also carry Bloch phases e^{ik·R_n}, and ops act on k as
+  well — stream reduction at general k must stay consistent with the IBZ k-star folding (the same star
+  bookkeeping; one more thing `SpaceGroup` should own rather than the evaluator).
 - **Coarse-end routing calibration** (`kMinLevelN=3` "very coarse for a diffuse lobe" — the standing
   suspect after the HartreeOnly falsification; valves `GPW_ROUTING`/`GPW_RELFIELDSHARP` are in place).
-- **Becke as the DEFAULT for (diffuse) bases** — runtime-viable since the engine; decide after the
-  thread-safety + 0i items settle the setup story.
-- **Spin-native** (`PW_XC`/`PW_XC_Becke` are unpol today; spin-native is the formulation pin).
+- **Becke as the DEFAULT — ✅ FLIPPED 2026-08-01.**  `GpwOptions.xcMesh.cellKind` defaults to the new
+  `UnitCellKind::Auto`, resolved by the driver (`ResolveXCMesh`): **Becke** (the calibrated
+  `BeckeXCParams()` recipe) — EXCEPT under `reduceBZ`, where Auto falls back to the uniform raster WITH
+  a console note (the Becke-route density star-average is unverified — the "Becke+IBZ" item, owned by
+  the symmetry review; explicit Becke+reduceBZ is honored, which is how the verification run will be
+  done).  Non-GPW consumers treat Auto as the historical Uniform (zero blast radius).  Gate sweep: 11/12
+  GPW_SCF pass on the flip (metals, smearing, both IBZ tests via the carve-out); two gates pin Uniform
+  explicitly BY PURPOSE (`BeckeXCMatchesUniformXC`'s uniform arm; the box gate below).
+  **SURFACED by the flip — Becke × DEGENERATE OPEN SHELL (open):** the aufbau pseudo-atom-in-box gate
+  (half-filled 3p, density rotates freely in the degenerate shell) OSCILLATES ~Ha-scale under Becke
+  where uniform was grid-stable: V_xc is pointwise-nonlinear, so an anisotropic ρ's quadrature error on
+  the FIXED-AXIS angular grid rotates with the density — the energy-neutral zero mode becomes an
+  energy-oscillating mode.  The SMEARED sibling gate converges fine under Becke (fractional occupation
+  restores symmetric ρ) — consistent with the mechanism.  Fixes to weigh: smear/GDM for degenerate
+  open shells (the existing recipe), or the site-group-adapted angular grid below (an orientation-robust
+  quadrature).  Recorded here so Becke's open-shell/atom-in-box claim waits on it.
+- **Spin-native** (`PW_XC`/`PW_XC_Becke` are unpol today; spin-native is the formulation pin).  At
+  minimum settle the spin-native INTERFACE shape before the symmetry review: magnetic (Shubnikov) group
+  support must not be designed around the unpol special case.
 - **Site-group-adapted angular grid** — with the measured design pin: orbits must AVOID special (bond)
   directions (the Lebedev cube-corner lesson); the exact required degree is deducible from the site group.
 - **Per-element radial scaling** (one mhl_alpha serves all species today; NaF's F core vs Na wants per-Z).

@@ -212,11 +212,14 @@ struct GpwOptions
     BasisSet::Lattice_3D::RasterPolicy raster = BasisSet::Lattice_3D::RasterPolicy::BallOnly;
     BasisSet::Lattice_3D::CellImages   images = BasisSet::Lattice_3D::CellImages::Periodic;
     rvec3_t kShift = rvec3_t(0,0,0);
-    //! XC-quadrature policy, decided by \c xcMesh.cellKind: \c UnitCellKind::Uniform (default) = the
-    //! G-space fit-basis raster (PW_XC); \c UnitCellKind::Becke = the atom-centred periodic Becke mesh
-    //! (PW_XC_Becke; set the whole recipe with BeckeXCParams()).  The run announces the choice on the
-    //! [XC quadrature] console line either way.
-    qcMesh::MeshParams xcMesh{};
+    //! XC-quadrature policy, decided by \c xcMesh.cellKind.  DEFAULT \c Auto (2026-08-01 flip): the
+    //! driver resolves it to the atom-centred periodic BECKE mesh (PW_XC_Becke, the calibrated
+    //! BeckeXCParams() recipe) — EXCEPT under \c reduceBZ, where Auto falls back to the uniform G-space
+    //! raster (PW_XC) with a console note, because the Becke-route density star-average is unverified
+    //! (doc/GPWPlan1.md "Becke+IBZ"; the symmetry review owns closing it).  EXPLICIT \c Uniform or
+    //! \c Becke is always honored — an explicit Becke+reduceBZ run is exactly how the star-average gets
+    //! verified.  The run announces the choice on the [XC quadrature] console line either way.
+    qcMesh::MeshParams xcMesh{.cellKind=qcMesh::UnitCellKind::Auto};
     // convergence machinery
     std::string accelerator = "DIIS";                  // DIIS | GDM | Ladder | Null
     bool        globalFermi = false;                    // metal: one μ across the k-mesh (Crystal_EC global mode)
@@ -227,6 +230,28 @@ struct GpwOptions
     double       orthoTol = 0.0;
     SCFParams    scf;                                  // NMaxIter / MinΔρ / MinΔE / SmearingkT / ... (the gates)
 };
+
+namespace
+{
+// XC-route AUTO resolution (the 2026-08-01 Becke-default flip, doc/GPWPlan1.md).  Becke is the DEFAULT
+// XC quadrature for GPW runs — the near-ideal grid for the one pointwise-nonlinear sharp-at-core term,
+// diffuse bases included — EXCEPT under BZ reduction, where the Becke-side density star-average is
+// unverified, so Auto falls back to the uniform raster WITH a console note (never silent).  Explicit
+// cellKind is always honored.
+qcMesh::MeshParams ResolveXCMesh(const qcMesh::MeshParams& mp, bool reduceBZ)
+{
+    if (mp.cellKind!=qcMesh::UnitCellKind::Auto) return mp;
+    if (reduceBZ)
+    {
+        std::cout<<"[XC quadrature] AUTO -> uniform raster: BZ-reduced run (the Becke-route density "
+                   "star-average is unverified -- doc/GPWPlan1.md \"Becke+IBZ\")"<<std::endl;
+        qcMesh::MeshParams r=mp;
+        r.cellKind=qcMesh::UnitCellKind::Uniform;
+        return r;
+    }
+    return BeckeXCParams();   // the calibrated default recipe (nR=40, alpha=2, GL-29; GPW_BECKE_* sweepable)
+}
+} //anon
 
 // Build the complex SCF accelerator named by \a policy.  Ladder = the ionic-crystal DIIS->GDM hand-off on
 // |ΔE/E| (NaF's proven recipe); the rest are the plain single-engine choices.
@@ -302,7 +327,8 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
     qchem::Hamiltonian::cHamiltonian* ham=nullptr;
     {
         qchem::report::Timed t("setup: hamiltonian ctor (fit bases + becke mesh)");
-        ham=new qchem::Hamiltonian::Ham_PW_DFT(lat.GetStructure(), bs.get(), o.species, "LDA", o.xcMesh);
+        ham=new qchem::Hamiltonian::Ham_PW_DFT(lat.GetStructure(), bs.get(), o.species, "LDA",
+                                               ResolveXCMesh(o.xcMesh, o.reduceBZ));
     }
     auto* acc = MakeGpwAccelerator(o.accelerator);
 
@@ -398,7 +424,8 @@ static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Rea
         const double kT=kTSchedule[s];
         // Fresh Hamiltonian + accelerator per stage (the iterator OWNS + deletes them; a kT change must not
         // carry stale DIIS history across the re-seed).
-        auto* ham = new qchem::Hamiltonian::Ham_PW_DFT(st, bs.get(), o.species, "LDA", o.xcMesh);
+        auto* ham = new qchem::Hamiltonian::Ham_PW_DFT(st, bs.get(), o.species, "LDA",
+                                                       ResolveXCMesh(o.xcMesh, o.reduceBZ));
         auto* acc = MakeGpwAccelerator(o.accelerator);
         std::unique_ptr<qchem::SCFIterator::SolidSCFIterator> scf(
             s==0 ? new qchem::SCFIterator::SolidSCFIterator(bs.get(), &ec, ham, acc, o.seed,  st.get(), o.ortho, o.orthoTol)
@@ -431,11 +458,12 @@ GpwResult RunGPW(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, doub
                  rvec3_t kShift={0,0,0}, double minDrho=1e-6, double minDE=1e30,
                  qchem::ChargeDensity::SeedStrategy seed=qchem::ChargeDensity::SeedStrategy::Uniform,
                  BasisSet::Lattice_3D::CellImages images=BasisSet::Lattice_3D::CellImages::Periodic,
-                 double smearkT=0.0)
+                 double smearkT=0.0,
+                 qcMesh::UnitCellKind xcKind=qcMesh::UnitCellKind::Auto)
 {
     GpwOptions o;
     o.label=label; o.Nelec=Nelec; o.species={{std::string(element), 4}};   // the Si callers: Zion=4
-    o.densityEcut=densityEcut; o.images=images; o.kShift=kShift;
+    o.densityEcut=densityEcut; o.images=images; o.kShift=kShift; o.xcMesh.cellKind=xcKind;
     o.accelerator="DIIS"; o.seed=seed; o.ortho=ortho; o.orthoTol=orthoTol;
     o.scf.NMaxIter=(size_t)nmax; o.scf.MinΔρ=minDrho; o.scf.MinΔE=minDE;
     o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
@@ -671,10 +699,19 @@ TEST(GPW_SCF, SiPseudoAtomInBoxMatchesFinite)
     UnitCell cell(a);
     cell.AddAtom(14, {0.5,0.5,0.5});
     Lattice_3D lat(cell, ivec3_t(1,1,1));
+    // XC route pinned UNIFORM (the gate's calibrated arrangement): under the Becke default this
+    // DEGENERATE half-filled 3p atom exposed a real open question — the freely-rotating degenerate
+    // density has orientation-DEPENDENT quadrature error on the fixed-axis Becke angular grid (V_xc is
+    // nonlinear, so an anisotropic rho's error rotates with it), turning the energy-neutral rotation
+    // into a ~Ha-scale E oscillation.  The SMEARED sibling (SmearingConvergesDegenerateShell) is fine
+    // under Becke — fractional occupation restores the symmetric density.  Recorded in doc/GPWPlan1.md
+    // (Becke remaining increments); this gate's PURPOSE is the PP box-independence check, so it keeps
+    // its historical route.
     GpwResult R=RunGPW(lat, MakeBasis(cell), /*densityEcut*/10.0, /*Nelec*/4, "Si", "Si atom-in-box",
                        /*verbose*/false, /*nmax*/40, qchem::Cholesky, 0.0, rvec3_t(0,0,0), 1e-6, 1e30,
                        qchem::ChargeDensity::SeedStrategy::Uniform,
-                       BasisSet::Lattice_3D::CellImages::HomeCellOnly);   // the finite-molecule mode
+                       BasisSet::Lattice_3D::CellImages::HomeCellOnly,    // the finite-molecule mode
+                       /*smearkT*/0.0, qcMesh::UnitCellKind::Uniform);
 
     EXPECT_NEAR(R.charge, 4.0, 1e-6);                        // 4 valence electrons (Zion=4), charge conserved
     // GPW-in-box (G-space local PP -> box-independent) reproduces the finite SIPP DFT energy to grid tolerance.
@@ -865,6 +902,9 @@ TEST(GPW_SCF, AlFCCMetalIBZExact)
     // Re-anchored 2026-08-01: the 0i custom V_loc G-ball (harmonic routing + custom top level) moved the
     // long-PP block by 1.6e-4 on Al's coarse grids -- full mesh AND reduced shift TOGETHER (folding stays
     // exact; the full-mesh AlFCCMetalGlobalMu prints -2.11697 same run).  Old kappa-sweep anchor: -2.116812.
+    // ROUTE NOTE (Becke-default flip): this reduceBZ run resolves Auto -> UNIFORM (Becke+IBZ unverified),
+    // and the pinned value is the uniform-route full-mesh number -- route-matched by construction.  When
+    // the symmetry review verifies the Becke star-average, re-pin both on the Becke route together.
     EXPECT_NEAR(R.E.GetTotalEnergy(), -2.1169707, 1e-4)  // == the full 8-k-point mesh: IBZ symmetrization is EXACT
         << "IBZ-reduced must reproduce the full-mesh free energy (AlFCCMetalGlobalMu -2.11697)";
 }
@@ -1483,6 +1523,7 @@ TEST(GPW_SCF, BeckeXCMatchesUniformXC_SiGamma)
     // the raster's error, not Becke's; at Ecut=60 max|U-B|=3.5e-4).
     GpwOptions o;
     o.label="Si Becke gate"; o.Nelec=8; o.species={{"Si",4}}; o.densityEcut=60.0;
+    o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;   // the gate's SCF arm is the uniform route BY DESIGN (Auto would flip it)
     o.scf.NMaxIter=60; o.scf.MinΔρ=1e-3; o.scf.MinΔE=1e-6;
     o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30; o.scf.StartingRelaxRo=0.3;
     GpwHandles h;

@@ -52,7 +52,11 @@ enum class AngularKind {Gauss, GaussLegendre, EulerMaclaren};
 //! (Hartree/PP -- resolution from \c eCut / \c nUniform), or the atom-centred periodic Becke
 //! fuzzy-Voronoi grid (dense radial near each nucleus, cheap diffuse tails -- the XC quadrature;
 //! uses the \c radial / \c nAngular / \c beckeOrder knobs).  See doc/GPWPlan1.md "Becke XC grid".
-enum class UnitCellKind {Uniform, Becke};
+//! \brief Which quadrature a UnitCell builds for a lattice mesh.  \c Auto = "the caller did not choose":
+//! a POLICY layer that knows the run context resolves it (the GPW driver picks Becke unless the run is
+//! BZ-reduced -- doc/GPWPlan1.md "Becke as the DEFAULT"); any consumer reached WITHOUT resolution treats
+//! \c Auto as the historical \c Uniform (every test below compares \c ==Becke, so Auto falls through safely).
+enum class UnitCellKind {Uniform, Becke, Auto};
 
 //! \brief Becke's iterated smoothing polynomial mapped to the cell cutoff:
 //! \f$ s(\mu) = \tfrac12(1-f_k(\mu)),\; f(\mu)=\tfrac12(3\mu-\mu^3) \f$ applied \f$k+1\f$ times
