@@ -798,6 +798,16 @@ qcMesh::MeshParams GPW_Evaluator::PPMeshParams() const
     return mp;
 }
 
+// The reciprocal {U|τ} face of the imposed ops (U = Wᵀ, the SymmetrizeGMap scatter convention) -- what the
+// T1 {G}-star reduced structure-factor sweeps fold under.  Empty in, empty out (free run = plain sweep).
+std::vector<Symmetry::Lattice_3D::ReciprocalOp> GPW_Evaluator::RecipSymOps() const
+{
+    std::vector<Symmetry::Lattice_3D::ReciprocalOp> rops;
+    rops.reserve(itsSymOps.size());
+    for (const auto& op : itsSymOps) rops.push_back({Transpose(op.W), op.tau});
+    return rops;
+}
+
 // Local PP: assembled in G-SPACE from the analytic form factor, IDENTICALLY to PW_Evaluator::LocalPotential-
 // Matrix -- Vtilde(dG) = (1/Omega) Sum_a v_loc(Z_a,|dG|^2) e^{-i dG.tau_a}, dG=0 DROPPED, then <chi|Vtilde|chi>
 // via OverlapMatrix (the collocation adjoint reconstructs V_loc(r) on the density grid and quadratures it).
@@ -850,11 +860,14 @@ chmat_t GPW_Evaluator::MakeLocalPP(const Structure* cl, const Pseudopotential::L
     // self-convergence verification: kappa=60 -> e^{-30} must match kappa=30 to tolerance).
     const double kappa=LocalPPRelCutoff();
     const size_t K = itsLevels.size();
+    // T1 {G}-star fold (doc/SymmetryUpgradePlan.md §6): under the §3-imposed ops the static V_loc field is
+    // exactly symmetric (the ops were detected from these very atoms), so the form-factor sum runs at star
+    // representatives only, members filled by the glide identity.  Empty ops (free run) = the plain sweep.
+    const auto rops=RecipSymOps();
     std::vector<rvec_t> V_L(K);
     for (size_t L=0;L<K;L++)
     {
-        ΔG_Map vmapL;
-        for (const ivec3_t& dm : itsLevels[L]->Gs()) vmapL[dm]=Vt(dm);   // restrict to level L's {G}
+        ΔG_Map vmapL = EvaluateSymmetricGMap(itsLevels[L]->Gs(), rops, Vt);   // restrict to level L's {G}
         V_L[L]=itsLevels[L]->RhoOnGrid(vmapL);
     }
     // THE COLLOCATED FIELD's OWN SHARPNESS (doc/GPWPlan1.md 4b root-cause fix).  V_loc (long OR short) decays in
@@ -952,11 +965,11 @@ chmat_t GPW_Evaluator::MakeLocalPPLong(const Structure* cl, const Pseudopotentia
         return acc/itsFFT_R_G_Grids->Volume();
     };
     const size_t K=levels.size();
+    const auto rops=RecipSymOps();                                    // T1 {G}-star fold, as in MakeLocalPP
     std::vector<rvec_t> V_L(K);
     for (size_t L=0;L<K;L++)
     {
-        ΔG_Map vmapL;
-        for (const ivec3_t& dm : levels[L]->Gs()) vmapL[dm]=Vt(dm);   // restrict to level L's {G} (low-pass)
+        ΔG_Map vmapL = EvaluateSymmetricGMap(levels[L]->Gs(), rops, Vt);   // restrict to level L's {G} (low-pass)
         V_L[L]=levels[L]->RhoOnGrid(vmapL);
     }
     return itsLat->IntegratePotential(V_L, CellPhase(), itsCell, N_L, ecut_L,

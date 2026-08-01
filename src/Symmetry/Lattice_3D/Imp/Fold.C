@@ -26,7 +26,12 @@ template <class F> static Fold FoldByAction(int n, int nops, const F& apply)
     {
         if (f.owner[seed] != -1) continue;
 
+        // Orbit closure; a member discovered DIRECTLY from the seed (q==0) records its edge op on the
+        // spot -- for a group action that is every member (the o-ascending scan gives the minimal op
+        // index, identical to the fallback search below), so the per-member op search only runs for
+        // members reachable solely by composition (non-closed hand-made op subsets).
         std::vector<int> orbit{seed};
+        std::vector<int> edge{-1};
         for (size_t q = 0; q < orbit.size(); ++q)
             for (int o = 0; o < nops; ++o)
             {
@@ -34,7 +39,7 @@ template <class F> static Fold FoldByAction(int n, int nops, const F& apply)
                 if (img < 0) continue;
                 bool seen = false;
                 for (int l : orbit) if (l == img) { seen = true; break; }
-                if (!seen) orbit.push_back(img);
+                if (!seen) { orbit.push_back(img); edge.push_back(q == 0 ? o : -1); }
             }
 
         int rep = int(f.repRaw.size());
@@ -43,12 +48,14 @@ template <class F> static Fold FoldByAction(int n, int nops, const F& apply)
 
         std::vector<std::pair<int,int>> edges;
         edges.reserve(orbit.size());
-        for (int m : orbit)
+        for (size_t q = 0; q < orbit.size(); ++q)
         {
+            int m = orbit[q];
             f.owner[m] = rep;
-            int opIdx = -1;   // stays -1 only if no single op realizes rep->m (non-closed op sets)
-            for (int o = 0; o < nops; ++o)
-                if (apply(o, seed) == m) { opIdx = o; break; }
+            int opIdx = edge[q];
+            if (opIdx < 0)    // the rep itself, or a composition-only member: search (may stay -1)
+                for (int o = 0; o < nops; ++o)
+                    if (apply(o, seed) == m) { opIdx = o; break; }
             edges.emplace_back(m, opIdx);
         }
         f.members.push_back(std::move(edges));

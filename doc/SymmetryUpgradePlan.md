@@ -22,11 +22,23 @@ broken ρ̃ (stabilizer ops stay clean = the which-op readout) AND demonstrates 
 projector-blindness (post-`SymmetrizeGMap` defect ≡ 0 — §3's imposed-run caveat, measured).
 MEASURED calibration: a converged (Δρ≈2.5e-6) free Si Γ run shows max defect ~1e-5 — the
 through-SCF defect tier tracks the CONVERGENCE tolerance (per §8), so the run-line BROKEN
-alarm sits at 1e-3.  Full suite 637/637.  **Next = §7 step 4 (T1 {G} fold)**; the SCF-level
-broken-seed negative control lands with the §8 harness (needs a symmetry-breaking
-SeedStrategy).  NOTE (§4/§9): non-collinear added — `SpinAction{None,Flip}` is documented
-as the collinear collapse of the general spin rotation (SO(3)/SU(2)); representation choice
-(2×2 spinor vs (ρ,m)) is an open §9 question.
+alarm sits at 1e-3.
+§7 **step 4 (T1) BUILT** — `EvaluateSymmetricGMap` in GMap (fold the G-list via
+`FoldGVectors`, evaluate the field at star reps, scatter members through the exact glide
+identity f(Um)=e^{+2πi m·τ}f(m)); consumed by BOTH GPW structure-factor sweeps
+(`MakeLocalPP` + the `MakeLocalPPLong` custom G-ball), §3-policy-gated (ops empty on free
+runs; the imposed ops now live ONCE on `GPW_Evaluator::SetSymmetryOps`, shared with the
+Vxc-raster star-average).  Exact for the static V_loc by construction (the ops are detected
+from the very atoms the sum runs over).  Gates: unit reduced==full at 1e-13 on the
+non-symmorphic FF×structure-factor field WITH rep-only call count; Al symmorphic + Si
+diamond non-symmorphic IBZ energies unchanged through SCF.  Fold edge-op recording
+optimized (BFS-discovery capture; the O(members×ops) search now only runs for non-closed
+hand-made op subsets).  Full suite 638/638.
+**Next = §7 step 5 (T2 Becke site-adapted fold — needs torus-aware FoldPoints matching)**;
+the SCF-level broken-seed negative control lands with the §8 harness (needs a
+symmetry-breaking SeedStrategy).  NOTE (§4/§9): non-collinear added —
+`SpinAction{None,Flip}` is documented as the collinear collapse of the general spin
+rotation (SO(3)/SU(2)); representation choice (2×2 spinor vs (ρ,m)) is an open §9 question.
 
 This doc answers three things the user asked:
 1. A **gap analysis** — where are we already using symmetry, where are we leaving it on

@@ -177,6 +177,48 @@ TEST(SymmetrizeGMap, NonSymmorphicDiamondStructureFactorInvariant)
 }
 
 //---------------------------------------------------------------------------------------------
+//  EvaluateSymmetricGMap: the T1 {G}-star reduced evaluation (doc/SymmetryUpgradePlan.md §6 T1).
+//
+// reduced == full at the ~1e-13 reordering tier (§8, single-shot fold) on a V_loc-like NON-SYMMORPHIC
+// field (Gaussian form factor x the diamond structure factor), and the field is evaluated at star
+// representatives only (the call count IS the T1 payoff).
+TEST(EvaluateSymmetricGMap, ReducedEqualsFullAtRepCallCount)
+{
+    auto ops = DiamondOps();
+    Matrix3D<double> A(0.0,0.5,0.5, 0.5,0.0,0.5, 0.5,0.5,0.0);
+    Matrix3D<double> Bt = 2.0*PI*Invert(A);                  // Bᵀ: |B m|² = m·(B?B m) via ToCartesian-free form
+    const rvec3_t tau0(0.25,0.25,0.25);
+
+    auto S = Orbit({ivec3_t(1,0,0), ivec3_t(1,1,1), ivec3_t(2,0,0), ivec3_t(2,1,1)}, ops);
+    ASSERT_GT(S.size(), 20u);
+
+    int calls = 0;
+    auto field = [&](const ivec3_t& m) -> dcmplx
+    {
+        ++calls;
+        rvec3_t G = rvec3_t(double(m.x),double(m.y),double(m.z))*Bt;   // G = B m (row-vector form)
+        double  g2 = G*G;                                              // invariant: |B(Um)|=|Bm|
+        double  p  = -2.0*PI*(m.x*tau0.x + m.y*tau0.y + m.z*tau0.z);
+        return std::exp(-0.1*g2) * (1.0 + std::polar(1.0, p));         // FF x diamond structure factor
+    };
+
+    ΔG_Map full;
+    for (const auto& m : S) full[m] = field(m);
+    const int fullCalls = calls;
+
+    calls = 0;
+    ΔG_Map reduced = EvaluateSymmetricGMap(S, ops, field);
+    const int repCalls = calls;
+
+    ASSERT_EQ(reduced.size(), full.size());
+    for (const auto& [m, v] : full)
+        EXPECT_LT(std::abs(reduced.at(m) - v), 1e-13) << "reduced!=full at "<<m.x<<","<<m.y<<","<<m.z;
+
+    EXPECT_EQ(fullCalls, int(S.size()));
+    EXPECT_LT(repCalls, fullCalls/4);   // O_h stars: far fewer evaluations than points (the T1 lever)
+}
+
+//---------------------------------------------------------------------------------------------
 //  SymmetryDefects: the §3 order-parameter diagnostic (doc/SymmetryUpgradePlan.md).  A symmetric
 //  density scores ~0 on every op; a broken one fires on exactly the ops it breaks -- and after
 //  SymmetrizeGMap it scores ~0 again (the imposed-run blindness the plan warns about, demonstrated).

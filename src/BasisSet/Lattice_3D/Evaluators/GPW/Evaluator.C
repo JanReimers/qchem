@@ -198,7 +198,19 @@ public:
     //! (the collocation tensor depends on the grid, so the framework cache key must pin it).
     std::string IDFragment() const;
 
+    //! \brief Thread the run's IMPOSED crystal ops \f$\{W|\tau\}\f$ into the evaluator -- §3 policy-gated
+    //! (doc/SymmetryUpgradePlan.md): \c GPW_IBS injects them NON-EMPTY only when the caller asserted
+    //! imposition (reduceBZ).  Consumed by (i) the T1 {G}-star reduced structure-factor assembly
+    //! (\c MakeLocalPP / \c MakeLocalPPLong -- exact for the static \f$V_{loc}\f$ by construction: the ops
+    //! were detected from these very atoms) and (ii) the fit-basis factories' raster star-average.
+    void SetSymmetryOps(std::vector<Symmetry::Lattice_3D::DirectOp> ops) {itsSymOps=std::move(ops);}
+    const std::vector<Symmetry::Lattice_3D::DirectOp>& SymmetryOps() const {return itsSymOps;}
+
 private:
+    //! The reciprocal \f$\{U|\tau\}\f$ face of \c itsSymOps (\f$U=W^\top\f$, the G-index scatter map) --
+    //! what \c EvaluateSymmetricGMap folds under (empty = the plain sweep).
+    std::vector<Symmetry::Lattice_3D::ReciprocalOp> RecipSymOps() const;
+    std::vector<Symmetry::Lattice_3D::DirectOp> itsSymOps;   //!< imposed crystal ops ({} on a free run -- §3)
     std::shared_ptr<const BasisSet::Real_BS> itsMol;   //!< owns the molecular Gaussian basis (lifetime)
     const BasisSet::Real_OIBS*          itsOrb = nullptr; //!< its single orbital block (op()/Gradient/size)
     const Molecule::LatticeSum1E*       itsLat = nullptr; //!< the same block's periodic-1E capability (cross-cast)

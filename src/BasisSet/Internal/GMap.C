@@ -16,6 +16,7 @@ import qchem.Types;    // ivec3_t, dcmplx
 import qchem.Blaze;    // rvec_t, chmat_t + complex/double arithmetic (visible here; the qcMath leaf lacked it)
 export import qchem.Matrix3D;  // Matrix3D (the reciprocal point ops for the G-space density symmetrization)
 export import qchem.Symmetry.Lattice_3D.SpaceGroup;  // ReciprocalOp {U|tau} for the non-symmorphic glide phase
+import qchem.Symmetry.Lattice_3D.Fold;   // FoldGVectors (the T1 {G}-star reduced evaluation)
 import qchem.Math;     // std::lround (rotated integer G-index), Pi (the e^{2pi i (Um).tau} phase)
 
 export namespace qchem {
@@ -57,6 +58,43 @@ inline ΔG_Map SymmetrizeGMap(const ΔG_Map& rg, const std::vector<Symmetry::Lat
             const double phase = 2.0*Pi*(m.x*op.tau.x + m.y*op.tau.y + m.z*op.tau.z);   // e^{+2πi m.τ} (input index)
             out[Um] += w * std::polar(1.0, phase) * val;
         }
+    }
+    return out;
+}
+
+//! \brief T1 REDUCED EVALUATION of a symmetric G-space field (doc/SymmetryUpgradePlan.md §6 T1): evaluate
+//! \a field only at the STAR REPRESENTATIVES of \a gs and scatter every member through the exact glide
+//! identity \f$f(Um)=e^{+2\pi i\,m\cdot\tau}f(m)\f$ -- the expansion consumption of the fold's op edges.
+//! VALID ONLY for a field carrying the ops' full symmetry: a structure-factor sum over the ops' OWN atom set
+//! (\f$V_{loc}\f$ assembly -- exact by construction, the ops were detected from those atoms), a radial kernel,
+//! etc.  POLICY-GATED by the caller (§3): pass empty \a ops for plain evaluation.  A member with no single
+//! mapping op (hand-made op subsets; \c Fold records -1) is evaluated directly -- reduced or not, the result
+//! is EXACT to roundoff (~1e-13 reordering class, §8): this is an expansion, never an average.
+//! Payoff \f$\approx\f$ mean star size on the per-G \a field cost (up to 48x in \f$O_h\f$) -- the PROTOTYPE
+//! of the reduced-sum pattern, not the headline (§1).
+template <class F> inline ΔG_Map EvaluateSymmetricGMap(const std::vector<ivec3_t>& gs,
+                                                       const std::vector<Symmetry::Lattice_3D::ReciprocalOp>& ops,
+                                                       const F& field)
+{
+    ΔG_Map out;
+    if (ops.empty()) { for (const ivec3_t& m : gs) out[m] = field(m); return out; }
+
+    namespace SL = Symmetry::Lattice_3D;
+    std::vector<SL::SymOp> sops;
+    sops.reserve(ops.size());
+    for (const auto& op : ops) sops.push_back({op.U, op.tau});   // the fold's W slot = the G-index map U
+    SL::Fold f = SL::FoldGVectors(gs, sops);
+    for (size_t r = 0; r < f.Reps(); ++r)
+    {
+        const ivec3_t& mr = gs[f.repRaw[r]];
+        const dcmplx   v  = field(mr);
+        for (auto [mi, o] : f.members[r])
+            if (o < 0) out[gs[mi]] = field(gs[mi]);              // no edge op: evaluate directly (still exact)
+            else
+            {
+                const double ph = 2.0*Pi*(mr.x*sops[o].tau.x + mr.y*sops[o].tau.y + mr.z*sops[o].tau.z);
+                out[gs[mi]] = std::polar(1.0, ph) * v;           // f(U m_rep) = e^{+2πi m_rep·τ} f(m_rep)
+            }
     }
     return out;
 }

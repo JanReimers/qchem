@@ -116,8 +116,8 @@ protected:
     virtual G_ERI3 MakeRepulsion3C(const cFIT_CD_ABS& c) const override;
     virtual G_ERI3 MakeOverlap3C  (const cFIT_SF_ABS& c) const override;
 
-private:
-    std::vector<Symmetry::Lattice_3D::DirectOp> itsDirectOps;   //!< crystal direct ops {W|τ} (ctor-injected; {} unless reduceBZ) -- IBZ raster
+    // (The ctor-injected crystal ops live on GPW_Evaluator -- SetSymmetryOps/SymmetryOps: ONE storage for
+    //  the T1 {G}-star fold and the Vxc-raster star-average.)
 };
 
 } //namespace
