@@ -258,6 +258,34 @@ TEST(Mesh_Angular, LebedevTablesHaveClaimedDegree)
     }
 }
 
+TEST(Mesh_Angular, CanonicalLebedevOrdersHaveClaimedDegree)
+{
+    // The canonical Lebedev-Laikov orders imported 2026-08-02 (16-digit constants, so the moment
+    // audit is tight); the negative-weight orders 74/230/266 are excluded from the menu by the
+    // generator audit.  This IS the transcription audit: full monomial sweep to the claimed
+    // degree + positivity + sum w = 4pi.
+    const std::pair<int,int> rules[]={{86,15},{110,17},{146,19},{170,21},{194,23},
+                                      {302,29},{350,31},{434,35}};
+    for (auto [n,L] : rules)
+    {
+        qcMesh::MeshParams mp; mp.angular=AngularKind::Lebedev; mp.nAngular=n;
+        qcMesh::AngularMesh ang=MakeAngular(mp);
+        ASSERT_EQ(int(ang.size()), n);
+        double wsum=0;
+        for (size_t i=0; i<ang.size(); i++)
+        {
+            EXPECT_GT(ang.W()[i], 0.0);
+            wsum+=ang.W()[i];
+            const rvec3_t& d=ang.Dirs()[i];
+            EXPECT_NEAR(d.x*d.x+d.y*d.y+d.z*d.z, 1.0, 1e-14);
+        }
+        EXPECT_NEAR(wsum, FourPi, 1e-11);
+        double err=AngularMomentError(ang,L);
+        EXPECT_LT(err,1e-10) << "canonical Lebedev numDir=" << n << " claims degree " << L
+                             << " but max moment error is " << err;
+    }
+}
+
 TEST(Mesh_Angular, GaussLegendreHasClaimedDegree)
 {
     for (int L : {5,11,17,23,29})

@@ -1684,38 +1684,39 @@ TEST(GPW_SCF, DISABLED_RotatedLebedevXCProbe_SiGamma)
     auto st=lat.GetStructure();
 
     const double rot=0.4;                              // generic angle: moves <111> well off the bonds
-    auto leb=[&](double angRot){ qcMesh::MeshParams mp=BeckeXCParams(40, 2.0, 50);
-                                 mp.angular=qcMesh::AngularKind::Lebedev; mp.angRot=angRot; return mp; };
+    auto leb=[&](int nDir, double angRot){ qcMesh::MeshParams mp=BeckeXCParams(40, 2.0, nDir);
+                                           mp.angular=qcMesh::AngularKind::Lebedev; mp.angRot=angRot; return mp; };
     auto gl =[&](double angRot){ qcMesh::MeshParams mp=BeckeXCParams();  // production GL-29
                                  mp.angRot=angRot; return mp; };
 
     // How close does each Lebedev grid come to a bond axis?  (diamond bonds = the +<111> tetrahedron)
-    for (double angRot : {0.0, rot})
-    {
-        qcMesh::AngularMesh am=qcMesh::MakeAngular(leb(angRot));
-        double worst=90.0;
-        for (size_t i=0; i<am.size(); ++i)
-            for (auto b : {rvec3_t(1,1,1), rvec3_t(1,-1,-1), rvec3_t(-1,1,-1), rvec3_t(-1,-1,1)})
-            {
-                double cosang=(am.Dirs()[i]*b)/norm(b);
-                worst=std::min(worst, std::acos(std::min(1.0,std::abs(cosang)))*180.0/M_PI);
-            }
-        std::printf("[rotLeb] Lebedev-50 angRot=%.2f: closest direction-to-bond angle = %.3f deg\n",
-                    angRot, worst);
-    }
+    for (int nDir : {50, 302})
+        for (double angRot : {0.0, rot})
+        {
+            qcMesh::AngularMesh am=qcMesh::MakeAngular(leb(nDir, angRot));
+            double worst=90.0;
+            for (size_t i=0; i<am.size(); ++i)
+                for (auto b : {rvec3_t(1,1,1), rvec3_t(1,-1,-1), rvec3_t(-1,1,-1), rvec3_t(-1,-1,1)})
+                {
+                    double cosang=(am.Dirs()[i]*b)/norm(b);
+                    worst=std::min(worst, std::acos(std::min(1.0,std::abs(cosang)))*180.0/M_PI);
+                }
+            std::printf("[rotLeb] Lebedev-%d angRot=%.2f: closest direction-to-bond angle = %.3f deg\n",
+                        nDir, angRot, worst);
+        }
 
     XCProbe REF  =BeckeXCProbe(h, st, "REF80",  BeckeXCParams(/*nRadial*/80, /*mhlAlpha*/1.0, /*L*/29));
     XCProbe GL29 =BeckeXCProbe(h, st, "GL29",   gl(0.0));
-    XCProbe GLrot=BeckeXCProbe(h, st, "GL29rot",gl(rot));
-    XCProbe LEB  =BeckeXCProbe(h, st, "Leb50",  leb(0.0));
-    XCProbe LROT =BeckeXCProbe(h, st, "Leb50rot",leb(rot));
+    XCProbe L50R =BeckeXCProbe(h, st, "Leb50rot", leb(50, rot));
+    XCProbe L302 =BeckeXCProbe(h, st, "Leb302",   leb(302, 0.0));
+    XCProbe L302R=BeckeXCProbe(h, st, "Leb302rot",leb(302, rot));
 
-    std::printf("[rotLeb] dExc vs REF80:  GL29=%+.3e  GL29rot=%+.3e  Leb50=%+.3e  Leb50rot=%+.3e\n",
-                GL29.Exc-REF.Exc, GLrot.Exc-REF.Exc, LEB.Exc-REF.Exc, LROT.Exc-REF.Exc);
-    std::printf("[rotLeb] rho-lost:       GL29=%+.3e  GL29rot=%+.3e  Leb50=%+.3e  Leb50rot=%+.3e\n",
-                GL29.rhoLost, GLrot.rhoLost, LEB.rhoLost, LROT.rhoLost);
-    std::printf("[rotLeb] max|Vxc-REF80|: GL29=%.3e  GL29rot=%.3e  Leb50=%.3e  Leb50rot=%.3e\n",
-                DiffXC(REF,GL29), DiffXC(REF,GLrot), DiffXC(REF,LEB), DiffXC(REF,LROT));
+    std::printf("[rotLeb] dExc vs REF80:  GL29=%+.3e  Leb50rot=%+.3e  Leb302=%+.3e  Leb302rot=%+.3e\n",
+                GL29.Exc-REF.Exc, L50R.Exc-REF.Exc, L302.Exc-REF.Exc, L302R.Exc-REF.Exc);
+    std::printf("[rotLeb] rho-lost:       GL29=%+.3e  Leb50rot=%+.3e  Leb302=%+.3e  Leb302rot=%+.3e\n",
+                GL29.rhoLost, L50R.rhoLost, L302.rhoLost, L302R.rhoLost);
+    std::printf("[rotLeb] max|Vxc-REF80|: GL29=%.3e  Leb50rot=%.3e  Leb302=%.3e  Leb302rot=%.3e\n",
+                DiffXC(REF,GL29), DiffXC(REF,L50R), DiffXC(REF,L302), DiffXC(REF,L302R));
 }
 
 // The SHARP-FIELD leg of the gate (the plan names DISABLED_NaFRocksaltGamma as the stress case: the F-

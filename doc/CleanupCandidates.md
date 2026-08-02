@@ -24,6 +24,11 @@ refactoring session can batch them.  (User keeps the master list; merge freely.)
   calibrated default; a console warn when the scheme is overridden; a real error (not the bare assert)
   when the requested L is unachievable for a low-symmetry site (C1/Cs seed-pool exhaustion).  Land with
   the `SymmetryPolicy`/facade pass.
+  **GREW A BLOCKER ROLE (2026-08-02):** `nAngular` is a COUNT for Lebedev but a DEGREE for GL/EM (and
+  the imposed site-adapted builder consumes it as the degree) — this dual semantics is what BLOCKS
+  flipping the free-run Becke default to the measured-equal Leb-302 (67% of GL-29's directions; plan
+  §6a).  The fix wants a degree-typed interface (`angularDegree` + per-scheme count resolution), then
+  the default flip rides along.
 
 ## Older / unrelated spots hit while working nearby
 - **`DB_Cache_RAM.C`** — a screenful of `-Winconsistent-missing-override` warnings on every qcBasisSet
