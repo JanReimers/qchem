@@ -20,6 +20,7 @@ import qchem.Hamiltonian.Internal.ExFunctional; // the LDA functional the XC ter
 import qchem.Hamiltonian.Types;                 // cobs_t
 import qchem.Structure;
 import qchem.Mesh;                              // qcMesh::Mesh/MeshParams (the PW_XC_Becke quadrature)
+import qchem.Symmetry.Lattice_3D.Fold;          // Fold + SymmetrizeValues (the Becke rho star-average, §6a W1)
 
 export namespace qchem::Hamiltonian
 {
@@ -170,20 +171,20 @@ private:
 class BeckeXC_Engine
 {
 public:
-    //! The engine no longer owns a raw mesh (doc/SymmetryUpgradePlan.md §6a, user diagnosis): it holds
-    //! the QUADRATURE FIT BASIS the orbital basis created (\c CreateVxcFitBasisSet with a Becke
-    //! MeshParams -- the grid-policy home), which owns the mesh, the symmetry fold, and the
-    //! \c SymmetrizeRaster hook.  The engine remains the Ham-side cache (\f$\Phi\f$ tables + the
-    //! pair-shared per-serial \f$\rho\f$) because \f$\rho\f$ takes a ChargeDensity -- a layer the
-    //! basis library cannot name.
-    typedef std::shared_ptr<const BasisSet::cFIT_SF_ABS> fbs_t;
-    explicit BeckeXC_Engine(fbs_t);
-    const qcMesh::Mesh& Mesh() const {return itsQuad->IntegrationMesh();}
+    //! The Becke route is a pure QUADRATURE -- it has no fit basis (user 2026-08-01: a zero-function
+    //! pseudo-basis was a null-object smell).  The engine receives the FINISHED quadrature at
+    //! construction: the mesh (already group-averaged INVARIANT on a §3-imposed run -- assembled by
+    //! the Hamiltonian's Becke branch from Structure + the imposed ops) and its orbit \a fold.  An
+    //! empty fold = a free run (no star-average).  Everything symmetry-shaped happens before this
+    //! ctor; per iteration the engine only applies the fold's orbit-mean to ρ.
+    typedef std::shared_ptr<const qcMesh::Mesh> mesh_t;
+    BeckeXC_Engine(mesh_t, Symmetry::Lattice_3D::Fold fold = {});
+    const qcMesh::Mesh& Mesh() const {return *itsMesh;}
     //! \f$\rho(r_g)\f$ for \a cd's current serial (cached across the pair; rebuilt on a new serial),
-    //! STAR-AVERAGED by the fit basis's \c SymmetrizeRaster (exact orbit-mean projector on an imposed
-    //! run's invariant mesh; no-op on a free run -- §6a W1.  The E/H pair needs nothing else: on
-    //! orbit-symmetric weights the projector is self-adjoint and \f$v(\rho_\mathrm{sym})\f$ is already
-    //! symmetric, so \c Matrix below is the exact derivative untouched).
+    //! STAR-AVERAGED over the fold's orbits when one was supplied (exact projector on the invariant
+    //! mesh -- §6a W1.  The E/H pair needs nothing else: on orbit-symmetric weights the projector is
+    //! self-adjoint and \f$v(\rho_\mathrm{sym})\f$ is already symmetric, so \c Matrix below is the
+    //! exact derivative untouched).
     //! \a ensureBlock (when given) has its \f$\Phi\f$ table built FIRST, so the rho GEMM covers it even on
     //! the very first call; blocks not yet tabled self-evaluate pointwise inside the density (first pass
     //! only).  GetEnergy passes null (no basis at hand) and reuses the iteration's table.
@@ -192,8 +193,8 @@ public:
     chmat_t Matrix(const cobs_t* bs, const rvec_t& v);
 private:
     const mat_t<dcmplx>& Phi(const cobs_t* bs);   //!< lazily built per block (geometry-fixed)
-    fbs_t itsFit;                                  //!< the mesh-owning quadrature fit basis (SymmetrizeRaster)
-    const BasisSet::cFIT_SF_Quadrature* itsQuad;   //!< its quadrature face (the mesh accessor)
+    mesh_t itsMesh;                               //!< the quadrature (invariant when the fold is live)
+    Symmetry::Lattice_3D::Fold itsFold;           //!< its orbit partition ({} = free run, no averaging)
     std::map<std::string,mat_t<dcmplx>> itsPhi;   //!< BasisSetID -> (npts x n) basis table
     rvec_t itsRho;
     size_t itsRhoVersion=size_t(-1);              //!< density logical-clock serial itsRho was built for

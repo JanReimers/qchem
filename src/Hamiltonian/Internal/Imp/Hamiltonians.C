@@ -1,5 +1,6 @@
 // File:: Hamiltonian/Internal/Imp/Hamiltonians.C  Create fully implemented Hamiltonians
 module;
+#include <cassert>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -15,6 +16,8 @@ import qchem.Hamiltonian.Internal.SlaterExchange;
 import qchem.Hamiltonian.Internal.VWN_Correlation;
 import qchem.Hamiltonian.Types;
 import qchem.Structure;
+import qchem.UnitCell;                             // UnitCell (the Becke branch's checked lattice precondition)
+import qchem.SymmetrizeMesh;                       // MakeInvariant/FoldMesh (the §6a W1 invariant Becke quadrature)
 import qchem.Pseudopotential.GTH_Potentials;       // GetGTH + GTH_PP + HGH_*/MultiSpecies_* (re-exported)
 import qchem.PeriodicTable;                       // PeriodicTable::GetZ(symbol) -> atomic number (the composite key)
 import qchem.Math;                                // max (the denser of the exchange/correlation grid factors)
@@ -194,15 +197,38 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
     // this is the one selection site).  The Becke branch's mesh build adds its own [Becke grid] detail line.
     if (xcMesh.cellKind==qcMesh::UnitCellKind::Becke)
     {
-        // The Becke XC route (doc/GPWPlan1.md + SymmetryUpgradePlan §6a): the fit basis comes from the
-        // SAME CreateVxcFitBasisSet seam as the uniform route -- the grid-policy decision (which fit-
-        // basis type, invariant-mesh + fold under imposed symmetry) lives in the basis's Create, not
-        // here.  The engine (Phi tables + pair-shared rho) consumes the mesh-owning fit basis; this
-        // branch only picks the TERM for the route it announces.
+        // The Becke XC route (doc/GPWPlan1.md + SymmetryUpgradePlan §6a): a pure QUADRATURE -- no fit
+        // basis exists on this route (a zero-function pseudo-basis was a null-object smell; user
+        // 2026-08-01).  The finished quadrature is assembled HERE, before the engine: on a §3-imposed
+        // run (the basis's imposed op set is non-empty) the mesh is group-averaged INVARIANT and its
+        // orbit fold prepared, so the engine's per-iteration rho star-average is the exact projector.
+        // The Structure->UnitCell cast is a checked precondition, not a type-switch: a PW term is
+        // lattice-specific by contract (user cast rule).
         std::cout<<"[XC quadrature] periodic BECKE atom-centred mesh (details on the [Becke grid] line)"<<std::endl;
         qchem::report::EmitAt("grids", "xcQuadrature", {{"kind","Becke"}});   // detail lands in grids.becke
-        BeckeXC_Engine::fbs_t fit(bs->CreateVxcFitBasisSet(st.get(), xcMesh));
-        auto engine=std::make_shared<BeckeXC_Engine>(fit);
+        qcMesh::Mesh mesh = st->CreateIntegrationMesh(xcMesh);
+        Symmetry::Lattice_3D::Fold fold;
+        if (auto rops = bs->GetReciprocalPointOps(); !rops.empty())
+        {
+            auto* cell = dynamic_cast<const UnitCell*>(st.get());
+            assert(cell && "PW Becke route: an imposed-symmetry run requires a lattice (UnitCell) structure");
+            std::vector<Symmetry::Lattice_3D::SymOp> sops;
+            sops.reserve(rops.size());
+            for (const auto& op : rops)
+            {
+                auto d = Symmetry::Lattice_3D::DirectOf(op);   // {U|τ} -> {W|τ} (the group owns the convention)
+                sops.push_back({d.W, d.tau});
+            }
+            const double tol = 1e-8;
+            const size_t n0  = mesh.size();
+            mesh = MakeInvariant(mesh, cell->GetCellMatrix(), sops, tol);
+            fold = FoldMesh(mesh, cell->GetCellMatrix(), sops, tol);
+            std::cout<<"[Becke grid] imposed symmetry ("<<sops.size()<<" ops): group-averaged invariant mesh "
+                     <<n0<<" -> "<<mesh.size()<<" points in "<<fold.Reps()
+                     <<" orbits; rho star-averaged each iteration (doc/SymmetryUpgradePlan.md 6a W1)"<<std::endl;
+        }
+        auto engine=std::make_shared<BeckeXC_Engine>(std::make_shared<const qcMesh::Mesh>(std::move(mesh)),
+                                                     std::move(fold));
         Add(new PW_XC_Becke(exch, engine));
         Add(new PW_XC_Becke(corr, engine));
     }

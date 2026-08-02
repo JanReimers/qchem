@@ -62,6 +62,12 @@ struct DirectOp
     rvec3_t          tau;    //!< Fractional translation of the operation.
 };
 
+//! \brief The direct-space face of a reciprocal op: \f$U = W^\top \Rightarrow W = U^\top\f$, same
+//! \f$\tau\f$.  Lives HERE so the reciprocal\f$\leftrightarrow\f$direct convention stays with the
+//! group -- a consumer holding only the imposed \f$\{U|\tau\}\f$ set recovers the \f$\{W|\tau\}\f$
+//! action on real-space points without re-deriving the transpose relation.
+inline DirectOp DirectOf(const ReciprocalOp& op) {return {Transpose(op.U), op.tau};}
+
 //! \brief RUN-LEVEL symmetry-imposition policy (doc/SymmetryUpgradePlan.md §3).  Every symmetry
 //! reduction -- the k-fold, the {G}/{r} folds, the stream reduction, the density star-average --
 //! IMPOSES the group it folds under: exact iff the density actually HAS that group, silently wrong

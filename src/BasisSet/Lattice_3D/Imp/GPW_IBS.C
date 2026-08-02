@@ -13,7 +13,6 @@ import qchem.Symmetry.Lattice_3D.SpaceGroup; // DirectOp {W|τ} (the ctor's IBZ 
 import qchem.BasisSet.Internal.DB_Cache;    // theCache<dcmplx>() -- process-wide cache for the static PP matrices
                                             // (qcLattice_BS is BasisSet-family, so it may peek at qcBasisSet Internal)
 import qchem.BasisSet.Lattice_3D.Evaluators.PW;  // PW_Grid_Evaluator (the fit basis IS-A one; cross-cast target)
-import qchem.BasisSet.Lattice_3D.BeckeFit_IBS;   // BeckeFit_IBS (the Becke-route Vxc quadrature face)
 
 namespace qchem::BasisSet::Lattice_3D
 {
@@ -61,22 +60,11 @@ BasisSet::cFIT_CD_ABS* GPW_IBS::CreateCDFitBasisSet(const Structure*, const qcMe
     // {G}_rho = DensityGrid() (cutoffFactor*alpha_max, resolving the density product); no relCutoff on the CD grid.
     return new PlaneWaveFit_IBS(GPW_Evaluator::DensityGrid(), Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)));
 }
-BasisSet::cFIT_SF_ABS* GPW_IBS::CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const
+BasisSet::cFIT_SF_ABS* GPW_IBS::CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams& mp) const
 {
-    // THE Vxc GRID-POLICY HOME (user 2026-08-01): which TYPE of fit basis serves the XC route is
-    // decided HERE, by mp.cellKind -- the Hamiltonian only picks the matching term for the route it
-    // announced.  Both types carry the §3-imposed crystal ops so their raster/mesh star-averages
-    // themselves under IBZ (empty ops = free run = no-op).
-    if (mp.cellKind==qcMesh::UnitCellKind::Becke)
-    {
-        // The BECKE route (doc/SymmetryUpgradePlan.md §6a): a quadrature-face fit basis OWNING the
-        // atom-centred periodic mesh; under imposed symmetry it group-averages the mesh invariant
-        // and star-averages rho by orbit mean.
-        assert(cl && "GPW: the Becke Vxc route needs the Structure to build its atom-centred mesh");
-        return new BeckeFit_IBS(cl->CreateIntegrationMesh(mp),
-                                Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)),
-                                Cell().GetCellMatrix(), SymmetryOps(), mp.ID());
-    }
+    // The BECKE XC route builds NO fit basis at all: it is a pure quadrature (mesh + fold), assembled
+    // by the Hamiltonian's Becke branch from Structure + the imposed ops (user 2026-08-01 -- a
+    // zero-function pseudo-basis was a null-object smell).  This factory serves the UNIFORM G route.
     // {G}_vxc = relCutoff * {G}_rho.  LDA relCutoff==1 => == DensityGrid(); a GGA's denser grid is not wired yet.
     assert(mp.relCutoff<=1.0 && "GPW: relCutoff>1 (GGA denser Vxc grid) not wired -- the LDA Vxc grid = the CD grid");
     // The Vxc fit basis carries the τ=0 direct ops so its raster STAR-AVERAGES itself under IBZ (empty = no-op).

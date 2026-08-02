@@ -59,15 +59,18 @@ revival).  **OWNERSHIP LANDED (§6a last bullet): qcStructure→qcSymmetry edge;
 `Lattice_3D::GetSpaceGroup()` (detection + adapter, lattice-common); `qchem.SymmetrizeMesh`
 re-homed to src/Structure/Lattice_3D; SpaceGroup gained ReciprocalMatrix/To{Fractional,
 Cartesian}.**
-**W1 BUILT + GATED (the `BeckeFit_IBS` refactor):** `cFIT_SF_Quadrature` face in qcBasisSet
-(a fit basis whose Vxc representation is direct mesh quadrature; `IntegrationMesh()` +
-the inherited `SymmetrizeRaster` hook); `BeckeFit_IBS` in qcLattice_BS owns the Becke mesh,
-group-averages it INVARIANT under the §3-imposed ops (`MakeInvariant` + `FoldMesh` in its
-ctor) and overrides `SymmetrizeRaster` with the exact orbit-mean; the fit-basis TYPE
-decision lives in `GPW_IBS::CreateVxcFitBasisSet` keyed on `mp.cellKind` (user pin: the
-grid-policy home); `BeckeXC_Engine` no longer owns a mesh — it holds the fit basis
-(abstract, one capability cast) and keeps only the Ham-side Φ/ρ caches (ρ takes a
-ChargeDensity, a layer the basis cannot name — the one §6a amendment).  GATES:
+**W1 BUILT + GATED (final shape — REVISED by user review, 2026-08-01):** the Becke route
+has NO fit basis at all — it is a pure QUADRATURE, and the first cut's `BeckeFit_IBS`
+(a zero-function pseudo-basis) + `cFIT_SF_Quadrature` face were a null-object smell,
+deleted same-day.  Final design: the finished quadrature is assembled BEFORE the engine —
+the Hamiltonian's Becke branch builds the mesh (`Structure::CreateIntegrationMesh`), and on
+a §3-imposed run (the basis's imposed op set non-empty; direct face recovered via the new
+`Symmetry::Lattice_3D::DirectOf` so the U=Wᵀ convention stays with the group)
+group-averages it INVARIANT (`MakeInvariant`) and prepares the orbit fold (`FoldMesh`) —
+the Structure→UnitCell cast inside this lattice-specific branch is a checked precondition
+per the user's cast rule.  `BeckeXC_Engine(mesh, fold)` receives both at construction;
+per iteration it applies the fold's orbit-mean to ρ (`SymmetrizeValues`) — everything
+symmetry-shaped happens before the ctor, and NO fit-basis interface grew anything.  GATES:
 `BeckeXC_IBZ_SiDiamond` — Becke+IBZ == Becke+full to **7e-5 Ha** (non-symmorphic, coarse
 GL-9 recipe both arms; invariant mesh 1034→6120 pts = ~6× growth, 135 orbits); the free
 arm's `[symmetry]` line measures max defect 6e-3 / 40 ops broken — the fixed-orientation

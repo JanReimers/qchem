@@ -1550,10 +1550,8 @@ XCProbe BeckeXCProbe(const GpwHandles& h, const std::shared_ptr<const Structure>
 {
     auto exch=std::make_shared<Hamiltonian::SlaterExchange>(2.0/3.0);
     auto corr=std::make_shared<Hamiltonian::VWN_Correlation>();
-    // The engine consumes the mesh-owning quadrature fit basis from the SAME Create seam as production
-    // (plan §6a: the grid-policy home) -- ONE engine, shared by the pair.
-    Hamiltonian::BeckeXC_Engine::fbs_t fit(h.bs->CreateVxcFitBasisSet(st.get(), mpB));
-    auto engine=std::make_shared<Hamiltonian::BeckeXC_Engine>(fit);
+    auto engine=std::make_shared<Hamiltonian::BeckeXC_Engine>(               // ONE engine, shared by the pair
+                    std::make_shared<const qcMesh::Mesh>(st->CreateIntegrationMesh(mpB)));   // free probe: no fold
     Hamiltonian::PW_XC_Becke x(exch,engine), c(corr,engine);
     EnergyBreakdown e; x.GetEnergy(e,h.cd.get()); c.GetEnergy(e,h.cd.get());
     return ProbeXC(label, h, x, c, e);

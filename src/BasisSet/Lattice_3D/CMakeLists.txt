@@ -4,7 +4,6 @@ add_library(qcLattice_BS)
 target_sources(qcLattice_BS PRIVATE
     Imp/PlaneWave_IBS.C
     Imp/GPW_IBS.C
-    Imp/BeckeFit_IBS.C
     Imp/APW_IBS.C
     Imp/LAPW_IBS.C
     Imp/BasisSet.C
@@ -15,7 +14,6 @@ target_sources(qcLattice_BS PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILE
     IrrepBasisSet.C
     PlaneWave_IBS.C
     PlaneWaveFit_IBS.C
-    BeckeFit_IBS.C
     GPW_IBS.C
     APW_IBS.C
     LAPW_IBS.C

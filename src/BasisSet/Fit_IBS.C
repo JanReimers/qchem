@@ -73,20 +73,6 @@ public:
 using rFIT_SF_ABS = FIT_SF_ABS<double>;  //!< real (Gaussian/Slater/BSpline) potential-fit basis
 using cFIT_SF_ABS = FIT_SF_ABS<dcmplx>;  //!< complex (plane-wave, G-space) potential-fit basis
 
-//! \brief The MESH-QUADRATURE refinement of the potential face: a "fit basis" whose \f$v_{xc}\f$
-//! representation is DIRECT numerical quadrature on an integration mesh it OWNS -- no fit functions,
-//! no metric, no expansion (the Becke XC route; doc/SymmetryUpgradePlan.md §6a).  The consumer term
-//! quadratures fields pointwise on \c IntegrationMesh() and star-averages rasters through the
-//! inherited \c SymmetrizeRaster hook -- the mesh, its symmetry fold, and the symmetrization all
-//! live with the mesh OWNER (the separation the fitted terms have always had, restored for Becke).
-template <class T> class FIT_SF_Quadrature
-    : public virtual FIT_SF_ABS<T>
-{
-public:
-    virtual const qcMesh::Mesh& IntegrationMesh() const=0;   //!< the quadrature this face owns
-};
-using cFIT_SF_Quadrature = FIT_SF_Quadrature<dcmplx>;  //!< the periodic (Bloch) mesh-quadrature face
-
 //! \brief A NON-orthonormal (Gaussian/Slater/BSpline) potential-fit basis: adds the overlap metric-solve
 //! inputs the least-squares potential fit needs -- the projection RHS \c Overlap(Sf) \f$=\langle f_a|f\rangle\f$
 //! (the field \a f is always the real \f$v_{xc}(\vec r)\f$), the normalisation, the overlap matrix
