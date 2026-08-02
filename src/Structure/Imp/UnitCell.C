@@ -80,21 +80,32 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
     qcMesh::AngularMesh ang=qcMesh::MakeAngular(mp);
 
     qcMesh::MeshBuilder out;
-    std::vector<BeckeImage> im;   // competitor images for the current point (reused allocation)
     for (size_t ia=0; ia<natom; ia++)
     {
         qcMesh::Mesh am=qcMesh::ProductMesh(rad, angPerAtom ? (*angPerAtom)[ia] : ang);
         am.ShiftOrigin(R[ia]);
         const rvec3vec_t& pts=am.Points();
         const rvec_t&     wts=am.Weights();
-        for (size_t q=0; q<am.size(); q++)
+        // The per-point Becke partitions are INDEPENDENT (~1 ms each -- the eps-converged competitor
+        // image series is the whole build cost, measured linear at any angular count), and each result
+        // lands in its own indexed slot consumed in index order below -- so the threaded build is
+        // BIT-IDENTICAL to the serial one at any thread count (no cross-point reductions, unlike the
+        // GPW pair loops).  Hence parallel by DEFAULT under QCHEM_OPENMP (OMP_NUM_THREADS honoured).
+        const size_t nq=am.size();
+        std::vector<char> keep(nq, 0);
+        rvec3vec_t        kpt(nq);
+        rvec_t            kwt(nq);
+#ifdef QCHEM_OPENMP
+        #pragma omp parallel for schedule(dynamic, 8)
+#endif
+        for (size_t q=0; q<nq; q++)
         {
+            std::vector<BeckeImage> im;   // competitor images for this point (thread-local)
             const rvec3_t& r=pts[q];
             // The point's own cell n0 (shells are centred on it, so the s*dPlane floor holds).
             rvec3_t f=cell.ToFractional(r);
             const int n0x=int(floor(f.x)), n0y=int(floor(f.y)), n0z=int(floor(f.z));
 
-            im.clear();
             long   target=-1;                 // index of THIS grid's own centre (atom ia, L=0) in im
             double dNear=1e300;
             auto AddShell=[&](int s)
@@ -167,8 +178,14 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
             }
             assert(sum>0);
             double w=Pt/sum;
-            if (w>0) out.Append(r-cell.ToCartesian(rvec3_t(n0x,n0y,n0z)), wts[q]*w);   // wrapped into the home cell
+            if (w>0)   // wrapped into the home cell; slot-indexed so the threaded build stays ordered
+            {
+                keep[q]=1;
+                kpt[q]=r-cell.ToCartesian(rvec3_t(n0x,n0y,n0z));
+                kwt[q]=wts[q]*w;
+            }
         }
+        for (size_t q=0; q<nq; q++) if (keep[q]) out.Append(kpt[q], kwt[q]);
     }
     qcMesh::Mesh mesh=out.take();
 
