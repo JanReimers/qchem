@@ -7,7 +7,8 @@
 #include <vector>
 #include <cmath>
 
-import qchem.SymmetrizeMesh;   // FoldMesh/Symmetrize/UnmatchedCounts/MakeInvariant
+import qchem.SymmetrizeMesh;   // FoldMesh/Symmetrize/UnmatchedCounts/MakeInvariant/MakeInvariantAngularMesh
+import qchem.Lattice_3D;       // Lattice_3D::GetSpaceGroup + FCCUnitCell/UnitCell (the site-adapted Becke gate)
 import qchem.Types;
 
 using namespace qchem;
@@ -205,6 +206,45 @@ TEST(InvariantAngularMesh, TrivialGroupStillExact)
     Mesh q = MakeInvariantAngularMesh(onlyE, 5);
     ASSERT_GT(q.size(), 0u);
     CheckAngularQuadrature(q, onlyE, 5);
+}
+
+//---------------------------------------------------------------------------------------
+//  CreateSiteAdaptedBeckeMesh (§6a W2b): the whole periodic Becke mesh invariant BY CONSTRUCTION.
+//
+TEST(SiteAdaptedBeckeMesh, DiamondInvariantByConstruction)
+{
+    FCCUnitCell cell(10.26);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});          // non-symmorphic: partner grids need the glide's rotation
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+    const SL::SpaceGroup& sg = lat.GetSpaceGroup();
+    ASSERT_EQ(sg.Order(), 48u);
+
+    std::vector<SL::SymOp> ops;
+    for (const auto& op : sg.Ops()) ops.push_back({op.W, op.tau});
+
+    qcMesh::MeshParams mp;
+    mp.cellKind=qcMesh::UnitCellKind::Becke;
+    mp.radial=qcMesh::RadialKind::MHL; mp.nRadial=6; mp.mhl_m=2; mp.mhl_alpha=2.0;
+    mp.angular=qcMesh::AngularKind::GaussLegendre; mp.nAngular=5;
+
+    Mesh adapted = cell.CreateSiteAdaptedBeckeMesh(mp, ops);
+    ASSERT_GT(adapted.size(), 0u);
+
+    // THE gate: every op maps every mesh point onto a mesh point -- zero unmatched (the T2
+    // precondition today's shared-orientation grids fail).
+    for (int bad : UnmatchedCounts(adapted, sg))
+        EXPECT_EQ(bad, 0);
+    int nBadPlain = 0;                            // ...and the plain mesh really does fail it
+    Mesh plain = cell.CreateIntegrationMesh(mp);
+    for (int bad : UnmatchedCounts(plain, sg)) if (bad > 0) ++nBadPlain;
+    EXPECT_GT(nBadPlain, 30);
+
+    // Same quadrature class: both integrate 1 to the cell volume within radial-tail accuracy.
+    double wa=0, wp=0;
+    for (size_t i = 0; i < adapted.size(); ++i) wa += adapted.Weights()[i];
+    for (size_t i = 0; i < plain.size();   ++i) wp += plain.Weights()[i];
+    EXPECT_NEAR(wa/wp, 1.0, 0.05);
 }
 
 TEST(SymmetrizeMesh, TorusFoldMatchesAcrossTheCellBoundary)

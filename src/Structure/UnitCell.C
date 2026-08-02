@@ -11,6 +11,7 @@ import qchem.Structure;
 import qchem.Matrix3D;
 import qchem.Streamable;
 import qchem.Mesh;        // qcMesh::Mesh / MeshParams (the CreateIntegrationMesh override)
+import qchem.Symmetry.Lattice_3D.Fold;   // SymOp {W|τ} (the site-adapted Becke mesh's imposed ops)
 
 namespace qchem {
 
@@ -51,6 +52,14 @@ public:
     //! sharp-at-the-core fields (XC).  The image series is \f$\varepsilon\f$-converged by magnitude
     //! screening; no radius parameter exists.  See doc/GPWPlan1.md "Becke XC grid".
     qcMesh::Mesh CreateIntegrationMesh(const qcMesh::MeshParams&) const override;
+
+    //! \brief The SITE-ADAPTED periodic Becke mesh (doc/SymmetryUpgradePlan.md §6a W2b): per atom
+    //! ORBIT of the imposed \a ops, the representative carries a site-group-INVARIANT angular set
+    //! (\c MakeInvariantAngularMesh under its Cartesian stabilizer) and each symmetry partner the
+    //! op-rotated copy -- the whole mesh is op-invariant BY CONSTRUCTION (the T2 precondition for
+    //! pointwise star-averaging and folding), no post-hoc group-averaging.  Becke kind only.
+    qcMesh::Mesh CreateSiteAdaptedBeckeMesh(const qcMesh::MeshParams&,
+                                            const std::vector<Symmetry::Lattice_3D::SymOp>& ops) const;
 
     //! \brief Add an atom of nuclear charge \a Z at FRACTIONAL cell coordinates \a f (\f$r=Af\f$).
     //! Convenience over Insert(new Atom(Z, ToCartesian(f))) so a crystal basis can be specified in

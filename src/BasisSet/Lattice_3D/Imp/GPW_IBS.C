@@ -75,28 +75,33 @@ BasisSet::cFIT_SF_ABS* GPW_IBS::CreateVxcFitBasisSet(const Structure*, const qcM
 
 BasisSet::XCQuadrature GPW_IBS::CreateXCQuadrature(const Structure* cl, const qcMesh::MeshParams& mp) const
 {
-    // The DELTA-fit quadrature (doc/SymmetryUpgradePlan.md §6a W1).  On a §3-imposed run this basis
-    // carries the crystal ops (ctor-injected, like the raster ops PlaneWaveFit_IBS gets), so the mesh
-    // is group-averaged INVARIANT here -- each rotated copy of the quadrature is an equally valid
-    // quadrature of the same cell, and the weights come out orbit-symmetric by construction -- and the
-    // geometry-fixed orbit fold is prepared for the engine's per-iteration rho star-average.
+    // The DELTA-fit quadrature (doc/SymmetryUpgradePlan.md §6a).  On a §3-imposed run this basis
+    // carries the crystal ops (ctor-injected, like the raster ops PlaneWaveFit_IBS gets):
+    //  - Becke grid: the SITE-ADAPTED mesh (W2b) -- rep atoms carry site-group-invariant angular sets,
+    //    partners the op-rotated copies -- invariant BY CONSTRUCTION, no group-average growth pass;
+    //  - uniform grid (the cross cell): group-average it invariant (W1's MakeInvariant -- a no-op
+    //    dedup when the grid is already commensurate).
+    // Either way the geometry-fixed orbit fold feeds the engine's per-iteration rho star-average.
     assert(cl && "GPW: the XC quadrature needs the Structure to build its mesh");
-    qcMesh::Mesh mesh = cl->CreateIntegrationMesh(mp);
     const auto& dops = SymmetryOps();
     if (dops.empty())
-        return {std::make_shared<const qcMesh::Mesh>(std::move(mesh)), {}};
+        return {std::make_shared<const qcMesh::Mesh>(cl->CreateIntegrationMesh(mp)), {}};
 
     std::vector<Symmetry::Lattice_3D::SymOp> ops;
     ops.reserve(dops.size());
     for (const auto& op : dops) ops.push_back({op.W, op.tau});
     const double tol = 1e-8;
-    const size_t n0  = mesh.size();
     const Matrix3D<double>& A = Cell().GetCellMatrix();
-    mesh = MakeInvariant(mesh, A, ops, tol);
+
+    qcMesh::Mesh mesh;
+    if (mp.cellKind==qcMesh::UnitCellKind::Becke)
+        mesh = Cell().CreateSiteAdaptedBeckeMesh(mp, ops);           // W2b: invariant by construction
+    else
+        mesh = MakeInvariant(cl->CreateIntegrationMesh(mp), A, ops, tol);   // W1 generic route
     auto fold = FoldMesh(mesh, A, ops, tol);
-    std::cout << "[Becke grid] imposed symmetry (" << ops.size() << " ops): group-averaged invariant mesh "
-              << n0 << " -> " << mesh.size() << " points in " << fold.Reps()
-              << " orbits; rho star-averaged each iteration (doc/SymmetryUpgradePlan.md 6a W1)" << std::endl;
+    std::cout << "[Becke grid] imposed symmetry (" << ops.size() << " ops): invariant mesh "
+              << mesh.size() << " points in " << fold.Reps()
+              << " orbits; rho star-averaged each iteration (doc/SymmetryUpgradePlan.md 6a)" << std::endl;
     return {std::make_shared<const qcMesh::Mesh>(std::move(mesh)), std::move(fold)};
 }
 

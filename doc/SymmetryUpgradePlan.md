@@ -105,12 +105,23 @@ every monomial vs closed forms, positive weights, Σw=4π, deterministic; trivia
 degenerates cleanly.  COST NOTE: generic orbits price ~(L+1)² directions vs GL's ~(L+1)²/2 —
 the robustness premium; vs W1's measured ~6× group-average this is the ~2× route, and the
 fold precondition is exact by construction.
-**W2 REMAINING (next increment): the builder integration** — per-atom-ORBIT assembly in
-`MakePeriodicBeckeMesh` (rep atom gets the `SiteStabilizer`-invariant angular set as
-Cartesian ops A·W·A⁻¹, partners get op-rotated copies via the atom-fold edge ops; fuzzy
-Voronoi weights computed on the final point set), threaded through `CreateXCQuadrature`
-(replacing MakeInvariant when imposed), gates (UnmatchedCounts≡0, growth measurement,
-Becke+IBZ rerun), then the carve-out retirement decision.
+**W2b BUILT — the site-adapted builder** (`UnitCell::CreateSiteAdaptedBeckeMesh(mp, ops)`):
+per atom ORBIT of the imposed ops, the rep atom carries its site-group-invariant angular set
+(stabilizer → Cartesian A·W·A⁻¹ → `MakeInvariantAngularMesh`), partners carry the op-rotated
+copies (the atom-fold edge ops); the fuzzy-Voronoi partition runs on the final points
+(geometric ⇒ weights inherit invariance).  `MakePeriodicBeckeMesh` gained an optional
+per-atom angular-set parameter; GPW's `CreateXCQuadrature` routes imposed+Becke through it
+(imposed+uniform keeps the W1 `MakeInvariant` path).  GATES: diamond mesh invariant under
+all 48 ops BY CONSTRUCTION (`UnmatchedCounts≡0`; the plain shared-orientation mesh fails
+30+ ops), Σw within 5% of plain; through-SCF Becke+IBZ == Becke+full at **5e-4** (different
+rules now: degree-L-exact generic vs GL — the honest quadrature-difference class; W1's
+same-rule comparison was 7e-5).  MEASURED at L=9/T_d: 240 dirs/atom = exactly the 10
+invariant-harmonic orbits × 24; mesh 4718 pts / 100 orbits vs W1's 6120 (23% smaller, still
+~4.6× the free mesh — the low-L generic-orbit premium; the ~2× asymptote needs production
+L≈29, and a MIXED rule admitting special orbits that avoid atom-specific bad axes is the
+noted refinement).  **Carve-out decision: Auto→uniform under reduceBZ STAYS** until the
+growth is re-measured at the production recipe (L=29) and/or the mixed rule lands; explicit
+Becke+IBZ is verified on both W1 and W2b routes.  Full suite 649/649.
 The SCF-level broken-seed negative control lands with the §8 harness (needs a
 symmetry-breaking SeedStrategy).  NOTE (§4/§9): non-collinear added —
 `SpinAction{None,Flip}` is documented as the collinear collapse of the general spin

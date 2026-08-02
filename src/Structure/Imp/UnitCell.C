@@ -11,6 +11,7 @@ import qchem.Structure;      // Atom (AddAtom inserts atoms given in fractional 
 import qchem.Vector3D;       // norm(rvec3_t)
 import qchem.Mesh.Product;   // ProductMesh, MakeRadial, MakeAngular (the single-centre template)
 import qchem.Mesh.Builder;   // MeshBuilder (efficient incremental accumulation)
+import qchem.SymmetrizeMesh; // MakeInvariantAngularMesh + FoldPointsPeriodic (the §6a W2b site-adapted mesh)
 import qchem.Reporting;      // grids.becke report addendum (EmitAt; inert when no run is open)
 
 namespace qchem {
@@ -47,7 +48,11 @@ struct BeckeImage
     bool    inPSet;   // cell-function bound >= eps: P is computed and enters the denominator
 };
 
-qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParams& mp)
+//! \a angPerAtom (optional) = per-atom angular sets -- the §6a W2b SITE-ADAPTED path (rep atoms carry
+//! site-group-invariant sets, partners the op-rotated copies; CreateSiteAdaptedBeckeMesh builds them).
+//! Null = the historical shared single-orientation angular grid.
+qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParams& mp,
+                                   const std::vector<qcMesh::AngularMesh>* angPerAtom = nullptr)
 {
     qchem::report::Timed timed("setup: becke mesh build");
     using qcMesh::BeckeCutoff;
@@ -78,7 +83,7 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
     std::vector<BeckeImage> im;   // competitor images for the current point (reused allocation)
     for (size_t ia=0; ia<natom; ia++)
     {
-        qcMesh::Mesh am=qcMesh::ProductMesh(rad,ang);
+        qcMesh::Mesh am=qcMesh::ProductMesh(rad, angPerAtom ? (*angPerAtom)[ia] : ang);
         am.ShiftOrigin(R[ia]);
         const rvec3vec_t& pts=am.Points();
         const rvec_t&     wts=am.Weights();
@@ -182,20 +187,75 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
         case qcMesh::RadialKind::Log:    return "Log";
         case qcMesh::RadialKind::Linear: return "Linear"; }
       return "?"; };
-    const size_t total=natom*size_t(rad.size())*ang.size(), kept=mesh.size();
+    size_t nDirs=0;
+    if (angPerAtom) for (const auto& a : *angPerAtom) nDirs=max(nDirs, a.size());
+    else            nDirs=ang.size();
+    size_t total=0;
+    if (angPerAtom) for (const auto& a : *angPerAtom) total+=size_t(rad.size())*a.size();
+    else            total=natom*size_t(rad.size())*ang.size();
+    const size_t kept=mesh.size();
     std::cout<<"[Becke grid] natom="<<natom<<" radial="<<RadialName(mp.radial)<<" nR="<<mp.nRadial
-             <<" alpha="<<mp.mhl_alpha<<" angular="<<AngularName(mp.angular)<<" L="<<mp.nAngular
-             <<" ("<<ang.size()<<" dirs) beckeOrder="<<k
+             <<" alpha="<<mp.mhl_alpha<<" angular="<<(angPerAtom?"SITE-ADAPTED":AngularName(mp.angular))
+             <<" L="<<mp.nAngular<<" ("<<nDirs<<" dirs"<<(angPerAtom?" max/atom":"")<<") beckeOrder="<<k
              <<" points="<<kept<<" (dropped "<<total-kept<<" tail pts)"<<std::endl;
     qchem::report::EmitAt("grids", "becke", {
         {"natom", (long)natom}, {"radial",RadialName(mp.radial)}, {"nRadial", mp.nRadial},
         {"mhl_alpha", mp.mhl_alpha},
-        {"angular", AngularName(mp.angular)}, {"L", mp.nAngular}, {"nDirs", (long)ang.size()},
+        {"angular", angPerAtom ? "SiteAdapted" : AngularName(mp.angular)}, {"L", mp.nAngular},
+        {"nDirs", (long)nDirs},
         {"beckeOrder", k}, {"points", (long)kept}, {"dropped", (long)(total-kept)}, {"eps", eps}});
     return mesh;
 }
 
 } //anon
+
+// §6a W2b: the SITE-ADAPTED periodic Becke mesh.  Per atom ORBIT of the imposed ops, the representative
+// atom carries a site-group-INVARIANT angular set (MakeInvariantAngularMesh under its CARTESIAN stabilizer
+// A·W·A⁻¹) and every symmetry partner carries the op-rotated copy (the atom-fold's edge op) -- so the whole
+// mesh maps onto itself under every op BY CONSTRUCTION (the T2 precondition), with the fuzzy-Voronoi
+// partition computed on the final point set (a geometric function of the atom distances, so the weights
+// inherit the invariance).
+qcMesh::Mesh UnitCell::CreateSiteAdaptedBeckeMesh(const qcMesh::MeshParams& mp,
+                                                  const std::vector<Symmetry::Lattice_3D::SymOp>& ops) const
+{
+    namespace SL = Symmetry::Lattice_3D;
+    assert(mp.cellKind==qcMesh::UnitCellKind::Becke);
+    assert(!ops.empty());
+
+    std::vector<rvec3_t> F;                         // fractional atom sites
+    for (auto a : *this) F.push_back(ToFractional(a->itsR));
+    SL::Fold af = SL::FoldPointsPeriodic(F, ops, 1e-6);   // atom orbits + the rep->partner edge ops
+
+    const Matrix3D<double>& A = GetCellMatrix();
+    const Matrix3D<double> Ainv = Invert(A);
+    auto cart  = [&](const Matrix3D<double>& W) {return A*W*Ainv;};   // fractional op -> Cartesian rotation
+    auto fixes = [&](const SL::SymOp& op, const rvec3_t& f)           // torus site-stabilizer test
+    {
+        rvec3_t im = op.W*f + op.tau;
+        double dx = im.x-f.x, dy = im.y-f.y, dz = im.z-f.z;
+        dx -= floor(dx+0.5); dy -= floor(dy+0.5); dz -= floor(dz+0.5);
+        return dx*dx+dy*dy+dz*dz < 1e-12;
+    };
+
+    std::vector<qcMesh::AngularMesh> ang(F.size());
+    for (size_t o = 0; o < af.Reps(); ++o)
+    {
+        const rvec3_t& fr = F[af.repRaw[o]];
+        std::vector<Matrix3D<double>> siteOps;
+        for (const auto& op : ops) if (fixes(op, fr)) siteOps.push_back(cart(op.W));
+        qcMesh::Mesh aq = MakeInvariantAngularMesh(siteOps, mp.nAngular);
+        for (auto [mi, oi] : af.members[o])
+        {
+            assert(oi>=0 && "site-adapted Becke mesh: the imposed op set must be a group (edge op per partner)");
+            const Matrix3D<double> Rrot = cart(ops[oi].W);
+            rvec3vec_t d(aq.size());
+            rvec_t     w(aq.size());
+            for (size_t i = 0; i < aq.size(); ++i) {d[i] = Rrot*aq.Points()[i]; w[i] = aq.Weights()[i];}
+            ang[mi] = qcMesh::AngularMesh(std::move(d), std::move(w));
+        }
+    }
+    return MakePeriodicBeckeMesh(*this, mp, &ang);
+}
 
 // A periodic cell's real-space integration mesh.  Two kinds (mp.cellKind):
 // Uniform -- a UNIFORM grid over the cell: n=mp.nUniform points per axis at cell-fractional midpoints
