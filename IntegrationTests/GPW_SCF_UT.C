@@ -39,7 +39,7 @@ import qchem.Blaze;                              // blazem::eigen, blaze::min/ma
 import qchem.BasisSet.Lattice_3D.BasisSet;       // GPWFactory (the GPW basis container)
 import qchem.BasisSet.Molecule.Factory;          // Molecule::Factory, BasisSetData/Engine/Angular
 import qchem.Hamiltonian.Internal.Hamiltonians;  // Ham_PW_DFT (the plane-wave LDA KS Hamiltonian -- drives GPW too)
-import qchem.Hamiltonian.Internal.PWTerms;        // ReportGridCharge(); PW_XC / PW_XC_Delta (the Becke XC gate)
+import qchem.Hamiltonian.Internal.PWTerms;        // ReportGridCharge(); PW_XC / Delta_XC (the Becke XC gate)
 import qchem.Hamiltonian.Internal.ExFunctional;   // ExFunctional (the LDA functional face the XC terms hold)
 import qchem.Hamiltonian.Internal.SlaterExchange; // SlaterExchange (Dirac exchange, for the Becke XC gate)
 import qchem.Hamiltonian.Internal.VWN_Correlation;// VWN_Correlation (VWN5, for the Becke XC gate)
@@ -214,7 +214,7 @@ struct GpwOptions
     BasisSet::Lattice_3D::CellImages   images = BasisSet::Lattice_3D::CellImages::Periodic;
     rvec3_t kShift = rvec3_t(0,0,0);
     //! XC-quadrature policy, decided by \c xcMesh.cellKind.  DEFAULT \c Auto (2026-08-01 flip): the
-    //! driver resolves it to the atom-centred periodic BECKE mesh (PW_XC_Delta, the calibrated
+    //! driver resolves it to the atom-centred periodic BECKE mesh (Delta_XC, the calibrated
     //! BeckeXCParams() recipe) — EXCEPT under \c reduceBZ, where Auto falls back to the uniform G-space
     //! raster (PW_XC) with a console note, because the Becke-route density star-average is unverified
     //! (doc/GPWPlan1.md "Becke+IBZ"; the symmetry review owns closing it).  EXPLICIT \c Uniform or
@@ -1539,7 +1539,7 @@ TEST(GPW_SCF, DISABLED_NaFOverlapConditioningSweep)
 //  Si/Gamma on the standard uniform route (the SiliconGammaConverges recipe), then evaluate BOTH
 //  XC term pairs (Dirac + VWN5) on the SAME converged density:
 //    uniform -- PW_XC on the Vxc fit basis's FFT grid (the raw-collocation route);
-//    Becke   -- PW_XC_Delta: rho(r) analytic at the atom-centred points, WeightedOverlap matrix.
+//    Becke   -- Delta_XC: rho(r) analytic at the atom-centred points, WeightedOverlap matrix.
 //  Angular rule: GaussLegendre (machine-exact algebraic degree at any L -- the audited Lebedev
 //  tables stop at L=11, and EulerMaclaren has no algebraic degree; see Mesh_Angular tests).
 //================================================================================================
@@ -1588,7 +1588,7 @@ XCProbe BeckeXCProbe(const GpwHandles& h, const std::shared_ptr<const Structure>
     auto corr=std::make_shared<Hamiltonian::VWN_Correlation>();
     auto engine=std::make_shared<Hamiltonian::XC_GridEngine>(               // ONE engine, shared by the pair
                     std::make_shared<const qcMesh::Mesh>(st->CreateIntegrationMesh(mpB)));   // free probe: no fold
-    Hamiltonian::PW_XC_Delta x(exch,engine), c(corr,engine);
+    Hamiltonian::Delta_XC x(exch,engine), c(corr,engine);
     EnergyBreakdown e; x.GetEnergy(e,h.cd.get()); c.GetEnergy(e,h.cd.get());
     return ProbeXC(label, h, x, c, e);
 }

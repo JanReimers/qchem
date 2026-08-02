@@ -13,6 +13,7 @@ import qchem.Symmetry.Lattice_3D.SpaceGroup; // DirectOp {W|τ} (the ctor's IBZ 
 import qchem.BasisSet.Internal.DB_Cache;    // theCache<dcmplx>() -- process-wide cache for the static PP matrices
                                             // (qcLattice_BS is BasisSet-family, so it may peek at qcBasisSet Internal)
 import qchem.BasisSet.Lattice_3D.Evaluators.PW;  // PW_Grid_Evaluator (the fit basis IS-A one; cross-cast target)
+import qchem.SymmetrizeMesh;                     // MakeInvariant/FoldMesh (the §6a W1 invariant XC quadrature)
 
 namespace qchem::BasisSet::Lattice_3D
 {
@@ -62,14 +63,41 @@ BasisSet::cFIT_CD_ABS* GPW_IBS::CreateCDFitBasisSet(const Structure*, const qcMe
 }
 BasisSet::cFIT_SF_ABS* GPW_IBS::CreateVxcFitBasisSet(const Structure*, const qcMesh::MeshParams& mp) const
 {
-    // The BECKE XC route builds NO fit basis at all: it is a pure quadrature (mesh + fold), assembled
-    // by the Hamiltonian's Becke branch from Structure + the imposed ops (user 2026-08-01 -- a
-    // zero-function pseudo-basis was a null-object smell).  This factory serves the UNIFORM G route.
+    // The DELTA-fit route builds NO fit basis at all (user 2026-08-01 -- a zero-function pseudo-basis
+    // was a null-object smell): its quadrature comes from CreateXCQuadrature below.  This factory
+    // serves the PLANE-WAVE fit route.
     // {G}_vxc = relCutoff * {G}_rho.  LDA relCutoff==1 => == DensityGrid(); a GGA's denser grid is not wired yet.
     assert(mp.relCutoff<=1.0 && "GPW: relCutoff>1 (GGA denser Vxc grid) not wired -- the LDA Vxc grid = the CD grid");
     // The Vxc fit basis carries the τ=0 direct ops so its raster STAR-AVERAGES itself under IBZ (empty = no-op).
     return new PlaneWaveFit_IBS(GPW_Evaluator::DensityGrid(), Symmetry::BlochFactory(ivec3_t(1,1,1), ivec3_t(0,0,0)),
                                 SymmetryOps());
+}
+
+BasisSet::XCQuadrature GPW_IBS::CreateXCQuadrature(const Structure* cl, const qcMesh::MeshParams& mp) const
+{
+    // The DELTA-fit quadrature (doc/SymmetryUpgradePlan.md §6a W1).  On a §3-imposed run this basis
+    // carries the crystal ops (ctor-injected, like the raster ops PlaneWaveFit_IBS gets), so the mesh
+    // is group-averaged INVARIANT here -- each rotated copy of the quadrature is an equally valid
+    // quadrature of the same cell, and the weights come out orbit-symmetric by construction -- and the
+    // geometry-fixed orbit fold is prepared for the engine's per-iteration rho star-average.
+    assert(cl && "GPW: the XC quadrature needs the Structure to build its mesh");
+    qcMesh::Mesh mesh = cl->CreateIntegrationMesh(mp);
+    const auto& dops = SymmetryOps();
+    if (dops.empty())
+        return {std::make_shared<const qcMesh::Mesh>(std::move(mesh)), {}};
+
+    std::vector<Symmetry::Lattice_3D::SymOp> ops;
+    ops.reserve(dops.size());
+    for (const auto& op : dops) ops.push_back({op.W, op.tau});
+    const double tol = 1e-8;
+    const size_t n0  = mesh.size();
+    const Matrix3D<double>& A = Cell().GetCellMatrix();
+    mesh = MakeInvariant(mesh, A, ops, tol);
+    auto fold = FoldMesh(mesh, A, ops, tol);
+    std::cout << "[Becke grid] imposed symmetry (" << ops.size() << " ops): group-averaged invariant mesh "
+              << n0 << " -> " << mesh.size() << " points in " << fold.Reps()
+              << " orbits; rho star-averaged each iteration (doc/SymmetryUpgradePlan.md 6a W1)" << std::endl;
+    return {std::make_shared<const qcMesh::Mesh>(std::move(mesh)), std::move(fold)};
 }
 
 // The external-PP capability.  Local: G-space form-factor assembly (the model's FormFactor is used directly,

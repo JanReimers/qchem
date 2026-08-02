@@ -18,7 +18,7 @@ import qchem.Pseudopotential.Integrals_Pseudo;   // cast bs ACROSS to the extern
 import qchem.Fitting.FunctionFitter;        // Fitting::Factory (both PW fitters) + ProjectedDensity_G / ProjectedScalar_R
 import qchem.Structure;                       // Structure::isFinite()/SumFormFactors() -- the G=0 alignment (term-side)
 import qchem.Blaze;                            // blazem::zeroH<dcmplx> (the null-PP V_long block)
-import qchem.Mesh.Quadrature;                 // qcMesh::Mesh (the PW_XC_Delta engine's quadrature mesh)
+import qchem.Mesh.Quadrature;                 // qcMesh::Mesh (the Delta_XC engine's quadrature mesh)
 import qchem.Reporting;                       // Timed (the setup/scf timing ledger)
 
 namespace qchem::Hamiltonian
@@ -414,11 +414,11 @@ chmat_t XC_GridEngine::Matrix(const cobs_t* bs, const rvec_t& v)
     return H;
 }
 
-// ---- PW_XC_Delta ------------------------------------------------------------------------------------------
+// ---- Delta_XC ------------------------------------------------------------------------------------------
 
 // Built with the SHARED quadrature engine (the caller builds ONE engine per XC pair -- mesh + Phi tables
 // + per-serial rho -- and hands it to both the exchange and the correlation term).
-PW_XC_Delta::PW_XC_Delta(const xc_t& xc, engine_t engine)
+Delta_XC::Delta_XC(const xc_t& xc, engine_t engine)
     : itsXc(xc)
     , itsEngine(std::move(engine))
 {
@@ -426,7 +426,7 @@ PW_XC_Delta::PW_XC_Delta(const xc_t& xc, engine_t engine)
 }
 
 // v_xc(rho_g) pointwise on the engine's shared rho, then the engine's Phi-table quadrature (one GEMM).
-chmat_t PW_XC_Delta::CalcMatrix(const cobs_t* bs, const Spin&, const cChargeDensity* cd) const
+chmat_t Delta_XC::CalcMatrix(const cobs_t* bs, const Spin&, const cChargeDensity* cd) const
 {
     const rvec_t& rho=itsEngine->Rho(cd, bs);
     rvec_t v(rho.size());
@@ -434,7 +434,7 @@ chmat_t PW_XC_Delta::CalcMatrix(const cobs_t* bs, const Spin&, const cChargeDens
     return itsEngine->Matrix(bs, v);
 }
 
-void PW_XC_Delta::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
+void Delta_XC::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 {
     const rvec_t& rho=itsEngine->Rho(cd);   // reuses the iteration's table (same density serial)
     const rvec_t& W=itsEngine->Mesh().Weights();
@@ -451,7 +451,7 @@ void PW_XC_Delta::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
     te.GridChargeLost = q - cd->GetTotalCharge();
 }
 
-std::ostream& PW_XC_Delta::Write(std::ostream& os) const
+std::ostream& Delta_XC::Write(std::ostream& os) const
 {
     return os << "    Becke-mesh exchange-correlation potential v_xc(rho(r)) ("
               << itsEngine->Mesh().size() << " atom-centred points)." << std::endl;

@@ -82,8 +82,12 @@ site-adapted no-growth grids.
 DELTA-FUNCTION fit basis realization of FittedVxc — coefficients ARE the grid-point values,
 H by direct quadrature — and the two user choices are ORTHOGONAL: `VxcFit {Auto, PlaneWave,
 Delta}` (which basis represents v_xc) × `MeshParams` (which real-space grid).  Renames:
-`BeckeXC_Engine`→`XC_GridEngine`, `PW_XC_Becke`→`PW_XC_Delta`; `Auto` = the historical
-pairing (Delta on Becke, PlaneWave on the raster), so zero behavior change.  I2 GATE
+`BeckeXC_Engine`→`XC_GridEngine`, `PW_XC_Becke`→`Delta_XC` (nothing plane-wave about it);
+`Auto` = the historical pairing (Delta on Becke, PlaneWave on the raster), so zero behavior
+change.  The LOW-LEVEL MESH WORK moved OUT of `Ham_PW_DFT::BuildTerms` into the basis-side
+factory `CreateXCQuadrature(st, mp)` (sibling of `CreateVxcFitBasisSet`, default = plain
+mesh + no fold; the GPW override group-averages invariant + folds using its OWN cell and
+ctor-injected ops — no casts, no `DirectOf` plumbing, the Ham branch is four lines).  I2 GATE
 (`DeltaFitUniformGridMatchesPWFit_SiGamma`): the (Delta, uniform) cross cell reproduces the
 PW fit to **1e-5 Ha** — the band-limit residual at this cutoff, isolated.  The (PlaneWave,
 Becke) cell (I3) is asserted out until its ONE-FUNCTIONAL E/H pairing is designed: the

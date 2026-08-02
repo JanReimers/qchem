@@ -19,7 +19,7 @@ import qchem.Pseudopotential.Integrals_Pseudo;    // external-PP operator-assemb
 import qchem.Hamiltonian.Internal.ExFunctional; // the LDA functional the XC term composes with the density
 import qchem.Hamiltonian.Types;                 // cobs_t
 import qchem.Structure;
-import qchem.Mesh;                              // qcMesh::Mesh/MeshParams (the PW_XC_Delta quadrature)
+import qchem.Mesh;                              // qcMesh::Mesh/MeshParams (the Delta_XC quadrature)
 import qchem.Symmetry.Lattice_3D.Fold;          // Fold + SymmetrizeValues (the Becke rho star-average, §6a W1)
 
 export namespace qchem::Hamiltonian
@@ -200,14 +200,14 @@ private:
     size_t itsRhoVersion=size_t(-1);              //!< density logical-clock serial itsRho was built for
 };
 
-class PW_XC_Delta
+class Delta_XC
     : public virtual cDynamic_HT
     , private        cDynamic_HT_Imp
 {
 public:
     typedef std::shared_ptr<ExFunctional> xc_t;
     typedef std::shared_ptr<XC_GridEngine> engine_t;
-    PW_XC_Delta(const xc_t&, engine_t);
+    Delta_XC(const xc_t&, engine_t);
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
     virtual std::ostream& Write(std::ostream&) const;
 private:

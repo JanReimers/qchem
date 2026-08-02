@@ -1,14 +1,28 @@
 // File: BasisSet/Fit_IBS.C  Interfaces for a fitting (auxiliary) Basis Set.
 module;
+#include <memory>
 #include <string>
 export module qchem.BasisSet.Fit_IBS;
 export import qchem.BasisSet.IrrepBasisSet;
 export import qchem.ScalarFunction;
 export import qchem.Mesh;            // qcMesh::Mesh / MeshParams -- the fit quadrature mesh + knobs
+export import qchem.Symmetry.Lattice_3D.Fold;   // Fold -- the XCQuadrature orbit partition (§6a W1)
 import qchem.Structure;               // Structure (SetMesh builds the Becke mesh from it)
 
 export namespace qchem::BasisSet
 {
+
+//! \brief A FINISHED real-space XC quadrature (doc/SymmetryUpgradePlan.md §6a): the mesh, plus its orbit
+//! \c fold when the run imposes symmetry (empty = free run).  This is what the DELTA-fit XC route consumes
+//! -- a pure quadrature, deliberately NOT a fit basis (the delta "fit" has no functions and no metric).
+//! Produced by \c CreateXCQuadrature so all the low-level mesh work (grid build, group-averaging it
+//! invariant under the imposed ops, fold preparation) lives with the basis factories -- which own the
+//! cell and the §3 policy -- not in the Hamiltonian assembly.
+struct XCQuadrature
+{
+    std::shared_ptr<const qcMesh::Mesh> mesh;   //!< the quadrature (group-average invariant when fold is live)
+    Symmetry::Lattice_3D::Fold          fold;   //!< its orbit partition ({} = no star-averaging)
+};
 
 //! \brief The MINIMAL, metric-neutral face of a CHARGE-DENSITY fit basis: just "I am a density-fit basis" --
 //! its fit FUNCTIONS, via \c IrrepBasisSet<T>.  This is what \c CreateCDFitBasisSet returns and what the

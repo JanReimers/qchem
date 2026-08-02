@@ -16,8 +16,6 @@ import qchem.Hamiltonian.Internal.SlaterExchange;
 import qchem.Hamiltonian.Internal.VWN_Correlation;
 import qchem.Hamiltonian.Types;
 import qchem.Structure;
-import qchem.UnitCell;                             // UnitCell (the Becke branch's checked lattice precondition)
-import qchem.SymmetrizeMesh;                       // MakeInvariant/FoldMesh (the §6a W1 invariant Becke quadrature)
 import qchem.Pseudopotential.GTH_Potentials;       // GetGTH + GTH_PP + HGH_*/MultiSpecies_* (re-exported)
 import qchem.PeriodicTable;                       // PeriodicTable::GetZ(symbol) -> atomic number (the composite key)
 import qchem.Math;                                // max (the denser of the exchange/correlation grid factors)
@@ -206,40 +204,18 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
         // The DELTA-fit route: a pure QUADRATURE -- the "fit coefficients" ARE the grid-point values
         // (no expansion, no metric), so no fit-basis object exists (a zero-function pseudo-basis was a
         // null-object smell; user 2026-08-01).  Works on ANY real-space grid: Becke (the sharp-core
-        // grid it was built for) or the uniform cell mesh (the band-limit cross-check cell).  The
-        // finished quadrature is assembled HERE, before the engine: on a §3-imposed run (the basis's
-        // imposed op set is non-empty) the mesh is group-averaged INVARIANT and its orbit fold
-        // prepared, so the engine's per-iteration rho star-average is the exact projector.  The
-        // Structure->UnitCell cast is a checked precondition, not a type-switch: a PW term is
-        // lattice-specific by contract (user cast rule).
+        // grid it was built for) or the uniform cell mesh (the band-limit cross-check cell).  ALL the
+        // low-level mesh work -- grid build, group-averaging it invariant under the imposed ops, fold
+        // preparation -- lives in the basis's CreateXCQuadrature factory (the sibling of
+        // CreateVxcFitBasisSet; the basis owns the cell + the §3 policy), so this branch only picks
+        // the term and hands the finished quadrature to the engine.
         std::cout<<"[XC quadrature] DELTA fit on the "<<(becke ? "periodic BECKE atom-centred" : "uniform cell")
                  <<" mesh"<<(becke ? " (details on the [Becke grid] line)" : "")<<std::endl;
         qchem::report::EmitAt("grids", "xcQuadrature", {{"kind", becke ? "Becke" : "DeltaUniform"}});
-        qcMesh::Mesh mesh = st->CreateIntegrationMesh(xcMesh);
-        Symmetry::Lattice_3D::Fold fold;
-        if (auto rops = bs->GetReciprocalPointOps(); !rops.empty())
-        {
-            auto* cell = dynamic_cast<const UnitCell*>(st.get());
-            assert(cell && "PW Becke route: an imposed-symmetry run requires a lattice (UnitCell) structure");
-            std::vector<Symmetry::Lattice_3D::SymOp> sops;
-            sops.reserve(rops.size());
-            for (const auto& op : rops)
-            {
-                auto d = Symmetry::Lattice_3D::DirectOf(op);   // {U|τ} -> {W|τ} (the group owns the convention)
-                sops.push_back({d.W, d.tau});
-            }
-            const double tol = 1e-8;
-            const size_t n0  = mesh.size();
-            mesh = MakeInvariant(mesh, cell->GetCellMatrix(), sops, tol);
-            fold = FoldMesh(mesh, cell->GetCellMatrix(), sops, tol);
-            std::cout<<"[Becke grid] imposed symmetry ("<<sops.size()<<" ops): group-averaged invariant mesh "
-                     <<n0<<" -> "<<mesh.size()<<" points in "<<fold.Reps()
-                     <<" orbits; rho star-averaged each iteration (doc/SymmetryUpgradePlan.md 6a W1)"<<std::endl;
-        }
-        auto engine=std::make_shared<XC_GridEngine>(std::make_shared<const qcMesh::Mesh>(std::move(mesh)),
-                                                     std::move(fold));
-        Add(new PW_XC_Delta(exch, engine));
-        Add(new PW_XC_Delta(corr, engine));
+        BasisSet::XCQuadrature q = bs->CreateXCQuadrature(st.get(), xcMesh);
+        auto engine=std::make_shared<XC_GridEngine>(q.mesh, std::move(q.fold));
+        Add(new Delta_XC(exch, engine));
+        Add(new Delta_XC(corr, engine));
     }
     else
     {

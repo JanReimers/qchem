@@ -17,7 +17,7 @@ export import qchem.Streamable;
 
 export namespace qchem::BasisSet
 {
-typedef std::vector<Irrep> irrepv_t; 
+typedef std::vector<Irrep> irrepv_t;
 
 //----------------------------------------------------------------------------
 //
@@ -35,6 +35,10 @@ public:
 
     virtual FIT_CD_ABS<T>* CreateCDFitBasisSet(const Structure* cl, const qcMesh::MeshParams&) const;
     virtual FIT_SF_ABS<T>* CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams&) const;
+    //! The DELTA-fit sibling of \c CreateVxcFitBasisSet: the finished real-space XC quadrature (mesh +
+    //! symmetry fold), assembled by the basis -- which owns the cell and the §3-imposed ops -- so the
+    //! Hamiltonian does no mesh work.  Default/plain path: the Structure's integration mesh, no fold.
+    virtual XCQuadrature   CreateXCQuadrature (const Structure* cl, const qcMesh::MeshParams&) const;
 
     //! The crystal RECIPROCAL point group as \f${U|\tau}\f$ ops for IBZ density symmetrization.  Default {} =
     //! trivial {E} = no-op -- molecules / Γ / unfolded bases.  A periodic GPW basis returns the ops WHEN it

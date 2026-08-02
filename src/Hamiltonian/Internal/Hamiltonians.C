@@ -116,7 +116,7 @@ public:
 //!  - \c PlaneWave: expand \f$v_{xc}\f$ on the \f$\{Q_j\}\f$ ball (band-limited; the projection
 //!    quadrature is the FFT on the uniform raster) -- the \c PW_XC pair.
 //!  - \c Delta: the delta-function "fit" -- coefficients ARE the grid-point values, H by direct
-//!    quadrature -- the \c PW_XC_Delta pair, on ANY real-space grid (Becke or uniform).
+//!    quadrature -- the \c Delta_XC pair, on ANY real-space grid (Becke or uniform).
 //!  - \c Auto: the historical pairing -- \c Delta on a Becke grid, \c PlaneWave on the uniform raster.
 //! (PlaneWave fit ON a Becke grid = I3: the projection sum is trivial, but the one-functional E/H
 //! derivative pairing must be designed first -- asserted out until then.)

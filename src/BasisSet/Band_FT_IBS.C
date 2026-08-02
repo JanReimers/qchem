@@ -10,11 +10,13 @@
 // A term reaches this the sanctioned way: holding the abstract orbital basis and dynamic_cast-ing UP.
 module;
 #include <functional>
+#include <memory>
 export module qchem.BasisSet.Band_FT_IBS;
 export import qchem.BasisSet.Orbital_1E_IBS;
 export import qchem.BasisSet.Internal.GMap;
 import qchem.Types;       // hmat_t<dcmplx>
-import qchem.BasisSet.Fit_IBS;   // cFIT_CD_ABS (the auxiliary density-fit basis this basis creates) + qcMesh::MeshParams
+import qchem.BasisSet.Fit_IBS;   // cFIT_CD_ABS + XCQuadrature (the factories' products) + qcMesh::MeshParams
+import qchem.Structure;          // Structure::CreateIntegrationMesh (the default XCQuadrature build)
 
 export namespace qchem::BasisSet
 {
@@ -40,6 +42,16 @@ public:
     //! \c cFIT_SF_ABS over the tunable \f$\{G\}\f$ grid (same grid as CD today; the two diverge with the
     //! future denser-\f$\{G\}\f$ upgrade).  Caller owns the result.
     virtual cFIT_SF_ABS* CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const=0;
+
+    //! \brief The DELTA-fit sibling of \c CreateVxcFitBasisSet (doc/SymmetryUpgradePlan.md §6a): the
+    //! FINISHED real-space XC quadrature -- mesh + symmetry fold -- for the direct-quadrature v_xc route.
+    //! Default: the Structure's own integration mesh, no fold (a free run / a basis without imposed ops).
+    //! A basis carrying §3-imposed crystal ops OVERRIDES this to group-average the mesh invariant and
+    //! prepare the orbit fold (GPW) -- so the Hamiltonian does no mesh work whichever basis it holds.
+    virtual XCQuadrature CreateXCQuadrature(const Structure* cl, const qcMesh::MeshParams& mp) const
+    {
+        return {std::make_shared<const qcMesh::Mesh>(cl->CreateIntegrationMesh(mp)), {}};
+    }
 
     //! \brief D-free COULOMB three-centre tensor: the delta support with the diagonal Poisson kernel
     //! \f$4\pi/|G_c|^2\f$ filled.  A density contracts \f$D\f$ against it (\c ContractG_ERI3) to get \f$V_H\f$
