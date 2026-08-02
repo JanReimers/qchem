@@ -34,7 +34,7 @@ AngularMesh MakeAngular(const MeshParams&);
 // (above) calls them.
 namespace qchem::qcMesh
 {
-    AngularMesh GaussAngular        (int numDir);
+    AngularMesh LebedevAngular        (int numDir);
     AngularMesh GaussLegendreAngular(int L);
     AngularMesh EulerMaclarenAngular(int L, int m);
 }

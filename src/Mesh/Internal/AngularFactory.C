@@ -30,7 +30,7 @@ AngularMesh MakeAngular(const MeshParams& p)
     AngularMesh m;
     switch (p.angular)
     {
-    case AngularKind::Gauss:         m = GaussAngular(p.nAngular); break;
+    case AngularKind::Lebedev:       m = LebedevAngular(p.nAngular); break;
     case AngularKind::GaussLegendre: m = GaussLegendreAngular(p.nAngular); break;
     case AngularKind::EulerMaclaren: m = EulerMaclarenAngular(p.nAngular, p.em_m); break;
     default: throw std::runtime_error("MakeAngular: unknown AngularKind");

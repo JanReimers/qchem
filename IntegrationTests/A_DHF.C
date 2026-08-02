@@ -138,7 +138,7 @@ std::tuple<double,double,double> Integrate(const qchem::Orbitals::Orbital* o, co
 {
     const TOrbital<double>* to=dynamic_cast<const TOrbital<double>*>(o);
     qcMesh::Mesh m = cl.CreateIntegrationMesh({.radial=qcMesh::RadialKind::MHL, .nRadial=200, .mhl_m=3,
-                                            .mhl_alpha=2.0, .angular=qcMesh::AngularKind::Gauss, .nAngular=1});
+                                            .mhl_alpha=2.0, .angular=qcMesh::AngularKind::Lebedev, .nAngular=1});
     const rvec3vec_t& R=m.Points();
     const rvec_t&     W=m.Weights();
 

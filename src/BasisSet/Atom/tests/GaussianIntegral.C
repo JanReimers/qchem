@@ -41,7 +41,7 @@ struct OneOverR2 : ScalarFunction<double>
 qcMesh::Mesh AtomMesh(const Structure& st, int nRadial, int mhl_m, double alpha, int nAngular)
 {
     return st.CreateIntegrationMesh({.radial=qcMesh::RadialKind::MHL, .nRadial=nRadial, .mhl_m=mhl_m,
-                                  .mhl_alpha=alpha, .angular=qcMesh::AngularKind::Gauss, .nAngular=nAngular});
+                                  .mhl_alpha=alpha, .angular=qcMesh::AngularKind::Lebedev, .nAngular=nAngular});
 }
 } //anon
 

@@ -83,7 +83,7 @@ struct AtomCalcOptions
     //! Atomic XC integration grid: the proven atom values (one angular point -- atoms are spherical).
     qcMesh::MeshParams mesh = {.radial  = qcMesh::RadialKind::MHL,   .nRadial   = 50,
                               .mhl_m    = 3,                         .mhl_alpha = 2.0,
-                              .angular  = qcMesh::AngularKind::Gauss, .nAngular  = 1,
+                              .angular  = qcMesh::AngularKind::Lebedev, .nAngular  = 1,
                               .beckeOrder = 2};
     //! SCF seed.  Default == auto: CoreGuess (atoms never use the molecular SAD seed).
     qchem::ChargeDensity::SeedStrategy seed = qchem::ChargeDensity::SeedStrategy::Default;

@@ -47,7 +47,7 @@ private:
 //! \brief Radial mesh family.  See the per-class transplanted formulae in Internal/.
 enum class RadialKind  {MHL, Log, Linear};
 //! \brief Angular mesh family.  All schemes are normalised so \f$\sum_i w_i = 4\pi\f$.
-enum class AngularKind {Gauss, GaussLegendre, EulerMaclaren};
+enum class AngularKind {Lebedev, GaussLegendre, EulerMaclaren};
 //! \brief Which quadrature a periodic UnitCell builds: the uniform FFT-compatible midpoint grid
 //! (Hartree/PP -- resolution from \c eCut / \c nUniform), or the atom-centred periodic Becke
 //! fuzzy-Voronoi grid (dense radial near each nucleus, cheap diffuse tails -- the XC quadrature;
@@ -72,7 +72,7 @@ struct MeshParams
     RadialKind  radial    = RadialKind::MHL;    int    nRadial   = 30;
     int         mhl_m     = 2;                   double mhl_alpha = 1.0;     //!< MHL only.
     double      logStart  = 1.0e-4;             double logStop   = 50.0;     //!< Log only.
-    AngularKind angular   = AngularKind::Gauss;  int    nAngular  = 12;      //!< Gauss: #dirs; GL/EM: L.
+    AngularKind angular   = AngularKind::Lebedev;  int    nAngular  = 12;      //!< Lebedev: #dirs; GL/EM: L.
     int         em_m      = 2;                                               //!< EulerMaclaren only (1..3).
     double      angRot    = 0.0;  //!< Rigid rotation of the angular grid (radians, about the fixed generic axis \f$(1,2,3)/\sqrt{14}\f$).  Quadrature exactness is rotation-invariant; the knob steers a grid's special orbits OFF structure axes (e.g. Lebedev's \f$\langle111\rangle\f$ orbit off diamond's bonds -- doc/SymmetryUpgradePlan.md §6a rotation insight, free runs only).  0 = off (bit-identical historical grids).
     int         beckeOrder= 3;   //!< Becke fuzzy-Voronoi smoothing iterations (molecular mesh only).

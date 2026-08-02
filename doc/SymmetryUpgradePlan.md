@@ -28,8 +28,17 @@ the `CreateXCQuadrature` basis factory).
 experiment~~ **DONE 2026-08-02** (§6a: alignment confirmed as the whole story, 5–10×
 recovered by `angRot`; default stays GL-29 — the audited Lebedev tables stop at degree 11);
 (c) T3 stream fold + the §5 commensurable raster menu (also delivers the raster fold that
-retires `FIT_SF_ABS::SymmetrizeRaster`); (d) I3's one-functional E/H design for the
-(PlaneWave, Becke) cell; (e) tier 4b (Na-doublet/O₂-triplet boxes) → step 7.
+retires `FIT_SF_ABS::SymmetrizeRaster`; CAMPAIGN SCOPED — see the §7 step 6 block: T3.0
+design memo first, incl. the does-route-(b)-even-need-§5 question); (d) I3's one-functional
+E/H design for the (PlaneWave, Becke) cell; (e) tier 4b (Na-doublet/O₂-triplet boxes) →
+step 7; **(f) NEW (user, 2026-08-02): higher-degree Lebedev tables + the
+`AngularKind::Gauss`→`Lebedev` rename** — the rotation experiment showed alignment was
+Lebedev's only real problem, and canonical Lebedev-29 is 302 dirs vs GL-29's 450 (×1.5),
+so verified degree-13…35 tables + a default `angRot` could take over the FREE-run default
+recipe.  Rename = mechanical, done 2026-08-02 (the enum was always the Lebedev octahedral
+tables).  Table route to decide: import+audit the canonical Lebedev–Laikov constants
+(minimal counts, external data) vs generate O_h-invariant rules in-house with the W2c NNLS
+machinery (license-free, gate-verified, but ~1.3× canonical counts ≈ GL — little win).
 **Cleanup debt found while feature-building goes to `doc/CleanupCandidates.md`** (standing
 practice, user 2026-08-02) — keep it growing rather than fixing inline.  Detailed
 per-increment records follow below.
@@ -674,6 +683,36 @@ against a special case it will outgrow:
 6. **(T3) stream cache reduction** — the 5–20× lever; needs §5's commensurable raster menu
    on every ladder level. Route (b) default (imposes, gated by the policy + diagnostic),
    route (a) as the no-impose fallback.
+   **T3 CAMPAIGN SCOPING (2026-08-02, code recon done — anchors for the next session):**
+   - *The cache* (`PG_Cart_MnD/Evaluator.C` ~L550-844): per `(pair i≤j, offset n)` a
+     `PairOffsetStream{n, idx[], val[]/val32[], maxv}` — WRAPPED LINEAR RASTER INDICES + the
+     analytic pair values, pure geometry, shared across iterations AND k-blocks (Bloch phase
+     is a `cellphase_t` callback applied only at contraction: density `Re[D_ij·conj(φ(n))]`,
+     integrate-back `+φ(n)`).  Budgets 150M fp64 / 850M fp32 pts; ≤4 caches keyed on ladder
+     shape.  The torus wrap is `((g%N)+N)%N` per axis (`ForPairBox` L544) — the map any §5
+     index permutation must commute with.  TODAY'S ONLY SYMMETRY: the Hermitian j≥i ×2 fold;
+     `SetSymmetryOps` exists on the evaluator but feeds only T1 + the density raster fold.
+   - *The raster menu hook* (`PW/Imp/Evaluator.C FFTGrid()` L64): per-axis `Next5Smooth` of
+     the cubic `AutoGrid` — 5-smooth but NOT lcm(τ-denominator)-commensurate (§5's gap);
+     ladder levels get their own `N_L` in `GPW BuildLevels`.
+   - **T3.0 design memo FIRST — an open question the recon exposed:** route (b) may not
+     need §5 commensurability at all.  Reduced scatter of rep streams gives a partial ρ
+     whose group-average can ride the EXISTING dense-raster FFT τ-shift symmetrization
+     (§5-exempt, per level); the integrate-back gather of rep pairs against a SYMMETRIC V
+     needs only the h-side rep transform (matrix-element bookkeeping + Cartesian signed
+     axis permutations), not a raster permutation.  Only route (a) (orbit-expansion replay
+     of sparse streams) demonstrably needs the §5 menu.  If the memo confirms this, §5
+     becomes a route-(a)-only increment and route (b) can land first without raster churn.
+   - *Increments:* **T3.0** the design memo (route (b) adjoint written out: D-aware kill
+     weights orbit-consistent, rep transform of h incl. polarization signs, per-level ρ
+     star-average; decide the §5 question).  **T3.1** the `(pair, R)` orbit fold primitive
+     (atom-fold edges × W action on n × Cartesian signs; unit gate: one-shot reduced==full
+     collocate/integrate on a frozen symmetric D at 1e-13).  **T3.2** route (b) reduced
+     build+replay behind `imposeSymmetry` (memory/build win = budget ÷ ~|G_s|, per-iteration
+     scatter/gather win; re-pin the imposed anchors ONCE).  **T3.3** §5 commensurable menu +
+     route (a) expansion replay as the no-impose fallback (only if T3.0 says route (b)
+     doesn't subsume the need).  **T3.4** k≠Γ: op action on k consistent with the IBZ
+     star bookkeeping (SpaceGroup-owned).
 7. **MnO rocksalt AFM-II** (2 f.u., moments along [111]) — first *real* d-electron magnet:
    the first genuine workout of the Shubnikov ops + imposed-subgroup policy + `+U` +
    order-parameter diagnostic together. The direct rehearsal for **LiMn₂O₄** charge/spin

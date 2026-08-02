@@ -174,7 +174,7 @@ void Fingerprint(const std::vector<FpRow>& s, const char* label)
 //   GPW_BECKE_L      GaussLegendre angular order L (any int; ~(L+1)^2/2 dirs).  Default 29.
 //   GPW_BECKE_NR     radial point count.                                        Default 40.
 //   GPW_BECKE_ALPHA  MHL radial scale (smaller = nodes pulled toward the core). Default 2.0.
-//   GPW_BECKE_ANG    "lebedev" -> the octahedral-orbit Lebedev tables (AngularKind::Gauss); GPW_BECKE_L
+//   GPW_BECKE_ANG    "lebedev" -> the octahedral-orbit Lebedev tables (AngularKind::Lebedev); GPW_BECKE_L
 //                    then means the DIRECTION COUNT {6,8,12,24,30,50} (degrees 1/3/5/7/8/11).  Measured
 //                    (Si): better than same-degree GL on V_xc elements (the O_h-orbit cancellation) but
 //                    5-10x worse on rho-weighted integrals -- the (+-1,+-1,+-1)/sqrt3 orbit sits exactly
@@ -195,7 +195,7 @@ qcMesh::MeshParams BeckeXCParams(int nRadial=-1, double mhlAlpha=-1.0, int L=-1)
     mp.cellKind=qcMesh::UnitCellKind::Becke;
     mp.radial =qcMesh::RadialKind::MHL;            mp.nRadial =nRadial; mp.mhl_m=2; mp.mhl_alpha=mhlAlpha;
     const char* ang=std::getenv("GPW_BECKE_ANG");
-    mp.angular=(ang && std::string(ang)=="lebedev") ? qcMesh::AngularKind::Gauss
+    mp.angular=(ang && std::string(ang)=="lebedev") ? qcMesh::AngularKind::Lebedev
                                                     : qcMesh::AngularKind::GaussLegendre;
     mp.nAngular=L;
     mp.angRot=envd("GPW_BECKE_ROT", 0.0);   // radians; rigid generic rotation of the angular grid
@@ -1685,7 +1685,7 @@ TEST(GPW_SCF, DISABLED_RotatedLebedevXCProbe_SiGamma)
 
     const double rot=0.4;                              // generic angle: moves <111> well off the bonds
     auto leb=[&](double angRot){ qcMesh::MeshParams mp=BeckeXCParams(40, 2.0, 50);
-                                 mp.angular=qcMesh::AngularKind::Gauss; mp.angRot=angRot; return mp; };
+                                 mp.angular=qcMesh::AngularKind::Lebedev; mp.angRot=angRot; return mp; };
     auto gl =[&](double angRot){ qcMesh::MeshParams mp=BeckeXCParams();  // production GL-29
                                  mp.angRot=angRot; return mp; };
 

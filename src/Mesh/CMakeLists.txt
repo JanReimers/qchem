@@ -5,7 +5,7 @@ target_sources(qcMesh PRIVATE
     Internal/LogRadialMesh.C
     Internal/LinearRadialMesh.C
     Internal/RadialFactory.C
-    Internal/GaussAngularMesh.C
+    Internal/LebedevAngularMesh.C
     Internal/GaussLegendreAngularMesh.C
     Internal/EulerMaclarenAngularMesh.C
     Internal/AngularFactory.C

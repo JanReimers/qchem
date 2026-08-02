@@ -116,12 +116,12 @@ static void CheckAngular(const MeshParams& p, double sumtol, double ztol)
 }
 TEST(Mesh_Angular, Gauss)
 {
-    // numDir=32 was removed (inherited weight-sum bug, see GaussAngularMesh.C).
+    // numDir=32 was removed (inherited weight-sum bug, see LebedevAngularMesh.C).
     // 24 and 30 have ~7-figure direction constants (not unit vectors) -> exact only to ~1e-7.
-    CheckAngular({.angular=AngularKind::Gauss, .nAngular=12}, 1e-10, 1e-10);
-    CheckAngular({.angular=AngularKind::Gauss, .nAngular=24}, 1e-10, 1e-7);
-    CheckAngular({.angular=AngularKind::Gauss, .nAngular=30}, 1e-10, 1e-7);
-    CheckAngular({.angular=AngularKind::Gauss, .nAngular=50}, 1e-10, 1e-10);
+    CheckAngular({.angular=AngularKind::Lebedev, .nAngular=12}, 1e-10, 1e-10);
+    CheckAngular({.angular=AngularKind::Lebedev, .nAngular=24}, 1e-10, 1e-7);
+    CheckAngular({.angular=AngularKind::Lebedev, .nAngular=30}, 1e-10, 1e-7);
+    CheckAngular({.angular=AngularKind::Lebedev, .nAngular=50}, 1e-10, 1e-10);
 }
 TEST(Mesh_Angular, GaussLegendre)   // Gauss-exact in cos(theta) -> z^2 exact
 {
@@ -139,7 +139,7 @@ static Mesh MakeProduct()
 {
     MeshParams p;
     p.radial=RadialKind::MHL; p.nRadial=200; p.mhl_m=2; p.mhl_alpha=3.0;
-    p.angular=AngularKind::Gauss; p.nAngular=12;
+    p.angular=AngularKind::Lebedev; p.nAngular=12;
     RadialMesh  rad=MakeRadial(p);
     AngularMesh ang=MakeAngular(p);
     return ProductMesh(rad,ang);
@@ -247,11 +247,11 @@ double AngularMomentError(const AngularMesh& ang, int L)
 
 TEST(Mesh_Angular, LebedevTablesHaveClaimedDegree)
 {
-    // {numDir, claimed L} straight from the table comments in GaussAngularMesh.C.
+    // {numDir, claimed L} straight from the table comments in LebedevAngularMesh.C.
     const std::pair<int,int> rules[]={{1,0},{2,0},{6,1},{8,3},{12,5},{24,7},{30,8},{50,11}};
     for (auto [n,L] : rules)
     {
-        qcMesh::MeshParams mp; mp.angular=AngularKind::Gauss; mp.nAngular=n;
+        qcMesh::MeshParams mp; mp.angular=AngularKind::Lebedev; mp.nAngular=n;
         double err=AngularMomentError(MakeAngular(mp),L);
         EXPECT_LT(err,1e-6) << "Lebedev table numDir=" << n << " claims degree " << L
                             << " but max moment error is " << err;

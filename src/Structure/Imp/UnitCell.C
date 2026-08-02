@@ -177,7 +177,7 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
     // next to the uniform ladder whenever a report run is open (inert otherwise, e.g. bare mesh tests).
     auto AngularName=[](qcMesh::AngularKind a)
     { switch (a) {
-        case qcMesh::AngularKind::Gauss:         return "Lebedev";
+        case qcMesh::AngularKind::Lebedev:         return "Lebedev";
         case qcMesh::AngularKind::GaussLegendre: return "GaussLegendre";
         case qcMesh::AngularKind::EulerMaclaren: return "EulerMaclaren"; }
       return "?"; };
