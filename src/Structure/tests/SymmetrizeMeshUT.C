@@ -115,6 +115,98 @@ TEST(SymmetrizeMesh, PointwiseStarAverageIsTheOrbitMean)
     for (double v : rho) EXPECT_NEAR(v, 1.1, 1e-14);
 }
 
+//---------------------------------------------------------------------------------------
+//  MakeInvariantAngularMesh (§6a W2): the site-group-invariant angular quadrature.
+//
+// The full O_h as CARTESIAN orthogonal ops: the 48 signed permutation matrices.
+static std::vector<Matrix3D<double>> OhOps()
+{
+    std::vector<Matrix3D<double>> ops;
+    int perm[6][3] = {{0,1,2},{0,2,1},{1,0,2},{1,2,0},{2,0,1},{2,1,0}};
+    for (auto& pr : perm)
+        for (int s = 0; s < 8; ++s)
+        {
+            Matrix3D<double> R(0,0,0, 0,0,0, 0,0,0);
+            for (int r = 0; r < 3; ++r) R(r+1, pr[r]+1) = (s>>r & 1) ? -1.0 : 1.0;
+            ops.push_back(R);
+        }
+    return ops;
+}
+
+//! Closed-form sphere integral of x^a y^b z^c: 0 if any exponent odd, else
+//! 4π (a-1)!!(b-1)!!(c-1)!!/(a+b+c+1)!!.
+static double MonomialIntegral(int a, int b, int c)
+{
+    if (a%2 || b%2 || c%2) return 0.0;
+    auto dfac=[](int n){ double f=1; for (int k=n; k>1; k-=2) f*=k; return f; };
+    return 4.0*M_PI*dfac(a-1)*dfac(b-1)*dfac(c-1)/dfac(a+b+c+1);
+}
+
+static void CheckAngularQuadrature(const Mesh& q, const std::vector<Matrix3D<double>>& ops, int L)
+{
+    // Positive weights summing to 4π; every point on the unit sphere.
+    double wsum = 0;
+    for (size_t i = 0; i < q.size(); ++i)
+    {
+        EXPECT_GT(q.Weights()[i], 0.0);
+        wsum += q.Weights()[i];
+        const rvec3_t& p = q.Points()[i];
+        EXPECT_NEAR(p.x*p.x+p.y*p.y+p.z*p.z, 1.0, 1e-12);
+    }
+    EXPECT_NEAR(wsum, 4.0*M_PI, 1e-8);
+
+    // INVARIANCE by construction: every op maps every point onto a point (the T2 precondition).
+    for (const auto& R : ops)
+        for (size_t i = 0; i < q.size(); ++i)
+        {
+            rvec3_t im = R*q.Points()[i];
+            bool found = false;
+            for (size_t j = 0; j < q.size(); ++j)
+            {
+                const rvec3_t& p = q.Points()[j];
+                double dx=p.x-im.x, dy=p.y-im.y, dz=p.z-im.z;
+                if (dx*dx+dy*dy+dz*dz < 1e-16) {found = true; break;}
+            }
+            EXPECT_TRUE(found);
+        }
+
+    // EXACTNESS to degree L: every monomial x^a y^b z^c, a+b+c <= L, against the closed form.
+    for (int a = 0; a <= L; ++a)
+        for (int b = 0; a+b <= L; ++b)
+            for (int c = 0; a+b+c <= L; ++c)
+            {
+                double Q = 0;
+                for (size_t i = 0; i < q.size(); ++i)
+                {
+                    const rvec3_t& p = q.Points()[i];
+                    Q += q.Weights()[i]*std::pow(p.x,a)*std::pow(p.y,b)*std::pow(p.z,c);
+                }
+                EXPECT_NEAR(Q, MonomialIntegral(a,b,c), 1e-8)
+                    << "monomial ("<<a<<","<<b<<","<<c<<")";
+            }
+}
+
+TEST(InvariantAngularMesh, OhInvariantAndExactToDegree9)
+{
+    auto ops = OhOps();
+    ASSERT_EQ(ops.size(), 48u);
+    Mesh q = MakeInvariantAngularMesh(ops, 9);
+    ASSERT_GT(q.size(), 0u);
+    CheckAngularQuadrature(q, ops, 9);
+    // Deterministic: a second build is identical.
+    Mesh q2 = MakeInvariantAngularMesh(ops, 9);
+    ASSERT_EQ(q2.size(), q.size());
+    EXPECT_NEAR(q2.Points()[0].x, q.Points()[0].x, 0.0);
+}
+
+TEST(InvariantAngularMesh, TrivialGroupStillExact)
+{
+    std::vector<Matrix3D<double>> onlyE = {Matrix3D<double>()};
+    Mesh q = MakeInvariantAngularMesh(onlyE, 5);
+    ASSERT_GT(q.size(), 0u);
+    CheckAngularQuadrature(q, onlyE, 5);
+}
+
 TEST(SymmetrizeMesh, TorusFoldMatchesAcrossTheCellBoundary)
 {
     // {E|(3/4,3/4,3/4)} maps (1/2,1/2,1/2) -> (5/4,..) == (1/4,..) mod 1: only the TORUS fold merges.

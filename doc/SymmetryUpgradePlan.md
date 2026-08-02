@@ -94,6 +94,23 @@ Becke) cell (I3) is asserted out until its ONE-FUNCTIONAL E/H pairing is designe
 projection sum is trivial (the mesh drops out once c_j exist — user), but H must stay the
 exact derivative of the quadratured E (the user's GDM-after-DIIS practice is the runtime
 audit that would expose any mismatch).  Full suite 646/646.
+**W2a BUILT — the invariant angular quadrature core** (`MakeInvariantAngularMesh(ops, L)`
+in `qchem.SymmetrizeMesh`): generic Fibonacci-sphere seeds (stride-permuted so early orbits
+COVER the sphere — clustered seeds left the moment system degenerate), full-size site-group
+orbits only (special/bond directions skipped by construction — the Lebedev cube-corner
+lesson), orbit weights from the ORTHONORMAL real-Ylm moment conditions (stable normalized
+associated-Legendre recurrence, module-private; small ridged-Cholesky LS), orbits added
+until residual < 1e-9 AND all weights positive.  Gated: O_h invariant + degree-9 exact on
+every monomial vs closed forms, positive weights, Σw=4π, deterministic; trivial group
+degenerates cleanly.  COST NOTE: generic orbits price ~(L+1)² directions vs GL's ~(L+1)²/2 —
+the robustness premium; vs W1's measured ~6× group-average this is the ~2× route, and the
+fold precondition is exact by construction.
+**W2 REMAINING (next increment): the builder integration** — per-atom-ORBIT assembly in
+`MakePeriodicBeckeMesh` (rep atom gets the `SiteStabilizer`-invariant angular set as
+Cartesian ops A·W·A⁻¹, partners get op-rotated copies via the atom-fold edge ops; fuzzy
+Voronoi weights computed on the final point set), threaded through `CreateXCQuadrature`
+(replacing MakeInvariant when imposed), gates (UnmatchedCounts≡0, growth measurement,
+Becke+IBZ rerun), then the carve-out retirement decision.
 The SCF-level broken-seed negative control lands with the §8 harness (needs a
 symmetry-breaking SeedStrategy).  NOTE (§4/§9): non-collinear added —
 `SpinAction{None,Flip}` is documented as the collinear collapse of the general spin

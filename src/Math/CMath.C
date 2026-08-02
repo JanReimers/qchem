@@ -22,6 +22,7 @@ export
     using std::sin;
     using std::cos;
     using std::acos;
+    using std::atan2;
     using std::erf;
     using std::erfc;
     using std::isfinite;
