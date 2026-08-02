@@ -40,6 +40,7 @@ import qchem.BasisSet.Lattice_3D.BasisSet;       // GPWFactory (the GPW basis co
 import qchem.BasisSet.Molecule.Factory;          // Molecule::Factory, BasisSetData/Engine/Angular
 import qchem.Hamiltonian.Internal.Hamiltonians;  // Ham_PW_DFT (the plane-wave LDA KS Hamiltonian -- drives GPW too)
 import qchem.Hamiltonian.Internal.PWTerms;        // ReportGridCharge(); PW_XC / Delta_XC (the Becke XC gate)
+import qchem.Mesh.Angular;                        // MakeAngular (the rotated-Lebedev bond-angle probe)
 import qchem.Hamiltonian.Internal.ExFunctional;   // ExFunctional (the LDA functional face the XC terms hold)
 import qchem.Hamiltonian.Internal.SlaterExchange; // SlaterExchange (Dirac exchange, for the Becke XC gate)
 import qchem.Hamiltonian.Internal.VWN_Correlation;// VWN_Correlation (VWN5, for the Becke XC gate)
@@ -178,6 +179,9 @@ void Fingerprint(const std::vector<FpRow>& s, const char* label)
 //                    (Si): better than same-degree GL on V_xc elements (the O_h-orbit cancellation) but
 //                    5-10x worse on rho-weighted integrals -- the (+-1,+-1,+-1)/sqrt3 orbit sits exactly
 //                    on the diamond bond axes.
+//   GPW_BECKE_ROT    radians: rigid generic rotation of the angular grid (about (1,2,3)/sqrt14) --
+//                    steers Lebedev's special orbits off the bond axes (plan §6a rotation insight;
+//                    free runs only).  Experiment: DISABLED_RotatedLebedevXCProbe_SiGamma.
 namespace
 {
 qcMesh::MeshParams BeckeXCParams(int nRadial=-1, double mhlAlpha=-1.0, int L=-1)
@@ -194,6 +198,8 @@ qcMesh::MeshParams BeckeXCParams(int nRadial=-1, double mhlAlpha=-1.0, int L=-1)
     mp.angular=(ang && std::string(ang)=="lebedev") ? qcMesh::AngularKind::Gauss
                                                     : qcMesh::AngularKind::GaussLegendre;
     mp.nAngular=L;
+    mp.angRot=envd("GPW_BECKE_ROT", 0.0);   // radians; rigid generic rotation of the angular grid
+                                            // (steers Lebedev's <111> orbit off bond axes; plan §6a)
     return mp;
 }
 } //anon
@@ -1649,6 +1655,67 @@ TEST(GPW_SCF, BeckeXCMatchesUniformXC_SiGamma)
     EXPECT_NEAR(B.Exc, U.Exc, 5e-4);                 // measured: dExc=1.1e-4
     EXPECT_NEAR(B.rhoLost, 0.0, 5e-3);               // the Becke mesh integrates rho to Tr(DS)
     EXPECT_LT(DiffXC(U,B), 1e-3);                    // measured: 3.5e-4
+}
+
+// THE ROTATED-LEBEDEV EXPERIMENT (plan §6a rotation insight, increment (b)): quadrature exactness is
+// rotation-invariant, so rotating an efficient Lebedev grid OFF the bond axes should be a nearly-free
+// accuracy fix for FREE runs -- the measured 5-10x rho-weighted loss was pure ALIGNMENT (the <111>
+// orbit on diamond's bonds).  Hand-run (--gtest_also_run_disabled_tests): converge Si/Gamma once on
+// the uniform route, then probe FOUR Becke quadratures on the SAME density against the refined GL
+// reference (nR=80, GL-29): production GL-29, Lebedev-50 as-is (bond-aligned), Lebedev-50 rotated
+// (GPW_BECKE_ROT class, 0.4 rad about (1,2,3)/sqrt14), and a rotated GL-29 control.  Verdict numbers
+// land in the plan doc; the decision is whether the free-run default grid can shrink.
+TEST(GPW_SCF, DISABLED_RotatedLebedevXCProbe_SiGamma)
+{
+    const double a=10.26;
+    FCCUnitCell cell(a);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+
+    GpwOptions o;
+    o.label="Si rotated-Lebedev probe"; o.Nelec=8; o.species={{"Si",4}}; o.densityEcut=60.0;
+    o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;   // converge once on the uniform route (probe density)
+    o.scf.NMaxIter=60; o.scf.MinΔρ=1e-3; o.scf.MinΔE=1e-6;
+    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30; o.scf.StartingRelaxRo=0.3;
+    GpwHandles h;
+    GpwResult R=RunGpw(lat, MakeBasisSR(cell), o, /*verbose*/false, &h);
+    ASSERT_TRUE(R.converged);
+    auto st=lat.GetStructure();
+
+    const double rot=0.4;                              // generic angle: moves <111> well off the bonds
+    auto leb=[&](double angRot){ qcMesh::MeshParams mp=BeckeXCParams(40, 2.0, 50);
+                                 mp.angular=qcMesh::AngularKind::Gauss; mp.angRot=angRot; return mp; };
+    auto gl =[&](double angRot){ qcMesh::MeshParams mp=BeckeXCParams();  // production GL-29
+                                 mp.angRot=angRot; return mp; };
+
+    // How close does each Lebedev grid come to a bond axis?  (diamond bonds = the +<111> tetrahedron)
+    for (double angRot : {0.0, rot})
+    {
+        qcMesh::AngularMesh am=qcMesh::MakeAngular(leb(angRot));
+        double worst=90.0;
+        for (size_t i=0; i<am.size(); ++i)
+            for (auto b : {rvec3_t(1,1,1), rvec3_t(1,-1,-1), rvec3_t(-1,1,-1), rvec3_t(-1,-1,1)})
+            {
+                double cosang=(am.Dirs()[i]*b)/norm(b);
+                worst=std::min(worst, std::acos(std::min(1.0,std::abs(cosang)))*180.0/M_PI);
+            }
+        std::printf("[rotLeb] Lebedev-50 angRot=%.2f: closest direction-to-bond angle = %.3f deg\n",
+                    angRot, worst);
+    }
+
+    XCProbe REF  =BeckeXCProbe(h, st, "REF80",  BeckeXCParams(/*nRadial*/80, /*mhlAlpha*/1.0, /*L*/29));
+    XCProbe GL29 =BeckeXCProbe(h, st, "GL29",   gl(0.0));
+    XCProbe GLrot=BeckeXCProbe(h, st, "GL29rot",gl(rot));
+    XCProbe LEB  =BeckeXCProbe(h, st, "Leb50",  leb(0.0));
+    XCProbe LROT =BeckeXCProbe(h, st, "Leb50rot",leb(rot));
+
+    std::printf("[rotLeb] dExc vs REF80:  GL29=%+.3e  GL29rot=%+.3e  Leb50=%+.3e  Leb50rot=%+.3e\n",
+                GL29.Exc-REF.Exc, GLrot.Exc-REF.Exc, LEB.Exc-REF.Exc, LROT.Exc-REF.Exc);
+    std::printf("[rotLeb] rho-lost:       GL29=%+.3e  GL29rot=%+.3e  Leb50=%+.3e  Leb50rot=%+.3e\n",
+                GL29.rhoLost, GLrot.rhoLost, LEB.rhoLost, LROT.rhoLost);
+    std::printf("[rotLeb] max|Vxc-REF80|: GL29=%.3e  GL29rot=%.3e  Leb50=%.3e  Leb50rot=%.3e\n",
+                DiffXC(REF,GL29), DiffXC(REF,GLrot), DiffXC(REF,LEB), DiffXC(REF,LROT));
 }
 
 // The SHARP-FIELD leg of the gate (the plan names DISABLED_NaFRocksaltGamma as the stress case: the F-
