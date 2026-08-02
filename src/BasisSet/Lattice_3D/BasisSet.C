@@ -69,12 +69,14 @@ struct GPWParams
                                                     //!< cell-capped) -- this only tunes the GRADATION.  Smaller =
                                                     //!< more, finer-spaced levels (rarely needed; the auto ladder
                                                     //!< already routes each diffuse pair to a matched coarse grid).
-    bool         reduceBZ = false;                  //!< IBZ/k-star: fold the MP mesh to its irreducible wedge under
-                                                    //!< the crystal point group (τ=0 symmorphic ops only -- the safe
-                                                    //!< guard; non-symmorphic crystals fold less but stay correct).
-                                                    //!< Only the linear parts are used, so the density MUST be
-                                                    //!< symmetrized over the star for this to be exact (doc/GPWPlan1
-                                                    //!< item 3 IBZ).  DEFAULT off (full mesh, no symmetrization).
+    bool         imposeSymmetry = false;            //!< Impose the detected space group on the whole run (renamed
+                                                    //!< from reduceBZ 2026-08-02 -- it does far more than fold k):
+                                                    //!< the MP k-mesh folds to its irreducible wedge, the density
+                                                    //!< is star-averaged every iteration (G-space glide phase +
+                                                    //!< raster/Becke orbit mean), the {G} structure-factor sweeps
+                                                    //!< evaluate star representatives only (T1), and the Becke XC
+                                                    //!< quadrature becomes the site-adapted op-INVARIANT mesh
+                                                    //!< (~2x points, §6a W2).  DEFAULT off (full mesh, free run).
                                                     //!< This IS the §3 SymmetryPolicy assert-switch
                                                     //!< (doc/SymmetryUpgradePlan.md): true = the caller ASSERTS
                                                     //!< imposition of the full detected group (release-check audits
@@ -127,7 +129,7 @@ public:
     GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const BasisSet::Real_BS> mol,
                  const GPWParams& p);
     //! The crystal reciprocal point group as \f${U|\tau}\f$ ops -- exposed so the composite density star-averages
-    //! ρ̃ with the glide phase (IBZ).  Empty unless reduceBZ (the fold and the density symmetrization are one
+    //! ρ̃ with the glide phase (IBZ).  Empty unless imposeSymmetry (the fold and the density symmetrization are one
     //! package).  (This is the FULL point group with fractional translations, distinct from the linear-only ops
     //! the ctor uses to fold the mesh; doc/GPWPlan1.md items 3 + 5.)
     virtual std::vector<Symmetry::Lattice_3D::ReciprocalOp> GetReciprocalPointOps() const override {return itsReciprocalOps;}
@@ -135,7 +137,7 @@ public:
     //! §3 order-parameter diagnostic's reference group, doc/SymmetryUpgradePlan.md).
     virtual std::vector<Symmetry::Lattice_3D::ReciprocalOp> GetDetectedReciprocalOps() const override {return itsDetectedOps;}
 private:
-    std::vector<Symmetry::Lattice_3D::ReciprocalOp> itsReciprocalOps;   //!< {} unless reduceBZ (doc/GPWPlan1.md items 3+5)
+    std::vector<Symmetry::Lattice_3D::ReciprocalOp> itsReciprocalOps;   //!< {} unless imposeSymmetry (doc/GPWPlan1.md items 3+5)
     std::vector<Symmetry::Lattice_3D::ReciprocalOp> itsDetectedOps;     //!< the full detected group, always (§3 diagnostic)
 };
 

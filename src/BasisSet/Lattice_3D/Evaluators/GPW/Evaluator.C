@@ -200,7 +200,7 @@ public:
 
     //! \brief Thread the run's IMPOSED crystal ops \f$\{W|\tau\}\f$ into the evaluator -- §3 policy-gated
     //! (doc/SymmetryUpgradePlan.md): \c GPW_IBS injects them NON-EMPTY only when the caller asserted
-    //! imposition (reduceBZ).  Consumed by (i) the T1 {G}-star reduced structure-factor assembly
+    //! imposition (imposeSymmetry).  Consumed by (i) the T1 {G}-star reduced structure-factor assembly
     //! (\c MakeLocalPP / \c MakeLocalPPLong -- exact for the static \f$V_{loc}\f$ by construction: the ops
     //! were detected from these very atoms) and (ii) the fit-basis factories' raster star-average.
     void SetSymmetryOps(std::vector<Symmetry::Lattice_3D::DirectOp> ops) {itsSymOps=std::move(ops);}

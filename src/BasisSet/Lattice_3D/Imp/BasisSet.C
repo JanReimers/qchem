@@ -55,7 +55,7 @@ Complex_BS* Factory(Type type, const ::qchem::Lattice_3D& lat, double Ecut)
 // summed inside the molecular seam (no radius exists); homeCellOnly is the finite "molecule in a box" MODE
 // (image-free by definition -- every k-block identical), used by the finite==lattice gates.
 // The k-mesh as (integer grid index, BZ weight) pairs -- either the FULL Monkhorst-Pack grid or, when
-// p.reduceBZ, its irreducible wedge folded under the crystal point group (τ=0 symmorphic ops only -- the safe
+// p.imposeSymmetry, its irreducible wedge folded under the crystal point group (τ=0 symmorphic ops only -- the safe
 // W-only guard; doc/GPWPlan1.md item 3).  IBZ needs the density symmetrized over each star to be exact; the
 // caller is responsible for that (this only reduces which blocks are BUILT + carries the star weights).
 struct KBlock { ivec3_t ik; double weight; };
@@ -81,7 +81,7 @@ struct CrystalPointOps
 //! ONE place resolves the run's symmetry policy (doc/SymmetryUpgradePlan.md §3): detection ALWAYS runs
 //! (cheap, and a free run needs the full group as the order-parameter diagnostic's reference), but the
 //! IMPOSED faces (k-fold + density star-average -- one package) fill only when the caller asserted
-//! imposition (p.reduceBZ).  Downstream consumers read the policy from here, never p.reduceBZ again.
+//! imposition (p.imposeSymmetry).  Downstream consumers read the policy from here, never p.imposeSymmetry again.
 static CrystalPointOps DetectPointOps(const ::qchem::Lattice_3D& lat, const GPWParams& p)
 {
     namespace SL = qchem::Symmetry::Lattice_3D;
@@ -90,7 +90,7 @@ static CrystalPointOps DetectPointOps(const ::qchem::Lattice_3D& lat, const GPWP
     const SL::SpaceGroup& sg = lat.GetSpaceGroup();
 
     CrystalPointOps ops;
-    ops.policy.impose = p.reduceBZ ? SL::SymmetryPolicy::Impose::FullGroup
+    ops.policy.impose = p.imposeSymmetry ? SL::SymmetryPolicy::Impose::FullGroup
                                    : SL::SymmetryPolicy::Impose::None;
     ops.recipDetected = sg.ReciprocalOps();                                        // full {U|τ}: the diagnostic reference
     if (ops.policy.Imposes())

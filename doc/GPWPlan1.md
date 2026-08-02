@@ -290,12 +290,13 @@ both settled, the "Becke as default" decision below is now UNBLOCKED.)*
   suspect after the HartreeOnly falsification; valves `GPW_ROUTING`/`GPW_RELFIELDSHARP` are in place).
 - **Becke as the DEFAULT — ✅ FLIPPED 2026-08-01.**  `GpwOptions.xcMesh.cellKind` defaults to the new
   `UnitCellKind::Auto`, resolved by the driver (`ResolveXCMesh`): **Becke** (the calibrated
-  `BeckeXCParams()` recipe) — EXCEPT under `reduceBZ`, where Auto falls back to the uniform raster WITH
-  a console note (the Becke-route density star-average is unverified — the "Becke+IBZ" item, owned by
-  the symmetry review; explicit Becke+reduceBZ is honored, which is how the verification run will be
-  done).  Non-GPW consumers treat Auto as the historical Uniform (zero blast radius).  Gate sweep: 11/12
-  GPW_SCF pass on the flip (metals, smearing, both IBZ tests via the carve-out); two gates pin Uniform
-  explicitly BY PURPOSE (`BeckeXCMatchesUniformXC`'s uniform arm; the box gate below).
+  `BeckeXCParams()` recipe) — originally EXCEPT under `reduceBZ` (the Becke-route star-average was
+  unverified), a carve-out **RETIRED 2026-08-02** with SymmetryUpgradePlan §7 step 5 (W2c): Auto is
+  Becke UNCONDITIONALLY; an imposed run (`imposeSymmetry`, the renamed `reduceBZ`) builds the
+  mixed-rule site-adapted invariant Becke mesh (~2× points at the production recipe) and star-averages
+  ρ on it (Al IBZ re-pinned route-matched −2.1174805).  Non-GPW consumers treat Auto as the historical
+  Uniform (zero blast radius).  Two gates pin Uniform explicitly BY PURPOSE
+  (`BeckeXCMatchesUniformXC`'s uniform arm; the box gate below).
   **SURFACED by the flip — Becke × DEGENERATE OPEN SHELL (open):** the aufbau pseudo-atom-in-box gate
   (half-filled 3p, density rotates freely in the degenerate shell) OSCILLATES ~Ha-scale under Becke
   where uniform was grid-stable: V_xc is pointwise-nonlinear, so an anisotropic ρ's quadrature error on

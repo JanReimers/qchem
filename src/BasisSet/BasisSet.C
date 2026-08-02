@@ -42,7 +42,7 @@ public:
 
     //! The crystal RECIPROCAL point group as \f${U|\tau}\f$ ops for IBZ density symmetrization.  Default {} =
     //! trivial {E} = no-op -- molecules / Γ / unfolded bases.  A periodic GPW basis returns the ops WHEN it
-    //! folds the mesh (reduceBZ), so the composite density ctor-injects them and the reduced density is star-
+    //! folds the mesh (imposeSymmetry), so the composite density ctor-injects them and the reduced density is star-
     //! averaged with the glide phase \f$e^{+2\pi i(Um)\cdot\tau}\f$ (doc/GPWPlan1.md items 3 + 5).  It is a basis
     //! property (the basis computes the space group), so the density/WF read it here rather than via a setter.
     virtual std::vector<Symmetry::Lattice_3D::ReciprocalOp> GetReciprocalPointOps() const {return {};}

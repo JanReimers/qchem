@@ -38,9 +38,9 @@ per-increment records follow below.
 tier-4a `SpinAction` enum), the `SpaceGroup::FoldKMesh/FoldGVectors/FoldPoints` member
 wrappers, and `ReduceToIBZ` re-expressed on `FoldGrid` (bit-identical, gated by
 `Fold.KMeshFoldBitIdenticalToReduceToIBZ`).  Unit tests: `src/Symmetry/tests/L_Fold.C`.
-§7 **step 3 BUILT** — `SymmetryPolicy` (impose-on-assert; `GPWParams.reduceBZ` documented
-as the assert-switch, resolved ONCE in `DetectPointOps` which now always detects and feeds
-policy + all op faces from one place), `SymmetryDefects` per-op order-parameter diagnostic
+§7 **step 3 BUILT** — `SymmetryPolicy` (impose-on-assert; `GPWParams.reduceBZ` [renamed
+`imposeSymmetry` 2026-08-02] documented as the assert-switch, resolved ONCE in
+`DetectPointOps` which now always detects and feeds policy + all op faces from one place), `SymmetryDefects` per-op order-parameter diagnostic
 (GMap, G-space so commensurability-free), and the never-silent `[symmetry]` run line
 (free run: max defect + which-ops-broke; imposed run: the release-audit assertion).
 Gates: Al symmorphic + Si non-symmorphic IBZ still exact; unit negative control fires on a
@@ -624,7 +624,8 @@ satisfies the precondition *generically* and a production increment that satisfi
      live in `qchem.SymmetrizeMesh` (src/Structure/Lattice_3D/).  qcMesh and qcSymmetry both
      stay pure leaves; `SpaceGroup` gained `ReciprocalMatrix`/`ToFractional`/`ToCartesian`
      so downstream calls need no separate cell plumbing.  WHAT a run imposes stays the §3
-     run-level policy (today: `GPWParams.reduceBZ`, resolved once in the factory).
+     run-level policy (today: `GPWParams.imposeSymmetry` — renamed from `reduceBZ` 2026-08-02,
+     user request, since the switch imposes the whole group — resolved once in the factory).
   2. **The Becke-route tension was a design flaw, not a plumbing problem (user diagnosis):**
      `PW_XC_Becke`/`BeckeXC_Engine` conflate the term with a raw mesh, where every other
      fitted term holds a FIT BASIS that owns its integration mesh.  W1 therefore lands as a

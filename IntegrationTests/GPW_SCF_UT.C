@@ -215,7 +215,7 @@ struct GpwOptions
     rvec3_t kShift = rvec3_t(0,0,0);
     //! XC-quadrature policy, decided by \c xcMesh.cellKind.  DEFAULT \c Auto (2026-08-01 flip): the
     //! driver resolves it to the atom-centred periodic BECKE mesh (Delta_XC, the calibrated
-    //! BeckeXCParams() recipe) — \c reduceBZ runs included since the 2026-08-02 carve-out retirement
+    //! BeckeXCParams() recipe) — \c imposeSymmetry runs included since the 2026-08-02 carve-out retirement
     //! (plan §7 step 5): an imposed run builds the MIXED-RULE site-adapted invariant Becke mesh
     //! (~2x the free mesh at the production recipe) and star-averages ρ on it.  EXPLICIT \c Uniform
     //! or \c Becke is always honored.  The run announces the choice on the [XC quadrature] console
@@ -228,8 +228,11 @@ struct GpwOptions
     // convergence machinery
     std::string accelerator = "DIIS";                  // DIIS | GDM | Ladder | Null
     bool        globalFermi = false;                    // metal: one μ across the k-mesh (Crystal_EC global mode)
-    bool        reduceBZ    = false;                     // IBZ/k-star: fold the MP mesh to the irreducible wedge
-                                                         //   (density star-average is auto-injected from the basis)
+    bool        imposeSymmetry = false;                  // impose the detected space group (renamed from reduceBZ
+                                                         //   2026-08-02): IBZ k-fold + per-iteration density
+                                                         //   star-average + T1 {G}-star sweeps + the site-adapted
+                                                         //   invariant Becke mesh.  OPT-IN per the §3 pin (an
+                                                         //   imposed default would also ~2x the suite's XC grids)
     qchem::ChargeDensity::SeedStrategy seed = qchem::ChargeDensity::SeedStrategy::Uniform;
     qchem::Ortho ortho    = qchem::Cholesky;
     double       orthoTol = 0.0;
@@ -280,7 +283,7 @@ struct GpwHandles
 // [symmetry] The §3 order-parameter line (doc/SymmetryUpgradePlan.md): a run ALWAYS tells the user the
 // symmetry it actually found.  FREE run: measure the converged density's per-op defect against the FULL
 // detected crystal point group (SymmetryDefects on ρ̃ -- G-space, exact index permutation, so no
-// raster-commensurability caveat) and report the max + which-ops-broke count.  IMPOSED (reduceBZ) run:
+// raster-commensurability caveat) and report the max + which-ops-broke count.  IMPOSED (imposeSymmetry) run:
 // the defect is ≈0 BY CONSTRUCTION (every iterate is star-averaged), so print the assertion + the
 // release-audit reminder instead -- imposition is never silent.
 // THRESHOLD (measured): the through-SCF defect inherits the run's CONVERGENCE tolerance, not the plan-§8
@@ -335,7 +338,7 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
         qchem::report::Timed t("setup: GPW basis build");
         bs.reset(L3::GPWFactory(lat, mol, L3::GPWParams{
             .densityEcut=o.densityEcut, .cutoffFactor=o.cutoffFactor, .raster=o.raster,
-            .images=o.images, .kShift=o.kShift, .ladderFactor=o.ladderFactor, .reduceBZ=o.reduceBZ,
+            .images=o.images, .kShift=o.kShift, .ladderFactor=o.ladderFactor, .imposeSymmetry=o.imposeSymmetry,
             .rasterFields=routeExperiment ? L3::RasterFields::HartreeOnly : L3::RasterFields::HartreeXC}));
     }
 
@@ -380,7 +383,7 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
     }
     auto& scf=*scfp;
     // IBZ density symmetrization is now automatic: the GPW basis exposes its reciprocal point ops (non-empty
-    // only when reduceBZ), and the composite density ctor-injects them straight from the basis -- no setter,
+    // only when imposeSymmetry), and the composite density ctor-injects them straight from the basis -- no setter,
     // no ops recomputed here (doc/GPWPlan1.md item 3).
     std::vector<FpRow> series;
     scf.SetObserver([&series](const qchem::SCFIterator::SCFProgress& p)
@@ -396,7 +399,7 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
 
     auto* cd=scf.GetWaveFunction()->GetChargeDensity();
     double charge=cd->GetTotalCharge();
-    ReportSymmetryFound(*bs, *cd, lat.GetStructure().get(), o.reduceBZ);   // §3: the run reports the symmetry it found
+    ReportSymmetryFound(*bs, *cd, lat.GetStructure().get(), o.imposeSymmetry);   // §3: the run reports the symmetry it found
     if (keep) keep->cd.reset(cd); else delete cd;
     qchem::EnergyBreakdown E=scf.GetEnergy();
     std::cout << "["<<o.label<<"] iters="<<scf.GetIterationCount()<<" charge="<<charge
@@ -437,7 +440,7 @@ static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Rea
                               && std::string(std::getenv("GPW_ROUTING"))=="hartree";
     std::unique_ptr<Complex_BS> bs(L3::GPWFactory(lat, mol, L3::GPWParams{
         .densityEcut=o.densityEcut, .cutoffFactor=o.cutoffFactor, .raster=o.raster,
-        .images=o.images, .kShift=o.kShift, .ladderFactor=o.ladderFactor, .reduceBZ=o.reduceBZ,
+        .images=o.images, .kShift=o.kShift, .ladderFactor=o.ladderFactor, .imposeSymmetry=o.imposeSymmetry,
         .rasterFields=routeExperiment ? L3::RasterFields::HartreeOnly : L3::RasterFields::HartreeXC}));
     if (report.VetBasis(*bs) > 0)
     {
@@ -480,7 +483,7 @@ static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Rea
                   << " E(internal)="<<(E.GetTotalEnergy()-E.MinusTS)<<std::endl;
         // scf drops here (deletes ham/acc/wf); seedCD survives -- its block is bs, which outlives the loop.
     }
-    if (seedCD) ReportSymmetryFound(*bs, *seedCD, st.get(), o.reduceBZ);   // §3: report on the coldest stage's density
+    if (seedCD) ReportSymmetryFound(*bs, *seedCD, st.get(), o.imposeSymmetry);   // §3: report on the coldest stage's density
     delete seedCD;   // the final stage's carried density (not consumed by any further ctor)
     return R;
 }
@@ -928,7 +931,7 @@ TEST(GPW_SCF, AlFCCMetalIBZExact)
     cell.AddAtom(13, {0,0,0});
     Lattice_3D lat(cell, ivec3_t(2,2,2));
     GpwOptions o=AlOptions();
-    o.globalFermi=true; o.reduceBZ=true;       // fold to the irreducible wedge AND star-average the density
+    o.globalFermi=true; o.imposeSymmetry=true;       // fold to the irreducible wedge AND star-average the density
     o.scf.SmearingkT=0.01;
     GpwResult R=RunGpw(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o, /*verbose*/false);
 
@@ -937,7 +940,7 @@ TEST(GPW_SCF, AlFCCMetalIBZExact)
     // Re-anchored 2026-08-01: the 0i custom V_loc G-ball (harmonic routing + custom top level) moved the
     // long-PP block by 1.6e-4 on Al's coarse grids -- full mesh AND reduced shift TOGETHER (folding stays
     // exact).  Old kappa-sweep anchor: -2.116812.
-    // Re-pinned 2026-08-02 ON THE BECKE ROUTE (plan §7 step 5 carve-out retirement): Auto+reduceBZ now
+    // Re-pinned 2026-08-02 ON THE BECKE ROUTE (plan §7 step 5 carve-out retirement): Auto+imposeSymmetry now
     // builds the mixed-rule site-adapted invariant Becke mesh (830 dirs/atom under Al's O_h site group,
     // the 12 <110> bond directions filtered), and the reduced run reproduces the Becke full-mesh
     // AlFCCMetalGlobalMu (prints -2.11749 same run) to ~1e-5 -- folding stays exact on the Becke route.
@@ -962,7 +965,7 @@ TEST(GPW_SCF, SiDiamondIBZ_NonSymmorphic)
     Lattice_3D lat(cell, ivec3_t(2,2,2));
     GpwOptions o;
     o.label="Si diamond IBZ"; o.Nelec=8; o.species={{"Si",4}};
-    o.densityEcut=20.0; o.accelerator="DIIS"; o.reduceBZ=true;
+    o.densityEcut=20.0; o.accelerator="DIIS"; o.imposeSymmetry=true;
     o.seed=qchem::ChargeDensity::SeedStrategy::Uniform; o.ortho=qchem::Cholesky;
     o.scf.NMaxIter=60; o.scf.MinΔρ=1e-3; o.scf.MinΔE=1e-6;
     o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30; o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4;
@@ -1032,11 +1035,11 @@ TEST(GPW_SCF, BeckeXC_IBZ_SiDiamond)
     o.scf.NMaxIter=60; o.scf.MinΔρ=1e-3; o.scf.MinΔE=1e-6;
     o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30; o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4;
 
-    o.label="Si diamond Becke FULL"; o.reduceBZ=false;
+    o.label="Si diamond Becke FULL"; o.imposeSymmetry=false;
     GpwResult F=RunGpw(lat, MakeBasisSR(cell), o, /*verbose*/false);
     ASSERT_TRUE(F.converged);
 
-    o.label="Si diamond Becke IBZ"; o.reduceBZ=true;
+    o.label="Si diamond Becke IBZ"; o.imposeSymmetry=true;
     GpwResult R=RunGpw(lat, MakeBasisSR(cell), o, /*verbose*/false);
     ASSERT_TRUE(R.converged);
 
@@ -1060,7 +1063,7 @@ TEST(GPW_SCF, DISABLED_AlGlobalMuExperiment)
     Lattice_3D lat(cell, ivec3_t(nk,nk,nk));
     GpwOptions o=AlOptions();
     o.globalFermi = envd("AL_GLOBAL",1.0)!=0.0;
-    o.reduceBZ = envd("AL_IBZ",0.0)!=0.0;
+    o.imposeSymmetry = envd("AL_IBZ",0.0)!=0.0;
     if (envd("AL_RASTER",0.0)!=0.0) o.raster=BasisSet::Lattice_3D::RasterPolicy::AliasFree;   // G-space XC route
     o.scf.SmearingkT = envd("AL_KT",0.01);
     o.scf.NMaxIter = (size_t)envd("AL_NMAX",60);

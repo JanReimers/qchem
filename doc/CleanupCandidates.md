@@ -14,9 +14,16 @@ refactoring session can batch them.  (User keeps the master list; merge freely.)
   on `tBasisSet` + `SetSymmetryOps` on the GPW evaluator: three op-flavored accessors that exist because
   the run's §3 symmetry policy rides the basis.  When the run-level policy object (plan §3 /
   `Lattice_3D`-owned symmetry) is fully plumbed, these can collapse to consumers reading ONE context.
-- **`GPWParams.reduceBZ` (bool)** — the §3 assert-switch as a bool on one basis family's params; should
-  become the shared `SymmetryPolicy` once PW/APW/LAPW factories read `Lattice_3D::GetSpaceGroup()` +
-  a policy, not a per-factory flag.
+- **`GPWParams.imposeSymmetry` (bool; renamed from `reduceBZ` 2026-08-02, user request — the switch
+  imposes the whole space group, not just the k-fold)** — still the §3 assert-switch as a bool on one
+  basis family's params; should become the shared `SymmetryPolicy` once PW/APW/LAPW factories read
+  `Lattice_3D::GetSpaceGroup()` + a policy, not a per-factory flag.
+- **Becke `MeshParams` ergonomics under `imposeSymmetry` (user, 2026-08-02)** — `mp.nAngular` IS
+  honored (the exactness degree L on both routes) but `mp.angular` (the GL/Lebedev scheme) is silently
+  REPLACED by the site-adapted rule (announced, not warned).  Wanted: `nAngular<=0` → auto-resolve the
+  calibrated default; a console warn when the scheme is overridden; a real error (not the bare assert)
+  when the requested L is unachievable for a low-symmetry site (C1/Cs seed-pool exhaustion).  Land with
+  the `SymmetryPolicy`/facade pass.
 
 ## Older / unrelated spots hit while working nearby
 - **`DB_Cache_RAM.C`** — a screenful of `-Winconsistent-missing-override` warnings on every qcBasisSet
