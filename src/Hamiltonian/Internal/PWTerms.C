@@ -19,7 +19,7 @@ import qchem.Pseudopotential.Integrals_Pseudo;    // external-PP operator-assemb
 import qchem.Hamiltonian.Internal.ExFunctional; // the LDA functional the XC term composes with the density
 import qchem.Hamiltonian.Types;                 // cobs_t
 import qchem.Structure;
-import qchem.Mesh;                              // qcMesh::Mesh/MeshParams (the PW_XC_Becke quadrature)
+import qchem.Mesh;                              // qcMesh::Mesh/MeshParams (the PW_XC_Delta quadrature)
 import qchem.Symmetry.Lattice_3D.Fold;          // Fold + SymmetrizeValues (the Becke rho star-average, §6a W1)
 
 export namespace qchem::Hamiltonian
@@ -168,7 +168,7 @@ private:
 //! iteration: without it the pair re-evaluated the Bloch image sums pointwise FOUR times per iteration
 //! (2 terms x (rho sample + matrix quadrature)) -- measured 4.8 s/iteration on NaF, ~all of the Becke
 //! route's runtime premium.
-class BeckeXC_Engine
+class XC_GridEngine
 {
 public:
     //! The Becke route is a pure QUADRATURE -- it has no fit basis (user 2026-08-01: a zero-function
@@ -178,7 +178,7 @@ public:
     //! empty fold = a free run (no star-average).  Everything symmetry-shaped happens before this
     //! ctor; per iteration the engine only applies the fold's orbit-mean to ρ.
     typedef std::shared_ptr<const qcMesh::Mesh> mesh_t;
-    BeckeXC_Engine(mesh_t, Symmetry::Lattice_3D::Fold fold = {});
+    XC_GridEngine(mesh_t, Symmetry::Lattice_3D::Fold fold = {});
     const qcMesh::Mesh& Mesh() const {return *itsMesh;}
     //! \f$\rho(r_g)\f$ for \a cd's current serial (cached across the pair; rebuilt on a new serial),
     //! STAR-AVERAGED over the fold's orbits when one was supplied (exact projector on the invariant
@@ -200,14 +200,14 @@ private:
     size_t itsRhoVersion=size_t(-1);              //!< density logical-clock serial itsRho was built for
 };
 
-class PW_XC_Becke
+class PW_XC_Delta
     : public virtual cDynamic_HT
     , private        cDynamic_HT_Imp
 {
 public:
     typedef std::shared_ptr<ExFunctional> xc_t;
-    typedef std::shared_ptr<BeckeXC_Engine> engine_t;
-    PW_XC_Becke(const xc_t&, engine_t);
+    typedef std::shared_ptr<XC_GridEngine> engine_t;
+    PW_XC_Delta(const xc_t&, engine_t);
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
     virtual std::ostream& Write(std::ostream&) const;
 private:

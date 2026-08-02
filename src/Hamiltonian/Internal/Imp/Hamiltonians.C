@@ -176,7 +176,8 @@ Ham_PP::Ham_PP(const st_t& st, const std::vector<std::pair<std::string,int>>& sp
 // (like FittedVee); the XC route still integrates on the basis's grid (no fit basis).  The pseudopotential
 // is carried by the basis (the external term just supplies the structure factor).
 void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotential::LocalPotential* loc,
-                            const Pseudopotential::SeparablePotential* nl, const qcMesh::MeshParams& xcMesh)
+                            const Pseudopotential::SeparablePotential* nl, const qcMesh::MeshParams& xcMesh,
+                            VxcFit fit)
 {
     // Build the functionals FIRST: their GridCutoffFactor() sets how dense the fit grid must be (the CP2K
     // REL_CUTOFF seam).  Exchange and correlation share ONE Vxc fit basis, so it takes the DENSER of the two;
@@ -193,19 +194,27 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
     Add(new PW_Kinetic);
     Add(new PW_Pseudo(st, loc, nl));                           // electron-ion SHORT-range (+ short G=0 alignment)
     Add(new PW_Hartree(CFitBasis, st, loc));                   // Hartree V_H + long-range core-charge V_long (0e-PP)
-    // The route ANNOUNCES itself (user pin: the console always says which XC quadrature is in play --
-    // this is the one selection site).  The Becke branch's mesh build adds its own [Becke grid] detail line.
-    if (xcMesh.cellKind==qcMesh::UnitCellKind::Becke)
+    // The FIT/GRID separation (doc/SymmetryUpgradePlan.md §6a, user 2026-08-01): WHICH fit basis
+    // represents v_xc (VxcFit) and WHICH real-space grid quadratures it (xcMesh.cellKind) are
+    // ORTHOGONAL choices.  Auto = the historical pairing (Delta on Becke, PlaneWave on the raster).
+    // The route ANNOUNCES itself (user pin: the console always says which XC route is in play --
+    // this is the one selection site).
+    const bool becke = xcMesh.cellKind==qcMesh::UnitCellKind::Becke;
+    const bool delta = fit==VxcFit::Delta || (fit==VxcFit::Auto && becke);
+    if (delta)
     {
-        // The Becke XC route (doc/GPWPlan1.md + SymmetryUpgradePlan §6a): a pure QUADRATURE -- no fit
-        // basis exists on this route (a zero-function pseudo-basis was a null-object smell; user
-        // 2026-08-01).  The finished quadrature is assembled HERE, before the engine: on a §3-imposed
-        // run (the basis's imposed op set is non-empty) the mesh is group-averaged INVARIANT and its
-        // orbit fold prepared, so the engine's per-iteration rho star-average is the exact projector.
-        // The Structure->UnitCell cast is a checked precondition, not a type-switch: a PW term is
+        // The DELTA-fit route: a pure QUADRATURE -- the "fit coefficients" ARE the grid-point values
+        // (no expansion, no metric), so no fit-basis object exists (a zero-function pseudo-basis was a
+        // null-object smell; user 2026-08-01).  Works on ANY real-space grid: Becke (the sharp-core
+        // grid it was built for) or the uniform cell mesh (the band-limit cross-check cell).  The
+        // finished quadrature is assembled HERE, before the engine: on a §3-imposed run (the basis's
+        // imposed op set is non-empty) the mesh is group-averaged INVARIANT and its orbit fold
+        // prepared, so the engine's per-iteration rho star-average is the exact projector.  The
+        // Structure->UnitCell cast is a checked precondition, not a type-switch: a PW term is
         // lattice-specific by contract (user cast rule).
-        std::cout<<"[XC quadrature] periodic BECKE atom-centred mesh (details on the [Becke grid] line)"<<std::endl;
-        qchem::report::EmitAt("grids", "xcQuadrature", {{"kind","Becke"}});   // detail lands in grids.becke
+        std::cout<<"[XC quadrature] DELTA fit on the "<<(becke ? "periodic BECKE atom-centred" : "uniform cell")
+                 <<" mesh"<<(becke ? " (details on the [Becke grid] line)" : "")<<std::endl;
+        qchem::report::EmitAt("grids", "xcQuadrature", {{"kind", becke ? "Becke" : "DeltaUniform"}});
         qcMesh::Mesh mesh = st->CreateIntegrationMesh(xcMesh);
         Symmetry::Lattice_3D::Fold fold;
         if (auto rops = bs->GetReciprocalPointOps(); !rops.empty())
@@ -227,17 +236,20 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
                      <<n0<<" -> "<<mesh.size()<<" points in "<<fold.Reps()
                      <<" orbits; rho star-averaged each iteration (doc/SymmetryUpgradePlan.md 6a W1)"<<std::endl;
         }
-        auto engine=std::make_shared<BeckeXC_Engine>(std::make_shared<const qcMesh::Mesh>(std::move(mesh)),
+        auto engine=std::make_shared<XC_GridEngine>(std::make_shared<const qcMesh::Mesh>(std::move(mesh)),
                                                      std::move(fold));
-        Add(new PW_XC_Becke(exch, engine));
-        Add(new PW_XC_Becke(corr, engine));
+        Add(new PW_XC_Delta(exch, engine));
+        Add(new PW_XC_Delta(corr, engine));
     }
     else
     {
-        // The uniform G-space route: exchange + correlation share ONE Vxc (overlap-metric) fit basis.
-        // The grids.xcQuadrature detail (N, points, dr) is emitted by the grid owner itself -- the first
-        // PW_XC's fitter (EmitGridReport) -- so the numbers come from the actual raster, not from here.
-        std::cout<<"[XC quadrature] UNIFORM G-space raster (details on the [uniform grid] xcQuadrature line)"<<std::endl;
+        // The PLANE-WAVE fit route: exchange + correlation share ONE Vxc (overlap-metric) fit basis;
+        // the projection quadrature is the FFT on the fit basis's own raster.  A PlaneWave fit ON a
+        // Becke grid (I3) is asserted out until its one-functional E/H derivative pairing is designed
+        // (the projection sum is trivial; the DISCIPLINE is that H must be the exact derivative of the
+        // quadratured E -- the user's GDM-after-DIIS audit would expose any mismatch).
+        assert(!becke && "VxcFit::PlaneWave on a Becke grid (I3): the E/H one-functional pairing is not designed yet");
+        std::cout<<"[XC quadrature] PLANE-WAVE fit on the uniform G-space raster (details on the [uniform grid] line)"<<std::endl;
         PW_XC::fbs_t VFitBasis(bs->CreateVxcFitBasisSet(st.get(), mp));
         Add(new PW_XC(exch, VFitBasis));
         Add(new PW_XC(corr, VFitBasis));
@@ -268,9 +280,9 @@ Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, std::initializer_list<st
 
 // Multi-species, runtime vector form (LiCoO2 / f-oxides: distinct elements collected at run time).
 Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const std::vector<std::pair<std::string,int>>& species,
-                       const std::string& functional, const qcMesh::MeshParams& xcMesh)
+                       const std::string& functional, const qcMesh::MeshParams& xcMesh, VxcFit fit)
 {
-    BuildFromGTH(st, bs, species, functional, xcMesh);
+    BuildFromGTH(st, bs, species, functional, xcMesh, fit);
 }
 
 // Look up each (element, valence) from the GTH database and build + OWN a per-Z router model (one
@@ -278,7 +290,7 @@ Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const std::vector<std::p
 // FormFactor(a->itsZ,...) dispatches to the right species).  The owned models outlive the terms (members,
 // destroyed after the cHamiltonian base that holds them), so each term's &loc/&nl stays valid for the run.
 void Ham_PW_DFT::BuildFromGTH(const st_t& st, const cbs_t* bs, const std::vector<std::pair<std::string,int>>& species,
-                              const std::string& functional, const qcMesh::MeshParams& xcMesh)
+                              const std::string& functional, const qcMesh::MeshParams& xcMesh, VxcFit fit)
 {
     auto loc=std::make_shared<Pseudopotential::MultiSpecies_LocalPotential>();
     auto sep=std::make_shared<Pseudopotential::MultiSpecies_SeparablePotential>();
@@ -291,7 +303,7 @@ void Ham_PW_DFT::BuildFromGTH(const st_t& st, const cbs_t* bs, const std::vector
     }
     itsOwnedLocal=loc;
     itsOwnedSep  =sep;
-    BuildTerms(st, bs, loc.get(), sep.get(), xcMesh);
+    BuildTerms(st, bs, loc.get(), sep.get(), xcMesh, fit);
 }
 
 Ham_HF_P::Ham_HF_P(const st_t& st)

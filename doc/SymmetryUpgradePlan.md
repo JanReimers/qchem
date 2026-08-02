@@ -77,7 +77,19 @@ arm's `[symmetry]` line measures max defect 6e-3 / 40 ops broken — the fixed-o
 coarse-grid rotating-error channel, removed by the imposed arm's projector, exactly as
 predicted.  Γ free-run equivalence unchanged (`BeckeXCMatchesUniformXC_SiGamma`).  The
 Auto→uniform reduceBZ carve-out STAYS (W1 growth ~6×; explicit Becke opts in) until W2's
-site-adapted no-growth grids.  Full suite 645/645.
+site-adapted no-growth grids.
+**THE FIT/GRID SEPARATION (user, 2026-08-01):** the "Becke engine" is really the
+DELTA-FUNCTION fit basis realization of FittedVxc — coefficients ARE the grid-point values,
+H by direct quadrature — and the two user choices are ORTHOGONAL: `VxcFit {Auto, PlaneWave,
+Delta}` (which basis represents v_xc) × `MeshParams` (which real-space grid).  Renames:
+`BeckeXC_Engine`→`XC_GridEngine`, `PW_XC_Becke`→`PW_XC_Delta`; `Auto` = the historical
+pairing (Delta on Becke, PlaneWave on the raster), so zero behavior change.  I2 GATE
+(`DeltaFitUniformGridMatchesPWFit_SiGamma`): the (Delta, uniform) cross cell reproduces the
+PW fit to **1e-5 Ha** — the band-limit residual at this cutoff, isolated.  The (PlaneWave,
+Becke) cell (I3) is asserted out until its ONE-FUNCTIONAL E/H pairing is designed: the
+projection sum is trivial (the mesh drops out once c_j exist — user), but H must stay the
+exact derivative of the quadratured E (the user's GDM-after-DIIS practice is the runtime
+audit that would expose any mismatch).  Full suite 646/646.
 The SCF-level broken-seed negative control lands with the §8 harness (needs a
 symmetry-breaking SeedStrategy).  NOTE (§4/§9): non-collinear added —
 `SpinAction{None,Flip}` is documented as the collinear collapse of the general spin

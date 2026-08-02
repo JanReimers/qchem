@@ -39,7 +39,7 @@ import qchem.Blaze;                              // blazem::eigen, blaze::min/ma
 import qchem.BasisSet.Lattice_3D.BasisSet;       // GPWFactory (the GPW basis container)
 import qchem.BasisSet.Molecule.Factory;          // Molecule::Factory, BasisSetData/Engine/Angular
 import qchem.Hamiltonian.Internal.Hamiltonians;  // Ham_PW_DFT (the plane-wave LDA KS Hamiltonian -- drives GPW too)
-import qchem.Hamiltonian.Internal.PWTerms;        // ReportGridCharge(); PW_XC / PW_XC_Becke (the Becke XC gate)
+import qchem.Hamiltonian.Internal.PWTerms;        // ReportGridCharge(); PW_XC / PW_XC_Delta (the Becke XC gate)
 import qchem.Hamiltonian.Internal.ExFunctional;   // ExFunctional (the LDA functional face the XC terms hold)
 import qchem.Hamiltonian.Internal.SlaterExchange; // SlaterExchange (Dirac exchange, for the Becke XC gate)
 import qchem.Hamiltonian.Internal.VWN_Correlation;// VWN_Correlation (VWN5, for the Becke XC gate)
@@ -214,13 +214,17 @@ struct GpwOptions
     BasisSet::Lattice_3D::CellImages   images = BasisSet::Lattice_3D::CellImages::Periodic;
     rvec3_t kShift = rvec3_t(0,0,0);
     //! XC-quadrature policy, decided by \c xcMesh.cellKind.  DEFAULT \c Auto (2026-08-01 flip): the
-    //! driver resolves it to the atom-centred periodic BECKE mesh (PW_XC_Becke, the calibrated
+    //! driver resolves it to the atom-centred periodic BECKE mesh (PW_XC_Delta, the calibrated
     //! BeckeXCParams() recipe) — EXCEPT under \c reduceBZ, where Auto falls back to the uniform G-space
     //! raster (PW_XC) with a console note, because the Becke-route density star-average is unverified
     //! (doc/GPWPlan1.md "Becke+IBZ"; the symmetry review owns closing it).  EXPLICIT \c Uniform or
     //! \c Becke is always honored — an explicit Becke+reduceBZ run is exactly how the star-average gets
     //! verified.  The run announces the choice on the [XC quadrature] console line either way.
     qcMesh::MeshParams xcMesh{.cellKind=qcMesh::UnitCellKind::Auto};
+    //! WHICH fit basis represents v_xc -- ORTHOGONAL to the grid choice above (plan §6a fit/grid
+    //! separation): Auto = the historical pairing (Delta on Becke, PlaneWave on the uniform raster);
+    //! Delta may be paired with EITHER grid (Delta+uniform = the band-limit cross-check cell).
+    Hamiltonian::VxcFit vxcFit = Hamiltonian::VxcFit::Auto;
     // convergence machinery
     std::string accelerator = "DIIS";                  // DIIS | GDM | Ladder | Null
     bool        globalFermi = false;                    // metal: one μ across the k-mesh (Crystal_EC global mode)
@@ -366,7 +370,7 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
     {
         qchem::report::Timed t("setup: hamiltonian ctor (fit bases + becke mesh)");
         ham=new qchem::Hamiltonian::Ham_PW_DFT(lat.GetStructure(), bs.get(), o.species, "LDA",
-                                               ResolveXCMesh(o.xcMesh, o.reduceBZ));
+                                               ResolveXCMesh(o.xcMesh, o.reduceBZ), o.vxcFit);
     }
     auto* acc = MakeGpwAccelerator(o.accelerator);
 
@@ -464,7 +468,7 @@ static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Rea
         // Fresh Hamiltonian + accelerator per stage (the iterator OWNS + deletes them; a kT change must not
         // carry stale DIIS history across the re-seed).
         auto* ham = new qchem::Hamiltonian::Ham_PW_DFT(st, bs.get(), o.species, "LDA",
-                                                       ResolveXCMesh(o.xcMesh, o.reduceBZ));
+                                                       ResolveXCMesh(o.xcMesh, o.reduceBZ), o.vxcFit);
         auto* acc = MakeGpwAccelerator(o.accelerator);
         std::unique_ptr<qchem::SCFIterator::SolidSCFIterator> scf(
             s==0 ? new qchem::SCFIterator::SolidSCFIterator(bs.get(), &ec, ham, acc, o.seed,  st.get(), o.ortho, o.orthoTol)
@@ -980,6 +984,38 @@ TEST(GPW_SCF, SiDiamondIBZ_NonSymmorphic)
 
 // ===== EXPERIMENTAL (scratch): global-μ across k-blocks (item 3 inc 3) =====
 // AL_KGRID=n (mesh nxnxn), AL_GLOBAL=0/1 (per-block vs global μ), AL_KT, AL_NMAX.
+// I2 (plan §6a fit/grid SEPARATION): the (Delta, uniform) cross cell.  The SAME material through the
+// PLANE-WAVE fit (band-limited v_xc on the FFT raster) and through the DELTA fit on the uniform cell
+// mesh -- the two v_xc representations must agree to the route-difference class (band-limiting +
+// raster-vs-midpoint-mesh quadrature), the same class the Becke-vs-uniform gate measures (~1e-4 Exc).
+TEST(GPW_SCF, DeltaFitUniformGridMatchesPWFit_SiGamma)
+{
+    const double a=10.26;
+    FCCUnitCell cell(a);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+    GpwOptions o;
+    o.Nelec=8; o.species={{"Si",4}};
+    o.densityEcut=20.0; o.accelerator="DIIS";
+    o.seed=qchem::ChargeDensity::SeedStrategy::Uniform; o.ortho=qchem::Cholesky;
+    o.scf.NMaxIter=60; o.scf.MinΔρ=1e-3; o.scf.MinΔE=1e-6;
+    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30; o.scf.StartingRelaxRo=0.3;
+
+    o.label="Si PW-fit"; o.xcMesh.cellKind=qcMesh::UnitCellKind::Uniform;   // (PlaneWave, raster)
+    GpwResult P=RunGpw(lat, MakeBasisSR(cell), o, /*verbose*/false);
+    ASSERT_TRUE(P.converged);
+
+    o.label="Si Delta-fit uniform"; o.vxcFit=Hamiltonian::VxcFit::Delta;    // (Delta, uniform mesh)
+    o.xcMesh.eCut=o.densityEcut;                                            // resolve rho on the midpoint mesh
+    GpwResult D=RunGpw(lat, MakeBasisSR(cell), o, /*verbose*/false);
+    ASSERT_TRUE(D.converged);
+
+    EXPECT_NEAR(D.E.GetTotalEnergy(), P.E.GetTotalEnergy(), 5e-3)
+        << "the delta fit on the uniform cell mesh must reproduce the PW fit on the raster to the "
+           "band-limit/quadrature route-difference class (plan 6a fit/grid separation)";
+}
+
 // THE W1 GATE (doc/SymmetryUpgradePlan.md §6a): Becke XC under IBZ.  BeckeFit_IBS group-averages its
 // mesh INVARIANT and star-averages rho every iteration (the SymmetrizeRaster hook, exact orbit-mean
 // projector); on the converged SYMMETRIC density the invariant mesh integrates identically to the
@@ -1503,7 +1539,7 @@ TEST(GPW_SCF, DISABLED_NaFOverlapConditioningSweep)
 //  Si/Gamma on the standard uniform route (the SiliconGammaConverges recipe), then evaluate BOTH
 //  XC term pairs (Dirac + VWN5) on the SAME converged density:
 //    uniform -- PW_XC on the Vxc fit basis's FFT grid (the raw-collocation route);
-//    Becke   -- PW_XC_Becke: rho(r) analytic at the atom-centred points, WeightedOverlap matrix.
+//    Becke   -- PW_XC_Delta: rho(r) analytic at the atom-centred points, WeightedOverlap matrix.
 //  Angular rule: GaussLegendre (machine-exact algebraic degree at any L -- the audited Lebedev
 //  tables stop at L=11, and EulerMaclaren has no algebraic degree; see Mesh_Angular tests).
 //================================================================================================
@@ -1550,9 +1586,9 @@ XCProbe BeckeXCProbe(const GpwHandles& h, const std::shared_ptr<const Structure>
 {
     auto exch=std::make_shared<Hamiltonian::SlaterExchange>(2.0/3.0);
     auto corr=std::make_shared<Hamiltonian::VWN_Correlation>();
-    auto engine=std::make_shared<Hamiltonian::BeckeXC_Engine>(               // ONE engine, shared by the pair
+    auto engine=std::make_shared<Hamiltonian::XC_GridEngine>(               // ONE engine, shared by the pair
                     std::make_shared<const qcMesh::Mesh>(st->CreateIntegrationMesh(mpB)));   // free probe: no fold
-    Hamiltonian::PW_XC_Becke x(exch,engine), c(corr,engine);
+    Hamiltonian::PW_XC_Delta x(exch,engine), c(corr,engine);
     EnergyBreakdown e; x.GetEnergy(e,h.cd.get()); c.GetEnergy(e,h.cd.get());
     return ProbeXC(label, h, x, c, e);
 }

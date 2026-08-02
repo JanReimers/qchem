@@ -110,16 +110,28 @@ public:
 //   - convenience ctors: name the element(s)/functional/valence and the database (GetGTH) is looked up
 //     and OWNED here -- the one-call plane-wave LDA Hamiltonian, single- or multi-species.
 //
+//! \brief WHICH FIT BASIS represents \f$v_{xc}\f$ (doc/SymmetryUpgradePlan.md §6a, the fit/grid
+//! SEPARATION, user 2026-08-01): the fit-basis choice and the real-space grid choice
+//! (\c qcMesh::MeshParams) are ORTHOGONAL user knobs.
+//!  - \c PlaneWave: expand \f$v_{xc}\f$ on the \f$\{Q_j\}\f$ ball (band-limited; the projection
+//!    quadrature is the FFT on the uniform raster) -- the \c PW_XC pair.
+//!  - \c Delta: the delta-function "fit" -- coefficients ARE the grid-point values, H by direct
+//!    quadrature -- the \c PW_XC_Delta pair, on ANY real-space grid (Becke or uniform).
+//!  - \c Auto: the historical pairing -- \c Delta on a Becke grid, \c PlaneWave on the uniform raster.
+//! (PlaneWave fit ON a Becke grid = I3: the projection sum is trivial, but the one-functional E/H
+//! derivative pairing must be designed first -- asserted out until then.)
+enum class VxcFit { Auto, PlaneWave, Delta };
+
 class Ham_PW_DFT : public virtual cHamiltonian, private cHamiltonianImp
 {
 public:
     //! \a bs (the composite plane-wave basis) is the density-fit-basis source: BuildTerms builds the Hartree
     //! fit basis from it ONCE, mirroring the molecular Ham DFT ctors that take \c bs for FittedVee.
-    //! Every ctor takes an optional \a xcMesh: the XC-QUADRATURE policy (qcMesh::MeshParams).  The default
-    //! (\c UnitCellKind::Uniform) keeps the G-space PW_XC pair on the fit-basis FFT raster -- bit-identical
-    //! to before the parameter existed.  \c UnitCellKind::Becke builds the geometry's periodic Becke mesh
-    //! ONCE and assembles the PW_XC_Becke pair on it instead (Hartree is untouched either way).  See
-    //! doc/GPWPlan1.md "Becke XC grid".
+    //! Every ctor takes an optional \a xcMesh: the XC real-space GRID choice (qcMesh::MeshParams).  The
+    //! default (\c UnitCellKind::Uniform) is the fit-basis FFT raster -- bit-identical to before the
+    //! parameter existed; \c UnitCellKind::Becke builds the geometry's periodic Becke mesh ONCE.  The
+    //! runtime-vector ctor additionally takes the ORTHOGONAL \a fit knob (\c VxcFit) choosing which fit
+    //! basis represents \f$v_{xc}\f$ on that grid; the others default to \c Auto (the historical pairing).
     //! Explicit-models ctor: the caller owns the local + optional KB nonlocal models (non-owning here).
     Ham_PW_DFT(const st_t& st, const cbs_t* bs, const Pseudopotential::LocalPotential* loc,
                const Pseudopotential::SeparablePotential* nl=nullptr, const qcMesh::MeshParams& xcMesh={});
@@ -133,14 +145,17 @@ public:
     //! Multi-species, RUNTIME species list (the vector form the initializer_list can't provide) -- e.g. a
     //! LiCoO2 / f-oxide run assembled from the cell's distinct elements at run time.
     Ham_PW_DFT(const st_t& st, const cbs_t* bs, const std::vector<std::pair<std::string,int>>& species,
-               const std::string& functional="LDA", const qcMesh::MeshParams& xcMesh={});
+               const std::string& functional="LDA", const qcMesh::MeshParams& xcMesh={},
+               VxcFit fit=VxcFit::Auto);
 private:
     void BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotential::LocalPotential* loc,
-                    const Pseudopotential::SeparablePotential* nl, const qcMesh::MeshParams& xcMesh);
+                    const Pseudopotential::SeparablePotential* nl, const qcMesh::MeshParams& xcMesh,
+                    VxcFit fit=VxcFit::Auto);
     //! Look up each (element, valence) from the GTH database, build + OWN the (per-Z router) local +
     //! separable models, and assemble the terms against them.  The single-species ctor is the 1-species case.
     void BuildFromGTH(const st_t& st, const cbs_t* bs, const std::vector<std::pair<std::string,int>>& species,
-                      const std::string& functional, const qcMesh::MeshParams& xcMesh);
+                      const std::string& functional, const qcMesh::MeshParams& xcMesh,
+                      VxcFit fit=VxcFit::Auto);
     std::shared_ptr<const Pseudopotential::LocalPotential>     itsOwnedLocal;  //!< owned model (convenience ctors); null for explicit
     std::shared_ptr<const Pseudopotential::SeparablePotential> itsOwnedSep;
 };

@@ -169,7 +169,7 @@ public:
     //! DM_ContractBlocks.  \a Phi maps BasisSetID -> the (npoints x n) table \f$\Phi_{gi}=\chi_i(r_g)\f$
     //! for that block; the return is \f$\rho(r_g)=\sum_b\mathrm{Re}\,[\Phi_b D_b\Phi_b^\dagger]_{gg}\f$.
     //! The caller owns the (geometry-fixed, cacheable-for-the-whole-run) basis tables; the density keeps
-    //! \f$D\f$ private and contracts them as GEMMs -- the seam that makes a mesh XC quadrature (PW_XC_Becke)
+    //! \f$D\f$ private and contracts them as GEMMs -- the seam that makes a mesh XC quadrature (PW_XC_Delta)
     //! O(GEMM) per SCF iteration instead of re-evaluating Bloch sums pointwise.  A block whose ID is absent
     //! from \a Phi self-evaluates pointwise (correct, slower -- heals a caller's first pass before it has
     //! met every block).  Default: the plain pointwise loop over this density's ScalarFunction face, so
