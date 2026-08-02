@@ -31,3 +31,11 @@ refactoring session can batch them.  (User keeps the master list; merge freely.)
 - **`Symmetry::Lattice_3D::DirectOf`** — currently unused after the CreateXCQuadrature move (GPW uses
   its native direct ops).  Keep (documents the U=Wᵀ convention; T3 will want it) or fold its doc into
   `ReciprocalOp` and drop — decide at the refactor session.
+- **`MakePeriodicBeckeMesh` ε-tail drops vs orbit consistency (W2c find)** — the builder's
+  borderline drop decisions (`<eps` screens + `w>0` keep) are per-point and bit-sensitive, so the
+  site-adapted caller post-filters orbit-incomplete points (`CreateSiteAdaptedBeckeMesh`).  Cleaner
+  long-term: make the drop decision ONCE per representative (angular dir × radial shell) and apply
+  it to the whole atom orbit inside the builder — removes the second fold pass + the filter.
+- **`SolveSPD`/NNLS in `SymmetrizeMesh.C`** — module-private dense Cholesky + Lawson-Hanson NNLS
+  hand-rolled beside the mesh code; if another consumer of small dense LS/NNLS appears, promote to
+  qcMath (Blaze has no NNLS).

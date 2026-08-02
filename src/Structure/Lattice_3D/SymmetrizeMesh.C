@@ -27,6 +27,8 @@
 module;
 #include <algorithm>
 #include <cassert>
+#include <cstdio>
+#include <cstdlib>
 #include <unordered_map>
 #include <vector>
 export module qchem.SymmetrizeMesh;
@@ -72,20 +74,23 @@ inline qcMesh::Mesh     MakeInvariant  (const qcMesh::Mesh& m, const SL::SpaceGr
 
 //! \brief SITE-GROUP-INVARIANT angular quadrature of polynomial degree \a L (doc/SymmetryUpgradePlan.md
 //! §6a W2 -- "the site group fixes both how many and which directions").  Directions = unions of
-//! FULL-SIZE orbits of GENERIC seed directions under the site ops (Fibonacci-sphere seeds; generic
-//! orbits avoid special/bond axes -- the Lebedev cube-corner lesson), so the grid is op-invariant BY
-//! CONSTRUCTION with equal weights within each orbit.  Orbit weights solve the spherical-harmonic
-//! moment conditions \f$Q(\bar Y_{lm}) = \sqrt{4\pi}\,\delta_{l0}\,\delta_{m0},\ l\le L\f$ (orthonormal
-//! rows, so the least-squares system is well conditioned; on an invariant grid the non-invariant
-//! harmonics' rows vanish identically, so the effective system is small); orbits are added until the
-//! residual is tight AND every weight is positive.  \f$\sum w = 4\pi\f$ (the \f$Y_{00}\f$ condition).
-//! Deterministic.  Cost note: generic orbits price at ~\f$(L+1)^2\f$ total directions (vs GL's
-//! \f$\sim(L+1)^2/2\f$) -- the robustness premium; the payoff is exact invariance (the T2 fold + the
-//! Becke star-average precondition) at ~2x GL instead of MakeInvariant's measured ~6x group-average.
-//! \param ops  the site group as CARTESIAN orthogonal matrices (rotations + reflections; include E).
-//!             Fractional \f$W\f$ ops convert via \f$A W A^{-1}\f$ upstream.
-//! \param L    the polynomial exactness degree (GL-\a L quality class).
-qcMesh::Mesh MakeInvariantAngularMesh(const std::vector<Matrix3D<double>>& ops, int L);
+//! orbits of directions under the site ops, so the grid is op-invariant BY CONSTRUCTION with equal
+//! weights within each orbit.  THE MIXED RULE (§6a W2 refinement): the candidate pool holds the
+//! group's SPECIAL orbits first (op axes + mirror-plane directions -- the small Lebedev-like orbits),
+//! filtered against \a avoid (the ATOM's actual bond directions -- only some special families are
+//! poison, e.g. diamond T_d's bonded <111> tetrahedron, while <100>/<110>/the anti-bond tetrahedron
+//! point between bonds and are safe), then generic Fibonacci-sphere seeds.  Orbit weights solve the
+//! spherical-harmonic moment conditions \f$Q(\bar Y_{lm}) = \sqrt{4\pi}\,\delta_{l0}\,\delta_{m0},\
+//! l\le L\f$ by NNLS (Lawson-Hanson, per-DIRECTION cost-biased column selection), which guarantees
+//! nonnegative weights and picks a SPARSE orbit support -- plain least squares was measured to leave
+//! a ~-5e-4 negative-weight floor at L=29 however many orbits were added.  Only the positive-weight
+//! support is emitted; \f$\sum w = 4\pi\f$ (the \f$Y_{00}\f$ condition).  Deterministic.
+//! \param ops   the site group as CARTESIAN orthogonal matrices (rotations + reflections; include E).
+//!              Fractional \f$W\f$ ops convert via \f$A W A^{-1}\f$ upstream.
+//! \param L     the polynomial exactness degree (GL-\a L quality class).
+//! \param avoid unit directions (e.g. the atom's bonds) no quadrature point may lie on.
+qcMesh::Mesh MakeInvariantAngularMesh(const std::vector<Matrix3D<double>>& ops, int L,
+                                      const std::vector<rvec3_t>& avoid = {});
 
 } // export namespace
 
@@ -299,7 +304,98 @@ static std::vector<double> SolveSPD(std::vector<double> G, std::vector<double> g
     return g;
 }
 
-qcMesh::Mesh MakeInvariantAngularMesh(const std::vector<Matrix3D<double>>& ops, int L)
+//! The axis of a (non-identity, non-inversion) orthogonal op: the eigenvector for eigenvalue +1
+//! (proper rotation) / -1 (mirror or rotoreflection), i.e. a null vector of \f$R \mp I\f$ -- taken
+//! as the largest cross product of two of its rows.  False for E and the inversion (no axis).
+static bool OpAxis(const Matrix3D<double>& R, rvec3_t& axis)
+{
+    const double s = (Determinant(R) > 0) ? -1.0 : +1.0;
+    Matrix3D<double> M = R;
+    M(1,1) += s; M(2,2) += s; M(3,3) += s;
+    rvec3_t r1(M(1,1),M(1,2),M(1,3)), r2(M(2,1),M(2,2),M(2,3)), r3(M(3,1),M(3,2),M(3,3));
+    rvec3_t best = Cross(r1,r2);
+    rvec3_t c    = Cross(r2,r3); if (c*c > best*best) best = c;
+    c            = Cross(r3,r1); if (c*c > best*best) best = c;
+    if (best*best < 1e-16) return false;
+    axis = best*(1.0/sqrt(best*best));
+    return true;
+}
+
+//! Lawson-Hanson NNLS on the angular moment system \f$A w = \sqrt{4\pi}\,e_{Y_{00}},\ w \ge 0\f$
+//! (\a A row-major nY x K).  The entering column maximizes the gradient PER DIRECTION (\a cost =
+//! orbit size), so cheap special orbits win over generic full-size orbits when comparable -- the
+//! Lebedev-efficiency bias of the §6a mixed rule.  True when the sup-norm residual reaches \a tol;
+//! the returned \a w is nonnegative with a sparse (<= #independent moment conditions) support.
+static bool SolveNNLS(const std::vector<double>& A, int nY, int K, const std::vector<double>& cost,
+                      std::vector<double>& w, double tol)
+{
+    const double b0 = sqrt(4.0*Pi);
+    w.assign(K, 0.0);
+    std::vector<int>    P;                                // passive (support) set
+    std::vector<char>   inP(K, 0);
+    std::vector<double> r(nY);
+
+    auto solveP = [&]() -> std::vector<double>            // unconstrained LS on the passive set
+    {
+        const int m = int(P.size());
+        std::vector<double> G(size_t(m)*m, 0.0), g(m, 0.0);
+        for (int a = 0; a < m; ++a)
+        {
+            g[a] = A[size_t(0)*K + P[a]]*b0;              // b is nonzero only on the Y00 row
+            for (int bb = a; bb < m; ++bb)
+            {
+                double s = 0.0;
+                for (int j = 0; j < nY; ++j) s += A[size_t(j)*K+P[a]]*A[size_t(j)*K+P[bb]];
+                G[size_t(a)*m+bb] = G[size_t(bb)*m+a] = s;
+            }
+        }
+        return SolveSPD(std::move(G), std::move(g));
+    };
+
+    for (int iter = 0; iter < 3*K + 100; ++iter)
+    {
+        for (int j = 0; j < nY; ++j)                      // residual r = b - A w (drift-free recompute)
+        {
+            double s = (j == 0) ? b0 : 0.0;
+            for (int k : P) s -= A[size_t(j)*K+k]*w[k];
+            r[j] = s;
+        }
+        double rmax = 0.0;
+        for (double x : r) rmax = std::max(rmax, fabs(x));
+        if (rmax < tol) return true;
+
+        int jin = -1; double best = 0.0;
+        for (int k = 0; k < K; ++k)
+        {
+            if (inP[k]) continue;
+            double g = 0.0;
+            for (int j = 0; j < nY; ++j) g += A[size_t(j)*K+k]*r[j];
+            if (g/cost[k] > best) {best = g/cost[k]; jin = k;}
+        }
+        if (jin < 0) return false;                        // gradient exhausted: the pool is too small
+        P.push_back(jin); inP[jin] = 1;
+
+        for (;;)                                          // inner: restore strict positivity on P
+        {
+            std::vector<double> z = solveP();
+            double zmin = 1e300;
+            for (double x : z) zmin = std::min(zmin, x);
+            if (zmin > 0.0) {for (size_t a = 0; a < P.size(); ++a) w[P[a]] = z[a]; break;}
+            double alpha = 1e300;                         // step to the first variable hitting zero
+            for (size_t a = 0; a < P.size(); ++a)
+                if (z[a] <= 0.0) alpha = std::min(alpha, w[P[a]]/(w[P[a]] - z[a]));
+            for (size_t a = 0; a < P.size(); ++a) w[P[a]] += alpha*(z[a] - w[P[a]]);
+            std::vector<int> Pn;
+            for (int k : P) {if (w[k] > 1e-14) Pn.push_back(k); else {w[k] = 0.0; inP[k] = 0;}}
+            P.swap(Pn);
+            if (P.empty()) break;
+        }
+    }
+    return false;
+}
+
+qcMesh::Mesh MakeInvariantAngularMesh(const std::vector<Matrix3D<double>>& ops, int L,
+                                      const std::vector<rvec3_t>& avoid)
 {
     const int    nG   = int(ops.size());
     const double dtol = 1e-9;                             // direction-coincidence tolerance
@@ -317,90 +413,127 @@ qcMesh::Mesh MakeInvariantAngularMesh(const std::vector<Matrix3D<double>>& ops, 
     auto dist2 = [](const rvec3_t& a, const rvec3_t& b)
     { double dx=a.x-b.x, dy=a.y-b.y, dz=a.z-b.z; return dx*dx+dy*dy+dz*dz; };
 
-    std::vector<std::vector<rvec3_t>> orbits;             // accepted full-size generic orbits
+    // The orbit of a candidate direction; empty when a member lands ON an avoided (bond) direction
+    // (exact coincidence class: the site ops permute the bonds, so a hit is a hit to full precision).
+    auto orbitOf = [&](const rvec3_t& d0) -> std::vector<rvec3_t>
+    {
+        std::vector<rvec3_t> orb;
+        for (const auto& R : ops)
+        {
+            rvec3_t im = R*d0;
+            bool dup = false;
+            for (const auto& q : orb) if (dist2(im,q) < dtol*dtol) {dup = true; break;}
+            if (!dup) orb.push_back(im);
+        }
+        for (const auto& m : orb)
+            for (const auto& b : avoid)
+                if (m*b > 1.0 - 1e-6) return {};
+        return orb;
+    };
+
+    std::vector<std::vector<rvec3_t>> orbits;             // the accepted candidate pool, cheap-first
+    auto tryAdd = [&](std::vector<rvec3_t> orb) -> bool   // reject empties and near-duplicate orbits
+    {
+        if (orb.empty()) return false;
+        for (const auto& o : orbits)
+            for (const auto& q : o)
+                for (const auto& m : orb)
+                    if (dist2(m,q) < 1e-8) return false;
+        orbits.push_back(std::move(orb));
+        return true;
+    };
+
+    // ---- THE MIXED RULE (§6a W2 refinement): special-orbit candidates first, smallest first. ----
+    // (i) op axes (+-n: opposite special orbits are distinct without inversion -- e.g. T_d's bonded
+    // vs anti-bond <111> tetrahedra, only one of which the avoid list kills);
+    // (ii) mirror-plane directions (seeds projected into each mirror plane: |G|/2-size semi-special
+    // orbits, steerable within the plane).
+    {
+        std::vector<std::vector<rvec3_t>> cand;
+        for (const auto& R : ops)
+        {
+            rvec3_t n;
+            if (!OpAxis(R, n)) continue;
+            auto o = orbitOf(n);                          if (!o.empty()) cand.push_back(std::move(o));
+            o      = orbitOf(rvec3_t(-n.x,-n.y,-n.z));    if (!o.empty()) cand.push_back(std::move(o));
+            if (Determinant(R) < 0.0 && fabs(R(1,1)+R(2,2)+R(3,3) - 1.0) < 1e-9)
+                for (int t = 0; t < 6; ++t)               // a mirror: a few in-plane candidates
+                {
+                    rvec3_t s = seed((t*401) & 1023);
+                    rvec3_t v = s - n*(s*n);
+                    if (v*v < 0.1) continue;              // seed too close to the normal
+                    o = orbitOf(v*(1.0/sqrt(v*v)));
+                    if (!o.empty()) cand.push_back(std::move(o));
+                }
+        }
+        std::stable_sort(cand.begin(), cand.end(),
+                         [](const auto& a, const auto& b) {return a.size() < b.size();});
+        for (auto& o : cand) tryAdd(std::move(o));
+    }
+    const int nSpecial = int(orbits.size());
+
+    // ---- Generic full-size orbits appended on demand. ----
     int nextSeed = 0;
-    auto addOrbit = [&]() -> bool
+    auto addGeneric = [&]() -> bool
     {
         for (; nextSeed < 1024; ++nextSeed)
         {
             // Stride the Fibonacci indices (401 coprime to 1024): consecutive CANDIDATES then jump
             // around the sphere, so early orbits cover it instead of clustering at the pole (which
             // left the moment system near-degenerate however many orbits were added).
-            rvec3_t w0 = seed((nextSeed*401) & 1023);
-            std::vector<rvec3_t> orb;
-            for (const auto& R : ops)
-            {
-                rvec3_t im = R*w0;
-                bool dup = false;
-                for (const auto& q : orb) if (dist2(im,q) < dtol*dtol) {dup = true; break;}
-                if (!dup) orb.push_back(im);
-            }
+            std::vector<rvec3_t> orb = orbitOf(seed((nextSeed*401) & 1023));
             if (int(orb.size()) != nG) continue;          // special direction: not generic, skip
-            bool clash = false;                           // reject only near-DUPLICATE orbits (a seed
-            for (const auto& o : orbits) {for (const auto& q : o) for (const auto& m : orb)   // mapping into
-                if (dist2(m,q) < 1e-8) {clash = true; break;} if (clash) break;}              // an existing one)
-            if (clash) continue;
-            orbits.push_back(std::move(orb));
+            if (!tryAdd(std::move(orb))) continue;
             ++nextSeed;
             return true;
         }
         return false;
     };
 
-    // Start at the invariant-subspace estimate and grow until the moment conditions are met
-    // with all-positive weights.
-    int K0 = nY/nG + 2;
-    std::vector<double> w;                                // per-orbit weights
-    std::vector<double> Y;                                // scratch
-    const int Kmax = 4*nY/nG + 40;
-    for (int K = K0; K <= Kmax; ++K)
+    // Grow the pool from the invariant-subspace estimate and NNLS-solve until the moment conditions
+    // are met (the solver guarantees nonnegativity; only the positive support is emitted).
+    std::vector<double> w, Y;
+    for (int K = std::max(nSpecial, 2*(nY/nG) + 8); ; K = 2*K)
     {
-        while (int(orbits.size()) < K)
-            if (!addOrbit()) break;
-        if (int(orbits.size()) < K) break;                // seed pool exhausted (assert below)
+        while (int(orbits.size()) < K && addGeneric()) {}
+        const int nOrb = int(orbits.size());
 
         // Rows: sum of Ylm over each orbit.  b: sqrt(4pi) on the Y00 row.
-        std::vector<double> A(size_t(nY)*K, 0.0);
-        for (int k = 0; k < K; ++k)
+        std::vector<double> A(size_t(nY)*nOrb, 0.0), cost(nOrb);
+        for (int k = 0; k < nOrb; ++k)
+        {
+            cost[k] = double(orbits[k].size());
             for (const auto& m : orbits[k])
             {
                 EvalRealYlm(m, L, Y);
-                for (int j = 0; j < nY; ++j) A[size_t(j)*K + k] += Y[j];
-            }
-        std::vector<double> G(size_t(K)*K, 0.0), g(K, 0.0);
-        for (int j = 0; j < nY; ++j)
-        {
-            const double bj = (j == 0) ? sqrt(4.0*Pi) : 0.0;
-            for (int k = 0; k < K; ++k)
-            {
-                g[k] += A[size_t(j)*K+k]*bj;
-                for (int kk = k; kk < K; ++kk) G[size_t(k)*K+kk] += A[size_t(j)*K+k]*A[size_t(j)*K+kk];
+                for (int j = 0; j < nY; ++j) A[size_t(j)*nOrb + k] += Y[j];
             }
         }
-        for (int k = 0; k < K; ++k) for (int kk = 0; kk < k; ++kk) G[size_t(k)*K+kk] = G[size_t(kk)*K+k];
-        w = SolveSPD(std::move(G), std::move(g));
-
-        double resid = 0.0, wmin = w[0];
-        for (int j = 0; j < nY; ++j)
+        const bool ok = SolveNNLS(A, nY, nOrb, cost, w, 1e-9);
+        if (getenv("QCHEM_ANGMESH_DEBUG"))
         {
-            double q = 0.0;
-            for (int k = 0; k < K; ++k) q += A[size_t(j)*K+k]*w[k];
-            resid = std::max(resid, fabs(q - ((j==0) ? sqrt(4.0*Pi) : 0.0)));
+            int    sup = 0; size_t nd = 0;
+            for (int k = 0; k < nOrb; ++k) if (w[k] > 0.0) {++sup; nd += orbits[k].size();}
+            printf("[angmesh] pool=%d (special %d) nnls=%s support=%d dirs=%zu\n",
+                   nOrb, nSpecial, ok ? "ok" : "FAIL", sup, nd);
         }
-        for (double x : w) wmin = std::min(wmin, x);
-        if (resid < 1e-9 && wmin > 0.0)
+        if (ok)
         {
             size_t n = 0;                                 // flatten: every member carries its orbit weight
-            for (int k = 0; k < K; ++k) n += orbits[k].size();
+            for (int k = 0; k < nOrb; ++k) if (w[k] > 0.0) n += orbits[k].size();
             rvec3vec_t P(n);
             rvec_t     W(n);
             size_t i = 0;
-            for (int k = 0; k < K; ++k)
+            for (int k = 0; k < nOrb; ++k)
+            {
+                if (w[k] <= 0.0) continue;
                 for (const auto& m : orbits[k]) {P[i] = m; W[i] = w[k]; ++i;}
+            }
             return qcMesh::Mesh(std::move(P), std::move(W));
         }
+        if (nOrb < K) break;                              // seed pool exhausted (assert below)
     }
-    assert(false && "MakeInvariantAngularMesh: no positive exact rule found (raise Kmax / seed pool)");
+    assert(false && "MakeInvariantAngularMesh: no positive exact rule found (seed pool exhausted)");
     return qcMesh::Mesh();
 }
 

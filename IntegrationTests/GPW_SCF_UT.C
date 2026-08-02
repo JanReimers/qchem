@@ -215,11 +215,11 @@ struct GpwOptions
     rvec3_t kShift = rvec3_t(0,0,0);
     //! XC-quadrature policy, decided by \c xcMesh.cellKind.  DEFAULT \c Auto (2026-08-01 flip): the
     //! driver resolves it to the atom-centred periodic BECKE mesh (Delta_XC, the calibrated
-    //! BeckeXCParams() recipe) — EXCEPT under \c reduceBZ, where Auto falls back to the uniform G-space
-    //! raster (PW_XC) with a console note, because the Becke-route density star-average is unverified
-    //! (doc/GPWPlan1.md "Becke+IBZ"; the symmetry review owns closing it).  EXPLICIT \c Uniform or
-    //! \c Becke is always honored — an explicit Becke+reduceBZ run is exactly how the star-average gets
-    //! verified.  The run announces the choice on the [XC quadrature] console line either way.
+    //! BeckeXCParams() recipe) — \c reduceBZ runs included since the 2026-08-02 carve-out retirement
+    //! (plan §7 step 5): an imposed run builds the MIXED-RULE site-adapted invariant Becke mesh
+    //! (~2x the free mesh at the production recipe) and star-averages ρ on it.  EXPLICIT \c Uniform
+    //! or \c Becke is always honored.  The run announces the choice on the [XC quadrature] console
+    //! line either way.
     qcMesh::MeshParams xcMesh{.cellKind=qcMesh::UnitCellKind::Auto};
     //! WHICH fit basis represents v_xc -- ORTHOGONAL to the grid choice above (plan §6a fit/grid
     //! separation): Auto = the historical pairing (Delta on Becke, PlaneWave on the uniform raster);
@@ -240,23 +240,13 @@ namespace
 {
 // XC-route AUTO resolution (the 2026-08-01 Becke-default flip, doc/GPWPlan1.md).  Becke is the DEFAULT
 // XC quadrature for GPW runs — the near-ideal grid for the one pointwise-nonlinear sharp-at-core term,
-// diffuse bases included — EXCEPT under BZ reduction, where the Becke-side density star-average is
-// unverified, so Auto falls back to the uniform raster WITH a console note (never silent).  Explicit
-// cellKind is always honored.
-qcMesh::MeshParams ResolveXCMesh(const qcMesh::MeshParams& mp, bool reduceBZ)
+// diffuse bases included — BZ-reduced runs INCLUDED (the 2026-08-02 carve-out retirement, plan §7 step 5:
+// the mixed-rule site-adapted invariant mesh prices ~2x the free Becke mesh at the production recipe —
+// measured 1.97x at L=29 — and Becke+IBZ is gate-verified on it, so Auto no longer falls back to the
+// uniform raster).  Explicit cellKind is always honored.
+qcMesh::MeshParams ResolveXCMesh(const qcMesh::MeshParams& mp)
 {
     if (mp.cellKind!=qcMesh::UnitCellKind::Auto) return mp;
-    if (reduceBZ)
-    {
-        // The Becke-route star-average is now VERIFIED (BeckeXC_IBZ_SiDiamond, plan §6a W1) but the
-        // W1 invariant mesh pays a group-average growth (measured ~6x on Si/GL-9), so Auto still
-        // prefers the uniform raster under reduceBZ; W2's site-adapted grids (no growth) retire this.
-        std::cout<<"[XC quadrature] AUTO -> uniform raster: BZ-reduced run (Becke+IBZ verified but W1 "
-                   "mesh growth ~6x -- explicit Becke opts in; W2 retires this fallback)"<<std::endl;
-        qcMesh::MeshParams r=mp;
-        r.cellKind=qcMesh::UnitCellKind::Uniform;
-        return r;
-    }
     return BeckeXCParams();   // the calibrated default recipe (nR=40, alpha=2, GL-29; GPW_BECKE_* sweepable)
 }
 } //anon
@@ -370,7 +360,7 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
     {
         qchem::report::Timed t("setup: hamiltonian ctor (fit bases + becke mesh)");
         ham=new qchem::Hamiltonian::Ham_PW_DFT(lat.GetStructure(), bs.get(), o.species, "LDA",
-                                               ResolveXCMesh(o.xcMesh, o.reduceBZ), o.vxcFit);
+                                               ResolveXCMesh(o.xcMesh), o.vxcFit);
     }
     auto* acc = MakeGpwAccelerator(o.accelerator);
 
@@ -468,7 +458,7 @@ static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Rea
         // Fresh Hamiltonian + accelerator per stage (the iterator OWNS + deletes them; a kT change must not
         // carry stale DIIS history across the re-seed).
         auto* ham = new qchem::Hamiltonian::Ham_PW_DFT(st, bs.get(), o.species, "LDA",
-                                                       ResolveXCMesh(o.xcMesh, o.reduceBZ), o.vxcFit);
+                                                       ResolveXCMesh(o.xcMesh), o.vxcFit);
         auto* acc = MakeGpwAccelerator(o.accelerator);
         std::unique_ptr<qchem::SCFIterator::SolidSCFIterator> scf(
             s==0 ? new qchem::SCFIterator::SolidSCFIterator(bs.get(), &ec, ham, acc, o.seed,  st.get(), o.ortho, o.orthoTol)
@@ -921,6 +911,7 @@ TEST(GPW_SCF, AlFCCMetalGlobalMu)
     EXPECT_TRUE(R.converged) << "one μ across the BZ converges the dispersive metal (per-block filling cannot)";
     EXPECT_NEAR(R.charge, 3.0, 1e-6);          // BZ-weighted Σ_k w_k n_k = 3 (weight-consistency guard)
     EXPECT_LT(R.E.MinusTS, 0.0);               // −TS<0 => A=GetTotalEnergy() is the free energy (gate iii)
+    std::cout<<"[Al global-μ full-mesh] A="<<R.E.GetTotalEnergy()<<std::endl;   // the IBZ pin's route-matched partner
     EXPECT_NEAR(R.E.GetTotalEnergy(), -2.11681, 3e-3);   // did-E-move anchor (2×2×2 global-μ free energy A)
     EXPECT_LT(R.E.GetTotalEnergy(), -1.95);    // dispersion: well below the Γ-only -1.92 (k-sampling binds)
 }
@@ -945,12 +936,14 @@ TEST(GPW_SCF, AlFCCMetalIBZExact)
     EXPECT_NEAR(R.charge, 3.0, 1e-6);
     // Re-anchored 2026-08-01: the 0i custom V_loc G-ball (harmonic routing + custom top level) moved the
     // long-PP block by 1.6e-4 on Al's coarse grids -- full mesh AND reduced shift TOGETHER (folding stays
-    // exact; the full-mesh AlFCCMetalGlobalMu prints -2.11697 same run).  Old kappa-sweep anchor: -2.116812.
-    // ROUTE NOTE (Becke-default flip): this reduceBZ run resolves Auto -> UNIFORM (Becke+IBZ unverified),
-    // and the pinned value is the uniform-route full-mesh number -- route-matched by construction.  When
-    // the symmetry review verifies the Becke star-average, re-pin both on the Becke route together.
-    EXPECT_NEAR(R.E.GetTotalEnergy(), -2.1169707, 1e-4)  // == the full 8-k-point mesh: IBZ symmetrization is EXACT
-        << "IBZ-reduced must reproduce the full-mesh free energy (AlFCCMetalGlobalMu -2.11697)";
+    // exact).  Old kappa-sweep anchor: -2.116812.
+    // Re-pinned 2026-08-02 ON THE BECKE ROUTE (plan §7 step 5 carve-out retirement): Auto+reduceBZ now
+    // builds the mixed-rule site-adapted invariant Becke mesh (830 dirs/atom under Al's O_h site group,
+    // the 12 <110> bond directions filtered), and the reduced run reproduces the Becke full-mesh
+    // AlFCCMetalGlobalMu (prints -2.11749 same run) to ~1e-5 -- folding stays exact on the Becke route.
+    // The uniform-route pair was -2.1169707 (route difference ~5e-4, the Becke-vs-uniform XC class).
+    EXPECT_NEAR(R.E.GetTotalEnergy(), -2.1174805, 1e-4)  // == the full 8-k-point mesh: IBZ symmetrization is EXACT
+        << "IBZ-reduced must reproduce the full-mesh free energy (AlFCCMetalGlobalMu -2.11749)";
 }
 
 // (item 5, IBZ) NON-SYMMORPHIC -- diamond Si (FCC lattice + a 2-atom basis at (0,0,0),(¼,¼,¼)) is space group
@@ -1047,7 +1040,13 @@ TEST(GPW_SCF, BeckeXC_IBZ_SiDiamond)
     GpwResult R=RunGpw(lat, MakeBasisSR(cell), o, /*verbose*/false);
     ASSERT_TRUE(R.converged);
 
-    EXPECT_NEAR(R.E.GetTotalEnergy(), F.E.GetTotalEnergy(), 2e-3)
+    std::cout<<"[Becke IBZ gate] full="<<F.E.GetTotalEnergy()<<" reduced="<<R.E.GetTotalEnergy()
+             <<" dE="<<R.E.GetTotalEnergy()-F.E.GetTotalEnergy()<<std::endl;
+    // Tolerance = the RULE-DIFFERENCE class at this deliberately coarse L: the free arm runs GL-9
+    // (50 dirs), the imposed arm the MIXED-rule site-adapted minimal grid (degree-9-exact, ~76
+    // dirs/atom) -- measured 2.0e-3 at L=9, collapsing with L (passes 2e-3 already at L=17; both
+    // rules sit on the comparison floor at the production L=29).
+    EXPECT_NEAR(R.E.GetTotalEnergy(), F.E.GetTotalEnergy(), 3e-3)
         << "Becke+IBZ must reproduce Becke+full-mesh (the W1 star-average makes the reduced density exact "
            "on the invariant Becke mesh; doc/SymmetryUpgradePlan.md 6a)";
 }

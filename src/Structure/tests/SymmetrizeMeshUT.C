@@ -9,6 +9,7 @@
 
 import qchem.SymmetrizeMesh;   // FoldMesh/Symmetrize/UnmatchedCounts/MakeInvariant/MakeInvariantAngularMesh
 import qchem.Lattice_3D;       // Lattice_3D::GetSpaceGroup + FCCUnitCell/UnitCell (the site-adapted Becke gate)
+import qchem.Mesh.Angular;     // MakeAngular (the GL direction-count baseline for the growth measure)
 import qchem.Types;
 
 using namespace qchem;
@@ -247,6 +248,46 @@ TEST(SiteAdaptedBeckeMesh, DiamondInvariantByConstruction)
     EXPECT_NEAR(wa/wp, 1.0, 0.05);
 }
 
+// §7 step 5 REMAINING: the PRODUCTION-L growth re-measure (plan §6a W2b close-out).  The W2b
+// measurement at coarse L=9/T_d was 240 dirs vs GL-9's 50 (the low-L generic-orbit premium);
+// the claim to test is the ~2x asymptote at the production recipe L=29 (GL-29 = 450 dirs).
+// This is a MEASUREMENT gate: it prints the numbers and pins only the asymptote class.
+TEST(InvariantAngularMesh, ProductionL29Growth)
+{
+    FCCUnitCell cell(10.26);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+    const SL::SpaceGroup& sg = lat.GetSpaceGroup();
+
+    // Diamond's T_d site group as Cartesian ops (A W A^-1), exactly as CreateSiteAdaptedBeckeMesh does.
+    const Matrix3D<double>& A = cell.GetCellMatrix();
+    const Matrix3D<double> Ainv = Invert(A);
+    std::vector<Matrix3D<double>> siteOps;
+    for (const auto& op : sg.SiteStabilizer(rvec3_t(0,0,0))) siteOps.push_back(A*op.W*Ainv);
+    ASSERT_EQ(siteOps.size(), 24u);
+
+    const int L = 29;
+    Mesh q = MakeInvariantAngularMesh(siteOps, L);
+    qcMesh::MeshParams mp;
+    mp.angular=qcMesh::AngularKind::GaussLegendre; mp.nAngular=L;
+    const size_t nGL = qcMesh::MakeAngular(mp).size();
+
+    const double growth = double(q.size())/double(nGL);
+    std::cout << "[MEASURE] L=" << L << " T_d invariant dirs=" << q.size()
+              << " GL dirs=" << nGL << " growth=" << growth << "x" << std::endl;
+
+    // Invariant by construction, positive weights, Sum w = 4pi (the cheap subset of
+    // CheckAngularQuadrature -- the full monomial sweep at L=29 is the expensive part).
+    double wsum = 0;
+    for (size_t i = 0; i < q.size(); ++i) {EXPECT_GT(q.Weights()[i], 0.0); wsum += q.Weights()[i];}
+    EXPECT_NEAR(wsum, 4.0*M_PI, 1e-8);
+
+    // The asymptote claim: the production-L premium must be well under the coarse-L 4.8x
+    // (240/50), in the ~2x class.
+    EXPECT_LT(growth, 2.5);
+}
+
 TEST(SymmetrizeMesh, TorusFoldMatchesAcrossTheCellBoundary)
 {
     // {E|(3/4,3/4,3/4)} maps (1/2,1/2,1/2) -> (5/4,..) == (1/4,..) mod 1: only the TORUS fold merges.
@@ -260,4 +301,31 @@ TEST(SymmetrizeMesh, TorusFoldMatchesAcrossTheCellBoundary)
 
     SL::Fold plain = SL::FoldPoints(pts, ops, 1e-9);     // no wrap: no merge
     EXPECT_EQ(plain.Reps(), 2u);
+}
+
+// The invariance contract AT SCALE (production angular recipe L=29): with tens of thousands of
+// points, eps-BORDERLINE tail-drop decisions in the Becke builder flip inconsistently across orbit
+// partners (bit-different rotated distances) -- measured 212 orphaned points at nR=40/L=29 before
+// the orbit-consistency filter in CreateSiteAdaptedBeckeMesh.  This gate holds the cured contract:
+// UnmatchedCounts identically zero at a recipe big enough to exercise the borderline channel.
+// (The full production growth measure, one-off 2026-08-02: adapted 49172 vs plain 25007 = 1.97x,
+// the dirs-ratio asymptote of the ProductionL29Growth angular gate above.)
+TEST(SiteAdaptedBeckeMesh, ProductionAngularRecipeInvariantAfterTailDrop)
+{
+    FCCUnitCell cell(10.26);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+    const SL::SpaceGroup& sg = lat.GetSpaceGroup();
+    std::vector<SL::SymOp> ops;
+    for (const auto& op : sg.Ops()) ops.push_back({op.W, op.tau});
+
+    qcMesh::MeshParams mp;
+    mp.cellKind=qcMesh::UnitCellKind::Becke;
+    mp.radial=qcMesh::RadialKind::MHL; mp.nRadial=15; mp.mhl_m=2; mp.mhl_alpha=2.0;
+    mp.angular=qcMesh::AngularKind::GaussLegendre; mp.nAngular=29;
+
+    Mesh adapted = cell.CreateSiteAdaptedBeckeMesh(mp, ops);
+    ASSERT_GT(adapted.size(), 10000u);
+    for (int bad : UnmatchedCounts(adapted, sg)) EXPECT_EQ(bad, 0);
 }

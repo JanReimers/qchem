@@ -9,17 +9,26 @@ consolidates), `doc/SpinNativeDFTPlan.md` (spin-native XC), and
 tracked in **`doc/CleanupCandidates.md`** (keep it growing; batch-fix in dedicated
 refactor sessions).
 
-**SESSION CLOSE (2026-08-02) — WHERE THINGS STAND:** §7 steps 1–4 DONE; step 5 (T2) DONE
-through W2b (site-adapted invariant Becke mesh, Becke+IBZ verified on both W1 and W2b
-routes); steps 6 (T3 streams), 7 (MnO, needs tier 4b), 8 (SALCs) not started.  The XC
-route was redesigned along the way (fit/grid separation: `VxcFit` ⊥ `MeshParams`;
-`Delta_XC` + `XC_GridEngine(mesh, fold)` + the `CreateXCQuadrature` basis factory).
-**Open next increments, in rough value order:** (a) production-L (=29) growth re-measure +
-the MIXED special-orbit rule (§6a W2 refinement below) → the `reduceBZ` Auto→uniform
-carve-out retirement decision; (b) the free-run ROTATED-Lebedev experiment (cheap accuracy
-fix, §6a note); (c) T3 stream fold + the §5 commensurable raster menu (also delivers the
-raster fold that retires `FIT_SF_ABS::SymmetrizeRaster`); (d) I3's one-functional E/H
-design for the (PlaneWave, Becke) cell; (e) tier 4b (Na-doublet/O₂-triplet boxes) → step 7.
+**SESSION CLOSE (2026-08-02, second session) — WHERE THINGS STAND:** §7 steps 1–5 DONE —
+step 5 (T2) CLOSED OUT this session: the MIXED special-orbit rule + NNLS landed
+(`MakeInvariantAngularMesh(ops, L, avoid)`), the production-L growth re-measure came in at
+the promised ~2× (1.97× mesh / 1.95× angular at L=29 vs GL-29), and the **`reduceBZ`
+Auto→uniform carve-out is RETIRED** (Auto+reduceBZ now builds the mixed-rule site-adapted
+invariant Becke mesh; Al re-pinned route-matched −2.1174805, reduced==full ~1e-5; Si
+diamond IBZ passes on the old pin).  TWO DISCOVERIES en route (details in the W2c block
+below): (i) plain LS weight-solving FAILS outright at L=29 (residual 1e-11 but a ~−5e-4
+negative-weight floor persists to any pool size) — NNLS is a *requirement*, not an
+optimization; (ii) the Becke builder's ε-borderline tail drops flip inconsistently across
+orbit partners at scale (212 orphans at nR=40/L=29) — cured by the orbit-consistency
+filter in `CreateSiteAdaptedBeckeMesh`, gated at production-L.  Steps 6 (T3 streams), 7
+(MnO, needs tier 4b), 8 (SALCs) not started.  The XC route was redesigned along the way
+(fit/grid separation: `VxcFit` ⊥ `MeshParams`; `Delta_XC` + `XC_GridEngine(mesh, fold)` +
+the `CreateXCQuadrature` basis factory).
+**Open next increments, in rough value order:** (b) the free-run ROTATED-Lebedev experiment
+(cheap accuracy fix, §6a note); (c) T3 stream fold + the §5 commensurable raster menu (also
+delivers the raster fold that retires `FIT_SF_ABS::SymmetrizeRaster`); (d) I3's
+one-functional E/H design for the (PlaneWave, Becke) cell; (e) tier 4b (Na-doublet/
+O₂-triplet boxes) → step 7.
 **Cleanup debt found while feature-building goes to `doc/CleanupCandidates.md`** (standing
 practice, user 2026-08-02) — keep it growing rather than fixing inline.  Detailed
 per-increment records follow below.
@@ -139,6 +148,37 @@ L≈29, and a MIXED rule admitting special orbits that avoid atom-specific bad a
 noted refinement).  **Carve-out decision: Auto→uniform under reduceBZ STAYS** until the
 growth is re-measured at the production recipe (L=29) and/or the mixed rule lands; explicit
 Becke+IBZ is verified on both W1 and W2b routes.  Full suite 649/649.
+**W2c BUILT (2026-08-02, second session) — the MIXED RULE + NNLS + the carve-out retirement:**
+`MakeInvariantAngularMesh(ops, L, avoid)` now seeds its orbit pool with the site group's
+SPECIAL orbits first (op axes via the ±1-eigenvector of each op, both ±n — opposite special
+orbits are distinct without inversion, so diamond's ANTI-bond ⟨-1-1-1⟩ tetrahedron survives
+the filter that kills the bonded one; mirror-plane |G|/2 semi-special orbits from projected
+seeds), filtered against the ATOM's actual bond directions (`CreateSiteAdaptedBeckeMesh`
+computes nearest-neighbour unit vectors, first shell ×1.05), then generic Fibonacci orbits.
+Weights: **Lawson-Hanson NNLS** with per-DIRECTION cost-biased column selection (entering
+column maximizes gradient/orbit-size — the Lebedev-efficiency bias) replaced the plain LS —
+MEASURED NECESSARY: at L=29/T_d the LS residual converges to 1e-11 by K=46 but the min
+weight plateaus at ~−5e-4 to Kmax however many orbits are added; NNLS guarantees w≥0 and
+emits a sparse support.  MEASURED: T_d L=29 → 878 dirs vs GL-29's 450 = **1.95×** (the ~2×
+asymptote CONFIRMED; W2b's coarse-L premium is gone — T_d L=9 → 76 dirs, L=5 → 18 = GL
+parity; O_h L=9 → 4 orbits/50 dirs, Lebedev-9 class); full production mesh (nR=40, L=29,
+diamond) 49172 vs 25007 pts = **1.97×**; Al O_h site 830 dirs (⟨110⟩ bonds filtered).
+**THE ε-TAIL ORBIT-CONSISTENCY BUG (found by the production-L invariance gate):** the raw
+site-adapted point set is op-covariant by construction, but `MakePeriodicBeckeMesh`'s
+ε-borderline DROP decisions (the `<eps` screens + the `w>0` keep) are computed from
+bit-different rotated distances — at ~70k raw points 212 orphaned points broke
+`UnmatchedCounts≡0`.  Cure: post-filter dropping every orbit-INCOMPLETE point
+(complete ⇔ |orbit|×|site stabilizer| == |ops|; only ~ε-weight points can be incomplete, so
+this stays inside the ε-converged-series contract).  GATES: SymmetrizeMeshUT
+`ProductionL29Growth` (growth < 2.5× pinned) + `ProductionAngularRecipeInvariantAfterTailDrop`
+(UnmatchedCounts≡0 at nR=15/L=29, a recipe measured to exercise the borderline channel — 14
+orphans cured) + the L=9 through-SCF gate re-measured (ΔE=−2.0e-3, the RULE-difference
+class GL-9 vs minimal-mixed-76-dir, gate 3e-3, collapsing with L — passes 2e-3 at L=17,
+production L on the comparison floor).  **CARVE-OUT RETIRED:** `ResolveXCMesh` Auto is
+Becke unconditionally; `AlFCCMetalIBZExact` re-pinned ON THE BECKE ROUTE (reduced
+−2.1174805 == full −2.11749 to ~1e-5 — folding exact on the Becke route; uniform-route
+pair was −2.1169707, route difference ~5e-4); `SiDiamondIBZ_NonSymmorphic` passes
+unchanged (−7.77846 pin, Becke-vs-uniform route difference < 2e-3 for Si).
 The SCF-level broken-seed negative control lands with the §8 harness (needs a
 symmetry-breaking SeedStrategy).  NOTE (§4/§9): non-collinear added —
 `SpinAction{None,Flip}` is documented as the collinear collapse of the general spin
@@ -537,7 +577,8 @@ satisfies the precondition *generically* and a production increment that satisfi
   **Cost honesty:** `MakeInvariant` grows the mesh (≤|G|×, Φ-table memory with it), so W1
   runs the GATE on a COARSE mesh — legitimate, because the gate (Becke+IBZ == Becke+full,
   ~1e-7 through-SCF class) compares two runs on the SAME mesh, so grid quality cancels.
-  The `reduceBZ` Auto→uniform carve-out (`ResolveXCMesh`) STAYS until W2.
+  The `reduceBZ` Auto→uniform carve-out (`ResolveXCMesh`) STAYS until W2.  [RETIRED with
+  W2c, 2026-08-02.]
 
 - **W2 — production wiring (the minimal site-adapted grids; the real T2 payoff).**  The
   bespoke connection: per atom ORBIT, the representative gets an angular set built as
@@ -569,7 +610,10 @@ satisfies the precondition *generically* and a production increment that satisfi
   Lebedev's small-orbit efficiency while keeping invariance-by-construction.  For AXIAL
   site groups (C_n/C_nv, the common low-symmetry sites) the normalizer is continuous:
   genuine rotation freedom about the axis to steer residual special directions away from
-  neighbours.
+  neighbours.  [BUILT as W2c 2026-08-02 (see the status block): special-orbit seeding +
+  bond filter + NNLS all landed; the axial-group CONTINUOUS steering (rotating the
+  mirror-plane seeds about a C_n axis) remains open — today's axial sites just get the
+  projected-seed defaults.]
 
 - **OWNERSHIP RESOLVED (user + review, 2026-08-01) — the four-way Ham/Structure/Mesh/SpaceGroup
   standoff dissolves on two decisions:**
@@ -611,9 +655,10 @@ against a special case it will outgrow:
    broken density fires the diagnostic (the SCF-level broken-SEED control awaits a
    symmetry-breaking SeedStrategy, §8 harness).
 4. **✓ DONE — (T1) {G} fold** — smallest real reduction; reduced==full on a symmetric density.
-5. **✓ DONE (through W2b) — (T2) {r} + Becke angular fold**: the site-adapted invariant mesh +
-   Becke+IBZ verification landed (§6a W1/W2a/W2b); REMAINING: production-L growth re-measure +
-   the mixed special-orbit rule → the `reduceBZ` carve-out retirement.
+5. **✓ DONE — (T2) {r} + Becke angular fold**: the site-adapted invariant mesh + Becke+IBZ
+   verification landed (§6a W1/W2a/W2b); the production-L growth re-measure (1.97× at L=29),
+   the mixed special-orbit rule + NNLS (W2c), and the `reduceBZ` carve-out RETIREMENT
+   (Auto+reduceBZ = Becke, Al re-pinned route-matched) closed it out 2026-08-02.
 6. **(T3) stream cache reduction** — the 5–20× lever; needs §5's commensurable raster menu
    on every ladder level. Route (b) default (imposes, gated by the policy + diagnostic),
    route (a) as the no-impose fallback.

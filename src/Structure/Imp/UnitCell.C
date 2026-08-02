@@ -237,13 +237,38 @@ qcMesh::Mesh UnitCell::CreateSiteAdaptedBeckeMesh(const qcMesh::MeshParams& mp,
         return dx*dx+dy*dy+dz*dz < 1e-12;
     };
 
+    // The mixed rule's ATOM-SPECIFIC bad-direction list (§6a W2): the atom's actual bond directions
+    // -- unit vectors to its nearest-neighbour images (first shell, 5% width; the +-1 cell range
+    // covers the nearest neighbour of any reasonable primitive cell).  Only these are poison for a
+    // quadrature direction; special orbits pointing BETWEEN bonds stay admissible.
+    auto bondDirs = [&](const rvec3_t& fr)
+    {
+        const rvec3_t r0 = ToCartesian(fr);
+        std::vector<std::pair<double,rvec3_t>> nb;
+        double dmin = 1e300;
+        for (auto a : *this)
+            for (int i = -1; i <= 1; ++i)
+                for (int j = -1; j <= 1; ++j)
+                    for (int k = -1; k <= 1; ++k)
+                    {
+                        rvec3_t dR = a->itsR + ToCartesian(rvec3_t(i,j,k)) - r0;
+                        double  d  = norm(dR);
+                        if (d < 1e-6) continue;          // the atom itself
+                        nb.push_back({d, dR/d});
+                        if (d < dmin) dmin = d;
+                    }
+        std::vector<rvec3_t> dirs;
+        for (const auto& [d, u] : nb) if (d < dmin*1.05) dirs.push_back(u);
+        return dirs;
+    };
+
     std::vector<qcMesh::AngularMesh> ang(F.size());
     for (size_t o = 0; o < af.Reps(); ++o)
     {
         const rvec3_t& fr = F[af.repRaw[o]];
         std::vector<Matrix3D<double>> siteOps;
         for (const auto& op : ops) if (fixes(op, fr)) siteOps.push_back(cart(op.W));
-        qcMesh::Mesh aq = MakeInvariantAngularMesh(siteOps, mp.nAngular);
+        qcMesh::Mesh aq = MakeInvariantAngularMesh(siteOps, mp.nAngular, bondDirs(fr));
         for (auto [mi, oi] : af.members[o])
         {
             assert(oi>=0 && "site-adapted Becke mesh: the imposed op set must be a group (edge op per partner)");
@@ -254,7 +279,32 @@ qcMesh::Mesh UnitCell::CreateSiteAdaptedBeckeMesh(const qcMesh::MeshParams& mp,
             ang[mi] = qcMesh::AngularMesh(std::move(d), std::move(w));
         }
     }
-    return MakePeriodicBeckeMesh(*this, mp, &ang);
+    qcMesh::Mesh mesh = MakePeriodicBeckeMesh(*this, mp, &ang);
+
+    // The raw point set is op-covariant BY CONSTRUCTION, but the builder's eps-tail DROP decisions
+    // (the <eps screens and the w>0 keep) are computed from bit-DIFFERENT rotated distances, so a
+    // borderline far-tail point can be kept on one atom while its orbit partner is dropped -- measured
+    // at the production recipe (L=29, ~70k raw points).  Cure: drop every orbit-INCOMPLETE point
+    // (complete <=> |orbit| x |site stabilizer| == |ops|).  Only eps-borderline points -- weight ~eps
+    // or below -- can be incomplete, so this stays inside the eps-converged-series contract.
+    SL::Fold f = SL::FoldPointsPeriodic([&]{ std::vector<rvec3_t> fp;
+        for (size_t i = 0; i < mesh.size(); ++i) fp.push_back(ToFractional(mesh.Points()[i]));
+        return fp; }(), ops, 1e-8);
+    qcMesh::MeshBuilder out;
+    size_t nDropped = 0;
+    for (size_t o = 0; o < f.Reps(); ++o)
+    {
+        rvec3_t fr = ToFractional(mesh.Points()[f.repRaw[o]]);
+        size_t  stab = 0;
+        for (const auto& op : ops) if (fixes(op, fr)) ++stab;
+        if (f.members[o].size()*stab == ops.size())
+            for (auto [mi, oi] : f.members[o]) out.Append(mesh.Points()[mi], mesh.Weights()[mi]);
+        else nDropped += f.members[o].size();
+    }
+    if (nDropped>0)
+        std::cout<<"[Becke grid] orbit-consistency: dropped "<<nDropped
+                 <<" eps-borderline points whose orbit partners were tail-dropped"<<std::endl;
+    return out.take();
 }
 
 // A periodic cell's real-space integration mesh.  Two kinds (mp.cellKind):
