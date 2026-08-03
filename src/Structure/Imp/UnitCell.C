@@ -1,6 +1,7 @@
 // File: Structure/UnitCell.C  Unit cell for a lattice.  Symbol/units conventions: see Lattice.C.
 module;
 #include <cassert>
+#include <cstdlib>   // std::getenv (the GPW_OMP_THREADS cap on the Becke mesh build)
 #include <iostream>
 #include <string>
 #include <vector>
@@ -90,15 +91,14 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
         // image series is the whole build cost, measured linear at any angular count), and each result
         // lands in its own indexed slot consumed in index order below -- so the threaded build is
         // BIT-IDENTICAL to the serial one at any thread count (no cross-point reductions, unlike the
-        // GPW pair loops).  Hence parallel by DEFAULT under QCHEM_OPENMP (OMP_NUM_THREADS honoured).
+        // GPW pair loops).  Hence parallel by DEFAULT under QCHEM_OPENMP; GPW_OMP_THREADS, when set,
+        // is honoured as the thread CAP (user request: ONE knob governs all the heavy loops) --
+        // purely resource control, never a numerics knob.
         const size_t nq=am.size();
         std::vector<char> keep(nq, 0);
         rvec3vec_t        kpt(nq);
         rvec_t            kwt(nq);
-#ifdef QCHEM_OPENMP
-        #pragma omp parallel for schedule(dynamic, 8)
-#endif
-        for (size_t q=0; q<nq; q++)
+        auto partition=[&](size_t q)
         {
             std::vector<BeckeImage> im;   // competitor images for this point (thread-local)
             const rvec3_t& r=pts[q];
@@ -133,7 +133,7 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
             // arrive, and s((da-dn)/(da+dn)) is increasing in dn, so this is a valid upper bound on the
             // point's own cell function.
             const double da=norm(r-R[ia]);
-            if (BeckeCutoff((da-dNear)/(da+dNear),k)<eps) continue;
+            if (BeckeCutoff((da-dNear)/(da+dNear),k)<eps) return;
 
             for (int s=2; ; s++)
             {
@@ -158,7 +158,7 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
 
             // If the point's own centre was never gathered, its cell function is below the unseen-image
             // bound (< eps) -- the partition assigns it ~0 weight.
-            if (target<0 || !im[target].inPSet) continue;
+            if (target<0 || !im[target].inPSet) return;
 
             double sum=0, Pt=0;
             for (size_t i=0; i<im.size(); i++)
@@ -184,7 +184,22 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
                 kpt[q]=r-cell.ToCartesian(rvec3_t(n0x,n0y,n0z));
                 kwt[q]=wts[q]*w;
             }
+        };
+#ifdef QCHEM_OPENMP
+        static const int cap=[]{ const char* s=std::getenv("GPW_OMP_THREADS"); return s?std::atoi(s):0; }();
+        if (cap>0)
+        {
+            #pragma omp parallel for schedule(dynamic, 8) num_threads(cap)
+            for (size_t q=0; q<nq; q++) partition(q);
         }
+        else
+        {
+            #pragma omp parallel for schedule(dynamic, 8)
+            for (size_t q=0; q<nq; q++) partition(q);
+        }
+#else
+        for (size_t q=0; q<nq; q++) partition(q);
+#endif
         for (size_t q=0; q<nq; q++) if (keep[q]) out.Append(kpt[q], kwt[q]);
     }
     qcMesh::Mesh mesh=out.take();
