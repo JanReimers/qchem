@@ -32,6 +32,7 @@ import qchem.Pseudopotential.SeparablePotential; // HGH_SeparablePotential + the
 import qchem.Pseudopotential.GTH_Potentials;     // GetGTH (the Si GTH-LDA-q4 projector data)
 import qchem.BasisSet.Lattice_3D.Evaluators.GPW; // GPW_Evaluator (tests may cheat-import internals) -- DFT tier
 import qchem.BasisSet.Molecule.LatticeSum1E;     // Molecule::LatticeSum1E::CollocateDensity (analytic collocation)
+import qchem.Symmetry.Lattice_3D.SpaceGroup;     // SpaceGroup::Detect + DirectOp (the T3 stream-fold unit gates)
 import qchem.BasisSet.Internal.GMap;            // G_ERI3 / ΔG_Map (the collocation tensor + rho-tilde)
 import qchem.Hamiltonian.Internal.ExFunctional;   // ExFunctional (the v_xc/eps_xc face; XC-consistency probe)
 import qchem.Hamiltonian.Internal.SlaterExchange; // SlaterExchange (Dirac exchange -- the SCF's own X term)
@@ -556,6 +557,161 @@ TEST(GPW, AnalyticIntegrateBackAdjoint)
               << "   seam adjoint Tr(D H)=" << std::real(trDH) << " Omega Sum rho.V=" << std::real(eG) << std::endl;
     EXPECT_NEAR(std::real(trDH), std::real(eG), 1e-8*std::fabs(std::real(trDH)))
         << "multi-grid seam adjoint: Tr(D MakeOverlap(V)) == <apply(D),V>";
+}
+
+// T3 ROUTE (b) STREAM-FOLD UNIT GATES (doc/SymmetryUpgradePlan.md §6b item 10; §8 reordering tier).
+// One-shot reduced==full collocate/integrate on a frozen group-symmetric D (Re of the Bloch overlap --
+// symmetric under the crystal group by construction):
+//   - REDUCED collocation scatters orbit-representative (pair, offset) terms with orbit multiplicities;
+//     applying the dense group projector P (exact voxel permutation here -- the test grid is chosen
+//     COMMENSURATE, tau*N integer, so no FFT shift is needed) must reproduce the FULL collocation.
+//   - REDUCED integrate-back against a group-symmetric V must reproduce the FULL h matrix directly
+//     (representative gather + the h_{i'j'} = sigma h_ij representation transform).
+//   - The variational adjoint Tr(D h) == <rho, V> must hold on the REDUCED operator (§6b item 5).
+//   - NEGATIVE control: a symmetry-broken D => reduced != full (the fold genuinely imposes -- §8).
+// The production route needs NO commensurate grid (W is an exact voxel map at any N; tau rides the FFT
+// shift at the existing SymmetrizeGMap/SymmetrizeRaster sites); commensurability here only makes the
+// one-shot comparison land in the ~1e-13 reordering tier instead of the band-limit (~grid-class) tier.
+// The reordering tier ALSO requires full fp64 stream-tier coverage: orbit-partner streams are rounded
+// INDEPENDENTLY, so fp32-tier values (~6e-8 relative) break partner congruence at ~1e-8 -- measured on
+// the a=10.26 diamond cell (474M-pt demand, 172/528 pairs fp32, defect 5.7e-9 in the FULL path itself).
+// Hence a=14: same symmetry, demand fits the 150M-pt fp64 budget entirely.
+namespace
+{
+void StreamFoldGate(const UnitCell& cell, const std::vector<Symmetry::Lattice_3D::AtomSite>& sites,
+                    const ivec3_t& N, size_t expectedOps, const char* tag)
+{
+    namespace SL=qchem::Symmetry::Lattice_3D;
+    std::shared_ptr<const Real_BS> mol = MakeBasis(cell);
+    const auto* lat=dynamic_cast<const BasisSet::Molecule::LatticeSum1E*>(OrbitalBlock<Real_OIBS>(*mol));
+    ASSERT_TRUE(lat) << "orbital block must realise LatticeSum1E";
+    const SL::SpaceGroup sg=SL::SpaceGroup::Detect(cell.GetCellMatrix(), sites);
+    const std::vector<SL::DirectOp> dops=sg.DirectOps();
+    ASSERT_EQ(dops.size(), expectedOps) << tag << ": unexpected space-group order";
+
+    // Exact voxel action of op {W|tau} on the (commensurate) N^3 raster: v -> W v + N*tau (mod N).
+    const int n=N.x;
+    ASSERT_TRUE(N.y==n && N.z==n);
+    auto at=[n](long x,long y,long z)->size_t
+        { auto m=[n](long i){return size_t(((i%n)+n)%n);}; return (m(x)*n+m(y))*n+m(z); };
+    auto voxImage=[&](const SL::DirectOp& op, long x,long y,long z, long t[3])->size_t
+    {
+        const auto& W=op.W;
+        return at(std::lround(W(1,1))*x+std::lround(W(1,2))*y+std::lround(W(1,3))*z+t[0],
+                  std::lround(W(2,1))*x+std::lround(W(2,2))*y+std::lround(W(2,3))*z+t[1],
+                  std::lround(W(3,1))*x+std::lround(W(3,2))*y+std::lround(W(3,3))*z+t[2]);
+    };
+    std::vector<std::vector<long>> tvox(dops.size(), std::vector<long>(3));
+    for (size_t o=0;o<dops.size();o++)
+    {
+        const double tc[3]={dops[o].tau.x, dops[o].tau.y, dops[o].tau.z};
+        for (int a=0;a<3;a++)
+        {
+            tvox[o][a]=std::lround(tc[a]*n);
+            ASSERT_NEAR(tc[a]*n, double(tvox[o][a]), 1e-9) << tag << ": test grid must be tau-commensurate";
+        }
+    }
+    auto project=[&](const rvec_t& r)->rvec_t          // P = (1/|G|) Sum_g O_g (exact voxel scatter)
+    {
+        rvec_t out(r.size(), 0.0);
+        for (size_t o=0;o<dops.size();o++)
+            for (long x=0;x<n;x++) for (long y=0;y<n;y++) for (long z=0;z<n;z++)
+                out[voxImage(dops[o],x,y,z,tvox[o].data())]+=r[at(x,y,z)];
+        out/=double(dops.size());
+        return out;
+    };
+    auto maxAbs =[](const rvec_t& r){ double m=0; for (double v:r) m=std::max(m,std::fabs(v)); return m; };
+    auto maxDiff=[](const rvec_t& a, const rvec_t& b)
+        { double m=0; for (size_t p=0;p<a.size();p++) m=std::max(m,std::fabs(a[p]-b[p])); return m; };
+
+    // Frozen group-symmetric D = Re(S^Bloch); a group-symmetric V = P(smooth raster field).
+    auto gamma=[](const ivec3_t&)->dcmplx { return dcmplx(1.0); };
+    const chmat_t S=lat->MakeOverlap(gamma, cell);
+    const size_t nf=S.rows();
+    chmat_t D(nf);
+    for (size_t i=0;i<nf;i++) for (size_t j=i;j<nf;j++) D(i,j)=dcmplx(std::real(dcmplx(S(i,j))),0.0);
+    const double twoPi=8.0*std::atan(1.0);
+    rvec_t v0(size_t(n)*n*n);
+    for (long x=0;x<n;x++) for (long y=0;y<n;y++) for (long z=0;z<n;z++)
+    {
+        const double fx=double(x)/n, fy=double(y)/n, fz=double(z)/n;
+        v0[at(x,y,z)]=std::cos(twoPi*fx)+0.7*std::cos(twoPi*(fy+2*fz))+0.3*std::sin(twoPi*(fx+fy+fz));
+    }
+    const rvec_t V=project(v0);
+    const double ecut=12.0;                            // K=1: every pair lands on the single level
+
+    // FULL reference (no fold), then REDUCED (fold set), same streams either way.
+    const rvec_t  rhoFull=lat->CollocateDensity(D, gamma, cell, {N}, {ecut})[0];
+    const chmat_t hFull  =lat->IntegratePotential({V}, gamma, cell, {N}, {ecut});
+    const size_t used=lat->SetStreamSymmetryOps(dops, cell);
+    EXPECT_EQ(used, dops.size()) << tag << ": every cubic op must enter the fold";
+    const rvec_t  rhoRed=lat->CollocateDensity(D, gamma, cell, {N}, {ecut})[0];
+    const chmat_t hRed  =lat->IntegratePotential({V}, gamma, cell, {N}, {ecut});
+
+    // Gate 1: P(reduced collocation) == full collocation (reordering tier).
+    const rvec_t rhoSym=project(rhoRed);
+    const double scale=maxAbs(rhoFull);
+    const double dRho=maxDiff(rhoSym, rhoFull);
+    std::cout << "  [diag] full-path self-defect max|P(rho_full)-rho_full|=" << maxDiff(project(rhoFull), rhoFull)
+              << std::endl;
+    // Charge is preserved even before projection (orbit-multiplicity weights).
+    double qRed=0.0, qFull=0.0; for (size_t p=0;p<rhoFull.size();p++) { qRed+=rhoRed[p]; qFull+=rhoFull[p]; }
+    EXPECT_NEAR(qRed, qFull, 1e-10*std::fabs(qFull)) << tag << ": reduced charge";
+    // Gate 2: reduced h == full h (representation transform fills the images).
+    double dH=0.0, hScale=0.0;
+    for (size_t i=0;i<nf;i++) for (size_t j=0;j<nf;j++)
+    {
+        dH=std::max(dH, std::abs(dcmplx(hRed(i,j))-dcmplx(hFull(i,j))));
+        hScale=std::max(hScale, std::abs(dcmplx(hFull(i,j))));
+    }
+    // Gate 3: the variational adjoint on the reduced operator: Tr(D hRed) == <P rhoRed, V>.
+    const double w=cell.GetCellVolume()/double(V.size());
+    double lhs=0.0; for (size_t p=0;p<V.size();p++) lhs+=rhoSym[p]*V[p]*w;
+    dcmplx rhs(0.0);
+    for (size_t i=0;i<nf;i++) for (size_t j=0;j<nf;j++) rhs+=dcmplx(D(i,j))*dcmplx(hRed(j,i));
+    std::cout << "[stream fold " << tag << "] |ops|=" << used
+              << "  max|P(rho_red)-rho_full|=" << dRho << " (scale " << scale << ")"
+              << "  max|h_red-h_full|=" << dH << " (scale " << hScale << ")"
+              << "  adjoint lhs=" << lhs << " rhs=" << std::real(rhs) << std::endl;
+    EXPECT_LT(dRho, 1e-12*scale)  << tag << ": reduced collocation must match full (reordering tier)";
+    EXPECT_LT(dH,   1e-12*hScale) << tag << ": reduced integrate-back must match full (rep transform)";
+    // Adjoint at the D-kill class (the precedent gate above): the rho side applies the D-aware
+    // |c|*maxv kill, the plain h side keeps every term -- they share the operator to ~kDensityEps.
+    // (Passing screenD would make it machine-exact; the plain path is what the SCF's V_xc uses.)
+    EXPECT_NEAR(lhs, std::real(rhs), 1e-8*std::fabs(lhs)) << tag << ": reduced-operator adjoint";
+
+    // NEGATIVE control (§8): break D's symmetry GENERICALLY (a smooth i,j-dependent detune -- an s-s-only
+    // bump can sit in a trivial orbit and stay legitimately invisible at Γ).  Reduced (which never reads
+    // image-pair D) must diverge from full: the fold genuinely imposes, never silently.
+    chmat_t Db(nf);
+    for (size_t i=0;i<nf;i++) for (size_t j=i;j<nf;j++)
+        Db(i,j)=dcmplx(D(i,j))*(1.0+0.02*std::sin(1.0+7.0*double(i)+13.0*double(j)));
+    const rvec_t rhoRedB=project(lat->CollocateDensity(Db, gamma, cell, {N}, {ecut})[0]);
+    lat->SetStreamSymmetryOps({}, cell);                                  // clear the fold
+    const rvec_t rhoFullB=lat->CollocateDensity(Db, gamma, cell, {N}, {ecut})[0];
+    EXPECT_GT(maxDiff(rhoRedB, rhoFullB), 1e-8*scale)
+        << tag << ": a symmetry-broken D must NOT survive the reduced path unchanged";
+}
+} // anon
+
+// Symmorphic gate: one Si atom on the FCC lattice (Fm-3m, 48 ops, every tau = 0) -- O_g is a pure voxel
+// permutation at ANY N, so reduced==full sits in the pure reordering tier.
+TEST(GPW, StreamFoldReducedMatchesFull_SiFCC_Symmorphic)
+{
+    FCCUnitCell cell(14.0);
+    cell.AddAtom(14, {0,0,0});
+    StreamFoldGate(cell, {{14,{0,0,0}}}, ivec3_t(16,16,16), 48, "FCC Si");
+}
+
+// Non-symmorphic gate: Si diamond (Fd-3m, 48 ops, half with the quarter glide) on a 4|N grid so the glide
+// tau is an exact voxel shift for the test projector.  Exercises: 2-atom pair orbits (atom interchange),
+// glide offsets in the (pair, R) action, and the Cartesian-monomial signs on the shell components.
+TEST(GPW, StreamFoldReducedMatchesFull_SiDiamond_NonSymmorphic)
+{
+    FCCUnitCell cell(14.0);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    StreamFoldGate(cell, {{14,{0,0,0}},{14,{0.25,0.25,0.25}}}, ivec3_t(16,16,16), 48, "diamond Si");
 }
 
 // XC POTENTIAL-CONSISTENCY PROBE (doc/GPWPlan.md 0b instrument).  Question under test: is the assembled

@@ -112,6 +112,8 @@ public:
     virtual void ReleaseStreams(const std::vector<ivec3_t>& N_L,
                                 const std::vector<double>& ecut_L) const override;   // budget refund (0.5(b))
     virtual void EmitLatticeSumReport(const UnitCell& A) const override;             // lattice-sum economy readout
+    virtual size_t SetStreamSymmetryOps(const std::vector<Symmetry::Lattice_3D::DirectOp>& ops,
+                                        const UnitCell& A) const override;           // T3 route (b) stream fold (§6b)
 };
 // Use E prefix to avoid name clash with the interface class Fit_IBS
 class EFit_IBS

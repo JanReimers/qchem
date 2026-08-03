@@ -668,6 +668,135 @@ satisfies the precondition *generically* and a production increment that satisfi
      `FourierDensity::GetRhoOnGrid(fit)` + composite `SymmetrizeRaster` path as the uniform
      route — the Ham never sees a mesh, ops, a UnitCell, or a cast.
 
+### 6b. T3.0 design memo (2026-08-02) — route (b) written out; the §5 verdict
+
+**Scope:** the §7 step-6 T3.0 increment.  Route (b) — collocate irreducible `(pair, R)`
+streams with orbit weights, star-average ρ once, mirror on integrate-back with the
+representation transform of \f$h\f$ — written out to the adjoint level, and the open
+question answered: **route (b) needs NO §5 commensurable raster menu.**  §5 remains a
+precondition only for route (a) and for the (optional) voxel-fold retirement of
+`FIT_SF_ABS::SymmetrizeRaster` on non-symmorphic crystals.
+
+**1. Objects.**  A stream triple \f$t=(i\le j,\,n)\f$ carries \f$S_t\f$ = (wrapped raster
+indices, analytic pair values) on the pair's ladder level; today's replay scatters
+\f$c_t S_t\f$ with \f$c_t=\mathrm{fold}\cdot\mathrm{Re}[D_{ij}\overline{\varphi(n)}]\f$ and
+gathers \f$b_t=S_t\cdot V\f$.  Triples are already Hermitian-canonicalized:
+\f$(i,j,n)\sim(j,i,-n)\f$ (the same continuous product field, lattice-translated — on the
+raster an EXACT integer voxel shift by \f$n\circ N\f$).
+
+**2. The op action on triples.**  For an imposed \f$g=\{W|\tau\}\f$ (direct, fractional;
+Cartesian \f$R_g=A\,W\,A^{-1}\f$), the basis-function map is \f$i\to(i',s_i,L_i)\f$: the
+atom match \f$W f_i+\tau=f_{i'}+L_i\f$ (integer \f$L_i\f$ — the SpaceGroup detection
+guarantees a partner) plus the monomial map.  When \f$R_g\f$ is a SIGNED AXIS PERMUTATION
+(every op of a cubic-lattice crystal — diamond, rocksalt, FCC Al) a Cartesian monomial maps
+to \f$\pm\f$ one monomial: \f$s_i=\pm1\f$, no shell mixing.  Non-cubic lattices get a per-op
+runtime check; an op failing it is dropped from the stream fold (folding merely reduced,
+never wrong — general Wigner shell-mixing is a later increment, NOT drawn into these
+interfaces).  The triple action is then
+\f[ g\cdot(i,j,n)=(i',\,j',\,W n + L_j - L_i),\qquad \sigma_t=s_i s_j, \f]
+composed with Hermitian canonicalization when \f$i'>j'\f$ (edge datum = op index + flip
+flag).  KEY FACTORIZATION: the pair map is \f$n\f$-INDEPENDENT, so the fold splits into
+pair orbits \f$\times\f$ within-pair offset orbits under the pair's stabilizer — for a
+1-atom-per-species cell the pair orbits are small (ops fix the atom assignment, permuting
+only shell components) and the win is the diffuse pairs' hundreds-of-offsets lists
+collapsing, exactly as §6 T3 scoped.
+
+**3. Reduced collocation.**  With \f$D\f$ symmetric (\f$D_{i'j'}=\sigma_t D_{ij}\f$ — what
+imposition asserts, §3) the signs cancel between weight and stream:
+\f$c_{gt}S_{gt}=c_t\,O_g S_t\f$ as continuous fields, where
+\f$O_g=\f$ (FFT \f$\tau\f$-shift) \f$\circ\f$ (voxel permutation \f$W\f$).  Hence
+\f[ \rho_{\rm full} \;=\; P\Big[\sum_{\rm reps}\tfrac{|G|}{|\mathrm{stab}_t|}\,c_t\,S_t\Big],
+\qquad P=\tfrac1{|G|}\sum_g O_g . \f]
+An orbit with an odd stabilizer element (\f$g t=t,\ \sigma=-1\f$) has \f$D_{\rm rep}=0\f$
+under the imposed symmetry and is annihilated by \f$P\f$ anyway — skip it at build (free
+extra reduction, never a correctness burden).  On the raster the identity is exact up to
+the BAND-LIMIT class (a member's samples vs the band-limited image of the rep's samples
+differ by the beyond-\f$E_{cut}\f$ aliasing tail of the compact product — the same class as
+the collocation error itself): the §8 through-SCF ~1e-7 tier.  On a commensurate grid
+(τ=0, or \f$N\tau\in\mathbb Z\f$) \f$O_g\f$ is an exact index map and reduced==full lands
+in the 1e-13 reordering tier — the unit-gate arrangement.
+
+**4. Where \f$P\f$ is applied — NOT per level, and at NO new site.**  \f$W\f$ is an integer
+matrix in fractional coordinates, so the voxel map \f$W\cdot g\f$ is exact at ANY \f$N\f$
+(axis-mixing ops need equal per-axis \f$N\f$ — every `AutoGrid` level is cubic; keep the
+`SymmetrizeRaster` guard per level); \f$\tau\f$ is exact via the FFT shift theorem at any
+\f$N\f$ (§5-exempt — the IBZ exemption, per level).  \f$O_g\f$ commutes with the spectral
+level transfers (G-shells map to same-\f$|G|\f$ shells), so the projector applies ONCE at
+the sites that ALREADY run per iteration on imposed runs: `SymmetrizeGMap` on the combined
+\f$\tilde\rho\f$ (`CompositeCD::GetRepulsion3C/Overlap3C`) and `SymmetrizeRaster` on the
+raw XC raster (`CompositeCD::GetRhoOnGrid`).  The reduced scatter only restricts to reps
+and re-weights by \f$|G|/|\mathrm{stab}|\f$.  Total charge is preserved even before
+projection (\f$\int O_g f=\int f\f$), so the Tr(DS) bookkeeping is untouched.
+
+**5. The adjoint — the §9 proof obligation, discharged.**  \f$E=E[P\rho_{\rm red}(D)]\f$
+\f$\Rightarrow\f$ \f$dE/dD=(\text{reduced gather})\circ P^\dagger\f$ applied to \f$v\f$,
+and \f$P^\dagger=P\f$ (each \f$O_g\f$ is orthogonal in the uniform raster inner product:
+permutation \f$\times\f$ unit-modulus G-space phase; \f$O_g^\dagger=O_{g^{-1}}\f$ is in the
+set).  So the EXACT derivative is: **symmetrize \f$v\f$ once, dense** (G-side:
+`SymmetrizeGMap` on \f$\tilde V\f$ BEFORE the per-level band restriction; raster side:
+`SymmetrizeRaster` on the raw \f$v_{xc}\f$) — the only NEW per-iteration dense step,
+FFT-scale — **then gather rep streams only, then fill partners by the rep transform**
+\f[ h_{i'j'} = \sigma_t\,h_{ij}\quad(\Gamma), \f]
+with within-pair offset orbits carrying the signed multiplicity
+\f$\sum_{\rm members}\sigma\f$ (\f$b(gn)=\sigma_g b(n)\f$ against a symmetric \f$V\f$).
+With that recipe \f$\mathrm{Tr}(Dh)==\int\rho V\f$ to machine precision on the shared
+REDUCED operator — the T3 sibling of the W1 adjoint proof, and the §9 "prove it in the
+design" item.  No sparse stream is ever index-permuted, in either direction.
+
+**6. D-aware kill weights (the §9 active-set item).**  The reduced replay decides each
+kill ONCE per orbit, on \f$|c_{\rm rep}|\cdot\tfrac{|G|}{|\mathrm{stab}|}\cdot
+\mathrm{maxv}_{\rm rep}\f$, and BOTH directions replay the same rep streams — the shared
+active set is orbit-consistent BY CONSTRUCTION (the W2c ε-tail orphan mechanism cannot
+arise: partner streams are never built, partner \f$h\f$ never gathered).  Freak-mode note
+for the unit gate: reduced-vs-full comparisons can in principle differ by an
+ε-BOUNDARY screen flip (partner arithmetic is ULP-close, not bit-equal, in `ForPairBox`'s
+\f$|val|<\varepsilon\f$ cut); flips need \f$|val|\f$ within ULPs of \f$\varepsilon\f$ —
+essentially never, but if the 1e-13 gate ever flakes, that is the mechanism (fix =
+orbit-consistent screen decisions recorded in the fold, the W2c pattern).
+**[MEASURED at T3.1 — the mechanism that ACTUALLY bites is the fp32 STREAM TIER, not screen
+flips:** orbit-partner streams are rounded INDEPENDENTLY, so fp32-tier values (~6e-8
+relative) break partner congruence at ~1e-8 — the a=10.26 diamond gate cell (474M-pt
+demand, 172/528 pairs fp32) showed a 5.7e-9 symmetry defect in the FULL path itself,
+ε-stable, before any fold code ran.  The reordering-tier gate therefore also requires
+full fp64 tier coverage (gate cells sized to fit the 150M-pt budget).  Production
+corollary, T3.2 bonus: the reduced build costs ÷~|orbit|, so MORE pairs fit the fp64
+tier — imposed runs get an ACCURACY win on top of the memory/build win.]**
+
+**7. k≠Γ boundary (T3.4).**  Per k-block, fold only under the LITTLE GROUP of \f$k\f$
+(\f$gk\equiv k\f$ mod reciprocal lattice — at Γ the full group, where the entire win
+lives); the cross-k projection already rides the IBZ star bookkeeping (the same
+`SymmetrizeGMap` sites, summed over IBZ reps).  Member weights at general \f$k\f$ pick up
+\f$e^{ik\cdot(L_j-L_i)}\f$-class phases — written out at T3.4, owned by SpaceGroup per §5.
+
+**8. THE §5 VERDICT.**  Route (b) needs no commensurable raster menu: linear parts are
+exact voxel maps at any cubic \f$N\f$, glides ride the FFT shift, streams are never
+permuted.  §5 remains the precondition ONLY for (i) route (a)'s orbit-expansion replay
+(sparse member streams BY index permutation — the no-impose fallback), and (ii) the TODO
+cleanup replacing `FIT_SF_ABS::SymmetrizeRaster`'s FFT-shift by a precomputed voxel fold
+(a τ-acting direct-grid `FoldGrid` needs \f$N\tau\in\mathbb Z\f$; symmorphic crystals can
+take it today).  RECOMMENDATION: land T3.1+T3.2 without touching the raster menu; T3.3
+(menu + route (a)) stays parked until a free-run memory-pressure case demands it; the
+`SymmetrizeRaster` retirement follows the same schedule (the FFT-shift form is exact and
+cheap — retiring it is ergonomics, not correctness).
+
+**9. Ownership.**  The op action on basis functions (\f$i',s_i,L_i\f$ per op) is the
+BASIS's job (the PG evaluator layer owns centers + monomials), fed `DirectOp`s + the cell;
+the `(pair,R)` fold is stream bookkeeping and lives beside the stream cache (cached like
+`itsStreamCaches`, keyed on the ops set; geometry-fixed across iterations and k-blocks).
+Policy stays §3: ops arrive non-empty only under `imposeSymmetry`, via
+`GPW_Evaluator::SetSymmetryOps` → threaded into `CollocateDensity`/`IntegratePotential`.
+The BUILD also shrinks to reps (the memory/build win = budget ÷ ~orbit factor); the
+two-pass parallel build's tier walk is unchanged, only its pair list shrinks; the
+`[stream cache]`/`grids.stream` readout grows a reps + orbit-factor line.
+
+**10. Unit gates (T3.1, the §8 tiers).**  (a) SYMMORPHIC 1e-13: Al FCC one-shot
+collocate/integrate on a frozen symmetric \f$D\f$ — every τ=0, \f$O_g\f$ a pure voxel
+permutation, reduced==full in the reordering tier.  (b) NON-SYMMORPHIC 1e-13: Si diamond
+on a test-forced \f$4|N\f$ ladder (explicit Ecut), same one-shot; PLUS the production
+(odd-\f$N\f$) grid at grid-class tolerance to MEASURE the band-limit gap item 3 predicts.
+(c) NEGATIVE CONTROL: a symmetry-broken \f$D\f$ ⇒ reduced ≠ full and the §3 diagnostic
+fires (never silent).
+
 ---
 
 ## 7. Sequencing
@@ -706,7 +835,13 @@ against a special case it will outgrow:
    - *The raster menu hook* (`PW/Imp/Evaluator.C FFTGrid()` L64): per-axis `Next5Smooth` of
      the cubic `AutoGrid` — 5-smooth but NOT lcm(τ-denominator)-commensurate (§5's gap);
      ladder levels get their own `N_L` in `GPW BuildLevels`.
-   - **T3.0 design memo FIRST — an open question the recon exposed:** route (b) may not
+   - **T3.0 design memo DONE 2026-08-02 → §6b:** route (b) needs NO §5 menu (W integer =
+     exact voxel map at any cubic N; τ rides the FFT shift; streams never permuted);
+     adjoint discharged (symmetrize v once dense, gather reps, h-transform partners ⇒
+     Tr(Dh)==∫ρV machine-exact on the reduced operator); D-aware kill orbit-consistent by
+     construction; §5 demoted to route-(a)-only (+ the SymmetrizeRaster voxel-fold
+     cleanup).  T3.3 parked pending a free-run memory-pressure case.
+   - *The original open question, for the record:* route (b) may not
      need §5 commensurability at all.  Reduced scatter of rep streams gives a partial ρ
      whose group-average can ride the EXISTING dense-raster FFT τ-shift symmetrization
      (§5-exempt, per level); the integrate-back gather of rep pairs against a SYMMETRIC V
@@ -716,9 +851,18 @@ against a special case it will outgrow:
      becomes a route-(a)-only increment and route (b) can land first without raster churn.
    - *Increments:* **T3.0** the design memo (route (b) adjoint written out: D-aware kill
      weights orbit-consistent, rep transform of h incl. polarization signs, per-level ρ
-     star-average; decide the §5 question).  **T3.1** the `(pair, R)` orbit fold primitive
-     (atom-fold edges × W action on n × Cartesian signs; unit gate: one-shot reduced==full
-     collocate/integrate on a frozen symmetric D at 1e-13).  **T3.2** route (b) reduced
+     star-average; decide the §5 question).  **T3.1 DONE 2026-08-02** the `(pair, R)` orbit
+     fold primitive: `NR_Evaluator::SetStreamSymmetryOps(DirectOps, A)` (LatticeSum1E face,
+     forwarded by PG_Cart::Orbital_IBS) builds per-op basis maps (signed-axis-perm check on
+     R=AWA⁻¹, atom/monomial/radial matching → (i′, s_i, L_i)), the pair fold (rep/image
+     edges σ+flip, odd-self-edge ⇒ dead, diagonal Hermitian-twin involution) and per-rep-pair
+     offset-orbit multiplicities; CollocateDensity replays reps × (pairMult·within) with the
+     member-rule D-kill, IntegratePotential gathers reps × within and fills images by
+     h_{i′j′}=σ·h_ij.  GATES (GPW_UT `StreamFoldReducedMatchesFull_*`): FCC Si symmorphic
+     ρ 2.3e-14 / h 8.9e-16; diamond Si non-symmorphic (4|N=16 grid) ρ 5.0e-14 / h 4.6e-15;
+     adjoint at D-kill class; generic-detune negative control fires.  DISCOVERY: the fp32
+     stream tier breaks partner congruence at ~1e-8 (see the §6b item-6 measured block) —
+     gate cells sized for full fp64 coverage.  **T3.2** route (b) reduced
      build+replay behind `imposeSymmetry` (memory/build win = budget ÷ ~|G_s|, per-iteration
      scatter/gather win; re-pin the imposed anchors ONCE).  **T3.3** §5 commensurable menu +
      route (a) expansion replay as the no-impose fallback (only if T3.0 says route (b)

@@ -44,6 +44,7 @@ import qchem.UnitCell;       // UnitCell (the cell geometry the internal enumera
 import qchem.Types;          // rvec3_t, cvec_t, chmat_t, rmat_t, ivec3_t
 import qchem.Blaze;          // matrix machinery
 import qchem.Math.Angular;   // Math::CartTerm (the Cartesian-monomial expansion of a GaussianFunction)
+export import qchem.Symmetry.Lattice_3D.SpaceGroup;   // DirectOp {W|τ} (the T3 stream-fold op currency)
 
 export namespace qchem::BasisSet::Molecule
 {
@@ -244,6 +245,25 @@ public:
     //! Called by \c GPW_Evaluator's dtor with its own ladder; releasing a shape another live client still
     //! uses is CORRECT (it rebuilds on demand) -- this is a budget/perf lever, never a correctness one.
     virtual void ReleaseStreams(const std::vector<ivec3_t>& N_L, const std::vector<double>& ecut_L) const = 0;
+
+    //! \brief T3 route (b) STREAM FOLD (doc/SymmetryUpgradePlan.md §6b): fold the \f$(pair, R)\f$
+    //! collocation/integrate-back terms under the IMPOSED crystal ops \f$\{W|\tau\}\f$.  With a non-empty
+    //! fold, \c CollocateDensity scatters only orbit-REPRESENTATIVE terms, each weighted by its orbit
+    //! multiplicity -- the returned per-level densities are the REDUCED pre-projection fields whose
+    //! group-average (the caller's existing \c SymmetrizeGMap / \c SymmetrizeRaster sites) equals the full
+    //! collocation of a group-symmetric \f$D\f$; and \c IntegratePotential gathers representative pairs
+    //! only, filling the partner matrix elements by the representation transform
+    //! \f$h_{i'j'}=\sigma\,h_{ij}\f$ (exact for a group-symmetric \f$V\f$ -- symmetrize \f$V\f$ FIRST, then
+    //! call: that pairing is the exact derivative of \f$E[P\rho]\f$, the §6b adjoint).  IMPOSES §3: exact
+    //! iff \f$D\f$ (and hence \f$V\f$) actually has the group -- policy-gated by the caller, never default.
+    //! Γ-tier increment: general k needs the little-group restriction + \f$e^{ik\cdot L}\f$ edge phases
+    //! (plan T3.4) -- callers wire this only at \f$k=0\f$ for now.  Ops whose Cartesian action is not a
+    //! signed axis permutation, or that fail to map the basis onto itself, are DROPPED (folding merely
+    //! reduced, never wrong).  Empty \a ops clears the fold (the free-run default).
+    //! \return the number of ops the fold actually uses (0 = no reduction -- diagnostics/tests).
+    //! Const like the stream caches: the fold is derived, geometry-fixed bookkeeping (mutable inside).
+    virtual size_t SetStreamSymmetryOps(const std::vector<Symmetry::Lattice_3D::DirectOp>& /*ops*/,
+                                        const UnitCell& /*A*/) const {return 0;}
 };
 
 } //namespace

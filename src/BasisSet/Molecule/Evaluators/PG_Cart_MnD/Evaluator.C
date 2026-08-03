@@ -24,6 +24,7 @@ module;
 #include <algorithm>  // std::min (alpha_min per radial)
 #include <functional> // cellphase_t (the caller-supplied Bloch phase of a cross-cell offset)
 #include <utility>    // std::pair (the flattened (i,j) pair list for the OpenMP loop)
+#include <map>        // the stream fold's offset -> orbit-multiplicity tables (T3 route (b))
 #include <exception>  // std::exception_ptr (throw containment across the OpenMP pair loops)
 #include <memory>     // std::shared_ptr (the per-atom operator GaussianRF, shared across its polynomial terms)
 #include <cstdlib>    // std::getenv/std::atoi (the GPW_OMP_THREADS opt-in knob)
@@ -37,6 +38,7 @@ import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.PGData;      // PGData
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.GaussianRF;  // GaussianRF named kernels
 import qchem.BasisSet.Molecule.Evaluators.PG_Cart_MnD.Polarization;// Polarization
 import qchem.BasisSet.Molecule.LatticeSum1E;                       // GaussianFunction (the <chi_i|g> seam type)
+export import qchem.Symmetry.Lattice_3D.SpaceGroup;                // DirectOp {W|τ} (the T3 stream-fold ops)
 import qchem.Structure;
 import qchem.UnitCell;                                             // UnitCell (ToCartesian/ToFractional: grid<->cell for collocation)
 import qchem.Types;
@@ -626,6 +628,190 @@ public:
             if (ci->SameShape(N_L,ecut_L)) ci=itsStreamCaches.erase(ci);
             else ++ci;
     }
+    // --- T3 route (b) STREAM FOLD (doc/SymmetryUpgradePlan.md §6b) -----------------------------------------
+    // Fold the (pair i<=j, offset n) collocation terms under the imposed crystal ops {W|tau}.  Pure
+    // geometry-fixed bookkeeping, cached like the stream caches: per accepted op, the basis map
+    // i -> (i', s_i, L_i) (partner function + Cartesian-monomial sign + integer cell offset of the image
+    // centre); per canonical pair slot, either REPRESENTATIVE (with the pair-stabilizer's action on its
+    // offset list) or IMAGE (edge to its rep: sigma = s_i s_j, Hermitian flip).  A triple maps as
+    //     g.(i,j,n) = (i', j', W n + L_j - L_i),   sign sigma = s_i s_j,
+    // canonicalized through the Hermitian twin (i,j,n)~(j,i,-n); on the DIAGONAL the twin acts within the
+    // pair ((i,i,n) and (i,i,-n) have the SAME wrapped product field -- an integer-cell translate), carried
+    // as an extra offset involution.  For a group-symmetric D (D_{i'j'} = sigma D_ij -- what §3 imposition
+    // asserts) the signs cancel between weight and stream, so REDUCED replay scatters each representative
+    // triple with its plain orbit multiplicity (pairMult x offset within-multiplicity) and the caller's
+    // dense group-average (SymmetrizeGMap / SymmetrizeRaster -- exact at ANY raster N: integer W = exact
+    // voxel map, tau rides the FFT shift) reproduces the full collocation.  NO sparse stream is ever
+    // index-permuted, hence NO §5 raster-commensurability precondition (the §6b verdict).  Integrate-back
+    // gathers representative pairs only (within-multiplicity weights) and fills partners by the
+    // representation transform h_{i'j'} = sigma h_ij -- exact for a group-symmetric V, and the exact
+    // adjoint of the reduced scatter (symmetrize V first; §6b item 5).  A pair fixed by an op with
+    // sigma = -1 carries D_ij = 0 under the imposed group: DEAD (skipped; h = 0 is its projected value).
+    // Γ-tier: general k needs the little-group restriction + e^{ik.L} edge phases (plan T3.4).
+    struct OpMap     { Matrix3D<double> W; std::vector<unsigned> to; std::vector<signed char> sgn; std::vector<ivec3_t> L; };
+    struct StabEntry { Matrix3D<double> W; ivec3_t d; bool neg; };            // offset action n -> ±(W n + d)
+    struct PairEdge  { int rep=-1; signed char sigma=1; bool flip=false; bool dead=false; unsigned pairMult=1; };
+    struct StreamFold
+    {
+        std::vector<OpMap>                        maps;     //!< accepted ops' basis actions
+        std::vector<PairEdge>                     pairs;    //!< [i*n+j] (j>=i slots); rep==own slot marks a representative
+        std::vector<std::vector<StabEntry>>       stab;     //!< rep slots: the pair-stabilizer's offset action (identity included)
+        std::vector<std::map<long long,unsigned>> offMult;  //!< rep slots: offset key -> within-pair orbit multiplicity (0 = member)
+    };
+    static long long OffKey(const ivec3_t& v)
+    {   return ((long long)(v.x+(1<<20))<<42) | ((long long)(v.y+(1<<20))<<21) | (long long)(v.z+(1<<20)); }
+    static ivec3_t IntApply(const Matrix3D<double>& W, const ivec3_t& v)     // exact integer action (W integer-valued)
+    {
+        return ivec3_t(int(std::lround(W(1,1)*v.x+W(1,2)*v.y+W(1,3)*v.z)),
+                       int(std::lround(W(2,1)*v.x+W(2,2)*v.y+W(2,3)*v.z)),
+                       int(std::lround(W(3,1)*v.x+W(3,2)*v.y+W(3,3)*v.z)));
+    }
+    //! Decompose the op's CARTESIAN action \f$R=A\,W\,A^{-1}\f$ as a signed axis permutation
+    //! \f$(R^\top u)_a = s_a\,u_{q_a}\f$.  False when \f$R\f$ genuinely mixes axes (non-cubic lattices) --
+    //! the op is then dropped from the fold (folding merely reduced; general shell-mixing is a later
+    //! increment, doc/SymmetryUpgradePlan.md §6b item 2).
+    bool CartSignedPerm(const UnitCell& A, const Matrix3D<double>& W, int q[3], int s[3]) const
+    {
+        for (int a=0;a<3;a++)
+        {
+            const rvec3_t e(a==0?1.0:0.0, a==1?1.0:0.0, a==2?1.0:0.0);
+            const rvec3_t col=A.ToCartesian(W*A.ToFractional(e));            // column a of R
+            const double c[3]={col.x,col.y,col.z};
+            int nz=-1;
+            for (int b=0;b<3;b++)
+                if (std::fabs(c[b])>1e-9)
+                {
+                    if (nz>=0 || std::fabs(std::fabs(c[b])-1.0)>1e-9) return false;
+                    nz=b;
+                }
+            if (nz<0) return false;
+            q[a]=nz; s[a]=c[nz]>0?1:-1;
+        }
+        return q[0]!=q[1] && q[1]!=q[2] && q[0]!=q[2];
+    }
+    //! Realises \c Molecule::LatticeSum1E::SetStreamSymmetryOps (forwarded by the host IBS): build (or
+    //! clear, \a ops empty) the stream fold.  Returns the number of ops actually used.  Const like the
+    //! stream caches -- the fold is derived, geometry-fixed bookkeeping.
+    size_t SetStreamSymmetryOps(const std::vector<Symmetry::Lattice_3D::DirectOp>& ops, const UnitCell& A) const
+    {
+        itsStreamFold.reset();
+        if (ops.empty()) return 0;
+        auto sf=std::make_unique<StreamFold>();
+        const size_t nn=size();
+        std::vector<rvec3_t> fc(nn);                                         // fractional centres
+        for (auto i:indices()) fc[i]=A.ToFractional(radials[i]->GetCenter());
+        auto sameRadial=[&](size_t a, size_t b)->bool
+        {
+            const rvec_t &ea=radials[a]->GetExponents(), &eb=radials[b]->GetExponents();
+            const rvec_t &ga=radials[a]->GetCoeffs(),    &gb=radials[b]->GetCoeffs();
+            if (ea.size()!=eb.size() || ga.size()!=gb.size()) return false;
+            for (size_t p=0;p<ea.size();p++) if (std::fabs(ea[p]-eb[p])>1e-10*(1.0+std::fabs(ea[p]))) return false;
+            for (size_t p=0;p<ga.size();p++) if (std::fabs(ga[p]-gb[p])>1e-10*(1.0+std::fabs(ga[p]))) return false;
+            return true;
+        };
+        for (const auto& op : ops)
+        {
+            int q[3], sax[3];
+            if (!CartSignedPerm(A,op.W,q,sax)) continue;                     // shell-mixing op: dropped
+            OpMap m; m.W=op.W; m.to.resize(nn); m.sgn.resize(nn); m.L.resize(nn);
+            bool ok=true;
+            for (size_t i=0;i<nn && ok;i++)
+            {
+                const rvec3_t ft=op.W*fc[i]+op.tau;                          // image centre (fractional)
+                Polarization pm;                                             // permuted monomial + sign
+                int sg=1;
+                for (int a=0;a<3;a++)
+                {
+                    pm[q[a]]=pols[i][a];
+                    if (sax[a]<0 && (pols[i][a]&1)) sg=-sg;
+                }
+                ok=false;
+                for (size_t j=0;j<nn;j++)
+                {
+                    if (pols[j]!=pm) continue;
+                    const rvec3_t d=ft-fc[j];
+                    const double Lx=std::round(d.x), Ly=std::round(d.y), Lz=std::round(d.z);
+                    if (std::fabs(d.x-Lx)>1e-6 || std::fabs(d.y-Ly)>1e-6 || std::fabs(d.z-Lz)>1e-6) continue;
+                    if (!sameRadial(i,j)) continue;
+                    m.to[i]=unsigned(j); m.sgn[i]=(signed char)sg; m.L[i]=ivec3_t(int(Lx),int(Ly),int(Lz));
+                    ok=true; break;
+                }
+            }
+            if (ok) sf->maps.push_back(std::move(m));                       // op maps the basis onto itself
+        }
+        if (sf->maps.empty()) return 0;
+        // Pair fold: process canonical slots ascending -- the first unassigned slot of an orbit IS its rep
+        // (orbits are closed under the accepted op set, one application each covers the orbit).
+        sf->pairs.assign(nn*nn,{});
+        sf->stab.assign(nn*nn,{});
+        for (auto i:indices()) for (auto j:indices(i))
+        {
+            const size_t s0=i*nn+j;
+            if (sf->pairs[s0].rep>=0) continue;
+            sf->pairs[s0]={int(s0),1,false,false,1};
+            bool dead=false;
+            std::vector<size_t> members{s0};
+            for (const auto& m : sf->maps)
+            {
+                unsigned x=m.to[i], y=m.to[j];
+                const signed char sg=(signed char)(m.sgn[i]*m.sgn[j]);
+                const ivec3_t d(m.L[j].x-m.L[i].x, m.L[j].y-m.L[i].y, m.L[j].z-m.L[i].z);
+                bool fl=false;
+                if (x>y) { std::swap(x,y); fl=true; }
+                const size_t s1=size_t(x)*nn+y;
+                if (s1==s0)
+                {
+                    if (sg<0) dead=true;                                    // odd self-edge: D_ij = 0 under the group
+                    else sf->stab[s0].push_back({m.W,d,fl});
+                }
+                else if (sf->pairs[s1].rep<0)
+                {
+                    sf->pairs[s1]={int(s0),sg,fl,false,1};
+                    members.push_back(s1);
+                }
+                else if (sf->pairs[s1].sigma!=sg) dead=true;                // inconsistent edge signs: only D = 0 fits
+            }
+            if (i==j)                                                       // diagonal Hermitian twin: n ~ -n
+            {
+                const size_t k0=sf->stab[s0].size();
+                for (size_t e=0;e<k0;e++)
+                {   StabEntry t=sf->stab[s0][e]; t.neg=!t.neg; sf->stab[s0].push_back(t); }
+            }
+            sf->pairs[s0].pairMult=unsigned(members.size());
+            if (dead) for (size_t s : members) sf->pairs[s].dead=true;
+        }
+        // Offset fold per representative pair: the first-ENUMERATED member of each within-pair orbit is its
+        // rep (deterministic -- build, replay and the on-the-fly path share the ForImageOffsets order).
+        sf->offMult.assign(nn*nn,{});
+        for (auto i:indices()) for (auto j:indices(i))
+        {
+            const size_t s0=i*nn+j;
+            const PairEdge& pe=sf->pairs[s0];
+            if (pe.dead || pe.rep!=int(s0)) continue;
+            auto& mm=sf->offMult[s0];
+            const auto& st=sf->stab[s0];
+            ForImageOffsets(i,j,A,[&](const ivec3_t& nOff, const rvec3_t&)
+            {
+                if (mm.count(OffKey(nOff))) return;                         // folded into an earlier orbit
+                std::vector<ivec3_t> orb{nOff};
+                for (const auto& e : st)
+                {
+                    ivec3_t img=IntApply(e.W,nOff);
+                    img=ivec3_t(img.x+e.d.x, img.y+e.d.y, img.z+e.d.z);
+                    if (e.neg) img=ivec3_t(-img.x,-img.y,-img.z);
+                    bool seen=false;
+                    for (const auto& o : orb) if (o.x==img.x && o.y==img.y && o.z==img.z) { seen=true; break; }
+                    if (!seen) orb.push_back(img);
+                }
+                mm[OffKey(nOff)]=unsigned(orb.size());
+                for (size_t k=1;k<orb.size();k++) mm.emplace(OffKey(orb[k]),0u);
+            });
+        }
+        const size_t used=sf->maps.size();
+        itsStreamFold=std::move(sf);
+        return used;
+    }
+
     const StreamCache& EnsureStreams(const UnitCell& A, const std::vector<ivec3_t>& N_L,
                                      const std::vector<double>& ecut_L, double absRelCutoff,
                                      double relFieldSharp=-1.0) const
@@ -863,6 +1049,7 @@ public:
         // double the off-diagonal weight (a 2x saving over the full n^2 loop, exact).
         const StreamCache& sc=EnsureStreams(A,N_L,ecut_L,0.0,relFieldSharp);   // density: the relative smooth-field rule
         const size_t nn=size();
+        const StreamFold* sf=itsStreamFold.get();               // T3 route (b): reduced scatter (§6b), null = full
         // Per-pair scatter into a caller-supplied set of level densities (`dst`): the SAME `rho` when serial,
         // a private per-thread accumulator when threaded -- so the arithmetic PER PAIR is bit-identical either
         // way; only the cross-pair reduction order changes (see PairThreads).
@@ -871,33 +1058,65 @@ public:
             const dcmplx Dij(D(i,j));
             if (Dij==dcmplx(0.0)) return;
             const double fold=(i==j)?1.0:2.0;
+            // Reduced mode: only orbit-REPRESENTATIVE pairs scatter, each rep offset weighted by its full
+            // triple-orbit multiplicity (pairMult x within); the caller's dense group-average completes it.
+            // The D-aware kill stays on the MEMBER weight |c| (orbit-invariant), so reduced and full keep
+            // the identical active set (§6b item 6).
+            const std::map<long long,unsigned>* fm=nullptr;
+            double pmul=1.0;
+            if (sf)
+            {
+                const PairEdge& pe=sf->pairs[i*nn+j];
+                if (pe.dead || pe.rep!=int(i*nn+j)) return;     // image/dead pair: its rep carries the orbit
+                fm=&sf->offMult[i*nn+j];
+                pmul=double(pe.pairMult);
+            }
             const PairStreams& ps=sc.pairs[i*nn+j];
             rvec_t& r=dst[ps.level];
             if (ps.cached)
                 for (const PairOffsetStream& st : ps.offsets)
                 {
+                    double wm=1.0;
+                    if (fm)
+                    {
+                        const auto it=fm->find(OffKey(st.n));
+                        assert(it!=fm->end());
+                        if (it==fm->end() || it->second==0) continue;   // member offset: its rep carries it
+                        wm=pmul*double(it->second);
+                    }
                     const double c=fold*std::real(Dij*std::conj(phase(st.n)));  // Re[D_ij e^{-ik.R_n}] offset weight
                     if (std::fabs(c)*st.maxv < kDensityEps()) continue;   // D-aware kill: sub-eps density term
+                    const double cw=c*wm;
                     const unsigned* ix=st.idx.data();
                     if (!st.val.empty())
                     {
                         const double* v=st.val.data();
-                        for (size_t k=0, m=st.idx.size(); k<m; k++) r[ix[k]]+=c*v[k];
+                        for (size_t k=0, m=st.idx.size(); k<m; k++) r[ix[k]]+=cw*v[k];
                     }
                     else                                            // fp32 overflow tier (values demoted)
                     {
                         const float* v=st.val32.data();
-                        for (size_t k=0, m=st.idx.size(); k<m; k++) r[ix[k]]+=c*double(v[k]);
+                        for (size_t k=0, m=st.idx.size(); k<m; k++) r[ix[k]]+=cw*double(v[k]);
                     }
                 }
             else                                                    // over the cache budget: evaluate on the fly
                 ForImageOffsets(i,j,A,[&](const ivec3_t& n, const rvec3_t& Roff)
                 {
+                    double wm=1.0;
+                    if (fm)
+                    {
+                        const auto it=fm->find(OffKey(n));
+                        assert(it!=fm->end());
+                        if (it==fm->end() || it->second==0) return;
+                        wm=pmul*double(it->second);
+                    }
                     const double c=fold*std::real(Dij*std::conj(phase(n)));
                     if (c==0.0) return;
+                    const double cw=c*wm;
                     // D-aware continuous shrink: this box only needs accuracy kDensityEps/|c| (clamped at the
-                    // kDensityEps collocation floor -- a |c|>1 never grows past it); the prefactor early-out kills.
-                    ForPairBox(i,j,Roff,A,N_L[ps.level],[&](size_t idx,double v){r[idx]+=c*v;},
+                    // kDensityEps collocation floor -- a |c|>1 never grows past it); the prefactor early-out
+                    // kills.  MEMBER rule (|c|, not |c*wm|) so the reduced box matches every orbit member's.
+                    ForPairBox(i,j,Roff,A,N_L[ps.level],[&](size_t idx,double v){r[idx]+=cw*v;},
                                std::max(kDensityEps(), kDensityEps()/std::fabs(c)));
                 });
         };
@@ -1005,7 +1224,11 @@ public:
         assert(!pairLevels || pairLevels->size()==size()*size());
         const size_t nn=size();
         chmat_t h(size());
-        const bool memoize = (screenD==nullptr);
+        // T3 route (b) (§6b): the reduced gather runs only on the per-iteration density-rule path (the
+        // static sharp-field sweeps and explicit-level calls keep their own machinery, incl. T1).  It
+        // bypasses the memo like the screened calls: the reduced sweep is cheap by construction.
+        const StreamFold* sf = (absRelCutoff==0.0 && !pairLevels) ? itsStreamFold.get() : nullptr;
+        const bool memoize = (screenD==nullptr && !sf);
         // Memo hit: the per-offset reductions are already computed for this exact field -- contract phases only.
         if (memoize)
             for (const auto& m : itsIntegrateMemos)
@@ -1046,6 +1269,16 @@ public:
         // whose pairs scatter into a shared grid).
         auto integratePair=[&](size_t i, size_t j)           // j>=i (Hermitian upper triangle)
         {
+            // Reduced mode (§6b item 5): gather REPRESENTATIVE pairs only, rep offsets weighted by their
+            // within-pair multiplicity; image pairs are filled by the representation transform after the
+            // loop (h_{i'j'} = sigma h_ij; dead pairs h = 0 -- the projected value).
+            const std::map<long long,unsigned>* fm=nullptr;
+            if (sf)
+            {
+                const PairEdge& pe=sf->pairs[i*nn+j];
+                if (pe.dead || pe.rep!=int(i*nn+j)) return;
+                fm=&sf->offMult[i*nn+j];
+            }
             const size_t  l = pairLevels ? (*pairLevels)[i*nn+j]
                             : sc         ? sc->pairs[i*nn+j].level
                             :              PairLevel(i,j,ecut_L,absRelCutoff,fieldSharpness,relFieldSharp);
@@ -1066,6 +1299,14 @@ public:
             if (sc && sc->pairs[i*nn+j].cached)
                 for (const PairOffsetStream& st : sc->pairs[i*nn+j].offsets)
                 {
+                    double wm=1.0;
+                    if (fm)
+                    {
+                        const auto it=fm->find(OffKey(st.n));
+                        assert(it!=fm->end());
+                        if (it==fm->end() || it->second==0) continue;   // member offset: its rep carries it
+                        wm=double(it->second);
+                    }
                     if (screenD &&
                         std::fabs(fold*std::real(Dij*std::conj(phase(st.n))))*st.maxv < kDensityEps()) continue;
                     double b=0.0;
@@ -1081,11 +1322,19 @@ public:
                         for (size_t k=0, m=st.idx.size(); k<m; k++) b+=double(v[k])*V[ix[k]];
                     }
                     if (memo) pb.nb.emplace_back(st.n,b);
-                    s+=phase(st.n)*b;
+                    s+=phase(st.n)*(wm*b);
                 }
             else                                                    // static sharp-field call or over-budget pair
                 ForImageOffsets(i,j,A,[&](const ivec3_t& n, const rvec3_t& Roff)
                 {
+                    double wm=1.0;
+                    if (fm)
+                    {
+                        const auto it=fm->find(OffKey(n));
+                        assert(it!=fm->end());
+                        if (it==fm->end() || it->second==0) return;
+                        wm=double(it->second);
+                    }
                     double epsEff=kDensityEps();   // collocation floor (decoupled from the analytic kScreenEps)
                     if (screenD)
                     {
@@ -1096,10 +1345,27 @@ public:
                     double b=0.0;
                     ForPairBox(i,j,Roff,A,N_L[l],[&](size_t idx,double v){b+=v*V[idx];}, epsEff);
                     if (memo) pb.nb.emplace_back(n,b);
-                    s+=phase(n)*b;
+                    s+=phase(n)*(wm*b);
                 });
             s*=w;
             h(i,j) = (i==j) ? dcmplx(std::real(s),0.0) : s;   // Hermitian diagonal real; (j,i) auto-set to conj
+        };
+        // Reduced mode: fill the image pairs from their reps by the representation transform (Hermitian
+        // flip = conjugate; at Γ everything is real).  Dead pairs get the projected value 0.
+        auto fillImages=[&]()
+        {
+            if (!sf) return;
+            for (auto i:indices()) for (auto j:indices(i))
+            {
+                const PairEdge& pe=sf->pairs[i*nn+j];
+                if (pe.dead) { h(i,j)=dcmplx(0.0); continue; }
+                if (pe.rep==int(i*nn+j)) continue;
+                const size_t a=size_t(pe.rep)/nn, b=size_t(pe.rep)%nn;
+                dcmplx v(h(a,b));
+                if (pe.flip) v=std::conj(v);
+                v*=double(pe.sigma);
+                h(i,j) = (i==j) ? dcmplx(std::real(v),0.0) : v;
+            }
         };
 #ifdef QCHEM_OPENMP
         if (const int nthreads=PairThreads(); nthreads>1)
@@ -1118,10 +1384,12 @@ public:
                 }
             }
             if (firstEx) std::rethrow_exception(firstEx);
+            fillImages();
             return h;
         }
 #endif
         for (auto i:indices()) for (auto j:indices(i)) integratePair(i,j);   // serial (byte-identical default)
+        fillImages();
         return h;
     }
 
@@ -1200,6 +1468,7 @@ private:
 
     mutable std::vector<StreamCache>   itsStreamCaches;    //!< analytic pair-box streams, one per ladder shape
     mutable std::vector<IntegrateMemo> itsIntegrateMemos;  //!< phase-independent B_ij(n) per exact field (LRU)
+    mutable std::unique_ptr<StreamFold> itsStreamFold;     //!< T3 route (b) (pair, R) orbit fold (null = free run)
 };
 
 static_assert(is1E_Evaluator <NR_Evaluator>, "NR_Evaluator must satisfy is1E_Evaluator");
