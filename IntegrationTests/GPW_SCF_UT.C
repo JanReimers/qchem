@@ -1101,6 +1101,16 @@ TEST(GPW_SCF, DISABLED_ImposedGDMProbe_SiDiamondIBZ)
 // GDM step model (curvature/step acceptance) on the projector-modified landscape, not E[rho] itself.
 // NEXT INSTRUMENT: a directional FD gradient gate through the imposed stack (E(D±h dD) vs Tr(H dD)), or a
 // GDM step log (model-predicted dE vs actual dE per accepted step).
+// ROUND 3 (user-measured, same day): on SR2 (the diffuse-conditioned basis -- Na p 0.05 triplet removed)
+// imposed multi-k GDM shows STRICTLY NEGATIVE dE -- variational descent confirmed, closing the original
+// question: the imposed E[rho] IS variational (matching the W1/Hartree adjoint proofs and the Si proxy).
+// The SR uphill walk therefore localizes to GDM x the DIFFUSE near-null directions: the engine wanders
+// along soft modes in both free and imposed runs (free: Δρ~5.7e-2 at +0.8 mHa -- genuinely flat), and the
+// projector CURVES those directions so the same wandering costs +23-56 mHa uphill.  Engine fixes, not
+// functional fixes: an actual-E-checked step acceptance (clamps the uphill) and metric preconditioning of
+// the soft directions (fixes the wander).  SEPARATE issue: GDM is SLOW on SR2 (tiny Δρ drops) imposed and
+// free alike -- step-scale/preconditioning ergonomics (GDMParams{1.0}), imposition-independent
+// (doc/SCFStrategyPlan.md territory; GDM has no gtest coverage -- the boron pin).
 TEST(GPW_SCF, DISABLED_NaFImposedGDMSmearProbe)
 {
     auto envd=[](const char* n,double d){const char*s=std::getenv(n);return s?std::atof(s):d;};
