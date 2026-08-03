@@ -1020,6 +1020,44 @@ TEST(GPW_SCF, StreamFoldImposedGamma_SiDiamond)
     EXPECT_NEAR(R1.charge, 8.0, 1e-6);
 }
 
+// ===== EXPERIMENTAL (scratch): imposed multi-k × GDM probe (user observation 2026-08-03) =====
+// OBSERVED on the user's multi-k NaF: imposeSymmetry=false + GDM reaches ΔE/E~1e-9 (Δρ~1e-3), while
+// imposeSymmetry=true + GDM stalls at ΔE/E~1e-7 with Δρ~1e-2.  Two competing explanations:
+//   (a) the imposed E/H pair is NOT exactly variational (a broken gradient -- GDM is the audit DIIS can't do);
+//   (b) the projector restores EXACT degeneracies across the k-star (a free run's ULP splittings act as a
+//       regularizer), so occupations/rotations tie at the filling and line-search level -- E flat, ρ wandering
+//       ("electron jumping between k branches", the crystal analog of the atom-in-box E-settled/ρ-rotates mode).
+// This probe A/Bs the in-suite proxy (Si diamond 2x2x2 IBZ): GDM_IMPOSE=0/1 toggles imposition,
+// GDM_KT sets Fermi smearing (smearing cures (b), cannot cure (a)).  Run manually:
+//   GDM_IMPOSE=1 GDM_KT=0.01 ./ITMain --gtest_filter='*ImposedGDMProbe*' --gtest_also_run_disabled_tests
+// MEASURED (2026-08-03, Si diamond SR, Becke-auto XC): imposition does NOT degrade GDM on the clean
+// insulator -- free and imposed both converge in 11 iterations to lastΔρ=3.0e-7, E_imposed=-7.77837 vs
+// E_free=-7.77835 (imposed 2e-5 LOWER, as a variational E should be once the projector removes the
+// free run's symmetry-defect noise; the free run's measured defect was 1.4e-5).  So (a) shows no
+// GDM-visible gradient inconsistency at multi-k on Si; the NaF stall points at (b) -- NaF's diffuse
+// near-gap virtuals + exactly-restored star degeneracies (branch ties).  Discriminator for the NaF
+// config: SmearingkT ~ 0.005-0.01 rescues (b), cannot rescue (a).
+TEST(GPW_SCF, DISABLED_ImposedGDMProbe_SiDiamondIBZ)
+{
+    auto envd=[](const char* n,double d){const char*s=std::getenv(n);return s?std::atof(s):d;};
+    const double a=10.26;
+    FCCUnitCell cell(a);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(2,2,2));
+    GpwOptions o;
+    o.label="Si diamond IBZ GDM probe"; o.Nelec=8; o.species={{"Si",4}};
+    o.densityEcut=20.0; o.accelerator="GDM";
+    o.imposeSymmetry = envd("GDM_IMPOSE",1.0)!=0.0;
+    o.seed=qchem::ChargeDensity::SeedStrategy::Uniform; o.ortho=qchem::Cholesky;
+    o.scf.NMaxIter=int(envd("GDM_NMAX",60.0)); o.scf.MinΔρ=1e-6; o.scf.MinΔE=1e-10;   // let GDM run deep
+    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30; o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4;
+    o.scf.SmearingkT=envd("GDM_KT",0.0);
+    GpwResult R=RunGpw(lat, MakeBasisSR(cell), o, /*verbose*/envd("GDM_VERBOSE",0.0)!=0.0);
+    std::cout << "[GDM probe] impose=" << o.imposeSymmetry << " kT=" << o.scf.SmearingkT
+              << " E=" << R.E.GetTotalEnergy() << " converged=" << R.converged << std::endl;
+}
+
 // ===== EXPERIMENTAL (scratch): global-μ across k-blocks (item 3 inc 3) =====
 // AL_KGRID=n (mesh nxnxn), AL_GLOBAL=0/1 (per-block vs global μ), AL_KT, AL_NMAX.
 // I2 (plan §6a fit/grid SEPARATION): the (Delta, uniform) cross cell.  The SAME material through the
