@@ -181,6 +181,15 @@ public:
     //! how many and which directions); a generic position returns just the identity.
     std::vector<SpaceGroupOp> SiteStabilizer(const rvec3_t& f, double tol = 1e-6) const;
 
+    //! \brief The LITTLE GROUP of fractional crystal momentum \a kFrac: the \f${W|\tau}\f$ ops whose
+    //! reciprocal action fixes \f$k\f$ modulo the reciprocal lattice, \f$(W^{-1})^\top k \equiv k \pmod 1\f$.
+    //! Always a subgroup; the full group at \f$\Gamma\f$.  This is the op set a \f$k\f$-resolved reduction
+    //! (the T3 stream fold at \f$k\ne\Gamma\f$, doc/SymmetryUpgradePlan.md §6b/T3.4) may fold under: ops
+    //! moving \f$k\f$ relate DIFFERENT k-blocks (the IBZ star bookkeeping), not terms within one block.
+    std::vector<SpaceGroupOp> LittleGroup(const rvec3_t& kFrac, double tol = 1e-9) const;
+    //! \c LittleGroup as \f${W|\tau}\f$ \c DirectOp s -- the currency \c SetStreamSymmetryOps takes.
+    std::vector<DirectOp>     LittleGroupDirectOps(const rvec3_t& kFrac, double tol = 1e-9) const;
+
     const Matrix3D<double>& CellMatrix() const {return itsA;}
     //! The reciprocal cell matrix \f$B = 2\pi A^{-\top}\f$ (columns \f$b_i\f$; \f$G = B\,m\f$).
     Matrix3D<double> ReciprocalMatrix() const;

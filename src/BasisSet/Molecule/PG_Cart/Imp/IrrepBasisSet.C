@@ -285,8 +285,8 @@ void Orbital_IBS::ReleaseStreams(const std::vector<ivec3_t>& N_L, const std::vec
 void Orbital_IBS::EmitLatticeSumReport(const UnitCell& A) const
 {   NR_Evaluator::EmitLatticeSumReport(A); }
 size_t Orbital_IBS::SetStreamSymmetryOps(const std::vector<Symmetry::Lattice_3D::DirectOp>& ops,
-                                         const UnitCell& A) const
-{   return NR_Evaluator::SetStreamSymmetryOps(ops,A); }
+                                         const UnitCell& A, const rvec3_t& kFrac) const
+{   return NR_Evaluator::SetStreamSymmetryOps(ops,A,kFrac); }
 size_t Orbital_IBS::StreamFoldOrder() const
 {   return NR_Evaluator::StreamFoldOrder(); }
 

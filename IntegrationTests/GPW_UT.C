@@ -578,16 +578,23 @@ TEST(GPW, AnalyticIntegrateBackAdjoint)
 // Hence a=14: same symmetry, demand fits the 150M-pt fp64 budget entirely.
 namespace
 {
+//! \a kFrac: the Bloch momentum (fractional).  At Γ the fold runs under the FULL group; at k != Γ under
+//! the LITTLE GROUP of k (SpaceGroup::LittleGroupDirectOps -- the T3.4 op-action-on-k bookkeeping), the
+//! frozen D is the COMPLEX Bloch overlap S^k (it satisfies the little-group constraint D_{i'j'} = ζ D_ij
+//! analytically), and the phases e^{2πik·n} are exact for half-integer k.  \a expectedOps==0 skips the
+//! exact order check (assert >= 4 instead -- a trivial little group would test nothing).
 void StreamFoldGate(const UnitCell& cell, const std::vector<Symmetry::Lattice_3D::AtomSite>& sites,
-                    const ivec3_t& N, size_t expectedOps, const char* tag)
+                    const ivec3_t& N, const rvec3_t& kFrac, size_t expectedOps, const char* tag)
 {
     namespace SL=qchem::Symmetry::Lattice_3D;
+    const bool kZero = kFrac.x==0.0 && kFrac.y==0.0 && kFrac.z==0.0;
     std::shared_ptr<const Real_BS> mol = MakeBasis(cell);
     const auto* lat=dynamic_cast<const BasisSet::Molecule::LatticeSum1E*>(OrbitalBlock<Real_OIBS>(*mol));
     ASSERT_TRUE(lat) << "orbital block must realise LatticeSum1E";
     const SL::SpaceGroup sg=SL::SpaceGroup::Detect(cell.GetCellMatrix(), sites);
-    const std::vector<SL::DirectOp> dops=sg.DirectOps();
-    ASSERT_EQ(dops.size(), expectedOps) << tag << ": unexpected space-group order";
+    const std::vector<SL::DirectOp> dops = kZero ? sg.DirectOps() : sg.LittleGroupDirectOps(kFrac);
+    if (expectedOps) { ASSERT_EQ(dops.size(), expectedOps) << tag << ": unexpected (little-)group order"; }
+    else             { ASSERT_GE(dops.size(), 4u)          << tag << ": little group too small to test"; }
 
     // Exact voxel action of op {W|tau} on the (commensurate) N^3 raster: v -> W v + N*tau (mod N).
     const int n=N.x;
@@ -624,13 +631,16 @@ void StreamFoldGate(const UnitCell& cell, const std::vector<Symmetry::Lattice_3D
     auto maxDiff=[](const rvec_t& a, const rvec_t& b)
         { double m=0; for (size_t p=0;p<a.size();p++) m=std::max(m,std::fabs(a[p]-b[p])); return m; };
 
-    // Frozen group-symmetric D = Re(S^Bloch); a group-symmetric V = P(smooth raster field).
-    auto gamma=[](const ivec3_t&)->dcmplx { return dcmplx(1.0); };
-    const chmat_t S=lat->MakeOverlap(gamma, cell);
+    // Frozen group-symmetric D: Re(S^Bloch) at Γ; the COMPLEX S^k at general k (satisfies the little-group
+    // constraint analytically).  A group-symmetric V = P(smooth raster field).
+    const double twoPi=8.0*std::atan(1.0);
+    auto ph=[kFrac,twoPi](const ivec3_t& nn)->dcmplx
+        { return std::polar(1.0, twoPi*(kFrac.x*nn.x+kFrac.y*nn.y+kFrac.z*nn.z)); };
+    const chmat_t S=lat->MakeOverlap(ph, cell);
     const size_t nf=S.rows();
     chmat_t D(nf);
-    for (size_t i=0;i<nf;i++) for (size_t j=i;j<nf;j++) D(i,j)=dcmplx(std::real(dcmplx(S(i,j))),0.0);
-    const double twoPi=8.0*std::atan(1.0);
+    for (size_t i=0;i<nf;i++) for (size_t j=i;j<nf;j++)
+        D(i,j) = kZero ? dcmplx(std::real(dcmplx(S(i,j))),0.0) : dcmplx(S(i,j));
     rvec_t v0(size_t(n)*n*n);
     for (long x=0;x<n;x++) for (long y=0;y<n;y++) for (long z=0;z<n;z++)
     {
@@ -641,12 +651,12 @@ void StreamFoldGate(const UnitCell& cell, const std::vector<Symmetry::Lattice_3D
     const double ecut=12.0;                            // K=1: every pair lands on the single level
 
     // FULL reference (no fold), then REDUCED (fold set), same streams either way.
-    const rvec_t  rhoFull=lat->CollocateDensity(D, gamma, cell, {N}, {ecut})[0];
-    const chmat_t hFull  =lat->IntegratePotential({V}, gamma, cell, {N}, {ecut});
-    const size_t used=lat->SetStreamSymmetryOps(dops, cell);
-    EXPECT_EQ(used, dops.size()) << tag << ": every cubic op must enter the fold";
-    const rvec_t  rhoRed=lat->CollocateDensity(D, gamma, cell, {N}, {ecut})[0];
-    const chmat_t hRed  =lat->IntegratePotential({V}, gamma, cell, {N}, {ecut});
+    const rvec_t  rhoFull=lat->CollocateDensity(D, ph, cell, {N}, {ecut})[0];
+    const chmat_t hFull  =lat->IntegratePotential({V}, ph, cell, {N}, {ecut});
+    const size_t used=lat->SetStreamSymmetryOps(dops, cell, kFrac);
+    EXPECT_EQ(used, dops.size()) << tag << ": every (little-group) cubic op must enter the fold";
+    const rvec_t  rhoRed=lat->CollocateDensity(D, ph, cell, {N}, {ecut})[0];
+    const chmat_t hRed  =lat->IntegratePotential({V}, ph, cell, {N}, {ecut});
 
     // Gate 1: P(reduced collocation) == full collocation (reordering tier).
     const rvec_t rhoSym=project(rhoRed);
@@ -686,9 +696,9 @@ void StreamFoldGate(const UnitCell& cell, const std::vector<Symmetry::Lattice_3D
     chmat_t Db(nf);
     for (size_t i=0;i<nf;i++) for (size_t j=i;j<nf;j++)
         Db(i,j)=dcmplx(D(i,j))*(1.0+0.02*std::sin(1.0+7.0*double(i)+13.0*double(j)));
-    const rvec_t rhoRedB=project(lat->CollocateDensity(Db, gamma, cell, {N}, {ecut})[0]);
+    const rvec_t rhoRedB=project(lat->CollocateDensity(Db, ph, cell, {N}, {ecut})[0]);
     lat->SetStreamSymmetryOps({}, cell);                                  // clear the fold
-    const rvec_t rhoFullB=lat->CollocateDensity(Db, gamma, cell, {N}, {ecut})[0];
+    const rvec_t rhoFullB=lat->CollocateDensity(Db, ph, cell, {N}, {ecut})[0];
     EXPECT_GT(maxDiff(rhoRedB, rhoFullB), 1e-8*scale)
         << tag << ": a symmetry-broken D must NOT survive the reduced path unchanged";
 }
@@ -700,7 +710,7 @@ TEST(GPW, StreamFoldReducedMatchesFull_SiFCC_Symmorphic)
 {
     FCCUnitCell cell(14.0);
     cell.AddAtom(14, {0,0,0});
-    StreamFoldGate(cell, {{14,{0,0,0}}}, ivec3_t(16,16,16), 48, "FCC Si");
+    StreamFoldGate(cell, {{14,{0,0,0}}}, ivec3_t(16,16,16), rvec3_t(0,0,0), 48, "FCC Si");
 }
 
 // Non-symmorphic gate: Si diamond (Fd-3m, 48 ops, half with the quarter glide) on a 4|N grid so the glide
@@ -711,7 +721,20 @@ TEST(GPW, StreamFoldReducedMatchesFull_SiDiamond_NonSymmorphic)
     FCCUnitCell cell(14.0);
     cell.AddAtom(14, {0,0,0});
     cell.AddAtom(14, {0.25,0.25,0.25});
-    StreamFoldGate(cell, {{14,{0,0,0}},{14,{0.25,0.25,0.25}}}, ivec3_t(16,16,16), 48, "diamond Si");
+    StreamFoldGate(cell, {{14,{0,0,0}},{14,{0.25,0.25,0.25}}}, ivec3_t(16,16,16), rvec3_t(0,0,0), 48, "diamond Si");
+}
+
+// k != Γ gate (T3.4): the SAME diamond cell at half-integer k -- the fold runs under the LITTLE GROUP of k
+// (SpaceGroup::LittleGroupDirectOps), the frozen D is the COMPLEX Bloch overlap S^k, and the h image fill
+// carries the zeta = sigma e^{2πik·(L_j-L_i)} edge phases.  Half-integer k keeps every phase exactly ±1,
+// so the gate stays in the reordering tier; expectedOps==0 (assert >= 4) because the little-group order is
+// what the detector finds, printed on the [stream fold] line.
+TEST(GPW, StreamFoldReducedMatchesFull_SiDiamond_HalfK)
+{
+    FCCUnitCell cell(14.0);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    StreamFoldGate(cell, {{14,{0,0,0}},{14,{0.25,0.25,0.25}}}, ivec3_t(16,16,16), rvec3_t(0.5,0.5,0.5), 0, "diamond Si k=(1/2,1/2,1/2)");
 }
 
 // XC POTENTIAL-CONSISTENCY PROBE (doc/GPWPlan.md 0b instrument).  Question under test: is the assembled

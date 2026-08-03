@@ -239,6 +239,27 @@ Matrix3D<double> SpaceGroup::ReciprocalMatrix() const
     return (2.0*Pi)*Transpose(itsAinv);   // B = 2π A^{-T}
 }
 
+std::vector<SpaceGroupOp> SpaceGroup::LittleGroup(const rvec3_t& kFrac, double tol) const
+{
+    // g fixes k iff (W^{-1})^T k = k + K for an integer K -- test each component against its nearest integer.
+    std::vector<SpaceGroupOp> lg;
+    for (const auto& op : itsOps)
+    {
+        const rvec3_t uk = Transpose(Invert(op.W))*kFrac;
+        const rvec3_t d(uk.x-kFrac.x, uk.y-kFrac.y, uk.z-kFrac.z);
+        if (fabs(d.x-lround(d.x))<tol && fabs(d.y-lround(d.y))<tol && fabs(d.z-lround(d.z))<tol)
+            lg.push_back(op);
+    }
+    return lg;
+}
+
+std::vector<DirectOp> SpaceGroup::LittleGroupDirectOps(const rvec3_t& kFrac, double tol) const
+{
+    std::vector<DirectOp> ops;
+    for (const auto& op : LittleGroup(kFrac,tol)) ops.push_back({op.W, op.tau});
+    return ops;
+}
+
 std::vector<SpaceGroupOp> SpaceGroup::SiteStabilizer(const rvec3_t& f, double tol) const
 {
     std::vector<SpaceGroupOp> stab;

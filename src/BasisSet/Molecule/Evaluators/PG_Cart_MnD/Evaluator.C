@@ -647,13 +647,22 @@ public:
     // representation transform h_{i'j'} = sigma h_ij -- exact for a group-symmetric V, and the exact
     // adjoint of the reduced scatter (symmetrize V first; §6b item 5).  A pair fixed by an op with
     // sigma = -1 carries D_ij = 0 under the imposed group: DEAD (skipped; h = 0 is its projected value).
-    // Γ-tier: general k needs the little-group restriction + e^{ik.L} edge phases (plan T3.4).
+    // GENERAL k (T3.4): the fold takes the block's kFrac and folds under the LITTLE GROUP of k only
+    // (guarded here; SpaceGroup::LittleGroupDirectOps is the caller's source).  For little-group ops
+    // e^{2πik·Wn} == e^{2πik·n} (mod 1), so the replay multiplicities stay plain integers; k enters only
+    // the edge factor zeta = sigma e^{2πik·(L_j-L_i)} -- the dead rule (non-flip self-edge with zeta != 1)
+    // and the h image fill h_{i'j'} = zeta h_ij.  Flip (Hermitian-twin) self-edges at k != Γ pin only the
+    // PHASE of D_ij (conj(D) = zeta D): never dead, conservatively not folded under.
     struct OpMap     { Matrix3D<double> W; std::vector<unsigned> to; std::vector<signed char> sgn; std::vector<ivec3_t> L; };
     struct StabEntry { Matrix3D<double> W; ivec3_t d; bool neg; };            // offset action n -> ±(W n + d)
-    struct PairEdge  { int rep=-1; signed char sigma=1; bool flip=false; bool dead=false; unsigned pairMult=1; };
+    //! \a zeta is the edge factor \f$\zeta=\sigma\,e^{2\pi i\,k\cdot(L_j-L_i)}\f$ (§6b/T3.4): the imposed
+    //! constraint reads \f$D^k_{i'j'}=\zeta D^k_{ij}\f$ and the image fill \f$h_{i'j'}=\zeta h_{ij}\f$.
+    //! At \f$\Gamma\f$ it is the real monomial sign \f$\sigma=\pm1\f$.
+    struct PairEdge  { int rep=-1; dcmplx zeta=dcmplx(1.0); bool flip=false; bool dead=false; unsigned pairMult=1; };
     struct StreamFold
     {
         std::vector<Symmetry::Lattice_3D::DirectOp> srcOps; //!< the caller's op set (idempotence key -- k-blocks re-inject)
+        rvec3_t                                   kF;       //!< the fractional k the fold was built for (idempotence key)
         std::vector<OpMap>                        maps;     //!< accepted ops' basis actions
         std::vector<PairEdge>                     pairs;    //!< [i*n+j] (j>=i slots); rep==own slot marks a representative
         std::vector<std::vector<StabEntry>>       stab;     //!< rep slots: the pair-stabilizer's offset action (identity included)
@@ -691,9 +700,16 @@ public:
         return q[0]!=q[1] && q[1]!=q[2] && q[0]!=q[2];
     }
     //! Realises \c Molecule::LatticeSum1E::SetStreamSymmetryOps (forwarded by the host IBS): build (or
-    //! clear, \a ops empty) the stream fold.  Returns the number of ops actually used.  Const like the
-    //! stream caches -- the fold is derived, geometry-fixed bookkeeping.
-    size_t SetStreamSymmetryOps(const std::vector<Symmetry::Lattice_3D::DirectOp>& ops, const UnitCell& A) const
+    //! clear, \a ops empty) the stream fold for a block at fractional crystal momentum \a kFrac
+    //! (default \f$\Gamma\f$).  Returns the number of ops actually used.  Const like the stream caches --
+    //! the fold is derived, geometry-fixed bookkeeping.
+    //! T3.4: ops must lie in the LITTLE GROUP of \a kFrac (\c SpaceGroup::LittleGroupDirectOps); a
+    //! non-little-group op is DROPPED here (belt + braces -- it relates different k-blocks, not terms
+    //! within this one).  For little-group ops the replay weights keep their plain integer
+    //! multiplicities (the \f$e^{2\pi ik\cdot Wn}\equiv e^{2\pi ik\cdot n}\f$ cancellation); \a kFrac
+    //! enters only the edge factors \f$\zeta\f$ (dead rule + h image fill).
+    size_t SetStreamSymmetryOps(const std::vector<Symmetry::Lattice_3D::DirectOp>& ops, const UnitCell& A,
+                                const rvec3_t& kFrac=rvec3_t(0,0,0)) const
     {
         // IDEMPOTENT: sibling k-blocks re-inject the same set (the evaluator is shared); an identical set
         // keeps the existing fold AND the stream caches built under it.  Any CHANGE (including clearing)
@@ -701,6 +717,8 @@ public:
         auto sameOps=[&]()->bool
         {
             if (!itsStreamFold || itsStreamFold->srcOps.size()!=ops.size()) return false;
+            const rvec3_t& k0=itsStreamFold->kF;
+            if (k0.x!=kFrac.x || k0.y!=kFrac.y || k0.z!=kFrac.z) return false;
             for (size_t o=0;o<ops.size();o++)
             {
                 const auto &a=itsStreamFold->srcOps[o], &b=ops[o];
@@ -715,6 +733,9 @@ public:
         if (ops.empty()) return 0;
         auto sf=std::make_unique<StreamFold>();
         sf->srcOps=ops;
+        sf->kF=kFrac;
+        const bool kZero = kFrac.x==0.0 && kFrac.y==0.0 && kFrac.z==0.0;
+        const double twoPi=8.0*std::atan(1.0);
         const size_t nn=size();
         std::vector<rvec3_t> fc(nn);                                         // fractional centres
         for (auto i:indices()) fc[i]=A.ToFractional(radials[i]->GetCenter());
@@ -729,6 +750,13 @@ public:
         };
         for (const auto& op : ops)
         {
+            if (!kZero)                                                      // little-group guard (T3.4):
+            {                                                                //   (W^{-1})^T k must == k (mod 1)
+                const rvec3_t uk=Transpose(Invert(op.W))*kFrac;
+                const rvec3_t dk(uk.x-kFrac.x, uk.y-kFrac.y, uk.z-kFrac.z);
+                if (std::fabs(dk.x-std::round(dk.x))>1e-9 || std::fabs(dk.y-std::round(dk.y))>1e-9
+                                                          || std::fabs(dk.z-std::round(dk.z))>1e-9) continue;
+            }
             int q[3], sax[3];
             if (!CartSignedPerm(A,op.W,q,sax)) continue;                     // shell-mixing op: dropped
             OpMap m; m.W=op.W; m.to.resize(nn); m.sgn.resize(nn); m.L.resize(nn);
@@ -766,28 +794,50 @@ public:
         {
             const size_t s0=i*nn+j;
             if (sf->pairs[s0].rep>=0) continue;
-            sf->pairs[s0]={int(s0),1,false,false,1};
+            sf->pairs[s0]={int(s0),dcmplx(1.0),false,false,1};
             bool dead=false;
             std::vector<size_t> members{s0};
             for (const auto& m : sf->maps)
             {
                 unsigned x=m.to[i], y=m.to[j];
-                const signed char sg=(signed char)(m.sgn[i]*m.sgn[j]);
+                const int sg=int(m.sgn[i])*int(m.sgn[j]);
                 const ivec3_t d(m.L[j].x-m.L[i].x, m.L[j].y-m.L[i].y, m.L[j].z-m.L[i].z);
+                // The edge factor zeta = sigma e^{2πi k.(L_j-L_i)} (§6b/T3.4): D^k_{i'j'} = zeta D^k_ij.
+                const dcmplx zeta = kZero ? dcmplx(double(sg))
+                                          : double(sg)*std::polar(1.0, twoPi*(kFrac.x*d.x+kFrac.y*d.y+kFrac.z*d.z));
                 bool fl=false;
                 if (x>y) { std::swap(x,y); fl=true; }
                 const size_t s1=size_t(x)*nn+y;
                 if (s1==s0)
                 {
-                    if (sg<0) dead=true;                                    // odd self-edge: D_ij = 0 under the group
-                    else sf->stab[s0].push_back({m.W,d,fl});
+                    // SELF-EDGES.  Non-flip: D_ij = zeta D_ij, so zeta != 1 kills the pair (the Γ sigma=-1
+                    // rule generalized); zeta == 1 folds its offsets.  Flip: the constraint is
+                    // conj(D_ij) = zeta D_ij -- a PHASE pin, not deadness, except at Γ where D is real
+                    // (then zeta=-1 does kill).  At k != Γ flip self-edges are conservatively SKIPPED
+                    // (no offset folding under them -- folding merely reduced, never wrong).
+                    if (!fl)
+                    {
+                        if (std::abs(zeta-dcmplx(1.0))>1e-9) dead=true;
+                        else sf->stab[s0].push_back({m.W,d,fl});
+                    }
+                    else if (kZero)
+                    {
+                        if      (sg<0) dead=true;                           // Γ, real D: conj==id, zeta=-1 => D=0
+                        else           sf->stab[s0].push_back({m.W,d,fl});
+                    }
                 }
                 else if (sf->pairs[s1].rep<0)
                 {
-                    sf->pairs[s1]={int(s0),sg,fl,false,1};
+                    sf->pairs[s1]={int(s0),zeta,fl,false,1};
                     members.push_back(s1);
                 }
-                else if (sf->pairs[s1].sigma!=sg) dead=true;                // inconsistent edge signs: only D = 0 fits
+                else if (sf->pairs[s1].flip==fl)
+                {
+                    // Two same-flavour edges to one image must agree; disagreement forces D = 0 (dead).
+                    if (std::abs(sf->pairs[s1].zeta-zeta)>1e-9) dead=true;
+                }
+                else if (kZero && std::abs(sf->pairs[s1].zeta-zeta)>1e-9) dead=true;
+                // (k != Γ, flip vs non-flip edges to the same image: a phase pin on D, never deadness.)
             }
             if (i==j)                                                       // diagonal Hermitian twin: n ~ -n
             {
@@ -1410,9 +1460,10 @@ public:
                 if (pe.dead) { h(i,j)=dcmplx(0.0); continue; }
                 if (pe.rep==int(i*nn+j)) continue;
                 const size_t a=size_t(pe.rep)/nn, b=size_t(pe.rep)%nn;
-                dcmplx v(h(a,b));
+                // h_{i'j'} = zeta h_{ab} (§6b/T3.4); a flipped edge stores the Hermitian twin slot, so it
+                // takes the conjugate of the WHOLE product (at Γ zeta is ±1 and conj is the identity).
+                dcmplx v = pe.zeta*dcmplx(h(a,b));
                 if (pe.flip) v=std::conj(v);
-                v*=double(pe.sigma);
                 h(i,j) = (i==j) ? dcmplx(std::real(v),0.0) : v;
             }
         };

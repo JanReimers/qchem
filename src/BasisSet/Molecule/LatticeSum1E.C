@@ -256,14 +256,19 @@ public:
     //! \f$h_{i'j'}=\sigma\,h_{ij}\f$ (exact for a group-symmetric \f$V\f$ -- symmetrize \f$V\f$ FIRST, then
     //! call: that pairing is the exact derivative of \f$E[P\rho]\f$, the §6b adjoint).  IMPOSES §3: exact
     //! iff \f$D\f$ (and hence \f$V\f$) actually has the group -- policy-gated by the caller, never default.
-    //! Γ-tier increment: general k needs the little-group restriction + \f$e^{ik\cdot L}\f$ edge phases
-    //! (plan T3.4) -- callers wire this only at \f$k=0\f$ for now.  Ops whose Cartesian action is not a
-    //! signed axis permutation, or that fail to map the basis onto itself, are DROPPED (folding merely
-    //! reduced, never wrong).  Empty \a ops clears the fold (the free-run default).
+    //! GENERAL k (T3.4): \a kFrac is the block's fractional crystal momentum; \a ops must be (a subset of)
+    //! the LITTLE GROUP of \a kFrac (\c SpaceGroup::LittleGroupDirectOps -- the star bookkeeping stays with
+    //! the group), and the implementation drops any op that moves \f$k\f$.  For little-group ops the replay
+    //! multiplicities stay plain integers; \f$k\f$ enters only the edge factors
+    //! \f$\zeta=\sigma\,e^{2\pi ik\cdot(L_j-L_i)}\f$ (the dead-pair rule and the \f$h_{i'j'}=\zeta h_{ij}\f$
+    //! image fill).  Ops whose Cartesian action is not a signed axis permutation, or that fail to map the
+    //! basis onto itself, are DROPPED (folding merely reduced, never wrong).  Empty \a ops clears the fold
+    //! (the free-run default).
     //! \return the number of ops the fold actually uses (0 = no reduction -- diagnostics/tests).
     //! Const like the stream caches: the fold is derived, geometry-fixed bookkeeping (mutable inside).
     virtual size_t SetStreamSymmetryOps(const std::vector<Symmetry::Lattice_3D::DirectOp>& /*ops*/,
-                                        const UnitCell& /*A*/) const {return 0;}
+                                        const UnitCell& /*A*/,
+                                        const rvec3_t& /*kFrac*/=rvec3_t(0,0,0)) const {return 0;}
     //! The number of ops the armed stream fold uses (0 = no fold).  CACHE-KEY input: a folded and an
     //! unfolded evaluator produce DIFFERENT collocation tensors (reduced vs full), so any content-keyed
     //! framework cache must include this in its identity (the GPW \c IDFragment does).

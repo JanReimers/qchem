@@ -894,8 +894,26 @@ against a special case it will outgrow:
      revisit only if a GDM/virial pin ever resolves it.  Anchor re-pin: NOT needed — no
      pre-existing suite test is imposed+Γ-only; the A/B gate is the pin.  **T3.3** §5 commensurable menu +
      route (a) expansion replay as the no-impose fallback (only if T3.0 says route (b)
-     doesn't subsume the need).  **T3.4** k≠Γ: op action on k consistent with the IBZ
-     star bookkeeping (SpaceGroup-owned).
+     doesn't subsume the need).  **T3.4 (op-action machinery) DONE 2026-08-03**: k≠Γ op
+     action consistent with the IBZ star bookkeeping — `SpaceGroup::LittleGroup(kFrac)` /
+     `LittleGroupDirectOps` (SpaceGroup-owned, \f$(W^{-1})^\top k\equiv k\f$ mod 1);
+     `SetStreamSymmetryOps(ops, A, kFrac)` folds under the little group only (guard drops
+     movers), with the DERIVED simplification that replay multiplicities stay plain
+     integers (\f$e^{2\pi ik\cdot Wn}\equiv e^{2\pi ik\cdot n}\f$ for little-group ops) —
+     \f$k\f$ enters ONLY the edge factor \f$\zeta=\sigma e^{2\pi ik\cdot(L_j-L_i)}\f$: the
+     dead rule (non-flip self-edge \f$\zeta\ne1\f$ ⇒ \f$D=0\f$; flip self-edges at k≠Γ pin
+     only D's phase — never dead, conservatively not folded under) and the image fill
+     \f$h_{i'j'}=\zeta h_{ij}\f$ (flip ⇒ conjugate of the whole product).  GATE
+     (`StreamFoldReducedMatchesFull_SiDiamond_HalfK`): diamond at k=(½,½,½), little group
+     order 12, COMPLEX frozen D=S^k, ρ 6.3e-14 / h 4.2e-15 (reordering tier; half-integer
+     k ⇒ exact ±1 phases), 528→92 rep pairs (8.4×).  **T3.4b OPEN — multi-k production
+     plumbing:** per-block arming needs either (i) per-fold stream caches with a UNION-of-
+     reps build (win only on high-symmetry MP meshes; generic wedge points have trivial
+     little groups → union → no reduction) or (ii) the STAR-SUMMED joint scatter (fold
+     across the whole k-star against \f$\sum_k w_k\,\mathrm{Re}[D^k\ldots]\f$ — the real
+     multi-k win, but a composite-level refactor: blocks currently collocate independently).
+     Couple T3.4b to the AUTO-ARM criterion (the open-shell finding above) — both gate
+     turning the fold on by default.
 7. **MnO rocksalt AFM-II** (2 f.u., moments along [111]) — first *real* d-electron magnet:
    the first genuine workout of the Shubnikov ops + imposed-subgroup policy + `+U` +
    order-parameter diagnostic together. The direct rehearsal for **LiMn₂O₄** charge/spin

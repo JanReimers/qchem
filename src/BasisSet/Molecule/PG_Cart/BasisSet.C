@@ -113,7 +113,8 @@ public:
                                 const std::vector<double>& ecut_L) const override;   // budget refund (0.5(b))
     virtual void EmitLatticeSumReport(const UnitCell& A) const override;             // lattice-sum economy readout
     virtual size_t SetStreamSymmetryOps(const std::vector<Symmetry::Lattice_3D::DirectOp>& ops,
-                                        const UnitCell& A) const override;           // T3 route (b) stream fold (§6b)
+                                        const UnitCell& A,
+                                        const rvec3_t& kFrac=rvec3_t(0,0,0)) const override;  // T3 stream fold (§6b)
     virtual size_t StreamFoldOrder() const override;                                  // fold-state cache-key input
 };
 // Use E prefix to avoid name clash with the interface class Fit_IBS
