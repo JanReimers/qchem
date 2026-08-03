@@ -1089,6 +1089,18 @@ TEST(GPW_SCF, DISABLED_ImposedGDMProbe_SiDiamondIBZ)
 // diamond proxy above is flawless imposed+GDM under identical projector machinery): the suspect set is
 // what NaF's recipe ADDS -- delayed-IMOM through the GDM stage, pivoted-Cholesky rank reduction (GDM's
 // gradient metric), diffuse-basis degeneracies.  NAFGDM_MOM / NAFGDM_PIVOT are the discriminator knobs.
+// ROUND 2 (same day): MOM and PIVOT are ELIMINATED.  (D) imposed noMOM: DIIS 84 it -> -24.5725; seeded
+// GDM climbs to -24.5167 (+56 mHa, Δρ~0.44 -- worse, if anything).  (E) noMOM+plain Cholesky: stage-1
+// DIIS itself oscillates (the SR basis needs pivoting, as history says) yet GDM shows the SAME climb
+// (-24.5178).  (C) FREE control: DIIS 53 it -> -24.5730; free GDM approximately HOLDS the fixed point
+// (E +0.8 mHa, Δρ~5.7e-2 rotating -- the benign degenerate mode, matching the user's "sort of works").
+// VERDICT: the defect is specifically IMPOSED x GDM on NaF (Si imposed x GDM is perfect): free-flat
+// degenerate directions acquire CURVATURE through the projector (E[P rho(theta)] varies where E[rho(theta)]
+// was flat), and the GDM engine walks UPHILL along them -- since the per-term E/H pairing is provably
+// exact even at broken-symmetry iterates (W1 adjoint; Hartree self-adjoint P), the prime suspect is the
+// GDM step model (curvature/step acceptance) on the projector-modified landscape, not E[rho] itself.
+// NEXT INSTRUMENT: a directional FD gradient gate through the imposed stack (E(D±h dD) vs Tr(H dD)), or a
+// GDM step log (model-predicted dE vs actual dE per accepted step).
 TEST(GPW_SCF, DISABLED_NaFImposedGDMSmearProbe)
 {
     auto envd=[](const char* n,double d){const char*s=std::getenv(n);return s?std::atof(s):d;};
