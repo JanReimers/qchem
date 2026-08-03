@@ -6,10 +6,13 @@ module;
 #include <memory>    // std::shared_ptr / std::move (the GPW basis owns the molecular Gaussian basis)
 #include <sstream>   // irrep label for the pre-flight basis.perIrrep rows
 #include <algorithm> // std::min (min singular value)
+#include <cstdlib>   // std::getenv/std::atoi (GPW_STREAM_FOLD opt-out -- the T3.2 A/B instrument)
 #include <vector>    // std::vector (the k-block list + the space-group atom basis)
 module qchem.BasisSet.Lattice_3D.BasisSet;
 import qchem.BasisSet.Internal.BasisSetImp;   // BasisSetImp<dcmplx> (the generic list-of-IBS container)
 import qchem.BasisSet.Lattice_3D.GPW_IBS;     // GPW_IBS (the periodic-Gaussian block GPW_BasisSet owns)
+import qchem.BasisSet.Orbital_1E_IBS;         // Real_OIBS (the molecular orbital block -- the stream-fold cross-cast)
+import qchem.BasisSet.Molecule.LatticeSum1E;  // SetStreamSymmetryOps (the T3 route (b) stream fold, §6b)
 import qchem.Reporting;                        // route the grid diagnostic into the run report when one is open
 import qchem.Symmetry.Factory;                // BlochFactory (the Bloch irrep per k)
 import qchem.Symmetry;                         // Spin, Irrep (the Bloch block identity for the pre-flight)
@@ -136,7 +139,32 @@ GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const
     CrystalPointOps ops = DetectPointOps(lat, p);   // ONE detection + the §3 policy: fold ops + {U|τ} (ρ̃) + {W|τ} (raster)
     itsReciprocalOps = ops.recipDensity;            // exposed via GetReciprocalPointOps for the composite G-space density
     itsDetectedOps   = ops.recipDetected;           // the FULL detected group, imposed or not (§3 diagnostic reference)
-    for (const auto& kb : BuildKBlocks(lat, p, ops))             // the k-fold uses the linear reciprocal ops (+TR)
+    const std::vector<KBlock> blocks = BuildKBlocks(lat, p, ops);
+    // T3 route (b) STREAM FOLD (doc/SymmetryUpgradePlan.md §6b/T3.2): on an IMPOSED Γ-ONLY run, fold the
+    // shared molecular evaluator's (pair, R) collocation streams under the crystal ops -- reduced build +
+    // replay (demand and per-iteration scatter/gather ÷ ~orbit factor); the existing per-iteration
+    // SymmetrizeGMap/SymmetrizeRaster sites complete the group-average, so no raster commensurability is
+    // needed.  Γ-only because a general-k block needs the little-group restriction + edge phases (T3.4);
+    // multi-k IBZ runs keep full streams.  GPW_STREAM_FOLD=0 opts out (the A/B instrument; read fresh, not
+    // static -- gate tests toggle it between two runs in one process).
+    if (ops.policy.Imposes() && blocks.size()==1
+        && blocks[0].ik.x==0 && blocks[0].ik.y==0 && blocks[0].ik.z==0
+        && kShift.x==0.0 && kShift.y==0.0 && kShift.z==0.0)
+    {
+        const char* e=std::getenv("GPW_STREAM_FOLD");
+        if (!e || std::atoi(e)!=0)
+        {
+            const BasisSet::Real_OIBS* orb=nullptr;
+            for (auto ibs : const_cast<BasisSet::Real_BS&>(*mol).Iterate<BasisSet::Real_OIBS>()) { orb=ibs; break; }
+            if (const auto* ls=dynamic_cast<const Molecule::LatticeSum1E*>(orb))
+            {
+                const size_t used=ls->SetStreamSymmetryOps(ops.directDensity, lat.GetUnitCell());
+                std::cout << "[stream fold] imposed Γ run: " << used << "/" << ops.directDensity.size()
+                          << " ops folded into the collocation streams" << std::endl;
+            }
+        }
+    }
+    for (const auto& kb : blocks)                                // the k-fold uses the linear reciprocal ops (+TR)
     {
         // Build the Bloch irrep WITH its BZ weight (star weight under IBZ) and the primary sym_t ctor -- the
         // weight carries the Sum_k w_k so the BZ-summed charge/energy are per-cell, not xNk.

@@ -862,9 +862,27 @@ against a special case it will outgrow:
      ρ 2.3e-14 / h 8.9e-16; diamond Si non-symmorphic (4|N=16 grid) ρ 5.0e-14 / h 4.6e-15;
      adjoint at D-kill class; generic-detune negative control fires.  DISCOVERY: the fp32
      stream tier breaks partner congruence at ~1e-8 (see the §6b item-6 measured block) —
-     gate cells sized for full fp64 coverage.  **T3.2** route (b) reduced
-     build+replay behind `imposeSymmetry` (memory/build win = budget ÷ ~|G_s|, per-iteration
-     scatter/gather win; re-pin the imposed anchors ONCE).  **T3.3** §5 commensurable menu +
+     gate cells sized for full fp64 coverage.  **T3.2 DONE 2026-08-02** route (b) reduced
+     build+replay behind `imposeSymmetry`: `EnsureStreams` builds ONLY rep pairs/offsets under
+     an armed fold (`SetStreamSymmetryOps` is idempotent per op set and CLEARS the stream
+     caches on any change — a reduced cache must never serve an unfolded replay); the GPW
+     factory arms the fold on IMPOSED **Γ-ONLY** runs (`GPW_STREAM_FOLD=0` opts out — the A/B
+     instrument, read fresh so one process can toggle; multi-k IBZ runs keep full streams
+     until T3.4's little-group + per-block arming).  MEASURED on the diamond unit-gate cell:
+     528 pairs → 40 reps, 15000 offsets → 164, 72.7M → 1.02M cached pts (**71× build/memory**;
+     the plan's 5–20× was conservative for high-symmetry cells).  Through-SCF gate
+     (`StreamFoldImposedGamma_SiDiamond`): imposed Γ diamond, fold-off vs fold-on totals agree
+     to **1.0e-6 Ha** (band-limit class on the non-commensurate production ladder N=15/8/24 —
+     the §6b no-§5 verdict exercised in production), both arms converge, charge exact.
+     DISCOVERY en route: the framework integral cache is content-keyed, so the fold state MUST
+     enter `GPW_Evaluator::IDFragment` (`|sfold=n`) — without it the A/B's second run silently
+     replayed the first run's unfolded cached tensor closures (bit-identical totals = the
+     tell).  V-side note: v is NOT explicitly re-symmetrized before the reduced gather —
+     V_H is exactly symmetric (built from the projected ρ̃) and Becke-route H_xc bypasses
+     streams entirely (mesh GEMM), so the only unpaired piece is the uniform-route v_xc's
+     glide-part band-limit defect, the same class the unfolded imposed route already carries;
+     revisit only if a GDM/virial pin ever resolves it.  Anchor re-pin: NOT needed — no
+     pre-existing suite test is imposed+Γ-only; the A/B gate is the pin.  **T3.3** §5 commensurable menu +
      route (a) expansion replay as the no-impose fallback (only if T3.0 says route (b)
      doesn't subsume the need).  **T3.4** k≠Γ: op action on k consistent with the IBZ
      star bookkeeping (SpaceGroup-owned).

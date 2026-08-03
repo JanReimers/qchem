@@ -984,6 +984,42 @@ TEST(GPW_SCF, SiDiamondIBZ_NonSymmorphic)
            "full mesh -7.77846 (G-space e^{+2πi(Um)·τ} + real-space FFT τ-shift)";
 }
 
+// (T3.2, doc/SymmetryUpgradePlan.md §6b) STREAM FOLD through-SCF A/B on an IMPOSED Γ-only run: the factory
+// arms route (b) on the shared molecular evaluator (reduced stream build + replay, rep-transform h), and the
+// existing SymmetrizeGMap/SymmetrizeRaster sites complete the group-average.  GPW_STREAM_FOLD=0/1 toggles the
+// fold between two otherwise identical runs (read fresh in the factory, so one process can A/B).  The two
+// totals must agree to the band-limit class (§8 through-SCF tier -- the production 5-smooth grid is NOT
+// τ-commensurate, so reduced+P and full+P are two equally valid quadratures of the same density), and the
+// folded run's [stream cache] line must show the reduced build (repPairs << pairs).
+TEST(GPW_SCF, StreamFoldImposedGamma_SiDiamond)
+{
+    const double a=10.26;
+    FCCUnitCell cell(a);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});          // Fd-3m: non-symmorphic, 48 ops, quarter glide
+    Lattice_3D lat(cell, ivec3_t(1,1,1));        // Γ-only: the T3.2 arming condition (k≠Γ is T3.4)
+    GpwOptions o;
+    o.label="Si diamond Γ stream-fold A/B"; o.Nelec=8; o.species={{"Si",4}};
+    o.densityEcut=20.0; o.accelerator="DIIS"; o.imposeSymmetry=true;
+    o.seed=qchem::ChargeDensity::SeedStrategy::Uniform; o.ortho=qchem::Cholesky;
+    o.scf.NMaxIter=60; o.scf.MinΔρ=1e-3; o.scf.MinΔE=1e-6;
+    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30; o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4;
+
+    setenv("GPW_STREAM_FOLD","0",1);
+    GpwResult R0=RunGpw(lat, MakeBasisSR(cell), o, /*verbose*/false);
+    setenv("GPW_STREAM_FOLD","1",1);
+    GpwResult R1=RunGpw(lat, MakeBasisSR(cell), o, /*verbose*/false);
+    unsetenv("GPW_STREAM_FOLD");
+
+    EXPECT_TRUE(R0.converged); EXPECT_TRUE(R1.converged);
+    std::cout << "[stream fold A/B] E(full)=" << R0.E.GetTotalEnergy()
+              << "  E(folded)=" << R1.E.GetTotalEnergy()
+              << "  dE=" << R1.E.GetTotalEnergy()-R0.E.GetTotalEnergy() << std::endl;
+    EXPECT_NEAR(R1.E.GetTotalEnergy(), R0.E.GetTotalEnergy(), 1e-5)
+        << "route (b) reduced streams must reproduce the full-stream imposed Γ run (band-limit class)";
+    EXPECT_NEAR(R1.charge, 8.0, 1e-6);
+}
+
 // ===== EXPERIMENTAL (scratch): global-μ across k-blocks (item 3 inc 3) =====
 // AL_KGRID=n (mesh nxnxn), AL_GLOBAL=0/1 (per-block vs global μ), AL_KT, AL_NMAX.
 // I2 (plan §6a fit/grid SEPARATION): the (Delta, uniform) cross cell.  The SAME material through the

@@ -114,6 +114,7 @@ public:
     virtual void EmitLatticeSumReport(const UnitCell& A) const override;             // lattice-sum economy readout
     virtual size_t SetStreamSymmetryOps(const std::vector<Symmetry::Lattice_3D::DirectOp>& ops,
                                         const UnitCell& A) const override;           // T3 route (b) stream fold (§6b)
+    virtual size_t StreamFoldOrder() const override;                                  // fold-state cache-key input
 };
 // Use E prefix to avoid name clash with the interface class Fit_IBS
 class EFit_IBS

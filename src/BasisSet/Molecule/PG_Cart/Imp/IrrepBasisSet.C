@@ -287,6 +287,8 @@ void Orbital_IBS::EmitLatticeSumReport(const UnitCell& A) const
 size_t Orbital_IBS::SetStreamSymmetryOps(const std::vector<Symmetry::Lattice_3D::DirectOp>& ops,
                                          const UnitCell& A) const
 {   return NR_Evaluator::SetStreamSymmetryOps(ops,A); }
+size_t Orbital_IBS::StreamFoldOrder() const
+{   return NR_Evaluator::StreamFoldOrder(); }
 
 //----------------------------------------------------------------
 //

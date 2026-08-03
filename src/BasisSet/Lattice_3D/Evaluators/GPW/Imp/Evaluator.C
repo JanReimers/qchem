@@ -1169,10 +1169,16 @@ std::string GPW_Evaluator::IDFragment() const
 {
     // Include the density-grid cutoff: the collocation tensor (Repulsion3C/Overlap3C) is built on that grid, so
     // the framework cache (keyed by BasisSetID) must distinguish GPW bases that differ only in densityEcut.
+    // The T3 stream-fold state (§6b/T3.2): a folded evaluator collocates REDUCED tensors (completed by the
+    // caller-side group-average), so folded and unfolded runs over the same geometry must never share
+    // framework-cached tensor closures (measured: the A/B gate's second run silently replayed the first
+    // run's unfolded closures until this key landed).
+    const size_t sfold = itsLat ? itsLat->StreamFoldOrder() : 0;
     return "|mol="+itsOrb->BasisSetID()
          +"|k="+std::to_string(itsk.x)+","+std::to_string(itsk.y)+","+std::to_string(itsk.z)
          +"|cell="+std::to_string(itsCell.GetCellVolume())+","+std::to_string(itsCell.GetMaximumCellEdge())
          +(itsHomeOnly?"|home":"")
+         +(sfold?"|sfold="+std::to_string(sfold):"")
          +"|dEcut="+(itsFFT_R_G_Grids?std::to_string(itsFFT_R_G_Grids->Ecut()):std::string("0"));
 }
 

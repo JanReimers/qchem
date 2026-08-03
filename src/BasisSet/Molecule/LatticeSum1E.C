@@ -264,6 +264,10 @@ public:
     //! Const like the stream caches: the fold is derived, geometry-fixed bookkeeping (mutable inside).
     virtual size_t SetStreamSymmetryOps(const std::vector<Symmetry::Lattice_3D::DirectOp>& /*ops*/,
                                         const UnitCell& /*A*/) const {return 0;}
+    //! The number of ops the armed stream fold uses (0 = no fold).  CACHE-KEY input: a folded and an
+    //! unfolded evaluator produce DIFFERENT collocation tensors (reduced vs full), so any content-keyed
+    //! framework cache must include this in its identity (the GPW \c IDFragment does).
+    virtual size_t StreamFoldOrder() const {return 0;}
 };
 
 } //namespace

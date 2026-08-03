@@ -653,6 +653,7 @@ public:
     struct PairEdge  { int rep=-1; signed char sigma=1; bool flip=false; bool dead=false; unsigned pairMult=1; };
     struct StreamFold
     {
+        std::vector<Symmetry::Lattice_3D::DirectOp> srcOps; //!< the caller's op set (idempotence key -- k-blocks re-inject)
         std::vector<OpMap>                        maps;     //!< accepted ops' basis actions
         std::vector<PairEdge>                     pairs;    //!< [i*n+j] (j>=i slots); rep==own slot marks a representative
         std::vector<std::vector<StabEntry>>       stab;     //!< rep slots: the pair-stabilizer's offset action (identity included)
@@ -694,9 +695,26 @@ public:
     //! stream caches -- the fold is derived, geometry-fixed bookkeeping.
     size_t SetStreamSymmetryOps(const std::vector<Symmetry::Lattice_3D::DirectOp>& ops, const UnitCell& A) const
     {
+        // IDEMPOTENT: sibling k-blocks re-inject the same set (the evaluator is shared); an identical set
+        // keeps the existing fold AND the stream caches built under it.  Any CHANGE (including clearing)
+        // invalidates the caches -- a REDUCED-built cache must never serve a free-run replay (§6b/T3.2).
+        auto sameOps=[&]()->bool
+        {
+            if (!itsStreamFold || itsStreamFold->srcOps.size()!=ops.size()) return false;
+            for (size_t o=0;o<ops.size();o++)
+            {
+                const auto &a=itsStreamFold->srcOps[o], &b=ops[o];
+                for (size_t r=1;r<=3;r++) for (size_t c=1;c<=3;c++) if (a.W(r,c)!=b.W(r,c)) return false;
+                if (a.tau.x!=b.tau.x || a.tau.y!=b.tau.y || a.tau.z!=b.tau.z) return false;
+            }
+            return true;
+        };
+        if (sameOps()) return itsStreamFold->maps.size();
+        if (itsStreamFold || !ops.empty()) itsStreamCaches.clear();
         itsStreamFold.reset();
         if (ops.empty()) return 0;
         auto sf=std::make_unique<StreamFold>();
+        sf->srcOps=ops;
         const size_t nn=size();
         std::vector<rvec3_t> fc(nn);                                         // fractional centres
         for (auto i:indices()) fc[i]=A.ToFractional(radials[i]->GetCenter());
@@ -811,6 +829,8 @@ public:
         itsStreamFold=std::move(sf);
         return used;
     }
+    //! Realises \c Molecule::LatticeSum1E::StreamFoldOrder (the fold-state cache-key input).
+    size_t StreamFoldOrder() const {return itsStreamFold ? itsStreamFold->maps.size() : 0;}
 
     const StreamCache& EnsureStreams(const UnitCell& A, const std::vector<ivec3_t>& N_L,
                                      const std::vector<double>& ecut_L, double absRelCutoff,
@@ -840,6 +860,21 @@ public:
         auto [budget64,budget32]=StreamBudgetHeadroom(&c);        // (empty c contributes nothing)
         c.availAtBuild64=budget64; c.availAtBuild32=budget32;
         size_t nPairs=0, nCached64=0, nCached32=0, pts64=0, pts32=0, ptsDropped=0, nOffs=0;
+        // T3 route (b) REDUCED BUILD (§6b/T3.2): under an armed fold, only orbit-REPRESENTATIVE pairs and
+        // representative offsets are built (the replay never touches the rest) -- demand and build time
+        // fall by ~|orbit|, which also lifts pairs INTO the fp64 tier (the §6b measured accuracy note).
+        // SetStreamSymmetryOps clears the caches on any fold change, so a reduced cache never serves an
+        // unfolded replay (and vice versa).
+        const StreamFold* bsf=itsStreamFold.get();
+        auto pairSkip=[&](size_t i, size_t j)->bool
+        {   return bsf && (bsf->pairs[i*n+j].dead || bsf->pairs[i*n+j].rep!=int(i*n+j)); };
+        auto offSkip=[&](size_t i, size_t j, const ivec3_t& nn)->bool
+        {
+            if (!bsf) return false;
+            const auto& mm=bsf->offMult[i*n+j];
+            const auto it=mm.find(OffKey(nn));
+            return it==mm.end() || it->second==0;
+        };
         bool builtThreaded=false;
 #ifdef QCHEM_OPENMP
         // TWO-PASS PARALLEL BUILD (opt-in via GPW_OMP_THREADS, like the collocate/integrate loops; the
@@ -870,8 +905,10 @@ public:
                     ps.level=PairLevel(i,j,ecut_L,absRelCutoff,0.0,relFieldSharp);
                     const ivec3_t N=N_L[ps.level];
                     size_t pts=0;
-                    ForImageOffsets(i,j,A,[&](const ivec3_t&, const rvec3_t& Roff)
-                                    { ForPairBox(i,j,Roff,A,N,[&](size_t,double){ pts++; }); });
+                    if (!pairSkip(i,j))
+                        ForImageOffsets(i,j,A,[&](const ivec3_t& nn, const rvec3_t& Roff)
+                                        { if (offSkip(i,j,nn)) return;
+                                          ForPairBox(i,j,Roff,A,N,[&](size_t,double){ pts++; }); });
                     ptsAll[p]=pts;
                 }
                 catch (...)
@@ -904,15 +941,17 @@ public:
                     PairStreams& ps=c.pairs[i*n+j];
                     const ivec3_t N=N_L[ps.level];
                     const bool f32=(tier[p]==Tier::F32);
-                    ForImageOffsets(i,j,A,[&](const ivec3_t& nn, const rvec3_t& Roff)
-                    {
-                        PairOffsetStream st; st.n=nn;
-                        ForPairBox(i,j,Roff,A,N,[&](size_t idx,double v)
-                                   { st.idx.push_back(unsigned(idx));
-                                     if (f32) st.val32.push_back(float(v)); else st.val.push_back(v);
-                                     st.maxv=std::max(st.maxv,std::fabs(v)); });
-                        if (!st.idx.empty()) ps.offsets.push_back(std::move(st));
-                    });
+                    if (!pairSkip(i,j))
+                        ForImageOffsets(i,j,A,[&](const ivec3_t& nn, const rvec3_t& Roff)
+                        {
+                            if (offSkip(i,j,nn)) return;
+                            PairOffsetStream st; st.n=nn;
+                            ForPairBox(i,j,Roff,A,N,[&](size_t idx,double v)
+                                       { st.idx.push_back(unsigned(idx));
+                                         if (f32) st.val32.push_back(float(v)); else st.val.push_back(v);
+                                         st.maxv=std::max(st.maxv,std::fabs(v)); });
+                            if (!st.idx.empty()) ps.offsets.push_back(std::move(st));
+                        });
                     ps.cached=true;
                 }
                 catch (...)
@@ -954,8 +993,10 @@ public:
                 so.val.clear(); so.val.shrink_to_fit();
             };
             bool fp32Form=false;                               // pair already demoted mid-build
+            if (!pairSkip(i,j))
             ForImageOffsets(i,j,A,[&](const ivec3_t& nn, const rvec3_t& Roff)
             {
+                if (offSkip(i,j,nn)) return;                   // reduced build: member offsets never built
                 if (!building)                                 // already over cap: count on-the-fly demand only
                 {
                     ForPairBox(i,j,Roff,A,N,[&](size_t,double) { pts++; });
@@ -1004,12 +1045,15 @@ public:
         // for the analytic path's speed, so make coverage visible (dropped pairs re-evaluate every iteration).
         // Fold it into the run report's grids.stream when a run is open (it is grid metadata -- the density-
         // collocation coverage over the grid ladder); else keep the legacy one-line cerr (unbracketed builds).
+        size_t nRepPairs=0;
+        if (bsf) for (auto i:indices()) for (auto j:indices(i)) if (!pairSkip(i,j)) nRepPairs++;
         if (qchem::report::Depth() > 0)
         {
             qchem::report::json s;
             s["rule"]      = (absRelCutoff > 0.0 ? "abs" : "rel");
             s["relCutoff"] = absRelCutoff;
             s["pairs"]     = (long)nPairs;
+            if (bsf) { s["foldOps"]=(long)bsf->maps.size(); s["repPairs"]=(long)nRepPairs; }
             s["fp64"]      = (long)nCached64;  s["pts64"] = (long)pts64;
             s["fp32"]      = (long)nCached32;  s["pts32"] = (long)pts32;
             s["offsets"]   = (long)nOffs;      // kept (pair, image-offset) terms across all pairs
@@ -1021,7 +1065,9 @@ public:
         {
             std::cerr << "[stream cache] shape=(";
             for (size_t l=0;l<N_L.size();l++) std::cerr << (l?",":"") << N_L[l].x;
-            std::cerr << ") rule=" << (absRelCutoff>0.0 ? "abs " : "rel ") << absRelCutoff << "  pairs " << nPairs
+            std::cerr << ") rule=" << (absRelCutoff>0.0 ? "abs " : "rel ") << absRelCutoff;
+            if (bsf) std::cerr << "  FOLD |ops|=" << bsf->maps.size() << " repPairs " << nRepPairs << "/" << nPairs;
+            std::cerr << "  pairs " << nPairs
                       << ": fp64 " << nCached64 << " (" << pts64 << " pts), fp32 " << nCached32
                       << " (" << pts32 << " pts), offsets " << nOffs << ", dropped " << ptsDropped
                       << " pts (budgets " << BudgetPts() << "/" << BudgetPtsF32() << ")" << std::endl;
