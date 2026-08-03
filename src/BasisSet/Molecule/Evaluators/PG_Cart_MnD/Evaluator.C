@@ -925,6 +925,9 @@ public:
             for (size_t p=0;p<prs.size();p++)
             {
                 nPairs++;
+                if (pairSkip(prs[p].first,prs[p].second)) continue;   // fold image/dead: holds NO streams --
+                                                                      //   never counted into a tier (fp64/fp32
+                                                                      //   report the pairs that actually STORE)
                 if (budget64==0 && budget32==0) { ptsDropped++; continue; }
                 const size_t pts=ptsAll[p];
                 if      (pts<=budget64) { budget64-=pts; pts64+=pts; nCached64++; tier[p]=Tier::F64; }
@@ -941,17 +944,16 @@ public:
                     PairStreams& ps=c.pairs[i*n+j];
                     const ivec3_t N=N_L[ps.level];
                     const bool f32=(tier[p]==Tier::F32);
-                    if (!pairSkip(i,j))
-                        ForImageOffsets(i,j,A,[&](const ivec3_t& nn, const rvec3_t& Roff)
-                        {
-                            if (offSkip(i,j,nn)) return;
-                            PairOffsetStream st; st.n=nn;
-                            ForPairBox(i,j,Roff,A,N,[&](size_t idx,double v)
-                                       { st.idx.push_back(unsigned(idx));
-                                         if (f32) st.val32.push_back(float(v)); else st.val.push_back(v);
-                                         st.maxv=std::max(st.maxv,std::fabs(v)); });
-                            if (!st.idx.empty()) ps.offsets.push_back(std::move(st));
-                        });
+                    ForImageOffsets(i,j,A,[&](const ivec3_t& nn, const rvec3_t& Roff)
+                    {
+                        if (offSkip(i,j,nn)) return;
+                        PairOffsetStream st; st.n=nn;
+                        ForPairBox(i,j,Roff,A,N,[&](size_t idx,double v)
+                                   { st.idx.push_back(unsigned(idx));
+                                     if (f32) st.val32.push_back(float(v)); else st.val.push_back(v);
+                                     st.maxv=std::max(st.maxv,std::fabs(v)); });
+                        if (!st.idx.empty()) ps.offsets.push_back(std::move(st));
+                    });
                     ps.cached=true;
                 }
                 catch (...)
@@ -971,6 +973,7 @@ public:
             PairStreams& ps=c.pairs[i*n+j];
             ps.level=PairLevel(i,j,ecut_L,absRelCutoff,0.0,relFieldSharp);
             nPairs++;
+            if (pairSkip(i,j)) continue;               // fold image/dead: no streams, no tier (readout honesty)
             if (budget64==0 && budget32==0) { ptsDropped++; continue; }   // both tiers exhausted
             const ivec3_t N=N_L[ps.level];
             size_t pts=0;

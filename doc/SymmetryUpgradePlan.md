@@ -866,9 +866,19 @@ against a special case it will outgrow:
      build+replay behind `imposeSymmetry`: `EnsureStreams` builds ONLY rep pairs/offsets under
      an armed fold (`SetStreamSymmetryOps` is idempotent per op set and CLEARS the stream
      caches on any change — a reduced cache must never serve an unfolded replay); the GPW
-     factory arms the fold on IMPOSED **Γ-ONLY** runs (`GPW_STREAM_FOLD=0` opts out — the A/B
-     instrument, read fresh so one process can toggle; multi-k IBZ runs keep full streams
-     until T3.4's little-group + per-block arming).  MEASURED on the diamond unit-gate cell:
+     factory arms the fold on IMPOSED **Γ-ONLY** runs, **OPT-IN via `GPW_STREAM_FOLD=1`**
+     (read fresh so one process can A/B; multi-k IBZ runs keep full streams until T3.4's
+     little-group + per-block arming).  **DEFAULT-ON RETRACTED 2026-08-03 — the open-shell
+     finding:** the fold imposes STRICTLY MORE than the historical `imposeSymmetry` (the ρ
+     star-average tolerates a symmetry-broken iterate D by projecting it pointwise; the
+     reduced replay reads only orbit-rep D elements, asserting D itself symmetric).  A
+     DEGENERATE OPEN SHELL breaks that permanently: the imposed Si pseudo-atom-in-a-box p²
+     gate flips from the benign rotating-ρ mode into charge-transfer sloshing (~0.26 Ha off)
+     with the fold armed — and only MARGINALLY (it passed one full-suite run before failing
+     deterministically the next day: a bistable oscillator, not a tolerance issue).
+     Default-on returns with an auto-arm criterion — gapped/closed-shell detection or Fermi
+     smearing (the same cure as the Becke × open-shell channel) — the T3.4-adjacent item.
+     MEASURED on the diamond unit-gate cell:
      528 pairs → 40 reps, 15000 offsets → 164, 72.7M → 1.02M cached pts (**71× build/memory**;
      the plan's 5–20× was conservative for high-symmetry cells).  Through-SCF gate
      (`StreamFoldImposedGamma_SiDiamond`): imposed Γ diamond, fold-off vs fold-on totals agree

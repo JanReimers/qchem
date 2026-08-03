@@ -145,14 +145,20 @@ GPW_BasisSet::GPW_BasisSet(const ::qchem::Lattice_3D& lat, std::shared_ptr<const
     // replay (demand and per-iteration scatter/gather ÷ ~orbit factor); the existing per-iteration
     // SymmetrizeGMap/SymmetrizeRaster sites complete the group-average, so no raster commensurability is
     // needed.  Γ-only because a general-k block needs the little-group restriction + edge phases (T3.4);
-    // multi-k IBZ runs keep full streams.  GPW_STREAM_FOLD=0 opts out (the A/B instrument; read fresh, not
-    // static -- gate tests toggle it between two runs in one process).
+    // multi-k IBZ runs keep full streams.
+    // OPT-IN (GPW_STREAM_FOLD=1; read fresh, not static, so gate tests can A/B in one process): the fold
+    // imposes STRICTLY MORE than the historical imposeSymmetry -- the ρ star-average tolerates a
+    // symmetry-BROKEN iterate D (projects it pointwise), while the reduced replay reads only
+    // orbit-representative D elements, i.e. it asserts D itself is symmetric.  A DEGENERATE OPEN SHELL
+    // breaks that assertion PERMANENTLY (measured: the imposed Si pseudo-atom-in-a-box p² run flips from
+    // the benign rotating-ρ mode into charge-transfer sloshing, ~0.26 Ha off).  Default-on needs an
+    // auto-arm criterion (gapped/closed-shell, or Fermi smearing) -- the T3.4-adjacent item.
     if (ops.policy.Imposes() && blocks.size()==1
         && blocks[0].ik.x==0 && blocks[0].ik.y==0 && blocks[0].ik.z==0
         && kShift.x==0.0 && kShift.y==0.0 && kShift.z==0.0)
     {
         const char* e=std::getenv("GPW_STREAM_FOLD");
-        if (!e || std::atoi(e)!=0)
+        if (e && std::atoi(e)!=0)
         {
             const BasisSet::Real_OIBS* orb=nullptr;
             for (auto ibs : const_cast<BasisSet::Real_BS&>(*mol).Iterate<BasisSet::Real_OIBS>()) { orb=ibs; break; }
