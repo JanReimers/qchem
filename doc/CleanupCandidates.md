@@ -51,3 +51,14 @@ refactoring session can batch them.  (User keeps the master list; merge freely.)
 - **`SolveSPD`/NNLS in `SymmetrizeMesh.C`** — module-private dense Cholesky + Lawson-Hanson NNLS
   hand-rolled beside the mesh code; if another consumer of small dense LS/NNLS appears, promote to
   qcMath (Blaze has no NNLS).
+- **`GDMParams::FDMax` naming + the fallback commit (2026-08-03 imposed×GDM investigation)** —
+  (i) `FDMax` reads as a step size but is the ENGAGEMENT gate on ‖[F′,D′]‖ (the geodesic step size
+  is the quadratic-model `itsStdef` capped by `Trust` radians); rename to something like
+  `EngageBelowFD` and consider making the norm intensive (per-element or per-electron) so one value
+  transfers across basis sizes.  (ii) `DirectMinStep`'s 12-backtrack line search COMMITS a tiny
+  non-descent step on fallback (SCFIterator.C ~L424) — the measured uphill leak on imposed NaF-SR
+  (+23–56 mHa over 100 iterations along projector-curved diffuse directions).  Fix: hold position on
+  fallback (or accept `best` only within a noise floor); pair with soft-direction preconditioning —
+  the 1/(ε_a−ε_i) diagonal Hessian blows up the step exactly along the near-degenerate diffuse
+  modes.  Reproducers: DISABLED_ImposedGDMProbe_SiDiamondIBZ (healthy), DISABLED_NaFImposedGDMSmearProbe
+  (pathological, NAFGDM_* knobs); GPW_GDMTRACE=1 shows DESCENT/FALLBACK per step.
