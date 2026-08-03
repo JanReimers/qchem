@@ -428,9 +428,15 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
 // after its producing iterator is torn down.  Returns the FINAL (coldest) stage's result; internal energy is
 // GetTotalEnergy()-MinusTS (A=E-TS reported, so E=A-(-TS)).  A general convergence tool (GPWPlan1 "Annealing
 // as a general capability") -- exercised here on the FCC-Al degenerate 3p.
+// \a accSchedule (optional): a PER-STAGE accelerator name (parallel to \a kTSchedule; empty = o.accelerator
+// throughout).  Each stage already builds a FRESH accelerator, so a kT x accelerator schedule composes here
+// naturally -- e.g. {"DIIS","GDM"} with {kT, 0}: smear the DIIS stage through the branch ties, then hand the
+// converged density to a COLD GDM stage (GDM does not support Fermi smearing, so its stage must run kT=0).
 static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mol, const GpwOptions& o,
-                                const std::vector<double>& kTSchedule, bool verbose=false)
+                                const std::vector<double>& kTSchedule, bool verbose=false,
+                                const std::vector<std::string>& accSchedule={})
 {
+    assert(accSchedule.empty() || accSchedule.size()==kTSchedule.size());
     namespace L3=BasisSet::Lattice_3D;
     const std::string sp = o.species.empty() ? std::string() : o.species.front().first;
     GpwReport report(sp+" "+o.label+" (annealed)", verbose);
@@ -468,7 +474,7 @@ static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Rea
         // carry stale DIIS history across the re-seed).
         auto* ham = new qchem::Hamiltonian::Ham_PW_DFT(st, bs.get(), o.species, "LDA",
                                                        ResolveXCMesh(o.xcMesh), o.vxcFit);
-        auto* acc = MakeGpwAccelerator(o.accelerator);
+        auto* acc = MakeGpwAccelerator(accSchedule.empty() ? o.accelerator : accSchedule[s]);
         std::unique_ptr<qchem::SCFIterator::SolidSCFIterator> scf(
             s==0 ? new qchem::SCFIterator::SolidSCFIterator(bs.get(), &ec, ham, acc, o.seed,  st.get(), o.ortho, o.orthoTol)
                  : new qchem::SCFIterator::SolidSCFIterator(bs.get(), &ec, ham, acc, seedCD, st.get(), o.ortho, o.orthoTol));
@@ -477,7 +483,8 @@ static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Rea
         std::vector<FpRow> series;
         scf->SetObserver([&series](const qchem::SCFIterator::SCFProgress& p)
                          { series.push_back({p.iteration,p.energy,p.dE,p.commutator,p.drho}); });
-        std::cout << "["<<o.label<<" anneal "<<s+1<<"/"<<kTSchedule.size()<<"] kT="<<kT<<std::endl;
+        std::cout << "["<<o.label<<" anneal "<<s+1<<"/"<<kTSchedule.size()<<"] kT="<<kT
+                  << " acc="<<(accSchedule.empty()?o.accelerator:accSchedule[s])<<std::endl;
         scf->Iterate(par);
         Fingerprint(series, (o.label+" kT="+std::to_string(kT)).c_str());
 
@@ -1056,6 +1063,63 @@ TEST(GPW_SCF, DISABLED_ImposedGDMProbe_SiDiamondIBZ)
     GpwResult R=RunGpw(lat, MakeBasisSR(cell), o, /*verbose*/envd("GDM_VERBOSE",0.0)!=0.0);
     std::cout << "[GDM probe] impose=" << o.imposeSymmetry << " kT=" << o.scf.SmearingkT
               << " E=" << R.E.GetTotalEnergy() << " converged=" << R.converged << std::endl;
+}
+
+// The NaF SIBLING of the probe above -- the SMEARING DISCRIMINATOR on the user's actual configuration
+// (multi-k 2x2x2 rocksalt NaF SR2, the DISABLED_NaFRocksaltGamma production recipe: IonicSAD seed, Kerker,
+// delayed-IMOM, pivoted Cholesky; Becke XC at NAFGDM_L, default the fast L=11 recipe).  GDM does NOT (yet)
+// support Fermi smearing, so the smeared leg runs as a TWO-STAGE anneal via RunGpwAnnealed's per-stage
+// accelerator schedule: stage 1 DIIS at kT=NAFGDM_KT (smears the branch ties), stage 2 GDM at kT=0 seeded
+// with stage 1's density (direct DM transfer; GDM's first aufbau collapses the fractional occupations).
+// The discriminator (user question 2026-08-03): if the imposed-GDM stall (ΔE/E ~1e-7, Δρ~1e-2) is
+// exactly-restored star degeneracies / branch ties, the smeared hand-off rescues it; a genuinely
+// non-variational imposed E/H pair would stall regardless (and the Si proxy above already found none).
+//   NAFGDM_IMPOSE=0/1 (default 1)   imposeSymmetry
+//   NAFGDM_KT (default 0.01)        stage-1 smearing; 0 = the cold-cold control (the user's observed stall)
+//   NAFGDM_NMAX (default 100)       per-stage iteration cap;  NAFGDM_L (default 11) Becke angular degree
+//   NAFGDM_MOM=0                    disable delayed-IMOM (is MOM x GDM the fight?)
+//   NAFGDM_PIVOT=0                  plain Cholesky (is the rank-reduced-subspace metric the fight?)
+// Run:  NAFGDM_IMPOSE=1 NAFGDM_KT=0.01 ./ITMain --gtest_filter='*NaFImposedGDMSmear*' --gtest_also_run_disabled_tests
+// MEASURED (2026-08-03, L=11, imposed = 3 IBZ points): the TIE HYPOTHESIS IS REJECTED for this stall --
+// smearing does NOT rescue the GDM stage.  (A) imposed, kT=0.01: DIIS converges 46 it / Δρ=1.9e-7 /
+// E=-24.5725 (-TS=3.4e-6: the gap dwarfs kT, smearing touches only ties); the seeded cold GDM stage then
+// WALKS UPHILL to E=-24.527 (+45 mHa) wandering at Δρ~0.4.  (B) imposed, cold: DIIS converges 57 it /
+// E=-24.5725; seeded GDM again degrades to -24.549 (+23 mHa), Δρ~0.29.  A minimizer leaving a stationary
+// point uphill = an E/H<->minimizer inconsistency in play -- but NOT the imposed projector itself (the Si
+// diamond proxy above is flawless imposed+GDM under identical projector machinery): the suspect set is
+// what NaF's recipe ADDS -- delayed-IMOM through the GDM stage, pivoted-Cholesky rank reduction (GDM's
+// gradient metric), diffuse-basis degeneracies.  NAFGDM_MOM / NAFGDM_PIVOT are the discriminator knobs.
+TEST(GPW_SCF, DISABLED_NaFImposedGDMSmearProbe)
+{
+    auto envd=[](const char* n,double d){const char*s=std::getenv(n);return s?std::atof(s):d;};
+    const double a=8.73;
+    FCCUnitCell cell(a);
+    cell.AddAtom(11, {0,0,0});          // Na (Zion=1)
+    cell.AddAtom(9,  {0.5,0.5,0.5});    // F  (Zion=7)
+    Lattice_3D lat(cell, ivec3_t(2,2,2));
+    GpwOptions o;
+    o.label   = "NaF IBZ GDM-smear probe";
+    o.Nelec   = 8; o.species = {{"Na",1},{"F",7}};
+    o.densityEcut = envd("NAF_ECUT",-1.0);              // AUTO = C·αmax = 80 (the anchor config)
+    o.imposeSymmetry = envd("NAFGDM_IMPOSE",1.0)!=0.0;
+    o.seed    = qchem::ChargeDensity::SeedStrategy::IonicSAD;
+    o.ortho   = qchem::CholeskyPivoted; o.orthoTol = 1e-4;
+    o.scf.NMaxIter=(size_t)envd("NAFGDM_NMAX",100.0);
+    o.scf.MinΔE=1e-9; o.scf.MinΔρ=1e-5;                 // deep enough to expose a stall vs a clean floor
+    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
+    o.scf.StartingRelaxRo=0.25; o.scf.KerkerG0=1.0;
+    o.scf.UseMOM=envd("NAFGDM_MOM",1.0)!=0.0; o.scf.MOMStartIter=10;   // NAFGDM_MOM=0: is MOM x GDM the fight?
+    if (envd("NAFGDM_PIVOT",1.0)==0.0) { o.ortho=qchem::Cholesky; o.orthoTol=0.0; }  // plain-Cholesky control
+    o.xcMesh          = BeckeXCParams(20,2,int(envd("NAFGDM_L",11.0)));
+    o.xcMesh.cellKind = qcMesh::UnitCellKind::Becke;
+
+    const double kT=envd("NAFGDM_KT",0.01);
+    GpwResult R = RunGpwAnnealed(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o,
+                                 /*kTSchedule*/{kT, 0.0}, /*verbose*/envd("NAFGDM_VERBOSE",0.0)!=0.0,
+                                 /*accSchedule*/{"DIIS","GDM"});
+    std::cout << "[NaF GDM-smear probe] impose="<<o.imposeSymmetry<<" kT(stage1)="<<kT
+              << " E="<<R.E.GetTotalEnergy()<<" converged="<<R.converged<<" iters(final)="<<R.iters<<std::endl;
+    EXPECT_NEAR(R.charge, 8.0, 1e-6);
 }
 
 // ===== EXPERIMENTAL (scratch): global-μ across k-blocks (item 3 inc 3) =====
