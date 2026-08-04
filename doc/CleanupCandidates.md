@@ -62,3 +62,13 @@ refactoring session can batch them.  (User keeps the master list; merge freely.)
   the 1/(ε_a−ε_i) diagonal Hessian blows up the step exactly along the near-degenerate diffuse
   modes.  Reproducers: DISABLED_ImposedGDMProbe_SiDiamondIBZ (healthy), DISABLED_NaFImposedGDMSmearProbe
   (pathological, NAFGDM_* knobs); GPW_GDMTRACE=1 shows DESCENT/FALLBACK per step.
+- **BZ creep on the neutral `Symmetry` base (ISP)** — the structure-neutral irrep label now carries
+  THREE Bloch-flavored defaulted virtuals: `GetWeight()` (pre-existing), `MergeAcrossIrreps()` and
+  `StarSize()` (both 2026-08-03, the MergeTol/IBZ-table fixes).  Each is a defaulted no-op for
+  atoms/molecules, but the trend is interface bloat on the base every lattice feature touches.
+  Candidate: split a BZ-block capability face (say `BlochBlock`: Weight/StarSize/MergeAcrossIrreps)
+  that `BlochQN` implements and consumers reach by the abstract→abstract cross-cast idiom --
+  `Symmetry` returns to pure QN identity (SequenceIndex/Degeneracy/PrincipleOffset/CarriesSpin).
+  Consumers to migrate: `tCompositeWF` (weights, global-μ fill), `EnergyLevels::merge`,
+  `EnergyLevel` ctor (star scaling).  Decide at a refactor session -- the cast is per-block/per-level
+  (report paths), never per-grid-point, so cost is a non-issue.
