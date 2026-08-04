@@ -62,13 +62,19 @@ refactoring session can batch them.  (User keeps the master list; merge freely.)
   the 1/(ε_a−ε_i) diagonal Hessian blows up the step exactly along the near-degenerate diffuse
   modes.  Reproducers: DISABLED_ImposedGDMProbe_SiDiamondIBZ (healthy), DISABLED_NaFImposedGDMSmearProbe
   (pathological, NAFGDM_* knobs); GPW_GDMTRACE=1 shows DESCENT/FALLBACK per step.
-- **BZ creep on the neutral `Symmetry` base (ISP)** — the structure-neutral irrep label now carries
-  THREE Bloch-flavored defaulted virtuals: `GetWeight()` (pre-existing), `MergeAcrossIrreps()` and
-  `StarSize()` (both 2026-08-03, the MergeTol/IBZ-table fixes).  Each is a defaulted no-op for
-  atoms/molecules, but the trend is interface bloat on the base every lattice feature touches.
-  Candidate: split a BZ-block capability face (say `BlochBlock`: Weight/StarSize/MergeAcrossIrreps)
-  that `BlochQN` implements and consumers reach by the abstract→abstract cross-cast idiom --
-  `Symmetry` returns to pure QN identity (SequenceIndex/Degeneracy/PrincipleOffset/CarriesSpin).
-  Consumers to migrate: `tCompositeWF` (weights, global-μ fill), `EnergyLevels::merge`,
-  `EnergyLevel` ctor (star scaling).  Decide at a refactor session -- the cast is per-block/per-level
-  (report paths), never per-grid-point, so cost is a non-issue.
+- **BZ creep on the neutral `Symmetry` base (ISP) — RESOLUTION DECIDED (user, 2026-08-04): the ATOM
+  SHELL CONVENTION.**  The base now carries three Bloch-flavored defaulted virtuals (`GetWeight()`
+  pre-existing; `MergeAcrossIrreps()` + `StarSize()` from the 2026-08-03 MergeTol/IBZ-table fixes).
+  Rather than split a capability face, adopt the user's design: a wedge k-block is a SHELL exactly
+  like an atom's l-block (one stored representative, degeneracy = the symmetry copies), so
+  **`BlochQN::GetDegeneracy()` = star size** (spatial; spin stays layered by `Irrep`) and
+  `StarSize()` is DELETED.  This is a coordinated convention switch — the invariant is
+  w_k × (per-block quantity), so the star factor must leave the weight in the same commit:
+  `GetWeight()` becomes plain 1/N_mesh (derivable from `N` — most of the weight plumbing through
+  `ReduceToIBZ` → `KBlock` → `BlochQN` evaporates); `Crystal_EC::GetN` per wedge block becomes
+  star×Nelec (all star copies fill through the one block — each band then holds star×2 natively and
+  the level table needs NO report-layer scaling: revert the `EnergyLevel` ctor scaling);
+  rebalance every w_k consumer (density sums, `tIrrepWF::GetEntropyTerm`;
+  `FillOrbitalsGlobalFermi`'s g = w·degen is INVARIANT under the switch — sanity check).
+  `MergeAcrossIrreps()` stays (unfolded meshes still carry star partners as separate blocks).
+  Re-verify every IBZ energy anchor.  Dedicated refactor session — multi-seam.
