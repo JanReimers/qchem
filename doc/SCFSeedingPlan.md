@@ -362,16 +362,24 @@ sibling of the basin problem, and it bites hardest exactly where the moments are
   seed, not the SCF, chooses the magnetic ordering basin.  This makes spin-SAD a PREREQUISITE for
   SymmetryUpgradePlan §7 step 7 (MnO AFM-II), same tier as the Shubnikov machinery.
 
-Shape (collinear tier):
-- The atomic-density tables gain per-(element, valence) SPIN-RESOLVED radial pairs (ρ↑, ρ↓) from
-  the polarized atom solver (Hund ground state — AtomCalculation already runs polarized PPs).
-- The seed request gains per-atom initial moments: sign+magnitude per site (the VASP
-  MAGMOM/CP2K-ATOM analogy), defaulting to Hund magnitudes with user-specified signs for AFM
-  patterns.  ρ↑_seed/ρ↓_seed = structure-factor sums of the per-site channel densities; the seed
-  becomes a genuine two-channel object (a tPolarized_CD over two FourierSeedCDs) instead of the
-  spin-agnostic total that today collapses to ρ/2 in the polarized terms.
-- Non-collinear later: per-site moment DIRECTIONS ride the same interface once the spinor/(ρ,m)
-  representation question (§9 of SymmetryUpgradePlan) is settled.
+Shape (collinear tier) — **UP-MAJORITY STORAGE CONVENTION (user, 2026-08-04)**:
+- The atomic-density tables gain ONE per-(element, valence) SPIN-RESOLVED radial pair (ρ↑, ρ↓)
+  from the polarized atom solver (Hund ground state — AtomCalculation already runs polarized
+  PPs), stored CANONICALLY with ↑ = the MAJORITY channel.  The magnetic CONFIGURATION is never
+  in the tables — it is ASSEMBLY-TIME data:
+  - collinear: a per-site flip bit — a flipped site swaps (ρ↑, ρ↓) into the seed's channels
+    (+m/−m sublattices = the AFM pattern, e.g. MnO AFM-II [111] sublattices);
+  - non-collinear (later): a per-site SU(2) rotation applied to the canonical pair — the seed's
+    2×2 spinor density at that site is U σ U† of the stored collinear one, so spirals/canted
+    configs are complex linear combinations of the SAME stored pair.  This is exactly the §4
+    non-collinear collapse structure run in reverse (the stored pair is the fixed-axis collapse;
+    the rotation restores the general orientation), and it keeps ONE table per species for every
+    ordering ever seeded.
+- The seed request gains per-atom moments: flip bits (+ later rotation angles), defaulting to
+  Hund magnitudes, user-specified pattern for AFM (the VASP MAGMOM/CP2K-ATOM analogy).
+  ρ↑_seed/ρ↓_seed = structure-factor sums of the per-site (possibly flipped) channel densities;
+  the seed becomes a genuine two-channel object (a tPolarized_CD over two FourierSeedCDs)
+  instead of the spin-agnostic total that today collapses to ρ/2 in the polarized terms.
 
 Unpolarized runs keep the spin-summed tables — zero cost.  This section is the design pin; the
 implementation rides Phase 3 (IonicSAD) machinery + the Molecular-PPs pseudo-valence solver.

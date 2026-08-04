@@ -20,8 +20,12 @@ below): (i) plain LS weight-solving FAILS outright at L=29 (residual 1e-11 but a
 negative-weight floor persists to any pool size) — NNLS is a *requirement*, not an
 optimization; (ii) the Becke builder's ε-borderline tail drops flip inconsistently across
 orbit partners at scale (212 orphans at nR=40/L=29) — cured by the orbit-consistency
-filter in `CreateSiteAdaptedBeckeMesh`, gated at production-L.  Steps 6 (T3 streams), 7
-(MnO, needs tier 4b), 8 (SALCs) not started.  The XC route was redesigned along the way
+filter in `CreateSiteAdaptedBeckeMesh`, gated at production-L.  Step 6 (T3 streams) partly
+done (T3.0–T3.2, T3.4 op-action; T3.4b open); **step 7's tier-4b prerequisite is now DONE
+(2026-08-04, 64a17443 — §4 STATUS block; all three gates green)**, so step 7 (MnO/MnO₂
+magnetic materials) is UNBLOCKED — remaining prerequisite for an AFM ordering is the
+spin-polarized SAD seed with per-site moments (doc/SCFSeedingPlan.md §10); 8 (SALCs) not
+started.  The XC route was redesigned along the way
 (fit/grid separation: `VxcFit` ⊥ `MeshParams`; `Delta_XC` + `XC_GridEngine(mesh, fold)` +
 the `CreateXCQuadrature` basis factory).
 **Open next increments, in rough value order:** ~~(b) the free-run ROTATED-Lebedev
@@ -30,8 +34,9 @@ recovered by `angRot`; default stays GL-29 — the audited Lebedev tables stop a
 (c) T3 stream fold + the §5 commensurable raster menu (also delivers the raster fold that
 retires `FIT_SF_ABS::SymmetrizeRaster`; CAMPAIGN SCOPED — see the §7 step 6 block: T3.0
 design memo first, incl. the does-route-(b)-even-need-§5 question); (d) I3's one-functional
-E/H design for the (PlaneWave, Becke) cell; (e) tier 4b (Na-doublet/O₂-triplet boxes) →
-step 7; ~~(f) higher-degree Lebedev tables + the `AngularKind::Gauss`→`Lebedev` rename
+E/H design for the (PlaneWave, Becke) cell; ~~(e) tier 4b (Na-doublet/O₂-triplet boxes)~~
+**DONE 2026-08-04** (§4 STATUS) → step 7 next, needing spin-SAD (SCFSeedingPlan §10);
+~~(f) higher-degree Lebedev tables + the `AngularKind::Gauss`→`Lebedev` rename
 (user, 2026-08-02)~~ **DONE same day** — rename + canonical Lebedev–Laikov import for
 orders 86–434 (degrees 15–35; 74/230/266 excluded, negative weights), audit-gated;
 MEASURED Leb-302 ≈ GL-29 at 67% of the dirs (§6a block).  The FREE-RUN DEFAULT FLIP to
@@ -477,7 +482,7 @@ channels). So:
   Only 4a is a prerequisite for the reduction machinery (§7 steps 2–6); 4b is a
   prerequisite only for the magnetic materials (§7 step 7) and can proceed in parallel.
 
-  **Tier 4b STATUS (2026-08-04) — BUILT, gate (b) GREEN, gate (a) open defect.**  The seven
+  **Tier 4b STATUS (2026-08-04) — DONE, ALL THREE GATES GREEN (committed 64a17443).**  The seven
   seams are in: `Crystal_EC(nUp,nDown)` (single-count ctors = the ζ=0 collapse),
   `tPolarizedWF<dcmplx>` instantiated + the WF factory dispatching both lineages on
   `IsPolarized()`, `Polarized_CD → tPolarized_CD<T>` with the `FourierDensityBase<T>` face
@@ -844,7 +849,9 @@ against a special case it will outgrow:
 1. **✓ DONE — Spin-native interface SHAPE** (§4 tier 4a) — signatures + op spin-action enum only;
    gated by compilation + unit-level fold tests.  *Prevents a redo; blocks nothing.*
    (§4 tier 4b — the polarized solid pipeline with gates (a) Na doublet / (b) O₂ triplet —
-   is `SpinNativeDFTPlan` work that runs IN PARALLEL and is a prerequisite only for step 7.)
+   **✓ DONE 2026-08-04 (64a17443), all three gates green — see the §4 STATUS block.**
+   Step 7's remaining seed-side prerequisite is the spin-polarized SAD with per-site
+   moments, doc/SCFSeedingPlan.md §10.)
 2. **✓ DONE — `Fold` primitive in qcSymmetry** (§2b) — generalize `ReduceToIBZ` → `FoldPoints`/
    `FoldGrid` with per-member op index; re-express the k-fold on it (bit-identical). Unit
    tests only.
@@ -954,7 +961,13 @@ against a special case it will outgrow:
 7. **MnO rocksalt AFM-II** (2 f.u., moments along [111]) — first *real* d-electron magnet:
    the first genuine workout of the Shubnikov ops + imposed-subgroup policy + `+U` +
    order-parameter diagnostic together. The direct rehearsal for **LiMn₂O₄** charge/spin
-   ordering (the north-star), which follows.
+   ordering (the north-star), which follows.  (Tier 4b DONE unblocks the two-channel
+   machinery; the AFM-specific prerequisite is the SPIN-POLARIZED SAD seed with per-site
+   moments — a spin-agnostic seed cannot express a staggered pattern, so the seed chooses
+   the magnetic-ordering basin.  Design pinned in doc/SCFSeedingPlan.md §10: tables store
+   the Hund pair in the UP-MAJORITY convention; assembly applies per-site flips (collinear
+   configs) or SU(2) rotations (non-collinear) — the config is assembly-time data, never
+   duplicated tables.  Also budget for `+U` and Fermi smearing on the d manifold.)
 8. **Crystal SALCs (Tier B)** — H block-diagonalization per k; separate track
    (`SpaceGroupPlan` Increment 3), reuses `BuildSALCs`.
 
