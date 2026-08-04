@@ -341,3 +341,37 @@ spherical averaging (use the file's reference density as-is); the `tDM_CD::Seed(
   (the Molecular-PPs project's Atom-PP). So the PW default **stays Uniform** for now — the SAD machinery is
   landed/tested (energy-correct), and the win comes free once the smooth pseudo-valence density exists. No
   ad-hoc core-smoothing hack. NaF/CsI: neutral SAD; charge-transfer payoff is Phase 3 IonicSAD.
+
+## 10. Spin-polarized SAD (design direction, user 2026-08-04)
+
+Motivated by the tier-4b Na-doublet basin find (SymmetryUpgradePlan §4): from the Uniform seed the
+lone-electron doublet converged to a GENUINE self-consistent excited basin 72 mHa above the minimum —
+every health metric green, DIIS and GDM both faithful to the wrong fixed point.  Seeds pick basins.
+
+Today every SAD flavour superposes SPIN-AGNOSTIC atomic densities, so a polarized run starts at
+ζ=0 everywhere.  But the ζ=0 state is itself a STATIONARY POINT of the polarized functional (the
+same trap class as Uniform was for Na): a run seeded there must break spin symmetry through
+numerical noise, and can instead sit at (or crawl away from) the symmetric saddle — the polarized
+sibling of the basin problem, and it bites hardest exactly where the moments are large:
+
+- **Transition metals / Mott-adjacent oxides** (the battery north-star: MnO, NiO, LiMn₂O₄): Hund
+  atoms with d⁵-ish local moments.  A ζ=0 seed leaves the SCF to discover ~5 μB per atom from
+  scratch; the FM/AFM/PM competition means several nearby basins to fall into.
+- **AFM ORDERINGS are unreachable without it**: an AFM-II MnO seed needs a per-atom SIGNED moment
+  pattern (+m on one sublattice, −m on the other).  No spin-agnostic seed can express that — the
+  seed, not the SCF, chooses the magnetic ordering basin.  This makes spin-SAD a PREREQUISITE for
+  SymmetryUpgradePlan §7 step 7 (MnO AFM-II), same tier as the Shubnikov machinery.
+
+Shape (collinear tier):
+- The atomic-density tables gain per-(element, valence) SPIN-RESOLVED radial pairs (ρ↑, ρ↓) from
+  the polarized atom solver (Hund ground state — AtomCalculation already runs polarized PPs).
+- The seed request gains per-atom initial moments: sign+magnitude per site (the VASP
+  MAGMOM/CP2K-ATOM analogy), defaulting to Hund magnitudes with user-specified signs for AFM
+  patterns.  ρ↑_seed/ρ↓_seed = structure-factor sums of the per-site channel densities; the seed
+  becomes a genuine two-channel object (a tPolarized_CD over two FourierSeedCDs) instead of the
+  spin-agnostic total that today collapses to ρ/2 in the polarized terms.
+- Non-collinear later: per-site moment DIRECTIONS ride the same interface once the spinor/(ρ,m)
+  representation question (§9 of SymmetryUpgradePlan) is settled.
+
+Unpolarized runs keep the spin-summed tables — zero cost.  This section is the design pin; the
+implementation rides Phase 3 (IonicSAD) machinery + the Molecular-PPs pseudo-valence solver.
