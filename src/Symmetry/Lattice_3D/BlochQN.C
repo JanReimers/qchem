@@ -21,6 +21,9 @@ public:
     virtual size_t GetDegeneracy() const {return 1;} // +/-k?
     virtual size_t GetPrincipleOffset() const  {return 1;}
     virtual double GetWeight() const {return weight;} // BZ-integration weight w_k of this k-point
+    //! A k-STAR of band levels is one symmetry-degenerate shell of the crystal group -- let the
+    //! EnergyLevels reporting layer merge equal-eigenvalue levels across k-blocks (Symmetry doc).
+    virtual bool   MergeAcrossIrreps() const {return true;}
     virtual std::ostream&  Write(std::ostream&) const;
 
     rvec3_t   Getk() const {return k;}

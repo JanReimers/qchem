@@ -36,6 +36,14 @@ public:
     //! \c true only for the relativistic double group (\c SphericalSpinor), where \f$\kappa\f$ encodes
     //! \f$j=l\pm\tfrac12\f$; there the layer-2 \a ms is \c Spin::None (spin is already in \f$\kappa\f$).
     virtual bool   CarriesSpin        () const {return false;}
+    //! \brief May energy levels of DIFFERENT irreps of this symmetry kind form ONE degenerate shell when
+    //! their eigenvalues coincide (within the caller's MergeTol)?  \c false for ordinary spatial symmetries:
+    //! an accidental cross-irrep degeneracy is NOT a shell, and atom/molecule configuration labels must stay
+    //! distinct.  \c true for crystal k-points (\c BlochQN): a k-STAR of band levels is one
+    //! symmetry-degenerate shell of the crystal group, split across k-blocks only by bookkeeping -- the
+    //! \c EnergyLevels reporting layer merges them so an equal-eigenvalue star displays as one level (and
+    //! the SCF cfg change-flag stops flapping on the ULP ordering of exact cross-k ties).
+    virtual bool   MergeAcrossIrreps  () const {return false;}
     std::string    GetLabel          () const;      //!< human-readable label (streams \c Write to a string)
 };
 

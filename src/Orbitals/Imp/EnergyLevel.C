@@ -59,34 +59,29 @@ void EnergyLevels::merge(const EnergyLevels& els)
 
 void EnergyLevels::merge(const EnergyLevels& els, double tol)
 {
-    // std::cout << "Existing levels" << std::endl;
-    // Report(std::cout);
-    // std::cout << "To merge levels" << std::endl;
-    // els.Report(std::cout);
-    
-    for (auto& el:els) 
+    for (auto& el:els)
     {
-        Irrep el_qns(el.second.qns);
+        const Irrep el_qns(el.second.qns);
+        // Scan the WHOLE ±tol window for a mergeable host (the old code tested only the FIRST level in
+        // the window -- an order-dependent miss).  A host is: the SAME irrep (the historical rule), or --
+        // when BOTH symmetries opt in (Symmetry::MergeAcrossIrreps, i.e. crystal k-points) -- any level of
+        // the same spin channel: a k-STAR of band levels is one degenerate shell of the crystal group, and
+        // MergeTol's contract is to fuse it (display/cfg layer; the occupation decisions are per-block,
+        // upstream in tIrrepWF::FillOrbitals).
         auto il=itsELevels.lower_bound(el.first-tol);
         auto iu=itsELevels.upper_bound(el.first+tol);
-        if (il!=itsELevels.end())
+        auto host=itsELevels.end();
+        for (auto i=il; i!=iu; ++i)
         {
-            Irrep il_qns(il->second.qns);
-            bool symmatch =  (il_qns.SequenceIndex() == el_qns.SequenceIndex());
-            // if (el.first<0.0)
-            //     std::cout << std::setprecision(6) << el.first << " " << il->first << " " <<el_qns << " " << il_qns << std::endl;
-            if ((!symmatch) || il==iu)
-                insert(el.second);
-            else
-                il->second.merge(el.second);
+            const Irrep i_qns(i->second.qns);
+            const bool symmatch  = (i_qns.SequenceIndex() == el_qns.SequenceIndex());
+            const bool starmatch = el_qns.sym->MergeAcrossIrreps() && i_qns.sym->MergeAcrossIrreps()
+                                && i->second.qns.ms == el.second.qns.ms;
+            if (symmatch || starmatch) { host=i; break; }
         }
-        else
-            insert(el.second);
-        
-        
+        if (host!=itsELevels.end()) host->second.merge(el.second);
+        else                        insert(el.second);
     }
-    // std::cout << "Merged levels" << std::endl;
-    // Report(std::cout);
 }
 
 
