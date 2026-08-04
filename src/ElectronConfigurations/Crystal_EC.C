@@ -20,11 +20,19 @@ namespace qchem {
 //! \note Single-k (one Gamma block) and a full BZ k-mesh are the same configuration here -- GetN ignores
 //! which k it is asked about; only the basis's k-list (and the per-k weights) differ.  At a single k the
 //! two modes coincide (one block, weight 1 => the global μ IS the per-block μ).
+//!
+//! SPIN-NATIVE (SymmetryUpgradePlan §4 tier 4b): the primary form is the two channel counts (nUp, nDown)
+//! per Molecule_EC; the single-count ctors are the ζ=0 collapse (minimal spin -- GetN(Spin::None) returns
+//! the same total either way).  GetN answers per the asking block's Irrep::ms, THEN applies the mode rule
+//! (star factor / whole-mesh total), so a polarized k-mesh fills each channel independently.
 export class Crystal_EC : public virtual ElectronConfiguration
 {
 public:
-    Crystal_EC(const Irrep& irr, int nval, bool globalFermi=false);                  //!< Single k-point.
-    Crystal_EC(const std::vector<Irrep>& irreps, int nval, bool globalFermi=false);  //!< A BZ k-mesh.
+    Crystal_EC(const Irrep& irr, int nval, bool globalFermi=false);                  //!< Single k-point, ζ=0 collapse.
+    Crystal_EC(const std::vector<Irrep>& irreps, int nval, bool globalFermi=false);  //!< A BZ k-mesh, ζ=0 collapse.
+    //! Spin-native open-shell: \a nUp / \a nDown electrons per unit cell (metal: whole-mesh channel totals).
+    Crystal_EC(const Irrep& irr, int nUp, int nDown, bool globalFermi=false);                  //!< Single k-point.
+    Crystal_EC(const std::vector<Irrep>& irreps, int nUp, int nDown, bool globalFermi=false);  //!< A BZ k-mesh.
     virtual int    GetN(const Irrep&) const;
     virtual syms_t GetIrreps() const;
     virtual void   Display() const;
@@ -32,7 +40,7 @@ public:
     virtual bool   UsesGlobalFermi() const {return itsGlobalFermi;}  // metal: one μ across the mesh
 private:
     syms_t itsSyms;          //!< The Bloch symmetries (one per k-block).
-    int    itsNval;          //!< Insulator: valence electrons per k-block.  Metal: whole-mesh total.
+    int    itsNup, itsNdn;   //!< Per-channel counts.  Insulator: per k-block.  Metal: whole-mesh totals.
     bool   itsGlobalFermi;   //!< Metal mode: k-blocks share one chemical potential (doc/GPWPlan1.md item 3).
 };
 

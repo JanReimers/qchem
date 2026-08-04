@@ -1,6 +1,7 @@
 // File:: Hamiltonian/Internal/Imp/Hamiltonians.C  Create fully implemented Hamiltonians
 module;
 #include <cassert>
+#include <stdexcept>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -175,7 +176,7 @@ Ham_PP::Ham_PP(const st_t& st, const std::vector<std::pair<std::string,int>>& sp
 // is carried by the basis (the external term just supplies the structure factor).
 void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotential::LocalPotential* loc,
                             const Pseudopotential::SeparablePotential* nl, const qcMesh::MeshParams& xcMesh,
-                            VxcFit fit)
+                            VxcFit fit, bool polarized)
 {
     // Build the functionals FIRST: their GridCutoffFactor() sets how dense the fit grid must be (the CP2K
     // REL_CUTOFF seam).  Exchange and correlation share ONE Vxc fit basis, so it takes the DENSER of the two;
@@ -214,11 +215,28 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
         qchem::report::EmitAt("grids", "xcQuadrature", {{"kind", becke ? "Becke" : "DeltaUniform"}});
         BasisSet::XCQuadrature q = bs->CreateXCQuadrature(st.get(), xcMesh);
         auto engine=std::make_shared<XC_GridEngine>(q.mesh, std::move(q.fold));
-        Add(new Delta_XC(exch, engine));
-        Add(new Delta_XC(corr, engine));
+        if (polarized)
+        {
+            // SPIN-NATIVE pair (tier 4b): a channel-native (non-halving, spin-tagged) Dirac exchange fed
+            // rho_sigma per block, and the VWN5 two-channel correlation face.  Same shared engine.
+            auto exchP=std::make_shared<SlaterExchange>(2.0/3.0, Spin::Up);
+            Add(new Delta_XC_Pol(exchP, engine));
+            Add(new Delta_VcorrPol(corr, engine));
+        }
+        else
+        {
+            Add(new Delta_XC(exch, engine));
+            Add(new Delta_XC(corr, engine));
+        }
     }
     else
     {
+        // HARD throw, not an assert: a Release-compiled assert would silently hand a polarized run the
+        // UNPOLARIZED PW_XC pair below -- wrong physics, no diagnostic (the tier-4b Delta-only pin).
+        if (polarized)
+            throw std::runtime_error("Ham_PW_DFT polarized: only the Delta (quadrature) XC route is "
+                "spin-native so far -- a polarized PLANE-WAVE Vxc fit (per-channel PW_XC with per-spin "
+                "rho caches) is not designed yet.  Use VxcFit::Delta (any grid) or the Becke default.");
         // The PLANE-WAVE fit route: exchange + correlation share ONE Vxc (overlap-metric) fit basis;
         // the projection quadrature is the FFT on the fit basis's own raster.  A PlaneWave fit ON a
         // Becke grid (I3) is asserted out until its one-functional E/H derivative pairing is designed
@@ -256,9 +274,9 @@ Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, std::initializer_list<st
 
 // Multi-species, runtime vector form (LiCoO2 / f-oxides: distinct elements collected at run time).
 Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const std::vector<std::pair<std::string,int>>& species,
-                       const std::string& functional, const qcMesh::MeshParams& xcMesh, VxcFit fit)
+                       const std::string& functional, const qcMesh::MeshParams& xcMesh, VxcFit fit, bool polarized)
 {
-    BuildFromGTH(st, bs, species, functional, xcMesh, fit);
+    BuildFromGTH(st, bs, species, functional, xcMesh, fit, polarized);
 }
 
 // Look up each (element, valence) from the GTH database and build + OWN a per-Z router model (one
@@ -266,7 +284,7 @@ Ham_PW_DFT::Ham_PW_DFT(const st_t& st, const cbs_t* bs, const std::vector<std::p
 // FormFactor(a->itsZ,...) dispatches to the right species).  The owned models outlive the terms (members,
 // destroyed after the cHamiltonian base that holds them), so each term's &loc/&nl stays valid for the run.
 void Ham_PW_DFT::BuildFromGTH(const st_t& st, const cbs_t* bs, const std::vector<std::pair<std::string,int>>& species,
-                              const std::string& functional, const qcMesh::MeshParams& xcMesh, VxcFit fit)
+                              const std::string& functional, const qcMesh::MeshParams& xcMesh, VxcFit fit, bool polarized)
 {
     auto loc=std::make_shared<Pseudopotential::MultiSpecies_LocalPotential>();
     auto sep=std::make_shared<Pseudopotential::MultiSpecies_SeparablePotential>();
@@ -279,7 +297,7 @@ void Ham_PW_DFT::BuildFromGTH(const st_t& st, const cbs_t* bs, const std::vector
     }
     itsOwnedLocal=loc;
     itsOwnedSep  =sep;
-    BuildTerms(st, bs, loc.get(), sep.get(), xcMesh, fit);
+    BuildTerms(st, bs, loc.get(), sep.get(), xcMesh, fit, polarized);
 }
 
 Ham_HF_P::Ham_HF_P(const st_t& st)

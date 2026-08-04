@@ -243,3 +243,6 @@ framework already carries everything around it.
   as {preconditioner} × {linear | extrapolated step}. `StartingRelaxRo` defaults to 1.0, so no-mixing and the
   molecular default are one object.
 - **bit-identity is the extraction oracle** (increment 1); periodic energies stay did-E-move anchors.
+
+# GDM 
+-System: Naf 2x2x2 multi k, SR2 basis set, GDM works but it is slow. "k oscillates between 2 and 3 after cycle 23" on the imposed run — that's the GDM line-search backtrack count, it means the quadratic model overshoots ~4–8× each step and pays 3–4 Fock builds per iteration. Two cheap engine ideas when you get to the SCFStrategyPlan work: seed the line search from the previous accepted t instead of always starting at 1, and that alone would likely erase much of the imposed run's 110-vs-50 iteration-count penalty (the free run's steady k=3 suggests the same, so both would speed up).

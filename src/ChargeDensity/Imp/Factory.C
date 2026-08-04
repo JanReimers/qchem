@@ -15,10 +15,12 @@ template <class T> tDM_CD<T>* IrrepCD_Factory(const hmat_t<T>& dm,const tobs_t<T
 }
 template tDM_CD<double>* IrrepCD_Factory<double>(const hmat_t<double>&,const tobs_t<double>*, Irrep);
 template tDM_CD<dcmplx>* IrrepCD_Factory<dcmplx>(const hmat_t<dcmplx>&,const tobs_t<dcmplx>*, Irrep);
-rDM_CD*    PolarizedCD_Factory(rDM_CD* up,rDM_CD* dn)
+template <class T> tDM_CD<T>* PolarizedCD_Factory(tDM_CD<T>* up,tDM_CD<T>* dn)
 {
-    return new Polarized_CDImp(up,dn);
+    return new tPolarized_CDImp<T>(up,dn);
 }
+template tDM_CD<double>* PolarizedCD_Factory<double>(tDM_CD<double>*,tDM_CD<double>*);
+template tDM_CD<dcmplx>* PolarizedCD_Factory<dcmplx>(tDM_CD<dcmplx>*,tDM_CD<dcmplx>*);
 
 std::unique_ptr<FittedCD> FittedCD_Factory(fbs_t& fbs, double totalCharge)
 {

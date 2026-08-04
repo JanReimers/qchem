@@ -12,12 +12,12 @@ namespace qchem::ChargeDensity
 //
 //  Construction zone.
 //
-Polarized_CDImp::Polarized_CDImp()
+template <class T> tPolarized_CDImp<T>::tPolarized_CDImp()
     : itsSpinUpCD  (0)
     , itsSpinDownCD(0)
 {}; // No UT coverage
 
-Polarized_CDImp::Polarized_CDImp(rDM_CD* up, rDM_CD* down)
+template <class T> tPolarized_CDImp<T>::tPolarized_CDImp(tDM_CD<T>* up, tDM_CD<T>* down)
     : itsSpinUpCD  (up  )
     , itsSpinDownCD(down)
 {
@@ -25,7 +25,7 @@ Polarized_CDImp::Polarized_CDImp(rDM_CD* up, rDM_CD* down)
     assert(itsSpinDownCD);
 };
 
-Polarized_CDImp::~Polarized_CDImp()
+template <class T> tPolarized_CDImp<T>::~tPolarized_CDImp()
 {
     delete itsSpinUpCD;
     delete itsSpinDownCD;
@@ -35,26 +35,29 @@ Polarized_CDImp::~Polarized_CDImp()
 //
 //  Access to individual components.
 //
-rDM_CD* Polarized_CDImp::GetChargeDensity(const Spin& s)
+template <class T> tDM_CD<T>* tPolarized_CDImp<T>::GetChargeDensity(const Spin& s)
 {
     assert(s!=Spin::None);
     assert(itsSpinUpCD);
     assert(itsSpinDownCD);
-    rDM_CD* ret=0;
+    tDM_CD<T>* ret=0;
     if(s==Spin::Up  ) ret=itsSpinUpCD  ;
     if(s==Spin::Down) ret=itsSpinDownCD;
     return ret;
 }
 
-const rDM_CD* Polarized_CDImp::GetChargeDensity(const Spin& s) const
+template <class T> const tDM_CD<T>* tPolarized_CDImp<T>::GetChargeDensity(const Spin& s) const
 {
     assert(s!=Spin::None);
     assert(itsSpinUpCD);
     assert(itsSpinDownCD);
-    const rDM_CD* ret=0;
+    const tDM_CD<T>* ret=0;
     if(s==Spin::Up  ) ret=itsSpinUpCD  ;
     if(s==Spin::Down) ret=itsSpinDownCD;
     return ret;
 }
+
+template class tPolarized_CDImp<double>;
+template class tPolarized_CDImp<dcmplx>;
 
 } //namespace

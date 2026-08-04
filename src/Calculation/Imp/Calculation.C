@@ -67,35 +67,40 @@ static Molecule_EC* MakeMoleculeEC(int Ne, int multiplicity)
     return new Molecule_EC((Ne + twoS) / 2, (Ne - twoS) / 2);   // (nUp, nDown)
 }
 
-// The pseudopotential valence charge (Zion) for element \a Z, from its default-valence GTH entry.
-static int PPZion(int Z) {return Pseudopotential::GetGTH(thePeriodicTable().GetSymbol(Z)).zion;}
+// The pseudopotential valence charge (Zion) for element \a Z: the CalcOptions::ppValence override when
+// set, else the element's default-valence GTH entry (GetGTH's q=0 lookup).
+static int PPZion(int Z, int valenceOverride)
+{
+    return valenceOverride>0 ? Pseudopotential::GetGTH(thePeriodicTable().GetSymbol(Z),"LDA",valenceOverride).zion
+                             : Pseudopotential::GetGTH(thePeriodicTable().GetSymbol(Z)).zion;
+}
 
 // Re-express a structure as its VALENCE ions for a pseudopotential run: each atom keeps its true species Z
 // (so the PP lookup and the true geometry are intact) but carries net charge Z-Zion(its own element), so
 // GetNumElectrons() reports the total Zion valence count the EC + FittedVee charge constraint consume.
 // Clone-and-mutate (not rebuild-as-Molecule) so the concrete geometry is preserved: a PP run on a periodic
 // UnitCell stays a UnitCell (Ewald ion-ion, uniform mesh) -- the GPW-relevant case.
-static std::shared_ptr<Structure> MakeValenceStructure(const Structure& st)
+static std::shared_ptr<Structure> MakeValenceStructure(const Structure& st, int valenceOverride)
 {
     auto valence = st.Clone();
     for (size_t a=0; a<valence->GetNumAtoms(); a++)
     {
         Atom* atom = (*valence)[a];
-        atom->itsCharge = double(atom->itsZ - PPZion(atom->itsZ));   // net charge = Z - Zion
+        atom->itsCharge = double(atom->itsZ - PPZion(atom->itsZ, valenceOverride));   // net charge = Z - Zion
     }
     return valence;
 }
 
 // The distinct pseudopotential species (element, valence) present in \a st -- the per-Z router the
 // multi-species PP Hamiltonian is built from.  A single-species molecule yields a 1-element list.
-static std::vector<std::pair<std::string,int>> PPSpecies(const Structure& st)
+static std::vector<std::pair<std::string,int>> PPSpecies(const Structure& st, int valenceOverride)
 {
     std::vector<std::pair<std::string,int>> species;
     std::set<int> seen;
     for (size_t a=0; a<st.GetNumAtoms(); a++)
     {
         const int Z = st[a]->itsZ;
-        if (seen.insert(Z).second) species.push_back({thePeriodicTable().GetSymbol(Z), PPZion(Z)});
+        if (seen.insert(Z).second) species.push_back({thePeriodicTable().GetSymbol(Z), PPZion(Z, valenceOverride)});
     }
     return species;
 }
@@ -144,7 +149,7 @@ Calculation::Calculation(const Structure& st, const CalcOptions& opts, const Acc
 
     // A pseudopotential run works on the VALENCE ions (Z-Zion charge) so the electron count is the valence
     // count -- built before the basis/EC, which both read it off the structure.
-    if (itsOpts.pseudopotential) itsStructure = MakeValenceStructure(*itsStructure);
+    if (itsOpts.pseudopotential) itsStructure = MakeValenceStructure(*itsStructure, itsOpts.ppValence);
 
     itsBasis = BuildBasis(itsOpts, itsStructure);                  // raw, or SALC-blocked if .symmetry
     itsEC    = MakeMoleculeEC(int(itsStructure->GetNumElectrons()), itsOpts.multiplicity);
@@ -167,7 +172,8 @@ bool Calculation::Converge(const SCFParams& params)
     // orbital basis, xalpha) are ignored for HF/1-e/Dirac.  A pseudopotential run takes the PP front door
     // instead (LSDA valence Hamiltonian: V_loc + KB projectors + Zion ion-ion in place of Ven).
     auto* ham = itsOpts.pseudopotential
-        ? qchem::Hamiltonian::Factory(itsOpts.pol, itsStructure, PPSpecies(*itsStructure), itsOpts.mesh, itsBasis)
+        ? qchem::Hamiltonian::Factory(itsOpts.pol, itsStructure, PPSpecies(*itsStructure, itsOpts.ppValence),
+                                      itsOpts.mesh, itsBasis)
         : qchem::Hamiltonian::Factory(itsOpts.model, itsOpts.pol, itsStructure,
                                       itsOpts.mesh, itsBasis, itsOpts.xalpha);
 

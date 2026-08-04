@@ -36,7 +36,7 @@ template <class T> tDM_CD<T>* tPolarizedWF<T>::GetChargeDensity() const
 
 template <class T> typename tPolarizedWF<T>::sf_t* tPolarizedWF<T>::GetSpinDensity() const
 {
-    return new qchem::ChargeDensity::SpinDensity(GetChargeDensity(Spin::Up),GetChargeDensity(Spin::Down));
+    return new qchem::ChargeDensity::tSpinDensity<T>(GetChargeDensity(Spin::Up),GetChargeDensity(Spin::Down));
 }
 
 
@@ -100,5 +100,6 @@ template <class T> void tPolarizedWF<T>::DisplayEigen() const
 }
 
 template class tPolarizedWF<double>;
+template class tPolarizedWF<dcmplx>;
 
 } //namespace

@@ -14,9 +14,9 @@ export namespace qchem::WaveFunction
 using SCFAccelerators::tSCFAccelerator;
 using ChargeDensity::tDM_CD;
 
-// Polarized (spin up/down) wave function.  Templated for uniformity, but only the <double> alias
-// is instantiated: the spin-density / polarized-CD aggregation is a real Gaussian-basis facility
-// (the plane-wave dcmplx lineage is unpolarized -- the Factory never builds a dcmplx PolarizedWF).
+// Polarized (spin up/down) wave function.  Both lineages are instantiated (SymmetryUpgradePlan §4
+// tier 4b): <double> = molecular Gaussian, <dcmplx> = polarized plane-wave (Bloch) -- the Factory
+// dispatches on Hamiltonian::IsPolarized() for both.
 template <class T> class tPolarizedWF
     : public virtual tSCFWaveFunction<T>
     , public tCompositeWF<T>

@@ -189,6 +189,13 @@ public:
     //! the very first call; blocks not yet tabled self-evaluate pointwise inside the density (first pass
     //! only).  GetEnergy passes null (no basis at hand) and reuses the iteration's table.
     const rvec_t& Rho(const cChargeDensity* cd, const cobs_t* ensureBlock=nullptr);
+    //! \brief Spin channel \f$\rho_\sigma(r_g)\f$ for \a cd's current serial -- the SPIN-NATIVE sibling of
+    //! \c Rho (SymmetryUpgradePlan §4 tier 4b), cached as the {↑,↓} PAIR under ONE serial (a polarized
+    //! density's \c Version() forwards to its Up child, so a single scalar cache would alias the channels).
+    //! A \c cPolarized_CD answers per channel; a spin-agnostic density (the seed) collapses to
+    //! \f$\rho_\uparrow=\rho_\downarrow=\rho/2\f$ (the HalfDensity rule -- \f$v^\sigma(\tfrac\rho2,\tfrac\rho2)
+    //! =v^P(\rho)\f$).  Fold star-average applies per channel (collinear: the spatial ops act channel-wise).
+    const rvec_t& RhoPol(const cChargeDensity* cd, const Spin& s, const cobs_t* ensureBlock=nullptr);
     //! \f$\langle i|v|j\rangle=\sum_g \overline{\Phi_{gi}}\,w_g v_g\,\Phi_{gj}\f$ over the cached table.
     chmat_t Matrix(const cobs_t* bs, const rvec_t& v);
 private:
@@ -198,6 +205,8 @@ private:
     std::map<std::string,mat_t<dcmplx>> itsPhi;   //!< BasisSetID -> (npts x n) basis table
     rvec_t itsRho;
     size_t itsRhoVersion=size_t(-1);              //!< density logical-clock serial itsRho was built for
+    rvec_t itsRhoUp, itsRhoDn;                    //!< per-channel rasters (the polarized pair, one serial)
+    size_t itsPolVersion=size_t(-1);              //!< density serial the {↑,↓} pair was built for
 };
 
 class Delta_XC
@@ -215,6 +224,54 @@ private:
 
     xc_t     itsXc;
     engine_t itsEngine;   //!< the shared mesh + Phi tables + per-serial rho (one per XC pair)
+};
+
+//! SPIN-NATIVE exchange on the Becke quadrature (SymmetryUpgradePlan §4 tier 4b) -- the periodic sibling
+//! of the molecular FittedVxcPol.  Exchange is CHANNEL-SEPARABLE, so one channel-native functional (a
+//! spin-tagged \c SlaterExchange -- it must NOT halve \f$\rho\f$; construct with \c SlaterExchange(alpha,
+//! \c Spin::Up)) serves both channels: the Fock build calls \c CalcMatrix per spin block and each fits
+//! \f$v_x^\sigma=v_x(\rho_\sigma)\f$; \f$E_x=\sum_\sigma\int\epsilon_x(\rho_\sigma)\rho_\sigma\f$.
+//! Shares the pair's ONE \c XC_GridEngine with the correlation term, exactly like the unpolarized pair.
+class Delta_XC_Pol
+    : public virtual cDynamic_HT
+    , private        cDynamic_HT_Imp
+{
+public:
+    typedef std::shared_ptr<ExFunctional>  xc_t;
+    typedef std::shared_ptr<XC_GridEngine> engine_t;
+    Delta_XC_Pol(const xc_t&, engine_t);
+    virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
+    virtual bool          IsPolarized() const {return true;}
+    virtual std::ostream& Write(std::ostream&) const;
+private:
+    virtual chmat_t CalcMatrix(const cobs_t*, const Spin&, const cChargeDensity*) const;
+
+    xc_t     itsXc;       //!< channel-native (non-halving) exchange functional, shared across channels
+    engine_t itsEngine;   //!< the shared mesh + Phi tables + per-serial {↑,↓} rho pair
+};
+
+//! SPIN-NATIVE correlation on the Becke quadrature -- the periodic sibling of the molecular
+//! FittedVcorrPol.  Correlation does NOT separate by channel: \f$v_c^\sigma(\rho_\uparrow,\rho_\downarrow)\f$
+//! couples both densities (through \f$r_s\f$ and \f$\zeta\f$), so this term evaluates the \c SpinCorrelation
+//! face against BOTH channel rasters at each mesh point; \f$E_c=\int\epsilon_c(\rho_\uparrow,\rho_\downarrow)
+//! (\rho_\uparrow+\rho_\downarrow)\f$.  The spin-agnostic seed collapses inside \c XC_GridEngine::RhoPol
+//! (\f$\rho_\sigma=\rho/2\f$), so no term-side fallback is needed.
+class Delta_VcorrPol
+    : public virtual cDynamic_HT
+    , private        cDynamic_HT_Imp
+{
+public:
+    typedef std::shared_ptr<SpinCorrelation> corr_t;
+    typedef std::shared_ptr<XC_GridEngine>   engine_t;
+    Delta_VcorrPol(const corr_t&, engine_t);
+    virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
+    virtual bool          IsPolarized() const {return true;}
+    virtual std::ostream& Write(std::ostream&) const;
+private:
+    virtual chmat_t CalcMatrix(const cobs_t*, const Spin&, const cChargeDensity*) const;
+
+    corr_t   itsCorr;     //!< the spin-native correlation functional (VWN5's two-channel face)
+    engine_t itsEngine;   //!< the shared mesh + Phi tables + per-serial {↑,↓} rho pair
 };
 
 } //namespace

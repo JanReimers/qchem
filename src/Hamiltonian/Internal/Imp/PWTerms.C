@@ -393,6 +393,43 @@ const rvec_t& XC_GridEngine::Rho(const cChargeDensity* cd, const cobs_t* ensureB
     return itsRho;
 }
 
+// The spin-resolved sibling of Rho: the {up,down} PAIR is cached under ONE density serial (a polarized
+// density's Version() forwards to its Up child -- a single scalar cache would hand the Up raster to the
+// Down channel).  A cPolarized_CD answers per channel (each channel composite GEMMs its own D against the
+// SHARED Phi tables); a spin-agnostic density (the seed) collapses to rho/2 per channel, so the first
+// iterations run the exact unpolarized collapse (v^sigma(rho/2,rho/2)=v^P(rho)).
+const rvec_t& XC_GridEngine::RhoPol(const cChargeDensity* cd, const Spin& s, const cobs_t* ensureBlock)
+{
+    assert(cd);
+    assert(s!=Spin::None && "XC_GridEngine::RhoPol: ask for a channel, not the total");
+    if (ensureBlock) Phi(ensureBlock);
+    if (cd->Version()!=itsPolVersion)
+    {
+        itsPolVersion=cd->Version();
+        qchem::report::Timed timed("scf: becke rho sampling (all iterations)");
+        if (auto pol=dynamic_cast<const ChargeDensity::cPolarized_CD*>(cd))
+        {
+            itsRhoUp=pol->GetChargeDensity(Spin::Up  )->DM_RhoAtPoints(itsMesh->Points(), itsPhi);
+            itsRhoDn=pol->GetChargeDensity(Spin::Down)->DM_RhoAtPoints(itsMesh->Points(), itsPhi);
+        }
+        else
+        {   // spin-agnostic seed: rho_up=rho_down=rho/2 (the molecular HalfDensity rule, cd85d13c)
+            if (auto dm=dynamic_cast<const cDM_CD*>(cd))
+                itsRhoUp=dm->DM_RhoAtPoints(itsMesh->Points(), itsPhi);
+            else
+                itsRhoUp=cd->EvalBatch(itsMesh->Points());
+            itsRhoUp*=0.5;
+            itsRhoDn=itsRhoUp;
+        }
+        if (!itsFold.owner.empty())   // §6a W1: collinear -- the spatial star-average acts per channel
+        {
+            Symmetry::Lattice_3D::SymmetrizeValues(itsFold, itsRhoUp);
+            Symmetry::Lattice_3D::SymmetrizeValues(itsFold, itsRhoDn);
+        }
+    }
+    return s==Spin::Up ? itsRhoUp : itsRhoDn;
+}
+
 // <i|v|j> = Phi^dag diag(w v) Phi over the cached table: scale the rows, one zgemm, hermitize.  (The
 // GEMM result is Hermitian up to roundoff; the explicit i<=j fill keeps chmat_t's invariant exactly.)
 chmat_t XC_GridEngine::Matrix(const cobs_t* bs, const rvec_t& v)
@@ -454,6 +491,85 @@ void Delta_XC::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 std::ostream& Delta_XC::Write(std::ostream& os) const
 {
     return os << "    Becke-mesh exchange-correlation potential v_xc(rho(r)) ("
+              << itsEngine->Mesh().size() << " atom-centred points)." << std::endl;
+}
+
+// ---- Delta_XC_Pol (spin-native exchange, tier 4b) --------------------------------------------------------
+
+Delta_XC_Pol::Delta_XC_Pol(const xc_t& xc, engine_t engine)
+    : itsXc(xc)
+    , itsEngine(std::move(engine))
+{
+    assert(itsXc);
+    assert(itsEngine);
+}
+
+// v_x^sigma(rho_sigma) pointwise on this block's own channel raster, then the shared Phi quadrature.
+chmat_t Delta_XC_Pol::CalcMatrix(const cobs_t* bs, const Spin& s, const cChargeDensity* cd) const
+{
+    assert(s!=Spin::None && "Delta_XC_Pol: a polarized term needs an Up/Down spin");
+    const rvec_t& rho=itsEngine->RhoPol(cd, s, bs);
+    rvec_t v(rho.size());
+    for (size_t g=0; g<rho.size(); g++) v[g]=itsXc->GetVxc(rho[g]);
+    return itsEngine->Matrix(bs, v);
+}
+
+void Delta_XC_Pol::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
+{
+    const rvec_t& up=itsEngine->RhoPol(cd, Spin::Up  );
+    const rvec_t& dn=itsEngine->RhoPol(cd, Spin::Down);
+    const rvec_t& W =itsEngine->Mesh().Weights();
+    double exc=0, q=0;
+    for (size_t g=0; g<up.size(); g++)
+    {
+        exc+=W[g]*(itsXc->GetEpsXc(up[g])*up[g] + itsXc->GetEpsXc(dn[g])*dn[g]);   // E_x = Σ_σ ∫ ε_x(ρ_σ) ρ_σ
+        q  +=W[g]*(up[g]+dn[g]);
+    }
+    te.Exc += exc;
+    te.GridChargeLost = q - cd->GetTotalCharge();   // mesh-charge leak (same health metric as Delta_XC)
+}
+
+std::ostream& Delta_XC_Pol::Write(std::ostream& os) const
+{
+    return os << "    Becke-mesh SPIN-NATIVE exchange v_x(rho_sigma(r)) ("
+              << itsEngine->Mesh().size() << " atom-centred points)." << std::endl;
+}
+
+// ---- Delta_VcorrPol (spin-native correlation, tier 4b) ---------------------------------------------------
+
+Delta_VcorrPol::Delta_VcorrPol(const corr_t& corr, engine_t engine)
+    : itsCorr(corr)
+    , itsEngine(std::move(engine))
+{
+    assert(itsCorr);
+    assert(itsEngine);
+}
+
+// v_c^sigma(rho_up,rho_down) couples BOTH channel rasters at every point (through r_s and zeta).
+chmat_t Delta_VcorrPol::CalcMatrix(const cobs_t* bs, const Spin& s, const cChargeDensity* cd) const
+{
+    assert(s!=Spin::None && "Delta_VcorrPol: a polarized term needs an Up/Down spin");
+    const rvec_t& up=itsEngine->RhoPol(cd, Spin::Up  , bs);
+    const rvec_t& dn=itsEngine->RhoPol(cd, Spin::Down, bs);
+    rvec_t v(up.size());
+    for (size_t g=0; g<up.size(); g++) v[g]=itsCorr->GetVc(up[g], dn[g], s);
+    return itsEngine->Matrix(bs, v);
+}
+
+void Delta_VcorrPol::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
+{
+    const rvec_t& up=itsEngine->RhoPol(cd, Spin::Up  );
+    const rvec_t& dn=itsEngine->RhoPol(cd, Spin::Down);
+    const rvec_t& W =itsEngine->Mesh().Weights();
+    double ec=0;
+    for (size_t g=0; g<up.size(); g++)
+        ec+=W[g]*itsCorr->GetEpsC(up[g], dn[g])*(up[g]+dn[g]);   // E_c = ∫ ε_c(ρ↑,ρ↓) ρ_total
+    te.Exc += ec;
+}
+
+std::ostream& Delta_VcorrPol::Write(std::ostream& os) const
+{
+    return os << "    Becke-mesh SPIN-NATIVE correlation v_c^sigma(rho_up,rho_down) ("
               << itsEngine->Mesh().size() << " atom-centred points)." << std::endl;
 }
 

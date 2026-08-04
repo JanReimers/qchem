@@ -476,6 +476,43 @@ channels). So:
       spin-native triplet-O₂ gate (the spin sibling of `SiPseudoAtomInBoxMatchesFinite`).
   Only 4a is a prerequisite for the reduction machinery (§7 steps 2–6); 4b is a
   prerequisite only for the magnetic materials (§7 step 7) and can proceed in parallel.
+
+  **Tier 4b STATUS (2026-08-04) — BUILT, gate (b) GREEN, gate (a) open defect.**  The seven
+  seams are in: `Crystal_EC(nUp,nDown)` (single-count ctors = the ζ=0 collapse),
+  `tPolarizedWF<dcmplx>` instantiated + the WF factory dispatching both lineages on
+  `IsPolarized()`, `Polarized_CD → tPolarized_CD<T>` with the `FourierDensityBase<T>` face
+  (↑+↓ sums; `tSpinDensity<T>` alongside), the spin-native Becke XC pair (`Delta_XC_Pol`
+  channel-separable Dirac + `Delta_VcorrPol` coupled VWN5, sharing the pair's one
+  `XC_GridEngine` via the new spin-resolved `RhoPol` — {↑,↓} cached as a PAIR under one
+  density serial, spin-agnostic seed = the ρ/2 collapse), `Ham_PW_DFT(..., polarized)`
+  (Delta route only; the polarized PLANE-WAVE fit throws until designed), facade
+  `CalcOptions::ppValence` (Na's GTH default is semicore q9; q1 = the valence_lowq bases),
+  and `GpwOptions::multiplicity` (driver convention: 1 = the EXPLICIT two-channel singlet).
+  **Found + fixed along the way:** the GPW collocation-memo D-screen collided across spin
+  channels — the shared integrate-back screened by the LAST collocated `D`, and a
+  fully-polarized doublet's empty ↓ channel (D=0) blanked the whole `V_H` Fock block.  The
+  screen is now the UNION (elementwise max magnitude) of every density the ladder has
+  collocated (`CollocMemo::Dscr`; a magnitude screen may only widen — the no-cut pin).
+  Gates — ALL THREE GREEN: **ζ=0 collapse** (`PolarizedSingletMatchesUnpolarizedSiGamma`,
+  two-channel singlet Si Γ = the unpolarized −7.11506 anchor to 0.12 mHa) ✅; **(b) O₂
+  triplet in a box** vs the facade PP triplet: 26 mHa ✅ (needs the AUTO density cutoff —
+  O q6 is hard; the borrowed Si Ecut=10 cost 0.7 Ha); **(a) Na doublet** ✅ — after a
+  root-cause campaign whose verdict is a **SEED/BASIN pin, not a physics bug**: from the
+  Uniform seed the LONE ↑ electron converges to a GENUINE self-consistent excited basin
+  72 mHa above the minimum (diffuse 3s; DIIS honors it, GDM — a local descender — stays;
+  box/grid/route-independent, so every health metric reads "converged").  The functional
+  was proven correct everywhere: fixed-density probes (`DISABLED_NaFixedDensityTermProbe`)
+  match analytic kinetic, the EXACT discrete G≠0 lattice-sum Hartree (0.383893/0.709411
+  reproduced to 6 decimals at a resolved grid), and exact ζ=1 Dirac/VWN; and
+  E_GPW[D*] = −0.1420 at the independent radial same-basis oracle's minimizer (oracle
+  −0.1416; complete-basis −0.1922; facade −0.1371 — the residual is the facade's
+  Dunlap-J/fitted-vxc tech, user's point).  **`SeedStrategy::IonicSAD` lands in-basin: 14
+  iters, −0.141933, 4.8 mHa from the facade** — pinned in the gate with a did-E-move
+  anchor.  PIN: one-electron (empty-minority-channel) GPW runs are uniquely basin-fragile
+  — no partner electrons pull the density coreward (Na₂/O₂/F escape Uniform fine); seed
+  them SAD-family.  (An EMPTY electron configuration segfaults in
+  `cSCFAcceleratorDIIS::GetNProj` — the test driver now throws on a multiplicity/Nelec
+  parity mismatch; minimal spin for odd Nelec = `twoS=Nelec%2`.)
 - **NON-COLLINEAR (user addition, 2026-08-01): collinear is itself a collapse.**  The
   two-channel {ρ↑,ρ↓} formulation and the binary σ ∈ {none, flip} are the FIXED-AXIS
   (collinear) restriction of the general objects: a spin-space-group op carries a spin

@@ -18,13 +18,10 @@ namespace qchem::WaveFunction
         SCFAccelerators::tSCFAccelerator<T>* acc,
         qchem::Ortho basisOrtho, double basisOrthoTol)
     {
-        // The plane-wave (dcmplx) lineage is unpolarized; only the real path builds a PolarizedWF
-        // (spin density is a real Gaussian-basis facility), so tPolarizedWF<dcmplx> is never needed.
-        if constexpr (std::is_same_v<T,dcmplx>)
-            return (tSCFWaveFunction<T>*)new tUnPolarizedWF<T>(bs,ec,acc,basisOrtho,basisOrthoTol);
-        else
-            return h->IsPolarized() ? (tSCFWaveFunction<T>*)new tPolarizedWF<T>(bs,ec,acc,basisOrtho,basisOrthoTol)
-                                    : (tSCFWaveFunction<T>*)new tUnPolarizedWF<T>(bs,ec,acc,basisOrtho,basisOrthoTol);
+        // Both lineages dispatch on the Hamiltonian's polarization (SymmetryUpgradePlan §4 tier 4b):
+        // a polarized Ham_PW_DFT builds the two-channel Bloch wavefunction just like the molecular path.
+        return h->IsPolarized() ? (tSCFWaveFunction<T>*)new tPolarizedWF<T>(bs,ec,acc,basisOrtho,basisOrthoTol)
+                                : (tSCFWaveFunction<T>*)new tUnPolarizedWF<T>(bs,ec,acc,basisOrtho,basisOrthoTol);
     }
 
     template tSCFWaveFunction<double>* Factory(const qchem::Hamiltonian::tHamiltonian<double>*,

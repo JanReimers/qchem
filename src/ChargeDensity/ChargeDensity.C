@@ -11,6 +11,7 @@ module;
 export module qchem.ChargeDensity;
 import qchem.Fitting.FunctionFitter;   // Fitting::ProjectedDensity_AO
 export import qchem.Symmetry.Spin;
+export import qchem.ChargeDensity.FourierDensity;   // FourierDensityBase<T> (tPolarized_CD's periodic face)
 import qchem.ScalarFunction;
 import qchem.ChargeDensity.Types;
 
@@ -218,19 +219,25 @@ using cDM_CD = tDM_CD<dcmplx>;
 //
 //  Store spin up and spin down as a ChargeDensity
 //  Generic: Could be fitted or exact.
+//  Templated on the matrix element type T like tComposite_CD: the <double> alias preserves the
+//  molecular callers; the <dcmplx> instantiation is the polarized plane-wave (Bloch) density
+//  (SymmetryUpgradePlan §4 tier 4b).  The periodic face (FourierDensityBase) forwards each accessor
+//  as the ↑+↓ sum, so the total-density consumers (Hartree) see one density; the spin-native XC
+//  terms reach the channels through GetChargeDensity(Spin).
 //
-class Polarized_CD
-    : public virtual rDM_CD
-    , public virtual tLineageTracked<double>        // Layer-2: this top-level density tracks its SCF lineage head
-    , public virtual ProjectedDensityBase<double>   // finite/molecular: an AO-projectable density
+template <class T> class tPolarized_CD
+    : public virtual tDM_CD<T>
+    , public virtual tLineageTracked<T>        // Layer-2: this top-level density tracks its SCF lineage head
+    , public virtual ProjectedDensityBase<T>   // finite/molecular: an AO-projectable density
+    , public FourierDensityBase<T>             // periodic: G-space rho-tilde (the ↑+↓ sum); empty base for double
 {
 public:
-    virtual       rDM_CD* GetChargeDensity(const Spin&)      =0;
-    virtual const rDM_CD* GetChargeDensity(const Spin&) const=0;
+    virtual       tDM_CD<T>* GetChargeDensity(const Spin&)      =0;
+    virtual const tDM_CD<T>* GetChargeDensity(const Spin&) const=0;
 
-    virtual double DM_Contract(const rStatic_CC*) const;
-    virtual double DM_Contract(const rDynamic_CC*,const rDM_CD*) const;
-    virtual double DM_ContractBlocks(const std::map<std::string,rsmat_t>&) const;   // sum both spins
+    virtual double DM_Contract(const tStatic_CC<T>*) const;
+    virtual double DM_Contract(const tDynamic_CC<T>*,const tDM_CD<T>*) const;
+    virtual double DM_ContractBlocks(const std::map<std::string,hmat_t<T>>&) const;   // sum both spins
 
     virtual double GetTotalCharge() const;  // <ro>
     virtual double GetTotalSpin  () const;  // No UT coverage// <up>-<down>
@@ -241,27 +248,40 @@ public:
 
     virtual double FitGetConstraint() const {return GetTotalCharge();}   // AO fit RHS: the charge N
     virtual rvec_t GetRepulsion3C(const BasisSet::rFIT_CD_ABS*) const;
-    virtual void AccumulateDirectAll  (std::vector<rsmat_t>& Jall) const;  // sum both spins (Coulomb)
-    virtual void AccumulateExchangeAll(std::vector<rsmat_t>& Kall) const;  // sum both spins (RHF exchange)
+    virtual void AccumulateDirectAll  (std::vector<hmat_t<T>>& Jall) const;  // sum both spins (Coulomb)
+    virtual void AccumulateExchangeAll(std::vector<hmat_t<T>>& Kall) const;  // sum both spins (RHF exchange)
 
     virtual void   ReScale      (double factor              )      ;  // No UT coverage//Ro *= factor
-    virtual void   MixIn        (const rDM_CD&,double)      ;  //this = (1-c)*this + c*that.
-    virtual double GetChangeFrom(const rDM_CD&       ) const;  //Convergence check.
+    virtual void   MixIn        (const tDM_CD<T>&,double)      ;  //this = (1-c)*this + c*that.
+    virtual double GetChangeFrom(const tDM_CD<T>&       ) const;  //Convergence check.
 
     virtual double operator()(const rvec3_t&) const; // No UT coverage
     virtual rvec3_t  Gradient  (const rvec3_t&) const; // No UT coverage
+
+    // Periodic (dcmplx) face -- the ↑+↓ sums of the channels' G-space/raster views (declared for both T
+    // like tComposite_CD; the double bodies NA-assert).  Each channel composite already star-averages, so
+    // the sums stay IBZ-symmetrized.
+    virtual ΔG_Map GetFourierDensity(const BasisSet::cFIT_SF_ABS& c) const;
+    virtual rvec_t GetRhoOnGrid(const BasisSet::cFIT_SF_ABS& c) const;   // empty if either channel lacks it
+    virtual ΔG_Map GetRepulsion3C(const BasisSet::cFIT_CD_ABS& c) const;
 };
 
-class SpinDensity : public virtual ScalarFunction<double>
+using Polarized_CD  = tPolarized_CD<double>;   // the molecular alias (source-compatible)
+using cPolarized_CD = tPolarized_CD<dcmplx>;   // the polarized plane-wave (Bloch) density
+
+//! The magnetization ρ↑−ρ↓ as a real ScalarFunction (any T -- ρ_σ(r) is real for both lineages).
+template <class T> class tSpinDensity : public virtual ScalarFunction<double>
 {
 public:
-    SpinDensity(rDM_CD* up,rDM_CD* down);
-    ~SpinDensity();
+    tSpinDensity(tDM_CD<T>* up,tDM_CD<T>* down);
+    ~tSpinDensity();
     virtual double operator()(const rvec3_t&) const; // No UT coverage
     virtual rvec3_t  Gradient  (const rvec3_t&) const; // No UT coverage
 private:
-    rDM_CD* itsSpinUpCD;
-    rDM_CD* itsSpinDownCD;
+    tDM_CD<T>* itsSpinUpCD;
+    tDM_CD<T>* itsSpinDownCD;
 };
+
+using SpinDensity = tSpinDensity<double>;
 
 } //namespace

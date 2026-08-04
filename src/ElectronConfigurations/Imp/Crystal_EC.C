@@ -7,13 +7,19 @@ module qchem.ElectronConfiguration.Crystal;
 namespace qchem {
 
 Crystal_EC::Crystal_EC(const Irrep& irr, int nval, bool globalFermi)
-    : itsNval(nval), itsGlobalFermi(globalFermi)
+    : Crystal_EC(irr,(nval+1)/2,nval/2,globalFermi) {}   // ζ=0 collapse: minimal spin
+
+Crystal_EC::Crystal_EC(const std::vector<Irrep>& irreps, int nval, bool globalFermi)
+    : Crystal_EC(irreps,(nval+1)/2,nval/2,globalFermi) {}
+
+Crystal_EC::Crystal_EC(const Irrep& irr, int nUp, int nDown, bool globalFermi)
+    : itsNup(nUp), itsNdn(nDown), itsGlobalFermi(globalFermi)
 {
     itsSyms.insert(irr.sym);
 }
 
-Crystal_EC::Crystal_EC(const std::vector<Irrep>& irreps, int nval, bool globalFermi)
-    : itsNval(nval), itsGlobalFermi(globalFermi)
+Crystal_EC::Crystal_EC(const std::vector<Irrep>& irreps, int nUp, int nDown, bool globalFermi)
+    : itsNup(nUp), itsNdn(nDown), itsGlobalFermi(globalFermi)
 {
     for (const auto& irr : irreps) itsSyms.insert(irr.sym);
 }
@@ -24,17 +30,23 @@ Crystal_EC::Crystal_EC(const std::vector<Irrep>& irreps, int nval, bool globalFe
 // holding star x 2.  An unfolded mesh point (star = 1) is unchanged.  Metal (global-mu) mode instead asks
 // for the WHOLE-MESH total (the composite solves one mu on the w x degeneracy-weighted capacities, which
 // are convention-invariant), so it gets plain Nval regardless of which block asks.
+// SPIN-NATIVE: the channel is selected by the asking block's Irrep::ms BEFORE the mode rule -- a
+// polarized block (Spin::Up/Down) fills its own channel count; Spin::None is the unpolarized total.
+// NB the star factor is irr.sym->GetDegeneracy() (spatial star ONLY, deliberately not
+// irr.GetDegeneracy()) -- the spin degeneracy must stay out of the fill capacity.
 int Crystal_EC::GetN(const Irrep& irr) const
 {
-    return itsGlobalFermi ? itsNval : itsNval*int(irr.sym->GetDegeneracy());
+    const int n = irr.ms==Spin::Up ? itsNup : irr.ms==Spin::Down ? itsNdn : itsNup+itsNdn;
+    return itsGlobalFermi ? n : n*int(irr.sym->GetDegeneracy());
 }
 
 ElectronConfiguration::syms_t Crystal_EC::GetIrreps() const {return itsSyms;}
 
 void Crystal_EC::Display() const
 {
-    std::cout << "Crystal_EC: Nval=" << itsNval
-              << (itsGlobalFermi ? " total (global-μ metal), " : " per k-block, ")
+    std::cout << "Crystal_EC: Nval=" << itsNup+itsNdn;
+    if (itsNup!=itsNdn) std::cout << " (n↑=" << itsNup << ", n↓=" << itsNdn << ")";
+    std::cout << (itsGlobalFermi ? " total (global-μ metal), " : " per k-block, ")
               << itsSyms.size() << " k-block(s)" << std::endl;
 }
 

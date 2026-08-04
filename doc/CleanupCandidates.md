@@ -2,9 +2,37 @@
 
 Things noticed in passing while adding features — flagged here instead of fixed inline, so the
 refactoring session can batch them.  (User keeps the master list; merge freely.)
+## SOLID principles 
+
+- I am mostly concerned about abstract interfaces.  These are what the client code for any module is supposed to see.
+The code is an attempt (probably never been done before) to capture one set of high level requirements for any structure: atoms, molecules and 3D lattices (also 1D polymers, 2D graphene).  In other words 95% of the high level abstract interfaces (Charge density, Hamiltonian, Orbitals, Wavefunction, SCF iterator, Accelerators) should be structure neutral.  Even the basis set interfaces (qcBasisSet) are structure neutral.  
+
+
+1. SRP: Single Responsibility Principle
+  - I do not claim to that all the abstract interfaces in qchem are truely single responsibility.  A good example is the irrep basis set interfaces:  They do three things:
+    a. Evlautate integrals.
+    b. Evlauate op(r) and grad(r)
+    c. Expose the irrep symmetry, as an abstract interface pointer.
+  - Is it useful to break these up in order to faithfully obey the SRP?  I don't know but my guess in no ... or at least that we have "bigger fish to fry".
+  - What we do need is that anytime our abstract interfaces get augmented thos new functions should be part of an existing responsibility, not introducing a new one.
+2. OCP: Open Closed Princple
+  - We are still in the R&D stages for this so abstract interfaces will be modified.  We just need a good reason to do so.  
+  - For example if the extend and structure neutral interface in order get some Lattice_3D feature working we need ask the question: What does this change mean for atoms and molcules?
+  - For lattice we created src/BasisSet/Band_FT_IBS.C which does almost the same thing as the generic src/BasisSet/Orbital_DFT_IBS.C that works for atoms and molecules.  If we are able to merge Orbital_DFT_IBS and Band_FT_IBS then that proves that there was no need to create a new separate interface just for lattice basis sets.
+3. LSP: Liskov Substitution Principle
+4. ISP: Interface Segregation Principle
+  - There is always an urge to add getters and setters.  For setters, always ask: Is this something I can set and construction time?  For getters always ask: What are we going to do with the getter data?  Why not ask the owning class to do that task instead (maintain encapsulation).  
+5. DIP: Dependency Inversion Princple
+  - THis is possibly the most powerful concept, and often eneables adherance to the previous 4 princples.
+  - This applies equally well for C++ classes, C++ modules (DAG enforced by compliler) and libraries (DAG enforced by linker).
+  - example: Lib A depends on lib B.  B needs a way to send info to A.  Create an abstract interface AI (ha ha)in B, Classes in A derive from B::AI, when instances of the A classes are passed to B (as an AI*) B can then call back into A. 
+  - src/ChargeDensity/ChargeDensity.C tStatic_CC, tDynamic_CC are a working example that the Hamiltonian library classes derive from and pass back into the ChargeDensity library.
+  - As well as being a dependency inversion, this probably has a "Gang of Four" patter name.
+
+There are 6 other principles related to package cohesion and coupling.  My experience is that the first 5 are the most commonly misunderstood and misapplied.  
 
 ## Fit-basis / mesh seams (from the 2026-08-01/02 symmetry+XC campaign)
-- **`FIT_SF_ABS::SymmetrizeRaster`** — symmetry op living on a fit-basis interface.  Removable once a
+- **`FIT_SF_ABS::SymmetrizeRaster`** — (SRP) symmetry op living on a fit-basis interface.  Removable once a
   τ-acting DIRECT-raster fold variant of `FoldGrid` exists (T3 groundwork): precompute the raster fold
   and ctor-inject it into `tComposite_CD` beside `itsPointOps`, then delete the virtual (uniform route's
   voxel-shift moves out of `PlaneWaveFit_IBS`).
@@ -29,6 +57,28 @@ refactoring session can batch them.  (User keeps the master list; merge freely.)
   flipping the free-run Becke default to the measured-equal Leb-302 (67% of GL-29's directions; plan
   §6a).  The fix wants a degree-typed interface (`angularDegree` + per-scheme count resolution), then
   the default flip rides along.
+
+## Spin-native solid pipeline (from the 2026-08-04 tier-4b campaign)
+- **`Delta_XC` vs `Delta_XC_Pol`+`Delta_VcorrPol` — the unpol pair should become the ζ=0 collapse.**
+  Per the spin-native-is-primary bias: today the Becke route has THREE term classes (unpolarized
+  Delta_XC×2, polarized Delta_XC_Pol + Delta_VcorrPol) where the polarized pair evaluated at
+  ρ↑=ρ↓=ρ/2 IS the unpolarized answer (the singlet-collapse gate proves it to 0.12 mHa).  Collapsing
+  to the polarized pair only (unpol = two identical channels) halves the class count at ~2× the XC
+  pointwise work for closed shells — the same trade Ham_PP documents.  Decide with a perf measure.
+- **`XC_GridEngine` now carries TWO rho caches** (scalar `itsRho` for the unpol route, the `{Up,Dn}`
+  pair for RhoPol) — falls out for free if the previous item lands (pair only; total = up+dn).
+- **Polarized PLANE-WAVE Vxc fit route** — `Ham_PW_DFT` polarized currently THROWS for
+  `VxcFit::PlaneWave`: per-channel PW_XC needs per-spin rho-grid caches (PW_XC's `itsRhoGrid` is
+  keyed on `cd->Version()` alone, which a polarized density aliases across channels — the same trap
+  the engine's RhoPol pair-cache fixes).  Design note in the throw message.
+- **`CollocMemo` dual duty** — the replay memo (exact-D level densities) and the adjoint D-screen
+  now live in one struct with different lifetimes (last-D vs union-Dscr).  Fine today; if a third
+  consumer appears, split the two concerns.
+- **GPW default seed policy** — `GpwOptions.seed` defaults to `Uniform`, which the Na-doublet
+  campaign showed has a STABLE wrong basin for electron-sparse systems (the lone-electron doublet
+  converged 72 mHa above the true minimum with every health metric green).  The molecular facade
+  already defaults DFT runs to SAD.  Candidate: default GPW to `IonicSAD` (or SAD-family), with
+  Uniform as the explicit opt-in — needs a suite sweep since every pinned GPW anchor would re-seed.
 
 ## Older / unrelated spots hit while working nearby
 - **`DB_Cache_RAM.C`** — a screenful of `-Winconsistent-missing-override` warnings on every qcBasisSet

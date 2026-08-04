@@ -10,22 +10,25 @@ export namespace qchem::ChargeDensity
 //
 //  Store spin and spin down a ChargeDensity*'s to allow polymorphism.
 //  All member functions just return the unpolarized answer.
+//  Templated like tPolarized_CD: <double> = molecular, <dcmplx> = polarized plane-wave (tier 4b).
 //
-class Polarized_CDImp
-    : public virtual Polarized_CD
+template <class T> class tPolarized_CDImp
+    : public virtual tPolarized_CD<T>
 {
 public:
 
-    Polarized_CDImp(); // No UT coverage
-    Polarized_CDImp(rDM_CD* up,rDM_CD* down);
-    ~Polarized_CDImp();
+    tPolarized_CDImp(); // No UT coverage
+    tPolarized_CDImp(tDM_CD<T>* up,tDM_CD<T>* down);
+    ~tPolarized_CDImp();
 
-          rDM_CD* GetChargeDensity(const Spin&)      ;
-    const rDM_CD* GetChargeDensity(const Spin&) const;
-    
+          tDM_CD<T>* GetChargeDensity(const Spin&)      ;
+    const tDM_CD<T>* GetChargeDensity(const Spin&) const;
+
 private:
-    rDM_CD* itsSpinUpCD;
-    rDM_CD* itsSpinDownCD;
+    tDM_CD<T>* itsSpinUpCD;
+    tDM_CD<T>* itsSpinDownCD;
 };
+
+using Polarized_CDImp = tPolarized_CDImp<double>;
 
 } //namespace

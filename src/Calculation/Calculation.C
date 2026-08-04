@@ -78,6 +78,12 @@ struct CalcOptions
     //! shells under a PP) -- e.g. {.basis="sipp", .pseudopotential=true} for silicon.  Ignores \c model
     //! (the PP front door is always LSDA today).  See doc/MolecularPseudopotentialPlan.md.
     bool        pseudopotential = false;
+    //! Pseudopotential VALENCE override (electrons kept per atom): 0 (default) = each element's GTH
+    //! default-valence entry.  Set when the database default is not the wanted pseudization -- e.g. Na's
+    //! default is the SEMICORE q9; a {.pseudopotential=true, .ppValence=1} run uses the q1 entry (the
+    //! valence_lowq bases' convention).  Applies to EVERY atom, so it is a single-species (or
+    //! same-valence-choice) knob; the per-species map is the multi-species increment.
+    int         ppValence = 0;
     //! SCF seed.  Default == auto: DFT seeds from SAD (superposition of atomic densities), HF/1-e take
     //! the core guess.  Set explicitly to override -- e.g. {.seed=SAD} drives HF's matrix-free-seed
     //! bootstrap (the iterator manufactures a D0 via a one-step LDA sibling).

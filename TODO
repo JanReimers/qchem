@@ -184,6 +184,40 @@ The raster (GetRhoOnGrid) needs voxel-permutation (grid geometry) — a separate
 src/LASolver/tests/LASolver.C  these are a rather light duty (3x3).  WOuld it make sense to build some larger 1-center gaussian overlap matricies
 that are near singular, decompose, truncate and look at residuals.  V*S*V_dagger-I ?
 
+FIT_SF_ABS::SymmetrizeRaster — still live because the uniform route needs it: CompositeCD::GetRhoOnGrid symmetrizes the FFT raster per iteration, and the voxel-permutation geometry lives with PlaneWaveFit_IBS's grid. It can be removed by the same trick we just used — precompute a raster fold (needs a τ-acting direct-grid variant of FoldGrid, which T3's stream work requires anyway) and ctor-inject it into the composite beside itsPointOps. I'd fold that cleanup into the T3 groundwork rather than build the grid-fold variant twice.
+
+Fit_IBS::SetMesh (molecular) — same construction-time principle applies (mesh as a ctor argument); it's a molecular-side cleanup independent of this campaign.
+
+(PlaneWave, Becke) = I3 is asserted out with a message naming the reason: as you said, the mesh drops out of step 3 once the c_j exist — the only remaining work is writing down the one discrete functional so H stays the exact derivative of the quadratured E. Your GDM-after-DIIS habit is precisely the runtime audit that would expose a mismatch (DIIS can hide an inconsistent gradient; direct minimization can't), and that's now recorded in the plan and the assert text so I3 gets designed rather than discovered.
+
+True  -24.546935749703
+
++-----------+-------------+--------------+
+| Occ/Degen |      ϵ (au) |   Symmetry   |
++-----------+-------------+--------------+
+|    2/2    | -0.67910052 |   2(0,0,0)   |
+|    2/2    | -0.66877006 |  2(0,0,0.5)  |
+|    2/2    | -0.66767490 | 2(0,0.5,0.5) |
+|    2/2    | -0.04451143 |  3(0,0,0.5)  |
+|    2/2    | -0.03419974 | 3(0,0.5,0.5) |
+|    4/4    | -0.00456458 | 4(0,0.5,0.5) |
+|    4/4    |  0.00428041 |  4(0,0,0.5)  |
+|    6/6    |  0.01118558 |   3(0,0,0)   |
++-----------+-------------+--------------+
+
+False -24.546820799078\+-----------+-------------+--------------+
+| Occ/Degen |      ϵ (au) |   Symmetry   |
++-----------+-------------+--------------+
+|    2/2    | -0.67934603 |   2(0,0,0)   |
+|    8/8    | -0.66904146 |  2(0,0,0.5)  |
+|    6/6    | -0.66794808 | 2(0,0.5,0.5) |
+|    8/8    | -0.04466801 |  3(0,0,0.5)  |
+|    6/6    | -0.03437664 | 3(0,0.5,0.5) |
+|   12/12   | -0.00484048 | 4(0,0.5,0.5) |
+|   16/16   |  0.00400190 |  4(0,0,0.5)  |
+|    6/6    |  0.01089458 |   3(0,0,0)   |
++-----------+-------------+--------------+
+
 --- 
 
 ### Three Mesh upgrade:

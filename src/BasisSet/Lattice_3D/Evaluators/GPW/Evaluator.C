@@ -255,7 +255,15 @@ private:
     //! (Coulomb + overlap) collocating the same \f$D\f$ per iteration, but the SAME \f$D\f$ can be collocated on
     //! a DIFFERENT grid (a coarse block asked for a fine fit grid -- the grid-continuation seed), where replaying
     //! the wrong-ladder \c rho is a dimension mismatch (segfault).  So \c sameD requires \c ecut to match too.
-    struct CollocMemo { bool valid=false; chmat_t D; std::vector<rvec_t> rho; std::vector<double> ecut; };
+    //! \c Dscr is the D-AWARE SCREEN the shared integrate-back uses -- the UNION (elementwise max
+    //! magnitude) of EVERY density this ladder has collocated, NOT the last one: a polarized run
+    //! (SymmetryUpgradePlan §4 tier 4b) collocates each SPIN CHANNEL separately through the SAME
+    //! evaluator (the ↑/↓ leaves share the block basis), and screening the shared adjoint by the LAST
+    //! channel alone blanked the whole \f$V_H\f$ Fock block when the minority channel was empty (the
+    //! fully-polarized Na doublet's \f$D_\downarrow=0\f$).  A magnitude screen may only WIDEN (the
+    //! no-cut pin): the union keeps the adjoint exact on every channel's active set, at worst
+    //! gathering pairs a later iterate abandoned.
+    struct CollocMemo { bool valid=false; chmat_t D, Dscr; std::vector<rvec_t> rho; std::vector<double> ecut; };
     mutable std::shared_ptr<CollocMemo> itsCollocMemo;    //!< shared so both framework-cached closures see it
     //! The Bloch phase of an integer cell offset \f$n\f$: \f$e^{2\pi i\,k_{frac}\cdot n}\f$ -- the closure the
     //! analytic kernels call back for each screened cross-cell pair offset (the k-CONVENTION stays here,

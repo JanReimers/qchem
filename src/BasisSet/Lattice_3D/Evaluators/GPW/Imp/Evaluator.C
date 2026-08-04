@@ -341,6 +341,14 @@ std::function<ΔG_Map(const chmat_t&)> GPW_Evaluator::MakeCollocator(bool coulom
         else
         {
             rho = lat->CollocateDensity(D, phase, A, N_L, ecut_L, relFS);
+            // Dscr = the UNION screen (see CollocMemo): reset on a new ladder/shape, else widen to
+            // cover this channel's active set too (a polarized run collocates D_up then D_dn here).
+            const bool reset = !memo->valid || memo->Dscr.rows()!=D.rows() || memo->ecut!=ecut_L;
+            if (reset) memo->Dscr=chmat_t(D.rows());
+            for (size_t i=0;i<D.rows();i++)
+                for (size_t j=i;j<D.columns();j++)
+                    memo->Dscr(i,j) = reset ? std::abs(dcmplx(D(i,j)))
+                                            : std::max(std::real(dcmplx(memo->Dscr(i,j))), std::abs(dcmplx(D(i,j))));
             memo->D=D; memo->rho=rho; memo->ecut=ecut_L; memo->valid=true;
         }
         ΔG_Map out;
@@ -411,7 +419,7 @@ GPW_Evaluator::MakeIntegrator(std::shared_ptr<const PW_Grid_Evaluator> grid) con
             for (const ivec3_t& dm : levels[L]->Gs()) vmapL[dm]=Vtilde(dm);   // restrict to level L's {G}
             V_L[L]=levels[L]->RhoOnGrid(vmapL);
         }
-        const chmat_t* screenD = (memo && memo->valid) ? &memo->D : nullptr;
+        const chmat_t* screenD = (memo && memo->valid) ? &memo->Dscr : nullptr;   // the UNION screen (all channels; see CollocMemo)
         return lat->IntegratePotential(V_L, phase, A, N_L, ecut_L, 0.0, screenD, 0.0, relFS);   // 0 = the relative rule (adjoint-paired with collocation)
     };
 }
@@ -461,6 +469,13 @@ std::function<rvec_t(const chmat_t&)> GPW_Evaluator::MakeRawCollocator(std::shar
         else
         {
             rho = lat->CollocateDensity(D, phase, A, N_L, ecut_L, relFS);
+            // Dscr union update -- verbatim the MakeCollocator logic (see CollocMemo).
+            const bool reset = !memo->valid || memo->Dscr.rows()!=D.rows() || memo->ecut!=ecut_L;
+            if (reset) memo->Dscr=chmat_t(D.rows());
+            for (size_t i=0;i<D.rows();i++)
+                for (size_t j=i;j<D.columns();j++)
+                    memo->Dscr(i,j) = reset ? std::abs(dcmplx(D(i,j)))
+                                            : std::max(std::real(dcmplx(memo->Dscr(i,j))), std::abs(dcmplx(D(i,j))));
             memo->D=D; memo->rho=rho; memo->ecut=ecut_L; memo->valid=true;
         }
         const ivec3_t NT=N_L[0];                            // the integration raster (level 0 == grid)
@@ -503,7 +518,7 @@ std::function<chmat_t(const rvec_t&)> GPW_Evaluator::MakeRawIntegrator(std::shar
             TransferBand(vt, NT, ctL, N_L[l]);
             V_L[l]=levels[l]->BackwardFFT(ctL);
         }
-        const chmat_t* screenD = (memo && memo->valid) ? &memo->D : nullptr;
+        const chmat_t* screenD = (memo && memo->valid) ? &memo->Dscr : nullptr;   // the UNION screen (all channels; see CollocMemo)
         return lat->IntegratePotential(V_L, phase, A, N_L, ecut_L, 0.0, screenD, 0.0, relFS);
     };
 }
