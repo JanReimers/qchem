@@ -24,6 +24,9 @@ public:
     //! A k-STAR of band levels is one symmetry-degenerate shell of the crystal group -- let the
     //! EnergyLevels reporting layer merge equal-eigenvalue levels across k-blocks (Symmetry doc).
     virtual bool   MergeAcrossIrreps() const {return true;}
+    //! Star size of this k-point in the sampled mesh: \f$w_k N_\mathrm{mesh}\f$ (an unfolded mesh point has
+    //! \f$w=1/N\f$ -> 1; an IBZ wedge representative carries its star's weight -> the member count).
+    virtual size_t StarSize() const;
     virtual std::ostream&  Write(std::ostream&) const;
 
     rvec3_t   Getk() const {return k;}

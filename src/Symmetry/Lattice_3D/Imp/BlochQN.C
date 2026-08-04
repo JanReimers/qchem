@@ -3,6 +3,7 @@ module;
 #include <iostream>
 #include <cassert>
 module qchem.Symmetry.Lattice_3D.BlochQN;
+import qchem.Math;   // fabs, lround (StarSize's integer-multiple check)
 
 namespace qchem::Symmetry::Lattice_3D {
 
@@ -22,6 +23,13 @@ BlochQN::BlochQN(ivec3_t _N, ivec3_t _ik, double _weight, rvec3_t _shift)
     assert(ik.z<=N.z);
 
 };
+
+size_t BlochQN::StarSize() const
+{
+    const double s=weight*double(N.x)*double(N.y)*double(N.z);   // w_k N_mesh: 1 unfolded, star size on a wedge
+    assert(fabs(s-double(lround(s)))<1e-9 && "BZ weight is not an integer star multiple of 1/N_mesh");
+    return size_t(lround(s));
+}
 
 size_t BlochQN::SequenceIndex() const
 {
