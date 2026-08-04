@@ -27,9 +27,11 @@ public:
     //! Spatial degeneracy of the block.  Does NOT include spin degeneracy -- that is handled by \c Irrep/\c Spin.
     virtual size_t GetDegeneracy     () const=0;
     virtual size_t GetPrincipleOffset() const=0;    //!< offset added to the principal QN (for atoms this is \a l)
-    //! \brief Brillouin-zone integration weight of this symmetry's block (\f$\sum w=1\f$ over a BZ
-    //! sampling).  1 for ordinary symmetries; a Bloch k-point carries its k-mesh weight \f$w_k\f$ so a
-    //! charge density built per-irrep sums to the BZ average \f$\sum_k w_k\rho_k\f$.
+    //! \brief Brillouin-zone integration weight of this symmetry's block.  1 for ordinary symmetries; a
+    //! Bloch k-point returns the UNIFORM per-point sampling weight \f$1/N_\mathrm{mesh}\f$ -- its k-star
+    //! multiplicity lives in \c GetDegeneracy (the ATOM SHELL CONVENTION: one stored representative per
+    //! star, like an atom l-shell), so the BZ average is \f$\sum_\mathrm{blocks} w\,\rho_\mathrm{block}\f$
+    //! with the star already inside each block's occupations/density.
     virtual double GetWeight         () const {return 1.0;}
     //! \brief Does this irrep label already carry spin (spin-orbit coupled)?  \c false for ordinary spatial
     //! symmetries -- spin is layered on top by \c Irrep, whose \a ms is the non-relativistic spin channel.
@@ -44,13 +46,6 @@ public:
     //! \c EnergyLevels reporting layer merges them so an equal-eigenvalue star displays as one level (and
     //! the SCF cfg change-flag stops flapping on the ULP ordering of exact cross-k ties).
     virtual bool   MergeAcrossIrreps  () const {return false;}
-    //! \brief BZ star multiplicity of this block for level REPORTING: how many symmetry-equivalent copies
-    //! of this block the full sampling contains (1 for ordinary symmetries; a Bloch k-point on an IBZ wedge
-    //! returns its star size \f$w_k N_\mathrm{mesh}\f$).  \c EnergyLevel scales its reported occ/degen by
-    //! this, so an IBZ-reduced run's level table matches the equivalent full-mesh run's (the star shell
-    //! shows its full-mesh electron count, e.g. 8/8, not the wedge-local 2/2).  REPORTING ONLY -- the
-    //! filling capacity is \c GetDegeneracy and the density/energy weights are \c GetWeight, both untouched.
-    virtual size_t StarSize           () const {return 1;}
     std::string    GetLabel          () const;      //!< human-readable label (streams \c Write to a string)
 };
 

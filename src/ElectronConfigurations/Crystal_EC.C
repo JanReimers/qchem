@@ -8,9 +8,11 @@ namespace qchem {
 
 //! \brief Bloch electron configuration: \a Nval valence electrons per unit cell, distributed over the Bloch
 //! k-block(s), with no cross-irrep aufbau (each plane-wave block IS an irrep).  Two occupation MODES:
-//!   - INSULATOR (default, \a globalFermi=false): each k-block holds a FIXED \a Nval; GetN returns \a Nval
-//!     for any k.  Each block's density is BZ-weighted (Symmetry::GetWeight = w_k) so the total charge is
-//!     \a Nval, not \f$N_k\,Nval\f$.  Bands fill identically at every k (an insulator / a single Γ point).
+//!   - INSULATOR (default, \a globalFermi=false): each k-block holds a FIXED star\f$\times\f$\a Nval
+//!     (ATOM SHELL CONVENTION -- the block's spatial degeneracy IS its k-star multiplicity, see BlochQN:
+//!     an IBZ wedge representative fills all its star copies' electrons, star\f$\times\f$2 per band; an
+//!     unfolded mesh point has star = 1 and fills plain \a Nval).  Each block's density carries the uniform
+//!     weight \f$1/N_\mathrm{mesh}\f$ so the total charge is \a Nval.  Bands fill identically at every k.
 //!   - METAL (\a globalFermi=true): the k-blocks share ONE chemical potential; \a Nval is the WHOLE-MESH
 //!     total (\f$\sum_k w_k n_k=Nval\f$, the SAME number, since \f$\sum_k w_k=1\f$) and charge sloshes
 //!     between k-points.  UsesGlobalFermi() flags this; the composite fill solves the single μ.

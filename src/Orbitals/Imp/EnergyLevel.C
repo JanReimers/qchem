@@ -11,13 +11,7 @@ namespace qchem::Orbitals
 
 EnergyLevel::EnergyLevel(const Orbital* o)
     : e(o->GetEigenEnergy()), occ(o->GetOccupation()), degen(o->GetDegeneracy()), qns(o->GetQNs())
-{
-    // REPORTING scale (Symmetry::StarSize doc): an IBZ wedge block stands for its whole k-star, so its
-    // levels report full-mesh occ/degen (e.g. the X-star shell as 8/8, matching the unfolded run's merged
-    // table) -- 1 for everything but a folded Bloch block.  Filling/weights upstream are untouched.
-    const size_t star=qns.sym->StarSize();
-    if (star>1) { occ*=double(star); degen*=int(star); }
-};
+{};
 
 EnergyLevel::EnergyLevel(const EnergyLevel& el) 
 : e(el.e), occ(el.occ), degen(el.degen), qns(el.qns)//, orbital(el.orbital)

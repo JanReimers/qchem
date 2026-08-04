@@ -12,7 +12,9 @@ BlochQN::BlochQN(ivec3_t _N, ivec3_t _ik, double _weight, rvec3_t _shift)
     , ik(_ik)
     , k((ik.x+_shift.x)/static_cast<double>(N.x),(ik.y+_shift.y)/static_cast<double>(N.y),
         (ik.z+_shift.z)/static_cast<double>(N.z))    // k=(ik+shift)/N: shift=0 Γ-centred, shift=½ classic MP
-    , weight(_weight)
+    , star([&]{ const double s=_weight*double(_N.x)*double(_N.y)*double(_N.z);   // w_k·N_mesh (atom shell convention)
+                assert(fabs(s-double(lround(s)))<1e-9 && "BZ weight is not an integer star multiple of 1/N_mesh");
+                return size_t(lround(s)); }())
 {
     //assert(N!=0uz);
     assert(N.x>0);
@@ -24,11 +26,9 @@ BlochQN::BlochQN(ivec3_t _N, ivec3_t _ik, double _weight, rvec3_t _shift)
 
 };
 
-size_t BlochQN::StarSize() const
+double BlochQN::GetWeight() const
 {
-    const double s=weight*double(N.x)*double(N.y)*double(N.z);   // w_k N_mesh: 1 unfolded, star size on a wedge
-    assert(fabs(s-double(lround(s)))<1e-9 && "BZ weight is not an integer star multiple of 1/N_mesh");
-    return size_t(lround(s));
+    return 1.0/(double(N.x)*double(N.y)*double(N.z));   // uniform per-point 1/N_mesh (star in GetDegeneracy)
 }
 
 size_t BlochQN::SequenceIndex() const

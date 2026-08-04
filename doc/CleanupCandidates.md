@@ -62,8 +62,16 @@ refactoring session can batch them.  (User keeps the master list; merge freely.)
   the 1/(ε_a−ε_i) diagonal Hessian blows up the step exactly along the near-degenerate diffuse
   modes.  Reproducers: DISABLED_ImposedGDMProbe_SiDiamondIBZ (healthy), DISABLED_NaFImposedGDMSmearProbe
   (pathological, NAFGDM_* knobs); GPW_GDMTRACE=1 shows DESCENT/FALLBACK per step.
-- **BZ creep on the neutral `Symmetry` base (ISP) — RESOLUTION DECIDED (user, 2026-08-04): the ATOM
-  SHELL CONVENTION.**  The base now carries three Bloch-flavored defaulted virtuals (`GetWeight()`
+- **BZ creep on the neutral `Symmetry` base (ISP) — DONE 2026-08-04 (same day): the ATOM SHELL
+  CONVENTION landed.**  `BlochQN::GetDegeneracy()` = star (ctor converts the k-mesh layer's w_k;
+  asserted integer), `GetWeight()` = uniform 1/N_mesh, `StarSize()` + the `EnergyLevel` report
+  scaling DELETED (the 8/8 wedge display is now the physical occupation), `Crystal_EC::GetN` =
+  star×Nval per block in insulator mode / plain Nval for the global-μ total.  No factory/KBlock/
+  call-site changes (BlochFactory keeps taking w_k); free meshes (star=1) bit-identical; g=w·degen
+  invariance verified (Al metal); imposed Si diamond IBZ reproduces E to all digits; 656/656.
+  The base is down to TWO Bloch-flavored members (GetWeight, MergeAcrossIrreps) — the remaining
+  capability-face split is now small enough to fold into any future Symmetry-base touch.
+  *(Original analysis, for the record:)*  The base now carries three Bloch-flavored defaulted virtuals (`GetWeight()`
   pre-existing; `MergeAcrossIrreps()` + `StarSize()` from the 2026-08-03 MergeTol/IBZ-table fixes).
   Rather than split a capability face, adopt the user's design: a wedge k-block is a SHELL exactly
   like an atom's l-block (one stored representative, degeneracy = the symmetry copies), so
