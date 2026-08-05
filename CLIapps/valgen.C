@@ -164,6 +164,7 @@ int main(int argc, char** argv)
     string element, functional = "LDA", out, seedOut, name, detail = "normal";
     int    q = 0, electrons = 0;                         // q 0 => resolve by policy below (valence / --semicore)
     bool   seed = false;                                 // also generate the seed valence density
+    bool   spin = false;                                 // spin-resolved seed: polarized (Hund) run, emit rho_up/rho_dn
     bool   semicore = false;                             // pick the first semicore variant instead of valence
     bool   iterations = false;                           // print the SCF per-iteration convergence trace
     bool   floor = false;                                // also compute the complete-basis (pool) energy floor
@@ -196,6 +197,10 @@ int main(int argc, char** argv)
         "\n"
         " Seed density (optional):\n"
         "  --seed             also generate the seed valence density (reports charge + <r> diffuseness)\n"
+        "  --spin             SPIN-RESOLVED seed: run the pseudo-atom POLARIZED (Hund ground state) and\n"
+        "                       emit rho_up/rho_dn (up-majority) alongside rho; implies --seed.\n"
+        "                       For an AFM sublattice pattern the flip is applied at SEED ASSEMBLY,\n"
+        "                       never stored here (doc/SCFSeedingPlan.md sec 10)\n"
         "  --ngrid <int>      seed log-grid points                       (default 400)\n"
         "  --rmin <float>     seed log-grid inner radius (bohr)          (default 1e-4)\n"
         "  --rmax <float>     seed log-grid outer radius (bohr)          (default 20)\n"
@@ -234,6 +239,7 @@ int main(int argc, char** argv)
         else if (a=="--functional") functional = need(i);
         else if (a=="--shell")      shells.push_back(ParseShell(need(i)));
         else if (a=="--seed")       seed       = true;
+        else if (a=="--spin")     { spin       = true; seed = true; }
         else if (a=="--ngrid")      ngrid      = std::stoi(need(i));
         else if (a=="--rmin")       rmin       = std::stod(need(i));
         else if (a=="--rmax")       rmax       = std::stod(need(i));
@@ -280,6 +286,7 @@ int main(int argc, char** argv)
     r.electrons  = electrons;
     r.functional = functional;
     r.shells     = shells;
+    r.spinResolved = spin;
 
     // Dogfood the reporting framework.  valgen runs at Normal: the raw basis.usage/basis.exponents blocks are
     // Verbose-only in the generic renderer, so at Normal they stay in the json but off the console -- valgen
@@ -352,6 +359,7 @@ int main(int argc, char** argv)
                 sj["charge"]    = s->charge;
                 sj["meanR"]     = s->meanR;     // <r> diffuseness (an anion's exceeds the neutral atom's)
                 sj["converged"] = s->converged;
+                if (spin) sj["moment"] = s->moment;   // 4pi int r^2 (rho_up-rho_dn) dr ~ 2S (Hund)
                 sj["ngrid"]     = ngrid;
                 sj["rmin"]      = rmin;
                 sj["rmax"]      = rmax;

@@ -42,6 +42,12 @@ export namespace qchem
         //! Exponents DISJOINT across shells (see the class note).  Higher-l polarization shells go here too.
         std::vector<std::pair<int,std::vector<double>>> shells;
         std::string  name;                  //!< reserved for future per-recipe naming (file title set at assembly)
+        //! SPIN-RESOLVED seed density (doc/SCFSeedingPlan.md sec 10, GenerateSeedDensity only): run the
+        //! pseudo-atom SCF POLARIZED (Hund ground state -- the atomic EC assigns the unpaired electrons) and
+        //! emit the per-channel pair \c rho_up / \c rho_dn alongside the spin-summed \c rho, stored in the
+        //! UP-MAJORITY convention.  Default off: spin-agnostic recipes stay bit-identical (closed shells and
+        //! the pre-existing library entries).
+        bool         spinResolved = false;
     };
 
     //! The outcome: the atomic pseudo-atom energy in the generated basis (the validation number) and the
@@ -72,7 +78,9 @@ export namespace qchem
     //! \c charge = 4π∫r²ρ dr (~ the charge state's electron count); \c meanR = ⟨r⟩ = 4π∫r·r²ρ dr / charge,
     //! the mean radius -- the DIFFUSENESS metric (an anion's ⟨r⟩ exceeds the neutral atom's).  \c jsonEntry is
     //! the library object to append to \c atomic_valence_densities.json.
-    struct GeneratedSeedDensity { double charge; double meanR; bool converged; std::string jsonEntry; };
+    //! \c moment = 4π∫r²(ρ↑−ρ↓)dr (≈ 2S, the Hund moment) -- 0 unless \c recipe.spinResolved.
+    struct GeneratedSeedDensity { double charge; double meanR; bool converged; std::string jsonEntry;
+                                  double moment = 0.0; };
     GeneratedSeedDensity GenerateSeedDensity(const ValenceBasisRecipe&,
                                              int Ngrid=400, double rmin=1e-4, double rmax=20.0);
 

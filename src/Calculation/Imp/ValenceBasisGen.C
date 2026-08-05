@@ -13,6 +13,7 @@ module qchem.ValenceBasisGen;
 import qchem.PeriodicTable;                    // thePeriodicTable (symbol <-> Z)
 import qchem.SCFIterator;                       // SCFParams (Verbose -> the per-iteration trace)
 import qchem.Pseudopotential.GTH_Potentials;   // GetGTH (default Zion)
+import qchem.ChargeDensity;                    // Polarized_CD + Spin (the spin-resolved channel sampling)
 import qchem.Types;                            // rvec3_t (radial sampling point)
 import qchem.Math;                             // Pi (the 4 pi in the charge integral)
 
@@ -101,31 +102,64 @@ GeneratedSeedDensity GenerateSeedDensity(const ValenceBasisRecipe& r, int Ngrid,
     const int charge = Z - nel;                                 // AtomCalculation: electrons = Z - charge
 
     // The SAME pseudo-atom SCF the basis generator runs (identical shells/PP/functional) -- one validated SCF.
+    // spinResolved runs it POLARIZED: the atomic EC assigns the Hund unpaired electrons (e.g. Mn q7 -> S=5/2),
+    // and the converged density is a Polarized_CD whose channels we sample alongside the total.
     AtomCalcOptions o;
     o.type            = AtomType::Gaussian;
     o.pseudopotential = true;
     o.valence         = Zion;
     o.exponentsByL    = r.shells;
+    if (r.spinResolved) o.pol = Pol::Polarized;
     SCFParams p; p.MinVirial = 1e30;          // no virial gate under a PP (see GenerateValenceBasis)
     AtomCalculation atom(Z, charge, o, p);
 
-    // Sample the spherical valence rho(r) on a LOG mesh (schema of atomic_valence_densities.json), and
-    // integrate 4*pi*int r^2 rho dr (trapezoid) as the validation charge (~ nel).
-    const double beta = (Ngrid > 1) ? std::pow(rmax/rmin, 1.0/(Ngrid-1)) : 1.0;
-    std::vector<double> rs(Ngrid), rho(Ngrid);
-    double rr = rmin;
-    for (int i = 0; i < Ngrid; i++) { rs[i] = rr; rho[i] = atom.Density()(rvec3_t(rr,0,0)); rr *= beta; }
-    double q = 0.0, qr = 0.0;
-    for (int i = 0; i+1 < Ngrid; i++)
-    {
-        const double dr = rs[i+1]-rs[i];
-        q  += 0.5*dr*(rs[i]*rs[i]*rho[i]           + rs[i+1]*rs[i+1]*rho[i+1]);            // 4pi int r^2 rho
-        qr += 0.5*dr*(rs[i]*rs[i]*rho[i]*rs[i]     + rs[i+1]*rs[i+1]*rho[i+1]*rs[i+1]);    // 4pi int r^3 rho
-    }
-    q *= 4.0*Pi; qr *= 4.0*Pi;
-    const double meanR = q > 0.0 ? qr/q : 0.0;                                            // <r> (diffuseness)
+    // The per-channel faces (spinResolved only): the polarized run's Density() IS-A Polarized_CD -- an
+    // honest capability cross-cast (abstract face to abstract face, per the project cast rule).
+    const ChargeDensity::Polarized_CD* pol = r.spinResolved
+        ? dynamic_cast<const ChargeDensity::Polarized_CD*>(&atom.Density()) : nullptr;
+    if (r.spinResolved && !pol)
+        throw std::runtime_error("GenerateSeedDensity: polarized run did not yield a Polarized_CD for "+r.element);
 
-    // Emit the library entry (JSON object matching atomic_valence_densities.json).
+    // Sample the spherical valence rho(r) (and the spin channels) on a LOG mesh (schema of
+    // atomic_valence_densities.json), and integrate 4*pi*int r^2 rho dr (trapezoid) as the validation charge.
+    const double beta = (Ngrid > 1) ? std::pow(rmax/rmin, 1.0/(Ngrid-1)) : 1.0;
+    std::vector<double> rs(Ngrid), rho(Ngrid), up(Ngrid), dn(Ngrid);
+    double rr = rmin;
+    for (int i = 0; i < Ngrid; i++)
+    {
+        rs[i]  = rr;
+        rho[i] = atom.Density()(rvec3_t(rr,0,0));
+        if (pol)
+        {
+            up[i] = (*pol->GetChargeDensity(Spin::Up  ))(rvec3_t(rr,0,0));
+            dn[i] = (*pol->GetChargeDensity(Spin::Down))(rvec3_t(rr,0,0));
+        }
+        rr *= beta;
+    }
+    auto radInt = [&](const std::vector<double>& f, int rpow)     // 4pi int r^(2+rpow) f dr, trapezoid
+    {
+        double sum = 0.0;
+        for (int i = 0; i+1 < Ngrid; i++)
+        {
+            const double dr = rs[i+1]-rs[i];
+            sum += 0.5*dr*(std::pow(rs[i],2+rpow)*f[i] + std::pow(rs[i+1],2+rpow)*f[i+1]);
+        }
+        return 4.0*Pi*sum;
+    };
+    const double q     = radInt(rho, 0);
+    const double meanR = q > 0.0 ? radInt(rho, 1)/q : 0.0;                                // <r> (diffuseness)
+
+    // UP-MAJORITY storage convention (doc/SCFSeedingPlan.md sec 10): rho_up is the MAJORITY channel; which
+    // physical channel the SCF polarized is an arbitrary label, so swap if it landed the other way.
+    double moment = 0.0;
+    if (pol)
+    {
+        moment = radInt(up, 0) - radInt(dn, 0);                                           // ~ 2S
+        if (moment < 0.0) { std::swap(up, dn); moment = -moment; }
+    }
+
+    // Emit the library entry (JSON object matching atomic_valence_densities.json).  rho stays the spin SUM
+    // (spin-agnostic readers untouched); the pair rides as sibling arrays on the same grid.
     std::string sym = r.element;
     std::ostringstream os;
     os << std::setprecision(12);
@@ -134,9 +168,16 @@ GeneratedSeedDensity GenerateSeedDensity(const ValenceBasisRecipe& r, int Ngrid,
        << "\"grid\": {\"kind\": \"log\", \"N\": " << Ngrid << ", \"rmin\": " << rmin << ", \"rmax\": " << rmax << "}, "
        << "\"rho\": [";
     for (int i = 0; i < Ngrid; i++) { if (i) os << ", "; os << rho[i]; }
-    os << "]}";
+    os << "]";
+    if (pol)
+    {
+        os << ", \"moment\": " << moment;
+        os << ", \"rho_up\": [";  for (int i = 0; i < Ngrid; i++) { if (i) os << ", "; os << up[i]; }  os << "]";
+        os << ", \"rho_dn\": [";  for (int i = 0; i < Ngrid; i++) { if (i) os << ", "; os << dn[i]; }  os << "]";
+    }
+    os << "}";
 
-    return { q, meanR, atom.IsConverged(), os.str() };
+    return { q, meanR, atom.IsConverged(), os.str(), moment };
 }
 
 std::string AssembleBasisFile(const std::string& name, const std::vector<std::string>& blocks)

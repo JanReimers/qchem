@@ -215,9 +215,17 @@ Atom_EC::Atom_EC(int Z, int netCharge, ValenceOnly_t)
         assert(l<=int(LMax) && "PseudoAtom_EC: anion overflows the valence (no open channel <= LMax)");
         ++nv[l];
     }
-    for (int rem = netCharge; rem>0; --rem)          // cation: remove electrons high-l first
+    for (int rem = netCharge; rem>0; --rem)          // cation: physical (aufbau-reverse) removal order
     {
-        int l=int(LMax); while (l>=0 && nv[l]<=0) --l;
+        // A transition-metal / rare-earth valence (occupied d/f) holds its s (and p) electrons in the
+        // HIGHER principal shell (4s vs 3d), and a cation empties that higher-n shell FIRST: Mn2+ is
+        // 3d^5 4s^0 (the S=5/2 MnO/LiMn2O4 ion), NOT 4s^2 3d^3.  A main-group valence (s/p only, same n)
+        // removes highest-l first as before (Al2+ -> 3s^1).
+        int l = -1;
+        if (nv[2]>0 || nv[3]>0)
+            { l=0; while (l<=1 && nv[l]<=0) ++l; if (l>1 || nv[l]<=0) l=-1; }   // s then p, if occupied
+        if (l<0)
+            { l=int(LMax); while (l>=0 && nv[l]<=0) --l; }                      // else highest l down
         assert(l>=0 && "PseudoAtom_EC: cation removes more electrons than the valence holds");
         --nv[l];
     }
@@ -230,16 +238,20 @@ Atom_EC::Atom_EC(int Z, int netCharge, ValenceOnly_t)
         if (nv[l]>0) {itsLMax=l; itsLValance=l;}
     }
     // Neutral atom: keep the periodic table's exact unpaired count (handles half-filled-shell exceptions like
-    // Cr/Cu).  Ion: recompute by Hund's rule on the (highest-l) adjusted valence shell -- n in 2g spin-orbitals
-    // gives n unpaired if n<=g else 2g-n, so a closed-shell ion (F-/Na+/O2-) is 0.  (Open-shell transition-
-    // metal ions are out of scope.)
+    // Cr/Cu).  Ion: recompute by Hund's rule PER SHELL and sum -- n in 2g spin-orbitals gives n unpaired if
+    // n<=g else 2g-n -- so a closed-shell ion (F-/Na+/O2-) is 0, Mn2+ d^5 is 5, and a multi-open-shell ion
+    // (Mn+ 4s^1 3d^5, the ^7S ground state) counts every open shell (1+5=6).
     int nup;
     if (netCharge==0)
         nup = (int)thePeriodicTable().GetNumUnpairedElectrons(Z);
     else
     {
-        int g=2*int(itsLValance)+1, nlv=nv[itsLValance];
-        nup = (nlv<=g) ? nlv : (2*g-nlv);
+        nup = 0;
+        for (size_t l=0;l<=LMax;l++)
+        {
+            int g=2*int(l)+1;
+            nup += (nv[l]<=g) ? nv[l] : (2*g-nv[l]);
+        }
     }
     AssignUnpaired(Z, nup);
 }

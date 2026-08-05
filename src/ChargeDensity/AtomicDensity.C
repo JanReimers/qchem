@@ -9,6 +9,7 @@ module;
 #include <string>
 #include <vector>
 #include <memory>
+#include <utility>
 export module qchem.ChargeDensity.AtomicDensity;
 import qchem.ScalarFunction;   // ScalarFunction<double>, rvec3_t
 import qchem.Mesh.Quadrature;  // qcMesh::RadialMesh, MakeRadial, Integrate (radial quadrature)
@@ -49,6 +50,20 @@ RadialDensity GetAtomicDensity(int Z, const std::string& functional="LDA",
 //! (IonicSAD) prefer a charge-state density when the library has it and fall back cleanly when it does not.
 bool          HasAtomicDensity(int Z, const std::string& functional="LDA",
                                const std::string& dbfile="atomic_densities.json", int Nval=-1);
+
+//! SPIN-RESOLVED pair {rho_up, rho_dn} for an open-shell (Hund ground state) entry -- the spin-polarized
+//! SAD source (doc/SCFSeedingPlan.md section 10).  Stored in the UP-MAJORITY convention: \c first is the
+//! MAJORITY channel (\f$\int\rho_\uparrow \ge \int\rho_\downarrow\f$); the magnetic CONFIGURATION (which
+//! sites flip) is assembly-time data, never in the tables.  The entry's \c rho remains the spin SUM, so
+//! spin-agnostic readers (GetAtomicDensity) are untouched.  Entry selection is identical to
+//! GetAtomicDensity; throws if the entry is absent or carries no pair (closed shells store none) --
+//! callers gate on HasAtomicSpinPair and fall back to the rho/2 split.
+std::pair<RadialDensity,RadialDensity>
+              GetAtomicSpinPair(int Z, const std::string& functional="LDA",
+                                const std::string& dbfile="atomic_valence_densities.json", int Nval=-1);
+//! Does the (Z, functional[, Nelec==Nval]) entry exist AND carry a spin-resolved pair?
+bool          HasAtomicSpinPair(int Z, const std::string& functional="LDA",
+                                const std::string& dbfile="atomic_valence_densities.json", int Nval=-1);
 
 //! A RadialDensity recentred at a nucleus \a R: a 3-D ScalarFunction rho(|r-R|) for the function-fitter.
 class RecentredAtomicDensity : public virtual ScalarFunction<double>

@@ -48,3 +48,39 @@ TEST(AtomicDensity, MissingElementThrows)
     EXPECT_THROW(GetAtomicDensity(123, "LDA"), std::runtime_error);
     EXPECT_THROW(GetAtomicDensity(8, "NoSuchFunctional"), std::runtime_error);
 }
+
+// ---------------- spin-resolved pairs (doc/SCFSeedingPlan.md sec 10, the spin-SAD tables) ----------------
+
+static constexpr const char* vdb = "atomic_valence_densities.json";
+
+// The Hund entries carry an up-majority pair whose sum is the stored rho and whose difference integrates
+// to the Hund moment 2S: Mn q7 neutral (4s^2 3d^5, 2S=5), Mn2+ (3d^5, 2S=5 -- the physical TM-cation
+// removal order, 4s first), O neutral (2p^4 triplet, 2S=2).
+TEST(AtomicDensity, SpinPairChargesAndMoments)
+{
+    struct Case { int Z, Nelec; double moment; };
+    for (Case c : {Case{25,7,5.0}, Case{25,5,5.0}, Case{8,6,2.0}})
+    {
+        ASSERT_TRUE(HasAtomicSpinPair(c.Z, "LDA", vdb, c.Nelec)) << "Z="<<c.Z<<" Nelec="<<c.Nelec;
+        auto [up,dn] = GetAtomicSpinPair(c.Z, "LDA", vdb, c.Nelec);
+        // Nelec-scaled bound, same reason as ChargeIntegratesToNelec: the reader's log-mesh quadrature
+        // carries a small sharp-core error on top of the generator's own ~1e-3.
+        EXPECT_NEAR(up.Charge()+dn.Charge(), double(c.Nelec), c.Nelec*1e-3) << "Z="<<c.Z; // sum = charge state
+        EXPECT_NEAR(up.Charge()-dn.Charge(), c.moment,        c.Nelec*1e-3) << "Z="<<c.Z; // difference = 2S
+        EXPECT_GE(up.Charge(), dn.Charge());                                        // up-majority convention
+
+        // The pair sums to the spin-summed rho the unpolarized readers see (same entry, same grid).  The
+        // three arrays are emitted independently at 12 significant digits, so consistency is RELATIVE.
+        RadialDensity tot = GetAtomicDensity(c.Z, "LDA", vdb, c.Nelec);
+        for (double r : {0.05, 0.3, 1.0, 3.0})
+            EXPECT_NEAR(up(r)+dn(r), tot(r), 1e-9*tot(r)+1e-15) << "Z="<<c.Z<<" r="<<r;
+    }
+}
+
+// Closed-shell (or spin-agnostic legacy) entries carry no pair: Has is false and Get throws.
+TEST(AtomicDensity, SpinPairAbsentForClosedShells)
+{
+    EXPECT_FALSE(HasAtomicSpinPair( 8, "LDA", vdb, 8));   // O2- (closed p^6, generated unpolarized)
+    EXPECT_FALSE(HasAtomicSpinPair(14, "LDA", vdb, 4));   // Si (legacy spin-agnostic entry)
+    EXPECT_THROW(GetAtomicSpinPair(14, "LDA", vdb, 4), std::runtime_error);
+}

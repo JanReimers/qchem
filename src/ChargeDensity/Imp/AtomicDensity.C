@@ -8,6 +8,7 @@ module;
 #include <vector>
 #include <memory>
 #include <map>
+#include <utility>
 #include <nlohmann/json.hpp>
 
 module qchem.ChargeDensity.AtomicDensity;
@@ -99,6 +100,29 @@ RadialDensity GetAtomicDensity(int Z, const std::string& functional, const std::
 bool HasAtomicDensity(int Z, const std::string& functional, const std::string& dbfile, int Nval)
 {
     return FindAtomicEntry(Z, functional, dbfile, Nval) != nullptr;
+}
+
+std::pair<RadialDensity,RadialDensity>
+GetAtomicSpinPair(int Z, const std::string& functional, const std::string& dbfile, int Nval)
+{
+    const nlohmann::json* e = FindAtomicEntry(Z, functional, dbfile, Nval);
+    if (!e || !e->contains("rho_up"))
+        throw std::runtime_error("AtomicDensity: no spin-resolved pair for Z=" + std::to_string(Z)
+                                 + " functional='" + functional + "'"
+                                 + (Nval>=0 ? " Nelec=" + std::to_string(Nval) : std::string())
+                                 + " in " + dbfile + " (gate on HasAtomicSpinPair)");
+    const nlohmann::json& g = e->at("grid");
+    const double rmin=g.at("rmin").get<double>(), rmax=g.at("rmax").get<double>();
+    RadialDensity up(rmin, rmax, e->at("rho_up").get<std::vector<double>>());
+    RadialDensity dn(rmin, rmax, e->at("rho_dn").get<std::vector<double>>());
+    assert(up.Charge() >= dn.Charge() - 1e-8 && "spin-pair entries store the MAJORITY channel as rho_up");
+    return {std::move(up), std::move(dn)};
+}
+
+bool HasAtomicSpinPair(int Z, const std::string& functional, const std::string& dbfile, int Nval)
+{
+    const nlohmann::json* e = FindAtomicEntry(Z, functional, dbfile, Nval);
+    return e && e->contains("rho_up") && e->contains("rho_dn");
 }
 
 //-------------------------------------------------------------------------------- RecentredAtomicDensity

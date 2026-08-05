@@ -349,6 +349,30 @@ TEST_F(ElectronConfigurationTests, SodiumCationPseudoValence)
     EXPECT_EQ(ec.GetN(Irrep(Spin::Down,s)), 0);
     EXPECT_EQ(ec.GetN(Irrep(Spin::None,s)), 0);   // 0 valence electrons (closed Ne-like core in the PP)
 }
+// TRANSITION-METAL cation: the physical (aufbau-reverse) removal order empties the HIGHER-n 4s shell
+// before 3d, so Mn2+ (q7 valence 4s^2 3d^5 - 2) is 3d^5 S=5/2 -- the MnO/LiMn2O4 local moment the
+// spin-SAD seed stores (doc/SCFSeedingPlan.md sec 10).  NOT 4s^2 3d^3 (the old highest-l-first rule).
+TEST_F(ElectronConfigurationTests, ManganeseCationPseudoValence)
+{
+    PseudoAtom_EC ec(25, +2);         // Mn2+: removes 4s^2 -> d^5 half-filled, 5 unpaired
+    sym_t s=qn(0), d=qn(2);           // half-filled d: single (un-split) d irrep
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,s)), 0);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,s)), 0);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,d)), 5);   // Hund d^5: all majority
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,d)), 0);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::None,d)), 5);
+}
+// And the multi-open-shell TM cation: Mn+ = 4s^1 3d^5 (the ^7S ground state) -- the per-shell Hund sum
+// counts BOTH open shells (1+5 = 6 unpaired).
+TEST_F(ElectronConfigurationTests, ManganeseMonocationPseudoValence)
+{
+    PseudoAtom_EC ec(25, +1);         // Mn+: removes ONE 4s electron
+    sym_t s=qn(0), d=qn(2);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,s)), 1);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,s)), 0);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Up  ,d)), 5);
+    EXPECT_EQ(ec.GetN(Irrep(Spin::Down,d)), 0);
+}
 TEST_F(ElectronConfigurationTests, Phosphorus)
 {
     Atom_EC ec(15);
