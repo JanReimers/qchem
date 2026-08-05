@@ -2,34 +2,46 @@
 
 Things noticed in passing while adding features — flagged here instead of fixed inline, so the
 refactoring session can batch them.  (User keeps the master list; merge freely.)
-## SOLID principles 
 
 - I am mostly concerned about abstract interfaces.  These are what the client code for any module is supposed to see.
 The code is an attempt (probably never been done before) to capture one set of high level requirements for any structure: atoms, molecules and 3D lattices (also 1D polymers, 2D graphene).  In other words 95% of the high level abstract interfaces (Charge density, Hamiltonian, Orbitals, Wavefunction, SCF iterator, Accelerators) should be structure neutral.  Even the basis set interfaces (qcBasisSet) are structure neutral.  
+- I have so far identified 4 libraries that have a structure neutral face with specific structure specializations:
+  1. qcStructure: Structure has derived classes for Atom, Molcule, UnitCell.  Lattice_3D and ReciprocalLattice have no inheritance relation with Structure.
+  2. qcSymmetry: Separate folders for Atom/Molecule/Lattice_3D symmetry types.  Spin degrees of freedom are orthogonal to spatial symmetry ... but that only works for non relativistic irreps.  
+  3. ElectronCOnfigurations: We need separate classes for non-aufbau (specific # of electrons per irrep) filling.  We also have separate classes Atom, Molecule and Crystal aufbau filling ... can these be combinedid into one generail Aufbau filler?
+  4. qcBasisSet->qcAtom_BS,qcMolecule_BS, qc_Lattice_3D_BS
+  - With the introduction of lattice calculations some structure specific classes have been creeping into the qcChargeDensity and qcHamiltonian libraries.  Also possibly into qcWaveFunction and qcOrbitals.  If we can find ways of getting these last for back to more generic status that would be a big win.
 
+
+
+## SOLID principles 
 
 1. SRP: Single Responsibility Principle
-  - I do not claim to that all the abstract interfaces in qchem are truely single responsibility.  A good example is the irrep basis set interfaces:  They do three things:
-    a. Evlautate integrals.
-    b. Evlauate op(r) and grad(r)
-    c. Expose the irrep symmetry, as an abstract interface pointer.
-  - Is it useful to break these up in order to faithfully obey the SRP?  I don't know but my guess in no ... or at least that we have "bigger fish to fry".
-  - What we do need is that anytime our abstract interfaces get augmented thos new functions should be part of an existing responsibility, not introducing a new one.
+  - This principle is more about concrete classes than it is about interfaces.
+  - We have a group of classes called Evaluators that do the low leveer work evaluating all required integrals, op(r)/grad(r) and a couple of other minor things, for a particulkar basis function type.  These have multiple responsibilities but they are mostly built up through a network of mixins in order achieve the end result.
 2. OCP: Open Closed Princple
   - We are still in the R&D stages for this so abstract interfaces will be modified.  We just need a good reason to do so.  
   - For example if the extend and structure neutral interface in order get some Lattice_3D feature working we need ask the question: What does this change mean for atoms and molcules?
-  - For lattice we created src/BasisSet/Band_FT_IBS.C which does almost the same thing as the generic src/BasisSet/Orbital_DFT_IBS.C that works for atoms and molecules.  If we are able to merge Orbital_DFT_IBS and Band_FT_IBS then that proves that there was no need to create a new separate interface just for lattice basis sets.
+ 
 3. LSP: Liskov Substitution Principle
+  - virtual functions that default to some sort of "not implemented" behaviour, violate the LSP.
 4. ISP: Interface Segregation Principle
   - There is always an urge to add getters and setters.  For setters, always ask: Is this something I can set and construction time?  For getters always ask: What are we going to do with the getter data?  Why not ask the owning class to do that task instead (maintain encapsulation).  
+  - I do not claim to that all the abstract interfaces in qchem are truely segregated.  A good example is the irrep basis set interfaces:  They do three things:
+    a. Evlautate integrals.
+    b. Evlauate op(r) and grad(r)
+    c. Expose the irrep symmetry, as an abstract interface pointer.
+  - Is it useful to break these up in order to faithfully obey the ISP?  I don't know but my guess in no ... or at least that we have "bigger fish to fry".
+  - What we do need is that anytime our abstract interfaces get augmented those new functions should be part of an existing responsibility, not introducing a new one.
 5. DIP: Dependency Inversion Princple
   - THis is possibly the most powerful concept, and often eneables adherance to the previous 4 princples.
   - This applies equally well for C++ classes, C++ modules (DAG enforced by compliler) and libraries (DAG enforced by linker).
   - example: Lib A depends on lib B.  B needs a way to send info to A.  Create an abstract interface AI (ha ha)in B, Classes in A derive from B::AI, when instances of the A classes are passed to B (as an AI*) B can then call back into A. 
   - src/ChargeDensity/ChargeDensity.C tStatic_CC, tDynamic_CC are a working example that the Hamiltonian library classes derive from and pass back into the ChargeDensity library.
-  - As well as being a dependency inversion, this probably has a "Gang of Four" patter name.
+  - As well as being a dependency inversion, this probably has a "Gang of Four" pattern name.
 
 There are 6 other principles related to package cohesion and coupling.  My experience is that the first 5 are the most commonly misunderstood and misapplied.  
+
 
 ## Fit-basis / mesh seams (from the 2026-08-01/02 symmetry+XC campaign)
 - **`FIT_SF_ABS::SymmetrizeRaster`** — (SRP) symmetry op living on a fit-basis interface.  Removable once a
@@ -99,6 +111,79 @@ There are 6 other principles related to package cohesion and coupling.  My exper
   is species-keyed.  If a third per-atom attribute ever needs G-assembly (site charges, isotopes),
   consider a per-atom-index form-factor overload on `G_FieldEvaluator` instead (basis-interface
   change — weigh against the pseudo-wall pin).
+
+
+## qcBasisSet* library family
+- We have a number of Orbital_*_IBS interfaces that mostly define what types of integrals are required for 1E/DFT/HF/DHF calculation.  I think would help to define an Orbital_PP_IBS interface defining the types of integrals required specifically for PP calculations.  This might be a superset of the Orbital_DFT_IBS interface.
+- Band_DFT_IBS is this no longer used?
+- For lattice we created src/BasisSet/Band_FT_IBS.C which does almost the same thing as the generic src/BasisSet/Orbital_DFT_IBS.C that works for atoms and molecules.  If we are able to merge Orbital_DFT_IBS and Band_FT_IBS then that proves that there was no need to create a new separate interface just for lattice basis sets.
+- SymmetryAdapted_IBS this looks like it could be moved into the Internal folder.
+- G_FieldEvaluator this is tightly coupled to 4 consumers DensityMixing, SeedCD, Fitting, and PWVxcField
+  - Do all these consumers use the full class, or do they just need a small interface? In other words is the there DIP improvement available?
+- src/BasisSet/Lattice_3D/BandStructure.C only consumers seem to be unit tests.
+- BasisSet::GetReciprocalPointOps Only consumer is tCompositeWF<T>::GetChargeDensity(Spin s). This high high level structure neutral code calling a lattice specific member function in structure neutral BasisSet. 
+  - What is tCompositeWF trying to do, and how would transfer to molcules and atoms?
+- BasisSet::GetDetectedReciprocalOps() const {return {};} only consumer is a unit test.
+
+
+## qcChargeDensity library
+OOD: Charge density has become a complex forest of classes.  
+### Aspects:
+- Two primary varients:
+  1. DM_CD which is capbale of 2ERIs.  THis is the first stop after any SCF iteration, even if we never ask for HF-ERIs.
+  2. FittedCDs for DFT, Not HF-ERI capable.  Fit basis = Gaussian/PW/Delta are all potential fit basis sets.  PW and delta are not conventionaly thought of as fit basis sets (ortho->no metric, trivial blah blah).  But we can capture common behaviour in software if we shirk convention in this case.
+  - Both are ScalarFunction<T> for op(r)/grad(r).
+  - Other than ScalarFunction<T> DM_CD and FittedCD do not share a common "charge density" base.
+  - Currently FittedCDs are very transient: Create,DoFit,GetRepusion(orbtial basis set).
+- Polarized/Unpolarized: This should be orthogonal to DM/Fitted aspects.
+- Composite (multiple irreps).  Is this really different than Polarized (irreps can hold spin)?
+- Version traking
+- Mixing algos.
+- SPin density (for plotting)
+- Seeding: NumericalCD and SeedCD: No density matrix.
+
+### Issues
+- Why is a FourierCD different than a tChareDensity?
+  - At a high level Fourier/PW is an implementation detail.
+  - Consumers: src/Hamiltonian/Internal/Imp/PWTerms.C, src/SCFIterator/Imp/SCFIterator.C
+  - Granted that for efficiency return types for FourierCD may require different data structures than Gaussians. src/BasisSet/Internal/GMap.C G_ERI3 is a multi purpose data structure that attempts to work around this problem.  It is not a perfect solution but it allows us to harmonize interfaces and move in SOLID-clean direction.  G_ERI3 ands up being a spec for whats needed in terms of data structure flexibility.  In the end high level code should not have to worry about G or no G, PW, Fourier.
+- tChargeDensity::EvalBatch just duplicates ScalareFunction::operator()(const rvec3vec_t& rs) const
+- LSP violation: tDM_CD::DM_ContractBlocks
+  { assert(false && "DM_ContractBlocks: only a finite (Gaussian) density matrix implements this"); return 0.0; }
+- tDM_CD::DM_RhoAtPoints(const rvec3vec_t& r, const std::map<std::string,mat_t<T>>& /*Phi*/)
+  Phi uses BasisSetID as map key.  Why not irrep?
+- tDM_CD::Accumulate*  4 functions ... all LSP violations.  They should be pure virtual.
+
+## Hamiltonian
+
+- I tried to use some conventions for naming terms:
+  - Enn/Vnn  nuclear-nuclear repulsion
+  - Een/Ven  electron-nuclear attraction
+  - Eee/Vee  electron-electron repulsion
+  - Eex/Vex  exchange
+  - Ecorr/Vcorr correlation
+  - Exc/Vxc  exchange-correlation
+- For solids these don't work perfectly because at G=0 we can only define certain combinations of Enn+Een+Eee as finite.  Also PPs are a combination of Ven+Vee + KB projectors. I use Ven for PPs, where n is understood to be a shielded nucleus.
+- Current names in src/Hamiltonian/Internal/Terms.C
+  - PP_Local: Can we call this Ven_Local?
+  - PP_NonLocal: Can we call this Ven_NonLocal?
+  - FittedEpsXc: Can we call this FittedExc:
+    -Only one consumer: FittedVxc can we merge FittedEpsXc into FittedVxc?
+  
+- Current names in src/Hamiltonian/Internal/PWTerms.C
+  - PW_Pseudo  I don't like PW prefix. Can we call this Ven-pp ?
+  - PW_Kinetic this class does not do any thing different from the generaic Kinetic term. bs->MakeKinetic(); knows how to do the PW kinetic integrals.  
+  - PW_Hartree I don't like PW prefix. Can we call this Vee-pp ?
+  - PW_XC: What is distinguising this from FittedVxc?  Is it PWs?  I think GPW also uses this class.
+  - XC_GridEngine I don't know what this is.  Engine in the names suggest it is going to do some work ... but that does not tell me anything useful.  "The Becke route is a pure QUADRATURE " this is conflating unit dell grid layout with fit basis for Vxc.  "pure QUADRATURE" = fit basis is just (pseudo) delta functions. 
+  - Delta_XC: This is a FittedVxc using delta functions as the fit basis. Mayde call it DeltaFittedVxc.
+    - I understand that it makes no sense to try an pump a delta function basis set through the generic FittedVxc plumbing, it needs special implementation for efficienciy.
+    - BUT maybe special handling can be moved into the Fitting library.  This will require deeper analysis.
+    -Why do we need separate "Engine" class.  Can we merge DeltaFittedVxc and XC_GridEngine?
+    - All refernces to the Becke grid/Mesh should be eleminated from both of these classes ... they should be grid/Mesh neutral.
+  - Delta_XC_Pol:  Can we make a generic pol Vxc that holds to abstract base FittedVxc* and that covers Molecules/PW/GPW/DeltaFittedVxc etc.
+  - Delta_VcorrPol: Again generic?
+  
 
 ## Older / unrelated spots hit while working nearby
 - **`DB_Cache_RAM.C`** — a screenful of `-Winconsistent-missing-override` warnings on every qcBasisSet
