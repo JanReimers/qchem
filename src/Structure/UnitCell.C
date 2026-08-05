@@ -63,8 +63,10 @@ public:
 
     //! \brief Add an atom of nuclear charge \a Z at FRACTIONAL cell coordinates \a f (\f$r=Af\f$).
     //! Convenience over Insert(new Atom(Z, ToCartesian(f))) so a crystal basis can be specified in
-    //! cell coordinates (the natural way to give a diamond/FCC two-atom basis).
-    void AddAtom(int Z, const rvec3_t& f);
+    //! cell coordinates (the natural way to give a diamond/FCC two-atom basis).  \a spinFlip stamps the
+    //! atom's collinear magnetic-configuration flip bit (Atom::itsSpinFlip -- the spin-SAD seed's -m
+    //! sublattice, doc/SCFSeedingPlan.md §10), so an AFM cell is specified atom by atom.
+    void AddAtom(int Z, const rvec3_t& f, bool spinFlip=false);
 
     UnitCell MakeReciprocalCell() const;                  //!< Reciprocal cell, \f$B = 2\pi A^{-\top}\f$.
 

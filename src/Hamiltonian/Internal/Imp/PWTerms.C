@@ -412,6 +412,12 @@ const rvec_t& XC_GridEngine::RhoPol(const cChargeDensity* cd, const Spin& s, con
             itsRhoUp=pol->GetChargeDensity(Spin::Up  )->DM_RhoAtPoints(itsMesh->Points(), itsPhi);
             itsRhoDn=pol->GetChargeDensity(Spin::Down)->DM_RhoAtPoints(itsMesh->Points(), itsPhi);
         }
+        else if (auto sr=dynamic_cast<const ChargeDensity::cSpinResolved_CD*>(cd))
+        {   // matrix-free spin-resolved seed (PolarizedSeedCD, SCFSeedingPlan §10): channels batch through
+            // the plain tChargeDensity face -- no D, no Phi tables, but a genuinely staggered iteration-0 rho
+            itsRhoUp=sr->GetChannel(Spin::Up  )->EvalBatch(itsMesh->Points());
+            itsRhoDn=sr->GetChannel(Spin::Down)->EvalBatch(itsMesh->Points());
+        }
         else
         {   // spin-agnostic seed: rho_up=rho_down=rho/2 (the molecular HalfDensity rule, cd85d13c)
             if (auto dm=dynamic_cast<const cDM_CD*>(cd))

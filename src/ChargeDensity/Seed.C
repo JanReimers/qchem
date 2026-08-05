@@ -36,7 +36,14 @@ enum class SeedStrategy { Default, CoreGuess, Uniform, SAD, IonicSAD };
 //! \c CoreGuess.  The seed is a \c tChargeDensity (the DFT Fock-build face): \c Uniform/\c CoreGuess give
 //! a matrix-backed \c tDM_CD, \c SAD a fit-backed \c NumericCD.  \a st is the molecular/crystal
 //! structure -- unused for \c CoreGuess/\c Uniform, threaded for the SAD seeds (Phases 1-3).
+//!
+//! \a polarized (the Hamiltonian's \c IsPolarized -- the SCFIterator passes it through) upgrades the
+//! plane-wave SAD/IonicSAD seeds to the TWO-CHANNEL \c PolarizedSeedCD (doc/SCFSeedingPlan.md §10): the
+//! library's per-species Hund pairs + the structure's per-atom \c itsSpinFlip bits assemble a genuinely
+//! spin-resolved seed (an AFM staggering, a doublet's majority channel), instead of the spin-agnostic
+//! total that collapses to rho/2 in the polarized terms.  Ignored (harmless) on unpolarized runs.
 template <class T> tChargeDensity<T>* MakeSeedDensity(SeedStrategy s, const BasisSet::tBasisSet<T>* bs,
-                                                      const Structure* st, const ElectronConfiguration* ec);
+                                                      const Structure* st, const ElectronConfiguration* ec,
+                                                      bool polarized=false);
 
 } //namespace

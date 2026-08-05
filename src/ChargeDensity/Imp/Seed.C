@@ -60,7 +60,8 @@ std::vector<int> IonicFormalCharges(const std::vector<std::pair<int,int>>& atoms
 }
 
 template <class T> tChargeDensity<T>* MakeSeedDensity(SeedStrategy s, const BasisSet::tBasisSet<T>* bs,
-                                                      const Structure* st, const ElectronConfiguration* ec)
+                                                      const Structure* st, const ElectronConfiguration* ec,
+                                                      bool polarized)
 {
     assert(bs);
     assert(ec);
@@ -107,10 +108,12 @@ template <class T> tChargeDensity<T>* MakeSeedDensity(SeedStrategy s, const Basi
         else
         {
             // Plane-wave (FT) SAD: rho-tilde(G) = Sum_atoms rho_atom(|G|) e^{-iG.R}, assembled by the basis.
+            // A polarized run gets the two-channel seed (§10): Hund pairs + per-atom flips choose the basin.
             assert(st && "SAD plane-wave seed needs a Structure");
             const auto* ftbs = dynamic_cast<const BasisSet::Band_FT_IBS*>((*bs)[0]);
             assert(ftbs && "SAD plane-wave seed needs a Band_FT_IBS (plane-wave) basis");
             std::shared_ptr<const BasisSet::cFIT_CD_ABS> fb(ftbs->CreateCDFitBasisSet(st, qcMesh::MeshParams{}));
+            if (polarized) return new PolarizedSeedCD(fb, st);
             return new SeedCD(fb, st);
         }
     }
@@ -141,6 +144,7 @@ template <class T> tChargeDensity<T>* MakeSeedDensity(SeedStrategy s, const Basi
             std::map<size_t,int> targetByZ;                            // species Z -> TARGET valence count N_val-q
             for (size_t i=0;i<atoms.size();i++)                         // F: 7-(-1)=8 (F-), Na: 1-1=0 (Na+)
                 targetByZ[atoms[i].first] = atoms[i].second - q[i];
+            if (polarized) return new PolarizedSeedCD(fb, st, "LDA", targetByZ);   // §10: the two-channel ionic seed
             return new SeedCD(fb, st, "LDA", targetByZ);               // SeedCD prefers the DIFFUSE charge-state density
         }
         else
@@ -157,8 +161,8 @@ template <class T> tChargeDensity<T>* MakeSeedDensity(SeedStrategy s, const Basi
 }
 
 template tChargeDensity<double>* MakeSeedDensity<double>(SeedStrategy, const BasisSet::tBasisSet<double>*,
-                                                        const Structure*, const ElectronConfiguration*);
+                                                        const Structure*, const ElectronConfiguration*, bool);
 template tChargeDensity<dcmplx>* MakeSeedDensity<dcmplx>(SeedStrategy, const BasisSet::tBasisSet<dcmplx>*,
-                                                        const Structure*, const ElectronConfiguration*);
+                                                        const Structure*, const ElectronConfiguration*, bool);
 
 } //namespace

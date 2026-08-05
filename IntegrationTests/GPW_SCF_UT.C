@@ -819,6 +819,35 @@ TEST(GPW_SCF, PolarizedSingletMatchesUnpolarizedSiGamma)
     EXPECT_NEAR(R.E.GetTotalEnergy(), -7.11506, 2e-3);   // == the unpolarized Becke anchor (ζ=0 collapse exact)
 }
 
+// The SPIN-SAD sibling of the ζ=0 collapse (SCFSeedingPlan §10 increment B): a polarized run with a SAD
+// seed now assembles the TWO-CHANNEL PolarizedSeedCD -- Si's library entry is spin-agnostic (closed shell),
+// so each channel is exactly rho/2 and the whole polarized-seed machinery (channel SeedCDs, the merged
+// FourierDensity total into Hartree, the cSpinResolved_CD branch in RhoPol) must land on the SAME anchor.
+// The proof the polarized seed cannot perturb non-magnetic physics.
+TEST(GPW_SCF, PolarizedSeedSingletMatchesUnpolarizedSiGamma)
+{
+    const double a=10.26;
+    FCCUnitCell cell(a);
+    cell.AddAtom(14, {0,0,0});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+
+    GpwOptions o;
+    o.label="Si SR Gamma pol-singlet spin-SAD";
+    o.Nelec=8; o.multiplicity=1;                       // EXPLICIT two-channel singlet (nUp=nDn=4)
+    o.species={{"Si",4}};
+    o.densityEcut=20.0;
+    o.seed=qchem::ChargeDensity::SeedStrategy::SAD;    // -> PolarizedSeedCD (rho/2 channels for pairless Si)
+    o.scf.NMaxIter=60; o.scf.MinΔρ=1e-3; o.scf.MinΔE=1e-6;
+    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
+    o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4;
+    GpwResult R=RunGpw(lat, MakeBasisSR(cell), o);
+
+    EXPECT_TRUE(R.converged);
+    EXPECT_NEAR(R.charge, 8.0, 1e-6);
+    EXPECT_NEAR(R.E.GetTotalEnergy(), -7.11506, 2e-3);   // the SAME unpolarized Becke anchor
+}
+
 // (tier 4b, gate b) O2 in a box, TRIPLET: the multi-electron polarized solid pipeline vs the finite
 // molecular facade on the SAME sipp O-q6 basis + GTH PP (the spin sibling of SiPseudoAtomInBoxMatchesFinite,
 // cross-anchored to the facade's spin-native triplet machinery -- doc/SymmetryUpgradePlan.md §4 tier 4b).
@@ -1072,7 +1101,11 @@ TEST(GPW_SCF, DISABLED_Na2DimerInBoxProbe)
 // G!=0 lattice-sum Hartree, and the ζ=1 Dirac/VWN values exactly, and E_GPW[D*]=−0.1420 at the independent
 // radial same-basis oracle's minimizer (oracle E=−0.1416; complete-basis −0.1922).  A ONE-ELECTRON system
 // is uniquely basin-fragile: no other electrons pull the density into the core basin (Na2, O2-triplet and
-// F-doublet all escape Uniform fine).  IonicSAD lands in-basin: 14 iters, −0.1419, 4.8 mHa from the facade.
+// F-doublet all escape Uniform fine).  IonicSAD lands in-basin: −0.1419, 4.8 mHa from the facade.
+// SPIN-SAD (§10 increment B): the polarized run now seeds the TWO-CHANNEL PolarizedSeedCD, and Na's library
+// pair is exact (1 e-: up=total, dn=0), so iteration 0 starts FULLY polarized -- same basin, same pin
+// (-0.141933 to the digit), 21 iters vs the rho/2-collapse seed's 14 (the staggered start makes DIIS
+// reorganize more; basin selection, not speed, is what the seed pin protects).
 TEST(GPW_SCF, NaPseudoAtomInBoxDoublet)
 {
     // Basis-MATCHED finite reference: the SAME valence_lowq_sr Na basis + GTH-LDA q1 PP through the

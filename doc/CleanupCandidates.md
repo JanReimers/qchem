@@ -80,6 +80,26 @@ There are 6 other principles related to package cohesion and coupling.  My exper
   already defaults DFT runs to SAD.  Candidate: default GPW to `IonicSAD` (or SAD-family), with
   Uniform as the explicit opt-in — needs a suite sweep since every pinned GPW anchor would re-seed.
 
+## Spin-SAD seed campaign (2026-08-04, SCFSeedingPlan §10 increments A/B)
+- **Polarized ATOMIC solver fails on an empty minority channel** — `AtomCalculation(11, 0,
+  {.pseudopotential=true, .valence=1, .pol=Polarized})` (Na q1 doublet: nUp=1, nDown=0) dies with
+  "Invalid setup of symmetric matrix" before the first Fock.  Same failure class as the tier-4b
+  driver finding (`cSCFAcceleratorDIIS::GetNProj` segfault on an empty EC).  Worked around for the
+  Na library entry (1 valence electron ⇒ the pair is EXACT without an SCF: rho_up=rho, rho_dn=0,
+  hand-constructed in atomic_valence_densities.json), but any future fully-polarized one-electron
+  species hits it again — the valgen `--spin` path should either fix the empty-channel atom SCF or
+  synthesize the exact pair itself when nDown==0.
+- **Unoccupied-l shells break the atom SCF** — the same Na valgen run ALSO failed when the recipe
+  carried the (unoccupied) p window from valence_lowq_sr (`--shell 1:2:0.09:0.3`): "Invalid setup
+  of symmetric matrix" even UNPOLARIZED-adjacent.  GenerateValenceBasis documents "higher-l
+  polarization shells ride along un-validated (as intended)" — but at least the polarized
+  GenerateSeedDensity path chokes on them.  Reproduce + fix or document the restriction.
+- **`SeedCD` flip-group sub-cells duplicate the Structure** — the per-channel AFM assembly clones
+  the UnitCell into (unflipped, flipped) groups because `MakeFourierDensity(st, formFactor(Z,g2))`
+  is species-keyed.  If a third per-atom attribute ever needs G-assembly (site charges, isotopes),
+  consider a per-atom-index form-factor overload on `G_FieldEvaluator` instead (basis-interface
+  change — weigh against the pseudo-wall pin).
+
 ## Older / unrelated spots hit while working nearby
 - **`DB_Cache_RAM.C`** — a screenful of `-Winconsistent-missing-override` warnings on every qcBasisSet
   build (`Get`/`Register`/`GetCache*`).  Mechanical `override` sweep.

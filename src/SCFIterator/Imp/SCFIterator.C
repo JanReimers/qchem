@@ -140,7 +140,7 @@ template <class T> static std::string ConfigString(const qchem::WaveFunction::tW
 // CoreGuess -- then DELEGATES to the explicit-seed ctor below.  \a st (the structure) is consumed only by
 // the SAD seeds; bs/st are also forwarded (by the target ctor) for the HF/DHF bootstrap.
 template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const ElectronConfiguration* ec,ham_t* H,acc_t* acc,ChargeDensity::SeedStrategy seed,const Structure* st,qchem::Ortho basisOrtho,double basisOrthoTol)
-    : tSCFIterator(bs,ec,H,acc, ChargeDensity::MakeSeedDensity<T>(seed,bs,st,ec), st, basisOrtho, basisOrthoTol)
+    : tSCFIterator(bs,ec,H,acc, ChargeDensity::MakeSeedDensity<T>(seed,bs,st,ec, H&&H->IsPolarized()), st, basisOrtho, basisOrthoTol)
 {}
 
 // The explicit-seed ctor (grid-continuation): \a seedDensity is a pre-built density (owned; consumed in

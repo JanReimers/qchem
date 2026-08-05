@@ -269,6 +269,26 @@ public:
 using Polarized_CD  = tPolarized_CD<double>;   // the molecular alias (source-compatible)
 using cPolarized_CD = tPolarized_CD<dcmplx>;   // the polarized plane-wave (Bloch) density
 
+//---------------------------------------------------------------------------------------
+//
+//  Capability face: a COLLINEAR two-channel spin-resolved density WITHOUT the tDM_CD (matrix)
+//  contract -- the matrix-free polarized sibling of tPolarized_CD's channel accessor.  A spin-SAD
+//  seed (doc/SCFSeedingPlan.md §10) has per-channel densities but no density matrix, so it cannot
+//  be a tPolarized_CD (whose channels are tDM_CD, with the DM-only pure virtuals); it exposes its
+//  channels through THIS face instead, and a spin-native consumer (XC_GridEngine::RhoPol) cross-casts
+//  abstract->abstract and reads each channel through the plain tChargeDensity face (EvalBatch) --
+//  capabilities live only on the types that have them (no asserting DM stubs).
+//
+template <class T> class tSpinResolved_CD
+{
+public:
+    virtual ~tSpinResolved_CD() {}
+    virtual const tChargeDensity<T>* GetChannel(const Spin&) const=0;   //!< Up/Down only (no None)
+};
+
+using rSpinResolved_CD = tSpinResolved_CD<double>;
+using cSpinResolved_CD = tSpinResolved_CD<dcmplx>;
+
 //! The magnetization ρ↑−ρ↓ as a real ScalarFunction (any T -- ρ_σ(r) is real for both lineages).
 template <class T> class tSpinDensity : public virtual ScalarFunction<double>
 {

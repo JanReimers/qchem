@@ -447,9 +447,11 @@ rvec3_t UnitCell::ToFractional(const rvec3_t& r) const
     return Invert(itsA)*r; // f = A^-1 r
 }
 
-void UnitCell::AddAtom(int Z, const rvec3_t& f)
+void UnitCell::AddAtom(int Z, const rvec3_t& f, bool spinFlip)
 {
-    Insert(new Atom(Z, ToCartesian(f))); // store in Cartesian a.u. (r = A f)
+    Atom* a = new Atom(Z, ToCartesian(f)); // store in Cartesian a.u. (r = A f)
+    a->itsSpinFlip = spinFlip;             // collinear -m sublattice bit (spin-SAD assembly; see Structure.C)
+    Insert(a);
 }
 
 // FCC primitive cell: columns are the half-face-diagonal lattice vectors (h = a/2); |det A| = a^3/4.

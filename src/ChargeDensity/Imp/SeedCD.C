@@ -30,12 +30,14 @@ ReciprocalLattice ReciprocalOf(const Structure* st)
 } //anon
 
 SeedCD::SeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Structure* st,
-                             const std::string& functional, const std::map<size_t,int>& ionicNvalByZ)
-    : itsFitBasis(fitBasis), itsStructure(st), itsRecip(ReciprocalOf(st)), itsCharge(0.0)
+                             const std::string& functional, const std::map<size_t,int>& ionicNvalByZ,
+                             const Spin& channel)
+    : itsFitBasis(fitBasis), itsStructure(st), itsRecip(ReciprocalOf(st)), itsChannel(channel), itsCharge(0.0)
     , itsVersion(NextDensityVersion())   // shared global clock (no cross-kind collisions)
 {
     assert(fitBasis);
     assert(st);
+    const bool chan = IsPolarized(channel);   // Up/Down = one channel of the polarized seed
     const std::string db = "atomic_valence_densities.json";
     for (size_t i=0;i<st->GetNumAtoms();i++)
     {
@@ -50,46 +52,96 @@ SeedCD::SeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Stru
             auto ti = ionicNvalByZ.find(Z);
             const int target = (ti!=ionicNvalByZ.end()) ? ti->second : neutralNval;
 
-            std::shared_ptr<const RadialDensity> rad;
+            std::shared_ptr<const RadialDensity> rad, radFlip;
             double scale;
             if (target<=0)                                                          // stripped cation -> nothing
-                { rad=std::make_shared<const RadialDensity>(std::move(neutral)); scale=0.0; }
+                { rad=radFlip=std::make_shared<const RadialDensity>(std::move(neutral)); scale=0.0; }
+            else if (chan && HasAtomicSpinPair((int)Z, functional, db, target))     // the Hund (majority, minority) pair
+            {
+                auto [maj,min] = GetAtomicSpinPair((int)Z, functional, db, target);
+                auto majp = std::make_shared<const RadialDensity>(std::move(maj));
+                auto minp = std::make_shared<const RadialDensity>(std::move(min));
+                rad     = (channel==Spin::Up) ? majp : minp;                        // unflipped: up = majority
+                radFlip = (channel==Spin::Up) ? minp : majp;                        // flipped: the pair swapped (-m site)
+                scale   = 1.0;
+            }
             else if (HasAtomicDensity((int)Z, functional, db, target))              // library has the charge state
-                { rad=std::make_shared<const RadialDensity>(GetAtomicDensity((int)Z,functional,db,target)); scale=1.0; }
+                { rad=radFlip=std::make_shared<const RadialDensity>(GetAtomicDensity((int)Z,functional,db,target));
+                  scale = chan ? 0.5 : 1.0; }                                       // pairless channel: rho/2
             else                                                                    // fall back: amplitude-scale neutral
-                { scale=double(target)/double(neutralNval);
-                  rad=std::make_shared<const RadialDensity>(std::move(neutral)); }
+                { scale = (chan ? 0.5 : 1.0)*double(target)/double(neutralNval);
+                  rad=radFlip=std::make_shared<const RadialDensity>(std::move(neutral)); }
 
-            itsRadByZ[Z]   = rad;
-            itsScaleByZ[Z] = scale;
+            itsRadByZ[Z]     = rad;
+            itsRadFlipByZ[Z] = radFlip;
+            itsScaleByZ[Z]   = scale;
         }
-        itsCharge += itsScaleByZ.at(Z) * itsRadByZ.at(Z)->Charge();   // this atom's (scaled) electron count
-        itsRecentred.emplace_back(itsRadByZ.at(Z), a->itsR);          // for real-space op(r)
+        const bool flip = chan && a->itsSpinFlip;                     // None: the total is flip-blind
+        const auto& rc = flip ? itsRadFlipByZ.at(Z) : itsRadByZ.at(Z);
+        itsCharge += itsScaleByZ.at(Z) * rc->Charge();                // this atom's (scaled) electron count
+        itsRecentred.emplace_back(rc, a->itsR);                       // for real-space op(r), flip-aware
     }
-    assert(itsCharge>0);
+    // Flip-partitioned sub-cells for the G assembly: the basis's MakeFourierDensity is SPECIES-keyed
+    // (formFactor(Z, g2)), so flipped and unflipped sites of one species -- which carry DIFFERENT channel
+    // radials -- must be summed in separate calls.  Only a channel seed with at least one flipped atom
+    // needs the split; everything else keeps the single full-structure call.
+    if (chan)
+    {
+        bool anyFlip=false;
+        for (size_t i=0;i<st->GetNumAtoms();i++) if ((*st)[i]->itsSpinFlip) anyFlip=true;
+        if (anyFlip)
+        {
+            const UnitCell* cell=dynamic_cast<const UnitCell*>(st);   // checked precondition (see ReciprocalOf)
+            assert(cell);
+            itsGroupA=std::make_shared<UnitCell>(cell->GetCellMatrix());
+            itsGroupB=std::make_shared<UnitCell>(cell->GetCellMatrix());
+            for (size_t i=0;i<st->GetNumAtoms();i++)
+            {
+                const Atom* a=(*st)[i];
+                (a->itsSpinFlip ? itsGroupB : itsGroupA)->Insert(new Atom(*a));
+            }
+        }
+    }
+    assert(itsCharge >= 0);
+    assert(chan || itsCharge > 0);   // a lone CHANNEL may be legitimately empty (a fully-polarized minority)
 }
 
-// rho-tilde(G) = (1/Omega) Sum_atoms F(Z,|B.G|) e^{-i(B.G).R}: the seed's OWN density-fit basis (its grid
-// engine) does the analytic structure-factor assembly over its {G}; we supply the per-species form factor
-// (the valence density's 1-D radial Fourier transform).  Memoize the FT per (Z,g2) -- many G share |G|.
-ΔG_Map SeedCD::StructureFactorDensity() const
+// One flip-group's rho-tilde(G) = (1/Omega) Sum_{atoms in group} F(Z,|B.G|) e^{-i(B.G).R}: the seed's OWN
+// density-fit basis (its grid engine) does the analytic structure-factor assembly over its {G}; we supply
+// the per-species form factor (the group's radial 1-D Fourier transform).  Memoize the FT per (Z,g2) --
+// many G share |G|.
+ΔG_Map SeedCD::GroupDensity(const Structure* group,
+                            const std::map<size_t,std::shared_ptr<const RadialDensity>>& radByZ) const
 {
+    if (group->GetNumAtoms()==0) return {};
     auto memo = std::make_shared<std::map<std::pair<int,double>,double>>();
-    auto formFactor = [this,memo](int Z, double g2)->double
+    auto formFactor = [this,&radByZ,memo](int Z, double g2)->double
     {
         // The memo holds the RAW species form factor; the uniform ReScale (itsScale) and the per-species
-        // IonicSAD multiplier (itsScaleByZ) are applied on the way out.
+        // multiplier (itsScaleByZ) are applied on the way out.
         double s = itsScale * itsScaleByZ.at(Z);
         auto key = std::make_pair(Z,g2);
         auto it = memo->find(key);
         if (it!=memo->end()) return s*it->second;
-        double ff = itsRadByZ.at(Z)->FormFactor(std::sqrt(g2));
+        double ff = radByZ.at(Z)->FormFactor(std::sqrt(g2));
         (*memo)[key]=ff;
         return s*ff;
     };
     auto* ge=dynamic_cast<const BasisSet::G_FieldEvaluator*>(itsFitBasis.get());
     assert(ge && "SeedCD's density-fit basis must be a G_FieldEvaluator (plane-wave grid engine)");
-    return ge->MakeFourierDensity(itsStructure, formFactor);
+    return ge->MakeFourierDensity(group, formFactor);
+}
+
+// The whole seed's rho-tilde: one full-structure sweep for the spin-agnostic total (and for a channel with
+// no flipped sites); a flip-staggered channel sums its two group sweeps (unflipped x this channel's radial
+// + flipped x the swapped one).
+ΔG_Map SeedCD::StructureFactorDensity() const
+{
+    if (!itsGroupA)
+        return GroupDensity(itsStructure, itsRadByZ);
+    ΔG_Map ro = GroupDensity(itsGroupA.get(), itsRadByZ);
+    for (const auto& [dm,rt] : GroupDensity(itsGroupB.get(), itsRadFlipByZ)) ro[dm]+=rt;
+    return ro;
 }
 
 // The seed's metric-free rho-tilde: no D to contract, so it IS the structure-factor density (the Vxc fit
@@ -112,7 +164,7 @@ SeedCD::SeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Stru
 
 double SeedCD::operator()(const rvec3_t& r) const
 {
-    double rho=0;   // itsRecentred is parallel to the structure's atoms -> per-atom IonicSAD scale by Z
+    double rho=0;   // itsRecentred is parallel to the structure's atoms (flip-aware) -> per-atom scale by Z
     for (size_t i=0;i<itsRecentred.size();i++) rho += itsScaleByZ.at((*itsStructure)[i]->itsZ) * itsRecentred[i](r);
     return itsScale*rho;
 }
@@ -128,6 +180,50 @@ rvec3_t SeedCD::Gradient(const rvec3_t& r) const
 void SeedCD::ReScale(double factor)
 {
     itsScale *= factor;
+    itsVersion = NextDensityVersion();
+}
+
+//------------------------------------------------------------------------------- PolarizedSeedCD
+
+PolarizedSeedCD::PolarizedSeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Structure* st,
+                                 const std::string& functional, const std::map<size_t,int>& ionicNvalByZ)
+    : itsUp(fitBasis, st, functional, ionicNvalByZ, Spin::Up  )
+    , itsDn(fitBasis, st, functional, ionicNvalByZ, Spin::Down)
+    , itsVersion(NextDensityVersion())   // one serial for the pair (the channels mutate together)
+{
+    assert(GetTotalCharge()>0);
+}
+
+const cChargeDensity* PolarizedSeedCD::GetChannel(const Spin& s) const
+{
+    assert(IsPolarized(s) && "PolarizedSeedCD::GetChannel: ask for Up or Down, not the total");
+    return s==Spin::Up ? static_cast<const cChargeDensity*>(&itsUp) : &itsDn;
+}
+
+ΔG_Map PolarizedSeedCD::GetFourierDensity(const BasisSet::cFIT_SF_ABS& c) const
+{
+    ΔG_Map ro = itsUp.GetFourierDensity(c);
+    for (const auto& [dm,rt] : itsDn.GetFourierDensity(c)) ro[dm]+=rt;
+    return ro;
+}
+
+ΔG_Map PolarizedSeedCD::GetRepulsion3C(const BasisSet::cFIT_CD_ABS& c) const
+{
+    ΔG_Map VH = itsUp.GetRepulsion3C(c);
+    for (const auto& [dm,rt] : itsDn.GetRepulsion3C(c)) VH[dm]+=rt;
+    return VH;
+}
+
+double  PolarizedSeedCD::operator()(const rvec3_t& r) const {return itsUp(r)+itsDn(r);}
+rvec3_t PolarizedSeedCD::Gradient  (const rvec3_t& r) const {return itsUp.Gradient(r)+itsDn.Gradient(r);}
+
+double PolarizedSeedCD::GetTotalCharge() const {return itsUp.GetTotalCharge()+itsDn.GetTotalCharge();}
+double PolarizedSeedCD::GetTotalSpin  () const {return itsUp.GetTotalCharge()-itsDn.GetTotalCharge();}
+
+void PolarizedSeedCD::ReScale(double factor)
+{
+    itsUp.ReScale(factor);
+    itsDn.ReScale(factor);
     itsVersion = NextDensityVersion();
 }
 

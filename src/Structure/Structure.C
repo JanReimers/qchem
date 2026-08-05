@@ -98,6 +98,12 @@ public:
     int     itsZ;      //Atomic number.
     double  itsCharge; //Net charge. Z-numElectrons.
     rvec3_t itsR;      //Spatial position.
+    //! Collinear magnetic-configuration flip bit (doc/SCFSeedingPlan.md §10): the spin-SAD seed ASSEMBLY
+    //! swaps this site's stored (majority, minority) channel pair -- the -m sublattice of an AFM pattern
+    //! (e.g. MnO AFM-II).  Assembly-time data riding the structure (the MakeValenceStructure clone-and-
+    //! mutate pattern); everything spin-agnostic ignores it.  Non-collinear (an SU(2) rotation per site)
+    //! is the §4 generalization -- this bit is its collinear collapse.
+    bool    itsSpinFlip = false;
 
 protected:
     //  An Atom is a one-element structure consisting of itself.
