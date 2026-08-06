@@ -161,10 +161,9 @@ public:
     //! Energy contraction of THIS density against a per-irrep Fock-block map (keyed by BasisSetID):
     //! \f$\sum_i \mathrm{sum}(D_i \odot B_i^\mathsf{T}) = \mathrm{Tr}(D\,B)\f$.  The whole-system DUAL of
     //! AccumulateDirectAll -- lets a whole-system term (HF Coulomb/exchange) take its energy from its own
-    //! cached blocks WITHOUT a per-irrep GetMatrix round-trip through DM_Contract.  Only composite/
-    //! polarized/leaf densities implement it; the periodic path asserts out.
-    virtual double DM_ContractBlocks(const std::map<std::string,hmat_t<T>>&) const
-    { assert(false && "DM_ContractBlocks: only a finite (Gaussian) density matrix implements this"); return 0.0; }
+    //! cached blocks WITHOUT a per-irrep GetMatrix round-trip through DM_Contract.  Every density
+    //! implements it, including the periodic path (PW_Hartree contracts its long-range blocks here).
+    virtual double DM_ContractBlocks(const std::map<std::string,hmat_t<T>>&) const=0;
 
     //! \brief \f$\rho\f$ at MANY points from caller-supplied basis tables -- the FIELD dual of
     //! DM_ContractBlocks.  \a Phi maps BasisSetID -> the (npoints x n) table \f$\Phi_{gi}=\chi_i(r_g)\f$

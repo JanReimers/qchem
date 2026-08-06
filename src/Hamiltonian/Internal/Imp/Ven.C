@@ -28,7 +28,7 @@ rsmat_t Ven::CalculateMatrix(const robs_t* bs,const Spin&) const
 
 void Ven::GetEnergy(EnergyBreakdown& te,const rDM_CD* cd) const
 {
-    te.Een=cd->DM_Contract(this);
+    te.Een+=cd->DM_Contract(this);
 }
 
 std::ostream& Ven::Write(std::ostream& os) const

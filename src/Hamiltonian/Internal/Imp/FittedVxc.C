@@ -108,7 +108,7 @@ void FittedVxc::GetEnergy(EnergyBreakdown& te,const rDM_CD* cd) const
 std::ostream& FittedVxc::Write(std::ostream& os) const
 {
     itsFitter->Write(os);
-    os << itsLDAVxc;
+    os << *itsLDAVxc;
     return os;
 }
 

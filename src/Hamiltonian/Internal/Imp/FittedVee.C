@@ -39,6 +39,7 @@ rsmat_t FittedVee::CalcMatrix(const robs_t* bs,const Spin& s,const rChargeDensit
 {
     if (newCD(cd)) itsFittedChargeDensity->DoFit(*cd);
     auto dft_bs=dynamic_cast<const odftbs_t*>(bs);
+    assert(dft_bs);
     return itsFittedChargeDensity->GetRepulsion(dft_bs);
 }
 
@@ -46,9 +47,13 @@ void FittedVee::GetEnergy(EnergyBreakdown& te,const rDM_CD* cd) const
 {
     assert(itsFittedChargeDensity);
     if (newCD(cd)) itsFittedChargeDensity->DoFit(*cd);
-    te.EeeFit    = 0.5*cd->DM_Contract(this,cd);
-    te.EeeFitFit = itsFittedChargeDensity->GetSelfRepulsion();
-    te.Eee = 2*te.EeeFit - te.EeeFitFit;
+    // Accumulate through locals: te.Eee is the Dunlap combination of THIS term's two fit pieces,
+    // so it must not read the (possibly already accumulated) te.EeeFit/te.EeeFitFit fields.
+    double eeeFit   =0.5*cd->DM_Contract(this,cd);
+    double eeeFitFit=itsFittedChargeDensity->GetSelfRepulsion();
+    te.EeeFit    += eeeFit;
+    te.EeeFitFit += eeeFitFit;
+    te.Eee       += 2*eeeFit - eeeFitFit;
 }
 
 } //namespace

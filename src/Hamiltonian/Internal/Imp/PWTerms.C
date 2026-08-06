@@ -62,13 +62,13 @@ void PW_Pseudo::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
     // periodic (!isFinite(), Omega finite); a finite/molecular Structure has no G=0 background, so no
     // alignment term.  The term owns the model (alpha) and reads Omega straight off the geometry -- no basis
     // (the old basis-side PseudoG0Energy was a scalar PP formula leaking into the neutral basis interface).
-    te.Een=cd->DM_Contract(this);                                          // integral rho V_ext(short) (G!=0)
+    te.Een+=cd->DM_Contract(this);                                         // integral rho V_ext(short) (G!=0)
     // A finite/molecular structure has no G=0 neutralising background, so NO alignment (even though its atoms
     // DO have form factors -- the physics decision lives here, via isFinite(), not in the geometry).  For a
     // periodic cell the structure folds in 1/Omega: SumFormFactors returns (1/Omega) Sum_a alpha_a.  The SHORT
     // part's alignment only -- the LONG part's G=0 shift moves to PW_Hartree with V_long (doc/GPWPlan.md 0e-PP).
     if (!theStructure->isFinite())                                         // periodic only (Omega finite)
-        te.E_alphaZ = cd->GetTotalCharge() *
+        te.E_alphaZ += cd->GetTotalCharge() *
                     theStructure->SumFormFactors([this](int Z){return itsLocal->FormFactorG0Short(Z);});
 }
 
@@ -87,7 +87,7 @@ chmat_t PW_Kinetic::CalculateMatrix(const cobs_t* bs, const Spin&) const
 
 void PW_Kinetic::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 {
-    te.Kinetic=cd->DM_Contract(this);   // <T> = integral rho (1/2 p^2)
+    te.Kinetic+=cd->DM_Contract(this);   // <T> = integral rho (1/2 p^2)
 }
 
 std::ostream& PW_Kinetic::Write(std::ostream& os) const

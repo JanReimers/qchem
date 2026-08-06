@@ -22,7 +22,7 @@ rsmat_t Kinetic::CalculateMatrix(const robs_t* bs,const Spin&) const
 
 void Kinetic::GetEnergy(EnergyBreakdown& te,const rDM_CD* cd) const
 {
-    te.Kinetic=cd->DM_Contract(this);
+    te.Kinetic+=cd->DM_Contract(this);
 }
 
 std::ostream& Kinetic::Write(std::ostream& os) const

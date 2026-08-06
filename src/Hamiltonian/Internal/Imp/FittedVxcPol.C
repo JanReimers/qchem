@@ -80,7 +80,6 @@ void FittedVxcPol::GetEnergy(EnergyBreakdown& te,const rDM_CD* cd) const
 
     const rDM_CD* ucd = pol_cd->GetChargeDensity(Spin::Up  );
     const rDM_CD* dcd = pol_cd->GetChargeDensity(Spin::Down);
-    te.Exc = 0.0;
     itsUpVxc  ->GetEnergy(te,ucd);
     itsDownVxc->GetEnergy(te,dcd);
 }
@@ -90,7 +89,7 @@ std::ostream& FittedVxcPol::Write(std::ostream& os) const
     assert(itsUpVxc);
     assert(itsDownVxc);
 
-    return os << itsUpVxc << itsDownVxc;
+    return os << *itsUpVxc << *itsDownVxc;
 }
 
 } //namespace

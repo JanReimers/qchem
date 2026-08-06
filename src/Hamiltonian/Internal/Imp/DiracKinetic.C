@@ -23,7 +23,7 @@ rsmat_t DiracKinetic::CalculateMatrix(const robs_t* bs,const Spin&) const
 
 void DiracKinetic::GetEnergy(EnergyBreakdown& te,const rDM_CD* cd) const
 {
-    te.Kinetic=cd->DM_Contract(this);
+    te.Kinetic+=cd->DM_Contract(this);
 }
 
 std::ostream& DiracKinetic::Write(std::ostream& os) const
