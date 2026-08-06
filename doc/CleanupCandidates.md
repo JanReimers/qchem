@@ -100,6 +100,28 @@ MnO campaign proceeds undisturbed in qchem6.
 
 ### R1 — correctness-adjacent (do these first)
 
+- **R1.0b SHARED-RADIAL (SP/"L"-shell) support in the Gaussian94 reader — USER IDEA 2026-08-06.**
+  A Cartesian d shell carries an s-type contaminant r²e^{−αr²}, which is what made the Mn GPW basis
+  rank-deficient (λmin 1.15e-07, cond 8.2e7 — see `GPW_SCF.MnAtomInBoxDChannel`).  The cure that landed
+  is empirical (drop the s window to 2 functions and let the contaminants span the rest).  The user's
+  structural alternative: generate bases at the **valgen** stage with the SAME RADIAL SET SHARED ACROSS
+  l — the standard trick Pople calls an **"SP shell"** (a.k.a. **"L shell"**, e.g. 6-31G), generalized
+  here to s+d.  CP2K's format encodes it natively (one set with `lmin..lmax`, e.g. `2 0 1 4 4 4`) and the
+  MOLOPT families share one exponent set across s, p AND d.
+  **BLOCKED ON:** the flagged `PG_Cart::IrrepBasisSet` bug — the Gaussian94 reader MERGES same-exponent
+  shells across l, which is why valgen carries the standing "KEEP EXPONENTS DISJOINT ACROSS l" rule.
+  Multi-l shells must be representable before shared radials can be emitted.
+  **MEASURE, DON'T ASSUME:** sharing exponents does not by itself remove the contaminant redundancy —
+  the contaminant is r²e^{−αr²} (n=2) while an s at the same α is e^{−αr²} (n=0), i.e. independent
+  functions; the measured cause was the NUMBER of s functions whose span mimics r²e^{−αr²}.  Shared
+  radials buy compactness + CP2K-comparable structure; whether they also buy conditioning is an
+  experiment (`GPW_SCF.MnAtomInBoxDChannel` + the vet's λmin/cond readout is the instrument).
+  **ALSO WORTH FIXING WHILE THERE:** our GPW path is Cartesian-only — SPHERICAL bases throw
+  ("not a molecular Gaussian basis (no `Molecule::LatticeSum1E`)", the parked S3b work).  Spherical d
+  has no contaminant at all and is what CP2K actually solves in (its log for our own shell list: 55
+  Cartesian vs 47 spherical functions), so wiring the spherical lineage into the lattice sums would
+  retire this whole class of problem AND make the CP2K comparisons apples-to-apples.
+
 - **R1.0 The "FAKE RADIAL" `op(r)` on atomic bases — USER DIRECTION 2026-08-06, own session.**
   An ATOM irrep block's 3-D face `operator()(rvec3_t)` returns the purely RADIAL chi_i(|r|) with the
   irrep's Y_lm silently omitted.  Any consumer that quadratures it as a real 3-D function gets nonsense

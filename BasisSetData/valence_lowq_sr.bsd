@@ -3,15 +3,25 @@ from each shell (F s 0.12 + p 0.14; Na s 0.03; Al s 0.04 + p 0.05), so the Bloch
 positive-definite in a solid at a modest Rcut (the SIPP->SIPP_SR lesson: ill-conditioning is a BASIS problem).
 For GPW crystals.  (Al: the FCC-Al degenerate-shell metal test, doc/GPWPlan1.md item 2 -- the full valence_lowq
 Al p 0.05 makes the primitive-cell Bloch overlap rank-deficient AND explodes the collocation grid.)
-Mn (q7: s 7x 0.10-24, d 8x 0.18-36) + O (q6: s 6x 0.15-18, p 5x 0.18-8, atom gap 23 mHa) added for the
+Mn (q7: s 2x {0.10,24} + d 8x 0.18-36 -- see the CARTESIAN-d note below) + O (q6: s 6x 0.15-18,
+p 5x 0.18-8, atom gap 23 mHa) added for the
 MnO AFM-II gate (doc/SymmetryUpgradePlan.md sec 7 step 7); windows valgen-validated polarized (Mn Hund
 moment 5), exponents kept DISJOINT across l (the PG_Cart shared-exponent reader merge).  BOTH ends of the
-Mn windows are conditioning/raster-driven, iterated against the rhombohedral AFM-II cell's Bloch-overlap
-vet: the SHARP end capped for the GPW rasters (AUTO density Ecut = 2*alpha_max = 72 Ha), and the s count
-thinned 8->7 to clear a ~1e-8 joint linear dependence (whack-a-mole across trims until the vet passed
-clean, lambdaMin +2e-8).  The 7s window's ATOM gap (344 mHa vs the pool floor) overstates the solid cost:
-the removed direction is exactly what the neighbours' functions span (that is WHY it was redundant); the
-d window sits at the atom floor (-0.9 mHa).  The SIPP->SR lesson again: conditioning is a BASIS problem.
+Mn's SHARP end is capped for the GPW rasters (AUTO density Ecut = 2*alpha_max = 72 Ha).
+THE CARTESIAN-d s-CONTAMINANT (measured 2026-08-06, user's insight).  A Cartesian d shell has SIX
+components and so carries an s-type contaminant r^2 e^{-a r^2}; with a wide s window those contaminants
+are spanned by the explicit s functions and the basis goes RANK-DEFICIENT.  Mn 7s+8d measured lambdaMin
+1.15e-07 / cond 8.2e7 -- the GPW vet ABORTS on a single Mn atom in a box, and the molecular facade only
+survives by silently dropping 5 near-null modes of 55.  CURE: keep the d set and drop the s window to
+TWO functions -- the contaminants already span the mid/tight s space, so only the DIFFUSE 4s tail (0.10)
+and one tight function (24) are needed:
+     7s+8d  lambdaMin 1.15e-07  cond 8.2e7   VET ABORTS      facade -14.6681 (5 modes dropped)
+     0s+8d  lambdaMin 6.5e-03   cond 8.6e2   pass            facade -14.607   GPW -14.635
+  -> 2s+8d  lambdaMin 3.0e-03   cond 2.1e3   pass            facade -14.6661  GPW -14.6701
+Trimming the d count instead "fixes" conditioning but costs 0.55 Ha (7s+4d -> facade -14.11): the d set
+is the physics, the s window was the redundancy.  NB CP2K solves this same shell list in the SPHERICAL
+space (its log: 55 Cartesian vs 47 spherical functions) and so never sees the contaminant at all --
+an apples-to-oranges difference to remember when comparing against its oracles.
 
 !
 BASIS="Low-q GTH-pseudopotential valence basis SR (generated, diffuse-trimmed)"
@@ -78,16 +88,6 @@ BASIS="Low-q GTH-pseudopotential valence basis SR (generated, diffuse-trimmed)"
  MN   0
  S   1  1.00
             0.10000000        1.00000000
- S   1  1.00
-            0.24928829        1.00000000
- S   1  1.00
-            0.62144650        1.00000000
- S   1  1.00
-            1.54919334        1.00000000
- S   1  1.00
-            3.86195754        1.00000000
- S   1  1.00
-            9.62740780        1.00000000
  S   1  1.00
            24.00000000        1.00000000
  D   1  1.00

@@ -2322,10 +2322,16 @@ TEST(GPW_SCF, DISABLED_BeckeXCMatchesUniformXC_NaFSR2)
 //   * SPHERICAL d (5 pure components, no contaminant) is the natural cure but is NOT AVAILABLE on the
 //     GPW path: it throws "the orbital basis is not a molecular Gaussian basis (no Molecule::LatticeSum1E)"
 //     -- the spherical lineage does not implement the lattice-sum face (cf. the parked S3b spherical work).
-//   => NEXT: regenerate a WELL-CONDITIONED Cartesian Mn window (far fewer d shells, s/d exponents kept
-//      well separated -- the SIPP->SIPP_SR "ill-conditioning is a BASIS problem" lesson), re-vet, and only
-//      then re-open the MnO gate.  GPW_MN_SPHERICAL=1 re-runs the (currently throwing) spherical arm.
-TEST(GPW_SCF, DISABLED_MnAtomInBoxDChannelProbe)
+//   => CURED 2026-08-06 (user's insight): keep the d set and drop the s window to TWO functions.  The
+//      contaminants already span the mid/tight s space, so only the DIFFUSE 4s tail (0.10) and one tight
+//      s (24) are needed -- 2s+8d gives lambdaMin 3.0e-03 / cond 2.1e3 (from 1.15e-07 / 8.2e7) at a cost
+//      of just 2 mHa (facade -14.6661 vs the rank-deficient 7s+8d's -14.6681).  Trimming the d count
+//      instead "fixes" conditioning but costs 0.55 Ha (7s+4d -> -14.11): the d set is the physics, the
+//      s window was the redundancy.  NB CP2K solves this same shell list SPHERICALLY (its log: 55
+//      Cartesian vs 47 spherical functions) and never sees the contaminant -- apples-to-oranges when
+//      comparing its oracles.  GPW_MN_SPHERICAL=1 re-runs the (throwing) spherical arm.
+// THIS IS NOW A GATE: the first OCCUPIED-d species validated end to end through the crystal path.
+TEST(GPW_SCF, MnAtomInBoxDChannel)
 {
     Molecule mnmol; mnmol.Insert(new Atom(25, 0.0, {0,0,0}));
     Calculation cRef(mnmol, {.basis="valence_lowq_sr", .multiplicity=6, .pseudopotential=true, .ppValence=7});
@@ -2362,7 +2368,8 @@ TEST(GPW_SCF, DISABLED_MnAtomInBoxDChannelProbe)
     std::cout << "[Mn in-box] GPW="<<R.E.GetTotalEnergy()<<"  facade="<<Eref
               << "  diff="<<(R.E.GetTotalEnergy()-Eref)<<std::endl;
     EXPECT_NEAR(R.charge, 7.0, 1e-6);
-    EXPECT_NEAR(R.E.GetTotalEnergy(), Eref, 5e-2) << "GPW d-channel vs the molecular facade";
+    EXPECT_NEAR(R.E.GetTotalEnergy(), Eref, 2e-2) << "GPW d-channel vs the molecular facade (measured 3.9 mHa)";
+    EXPECT_NEAR(R.E.GetTotalEnergy(), -14.67005, 1e-4);   // did-E-move anchor (2s+8d, the cured basis)
 }
 
 // ============================ MnO rocksalt AFM-II (SymmetryUpgradePlan §7 step 7) ============================
