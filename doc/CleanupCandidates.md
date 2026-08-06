@@ -111,12 +111,18 @@ MnO campaign proceeds undisturbed in qchem6.
   fakeness explicit in the type system and `PP_NonLocal` cross-casts to it for a per-l radial assembly —
   that CONTAINS the trap, it does not remove it.
   *The real fix (user), two steps:* **(1)** consumers stop touching `op(r)` directly — code that only
-  wants an INTEGRAL asks the basis for it (`IBS->Integrate(f, Mesh*)`) instead of pulling raw values and
-  quadraturing them itself, so the basis owns how its own functions are represented (the CLAUDE.md
-  "prefer classes to do/answer high-level operations" bias; kills this whole bug class).  Call sites on
-  the raw-op(r) mesh route today: `PP_Local::CalculateMatrix` (`WeightedOverlap(mesh,*bs,VlocField)`),
-  `PP_NonLocal::CalculateMatrix` explicit-angular branch (`Overlap(mesh,*bs,BetaYlmField)`),
-  `Fit_IBS` (`Overlap(itsMesh,*this,f)`), plus the XC/fitting paths sharing the WeightedOverlap shape.
+  wants an INTEGRAL asks the basis for it, so the basis owns how its own functions are represented (the
+  CLAUDE.md "prefer classes to do/answer high-level operations" bias; kills this whole bug class).
+  NAMING (user, 2026-08-06): NOT a new `Integrate` verb — these are **`MakeOverlap` / `MakeOverlap3C`
+  OVERLOADS**, joining the existing `Integrals_Overlap` family, with the arity following the call site:
+    * \f$\langle\chi_i|f\rangle\f$ → a VECTOR → a `MakeOverlap(f, mesh)` overload
+      (`PP_NonLocal`'s projection vector b_i).
+    * \f$\langle\chi_i|f|\chi_j\rangle\f$ → a MATRIX → a `MakeOverlap3C(f, mesh)` overload
+      (`PP_Local`'s V_loc block — f in the operator/C slot, exactly the existing 3C shape).
+  Call sites on the raw-op(r) mesh route today: `PP_Local::CalculateMatrix`
+  (`WeightedOverlap(mesh,*bs,VlocField)`), `PP_NonLocal::CalculateMatrix` explicit-angular branch
+  (`Overlap(mesh,*bs,BetaYlmField)`), `Fit_IBS` (`Overlap(itsMesh,*this,f)`), plus the XC/fitting paths
+  sharing the WeightedOverlap shape.
   **(2)** then make `op(r)` HONEST (real Y_lm linear combinations), nothing depending on the fake any
   more.  Design question to settle FIRST in that session: an atomic block carries l plus an m-LIST and
   the spherical solver keeps m-degeneracy in the OCCUPATIONS, so decide what `op(r)` returns per (i,m)
