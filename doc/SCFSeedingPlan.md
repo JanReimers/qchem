@@ -383,3 +383,32 @@ Shape (collinear tier) — **UP-MAJORITY STORAGE CONVENTION (user, 2026-08-04)**
 
 Unpolarized runs keep the spin-summed tables — zero cost.  This section is the design pin; the
 implementation rides Phase 3 (IonicSAD) machinery + the Molecular-PPs pseudo-valence solver.
+
+**IMPLEMENTATION RECORD (2026-08-04, increments A c08e81f8 + B 6a694c2a — the collinear tier BUILT):**
+- **Tables (A):** an entry MAY carry `rho_up`/`rho_dn` siblings on the same grid (up = MAJORITY; `rho`
+  stays the spin SUM, so every unpolarized reader is bit-identical) + a `moment` (~2S) validation field.
+  Reader: `GetAtomicSpinPair`/`HasAtomicSpinPair` beside `GetAtomicDensity`.  Generator:
+  `ValenceBasisRecipe.spinResolved` runs the pseudo-atom POLARIZED and samples the `Polarized_CD`
+  channels (`valgen --spin`).  Entries: Mn q7 Nelec=7 + Mn²⁺ Nelec=5 (both moment 5.001), O Nelec=6
+  (triplet, moment 2), O²⁻ Nelec=8 (diffuse ⟨r⟩ 1.79, spin-agnostic), Na Nelec=1 pair
+  HAND-CONSTRUCTED exact (1 e⁻: up=total, dn=0 — the polarized atomic solver dies on an empty
+  minority channel, CleanupCandidates).  EN-ROUTE PHYSICS FIX: `Atom_EC` TM cations now empty the
+  higher-n s (then p) shell BEFORE d/f — Mn²⁺ = 3d⁵ S=5/2 (was 4s²3d³ moment 3!) — with the unpaired
+  count as the per-shell Hund SUM (Mn⁺ 4s¹3d⁵ → 6); main-group ions unchanged, EC-pinned.
+- **Assembly (B):** `Atom::itsSpinFlip` (collinear −m bit; survives every clone;
+  `UnitCell::AddAtom(Z,f,spinFlip)` stamps it) + the `tSpinResolved_CD<T>` capability face (channels
+  are plain `tChargeDensity` — NO fake tDM_CD stubs) + `PolarizedSeedCD` (two channel `SeedCD`s;
+  a channel reads the Hund pair at the ionic target, flip swaps majority/minority, pairless species
+  = ρ/2; the species-keyed `MakeFourierDensity` forces per-FLIP-GROUP sub-cell sweeps — basis
+  interface untouched; the FourierDensity face = the merged ↑+↓ total, so Hartree is unchanged).
+  `MakeSeedDensity(..., polarized)` (the SCFIterator passes `H->IsPolarized()`) upgrades the dcmplx
+  SAD/IonicSAD branches; `XC_GridEngine::RhoPol` gained the `cSpinResolved_CD` branch (channel
+  `EvalBatch`) ahead of the ρ/2 collapse.
+- **Gates:** `PolarizedSeedAFMStaggering` (2-Mn flip cell: staggered m̃(q_AFM) electrons-scale +
+  same-species extinction of the total + global-mirror channel swap + flip-blind total == SeedCD at
+  1e-11), `PolarizedSeedSingletMatchesUnpolarizedSiGamma` (ζ=0 collapse through the two-channel
+  seed, same −7.11506 anchor), Na doublet re-pin (fully-polarized start: same basin −0.141933 to
+  the digit, 21 vs 14 iters — the pin protects BASIN, not speed).  Full suite 665/665.
+- **Open (this campaign's follow-ons):** molecular `PolarizedNumericCD` sibling (the face is already
+  templated); valgen `--spin` empty-minority + unoccupied-l atom-SCF failures (CleanupCandidates);
+  non-collinear SU(2) assembly (§10 shape, in reverse).

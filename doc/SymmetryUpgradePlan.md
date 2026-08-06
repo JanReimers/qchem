@@ -959,6 +959,50 @@ against a special case it will outgrow:
      Couple T3.4b to the AUTO-ARM criterion (the open-shell finding above) — both gate
      turning the fold on by default.
 7. **MnO rocksalt AFM-II** (2 f.u., moments along [111]) — first *real* d-electron magnet:
+   **CAMPAIGN IN PROGRESS (2026-08-04→06).**  Prerequisite DONE: the spin-polarized SAD seed
+   (SCFSeedingPlan §10 increments A c08e81f8 + B 6a694c2a — spin tables incl. the Mn²⁺=3d⁵
+   Atom_EC TM-cation fix, `Atom::itsSpinFlip`, `PolarizedSeedCD` + the `tSpinResolved_CD` face,
+   RhoPol third branch; gates: AFM staggering algebra, ζ=0 collapse, Na re-pin; 665/665).
+   The gate itself (`MnO_AFM2_RhombohedralGamma`: rhombohedral 2-f.u. cell a=8.40, q7/q6
+   valence_lowq_sr Mn/O windows, IonicSAD AFM seed, free run, kT=5e-3) surfaced THREE findings:
+   - **Lattice-sum truncation BUG (fixed en route):** `ForImageOffsets` enumerated to
+     `rr+maxCellEdge`, assuming in-cell |dij| ≤ cell edge — FALSE for oblique cells (here |dij|
+     up to 2.1× the edge): whole image shells silently dropped, Bloch overlap INDEFINITE
+     (λmin −0.205 even with the trusted SIPP_SR Si control).  Fix = the exact triangle bound
+     `rr+|dij|` (+ the GPW image-list sibling); kept sets provably identical where enumeration
+     was already complete; suite 665/665 unmoved.
+   - **Conditioning:** the dense 4-atom oblique cell saturates the s space — vet whack-a-mole
+     at λ~1e-8 until Mn s thinned to 7× 0.10–24 (d 8× 0.18–36 sits at the atom floor).  Even
+     the passing basis has cond(S)~7e8, and plain Cholesky EXPLODES (E~1e9 Ha at iteration 1);
+     `CholeskyPivoted`+`orthoTol=1e-4` (the NaF-class recipe) restores physical energetics
+     (E₁=−454.8 Ha ✓ vs 2Mn(−189.4)+2O(−13.9)+Madelung).
+   - **COST (the fold motivation, measured):** the free-run magnetic cell wants 3.4e9 stream
+     points vs the ~1e9 (8.6 GB) budget → 77% of pair-offset streams dropped → EVERY iteration
+     pays analytic collocate+integrate sweeps: ~1 h/iteration + ~1 h build on a 14 GB box (the
+     unbounded first attempt was killed at 30 h).  A converged free-run gate is compute-infeasible
+     at this basis size — THE concrete motivation for extending the T3 stream fold to
+     Shubnikov-imposed AFM runs (SpinAction::Flip consumption + the magnetic little group +
+     T3.4b), which would make iterations GEMM replays again.  `GPW_MNO_NMAX`/`GPW_MNO_VERBOSE`
+     bound/instrument hand-runs; CP2K oracle deck ready (IntegrationTests/CP2K/mno_afm2_gpw_sr.inp
+     + Mn/O VALENCE-LOWQ-BASIS transcriptions).
+   - **THE BLOCKER (2026-08-06): the OCCUPIED-d nonlocal PP is WRONG (~12.6x ≈ 4π-scale).**
+     MnO is the FIRST system whose d-channel KB projectors are OCCUPIED (CsI's l=2 gate touches
+     only virtuals — an l=2 defect was invisible to every prior anchor).  Evidence: our Mn q7
+     pseudo-ATOM converges to −189.4 Ha vs the CP2K ATOM oracle **−14.243986** (l≤1 control
+     species agree modulo the known atom-convention constant: F q7 ours −20.90 / CP2K −24.05
+     with the CRYSTAL match at 0.19 mHa; O q6 −13.94 / −15.75); the MnO crystal (run 3, pivoted
+     ortho) descends through −456 vs the CP2K crystal oracle **−61.470570** (72 Broyden steps —
+     hard for CP2K too; Mulliken site moments **Mn ±4.654 μB**, O ~0, net charges ±1.69 — the
+     AFM-II target physics).  RULED OUT: the parameter tabulation (byte-identical to CP2K's
+     GTH_POTENTIALS), Qli/ProjR (Bessel-pair verified), LegendreP, RealYlm.  Both independent KB
+     consumers (atomic mesh route + crystal analytic route) err TOGETHER ⇒ the defect sits in the
+     shared `SeparablePotential` model layer; surviving suspects: the √(4π)·β̃ Projector
+     convention on the l=2 path, and the Cartesian-d s-contaminant (x²+y²+z²) leaking into the
+     s-channel projectors.  NEXT SESSION: the minimal oracle-anchored probe — one normalized d
+     Gaussian vs the Mn q7 d channel, matrix element compared against an independent numerical
+     integral — then bisect.  The gate + the Increment A Mn table entries (generated on the broken
+     functional) both refresh after the fix; gate DISABLED_ until then, suite green 665/665.
+     Run logs: doc/logs/mno_afm2_run{1_partial,3_pivoted}.log.
    the first genuine workout of the Shubnikov ops + imposed-subgroup policy + `+U` +
    order-parameter diagnostic together. The direct rehearsal for **LiMn₂O₄** charge/spin
    ordering (the north-star), which follows.  (Tier 4b DONE unblocks the two-channel
