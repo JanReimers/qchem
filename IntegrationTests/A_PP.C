@@ -284,3 +284,28 @@ TEST(A_PP, PerLKleinmanBylanderOracle)
         }
     }
 }
+
+// The MOLECULAR (Cartesian, EXPLICIT-angular) route on an OCCUPIED-d species -- the arm the crystal shares.
+// The 2026-08-06 KB fix corrected the ATOMIC (radial) route only; the molecular/plane-wave bases carry their
+// angular factor explicitly and keep the 3-D mesh assembly, which the atomic oracle cannot test.  Mn q7 is
+// the first occupied-d species available to it, and CP2K's ATOM code gives -14.243986 for this pseudo-atom
+// (deck ~/Code/cp2k-runs/mn_atom_q7.inp) -- the SAME oracle the (now-fixed) atomic route matches to 14 mHa.
+// A large discrepancy here localises the MnO crystal's over-binding to the shared Cartesian KB path.
+TEST(A_PP_Probe, DISABLED_MolecularMnDChannelVsOracle)
+{
+    Molecule mn; mn.Insert(new Atom(25, 0.0, Vector3D<double>(0,0,0)));
+    Calculation c(mn, {.basis="valence_lowq_sr", .multiplicity=6, .pseudopotential=true, .ppValence=7});
+    const double E=c.Energy();
+    const auto   T=c.EnergyTerms();
+    std::cout << "[mol-d] Mn q7 MOLECULAR route E=" << E << "   (CP2K ATOM oracle -14.243986)\n"
+              << "[mol-d]   Ekin=" << T.Kinetic << " Een=" << T.Een << " Eee=" << T.Eee
+              << " Exc=" << T.Exc << std::endl;
+    // The ATOMIC route (fixed) for the same PP/charge state, as the in-process cross-check.
+    AtomCalcOptions o; o.type=AtomType::Gaussian; o.pseudopotential=true; o.valence=7;
+    o.exponentsByL={{0,{0.10,0.249,0.621,1.549,3.862,9.627,24.0}},
+                    {2,{0.18,0.384,0.818,1.744,3.717,7.923,16.888,36.0}}};
+    o.pol=Pol::Polarized;
+    SCFParams p; p.MinVirial=1e30; p.NMaxIter=60;
+    AtomCalculation a(25, 25-7, o, p);
+    std::cout << "[mol-d] Mn q7 ATOMIC route (fixed) E=" << a.Energy() << std::endl;
+}

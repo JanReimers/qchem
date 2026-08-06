@@ -1008,8 +1008,41 @@ against a special case it will outgrow:
      defect in the GPW analytic KB Cartesian expansion — audit `Math.Angular`'s RAW SphericalShell
      coefficients + their unit-self-overlap normalization at the consumer.  Per-l s/p/d/f oracle
      gates (user request) land with the fix.  The gate + the Increment A Mn table entries (generated
-     on the broken atomic route) both refresh after; gate DISABLED_ until then, suite green 665/665.
-     Run logs: doc/logs/mno_afm2_run{1_partial,3_pivoted}.log.
+     on the broken atomic route) both refresh after; gate DISABLED_ until then.
+     Run logs: doc/logs/mno_afm2_run{1_partial,3_pivoted,4_postKBfix}.log.
+   - **THE KB FIX LANDED 2026-08-06 (c2d86ec9) — and it was the ATOMIC route only.**  Root cause
+     (measured by the new per-l oracle): an atomic block stores purely RADIAL χ with the irrep's
+     Y_lm implicit ("fake radial" op(r), user), so `PP_NonLocal`'s 3-D mesh ⟨χ|βY_lm⟩ was
+     meaningless — l=0 leaked into EVERY l block, every l≥1 projector integrated to ~1e-33.  Fix =
+     `BasisSet::ImplicitAngular_IBS` + a per-l radial assembly.  ALL FOUR channels (s,p,d,**f**)
+     now reproduce the analytic reference at 0.999996 with cross-l exactly 0
+     (`A_PP.PerLKleinmanBylanderOracle`), and every atom matches its CP2K ATOM oracle: Mn −14.230
+     (−14.2440), O −15.744 (−15.748), F −24.028 (−24.046), Si −3.7426 (−3.7470); with good bases
+     Si Slater/Medium is 33 μHa and O Slater/High 255 μHa from CP2K, O matching TERM BY TERM.  Two
+     "oracles" quoted in old test comments turned out to be broken-route artifacts; Na q1 (l=0+l=1)
+     was silently wrong too and is now 100 μHa from CP2K.  Suite 666/666.  The removal of the
+     underlying fake op(r) is CleanupCandidates **R1.0** (user direction: consumers move to
+     `MakeOverlap`/`MakeOverlap3C` overloads, then op(r) becomes honest, then this capability retires).
+   - **THE CRYSTAL SIDE IS **NOT** THE SAME BUG (2026-08-06).**  Both real-space routes are now
+     oracle-matched on the very same Mn q7 PP (atomic radial −14.230 unpolarized; molecular
+     Cartesian −14.6681 vs atomic polarized −14.6583 — they agree to 10 mHa, the 0.42 Ha vs CP2K
+     being Hund polarization since the CP2K ATOM deck is restricted).  Two crystal-side findings
+     replace the old "l=2 audit" guess:
+     (a) **Basis conditioning is the leading explanation for MnO's ~356 Ha over-binding.**  CARTESIAN
+     d carries the s contaminant, so the Mn window (7s + 8 d-shells × 6 components = 55 functions)
+     is RANK-DEFICIENT before any physics — λmin 1.15e-07, cond 8.2e7, the GPW vet ABORTS on a
+     single Mn atom in a box; the molecular facade survives only by dropping 5 near-null modes.  A
+     near-null direction the SCF can occupy is textbook variational collapse, and MnO's 154-function
+     cell (cond 7e8) sits in that regime.  SPHERICAL d (no contaminant) is the natural cure but is
+     UNAVAILABLE on the GPW path (throws: no `Molecule::LatticeSum1E` — the parked S3b spherical
+     work).  NEXT: regenerate a well-conditioned Cartesian Mn window (far fewer d shells, s/d
+     exponents well separated — the SIPP→SIPP_SR "ill-conditioning is a BASIS problem" lesson),
+     re-vet, then re-open the gate.  Probe: `GPW_SCF.DISABLED_MnAtomInBoxDChannelProbe`.
+     (b) **A real but unattributed l=2 discrepancy between the two CRYSTAL KB routes**: analytic vs
+     mesh = 3.09e-2 relative on Mn (vs 2.4e-9 for the Si l=0,1 gate) — structural, not a scale factor
+     (max|Va| == max|Vm| exactly).  Could still be the MESH arm being coarse on Mn's compact
+     r_l=0.328 d projector; a densityEcut sweep attributes it.  3% cannot explain 356 Ha, so this is
+     a separate (smaller) issue.  Gate `GPW.DISABLED_AnalyticSeparablePPMatchesMesh_DChannel`.
    the first genuine workout of the Shubnikov ops + imposed-subgroup policy + `+U` +
    order-parameter diagnostic together. The direct rehearsal for **LiMn₂O₄** charge/spin
    ordering (the north-star), which follows.  (Tier 4b DONE unblocks the two-channel

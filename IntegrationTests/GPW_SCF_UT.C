@@ -2304,6 +2304,67 @@ TEST(GPW_SCF, DISABLED_BeckeXCMatchesUniformXC_NaFSR2)
     EXPECT_LT(DiffXC(B40,B80), 2e-3) << "Becke V_xc not internally converged on the sharp-F system";
 }
 
+// Mn PSEUDO-ATOM IN A BOX through the CRYSTAL (GPW) path vs the molecular facade -- the d-channel sibling
+// of SiPseudoAtomInBoxMatchesFinite, and the cheap localiser for MnO's ~356 Ha over-binding.  Both
+// real-space KB routes are now oracle-matched on this very PP (atomic radial -14.230 unpolarised /
+// molecular Cartesian -14.668 polarised, vs CP2K ATOM -14.243986 restricted), so if the GPW path also
+// lands near the facade the crystal KB is exonerated and the MnO defect lives elsewhere (multi-species,
+// O, Ewald/alignment); if it does not, this is the l=2 crystal defect, isolated to ONE atom and one hour
+// instead of the 4-atom magnetic cell.
+// MEASURED 2026-08-06 -- THE ANSWER IS BASIS CONDITIONING, not the KB:
+//   * CARTESIAN d carries the s contaminant (x^2+y^2+z^2), so our Mn window (7 s + 8 d shells x 6
+//     Cartesian components = 55 functions) is RANK-DEFICIENT before any physics: lambdaMin 1.15e-07,
+//     cond 8.2e7, and the GPW vet ABORTS.  The molecular facade only survives it by dropping modes --
+//     its own log says "[ortho] dropped 5 near-null overlap mode(s) of 55".  A near-null direction that
+//     the SCF can occupy is the classic variational-collapse mechanism, and MnO's 4-atom cell (154
+//     functions, cond 7e8) sits in exactly that regime -- which fits -417 Ha vs the -61.47 oracle far
+//     better than the 3e-2 analytic-vs-mesh KB discrepancy does.
+//   * SPHERICAL d (5 pure components, no contaminant) is the natural cure but is NOT AVAILABLE on the
+//     GPW path: it throws "the orbital basis is not a molecular Gaussian basis (no Molecule::LatticeSum1E)"
+//     -- the spherical lineage does not implement the lattice-sum face (cf. the parked S3b spherical work).
+//   => NEXT: regenerate a WELL-CONDITIONED Cartesian Mn window (far fewer d shells, s/d exponents kept
+//      well separated -- the SIPP->SIPP_SR "ill-conditioning is a BASIS problem" lesson), re-vet, and only
+//      then re-open the MnO gate.  GPW_MN_SPHERICAL=1 re-runs the (currently throwing) spherical arm.
+TEST(GPW_SCF, DISABLED_MnAtomInBoxDChannelProbe)
+{
+    Molecule mnmol; mnmol.Insert(new Atom(25, 0.0, {0,0,0}));
+    Calculation cRef(mnmol, {.basis="valence_lowq_sr", .multiplicity=6, .pseudopotential=true, .ppValence=7});
+    const double Eref=cRef.Energy();
+    std::cout << "[Mn finite] valence_lowq_sr LSDA sextet (q7)="<<Eref<<"   (CP2K ATOM restricted -14.243986)"<<std::endl;
+
+    const double a=16.0;
+    UnitCell cell(a);
+    cell.AddAtom(25, {0.5,0.5,0.5});
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+
+    GpwOptions o;
+    o.label="Mn atom-in-box sextet";
+    o.Nelec=7; o.multiplicity=6;                       // S=5/2 Hund: nUp=6, nDown=1
+    o.species={{"Mn",7}};
+    o.images=BasisSet::Lattice_3D::CellImages::HomeCellOnly;
+    o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;
+    o.imposeSymmetry=false;
+    o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
+    o.scf.NMaxIter=40; o.scf.MinΔρ=1e-5; o.scf.MinΔE=1e30;
+    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
+    o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4; o.scf.SmearingkT=5e-3;
+    // CARTESIAN d carries the s CONTAMINANT (x^2+y^2+z^2), so 8 d shells duplicate the 7-function s space
+    // -- measured lambdaMin 1.15e-07 / cond 8.2e7 on this one-atom box, i.e. the basis is rank-deficient
+    // BEFORE any physics runs.  SPHERICAL d (5 pure components) removes the contaminant; GPW_MN_SPHERICAL=1
+    // selects it for the A/B.
+    const bool spherical=(bool)std::getenv("GPW_MN_SPHERICAL");
+    std::shared_ptr<const Real_BS> mnbasis(
+        BasisSet::Molecule::Factory(BasisSetData::VALENCE_LOWQ_SR, &cell, BasisSet::Molecule::Engine::MnD,
+                                    spherical ? BasisSet::Molecule::Angular::Spherical
+                                              : BasisSet::Molecule::Angular::Cartesian));
+    std::cout << "[Mn in-box] angular=" << (spherical?"SPHERICAL":"CARTESIAN") << std::endl;
+    GpwResult R=RunGpw(lat, mnbasis, o, /*verbose*/(bool)std::getenv("GPW_MNO_VERBOSE"));
+    std::cout << "[Mn in-box] GPW="<<R.E.GetTotalEnergy()<<"  facade="<<Eref
+              << "  diff="<<(R.E.GetTotalEnergy()-Eref)<<std::endl;
+    EXPECT_NEAR(R.charge, 7.0, 1e-6);
+    EXPECT_NEAR(R.E.GetTotalEnergy(), Eref, 5e-2) << "GPW d-channel vs the molecular facade";
+}
+
 // ============================ MnO rocksalt AFM-II (SymmetryUpgradePlan §7 step 7) ============================
 // The FIRST magnetic transition-metal material: rocksalt MnO with the type-II AFM ordering (ferromagnetic
 // (111) sheets, alternating along [111]).  The magnetic unit cell is the RHOMBOHEDRAL 2-f.u. cell -- the fcc
