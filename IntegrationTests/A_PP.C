@@ -11,23 +11,39 @@
 #include <cmath>
 #include <vector>
 #include <utility>
+#include <memory>
+#include <iostream>
+#include <nlohmann/json.hpp>
+import qchem.BasisSet.Atom.Factory;            // atomic basis blocks for the per-l oracle
+import qchem.BasisSet;                        // Real_BS
+import qchem.BasisSet.ImplicitAngular_IBS;    // the radial/implicit-Y_lm capability under test
+import qchem.Hamiltonian.Internal.Terms;      // PP_NonLocal (the atomic KB assembly under test)
+import qchem.Blaze;                           // rsmat_t / rvec_t
+import qchem.Pseudopotential.GTH_Potentials;   // HGH_SeparablePotential (the per-l KB oracle)
+import qchem.Mesh.Quadrature;                 // qcMesh::RadialMesh / MakeRadial (the radial reference)
+import qchem.Math;                            // Pi
 import qchem.AtomCalculation;        // AtomCalculation, AtomType, BasisSetAccuracy
 import qchem.Calculation;            // Calculation, CalcOptions (molecular facade)
 import qchem.Structure;              // Molecule, Atom
 import qchem.Types;                  // Vector3D
 import qchem.SCFIterator;            // SCFParams
 using namespace qchem;
+using namespace qchem::Pseudopotential;
 using enum BasisSetAccuracy;
 
 // Silicon, 4 valence electrons (GTH-LDA q4).  The KB nonlocal projectors lift the over-bound local-only s
 // state back toward the all-electron valence; total energy + valence charge pinned (Slater/Medium).
+// NOW ORACLE-MATCHED (2026-08-06, the KB radial-assembly fix): CP2K's numerically-exact ATOM code gives
+// -3.747045 for this pseudo-atom (deck ~/Code/cp2k-runs/si_atom_q4.inp) -- we land 33 uHa away in a
+// Slater/Medium basis.  The OLD pin -3.336910601 was the broken 3-D-mesh KB route (see PerLKleinmanBylanderOracle).
 TEST(Si_PP_U, Medium)
 {
     const int Z=14, val=4;
     AtomCalculation calc(Z, Z-val, {.type = AtomType::Slater, .accuracy = Medium, .pseudopotential = true},
         {.NMaxIter = 120, .MinΔρ = 1e-7, .MinΔFD = 1e-7, .MinVirial = 1e10, .MinFD = 1e-7, .StartingRelaxRo = 0.5, .MergeTol = 1e-7, .Verbose = true});  // virial off (N/A to PP)
 
-    EXPECT_NEAR(calc.Energy(),      -3.336910601, 1e-6);   // pinned regression anchor (Slater/Medium)
+    EXPECT_NEAR(calc.Energy(),      -3.747078054, 1e-6);   // pinned (Slater/Medium); CP2K ATOM -3.747045
+    EXPECT_NEAR(calc.Energy(),      -3.747045,     5e-4);   // ORACLE: CP2K numerically-exact pseudo-atom
     EXPECT_NEAR(calc.TotalCharge(),  4.0,         1e-9);   // valence electron count
 }
 
@@ -92,13 +108,16 @@ TEST(OSi_PP_U, MultiSpeciesRouting)
 // with a hand-converted, near-singular GTH Gaussian basis, whose rank-deficient overlap throws in the Cholesky
 // orthonormalization).  Confirms the O GTH pseudopotential is sound; the molecular-hetero convergence is a
 // separable BASIS-CONDITIONING issue (use a well-conditioned basis -- Slater/High), not a solver bug.
+// NOW ORACLE-MATCHED (2026-08-06, the KB radial-assembly fix): CP2K ATOM gives -15.748119 (deck
+// ~/Code/cp2k-runs/o_atom_q6.inp) -- we land 255 uHa away.  Old pin -13.967 was the broken KB route.
 TEST(O_PP_U, SlaterHigh)
 {
     AtomCalculation calc(8, 8-6, {.type = AtomType::Slater, .accuracy = High, .pseudopotential = true},
         {.NMaxIter = 150, .MinΔρ = 1e-7, .MinΔFD = 1e-7, .MinVirial = 1e10, .MinFD = 1e-7,
          .StartingRelaxRo = 0.5, .MergeTol = 1e-7});
 
-    EXPECT_NEAR(calc.Energy(),      -13.967058370, 1e-6);   // pinned regression anchor (Slater/High)
+    EXPECT_NEAR(calc.Energy(),      -15.747863986, 1e-6);   // pinned (Slater/High); CP2K ATOM -15.748119
+    EXPECT_NEAR(calc.Energy(),      -15.748119,    1e-3);   // ORACLE: CP2K numerically-exact pseudo-atom
     EXPECT_NEAR(calc.TotalCharge(),   6.0,         1e-9);   // valence electron count
     EXPECT_TRUE(calc.IsConverged());                        // the atom path converges cleanly
 }
@@ -121,32 +140,29 @@ TEST(Si_PP_U, Polarized)
 
     EXPECT_TRUE(cPol.IsConverged());                        // polarized PP SCF converges
     EXPECT_NEAR(cPol.TotalCharge(), 4.0, 1e-9);             // valence electron count
-    EXPECT_NEAR(cPol.Energy(), -3.359597907, 1e-6);        // pinned regression anchor (Slater/High, polarized)
+    EXPECT_NEAR(cPol.Energy(), -3.773303226, 1e-6);        // pinned (Slater/High, polarized; re-pinned by the 2026-08-06 KB fix)
     EXPECT_LE (cPol.Energy(), cUnpol.Energy() + 1e-9);     // spin polarization lowers (or ties) the open-shell E
 }
 
-// ============================ THE OCCUPIED-d NONLOCAL PROBE (2026-08-06) ============================
-// MnO exposed the occupied d-channel KB as broken.  This probe DELIVERED THE ATOMIC-ROUTE DIAGNOSIS
-// (all CP2K ATOM oracle decks in ~/Code/cp2k-runs/):
-//   MEASURED   Mn q7: nAng=1 -189.07, Leb-50 -8.72   (oracle -14.243986)
-//              O  q6: -13.9445 at ANY mesh           (oracle -15.748119; nR-independent too)
-//              Si q4: nAng=1 -3.329,  Leb-50 -3.714  (oracle -3.747045, E_NL +0.8247)
-//              F  q7: -20.8967 at ANY mesh           (oracle -24.046478; s-only projectors, like O)
-// ROOT CAUSE (atomic route): the atomic radial basis's 3-D face is PURELY RADIAL -- Gaussian::Radial::
-// operator()(rvec3_t) = gaussian(|r|,l,...) with NO angular factor -- so PP_NonLocal's mesh overlap
-// <chi|beta Y_lm> is structurally wrong against it: at the AtomCalcOptions DEFAULT nAngular=1 the
-// single-direction rule manufactures huge spurious couplings (the -189 catastrophe: attractive d h
-// amplified, self-consistently piled into); at EXACT angular resolution (Leb-50) every l>=1 projector
-// integrates to ZERO against a radial-only chi (Mn loses its ~-15 Ha d nonlocal entirely -> -8.72);
-// and the surviving l=0 projectors carry a 4pi-class angular-weight overcount (F/O: repulsive s
-// projectors overcounted -> the +3.15/+1.8 shallow totals; the SCF partially evacuates the projector
-// region).  The model layer (Qli/ProjR/ProjG Bessel-pair, LegendreP, RealYlm, GTH tabulation vs CP2K
-// byte-identical, real<->G V_loc forms) all verify -- consumer-side only.  NOTE Si's pinned atomic
-// anchors (Si_PP_U etc.) sit on the broken route.  FIX DIRECTION: the atomic path needs a per-l RADIAL
-// KB assembly (b_p,i = int R_i beta_p r^2 dr on l-matching irreps; analytic via BetaGaussian) instead
-// of the 3-D mesh route -- and the CRYSTAL (-456 vs oracle -61.4706) needs its own l=2 audit of the
-// GPW analytic KB Cartesian expansion (a SEPARATE defect: the crystal never touches this atomic basis).
-// The per-l s/p/d/f oracle gates land with the fix.
+// ==================== THE OCCUPIED-d NONLOCAL DEFECT: diagnosis + FIX record (2026-08-06) ============
+// MnO exposed the ATOMIC route's Kleinman-Bylander assembly as broken.  ROOT CAUSE: an atomic block stores
+// PURELY RADIAL chi_i(r) with the irrep's Y_lm implicit (its 3-D face is "fake radial" -- user's term), so
+// PP_NonLocal's 3-D mesh overlap <chi|beta Y_lm> was structurally meaningless: with no angular structure to
+// integrate against, an l=0 projector leaked into blocks of EVERY l while every l>=1 projector integrated
+// to ~1e-33 (silently deleted).  FIXED by the BasisSet::ImplicitAngular_IBS capability + PP_NonLocal's
+// per-l RADIAL assembly (V = 4pi D b_i b_j on the l-matching block, exactly zero elsewhere).
+// Gate: A_PP.PerLKleinmanBylanderOracle (s,p,d,f vs the analytic reference + cross-l zeros).
+//
+// MEASURED, before -> after, against CP2K's numerically-exact ATOM code (decks in ~/Code/cp2k-runs/):
+//   Mn q7 (s+d):  -189.07 / -8.72 (mesh-dependent!)  ->  -14.230     oracle -14.243986
+//   O  q6 (s):    -13.9445                           ->  -15.744     oracle -15.748119
+//   F  q7 (s):    -20.8967                           ->  -24.028     oracle -24.046478
+//   Si q4 (s+p):  -3.329 / -3.714                    ->  -3.7426     oracle -3.747045
+//   (residuals are basis incompleteness; with GOOD bases the pinned anchors above now match the oracles to
+//    33 uHa (Si Slater/Medium) and 255 uHa (O Slater/High), and O agrees TERM BY TERM.)
+// The MOLECULAR/plane-wave path was never affected (those bases carry their angular factor explicitly) --
+// Si2_PP_U / OSi_PP_U / L_PP / GPW.AnalyticSeparablePPMatchesMesh all passed unchanged through the fix.
+// This probe stays as the mesh/radial-resolution bisector for future PP work.
 TEST(A_PP_Probe, DISABLED_MnOxygenAngularMeshBisect)
 {
     auto run=[](int Z, int val, std::vector<std::pair<int,std::vector<double>>> shells, int nAng, int nR=50)
@@ -189,5 +205,82 @@ TEST(A_PP_Probe, DISABLED_MnOxygenAngularMeshBisect)
         auto E=atom.EnergyTerms();
         std::cout << "[d-probe] O terms: Ekin="<<E.Kinetic<<" Een="<<E.Een<<" Eee="<<E.Eee<<" Exc="<<E.Exc
                   << "  (CP2K: Ekin 11.852 Eloc -39.381 Enl +1.306 EH 13.631 Exc -3.156 => Etot -15.748)" << std::endl;
+    }
+}
+
+// ---- THE PER-l KB ORACLE (the decisive unit-level measurement; s/p/d/f) ----
+// Compares the ATOMIC route's KB matrix (PP_NonLocal, mesh quadrature) against the analytic radial
+// reference, per angular channel, with NO SCF and NO basis-completeness confound.
+//
+// REFERENCE (derived): the physical KB operator is V_NL = Sum_m D |beta Y_lm><beta Y_lm|.  An atomic
+// orbital in irrep (l,m) is phi_i = f_i(r) Y_lm with int f_i f_j r^2 dr = delta_ij, so
+//     <phi_i|V_NL|phi_j> = D (int f_i beta r^2 dr)(int f_j beta r^2 dr)     [ONE m: the atomic block is
+// per-l with the m-degeneracy carried by the OCCUPATION, so there is no (2l+1) sum], and ZERO when the
+// block's l differs from the projector's l.  Our atomic radial functions are stored with the 3-D
+// normalisation int |chi|^2 d3r = 1 (Gaussian::Integral carries the 4pi; the mesh reproduces the analytic
+// overlap to 1e-15 -- BasisSet_Atom TestOverlap), i.e. f_i = sqrt(4pi) chi_i.  Hence
+//     V_ij = 4pi D (int chi_i beta r^2 dr)(int chi_j beta r^2 dr)   on the l-matching block, else 0.
+TEST(A_PP, PerLKleinmanBylanderOracle)
+{
+    // A single-channel HGH potential at momentum l with one projector (h = 1x1), so D and beta are known.
+    const double rl=0.45, hval=1.7;
+    const int Z=1;
+    auto onechannel=[&](int l){ HGH_SeparablePotential sep; sep.AddChannel(l, rl, {{hval}}); return sep; };
+
+    // Radial reference integral int chi_i beta r^2 dr on a fine log mesh.
+    qcMesh::RadialMesh rad = qcMesh::MakeRadial({.radial=qcMesh::RadialKind::Log, .nRadial=6000,
+                                                 .logStart=1e-5, .logStop=15.0});
+    // A hydrogen-centred atomic Gaussian basis spanning s..f (one even-tempered window per l).
+    nlohmann::json shells=nlohmann::json::array();
+    const std::vector<double> es{0.25, 0.8, 2.5};
+    for (int l=0;l<=3;l++) shells.push_back({{"l",l},{"exponents",es}});
+    ElectronConfiguration::syms_t dummy;
+    std::unique_ptr<BasisSet::Real_BS> bs(
+        BasisSet::Atom::Factory(nlohmann::json{{"type", AtomType::Gaussian}, {"shells", shells}}, size_t(58)));
+    //          ^ Ce: the EC occupies s,p,d AND f, so the factory emits all four angular blocks
+
+    auto st=std::make_shared<Atom>(Z, 0.0, rvec3_t(0,0,0));
+    const qcMesh::MeshParams mp{.radial=qcMesh::RadialKind::MHL, .nRadial=400, .mhl_m=3, .mhl_alpha=2.0,
+                                .angular=qcMesh::AngularKind::Lebedev, .nAngular=50};
+
+    for (int lProj : {0,1,2,3})
+    {
+        auto sep=std::make_shared<const HGH_SeparablePotential>(onechannel(lProj));
+        const double D=sep->Coefficient(Z,0);
+        Hamiltonian::PP_NonLocal term(st, sep, mp);
+
+        for (auto* blk : const_cast<BasisSet::Real_BS&>(*bs).Iterate<BasisSet::Real_OIBS>())
+        {
+            // ASK the block for its momentum -- do NOT assume iteration order == l (it is not).
+            const int lBlk=dynamic_cast<const BasisSet::ImplicitAngular_IBS&>(*blk).ImplicitL();
+            const rsmat_t& V=static_cast<const Hamiltonian::rStatic_HT&>(term).GetMatrix(blk, Spin::None);
+            // reference: 4pi D (int chi_i beta r^2)(int chi_j beta r^2) on the l-matching block, else 0
+            const size_t n=blk->GetNumFunctions();
+            rvec_t bref(n, 0.0);
+            for (size_t i=0;i<rad.R().size();i++)
+            {
+                rvec_t chi=(*blk)(rvec3_t(rad.R()[i],0,0));    // radial-only face: chi(r xhat) = R(r)
+                const double w=rad.W()[i]*sep->BetaR(Z,0,rad.R()[i]);
+                for (size_t k=0;k<n;k++) bref[k]+=w*chi[k];
+            }
+            double maxV=0, maxRef=0, maxDiff=0;
+            for (size_t i=0;i<n;i++) for (size_t j=0;j<n;j++)
+            {
+                const double ref = (lBlk==lProj) ? 4.0*Pi*D*bref[i]*bref[j] : 0.0;
+                maxV=std::max(maxV,std::fabs(V(i,j))); maxRef=std::max(maxRef,std::fabs(ref));
+                maxDiff=std::max(maxDiff,std::fabs(V(i,j)-ref));
+            }
+            std::cout << "[kb-oracle] proj l=" << lProj << " block l=" << lBlk
+                      << "  max|V_code|=" << maxV << "  max|V_ref|=" << maxRef
+                      << "  max|diff|=" << maxDiff
+                      << (maxRef>1e-12 ? "  ratio=" + std::to_string(maxV/maxRef) : std::string())
+                      << std::endl;
+            // THE GATE: the l-matching block reproduces the analytic radial KB reference; every other
+            // block is EXACTLY zero (orthogonal angular channels -- no leakage, no silent deletion).
+            if (lBlk==lProj) EXPECT_NEAR(maxDiff, 0.0, 1e-4*maxRef)
+                << "KB radial assembly wrong for l=" << lProj;
+            else             EXPECT_EQ(maxV, 0.0)
+                << "projector l=" << lProj << " leaked into block l=" << lBlk;
+        }
     }
 }

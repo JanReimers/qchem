@@ -35,8 +35,12 @@ TEST(ValenceBasisGen, Fluorine_q7)
                          {1, EvenTemperedWindow(6, 0.14, 12.0)} };
     GeneratedBasis g = GenerateValenceBasis(r);
     std::cout << "[gen F] E=" << g.energy << " conv=" << g.converged << "\n" << g.block << std::endl;
-    EXPECT_LT(g.energy, -19.0);       // bound F- valence (oracle ~ -20.93); a sane, converged-enough basis
-    EXPECT_GT(g.energy, -22.0);       // not a variational collapse
+    // ORACLE-PINNED (2026-08-06, after the KB radial-assembly fix): CP2K's numerically-exact ATOM code
+    // gives -24.213540 for this F- pseudo-ion (deck ~/Code/cp2k-runs/fminus_q7.inp); we land 29 mHa above
+    // it in this 8s+6p window (basis incompleteness).  The OLD bounds (-19 .. -22, "oracle ~ -20.93") were
+    // set against the BROKEN 3-D-mesh KB route -- see A_PP.PerLKleinmanBylanderOracle.
+    EXPECT_NEAR(g.energy, -24.2135, 0.10);   // vs the CP2K pseudo-ion oracle (window incompleteness)
+    EXPECT_GT (g.energy, -24.3);             // not a variational collapse (below the complete-basis oracle)
 }
 
 TEST(ValenceBasisGen, Sodium_q1)
@@ -50,8 +54,11 @@ TEST(ValenceBasisGen, Sodium_q1)
                          {1, EvenTemperedWindow(2, 0.05, 0.3)} };   // p polarization
     GeneratedBasis g = GenerateValenceBasis(r);
     std::cout << "[gen Na] E=" << g.energy << " conv=" << g.converged << "\n" << g.block << std::endl;
-    EXPECT_LT(g.energy, -0.13);       // bound Na 3s^1 (oracle ~ -0.1446)
-    EXPECT_GT(g.energy, -0.16);
+    // ORACLE-PINNED (2026-08-06, after the KB radial-assembly fix): CP2K ATOM gives -0.184065 (deck
+    // ~/Code/cp2k-runs/na_atom_q1.inp) and we land 100 uHa away -- Na q1 carries BOTH an l=0 and an l=1
+    // projector, so it was doubly wrong before (l=1 deleted, l=0 leaking).  Old bounds assumed -0.1446.
+    EXPECT_NEAR(g.energy, -0.184065, 5e-3);  // vs the CP2K pseudo-atom oracle
+    EXPECT_GT (g.energy, -0.20);             // not a variational collapse
 }
 
 // SEED DENSITY generation (the offline library for IonicSAD): the SAME pseudo-atom SCF that makes the basis

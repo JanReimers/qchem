@@ -18,6 +18,7 @@ import qchem.Hamiltonian.Types;
 import qchem.Pseudopotential.LocalPotential;   // LocalPotential_R (the real-space PP local view)
 import qchem.Pseudopotential.SeparablePotential; // SeparablePotential_R (the real-space KB projector view)
 import qchem.Mesh;                             // qcMesh::MeshParams (the quadrature mesh spec)
+import qchem.BasisSet.ImplicitAngular_IBS;      // the radial/implicit-Y_lm capability (atomic KB route)
 
 
 export namespace qchem::Hamiltonian
@@ -101,12 +102,18 @@ private:
 
 //###############################################################################
 //
-//  Separable (Kleinman-Bylander) NON-LOCAL pseudopotential term.  Per atom, per projector p (angular
-//  momentum l, strength D = Coefficient), per m=-l..l it is the rank-1 outer product D|b><b| with the
-//  projection vector  b_i = <chi_i | beta_p(|r-R|) Y_lm(rhat)>  (mesh quadrature; beta_p = BetaR, Y_lm
-//  unit-normalised on the sphere).  V_NL = Sum_{a,p,m} D |b><b| -- real symmetric, STATIC.  This is the
-//  repulsive (for the occupied valence l-channels) piece that lifts the over-bound local-only spectrum
-//  back to the all-electron valence eigenvalues.  Verified against the reciprocal (2l+1)P_l form.
+//  Separable (Kleinman-Bylander) NON-LOCAL pseudopotential term.  V_NL = Sum_{a,p} D_p Sum_m |beta_p Y_lm>
+//  <beta_p Y_lm| -- real symmetric, STATIC.  This is the repulsive (for the occupied valence l-channels)
+//  piece that lifts the over-bound local-only spectrum back to the all-electron valence eigenvalues.
+//
+//  TWO assemblies, chosen by a capability cross-cast on the block (the angular factor decides):
+//   * EXPLICIT-angular (molecular/Cartesian) -- the 3-D mesh route: per atom, per projector, per m=-l..l a
+//     rank-1 D|b><b| with b_i = <chi_i|beta_p(|r-R|) Y_lm(rhat)> (mesh quadrature).
+//   * IMPLICIT-angular (ATOMIC, radial: BasisSet::ImplicitAngular_IBS) -- the per-l RADIAL route, because a
+//     radial block's stored chi_i OMIT the irrep's Y_lm and the 3-D route would silently give nonsense
+//     (an l=0 projector leaking into every l block; every l>=1 projector integrating to zero -- the
+//     occupied-d defect found via MnO, doc/SymmetryUpgradePlan.md sec 7 step 7).  See CalculateMatrixRadial.
+//  Verified against the reciprocal (2l+1)P_l form; per-l gate A_PP.PerLKleinmanBylanderOracle (s,p,d,f).
 //
 class PP_NonLocal : public virtual rStatic_HT, private rStatic_HT_Imp
 {
@@ -118,6 +125,9 @@ public:
     virtual std::ostream& Write    (std::ostream&) const;
 private:
     virtual rsmat_t CalculateMatrix(const robs_t*,const Spin&) const;
+    //! The ATOMIC (implicit-angular / radial) assembly -- see the body: a radial block's stored functions
+    //! omit the irrep's Y_lm, so the 3-D mesh route cannot form <chi|beta Y_lm> and must not be used.
+    rsmat_t CalculateMatrixRadial(const BasisSet::ImplicitAngular_IBS&, size_t n) const;
     st_t             theStructure;
     sep_t            itsSep;
     qcMesh::MeshParams itsMeshParams;
