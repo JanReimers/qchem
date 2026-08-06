@@ -28,7 +28,7 @@ import qchem.Energy;
 import qchem.ChargeDensity;
 import qchem.ChargeDensity.Seed;   // SeedStrategy / MakeSeedDensity
 // The Kerker/Pulay G-space machinery (FourierDensity, FourierMixCD, Band_FT_IBS, ReciprocalLattice)
-// is entirely MakeDensityMixer's business -- the iterator only holds the resulting tDensityMixer, so
+// is entirely the periodic mixer factory's business -- the iterator only holds a tDensityMixer, so
 // those imports are gone.  What survives is one periodicity QUESTION for the cell snapshot handed to
 // that factory (CleanupCandidates V1.10b retires even that, by building the mixer above the iterator).
 import qchem.ReciprocalLattice;              // isPeriodicCell (the structure-neutral periodicity probe)
@@ -160,7 +160,14 @@ template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const Elect
     // Deep-copy the periodic cell NOW (st is valid here but comes from a temporary Lattice_3D::GetStructure,
     // so it dangles by Iterate time) -- only for the dcmplx periodic path, so molecular runs pay nothing.
     if constexpr (std::is_same_v<T,dcmplx>)
-        if (isPeriodicCell(st)) itsKerkerCell = st->Clone();   // polymorphic: no slice of a derived cell
+    {
+        // The dcmplx SCF lineage IS the periodic one (there is no complex molecular path), so periodicity
+        // is an INVARIANT to assert here -- not a condition to branch on.  Branching on it was the
+        // periodic-vs-molecular smell: the `if constexpr` above already answers that question at compile
+        // time.  Clone() is polymorphic, so a derived cell (e.g. FCC) is not sliced.
+        assert((!st || isPeriodicCell(st)) && "the dcmplx SCF lineage is periodic: Structure must be a UnitCell");
+        if (st) itsKerkerCell = st->Clone();
+    }
     Initialize(seedDensity, bs, st);   // Init owns the seed transiently (see Initialize)
 }
 
@@ -240,8 +247,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
     // Density-face mixer for this run (the density-mixing policy + state; doc/SCFStrategyPlan.md):
     // Kerker ρ̃-mixing when KerkerG0>0 AND the basis/cell/seed are periodic, else linear D-mixing.
     // α=StartingRelaxRo (1.0 default = passthrough -- there is no NullMixer).
-    itsMixer = qchem::ChargeDensity::MakeDensityMixer<T>(ipar.StartingRelaxRo, ipar.KerkerG0, ipar.PulayDepth,
-                                                         ipar.PulayStart, itsBS, itsKerkerCell.get(), itsCD.get());
+    itsMixer = CreateMixer(ipar, itsBS, itsKerkerCell.get(), itsCD.get());
 
     int holeRun=0, momReleases=0;   // 0h MOM-guard state (per run): consecutive hole iterations + releases
     std::string prevConfig;         // previous occupied configuration (the cfg '*' change flag; item 2)
@@ -550,6 +556,15 @@ template <class T> void tSCFIterator<T>::DisplayColumns(std::ostream& os, const 
 
 //-------------------------------------------------------------------------------------------------------------------------
 
+// --- Density mixing, per system type (doc/CleanupCandidates.md V1.10b) ---
+// The base answer is the structure-neutral LINEAR D-mixer.  It ignores the basis/cell/seed: a molecular
+// run has no G-space rho to mix.  SolidSCFIterator overrides this with the periodic mixer.
+template <class T> std::unique_ptr<qchem::ChargeDensity::tDensityMixer<T>>
+tSCFIterator<T>::CreateMixer(const SCFParams& ipar, const tbs_t<T>*, const Structure*, const tDM_CD<T>*) const
+{
+    return qchem::ChargeDensity::MakeLinearMixer<T>(ipar.StartingRelaxRo);
+}
+
 template class tSCFIterator<double>;
 template class tSCFIterator<dcmplx>;
 
@@ -577,6 +592,19 @@ void SolidSCFIterator::DisplayColumns(std::ostream& os, const IterationTrace& tr
     WriteMixAccelCfg(os, tr);
     WriteGapColumn(os, tr);   // solids always show the gap (folds the former ReportBandGap() instrument)
     os << endl;
+}
+
+// The solid mixer.  The branch here is on the KNOB -- did the caller ASK for G-space mixing? -- not on the
+// geometry: being periodic is what this class IS, so MakePeriodicMixer takes the Band_FT_IBS basis, the
+// UnitCell and the FourierDensity seed as preconditions rather than probing for them.
+std::unique_ptr<qchem::ChargeDensity::tDensityMixer<dcmplx>>
+SolidSCFIterator::CreateMixer(const SCFParams& ipar, const tbs_t<dcmplx>* bs, const Structure* cell,
+                              const tDM_CD<dcmplx>* seed) const
+{
+    if (ipar.KerkerG0>0.0 || ipar.PulayDepth>0)
+        return qchem::ChargeDensity::MakePeriodicMixer(ipar.StartingRelaxRo, ipar.KerkerG0, ipar.PulayDepth,
+                                                       ipar.PulayStart, bs, cell, seed);
+    return qchem::ChargeDensity::MakeLinearMixer<dcmplx>(ipar.StartingRelaxRo);
 }
 
 } //namespace

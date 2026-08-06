@@ -139,6 +139,19 @@ protected:
     void WriteMixAccelCfg (std::ostream&, const IterationTrace&) const; //!< row:    ρ_mix, accel, cfg
     void WriteGapColumn   (std::ostream&, const IterationTrace&) const; //!< row:    the frontier gap (+flags)
 
+    // --- PER-SYSTEM density mixing (doc/CleanupCandidates.md V1.10b) ------------------------------------
+    //! \brief Build this run's density mixer.  Called once at the top of \c Iterate, after the seed density
+    //! exists.  The base answer is the structure-neutral LINEAR D-mixer; \c SolidSCFIterator overrides with
+    //! the periodic Kerker/Pulay G-space mixer when \c SCFParams asks for it.
+    //!
+    //! This is a virtual rather than a runtime probe on the geometry: "periodic or molecular?" is known by
+    //! the class, so asking it again at run time (the old \c MakeDensityMixer capability probe, which fell
+    //! back to linear mixing with a warning) put the decision one layer too low.  Everything the override
+    //! needs is passed in, so iterator state stays private.
+    virtual std::unique_ptr<qchem::ChargeDensity::tDensityMixer<T>>
+        CreateMixer(const SCFParams& ipar, const tbs_t<T>* bs, const Structure* cell,
+                    const tDM_CD<T>* seed) const;
+
 private:
     typedef std::shared_ptr<tDM_CD<T>> cd_t;   //!< std-managed WORKING density (matrix-backed); no manual delete
     //! Seed the SCF: build the iteration-0 Fock from \a seed (a DFT-face tChargeDensity -- may be a fit, e.g.
@@ -213,6 +226,12 @@ public:
 protected:
     void DisplayColumnHeaders(std::ostream&, const SCFParams&, size_t idealVirial) const override;
     void DisplayColumns      (std::ostream&, const IterationTrace&) const override;
+    //! The periodic Kerker/Pulay G-space mixer when SCFParams asks for it (KerkerG0>0 or PulayDepth>0),
+    //! else the base linear D-mixer.  A solid run HAS the periodic basis/cell/density by construction, so
+    //! MakePeriodicMixer treats them as preconditions -- no capability probe, no silent fallback.
+    std::unique_ptr<qchem::ChargeDensity::tDensityMixer<dcmplx>>
+        CreateMixer(const SCFParams&, const tbs_t<dcmplx>*, const Structure*,
+                    const tDM_CD<dcmplx>*) const override;
 };
 
 } //namespace

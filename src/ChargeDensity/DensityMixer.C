@@ -129,7 +129,7 @@ inline rvec_t RasterKerker(const BasisSet::G_FieldEvaluator& ge, const rvec_t& i
 
 //! Kerker-preconditioned ρ̃(G)-mixing (periodic / dcmplx).  ρ_mix = ρ_in + α·G²/(G²+G0²)·(ρ_out−ρ_in);
 //! G=0 is never mixed (charge-conserving).  Holds the running mixed ρ̃ as a FourierMixCD; the next Fock is
-//! driven from it.  Built by MakeDensityMixer (which validates the periodic pieces).
+//! driven from it.  Built by MakePeriodicMixer (which asserts the periodic pieces as preconditions).
 class KerkerMixer : public tDensityMixer<dcmplx>
 {
 public:
@@ -304,43 +304,45 @@ private:
     std::deque<rvec_t> itsRawIns, itsRawOuts;              //!< its history (aligned with itsIns while active)
 };
 
-//! Build the density mixer for a run: Kerker when \a kerkerG0>0 AND the basis/cell/seed are periodic
-//! (Band_FT_IBS + UnitCell + FourierDensity), else linear D-mixing.  Mirrors the old KerkerSetup, incl. the
-//! LOUD fall-back (Release has no asserts).  \a relax0 = StartingRelaxRo (α=1 => passthrough).
-template <class T> std::unique_ptr<tDensityMixer<T>> MakeDensityMixer(
-    double relax0, double kerkerG0, int pulayDepth, int pulayStart, const BasisSet::tBasisSet<T>* basis,
-    const Structure* structure, const tDM_CD<T>* seed)
+//! The structure-neutral density mixer: plain linear D-mixing.  \a relax0 = StartingRelaxRo
+//! (α=1 => passthrough).  Any run can use this one -- it asks nothing of the geometry.
+template <class T> std::unique_ptr<tDensityMixer<T>> MakeLinearMixer(double relax0)
 {
-    if constexpr (std::is_same_v<T,dcmplx>)
-    {
-        if (kerkerG0>0.0 || pulayDepth>0)   // both need the periodic ρ̃ machinery
-        {
-            auto* ftb  = basis ? dynamic_cast<const BasisSet::Band_FT_IBS*>((*basis)[0]) : nullptr;
-            auto* fd   = dynamic_cast<const FourierDensity*>(seed);
-            if (!ftb || !isPeriodicCell(structure) || !fd)
-            {
-                std::cerr << "[Mixer] DISABLED: Kerker/Pulay need a periodic Band_FT_IBS basis + UnitCell + "
-                          << "FourierDensity -- falling back to linear D-mixing." << std::endl;
-                return std::make_unique<LinearMixer<T>>(relax0);
-            }
-            auto fit = std::shared_ptr<const BasisSet::cFIT_SF_ABS>(ftb->CreateVxcFitBasisSet(structure, qcMesh::MeshParams{}));
-            ReciprocalLattice recip=GetReciprocalLattice(structure);
-            auto rho0  = fd->GetFourierDensity(*fit);
-            rvec_t raw0= fd->GetRhoOnGrid(*fit);   // raw-raster shadow seed (0.5(f2)); empty = late-activate
-            const double charge = seed->GetTotalCharge();
-            if (pulayDepth>0)
-                // (The former "[Pulay] ENABLED: depth=.." banner is retired: the per-iteration ρ_mix column
-                //  now shows "Pul" every step -- doc/GPWPlan1.md item 2 -- so the one-time banner is redundant.)
-                return std::make_unique<PulayMixer>(relax0, kerkerG0, pulayDepth, pulayStart, fit, recip, rho0,
-                                                    charge, std::move(raw0));
-            auto mixed = std::make_shared<FourierMixCD>(rho0, recip, charge);
-            std::cerr << "[Kerker] ENABLED: G0=" << kerkerG0 << ", rho-mixing on " << charge
-                      << " electrons (" << rho0.size() << " G-vectors"
-                      << (raw0.size() ? ", raw-XC shadow ON" : "") << ")." << std::endl;
-            return std::make_unique<KerkerMixer>(relax0, kerkerG0, fit, mixed, std::move(raw0));
-        }
-    }
     return std::make_unique<LinearMixer<T>>(relax0);
+}
+
+//! \brief The PERIODIC G-space mixer: Pulay when \a pulayDepth>0, else Kerker.
+//!
+//! Only a solid run asks for this, and a solid run HAS the periodic pieces by construction -- so the
+//! Band_FT_IBS basis / UnitCell / FourierDensity faces are PRECONDITIONS here, not things to probe for.
+//! This used to be one \c MakeDensityMixer that ran a three-way capability probe and fell back to linear
+//! D-mixing with a warning: a periodic-vs-molecular decision sitting one layer too low.  The caller that
+//! KNOWS (\c SolidSCFIterator::CreateMixer) now makes it, and a violated precondition THROWS rather than
+//! silently mixing the wrong way for a whole run.  See doc/CleanupCandidates.md V1.10b.
+inline std::unique_ptr<tDensityMixer<dcmplx>> MakePeriodicMixer(
+    double relax0, double kerkerG0, int pulayDepth, int pulayStart,
+    const BasisSet::tBasisSet<dcmplx>* basis, const Structure* structure, const tDM_CD<dcmplx>* seed)
+{
+    auto* ftb = basis ? dynamic_cast<const BasisSet::Band_FT_IBS*>((*basis)[0]) : nullptr;
+    auto* fd  = dynamic_cast<const FourierDensity*>(seed);
+    if (!ftb || !isPeriodicCell(structure) || !fd)
+        throw std::runtime_error("MakePeriodicMixer: Kerker/Pulay need a periodic Band_FT_IBS basis, a "
+                                 "UnitCell structure and a FourierDensity seed.");
+    auto fit = std::shared_ptr<const BasisSet::cFIT_SF_ABS>(ftb->CreateVxcFitBasisSet(structure, qcMesh::MeshParams{}));
+    ReciprocalLattice recip=GetReciprocalLattice(structure);
+    auto rho0  = fd->GetFourierDensity(*fit);
+    rvec_t raw0= fd->GetRhoOnGrid(*fit);   // raw-raster shadow seed (0.5(f2)); empty = late-activate
+    const double charge = seed->GetTotalCharge();
+    if (pulayDepth>0)
+        // (The former "[Pulay] ENABLED: depth=.." banner is retired: the per-iteration ρ_mix column
+        //  now shows "Pul" every step -- doc/GPWPlan1.md item 2 -- so the one-time banner is redundant.)
+        return std::make_unique<PulayMixer>(relax0, kerkerG0, pulayDepth, pulayStart, fit, recip, rho0,
+                                            charge, std::move(raw0));
+    auto mixed = std::make_shared<FourierMixCD>(rho0, recip, charge);
+    std::cerr << "[Kerker] ENABLED: G0=" << kerkerG0 << ", rho-mixing on " << charge
+              << " electrons (" << rho0.size() << " G-vectors"
+              << (raw0.size() ? ", raw-XC shadow ON" : "") << ")." << std::endl;
+    return std::make_unique<KerkerMixer>(relax0, kerkerG0, fit, mixed, std::move(raw0));
 }
 
 } //namespace

@@ -93,6 +93,13 @@ Legend:
   there rather than relitigating here.
 - **DONE** — kept for the record.
 
+Per-item status markers (added 2026-08-06), so status is visible where you READ the item rather than
+only in the LANDED section below:
+- **✅ DONE `<sha>`** — landed and green on branch `solid-cleanup`.
+- **⏳** — written and building, but not yet fully verified.
+- **🔶** — the DESIGN is settled (usually by a user ruling) but no code has been written yet.
+- unmarked — untouched.
+
 Execution venue (user, 2026-08-05): a branch in the second working tree **~/Code/qchem1**, so the
 MnO campaign proceeds undisturbed in qchem6.
 
@@ -152,6 +159,28 @@ MnO campaign proceeds undisturbed in qchem6.
     FourierMixCD, Band_FT_IBS, ReciprocalLattice — each had exactly one occurrence in the file:
     its own import line).
 
+- **V1.10b** — mixer creation moved OFF the structure-neutral iterator.  `MakeDensityMixer` (one factory
+  running a three-way capability probe with a `cerr` fallback to linear D-mixing) is split into
+  `MakeLinearMixer<T>` and `MakePeriodicMixer`; the choice is now a protected virtual
+  `tSCFIterator<T>::CreateMixer` (base = linear) overridden by `SolidSCFIterator`.  The class that KNOWS
+  it is periodic chooses, so the periodic factory takes Band_FT_IBS + UnitCell + FourierDensity as
+  PRECONDITIONS and THROWS — user ruling 2026-08-06: "silent problems always end up consuming a lot of
+  time... in the R&D phase failing loudly is encouraged" (a whole multi-hour run could previously
+  converge on the wrong mixer behind one `cerr` line).  Everything the override needs is passed in, so
+  iterator state stays private.  Verified first that all six Kerker/Pulay call sites are genuine GPW runs
+  and that every `tSCFIterator<dcmplx>` in the tree IS a `SolidSCFIterator` (the lone `cSCFIterator` is a
+  base-pointer holder), so the override is always reached.
+  - **The `isPeriodicCell` prediction was HALF right (worth recording honestly).**  The probe did NOT
+    disappear; it survives in exactly two places, and both are now CONTRACT CHECKS rather than
+    behavioural branches: the `MakePeriodicMixer` precondition throw, and an `assert` in the base ctor.
+    The base ctor keeps the cell snapshot because the `Structure` dangles by `Iterate` time and
+    `SolidSCFIterator` inherits its constructors — but the runtime branch there became an assert, since
+    the `if constexpr (is_same_v<T,dcmplx>)` above it already answers periodic-vs-molecular at compile
+    time.  That doubled question (compile-time gate + runtime re-check) was the actual smell.
+  - **Generalizable rule from this:** a periodic-vs-molecular `if` is a decision at the wrong altitude;
+    the same probe reads fine as a *precondition*.  "Can you?" and "give me it" stay separate questions
+    (V1.9), but "which am I?" should be answered by the type, not re-asked at run time.
+
 **Process note for the next session:** build **`allTests`**, not just `ITMain`.  A first `ctest` in
 qchem1 reported 160/590 failures that were ENTIRELY stale per-library `UT*` binaries (undefined
 symbols + segfaults from the tree jumping ~30 commits while only ITMain was relinked) — zero real
@@ -165,16 +194,16 @@ in the same session.
 
 ### R1 — correctness-adjacent (do these first)
 
-- **R1.1 `FittedVxcPol::GetEnergy` clobbers `te.Exc`** — `te.Exc = 0.0;` before delegating
+- **R1.1 ✅ DONE `06e23f5d`. `FittedVxcPol::GetEnergy` clobbers `te.Exc`** — `te.Exc = 0.0;` before delegating
   (Imp/FittedVxcPol.C:83).  Correct today only because exchange precedes correlation in
   Ham_DFTcorr_P's term list; a silent order-dependent zeroing of any prior XC contributor.
   Fix: remove the zeroing (struct is zero-initialized), let the children `+=`.
-- **R1.2 `=` vs `+=` on `EnergyBreakdown` is inconsistent across the term set.**  Assigners:
+- **R1.2 ✅ DONE `06e23f5d` (with one CORRECTION, below). `=` vs `+=` on `EnergyBreakdown`.**  Assigners:
   Kinetic, DiracKinetic, RestMass, Ven, Vee, IonIon, PW_Kinetic, PW_Pseudo (`te.Een=`);
   accumulators: PP_Local/NonLocal, Vxc, FittedVxc, PW_Hartree (`te.Een+=`), Delta_*.  PW_Pseudo(=)
   and PW_Hartree(+=) share `Een` in one Hamiltonian, correct only because the static list is
   iterated before the dynamic list (Imp/HamiltonianImp.C:79-81).  Sweep to `+=` everywhere.
-- **R1.3 `UnitCell` SLICING copy in the Kerker cell snapshot** — SCFIterator.C:163
+- **R1.3 ✅ DONE `38a1ebd6` — fixed via `Clone()`, not stopgapped. `UnitCell` SLICING copy** — SCFIterator.C:163
   `make_shared<const UnitCell>(*cell)` slices any derived cell (e.g. FCCUnitCell) to a plain
   UnitCell; `Structure::Clone()` exists.  (The cast itself → V1.9.)
   **What the Kerker code does with the cell (user Q, answered 2026-08-05):** the snapshot is only
@@ -199,10 +228,11 @@ in the same session.
   overrides only `EvalBatch` (fast factorized-phase path); OrthoFunctionFitter.C:101 calls the
   ScalarFunction spelling — a FourierMixCD reached that way silently gets the slow per-G `exp`
   loop.  Fix: delete `EvalBatch`; override `operator()(rvec3vec_t)` instead.
-- **R1.6 `Write()` streams raw POINTERS (hex addresses)** — Imp/FittedVxc.C:111 (`os << itsLDAVxc`)
+- **R1.6 ✅ DONE `06e23f5d`. `Write()` streams raw POINTERS (hex addresses)** — Imp/FittedVxc.C:111 (`os << itsLDAVxc`)
   and Imp/FittedVxcPol.C:93 (`os << itsUpVxc << itsDownVxc`); `qchem::op<<` binds only
   `const Streamable&`, so these hit `void const*`.  Need `*`.
-- **R1.7 `SymmetryAdapted_IBS::MakeDirect/MakeExchange` return empty `ERI4{}` silently**
+- **R1.7 🔶 DESIGN SETTLED (user ruling), not yet implemented. `SymmetryAdapted_IBS::MakeDirect/
+  MakeExchange` return empty `ERI4{}` silently**
   (SymmetryAdapted_IBS.C:80-81, comment "never called") — fails QUIETLY: a future generic-ERI4
   caller gets a zero Fock contribution.  Interim: assert.
   **USER RULING (2026-08-05): SymmetryAdapted_IBS should not be inheriting the (ERI4 part of the)
@@ -213,22 +243,22 @@ in the same session.
   `Direct/Exchange` caches — the implementation detail behind the default contraction path).
   Concrete AO bases implement both; the SALC decorator implements only (a) (it builds in the AO
   basis and slices to its irrep block); terms consume only (a); the dummy `ERI4{}` bodies die.
-- **R1.8 `FittedVee` casts `bs` and dereferences with NO assert** (Imp/FittedVee.C:41-42) — the
+- **R1.8 ✅ DONE `06e23f5d`. `FittedVee` casts `bs` and dereferences with NO assert** (Imp/FittedVee.C:41-42) — the
   sibling sites at least assert.  (The odftbs_t casts themselves are sanctioned abstract→abstract.)
 
 ### R2 — mechanical hygiene
 
-- **R2.1 `tDM_CD::DM_ContractBlocks` → pure virtual.**  The asserting default is DEAD — all three
+- **R2.1 ✅ DONE `06e23f5d`. `tDM_CD::DM_ContractBlocks` → pure virtual.**  The asserting default is DEAD — all three
   concrete families override it (IrrepCD both T, Composite, Polarized); pure-virtual is free today.
   Also fix its false doxygen ("the periodic path asserts out" — the periodic path CALLS it,
   PWTerms.C:158).
-- **R2.2 Collapse `Kinetic` + `PW_Kinetic` → `Kinetic<T>`.**  Both are 0.5×(kinetic matrix);
+- **R2.2 ✅ DONE `48e25b74`. Collapse `Kinetic` + `PW_Kinetic` → `Kinetic<T>`.**  Both are 0.5×(kinetic matrix);
   PW_Kinetic's stated justification (PWTerms.C:59-60, "symmetric cache bypassed for complex") is
   FALSE — `Integrals_Kinetic<dcmplx>` is instantiated (Imp/Orbital_1E_IBS.C:30).  Follow the
   `IonIon<T>` collapse recipe (Internal/IonIon.C documents it); PW_Kinetic dies.
 - **R2.3 Dedup the literal 4-line Imp mirror** — Imp/Band_FT_IBS.C:15-25 == Imp/Orbital_DFT_IBS.C:
   10-20 (only `theCache<T>` differs).  Mechanically removable independent of the V1.1 merge.
-- **R2.4 Stale-comment/import batch**: Band_DFT_IBS.C header claims PlaneWave_IBS implements it
+- **R2.4 ✅ DONE `38a1ebd6`. Stale-comment/import batch**: Band_DFT_IBS.C header claims PlaneWave_IBS implements it
   (false); PlaneWaveDFTUT.C:1079 claims PW_Pseudo routes through Band_DFT_IBS (it casts
   `Integrals_Pseudo<dcmplx>`, PWTerms.C:46); SCFIterator.C:30-31 imports of
   FourierDensity/FourierMixCD are stale (not consumers); PWTerms.C:59-60 false cache comment dies
@@ -315,7 +345,7 @@ in the same session.
   different solves) and DEGENERATE for FT (projection IS the fit for both metrics), which is why
   the PW fitter implements both metric faces at once — the merge discussion is "how does the
   merged face express the metric choice without naming it", not "which metric wins".
-- **V1.1b The `Eee = 2·EeeFit − EeeFitFit` expression is DUNLAP-SPECIFIC — it is part of V1.1's
+- **V1.1b 🔶 ANALYSIS DONE, awaiting the user's re-read of the paper. The `Eee = 2·EeeFit − EeeFitFit` expression is DUNLAP-SPECIFIC — it is part of V1.1's
   metric discussion, not a free-standing formula (user, 2026-08-05; user wants to re-read the
   paper).**  Verified conventions: `GetSelfRepulsion()`=½⟨ρ̃|ρ̃⟩ (Imp/FittedCDImp.C:55) and
   `eeeFit`=½⟨ρ|ρ̃⟩, so the expression is exactly Dunlap's ROBUST form
@@ -343,7 +373,7 @@ in the same session.
   - Action: name the invariant where it lives (the fitter/energy pair), and fold the "which metric
     ⇒ which energy expression" rule into V1.16's explicit metric-strategy face.  Also ties the
     third leg of the CD taxonomy (D2's seeds) to a real correctness boundary.
-- **V1.2 `Orbital_PP_IBS` — a structure-neutral PP-integral face (dependency INVERSION).**  User
+- **V1.2 🔶 FEASIBILITY PROBE DONE + user APPROVED attempting it (appendix below). `Orbital_PP_IBS` — a structure-neutral PP-integral face (dependency INVERSION).**  User
   framing (2026-08-05): PPs require certain NEW TYPES of integrals from the IBS; the question is
   whether there is a structure-neutral way to ask for them without spilling PP details — if yes, we
   can break the qcBasisSet(qcLattice_BS)→qcPseudopotential dependence (today PlaneWave_IBS/GPW_IBS
@@ -357,7 +387,7 @@ in the same session.
   unit-test-only.  **USER (2026-08-05): approved to attempt — try it and see if we hit any
   roadblocks.**  (Feasibility probe of the actual `LocalPotential`/`SeparablePotential` payloads
   and the DAG: see the probe notes appended below when available.)
-- **V1.3 `FittedEpsXc`/`FittedVxc` simplification.**  Physics answer (user asked 2026-08-05):
+- **V1.3 🔶 DESIGN + grounded IMPLEMENTATION PLAN done (below), no code yet. `FittedEpsXc`/`FittedVxc` simplification.**  Physics answer (user asked 2026-08-05):
   yes, genuinely different matrices — v_xc = δE_xc/δρ = ε_xc + ρ·∂ε_xc/∂ρ, so
   D·⟨i|v_xc|j⟩ = ∫v_xc·ρ ≠ ∫ε_xc·ρ = E_xc (Slater exchange: factor 4/3 — the retired ¾-virial
   shortcut, FittingCleanupPlan §I.1).  A class merge is impossible: both need `GetMatrix` with the
@@ -378,7 +408,38 @@ in the same session.
   for quadrature-evaluated terms; the Hamiltonian keeps SEPARATE LISTS of each term type and
   loops through them — perfect LSP in action** (no term is ever forced to fake a matrix it
   doesn't have; new term types are easy to add as new lists).
-- **V1.4 `DM_RhoAtPoints` Phi key → Irrep (USER RULING 2026-08-05; direction now clear).**
+
+  **IMPLEMENTATION PLAN (grounded 2026-08-06, compute-free pass over the term hierarchy).**  Two
+  facts found while reading it change the shape of this item:
+  1. **The "separate lists per term type" design is ALREADY IN PRODUCTION.**  `tHamiltonianImp` keeps
+     THREE lists — `itsSHTs` / `itsDHTs` / `itsHF_HTs` — behind three faces (`tStatic_HT`,
+     `tDynamic_HT`, `tDynamic_HF_HT`) with three different `GetMatrix` arities, and both the matrix
+     and energy loops simply walk each list in turn (Imp/HamiltonianImp.C:63-82).  So adding a fourth
+     kind is idiomatic here, not novel — it is the user's own pattern, already load-bearing.
+  2. **A term whose energy is NOT D·V already exists, and it is the precedent to copy.**
+     `tDynamic_HF_HT`'s own doc: it "is deliberately NOT a `tDynamic_CC`: its energy comes from its
+     OWN cached blocks (`DM_ContractBlocks`), not a per-irrep `GetMatrix` round-trip."  That is
+     exactly the E≠D·V escape the xc family needs, and it requires NO new machinery.
+  - **Mechanism (small, and it deletes code):** `FittedVxc` builds its ⟨i|ε̃_xc|j⟩ blocks into a map
+    and takes E_xc from `cd->DM_ContractBlocks(...)`, exactly as `Vee`/`Vxc` already do.  The entire
+    reason `FittedEpsXc` exists — needing to BE a second `tDynamic_CC` so `DM_Contract` would
+    dispatch to a second matrix — evaporates, so `FittedEpsXc` AND its clone `FittedEpsCPol` both
+    DELETE.  The signature collision that blocks a class merge simply stops applying, because nothing
+    dispatches on `GetMatrix` any more.
+  - **Interface (the user's ask):** still worth having, but as a statement of the PHYSICS rather than
+    as the mechanism — a face declaring `GetVMatrix` (Fock) and `GetEMatrix` (the ε-density block
+    whose D-contraction IS the energy), so "E ≠ D·V for this family" is expressed in the type system
+    (compile-time-over-runtime).  Quadrature terms (`Delta_XC`, `PW_XC`) implement the SEPARATE
+    quadrature face: they own a mesh, integrate E directly, and have NO E-matrix — so they must never
+    be forced to fabricate one.  That is the second list.
+  - **Sequencing:** mechanism first (delete the two ε-adapters via `DM_ContractBlocks` — purely
+    internal, no anchor should move), then the face split as a separate, purely declarative commit.
+  - **Snag to fix en route:** `DM_ContractBlocks` is still keyed by `std::string` BasisSetID, while
+    V1.4 moved `DM_RhoAtPoints` to `Irrep` — and `tHT_Common`'s term cache was ALREADY
+    `std::map<Irrep,hmat_t<T>>` (HamiltonianTerm.C:23).  So Irrep is the established key on the term
+    side and BasisSetID is the odd one out; extend V1.4 to `DM_ContractBlocks` in the same pass.
+    (This also retro-justifies V1.4: the term caches had been Irrep-keyed all along.)
+- **V1.4 ✅ DONE `80fc2ae8`. `DM_RhoAtPoints` Phi key → Irrep (USER RULING 2026-08-05).**
   User model: a CompositeCD is a list of IrrepCDs — not BasisSetCDs; one irrep points to one IBS.
   `Irrep` has meaning in the real world outside of code; `BasisSetID` is purely a code construct,
   whose job is the DB cache's CROSS-RUN caching (same irrep, different radial functions) — caching
@@ -419,7 +480,7 @@ in the same session.
   idiom").  Abstract→concrete, the pattern the project rule forbids; also makes MixIn
   unimplementable for any future leaf.  Wants a double-dispatch primitive or an abstract
   density-block face.  (Design with V1.6 — same seam.)
-- **V1.9 `Structure`→concrete-`UnitCell` down-casts in 4 structure-neutral libraries**
+- **V1.9 ✅ DONE `38a1ebd6`. `Structure`→concrete-`UnitCell` down-casts in 4 libraries**
   (SCFIterator.C:163 [+ R1.3 slicing], DensityMixer.C:319, Imp/SeedCD.C:26,94).  UnitCell.C:38-41
   itself documents the pattern as the thing to avoid.
   **USER FIX SHAPE (2026-08-05): free pry-out HELPERS, exactly like the atom-symmetry precedent.**
@@ -442,7 +503,8 @@ in the same session.
   Internal/Imp/Orbital_DHF_IBS.C:89,109 (Orbital_HF_IBS& → Orbital_RKB_HF_IBS_Imp&).  Both are
   "give me your private state" reaches — promote the needed answer to an abstract question on the
   face.  (Unit-test exemption does not apply; these are src/.)
-- **V1.10b Mixer LAYERING: `SCFIterator` should only ever see `tDensityMixer` (USER DESIGN,
+- **V1.10b ✅ DONE (see LANDED). Mixer
+  LAYERING: `SCFIterator` should only ever see `tDensityMixer` (USER DESIGN,
   2026-08-05).**  Today the iterator knows about Kerker specifically: it holds a Kerker-only
   `itsKerkerCell` snapshot (SCFIterator.C:182, built by the R1.3 cast at :163) and calls
   `MakeDensityMixer(..., itsBS, itsKerkerCell.get(), itsCD.get())` at :244 — i.e. mixer CREATION
