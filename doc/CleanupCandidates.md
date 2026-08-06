@@ -277,6 +277,34 @@ in the same session.
   different solves) and DEGENERATE for FT (projection IS the fit for both metrics), which is why
   the PW fitter implements both metric faces at once — the merge discussion is "how does the
   merged face express the metric choice without naming it", not "which metric wins".
+- **V1.1b The `Eee = 2·EeeFit − EeeFitFit` expression is DUNLAP-SPECIFIC — it is part of V1.1's
+  metric discussion, not a free-standing formula (user, 2026-08-05; user wants to re-read the
+  paper).**  Verified conventions: `GetSelfRepulsion()`=½⟨ρ̃|ρ̃⟩ (Imp/FittedCDImp.C:55) and
+  `eeeFit`=½⟨ρ|ρ̃⟩, so the expression is exactly Dunlap's ROBUST form
+  \f$E_J\approx\langle\rho\tilde\rho\rangle-\tfrac12\langle\tilde\rho\tilde\rho\rangle\f$, whose
+  error is SECOND order in (ρ−ρ̃) **only because the fit is done in the COULOMB metric** — the
+  stationarity condition ⟨ρ−ρ̃|c⟩_Coulomb=0 is what annihilates the first-order term.  The ctor
+  says so out loud: "Charge-CONSTRAINED Coulomb-metric density fit (Dunlap-Connolly-Sabin 1979)"
+  (Imp/FittedCDImp.C:21-23).
+  - **Under an OVERLAP-metric fit the robustness justification evaporates** (stationarity is then
+    ⟨ρ−ρ̃|c⟩_overlap=0, which does NOT kill the Coulomb first-order error) — so a "straight rho fit"
+    needs a different energy expression.  User's instinct confirmed.
+  - **Under an EXACT/orthonormal fit it degenerates CORRECTLY**: ρ̃=ρ ⇒ ⟨ρρ̃⟩=⟨ρ̃ρ̃⟩=⟨ρρ⟩ ⇒
+    2A−B = ½⟨ρρ⟩ = the exact Hartree.  So the PW/GPW path is safe as-is; it is an overlap-metric
+    GAUSSIAN fit that would break.  **This is exactly V1.1's "molecules Dunlap-fit, solids don't"
+    issue seen from the ENERGY side** — whatever the merged face does about the metric, this
+    expression moves with it.
+  - **An overlap-metric fit path ALREADY EXISTS**: `NumericCD` (the SAD seed) overrides
+    `GetUnconstrainedFit` with c₀=S⁻¹⟨f|ρ⟩ (NumericCD.C:48-51).  Today that is harmless and the
+    invariant holds — but only BY ACCIDENT OF TYPING: `FittedVee::GetEnergy` and
+    `tSCFIterator::TotalEnergy` take `tDM_CD*`, and the matrix-free seeds are `tChargeDensity` but
+    NOT `tDM_CD`, so a seed can never reach the energy expression (it only feeds `CalcMatrix`,
+    where the metric does not matter — J(ρ̃) is just the fitted density's potential).  Nothing
+    states or enforces this; widen the energy path to `tChargeDensity`, or make a matrix-free
+    density a `tDM_CD`, and the formula silently loses its second-order property.
+  - Action: name the invariant where it lives (the fitter/energy pair), and fold the "which metric
+    ⇒ which energy expression" rule into V1.16's explicit metric-strategy face.  Also ties the
+    third leg of the CD taxonomy (D2's seeds) to a real correctness boundary.
 - **V1.2 `Orbital_PP_IBS` — a structure-neutral PP-integral face (dependency INVERSION).**  User
   framing (2026-08-05): PPs require certain NEW TYPES of integrals from the IBS; the question is
   whether there is a structure-neutral way to ask for them without spilling PP details — if yes, we
