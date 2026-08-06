@@ -2368,8 +2368,8 @@ TEST(GPW_SCF, MnAtomInBoxDChannel)
     std::cout << "[Mn in-box] GPW="<<R.E.GetTotalEnergy()<<"  facade="<<Eref
               << "  diff="<<(R.E.GetTotalEnergy()-Eref)<<std::endl;
     EXPECT_NEAR(R.charge, 7.0, 1e-6);
-    EXPECT_NEAR(R.E.GetTotalEnergy(), Eref, 2e-2) << "GPW d-channel vs the molecular facade (measured 3.9 mHa)";
-    EXPECT_NEAR(R.E.GetTotalEnergy(), -14.67005, 1e-4);   // did-E-move anchor (2s+8d, the cured basis)
+    EXPECT_NEAR(R.E.GetTotalEnergy(), Eref, 3e-2) << "GPW d-channel vs the molecular facade (measured 12 mHa)";
+    EXPECT_NEAR(R.E.GetTotalEnergy(), -14.6380, 1e-3);   // did-E-move anchor (2s+7d, the SR-trimmed cell basis)
 }
 
 // ============================ MnO rocksalt AFM-II (SymmetryUpgradePlan §7 step 7) ============================

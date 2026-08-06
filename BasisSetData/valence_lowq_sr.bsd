@@ -3,8 +3,8 @@ from each shell (F s 0.12 + p 0.14; Na s 0.03; Al s 0.04 + p 0.05), so the Bloch
 positive-definite in a solid at a modest Rcut (the SIPP->SIPP_SR lesson: ill-conditioning is a BASIS problem).
 For GPW crystals.  (Al: the FCC-Al degenerate-shell metal test, doc/GPWPlan1.md item 2 -- the full valence_lowq
 Al p 0.05 makes the primitive-cell Bloch overlap rank-deficient AND explodes the collocation grid.)
-Mn (q7: s 2x {0.10,24} + d 8x 0.18-36 -- see the CARTESIAN-d note below) + O (q6: s 6x 0.15-18,
-p 5x 0.18-8, atom gap 23 mHa) added for the
+Mn (q7: s 2x {0.10,24} + d 7x 0.38-36 -- see the CARTESIAN-d note below) + O (q6: s 5x 0.39-18,
+p 4x 0.46-8) added for the
 MnO AFM-II gate (doc/SymmetryUpgradePlan.md sec 7 step 7); windows valgen-validated polarized (Mn Hund
 moment 5), exponents kept DISJOINT across l (the PG_Cart shared-exponent reader merge).  BOTH ends of the
 Mn's SHARP end is capped for the GPW rasters (AUTO density Ecut = 2*alpha_max = 72 Ha).
@@ -19,7 +19,16 @@ and one tight function (24) are needed:
      0s+8d  lambdaMin 6.5e-03   cond 8.6e2   pass            facade -14.607   GPW -14.635
   -> 2s+8d  lambdaMin 3.0e-03   cond 2.1e3   pass            facade -14.6661  GPW -14.6701
 Trimming the d count instead "fixes" conditioning but costs 0.55 Ha (7s+4d -> facade -14.11): the d set
-is the physics, the s window was the redundancy.  NB CP2K solves this same shell list in the SPHERICAL
+is the physics, the s window was the redundancy.
+IN THE CELL a SECOND, INTER-SITE redundancy appears (the MnO 4-atom cell still vetted 1.4e-07 / 1e8 with
+the cured single-atom Mn): at the 2.1 A Mn-O contact the most diffuse function of each shell overlaps its
+neighbours -- Mn s 0.10 alone reaches ~15 bohr, wider than the cell.  The classic SR trim cures it (drop
+the most diffuse d/s/p), measured on the MnO cell vet:
+     Mn d>=0.18, O s>=0.15 p>=0.18   n=142  lamMin 1.4e-07   cond 1e8      ABORT
+     Mn d>=0.38, O s>=0.15 p>=0.18   n=130  lamMin 5.5e-05   cond 1.6e5    ABORT
+  -> Mn d>=0.38, O s>=0.39 p>=0.46   n=122  lamMin 3.2e-03   cond 2.4e3    pass
+Counter-intuitively Mn's DIFFUSE s (0.10) is kept -- raising it to 0.25 makes the cell WORSE once O is
+trimmed (8.3e-05 vs 3.2e-03), because that function carries the 4s tail the contaminants cannot.  NB CP2K solves this same shell list in the SPHERICAL
 space (its log: 55 Cartesian vs 47 spherical functions) and so never sees the contaminant at all --
 an apples-to-oranges difference to remember when comparing against its oracles.
 
@@ -91,8 +100,6 @@ BASIS="Low-q GTH-pseudopotential valence basis SR (generated, diffuse-trimmed)"
  S   1  1.00
            24.00000000        1.00000000
  D   1  1.00
-            0.18000000        1.00000000
- D   1  1.00
             0.38369936        1.00000000
  D   1  1.00
             0.81791778        1.00000000
@@ -109,8 +116,6 @@ BASIS="Low-q GTH-pseudopotential valence basis SR (generated, diffuse-trimmed)"
  ****
  O   0
  S   1  1.00
-            0.15000000        1.00000000
- S   1  1.00
             0.39077566        1.00000000
  S   1  1.00
             1.01803746        1.00000000
@@ -120,8 +125,6 @@ BASIS="Low-q GTH-pseudopotential valence basis SR (generated, diffuse-trimmed)"
             6.90933509        1.00000000
  S   1  1.00
            18.00000000        1.00000000
- P   1  1.00
-            0.18000000        1.00000000
  P   1  1.00
             0.46475800        1.00000000
  P   1  1.00

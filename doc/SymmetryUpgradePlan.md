@@ -1038,6 +1038,33 @@ against a special case it will outgrow:
      work).  NEXT: regenerate a well-conditioned Cartesian Mn window (far fewer d shells, s/d
      exponents well separated — the SIPP→SIPP_SR "ill-conditioning is a BASIS problem" lesson),
      re-vet, then re-open the gate.  Probe: `GPW_SCF.DISABLED_MnAtomInBoxDChannelProbe`.
+     (a2) **CURED 2026-08-06 (user's insight) + THE FIRST REAL MnO RUN.**  Cartesian d's s-contaminant
+     was the redundancy: keep the d set, cut the s window to TWO (diffuse 4s tail 0.10 + one tight 24)
+     — Mn box λmin 1.15e-07→3.0e-03, cond 8.2e7→2.1e3, at a cost of 2 mHa; trimming *d* instead costs
+     0.55 Ha (the d set is the physics).  A SECOND, INTER-SITE redundancy then showed up in the cell
+     (still 1.4e-07): the classic SR trim (Mn d≥0.38, O s≥0.39 p≥0.46) gives 122 functions at
+     λmin 3.2e-03 / cond 2.4e3.  New GATE `GPW_SCF.MnAtomInBoxDChannel` = the first OCCUPIED-d species
+     validated end to end through the crystal path (GPW −14.6380 vs facade −14.626).  NB CP2K solves
+     our own shell list SPHERICALLY (55 Cartesian vs 47 spherical functions in its log) so it never
+     sees the contaminant — the oracle comparison was apples-to-oranges in exactly the sore spot.
+     **MnO run 6 (cured basis + fixed KB + regenerated seed tables) RUNS AND SETTLES** — no collapse,
+     charge exact 26.000000, fingerprint DENSITY-DEGENERATE (E settled, ρ rotates), 30 iters:
+     `Etot=−45.643  (Ekin 78.73  Een −84.45  Eee 29.14  Exc −14.88  Enn −57.34  E_alphaZ +3.17)`.
+     TWO REMAINING DEFECTS, both now cleanly stated:
+       * **THE AFM ORDER COLLAPSED**: site moments came out EXACTLY 0.0000000000 on BOTH Mn — the run
+         relaxed to the non-magnetic ζ=0 solution.  This is the §10 trap itself (ζ=0 is a stationary
+         point of the polarized functional).  The SEED is provably staggered
+         (`PlaneWaveDFT.PolarizedSeedAFMStaggering`), so the loss happens IN the SCF — prime suspects:
+         the Kerker mixer acting on the TOTAL density (washing the channel difference), Fermi smearing
+         at nUp=nDn=13 pulling toward the symmetric state, and the absence of any constraint holding
+         the staggering.  NEXT: log ⟨m⟩ per iteration to see WHERE it dies, then constrain (fixed-moment
+         / per-channel mixing) rather than hoping the seed survives.
+       * **UNDER-BOUND by 15.8 Ha** vs CP2K −61.4706 — far beyond basis incompleteness (our own free
+         atoms sum to ≈−60.8, so a bound crystal must sit BELOW that).  The breakdown above is the
+         handover datum; the crystal-only terms (Enn Ewald over Zion=+7/+7/+6/+6 in a neutralising
+         background, and the G=0 alignment E_alphaZ=+3.17) are the first things to check against CP2K's
+         own decomposition, since both KB routes are now oracle-clean at the atom level.
+     Run log: doc/logs/mno_afm2_run6_curedbasis.log.
      (b) **A real but unattributed l=2 discrepancy between the two CRYSTAL KB routes**: analytic vs
      mesh = 3.09e-2 relative on Mn (vs 2.4e-9 for the Si l=0,1 gate) — structural, not a scale factor
      (max|Va| == max|Vm| exactly).  Could still be the MESH arm being coarse on Mn's compact
