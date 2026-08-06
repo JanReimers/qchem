@@ -10,6 +10,7 @@ export module qchem.BasisSet.Atom.IBS;
 import qchem.BasisSet.Internal.IrrepBasisSetImp;
 import qchem.BasisSet.Internal.Orbital_DHF_IBS;
 import qchem.BasisSet.IrrepBasisSet;
+export import qchem.BasisSet.ImplicitAngular_IBS;   // the radial/implicit-Y_lm capability atoms realize
 import qchem.BasisSet.Orbital_1E_IBS;
 import qchem.BasisSet.Orbital_DFT_IBS;
 import qchem.BasisSet.Orbital_HF_IBS;
@@ -48,6 +49,7 @@ public:
 template <isOpr_Evaluator E> class IrrepBasisSetImp
     : public virtual BasisSet::IrrepBasisSet<double>
     , public virtual RadialAngularID   // atom identity: RadialID/AngularID compose BasisSetID
+    , public virtual BasisSet::ImplicitAngular_IBS  // the Y_lm is carried by the IRREP, not the function
     , public BasisSet::IrrepBasisSetImp<double> //Pulls in Symmetry support
 {
 public:
@@ -57,6 +59,10 @@ public:
     // using statements in the final class don't seem to work, so we need to function forward.
     virtual rvec_t     operator() (const rvec3_t& r) const {return Cast().operator()(r);}
     virtual rvec3vec_t Gradient   (const rvec3_t& r) const {return Cast().Gradient  (r);}
+
+    // ImplicitAngular_IBS -- an atom block IS radial: its functions omit the irrep's Y_lm (see the face).
+    virtual int    ImplicitL   ()         const override {return Cast().Getl();}
+    virtual rvec_t RadialValues(double r) const override {return Cast().operator()(rvec3_t(r,0,0));}
    
     virtual std::string RadialID () const {return Cast().RadialID();}
     virtual std::string AngularID() const {return Cast().AngularID();}

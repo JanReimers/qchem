@@ -32,6 +32,7 @@
 
 import qchem.Structure;                          // Molecule, Atom
 import qchem.UnitCell;                           // UnitCell, FCCUnitCell
+import qchem.Matrix3D;                           // Matrix3D<double> (the rhombohedral AFM-II cell matrix)
 import qchem.Lattice_3D;                         // Lattice_3D
 import qchem.BasisSet;                           // Complex_BS, Real_BS
 import qchem.BasisSet.Orbital_1E_IBS;            // Complex_OIBS (the overlap-spectrum diagnostic)
@@ -2301,4 +2302,218 @@ TEST(GPW_SCF, DISABLED_BeckeXCMatchesUniformXC_NaFSR2)
     EXPECT_NEAR(B40.rhoLost, 0.0, 5e-3);
     DiffXC(U,B40);                                    // report-only: the uniform raster's element error
     EXPECT_LT(DiffXC(B40,B80), 2e-3) << "Becke V_xc not internally converged on the sharp-F system";
+}
+
+// Mn PSEUDO-ATOM IN A BOX through the CRYSTAL (GPW) path vs the molecular facade -- the d-channel sibling
+// of SiPseudoAtomInBoxMatchesFinite, and the cheap localiser for MnO's ~356 Ha over-binding.  Both
+// real-space KB routes are now oracle-matched on this very PP (atomic radial -14.230 unpolarised /
+// molecular Cartesian -14.668 polarised, vs CP2K ATOM -14.243986 restricted), so if the GPW path also
+// lands near the facade the crystal KB is exonerated and the MnO defect lives elsewhere (multi-species,
+// O, Ewald/alignment); if it does not, this is the l=2 crystal defect, isolated to ONE atom and one hour
+// instead of the 4-atom magnetic cell.
+// MEASURED 2026-08-06 -- THE ANSWER IS BASIS CONDITIONING, not the KB:
+//   * CARTESIAN d carries the s contaminant (x^2+y^2+z^2), so our Mn window (7 s + 8 d shells x 6
+//     Cartesian components = 55 functions) is RANK-DEFICIENT before any physics: lambdaMin 1.15e-07,
+//     cond 8.2e7, and the GPW vet ABORTS.  The molecular facade only survives it by dropping modes --
+//     its own log says "[ortho] dropped 5 near-null overlap mode(s) of 55".  A near-null direction that
+//     the SCF can occupy is the classic variational-collapse mechanism, and MnO's 4-atom cell (154
+//     functions, cond 7e8) sits in exactly that regime -- which fits -417 Ha vs the -61.47 oracle far
+//     better than the 3e-2 analytic-vs-mesh KB discrepancy does.
+//   * SPHERICAL d (5 pure components, no contaminant) is the natural cure but is NOT AVAILABLE on the
+//     GPW path: it throws "the orbital basis is not a molecular Gaussian basis (no Molecule::LatticeSum1E)"
+//     -- the spherical lineage does not implement the lattice-sum face (cf. the parked S3b spherical work).
+//   => CURED 2026-08-06 (user's insight): keep the d set and drop the s window to TWO functions.  The
+//      contaminants already span the mid/tight s space, so only the DIFFUSE 4s tail (0.10) and one tight
+//      s (24) are needed -- 2s+8d gives lambdaMin 3.0e-03 / cond 2.1e3 (from 1.15e-07 / 8.2e7) at a cost
+//      of just 2 mHa (facade -14.6661 vs the rank-deficient 7s+8d's -14.6681).  Trimming the d count
+//      instead "fixes" conditioning but costs 0.55 Ha (7s+4d -> -14.11): the d set is the physics, the
+//      s window was the redundancy.  NB CP2K solves this same shell list SPHERICALLY (its log: 55
+//      Cartesian vs 47 spherical functions) and never sees the contaminant -- apples-to-oranges when
+//      comparing its oracles.  GPW_MN_SPHERICAL=1 re-runs the (throwing) spherical arm.
+// THIS IS NOW A GATE: the first OCCUPIED-d species validated end to end through the crystal path.
+TEST(GPW_SCF, MnAtomInBoxDChannel)
+{
+    Molecule mnmol; mnmol.Insert(new Atom(25, 0.0, {0,0,0}));
+    Calculation cRef(mnmol, {.basis="valence_lowq_sr", .multiplicity=6, .pseudopotential=true, .ppValence=7});
+    const double Eref=cRef.Energy();
+    std::cout << "[Mn finite] valence_lowq_sr LSDA sextet (q7)="<<Eref<<"   (CP2K ATOM restricted -14.243986)"<<std::endl;
+
+    const double a=16.0;
+    UnitCell cell(a);
+    cell.AddAtom(25, {0.5,0.5,0.5});
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+
+    GpwOptions o;
+    o.label="Mn atom-in-box sextet";
+    o.Nelec=7; o.multiplicity=6;                       // S=5/2 Hund: nUp=6, nDown=1
+    o.species={{"Mn",7}};
+    o.images=BasisSet::Lattice_3D::CellImages::HomeCellOnly;
+    o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;
+    o.imposeSymmetry=false;
+    o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
+    o.scf.NMaxIter=40; o.scf.MinΔρ=1e-5; o.scf.MinΔE=1e30;
+    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
+    o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4; o.scf.SmearingkT=5e-3;
+    // CARTESIAN d carries the s CONTAMINANT (x^2+y^2+z^2), so 8 d shells duplicate the 7-function s space
+    // -- measured lambdaMin 1.15e-07 / cond 8.2e7 on this one-atom box, i.e. the basis is rank-deficient
+    // BEFORE any physics runs.  SPHERICAL d (5 pure components) removes the contaminant; GPW_MN_SPHERICAL=1
+    // selects it for the A/B.
+    const bool spherical=(bool)std::getenv("GPW_MN_SPHERICAL");
+    std::shared_ptr<const Real_BS> mnbasis(
+        BasisSet::Molecule::Factory(BasisSetData::VALENCE_LOWQ_SR, &cell, BasisSet::Molecule::Engine::MnD,
+                                    spherical ? BasisSet::Molecule::Angular::Spherical
+                                              : BasisSet::Molecule::Angular::Cartesian));
+    std::cout << "[Mn in-box] angular=" << (spherical?"SPHERICAL":"CARTESIAN") << std::endl;
+    GpwResult R=RunGpw(lat, mnbasis, o, /*verbose*/(bool)std::getenv("GPW_MNO_VERBOSE"));
+    std::cout << "[Mn in-box] GPW="<<R.E.GetTotalEnergy()<<"  facade="<<Eref
+              << "  diff="<<(R.E.GetTotalEnergy()-Eref)<<std::endl;
+    EXPECT_NEAR(R.charge, 7.0, 1e-6);
+    EXPECT_NEAR(R.E.GetTotalEnergy(), Eref, 3e-2) << "GPW d-channel vs the molecular facade (measured 12 mHa)";
+    EXPECT_NEAR(R.E.GetTotalEnergy(), -14.6380, 1e-3);   // did-E-move anchor (2s+7d, the SR-trimmed cell basis)
+}
+
+// ============================ MnO rocksalt AFM-II (SymmetryUpgradePlan §7 step 7) ============================
+// The FIRST magnetic transition-metal material: rocksalt MnO with the type-II AFM ordering (ferromagnetic
+// (111) sheets, alternating along [111]).  The magnetic unit cell is the RHOMBOHEDRAL 2-f.u. cell -- the fcc
+// cell doubled along [111]: lattice vectors a(1,1/2,1/2), a(1/2,1,1/2), a(1/2,1/2,1) (volume a^3/2 = 2x the
+// fcc primitive), Mn sublattices at fractional (0,0,0) [+m] and (1/2,1/2,1/2) [-m] (cartesian (a/2)(0,1,1)
+// + lattice), O at (1/4,1/4,1/4) and (3/4,3/4,3/4).  Everything below runs FREE (imposeSymmetry=false): the
+// imposed per-channel star-average uses the GREY (spin-blind) crystal group, whose ops map +m to -m sites
+// and would average the staggering away -- the Shubnikov-aware imposition is a separate increment.
+//
+// The SEED CHOOSES THE BASIN (SCFSeedingPlan §10): IonicSAD resolves Mn2+ (the d^5 S=5/2 library pair) +
+// O2- (closed shell), and the flip bit on the second Mn staggers the majority channel -- the AFM-II pattern
+// is present from iteration 0.  Fermi smearing kT=5e-3 rides the open d manifold through the early
+// iterations.  LSDA q7 (semicore q15 = follow-on; +U = follow-on).
+namespace
+{
+struct MnOArm { GpwResult R; GpwHandles h; std::shared_ptr<UnitCell> cell; };
+
+MnOArm RunMnO(int multiplicity, bool afm, const std::string& label)
+{
+    const double a=8.40;                              // rocksalt a ~ 4.445 A (a.u.)
+    Matrix3D<double> A(a, a/2, a/2,  a/2, a, a/2,  a/2, a/2, a);   // rhombohedral AFM-II cell (symmetric)
+    auto cellp=std::make_shared<UnitCell>(A);
+    UnitCell& cell=*cellp;
+    cell.AddAtom(25, {0.0,0.0,0.0}, false);           // Mn sublattice +m
+    cell.AddAtom(25, {0.5,0.5,0.5}, afm);             // Mn sublattice -m (flipped only for the AFM arm)
+    cell.AddAtom(8,  {0.25,0.25,0.25});
+    cell.AddAtom(8,  {0.75,0.75,0.75});
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+
+    GpwOptions o;
+    o.label=label;
+    o.Nelec=26; o.multiplicity=multiplicity;          // 2 x (Mn q7 + O q6); AFM: the explicit two-channel singlet
+    o.species={{"Mn",7},{"O",6}};                     // densityEcut stays AUTO (= 2*alpha_max = 60, the trimmed d)
+    o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;   // Mn2+ d^5 pair + diffuse O2- (the basin chooser)
+    o.imposeSymmetry=false;                           // the grey-group star-average would erase the staggering
+    // cond(S) ~ 7e8 on this dense oblique cell (lambdaMin ~ 2e-8 passes the vet, barely): plain Cholesky
+    // EXPLODES the eigenproblem (measured: E ~ 1e9 Ha, [F,D] ~ 1e10 at iteration 1).  The NaF-class
+    // recipe: pivoted Cholesky with a rank tolerance.
+    o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
+    // DIIS + plain linear mixing overshoots once the ramp reaches full step (measured run 3: healthy
+    // -454.8 -> -456.5 over 3 iterations, then a +21 Ha slosh at Lin 1.00) -- the NaF-class ionic
+    // charge-transfer dynamic.  Adopt the NaF Becke gate's full recipe: Ladder + Kerker-damped mixing
+    // + MOM (masked Fermi) once the branch structure sets.
+    o.accelerator="Ladder";
+    o.scf.StartingRelaxRo=0.45; o.scf.KerkerG0=1.0;
+    o.scf.UseMOM=true; o.scf.MOMStartIter=10;
+    o.scf.SmearingkT=5e-3;                            // the open-d-manifold cure (annealed driver if this stalls)
+    // GPW_MNO_NMAX bounds a HAND-RUN diagnosis (measured 2026-08-05: ~9 min PER analytic sweep on a 14 GB
+    // box -- the free-run magnetic cell exceeds the stream budget, so every iteration pays collocate +
+    // integrate analytically; an unbounded 80-iter run is a >24 h affair).
+    const char* nx=std::getenv("GPW_MNO_NMAX");
+    o.scf.NMaxIter=nx?std::atoi(nx):80; o.scf.MinΔρ=1e-5; o.scf.MinΔE=1e30;
+    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
+    o.scf.MergeTol=1e-4;                              // (RelaxRo set above with the Ladder/Kerker recipe)
+    MnOArm arm;
+    arm.cell=cellp;
+    arm.R=RunGpw(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o,
+                 /*verbose*/(bool)std::getenv("GPW_MNO_VERBOSE"), &arm.h);
+    return arm;
+}
+} //anon
+
+// DISABLED until the OCCUPIED-d nonlocal-PP defect is fixed (2026-08-06 find, the campaign's blocker):
+// the KB d-channel has NEVER been exercised by occupied states before MnO (CsI's l=2 gate touches only
+// virtuals), and it is WRONG by ~12.6x (~4pi-scale): our Mn q7 pseudo-ATOM converges to -189.4 Ha vs the
+// CP2K ATOM oracle -14.244 (l<=1 species match modulo the known atom-convention constant: F q7 ours
+// -20.90 vs CP2K -24.05 with an EXACT crystal match, O q6 -13.94 vs -15.75).  Both our independent KB
+// consumers (atomic mesh route, crystal analytic route) err together => the defect sits in the SHARED
+// SeparablePotential model layer; tabulation verified identical to CP2K's GTH_POTENTIALS, Qli/ProjR
+// Bessel-pair verified, LegendreP + RealYlm textbook-correct -- the surviving suspects are the
+// sqrt(4pi)-Projector convention on the l=2 path and the Cartesian-d s-contaminant (x2+y2+z2) leaking
+// into the s-channel projectors.  ORACLES BANKED for the fix session (deck IntegrationTests/CP2K/
+// mno_afm2_gpw_sr.inp): CP2K MnO AFM-II crystal E=-61.470570 Ha (72 Broyden steps -- the SCF is hard for
+// CP2K too), Mulliken site moments Mn +/-4.654, O ~0, net charges +/-1.69; Mn q7 atom -14.243986.
+// Run-3 partial trajectory (pivoted ortho): -454.8 -> -456.5 healthy descent then the ionic slosh --
+// dynamics recipe (Ladder+Kerker+MOM) is staged in RunMnO.  Hand-run: GPW_MNO_VERBOSE=1 GPW_MNO_NMAX=n.
+TEST(GPW_SCF, DISABLED_MnO_AFM2_RhombohedralGamma)
+{
+    MnOArm A=RunMnO(/*multiplicity*/1,  /*afm*/true,  "MnO AFM-II Gamma");
+
+    // ---- the STAGGERED order parameter (reported BEFORE the convergence assert, so a bounded
+    //      GPW_MNO_NMAX diagnosis run still yields the physics readout) ----
+    auto* pol=dynamic_cast<const qchem::ChargeDensity::cPolarized_CD*>(A.h.cd.get());
+    ASSERT_TRUE(pol) << "a multiplicity>=1 run must produce a polarized density";
+    const auto* up=pol->GetChargeDensity(Spin::Up);
+    const auto* dn=pol->GetChargeDensity(Spin::Down);
+
+    // (i) real space: m(r)=rho_up-rho_dn near the two Mn sites (d-shell peak ~0.7 bohr off the nucleus --
+    // the d density is zero AT the nucleus) must be large and OPPOSITE, the sign following the seed pattern.
+    const double a=8.40;
+    const rvec3_t off(0.7,0,0);
+    const rvec3_t rMn1(0,0,0), rMn2(a,a,a);           // cartesian: A*(1/2,1/2,1/2) = a(1,1,1)
+    const double m1=(*up)(rMn1+off)-(*dn)(rMn1+off);
+    const double m2=(*up)(rMn2+off)-(*dn)(rMn2+off);
+    std::cout << "[MnO AFM-II] site moments m(r): Mn1(+seed)="<<m1<<"  Mn2(-seed)="<<m2<<std::endl;
+    ASSERT_TRUE(A.R.converged);                       // gate AFTER the readout (see above)
+    EXPECT_NEAR(A.R.charge, 26.0, 1e-6);
+    EXPECT_GT(m1,  0.01) << "Mn1 must stay in the +m basin the seed chose";
+    EXPECT_LT(m2, -0.01) << "Mn2 must stay in the -m basin the seed chose";
+    EXPECT_NEAR(m1, -m2, 0.2*std::abs(m1)) << "the two sublattices should stagger symmetrically";
+
+    // (ii) G-space: |m-tilde| at the AFM wavevector (dm=(1,0,0): 2pi m.f = pi between the Mn sublattices),
+    // scaled by the cell volume back to electrons-scale.
+    {
+        Hamiltonian::PW_XC::fbs_t fit(A.h.bs->CreateVxcFitBasisSet(A.cell.get(), qcMesh::MeshParams{}));
+        auto* fu=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(up);
+        auto* fdn=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(dn);
+        ASSERT_TRUE(fu && fdn);
+        ΔG_Map mu=fu->GetFourierDensity(*fit), md=fdn->GetFourierDensity(*fit);
+        const ivec3_t q(1,0,0);
+        ASSERT_TRUE(mu.count(q) && md.count(q));
+        const double Omega=A.cell->GetCellVolume();
+        const double Mstag=std::abs(mu.at(q)-md.at(q))*Omega/2;
+        std::cout << "[MnO AFM-II] |m-tilde(q_AFM)|*Omega/2 = "<<Mstag<<" e- (staggered moment scale)"<<std::endl;
+        EXPECT_GT(Mstag, 1.0) << "the converged staggered moment must be electrons-scale (d^5 ~ 4-5)";
+    }
+
+    // ---- the ORDERING ENERGETICS: AFM-II below FM (the rocksalt-MnO superexchange ground state) ----
+    MnOArm F=RunMnO(/*multiplicity*/11, /*afm*/false, "MnO FM Gamma");
+    ASSERT_TRUE(F.R.converged);
+    EXPECT_NEAR(F.R.charge, 26.0, 1e-6);
+    const double Eafm=A.R.E.GetTotalEnergy(), Efm=F.R.E.GetTotalEnergy();
+    std::cout << "[MnO ordering] E_AFM="<<Eafm<<"  E_FM="<<Efm<<"  dE="<<(Efm-Eafm)*1000<<" mHa"<<std::endl;
+    EXPECT_LT(Eafm, Efm) << "AFM-II must be the LSDA ground state ordering";
+}
+
+// TEMPORARY diagnosis probe (will be removed): is the -0.205 overlap eigenvalue on the MnO rhombohedral
+// cell a CELL-SHAPE problem (oblique lattice sum) or a BASIS problem (diffuse Mn/O windows)?
+TEST(GPW_SCF, DISABLED_MnOCellShapeProbe)
+{
+    const double a=8.40;
+    Matrix3D<double> A(a, a/2, a/2,  a/2, a, a/2,  a/2, a/2, a);
+    UnitCell cell(A);
+    cell.AddAtom(14, {0.0,0.0,0.0});
+    cell.AddAtom(14, {0.5,0.5,0.5});
+    cell.AddAtom(14, {0.25,0.25,0.25});
+    cell.AddAtom(14, {0.75,0.75,0.75});
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+    GpwOptions o;
+    o.label="rhombo cell probe (SIPP_SR Si)"; o.Nelec=16; o.species={{"Si",4}};
+    o.imposeSymmetry=false;
+    o.scf.NMaxIter=1; o.scf.MinΔρ=1e30; o.scf.MinΔE=1e30;
+    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
+    RunGpw(lat, MakeBasisSR(cell), o, /*verbose*/true);
 }

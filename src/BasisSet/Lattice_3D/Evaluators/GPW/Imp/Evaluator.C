@@ -248,7 +248,12 @@ GPW_Evaluator::GPW_Evaluator(std::shared_ptr<const BasisSet::Real_BS> mol, const
         rvec3_t corner=cell.ToCartesian(rvec3_t(double(cx),double(cy),double(cz)));
         itsCellRad=std::max(itsCellRad, norm(corner-itsCellCtr));
     }
-    BuildImages(cell, itsHomeOnly ? 0.0 : 2.0*itsMaxReach+2.0*cell.GetMaximumCellEdge(), itsk, itsRc, itsPhaseC);
+    // Image-list radius: Eval's keep test is |r - Rc - ctr| <= cellRad+maxReach with r in (or near) the
+    // cell, so the exact bound is |Rc| <= maxReach + 2*cellRad.  For an OBLIQUE cell (MnO rhombohedral)
+    // 2*cellRad (the cell DIAMETER) exceeds 2*maxCellEdge, so the historical formula under-enumerated;
+    // keep the max of both so every previously-enumerated case is unchanged.
+    BuildImages(cell, itsHomeOnly ? 0.0 : std::max(2.0*itsMaxReach+2.0*cell.GetMaximumCellEdge(),
+                                                   itsMaxReach+2.0*itsCellRad), itsk, itsRc, itsPhaseC);
 
     // The DFT tier's density/collocation grid: GPW's ONLY grid cutoff (no orbital/wavefunction cutoff -- the
     // Gaussians are analytic).  IMPORTANT: densityEcut is a DENSITY-scale quantity: the sharpest feature is

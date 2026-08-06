@@ -194,6 +194,60 @@ in the same session.
 
 ### R1 — correctness-adjacent (do these first)
 
+- **R1.0b SHARED-RADIAL (SP/"L"-shell) support in the Gaussian94 reader — USER IDEA 2026-08-06.**
+  A Cartesian d shell carries an s-type contaminant r²e^{−αr²}, which is what made the Mn GPW basis
+  rank-deficient (λmin 1.15e-07, cond 8.2e7 — see `GPW_SCF.MnAtomInBoxDChannel`).  The cure that landed
+  is empirical (drop the s window to 2 functions and let the contaminants span the rest).  The user's
+  structural alternative: generate bases at the **valgen** stage with the SAME RADIAL SET SHARED ACROSS
+  l — the standard trick Pople calls an **"SP shell"** (a.k.a. **"L shell"**, e.g. 6-31G), generalized
+  here to s+d.  CP2K's format encodes it natively (one set with `lmin..lmax`, e.g. `2 0 1 4 4 4`) and the
+  MOLOPT families share one exponent set across s, p AND d.
+  **BLOCKED ON:** the flagged `PG_Cart::IrrepBasisSet` bug — the Gaussian94 reader MERGES same-exponent
+  shells across l, which is why valgen carries the standing "KEEP EXPONENTS DISJOINT ACROSS l" rule.
+  Multi-l shells must be representable before shared radials can be emitted.
+  **MEASURE, DON'T ASSUME:** sharing exponents does not by itself remove the contaminant redundancy —
+  the contaminant is r²e^{−αr²} (n=2) while an s at the same α is e^{−αr²} (n=0), i.e. independent
+  functions; the measured cause was the NUMBER of s functions whose span mimics r²e^{−αr²}.  Shared
+  radials buy compactness + CP2K-comparable structure; whether they also buy conditioning is an
+  experiment (`GPW_SCF.MnAtomInBoxDChannel` + the vet's λmin/cond readout is the instrument).
+  **ALSO WORTH FIXING WHILE THERE:** our GPW path is Cartesian-only — SPHERICAL bases throw
+  ("not a molecular Gaussian basis (no `Molecule::LatticeSum1E`)", the parked S3b work).  Spherical d
+  has no contaminant at all and is what CP2K actually solves in (its log for our own shell list: 55
+  Cartesian vs 47 spherical functions), so wiring the spherical lineage into the lattice sums would
+  retire this whole class of problem AND make the CP2K comparisons apples-to-apples.
+
+- **R1.0 The "FAKE RADIAL" `op(r)` on atomic bases — USER DIRECTION 2026-08-06, own session.**
+  An ATOM irrep block's 3-D face `operator()(rvec3_t)` returns the purely RADIAL chi_i(|r|) with the
+  irrep's Y_lm silently omitted.  Any consumer that quadratures it as a real 3-D function gets nonsense
+  when the integrand carries angular structure — this produced the occupied-d KB defect (l=0 projector
+  leaking into EVERY l block; every l>=1 projector integrating to ~1e-33), invisible for the whole life
+  of the PP code because MnO is the first system with OCCUPIED d projectors (fix c2d86ec9;
+  doc/SymmetryUpgradePlan.md §7 step 7).
+  *Interim fix that landed:* `BasisSet::ImplicitAngular_IBS` (`ImplicitL()`/`RadialValues(r)`) makes the
+  fakeness explicit in the type system and `PP_NonLocal` cross-casts to it for a per-l radial assembly —
+  that CONTAINS the trap, it does not remove it.
+  *The real fix (user), two steps:* **(1)** consumers stop touching `op(r)` directly — code that only
+  wants an INTEGRAL asks the basis for it, so the basis owns how its own functions are represented (the
+  CLAUDE.md "prefer classes to do/answer high-level operations" bias; kills this whole bug class).
+  NAMING (user, 2026-08-06): NOT a new `Integrate` verb — these are **`MakeOverlap` / `MakeOverlap3C`
+  OVERLOADS**, joining the existing `Integrals_Overlap` family, with the arity following the call site:
+    * \f$\langle\chi_i|f\rangle\f$ → a VECTOR → a `MakeOverlap(f, mesh)` overload
+      (`PP_NonLocal`'s projection vector b_i).
+    * \f$\langle\chi_i|f|\chi_j\rangle\f$ → a MATRIX → a `MakeOverlap3C(f, mesh)` overload
+      (`PP_Local`'s V_loc block — f in the operator/C slot, exactly the existing 3C shape).
+  Call sites on the raw-op(r) mesh route today: `PP_Local::CalculateMatrix`
+  (`WeightedOverlap(mesh,*bs,VlocField)`), `PP_NonLocal::CalculateMatrix` explicit-angular branch
+  (`Overlap(mesh,*bs,BetaYlmField)`), `Fit_IBS` (`Overlap(itsMesh,*this,f)`), plus the XC/fitting paths
+  sharing the WeightedOverlap shape.
+  **(2)** then make `op(r)` HONEST (real Y_lm linear combinations), nothing depending on the fake any
+  more.  Design question to settle FIRST in that session: an atomic block carries l plus an m-LIST and
+  the spherical solver keeps m-degeneracy in the OCCUPATIONS, so decide what `op(r)` returns per (i,m)
+  before touching the density/XC paths, which currently rely on the radial-only form.
+  *On completion:* RETIRE `ImplicitAngular_IBS` and collapse `PP_NonLocal::CalculateMatrixRadial` back
+  into the single 3-D route.  Keep `A_PP.PerLKleinmanBylanderOracle` (s/p/d/f + cross-l zeros) and the
+  CP2K atom oracles as the refactor invariant — they pin the physics independently of which route
+  computes it.
+
 - **R1.1 ✅ DONE `06e23f5d`. `FittedVxcPol::GetEnergy` clobbers `te.Exc`** — `te.Exc = 0.0;` before delegating
   (Imp/FittedVxcPol.C:83).  Correct today only because exchange precedes correlation in
   Ham_DFTcorr_P's term list; a silent order-dependent zeroing of any prior XC contributor.

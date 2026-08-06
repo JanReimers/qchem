@@ -263,7 +263,7 @@ public:
             const rvec3_t ci=radials[i]->GetCenter();
             const rvec3_t dig=ci-g.center;
             dcmplx s(0.0);
-            for (const auto& n : A.CellsInSphere(rr+A.GetMaximumCellEdge()))
+            for (const auto& n : A.CellsInSphere(rr+norm(dig)))      // exact bound (keep test centred at dig)
             {
                 const rvec3_t Roff=A.ToCartesian(rvec3_t(double(n.x),double(n.y),double(n.z)));
                 const rvec3_t d=dig-Roff;
@@ -362,9 +362,13 @@ public:
         double aMinJ=radials[j]->GetExponents()[0]; for (double e:radials[j]->GetExponents()) aMinJ=std::min(aMinJ,e);
         // Screen on the product PREFACTOR exp(-aMinI aMinJ/(aMinI+aMinJ) |Delta|^2) < eps: the pair overlap
         // decays with the centre separation |Delta|=|R_i-(R_j+Roff)|, so include Roff only within this radius.
+        // The enumeration sphere is centred at Roff=0 but the KEEP test at dij, so the exact bound is
+        // rr+|dij| (triangle inequality) -- NOT rr+maxCellEdge, whose "|dij| <= cell edge" assumption FAILS
+        // for oblique cells / far in-cell pairs (the MnO rhombohedral AFM-II cell: |dij| up to ~2.1x the
+        // edge, whole image shells silently missed, indefinite Bloch overlap lambda_min ~ -0.2).
         const double rr=std::sqrt(-std::log(kScreenEps())*(1.0/aMinI+1.0/aMinJ));
         const rvec3_t dij=Ri-Rj;
-        for (const auto& n : A.CellsInSphere(rr+A.GetMaximumCellEdge()))
+        for (const auto& n : A.CellsInSphere(rr+norm(dij)))
         {
             const rvec3_t Roff=A.ToCartesian(rvec3_t(double(n.x),double(n.y),double(n.z)));
             const rvec3_t d=dij-Roff;                                 // R_i - (R_j + Roff): the centre separation

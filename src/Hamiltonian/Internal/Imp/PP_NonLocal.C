@@ -94,8 +94,49 @@ PP_NonLocal::PP_NonLocal(const st_t& st, sep_t sep, const qcMesh::MeshParams& mp
     assert(itsSep);
 }
 
+// The IMPLICIT-ANGULAR (atomic, radial) assembly.  An atom block stores chi_i(r) with the irrep's Y_lm
+// implicit (BasisSet::ImplicitAngular_IBS), so the 3-D mesh route below cannot form <chi|beta Y_lm>: with no
+// angular structure to integrate against, an l=0 projector would leak into blocks of EVERY l and every
+// l>=1 projector would integrate to zero (the measured occupied-d defect -- see the capability's doc).
+// Here instead:  phi_i = f_i(r) Y_lm with int f_i f_j r^2 dr = delta_ij, and V_NL = Sum_m D|beta Y_lm><...|,
+// so on the l-MATCHING block  <phi_i|V_NL|phi_j> = D (int f_i beta r^2)(int f_j beta r^2)  -- for ONE m
+// (the block is per-l; its m-degeneracy rides in the OCCUPATION, so there is no (2l+1) sum) -- and exactly
+// zero on every other block.  With the stored normalisation f_i = sqrt(4pi) chi_i this is
+// 4pi D b_i b_j,  b_i = int chi_i beta r^2 dr.
+rsmat_t PP_NonLocal::CalculateMatrixRadial(const BasisSet::ImplicitAngular_IBS& ia, size_t n) const
+{
+    // A radial block is centred on its nucleus, so this lineage is the single-atom (spherical) solver.
+    assert(theStructure->GetNumAtoms()==1 &&
+           "PP_NonLocal: an implicit-angular (radial) basis is the ATOMIC lineage -- one centre");
+    const int lBlk=ia.ImplicitL();
+    const qcMesh::RadialMesh rad=qcMesh::MakeRadial(itsMeshParams);   // weights fold the r^2 jacobian
+    const Atom* at=(*theStructure)[0];
+    const int   Z =at->itsZ;
+
+    rmat_t V(n,n,0.0);
+    for (size_t p=0; p<itsSep->NumProjectors(Z); p++)
+    {
+        if (itsSep->AngularMomentum(Z,p)!=lBlk) continue;     // orthogonal channels: exactly zero
+        const double D=itsSep->Coefficient(Z,p);
+        rvec_t b(n, 0.0);                                     // b_i = int chi_i beta_p r^2 dr
+        for (size_t g=0; g<rad.R().size(); g++)
+        {
+            const double w=rad.W()[g]*itsSep->BetaR(Z,p,rad.R()[g]);
+            const rvec_t chi=ia.RadialValues(rad.R()[g]);
+            for (size_t i=0;i<n;i++) b[i]+=w*chi[i];
+        }
+        for (size_t i=0;i<n;i++)                              // rank-1 update 4pi D |b><b|
+            for (size_t j=0;j<n;j++) V(i,j)+=FourPi*D*b[i]*b[j];
+    }
+    return rsmat_t(V);
+}
+
 rsmat_t PP_NonLocal::CalculateMatrix(const robs_t* bs, const Spin&) const
 {
+    // Capability cross-cast (abstract->abstract): a radial/implicit-Y_lm block takes the per-l radial route.
+    if (auto* ia=dynamic_cast<const BasisSet::ImplicitAngular_IBS*>(bs))
+        return CalculateMatrixRadial(*ia, bs->GetVectorSize());
+
     qcMesh::Mesh mesh = theStructure->CreateIntegrationMesh(itsMeshParams);   // the geometry's own mesh
     size_t n=bs->GetVectorSize();
     rmat_t V(n,n,0.0);

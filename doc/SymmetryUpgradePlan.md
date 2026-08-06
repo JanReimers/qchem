@@ -959,6 +959,123 @@ against a special case it will outgrow:
      Couple T3.4b to the AUTO-ARM criterion (the open-shell finding above) — both gate
      turning the fold on by default.
 7. **MnO rocksalt AFM-II** (2 f.u., moments along [111]) — first *real* d-electron magnet:
+   **CAMPAIGN IN PROGRESS (2026-08-04→06).**  Prerequisite DONE: the spin-polarized SAD seed
+   (SCFSeedingPlan §10 increments A c08e81f8 + B 6a694c2a — spin tables incl. the Mn²⁺=3d⁵
+   Atom_EC TM-cation fix, `Atom::itsSpinFlip`, `PolarizedSeedCD` + the `tSpinResolved_CD` face,
+   RhoPol third branch; gates: AFM staggering algebra, ζ=0 collapse, Na re-pin; 665/665).
+   The gate itself (`MnO_AFM2_RhombohedralGamma`: rhombohedral 2-f.u. cell a=8.40, q7/q6
+   valence_lowq_sr Mn/O windows, IonicSAD AFM seed, free run, kT=5e-3) surfaced THREE findings:
+   - **Lattice-sum truncation BUG (fixed en route):** `ForImageOffsets` enumerated to
+     `rr+maxCellEdge`, assuming in-cell |dij| ≤ cell edge — FALSE for oblique cells (here |dij|
+     up to 2.1× the edge): whole image shells silently dropped, Bloch overlap INDEFINITE
+     (λmin −0.205 even with the trusted SIPP_SR Si control).  Fix = the exact triangle bound
+     `rr+|dij|` (+ the GPW image-list sibling); kept sets provably identical where enumeration
+     was already complete; suite 665/665 unmoved.
+   - **Conditioning:** the dense 4-atom oblique cell saturates the s space — vet whack-a-mole
+     at λ~1e-8 until Mn s thinned to 7× 0.10–24 (d 8× 0.18–36 sits at the atom floor).  Even
+     the passing basis has cond(S)~7e8, and plain Cholesky EXPLODES (E~1e9 Ha at iteration 1);
+     `CholeskyPivoted`+`orthoTol=1e-4` (the NaF-class recipe) restores physical energetics
+     (E₁=−454.8 Ha ✓ vs 2Mn(−189.4)+2O(−13.9)+Madelung).
+   - **COST (the fold motivation, measured):** the free-run magnetic cell wants 3.4e9 stream
+     points vs the ~1e9 (8.6 GB) budget → 77% of pair-offset streams dropped → EVERY iteration
+     pays analytic collocate+integrate sweeps: ~1 h/iteration + ~1 h build on a 14 GB box (the
+     unbounded first attempt was killed at 30 h).  A converged free-run gate is compute-infeasible
+     at this basis size — THE concrete motivation for extending the T3 stream fold to
+     Shubnikov-imposed AFM runs (SpinAction::Flip consumption + the magnetic little group +
+     T3.4b), which would make iterations GEMM replays again.  `GPW_MNO_NMAX`/`GPW_MNO_VERBOSE`
+     bound/instrument hand-runs; CP2K oracle deck ready (IntegrationTests/CP2K/mno_afm2_gpw_sr.inp
+     + Mn/O VALENCE-LOWQ-BASIS transcriptions).
+   - **THE BLOCKER (2026-08-06): the OCCUPIED-d nonlocal PP is WRONG (~12.6x ≈ 4π-scale).**
+     MnO is the FIRST system whose d-channel KB projectors are OCCUPIED (CsI's l=2 gate touches
+     only virtuals — an l=2 defect was invisible to every prior anchor).  Evidence: our Mn q7
+     pseudo-ATOM converges to −189.4 Ha vs the CP2K ATOM oracle **−14.243986** (l≤1 control
+     species agree modulo the known atom-convention constant: F q7 ours −20.90 / CP2K −24.05
+     with the CRYSTAL match at 0.19 mHa; O q6 −13.94 / −15.75); the MnO crystal (run 3, pivoted
+     ortho) descends through −456 vs the CP2K crystal oracle **−61.470570** (72 Broyden steps —
+     hard for CP2K too; Mulliken site moments **Mn ±4.654 μB**, O ~0, net charges ±1.69 — the
+     AFM-II target physics).  RULED OUT: the parameter tabulation (byte-identical to CP2K's
+     GTH_POTENTIALS), Qli/ProjR (Bessel-pair verified), LegendreP, RealYlm.  Both independent KB
+     consumers (atomic mesh route + crystal analytic route) err TOGETHER ⇒ the defect sits in the
+     shared `SeparablePotential` model layer — **RESOLVED FURTHER (2026-08-06, the probe
+     `A_PP_Probe.DISABLED_MnOxygenAngularMeshBisect` — measured numbers + full diagnosis in its
+     header): TWO SEPARATE consumer defects, model layer fully exonerated.**  (i) ATOMIC route:
+     the atomic radial basis's 3-D face carries NO angular factor, so `PP_NonLocal`'s mesh overlap
+     ⟨χ|βY_lm⟩ is structurally wrong against it — the default nAngular=1 rule manufactures the
+     −189 catastrophe, exact angular resolution ZEROES every l≥1 projector (Mn → −8.72, its whole
+     d nonlocal lost), and l=0 projectors carry a 4π-class overcount (F/O +3.15/+1.8 shallow; the
+     l≤1 pinned atomic PP anchors sit on this route).  Fix: a per-l RADIAL KB assembly for atomic
+     bases (analytic via `BetaGaussian`).  (ii) CRYSTAL route (−456 vs −61.4706): its own l=2
+     defect in the GPW analytic KB Cartesian expansion — audit `Math.Angular`'s RAW SphericalShell
+     coefficients + their unit-self-overlap normalization at the consumer.  Per-l s/p/d/f oracle
+     gates (user request) land with the fix.  The gate + the Increment A Mn table entries (generated
+     on the broken atomic route) both refresh after; gate DISABLED_ until then.
+     Run logs: doc/logs/mno_afm2_run{1_partial,3_pivoted,4_postKBfix}.log.
+   - **THE KB FIX LANDED 2026-08-06 (c2d86ec9) — and it was the ATOMIC route only.**  Root cause
+     (measured by the new per-l oracle): an atomic block stores purely RADIAL χ with the irrep's
+     Y_lm implicit ("fake radial" op(r), user), so `PP_NonLocal`'s 3-D mesh ⟨χ|βY_lm⟩ was
+     meaningless — l=0 leaked into EVERY l block, every l≥1 projector integrated to ~1e-33.  Fix =
+     `BasisSet::ImplicitAngular_IBS` + a per-l radial assembly.  ALL FOUR channels (s,p,d,**f**)
+     now reproduce the analytic reference at 0.999996 with cross-l exactly 0
+     (`A_PP.PerLKleinmanBylanderOracle`), and every atom matches its CP2K ATOM oracle: Mn −14.230
+     (−14.2440), O −15.744 (−15.748), F −24.028 (−24.046), Si −3.7426 (−3.7470); with good bases
+     Si Slater/Medium is 33 μHa and O Slater/High 255 μHa from CP2K, O matching TERM BY TERM.  Two
+     "oracles" quoted in old test comments turned out to be broken-route artifacts; Na q1 (l=0+l=1)
+     was silently wrong too and is now 100 μHa from CP2K.  Suite 666/666.  The removal of the
+     underlying fake op(r) is CleanupCandidates **R1.0** (user direction: consumers move to
+     `MakeOverlap`/`MakeOverlap3C` overloads, then op(r) becomes honest, then this capability retires).
+   - **THE CRYSTAL SIDE IS **NOT** THE SAME BUG (2026-08-06).**  Both real-space routes are now
+     oracle-matched on the very same Mn q7 PP (atomic radial −14.230 unpolarized; molecular
+     Cartesian −14.6681 vs atomic polarized −14.6583 — they agree to 10 mHa, the 0.42 Ha vs CP2K
+     being Hund polarization since the CP2K ATOM deck is restricted).  Two crystal-side findings
+     replace the old "l=2 audit" guess:
+     (a) **Basis conditioning is the leading explanation for MnO's ~356 Ha over-binding.**  CARTESIAN
+     d carries the s contaminant, so the Mn window (7s + 8 d-shells × 6 components = 55 functions)
+     is RANK-DEFICIENT before any physics — λmin 1.15e-07, cond 8.2e7, the GPW vet ABORTS on a
+     single Mn atom in a box; the molecular facade survives only by dropping 5 near-null modes.  A
+     near-null direction the SCF can occupy is textbook variational collapse, and MnO's 154-function
+     cell (cond 7e8) sits in that regime.  SPHERICAL d (no contaminant) is the natural cure but is
+     UNAVAILABLE on the GPW path (throws: no `Molecule::LatticeSum1E` — the parked S3b spherical
+     work).  NEXT: regenerate a well-conditioned Cartesian Mn window (far fewer d shells, s/d
+     exponents well separated — the SIPP→SIPP_SR "ill-conditioning is a BASIS problem" lesson),
+     re-vet, then re-open the gate.  Probe: `GPW_SCF.DISABLED_MnAtomInBoxDChannelProbe`.
+     (a2) **CURED 2026-08-06 (user's insight) + THE FIRST REAL MnO RUN.**  Cartesian d's s-contaminant
+     was the redundancy: keep the d set, cut the s window to TWO (diffuse 4s tail 0.10 + one tight 24)
+     — Mn box λmin 1.15e-07→3.0e-03, cond 8.2e7→2.1e3, at a cost of 2 mHa; trimming *d* instead costs
+     0.55 Ha (the d set is the physics).  A SECOND, INTER-SITE redundancy then showed up in the cell
+     (still 1.4e-07): the classic SR trim (Mn d≥0.38, O s≥0.39 p≥0.46) gives 122 functions at
+     λmin 3.2e-03 / cond 2.4e3.  New GATE `GPW_SCF.MnAtomInBoxDChannel` = the first OCCUPIED-d species
+     validated end to end through the crystal path (GPW −14.6380 vs facade −14.626).  NB CP2K solves
+     our own shell list SPHERICALLY (55 Cartesian vs 47 spherical functions in its log) so it never
+     sees the contaminant — the oracle comparison was apples-to-oranges in exactly the sore spot.
+     **MnO run 6 (cured basis + fixed KB + regenerated seed tables) RUNS AND SETTLES** — no collapse,
+     charge exact 26.000000, fingerprint DENSITY-DEGENERATE (E settled, ρ rotates), 30 iters:
+     `Etot=−45.643  (Ekin 78.73  Een −84.45  Eee 29.14  Exc −14.88  Enn −57.34  E_alphaZ +3.17)`.
+     TWO REMAINING DEFECTS, both now cleanly stated:
+       * **THE AFM ORDER COLLAPSED**: site moments came out EXACTLY 0.0000000000 on BOTH Mn — the run
+         relaxed to the non-magnetic ζ=0 solution.  This is the §10 trap itself (ζ=0 is a stationary
+         point of the polarized functional).  The SEED is provably staggered
+         (`PlaneWaveDFT.PolarizedSeedAFMStaggering`), so the loss happens IN the SCF — prime suspects:
+         the Kerker mixer acting on the TOTAL density (washing the channel difference), Fermi smearing
+         at nUp=nDn=13 pulling toward the symmetric state, and the absence of any constraint holding
+         the staggering.  NEXT: log ⟨m⟩ per iteration to see WHERE it dies, then constrain (fixed-moment
+         / per-channel mixing) rather than hoping the seed survives.
+       * **UNDER-BOUND by 15.8 Ha** vs CP2K −61.4706 — far beyond basis incompleteness (our own free
+         atoms sum to ≈−60.8, so a bound crystal must sit BELOW that).  CP2K's CRYSTAL decomposition is
+         now banked for the comparison (same deck): `core-self −125.2197  coreH +42.3595  Hartree
+         +35.7299  XC −14.3400  overlap ~0  => −61.4706`, against ours `Ekin 78.73  Een −84.45
+         Eee 29.14  Exc −14.88  Enn −57.34  alphaZ +3.17 => −45.64`.  **CAUTION: the two PARTITIONINGS
+         DIFFER** — CP2K folds the local PP's long-range part into its Hartree term and carries a
+         Gaussian core SELF-energy (−125.22) that is cancelled inside that Hartree, whereas we split
+         Enn (point-Zion Ewald) + E_alphaZ (G=0 alignment) + Een + Eee.  So the totals are the only
+         apples-to-apples number until someone derives the mapping; the density-INDEPENDENT constants
+         (ours Enn+alphaZ = −54.17) are where that derivation should start, since both KB routes are
+         oracle-clean at the atom level and XC agrees to ~0.5 Ha (itself partly the ζ=0 collapse).
+     Run log: doc/logs/mno_afm2_run6_curedbasis.log.
+     (b) **A real but unattributed l=2 discrepancy between the two CRYSTAL KB routes**: analytic vs
+     mesh = 3.09e-2 relative on Mn (vs 2.4e-9 for the Si l=0,1 gate) — structural, not a scale factor
+     (max|Va| == max|Vm| exactly).  Could still be the MESH arm being coarse on Mn's compact
+     r_l=0.328 d projector; a densityEcut sweep attributes it.  3% cannot explain 356 Ha, so this is
+     a separate (smaller) issue.  Gate `GPW.DISABLED_AnalyticSeparablePPMatchesMesh_DChannel`.
    the first genuine workout of the Shubnikov ops + imposed-subgroup policy + `+U` +
    order-parameter diagnostic together. The direct rehearsal for **LiMn₂O₄** charge/spin
    ordering (the north-star), which follows.  (Tier 4b DONE unblocks the two-channel

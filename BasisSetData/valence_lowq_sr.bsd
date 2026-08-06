@@ -3,9 +3,34 @@ from each shell (F s 0.12 + p 0.14; Na s 0.03; Al s 0.04 + p 0.05), so the Bloch
 positive-definite in a solid at a modest Rcut (the SIPP->SIPP_SR lesson: ill-conditioning is a BASIS problem).
 For GPW crystals.  (Al: the FCC-Al degenerate-shell metal test, doc/GPWPlan1.md item 2 -- the full valence_lowq
 Al p 0.05 makes the primitive-cell Bloch overlap rank-deficient AND explodes the collocation grid.)
-Mn (q7: s 9x 0.10-50, d 10x 0.14-80, atom gap 62 mHa vs pool floor) + O (q6: s 7x 0.15-35, p 6x 0.18-12,
-gap 13 mHa) added for the MnO AFM-II gate (doc/SymmetryUpgradePlan.md sec 7 step 7); windows valgen-validated
-polarized (Mn Hund moment 5), exponents kept DISJOINT across l (the PG_Cart shared-exponent reader merge).
+Mn (q7: s 2x {0.10,24} + d 7x 0.38-36 -- see the CARTESIAN-d note below) + O (q6: s 5x 0.39-18,
+p 4x 0.46-8) added for the
+MnO AFM-II gate (doc/SymmetryUpgradePlan.md sec 7 step 7); windows valgen-validated polarized (Mn Hund
+moment 5), exponents kept DISJOINT across l (the PG_Cart shared-exponent reader merge).  BOTH ends of the
+Mn's SHARP end is capped for the GPW rasters (AUTO density Ecut = 2*alpha_max = 72 Ha).
+THE CARTESIAN-d s-CONTAMINANT (measured 2026-08-06, user's insight).  A Cartesian d shell has SIX
+components and so carries an s-type contaminant r^2 e^{-a r^2}; with a wide s window those contaminants
+are spanned by the explicit s functions and the basis goes RANK-DEFICIENT.  Mn 7s+8d measured lambdaMin
+1.15e-07 / cond 8.2e7 -- the GPW vet ABORTS on a single Mn atom in a box, and the molecular facade only
+survives by silently dropping 5 near-null modes of 55.  CURE: keep the d set and drop the s window to
+TWO functions -- the contaminants already span the mid/tight s space, so only the DIFFUSE 4s tail (0.10)
+and one tight function (24) are needed:
+     7s+8d  lambdaMin 1.15e-07  cond 8.2e7   VET ABORTS      facade -14.6681 (5 modes dropped)
+     0s+8d  lambdaMin 6.5e-03   cond 8.6e2   pass            facade -14.607   GPW -14.635
+  -> 2s+8d  lambdaMin 3.0e-03   cond 2.1e3   pass            facade -14.6661  GPW -14.6701
+Trimming the d count instead "fixes" conditioning but costs 0.55 Ha (7s+4d -> facade -14.11): the d set
+is the physics, the s window was the redundancy.
+IN THE CELL a SECOND, INTER-SITE redundancy appears (the MnO 4-atom cell still vetted 1.4e-07 / 1e8 with
+the cured single-atom Mn): at the 2.1 A Mn-O contact the most diffuse function of each shell overlaps its
+neighbours -- Mn s 0.10 alone reaches ~15 bohr, wider than the cell.  The classic SR trim cures it (drop
+the most diffuse d/s/p), measured on the MnO cell vet:
+     Mn d>=0.18, O s>=0.15 p>=0.18   n=142  lamMin 1.4e-07   cond 1e8      ABORT
+     Mn d>=0.38, O s>=0.15 p>=0.18   n=130  lamMin 5.5e-05   cond 1.6e5    ABORT
+  -> Mn d>=0.38, O s>=0.39 p>=0.46   n=122  lamMin 3.2e-03   cond 2.4e3    pass
+Counter-intuitively Mn's DIFFUSE s (0.10) is kept -- raising it to 0.25 makes the cell WORSE once O is
+trimmed (8.3e-05 vs 3.2e-03), because that function carries the 4s tail the contaminants cannot.  NB CP2K solves this same shell list in the SPHERICAL
+space (its log: 55 Cartesian vs 47 spherical functions) and so never sees the contaminant at all --
+an apples-to-oranges difference to remember when comparing against its oracles.
 
 !
 BASIS="Low-q GTH-pseudopotential valence basis SR (generated, diffuse-trimmed)"
@@ -73,67 +98,39 @@ BASIS="Low-q GTH-pseudopotential valence basis SR (generated, diffuse-trimmed)"
  S   1  1.00
             0.10000000        1.00000000
  S   1  1.00
-            0.21745593        1.00000000
- S   1  1.00
-            0.47287080        1.00000000
- S   1  1.00
-            1.02828559        1.00000000
- S   1  1.00
-            2.23606798        1.00000000
- S   1  1.00
-            4.86246236        1.00000000
- S   1  1.00
-           10.57371263        1.00000000
- S   1  1.00
-           22.99316489        1.00000000
- S   1  1.00
-           50.00000000        1.00000000
+           24.00000000        1.00000000
  D   1  1.00
-            0.14000000        1.00000000
+            0.38369936        1.00000000
  D   1  1.00
-            0.28343739        1.00000000
+            0.81791778        1.00000000
  D   1  1.00
-            0.57383396        1.00000000
+            1.74352515        1.00000000
  D   1  1.00
-            1.16175715        1.00000000
+            3.71660826        1.00000000
  D   1  1.00
-            2.35203867        1.00000000
+            7.92255676        1.00000000
  D   1  1.00
-            4.76182646        1.00000000
+           16.88822203        1.00000000
  D   1  1.00
-            9.64056906        1.00000000
- D   1  1.00
-           19.51784099        1.00000000
- D   1  1.00
-           39.51489946        1.00000000
- D   1  1.00
-           80.00000000        1.00000000
+           36.00000000        1.00000000
  ****
  O   0
  S   1  1.00
-            0.15000000        1.00000000
+            0.39077566        1.00000000
  S   1  1.00
-            0.37218088        1.00000000
+            1.01803746        1.00000000
  S   1  1.00
-            0.92345738        1.00000000
+            2.65216175        1.00000000
  S   1  1.00
-            2.29128785        1.00000000
+            6.90933509        1.00000000
  S   1  1.00
-            5.68515683        1.00000000
- S   1  1.00
-           14.10604441        1.00000000
- S   1  1.00
-           35.00000000        1.00000000
+           18.00000000        1.00000000
  P   1  1.00
-            0.18000000        1.00000000
+            0.46475800        1.00000000
  P   1  1.00
-            0.41692146        1.00000000
+            1.20000000        1.00000000
  P   1  1.00
-            0.96568615        1.00000000
+            3.09838668        1.00000000
  P   1  1.00
-            2.23675156        1.00000000
- P   1  1.00
-            5.18083186        1.00000000
- P   1  1.00
-           12.00000000        1.00000000
+            8.00000000        1.00000000
  ****
