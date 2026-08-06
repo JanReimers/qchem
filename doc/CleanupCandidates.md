@@ -130,6 +130,28 @@ MnO campaign proceeds undisturbed in qchem6.
   (both variants were built and compared).  Non-template code in an `Imp/` TU never hits this, so it
   will recur on every future T-templating collapse (`DiracKinetic`, `RestMass` if they go periodic).
 
+- **R2.4 + V1.9 + R1.3** — the `Structure`→`UnitCell` cast sites are GONE, replaced by the user's
+  free pry-out helpers (the `Symmetry::Atom::Getl` pattern), added to `qchem.ReciprocalLattice`
+  (which already re-exports `qchem.UnitCell`, and sits in qcStructure below every consumer):
+  `isPeriodicCell` (non-throwing probe), `GetUnitCell`, `GetReciprocalCell`, `GetReciprocalLattice`
+  (the `Get` forms throw `std::bad_cast` via the reference cast).  All four sites converted:
+  `SeedCD`'s anon `ReciprocalOf` DELETED (it was this helper, privately), SeedCD's flip-group cast,
+  `MakeDensityMixer`, and `SCFIterator`.
+  - **Design point that fell out:** the mixer factory needs a GRACEFUL fallback (it degrades to
+    linear D-mixing and warns), so a purely throwing pry-out could not serve it — hence the
+    `isPeriodicCell` probe alongside the throwing accessors.  Worth keeping in mind for the other
+    capability faces: "can you?" and "give me it" are two different questions.
+  - **R1.3 (the slicing copy) is FIXED as a side effect, not stopgapped**: SCFIterator now does
+    `st->Clone()`, which is polymorphic (no slice of a derived cell) and returns the
+    `shared_ptr<Structure>` the member already held.  V1.10b can still delete the member entirely.
+  - Small ISP win: `MakeDensityMixer` was handing the concrete `UnitCell*` to
+    `CreateVxcFitBasisSet`, which takes a `Structure*` — it now passes the neutral pointer.
+  - Stale-comment batch: `Band_DFT_IBS.C`'s header no longer claims `PlaneWave_IBS` implements it
+    (it documents the D1 re-decision instead), `PlaneWaveDFTUT`'s comment now names the real cast
+    (`Integrals_Pseudo<dcmplx>`), and FOUR unused imports left SCFIterator (FourierDensity,
+    FourierMixCD, Band_FT_IBS, ReciprocalLattice — each had exactly one occurrence in the file:
+    its own import line).
+
 **Process note for the next session:** build **`allTests`**, not just `ITMain`.  A first `ctest` in
 qchem1 reported 160/590 failures that were ENTIRELY stale per-library `UT*` binaries (undefined
 symbols + segfaults from the tree jumping ~30 commits while only ITMain was relinked) — zero real

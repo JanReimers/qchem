@@ -316,16 +316,15 @@ template <class T> std::unique_ptr<tDensityMixer<T>> MakeDensityMixer(
         if (kerkerG0>0.0 || pulayDepth>0)   // both need the periodic ρ̃ machinery
         {
             auto* ftb  = basis ? dynamic_cast<const BasisSet::Band_FT_IBS*>((*basis)[0]) : nullptr;
-            auto* cell = dynamic_cast<const UnitCell*>(structure);
             auto* fd   = dynamic_cast<const FourierDensity*>(seed);
-            if (!ftb || !cell || !fd)
+            if (!ftb || !isPeriodicCell(structure) || !fd)
             {
                 std::cerr << "[Mixer] DISABLED: Kerker/Pulay need a periodic Band_FT_IBS basis + UnitCell + "
                           << "FourierDensity -- falling back to linear D-mixing." << std::endl;
                 return std::make_unique<LinearMixer<T>>(relax0);
             }
-            auto fit = std::shared_ptr<const BasisSet::cFIT_SF_ABS>(ftb->CreateVxcFitBasisSet(cell, qcMesh::MeshParams{}));
-            ReciprocalLattice recip(cell->MakeReciprocalCell());
+            auto fit = std::shared_ptr<const BasisSet::cFIT_SF_ABS>(ftb->CreateVxcFitBasisSet(structure, qcMesh::MeshParams{}));
+            ReciprocalLattice recip=GetReciprocalLattice(structure);
             auto rho0  = fd->GetFourierDensity(*fit);
             rvec_t raw0= fd->GetRhoOnGrid(*fit);   // raw-raster shadow seed (0.5(f2)); empty = late-activate
             const double charge = seed->GetTotalCharge();

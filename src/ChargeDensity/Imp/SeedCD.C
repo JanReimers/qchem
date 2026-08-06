@@ -17,22 +17,15 @@ import qchem.BasisSet.G_FieldEvaluator; // the fit basis's grid engine (its anal
 namespace qchem::ChargeDensity
 {
 
-namespace
-{
 // The seed is periodic (a plane-wave density), so its Structure IS a UnitCell -- derive the reciprocal
 // lattice ONCE at construction (the Poisson metric B), rather than casting on every GetRepulsion3C.
-ReciprocalLattice ReciprocalOf(const Structure* st)
-{
-    const UnitCell* cell=dynamic_cast<const UnitCell*>(st);
-    assert(cell && "SeedCD is periodic: its Structure must be a UnitCell");
-    return ReciprocalLattice(cell->MakeReciprocalCell());
-}
-} //anon
+// GetReciprocalLattice is the shared pry-out helper (qchem.ReciprocalLattice); it throws std::bad_cast
+// when the Structure is not periodic, which is exactly this class's precondition.
 
 SeedCD::SeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Structure* st,
                              const std::string& functional, const std::map<size_t,int>& ionicNvalByZ,
                              const Spin& channel)
-    : itsFitBasis(fitBasis), itsStructure(st), itsRecip(ReciprocalOf(st)), itsChannel(channel), itsCharge(0.0)
+    : itsFitBasis(fitBasis), itsStructure(st), itsRecip(GetReciprocalLattice(st)), itsChannel(channel), itsCharge(0.0)
     , itsVersion(NextDensityVersion())   // shared global clock (no cross-kind collisions)
 {
     assert(fitBasis);
@@ -91,10 +84,9 @@ SeedCD::SeedCD(std::shared_ptr<const BasisSet::cFIT_CD_ABS> fitBasis, const Stru
         for (size_t i=0;i<st->GetNumAtoms();i++) if ((*st)[i]->itsSpinFlip) anyFlip=true;
         if (anyFlip)
         {
-            const UnitCell* cell=dynamic_cast<const UnitCell*>(st);   // checked precondition (see ReciprocalOf)
-            assert(cell);
-            itsGroupA=std::make_shared<UnitCell>(cell->GetCellMatrix());
-            itsGroupB=std::make_shared<UnitCell>(cell->GetCellMatrix());
+            const UnitCell& cell=GetUnitCell(st);   // checked precondition (periodic seed)
+            itsGroupA=std::make_shared<UnitCell>(cell.GetCellMatrix());
+            itsGroupB=std::make_shared<UnitCell>(cell.GetCellMatrix());
             for (size_t i=0;i<st->GetNumAtoms();i++)
             {
                 const Atom* a=(*st)[i];

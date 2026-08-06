@@ -2,8 +2,11 @@
 module;
 #include <vector>
 #include <iosfwd>
+#include <cassert>
+#include <typeinfo>   // std::bad_cast (thrown by the reference dynamic_cast in the pry-out helpers)
 export module qchem.ReciprocalLattice;
 export import qchem.UnitCell;
+import qchem.Structure;   // the abstract base the pry-out helpers take
 import qchem.Streamable;
 import qchem.Math;        // FourPi (the Coulomb/Poisson kernel prefactor)
 import qchem.Vector3D;    // rvec3_t + its dot product (G*G)
@@ -48,5 +51,42 @@ public:
 private:
     UnitCell itsCell; //!< Reciprocal cell: its lattice matrix is \f$B = 2\pi A^{-\top}\f$.
 };
+
+//---------------------------------------------------------------------------------
+// Free pry-out helpers that downcast an abstract Structure to the concrete periodic UnitCell.
+//
+// Same pattern -- and the same rationale -- as Symmetry::Atom::Getl: the reciprocal lattice is wanted
+// in several STRUCTURE-NEUTRAL libraries (the SCF iterator, density mixing, seeding), each of which was
+// repeating its own dynamic_cast + assert.  These keep the cast AND its error handling in ONE place, and
+// let the call site say what it WANTS ("give me the reciprocal lattice") instead of how to get it.
+//
+// The Get* forms THROW std::bad_cast on a non-periodic Structure (the reference dynamic_cast does it).
+// isPeriodicCell() is the non-throwing probe, for a caller that must degrade gracefully rather than
+// fail -- e.g. the density-mixer factory, which falls back to linear D-mixing.
+
+//! Is this Structure a periodic cell (i.e. can the Get helpers below answer)?  Never throws.
+export inline bool isPeriodicCell(const Structure* st)
+{
+    return dynamic_cast<const UnitCell*>(st)!=nullptr;
+}
+
+//! The periodic cell itself.  \throws std::bad_cast if \a st is not periodic.
+export inline const UnitCell& GetUnitCell(const Structure* st)
+{
+    assert(st);
+    return dynamic_cast<const UnitCell&>(*st);
+}
+
+//! The reciprocal cell \f$B=2\pi A^{-\top}\f$.  \throws std::bad_cast if \a st is not periodic.
+export inline UnitCell GetReciprocalCell(const Structure* st)
+{
+    return GetUnitCell(st).MakeReciprocalCell();
+}
+
+//! The reciprocal lattice (the Poisson/Kerker metric).  \throws std::bad_cast if \a st is not periodic.
+export inline ReciprocalLattice GetReciprocalLattice(const Structure* st)
+{
+    return ReciprocalLattice(GetReciprocalCell(st));
+}
 
 } // namespace qchem

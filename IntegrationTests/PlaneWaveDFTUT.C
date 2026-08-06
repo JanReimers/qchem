@@ -1077,7 +1077,7 @@ TEST_F(PlaneWaveDFT, BasisIntegralPotentialConstAndCosine)
 }
 
 // The PW_Pseudo Hamiltonian term (cStatic_HT<dcmplx>) routes through the framework's GetMatrix path
-// and the abstract Band_DFT_IBS dynamic_cast -- its matrix must equal the basis's external assembly.
+// and the abstract Integrals_Pseudo<dcmplx> dynamic_cast -- its matrix must equal the basis's assembly.
 // This is the dependency inversion working end-to-end through a real Hamiltonian term.
 TEST_F(PlaneWaveDFT, PWPseudoTermMatchesBasis)
 {

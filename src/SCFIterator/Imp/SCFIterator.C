@@ -27,11 +27,11 @@ import qchem.Mesh;                 // qcMesh::MeshParams (defaulted -- a seed-qu
 import qchem.Energy;
 import qchem.ChargeDensity;
 import qchem.ChargeDensity.Seed;   // SeedStrategy / MakeSeedDensity
-import qchem.ChargeDensity.FourierDensity;  // FourierDensity (rho-tilde extraction from the working density)
-import qchem.ChargeDensity.FourierMixCD;    // FourierMixCD / KerkerMix (the periodic rho-mixing vehicle)
-import qchem.BasisSet.Band_FT_IBS;          // Band_FT_IBS::CreateVxcFitBasisSet (the G-space fit basis)
-import qchem.ReciprocalLattice;             // ReciprocalLattice (the Kerker |G| metric)
-import qchem.UnitCell;                       // UnitCell (reciprocal cell + volume)
+// The Kerker/Pulay G-space machinery (FourierDensity, FourierMixCD, Band_FT_IBS, ReciprocalLattice)
+// is entirely MakeDensityMixer's business -- the iterator only holds the resulting tDensityMixer, so
+// those imports are gone.  What survives is one periodicity QUESTION for the cell snapshot handed to
+// that factory (CleanupCandidates V1.10b retires even that, by building the mixer above the iterator).
+import qchem.ReciprocalLattice;              // isPeriodicCell (the structure-neutral periodicity probe)
 
 import qchem.ElectronConfiguration;
 import qchem.Math;
@@ -160,7 +160,7 @@ template <class T> tSCFIterator<T>::tSCFIterator(const tbs_t<T>* bs, const Elect
     // Deep-copy the periodic cell NOW (st is valid here but comes from a temporary Lattice_3D::GetStructure,
     // so it dangles by Iterate time) -- only for the dcmplx periodic path, so molecular runs pay nothing.
     if constexpr (std::is_same_v<T,dcmplx>)
-        if (auto* cell = dynamic_cast<const UnitCell*>(st)) itsKerkerCell = std::make_shared<const UnitCell>(*cell);
+        if (isPeriodicCell(st)) itsKerkerCell = st->Clone();   // polymorphic: no slice of a derived cell
     Initialize(seedDensity, bs, st);   // Init owns the seed transiently (see Initialize)
 }
 

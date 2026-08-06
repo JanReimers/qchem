@@ -1,9 +1,15 @@
 // File: BasisSet/Band_DFT_IBS.C  Abstract DFT potential/energy assembly capability (mesh-integrated).
 //
+// CURRENTLY UNIMPLEMENTED AND UNUSED (2026-08-05 audit): nothing imports this module, nothing derives
+// from it, nothing casts to it.  The <dcmplx> base was dropped off PlaneWave_IBS in the fitting cleanup
+// (doc/FittingCleanupPlan.md D), which KEPT the module on the grounds that a future GPW basis would
+// implement it as <double> -- but GPW has since landed (GPW_IBS) and does NOT.  So the D decision wants
+// re-deciding: implement it, or drop the module.  See doc/CleanupCandidates.md D1.
+//
 // PROVISIONAL interface (may be unified with the fit-based Orbital_DFT_IBS later).  It INVERTS the
 // dependency between the Hamiltonian DFT terms and the concrete basis: the DFT terms live in
 // qcHamiltonian and program against THIS abstract interface (in qcBasisSet); the concrete basis
-// (PlaneWave_IBS in qcLattice_BS today; atom/molecule could implement it later) implements it.  Neither
+// implements it (no implementer today -- see above).  Neither
 // library depends on the other -- both depend only on qcBasisSet, exactly as the molecular terms depend
 // on the abstract Orbital_DFT_IBS<T> (a term holds the abstract obs_t and dynamic_casts UP to the
 // richer abstract capability; the concrete basis implements it).
