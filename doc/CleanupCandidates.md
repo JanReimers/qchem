@@ -96,6 +96,33 @@ Legend:
 Execution venue (user, 2026-08-05): a branch in the second working tree **~/Code/qchem1**, so the
 MnO campaign proceeds undisturbed in qchem6.
 
+## LANDED on branch `solid-cleanup` (qchem1, 2026-08-05) — 665/665 ctest green
+
+- `06e23f5d` — **R1.1, R1.2, R1.6, R1.8, R2.1.**  The `te.Exc=0.0` clobber deleted; `=`→`+=` sweep
+  (Kinetic, DiracKinetic, RestMass, Ven, PW_Pseudo Een+E_alphaZ, PW_Kinetic, Vee); FittedVee
+  re-expressed through locals (its `te.Eee` is a Dunlap combination of its OWN two pieces, so a
+  bare `+=` would have read back another term's accumulation); Vee's two dead zero-stores deleted;
+  `DM_ContractBlocks` pure virtual + its false "periodic path asserts out" doc fixed; two `Write()`
+  pointer-streams dereferenced; FittedVee's missing cast assert added.
+  **REFINEMENT TO R1.2 (found while doing it):** `GridChargeLost` must KEEP `=` — Delta_XC_Pol and
+  Delta_VcorrPol both write the same value, so `+=` would double a health diagnostic.  A blanket
+  sweep breaks it.  That it needs the OPPOSITE rule from every neighbouring field is independent
+  evidence for V1.12 (get the diagnostic out of the energy value object).
+- `80fc2ae8` — **V1.4** (Phi key → `map<Irrep,...>`, both sides on `Spin::None`).  Verified before
+  landing: `Irrep::operator<` compares `SequenceIndex()` by VALUE (not handle identity) and
+  `BlochQN::SequenceIndex()` uniquely encodes the k index, so periodic k-blocks keep separate
+  tables instead of collapsing into one — the one way this change could have silently mixed one
+  block's basis table into another's density.  All GPW/PW anchors unmoved.
+
+**Process note for the next session:** build **`allTests`**, not just `ITMain`.  A first `ctest` in
+qchem1 reported 160/590 failures that were ENTIRELY stale per-library `UT*` binaries (undefined
+symbols + segfaults from the tree jumping ~30 commits while only ITMain was relinked) — zero real
+failures.  After `ninja allTests` the same tree is 665/665.
+
+**R1.3 is now SUPERSEDED-IF-V1.10b-LANDS and was deliberately NOT done** — the mixer-layering fix
+deletes `itsKerkerCell` outright, so the one-line `Clone()` stopgap is wasted work if V1.10b lands
+in the same session.
+
 ## READY
 
 ### R1 — correctness-adjacent (do these first)
