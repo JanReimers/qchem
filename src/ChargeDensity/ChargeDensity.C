@@ -11,6 +11,7 @@ module;
 export module qchem.ChargeDensity;
 import qchem.Fitting.FunctionFitter;   // Fitting::ProjectedDensity_AO
 export import qchem.Symmetry.Spin;
+export import qchem.Symmetry.Irrep;   // Irrep: the DM_RhoAtPoints Phi-table key (spatial block identity)
 export import qchem.ChargeDensity.FourierDensity;   // FourierDensityBase<T> (tPolarized_CD's periodic face)
 import qchem.ScalarFunction;
 import qchem.ChargeDensity.Types;
@@ -174,7 +175,7 @@ public:
     //! from \a Phi self-evaluates pointwise (correct, slower -- heals a caller's first pass before it has
     //! met every block).  Default: the plain pointwise loop over this density's ScalarFunction face, so
     //! EVERY density answers correctly; composite/leaf overrides accelerate.
-    virtual rvec_t DM_RhoAtPoints(const rvec3vec_t& r, const std::map<std::string,mat_t<T>>& /*Phi*/) const
+    virtual rvec_t DM_RhoAtPoints(const rvec3vec_t& r, const std::map<Irrep,mat_t<T>>& /*Phi*/) const
     {
         rvec_t ro(r.size());
         for (size_t g=0; g<r.size(); g++) ro[g]=(*this)(r[g]);

@@ -21,6 +21,7 @@ import qchem.Hamiltonian.Types;                 // cobs_t
 import qchem.Structure;
 import qchem.Mesh;                              // qcMesh::Mesh/MeshParams (the Delta_XC quadrature)
 import qchem.Symmetry.Lattice_3D.Fold;          // Fold + SymmetrizeValues (the Becke rho star-average, §6a W1)
+import qchem.Symmetry.Irrep;                    // Irrep: the Phi-table key (spatial block identity)
 
 export namespace qchem::Hamiltonian
 {
@@ -202,7 +203,7 @@ private:
     const mat_t<dcmplx>& Phi(const cobs_t* bs);   //!< lazily built per block (geometry-fixed)
     mesh_t itsMesh;                               //!< the quadrature (invariant when the fold is live)
     Symmetry::Lattice_3D::Fold itsFold;           //!< its orbit partition ({} = free run, no averaging)
-    std::map<std::string,mat_t<dcmplx>> itsPhi;   //!< BasisSetID -> (npts x n) basis table
+    std::map<Irrep,mat_t<dcmplx>> itsPhi;         //!< spatial Irrep -> (npts x n) basis table
     rvec_t itsRho;
     size_t itsRhoVersion=size_t(-1);              //!< density logical-clock serial itsRho was built for
     rvec_t itsRhoUp, itsRhoDn;                    //!< per-channel rasters (the polarized pair, one serial)

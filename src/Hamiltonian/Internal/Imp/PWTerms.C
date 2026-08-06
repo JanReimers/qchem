@@ -356,10 +356,12 @@ XC_GridEngine::XC_GridEngine(mesh_t mesh, Symmetry::Lattice_3D::Fold fold)
 
 // The (npts x n) basis table for one Bloch block: chi_i at every mesh point -- the ONE image-summed
 // Bloch evaluation sweep this block ever pays (geometry-fixed, so it serves every SCF iteration).
-// Keyed by BasisSetID (the PW_Hartree V_long pattern; never a pointer).
+// Keyed by the block's SPATIAL Irrep (never a pointer).  Irrep -- not BasisSetID -- because the table
+// is a property of the irrep/k block within THIS run; BasisSetID's extra radial resolution exists for
+// the cross-RUN disk cache, which this in-memory per-run table does not share.
 const mat_t<dcmplx>& XC_GridEngine::Phi(const cobs_t* bs)
 {
-    const std::string id=bs->BasisSetID();
+    const Irrep id=bs->GetIrrep(Spin::None);
     auto it=itsPhi.find(id);
     if (it!=itsPhi.end()) return it->second;
 

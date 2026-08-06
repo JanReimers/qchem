@@ -167,11 +167,13 @@ template <class T> double IrrepCD<T>::DM_ContractBlocks(const std::map<std::stri
 // (npts x n)(n x n) GEMM + a cheap rowwise dot, matching operator()(r)'s trans(phi) D conj(phi) per row.
 // No table for this basis -> self-evaluate pointwise (correct; the caller's first pass may not have
 // built every block's table yet).
-template <class T> rvec_t IrrepCD<T>::DM_RhoAtPoints(const rvec3vec_t& r, const std::map<std::string,mat_t<T>>& Phi) const
+template <class T> rvec_t IrrepCD<T>::DM_RhoAtPoints(const rvec3vec_t& r, const std::map<Irrep,mat_t<T>>& Phi) const
 {
     rvec_t ro(r.size(), 0.0);
     if (IsZero()) return ro;
-    auto it=Phi.find(itsBasisSet->BasisSetID());
+    // Spatial key: Phi is a property of the basis block alone, so the two spin channels of one
+    // spatial block share one table (Irrep interleaves spin into its ordering, hence Spin::None).
+    auto it=Phi.find(Irrep(Spin::None,itsIrrep.sym));
     if (it==Phi.end())
     {
         for (size_t g=0; g<r.size(); g++) ro[g]=(*this)(r[g]);
