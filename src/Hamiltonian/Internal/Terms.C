@@ -25,16 +25,8 @@ export namespace qchem::Hamiltonian
 
 using ChargeDensity::Polarized_CD;
 
-// Non-relativistic kinetic ENERGY term \f$T=-\tfrac12\nabla^2 = \tfrac12\langle p^2\rangle\f$.
-// (Applies the 1/2 to the basis-set \f$\langle p^2\rangle\f$ block; see Imp/Kinetic.C.)
-class Kinetic : public virtual rStatic_HT, private rStatic_HT_Imp
-{
-public:
-    virtual void          GetEnergy(EnergyBreakdown&,const rDM_CD* cd ) const;
-    virtual std::ostream& Write    (std::ostream&) const;
-private:
-    virtual rsmat_t CalculateMatrix(const robs_t*,const Spin&) const;
-};
+// The non-relativistic kinetic ENERGY term is now the T-templated Kinetic<T>
+// (qchem.Hamiltonian.Internal.Kinetic); the molecular Hamiltonians build Kinetic<double>.
 
 // Relativistic kinetic ENERGY term (Dirac \f$c\,\vec\sigma\cdot\vec p\f$); consumes the RKB-assembled
 // relativistic kinetic block directly (no 1/2). See Imp/DiracKinetic.C for the unverified-factor note.

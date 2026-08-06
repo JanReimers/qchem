@@ -52,6 +52,7 @@ import qchem.Hamiltonian;                           // cStatic_HT / cDynamic_HT 
 import qchem.Hamiltonian.Internal.Hamiltonian;      // cHamiltonianImp (the dcmplx Hamiltonian = sum of terms)
 import qchem.Hamiltonian.Internal.Hamiltonians;     // Ham_PW_DFT (the assembled plane-wave LDA KS Hamiltonian)
 import qchem.Hamiltonian.Internal.IonIon;           // IonIon<double> (ion-ion term: pair sum / Ewald via isFinite)
+import qchem.Hamiltonian.Internal.Kinetic;          // Kinetic<dcmplx> (the shared kinetic term)
 import qchem.Pseudopotential.GTH_Potentials;    // GetGTH (CP2K GTH/HGH database reader)
 import qchem.Energy;                                // EnergyBreakdown
 import qchem.ChargeDensity.Imp.IrrepCD;             // IrrepCD<dcmplx> (concrete complex density)
@@ -1287,7 +1288,7 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaMatchesPrototype)
     // Framework Hamiltonian: a cHamiltonianImp summing the PW Kohn-Sham terms.  The external term
     // owns the pseudopotential model (the pseudo-wall) and assembles it through the basis.
     cHamiltonianImp ham;
-    ham.Add(new PW_Kinetic);
+    ham.Add(new Kinetic<dcmplx>);
     ham.Add(new PW_Pseudo(si, &loc, &nl));                              // electron-ion SHORT-range + KB nonlocal
     // Hartree term carries the structure + local model so it folds in the LONG-range core-charge V_long (the
     // CP2K local-PP split, doc/GPWPlan.md 0e-PP) -- otherwise the manual Hamiltonian would drop V_long entirely.

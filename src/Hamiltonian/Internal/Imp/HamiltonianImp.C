@@ -6,6 +6,7 @@ module;
 module qchem.Hamiltonian.Internal.Hamiltonian;
 import qchem.Hamiltonian.Internal.Terms;
 import qchem.Hamiltonian.Internal.IonIon;   // IonIon<double> (the ion-ion energy term)
+import qchem.Hamiltonian.Internal.Kinetic;  // Kinetic<double> (the kinetic energy term)
 import qchem.Energy;
 import qchem.ChargeDensity;
 import qchem.stl_io;
@@ -43,7 +44,7 @@ template <class T> void tHamiltonianImp<T>::Add(tDynamic_HF_HT<T>* p)
 // builds its terms explicitly, so this is NA there.
 template <> void tHamiltonianImp<double>::InsertStandardTerms(const st_t & st)
 {
-    Add(new Kinetic);
+    Add(new Kinetic<double>);
     Add(new IonIon<double>(st));
     Add(new Ven(st));
 }

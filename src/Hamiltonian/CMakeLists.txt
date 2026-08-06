@@ -2,8 +2,7 @@ add_library(qcHamiltonian)
 target_sources(qcHamiltonian PRIVATE 
     Imp/Energy.C 
     Imp/Factory.C
-    Internal/Imp/Kinetic.C  
-    Internal/Imp/DiracKinetic.C 
+    Internal/Imp/DiracKinetic.C
     Internal/Imp/RestMass.C 
     Internal/Imp/Ven.C
     Internal/Imp/PP_Local.C
@@ -38,6 +37,7 @@ target_sources(qcHamiltonian PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
     Internal/Libxc_LDA.C
     Internal/LDAVxc.C
     Internal/IonIon.C
+    Internal/Kinetic.C
     Internal/Terms.C
     Internal/PWTerms.C
 )

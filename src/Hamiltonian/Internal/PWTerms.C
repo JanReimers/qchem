@@ -57,19 +57,8 @@ private:
     const Pseudopotential::SeparablePotential* itsSep;         //!< KB nonlocal model (non-owning; may be null).
 };
 
-//! Non-relativistic kinetic ENERGY term T = 1/2 <p^2> for a plane-wave basis (diagonal in |k+G|^2).
-//! Static (density-independent).  Uses the uncached MakeKinetic() block (the symmetric cache is bypassed
-//! by the complex path).
-class PW_Kinetic
-    : public virtual cStatic_HT
-    , private        cStatic_HT_Imp
-{
-public:
-    virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
-    virtual std::ostream& Write(std::ostream&) const;
-private:
-    virtual chmat_t CalculateMatrix(const cobs_t*, const Spin&) const;
-};
+// The non-relativistic kinetic ENERGY term is now the T-templated Kinetic<T>
+// (qchem.Hamiltonian.Internal.Kinetic); the plane-wave Hamiltonian builds Kinetic<dcmplx>.
 
 // The ion-ion (Ewald) ENERGY term is now the T-templated IonIon<T>
 // (qchem.Hamiltonian.Internal.IonIon); the plane-wave Hamiltonian builds IonIon<dcmplx>.

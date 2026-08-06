@@ -114,6 +114,22 @@ MnO campaign proceeds undisturbed in qchem6.
   tables instead of collapsing into one — the one way this change could have silently mixed one
   block's basis table into another's density.  All GPW/PW anchors unmoved.
 
+- **R2.2** — `Kinetic` + `PW_Kinetic` collapsed to `Kinetic<T>` (new module
+  `qchem.Hamiltonian.Internal.Kinetic`, inline, following the `IonIon<T>` recipe); `Internal/Imp/
+  Kinetic.C` deleted, `PW_Kinetic` deleted from PWTerms.  Confirmed while doing it that PW_Kinetic's
+  stated justification was FALSE: `Integrals_Kinetic<dcmplx>` IS instantiated, and the file that
+  instantiates it says in so many words that the periodic dcmplx bases use the cached accessors.  So
+  the periodic path now gets the `<p^2>` CACHE for free (it was calling the uncached `MakeKinetic()`
+  every build).  Same value either way — the cache key carries k/Ecut/nG — and all PW/GPW anchors are
+  unmoved.
+  **GOTCHA WORTH KNOWING (now in CLAUDE.md):** moving the body into a template broke the build on
+  `0.5*bs->Kinetic()` — *"operator* neither visible in the template definition nor found by ADL"*.
+  A module that DEFINES a template using Blaze operators must `import qchem.Blaze` ITSELF; ADL at
+  instantiation consults the template's DEFINITION context, not the instantiating TU's imports.
+  Verified empirically: the import alone is sufficient and NO `<blaze/Math.h>` include is needed
+  (both variants were built and compared).  Non-template code in an `Imp/` TU never hits this, so it
+  will recur on every future T-templating collapse (`DiracKinetic`, `RestMass` if they go periodic).
+
 **Process note for the next session:** build **`allTests`**, not just `ITMain`.  A first `ctest` in
 qchem1 reported 160/590 failures that were ENTIRELY stale per-library `UT*` binaries (undefined
 symbols + segfaults from the tree jumping ~30 commits while only ITMain was relinked) — zero real

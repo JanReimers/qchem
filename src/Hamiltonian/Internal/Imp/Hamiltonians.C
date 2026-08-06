@@ -9,8 +9,9 @@ module;
 #include <vector>
 module qchem.Hamiltonian.Internal.Hamiltonians;
 import qchem.Hamiltonian.Internal.Terms;
-import qchem.Hamiltonian.Internal.PWTerms;        // PW_Kinetic/External/Hartree/XC (the plane-wave KS terms)
+import qchem.Hamiltonian.Internal.PWTerms;        // PW_Pseudo/Hartree/XC + Delta_XC (the plane-wave KS terms)
 import qchem.Hamiltonian.Internal.IonIon;         // IonIon<T>: ion-ion energy (double molecular / dcmplx PW)
+import qchem.Hamiltonian.Internal.Kinetic;        // Kinetic<T>: kinetic energy (double molecular / dcmplx PW)
 import qchem.Types;                               // dcmplx (for IonIon<dcmplx>)
 import qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.Hamiltonian.Internal.SlaterExchange;
@@ -104,7 +105,7 @@ Ham_PP::Ham_PP(const st_t& st, std::shared_ptr<const Pseudopotential::LocalPoten
                std::shared_ptr<const Pseudopotential::SeparablePotential_R> sep,
                const qcMesh::MeshParams& mp, const rbs_t* bs, bool polarized)
 {
-    Add(new Kinetic);
+    Add(new Kinetic<double>);
     Add(new IonIon<double>(st, vloc->ZionFn()));     // ion-ion of the Zion cores (0 for one atom; Zion, not itsZ)
     Add(new PP_Local(st, vloc, mp));                 // pseudized replacement for Ven (combined model -> _R view)
     if (sep) Add(new PP_NonLocal(st, std::move(sep), mp));   // KB separable projectors (null => local-only)
@@ -190,7 +191,7 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
     // exactly as the molecular DFT ctor builds FittedVee's fit basis -- rho is cell-periodic so it is
     // Gamma (k=0).  A plane-wave fit basis reads only mp.relCutoff.
     PW_Hartree::fbs_t CFitBasis(bs->CreateCDFitBasisSet (st.get(), mp));
-    Add(new PW_Kinetic);
+    Add(new Kinetic<dcmplx>);
     Add(new PW_Pseudo(st, loc, nl));                           // electron-ion SHORT-range (+ short G=0 alignment)
     Add(new PW_Hartree(CFitBasis, st, loc));                   // Hartree V_H + long-range core-charge V_long (0e-PP)
     // The FIT/GRID separation (doc/SymmetryUpgradePlan.md §6a, user 2026-08-01): WHICH fit basis
