@@ -996,12 +996,19 @@ against a special case it will outgrow:
      AFM-II target physics).  RULED OUT: the parameter tabulation (byte-identical to CP2K's
      GTH_POTENTIALS), Qli/ProjR (Bessel-pair verified), LegendreP, RealYlm.  Both independent KB
      consumers (atomic mesh route + crystal analytic route) err TOGETHER ⇒ the defect sits in the
-     shared `SeparablePotential` model layer; surviving suspects: the √(4π)·β̃ Projector
-     convention on the l=2 path, and the Cartesian-d s-contaminant (x²+y²+z²) leaking into the
-     s-channel projectors.  NEXT SESSION: the minimal oracle-anchored probe — one normalized d
-     Gaussian vs the Mn q7 d channel, matrix element compared against an independent numerical
-     integral — then bisect.  The gate + the Increment A Mn table entries (generated on the broken
-     functional) both refresh after the fix; gate DISABLED_ until then, suite green 665/665.
+     shared `SeparablePotential` model layer — **RESOLVED FURTHER (2026-08-06, the probe
+     `A_PP_Probe.DISABLED_MnOxygenAngularMeshBisect` — measured numbers + full diagnosis in its
+     header): TWO SEPARATE consumer defects, model layer fully exonerated.**  (i) ATOMIC route:
+     the atomic radial basis's 3-D face carries NO angular factor, so `PP_NonLocal`'s mesh overlap
+     ⟨χ|βY_lm⟩ is structurally wrong against it — the default nAngular=1 rule manufactures the
+     −189 catastrophe, exact angular resolution ZEROES every l≥1 projector (Mn → −8.72, its whole
+     d nonlocal lost), and l=0 projectors carry a 4π-class overcount (F/O +3.15/+1.8 shallow; the
+     l≤1 pinned atomic PP anchors sit on this route).  Fix: a per-l RADIAL KB assembly for atomic
+     bases (analytic via `BetaGaussian`).  (ii) CRYSTAL route (−456 vs −61.4706): its own l=2
+     defect in the GPW analytic KB Cartesian expansion — audit `Math.Angular`'s RAW SphericalShell
+     coefficients + their unit-self-overlap normalization at the consumer.  Per-l s/p/d/f oracle
+     gates (user request) land with the fix.  The gate + the Increment A Mn table entries (generated
+     on the broken atomic route) both refresh after; gate DISABLED_ until then, suite green 665/665.
      Run logs: doc/logs/mno_afm2_run{1_partial,3_pivoted}.log.
    the first genuine workout of the Shubnikov ops + imposed-subgroup policy + `+U` +
    order-parameter diagnostic together. The direct rehearsal for **LiMn₂O₄** charge/spin
