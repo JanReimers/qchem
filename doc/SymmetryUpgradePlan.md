@@ -1060,10 +1060,16 @@ against a special case it will outgrow:
          the staggering.  NEXT: log ⟨m⟩ per iteration to see WHERE it dies, then constrain (fixed-moment
          / per-channel mixing) rather than hoping the seed survives.
        * **UNDER-BOUND by 15.8 Ha** vs CP2K −61.4706 — far beyond basis incompleteness (our own free
-         atoms sum to ≈−60.8, so a bound crystal must sit BELOW that).  The breakdown above is the
-         handover datum; the crystal-only terms (Enn Ewald over Zion=+7/+7/+6/+6 in a neutralising
-         background, and the G=0 alignment E_alphaZ=+3.17) are the first things to check against CP2K's
-         own decomposition, since both KB routes are now oracle-clean at the atom level.
+         atoms sum to ≈−60.8, so a bound crystal must sit BELOW that).  CP2K's CRYSTAL decomposition is
+         now banked for the comparison (same deck): `core-self −125.2197  coreH +42.3595  Hartree
+         +35.7299  XC −14.3400  overlap ~0  => −61.4706`, against ours `Ekin 78.73  Een −84.45
+         Eee 29.14  Exc −14.88  Enn −57.34  alphaZ +3.17 => −45.64`.  **CAUTION: the two PARTITIONINGS
+         DIFFER** — CP2K folds the local PP's long-range part into its Hartree term and carries a
+         Gaussian core SELF-energy (−125.22) that is cancelled inside that Hartree, whereas we split
+         Enn (point-Zion Ewald) + E_alphaZ (G=0 alignment) + Een + Eee.  So the totals are the only
+         apples-to-apples number until someone derives the mapping; the density-INDEPENDENT constants
+         (ours Enn+alphaZ = −54.17) are where that derivation should start, since both KB routes are
+         oracle-clean at the atom level and XC agrees to ~0.5 Ha (itself partly the ζ=0 collapse).
      Run log: doc/logs/mno_afm2_run6_curedbasis.log.
      (b) **A real but unattributed l=2 discrepancy between the two CRYSTAL KB routes**: analytic vs
      mesh = 3.09e-2 relative on Mn (vs 2.4e-9 for the Si l=0,1 gate) — structural, not a scale factor
