@@ -55,18 +55,18 @@ template <isOpr_Evaluator E> class IrrepBasisSetImp
 public:
     IrrepBasisSetImp(const sym_t& yl) : BasisSet::IrrepBasisSetImp<double>(yl) {}
 
-    virtual size_t GetNumFunctions() const {return Cast().size();}
+    virtual size_t GetNumFunctions() const override {return Cast().size();}
     // using statements in the final class don't seem to work, so we need to function forward.
-    virtual rvec_t     operator() (const rvec3_t& r) const {return Cast().operator()(r);}
-    virtual rvec3vec_t Gradient   (const rvec3_t& r) const {return Cast().Gradient  (r);}
+    virtual rvec_t     operator() (const rvec3_t& r) const override {return Cast().operator()(r);}
+    virtual rvec3vec_t Gradient   (const rvec3_t& r) const override {return Cast().Gradient  (r);}
 
     // ImplicitAngular_IBS -- an atom block IS radial: its functions omit the irrep's Y_lm (see the face).
     virtual int    ImplicitL   ()         const override {return Cast().Getl();}
     virtual rvec_t RadialValues(double r) const override {return Cast().operator()(rvec3_t(r,0,0));}
    
-    virtual std::string RadialID () const {return Cast().RadialID();}
-    virtual std::string AngularID() const {return Cast().AngularID();}
-    virtual std::string Name     () const {return Cast().Name();}
+    virtual std::string RadialID () const override {return Cast().RadialID();}
+    virtual std::string AngularID() const override {return Cast().AngularID();}
+    virtual std::string Name     () const override {return Cast().Name();}
     virtual void EmitRadialReport() const override {Cast().EmitRadialReport();}   // evaluator serializes its exponents
 protected:
     auto& Cast() const {return dynamic_cast<const E&>(*this);}

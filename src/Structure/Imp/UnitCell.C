@@ -50,7 +50,8 @@ struct BeckeImage
 };
 
 //! \a angPerAtom (optional) = per-atom angular sets -- the §6a W2b SITE-ADAPTED path (rep atoms carry
-//! site-group-invariant sets, partners the op-rotated copies; CreateSiteAdaptedBeckeMesh builds them).
+//! site-group-invariant sets, partners the op-rotated copies; the ops-taking CreateIntegrationMesh
+//! overload builds them).
 //! Null = the historical shared single-orientation angular grid.
 qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParams& mp,
                                    const std::vector<qcMesh::AngularMesh>* angPerAtom = nullptr)
@@ -247,12 +248,20 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
 // mesh maps onto itself under every op BY CONSTRUCTION (the T2 precondition), with the fuzzy-Voronoi
 // partition computed on the final point set (a geometric function of the atom distances, so the weights
 // inherit the invariance).
-qcMesh::Mesh UnitCell::CreateSiteAdaptedBeckeMesh(const qcMesh::MeshParams& mp,
-                                                  const std::vector<Symmetry::Lattice_3D::SymOp>& ops) const
+qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp,
+                                             const std::vector<Symmetry::Lattice_3D::SymOp>& ops) const
 {
     namespace SL = Symmetry::Lattice_3D;
-    assert(mp.cellKind==qcMesh::UnitCellKind::Becke);
     assert(!ops.empty());
+
+    // UNIFORM kind: there is no site-adapted construction to do -- build the generic mesh and group-average
+    // it onto the op orbits (W1; a no-op dedup when the grid is already commensurate).  This branch used to
+    // sit in the CALLER (GPW_IBS's XC-quadrature factory), which meant a BASIS was switching on cellKind to
+    // decide how a STRUCTURE builds its own mesh.  The structure owns the mesh; it owns the strategy.
+    if (mp.cellKind!=qcMesh::UnitCellKind::Becke)
+        return MakeInvariant(CreateIntegrationMesh(mp), GetCellMatrix(), ops, kMeshMatchTol);
+
+    // BECKE kind: site-adapted, invariant by construction (W2b) -- the rest of this function.
 
     std::vector<rvec3_t> F;                         // fractional atom sites
     for (auto a : *this) F.push_back(ToFractional(a->itsR));

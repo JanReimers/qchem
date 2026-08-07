@@ -93,11 +93,10 @@ BasisSet::XCQuadrature GPW_IBS::CreateXCQuadrature(const Structure* cl, const qc
     const double tol = qchem::kMeshMatchTol;   // the ONE mesh-point coincidence tolerance (R2.12)
     const Matrix3D<double>& A = Cell().GetCellMatrix();
 
-    qcMesh::Mesh mesh;
-    if (mp.cellKind==qcMesh::UnitCellKind::Becke)
-        mesh = Cell().CreateSiteAdaptedBeckeMesh(mp, ops);           // W2b: invariant by construction
-    else
-        mesh = MakeInvariant(cl->CreateIntegrationMesh(mp), A, ops, tol);   // W1 generic route
+    // Ask the CELL for a mesh invariant under the ops.  WHICH strategy realises that (site-adapted by
+    // construction for Becke, group-average for uniform) is the cell's business -- this basis only needs
+    // the invariance, which is the T2 precondition for the fold below.
+    qcMesh::Mesh mesh = Cell().CreateIntegrationMesh(mp, ops);
     auto fold = FoldMesh(mesh, A, ops, tol);
     std::cout << "[Becke grid] imposed symmetry (" << ops.size() << " ops): invariant mesh "
               << mesh.size() << " points in " << fold.Reps()

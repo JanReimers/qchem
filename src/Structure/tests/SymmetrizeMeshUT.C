@@ -210,7 +210,7 @@ TEST(InvariantAngularMesh, TrivialGroupStillExact)
 }
 
 //---------------------------------------------------------------------------------------
-//  CreateSiteAdaptedBeckeMesh (§6a W2b): the whole periodic Becke mesh invariant BY CONSTRUCTION.
+//  the ops-taking CreateIntegrationMesh (§6a W2b): the whole periodic Becke mesh invariant BY CONSTRUCTION.
 //
 TEST(SiteAdaptedBeckeMesh, DiamondInvariantByConstruction)
 {
@@ -229,7 +229,7 @@ TEST(SiteAdaptedBeckeMesh, DiamondInvariantByConstruction)
     mp.radial=qcMesh::RadialKind::MHL; mp.nRadial=6; mp.mhl_m=2; mp.mhl_alpha=2.0;
     mp.angular=qcMesh::AngularKind::GaussLegendre; mp.nAngular=5;
 
-    Mesh adapted = cell.CreateSiteAdaptedBeckeMesh(mp, ops);
+    Mesh adapted = cell.CreateIntegrationMesh(mp, ops);
     ASSERT_GT(adapted.size(), 0u);
 
     // THE gate: every op maps every mesh point onto a mesh point -- zero unmatched (the T2
@@ -260,7 +260,7 @@ TEST(InvariantAngularMesh, ProductionL29Growth)
     Lattice_3D lat(cell, ivec3_t(1,1,1));
     const SL::SpaceGroup& sg = lat.GetSpaceGroup();
 
-    // Diamond's T_d site group as Cartesian ops (A W A^-1), exactly as CreateSiteAdaptedBeckeMesh does.
+    // Diamond's T_d site group as Cartesian ops (A W A^-1), exactly as the ops-taking CreateIntegrationMesh does.
     const Matrix3D<double>& A = cell.GetCellMatrix();
     const Matrix3D<double> Ainv = Invert(A);
     std::vector<Matrix3D<double>> siteOps;
@@ -306,7 +306,7 @@ TEST(SymmetrizeMesh, TorusFoldMatchesAcrossTheCellBoundary)
 // The invariance contract AT SCALE (production angular recipe L=29): with tens of thousands of
 // points, eps-BORDERLINE tail-drop decisions in the Becke builder flip inconsistently across orbit
 // partners (bit-different rotated distances) -- measured 212 orphaned points at nR=40/L=29 before
-// the orbit-consistency filter in CreateSiteAdaptedBeckeMesh.  This gate holds the cured contract:
+// the orbit-consistency filter in the ops-taking CreateIntegrationMesh.  This gate holds the cured contract:
 // UnmatchedCounts identically zero at a recipe big enough to exercise the borderline channel.
 // (The full production growth measure, one-off 2026-08-02: adapted 49172 vs plain 25007 = 1.97x,
 // the dirs-ratio asymptote of the ProductionL29Growth angular gate above.)
@@ -325,7 +325,7 @@ TEST(SiteAdaptedBeckeMesh, ProductionAngularRecipeInvariantAfterTailDrop)
     mp.radial=qcMesh::RadialKind::MHL; mp.nRadial=15; mp.mhl_m=2; mp.mhl_alpha=2.0;
     mp.angular=qcMesh::AngularKind::GaussLegendre; mp.nAngular=29;
 
-    Mesh adapted = cell.CreateSiteAdaptedBeckeMesh(mp, ops);
+    Mesh adapted = cell.CreateIntegrationMesh(mp, ops);
     ASSERT_GT(adapted.size(), 10000u);
     for (int bad : UnmatchedCounts(adapted, sg)) EXPECT_EQ(bad, 0);
 }

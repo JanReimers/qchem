@@ -560,6 +560,35 @@ in the same session.
   - **(C) The GOOD pattern, already in the tree**: `Ham_PP` (Imp/Hamiltonians.C:111) —
     `if (sep) Add(new PP_NonLocal(...))`.  Absence of a capability means the term is NOT IN THE LIST.
     Decided at construction; zero runtime tests.  This is the target shape for every (B) site.
+- **R2.17 `UnitCell::CreateSiteAdaptedBeckeMesh` — the name carried three things it should not
+  (USER CRITIQUE 2026-08-07).**  ✅ TWO OF THREE DONE; the third is a design call.
+  1. ✅ **"Becke" merely repeated `mp.cellKind`** — and the body ASSERTED that value, i.e. the NAME was
+     carrying a precondition the PARAMETER already states.
+  2. ✅ **"SiteAdapted" named one of two STRATEGIES**, which is an implementation detail the caller should
+     not be choosing.  Both points fixed by making it an overload: `CreateIntegrationMesh(mp, ops)` —
+     the presence of \a ops is what distinguishes it, which is what a signature should say.
+     **Bigger win than a rename:** the caller (`GPW_IBS`'s XC-quadrature factory) was branching on
+     `mp.cellKind` to pick site-adapted-vs-group-average — a BASIS deciding how a STRUCTURE builds its own
+     mesh.  That branch moved INTO the overload, so the basis now just asks for "a mesh invariant under
+     these ops" and the cell owns how.  Same altitude error as V1.10b's mixer and R2.16's runtime probes.
+  3. ⏳ **`std::vector<Symmetry::Lattice_3D::SymOp>` is structure-specific, but a site-adapted MOLECULAR
+     mesh is equally plausible** (user).  Correct, and this is the one that needs a decision, so the
+     overload stays `UnitCell`-only for now.  What blocks it:
+     - The builder needs BOTH the linear part and a translation (`op.W`, `op.tau`) — a screw axis or glide
+       plane has a nonzero τ that decides which atoms share an orbit.  So a plain
+       `std::vector<Matrix3D<double>>` of Cartesian rotations LOSES information the crystal needs; the
+       neutral type has to be the (W, τ) pair.
+     - Which is exactly `Lattice_3D::SymOp` minus its namespace — and it already works for a molecule:
+       τ=0, and the Cartesianisation `A·W·A⁻¹` is the identity when A is (`Molecule`'s A is I).  So the
+       STRUCT is already neutral; only its ADDRESS is not.
+     - **The decision is therefore a qcSymmetry organisation question, and it is the user's:** the doc's
+       own high-level goal says qcSymmetry has "separate folders for Atom/Molecule/Lattice_3D symmetry
+       types", so promoting `SymOp` to a neutral home cuts across that taxonomy.  Options: (a) a neutral
+       `Symmetry::SymOp` above the three folders, with Lattice_3D aliasing it; (b) leave the type where it
+       is and give `Structure` a virtual taking it (qcStructure already depends on qcSymmetry); (c) leave
+       as-is until a molecular site-adapted mesh is actually wanted.
+     - Note the site-stabilizer TEST also differs (torus metric mod 1 for a crystal, plain distance for a
+       molecule) — but that is implementation, and belongs in each override, not in the argument type.
 - **R2.15 `nAngular` → degree-typed angular interface.**  `nAngular` is a COUNT for Lebedev but a
   DEGREE for GL/EM (and the imposed site-adapted builder consumes it as the degree) — the dual
   semantics BLOCKS flipping the free-run Becke default to the measured-equal Leb-302 (67% of

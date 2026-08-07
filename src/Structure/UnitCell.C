@@ -53,13 +53,27 @@ public:
     //! screening; no radius parameter exists.  See doc/GPWPlan1.md "Becke XC grid".
     qcMesh::Mesh CreateIntegrationMesh(const qcMesh::MeshParams&) const override;
 
-    //! \brief The SITE-ADAPTED periodic Becke mesh (doc/SymmetryUpgradePlan.md §6a W2b): per atom
-    //! ORBIT of the imposed \a ops, the representative carries a site-group-INVARIANT angular set
-    //! (\c MakeInvariantAngularMesh under its Cartesian stabilizer) and each symmetry partner the
-    //! op-rotated copy -- the whole mesh is op-invariant BY CONSTRUCTION (the T2 precondition for
-    //! pointwise star-averaging and folding), no post-hoc group-averaging.  Becke kind only.
-    qcMesh::Mesh CreateSiteAdaptedBeckeMesh(const qcMesh::MeshParams&,
-                                            const std::vector<Symmetry::Lattice_3D::SymOp>& ops) const;
+    //! \brief The same integration mesh, made INVARIANT under \a ops (doc/SymmetryUpgradePlan.md §6a) --
+    //! the §3-imposed-symmetry sibling of the overload above.  Invariance is the T2 precondition for
+    //! pointwise star-averaging and folding.
+    //!
+    //! HOW it is achieved is this class's business, not the caller's, and it follows \c mp.cellKind:
+    //!  - \c Becke -- SITE-ADAPTED (W2b), invariant BY CONSTRUCTION: per atom ORBIT the representative
+    //!    carries a site-group-invariant angular set (\c MakeInvariantAngularMesh under its Cartesian
+    //!    stabilizer) and each symmetry partner the op-rotated copy.  No group-average growth pass.
+    //!  - \c Uniform -- the generic mesh group-averaged onto the op orbits (W1's \c MakeInvariant; a
+    //!    no-op dedup when the grid is already commensurate).
+    //!
+    //! It is NOT called \c CreateSiteAdaptedBeckeMesh any more (user, 2026-08-07): "Becke" merely repeated
+    //! what \c mp.cellKind already says -- and the old body ASSERTED that value, i.e. the name was carrying
+    //! a preconditon the parameter should carry -- while "SiteAdapted" named one of the two strategies,
+    //! which is an implementation detail the caller should not have to choose.  \a ops present is what
+    //! distinguishes this from the plain overload; that is what the signature should say.
+    //! \note Still \c UnitCell-only, because \a ops is a \c Lattice_3D type.  A site-adapted MOLECULAR
+    //! mesh is equally meaningful (user), and hoisting this to \c Structure needs a structure-neutral op
+    //! type first -- see the worklist item.
+    qcMesh::Mesh CreateIntegrationMesh(const qcMesh::MeshParams&,
+                                       const std::vector<Symmetry::Lattice_3D::SymOp>& ops) const;
 
     //! \brief Add an atom of nuclear charge \a Z at FRACTIONAL cell coordinates \a f (\f$r=Af\f$).
     //! Convenience over Insert(new Atom(Z, ToCartesian(f))) so a crystal basis can be specified in
