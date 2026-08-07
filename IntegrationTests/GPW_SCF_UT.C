@@ -2086,7 +2086,7 @@ TEST(GPW_SCF, DISABLED_NaFOverlapConditioningSweep)
 //    uniform -- PWFittedVxc on the Vxc fit basis's FFT grid (the raw-collocation route);
 //    Becke   -- DeltaFittedVxc: rho(r) analytic at the atom-centred points, WeightedOverlap matrix.
 //  Angular rule: GaussLegendre (machine-exact algebraic degree at any L -- the audited Lebedev
-//  tables stop at L=11, and EulerMaclaren has no algebraic degree; see Mesh_Angular tests).
+//  tables stop at L=11; see the Mesh_AngularDegree tests).
 //================================================================================================
 namespace
 {

@@ -1,7 +1,7 @@
 // File: AngularMesh.C  Angular quadrature mesh (concrete value type) + typed factory.
 //
 // Unit directions Omega_i and weights w_i normalised so that  sum_i w_i = 4*pi.  The schemes
-// (Gauss / GaussLegendre / EulerMaclaren) are plain builder FUNCTIONS that return an AngularMesh --
+// (Lebedev / GaussLegendre) are plain builder FUNCTIONS that return an AngularMesh --
 // no class hierarchy.
 module;
 #include <utility>
@@ -36,5 +36,4 @@ namespace qchem::qcMesh
 {
     AngularMesh LebedevAngular        (int numDir);
     AngularMesh GaussLegendreAngular(int L);
-    AngularMesh EulerMaclarenAngular(int L, int m);
 }

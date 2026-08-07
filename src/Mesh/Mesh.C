@@ -47,7 +47,13 @@ private:
 //! \brief Radial mesh family.  See the per-class transplanted formulae in Internal/.
 enum class RadialKind  {MHL, Log, Linear};
 //! \brief Angular mesh family.  All schemes are normalised so \f$\sum_i w_i = 4\pi\f$.
-enum class AngularKind {Lebedev, GaussLegendre, EulerMaclaren};
+// EulerMaclaren RETIRED 2026-08-07 (user): it was a CONVERGENCE rule, not an exactness rule -- its
+// theta quadrature is a transformed trapezoid, so it has NO algebraic degree at all (measured -1: it
+// could not integrate even the constant to 1e-10, its weights summing to 4pi only approximately).
+// Nothing selected it in production, and GaussLegendre already provides arbitrary L WITH exactness at
+// the same ~L^2/2 product-grid cost.  Both survivors now have a real polynomial degree, which is what
+// lets the angular knob become degree-typed (R2.15).
+enum class AngularKind {Lebedev, GaussLegendre};
 //! \brief Which quadrature a periodic UnitCell builds: the uniform FFT-compatible midpoint grid
 //! (Hartree/PP -- resolution from \c eCut / \c nUniform), or the atom-centred periodic Becke
 //! fuzzy-Voronoi grid (dense radial near each nucleus, cheap diffuse tails -- the XC quadrature;
@@ -73,7 +79,6 @@ struct MeshParams
     int         mhl_m     = 2;                   double mhl_alpha = 1.0;     //!< MHL only.
     double      logStart  = 1.0e-4;             double logStop   = 50.0;     //!< Log only.
     AngularKind angular   = AngularKind::Lebedev;  int    nAngular  = 12;      //!< Lebedev: #dirs; GL/EM: L.
-    int         em_m      = 2;                                               //!< EulerMaclaren only (1..3).
     double      angRot    = 0.0;  //!< Rigid rotation of the angular grid (radians, about the fixed generic axis \f$(1,2,3)/\sqrt{14}\f$).  Quadrature exactness is rotation-invariant; the knob steers a grid's special orbits OFF structure axes (e.g. Lebedev's \f$\langle111\rangle\f$ orbit off diamond's bonds -- doc/SymmetryUpgradePlan.md §6a rotation insight, free runs only).  0 = off (bit-identical historical grids).
     int         beckeOrder= 3;   //!< Becke fuzzy-Voronoi smoothing iterations (molecular mesh only).
     int         nUniform  = 20;  //!< Uniform periodic real-space grid: points per cell axis (lattice mesh only; \f$n^3\f$ total). Manual fallback when \c eCut<=0.
@@ -93,7 +98,7 @@ struct MeshParams
              + ",m"   + to_string(mhl_m)    + ",a"  + to_string(mhl_alpha)
              + ",ls"  + to_string(logStart) + ",le" + to_string(logStop)
              + ",ang" + to_string(static_cast<int>(angular)) + ",na" + to_string(nAngular)
-             + ",em"  + to_string(em_m)     + ",ar" + to_string(angRot)
+             + ",ar" + to_string(angRot)
              + ",bo" + to_string(beckeOrder)
              + ",nu"  + to_string(nUniform) + ",ec" + to_string(eCut)
              + ",rc" + to_string(relCutoff) + ",ck" + to_string(static_cast<int>(cellKind)) + "}";

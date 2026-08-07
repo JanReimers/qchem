@@ -7,7 +7,6 @@ target_sources(qcMesh PRIVATE
     Internal/RadialFactory.C
     Internal/LebedevAngularMesh.C
     Internal/GaussLegendreAngularMesh.C
-    Internal/EulerMaclarenAngularMesh.C
     Internal/AngularFactory.C
     )
 # Module interface units (export the BMI .gcm files other modules import).

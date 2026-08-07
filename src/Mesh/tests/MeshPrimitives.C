@@ -127,10 +127,6 @@ TEST(Mesh_Angular, GaussLegendre)   // Gauss-exact in cos(theta) -> z^2 exact
 {
     CheckAngular({.angular=AngularKind::GaussLegendre, .nAngular=11}, 1e-10, 1e-12);
 }
-TEST(Mesh_Angular, EulerMaclaren)   // both the sum and z^2 are approximations for this scheme
-{
-    CheckAngular({.angular=AngularKind::EulerMaclaren, .nAngular=23, .em_m=2}, 2e-3, 5e-3);
-}
 
 //================================================================================================
 //  4. ProductMesh + Integrate(ScalarField).
@@ -296,23 +292,6 @@ TEST(Mesh_Angular, GaussLegendreHasClaimedDegree)
     }
 }
 
-// Euler-Maclaren is trapezoidal in a transformed theta: it has NO algebraic degree, only slow
-// ALGEBRAIC convergence (measured: degree-3 moment error ~1e-3 at L=29, m=2 -- three orders worse
-// than GaussLegendre at the same L).  Audit it for what it is: the error must DROP with L, and the
-// best transform (m=2) must reach 1e-3 by L=29.  For high-accuracy angular work use GaussLegendre.
-TEST(Mesh_Angular, EulerMaclarenLowMomentsConverge)
-{
-    for (int m : {1,2,3})
-    {
-        qcMesh::MeshParams mp; mp.angular=AngularKind::EulerMaclaren; mp.em_m=m;
-        mp.nAngular=11; double e11=AngularMomentError(MakeAngular(mp),3);
-        mp.nAngular=29; double e29=AngularMomentError(MakeAngular(mp),3);
-        EXPECT_LT(e29,e11) << "EulerMaclaren m=" << m << " does not converge: "
-                           << e11 << " -> " << e29;
-        if (m==2) EXPECT_LT(e29,1e-3) << "EulerMaclaren m=2 L=29 degree-3 moment error " << e29;
-    }
-}
-
 //================================================================================================
 //  9. MEASURED algebraic exactness degree of every angular rule (R2.15 groundwork).
 //
@@ -399,20 +378,6 @@ TEST(Mesh_AngularDegree, GaussLegendreLIsADegree)
         EXPECT_GE(MeasureDegree(a,1e-10), L)
             << "GaussLegendre L=" << L << " is not exact to degree L -- its knob is documented as a degree.";
     }
-}
-
-// Euler-Maclaren is a CONVERGENCE rule, not an exactness rule: theta uses a transformed trapezoid
-// (the m=1..3 clustering kills endpoint derivatives), which has no algebraic degree.  Raising L does
-// NOT raise an exactness degree -- see EulerMaclarenLowMomentsConverge above for what it DOES do.
-// Pinned because R2.15 proposes a degree-typed angular knob, and this scheme has no degree to type.
-TEST(Mesh_AngularDegree, EulerMaclarenHasNoAlgebraicDegree)
-{
-    const int dEM11=MeasureDegree(MakeAngular({.angular=AngularKind::EulerMaclaren, .nAngular=11, .em_m=2}), 1e-10);
-    const int dEM29=MeasureDegree(MakeAngular({.angular=AngularKind::EulerMaclaren, .nAngular=29, .em_m=2}), 1e-10);
-    EXPECT_LT(dEM11, 11) << "EulerMaclaren L=11 unexpectedly exact to degree L";
-    EXPECT_LT(dEM29, 29) << "EulerMaclaren L=29 unexpectedly exact to degree L";
-    std::cout << "[angular degree] EulerMaclaren m=2: L=11 -> measured degree " << dEM11
-              << ", L=29 -> " << dEM29 << " (a resolution knob, NOT a degree)" << std::endl;
 }
 
 // The R2.15 headline, measured rather than asserted: Lebedev reaches a given degree with far fewer

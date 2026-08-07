@@ -213,7 +213,7 @@ public:
 
 // The periodic-Becke test resolution == the GPW Becke-XC-gate resolution (BeckeXCParams in
 // GPW_SCF_UT.C): MHL nr=40 radial, GaussLegendre L=29 angular.  GaussLegendre, NOT the Lebedev
-// tables (they stop at L=11) and NOT EulerMaclaren (no algebraic degree; converges slowly) -- the
+// tables (they stop at L=11).  (EulerMaclaren, also degree-less, was retired 2026-08-07.)  The
 // fuzzy Voronoi switching shell is angular-quadrature limited (see Mesh_Angular audits).
 qcMesh::MeshParams BeckeParams()
 {

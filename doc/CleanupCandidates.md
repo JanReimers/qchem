@@ -710,7 +710,33 @@ in the same session.
      semantics on one field: Lebedev=COUNT, GL=DEGREE, EM=RESOLUTION.  Decide: exclude EM from the
      degree-typed face, or RETIRE it (nothing selects it in production -- it appears only in its own
      tests, and GL already gives arbitrary L WITH exactness at the same ~L²/2 product-grid cost).
-  4. **The default flip is SEPARATE** -- it changes every unpinned run's numbers.  Land the type change
+  4. **✅ EM RETIRED 2026-08-07 (user ruling): "we should just retire EulerMaclaren".**  Gone entirely --
+     the builder TU, the enum value, the `em_m` parameter, the `,em` field of `MeshParams::ID()` (the RAM
+     cache is per-process, so no cross-run key consequence), the factory case, the report name and the
+     three tests.  Both survivors now have a real polynomial degree, which is exactly what lets the knob
+     become degree-typed: the three-semantics problem collapses to two, and both are degrees.
+  5. **"Lebedev will usually be the most efficient and therefore the most important option -- remaining
+     decisions should prioritize getting Lebedev as sensible and honest as possible" (user, 2026-08-07).**
+     The MEASURED menu, which is what those decisions should be made against:
+     | nDir | 1 | 2 | 6 | 8 | 12 | 24 | 30 | 50 | 86 | 110 | 146 | 170 | 194 | 302 | 350 | 434 |
+     |------|---|---|---|---|----|----|----|----|----|-----|-----|-----|-----|-----|-----|-----|
+     | degree | 0 | 1 | 3 | 3 | 5 | 7 | 8 | 11 | 15 | 17 | 19 | 21 | 23 | 29 | 31 | 35 |
+     - **The ladder has GAPS, and they are principled: 9, 13, 25, 27 are missing.**  Those are the orders
+       excluded by the generator audit -- 74 (deg 13), 230 (deg 25), 266 (deg 27) carry NEGATIVE WEIGHTS,
+       and the deg-9 32-point rule was removed for a weight-sum bug.  So a request for degree 25 must jump
+       to 302 (degree 29): a **55% cost jump** over the 194-point rule it skips.
+     - **⇒ HONEST means the resolver ANNOUNCES the rounding** when requested ≠ delivered, and says WHY the
+       gap exists.  Silently substituting a 55%-more-expensive grid is exactly the kind of invisible
+       decision this whole session has been removing.
+     - **6 and 8 share degree 3 and are NOT redundant.**  They differ in ORBIT DIRECTION -- 6 puts points
+       on the \f$\langle100\rangle\f$ axes, 8 on the \f$\langle111\rangle\f$ body diagonals.  That
+       distinction is load-bearing for the site-adapted work (§6a: a special orbit lying along a structure
+       axis is the thing `angRot` exists to steer away from), so cheapest-wins resolution must not be sold
+       as "8 is dominated".  Document the pair; keep both.
+     - Keep the table's `degree` field = the CONSTRUCTED, guaranteed degree (29 for 302, 35 for 434) even
+       though the monomial scan over-delivers -- guaranteeing less than you deliver is honest; the reverse
+       is not.
+  6. **The default flip is SEPARATE** -- it changes every unpinned run's numbers.  Land the type change
      first (behaviour-preserving), then flip with the measurement.
   **The rename is what makes the migration safe:** `nAngular` → `angularDegree` breaks every designated
   initializer `.nAngular=`, so the compiler forces a visit to each call site; each Lebedev site then
