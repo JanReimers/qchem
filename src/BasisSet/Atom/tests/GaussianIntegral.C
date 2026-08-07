@@ -38,10 +38,10 @@ struct OneOverR2 : ScalarFunction<double>
     rvec3_t Gradient  (const rvec3_t&)   const override {return rvec3_t(0,0,0);}
 };
 // The atom integration mesh: MHL radial x Gauss angular, single-center (natom=1, no Becke).
-qcMesh::Mesh AtomMesh(const Structure& st, int nRadial, int mhl_m, double alpha, int nAngular)
+qcMesh::Mesh AtomMesh(const Structure& st, int nRadial, int mhl_m, double alpha, int angularDegree)
 {
     return st.CreateIntegrationMesh({.radial=qcMesh::RadialKind::MHL, .nRadial=nRadial, .mhl_m=mhl_m,
-                                  .mhl_alpha=alpha, .angular=qcMesh::AngularKind::Lebedev, .nAngular=nAngular});
+                                  .mhl_alpha=alpha, .angular=qcMesh::AngularKind::Lebedev, .angularDegree=angularDegree});
 }
 } //anon
 
@@ -63,7 +63,7 @@ public:
         {"N", 5}, {"emin", 0.01}, {"emax", 100.0},
         };
         bs=BasisSet::Atom::Factory(js,75);
-        itsMesh=AtomMesh(*cl,200,3,2.0,1);
+        itsMesh=AtomMesh(*cl,200,3,2.0, 0);
     }
 
     int Lmax, Z;

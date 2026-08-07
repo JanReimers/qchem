@@ -85,7 +85,7 @@ TEST_F(MeshIntegralsTests, PolGaussianOverlap)
             double alpha=af*aMHL;
             qcMesh::Mesh mesh = cl->CreateIntegrationMesh(
                 {.radial=qcMesh::RadialKind::MHL, .nRadial=int(Nradial), .mhl_m=int(mMHL),
-                 .mhl_alpha=alpha, .angular=qcMesh::AngularKind::Lebedev, .nAngular=12});
+                 .mhl_alpha=alpha, .angular=qcMesh::AngularKind::Lebedev, .angularDegree=5});
             for (auto ibs:bs->Iterate<Real_OIBS>())
             {
                 // cout << *ibs << endl;

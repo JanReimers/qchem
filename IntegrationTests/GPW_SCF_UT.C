@@ -199,7 +199,9 @@ qcMesh::MeshParams BeckeXCParams(int nRadial=-1, double mhlAlpha=-1.0, int L=-1)
     const char* ang=std::getenv("GPW_BECKE_ANG");
     mp.angular=(ang && std::string(ang)=="lebedev") ? qcMesh::AngularKind::Lebedev
                                                     : qcMesh::AngularKind::GaussLegendre;
-    mp.nAngular=L;
+    mp.angularDegree=L;   // ONE meaning for both schemes now: GL takes it directly, Lebedev resolves
+                          // it to the cheapest rule of at least that degree -- which is what makes the
+                          // GPW_BECKE_ANG A/B above a like-for-like comparison (R2.15).
     mp.angRot=envd("GPW_BECKE_ROT", 0.0);   // radians; rigid generic rotation of the angular grid
                                             // (steers Lebedev's <111> orbit off bond axes; plan §6a)
     return mp;

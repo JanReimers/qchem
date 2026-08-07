@@ -690,7 +690,29 @@ in the same session.
        as-is until a molecular site-adapted mesh is actually wanted.
      - Note the site-stabilizer TEST also differs (torus metric mod 1 for a crystal, plain distance for a
        molecule) — but that is implementation, and belongs in each override, not in the argument type.
-- **R2.15 ⚗️ GROUNDWORK DONE 2026-08-07 (the degree MEASUREMENT test); the interface change + default flip
+- **R2.15 ✅ INTERFACE DONE 2026-08-07 (`nAngular` → `angularDegree`, behaviour-preserving); ONLY THE
+  DEFAULT FLIP REMAINS (decision 6 below, deliberately separate -- it changes every unpinned run).
+  What landed:** the field is a DEGREE for every scheme; Lebedev resolves it through `ResolveLebedev`
+  (round UP to the cheapest tabulated rule of at least that degree, ANNOUNCING any substitution and
+  naming the four deliberately-excluded orders); `LebedevMenu()` is the one place the ladder is written
+  down and every audit test now reads it, so a table and a test can no longer disagree; `LebedevAngular`
+  is exported so rule-level audits address a RULE while the interface speaks DEGREES.
+  **`ClassifyOrbits` answers "how do we capture the same-degree tuples in code?" (user):** it MEASURES
+  which high-symmetry directions a rule occupies (⟨100⟩/⟨110⟩/⟨111⟩) from the directions themselves
+  rather than annotating per rule -- the same discipline the degree measurement forced, for the same
+  reason.  Two facts only visible once measured: rules 12 and 24 occupy NO high-symmetry direction at all
+  (pure general orbits, so `angRot` has nothing to steer for them), and the ⟨110⟩ column is sparse and
+  non-monotonic up the ladder (50, 146, 170, 194, 434).
+  **A latent bug the change fixed:** `GPW_SCF_UT.C` set the knob to `L` under a scheme chosen by
+  `GPW_BECKE_ANG` -- GaussLegendre by default, Lebedev on override.  With the calibrated L=29 the override
+  asked for a 29-DIRECTION Lebedev rule, which does not exist, so it would have hit `default: assert(false)`.
+  The A/B instrument was broken for its main setting; one meaning for both schemes fixes it.
+  **Migration hazard worth remembering:** a blanket rename turned one site's "24 directions" into
+  "degree 24", which resolves to a 302-point grid -- a 12x change.  Every Lebedev site needed the
+  count→degree CONVERSION, not a rename.  That is exactly why renaming the FIELD (rather than
+  redefining `nAngular` in place) was the right vehicle: the compiler forced all ~20 sites into view.
+  *(original item text and the decision list follow)*
+  **Superseded groundwork note: the degree MEASUREMENT test; the interface change + default flip
   still need the decisions below.  `nAngular` → degree-typed angular interface.**
   **USER 2026-08-07: agrees degree should be the canonical knob.**  Four things still to settle, then the
   work is mechanical:

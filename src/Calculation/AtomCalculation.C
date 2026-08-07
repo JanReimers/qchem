@@ -8,7 +8,7 @@
 // This is the single tested atom recipe that previously lived only in the QchemTester/TestAtom test
 // scaffold.  A SIBLING of qchem::Calculation rather than an extension: the molecular facade is being
 // consumed by the GUI team and must stay stable, and atoms genuinely differ (atomic exponent-pool bases,
-// atomic / Dirac / pseudo ECs, the nAngular=1 atomic mesh, relativistic + PP models the molecule facade
+// atomic / Dirac / pseudo ECs, the degree-0 (1-direction) atomic mesh, relativistic + PP models the molecule facade
 // has no business expressing).  The two share the SCFIterator converge machinery and AcceleratorOptions.
 module;
 #include <memory>
@@ -83,7 +83,7 @@ struct AtomCalcOptions
     //! Atomic XC integration grid: the proven atom values (one angular point -- atoms are spherical).
     qcMesh::MeshParams mesh = {.radial  = qcMesh::RadialKind::MHL,   .nRadial   = 50,
                               .mhl_m    = 3,                         .mhl_alpha = 2.0,
-                              .angular  = qcMesh::AngularKind::Lebedev, .nAngular  = 1,
+                              .angular  = qcMesh::AngularKind::Lebedev, .angularDegree = 0,   // the 1-direction rule
                               .beckeOrder = 2};
     //! SCF seed.  Default == auto: CoreGuess (atoms never use the molecular SAD seed).
     qchem::ChargeDensity::SeedStrategy seed = qchem::ChargeDensity::SeedStrategy::Default;

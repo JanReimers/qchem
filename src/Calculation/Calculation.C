@@ -63,7 +63,7 @@ struct CalcOptions
     double      xalpha = 0.7;
     qcMesh::MeshParams mesh = {.radial  = qcMesh::RadialKind::MHL,   .nRadial   = 30,
                               .mhl_m    = 3,                         .mhl_alpha = 2.0,
-                              .angular  = qcMesh::AngularKind::Lebedev, .nAngular  = 12,
+                              .angular  = qcMesh::AngularKind::Lebedev, .angularDegree = 5,   // the 12-direction rule
                               .beckeOrder = 2};
     //! Point-group SALC blocking + per-irrep aufbau.  GUARDED TO THE CARTESIAN PG BASIS: the SALC
     //! builder needs a PolarizedGaussian (PGData) orbital IBS and throws otherwise.  Since the facade

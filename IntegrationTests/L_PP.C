@@ -88,7 +88,7 @@ TEST(L_PP, LocalMatrixLatticeMatchesFinite)
     auto fin = std::make_shared<Molecule>();
     fin->Insert(new Atom(14, {0,0,0}));
     auto bFin = MakeBasis(*fin);
-    qcMesh::MeshParams mpFin;  mpFin.nRadial=70; mpFin.nAngular=30;
+    qcMesh::MeshParams mpFin;  mpFin.nRadial=70; mpFin.angularDegree=8;   // the 30-direction rule
 
     // Lattice: the same Si at the centre of a large cubic cell, uniform mesh.
     const double a = 20.0;
@@ -116,7 +116,7 @@ TEST(L_PP, NonLocalMatrixLatticeMatchesFinite)
     auto fin = std::make_shared<Molecule>();
     fin->Insert(new Atom(14, {0,0,0}));
     auto bFin = MakeBasis(*fin);
-    qcMesh::MeshParams mpFin;  mpFin.nRadial=70; mpFin.nAngular=30;
+    qcMesh::MeshParams mpFin;  mpFin.nRadial=70; mpFin.angularDegree=8;   // the 30-direction rule
 
     const double a = 20.0;
     auto cell = std::make_shared<UnitCell>(a);

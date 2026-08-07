@@ -169,7 +169,7 @@ TEST(A_PP_Probe, DISABLED_MnOxygenAngularMeshBisect)
     {
         AtomCalcOptions o;
         o.type=AtomType::Gaussian; o.pseudopotential=true; o.valence=val; o.exponentsByL=shells;
-        o.mesh.nAngular=nAng;                       // 1 = the historical default; 50 = Lebedev-resolved
+        o.mesh.angularDegree=nAng;                  // degree 0 = the historical 1-direction default; 11 = Leb-50
         o.mesh.nRadial=nR;                          // 50 = the historical default
         SCFParams p; p.MinVirial=1e30; p.NMaxIter=60;
         AtomCalculation atom(Z, Z-val, o, p);
@@ -199,7 +199,7 @@ TEST(A_PP_Probe, DISABLED_MnOxygenAngularMeshBisect)
               << "  nR=200 " << run(25,7,mn,50,200) << "   (oracle -14.243986)" << std::endl;
     {   // term-level localization for the s-only species (O): which term carries the +1.8 Ha gap?
         AtomCalcOptions o; o.type=AtomType::Gaussian; o.pseudopotential=true; o.valence=6; o.exponentsByL=ox;
-        o.mesh.nAngular=50;
+        o.mesh.angularDegree=11;   // the 50-direction rule
         SCFParams p2; p2.MinVirial=1e30; p2.NMaxIter=60;
         AtomCalculation atom(8, 2, o, p2);
         auto E=atom.EnergyTerms();
@@ -241,7 +241,7 @@ TEST(A_PP, PerLKleinmanBylanderOracle)
 
     auto st=std::make_shared<Atom>(Z, 0.0, rvec3_t(0,0,0));
     const qcMesh::MeshParams mp{.radial=qcMesh::RadialKind::MHL, .nRadial=400, .mhl_m=3, .mhl_alpha=2.0,
-                                .angular=qcMesh::AngularKind::Lebedev, .nAngular=50};
+                                .angular=qcMesh::AngularKind::Lebedev, .angularDegree=11};
 
     for (int lProj : {0,1,2,3})
     {

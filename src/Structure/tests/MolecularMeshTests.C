@@ -42,7 +42,7 @@ qcMesh::MeshParams Params()
 {
     qcMesh::MeshParams mp;
     mp.radial=qcMesh::RadialKind::MHL; mp.nRadial=40; mp.mhl_m=2; mp.mhl_alpha=2.0;
-    mp.angular=qcMesh::AngularKind::Lebedev; mp.nAngular=24;
+    mp.angular=qcMesh::AngularKind::Lebedev; mp.angularDegree=7;   // the 24-direction rule (was nAngular=24)
     return mp;
 }
 } //anon
@@ -220,7 +220,7 @@ qcMesh::MeshParams BeckeParams()
     qcMesh::MeshParams mp=Params();
     mp.cellKind=qcMesh::UnitCellKind::Becke;
     mp.angular=qcMesh::AngularKind::GaussLegendre;
-    mp.nAngular=29;
+    mp.angularDegree=29;
     return mp;
 }
 } //anon

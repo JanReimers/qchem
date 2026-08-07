@@ -227,7 +227,7 @@ TEST(SiteAdaptedBeckeMesh, DiamondInvariantByConstruction)
     qcMesh::MeshParams mp;
     mp.cellKind=qcMesh::UnitCellKind::Becke;
     mp.radial=qcMesh::RadialKind::MHL; mp.nRadial=6; mp.mhl_m=2; mp.mhl_alpha=2.0;
-    mp.angular=qcMesh::AngularKind::GaussLegendre; mp.nAngular=5;
+    mp.angular=qcMesh::AngularKind::GaussLegendre; mp.angularDegree=5;
 
     Mesh adapted = cell.CreateIntegrationMesh(mp, ops);
     ASSERT_GT(adapted.size(), 0u);
@@ -270,7 +270,7 @@ TEST(InvariantAngularMesh, ProductionL29Growth)
     const int L = 29;
     Mesh q = MakeInvariantAngularMesh(siteOps, L);
     qcMesh::MeshParams mp;
-    mp.angular=qcMesh::AngularKind::GaussLegendre; mp.nAngular=L;
+    mp.angular=qcMesh::AngularKind::GaussLegendre; mp.angularDegree=L;
     const size_t nGL = qcMesh::MakeAngular(mp).size();
 
     const double growth = double(q.size())/double(nGL);
@@ -323,7 +323,7 @@ TEST(SiteAdaptedBeckeMesh, ProductionAngularRecipeInvariantAfterTailDrop)
     qcMesh::MeshParams mp;
     mp.cellKind=qcMesh::UnitCellKind::Becke;
     mp.radial=qcMesh::RadialKind::MHL; mp.nRadial=15; mp.mhl_m=2; mp.mhl_alpha=2.0;
-    mp.angular=qcMesh::AngularKind::GaussLegendre; mp.nAngular=29;
+    mp.angular=qcMesh::AngularKind::GaussLegendre; mp.angularDegree=29;
 
     Mesh adapted = cell.CreateIntegrationMesh(mp, ops);
     ASSERT_GT(adapted.size(), 10000u);

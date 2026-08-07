@@ -1,6 +1,7 @@
 // File: src/Mesh/tests/MeshPrimitives.C  Smoke + acceptance tests for the qcMesh primitives.
 #include "gtest/gtest.h"
 #include <cmath>
+#include <stdexcept>
 import qchem.Mesh.Product;       // Mesh, ProductMesh, MakeRadial/MakeAngular, MeshParams, enums
 import qchem.Mesh.Quadrature;    // free functions (over qcMath Scalar/VectorFunction)
 import qchem.Mesh.GaussLegendre;
@@ -106,9 +107,8 @@ TEST(Mesh_Radial, Linear)
 //  3. Angular meshes: sum of weights = 4*pi, and integral z^2 dOmega = 4*pi/3.
 //================================================================================================
 // sum W = 4*pi, and integral z^2 dOmega = 4*pi/3 to the scheme's tolerance ztol.
-static void CheckAngular(const MeshParams& p, double sumtol, double ztol)
+static void CheckAngular(const AngularMesh& a, double sumtol, double ztol)
 {
-    AngularMesh a=MakeAngular(p);
     EXPECT_NEAR(Sum(a.W()),FourPi,sumtol);
     double zz=0;
     for (size_t j=0;j<a.size();j++) zz+=a.W()[j]*a.Dirs()[j].z*a.Dirs()[j].z;
@@ -118,14 +118,14 @@ TEST(Mesh_Angular, Gauss)
 {
     // numDir=32 was removed (inherited weight-sum bug, see LebedevAngularMesh.C).
     // 24 and 30 have ~7-figure direction constants (not unit vectors) -> exact only to ~1e-7.
-    CheckAngular({.angular=AngularKind::Lebedev, .nAngular=12}, 1e-10, 1e-10);
-    CheckAngular({.angular=AngularKind::Lebedev, .nAngular=24}, 1e-10, 1e-7);
-    CheckAngular({.angular=AngularKind::Lebedev, .nAngular=30}, 1e-10, 1e-7);
-    CheckAngular({.angular=AngularKind::Lebedev, .nAngular=50}, 1e-10, 1e-10);
+    CheckAngular(LebedevAngular(12), 1e-10, 1e-10);
+    CheckAngular(LebedevAngular(24), 1e-10, 1e-7);
+    CheckAngular(LebedevAngular(30), 1e-10, 1e-7);
+    CheckAngular(LebedevAngular(50), 1e-10, 1e-10);
 }
 TEST(Mesh_Angular, GaussLegendre)   // Gauss-exact in cos(theta) -> z^2 exact
 {
-    CheckAngular({.angular=AngularKind::GaussLegendre, .nAngular=11}, 1e-10, 1e-12);
+    CheckAngular(MakeAngular({.angular=AngularKind::GaussLegendre, .angularDegree=11}), 1e-10, 1e-12);
 }
 
 //================================================================================================
@@ -135,7 +135,7 @@ static Mesh MakeProduct()
 {
     MeshParams p;
     p.radial=RadialKind::MHL; p.nRadial=200; p.mhl_m=2; p.mhl_alpha=3.0;
-    p.angular=AngularKind::Lebedev; p.nAngular=12;
+    p.angular=AngularKind::Lebedev; p.angularDegree=5;   // the 12-direction rule
     RadialMesh  rad=MakeRadial(p);
     AngularMesh ang=MakeAngular(p);
     return ProductMesh(rad,ang);
@@ -243,12 +243,14 @@ double AngularMomentError(const AngularMesh& ang, int L)
 
 TEST(Mesh_Angular, LebedevTablesHaveClaimedDegree)
 {
-    // {numDir, claimed L} straight from the table comments in LebedevAngularMesh.C.
-    const std::pair<int,int> rules[]={{1,0},{2,0},{6,1},{8,3},{12,5},{24,7},{30,8},{50,11}};
-    for (auto [n,L] : rules)
+    // Driven from LebedevMenu() -- the ONE place the ladder is written down -- so a table and a test
+    // can no longer disagree.  (They had: two claims here were understated before the degrees were
+    // MEASURED, and this test passed anyway because it only checks "no worse than claimed".)
+    for (const auto& r : qcMesh::LebedevMenu())
     {
-        qcMesh::MeshParams mp; mp.angular=AngularKind::Lebedev; mp.nAngular=n;
-        double err=AngularMomentError(MakeAngular(mp),L);
+        if (r.nDir>50) continue;                       // the hand-written rules; canonical ones below
+        const int n=r.nDir, L=r.degree;
+        double err=AngularMomentError(LebedevAngular(n),L);
         EXPECT_LT(err,1e-6) << "Lebedev table numDir=" << n << " claims degree " << L
                             << " but max moment error is " << err;
     }
@@ -260,12 +262,11 @@ TEST(Mesh_Angular, CanonicalLebedevOrdersHaveClaimedDegree)
     // audit is tight); the negative-weight orders 74/230/266 are excluded from the menu by the
     // generator audit.  This IS the transcription audit: full monomial sweep to the claimed
     // degree + positivity + sum w = 4pi.
-    const std::pair<int,int> rules[]={{86,15},{110,17},{146,19},{170,21},{194,23},
-                                      {302,29},{350,31},{434,35}};
-    for (auto [n,L] : rules)
+    for (const auto& r : qcMesh::LebedevMenu())
     {
-        qcMesh::MeshParams mp; mp.angular=AngularKind::Lebedev; mp.nAngular=n;
-        qcMesh::AngularMesh ang=MakeAngular(mp);
+        if (r.nDir<86) continue;                       // the canonical Lebedev-Laikov orders
+        const int n=r.nDir, L=r.degree;
+        qcMesh::AngularMesh ang=LebedevAngular(n);
         ASSERT_EQ(int(ang.size()), n);
         double wsum=0;
         for (size_t i=0; i<ang.size(); i++)
@@ -286,7 +287,7 @@ TEST(Mesh_Angular, GaussLegendreHasClaimedDegree)
 {
     for (int L : {5,11,17,23,29})
     {
-        qcMesh::MeshParams mp; mp.angular=AngularKind::GaussLegendre; mp.nAngular=L;
+        qcMesh::MeshParams mp; mp.angular=AngularKind::GaussLegendre; mp.angularDegree=L;
         double err=AngularMomentError(MakeAngular(mp),L);
         EXPECT_LT(err,1e-12) << "GaussLegendre L=" << L << " max moment error " << err;
     }
@@ -338,35 +339,62 @@ static int MeasureDegree(const AngularMesh& m, double rtol, int dMax=40)
     return dMax;
 }
 
-// The Lebedev menu vs the degree each order CLAIMS (the annotations in LebedevAngularMesh.C).
+// Every rule in LebedevMenu() must DELIVER at least the degree it claims.
 //
 // The contract is EXPECT_GE, not EQ: R2.15's resolution rule is "round UP to a rule of at least the
-// requested degree", so DELIVERING MORE than claimed is fine and only under-delivery is a defect.  It
+// requested degree", so delivering more than claimed is fine and only under-delivery is a defect.  It
 // also has to be GE for a measurement reason -- a monomial scan can report MORE than the constructed
-// degree, because monomials that are odd under the rule's octahedral symmetry vanish identically on
-// both sides and so never discriminate.  The measured value is printed for every order so a drift shows
-// up in the log even when it does not fail.
+// degree, because monomials odd under the rule's octahedral symmetry vanish identically on both sides
+// and so never discriminate.  The measured degree and the SPECIAL ORBITS are printed for every rule:
+// that table is what a same-degree tie has to be broken on (6 and 8 are the lowest-order instance).
 TEST(Mesh_AngularDegree, LebedevOrdersMeetTheirClaimedDegree)
 {
-    struct Claim {int nDir; int degree; double rtol;};
-    const Claim claims[]={
-        {  1,  0, 1e-12}, {  2,  1, 1e-12}, {  6,  3, 1e-12}, {  8,  3, 1e-12},
-        { 12,  5, 1e-12}, { 24,  7, 1e-6 }, { 30,  8, 1e-6 }, { 50, 11, 1e-12},
-        { 86, 15, 1e-10}, {110, 17, 1e-10}, {146, 19, 1e-10}, {170, 21, 1e-10},
-        {194, 23, 1e-10}, {302, 29, 1e-10}, {350, 31, 1e-10}, {434, 35, 1e-10},
-    };
-    for (const auto& k : claims)
+    for (const auto& r : qcMesh::LebedevMenu())
     {
-        AngularMesh a=MakeAngular({.angular=AngularKind::Lebedev, .nAngular=k.nDir});
-        ASSERT_EQ(a.size(), size_t(k.nDir)) << "Lebedev " << k.nDir << ": wrong direction count";
-        const int d=MeasureDegree(a,k.rtol);
-        std::cout << "[angular degree] Lebedev " << k.nDir << " dirs: claims " << k.degree
-                  << ", measures " << d << std::endl;
-        EXPECT_GE(d, k.degree)
-            << "Lebedev " << k.nDir << " directions UNDER-delivers: measured degree " << d
-            << " < claimed " << k.degree << ".  Degree is the R2.15 interface -- a rule that claims more "
+        const double rtol = (r.nDir==24||r.nDir==30) ? 1e-6      // ~7-figure direction constants
+                          : (r.nDir>=86)            ? 1e-10 : 1e-12;
+        AngularMesh a=LebedevAngular(r.nDir);
+        ASSERT_EQ(a.size(), size_t(r.nDir)) << "Lebedev " << r.nDir << ": wrong direction count";
+        const int d=MeasureDegree(a,rtol);
+        const qcMesh::SpecialOrbits o=qcMesh::ClassifyOrbits(a);
+        std::cout << "[angular degree] Lebedev " << r.nDir << " dirs: claims " << r.degree
+                  << ", measures " << d << ", orbits:"
+                  << (o.axes100?" <100>":"") << (o.edges110?" <110>":"") << (o.corners111?" <111>":"")
+                  << std::endl;
+        EXPECT_GE(d, r.degree)
+            << "Lebedev " << r.nDir << " directions UNDER-delivers: measured degree " << d
+            << " < claimed " << r.degree << ".  Degree is the R2.15 interface -- a rule that claims more "
                "than it delivers silently under-integrates every caller that asks for that degree.";
     }
+}
+
+// The same-degree tie the user flagged: 6 and 8 both deliver degree 3 and are NOT interchangeable --
+// they occupy DIFFERENT high-symmetry directions.  Pinned because the resolver picks the cheaper one,
+// and that choice must be explainable as "cheapest at this degree", never as "the other is redundant".
+TEST(Mesh_AngularDegree, EqualDegreeRulesCanDifferInOrbitDirection)
+{
+    const qcMesh::SpecialOrbits o6=qcMesh::ClassifyOrbits(LebedevAngular(6));
+    const qcMesh::SpecialOrbits o8=qcMesh::ClassifyOrbits(LebedevAngular(8));
+    EXPECT_TRUE (o6.axes100)    << "the 6-point rule should sit on the <100> axes";
+    EXPECT_FALSE(o6.corners111);
+    EXPECT_TRUE (o8.corners111) << "the 8-point rule should sit on the <111> body diagonals";
+    EXPECT_FALSE(o8.axes100);
+    EXPECT_EQ(qcMesh::ResolveLebedev(3).nDir, 6) << "degree 3 should resolve to the CHEAPER of the two";
+}
+
+// The resolver rounds UP across the menu's principled gaps (degrees 9/13/25/27 are absent: those orders
+// carry negative weights, or shipped a weight-sum bug).  Asking for a gap degree must never return LESS
+// exactness than requested.
+TEST(Mesh_AngularDegree, ResolveRoundsUpAcrossTheGaps)
+{
+    for (int want=0; want<=35; want++)
+    {
+        const qcMesh::LebedevRule r=qcMesh::ResolveLebedev(want);
+        EXPECT_GE(r.degree, want) << "ResolveLebedev(" << want << ") returned degree " << r.degree;
+    }
+    EXPECT_EQ(qcMesh::ResolveLebedev(25).nDir, 302) << "degree 25 falls in a gap -> the degree-29 rule";
+    EXPECT_EQ(qcMesh::ResolveLebedev(29).nDir, 302);
+    EXPECT_THROW(qcMesh::ResolveLebedev(36), std::runtime_error) << "past the menu must THROW, not clamp";
 }
 
 // Gauss-Legendre(cos theta) x uniform(phi): algebraically exact, so its L IS a degree.
@@ -374,7 +402,7 @@ TEST(Mesh_AngularDegree, GaussLegendreLIsADegree)
 {
     for (int L : {5, 11, 17, 29})
     {
-        AngularMesh a=MakeAngular({.angular=AngularKind::GaussLegendre, .nAngular=L});
+        AngularMesh a=MakeAngular({.angular=AngularKind::GaussLegendre, .angularDegree=L});
         EXPECT_GE(MeasureDegree(a,1e-10), L)
             << "GaussLegendre L=" << L << " is not exact to degree L -- its knob is documented as a degree.";
     }
@@ -384,8 +412,8 @@ TEST(Mesh_AngularDegree, GaussLegendreLIsADegree)
 // directions than the Gauss-Legendre product grid, which is why the default flip is worth making.
 TEST(Mesh_AngularDegree, LebedevIsCheaperThanGaussLegendreAtEqualDegree)
 {
-    AngularMesh leb=MakeAngular({.angular=AngularKind::Lebedev,       .nAngular=302});
-    AngularMesh gl =MakeAngular({.angular=AngularKind::GaussLegendre, .nAngular=29 });
+    AngularMesh leb=MakeAngular({.angular=AngularKind::Lebedev,       .angularDegree=29});
+    AngularMesh gl =MakeAngular({.angular=AngularKind::GaussLegendre, .angularDegree=29});
     const int dLeb=MeasureDegree(leb,1e-10), dGL=MeasureDegree(gl,1e-10);
     EXPECT_GE(dLeb, 29);
     EXPECT_GE(dGL , 29);

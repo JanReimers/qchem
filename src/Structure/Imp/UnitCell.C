@@ -228,12 +228,12 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
     const size_t kept=mesh.size();
     std::cout<<"[Becke grid] natom="<<natom<<" radial="<<RadialName(mp.radial)<<" nR="<<mp.nRadial
              <<" alpha="<<mp.mhl_alpha<<" angular="<<(angPerAtom?"SITE-ADAPTED":AngularName(mp.angular))
-             <<" L="<<mp.nAngular<<" ("<<nDirs<<" dirs"<<(angPerAtom?" max/atom":"")<<") beckeOrder="<<k
+             <<" L="<<mp.angularDegree<<" ("<<nDirs<<" dirs"<<(angPerAtom?" max/atom":"")<<") beckeOrder="<<k
              <<" points="<<kept<<" (dropped "<<total-kept<<" tail pts)"<<std::endl;
     qchem::report::EmitAt("grids", "becke", {
         {"natom", (long)natom}, {"radial",RadialName(mp.radial)}, {"nRadial", mp.nRadial},
         {"mhl_alpha", mp.mhl_alpha},
-        {"angular", angPerAtom ? "SiteAdapted" : AngularName(mp.angular)}, {"L", mp.nAngular},
+        {"angular", angPerAtom ? "SiteAdapted" : AngularName(mp.angular)}, {"L", mp.angularDegree},
         {"nDirs", (long)nDirs},
         {"beckeOrder", k}, {"points", (long)kept}, {"dropped", (long)(total-kept)}, {"eps", eps}});
     return mesh;
@@ -308,7 +308,7 @@ qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp,
         const rvec3_t& fr = F[af.repRaw[o]];
         std::vector<Matrix3D<double>> siteOps;
         for (const auto& op : ops) if (fixes(op, fr)) siteOps.push_back(cart(op.W));
-        qcMesh::Mesh aq = MakeInvariantAngularMesh(siteOps, mp.nAngular, bondDirs(fr));
+        qcMesh::Mesh aq = MakeInvariantAngularMesh(siteOps, mp.angularDegree, bondDirs(fr));
         for (auto [mi, oi] : af.members[o])
         {
             assert(oi>=0 && "site-adapted Becke mesh: the imposed op set must be a group (edge op per partner)");

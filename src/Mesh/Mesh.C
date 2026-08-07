@@ -57,7 +57,7 @@ enum class AngularKind {Lebedev, GaussLegendre};
 //! \brief Which quadrature a periodic UnitCell builds: the uniform FFT-compatible midpoint grid
 //! (Hartree/PP -- resolution from \c eCut / \c nUniform), or the atom-centred periodic Becke
 //! fuzzy-Voronoi grid (dense radial near each nucleus, cheap diffuse tails -- the XC quadrature;
-//! uses the \c radial / \c nAngular / \c beckeOrder knobs).  See doc/GPWPlan1.md "Becke XC grid".
+//! uses the \c radial / \c angularDegree / \c beckeOrder knobs).  See doc/GPWPlan1.md "Becke XC grid".
 //! \brief Which quadrature a UnitCell builds for a lattice mesh.  \c Auto = "the caller did not choose":
 //! a POLICY layer that knows the run context resolves it (the GPW driver picks Becke unless the run is
 //! BZ-reduced -- doc/GPWPlan1.md "Becke as the DEFAULT"); any consumer reached WITHOUT resolution treats
@@ -78,7 +78,16 @@ struct MeshParams
     RadialKind  radial    = RadialKind::MHL;    int    nRadial   = 30;
     int         mhl_m     = 2;                   double mhl_alpha = 1.0;     //!< MHL only.
     double      logStart  = 1.0e-4;             double logStop   = 50.0;     //!< Log only.
-    AngularKind angular   = AngularKind::Lebedev;  int    nAngular  = 12;      //!< Lebedev: #dirs; GL/EM: L.
+    AngularKind angular   = AngularKind::Lebedev;
+    //! \brief The requested angular POLYNOMIAL DEGREE -- the same quantity for every scheme (R2.15).
+    //!
+    //! It was \c nAngular and meant different things per scheme: a DIRECTION COUNT for Lebedev but the
+    //! degree L for the others, so the two could not be compared and the Becke default could not be moved
+    //! between them.  (A third meaning, EulerMaclaren's resolution knob, was retired with that scheme --
+    //! it had no degree at all.)  Now: Lebedev RESOLVES the degree to the cheapest tabulated rule that
+    //! delivers at least it (see \c ResolveLebedev, which announces any rounding); GaussLegendre uses it
+    //! directly, as it always did.
+    int         angularDegree = 5;      //!< default: the 12-direction Lebedev rule (unchanged grid).
     double      angRot    = 0.0;  //!< Rigid rotation of the angular grid (radians, about the fixed generic axis \f$(1,2,3)/\sqrt{14}\f$).  Quadrature exactness is rotation-invariant; the knob steers a grid's special orbits OFF structure axes (e.g. Lebedev's \f$\langle111\rangle\f$ orbit off diamond's bonds -- doc/SymmetryUpgradePlan.md §6a rotation insight, free runs only).  0 = off (bit-identical historical grids).
     int         beckeOrder= 3;   //!< Becke fuzzy-Voronoi smoothing iterations (molecular mesh only).
     int         nUniform  = 20;  //!< Uniform periodic real-space grid: points per cell axis (lattice mesh only; \f$n^3\f$ total). Manual fallback when \c eCut<=0.
@@ -97,7 +106,7 @@ struct MeshParams
         return "M{r"  + to_string(static_cast<int>(radial))  + ",nr" + to_string(nRadial)
              + ",m"   + to_string(mhl_m)    + ",a"  + to_string(mhl_alpha)
              + ",ls"  + to_string(logStart) + ",le" + to_string(logStop)
-             + ",ang" + to_string(static_cast<int>(angular)) + ",na" + to_string(nAngular)
+             + ",ang" + to_string(static_cast<int>(angular)) + ",ad" + to_string(angularDegree)
              + ",ar" + to_string(angRot)
              + ",bo" + to_string(beckeOrder)
              + ",nu"  + to_string(nUniform) + ",ec" + to_string(eCut)

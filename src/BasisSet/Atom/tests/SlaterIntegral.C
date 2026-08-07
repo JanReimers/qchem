@@ -35,10 +35,10 @@ struct OneOverR2 : ScalarFunction<double>
     double  operator()(const rvec3_t& r) const override {double m=norm(r); return m==0.0?0.0:1.0/(m*m);}
     rvec3_t Gradient  (const rvec3_t&)   const override {return rvec3_t(0,0,0);}
 };
-qcMesh::Mesh AtomMesh(const Structure& st, int nRadial, int mhl_m, double alpha, int nAngular)
+qcMesh::Mesh AtomMesh(const Structure& st, int nRadial, int mhl_m, double alpha, int angularDegree)
 {
     return st.CreateIntegrationMesh({.radial=qcMesh::RadialKind::MHL, .nRadial=nRadial, .mhl_m=mhl_m,
-                                  .mhl_alpha=alpha, .angular=qcMesh::AngularKind::Lebedev, .nAngular=nAngular});
+                                  .mhl_alpha=alpha, .angular=qcMesh::AngularKind::Lebedev, .angularDegree=angularDegree});
 }
 } //anon
 //----------------------------------------------------------------------------------------------
@@ -59,7 +59,7 @@ public:
         {"N", 6}, {"emin", 0.1}, {"emax", 10.0},
         };
         bs=BasisSet::Atom::Factory(js,75);
-        itsMesh=AtomMesh(*cl,200,3,2.0,1);
+        itsMesh=AtomMesh(*cl,200,3,2.0, 0);
     }
 
     int Lmax, Z;
