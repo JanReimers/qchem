@@ -71,41 +71,15 @@ private:
 };
 } // namespace
 
-// The polarized eps_c contraction client (a rDynamic_CC): fits eps_c(rho_up,rho_down) from the full
-// Polarized_CD (cross-cast from the cd the channel forwards) and returns the overlap matrix.  The matrix is
-// spin-independent, so when the polarized density contracts it over both channels the result is the correct
-// E_c = integral eps_c (rho_up+rho_down).
-class FittedEpsCPol : public virtual ChargeDensity::rDynamic_CC
-{
-public:
-    FittedEpsCPol(std::shared_ptr<const BasisSet::rFIT_SF_ABS>& bs, const SpinCorrelation* corr)
-        : itsFitter(Fitting::Factory(bs)), itsCorr(corr) {}
-    virtual const rsmat_t& GetMatrix(const robs_t* bs, const Spin&, const rChargeDensity* cd) const
-    {
-        const Polarized_CD* pol = dynamic_cast<const Polarized_CD*>(cd);
-        assert(pol && "FittedEpsCPol: the polarized correlation energy requires a Polarized_CD");
-        PolEpsCDensity eps(itsCorr, pol->GetChargeDensity(Spin::Up), pol->GetChargeDensity(Spin::Down));
-        itsFitter->DoFit(eps);
-        auto dftbs = dynamic_cast<const odftbs_t*>(bs);
-        assert(dftbs);
-        itsMat = itsFitter->Overlap(dftbs);
-        return itsMat;
-    }
-private:
-    std::unique_ptr<Fitting::FunctionFitter_Scalar<double>> itsFitter;
-    const SpinCorrelation* itsCorr;   //!< non-owning (owned by the FittedVcorrPol term)
-    mutable rsmat_t        itsMat;
-};
-
 FittedVcorrPol::FittedVcorrPol(fbs_t& bs, corr_t& corr)
-    : itsCorr    (corr)
-    , itsVcFitter(Fitting::Factory(bs))
-    , itsEpsC    (std::make_unique<FittedEpsCPol>(bs, corr.get()))
+    : itsCorr     (corr)
+    , itsVcFitter (Fitting::Factory(bs))
+    , itsEpsFitter(Fitting::Factory(bs))   // E: eps_c fit -- same fit basis as the V fit above
 {
     assert(itsCorr);
 }
 
-FittedVcorrPol::~FittedVcorrPol() = default;   // out-of-line for the unique_ptr<FittedEpsCPol> member
+FittedVcorrPol::~FittedVcorrPol() = default;   // out-of-line for the unique_ptr<FunctionFitter> members
 
 rsmat_t FittedVcorrPol::CalcMatrix(const robs_t* bs, const Spin& s, const rChargeDensity* cd) const
 {
@@ -132,11 +106,27 @@ rsmat_t FittedVcorrPol::CalcMatrix(const robs_t* bs, const Spin& s, const rCharg
     return itsVcFitter->Overlap(dftbs);
 }
 
+// The E half of the V/E pair (see tDynamic_CC::GetEMatrix): fits eps_c(rho_up,rho_down) from the full
+// Polarized_CD (cross-cast from the cd the channel forwards) and returns the overlap matrix.  The matrix is
+// spin-independent, so when the polarized density contracts it over both channels the result is the correct
+// E_c = integral eps_c (rho_up+rho_down).
+const rsmat_t& FittedVcorrPol::GetEMatrix(const robs_t* bs, const Spin&, const rChargeDensity* cd) const
+{
+    const Polarized_CD* pol = dynamic_cast<const Polarized_CD*>(cd);
+    assert(pol && "FittedVcorrPol::GetEMatrix: the polarized correlation energy requires a Polarized_CD");
+    PolEpsCDensity eps(itsCorr.get(), pol->GetChargeDensity(Spin::Up), pol->GetChargeDensity(Spin::Down));
+    itsEpsFitter->DoFit(eps);
+    auto dftbs = dynamic_cast<const odftbs_t*>(bs);
+    assert(dftbs);
+    itsEpsMat = itsEpsFitter->Overlap(dftbs);
+    return itsEpsMat;
+}
+
 void FittedVcorrPol::GetEnergy(EnergyBreakdown& te, const rDM_CD* cd) const
 {
     // E_c = integral eps_c(rho_up,rho_down) rho.  The polarized DM_Contract sums both channels against the
     // (spin-independent) eps_c fit, giving integral eps_c (rho_up+rho_down) = integral eps_c rho_total.
-    te.Exc += cd->DM_Contract(itsEpsC.get(), cd);
+    te.Exc += cd->DM_Contract(this, cd);
 }
 
 std::ostream& FittedVcorrPol::Write(std::ostream& os) const

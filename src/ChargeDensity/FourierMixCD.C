@@ -71,8 +71,14 @@ public:
     //! (\f$e^{iG\cdot r}=\prod_a e^{i m_a (B^\mathsf{T}r)_a}\f$, three 1-D tables per point) -- ~an order
     //! of magnitude over the per-G std::exp of the pointwise loop.  This is the Fock-path rho feed of the
     //! Becke XC quadrature on MIXED iterations (the mesh points are not a raster, so no FFT applies).
-    virtual rvec_t  EvalBatch(const rvec3vec_t&) const override;
-    virtual rvec3_t Gradient  (const rvec3_t&) const override {return rvec3_t(0,0,0);}
+    //! (The batched \c ScalarFunction face itself -- there is no separate \c EvalBatch spelling to fork
+    //!  away from, so a caller holding the neutral face always reaches THIS fast path.)
+    virtual rvec_t  operator()(const rvec3vec_t&) const override;
+    //! \brief NOT IMPLEMENTED -- \f$\nabla\rho\f$ of a G-space density is \f$\sum_m iG_m c_m e^{iG_m\cdot r}\f$,
+    //! never wired because the periodic path is LDA-only.  Throws rather than returning a silent zero: a GGA
+    //! or plotting consumer reaching this through the neutral \c ScalarFunction face would otherwise get a
+    //! wrong gradient with no diagnostic.  (Retire in favour of a \c DifferentiableField capability face.)
+    virtual rvec3_t Gradient  (const rvec3_t&) const override;
     virtual double  GetTotalCharge() const override {return itsScale*itsCharge;}
     virtual size_t  Version()        const override {return itsVersion;}
     virtual void    ReScale(double factor) override;

@@ -55,6 +55,8 @@ public:
     virtual double GetChangeFrom(const tDM_CD<T>&       ) const;  //MaxAbs(delta density matrix)
 
     virtual double operator()(const rvec3_t&) const;
+    //! \f$\nabla\rho\f$ from the density matrix.  Real path only: the \c dcmplx specialization THROWS
+    //! (periodic = LDA-only, no complex gradient contraction) rather than returning a silent zero.
     virtual rvec3_t  Gradient  (const rvec3_t&) const; // No UT coverage
 
     //! Metric-free rho-tilde(Delta-m) of THIS block: D contracted against the basis's D-free OVERLAP tensor

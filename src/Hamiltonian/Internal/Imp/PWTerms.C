@@ -372,7 +372,7 @@ const rvec_t& XC_GridEngine::Rho(const cChargeDensity* cd, const cobs_t* ensureB
     if (auto dm=dynamic_cast<const cDM_CD*>(cd))
         itsRho=dm->DM_RhoAtPoints(itsMesh->Points(), itsPhi);
     else
-        itsRho=cd->EvalBatch(itsMesh->Points());   // non-DM (mixed rho-tilde / seed) densities batch here
+        itsRho=(*cd)(itsMesh->Points());   // non-DM (mixed rho-tilde / seed) densities batch here
     if (!itsFold.owner.empty())                    // §6a W1: the orbit-mean star-average (imposed runs only)
         Symmetry::Lattice_3D::SymmetrizeValues(itsFold, itsRho);
     return itsRho;
@@ -400,15 +400,15 @@ const rvec_t& XC_GridEngine::RhoPol(const cChargeDensity* cd, const Spin& s, con
         else if (auto sr=dynamic_cast<const ChargeDensity::cSpinResolved_CD*>(cd))
         {   // matrix-free spin-resolved seed (PolarizedSeedCD, SCFSeedingPlan §10): channels batch through
             // the plain tChargeDensity face -- no D, no Phi tables, but a genuinely staggered iteration-0 rho
-            itsRhoUp=sr->GetChannel(Spin::Up  )->EvalBatch(itsMesh->Points());
-            itsRhoDn=sr->GetChannel(Spin::Down)->EvalBatch(itsMesh->Points());
+            itsRhoUp=(*sr->GetChannel(Spin::Up  ))(itsMesh->Points());
+            itsRhoDn=(*sr->GetChannel(Spin::Down))(itsMesh->Points());
         }
         else
         {   // spin-agnostic seed: rho_up=rho_down=rho/2 (the molecular HalfDensity rule, cd85d13c)
             if (auto dm=dynamic_cast<const cDM_CD*>(cd))
                 itsRhoUp=dm->DM_RhoAtPoints(itsMesh->Points(), itsPhi);
             else
-                itsRhoUp=cd->EvalBatch(itsMesh->Points());
+                itsRhoUp=(*cd)(itsMesh->Points());
             itsRhoUp*=0.5;
             itsRhoDn=itsRhoUp;
         }

@@ -181,6 +181,23 @@ MnO campaign proceeds undisturbed in qchem6.
     the same probe reads fine as a *precondition*.  "Can you?" and "give me it" stay separate questions
     (V1.9), but "which am I?" should be answered by the type, not re-asked at run time.
 
+- **R1.4 + R1.5 + V1.3 (mechanism)** — three items, one session (2026-08-07).
+  - **R1.4** the two silent-zero `Gradient()` overrides (FourierMixCD, `IrrepCD<dcmplx>`) now THROW.
+    The plan said "assert"; asserts are compiled OUT of the build we test (`build/Release` is `-DNDEBUG`
+    unless `QCHEM_RELCHECKED=ON`), so an asserting stub would still have returned the silent zero under
+    `ctest`.  Throwing is loud in both configurations — the V1.10b ruling applied one level down.
+  - **R1.5** `tChargeDensity::EvalBatch` DELETED; the fast batch is now an override of the inherited
+    `ScalarFunction::operator()(rvec3vec_t)`.  The fork turned out to be LATENT (the one density-batching
+    caller happened to use the `EvalBatch` spelling), not the live perf trap the item claimed.
+  - **V1.3** both ε-adapter classes (`FittedEpsXc`, `FittedEpsCPol`) DELETED — but by naming
+    `tDynamic_CC`'s method `GetEMatrix`, not by the planned `DM_ContractBlocks` reuse, which turned out
+    to be blocked (a `tDynamic_HT` never receives `wholeBasis`, so it cannot enumerate the irrep blocks a
+    block map needs — only `tDynamic_HF_HT` can).  The user's own V/E face IS the mechanism: one spelling
+    was the entire collision.  Details + the blocked-route writeup under V1.3.
+  - **Generalizable rule from R1.4:** "interim: assert" is only a real diagnostic where asserts are LIVE.
+    Check the build's NDEBUG status before choosing assert-vs-throw for a *wrong-value* (as opposed to
+    crash-soon) failure mode; the same NDEBUG hazard is already on record under V1.6.
+
 **Process note for the next session:** build **`allTests`**, not just `ITMain`.  A first `ctest` in
 qchem1 reported 160/590 failures that were ENTIRELY stale per-library `UT*` binaries (undefined
 symbols + segfaults from the tree jumping ~30 commits while only ITMain was relinked) — zero real
@@ -273,15 +290,26 @@ in the same session.
   would remove the snapshot entirely.  **SUPERSEDED-IF-V1.10b-LANDS**: the mixer-layering fix
   deletes `itsKerkerCell` outright.  Do the one-line `Clone()` only as a stopgap if V1.10b is not
   in the same session.
-- **R1.4 Silent zero `Gradient()` overrides** — FourierMixCD.C:75 and IrrepCD<dcmplx>
+- **R1.4 ✅ DONE (THROW, not assert — deviation explained). Silent zero `Gradient()` overrides** — FourierMixCD.C:75 and IrrepCD<dcmplx>
   (Internal/Imp/IrrepCD.C:333) return `rvec3_t(0,0,0)` with no assert; a future GGA/plotting
-  consumer through the neutral ScalarFunction face gets silently wrong ∇ρ.  Interim: assert.
+  consumer through the neutral ScalarFunction face gets silently wrong ∇ρ.  ~~Interim: assert.~~
   Real fix (a `DifferentiableField` capability face) → V1.6-adjacent design.
-- **R1.5 `tChargeDensity::EvalBatch` duplicates `ScalarFunction::operator()(rvec3vec_t)` — and has
-  FORKED into a live perf trap.**  Identical signature after alias expansion.  FourierMixCD
-  overrides only `EvalBatch` (fast factorized-phase path); OrthoFunctionFitter.C:101 calls the
-  ScalarFunction spelling — a FourierMixCD reached that way silently gets the slow per-G `exp`
-  loop.  Fix: delete `EvalBatch`; override `operator()(rvec3vec_t)` instead.
+  **Both now `throw std::logic_error` naming the missing implementation.**  The planned `assert` would
+  have been a NO-OP in the build we actually test: `build/Release` is `-DNDEBUG` (`QCHEM_RELCHECKED=OFF`,
+  CMakeLists.txt:77-93), so an asserting stub still returns the silent zero under `ctest`.  A throw is loud
+  in BOTH configurations, and matches the V1.10b "fail loudly in the R&D phase" ruling.  Verified no live
+  caller: the density `Gradient` consumers are all `<double>` (SlaterExchange, the fitters, the composite/
+  polarized/spin forwarders) — nothing on the periodic path asks for ∇ρ, and 665/665 stays green.
+- **R1.5 ✅ DONE. `tChargeDensity::EvalBatch` duplicates `ScalarFunction::operator()(rvec3vec_t)`.**
+  Identical signature after alias expansion.  `EvalBatch` DELETED (the inherited `ScalarFunction` batch
+  op carries the same pointwise-loop default); FourierMixCD's fast factorized-phase path now overrides
+  `operator()(rvec3vec_t)`; the four call sites in `XC_GridEngine` (PWTerms.C:375,403,404,411) spell it
+  `(*cd)(mesh->Points())`.
+  **CORRECTION to the claim above (verified while doing it): the fork was LATENT, not live.**
+  OrthoFunctionFitter.C:101 batches `ps.GetScalarFunction()` — a `ProjectedScalar_R`'s field (v_xc, ε_xc),
+  never a density — so no FourierMixCD reaches it today.  The ONLY site that batched a density was
+  `XC_GridEngine`, and it happened to use the `EvalBatch` spelling, i.e. it got the fast path BY LUCK OF
+  SPELLING.  The trap was one neutral-face caller away, not already sprung.
 - **R1.6 ✅ DONE `06e23f5d`. `Write()` streams raw POINTERS (hex addresses)** — Imp/FittedVxc.C:111 (`os << itsLDAVxc`)
   and Imp/FittedVxcPol.C:93 (`os << itsUpVxc << itsDownVxc`); `qchem::op<<` binds only
   `const Streamable&`, so these hit `void const*`.  Need `*`.
@@ -441,7 +469,8 @@ in the same session.
   unit-test-only.  **USER (2026-08-05): approved to attempt — try it and see if we hit any
   roadblocks.**  (Feasibility probe of the actual `LocalPotential`/`SeparablePotential` payloads
   and the DAG: see the probe notes appended below when available.)
-- **V1.3 🔶 DESIGN + grounded IMPLEMENTATION PLAN done (below), no code yet. `FittedEpsXc`/`FittedVxc` simplification.**  Physics answer (user asked 2026-08-05):
+- **V1.3 ✅ MECHANISM DONE (both ε-adapters deleted; via `GetEMatrix`, NOT `DM_ContractBlocks` — see "WHAT
+  LANDED INSTEAD" below).  The quadrature-term face (second list) is still open.  `FittedEpsXc`/`FittedVxc` simplification.**  Physics answer (user asked 2026-08-05):
   yes, genuinely different matrices — v_xc = δE_xc/δρ = ε_xc + ρ·∂ε_xc/∂ρ, so
   D·⟨i|v_xc|j⟩ = ∫v_xc·ρ ≠ ∫ε_xc·ρ = E_xc (Slater exchange: factor 4/3 — the retired ¾-virial
   shortcut, FittingCleanupPlan §I.1).  A class merge is impossible: both need `GetMatrix` with the
@@ -474,24 +503,40 @@ in the same session.
      `tDynamic_HF_HT`'s own doc: it "is deliberately NOT a `tDynamic_CC`: its energy comes from its
      OWN cached blocks (`DM_ContractBlocks`), not a per-irrep `GetMatrix` round-trip."  That is
      exactly the E≠D·V escape the xc family needs, and it requires NO new machinery.
-  - **Mechanism (small, and it deletes code):** `FittedVxc` builds its ⟨i|ε̃_xc|j⟩ blocks into a map
-    and takes E_xc from `cd->DM_ContractBlocks(...)`, exactly as `Vee`/`Vxc` already do.  The entire
-    reason `FittedEpsXc` exists — needing to BE a second `tDynamic_CC` so `DM_Contract` would
-    dispatch to a second matrix — evaporates, so `FittedEpsXc` AND its clone `FittedEpsCPol` both
-    DELETE.  The signature collision that blocks a class merge simply stops applying, because nothing
-    dispatches on `GetMatrix` any more.
-  - **Interface (the user's ask):** still worth having, but as a statement of the PHYSICS rather than
-    as the mechanism — a face declaring `GetVMatrix` (Fock) and `GetEMatrix` (the ε-density block
-    whose D-contraction IS the energy), so "E ≠ D·V for this family" is expressed in the type system
-    (compile-time-over-runtime).  Quadrature terms (`Delta_XC`, `PW_XC`) implement the SEPARATE
-    quadrature face: they own a mesh, integrate E directly, and have NO E-matrix — so they must never
-    be forced to fabricate one.  That is the second list.
-  - **Sequencing:** mechanism first (delete the two ε-adapters via `DM_ContractBlocks` — purely
-    internal, no anchor should move), then the face split as a separate, purely declarative commit.
-  - **Snag to fix en route:** `DM_ContractBlocks` is still keyed by `std::string` BasisSetID, while
-    V1.4 moved `DM_RhoAtPoints` to `Irrep` — and `tHT_Common`'s term cache was ALREADY
+  - ~~**Mechanism (small, and it deletes code):** `FittedVxc` builds its ⟨i|ε̃_xc|j⟩ blocks into a map
+    and takes E_xc from `cd->DM_ContractBlocks(...)`, exactly as `Vee`/`Vxc` already do.~~
+    **THIS ROUTE IS BLOCKED — found on contact, 2026-08-07.**  `Vee`/`Vxc` can build a whole-system block
+    map only because they are `tDynamic_HF_HT`, whose `GetMatrix` RECEIVES `wholeBasis` (the composite
+    basis — the cross-irrep view).  `FittedVxc` is a `tDynamic_HT`: its 3-arg `GetMatrix` gets ONE irrep's
+    basis and never the composite, so it has no way to ENUMERATE the irrep blocks a `DM_ContractBlocks`
+    map must contain.  Faking it (latch a `map<Irrep,const odftbs_t*>` from successive `CalcMatrix` calls,
+    à la `Dynamic_HF_HT_Imp::itsWholeBasis`) would add exactly the raw-pointer latching R2.9(iii) already
+    flags, AND is unsound in timing: `GetEnergy` runs on the density AFTER the step (SCFIterator.C:279
+    contracts ρ_out while the Fock was built from ρ_in), so cached ε blocks would be fit against the wrong
+    density.  Plus the string→Irrep key change below.  Enumerating the irrep blocks is precisely the job
+    `DM_Contract` already does — that callback IS the density telling the term its own leaf bases.
+  - **WHAT LANDED INSTEAD — the user's own V/E face, used as the mechanism.**  The collision was never
+    `DM_Contract`; it was one SPELLING.  `tDynamic_HT` already IS-A `tDynamic_CC` (Hamiltonian.C:56), and
+    both faces named the method `GetMatrix`, so one term could expose only ONE matrix — hence a second
+    object to carry the other.  So `tDynamic_CC`'s method is now **`GetEMatrix`** (ChargeDensity.C), with
+    `tDynamic_HT::GetEMatrix` defaulting to `GetMatrix` (E = D·V, true for every term but the xc family)
+    and `IrrepCD::DM_Contract` calling `GetEMatrix`.  `FittedVxc` and `FittedVcorrPol` now override it
+    with their ε fit — so **`FittedEpsXc` AND its clone `FittedEpsCPol` are both DELETED**, and the two
+    ε fitters became plain members beside the v fitters (same fit basis, so the 3-centre setup is still
+    shared).  Zero new state, no key change, no basis latching, and no numbers move: `DM_Contract` calls
+    exactly the same fit+`Overlap` on exactly the same `(bs, spin, cd)` as the adapters did.
+    - The V half deliberately KEPT the name `GetMatrix` rather than becoming `GetVMatrix`: that rename is
+      a large mechanical sweep (`tStatic_HT`/`tDynamic_HT`/`tDynamic_HF_HT`/`tHamiltonian` + every term
+      and call site) with no behavioural content.  Do it as a standalone naming commit if wanted — the
+      V/E DISTINCTION is already in the type system and documented on both faces.
+  - **Still outstanding (the declarative half, unchanged):** the quadrature terms (`Delta_XC`, `PW_XC`)
+    own a mesh, integrate E directly, and have NO E-matrix — they must never be forced to fabricate one.
+    That is the SECOND term list / separate face, and it is untouched by this commit.
+  - ~~**Snag to fix en route:** `DM_ContractBlocks` is still keyed by `std::string` BasisSetID~~ — moot for
+    V1.3 now (nothing here touches `DM_ContractBlocks`), but the observation stands on its own and is worth
+    keeping: V1.4 moved `DM_RhoAtPoints` to `Irrep`, and `tHT_Common`'s term cache was ALREADY
     `std::map<Irrep,hmat_t<T>>` (HamiltonianTerm.C:23).  So Irrep is the established key on the term
-    side and BasisSetID is the odd one out; extend V1.4 to `DM_ContractBlocks` in the same pass.
+    side and BasisSetID is the odd one out; extend V1.4 to `DM_ContractBlocks` in its own pass.
     (This also retro-justifies V1.4: the term caches had been Irrep-keyed all along.)
 - **V1.4 ✅ DONE `80fc2ae8`. `DM_RhoAtPoints` Phi key → Irrep (USER RULING 2026-08-05).**
   User model: a CompositeCD is a list of IrrepCDs — not BasisSetCDs; one irrep points to one IBS.

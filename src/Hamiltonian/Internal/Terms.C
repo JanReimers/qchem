@@ -243,37 +243,19 @@ private:
 
 //###############################################################################
 //
-//  A dedicated least-squares fit of an XC ENERGY DENSITY eps_xc(rho(r)) to the auxiliary fit basis,
-//  exposed as a rDynamic_CC so the density contracts it:  E_xc = integral eps_xc rho = <rho|eps_xc_fit>.
-//  This is a total energy term, not a matrix-valued Hamiltonian term.  Separate from a potential fit
-//  (different coefficients) but meant to SHARE its fit basis, so the 3-centre integrals are computed once.
-//  Uniform for exchange AND correlation: it reads the functional's own eps_xc (eps_x = 3/4 v_x for Dirac
-//  exchange; eps_c != 3/4 v_c for correlation; eps_xc from libxc), so no functional needs the 3/4 special
-//  case.  Composes a Fitting::FunctionFitter (from the Factory); Overlap is queried on it.
-//
-class FittedEpsXc : public virtual ChargeDensity::rDynamic_CC
-{
-public:
-    typedef std::shared_ptr<const BasisSet::rFIT_SF_ABS> fbs_t;   //!< the scalar-function (overlap-metric) fit face
-
-    FittedEpsXc(fbs_t& fitBasisSet, const ExFunctional* ex);
-    //! Re-fits eps_xc for this density and returns its matrix Sum_a c_a <Oi|f_a|Oj> for contraction.
-    virtual const rsmat_t& GetMatrix(const robs_t*,const Spin&,const rChargeDensity* cd) const;
-private:
-    std::unique_ptr<Fitting::FunctionFitter_Scalar<double>> itsFitter;  //!< COMPOSED fitter (not inherited)
-    const ExFunctional* itsEx;   //!< non-owning; the XC functional supplying eps_xc (owned by the term)
-    mutable rsmat_t     itsMat;
-    mutable size_t      itsFitVersion=size_t(-1);   //!< density serial the eps_xc fit was last computed for
-};
-
-//###############################################################################
-//
 //  Linear least squares fit the unpolarized and polarized exchange-correlation potential.  The fit basis set is inserted by the
 //  constructor and is not owned by FittedVxc.  The XC functional is owned by the inner LDAVxc.
-//  Energy is E_xc = integral eps_xc rho via a dedicated FittedEpsXc on the SAME fit basis (the fitter's
-//  3-centre integrals are shared) -- uniform for exchange, correlation, and libxc.  This retires the old
-//  3/4-virial exchange shortcut (which broke for gradient functionals).  Serves BOTH exchange (Dirac) and
-//  correlation (VWN5) -- the energy formula is the functional's own eps_xc, not a per-term special case.
+//
+//  TWO fits, on the SAME fit basis (so the 3-centre integrals are computed once):
+//    V (GetMatrix / CalcMatrix) fits the POTENTIAL v_xc(rho(r))       -> the Fock/KS block.
+//    E (GetEMatrix)             fits the ENERGY DENSITY eps_xc(rho(r)) -> E_xc = integral eps_xc rho.
+//  They are genuinely different matrices (v_xc = eps_xc + rho d(eps_xc)/d(rho); a factor 4/3 for Slater
+//  exchange), which is the whole reason tDynamic_CC's energy face is named GetEMatrix rather than GetMatrix
+//  -- before that, delivering the second matrix needed a SEPARATE rDynamic_CC object (the retired
+//  FittedEpsXc adapter) hung off this term purely to carry it (V1.3).
+//  Uniform for exchange AND correlation: the E fit reads the functional's own eps_xc (eps_x = 3/4 v_x for
+//  Dirac exchange; eps_c != 3/4 v_c for correlation; eps_xc from libxc), so no functional needs the 3/4
+//  special case -- this retires the old 3/4-virial exchange shortcut (which broke for gradient functionals).
 //
 class FittedVxc : public virtual rDynamic_HT, private rDynamic_HT_Imp
 {
@@ -284,6 +266,8 @@ public:
     FittedVxc(fbs_t& VxcFitBasisSet, ex_t&);
     ~FittedVxc();
     virtual void          GetEnergy       (EnergyBreakdown&,const rDM_CD*) const;
+    //! The ENERGY block: re-fits eps_xc for this density and returns Sum_a c_a <Oi|f_a|Oj> for contraction.
+    virtual const rsmat_t& GetEMatrix(const robs_t*,const Spin&,const rChargeDensity* cd) const override;
     virtual void          UseChargeDensity(const rChargeDensity*);
     virtual std::ostream& Write           (std::ostream&) const;
 private:
@@ -291,7 +275,11 @@ private:
 
     std::unique_ptr<Fitting::FunctionFitter_Scalar<double>> itsFitter; //!< COMPOSED v_xc fit (was inherited)
     LDAVxc* itsLDAVxc;   //!< the v_xc=Vxc(rho) function to fit (concrete: it IS the ScalarFFClient)
-    FittedEpsXc itsEpsXc; //!< dedicated eps_xc fit for the energy (E_xc = integral eps_xc rho); shares the fit basis
+    //  --- the energy (eps_xc) fit: same fit basis, different coefficients ---
+    std::unique_ptr<Fitting::FunctionFitter_Scalar<double>> itsEpsFitter;
+    ex_t                itsEx;                       //!< the functional supplying eps_xc (shared with itsLDAVxc)
+    mutable rsmat_t     itsEpsMat;
+    mutable size_t      itsEpsVersion=size_t(-1);    //!< density serial the eps_xc fit was last computed for
 };
 
 class FittedVxcPol : public virtual rDynamic_HT, private rDynamic_HT_Imp_NoCache
@@ -315,8 +303,6 @@ private:
 
 };
 
-class FittedEpsCPol;   // the polarized eps_c contraction client (defined in Imp/FittedVcorrPol.C)
-
 //###############################################################################
 //
 //  Polarized (spin-native) correlation term.  Unlike FittedVxcPol -- which delegates to two INDEPENDENT
@@ -324,7 +310,9 @@ class FittedEpsCPol;   // the polarized eps_c contraction client (defined in Imp
 //  v_c^sigma(rho_up,rho_down) COUPLES both channels (through r_s and zeta), so this term fits the
 //  SpinCorrelation functional against the FULL Polarized_CD at each mesh point.  The Fock build calls
 //  CalcMatrix per spin (each fits v_c^sigma); the energy E_c = integral eps_c(rho_up,rho_down) rho uses a
-//  dedicated eps_c fit (FittedEpsCPol) that the polarized density contracts over both channels.  The seed
+//  SECOND eps_c fit on the same fit basis (GetEMatrix -- the E face of the V/E pair) that the polarized
+//  density contracts over both channels.  (That fit used to live in a separate rDynamic_CC adapter,
+//  FittedEpsCPol -- a clone of FittedVxc's FittedEpsXc; both died with the GetEMatrix split, V1.3.)  The seed
 //  iteration (a spin-agnostic total density, not yet a Polarized_CD) collapses to v_c^P(rho) via
 //  rho_up=rho_down=rho/2 -- the same robustness FittedVxcPol needed (cd85d13c).
 //
@@ -337,6 +325,10 @@ public:
     FittedVcorrPol(fbs_t&, corr_t&);
    ~FittedVcorrPol();
     virtual void GetEnergy (EnergyBreakdown&, const rDM_CD* cd) const;
+    //! The ENERGY block: fits eps_c(rho_up,rho_down) from the full Polarized_CD and returns its overlap
+    //! matrix.  Spin-INDEPENDENT as a value, so contracting it over both channels gives
+    //! E_c = integral eps_c (rho_up+rho_down).
+    virtual const rsmat_t& GetEMatrix(const robs_t*, const Spin&, const rChargeDensity* cd) const override;
     virtual bool IsPolarized() const {return true;}
     virtual std::ostream& Write(std::ostream&) const;
 private:
@@ -344,7 +336,8 @@ private:
 
     corr_t itsCorr;                                                      //!< the correlation functional (owned)
     std::unique_ptr<Fitting::FunctionFitter_Scalar<double>> itsVcFitter; //!< v_c^sigma potential fit
-    std::unique_ptr<FittedEpsCPol>                          itsEpsC;     //!< E_c = integral eps_c rho (energy)
+    std::unique_ptr<Fitting::FunctionFitter_Scalar<double>> itsEpsFitter;//!< E_c = integral eps_c rho (energy)
+    mutable rsmat_t                                         itsEpsMat;   //!< GetEMatrix's returned block
 };
 
 

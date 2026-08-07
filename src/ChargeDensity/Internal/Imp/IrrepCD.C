@@ -3,6 +3,7 @@ module;
 #include <cassert>
 #include <complex>
 #include <iostream>
+#include <stdexcept>
 #include <stdlib.h>
 #include <type_traits>
 #include <vector>
@@ -146,7 +147,7 @@ template <class T> double IrrepCD<T>::DM_Contract(const tStatic_CC<T>* v) const
 
 template <class T> double IrrepCD<T>::DM_Contract(const tDynamic_CC<T>* v,const tDM_CD<T>* cd) const
 {
-    T ComplexE=blazem::sum(itsDensityMatrix % blazem::trans(v->GetMatrix(itsBasisSet,itsSpin,cd)));
+    T ComplexE=blazem::sum(itsDensityMatrix % blazem::trans(v->GetEMatrix(itsBasisSet,itsSpin,cd)));
     assert(fabs(std::imag(ComplexE))<1e-8);
     return std::real(ComplexE);
 }
@@ -332,8 +333,15 @@ template <> void IrrepCD<dcmplx>::AccumulateDirectBoth(hmat_t<dcmplx>&, hmat_t<d
 { assert(false && "AccumulateDirectBoth: HF not applicable to a complex plane-wave density"); }
 template <> void IrrepCD<dcmplx>::AccumulateExchangeBoth(hmat_t<dcmplx>&, hmat_t<dcmplx>&, const tDM_CD<dcmplx>&) const
 { assert(false && "AccumulateExchangeBoth: HF not applicable to a complex plane-wave density"); }
+// NOT IMPLEMENTED (not "zero"): the complex GradientContraction the real path uses has no dcmplx sibling,
+// because nothing on the periodic path is a GGA or a gradient plotter.  Throwing keeps the FIRST such
+// consumer honest -- the silent rvec3_t(0,0,0) this replaced handed it a plausible wrong field (R1.4).
 template <> rvec3_t IrrepCD<dcmplx>::Gradient(const rvec3_t&) const
-{ return rvec3_t(0,0,0); }   // No UT coverage; GGA/plotting gradient not yet wired for complex.
+{
+    throw std::logic_error("IrrepCD<dcmplx>::Gradient: grad(rho) is not wired for the complex (periodic) "
+                           "density -- the periodic path is LDA-only.  Implement the complex gradient "
+                           "contraction here, or ask the density through a gradient-capable face.");
+}
 
 // The cached Overlap() accessor is typed for the (symmetric) double cache, which complex bypasses
 // (the smat_t->hmat_t cache refactor is pinned).  Use the uncached virtual MakeOverlap() directly --

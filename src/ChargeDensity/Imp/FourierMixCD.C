@@ -1,10 +1,11 @@
 // File: ChargeDensity/Imp/FourierMixCD.C  Kerker-mixable G-space density (see FourierMixCD.C).
 module;
-#include <algorithm>   // std::min/max (EvalBatch's dm ranges)
+#include <algorithm>   // std::min/max (the batched op()'s dm ranges)
 #include <cassert>
 #include <cmath>
 #include <complex>
 #include <map>
+#include <stdexcept>
 #include <vector>
 module qchem.ChargeDensity.FourierMixCD;
 import qchem.Types;        // rvec3_t, dcmplx
@@ -61,7 +62,8 @@ FourierMixCD* FourierMixCD::KerkerMix(const FourierMixCD& in, const ΔG_Map& out
 double FourierMixCD::operator()(const rvec3_t& r) const
 {
     // rho(r) = Sum_G rho-tilde(G) e^{iG.r} (inverse FT).  Real by construction for a real density
-    // (conjugate-symmetric rho-tilde).  Single-point form; the mesh-XC quadrature batches via EvalBatch.
+    // (conjugate-symmetric rho-tilde).  Single-point form; the mesh-XC quadrature batches via the
+    // rvec3vec_t overload below.
     dcmplx s(0.0);
     for (const auto& [dm, rt] : itsRho)
     {
@@ -76,7 +78,7 @@ double FourierMixCD::operator()(const rvec3_t& r) const
 // e^{i m t_a} over the map's dm ranges, then one complex multiply-add per G -- no transcendental in the
 // inner loop.  The map iterates in key order, so the (x,y) partial product is hoisted across runs of
 // consecutive z.  Bit-close (not bit-identical) to the pointwise loop: same series, different grouping.
-rvec_t FourierMixCD::EvalBatch(const rvec3vec_t& r) const
+rvec_t FourierMixCD::operator()(const rvec3vec_t& r) const
 {
     rvec_t ro(r.size());
     if (itsRho.empty()) {ro=0.0; return ro;}
@@ -119,6 +121,17 @@ rvec_t FourierMixCD::EvalBatch(const rvec3vec_t& r) const
         ro[g]=itsScale*std::real(s);
     }
     return ro;
+}
+
+// grad rho(r) = Sum_G i G rho-tilde(G) e^{iG.r} -- a two-line addition to the loop above, deliberately NOT
+// written: nothing on the periodic path is a GGA or a gradient plotter, so an implementation here would be
+// untested code.  Throwing keeps the FIRST such consumer honest; returning a silent zero (the shape this
+// replaced) would hand it a plausible-looking wrong field instead (R1.4).
+rvec3_t FourierMixCD::Gradient(const rvec3_t&) const
+{
+    throw std::logic_error("FourierMixCD::Gradient: grad(rho) is not implemented for a G-space density "
+                           "(the periodic path is LDA-only).  Implement the i*G sum here, or ask the "
+                           "density through a gradient-capable face.");
 }
 
 void FourierMixCD::ReScale(double factor)

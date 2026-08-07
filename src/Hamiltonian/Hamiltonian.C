@@ -49,15 +49,27 @@ public:
 //! \brief A PER-IRREP density-dependent term (DFT/fitted Coulomb + \f$V_{xc}\f$): builds ONE irrep's block
 //! from the density (a fit, or \f$\rho(\mathbf r)\f$ on a mesh), with no cross-irrep coupling.
 //!
-//! Energy is taken via \c DM_Contract (a per-irrep \c GetMatrix round-trip) -- contrast \ref tDynamic_HF_HT,
+//! Energy is taken via \c DM_Contract (a per-irrep \c GetEMatrix round-trip) -- contrast \ref tDynamic_HF_HT,
 //! whose exact exchange forbids that shortcut.
+//!
+//! The term therefore has TWO matrix faces, and the split is PHYSICS, not plumbing: \c GetMatrix is the
+//! POTENTIAL block that goes into the Fock/KS assembly (V), \c GetEMatrix is the block whose D-contraction
+//! is the term's ENERGY (E).  \f$E=D\cdot V\f$ for every term except the xc family, so \c GetEMatrix
+//! defaults to \c GetMatrix here and only the xc terms override it.
 template <class T> class tDynamic_HT
     : public virtual Streamable
     , public virtual tDynamic_CC<T>
 {
 public:
-    //! This irrep's block for basis \a bs / spin \a s, built from the current density \a cd.
+    //! This irrep's POTENTIAL block (V) for basis \a bs / spin \a s, built from the current density \a cd --
+    //! what the Fock/KS assembly adds up.
     virtual const hmat_t<T>& GetMatrix(const tobs_t<T>*,const Spin&,const tChargeDensity<T>*) const=0;
+    //! \copybrief tDynamic_CC::GetEMatrix
+    //! Default: \f$E=D\cdot V\f$, so the energy matrix IS the potential block.  Overridden ONLY where that
+    //! identity fails -- the xc family, whose energy density \f$\epsilon_{xc}\f$ is not its potential
+    //! \f$v_{xc}\f$ (see \c tDynamic_CC::GetEMatrix).
+    virtual const hmat_t<T>& GetEMatrix(const tobs_t<T>* bs,const Spin& s,const tChargeDensity<T>* cd) const override
+    {return GetMatrix(bs,s,cd);}
     //! Add this term's energy contribution (density matrix \a cd) into the breakdown.
     virtual void             GetEnergy(EnergyBreakdown&,  const tDM_CD<T>*) const=0;
     virtual bool             IsPolarized   () const {return false;}   //!< spin-dependent block? (default no)

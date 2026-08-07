@@ -77,8 +77,19 @@ public:
 template <class T> class tDynamic_CC //Contract client for dynamic (CD dependent) Ham terms.
 {
 public:
-    // The density that defines V(rho) for the Fock build -- the DFT-only face (a fit has no matrix).
-    virtual const hmat_t<T>& GetMatrix(const tobs_t<T>*,const Spin&,const tChargeDensity<T>*) const=0;
+    //! \brief The ENERGY matrix of a density-dependent term: the block whose D-contraction IS this term's
+    //! energy contribution, \f$E=\mathrm{Tr}(D\,B)\f$.  \a cd is the density defining the term (the DFT-only
+    //! face -- a fit has no matrix); the basis/spin identify which irrep block the caller wants.
+    //!
+    //! DELIBERATELY NOT SPELLED \c GetMatrix.  For nearly every term the energy matrix IS the Fock block
+    //! (\f$E=D\cdot V\f$), and \c tDynamic_HT's default forwards to it.  The xc family is the exception --
+    //! \f$v_{xc}=\delta E_{xc}/\delta\rho=\epsilon_{xc}+\rho\,\partial\epsilon_{xc}/\partial\rho\f$, so
+    //! \f$\int v_{xc}\rho\neq\int\epsilon_{xc}\rho=E_{xc}\f$ (Slater exchange: a factor 4/3) -- and it
+    //! overrides this with the ENERGY-DENSITY block \f$\langle i|\tilde\epsilon_{xc}|j\rangle\f$.  While the
+    //! two faces shared the \c GetMatrix spelling a term could only ever offer ONE of the two matrices, which
+    //! is why the xc terms had to hang a second \c tDynamic_CC object (an "eps adapter") off the side purely
+    //! to carry the other one.  Distinct names dissolve that collision (V1.3).
+    virtual const hmat_t<T>& GetEMatrix(const tobs_t<T>*,const Spin&,const tChargeDensity<T>*) const=0;
 };
 
 // Naming convention (mirrors rsmat_t/chmat_t in Common/Types.C): r* = <double>, c* = <dcmplx>.
@@ -108,16 +119,15 @@ public:
     virtual double GetTotalCharge() const=0;       // <ro>
     virtual void   ReScale(double factor)     =0;  // Ro *= factor
 
-    //! \brief \f$\rho\f$ at MANY points -- the batched ScalarFunction.  Default: the pointwise loop
-    //! (correct for any density); a concrete density overrides when it can vectorize the batch
-    //! (FourierMixCD's factorized phase tables; the DM densities have the richer, table-driven
-    //! DM_RhoAtPoints).  The mesh-XC quadrature engine's entry for non-DM densities.
-    virtual rvec_t EvalBatch(const rvec3vec_t& r) const
-    {
-        rvec_t ro(r.size());
-        for (size_t g=0; g<r.size(); g++) ro[g]=(*this)(r[g]);
-        return ro;
-    }
+    //  rho at MANY points is INHERITED, not re-declared: ScalarFunction<double>::operator()(rvec3vec_t)
+    //  already IS that function (same signature after alias expansion), with the same pointwise-loop
+    //  default.  A density that can vectorize the batch overrides THAT (FourierMixCD's factorized phase
+    //  tables); the DM densities have the richer, table-driven DM_RhoAtPoints instead.  The mesh-XC
+    //  quadrature engine's entry for non-DM densities.  (There WAS a duplicate `EvalBatch` spelling here,
+    //  and it had forked: FourierMixCD overrode only EvalBatch, so any caller reaching a density through
+    //  the neutral ScalarFunction batch face would have silently taken the per-G std::exp loop instead.
+    //  Every such caller happened to spell it EvalBatch -- the fast path was correct by luck of spelling.
+    //  R1.5.)
 
     //! Monotonic logical-clock serial: distinct (or mutated) densities have distinct serials, so a cache
     //! can ask "is this a *different* density than the one I hold?".  TRANSIENT runtime identity (like a
@@ -276,7 +286,7 @@ using cPolarized_CD = tPolarized_CD<dcmplx>;   // the polarized plane-wave (Bloc
 //  seed (doc/SCFSeedingPlan.md §10) has per-channel densities but no density matrix, so it cannot
 //  be a tPolarized_CD (whose channels are tDM_CD, with the DM-only pure virtuals); it exposes its
 //  channels through THIS face instead, and a spin-native consumer (XC_GridEngine::RhoPol) cross-casts
-//  abstract->abstract and reads each channel through the plain tChargeDensity face (EvalBatch) --
+//  abstract->abstract and reads each channel through the plain tChargeDensity face (the batched op()) --
 //  capabilities live only on the types that have them (no asserting DM stubs).
 //
 template <class T> class tSpinResolved_CD

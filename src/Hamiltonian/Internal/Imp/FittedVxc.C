@@ -32,34 +32,11 @@ private:
 };
 } // namespace
 
-FittedEpsXc::FittedEpsXc(fbs_t& bs, const ExFunctional* ex)
-    : itsFitter(Fitting::Factory(bs))   // composed overlap-metric (Scalar) fitter, via Factory
-    , itsEx(ex)
-{
-}
-
-const rsmat_t& FittedEpsXc::GetMatrix(const robs_t* bs,const Spin&,const rChargeDensity* cd) const
-{
-    // Re-fit eps_xc(rho) only when the density actually changes -- mirrors FittedVxc::CalcMatrix's newCD
-    // guard.  Without this the fit (and its 3-centre setup) re-ran on every GetEnergy, i.e. twice per SCF
-    // iteration.  The coefficients live in itsFitter, so a stale density reuses them; only the per-irrep
-    // Overlap below (which depends on bs) must run every call.
-    if (cd->Version()!=itsFitVersion)
-    {
-        EpsXcDensity epsxc(itsEx,cd);
-        itsFitter->DoFit(epsxc);                         // fit eps_xc(rho) for this density
-        itsFitVersion=cd->Version();
-    }
-    auto dftbs=dynamic_cast<const odftbs_t*>(bs);
-    assert(dftbs);
-    itsMat=itsFitter->Overlap(dftbs);       // Sum_a c_a <Oi|f_a|Oj>  (per-irrep basis; runs every call)
-    return itsMat;
-}
-
 FittedVxc::FittedVxc(fbs_t& bs, ex_t& lda)
-    : itsFitter(Fitting::Factory(bs))   // potential (overlap-metric) fit, via Factory
+    : itsFitter(Fitting::Factory(bs))      // V: potential (overlap-metric) fit, via Factory
     , itsLDAVxc(new LDAVxc(lda))
-    , itsEpsXc (bs, lda.get())          // energy: E_xc = integral eps_xc rho (shares the fit basis)
+    , itsEpsFitter(Fitting::Factory(bs))   // E: eps_xc fit -- SAME fit basis, so the 3-centre setup is shared
+    , itsEx(lda)
 {
 };
 
@@ -98,11 +75,33 @@ rsmat_t FittedVxc::CalcMatrix(const robs_t* bs,const Spin& s,const rChargeDensit
     return itsFitter->Overlap(dftbs);
 }
 
+//  The E half of the V/E pair (see tDynamic_CC::GetEMatrix).  Same shape as CalcMatrix above, but fitting
+//  the ENERGY DENSITY eps_xc(rho) instead of the potential v_xc(rho), on the same fit basis.
+const rsmat_t& FittedVxc::GetEMatrix(const robs_t* bs,const Spin&,const rChargeDensity* cd) const
+{
+    // Re-fit eps_xc(rho) only when the density actually changes -- mirrors CalcMatrix's newCD guard (it
+    // cannot SHARE that guard: the two are called for different densities, the Fock build's rho_in and the
+    // energy's rho_out).  Without this the fit (and its 3-centre setup) re-ran on every irrep leaf of the
+    // contraction.  The coefficients live in itsEpsFitter, so a repeat density reuses them; only the
+    // per-irrep Overlap below (which depends on bs) must run every call.
+    if (cd->Version()!=itsEpsVersion)
+    {
+        EpsXcDensity epsxc(itsEx.get(),cd);
+        itsEpsFitter->DoFit(epsxc);                      // fit eps_xc(rho) for this density
+        itsEpsVersion=cd->Version();
+    }
+    auto dftbs=dynamic_cast<const odftbs_t*>(bs);
+    assert(dftbs);
+    itsEpsMat=itsEpsFitter->Overlap(dftbs);  // Sum_a c_a <Oi|f_a|Oj>  (per-irrep basis; runs every call)
+    return itsEpsMat;
+}
+
 void FittedVxc::GetEnergy(EnergyBreakdown& te,const rDM_CD* cd) const
 {
-    // E_xc = integral eps_xc rho, via a dedicated eps_xc fit on the same fit basis -- uniform for exchange
-    // (eps_x = 3/4 v_x), correlation (eps_c != 3/4 v_c) and libxc.  Retires the old 3/4-virial shortcut.
-    te.Exc += cd->DM_Contract(&itsEpsXc,cd);
+    // E_xc = integral eps_xc rho: the density contracts THIS term's own E matrix (GetEMatrix), one irrep
+    // block at a time -- uniform for exchange (eps_x = 3/4 v_x), correlation (eps_c != 3/4 v_c) and libxc.
+    // Retires the old 3/4-virial shortcut.
+    te.Exc += cd->DM_Contract(this,cd);
 }
 
 std::ostream& FittedVxc::Write(std::ostream& os) const
