@@ -1,5 +1,7 @@
 // File: Internal/AngularFactory.C  MakeAngular -- dispatch to the per-scheme builder functions.
 module;
+#include <algorithm>
+#include <array>
 #include <cmath>
 #include <iostream>
 #include <stdexcept>
@@ -28,15 +30,45 @@ static AngularMesh Rotate(AngularMesh m, double angle)
     return AngularMesh(std::move(d), rvec_t(m.W()));
 }
 
-// The Lebedev menu (degree ascending) -- the ONE place the ladder is written down.  The gaps are
-// principled: degree 9 (the removed 32-point rule, weight-sum bug) and 13/25/27 (orders 74/230/266,
+// The Lebedev menu (degree ascending) -- the ONE place the ladder is written down.
+//
+// ORBIT BREAKDOWN of every rule (COMPUTED by CensusOrbits, not hand-counted -- the test prints it, so a
+// drift here shows up in the log).  a1 = 6 <100> axes, a2 = 12 <110> edges, a3 = 8 <111> corners; the
+// rest are general orbits of 24 or 48.  What the column shows at a glance is which rules can put a
+// quadrature point on a cubic high-symmetry direction -- the thing MeshParams::angRot exists to steer:
+//
+//     nDir  deg   breakdown
+//        1    0   1 <100>                        (a partial a1: the single-direction atomic mesh)
+//        2    1   2 <100>                        (a partial a1: the antipodal pair)
+//        6    3   a1                             = 6
+//        8    3   a3                             = 8
+//       12    5   12 general                     -- the ICOSAHEDRON, no octahedral class at all
+//       24    7   24 general
+//       30    8   a1 + 24                        = 6 + 24
+//       38    9   a1 + a3 + 24                   = 6 + 8 + 24
+//       50   11   a1 + a2 + a3 + 24              = 6 + 12 + 8 + 24
+//       86   15   a1 + a3 + 3x24                 = 6 + 8 + 72
+//      110   17   a1 + a3 + 4x24                 = 6 + 8 + 96
+//      146   19   a1 + a2 + a3 + 3x24 + 48       = 6 + 12 + 8 + 72 + 48
+//      170   21   a1 + a2 + a3 + 4x24 + 48       = 6 + 12 + 8 + 96 + 48
+//      194   23   a1 + a2 + a3 + 5x24 + 48       = 6 + 12 + 8 + 120 + 48
+//      302   29   a1 + a3 + 8x24 + 2x48          = 6 + 8 + 192 + 96
+//      350   31   a1 + a3 + 8x24 + 3x48          = 6 + 8 + 192 + 144
+//      434   35   a1 + a2 + a3 + 9x24 + 4x48     = 6 + 12 + 8 + 216 + 192
+//
+// Two things only the breakdown makes obvious: a2 (<110>) is RARE and non-monotonic -- it appears in
+// just 50, 146, 170, 194, 434, and notably NOT in 302 or 350 -- and the 12-direction rule carries no
+// octahedral orbit whatever, because it is icosahedral.  A 12-point <110> orbit does exist, but only
+// reaches degree 3 standalone (the same as the 6-point a1 at twice the cost), which is why it is never
+// a rule on its own and shows up only as a COMPONENT.  The gaps are
+// principled: degrees 13/25/27 (orders 74/230/266,
 // excluded for NEGATIVE weights by the generator audit -- see LebedevAngularMesh.C).  Both 6 and 8
 // deliver degree 3; they differ in ORBIT DIRECTION, not in exactness (ClassifyOrbits reports which),
 // so the cheaper one wins the resolution but the other stays reachable and is NOT redundant.
 const std::vector<LebedevRule>& LebedevMenu()
 {
     static const std::vector<LebedevRule> theMenu = {
-        {  1, 0}, {  2, 1}, {  6, 3}, {  8, 3}, { 12, 5}, { 24, 7}, { 30, 8}, { 50,11},
+        {  1, 0}, {  2, 1}, {  6, 3}, {  8, 3}, { 12, 5}, { 24, 7}, { 30, 8}, { 38, 9}, { 50,11},
         { 86,15}, {110,17}, {146,19}, {170,21}, {194,23}, {302,29}, {350,31}, {434,35},
     };
     return theMenu;
@@ -61,7 +93,6 @@ LebedevRule ResolveLebedev(int degree)
     if (best->degree!=degree)
     {
         const char* why =
-            degree==9  ? "  (the degree-9 32-point rule was REMOVED: its weights summed to 0.971*4pi)" :
             degree==13 ? "  (the degree-13 order 74 is EXCLUDED: negative weight)"  :
             degree==25 ? "  (the degree-25 order 230 is EXCLUDED: negative weight)" :
             degree==27 ? "  (the degree-27 order 266 is EXCLUDED: negative weight)" : "";
@@ -90,6 +121,36 @@ SpecialOrbits ClassifyOrbits(const AngularMesh& m, double tol)
         else if (std::fabs(x-y)<tol && std::fabs(y-z)<tol) o.corners111=true;
     }
     return o;
+}
+
+std::vector<Orbit> CensusOrbits(const AngularMesh& m, double tol)
+{
+    const double q2=1.0/std::sqrt(2.0), q3=1.0/std::sqrt(3.0);
+    std::vector<std::pair<std::array<double,3>,int>> groups;      // sorted |components| -> count
+    for (size_t i=0;i<m.size();i++)
+    {
+        const rvec3_t& u=m.Dirs()[i];
+        std::array<double,3> k{std::fabs(u.x),std::fabs(u.y),std::fabs(u.z)};
+        std::sort(k.begin(),k.end());
+        auto it=std::find_if(groups.begin(),groups.end(),[&](const auto& g){
+            return std::fabs(g.first[0]-k[0])<tol && std::fabs(g.first[1]-k[1])<tol
+                && std::fabs(g.first[2]-k[2])<tol; });
+        if (it==groups.end()) groups.push_back({k,1}); else ++it->second;
+    }
+    auto kindOf=[&](const std::array<double,3>& k)->const char*
+    {
+        if (k[0]<tol && k[1]<tol)                          return "<100>";
+        if (k[0]<tol && std::fabs(k[1]-q2)<tol && std::fabs(k[2]-q2)<tol) return "<110>";
+        if (std::fabs(k[0]-q3)<tol && std::fabs(k[2]-q3)<tol)             return "<111>";
+        return "general";
+    };
+    std::vector<Orbit> out;
+    for (const char* want : {"<100>","<110>","<111>"})
+        for (const auto& g : groups)
+            if (std::string(kindOf(g.first))==want) out.push_back({g.second,kindOf(g.first)});
+    for (const auto& g : groups)
+        if (std::string(kindOf(g.first))=="general") out.push_back({g.second,"general"});
+    return out;
 }
 
 AngularMesh MakeAngular(const MeshParams& p)

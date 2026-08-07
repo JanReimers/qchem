@@ -67,6 +67,19 @@ LebedevRule ResolveLebedev(int degree);
 struct SpecialOrbits {bool axes100=false, edges110=false, corners111=false;};
 SpecialOrbits ClassifyOrbits(const AngularMesh&, double tol=1e-9);
 
+//! \brief One symmetry ORBIT within a rule: how many directions share a \f$|component|\f$ multiset, and
+//! which high-symmetry class that multiset is.  \c kind is "<100>", "<110>", "<111>" or "general".
+struct Orbit {int size; const char* kind;};
+
+//! \brief Decompose a rule into its orbits -- the \c 50 = 6 + 12 + 8 + 24 breakdown, computed.
+//!
+//! Grouping is by the sorted \f$|component|\f$ triple, so it needs no knowledge of how the rule was
+//! built: it works on the canonical \c GEN_OH tables and the hand-written direction lists alike, and it
+//! sees an icosahedral orbit as one group even though no octahedral class matches it.  Ordered
+//! \f$\langle100\rangle\f$, \f$\langle110\rangle\f$, \f$\langle111\rangle\f$, then generals --
+//! the conventional \c a1/a2/a3/b reading order.
+std::vector<Orbit> CensusOrbits(const AngularMesh&, double tol=1e-9);
+
 //! \brief Build ONE tabulated Lebedev rule, addressed by its direction count.
 //!
 //! The interface speaks DEGREES (\c MeshParams::angularDegree) and the builder speaks RULES;

@@ -1,6 +1,7 @@
 // File: src/Mesh/tests/MeshPrimitives.C  Smoke + acceptance tests for the qcMesh primitives.
 #include "gtest/gtest.h"
 #include <cmath>
+#include <vector>
 #include <stdexcept>
 import qchem.Mesh.Product;       // Mesh, ProductMesh, MakeRadial/MakeAngular, MeshParams, enums
 import qchem.Mesh.Quadrature;    // free functions (over qcMath Scalar/VectorFunction)
@@ -356,11 +357,17 @@ TEST(Mesh_AngularDegree, LebedevOrdersMeetTheirClaimedDegree)
         AngularMesh a=LebedevAngular(r.nDir);
         ASSERT_EQ(a.size(), size_t(r.nDir)) << "Lebedev " << r.nDir << ": wrong direction count";
         const int d=MeasureDegree(a,rtol);
-        const qcMesh::SpecialOrbits o=qcMesh::ClassifyOrbits(a);
         std::cout << "[angular degree] Lebedev " << r.nDir << " dirs: claims " << r.degree
-                  << ", measures " << d << ", orbits:"
-                  << (o.axes100?" <100>":"") << (o.edges110?" <110>":"") << (o.corners111?" <111>":"")
-                  << std::endl;
+                  << ", measures " << d << ",  " << r.nDir << " = ";
+        const std::vector<qcMesh::Orbit> census=qcMesh::CensusOrbits(a);
+        int tot=0;
+        for (size_t q=0;q<census.size();q++)
+        {
+            std::cout << (q?" + ":"") << census[q].size << census[q].kind;
+            tot+=census[q].size;
+        }
+        std::cout << std::endl;
+        EXPECT_EQ(tot, r.nDir) << "orbit census does not account for every direction";
         EXPECT_GE(d, r.degree)
             << "Lebedev " << r.nDir << " directions UNDER-delivers: measured degree " << d
             << " < claimed " << r.degree << ".  Degree is the R2.15 interface -- a rule that claims more "
