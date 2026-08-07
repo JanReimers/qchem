@@ -582,6 +582,30 @@ in the same session.
      **(c) the METHOD stays on `UnitCell`:** there is no molecular implementation yet and inventing an
      unused one would be speculative.  When one is wanted, this signature is already the neutral one to
      hoist onto `Structure`.
+     **WHEN THAT HOIST HAPPENS — reasoned through 2026-08-07, so it need not be re-derived:**
+     - **There is NO free generic default on `Structure`.**  `MakeInvariant` (the group-average route the
+       uniform branch uses) calls `Wrap01` on every image (SymmetrizeMesh.C:216) — it folds on the
+       FRACTIONAL TORUS.  For a molecule/atom that is simply wrong: a mesh point at 3.7 Bohr would wrap to
+       0.7 of a cell that does not exist.  So the base cannot offer "build the plain mesh, then average
+       it"; each structure family must implement its own.
+     - **Do NOT give `Atom` an ignore-ops-and-warn body** (the shape first proposed).  It is the LSP hole
+       this document forbids ("virtual functions that default to some sort of 'not implemented' behaviour")
+       and that R1.4 / R1.7 / V1.6 / V1.7 are all instances of.  A warning is also the wrong instrument:
+       warnings are for caller ERRORS, and passing ops to an atom is not an error — a symmetry-broken or
+       maximally-stretched atom has a real finite point group.  The warning would say "I ignored what you
+       correctly asked for".
+     - **And it is unnecessary, because `Atom` is the EASIEST genuine case, not a degenerate one.**  One
+       centre ⇒ one orbit trivially; τ=0 (a point group fixes the origin); no torus metric; so the ONLY
+       thing ops can affect is the angular set.  The whole implementation is `MakeInvariantAngularMesh(ops,
+       L)` in place of the default angular quadrature — ~3 lines, and CORRECT.  (Today
+       `Atom::CreateIntegrationMesh` is a one-liner onto `MakeMolecularMesh`, which at natom==1 is "just the
+       shifted product grid".)  It is strictly less work than the crystal case, which needs orbits, τ, the
+       torus stabilizer test and the bond-direction screen.
+     - **So two honest shapes, both stub-free:** (1) hoist to `Structure` and let `Atom` implement it for
+       real; or (2) do NOT declare it on `Structure` — declare it on the structures that have it, the
+       `tSpinResolved_CD` cross-cast-capability idiom.  Weigh (2) seriously: the atomic solver exploits
+       sphericity through IRREPS (l,m), not through mesh symmetrisation, so a caller handing ops to an
+       `Atom` may never materialise — the same (c) reasoning that deferred the molecular implementation.
      **User notes worth keeping:** τ=0 for molecular point groups is fine ("we are not fighting
      performance or RAM problems with this code") — a point group fixes a point, so it HAS no translation
      part, and a consumer that Cartesianises via A·W·A⁻¹ needs no special case because a molecule's A is I.
