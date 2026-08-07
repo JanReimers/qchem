@@ -181,7 +181,7 @@ MnO campaign proceeds undisturbed in qchem6.
     the same probe reads fine as a *precondition*.  "Can you?" and "give me it" stay separate questions
     (V1.9), but "which am I?" should be answered by the type, not re-asked at run time.
 
-- **R1.4 + R1.5 + V1.3 (mechanism)** — three items, one session (2026-08-07).
+- `72fecf8d` — **R1.4 + R1.5 + V1.3 (mechanism)** — three items, one session (2026-08-07); 667/667 ctest green.
   - **R1.4** the two silent-zero `Gradient()` overrides (FourierMixCD, `IrrepCD<dcmplx>`) now THROW.
     The plan said "assert"; asserts are compiled OUT of the build we test (`build/Release` is `-DNDEBUG`
     unless `QCHEM_RELCHECKED=ON`), so an asserting stub would still have returned the silent zero under
@@ -290,7 +290,7 @@ in the same session.
   would remove the snapshot entirely.  **SUPERSEDED-IF-V1.10b-LANDS**: the mixer-layering fix
   deletes `itsKerkerCell` outright.  Do the one-line `Clone()` only as a stopgap if V1.10b is not
   in the same session.
-- **R1.4 ✅ DONE (THROW, not assert — deviation explained). Silent zero `Gradient()` overrides** — FourierMixCD.C:75 and IrrepCD<dcmplx>
+- **R1.4 ✅ DONE `72fecf8d` (THROW, not assert — deviation explained). Silent zero `Gradient()` overrides** — FourierMixCD.C:75 and IrrepCD<dcmplx>
   (Internal/Imp/IrrepCD.C:333) return `rvec3_t(0,0,0)` with no assert; a future GGA/plotting
   consumer through the neutral ScalarFunction face gets silently wrong ∇ρ.  ~~Interim: assert.~~
   Real fix (a `DifferentiableField` capability face) → V1.6-adjacent design.
@@ -300,7 +300,7 @@ in the same session.
   in BOTH configurations, and matches the V1.10b "fail loudly in the R&D phase" ruling.  Verified no live
   caller: the density `Gradient` consumers are all `<double>` (SlaterExchange, the fitters, the composite/
   polarized/spin forwarders) — nothing on the periodic path asks for ∇ρ, and 665/665 stays green.
-- **R1.5 ✅ DONE. `tChargeDensity::EvalBatch` duplicates `ScalarFunction::operator()(rvec3vec_t)`.**
+- **R1.5 ✅ DONE `72fecf8d`. `tChargeDensity::EvalBatch` duplicates `ScalarFunction::operator()(rvec3vec_t)`.**
   Identical signature after alias expansion.  `EvalBatch` DELETED (the inherited `ScalarFunction` batch
   op carries the same pointwise-loop default); FourierMixCD's fast factorized-phase path now overrides
   `operator()(rvec3vec_t)`; the four call sites in `XC_GridEngine` (PWTerms.C:375,403,404,411) spell it
@@ -469,7 +469,7 @@ in the same session.
   unit-test-only.  **USER (2026-08-05): approved to attempt — try it and see if we hit any
   roadblocks.**  (Feasibility probe of the actual `LocalPotential`/`SeparablePotential` payloads
   and the DAG: see the probe notes appended below when available.)
-- **V1.3 ✅ MECHANISM DONE (both ε-adapters deleted; via `GetEMatrix`, NOT `DM_ContractBlocks` — see "WHAT
+- **V1.3 ✅ MECHANISM DONE `72fecf8d` (both ε-adapters deleted; via `GetEMatrix`, NOT `DM_ContractBlocks` — see "WHAT
   LANDED INSTEAD" below).  The quadrature-term face (second list) is still open.  `FittedEpsXc`/`FittedVxc` simplification.**  Physics answer (user asked 2026-08-05):
   yes, genuinely different matrices — v_xc = δE_xc/δρ = ε_xc + ρ·∂ε_xc/∂ρ, so
   D·⟨i|v_xc|j⟩ = ∫v_xc·ρ ≠ ∫ε_xc·ρ = E_xc (Slater exchange: factor 4/3 — the retired ¾-virial
