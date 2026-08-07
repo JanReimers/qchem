@@ -57,6 +57,13 @@ LebedevRule ResolveLebedev(int degree);
 //! and \f$\langle111\rangle\f$ respectively) and higher-order ties behave the same way -- so this is
 //! MEASURED from the directions rather than annotated per rule.  This file's history is the argument for
 //! computing it: the hand-written degree annotations had drifted on two rules before they were measured.
+//!
+//! \warning The frame is CUBIC.  These are the octahedral classes, so "none of the three" means GENERIC
+//! WITH RESPECT TO A CUBIC LATTICE -- not structureless.  The 12-direction rule is the case in point: it
+//! is the ICOSAHEDRON (\f$r=\varphi/\sqrt{1+\varphi^2}\f$, \f$s=1/\sqrt{1+\varphi^2}\f$), which has
+//! its own special directions (12 vertices, 20 face centres, 30 edge midpoints) that this classifier
+//! cannot see.  For the site-adapted work that is the RIGHT reading -- a rule generic w.r.t. the lattice
+//! cannot accidentally put a quadrature point on a bond -- but do not read "none" as "no symmetry".
 struct SpecialOrbits {bool axes100=false, edges110=false, corners111=false;};
 SpecialOrbits ClassifyOrbits(const AngularMesh&, double tol=1e-9);
 

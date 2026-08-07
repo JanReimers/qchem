@@ -254,7 +254,14 @@ AngularMesh LebedevAngular(int numDir)
         D[7]=rvec3_t(-r,-r,-r);
         break;
     }
-    case 12:  // L=5
+    case 12:  // degree 5 -- the ICOSAHEDRON (r,s are the golden-ratio vertex coordinates
+              //          phi/sqrt(1+phi^2), 1/sqrt(1+phi^2)), NOT an octahedral orbit.
+              //          The 12-fold <110> octahedral orbit reaches only degree 3 on its own
+              //          (int z^2 correct, int z^4 gives 2pi/3 vs the exact 4pi/5) -- the same
+              //          degree as the 6-point <100> rule at twice the cost, so it is never a
+              //          standalone rule and appears only as a COMPONENT of larger ones
+              //          (50 = 6 + 12 + 8 + 24 is the first).  Icosahedral symmetry is what buys
+              //          degree 5 from 12 points here.
     {
         double r=sqrt((5+sqrt(5.0))/10.0);
         double s=sqrt((5-sqrt(5.0))/10.0);
