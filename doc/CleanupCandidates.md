@@ -781,7 +781,27 @@ in the same session.
   lattice-only `E_alphaZ` in the neutral struct.  Candidate: keyed contributions + a small fixed
   set of roles for the totals; move GridChargeLost to the run report/IterationTrace (which already
   carries it).
-- **V1.13 `ExFunctional` — data + setters on an abstract face, with a hidden-init landmine.**
+- **V1.13 ✅ DONE 2026-08-07 — executed as the compiler-verified DELETION R2.6 made possible.  `ExFunctional` — data + setters on an abstract face, with a hidden-init landmine.**
+  **What went:** the `ScalarFunction<double>` base (the FIELD face), `operator()`/`Gradient` on all three
+  implementations (SlaterExchange, VWN_Correlation, Libxc_LDA), `InsertChargeDensity`,
+  `itsChargeDensity`, `SetPolarized`, `isPolarized` — and with them the whole TU
+  `Internal/Imp/ExchangeFunctional.C` (it held only the ctor that initialised the two dead members) plus
+  five now-dead imports.  `ExFunctional` is now a DATA-FREE value face: `GetVxc`, `GetEpsXc`,
+  `GridCutoffFactor`.
+  - The claim "the field face is dead" was checked BY THE COMPILER, not by inspection: deleting it built
+    clean, so nothing needed it.
+  - **Why it was safe to delete rather than reimplement:** every one of the three implementations defined
+    `operator()(r)` as literally `GetVxc((*itsChargeDensity)(r))` — the value face composed with a density
+    the object should never have owned.  A field is now built where it is USED, by adapters taking
+    (functional, density) as CONSTRUCTOR arguments: `VxcDensity`/`EpsXcDensity` (Imp/FittedVxc.C),
+    `PolVcDensity`/`PolEpsCDensity` (Imp/FittedVcorrPol.C), `PWVxcField` (Imp/PWTerms.C).  So the density
+    arrives as an argument, and the hidden-init landmine cannot recur.
+  - `SlaterExchange::Gradient` went too — it was the only real implementation of the field face, unused,
+    and the one place that read `isPolarized` (permanently true, so its unpol branch was dead code).
+  - Polarization is now expressed where it belongs: the spin-native `SpinCorrelation` face, and
+    `SlaterExchange::itsSpin` (which is what `GetVxc` ALREADY branched on — the bool and the flag were two
+    different answers to one question).
+  *(Original analysis:)*
   Carries `itsChargeDensity*` + `isPolarized` (violates the data-free-interface convention).  Its
   ScalarFunction face dereferences `itsChargeDensity`, set ONLY by `LDAVxc::UseChargeDensity` — on
   the PW/GPW path it is NULL and `op()(r)` would segfault.  `SetPolarized` has NO caller ⇒

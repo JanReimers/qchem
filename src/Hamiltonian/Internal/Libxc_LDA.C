@@ -4,8 +4,6 @@ module;
 #include <src/xc.h>
 export module qchem.Hamiltonian.Internal.Libxc_LDA;
 export import qchem.Hamiltonian.Internal.ExFunctional;
-import qchem.Types;     // rvec3_t
-import qchem.Vector3D;
 
 export namespace qchem::Hamiltonian
 {
@@ -27,8 +25,6 @@ public:
     Libxc_LDA(int id);
     ~Libxc_LDA();   // xc_func_end (the matching teardown was missing before -> a libxc leak)
 
-    virtual double  operator()(const rvec3_t&) const;
-    virtual rvec3_t Gradient  (const rvec3_t&) const;
     virtual double  GetVxc  (double rho) const;   //!< v_xc(rho)         via xc_lda_vxc
     virtual double  GetEpsXc(double rho) const;   //!< eps_xc(rho)/part  via xc_lda_exc (overrides the 3/4 default)
 

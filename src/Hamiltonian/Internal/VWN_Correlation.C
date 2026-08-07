@@ -4,8 +4,6 @@ module;
 #include <ostream>
 export module qchem.Hamiltonian.Internal.VWN_Correlation;
 import qchem.Hamiltonian.Internal.ExFunctional;
-import qchem.ChargeDensity;
-import qchem.Vector3D;
 import qchem.Symmetry.Spin;   // Spin (the requested correlation channel)
 import qchem.Math;   // Pi, FourPi
 
@@ -31,12 +29,8 @@ export namespace qchem::Hamiltonian
 //! (\f$\zeta=0\f$) to ferromagnetic (\f$\zeta=1\f$), and \f$\alpha_c\f$ the spin stiffness.
 class VWN_Correlation : public ExFunctional, public virtual SpinCorrelation
 {
-    typedef Vector3D<double> Vec3;
 public:
     VWN_Correlation() {}
-
-    virtual double operator()(const Vec3& r) const { return GetVxc((*itsChargeDensity)(r)); }
-    virtual Vec3   Gradient  (const Vec3&  ) const { return Vec3(0,0,0); } // unused: the fit uses values
 
     // --- spin-unpolarized scalar face (zeta=0 collapse; BYTE-IDENTICAL to the historical code) ---
     virtual double GetVxc  (double rho) const { return rho>0.0 ? Vc (rho) : 0.0; }

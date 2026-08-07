@@ -4,7 +4,6 @@ module;
 export module qchem.Hamiltonian.Internal.SlaterExchange;
 import qchem.Hamiltonian.Internal.ExFunctional;
 import qchem.Symmetry.Spin;
-import qchem.Vector3D;
 
 export namespace qchem::Hamiltonian
 {
@@ -12,14 +11,14 @@ export namespace qchem::Hamiltonian
 class SlaterExchange
     : public  ExFunctional
 {
-    typedef Vector3D<double> Vec3;
 public:
     SlaterExchange(               );
     SlaterExchange(double theAlpha);
     SlaterExchange(double theAlpha, const Spin&);
 
-    virtual double operator()(const Vec3&) const;
-    virtual Vec3   Gradient  (const Vec3&) const;
+    //! \f$v_x(\rho)=-3\alpha(3\rho/4\pi)^{1/3}\f$.  \c itsSpin is what expresses polarization here:
+    //! Spin::None halves rho first (the closed-shell collapse).  (V1.13 removed the FIELD face --
+    //! op(r)/Gradient(r) -- and with it the density pointer and the never-set isPolarized bool.)
     virtual double GetVxc(double ChargeDensity) const;
 
 

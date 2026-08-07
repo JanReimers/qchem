@@ -18,7 +18,6 @@ target_sources(qcHamiltonian PRIVATE
     Internal/Imp/PWTerms.C
     Internal/Imp/HamiltonianImp.C
     Internal/Imp/Hamiltonians.C 
-    Internal/Imp/ExchangeFunctional.C  
     Internal/Imp/SlaterExchange.C 
     Internal/Imp/Libxc_LDA.C
     )

@@ -3,7 +3,6 @@ module;
 #include <cassert>
 #include <iostream>
 module qchem.Hamiltonian.Internal.SlaterExchange;
-import qchem.ChargeDensity;
 import qchem.Math;
 
 namespace qchem::Hamiltonian
@@ -26,12 +25,6 @@ SlaterExchange::SlaterExchange(double theAlpha, const Spin& S)
     assert(itsSpin!=Spin::None);
 };
 
-double SlaterExchange::operator()(const Vec3& r) const
-{
-    double ro = (*itsChargeDensity)(r);
-    return GetVxc(ro);
-}
-
 double SlaterExchange::GetVxc(double ro) const
 {
     if (itsSpin==Spin::None) ro*=0.5;
@@ -40,19 +33,6 @@ double SlaterExchange::GetVxc(double ro) const
     {
         ret=-3.0 * itsAlpha * pow(3.0*ro/FourPi , 1.0/3.0);
     }
-    return ret;
-}
-
-SlaterExchange::Vec3 SlaterExchange::Gradient(const Vec3& r) const
-{
-    double ro = (*itsChargeDensity)(r);
-    if (itsSpin==Spin::None) ro*=0.5;
-    Vec3 ret(0,0,0);
-    if (ro > 0.0)
-    {
-        ret=-3.0 * itsAlpha * pow(3.0*ro/FourPi , -2.0/3.0) / FourPi * itsChargeDensity->Gradient(r);
-    }
-    if (!isPolarized) ret*=0.5;
     return ret;
 }
 

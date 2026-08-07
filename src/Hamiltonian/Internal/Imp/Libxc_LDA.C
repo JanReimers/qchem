@@ -4,7 +4,6 @@ module;
 #include <cassert>
 #include <src/xc.h>
 module qchem.Hamiltonian.Internal.Libxc_LDA;
-import qchem.ChargeDensity;
 import qchem.Streamable;
 
 namespace qchem::Hamiltonian
@@ -23,11 +22,6 @@ Libxc_LDA::~Libxc_LDA()
     xc_func_end(&itsFunc);
 }
 
-double Libxc_LDA::operator()(const rvec3_t& r) const
-{
-    return GetVxc((*itsChargeDensity)(r));
-}
-
 double Libxc_LDA::GetVxc(double rho) const
 {
     double v;
@@ -40,12 +34,6 @@ double Libxc_LDA::GetEpsXc(double rho) const
     double eps;
     xc_lda_exc(&itsFunc, 1, &rho, &eps);   // energy density per particle; E = integral eps rho
     return eps;
-}
-
-rvec3_t Libxc_LDA::Gradient(const rvec3_t&) const
-{
-    assert(false);   // the fit samples values, not gradients
-    return rvec3_t(0,0,0);
 }
 
 std::ostream& Libxc_LDA::Write(std::ostream& os) const
