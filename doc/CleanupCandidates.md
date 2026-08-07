@@ -338,8 +338,15 @@ in the same session.
   PW_Kinetic's stated justification (PWTerms.C:59-60, "symmetric cache bypassed for complex") is
   FALSE — `Integrals_Kinetic<dcmplx>` is instantiated (Imp/Orbital_1E_IBS.C:30).  Follow the
   `IonIon<T>` collapse recipe (Internal/IonIon.C documents it); PW_Kinetic dies.
-- **R2.3 Dedup the literal 4-line Imp mirror** — Imp/Band_FT_IBS.C:15-25 == Imp/Orbital_DFT_IBS.C:
-  10-20 (only `theCache<T>` differs).  Mechanically removable independent of the V1.1 merge.
+- **R2.3 ⛔ WITHDRAWN — NOT a free dedup; re-filed as part of V1.1 (verified 2026-08-07).**
+  ~~Dedup the literal 4-line Imp mirror — Imp/Band_FT_IBS.C:15-25 == Imp/Orbital_DFT_IBS.C:10-20 (only
+  `theCache<T>` differs).  Mechanically removable independent of the V1.1 merge.~~
+  The claim "only `theCache<T>` differs" is FALSE.  Read side by side, the two bodies differ in THREE ways:
+  (i) `theCache<dcmplx>` vs `theCache<T>`; (ii) the RETURN type — `const G_ERI3&` vs `const ERI3<T>&`;
+  (iii) the ARGUMENT types — `cFIT_SF_ABS`/`cFIT_CD_ABS` vs `rFIT_SF_ABS`/`rFIT_CD_ABS`.  (ii) and (iii)
+  are precisely V1.1's two listed blockers (the `ERI3<T>` vs `G_ERI3` return-type question and the
+  hard-wired-REAL fit-face arguments).  So there is no dedup to do here that is not the V1.1 merge itself —
+  a shared body cannot be written until those two are settled.  **Do it inside V1.1, not before it.**
 - **R2.4 ✅ DONE `38a1ebd6`. Stale-comment/import batch**: Band_DFT_IBS.C header claims PlaneWave_IBS implements it
   (false); PlaneWaveDFTUT.C:1079 claims PW_Pseudo routes through Band_DFT_IBS (it casts
   `Integrals_Pseudo<dcmplx>`, PWTerms.C:46); SCFIterator.C:30-31 imports of
@@ -392,6 +399,29 @@ in the same session.
   - Renames wanted: `PP_Local`→`Ven_Local`, `PP_NonLocal`→`Ven_NonLocal`, `PW_Pseudo`→Ven-flavored
     name (user suggested Ven_PP), `PW_Hartree`→Vee-flavored name (user suggested Vee_PP) — final
     names = user's call; PW_Kinetic needs no rename (dies in R2.2).
+  - **USER 2026-08-07: `Ven_PP` / `Vee_PP` both approved in principle.  Also asked whether PW_Pseudo's
+    short/long components should be renamed too, assuming PW_Hartree is strictly a PP term and strictly
+    ee repulsion.  BOTH ASSUMPTIONS ARE WRONG — verified against PWTerms.C before renaming anything:**
+    - **`PW_Pseudo` has NO long-range component.**  Its matrix is `MakeLocalPotentialShort` + (optional)
+      `MakeSeparablePotential` (Imp/PWTerms.C:50-53) and its energy is `te.Een` + the SHORT G=0
+      alignment.  The LONG-range local part was moved OUT to `PW_Hartree` — the CP2K local-PP split
+      (doc/GPWPlan.md 0e-PP): the deep-well erf potential folds into the ONE G-space Poisson solve
+      instead of a per-orbital-pair sharp-field sweep.  So there is no short/long pair to rename here;
+      the term is entirely short+nonlocal.  `Ven_PP` alone would read as "the whole PP", so prefer
+      `Ven_PP_Short` (or `Ven_PP` + a doc line saying the long part lives in the electrostatics term).
+    - **`PW_Hartree` is NOT strictly a PP term.**  `itsLocal` may be NULL — a pure all-electron / no-PP
+      run gets plain Hartree with no core-charge fold (PWTerms.C:75-89 and the ctor doc).  A `_PP`
+      suffix would be false for that configuration.
+    - **`PW_Hartree` is NOT strictly ee repulsion.**  It contributes to BOTH energies (Imp/PWTerms.C:
+      135-141): `te.Eee += 0.5*(total-eLong)` (electron-electron Hartree, WITH the ½ double-counting)
+      and `te.Een += eLong` (electron-ion long-range, NO ½), plus the LONG G=0 alignment into
+      `te.E_alphaZ`.  One Poisson solve, two physical energies — exactly the user's own "for solids
+      these don't work perfectly" caveat made concrete.
+    - **Naming consequence:** `Vee_PP` is misleading twice over.  Candidates that survive the facts:
+      `Vee_VenLong` (says both energies, keeps the Vee/Ven vocabulary), or a what-it-IS name like
+      `PW_Electrostatics` / `Poisson_PW` (one Poisson solve; the energy SPLIT is then a documented
+      property rather than a promise the name makes).  Recommend `Vee_VenLong`, since the term
+      genuinely owns two contributions and the name should not hide the second.  **Final call: user's.**
   - `Delta_XC` → e.g. `DeltaFittedVxc` (it IS a FittedVxc with a δ-function fit basis); rename
     along with the V2.1 decision.
 - **R2.15 `nAngular` → degree-typed angular interface.**  `nAngular` is a COUNT for Lebedev but a
@@ -420,6 +450,11 @@ in the same session.
   (fitted-potential coefficients → contraction), removing "FT" from the face.  Engage the pinned
   FACTOR-not-FUSE analysis (fitting-boundary pin + doc/FittingCleanupPlan.md) — the argument-type
   question is settled there; what remains is execution sequencing with the fitter templating.
+  **Absorbed from the withdrawn R2.3 (2026-08-07):** the 4-line `Overlap3C`/`Repulsion3C` cache-lookup
+  bodies in Imp/Band_FT_IBS.C:15-25 and Imp/Orbital_DFT_IBS.C:10-20 are the SAME code modulo exactly the
+  two blockers listed above (return type `G_ERI3` vs `ERI3<T>`, argument `cFIT_*` vs `rFIT_*`) plus
+  `theCache<dcmplx>` vs `theCache<T>`.  They are the smallest concrete instance of the merge, so they make
+  a good FIRST target once those are decided — and a good litmus test that the decision actually works.
   **USER (2026-08-05): merge would be fantastic; THE one big remaining issue = for molecules we do
   a Dunlap fit for ρ (Coulomb metric, Repulsion integrals, charge-constrained) while for solids we
   don't (orthonormal projection ⇒ metric degenerate) — requires discussion.**  Groundwork for that
