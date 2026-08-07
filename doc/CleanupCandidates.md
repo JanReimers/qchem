@@ -474,14 +474,49 @@ in the same session.
     **One is NOT benign: `PW_XC::RefreshRhoGrid`** sets `itsRhoIsRaw` per iteration from what the density
     answers, and `CalcMatrix` then picks the RAW vs BALL adjoint — its own comment calls BALL
     "NON-variational".  So the FUNCTIONAL BEING MINIMISED can change mid-run, hidden behind the
-    density-is-dynamic exemption.  Worth a decision: pick the route at construction, or make the density's
-    answer a run-stable property.
-  - **(B) Construction-time facts re-asked per call — the actual violation.**  ✅ TWO FIXED 2026-08-07 by
-    the term split (`if (itsLocal)` in the old `PW_Hartree::LongBlock` + `GetEnergy`).  REMAINING:
-    `if (itsSep)` in `Ven_PP_Short::CalculateMatrix`; `!theStructure->isFinite()` in `Ven_PP_Short::
-    GetEnergy`, `Ven_PP_Long::GetEnergy`, and `IonIon` (which also picks pair-sum vs Ewald by it).  None
-    can change during a run.  Same smell as the V1.10b finding: *a periodic-vs-molecular `if` is a
-    decision at the wrong altitude*.
+    density-is-dynamic exemption.  ✅ **ADDRESSED 2026-08-07 (latch + throw); see the analysis below.**
+    - **What the two routes ARE** (the user asked; worth writing down once).  Both produce ρ(r) on the XC
+      grid, by different routes.  **BALL**: take ρ̃(G) on the finite {G} sphere and inverse-transform.  The
+      truncation rings (Gibbs), so ρ goes NEGATIVE on sharp products — tripping the XC ρ>0 guard — and the
+      round trip is a projection, so H_xc ≠ ∂E_xc/∂D: **non-variational**.  **RAW**: collocate
+      ρ_DM(r)=φᵀDφ directly in real space (D-weighted level densities combined spectrally, zero-padded,
+      no ball restriction).  D is PSD ⇒ ρ_DM ≥ 0 pointwise, and `applyRawAdjoint` is the EXACT transpose
+      of `applyRaw`, so H_xc = ∂E_xc[ρ_DM]/∂D to machine precision: **variational**.  They are not two ways
+      to compute one number — they minimise DIFFERENT functionals.
+    - **The capability is construction-time**, as the user hoped: `GPW_Evaluator::Overlap3CTensor` sets
+      `applyRaw`/`applyRawAdjoint` UNCONDITIONALLY (Imp/Evaluator.C:393-394) and a plane-wave basis never
+      does (GMap.C:182: "plane waves have no raw representation").  Checked: `RasterFields::HartreeOnly`
+      only tunes grid sharpness, it does NOT suppress the raw pair.  So route == orbital-basis lineage.
+    - **But a PURE construction-time choice is impossible, for a real physical reason: the SEED.**  A
+      matrix-free density (iteration 0 — SeedCD/PolarizedSeedCD) has no D, so ρ_DM=φᵀDφ does not exist and
+      it can ONLY answer BALL.  That is inherent to seeding, not a design defect, and iteration 0's energy
+      is discarded anyway.  Any construction-time route must therefore still exempt the seed.
+    - **What landed instead — the property that actually matters.**  `PW_XC` now LATCHES the route on the
+      first DENSITY-MATRIX-backed density and THROWS if it ever changes after that; the matrix-free seed is
+      explicitly exempt.  So the seed→SCF transition is allowed (and is the only allowed one), while any
+      mid-SCF flip — a mixer whose raw shadow "late-activates", a composite where one block lacks raw —
+      becomes a loud error instead of a silent functional swap.  That is the guarantee the user's principle
+      was really asking for; the remaining freedom is exactly the freedom physics requires.
+    - **Still open (smaller now):** a `route` ctor argument would let a caller FORCE ball (an A/B instrument
+      — today only the `GPW_XCROUTE` env var reports the route, it cannot select it).  That needs a
+      capability question on the neutral `Band_FT_IBS` face so the factory can ask without a concrete cast.
+      Worth doing when someone actually wants the A/B.
+  - **(B) Construction-time facts re-asked per call — the actual violation.  ✅ ALL CLEAR 2026-08-07.**
+    - `if (itsLocal)` in the old `PW_Hartree::LongBlock`/`GetEnergy` — died with the term split.
+    - `if (itsSep)` in `Ven_PP_Short::CalculateMatrix` — the KB projectors became their own term,
+      **`Ven_PP_NonLocal`** (ctor throws on a null model; a local-only PP omits the term).  This also makes
+      the PW lineage mirror the molecular `PP_Local`/`PP_NonLocal` pair it had drifted from.
+    - `!isFinite()` in both PP terms' `GetEnergy` — the G=0 alignment coefficient is now computed ONCE in
+      the ctor (`itsAlphaZ`, exactly 0 for a finite structure, which IS the correct value — no faking), and
+      `GetEnergy` just scales it by the current electron count.  Bonus: `SumFormFactors` no longer re-runs
+      every iteration.
+    - `IonIon` — **and this one was hiding a real cost.**  `te.Enn = NuclearRepulsion(...)` recomputed the
+      full EWALD LATTICE SUM on every `GetEnergy`, i.e. every SCF iteration, to return the same number: E_nn
+      depends only on geometry and ion charges, both fixed at construction.  Now evaluated once in the ctor.
+      **Also fixes a gap in R1.2**: IonIon was on that item's ASSIGNER list but is absent from the landed
+      `06e23f5d` note — its `te.Enn =` survived the `=`→`+=` sweep.  Now `+=`.
+    - Left alone deliberately: `IonIon::Write`'s `isFinite()` branch picks a DESCRIPTION string
+      ("pair sum" vs "Ewald lattice sum").  Cosmetic, no behaviour rides on it.
   - **(C) The GOOD pattern, already in the tree**: `Ham_PP` (Imp/Hamiltonians.C:111) —
     `if (sep) Add(new PP_NonLocal(...))`.  Absence of a capability means the term is NOT IN THE LIST.
     Decided at construction; zero runtime tests.  This is the target shape for every (B) site.

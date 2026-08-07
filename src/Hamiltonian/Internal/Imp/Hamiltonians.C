@@ -196,8 +196,9 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
     // has to re-ask at run time what the model is (see the PWTerms.C header).  `loc` is required by this
     // builder anyway -- IonIon below reads loc->ZionFn() -- so both PP halves are unconditional here; a
     // future no-local-PP build would simply omit the two Ven_PP_* Adds.
-    Add(new Ven_PP_Short(st, loc, nl));                        // electron-ion SHORT-range + KB (+ short G=0 alignment)
+    Add(new Ven_PP_Short(st, loc));                            // electron-ion SHORT-range local (+ short G=0)
     Add(new Ven_PP_Long (st, loc));                            // electron-ion LONG-range core charge (+ long G=0)
+    if (nl) Add(new Ven_PP_NonLocal(st, nl));                  // KB projectors -- omitted for a local-only PP
     Add(new Vee_Hartree (CFitBasis));                          // electron-electron Hartree V_H[rho]
     // The FIT/GRID separation (doc/SymmetryUpgradePlan.md §6a, user 2026-08-01): WHICH fit basis
     // represents v_xc (VxcFit) and WHICH real-space grid quadratures it (xcMesh.cellKind) are

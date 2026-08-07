@@ -52,13 +52,18 @@ public:
     {
         assert(theStructure && theStructure->GetNumAtoms()>0);
         assert(itsZionOf && "IonIon: a Z->ion-charge map is required");
+        // EVALUATED ONCE, HERE.  E_nn depends only on the geometry and the ion charges, both fixed at
+        // construction -- it is the most literally constant term in the Hamiltonian.  It used to be
+        // recomputed on every GetEnergy call, i.e. a full EWALD LATTICE SUM per SCF iteration for a
+        // periodic cell, to return the same number every time.  Computing it here also settles the
+        // pair-sum-vs-Ewald choice (NuclearRepulsion's isFinite() test) at construction, where the
+        // structure is already known -- R2.16.
+        itsEnn = NuclearRepulsion(*theStructure, itsZionOf);
     }
 
     virtual void GetEnergy(EnergyBreakdown& te, const tDM_CD<T>*) const override
     {
-        // Direct pair sum for a finite molecule, Ewald lattice sum for a periodic cell (chosen by
-        // isFinite()).  Charges come from the Z->ion map: itsZ all-electron, Zion for a pseudopotential.
-        te.Enn = NuclearRepulsion(*theStructure, itsZionOf);
+        te.Enn += itsEnn;   // += not =: R1.2's rule (a second Enn contributor must not be clobbered)
     }
 
     virtual std::ostream& Write(std::ostream& os) const override
@@ -80,6 +85,7 @@ private:
 
     st_t                       theStructure;
     std::function<double(int)> itsZionOf;   //!< Z -> ion core charge (identity for the all-electron baseline)
+    double                     itsEnn=0.0;  //!< E_nn, evaluated ONCE in the ctor (geometry + charges are fixed)
 };
 
 } //namespace

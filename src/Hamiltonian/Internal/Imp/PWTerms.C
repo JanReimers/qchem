@@ -26,55 +26,91 @@ namespace qchem::Hamiltonian
 
 bool& ReportGridCharge() { static bool on = false; return on; }
 
-Ven_PP_Short::Ven_PP_Short(const st_t& st, const Pseudopotential::LocalPotential* loc,
-                         const Pseudopotential::SeparablePotential* nl)
+// The dropped-G=0 alignment, PER ELECTRON, evaluated ONCE at construction (R2.16).
+//
+// E_alpha = N * (1/Omega) Sum_a alpha_a, with alpha_a the model's finite G->0 limit
+// (FormFactorG0 = integral[V_loc^a + Z/r]).  It is kept in the total energy but NOT in the matrix, so it
+// stays out of the band-structure cross-check.  The alignment is a PERIODIC neutralising-background
+// artifact: a finite/molecular Structure has no G=0 background, so its coefficient is exactly ZERO (even
+// though its atoms DO have form factors -- the physics decision lives here, not in the geometry).
+//
+// Both the isFinite() question and the SumFormFactors sum are answered HERE rather than per energy call:
+// the structure and the model are fixed at construction, so the answer cannot change during a run.  Each
+// GetEnergy then just scales by the current electron count.
+namespace
+{
+double G0AlignmentPerElectron(const Structure& st, const std::function<double(int)>& formFactorG0)
+{
+    if (st.isFinite()) return 0.0;              // no neutralising background => no alignment, exactly 0
+    return st.SumFormFactors(formFactorG0);     // periodic: folds in 1/Omega
+}
+} // namespace
+
+Ven_PP_Short::Ven_PP_Short(const st_t& st, const Pseudopotential::LocalPotential* loc)
     : cStatic_HT_Imp()
     , theStructure(st)
     , itsLocal(loc)
-    , itsSep(nl)
 {
     assert(st->GetNumAtoms()>0);
     assert(loc && "Ven_PP_Short: the term owns the local pseudopotential model (must be non-null)");
+    itsAlphaZ=G0AlignmentPerElectron(*st, [loc](int Z){return loc->FormFactorG0Short(Z);});
 }
 
-// Assemble the external matrix from the MODELS the term owns: hand the basis the abstract local +
-// optional KB nonlocal models and let it assemble <i|V_ext|j>.  The dynamic_cast is the sanctioned
-// abstract->abstract move (cobs_t = Orbital_1E_IBS<dcmplx> ACROSS to the Integrals_Pseudo capability); only a
-// basis that supports reciprocal-space PP assembly answers it.  V = V_loc + V_NL.
+// Assemble the external matrix from the MODEL the term owns: hand the basis the abstract local model and
+// let it assemble <i|V_loc,short|j>.  The dynamic_cast is the sanctioned abstract->abstract move
+// (cobs_t = Orbital_1E_IBS<dcmplx> ACROSS to the Integrals_Pseudo capability); only a basis that supports
+// reciprocal-space PP assembly answers it.
 chmat_t Ven_PP_Short::CalculateMatrix(const cobs_t* bs, const Spin&) const
 {
     auto pw=dynamic_cast<const Pseudopotential::Integrals_Pseudo<dcmplx>*>(bs);
     assert(pw && "Ven_PP_Short requires an Integrals_Pseudo<dcmplx> (e.g. plane-wave) basis");
-    // SHORT-range local only: the LONG (softened-Coulomb) half is its own term, Ven_PP_Long
-    // (the CP2K local-PP split, doc/GPWPlan.md 0e-PP).  V_ext(short) = V_loc(short) + V_NL.
-    chmat_t V=pw->MakeLocalPotentialShort(&*theStructure, *itsLocal);
-    if (itsSep) V += pw->MakeSeparablePotential(&*theStructure, *itsSep);
-    return V;
+    // SHORT-range local only.  The LONG (softened-Coulomb) half is Ven_PP_Long and the KB projectors are
+    // Ven_PP_NonLocal (the CP2K local-PP split, doc/GPWPlan.md 0e-PP).
+    return pw->MakeLocalPotentialShort(&*theStructure, *itsLocal);
 }
 
 void Ven_PP_Short::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 {
-    // Een stays the band expectation over the (G!=0) external matrix (== the prototype's electron-ion
-    // energy).  The dropped-G=0 alignment alpha is a separate constant in te.E_alphaZ -- kept in the total
-    // energy but NOT the matrix, and out of the band-structure cross-check.  It is E_alpha = (N/Omega)
-    // Sum_a alpha_a with alpha_a = the model's finite G->0 limit (FormFactorG0 = integral[V_loc^a+Z/r]).
-    // The alignment is a PERIODIC neutralising-background artifact: it exists only when the Structure is
-    // periodic (!isFinite(), Omega finite); a finite/molecular Structure has no G=0 background, so no
-    // alignment term.  The term owns the model (alpha) and reads Omega straight off the geometry -- no basis
-    // (the old basis-side PseudoG0Energy was a scalar PP formula leaking into the neutral basis interface).
-    te.Een+=cd->DM_Contract(this);                                         // integral rho V_ext(short) (G!=0)
-    // A finite/molecular structure has no G=0 neutralising background, so NO alignment (even though its atoms
-    // DO have form factors -- the physics decision lives here, via isFinite(), not in the geometry).  For a
-    // periodic cell the structure folds in 1/Omega: SumFormFactors returns (1/Omega) Sum_a alpha_a.  The SHORT
-    // part's alignment only -- the LONG part's G=0 shift belongs to Ven_PP_Long (doc/GPWPlan.md 0e-PP).
-    if (!theStructure->isFinite())                                         // periodic only (Omega finite)
-        te.E_alphaZ += cd->GetTotalCharge() *
-                    theStructure->SumFormFactors([this](int Z){return itsLocal->FormFactorG0Short(Z);});
+    // Een is the band expectation over the (G!=0) matrix (== the prototype's electron-ion energy).
+    te.Een     += cd->DM_Contract(this);                 // integral rho V_loc,short (G!=0)
+    te.E_alphaZ+= cd->GetTotalCharge()*itsAlphaZ;        // SHORT G=0 alignment (0 for a finite structure)
 }
 
 std::ostream& Ven_PP_Short::Write(std::ostream& os) const
 {
-    return os << "    PW electron-ion: SHORT-range local PP + KB nonlocal, "
+    return os << "    PW electron-ion: SHORT-range local PP, "
+              << theStructure->GetNumAtoms() << " atoms." << std::endl;
+}
+
+//--------------------------------------------------------------- Ven_PP_NonLocal (the KB projectors)
+Ven_PP_NonLocal::Ven_PP_NonLocal(const st_t& st, const Pseudopotential::SeparablePotential* nl)
+    : cStatic_HT_Imp()
+    , theStructure(st)
+    , itsSep(nl)
+{
+    assert(st && st->GetNumAtoms()>0);
+    // REQUIRED, not optional: a local-only PP omits this TERM rather than adding an all-zeros one.
+    if (!nl)
+        throw std::runtime_error("Ven_PP_NonLocal: the KB projector term requires a SeparablePotential "
+                                 "model.  A local-only pseudopotential must not add this term.");
+}
+
+chmat_t Ven_PP_NonLocal::CalculateMatrix(const cobs_t* bs, const Spin&) const
+{
+    auto pw=dynamic_cast<const Pseudopotential::Integrals_Pseudo<dcmplx>*>(bs);
+    assert(pw && "Ven_PP_NonLocal requires an Integrals_Pseudo<dcmplx> (e.g. plane-wave) basis");
+    return pw->MakeSeparablePotential(&*theStructure, *itsSep);
+}
+
+void Ven_PP_NonLocal::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
+{
+    // Electron-ion, and short-ranged by construction, so no G=0 alignment of its own.
+    te.Een += cd->DM_Contract(this);                     // Tr(D V_NL)
+}
+
+std::ostream& Ven_PP_NonLocal::Write(std::ostream& os) const
+{
+    return os << "    PW electron-ion: KB separable nonlocal projectors, "
               << theStructure->GetNumAtoms() << " atoms." << std::endl;
 }
 
@@ -100,6 +136,7 @@ Ven_PP_Long::Ven_PP_Long(const st_t& st, const Pseudopotential::LocalPotential* 
     if (!loc)
         throw std::runtime_error("Ven_PP_Long: the long-range local-PP term requires a LocalPotential "
                                  "model.  A run without a local pseudopotential must not add this term.");
+    itsAlphaZ=G0AlignmentPerElectron(*st, [loc](int Z){return loc->FormFactorG0Long(Z);});
 }
 
 chmat_t Ven_PP_Long::CalculateMatrix(const cobs_t* bs, const Spin&) const
@@ -112,12 +149,8 @@ chmat_t Ven_PP_Long::CalculateMatrix(const cobs_t* bs, const Spin&) const
 void Ven_PP_Long::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 {
     // Electron-ION, so NO 1/2: the double-counting factor belongs to the electron-electron Hartree alone.
-    te.Een += cd->DM_Contract(this);                       // Tr(D V_long) = E_een,long
-    // The LONG part's dropped-G=0 alignment (the SHORT part's stays in Ven_PP_Short).  Same isFinite()
-    // reasoning as there: the alignment is a periodic neutralising-background artifact.
-    if (!theStructure->isFinite())                         // periodic only (Omega finite)
-        te.E_alphaZ += cd->GetTotalCharge() *
-                     theStructure->SumFormFactors([this](int Z){return itsLocal->FormFactorG0Long(Z);});
+    te.Een     += cd->DM_Contract(this);                 // Tr(D V_long) = E_een,long
+    te.E_alphaZ+= cd->GetTotalCharge()*itsAlphaZ;        // LONG G=0 alignment (0 for a finite structure)
 }
 
 std::ostream& Ven_PP_Long::Write(std::ostream& os) const
@@ -252,6 +285,28 @@ void PW_XC::RefreshRhoGrid(const cChargeDensity* cd) const
     // answers EMPTY and we take the ball round trip below -- bit-identical to the pre-f2 path.
     itsRhoGrid=fd->GetRhoOnGrid(*itsVxcFitBasis);
     itsRhoIsRaw=(itsRhoGrid.size()!=0);
+    // ROUTE STABILITY (R2.16).  RAW and BALL are not two ways to compute one number: BALL's ball-projected
+    // rho is non-variational (H_xc != dE_xc/dD), RAW's is exact, so switching route mid-SCF switches the
+    // FUNCTIONAL BEING MINIMISED underneath the optimiser.  The capability is a property of the ORBITAL
+    // BASIS lineage -- GPW's Overlap3CTensor always sets applyRaw, a plane-wave basis never does -- i.e. it
+    // is fixed at construction, and so the route must be too.
+    //
+    // The ONE unavoidable exception is the SEED: a matrix-free density (iteration 0) has no D to collocate,
+    // so rho_DM = phi^T D phi does not exist and it can only answer BALL.  That is inherent to seeding, not
+    // a design choice, and iteration 0's energy is discarded anyway.  So: exempt the matrix-free seed,
+    // LATCH the route on the first density-matrix-backed density, and THROW if it ever changes after that.
+    // A silent mid-SCF functional change becomes a loud error.
+    if (dynamic_cast<const ChargeDensity::cDM_CD*>(cd))    // matrix-backed: the route must be stable from here
+    {
+        if (!itsRouteLatched) {itsRouteLatched=true; itsLatchedRaw=itsRhoIsRaw;}
+        else if (itsLatchedRaw!=itsRhoIsRaw)
+            throw std::runtime_error(
+                std::string("PW_XC: the XC route changed mid-SCF (")
+                + (itsLatchedRaw?"RAW -> BALL":"BALL -> RAW")
+                + ").  These minimise DIFFERENT functionals -- BALL's ball-projected rho is non-variational "
+                  "-- so the optimiser would be chasing a moving target.  The route is a property of the "
+                  "orbital basis and must not change once the SCF is running.");
+    }
     if (!itsRhoIsRaw)
         itsRhoGrid=itsScalarFitter->Grid().RhoOnGrid(fd->GetFourierDensity(*itsVxcFitBasis));   // rho-tilde via Overlap3C, onto the FIT grid
     // DIAGNOSTIC (env GPW_XCROUTE): which V_xc route fires this iteration -- RAW (applyRawAdjoint, FD-exact/

@@ -43,37 +43,60 @@ bool& ReportGridCharge();
 // term (making a "Hartree" term contribute to E_een) and the SHORT piece was called simply "the
 // pseudopotential" (as if it were the whole PP).  Now:
 //
-//   Ven_PP_Short   V_loc(short) + the KB nonlocal projectors   -> E_een   (static)
-//   Ven_PP_Long    V_loc(long), the Gaussian-core-charge fold  -> E_een   (static)
-//   Vee_Hartree    V_H[rho_elec]                               -> E_ee    (dynamic -- the ONLY one that
-//                                                                          depends on the density)
+//   Ven_PP_Short     V_loc(short)                                -> E_een   (static)
+//   Ven_PP_Long      V_loc(long), the Gaussian-core-charge fold  -> E_een   (static)
+//   Ven_PP_NonLocal  the KB separable projectors                 -> E_een   (static)
+//   Vee_Hartree      V_H[rho_elec]                               -> E_ee    (dynamic -- the ONLY one that
+//                                                                            depends on the density)
 //
-// Each owns its own dropped-G=0 alignment (E_alphaZ), Short and Long respectively.  A configuration with
-// no local PP simply does not ADD Ven_PP_{Short,Long} -- the term list expresses the model, so no term
-// carries a runtime "do I have a pseudopotential?" test (the Ham_PP `if (sep) Add(PP_NonLocal)` idiom).
+// The two LOCAL halves own their own dropped-G=0 alignment (E_alphaZ), Short and Long respectively; each
+// is evaluated ONCE, in the ctor, so no term re-asks at run time whether its structure is periodic.  A
+// configuration without a given piece simply does not ADD that term -- the term list expresses the model,
+// so no term carries a runtime "do I have a pseudopotential / projectors?" test (the Ham_PP
+// `if (sep) Add(PP_NonLocal)` idiom, and the molecular PP_Local/PP_NonLocal pair this now mirrors).
 
-//! SHORT-range external (pseudo)potential term for a plane-wave basis (static, density-independent).
-//! \f$V_{loc}(\text{short}) + V_{NL}\f$.  THIS is the
-//! pseudo-wall: the TERM owns the pseudopotential MODEL (an abstract local form factor + optional KB
-//! nonlocal projector), and asks the basis to ASSEMBLE the matrix from it (MakeLocalPotentialShort +
-//! MakeSeparablePotential) -- physics lives Hamiltonian-side, integral assembly basis-side.  The models
-//! are non-owning (the caller keeps them alive).  Pair with \c Ven_PP_Long (the other half of the range
-//! split) plus the kinetic, Hartree and XC terms for a full Kohn-Sham Hamiltonian.
+//! SHORT-range LOCAL (pseudo)potential term for a plane-wave basis (static, density-independent):
+//! \f$V_{loc}(\text{short})\f$.  THIS is the
+//! pseudo-wall: the TERM owns the pseudopotential MODEL (an abstract local form factor), and asks the
+//! basis to ASSEMBLE the matrix from it (MakeLocalPotentialShort) -- physics lives Hamiltonian-side,
+//! integral assembly basis-side.  The model is non-owning (the caller keeps it alive).  Pair with
+//! \c Ven_PP_Long (the other half of the range split), \c Ven_PP_NonLocal (the KB projectors, when the
+//! PP has them), and the kinetic/Hartree/XC terms for a full Kohn-Sham Hamiltonian.
 class Ven_PP_Short
     : public virtual cStatic_HT
     , private        cStatic_HT_Imp
 {
 public:
     typedef std::shared_ptr<const Structure> st_t;
-    Ven_PP_Short(const st_t& st, const Pseudopotential::LocalPotential* loc,
-                const Pseudopotential::SeparablePotential* nl=nullptr);
+    Ven_PP_Short(const st_t& st, const Pseudopotential::LocalPotential* loc);
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
     virtual std::ostream& Write(std::ostream&) const;
 private:
     virtual chmat_t CalculateMatrix(const cobs_t*, const Spin&) const;
     st_t theStructure;
-    const Pseudopotential::LocalPotential*     itsLocal;       //!< local pseudopotential model (non-owning).
-    const Pseudopotential::SeparablePotential* itsSep;         //!< KB nonlocal model (non-owning; may be null).
+    const Pseudopotential::LocalPotential* itsLocal;   //!< local pseudopotential model (non-owning).
+    double itsAlphaZ=0.0;   //!< the SHORT G=0 alignment per electron, evaluated ONCE in the ctor (0 if finite)
+};
+
+//! The KB-separable NON-LOCAL projectors of the pseudopotential (static, density-independent):
+//! \f$\sum_p h_p|\beta_p\rangle\langle\beta_p|\f$.  Its own term, mirroring the molecular lineage's
+//! \c PP_Local / \c PP_NonLocal pair: a purely LOCAL pseudopotential simply does not add it, rather than
+//! this term carrying a "do I have projectors?" test (\c Ham_PP's `if (sep) Add(...)` idiom).
+//! No G=0 alignment -- the projectors are short-ranged by construction.
+class Ven_PP_NonLocal
+    : public virtual cStatic_HT
+    , private        cStatic_HT_Imp
+{
+public:
+    typedef std::shared_ptr<const Structure> st_t;
+    //! \a nl is REQUIRED (non-owning).  A local-only pseudopotential does not construct this term at all.
+    Ven_PP_NonLocal(const st_t& st, const Pseudopotential::SeparablePotential* nl);
+    virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
+    virtual std::ostream& Write(std::ostream&) const;
+private:
+    virtual chmat_t CalculateMatrix(const cobs_t*, const Spin&) const;
+    st_t theStructure;
+    const Pseudopotential::SeparablePotential* itsSep;   //!< KB nonlocal model (non-owning).
 };
 
 //! LONG-range half of the local pseudopotential (static, density-independent): the softened-Coulomb /
@@ -100,6 +123,7 @@ private:
     virtual chmat_t CalculateMatrix(const cobs_t*, const Spin&) const;
     st_t theStructure;
     const Pseudopotential::LocalPotential* itsLocal;   //!< local pseudopotential model (non-owning).
+    double itsAlphaZ=0.0;   //!< the LONG G=0 alignment per electron, evaluated ONCE in the ctor (0 if finite)
 };
 
 // The non-relativistic kinetic ENERGY term is now the T-templated Kinetic<T>
@@ -192,6 +216,12 @@ private:
     //! \c CalcMatrix assembles \f$H_{xc}\f$ through the raw adjoint so the E/H pair derives from the ONE raw
     //! discrete functional (and the \f$\rho>0\f$ guard becomes inert -- \f$\rho_{DM}\ge 0\f$ for aufbau D).
     mutable bool itsRhoIsRaw=false;
+    //! \brief Route-stability latch (R2.16): RAW vs BALL minimise DIFFERENT functionals, so the route must
+    //! not change once the SCF is running.  Latched on the first DENSITY-MATRIX-backed density (the
+    //! matrix-free seed is exempt -- with no \f$D\f$ there is no \f$\rho_{DM}\f$ to collocate, so iteration
+    //! 0 can only answer BALL); any later change THROWS instead of silently swapping functionals.
+    mutable bool itsRouteLatched=false;
+    mutable bool itsLatchedRaw=false;
 };
 
 //! Exchange-correlation term on an ATOM-CENTRED real-space quadrature (doc/GPWPlan1.md "Becke XC grid") --

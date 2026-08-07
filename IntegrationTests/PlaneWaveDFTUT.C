@@ -1094,13 +1094,16 @@ TEST_F(PlaneWaveDFT, PWPseudoTermMatchesBasis)
     const HGH_LocalPotential&     loc=siPP.local;
     const HGH_SeparablePotential& nl =siPP.nonlocal;
 
-    // The TERM owns the model now and asks the basis to assemble it (the pseudo-wall).  Post local-PP split
-    // (doc/GPWPlan.md 0e-PP) the external term assembles the SHORT-range local + KB nonlocal; the LONG-range
-    // (softened-Coulomb) part is folded into the Hartree term, so the reference here is Short + separable.
-    qchem::Hamiltonian::Ven_PP_Short ext(si, &loc, &nl);
-    qchem::Hamiltonian::cStatic_HT*   term=&ext;        // the public term interface (as the Hamiltonian holds it)
-    const chmat_t& M  = term->GetMatrix(&pw, Spin::None);
-    chmat_t        ref= pw.MakeLocalPotentialShort(si.get(),loc) + pw.MakeSeparablePotential(si.get(),nl);
+    // The TERMS own the models now and ask the basis to assemble them (the pseudo-wall).  The external
+    // potential is THREE terms post-split (doc/GPWPlan.md 0e-PP): SHORT-range local + KB nonlocal here,
+    // plus the LONG-range local in Ven_PP_Long.  Their matrices must sum to what the basis assembles --
+    // the Hamiltonian adds them term by term, so check the same sum.
+    qchem::Hamiltonian::Ven_PP_Short    extS(si, &loc);
+    qchem::Hamiltonian::Ven_PP_NonLocal extN(si, &nl);
+    qchem::Hamiltonian::cStatic_HT*     termS=&extS;    // the public term interface (as the Hamiltonian holds it)
+    qchem::Hamiltonian::cStatic_HT*     termN=&extN;
+    chmat_t M  = termS->GetMatrix(&pw, Spin::None) + termN->GetMatrix(&pw, Spin::None);
+    chmat_t ref= pw.MakeLocalPotentialShort(si.get(),loc) + pw.MakeSeparablePotential(si.get(),nl);
 
     size_t n=pw.GetNumFunctions();
     for (size_t i=0;i<n;i++)
@@ -1288,7 +1291,8 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaMatchesPrototype)
     // owns the pseudopotential model (the pseudo-wall) and assembles it through the basis.
     cHamiltonianImp ham;
     ham.Add(new Kinetic<dcmplx>);
-    ham.Add(new Ven_PP_Short(si, &loc, &nl));                           // electron-ion SHORT-range + KB nonlocal
+    ham.Add(new Ven_PP_Short(si, &loc));                                // electron-ion SHORT-range local
+    ham.Add(new Ven_PP_NonLocal(si, &nl));                              // KB separable projectors
     // The LONG-range core-charge V_long is its OWN term (the CP2K local-PP split, doc/GPWPlan.md 0e-PP);
     // a manual Hamiltonian must add it explicitly or it drops V_long entirely.
     ham.Add(new Ven_PP_Long(si, &loc));                                 // electron-ion LONG-range
