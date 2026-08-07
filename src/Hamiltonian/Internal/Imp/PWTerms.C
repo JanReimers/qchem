@@ -416,7 +416,7 @@ const mat_t<dcmplx>& XC_GridEngine::Phi(const cobs_t* bs)
     auto it=itsPhi.find(id);
     if (it!=itsPhi.end()) return it->second;
 
-    qchem::report::Timed timed("setup: becke Phi tables");
+    qchem::report::Timed timed("setup: XC-mesh Phi tables");
     const rvec3vec_t& R=itsMesh->Points();
     mat_t<dcmplx> P(R.size(), bs->GetVectorSize());
     for (size_t g=0; g<R.size(); g++)
@@ -436,7 +436,7 @@ const rvec_t& XC_GridEngine::Rho(const cChargeDensity* cd, const cobs_t* ensureB
     if (ensureBlock) Phi(ensureBlock);
     if (cd->Version()==itsRhoVersion) return itsRho;
     itsRhoVersion=cd->Version();
-    qchem::report::Timed timed("scf: becke rho sampling (all iterations)");
+    qchem::report::Timed timed("scf: XC-mesh rho sampling (all iterations)");
     if (auto dm=dynamic_cast<const cDM_CD*>(cd))
         itsRho=dm->DM_RhoAtPoints(itsMesh->Points(), itsPhi);
     else
@@ -459,7 +459,7 @@ const rvec_t& XC_GridEngine::RhoPol(const cChargeDensity* cd, const Spin& s, con
     if (cd->Version()!=itsPolVersion)
     {
         itsPolVersion=cd->Version();
-        qchem::report::Timed timed("scf: becke rho sampling (all iterations)");
+        qchem::report::Timed timed("scf: XC-mesh rho sampling (all iterations)");
         if (auto pol=dynamic_cast<const ChargeDensity::cPolarized_CD*>(cd))
         {
             itsRhoUp=pol->GetChargeDensity(Spin::Up  )->DM_RhoAtPoints(itsMesh->Points(), itsPhi);
@@ -549,7 +549,7 @@ void Delta_XC::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 
 std::ostream& Delta_XC::Write(std::ostream& os) const
 {
-    return os << "    Becke-mesh exchange-correlation potential v_xc(rho(r)) ("
+    return os << "    XC-mesh exchange-correlation potential v_xc(rho(r)) ("
               << itsEngine->Mesh().size() << " atom-centred points)." << std::endl;
 }
 
@@ -590,7 +590,7 @@ void Delta_XC_Pol::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 
 std::ostream& Delta_XC_Pol::Write(std::ostream& os) const
 {
-    return os << "    Becke-mesh SPIN-NATIVE exchange v_x(rho_sigma(r)) ("
+    return os << "    XC-mesh SPIN-NATIVE exchange v_x(rho_sigma(r)) ("
               << itsEngine->Mesh().size() << " atom-centred points)." << std::endl;
 }
 
@@ -628,7 +628,7 @@ void Delta_VcorrPol::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 
 std::ostream& Delta_VcorrPol::Write(std::ostream& os) const
 {
-    return os << "    Becke-mesh SPIN-NATIVE correlation v_c^sigma(rho_up,rho_down) ("
+    return os << "    XC-mesh SPIN-NATIVE correlation v_c^sigma(rho_up,rho_down) ("
               << itsEngine->Mesh().size() << " atom-centred points)." << std::endl;
 }
 

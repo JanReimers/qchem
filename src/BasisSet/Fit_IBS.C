@@ -7,7 +7,7 @@ export import qchem.BasisSet.IrrepBasisSet;
 export import qchem.ScalarFunction;
 export import qchem.Mesh;            // qcMesh::Mesh / MeshParams -- the fit quadrature mesh + knobs
 export import qchem.Symmetry.Lattice_3D.Fold;   // Fold -- the XCQuadrature orbit partition (§6a W1)
-import qchem.Structure;               // Structure (SetMesh builds the Becke mesh from it)
+import qchem.Structure;               // Structure (the ctor builds the quadrature mesh from it)
 
 export namespace qchem::BasisSet
 {
@@ -109,7 +109,7 @@ public:
 
 //! \brief A fit basis that can do BOTH fits -- the Gaussian auxiliary basis implements all of it.  The
 //! concrete-facing union of the two ISP faces; it carries the shared quadrature mesh (built from the
-//! Structure in \c SetMesh) and the cached-accessor implementations.  Clients take the narrow face
+//! Structure at CONSTRUCTION) and the cached-accessor implementations.  Clients take the narrow face
 //! (rFIT_CD_ABS for a density fit, FIT_SF_ABS for a potential fit) for type safety; the union exists so
 //! one concrete object can be handed to either creator.
 class Fit_IBS
@@ -128,10 +128,18 @@ public:
     const rsmat_t& InvOverlap() const override;
     const rsmat_t& InvRepulsion() const override;
 
-    //! Build and OWN the fit quadrature mesh (Becke, from the structure).  Called by the
-    //! CreateCD/VxcFitBasisSet creators, which already hold the Structure.
-    void SetMesh(const Structure&, const qcMesh::MeshParams&);
+protected:
+    //! \brief Build and OWN the fit quadrature mesh (from the structure) AT CONSTRUCTION.
+    //!
+    //! Every numerical integral this class provides -- \c Norm(), \c Overlap(f) -- runs over that mesh, so
+    //! there is no valid state between "constructed" and "has a mesh": a mesh-less fit basis can answer
+    //! nothing it exists to answer.  It was a post-ctor \c SetMesh (two-phase construction) whose only guard
+    //! was an assert inside each numerical accessor -- i.e. the invariant was re-checked at every use
+    //! instead of established once.  The creators (\c CreateCDFitBasisSet / \c CreateVxcFitBasisSet) already
+    //! hold the Structure and the MeshParams, so they simply pass them down (R2.10).
+    Fit_IBS(const Structure&, const qcMesh::MeshParams&);
 
+public:
     // Numerical (mesh-quadrature) versions -- run over the fit basis's OWN mesh (itsMesh).
     const rvec_t& Norm   ()           const override; //!< 1/sqrt(<f_a|f_a>), cached
     rvec_t        Overlap(const Sf& f) const override; //!< projection <f_a|f> (Vxc fit RHS; NOT cached)

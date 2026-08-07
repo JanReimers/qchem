@@ -78,7 +78,7 @@ class EFit_IBS
     , public IrrepBasisSet
 {
 public:
-    EFit_IBS(Reader*, const Structure*);
+    EFit_IBS(Reader*, const Structure*, const qcMesh::MeshParams&);
 
     virtual rsmat_t MakeOverlap  () const {return MakeOverlap2C(this);}
     virtual  rvec_t MakeCharge   () const;

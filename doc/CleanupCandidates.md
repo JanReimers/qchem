@@ -423,8 +423,16 @@ in the same session.
   (HamiltonianTerm.C:104-107) — safe today only by immediate consumption; document or return by
   value.  (iii) `Dynamic_HF_HT_Imp::itsWholeBasis` latches on first use (Imp/HF_HT.C:31) — assert
   on change.
-- **R2.10 `Fit_IBS::SetMesh` → ctor parameter.**  Two-phase construction; the construction-time
+- **R2.10 ✅ DONE 2026-08-07. `Fit_IBS::SetMesh` → ctor parameter.**  Two-phase construction; the construction-time
   principle was already settled for the XC quadrature — build the mesh first, hand it in.
+  `SetMesh` deleted; `Fit_IBS(const Structure&, const MeshParams&)` builds and owns the mesh.  All three
+  `EFit_IBS` lineages (Atom / PG_Cart / PG_Spherical) forward to it — `Fit_IBS` is a VIRTUAL base of each,
+  so the most-derived `EFit_IBS` initialises it, which is exactly where the creators already have both
+  arguments.  The six `CreateCD/VxcFitBasisSet` sites became one-liners.
+  **The invariant is now ESTABLISHED rather than re-checked:** the two asserts that guarded the half-built
+  state inside `Norm()` and `Overlap(f)` ("SetMesh must run before any numerical integral") are replaced by
+  one ctor postcondition.  Every numerical integral this class offers runs over that mesh, so there was
+  never a valid state between "constructed" and "has a mesh".
 - **R2.11 ✅ DONE 2026-08-07. `DB_Cache_RAM.C`** — a screenful of `-Winconsistent-missing-override` warnings on every
   qcBasisSet build (`Get`/`Register`/`GetCache*`).  Mechanical `override` sweep — 15 members marked.
   Swept the qcHamiltonian ones too (`FittedVxc`/`FittedVcorrPol`, newly inconsistent because V1.3's
@@ -436,11 +444,16 @@ in the same session.
   said three; it was four) plus the GPW `CreateXCQuadrature` site.  They all decide the same question —
   "are these two mesh points the same point?" — so they must agree, and a reader should not have to diff
   four default arguments to confirm that they do.
-- **R2.13 Becke strings/labels rename in `Delta_*`/`XC_GridEngine`.**  Verified: the classes are
+- **R2.13 ✅ DONE 2026-08-07. Becke strings/labels rename in `Delta_*`/`XC_GridEngine`.**  Verified: the classes are
   already behaviorally mesh-neutral — ZERO branching on Becke; only 3 `Write()` strings + 3
   profiler labels (the one factory branch lives in Imp/Hamiltonians.C:201 where policy belongs).
   Rename "becke" → "XC mesh"/"XC quadrature".  (The REAL non-neutrality — the
   `Symmetry::Lattice_3D::Fold` + dcmplx dependency — is V1.5's problem.)
+  Six renamed (3 `Write()` strings + 3 profiler-label occurrences, as the item predicted) → "XC-mesh".
+  **Deliberately NOT renamed: the `[Becke grid]` console lines** in `Imp/UnitCell.C` and `Imp/GPW_IBS.C`.
+  Those belong to the mesh BUILDER, where Becke is genuinely the scheme being built — an accurate name, not
+  a leaked assumption.  The rename targets classes that are mesh-NEUTRAL but were labelled Becke; it should
+  not strip the name from the one place it is true.
 - **R2.14 Hamiltonian term-naming sweep** (user conventions):
   - Enn/Vnn nuclear-nuclear repulsion; Een/Ven electron-nuclear attraction; Eee/Vee
     electron-electron repulsion; Eex/Vex exchange; Ecorr/Vcorr correlation; Exc/Vxc

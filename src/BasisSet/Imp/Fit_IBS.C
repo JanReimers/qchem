@@ -1,7 +1,6 @@
 // File: BasisSet/Imp/Fit_IBS.C  Implement the numerical (mesh-quadrature) parts of a fit basis set.
 //
-// A fit basis OWNS its quadrature mesh (the Becke molecular mesh, built from its Structure in
-// SetMesh).  The numerical integrals run over that mesh via the qcMesh free-function quadrature;
+// A fit basis OWNS its quadrature mesh (built from its Structure AT CONSTRUCTION).  The numerical integrals run over that mesh via the qcMesh free-function quadrature;
 // Fit_IBS is-a pointwise VectorFunction, so it is passed straight to the quadrature (no adapter).
 module;
 #include <cassert>
@@ -13,10 +12,13 @@ import qchem.Blaze;
 namespace qchem::BasisSet
 {
 
-void Fit_IBS::SetMesh(const Structure& st, const qcMesh::MeshParams& mp)
+Fit_IBS::Fit_IBS(const Structure& st, const qcMesh::MeshParams& mp)
+    : itsMesh  (st.CreateIntegrationMesh(mp))   // the geometry's own mesh
+    , itsMeshID(mp.ID())                        // cache key axis for the mesh-dependent Norm() (see Norm below)
 {
-    itsMesh   = st.CreateIntegrationMesh(mp);   // the geometry's own mesh (was MakeMolecularMesh(st,mp))
-    itsMeshID = mp.ID();   // cache key axis for the mesh-dependent Norm() (see Norm below)
+    // Established ONCE, here, instead of re-asserted in every numerical accessor (R2.10).
+    assert(itsMesh.size()>0   && "Fit_IBS: the structure produced an empty quadrature mesh");
+    assert(!itsMeshID.empty() && "Fit_IBS: MeshParams::ID() is the Norm cache key -- it must not be empty");
 }
 
 const  rvec_t& Fit_IBS::Charge   () const
@@ -47,20 +49,18 @@ const rsmat_t& Fit_IBS::InvRepulsion() const
 
 // Norm() is a MESH QUADRATURE (qcMesh::Normalize over itsMesh), so it MUST be keyed by the mesh as well
 // as the basis: the same fit basis (same BasisSetID) built with a different mesh has a different Norm.
-// We therefore use the mesh-keyed I1C cache variant (Mesh_ID = MeshParams::ID(), stamped in SetMesh).
+// We therefore use the mesh-keyed I1C cache variant (Mesh_ID = MeshParams::ID(), stamped in the ctor).
 // Keying on BasisSetID alone silently served, e.g., the HF SAD bootstrap's coarse-seed-mesh Norm to a
 // later production DFT run on a finer mesh -> a ~585 ppm energy drift (the analytic Charge/Repulsion/
 // Inv* below are mesh-independent and correctly stay keyed on the basis alone).
 const rvec_t& Fit_IBS::Norm() const
 {
-    assert(!itsMeshID.empty());   // SetMesh must run before any numerical integral
     return theCache<double>().Get(IntegralsCache_Base::I1C::Normalization,this,itsMeshID,
         [this]{ return MakeNorm(); });
 }
 
 rvec_t Fit_IBS::MakeNorm() const
 {
-    assert(itsMesh.size()>0);   // SetMesh must run before any numerical integral
     return qcMesh::Normalize(itsMesh, *this);
 }
 

@@ -56,15 +56,11 @@ public:
 
         virtual rFIT_CD_ABS* CreateCDFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const
         {
-            auto* f = new EFit_IBS(Evaluator::Rescale(2.0, this->GetSymt()));
-            f->SetMesh(*cl, mp);
-            return f;
+            return new EFit_IBS(Evaluator::Rescale(2.0, this->GetSymt()), *cl, mp);
         }
         virtual rFIT_SF_ABS* CreateVxcFitBasisSet(const Structure* cl, const qcMesh::MeshParams& mp) const
         {
-            auto* f = new EFit_IBS(Evaluator::Rescale(2.0/3.0, this->GetSymt()));
-            f->SetMesh(*cl, mp);
-            return f;
+            return new EFit_IBS(Evaluator::Rescale(2.0/3.0, this->GetSymt()), *cl, mp);
         }
 
         virtual std::ostream&  Write(std::ostream& os) const
