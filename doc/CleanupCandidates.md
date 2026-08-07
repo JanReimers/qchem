@@ -538,6 +538,25 @@ in the same session.
       CreateVxcFitBasisSet` returns a `PlaneWaveFit_IBS`, so GPW — GAUSSIAN orbitals — feeds a plane-wave
       fit basis to this term.  (The Answered-questions section already recorded "yes, GPW uses it".)
     - **density:** a `FourierDensity`.  Also not a PW-specific requirement.
+    - **USER FOLLOW-UP: "if it only requires fit_bs->isOrtho() then `OrthoFittedVxc` is better -- I want to
+      be VERY precise about what the term actually needs."**  Right instinct, but checking inverted the
+      answer: the term needs TWO INDEPENDENT capabilities and `isOrtho()` is the WEAKER one.
+      - `isOrtho()` -- the METRIC axis (the projection IS the fit).  Genuinely general: an orthonormal
+        WAVELET basis (BigDFT/Daubechies) satisfies it.  So ortho ≠ PW in general — the user's "only ortho
+        fit basis in the universe?" question answers NO.
+      - `G_FieldEvaluator` -- the QUADRATURE axis (the FFT raster the fit is sampled on and E_xc integrated
+        on).  **RECIPROCAL-SPACE BY INTERFACE, not merely by implementation**: its vocabulary is `ΔG_Map`,
+        \f$e^{i(B\Delta m)\cdot r}\f$, `ForwardFFT`, and `GridCoeff(Vt, ivec3_t dm)` keyed by an INTEGER
+        reciprocal-index difference.  A wavelet basis could not implement it.  **This is the BINDING
+        requirement.**
+      - ⇒ `OrthoFittedVxc` would name the EASY half and drop the HARD one; `PWFittedVxc` names the hard one
+        and implies the easy one for everything that exists.  Keep PW.
+    - **✅ The better fix, done 2026-08-07: the contract was enforced in TWO PLACES.**  `Factory(cFIT_SF_ABS)`
+      asserted `isOrtho()` at CONSTRUCTION while `OrthoScalarFitter::FitGrid()` asserted the
+      `G_FieldEvaluator` at FIRST GRID USE -- so an ortho-but-not-G-space basis constructed happily and
+      tripped later, somewhere else.  Two-phase contract, the same smell as R2.10's `SetMesh`.  Both checks
+      now sit in `Factory`, where the object is built, with the two axes named.  The class NAME then only
+      has to distinguish siblings; it does not have to carry the contract.
     - **Proposed name, symmetric with the `Delta_XC` line above: `PWFittedVxc`.**  Then the family reads as
       "FittedVxc + WHICH FIT BASIS": `FittedVxc` (Gaussian aux) / `DeltaFittedVxc` (δ-functions) /
       `PWFittedVxc` (plane waves) — and "PW" modifies the noun it is actually true of.
