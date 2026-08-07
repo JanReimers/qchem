@@ -28,12 +28,16 @@ namespace qchem::Hamiltonian
 
 Ham_1E::Ham_1E(const st_t& st)
 {
-    InsertStandardTerms(st);
+    Add(new Kinetic<double>);
+    Add(new IonIon<double>(st));   // bare nuclei: the ion charge IS Z
+    Add(new Ven(st));
 }
 
 Ham_HF_U::Ham_HF_U(const st_t& st) 
 {
-    InsertStandardTerms(st);
+    Add(new Kinetic<double>);
+    Add(new IonIon<double>(st));   // bare nuclei: the ion charge IS Z
+    Add(new Ven(st));
     Add(new Vee);
     Add(new Vxc(-0.5));
 }
@@ -45,7 +49,9 @@ Ham_DFT_U::Ham_DFT_U(const st_t& st,double alpha_ex, const qcMesh::MeshParams& m
 
 Ham_DFT_U::Ham_DFT_U(const st_t& st,ExFunctional* ex, const qcMesh::MeshParams& mp, const rbs_t* bs)
 {
-    InsertStandardTerms(st);
+    Add(new Kinetic<double>);
+    Add(new IonIon<double>(st));   // bare nuclei: the ion charge IS Z
+    Add(new Ven(st));
        
     FittedVee::fbs_t   CFitBasis(bs->CreateCDFitBasisSet(st.get(), mp));
     Add(new FittedVee(CFitBasis,st->GetNumElectrons()));
@@ -67,7 +73,9 @@ Ham_DFTcorr_U::Ham_DFTcorr_U(const st_t& st, const qcMesh::MeshParams& mp, const
 Ham_DFTcorr_U::Ham_DFTcorr_U(const st_t& st, ExFunctional* exchange, ExFunctional* correlation,
                              const qcMesh::MeshParams& mp, const rbs_t* bs)
 {
-    InsertStandardTerms(st);
+    Add(new Kinetic<double>);
+    Add(new IonIon<double>(st));   // bare nuclei: the ion charge IS Z
+    Add(new Ven(st));
 
     FittedVee::fbs_t   CFitBasis(bs->CreateCDFitBasisSet(st.get(), mp));
     Add(new FittedVee(CFitBasis,st->GetNumElectrons()));
@@ -84,7 +92,9 @@ Ham_DFTcorr_U::Ham_DFTcorr_U(const st_t& st, ExFunctional* exchange, ExFunctiona
 // unpolarized Ham_DFTcorr_U is the zeta=0 collapse of this.
 Ham_DFTcorr_P::Ham_DFTcorr_P(const st_t& st, const qcMesh::MeshParams& mp, const rbs_t* bs)
 {
-    InsertStandardTerms(st);
+    Add(new Kinetic<double>);
+    Add(new IonIon<double>(st));   // bare nuclei: the ion charge IS Z
+    Add(new Ven(st));
 
     FittedVee::fbs_t   CFitBasis(bs->CreateCDFitBasisSet(st.get(), mp));
     Add(new FittedVee(CFitBasis,st->GetNumElectrons()));
@@ -309,7 +319,9 @@ void Ham_PW_DFT::BuildFromGTH(const st_t& st, const cbs_t* bs, const std::vector
 
 Ham_HF_P::Ham_HF_P(const st_t& st)
 {
-    InsertStandardTerms(st);
+    Add(new Kinetic<double>);
+    Add(new IonIon<double>(st));   // bare nuclei: the ion charge IS Z
+    Add(new Ven(st));
     Add(new Vee);
     Add(new VxcPol);
 }
@@ -321,7 +333,9 @@ Ham_DFT_P::Ham_DFT_P(const st_t& st,double alpha_ex, const qcMesh::MeshParams& m
 
 Ham_DFT_P::Ham_DFT_P(const st_t& st,ExFunctional* ex, const qcMesh::MeshParams& mp, const rbs_t* bs)
 {
-    InsertStandardTerms(st);
+    Add(new Kinetic<double>);
+    Add(new IonIon<double>(st));   // bare nuclei: the ion charge IS Z
+    Add(new Ven(st));
     FittedVee::fbs_t CFitBasis(bs->CreateCDFitBasisSet(st.get(), mp));
     Add(new FittedVee(CFitBasis,st->GetNumElectrons()));
 

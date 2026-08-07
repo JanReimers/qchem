@@ -395,13 +395,26 @@ in the same session.
   FunctionFitter).
 - **R2.8 ✅ DONE 2026-08-07. `InsertStandardTerms<dcmplx>` = assert(false)** (Imp/HamiltonianImp.C:49-53) — a
   molecular-only convenience on the T-generic base; move it down to the real lineage.
-  **How:** `rHamiltonianImp` stopped being an ALIAS for `tHamiltonianImp<double>` and became a small CLASS
-  deriving from it, carrying `InsertStandardTerms`.  All ten molecular Hamiltonians already spell their base
-  `private rHamiltonianImp`, so NOT ONE derived class changed — and the dcmplx side simply does not have the
-  member any more, making misuse a COMPILE error instead of a runtime assert.  (Why the stub existed at all:
-  `template class tHamiltonianImp<dcmplx>;` is an EXPLICIT instantiation, which instantiates every member
-  definition — so while the member lived on the generic base, the dcmplx side was *required* to have a body.
-  Worth remembering: an explicit class instantiation makes "just don't define it for that T" impossible.)
+  **RESOLVED BY DELETION, not relocation (USER RULING 2026-08-07: "the whole idea of having
+  InsertStandardTerms at all was too clever by half").  `InsertStandardTerms` IS GONE; `rHamiltonianImp` is
+  a plain alias again.**  Each of the seven callers now spells its core out in three `Add`s.
+  - **The user's diagnosis, and it is the important part: `double` vs `dcmplx` was never the discriminator.**
+    The bit that decides the core is BARE vs PSEUDISED nuclei, and it decides TWO things at once — the
+    ion charge (Z vs Zion) AND which electron-nuclear term(s) exist.  Decisive evidence already in the tree:
+    **`Ham_PP` is `<double>` and never called the helper either** (Imp/Hamiltonians.C:108-111 builds
+    `Kinetic<double>` + `IonIon<double>(vloc->ZionFn())` + `PP_Local` [+ `PP_NonLocal`]).  So `double` sits
+    on BOTH sides of the split; it is not a molecule-vs-solid decision either.
+  - **And the basis lineage is a SECOND, independent axis** — it picks WHICH electron-nuclear
+    implementation (`PP_Local`'s mesh quadrature vs `Ven_PP_Short`/`_Long`'s G-space route), not WHETHER the
+    nuclei are pseudised.  The old comment "the complex Hamiltonian assembles its terms explicitly" named the
+    symptom; the cause is that it is a PSEUDOPOTENTIAL Hamiltonian, exactly like the `<double>` `Ham_PP`.
+  - Add the Dirac lineage (DiracKinetic + RestMass, and no ion-ion at all) and the "standard" set was
+    standard for 7 of 11 Hamiltonians.  Three explicit `Add`s read better than a name that hides them.
+  - *(Kept for the record, since it is a genuine C++ gotcha that shaped the original stub:)*
+    `template class tHamiltonianImp<dcmplx>;` is an EXPLICIT instantiation, which instantiates every member
+    definition — so while the member lived on the T-generic base, the dcmplx side was *required* to have a
+    body, which is why it was an `assert(false)` rather than simply absent.  "Just don't define it for that
+    T" is not available under explicit class instantiation.
 - **R2.9 Small Hamiltonian hardening**: (i) `XC_GridEngine` constness laundering —
   Rho/RhoPol/Matrix/Phi non-const, called from const term methods via a non-const `shared_ptr`;
   every other cache in the module is `mutable`+const-method — align it (and note: no

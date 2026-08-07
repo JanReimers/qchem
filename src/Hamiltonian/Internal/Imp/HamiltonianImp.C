@@ -4,9 +4,6 @@ module;
 #include <iostream>
 #include <memory>
 module qchem.Hamiltonian.Internal.Hamiltonian;
-import qchem.Hamiltonian.Internal.Terms;
-import qchem.Hamiltonian.Internal.IonIon;   // IonIon<double> (the ion-ion energy term)
-import qchem.Hamiltonian.Internal.Kinetic;  // Kinetic<double> (the kinetic energy term)
 import qchem.Energy;
 import qchem.ChargeDensity;
 import qchem.stl_io;
@@ -38,16 +35,6 @@ template <class T> void tHamiltonianImp<T>::Add(tDynamic_HF_HT<T>* p)
     itsHF_HTs.push_back(std::unique_ptr<tDynamic_HF_HT<T>>(p));
     itsIsPolarized    = itsIsPolarized    || p->IsPolarized();
     itsIsRelativistic = itsIsRelativistic || p->IsRelativistic();
-}
-
-// The molecular standard terms (Kinetic/Vnn/Ven).  It lives on rHamiltonianImp -- the molecular lineage --
-// so the complex (plane-wave) Hamiltonian, which assembles its terms explicitly, simply does not have it:
-// the old dcmplx specialization was a pure assert(false) stub on the T-generic base (R2.8).
-void rHamiltonianImp::InsertStandardTerms(const st_t & st)
-{
-    Add(new Kinetic<double>);
-    Add(new IonIon<double>(st));
-    Add(new Ven(st));
 }
 
 template <class T> hmat_t<T> tHamiltonianImp<T>::GetMatrix(const tobs_t<T>* bs,const Spin& S,const tChargeDensity<T>* cd,const tbs_t<T>* wholeBasis)

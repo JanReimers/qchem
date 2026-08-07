@@ -46,21 +46,19 @@ protected:
     bool   itsIsRelativistic;
 };
 
-//! \brief The MOLECULAR (real) Hamiltonian implementation: \c tHamiltonianImp<double> plus the standard
-//! molecular term set.  A CLASS, not an alias, so that \c InsertStandardTerms exists ONLY on the lineage
-//! that has one (R2.8).
-//!
-//! It used to be a member of the T-generic base, which forced a \c dcmplx specialization whose entire body
-//! was \c assert(false) -- the plane-wave Hamiltonian assembles its terms explicitly and has no "standard"
-//! set (no bare \c Ven: the nuclei are pseudised; no molecular \c Kinetic instantiation).  Declaring it here
-//! makes that a COMPILE error rather than a runtime assert, and removes an LSP-violating stub from the base.
-class rHamiltonianImp : public tHamiltonianImp<double>
-{
-protected:
-    //! Kinetic + ion-ion + bare nuclear attraction -- the terms every molecular/atomic Hamiltonian starts with.
-    void InsertStandardTerms(const st_t& st);
-};
-
+// NO InsertStandardTerms.  There is no "standard" term set to insert (R2.8; user 2026-08-07: the whole
+// idea was too clever by half).  Every concrete Hamiltonian now spells its own core out in three Adds,
+// because the core genuinely varies along axes the one helper could not express:
+//   * BARE vs PSEUDISED nuclei decides BOTH the ion charge (Z vs Zion) AND the electron-nuclear term(s) --
+//     and that is NOT the double/dcmplx axis it was filed under: Ham_PP is <double> and never called the
+//     helper either.
+//   * the BASIS lineage then decides WHICH electron-nuclear implementation (PP_Local's mesh quadrature vs
+//     Ven_PP_Short/_Long's G-space route) -- a second, independent axis.
+//   * the Dirac Hamiltonians replace the kinetic term outright (DiracKinetic + RestMass) and carry no
+//     ion-ion at all.
+// Seven of eleven Hamiltonians shared the helper; for the other four it was noise, and its <dcmplx>
+// specialization was a bare assert(false).  Three explicit Adds read better than a name that hides them.
+using rHamiltonianImp = tHamiltonianImp<double>;
 using cHamiltonianImp = tHamiltonianImp<dcmplx>;
 
 } //namespace
