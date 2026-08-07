@@ -39,7 +39,7 @@ public:
     //! \f$\ge 0\f$ for an aufbau (PSD) \f$D\f$ -- NOT the ball-projected Fourier round trip whose Gibbs
     //! lobes go negative on sharp products.  BZ-weighted like \c GetFourierDensity (the weight rides in
     //! \f$D\f$; the composite sums rasters over \f$k\f$).  Returns EMPTY when the density has no raw
-    //! representation (a plane-wave basis, a matrix-free seed): the caller (\c PW_XC) then falls back to
+    //! representation (a plane-wave basis, a matrix-free seed): the caller (\c PWFittedVxc) then falls back to
     //! the ball route for BOTH the energy and the matrix, so the E/H pair always derives from ONE
     //! discrete functional.  Default = no raw answer; the collocation-backed densities override.
     virtual rvec_t GetRhoOnGrid(const BasisSet::cFIT_SF_ABS&) const {return rvec_t{};}

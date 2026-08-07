@@ -9,7 +9,7 @@ module;
 #include <vector>
 module qchem.Hamiltonian.Internal.Hamiltonians;
 import qchem.Hamiltonian.Internal.Terms;
-import qchem.Hamiltonian.Internal.PWTerms;        // Ven_PP_Short/Long, Vee_Hartree, PW_XC + Delta_XC (the plane-wave KS terms)
+import qchem.Hamiltonian.Internal.PWTerms;        // Ven_PP_Short/Long, Vee_Hartree, PWFittedVxc + DeltaFittedVxc (the plane-wave KS terms)
 import qchem.Hamiltonian.Internal.IonIon;         // IonIon<T>: ion-ion energy (double molecular / dcmplx PW)
 import qchem.Hamiltonian.Internal.Kinetic;        // Kinetic<T>: kinetic energy (double molecular / dcmplx PW)
 import qchem.Types;                               // dcmplx (for IonIon<dcmplx>)
@@ -181,7 +181,7 @@ Ham_PP::Ham_PP(const st_t& st, const std::vector<std::pair<std::string,int>>& sp
 {}
 
 // Plane-wave LDA Kohn-Sham: the five G-space framework terms.  Exchange and correlation are SEPARATE
-// PW_XC terms (Dirac + VWN5), mirroring Ham_DFTcorr_U, so the correlation energy is the correct
+// PWFittedVxc terms (Dirac + VWN5), mirroring Ham_DFTcorr_U, so the correlation energy is the correct
 // E_c = integral eps_c rho.  The Hartree term takes a density-fit basis from the basis's own factory
 // (like FittedVee); the XC route still integrates on the basis's grid (no fit basis).  The pseudopotential
 // is carried by the basis (the external term just supplies the structure factor).
@@ -237,22 +237,22 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
             // SPIN-NATIVE pair (tier 4b): a channel-native (non-halving, spin-tagged) Dirac exchange fed
             // rho_sigma per block, and the VWN5 two-channel correlation face.  Same shared engine.
             auto exchP=std::make_shared<SlaterExchange>(2.0/3.0, Spin::Up);
-            Add(new Delta_XC_Pol(exchP, engine));
-            Add(new Delta_VcorrPol(corr, engine));
+            Add(new DeltaFittedVxcPol(exchP, engine));
+            Add(new DeltaFittedVcorrPol(corr, engine));
         }
         else
         {
-            Add(new Delta_XC(exch, engine));
-            Add(new Delta_XC(corr, engine));
+            Add(new DeltaFittedVxc(exch, engine));
+            Add(new DeltaFittedVxc(corr, engine));
         }
     }
     else
     {
         // HARD throw, not an assert: a Release-compiled assert would silently hand a polarized run the
-        // UNPOLARIZED PW_XC pair below -- wrong physics, no diagnostic (the tier-4b Delta-only pin).
+        // UNPOLARIZED PWFittedVxc pair below -- wrong physics, no diagnostic (the tier-4b Delta-only pin).
         if (polarized)
             throw std::runtime_error("Ham_PW_DFT polarized: only the Delta (quadrature) XC route is "
-                "spin-native so far -- a polarized PLANE-WAVE Vxc fit (per-channel PW_XC with per-spin "
+                "spin-native so far -- a polarized PLANE-WAVE Vxc fit (per-channel PWFittedVxc with per-spin "
                 "rho caches) is not designed yet.  Use VxcFit::Delta (any grid) or the Becke default.");
         // The PLANE-WAVE fit route: exchange + correlation share ONE Vxc (overlap-metric) fit basis;
         // the projection quadrature is the FFT on the fit basis's own raster.  A PlaneWave fit ON a
@@ -261,9 +261,9 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
         // quadratured E -- the user's GDM-after-DIIS audit would expose any mismatch).
         assert(!becke && "VxcFit::PlaneWave on a Becke grid (I3): the E/H one-functional pairing is not designed yet");
         std::cout<<"[XC quadrature] PLANE-WAVE fit on the uniform G-space raster (details on the [uniform grid] line)"<<std::endl;
-        PW_XC::fbs_t VFitBasis(bs->CreateVxcFitBasisSet(st.get(), mp));
-        Add(new PW_XC(exch, VFitBasis));
-        Add(new PW_XC(corr, VFitBasis));
+        PWFittedVxc::fbs_t VFitBasis(bs->CreateVxcFitBasisSet(st.get(), mp));
+        Add(new PWFittedVxc(exch, VFitBasis));
+        Add(new PWFittedVxc(corr, VFitBasis));
     }
     Add(new IonIon<dcmplx>(st, loc->ZionFn()));                  // ion-ion Ewald: Zion from the PP, not itsZ
 }

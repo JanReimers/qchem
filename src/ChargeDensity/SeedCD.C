@@ -6,7 +6,7 @@
 // basis (a cFIT_CD_ABS, which is a G_FieldEvaluator) -- NOT the orbital basis: the seed depends only on the
 // fit basis it is handed.  (Grid-sampling rho(r)+FFT would ALIAS the peaked atomic density; the analytic form
 // factor does not.)  It is a tChargeDensity<dcmplx> (NOT a tDM_CD: a sum of atomic densities has no density
-// matrix); the PW DFT terms (PW_Hartree, PW_XC) consume it through the FourierDensity face.
+// matrix); the PW DFT terms (PW_Hartree, PWFittedVxc) consume it through the FourierDensity face.
 //
 // SPIN (doc/SCFSeedingPlan.md §10): a SeedCD can also be ONE CHANNEL of the spin-polarized seed -- the
 // \c channel ctor argument selects Up/Down, reading the library's spin-resolved (majority, minority) pair

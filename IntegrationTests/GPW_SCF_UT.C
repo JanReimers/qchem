@@ -3,7 +3,7 @@
 // GPW (increments 1-2) already satisfies every plane-wave Kohn-Sham concept EXCEPT the external potential:
 //   - kinetic  -> Kinetic<dcmplx> calls bs->Kinetic()         (GPW: lattice-sum <p^2>)              [inc 1]
 //   - Hartree  -> PW_Hartree casts bs to Band_FT_IBS + cd to FourierDensity (GPW: collocation tensors)[inc 2]
-//   - XC       -> PW_XC, same casts + the fit-basis grid                                             [inc 2]
+//   - XC       -> PWFittedVxc, same casts + the fit-basis grid                                             [inc 2]
 //   - ion-ion  -> IonIon<dcmplx> (Ewald from Zion)                                                   [structure]
 // The one gap was the external pseudopotential: the plane-wave PW_Pseudo needs G-space form factors, which
 // Gaussians cannot supply.  This increment closes it: GPW_IBS realises Integrals_Pseudo<dcmplx> by REAL-SPACE
@@ -40,7 +40,7 @@ import qchem.Blaze;                              // blazem::eigen, blaze::min/ma
 import qchem.BasisSet.Lattice_3D.BasisSet;       // GPWFactory (the GPW basis container)
 import qchem.BasisSet.Molecule.Factory;          // Molecule::Factory, BasisSetData/Engine/Angular
 import qchem.Hamiltonian.Internal.Hamiltonians;  // Ham_PW_DFT (the plane-wave LDA KS Hamiltonian -- drives GPW too)
-import qchem.Hamiltonian.Internal.PWTerms;        // ReportGridCharge(); PW_XC / Delta_XC (the Becke XC gate)
+import qchem.Hamiltonian.Internal.PWTerms;        // ReportGridCharge(); PWFittedVxc / DeltaFittedVxc (the Becke XC gate)
 import qchem.Mesh.Angular;                        // MakeAngular (the rotated-Lebedev bond-angle probe)
 import qchem.Hamiltonian.Internal.ExFunctional;   // ExFunctional (the LDA functional face the XC terms hold)
 import qchem.Hamiltonian.Internal.SlaterExchange; // SlaterExchange (Dirac exchange, for the Becke XC gate)
@@ -228,7 +228,7 @@ struct GpwOptions
     BasisSet::Lattice_3D::CellImages   images = BasisSet::Lattice_3D::CellImages::Periodic;
     rvec3_t kShift = rvec3_t(0,0,0);
     //! XC-quadrature policy, decided by \c xcMesh.cellKind.  DEFAULT \c Auto (2026-08-01 flip): the
-    //! driver resolves it to the atom-centred periodic BECKE mesh (Delta_XC, the calibrated
+    //! driver resolves it to the atom-centred periodic BECKE mesh (DeltaFittedVxc, the calibrated
     //! BeckeXCParams() recipe) — \c imposeSymmetry runs included since the 2026-08-02 carve-out retirement
     //! (plan §7 step 5): an imposed run builds the MIXED-RULE site-adapted invariant Becke mesh
     //! (~2x the free mesh at the production recipe) and star-averages ρ on it.  EXPLICIT \c Uniform
@@ -318,7 +318,7 @@ static void ReportSymmetryFound(const Complex_BS& bs, const qchem::ChargeDensity
     }
     auto* fd = dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(&cd);
     if (!fd) return;
-    Hamiltonian::PW_XC::fbs_t fit(bs.CreateVxcFitBasisSet(st, qcMesh::MeshParams{}));
+    Hamiltonian::PWFittedVxc::fbs_t fit(bs.CreateVxcFitBasisSet(st, qcMesh::MeshParams{}));
     std::vector<double> d = SymmetryDefects(fd->GetFourierDensity(*fit), ops);
     double mx = 0; int broken = 0;
     for (double x : d) { mx = std::max(mx, x); if (x > 1e-3) ++broken; }
@@ -793,7 +793,7 @@ TEST(GPW_SCF, SiPseudoAtomInBoxMatchesFinite)
 
 // (tier 4b, invariant) THE ζ=0 COLLAPSE: the TWO-CHANNEL machinery on a CLOSED SHELL must reproduce the
 // unpolarized anchor.  Same gapped Si/Γamma cell + recipe as SmearingInertOnGap, but multiplicity=1 drives
-// the polarized pipeline (dcmplx tPolarizedWF, Crystal_EC(4,4), Delta_XC_Pol + Delta_VcorrPol) with
+// the polarized pipeline (dcmplx tPolarizedWF, Crystal_EC(4,4), DeltaFittedVxcPol + DeltaFittedVcorrPol) with
 // nUp=nDn=4 -- v^σ(ρ/2,ρ/2)=v^P(ρ) pointwise, so the total must land on the SAME −7.11506 anchor.  The
 // periodic sibling of the molecular WaterPolarizedLDA-vs-LDA check; catches any polarized-path divergence
 // (channel bookkeeping, shared-engine caching, the collocation memo screen) on known ground.
@@ -979,8 +979,8 @@ TEST(GPW_SCF, DISABLED_NaFixedDensityTermProbe)
         BasisSet::XCQuadrature q = bs->CreateXCQuadrature(lat.GetStructure().get(),
                                                           ResolveXCMesh({.cellKind=qcMesh::UnitCellKind::Auto}));
         auto engine=std::make_shared<XC_GridEngine>(q.mesh, std::move(q.fold));
-        Delta_XC_Pol   x(exch, engine);
-        Delta_VcorrPol c(corr, engine);
+        DeltaFittedVxcPol   x(exch, engine);
+        DeltaFittedVcorrPol c(corr, engine);
         const size_t k=2;
         hmat_t<dcmplx> Dup(n), Ddn(n);
         for (size_t i=0;i<n;i++) for (size_t j=i;j<n;j++) { Dup(i,j)=dcmplx(0.0); Ddn(i,j)=dcmplx(0.0); }
@@ -1091,7 +1091,7 @@ TEST(GPW_SCF, DISABLED_Na2DimerInBoxProbe)
 // (tier 4b, gate a) THE POLARIZED SOLID PIPELINE: Na pseudo-atom in a box, DOUBLET (doc/SymmetryUpgradePlan.md
 // §4).  The minimal end-to-end TWO-CHANNEL GPW run: Na q1 GTH PP, S=1/2, moment 1 -- spin-resolved D through
 // Crystal_EC(nUp=1,nDown=0), the dcmplx tPolarizedWF (two Bloch channels), and the spin-native Becke XC pair
-// (Delta_XC_Pol + Delta_VcorrPol).  Cross-anchored against the finite molecular facade doublet on the SAME
+// (DeltaFittedVxcPol + DeltaFittedVcorrPol).  Cross-anchored against the finite molecular facade doublet on the SAME
 // valence basis + PP (the spin sibling of SiPseudoAtomInBoxMatchesFinite).
 //
 // SEED PIN (the 2026-08-04 root-cause campaign): this gate MUST seed from IonicSAD.  From the Uniform seed
@@ -2083,8 +2083,8 @@ TEST(GPW_SCF, DISABLED_NaFOverlapConditioningSweep)
 //  V_xc matrix to grid tolerance -- before it can become the default for diffuse bases.  Converge
 //  Si/Gamma on the standard uniform route (the SiliconGammaConverges recipe), then evaluate BOTH
 //  XC term pairs (Dirac + VWN5) on the SAME converged density:
-//    uniform -- PW_XC on the Vxc fit basis's FFT grid (the raw-collocation route);
-//    Becke   -- Delta_XC: rho(r) analytic at the atom-centred points, WeightedOverlap matrix.
+//    uniform -- PWFittedVxc on the Vxc fit basis's FFT grid (the raw-collocation route);
+//    Becke   -- DeltaFittedVxc: rho(r) analytic at the atom-centred points, WeightedOverlap matrix.
 //  Angular rule: GaussLegendre (machine-exact algebraic degree at any L -- the audited Lebedev
 //  tables stop at L=11, and EulerMaclaren has no algebraic degree; see Mesh_Angular tests).
 //================================================================================================
@@ -2120,8 +2120,8 @@ XCProbe UniformXCProbe(const GpwHandles& h, const std::shared_ptr<const Structur
     auto exch=std::make_shared<Hamiltonian::SlaterExchange>(2.0/3.0);
     auto corr=std::make_shared<Hamiltonian::VWN_Correlation>();
     qcMesh::MeshParams mp; mp.relCutoff=std::max(exch->GridCutoffFactor(), corr->GridCutoffFactor());
-    Hamiltonian::PW_XC::fbs_t vfb(h.bs->CreateVxcFitBasisSet(st.get(), mp));
-    Hamiltonian::PW_XC x(exch,vfb), c(corr,vfb);
+    Hamiltonian::PWFittedVxc::fbs_t vfb(h.bs->CreateVxcFitBasisSet(st.get(), mp));
+    Hamiltonian::PWFittedVxc x(exch,vfb), c(corr,vfb);
     EnergyBreakdown e; x.GetEnergy(e,h.cd.get()); c.GetEnergy(e,h.cd.get());
     return ProbeXC("uniform", h, x, c, e);
 }
@@ -2133,7 +2133,7 @@ XCProbe BeckeXCProbe(const GpwHandles& h, const std::shared_ptr<const Structure>
     auto corr=std::make_shared<Hamiltonian::VWN_Correlation>();
     auto engine=std::make_shared<Hamiltonian::XC_GridEngine>(               // ONE engine, shared by the pair
                     std::make_shared<const qcMesh::Mesh>(st->CreateIntegrationMesh(mpB)));   // free probe: no fold
-    Hamiltonian::Delta_XC x(exch,engine), c(corr,engine);
+    Hamiltonian::DeltaFittedVxc x(exch,engine), c(corr,engine);
     EnergyBreakdown e; x.GetEnergy(e,h.cd.get()); c.GetEnergy(e,h.cd.get());
     return ProbeXC(label, h, x, c, e);
 }
@@ -2476,7 +2476,7 @@ TEST(GPW_SCF, DISABLED_MnO_AFM2_RhombohedralGamma)
     // (ii) G-space: |m-tilde| at the AFM wavevector (dm=(1,0,0): 2pi m.f = pi between the Mn sublattices),
     // scaled by the cell volume back to electrons-scale.
     {
-        Hamiltonian::PW_XC::fbs_t fit(A.h.bs->CreateVxcFitBasisSet(A.cell.get(), qcMesh::MeshParams{}));
+        Hamiltonian::PWFittedVxc::fbs_t fit(A.h.bs->CreateVxcFitBasisSet(A.cell.get(), qcMesh::MeshParams{}));
         auto* fu=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(up);
         auto* fdn=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(dn);
         ASSERT_TRUE(fu && fdn);

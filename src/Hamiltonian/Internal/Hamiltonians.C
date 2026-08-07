@@ -114,9 +114,9 @@ public:
 //! SEPARATION, user 2026-08-01): the fit-basis choice and the real-space grid choice
 //! (\c qcMesh::MeshParams) are ORTHOGONAL user knobs.
 //!  - \c PlaneWave: expand \f$v_{xc}\f$ on the \f$\{Q_j\}\f$ ball (band-limited; the projection
-//!    quadrature is the FFT on the uniform raster) -- the \c PW_XC pair.
+//!    quadrature is the FFT on the uniform raster) -- the \c PWFittedVxc pair.
 //!  - \c Delta: the delta-function "fit" -- coefficients ARE the grid-point values, H by direct
-//!    quadrature -- the \c Delta_XC pair, on ANY real-space grid (Becke or uniform).
+//!    quadrature -- the \c DeltaFittedVxc pair, on ANY real-space grid (Becke or uniform).
 //!  - \c Auto: the historical pairing -- \c Delta on a Becke grid, \c PlaneWave on the uniform raster.
 //! (PlaneWave fit ON a Becke grid = I3: the projection sum is trivial, but the one-functional E/H
 //! derivative pairing must be designed first -- asserted out until then.)
@@ -144,10 +144,10 @@ public:
                const std::string& functional="LDA", const qcMesh::MeshParams& xcMesh={});
     //! Multi-species, RUNTIME species list (the vector form the initializer_list can't provide) -- e.g. a
     //! LiCoO2 / f-oxide run assembled from the cell's distinct elements at run time.
-    //! \a polarized selects the SPIN-NATIVE (open-shell) exchange-correlation pair (Delta_XC_Pol +
-    //! Delta_VcorrPol, SymmetryUpgradePlan §4 tier 4b) vs the ζ=0 unpolarized collapse -- exactly Ham_PP's
+    //! \a polarized selects the SPIN-NATIVE (open-shell) exchange-correlation pair (DeltaFittedVxcPol +
+    //! DeltaFittedVcorrPol, SymmetryUpgradePlan §4 tier 4b) vs the ζ=0 unpolarized collapse -- exactly Ham_PP's
     //! flag.  Everything else (kinetic/PP/Hartree/ion-ion) is spin-agnostic.  Polarized currently requires
-    //! the Delta (quadrature) XC route; a polarized PLANE-WAVE fit (per-channel PW_XC) is asserted out
+    //! the Delta (quadrature) XC route; a polarized PLANE-WAVE fit (per-channel PWFittedVxc) is asserted out
     //! until designed.
     Ham_PW_DFT(const st_t& st, const cbs_t* bs, const std::vector<std::pair<std::string,int>>& species,
                const std::string& functional="LDA", const qcMesh::MeshParams& xcMesh={},

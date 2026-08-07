@@ -49,7 +49,7 @@ enum class RasterPolicy { AliasFree, BallOnly };
 //! OFF-raster (the Becke atom-centred mesh), the raster serves only the G-space Poisson solve -- a
 //! SMOOTHING operator -- so diffuse density pairs route by their OWN bandwidth onto coarse ladder levels
 //! (small streams; the honest diffuse-basis setup speedup, no screening-tolerance games).  Selecting
-//! \c HartreeOnly with the uniform PW_XC would under-resolve \f$V_{xc}\f$ -- it is the Becke-route partner.
+//! \c HartreeOnly with the uniform PWFittedVxc would under-resolve \f$V_{xc}\f$ -- it is the Becke-route partner.
 enum class RasterFields { HartreeXC, HartreeOnly };
 
 //! \brief The ORBITAL evaluator of a plane-wave block: holds \f$(B,k,E_{cut},\{G\})\f$ and answers the per-k,

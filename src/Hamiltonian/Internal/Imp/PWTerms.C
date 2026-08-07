@@ -18,7 +18,7 @@ import qchem.Pseudopotential.Integrals_Pseudo;   // cast bs ACROSS to the extern
 import qchem.Fitting.FunctionFitter;        // Fitting::Factory (both PW fitters) + ProjectedDensity_G / ProjectedScalar_R
 import qchem.Structure;                       // Structure::isFinite()/SumFormFactors() -- the G=0 alignment (term-side)
 import qchem.Blaze;                            // blazem::zeroH<dcmplx> (the null-PP V_long block)
-import qchem.Mesh.Quadrature;                 // qcMesh::Mesh (the Delta_XC engine's quadrature mesh)
+import qchem.Mesh.Quadrature;                 // qcMesh::Mesh (the DeltaFittedVxc engine's quadrature mesh)
 import qchem.Reporting;                       // Timed (the setup/scf timing ledger)
 
 namespace qchem::Hamiltonian
@@ -245,7 +245,7 @@ private:
         return true;
     }
     const ExFunctional*               itsXc;
-    const rvec_t&                     itsRhoGrid;   // precomputed rho(r) on the fit grid (owned by PW_XC; field is transient)
+    const rvec_t&                     itsRhoGrid;   // precomputed rho(r) on the fit grid (owned by PWFittedVxc; field is transient)
     const BasisSet::G_FieldEvaluator* itsGrid;
 };
 } // anonymous
@@ -254,7 +254,7 @@ private:
 // The XC QUADRATURE GRID comes from the FIT basis (not the orbital), so relCutoff / the functional's
 // GridCutoffFactor control the Vxc/E_xc grid.  The fitter OWNS that grid; this term borrows it via
 // itsScalarFitter->Grid() -- one owner, no second cross-cast of the fit basis (#7).
-PW_XC::PW_XC(const xc_t& xc, fbs_t fb)
+PWFittedVxc::PWFittedVxc(const xc_t& xc, fbs_t fb)
     : itsXc(xc)
     , itsVxcFitBasis(fb)                       // hand it to the density's GetFourierDensity (its Overlap3C key)
     , itsScalarFitter(Fitting::Factory(fb))   // the ortho (G-space) scalar fitter -- owns the FFT quadrature grid
@@ -270,15 +270,15 @@ PW_XC::PW_XC(const xc_t& xc, fbs_t fb)
         itsScalarFitter->Grid().EmitGridReport();
     }
 }
-PW_XC::~PW_XC() = default;   // itsScalarFitter's abstract type is complete here
+PWFittedVxc::~PWFittedVxc() = default;   // itsScalarFitter's abstract type is complete here
 
 // rho(r) on the fit grid for cd -- one inverse FFT, recomputed only on a new density serial (newCD), so
 // CalcMatrix and GetEnergy share it (whichever runs first this iteration pays; the other reuses).
-void PW_XC::RefreshRhoGrid(const cChargeDensity* cd) const
+void PWFittedVxc::RefreshRhoGrid(const cChargeDensity* cd) const
 {
     if (!newCD(cd)) return;
     auto fd=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(cd);
-    assert(fd && "PW_XC requires a FourierDensity (periodic) charge density");
+    assert(fd && "PWFittedVxc requires a FourierDensity (periodic) charge density");
     // RAW-FIRST (doc/GPWPlan 0.5(f2)): a collocation-backed density answers with rho_DM(r) directly --
     // pointwise >= 0 for an aufbau D, so the rho>0 guard never bites and the grid calibration can relax
     // (the C=8 driver was the BALL path's Gibbs lobes).  A plane-wave density (or a matrix-free seed)
@@ -301,7 +301,7 @@ void PW_XC::RefreshRhoGrid(const cChargeDensity* cd) const
         if (!itsRouteLatched) {itsRouteLatched=true; itsLatchedRaw=itsRhoIsRaw;}
         else if (itsLatchedRaw!=itsRhoIsRaw)
             throw std::runtime_error(
-                std::string("PW_XC: the XC route changed mid-SCF (")
+                std::string("PWFittedVxc: the XC route changed mid-SCF (")
                 + (itsLatchedRaw?"RAW -> BALL":"BALL -> RAW")
                 + ").  These minimise DIFFERENT functionals -- BALL's ball-projected rho is non-variational "
                   "-- so the optimiser would be chasing a moving target.  The route is a property of the "
@@ -359,7 +359,7 @@ void PW_XC::RefreshRhoGrid(const cChargeDensity* cd) const
 // XC through the pre-built ortho scalar fitter, mirroring the molecular FittedVxc: the fitter batch-samples
 // the v_xc(rho) field on the FIT basis's grid and forward-transforms it (the projection IS the fit on the
 // orthonormal {G}); the ORBITAL basis then assembles <i|v_xc|j>.  No O(Npts*n^2) pointwise density sampling.
-chmat_t PW_XC::CalcMatrix(const cobs_t* bs, const Spin&, const cChargeDensity* cd) const
+chmat_t PWFittedVxc::CalcMatrix(const cobs_t* bs, const Spin&, const cChargeDensity* cd) const
 {
     RefreshRhoGrid(cd);
     if (itsRhoIsRaw)
@@ -378,7 +378,7 @@ chmat_t PW_XC::CalcMatrix(const cobs_t* bs, const Spin&, const cChargeDensity* c
     return itsScalarFitter->Overlap(bs);                                        // <i|v_xc|j> (no kernel)
 }
 
-void PW_XC::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
+void PWFittedVxc::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 {
     RefreshRhoGrid(cd);   // reuses CalcMatrix's transform this iteration (same density serial)
     rvec_t exc(itsRhoGrid.size());
@@ -389,7 +389,7 @@ void PW_XC::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
     te.GridChargeLost = itsScalarFitter->Grid().Integral(itsRhoGrid) - cd->GetTotalCharge();
 }
 
-std::ostream& PW_XC::Write(std::ostream& os) const
+std::ostream& PWFittedVxc::Write(std::ostream& os) const
 {
     return os << "    PW exchange-correlation potential v_xc(rho(r))." << std::endl;
 }
@@ -510,11 +510,11 @@ chmat_t XC_GridEngine::Matrix(const cobs_t* bs, const rvec_t& v)
     return H;
 }
 
-// ---- Delta_XC ------------------------------------------------------------------------------------------
+// ---- DeltaFittedVxc ------------------------------------------------------------------------------------------
 
 // Built with the SHARED quadrature engine (the caller builds ONE engine per XC pair -- mesh + Phi tables
 // + per-serial rho -- and hands it to both the exchange and the correlation term).
-Delta_XC::Delta_XC(const xc_t& xc, engine_t engine)
+DeltaFittedVxc::DeltaFittedVxc(const xc_t& xc, engine_t engine)
     : itsXc(xc)
     , itsEngine(std::move(engine))
 {
@@ -522,7 +522,7 @@ Delta_XC::Delta_XC(const xc_t& xc, engine_t engine)
 }
 
 // v_xc(rho_g) pointwise on the engine's shared rho, then the engine's Phi-table quadrature (one GEMM).
-chmat_t Delta_XC::CalcMatrix(const cobs_t* bs, const Spin&, const cChargeDensity* cd) const
+chmat_t DeltaFittedVxc::CalcMatrix(const cobs_t* bs, const Spin&, const cChargeDensity* cd) const
 {
     const rvec_t& rho=itsEngine->Rho(cd, bs);
     rvec_t v(rho.size());
@@ -530,7 +530,7 @@ chmat_t Delta_XC::CalcMatrix(const cobs_t* bs, const Spin&, const cChargeDensity
     return itsEngine->Matrix(bs, v);
 }
 
-void Delta_XC::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
+void DeltaFittedVxc::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 {
     const rvec_t& rho=itsEngine->Rho(cd);   // reuses the iteration's table (same density serial)
     const rvec_t& W=itsEngine->Mesh().Weights();
@@ -542,20 +542,20 @@ void Delta_XC::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
         q  +=W[g]*ro;
     }
     te.Exc += exc;
-    // The mesh-charge leak (the Becke grid's health metric, mirroring PW_XC's grid-charge-lost): the
+    // The mesh-charge leak (the Becke grid's health metric, mirroring PWFittedVxc's grid-charge-lost): the
     // quadrature integral of rho vs the analytic Tr(DS).
     te.GridChargeLost = q - cd->GetTotalCharge();
 }
 
-std::ostream& Delta_XC::Write(std::ostream& os) const
+std::ostream& DeltaFittedVxc::Write(std::ostream& os) const
 {
     return os << "    XC-mesh exchange-correlation potential v_xc(rho(r)) ("
               << itsEngine->Mesh().size() << " atom-centred points)." << std::endl;
 }
 
-// ---- Delta_XC_Pol (spin-native exchange, tier 4b) --------------------------------------------------------
+// ---- DeltaFittedVxcPol (spin-native exchange, tier 4b) --------------------------------------------------------
 
-Delta_XC_Pol::Delta_XC_Pol(const xc_t& xc, engine_t engine)
+DeltaFittedVxcPol::DeltaFittedVxcPol(const xc_t& xc, engine_t engine)
     : itsXc(xc)
     , itsEngine(std::move(engine))
 {
@@ -564,16 +564,16 @@ Delta_XC_Pol::Delta_XC_Pol(const xc_t& xc, engine_t engine)
 }
 
 // v_x^sigma(rho_sigma) pointwise on this block's own channel raster, then the shared Phi quadrature.
-chmat_t Delta_XC_Pol::CalcMatrix(const cobs_t* bs, const Spin& s, const cChargeDensity* cd) const
+chmat_t DeltaFittedVxcPol::CalcMatrix(const cobs_t* bs, const Spin& s, const cChargeDensity* cd) const
 {
-    assert(s!=Spin::None && "Delta_XC_Pol: a polarized term needs an Up/Down spin");
+    assert(s!=Spin::None && "DeltaFittedVxcPol: a polarized term needs an Up/Down spin");
     const rvec_t& rho=itsEngine->RhoPol(cd, s, bs);
     rvec_t v(rho.size());
     for (size_t g=0; g<rho.size(); g++) v[g]=itsXc->GetVxc(rho[g]);
     return itsEngine->Matrix(bs, v);
 }
 
-void Delta_XC_Pol::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
+void DeltaFittedVxcPol::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 {
     const rvec_t& up=itsEngine->RhoPol(cd, Spin::Up  );
     const rvec_t& dn=itsEngine->RhoPol(cd, Spin::Down);
@@ -585,18 +585,18 @@ void Delta_XC_Pol::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
         q  +=W[g]*(up[g]+dn[g]);
     }
     te.Exc += exc;
-    te.GridChargeLost = q - cd->GetTotalCharge();   // mesh-charge leak (same health metric as Delta_XC)
+    te.GridChargeLost = q - cd->GetTotalCharge();   // mesh-charge leak (same health metric as DeltaFittedVxc)
 }
 
-std::ostream& Delta_XC_Pol::Write(std::ostream& os) const
+std::ostream& DeltaFittedVxcPol::Write(std::ostream& os) const
 {
     return os << "    XC-mesh SPIN-NATIVE exchange v_x(rho_sigma(r)) ("
               << itsEngine->Mesh().size() << " atom-centred points)." << std::endl;
 }
 
-// ---- Delta_VcorrPol (spin-native correlation, tier 4b) ---------------------------------------------------
+// ---- DeltaFittedVcorrPol (spin-native correlation, tier 4b) ---------------------------------------------------
 
-Delta_VcorrPol::Delta_VcorrPol(const corr_t& corr, engine_t engine)
+DeltaFittedVcorrPol::DeltaFittedVcorrPol(const corr_t& corr, engine_t engine)
     : itsCorr(corr)
     , itsEngine(std::move(engine))
 {
@@ -605,9 +605,9 @@ Delta_VcorrPol::Delta_VcorrPol(const corr_t& corr, engine_t engine)
 }
 
 // v_c^sigma(rho_up,rho_down) couples BOTH channel rasters at every point (through r_s and zeta).
-chmat_t Delta_VcorrPol::CalcMatrix(const cobs_t* bs, const Spin& s, const cChargeDensity* cd) const
+chmat_t DeltaFittedVcorrPol::CalcMatrix(const cobs_t* bs, const Spin& s, const cChargeDensity* cd) const
 {
-    assert(s!=Spin::None && "Delta_VcorrPol: a polarized term needs an Up/Down spin");
+    assert(s!=Spin::None && "DeltaFittedVcorrPol: a polarized term needs an Up/Down spin");
     const rvec_t& up=itsEngine->RhoPol(cd, Spin::Up  , bs);
     const rvec_t& dn=itsEngine->RhoPol(cd, Spin::Down, bs);
     rvec_t v(up.size());
@@ -615,7 +615,7 @@ chmat_t Delta_VcorrPol::CalcMatrix(const cobs_t* bs, const Spin& s, const cCharg
     return itsEngine->Matrix(bs, v);
 }
 
-void Delta_VcorrPol::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
+void DeltaFittedVcorrPol::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 {
     const rvec_t& up=itsEngine->RhoPol(cd, Spin::Up  );
     const rvec_t& dn=itsEngine->RhoPol(cd, Spin::Down);
@@ -626,7 +626,7 @@ void Delta_VcorrPol::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
     te.Exc += ec;
 }
 
-std::ostream& Delta_VcorrPol::Write(std::ostream& os) const
+std::ostream& DeltaFittedVcorrPol::Write(std::ostream& os) const
 {
     return os << "    XC-mesh SPIN-NATIVE correlation v_c^sigma(rho_up,rho_down) ("
               << itsEngine->Mesh().size() << " atom-centred points)." << std::endl;

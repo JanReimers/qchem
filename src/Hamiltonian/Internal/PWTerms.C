@@ -19,7 +19,7 @@ import qchem.Pseudopotential.Integrals_Pseudo;    // external-PP operator-assemb
 import qchem.Hamiltonian.Internal.ExFunctional; // the LDA functional the XC term composes with the density
 import qchem.Hamiltonian.Types;                 // cobs_t
 import qchem.Structure;
-import qchem.Mesh;                              // qcMesh::Mesh/MeshParams (the Delta_XC quadrature)
+import qchem.Mesh;                              // qcMesh::Mesh/MeshParams (the DeltaFittedVxc quadrature)
 import qchem.Symmetry.Lattice_3D.Fold;          // Fold + SymmetrizeValues (the Becke rho star-average, §6a W1)
 import qchem.Symmetry.Irrep;                    // Irrep: the Phi-table key (spatial block identity)
 
@@ -27,7 +27,7 @@ export namespace qchem::Hamiltonian
 {
 
 //! Process-wide diagnostic toggle (default OFF).  When true,
-//! \c PW_XC::RefreshRhoGrid emits a one-line report each time it (re)collocates the density: the grid-integrated
+//! \c PWFittedVxc::RefreshRhoGrid emits a one-line report each time it (re)collocates the density: the grid-integrated
 //! charge \f$\int\rho_{\text{grid}}\f$, the analytic charge \f$\mathrm{Tr}(DS)\f$, and their difference -- the
 //! CHARGE LOST TO GRID TRUNCATION (== CP2K's "Electronic density on regular grids: <int> <error>" readout).
 //! A cheap, controlled number for "is the density cutoff high enough" (see doc/GPWPlan.md \S0).  Flip in place:
@@ -181,10 +181,10 @@ private:
 };
 
 //! Exchange-correlation term for a plane-wave basis, carrying ONE LDA functional (so a full LDA uses a
-//! Dirac PW_XC + a VWN PW_XC, mirroring the molecular SlaterExchange+VWN split).  The matrix is the basis
+//! Dirac PWFittedVxc + a VWN PWFittedVxc, mirroring the molecular SlaterExchange+VWN split).  The matrix is the basis
 //! integral of v_xc(rho(r)); the energy is integral eps_xc(rho) rho.  Both are real-space scalar fields
 //! the term composes (functional o density) and hands to the basis -- the basis owns the integration.
-class PW_XC
+class PWFittedVxc
     : public virtual cDynamic_HT
     , private        cDynamic_HT_Imp
 {
@@ -193,8 +193,8 @@ public:
     typedef std::shared_ptr<const BasisSet::cFIT_SF_ABS> fbs_t;
     //! Built with the Vxc fit basis obtained from the orbital basis's factory (BuildTerms creates it ONCE,
     //! never assuming orbital==fit) -- the overlap-metric sibling of Vee_Hartree.
-    PW_XC(const xc_t&, fbs_t vxcFitBasisSet);
-    ~PW_XC();
+    PWFittedVxc(const xc_t&, fbs_t vxcFitBasisSet);
+    ~PWFittedVxc();
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
     virtual std::ostream& Write(std::ostream&) const;
 private:
@@ -225,8 +225,8 @@ private:
 };
 
 //! Exchange-correlation term on an ATOM-CENTRED real-space quadrature (doc/GPWPlan1.md "Becke XC grid") --
-//! the real-space sibling of PW_XC, carrying ONE LDA functional per instance (build a Dirac + a VWN term,
-//! exactly like PW_XC).  The XC field is pointwise-nonlinear and sharp at the cores -- the one term the
+//! the real-space sibling of PWFittedVxc, carrying ONE LDA functional per instance (build a Dirac + a VWN term,
+//! exactly like PWFittedVxc).  The XC field is pointwise-nonlinear and sharp at the cores -- the one term the
 //! uniform FFT raster serves poorly for diffuse bases (a diffuse pair x sharp field is a two-scale
 //! integrand; the atom-centred mesh is dense at the cores and its point count never scales with a
 //! function's diffuse reach).  Here \f$\rho(r)\f$ is evaluated ANALYTICALLY at each mesh point straight
@@ -235,7 +235,7 @@ private:
 //! applied per point, and \f$\langle i|v_{xc}|j\rangle = \Phi^\dagger\,\mathrm{diag}(w\,v_{xc})\,\Phi\f$
 //! over the engine's cached basis table.  Hartree stays on the uniform G-space grid -- this term swaps
 //! ONLY the XC quadrature.  The QUADRATURE ENGINE below is SHARED by the exchange and correlation term
-//! (exactly how the PW_XC pair shares one Vxc fit basis).
+//! (exactly how the PWFittedVxc pair shares one Vxc fit basis).
 
 //! \brief The shared quadrature engine of the Becke XC pair: the mesh, the per-Bloch-block cached basis
 //! tables \f$\Phi_{gi}=\chi_i(r_g)\f$ (GEOMETRY-FIXED -- built once per run per block, keyed by
@@ -286,14 +286,14 @@ private:
     size_t itsPolVersion=size_t(-1);              //!< density serial the {↑,↓} pair was built for
 };
 
-class Delta_XC
+class DeltaFittedVxc
     : public virtual cDynamic_HT
     , private        cDynamic_HT_Imp
 {
 public:
     typedef std::shared_ptr<ExFunctional> xc_t;
     typedef std::shared_ptr<XC_GridEngine> engine_t;
-    Delta_XC(const xc_t&, engine_t);
+    DeltaFittedVxc(const xc_t&, engine_t);
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
     virtual std::ostream& Write(std::ostream&) const;
 private:
@@ -309,14 +309,14 @@ private:
 //! \c Spin::Up)) serves both channels: the Fock build calls \c CalcMatrix per spin block and each fits
 //! \f$v_x^\sigma=v_x(\rho_\sigma)\f$; \f$E_x=\sum_\sigma\int\epsilon_x(\rho_\sigma)\rho_\sigma\f$.
 //! Shares the pair's ONE \c XC_GridEngine with the correlation term, exactly like the unpolarized pair.
-class Delta_XC_Pol
+class DeltaFittedVxcPol
     : public virtual cDynamic_HT
     , private        cDynamic_HT_Imp
 {
 public:
     typedef std::shared_ptr<ExFunctional>  xc_t;
     typedef std::shared_ptr<XC_GridEngine> engine_t;
-    Delta_XC_Pol(const xc_t&, engine_t);
+    DeltaFittedVxcPol(const xc_t&, engine_t);
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
     virtual bool          IsPolarized() const {return true;}
     virtual std::ostream& Write(std::ostream&) const;
@@ -333,14 +333,14 @@ private:
 //! face against BOTH channel rasters at each mesh point; \f$E_c=\int\epsilon_c(\rho_\uparrow,\rho_\downarrow)
 //! (\rho_\uparrow+\rho_\downarrow)\f$.  The spin-agnostic seed collapses inside \c XC_GridEngine::RhoPol
 //! (\f$\rho_\sigma=\rho/2\f$), so no term-side fallback is needed.
-class Delta_VcorrPol
+class DeltaFittedVcorrPol
     : public virtual cDynamic_HT
     , private        cDynamic_HT_Imp
 {
 public:
     typedef std::shared_ptr<SpinCorrelation> corr_t;
     typedef std::shared_ptr<XC_GridEngine>   engine_t;
-    Delta_VcorrPol(const corr_t&, engine_t);
+    DeltaFittedVcorrPol(const corr_t&, engine_t);
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
     virtual bool          IsPolarized() const {return true;}
     virtual std::ostream& Write(std::ostream&) const;

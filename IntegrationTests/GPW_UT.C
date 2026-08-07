@@ -739,7 +739,7 @@ TEST(GPW, StreamFoldReducedMatchesFull_SiDiamond_HalfK)
 
 // XC POTENTIAL-CONSISTENCY PROBE (doc/GPWPlan.md 0b instrument).  Question under test: is the assembled
 // H_xc the EXACT D-derivative of the DISCRETE energy E_xc(D) = Sum_q w [eps_x+eps_c](rho_q) rho_q, where
-// rho_q is the ball-limited grid density of the SCF's own chain?  The probe replicates the PW_XC term's
+// rho_q is the ball-limited grid density of the SCF's own chain?  The probe replicates the PWFittedVxc term's
 // route verbatim at the evaluator level (collocate -> nested {G_L} combine -> RhoOnGrid; v_xc pointwise ->
 // raster ForwardFFT -> per-level restriction -> analytic IntegratePotential) and compares the central
 // finite difference  [E_xc(D+h dD) - E_xc(D-h dD)]/2h  against  Re Tr(H_xc(D) dD).
@@ -763,16 +763,16 @@ TEST(GPW, XCPotentialConsistencyFD)
     const auto& grid=ev.DensityGrid();
     const size_t n=static_cast<const Complex_OIBS&>(gpw).GetNumFunctions();
 
-    // The SCF's own functionals (Ham_PW_DFT::BuildTerms builds exactly these two PW_XC terms).
+    // The SCF's own functionals (Ham_PW_DFT::BuildTerms builds exactly these two PWFittedVxc terms).
     qchem::Hamiltonian::SlaterExchange  exch(2.0/3.0);
     qchem::Hamiltonian::VWN_Correlation corr;
     const qchem::Hamiltonian::ExFunctional* xcs[2]={&exch,&corr};
 
-    G_ERI3 ov =ev.Overlap3CTensor();                     // rho-tilde (no kernel) -- the PW_XC route
+    G_ERI3 ov =ev.Overlap3CTensor();                     // rho-tilde (no kernel) -- the PWFittedVxc route
     G_ERI3 cou=ev.Repulsion3CTensor();                   // V_H (Coulomb kernel baked) -- the control
 
     auto rhoOf=[&](const chmat_t& D)->rvec_t { return grid.RhoOnGrid(ContractG_ERI3(ov,D)); };
-    auto Exc=[&](const rvec_t& rho)->double              // == PW_XC::GetEnergy (both terms)
+    auto Exc=[&](const rvec_t& rho)->double              // == PWFittedVxc::GetEnergy (both terms)
     {
         rvec_t e(rho.size());
         for (size_t q=0;q<rho.size();q++)
@@ -782,7 +782,7 @@ TEST(GPW, XCPotentialConsistencyFD)
         }
         return grid.Integral(e);
     };
-    auto Hxc=[&](const rvec_t& rho)->chmat_t             // == PW_XC::CalcMatrix (both terms summed)
+    auto Hxc=[&](const rvec_t& rho)->chmat_t             // == PWFittedVxc::CalcMatrix (both terms summed)
     {
         rvec_t v(rho.size());
         for (size_t q=0;q<rho.size();q++)
