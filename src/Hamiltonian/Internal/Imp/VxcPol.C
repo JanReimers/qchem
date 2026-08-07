@@ -38,7 +38,12 @@ VxcPol::~VxcPol() { delete itsUpVxc; delete itsDownVxc; }
 
 const rsmat_t& VxcPol::GetMatrix(const robs_t* bs,const Spin& s,const rChargeDensity* cd,const rbs_t* wholeBasis) const
 {
-    if (s==Spin::None) { std::cerr << "VxcPol::GetMatrix: unpolarized spin in a polarized term" << std::endl; exit(-1); }
+    // A polarized term has no Spin::None block to hand back -- and the caller has to be able to SEE that
+    // (R2.5: exit(-1) killed the pybind GUI and the test runner outright, taking the diagnostic with it).
+    if (s==Spin::None)
+        throw std::runtime_error("VxcPol::GetMatrix: asked for the Spin::None (unpolarized) block of a "
+                                 "polarized exchange term -- a polarized term has an Up and a Down block, "
+                                 "no total.");
     const Polarized_CD* pcd = dynamic_cast<const Polarized_CD*>(cd);
     assert(pcd && "VxcPol: density must be polarized");
     const rDM_CD* SpinCD = pcd->GetChargeDensity(s);   // this spin's density

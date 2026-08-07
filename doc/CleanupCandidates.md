@@ -352,18 +352,43 @@ in the same session.
   `Integrals_Pseudo<dcmplx>`, PWTerms.C:46); SCFIterator.C:30-31 imports of
   FourierDensity/FourierMixCD are stale (not consumers); PWTerms.C:59-60 false cache comment dies
   with R2.2.
-- **R2.5 `exit(-1)` in library code → throw** (5 sites): Imp/LDAVxc.C:33-43 (dies with R2.6),
-  Imp/FittedVxcPol.C:49-53, Imp/VxcPol.C:41, and `tPolarized_CD::MixIn`/`GetChangeFrom`
+- **R2.5 ⚗️ HAMILTONIAN HALF DONE (3 of 5 sites); the 2 ChargeDensity sites remain. `exit(-1)` in library code → throw** (5 sites): ~~Imp/LDAVxc.C:33-43 (dies with R2.6),
+  Imp/FittedVxcPol.C:49-53, Imp/VxcPol.C:41~~, and `tPolarized_CD::MixIn`/`GetChangeFrom`
   (Imp/ChargeDensity.C:149-167 — also an LSP narrowing: accepts any tDM_CD, requires Polarized).
   Contrast the correct pattern at Imp/HF_HT.C:28-30.  These kill the pybind GUI / test runner.
   Fold into the D7 cast-survey custom-exception work.
-- **R2.6 The `LDAVxc` bundle** — a "Hamiltonian term" whose `CalcMatrix`/`GetEnergy` call
+  **DONE 2026-08-07:** LDAVxc's two died with the class (R2.6); FittedVxcPol/VxcPol now
+  `throw std::runtime_error` naming the Spin::None-on-a-polarized-term mistake.  `qcHamiltonian` is now
+  `exit()`-free.  **STILL OPEN: the two `tPolarized_CD` sites in qcChargeDensity** — left deliberately,
+  because their fix is not just a throw: the LSP narrowing (the signature accepts any `tDM_CD` but the
+  body requires a Polarized) is the actual defect, and that is V1.6/V1.8's seam.
+- **R2.6 ✅ DONE 2026-08-07. The `LDAVxc` bundle** — a "Hamiltonian term" whose `CalcMatrix`/`GetEnergy` call
   `exit(-1)`; its only real job is `GetScalarFunction()` (the fit callback).  `FittedVxc` holds it
   as a raw OWNING pointer to the CONCRETE class (Terms.C:291, DIP violation);
   `tFittablePotential` (HamiltonianTerm.C:113-119) exists solely for it; `FittedVxc::
   UseChargeDensity` is dead (overrides nothing, no caller — `newCD()` already triggers the refit).
   One fix kills all four: collapse LDAVxc to a plain `Fitting::ProjectedScalar_R` adapter, hold as
   `unique_ptr<ProjectedScalar_R>`, delete `tFittablePotential`.
+  **All four verified before the cut, and all four are gone.**  The module
+  `qchem.Hamiltonian.Internal.LDAVxc` is DELETED outright (both TUs + the two CMake entries); LDAVxc had
+  exactly one user in the whole tree, `FittedVxc`.
+  - **Went one step further than the plan, for free.**  Rather than an adapter that hands the fitter the
+    `ExFunctional` (what LDAVxc did), the adapter SELF-EVALUATES: `VxcDensity{ex,cd}` returning
+    `ex->GetVxc((*cd)(r))`, an exact mirror of the `EpsXcDensity` already sitting beside it (and of
+    FittedVcorrPol's `PolVcDensity`/`PolEpsCDensity` pair).  Verified byte-identical first: ALL THREE
+    `ExFunctional` subclasses define `operator()(r)` as literally `GetVxc((*itsChargeDensity)(r))`
+    (SlaterExchange, VWN_Correlation, Libxc_LDA).  The V and E fields are now visibly the same shape,
+    differing in one method call.
+  - **Consequence worth acting on: this makes V1.13 a DELETION rather than a redesign.**
+    `ExFunctional::InsertChargeDensity` now has ZERO callers tree-wide (it had exactly one, in LDAVxc),
+    so `itsChargeDensity` is never set and the whole FIELD face of `ExFunctional`
+    (`operator()`, `Gradient`, the member) is dead code.  The fitter reaches the field through the
+    adapters instead, which take the density as a ctor argument — the hidden-init landmine V1.13
+    describes cannot happen on this path any more.  NOT deleted here: removing the field face means
+    `ExFunctional` stops being a `ScalarFunction<double>`, which IS V1.13's value-face/field-face split,
+    and it also retires `SlaterExchange::Gradient`.  Do it as V1.13, now cheap and compiler-verifiable.
+  - Not touched (still V1.13): `SetPolarized`/`isPolarized` (still no caller, so `isPolarized` is still
+    permanently true).
 - **R2.7 `FittedCD::Clone()` — delete.**  Pure virtual (FittedCD.C:28) whose SOLE implementation
   asserts false and returns nullptr (Imp/FittedCDImp.C:58-64).  Dead contract clause; restore when
   the polarized-from-unpolarized path exists (real blocker per the assert message: a cloneable
@@ -672,7 +697,16 @@ in the same session.
   `isPolarized` is permanently true and Gradient's unpol branch is dead; meanwhile GetVxc branches
   on a DIFFERENT flag (SlaterExchange::itsSpin).  Split the value face (GetVxc/GetEpsXc(ρ)) from
   the field face; polarized = a type, not a bool (the `SpinCorrelation` face below it is the
-  correct data-free shape).  (Coordinate with R2.6 — LDAVxc is the only setter caller.)
+  correct data-free shape).  ~~(Coordinate with R2.6 — LDAVxc is the only setter caller.)~~
+  **PROMOTED after R2.6 landed (2026-08-07): this is now a DELETION, not a redesign.**  R2.6 removed the
+  ONLY caller of `InsertChargeDensity` (it was `LDAVxc::UseChargeDensity`), so `itsChargeDensity` is never
+  set and the entire FIELD face — `ExFunctional::operator()`, `Gradient`, the member — is dead tree-wide.
+  The fitter now reaches the field through the `VxcDensity`/`EpsXcDensity` adapters, which take the density
+  as a CTOR ARGUMENT, so the hidden init cannot recur.  Executing it = delete the member + the two
+  virtuals + `InsertChargeDensity`, drop `ExFunctional`'s `ScalarFunction<double>` base, and retire
+  `SlaterExchange::Gradient` (its only reason to exist was that face).  The COMPILER verifies the claim:
+  anything still needing the field face fails to build.  `SetPolarized`/`isPolarized` (still callerless,
+  hence permanently true) rides along in the same pass.
 - **V1.14 Report-emission creep on neutral faces + global bool toggles** — `EmitBasisUsage`
   (WaveFunction.C:48, defaulted no-op), `EmitRadialReport` (IrrepBasisSet.C:68), `EmitGridReport`
   (G_FieldEvaluator.C:60, PURE — forces every implementor), plus function-local-static

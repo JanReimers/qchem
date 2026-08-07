@@ -21,7 +21,6 @@ target_sources(qcHamiltonian PRIVATE
     Internal/Imp/ExchangeFunctional.C  
     Internal/Imp/SlaterExchange.C 
     Internal/Imp/Libxc_LDA.C
-    Internal/Imp/LDAVxc.C
     )
 target_sources(qcHamiltonian PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES 
     Energy.C  
@@ -35,7 +34,6 @@ target_sources(qcHamiltonian PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FIL
     Internal/SlaterExchange.C
     Internal/VWN_Correlation.C
     Internal/Libxc_LDA.C
-    Internal/LDAVxc.C
     Internal/IonIon.C
     Internal/Kinetic.C
     Internal/Terms.C

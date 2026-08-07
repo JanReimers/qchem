@@ -3,6 +3,7 @@ module;
 #include <cassert>
 #include <iostream>
 #include <memory>
+#include <stdexcept>
 #include <vector>
 module qchem.Hamiltonian.Internal.Terms;
 import qchem.ChargeDensity;
@@ -46,11 +47,12 @@ rsmat_t FittedVxcPol::CalcMatrix(const robs_t* bs,const Spin& s,const rChargeDen
     assert(itsUpVxc);
     assert(itsDownVxc);
 
-    if  (s==Spin::None)
-    {
-        std::cerr << "PolarizedFittedVxc::GetMatrix Asking for unpolarized result in Polarized Vxc" << std::endl;
-        exit(-1);
-    }
+    // A polarized term has no Spin::None block to hand back -- and the caller has to be able to SEE that
+    // (R2.5: exit(-1) killed the pybind GUI and the test runner outright, taking the diagnostic with it).
+    if (s==Spin::None)
+        throw std::runtime_error("FittedVxcPol::CalcMatrix: asked for the Spin::None (unpolarized) block of "
+                                 "a polarized Vxc term -- a polarized term has an Up and a Down block, no "
+                                 "total.");
     const Polarized_CD* pol_cd =  dynamic_cast<const Polarized_CD*>(cd);
     if (!pol_cd)
     {

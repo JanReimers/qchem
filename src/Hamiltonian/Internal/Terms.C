@@ -9,7 +9,6 @@ module;
 export module qchem.Hamiltonian.Internal.Terms;
 import qchem.Hamiltonian.Internal.Term;
 import qchem.Hamiltonian.Internal.ExFunctional;
-import qchem.Hamiltonian.Internal.LDAVxc;     // LDAVxc (the v_xc fit client held by FittedVxc)
 import qchem.Structure;
 import qchem.Fitting.FunctionFitter;          // Fitting::FunctionFitter (composed; clients never see the impl)
 import qchem.ChargeDensity;
@@ -243,8 +242,8 @@ private:
 
 //###############################################################################
 //
-//  Linear least squares fit the unpolarized and polarized exchange-correlation potential.  The fit basis set is inserted by the
-//  constructor and is not owned by FittedVxc.  The XC functional is owned by the inner LDAVxc.
+//  Linear least squares fit the unpolarized and polarized exchange-correlation potential.  The fit basis set
+//  is inserted by the constructor and is not owned by FittedVxc; the XC functional IS owned (shared) here.
 //
 //  TWO fits, on the SAME fit basis (so the 3-centre integrals are computed once):
 //    V (GetMatrix / CalcMatrix) fits the POTENTIAL v_xc(rho(r))       -> the Fock/KS block.
@@ -268,17 +267,14 @@ public:
     virtual void          GetEnergy       (EnergyBreakdown&,const rDM_CD*) const;
     //! The ENERGY block: re-fits eps_xc for this density and returns Sum_a c_a <Oi|f_a|Oj> for contraction.
     virtual const rsmat_t& GetEMatrix(const robs_t*,const Spin&,const rChargeDensity* cd) const override;
-    virtual void          UseChargeDensity(const rChargeDensity*);
     virtual std::ostream& Write           (std::ostream&) const;
 private:
     virtual rsmat_t CalcMatrix(const robs_t*,const Spin&,const rChargeDensity*) const;
 
-    std::unique_ptr<Fitting::FunctionFitter_Scalar<double>> itsFitter; //!< COMPOSED v_xc fit (was inherited)
-    LDAVxc* itsLDAVxc;   //!< the v_xc=Vxc(rho) function to fit (concrete: it IS the ScalarFFClient)
-    //  --- the energy (eps_xc) fit: same fit basis, different coefficients ---
-    std::unique_ptr<Fitting::FunctionFitter_Scalar<double>> itsEpsFitter;
-    ex_t                itsEx;                       //!< the functional supplying eps_xc (shared with itsLDAVxc)
-    mutable rsmat_t     itsEpsMat;
+    ex_t itsEx;   //!< the XC functional (owned, shared): supplies BOTH GetVxc (V) and GetEpsXc (E)
+    std::unique_ptr<Fitting::FunctionFitter_Scalar<double>> itsFitter;    //!< V: the v_xc fit
+    std::unique_ptr<Fitting::FunctionFitter_Scalar<double>> itsEpsFitter; //!< E: the eps_xc fit (same fit basis)
+    mutable rsmat_t     itsEpsMat;                   //!< GetEMatrix's returned block
     mutable size_t      itsEpsVersion=size_t(-1);    //!< density serial the eps_xc fit was last computed for
 };
 

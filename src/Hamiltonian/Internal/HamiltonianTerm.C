@@ -108,20 +108,16 @@ protected:
     mutable hmat_t<T> itsMat;
 };
 
-// A density-dependent Hamiltonian potential term.  (No longer a Fitting::ScalarFFClient -- the
-// "I can answer the fitter's questions" role belongs on the concrete LDAVxc, not this term interface.)
-template <class T> class tFittablePotential
-    : public virtual tDynamic_HT<T>
-{
-public:
-    virtual void UseChargeDensity(const tChargeDensity<T>*)       =0;
-};
+// tFittablePotential is GONE (R2.6).  It existed for exactly one derivation, LDAVxc, whose only real job
+// was to answer the fitter's "what field am I fitting?" question -- and which had to fake CalcMatrix and
+// GetEnergy (both exit(-1)) to pay for being a tDynamic_HT at all.  A fittable field is now expressed as
+// what it IS, a Fitting::ProjectedScalar_R adapter holding (functional, density), built where it is used
+// (Imp/FittedVxc.C's VxcDensity / EpsXcDensity pair).  No term interface is involved.
 
 // r* = <double>, c* = <dcmplx> (mirrors rsmat_t/chmat_t).
 using rHT_Common              = tHT_Common<double>;              using cHT_Common              = tHT_Common<dcmplx>;
 using rStatic_HT_Imp          = tStatic_HT_Imp<double>;          using cStatic_HT_Imp          = tStatic_HT_Imp<dcmplx>;
 using rDynamic_HT_Imp         = tDynamic_HT_Imp<double>;         using cDynamic_HT_Imp         = tDynamic_HT_Imp<dcmplx>;
 using rDynamic_HT_Imp_NoCache = tDynamic_HT_Imp_NoCache<double>; using cDynamic_HT_Imp_NoCache = tDynamic_HT_Imp_NoCache<dcmplx>;
-using rFittablePotential      = tFittablePotential<double>;      using cFittablePotential      = tFittablePotential<dcmplx>;
 
 } //namespace
