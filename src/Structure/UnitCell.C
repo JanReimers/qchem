@@ -11,7 +11,7 @@ import qchem.Structure;
 import qchem.Matrix3D;
 import qchem.Streamable;
 import qchem.Mesh;        // qcMesh::Mesh / MeshParams (the CreateIntegrationMesh override)
-import qchem.Symmetry.Lattice_3D.Fold;   // SymOp {W|τ} (the site-adapted Becke mesh's imposed ops)
+import qchem.Symmetry.SymOp;              // Symmetry::SymOp {W|τ} (the site-adapted Becke mesh's imposed ops)
 
 namespace qchem {
 
@@ -69,11 +69,13 @@ public:
     //! a preconditon the parameter should carry -- while "SiteAdapted" named one of the two strategies,
     //! which is an implementation detail the caller should not have to choose.  \a ops present is what
     //! distinguishes this from the plain overload; that is what the signature should say.
-    //! \note Still \c UnitCell-only, because \a ops is a \c Lattice_3D type.  A site-adapted MOLECULAR
-    //! mesh is equally meaningful (user), and hoisting this to \c Structure needs a structure-neutral op
-    //! type first -- see the worklist item.
+    //! \note \a ops is the STRUCTURE-NEUTRAL \c Symmetry::SymOp (R2.17.3): a site-adapted mesh is
+    //! equally meaningful for a molecule, whose point-group ops are just the \f$\tau=0\f$ case, so the
+    //! argument type must not be crystal-specific.  The METHOD stays on \c UnitCell for now -- there is
+    //! no molecular implementation yet and inventing one unused would be speculative; when one is
+    //! wanted, this signature is already the neutral one to hoist onto \c Structure.
     qcMesh::Mesh CreateIntegrationMesh(const qcMesh::MeshParams&,
-                                       const std::vector<Symmetry::Lattice_3D::SymOp>& ops) const;
+                                       const std::vector<Symmetry::SymOp>& ops) const;
 
     //! \brief Add an atom of nuclear charge \a Z at FRACTIONAL cell coordinates \a f (\f$r=Af\f$).
     //! Convenience over Insert(new Atom(Z, ToCartesian(f))) so a crystal basis can be specified in

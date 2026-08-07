@@ -249,7 +249,7 @@ qcMesh::Mesh MakePeriodicBeckeMesh(const UnitCell& cell, const qcMesh::MeshParam
 // partition computed on the final point set (a geometric function of the atom distances, so the weights
 // inherit the invariance).
 qcMesh::Mesh UnitCell::CreateIntegrationMesh(const qcMesh::MeshParams& mp,
-                                             const std::vector<Symmetry::Lattice_3D::SymOp>& ops) const
+                                             const std::vector<Symmetry::SymOp>& ops) const
 {
     namespace SL = Symmetry::Lattice_3D;
     assert(!ops.empty());

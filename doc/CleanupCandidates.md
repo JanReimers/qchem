@@ -571,9 +571,27 @@ in the same session.
      `mp.cellKind` to pick site-adapted-vs-group-average — a BASIS deciding how a STRUCTURE builds its own
      mesh.  That branch moved INTO the overload, so the basis now just asks for "a mesh invariant under
      these ops" and the cell owns how.  Same altitude error as V1.10b's mixer and R2.16's runtime probes.
-  3. ⏳ **`std::vector<Symmetry::Lattice_3D::SymOp>` is structure-specific, but a site-adapted MOLECULAR
-     mesh is equally plausible** (user).  Correct, and this is the one that needs a decision, so the
-     overload stays `UnitCell`-only for now.  What blocks it:
+  3. ✅ **DONE — USER CHOSE (a)+(c) 2026-08-07.  `std::vector<Symmetry::Lattice_3D::SymOp>` is
+     structure-specific, but a site-adapted MOLECULAR mesh is equally plausible** (user).
+     **(a) the TYPE is promoted:** `SpinAction` + `SymOp` moved out of `Symmetry/Lattice_3D/Fold.C` into a
+     new root module `qchem.Symmetry.SymOp` (`src/Symmetry/SymOp.C`, namespace `qchem::Symmetry`), beside
+     `Irrep.C`/`Spin.C` — the root holds what all three structure families share.  `Lattice_3D` ALIASES
+     both, so every existing `Symmetry::Lattice_3D::SymOp` spelling still compiles unchanged (23 files
+     untouched).  `UnitCell::CreateIntegrationMesh(mp, ops)` now takes the neutral spelling, which was the
+     whole point: the signature is no longer crystal-specific.
+     **(c) the METHOD stays on `UnitCell`:** there is no molecular implementation yet and inventing an
+     unused one would be speculative.  When one is wanted, this signature is already the neutral one to
+     hoist onto `Structure`.
+     **User notes worth keeping:** τ=0 for molecular point groups is fine ("we are not fighting
+     performance or RAM problems with this code") — a point group fixes a point, so it HAS no translation
+     part, and a consumer that Cartesianises via A·W·A⁻¹ needs no special case because a molecule's A is I.
+     And on atoms: a finite op list genuinely cannot represent a closed-shell atom's continuous O(3)
+     symmetry — "we are into Lie groups" — but nothing in the code asks it to.  Discrete ops are exactly
+     right for a symmetry-broken/stretched configuration or for a site group inside a crystal; the
+     continuous case is served by the `Symmetry::Atom` spherical machinery, which works in (l,m) instead of
+     enumerating operations.  That caveat is now recorded on the struct so nobody later tries to enumerate
+     O(3) for an atom.
+     *(The findings that shaped the choice:)*
      - The builder needs BOTH the linear part and a translation (`op.W`, `op.tau`) — a screw axis or glide
        plane has a nonzero τ that decides which atoms share an orbit.  So a plain
        `std::vector<Matrix3D<double>>` of Cartesian rotations LOSES information the crystal needs; the

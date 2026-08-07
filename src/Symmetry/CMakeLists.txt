@@ -27,6 +27,7 @@ target_sources(qcSymmetry PRIVATE
 target_sources(qcSymmetry PUBLIC FILE_SET all_my_modules TYPE CXX_MODULES FILES
     # --- root: shared sym_t spine ---
     Spin.C
+    SymOp.C
     Symmetry.C
     Irrep.C
     Orbital_QNs.C

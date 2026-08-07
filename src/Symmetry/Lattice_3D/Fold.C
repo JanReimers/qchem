@@ -18,39 +18,18 @@ module;
 export module qchem.Symmetry.Lattice_3D.Fold;
 export import qchem.Types;       // ivec3_t, rvec3_t
 export import qchem.Matrix3D;    // Matrix3D
+export import qchem.Symmetry.SymOp;   // SymOp / SpinAction (structure-neutral; aliased below)
 
 export namespace qchem::Symmetry::Lattice_3D
 {
 
-//! \brief Spin action carried by a magnetic (Shubnikov) group operation: a plain spatial op
-//! leaves the spin channels alone; an op paired with time reversal swaps them (and, on the
-//! G-side, conjugates: \f$\tilde\rho(-G)=\tilde\rho(G)^*\f$).  Declared HERE, next to the op
-//! type, so every fold consumer is drawn against the spin-native shape from the start
-//! (doc/SymmetryUpgradePlan.md §4 tier 4a) -- unpol is the \f$\zeta=0\f$ collapse, not the
-//! design case.  Purely spatial folds ignore it: \f$\sigma\f$ acts on FIELD channels, never
-//! on the point geometry.
-//!
-//! NON-COLLINEAR heads-up (plan §4/§9): this enum is itself the COLLINEAR collapse of the
-//! general spin action.  A spin-space-group op carries a spin ROTATION -- \f$R_s\in SO(3)\f$
-//! on the magnetization 3-vector \f$m(r)\f$, equivalently an SU(2) action on the \f$2\times2\f$
-//! spinor density -- with time reversal = \f$m\to-m\f$ + conjugation; {None, Flip} is that
-//! action restricted to a fixed quantization axis (spirals/canted orderings need the full
-//! rotation).  When non-collinear lands, \f$\sigma\f$ grows into that rotation type; consumers
-//! must not bake "two scalar channels" into interfaces beyond the collinear tier.
-enum class SpinAction { None, Flip };
-
-//! \brief A generic symmetry operation \f${W|\tau}\f$ for the fold primitives.  \a W is the
-//! linear part in the acting space's fractional basis (an integer-valued matrix: the
-//! direct-space \f$W\f$ for {r} folds, the reciprocal \f$U\f$ for {G}/{k} folds); \a tau is
-//! the fractional translation.  \a tau ACTS on direct-space points (\f$r \to W r + \tau\f$,
-//! so a bare matrix cannot fold a non-symmorphic raster), while for {G}/{k} folds it enters
-//! only as the edge PHASE \f$e^{+2\pi i\,m\cdot\tau}\f$ recovered via \c Fold::members.
-struct SymOp
-{
-    Matrix3D<double> W;                        //!< Linear part (integer-valued) in the acting space.
-    rvec3_t          tau;                      //!< Fractional translation.
-    SpinAction       sigma = SpinAction::None; //!< Shubnikov spin action (\f$\sigma\f$), §4 tier 4a.
-};
+// SpinAction and SymOp were promoted to the structure-NEUTRAL qchem.Symmetry.SymOp (R2.17.3): the
+// operation {W|tau} is not a crystal concept -- a molecule's point group is the tau=0 case -- and living
+// in this folder made every signature that took one look crystal-specific.  Aliased here so that every
+// existing Symmetry::Lattice_3D::SymOp / ::SpinAction spelling keeps working unchanged; the fold
+// primitives below are, and remain, lattice-specific (they fold on the fractional torus).
+using qchem::Symmetry::SpinAction;
+using qchem::Symmetry::SymOp;
 
 //! \brief The product of a fold: a partition of the raw point set into symmetry orbits,
 //! pure combinatorics -- no typed container, no weights, no phases.  "Raw index" is the
