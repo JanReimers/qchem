@@ -78,6 +78,29 @@ code verification.  User prose retained (typos fixed only); user replies of 2026
      (Claude: the closest GoF name is **Observer** — a callback interface owned by the lower layer;
      in modern terms simply a "callback interface".)
 
+### A heuristic that earned its keep (2026-08-07 session)
+
+**When a candidate "special case" turns out to be SIMPLER than the general case, it is not a special case
+-- it is the general case with terms set to zero.  When it needs machinery the general case does not have,
+it is real.**
+
+Four times in one session the apparent asymmetry was an artifact of naming or placement, not physics:
+- `InsertStandardTerms` -- the axis was never double/dcmplx; `Ham_PP` is `<double>` and was already on the
+  other side.  The generalization extended FURTHER than the code assumed (R2.8).
+- `Symmetry::SymOp` -- already generic; only its ADDRESS was crystal-specific (R2.17.3).
+- `PW_Hartree` -- not "a Hartree term that also does electron-ion", just two terms wearing one name (R2.14).
+- a site-adapted mesh for an ATOM -- looked like a degenerate case wanting a stub; is the EASIEST genuine
+  case (one orbit, τ=0, A=I, no torus), so the implementation is three lines and correct (R2.17.3).
+
+The control case, so this does not decay into "everything generalizes": **`PW_XC`'s seed exception is
+REAL.**  A matrix-free density has no D, so ρ_DM=φᵀDφ does not exist -- no amount of zeroing produces it,
+and it needed actual machinery (the route latch, R2.16).  That is what a true special case looks like.
+
+Practical use: when an item asks "does this extend to all structure types?", write out what the candidate
+exception would COST.  Cheaper than the general case ⇒ fold it in.  More expensive ⇒ it is genuinely
+different, and the capability belongs on the types that have it (the `tSpinResolved_CD` idiom), NOT on the
+base with a stub.
+
 There are 6 other principles related to package cohesion and coupling.  My experience is that the
 first 5 are the most commonly misunderstood and misapplied.
 
