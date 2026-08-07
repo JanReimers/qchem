@@ -526,6 +526,23 @@ in the same session.
       was the flagged risk.  667/667 green, all GPW anchors unmoved.
   - `Delta_XC` → e.g. `DeltaFittedVxc` (it IS a FittedVxc with a δ-function fit basis); rename
     along with the V2.1 decision.
+  - **`PW_XC` — the LAST `PW_`-prefixed term after the 2026-08-07 renames.  USER ASKED (2026-08-07): is
+    "PW" correct, and does it mean the PW ORBITAL basis or the PW FIT basis?  Answer: the FIT basis — and
+    the name is wrong the same way "Becke" was in R2.13, i.e. attached to the wrong noun.**  Verified:
+    - **fit basis: genuinely must be orthonormal G-space.**  `Fitting::Factory(cFIT_SF_ABS)` ASSERTS
+      `bs->isOrtho()` (Imp/FunctionFitter.C:56) and returns a `GriddedScalarFitter`, which OWNS the FFT
+      quadrature grid — `Grid()` needs a `G_FieldEvaluator`.  So the fit is a projection (no metric solve)
+      AND the quadrature is the FFT on that basis's own raster; both follow from the fit basis.
+    - **orbital basis: NOT plane-wave.**  `CalcMatrix` needs only a `Band_FT_IBS` (G-space 3-centre
+      tensors), which BOTH `PlaneWave_IBS` and `GPW_IBS` implement.  Decisive: `GPW_IBS::
+      CreateVxcFitBasisSet` returns a `PlaneWaveFit_IBS`, so GPW — GAUSSIAN orbitals — feeds a plane-wave
+      fit basis to this term.  (The Answered-questions section already recorded "yes, GPW uses it".)
+    - **density:** a `FourierDensity`.  Also not a PW-specific requirement.
+    - **Proposed name, symmetric with the `Delta_XC` line above: `PWFittedVxc`.**  Then the family reads as
+      "FittedVxc + WHICH FIT BASIS": `FittedVxc` (Gaussian aux) / `DeltaFittedVxc` (δ-functions) /
+      `PWFittedVxc` (plane waves) — and "PW" modifies the noun it is actually true of.
+    - **Sequence:** do it WITH the `Delta_XC` rename (V2.1), not before — renaming one of a matched pair
+      leaves the family less consistent than it is now.
 - **R2.16 Construction-time facts re-asked at RUN time (USER PRINCIPLE, 2026-08-07).**
   **User ruling:** *"I much prefer that the whole Hamiltonian is decided and fixed at construction time.
   The only dynamic aspect is the ChargeDensity that we feed it."*  Survey done while splitting the PW
