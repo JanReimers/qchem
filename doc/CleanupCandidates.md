@@ -690,7 +690,49 @@ in the same session.
        as-is until a molecular site-adapted mesh is actually wanted.
      - Note the site-stabilizer TEST also differs (torus metric mod 1 for a crystal, plain distance for a
        molecule) — but that is implementation, and belongs in each override, not in the argument type.
-- **R2.15 `nAngular` → degree-typed angular interface.**  `nAngular` is a COUNT for Lebedev but a
+- **R2.15 ⚗️ GROUNDWORK DONE 2026-08-07 (the degree MEASUREMENT test); the interface change + default flip
+  still need the decisions below.  `nAngular` → degree-typed angular interface.**
+  **USER 2026-08-07: agrees degree should be the canonical knob.**  Four things still to settle, then the
+  work is mechanical:
+  1. **Resolution policy: round UP.**  The available Lebedev degrees are sparse and irregular
+     (0,1,3,3,5,7,8,11,15,17,19,21,23,29,31,35), so a requested degree usually is not in the table.
+     Round-up is the only defensible rule -- it guarantees AT LEAST the requested exactness; nearest or
+     round-down can silently under-integrate.
+  2. **The degree collisions.**  `nDir` 1 and 2 both sit at the bottom (degrees 0 and 1) and 6 and 8 BOTH
+     measure degree 3 -- so degree→count is not invertible.  Round-up + cheapest-wins resolves it
+     (degree 3 → the 6-point rule), which makes the 8-point rule unreachable.  Nothing uses it; confirm.
+  3. **`EulerMaclaren` has NO degree at all -- so `angularDegree` would be a LIE for it.**  Its θ rule is a
+     transformed trapezoid (the `m∈{1,2,3}` clustering kills endpoint derivatives -- the Euler-Maclaurin
+     trick), which buys asymptotic CONVERGENCE for smooth integrands, never exactness.  MEASURED degree is
+     **−1**: it cannot integrate even the constant to 1e-10, because its weights only sum to 4π
+     approximately.  The tree already said so in three places (MolecularMeshTests.C:216, GPW_SCF_UT.C:2089,
+     MeshPrimitives.C:130).  So the item's premise "a DEGREE for GL/EM" is wrong -- there are THREE
+     semantics on one field: Lebedev=COUNT, GL=DEGREE, EM=RESOLUTION.  Decide: exclude EM from the
+     degree-typed face, or RETIRE it (nothing selects it in production -- it appears only in its own
+     tests, and GL already gives arbitrary L WITH exactness at the same ~L²/2 product-grid cost).
+  4. **The default flip is SEPARATE** -- it changes every unpinned run's numbers.  Land the type change
+     first (behaviour-preserving), then flip with the measurement.
+  **The rename is what makes the migration safe:** `nAngular` → `angularDegree` breaks every designated
+  initializer `.nAngular=`, so the compiler forces a visit to each call site; each Lebedev site then
+  converts to the degree reproducing today's grid exactly (table lookup ⇒ bit-identical), and GL/EM sites
+  are unchanged.
+  **✅ GROUNDWORK LANDED: `Mesh_AngularDegree` (4 tests, src/Mesh/tests/MeshPrimitives.C).**  Degree-typing
+  makes each rule's degree LOAD-BEARING -- it stops being a comment and becomes the contract -- so the
+  degrees are now MEASURED, monomial-by-monomial against the closed-form sphere integral
+  (\f$\int x^ay^bz^c d\Omega\f$), with no spherical-harmonic dependency.  It immediately found **two
+  understated annotations**: `nDir=6` claimed L=1 but is the classical degree-**3** octahedral rule, and
+  `nDir=2` claimed L=0 but is degree **1**.  Under degree-typing both would have pushed callers to a more
+  expensive rule than needed.  Corrected in place.
+  - Contract is `EXPECT_GE`, not `EQ`: round-up needs "at least D", so over-delivery is not a defect -- and
+    a monomial scan CAN exceed the constructed degree, because monomials odd under a rule's octahedral
+    symmetry vanish identically on both sides and never discriminate (302 measures 31 vs its stated 29;
+    434 measures ≥40 vs 35).
+  - Also confirms the item's headline INDEPENDENTLY: Leb-302 and GL-29 both reach degree 29, at 302 vs 450
+    directions = **67%**, exactly as claimed.
+  - Worth having regardless of R2.15: this file's own header records a 32-direction rule shipped VERBATIM
+    from the old library with sum W = 0.971·4π, found and removed by hand.  A degree measurement catches
+    that class of defect on the first run.
+- **R2.15 (original text) `nAngular` → degree-typed angular interface.**  `nAngular` is a COUNT for Lebedev but a
   DEGREE for GL/EM (and the imposed site-adapted builder consumes it as the degree) — the dual
   semantics BLOCKS flipping the free-run Becke default to the measured-equal Leb-302 (67% of
   GL-29's directions).  Fix: `angularDegree` + per-scheme count resolution; the default flip rides

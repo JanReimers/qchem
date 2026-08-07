@@ -312,3 +312,121 @@ TEST(Mesh_Angular, EulerMaclarenLowMomentsConverge)
         if (m==2) EXPECT_LT(e29,1e-3) << "EulerMaclaren m=2 L=29 degree-3 moment error " << e29;
     }
 }
+
+//================================================================================================
+//  9. MEASURED algebraic exactness degree of every angular rule (R2.15 groundwork).
+//
+//  R2.15 wants the angular knob to become a polynomial DEGREE rather than "a count for Lebedev, an L
+//  for the others".  That makes each rule's degree LOAD-BEARING: it stops being a comment and becomes
+//  the interface contract, so a wrong annotation silently hands the caller a different grid than asked
+//  for.  This block MEASURES the degree instead of trusting the annotation.
+//
+//  A rule is exact to degree D iff it integrates every monomial x^a y^b z^c with a+b+c <= D exactly
+//  (monomials span the polynomials).  The exact sphere integral is closed-form:
+//      integral x^a y^b z^c dOmega = 0                                        if any exponent is ODD
+//                                  = 4pi (a-1)!!(b-1)!!(c-1)!! / (a+b+c+1)!!  if all are EVEN
+//  so no spherical-harmonic machinery is needed and the test has no dependencies beyond the mesh.
+//
+//  This file's own header records why such a check is worth having: a 32-direction rule was shipped
+//  VERBATIM from the old library with sum W = 0.971*4pi and had to be removed.  A degree measurement
+//  would have caught it immediately.
+//================================================================================================
+//! Exact \int x^a y^b z^c dOmega over the unit sphere.  (DoubleFactorial -- n!! with (-1)!!=0!!=1 --
+//! is already defined above for the radial moment checks.)
+static double ExactMonomial(int a, int b, int c)
+{
+    if (a%2 || b%2 || c%2) return 0.0;          // odd power => antisymmetric => vanishes
+    return FourPi*DoubleFactorial(a-1)*DoubleFactorial(b-1)*DoubleFactorial(c-1)
+                 /DoubleFactorial(a+b+c+1);
+}
+//! The largest D such that the rule integrates EVERY monomial of degree <= D to within \a rtol
+//! (relative to 4pi).  Stops at \a dMax; returns -1 if it cannot even integrate the constant.
+static int MeasureDegree(const AngularMesh& m, double rtol, int dMax=40)
+{
+    for (int d=0; d<=dMax; d++)
+        for (int a=d; a>=0; a--)
+            for (int b=d-a; b>=0; b--)
+            {
+                const int c=d-a-b;
+                double q=0.0;
+                for (size_t j=0;j<m.size();j++)
+                {
+                    const rvec3_t& u=m.Dirs()[j];
+                    q += m.W()[j]*std::pow(u.x,a)*std::pow(u.y,b)*std::pow(u.z,c);
+                }
+                if (std::fabs(q-ExactMonomial(a,b,c)) > rtol*FourPi) return d-1;
+            }
+    return dMax;
+}
+
+// The Lebedev menu vs the degree each order CLAIMS (the annotations in LebedevAngularMesh.C).
+//
+// The contract is EXPECT_GE, not EQ: R2.15's resolution rule is "round UP to a rule of at least the
+// requested degree", so DELIVERING MORE than claimed is fine and only under-delivery is a defect.  It
+// also has to be GE for a measurement reason -- a monomial scan can report MORE than the constructed
+// degree, because monomials that are odd under the rule's octahedral symmetry vanish identically on
+// both sides and so never discriminate.  The measured value is printed for every order so a drift shows
+// up in the log even when it does not fail.
+TEST(Mesh_AngularDegree, LebedevOrdersMeetTheirClaimedDegree)
+{
+    struct Claim {int nDir; int degree; double rtol;};
+    const Claim claims[]={
+        {  1,  0, 1e-12}, {  2,  1, 1e-12}, {  6,  3, 1e-12}, {  8,  3, 1e-12},
+        { 12,  5, 1e-12}, { 24,  7, 1e-6 }, { 30,  8, 1e-6 }, { 50, 11, 1e-12},
+        { 86, 15, 1e-10}, {110, 17, 1e-10}, {146, 19, 1e-10}, {170, 21, 1e-10},
+        {194, 23, 1e-10}, {302, 29, 1e-10}, {350, 31, 1e-10}, {434, 35, 1e-10},
+    };
+    for (const auto& k : claims)
+    {
+        AngularMesh a=MakeAngular({.angular=AngularKind::Lebedev, .nAngular=k.nDir});
+        ASSERT_EQ(a.size(), size_t(k.nDir)) << "Lebedev " << k.nDir << ": wrong direction count";
+        const int d=MeasureDegree(a,k.rtol);
+        std::cout << "[angular degree] Lebedev " << k.nDir << " dirs: claims " << k.degree
+                  << ", measures " << d << std::endl;
+        EXPECT_GE(d, k.degree)
+            << "Lebedev " << k.nDir << " directions UNDER-delivers: measured degree " << d
+            << " < claimed " << k.degree << ".  Degree is the R2.15 interface -- a rule that claims more "
+               "than it delivers silently under-integrates every caller that asks for that degree.";
+    }
+}
+
+// Gauss-Legendre(cos theta) x uniform(phi): algebraically exact, so its L IS a degree.
+TEST(Mesh_AngularDegree, GaussLegendreLIsADegree)
+{
+    for (int L : {5, 11, 17, 29})
+    {
+        AngularMesh a=MakeAngular({.angular=AngularKind::GaussLegendre, .nAngular=L});
+        EXPECT_GE(MeasureDegree(a,1e-10), L)
+            << "GaussLegendre L=" << L << " is not exact to degree L -- its knob is documented as a degree.";
+    }
+}
+
+// Euler-Maclaren is a CONVERGENCE rule, not an exactness rule: theta uses a transformed trapezoid
+// (the m=1..3 clustering kills endpoint derivatives), which has no algebraic degree.  Raising L does
+// NOT raise an exactness degree -- see EulerMaclarenLowMomentsConverge above for what it DOES do.
+// Pinned because R2.15 proposes a degree-typed angular knob, and this scheme has no degree to type.
+TEST(Mesh_AngularDegree, EulerMaclarenHasNoAlgebraicDegree)
+{
+    const int dEM11=MeasureDegree(MakeAngular({.angular=AngularKind::EulerMaclaren, .nAngular=11, .em_m=2}), 1e-10);
+    const int dEM29=MeasureDegree(MakeAngular({.angular=AngularKind::EulerMaclaren, .nAngular=29, .em_m=2}), 1e-10);
+    EXPECT_LT(dEM11, 11) << "EulerMaclaren L=11 unexpectedly exact to degree L";
+    EXPECT_LT(dEM29, 29) << "EulerMaclaren L=29 unexpectedly exact to degree L";
+    std::cout << "[angular degree] EulerMaclaren m=2: L=11 -> measured degree " << dEM11
+              << ", L=29 -> " << dEM29 << " (a resolution knob, NOT a degree)" << std::endl;
+}
+
+// The R2.15 headline, measured rather than asserted: Lebedev reaches a given degree with far fewer
+// directions than the Gauss-Legendre product grid, which is why the default flip is worth making.
+TEST(Mesh_AngularDegree, LebedevIsCheaperThanGaussLegendreAtEqualDegree)
+{
+    AngularMesh leb=MakeAngular({.angular=AngularKind::Lebedev,       .nAngular=302});
+    AngularMesh gl =MakeAngular({.angular=AngularKind::GaussLegendre, .nAngular=29 });
+    const int dLeb=MeasureDegree(leb,1e-10), dGL=MeasureDegree(gl,1e-10);
+    EXPECT_GE(dLeb, 29);
+    EXPECT_GE(dGL , 29);
+    EXPECT_LT(leb.size(), gl.size())
+        << "Leb-302 (" << leb.size() << " dirs, degree " << dLeb << ") vs GL-29 ("
+        << gl.size() << " dirs, degree " << dGL << ")";
+    std::cout << "[angular degree] equal degree ~29: Lebedev " << leb.size() << " dirs vs GaussLegendre "
+              << gl.size() << " dirs (" << (100*leb.size())/gl.size() << "%)" << std::endl;
+}

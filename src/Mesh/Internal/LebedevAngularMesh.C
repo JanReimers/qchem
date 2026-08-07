@@ -4,6 +4,12 @@
 // Weights are normalised so sum = 4*pi.
 //
 // VERIFIED (sum W = 4*pi exactly, integral z^2 dOmega = 4*pi/3): numDir = 12, 24, 30, 50.
+// STRONGER CHECK (2026-08-07): Mesh_AngularDegree.LebedevOrdersMeetTheirClaimedDegree now MEASURES the
+// algebraic degree of every order in the menu -- monomial-by-monomial against the closed-form sphere
+// integral -- instead of trusting these annotations.  It exists because R2.15 proposes making the degree
+// the angular INTERFACE, at which point a wrong annotation silently hands the caller the wrong grid; and
+// because the removed 32-direction rule below is proof that a wrong table can ship.  Two annotations were
+// understated and are corrected in place (numDir 2 and 6).
 //   - numDir=24, 30: the direction constants in the table are only ~7 figures (e.g. for 24
 //     r^2+s^2+t^2 = 0.9999998), so they are exact only to ~1e-7, not machine precision.
 // REMOVED: the old numDir=32 degree-9 rule.  Its weights 24*(25/840)+8*(27/840) = 816/840 gave
@@ -221,11 +227,13 @@ AngularMesh LebedevAngular(int numDir)
     case 1:   // L=0
         D[0]=rvec3_t(1,0,0);
         break;
-    case 2:   // L=0
+    case 2:   // degree 1 (was annotated L=0 -- UNDERSTATED; measured + hand-checked 2026-08-07:
+              //          the antipodal pair integrates x,y,z exactly by symmetry and fails at x^2)
         D[0]=rvec3_t( 1,0,0);
         D[1]=rvec3_t(-1,0,0);
         break;
-    case 6:   // L=1
+    case 6:   // degree 3 (was annotated L=1 -- UNDERSTATED; the 6-point octahedral rule is the
+              //          classical degree-3 rule: int z^2 = 4pi/3 exact, int z^4 gives 4pi/3 != 4pi/5)
         D[0]=rvec3_t( 1, 0, 0);
         D[1]=rvec3_t( 0, 1, 0);
         D[2]=rvec3_t( 0, 0, 1);
