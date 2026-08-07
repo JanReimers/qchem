@@ -758,7 +758,32 @@ in the same session.
      - Keep the table's `degree` field = the CONSTRUCTED, guaranteed degree (29 for 302, 35 for 434) even
        though the monomial scan over-delivers -- guaranteeing less than you deliver is honest; the reverse
        is not.
-  6. **The default flip is SEPARATE** -- it changes every unpinned run's numbers.  Land the type change
+  6. **ICOSAHEDRAL RULES ARE CRYSTALLOGRAPHICALLY FORBIDDEN -- and the code already handles it, by
+     construction rather than by luck (user observation 2026-08-07).**  The 12-direction rule is the
+     icosahedron, whose 5-fold axes NO Bravais lattice has, so it can never be invariant under a crystal
+     point group.  Using it to seed an IMPOSED-symmetry mesh would silently break the T2 invariance
+     precondition.
+     - **Verified it cannot happen:** the imposed path never touches the Lebedev tables.
+       `MakeInvariantAngularMesh` builds an invariant set from scratch, from a deterministic FIBONACCI
+       SPHERE seed pool chosen precisely because it "never lands on symmetry axes" -- then symmetrises
+       under the site group.  So the crystallographic constraint is satisfied structurally.
+     - **On the FREE-run path there is no invariance requirement**, and Leb-12's genericity w.r.t. a cubic
+       lattice is a FEATURE: it cannot accidentally put a quadrature point on a bond axis.
+     - Worth keeping visible because a reader could reasonably assume any Lebedev rule can seed an imposed
+       mesh.  It cannot, and the icosahedral rule is the sharpest illustration of why.
+  7. **The default flip is SEPARATE -- and it is BLOCKED BEHIND D6, which was not obvious until located.**
+     The "free-run Becke default" is not a library default at all: it lives in `BeckeXCParams()` in
+     **IntegrationTests/GPW_SCF_UT.C:189** (`GPW_BECKE_L`, default 29, GaussLegendre).  That IS D6's
+     complaint -- "the de-facto PRODUCTION Becke recipe living in the integration-test harness".  So:
+     - flipping it today means editing a TEST FILE to change production behaviour, which is backwards;
+     - and it moves every pinned GPW anchor, since the recipe feeds `ResolveXCMesh` for all of them.
+     **Sensible order: D6 first (move the recipe to the library/facade beside `MeshParams`), then flip.**
+     - **The measurement, per the D8 standing pin** ("fit quality is measured by grid-convergence of
+       ρ/property vs a fine reference -- NEVER ΔE_total"): compare Leb-302 against GL-29, both against a
+       FINE reference (Leb-434 or GL-35), on a property rather than a total energy.  The instrument now
+       works: `GPW_BECKE_ANG=lebedev` was broken until R2.15 gave both schemes one meaning for the knob.
+     - The case for the flip is the measured 302 vs 450 directions at equal degree 29 (**33% fewer
+       points**) -- but that is the COST side; the measurement is what shows the accuracy side is equal. -- it changes every unpinned run's numbers.  Land the type change
      first (behaviour-preserving), then flip with the measurement.
   **The rename is what makes the migration safe:** `nAngular` → `angularDegree` breaks every designated
   initializer `.nAngular=`, so the compiler forces a visit to each call site; each Lebedev site then
