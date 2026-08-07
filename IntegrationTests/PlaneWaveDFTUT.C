@@ -38,7 +38,7 @@ import qchem.BasisSet.Lattice_3D.Evaluators.PW;   // PW_Grid_Evaluator -- a UNIT
                                                   // (the orbital PlaneWave_IBS is grid-free; the grid lives here).
 import qchem.BasisSet.Lattice_3D.BasisSet;   // Factory(Type::PW, lat, Ecut, loc, nl) -> Complex_BS*
 import qchem.ScalarFunction;                 // ScalarFunction<double> -- arg of the moved-here field oracles
-import qchem.Mesh;                           // qcMesh::MeshParams (PW_Hartree's fit-basis factory arg; ignored)
+import qchem.Mesh;                           // qcMesh::MeshParams (Vee_Hartree's fit-basis factory arg; ignored)
 import qchem.Lattice_3D;     // UnitCell, Lattice_3D, ReciprocalLattice
 import qchem.Ewald;          // EwaldEnergy (ion-ion Madelung term -> physical total energy)
 import qchem.Types;          // dcmplx, ivec3_t, rvec_t, mat_t, chmat_t
@@ -47,7 +47,7 @@ import qchem.Math;           // Pi
 import qchem.Hamiltonian.Internal.ExFunctional;     // the validated LDA functional interface
 import qchem.Hamiltonian.Internal.SlaterExchange;   // Dirac exchange (alpha=2/3), eps_x = 3/4 v_x
 import qchem.Hamiltonian.Internal.VWN_Correlation;  // VWN5 correlation (validated vs libxc)
-import qchem.Hamiltonian.Internal.PWTerms;          // PW_Pseudo (dcmplx Hamiltonian term)
+import qchem.Hamiltonian.Internal.PWTerms;          // Ven_PP_Short/Long, Vee_Hartree (dcmplx Hamiltonian terms)
 import qchem.Hamiltonian;                           // cStatic_HT / cDynamic_HT aliases (public term interfaces)
 import qchem.Hamiltonian.Internal.Hamiltonian;      // cHamiltonianImp (the dcmplx Hamiltonian = sum of terms)
 import qchem.Hamiltonian.Internal.Hamiltonians;     // Ham_PW_DFT (the assembled plane-wave LDA KS Hamiltonian)
@@ -85,15 +85,14 @@ using Pseudopotential::GTH_PP;
 namespace
 {
 
-// PW_Hartree/PW_XC now take their fit basis (from the basis's own factory) at construction, like
+// Vee_Hartree/PW_XC now take their fit basis (from the basis's own factory) at construction, like
 // FittedVee/FittedVxc.  These low-level term tests build one straight from the plane-wave basis at hand.
-qchem::Hamiltonian::PW_Hartree* NewPWHartree(const PlaneWave_IBS& pw)
+qchem::Hamiltonian::Vee_Hartree* NewPWHartree(const PlaneWave_IBS& pw)
 {
-    // Pure Hartree (no PP): null structure + null local model => no core-charge V_long fold, just V_H[rho]
-    // (the CP2K local-PP split's Hartree half; doc/GPWPlan.md 0e-PP).  These low-level tests exercise V_H alone.
-    return new qchem::Hamiltonian::PW_Hartree(
-        qchem::Hamiltonian::PW_Hartree::fbs_t(pw.CreateCDFitBasisSet(nullptr, qcMesh::MeshParams{})),
-        qchem::Hamiltonian::PW_Hartree::st_t{}, nullptr);
+    // Pure V_H[rho]: the Hartree term takes ONLY its fit basis now -- the long-range core-charge fold that
+    // used to need a structure + local model here is its own term, Ven_PP_Long (doc/GPWPlan.md 0e-PP).
+    return new qchem::Hamiltonian::Vee_Hartree(
+        qchem::Hamiltonian::Vee_Hartree::fbs_t(pw.CreateCDFitBasisSet(nullptr, qcMesh::MeshParams{})));
 }
 qchem::Hamiltonian::PW_XC* NewPWXC(const PlaneWave_IBS& pw, const qchem::Hamiltonian::PW_XC::xc_t& xc)
 {
@@ -110,7 +109,7 @@ qchem::Hamiltonian::PW_XC* NewPWXC(const PlaneWave_IBS& pw, const qchem::Hamilto
 }
 // Hartree matrix from a rho-tilde: <i|V_H|j> = 4pi/|G_i-G_j|^2 rho-tilde(G_i-G_j) (dm=0 dropped).  This is
 // the retired Repulsion(ΔG_Map) route, inlined as a test cross-check (production assembles the same matrix
-// from the density's Repulsion3C tensor via PW_Hartree).
+// from the density's Repulsion3C tensor via Vee_Hartree).
 chmat_t HartreeFromRhoTilde(const PlaneWave_IBS& pw, const ΔG_Map& rt)
 {
     return pw.MakeOverlap([&](const ivec3_t& dm)->dcmplx
@@ -1076,7 +1075,7 @@ TEST_F(PlaneWaveDFT, BasisIntegralPotentialConstAndCosine)
     EXPECT_TRUE(found);
 }
 
-// The PW_Pseudo Hamiltonian term (cStatic_HT<dcmplx>) routes through the framework's GetMatrix path
+// The Ven_PP_Short Hamiltonian term (cStatic_HT<dcmplx>) routes through the framework's GetMatrix path
 // and the abstract Integrals_Pseudo<dcmplx> dynamic_cast -- its matrix must equal the basis's assembly.
 // This is the dependency inversion working end-to-end through a real Hamiltonian term.
 TEST_F(PlaneWaveDFT, PWPseudoTermMatchesBasis)
@@ -1098,7 +1097,7 @@ TEST_F(PlaneWaveDFT, PWPseudoTermMatchesBasis)
     // The TERM owns the model now and asks the basis to assemble it (the pseudo-wall).  Post local-PP split
     // (doc/GPWPlan.md 0e-PP) the external term assembles the SHORT-range local + KB nonlocal; the LONG-range
     // (softened-Coulomb) part is folded into the Hartree term, so the reference here is Short + separable.
-    qchem::Hamiltonian::PW_Pseudo   ext(si, &loc, &nl);
+    qchem::Hamiltonian::Ven_PP_Short ext(si, &loc, &nl);
     qchem::Hamiltonian::cStatic_HT*   term=&ext;        // the public term interface (as the Hamiltonian holds it)
     const chmat_t& M  = term->GetMatrix(&pw, Spin::None);
     chmat_t        ref= pw.MakeLocalPotentialShort(si.get(),loc) + pw.MakeSeparablePotential(si.get(),nl);
@@ -1134,7 +1133,7 @@ TEST_F(PlaneWaveDFT, LocalPPLongPlusShortEqualsFull)
             EXPECT_NEAR(std::abs(dcmplx(full(i,j))-dcmplx(split(i,j))), 0.0, 1e-12);
 }
 
-// The PW_Hartree and PW_XC dynamic terms route a complex density (IrrepCD<dcmplx>) through the framework
+// The Vee_Hartree and PW_XC dynamic terms route a complex density (IrrepCD<dcmplx>) through the framework
 // and must reproduce the basis's Repulsion / Overlap -- the inversion working for the
 // density-dependent terms.  We feed a hand-built Hermitian density matrix (2 electrons in (e0+e1)/sqrt2).
 TEST_F(PlaneWaveDFT, PWDynamicTermsMatchBasis)
@@ -1148,7 +1147,7 @@ TEST_F(PlaneWaveDFT, PWDynamicTermsMatchBasis)
     qchem::ChargeDensity::IrrepCD<dcmplx> cd(D, &F.pw, irr);
 
     // Hartree term matrix == basis Repulsion of the same density.
-    std::unique_ptr<qchem::Hamiltonian::PW_Hartree> h(NewPWHartree(F.pw));
+    std::unique_ptr<qchem::Hamiltonian::Vee_Hartree> h(NewPWHartree(F.pw));
     qchem::Hamiltonian::cDynamic_HT* ht=h.get();
     const chmat_t& Mh = ht->GetMatrix(&F.pw, Spin::None, &cd);
     chmat_t refh = RepulsionField(F.pw, cd);
@@ -1289,10 +1288,11 @@ TEST_F(PlaneWaveDFT, FrameworkSiliconGammaMatchesPrototype)
     // owns the pseudopotential model (the pseudo-wall) and assembles it through the basis.
     cHamiltonianImp ham;
     ham.Add(new Kinetic<dcmplx>);
-    ham.Add(new PW_Pseudo(si, &loc, &nl));                              // electron-ion SHORT-range + KB nonlocal
-    // Hartree term carries the structure + local model so it folds in the LONG-range core-charge V_long (the
-    // CP2K local-PP split, doc/GPWPlan.md 0e-PP) -- otherwise the manual Hamiltonian would drop V_long entirely.
-    ham.Add(new PW_Hartree(PW_Hartree::fbs_t(pw.CreateCDFitBasisSet(nullptr, qcMesh::MeshParams{})), si, &loc));
+    ham.Add(new Ven_PP_Short(si, &loc, &nl));                           // electron-ion SHORT-range + KB nonlocal
+    // The LONG-range core-charge V_long is its OWN term (the CP2K local-PP split, doc/GPWPlan.md 0e-PP);
+    // a manual Hamiltonian must add it explicitly or it drops V_long entirely.
+    ham.Add(new Ven_PP_Long(si, &loc));                                 // electron-ion LONG-range
+    ham.Add(new Vee_Hartree(Vee_Hartree::fbs_t(pw.CreateCDFitBasisSet(nullptr, qcMesh::MeshParams{}))));
     ham.Add(NewPWXC(pw, std::make_shared<SlaterExchange> (2.0/3.0)));   // Dirac exchange
     ham.Add(NewPWXC(pw, std::make_shared<VWN_Correlation>()));          // VWN5 correlation
 
@@ -1724,7 +1724,7 @@ TEST_F(PlaneWaveDFT, DynamicTermCacheFreshAcrossDensity)
     hmat_t<dcmplx> D2=blazem::zeroH<dcmplx>(n);  D2(0,0)=1.0; D2(0,1)=1.0; D2(1,1)=1.0;  // modulated density
     qchem::ChargeDensity::IrrepCD<dcmplx> cd1(D1,&F.pw,irr), cd2(D2,&F.pw,irr);
 
-    std::unique_ptr<qchem::Hamiltonian::PW_Hartree> hart(NewPWHartree(F.pw));
+    std::unique_ptr<qchem::Hamiltonian::Vee_Hartree> hart(NewPWHartree(F.pw));
     qchem::Hamiltonian::cDynamic_HT* ht=hart.get();
     ht->GetMatrix(&F.pw, Spin::None, &cd1);                       // populates the cache for cd1
     const chmat_t& M2 = ht->GetMatrix(&F.pw, Spin::None, &cd2);   // BUG: returns cd1's stale matrix

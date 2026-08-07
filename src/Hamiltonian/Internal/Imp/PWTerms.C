@@ -14,7 +14,7 @@ import qchem.ChargeDensity;
 import qchem.ChargeDensity.FourierDensity;   // cast cd UP to its reciprocal-space coefficients rho-tilde
 import qchem.BasisSet.Band_FT_IBS;         // cast bs UP to the reciprocal-space DFT capability (Hartree/XC)
 import qchem.BasisSet.G_FieldEvaluator;    // the fit basis's FFT grid engine (RhoOnGrid/Integral for XC)
-import qchem.Pseudopotential.Integrals_Pseudo;   // cast bs ACROSS to the external-PP operator-assembly mixin (PW_Pseudo)
+import qchem.Pseudopotential.Integrals_Pseudo;   // cast bs ACROSS to the external-PP operator-assembly mixin (Ven_PP_*)
 import qchem.Fitting.FunctionFitter;        // Fitting::Factory (both PW fitters) + ProjectedDensity_G / ProjectedScalar_R
 import qchem.Structure;                       // Structure::isFinite()/SumFormFactors() -- the G=0 alignment (term-side)
 import qchem.Blaze;                            // blazem::zeroH<dcmplx> (the null-PP V_long block)
@@ -26,7 +26,7 @@ namespace qchem::Hamiltonian
 
 bool& ReportGridCharge() { static bool on = false; return on; }
 
-PW_Pseudo::PW_Pseudo(const st_t& st, const Pseudopotential::LocalPotential* loc,
+Ven_PP_Short::Ven_PP_Short(const st_t& st, const Pseudopotential::LocalPotential* loc,
                          const Pseudopotential::SeparablePotential* nl)
     : cStatic_HT_Imp()
     , theStructure(st)
@@ -34,25 +34,25 @@ PW_Pseudo::PW_Pseudo(const st_t& st, const Pseudopotential::LocalPotential* loc,
     , itsSep(nl)
 {
     assert(st->GetNumAtoms()>0);
-    assert(loc && "PW_Pseudo: the term owns the local pseudopotential model (must be non-null)");
+    assert(loc && "Ven_PP_Short: the term owns the local pseudopotential model (must be non-null)");
 }
 
 // Assemble the external matrix from the MODELS the term owns: hand the basis the abstract local +
 // optional KB nonlocal models and let it assemble <i|V_ext|j>.  The dynamic_cast is the sanctioned
 // abstract->abstract move (cobs_t = Orbital_1E_IBS<dcmplx> ACROSS to the Integrals_Pseudo capability); only a
 // basis that supports reciprocal-space PP assembly answers it.  V = V_loc + V_NL.
-chmat_t PW_Pseudo::CalculateMatrix(const cobs_t* bs, const Spin&) const
+chmat_t Ven_PP_Short::CalculateMatrix(const cobs_t* bs, const Spin&) const
 {
     auto pw=dynamic_cast<const Pseudopotential::Integrals_Pseudo<dcmplx>*>(bs);
-    assert(pw && "PW_Pseudo requires an Integrals_Pseudo<dcmplx> (e.g. plane-wave) basis");
-    // SHORT-range local only: the LONG (softened-Coulomb) part folds into the Hartree Poisson via PW_Hartree
+    assert(pw && "Ven_PP_Short requires an Integrals_Pseudo<dcmplx> (e.g. plane-wave) basis");
+    // SHORT-range local only: the LONG (softened-Coulomb) half is its own term, Ven_PP_Long
     // (the CP2K local-PP split, doc/GPWPlan.md 0e-PP).  V_ext(short) = V_loc(short) + V_NL.
     chmat_t V=pw->MakeLocalPotentialShort(&*theStructure, *itsLocal);
     if (itsSep) V += pw->MakeSeparablePotential(&*theStructure, *itsSep);
     return V;
 }
 
-void PW_Pseudo::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
+void Ven_PP_Short::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 {
     // Een stays the band expectation over the (G!=0) external matrix (== the prototype's electron-ion
     // energy).  The dropped-G=0 alignment alpha is a separate constant in te.E_alphaZ -- kept in the total
@@ -66,90 +66,103 @@ void PW_Pseudo::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
     // A finite/molecular structure has no G=0 neutralising background, so NO alignment (even though its atoms
     // DO have form factors -- the physics decision lives here, via isFinite(), not in the geometry).  For a
     // periodic cell the structure folds in 1/Omega: SumFormFactors returns (1/Omega) Sum_a alpha_a.  The SHORT
-    // part's alignment only -- the LONG part's G=0 shift moves to PW_Hartree with V_long (doc/GPWPlan.md 0e-PP).
+    // part's alignment only -- the LONG part's G=0 shift belongs to Ven_PP_Long (doc/GPWPlan.md 0e-PP).
     if (!theStructure->isFinite())                                         // periodic only (Omega finite)
         te.E_alphaZ += cd->GetTotalCharge() *
                     theStructure->SumFormFactors([this](int Z){return itsLocal->FormFactorG0Short(Z);});
 }
 
-std::ostream& PW_Pseudo::Write(std::ostream& os) const
+std::ostream& Ven_PP_Short::Write(std::ostream& os) const
 {
-    return os << "    PW external (pseudo)potential with " << theStructure->GetNumAtoms() << " atoms." << std::endl;
+    return os << "    PW electron-ion: SHORT-range local PP + KB nonlocal, "
+              << theStructure->GetNumAtoms() << " atoms." << std::endl;
 }
 
 // Kinetic is now the shared Kinetic<dcmplx> term (qchem.Hamiltonian.Internal.Kinetic).
 // Ion-ion (Ewald) is now the shared IonIon<dcmplx> term (qchem.Hamiltonian.Internal.IonIon).
 
-//----------------------------------------------------------------------------------- Hartree
-// Holds its CD fit basis (from Ham_PW_DFT::BuildTerms via the orbital basis's factory, never assuming
-// orbital==fit) and hands it to the density's GetRepulsion3C each SCF cycle -- mirrors FittedVee holding its
-// CD fit basis and calling IrrepCD::GetRepulsion3C(fbs).
-PW_Hartree::PW_Hartree(fbs_t fb, st_t st, const Pseudopotential::LocalPotential* loc)
-    : itsFitBasis(fb)
+//------------------------------------------------------------------- Ven_PP_Long (the LONG range half)
+// The long-range (softened-Coulomb / Gaussian core-charge) local-PP matrix.  DENSITY-INDEPENDENT --
+// MakeLocalPotentialLong takes only (structure, model) -- so this is an ordinary static term and rides the
+// standard per-Irrep static cache, exactly as Ven_PP_Short does.  It was previously a side-block inside the
+// Hartree term (summed into that term's matrix, then subtracted back out of its energy) purely because the
+// two are solved through the same G-space Poisson machinery; that is a COMPUTATIONAL kinship, not a
+// physical one, and it cost a nullable model, a second block cache, and a "Hartree" term that contributed
+// to E_een.  Assembled through the SAME Integrals_Pseudo cross-cast Ven_PP_Short uses.
+Ven_PP_Long::Ven_PP_Long(const st_t& st, const Pseudopotential::LocalPotential* loc)
+    : cStatic_HT_Imp()
     , theStructure(st)
     , itsLocal(loc)
-{}
-
-// The fixed <i|V_long|j> block for this orbital basis: the long-range (softened-Coulomb) local-PP matrix,
-// built ONCE per irrep basis (density-independent) and cached by BasisSetID.  Null model => zero (pure
-// Hartree, no core charge to fold).  Assembled through the SAME Integrals_Pseudo cross-cast PW_Pseudo uses.
-const chmat_t& PW_Hartree::LongBlock(const cobs_t* bs) const
 {
-    const std::string id=bs->BasisSetID();
-    auto it=itsLongBlocks.find(id);
-    if (it!=itsLongBlocks.end()) return it->second;
-    chmat_t VL;
-    if (itsLocal)
-    {
-        auto pp=dynamic_cast<const Pseudopotential::Integrals_Pseudo<dcmplx>*>(bs);
-        assert(pp && "PW_Hartree: the V_long fold needs an Integrals_Pseudo<dcmplx> orbital basis");
-        VL=pp->MakeLocalPotentialLong(&*theStructure, *itsLocal);
-    }
-    else
-        VL=blazem::zeroH<dcmplx>(bs->GetNumFunctions());
-    return itsLongBlocks.emplace(id, std::move(VL)).first->second;
+    assert(st && st->GetNumAtoms()>0);
+    // REQUIRED, not optional: a run with no local PP omits this TERM rather than constructing an
+    // all-zeros one.  (Absence of a capability belongs in the term LIST, not in a per-call branch.)
+    if (!loc)
+        throw std::runtime_error("Ven_PP_Long: the long-range local-PP term requires a LocalPotential "
+                                 "model.  A run without a local pseudopotential must not add this term.");
 }
 
-chmat_t PW_Hartree::CalcMatrix(const cobs_t* bs, const Spin&, const cChargeDensity* cd) const
+chmat_t Ven_PP_Long::CalculateMatrix(const cobs_t* bs, const Spin&) const
 {
-    newCD(cd);   // dirty the Irrep cache if cd is new (the cross-iteration freshness mechanism)
-    auto fd=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(cd);
-    assert(fd && "PW_Hartree requires a FourierDensity (periodic) charge density");
-    auto bft=dynamic_cast<const BasisSet::Band_FT_IBS*>(bs);
-    assert(bft && "PW_Hartree requires a Band_FT_IBS (reciprocal-space DFT) orbital basis");
-    // The density contracts D against the basis's D-free Coulomb tensor Repulsion3C (kernel baked) to give
-    // V_H(dm) [FORWARD]; the KS matrix <i|V_H|j> = Σ_k V_H(G_k) <i|e^{iG_k}|j> is the BACKWARD contraction of the
-    // SAME Repulsion3C tensor over the CD fit basis (its applyAdjoint -- the overlap integrate-back on the fit
-    // grid; the Coulomb kernel is forward-only, already in V_H).  So forward AND backward run on the one fit grid
-    // (doc/GPWPlan §0e step 2).  Then ADD the fixed long-range core-charge V_long -- one Poisson-solved matrix.
-    ΔG_Map VH=fd->GetRepulsion3C(*itsFitBasis);
-    chmat_t H=ContractAdjointG_ERI3(bft->Repulsion3C(*itsFitBasis),
-        [&VH](const ivec3_t& dm)->dcmplx { auto it=VH.find(dm); return it==VH.end()?dcmplx(0.0):it->second; });
-    H+=LongBlock(bs);
-    return H;
+    auto pp=dynamic_cast<const Pseudopotential::Integrals_Pseudo<dcmplx>*>(bs);
+    assert(pp && "Ven_PP_Long requires an Integrals_Pseudo<dcmplx> (e.g. plane-wave) basis");
+    return pp->MakeLocalPotentialLong(&*theStructure, *itsLocal);
 }
 
-void PW_Hartree::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
+void Ven_PP_Long::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
 {
-    newCD(cd);
-    // The Fock matrix carries V_H + V_long, so DM_Contract(this) = Tr(D(V_H+V_long)).  Split into the two
-    // physical energies (doc/GPWPlan.md 0e-PP): the electron-electron Hartree gets the 1/2 double-counting
-    // factor, the electron-ion long-range gets none.  V_long is the FIXED per-basis block (DM_ContractBlocks).
-    // (this->CalcMatrix has run for every irrep by now -- DM_Contract triggers GetMatrix -- so itsLongBlocks
-    // is fully populated.)
-    double total=cd->DM_Contract(this,cd);                 // Tr(D (V_H + V_long))
-    double eLong=cd->DM_ContractBlocks(itsLongBlocks);     // Tr(D V_long) = E_een,long
-    te.Eee += 0.5*(total-eLong);                           // E_H = 1/2 integral rho V_H[rho]
-    te.Een += eLong;                                       // electron-ion long-range (no 1/2)
-    // The dropped-G=0 alignment of the LONG part moves here with V_long (the SHORT part's stays in PW_Pseudo).
-    if (itsLocal && !theStructure->isFinite())             // periodic only (Omega finite)
+    // Electron-ION, so NO 1/2: the double-counting factor belongs to the electron-electron Hartree alone.
+    te.Een += cd->DM_Contract(this);                       // Tr(D V_long) = E_een,long
+    // The LONG part's dropped-G=0 alignment (the SHORT part's stays in Ven_PP_Short).  Same isFinite()
+    // reasoning as there: the alignment is a periodic neutralising-background artifact.
+    if (!theStructure->isFinite())                         // periodic only (Omega finite)
         te.E_alphaZ += cd->GetTotalCharge() *
                      theStructure->SumFormFactors([this](int Z){return itsLocal->FormFactorG0Long(Z);});
 }
 
-std::ostream& PW_Hartree::Write(std::ostream& os) const
+std::ostream& Ven_PP_Long::Write(std::ostream& os) const
 {
-    return os << "    PW electrostatics: Hartree V_H[rho] + long-range core-charge V_long (G-space)." << std::endl;
+    return os << "    PW electron-ion: LONG-range local PP (Gaussian core charge, G-space), "
+              << theStructure->GetNumAtoms() << " atoms." << std::endl;
+}
+
+//----------------------------------------------------------------------------------- Hartree
+// Holds its CD fit basis (from Ham_PW_DFT::BuildTerms via the orbital basis's factory, never assuming
+// orbital==fit) and hands it to the density's GetRepulsion3C each SCF cycle -- mirrors FittedVee holding its
+// CD fit basis and calling IrrepCD::GetRepulsion3C(fbs).  Pure V_H[rho_elec]: no structure, no PP model.
+Vee_Hartree::Vee_Hartree(fbs_t fb)
+    : itsFitBasis(fb)
+{}
+
+chmat_t Vee_Hartree::CalcMatrix(const cobs_t* bs, const Spin&, const cChargeDensity* cd) const
+{
+    newCD(cd);   // dirty the Irrep cache if cd is new (the cross-iteration freshness mechanism)
+    auto fd=dynamic_cast<const qchem::ChargeDensity::FourierDensity*>(cd);
+    assert(fd && "Vee_Hartree requires a FourierDensity (periodic) charge density");
+    auto bft=dynamic_cast<const BasisSet::Band_FT_IBS*>(bs);
+    assert(bft && "Vee_Hartree requires a Band_FT_IBS (reciprocal-space DFT) orbital basis");
+    // The density contracts D against the basis's D-free Coulomb tensor Repulsion3C (kernel baked) to give
+    // V_H(dm) [FORWARD]; the KS matrix <i|V_H|j> = Σ_k V_H(G_k) <i|e^{iG_k}|j> is the BACKWARD contraction of the
+    // SAME Repulsion3C tensor over the CD fit basis (its applyAdjoint -- the overlap integrate-back on the fit
+    // grid; the Coulomb kernel is forward-only, already in V_H).  So forward AND backward run on the one fit grid
+    // (doc/GPWPlan §0e step 2).
+    ΔG_Map VH=fd->GetRepulsion3C(*itsFitBasis);
+    return ContractAdjointG_ERI3(bft->Repulsion3C(*itsFitBasis),
+        [&VH](const ivec3_t& dm)->dcmplx { auto it=VH.find(dm); return it==VH.end()?dcmplx(0.0):it->second; });
+}
+
+void Vee_Hartree::GetEnergy(EnergyBreakdown& te, const cDM_CD* cd) const
+{
+    newCD(cd);
+    // E_H = 1/2 integral rho V_H[rho] -- the 1/2 is the electron-electron double-counting factor.  The Fock
+    // block is now V_H ALONE, so this is a direct contraction: the old form computed Tr(D(V_H+V_long)) and
+    // subtracted Tr(D V_long) back off, because V_long was folded into the same matrix.
+    te.Eee += 0.5*cd->DM_Contract(this,cd);
+}
+
+std::ostream& Vee_Hartree::Write(std::ostream& os) const
+{
+    return os << "    PW electron-electron: Hartree V_H[rho] (G-space Poisson)." << std::endl;
 }
 
 //----------------------------------------------------------------------------------- XC
@@ -204,7 +217,7 @@ private:
 };
 } // anonymous
 
-// Built once (in Ham_PW_DFT::BuildTerms) with its Vxc fit basis -- the overlap-metric sibling of PW_Hartree.
+// Built once (in Ham_PW_DFT::BuildTerms) with its Vxc fit basis -- the overlap-metric sibling of Vee_Hartree.
 // The XC QUADRATURE GRID comes from the FIT basis (not the orbital), so relCutoff / the functional's
 // GridCutoffFactor control the Vxc/E_xc grid.  The fitter OWNS that grid; this term borrows it via
 // itsScalarFitter->Grid() -- one owner, no second cross-cast of the fit basis (#7).

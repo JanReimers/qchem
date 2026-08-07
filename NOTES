@@ -11,6 +11,13 @@ source .venv/bin/activate
 export QCHEM_BUILD=~/Code/qchem-viz/build/PIC
 python app_desktop.py 
 
+# rho fitting:
+Metric ≠ span. Orthonormality means S = I, so the normal equations collapse to c = ⟨f|ρ⟩. That's about cost and conditioning — no solve. Whether ρ̃ = ρ is a completely separate question about whether ρ lies in span{G}, and orthonormality says nothing about it. "The projection IS the fit" is only a statement about (1); I let it carry (2) as well.
+
+And the answer to (2) splits by lineage. Your intuition is half-right in a way I find more interesting than either "exact" or "not exact":
+
+Pure PW orbitals: genuinely exact. ρ = ψ*ψ is exactly band-limited to the difference set {G_i − G_j}, since a product of two plane waves is a plane wave. The codebase already knows this and builds for it — PlaneWave_IBS.C:112 creates the CD fit basis at Ecut()*std::max(4.0, mp.relCutoff), and its comment states the rule: |G_i−G_j| ≤ 2 max|G|, so the density needs 4× the orbital cutoff. So ρ̃ = ρ holds by construction of the cutoff, not by luck.
+GPW (Gaussian orbitals): not exact, and never can be. A Gaussian product has infinite bandwidth, so a finite {G} ball truncates it. That's precisely what ReportGridCharge / GridChargeLost measures — CP2K's "Electronic density on regular grids" line. So GPW's Hartree is a genuine approximation that converges only as the density cutoff grows.
 
 # Ball vs AliasFree
 1) BallOnly vs AliasFree — same ball, different quadrature grid

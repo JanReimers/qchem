@@ -9,7 +9,7 @@ module;
 #include <vector>
 module qchem.Hamiltonian.Internal.Hamiltonians;
 import qchem.Hamiltonian.Internal.Terms;
-import qchem.Hamiltonian.Internal.PWTerms;        // PW_Pseudo/Hartree/XC + Delta_XC (the plane-wave KS terms)
+import qchem.Hamiltonian.Internal.PWTerms;        // Ven_PP_Short/Long, Vee_Hartree, PW_XC + Delta_XC (the plane-wave KS terms)
 import qchem.Hamiltonian.Internal.IonIon;         // IonIon<T>: ion-ion energy (double molecular / dcmplx PW)
 import qchem.Hamiltonian.Internal.Kinetic;        // Kinetic<T>: kinetic energy (double molecular / dcmplx PW)
 import qchem.Types;                               // dcmplx (for IonIon<dcmplx>)
@@ -190,10 +190,15 @@ void Ham_PW_DFT::BuildTerms(const st_t& st, const cbs_t* bs, const Pseudopotenti
     // The Hartree (CD) fit basis is created ONCE here from the basis's factory (never assuming orbital==fit),
     // exactly as the molecular DFT ctor builds FittedVee's fit basis -- rho is cell-periodic so it is
     // Gamma (k=0).  A plane-wave fit basis reads only mp.relCutoff.
-    PW_Hartree::fbs_t CFitBasis(bs->CreateCDFitBasisSet (st.get(), mp));
+    Vee_Hartree::fbs_t CFitBasis(bs->CreateCDFitBasisSet (st.get(), mp));
     Add(new Kinetic<dcmplx>);
-    Add(new PW_Pseudo(st, loc, nl));                           // electron-ion SHORT-range (+ short G=0 alignment)
-    Add(new PW_Hartree(CFitBasis, st, loc));                   // Hartree V_H + long-range core-charge V_long (0e-PP)
+    // The local-PP RANGE SPLIT is three separate terms, so the term list states the physics and no term
+    // has to re-ask at run time what the model is (see the PWTerms.C header).  `loc` is required by this
+    // builder anyway -- IonIon below reads loc->ZionFn() -- so both PP halves are unconditional here; a
+    // future no-local-PP build would simply omit the two Ven_PP_* Adds.
+    Add(new Ven_PP_Short(st, loc, nl));                        // electron-ion SHORT-range + KB (+ short G=0 alignment)
+    Add(new Ven_PP_Long (st, loc));                            // electron-ion LONG-range core charge (+ long G=0)
+    Add(new Vee_Hartree (CFitBasis));                          // electron-electron Hartree V_H[rho]
     // The FIT/GRID separation (doc/SymmetryUpgradePlan.md §6a, user 2026-08-01): WHICH fit basis
     // represents v_xc (VxcFit) and WHICH real-space grid quadratures it (xcMesh.cellKind) are
     // ORTHOGONAL choices.  Auto = the historical pairing (Delta on Becke, PlaneWave on the raster).

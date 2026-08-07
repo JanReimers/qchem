@@ -447,8 +447,44 @@ in the same session.
       `PW_Electrostatics` / `Poisson_PW` (one Poisson solve; the energy SPLIT is then a documented
       property rather than a promise the name makes).  Recommend `Vee_VenLong`, since the term
       genuinely owns two contributions and the name should not hide the second.  **Final call: user's.**
+  - **✅ RESOLVED + DONE 2026-08-07 — USER CHOSE THE SPLIT ("clean regardless of blast radius"), which
+    makes the naming question evaporate: with V_long its own term, each term carries ONE energy.**
+    - `PW_Pseudo`  → **`Ven_PP_Short`**  (static: V_loc,short + KB nonlocal; + the SHORT G=0 alignment)
+    - *(new)*      → **`Ven_PP_Long`**   (STATIC: V_loc,long, the Gaussian core charge; + the LONG G=0
+      alignment).  It was always density-INDEPENDENT — `MakeLocalPotentialLong(structure, model)` takes
+      no density — so it was a static term living inside a dynamic one.
+    - `PW_Hartree` → **`Vee_Hartree`**   (dynamic: V_H[ρ] ONLY — the only piece that depends on ρ)
+    - The `if (itsLocal)` runtime test is GONE: `Ven_PP_Long`'s ctor THROWS on a null model, and a run
+      with no local PP omits the term (the `Ham_PP` `if (sep) Add(PP_NonLocal)` idiom).  The
+      `0.5*(total-eLong)` add-then-subtract-back is gone with it — each term contracts its own matrix.
+    - **USER NAMING CONVENTION (2026-08-07, general): a term carrying ONE SIDE of a short/long split
+      must SAY SO in its name.**  Applies to any future range-split term, not just this one.
+    - Anchor check: the energy re-association (`0.5*(Tr(D(V_H+V_long)) − Tr(D V_long))` → `0.5*Tr(D V_H)`)
+      was the flagged risk.  667/667 green, all GPW anchors unmoved.
   - `Delta_XC` → e.g. `DeltaFittedVxc` (it IS a FittedVxc with a δ-function fit basis); rename
     along with the V2.1 decision.
+- **R2.16 Construction-time facts re-asked at RUN time (USER PRINCIPLE, 2026-08-07).**
+  **User ruling:** *"I much prefer that the whole Hamiltonian is decided and fixed at construction time.
+  The only dynamic aspect is the ChargeDensity that we feed it."*  Survey done while splitting the PW
+  electrostatics terms; the sites fall into three groups.
+  - **(A) Branch on the DENSITY — legitimate** (the density IS the dynamic input): `XC_GridEngine::
+    Rho`/`RhoPol`'s three-way dispatch (a pure capability query, fine); `FittedVxcPol`/`FittedVcorrPol::
+    CalcMatrix`'s `dynamic_cast<Polarized_CD*>` seed fallback (a POLICY, not a query — the ρ↑=ρ↓=ρ/2
+    collapse; defensible but worth revisiting when the seeds are spin-resolved).
+    **One is NOT benign: `PW_XC::RefreshRhoGrid`** sets `itsRhoIsRaw` per iteration from what the density
+    answers, and `CalcMatrix` then picks the RAW vs BALL adjoint — its own comment calls BALL
+    "NON-variational".  So the FUNCTIONAL BEING MINIMISED can change mid-run, hidden behind the
+    density-is-dynamic exemption.  Worth a decision: pick the route at construction, or make the density's
+    answer a run-stable property.
+  - **(B) Construction-time facts re-asked per call — the actual violation.**  ✅ TWO FIXED 2026-08-07 by
+    the term split (`if (itsLocal)` in the old `PW_Hartree::LongBlock` + `GetEnergy`).  REMAINING:
+    `if (itsSep)` in `Ven_PP_Short::CalculateMatrix`; `!theStructure->isFinite()` in `Ven_PP_Short::
+    GetEnergy`, `Ven_PP_Long::GetEnergy`, and `IonIon` (which also picks pair-sum vs Ewald by it).  None
+    can change during a run.  Same smell as the V1.10b finding: *a periodic-vs-molecular `if` is a
+    decision at the wrong altitude*.
+  - **(C) The GOOD pattern, already in the tree**: `Ham_PP` (Imp/Hamiltonians.C:111) —
+    `if (sep) Add(new PP_NonLocal(...))`.  Absence of a capability means the term is NOT IN THE LIST.
+    Decided at construction; zero runtime tests.  This is the target shape for every (B) site.
 - **R2.15 `nAngular` → degree-typed angular interface.**  `nAngular` is a COUNT for Lebedev but a
   DEGREE for GL/EM (and the imposed site-adapted builder consumes it as the degree) — the dual
   semantics BLOCKS flipping the free-run Becke default to the measured-equal Leb-302 (67% of
@@ -501,7 +537,27 @@ in the same session.
     needs a different energy expression.  User's instinct confirmed.
   - **Under an EXACT/orthonormal fit it degenerates CORRECTLY**: ρ̃=ρ ⇒ ⟨ρρ̃⟩=⟨ρ̃ρ̃⟩=⟨ρρ⟩ ⇒
     2A−B = ½⟨ρρ⟩ = the exact Hartree.  So the PW/GPW path is safe as-is; it is an overlap-metric
-    GAUSSIAN fit that would break.  **This is exactly V1.1's "molecules Dunlap-fit, solids don't"
+    GAUSSIAN fit that would break.
+    **CORRECTION (user, 2026-08-07): "EXACT/orthonormal" conflates two INDEPENDENT axes, and the slash
+    hides an assumption that is FALSE for GPW.**  Orthonormality of the fit basis means S=I, so the normal
+    equations collapse to c=⟨f|ρ⟩ — that is about COST and CONDITIONING.  Whether ρ̃=ρ is a separate
+    question, about whether ρ lies in span{G}, and orthonormality says nothing about it.  Split by lineage:
+    - **PW orbitals: genuinely exact.**  ρ=ψ*ψ is band-limited to the difference set {G_i−G_j}, and
+      `PlaneWave_IBS::CreateCDFitBasisSet` builds the CD fit basis at the 4× cutoff that covers it
+      (`Ecut()*std::max(4.0, mp.relCutoff)`, Imp/PlaneWave_IBS.C:112-121, whose comment states the rule).
+      So ρ̃=ρ holds by construction, and the degeneracy argument above is sound.
+    - **GPW (Gaussian orbitals): NOT exact.**  A Gaussian product has infinite bandwidth, so a finite {G}
+      ball truncates it — which is exactly what `ReportGridCharge`/`GridChargeLost` MEASURES (CP2K's
+      "Electronic density on regular grids" line).  ρ̃≠ρ there, so "the PW/GPW path is safe as-is" is
+      overstated for the GPW half: its Hartree is a genuine approximation, exact only as the density
+      cutoff grows.  (It does NOT use the 2A−B form, so no robustness claim is being violated — but the
+      reason it is safe is "it never uses the Dunlap expression", not "its fit is exact".)
+    - **On "rank 2 represented by rank 1" (user's intuition):** the represented object is ρ(r), the
+      DIAGONAL ρ(r,r) — genuinely a function of one point, so no rank is being squeezed.  D→ρ̃ IS
+      many-to-one (it sums D_ab over each difference G_b−G_a), so D is not recoverable from ρ̃; but
+      Hartree and LDA need only the diagonal.  The full ρ(r,r′) would be needed for exact exchange — and
+      consistently, `IrrepCD<dcmplx>` NA-asserts on the HF accumulators.  The rank collapse is real; it
+      just costs nothing for the functionals this path supports.  **This is exactly V1.1's "molecules Dunlap-fit, solids don't"
     issue seen from the ENERGY side** — whatever the merged face does about the metric, this
     expression moves with it.
   - **An overlap-metric fit path ALREADY EXISTS**: `NumericCD` (the SAD seed) overrides

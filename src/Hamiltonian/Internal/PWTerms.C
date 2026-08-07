@@ -13,8 +13,8 @@ module;
 export module qchem.Hamiltonian.Internal.PWTerms;
 import qchem.Hamiltonian.Internal.Term;        // cStatic_HT / cDynamic_HT + their _Imp cache bases
 import qchem.BasisSet.Band_FT_IBS;           // the reciprocal-space capability: Hartree/XC + external PP assembly
-import qchem.BasisSet.Fit_IBS;               // cFIT_CD_ABS (the density-fit basis PW_Hartree is built with)
-import qchem.Fitting.FunctionFitter;         // FunctionFitter_Density<dcmplx> (the fitter PW_Hartree holds, built once)
+import qchem.BasisSet.Fit_IBS;               // cFIT_CD_ABS (the density-fit basis Vee_Hartree is built with)
+import qchem.Fitting.FunctionFitter;         // FunctionFitter_Density<dcmplx> (the fitter Vee_Hartree holds, built once)
 import qchem.Pseudopotential.Integrals_Pseudo;    // external-PP operator-assembly mixin + the local/separable models the term owns
 import qchem.Hamiltonian.Internal.ExFunctional; // the LDA functional the XC term composes with the density
 import qchem.Hamiltonian.Types;                 // cobs_t
@@ -34,19 +34,38 @@ export namespace qchem::Hamiltonian
 //! `qchem::Hamiltonian::ReportGridCharge() = true;`.
 bool& ReportGridCharge();
 
-//! External (pseudo)potential term for a plane-wave basis (static, density-independent).  THIS is the
+// THE LOCAL-PP RANGE SPLIT, AS THREE TERMS (naming convention: a term that carries one side of a
+// short/long split SAYS SO in its name).  The local pseudopotential is split by range -- the deep-well
+// erf tail (LONG) is folded through the G-space Poisson solve as a Gaussian core charge instead of a
+// per-orbital-pair sharp-field sweep (the CP2K split, doc/GPWPlan.md 0e-PP), while the compact
+// poly-Gaussian remainder (SHORT) rides the direct sweep.  That is a computational decomposition, so it
+// used to hide inside two terms whose names claimed something else: the LONG piece lived in the Hartree
+// term (making a "Hartree" term contribute to E_een) and the SHORT piece was called simply "the
+// pseudopotential" (as if it were the whole PP).  Now:
+//
+//   Ven_PP_Short   V_loc(short) + the KB nonlocal projectors   -> E_een   (static)
+//   Ven_PP_Long    V_loc(long), the Gaussian-core-charge fold  -> E_een   (static)
+//   Vee_Hartree    V_H[rho_elec]                               -> E_ee    (dynamic -- the ONLY one that
+//                                                                          depends on the density)
+//
+// Each owns its own dropped-G=0 alignment (E_alphaZ), Short and Long respectively.  A configuration with
+// no local PP simply does not ADD Ven_PP_{Short,Long} -- the term list expresses the model, so no term
+// carries a runtime "do I have a pseudopotential?" test (the Ham_PP `if (sep) Add(PP_NonLocal)` idiom).
+
+//! SHORT-range external (pseudo)potential term for a plane-wave basis (static, density-independent).
+//! \f$V_{loc}(\text{short}) + V_{NL}\f$.  THIS is the
 //! pseudo-wall: the TERM owns the pseudopotential MODEL (an abstract local form factor + optional KB
-//! nonlocal projector), and asks the basis to ASSEMBLE the matrix from it (MakeLocalPotential +
+//! nonlocal projector), and asks the basis to ASSEMBLE the matrix from it (MakeLocalPotentialShort +
 //! MakeSeparablePotential) -- physics lives Hamiltonian-side, integral assembly basis-side.  The models
-//! are non-owning (the caller keeps them alive).  Pair with the kinetic, Hartree and XC terms for a full
-//! Kohn-Sham Hamiltonian.
-class PW_Pseudo
+//! are non-owning (the caller keeps them alive).  Pair with \c Ven_PP_Long (the other half of the range
+//! split) plus the kinetic, Hartree and XC terms for a full Kohn-Sham Hamiltonian.
+class Ven_PP_Short
     : public virtual cStatic_HT
     , private        cStatic_HT_Imp
 {
 public:
     typedef std::shared_ptr<const Structure> st_t;
-    PW_Pseudo(const st_t& st, const Pseudopotential::LocalPotential* loc,
+    Ven_PP_Short(const st_t& st, const Pseudopotential::LocalPotential* loc,
                 const Pseudopotential::SeparablePotential* nl=nullptr);
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
     virtual std::ostream& Write(std::ostream&) const;
@@ -57,46 +76,84 @@ private:
     const Pseudopotential::SeparablePotential* itsSep;         //!< KB nonlocal model (non-owning; may be null).
 };
 
+//! LONG-range half of the local pseudopotential (static, density-independent): the softened-Coulomb /
+//! Gaussian-core-charge matrix \f$\langle i|V_{long}|j\rangle\f$, assembled through the same
+//! \c Integrals_Pseudo cross-cast \c Ven_PP_Short uses.  Electron-ion, so its energy is
+//! \f$E_{een,long}=\mathrm{Tr}(D\,V_{long})\f$ with NO \f$\tfrac12\f$ (contrast the Hartree
+//! double-counting factor), and it carries the LONG part's dropped-G=0 alignment.
+//!
+//! It is DENSITY-INDEPENDENT -- \c MakeLocalPotentialLong takes only (structure, model) -- which is why
+//! it is a plain static term.  It used to be a cached side-block inside the Hartree term, summed into
+//! that term's matrix and then subtracted back out of its energy; being its own term removes both the
+//! fold and the subtraction.
+class Ven_PP_Long
+    : public virtual cStatic_HT
+    , private        cStatic_HT_Imp
+{
+public:
+    typedef std::shared_ptr<const Structure> st_t;
+    //! \a loc is REQUIRED (non-owning).  A run with no local PP does not construct this term at all.
+    Ven_PP_Long(const st_t& st, const Pseudopotential::LocalPotential* loc);
+    virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
+    virtual std::ostream& Write(std::ostream&) const;
+private:
+    virtual chmat_t CalculateMatrix(const cobs_t*, const Spin&) const;
+    st_t theStructure;
+    const Pseudopotential::LocalPotential* itsLocal;   //!< local pseudopotential model (non-owning).
+};
+
 // The non-relativistic kinetic ENERGY term is now the T-templated Kinetic<T>
 // (qchem.Hamiltonian.Internal.Kinetic); the plane-wave Hamiltonian builds Kinetic<dcmplx>.
 
 // The ion-ion (Ewald) ENERGY term is now the T-templated IonIon<T>
 // (qchem.Hamiltonian.Internal.IonIon); the plane-wave Hamiltonian builds IonIon<dcmplx>.
 
-//! Periodic ELECTROSTATICS term for a plane-wave basis (density-dependent).  The classical Coulomb Hartree
-//! \f$V_H[\rho_{elec}]\f$ PLUS the LONG-range (softened-Coulomb / Gaussian core-charge) part of the local
-//! pseudopotential \f$V_{long}\f$ -- the CP2K local-PP split (doc/GPWPlan.md 0e-PP): the deep-well erf
-//! potential is folded into the ONE G-space Poisson solve (a Gaussian core charge, sampled once per atom via
-//! the smooth density-grid integrate-back) instead of the per-orbital-pair sharp-field local-PP sweep.  So
-//! the Fock matrix is \f$\langle i|V_H+V_{long}|j\rangle\f$; the energy splits into \f$E_{Hartree}=\tfrac12
-//! \mathrm{Tr}(D V_H)\f$ (electron-electron) and \f$E_{een,long}=\mathrm{Tr}(D V_{long})\f$ (electron-ion,
-//! no \f$\tfrac12\f$), and the LONG G=0 alignment lives here.  The SHORT (compact poly-Gaussian) remainder
-//! stays in the external \c PW_Pseudo term.  Mirrors the molecular FittedVee for the \f$V_H\f$ half.
-class PW_Hartree
+//! Periodic HARTREE term for a plane-wave basis (density-dependent): the classical electron-electron
+//! Coulomb potential \f$V_H[\rho_{elec}]\f$ and nothing else.  The Fock block is
+//! \f$\langle i|V_H|j\rangle\f$ and the energy is \f$E_{ee}=\tfrac12\mathrm{Tr}(D V_H)\f$ -- the
+//! \f$\tfrac12\f$ being the electron-electron double-counting factor.  Mirrors the molecular \c FittedVee
+//! in ROLE, but not in mechanism: \c FittedVee runs a charge-constrained COULOMB-METRIC (Dunlap) fit and
+//! takes its energy from the robust \f$2E_{fit}-E_{fit,fit}\f$ combination, whereas here the G-space
+//! projection needs no metric SOLVE (see the V1.1/V1.1b metric discussion).
+//!
+//! Careful with "the projection IS the fit" -- it runs together two INDEPENDENT questions:
+//!   1. the METRIC: an orthonormal fit basis makes \f$S=I\f$, so the normal equations collapse to
+//!      \f$c=\langle f|\rho\rangle\f$.  That is about COST and CONDITIONING, not accuracy.
+//!   2. the SPAN: whether \f$\rho\f$ actually LIES in \f$\mathrm{span}\{G\}\f$.  That is what decides
+//!      whether \f$\tilde\rho=\rho\f$, and orthonormality says nothing about it.
+//! The answer to (2) differs by lineage.  For PLANE-WAVE orbitals \f$\rho=\psi^*\psi\f$ is exactly
+//! band-limited to the difference set \f$\{G_i-G_j\}\f$, and the CD fit basis is built at the \f$4\times\f$
+//! cutoff that covers it (\c PlaneWave_IBS::CreateCDFitBasisSet says so) -- so there the representation is
+//! exact and no information is lost.  For GPW (GAUSSIAN orbitals) it is NOT: a Gaussian product has
+//! infinite bandwidth, so a finite \f$\{G\}\f$ ball truncates it -- which is precisely what the
+//! \c ReportGridCharge diagnostic measures (charge lost to grid truncation, CP2K's "Electronic density on
+//! regular grids" line).  GPW's Hartree is therefore a genuine approximation, exact only as the density
+//! cutoff grows.
+//!
+//! Neither case is a rank-2-into-rank-1 squeeze, though.  What is represented is \f$\rho(r)\f$ -- the
+//! DIAGONAL \f$\rho(r,r)\f$ -- which is genuinely a function of one point.  The map \f$D\to\tilde\rho\f$ is
+//! many-to-one (it sums \f$D_{ab}\f$ over each difference \f$G_b-G_a\f$), so \f$D\f$ cannot be recovered
+//! from \f$\tilde\rho\f$; but Hartree and LDA only ever need the diagonal.  The full \f$\rho(r,r')\f$ WOULD
+//! be needed for exact exchange -- and consistently, the periodic density NA-asserts on the HF
+//! accumulators (\c IrrepCD<dcmplx>::AccumulateExchange).
+//!
+//! The LONG-range local-PP fold that used to live here is now its own term, \c Ven_PP_Long: it is
+//! density-INDEPENDENT and electron-ION, so it belonged in neither this term's matrix nor its energy.
+class Vee_Hartree
     : public virtual cDynamic_HT
     , private        cDynamic_HT_Imp
 {
 public:
     typedef std::shared_ptr<const BasisSet::cFIT_CD_ABS> fbs_t;
-    typedef std::shared_ptr<const Structure> st_t;
-    //! Built with the density-fit basis (from the orbital basis's factory, as FittedVee) PLUS the structure
-    //! and the local pseudopotential model \a loc (non-owning) it needs for \f$V_{long}\f$.  \a loc may be
-    //! null (a pure all-electron / no-PP run): then no core-charge fold, pure Hartree.
-    PW_Hartree(fbs_t chargeDensityFitBasisSet, st_t st, const Pseudopotential::LocalPotential* loc);
+    //! Built with the density-fit basis (from the orbital basis's factory, exactly as \c FittedVee is).
+    //! No structure and no pseudopotential model: pure \f$V_H[\rho]\f$ has no use for either.
+    explicit Vee_Hartree(fbs_t chargeDensityFitBasisSet);
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
     virtual std::ostream& Write(std::ostream&) const;
 private:
     virtual chmat_t CalcMatrix(const cobs_t*, const Spin&, const cChargeDensity*) const;
-    //! The fixed (density-independent) \f$\langle i|V_{long}|j\rangle\f$ block for orbital basis \a bs, built
-    //! once and cached by BasisSetID (empty / zero when \c itsLocal is null).
-    const chmat_t& LongBlock(const cobs_t* bs) const;
 
     fbs_t itsFitBasis;   //!< the CD (Coulomb-metric) fit basis, handed to the density's GetRepulsion3C
-    st_t  theStructure;  //!< the geometry (positions/Z + Omega) for the core-charge structure factor
-    const Pseudopotential::LocalPotential* itsLocal;   //!< local PP model (non-owning; null = pure Hartree)
-    //! Per-irrep-basis \f$V_{long}\f$ blocks, keyed by BasisSetID: fixed across the SCF, so built lazily in
-    //! CalcMatrix and reused (and contracted for \f$E_{een,long}\f$ via \c DM_ContractBlocks).
-    mutable std::map<std::string, chmat_t> itsLongBlocks;
 };
 
 //! Exchange-correlation term for a plane-wave basis, carrying ONE LDA functional (so a full LDA uses a
@@ -111,7 +168,7 @@ public:
     typedef std::shared_ptr<ExFunctional> xc_t;
     typedef std::shared_ptr<const BasisSet::cFIT_SF_ABS> fbs_t;
     //! Built with the Vxc fit basis obtained from the orbital basis's factory (BuildTerms creates it ONCE,
-    //! never assuming orbital==fit) -- the overlap-metric sibling of PW_Hartree.
+    //! never assuming orbital==fit) -- the overlap-metric sibling of Vee_Hartree.
     PW_XC(const xc_t&, fbs_t vxcFitBasisSet);
     ~PW_XC();
     virtual void          GetEnergy(EnergyBreakdown&, const cDM_CD*) const;
@@ -152,7 +209,7 @@ private:
 
 //! \brief The shared quadrature engine of the Becke XC pair: the mesh, the per-Bloch-block cached basis
 //! tables \f$\Phi_{gi}=\chi_i(r_g)\f$ (GEOMETRY-FIXED -- built once per run per block, keyed by
-//! BasisSetID like PW_Hartree's \f$V_{long}\f$ blocks), and \f$\rho\f$ at the mesh points for the current
+//! BasisSetID), and \f$\rho\f$ at the mesh points for the current
 //! density serial (built ONCE per SCF iteration for the whole pair, via cDM_CD::DM_RhoAtPoints -- the
 //! density GEMMs the tables against its private \f$D\f$).  This is what makes the route O(GEMM) per
 //! iteration: without it the pair re-evaluated the Bloch image sums pointwise FOUR times per iteration
