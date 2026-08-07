@@ -34,7 +34,6 @@ public:
 
 protected:
     typedef std::shared_ptr<const Structure> st_t;
-    void InsertStandardTerms(const st_t & st);   // molecular standard terms (double only)
     typedef std::vector<std::unique_ptr<   tStatic_HT<T>>> shtv_t;
     typedef std::vector<std::unique_ptr<  tDynamic_HT<T>>> dhtv_t;
     typedef std::vector<std::unique_ptr<tDynamic_HF_HT<T>>> hf_htv_t;
@@ -47,7 +46,21 @@ protected:
     bool   itsIsRelativistic;
 };
 
-using rHamiltonianImp  = tHamiltonianImp<double>;
+//! \brief The MOLECULAR (real) Hamiltonian implementation: \c tHamiltonianImp<double> plus the standard
+//! molecular term set.  A CLASS, not an alias, so that \c InsertStandardTerms exists ONLY on the lineage
+//! that has one (R2.8).
+//!
+//! It used to be a member of the T-generic base, which forced a \c dcmplx specialization whose entire body
+//! was \c assert(false) -- the plane-wave Hamiltonian assembles its terms explicitly and has no "standard"
+//! set (no bare \c Ven: the nuclei are pseudised; no molecular \c Kinetic instantiation).  Declaring it here
+//! makes that a COMPILE error rather than a runtime assert, and removes an LSP-violating stub from the base.
+class rHamiltonianImp : public tHamiltonianImp<double>
+{
+protected:
+    //! Kinetic + ion-ion + bare nuclear attraction -- the terms every molecular/atomic Hamiltonian starts with.
+    void InsertStandardTerms(const st_t& st);
+};
+
 using cHamiltonianImp = tHamiltonianImp<dcmplx>;
 
 } //namespace

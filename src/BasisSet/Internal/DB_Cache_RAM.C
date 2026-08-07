@@ -31,24 +31,24 @@ public:
     IntegralsCache_RAM(bool makelog=false);
     virtual ~IntegralsCache_RAM(); //Report some RAM usage
 
-    virtual const rvec_t&    Get(I1C,const DBCacheClient*,                          std::function<rvec_t   ()>);
-    virtual const hmat_t<T>& Get(I2C,const DBCacheClient*,                          std::function<hmat_t<T>()>);
-    virtual const hmat_t<T>& Get(I2n,const DBCacheClient*,const Structure_ID_t&,      std::function<hmat_t<T>()>);
-    virtual const  mat_t<T>& Get(I2x,const DBCacheClient*,const DBCacheClient*,     std::function< mat_t<T>()>);
-    virtual const ERI3  <T>& Get(I3C,const DBCacheClient*,const DBCacheClient*,     std::function<ERI3  <T>()>);
-    virtual const G_ERI3&    Get(I3C,const DBCacheClient*,const DBCacheClient*,     std::function<G_ERI3   ()>);
-    virtual const ERI4     & Get(I4C,const DBCacheClient*,const DBCacheClient*,     std::function<ERI4     ()>);
-    virtual const rvec_t&    Get(I1C,const DBCacheClient*,const Mesh_ID_t&,                      std::function<rvec_t()>);
-    virtual const rmat_t&    Get(I2x,const DBCacheClient*,const DBCacheClient*,const Mesh_ID_t&, std::function<rmat_t()>);
+    virtual const rvec_t&    Get(I1C,const DBCacheClient*,                          std::function<rvec_t   ()>) override;
+    virtual const hmat_t<T>& Get(I2C,const DBCacheClient*,                          std::function<hmat_t<T>()>) override;
+    virtual const hmat_t<T>& Get(I2n,const DBCacheClient*,const Structure_ID_t&,      std::function<hmat_t<T>()>) override;
+    virtual const  mat_t<T>& Get(I2x,const DBCacheClient*,const DBCacheClient*,     std::function< mat_t<T>()>) override;
+    virtual const ERI3  <T>& Get(I3C,const DBCacheClient*,const DBCacheClient*,     std::function<ERI3  <T>()>) override;
+    virtual const G_ERI3&    Get(I3C,const DBCacheClient*,const DBCacheClient*,     std::function<G_ERI3   ()>) override;
+    virtual const ERI4     & Get(I4C,const DBCacheClient*,const DBCacheClient*,     std::function<ERI4     ()>) override;
+    virtual const rvec_t&    Get(I1C,const DBCacheClient*,const Mesh_ID_t&,                      std::function<rvec_t()>) override;
+    virtual const rmat_t&    Get(I2x,const DBCacheClient*,const DBCacheClient*,const Mesh_ID_t&, std::function<rmat_t()>) override;
 
-    void Register(Cache4_Client* eval);
-    const Cache4* GetCache4(const RadialTypeID_t& type) const;
+    virtual void Register(Cache4_Client* eval) override;
+    virtual const Cache4* GetCache4(const RadialTypeID_t& type) const override;
 
-    void Register(Cache2_Client* eval);
-    const Cache2* GetCache2(const RadialTypeID_t& type) const;
+    virtual void Register(Cache2_Client* eval) override;
+    virtual const Cache2* GetCache2(const RadialTypeID_t& type) const override;
 
-    void Register(Cache3_Client* eval);
-    const Cache3* GetCache3(const RadialTypeID_t& type) const;
+    virtual void Register(Cache3_Client* eval) override;
+    virtual const Cache3* GetCache3(const RadialTypeID_t& type) const override;
 
     // --- Troubleshooting / DBCache-unit-test hooks.  DELIBERATELY on the concrete RAM type, NOT on the
     // abstract IntegralsCache<T> face: production code only ever holds that face (via theCache<T>()), so it

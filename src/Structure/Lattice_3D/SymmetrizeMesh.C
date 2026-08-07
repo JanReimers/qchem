@@ -42,6 +42,15 @@ export namespace qchem
 
 namespace SL = qchem::Symmetry::Lattice_3D;
 
+//! \brief Default coincidence tolerance for mesh-point matching, in FRACTIONAL coordinates (the torus
+//! metric these routines work in), so it is cell-size independent by construction.
+//!
+//! Named once rather than repeated as a literal at each entry point: every routine here decides the SAME
+//! question -- "are these two mesh points the same point?" -- so they must agree, and a reader should not
+//! have to diff four default arguments to confirm that they do (R2.12).  1e-8 is far below any real mesh
+//! spacing and far above the round-off of a fractional coordinate that has been through one W matrix.
+inline constexpr double kMeshMatchTol = 1e-8;
+
 //! The fold partition of \a m's points under \f$\{W|\tau\}\f$ ops acting on fractional coordinates
 //! (torus metric, tolerance \a tol in fractional units).
 inline SL::Fold FoldMesh(const qcMesh::Mesh& m, const Matrix3D<double>& A,
@@ -67,10 +76,10 @@ inline qcMesh::Mesh MakeInvariant(const qcMesh::Mesh& m, const Matrix3D<double>&
                                   const std::vector<SL::SymOp>& ops, double tol);
 
 // ---- The ops-encapsulated overloads (§2c): the SpaceGroup supplies its own {W|τ} set + cell. ----
-inline SL::Fold         FoldMesh       (const qcMesh::Mesh& m, const SL::SpaceGroup& sg, double tol=1e-8);
-inline qcMesh::Mesh     Symmetrize     (const qcMesh::Mesh& m, const SL::SpaceGroup& sg, double tol=1e-8);
-inline std::vector<int> UnmatchedCounts(const qcMesh::Mesh& m, const SL::SpaceGroup& sg, double tol=1e-8);
-inline qcMesh::Mesh     MakeInvariant  (const qcMesh::Mesh& m, const SL::SpaceGroup& sg, double tol=1e-8);
+inline SL::Fold         FoldMesh       (const qcMesh::Mesh& m, const SL::SpaceGroup& sg, double tol=kMeshMatchTol);
+inline qcMesh::Mesh     Symmetrize     (const qcMesh::Mesh& m, const SL::SpaceGroup& sg, double tol=kMeshMatchTol);
+inline std::vector<int> UnmatchedCounts(const qcMesh::Mesh& m, const SL::SpaceGroup& sg, double tol=kMeshMatchTol);
+inline qcMesh::Mesh     MakeInvariant  (const qcMesh::Mesh& m, const SL::SpaceGroup& sg, double tol=kMeshMatchTol);
 
 //! \brief SITE-GROUP-INVARIANT angular quadrature of polynomial degree \a L (doc/SymmetryUpgradePlan.md
 //! §6a W2 -- "the site group fixes both how many and which directions").  Directions = unions of

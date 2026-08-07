@@ -28,7 +28,6 @@ public:
     virtual void      DoFit           (const rChargeDensity&             );
     virtual smat_t<T> GetRepulsion    (const odftbs_t*) const;
     virtual double    GetSelfRepulsion(               ) const;  //Does GetRepulsion(*this);
-    virtual FittedCD* Clone           (               ) const;
 
     // ScalarFunction
     virtual double  operator()(const rvec3_t& r) const {return (*itsFitter)(r);}      // No UT coverage

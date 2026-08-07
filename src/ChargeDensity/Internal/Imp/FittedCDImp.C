@@ -55,15 +55,6 @@ template <class T> double FittedCDImp<T>::GetSelfRepulsion() const
     return 0.5 * itsFitter->FitGetSelfRepulsion();   // 1/2 <ro|1/r12|ro>
 }
 
-template <class T> FittedCD* FittedCDImp<T>::Clone() const
-{
-    // Unused today.  A correct Clone needs a POLYMORPHIC fitter clone (so the constrained fitter isn't
-    // sliced); implement when Clone is actually needed -- e.g. building a polarized CD from unpolarized.
-    assert(false && "FittedCDImp::Clone not implemented -- see polarized-CD TODO");
-    return nullptr;
-}
-
-
 template class FittedCDImp<double>;
 
 } //namespace

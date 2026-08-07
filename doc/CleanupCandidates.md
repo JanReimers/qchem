@@ -389,12 +389,19 @@ in the same session.
     and it also retires `SlaterExchange::Gradient`.  Do it as V1.13, now cheap and compiler-verifiable.
   - Not touched (still V1.13): `SetPolarized`/`isPolarized` (still no caller, so `isPolarized` is still
     permanently true).
-- **R2.7 `FittedCD::Clone()` — delete.**  Pure virtual (FittedCD.C:28) whose SOLE implementation
+- **R2.7 ✅ DONE 2026-08-07. `FittedCD::Clone()` — delete.**  Pure virtual (FittedCD.C:28) whose SOLE implementation
   asserts false and returns nullptr (Imp/FittedCDImp.C:58-64).  Dead contract clause; restore when
   the polarized-from-unpolarized path exists (real blocker per the assert message: a cloneable
   FunctionFitter).
-- **R2.8 `InsertStandardTerms<dcmplx>` = assert(false)** (Imp/HamiltonianImp.C:49-53) — a
+- **R2.8 ✅ DONE 2026-08-07. `InsertStandardTerms<dcmplx>` = assert(false)** (Imp/HamiltonianImp.C:49-53) — a
   molecular-only convenience on the T-generic base; move it down to the real lineage.
+  **How:** `rHamiltonianImp` stopped being an ALIAS for `tHamiltonianImp<double>` and became a small CLASS
+  deriving from it, carrying `InsertStandardTerms`.  All ten molecular Hamiltonians already spell their base
+  `private rHamiltonianImp`, so NOT ONE derived class changed — and the dcmplx side simply does not have the
+  member any more, making misuse a COMPILE error instead of a runtime assert.  (Why the stub existed at all:
+  `template class tHamiltonianImp<dcmplx>;` is an EXPLICIT instantiation, which instantiates every member
+  definition — so while the member lived on the generic base, the dcmplx side was *required* to have a body.
+  Worth remembering: an explicit class instantiation makes "just don't define it for that T" impossible.)
 - **R2.9 Small Hamiltonian hardening**: (i) `XC_GridEngine` constness laundering —
   Rho/RhoPol/Matrix/Phi non-const, called from const term methods via a non-const `shared_ptr`;
   every other cache in the module is `mutable`+const-method — align it (and note: no
@@ -405,10 +412,17 @@ in the same session.
   on change.
 - **R2.10 `Fit_IBS::SetMesh` → ctor parameter.**  Two-phase construction; the construction-time
   principle was already settled for the XC quadrature — build the mesh first, hand it in.
-- **R2.11 `DB_Cache_RAM.C`** — a screenful of `-Winconsistent-missing-override` warnings on every
-  qcBasisSet build (`Get`/`Register`/`GetCache*`).  Mechanical `override` sweep.
-- **R2.12 `UnmatchedCounts`/fold `tol` defaults** — 1e-8 fractional as a literal in three places
+- **R2.11 ✅ DONE 2026-08-07. `DB_Cache_RAM.C`** — a screenful of `-Winconsistent-missing-override` warnings on every
+  qcBasisSet build (`Get`/`Register`/`GetCache*`).  Mechanical `override` sweep — 15 members marked.
+  Swept the qcHamiltonian ones too (`FittedVxc`/`FittedVcorrPol`, newly inconsistent because V1.3's
+  `GetEMatrix` arrived with `override` while its siblings had none).  **`ninja allTests` is now
+  warning-free**, which is the real win: a screenful of known-benign warnings is where a NEW one hides.
+- **R2.12 ✅ DONE 2026-08-07. `UnmatchedCounts`/fold `tol` defaults** — 1e-8 fractional as a literal in three places
   (GPW `CreateXCQuadrature`, SymmetrizeMesh overloads); name it once.
+  Now `qchem::kMeshMatchTol` in SymmetrizeMesh.C, used by all FOUR SpaceGroup overload defaults (the item
+  said three; it was four) plus the GPW `CreateXCQuadrature` site.  They all decide the same question —
+  "are these two mesh points the same point?" — so they must agree, and a reader should not have to diff
+  four default arguments to confirm that they do.
 - **R2.13 Becke strings/labels rename in `Delta_*`/`XC_GridEngine`.**  Verified: the classes are
   already behaviorally mesh-neutral — ZERO branching on Becke; only 3 `Write()` strings + 3
   profiler labels (the one factory branch lives in Imp/Hamiltonians.C:201 where policy belongs).

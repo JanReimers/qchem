@@ -90,7 +90,7 @@ BasisSet::XCQuadrature GPW_IBS::CreateXCQuadrature(const Structure* cl, const qc
     std::vector<Symmetry::Lattice_3D::SymOp> ops;
     ops.reserve(dops.size());
     for (const auto& op : dops) ops.push_back({op.W, op.tau});
-    const double tol = 1e-8;
+    const double tol = qchem::kMeshMatchTol;   // the ONE mesh-point coincidence tolerance (R2.12)
     const Matrix3D<double>& A = Cell().GetCellMatrix();
 
     qcMesh::Mesh mesh;

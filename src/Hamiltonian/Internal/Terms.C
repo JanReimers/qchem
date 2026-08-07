@@ -264,12 +264,12 @@ public:
 
     FittedVxc(fbs_t& VxcFitBasisSet, ex_t&);
     ~FittedVxc();
-    virtual void          GetEnergy       (EnergyBreakdown&,const rDM_CD*) const;
+    virtual void          GetEnergy       (EnergyBreakdown&,const rDM_CD*) const override;
     //! The ENERGY block: re-fits eps_xc for this density and returns Sum_a c_a <Oi|f_a|Oj> for contraction.
     virtual const rsmat_t& GetEMatrix(const robs_t*,const Spin&,const rChargeDensity* cd) const override;
-    virtual std::ostream& Write           (std::ostream&) const;
+    virtual std::ostream& Write           (std::ostream&) const override;
 private:
-    virtual rsmat_t CalcMatrix(const robs_t*,const Spin&,const rChargeDensity*) const;
+    virtual rsmat_t CalcMatrix(const robs_t*,const Spin&,const rChargeDensity*) const override;
 
     ex_t itsEx;   //!< the XC functional (owned, shared): supplies BOTH GetVxc (V) and GetEpsXc (E)
     std::unique_ptr<Fitting::FunctionFitter_Scalar<double>> itsFitter;    //!< V: the v_xc fit
@@ -320,15 +320,15 @@ public:
 
     FittedVcorrPol(fbs_t&, corr_t&);
    ~FittedVcorrPol();
-    virtual void GetEnergy (EnergyBreakdown&, const rDM_CD* cd) const;
+    virtual void GetEnergy (EnergyBreakdown&, const rDM_CD* cd) const override;
     //! The ENERGY block: fits eps_c(rho_up,rho_down) from the full Polarized_CD and returns its overlap
     //! matrix.  Spin-INDEPENDENT as a value, so contracting it over both channels gives
     //! E_c = integral eps_c (rho_up+rho_down).
     virtual const rsmat_t& GetEMatrix(const robs_t*, const Spin&, const rChargeDensity* cd) const override;
-    virtual bool IsPolarized() const {return true;}
-    virtual std::ostream& Write(std::ostream&) const;
+    virtual bool IsPolarized() const override {return true;}
+    virtual std::ostream& Write(std::ostream&) const override;
 private:
-    virtual rsmat_t CalcMatrix(const robs_t*, const Spin&, const rChargeDensity* cd) const;
+    virtual rsmat_t CalcMatrix(const robs_t*, const Spin&, const rChargeDensity* cd) const override;
 
     corr_t itsCorr;                                                      //!< the correlation functional (owned)
     std::unique_ptr<Fitting::FunctionFitter_Scalar<double>> itsVcFitter; //!< v_c^sigma potential fit

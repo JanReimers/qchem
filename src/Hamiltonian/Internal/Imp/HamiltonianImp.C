@@ -40,17 +40,14 @@ template <class T> void tHamiltonianImp<T>::Add(tDynamic_HF_HT<T>* p)
     itsIsRelativistic = itsIsRelativistic || p->IsRelativistic();
 }
 
-// The molecular standard terms (Kinetic/Vnn/Ven) are double-only; the complex (plane-wave) Hamiltonian
-// builds its terms explicitly, so this is NA there.
-template <> void tHamiltonianImp<double>::InsertStandardTerms(const st_t & st)
+// The molecular standard terms (Kinetic/Vnn/Ven).  It lives on rHamiltonianImp -- the molecular lineage --
+// so the complex (plane-wave) Hamiltonian, which assembles its terms explicitly, simply does not have it:
+// the old dcmplx specialization was a pure assert(false) stub on the T-generic base (R2.8).
+void rHamiltonianImp::InsertStandardTerms(const st_t & st)
 {
     Add(new Kinetic<double>);
     Add(new IonIon<double>(st));
     Add(new Ven(st));
-}
-template <> void tHamiltonianImp<dcmplx>::InsertStandardTerms(const st_t &)
-{
-    assert(false && "InsertStandardTerms: the complex Hamiltonian assembles its terms explicitly");
 }
 
 template <class T> hmat_t<T> tHamiltonianImp<T>::GetMatrix(const tobs_t<T>* bs,const Spin& S,const tChargeDensity<T>* cd,const tbs_t<T>* wholeBasis)
