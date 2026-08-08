@@ -110,17 +110,8 @@ public:
 //   - convenience ctors: name the element(s)/functional/valence and the database (GetGTH) is looked up
 //     and OWNED here -- the one-call plane-wave LDA Hamiltonian, single- or multi-species.
 //
-//! \brief WHICH FIT BASIS represents \f$v_{xc}\f$ (doc/SymmetryUpgradePlan.md §6a, the fit/grid
-//! SEPARATION, user 2026-08-01): the fit-basis choice and the real-space grid choice
-//! (\c qcMesh::MeshParams) are ORTHOGONAL user knobs.
-//!  - \c PlaneWave: expand \f$v_{xc}\f$ on the \f$\{Q_j\}\f$ ball (band-limited; the projection
-//!    quadrature is the FFT on the uniform raster) -- the \c PWFittedVxc pair.
-//!  - \c Delta: the delta-function "fit" -- coefficients ARE the grid-point values, H by direct
-//!    quadrature -- the \c DeltaFittedVxc pair, on ANY real-space grid (Becke or uniform).
-//!  - \c Auto: the historical pairing -- \c Delta on a Becke grid, \c PlaneWave on the uniform raster.
-//! (PlaneWave fit ON a Becke grid = I3: the projection sum is trivial, but the one-functional E/H
-//! derivative pairing must be designed first -- asserted out until then.)
-enum class VxcFit { Auto, PlaneWave, Delta };
+// (VxcFit moved to the PUBLIC qchem.Hamiltonian.Types 2026-08-08 -- a facade must be able to name this
+//  policy knob without importing an internal.  Imported above; documented there.)
 
 class Ham_PW_DFT : public virtual cHamiltonian, private cHamiltonianImp
 {

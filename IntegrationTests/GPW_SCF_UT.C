@@ -42,7 +42,8 @@ import qchem.BasisSet.Orbital_1E_IBS;            // Complex_OIBS (the overlap-sp
 import qchem.Blaze;                              // blazem::eigen, blaze::min/max (overlap spectrum)
 import qchem.BasisSet.Lattice_3D.BasisSet;       // GPWFactory (the GPW basis container)
 import qchem.BasisSet.Molecule.Factory;          // Molecule::Factory, BasisSetData/Engine/Angular
-import qchem.Hamiltonian.Internal.Hamiltonians;  // Ham_PW_DFT (the plane-wave LDA KS Hamiltonian -- drives GPW too)
+import qchem.Hamiltonian.Factory;                 // the PUBLIC solid front door (Step 4): cHamiltonian* Factory(...)
+import qchem.Hamiltonian.Internal.Hamiltonians;  // Ham_PW_DFT direct ctors (the bespoke probes below still use them)
 import qchem.Hamiltonian.Internal.PWTerms;        // ReportGridCharge(); PWFittedVxc / DeltaFittedVxc (the Becke XC gate)
 import qchem.Mesh.Angular;                        // MakeAngular (the rotated-Lebedev bond-angle probe)
 import qchem.Hamiltonian.Internal.ExFunctional;   // ExFunctional (the LDA functional face the XC terms hold)
@@ -418,8 +419,14 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
     qchem::Hamiltonian::cHamiltonian* ham=nullptr;
     {
         qchem::report::Timed t("setup: hamiltonian ctor (fit bases + becke mesh)");
-        ham=new qchem::Hamiltonian::Ham_PW_DFT(lat.GetStructure(), bs.get(), o.species, "LDA",
-                                               qcMesh::ResolveXCMesh(o.xcMesh, GatherSharpness(lat,*mol,o)), o.vxcFit, polarized);
+        // THE PUBLIC SOLID FRONT DOOR (Step 4).  This driver is the facade-shaped path, so it goes through
+        // qchem.Hamiltonian.Factory rather than the Internal ctor -- which is what a real facade in
+        // src/Calculation/ will call.  (The bespoke term-level probes further down still use the Internal
+        // ctors directly; they are testing the terms, not driving a run.)
+        ham=qchem::Hamiltonian::Factory(polarized ? qchem::Hamiltonian::Pol::Polarized
+                                                  : qchem::Hamiltonian::Pol::UnPolarized,
+                                        lat.GetStructure(), bs.get(), o.species, "LDA",
+                                        qcMesh::ResolveXCMesh(o.xcMesh, GatherSharpness(lat,*mol,o)), o.vxcFit);
     }
     auto* acc = MakeGpwAccelerator(o.accelerator);
 
@@ -529,8 +536,10 @@ static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Rea
         const double kT=kTSchedule[s];
         // Fresh Hamiltonian + accelerator per stage (the iterator OWNS + deletes them; a kT change must not
         // carry stale DIIS history across the re-seed).
-        auto* ham = new qchem::Hamiltonian::Ham_PW_DFT(st, bs.get(), o.species, "LDA",
-                                                       qcMesh::ResolveXCMesh(o.xcMesh, GatherSharpness(lat,*mol,o)), o.vxcFit, polarizedA);
+        auto* ham = qchem::Hamiltonian::Factory(polarizedA ? qchem::Hamiltonian::Pol::Polarized
+                                                            : qchem::Hamiltonian::Pol::UnPolarized,
+                                        st, bs.get(), o.species, "LDA",
+                                        qcMesh::ResolveXCMesh(o.xcMesh, GatherSharpness(lat,*mol,o)), o.vxcFit);
         auto* acc = MakeGpwAccelerator(accSchedule.empty() ? o.accelerator : accSchedule[s]);
         std::unique_ptr<qchem::SCFIterator::SolidSCFIterator> scf(
             s==0 ? new qchem::SCFIterator::SolidSCFIterator(bs.get(), &ec, ham, acc, o.seed,  st.get(), o.ortho, o.orthoTol)
