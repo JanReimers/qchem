@@ -1367,13 +1367,19 @@ TEST(GPW_SCF, AlFCCMetalIBZExact)
     // Re-anchored 2026-08-01: the 0i custom V_loc G-ball (harmonic routing + custom top level) moved the
     // long-PP block by 1.6e-4 on Al's coarse grids -- full mesh AND reduced shift TOGETHER (folding stays
     // exact).  Old kappa-sweep anchor: -2.116812.
-    // Re-pinned 2026-08-02 ON THE BECKE ROUTE (plan §7 step 5 carve-out retirement): Auto+imposeSymmetry now
-    // builds the mixed-rule site-adapted invariant Becke mesh (830 dirs/atom under Al's O_h site group,
-    // the 12 <110> bond directions filtered), and the reduced run reproduces the Becke full-mesh
-    // AlFCCMetalGlobalMu (prints -2.11749 same run) to ~1e-5 -- folding stays exact on the Becke route.
-    // The uniform-route pair was -2.1169707 (route difference ~5e-4, the Becke-vs-uniform XC class).
-    EXPECT_NEAR(R.E.GetTotalEnergy(), -2.1174805, 1e-4)  // == the full 8-k-point mesh: IBZ symmetrization is EXACT
-        << "IBZ-reduced must reproduce the full-mesh free energy (AlFCCMetalGlobalMu -2.11749)";
+    // Re-pinned 2026-08-08 ON THE UNIFORM ROUTE (V2.4, arming the V1.26 cost selector): Al is soft
+    // (alpha_max=4), so Auto now costs the two grids and picks uniform -- 4,096 points against Becke's
+    // 18,000.  The value it lands on, -2.1169707, is EXACTLY the uniform-route number the previous
+    // comment here already recorded, so this re-pin introduces no new quantity; it switches which of two
+    // long-known values is the default.
+    //   Which is right?  Measured, not assumed (GPW_SCF.DISABLED_GridRouteAB_AlFCC): against a fine Becke
+    //   reference the uniform route is CLOSER on both scores -- ||drho||_1 6.18e-4 vs the production
+    //   Becke mesh's 8.95e-4, and dEtot -1.34e-5 vs +1.93e-4.  The production Becke mesh's own residual
+    //   is the angular error V2.6 measured on this system (Al is the worst case there).  And the uniform
+    //   route is converged: refining its cutoff 4x moves ||drho||_1 by 1 part in 6000.
+    // Previous anchor, on the Becke route: -2.1174805.
+    EXPECT_NEAR(R.E.GetTotalEnergy(), -2.1169707, 1e-4)  // == the full 8-k-point mesh: IBZ symmetrization is EXACT
+        << "IBZ-reduced must reproduce the full-mesh free energy (AlFCCMetalGlobalMu prints the same value)";
 }
 
 // (item 5, IBZ) NON-SYMMORPHIC -- diamond Si (FCC lattice + a 2-atom basis at (0,0,0),(¼,¼,¼)) is space group

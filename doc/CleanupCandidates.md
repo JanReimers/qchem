@@ -1389,7 +1389,36 @@ in the same session.
   keyed on `cd->Version()` alone, which a polarized density aliases across channels — the trap the
   engine's RhoPol pair-cache fixes).  Design note in the throw message.
 
-- **V2.4 Calibrate `kUniformMargin` and ARM the V1.26 selector.**  The cost model says uniform beats Becke
+- **V2.4 ✅ DONE 2026-08-08 — margin validated, selector ARMED.**  Converged-run A/B on both systems the
+  selector routes to uniform (`GPW_SCF.DISABLED_GridRouteAB_{SiGamma,AlFCC}`; scored on the converged DENSITY
+  per D8, never ΔE_total).  Uniform at its own cutoff matched a fine Becke reference at least as well as the
+  PRODUCTION Becke mesh, for 4–15x fewer points — and much better on total energy (Si 30x, Al 14x), because
+  B-prod's residual is the angular error V2.6 measured.  `U-sel ≡ U-4x` on both, so the uniform route is
+  genuinely converged at the selector's cutoff.  `kUniformMargin=2.0` stands.  `Auto` now ACTS
+  (`GPW_XCGRID_NOSELECT=1` is the A/B valve); 683/683 green.
+  - **No contradiction with the 2026-08-01 Becke default**, which was justified for diffuse bases and sharp
+    cores: those systems (F α_max=40, MnO) are exactly the ones the selector already routes to Becke.  The
+    selector reproduces that split automatically instead of applying one answer to both regimes.
+  - **One anchor moved, and to a value already in the tree:** `AlFCCMetalIBZExact` −2.1174805 → **−2.1169707**,
+    which is verbatim the "uniform-route pair" its own comment had recorded since 2026-08-02.  The re-pin
+    switches which of two long-known values is the default; it introduces no new quantity.  IBZ folding stays
+    exact (`AlFCCMetalGlobalMu` prints the same value).
+  - **⚠️ ARMING EXPOSED A REAL BUG, which is the main find.**  `VxcFit::Auto` paired uniform with the
+    PLANE-WAVE fit unconditionally — and `PWFittedVxc` is not spin-native, so the two Si spin-collapse gates
+    (`Polarized{,Seed}SingletMatchesUnpolarizedSiGamma`) threw the moment Auto could route a soft system to
+    uniform.  The throw message named its own fix: Delta works on EITHER grid, and the code already said so.
+    `Auto` now picks Delta whenever PW cannot do the job — Becke grid OR polarized run — so the throw is
+    reachable only via an explicit `VxcFit::PlaneWave`.  **This was latent before V2.4, not caused by it:**
+    a polarized uniform-grid run was simply unreachable while Auto always chose Becke.
+  - **Recorded honestly: the one place Becke still wins is \f$\|\Delta\rho\|_\infty\f$** — 4.7x better at
+    the WORST point on Si, which is the core.  A property that samples the core (hyperfine, EFG, core-level
+    shifts) should prefer Becke even where the selector says uniform.  The integrated norm is not the whole
+    story, and the selector optimises the integrated norm.
+  - Method note that changed the answer: the first Si A/B had 3 of 4 arms hit FIT-FLOOR STALL, because
+    `imposeSymmetry=false` was copied from the V2.6 ladders — right there (measure the bare angular rule),
+    wrong here (free-mesh Si/Γ oscillates in its degenerate manifold, so the densities were not converged and
+    the scores read 20–40x larger).  A converged-density metric means nothing until every arm converges.
+  *(original item text:)*  **Calibrate `kUniformMargin` and ARM the V1.26 selector.**  The cost model says uniform beats Becke
   15x on Si; the 2026-08-01 measurement says Becke is the right grid there.  Both cannot be right, and the
   margin (a guess at 2.0) is where the discrepancy has to be absorbed.  Instrument: the
   `[XC grid choice] Auto:` line, now emitted by every GPW run.  Measurement per the D8 pin — grid-convergence
