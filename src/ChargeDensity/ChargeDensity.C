@@ -148,12 +148,36 @@ public:
     virtual void JoinLineage(const LineagePtr& l) override {itsLineage=l; l->MakeHead(this->Version());}
 };
 
+//! \brief A charge density that can be MIXED IN PLACE -- the whole of what an SCF density mixer needs of
+//! its subject, and nothing else.
+//!
+//! ISP (user, 2026-08-08).  \c LinearMixer uses exactly \c GetChangeFrom, \c MixIn and \c GetTotalCharge,
+//! yet it used to take a \c tDM_CD -- dragging in \c DM_Contract, \c DM_ContractBlocks, \c DM_RhoAtPoints
+//! and the four HF J/K accumulators, none of which mixing has any business knowing about.  This is the
+//! sibling of the \c GField / \c tFieldMixer split on the G-space side: each mixer family now names the
+//! narrowest subject that supports its arithmetic.
+//!
+//! NB the two operations are BINARY, so they dispatch on both operands -- which C++ cannot do (single
+//! dispatch only; the classic binary-method problem).  Every implementation therefore opens with a
+//! same-kind \c dynamic_cast of \a other.  That is NOT a cost of this narrowing: the casts were already
+//! there and are unavoidable (IrrepCD needs the other IrrepCD's MATRIX), and abstract-base to
+//! abstract-base is exactly the cast this project sanctions.  A double-dispatch seam would remove them;
+//! parked as not worth the second virtual hop today.
+template <class T> class tMixableDensity
+: public virtual tChargeDensity<T>
+{
+public:
+    virtual void   MixIn        (const tMixableDensity<T>&,double)      =0;  //!< this = (1-c)*this + c*that
+    virtual double GetChangeFrom(const tMixableDensity<T>&       ) const=0;  //!< convergence check
+};
+
 //  A charge density represented BY A DENSITY MATRIX: adds the matrix-only capabilities -- operator
-//  contraction (DM_Contract), SCF density mixing (MixIn/GetChangeFrom), and the Hartree-Fock J/K
-//  accumulators.  Densities with no matrix (fits) are tChargeDensity instead.
+//  contraction (DM_Contract) and the Hartree-Fock J/K accumulators.  Mixing is NOT here: it needs no
+//  matrix, so it lives one level up on tMixableDensity (ISP).  Densities with no matrix (fits) are
+//  tChargeDensity instead.
 //
 template <class T> class tDM_CD
-: public virtual tChargeDensity<T>
+: public virtual tMixableDensity<T>
 {
 public:
     virtual double DM_Contract(const tStatic_CC<T>*) const=0; //Amounts to Integral(ro*V*d3r);
@@ -181,9 +205,6 @@ public:
         for (size_t g=0; g<r.size(); g++) ro[g]=(*this)(r[g]);
         return ro;
     }
-
-    virtual void   MixIn        (const tDM_CD<T>&,double      )      =0;  //this = (1-c)*this + c*that.
-    virtual double GetChangeFrom(const tDM_CD<T>&            ) const=0;  //Convergence check.
 
     // HF/fit-specific (real, Gaussian-basis) -- the dcmplx plane-wave density NA-asserts these.
     // (The single-block diagonal contraction is NOT here: it is a private IrrepCD detail the whole-system
@@ -252,8 +273,8 @@ public:
     virtual void AccumulateExchangeAll(std::vector<hmat_t<T>>& Kall) const;  // sum both spins (RHF exchange)
 
     virtual void   ReScale      (double factor              )      ;  // No UT coverage//Ro *= factor
-    virtual void   MixIn        (const tDM_CD<T>&,double)      ;  //this = (1-c)*this + c*that.
-    virtual double GetChangeFrom(const tDM_CD<T>&       ) const;  //Convergence check.
+    virtual void   MixIn        (const tMixableDensity<T>&,double)      ;  //this = (1-c)*this + c*that.
+    virtual double GetChangeFrom(const tMixableDensity<T>&       ) const;  //Convergence check.
 
     virtual double operator()(const rvec3_t&) const; // No UT coverage
     virtual rvec3_t  Gradient  (const rvec3_t&) const; // No UT coverage

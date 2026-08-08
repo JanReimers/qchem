@@ -213,7 +213,7 @@ template <class T> void IrrepCD<T>::ReScale(double factor)
     itsVersion=NextDensityVersion();   // a mutation is logically a new density
 }
 
-template <class T> void IrrepCD<T>::MixIn(const tDM_CD<T>& cd,double c)
+template <class T> void IrrepCD<T>::MixIn(const tMixableDensity<T>& cd,double c)
 {
     const IrrepCD<T>* eicd = dynamic_cast<const IrrepCD<T>*>(&cd);
     assert(eicd);
@@ -222,7 +222,7 @@ template <class T> void IrrepCD<T>::MixIn(const tDM_CD<T>& cd,double c)
     itsVersion=NextDensityVersion();   // a mutation is logically a new density
 }
 
-template <class T> double IrrepCD<T>::GetChangeFrom(const tDM_CD<T>& cd) const
+template <class T> double IrrepCD<T>::GetChangeFrom(const tMixableDensity<T>& cd) const
 {
     const IrrepCD<T>* eicd = dynamic_cast<const IrrepCD<T>*>(&cd);
     assert(eicd);

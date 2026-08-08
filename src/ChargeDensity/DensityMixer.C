@@ -58,12 +58,16 @@ struct MixSignals { double E=0.0, FD=0.0, FDold=0.0; };
 template <class T> class tDensityMixer
 {
 public:
-    typedef std::shared_ptr<tDM_CD<T>> cd_t;
+    //! THE SUBJECT OF MIXING: a density that can be mixed in place -- NOT the whole tDM_CD contract (ISP;
+    //! see tMixableDensity).  A plain reference, not a shared_ptr: mixing never re-seats the caller's
+    //! pointer (it mutates the pointee or keeps its own running ρ̃), and the caller necessarily outlives
+    //! the call, so ownership never needed to be shared with the mixer at all.
+    typedef tMixableDensity<T> cd_t;
     virtual ~tDensityMixer() {}
     //! Fold the fresh \a working density into the running one; returns ‖Δρ‖ (the convergence gate).
     virtual double Mix(cd_t& working, const cd_t& old) = 0;
     //! The density that drives the NEXT Fock (default: the working density; Kerker → the mixed ρ̃).
-    virtual const tChargeDensity<T>* FockDensity(const cd_t& working) const { return working.get(); }
+    virtual const tChargeDensity<T>* FockDensity(const cd_t& working) const { return &working; }
     //! The current step size α (for the SCF trace only).
     virtual double GetRelax() const = 0;
     //! A 3-char self-identifier for the per-iteration ρ_mix column (doc/GPWPlan1.md item 2): "Lin"
@@ -86,9 +90,9 @@ public:
 
     double Mix(cd_t& working, const cd_t& old) override
     {
-        double dcd = working->GetChangeFrom(*old)/working->GetTotalCharge();   // relative MaxAbs change
+        double dcd = working.GetChangeFrom(old)/working.GetTotalCharge();      // relative MaxAbs change
         if (dcd<1e-5) itsRelMax=0.5;
-        working->MixIn(*old, 1.0-itsRelax);                                    // (1−relax)ρ_in + relax ρ_out
+        working.MixIn(old, 1.0-itsRelax);                                      // (1−relax)ρ_in + relax ρ_out
         return dcd;
     }
     double GetRelax() const override { return itsRelax; }
@@ -100,8 +104,8 @@ public:
     }
     double ReDampMix(cd_t& working, const cd_t& old) override
     {
-        double dcd = working->GetChangeFrom(*old);      // NOTE: un-normalised -- matches the legacy re-damp
-        working->MixIn(*old, 1.0-itsRelax/4.0);
+        double dcd = working.GetChangeFrom(old);        // NOTE: un-normalised -- matches the legacy re-damp
+        working.MixIn(old, 1.0-itsRelax/4.0);
         itsRelax*=0.8;
         return dcd;
     }
@@ -184,7 +188,7 @@ public:
     //! The density-face entry: extract ρ̃_out + the raster shadow, then do the G-space arithmetic below.
     double Mix(cd_t& working, const cd_t& /*old*/) override
     {
-        auto* fd = dynamic_cast<const FourierDensity*>(working.get());
+        auto* fd = dynamic_cast<const FourierDensity*>(&working);
         assert(fd && itsMixedRho);
         return MixField({fd->GetFourierDensity(*itsKerkerFit), fd->GetRhoOnGrid(*itsKerkerFit)});
     }
@@ -296,7 +300,7 @@ public:
     //! The density-face entry: extract ρ̃_out + the raster shadow, then do the G-space arithmetic below.
     double Mix(cd_t& working, const cd_t&) override
     {
-        auto* fd = dynamic_cast<const FourierDensity*>(working.get());
+        auto* fd = dynamic_cast<const FourierDensity*>(&working);
         assert(fd && itsMixedRho);
         return MixField({fd->GetFourierDensity(*itsKerkerFit), fd->GetRhoOnGrid(*itsKerkerFit)});
     }
@@ -527,12 +531,12 @@ public:
         if (itsBasis==ChannelBasis::SpinChannels)
         {
             auto [ou,od]=Channels(old);
-            const double du=itsUp->Mix(wu,ou), dd=itsDn->Mix(wd,od);
+            const double du=itsUp->Mix(*wu,*ou), dd=itsDn->Mix(*wd,*od);
             return std::max(du,dd);
         }
         // (ρ,m): read BOTH channels' fresh ρ̃, form the two combinations, and give each its own leaf.
-        const FourierDensity& fu=FourierOf(wu.get());
-        const FourierDensity& fd=FourierOf(wd.get());
+        const FourierDensity& fu=FourierOf(wu);
+        const FourierDensity& fd=FourierOf(wd);
         const ΔG_Map up=fu.GetFourierDensity(*itsFit), dn=fd.GetFourierDensity(*itsFit);
         const rvec_t rup=fu.GetRhoOnGrid(*itsFit),     rdn=fd.GetRhoOnGrid(*itsFit);
         const double dRho=itsRhoF->MixField({MapAdd(up,dn), RawCombine(rup,rdn,+1.0,1.0)});
@@ -545,7 +549,7 @@ public:
         if (itsBasis==ChannelBasis::SpinChannels)
         {
             auto [wu,wd]=Channels(working);
-            itsFock.Seat(itsUp->FockDensity(wu), itsDn->FockDensity(wd));
+            itsFock.Seat(itsUp->FockDensity(*wu), itsDn->FockDensity(*wd));
         }
         else if (!itsChUp)                        // iteration 1: FockDensity runs BEFORE the first Mix
         {
@@ -562,20 +566,27 @@ public:
     {
         auto [wu,wd]=Channels(working);
         auto [ou,od]=Channels(old);
-        return std::max(itsUp->ReDampMix(wu,ou), itsDn->ReDampMix(wd,od));
+        return std::max(itsUp->ReDampMix(*wu,*ou), itsDn->ReDampMix(*wd,*od));
     }
     void UpdateRelax(const MixSignals& s) override { itsUp->UpdateRelax(s); itsDn->UpdateRelax(s); }
 
 private:
-    //! The two spin channels as ALIASING shared_ptrs: they share OWNERSHIP with the parent polarized density
-    //! (which therefore cannot die under a leaf) while pointing at the channel that leaf mixes.  A leaf that
-    //! mutates its working density (the linear mixer's MixIn) then edits the channel in place, which is
-    //! exactly right; the ρ̃ leaves only read it through the FourierDensity face.
-    static std::pair<cd_t,cd_t> Channels(const cd_t& cd)
+    //! The two spin channels.  Plain pointers now that the mixer's subject is a reference: the parent
+    //! density is owned by the caller and outlives every call, so the aliasing shared_ptrs this used to
+    //! build (purely to keep the parent alive under a leaf) are gone with the shared_ptr itself.
+    //! A leaf that mutates its working density edits the channel in place, which is exactly right.
+    static std::pair<cd_t*,cd_t*> Channels(cd_t& cd)
     {
-        auto* pol=dynamic_cast<tPolarized_CD<dcmplx>*>(cd.get());
+        auto* pol=dynamic_cast<tPolarized_CD<dcmplx>*>(&cd);
         assert(pol && "PolarizedDensityMixer: the working density must be polarized");
-        return { cd_t(cd, pol->GetChargeDensity(Spin::Up)), cd_t(cd, pol->GetChargeDensity(Spin::Down)) };
+        return { pol->GetChargeDensity(Spin::Up), pol->GetChargeDensity(Spin::Down) };
+    }
+    //! const overload -- the \a old density is only ever READ (constness carried through, no const_cast).
+    static std::pair<const cd_t*,const cd_t*> Channels(const cd_t& cd)
+    {
+        auto* pol=dynamic_cast<const tPolarized_CD<dcmplx>*>(&cd);
+        assert(pol && "PolarizedDensityMixer: the working density must be polarized");
+        return { pol->GetChargeDensity(Spin::Up), pol->GetChargeDensity(Spin::Down) };
     }
     static const FourierDensity& FourierOf(const tChargeDensity<dcmplx>* cd)
     {

@@ -131,7 +131,7 @@ template <class T> void tComposite_CD<T>::ReScale(double factor)
     this->AdvanceHead();   // mutated in place -> Version() moved; keep this density the lineage head
 }
 
-template <class T> void tComposite_CD<T>::MixIn(const tDM_CD<T>& cd,double f)
+template <class T> void tComposite_CD<T>::MixIn(const tMixableDensity<T>& cd,double f)
 {
     const tComposite_CD* ecd = dynamic_cast<const tComposite_CD*>(&cd);
     assert(ecd);
@@ -144,7 +144,7 @@ template <class T> void tComposite_CD<T>::MixIn(const tDM_CD<T>& cd,double f)
     this->AdvanceHead();   // mutated in place -> Version() moved; keep this density the lineage head
 }
 
-template <class T> double tComposite_CD<T>::GetChangeFrom(const tDM_CD<T>& cd) const
+template <class T> double tComposite_CD<T>::GetChangeFrom(const tMixableDensity<T>& cd) const
 {
     const tComposite_CD* ecd = dynamic_cast<const tComposite_CD*>(&cd);
     assert(ecd);

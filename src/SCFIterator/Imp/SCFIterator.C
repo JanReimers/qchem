@@ -311,7 +311,7 @@ template <class T> bool tSCFIterator<T>::Iterate(const SCFParams& ipar)
         if (!lineSearch && itsMixer->WantsReDamp({E,FD,FDold}))
         {
             SetWorkingCD(cd_t(itsWaveFunction->GetChargeDensity())); //Get new charge density.
-            ChargeDensityChange = itsMixer->ReDampMix(itsCD, itsOldCD);
+            ChargeDensityChange = itsMixer->ReDampMix(*itsCD, *itsOldCD);
             eb=TotalEnergy(itsCD.get());
         }
         if (!lineSearch) itsMixer->UpdateRelax({E,FD,FDold});
@@ -407,10 +407,10 @@ template <class T> typename tSCFIterator<T>::cd_t tSCFIterator<T>::DirectMinStep
         // reachable if [F,D] jumps above FDMax between that check and the fresh Fock).  Do a MIXED step, not an
         // unmixed diagonalize: drive the Fock from the mixed density and fold the result back, so a bailed
         // geodesic degrades to a STABLE step.  α=1 (LinearMixer passthrough) => molecular direct-min unchanged.
-        itsWaveFunction->DoSCFIteration(*itsHamiltonian, itsMixer->FockDensity(itsCD));
+        itsWaveFunction->DoSCFIteration(*itsHamiltonian, itsMixer->FockDensity(*itsCD));
         itsWaveFunction->FillOrbitals(mergeTol);
         cd_t fresh(itsWaveFunction->GetChargeDensity());
-        itsMixer->Mix(fresh, itsCD);                     // fold ρ_out into ρ_in (itsCD drove this Fock)
+        itsMixer->Mix(*fresh, *itsCD);                   // fold ρ_out into ρ_in (itsCD drove this Fock)
         return fresh;
     }
     double t=1.0, Et=0, best=1e300; int k=0; bool found=false;
