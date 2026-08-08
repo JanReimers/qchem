@@ -71,13 +71,20 @@ export namespace qchem::qcMesh
 //! converged density, quadratured on a ladder of meshes against a fine reference in the same family, scored
 //! on E_xc and the V_xc MATRIX (never \f$\Delta E_{total}\f$ -- the D8 pin).  Verdicts, at the Becke gate's
 //! own \c max|dVxc|<1e-3:
-//!   - ANGULAR: **degree 29 is ~2.8x over-generous.**  Degree needed: Mn 9, Si 11-15, NaF 15-17.  Recommended
-//!     default \b 17 (162 directions vs 450), which leaves NaF -- the worst case -- at 2.2e-4, a 4.5x margin.
-//!     Degree 15 is NOT recommended despite sufficing on Si: NaF sits at 7.6e-4, inside tolerance by 1.3x.
-//!   - RADIAL: **40 is right, and all three systems agree.**  30 is the first rung inside tolerance
-//!     everywhere; 20 is 4-12x out; 25 is marginal on two of the three.
-//!   The default is deliberately LEFT AT 29 -- flipping it moves every pinned GPW anchor, so it is a
-//!   separate, deliberate re-pin (V2.6a).
+//!   - ANGULAR: on INSULATORS degree 29 is ~2.8x over-generous (needed: Mn 9, Si 11-15, NaF 15-17).  **But
+//!     the flip to 17 was TRIED AND BACKED OUT (V2.6a): a fourth system, Al FCC, refutes it.**  A simple
+//!     metal puts substantial valence charge ON the fuzzy-Voronoi partition surface, which is where the
+//!     angular difficulty lives, so it is the worst case -- and its convergence is NON-MONOTONIC (degree 11
+//!     is worse than 9, 23 worse than 17), so no "degree N suffices" statement survives it.
+//!   - RADIAL: **40 is right.**  Si/NaF/Mn are inside tolerance by 30; Al needs 40 and is still only 2.6e-4
+//!     there (60 gives 9.3e-5).
+//!
+//! \par Methodological caveat this measurement earned the hard way -- read before trusting any ladder here:
+//! a FROZEN-DENSITY quadrature error UNDERSTATES the self-consistent shift on a metal.  Al at degree 17
+//! measures \c max|dVxc|=3.9e-4, comfortably inside the gate -- yet both Al SCF anchors moved \b 6.4e-4 in
+//! TOTAL ENERGY when the default was flipped.  Grid error feeds back through the density, the Fermi level
+//! and the occupations; on an insulator the two numbers agree, across a Fermi surface they do not.  A ladder
+//! measures the QUADRATURE, and for a metal that is a lower bound on what the SCF will do with it.
 //!
 //! \par What actually drives the angular requirement (measured, and it is NOT what one would guess):
 //! the BECKE PARTITION between DISSIMILAR neighbours, not the on-site density's asphericity.  Mn is a SINGLE

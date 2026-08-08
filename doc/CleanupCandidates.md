@@ -1475,17 +1475,57 @@ in the same session.
     | Si (α_max=2, peak 0.354) | 2.4 | — | **3.4** | 4.4 | 6.5 | nR=30 |
     | Mn (α_max=36, peak 0.083) | 1.3 | — | 1.9 | **3.0** | 4.0 | nR=40 |
 
-    So a basis-driven `nRadial` warning IS shippable — it just needs local spacing at the peak, not a node
-    count in a window.  Filed as **V2.7**.
+    So a basis-driven `nRadial` warning looked shippable — it just needed local spacing at the peak, not a
+    node count in a window.  Filed as **V2.7**.
+    **⚠️ BUT THE THRESHOLD IS REFUTED BY Al TOO (checked 2026-08-07, against its MEASURED α_max=4 rather than
+    a guess).**  The criterion gives 3.2 at nR=30, which the "≳3" rule passes — while measurement puts Al at
+    nR=30 at 9.3e−3, 9x out of tolerance, needing nR=40 (3.8).  So the threshold fitted to Si and Mn does not
+    cover the metal, on the RADIAL axis either.  V2.7 survives as a SHAPE (local spacing at the peak is the
+    right quantity — it explains why the node count fails) but its threshold must be calibrated on a metal,
+    which means ≳3.8 and only 3 supporting points.  **Third time in this item that an insulator-fitted grid
+    rule broke on Al** — the angular recommendation, the degenerate-shell assumption, and now this.  The
+    transferable rule: calibrate a grid criterion on a simple metal, or do not ship it as a global default.
   - **CONSEQUENCE FOR V1.26/V2.4, running OPPOSITE to this item's original prediction.**  The item argued an
     over-generous recipe biases the selector toward uniform.  That was right — so FIXING it makes Becke
     **more** competitive: GL-29→GL-17 is 450→162 directions, dropping the Becke side 2.8x.  Si: 36,000 →
     12,960 against uniform's 4,913, i.e. from 7x dearer to 2.6x.  **V2.6a must land before V2.4**, or the
     margin gets fitted to a Becke cost about to change by 2.8x.
 
-- **V2.6a Flip `angularDegree` 29 → 17 (the measured recommendation above).**  Deliberately NOT done with the
-  measurement: it moves every pinned GPW anchor, so it is a re-pin commit that should stand alone and be
-  reviewed as one.  User ruling 2026-08-07: land V2.6 as a measured recommendation and leave production at 29.
+- **V2.6a ⛔ ATTEMPTED AND REJECTED 2026-08-07 — flip `angularDegree` 29 → 17.**  Made the one-line change,
+  ran the suite, and BACKED IT OUT on the evidence.  Default stays 29.  Three things came back:
+  1. **A FOURTH system refutes the three-system recommendation: Al FCC (simple metal).**  Both Al anchors
+     moved **6.4e−4** (6x `AlFCCMetalIBZExact`'s tolerance) — `−2.1174805` → `−2.11812`.  Checked the obvious
+     suspicion first and it was wrong: the full-mesh sibling `AlFCCMetalGlobalMu` prints the SAME `−2.11812`,
+     so IBZ folding stays exact and the site-adapted mesh did not degrade — both routes moved together.  It
+     is a genuine XC shift, and Al is simply harder than every system in the ladder set.
+     - Ladder confirms it, and Al is the worst case on BOTH axes: `max|dVxc|` at GL-15 = 2.4e−3 (out of
+       tolerance), GL-17 = 3.9e−4, GL-29 = 2.6e−4; radial nR=30 = 9.3e−3 (out), nR=40 = 2.6e−4, nR=60 = 9.3e−5.
+     - **And it is NON-MONOTONIC**: GL-11 (1.8e−2) is worse than GL-9 (8.3e−3); GL-23 (5.2e−4) worse than
+       GL-17 (3.9e−4).  So no clean "degree N suffices" statement survives Al at all — the error rattles
+       around 3–5e−4 from 17 up to 29.
+     - **Why a metal is the worst case is exactly the mechanism V2.6 identified**: the angular requirement is
+       set by the fuzzy-Voronoi PARTITION SURFACE, and a nearly-free-electron valence density is the one that
+       puts substantial charge ON that surface.  Si/NaF/Mn all concentrate charge near nuclei.  So the theory
+       held; the sample just didn't contain its own worst case.
+  2. **`AlFCCDegenerateShellAufbauStalls` flipped QUALITATIVELY: it now converges, and that is a FAILURE.**
+     That test asserts an integer-aufbau degenerate 3p shell CANNOT converge Δρ (the density rotates freely
+     in the degenerate manifold).  A coarser angular grid has larger orientation-dependent quadrature error,
+     which PINS the rotation — so the run "converges" to a state held in place by grid error.  Re-pinning
+     that `EXPECT_FALSE` to `EXPECT_TRUE` would have recorded a grid artifact as a physics result.  Same
+     mechanism as the `SiPseudoAtomInBoxMatchesFinite` caveat under V1.26, now biting from the other side.
+  3. **⚠️ THE METHODOLOGICAL FINDING, and the most transferable thing in this whole item: a frozen-density
+     quadrature error UNDERSTATES the self-consistent shift on a METAL.**  Al at degree 17 measures
+     `max|dVxc|=3.9e-4`, comfortably inside the gate — yet its SCF total moved **6.4e−4**.  Grid error feeds
+     back through the density, the Fermi level and the occupations; on an insulator the two numbers agree
+     (Si/NaF anchors did not move), across a Fermi surface they do not.  **A ladder measures the QUADRATURE;
+     for a metal that is a LOWER BOUND on what the SCF does with it.**  The ladder method (D8-compliant, and
+     still the right instrument) simply cannot see this — it needs a converged-run A/B alongside.
+  - **Where this leaves the recommendation:** degree 17 is defensible for INSULATORS and is not safe as a
+     global default.  The honest options are (a) keep 29, (b) make the degree adaptive (metal-vs-insulator is
+     already known at the facade — `globalFermi`/smearing), or (c) re-measure with converged-run A/Bs rather
+     than frozen-density ladders.  (b) is the interesting one and is genuinely new work.
+  - **Consequence for V2.4: it is UNBLOCKED, not gated.**  The Becke side stays at 450 directions, so every
+     crossover number recorded under V1.26 stands as written — no refit needed.
 
 - **V2.7 A basis-driven `nRadial` adequacy warning, on the \f$r_{peak}/\Delta r\f$ criterion.**  The
   V2.6 correction above makes this shippable where the first attempt was not.  It is the radial sibling of

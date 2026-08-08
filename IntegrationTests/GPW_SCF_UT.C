@@ -2326,6 +2326,26 @@ TEST(GPW_SCF, DISABLED_BeckeRecipeLadder_MnSextet)
     BeckeLadder(h, lat.GetStructure(), "Mn-openshell-d");
 }
 
+// METALLIC contrast, added 2026-08-07 AFTER the first three refuted the flip to degree 17: Al FCC.  A
+// nearly-free-electron valence density puts substantial charge ON the fuzzy-Voronoi partition surface --
+// where Si/NaF/Mn all concentrate it near the nuclei -- so if the angular requirement is set by the
+// PARTITION (which the first three said it is), a simple metal should be the WORST case.  It is: at degree
+// 17 both Al anchors moved 6.4e-4, which is what backed the flip out.
+TEST(GPW_SCF, DISABLED_BeckeRecipeLadder_AlFCC)
+{
+    FCCUnitCell cell(7.653);
+    cell.AddAtom(13, {0,0,0});                         // Al (Zion=3): 3s^2 3p^1
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+    GpwOptions o=AlOptions();
+    o.label="Al V2.6 ladder";
+    o.scf.SmearingkT=0.02;                             // smeared: a converged, non-rotating density to freeze
+    o.imposeSymmetry=false;                            // free mesh: the ladder measures the RULE, not the fold
+    GpwHandles h;
+    GpwResult R=RunGpw(lat, MakeBasisLowQ(cell, BasisSetData::VALENCE_LOWQ_SR), o, /*verbose*/false, &h);
+    ASSERT_TRUE(R.converged);
+    BeckeLadder(h, lat.GetStructure(), "Al-metal");
+}
+
 // THE ROTATED-LEBEDEV EXPERIMENT (plan §6a rotation insight, increment (b)): quadrature exactness is
 // rotation-invariant, so rotating an efficient Lebedev grid OFF the bond axes should be a nearly-free
 // accuracy fix for FREE runs -- the measured 5-10x rho-weighted loss was pure ALIGNMENT (the <111>
