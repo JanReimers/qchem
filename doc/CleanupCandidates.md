@@ -1379,6 +1379,33 @@ in the same session.
   Delta_XC vs Delta_XC_Pol CalcMatrix/GetEnergy differ only in Rho vs RhoPol; VxcPol vs
   FittedVxcPol are both "own two channel terms, cast to Polarized_CD, dispatch on spin" — a
   generic pair-dispatcher should span the HF pair too (the user's original "generic pol Vxc" ask).
+  - **USER 2026-08-08, restating the target:** *"All Vxc's should be spin native (working with Spin::None
+    when required).  Ideally there should be only one PolarizedVxc that simply stores two abstract Vxc
+    pointers and does the obvious function forwarding.  (Same for Vex, I forget how Vcorr works for
+    polarized CDs.)"*
+  - **Answering the Vcorr question, because it decides the mechanism: EXCHANGE is channel-separable,
+    CORRELATION IS NOT.**  The tree already states it at `VWN_Correlation.C:47` — *"v_c^sigma COUPLES both
+    channels (through r_s and zeta) -- it is NOT a function of rho_sigma alone."*  \f$\epsilon_c(r_s,\zeta)\f$
+    interpolates paramagnetic→ferromagnetic through \f$f(\zeta)\f$ and the spin stiffness (VWN Eq. 4.4), so
+    \f$v_c^\sigma\f$ depends on BOTH densities.  Exchange escapes this only because of the spin-scaling
+    relation, which is why `SlaterExchange` can be channel-native at all.
+    ⇒ **"Two Vxc pointers + obvious forwarding" works for Vex and CANNOT work for Vcorr.**
+  - **The spin-native half of the ask is ALREADY DONE, one layer below where the item was looking.**
+    `SlaterExchange` carries `itsSpin` and halves ρ only for `Spin::None` (the closed-shell collapse);
+    `VWN_Correlation`'s PRIMARY face is the two-channel `GetVc(rup,rdn,s)`, with the scalar face documented
+    as the ζ=0 collapse and byte-identical to the historical code.  The FUNCTIONALS are spin-native with
+    Spin::None as the special case — exactly the stated bias.  The duplication is at the TERM layer.
+  - **⇒ THE SHARPER TARGET: 3 term classes → 1, not 3 → 2.**  `DeltaFittedVxc`, `DeltaFittedVxcPol` and
+    `DeltaFittedVcorrPol` are structurally identical — same two bases, same `{functional, engine}` members,
+    same four methods — differing only in which functional face they hold and how `CalcMatrix` feeds it.
+    Give every XC functional ONE spin-native face, \c double GetV(double rup, double rdn, const Spin&):
+    exchange implements it ignoring the other channel, correlation uses both, and unpolarized is
+    \c GetV(ρ/2,ρ/2,Spin::None).  Then ONE term class holds ONE functional and covers all three cases, and
+    correlation is expressible — which the two-pointer sketch cannot manage.
+    This is the session's own heuristic (line ~83): the candidate special case (unpolarized) is the general
+    case with a term set to zero (ζ=0), so it is not a special case at all.
+  - Still to decide with a measurement, unchanged: the ~2x XC pointwise cost for closed shells (the Ham_PP
+    trade).  And the free consequence still stands — `XC_GridEngine`'s second (scalar) rho cache dies.
 - **V2.2 GPW default seed policy.**  `GpwOptions.seed` defaults to `Uniform`, which the Na-doublet
   campaign showed has a STABLE wrong basin for electron-sparse systems (lone-electron doublet
   converged 72 mHa high with every health metric green).  The molecular facade already defaults
