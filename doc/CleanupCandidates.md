@@ -1417,60 +1417,81 @@ in the same session.
     the open question is the gap between that and what the integrand actually needs.  The instrument exists
     (`Mesh_AngularDegree` measures a rule's degree monomial-by-monomial; the GPW Becke gate measures dExc/dVxc
     against a fine reference), so this is a sweep, not a design problem.
-  - **✅ MEASURED 2026-08-07 — `GPW_SCF.DISABLED_BeckeRecipeLadder_SiGamma` (hand-run).**  Method, D8-compliant
-    by construction: converge ONCE, then quadrature the SAME frozen density on a ladder of meshes against a
-    fine reference in the same family (nR=100, GL-41, same `mhl_alpha`).  No SCF re-runs and no ΔE_total —
-    the scored quantities are E_xc and the V_xc MATRIX.  Freezing ρ is what makes it a measurement of the
-    QUADRATURE rather than of the SCF.  Si diamond, free mesh, 2 atoms.
+  - **✅ MEASURED 2026-08-07 on THREE systems — `GPW_SCF.DISABLED_BeckeRecipeLadder_{SiGamma,NaF,MnSextet}`
+    (hand-run).**  Method, D8-compliant by construction: converge ONCE, then quadrature the SAME frozen
+    density on a ladder of meshes against a fine reference in the same family (nR=100, GL-41, same
+    `mhl_alpha`).  No SCF re-runs and no ΔE_total — scored on E_xc and the V_xc MATRIX.  Freezing ρ is what
+    makes it a measurement of the QUADRATURE rather than of the SCF.  Free meshes throughout (the ladder
+    measures the RULE, not the symmetry fold).
 
-    | ANGULAR (nR=40 fixed) | pts | dExc | max\|dVxc\| |   | RADIAL (GL-29 fixed) | pts | dExc | max\|dVxc\| |
+    **`max|dVxc|` — the binding metric (the Becke gate's tolerance is 1e−3):**
+
+    | ANGULAR (nR=40) | Si covalent | NaF ionic | Mn open-shell d |   | RADIAL (GL-29) | Si | NaF | Mn |
     |---|---|---|---|---|---|---|---|---|
-    | GL-5  |  1,440 | −1.8e−2 | 1.4e−2 | | nR=10 |  9,000 | −5.4e−1 | 5.0e−2 |
-    | GL-7  |  2,560 | −2.9e−3 | 5.6e−3 | | nR=15 | 13,500 | −5.7e−3 | 7.9e−3 |
-    | GL-9  |  4,000 | −1.3e−3 | 1.4e−3 | | nR=20 | 18,000 | **+2.5e−2** | 3.5e−3 |
-    | GL-11 |  5,760 | +7.8e−4 | 9.5e−4 | | nR=25 | 22,500 | −2.8e−3 | 9.0e−4 |
-    | **GL-15** | **10,240** | **+1.4e−4** | **8.0e−5** | | nR=30 | 27,000 | −2.3e−4 | 1.5e−4 |
-    | GL-17 | 12,960 | +9.9e−5 | 5.8e−5 | | nR=40 | 36,000 | +1.1e−4 | 1.7e−5 |
-    | GL-21 | 19,360 | +9.3e−5 | 2.7e−5 | | nR=60 | 54,000 | −1.9e−6 | 3.7e−6 |
-    | GL-23 | 23,040 | +1.1e−4 | 1.7e−5 | | | | | |
-    | GL-29 (prod) | 36,000 | +1.1e−4 | 1.7e−5 | | | | | |
+    | GL-5  | 1.4e−2 | 2.4e−2 | 1.3e−3 | | nR=10 | 5.0e−2 | 2.5e−1 | 3.0e−1 |
+    | GL-7  | 5.6e−3 | 1.1e−2 | 6.0e−4 | | nR=15 | 7.9e−3 | 4.0e−2 | 7.1e−2 |
+    | GL-9  | 1.4e−3 | 4.2e−3 | **1.1e−5** | | nR=20 | 3.5e−3 | 3.8e−3 | 1.2e−2 |
+    | GL-11 | **9.5e−4** | 3.0e−3 | 6.8e−6 | | nR=25 | **9.0e−4** | 1.2e−3 | 1.5e−3 |
+    | GL-15 | 8.0e−5 | **7.6e−4** | 1.4e−6 | | nR=30 | 1.5e−4 | **3.2e−4** | **2.0e−4** |
+    | GL-17 | 5.8e−5 | 2.2e−4 | 1.3e−6 | | nR=40 | 1.7e−5 | 7.9e−5 | 1.3e−6 |
+    | GL-29 (prod) | 1.7e−5 | 7.9e−5 | 1.3e−6 | | nR=60 | 3.7e−6 | 2.1e−5 | 2.7e−7 |
 
-  - **VERDICT: the two axes are NOT alike, and only ONE of them is over-generous.**
-    - **ANGULAR: yes, by ~3.5x — the user's impression is confirmed.**  `dExc` PLATEAUS at ~1e−4 from
-      **GL-15** onward and never improves: GL-15 and GL-29 are the same answer for 10,240 vs 36,000 points.
-      And the plateau is not an angular floor — it is exactly the nR=40 radial error (read the radial column:
-      nR=40 gives the same +1.1e−4).  **So beyond GL-15 the residual is entirely RADIAL, and every extra
-      angular direction is spent on an error the angular axis cannot touch.**  GL-15 also clears the Becke
-      gate's own tolerances (dExc<5e-4, dVxc<1e-3) with room; GL-11 just misses on dExc.
-    - **RADIAL: no — nR=40 is about right, and 20 would be a disaster.**  nR=20 is off by **+2.5e−2**, 50x
-      the gate tolerance, and the approach is **NON-MONOTONIC** (nR=20 is WORSE than nR=15 in E_xc while
-      better in V_xc).  nR=30 is the first rung inside tolerance on both; nR=60 buys another 20x.
-  - **⚠️ AND THE CHEAP A-PRIORI RADIAL DIAGNOSTIC DOES NOT WORK — worth recording, because it is the obvious
-    thing to try and it is confidently wrong.**  The natural analogue of V1.26's Nyquist bridge is to count
-    MHL nodes inside the sharpest density feature \f$[0,2/\sqrt{2\alpha_{\max}}]\f$.  Computed for the
-    production recipe that gives 17 nodes at α_max=2 and still 11 at α_max=40 — i.e. "comfortable
-    everywhere", and it rates nR=20 (9 nodes) as fine.  **The measurement says nR=20 is 50x out of
-    tolerance.**  The heuristic fails because the radial integrand is not the Gaussian density: it is
-    \f$r^2\rho\f$ times the **Becke partition weight**, whose fuzzy-Voronoi switching shell sits BETWEEN
-    atoms and has nothing to do with \f$\alpha_{\max}\f$.  So the radial axis is set by the PARTITION, not by
-    the basis — which is also why it barely moved between α_max=2 and α_max=40 above.  *Do not ship an
-    `nRadial` warning built on basis sharpness.*  (Contrast V1.26's uniform bridge, which IS basis-driven and
-    where the same style of reasoning is sound — the uniform mesh has no partition function.)
-  - **CONSEQUENCE FOR V1.26/V2.4, and it runs OPPOSITE to this item's original prediction.**  The item argued
-    an over-generous recipe biases the selector toward uniform.  That was right — and it means FIXING it makes
-    Becke **more** competitive, not less: GL-29→GL-15 is 450→128 directions, so the whole Becke side drops
-    3.5x.  Si: Becke 36,000 → 10,240 against uniform's 4,913, i.e. from 7x dearer to 2.1x — right at
-    `kUniformMargin`.  **So V2.6 should land BEFORE V2.4's calibration**, or the margin will be fitted to a
-    Becke cost that is about to change by 3.5x.
-  - **NOT YET MEASURED — the bonding-character question the user actually asked** ("are covalent materials
-    more forgiving than ionic or magnetic?").  Si is the covalent point only.  The conceptual expectation to
-    TEST (stated so it can be refuted): site point symmetry says which harmonics may be NONZERO, never how
-    LARGE they are, so the required degree is an AMPLITUDE question — and the Becke partition deliberately
-    hands each site a near-spherical share, which is why low degrees work at all.  That predicts **ionic**
-    (closed-shell near-spherical ions) is the MOST forgiving, **covalent** next (bond charge is a real l>0
-    component of each site's share), and **open-shell d / magnetic** the least (an e_g/t_2g density is
-    aspherical at the metal site itself).  If so the user's guess is inverted for the ionic case.  The ladder
-    helper takes any converged `GpwHandles`, so adding NaF (ionic) and Mn/MnO (open-shell d) is a call each.
+  - **VERDICT — the two axes are not alike, and only ONE is over-generous.**
+    - **ANGULAR: over-generous by ~2.8x.**  Degree needed: Mn 9, Si 11–15, NaF 15–17.  **Recommend degree 17**
+      (162 directions vs 450), leaving the worst case (NaF) at 2.2e−4, a 4.5x margin.  **Degree 15 is NOT
+      recommended** even though it suffices on Si — NaF sits at 7.6e−4, inside tolerance by only 1.3x.  That
+      gap between the one-system and three-system answers is precisely the over-fit this item existed to
+      catch: a default tuned on Si alone would have shipped 15.
+    - **RADIAL: 40 is right, and all three agree.**  nR=30 is the first rung inside tolerance everywhere,
+      nR=20 is 4–12x out, nR=25 is marginal on two of three.  On Si the E_xc approach is also NON-MONOTONIC
+      (nR=20 worse than nR=15).
+  - **⚠️ THE BONDING-CHARACTER PREDICTION IS REFUTED, AND SO WAS MY EXPLANATION OF THE RADIAL AXIS.**  Both
+    corrections come from the same source: I framed the angular requirement as a property of the SITE's own
+    density (which harmonics its point group allows), and it is not.
+    - **What actually drives it: the Becke PARTITION between DISSIMILAR neighbours.**  Mn is a SINGLE atom in
+      a box — no interatomic partition at all — and is trivially easy (degree 9), despite being nominally the
+      "most aspherical" system.  (It is also not aspherical: high-spin d⁵ is the one d configuration that is
+      spherically symmetric, so that test does not probe asphericity even in principle — a design error in my
+      choice of system, worth stating.)  NaF — two ions of very different size and sharpness — is the
+      HARDEST.  Si, whose partition is between IDENTICAL atoms, sits between.  So the ordering is by
+      PARTITION-SURFACE difficulty, not by site asphericity, and **ionic is the least forgiving, not the
+      most**.  The tree already recorded the mechanism (`src/Structure/tests/MolecularMeshTests.C`: "the fuzzy
+      Voronoi switching shell is angular-quadrature limited"); the site-symmetry framing simply ignored it.
+    - **Still untested: genuine on-site asphericity.**  None of the three has it (Si and NaF are closed-shell,
+      Mn's d⁵ is spherical).  A real probe would be a crystal-field-split d (MnO) or the O₂ π* triplet, which
+      is already an enabled test.  Until then "does asphericity matter?" is open — the measurement so far says
+      only that it is not what separates these three.
+  - **⚠️ CORRECTION to the earlier "no cheap a-priori radial diagnostic is possible" claim (commit f514c407).**
+    That claim blamed the Becke PARTITION for the node-count heuristic's failure.  **Mn refutes it**: a single
+    atom has no interatomic partition and its radial axis is still binding (nR=10 → 3.0e−1).  The real reason
+    is simpler and the fix is available: MHL clusters as \f$r\propto x^m\f$, so "9 nodes inside the feature"
+    can be 9 nodes bunched at tiny \a r with a gap exactly at the density peak — the heuristic counts nodes
+    where it should measure SPACING.  **The quantity that does track the measurement, across all three
+    systems, is \f$r_{peak}/\Delta r(r_{peak})\gtrsim3\f$** for the density peak of
+    \f$r^2e^{-2\alpha_{\max}r^2}\f$:
+
+    | | nR=20 | nR=25 | nR=30 | nR=40 | nR=60 | first rung in tolerance |
+    |---|---|---|---|---|---|---|
+    | Si (α_max=2, peak 0.354) | 2.4 | — | **3.4** | 4.4 | 6.5 | nR=30 |
+    | Mn (α_max=36, peak 0.083) | 1.3 | — | 1.9 | **3.0** | 4.0 | nR=40 |
+
+    So a basis-driven `nRadial` warning IS shippable — it just needs local spacing at the peak, not a node
+    count in a window.  Filed as **V2.7**.
+  - **CONSEQUENCE FOR V1.26/V2.4, running OPPOSITE to this item's original prediction.**  The item argued an
+    over-generous recipe biases the selector toward uniform.  That was right — so FIXING it makes Becke
+    **more** competitive: GL-29→GL-17 is 450→162 directions, dropping the Becke side 2.8x.  Si: 36,000 →
+    12,960 against uniform's 4,913, i.e. from 7x dearer to 2.6x.  **V2.6a must land before V2.4**, or the
+    margin gets fitted to a Becke cost about to change by 2.8x.
+
+- **V2.6a Flip `angularDegree` 29 → 17 (the measured recommendation above).**  Deliberately NOT done with the
+  measurement: it moves every pinned GPW anchor, so it is a re-pin commit that should stand alone and be
+  reviewed as one.  User ruling 2026-08-07: land V2.6 as a measured recommendation and leave production at 29.
+
+- **V2.7 A basis-driven `nRadial` adequacy warning, on the \f$r_{peak}/\Delta r\f$ criterion.**  The
+  V2.6 correction above makes this shippable where the first attempt was not.  It is the radial sibling of
+  V1.26's `UniformDivisions` bridge: MHL's \f$r(x)=\alpha(x/(1-x))^m\f$ gives \f$\Delta r\f$ in closed
+  form, and \f$\alpha_{\max}\f$ is already gathered for the selector (`XCMeshSharpness`), so the check
+  costs nothing new.  Calibrate the threshold on more than two systems first — 3 is fitted to Si and Mn.
 
 ### V3 — repro / campaign bugs (Spin-SAD, 2026-08-04)
 

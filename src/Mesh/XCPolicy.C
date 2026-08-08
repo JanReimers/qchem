@@ -64,10 +64,36 @@ export namespace qchem::qcMesh
 //!
 //! \warning These two defaults carry a lot of weight: they set the ENTIRE Becke side of the selector's cost
 //! comparison (nAtoms x nRadial x nDirs), so an over-generous recipe moves the Uniform-vs-Becke crossover
-//! against Becke.  The angular degree in particular is believed to be conservative -- a site's point group
-//! dictates a degree, but in practice one can often "get away with" much less (user, 2026-08-07).  Until that
-//! is MEASURED (V2.x), read a selector verdict near the crossover as "these two are comparable", not as a
-//! precise ranking.
+//! against Becke.
+//!
+//! \par MEASURED (V2.6, 2026-08-07) on THREE systems -- Si diamond (covalent), NaF rocksalt (ionic), Mn
+//! sextet atom-in-box (open-shell d).  Instrument: \c GPW_SCF.DISABLED_BeckeRecipeLadder_* (hand-run) -- one
+//! converged density, quadratured on a ladder of meshes against a fine reference in the same family, scored
+//! on E_xc and the V_xc MATRIX (never \f$\Delta E_{total}\f$ -- the D8 pin).  Verdicts, at the Becke gate's
+//! own \c max|dVxc|<1e-3:
+//!   - ANGULAR: **degree 29 is ~2.8x over-generous.**  Degree needed: Mn 9, Si 11-15, NaF 15-17.  Recommended
+//!     default \b 17 (162 directions vs 450), which leaves NaF -- the worst case -- at 2.2e-4, a 4.5x margin.
+//!     Degree 15 is NOT recommended despite sufficing on Si: NaF sits at 7.6e-4, inside tolerance by 1.3x.
+//!   - RADIAL: **40 is right, and all three systems agree.**  30 is the first rung inside tolerance
+//!     everywhere; 20 is 4-12x out; 25 is marginal on two of the three.
+//!   The default is deliberately LEFT AT 29 -- flipping it moves every pinned GPW anchor, so it is a
+//!   separate, deliberate re-pin (V2.6a).
+//!
+//! \par What actually drives the angular requirement (measured, and it is NOT what one would guess):
+//! the BECKE PARTITION between DISSIMILAR neighbours, not the on-site density's asphericity.  Mn is a SINGLE
+//! atom in a box -- no interatomic partition at all -- and is trivially easy (degree 9) despite being the
+//! "most aspherical" system nominally; NaF, two ions of very different size and sharpness, is the HARDEST.
+//! Si (partition between IDENTICAL atoms) sits between.  The prediction that ionic would be the most
+//! forgiving, being made of near-spherical closed-shell ions, is REFUTED -- it is the least.  The codebase
+//! already recorded the mechanism (\c src/Structure/tests/MolecularMeshTests.C: "the fuzzy Voronoi switching
+//! shell is angular-quadrature limited"); the site-asphericity framing simply ignored it.
+//!
+//! \note A cheap a-priori RADIAL check does work, but not the obvious one.  Counting radial nodes inside the
+//! sharpest density feature rates \c nRadial=20 as comfortable where measurement puts it 4-50x out -- MHL
+//! clusters as \f$r\propto x^m\f$, so those nodes bunch at tiny \a r and leave a gap exactly at the density
+//! peak.  The quantity that DOES track the measurement across all three systems is the LOCAL SPACING at the
+//! peak of \f$r^2e^{-2\alpha_{\max}r^2}\f$: \f$r_{peak}/\Delta r(r_{peak})\gtrsim3\f$ marks the first rung
+//! inside tolerance in every case (Si 3.4 at nR=30, Mn 3.0 at nR=40).  See V2.6 in doc/CleanupCandidates.md.
 //!
 //! Environment instruments (sweep a whole run without rebuilding):
 //!   - \c GPW_BECKE_NR     radial point count.                                        Default 40.

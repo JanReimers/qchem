@@ -2263,6 +2263,69 @@ TEST(GPW_SCF, DISABLED_BeckeRecipeLadder_SiGamma)
     BeckeLadder(h, lat.GetStructure(), "Si-covalent");
 }
 
+// IONIC contrast: NaF rocksalt (the sharp-F system).  Closed-shell near-spherical ions, so the PREDICTION
+// under test is that this is MORE forgiving than Si, not less -- site point symmetry says which harmonics
+// may be nonzero, never how large they are, and the Becke partition hands each site a near-spherical share.
+// Recipe lifted verbatim from DISABLED_BeckeXCMatchesUniformXC_NaFSR2 (the committed NaF production recipe).
+TEST(GPW_SCF, DISABLED_BeckeRecipeLadder_NaF)
+{
+    const double a=8.73;
+    FCCUnitCell cell(a);
+    cell.AddAtom(11, {0,0,0});          // Na (Zion=1)
+    cell.AddAtom(9,  {0.5,0.5,0.5});    // F  (Zion=7)
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+    auto mol = std::shared_ptr<const Real_BS>(BasisSet::Molecule::Factory(
+        BasisSetData::VALENCE_LOWQ_SR2, &cell, BasisSet::Molecule::Engine::MnD, BasisSet::Molecule::Angular::Cartesian));
+
+    GpwOptions o;
+    o.label="NaF V2.6 ladder"; o.Nelec=8; o.species={{"Na",1},{"F",7}};
+    o.accelerator="Ladder";
+    o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;
+    o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
+    o.imposeSymmetry=false;                            // free mesh: the ladder measures the RULE, not the fold
+    o.scf.NMaxIter=200; o.scf.MinΔE=1e-8; o.scf.MinΔρ=1e-4;
+    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
+    o.scf.StartingRelaxRo=0.45; o.scf.KerkerG0=1.0;
+    o.scf.UseMOM=true; o.scf.MOMStartIter=10;
+    GpwHandles h;
+    GpwResult R=RunGpw(lat, mol, o, /*verbose*/false, &h);
+    ASSERT_TRUE(R.converged);
+    BeckeLadder(h, lat.GetStructure(), "NaF-ionic");
+}
+
+// OPEN-SHELL d contrast: the Mn sextet atom-in-box.  A half-filled 3d shell is the most ASPHERICAL density
+// in the suite, so the prediction is that this is the LEAST forgiving of the three.  Recipe from
+// MnAtomInBoxDChannel.  NOTE the probe pair is UNPOLARIZED while the run is spin-native: the probe then
+// quadratures e_xc(rho_total) rather than the run's own two-channel E_xc.  That is deliberate and still a
+// valid measurement, because what is being measured is the GRID's ability to integrate a real, converged,
+// strongly aspherical density -- not this run's energy.  Do NOT compare its Exc to the run's.
+TEST(GPW_SCF, DISABLED_BeckeRecipeLadder_MnSextet)
+{
+    const double a=16.0;
+    UnitCell cell(a);
+    cell.AddAtom(25, {0.5,0.5,0.5});
+    Lattice_3D lat(cell, ivec3_t(1,1,1));
+
+    GpwOptions o;
+    o.label="Mn V2.6 ladder";
+    o.Nelec=7; o.multiplicity=6;                       // S=5/2 Hund: nUp=6, nDown=1
+    o.species={{"Mn",7}};
+    o.images=BasisSet::Lattice_3D::CellImages::HomeCellOnly;
+    o.seed=qchem::ChargeDensity::SeedStrategy::IonicSAD;
+    o.imposeSymmetry=false;
+    o.ortho=qchem::CholeskyPivoted; o.orthoTol=1e-4;
+    o.scf.NMaxIter=40; o.scf.MinΔρ=1e-5; o.scf.MinΔE=1e30;
+    o.scf.MinΔFD=1e30; o.scf.MinVirial=1e30; o.scf.MinFD=1e30;
+    o.scf.StartingRelaxRo=0.3; o.scf.MergeTol=1e-4; o.scf.SmearingkT=5e-3;
+    std::shared_ptr<const Real_BS> mnbasis(
+        BasisSet::Molecule::Factory(BasisSetData::VALENCE_LOWQ_SR, &cell, BasisSet::Molecule::Engine::MnD,
+                                    BasisSet::Molecule::Angular::Cartesian));
+    GpwHandles h;
+    GpwResult R=RunGpw(lat, mnbasis, o, /*verbose*/false, &h);
+    ASSERT_TRUE(R.converged);
+    BeckeLadder(h, lat.GetStructure(), "Mn-openshell-d");
+}
+
 // THE ROTATED-LEBEDEV EXPERIMENT (plan §6a rotation insight, increment (b)): quadrature exactness is
 // rotation-invariant, so rotating an efficient Lebedev grid OFF the bond axes should be a nearly-free
 // accuracy fix for FREE runs -- the measured 5-10x rho-weighted loss was pure ALIGNMENT (the <111>
