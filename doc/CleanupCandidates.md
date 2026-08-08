@@ -1175,9 +1175,9 @@ in the same session.
   has no external consumer (removable); `tSpinDensity` holds two raw non-owning `tDM_CD*` with
   unmanaged lifetime.
 
-- **V1.26 Uniform-vs-Becke is a SMOOTHNESS question, so it is a USER decision at the facade — and the
-  software's job is to WARN when a Uniform grid cannot resolve the sharpest feature.  USER RULING
-  2026-08-07, arriving right after D6 landed.**
+- **V1.26 Uniform-vs-Becke: a SMOOTHNESS question that reduces to a COST CROSSOVER — so `Auto` becomes a
+  SELECTOR, an explicit choice is honoured, and only the strictly-dominated choice is warned about.
+  USER RULING 2026-08-07 (in two parts), arriving right after D6 landed.**
   > "Deciding between Uniform and Becke grids should be based on overall smoothness (PPs for sure, maybe
   > PPs and orbital basis functions).  PWs with ultra soft PPs can 'get away with' Uniform.  GPW with any
   > high exponents (like F with alpha_max=40Ha) have to (in practice) use Becke.  But there will be a
@@ -1229,34 +1229,70 @@ in the same session.
      misses it entirely; for F (2α_max=80 vs α_pp=10.5) the basis binds.  *Scope note:* that uniform mesh
      has ONE consumer today — the KB-projector grid fallback (Evaluator.C:1119); the analytic
      `MakeOverlap` route above it returns early, so the exposure is the fallback path.
-  6. **"The highest CalculateSolid level" DOES NOT EXIST YET** — there is no `CalculateSolid`/`SolidCalculation`
-     anywhere in the tree (grep: zero hits).  `Calculation`/`AtomCalculation` are the molecular/atomic facades;
-     the de-facto SOLID facade is still **`GpwOptions` in IntegrationTests/GPW_SCF_UT.C**.  So this ruling is
-     D6's disease one level up: D6 moved the Becke RECIPE into the library, but the OPTIONS STRUCT that a user
-     would set `cellKind` on is still in the test harness.  The warning half is executable now; the
-     "user decides at the facade" half needs that facade.
+  6. **The facade LAYER exists; only the name did not** (user clarification 2026-08-07: "I just mean the
+     equivalent of `AtomCalculation` for solids... whatever code exists above SCFIterator in the DAG,
+     `RunGPW`?").  It is **`RunGpw(lat, mol, GpwOptions)`** — the solid twin of `Calculation`/`AtomCalculation`,
+     with `GpwOptions` as its `CalcOptions` — and it lives in the anonymous namespace of
+     IntegrationTests/GPW_SCF_UT.C.  (`RunGPW` is a positional convenience wrapper over it.)  So this is
+     D6's disease one level up: D6 moved the Becke RECIPE into the library, but the OPTIONS STRUCT and the
+     DRIVER a user would set `cellKind` on are still in the test harness.  Their home is `src/Calculation/`,
+     beside the two existing facades.
 
-  **Two decisions that are the user's, flagged rather than assumed:**
-  - **Does `UnitCellKind::Auto` survive?**  As landed (D6) `Auto` resolves unconditionally to Becke — which is
-    exactly the kind of silent choice this ruling outlaws.  Two readings: (a) `Auto` dies and `CalculateSolid`
-    requires an explicit `Uniform`/`Becke`; or (b) `Auto` survives as the *documented facade default*
-    (Becke = right everywhere, merely wasteful for ultrasoft PPs) with the choice visible at `CalculateSolid`
-    and the warning firing when the user picks Uniform.  (b) preserves every current anchor and still satisfies
-    "the user decides"; (a) is stricter.  **Recommend (b).**  Either way R2.15 item 7 (GL-29 vs Leb-302) is
-    UNAFFECTED — that is an angular-rule choice *within* Becke.
-  - **Should the missing \f$\alpha_{pp}\f$ term be added to the PP mesh's floor (a behaviour fix), or only
-    warned about (a diagnostic)?**  Raising the floor changes grids, so it moves anchors; warning does not.
-    The `densityEcut` precedent warns and honours — but that is for an EXPLICIT user value, whereas
-    `PPMeshParams()` is a value the library chose for itself, where "honour the caller's choice" has no force.
+  **✅ POLICY SETTLED — USER RULING 2026-08-07, in the cost-crossover framing:** *"in principle we can
+  auto-select uniform vs Becke based on the n³ vs n_Becke if the user leaves the default at auto.  Otherwise,
+  only warn the user if they are forcing the least efficient option."*  So `UnitCellKind::Auto` SURVIVES and
+  gains a real job — it becomes a COST SELECTOR rather than the unconditional `Auto`→Becke that D6 landed —
+  and an explicit `Uniform`/`Becke` is honoured, with a diagnostic only when it is the losing choice.
+  R2.15 item 7 (GL-29 vs Leb-302) is unaffected: that is an angular-rule choice *within* Becke.
 
-  **Executable now, independent of both decisions:** (i) name the Nyquist mapping ONCE — \f$n(a,E)\f$ is a
-  literal inside `CreateIntegrationMesh` and any checker would have to duplicate it, the same "name it once"
-  case as R2.12 — and add its inverse \f$E(a,n)\f$, which is what turns `nUniform` into a comparable cutoff;
-  (ii) the two warnings, in the `densityEcut` idiom, at the site where α_max and the mesh spec meet (the GPW
-  basis — the layer that knows what resolution its own functions need, exactly where the existing one lives).
-  Before landing (ii): check which existing tests would newly emit it — several deliberately run coarse
-  uniform grids (`DeltaFitUniformGridMatchesPWFit_SiGamma`, `BeckeXCMatchesUniformXC_SiGamma`), and a warning
-  that fires on a deliberate A/B is noise, which is how a screenful of benign warnings starts (R2.11).
+  **The selector is cheap and needs no grid build** — both costs are closed-form:
+  - uniform: \f$n^3\f$ with \f$n=\lceil 2a\sqrt{2E}/\pi\rceil\f$, i.e. \f$\propto a^3\alpha_{\max}^{3/2}\f$ —
+    grows with cell volume AND basis sharpness.
+  - Becke: \f$n_{atoms}\times n_{radial}\times n_{dirs}(\text{scheme, degree})\f$ — **independent of
+    \f$\alpha_{\max}\f$**, \f$\propto n_{atoms}\f$.  \f$n_{dirs}\f$ is exact up front: GL degree L gives
+    \f$(L+1)^2/2\f$ (=450 at L=29, from `GaussLegendreAngular`'s \f$n_\theta=(L{+}1)/2\f$, \f$n_\phi=L{+}1\f$),
+    Lebedev degree 29 gives 302.  Verified against a live run: free Si = 2x40x450 = 36,000; the IMPOSED
+    site-adapted mesh measured 886 dirs/atom -> 70,880 before the ~30% tail drop -> 49,384 built (so the
+    estimate is a conservative over-count, and the selector must use the run's actual imposed/free mode).
+  - The two different scalings are what make the decision ROBUST far out and genuinely grey near the crossover
+    — which is the user's own "mostly grey area in between", now quantified rather than felt.
+
+  **THREE REFINEMENTS (Claude, accepted into the design pending user objection) — all one asymmetry:**
+  - **(a) Cost at Nyquist parity systematically FAVOURS uniform, so a bare comparison over-chooses it in exactly
+    the grey zone.**  The Nyquist \f$n\f$ sizes the grid to resolve the DENSITY (band-limited at
+    \f$2\alpha_{\max}\f$).  The XC integrand is \f$v_{xc}(\rho)\propto\rho^{1/3}\f$ — pointwise-nonlinear, NOT
+    band-limited (this is why `relCutoff` exists at all, and why the plan calls Becke "the near-ideal grid for
+    the one pointwise-nonlinear sharp-at-core term").  So the uniform side of the comparison is a LOWER BOUND
+    on what it actually needs, while Becke's radial clustering handles \f$\rho^{1/3}\f$ at the core natively.
+    The two sides are not equal-accuracy.
+  - **(b) ⇒ a MARGIN, not a tie-break.**  Choose uniform only when it is cheaper by a clear factor (~2x), else
+    Becke.  That makes the default SAFE in the grey zone and encodes the user's own phrasing: "PWs with ultra
+    soft PPs can *get away with* uniform" is a margin statement, not a coin flip.
+  - **(c) ⇒ the diagnostic is ASYMMETRIC.**  Forced Uniform when Becke is cheaper is STRICTLY DOMINATED (more
+    expensive AND less accurate) → **warn**.  Forced Becke when uniform is cheaper is merely wasteful, never
+    wrong → **info line, not a warning**.  The options are not symmetric, so the diagnostics must not be.
+    *This also disposes of the warning-noise worry:* both deliberate A/B tests are Si/sipp, where uniform is
+    the cheap side (6,859 vs 36,000) — `DeltaFitUniformGridMatchesPWFit_SiGamma` forces the CHEAPER grid
+    (silent) and `BeckeXCMatchesUniformXC_SiGamma` forces the SAFE one (info only).  Neither becomes noise.
+
+  **Where \f$\alpha_{pp}\f$ lands — the cost framing answers the question that was open.**  It is an INPUT TO
+  THE SELECTOR, not a separate warning: it raises the uniform grid's requirement (integrand exponent
+  \f$2\alpha_{\max}+\alpha_{pp}\f$) and so pushes the crossover toward Becke.  It therefore changes behaviour
+  ONLY where the user left `Auto`, which is by definition "you choose for me" — neither a silent behaviour
+  change nor a mere diagnostic.  **Keep separate and still open:** `PPMeshParams()` sizing its OWN mesh at
+  \f$2\alpha_{\max}\f$ with no \f$\alpha_{pp}\f$ term is an under-resolution that survives whichever grid the
+  selector picks (point 5 above).
+
+  **Execution order:**
+  1. Name the Nyquist mapping ONCE — \f$n(a,E)\f$ is a literal inside `CreateIntegrationMesh` and every
+     consumer of this item would otherwise duplicate it (the R2.12 "name it once" case) — plus its inverse
+     \f$E(a,n)\f$, which is what turns a bare `nUniform` into a comparable cutoff.
+  2. A cost-estimate pair (uniform \f$n^3\f$, Becke \f$n_{atoms}n_r n_{dirs}\f$) beside them, so the selector
+     and the diagnostic share ONE cost model rather than two that can drift apart.
+  3. The selector + the asymmetric diagnostic, at the site where \f$\alpha_{\max}\f$, \f$\alpha_{pp}\f$ and the
+     mesh spec meet — the GPW basis, which is where the existing `densityEcut` warning already lives.
+  4. Promote `GpwOptions` + `RunGpw` to `src/Calculation/` so `cellKind` is a documented facade knob (point 6).
+     Steps 1-3 do not depend on step 4.
 
 ### V2 — measurements / sweeps
 
@@ -1371,10 +1407,11 @@ in the same session.
   - Not changed (and NOT a regression of this move): under `imposeSymmetry` the site-adapted builder still
     silently replaces `mp.angular`, so `GPW_BECKE_ANG` has no visible effect on an imposed run — that is
     D5's complaint, unchanged.
-  - **FOLLOW-UP RULING, same day → V1.26:** the user's answer to "who decides Uniform vs Becke" is *the user,
-    at a `CalculateSolid` facade*, with the library warning when a Uniform grid is too coarse.  That puts
-    `ResolveXCMesh`'s unconditional `Auto`→Becke back in question (see V1.26 for the two readings) — but the
-    MOVE done here is what makes that decision editable in one library place instead of a test file.
+  - **FOLLOW-UP RULING, same day → V1.26: `ResolveXCMesh` is not finished, it is SEEDED.**  The user's answer
+    to "who decides Uniform vs Becke" is *the user, at the solid facade* — with `Auto` becoming a COST
+    SELECTOR (uniform \f$n^3\f$ vs the Becke point count) rather than the unconditional `Auto`→Becke landed
+    here, and a diagnostic when an explicit choice is the losing one.  So this function acquires a real body;
+    the MOVE done here is what makes that a one-place library edit instead of a test-file edit.
   - **Deliberately NOT done: resolving `Auto` inside `Ham_PW_DFT::BuildTerms`.**  It is tempting (an
     unresolved `Auto` silently reads as `Uniform` downstream, since every consumer tests `==Becke`), but
     `xcMesh` reaches several Hamiltonian lineages and the resolution point is a facade decision, not a
