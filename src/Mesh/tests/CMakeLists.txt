@@ -2,6 +2,7 @@
 
 add_executable(UTMesh ../../Common/tests/gtestmain.C
     MeshPrimitives.C
+    XCPolicyTests.C
 )
 
 target_compile_options(UTMesh PRIVATE ${CXX_COMMON_COMPILE_OPTIONS})

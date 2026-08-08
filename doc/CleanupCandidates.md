@@ -1284,15 +1284,89 @@ in the same session.
   selector picks (point 5 above).
 
   **Execution order:**
-  1. Name the Nyquist mapping ONCE — \f$n(a,E)\f$ is a literal inside `CreateIntegrationMesh` and every
+  1. ✅ **DONE.** Name the Nyquist mapping ONCE — \f$n(a,E)\f$ is a literal inside `CreateIntegrationMesh` and every
      consumer of this item would otherwise duplicate it (the R2.12 "name it once" case) — plus its inverse
      \f$E(a,n)\f$, which is what turns a bare `nUniform` into a comparable cutoff.
-  2. A cost-estimate pair (uniform \f$n^3\f$, Becke \f$n_{atoms}n_r n_{dirs}\f$) beside them, so the selector
+     `qcMesh::UniformDivisions` / `UniformCutoff`, in `qchem.Mesh` beside the two `MeshParams` fields they
+     relate; `CreateIntegrationMesh` calls the first.  Pinned against the original literal by test.
+  2. ✅ **DONE.** A cost-estimate pair (uniform \f$n^3\f$, Becke \f$n_{atoms}n_r n_{dirs}\f$) beside them, so the selector
      and the diagnostic share ONE cost model rather than two that can drift apart.
-  3. The selector + the asymmetric diagnostic, at the site where \f$\alpha_{\max}\f$, \f$\alpha_{pp}\f$ and the
-     mesh spec meet — the GPW basis, which is where the existing `densityEcut` warning already lives.
+  3. ✅ **DONE (selector DISARMED — see below).** The selector + the asymmetric diagnostic.
   4. Promote `GpwOptions` + `RunGpw` to `src/Calculation/` so `cellKind` is a documented facade knob (point 6).
-     Steps 1-3 do not depend on step 4.
+     Steps 1-3 did not depend on step 4.
+
+  **✅ LANDED 2026-08-07 (steps 1-3).  681/681 ctest green, warning-free build, ZERO anchors moved.**
+  New module **`qchem.Mesh.XCPolicy`** (src/Mesh/XCPolicy.C) + 11 tests (src/Mesh/tests/XCPolicyTests.C).
+  - **Policy split OUT of `qchem.Mesh`, which D6 had merged in.**  `qchem.Mesh` is now the geometry-free VALUE
+    layer (Mesh, MeshParams, the Nyquist arithmetic) — no I/O, no environment, no opinions; `qchem.Mesh.XCPolicy`
+    holds the recipe, the cost model, the selector and the diagnostics.  That is the split D6 should arguably
+    have made on day one (the `<cstdlib>`/`getenv` in the core value module was the tell), and it costs one
+    import at the two consumers.
+  - **The two sharpness sources are read off ABSTRACT capability faces, as predicted, with no new virtuals:**
+    `BasisSet::Molecule::LatticeSum1E::MaxExponent()` and
+    `Pseudopotential::LocalPotential_Gaussian::ShortRangeGaussian(Z)` (→ \f$\alpha=1/2r_{loc}^2\f$), both by
+    sanctioned abstract→abstract cross-cast, gathered by a facade-level `GatherSharpness` helper that states
+    FACTS and decides nothing.  It sits beside `RunGpw` and moves with it in step 4.
+  - **⛔ THE SELECTOR IS DELIBERATELY DISARMED (`Auto` still → Becke; arm with `GPW_XCGRID_AUTOSELECT=1`).**
+    Armed, it would have flipped **Si to UNIFORM** — undoing the 2026-08-01 Becke-default flip, which was
+    itself the product of a measurement, and moving every pinned GPW anchor.  Refinement (a) says exactly why
+    the model would be wrong to trust here (it sizes for the band-limited density, not for the nonlinear
+    \f$v_{xc}\f$), and `kUniformMargin=2.0` is a GUESS.  **Per the D8 pin, a grid choice is measured, not
+    reasoned about** — so the verdict is computed and ANNOUNCED on every run and acted on by none.
+  - **The announce line IS the calibration instrument, and it already earned its keep** — first harvest,
+    from unmodified pinned tests:
+    | test | α_max | α_pp | uniform | Becke | verdict |
+    |------|-------|------|---------|-------|---------|
+    | `SiliconGammaConverges`      |  2 | 2.58 |     4,913 | 72,000 (imposed) | UNIFORM |
+    | `NaPseudoAtomInBoxDoublet`   |  2 | 0.64 |    32,768 | 36,000 (imposed) | BECKE   |
+    | `O2TripletInBoxMatchesFinite`|  2 | 8.15 |   132,651 | 72,000 (imposed) | BECKE   |
+    | `MnAtomInBoxDChannel`        | 36 | —    | 1,860,867 | 18,000 (free)    | BECKE   |
+    - **O2 is the vindication of carrying \f$\alpha_{pp}\f$ separately** (point 5): SAME basis as Si
+      (α_max=2), opposite verdict, and the ONLY difference is oxygen's PP (α_pp=8.15 vs 2.58) raising the
+      required cutoff from 6.6 to 12.2 Ha.  Without the PP term this run would have been scored as "soft"
+      and picked uniform.  The two criteria are independent in practice, not just in principle.
+    - **Mn is the user's α_max case, quantified: 103x.**  Sharpness moves the uniform side by two orders of
+      magnitude while the Becke side does not move at all — the crossover is real and the far field is not
+      close.
+    - **The Si verdict is the one to distrust, and it is exactly where the margin bites** — 4,913 vs 72,000
+      is a 15x claim in favour of a grid the project MEASURED to be the worse one.  Either the margin is far
+      larger than 2, or (likelier) point-count is the wrong currency near the crossover.  That is the
+      calibration question, now backed by data instead of intuition.
+  - **The asymmetric diagnostic behaves as designed on the real suite** — verified by running it over all 20
+    GPW tests, not assumed: `DeltaFitUniformGridMatchesPWFit_SiGamma` (explicit Uniform, cheaper AND
+    adequately resolved at nUniform=20 ⇒ 9.4 Ha vs 6.6 required) is **silent**; `BeckeXC_IBZ_SiDiamond`
+    (explicit Becke where uniform is cheaper) gets the **info note**, not a warning.  Total noise added to the
+    suite: **two lines, on one test** — no deliberate A/B drowned, which was the R2.11 risk flagged up front.
+  - **⚠️ AND THAT ONE TEST IS A COUNTEREXAMPLE TO REFINEMENT (c)'s RATIONALE — found by the diagnostic, on its
+    first run over the suite.**  `SiPseudoAtomInBoxMatchesFinite` (a=16 box, nUniform=20) draws BOTH warnings,
+    and the resolution one is a TRUE POSITIVE (dr=0.8 bohr resolves 1.9 Ha where the system needs 6.6).  But
+    the test pins Uniform DELIBERATELY, and the file already says why: **Becke is not unconditionally safe.**
+    A freely-rotating DEGENERATE density (its half-filled 3p atom) gets orientation-DEPENDENT error on Becke's
+    FIXED-AXIS angular grid — v_xc is nonlinear, so an anisotropic ρ's error rotates with it — turning an
+    energy-neutral rotation into a **~Ha-scale oscillation**.  Smearing fixes it (fractional occupation
+    restores the symmetric density), so the exception is narrow — but it is real, and it is the one case where
+    the "Becke is never wrong, only wasteful" asymmetry INVERTS.
+    - **Consequence, applied:** the warning now states the COST FACT and names the exception instead of
+      prescribing Becke.  Its earlier wording ("prefer UnitCellKind::Becke") was advice this very test
+      documents as harmful.
+    - **Worth keeping visible:** this is the second time in two sessions that a diagnostic's FIRST run over
+      the suite corrected the reasoning that motivated it.  The cheap lesson is to run a new warning across
+      everything before believing its premise, not just to check it is quiet.
+
+  **STILL OPEN after this landing:**
+  - **Calibrate `kUniformMargin`, then arm.**  The D8-compliant measurement (grid-convergence of ρ vs a fine
+    reference — never ΔE_total) on the Si case, which is where the model and the earlier measurement disagree.
+    `XCPolicy.AutoStillResolvesToBeckeWhileTheSelectorIsDisarmed` is the guard that must be deliberately
+    updated when it is armed.
+  - **`PPMeshParams()` still sizes its own mesh at \f$2\alpha_{\max}\f$ with no \f$\alpha_{pp}\f$** (point 5).
+    Independent of the selector; unchanged by this work.
+  - **The Becke recipe's own defaults are load-bearing for the selector** (user, 2026-08-07: "there is a lot
+    riding on the defaults for nRadial and nDirs(degree)... the degree can be determined from point symmetry
+    of the atom site, but I have the impression that you can often get away with much lower degrees than the
+    point symmetry dictates").  They set the ENTIRE Becke side of the comparison, so an over-generous recipe
+    biases the selector toward uniform — the same direction as refinement (a), i.e. the two errors COMPOUND
+    rather than cancel.  Filed as V2.6; the warning is on `BeckeXCParams`' doc comment so a reader meets it
+    where the numbers live.
 
 ### V2 — measurements / sweeps
 
@@ -1314,6 +1388,39 @@ in the same session.
   `VxcFit::PlaneWave`: per-channel PW_XC needs per-spin rho-grid caches (PW_XC's `itsRhoGrid` is
   keyed on `cd->Version()` alone, which a polarized density aliases across channels — the trap the
   engine's RhoPol pair-cache fixes).  Design note in the throw message.
+
+- **V2.4 Calibrate `kUniformMargin` and ARM the V1.26 selector.**  The cost model says uniform beats Becke
+  15x on Si; the 2026-08-01 measurement says Becke is the right grid there.  Both cannot be right, and the
+  margin (a guess at 2.0) is where the discrepancy has to be absorbed.  Instrument: the
+  `[XC grid choice] Auto:` line, now emitted by every GPW run.  Measurement per the D8 pin — grid-convergence
+  of ρ/property against a fine reference, NEVER ΔE_total.  Then update
+  `XCPolicy.AutoStillResolvesToBeckeWhileTheSelectorIsDisarmed`, deliberately, and arm.
+
+- **V2.5 `PPMeshParams()` sizes its uniform mesh with no \f$\alpha_{pp}\f$ term.**  `mp.eCut=densityEcut`
+  \f$=C\alpha_{\max}\f$, but its integrand is \f$\langle\chi_i|V_{short}|\chi_j\rangle\f$ with exponent
+  \f$2\alpha_{\max}+\alpha_{pp}\f$.  Independent of V1.26's selector (which already accounts for
+  \f$\alpha_{pp}\f$ in its CHOICE); this is the mesh sizing itself.  One consumer today — the KB-projector
+  grid fallback (GPW Evaluator.C:1119) — so the exposure is bounded, but the floor is simply missing.
+  Raising it moves grids, hence anchors: measure first (D8), same instrument as V2.4.
+
+- **V2.6 Are the Becke recipe's `nRadial`/`angularDegree` defaults over-generous?  USER 2026-08-07:**
+  *"There is a lot riding on the defaults for nRadial and nDirs(degree) for the Becke grid.  The degree can be
+  determined from point symmetry of the atom site, but I have the impression that you can often 'get away
+  with' much lower degrees than the point symmetry dictates."*
+  - **Why it is now load-bearing beyond accuracy:** since V1.26 those two numbers set the ENTIRE Becke side of
+    the Uniform-vs-Becke cost comparison (\f$n_{atoms}n_{radial}n_{dirs}\f$ — nothing else enters).  An
+    over-generous recipe therefore biases the selector TOWARD uniform.  That is the SAME direction as
+    refinement (a)'s bias, so the two errors **compound rather than cancel** — which is a second, independent
+    reason the Si verdict should not be trusted, and a reason to do this measurement BEFORE V2.4's.
+  - The degree-vs-site-symmetry point is the §6a/W2b question from the other end: the site-adapted builder
+    derives an angular rule FROM the site group, so "what the point group dictates" is already computable —
+    the open question is the gap between that and what the integrand actually needs.  The instrument exists
+    (`Mesh_AngularDegree` measures a rule's degree monomial-by-monomial; the GPW Becke gate measures dExc/dVxc
+    against a fine reference), so this is a sweep, not a design problem.
+  - Cheap first cut: the free-run ladder at fixed nRadial=40 (degree 9/11/17/23/29) and the radial ladder at
+    fixed degree (nR 20/30/40/60), scored per D8 on ρ-convergence rather than ΔE.  The 2026-07-30 note that
+    "GL-11 is the sub-mHa sweet spot" while production ships degree 29 is already a hint that the answer is
+    "yes, considerably".
 
 ### V3 — repro / campaign bugs (Spin-SAD, 2026-08-04)
 

@@ -46,6 +46,10 @@ import qchem.Hamiltonian.Internal.ExFunctional;   // ExFunctional (the LDA funct
 import qchem.Hamiltonian.Internal.SlaterExchange; // SlaterExchange (Dirac exchange, for the Becke XC gate)
 import qchem.Hamiltonian.Internal.VWN_Correlation;// VWN_Correlation (VWN5, for the Becke XC gate)
 import qchem.Mesh;                                // qcMesh::MeshParams / UnitCellKind (the Becke XC quadrature)
+import qchem.Mesh.XCPolicy;                       // BeckeXCParams / ResolveXCMesh / XCMeshSharpness (the grid policy)
+import qchem.BasisSet.Molecule.LatticeSum1E;      // Molecule::LatticeSum1E::MaxExponent (alpha_max, for the selector)
+import qchem.Pseudopotential.GTH_Potentials;      // GetGTH -> HGH local PP (alpha_pp = 1/2r_loc^2, for the selector)
+import qchem.PeriodicTable;                       // thePeriodicTable().GetZ (element symbol -> Z)
 import qchem.SCFIterator;                        // cSCFIterator, SCFParams
 import qchem.SCFParams;                          // SCFParams
 import qchem.ElectronConfiguration.Crystal;      // Crystal_EC (single-k Bloch occupation)
@@ -221,6 +225,40 @@ struct GpwOptions
     SCFParams    scf;                                  // NMaxIter / MinΔρ / MinΔE / SmearingkT / ... (the gates)
 };
 
+namespace
+{
+// The run's SHARPNESS, gathered for the Uniform-vs-Becke cost selector (V1.26).  FACADE-LEVEL code: it
+// belongs beside GpwOptions/RunGpw and moves with them into src/Calculation/ (V1.26 step 4).  It states
+// FACTS about the run -- geometry and the two sharpness sources -- and decides nothing; qcMesh::ResolveXCMesh
+// owns the policy.
+//
+// Both sharpness sources come off ABSTRACT capability faces, reached by the sanctioned abstract->abstract
+// cross-cast, so nothing here touches a concrete basis or a concrete PP model:
+//   alpha_max -- BasisSet::Molecule::LatticeSum1E::MaxExponent(), documented as "the GPW density-grid cutoff floor".
+//   alpha_pp  -- Pseudopotential::LocalPotential_Gaussian::ShortRangeGaussian(Z), whose terms carry
+//                alpha = 1/(2 r_loc^2).  A model with no closed-Gaussian short part does not implement the
+//                face; that leaves alpha_pp at 0, which the selector reads as "not measurable" -- NOT as
+//                "smooth" (see the XCMeshSharpness doc).
+qcMesh::XCMeshSharpness GatherSharpness(const Lattice_3D& lat, const Real_BS& mol, const GpwOptions& o)
+{
+    qcMesh::XCMeshSharpness s;
+    s.cellEdge=lat.GetUnitCell().GetMaximumCellEdge();
+    s.nAtoms  =int(lat.GetUnitCell().GetNumAtoms());
+    s.imposed =o.imposeSymmetry;
+    for (auto ibs : const_cast<Real_BS&>(mol).Iterate<BasisSet::Real_OIBS>())
+        if (const auto* ls=dynamic_cast<const BasisSet::Molecule::LatticeSum1E*>(ibs))
+            { s.alphaMax=ls->MaxExponent(); break; }
+    for (const auto& [element, valence] : o.species)
+    {
+        const int Z=int(thePeriodicTable().GetZ(element));
+        const Pseudopotential::HGH_LocalPotential loc=Pseudopotential::GetGTH(element,"LDA",valence).local;
+        const auto* g=static_cast<const Pseudopotential::LocalPotential_Gaussian*>(&loc);
+        for (const auto& t : g->ShortRangeGaussian(Z)) s.alphaPP=std::max(s.alphaPP, t.alpha);
+    }
+    return s;
+}
+} //anon
+
 // Build the complex SCF accelerator named by \a policy.  Ladder = the ionic-crystal DIIS->GDM hand-off on
 // |ΔE/E| (NaF's proven recipe); the rest are the plain single-engine choices.
 static qchem::SCFAccelerators::tSCFAccelerator<dcmplx>* MakeGpwAccelerator(const std::string& policy)
@@ -339,7 +377,7 @@ static GpwResult RunGpw(const Lattice_3D& lat, std::shared_ptr<const Real_BS> mo
     {
         qchem::report::Timed t("setup: hamiltonian ctor (fit bases + becke mesh)");
         ham=new qchem::Hamiltonian::Ham_PW_DFT(lat.GetStructure(), bs.get(), o.species, "LDA",
-                                               qcMesh::ResolveXCMesh(o.xcMesh), o.vxcFit, polarized);
+                                               qcMesh::ResolveXCMesh(o.xcMesh, GatherSharpness(lat,*mol,o)), o.vxcFit, polarized);
     }
     auto* acc = MakeGpwAccelerator(o.accelerator);
 
@@ -448,7 +486,7 @@ static GpwResult RunGpwAnnealed(const Lattice_3D& lat, std::shared_ptr<const Rea
         // Fresh Hamiltonian + accelerator per stage (the iterator OWNS + deletes them; a kT change must not
         // carry stale DIIS history across the re-seed).
         auto* ham = new qchem::Hamiltonian::Ham_PW_DFT(st, bs.get(), o.species, "LDA",
-                                                       qcMesh::ResolveXCMesh(o.xcMesh), o.vxcFit, polarizedA);
+                                                       qcMesh::ResolveXCMesh(o.xcMesh, GatherSharpness(lat,*mol,o)), o.vxcFit, polarizedA);
         auto* acc = MakeGpwAccelerator(accSchedule.empty() ? o.accelerator : accSchedule[s]);
         std::unique_ptr<qchem::SCFIterator::SolidSCFIterator> scf(
             s==0 ? new qchem::SCFIterator::SolidSCFIterator(bs.get(), &ec, ham, acc, o.seed,  st.get(), o.ortho, o.orthoTol)
