@@ -265,8 +265,10 @@ MeshParams ResolveXCMesh(const MeshParams& mp, const XCMeshSharpness& s)
             std::cerr<<"[XC grid] WARNING: the requested UNIFORM XC mesh resolves eCut="<<eHave
                      <<" Ha but this system needs "<<eReq<<" Ha (alpha_max="<<s.alphaMax
                      <<", alpha_pp="<<s.alphaPP<<"): rho is under-resolved on it -- charge leaks off-grid and "
-                       "the XC energy is quadratured on an aliased density.  Raise eCut/nUniform, or use "
-                       "UnitCellKind::Becke (estimated "<<cBecke<<" pts)."<<std::endl;
+                       "the XC energy is quadratured on an aliased density.  Raise eCut/nUniform (the remedy "
+                       "that is always right), or switch to UnitCellKind::Becke (estimated "<<cBecke
+                     <<" pts) IF the system suits it -- see the degenerate-density caveat on the sibling "
+                       "warning."<<std::endl;
         if (cBecke < cUnif)
             std::cerr<<"[XC grid] WARNING: UNIFORM was requested but is the DEARER choice here -- resolving "
                        "this system on it WOULD NEED "<<cUnif<<" pts against Becke's "<<cBecke
