@@ -2239,17 +2239,94 @@ TEST(GPW_SCF, BeckeXCMatchesUniformXC_SiGamma)
 //  cost comparison, so the answer changes grid CHOICES, not just grid cost.
 //
 //  METHOD (D8-compliant by construction): converge ONCE, then quadrature the SAME frozen density on a
-//  ladder of meshes and score each against a FINE reference (nR=80, GL-35).  No SCF re-runs, no
-//  DeltaE_total -- the scored quantities are E_xc and the V_xc MATRIX, i.e. properties.  Freezing rho
-//  is what makes this a measurement of the QUADRATURE rather than of the SCF.
+//  ladder of meshes and score each against a FINE reference IN THE SAME FAMILY (nR=100, GL-41, same
+//  mhl_alpha).  No SCF re-runs, no DeltaE_total -- the scored quantities are E_xc and the V_xc MATRIX,
+//  i.e. properties.  Freezing rho is what makes this a measurement of the QUADRATURE, not of the SCF.
+//  (The reference must be inside the rung family.  The tree's older REF80 probe uses mhl_alpha=1.0,
+//  which is fine for a one-off cross-check but would put a fixed offset under every rung here and read
+//  as an error FLOOR the axes never get below.)
 //
-//  Two independent axes, swept one at a time because they answer different questions:
-//    ANGULAR -- how much angular freedom does a converged density actually need?  Site point symmetry
-//      says which harmonics may be NONZERO, never how LARGE they are, so the required degree is an
-//      amplitude question and can only be measured.  It is also the axis with the steep cost: GL
-//      directions go as (L+1)^2/2, so degree 29 -> 11 is a 12.5x cut in the whole mesh.
-//    RADIAL -- cost is only LINEAR here, so the radial axis can afford to be generous; the question is
-//      whether it is generous to no purpose.
+//  Two axes, swept one at a time because they answer different questions:
+//    ANGULAR -- how much angular freedom does a converged density actually need?  The steep axis: GL
+//      directions go as (L+1)^2/2, so 29 -> 17 is a 2.8x cut in the whole mesh.
+//    RADIAL -- cost is only LINEAR here, so it can afford to be generous; the question is whether it
+//      is generous to no purpose.
+//
+//  ---------------------------------------------------------------------------------------------
+//  RESULTS, 2026-08-07 (four systems).  max|dVxc| against the reference; the Becke gate's tolerance
+//  is 1e-3.  Rows are the first rung INSIDE tolerance, in bold-equivalent (<-- marks it).
+//
+//    ANGULAR (nR=40 fixed)          Si covalent   NaF ionic   Mn open-d   Al metal
+//      GL-9                           1.4e-3       4.2e-3      1.1e-5 <--  8.3e-3
+//      GL-11                          9.5e-4 <--   3.0e-3      6.8e-6      1.8e-2 (!)
+//      GL-15                          8.0e-5       7.6e-4 <--  1.4e-6      2.4e-3
+//      GL-17                          5.8e-5       2.2e-4      1.3e-6      3.9e-4 <--
+//      GL-29 (production)             1.7e-5       7.9e-5      1.3e-6      2.6e-4
+//
+//    RADIAL (GL-29 fixed)           Si           NaF         Mn          Al
+//      nR=20                          3.5e-3       3.8e-3      1.2e-2      7.5e-2
+//      nR=25                          9.0e-4 <--   1.2e-3      1.5e-3      3.8e-3
+//      nR=30                          1.5e-4       3.2e-4 <--  2.0e-4 <--  9.3e-3 (!)
+//      nR=40 (production)             1.7e-5       7.9e-5      1.3e-6      2.6e-4 <--
+//      nR=60                          3.7e-6       2.1e-5      2.7e-7      9.3e-5
+//
+//  VERDICT: angular 29 is ~2.8x over-generous on INSULATORS (17 would do); RADIAL 40 is right.
+//  BUT THE FLIP TO 17 WAS TRIED AND BACKED OUT -- see V2.6a below.  Production stays at 29.
+//
+//  ---------------------------------------------------------------------------------------------
+//  FOUR THINGS THIS MEASUREMENT REFUTED.  Recorded because each one is the obvious guess:
+//
+//  (1) "The angular requirement is set by the SITE's density asphericity (which harmonics its point
+//      group allows)."  FALSE.  It is set by the BECKE PARTITION SURFACE between DISSIMILAR
+//      neighbours.  Evidence: Mn is a SINGLE atom in a box -- no interatomic partition at all -- and
+//      is the EASIEST (degree 9); NaF, two ions of very different size and sharpness, is the hardest
+//      of the three insulators; Si, partitioned between IDENTICAL atoms, sits between.  The mechanism
+//      was already recorded in src/Structure/tests/MolecularMeshTests.C ("the fuzzy Voronoi switching
+//      shell is angular-quadrature limited"); the site-symmetry framing simply ignored it.
+//
+//  (2) "Ionic materials, being near-spherical closed-shell ions, are the most forgiving."  FALSE --
+//      NaF is the LEAST forgiving of the three insulators, for the reason in (1).
+//
+//  (3) "A high-spin d5 shell is the most aspherical density available."  FALSE -- half-filled d5 is
+//      the one d configuration that IS spherically symmetric.  So DISABLED_BeckeRecipeLadder_MnSextet
+//      does not probe asphericity even in principle.  GENUINE on-site asphericity remains UNTESTED by
+//      all four systems; a crystal-field-split d (MnO) or the O2 pi* triplet would be the real probe.
+//
+//  (4) "nRadial adequacy can be predicted a priori from basis sharpness."  Nearly -- but not by the
+//      obvious statistic.  Counting radial nodes inside the sharpest density feature rates nR=20 as
+//      comfortable where measurement puts it 4-50x out, because MHL clusters as r ~ x^m and those
+//      nodes bunch at tiny r leaving a gap AT the density peak.  The quantity that tracks Si and Mn is
+//      the LOCAL SPACING there, r_peak/dr(r_peak) >~ 3 -- but Al breaks that threshold too (3.2 at
+//      nR=30, which the rule passes, where measurement is 9x out).  The SHAPE is right, the threshold
+//      is insulator-fitted.  See V2.7.
+//
+//  ---------------------------------------------------------------------------------------------
+//  V2.6a -- THE FLIP TO 17, ATTEMPTED AND REJECTED.  A fourth system (Al FCC, simple metal) refutes
+//  the three-system recommendation, and it refutes it in three separate ways:
+//
+//   (a) Al is the worst case on BOTH axes and its convergence is NON-MONOTONIC (GL-11 worse than GL-9,
+//       GL-23 worse than GL-17), so no "degree N suffices" statement survives it.  Why a metal is worst
+//       follows from (1): a nearly-free-electron valence density is the one that puts substantial
+//       charge ON the partition surface.  The theory held; the three-system sample just did not
+//       contain its own worst case.
+//   (b) GPW_SCF.AlFCCDegenerateShellAufbauStalls flips QUALITATIVELY at degree 17: it starts
+//       CONVERGING, which is a FAILURE.  That test asserts integer aufbau cannot converge a degenerate
+//       3p shell (the density rotates freely in the manifold).  A coarser angular grid has larger
+//       ORIENTATION-DEPENDENT quadrature error, which PINS the rotation -- so the run "converges" to a
+//       state held in place by grid error.  Same mechanism as the SiPseudoAtomInBoxMatchesFinite
+//       caveat, from the other side.  Never re-pin that EXPECT_FALSE to make a grid change pass.
+//   (c) THE METHODOLOGICAL LIMIT OF THIS WHOLE FILE'S LADDER, and the most transferable finding:
+//       A FROZEN-DENSITY QUADRATURE ERROR UNDERSTATES THE SELF-CONSISTENT SHIFT ON A METAL.
+//       Al at degree 17 measures max|dVxc|=3.9e-4, comfortably inside the gate -- yet both Al SCF
+//       anchors moved 6.4e-4 in TOTAL ENERGY when the default was flipped.  Grid error feeds back
+//       through the density, the Fermi level and the occupations; on an insulator the two numbers
+//       agree (Si/NaF anchors did not move at all), across a Fermi surface they do not.  A ladder
+//       measures the QUADRATURE; for a metal that is a LOWER BOUND on what the SCF does with it.
+//       => Before trusting any verdict from these ladders on a metal, do a converged-run A/B as well.
+//
+//  STANDING RULE EARNED HERE: calibrate a grid criterion on a simple METAL, or do not ship it as a
+//  global default.  Three insulator-fitted rules broke on Al in one session (the angular degree, the
+//  degenerate-shell assumption, and V2.7's radial threshold).
 //================================================================================================
 namespace
 {

@@ -66,8 +66,11 @@ export namespace qchem::qcMesh
 //! comparison (nAtoms x nRadial x nDirs), so an over-generous recipe moves the Uniform-vs-Becke crossover
 //! against Becke.
 //!
-//! \par MEASURED (V2.6, 2026-08-07) on THREE systems -- Si diamond (covalent), NaF rocksalt (ionic), Mn
-//! sextet atom-in-box (open-shell d).  Instrument: \c GPW_SCF.DISABLED_BeckeRecipeLadder_* (hand-run) -- one
+//! \par MEASURED (V2.6, 2026-08-07) on FOUR systems -- Si diamond (covalent), NaF rocksalt (ionic), Mn
+//! sextet atom-in-box (open-shell d), Al FCC (simple metal).  **The full data tables, the four refuted
+//! guesses, and the V2.6a post-mortem live in the section header above
+//! \c GPW_SCF.DISABLED_BeckeRecipeLadder_* in IntegrationTests/GPW_SCF_UT.C** -- read that before changing
+//! either number.  Instrument: those tests (hand-run) -- one
 //! converged density, quadratured on a ladder of meshes against a fine reference in the same family, scored
 //! on E_xc and the V_xc MATRIX (never \f$\Delta E_{total}\f$ -- the D8 pin).  Verdicts, at the Becke gate's
 //! own \c max|dVxc|<1e-3:
@@ -100,7 +103,10 @@ export namespace qchem::qcMesh
 //! clusters as \f$r\propto x^m\f$, so those nodes bunch at tiny \a r and leave a gap exactly at the density
 //! peak.  The quantity that DOES track the measurement across all three systems is the LOCAL SPACING at the
 //! peak of \f$r^2e^{-2\alpha_{\max}r^2}\f$: \f$r_{peak}/\Delta r(r_{peak})\gtrsim3\f$ marks the first rung
-//! inside tolerance in every case (Si 3.4 at nR=30, Mn 3.0 at nR=40).  See V2.6 in doc/CleanupCandidates.md.
+//! inside tolerance for Si (3.4 at nR=30) and Mn (3.0 at nR=40) -- but Al breaks it too (3.2 at nR=30,
+//! which the rule passes, where measurement is 9x out).  The SHAPE is right, the threshold is
+//! insulator-fitted.  **Standing rule earned here: calibrate a grid criterion on a simple METAL, or do not
+//! ship it as a global default.**
 //!
 //! Environment instruments (sweep a whole run without rebuilding):
 //!   - \c GPW_BECKE_NR     radial point count.                                        Default 40.
