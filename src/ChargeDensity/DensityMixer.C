@@ -23,6 +23,7 @@ module;
 #include <cassert>
 #include <deque>
 #include <type_traits>
+#include <optional>
 #include <cstdlib>   // getenv (the QCHEM_SPINBLIND_KERKER A/B valve)
 export module qchem.ChargeDensity.DensityMixer;
 export import qchem.ChargeDensity;                 // tChargeDensity<T>, tDM_CD<T>
@@ -128,14 +129,50 @@ inline rvec_t RasterKerker(const BasisSet::G_FieldEvaluator& ge, const rvec_t& i
     return mix;
 }
 
+//! THE MIXABLE ENTITY: a G-space field \f$\tilde f(G)\f$ plus its optional raw-raster shadow.
+//!
+//! This type exists to make \f$m=\rho_\uparrow-\rho_\downarrow\f$ a FIRST-CLASS SUBJECT OF MIXING (user,
+//! 2026-08-08).  A ρ̃ mixer's real precondition was never "a density" -- Kerker and Pulay only ever touched
+//! the \c FourierDensity face -- yet they DECLARED \c Mix(cd_t&,...), i.e. a density-matrix-backed density.
+//! That wider-than-necessary precondition is precisely what made m unsubstitutable: m has no density matrix,
+//! no charge and no positivity, so it could never satisfy a requirement none of those mixers actually had.
+//! Naming the true subject fixes it -- ρ and m are now THE SAME TYPE, and any field mixer takes either.
+//! (Faking a density instead -- a \c tDM_CD with asserting stubs -- is the anti-pattern this codebase
+//! avoids: capabilities live only on the types that have them.)
+//!
+//! NB the asymmetry is real and deliberate: the mix INPUT is a field (ρ or m equally), while the Fock
+//! OUTPUT is genuinely a density -- the Hamiltonian consumes ρ, never m.  So substitutability belongs on
+//! the input side, which is where it now lives.
+struct GField
+{
+    ΔG_Map tilde;    //!< \f$\tilde f(G)\f$ on the fit basis's difference set
+    rvec_t raster;   //!< the raw-raster shadow (doc/GPWPlan 0.5(f2)); empty = the raw pipeline is off
+};
+
+//! A mixer whose subject is a \c GField -- i.e. one that works purely in G space (Kerker, Pulay; NOT the
+//! DM-based linear mixer, which genuinely needs the density matrix).  \c tDensityMixer::Mix is then just the
+//! adapter that extracts the field from a density and calls this.
+class tFieldMixer
+{
+public:
+    virtual ~tFieldMixer() {}
+    //! Fold the freshly collocated \a out into the running mixed field; returns the residual ‖out−in‖_∞.
+    virtual double MixField(const GField& out) = 0;
+    //! The running mixed density -- the PRESENTATION of the mixed field (what \c FockDensity returns, and
+    //! what a caller recombining spin channels reads ρ̃ back from).
+    virtual const FourierMixCD& Mixed() const = 0;
+};
+
 //! Kerker-preconditioned ρ̃(G)-mixing (periodic / dcmplx).  ρ_mix = ρ_in + α·G²/(G²+G0²)·(ρ_out−ρ_in).
+//! NB \b G0=0 makes this the PLAIN LINEAR G-space mixer (the filter is identically 1) -- which is exactly
+//! the "linear on m" leaf of the (ρ,m) channel basis, so that construction needs no new mixer type.
 //! Holds the running mixed ρ̃ as a FourierMixCD; the next Fock is driven from it.  Built by
 //! MakeGSpaceMixer -- on a polarized run, one of these PER SPIN CHANNEL (see PolarizedDensityMixer).
 //! NB G=0 IS mixed, at full α: our ρ̃ is a fit-basis PROJECTION whose (0,0,0) coefficient is shape-dependent
 //! rather than the fixed N/Ω, so freezing it would strand the XC's mean density at the seed (the reason is
 //! in FourierMixCD::KerkerMix, which owns the filter).  CP2K does the same -- its kerker_factor array is
 //! left at 1.0 for G=0 (qs_mixing_utils.F: `ig1 = 2` when the grid has G=0).
-class KerkerMixer : public tDensityMixer<dcmplx>
+class KerkerMixer : public tDensityMixer<dcmplx>, public virtual tFieldMixer
 {
 public:
     KerkerMixer(double relax, double G0, std::shared_ptr<const BasisSet::cFIT_SF_ABS> fit,
@@ -144,11 +181,20 @@ public:
         , itsRawIn(std::move(raw0))
     { if (itsRawIn.size()) itsMixedRho->SetRawRho(itsRawIn); }
 
+    //! The density-face entry: extract ρ̃_out + the raster shadow, then do the G-space arithmetic below.
     double Mix(cd_t& working, const cd_t& /*old*/) override
     {
         auto* fd = dynamic_cast<const FourierDensity*>(working.get());
         assert(fd && itsMixedRho);
-        const ΔG_Map  rho_out = fd->GetFourierDensity(*itsKerkerFit);
+        return MixField({fd->GetFourierDensity(*itsKerkerFit), fd->GetRhoOnGrid(*itsKerkerFit)});
+    }
+    const FourierMixCD& Mixed() const override { assert(itsMixedRho); return *itsMixedRho; }
+
+    double MixField(const GField& out) override
+    {
+        assert(itsMixedRho);
+        const ΔG_Map& rho_out = out.tilde;
+        const rvec_t& rawOut  = out.raster;
         const ΔG_Map& rho_in  = itsMixedRho->RhoTilde();
         // SCF residual ‖ρ̃_out − ρ̃_in‖_∞ -- the RIGHT ρ-mixing gate (0 at the fixed point).
         double resid = 0.0;
@@ -163,7 +209,6 @@ public:
         // RAW-raster shadow (0.5(f2)): the same Kerker step on rho_raw(r), deposited so the XC feed stays raw
         // through the DYNAMICS.  Late-activates the first time the working density answers raw (a SAD-seeded
         // run's iteration 1); deactivates for the run if a raw answer stops coming or changes raster.
-        rvec_t rawOut = fd->GetRhoOnGrid(*itsKerkerFit);
         auto*  ge     = dynamic_cast<const BasisSet::G_FieldEvaluator*>(itsKerkerFit.get());
         if (rawOut.size() && ge)
         {
@@ -203,6 +248,18 @@ inline ΔG_Map MapAdd(ΔG_Map a, const ΔG_Map& b)          // a + b (the ↑+�
     for (const auto& [k,v]:b) a[k]+=v;
     return a;
 }
+inline ΔG_Map MapScale(ΔG_Map a, double s)               // s*a (the ½ of the (ρ±m)/2 channel rebuild)
+{
+    for (auto& [k,v]:a) v=s*v;
+    return a;
+}
+//! s*(a + sign*b) for the raster shadows, empty unless BOTH arms answer on the same raster.
+inline rvec_t RawCombine(const rvec_t& a, const rvec_t& b, double sign, double s)
+{
+    if (a.size()==0 || a.size()!=b.size()) return rvec_t{};
+    rvec_t r=a; r+=sign*b; r*=s;
+    return r;
+}
 inline double MapMaxAbs(const ΔG_Map& m)
 {
     double x=0.0; for (const auto& [k,v]:m) x=std::max(x,std::abs(v)); return x;
@@ -225,7 +282,7 @@ inline double MapInnerRe(const ΔG_Map& a, const ΔG_Map& b)  // Re Σ_{G≠0} c
 //! extrapolated ρ̃_in*=Σcᵢρ̃_inᵢ and ρ̃_out*=Σcᵢρ̃_outᵢ, and applies the Kerker step to THOSE via FourierMixCD::
 //! KerkerMix (= ρ̃_in* + α·G²/(G²+G0²)·(ρ̃_out*−ρ̃_in*)).  First iteration (history<2) falls back to plain
 //! Kerker.  doc/SCFStrategyPlan.md §4 (the density-face use of the shared extrapolator).
-class PulayMixer : public tDensityMixer<dcmplx>
+class PulayMixer : public tDensityMixer<dcmplx>, public virtual tFieldMixer
 {
 public:
     PulayMixer(double relax, double G0, int depth, int start, std::shared_ptr<const BasisSet::cFIT_SF_ABS> fit,
@@ -236,16 +293,24 @@ public:
         , itsRawIn(std::move(raw0))
     { if (itsRawIn.size()) itsMixedRho->SetRawRho(itsRawIn); }
 
+    //! The density-face entry: extract ρ̃_out + the raster shadow, then do the G-space arithmetic below.
     double Mix(cd_t& working, const cd_t&) override
     {
         auto* fd = dynamic_cast<const FourierDensity*>(working.get());
         assert(fd && itsMixedRho);
+        return MixField({fd->GetFourierDensity(*itsKerkerFit), fd->GetRhoOnGrid(*itsKerkerFit)});
+    }
+    const FourierMixCD& Mixed() const override { assert(itsMixedRho); return *itsMixedRho; }
+
+    double MixField(const GField& field) override
+    {
+        assert(itsMixedRho);
+        const ΔG_Map& out    = field.tilde;
+        const rvec_t& rawOut = field.raster;
         ΔG_Map in  = itsMixedRho->RhoTilde();               // ρ̃_in : the density fed to this iteration's Fock
-        ΔG_Map out = fd->GetFourierDensity(*itsKerkerFit);  // ρ̃_out: freshly collocated from the diagonalized D
         ΔG_Map res = MapSub(out,in);                        // residual = ρ̃_out − ρ̃_in
         double resid = MapMaxAbs(res);
         // RAW-raster shadow inputs (0.5(f2)); late-activates like KerkerMixer, drops out if answers stop.
-        rvec_t rawOut = fd->GetRhoOnGrid(*itsKerkerFit);
         auto*  ge     = dynamic_cast<const BasisSet::G_FieldEvaluator*>(itsKerkerFit.get());
         const bool raw = rawOut.size() && ge;
         if (raw && itsRawIn.size()!=rawOut.size()) itsRawIn=rawOut;                    // bootstrap/late-activate
@@ -412,26 +477,81 @@ private:
 //! ONE ρ̃ mixer per spin channel, plus the spin-resolved Fock view they feed.  Pure forwarding: the leaves
 //! are ordinary \c tDensityMixer<dcmplx>s built by the SAME factory the unpolarized path uses, so Kerker and
 //! Pulay (and their successors) are supported here without this class knowing which it holds.
+//! WHICH pair of linear combinations the two leaves mix.
+enum class ChannelBasis
+{
+    SpinChannels,    //!< (ρ↑, ρ↓) -- one leaf each.  Reproduces CP2K's Kerker exactly (see the note above).
+    TotalAndMoment   //!< (ρ, m=ρ↑−ρ↓) -- lets the two get DIFFERENT leaves.  The physics reason to want it:
+                     //!< Kerker's G²/(G²+G₀²) models the Hartree restoring force against long-wavelength
+                     //!< CHARGE fluctuations, and the magnetization has no such force, so damping its low-G
+                     //!< residual is unmotivated.  Pairing a Kerker leaf on ρ with a PLAIN LINEAR leaf on m
+                     //!< (= Kerker at G₀=0) is a 2x2 COUPLED mix in spin space -- provably NOT reachable by
+                     //!< any per-(ρ↑,ρ↓) leaf pair, which is why the G₀ sweep could not test it.  Here we
+                     //!< deliberately DIVERGE from CP2K, which damps m with the same filter as ρ.
+};
+
 class PolarizedDensityMixer : public tDensityMixer<dcmplx>
 {
 public:
+    //! \a up/\a dn are the two leaves.  Under \c SpinChannels they mix ρ↑/ρ↓; under \c TotalAndMoment they
+    //! mix ρ/m and MUST both satisfy \c cFourierMixer (checked here) -- m is a difference of maps, so it can
+    //! only be driven through the G-space face.  \a fit/\a recip are needed in that mode to read the working
+    //! channels' ρ̃ and to rebuild the channel pair the Fock consumes.
+    //! (ρ↑,ρ↓) basis: one leaf per spin channel.  Needs nothing but the leaves.
     PolarizedDensityMixer(std::unique_ptr<tDensityMixer<dcmplx>> up,
                           std::unique_ptr<tDensityMixer<dcmplx>> dn)
-        : itsUp(std::move(up)), itsDn(std::move(dn)) {}
+        : itsUp(std::move(up)), itsDn(std::move(dn)), itsBasis(ChannelBasis::SpinChannels) {}
+
+    //! (ρ,m) basis: \a rho and \a m mix the total and the magnetization, so BOTH must be field mixers
+    //! (m is a difference of maps -- see GField).  \a fit/\a recip read the working channels' ρ̃ and give
+    //! the rebuilt channel pair its metric.  Separate constructor rather than defaulted arguments: in this
+    //! basis they are REQUIRED, and there is no meaningful "no reciprocal lattice".
+    PolarizedDensityMixer(std::unique_ptr<tDensityMixer<dcmplx>> rho,
+                          std::unique_ptr<tDensityMixer<dcmplx>> m,
+                          std::shared_ptr<const BasisSet::cFIT_SF_ABS> fit,
+                          const ReciprocalLattice& recip)
+        : itsUp(std::move(rho)), itsDn(std::move(m)), itsBasis(ChannelBasis::TotalAndMoment)
+        , itsFit(std::move(fit)), itsRecip(recip)
+    {
+        itsRhoF=dynamic_cast<tFieldMixer*>(itsUp.get());
+        itsMF  =dynamic_cast<tFieldMixer*>(itsDn.get());
+        assert(itsRhoF && itsMF && itsFit &&
+               "PolarizedDensityMixer(ρ,m): both leaves must be field mixers");
+    }
 
     //! Mix each channel with its own leaf; the SCF gate is the WORSE channel (both must converge -- an AFM
     //! solution whose total has settled while the staggering still moves is not converged).
     double Mix(cd_t& working, const cd_t& old) override
     {
         auto [wu,wd]=Channels(working);
-        auto [ou,od]=Channels(old);
-        const double du=itsUp->Mix(wu,ou), dd=itsDn->Mix(wd,od);
-        return std::max(du,dd);
+        if (itsBasis==ChannelBasis::SpinChannels)
+        {
+            auto [ou,od]=Channels(old);
+            const double du=itsUp->Mix(wu,ou), dd=itsDn->Mix(wd,od);
+            return std::max(du,dd);
+        }
+        // (ρ,m): read BOTH channels' fresh ρ̃, form the two combinations, and give each its own leaf.
+        const FourierDensity& fu=FourierOf(wu.get());
+        const FourierDensity& fd=FourierOf(wd.get());
+        const ΔG_Map up=fu.GetFourierDensity(*itsFit), dn=fd.GetFourierDensity(*itsFit);
+        const rvec_t rup=fu.GetRhoOnGrid(*itsFit),     rdn=fd.GetRhoOnGrid(*itsFit);
+        const double dRho=itsRhoF->MixField({MapAdd(up,dn), RawCombine(rup,rdn,+1.0,1.0)});
+        const double dM  =itsMF  ->MixField({MapSub(up,dn), RawCombine(rup,rdn,-1.0,1.0)});
+        RebuildChannels(wu->GetTotalCharge(), wd->GetTotalCharge());
+        return std::max(dRho,dM);
     }
     const tChargeDensity<dcmplx>* FockDensity(const cd_t& working) const override
     {
-        auto [wu,wd]=Channels(working);
-        itsFock.Seat(itsUp->FockDensity(wu), itsDn->FockDensity(wd));
+        if (itsBasis==ChannelBasis::SpinChannels)
+        {
+            auto [wu,wd]=Channels(working);
+            itsFock.Seat(itsUp->FockDensity(wu), itsDn->FockDensity(wd));
+        }
+        else if (!itsChUp)                        // iteration 1: FockDensity runs BEFORE the first Mix
+        {
+            auto [wu,wd]=Channels(working);
+            RebuildChannels(wu->GetTotalCharge(), wd->GetTotalCharge());
+        }
         return &itsFock;
     }
     double      GetRelax() const override { return itsUp->GetRelax(); }
@@ -457,7 +577,32 @@ private:
         assert(pol && "PolarizedDensityMixer: the working density must be polarized");
         return { cd_t(cd, pol->GetChargeDensity(Spin::Up)), cd_t(cd, pol->GetChargeDensity(Spin::Down)) };
     }
+    static const FourierDensity& FourierOf(const tChargeDensity<dcmplx>* cd)
+    {
+        auto* f=dynamic_cast<const FourierDensity*>(cd);
+        assert(f && "PolarizedDensityMixer: a spin channel must carry the FourierDensity face");
+        return *f;
+    }
+    //! (ρ,m) mode only: rebuild the CHANNEL pair the Fock consumes, ρ̃_σ = (ρ̃ ± m̃)/2, from the two leaves'
+    //! mixed combinations, and re-seat the view on them.  Rebuilt (rather than viewed) because a fresh
+    //! FourierMixCD is what carries the batch evaluator, the Poisson kernel and a fresh logical-clock serial.
+    void RebuildChannels(double qUp, double qDn) const
+    {
+        const ΔG_Map& r=itsRhoF->Mixed().RhoTilde();
+        const ΔG_Map& m=itsMF  ->Mixed().RhoTilde();
+        itsChUp=std::make_shared<FourierMixCD>(MapScale(MapAdd(r,m),0.5), *itsRecip, qUp);
+        itsChDn=std::make_shared<FourierMixCD>(MapScale(MapSub(r,m),0.5), *itsRecip, qDn);
+        const rvec_t rr=itsRhoF->Mixed().GetRhoOnGrid(*itsFit), mm=itsMF->Mixed().GetRhoOnGrid(*itsFit);
+        if (rvec_t u=RawCombine(rr,mm,+1.0,0.5); u.size()) itsChUp->SetRawRho(std::move(u));
+        if (rvec_t d=RawCombine(rr,mm,-1.0,0.5); d.size()) itsChDn->SetRawRho(std::move(d));
+        itsFock.Seat(itsChUp.get(), itsChDn.get());
+    }
     std::unique_ptr<tDensityMixer<dcmplx>> itsUp, itsDn;
+    ChannelBasis itsBasis;
+    std::shared_ptr<const BasisSet::cFIT_SF_ABS> itsFit;   //!< (ρ,m) mode: reads the channels' ρ̃
+    std::optional<ReciprocalLattice> itsRecip;             //!< (ρ,m) mode: metric of the rebuilt channels
+    tFieldMixer *itsRhoF=nullptr, *itsMF=nullptr;          //!< the leaves' FIELD face ((ρ,m) mode)
+    mutable std::shared_ptr<FourierMixCD> itsChUp, itsChDn;//!< the rebuilt channel pair ((ρ,m) mode)
     mutable PolarizedMixCD itsFock;   //!< re-seated by FockDensity (the leaves' outputs change every mix)
 };
 
@@ -469,13 +614,10 @@ private:
 inline std::unique_ptr<tDensityMixer<dcmplx>> MakeGSpaceMixer(
     double relax0, double kerkerG0, int pulayDepth, int pulayStart,
     std::shared_ptr<const BasisSet::cFIT_SF_ABS> fit, const ReciprocalLattice& recip,
-    const tChargeDensity<dcmplx>* seed, const std::string& label="")
+    GField seed0, double charge, const std::string& label="")
 {
-    auto* fd = dynamic_cast<const FourierDensity*>(seed);
-    assert(fd && "MakeGSpaceMixer: the seed density must carry the FourierDensity face");
-    ΔG_Map rho0 = fd->GetFourierDensity(*fit);
-    rvec_t raw0 = fd->GetRhoOnGrid(*fit);        // raw-raster shadow seed (0.5(f2)); empty = late-activate
-    const double charge = seed->GetTotalCharge();
+    ΔG_Map rho0 = std::move(seed0.tilde);
+    rvec_t raw0 = std::move(seed0.raster);       // raw-raster shadow seed (0.5(f2)); empty = late-activate
     std::cerr << "[" << (pulayDepth>0 ? "Pulay" : "Kerker") << "] ENABLED"
               << (label.empty() ? std::string() : " ("+label+")") << ": G0=" << kerkerG0
               << ", ρ̃-mixing on " << charge << " electrons (" << rho0.size() << " G-vectors"
@@ -485,6 +627,20 @@ inline std::unique_ptr<tDensityMixer<dcmplx>> MakeGSpaceMixer(
                                             std::move(rho0), charge, std::move(raw0));
     auto mixed = std::make_shared<FourierMixCD>(std::move(rho0), recip, charge);
     return std::make_unique<KerkerMixer>(relax0, kerkerG0, std::move(fit), std::move(mixed), std::move(raw0));
+}
+
+//! Convenience overload seeded from a DENSITY -- it just reads the field off the density's Fourier face.
+//! (The field-taking overload above is the primary one: it is what m can be built from.)
+inline std::unique_ptr<tDensityMixer<dcmplx>> MakeGSpaceMixer(
+    double relax0, double kerkerG0, int pulayDepth, int pulayStart,
+    std::shared_ptr<const BasisSet::cFIT_SF_ABS> fit, const ReciprocalLattice& recip,
+    const tChargeDensity<dcmplx>* seed, const std::string& label="")
+{
+    auto* fd = dynamic_cast<const FourierDensity*>(seed);
+    assert(fd && "MakeGSpaceMixer: the seed density must carry the FourierDensity face");
+    return MakeGSpaceMixer(relax0, kerkerG0, pulayDepth, pulayStart, fit, recip,
+                           GField{fd->GetFourierDensity(*fit), fd->GetRhoOnGrid(*fit)},
+                           seed->GetTotalCharge(), label);
 }
 
 //! Build the density mixer for a run: Kerker when \a kerkerG0>0 AND the basis/cell/seed are periodic
@@ -518,6 +674,26 @@ template <class T> std::unique_ptr<tDensityMixer<T>> MakeDensityMixer(
             const bool spinBlind = std::getenv("QCHEM_SPINBLIND_KERKER");
             if (auto* pol = spinBlind ? nullptr : dynamic_cast<const tPolarized_CD<T>*>(seed))
             {
+                // CHANNEL BASIS.  Default (ρ↑,ρ↓) reproduces CP2K's Kerker exactly.  QCHEM_MIX_RHO_M=1
+                // selects (ρ,m): Kerker on ρ, PLAIN LINEAR on m (G0=0 -- the filter is identically 1), the
+                // construction the G₀ sweep could NOT test, because a uniform filter on (ρ↑,ρ↓) is
+                // algebraically the same operator as that filter on (ρ,m).  Physics: Kerker models the
+                // Hartree restoring force against long-wavelength CHARGE fluctuations; m has none.
+                if (std::getenv("QCHEM_MIX_RHO_M"))
+                {
+                    const auto* up=pol->GetChargeDensity(Spin::Up), *dn=pol->GetChargeDensity(Spin::Down);
+                    const auto& fu=dynamic_cast<const FourierDensity&>(*up);
+                    const auto& fd2=dynamic_cast<const FourierDensity&>(*dn);
+                    const ΔG_Map tu=fu.GetFourierDensity(*fit), td=fd2.GetFourierDensity(*fit);
+                    const rvec_t ru=fu.GetRhoOnGrid(*fit),      rd=fd2.GetRhoOnGrid(*fit);
+                    auto mr=MakeGSpaceMixer(relax0,kerkerG0,pulayDepth,pulayStart,fit,recip,
+                                            GField{MapAdd(tu,td), RawCombine(ru,rd,+1.0,1.0)},
+                                            up->GetTotalCharge()+dn->GetTotalCharge(), "ρ");
+                    auto mm=MakeGSpaceMixer(relax0,/*G0*/0.0,pulayDepth,pulayStart,fit,recip,
+                                            GField{MapSub(tu,td), RawCombine(ru,rd,-1.0,1.0)},
+                                            0.0, "m: LINEAR, undamped");
+                    return std::make_unique<PolarizedDensityMixer>(std::move(mr), std::move(mm), fit, recip);
+                }
                 auto up=MakeGSpaceMixer(relax0,kerkerG0,pulayDepth,pulayStart,fit,recip,pol->GetChargeDensity(Spin::Up  ),"↑");
                 auto dn=MakeGSpaceMixer(relax0,kerkerG0,pulayDepth,pulayStart,fit,recip,pol->GetChargeDensity(Spin::Down),"↓");
                 return std::make_unique<PolarizedDensityMixer>(std::move(up), std::move(dn));

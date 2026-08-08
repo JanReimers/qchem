@@ -1142,10 +1142,22 @@ against a special case it will outgrow:
          both (effective AFM step 0.146·0.25=0.037 — hence the slowness).  **The limit of the trend is not a
          bigger G₀, it is NOT KERKERING m AT ALL** — the user's original physics instinct: Kerker's
          G²/(G²+G₀²) models the Hartree restoring force against long-wavelength CHARGE fluctuations, which
-         the magnetization does not have.  NEXT INCREMENT: a (ρ,m) channel-basis option in
-         `PolarizedDensityMixer` — Kerker leaf on ρ, plain-linear leaf on m.  It is a change to that ONE
-         class (the composite already owns the basis choice), and it is where we deliberately DIVERGE from
-         CP2K, which damps m with the same filter.  The `m_stag` assert stays the acceptance test.
+         the magnetization does not have.
+       * **(ρ,m) BASIS BUILT AND MEASURED — THE HYPOTHESIS IS REFUTED AS A CURE (run 11, 2026-08-08).**
+         `PolarizedDensityMixer` gained the (ρ,m) channel basis (`QCHEM_MIX_RHO_M=1`): Kerker leaf on ρ,
+         PLAIN LINEAR leaf on m (= Kerker at G₀=0, so no new mixer type was needed).  It is a 2×2 COUPLED
+         mix in spin space — provably unreachable by any per-(ρ↑,ρ↓) leaf pair, which is exactly why the G₀
+         sweep could not test it (a uniform filter on (ρ↑,ρ↓) IS that filter on (ρ,m)).  A/B at identical
+         α=0.25 and G₀-on-ρ: peak m_stag 0.0618@it7 vs 0.1064@it7; final −0.0029 vs 7.3e-5; final E −49.08
+         vs −49.12.  So undamping m leaves ~40× more residual moment (the effect is REAL) but LOWERS the
+         peak and rescues nothing — both arms fall into the SAME two-branch oscillation at the same energy.
+         **Kerker damping of m was not what killed the AFM order.**  Every mixing-side candidate is now
+         fixed or eliminated: spin-blind ρ̃ mixer (a real bug, fixed), DIIS-per-spin (checked in source — it
+         is JOINT: one B summed over both spins, one coefficient vector held by reference), G₀ selectivity
+         (swept), Kerker-on-m (built + measured).  **THE REMAINING DEFECT IS THE OCCUPATION HOPPING.**  The
+         (ρ,m) basis stays an opt-in capability (default unchanged): it is the physically-motivated
+         construction and the one place we deliberately diverge from CP2K, but it is not the MnO cure.
+         The `m_stag` assert stays the acceptance test.  Log `run11_rho_m_basis`.
        * **THE INSTRUMENT (general, landed with the diagnosis)**: `tSCFIterator::SetOrderParameter(name,
          probe)` — a caller-supplied named scalar measured on the WORKING density every iteration, rendered
          as an extra trace column, carried in `SCFProgress`, and printed once at "iteration 0 (seed)" as the
